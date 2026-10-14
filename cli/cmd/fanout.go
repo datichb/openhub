@@ -220,6 +220,12 @@ func (l *fanoutLauncher) Start(ctx context.Context, req fanout.LaunchRequest) (s
 	}
 	base := &p.plan.Request.Base
 	base.Attach, base.Headless, base.Fanout = sessionspec.AttachNone, true, req.Record
+	if req.Record.Role == domain.RoleChild {
+		// What changes for a child, told by oh after its prompt.
+		for i := range p.plan.Sessions {
+			p.plan.Sessions[i].Prompt += "\n\n" + i18n.Tf("cmd.fanout.child_note", req.Parent.ID, req.Record.Branch)
+		}
+	}
 	if req.BudgetUSD > 0 && (base.Limits.SessionBudgetUSD == 0 || base.Limits.SessionBudgetUSD > req.BudgetUSD) {
 		base.Limits.SessionBudgetUSD = req.BudgetUSD // F-04: what remains of the global budget
 	}

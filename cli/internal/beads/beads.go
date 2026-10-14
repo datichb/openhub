@@ -491,22 +491,6 @@ type TicketDependency struct {
 	Type string `json:"dependency_type,omitempty"`
 }
 
-// Dependencies returns the tickets ticketID is blocked by (dependencies of
-// type blocks; parent-child and related links are left out).
-func Dependencies(projectPath, ticketID string) ([]string, error) {
-	d, err := Show(projectPath, ticketID)
-	if err != nil {
-		return nil, err
-	}
-	var out []string
-	for _, dep := range d.Dependencies {
-		if dep.ID != "" && (dep.Type == "" || dep.Type == "blocks") {
-			out = append(out, dep.ID)
-		}
-	}
-	return out, nil
-}
-
 // runBdJSON executes a bd command and parses the JSON output.
 func runBdJSON(args []string) ([]Ticket, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), bdTimeout)

@@ -140,6 +140,7 @@ type fixture struct {
 	passed   bool
 	wf       *sessionspec.WorkflowRuntime
 	deps     map[string][]string
+	closed   map[string]bool
 }
 
 func newFixture(t *testing.T, tickets ...string) *fixture {
@@ -154,7 +155,7 @@ func newFixture(t *testing.T, tickets ...string) *fixture {
 	require.NoError(t, os.MkdirAll(project, 0o755))
 	run(t, project, "git", "init", "-q", "-b", "main")
 	commit(t, project, "calc.go", "package calc\n", "init")
-	f := &fixture{store: sqlite.NewSessionStore(st), project: project, passed: true, deps: map[string][]string{}}
+	f := &fixture{store: sqlite.NewSessionStore(st), project: project, passed: true, deps: map[string][]string{}, closed: map[string]bool{}}
 	f.wf = &sessionspec.WorkflowRuntime{ID: "implement-spec", Checkpoints: []sessionspec.CheckpointDef{{ID: "cp-plan", Mandatory: true}, {ID: "cp-merge", Mandatory: true}},
 		Fanout: &sessionspec.FanoutDef{Child: "ticket", Merge: "cp-merge", Parallel: 3, Merger: "merge-conflicts", Delegates: []string{"cp-2"}}}
 	f.launcher = &fakeLauncher{t: t, store: f.store, work: map[string][2]string{}}
@@ -166,7 +167,9 @@ func newFixture(t *testing.T, tickets ...string) *fixture {
 			}
 			return f.wf, st, nil
 		},
-		Deps: func(_ context.Context, _, ticket string) ([]string, error) { return f.deps[ticket], nil },
+		Ticket: func(_ context.Context, _, ticket string) ([]string, bool, error) {
+			return f.deps[ticket], f.closed[ticket], nil
+		},
 	}
 	require.NoError(t, f.store.Create(context.Background(), &domain.Session{ID: "ses_parent", ProjectID: "p1", Status: domain.SessionStatusRunning, State: domain.RunIdle,
 		LaunchPath: project, Tickets: tickets, Fanout: &domain.SessionFanout{Role: domain.RoleParent, Experimental: true, Status: domain.FanoutWaiting}}))
@@ -338,6 +341,18 @@ func readFile(t *testing.T, p string) string {
 	data, err := os.ReadFile(p)
 	require.NoError(t, err)
 	return string(data)
+}
+
+func TestDriverSkipsClosedTicket(t *testing.T) {
+	f := newFixture(t, "ev-1", "ev-2")
+	f.closed["ev-1"] = true
+	f.launcher.work["ev-2"] = [2]string{"b.go", "package calc\n"}
+	fo := f.runDriver(t)
+	c, _ := fo.Child("ev-1")
+	assert.Equal(t, domain.ChildFailed, c.State)
+	assert.Empty(t, c.Session, "no child for a closed ticket")
+	require.Len(t, f.launcher.started, 1)
+	assert.Equal(t, "ev-2", f.launcher.started[0].Ticket)
 }
 
 func TestDriverChildWithoutCommit(t *testing.T) {

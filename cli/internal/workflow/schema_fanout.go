@@ -137,7 +137,7 @@ func (s *Spec) FanoutOf(inputs map[string]any) bool {
 // ForFanout returns s as a session sees it, fan-out or not: the
 // checkpoints of the other kind of session are dropped, and in a fan-out
 // session the agents gated on a dropped checkpoint (the developer, after
-// cp-1) are disabled: the children do their work. A session that is not
+// cp-1) are removed: the children do their work. A session that is not
 // a fan-out loses the fan-out block (same bundle as before R6). s itself
 // is never changed.
 func (s *Spec) ForFanout(on bool) *Spec {
@@ -163,10 +163,8 @@ func (s *Spec) ForFanout(on bool) *Spec {
 		return c
 	}
 	for _, id := range c.Agents.Keys() {
-		a, _ := c.Agents.Get(id)
-		if a.After != "" && slices.Contains(drop, a.After) {
-			a.Role, a.After = RoleDisabled, ""
-			c.Agents.Set(id, a)
+		if a, _ := c.Agents.Get(id); a.After != "" && slices.Contains(drop, a.After) {
+			c.Agents.Delete(id)
 		}
 	}
 	return c

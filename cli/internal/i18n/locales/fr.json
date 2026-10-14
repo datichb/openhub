@@ -428,6 +428,8 @@
   "cmd.fanout.child_dirty": "modifications non commitées dans le worktree de l'enfant",
   "cmd.fanout.child_no_commit": "aucun commit sur la branche de l'enfant",
   "cmd.fanout.conflict_unresolved": "conflit non résolu (%s)",
+  "cmd.fanout.ticket_closed": "ticket déjà fermé : aucune session enfant",
+  "cmd.fanout.child_note": "Session enfant du fan-out de %s (oh), sur la branche %s : ton `cp-2` passe sans pause (le `cp-merge` de la session parente le remplace), mais oh y lance toujours la vérification. Après `cp-2`, commite ton travail sur cette branche, puis termine par le récap : ne ferme pas le ticket, ne merge pas, ne pousse pas et ne change pas de branche (oh le refuse) ; oh merge ta branche et ferme le ticket une fois la session parente validée.",
   "cmd.fanout.summary_failed": "oh : le fan-out s'est arrêté avant la fin (voir le tableau). Ne passe pas le checkpoint de merge : présente l'état à l'utilisateur à cp-final.",
   "cmd.fanout.summary_head": "oh : les sessions enfants sont terminées.",
   "cmd.fanout.summary_branch": "Branche d'intégration : %s (%s, partie de %s).",

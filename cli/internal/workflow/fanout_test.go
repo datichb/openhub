@@ -92,8 +92,8 @@ func TestFanout_SessionSeesItsCheckpoints(t *testing.T) {
 	if got := strings.Join(r.Spec.Checkpoints.Keys(), ","); got != "cp-plan,cp-merge" {
 		t.Fatalf("fan-out session: %s", got)
 	}
-	if a, _ := r.Spec.Agents.Get("developer"); a.Role != RoleDisabled {
-		t.Fatalf("the developer gated on a dropped checkpoint is disabled: %+v", a)
+	if _, ok := r.Spec.Agents.Get("developer"); ok {
+		t.Fatal("the developer gated on a dropped checkpoint is removed")
 	}
 }
 

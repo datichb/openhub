@@ -428,6 +428,8 @@
   "cmd.fanout.child_dirty": "uncommitted changes in the worktree of the child",
   "cmd.fanout.child_no_commit": "no commit on the branch of the child",
   "cmd.fanout.conflict_unresolved": "unresolved conflict (%s)",
+  "cmd.fanout.ticket_closed": "ticket already closed: no child session",
+  "cmd.fanout.child_note": "Child session of the fan-out of %s (oh), on branch %s: your `cp-2` passes without pause (the `cp-merge` of the parent session replaces it), but oh still runs its verification. After `cp-2`, commit your work on this branch, then end with the recap: do not close the ticket, merge, push nor change branch (oh refuses it); oh merges your branch and closes the ticket once the parent session is validated.",
   "cmd.fanout.summary_failed": "oh: the fan-out stopped before the end (see the table). Do not pass the merge checkpoint: present the state to the user at cp-final.",
   "cmd.fanout.summary_head": "oh: the child sessions are done.",
   "cmd.fanout.summary_branch": "Integration branch: %s (%s, started from %s).",

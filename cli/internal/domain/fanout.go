@@ -79,11 +79,13 @@ type SessionFanout struct {
 	// Parent.
 	// Experimental: the fan-out was enabled in the configuration of oh
 	// when the parent was launched ([fanout] experimental).
-	Experimental bool               `json:"experimental,omitempty"`
-	Status       FanoutStatus       `json:"status,omitempty"`
-	Parallel     int                `json:"parallel,omitempty"`
-	Integration  *FanoutIntegration `json:"integration,omitempty"`
-	Children     []FanoutChild      `json:"children,omitempty"`
+	Experimental bool         `json:"experimental,omitempty"`
+	Status       FanoutStatus `json:"status,omitempty"`
+	Parallel     int          `json:"parallel,omitempty"`
+	// ChildInputs are inputs of the parent given to each child (method).
+	ChildInputs map[string]string  `json:"child_inputs,omitempty"`
+	Integration *FanoutIntegration `json:"integration,omitempty"`
+	Children    []FanoutChild      `json:"children,omitempty"`
 	// BudgetUSD is the global budget of the parent and its children (F-04,
 	// 0 = none); SpentUSD what they spent at the last check.
 	BudgetUSD float64       `json:"budget_usd,omitempty"`

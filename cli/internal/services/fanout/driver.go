@@ -63,8 +63,9 @@ type Driver struct {
 	// session (the parent).
 	Workflow func(ctx context.Context, sessionID string) (*sessionspec.WorkflowRuntime, domain.CheckpointState, error)
 	Launcher Launcher
-	// Deps returns the tickets a ticket depends on (nil = bd show).
-	Deps func(ctx context.Context, dir, ticket string) ([]string, error)
+	// Ticket returns the tickets a ticket depends on and whether it is
+	// already closed (nil = bd show).
+	Ticket func(ctx context.Context, dir, ticket string) (deps []string, closed bool, err error)
 	// Parallel caps the children at the same time (configuration of oh,
 	// 0 = the workflow's).
 	Parallel int
@@ -355,11 +356,12 @@ func (d *Driver) runChildren(ctx context.Context, parent string, wf *sessionspec
 }
 
 // dependencies reads, for each ticket of the fan-out, the tickets of the
-// fan-out it depends on.
+// fan-out it depends on; a ticket already closed gets no child (the plan
+// leaves it out).
 func (d *Driver) dependencies(ctx context.Context, p *domain.Session) map[string][]string {
-	get := d.Deps
+	get := d.Ticket
 	if get == nil {
-		get = bdDeps
+		get = bdTicket
 	}
 	in := map[string]bool{}
 	for _, c := range p.Fanout.Children {
@@ -367,8 +369,16 @@ func (d *Driver) dependencies(ctx context.Context, p *domain.Session) map[string
 	}
 	out := map[string][]string{}
 	for _, c := range p.Fanout.Children {
-		list, err := get(ctx, p.LaunchPath, c.Ticket)
+		list, closed, err := get(ctx, p.LaunchPath, c.Ticket)
 		if err != nil {
+			continue
+		}
+		if closed && c.State == domain.ChildPending {
+			_, _ = d.update(ctx, p.ID, func(f *domain.SessionFanout) {
+				if ch, ok := f.Child(c.Ticket); ok {
+					ch.State, ch.Error = domain.ChildFailed, i18n.T("cmd.fanout.ticket_closed")
+				}
+			})
 			continue
 		}
 		for _, t := range list {
@@ -380,8 +390,18 @@ func (d *Driver) dependencies(ctx context.Context, p *domain.Session) map[string
 	return out
 }
 
-func bdDeps(_ context.Context, dir, ticket string) ([]string, error) {
-	return beads.Dependencies(dir, ticket)
+func bdTicket(_ context.Context, dir, ticket string) ([]string, bool, error) {
+	t, err := beads.Show(dir, ticket)
+	if err != nil {
+		return nil, false, err
+	}
+	var deps []string
+	for _, dep := range t.Dependencies {
+		if dep.ID != "" && (dep.Type == "" || dep.Type == "blocks") {
+			deps = append(deps, dep.ID)
+		}
+	}
+	return deps, beads.IsClosedStatus(t.Status), nil
 }
 
 // depsState tells whether every dependency is merged (ready), or the first
@@ -465,7 +485,8 @@ func (d *Driver) launch(ctx context.Context, parent string, wf *sessionspec.Work
 	}); err != nil {
 		return err
 	}
-	sid, err := d.Launcher.Start(ctx, LaunchRequest{Parent: p, Workflow: wf.Fanout.Child, Dir: path, Ticket: ticket, Record: rec, BudgetUSD: remaining})
+	sid, err := d.Launcher.Start(ctx, LaunchRequest{Parent: p, Workflow: wf.Fanout.Child, Dir: path, Ticket: ticket, Record: rec, BudgetUSD: remaining,
+		Inputs: f.ChildInputs})
 	if err != nil {
 		d.childFailed(ctx, parent, ticket, err.Error())
 		return err
