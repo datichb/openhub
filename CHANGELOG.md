@@ -9,6 +9,14 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Added — release (lot R8)
+
+- **Workflow `release`** (`risk: publish`, local seulement) : le `release-manager` déduit la version SemVer des commits depuis le dernier tag (corps compris) et du CHANGELOG, date `[Unreleased]`, prépare les notes, le message du tag et, avec `mr=true`, la description de la MR de release ; tout est présenté à `cp-release` avant la moindre écriture, puis : CHANGELOG, commit de release, tag annoté sur ce commit, MR si la branche est déjà sur le dépôt distant. **Aucun push** : le rapport donne les commandes et la façon d'annuler. Une pause en semi-auto. Guide : `docs/guides/release.fr.md`.
+- **Préconditions sur le dépôt** : `git_clean`, `branch` (motifs `release/*`) et `tools` (commandes dans le `PATH`), lues par oh au lancement ; un échec dit ce qui a été trouvé (modifications, branche, outils). `release` refuse un arbre sale ou une branche hors `main`, `master`, `release/*`.
+- **Opérations `tag` et `mr`** : refusées à tous les agents jusqu'au checkpoint qui les déverrouille, et toujours refusées dans un workflow qui ne les déverrouille pas (`git tag` sous toutes ses formes, `push --tags`, `update-ref refs/tags`, `gh|glab release create` ; `glab mr create`, `gh pr create`, leurs API, outil MCP `create_mr`). Déverrouillé avec `commit`, le tag attend le commit de release. Fenêtres refermées au checkpoint obligatoire suivant.
+- **`risk: publish`** : seul niveau qui déverrouille `tag` et `mr` ; jamais en distant (schéma, `oh run --runtime remote`, runner) ; son checkpoint de publication porte `remote: forbid` et fait une pause dans tous les modes.
+- **Skills à la demande** `release-management` (S34 16/18 contre 0/9 sans le skill, S33 12/18 contre 1/9) et `pr-description` (S36 8/9 contre 0/6). Cas d'évaluation S33 à S36, hors mesure de référence. Testé sur un clone d'oh jusqu'au tag local `v5.0.0` (aucun push). Workflows existants inchangés ; `release` 1 437 tokens. Évaluations : 8,88 $ (Haiku).
+
 ### Added — workflow `spec` et écritures de documentation (lot R4)
 
 - **Workflow `spec`** (`oh run spec`) : comprendre une demande, écrire sa spec dans le wiki (`docs/wiki/specs/<slug>.md`), la découper en tickets Beads, sans implémenter. `cp-understanding` (reformulation, vocabulaire, réponses aux questions de `grilling`), `cp-converge` (vérifié par oh, sans pause), `cp-spec` (obligatoire, déverrouille le commit de la spec seule), `cp-tickets` (obligatoire, déverrouille la création) ; 3 pauses en semi-auto pour un budget de 4 (CP-R2). Le modèle de spec (glossaire, critères `CA-n · Test : …`, découpage `Couvre : CA-…`) est dans le prompt du planner, visible seulement en session `spec`. `cadrage` est conservé tel quel (alias prévu avec R5).
