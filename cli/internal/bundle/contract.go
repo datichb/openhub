@@ -44,6 +44,8 @@ type contractData struct {
 	// none).
 	Writes     []string
 	WritesOnly bool
+	// WritesAfter: the checkpoint that opens them (r5-fixes).
+	WritesAfter string
 }
 
 var (
@@ -100,6 +102,11 @@ func contractFor(req Request, wf *sessionspec.WorkflowRuntime, id string, graph,
 	d.Method = methodContract(req, wf, id, d.Callees)
 	d.Writes = req.writesOf(id)
 	d.WritesOnly = len(d.Writes) > 0 && !env.ownEdits
+	if len(d.Writes) > 0 && req.Spec != nil {
+		if a, ok := req.Spec.Agents.Get(id); ok {
+			d.WritesAfter = a.WritesAfter
+		}
+	}
 	return d
 }
 

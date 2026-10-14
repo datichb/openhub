@@ -4,7 +4,7 @@
 
 A workflow is a YAML file `apiVersion: oh/v1`, `kind: Workflow`, named `<id>.yaml`. This page describes every field: type, values, effective value when the field is absent, behavior in a patch (`extends`) and locking (`enforce`).
 
-The schema is **frozen** (`cli/internal/workflow/schema.go`, type `Spec`): it only changes through optional additions. Additions made after the freeze: `risk: plan`, `preconditions`, `enforce`, `limits.models`, `limits.max_fix_rounds`, `entry.selectable`, `checkpoints.<id>.verify` and `checkpoints.<id>.when` (R3), `checkpoints.<id>.by` (L3), `checkpoints.<id>.wiki` (LD-D), `checkpoints.<id>.method` and the `must_touch_tests`, `outside_tests`, `since` fields of `verify` (R7), `agents.<id>.writes` and `verify.spec` (R4). Decision: [ADR-039](../architecture/adr/039-declarative-workflows-oh-v1.en.md).
+The schema is **frozen** (`cli/internal/workflow/schema.go`, type `Spec`): it only changes through optional additions. Additions made after the freeze: `risk: plan`, `preconditions`, `enforce`, `limits.models`, `limits.max_fix_rounds`, `entry.selectable`, `checkpoints.<id>.verify` and `checkpoints.<id>.when` (R3), `checkpoints.<id>.by` (L3), `checkpoints.<id>.wiki` (LD-D), `checkpoints.<id>.method` and the `must_touch_tests`, `outside_tests`, `since` fields of `verify` (R7), `agents.<id>.writes` and `verify.spec` (R4), `agents.<id>.writes_after` and `checkpoints.<id>.after` (r5-fixes). Decision: [ADR-039](../architecture/adr/039-declarative-workflows-oh-v1.en.md).
 
 See also: [shipped workflows](workflows.en.md) · [team workflows](../guides/team-workflows.en.md) · [workflows CLI](cli-workflows.en.md).
 
@@ -316,6 +316,7 @@ The key is the id of an agent of the brick catalogue (hub + team), in kebab-case
 | `calls` | list | agent ids of the workflow | `task` permission of the agent, restricted to the workflow | allowed delegations (`calls_unknown`, `graph_cycle`) |
 | `scratch` | table | `{ readers: [<agent>…] }` | no scratch folder | session scratch folder of the agent (see [below](#scratch-session-scratch-folders)) |
 | `writes` | list | paths under `docs/`: a file, or a folder ending in `/**` | no write opened | documentation paths the agent may write and commit (see [below](#writes-documentation-paths)) |
+| `writes_after` | text | checkpoint id | writes open from the start | the `writes` paths only open once this checkpoint is passed (see [below](#writes-documentation-paths)) |
 
 - **Graph**: `calls` when written, otherwise the agent's `task` permission, limited to the members. A self-delegation is only kept when written (`reviewer: { calls: [reviewer] }`). The maximum depth of the graph becomes opencode's `experimental.subagent_depth`.
 - **Patch**: merged by id, field by field; `role: disabled` removes the agent (except the entry agent) and drops it from the `calls` lists of the others. `after` cannot be removed nor moved earlier (only to a checkpoint declared later); `calls` written by the parent may only shrink (subset); an added agent is accepted.
@@ -360,6 +361,7 @@ E8 (R4): an agent that changes no file (the `planner`) may write the declared do
 - The commit stays locked until the checkpoint that unlocks it (`unlocks: [commit]`); the guards of oh (`.git/`, `.beads/`, hooks, `--no-verify`, scratch folders, global guard) come after and win. Like the other guards, rules on the raw text of the commands: a guard rail, not a sandbox.
 - The session contract of the agent lists its writes, the workflow map recalls them, and the `writes` condition of blocks (`<!-- oh:when writes -->`) keeps a text in those sessions only: the planner of `feature` keeps its “you never change files” prompt.
 - Paths: relative, under `docs/`, a file or a folder ending in `/**`, no other wildcard (`writes_path_invalid`), each once (`duplicate_entry`); refused in a `risk: read` workflow (`writes_read_only`).
+- **`writes_after`** (r5-fixes): until this checkpoint is passed (a checkpoint skipped in the mode counts as passed), writing the `writes` paths is refused to every agent of the session, with a message telling it to wait for that checkpoint: the session rule of these paths is “ask”, the oh plugin relays the request and oh refuses it with its message (without an answer from oh, the user is asked). A checkpoint of the workflow present in every session (`writes_after_unknown`, `order_method_after`), with `writes` (`writes_after_without_writes`). `workflow_status` lists the writes still closed (`locked_writes`). Patch: like `after`, it is added or moved to a checkpoint declared later, never removed nor moved earlier (`loosening`); `writes: []` removes it with the paths.
 - Patch, **narrowing only**: a team or project layer keeps, removes or narrows the inherited paths (`docs/wiki/specs/team/**` under `docs/wiki/specs/**`, `writes: []`); a path the parent does not cover, or `writes` on an agent that had none or on an agent added by the layer, is a loosening (`loosening`), and the parent's list is kept.
 
 ---
@@ -393,7 +395,9 @@ The id is in kebab-case (`checkpoint_id_invalid`) and must not be an agent id (`
 | `by` | list | member agents of the workflow | deduced from the graph: the agents that launch an agent gated by this checkpoint (`after:`), else the entry agent | replaces |
 | `wiki` | text | `sync` | the card shows the wiki proposals of the session | replaces |
 | `method` | text | `tdd` | checkpoint of every session | not set on an inherited checkpoint (`loosening`); an added checkpoint may carry one |
+| `after` | text | id of a checkpoint declared before | no order enforced | hardens: added or moved to a checkpoint declared later, never removed nor moved earlier (`loosening`) |
 
+- **`after`** (r5-fixes): oh refuses the checkpoint until the one it waits for is passed (a checkpoint skipped in the mode, or absent from the session, counts as passed); the refusal names the checkpoint to pass first, nothing is unlocked and the user is not asked. A checkpoint declared before (`checkpoint_after_order`, `checkpoint_after_unknown`), present in every session (`order_method_after`). The workflow map shows it on the line of the checkpoint.
 - **Behaviors**: `pause` always asks the user; `auto` goes on alone; `skip` skips the checkpoint; `conditional` asks depending on `condition`. oh does not evaluate the `condition` sentence: without `when:`, a `conditional` checkpoint always asks the user when it is reported; with `when:`, oh evaluates it (see below).
 - **Strictness order**: `skip` < `auto` < `conditional` < `pause`. On a `mandatory` checkpoint, a patch cannot choose a less strict behavior, nor remove it (`mandatory_checkpoint_removed`); `skip` on a mandatory checkpoint counts as a pause.
 - **`remote`** (remote session): `auto` approved automatically; `defer` the session stops cleanly and waits for the user on the machine; `forbid` the workflow cannot run remotely.
@@ -644,6 +648,7 @@ A diagnostic has a severity (error or warning), a code, the field path, the sour
 | `entry_not_primary`, `entry_role`, `entry_disabled`, `agent_unknown`, `agent_unreachable` | invalid entry agent or member |
 | `after_unknown`, `after_cycle`, `calls_unknown`, `graph_cycle` | `after` gates and delegations |
 | `scratch_reader_unknown`, `scratch_reader_owner` | scratch reader not in the workflow, or the owner itself |
+| `writes_after_unknown`, `writes_after_without_writes`, `checkpoint_after_unknown`, `checkpoint_after_order`, `order_method_after` | order of the writes and of the checkpoints (r5-fixes) |
 | `writes_path_invalid`, `writes_read_only` | write path outside `docs/` or with a wildcard other than `/**`; `writes` in a `risk: read` workflow |
 | `verify_spec_path_invalid` | `verify.spec` path absolute or outside the location |
 | `checkpoint_agent_clash`, `checkpoint_mode_unknown`, `checkpoint_mode_missing`, `checkpoint_condition_missing`, `mandatory_checkpoint_removed`, `unlocking_checkpoint_removed`, `unlock_duplicate`, `unlock_unknown`, `unlock_skip`, `unlock_push_without_publish`, `unlock_requires_publish`, `publish_checkpoint_remote`, `publish_checkpoint_pause`, `patch_unknown_checkpoint`, `checkpoint_by_unknown`, `checkpoint_by_duplicate`, `checkpoint_wiki_commit`, `headless_checkpoint_pause` | checkpoints |

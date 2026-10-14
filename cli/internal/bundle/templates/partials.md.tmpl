@@ -24,7 +24,7 @@ Seuls les checkpoints que tu passes figurent ici (contrat de session).
 |---|{{ range .Modes }}---|{{ end }}{{ if .Remote }}---|{{ end }}
 {{- range $cp := .Checkpoints }}
 <!-- oh:when agent={{ join $cp.By "," }} -->
-| **{{ $cp.ID }}**{{ if $cp.Label }} — {{ $cp.Label }}{{ end }}{{ if $cp.Mandatory }} (obligatoire){{ end }} |{{ range $cp.Behaviors }} {{ . }} |{{ end }}{{ if $.Remote }} {{ $cp.Remote }} |{{ end }}
+| **{{ $cp.ID }}**{{ if $cp.Label }} — {{ $cp.Label }}{{ end }}{{ if $cp.Mandatory }} (obligatoire){{ end }}{{ if $cp.After }} (après `{{ $cp.After }}`, refusé avant){{ end }} |{{ range $cp.Behaviors }} {{ . }} |{{ end }}{{ if $.Remote }} {{ $cp.Remote }} |{{ end }}
 <!-- /oh:when -->
 {{- end }}
 {{ range .Sequences }}

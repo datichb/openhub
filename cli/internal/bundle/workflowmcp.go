@@ -34,7 +34,7 @@ func WorkflowRuntime(s *workflow.Spec) *sessionspec.WorkflowRuntime {
 			continue
 		}
 		def := sessionspec.CheckpointDef{ID: id, Label: localized(cp.Label), Condition: cp.Condition, Mandatory: cp.IsMandatory(), Behaviors: map[string]string{},
-			Wiki: string(cp.Wiki)}
+			Wiki: string(cp.Wiki), After: cp.After}
 		for _, op := range cp.Unlocks {
 			def.Unlocks = append(def.Unlocks, string(op))
 		}
@@ -47,6 +47,9 @@ func WorkflowRuntime(s *workflow.Spec) *sessionspec.WorkflowRuntime {
 		a, _ := s.Agents.Get(id)
 		if a.Role != workflow.RoleDisabled && a.After != "" {
 			rt.Gates = append(rt.Gates, sessionspec.AgentGate{Agent: id, After: a.After})
+		}
+		if a.Role != workflow.RoleDisabled && a.WritesAfter != "" && len(a.Writes) > 0 {
+			rt.WritesGates = append(rt.WritesGates, sessionspec.WritesGate{Agent: id, Paths: append([]string(nil), a.Writes...), After: a.WritesAfter})
 		}
 	}
 	if s.CircuitBreaker != nil && s.CircuitBreaker.MaxConsecutiveSubagents != nil {

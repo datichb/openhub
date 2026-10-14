@@ -10,7 +10,7 @@ description: "Carte du workflow {{ .ID }} : agents, délégations, checkpoints, 
 - Agent d'entrée : `{{ .Entry }}`
 - Risque : `{{ .Risk }}`{{ if eq .Risk "read" }} : aucune modification de fichier, aucune écriture Beads{{ else if eq .Risk "plan" }} : aucune modification de fichier{{ if .Writes }} hors des chemins de documentation ci-dessous{{ end }} ; écritures Beads limitées aux commandes autorisées{{ end }}
 {{- range .Writes }}
-- Écritures de `{{ .Agent }}` : {{ codes .Paths }} (et leur commit, une fois déverrouillé)
+- Écritures de `{{ .Agent }}` : {{ codes .Paths }}{{ if .After }}, à partir de `{{ .After }}`{{ end }} (et leur commit, une fois déverrouillé)
 {{- end }}
 {{- if .Beads }}
 - Commandes Beads autorisées : {{ codes .Beads }}

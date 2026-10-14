@@ -56,6 +56,8 @@ func NeedsDecision(behavior string) bool {
 //     user, is allowed otherwise;
 //   - each gated agent (`after:`) is denied until its lock is released;
 //   - every delegation is denied while the circuit breaker holds;
+//   - the edit of the `writes:` paths held by `writes_after` asks (oh
+//     refuses it with its message, order.go);
 //   - the shell commands of the operations a checkpoint unlocks (commit,
 //     push, close, create, apply, tag, mr) are denied until it is passed;
 //     apply, tag and mr are always denied when no checkpoint unlocks them.
@@ -84,6 +86,7 @@ func SessionRules(wf *sessionspec.WorkflowRuntime, mode string, st *domain.Check
 		}
 	}
 	rules = append(rules, fixLockRules(wf, st)...)
+	rules = append(rules, writesLockRules(wf, mode, st)...)
 	for _, op := range LockedOps(wf, mode, st) {
 		if op == sessionspec.UnlockMR {
 			rules = append(rules, publishLockRules(op)...) // shell and MCP
