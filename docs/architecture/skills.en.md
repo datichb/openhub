@@ -7,7 +7,7 @@ The hub uses a **hybrid architecture** with two delivery paths (Bucket A inlined
 
 Sources of truth:
 
-- the hub `skills/` folder (174 files: 169 skills and 5 annexes in `skills/templates/`);
+- the hub `skills/` folder (175 files: 170 skills and 5 annexes in `skills/templates/`);
 - the agent frontmatter (`agents/**/*.md`): `skills:` = Bucket A (inlined), `native_skills:` = Bucket B (on demand).
 
 Since v5, nothing is deployed into the project any more: skills reach the session through the **session bundle**, built at each launch from the workflow (see below).
@@ -137,7 +137,7 @@ All hub agents have `permission: skill: allow`, either directly or through their
 
 ## Skill inventory (source of truth)
 
-**169 skills** across 13 folders (128 domain skills + 41 stack skills), plus **5 annexes** in `skills/templates/`.
+**170 skills** across 13 folders (129 domain skills + 41 stack skills), plus **5 annexes** in `skills/templates/`.
 
 How to read the tables: the **Agents** column gives the bucket and the agents from their frontmatter (`A` = `skills:`, `B` = `native_skills:`). `—` = no agent references it: the skill is only in a bundle if a workflow adds it through `skills.extra`.
 
@@ -194,7 +194,7 @@ The last two are in no agent frontmatter: `elicitation-techniques` reaches the b
 | `team-coordination` | B (`mcp: team`): orchestrator-dev | Team coordination (claims, conflicts, handover) |
 | `takeover-context-protocol` | B (`mcp: team`): orchestrator, orchestrator-dev | Using a takeover brief on a ticket handed over by another member |
 
-### `planning/` — 22 skills
+### `planning/` — 23 skills
 
 | Skill | Agents | Content |
 |-------|--------|---------|
@@ -204,6 +204,7 @@ The last two are in no agent frontmatter: `elicitation-techniques` reaches the b
 | `planner-workflow` | A: planner | 7-phase planner workflow — index and principles (0 prerequisites → 0.5 complexity scoring → 1 exploration + UX/UI signals → 1.5 design delegation → 2 questions → 3 plan → 4 edge cases → 5 Beads creation → 5.5 ai-delegated → 6 verification) |
 | `planner-phase-0` | B: planner | Phase 0 (prerequisites) and 0.5 (complexity scoring: 4 criteria × 4 pts, Small/Medium/Large/Enterprise tiers) |
 | `planner-phase-1` | B: planner | Phase 1 (exploration) and 1.5 (design delegation) |
+| `grilling` | B: planner | Question the request before asking: confront it with the code and the project rules (quantifiers, actors, visibility, life cycle, invariants), one prioritized question per decision |
 | `planner-phase-2` | B: planner | Phase 2 — complementary questions ([FACT] / [DECISION], batch or frontier) |
 | `planner-phase-2-5` | B: planner | Phase 2.5 (Large or Enterprise complexity, Medium on request) — shared understanding, Enterprise decision map |
 | `planner-phase-3-4` | B: planner | Phase 3 (hierarchical plan) and 4 (edge cases) |

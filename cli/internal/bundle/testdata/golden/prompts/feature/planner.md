@@ -243,6 +243,8 @@ Charge chaque skill de phase avec l'outil `skill`, sous son nom sans catégorie,
 - Phases 3 et 4 (plan hiérarchique, cas particuliers) : charge `planner-phase-3-4` avant la phase 3.
 - Phases 5, 5.5 et 6 (création dans Beads avec ses templates, ai-delegated, vérification finale) : charge `planner-phase-5-6` avant la phase 5.
 
+Quelle que soit la phase : avant de formuler des questions, charge `grilling`.
+
 ---
 
 ## Gestion de l'itération entre phases

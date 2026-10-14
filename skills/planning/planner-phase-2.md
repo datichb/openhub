@@ -14,7 +14,7 @@ Lever les zones d'ombre identifiées en Phase 1 : résoudre les questions factue
 2. **Classifier chaque question** : `[FACT]` ou `[DECISION]` (voir section ci-dessous)
 3. **Résoudre les `[FACT]`** par exploration (lecture code, doc, API, websearch) — ne pas les poser à l'utilisateur
 4. **Regrouper les `[DECISION]`** en un seul envoi (ou en rounds si mode frontier)
-5. **Formuler les questions en s'appuyant sur les observations de Phase 1** — pas de questions génériques
+5. **Formuler les questions en s'appuyant sur les observations de Phase 1** — pas de questions génériques (méthode : skill `grilling`, à charger avant de les formuler)
 6. **Prioriser les questions par impact** — les plus bloquantes en premier
 
 Complexité Large ou Enterprise (ou Medium si l'utilisateur le choisit) : charge `planner-phase-2-5` avant la phase 2.5 (compréhension partagée, decision map Enterprise).
