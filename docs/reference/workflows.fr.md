@@ -184,10 +184,10 @@ Découvre le projet et crée ou enrichit le wiki `docs/wiki/` (protocole `doc-wi
 
 | Entrée | Type | Obligatoire | Rôle |
 |---|---|---|---|
-| `refresh` | `bool` (défaut : non) | non | Re-découvrir le projet et enrichir le wiki existant, sans rien supprimer |
+| `refresh` | `bool` (défaut : non) | non | Re-découvrir le projet et proposer les mises à jour du wiki existant (validées une à une à la carte de `cp-wiki`), sans rien supprimer |
 | `focus` | `text` (4 000 caractères max) | non | Modules ou sujets à approfondir |
 
-L'onboarder n'écrit que dans `docs/wiki/`, `ONBOARDING.md` et `CONVENTIONS.md` : c'est une permission (toute autre écriture est refusée, `.gitignore` et `.git/` compris). Il ne commite pas : le commit du wiki revient à l'utilisateur. Sortie : `wiki`. Commandes Beads autorisées (lecture seule) : `show`, `list`, `search`, `query`.
+L'onboarder n'écrit que dans `docs/wiki/`, `ONBOARDING.md` et `CONVENTIONS.md` : c'est une permission (toute autre écriture est refusée, `.gitignore` et `.git/` compris). Sans wiki, il crée les pages ; avec un wiki (`docs/wiki/index.md`), il n'en modifie aucune et propose chaque mise à jour avec `wiki_propose` (rien si le wiki est fidèle au code). Il passe ensuite `cp-wiki` (obligatoire, déverrouille le commit, `remote: defer`) : la carte montre ses propositions, l'utilisateur accepte, modifie ou refuse chacune, oh applique les acceptées ; puis l'onboarder commite `docs/wiki/` seul (`writes: ["docs/wiki/**"]`). `ONBOARDING.md`, `CONVENTIONS.md` et le push reviennent à l'utilisateur. Une pause en semi-auto (budget CP-R2 : une action irréversible). Sortie : `wiki`. Commandes Beads autorisées (lecture seule) : `show`, `list`, `search`, `query`.
 
 ## `doc-sync`
 

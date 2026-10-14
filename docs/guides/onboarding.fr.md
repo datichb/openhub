@@ -21,9 +21,9 @@ L'onboarder est en **lecture seule**. Il n'écrit aucun code, ne modifie aucun
 fichier du projet (sauf `docs/wiki/`, `ONBOARDING.md` minimaliste et `projects.md` — uniquement après confirmation explicite).
 
 Lorsque `docs/wiki/index.md` **existe déjà** (enrichi par d'autres agents),
-l'onboarder propose par défaut un **enrichissement incrémental** plutôt qu'une réécriture complète.
-Il applique le skill `living-docs-enrichment` et délègue au `documentarian`.
-La réécriture complète reste disponible avec un avertissement explicite sur la perte des enrichissements accumulés.
+l'onboarder ne modifie aucune page : il **propose** chaque mise à jour avec `wiki_propose`
+(skill `living-docs-enrichment`), et tu les valides à la carte du checkpoint `cp-wiki`
+(voir [Re-onboarding](#re-onboarding--mises-à-jour-proposées)).
 
 ---
 
@@ -33,7 +33,7 @@ Lance le workflow `onboarding` (alias déprécié : `oh start --onboard`) :
 
 ```bash
 oh run onboarding                         # découverte du projet, création du wiki
-oh run onboarding -i refresh=true         # re-découverte, enrichit le wiki existant
+oh run onboarding -i refresh=true         # re-découverte, propose les mises à jour du wiki existant
 oh run onboarding -i focus="module paiement"  # approfondir un sujet
 ```
 
@@ -208,7 +208,7 @@ Je génère ? (Générer / Annuler)
 
 ### 7. Génération du wiki documentaire
 
-L'onboarder produit les fichiers suivants et les ajoute au `.git/info/exclude` (exclusion locale, invisible pour les autres devs) :
+L'onboarder produit les fichiers suivants (il ne touche jamais à `.gitignore` ni à `.git/` : s'il ne faut pas versionner le wiki, il te propose d'ajouter `docs/wiki/` à ton `.gitignore`) :
 
 - **`docs/wiki/index.md`** — carte globale : stack critique, architecture, god nodes (concepts les plus connectés), carte des domaines métier, points critiques actifs, zones d'ombre
 - **`docs/wiki/technical/architecture.md`** — architecture détaillée, découpage, décisions structurantes
@@ -218,6 +218,8 @@ L'onboarder produit les fichiers suivants et les ajoute au `.git/info/exclude` (
 - **`docs/wiki/business/index.md`** — carte des domaines métier
 - **`docs/wiki/business/<domaine>.md`** — un fichier par domaine métier détecté : règles de gestion, flux, entités, risques
 - **`ONBOARDING.md`** — résumé minimaliste à la racine (15-25 lignes), redirige vers `docs/wiki/index.md`
+
+Il passe ensuite le checkpoint `cp-wiki` (pages créées) ; une fois validé, il commite `docs/wiki/` seul (`docs(wiki): onboarding`). Le commit d'`ONBOARDING.md` (et de `CONVENTIONS.md`), comme le push, te revient.
 
 > Le wiki remplace les anciens fichiers `CONVENTIONS.md`, `docs/context/technical.md` et `docs/context/business/`. L'`index.md` identifie les "god nodes" — les concepts clés apparaissant dans plusieurs pages — pour guider les agents vers l'essentiel.
 > Chaque enrichissement porte un tag de confiance : `` `CONFIRMÉ` `` (observation directe dans le code), `` `DÉDUIT` `` (raisonnement contextuel) ou `` `INCERTAIN` `` (hypothèse à valider).
@@ -361,21 +363,24 @@ Si tu reviens sur un projet après plusieurs semaines :
 L'onboarder lira l'état actuel de la codebase, les tickets récemment clos,
 et te donnera un état des lieux à jour.
 
-### Re-onboarding — mode enrichissement incrémental
+### Re-onboarding — mises à jour proposées
 
 Lorsque `docs/wiki/index.md` existe déjà (généré lors d'un onboarding précédent
 et progressivement enrichi par d'autres agents : `developer`, `reviewer`, `auditor`, etc.),
-l'onboarder le détecte en Phase 5 et propose trois options :
+l'onboarder le détecte en Phase 5 (`oh run onboarding -i refresh=true`, ou sans `refresh`
+sur un projet qui a déjà un wiki) et **n'écrit dans aucune page** :
 
-1. **Enrichissement incrémental (Recommandé)** — les pages wiki concernées sont enrichies
-   via le skill `living-docs-enrichment` qui délègue au `documentarian` ; les enrichissements
-   existants (avec leurs tags de confiance) sont préservés.
-2. **Réécriture complète** — avec un avertissement explicite sur la perte des enrichissements accumulés.
-3. **Conserver l'existant** — aucune modification.
+1. il lance `wiki_check` (fichiers cités disparus, pages en retard sur le code) et compare chaque page au code ;
+2. il **propose** avec `wiki_propose` seulement ce qui a changé (entrée périmée ou contredite, par exemple
+   un module renommé ; `EXPIRED` ou `SUPERSEDED` d'une décision rejetée) ou un élément structurant absent
+   (nouveau module, dépendance, convention d'équipe, nouveau domaine métier : la page `business/<domaine>.md`
+   est créée si tu acceptes) ;
+3. il passe le checkpoint `cp-wiki` : sa carte liste les propositions, tu acceptes, modifies ou refuses chacune ;
+   oh applique les acceptées (en fin de section, avec leur ligne de tag) ;
+4. il commite `docs/wiki/` seul (`docs(wiki): onboarding`).
 
-Si un **nouveau domaine métier** est découvert lors du re-onboarding, l'onboarder propose
-la création d'une nouvelle page `docs/wiki/business/<nouveau-domaine>.md` et la mise à
-jour de `docs/wiki/business/index.md`.
+Un wiki fidèle au code ne reçoit aucune proposition : la carte de `cp-wiki` est vide et rien n'est écrit.
+Il n'y a plus de réécriture complète : pour repartir de zéro, supprime `docs/wiki/` et relance l'onboarding.
 
 Cela préserve la boucle d'amélioration continue : le wiki accumule les connaissances de
 tous les agents tout au long du cycle de vie du projet, chaque enrichissement étant traçable

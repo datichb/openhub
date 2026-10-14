@@ -265,11 +265,13 @@ n'est jamais redonné).
 
 ### Re-onboarding
 
-Si `docs/wiki/index.md` existe déjà, l'`onboarder` propose (entrée `refresh` du workflow :
-`oh run onboarding -i refresh=true`) :
-- **Enrichissement incrémental** (recommandé) — via `living-docs-enrichment`
-- **Réécriture complète** — avec avertissement sur la perte des enrichissements accumulés
-- **Conserver l'existant**
+Si `docs/wiki/index.md` existe déjà (entrée `refresh` du workflow : `oh run onboarding -i refresh=true`, ou un
+onboarding sur un projet qui a déjà un wiki), l'`onboarder` ne modifie aucune page (skill
+`onboarder-phase-5-reonboarding`) : après `wiki_check`, il compare chaque page au code et propose avec `wiki_propose`
+seulement ce qui a changé (entrée périmée ou contredite, `EXPIRED`/`SUPERSEDED` d'une décision rejetée) ou un élément
+structurant absent. Les propositions passent par la carte de `cp-wiki`, le checkpoint de commit du workflow : oh
+applique les acceptées, puis l'onboarder commite `docs/wiki/` seul (`writes: ["docs/wiki/**"]`). Un wiki fidèle au
+code ne reçoit aucune proposition. Plus de réécriture complète : supprimer `docs/wiki/` et relancer l'onboarding.
 
 ---
 
@@ -288,8 +290,8 @@ Si `docs/wiki/index.md` existe déjà, l'`onboarder` propose (entrée `refresh` 
 
 ## Le wiki dans une session v5
 
-- **Création** : workflow `onboarding`, dont le seul agent est l'`onboarder`. Il n'écrit que dans `docs/wiki/` et
-  `ONBOARDING.md` ; cette limite est une consigne du prompt, pas une permission
+- **Création** : workflow `onboarding`, dont le seul agent est l'`onboarder`. Il n'écrit que dans `docs/wiki/`,
+  `ONBOARDING.md` et `CONVENTIONS.md` (ses permissions), puis commite `docs/wiki/` seul après `cp-wiki`
   ([ADR-039](./adr/039-declarative-workflows-oh-v1.fr.md)). Sortie déclarée : `wiki` (chemin).
 - **Précondition** : `feature` et `cadrage` vérifient qu'au moins un de `docs/wiki/index.md`, `ONBOARDING.md` ou
   `CONVENTIONS.md` existe. Sinon, oh propose de lancer d'abord `onboarding`, puis de revenir.
@@ -297,7 +299,7 @@ Si `docs/wiki/index.md` existe déjà, l'`onboarder` propose (entrée `refresh` 
   `.claude/CLAUDE.md` et les fichiers de `[deploy] instruction_files` sont intégrés au corps des agents
   ([ADR-043](./adr/043-session-bundle-deploy-removal.fr.md)). Le wiki lui-même n'est pas intégré : les agents le
   lisent à la demande, avec `wiki-navigation`. D'où un `ONBOARDING.md` court qui renvoie au wiki.
-- **Écritures** : l'`onboarder` et le `documentarian` écrivent le wiki dans le dossier de travail de la session
+- **Écritures** : l'`onboarder` (création seulement) et le `documentarian` écrivent le wiki dans le dossier de travail de la session
   (projet ou worktree). oh n'y écrit que les propositions validées par l'utilisateur à la carte du commit, la
   table des god nodes qu'il calcule et la marque `synced:` de `doc-sync`.
 - **Enrichissement** : tous les agents proposent avec `wiki_propose` ; plus aucune délégation directe au
