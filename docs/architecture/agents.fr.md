@@ -142,7 +142,7 @@ Les fichiers d'instructions du projet (`ONBOARDING.md`, `CONVENTIONS.md`, `.clau
 | Niveau | Contenu | Agents livrés |
 |--------|---------|---------------|
 | `full` (défaut) | Le texte complet de chaque fichier | `developer`, `reviewer`, `debugger`, `benchmarker`, `operator`, `auditor-subagent`, `brief-enricher` et les agents d'équipe sans le champ |
-| `index` | Pour chaque fichier : son chemin, son titre, sa taille estimée et ses sections `##`. Puis, si `docs/wiki/index.md` existe : son titre, ses sections et le tableau des god nodes (15 lignes au plus). L'agent lit un fichier avec `read` quand sa tâche en dépend : oh lui autorise la lecture de chaque fichier de son index, sur son chemin exact (lecture seule, placée après ses propres règles et avant les gardes, qui l'emportent toujours). Une règle de l'agent qui refuse ou soumet à confirmation ce fichier (autre que `"*"`) est respectée, et la ligne le dit | `orchestrator-dev`, `auditor`, `pathfinder`, `planner`, `designer`, `documentarian`, `onboarder` |
+| `index` | Pour chaque fichier : son chemin, son titre, sa taille estimée et ses sections `##`. Puis, si `docs/wiki/index.md` existe : son titre, ses sections et le tableau des god nodes (15 lignes au plus). L'agent lit un fichier avec `read` quand sa tâche en dépend : oh lui autorise la lecture de chaque fichier de son index, sur son chemin exact (lecture seule, placée après ses propres règles et avant les gardes, qui l'emportent toujours). Une règle de l'agent qui refuse ou soumet à confirmation ce fichier (autre que `"*"`) est respectée, et la ligne le dit | `orchestrator-dev`, `auditor`, `pathfinder`, `planner`, `designer`, `documentarian`, `onboarder`, `release-manager` |
 | `none` | Rien ; le contrat de session dit que les instructions existent et que les agents lancés les reçoivent | `orchestrator`, `conductor` |
 
 Le wiki est lu directement dans `docs/wiki/index.md` (format de `doc-wiki-protocol`). Sans fichier d'instructions ni wiki, aucun niveau n'ajoute rien. Sur un projet de 4 000 tokens d'instructions, le workflow `feature` coûte environ 22 000 tokens de moins par exécution qu'avec `full` partout (`testdata/budget.golden`, projet `instruct`).
@@ -178,6 +178,7 @@ Relevé des frontmatter de `agents/`.
 | auditor | `auditor` | `primary` | `coordinator` | — |
 | auditor | `auditor-subagent` | `subagent` | `readonly-code` | — |
 | infra | `operator` | `primary` | `readonly-ops` | — |
+| delivery | `release-manager` | `primary` | — | — |
 | quality | `reviewer` | `primary` | — | — |
 | quality | `debugger` | `primary` | — | — |
 | quality | `benchmarker` | `primary` | — | — |
@@ -224,6 +225,12 @@ Ce tableau est la reference faisant autorite pour les skills charges par chaque 
 | Agent | Bucket A (inline) | Bucket B (natif / a la demande) |
 |-------|-------------------|-------------------------------|
 | **operator** | `posture/core-posture`, `posture/user-facing-posture`, `shared/wiki-navigation` | `developer/dev-standards-security`, `shared/rtk-usage`, `shared/living-docs-enrichment` (+ skills de stack Terraform/Helm/Kubernetes détectées dans le projet) |
+
+### Famille delivery
+
+| Agent | Bucket A (inline) | Bucket B (natif / a la demande) |
+|-------|-------------------|-------------------------------|
+| **release-manager** | `shared/universal-guardrails`, `posture/core-posture`, `posture/user-facing-posture` | `release/release-management`, `release/pr-description`, `shared/rtk-usage` |
 
 ### Famille quality
 
@@ -445,6 +452,21 @@ Les skills de stack détectées dans le projet sont ajoutées au paquet de sessi
 | **Invocation** | Agent d'entrée du workflow `infra-change` (`oh run infra-change`) |
 
 Applique un changement d'infrastructure déjà écrit dans le dépôt. Vérifie le contexte réel par rapport à la cible, produit le plan (`terraform plan -out`, `kubectl diff`, `helm diff upgrade`, `pulumi preview`), le delta de coût, les risques et le retour arrière, les présente à `cp-plan`, puis après `cp-apply` applique exactement le plan validé (`terraform apply <fichier de plan>`) et vérifie le résultat. Base `readonly-ops` : ni édition, ni écriture, ni délégation ; ses outils d'infrastructure sont demandés et le garde-fou infra d'oh autorise les lectures, demande les secrets et refuse toute modification jusqu'à `cp-apply`. L'écriture du code IaC revient au `developer` (domaine devops, skills de stack Terraform/Helm/Kubernetes), l'analyse en lecture seule au domaine d'audit `infra`.
+
+---
+
+## Famille — Agents de livraison
+
+### `release-manager`
+
+| | |
+|--|--|
+| **Label** | Release Manager |
+| **Fichier** | `agents/delivery/release-manager.md` |
+| **Skills** | Voir [Matrice d'assignation des skills](#matrice-dassignation-des-skills-source-de-verite) — ligne release-manager |
+| **Invocation** | Agent d'entrée du workflow `release` (`oh run release`) |
+
+Prépare une release : version SemVer déduite des commits depuis le dernier tag et du CHANGELOG, section `[Unreleased]` datée, notes, tag annoté et, sur demande, description de la merge request de release. Présente tout à `cp-release` sans rien écrire, puis écrit le CHANGELOG (les fichiers de version sont demandés un à un), commite, tague le commit de release et ouvre la MR si la branche est déjà sur le dépôt distant. Ni délégation, ni web ; il lit les tags avec `git describe` et `git for-each-ref`. oh lui refuse le commit, le tag et la MR avant `cp-release`, le tag avant le commit de release, et il ne pousse jamais. Guide : [Préparer une release](../guides/release.fr.md).
 
 ---
 
@@ -723,6 +745,6 @@ Il n'a aucune skill inline (pas même `shared/universal-guardrails`).
 - **Agents qui lisent les tickets** : la plupart peuvent faire `bd show <ID>` pour contextualiser leur travail, dans la limite de `beads.allow` du workflow
 - **Agents coordinateurs** : conductor, orchestrator, orchestrator-dev, auditor — ne codent jamais, pilotent d'autres agents
 - **Agents de découverte** : onboarder — explore et rapporte, ne pilote pas d'autres agents
-- **Agents `primary`** (frontmatter) : conductor, orchestrator, orchestrator-dev, planner, pathfinder, onboarder, auditor, designer, documentarian, debugger, reviewer, benchmarker, operator
+- **Agents `primary`** (frontmatter) : conductor, orchestrator, orchestrator-dev, planner, pathfinder, onboarder, auditor, designer, documentarian, debugger, reviewer, benchmarker, operator, release-manager
 - **Agents `subagent`** (frontmatter) : `developer`, `auditor-subagent`, `brief-enricher`
 - **Dans une session** : le mode effectif et les délégations possibles sont ceux du workflow ; un agent hors du paquet n'existe pas pour la session

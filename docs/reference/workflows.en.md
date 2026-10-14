@@ -30,6 +30,7 @@ A workflow is launched with `oh run <workflow>` or the TUI launch form; the form
 | `onboarding` | `onboarder` | — | write (`docs/wiki/`) | local, remote | `oh start --onboard` (former mode C) |
 | `doc-sync` | `documentarian` | — | write (`docs/wiki/`) | local | — |
 | `skill-refresh` | `documentarian` | — | write (stack skills of the hub) | local | — |
+| `release` | `release-manager` | — | publish (CHANGELOG, release commit and tag; never a push) | local | — |
 | `review` | `reviewer` | — | read | local, remote | `oh review` |
 | `review-feedback` | `orchestrator-dev` | `developer`, `reviewer` | write | local | `oh review feedback` |
 | `audit` | `auditor` | `auditor-subagent` | read | local, remote | `oh audit`, former `infra` and `database` agents (analysis part) |
@@ -46,7 +47,7 @@ A workflow is launched with `oh run <workflow>` or the TUI launch form; the form
 | `read` | no change, restricted shell | read only; `beads.allow` required, without write commands |
 | `plan` | no change, restricted shell | `beads.allow` required; writes allowed except `delete` |
 | `write` | modified | `beads.allow` of the workflow; read only when `beads` is absent |
-| `publish` | modified, branches pushed, MRs opened | same |
+| `publish` | modified, tags created, MRs opened; never remote | same |
 
 A higher layer (team, project) can only harden the risk: `read < plan < write < publish`.
 
@@ -66,9 +67,10 @@ preconditions:
 - `on_fail: suggest`: oh shows the message and offers the `suggest.workflow` workflow; the user may also go on. With `resume: true`, oh offers to relaunch the original workflow (same inputs) once the suggested one has finished.
 - `on_fail: block`: the launch is refused.
 - Remote or headless: a `suggest` failure becomes a warning, a `block` failure stops the session.
+- Other tests: `git_clean: true` (no uncommitted change, `.beads/` excluded), `branch: [main, "release/*"]` (current branch), `tools: [goreleaser]` (commands in the `PATH`); on failure, the message says what was found (changes, branch, missing tools). See the [schema](workflow-schema.en.md#preconditions).
 - Relative paths, without `..`. A patch (`extends`) changes a precondition by its id or removes it (`disabled: true`).
 
-`feature` and `cadrage` suggest `onboarding` when the project has no wiki, no `ONBOARDING.md` and no `CONVENTIONS.md`.
+`release` refuses to start on a dirty tree or outside `main`, `master` and `release/*`. `feature` and `cadrage` suggest `onboarding` when the project has no wiki, no `ONBOARDING.md` and no `CONVENTIONS.md`.
 
 ---
 
@@ -188,6 +190,29 @@ Reviews the stack skills of the hub whose last review is old against the news of
 | `cp-refresh` Skill update (mandatory, unlocks `commit`) | pause | pause | pause | — (local only) |
 
 The `documentarian` reads the selected skills, researches each technology of `versions:` (the user's notes, then a web search on the official sources), and presents its proposal at `cp-refresh`: versions before → after, changes with their sources, new `reviewed` date. **Nothing is written before the validation**; a refusal with an instruction applies to the proposal, never to the files. After the validation, it applies the proposal and commits the skills alone. With no skill to review, the session stops without a checkpoint. The added content is in French, inspired by the sources and never copied. One pause in semi-auto (CP-R2 budget: one irreversible action). Allowed Beads commands (read only): `show`, `list`, `ready`, `search`, `query`.
+
+## `release`
+
+Prepares a release: SemVer version deduced from the commits since the last tag and from the CHANGELOG (or forced), `[Unreleased]` section dated today, release notes, release commit, annotated tag and, on request, the description of the release merge request. Risk `publish`, local only. Guide: [Preparing a release](../guides/release.en.md).
+
+| Input | Type | Required | Role |
+|---|---|---|---|
+| `version` | `string` (100 characters max) | no | Version to release; empty: deduced from the changes |
+| `notes` | `text` (4,000 characters max) | no | Points to highlight, items to leave out |
+| `mr` | `bool` (default: no) | no | Prepare the description of a release MR/PR, and open it when the branch is already on the remote |
+| `target` | `string` (default: `main`) | no | Target branch of the MR |
+
+| Precondition | Test | Failure |
+|---|---|---|
+| `clean-tree` | `git_clean` | launch refused, with the changes found |
+| `release-branch` | `branch: [main, master, "release/*"]` | launch refused, with the current branch |
+| `changelog` | `path_exists: [CHANGELOG.md]` | warning (the CHANGELOG will be created) |
+
+| Checkpoint | manuel | semi-auto | remote |
+|---|---|---|---|
+| `cp-release` Release (mandatory, unlocks `commit`, `tag`, `mr`) | pause | pause | forbidden (`remote: forbid`) |
+
+The `release-manager` prepares everything **without writing anything** and presents it at `cp-release`: version and reason, CHANGELOG section, tag message, notes, MR description. After the approval: CHANGELOG (and version files, each one asked), release commit, then annotated tag — oh refuses the tag until the release is committed —, then the MR when it is asked and the branch exists on the remote. **No push**: the report gives the commands (`git push origin <branch>`, then `git push origin <tag>`) and how to undo before the push. One pause in semi-auto. On-demand skills: `release-management`, `pr-description`.
 
 ## `review`
 

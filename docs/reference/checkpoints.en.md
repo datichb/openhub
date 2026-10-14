@@ -2,7 +2,7 @@
 
 # Reference — Checkpoints, modes and verification by oh
 
-A checkpoint is a pause of the workflow: the agent calls `workflow_checkpoint`, oh applies the behavior of the mode (wait for the user or let it through) and opens the operations the checkpoint unlocks (`commit`, `close`, `create`, `apply`, `push`). The fields are described in [Workflow schema](workflow-schema.en.md#checkpoints); the three-level execution (prompt, MCP tool, oh plugin) in [ADR-042](../architecture/adr/042-checkpoints-headless-decisions.en.md).
+A checkpoint is a pause of the workflow: the agent calls `workflow_checkpoint`, oh applies the behavior of the mode (wait for the user or let it through) and opens the operations the checkpoint unlocks (`commit`, `close`, `create`, `apply`, `push`, `tag`, `mr`). The fields are described in [Workflow schema](workflow-schema.en.md#checkpoints); the three-level execution (prompt, MCP tool, oh plugin) in [ADR-042](../architecture/adr/042-checkpoints-headless-decisions.en.md).
 
 Every pause costs human time and, in the long run, rubber-stamping: the number of pauses is a security setting. The rules below (modernisation report of October 2026, §9, rules CP-R1 to CP-R11) keep few pauses, and better informed ones.
 
@@ -38,6 +38,7 @@ A conditional checkpoint is listed with "if its condition holds". Repeated check
 | `quick` | `cp-commit` | `cp-commit` | 3 |
 | `debug` | `cp-ticket`, `cp-commit` | `cp-ticket`, `cp-commit` | 4 |
 | `infra-change` (manual only) | `cp-plan`, `cp-apply` | `cp-apply` | 3 |
+| `release` | `cp-release` | `cp-release` | 3 |
 | `benchmark` | `cp-target` | — | 2 |
 
 `cp-feature` (feature recap) is automatic in semi-auto: a recap protects nothing (CP-R1); it stays a pause in `manuel`.
@@ -48,7 +49,7 @@ A conditional checkpoint is listed with "if its condition holds". Repeated check
 
 In semi-auto (or in the default mode when semi-auto is not allowed), a workflow pauses at most for:
 
-> **2 human decisions** (scope, understanding, arbitration) **+ 1 per checkpoint that unlocks an irreversible action** (`unlocks:`: commit, close, create, apply, push).
+> **2 human decisions** (scope, understanding, arbitration) **+ 1 per checkpoint that unlocks an irreversible action** (`unlocks:`: commit, close, create, apply, push, tag, mr).
 
 A `conditional` checkpoint, or one with `when:`, counts as a pause (the worst case). The budget is checked:
 
@@ -188,7 +189,11 @@ When refused, the call of the agent fails with `ErrVerifyFailed`, the reason and
 | `create` | its checkpoint (`cp-tickets`, `cp-ticket`) | at the **next mandatory checkpoint** (`cp-0`, `cp-commit`…) or when the checkpoint is asked again; not when a ticket is closed |
 | `commit` | its checkpoint (`cp-2`, `cp-commit`) | **once the work is committed** (HEAD moved and nothing is left to commit: one commit, or several in a row), when the checkpoint is asked again, or when the ticket is closed |
 | `close` | its checkpoint | when a ticket is closed, or when the checkpoint is asked again |
+| `tag` | its checkpoint (`cp-release`); with `commit` at the same checkpoint, only **once the release is committed** | at the next mandatory checkpoint or when the checkpoint is asked again |
+| `mr` | its checkpoint (`cp-release`) | at the next mandatory checkpoint or when the checkpoint is asked again |
 | `apply`, `push` | their checkpoint | when the checkpoint is asked again |
+
+`apply`, `tag` and `mr` are refused in any workflow that declares no checkpoint unlocking them. Only a `risk: publish` workflow unlocks `tag` and `mr`, at a checkpoint that pauses in every mode and never runs remotely (`remote: forbid`).
 
 When a git read fails, these protections stay **closed**: when the state of the work cannot be read after a shell call, the `commit` window closes (the timeline keeps the reason; asking the checkpoint again opens it) instead of staying open; closing a ticket (`bd close`) is refused as long as oh cannot see a non-empty commit since the checkpoint and a clean tree.
 

@@ -94,9 +94,11 @@ enforce: [checkpoints, modes]   # or ["*"] for the whole document
 | `read` | no edits, no shell | read only | no agent with edit or shell (`read_agent_writes`); `beads` required (`read_beads_unrestricted`), without write commands (`read_beads_write`) |
 | `plan` | no edits, no shell | writes limited to `beads.allow` | no agent with edit or shell (`plan_agent_writes`); `beads` required (`plan_beads_unrestricted`), without `delete` (`plan_beads_delete`); warning when there is no write at all (`plan_without_beads_write`: `read` is enough) |
 | `write` | edited | no schema restriction | — |
-| `publish` | edited, branches pushed, MRs opened | same | — |
+| `publish` | edited, tags created, MRs opened | same | never remote: `remote` not in `runtime.allowed` (`publish_remote_runtime`); every checkpoint that unlocks `push`, `tag` or `mr` says `remote: forbid` (`publish_checkpoint_remote`) and pauses in every allowed mode (`publish_checkpoint_pause`) |
 
 Beads commands counted as writes: `create`, `update`, `close`, `reopen`, `delete`, `edit`, `comment`, `comments`, `label`, `dep`, `duplicate`, `supersede`.
+
+Only a `publish` workflow unlocks `tag` and `mr` (`unlock_requires_publish`). oh also refuses to send it remotely (`oh run --runtime remote`), and the job runner refuses it before the clone: the decision to publish is always taken on the user's machine.
 
 A writing session (`risk` other than `read`) gets a worktree when another writing session is active in the same place (see [workflows CLI](cli-workflows.en.md#oh-run)).
 
@@ -170,7 +172,7 @@ limits:
 ### `modes`
 
 - The mode is set at launch (`--mode`, launch form) and is no longer asked by the agent. The prompt always contains `Mode de workflow : <mode>`.
-- Meaning of the three modes of the hub workflows: `manuel` stops at every checkpoint; `semi-auto` passes the usual checkpoints on its own and stops on the key decisions; **`auto` = everything except the mandatory decisions**: only the `mandatory` checkpoints and those that unlock an action (`unlocks`: `create`, `commit`, `close`, `apply`) stop, a `conditional` one stops when it is signalled. A workflow whose every step must be approved is limited to `manuel` (`infra-change`).
+- Meaning of the three modes of the hub workflows: `manuel` stops at every checkpoint; `semi-auto` passes the usual checkpoints on its own and stops on the key decisions; **`auto` = everything except the mandatory decisions**: only the `mandatory` checkpoints and those that unlock an action (`unlocks`: `create`, `commit`, `close`, `apply`, `tag`, `mr`) stop, a `conditional` one stops when it is signalled. A workflow whose every step must be approved is limited to `manuel` (`infra-change`).
 - Patch: `modes.allowed` may only be narrowed (`loosening` for a mode missing from the parent); the impact summary reports any added mode as a loosening.
 - A duplicate mode: `duplicate_entry`; a default missing from the list: `mode_default_not_allowed`; a `--mode` that is not allowed: `session_mode_not_allowed`.
 
@@ -344,7 +346,7 @@ The id is in kebab-case (`checkpoint_id_invalid`) and must not be an agent id (`
 | `condition` | text | sentence read by the agent | — (required with `conditional`) | replaces |
 | `mandatory` | boolean | `true`, `false` | `false` | hardens (`true` does not go back to `false`) |
 | `remote` | text | `auto` < `defer` < `forbid` | `defer` | hardens |
-| `unlocks` | list | `commit`, `push`, `close`, `create`, `apply` | — (nothing locked) | added to the inherited list (never removed) |
+| `unlocks` | list | `commit`, `push`, `close`, `create`, `apply`, `tag`, `mr` | — (nothing locked; `apply`, `tag` and `mr` stay refused) | added to the inherited list (never removed) |
 | `disabled` | boolean | `true` | — | removes the inherited checkpoint (patch only; refused when it carries `verify`) |
 | `verify` | object | `from`, `kinds`, `cmd`, `expect`, `in`, `timeout`, `must_touch`, `must_touch_tests`, `outside_tests`, `since` | no verification | hardens (an inherited verification is never removed nor weakened) |
 | `when` | object | `entry`, `labels`, `paths`, `outputs` | no condition | hardens (inherited conditions kept) |
@@ -355,7 +357,7 @@ The id is in kebab-case (`checkpoint_id_invalid`) and must not be an agent id (`
 - **Behaviors**: `pause` always asks the user; `auto` goes on alone; `skip` skips the checkpoint; `conditional` asks depending on `condition`. oh does not evaluate the `condition` sentence: without `when:`, a `conditional` checkpoint always asks the user when it is reported; with `when:`, oh evaluates it (see below).
 - **Strictness order**: `skip` < `auto` < `conditional` < `pause`. On a `mandatory` checkpoint, a patch cannot choose a less strict behavior, nor remove it (`mandatory_checkpoint_removed`); `skip` on a mandatory checkpoint counts as a pause.
 - **`remote`** (remote session): `auto` approved automatically; `defer` the session stops cleanly and waits for the user on the machine; `forbid` the workflow cannot run remotely.
-- **`unlocks`**: until the checkpoint is passed, oh refuses these operations to **every agent** of the session, whatever the model: `commit` (`git commit`, including `env git commit`, `git -c … commit`, `/usr/bin/git commit`, `sh -c '…'`, an alias defined on the command line, and the commands that commit: `revert`, `cherry-pick`, `merge`, `pull`, `am`; the patterns are anchored on the subcommand: `git log --grep commit`, `git diff src/pushX.ts`, `bd list --status closed` stay allowed), `push` (`git push`; warning `unlock_push_without_publish` outside `risk: publish`: no shipped agent pushes, pushing is left to the user), `close` (closing a Beads ticket, also refused by the Beads gateway), `create` (creating Beads tickets: `bd create`, `bd q`, `bd create-form`, `bd duplicate`, `bd supersede`; creation is also refused by the Beads gateway, and the window does not close when a ticket is closed, but at the next mandatory checkpoint or when the checkpoint is asked again), `apply` (changing infrastructure: `terraform apply|destroy`, `kubectl apply|delete|…`, `helm install|upgrade|…`, `aws|gcloud|az` create/delete/update commands, `pulumi up|destroy`). Once the checkpoint is passed, closing a ticket is accepted only if a non-empty commit (tracked files outside `.beads/`) was made since and nothing is left to commit; in a workflow where no checkpoint unlocks `close`, closing is not locked. The window closes again when the checkpoint is asked again (next ticket, another fix), for `commit` once the work is committed (HEAD moved and nothing is left to commit) and, for a checkpoint that unlocks `close`, when a ticket is closed (bounded windows, CP-R8). An operation is unlocked by one checkpoint only (`unlock_duplicate`); a checkpoint that unlocks cannot be removed (`unlocking_checkpoint_removed`). A checkpoint with `unlocks` is treated as mandatory: it is never skipped (`skip` means `pause`, warning `unlock_skip`) and a patch cannot relax it (`loosening`). An operation unknown to the running oh (written by a newer version) is a warning (`unlock_unknown`) and locks nothing: update oh on every machine of the team.
+- **`unlocks`**: until the checkpoint is passed, oh refuses these operations to **every agent** of the session, whatever the model: `commit` (`git commit`, including `env git commit`, `git -c … commit`, `/usr/bin/git commit`, `sh -c '…'`, an alias defined on the command line, and the commands that commit: `revert`, `cherry-pick`, `merge`, `pull`, `am`; the patterns are anchored on the subcommand: `git log --grep commit`, `git diff src/pushX.ts`, `bd list --status closed` stay allowed), `push` (`git push`; warning `unlock_push_without_publish` outside `risk: publish`: no shipped agent pushes, pushing is left to the user), `close` (closing a Beads ticket, also refused by the Beads gateway), `create` (creating Beads tickets: `bd create`, `bd q`, `bd create-form`, `bd duplicate`, `bd supersede`; creation is also refused by the Beads gateway, and the window does not close when a ticket is closed, but at the next mandatory checkpoint or when the checkpoint is asked again), `apply` (changing infrastructure: `terraform apply|destroy`, `kubectl apply|delete|…`, `helm install|upgrade|…`, `aws|gcloud|az` create/delete/update commands, `pulumi up|destroy`), `tag` (creating a tag: `git tag` in every form, listing included — `git describe --tags` and `git for-each-ref refs/tags` read the tags —, `git push --tags|--follow-tags`, `git push origin tag v1`, `git push … refs/tags/…`, `git update-ref refs/tags/…`, writing `.git/refs/tags` or `packed-refs`, `gh|glab release create`), `mr` (opening a merge request: `glab mr create|new`, `gh pr create|new`, their global options and `sh -c`, `glab api …merge_requests`, `gh api …/pulls`, `hub pull-request`, push option `merge_request.create`, MCP tool `create_mr` of `gitlab`). `apply`, `tag` and `mr` are refused in any workflow that declares no checkpoint unlocking them. When the same checkpoint unlocks `commit` and `tag`, the tag stays refused while the commit window is open: it always marks the release commit. The `tag` and `mr` windows close, like `create`, at the next mandatory checkpoint or when the checkpoint is asked again. Once the checkpoint is passed, closing a ticket is accepted only if a non-empty commit (tracked files outside `.beads/`) was made since and nothing is left to commit; in a workflow where no checkpoint unlocks `close`, closing is not locked. The window closes again when the checkpoint is asked again (next ticket, another fix), for `commit` once the work is committed (HEAD moved and nothing is left to commit) and, for a checkpoint that unlocks `close`, when a ticket is closed (bounded windows, CP-R8). An operation is unlocked by one checkpoint only (`unlock_duplicate`); a checkpoint that unlocks cannot be removed (`unlocking_checkpoint_removed`). A checkpoint with `unlocks` is treated as mandatory: it is never skipped (`skip` means `pause`, warning `unlock_skip`) and a patch cannot relax it (`loosening`). An operation unknown to the running oh (written by a newer version) is a warning (`unlock_unknown`) and locks nothing: update oh on every machine of the team.
 - A mode that is neither allowed nor one of the three shipped modes: `checkpoint_mode_unknown`; `conditional` without `condition`: `checkpoint_condition_missing`.
 - Checkpoint execution (3 levels: prompt, MCP tool `workflow_checkpoint`, oh plugin): [ADR-042](../architecture/adr/042-checkpoints-headless-decisions.en.md). Modes, planned pauses, verification, evidence and windows: [Checkpoints](checkpoints.en.md).
 
@@ -439,12 +441,28 @@ preconditions:
     suggest: { workflow: onboarding, resume: true }
 ```
 
-Checked before launch, in file order, in the session location.
+Checked before launch, in file order, in the project directory. `check` holds at least one test (`precondition_check_invalid`); with several, all must hold.
+
+```yaml
+preconditions:
+  clean-tree:
+    label: { fr: L'arbre de travail doit être propre avant une release, en: The work tree must be clean before a release }
+    check: { git_clean: true }
+    on_fail: block
+  release-branch:
+    check: { branch: [main, "release/*"] }
+    on_fail: block
+  tools:
+    check: { tools: [goreleaser] }
+```
 
 | Field | Type | Values | Absent |
 |---|---|---|---|
 | `label` | translatable text | message shown on failure | the id |
-| `check.path_exists` | list | relative paths, without `..`; one of them must exist | required (`precondition_check_invalid`, `precondition_path_invalid`) |
+| `check.path_exists` | list | relative paths, without `..`; one of them must exist | — (`precondition_path_invalid`) |
+| `check.git_clean` | boolean | `true`: git repository without uncommitted change (staged, unstaged, or untracked and not ignored file; `.beads/` excluded) | — |
+| `check.branch` | list | branch names or patterns (`release/*`, `path.Match`); the current branch must match one of them, a detached HEAD matches none | — (`precondition_branch_invalid`) |
+| `check.tools` | list | command names (no path nor argument); all must be in the `PATH` of oh | — (`precondition_tool_invalid`) |
 | `on_fail` | text | `suggest`, `block` | `suggest` |
 | `suggest.workflow` | text | id of another workflow of the catalogue | no suggestion (`precondition_self`, `precondition_unknown_workflow`) |
 | `suggest.resume` | boolean | `true`, `false` | `false` |
@@ -453,6 +471,7 @@ Checked before launch, in file order, in the session location.
 - `suggest`: message + offer to launch `suggest.workflow`; the user may go on. With `resume: true`, oh offers to relaunch the original workflow (same inputs) once the other one has finished.
 - `block`: the launch is refused.
 - Remote or without interface: a `suggest` failure becomes a warning, a `block` failure stops the session.
+- Message: the label, followed by what failed, read by oh — uncommitted changes (the first five, then their number), current and expected branches, detached HEAD, missing tools, directory outside git. The git reads go through the safe git of oh (no hook, no fsmonitor, no repository setting that runs a program); a read that fails fails the precondition.
 - Patch: merged by id, field by field.
 
 ---
@@ -530,14 +549,14 @@ A diagnostic has a severity (error or warning), a code, the field path, the sour
 | `entry_not_primary`, `entry_role`, `entry_disabled`, `agent_unknown`, `agent_unreachable` | invalid entry agent or member |
 | `after_unknown`, `after_cycle`, `calls_unknown`, `graph_cycle` | `after` gates and delegations |
 | `scratch_reader_unknown`, `scratch_reader_owner` | scratch reader not in the workflow, or the owner itself |
-| `checkpoint_agent_clash`, `checkpoint_mode_unknown`, `checkpoint_mode_missing`, `checkpoint_condition_missing`, `mandatory_checkpoint_removed`, `unlocking_checkpoint_removed`, `unlock_duplicate`, `unlock_unknown`, `unlock_skip`, `unlock_push_without_publish`, `patch_unknown_checkpoint`, `checkpoint_by_unknown`, `checkpoint_by_duplicate`, `checkpoint_wiki_commit`, `headless_checkpoint_pause` | checkpoints |
+| `checkpoint_agent_clash`, `checkpoint_mode_unknown`, `checkpoint_mode_missing`, `checkpoint_condition_missing`, `mandatory_checkpoint_removed`, `unlocking_checkpoint_removed`, `unlock_duplicate`, `unlock_unknown`, `unlock_skip`, `unlock_push_without_publish`, `unlock_requires_publish`, `publish_checkpoint_remote`, `publish_checkpoint_pause`, `patch_unknown_checkpoint`, `checkpoint_by_unknown`, `checkpoint_by_duplicate`, `checkpoint_wiki_commit`, `headless_checkpoint_pause` | checkpoints |
 | `verify_empty`, `verify_cmd_template`, `verify_in_invalid`, `verify_timeout_invalid`, `verified_checkpoint_removed`, `when_empty`, `when_mandatory`, `when_unknown_agent`, `when_unknown_output`, `pause_budget_exceeded` | verification run by oh, conditions, pause budget (R3) |
 | `method_input_type`, `checkpoint_method_no_input`, `checkpoint_method_mandatory`, `checkpoint_method_after`, `verify_since_unknown`, `verify_since_method`, `verify_outside_tests_ignored` | method of the session and test written first (R7) |
-| `precondition_check_invalid`, `precondition_path_invalid`, `precondition_self`, `precondition_unknown_workflow`, `patch_unknown_precondition` | preconditions |
+| `precondition_check_invalid`, `precondition_path_invalid`, `precondition_branch_invalid`, `precondition_tool_invalid`, `precondition_self`, `precondition_unknown_workflow`, `patch_unknown_precondition` | preconditions |
 | `prompt_both`, `prompt_empty`, `prompt_template_path`, `prompt_template_missing`, `prompt_parse`, `prompt_unknown_variable` | prompt |
 | `read_agent_writes`, `read_beads_unrestricted`, `read_beads_write`, `read_plugin_exec` | `risk: read` rules |
 | `plan_agent_writes`, `plan_beads_unrestricted`, `plan_beads_delete`, `plan_without_beads_write` | `risk: plan` rules |
-| `remote_forbidden_checkpoint`, `runtime_default_not_allowed`, `mode_default_not_allowed`, `isolation_unsupported` | environments, modes, isolation |
+| `remote_forbidden_checkpoint`, `publish_remote_runtime`, `runtime_default_not_allowed`, `mode_default_not_allowed`, `isolation_unsupported` | environments, modes, isolation |
 | `parallel_writers_without_commit_gate` | warning: `risk: write`, at least two agents that edit files and no checkpoint that unlocks `commit` (except a selectable entry, `libre`) |
 | `model_invalid`, `model_agent_unknown`, `skill_unknown`, `skill_unknown_deny`, `skill_closure`, `skill_duplicate`, `skill_denied_required` | resources |
 | `session_mode_not_allowed`, `session_runtime_not_allowed`, `session_input_unknown`, `session_input_invalid`, `session_input_missing`, `verify_cmd_missing` (an `enum` input set to `custom` requires the `<input>_cmd` input when the workflow declares it), `session_entry_not_selectable`, `session_entry_unknown` | launch options |
