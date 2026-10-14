@@ -107,6 +107,10 @@ type Service struct {
 	// provider settings (launch on an existing session). Nil = ResumeSession
 	// with the settings of the launch.
 	WakeSession func(ctx context.Context, sessionID string) error
+	// RefreshRules asks the daemon to set the session rules of an oh
+	// session and of its subagent sessions (after an import: the tool
+	// recreates the session without them). Nil = not asked.
+	RefreshRules func(ctx context.Context, sessionID string) error
 }
 
 // StartRequest describes a session to start.
@@ -671,8 +675,13 @@ func (s *Service) startServer(ctx context.Context, dc DaemonClient, req StartReq
 		_ = dc.RevokeOwner(ctx, gk)
 		return nil, adapters.VisibilityReport{}, nil, err
 	}
+	spec := req.Bundle.Spec
+	spec.PendingGuard = bundle.PendingGuard(spec.Workflow) // p6-debts: closed until oh confirms the session rules
+	if len(spec.PendingGuard) > 0 {
+		spec.PendingMessage = i18n.T("cmd.daemon.workflow.pending_unconfirmed")
+	}
 	h, err := s.Adapter.StartServer(ctx, adapters.ServerGroup{
-		Key: key, Bundle: req.Bundle.Spec, DataDir: dataDir, WorkDir: req.Location,
+		Key: key, Bundle: spec, DataDir: dataDir, WorkDir: req.Location,
 		Provider: sessionspec.ProviderSpec{ID: ocProvider, Region: region, BaseURL: baseURL, SessionToken: grant.Token},
 		Runtime:  rt, Prepared: pg, IsolateUserConfig: req.IsolateUserConfig,
 	})

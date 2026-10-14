@@ -139,8 +139,27 @@ func (a *Adapter) StartServer(ctx context.Context, g adapters.ServerGroup) (adap
 		}
 		slog.Warn("oh plugin not active, restarting in fallback mode", "error", perr)
 		_ = a.StopServer(context.Background(), h)
+		if err := fallbackAllowed(g.Bundle); err != nil {
+			return adapters.ServerHandle{}, fmt.Errorf("%w (%w)", err, perr)
+		}
 	}
 	return a.start(ctx, g, withoutOhPlugin(g.Bundle))
+}
+
+// fallbackAllowed refuses the fallback mode to a bundle whose subagent
+// sessions would run without the locks of its checkpoints until the daemon
+// adopts them (p6-debts, closed by default): only the oh plugin holds their
+// locked operations meanwhile (PendingGuard).
+func fallbackAllowed(b sessionspec.BundleSpec) error {
+	if len(b.PendingGuard) == 0 {
+		return nil
+	}
+	for _, targets := range b.SubagentGraph {
+		if len(targets) > 0 {
+			return errors.New("the oh plugin is not active: a workflow that delegates to subagents does not run without it (their checkpoint locks would not hold until oh adopts their sessions); see the server log and oh doctor")
+		}
+	}
+	return nil
 }
 
 // innerDir is a machine directory as seen by the server.

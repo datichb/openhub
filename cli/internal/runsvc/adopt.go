@@ -88,6 +88,14 @@ func (s *Service) adopt(ctx context.Context, sessionID string, transcripts [][]b
 	if err := s.reapplySessionEnv(ctx, srv, sess); err != nil {
 		return nil, fmt.Errorf("applying the session environment: %w", err)
 	}
+	// p6-debts: the imported sessions come without their session rules
+	// (checkpoint locks); until the daemon sets them, the oh plugin refuses
+	// what they lock.
+	if s.RefreshRules != nil {
+		if err := s.RefreshRules(ctx, sess.ID); err != nil {
+			slog.Warn("runsvc: session rules of the imported session not applied", "session", sess.ID, "error", err)
+		}
+	}
 	_ = dc.Touch(ctx, gk)
 	return &StartResult{SessionID: sess.ID, GroupKey: gk, Server: srv}, nil
 }
