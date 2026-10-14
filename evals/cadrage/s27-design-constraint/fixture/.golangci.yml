@@ -1,0 +1,11 @@
+version: "2"
+linters:
+  enable: [depguard]
+  settings:
+    depguard:
+      rules:
+        domaine:
+          files: ["**/internal/order/**"]
+          deny:
+            - pkg: "example.com/shop/internal"
+              desc: "le domaine n'importe aucun autre paquet du module : il déclare ses interfaces, cmd/shop les câble"

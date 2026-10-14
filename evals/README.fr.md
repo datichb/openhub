@@ -70,8 +70,11 @@ Les assertions sont décrites dans la [référence d'`oh eval`](../docs/referenc
 | S16 | skill-refresh | Hub réduit : seule la skill périmée est retenue, proposée à `cp-refresh` sans écriture avant, puis mise à jour (`versions`, `reviewed`) et commitée ; les notes de veille rendent le cas déterministe sans recherche web |
 | S17 | skill-refresh | Proposition refusée à `cp-refresh` : aucune écriture ni commit, avant comme après |
 | S18 | skill-refresh | Toutes les skills de stack sont récentes : ni checkpoint, ni écriture, ni commit |
+| S26 | review | Revue sur deux axes : le critère oublié du ticket (`ErrDivByZero`) est relevé dans l'axe « conformité à la demande », l'affichage de débogage dans l'axe « qualité du code » ; rapports non enregistrés (`reports: off`) |
+| S27 | cadrage | Deux conceptions, une seule respecte la règle `depguard` de `.golangci.yml` (le domaine n'importe aucun autre paquet) : l'option qui la respecte est recommandée, contrainte citée, malgré la préférence de l'utilisateur |
+| S28 | skill-refresh | Skill de stack sans métadonnées réécrite : `oh skill check --hub .` sans erreur (si `oh` est dans le `PATH` des tests cachés), description « Utiliser quand… », locators, et rien de l'extrait fourni dans les notes recopié tel quel |
 
-S16 à S18 ne sont pas encore dans la mesure de référence (`notInBaseline` dans `cli/internal/evalrun/evalrun_test.go`) : ils y entreront au prochain enregistrement.
+S16 à S18 et S26 à S28 ne sont pas encore dans la mesure de référence (`notInBaseline` dans `cli/internal/evalrun/evalrun_test.go`) : ils y entreront au prochain enregistrement.
 
 La mesure de référence (Haiku, trois répétitions) est enregistrée dans `cli/internal/evalrun/testdata/evals/baseline.json` ; `make test-eval` la compare au passage courant.
 

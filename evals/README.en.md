@@ -70,8 +70,11 @@ The assertions are described in the [`oh eval` reference](../docs/reference/cli-
 | S16 | skill-refresh | Reduced hub: only the stale skill is selected, proposed at `cp-refresh` with no write before, then updated (`versions`, `reviewed`) and committed; the release notes input keeps the case deterministic without web search |
 | S17 | skill-refresh | Proposal refused at `cp-refresh`: no write nor commit, before or after |
 | S18 | skill-refresh | Every stack skill is recent: no checkpoint, no write, no commit |
+| S26 | review | Two-axis review: the forgotten ticket criterion (`ErrDivByZero`) is raised under « conformity to the request », the debug print under « code quality »; reports off (`reports: off`) |
+| S27 | cadrage | Two designs, only one respects the `depguard` rule of `.golangci.yml` (the domain imports no other package): that option is recommended, the constraint cited, despite the user's preference |
+| S28 | skill-refresh | Stack skill without metadata rewritten: `oh skill check --hub .` clean (when `oh` is on the `PATH` of the hidden tests), « Utiliser quand… » description, locators, and nothing of the excerpt given in the notes copied verbatim |
 
-S16 to S18 are not in the reference measure yet (`notInBaseline` in `cli/internal/evalrun/evalrun_test.go`): they enter it at the next recording.
+S16 to S18 and S26 to S28 are not in the reference measure yet (`notInBaseline` in `cli/internal/evalrun/evalrun_test.go`): they enter it at the next recording.
 
 The reference measure (Haiku, three repetitions) is recorded in `cli/internal/evalrun/testdata/evals/baseline.json`; `make test-eval` compares the current run with it.
 
