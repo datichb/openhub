@@ -9,6 +9,15 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Added — workflows incident, security-fix et spike (lot R9-a)
+
+- **Workflow `incident`** (`debugger`, `developer`) : atténuer d'abord (diagnostic rapide, changement déclencheur, mesure réversible appliquée dans l'arbre de travail ou donnée à l'utilisateur), `cp-mitigated` obligatoire vérifié par oh (tests) ; postmortem sans blâme écrit par le debugger dans `docs/wiki/postmortems/<date>-<slug>.md` (`writes:`), `cp-postmortem` (déverrouille le commit : correctif d'atténuation puis postmortem, chacun seul) ; `cp-actions` (déverrouille la création des tickets). 3 pauses en semi-auto pour un budget de 4.
+- **Workflow `security-fix`** (`conductor`, `developer`, `auditor-subagent`) : constats donnés en entrée (`findings`, par exemple un rapport d'audit via `oh session report`), `cp-triage`, corrections avec test de non-régression, nouvelle analyse ciblée **avant** le commit (`corrigé`, `encore présent`, `contournable`), `cp-rescan` sans pause vérifié par oh (tests, fichier de test modifié), `cp-2`. L'enchaînement direct `audit → security-fix` reste à brancher (`next:`, R5).
+- **Workflow `spike`** (`pathfinder`, `developer` après `cp-question`) : question, critères et durée validés à `cp-question` ; recherche sourcée ; prototype jetable dans `.oh-spike/`, jamais commité ; décision go / clarify / kill dans `docs/wiki/decisions/<slug>.md` (`writes:`) ; `cp-decision` vérifié par oh (`.oh-spike/` supprimé), décision commitée seule.
+- **Skill à la demande `postmortem`** (chronologie sourcée, impact et délai de détection chiffrés, déclencheur et cause, actions vérifiables) : S42 2/3 contre 0/3 sans le skill (délai de détection 3/3 contre 0/3), S43 et S41 sans recul. **Retirés faute de gain** : `incident-response` (S41 2/3 = 2/3) et `prototype-logic` (S49 3/3 = 3/3).
+- **Corrigé** : un sous-agent qui reçoit les skills de son appelant (`skills_from_callers`) ne reçoit plus celles qui sont incluses dans le prompt de l'appelant ; aucun catalogue livré ne change.
+- Cas d'évaluation S41 à S46 et S49 à S51, hors mesure de référence (S41 3/3, S49 3/3, S43, S45, S46, S50, S51 1/1 ; S42 1/3 et S44 0/3 sur Haiku). Workflows existants inchangés ; `incident` 10 169 tokens, `security-fix` 14 346, `spike` 11 670. Évaluations : 7,56 $ (Haiku).
+
 ### Added — composition des workflows (lot R5)
 
 - **`next:`** (E4) : un workflow déclare les workflows qui peuvent le suivre (`when: { outputs: […] }`, entrées `session.output(<sortie>)`). oh les propose sans jamais les lancer : à la fermeture du client (`oh run`), avec `oh session next <id>` (nouvelle commande) et en tête de « Enchaîner avec… » dans la TUI. Contrôles : workflow connu, sorties déclarées, entrées existantes et de type compatible.
