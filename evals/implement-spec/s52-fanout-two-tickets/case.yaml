@@ -1,4 +1,4 @@
-id: S50
+id: S52
 title: "Implement-spec en fan-out : deux tickets indépendants, une session enfant chacun (en parallèle), mergés par oh, cp-2 des enfants remplacé par un cp-merge validé ; oh ferme les tickets"
 workflow: implement-spec
 mode: semi-auto

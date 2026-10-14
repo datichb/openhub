@@ -98,8 +98,8 @@ The assertions are described in the [`oh eval` reference](../docs/reference/cli-
 | S40 | implement-spec | No ticket given: tickets and spec taken from the last `spec` session of the project (`session.output`, `previous:`), implemented, closed ticket recorded by oh; hidden tests |
 | S47 | onboarding | Re-onboarding (`refresh`) of a wiki whose architecture page cites a package renamed since: the drift is raised, the fix proposed with `wiki_propose`, no direct write in `docs/wiki/` before `cp-wiki`, the page fixed by oh once accepted on the card |
 | S48 | onboarding | Re-onboarding of an up-to-date wiki: no proposal, no write, `cp-wiki` passed |
-| S50 | implement-spec | Fan-out (`fanout=true`): two independent tickets, one child session each at the same time; the `cp-2` of each child passes by delegation (CP-R3), oh merges both branches, `cp-merge` validated, oh merges the integration branch and closes both tickets; the parent session commits nor closes anything; hidden tests |
-| S51 | implement-spec | Fan-out: two tickets that change the same line, launched at the same time; the merge of the second conflicts, the `merger` launched by oh keeps both changes, oh checks the result; no marker, hidden tests |
+| S52 | implement-spec | Fan-out (`fanout=true`): two independent tickets, one child session each at the same time; the `cp-2` of each child passes by delegation (CP-R3), oh merges both branches, `cp-merge` validated, oh merges the integration branch and closes both tickets; the parent session commits nor closes anything; hidden tests |
+| S53 | implement-spec | Fan-out: two tickets that change the same line, launched at the same time; the merge of the second conflicts, the `merger` launched by oh keeps both changes, oh checks the result; no marker, hidden tests |
 
 `cadrage` is an alias of `spec` since R5: cases S5, S15, S19 and S27 (folder `cadrage/`) launch `spec`, and S27 goes through the exploration by the pathfinder that precedes the interview when the request compares designs.
 

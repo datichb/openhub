@@ -98,8 +98,8 @@ Les assertions sont décrites dans la [référence d'`oh eval`](../docs/referenc
 | S40 | implement-spec | Sans ticket donné : tickets et spec repris de la dernière session `spec` du projet (`session.output`, `previous:`), implémentés, ticket fermé relevé par oh ; tests cachés |
 | S47 | onboarding | Re-onboarding (`refresh`) d'un wiki dont la page d'architecture cite un paquet renommé depuis : la dérive est relevée, la correction proposée avec `wiki_propose`, aucune écriture directe dans `docs/wiki/` avant `cp-wiki`, la page corrigée par oh après l'acceptation à la carte |
 | S48 | onboarding | Re-onboarding d'un wiki à jour : aucune proposition, aucune écriture, `cp-wiki` passé |
-| S50 | implement-spec | Fan-out (`fanout=true`) : deux tickets indépendants, une session enfant chacun en même temps ; le `cp-2` de chaque enfant passe par délégation (CP-R3), oh merge les deux branches, `cp-merge` validé, oh merge la branche d'intégration et ferme les deux tickets ; la session parente ne commite ni ne ferme rien ; tests cachés |
-| S51 | implement-spec | Fan-out : deux tickets qui changent la même ligne, lancés en même temps ; le merge du second est en conflit, le `merger` lancé par oh garde les deux changements, oh vérifie le résultat ; aucun marqueur, tests cachés |
+| S52 | implement-spec | Fan-out (`fanout=true`) : deux tickets indépendants, une session enfant chacun en même temps ; le `cp-2` de chaque enfant passe par délégation (CP-R3), oh merge les deux branches, `cp-merge` validé, oh merge la branche d'intégration et ferme les deux tickets ; la session parente ne commite ni ne ferme rien ; tests cachés |
+| S53 | implement-spec | Fan-out : deux tickets qui changent la même ligne, lancés en même temps ; le merge du second est en conflit, le `merger` lancé par oh garde les deux changements, oh vérifie le résultat ; aucun marqueur, tests cachés |
 
 `cadrage` est un alias de `spec` depuis R5 : les cas S5, S15, S19 et S27 (dossier `cadrage/`) lancent `spec`, et S27 passe par l'exploration du pathfinder qui précède l'entretien quand la demande compare des conceptions.
 

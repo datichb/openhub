@@ -1,4 +1,4 @@
-id: S51
+id: S53
 title: "Implement-spec en fan-out : deux tickets qui changent la même ligne, lancés en même temps ; le merge du second est en conflit, le merger le résout en gardant les deux changements, oh vérifie et merge"
 workflow: implement-spec
 mode: semi-auto
