@@ -137,6 +137,7 @@ func (r *Resolved) Validate(env Env) Diagnostics {
 	v.modes()
 	v.resources()
 	v.security()
+	v.publish()
 	return v.diags
 }
 
@@ -649,9 +650,10 @@ func (v *validator) preconditions() {
 		if !reKebabID.MatchString(k) {
 			v.err("precondition_id_invalid", base, k)
 		}
-		if len(pc.Check.PathExists) == 0 {
+		if pc.Check.IsZero() {
 			v.err("precondition_check_invalid", base+".check", k)
 		}
+		v.preconditionRepoChecks(base, pc.Check)
 		for i, p := range pc.Check.PathExists {
 			clean := path.Clean(p)
 			if p == "" || path.IsAbs(p) || clean == ".." || strings.HasPrefix(clean, "../") {

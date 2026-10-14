@@ -357,10 +357,13 @@ func preconditionWarnings(sp *workflow.Spec, dir string) ([]runsvc.Warning, []pr
 		out         []runsvc.Warning
 		suggestions []preconditionSuggestion
 	)
-	for _, r := range workflow.FailedPreconditions(workflow.EvaluatePreconditions(sp, os.DirFS(dir))) {
+	for _, r := range workflow.FailedPreconditions(workflow.EvaluatePreconditionsWith(sp, os.DirFS(dir), preconditionProbe(dir))) {
 		label := r.Label.Text(i18n.Locale())
 		if label == "" {
 			label = r.ID
+		}
+		if d := preconditionDetail(r.Failure); d != "" {
+			label += " — " + d
 		}
 		switch {
 		case r.Block:

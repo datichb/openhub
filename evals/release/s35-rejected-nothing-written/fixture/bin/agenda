@@ -1,0 +1,10 @@
+#!/bin/sh
+# agenda : point d'entrée de la ligne de commande.
+AGENDA_VERSION=1.2.0
+case "$1" in
+  add) shift; echo "ajouté : $*" ;;
+  list) echo "aucun événement" ;;
+  remind) echo "rappels envoyés" ;;
+  --version) echo "agenda $AGENDA_VERSION" ;;
+  *) echo "usage : agenda add|list|remind" >&2; exit 2 ;;
+esac

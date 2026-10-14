@@ -11,6 +11,10 @@ import (
 // in runtime.allowed.
 var ErrRemoteNotAllowed = errors.New("the workflow does not allow the remote runtime")
 
+// ErrPublishRemote is returned for a `risk: publish` workflow: it never runs
+// remotely (R8), whatever its runtime.allowed says.
+var ErrPublishRemote = errors.New("a publishing workflow (risk: publish) never runs remotely")
+
 // RemoteForbiddenError is returned when a checkpoint waits for the user in
 // the session mode and its remote policy is forbid.
 type RemoteForbiddenError struct{ Checkpoint string }
@@ -33,6 +37,9 @@ type RemoteCheckpoint struct {
 // `remote: forbid`. It returns the checkpoints the policy responder of the
 // job handles (in declaration order); the others pass by the mode.
 func (r *Resolution) RemotePlan(lang string) ([]RemoteCheckpoint, error) {
+	if r.Spec.Risk == wf.RiskPublish {
+		return nil, ErrPublishRemote
+	}
 	if !r.Spec.AllowsRuntime(wf.RuntimeRemote) {
 		return nil, ErrRemoteNotAllowed
 	}

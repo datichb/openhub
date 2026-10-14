@@ -70,6 +70,11 @@ type CheckpointState struct {
 	// starts a count of the changes (CheckpointDef.Base: cp-seams) was last
 	// passed, by checkpoint.
 	Bases map[string]string `json:"bases,omitempty"`
+
+	// R8: Committed are the commits that closed the commit window of a
+	// checkpoint, by checkpoint: a checkpoint passed again on that same
+	// commit (nothing new to commit) does not hold its tag back.
+	Committed map[string]string `json:"committed,omitempty"`
 }
 
 // CheckpointUnlock is an operation unlocked by a checkpoint.

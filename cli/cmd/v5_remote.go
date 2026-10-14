@@ -60,6 +60,8 @@ func prepareRemote(ctx context.Context, a *app.App, project *domain.Project, res
 	cps, err := res.RemotePlan(i18n.Locale())
 	var fe *workflowsvc.RemoteForbiddenError
 	switch {
+	case errors.Is(err, workflowsvc.ErrPublishRemote):
+		return nil, errors.New(i18n.Tf("cmd.remote.send.publish", res.Spec.ID))
 	case errors.Is(err, workflowsvc.ErrRemoteNotAllowed):
 		return nil, errors.New(i18n.Tf("cmd.remote.send.not_allowed", res.Spec.ID))
 	case errors.As(err, &fe):

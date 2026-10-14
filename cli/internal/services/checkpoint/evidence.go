@@ -165,6 +165,12 @@ func (s *Service) onShell(ctx context.Context, sess *domain.Session, call adapte
 			return errUnchanged
 		}
 		delete(st.Unlocks, sessionspec.UnlockCommit)
+		if herr == nil {
+			if st.Committed == nil {
+				st.Committed = map[string]string{}
+			}
+			st.Committed[u.Checkpoint] = head
+		}
 		s.record(st, domain.CheckpointWindow, u.Checkpoint, "", reason)
 		changed = true
 		return nil
@@ -175,18 +181,25 @@ func (s *Service) onShell(ctx context.Context, sess *domain.Session, call adapte
 	return changed, err
 }
 
-// closeCreateWindow closes the create window when another mandatory
-// checkpoint passes (CP-R8: the tickets were created before it).
+// closedByNextCheckpoint are the windows that close when another mandatory
+// checkpoint passes (CP-R8): the tickets were created, the release tagged
+// and its merge request opened before it.
+var closedByNextCheckpoint = []string{sessionspec.UnlockCreate, sessionspec.UnlockTag, sessionspec.UnlockMR}
+
+// closeCreateWindow closes the create, tag and mr windows when another
+// mandatory checkpoint passes.
 func (s *Service) closeCreateWindow(st *domain.CheckpointState, c sessionspec.CheckpointDef) {
 	if !c.Mandatory && len(c.Unlocks) == 0 {
 		return
 	}
-	u, ok := st.Unlocks[sessionspec.UnlockCreate]
-	if !ok || strings.EqualFold(u.Checkpoint, c.ID) {
-		return
+	for _, op := range closedByNextCheckpoint {
+		u, ok := st.Unlocks[op]
+		if !ok || strings.EqualFold(u.Checkpoint, c.ID) {
+			continue
+		}
+		delete(st.Unlocks, op)
+		s.record(st, domain.CheckpointWindow, u.Checkpoint, "", op)
 	}
-	delete(st.Unlocks, sessionspec.UnlockCreate)
-	s.record(st, domain.CheckpointWindow, u.Checkpoint, "", sessionspec.UnlockCreate)
 }
 
 // currentTicket is the ticket the session works on: the last one claimed

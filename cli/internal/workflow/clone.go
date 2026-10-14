@@ -37,6 +37,8 @@ func (s *Spec) Clone() *Spec {
 	c.Preconditions = s.Preconditions.cloneWith(func(pc Precondition) Precondition {
 		pc.Label = pc.Label.clone()
 		pc.Check.PathExists = cloneSlice(pc.Check.PathExists)
+		pc.Check.Branch = cloneSlice(pc.Check.Branch)
+		pc.Check.Tools = cloneSlice(pc.Check.Tools)
 		pc.Suggest = clonePtr(pc.Suggest)
 		return pc
 	})

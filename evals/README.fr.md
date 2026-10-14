@@ -85,8 +85,12 @@ Les assertions sont décrites dans la [référence d'`oh eval`](../docs/referenc
 | S29 | spec | La spec n'est écrite que sous `docs/wiki/specs/`, commitée seule par le planner après `cp-spec` ; les tickets, créés après `cp-tickets`, la citent |
 | S30 | spec | Une règle ajoutée par l'utilisateur à `cp-spec` devient un critère avec son point de test, couvert par le découpage avant la création des tickets |
 | S31 | spec | Une tranche demandée hors spec à `cp-tickets` (la CI) est refusée par oh (passe de convergence) tant qu'aucun critère de la spec ne la couvre |
+| S33 | release | Depuis `v1.2.0`, une fonctionnalité, un correctif et un commit interne : `1.3.0`, `[Unreleased]` daté du jour avec une section vide au-dessus, liens de comparaison à jour, version écrite dans un script sans extension (`bin/agenda`) mise à jour, tag annoté sur le commit de release, rien avant `cp-release`, aucun push |
+| S34 | release | Une rupture annoncée seulement dans le pied d'un commit (`BREAKING CHANGE:`), absente du CHANGELOG : `2.0.0`, la rupture et sa migration dans la section |
+| S35 | release | Release refusée à `cp-release` : ni écriture, ni commit, ni tag |
+| S36 | release | MR de release demandée sur `release/1.3`, sans dépôt distant : aucune MR ouverte ni push, description complète (titre, ruptures, vérifications, retour arrière) et commande pour l'ouvrir après le push dans le rapport (`reports: off`) |
 
-S16 à S31 ne sont pas encore dans la mesure de référence (`notInBaseline` dans `cli/internal/evalrun/evalrun_test.go`) : ils y entreront au prochain enregistrement.
+S16 à S31 et S33 à S36 ne sont pas encore dans la mesure de référence (`notInBaseline` dans `cli/internal/evalrun/evalrun_test.go`) : ils y entreront au prochain enregistrement.
 
 La mesure de référence (Haiku, trois répétitions) est enregistrée dans `cli/internal/evalrun/testdata/evals/baseline.json` ; `make test-eval` la compare au passage courant.
 

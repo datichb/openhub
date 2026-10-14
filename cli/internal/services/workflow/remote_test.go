@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	wf "github.com/datichb/openhub/cli/internal/workflow"
@@ -55,5 +56,14 @@ checkpoints:
 	var fe *RemoteForbiddenError
 	if !errors.As(err, &fe) || fe.Checkpoint != "cp-1" {
 		t.Fatalf("manuel: %v", err)
+	}
+}
+
+// R8: a publishing workflow never runs remotely, even if a layer lists
+// remote (the schema refuses it already).
+func TestRemotePlanPublish(t *testing.T) {
+	y := strings.Replace(remoteBase, "risk: write", "risk: publish", 1) + "runtime: { default: local, allowed: [local, remote] }\n"
+	if _, err := remoteRes(t, y, "semi-auto").RemotePlan("fr"); !errors.Is(err, ErrPublishRemote) {
+		t.Fatalf("publish: %v", err)
 	}
 }

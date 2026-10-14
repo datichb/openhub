@@ -1,0 +1,56 @@
+id: S34
+title: "Release : une rupture annoncée seulement dans le pied d'un commit (BREAKING CHANGE) donne une version majeure, documentée dans le CHANGELOG"
+workflow: release
+mode: semi-auto
+# Depuis v1.2.0 : une fonctionnalité notée dans [Unreleased], et un commit
+# « refactor » dont seul le corps porte « BREAKING CHANGE: » (la
+# configuration ne se lit plus dans ~/.agendarc mais dans AGENDA_CONFIG) ;
+# le CHANGELOG ne le dit pas. Un `git log --oneline` ne la voit pas.
+# Attendu : 2.0.0, et la rupture avec sa migration dans la section.
+setup:
+  - git tag -a v1.2.0 -m "Release v1.2.0"
+  - |
+    printf '# Étiquettes en couleur.\n' > bin/colors.conf
+    python3 - <<'PY'
+    p = "CHANGELOG.md"
+    s = open(p).read()
+    s = s.replace("## [Unreleased]\n", "## [Unreleased]\n\n### Added\n\n- Couleur par étiquette dans `agenda list`.\n", 1)
+    open(p, "w").write(s)
+    PY
+    git add -A && git commit -q -m "feat(list): couleur par étiquette"
+  - |
+    cat > bin/config.sh <<'SH'
+    #!/bin/sh
+    # Configuration d'agenda : lue dans le fichier désigné par AGENDA_CONFIG.
+    : "${AGENDA_CONFIG:?AGENDA_CONFIG doit désigner le fichier de configuration}"
+    . "$AGENDA_CONFIG"
+    SH
+    git add -A && git commit -q -m "refactor(config): une seule source de configuration" -m "La configuration se lit dans le fichier désigné par la variable AGENDA_CONFIG." -m "BREAKING CHANGE: ~/.agendarc n'est plus lu ; définir AGENDA_CONFIG=~/.agendarc pour garder l'ancien fichier."
+timeout: 15m
+answers:
+  checkpoints:
+    "*": approve
+  question: first
+assertions:
+  - type: checkpoint_order
+    order: [cp-release]
+  - type: skill_loaded_before
+    skill: release-management
+    before: { checkpoint: cp-release }
+  - type: ran
+    name: aucun commit avant la validation de cp-release
+    command: "git commit*"
+    absent: true
+    before: { checkpoint_passed: cp-release }
+  - type: ran
+    name: aucun push
+    command: "git push*"
+    absent: true
+  - type: changed_within
+    name: seuls le CHANGELOG et la version de bin/agenda changent
+    paths: ["CHANGELOG.md", "bin/agenda"]
+    include: ["CHANGELOG.md"]
+  - type: hidden_tests
+    name: 2.0.0 datée, rupture et migration (AGENDA_CONFIG) dans la section, tag annoté v2.0.0 sur HEAD
+  - type: no_denied_loop
+hidden_tests: "sh check_release.sh 2.0.0 v1.2.0 'AGENDA_CONFIG' 'agendarc' 'couleur'"

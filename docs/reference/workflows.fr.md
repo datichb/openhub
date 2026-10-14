@@ -31,6 +31,7 @@ On lance un workflow avec `oh run <workflow>` ou la fiche de lancement de la TUI
 | `onboarding` | `onboarder` | — | write (`docs/wiki/`) | local, distant | `oh start --onboard` (ancien mode C) |
 | `doc-sync` | `documentarian` | — | write (`docs/wiki/`) | local | — |
 | `skill-refresh` | `documentarian` | — | write (skills de stack du hub) | local | — |
+| `release` | `release-manager` | — | publish (CHANGELOG, commit et tag de release ; jamais de push) | local | — |
 | `review` | `reviewer` | — | read | local, distant | `oh review` |
 | `review-feedback` | `orchestrator-dev` | `developer`, `reviewer` | write | local | `oh review feedback` |
 | `audit` | `auditor` | `auditor-subagent` | read | local, distant | `oh audit`, anciens agents `infra` et `database` (partie analyse) |
@@ -47,7 +48,7 @@ On lance un workflow avec `oh run <workflow>` ou la fiche de lancement de la TUI
 | `read` | aucune modification, shell restreint | lecture seule ; `beads.allow` obligatoire, sans commande d'écriture |
 | `plan` | aucune modification, shell restreint ; seuls les chemins de documentation de `writes:` (et leur commit) sont ouverts aux agents qui les déclarent | `beads.allow` obligatoire ; écritures permises sauf `delete` |
 | `write` | modifiés | `beads.allow` du workflow ; lecture seule si `beads` est absent |
-| `publish` | modifiés, branches poussées, MR ouvertes | idem |
+| `publish` | modifiés, tags créés, MR ouvertes ; jamais en distant | idem |
 
 Une couche supérieure (équipe, projet) peut seulement durcir le risque : `read < plan < write < publish`.
 
@@ -67,9 +68,10 @@ preconditions:
 - `on_fail: suggest` : oh affiche le message et propose le workflow `suggest.workflow` ; l'utilisateur peut aussi continuer. Avec `resume: true`, oh propose de relancer le workflow d'origine (mêmes entrées) une fois le workflow proposé terminé.
 - `on_fail: block` : le lancement est refusé.
 - En distant ou sans interface : un échec `suggest` devient un avertissement, un échec `block` arrête la session.
+- Autres tests : `git_clean: true` (aucune modification non commitée, `.beads/` exclu), `branch: [main, "release/*"]` (branche courante), `tools: [goreleaser]` (commandes dans le `PATH`) ; en cas d'échec, le message dit ce qui a été trouvé (modifications, branche, outils manquants). Voir le [schéma](workflow-schema.fr.md#préconditions).
 - Chemins relatifs, sans `..`. Un patch (`extends`) modifie une précondition par son identifiant ou la retire (`disabled: true`).
 
-`feature`, `cadrage` et `spec` proposent `onboarding` quand le projet n'a ni wiki, ni `ONBOARDING.md`, ni `CONVENTIONS.md`.
+`release` refuse de se lancer sur un arbre sale ou hors de `main`, `master` et `release/*`. `feature`, `cadrage` et `spec` proposent `onboarding` quand le projet n'a ni wiki, ni `ONBOARDING.md`, ni `CONVENTIONS.md`.
 
 ---
 
@@ -216,6 +218,29 @@ Revoit les skills de stack du hub dont la dernière revue est ancienne, avec les
 | `cp-refresh` Mise à jour des skills (obligatoire, déverrouille `commit`) | pause | pause | pause | — (local seulement) |
 
 Le `documentarian` lit les skills retenues, fait la veille de chaque technologie de `versions:` (notes de l'utilisateur, puis recherche web sur les sources officielles), et présente à `cp-refresh` sa proposition : versions avant → après, changements avec leurs sources, nouvelle date `reviewed`. **Rien n'est écrit avant la validation** ; un refus avec une consigne porte sur la proposition, jamais sur les fichiers. Après la validation, il applique la proposition et commite les skills seules. Sans skill à revoir, la session s'arrête sans checkpoint. Le contenu ajouté est en français, inspiré des sources et jamais recopié. Une pause en semi-auto (budget CP-R2 : une action irréversible). Commandes Beads autorisées (lecture seule) : `show`, `list`, `ready`, `search`, `query`.
+
+## `release`
+
+Prépare une release : version SemVer déduite des commits depuis le dernier tag et du CHANGELOG (ou imposée), section `[Unreleased]` datée du jour, notes de release, commit de release, tag annoté et, sur demande, description de la merge request de release. Risque `publish`, local seulement. Guide : [Préparer une release](../guides/release.fr.md).
+
+| Entrée | Type | Obligatoire | Rôle |
+|---|---|---|---|
+| `version` | `string` (100 caractères max) | non | Version à publier ; vide : déduite des changements |
+| `notes` | `text` (4 000 caractères max) | non | Points à mettre en avant, éléments à exclure |
+| `mr` | `bool` (défaut : non) | non | Préparer la description d'une MR/PR de release, et l'ouvrir si la branche est déjà sur le dépôt distant |
+| `target` | `string` (défaut : `main`) | non | Branche cible de la MR |
+
+| Précondition | Test | Échec |
+|---|---|---|
+| `clean-tree` | `git_clean` | lancement refusé, avec les modifications trouvées |
+| `release-branch` | `branch: [main, master, "release/*"]` | lancement refusé, avec la branche courante |
+| `changelog` | `path_exists: [CHANGELOG.md]` | avertissement (le CHANGELOG sera créé) |
+
+| Checkpoint | manuel | semi-auto | distant |
+|---|---|---|---|
+| `cp-release` Release (obligatoire, déverrouille `commit`, `tag`, `mr`) | pause | pause | interdit (`remote: forbid`) |
+
+Le `release-manager` prépare tout **sans rien écrire** et le présente à `cp-release` : version et raison, section du CHANGELOG, message du tag, notes, description de la MR. Après la validation : CHANGELOG (et fichiers de version, chacun demandé), commit de release, puis tag annoté — oh refuse le tag tant que la release n'est pas commitée —, puis la MR si elle est demandée et que la branche existe sur le dépôt distant. **Aucun push** : le rapport donne les commandes (`git push origin <branche>`, puis `git push origin <tag>`) et la façon d'annuler avant le push. Une pause en semi-auto. Skills à la demande : `release-management`, `pr-description`.
 
 ## `review`
 

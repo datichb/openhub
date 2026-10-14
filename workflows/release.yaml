@@ -1,0 +1,76 @@
+apiVersion: oh/v1
+kind: Workflow
+id: release
+category: develop
+label: { fr: Release, en: Release }
+description:
+  fr: Préparer une release (version SemVer, CHANGELOG daté, notes, tag annoté, MR de release si demandée), validée avant tout commit ou tag ; le push revient à l'utilisateur
+  en: Prepare a release (SemVer version, dated CHANGELOG, notes, annotated tag, release merge request on request), approved before any commit or tag; pushing is left to the user
+risk: publish
+isolation: strict
+entry:
+  agent: release-manager
+inputs:
+  version:
+    type: string
+    label: { fr: Version, en: Version }
+    help:
+      fr: "Version à publier (1.4.0, v2.0.0-rc.1) ; vide : déduite des commits et du CHANGELOG"
+      en: "Version to release (1.4.0, v2.0.0-rc.1); empty: deduced from the commits and the CHANGELOG"
+    max_length: 100
+  notes:
+    type: text
+    label: { fr: Consignes, en: Instructions }
+    help:
+      fr: Points à mettre en avant dans les notes, éléments à exclure (facultatif)
+      en: Points to highlight in the notes, items to leave out (optional)
+    max_length: 4000
+  mr:
+    type: bool
+    default: false
+    label: { fr: Merge request de release, en: Release merge request }
+    help:
+      fr: Préparer la description d'une MR/PR de release et l'ouvrir si la branche est déjà sur le dépôt distant
+      en: Prepare the description of a release MR/PR and open it if the branch is already on the remote
+  target:
+    type: string
+    default: main
+    label: { fr: Branche cible de la MR, en: MR target branch }
+    max_length: 200
+prompt:
+  template: prompts/release.md.tmpl
+agents:
+  release-manager: { role: workflow }
+checkpoints:
+  cp-release:
+    by: [release-manager]
+    label: { fr: Release, en: Release }
+    description:
+      fr: Valider la version et sa raison, la section du CHANGELOG, les notes et le message du tag (et la description de la MR si elle est demandée) ; le commit, le tag et la MR restent refusés avant.
+      en: Approve the version and its reason, the CHANGELOG section, the notes and the tag message (and the MR description when asked); the commit, the tag and the MR stay refused until then.
+    mandatory: true
+    mode: { manuel: pause, semi-auto: pause }
+    unlocks: [commit, tag, mr]
+    remote: forbid
+modes: { default: semi-auto, allowed: [manuel, semi-auto] }
+preconditions:
+  clean-tree:
+    label:
+      fr: L'arbre de travail doit être propre avant une release
+      en: The work tree must be clean before a release
+    check: { git_clean: true }
+    on_fail: block
+  release-branch:
+    label:
+      fr: Une release part de main, master ou d'une branche release/*
+      en: A release starts from main, master or a release/* branch
+    check: { branch: [main, master, "release/*"] }
+    on_fail: block
+  changelog:
+    label:
+      fr: Pas de CHANGELOG.md à la racine (il sera créé)
+      en: No CHANGELOG.md at the root (it will be created)
+    check: { path_exists: [CHANGELOG.md] }
+beads:
+  allow: [show, list, search]
+runtime: { default: local, allowed: [local] }

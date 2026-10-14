@@ -284,7 +284,7 @@ func TestShippedCases(t *testing.T) {
 			assert.Equal(t, "accept", c.Answers.Wiki, "the proposals on the card are accepted")
 		}
 	}
-	assert.Equal(t, []string{"S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10", "S11", "S12", "S13", "S14", "S15", "S16", "S17", "S18", "S19", "S20", "S21", "S22", "S23", "S24", "S25", "S26", "S27", "S28", "S29", "S30", "S31"}, ids)
+	assert.Equal(t, []string{"S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10", "S11", "S12", "S13", "S14", "S15", "S16", "S17", "S18", "S19", "S20", "S21", "S22", "S23", "S24", "S25", "S26", "S27", "S28", "S29", "S30", "S31", "S33", "S34", "S35", "S36"}, ids)
 }
 
 func requireGit(t *testing.T) {
@@ -434,6 +434,10 @@ var notInBaseline = map[string]string{
 	"S29": "added by R4 (spec: spec written under docs/wiki/specs/ only, committed after cp-spec, tickets after cp-tickets)",
 	"S30": "added by R4 (spec: rule added at cp-spec, criterion with its test point, breakdown converges)",
 	"S31": "added by R4 (spec: slice outside the spec refused until a criterion covers it)",
+	"S33": "added by R8 (release: minor version deduced, dated CHANGELOG, annotated tag after cp-release, no push)",
+	"S34": "added by R8 (release: breaking change in a commit footer gives a major version)",
+	"S35": "added by R8 (release: refused at cp-release, nothing written, no tag)",
+	"S36": "added by R8 (release: complete release MR description, no remote branch)",
 }
 
 // The reference measure kept in the repository (make test-eval
