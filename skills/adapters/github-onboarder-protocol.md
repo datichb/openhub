@@ -18,7 +18,7 @@ Ce skill enrichit la Phase 1 du workflow Onboarder avec les données GitHub pour
 ### Déclencheur
 
 Lancer Phase 1.4bis si :
-- Le projet est déclaré avec `Tracker: github` dans `projects/projects.md`
+- Les outils MCP `github` sont disponibles dans la session (tracker du projet)
 - OU un fichier `.github/workflows/` est détecté dans la codebase
 - OU l'utilisateur mentionne un dépôt GitHub pendant l'onboarding
 

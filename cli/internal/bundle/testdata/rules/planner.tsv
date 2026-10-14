@@ -122,7 +122,7 @@ planner-phase-3-4	Ce qu'on vérifie	✅ **Impact en cascade complet** : Tous les
 planner-phase-3-4	Ce qu'on vérifie	✅ **Concepts déjà rejetés** : Consulter `docs/wiki/decisions/decisions-rejetees.md` (si le fichier existe) et vérifier qu'aucun ticket du plan ne re-propose un concept avec statut `ACTIVE`. Pour chaque match détecté, afficher le concept rejeté avec sa raison et demander confirmation : "Ce concept a été rejeté le [date] parce que [raison]. Le contexte a-t-il changé ?" Si oui, l'entrée peut être mise à jour ou supprimée. Si le fichier n'existe pas, skip silencieusement.
 planner-phase-3-4	Récap de fin de Phase 4	Question de validation obligatoire
 planner-phase-5-6	Règles impératives	Toujours utiliser `--json` sur `bd create`
-planner-phase-5-6	Règles impératives	Toujours capturer l'ID via `jq -r '.id'`
+planner-phase-5-6	Règles impératives	Toujours lire l'ID dans la sortie JSON de `bd create` et l'écrire en clair dans les commandes suivantes : chaque commande est lancée seule (pas de variable shell, ni `echo`, ni `jq`, ni `cat <<EOF`)
 planner-phase-5-6	Règles impératives	Ne jamais utiliser `bd edit`
 planner-phase-5-6	Règles impératives	Les descriptions sont en langage naturel, jamais en code
 planner-phase-5-6	Règles impératives	**Toujours renseigner `--estimate`** — même approximatif

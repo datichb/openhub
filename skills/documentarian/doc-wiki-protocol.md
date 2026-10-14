@@ -29,7 +29,7 @@ Avant toute action, vérifier si le dépôt est un monorepo :
 ```bash
 ls pnpm-workspace.yaml lerna.json nx.json turbo.json 2>/dev/null
 ls packages/*/package.json apps/*/package.json 2>/dev/null
-cat Cargo.toml 2>/dev/null | head -5  # [workspace] section
+# Cargo.toml : section [workspace], avec l'outil read
 ```
 
 **Si monorepo détecté :**

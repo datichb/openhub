@@ -25,27 +25,29 @@ agents:
   debugger: { role: workflow, writes: ["docs/wiki/postmortems/**"], calls: [developer] }
   developer: { role: workflow, mode: subagent }
 checkpoints:
-  # One checkpoint unlocks each operation (unlock_duplicate): the commit of
-  # a code mitigation waits for cp-postmortem, in its own commit; until
-  # then it stays in the work tree, checked by oh at cp-mitigated.
+  # Two commit checkpoints (unlock_again, p5-fixes): the code mitigation is
+  # committed at cp-mitigated, in one commit (oh opens nothing when there is
+  # nothing to commit), then the postmortem at cp-postmortem.
   cp-mitigated:
     by: [debugger]
     label: { fr: Atténuation, en: Mitigation }
     description:
-      fr: Présenter le diagnostic rapide et la mesure d'atténuation (retour arrière, désactivation, configuration, ou correction de code déjà appliquée dans l'arbre de travail, vérifiée par oh) ; l'utilisateur décide de l'appliquer, ou confirme qu'elle est en place.
-      en: Present the quick diagnosis and the mitigation (rollback, switch-off, configuration, or a code fix already applied in the work tree, checked by oh); the user decides to apply it, or confirms it is in place.
+      fr: Présenter le diagnostic rapide et la mesure d'atténuation (retour arrière, désactivation, configuration, ou correction de code déjà appliquée dans l'arbre de travail, vérifiée par oh) ; l'utilisateur décide de l'appliquer, ou confirme qu'elle est en place. Une fois validé, le correctif de code (s'il y en a un) est commité, seul.
+      en: Present the quick diagnosis and the mitigation (rollback, switch-off, configuration, or a code fix already applied in the work tree, checked by oh); the user decides to apply it, or confirms it is in place. Once approved, the code fix (if any) is committed, on its own.
     mandatory: true
     mode: { manuel: pause, semi-auto: pause, auto: pause }
+    unlocks: [commit]
     verify: { from: stack, expect: pass }
   cp-postmortem:
     by: [debugger]
     label: { fr: Postmortem, en: Postmortem }
     description:
-      fr: Présenter le postmortem sans blâme écrit sous docs/wiki/postmortems/ ; une fois validé, le correctif d'atténuation (s'il y en a un) puis le postmortem sont commités, chacun dans son commit.
-      en: Present the blameless postmortem written under docs/wiki/postmortems/; once approved, the mitigation fix (if any) then the postmortem are committed, each in its own commit.
+      fr: Présenter le postmortem sans blâme écrit sous docs/wiki/postmortems/ ; une fois validé, le postmortem est commité, seul.
+      en: Present the blameless postmortem written under docs/wiki/postmortems/; once approved, the postmortem is committed, on its own.
     mandatory: true
     mode: { manuel: pause, semi-auto: pause, auto: pause }
     unlocks: [commit]
+    unlock_again: true
   cp-actions:
     by: [debugger]
     label: { fr: Actions, en: Actions }

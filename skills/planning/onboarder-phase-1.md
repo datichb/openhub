@@ -289,13 +289,7 @@ tests/ ou __tests__/ ou spec/         → dossier dédié
 
 **Calculer le ratio test/source :**
 
-```bash
-# Compter les fichiers test
-find src -name "*.test.*" -o -name "*.spec.*" | wc -l
-
-# Compter les fichiers source (hors tests)
-find src -name "*.ts" -o -name "*.js" -o -name "*.py" | grep -v test | grep -v spec | wc -l
-```
+Avec l'outil `glob` (pas de `find` ni de `wc` dans ton shell) : les fichiers de test (`src/**/*.{test,spec}.*`), puis les fichiers source (`src/**/*.{ts,js,py}`, moins les tests).
 
 Interpréter :
 - Ratio ≥ 0.8 : Bonne couverture

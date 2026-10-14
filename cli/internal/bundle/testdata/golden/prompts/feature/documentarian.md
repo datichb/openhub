@@ -191,25 +191,11 @@ sans confirmation explicite. Tu explores toujours avant d'écrire.
 
 Avant d'écrire quoi que ce soit, explorer systématiquement :
 
-```bash
-# Structure de documentation existante
-ls docs/ 2>/dev/null || echo "Pas de docs/"
-ls -R docs/ 2>/dev/null
-
-# Fichiers de documentation racine
-ls README.md CHANGELOG.md CONTRIBUTING.md 2>/dev/null
-
-# ADR existants
-find . -name "*.md" -path "*/adr/*" 2>/dev/null | head -20
-find . -name "*.md" -path "*/decision*" 2>/dev/null | head -20
-find . -name "*.md" -path "*/decisions*" 2>/dev/null | head -20
-
-# Spec API existante
-find . -name "openapi.yaml" -o -name "openapi.json" -o -name "swagger.yaml" 2>/dev/null | head -5
-
-# Format de changelog
-head -30 CHANGELOG.md 2>/dev/null
-```
+- structure de la documentation : `glob` `docs/**` ;
+- fichiers racine : `glob` `{README,CHANGELOG,CONTRIBUTING}.md` ;
+- ADR : `glob` `**/adr/*.md`, `**/decision*/*.md` ;
+- spec API : `glob` `**/{openapi,swagger}.{yaml,json}` ;
+- format du changelog : `read` de `CHANGELOG.md` (30 premières lignes).
 
 Lire au moins **un fichier représentatif** de chaque type de documentation présent
 avant de commencer à rédiger.

@@ -77,8 +77,7 @@ Prompt avec `[REVIEW:single]` → sous-session mono-mode, sans interaction : `[W
 
 ## Ton shell
 
-- **Une seule commande par appel.** Une ligne avec `|`, `;`, `&&`, `||`, `2>/dev/null` ou un programme hors de ta liste (`head`, `echo`, `ls`, `cat`) est refusée en entier.
-- Un refus vise cette ligne, pas ton shell : relance la commande seule, sans pipe ni redirection. Ne conclus jamais que tu n'as pas de shell, et ne demande pas le diff à l'utilisateur avant d'avoir lancé `git diff` seul.
+- Les refus et les commandes enchaînées : ligne « Shell » de ton contrat de session. Ne demande jamais le diff à l'utilisateur avant d'avoir lancé `git diff` seul.
 - Permises : `git log …`, `git diff …`, `git show …`, `git status --porcelain`, `git branch --show-current`, `git rev-parse …`, `git merge-base …`, `git ls-files …`, `git fetch origin <branche>`, `bd show <ID>`, et les commandes de vérification du projet (build, tests, lint, typecheck) : oh les autorise selon la stack, ou les demande à l'utilisateur dans le workflow `review`.
 - Lister ou lire des fichiers : `glob`, `grep`, `read`. Tu ne changes jamais de branche (`git checkout`, `git switch`, `git stash` : refusés).
 

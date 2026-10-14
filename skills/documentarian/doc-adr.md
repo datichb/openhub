@@ -20,7 +20,7 @@ Avant toute action, vérifier si le dépôt est un monorepo :
 ```bash
 ls pnpm-workspace.yaml lerna.json nx.json turbo.json 2>/dev/null
 ls packages/*/package.json apps/*/package.json 2>/dev/null
-cat Cargo.toml 2>/dev/null | head -5  # [workspace] section
+# Cargo.toml : section [workspace], avec l'outil read
 ```
 
 **Si monorepo détecté :**
@@ -38,10 +38,7 @@ Avant de créer un ADR, toujours explorer ce qui existe :
 
 ```bash
 # Emplacements courants des ADR
-find . -name "*.md" -path "*/adr/*" 2>/dev/null
-find . -name "*.md" -path "*/decisions/*" 2>/dev/null
-find . -name "*.md" -path "*/decision-records/*" 2>/dev/null
-find . -name "*.md" -path "*/architectural-decisions/*" 2>/dev/null
+# Avec l'outil glob : **/adr/*.md, **/decisions/*.md, **/decision-records/*.md, **/architectural-decisions/*.md
 
 # Formats de nommage courants
 ls docs/adr/ 2>/dev/null

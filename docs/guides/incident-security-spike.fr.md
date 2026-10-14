@@ -12,9 +12,9 @@ oh run incident -i incident="Depuis le déploiement de 14h02, les paiements éch
 
 1. Le `debugger` mesure l'impact, date le début et cherche le changement déclencheur (`git log` autour de l'heure de début, diff du commit suspect).
 2. Il propose la mesure la plus sûre : annuler ce changement, couper la fonction, changer un réglage. Si c'est du code, le `developer` l'applique **dans l'arbre de travail**, sans commit. Si c'est hors du dépôt (variable d'environnement, retour à la version précédente), il vous donne la commande exacte.
-3. **`cp-mitigated`** : oh lance les tests, puis vous choisissez ou confirmez la mesure. Le correctif de code est déjà en place : vous pouvez le livrer vous-même si l'incident ne peut pas attendre.
+3. **`cp-mitigated`** : oh lance les tests, puis vous choisissez ou confirmez la mesure. Validé, le correctif de code (s'il y en a un) est commité aussitôt, seul : vous pouvez le livrer sans attendre le postmortem.
 4. Le debugger écrit le postmortem, `docs/wiki/postmortems/<date>-<slug>.md`, **sans blâme** : aucun nom de personne, même si le signalement en cite un ; la chronologie, l'impact et le délai de détection sont chiffrés et sourcés.
-5. **`cp-postmortem`** : vous validez ou demandez une correction ; ensuite seulement, le correctif d'atténuation puis le postmortem sont commités, chacun dans son commit.
+5. **`cp-postmortem`** : vous validez ou demandez une correction ; ensuite seulement, le postmortem est commité, seul.
 6. **`cp-actions`** : les actions du postmortem (prévenir, détecter, atténuer) deviennent des tickets si vous les validez ; un refus n'en crée aucun.
 
 Trois pauses en semi-auto, chacune obligatoire : un incident ne se mène pas en automatique.
@@ -49,7 +49,7 @@ oh run spike -i question="Peut-on remplacer csvlite par encoding/csv ? go si le 
 
 | Workflow | Avant le checkpoint | Vérifié par oh |
 |---|---|---|
-| `incident` | aucun commit avant `cp-postmortem`, aucun ticket avant `cp-actions` ; le debugger n'écrit que `docs/wiki/postmortems/` | tests de la stack à `cp-mitigated` |
+| `incident` | aucun commit avant `cp-mitigated` (puis un seul, le correctif), celui du postmortem après `cp-postmortem`, aucun ticket avant `cp-actions` ; le debugger n'écrit que `docs/wiki/postmortems/` | tests de la stack à `cp-mitigated` |
 | `security-fix` | aucun commit avant `cp-2` ; le developer n'est lancé qu'après `cp-triage` | tests et au moins un fichier de test modifié, à `cp-rescan` et `cp-2` |
 | `spike` | aucun commit avant `cp-decision` ; le developer n'est lancé qu'après `cp-question` ; le pathfinder n'écrit que `docs/wiki/decisions/` | `.oh-spike/` supprimé, à `cp-decision` |
 

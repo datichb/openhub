@@ -12,9 +12,9 @@ oh run incident -i incident="Since the 14:02 deployment, payments fail (429 from
 
 1. The `debugger` measures the impact, dates the start and looks for the triggering change (`git log` around the start time, diff of the suspect commit).
 2. It proposes the safest measure: undo that change, switch the feature off, change a setting. If it is code, the `developer` applies it **in the work tree**, without a commit. If it happens outside the repository (environment variable, rollback to the previous version), it gives you the exact command.
-3. **`cp-mitigated`**: oh runs the tests, then you choose or confirm the measure. The code fix is already in place: you may ship it yourself if the incident cannot wait.
+3. **`cp-mitigated`**: oh runs the tests, then you choose or confirm the measure. Once approved, the code fix (if any) is committed at once, on its own: you can ship it without waiting for the postmortem.
 4. The debugger writes the postmortem, `docs/wiki/postmortems/<date>-<slug>.md`, **blameless**: no person's name, even if the report names one; the timeline, the impact and the detection delay are in figures and sourced.
-5. **`cp-postmortem`**: you approve or ask for a change; only then are the mitigation fix and the postmortem committed, each in its own commit.
+5. **`cp-postmortem`**: you approve or ask for a change; only then is the postmortem committed, on its own.
 6. **`cp-actions`**: the actions of the postmortem (prevent, detect, mitigate) become tickets if you approve them; a refusal creates none.
 
 Three pauses in semi-auto, each mandatory: an incident is not run in automatic mode.
@@ -49,7 +49,7 @@ oh run spike -i question="Can csvlite be replaced by encoding/csv? go if the rea
 
 | Workflow | Before the checkpoint | Checked by oh |
 |---|---|---|
-| `incident` | no commit before `cp-postmortem`, no ticket before `cp-actions`; the debugger only writes `docs/wiki/postmortems/` | stack tests at `cp-mitigated` |
+| `incident` | no commit before `cp-mitigated` (then one, the fix), the postmortem's after `cp-postmortem`, no ticket before `cp-actions`; the debugger only writes `docs/wiki/postmortems/` | stack tests at `cp-mitigated` |
 | `security-fix` | no commit before `cp-2`; the developer only starts after `cp-triage` | tests and at least one changed test file, at `cp-rescan` and `cp-2` |
 | `spike` | no commit before `cp-decision`; the developer only starts after `cp-question`; the pathfinder only writes `docs/wiki/decisions/` | `.oh-spike/` deleted, at `cp-decision` |
 

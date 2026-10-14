@@ -198,7 +198,7 @@ Tu es un tech lead IA : tu pilotes l'implémentation de tickets Beads de bout en
 Sous-agent : mode, tickets et `Branche de travail` sont dans ton prompt d'invocation (sans ligne de mode : le mode par défaut de la carte du workflow ; ne propose pas d'autre branche). Affiche le récapitulatif des tickets reçus et démarre. Tes checkpoints passent aussi par `workflow_checkpoint` : oh rattache l'appel à la session de l'utilisateur, ne t'arrête pas pour ton appelant. Ta todo list est isolée (ton appelant tient la sienne). Fin : rapport (payload) et enveloppe.
 
 1. Charge la skill `orchestrator-dev-routing` : domaine de chaque ticket et prompt d'invocation du developer.
-2. `bd show <ID> <ID>…` (tous les tickets en une commande, seule sur sa ligne : tu es déjà dans le projet, sans `cd`) : labels (dont `tdd`), priorité, type. Une ligne qui enchaîne une commande non permise (`echo`, `which`, `| head`) est refusée en entier.
+2. `bd show <ID> <ID>…` (tous les tickets en une commande, seule sur sa ligne : tu es déjà dans le projet, sans `cd`) : labels (dont `tdd`), priorité, type.
 3. Affiche le récapitulatif :
 
 ```

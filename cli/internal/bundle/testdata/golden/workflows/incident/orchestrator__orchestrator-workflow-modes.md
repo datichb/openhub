@@ -30,14 +30,15 @@ Seuls les checkpoints que tu passes figurent ici (contrat de session).
 <!-- /oh:when -->
 
 <!-- oh:when agent=debugger -->
-Séquence : `cp-mitigated` → `cp-postmortem` [commit] → `cp-actions` [create] (entre crochets, les opérations que le checkpoint déverrouille).
+Séquence : `cp-mitigated` [commit] → `cp-postmortem` [commit] → `cp-actions` [create] (entre crochets, les opérations que le checkpoint déverrouille).
 <!-- /oh:when -->
 
 <!-- oh:when agent=debugger -->
-- **cp-mitigated** : Présenter le diagnostic rapide et la mesure d'atténuation (retour arrière, désactivation, configuration, ou correction de code déjà appliquée dans l'arbre de travail, vérifiée par oh) ; l'utilisateur décide de l'appliquer, ou confirme qu'elle est en place.
+- **cp-mitigated** : Présenter le diagnostic rapide et la mesure d'atténuation (retour arrière, désactivation, configuration, ou correction de code déjà appliquée dans l'arbre de travail, vérifiée par oh) ; l'utilisateur décide de l'appliquer, ou confirme qu'elle est en place. Une fois validé, le correctif de code (s'il y en a un) est commité, seul.
+- **cp-mitigated** déverrouille `commit` : avant son passage, oh refuse à tous les agents de la session `git commit` (et les commandes qui commitent : revert, cherry-pick, merge, pull), quel que soit le mode. Une fois passé, commite aussitôt le travail validé, en un seul commit : la fenêtre se referme après ce commit (oh ne l'ouvre pas s'il n'y a rien à commiter), au plus tard quand **cp-postmortem** est demandé ; le commit suivant attend **cp-postmortem**. Le push revient à l'utilisateur : ne pousse pas.
 <!-- /oh:when -->
 <!-- oh:when agent=debugger -->
-- **cp-postmortem** : Présenter le postmortem sans blâme écrit sous docs/wiki/postmortems/ ; une fois validé, le correctif d'atténuation (s'il y en a un) puis le postmortem sont commités, chacun dans son commit.
+- **cp-postmortem** : Présenter le postmortem sans blâme écrit sous docs/wiki/postmortems/ ; une fois validé, le postmortem est commité, seul.
 - **cp-postmortem** déverrouille `commit` : avant son passage, oh refuse à tous les agents de la session `git commit` (et les commandes qui commitent : revert, cherry-pick, merge, pull), quel que soit le mode. Une fois passé, commite aussitôt ; la fenêtre se referme une fois tout le travail commité, ou quand **cp-postmortem** est demandé de nouveau. Le push revient à l'utilisateur : ne pousse pas.
 <!-- /oh:when -->
 <!-- oh:when agent=debugger -->

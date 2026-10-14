@@ -12,7 +12,7 @@ Avant toute action, vérifier si le dépôt est un monorepo :
 ```bash
 ls pnpm-workspace.yaml lerna.json nx.json turbo.json 2>/dev/null
 ls packages/*/package.json apps/*/package.json 2>/dev/null
-cat Cargo.toml 2>/dev/null | head -5  # [workspace] section
+# Cargo.toml : section [workspace], avec l'outil read
 ```
 
 **Si monorepo détecté :**
@@ -30,9 +30,7 @@ Avant de modifier ou créer un CHANGELOG :
 
 ```bash
 # Fichier changelog courant
-cat CHANGELOG.md 2>/dev/null | head -60
-cat HISTORY.md 2>/dev/null | head -30
-cat RELEASES.md 2>/dev/null | head -30
+# Avec l'outil read : CHANGELOG.md (60 premières lignes), HISTORY.md, RELEASES.md
 
 # Format des commits (pour la génération)
 git log --oneline -20

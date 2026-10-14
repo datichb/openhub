@@ -11,6 +11,10 @@ deny   spike/pathfinder: git add x
 deny   spike/pathfinder: git commit -m "x" -- x
 locked debug/debugger: bd create
 locked feature/planner: bd create
+locked feature/planner: bd create "Nom de l'epic" -t epic --json
+locked feature/planner: bd create "Titre du ticket" -t feature -p 1 --parent x --estimate [minutes] --json
+locked feature/planner: bd create "Titre du ticket" -t task -p 2 --parent x --estimate [minutes] --json
+locked feature/planner: bd create "Titre" -t task -p 2 --parent x --estimate [minutes] --json
 locked feature/planner: bd create -t epic
 locked feature/planner: bd duplicate
 locked feature/planner: bd duplicate x --of x
@@ -27,6 +31,10 @@ locked libre@operator: kubectl apply
 locked libre@operator: kubectl apply -f x
 locked libre@operator: terraform apply
 locked spec/planner: bd create
+locked spec/planner: bd create "Nom de l'epic" -t epic --json
+locked spec/planner: bd create "Titre du ticket" -t feature -p 1 --parent x --estimate [minutes] --json
+locked spec/planner: bd create "Titre du ticket" -t task -p 2 --parent x --estimate [minutes] --json
+locked spec/planner: bd create "Titre" -t task -p 2 --parent x --estimate [minutes] --json
 locked spec/planner: bd create -t epic
 locked spec/planner: bd duplicate
 locked spec/planner: bd duplicate x --of x
