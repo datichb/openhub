@@ -64,23 +64,50 @@ inputs:
     help:
       fr: Afficher le découpage sans rien exécuter
       en: Show the decomposition without running anything
+  fanout:
+    type: bool
+    default: false
+    label: { fr: Sessions enfants (expérimental), en: Child sessions (experimental) }
+    help:
+      fr: "Une session enfant par sous-tâche validée à cp-plan, chacune dans son worktree, mergées par oh dans une branche d'intégration et validées ensemble à cp-merge ([fanout] experimental = true)"
+      en: "One child session per subtask approved at cp-plan, each in its own worktree, merged by oh into an integration branch and validated together at cp-merge ([fanout] experimental = true)"
 prompt:
   template: prompts/sweep.md.tmpl
+# sweep-fanout: by default the subtasks run in the session (developer
+# after cp-plan, cp-commit). With the input fanout (experimental), each
+# subtask oh recorded at cp-plan (tasks:) is a child session sweep-task in
+# its own worktree, its task (title, file scope, domain) given by oh; their
+# cp-commit is replaced by cp-merge, verified by oh on the integration
+# branch (CP-R3, declared here, in the hub layer, only). No ticket.
+fanout:
+  input: fanout
+  source: tasks
+  child: sweep-task
+  parallel: 3
+  merge: cp-merge
+  delegates: [cp-commit]
+  merger: merge-conflicts
+  inputs: [goal, verify, verify_cmd]
+  fix: { workflow: quick, input: request }
 agents:
   pathfinder: { role: workflow, mode: subagent }
-  developer: { role: workflow, after: cp-plan }
+  developer: { role: workflow, after: cp-plan, fanout: never }
   reviewer: { role: workflow, mode: subagent, after: cp-plan }
 checkpoints:
   cp-plan:
     by: [conductor]
     label: { fr: Valider le découpage, en: Approve the decomposition }
     description:
-      fr: Présenter la liste des sous-tâches (description, périmètre de fichiers disjoint, domaine du developer, parallélisable ou non) avant toute exécution.
-      en: Present the subtask list (description, disjoint file scope, developer domain, parallel or not) before any execution.
+      fr: "Passer le découpage dans tasks (une entrée par sous-tâche : titre, description, périmètre de fichiers, domaine du developer, parallélisable ou non) avant toute exécution : oh le vérifie (périmètres du dépôt, disjoints entre sous-tâches parallélisables, et entre toutes en fan-out), le présente et l'enregistre."
+      en: "Give the decomposition in tasks (one entry per subtask: title, description, file scope, developer domain, parallel or not) before any execution: oh checks it (scopes of the repository, disjoint between parallel subtasks, and between all of them in a fan-out), shows it and records it."
     mandatory: true
     mode: { manuel: pause, semi-auto: pause, auto: pause }
+    tasks:
+      max: 12
+      domains: [frontend, backend, fullstack, api, data, mobile, devops, platform, security, refactor, migration, tests]
   cp-commit:
     by: [conductor]
+    fanout: never
     label: { fr: Commit du sweep, en: Commit the sweep }
     description:
       fr: Présenter le diff, le résultat de la vérification (PASS ou FAIL ; un summary qui commence par VÉRIFICATION ÉCHOUÉE si elle échoue encore) et la review avant le commit (un commit, ou un par sous-tâche à la suite).
@@ -89,6 +116,17 @@ checkpoints:
     mode: { manuel: pause, semi-auto: pause, auto: pause }
     unlocks: [commit]
     verify: { from: stack, expect: pass }
+  cp-merge:
+    by: [conductor]
+    fanout: only
+    label: { fr: Valider les merges, en: Approve the merges }
+    description:
+      fr: "Fan-out : les sessions enfants terminées et mergées par oh dans la branche d'intégration, la revue de l'ensemble faite — présenter le tableau des sous-tâches (état, merge, conflits résolus par le merger) et le verdict de la revue. oh vérifie la branche d'intégration ; validé, oh la merge dans la branche de la session. Remplace le cp-commit de chaque enfant."
+      en: "Fan-out: the child sessions done and merged by oh into the integration branch, the review of the whole done — present the table of the subtasks (state, merge, conflicts resolved by the merger) and the verdict of the review. oh verifies the integration branch; once validated, oh merges it into the branch of the session. Replaces the cp-commit of each child."
+    mandatory: true
+    mode: { manuel: pause, semi-auto: pause, auto: pause }
+    unlocks: [merge]
+    verify: { from: stack, expect: pass, on: integration }
   cp-recap:
     by: [conductor]
     label: { fr: Récap du sweep, en: Sweep recap }
@@ -103,3 +141,4 @@ beads:
 runtime: { default: local, allowed: [local] }
 outputs:
   - { id: branch, type: branch, label: { fr: Branche de travail, en: Working branch } }
+  - { id: tasks, type: text, record: tasks, label: { fr: Sous-tâches relevées par oh, en: Subtasks recorded by oh } }

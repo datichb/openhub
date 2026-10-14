@@ -1,0 +1,51 @@
+id: S73
+title: "Sweep sans fan-out : le découpage est passé dans tasks à cp-plan, vérifié et relevé par oh (sortie tasks), puis exécuté dans la session"
+workflow: sweep
+mode: semi-auto
+inputs:
+  strategy: llm
+  verify: tests
+text: "Ajouter un commentaire de documentation en français à chaque fonction exportée de strx/strx.go, et un test pour chacune dans strx/strx_test.go."
+setup:
+  - |
+    mkdir -p strx && cat > strx/strx.go <<'GO'
+    package strx
+
+    import "strings"
+
+    func Reverse(s string) string {
+    	r := []rune(s)
+    	for i, j := 0, len(r)-1; i < j; i, j = i+1, j-1 {
+    		r[i], r[j] = r[j], r[i]
+    	}
+    	return string(r)
+    }
+
+    func Shout(s string) string { return strings.ToUpper(s) + "!" }
+    GO
+timeout: 30m
+answers:
+  question: first
+  checkpoints:
+    "*": approve
+# sweep-fanout : la version séquentielle garde cp-commit, mais le
+# découpage du pathfinder n'est plus cru sur parole : oh le lit dans tasks,
+# le vérifie (fichiers du dépôt ou nouveaux fichiers d'un dossier existant)
+# et l'enregistre (sortie tasks, relevée par oh).
+assertions:
+  - type: checkpoint_order
+    order: [cp-plan, cp-commit, cp-recap]
+  - type: output
+    name: découpage relevé par oh
+    output: tasks
+    pattern: "t1 [\\s\\S]*strx/"
+  - type: called
+    name: aucun developer avant cp-plan
+    tool: task
+    absent: true
+    before: { checkpoint_passed: cp-plan }
+  - type: no_question_in_subagent
+  - type: changed_within
+    paths: ["strx/**"]
+  - type: hidden_tests
+  - type: no_denied_loop

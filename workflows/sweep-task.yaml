@@ -1,0 +1,85 @@
+apiVersion: oh/v1
+kind: Workflow
+id: sweep-task
+category: develop
+label: { fr: Tâche de sweep, en: Sweep task }
+description:
+  fr: Réaliser une sous-tâche d'un sweep dans son périmètre de fichiers, vérifier, puis la commiter (lancé par oh pour chaque sous-tâche d'un sweep en fan-out, ou à la main) ; aucun ticket
+  en: Carry out a subtask of a sweep within its file scope, verify, then commit it (launched by oh for each subtask of a fan-out sweep, or by hand); no ticket
+risk: write
+entry:
+  agent: developer
+inputs:
+  task:
+    type: text
+    required: true
+    label: { fr: Sous-tâche, en: Subtask }
+    help:
+      fr: Titre et description de la sous-tâche (dans un fan-out, écrits par oh depuis le découpage validé à cp-plan)
+      en: Title and description of the subtask (in a fan-out, written by oh from the decomposition approved at cp-plan)
+    max_length: 4400
+  files:
+    type: text
+    required: true
+    label: { fr: Périmètre de fichiers, en: File scope }
+    help:
+      fr: Chemins, dossiers ou motifs du dépôt, un par ligne ; dans un fan-out, oh refuse le commit d'un changement hors périmètre
+      en: Paths, folders or patterns of the repository, one per line; in a fan-out, oh refuses the commit of a change outside the scope
+    max_length: 16000
+  domain:
+    type: enum
+    values: [frontend, backend, fullstack, api, data, mobile, devops, platform, security, refactor, migration, tests]
+    label: { fr: Domaine, en: Domain }
+  goal:
+    type: text
+    label: { fr: Objectif du sweep, en: Sweep goal }
+    max_length: 4000
+  verify:
+    type: enum
+    values: [none, tests, lint, build, all, custom]
+    default: none
+    label: { fr: Vérification, en: Verification }
+  verify_cmd:
+    type: string
+    label: { fr: Commande de vérification, en: Verification command }
+    help:
+      fr: Commande lancée avant le commit (vérification custom)
+      en: Command run before the commit (custom verification)
+    max_length: 500
+prompt:
+  template: prompts/sweep-task.md.tmpl
+# sweep-fanout: the child workflow of sweep in a fan-out (fanout.child);
+# its cp-commit is delegated to the cp-merge of the parent (CP-R3), its
+# verification still runs, and oh refuses a change outside the scope of
+# the task it recorded. No ticket: Beads in read only.
+agents:
+  developer: { role: workflow, mode: primary }
+checkpoints:
+  cp-commit:
+    by: [developer]
+    label: { fr: Commit de la sous-tâche, en: Commit the subtask }
+    description:
+      fr: Présenter les fichiers modifiés (tous dans le périmètre), la vérification et le message de commit proposé avant le commit.
+      en: Present the changed files (all within the scope), the verification and the proposed commit message before the commit.
+    mandatory: true
+    mode: { manuel: pause, semi-auto: pause, auto: pause }
+    unlocks: [commit]
+    verify: { from: stack, expect: pass }
+skills:
+  extra:
+    - developer/dev-standards-frontend
+    - developer/dev-standards-frontend-data
+    - developer/dev-standards-frontend-a11y
+    - developer/dev-standards-backend
+    - developer/dev-standards-api
+    - developer/dev-standards-database
+    - developer/dev-standards-devops
+    - developer/dev-standards-security-hardening
+    - developer/dev-standards-refactoring
+    - developer/dev-standards-migration
+    - developer/dev-standards-testing
+    - developer/test-generation
+modes: { default: semi-auto, allowed: [manuel, semi-auto, auto] }
+beads:
+  allow: [show, list, search, query]
+runtime: { default: local, allowed: [local] }
