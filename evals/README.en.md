@@ -70,8 +70,12 @@ The assertions are described in the [`oh eval` reference](../docs/reference/cli-
 | S16 | skill-refresh | Reduced hub: only the stale skill is selected, proposed at `cp-refresh` with no write before, then updated (`versions`, `reviewed`) and committed; the release notes input keeps the case deterministic without web search |
 | S17 | skill-refresh | Proposal refused at `cp-refresh`: no write nor commit, before or after |
 | S18 | skill-refresh | Every stack skill is recent: no checkpoint, no write, no commit |
+| S22 | ticket | `tdd` method: `cp-seams`, then `cp-red` passed (tests failing for the right reason) before the commit, `cp-2` green, hidden tests |
+| S23 | quick | Mutex asked for without changing the API: `go vet ./...` (a CI step, outside the package changed) and hidden tests pass; a naive implementation passes `go test` |
+| S24 | debug | Misleading lead: the stack points to `report/format.go`, the fix ticket names the real cause (`splitRecord`, `ledger/parse.go`) |
+| S25 | quick | Merge committed with its conflict markers: both sides survive (including a semantic conflict without markers), no marker left |
 
-S16 to S18 are not in the reference measure yet (`notInBaseline` in `cli/internal/evalrun/evalrun_test.go`): they enter it at the next recording.
+S16 to S18 and S22 to S25 are not in the reference measure yet (`notInBaseline` in `cli/internal/evalrun/evalrun_test.go`): they enter it at the next recording.
 
 The reference measure (Haiku, three repetitions) is recorded in `cli/internal/evalrun/testdata/evals/baseline.json`; `make test-eval` compares the current run with it.
 

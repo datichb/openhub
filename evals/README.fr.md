@@ -70,8 +70,12 @@ Les assertions sont décrites dans la [référence d'`oh eval`](../docs/referenc
 | S16 | skill-refresh | Hub réduit : seule la skill périmée est retenue, proposée à `cp-refresh` sans écriture avant, puis mise à jour (`versions`, `reviewed`) et commitée ; les notes de veille rendent le cas déterministe sans recherche web |
 | S17 | skill-refresh | Proposition refusée à `cp-refresh` : aucune écriture ni commit, avant comme après |
 | S18 | skill-refresh | Toutes les skills de stack sont récentes : ni checkpoint, ni écriture, ni commit |
+| S22 | ticket | Méthode `tdd` : `cp-seams` puis `cp-red` passé (tests qui échouent pour la bonne raison) avant le commit, `cp-2` vert, tests cachés |
+| S23 | quick | Mutex demandé sans changer l'API : `go vet ./...` (étape de la CI, hors du paquet modifié) et tests cachés passent ; une implémentation naïve passe `go test` |
+| S24 | debug | Piste trompeuse : la pile pointe sur `report/format.go`, le ticket de correction nomme la vraie cause (`splitRecord`, `ledger/parse.go`) |
+| S25 | quick | Merge commité avec ses marqueurs de conflit : les deux côtés survivent (dont un conflit sémantique sans marqueur), aucun marqueur ne reste |
 
-S16 à S18 ne sont pas encore dans la mesure de référence (`notInBaseline` dans `cli/internal/evalrun/evalrun_test.go`) : ils y entreront au prochain enregistrement.
+S16 à S18 et S22 à S25 ne sont pas encore dans la mesure de référence (`notInBaseline` dans `cli/internal/evalrun/evalrun_test.go`) : ils y entreront au prochain enregistrement.
 
 La mesure de référence (Haiku, trois répétitions) est enregistrée dans `cli/internal/evalrun/testdata/evals/baseline.json` ; `make test-eval` la compare au passage courant.
 

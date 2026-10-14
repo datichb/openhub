@@ -1,0 +1,44 @@
+id: S22
+title: "Ticket en méthode TDD : cp-red passé (tests en échec pour la bonne raison) avant l'implémentation, puis cp-2 vert"
+workflow: ticket
+mode: semi-auto
+inputs: { method: tdd }
+tickets: [ev-1]
+beads:
+  prefix: ev
+  tickets:
+    - id: ev-1
+      title: "Lire une durée au format court (duree.Parse)"
+      type: feature
+      labels: [ai-delegated]
+      description: "Ajouter `Parse(s string) (time.Duration, error)` dans le paquet duree : l'inverse de `Format`. Formats acceptés : « <h>h<mm> » (minutes sur deux chiffres, 00 à 59), « <h>h », « <m>m »."
+      acceptance: "Parse(\"1h30\") == 90 min ; Parse(\"2h\") == 2 h ; Parse(\"45m\") == 45 min ; Parse(\"2h05\") == 125 min ; Parse(Format(d)) == d ; erreur pour \"\", \"1x\", \"h30\", \"1h75\", \"-2h\", \"1h3\" ; go test ./... passe."
+timeout: 25m
+answers:
+  checkpoints:
+    "*": approve
+  question: first
+# cp-red passé avant le commit : un commit qui a lieu (deuxième assertion)
+# sans cp-red passé avant fait échouer la troisième. oh ne laisse passer
+# cp-red que sur des tests qui compilent et échouent à l'exécution, avec au
+# moins un fichier de test changé depuis cp-seams.
+assertions:
+  - type: checkpoint_order
+    order: [cp-seams, cp-red, cp-2]
+  - type: ran
+    name: le ticket est commité
+    command: "git commit*"
+  - type: ran
+    name: cp-red passé avant le commit
+    command: "git commit*"
+    absent: true
+    before: { checkpoint_passed: cp-red }
+  - type: ran
+    name: aucun commit avant cp-2
+    command: "git commit*"
+    absent: true
+    before: { checkpoint_passed: cp-2 }
+  - type: changed_within
+    paths: ["duree/*.go"]
+  - type: hidden_tests
+  - type: no_denied_loop
