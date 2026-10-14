@@ -316,10 +316,17 @@ func (l *fanoutLauncher) Start(ctx context.Context, req fanout.LaunchRequest) (s
 	}
 	base := &p.plan.Request.Base
 	base.Attach, base.Headless, base.Fanout = sessionspec.AttachNone, true, req.Record
-	if req.Record.Role == domain.RoleChild {
-		// What changes for a child, told by oh after its prompt.
+	note := ""
+	switch req.Record.Role {
+	case domain.RoleChild:
+		note = i18n.Tf("cmd.fanout.child_note", req.Parent.ID, req.Record.Branch)
+	case domain.RoleFixer:
+		note = i18n.Tf("cmd.fanout.fixer_note", req.Parent.ID, req.Record.Branch)
+	}
+	if note != "" {
+		// What changes for a child or a fixer, told by oh after its prompt.
 		for i := range p.plan.Sessions {
-			p.plan.Sessions[i].Prompt += "\n\n" + i18n.Tf("cmd.fanout.child_note", req.Parent.ID, req.Record.Branch)
+			p.plan.Sessions[i].Prompt += "\n\n" + note
 		}
 	}
 	if req.BudgetUSD > 0 && (base.Limits.SessionBudgetUSD == 0 || base.Limits.SessionBudgetUSD > req.BudgetUSD) {
@@ -418,6 +425,8 @@ func fanoutLabel(s *domain.Session, label string) string {
 		return label + " ⑂"
 	case domain.RoleMerger:
 		return "↳ " + label + " (merge " + s.Fanout.Ticket + ")"
+	case domain.RoleFixer:
+		return "↳ " + label + " (" + i18n.T("cmd.fanout.fixer_label") + ")"
 	default:
 		return "↳ " + label + " (" + s.Fanout.Ticket + ")"
 	}
@@ -432,23 +441,15 @@ func fanoutRunning(ctx context.Context, a *app.App, id string) bool {
 	}
 	// Waiting: the children start once the parent passes cp-plan, which
 	// only the parent does; an idle parent then is done.
-	return sess.Fanout.Status == domain.FanoutRunning
+	return sess.Fanout.Status == domain.FanoutRunning || sess.Fanout.Status == domain.FanoutFixing
 }
 
-// fanoutChildren returns the sessions of the fan-out of a parent (children
-// and mergers).
+// fanoutChildren returns the sessions of the fan-out of a parent (children,
+// mergers and fixers).
 func fanoutChildren(ctx context.Context, a *app.App, id string) []string {
 	sess, err := a.Sessions.Get(ctx, id)
 	if err != nil || sess.Fanout == nil {
 		return nil
 	}
-	var out []string
-	for _, c := range sess.Fanout.Children {
-		for _, s := range []string{c.Session, c.Merger} {
-			if s != "" {
-				out = append(out, s)
-			}
-		}
-	}
-	return out
+	return fanout.Sessions(sess.Fanout)
 }

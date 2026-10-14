@@ -2,8 +2,8 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"github.com/datichb/openhub/cli/internal/services/fanout"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -16,10 +16,12 @@ import (
 	"github.com/datichb/openhub/cli/internal/daemon"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/filelock"
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/runsvc"
 	ohruntime "github.com/datichb/openhub/cli/internal/runtime"
 	"github.com/datichb/openhub/cli/internal/runtime/container"
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
+	"github.com/datichb/openhub/cli/internal/services/fanout"
 	"github.com/datichb/openhub/cli/internal/services/report"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
 	"github.com/datichb/openhub/cli/internal/services/wiki"
@@ -272,6 +274,21 @@ func daemonCheckpoints(a *app.App, wk *wiki.Service) *checkpoint.Service {
 		}
 	}}
 	cp.Integrate = in.Integrate
+	// R6: the merge checkpoint refused with an instruction, a fix round on
+	// the integration branch (run by the driver).
+	cp.RequestFix = func(ctx context.Context, sess *domain.Session, wf *sessionspec.WorkflowRuntime, instruction, failure string) string {
+		round, rounds, err := fanout.RequestFix(ctx, sqlite.NewSessionStore(store), sess, wf, instruction, failure)
+		switch {
+		case err == nil:
+			return i18n.Tf("cmd.fanout.fix_requested", round, rounds)
+		case errors.Is(err, fanout.ErrFixRounds):
+			return i18n.Tf("cmd.fanout.fix_exhausted", rounds)
+		case errors.Is(err, fanout.ErrFixPending) && sess.Fanout != nil:
+			return i18n.Tf("cmd.fanout.fix_not_ready", string(sess.Fanout.Status))
+		}
+		slog.Warn("fan-out: fix round not recorded", "session", sess.ID, "error", err)
+		return ""
+	}
 	return cp
 }
 

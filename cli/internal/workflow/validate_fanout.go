@@ -19,7 +19,10 @@ import (
 //     `verify.on: integration` is only used there;
 //   - each input given to the children is a value input of the parent,
 //     neither the fan-out nor the tickets input, that the child workflow
-//     declares with the same type (and every value of an enum).
+//     declares with the same type (and every value of an enum);
+//   - the fix workflow exists, is not a fan-out, takes the instruction in
+//     a text input and has a mandatory checkpoint that unlocks its commit
+//     (validated by the user: a fix round is never delegated).
 func (v *validator) fanout() {
 	s := v.s
 	f := s.Fanout
@@ -55,6 +58,7 @@ func (v *validator) fanout() {
 	v.fanoutMerge(f)
 	v.fanoutChild(f)
 	v.fanoutChildInputs(f)
+	v.fanoutFix(f)
 	v.fanoutDelegatesLayer(f)
 	if f.Merger != "" && !v.knownWorkflow(f.Merger) {
 		v.err("fanout_unknown_workflow", "fanout.merger", f.Merger)
@@ -208,5 +212,42 @@ func (v *validator) fanoutChildInputs(f *Fanout) {
 				v.err("fanout_inputs_value", at, id, val, f.Child)
 			}
 		}
+	}
+}
+
+// fanoutFix checks the fix round (`fanout.fix`).
+func (v *validator) fanoutFix(f *Fanout) {
+	fx := f.Fix
+	if fx == nil {
+		return
+	}
+	if fx.Workflow == "" {
+		v.err("field_required", "fanout.fix.workflow", "workflow")
+		return
+	}
+	if fx.Workflow == v.s.ID || !v.knownWorkflow(fx.Workflow) {
+		v.err("fanout_unknown_workflow", "fanout.fix.workflow", fx.Workflow)
+		return
+	}
+	if fx.Input == "" {
+		v.err("field_required", "fanout.fix.input", "input")
+	}
+	w := v.specOf(fx.Workflow)
+	if w == nil {
+		return // the environment cannot tell
+	}
+	if w.Fanout != nil {
+		v.err("fanout_child_nested", "fanout.fix.workflow", fx.Workflow)
+	}
+	if in, ok := w.Inputs.Get(fx.Input); fx.Input != "" && (!ok || (in.Type != InputText && in.Type != InputString)) {
+		v.err("fanout_fix_input", "fanout.fix.input", fx.Input, fx.Workflow)
+	}
+	commit := false
+	for _, k := range w.Checkpoints.Keys() {
+		cp, _ := w.Checkpoints.Get(k)
+		commit = commit || (!cp.Disabled && cp.IsMandatory() && containsOp(cp.Unlocks, UnlockCommit))
+	}
+	if !commit {
+		v.err("fanout_fix_commit", "fanout.fix.workflow", fx.Workflow)
 	}
 }

@@ -64,6 +64,10 @@ type fakeLauncher struct {
 	running int
 	hold    time.Duration
 	ended   bool // the sessions complete instead of going idle
+	// fix is what a fixer commits (file, content); fixMerge: it commits a
+	// merge instead.
+	fix      [2]string
+	fixMerge bool
 }
 
 func (l *fakeLauncher) Start(ctx context.Context, req LaunchRequest) (string, error) {
@@ -84,6 +88,19 @@ func (l *fakeLauncher) Start(ctx context.Context, req LaunchRequest) (string, er
 				_ = os.WriteFile(filepath.Join(req.Dir, w[0]), []byte(w[1]), 0o644)
 				quiet(req.Dir, "git", "add", w[0])
 				quiet(req.Dir, "git", "commit", "-q", "-m", "feat: "+req.Ticket)
+			}
+		case domain.RoleFixer:
+			if l.fixMerge {
+				quiet(req.Dir, "git", "checkout", "-q", "-b", "side")
+				_ = os.WriteFile(filepath.Join(req.Dir, "side.go"), []byte("package calc\n"), 0o644)
+				quiet(req.Dir, "git", "add", "side.go")
+				quiet(req.Dir, "git", "commit", "-q", "-m", "side")
+				quiet(req.Dir, "git", "checkout", "-q", req.Record.Branch)
+				quiet(req.Dir, "git", "merge", "-q", "--no-ff", "-m", "merge side", "side")
+			} else if l.fix[0] != "" {
+				_ = os.WriteFile(filepath.Join(req.Dir, l.fix[0]), []byte(l.fix[1]), 0o644)
+				quiet(req.Dir, "git", "add", l.fix[0])
+				quiet(req.Dir, "git", "commit", "-q", "-m", "fix: "+req.Inputs["request"])
 			}
 		case domain.RoleMerger:
 			if l.resolve != "" {

@@ -20,6 +20,11 @@ type FanoutDef struct {
 	Delegates []string `json:"delegates,omitempty"`
 	// Merger is the workflow of the conflict resolutions ("" = none).
 	Merger string `json:"merger,omitempty"`
+	// Fix is the workflow of a fix round on the integration branch, when
+	// the merge checkpoint is refused ("" = none), FixInput its input
+	// that gets the instruction.
+	Fix      string `json:"fix,omitempty"`
+	FixInput string `json:"fix_input,omitempty"`
 }
 
 // VerifyOnIntegration is VerifyDef.On for the integration branch.

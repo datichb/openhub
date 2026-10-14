@@ -296,3 +296,44 @@ func TestFanout_ChildInputs(t *testing.T) {
 	_, diags = fanoutCheck(t, map[string]string{"hub:x": ok, "hub:child": child, "team:x": patch("fanout: { inputs: [method, instructions, other] }\n")}, Ref{LayerTeam, "x"}, nil)
 	assertDiag(t, diags, "loosening", "fanout.inputs", SeverityError)
 }
+
+// fanout.fix: a fix workflow that takes the instruction in a text input
+// and whose commit is validated by the user; only the hub layer sets it.
+func TestFanout_Fix(t *testing.T) {
+	quick := "apiVersion: oh/v1\nkind: Workflow\nid: quick\nrisk: write\ninputs:\n  request: { type: text }\n  n: { type: int }\ncheckpoints:\n" +
+		"  cp-commit: { mandatory: true, unlocks: [commit], verify: { from: stack, expect: pass }, mode: { manuel: pause, semi-auto: pause, auto: pause } }\n"
+	with := func(fix string) string {
+		return strings.Replace(fanoutParent, "  delegates: [cp-2]\n", "  delegates: [cp-2]\n  fix: "+fix+"\n", 1)
+	}
+	docs := func(parent, q string) map[string]string { return map[string]string{"hub:x": parent, "hub:quick": q} }
+	r, diags := fanoutCheck(t, docs(with("{ workflow: quick, input: request }"), quick), Ref{LayerHub, "x"}, nil)
+	if errs := errorsOf(diags); len(errs) > 0 {
+		t.Fatalf("valid fix: %v", diagList(diags))
+	}
+	if r.Spec.Fanout.Fix == nil || r.Spec.Fanout.Fix.Workflow != "quick" {
+		t.Fatalf("fix: %s", r.Spec.Fanout)
+	}
+	cases := []struct{ name, fix, quick, code, path string }{
+		{"unknown workflow", "{ workflow: nope, input: request }", quick, "fanout_unknown_workflow", "fanout.fix.workflow"},
+		{"itself", "{ workflow: x, input: request }", quick, "fanout_unknown_workflow", "fanout.fix.workflow"},
+		{"no input", "{ workflow: quick }", quick, "field_required", "fanout.fix.input"},
+		{"input not text", "{ workflow: quick, input: n }", quick, "fanout_fix_input", "fanout.fix.input"},
+		{"commit not validated", "{ workflow: quick, input: request }", strings.Replace(quick, "unlocks: [commit], ", "", 1), "fanout_fix_commit", "fanout.fix.workflow"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			_, diags := fanoutCheck(t, docs(with(c.fix), c.quick), Ref{LayerHub, "x"}, nil)
+			assertDiag(t, diags, c.code, c.path, SeverityError)
+		})
+	}
+	patch := func(body string) string { return "apiVersion: oh/v1\nkind: Workflow\nid: x\nextends: hub:x\n" + body }
+	for _, body := range []string{"fanout: { fix: { workflow: quick, input: request } }\n", "fanout: { fix: null }\n"} {
+		d := docs(with("{ workflow: quick, input: request }"), quick)
+		if strings.Contains(body, "{ workflow") {
+			d = docs(fanoutParent, quick) // a team adds a fix round
+		}
+		d["team:x"] = patch(body)
+		_, diags := fanoutCheck(t, d, Ref{LayerTeam, "x"}, nil)
+		assertDiag(t, diags, "loosening", "fanout.fix", SeverityError)
+	}
+}

@@ -43,6 +43,9 @@ func (p *patcher) fanout() {
 	str("fanout.child", v.Child, old.Child)
 	str("fanout.merge", v.Merge, old.Merge)
 	str("fanout.merger", v.Merger, old.Merger)
+	if p.has("fanout.fix") && fixText(v.Fix) != fixText(old.Fix) {
+		p.loosening("fanout.fix", fixText(v.Fix), fixText(old.Fix))
+	}
 	if p.has("fanout.delegates") && !slices.Equal(v.Delegates, old.Delegates) {
 		p.loosening("fanout.delegates", fmt.Sprint(v.Delegates), fmt.Sprint(old.Delegates))
 	}
@@ -100,6 +103,9 @@ func (p *patcher) hubFanout(v, old *Fanout) *Fanout {
 	if p.has("fanout.inputs") {
 		c.Inputs = cloneSlice(v.Inputs)
 	}
+	if p.has("fanout.fix") {
+		c.Fix = v.clone().Fix
+	}
 	return c
 }
 
@@ -120,4 +126,11 @@ func fanoutScopeText(f FanoutScope) string {
 		return "all"
 	}
 	return string(f)
+}
+
+func fixText(f *FanoutFix) string {
+	if f == nil {
+		return "none"
+	}
+	return f.Workflow + "(" + f.Input + ")"
 }

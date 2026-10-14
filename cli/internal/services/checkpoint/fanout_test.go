@@ -372,3 +372,79 @@ func TestFanoutMergeCheckpointGuards(t *testing.T) {
 		require.ErrorAs(t, err, &le)
 	})
 }
+
+// R6: cp-merge refused with an instruction asks oh for a fix round on the
+// integration branch, with what failed in its verification; a plain
+// refusal, another checkpoint or a workflow without fix round does not.
+func TestFanoutMergeRefusedAsksForAFix(t *testing.T) {
+	type call struct{ instruction, failure string }
+	setup := func(t *testing.T, fix bool) (*fanoutFixture, *[]call) {
+		f := newFanoutFixture(t)
+		wf := fanoutParentWF()
+		if fix {
+			wf.Fanout.Fix, wf.Fanout.FixInput = "quick", "request"
+		}
+		f.rebundle(t, wf)
+		f.ready(t)
+		var calls []call
+		f.svc.RequestFix = func(_ context.Context, sess *domain.Session, wf *sessionspec.WorkflowRuntime, instruction, failure string) string {
+			calls = append(calls, call{instruction, failure})
+			return "FIX ROUND"
+		}
+		return f, &calls
+	}
+	merge := domain.Decision{ID: "d1", Kind: domain.DecisionCheckpoint, SessionID: "ses_p", Payload: domain.DecisionPayload{Data: map[string]any{DataCheckpoint: "cp-merge"}}}
+
+	f, calls := setup(t, true)
+	f.exit = 1
+	_, err := reachValidated(t, f.svc, f.ctx, "ses_p", "cp-merge")
+	var ve *VerifyError
+	require.ErrorAs(t, err, &ve, "the verification on the integration branch fails")
+	tool := &fakeTool{}
+	require.NoError(t, f.svc.Resolve(f.ctx, tool, merge, ChoiceFix, "corrige le test"))
+	require.Len(t, *calls, 1)
+	assert.Equal(t, "corrige le test", (*calls)[0].instruction)
+	assert.NotEmpty(t, (*calls)[0].failure, "what failed goes to the fix round")
+	require.Len(t, tool.steers, 1)
+	assert.Contains(t, tool.steers[0], "FIX ROUND")
+	assert.Equal(t, 0, f.integrated)
+
+	f, calls = setup(t, true)
+	tool = &fakeTool{}
+	require.NoError(t, f.svc.Resolve(f.ctx, tool, merge, ChoiceReject, ""))
+	assert.Empty(t, *calls, "a refusal without instruction asks for nothing")
+
+	f, calls = setup(t, false)
+	require.NoError(t, f.svc.Resolve(f.ctx, &fakeTool{}, merge, ChoiceFix, "corrige"))
+	assert.Empty(t, *calls, "no fix round declared")
+
+	f, calls = setup(t, true)
+	plan := merge
+	plan.Payload = domain.DecisionPayload{Data: map[string]any{DataCheckpoint: "cp-plan"}}
+	require.NoError(t, f.svc.Resolve(f.ctx, &fakeTool{}, plan, ChoiceFix, "corrige"))
+	assert.Empty(t, *calls, "only the merge checkpoint")
+}
+
+// A fixer is never a child: its commit checkpoint pauses even when the
+// parent delegates it, and it never pushes, merges nor closes.
+func TestFanoutFixerNotDelegated(t *testing.T) {
+	f := newFanoutFixture(t)
+	wf := fanoutParentWF()
+	wf.Fanout.Fix, wf.Fanout.FixInput = "quick", "request"
+	f.rebundle(t, wf)
+	require.NoError(t, f.svc.Sessions.(domain.SessionFanoutStore).SetSessionFanout(f.ctx, "ses_c",
+		&domain.SessionFanout{Role: domain.RoleFixer, Parent: "ses_p", Ticket: "ev-1", Branch: "oh/fanout/p/integration"}))
+	f.setParent(t, func(p *domain.Session) {
+		p.Fanout.Fixes = []domain.FanoutFix{{Round: 1, Session: "ses_c", State: domain.ChildRunning}}
+	})
+	assert.Equal(t, "ask", f.evaluate(t, "ses_c", "cp-2"))
+	_, err := f.svc.Reached(f.ctx, "ses_c", Call{ID: "cp-2"})
+	assert.ErrorIs(t, err, ErrNotApproved, "the user validates the fix")
+	rules, err := f.svc.Rules(f.ctx, "ses_c")
+	require.NoError(t, err)
+	for _, cmd := range []string{"git push origin HEAD", "git merge main", "bd close ev-1", "git branch -f oh/fanout/p/integration HEAD~1"} {
+		assert.Equal(t, sessionspec.EffectDeny, bundle.ShellEffect(rules, cmd), cmd)
+	}
+	assert.NotEqual(t, sessionspec.EffectDeny, bundle.ShellEffect(bundle.FanoutRoleRules(bundle.FanoutFixer), "git commit -m fix"),
+		"the fixer commits its fix (after its own commit checkpoint)")
+}

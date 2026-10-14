@@ -160,8 +160,16 @@ func (d *Driver) Run(ctx context.Context, parent string) error {
 	if !p.Fanout.Experimental {
 		return ErrDisabled
 	}
-	if p.Fanout.Status.Terminal() {
+	switch p.Fanout.Status {
+	case domain.FanoutMerged, domain.FanoutFailed, domain.FanoutStopped:
 		return nil
+	case domain.FanoutReady, domain.FanoutFixing:
+		// Started again once the children are done: the fix rounds.
+		wf, _, err := d.Workflow(ctx, parent)
+		if err != nil {
+			return err
+		}
+		return d.await(ctx, parent, wf)
 	}
 	wf, err := d.waitStart(ctx, p)
 	if err != nil || wf == nil {
@@ -183,33 +191,43 @@ func (d *Driver) Run(ctx context.Context, parent string) error {
 		return err
 	}
 	if p, err := d.Sessions.Get(ctx, parent); err == nil && p.State == domain.RunStopped {
-		// Abandoned: what can go goes, the work merged so far stays on the
-		// integration branch.
-		if res, err := Clean(ctx, d.Sessions, p, CleanOptions{}); err != nil {
-			d.logf("fan-out %s: clean-up: %v", parent, err)
-		} else {
-			d.logf("fan-out %s: abandoned, %d worktree(s) and %d branch(es) removed, %d kept", parent, len(res.Worktrees), len(res.Branches), len(res.Kept))
-		}
+		d.abandonDone(ctx, p)
 		return nil
 	}
-	return d.finish(ctx, parent)
+	if err := d.finish(ctx, parent); err != nil {
+		return err
+	}
+	return d.await(ctx, parent, wf)
+}
+
+// abandonDone stops what still runs of the fan-out of a parent stopped
+// for good and cleans it up: what can go goes, the work merged so far
+// stays on the integration branch.
+func (d *Driver) abandonDone(ctx context.Context, p *domain.Session) {
+	d.abandon(ctx, p)
+	if cur, err := d.Sessions.Get(ctx, p.ID); err == nil {
+		p = cur
+	}
+	if res, err := Clean(ctx, d.Sessions, p, CleanOptions{}); err != nil {
+		d.logf("fan-out %s: clean-up: %v", p.ID, err)
+	} else {
+		d.logf("fan-out %s: abandoned, %d worktree(s) and %d branch(es) removed, %d kept", p.ID, len(res.Worktrees), len(res.Branches), len(res.Kept))
+	}
 }
 
 // abandon stops the fan-out of a parent stopped for good: no child starts
 // any more and the running ones are stopped.
 func (d *Driver) abandon(ctx context.Context, p *domain.Session) {
-	for _, c := range p.Fanout.Children {
-		for _, id := range []string{c.Session, c.Merger} {
-			if id == "" {
-				continue
-			}
-			if s, err := d.Sessions.Get(ctx, id); err == nil && !terminal(s.State) {
-				_ = d.Launcher.Stop(ctx, id)
-			}
+	for _, id := range Sessions(p.Fanout) {
+		if s, err := d.Sessions.Get(ctx, id); err == nil && !terminal(s.State) {
+			_ = d.Launcher.Stop(ctx, id)
 		}
 	}
 	_, _ = d.update(ctx, p.ID, func(f *domain.SessionFanout) {
-		if f.Status == domain.FanoutRunning {
+		if x, ok := f.LastFix(); ok && (x.State == domain.ChildPending || x.State == domain.ChildRunning) {
+			x.State, x.Error = domain.ChildFailed, i18n.T("cmd.fanout.parent_stopped")
+		}
+		if f.Status == domain.FanoutRunning || f.Status == domain.FanoutFixing {
 			f.Status = domain.FanoutStopped
 			f.AddEvent(domain.FanoutEventFailed, "", p.ID, "parent stopped")
 		}
@@ -267,6 +285,28 @@ func gatesPassed(wf *sessionspec.WorkflowRuntime, st domain.CheckpointState) boo
 		}
 	}
 	return true
+}
+
+// Sessions are the sessions of the fan-out of a parent: children,
+// mergers and fixers.
+func Sessions(f *domain.SessionFanout) []string {
+	if f == nil {
+		return nil
+	}
+	var out []string
+	for _, c := range f.Children {
+		for _, id := range []string{c.Session, c.Merger} {
+			if id != "" {
+				out = append(out, id)
+			}
+		}
+	}
+	for _, x := range f.Fixes {
+		if x.Session != "" {
+			out = append(out, x.Session)
+		}
+	}
+	return out
 }
 
 func terminal(s domain.RunState) bool {
@@ -496,14 +536,9 @@ func (d *Driver) spent(ctx context.Context, p *domain.Session) float64 {
 		total += cur.Cost
 		p = cur
 	}
-	for _, c := range p.Fanout.Children {
-		for _, id := range []string{c.Session, c.Merger} {
-			if id == "" {
-				continue
-			}
-			if s, err := d.Sessions.Get(ctx, id); err == nil {
-				total += s.Cost
-			}
+	for _, id := range Sessions(p.Fanout) {
+		if s, err := d.Sessions.Get(ctx, id); err == nil {
+			total += s.Cost
 		}
 	}
 	return total

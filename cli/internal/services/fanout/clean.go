@@ -99,7 +99,10 @@ func Clean(ctx context.Context, store Store, sess *domain.Session, opts CleanOpt
 		}
 	}
 	var entries []cleanEntry
-	var mergers []string
+	var mergers []string // and fixers: they work in the integration worktree
+	for _, x := range f.Fixes {
+		mergers = append(mergers, x.Session)
+	}
 	for _, c := range f.Children {
 		if c.Merger != "" {
 			mergers = append(mergers, c.Merger)

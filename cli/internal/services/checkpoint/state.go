@@ -529,6 +529,10 @@ func (s *Service) Resolve(ctx context.Context, tool Tool, d domain.Decision, cho
 		if err := tool.ReplyPermission(ctx, d, "reject"); err != nil {
 			return err
 		}
+		fix := ""
+		if choice != ChoiceReject {
+			fix = s.fanoutFix(ctx, d.SessionID, id, message) // R6: fix round on the integration branch
+		}
 		unlocked := false
 		_, _ = s.update(ctx, d.SessionID, func(st *domain.CheckpointState) error {
 			if st.Waiting == id {
@@ -549,6 +553,9 @@ func (s *Service) Resolve(ctx context.Context, tool Tool, d domain.Decision, cho
 		text := i18n.Tf("tui.checkpoint.refused_steer", id, label)
 		if message != "" {
 			text += "\n" + i18n.Tf("tui.checkpoint.refused_instruction", message)
+		}
+		if fix != "" {
+			text += "\n" + fix
 		}
 		return tool.Steer(ctx, d.SessionID, text)
 	}
