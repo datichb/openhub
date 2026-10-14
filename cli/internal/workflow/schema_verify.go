@@ -59,6 +59,11 @@ type VerifySpec struct {
 	// acceptance criteria each with its test point and, with breakdown, a
 	// breakdown that covers every criterion and only them.
 	Spec *SpecCheck `yaml:"spec,omitempty"`
+
+	// R6 (schema_fanout.go): On runs the verification elsewhere than the
+	// session location: `integration`, the integration branch of a fan-out
+	// (merge checkpoint only).
+	On VerifyOn `yaml:"on,omitempty"`
 }
 
 // OutsideTests is what a change outside the test files does.
@@ -160,7 +165,7 @@ func (v *VerifySpec) Covers(parent *VerifySpec) bool {
 	if parent == nil {
 		return true
 	}
-	if v == nil || v.From != parent.From || v.ExpectOrPass() != parent.ExpectOrPass() || v.In != parent.In {
+	if v == nil || v.From != parent.From || v.ExpectOrPass() != parent.ExpectOrPass() || v.In != parent.In || v.On != parent.On {
 		return false
 	}
 	if parent.From != "" && !containsAll(v.EffectiveKinds(), parent.EffectiveKinds()) {

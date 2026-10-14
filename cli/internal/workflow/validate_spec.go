@@ -115,6 +115,9 @@ func Check(cat Catalog, ref Ref, opts *SessionOptions, env Env) (*Resolved, Diag
 		// R7: the session keeps the checkpoints of its method only
 		// (validated above with the others).
 		r.Spec = r.Spec.ForMethod(r.Method)
+		// R6: a fan-out session keeps its fan-out checkpoints, the others
+		// the checkpoints of before.
+		r.Spec = r.Spec.ForFanout(r.Fanout)
 	}
 	return r, diags
 }
@@ -139,6 +142,7 @@ func (r *Resolved) Validate(env Env) Diagnostics {
 	v.security()
 	v.publish()
 	v.composition()
+	v.fanout() // R6
 	return v.diags
 }
 

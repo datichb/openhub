@@ -45,6 +45,11 @@ type VerifyDef struct {
 
 	// R4: Spec checks the specs the session changed (internal/specdoc).
 	Spec *SpecCheckDef `json:"spec,omitempty"`
+
+	// R6: On is "integration" when the verification runs on the
+	// integration branch of a fan-out (its worktree), not in the session
+	// location.
+	On string `json:"on,omitempty"`
 }
 
 // SpecCheckDef is the check of the specs written by a session (copied

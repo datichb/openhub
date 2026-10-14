@@ -117,6 +117,8 @@ var lockPatterns = map[string][]string{
 	// R8 (publishguard.go)
 	sessionspec.UnlockTag: tagLockPatterns,
 	sessionspec.UnlockMR:  mrLockPatterns,
+	// R6 (fanoutguard.go)
+	sessionspec.UnlockMerge: mergeLockPatterns,
 }
 
 // wordOnly are the subcommands that prefix harmless ones (git merge-base).
@@ -253,7 +255,7 @@ func applyCheckpointVerify(rt *sessionspec.WorkflowRuntime, s *workflow.Spec) {
 			d := &sessionspec.VerifyDef{From: string(v.From), Cmd: append([]string(nil), v.Cmd...), Expect: string(v.ExpectOrPass()),
 				In: v.In, TimeoutSec: int(v.TimeoutOrDefault().Seconds()), MustTouch: append([]string(nil), v.MustTouch...),
 				Ask:            s.Risk == workflow.RiskRead,
-				MustTouchTests: v.MustTouchTests, OutsideTests: string(v.OutsideTests), Since: v.Since}
+				MustTouchTests: v.MustTouchTests, OutsideTests: string(v.OutsideTests), Since: v.Since, On: string(v.On)}
 			if v.From != "" {
 				for _, k := range v.EffectiveKinds() {
 					d.Kinds = append(d.Kinds, string(k))

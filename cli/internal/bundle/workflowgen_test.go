@@ -150,5 +150,8 @@ func TestUnlockTextNamesDeclaredOperations(t *testing.T) {
 	push := unlockText("cp-x", []string{"commit", "push"})
 	assert.Contains(t, push, "`git push`")
 	assert.NotContains(t, push, "Le push revient")
-	assert.Empty(t, unlockText("cp-y", []string{"merge"}), "an operation of a newer oh is not described")
+	assert.Empty(t, unlockText("cp-y", []string{"deploy"}), "an operation of a newer oh is not described")
+	merge := unlockText("cp-merge", []string{"merge"})
+	assert.Contains(t, merge, "oh merge lui-même")
+	assert.NotContains(t, merge, "Le push revient")
 }

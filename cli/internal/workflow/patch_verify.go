@@ -41,6 +41,9 @@ func verifyText(v *VerifySpec) string {
 	if v.In != "" {
 		parts = append(parts, "in: "+v.In)
 	}
+	if v.On != "" {
+		parts = append(parts, "on: "+string(v.On))
+	}
 	if len(v.MustTouch) > 0 {
 		parts = append(parts, "must_touch: "+strings.Join(v.MustTouch, ","))
 	}

@@ -118,7 +118,7 @@ func TestSessionRulesLockCreateAndApply(t *testing.T) {
 	assert.Equal(t, []string{"create", "apply"}, LockedOps(wf, "manuel", nil))
 
 	// An operation unknown to this version locks nothing (DC9).
-	wf.Checkpoints[1].Unlocks = []string{"merge"}
+	wf.Checkpoints[1].Unlocks = []string{"deploy"}
 	for _, r := range SessionRules(wf, "manuel", nil) {
 		if !lockedByDefault(r.Resource) { // apply, tag and mr stay refused: nothing unlocks them (N4, E9)
 			assert.NotEqual(t, shell, r.Action, "unknown operation: %v", r)

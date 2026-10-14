@@ -139,6 +139,7 @@ func (p *patcher) apply() {
 	}
 	p.limits()
 	p.preconditions()
+	p.fanout() // R6
 }
 
 // preconditions are merged by id; `disabled: true` removes one. In a
@@ -374,6 +375,7 @@ func (p *patcher) checkpoints() {
 		}
 		p.checkpointVerify(base, &old, v)
 		p.checkpointMethod(base, &old, v)
+		p.checkpointFanout(base, &old, v)
 		if h("by") {
 			old.By = v.By
 		}
@@ -681,7 +683,7 @@ func (p *patcher) limitModels() {
 
 // mergedPaths are the paths whose children are merged by a patch; any other
 // written path replaces the parent value as a whole.
-var mergedPaths = regexp.MustCompile(`^(?:entry|inputs|agents|checkpoints|modes|circuit_breaker|models|models\.agents|skills|beads|runtime|limits|inputs\.[^.]+|inputs\.[^.]+\.picker|agents\.[^.]+|checkpoints\.[^.]+|checkpoints\.[^.]+\.mode)$`)
+var mergedPaths = regexp.MustCompile(`^(?:entry|fanout|inputs|agents|checkpoints|modes|circuit_breaker|models|models\.agents|skills|beads|runtime|limits|inputs\.[^.]+|inputs\.[^.]+\.picker|agents\.[^.]+|checkpoints\.[^.]+|checkpoints\.[^.]+\.mode)$`)
 
 // headerPaths are not tracked in origins.
 var headerPaths = map[string]bool{"apiVersion": true, "kind": true, "extends": true}

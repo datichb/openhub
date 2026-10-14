@@ -24,7 +24,7 @@ func NewSessionStore(s *Store) *SessionStore {
 var _ domain.SessionStore = (*SessionStore)(nil)
 
 // sessionColumns is the canonical column list used by all SELECT queries.
-const sessionColumns = `id, project_id, started_at, ended_at, status, provider, model, tokens_in, tokens_out, launch_path, member_id, cost, tokens_reasoning, tokens_cache_read, platform, external_session_id, slug, pid, title, type, label, correlation_id, workflow_id, entry_agent, bundle_hash, group_key, runtime, mode, state, state_changed_at, workflow_layer, workflow_version, workflow_risk, location, outputs, parent_session_id, start_ref, tickets, worktree_auto, worktree_branch`
+const sessionColumns = `id, project_id, started_at, ended_at, status, provider, model, tokens_in, tokens_out, launch_path, member_id, cost, tokens_reasoning, tokens_cache_read, platform, external_session_id, slug, pid, title, type, label, correlation_id, workflow_id, entry_agent, bundle_hash, group_key, runtime, mode, state, state_changed_at, workflow_layer, workflow_version, workflow_risk, location, outputs, parent_session_id, start_ref, tickets, worktree_auto, worktree_branch, fanout`
 
 // scanSession scans a row into a domain.Session. The row must match sessionColumns order.
 func scanSession(scanner interface{ Scan(...any) error }) (domain.Session, error) {
@@ -40,13 +40,13 @@ func scanSession(scanner interface{ Scan(...any) error }) (domain.Session, error
 	var correlationID sql.NullString
 	var state string
 	var stateChangedAt sql.NullTime
-	var outputs, tickets string
+	var outputs, tickets, fanout string
 	if err := scanner.Scan(&s.ID, &s.ProjectID, &s.StartedAt, &endedAt, &status,
 		&s.Provider, &s.Model, &s.TokensIn, &s.TokensOut, &s.LaunchPath, &memberID,
 		&s.Cost, &s.TokensReasoning, &s.TokensCacheRead, &s.Platform, &externalSessionID, &slug, &s.PID, &title,
 		&sessionType, &label, &correlationID,
 		&s.WorkflowID, &s.EntryAgent, &s.BundleHash, &s.GroupKey, &s.Runtime, &s.Mode, &state, &stateChangedAt,
-		&s.WorkflowLayer, &s.WorkflowVersion, &s.WorkflowRisk, &s.Location, &outputs, &s.ParentSessionID, &s.StartRef, &tickets, &s.WorktreeAuto, &s.WorktreeBranch); err != nil {
+		&s.WorkflowLayer, &s.WorkflowVersion, &s.WorkflowRisk, &s.Location, &outputs, &s.ParentSessionID, &s.StartRef, &tickets, &s.WorktreeAuto, &s.WorktreeBranch, &fanout); err != nil {
 		return s, err
 	}
 	s.Status = domain.SessionStatus(status)
@@ -57,6 +57,12 @@ func scanSession(scanner interface{ Scan(...any) error }) (domain.Session, error
 	}
 	if tickets != "" {
 		_ = json.Unmarshal([]byte(tickets), &s.Tickets)
+	}
+	if fanout != "" {
+		var f domain.SessionFanout
+		if json.Unmarshal([]byte(fanout), &f) == nil {
+			s.Fanout = &f
+		}
 	}
 	if stateChangedAt.Valid {
 		s.StateChangedAt = &stateChangedAt.Time
@@ -135,15 +141,15 @@ func (ss *SessionStore) Create(ctx context.Context, s *domain.Session) error {
 		s.Type = domain.SessionTypeInteractive
 	}
 	_, err := ss.db.ExecContext(ctx,
-		`INSERT INTO sessions (id, project_id, started_at, ended_at, status, provider, model, tokens_in, tokens_out, launch_path, member_id, cost, tokens_reasoning, tokens_cache_read, platform, external_session_id, slug, pid, title, type, label, correlation_id, workflow_id, entry_agent, bundle_hash, group_key, runtime, mode, state, state_changed_at, workflow_layer, workflow_version, workflow_risk, location, outputs, parent_session_id, start_ref, tickets, worktree_auto, worktree_branch)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO sessions (id, project_id, started_at, ended_at, status, provider, model, tokens_in, tokens_out, launch_path, member_id, cost, tokens_reasoning, tokens_cache_read, platform, external_session_id, slug, pid, title, type, label, correlation_id, workflow_id, entry_agent, bundle_hash, group_key, runtime, mode, state, state_changed_at, workflow_layer, workflow_version, workflow_risk, location, outputs, parent_session_id, start_ref, tickets, worktree_auto, worktree_branch, fanout)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		s.ID, s.ProjectID, s.StartedAt, s.EndedAt, string(s.Status),
 		s.Provider, s.Model, s.TokensIn, s.TokensOut, s.LaunchPath, s.MemberID,
 		s.Cost, s.TokensReasoning, s.TokensCacheRead, s.Platform, s.ExternalSessionID, s.Slug,
 		s.PID, s.Title, string(s.Type), s.Label, s.CorrelationID,
 		s.WorkflowID, s.EntryAgent, s.BundleHash, s.GroupKey, s.Runtime, s.Mode, string(s.State), s.StateChangedAt,
 		s.WorkflowLayer, s.WorkflowVersion, s.WorkflowRisk, s.Location, outputsJSON(s.Outputs), s.ParentSessionID,
-		s.StartRef, ticketsJSON(s.Tickets), s.WorktreeAuto, s.WorktreeBranch,
+		s.StartRef, ticketsJSON(s.Tickets), s.WorktreeAuto, s.WorktreeBranch, fanoutJSON(s.Fanout),
 	)
 	if err != nil {
 		return fmt.Errorf("creating session: %w", err)
@@ -240,6 +246,34 @@ func outputsJSON(o map[string]any) string {
 	data, err := json.Marshal(o)
 	if err != nil {
 		return "{}"
+	}
+	return string(data)
+}
+
+// SetSessionFanout writes the fan-out record of a session (R6; nil
+// removes it). Update never writes it: the driver of the fan-out and the
+// daemon update the row at the same time.
+func (ss *SessionStore) SetSessionFanout(ctx context.Context, id string, f *domain.SessionFanout) error {
+	res, err := ss.db.ExecContext(ctx, `UPDATE sessions SET fanout=? WHERE id=?`, fanoutJSON(f), id)
+	if err != nil {
+		return fmt.Errorf("updating the fan-out of session %s: %w", id, err)
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
+}
+
+var _ domain.SessionFanoutStore = (*SessionStore)(nil)
+
+// fanoutJSON encodes the fan-out record of a session ("" for none).
+func fanoutJSON(f *domain.SessionFanout) string {
+	if f == nil {
+		return ""
+	}
+	data, err := json.Marshal(f)
+	if err != nil {
+		return ""
 	}
 	return string(data)
 }

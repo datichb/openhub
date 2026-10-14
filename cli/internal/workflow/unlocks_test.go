@@ -22,7 +22,7 @@ func TestValidate_Unlocks(t *testing.T) {
 // An operation unknown to this version (written by a newer oh) is a warning,
 // not an error: a team on mixed versions keeps working (DC9).
 func TestValidate_UnlockUnknownIsWarning(t *testing.T) {
-	body := "risk: write\ncheckpoints:\n  cp-1: { unlocks: [merge, commit], mode: { manuel: pause, semi-auto: pause, auto: pause } }\n"
+	body := "risk: write\ncheckpoints:\n  cp-1: { unlocks: [deploy, commit], mode: { manuel: pause, semi-auto: pause, auto: pause } }\n"
 	diags := checkYAML(t, vHeader+body, testEnv())
 	assertDiag(t, diags, "unlock_unknown", "checkpoints.cp-1.unlocks[0]", SeverityWarning)
 	for _, d := range diags {

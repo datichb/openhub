@@ -201,3 +201,37 @@ func TestMigrationV42SessionTotals(t *testing.T) {
 	require.NoError(t, err)
 	assert.InDelta(t, 0.88, got.Cost, 1e-9)
 }
+
+// R6: the fan-out record is written by oh only (Create, SetSessionFanout);
+// Update from a stale copy of the row never changes it.
+func TestSessionStore_Fanout(t *testing.T) {
+	s := openTestStore(t)
+	ctx := context.Background()
+	now := time.Now().Truncate(time.Second)
+	require.NoError(t, NewProjectStore(s).Create(ctx, &domain.Project{ID: "p", Name: "P", Path: "/p", Status: domain.ProjectStatusActive, CreatedAt: now, UpdatedAt: now}))
+	ss := NewSessionStore(s)
+	child := &domain.Session{ID: "c", ProjectID: "p", StartedAt: now, Status: domain.SessionStatusRunning,
+		Fanout: &domain.SessionFanout{Role: domain.RoleChild, Parent: "par", Ticket: "ev-1", Branch: "oh/fanout/par/ev-1"}}
+	require.NoError(t, ss.Create(ctx, child))
+	got, err := ss.Get(ctx, "c")
+	require.NoError(t, err)
+	require.NotNil(t, got.Fanout)
+	assert.Equal(t, domain.RoleChild, got.Fanout.Role)
+	assert.Equal(t, "ev-1", got.Fanout.Ticket)
+
+	parent := &domain.Session{ID: "par", ProjectID: "p", StartedAt: now, Status: domain.SessionStatusRunning}
+	require.NoError(t, ss.Create(ctx, parent))
+	stale, err := ss.Get(ctx, "par")
+	require.NoError(t, err)
+	f := &domain.SessionFanout{Role: domain.RoleParent, Experimental: true, Status: domain.FanoutRunning,
+		Children: []domain.FanoutChild{{Ticket: "ev-1", Session: "c", State: domain.ChildRunning}}}
+	require.NoError(t, ss.SetSessionFanout(ctx, "par", f))
+	stale.Cost = 1.5
+	require.NoError(t, ss.Update(ctx, stale))
+	got, err = ss.Get(ctx, "par")
+	require.NoError(t, err)
+	require.NotNil(t, got.Fanout, "Update keeps the fan-out record")
+	assert.True(t, got.Fanout.HasChild("c"))
+	assert.InDelta(t, 1.5, got.Cost, 1e-9)
+	assert.ErrorIs(t, ss.SetSessionFanout(ctx, "nope", f), domain.ErrNotFound)
+}
