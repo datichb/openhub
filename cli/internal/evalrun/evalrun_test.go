@@ -191,6 +191,9 @@ func TestGlobAndShell(t *testing.T) {
 	assert.True(t, shellMatch("go test*", "cd /x && go test -v ./..."))
 	assert.True(t, shellMatch("git commit*", "git add -A; git commit -m x"))
 	assert.False(t, shellMatch("git commit*", "echo git commit"))
+	assert.True(t, shellMatch("bd create*splitRecord*", "cd /x && bd create \"Titre\" -t bug \\\n  --description \"cause : splitRecord\""))
+	assert.True(t, shellMatch("bd create*splitRecord*", "cd /x && bd create \"Titre\" --description \"a;b\nc : splitRecord\""))
+	assert.False(t, shellMatch("bd create*", "cd /x && echo bd create"))
 }
 
 func TestDecide(t *testing.T) {
@@ -415,31 +418,6 @@ func TestRunnerAndReport(t *testing.T) {
 	assert.False(t, rep.Passes[0].Pass)
 }
 
-// notInBaseline are the active cases added after the reference measure
-// (measured at the next make test-eval OH_EVAL_RECORD=1).
-var notInBaseline = map[string]string{
-	"S16": "added by R13 (skill-refresh: stale skill refreshed)",
-	"S17": "added by R13 (skill-refresh: proposal refused, nothing written)",
-	"S18": "added by R13 (skill-refresh: nothing to review)",
-	"S19": "added by R1-a (cadrage: implicit requirements raised as questions)",
-	"S20": "added by R1-a, moved to spec by R4 (inconsistent domain vocabulary, glossary in the written spec)",
-	"S21": "added by R1-a, moved to spec by R4 (each acceptance criterion of the written spec has a test point)",
-	"S22": "added by R1-b (ticket, tdd method: cp-red passed before the commit)",
-	"S23": "added by R1-b (quick: go vet of the CI outside the changed package)",
-	"S24": "added by R1-b (debug: misleading stack, root cause upstream)",
-	"S25": "added by R1-b (quick: merge committed with conflict markers, both sides kept)",
-	"S26": "added by R1-c (review: two axes, conformity and quality)",
-	"S27": "added by R1-c (cadrage: design constrained by depguard)",
-	"S28": "added by R1-c (skill-refresh: skill rewritten, source not copied)",
-	"S29": "added by R4 (spec: spec written under docs/wiki/specs/ only, committed after cp-spec, tickets after cp-tickets)",
-	"S30": "added by R4 (spec: rule added at cp-spec, criterion with its test point, breakdown converges)",
-	"S31": "added by R4 (spec: slice outside the spec refused until a criterion covers it)",
-	"S33": "added by R8 (release: minor version deduced, dated CHANGELOG, annotated tag after cp-release, no push)",
-	"S34": "added by R8 (release: breaking change in a commit footer gives a major version)",
-	"S35": "added by R8 (release: refused at cp-release, nothing written, no tag)",
-	"S36": "added by R8 (release: complete release MR description, no remote branch)",
-}
-
 // The reference measure kept in the repository (make test-eval
 // OH_EVAL_RECORD=1) covers every active case, with three repetitions, and
 // holds no session id nor trace path.
@@ -455,10 +433,6 @@ func TestShippedBaseline(t *testing.T) {
 			s, ok := base.Stat(c.ID, m)
 			if !c.IsActive() {
 				assert.False(t, ok, "%s is inactive", c.ID)
-				continue
-			}
-			if why, pending := notInBaseline[c.ID]; pending && !ok {
-				t.Logf("%s not in the baseline yet: %s", c.ID, why)
 				continue
 			}
 			require.True(t, ok, "%s measured with %s", c.ID, m)
