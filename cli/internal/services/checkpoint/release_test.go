@@ -53,6 +53,13 @@ func TestReleaseWindows(t *testing.T) {
 	assert.NotContains(t, rules(), tag, "committed: the tag opens")
 	assert.Contains(t, rules(), commit)
 
+	// Asked again on the release commit (nothing new to commit): the tag
+	// does not wait for a commit that will never come.
+	_, err = reachValidated(t, svc, ctx, "ses_r", "cp-release")
+	require.NoError(t, err)
+	assert.NotContains(t, rules(), tag, "passed again on the release commit: the tag stays open")
+	assert.NotContains(t, rules(), commit)
+
 	_, err = reachValidated(t, svc, ctx, "ses_r", "cp-after")
 	require.NoError(t, err)
 	assert.Subset(t, rules(), []sessionspec.PermissionRule{tag, mr}, "the next mandatory checkpoint closes them")

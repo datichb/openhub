@@ -115,6 +115,14 @@ func TestPublishLocks(t *testing.T) {
 	other := open(sessionspec.UnlockTag)
 	other.Unlocks[sessionspec.UnlockCommit] = domain.CheckpointUnlock{Checkpoint: "cp-commit", At: now}
 	assert.False(t, tagWaitsForCommit(other))
+	// Passed again on the commit that closed its previous commit window:
+	// the tag does not wait; after a new commit window on another head, it does.
+	again := open(sessionspec.UnlockCommit, sessionspec.UnlockTag)
+	again.Unlocks[sessionspec.UnlockCommit] = domain.CheckpointUnlock{Checkpoint: "cp-release", At: now, Head: "c2"}
+	again.Committed = map[string]string{"cp-release": "c2"}
+	assert.False(t, tagWaitsForCommit(again))
+	again.Committed["cp-release"] = "c1"
+	assert.True(t, tagWaitsForCommit(again))
 }
 
 // The workflow map names the publishing operations and their order.

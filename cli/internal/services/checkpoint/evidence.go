@@ -165,6 +165,12 @@ func (s *Service) onShell(ctx context.Context, sess *domain.Session, call adapte
 			return errUnchanged
 		}
 		delete(st.Unlocks, sessionspec.UnlockCommit)
+		if herr == nil {
+			if st.Committed == nil {
+				st.Committed = map[string]string{}
+			}
+			st.Committed[u.Checkpoint] = head
+		}
 		s.record(st, domain.CheckpointWindow, u.Checkpoint, "", reason)
 		changed = true
 		return nil
