@@ -12,13 +12,13 @@ import (
 // moves the branches of the fan-out (tests of getting around the guard).
 
 var (
-	fanoutPushForms = []string{"git push", "git push origin HEAD", "env git push -f", "/usr/bin/git push", "git -C ../x push", "sh -c 'git push'"}
+	fanoutPushForms  = []string{"git push", "git push origin HEAD", "env git push -f", "/usr/bin/git push", "git -C ../x push", "sh -c 'git push'"}
 	fanoutMergeForms = []string{
 		"git merge oh/fanout/abc/integration", "git merge --no-ff feat/x", "git pull", "git pull --rebase origin main", "env git merge x",
 		"git -C ../integ merge x", "sh -c 'git merge x'", "glab mr merge 12", "gh pr merge 3 --squash", "glab api -X PUT projects/1/merge_requests/2/merge",
 		"gh api -X PUT repos/o/r/pulls/3/merge",
 	}
-	fanoutCloseForms = []string{"bd close ev-1", "bd close ev-1 --reason done", "bd --json close ev-1", "bd done ev-1", "bd update ev-1 --status closed", "env bd close ev-1"}
+	fanoutCloseForms  = []string{"bd close ev-1", "bd close ev-1 --reason done", "bd --json close ev-1", "bd done ev-1", "bd update ev-1 --status closed", "env bd close ev-1"}
 	fanoutBranchForms = []string{
 		"git update-ref refs/heads/oh/fanout/abc/integration HEAD", "git branch -f oh/fanout/abc/integration HEAD", "git branch -D oh/fanout/abc/ev-2",
 		"git checkout oh/fanout/abc/integration", "git switch oh/fanout/abc/integration", "git worktree add ../x oh/fanout/abc/integration",
