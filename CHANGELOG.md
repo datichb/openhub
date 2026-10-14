@@ -9,6 +9,11 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Changed — mesure de référence après la vague 2 de P4 (lot eval-baseline-3)
+
+- **Nouvelle référence `oh eval`** (Haiku ×3, 35 cas, 18,63 $) : S1 à S14 3/3 (S1 2/3 → 3/3, S3 1/3 → 3/3, S4 2/3 → 3/3, S10 2/3 → 3/3), S15 2/3 (3/3), S16–S18 3/3, S19 1/3, S20 0/3, S21 1/3, S22 3/3, S23 2/3, S24 3/3, S25 2/3, S26 0/3, S27 1/3, S28 0/3, S29 2/3, S30 3/3, S31 0/3, S33 2/3, S34 2/3, S35 3/3, S36 2/3. Les cas de cadrage et de spec (S19–S21, S27, S29, S31), S26 et S28 restent faibles sur Haiku ; tous les cas actifs sont dans la référence (`notInBaseline` retiré).
+- **Corrigé** : l'assertion `ran` voit une commande continuée sur plusieurs lignes (`\` en fin de ligne) et ses arguments entre guillemets qui contiennent un séparateur ou un retour à la ligne (`bd create … --description "a; b"`) : S24 passait pour 1/3 au lieu de 3/3, S29 0/3 au lieu de 2/3.
+
 ### Added — release (lot R8)
 
 - **Workflow `release`** (`risk: publish`, local seulement) : le `release-manager` déduit la version SemVer des commits depuis le dernier tag (corps compris) et du CHANGELOG, date `[Unreleased]`, prépare les notes, le message du tag et, avec `mr=true`, la description de la MR de release ; tout est présenté à `cp-release` avant la moindre écriture, puis : CHANGELOG, commit de release, tag annoté sur ce commit, MR si la branche est déjà sur le dépôt distant. **Aucun push** : le rapport donne les commandes et la façon d'annuler. Une pause en semi-auto. Guide : `docs/guides/release.fr.md`.
