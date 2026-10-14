@@ -621,6 +621,8 @@ func (v *SessionsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 				v.shell.ShowSelectModal(i18n.T("tui.launch.chain_title"), opts, "", func(wf string) { ch.Chain(id, wf) })
 			})
 		}
+	case 'B':
+		v.openBatch(r)
 	case 'D':
 		v.deleteSession(r)
 	case 'g':
