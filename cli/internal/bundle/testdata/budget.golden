@@ -49,6 +49,8 @@ instruct libre                  pathfinder                       5721     3832  
 instruct libre                  planner                          5027     3435    7   13    442   13    442
 instruct libre                  reviewer                        11648     5185    6   13    447   13    447
 instruct libre                  TOTAL                           66801    37365   68   69   2392   69   2392
+instruct merge-conflicts        merger                           4995      503    2    3    138    3    138
+instruct merge-conflicts        TOTAL                            4995      503    2    3    138    3    138
 instruct onboarding             onboarder                        4141     2801    7   11    381   11    381
 instruct onboarding             TOTAL                            4141     2801    7   11    381   11    381
 instruct quick                  developer                       11188     5013    7   20    725   20    725
@@ -117,6 +119,8 @@ none     libre                  pathfinder                       4853     3358  
 none     libre                  planner                          4629     3435    7   13    442   13    442
 none     libre                  reviewer                         6836     4630    5   16    551   16    551
 none     libre                  TOTAL                           50022    35348   64   72   2496   72   2496
+none     merge-conflicts        merger                            993      503    2    3    138    3    138
+none     merge-conflicts        TOTAL                             993      503    2    3    138    3    138
 none     onboarding             onboarder                        3701     2759    7   11    381   11    381
 none     onboarding             TOTAL                            3701     2759    7   11    381   11    381
 none     quick                  developer                        6694     4540    6   20    725   20    725
@@ -185,6 +189,8 @@ stacks   libre                  pathfinder                       4853     3358  
 stacks   libre                  planner                          4629     3435    7   13    442   13    442
 stacks   libre                  reviewer                         6836     4630    5   23    798   23    798
 stacks   libre                  TOTAL                           50022    35348   64   79   2743   79   2743
+stacks   merge-conflicts        merger                            993      503    2   10    385   10    385
+stacks   merge-conflicts        TOTAL                             993      503    2   10    385   10    385
 stacks   onboarding             onboarder                        3701     2759    7   11    381   11    381
 stacks   onboarding             TOTAL                            3701     2759    7   11    381   11    381
 stacks   quick                  developer                        6694     4540    6   27    972   27    972
@@ -237,7 +243,7 @@ coordinator-posture                         523 auditor,conductor,orchestrator,o
 handoff-envelope                            466 auditor-subagent,debugger,designer,developer,documentarian,onboarder,orchestrator-dev,pathfinder,planner,reviewer
 planner-payload                             416 planner
 developer-payload                           404 developer
-universal-guardrails                        389 auditor,auditor-subagent,benchmarker,conductor,debugger,designer,developer,documentarian,onboarder,operator,orchestrator,orchestrator-dev,pathfinder,planner,release-manager,reviewer
+universal-guardrails                        389 auditor,auditor-subagent,benchmarker,conductor,debugger,designer,developer,documentarian,merger,onboarder,operator,orchestrator,orchestrator-dev,pathfinder,planner,release-manager,reviewer
 pathfinder-payload                          361 pathfinder
 designer-payload                            346 designer
 reviewer-payload                            335 reviewer
@@ -250,4 +256,4 @@ documentarian-payload                       280 documentarian
 user-facing-posture                         259 auditor,benchmarker,conductor,debugger,developer,documentarian,onboarder,operator,orchestrator,orchestrator-dev,release-manager,reviewer
 execution-protocol                          196 auditor,debugger,designer,onboarder,pathfinder,planner
 onboarder-profiles                          173 onboarder
-core-posture                                114 auditor,auditor-subagent,benchmarker,conductor,debugger,designer,developer,documentarian,onboarder,operator,orchestrator,orchestrator-dev,pathfinder,planner,release-manager,reviewer
+core-posture                                114 auditor,auditor-subagent,benchmarker,conductor,debugger,designer,developer,documentarian,merger,onboarder,operator,orchestrator,orchestrator-dev,pathfinder,planner,release-manager,reviewer

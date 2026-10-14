@@ -1,0 +1,39 @@
+apiVersion: oh/v1
+kind: Workflow
+id: merge-conflicts
+category: develop
+label: { fr: Résoudre un conflit de merge, en: Resolve a merge conflict }
+description:
+  fr: Terminer un merge arrêté sur des conflits (lancé par oh dans un fan-out, ou à la main) en gardant les deux côtés, vérifier, puis le conclure par un commit ; jamais de push
+  en: Finish a merge stopped on conflicts (started by oh in a fan-out, or by hand) keeping both sides, verify, then conclude it with a commit; never a push
+risk: write
+entry:
+  agent: merger
+inputs:
+  branch:
+    type: branch
+    required: true
+    label: { fr: Branche mergée, en: Merged branch }
+    help:
+      fr: Branche dont le merge est en cours
+      en: Branch whose merge is in progress
+  into:
+    type: branch
+    label: { fr: Branche de destination, en: Target branch }
+  files:
+    type: text
+    label: { fr: Fichiers en conflit, en: Conflicted files }
+    help:
+      fr: Un fichier par ligne (facultatif ; sinon git status)
+      en: One file per line (optional; else git status)
+    max_length: 4000
+prompt:
+  template: prompts/merge-conflicts.md.tmpl
+# R6: launched by oh on the integration worktree of a fan-out when it
+# cannot merge a child by itself; no checkpoint (the merge in progress is
+# the decision of oh, which then checks the result), never a push.
+agents:
+  merger: { role: workflow }
+modes: { default: auto, allowed: [auto] }
+beads: { allow: [show] }
+runtime: { default: local, allowed: [local] }

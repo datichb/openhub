@@ -72,18 +72,25 @@ func TestCheckpointByMembers(t *testing.T) {
 		r, diags := workflow.Check(cat, ref, nil, env)
 		require.False(t, diags.HasErrors(), "%v", diags)
 		members := r.Spec.Members()
-		bundles := map[workflow.Method]*Bundle{} // R7: a method checkpoint is in the bundle of its method
+		// R7: a method checkpoint is in the bundle of its method; R6: a
+		// fan-out checkpoint in the bundle of a fan-out session.
+		type kind struct {
+			method workflow.Method
+			fanout bool
+		}
+		bundles := map[kind]*Bundle{}
 		for _, id := range r.Spec.Checkpoints.Keys() {
 			cp, _ := r.Spec.Checkpoints.Get(id)
 			if !assert.NotEmpty(t, cp.By, "%s: checkpoint %s has no by:", ref.ID, id) {
 				continue
 			}
-			b := bundles[cp.Method]
+			k := kind{method: cp.Method, fanout: cp.Fanout == workflow.FanoutOnly}
+			b := bundles[k]
 			if b == nil {
 				var err error
-				b, err = Build(Request{HubDir: hub, OutDir: t.TempDir(), Spec: r.Spec, Method: cp.Method})
+				b, err = Build(Request{HubDir: hub, OutDir: t.TempDir(), Spec: r.Spec, Method: cp.Method, Fanout: k.fanout})
 				require.NoError(t, err)
-				bundles[cp.Method] = b
+				bundles[k] = b
 			}
 			for _, agent := range cp.By {
 				assert.Contains(t, members, agent, "%s: %s.by", ref.ID, id)
