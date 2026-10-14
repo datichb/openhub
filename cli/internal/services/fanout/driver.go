@@ -33,8 +33,11 @@ type LaunchRequest struct {
 	Workflow string
 	Dir      string
 	Ticket   string
+	// Task is the task of a child of a fan-out `source: tasks` (Ticket is
+	// then its id): the child gets no ticket.
+	Task *domain.PlanTask
 	// Inputs are inputs of the workflow (merger: the branch merged and the
-	// files in conflict).
+	// files in conflict; child: the inputs of the parent and its task).
 	Inputs map[string]string
 	// Record is the fan-out record of the new session.
 	Record *domain.SessionFanout
@@ -171,7 +174,7 @@ func (d *Driver) Run(ctx context.Context, parent string) error {
 		}
 		return d.await(ctx, parent, wf)
 	}
-	wf, err := d.waitStart(ctx, p)
+	wf, st, err := d.waitStart(ctx, p)
 	if err != nil || wf == nil {
 		return err
 	}
@@ -179,7 +182,7 @@ func (d *Driver) Run(ctx context.Context, parent string) error {
 		return err
 	}
 	if p.Fanout.Integration == nil {
-		if err := d.startIntegration(ctx, p); err != nil {
+		if err := d.startIntegration(ctx, p, wf, st); err != nil {
 			_, _ = d.update(ctx, parent, func(f *domain.SessionFanout) {
 				f.Status = domain.FanoutFailed
 				f.AddEvent(domain.FanoutEventFailed, "", "", err.Error())
@@ -241,33 +244,34 @@ func (d *Driver) abandon(ctx context.Context, p *domain.Session) {
 }
 
 // waitStart waits until the parent passed every mandatory checkpoint
-// declared before its merge checkpoint (cp-plan). nil when the parent ended
-// first (the fan-out is stopped).
-func (d *Driver) waitStart(ctx context.Context, p *domain.Session) (*sessionspec.WorkflowRuntime, error) {
+// declared before its merge checkpoint (cp-plan), and returns its workflow
+// and checkpoint state then (the tasks recorded at cp-plan). nil when the
+// parent ended first (the fan-out is stopped).
+func (d *Driver) waitStart(ctx context.Context, p *domain.Session) (*sessionspec.WorkflowRuntime, domain.CheckpointState, error) {
 	t := time.NewTicker(d.poll())
 	defer t.Stop()
 	for {
 		wf, st, err := d.Workflow(ctx, p.ID)
 		if err != nil {
-			return nil, err
+			return nil, st, err
 		}
 		if wf == nil || wf.Fanout == nil {
-			return nil, ErrNotFanout
+			return nil, st, ErrNotFanout
 		}
 		if gatesPassed(wf, st) {
-			return wf, nil
+			return wf, st, nil
 		}
 		cur, err := d.Sessions.Get(ctx, p.ID)
 		if err != nil {
-			return nil, err
+			return nil, st, err
 		}
 		if terminal(cur.State) {
 			_, err := d.update(ctx, p.ID, func(f *domain.SessionFanout) { f.Status = domain.FanoutStopped })
-			return nil, err
+			return nil, st, err
 		}
 		select {
 		case <-ctx.Done():
-			return nil, ctx.Err()
+			return nil, st, ctx.Err()
 		case <-t.C:
 		}
 	}
@@ -314,8 +318,23 @@ func terminal(s domain.RunState) bool {
 }
 
 // startIntegration creates the integration branch from the HEAD of the
-// parent, and the children of its tickets.
-func (d *Driver) startIntegration(ctx context.Context, p *domain.Session) error {
+// parent, and the children of its tickets, or of the tasks oh recorded at
+// its tasks checkpoint (source: tasks; never what an agent declares).
+func (d *Driver) startIntegration(ctx context.Context, p *domain.Session, wf *sessionspec.WorkflowRuntime, st domain.CheckpointState) error {
+	var children []domain.FanoutChild
+	if wf.Fanout.Tasks() {
+		if len(st.Tasks) == 0 {
+			return errors.New(i18n.Tf("cmd.fanout.no_tasks", wf.TasksCheckpoint()))
+		}
+		for _, t := range st.Tasks {
+			task := t
+			children = append(children, domain.FanoutChild{Ticket: t.ID, Task: &task, State: domain.ChildPending})
+		}
+	} else {
+		for _, t := range p.Tickets {
+			children = append(children, domain.FanoutChild{Ticket: t, State: domain.ChildPending})
+		}
+	}
 	base, err := Head(ctx, p.LaunchPath)
 	if err != nil {
 		return err
@@ -329,9 +348,7 @@ func (d *Driver) startIntegration(ctx context.Context, p *domain.Session) error 
 		f.Integration = &domain.FanoutIntegration{Branch: branch, Path: path, Base: base, Head: base}
 		f.Status = domain.FanoutRunning
 		if len(f.Children) == 0 {
-			for _, t := range p.Tickets {
-				f.Children = append(f.Children, domain.FanoutChild{Ticket: t, State: domain.ChildPending})
-			}
+			f.Children = children
 		}
 		f.AddEvent(domain.FanoutEventStarted, "", "", branch+" "+short(base))
 	})
@@ -477,6 +494,9 @@ func (d *Driver) dependencies(ctx context.Context, p *domain.Session) map[string
 	}
 	out := map[string][]string{}
 	for _, c := range p.Fanout.Children {
+		if c.Task != nil {
+			continue // a task: no ticket, independent of the others
+		}
 		list, closed, err := get(ctx, p.LaunchPath, c.Ticket)
 		if err != nil {
 			continue
@@ -577,7 +597,13 @@ func (d *Driver) launch(ctx context.Context, parent string, wf *sessionspec.Work
 	if f.BudgetUSD > 0 {
 		remaining = max(f.BudgetUSD-d.spent(ctx, p), 0.01)
 	}
-	rec := &domain.SessionFanout{Role: domain.RoleChild, Parent: parent, Ticket: ticket, Branch: branch}
+	child, _ := f.Child(ticket)
+	var task *domain.PlanTask
+	if child != nil && child.Task != nil {
+		t := *child.Task
+		task = &t
+	}
+	rec := &domain.SessionFanout{Role: domain.RoleChild, Parent: parent, Ticket: ticket, Branch: branch, Task: task}
 	// Listed as running before the child exists: its delegated checkpoint
 	// is checked against this record (CP-R3).
 	if _, err := d.update(ctx, parent, func(f *domain.SessionFanout) {
@@ -587,8 +613,8 @@ func (d *Driver) launch(ctx context.Context, parent string, wf *sessionspec.Work
 	}); err != nil {
 		return err
 	}
-	sid, err := d.Launcher.Start(ctx, LaunchRequest{Parent: p, Workflow: wf.Fanout.Child, Dir: path, Ticket: ticket, Record: rec, BudgetUSD: remaining,
-		Inputs: f.ChildInputs})
+	sid, err := d.Launcher.Start(ctx, LaunchRequest{Parent: p, Workflow: wf.Fanout.Child, Dir: path, Ticket: ticket, Task: task, Record: rec, BudgetUSD: remaining,
+		Inputs: childInputs(f.ChildInputs, task)})
 	if err != nil {
 		d.childFailed(ctx, parent, ticket, err.Error())
 		return err
@@ -606,6 +632,27 @@ func (d *Driver) launch(ctx context.Context, parent string, wf *sessionspec.Work
 	c, _ := d.childOf(ctx, parent, ticket)
 	d.follow(ctx, parent, wf, c)
 	return nil
+}
+
+// childInputs are the inputs of a child: those of the parent (fanout.inputs)
+// and, for a task, the task as oh recorded it (task, files, domain).
+func childInputs(parent map[string]string, task *domain.PlanTask) map[string]string {
+	if task == nil {
+		return parent
+	}
+	out := make(map[string]string, len(parent)+3)
+	for k, v := range parent {
+		out[k] = v
+	}
+	text := task.Title
+	if task.Description != "" {
+		text += "\n\n" + task.Description
+	}
+	out["task"], out["files"] = text, strings.Join(task.Files, "\n")
+	if task.Domain != "" {
+		out["domain"] = task.Domain
+	}
+	return out
 }
 
 func (d *Driver) childOf(ctx context.Context, parent, ticket string) (domain.FanoutChild, bool) {
@@ -910,19 +957,36 @@ func Summary(f *domain.SessionFanout) string {
 	if f.Integration != nil {
 		b.WriteString("\n" + i18n.Tf("cmd.fanout.summary_branch", f.Integration.Branch, short(f.Integration.Head), short(f.Integration.Base)))
 	}
-	b.WriteString("\n\n| Ticket | État | Session | Merge | Détail |\n|---|---|---|---|---|\n")
+	tasks := len(f.Children) > 0 && f.Children[0].Task != nil
+	if tasks {
+		b.WriteString("\n\n| Tâche | État | Session | Merge | Détail |\n|---|---|---|---|---|\n")
+	} else {
+		b.WriteString("\n\n| Ticket | État | Session | Merge | Détail |\n|---|---|---|---|---|\n")
+	}
 	for _, c := range f.Children {
 		detail := c.Error
 		if detail == "" && len(c.Conflicts) > 0 {
 			detail = i18n.Tf("cmd.fanout.summary_resolved", strings.Join(c.Conflicts, ", "))
 		}
-		fmt.Fprintf(&b, "| %s | %s | %s | %s | %s |\n", c.Ticket, c.State, c.Session, short(c.Merge), strings.ReplaceAll(detail, "|", "/"))
+		fmt.Fprintf(&b, "| %s | %s | %s | %s | %s |\n", ChildLabel(c), c.State, c.Session, short(c.Merge), strings.ReplaceAll(detail, "|", "/"))
 	}
 	if f.BudgetUSD > 0 {
 		b.WriteString("\n" + i18n.Tf("cmd.fanout.summary_budget", f.SpentUSD, f.BudgetUSD))
 	}
 	if f.Status != domain.FanoutFailed {
-		b.WriteString("\n\n" + i18n.T("cmd.fanout.summary_next"))
+		if tasks {
+			b.WriteString("\n\n" + i18n.T("cmd.fanout.summary_next_tasks"))
+		} else {
+			b.WriteString("\n\n" + i18n.T("cmd.fanout.summary_next"))
+		}
 	}
 	return b.String()
+}
+
+// ChildLabel names a child: its ticket, or its task and title.
+func ChildLabel(c domain.FanoutChild) string {
+	if c.Task == nil {
+		return c.Ticket
+	}
+	return c.Ticket + " " + strings.ReplaceAll(c.Task.Title, "|", "/")
 }

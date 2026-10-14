@@ -72,9 +72,13 @@ func (in *Integrator) Integrate(ctx context.Context, sess *domain.Session, check
 	if closeTicket == nil {
 		closeTicket = bdClose
 	}
-	var closed, failed []string
+	var closed, failed, tasks []string
 	for _, c := range rec.Children {
 		if c.State != domain.ChildMerged {
+			continue
+		}
+		if c.Task != nil {
+			tasks = append(tasks, c.Ticket) // a task: no ticket to close
 			continue
 		}
 		reason := fmt.Sprintf("Merged by oh in %s (fan-out %s, %s)", short(c.Merge), sess.ID, short(merged))
@@ -100,6 +104,9 @@ func (in *Integrator) Integrate(ctx context.Context, sess *domain.Session, check
 		slog.Warn("fan-out: clean-up after the merge", "session", sess.ID, "error", err)
 	}
 	msg := i18n.Tf("cmd.fanout.integrated", ig.Branch, short(merged), strings.Join(closed, ", "))
+	if len(tasks) > 0 && len(closed) == 0 {
+		msg = i18n.Tf("cmd.fanout.integrated_tasks", ig.Branch, short(merged), strings.Join(tasks, ", "))
+	}
 	if len(failed) > 0 {
 		msg += " " + i18n.Tf("cmd.fanout.close_failed", strings.Join(failed, ", "))
 	}
