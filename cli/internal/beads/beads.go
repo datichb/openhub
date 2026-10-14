@@ -441,6 +441,9 @@ type TicketDetail struct {
 	Owner       string          `json:"owner,omitempty"`
 	ExternalRef string          `json:"external_ref,omitempty"`
 	CloseReason string          `json:"close_reason,omitempty"`
+	// Dependencies are the tickets this one depends on (R6: the fan-out
+	// launches a child after the children of its blockers are merged).
+	Dependencies []TicketDependency `json:"dependencies,omitempty"`
 	// Missing are the sections bd lint finds missing (not part of bd show).
 	Missing []string `json:"-"`
 }
@@ -480,6 +483,28 @@ func Show(projectPath, ticketID string) (*TicketDetail, error) {
 		return nil, fmt.Errorf("bd show: no result for ticket %s", ticketID)
 	}
 	return &results[0], nil
+}
+
+// TicketDependency is a dependency of a ticket (bd show --json).
+type TicketDependency struct {
+	ID   string `json:"id"`
+	Type string `json:"dependency_type,omitempty"`
+}
+
+// Dependencies returns the tickets ticketID is blocked by (dependencies of
+// type blocks; parent-child and related links are left out).
+func Dependencies(projectPath, ticketID string) ([]string, error) {
+	d, err := Show(projectPath, ticketID)
+	if err != nil {
+		return nil, err
+	}
+	var out []string
+	for _, dep := range d.Dependencies {
+		if dep.ID != "" && (dep.Type == "" || dep.Type == "blocks") {
+			out = append(out, dep.ID)
+		}
+	}
+	return out, nil
 }
 
 // runBdJSON executes a bd command and parses the JSON output.

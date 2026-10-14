@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"github.com/datichb/openhub/cli/internal/services/fanout"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -260,6 +261,14 @@ func newWikiService() *wiki.Service {
 func daemonCheckpoints(a *app.App, wk *wiki.Service) *checkpoint.Service {
 	cp := newCheckpointService(a)
 	cp.CommitPassed = wk.CommitPassed
+	// R6: at the merge checkpoint of a fan-out, oh merges the integration
+	// branch and closes the tickets merged.
+	in := &fanout.Integrator{Sessions: sqlite.NewSessionStore(store), Record: func(ctx context.Context, id string, tickets []string) {
+		if _, err := cp.Record(ctx, id, checkpoint.RecordClosed, tickets...); err != nil {
+			slog.Warn("fan-out: closed tickets not recorded", "session", id, "error", err)
+		}
+	}}
+	cp.Integrate = in.Integrate
 	return cp
 }
 

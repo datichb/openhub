@@ -19,6 +19,10 @@ const maxLabelTickets = 5
 
 // behavior returns the behavior of c for sess, its conditions evaluated.
 func (s *Service) behavior(ctx context.Context, sess *domain.Session, c sessionspec.CheckpointDef) string {
+	if _, _, ok := s.delegation(ctx, sess, c); ok {
+		// R6, CP-R3: replaced by the merge checkpoint of the parent.
+		return sessionspec.CheckpointAuto
+	}
 	if c.When == nil {
 		return c.Behavior(sess.Mode)
 	}

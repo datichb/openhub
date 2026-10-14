@@ -91,6 +91,9 @@ func (s *Service) GuardClose(ctx context.Context, root, dir string) error {
 	if err != nil {
 		return err
 	}
+	if err := guardFanoutClose(sess); err != nil {
+		return err // R6: oh closes the tickets it merged
+	}
 	c, ok := bundle.UnlockingCheckpoint(wf, sessionspec.UnlockClose)
 	if !ok || c.Behavior(sess.Mode) == sessionspec.CheckpointSkip {
 		return nil

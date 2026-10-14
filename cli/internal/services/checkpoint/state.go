@@ -99,7 +99,8 @@ func (s *Service) Rules(ctx context.Context, sessionID string) ([]sessionspec.Pe
 	if err != nil {
 		return nil, err
 	}
-	return append(bundle.SessionRules(wf, sess.Mode, &st), bundle.ScratchSessionRules(wf, s.SessionsDir, sess.ID)...), nil
+	rules := append(bundle.SessionRules(wf, sess.Mode, &st), bundle.ScratchSessionRules(wf, s.SessionsDir, sess.ID)...)
+	return append(rules, fanoutRules(sess)...), nil
 }
 
 // Asked handles a workflow_checkpoint permission request of root (asked by
@@ -120,7 +121,9 @@ func (s *Service) Asked(ctx context.Context, root, toolSession string, p adapter
 	}
 	c, known := wf.Checkpoint(id)
 	behavior := s.behavior(ctx, sess, c)
-	if !known || !s.needsDecision(ctx, sess, c) {
+	if !known || !s.needsDecision(ctx, sess, c) || s.mergeNotReady(ctx, sess, c) {
+		// R6: a merge checkpoint asked before the children are done runs
+		// at once and is refused with the reason (no decision to take).
 		return nil, true, false, nil
 	}
 	id = c.ID
@@ -251,11 +254,34 @@ func (s *Service) approvalWait() time.Duration {
 
 func (s *Service) tryPass(ctx context.Context, sess *domain.Session, c sessionspec.CheckpointDef, needs bool) (domain.CheckpointApproval, error) {
 	sessionID, id := sess.ID, c.ID
+	merge := mergeCheckpoint(c)
+	if merge {
+		// R6: every child done, integration branch where oh left it.
+		if err := s.fanoutReady(ctx, sess); err != nil {
+			return domain.CheckpointApproval{}, err
+		}
+	}
 	if c.Verify != nil {
 		// Before any window opens (E1).
 		if err := s.verifyGate(ctx, sess, c, needs); err != nil {
 			return domain.CheckpointApproval{}, err
 		}
+	}
+	integrated := ""
+	if merge {
+		if st, err := s.state(ctx, sessionID); err != nil {
+			return domain.CheckpointApproval{}, err
+		} else if _, ok := st.Approved[id]; !ok {
+			return domain.CheckpointApproval{}, ErrNotApproved // never passed by the mode
+		}
+		var err error
+		if integrated, err = s.integrate(ctx, sess, c); err != nil {
+			return domain.CheckpointApproval{}, err
+		}
+	}
+	delegatedBy := ""
+	if parent, mcp, ok := s.delegation(ctx, sess, c); ok && !needs {
+		delegatedBy = i18n.Tf("cmd.fanout.delegated", mcp, parent)
 	}
 	head := ""
 	if len(c.Unlocks) > 0 {
@@ -286,6 +312,9 @@ func (s *Service) tryPass(ctx context.Context, sess *domain.Session, c sessionsp
 		if ap.By == "" {
 			ap.By = "mode"
 		}
+		if delegatedBy != "" {
+			ap.By, ap.Message = TimelineDelegated, delegatedBy // CP-R3, traced
+		}
 		if st.Passed == nil {
 			st.Passed = map[string]time.Time{}
 		}
@@ -298,6 +327,9 @@ func (s *Service) tryPass(ctx context.Context, sess *domain.Session, c sessionsp
 		}
 		s.closeCreateWindow(st, c)
 		for _, op := range c.Unlocks {
+			if op == sessionspec.UnlockMerge {
+				continue // done by oh above (R6): no window for the agents
+			}
 			if st.Unlocks == nil {
 				st.Unlocks = map[string]domain.CheckpointUnlock{}
 			}
@@ -311,9 +343,26 @@ func (s *Service) tryPass(ctx context.Context, sess *domain.Session, c sessionsp
 			setBase(st, id, base)
 		}
 		s.record(st, domain.CheckpointPassed, id, ap.By, ap.Message)
+		if integrated != "" {
+			s.record(st, domain.CheckpointWindow, id, "oh", integrated)
+			ap.Message = strings.TrimSpace(ap.Message + "\n" + integrated)
+		}
 		return nil
 	})
 	return ap, err
+}
+
+// mergeCheckpoint reports whether c is the merge checkpoint of a fan-out
+// (the only one that may unlock the merge or verify on the integration
+// branch, workflow validation).
+func mergeCheckpoint(c sessionspec.CheckpointDef) bool {
+	return slices.Contains(c.Unlocks, sessionspec.UnlockMerge) || (c.Verify != nil && c.Verify.On == sessionspec.VerifyOnIntegration)
+}
+
+// mergeNotReady reports a merge checkpoint asked while the fan-out cannot
+// pass it.
+func (s *Service) mergeNotReady(ctx context.Context, sess *domain.Session, c sessionspec.CheckpointDef) bool {
+	return mergeCheckpoint(c) && s.fanoutReady(ctx, sess) != nil
 }
 
 // relock closes the window of the operations unlocked by checkpoint id.
@@ -451,6 +500,11 @@ func (s *Service) Resolve(ctx context.Context, tool Tool, d domain.Decision, cho
 	switch choice {
 	case ChoiceApprove, "once", "", ChoiceOverride:
 		override := choice == ChoiceOverride
+		if override && s.isMergeDecision(ctx, d.SessionID, id) {
+			// R6, CP-R3: the verification on the integration branch is what
+			// replaces the checkpoints of the children: never overridden.
+			return errors.New(i18n.T("cmd.fanout.no_override"))
+		}
 		if _, err := s.update(ctx, d.SessionID, func(st *domain.CheckpointState) error {
 			if r, ok := st.Verify[id]; ok && r.NeedsOverride() && !override {
 				// A failed (or impossible) verification is passed only on
@@ -534,7 +588,7 @@ func (s *Service) Evaluate(ctx context.Context, root, action string, input map[s
 	}
 	id, _ := input["id"].(string)
 	c, known := wf.Checkpoint(strings.TrimSpace(id))
-	if !known || !s.needsDecision(ctx, sess, c) {
+	if !known || !s.needsDecision(ctx, sess, c) || s.mergeNotReady(ctx, sess, c) {
 		return string(sessionspec.EffectAllow), nil
 	}
 	// Asked even when the tool would let it run (an "always" answer saved
