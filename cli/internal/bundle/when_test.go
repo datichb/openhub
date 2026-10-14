@@ -295,7 +295,7 @@ func TestNoDeadRoleBlocksInAgents(t *testing.T) {
 // L3: the composed prompt of an agent that is only a subagent does not
 // invite it to call question.
 func TestSubagentPromptsDoNotCallQuestion(t *testing.T) {
-	for _, wf := range []string{"feature", "ticket", "sweep", "cadrage"} {
+	for _, wf := range []string{"feature", "ticket", "sweep", "spec", "implement-spec"} {
 		b := shippedBundle(t, wf)
 		envs := bundleWhenEnvs(nil, "", b.Spec)
 		for _, a := range b.Spec.Agents {

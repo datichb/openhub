@@ -208,6 +208,9 @@ func (b *Beads) Exec(ctx context.Context, g Grant, req beadswire.ExecRequest) (r
 	}
 	slog.Debug("gateway: bd", "session", g.SessionID, "command", c.Key(), "exit", resp.ExitCode)
 	if isOp && b.Done != nil && resp.ExitCode == 0 && resp.Error == "" {
+		if op.Kind == OpCreate {
+			op.IDs = CreatedIDs(stdout.Bytes()) // R5: the session output of the created tickets
+		}
 		b.Done(ctx, g, op)
 	}
 	return resp, http.StatusOK

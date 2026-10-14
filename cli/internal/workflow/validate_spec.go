@@ -138,6 +138,7 @@ func (r *Resolved) Validate(env Env) Diagnostics {
 	v.resources()
 	v.security()
 	v.publish()
+	v.composition()
 	return v.diags
 }
 
@@ -269,7 +270,9 @@ func (v *validator) inputs() {
 		if in.MaxLength < 0 {
 			v.err("negative_value", base+".max_length", in.MaxLength)
 		}
-		if in.From != "" {
+		if IsSessionSource(in.From) {
+			v.sessionFrom(base+".from", in)
+		} else if in.From != "" {
 			src, arg, ok := ParseFrom(in.From)
 			switch {
 			case !ok:
@@ -743,8 +746,9 @@ func (v *validator) resources() {
 		if o.Type == "" {
 			v.err("field_required", p+".type", "type")
 		} else {
-			v.enum(p+".type", string(o.Type), o.Type.Valid(), "branch", "merge_request", "beads-ids", "path")
+			v.enum(p+".type", string(o.Type), o.Type.Valid(), "branch", "merge_request", "beads-ids", "path", "report")
 		}
+		v.outputRecord(p, o)
 	}
 	v.list("outputs", ids, "id")
 }

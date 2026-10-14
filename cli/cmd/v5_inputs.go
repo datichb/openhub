@@ -14,8 +14,11 @@ import (
 // inputSources are the sources of computed inputs (`from:`, workflow
 // InputSources) on this machine: the merge requests of the project forge
 // (GitLab today) and the team space of the project.
-func inputSources(a *app.App) map[string]workflowsvc.InputSource {
+func inputSources(a *app.App, note func(string)) map[string]workflowsvc.InputSource {
 	out := gitlabInputSources(a)
+	for k, fn := range sessionInputSources(a, note) {
+		out[k] = fn
+	}
 	out["ticket.brief"] = func(ctx context.Context, c workflowsvc.Context, ticketID string) (string, error) {
 		return ticketBrief(ctx, a, c.ProjectID, ticketID)
 	}

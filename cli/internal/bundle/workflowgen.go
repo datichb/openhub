@@ -284,6 +284,9 @@ func buildMapData(spec *workflow.Spec, graph map[string][]string, modeOf func(st
 		d.Sequences = append(d.Sequences, agentSequence{Agent: a, Sequence: checkpointSequence(own)})
 	}
 	for _, o := range spec.Outputs {
+		if o.Record != "" {
+			continue // recorded by oh (R5): nothing for the agents to declare
+		}
 		d.Outputs = append(d.Outputs, outputRow{ID: o.ID, Type: o.Type, Label: o.Label.Text(generatedLang)})
 	}
 	return d

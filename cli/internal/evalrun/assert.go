@@ -24,6 +24,8 @@ const (
 	AssertTextMatches          = "text_matches"            // an agent wrote (or never wrote) a text
 	AssertCalled               = "called"                  // a tool was called (before an event)
 	AssertFileMatches          = "file_matches"            // a file changed in the clone holds a text
+	AssertOutput               = "output"                  // oh recorded (or the session declared) an output (R5)
+	AssertNext                 = "next"                    // oh proposes a workflow after the session (R5, next:)
 )
 
 // Assertion is a check of a case (`type:` and its parameters).
@@ -77,6 +79,14 @@ type Assertion struct {
 	// file_matches: Pattern (case-insensitive) is searched in the files of
 	// the clone changed since the fixture that match Paths (globs); one
 	// match is enough, Absent inverts it.
+
+	// output: the session output Output has a value (Pattern, optional,
+	// matches it: lists comma-joined); Absent inverts it.
+	Output string `yaml:"output" json:"output,omitempty"`
+	// next: oh proposes Workflow after the session (`next:` of its
+	// workflow); Pattern, optional, matches its inputs (« tickets=ev-1,ev-2
+	// spec=… »); Absent inverts it.
+	Workflow string `yaml:"workflow" json:"workflow,omitempty"`
 }
 
 // Anchor selects the first event of a kind in a trace.
@@ -179,6 +189,16 @@ func (a Assertion) Validate() error {
 		if _, err := regexp.Compile("(?i)" + a.Pattern); err != nil || a.Pattern == "" {
 			return fmt.Errorf("pattern: a regular expression (%v)", err)
 		}
+	case AssertOutput, AssertNext:
+		if a.Type == AssertOutput && a.Output == "" {
+			return errors.New("output is required")
+		}
+		if a.Type == AssertNext && a.Workflow == "" {
+			return errors.New("workflow is required")
+		}
+		if _, err := regexp.Compile("(?i)" + a.Pattern); err != nil {
+			return fmt.Errorf("pattern: a regular expression (%v)", err)
+		}
 	default:
 		return fmt.Errorf("unknown assertion type %q", a.Type)
 	}
@@ -232,6 +252,16 @@ func (a Assertion) Label() string {
 			return strings.Join(a.Paths, ", ") + " without /" + a.Pattern + "/"
 		}
 		return strings.Join(a.Paths, ", ") + " holds /" + a.Pattern + "/"
+	case AssertOutput:
+		if a.Absent {
+			return "no output " + a.Output
+		}
+		return "output " + a.Output
+	case AssertNext:
+		if a.Absent {
+			return "not proposed next: " + a.Workflow
+		}
+		return "proposed next: " + a.Workflow
 	}
 	return a.Type
 }
@@ -296,8 +326,63 @@ func check(a Assertion, ev Evidence) (pass bool, detail string) {
 		return checkCalled(a, ev.Events)
 	case AssertFileMatches:
 		return checkFileMatches(a, ev)
+	case AssertOutput, AssertNext:
+		return checkComposition(a, ev.Events)
 	}
 	return false, "unknown assertion type " + a.Type
+}
+
+// checkComposition looks for the output (output) or the proposal (next)
+// in the trace: output events of the session, next events added by the
+// pass.
+func checkComposition(a Assertion, evs []sessionsvc.TraceEvent) (pass bool, detail string) {
+	re := regexp.MustCompile("(?i)" + a.Pattern)
+	kind, id := sessionsvc.TraceOutput, a.Output
+	if a.Type == AssertNext {
+		kind, id = sessionsvc.TraceNext, a.Workflow
+	}
+	var seen []string
+	for _, e := range evs {
+		if e.Kind != kind || e.Title != id {
+			continue
+		}
+		text := e.Text
+		if a.Type == AssertOutput {
+			text = valueText(e.Data["value"])
+		}
+		seen = append(seen, text)
+		if re.MatchString(text) {
+			if a.Absent {
+				return false, text
+			}
+			return true, text
+		}
+	}
+	switch {
+	case a.Absent:
+		return true, ""
+	case len(seen) == 0:
+		return false, "not in the trace"
+	}
+	return false, "no match in " + strings.Join(seen, " ; ")
+}
+
+// valueText is an output value as text (lists comma-joined).
+func valueText(v any) string {
+	if list, ok := v.([]any); ok {
+		parts := make([]string, len(list))
+		for i, e := range list {
+			parts[i] = fmt.Sprint(e)
+		}
+		return strings.Join(parts, ",")
+	}
+	if list, ok := v.([]string); ok {
+		return strings.Join(list, ",")
+	}
+	if v == nil {
+		return ""
+	}
+	return fmt.Sprint(v)
 }
 
 // anchorIndex returns the index of the first event matching the anchor

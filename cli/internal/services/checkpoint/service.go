@@ -90,7 +90,9 @@ type Status struct {
 	// Next is the first checkpoint not passed yet (declaration order).
 	Next string `json:"next,omitempty"`
 	// Locked lists the agents that cannot be called yet, with their lock.
-	Locked          []sessionspec.AgentGate `json:"locked_agents,omitempty"`
+	Locked []sessionspec.AgentGate `json:"locked_agents,omitempty"`
+	// ExpectedOutputs are the outputs the agents declare (workflow_outputs);
+	// the outputs recorded by oh (R5, `record:`) are left out.
 	ExpectedOutputs []sessionspec.OutputDef `json:"expected_outputs,omitempty"`
 	Outputs         []Output                `json:"outputs,omitempty"`
 	// Breaker: delegation is held by the circuit breaker until the user steps in.
@@ -189,7 +191,12 @@ func (s *Service) Status(ctx context.Context, sessionID string) (Status, error) 
 		return Status{}, err
 	}
 	lang := i18n.Locale()
-	st := Status{SessionID: sess.ID, Workflow: wf.ID, Mode: sess.Mode, ExpectedOutputs: wf.Outputs}
+	st := Status{SessionID: sess.ID, Workflow: wf.ID, Mode: sess.Mode}
+	for _, o := range wf.Outputs {
+		if o.Record == "" { // R5: a recorded output is not for the agents to declare
+			st.ExpectedOutputs = append(st.ExpectedOutputs, o)
+		}
+	}
 	for _, c := range wf.Checkpoints {
 		row := CheckpointStatus{ID: c.ID, Label: c.LabelFor(lang), Behavior: c.Behavior(sess.Mode), State: StateTodo}
 		switch {
@@ -333,6 +340,9 @@ func (s *Service) Declare(ctx context.Context, sessionID string, o Output) error
 		d, ok := match(wf.Outputs, o)
 		if !ok {
 			return fmt.Errorf("output %q is not declared by the workflow (%s)", firstNonEmpty(o.ID, o.Type), outputList(wf.Outputs))
+		}
+		if d.Record != "" {
+			return fmt.Errorf("output %q is recorded by oh from what the session does (%s): do not declare it", d.ID, d.Record)
 		}
 		o.ID = d.ID
 	}

@@ -24,6 +24,9 @@ type ChainSuggestion struct {
 	Tickets []string `json:"tickets,omitempty"`
 	// Matched lists the output types used (« branch », « beads-ids »).
 	Matched []wf.OutputType `json:"matched"`
+	// Declared: the suggestion is a `next:` step of the workflow that ended
+	// (R5, E4), listed first.
+	Declared bool `json:"declared,omitempty"`
 }
 
 // Chain suggests the workflows to chain after a session of fromID. outputs
@@ -32,6 +35,7 @@ type ChainSuggestion struct {
 // used when the session declared nothing of that type.
 func (s *Service) Chain(ctx context.Context, c Context, fromID string, outputs map[string]any, fallback map[wf.OutputType]any) ([]ChainSuggestion, error) {
 	byType := map[wf.OutputType]any{}
+	var declared []ChainSuggestion
 	if fromID != "" {
 		if from, err := s.Resolve(ctx, c, fromID, ResolveOpts{}); from != nil {
 			for _, o := range from.Spec.Outputs {
@@ -39,10 +43,105 @@ func (s *Service) Chain(ctx context.Context, c Context, fromID string, outputs m
 					byType[o.Type] = v
 				}
 			}
+			declared = s.nextSteps(ctx, c, from.Spec, outputs)
 		} else if err != nil && !isUnknown(err) {
 			return nil, err
 		}
 	}
+	rest, err := s.chainByType(ctx, c, fromID, byType, fallback, declared)
+	if err != nil {
+		return nil, err
+	}
+	return append(declared, rest...), nil
+}
+
+// NextSteps returns the `next:` steps of workflow fromID whose conditions
+// hold for the outputs of a session, with their inputs (R5, E4): what oh
+// proposes at the end of the session, never launched by itself.
+func (s *Service) NextSteps(ctx context.Context, c Context, fromID string, outputs map[string]any) ([]ChainSuggestion, error) {
+	from, err := s.Resolve(ctx, c, fromID, ResolveOpts{})
+	if from == nil {
+		if isUnknown(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return s.nextSteps(ctx, c, from.Spec, outputs), nil
+}
+
+// nextSteps evaluates the `next:` of sp: a step is kept when every output
+// of its `when` was recorded; its inputs take the outputs named by
+// session.output(<id>).
+func (s *Service) nextSteps(ctx context.Context, c Context, sp *wf.Spec, outputs map[string]any) []ChainSuggestion {
+	var out []ChainSuggestion
+	for _, n := range sp.Next {
+		if n.When != nil && !allGiven(n.When.Outputs, outputs) {
+			continue
+		}
+		target, _ := s.Resolve(ctx, c, n.Workflow, ResolveOpts{})
+		if target == nil {
+			continue // unknown or unreadable: validation reports it
+		}
+		sg := ChainSuggestion{WorkflowID: target.Spec.ID, Label: firstText(n.Label, target.Spec.Label, s.lang()), Prefill: map[string]string{}, Declared: true}
+		keys := make([]string, 0, len(n.Inputs))
+		for k := range n.Inputs {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			f, ok := wf.ParseSessionFrom(n.Inputs[k])
+			if !ok || f.Source != wf.SourceSessionOutput {
+				continue
+			}
+			v, ok := outputs[f.Output]
+			if !ok || v == nil || fmt.Sprint(v) == "" {
+				continue
+			}
+			o, _ := sp.Output(f.Output)
+			sg.Matched = append(sg.Matched, o.Type)
+			in, _ := target.Spec.Inputs.Get(k)
+			if ticket, _ := TicketInput(target.Spec); ticket == k && (in.Type == wf.InputBeadsID || in.Type == wf.InputBeadsIDs) {
+				sg.Tickets = ticketList(v)
+				continue
+			}
+			sg.Prefill[k] = valueText(v)
+		}
+		out = append(out, sg)
+	}
+	return out
+}
+
+func allGiven(ids []string, outputs map[string]any) bool {
+	for _, id := range ids {
+		v, ok := outputs[id]
+		if !ok || v == nil || valueText(v) == "" {
+			return false
+		}
+	}
+	return true
+}
+
+// valueText is an output value as an input value (lists comma-joined).
+func valueText(v any) string {
+	switch x := v.(type) {
+	case []string:
+		return strings.Join(x, ",")
+	case []any:
+		return strings.Join(ticketList(x), ",")
+	}
+	return fmt.Sprint(v)
+}
+
+func firstText(a, b wf.LocalizedText, lang string) string {
+	if t := a.Text(lang); t != "" {
+		return t
+	}
+	return b.Text(lang)
+}
+
+// chainByType suggests the workflows whose inputs take an output type of
+// the session (O7), other than the declared steps.
+func (s *Service) chainByType(ctx context.Context, c Context, fromID string, byType, fallback map[wf.OutputType]any, declared []ChainSuggestion) ([]ChainSuggestion, error) {
 	for t, v := range fallback {
 		if _, ok := byType[t]; !ok && v != nil && fmt.Sprint(v) != "" {
 			byType[t] = v
@@ -56,8 +155,12 @@ func (s *Service) Chain(ctx context.Context, c Context, fromID string, outputs m
 		return nil, err
 	}
 	var out []ChainSuggestion
+	skip := map[string]bool{fromID: true}
+	for _, d := range declared {
+		skip[d.WorkflowID] = true
+	}
 	for _, sum := range s.catalogFrom(cat) {
-		if !sum.Valid || sum.ID == fromID {
+		if !sum.Valid || skip[sum.ID] {
 			continue
 		}
 		r, _ := wf.ResolveSpec(cat.docs, mustRef(sum.Ref), nil)

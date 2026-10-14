@@ -48,6 +48,7 @@ func runSessionTrace(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	appendNextEvents(ctx, MustApp(), tr, sess.ID)
 	if out, _ := cmd.Flags().GetString("output"); out != "" {
 		f, err := os.OpenFile(out, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
 		if err != nil {

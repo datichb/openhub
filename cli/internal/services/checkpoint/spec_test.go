@@ -20,7 +20,7 @@ import (
 
 func specWorkflow() *sessionspec.WorkflowRuntime {
 	paths := []string{"docs/wiki/specs/**"}
-	return &sessionspec.WorkflowRuntime{ID: "spec", DefaultMode: "auto", Checkpoints: []sessionspec.CheckpointDef{
+	return &sessionspec.WorkflowRuntime{ID: "spec", DefaultMode: "auto", Outputs: []sessionspec.OutputDef{{ID: "spec", Type: "path", Record: RecordSpec}}, Checkpoints: []sessionspec.CheckpointDef{
 		{ID: "cp-spec", Behaviors: map[string]string{"auto": "auto"}, Verify: &sessionspec.VerifyDef{Expect: "pass", TimeoutSec: 60,
 			Spec: &sessionspec.SpecCheckDef{Paths: paths}}},
 		{ID: "cp-converge", Behaviors: map[string]string{"auto": "auto"}, Verify: &sessionspec.VerifyDef{Expect: "pass", TimeoutSec: 60,
@@ -69,6 +69,9 @@ func TestSpecChecks(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, domain.VerifyPassed, r.Status)
 	assert.Equal(t, 0, ex.count(), "no command run")
+	sess, err := svc.Sessions.Get(ctx, "ses_s")
+	require.NoError(t, err)
+	assert.Equal(t, "docs/wiki/specs/percent.md", sess.Outputs["spec"], "R5: the spec checked is recorded by oh")
 
 	write(body + "## Découpage\n- T1 · Couvre : CA-1\n- T2 · la doc\n")
 	_, err = svc.Reached(ctx, "ses_s", Call{ID: "cp-converge"})

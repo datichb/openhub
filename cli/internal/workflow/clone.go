@@ -93,6 +93,8 @@ func (s *Spec) Clone() *Spec {
 			c.Outputs[i] = o
 		}
 	}
+	c.Next = cloneNext(s.Next)
+	c.Aliases = cloneSlice(s.Aliases)
 	if s.Limits != nil {
 		c.Limits = &Limits{BudgetUSD: clonePtr(s.Limits.BudgetUSD), Models: slices.Clone(s.Limits.Models), MaxFixRounds: clonePtr(s.Limits.MaxFixRounds)}
 	}
@@ -157,4 +159,21 @@ func cloneAny(v any) any {
 		return out
 	}
 	return v
+}
+
+// cloneNext copies the steps of `next:` (R5).
+func cloneNext(steps []NextStep) []NextStep {
+	if steps == nil {
+		return nil
+	}
+	out := make([]NextStep, len(steps))
+	for i, n := range steps {
+		n.Label = n.Label.clone()
+		if n.When != nil {
+			n.When = &NextWhen{Outputs: cloneSlice(n.When.Outputs)}
+		}
+		n.Inputs = cloneMap(n.Inputs)
+		out[i] = n
+	}
+	return out
 }

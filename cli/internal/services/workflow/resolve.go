@@ -89,7 +89,24 @@ func (s *Service) lookup(cat *catalog, id string, layer wf.Layer) (wf.Ref, bool)
 			return ref, true
 		}
 	}
-	return wf.Ref{}, false
+	// R5: an alias stands for its default target (`aliases:`).
+	return cat.docs.ResolveAlias(id, nil)
+}
+
+// ResolveAlias returns the workflow launched by alias id (`aliases:` of a
+// workflow, R5) when no document has that id: the target whose `with`
+// input is given, else the default target. ok is false for a workflow id
+// or an unknown id.
+func (s *Service) ResolveAlias(ctx context.Context, c Context, id string, given func(input string) bool) (target string, ok bool) {
+	if _, err := wf.ParseRef(id); err == nil {
+		return "", false
+	}
+	cat, err := s.load(ctx, c)
+	if err != nil {
+		return "", false
+	}
+	ref, ok := cat.docs.ResolveAlias(id, given)
+	return ref.ID, ok
 }
 
 // MCPSelection returns the oh MCP servers the workflow selects (`mcp:`)
@@ -116,4 +133,17 @@ func (r *Resolution) Delegation() map[string][]string {
 // counts as pause): a run without interface cannot pass them.
 func (r *Resolution) WaitingCheckpoints() []string {
 	return r.Spec.WaitingCheckpoints(r.Mode)
+}
+
+// AliasTargetIDs returns the workflows that declare alias id.
+func (s *Service) AliasTargetIDs(ctx context.Context, c Context, id string) []string {
+	cat, err := s.load(ctx, c)
+	if err != nil {
+		return nil
+	}
+	var out []string
+	for _, t := range cat.docs.AliasTargets(id) {
+		out = append(out, t.Ref.ID)
+	}
+	return out
 }

@@ -131,6 +131,12 @@ func (p *patcher) apply() {
 	if p.has("headless") {
 		d.Headless = s.Headless
 	}
+	if p.has("next") {
+		d.Next = s.Next
+	}
+	if p.has("aliases") {
+		d.Aliases = s.Aliases
+	}
 	p.limits()
 	p.preconditions()
 }

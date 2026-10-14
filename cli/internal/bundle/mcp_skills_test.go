@@ -16,7 +16,7 @@ import (
 // for tools it does not have.
 func TestTrackerAdaptersFollowSessionMCP(t *testing.T) {
 	hub, cat, env := shippedWorkflows(t)
-	r, diags := workflow.Check(cat, workflow.Ref{Layer: workflow.LayerHub, ID: "cadrage"}, nil, env)
+	r, diags := workflow.Check(cat, workflow.Ref{Layer: workflow.LayerHub, ID: "spec"}, nil, env)
 	require.False(t, diags.HasErrors(), "%v", diags)
 	body := func(mcp []sessionspec.MCPServerDef) map[string]string {
 		b, err := Build(Request{HubDir: hub, OutDir: t.TempDir(), Spec: r.Spec, MCP: mcp})

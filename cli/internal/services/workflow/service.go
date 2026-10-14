@@ -47,6 +47,9 @@ type Service struct {
 type Context struct {
 	ProjectID string
 	TeamID    string
+	// FromSession is the session a launch is chained from (--parent): the
+	// session sources of `from:` read it first (R5).
+	FromSession string
 }
 
 // catalog holds the documents of every available layer and the validation

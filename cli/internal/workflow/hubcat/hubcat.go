@@ -239,5 +239,6 @@ func LoadWorkflows(hubDir string) (*workflow.MemCatalog, workflow.Diagnostics) {
 		return cat, nil
 	}
 	diags := cat.LoadDir(dir, workflow.LayerHub)
+	diags = append(diags, workflow.CheckAliases(cat)...) // R5
 	return cat, diags
 }

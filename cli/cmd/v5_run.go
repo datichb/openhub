@@ -282,6 +282,14 @@ func resolveLaunch(ctx context.Context, a *app.App, opts *runOptions, errOut io.
 	if opts.Draft {
 		resolve = wsvc.ResolveDraft
 	}
+	// R5: an alias (`aliases:`) launches its target; `with` routes it by
+	// the inputs given (feature --tickets → implement-spec).
+	if target, ok := wsvc.ResolveAlias(ctx, workflowsvc.Context{ProjectID: opts.Project.ID}, opts.Workflow, func(input string) bool {
+		return strings.TrimSpace(opts.Inputs[input]) != "" || (len(opts.Tickets) > 0 && aliasTicketInput(ctx, wsvc, opts.Project.ID, opts.Workflow, input))
+	}); ok {
+		fmt.Fprintln(errOut, "  "+i18n.Tf("cmd.run.alias", opts.Workflow, target))
+		opts.Workflow = target
+	}
 	// Resolve once to learn the inputs (ticket input), then with the inputs.
 	// No session options here: they would check the required inputs, not
 	// known yet (every workflow with a required input was refused).
@@ -299,8 +307,8 @@ func resolveLaunch(ctx context.Context, a *app.App, opts *runOptions, errOut io.
 	}
 	// Inputs computed by oh (`from:`, e.g. the discussions of a merge
 	// request) when they are not given.
-	wsvc.InputSources = inputSources(a)
-	if err := wsvc.ComputeInputs(ctx, workflowsvc.Context{ProjectID: opts.Project.ID}, probe.Spec, inputs); err != nil {
+	wsvc.InputSources = inputSources(a, noteTo(errOut))
+	if err := wsvc.ComputeInputs(ctx, workflowsvc.Context{ProjectID: opts.Project.ID, FromSession: opts.ParentSessionID}, probe.Spec, inputs); err != nil {
 		return nil, "", nil, err
 	}
 	res, err = resolve(ctx, workflowsvc.Context{ProjectID: opts.Project.ID}, opts.Workflow, workflowsvc.ResolveOpts{
@@ -310,6 +318,21 @@ func resolveLaunch(ctx context.Context, a *app.App, opts *runOptions, errOut io.
 	}
 
 	return res, ticketInput, perSession, nil
+}
+
+// aliasTicketInput reports whether input is the ticket input of a target
+// of alias id (--tickets fills it).
+func aliasTicketInput(ctx context.Context, wsvc *workflowsvc.Service, projectID, id, input string) bool {
+	for _, target := range wsvc.AliasTargetIDs(ctx, workflowsvc.Context{ProjectID: projectID}, id) {
+		res, _ := wsvc.Resolve(ctx, workflowsvc.Context{ProjectID: projectID}, target, workflowsvc.ResolveOpts{})
+		if res == nil {
+			continue
+		}
+		if k, _ := workflowsvc.TicketInput(res.Spec); k == input {
+			return true
+		}
+	}
+	return false
 }
 
 // launchTickets puts the tickets of a launch in the ticket input: one
@@ -564,7 +587,12 @@ func afterStart(ctx context.Context, a *app.App, svc *runsvc.Service, ui launche
 			ui.Notify(i18n.Tf("cmd.run.attach_later", res.SessionID), launcher.LevelInfo)
 			return nil
 		}
-		return runAttachInline(ctx, a, svc, ui, res.SessionID)
+		err := runAttachInline(ctx, a, svc, ui, res.SessionID)
+		if err == nil && first {
+			// R5: the client is closed; propose what follows (never launched).
+			printNextSteps(ctx, a, os.Stdout, res.SessionID)
+		}
+		return err
 	default:
 		ui.Notify(i18n.Tf("cmd.v5.opened_in", string(res.AttachMethod), res.SessionID), launcher.LevelSuccess)
 	}

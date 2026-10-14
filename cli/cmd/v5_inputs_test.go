@@ -19,11 +19,11 @@ import (
 // QB2: every source of the workflow schema has an implementation on the
 // machine.
 func TestEveryInputSourceIsImplemented(t *testing.T) {
-	got := inputSources(&app.App{Config: &config.Config{}})
-	for _, src := range workflow.InputSources {
+	got := inputSources(&app.App{Config: &config.Config{}}, nil)
+	for _, src := range append(append([]string{}, workflow.InputSources...), workflow.SessionSources...) {
 		assert.Contains(t, got, src)
 	}
-	assert.Len(t, got, len(workflow.InputSources), "no source outside the schema list")
+	assert.Len(t, got, len(workflow.InputSources)+len(workflow.SessionSources), "no source outside the schema list")
 }
 
 // QB2: ticket.brief reads the takeover brief of the ticket in the team
@@ -38,7 +38,7 @@ func TestTicketBriefSource(t *testing.T) {
 		Config:   &config.Config{Teams: []config.TeamConfig{{ID: "acme", Enabled: true, StatePath: space}}},
 		Projects: &mockProjectStore{projects: []domain.Project{{ID: "p1", Name: "web", TeamID: &team}}},
 	}
-	src := inputSources(a)["ticket.brief"]
+	src := inputSources(a, nil)["ticket.brief"]
 	ctx := context.Background()
 	got, err := src(ctx, workflowsvc.Context{ProjectID: "p1"}, "oh-12")
 	require.NoError(t, err)
