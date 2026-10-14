@@ -114,15 +114,18 @@ du workflow) est visible dans l'interface OpenCode.
 
 | Agent | Contexte d'invocation | Session | Todo list visible ? | Responsabilité |
 |-------|-----------------------|---------|---------------------|----------------|
-| `conductor` | Agent d'entrée (`cadrage`, `sweep`) | Racine | ✅ Oui | Maintient la liste des étapes (une entrée par agent et par checkpoint de la carte du workflow) |
-| `orchestrator` | Agent d'entrée (`feature`, `libre`) | Racine | ✅ Oui | Maintient la liste des tickets (1 tâche par ticket) |
-| `orchestrator-dev` | Agent d'entrée (`ticket`, `review-feedback`) | Racine | ✅ Oui | Maintient la liste des tickets avec labels de phase |
-| `orchestrator-dev` | Invoqué via `task` depuis `orchestrator` | Isolée (enfant) | ❌ Non | Peut maintenir une liste interne (débogage) — non visible |
-| `planner`, `pathfinder`, `onboarder`, `debugger`, `designer` | Invoqués via `task` depuis `orchestrator` ou `conductor` | Isolée (enfant) | ❌ Non | Pas de liste todowrite |
-| `developer`, `reviewer`, `documentarian` | Invoqués via `task` depuis `orchestrator-dev` | Isolée (petit-enfant dans `feature`) | ❌ Non | Pas de liste todowrite |
+| `conductor` | Agent d'entrée (`spec`, `sweep`, `security-fix`) | Racine | ✅ Oui | Maintient la liste des étapes (une entrée par agent et par checkpoint de la carte du workflow) |
+| `orchestrator` | Agent d'entrée (`libre`) | Racine | ✅ Oui | Maintient la liste des phases de la feature (planification, specs, audits, implémentation) |
+| `orchestrator-dev` | Agent d'entrée (`ticket`, `implement-spec`, `review-feedback`) | Racine | ✅ Oui | Maintient la liste des tickets avec labels de phase |
+| `release-manager` | Agent d'entrée (`release`) | Racine | ✅ Oui | Étapes de la release, s'il en tient une |
+| `orchestrator-dev` | Invoqué via `task` depuis `orchestrator` (`libre`) | Isolée (enfant) | ❌ Non | Peut maintenir une liste interne (débogage) — non visible |
+| `planner`, `pathfinder`, `onboarder`, `debugger`, `designer`, `auditor-subagent` | Invoqués via `task` depuis `orchestrator` ou `conductor` | Isolée (enfant) | ❌ Non | Pas de liste todowrite |
+| `developer`, `reviewer`, `documentarian` | Invoqués via `task` depuis `orchestrator-dev` ou `conductor` | Isolée (enfant ; petit-enfant dans `libre`) | ❌ Non | Pas de liste todowrite |
 
-Un agent qui est l'agent d'entrée de son workflow (`auditor` dans `audit`, `debugger` dans `debug`, `developer`
-dans `quick`…) tourne dans la session racine : sa todo list, s'il en tient une, est visible.
+Un agent qui est l'agent d'entrée de son workflow (`auditor` dans `audit`, `debugger` dans `debug` et `incident`,
+`pathfinder` dans `spike`, `developer` dans `quick`…) tourne dans la session racine : sa todo list, s'il en tient
+une, est visible. Une session enfant d'un fan-out (`ticket`, `sweep-task`) est une session oh à part entière : sa
+todo list est celle de sa propre session racine, pas celle de la parente.
 
 ---
 
@@ -133,53 +136,52 @@ dans `quick`…) tourne dans la session racine : sa todo list, s'il en tient une
 
 Cette règle implique :
 
-1. **L'orchestrator feature** maintient une liste avec **1 tâche par ticket** (pas une tâche
-   agrégée "Implémentation — N tickets"). Il met à jour cette liste à chaque checkpoint reçu
-   d'`orchestrator-dev` via les blocs `## Question pour l'orchestrator`.
+1. **L'orchestrator** (`libre`) maintient une liste avec **1 tâche par phase de la feature** (planification,
+   spec UX, spec UI, audit, implémentation) : la granularité est volontairement haute, il suit les phases, pas les
+   tickets. Il la met à jour à chaque changement de phase, à la lecture de l'enveloppe de l'agent qu'il a lancé.
 
-2. **L'orchestrator-dev standalone** maintient sa liste avec des **labels dynamiques de phase**
+2. **L'orchestrator-dev agent d'entrée** maintient sa liste avec des **labels dynamiques de phase**
    pour refléter ce qui se passe réellement dans le sous-agent developer actuellement actif.
 
 3. **L'orchestrator-dev sous-agent** peut maintenir une liste interne pour le débogage de session,
-   mais cette liste est invisible et ne remplace pas la responsabilité de l'orchestrator feature.
+   mais cette liste est invisible et ne remplace pas celle de l'orchestrator.
 
 ---
 
-## Règles de mise à jour — Orchestrator feature
+## Règles de mise à jour — Orchestrator (`libre`)
 
-Quand l'orchestrator feature reçoit un bloc de retour d'`orchestrator-dev`, il met à jour
-sa liste **avant d'afficher le rapport et avant d'appeler l'outil `question`** :
+Quand l'orchestrator reçoit l'enveloppe d'un agent qu'il a lancé, il met à jour sa liste **avant d'afficher
+l'enveloppe et avant d'appeler l'outil `question`** :
 
-| Bloc reçu | Phase dans le bloc | Action todowrite |
-|-----------|--------------------|-----------------|
-| `## Question pour l'orchestrator` | `CP-1` (ticket démarre) | Ticket `#bd-XX` → `in_progress` |
-| `## Question pour l'orchestrator` | `CP-2` | Aucune (déjà `in_progress`) |
-| `## Question pour l'orchestrator` | `CP-3` si ticket sauté | Ticket `#bd-XX` → `cancelled` |
-| `## Retour vers orchestrator` (partiel, après CP-2 commit) | — | Ticket commité → `completed`, prochain → `in_progress` si applicable |
-| `## Retour vers orchestrator` (final) | — | Tous les tickets restants → statut final (`completed` / `cancelled`) |
+| Enveloppe reçue | Statut | Action todowrite |
+|-----------------|--------|-----------------|
+| `## Retour vers orchestrator` du planner ou du pathfinder | `découpage-à-valider`, `planification-complète`, `direct` | Planification → `completed`, phase suivante → `in_progress` |
+| `## Retour vers orchestrator` du designer | `spec-complète` | Spec UX ou UI → `completed` |
+| `## Retour vers orchestrator` d'orchestrator-dev | `en-attente` | Aucune (questions bloquantes relayées, reprise avec `task_id`) |
+| `## Retour vers orchestrator` d'orchestrator-dev | `succès`, `partiel`, `bloqué` | Implémentation → `completed` (ou laissée `in_progress` avec le point bloquant) |
 
-**Exemple — état après CP-2 commit validé pour #bd-12, CP-3 en mode semi-auto vers #bd-14 :**
+**Exemple — planification faite, implémentation en cours :**
 
 ```
 todowrite({
   todos: [
-    { content: "Planification feature", status: "completed", priority: "high" },
-    { content: "#bd-12 — Endpoint POST /users", status: "completed", priority: "high" },
-    { content: "#bd-14 — Migration DB users", status: "in_progress", priority: "medium" }
+    { content: "Planification", status: "completed", priority: "high" },
+    { content: "Spec UI", status: "completed", priority: "high" },
+    { content: "Implémentation", status: "in_progress", priority: "high" }
   ]
 })
 ```
 
 ---
 
-## Règles de mise à jour — Orchestrator-dev standalone
+## Règles de mise à jour — Orchestrator-dev agent d'entrée
 
 Quand `orchestrator-dev` est invoqué directement, mettre à jour le label de la tâche
 à chaque phase clé pour que l'utilisateur sache où en est l'implémentation :
 
 | Étape | Label | Statut |
 |-------|-------|--------|
-| CP-0 (initialisation) | `#bd-12 — <titre>` | `pending` |
+| `cp-plan` (initialisation, `implement-spec`) ou démarrage | `#bd-12 — <titre>` | `pending` |
 | CP-1 démarrage | `#bd-12 — <titre> [dev]` | `in_progress` |
 | Étape 4 review lancée | `#bd-12 — <titre> [review]` | `in_progress` |
 | Étape 5 CP-2 en attente | `#bd-12 — <titre> [CP-2]` | `in_progress` |
@@ -200,7 +202,7 @@ Quand `orchestrator-dev` est invoqué directement, mettre à jour le label de la
   fiche checkpoint (frise `✔ cp-1 → developer → ⏸ cp-2 → ○ cp-3`). Cette frise vient de la machine à états des
   checkpoints, pas de `todowrite` ([ADR-042](./adr/042-checkpoints-headless-decisions.fr.md),
   [ADR-047](./adr/047-session-interaction-daemon.fr.md)).
-- **Permissions** : `todowrite` est autorisé explicitement pour `conductor`, `orchestrator` et `orchestrator-dev`,
+- **Permissions** : `todowrite` est autorisé explicitement pour `conductor`, `orchestrator`, `orchestrator-dev` et `release-manager`,
   et refusé pour `brief-enricher`.
 
 ---
@@ -211,14 +213,14 @@ Quand `orchestrator-dev` est invoqué directement, mettre à jour le label de la
   1 tâche `in_progress` à la fois, mise à jour en temps réel, liste complète à chaque appel.
 - Les agents `developer`, `reviewer`, `documentarian` n'utilisent pas
   `todowrite` quand ils sont invoqués en tant que sous-agents : leurs sessions sont invisibles.
-- Le mécanisme de handoff inter-agents (`## Retour vers <parent>`, `## Question pour <parent>`)
-  reste le seul canal de communication entre sessions isolées.
+- L'enveloppe de retour (`## Retour vers <appelant>`, questions bloquantes au statut `en-attente`) et le rapport
+  déposé avec `workflow_report` restent le seul canal de communication entre sessions isolées.
 
 ---
 
 ## Références
 
 - [`skills/posture/coordinator-posture.md`](../../skills/posture/coordinator-posture.md) — Règles d'utilisation (les suffixes de phase sont dans `orchestrator-dev-ticket-workflow`)
-- [`skills/orchestrator/orchestrator-protocol.md`](../../skills/orchestrator/orchestrator-protocol.md) — Règles de mise à jour pour l'orchestrator feature
-- [`skills/orchestrator/orchestrator-dev-protocol.md`](../../skills/orchestrator/orchestrator-dev-protocol.md) — Labels dynamiques pour orchestrator-dev standalone
+- [`skills/orchestrator/orchestrator-protocol.md`](../../skills/orchestrator/orchestrator-protocol.md) — Liste des phases de l'orchestrator (`libre`)
+- [`skills/orchestrator/orchestrator-dev-protocol.md`](../../skills/orchestrator/orchestrator-dev-protocol.md) — Labels dynamiques pour orchestrator-dev agent d'entrée
 - [`docs/architecture/task-delegation.fr.md`](task-delegation.fr.md) — Mécanisme de délégation via `task`, isolation des sessions, `task_id`

@@ -2,7 +2,7 @@
 
 # Référence des agents
 
-16 agents au total, organisés en 8 familles (planning, developer, auditor, infra, quality, design, documentation, utility).
+18 agents au total, organisés en 9 familles (planning, developer, auditor, infra, delivery, quality, design, documentation, utility).
 Chaque agent est défini dans `agents/<famille>/<id>.md` avec un frontmatter déclarant ses métadonnées,
 ses permissions, ses skills et son mode. Ce dossier `agents/` est la source de vérité de cette page.
 
@@ -23,9 +23,9 @@ En v5, ce n'est plus l'agent qui décide de l'enchaînement : c'est le **workflo
 - **Checkpoints** : déclarés dans le workflow (`checkpoints:`), avec un comportement par mode
   (`pause`, `auto`, `skip`, `conditional`). L'agent les signale avec l'outil MCP `workflow_checkpoint` ;
   oh tient l'état et pose les décisions ([ADR-042](./adr/042-checkpoints-headless-decisions.fr.md)).
-- **Agent d'entrée** : celui de `entry.agent` du workflow, ou `conductor` par défaut (workflows `cadrage`, `sweep`).
+- **Agent d'entrée** : celui de `entry.agent` du workflow, ou `conductor` par défaut (workflows `spec` et ses alias `cadrage` et `feature`, `sweep`, `security-fix`).
   Le workflow `libre` laisse choisir l'agent d'entrée (`oh run libre --agent <id>`).
-- **Contrat de session** : oh ajoute à chaque agent une section générée « Contrat de session » (gabarit `bundle/templates/session-contract.md.tmpl`), calculée depuis ce graphe et le workflow : rôle (agent d'entrée, sous-agent lancé par `task` par les appelants listés, ou les deux), titre de retour pour chaque appelant, agents qu'il peut lancer, **ses** checkpoints seulement (`by:` du checkpoint, CP-R11), plafond `max_fix_rounds` pour l'agent qui passe le checkpoint de commit, droit ou non à l'outil `question` (jamais pour un sous-agent, jamais en session `headless`), disponibilité de `workflow_report`, et, pour un agent dont les règles refusent les utilitaires qu'on enchaîne d'habitude (`head`, `tail`, `jq`, `echo`, `which`, `cat`), lesquels lui sont refusés et la consigne de lancer chaque commande seule : l'outil vérifie chaque commande d'une ligne et refuse la ligne entière dès qu'une seule est refusée (le message de refus reste celui de l'outil : une ligne refusée par les règles de l'agent n'atteint pas le plugin d'oh). Les passages propres à un rôle sont filtrés au build (`when:`, voir [Variantes par rôle](./skills.fr.md#variantes-par-rôle-et-par-session-when)) : un sous-agent ne lit pas le parcours standalone — voir [Parcours d'exécution](./task-delegation.fr.md#parcours-dexécution--standalone-ou-sous-agent).
+- **Contrat de session** : oh ajoute à chaque agent une section générée « Contrat de session » (gabarit `bundle/templates/session-contract.md.tmpl`), calculée depuis ce graphe et le workflow : rôle (agent d'entrée, sous-agent lancé par `task` par les appelants listés, ou les deux), titre de retour pour chaque appelant, agents qu'il peut lancer, **ses** checkpoints seulement (`by:` du checkpoint, CP-R11), plafond `max_fix_rounds` pour l'agent qui passe le checkpoint de commit, droit ou non à l'outil `question` (jamais pour un sous-agent, jamais en session `headless`), disponibilité de `workflow_report`, ses écritures déclarées (ligne « Écritures » : chemins `writes:`, checkpoint qui les ouvre), les statuts de retour des agents qu'il lance (tirés de leurs payloads), et, pour un agent dont les règles refusent les utilitaires qu'on enchaîne d'habitude (`head`, `tail`, `jq`, `echo`, `which`, `cat`), lesquels lui sont refusés et la consigne de lancer chaque commande seule : l'outil vérifie chaque commande d'une ligne et refuse la ligne entière dès qu'une seule est refusée (le message de refus reste celui de l'outil : une ligne refusée par les règles de l'agent n'atteint pas le plugin d'oh). Les passages propres à un rôle sont filtrés au build (`when:`, voir [Variantes par rôle](./skills.fr.md#variantes-par-rôle-et-par-session-when)) : un sous-agent ne lit pas le parcours standalone — voir [Parcours d'exécution](./task-delegation.fr.md#parcours-dexécution--agent-dentrée-ou-sous-agent).
 - **Monde fermé** : un agent ne voit que les agents et les skills du **paquet de session** construit depuis le
   workflow ([ADR-043](./adr/043-session-bundle-deploy-removal.fr.md)). Les agents natifs d'opencode sont
   désactivés, et la vérification `Attest` bloque le démarrage si quelque chose d'autre est visible
@@ -37,8 +37,9 @@ Dans une session, seuls les agents du paquet sont joignables. Pour voir le conte
 
 ## Hierarchie des agents
 
-Le schéma montre les délégations permises par le frontmatter (`permission.task`). Dans une session, seules
-celles qui relient deux membres du workflow restent possibles.
+Le schéma montre les délégations permises par le frontmatter (`permission.task`), en trait plein, et celles
+qu'un workflow déclare avec `calls:` (ou, pour le `conductor`, vers les membres de son workflow), en pointillé.
+Dans une session, seules celles qui relient deux membres du workflow restent possibles.
 
 ```mermaid
 flowchart TD
@@ -79,13 +80,15 @@ flowchart TD
         MRG["merger<br/>Conflits de merge"]
     end
     OHF(["oh : fan-out"])
-    COND -.->|membres du workflow| PATH & PLAN & DES
+    COND -.->|membres du workflow| PATH & PLAN & DES & DEV & REV & AUDS
     ORCH --> PATH & PLAN & ONB & DES & ORCHDEV & REV & DBG
     ORCHDEV --> DEV & REV & DOC
     PLAN --> DES
     PATH --> DES
     AUD --> AUDS
-    REV -->|calls: reviewer| REV
+    REV -.->|calls: reviewer| REV
+    DBG -.->|calls: developer, incident| DEV
+    PATH -.->|calls: developer, spike| DEV
     OHF -.->|conflit non résolu, merge-conflicts| MRG
 ```
 
@@ -134,7 +137,7 @@ project_instructions: index # optionnel — full (défaut) | index | none
 | `permission.task` | Agents que cet agent peut lancer. Dans une session, la liste est restreinte aux membres du workflow (ou remplacée par `calls:`). |
 | `skills` | **Bucket A** — chemins relatifs à `skills/`, injectés inline à la construction du paquet de session, toujours actifs dès le premier token. Protocoles de workflow, formats de handoff, principes universels. |
 | `native_skills` | **Bucket B** — chemins relatifs à `skills/`, livrés dans le paquet de session sous `skills/<name>/SKILL.md`, chargés à la demande par le LLM via l'outil `skill`. Standards de domaine, stack skills, checklists. |
-| `stack_skills` | `true` — les skills de stack du projet détecté entrent dans le catalogue de l'agent (`developer`, `reviewer`, `debugger`, `operator`). Sans ce champ, l'agent ne les voit pas. |
+| `stack_skills` | `true` — les skills de stack du projet détecté entrent dans le catalogue de l'agent (`developer`, `reviewer`, `debugger`, `operator`, `merger`). Sans ce champ, l'agent ne les voit pas. |
 | `skills_from_callers` | `true` — les skills que ses appelants nomment dans leur prompt ou dans les skills à la demande de leur catalogue (hors leurs propres `native_skills:` et les sections adressées à un autre agent) entrent dans son catalogue : l'appelant choisit la skill à charger (`developer` et ses standards de domaine, `auditor-subagent` et sa checklist d'audit). |
 | `project_instructions` | Ce que l'agent reçoit des instructions du projet (voir [Instructions du projet par niveau](#instructions-du-projet-par-niveau)) : `full` (défaut, aussi pour un agent d'équipe sans le champ), `index` ou `none`. |
 
@@ -146,11 +149,11 @@ Les fichiers d'instructions du projet (`ONBOARDING.md`, `CONVENTIONS.md`, `.clau
 
 | Niveau | Contenu | Agents livrés |
 |--------|---------|---------------|
-| `full` (défaut) | Le texte complet de chaque fichier | `developer`, `reviewer`, `debugger`, `benchmarker`, `operator`, `auditor-subagent`, `brief-enricher` et les agents d'équipe sans le champ |
+| `full` (défaut) | Le texte complet de chaque fichier | `developer`, `reviewer`, `debugger`, `benchmarker`, `operator`, `merger`, `auditor-subagent`, `brief-enricher` et les agents d'équipe sans le champ |
 | `index` | Pour chaque fichier : son chemin, son titre, sa taille estimée et ses sections `##`. Puis, si `docs/wiki/index.md` existe : son titre, ses sections et le tableau des god nodes (15 lignes au plus). L'agent lit un fichier avec `read` quand sa tâche en dépend : oh lui autorise la lecture de chaque fichier de son index, sur son chemin exact (lecture seule, placée après ses propres règles et avant les gardes, qui l'emportent toujours). Une règle de l'agent qui refuse ou soumet à confirmation ce fichier (autre que `"*"`) est respectée, et la ligne le dit | `orchestrator-dev`, `auditor`, `pathfinder`, `planner`, `designer`, `documentarian`, `onboarder`, `release-manager` |
 | `none` | Rien ; le contrat de session dit que les instructions existent et que les agents lancés les reçoivent | `orchestrator`, `conductor` |
 
-Le wiki est lu directement dans `docs/wiki/index.md` (format de `doc-wiki-protocol`). Sans fichier d'instructions ni wiki, aucun niveau n'ajoute rien. Sur un projet de 4 000 tokens d'instructions, le workflow `feature` coûte environ 22 000 tokens de moins par exécution qu'avec `full` partout (`testdata/budget.golden`, projet `instruct`).
+Le wiki est lu directement dans `docs/wiki/index.md` (format de `doc-wiki-protocol`). Sans fichier d'instructions ni wiki, aucun niveau n'ajoute rien. Mesure du lot L7, sur un projet de 4 000 tokens d'instructions : l'ancien workflow `feature` coûtait environ 22 000 tokens de moins par exécution qu'avec `full` partout ; `testdata/budget.golden` (projet `instruct`) donne le coût de chaque workflow livré.
 
 ### Modes primary / subagent
 
@@ -162,7 +165,7 @@ Le champ `mode:` contrôle comment un agent est exposé dans OpenCode :
 | `subagent` | Invocable par d'autres agents du paquet, invisible dans le Tab picker. Présent dans `agents/` du paquet de session avec une description orientée délégation. |
 
 Le mode effectif suit une priorité : **workflow** (`agents.<id>.mode`) > **frontmatter agent** > **`primary`** (défaut).
-Exemple : dans `feature`, `planner` et `reviewer` sont en `subagent` ; dans `quick`, `developer` passe en `primary`.
+Exemple : dans `spec`, `pathfinder`, `planner` et `designer` sont en `subagent` ; dans `implement-spec`, `reviewer` aussi ; dans `quick` et `sweep-task`, `developer` passe en `primary`.
 L'agent d'entrée doit être `primary`.
 
 ---
@@ -199,7 +202,7 @@ Relevé des frontmatter de `agents/`.
 Ce tableau est la reference faisant autorite pour les skills charges par chaque agent. Il est relevé dans les frontmatter reels des agents. Pour les descriptions des skills, voir [Reference des skills](./skills.fr.md).
 
 > `shared/universal-guardrails` est Bucket A (inline) dans **chaque** agent sauf `brief-enricher` : il n'est pas répété dans les tableaux.
-> `shared/team-awareness` et `shared/team-policies-enforcement` sont Bucket B dans **chaque** agent, sauf `conductor` (seulement `shared/team-awareness`) : ils ne sont pas répétés non plus.
+> `shared/team-awareness` et `shared/team-policies-enforcement` sont Bucket B dans **chaque** agent sauf `merger` (aucun des deux) : ils ne sont pas répétés non plus.
 > `shared/living-docs-enrichment` est Bucket B (natif / a la demande) partout ou il apparait.
 
 ### Famille planning
@@ -208,7 +211,7 @@ Ce tableau est la reference faisant autorite pour les skills charges par chaque 
 |-------|-------------------|-------------------------------|
 | **conductor** | `posture/core-posture`, `posture/user-facing-posture`, `posture/coordinator-posture`, `workflow/workflow-map` (générée depuis le YAML du workflow) | `shared/rtk-usage` |
 | **orchestrator** | `posture/core-posture`, `posture/user-facing-posture`, `posture/coordinator-posture`, `orchestrator/orchestrator-workflow-modes`, `orchestrator/orchestrator-protocol`, `shared/hub-workflow-reference` | `shared/rtk-usage`, `orchestrator/orchestrator-recap-edge`, `developer/beads-plan`, `orchestrator/takeover-context-protocol` |
-| **orchestrator-dev** | `posture/core-posture`, `posture/user-facing-posture`, `shared/handoff-envelope`, `posture/coordinator-posture`, `orchestrator/orchestrator-workflow-modes`, `orchestrator/orchestrator-dev-protocol`, `orchestrator/orchestrator-dev-payload` | `developer/dev-drift-detection`, `shared/rtk-usage`, `orchestrator/orchestrator-dev-ticket-workflow`, `orchestrator/orchestrator-dev-parallel`, `orchestrator/orchestrator-dev-recap`, `orchestrator/orchestrator-dev-edge-cases`, `orchestrator/error-recovery-protocol`, `orchestrator/team-coordination`, `orchestrator/takeover-context-protocol` |
+| **orchestrator-dev** | `posture/core-posture`, `posture/user-facing-posture`, `shared/handoff-envelope`, `posture/coordinator-posture`, `orchestrator/orchestrator-workflow-modes`, `orchestrator/orchestrator-dev-protocol`, `orchestrator/orchestrator-dev-payload` | `developer/dev-drift-detection`, `shared/rtk-usage`, `orchestrator/orchestrator-dev-routing`, `orchestrator/orchestrator-dev-ticket-workflow`, `orchestrator/orchestrator-dev-parallel`, `orchestrator/orchestrator-dev-recap`, `orchestrator/orchestrator-dev-edge-cases`, `orchestrator/error-recovery-protocol`, `orchestrator/team-coordination`, `orchestrator/takeover-context-protocol` |
 | **planner** | `posture/core-posture`, `posture/user-facing-posture`, `shared/handoff-envelope`, `shared/execution-protocol`, `planning/planner-payload`, `planning/planner-workflow`, `adapters/gitlab-planner-protocol`, `adapters/github-planner-protocol`, `shared/hub-workflow-reference` | `shared/research`, `shared/rtk-usage`, `planning/grilling`, `planning/planner-phase-0`, `planning/planner-phase-1`, `planning/planner-phase-2`, `planning/planner-phase-2-5`, `planning/planner-phase-3-4`, `planning/planner-phase-5-6`, `planning/planner-patterns-protocol` (livrée seulement avec le serveur MCP `team`), `shared/living-docs-enrichment`, `planning/planner-design-templates`, `developer/beads-plan`, `posture/expert-posture` |
 | **pathfinder** | `posture/core-posture`, `posture/user-facing-posture`, `shared/handoff-envelope`, `shared/execution-protocol`, `planning/pathfinder-payload`, `planning/pathfinder-protocol`, `adapters/gitlab-pathfinder-protocol`, `adapters/github-pathfinder-protocol`, `shared/wiki-navigation` | `shared/research`, `planning/codebase-design`, `shared/rtk-usage`, `shared/living-docs-enrichment`, `developer/beads-plan` |
 | **onboarder** | `posture/core-posture`, `posture/user-facing-posture`, `shared/handoff-envelope`, `shared/execution-protocol`, `planning/onboarder-payload`, `planning/onboarder-workflow`, `planning/onboarder-profiles`, `adapters/gitlab-onboarder-protocol`, `adapters/github-onboarder-protocol`, `shared/wiki-navigation` | `shared/research`, `shared/rtk-usage`, `planning/onboarder-phase-0`, `planning/onboarder-phase-1`, `planning/onboarder-phase-2`, `planning/onboarder-phase-3-4`, `planning/onboarder-phase-5`, `planning/onboarder-phase-5-reonboarding`, `shared/living-docs-enrichment`, `posture/expert-posture` |
@@ -217,7 +220,7 @@ Ce tableau est la reference faisant autorite pour les skills charges par chaque 
 
 | Agent | Bucket A (inline) | Bucket B (natif / a la demande) |
 |-------|-------------------|-------------------------------|
-| **developer** | `posture/core-posture`, `posture/user-facing-posture`, `shared/handoff-envelope`, `developer/developer-payload`, `developer/dev-standards-universal`, `developer/dev-standards-simplicity`, `developer/beads-dev`, `shared/wiki-navigation`, `shared/context-mode-usage` | `developer/dev-standards-security`, `developer/dev-standards-git`, `developer/dev-standards-testing`, `developer/dev-standards-refactoring`, `developer/dev-standards-migration`, `developer/dev-standards-database`, `developer/test-generation`, `reviewer/reviewer-reception`, `shared/rtk-usage`, `shared/living-docs-enrichment`, `developer/beads-plan`, `developer/quick-fix` |
+| **developer** | `posture/core-posture`, `posture/user-facing-posture`, `shared/handoff-envelope`, `developer/developer-payload`, `developer/dev-standards-universal`, `developer/dev-standards-simplicity`, `developer/beads-dev`, `shared/wiki-navigation`, `shared/context-mode-usage` | `developer/dev-standards-frontend`, `developer/dev-standards-frontend-data`, `developer/dev-standards-frontend-a11y`, `developer/dev-standards-backend`, `developer/dev-standards-api`, `developer/dev-standards-devops`, `developer/dev-standards-security-hardening`, `developer/dev-standards-security`, `developer/dev-standards-git`, `developer/dev-standards-testing`, `developer/dev-standards-refactoring`, `developer/dev-standards-migration`, `developer/dev-standards-database`, `developer/test-generation`, `developer/verification-before-completion`, `developer/resolving-merge-conflicts`, `reviewer/reviewer-reception`, `shared/rtk-usage`, `shared/living-docs-enrichment`, `developer/beads-plan`, `developer/quick-fix` (+ skills de stack) |
 
 ### Famille auditor
 
@@ -236,8 +239,8 @@ Ce tableau est la reference faisant autorite pour les skills charges par chaque 
 
 | Agent | Bucket A (inline) | Bucket B (natif / a la demande) |
 |-------|-------------------|-------------------------------|
-| **release-manager** | `shared/universal-guardrails`, `posture/core-posture`, `posture/user-facing-posture` | `release/release-management`, `release/pr-description`, `shared/rtk-usage` |
-| **merger** | `shared/universal-guardrails`, `posture/core-posture` | `developer/resolving-merge-conflicts`, `developer/verification-before-completion`, `developer/dev-standards-git`, `shared/rtk-usage` (+ skills de stack) |
+| **release-manager** | `posture/core-posture`, `posture/user-facing-posture` | `release/release-management`, `release/pr-description`, `shared/rtk-usage` |
+| **merger** | `posture/core-posture` | `developer/resolving-merge-conflicts`, `developer/verification-before-completion`, `developer/dev-standards-git`, `shared/rtk-usage` (+ skills de stack) |
 
 ### Famille quality
 
@@ -280,15 +283,18 @@ Agents qui pilotent d'autres agents sans jamais coder eux-mêmes.
 | **Mode** | `primary` |
 | **Permissions** | Base `coordinator` : pas de `bash`, pas d'`edit` ni de `write`. `task` ouvert sur `*` dans le frontmatter, restreint par le paquet au graphe du workflow. `question` et `todowrite` autorisés. |
 | **Skills** | Voir [Matrice d'assignation des skills](#matrice-dassignation-des-skills-source-de-verite) — ligne conductor |
-| **Invocation** | Agent d'entrée par défaut d'un workflow sans `entry.agent` (`cadrage`, `sweep`) |
+| **Invocation** | Agent d'entrée par défaut d'un workflow sans `entry.agent` (`spec` et ses alias `cadrage` et `feature`, `sweep`, `security-fix`) |
 
 Agent générique de coordination des workflows. Il ne contient aucun enchaînement en dur : il suit la skill
 **`workflow/workflow-map`**, générée depuis le YAML du workflow et inlinée dans le paquet (agents, délégations
 permises, checkpoints, modes, sorties).
 
 Boucle : trouver le prochain agent de la chaîne dont la condition `after` est remplie, passer le checkpoint qui le
-précède (`workflow_checkpoint`), lancer l'agent avec `task`, retranscrire son retour sans le résumer, recommencer.
-En fin de chaîne : récapitulatif et déclaration des sorties (`workflow_outputs`).
+précède (`workflow_checkpoint`), lancer l'agent avec `task`, afficher son enveloppe (statut, résumé, rapport `rp-…`,
+questions bloquantes) et lire le rapport avec `workflow_report_get` quand il en a besoin, recommencer. Dans `sweep`,
+il passe le découpage dans l'argument `tasks` de `cp-plan`, que oh vérifie et enregistre. En fin de chaîne :
+récapitulatif et déclaration des sorties que oh ne relève pas lui-même (`workflow_outputs`, retiré des workflows
+sans sortie à déclarer).
 
 Il ne lit ni ne modifie de fichiers, ne lance pas de commandes, n'écrit pas dans Beads et ne redemande jamais le
 mode (fixé au lancement). Il ne peut lancer que les agents de sa ligne « Peut déléguer à » dans la carte.
@@ -307,27 +313,27 @@ Questions montantes d'un agent : il relaie la question avec `question`, puis rel
 | **Fichier** | `agents/planning/orchestrator.md` |
 | **Skills** | Voir [Matrice d'assignation des skills](#matrice-dassignation-des-skills-source-de-verite) — ligne orchestrator |
 | **MCP Servers** | _(aucun)_ |
-| **Invocation** | Agent d'entrée des workflows `feature` et `libre` (par défaut) — `"Implémente [feature]"` / `"Prends en charge les tickets [IDs]"` |
+| **Invocation** | Agent d'entrée par défaut de `libre`, son seul workflow depuis que `feature` est un alias de `spec` → `implement-spec` — `"Implémente [feature]"` / `"Prends en charge les tickets [IDs]"` |
 
-Chef de projet IA. Pilote la réalisation complète d'une feature en mobilisant les
-agents du workflow : exploration (`pathfinder`), planification (`planner`), conception (`designer`),
-implémentation (via `orchestrator-dev`), diagnostic (`debugger`). Signale les checkpoints du
-workflow à chaque phase. Ne code jamais.
+Chef de projet IA d'une session `libre`. Pilote la réalisation complète d'une feature en mobilisant les
+agents qu'il peut appeler : exploration (`pathfinder`), planification (`planner`), conception (`designer`),
+implémentation (via `orchestrator-dev`), revue (`reviewer`), diagnostic (`debugger`). Ne code jamais. Sans
+checkpoint dans `libre`, il fait valider le plan avec `question` avant de déléguer l'implémentation.
 
-**Enchaînement :** fixé par le workflow de la session (v5, `oh/v1`), plus par l'agent. Les anciens modes d'entrée
-A–E deviennent des workflows : `feature` et `cadrage` (A/B), `onboarding` (C), `debug` (D), `ticket` et `quick` (E).
-L'agent ne garde que sa posture et ses contrats (retranscription, invocation et retour des agents de planning, routing
-délégué au planner).
+**Enchaînement :** dans les autres cas d'usage, fixé par un workflow (v5, `oh/v1`), plus par l'agent. Les anciens
+modes d'entrée A–E sont devenus des workflows : `spec` puis `implement-spec` (A/B, alias `feature` et `cadrage`),
+`onboarding` (C), `debug` (D), `ticket` et `quick` (E). L'agent ne garde que sa posture et ses contrats (invocation
+et retour des agents de planning, routing délégué au planner).
 
 Ne route jamais directement vers le `developer` — délègue toujours à `orchestrator-dev`.
 
-**Permissions techniques :** `bash`, `read`, `edit`, `write`, `glob`, `grep` tous désactivés. Agit uniquement via `task` (délégation), `question` et `workflow_checkpoint` (checkpoints). Agents invocables : `pathfinder`, `planner`, `onboarder`, `designer`, `orchestrator-dev`, `reviewer`, `debugger`, restreints aux membres du workflow (dans `feature`, le champ `calls` du workflow fixe la liste).
+**Permissions techniques :** `bash`, `read`, `edit`, `write`, `glob`, `grep` tous désactivés. Agit uniquement via `task` (délégation), `question` et `workflow_checkpoint` (checkpoints). Agents invocables : `pathfinder`, `planner`, `onboarder`, `designer`, `orchestrator-dev`, `reviewer`, `debugger`, restreints aux membres de la session (dans `libre`, ceux qu'il peut appeler de proche en proche).
 
-**Injection de contexte :** le contexte projet (stack, conventions) est injecté automatiquement dans la session : les instructions du projet (`ONBOARDING.md`, `CONVENTIONS.md`, `[deploy] instruction_files`) sont intégrées aux agents du paquet de session, au niveau de chacun (voir [Instructions du projet par niveau](#instructions-du-projet-par-niveau)) : l'orchestrateur n'en reçoit rien (`none`), les agents qu'il lance les reçoivent. L'orchestrateur ne lit jamais de fichiers directement — si le contexte est absent, la précondition `project-context` de `feature` propose de lancer d'abord le workflow `onboarding`.
+**Injection de contexte :** le contexte projet (stack, conventions) est injecté automatiquement dans la session : les instructions du projet (`ONBOARDING.md`, `CONVENTIONS.md`, `[deploy] instruction_files`) sont intégrées aux agents du paquet de session, au niveau de chacun (voir [Instructions du projet par niveau](#instructions-du-projet-par-niveau)) : l'orchestrateur n'en reçoit rien (`none`), les agents qu'il lance les reçoivent. L'orchestrateur ne lit jamais de fichiers directement — si le contexte est absent, il propose le workflow `onboarding`.
 
 **Gestion des agents manquants :** si un agent requis ne fait pas partie de la session (les agents d'une session sont ceux de son workflow), l'agent orchestrator pose une question structurée avec les options : utiliser un substitut (table de substitution par domaine) / ignorer le ticket. Pour rendre l'agent disponible, l'ajouter au workflow et relancer la session (`oh deploy` supprimé en v5). Ne bascule jamais silencieusement vers un autre agent.
 
-**Gate de complétion (CP-feature) :** avant de construire le CP-feature, vérifie que le rapport final d'orchestrator-dev documente les 3 checks de complétion (tests passés, comportement observable conforme, régressions documentées). Si absent → bloquant : question à l'utilisateur (redemander à orchestrator-dev / accepter / stop).
+**Gate de complétion :** avant le récap de la feature, vérifie que le rapport final d'orchestrator-dev documente les 3 checks de complétion (tests passés, comportement observable conforme, régressions documentées). Si absent → bloquant : question à l'utilisateur (redemander à orchestrator-dev / accepter / stop).
 
 ---
 
@@ -338,7 +344,7 @@ Ne route jamais directement vers le `developer` — délègue toujours à `orche
 | **Label** | OrchestratorDev |
 | **Fichier** | `agents/planning/orchestrator-dev.md` |
 | **Skills** | Voir [Matrice d'assignation des skills](#matrice-dassignation-des-skills-source-de-verite) — ligne orchestrator-dev |
-| **Invocation** | Agent d'entrée des workflows `ticket` et `review-feedback` ; sous-agent de `orchestrator` dans `feature` — `"Implémente les tickets [IDs]"` |
+| **Invocation** | Agent d'entrée des workflows `ticket`, `implement-spec` et `review-feedback` ; sous-agent de l'`orchestrator` dans `libre` — `"Implémente les tickets [IDs]"` |
 
 Tech lead IA spécialisé dans le pilotage de l'implémentation. Prend en charge une
 liste de tickets Beads prêts à implémenter, route vers l'agent `developer` avec le domaine approprié précisé dans le prompt d'invocation
@@ -349,7 +355,7 @@ CP-2 (commit ou correction ?) est `mandatory` et en pause dans tous les modes de
 
 `bd close`, `bd comments add` et `bd update` sont toujours exécutés par l'agent `developer` dans les prompts de délégation — jamais directement par `orchestrator-dev`. L'orchestrateur-dev se limite à la lecture des tickets Beads (`bd show`, `bd list`).
 
-Sous-agent (workflow `feature`) : ses checkpoints passent quand même par `workflow_checkpoint` ; une clarification hors checkpoint donne une enveloppe au statut `en-attente` (questions bloquantes), puis la reprise avec `task_id` ; en fin de boucle, rapport déposé et enveloppe.
+Dans `implement-spec`, il lit lui-même les tickets (`bd show`), fixe l'ordre à `cp-plan` et fait revoir l'ensemble des commits à `cp-final` ; en fan-out, le `developer` n'est pas dans son paquet : oh lance une session enfant `ticket` par ticket, et il fait relire la branche d'intégration avant `cp-merge`. Sous-agent (session `libre`) : ses checkpoints passent quand même par `workflow_checkpoint` ; une clarification hors checkpoint donne une enveloppe au statut `en-attente` (questions bloquantes), puis la reprise avec `task_id` ; en fin de boucle, rapport déposé et enveloppe.
 
 **Dérive architecturale (BLOCKED_ARCHITECTURE) :** quand un developer retourne ce statut, charge le skill `developer/dev-drift-detection` via l'outil `skill` et présente 3 options à l'utilisateur : réviser le scope du ticket Beads / revert + nouvelle approche / bifurquer vers un ticket de refactoring prérequis (mis en `blocked` jusqu'à résolution).
 
@@ -378,13 +384,15 @@ Produit une synthèse exécutive multi-domaines. Lecture seule (base `coordinato
 `### Enrichissements wiki proposés` des rapports reçus et les propose avec `wiki_propose`
 (skill `living-docs-enrichment`) ; dans le workflow `audit`, sans commit, elles restent en file (`oh wiki pending`).
 
+**Suite :** oh relève le dernier rapport déposé (sortie `findings`) et le type d'audit ; après un audit `security`, il propose `security-fix` sur le contenu de ce rapport (`next:`), sans le lancer.
+
 Sous-agent : une seule session (protocole d'exécution) ; il s'arrête seulement sur une question bloquante (enveloppe au statut `en-attente`) et reprend avec `task_id`.
 
 ---
 
 ## Famille — Agents d'audit
 
-Sous-agent unique de l'auditeur (ADR-017). Lecture seule. Invocable via l'auditeur.
+Sous-agent unique de l'auditeur (ADR-017). Lecture seule. Invoqué par l'`auditor` (`audit`) et par le `conductor` de `security-fix`, pour la nouvelle analyse ciblée des corrections avant le commit (`corrigé`, `encore présent`, `contournable`).
 
 | Agent | Fichier | Domaine | Référentiels |
 |-------|---------|---------|-------------|
@@ -395,9 +403,9 @@ Il injecte `auditor/audit-protocol-light` (format de rapport commun allégé)
 + la skill de domaine spécifique (`auditor/audit-<domaine>`) chargée à la demande
 + `auditor/auditor-subagent-payload` (statuts et sections de son rapport ; enveloppe `shared/handoff-envelope`).
 
-Tous les rapports produits incluent une section **`### Découvertes à documenter`**
-en fin de rapport — les découvertes à capitaliser dans `ONBOARDING.md` / `CONVENTIONS.md`.
-Cette section est consolidée par le coordinateur `auditor` en Phase 4 (skill `living-docs-enrichment`).
+Tous les rapports produits incluent une section **`### Enrichissements wiki proposés`**
+en fin de rapport — les identifiants `wp-…` des découvertes proposées avec `wiki_propose`, ou les découvertes
+elles-mêmes quand l'outil manque. Cette section est consolidée par le coordinateur `auditor` en Phase 4 (skill `living-docs-enrichment`).
 L'agent ne fait jamais d'appel `task` — sa lecture seule est stricte (base `readonly-code`). Son seul accès au shell : les outils d'analyse statique du domaine `infra` (`terraform validate`, `terraform plan`, `tflint`, `tfsec`, `checkov`, `trivy config`, `kube-score`, `kubesec`, `helm lint`, `helm template`, `infracost`), chacun demandé ; toute autre commande est refusée.
 
 ---
@@ -410,40 +418,38 @@ Suit le même workflow Beads (`bd claim → implémenter → tester → bd close
 Le **domaine** et les **native_skills à charger** sont transmis par `orchestrator-dev` dans le prompt d'invocation.
 Chaque instance `task` s'exécute dans sa propre session enfant — les invocations parallèles avec des domaines différents sont indépendantes.
 
-Skills de l'agent `developer` : `dev-standards-universal`, `dev-standards-simplicity`, `quick-fix`, `dev-standards-security`, `dev-standards-git`, `dev-standards-testing`, `beads-plan`, `beads-dev`, `developer/developer-payload`, `shared/living-docs-enrichment` (voir la matrice pour le bucket de chacun).
+Skills de l'agent `developer` : voir la [matrice](#matrice-dassignation-des-skills-source-de-verite) (ligne developer). Les standards de domaine sont ses skills natives ; l'appelant lui dit lesquels charger.
 
-| Agent | Fichier | Domaine | Native Skills spécifiques |
-|-------|---------|---------|--------------------------|
-| `developer` | `agents/developer/developer.md` | frontend, backend, fullstack, api, mobile, data, devops, platform, security, refactor, migration, tests — domaine précisé à l'invocation | Skills de domaine injectés via le prompt d'invocation (matrice de routing de `orchestrator-dev-protocol`) : `dev-standards-refactoring` (refactor), `dev-standards-migration` (migration), `test-generation` (tests), `dev-standards-database` (schéma, migrations, requêtes) |
-
-**Agents séparés (workflow distinct) :**
-
-| Agent | Fichier | Domaine |
-|-------|---------|---------|
+| Agent | Fichier | Domaine | Où il travaille |
+|-------|---------|---------|-----------------|
+| `developer` | `agents/developer/developer.md` | frontend, backend, fullstack, api, mobile, data, devops, platform, security, refactor, migration, tests — domaine précisé à l'invocation | Agent d'entrée de `quick` et `sweep-task` ; sous-agent d'`orchestrator-dev` (`ticket`, `implement-spec`, `review-feedback`), du `conductor` (`sweep`, `security-fix`), du `debugger` (`incident`) et du `pathfinder` (prototype jetable de `spike`) ; membre `independent` de `debug` |
 
 > Voir [ADR-013](./adr/013-developer-agent-consolidation.fr.md) pour la décision de consolidation.
 > Voir [ADR-002](./adr/002-developer-segmentation.fr.md) (remplacé) pour la justification de la segmentation précédente.
 > Guide de routing par domaine : [agents/developer-differentiation.md](./agents/developer-differentiation.md).
 
-**Mapping domaine → native_skills (résumé) :**
+**Mapping domaine → native_skills (résumé de `orchestrator-dev-routing`) :**
 
 | Domaine | Native skills |
 |---------|--------------|
-| `frontend` | `dev-standards-frontend`, `dev-standards-frontend-a11y`, `dev-standards-testing` + stacks détectées |
-| `backend` | `dev-standards-backend`, `dev-standards-api`, `dev-standards-testing` + stacks détectées |
-| `fullstack` | `dev-standards-frontend`, `dev-standards-frontend-a11y`, `dev-standards-backend`, `dev-standards-api`, `dev-standards-testing` + stacks détectées |
+| `frontend` | `dev-standards-frontend`, `dev-standards-frontend-data`, `dev-standards-frontend-a11y`, `dev-standards-testing` + stacks détectées |
+| `backend` | `dev-standards-backend`, `dev-standards-api`, `dev-standards-database`, `dev-standards-testing` + stacks détectées |
+| `fullstack` | `dev-standards-frontend`, `dev-standards-frontend-data`, `dev-standards-frontend-a11y`, `dev-standards-backend`, `dev-standards-api`, `dev-standards-testing` + stacks détectées |
 | `api` | `dev-standards-backend`, `dev-standards-api`, `dev-standards-testing` |
 | `mobile` | `dev-standards-testing` + stacks mobile détectées |
 | `data` | `dev-standards-testing` + stacks data détectées |
 | `devops` | `dev-standards-devops` + stacks infra détectées |
 | `platform` | `dev-standards-devops` + stacks platform détectées |
 | `security` | `dev-standards-security-hardening`, `dev-standards-backend`, `dev-standards-testing` |
-| `go` | `dev-standards-golang` + stacks détectées |
-| `rust` | `dev-standards-rust` + stacks détectées |
+| `refactor` | `dev-standards-refactoring`, `dev-standards-testing` + stacks détectées |
+| `migration` | `dev-standards-migration`, `dev-standards-testing` + stacks détectées |
+| `tests` | `test-generation`, `dev-standards-testing` + stacks de test détectées |
+
+Dans tous les domaines, le developer charge `verification-before-completion` à la gate de complétion (et avant `cp-commit` en `quick`) et `resolving-merge-conflicts` sur un conflit de merge ou de rebase.
 
 Les skills de stack détectées dans le projet sont ajoutées au paquet de session à sa construction. Les skills du domaine frontend (`dev-standards-frontend`, `-a11y`, `-data`), proposées par `orchestrator-dev`, `developer` et `reviewer`, ne sont livrées que si le projet a un frontend ; sans chemin de projet, rien n'est filtré.
 
-**Post-ticket — Enrichissement des documents vivants :** après chaque `bd close`, identifie les patterns, conventions ou contraintes techniques découverts lors de l'implémentation qui sont absents de `CONVENTIONS.md` ou `ONBOARDING.md`, et propose à l'utilisateur de les capitaliser (skill `living-docs-enrichment`).
+**Post-ticket — Enrichissement des documents vivants :** identifie les patterns, conventions ou contraintes techniques découverts lors de l'implémentation et absents du wiki, et les propose avec `wiki_propose` (skill `living-docs-enrichment`) ; l'utilisateur les accepte ou les refuse à la carte du checkpoint de commit, et oh applique les acceptées avant le commit.
 
 ---
 
@@ -499,7 +505,7 @@ Ne code jamais. Invocable directement ou via l'`orchestrator`.
 |--|--|
 | **Label** | Designer |
 | **Fichier** | `agents/design/designer.md` |
-| **Mode** | `primary` (`subagent` dans `feature` et `cadrage`) |
+| **Mode** | `primary` (`subagent` dans `spec` et `libre`) |
 | **Permissions** | Pas de `write`, pas d'`edit`. `bash` deny-by-default (allowlist : `bd show *`, `bd list *`). Accès MCP Figma (seul agent du hub avec cette permission). |
 | **Skills** | Voir [Matrice d'assignation des skills](#matrice-dassignation-des-skills-source-de-verite) — ligne designer |
 | **Invocation** | `"Explore Figma pour [feature]"` / `"Spec UX pour [ticket]"` / `"Spec UI pour [composant]"` / `"Spec design complète pour [feature]"` |
@@ -523,7 +529,7 @@ pour permettre la réintégration automatique dans le plan (pas de `bd close` �
 
 Sous-agent : n'utilise jamais l'outil `question` — les hypothèses sont documentées dans la spec ; une clarification critique arrête la session (enveloppe `en-attente`), Design It Twice rend `choix-requis`.
 
-**Délégation :** invoqué par `orchestrator`, `planner`, `pathfinder` (permissions `task`) et par `conductor` dans `cadrage`.
+**Délégation :** invoqué par `orchestrator`, `planner`, `pathfinder` (permissions `task`) et par le `conductor` dans `spec`.
 
 ---
 
@@ -538,17 +544,18 @@ Agents dédiés à la qualité du code, invocables comme agent d'entrée d'un wo
 | **Label** | CodeReviewer |
 | **Fichier** | `agents/quality/reviewer.md` |
 | **Skills** | Voir [Matrice d'assignation des skills](#matrice-dassignation-des-skills-source-de-verite) — ligne reviewer |
-| **Invocation** | Agent d'entrée du workflow `review` (`oh run review`) ; sous-agent d'`orchestrator-dev` — nom de branche / URL de PR + optionnellement `bd show <ID>` (le reviewer récupère lui-même le diff via `git diff`) |
+| **Invocation** | Agent d'entrée du workflow `review` (`oh run review`) ; sous-agent d'`orchestrator-dev` (`ticket`, `implement-spec`, `review-feedback`) et du `conductor` (`sweep`) — nom de branche / URL de PR + optionnellement `bd show <ID>` (le reviewer récupère lui-même le diff via `git diff`) |
 
 Analyse les diffs de PR/MR. Produit un rapport structuré par sévérité (Critique /
-Majeur / Mineur / Suggestion / Points positifs). Lecture seule — ne modifie jamais
-de fichiers.
+Majeur / Mineur / Suggestion / Points positifs), sur deux axes toujours séparés : conformité à la demande
+(ticket lu avec `bd show` : ce qui manque, ce qui dépasse) et qualité du code ; avec un wiki, un troisième axe
+« documentation » (dérives calculées par `wiki_check`). Lecture seule — ne modifie jamais de fichiers.
 
 **Vérification :** avant la lecture détaillée du diff, le reviewer principal lance une fois le build, les tests, le lint et le typecheck du projet (les scripts du projet d'abord : README, `CONVENTIONS.md`, scripts de `package.json`, `Makefile`) ; les sous-reviews parallèles (`[REVIEW:single]`) ne la refont pas. Un échec est un finding 🔴 avec un extrait de la sortie (verdict `corriger`) ; une commande impossible à lancer (dépendances absentes, environnement, base de données, permission refusée) est un finding 🟡 « non vérifiable » — le reviewer n'installe jamais rien et ne corrige jamais (`--fix`, `--write`, mise à jour de snapshots refusés). Les fichiers produits par le build et non ignorés (`git status --porcelain` avant/après) sont un finding 🟡 : ils bloqueraient la clôture du ticket, qui exige un arbre propre. Les commandes viennent de la stack détectée à la construction du paquet (frontmatter `verify: true`, `bricks.VerifyCommands` : `go test`, `npm test`, `npm run build`, `pytest`, `cargo test`, `make test`…, jamais d'installation) : autorisées dans les workflows sur le code de l'équipe, demandées dans `review` (`risk: read` : une merge request souvent écrite par un tiers, dont les tests exécutent le code). Sans chemin de projet ni stack connue, le reviewer n'a aucune commande de build.
 
 **Review multi-mode :** supporte trois modes de review combinables :
 - **Standard** — checklist 6 catégories, sévérité calibrée (défaut pour les reviews par ticket)
-- **Adversarial** — posture de scepticisme maximal, min. 10 findings, hypothèses dangereuses, challenges d'architecture, score de confiance (obligatoire au CP-feature, optionnel via `oh run review`)
+- **Adversarial** — posture de scepticisme maximal, min. 10 findings, hypothèses dangereuses, challenges d'architecture, score de confiance (revue de l'ensemble avant `cp-final` d'`implement-spec`, optionnel via `oh run review`)
 - **Edge-case** — chasse exhaustive aux chemins d'exécution non gérés (disponible partout en option)
 
 Les modes combinés (`standard+adversarial`, `all`) lancent des **sessions parallèles indépendantes** avec isolation contextuelle totale, puis fusionnent les résultats via le skill `review-merge` (déduplication, hiérarchie de sévérité, tag de provenance). Dans le workflow `review`, cette auto-délégation est déclarée explicitement (`calls: [reviewer]`).
@@ -564,7 +571,7 @@ Les modes combinés (`standard+adversarial`, `all`) lancent des **sessions paral
 | **Label** | Debugger |
 | **Fichier** | `agents/quality/debugger.md` |
 | **Skills** | Voir [Matrice d'assignation des skills](#matrice-dassignation-des-skills-source-de-verite) — ligne debugger |
-| **Invocation** | Agent d'entrée du workflow `debug` (`oh run debug`) — `"Ce bug : [stacktrace]"` / `"Analyse ces logs : [logs]"` |
+| **Invocation** | Agent d'entrée des workflows `debug` (`oh run debug`) et `incident` (`oh run incident`) — `"Ce bug : [stacktrace]"` / `"Analyse ces logs : [logs]"` |
 
 Diagnostique la cause racine d'un bug en 6 phases structurées : vérification des artefacts
 disponibles (Phase 0 — pause si insuffisants) → exploration contextuelle → questions
@@ -572,7 +579,12 @@ complémentaires (optionnel) → diagnostic 4 étapes (reproduction/isolation/id
 hypothèse graduée haute/moyenne/faible) → détection cas particuliers (race conditions,
 environnement-spécifique, données, configuration, dépendances, régression). Produit un
 rapport de diagnostic avec hypothèses graduées. Crée un ticket Beads de correction après
-confirmation explicite. Ne corrige jamais le bug.
+`cp-ticket` (dans `debug`). Ne corrige jamais le bug lui-même : le code revient au `developer`.
+
+**Incident :** dans `incident`, il atténue d'abord (diagnostic rapide, changement déclencheur, mesure réversible
+appliquée par le `developer`, qu'il lance : `calls: [developer]`), puis écrit le postmortem sans blâme dans
+`docs/wiki/postmortems/` (`writes:`, skill `postmortem`) et le commite seul après `cp-postmortem`, enfin crée les
+tickets des actions après `cp-actions`.
 
 **Mode `--forensic`** : analyse criminalistique renforcée avec graduation de preuves
 (Confirmed / Deduced / Hypothesized). Stronghold-first — ancrage sur une preuve Confirmed
@@ -621,7 +633,7 @@ Ne modifie pas le code : il n'écrit que dans `reports/benchmarks/` (permission)
 | **Fichier** | `agents/planning/planner.md` |
 | **Skills** | Voir [Matrice d'assignation des skills](#matrice-dassignation-des-skills-source-de-verite) — ligne planner |
 | **MCP Servers** | `gitlab`, `github` |
-| **Invocation** | Sous-agent dans `feature` et `cadrage` — description d'une feature en langage naturel / `"Planifie le ticket #42"` |
+| **Invocation** | Sous-agent dans `spec` (alias `cadrage`, `feature`), relancé par le `conductor` à chaque étape, et dans `libre` — description d'une feature en langage naturel / `"Planifie le ticket #42"` |
 
 Consultant fonctionnel et technique qui analyse le contexte projet avant de planifier.
 Workflow en 7 phases : vérification prérequis → **complexity scoring** (Phase 0.5 — 4 critères :
@@ -632,6 +644,11 @@ signaux UX/UI) → délégation design optionnelle (Phase 1.5) → questions com
 plan hiérarchique (epics → tickets, priorités déduites et justifiées) → détection cas
 particuliers (doublons, tickets trop gros, dépendances circulaires) → création Beads avec
 enrichissement complet → délégation ai-delegated optionnelle (Phase 5.5) → vérification finale.
+
+**Dans `spec` :** l'entretien charge `grilling` ; après `cp-understanding`, il écrit la spec dans
+`docs/wiki/specs/<slug>.md` (`writes:`, `writes_after: cp-understanding` ; glossaire, critères `CA-n` avec leur point
+de test, découpage `Couvre : CA-…`), vérifiée par oh à `cp-converge` et `cp-spec`, la commite seule, puis crée les
+tickets après `cp-tickets`.
 
 Crée les epics dans Beads si > 5 tickets (demande sinon), utilise `--parent` et `--deps`
 pour la hiérarchie et les dépendances. Gère les aléas : scope change, ticket à scinder,
@@ -661,11 +678,16 @@ les accepte ou les refuse à la carte du checkpoint de commit.
 | **Fichier** | `agents/planning/pathfinder.md` |
 | **Skills** | Voir [Matrice d'assignation des skills](#matrice-dassignation-des-skills-source-de-verite) — ligne pathfinder |
 | **MCP Servers** | `gitlab`, `github` |
-| **Invocation** | Sous-agent dans `feature` et `cadrage` — `"Pathfinder la feature [X]"` / `"Estime la complexité de [feature]"` / `"Pathfinder le ticket #42"` |
+| **Invocation** | Sous-agent dans `spec` (quand la demande compare des conceptions : skill `codebase-design`), `sweep` (découpage) et `libre` ; agent d'entrée de `spike` — `"Pathfinder la feature [X]"` / `"Estime la complexité de [feature]"` / `"Pathfinder le ticket #42"` |
 
 Agent de reconnaissance rapide. Explore le contexte d'une feature et produit une estimation
 de complexité (XS/S/M/L/XL) avec un rapport structuré exploitable par le planner ou l'orchestrator.
 Workflow libre — pas de phases rigides. Suggère l'escalade vers le planner si la feature dépasse M.
+
+**Spike :** dans `spike`, il fait valider la question et ses critères à `cp-question`, mène une recherche sourcée
+(skill `research`), fait écrire au besoin un prototype jetable dans `.oh-spike/` par le `developer`
+(`calls: [developer]`), puis écrit la décision go / clarify / kill dans `docs/wiki/decisions/` (`writes:`) et la
+commite seule après `cp-decision`.
 
 **Enrichissement GitLab (optionnel) :** si un ticket ou une MR GitLab est fourni, utilise
 `gitlab-pathfinder-protocol` pour ajuster l'estimation selon les critères d'acceptation, labels et milestone.
@@ -705,12 +727,12 @@ Détecte les cas particuliers : incohérences stack/conventions, CVE connus, det
 architecture hybride non documentée. Produit une carte des agents recommandés en 3 niveaux
 (prioritaires par risques, recommandés par stack, optionnels).
 
-Lecture seule — ne modifie jamais de fichiers (sauf le wiki et `ONBOARDING.md`). `bash` refusé.
+N'écrit que dans `docs/wiki/`, `ONBOARDING.md` et `CONVENTIONS.md` (permission) ; shell réduit à la lecture (`git log`, `bd` en lecture, `ls`). Commite `docs/wiki/` seul après `cp-wiki`.
 Ne déclenche jamais automatiquement un autre agent — il suggère des invocations, l'utilisateur décide.
 
-Proposé par la précondition `project-context` de `feature` et `cadrage` sur un projet sans contexte.
+Proposé par la précondition `project-context` de `spec` (et de ses alias) et d'`implement-spec` sur un projet sans contexte.
 
-**Phase 5 — Enrichissement incrémental :** quand le wiki existe déjà (enrichi par d'autres agents), propose un enrichissement incrémental plutôt qu'une réécriture complète. La réécriture complète reste disponible avec un avertissement explicite sur la perte des enrichissements accumulés.
+**Phase 5 — Re-onboarding :** quand le wiki existe déjà (`docs/wiki/index.md`, ou `-i refresh=true`), il ne modifie aucune page (skill `onboarder-phase-5-reonboarding`) : après `wiki_check`, il propose avec `wiki_propose` seulement ce qui a changé (ligne périmée remplacée, `replaces`) ou un élément structurant absent, validé à la carte de `cp-wiki`. Plus de réécriture complète : supprimer `docs/wiki/` et relancer l'onboarding.
 
 Sous-agent : une seule session (protocole d'exécution) ; il s'arrête seulement sur une question bloquante (enveloppe au statut `en-attente`) et reprend avec `task_id`.
 
@@ -725,7 +747,7 @@ Sous-agent : une seule session (protocole d'exécution) ; il s'arrête seulement
 | **Label** | Documentarian |
 | **Fichier** | `agents/documentation/documentarian.md` |
 | **Skills** | Voir [Matrice d'assignation des skills](#matrice-dassignation-des-skills-source-de-verite) — ligne documentarian |
-| **Invocation** | Membre `independent` de `feature`, `ticket`… — `"Documente [sujet]"` / `"Crée un ADR pour [décision]"` / `"Mets à jour le CHANGELOG"` / `"Enrichis le wiki"` |
+| **Invocation** | Agent d'entrée de `doc-sync` et `skill-refresh` ; membre `independent` de `ticket` et `implement-spec`, lancé par `orchestrator-dev` (CHANGELOG) — `"Documente [sujet]"` / `"Crée un ADR pour [décision]"` / `"Mets à jour le CHANGELOG"` / `"Enrichis le wiki"` |
 
 Rédige et met à jour la documentation technique, fonctionnelle, architecturale, API,
 les changelogs et les présentations Marp. Crée et maintient le wiki documentaire vivant (`docs/wiki/`).
@@ -733,6 +755,11 @@ Explore systématiquement la structure existante avant d'écrire. S'adapte au fo
 recommande des améliorations sans les imposer. Ne change jamais un format sans confirmation explicite.
 
 Principe directeur : **explorer → adapter ou proposer → attendre si nécessaire → écrire**.
+
+Seul agent qui reçoit `wiki_apply` (règle générée et contrôle du démon) : dans `doc-sync`, il met le wiki à jour
+depuis la dernière synchronisation, vérifie les propositions en file, puis commite le wiki seul après `cp-sync`, où
+oh applique les propositions acceptées. Dans `skill-refresh`, il propose la mise à jour des skills de stack du hub à
+`cp-refresh` avant toute écriture.
 
 ---
 
@@ -755,14 +782,15 @@ Il n'a aucune skill inline (pas même `shared/universal-guardrails`).
 
 ## Règles communes à tous les agents
 
-- **Agents en lecture seule** (pas d'`edit` ni de `write`) : conductor, orchestrator, auditor, auditor-subagent, reviewer, debugger, designer, planner, pathfinder, brief-enricher, operator — `planner`, `pathfinder` et `debugger` peuvent toutefois écrire dans Beads ; l'`operator` modifie l'infrastructure après `cp-apply`, jamais les fichiers
-- **Agents qui délèguent l'écriture documentaire** : `orchestrator-dev` seul — il peut invoquer le `documentarian` via `task` pour le CHANGELOG d'un ticket feature ou fix, après confirmation de l'utilisateur et si `documentarian` est membre du workflow. Les autres agents n'invoquent pas le `documentarian` pour le wiki : ils proposent leurs découvertes avec `wiki_propose` (skill `living-docs-enrichment`), l'utilisateur les accepte ou les refuse à la carte du checkpoint de commit, puis oh les applique dans `docs/wiki/`
-- **Agents qui écrivent du code** : `developer` — modifient uniquement les fichiers de leur domaine
-- **Agents qui écrivent de la documentation** : documentarian — seul agent qui rédige la documentation du projet (CHANGELOG, ADR, guides, workflow `doc-sync`) ; l'`onboarder` crée le wiki, et ses enrichissements ultérieurs passent par `wiki_propose` (voir ci-dessus)
-- **Agents qui créent des tickets** : planner (tickets feature), pathfinder (après confirmation), debugger (tickets bug après confirmation)
+- **Agents en lecture seule** (pas d'`edit` ni de `write`) : conductor, orchestrator, orchestrator-dev, auditor, auditor-subagent, reviewer, debugger, designer, planner, pathfinder, brief-enricher, operator — `planner`, `pathfinder` et `debugger` peuvent toutefois écrire dans Beads ; l'`operator` modifie l'infrastructure après `cp-apply`, jamais les fichiers
+- **Écritures déclarées par le workflow** (`agents.<id>.writes`) : un agent en lecture seule écrit et commite seul les chemins de documentation que son workflow lui ouvre, une fois le commit déverrouillé — le `planner` sa spec (`spec`, `docs/wiki/specs/`), le `debugger` son postmortem (`incident`, `docs/wiki/postmortems/`), le `pathfinder` sa décision (`spike`, `docs/wiki/decisions/`) ; l'`onboarder` commite ainsi `docs/wiki/` après `cp-wiki`
+- **Enrichissement du wiki (LD-J)** : aucun agent ne délègue au `documentarian` l'écriture du wiki. Tous proposent leurs découvertes avec `wiki_propose` (skill `living-docs-enrichment`) ; l'utilisateur les accepte, les modifie ou les refuse à la carte du checkpoint de commit, puis oh applique les acceptées dans `docs/wiki/`. Les workflows sans commit les laissent en file pour `doc-sync`. Seul `orchestrator-dev` délègue encore au `documentarian`, pour le CHANGELOG d'un ticket, s'il est membre du workflow
+- **Agents qui écrivent du code** : `developer` (fichiers de son domaine) ; le `merger` conclut un merge en cours, sans en lancer ni en annuler
+- **Agents qui écrivent de la documentation** : documentarian — seul agent qui rédige la documentation du projet (CHANGELOG, ADR, guides, wiki avec `doc-sync`) et qui applique des propositions (`wiki_apply`) ; l'`onboarder` crée le wiki ; le `release-manager` écrit le CHANGELOG de la release ; le `benchmarker` écrit ses rapports dans `reports/benchmarks/`
+- **Agents qui créent des tickets** (après le checkpoint qui déverrouille `create`) : planner (`cp-tickets` de `spec`), debugger (`cp-ticket` de `debug`, `cp-actions` d'`incident`), developer (constats écartés à `cp-triage` de `security-fix`) ; le pathfinder seulement relancé par son appelant après la validation du découpage
 - **Agents qui lisent les tickets** : la plupart peuvent faire `bd show <ID>` pour contextualiser leur travail, dans la limite de `beads.allow` du workflow
 - **Agents coordinateurs** : conductor, orchestrator, orchestrator-dev, auditor — ne codent jamais, pilotent d'autres agents
 - **Agents de découverte** : onboarder — explore et rapporte, ne pilote pas d'autres agents
-- **Agents `primary`** (frontmatter) : conductor, orchestrator, orchestrator-dev, planner, pathfinder, onboarder, auditor, designer, documentarian, debugger, reviewer, benchmarker, operator, release-manager
+- **Agents `primary`** (frontmatter) : conductor, orchestrator, orchestrator-dev, planner, pathfinder, onboarder, auditor, designer, documentarian, debugger, reviewer, benchmarker, operator, release-manager, merger
 - **Agents `subagent`** (frontmatter) : `developer`, `auditor-subagent`, `brief-enricher`
 - **Dans une session** : le mode effectif et les délégations possibles sont ceux du workflow ; un agent hors du paquet n'existe pas pour la session

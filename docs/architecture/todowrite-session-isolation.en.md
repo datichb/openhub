@@ -113,15 +113,18 @@ is visible in the OpenCode interface.
 
 | Agent | Invocation context | Session | Todo list visible? | Responsibility |
 |-------|--------------------|---------|-------------------|----------------|
-| `conductor` | Entry agent (`cadrage`, `sweep`) | Root | ✅ Yes | Maintains the list of steps (one entry per agent and per checkpoint of the workflow map) |
-| `orchestrator` | Entry agent (`feature`, `libre`) | Root | ✅ Yes | Maintains the ticket list (1 task per ticket) |
-| `orchestrator-dev` | Entry agent (`ticket`, `review-feedback`) | Root | ✅ Yes | Maintains the ticket list with phase labels |
-| `orchestrator-dev` | Invoked via `task` from `orchestrator` | Isolated (child) | ❌ No | May maintain an internal list (debugging) — not visible |
-| `planner`, `pathfinder`, `onboarder`, `debugger`, `designer` | Invoked via `task` from `orchestrator` or `conductor` | Isolated (child) | ❌ No | No todowrite list |
-| `developer`, `reviewer`, `documentarian` | Invoked via `task` from `orchestrator-dev` | Isolated (grandchild in `feature`) | ❌ No | No todowrite list |
+| `conductor` | Entry agent (`spec`, `sweep`, `security-fix`) | Root | ✅ Yes | Maintains the list of steps (one entry per agent and per checkpoint of the workflow map) |
+| `orchestrator` | Entry agent (`libre`) | Root | ✅ Yes | Maintains the list of the phases of the feature (planning, specs, audits, implementation) |
+| `orchestrator-dev` | Entry agent (`ticket`, `implement-spec`, `review-feedback`) | Root | ✅ Yes | Maintains the ticket list with phase labels |
+| `release-manager` | Entry agent (`release`) | Root | ✅ Yes | Steps of the release, if it keeps a list |
+| `orchestrator-dev` | Invoked via `task` from `orchestrator` (`libre`) | Isolated (child) | ❌ No | May maintain an internal list (debugging) — not visible |
+| `planner`, `pathfinder`, `onboarder`, `debugger`, `designer`, `auditor-subagent` | Invoked via `task` from `orchestrator` or `conductor` | Isolated (child) | ❌ No | No todowrite list |
+| `developer`, `reviewer`, `documentarian` | Invoked via `task` from `orchestrator-dev` or `conductor` | Isolated (child; grandchild in `libre`) | ❌ No | No todowrite list |
 
-An agent that is the entry agent of its workflow (`auditor` in `audit`, `debugger` in `debug`, `developer`
-in `quick`…) runs in the root session: its todo list, if it keeps one, is visible.
+An agent that is the entry agent of its workflow (`auditor` in `audit`, `debugger` in `debug` and `incident`,
+`pathfinder` in `spike`, `developer` in `quick`…) runs in the root session: its todo list, if it keeps one, is
+visible. A child session of a fan-out (`ticket`, `sweep-task`) is a full oh session: its todo list is that of its
+own root session, not the parent's.
 
 ---
 
@@ -132,53 +135,52 @@ in `quick`…) runs in the root session: its todo list, if it keeps one, is visi
 
 This rule implies:
 
-1. **The feature orchestrator** maintains a list with **1 task per ticket** (not an
-   aggregated "Implementation — N tickets" task). It updates this list at each checkpoint
-   received from `orchestrator-dev` via `## Question for orchestrator` blocks.
+1. **The orchestrator** (`libre`) maintains a list with **1 task per phase of the feature** (planning, UX spec,
+   UI spec, audit, implementation): the granularity is deliberately high, it follows the phases, not the tickets.
+   It updates it at each phase change, when it reads the envelope of the agent it launched.
 
-2. **Standalone orchestrator-dev** maintains its list with **dynamic phase labels**
+2. **Entry-agent orchestrator-dev** maintains its list with **dynamic phase labels**
    to reflect what is actually happening in the currently active developer subagent.
 
 3. **Subagent orchestrator-dev** may maintain an internal list for session debugging,
-   but this list is invisible and does not replace the feature orchestrator's responsibility.
+   but this list is invisible and does not replace the orchestrator's one.
 
 ---
 
-## Update Rules — Feature Orchestrator
+## Update Rules — Orchestrator (`libre`)
 
-When the feature orchestrator receives a return block from `orchestrator-dev`, it updates
-its list **before displaying the report and before calling the `question` tool**:
+When the orchestrator receives the envelope of an agent it launched, it updates its list **before displaying the
+envelope and before calling the `question` tool**:
 
-| Block received | Phase in block | Todowrite action |
-|----------------|----------------|-----------------|
-| `## Question for orchestrator` | `CP-1` (ticket starting) | Ticket `#bd-XX` → `in_progress` |
-| `## Question for orchestrator` | `CP-2` | None (already `in_progress`) |
-| `## Question for orchestrator` | `CP-3` if ticket skipped | Ticket `#bd-XX` → `cancelled` |
-| `## Return to orchestrator` (partial, after CP-2 commit) | — | Committed ticket → `completed`, next → `in_progress` if applicable |
-| `## Return to orchestrator` (final) | — | All remaining tickets → final status (`completed` / `cancelled`) |
+| Envelope received | Status | Todowrite action |
+|-------------------|--------|-----------------|
+| `## Retour vers orchestrator` from the planner or the pathfinder | `découpage-à-valider`, `planification-complète`, `direct` | Planning → `completed`, next phase → `in_progress` |
+| `## Retour vers orchestrator` from the designer | `spec-complète` | UX or UI spec → `completed` |
+| `## Retour vers orchestrator` from orchestrator-dev | `en-attente` | None (blocking questions relayed, resumption with `task_id`) |
+| `## Retour vers orchestrator` from orchestrator-dev | `succès`, `partiel`, `bloqué` | Implementation → `completed` (or left `in_progress` with the blocking point) |
 
-**Example — state after CP-2 commit validated for #bd-12, CP-3 in semi-auto toward #bd-14:**
+**Example — planning done, implementation in progress:**
 
 ```
 todowrite({
   todos: [
-    { content: "Feature planning", status: "completed", priority: "high" },
-    { content: "#bd-12 — POST /users endpoint", status: "completed", priority: "high" },
-    { content: "#bd-14 — DB users migration", status: "in_progress", priority: "medium" }
+    { content: "Planning", status: "completed", priority: "high" },
+    { content: "UI spec", status: "completed", priority: "high" },
+    { content: "Implementation", status: "in_progress", priority: "high" }
   ]
 })
 ```
 
 ---
 
-## Update Rules — Standalone Orchestrator-dev
+## Update Rules — Entry-agent Orchestrator-dev
 
 When `orchestrator-dev` is invoked directly, update the task label at each key phase
 so the user knows where the implementation stands:
 
 | Step | Label | Status |
 |------|-------|--------|
-| CP-0 (initialization) | `#bd-12 — <title>` | `pending` |
+| `cp-plan` (initialization, `implement-spec`) or start | `#bd-12 — <title>` | `pending` |
 | CP-1 start | `#bd-12 — <title> [dev]` | `in_progress` |
 | Step 4 review launched | `#bd-12 — <title> [review]` | `in_progress` |
 | Step 5 CP-2 awaiting decision | `#bd-12 — <title> [CP-2]` | `in_progress` |
@@ -199,7 +201,7 @@ so the user knows where the implementation stands:
   checkpoint card (timeline `✔ cp-1 → developer → ⏸ cp-2 → ○ cp-3`). This timeline comes from the checkpoint
   state machine, not from `todowrite` ([ADR-042](./adr/042-checkpoints-headless-decisions.en.md),
   [ADR-047](./adr/047-session-interaction-daemon.en.md)).
-- **Permissions**: `todowrite` is explicitly allowed for `conductor`, `orchestrator`, and `orchestrator-dev`,
+- **Permissions**: `todowrite` is explicitly allowed for `conductor`, `orchestrator`, `orchestrator-dev` and `release-manager`,
   and denied for `brief-enricher`.
 
 ---
@@ -210,14 +212,14 @@ so the user knows where the implementation stands:
   1 task `in_progress` at a time, real-time updates, full list on every call.
 - Agents `developer`, `reviewer`, `documentarian` do not use
   `todowrite` when invoked as subagents: their sessions are invisible.
-- The inter-agent handoff mechanism (`## Return to <parent>`, `## Question for <parent>`)
-  remains the only communication channel between isolated sessions.
+- The return envelope (`## Retour vers <caller>`, blocking questions with status `en-attente`) and the report filed
+  with `workflow_report` remain the only communication channel between isolated sessions.
 
 ---
 
 ## References
 
 - [`skills/posture/coordinator-posture.md`](../../skills/posture/coordinator-posture.md) — Usage rules (phase suffixes are in `orchestrator-dev-ticket-workflow`)
-- [`skills/orchestrator/orchestrator-protocol.md`](../../skills/orchestrator/orchestrator-protocol.md) — Update rules for the feature orchestrator
-- [`skills/orchestrator/orchestrator-dev-protocol.md`](../../skills/orchestrator/orchestrator-dev-protocol.md) — Dynamic labels for standalone orchestrator-dev
+- [`skills/orchestrator/orchestrator-protocol.md`](../../skills/orchestrator/orchestrator-protocol.md) — List of the phases of the orchestrator (`libre`)
+- [`skills/orchestrator/orchestrator-dev-protocol.md`](../../skills/orchestrator/orchestrator-dev-protocol.md) — Dynamic labels for entry-agent orchestrator-dev
 - [`docs/architecture/task-delegation.en.md`](task-delegation.en.md) — Delegation via `task`, session isolation, `task_id`

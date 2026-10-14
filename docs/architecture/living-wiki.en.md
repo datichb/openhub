@@ -154,10 +154,12 @@ flowchart LR
     W -->|"index and god nodes computed by oh"| MCP
 ```
 
-1. The agent calls `wiki_propose(page, content, tag, source[, section])`. oh sets the author (the agent it sees
+1. The agent calls `wiki_propose(page, content, tag, source[, section, replaces])`. oh sets the author (the agent it sees
    calling the tool), cleans the content and queues it (`wp-<n>`, per project).
-2. At the commit checkpoint (`cp-2` of `ticket`, `feature`, `review-feedback`; `cp-commit` of `quick`, `debug`,
-   `sweep`), the decision card shows the proposals of the session: the user accepts, edits or refuses each one (or,
+2. At the commit checkpoint, the one that unlocks `commit` (`cp-2` of `ticket`, `implement-spec`,
+   `review-feedback`, `security-fix`; `cp-commit` of `quick`, `debug`, `sweep`, `sweep-task`; `cp-wiki`, `cp-sync`,
+   `cp-spec`, `cp-postmortem`, `cp-decision`…; the last one, when a workflow unlocks the commit twice), the decision
+   card shows the proposals of the session: the user accepts, edits or refuses each one (or,
    outside the TUI, `oh wiki decide`).
 3. When the checkpoint is passed, **oh applies** the accepted proposals itself, before giving control back to the
    agent: they are committed with the code. The application is traced (status `applied`, `applied_by: oh`, date,
@@ -165,8 +167,8 @@ flowchart LR
 4. Workflows without a commit (`audit`, `review`, `benchmark`, `infra-change`…) leave their proposals queued
    (`oh wiki pending`), for the `doc-sync` workflow.
 
-**Why oh applies, not the documentarian.** The `documentarian` is a member (`independent`) of `feature`, `ticket`
-and `debug` only, never of `quick`, `sweep` nor `review-feedback`. Launching it from oh would take one more agent
+**Why oh applies, not the documentarian.** The `documentarian` is a member (`independent`) of `ticket` and
+`implement-spec` only, never of `quick`, `debug`, `sweep` nor `review-feedback`. Launching it from oh would take one more agent
 turn (cost, non-determinism) in the middle of the workflow. The application is deterministic: the content was
 validated by the user, oh adds it at the end of its section with the tag line (tag, author seen by oh, date,
 source), updates the frontmatter (`updated`, `agents`, `confidence`) and recomputes the god nodes table. The
@@ -176,7 +178,7 @@ source), updates the frontmatter (`updated`, `agents`, `confidence`) and recompu
 |---|---|---|
 | `wiki_index` | Index, pages, god nodes computed by oh, pending proposals | Every agent |
 | `wiki_read(page, section)` | Targeted read of a page or a section | Every agent |
-| `wiki_propose(page, content, tag, source)` | Queues a proposal; works in read-only workflows too | Every agent |
+| `wiki_propose(page, content, tag, source[, replaces])` | Queues a proposal (addition, or replacement of a line: `replaces`, checked at the proposal and at the application, else `stale`); works in read-only workflows too | Every agent |
 | `wiki_pending` | Pending proposals (project or session) | Coordinators |
 | `wiki_apply(ids)` | Applies proposals | **documentarian only**, asked to the user |
 | `wiki_check([paths, base, head, since_sync])` | Frontmatter, links, tags, freshness, layout, god nodes; restricted to a change: pages concerned and drift | Every agent, `oh wiki check` |
@@ -294,14 +296,17 @@ faithful to the code gets no proposal. No more full rewrite: delete `docs/wiki/`
 - **Creation**: `onboarding` workflow, whose only agent is the `onboarder`. It only writes to `docs/wiki/`,
   `ONBOARDING.md` and `CONVENTIONS.md` (its permissions), then commits `docs/wiki/` alone after `cp-wiki`
   ([ADR-039](./adr/039-declarative-workflows-oh-v1.en.md)). Declared output: `wiki` (path).
-- **Precondition**: `feature` and `cadrage` check that at least one of `docs/wiki/index.md`, `ONBOARDING.md`, or
+- **Precondition**: `spec` (and its aliases `cadrage`, `feature`) and `implement-spec` check that at least one of `docs/wiki/index.md`, `ONBOARDING.md`, or
   `CONVENTIONS.md` exists. Otherwise, oh offers to run `onboarding` first, then come back.
 - **Injected context**: when the session bundle is built, `ONBOARDING.md`, `CONVENTIONS.md`,
   `.claude/CLAUDE.md`, and the `[deploy] instruction_files` are embedded in the agents' body
   ([ADR-043](./adr/043-session-bundle-deploy-removal.en.md)). The wiki itself is not embedded: agents read it
   on demand, with `wiki-navigation`. Hence a short `ONBOARDING.md` pointing to the wiki.
 - **Writes**: the `onboarder` (creation only) and the `documentarian` write the wiki in the session working folder (project or
-  worktree). oh only writes there the proposals the user validated on the commit card, the god nodes table it
+  worktree). Three read-only agents also write one page declared by their workflow (`writes:`) and commit it alone:
+  the `planner` its spec (`specs/`, `spec`), the `debugger` its postmortem (`postmortems/`, `incident`), the
+  `pathfinder` its decision (`decisions/`, `spike`); oh records these pages as outputs of the session and passes
+  them to the next workflow (`next:`, `source` input of `spec`). oh only writes there the proposals the user validated on the commit card, the god nodes table it
   computes and the `synced:` mark of `doc-sync`.
 - **Enrichment**: every agent proposes with `wiki_propose`; no more direct delegation to the `documentarian`. The
   proposals of the workflows without a commit stay queued.
@@ -316,5 +321,5 @@ faithful to the code gets no proposal. No more full rewrite: delete `docs/wiki/`
 - Skill `shared/wiki-navigation` — navigation protocol + god node algorithm
 - Skill `documentarian/doc-wiki-protocol` — canonical formats + enrichment rules
 - Skill `shared/living-docs-enrichment` — proposals with `wiki_propose`
-- [`wiki` MCP server](../reference/cli-mcp.en.md#wiki-mcp-server) and [`oh wiki`](../reference/cli-projects.en.md#oh-wiki)
+- [`wiki` MCP server](../reference/cli-mcp.en.md#wiki-mcp-server) and [`oh wiki`](../reference/cli-projects.en.md#oh-wiki-check)
 - ADR to come: decision to adopt the living documentation wiki

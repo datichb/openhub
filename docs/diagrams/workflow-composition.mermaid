@@ -1,0 +1,23 @@
+%% OpenHub -- Workflow composition (v5, R5 and branchements)
+%% A workflow declares the workflows that may follow it (`next:`): oh proposes
+%% them when their condition holds (`when: outputs`, `equals`) and fills their
+%% inputs from the outputs it recorded itself (`record:`), never from what an
+%% agent declares. oh never launches the next workflow: it is offered at the end
+%% of `oh run`, by `oh session next <id>` and first in "Chain with…" of the TUI,
+%% and started with `--parent <session>`.
+
+flowchart LR
+    AUD["<b>audit</b><br/>records findings (report)<br/>and type (input)"]
+    SECFIX["<b>security-fix</b><br/>findings = content of the report<br/>records deferred (tickets created)"]
+    INC["<b>incident</b><br/>records postmortem (written)<br/>and actions (tickets created)"]
+    SPIKE["<b>spike</b><br/>records decision (written)<br/>and verdict (written, match)"]
+    SPEC["<b>spec</b> (aliases cadrage, feature)<br/>records spec (checked spec),<br/>tickets (created), method (input)"]
+    IMPL["<b>implement-spec</b><br/>records tickets (closed)"]
+    TICK["<b>ticket</b>"]
+    OH{{"oh proposes, never launches:<br/>end of oh run · oh session next · TUI"}}
+
+    AUD ==>|"type = security<br/>findings"| SECFIX
+    SPIKE ==>|"verdict = go<br/>source = decision"| SPEC
+    INC ==>|"source = postmortem"| SPEC
+    INC ==>|"ticket = actions"| TICK
+    SPEC ==>|"tickets, spec, method"| IMPL
