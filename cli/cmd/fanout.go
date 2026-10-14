@@ -214,6 +214,9 @@ func (l *fanoutLauncher) Start(ctx context.Context, req fanout.LaunchRequest) (s
 	if req.Record.Role == domain.RoleChild && req.Ticket != "" {
 		opts.Tickets = []string{req.Ticket}
 	}
+	if req.Record.Role == domain.RoleMerger {
+		opts.Mode = "" // the mode of its workflow (auto: nobody to answer)
+	}
 	p, err := prepareWorkflowRun(ctx, l.a, opts, l.log)
 	if err != nil {
 		return "", err
