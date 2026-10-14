@@ -9,7 +9,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"sync"
 	"text/tabwriter"
 	"time"
 
@@ -197,14 +196,8 @@ type fanoutLauncher struct {
 	ssvc    *sessionsvc.Service
 	rsvc    *runsvc.Service
 	log     io.Writer
-	// settle is how long a session stays idle without decision before it
-	// counts as done.
-	settle time.Duration
 	// adjust changes a launch before it starts (evaluation: token cap).
 	adjust func(*preparedRun)
-
-	mu   sync.Mutex
-	idle map[string]time.Time
 }
 
 func (l *fanoutLauncher) Start(ctx context.Context, req fanout.LaunchRequest) (string, error) {
@@ -245,31 +238,19 @@ func (l *fanoutLauncher) Start(ctx context.Context, req fanout.LaunchRequest) (s
 	return results[0].SessionID, nil
 }
 
-func (l *fanoutLauncher) Done(ctx context.Context, id string) (bool, error) {
+func (l *fanoutLauncher) Status(ctx context.Context, id string) (fanout.SessionStatus, error) {
 	sess, err := l.ssvc.Sessions.Get(ctx, id)
 	if err != nil {
-		return false, err
+		return fanout.SessionStatus{}, err
 	}
 	switch sess.State {
 	case domain.RunCompleted, domain.RunStopped, domain.RunFailed:
-		return true, nil
+		return fanout.SessionStatus{Ended: true}, nil
+	case domain.RunIdle:
+		items, err := l.ssvc.Inbox(ctx, domain.DecisionFilter{SessionID: id})
+		return fanout.SessionStatus{Idle: err == nil && len(items) == 0}, nil
 	}
-	items, err := l.ssvc.Inbox(ctx, domain.DecisionFilter{SessionID: id})
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	if l.idle == nil {
-		l.idle = map[string]time.Time{}
-	}
-	if err != nil || len(items) > 0 || sess.State != domain.RunIdle {
-		delete(l.idle, id)
-		return false, nil
-	}
-	since, ok := l.idle[id]
-	if !ok {
-		l.idle[id] = time.Now()
-		return false, nil
-	}
-	return time.Since(since) >= l.settle, nil
+	return fanout.SessionStatus{}, nil
 }
 
 func (l *fanoutLauncher) Stop(ctx context.Context, id string) error {
@@ -292,10 +273,6 @@ func (l *fanoutLauncher) Tell(ctx context.Context, id, text string) error {
 	return l.ssvc.Send(ctx, id, text, sessionsvc.SendOptions{})
 }
 
-// fanoutSettle is how long a child stays idle without decision before oh
-// counts it as done.
-const fanoutSettle = 20 * time.Second
-
 // newFanoutDriver wires the driver of the fan-out of sess.
 func newFanoutDriver(ctx context.Context, a *app.App, sess *domain.Session, log io.Writer, adjust func(*preparedRun)) (*fanout.Driver, error) {
 	project, err := a.Projects.Get(ctx, sess.ProjectID)
@@ -311,7 +288,7 @@ func newFanoutDriver(ctx context.Context, a *app.App, sess *domain.Session, log 
 		return nil, err
 	}
 	cps := newCheckpointService(a)
-	l := &fanoutLauncher{a: a, project: project, ssvc: ssvc, rsvc: rsvc, log: log, settle: fanoutSettle, adjust: adjust}
+	l := &fanoutLauncher{a: a, project: project, ssvc: ssvc, rsvc: rsvc, log: log, adjust: adjust}
 	return &fanout.Driver{
 		Sessions: sqlite.NewSessionStore(store),
 		Launcher: l,

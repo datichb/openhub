@@ -63,6 +63,7 @@ type fakeLauncher struct {
 	maxSeen int
 	running int
 	hold    time.Duration
+	ended   bool // the sessions complete instead of going idle
 }
 
 func (l *fakeLauncher) Start(ctx context.Context, req LaunchRequest) (string, error) {
@@ -98,6 +99,9 @@ func (l *fakeLauncher) Start(ctx context.Context, req LaunchRequest) (string, er
 			return // the test is over
 		}
 		s.State = domain.RunIdle
+		if l.ended {
+			s.State = domain.RunCompleted
+		}
 		_ = l.store.Update(context.Background(), s)
 		l.mu.Lock()
 		l.running--
@@ -106,12 +110,12 @@ func (l *fakeLauncher) Start(ctx context.Context, req LaunchRequest) (string, er
 	return id, nil
 }
 
-func (l *fakeLauncher) Done(ctx context.Context, id string) (bool, error) {
+func (l *fakeLauncher) Status(ctx context.Context, id string) (SessionStatus, error) {
 	s, err := l.store.Get(ctx, id)
 	if err != nil {
-		return false, err
+		return SessionStatus{}, err
 	}
-	return s.State == domain.RunIdle || s.State == domain.RunStopped, nil
+	return SessionStatus{Ended: s.State == domain.RunStopped || s.State == domain.RunCompleted, Idle: s.State == domain.RunIdle}, nil
 }
 
 func (l *fakeLauncher) Stop(ctx context.Context, id string) error {
@@ -159,7 +163,7 @@ func newFixture(t *testing.T, tickets ...string) *fixture {
 	f.wf = &sessionspec.WorkflowRuntime{ID: "implement-spec", Checkpoints: []sessionspec.CheckpointDef{{ID: "cp-plan", Mandatory: true}, {ID: "cp-merge", Mandatory: true}},
 		Fanout: &sessionspec.FanoutDef{Child: "ticket", Merge: "cp-merge", Parallel: 3, Merger: "merge-conflicts", Delegates: []string{"cp-2"}}}
 	f.launcher = &fakeLauncher{t: t, store: f.store, work: map[string][2]string{}}
-	f.driver = &Driver{Sessions: f.store, Launcher: f.launcher, Poll: 20 * time.Millisecond,
+	f.driver = &Driver{Sessions: f.store, Launcher: f.launcher, Poll: 20 * time.Millisecond, IdleTimeout: 400 * time.Millisecond,
 		Workflow: func(context.Context, string) (*sessionspec.WorkflowRuntime, domain.CheckpointState, error) {
 			st := domain.CheckpointState{}
 			if f.passed {
@@ -459,4 +463,68 @@ func TestHasMarkers(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "b"), []byte("x // <<<<<<< not at the start\n"), 0o644))
 	assert.True(t, HasMarkers(dir, []string{"a"}))
 	assert.False(t, HasMarkers(dir, []string{"b", "missing"}))
+}
+
+// doneReason is the reason of the child_done event of a ticket.
+func doneReason(fo *domain.SessionFanout, ticket string) string {
+	for _, e := range fo.Events {
+		if e.Kind == domain.FanoutEventChildDone && e.Ticket == ticket {
+			return strings.SplitN(e.Message, ",", 2)[0]
+		}
+	}
+	return ""
+}
+
+// The end of a child is its end of work seen by oh, not its idleness: a
+// child idle with a commit but whose commit checkpoint did not pass is
+// only stopped by the guard; once it passed, the signal ends it at once.
+func TestDriverChildEndSignal(t *testing.T) {
+	childWf := &sessionspec.WorkflowRuntime{ID: "ticket", Checkpoints: []sessionspec.CheckpointDef{
+		{ID: "cp-2", Mandatory: true, Unlocks: []string{sessionspec.UnlockCommit}}}}
+	for _, tc := range []struct {
+		name   string
+		passed bool
+		work   bool
+		want   string
+	}{
+		{"signal", true, true, DoneSignal},
+		{"checkpoint not passed", false, true, DoneIdle},
+		{"no commit", true, false, DoneIdle},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t, "ev-1")
+			f.driver.IdleTimeout = 2 * time.Second
+			if tc.work {
+				f.launcher.work["ev-1"] = [2]string{"a.go", "package calc\n"}
+			}
+			parentWf := f.wf
+			f.driver.Workflow = func(_ context.Context, id string) (*sessionspec.WorkflowRuntime, domain.CheckpointState, error) {
+				st := domain.CheckpointState{Passed: map[string]time.Time{"cp-plan": time.Now()}}
+				if id == "ses_parent" {
+					return parentWf, st, nil
+				}
+				if tc.passed {
+					st.Passed["cp-2"] = time.Now()
+				}
+				return childWf, st, nil
+			}
+			start := time.Now()
+			fo := f.runDriver(t)
+			assert.Equal(t, tc.want, doneReason(fo, "ev-1"))
+			if tc.want == DoneSignal {
+				assert.Less(t, time.Since(start), 1500*time.Millisecond, "no wait for the guard")
+			} else {
+				assert.GreaterOrEqual(t, time.Since(start), 2*time.Second, "stopped by the guard only")
+			}
+		})
+	}
+}
+
+// A session that ends is done whatever its work.
+func TestDriverChildEnded(t *testing.T) {
+	f := newFixture(t, "ev-1")
+	f.driver.IdleTimeout = time.Hour
+	f.launcher.ended = true
+	fo := f.runDriver(t)
+	assert.Equal(t, DoneEnded, doneReason(fo, "ev-1"))
 }

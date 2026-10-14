@@ -46,15 +46,39 @@ type LaunchRequest struct {
 type Launcher interface {
 	// Start launches a session without interface and returns its id.
 	Start(ctx context.Context, req LaunchRequest) (string, error)
-	// Done reports whether a session finished its work: ended, or idle with
-	// no decision waiting.
-	Done(ctx context.Context, sessionID string) (bool, error)
+	// Status reports where a session is: ended, or its turn over with no
+	// decision waiting (the driver decides whether it finished its work).
+	Status(ctx context.Context, sessionID string) (SessionStatus, error)
 	// Stop stops a session.
 	Stop(ctx context.Context, sessionID string) error
 	// Tell sends a message to a session (the parent, once the children are
 	// done).
 	Tell(ctx context.Context, sessionID, text string) error
 }
+
+// SessionStatus is what the driver reads of a session it launched.
+type SessionStatus struct {
+	// Ended: completed, stopped or failed.
+	Ended bool
+	// Idle: its turn is over and no decision waits.
+	Idle bool
+}
+
+// Why a session of the fan-out counts as finished (event child_done).
+const (
+	// DoneEnded: the session ended (completed, stopped, failed).
+	DoneEnded = "ended"
+	// DoneSignal: its end of work is seen by oh (child: the checkpoints
+	// that unlock its commit passed, a commit on its branch, a clean
+	// worktree; merger: the merge concluded), its turn over.
+	DoneSignal = "signal"
+	// DoneIdle: idle without that signal for IdleTimeout (guard).
+	DoneIdle = "idle"
+)
+
+// DefaultIdleTimeout is how long a session of the fan-out may stay idle,
+// no decision waiting, without its end of work, before oh stops it.
+const DefaultIdleTimeout = 10 * time.Minute
 
 // Driver runs fan-outs.
 type Driver struct {
@@ -71,6 +95,9 @@ type Driver struct {
 	Parallel int
 	// Poll is the interval of the checks (0 = 5 s).
 	Poll time.Duration
+	// IdleTimeout is the guard on an idle session without its end of work
+	// (0 = DefaultIdleTimeout).
+	IdleTimeout time.Duration
 	// Log receives a line per step (nil = none).
 	Log func(format string, args ...any)
 
@@ -529,25 +556,18 @@ func (d *Driver) childFailed(ctx context.Context, parent, ticket, why string) {
 // follow waits for the child to finish (stopping it on the global budget),
 // stops it and merges its branch.
 func (d *Driver) follow(ctx context.Context, parent string, wf *sessionspec.WorkflowRuntime, c domain.FanoutChild) {
-	t := time.NewTicker(d.poll())
-	defer t.Stop()
-	for {
-		ok, err := d.Launcher.Done(ctx, c.Session)
-		if err == nil && ok {
-			break
-		}
+	why, ok := d.wait(ctx, c.Session, func() bool { return d.childFinished(ctx, c) }, func() bool {
 		if p, err := d.Sessions.Get(ctx, parent); err == nil && p.Fanout.BudgetUSD > 0 {
 			if spent := d.spent(ctx, p); spent > p.Fanout.BudgetUSD {
 				_ = d.Launcher.Stop(ctx, c.Session)
 				d.budgetReached(ctx, parent, c.Ticket, spent, p.Fanout.BudgetUSD)
-				return
+				return true
 			}
 		}
-		select {
-		case <-ctx.Done():
-			return
-		case <-t.C:
-		}
+		return false
+	})
+	if !ok {
+		return
 	}
 	_ = d.Launcher.Stop(ctx, c.Session)
 	cost := 0.0
@@ -558,9 +578,83 @@ func (d *Driver) follow(ctx context.Context, parent string, wf *sessionspec.Work
 		if ch, ok := f.Child(c.Ticket); ok {
 			ch.CostUSD = cost
 		}
-		f.AddEvent(domain.FanoutEventChildDone, c.Ticket, c.Session, fmt.Sprintf("%.3f USD", cost))
+		f.AddEvent(domain.FanoutEventChildDone, c.Ticket, c.Session, fmt.Sprintf("%s, %.3f USD", why, cost))
 	})
 	d.merge(ctx, parent, wf, c)
+}
+
+// wait waits until session id finished its work and tells why (DoneEnded,
+// DoneSignal, DoneIdle); ok false when ctx ended or stop (checked at each
+// poll, nil = none) returned true. The end signal is only believed once
+// the turn of the session is over, on two checks in a row; an idle
+// session without it is stopped after IdleTimeout.
+func (d *Driver) wait(ctx context.Context, id string, finished, stop func() bool) (why string, ok bool) {
+	t := time.NewTicker(d.poll())
+	defer t.Stop()
+	timeout := d.IdleTimeout
+	if timeout <= 0 {
+		timeout = DefaultIdleTimeout
+	}
+	var idleSince time.Time
+	signals := 0
+	for {
+		st, err := d.Launcher.Status(ctx, id)
+		switch {
+		case err != nil:
+		case st.Ended:
+			return DoneEnded, true
+		case !st.Idle:
+			idleSince, signals = time.Time{}, 0
+		default:
+			if idleSince.IsZero() {
+				idleSince = time.Now()
+			}
+			if finished() {
+				signals++
+				if signals >= 2 {
+					return DoneSignal, true
+				}
+			} else {
+				signals = 0
+			}
+			if time.Since(idleSince) >= timeout {
+				d.logf("session %s idle for %s without its end of work: stopped", id, timeout)
+				return DoneIdle, true
+			}
+		}
+		if stop != nil && stop() {
+			return "", false
+		}
+		select {
+		case <-ctx.Done():
+			return "", false
+		case <-t.C:
+		}
+	}
+}
+
+// childFinished reports the end of work of child c: the checkpoints of
+// its workflow that unlock the commit (its delegated cp-2) passed, at
+// least one commit on its branch since it started, and nothing left
+// uncommitted in its worktree.
+func (d *Driver) childFinished(ctx context.Context, c domain.FanoutChild) bool {
+	if c.Path == "" || c.Head == "" {
+		return false
+	}
+	if wf, st, err := d.Workflow(ctx, c.Session); err != nil {
+		return false
+	} else if wf != nil {
+		for _, cp := range wf.Checkpoints {
+			if cp.Mandatory && slices.Contains(cp.Unlocks, sessionspec.UnlockCommit) && !st.HasPassed(cp.ID) {
+				return false
+			}
+		}
+	}
+	if n, err := CommitsAhead(ctx, c.Path, c.Head, c.Branch); err != nil || n == 0 {
+		return false
+	}
+	dirty, err := Dirty(ctx, c.Path)
+	return err == nil && !dirty
 }
 
 // merge merges the branch of child c into the integration branch, with the
@@ -643,19 +737,17 @@ func (d *Driver) resolve(ctx context.Context, p *domain.Session, wf *sessionspec
 		}
 		f.AddEvent(domain.FanoutEventMerger, c.Ticket, sid, strings.Join(conflicts, ", "))
 	})
-	t := time.NewTicker(d.poll())
-	defer t.Stop()
-	for {
-		if ok, err := d.Launcher.Done(ctx, sid); err == nil && ok {
-			break
-		}
-		select {
-		case <-ctx.Done():
-			return false
-		case <-t.C:
-		}
+	why, ok := d.wait(ctx, sid, func() bool {
+		head, err := Head(ctx, ig.Path)
+		return err == nil && head != ig.Head && !MergeInProgress(ctx, ig.Path)
+	}, nil)
+	if !ok {
+		return false
 	}
 	_ = d.Launcher.Stop(ctx, sid)
+	_, _ = d.update(ctx, p.ID, func(f *domain.SessionFanout) {
+		f.AddEvent(domain.FanoutEventChildDone, c.Ticket, sid, why)
+	})
 	head, err := Head(ctx, ig.Path)
 	if err != nil || MergeInProgress(ctx, ig.Path) || head == ig.Head || Parents(ctx, ig.Path, head) < 2 ||
 		!IsAncestor(ctx, ig.Path, ig.Head, head) || !IsAncestor(ctx, ig.Path, childHead, head) || HasMarkers(ig.Path, conflicts) {
