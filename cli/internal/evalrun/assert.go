@@ -365,14 +365,26 @@ func command(e sessionsvc.TraceEvent) string {
 }
 
 // shellMatch matches a shell pattern against a command or any of its
-// chained parts (a && b; a | b).
+// chained parts (a && b; a | b). A part runs to the end of the command
+// too, so that a pattern ending with * also sees the quoted arguments
+// that hold a separator or a new line (bd create … --description "a; b").
 func shellMatch(pattern, cmd string) bool {
+	// A line continued with a backslash is one command.
+	cmd = strings.ReplaceAll(cmd, "\\\n", " ")
 	if wildcard(pattern, cmd) {
 		return true
 	}
-	for _, part := range regexp.MustCompile(`&&|\|\||;|\||\n`).Split(cmd, -1) {
+	sep := regexp.MustCompile(`&&|\|\||;|\||\n`)
+	for _, part := range sep.Split(cmd, -1) {
 		if wildcard(pattern, strings.TrimSpace(part)) {
 			return true
+		}
+	}
+	if strings.HasSuffix(pattern, "*") {
+		for _, loc := range sep.FindAllStringIndex(cmd, -1) {
+			if wildcard(pattern, strings.TrimSpace(cmd[loc[1]:])) {
+				return true
+			}
 		}
 	}
 	return false
