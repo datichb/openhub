@@ -41,12 +41,10 @@ openhub/
 │       └── documentarian.md       ← Permission websearch activée
 ├── skills/
 │   ├── shared/
-│   │   └── websearch-usage.md     ← Best practices générales
+│   │   └── research.md            ← Recherche web générale (requêtes, recoupement, comparaison, restitution)
 │   ├── auditor/
 │   │   ├── websearch-cve-lookup.md
 │   │   └── websearch-performance-research.md
-│   ├── planning/
-│   │   └── websearch-stack-research.md
 │   └── design/
 │       └── websearch-design-patterns.md
 └── cli/
@@ -154,10 +152,9 @@ WebSearch : activé
 
 | Skill | Cible | Description |
 |-------|-------|-------------|
-| `shared/websearch-usage.md` | Tous | Best practices générales (query patterns, rate limits, error handling) |
+| `shared/research.md` | Tous | Recherche web : requêtes ciblées, recoupement, comparaison de librairies, sécurité, échecs, restitution |
 | `auditor/websearch-cve-lookup.md` | Security auditors | Protocole de recherche CVE (NVD, GitHub Advisories, CVSS scoring) |
 | `auditor/websearch-performance-research.md` | Performance auditors | Recherche de benchmarks, optimizations, profiling techniques |
-| `planning/websearch-stack-research.md` | Planning agents | Comparaison de librairies, documentation discovery, ecosystem trends |
 | `design/websearch-design-patterns.md` | Design agents | Patterns UI/UX, accessibility standards, design systems |
 
 ---
@@ -261,7 +258,7 @@ Agent: [WARN] WebSearch rate limit exceeded, falling back to training data
 
 **Solutions** :
 1. Attendre quelques minutes avant de relancer
-2. Réduire le nombre de recherches (voir skill `websearch-usage.md` pour optimisations)
+2. Réduire le nombre de recherches (voir le skill `research` pour optimisations)
 3. Utiliser `webfetch` directement pour les URLs connues (pas de rate limit)
 4. Batch les recherches (1 query large > 5 queries étroites)
 
@@ -358,9 +355,8 @@ Si vous voulez désactiver WebSearch pour tous les projets :
 - Environment variables: https://opencode.ai/docs/config/
 
 ### Skills openhub
-- `skills/shared/websearch-usage.md` — Best practices WebSearch
+- `skills/shared/research.md` — Recherche web (fusion de websearch-usage et websearch-stack-research)
 - `skills/auditor/websearch-cve-lookup.md` — Protocole CVE lookup
-- `skills/planning/websearch-stack-research.md` — Recherche de stack
 - `skills/design/websearch-design-patterns.md` — Patterns design
 
 ### Exemples d'usage

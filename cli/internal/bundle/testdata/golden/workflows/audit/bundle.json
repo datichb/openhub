@@ -163,9 +163,9 @@
         "audit-privacy",
         "audit-security",
         "expert-posture",
+        "research",
         "websearch-cve-lookup",
-        "websearch-performance-research",
-        "websearch-usage"
+        "websearch-performance-research"
       ]
     }
   ],
@@ -184,9 +184,9 @@
     "auditor-phase-4",
     "expert-posture",
     "living-docs-enrichment",
+    "research",
     "websearch-cve-lookup",
-    "websearch-performance-research",
-    "websearch-usage"
+    "websearch-performance-research"
   ],
   "subagent_graph": {
     "auditor": [

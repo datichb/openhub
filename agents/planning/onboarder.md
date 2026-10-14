@@ -31,7 +31,7 @@ permission:
   websearch: allow
   webfetch: allow
 skills: [shared/universal-guardrails, posture/core-posture, posture/user-facing-posture, shared/handoff-envelope, shared/execution-protocol, planning/onboarder-payload, planning/onboarder-workflow, planning/onboarder-profiles, adapters/gitlab-onboarder-protocol, adapters/github-onboarder-protocol, shared/wiki-navigation]
-native_skills: [planning/websearch-stack-research, shared/rtk-usage, planning/onboarder-phase-0, planning/onboarder-phase-1, planning/onboarder-phase-2, planning/onboarder-phase-3-4, planning/onboarder-phase-5, planning/onboarder-phase-5-reonboarding, shared/living-docs-enrichment, shared/websearch-usage, posture/expert-posture, shared/team-awareness, shared/team-policies-enforcement]
+native_skills: [shared/research, shared/rtk-usage, planning/onboarder-phase-0, planning/onboarder-phase-1, planning/onboarder-phase-2, planning/onboarder-phase-3-4, planning/onboarder-phase-5, planning/onboarder-phase-5-reonboarding, shared/living-docs-enrichment, posture/expert-posture, shared/team-awareness, shared/team-policies-enforcement]
 project_instructions: index
 ---
 

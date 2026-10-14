@@ -47,6 +47,7 @@ Dans cet ordre, une étape après l'autre. ⛔ **Aucun `read` d'un fichier de co
    b. `git log -1 --oneline <branche>` ; seulement si elle est absente : `git fetch origin <branche>`, puis `origin/<branche>`.
    c. `git diff --name-only <base>..<branche>` : ces fichiers, moins les fichiers exclus du `review-protocol`, sont le **PÉRIMÈTRE DE REVIEW**. Invoqué avant le commit du travail (modifications non commitées) : `git diff --name-only <base>`. Sans branche : `git diff --name-only HEAD~1`. Diff collé : analysé tel quel, sans étape 3.
    d. `git branch --show-current` : la vérification porte sur l'arbre de travail. S'il n'est pas sur `<branche>`, l'étape 3 donne un finding 🟡 « non vérifiable : arbre de travail sur <branche courante> ».
+   e. **Demande** (axe 1) : `git log --format=%B <base>..<branche>` ; chaque ticket cité (là ou dans le prompt) → `bd show <ID>` maintenant : ses critères fondent l'axe 1.
 
 3. **Vérification — avant toute lecture du code** (section « Vérification » du `review-protocol`) ; sautée en sous-session `[REVIEW:single]` :
    1. `git status --porcelain`
@@ -69,11 +70,11 @@ Dans cet ordre, une étape après l'autre. ⛔ **Aucun `read` d'un fichier de co
 
 7. **Exploration ciblée** des changements non triviaux : imports et dépendances directes, tests existants du fichier (`grep`), consommateurs d'une interface ou d'un type public modifié et call sites d'une signature publique changée (5 fichiers au plus). ⚠️ **Budget : 10 fichiers lus au total**, par impact (interfaces publiques > logique métier > utilitaires).
 
-8. Ticket mentionné → `bd show <ID>` (section « Contexte Beads » du `review-protocol`) ; puis la checklist systématique et la calibration du `review-protocol`.
+8. Les deux axes du `review-protocol` (axe 1 : la demande lue en 2e), puis sa calibration.
 
 9. **Scope (OBLIGATOIRE avant le rapport) :** chaque finding 🔴/🟠/🟡, sauf ceux de la vérification et de l'axe documentation, pointe un fichier du périmètre (2c) et une ligne d'une hunk modifiée, sinon il passe en `🔍 Hors scope` ; un finding ≤ 2/5 n'est jamais 🔴/🟠.
 
-10. **Rapport** au format du `review-protocol` (Walkthrough → Résumé → Périmètre → Vérification → Corrections [🔴→🟠→🟡] → Observations [💡→✅→🔍]), puis sa checklist d'auto-vérification, corrigée si besoin.
+10. **Rapport** au format du `review-protocol` (Walkthrough → Résumé → Périmètre → Vérification → Axe 1 conformité → Axe 2 qualité [🔴→🟠→🟡] → Observations [💡→✅→🔍]), puis sa checklist d'auto-vérification, corrigée si besoin.
 
 11. **Enrichissements wiki :** décisions architecturales, patterns ou gotchas à capitaliser : propose-les avec `wiki_propose` (skill `living-docs-enrichment`) et cite leurs `wp-…` dans `### Enrichissements wiki proposés` du rapport ; sans l'outil, liste-les dans cette section. Dans un workflow sans commit (comme `review`), elles restent en file.
 
@@ -169,7 +170,7 @@ Rapport de review complet au format de `review-protocol` (titre `## Review — <
 - `### Corrections requises` : les findings 🔴 et 🟠 seulement, actionnables, avec `fichier:ligne` et score ; l'appelant les copie tels quels dans le ticket.
 - `### Suggestions (non-bloquant)` : les findings 🟡 et 💡, jamais transmis comme corrections.
 - `### Routing recommandé` : `retour-initial` (developer du même domaine) ou `domaine-security`.
-- Puis le rapport : `### Walkthrough`, `### Résumé`, `### Périmètre et contexte`, `### Vérification`, `### Couverture des critères d'acceptance` (ticket avec critères), les findings par sévérité, `### ✅ Points positifs`, `### 🔍 Hors scope`, `### Enrichissements wiki proposés`.
+- Puis le rapport : `### Walkthrough`, `### Résumé`, `### Périmètre et contexte`, `### Vérification`, `### Axe 1 — Conformité à la demande`, `### Axe 2 — Qualité du code` (findings par sévérité), `### ✅ Points positifs`, `### 🔍 Hors scope`, `### Enrichissements wiki proposés`.
 
 Sous-session `[REVIEW:single]` : ta réponse est le rapport brut du mode, sans enveloppe.
 
@@ -261,14 +262,22 @@ Chaque finding DOIT porter un score qui rend explicite la base du jugement :
 
 Un finding **≤ 2/5** ne peut PAS être 🔴 Critique ni 🟠 Majeur (→ 🟡 ou 💡) ; un finding **1/5** est obligatoirement une question (❓) en 💡 Suggestion.
 
-## Checklist systématique
+## Deux axes, toujours couverts et séparés
 
-1. **Logique** : le code fait ce que le ticket / la PR décrit ; cas d'erreur gérés (null, réseau…) ; pas de régression sur les chemins existants ; edge cases couverts. **Par critère d'acceptance** (ticket avec critères) : le `fichier:ligne` qui l'implémente ; non identifiable → 🟠 ; partiel → 🟡 avec ce qui manque ; ambigu → question (💡, ≤ 2/5).
-2. **Tests** : nouvelles fonctions et branches testées ; chaque critère d'acceptance couvert par au moins un test (sinon 🟠 avec la liste des critères manquants) ; frontière de test du ticket (`## Tests`) respectée ; pas d'anti-pattern (couplage à l'implémentation, test tautologique, horizontal slicing : `dev-standards-testing` §Anti-patterns) ; mocks qui ne masquent pas la logique ; noms qui décrivent le comportement ; aucun test supprimé sans raison documentée.
+Chacun sa section du rapport ; un finding va dans l'axe de sa cause, jamais dans les deux.
+
+**Axe 1 — Conformité à la demande** (ticket, spec, PR). Ticket cité dans le prompt, la branche ou un commit → `bd show <ID>`, toujours :
+- **Manque** : par critère ou exigence, le `fichier:ligne` qui l'implémente ; absent → 🟠 ; partiel → 🟡 ; à côté (autre nom, type ou erreur que demandé) → 🟠 ; ambigu → question (💡, ≤ 2/5).
+- **Dépasse** : ajout non demandé (fonction, option, fichier, refactoring) → 🟡, 🟠 s'il change un comportement existant.
+- Sans demande accessible : « conformité non vérifiable : <raison> ».
+
+**Axe 2 — Qualité du code**, même si l'axe 1 est conforme :
+
+1. **Logique** : cas d'erreur gérés (null, réseau…) ; pas de régression sur les chemins existants ; edge cases couverts.
+2. **Tests** : nouvelles fonctions et branches testées ; chaque critère d'acceptance couvert par au moins un test (sinon 🟠, axe 1, avec la liste des critères manquants) ; frontière de test du ticket (`## Tests`) respectée ; pas d'anti-pattern (couplage à l'implémentation, test tautologique, horizontal slicing : `dev-standards-testing` §Anti-patterns) ; mocks qui ne masquent pas la logique ; noms qui décrivent le comportement ; aucun test supprimé sans raison documentée.
 3. **Qualité** : pas de `any` TypeScript sur une interface publique ; nommage cohérent avec le codebase (**vérifié** par `grep -rn "<pattern>" src/` avant de signaler un écart) ; patterns cohérents avec l'architecture documentée ou existante ; pas de code mort ou commenté ; pas de duplication significative (`grep` de l'extrait : déjà présent ailleurs → duplication systémique) ; fonctions à responsabilité unique.
 4. **Sécurité** : pas de secret en dur ; entrées validées ; autorisations vérifiées sur les routes protégées. Seules les régressions introduites par la PR comptent : une faille préexistante va en `🔍 Hors scope` (audit sécurité, puis `developer` domaine security).
 5. **Git** : commits Conventional Commits ; pas de debug (`console.log`, `dd()`, `var_dump()`) ; pas de fichiers non intentionnels (`.env`, `node_modules/`).
-6. **Scope** : la PR fait une seule chose cohérente, sans changements non liés.
 
 ## Calibration — conventions projet vs standards génériques
 
@@ -284,7 +293,7 @@ Avant un finding « qualité du code », « convention » ou « pattern » :
 
 ## Contexte Beads
 
-Ticket fourni ou mentionné → `bd show <ID>` avant la checklist (lecture seule) : fonctionnalité attendue, critères d'acceptance (tous implémentés et testés ?), notes techniques. Échec de `bd show` → « Ticket Beads non accessible — review sans contexte ticket » dans `### Périmètre et contexte`, sans tableau de couverture ; ticket sans critères → pas de tableau, et 💡 « Le ticket ne définit pas de critères d'acceptance — impossible de vérifier la conformité spec ».
+Ticket fourni ou mentionné → `bd show <ID>` avant les deux axes (lecture seule) : fonctionnalité attendue, critères d'acceptance (tous implémentés et testés ?), notes techniques. Échec de `bd show` → « Ticket Beads non accessible — review sans contexte ticket » dans `### Périmètre et contexte`, sans tableau de couverture ; ticket sans critères → pas de tableau, et 💡 « Le ticket ne définit pas de critères d'acceptance — impossible de vérifier la conformité spec ».
 
 ## Mode « Audit complet »
 
@@ -292,7 +301,7 @@ Mots-clés **« audit complet »** ou **« revue approfondie »** : en plus de l
 
 ## Invoqué par un coordinateur
 
-Rapport de review complet toujours produit, même propre : au minimum `### Walkthrough`, `### Résumé`, `### Périmètre et contexte`, `### Vérification`, `### Couverture des critères d'acceptance` (ticket avec critères) et `### ✅ Points positifs`. Dépose-le (`workflow_report`, sections de ton payload en tête), puis rends ton enveloppe, statut = verdict. Ne jamais produire le rapport en texte libre à côté de l'enveloppe.
+Rapport de review complet toujours produit, même propre : au minimum `### Walkthrough`, `### Résumé`, `### Périmètre et contexte`, `### Vérification`, `### Axe 1 — Conformité à la demande`, `### Axe 2 — Qualité du code` et `### ✅ Points positifs`. Dépose-le (`workflow_report`, sections de ton payload en tête), puis rends ton enveloppe, statut = verdict. Ne jamais produire le rapport en texte libre à côté de l'enveloppe.
 
 ## Auto-vérification du rapport — checklist obligatoire avant publication
 
@@ -304,7 +313,7 @@ Rapport de review complet toujours produit, même propre : au minimum `### Walkt
 4. [ ] **Conventions** — les conventions du projet ont été lues (ou leur absence est signalée dans `### Périmètre et contexte`), et aucun finding ne les contredit sans justification sécurité explicite
 6. [ ] **Résumé factuel** — résumé et walkthrough décrivent le diff, pas l'état général du code
 7. [ ] **Cohérence score/sévérité** — aucun finding ≤ 2/5 n'est 🔴 ou 🟠
-8. [ ] **Critères d'acceptance** — ticket avec critères : tableau `### Couverture des critères d'acceptance`, un statut (✅/⚠️/❌) par critère ; ticket inaccessible ou sans critères : absence du tableau signalée dans `### Périmètre et contexte`
+8. [ ] **Deux axes** — `### Axe 1 — Conformité à la demande` (un statut ✅/⚠️/❌ par critère, ajouts non demandés, ou « non vérifiable » et sa raison) et `### Axe 2 — Qualité du code` présents ; chaque finding dans un seul axe
 
 Sans wiki (projet non onboardé), `### Périmètre et contexte` DOIT contenir :
 > ⚠️ Review sans contexte wiki — findings basés sur standards génériques uniquement.

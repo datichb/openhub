@@ -146,9 +146,9 @@
       ],
       "skills": [
         "beads-plan",
+        "codebase-design",
         "living-docs-enrichment",
-        "websearch-stack-research",
-        "websearch-usage"
+        "research"
       ]
     },
     {
@@ -451,6 +451,7 @@
   ],
   "skills": [
     "beads-plan",
+    "codebase-design",
     "dev-standards-api",
     "dev-standards-backend",
     "dev-standards-database",
@@ -467,13 +468,12 @@
     "dev-standards-universal",
     "living-docs-enrichment",
     "quick-fix",
+    "research",
     "review-merge",
     "reviewer-adversarial",
     "reviewer-edge-case",
     "reviewer-reception",
-    "test-generation",
-    "websearch-stack-research",
-    "websearch-usage"
+    "test-generation"
   ],
   "subagent_graph": {
     "conductor": [

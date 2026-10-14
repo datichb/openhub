@@ -23,6 +23,6 @@ Rapport de review complet au format de `review-protocol` (titre `## Review — <
 - `### Corrections requises` : les findings 🔴 et 🟠 seulement, actionnables, avec `fichier:ligne` et score ; l'appelant les copie tels quels dans le ticket.
 - `### Suggestions (non-bloquant)` : les findings 🟡 et 💡, jamais transmis comme corrections.
 - `### Routing recommandé` : `retour-initial` (developer du même domaine) ou `domaine-security`.
-- Puis le rapport : `### Walkthrough`, `### Résumé`, `### Périmètre et contexte`, `### Vérification`, `### Couverture des critères d'acceptance` (ticket avec critères), les findings par sévérité, `### ✅ Points positifs`, `### 🔍 Hors scope`, `### Enrichissements wiki proposés`.
+- Puis le rapport : `### Walkthrough`, `### Résumé`, `### Périmètre et contexte`, `### Vérification`, `### Axe 1 — Conformité à la demande`, `### Axe 2 — Qualité du code` (findings par sévérité), `### ✅ Points positifs`, `### 🔍 Hors scope`, `### Enrichissements wiki proposés`.
 
 Sous-session `[REVIEW:single]` : ta réponse est le rapport brut du mode, sans enveloppe.

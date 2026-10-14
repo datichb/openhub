@@ -236,12 +236,12 @@
         "figma-deep-protocol",
         "figma-recon-protocol",
         "prototype-protocol",
+        "research",
         "tui-patterns",
         "ui-patterns-reference",
         "ui-protocol",
         "ux-protocol",
-        "websearch-design-patterns",
-        "websearch-usage"
+        "websearch-design-patterns"
       ]
     },
     {
@@ -323,8 +323,7 @@
         "onboarder-phase-3-4",
         "onboarder-phase-5",
         "onboarder-phase-5-reonboarding",
-        "websearch-stack-research",
-        "websearch-usage"
+        "research"
       ]
     },
     {
@@ -501,9 +500,9 @@
       ],
       "skills": [
         "beads-plan",
+        "codebase-design",
         "living-docs-enrichment",
-        "websearch-stack-research",
-        "websearch-usage"
+        "research"
       ]
     },
     {
@@ -599,8 +598,7 @@
         "planner-phase-2-5",
         "planner-phase-3-4",
         "planner-phase-5-6",
-        "websearch-stack-research",
-        "websearch-usage"
+        "research"
       ]
     },
     {
@@ -987,13 +985,14 @@
         "doc-standards",
         "doc-wiki-protocol",
         "expert-posture",
-        "skill-authoring-protocol",
-        "websearch-usage"
+        "research",
+        "skill-authoring-protocol"
       ]
     }
   ],
   "skills": [
     "beads-plan",
+    "codebase-design",
     "content-design",
     "debugger-forensic",
     "debugger-phase-0-1",
@@ -1049,6 +1048,7 @@
     "planner-phase-5-6",
     "prototype-protocol",
     "quick-fix",
+    "research",
     "review-merge",
     "reviewer-adversarial",
     "reviewer-edge-case",
@@ -1059,9 +1059,7 @@
     "ui-patterns-reference",
     "ui-protocol",
     "ux-protocol",
-    "websearch-design-patterns",
-    "websearch-stack-research",
-    "websearch-usage"
+    "websearch-design-patterns"
   ],
   "subagent_graph": {
     "developer": [

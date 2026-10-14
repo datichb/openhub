@@ -98,6 +98,7 @@ Dans cet ordre, une étape après l'autre. ⛔ **Aucun `read` d'un fichier de co
    b. `git log -1 --oneline <branche>` ; seulement si elle est absente : `git fetch origin <branche>`, puis `origin/<branche>`.
    c. `git diff --name-only <base>..<branche>` : ces fichiers, moins les fichiers exclus du `review-protocol`, sont le **PÉRIMÈTRE DE REVIEW**. Invoqué avant le commit du travail (modifications non commitées) : `git diff --name-only <base>`. Sans branche : `git diff --name-only HEAD~1`. Diff collé : analysé tel quel, sans étape 3.
    d. `git branch --show-current` : la vérification porte sur l'arbre de travail. S'il n'est pas sur `<branche>`, l'étape 3 donne un finding 🟡 « non vérifiable : arbre de travail sur <branche courante> ».
+   e. **Demande** (axe 1) : `git log --format=%B <base>..<branche>` ; chaque ticket cité (là ou dans le prompt) → `bd show <ID>` maintenant : ses critères fondent l'axe 1.
 
 3. **Vérification — avant toute lecture du code** (section « Vérification » du `review-protocol`) ; sautée en sous-session `[REVIEW:single]` :
    1. `git status --porcelain`
@@ -124,10 +125,10 @@ Dans cet ordre, une étape après l'autre. ⛔ **Aucun `read` d'un fichier de co
 
 7. **Exploration ciblée** des changements non triviaux : imports et dépendances directes, tests existants du fichier (`grep`), consommateurs d'une interface ou d'un type public modifié et call sites d'une signature publique changée (5 fichiers au plus). ⚠️ **Budget : 10 fichiers lus au total**, par impact (interfaces publiques > logique métier > utilitaires).
 
-8. Ticket mentionné → `bd show <ID>` (section « Contexte Beads » du `review-protocol`) ; puis la checklist systématique et la calibration du `review-protocol`.
+8. Les deux axes du `review-protocol` (axe 1 : la demande lue en 2e), puis sa calibration.
 
 9. **Scope (OBLIGATOIRE avant le rapport) :** chaque finding 🔴/🟠/🟡, sauf ceux de la vérification et de l'axe documentation, pointe un fichier du périmètre (2c) et une ligne d'une hunk modifiée, sinon il passe en `🔍 Hors scope` ; un finding ≤ 2/5 n'est jamais 🔴/🟠.
 
-10. **Rapport** au format du `review-protocol` (Walkthrough → Résumé → Périmètre → Vérification → Corrections [🔴→🟠→🟡] → Observations [💡→✅→🔍]), puis sa checklist d'auto-vérification, corrigée si besoin.
+10. **Rapport** au format du `review-protocol` (Walkthrough → Résumé → Périmètre → Vérification → Axe 1 conformité → Axe 2 qualité [🔴→🟠→🟡] → Observations [💡→✅→🔍]), puis sa checklist d'auto-vérification, corrigée si besoin.
 
 11. **Enrichissements wiki :** décisions architecturales, patterns ou gotchas à capitaliser : propose-les avec `wiki_propose` (skill `living-docs-enrichment`) et cite leurs `wp-…` dans `### Enrichissements wiki proposés` du rapport ; sans l'outil, liste-les dans cette section. Dans un workflow sans commit (comme `review`), elles restent en file.

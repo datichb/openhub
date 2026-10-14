@@ -80,8 +80,7 @@
         "onboarder-phase-3-4",
         "onboarder-phase-5",
         "onboarder-phase-5-reonboarding",
-        "websearch-stack-research",
-        "websearch-usage"
+        "research"
       ]
     }
   ],
@@ -96,8 +95,7 @@
     "onboarder-phase-3-4",
     "onboarder-phase-5",
     "onboarder-phase-5-reonboarding",
-    "websearch-stack-research",
-    "websearch-usage"
+    "research"
   ],
   "subagent_graph": {},
   "max_depth": 1,
