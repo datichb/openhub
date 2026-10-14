@@ -287,7 +287,7 @@ func TestShippedCases(t *testing.T) {
 			assert.Equal(t, "accept", c.Answers.Wiki, "the proposals on the card are accepted")
 		}
 	}
-	assert.Equal(t, []string{"S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10", "S11", "S12", "S13", "S14", "S15", "S16", "S17", "S18", "S19", "S20", "S21", "S22", "S23", "S24", "S25", "S26", "S27", "S28", "S29", "S30", "S31", "S33", "S34", "S35", "S36", "S37", "S38", "S39", "S40", "S41", "S42", "S43", "S44", "S45", "S46", "S47", "S48", "S49", "S50", "S51", "S52", "S53", "S54", "S70", "S71"}, ids)
+	assert.Equal(t, []string{"S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10", "S11", "S12", "S13", "S14", "S15", "S16", "S17", "S18", "S19", "S20", "S21", "S22", "S23", "S24", "S25", "S26", "S27", "S28", "S29", "S30", "S31", "S33", "S34", "S35", "S36", "S37", "S38", "S39", "S40", "S41", "S42", "S43", "S44", "S45", "S46", "S47", "S48", "S49", "S50", "S51", "S52", "S53", "S54", "S58", "S59", "S60", "S61", "S70", "S71"}, ids)
 }
 
 func requireGit(t *testing.T) {
@@ -439,6 +439,10 @@ var notInBaseline = map[string]string{
 	"S52": "added by R6 (fan-out: two independent tickets, one child each, merged by oh, cp-2 delegated to cp-merge)",
 	"S53": "added by R6 (fan-out: two children change the same line, conflict resolved by the merger, checked by oh)",
 	"S54": "added by p5-fixes (re-onboarding: the stale entry replaced through wiki_propose replaces, not doubled)",
+	"S58": "added by branchements (security-fix: the finding set aside at cp-triage ticketed with its reason, recorded; one contract line per kept finding)",
+	"S59": "added by branchements (spike: go decision and verdict recorded by oh, spec proposed with the decision)",
+	"S60": "added by branchements (feature without a request: the conductor asks for it with question before the planner)",
+	"S61": "added by branchements (audit: security report and type recorded by oh, security-fix proposed)",
 	"S70": "added by r6-leftovers (fan-out: cp-merge refused with an instruction, fix round on the integration branch, cp-merge again)",
 	"S71": "added by r6-leftovers (fan-out: the instructions of the parent given to the child, fanout.inputs)",
 }
