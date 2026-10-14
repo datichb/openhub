@@ -7,6 +7,8 @@ description:
   fr: Comprendre une demande, écrire sa spec dans le wiki (glossaire, critères et points de test) et la découper en tickets Beads, sans l'implémenter
   en: Understand a request, write its spec in the wiki (glossary, criteria and test points) and slice it into Beads tickets, without implementing it
 risk: plan
+# R5: `oh run cadrage` launches spec (cadrage.yaml removed).
+aliases: [cadrage]
 inputs:
   request:
     type: text
@@ -19,6 +21,9 @@ inputs:
 prompt:
   template: prompts/spec.md.tmpl
 agents:
+  # R5: exploration before the interview when the request compares designs
+  # or asks for an analysis of the code (codebase-design), as in cadrage.
+  pathfinder: { role: workflow, mode: subagent }
   # E8 (R4): the planner stays read-only, except its spec in the wiki.
   planner: { role: workflow, mode: subagent, writes: ["docs/wiki/specs/**"] }
   designer: { role: workflow, mode: subagent }
@@ -73,6 +78,12 @@ preconditions:
 beads:
   allow: [show, list, ready, children, search, query, count, lint, find-duplicates, label, dep, create, update, comments, duplicate, supersede]
 runtime: { default: local, allowed: [local] }
+# R5: recorded by oh (spec checked at cp-converge and cp-spec, tickets
+# created through the Beads gateway), never declared by an agent.
 outputs:
-  - { id: spec, type: path, label: { fr: Spec écrite, en: Written spec } }
-  - { id: tickets, type: beads-ids, label: { fr: Tickets créés, en: Created tickets } }
+  - { id: spec, type: path, record: spec, label: { fr: Spec écrite, en: Written spec } }
+  - { id: tickets, type: beads-ids, record: created, label: { fr: Tickets créés, en: Created tickets } }
+next:
+  - workflow: implement-spec
+    when: { outputs: [tickets] }
+    inputs: { tickets: session.output(tickets), spec: session.output(spec) }

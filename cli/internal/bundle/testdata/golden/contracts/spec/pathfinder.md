@@ -1,6 +1,6 @@
 ## Contrat de session
 
-> Généré par oh à partir du workflow `cadrage`.
+> Généré par oh à partir du workflow `spec`.
 
 - **Rôle** : sous-agent, invoqué via l'outil `task` par `conductor`. L'utilisateur ne voit ni ton texte ni tes appels à l'outil `question`.
 - **Retour** : ta réponse finale est ton enveloppe de retour, un seul bloc `## Retour vers conductor`.
