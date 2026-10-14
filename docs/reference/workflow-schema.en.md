@@ -62,7 +62,7 @@ Every top-level field can be locked by `enforce`, except `apiVersion`, `kind`, `
 enforce: [checkpoints, modes]   # or ["*"] for the whole document
 ```
 
-- Values: `category`, `label`, `description`, `risk`, `isolation`, `code_mode`, `entry`, `inputs`, `prompt`, `agents`, `checkpoints`, `modes`, `circuit_breaker`, `models`, `skills`, `plugins`, `mcp`, `beads`, `runtime`, `outputs`, `limits`, `preconditions`, or `"*"`. Any other value: `enforce_unknown_field`.
+- Values: `category`, `label`, `description`, `risk`, `isolation`, `code_mode`, `entry`, `inputs`, `prompt`, `agents`, `checkpoints`, `modes`, `circuit_breaker`, `models`, `skills`, `plugins`, `mcp`, `beads`, `runtime`, `outputs`, `limits`, `preconditions`, `headless`, `next`, `aliases`, or `"*"`. Any other value: `enforce_unknown_field`.
 - The lock covers the whole top-level field (`checkpoints` locks every checkpoint).
 - Locks add up along the `extends` chain; a more specific layer cannot remove any.
 - Launch options (mode, environment, inputs) stay allowed, within the limits of the workflow.
@@ -254,6 +254,23 @@ inputs:
 - The launch form does not ask for these inputs (they stay editable).
 - Checks: `input_from_invalid` (syntax), `input_from_unknown_source`, `input_from_unknown_input` (missing argument, or the input itself).
 
+#### Sources read from a previous session (R5)
+
+```yaml
+inputs:
+  tickets: { type: beads-ids, required: true, from: session.output(spec.tickets) }
+  digest:  { type: text, from: session.trace(ticket) }
+```
+
+| Source | Computes | Session read |
+|---|---|---|
+| `session.output(<workflow>.<output>)` | the value of an [output](#outputs-outputs) (a list of tickets joined by commas) | the session the launch is chained from (`oh run … --parent <id>`) when it is a session of that workflow with that output; otherwise the **last** session of the project of that workflow that has it |
+| `session.trace()`, `session.trace(<workflow>)` | a summary of the trace of the session (checkpoints, refused decisions, refused calls, skills, delegations, outputs, totals; 8,000 characters at most), for a retrospective | the parent session, otherwise the last finished session of the project (of that workflow) |
+
+- No argument input: these sources are computed without another input. The launch shows the session read (“session.output(spec.tickets): session ses_… ev-1,ev-2”).
+- Nothing found: the input stays empty; a required input is then refused at launch (`session_input_missing`).
+- Checks: the named workflow exists (`input_from_unknown_workflow`), declares the output (`input_from_unknown_output`), the type of the output fits the input (`input_from_type`: `beads-ids` → `beads-ids`/`beads-id`, `path` → `path`/`string`/`text`, `branch` → `branch`/`string`, `report` → `string`/`text`; `session.trace` → `text`); `session.output(<output>)` without a workflow is refused in `from:` (`input_from_session_workflow`).
+
 ---
 
 ## Prompt
@@ -340,7 +357,7 @@ E8 (R4): an agent that changes no file (the `planner`) may write the declared do
 | shell, refused | `git commit --amend`, `-a`/`--all`, `--include`/`-i`, `--only`/`-o`, `-C`, `git add -A`/`--all`/`-u`/`.`/`-f` (they would take in the user's work) |
 
 - The commit stays locked until the checkpoint that unlocks it (`unlocks: [commit]`); the guards of oh (`.git/`, `.beads/`, hooks, `--no-verify`, scratch folders, global guard) come after and win. Like the other guards, rules on the raw text of the commands: a guard rail, not a sandbox.
-- The session contract of the agent lists its writes, the workflow map recalls them, and the `writes` condition of blocks (`<!-- oh:when writes -->`) keeps a text in those sessions only: the planner of `cadrage` keeps its “you never change files” prompt.
+- The session contract of the agent lists its writes, the workflow map recalls them, and the `writes` condition of blocks (`<!-- oh:when writes -->`) keeps a text in those sessions only: the planner of `feature` keeps its “you never change files” prompt.
 - Paths: relative, under `docs/`, a file or a folder ending in `/**`, no other wildcard (`writes_path_invalid`), each once (`duplicate_entry`); refused in a `risk: read` workflow (`writes_read_only`).
 - Patch, **narrowing only**: a team or project layer keeps, removes or narrows the inherited paths (`docs/wiki/specs/team/**` under `docs/wiki/specs/**`, `writes: []`); a path the parent does not cover, or `writes` on an agent that had none or on an agent added by the layer, is a loosening (`loosening`), and the parent's list is kept.
 
@@ -534,10 +551,60 @@ outputs:
 | Field | Type | Values |
 |---|---|---|
 | `id` | text | unique in the list |
-| `type` | text | `branch`, `merge_request`, `beads-ids`, `path` |
+| `type` | text | `branch`, `merge_request`, `beads-ids`, `path`, `report` (id of an `rp-…` report) |
 | `label` | translatable text | displayed label |
+| `record` | text | absent: declared by the agent; otherwise **recorded by oh** (R5): `created`, `closed`, `spec`, `report` |
 
-The agent declares the values with the MCP tool `workflow_outputs`. At the end of the session, they offer "Chain with…" (key `e` of the Sessions view) and `oh session results`. Patch: list replaced as a whole.
+Without `record`, the agent declares the value with the MCP tool `workflow_outputs` (the workflow map lists it under “Outputs to declare”, `workflow_status` under `expected_outputs`). At the end of the session, the outputs offer "Chain with…" (key `e` of the Sessions view), the [`next`](#composition-next-and-aliases) steps and `oh session results`. Patch: list replaced as a whole.
+
+### Outputs recorded by oh (`record`)
+
+A `record:` output is filled by oh from what it sees the session do; no agent can declare it (`workflow_outputs` refuses it) and the workflow map does not mention it.
+
+| `record` | Type | What oh records |
+|---|---|---|
+| `created` | `beads-ids` | the tickets the session created through the Beads gateway (`bd create`, `create --file`, `q`, `--json`, `--silent`), added as they are created |
+| `closed` | `beads-ids` | the tickets the session closed through the Beads gateway |
+| `spec` | `path` | the specs checked by oh at a passed `verify.spec` checkpoint (several: joined by commas); without a `verify.spec` checkpoint, warning `output_record_spec_unchecked` |
+| `report` | `report` | the last report deposited with `workflow_report` |
+
+- The type must be the one of the table (`output_record_type`).
+- At the end of the workflow, oh no longer fills a recorded output with the closed tickets (as it does for a declared `beads-ids` output).
+- A remote session does not record creations (tickets only have a provisional id there).
+
+---
+
+## Composition (`next` and `aliases`)
+
+```yaml
+aliases: [cadrage]                 # oh run cadrage launches this workflow
+next:
+  - workflow: implement-spec
+    when: { outputs: [tickets] }   # proposed only when the session has this output
+    inputs:
+      tickets: session.output(tickets)
+      spec: session.output(spec)
+```
+
+### `next` — what oh proposes next (E4)
+
+| Field | Type | Role |
+|---|---|---|
+| `workflow` | id | proposed workflow (or an alias) |
+| `label` | translatable text | label of the proposal (default: the workflow's) |
+| `when.outputs` | list of ids | the proposal is made only when the session has all these outputs |
+| `inputs.<input>` | `session.output(<output>)` | input of the proposed workflow, prefilled with an output of the session that ends |
+
+- **A proposal, never a launch**: when the client of a session launched by `oh run` closes, oh shows the outputs of the session and the command of each step (`oh run implement-spec --parent ses_… --tickets ev-1,ev-2 -i spec=…`); `oh session next <id>` shows them again; the Sessions view of the TUI puts them first in “Chain with…” and in the end-of-session notification.
+- The proposed launch carries `--parent`: the `session.output(…)` sources of its inputs read that session first.
+- Checks: `next_unknown_workflow`, `next_self`, `duplicate_entry`, `next_unknown_output` (output of `when` or `inputs` not declared), `next_input_invalid` (another form than `session.output(<output>)`), `next_unknown_input` (input missing from the proposed workflow), `next_input_type` (incompatible type). Patch: list replaced as a whole.
+
+### `aliases` — other names of the workflow
+
+- `aliases: [cadrage]` or `aliases: [{ id: feature, with: tickets }]`: `oh run <alias>` (and the launch form, `oh eval`) launches this workflow and says so (“cadrage is an alias: launching spec”). The given inputs go to the target workflow.
+- **`with`**: the alias goes to this workflow only when this input is given at launch (`--tickets` fills the ticket input); otherwise it goes to the workflow that declares it without `with`. One alias may thus go to two workflows depending on the inputs.
+- A document with the id of the alias, in any layer, wins: the alias no longer applies (`alias_shadowed`, warning).
+- Checks: `id_invalid`, `alias_self`, `duplicate_entry`, `alias_with_unknown_input`; on the catalogue: `alias_ambiguous` (alias declared without `with` by two workflows), `alias_without_default` (alias with only `with` routes). Patch: list replaced as a whole.
 
 ---
 
@@ -583,6 +650,7 @@ A diagnostic has a severity (error or warning), a code, the field path, the sour
 | `method_input_type`, `checkpoint_method_no_input`, `checkpoint_method_mandatory`, `checkpoint_method_after`, `verify_since_unknown`, `verify_since_method`, `verify_outside_tests_ignored` | method of the session and test written first (R7) |
 | `precondition_check_invalid`, `precondition_path_invalid`, `precondition_branch_invalid`, `precondition_tool_invalid`, `precondition_self`, `precondition_unknown_workflow`, `patch_unknown_precondition` | preconditions |
 | `prompt_both`, `prompt_empty`, `prompt_template_path`, `prompt_template_missing`, `prompt_parse`, `prompt_unknown_variable` | prompt |
+| `next_unknown_workflow`, `next_self`, `next_unknown_output`, `next_input_invalid`, `next_unknown_input`, `next_input_type`, `alias_self`, `alias_shadowed`, `alias_with_unknown_input`, `alias_ambiguous`, `alias_without_default`, `output_record_type`, `output_record_spec_unchecked`, `input_from_type`, `input_from_unknown_workflow`, `input_from_unknown_output`, `input_from_session_workflow` | composition: `next`, `aliases`, outputs recorded by oh, `session.*` sources (R5) |
 | `read_agent_writes`, `read_beads_unrestricted`, `read_beads_write`, `read_plugin_exec` | `risk: read` rules |
 | `plan_agent_writes`, `plan_beads_unrestricted`, `plan_beads_delete`, `plan_without_beads_write` | `risk: plan` rules |
 | `remote_forbidden_checkpoint`, `publish_remote_runtime`, `runtime_default_not_allowed`, `mode_default_not_allowed`, `isolation_unsupported` | environments, modes, isolation |

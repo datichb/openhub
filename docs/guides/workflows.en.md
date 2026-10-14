@@ -23,7 +23,8 @@ Each session runs a **workflow** (see [Built-in workflows](../reference/workflow
 | Production bug with stacktrace or logs | `oh run debug` | `debugger` | `"This bug: [stacktrace]"` |
 | Measure performance, before/after an optimisation | `oh run benchmark -i target=…` | `benchmarker` | target (URL, endpoint, package, command), `-i baseline=main` |
 | Review of a manually developed PR | `oh run review` | `reviewer` | `"Review my PR — branch: [name]"` |
-| Plan a feature without implementing it | `oh run cadrage` | `conductor` → `planner` | `"Break down [feature] into tickets"` |
+| Specify a feature without implementing it (spec in the wiki, tickets) | `oh run spec` (alias `oh run cadrage`) | `conductor` → `planner` | `"Specify [feature]"` |
+| Implement the tickets of a spec, one after the other | `oh run implement-spec` (tickets of the last `spec` session by default) | `orchestrator-dev` | `--tickets bd-X,bd-Y` |
 | Plan + delegate UX/UI specs via the planner | `oh run libre --agent planner` | `planner` | `"Plan [feature]"` then `"invoke UX"` / `"invoke UI"` |
 | Document a delivered feature or a decision | `oh run libre --agent documentarian` | `documentarian` | `"Document [topic]"` |
 

@@ -42,6 +42,20 @@ Le planner reste en lecture seule ; le workflow lui ouvre seulement `docs/wiki/s
 
 Refusez `cp-spec` ou `cp-tickets` avec une consigne (« ajoute une règle : … », « ajoute une tranche pour la CI ») : le planner modifie le fichier, qui repasse par `cp-converge`, `cp-spec` (nouveau commit) et `cp-tickets`. Une tranche demandée qui ne couvre aucun critère est refusée par oh tant que la spec n'a pas le critère correspondant.
 
+## Et ensuite : `implement-spec`
+
+oh relève lui-même la spec vérifiée et les tickets créés (les agents n'ont rien à déclarer). Quand vous fermez le client de la session, oh affiche ces sorties et la suite qu'il propose, sans la lancer :
+
+```
+Sorties de la session :
+  spec : docs/wiki/specs/reservations.md
+  tickets : bd-12,bd-13
+→ Suite proposée : implement-spec — Implémenter une spec
+    oh run implement-spec --parent ses_… --tickets bd-12,bd-13 -i spec=docs/wiki/specs/reservations.md
+```
+
+`oh session next <session>` redonne cette proposition ; dans la TUI, elle arrive en tête de « Enchaîner avec… » (touche `e` de la vue Sessions). `oh run implement-spec` sans ticket reprend d'ailleurs les tickets et la spec de la dernière session `spec` du projet. `implement-spec` traite les tickets l'un après l'autre (`cp-plan`, un `cp-2` par ticket, revue de l'ensemble à `cp-final`) : voir [Workflows livrés](../reference/workflows.fr.md#implement-spec).
+
 ## Et `cadrage` ?
 
-`cadrage` reste disponible : exploration par le pathfinder, découpage en tickets, aucun fichier écrit. Choisissez `spec` quand la spec doit rester dans le wiki et servir de référence aux tickets. Détails des deux workflows : [Workflows livrés](../reference/workflows.fr.md#spec).
+`cadrage` est désormais un alias de `spec` : `oh run cadrage` lance `spec`. Quand la demande compare des conceptions ou demande d'analyser le code, le pathfinder l'explore d'abord, comme dans l'ancien `cadrage`. Détails : [Workflows livrés](../reference/workflows.fr.md#spec).

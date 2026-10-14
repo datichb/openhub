@@ -23,7 +23,8 @@ Chaque session lance un **workflow** (voir [Workflows livrés](../reference/work
 | Bug en production avec stacktrace ou logs | `oh run debug` | `debugger` | `"Ce bug : [stacktrace]"` |
 | Mesurer les performances, avant/après une optimisation | `oh run benchmark -i target=…` | `benchmarker` | cible (URL, endpoint, package, commande), `-i baseline=main` |
 | Review d'une PR développée manuellement | `oh run review` | `reviewer` | `"Review de ma PR — branche : [nom]"` |
-| Planifier une feature sans l'implémenter | `oh run cadrage` | `conductor` → `planner` | `"Décompose [feature] en tickets"` |
+| Spécifier une feature sans l'implémenter (spec dans le wiki, tickets) | `oh run spec` (alias `oh run cadrage`) | `conductor` → `planner` | `"Spécifie [feature]"` |
+| Implémenter les tickets d'une spec, l'un après l'autre | `oh run implement-spec` (tickets de la dernière session `spec` par défaut) | `orchestrator-dev` | `--tickets bd-X,bd-Y` |
 | Planifier + déléguer les specs UX/UI au planner | `oh run libre --agent planner` | `planner` | `"Planifie [feature]"` puis `"invoquer UX"` / `"invoquer UI"` |
 | Documenter une feature livrée ou une décision | `oh run libre --agent documentarian` | `documentarian` | `"Documente [sujet]"` |
 

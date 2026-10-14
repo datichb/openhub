@@ -44,6 +44,8 @@ assertions:
     before: { checkpoint_passed: cp-2 }
 hidden_tests: "go test ./..."   # default: by stack (go.mod, package.json, pyproject.toml, else make test)
 reports: off                # the daemon keeps no report: workflow_report answers "not recorded"
+previous:                   # finished sessions of the project, recorded before the launch (session.output sources)
+  - { workflow: spec, outputs: { tickets: [ev-1], spec: docs/wiki/specs/x.md } }
 ```
 
 The `before:` anchors name the first matching event of the trace: `checkpoint` (reached), `checkpoint_passed`, `subagent`, `tool` (with `arg`, a pattern of the path or command), `text` (regular expression), `command` (shell pattern), restricted to an agent with `agent`. Shell patterns accept `*` and also check each part of a chained command (`cd x && go test ./...`).
@@ -89,6 +91,12 @@ The assertions are described in the [`oh eval` reference](../docs/reference/cli-
 | S34 | release | A breaking change announced only in a commit footer (`BREAKING CHANGE:`), missing from the CHANGELOG: `2.0.0`, the change and its migration in the section |
 | S35 | release | Release refused at `cp-release`: no write, no commit, no tag |
 | S36 | release | Release MR asked on `release/1.3`, without a remote: no MR opened nor push, complete description (title, breaking changes, checks, rollback) and the command to open it after the push in the report (`reports: off`) |
+| S37 | implement-spec | Two existing tickets processed one after the other: `cp-plan` before any delegation, one `cp-2` per ticket, review of the whole at `cp-final`; oh records both closed tickets (output `tickets`); hidden tests |
+| S38 | implement-spec | Plan refused at `cp-plan`: nothing is delegated, changed nor committed |
+| S39 | spec | oh records the spec and the created tickets (`record:` outputs, none declared by an agent) and proposes `implement-spec` with these tickets and this spec (`next:`) |
+| S40 | implement-spec | No ticket given: tickets and spec taken from the last `spec` session of the project (`session.output`, `previous:`), implemented, closed ticket recorded by oh; hidden tests |
+
+`cadrage` is an alias of `spec` since R5: cases S5, S15, S19 and S27 (folder `cadrage/`) launch `spec`, and S27 goes through the exploration by the pathfinder that precedes the interview when the request compares designs.
 
 
 The reference measure (Haiku, three repetitions) is recorded in `cli/internal/evalrun/testdata/evals/baseline.json`; `make test-eval` compares the current run with it.

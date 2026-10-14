@@ -26,8 +26,8 @@ On lance un workflow avec `oh run <workflow>` ou la fiche de lancement de la TUI
 | `feature` | `orchestrator` | `pathfinder`, `planner`, `designer`, `orchestrator-dev`, `developer`, `reviewer`, `documentarian` (à la demande) | write | local | `oh start` (anciens modes A, B et E) |
 | `quick` | `developer` | — | write | local | session rapide |
 | `infra-change` | `operator` | — | write (infrastructure, aucun fichier) | local | ancien agent `infra` (partie application) |
-| `cadrage` | `conductor` | `pathfinder`, `planner`, `designer` | plan | local | ancien mode A sans implémentation |
-| `spec` | `conductor` | `planner` (écrit `docs/wiki/specs/`), `designer` | plan (+ `writes:`) | local | `cadrage` avec une spec écrite et vérifiée |
+| `spec` (alias `cadrage`) | `conductor` | `pathfinder` (si la demande compare des conceptions), `planner` (écrit `docs/wiki/specs/`), `designer` | plan (+ `writes:`) | local | `cadrage` (ancien mode A sans implémentation), avec une spec écrite et vérifiée |
+| `implement-spec` | `orchestrator-dev` | `developer`, `reviewer`, `documentarian` (à la demande) | write | local | partie implémentation de `feature` |
 | `onboarding` | `onboarder` | — | write (`docs/wiki/`) | local, distant | `oh start --onboard` (ancien mode C) |
 | `doc-sync` | `documentarian` | — | write (`docs/wiki/`) | local | — |
 | `skill-refresh` | `documentarian` | — | write (skills de stack du hub) | local | — |
@@ -71,7 +71,7 @@ preconditions:
 - Autres tests : `git_clean: true` (aucune modification non commitée, `.beads/` exclu), `branch: [main, "release/*"]` (branche courante), `tools: [goreleaser]` (commandes dans le `PATH`) ; en cas d'échec, le message dit ce qui a été trouvé (modifications, branche, outils manquants). Voir le [schéma](workflow-schema.fr.md#préconditions).
 - Chemins relatifs, sans `..`. Un patch (`extends`) modifie une précondition par son identifiant ou la retire (`disabled: true`).
 
-`release` refuse de se lancer sur un arbre sale ou hors de `main`, `master` et `release/*`. `feature`, `cadrage` et `spec` proposent `onboarding` quand le projet n'a ni wiki, ni `ONBOARDING.md`, ni `CONVENTIONS.md`.
+`release` refuse de se lancer sur un arbre sale ou hors de `main`, `master` et `release/*`. `feature`, `spec` (et son alias `cadrage`) et `implement-spec` proposent `onboarding` quand le projet n'a ni wiki, ni `ONBOARDING.md`, ni `CONVENTIONS.md`.
 
 ---
 
@@ -127,6 +127,8 @@ Aucun ticket n'est créé avant `cp-tickets` (avec des tickets existants seuleme
 
 L'ancienne pré-phase d'onboarding (mode C) n'est plus dans `feature` : la précondition `project-context` propose le workflow `onboarding`, puis le retour à `feature`.
 
+La même chaîne existe en deux workflows composés (R5) : [`spec`](#spec), qui propose à sa fin [`implement-spec`](#implement-spec) sur les tickets créés. `feature` reste inchangé dans cette version ; il deviendra l'enchaînement `spec` → `implement-spec` (un alias routé par les entrées : `aliases: [{ id: feature, with: tickets }]` dans `implement-spec`, `feature` dans `spec`) une fois les couches d'équipe qui l'étendent migrées.
+
 ## `quick`
 
 Session de développement directe avec l'agent `developer`, sans planification. Un seul checkpoint, `cp-commit` (obligatoire, en pause dans tous les modes) : il déverrouille `commit` et `close` ; avant lui, oh refuse tout `git commit` et la fermeture d'un ticket. Le push revient à l'utilisateur. Le développeur déduit le domaine de la demande et charge les standards correspondants. Il propose `feature` si la demande s'avère importante. Commandes Beads autorisées : `show`, `list`, `ready`, `search`, `query`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `close`, `dep`, `label`.
@@ -134,22 +136,6 @@ Session de développement directe avec l'agent `developer`, sans planification. 
 | Entrée | Type | Obligatoire | Rôle |
 |---|---|---|---|
 | `request` | `text` (8 000 caractères max) | non | Ce qu'il faut faire ; sinon, la session attend la demande |
-
-## `cadrage`
-
-Explore, planifie et spécifie une feature sans l'implémenter : seuls des tickets Beads sont créés (`risk: plan`). Le `conductor` enchaîne `pathfinder` (exploration), `planner` (découpage et création des tickets) et `designer` (spécification UX/UI si besoin).
-
-| Entrée | Type | Obligatoire | Rôle |
-|---|---|---|---|
-| `request` | `text` (8 000 caractères max) | oui | La feature à cadrer |
-
-| Checkpoint | manuel | semi-auto | auto |
-|---|---|---|---|
-| `cp-scope` Valider le périmètre (avant la planification) | pause | pause | auto |
-| `cp-tickets` Valider le découpage (obligatoire, déverrouille `create`) | pause | pause | pause |
-| `cp-recap` Récap du cadrage | pause | pause | auto |
-
-`planner` ne démarre qu'après `cp-scope`. Avant `cp-tickets`, oh refuse toute création de ticket (règles shell et passerelle Beads) : le planner propose le découpage, le `conductor` passe `cp-tickets`, puis relance le planner qui crée les tickets. Mode par défaut : `semi-auto`. Commandes Beads autorisées : `show`, `list`, `ready`, `children`, `search`, `query`, `count`, `lint`, `find-duplicates`, `label`, `dep`, `create`, `update`, `comments`, `duplicate`, `supersede`. Sortie : `tickets`. Pour implémenter ensuite : `ticket` ou `feature` sur les tickets créés.
 
 ## `spec`
 
@@ -174,9 +160,37 @@ Déroulé :
 4. **`cp-spec`** : l'utilisateur valide la spec (même vérification) ; le planner la commite seule : `git add docs/wiki/specs/<slug>.md`, puis `git commit -m "docs(spec): <slug>" -- docs/wiki/specs/<slug>.md`.
 5. **`cp-tickets`** : l'utilisateur valide le découpage ; le planner crée un ticket par tranche, dont la description cite la spec et ses critères. Une spec ou un découpage modifiés à un checkpoint repassent par `cp-converge`, `cp-spec` (nouveau commit) et `cp-tickets`.
 
-Budget de pauses (CP-R2) en semi-auto : 3 pauses (1 décision, 2 actions irréversibles), pour un budget de 4. Mode par défaut : `semi-auto`. Commandes Beads autorisées : celles de `cadrage`. Sorties : `spec` (chemin) et `tickets`. Pour implémenter ensuite : `ticket` ou `feature` sur les tickets créés.
+Exploration : quand la demande compare des conceptions ou demande d'analyser le code avant de spécifier, le `conductor` lance d'abord le `pathfinder` (skill `codebase-design`) et passe son rapport au planner ; sinon l'entretien commence directement.
 
-`cadrage` est conservé tel quel (exploration par le `pathfinder`, `cp-scope`, aucun fichier écrit) : ses cas d'évaluation (S5, S15, S19, S27) en dépendent. `spec` en est la version avec spec écrite et vérifiée ; `cadrage` deviendra un alias de `spec` quand `feature` sera composé de `spec` puis `implement-spec` (R5).
+Budget de pauses (CP-R2) en semi-auto : 3 pauses (1 décision, 2 actions irréversibles), pour un budget de 4. Mode par défaut : `semi-auto`. Commandes Beads autorisées : `show`, `list`, `ready`, `children`, `search`, `query`, `count`, `lint`, `find-duplicates`, `label`, `dep`, `create`, `update`, `comments`, `duplicate`, `supersede`.
+
+Sorties **relevées par oh** (aucun agent ne les déclare) : `spec` (la spec vérifiée à `cp-converge` et `cp-spec`) et `tickets` (les tickets créés après `cp-tickets`). Suite proposée (`next:`) quand des tickets ont été créés : **`implement-spec`** sur ces tickets et cette spec ; oh l'affiche à la fermeture du client (`oh run`), dans `oh session next <id>` et dans « Enchaîner avec… » de la TUI, sans la lancer.
+
+**`cadrage` est un alias de `spec`** (R5) : `oh run cadrage` lance `spec` (`aliases: [cadrage]`). L'ancien `cadrage` (exploration systématique, `cp-scope`, `cp-recap`, aucun fichier écrit) n'existe plus ; une couche d'équipe ou de projet qui définit un workflow `cadrage` l'emporte sur l'alias.
+
+## `implement-spec`
+
+Implémente les tickets d'une spec l'un après l'autre, dans une seule session (`risk: write`), puis fait revoir l'ensemble. C'est la partie implémentation de `feature`, sans planification : l'`orchestrator-dev` lit lui-même les tickets (`bd show`) et fixe l'ordre (dépendances, puis priorité). **Version séquentielle** : les sessions enfants dans des worktrees, le parallélisme et le merge par oh viendront avec R6.
+
+| Entrée | Type | Obligatoire | Rôle |
+|---|---|---|---|
+| `tickets` | `beads-ids` | oui | Tickets à implémenter ; par défaut `session.output(spec.tickets)` : ceux de la session `spec` dont le lancement découle (`--parent`), sinon de la dernière session `spec` du projet |
+| `spec` | `path` | non | Spec des tickets ; par défaut `session.output(spec.spec)` |
+| `method` | `enum` : `standard`, `tdd` | non (`standard`) | Méthode TDD : `cp-seams` et `cp-red` pour chaque ticket |
+| `instructions` | `text` (4 000 caractères max) | non | Précisions pour la session |
+
+| Checkpoint | manuel | semi-auto | auto |
+|---|---|---|---|
+| `cp-plan` Valider le plan (obligatoire) : ordre des tickets, agent prévu, tickets écartés | pause | pause | pause |
+| `cp-1` Démarrer le ticket | pause | auto | auto |
+| `cp-seams`, `cp-red` (méthode `tdd`) | comme dans `ticket` | | |
+| `cp-2` Commit ou correction (obligatoire, vérifié par oh, déverrouille `commit` et `close`) | pause | pause | pause |
+| `cp-3` Ticket suivant | pause | auto | auto |
+| `cp-final` Revue de l'ensemble et récap | pause | pause | auto |
+
+Aucune délégation avant `cp-plan`. Chaque ticket passe par son `cp-2` (commit, puis fermeture, avant le suivant). Tous les tickets traités, le `reviewer` fait une review adversariale de tous les commits de la session ; `cp-final` présente son verdict, les tickets et leurs commits, les points ouverts : l'utilisateur décide d'un tour de correction (un seul, repassé par `cp-2`) ou de s'arrêter.
+
+Budget de pauses (CP-R2) en semi-auto : `cp-plan`, `cp-2`, `cp-final`, soit 3 pauses pour un budget de 3 (2 décisions, 1 action irréversible) ; la méthode `tdd` en ajoute une (`cp-seams`). Une feature de N tickets coûte donc N + 2 pauses (au lieu de N + 3 dans `feature`). Mode par défaut : `semi-auto`. Exécution : locale. Commandes Beads autorisées : `show`, `list`, `ready`, `children`, `dep`, `update`, `close`, `comments`, `label`. Sorties : `branch` (déclarée), `tickets` (tickets fermés, relevés par oh).
 
 ## `onboarding`
 
