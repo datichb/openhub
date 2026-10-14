@@ -9,6 +9,13 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Fixed — petites dettes de P4 (lot p4-debts)
+
+- **`question` du developer agent d'entrée** : la base `developer-rw` ne refuse plus l'outil ; le developer le garde là où l'utilisateur lui parle (agent d'entrée de `quick`, agent principal indépendant de `debug`), et oh le lui refuse toujours en sous-agent (`ticket`, `feature`, `sweep`, `review-feedback`, `libre`). S10 3/3 (le developer pose sa question avec l'outil dans 2 passages sur 3), S7 3/3, S2 3/3 sans question du sous-agent.
+- **Préconditions d'un workflow `risk: publish`** : ce sont des champs de sécurité. Une couche d'équipe ou de projet peut en ajouter ou les durcir, jamais les retirer (`disabled`) ni les assouplir (`git_clean` retiré, motif de branche non couvert par le parent, outil retiré, chemin ajouté à `path_exists`, `block` changé en `suggest`) : `loosening`, la précondition du parent est gardée.
+- **Fenêtre du tag** : elle se referme après le premier tag (oh relève les tags locaux à l'ouverture et referme la fenêtre dès qu'ils changent ; une lecture git qui échoue la referme aussi). Le tag attend toujours le commit de release.
+- **Frontmatter des specs** : `verify.spec` vérifie d'abord le format du wiki, avec le contrôle de `wiki_check` (frontmatter présent et lisible, `updated` en date, `confidence` parmi `confirmed`, `mixed`, `uncertain` et cohérente avec les tags, `agents` non vide, lignes de tag bien formées) ; seules les clés `updated`, `confidence` et `agents` sont admises (`frontmatter_key`). Planner de `spec` +24 tokens (+0,4 %) ; S30 3/3. Coût des évaluations du lot : 2,19 $ (Haiku).
+
 ### Fixed — défauts de la vague 2 de P4 (lot p4-fixes)
 
 - **Garde git** : seule la sous-commande de git est visée (`git x`, après `env`, un chemin, ses options globales comme `git -C <dossier>`, dans `sh -c '…'` ou `eval`, `'git'`, plusieurs espaces) ; un message de tag ou de commit qui contient « git » puis « clean » (« cleanup ») n'est plus refusé. La définition d'un alias git (`git config … alias…`) est refusée. Faux positifs acceptés : la commande citée telle quelle dans un message, un mot du message après une option globale de git.
