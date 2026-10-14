@@ -174,7 +174,7 @@ func TestQuestionRefusedToPureSubagents(t *testing.T) {
 		return "", false
 	}
 	for wf, ids := range map[string][]string{
-		"spec": {"planner", "designer"}, "cadrage": {"planner", "pathfinder", "designer"},
+		"spec": {"planner", "pathfinder", "designer"}, "implement-spec": {"developer", "reviewer"},
 		"feature": {"pathfinder", "planner", "designer", "orchestrator-dev", "reviewer", "developer"}, "ticket": {"developer", "reviewer"},
 		"sweep": {"developer"}, "review-feedback": {"developer"},
 	} {
@@ -186,7 +186,7 @@ func TestQuestionRefusedToPureSubagents(t *testing.T) {
 			assert.Contains(t, contractOf(agentBody(t, b, id)), "tu n'as pas l'outil `question`", "%s/%s", wf, id)
 		}
 	}
-	for wf, id := range map[string]string{"review": "reviewer", "feature": "orchestrator", "cadrage": "conductor"} {
+	for wf, id := range map[string]string{"review": "reviewer", "feature": "orchestrator", "spec": "conductor", "implement-spec": "orchestrator-dev"} {
 		eff, _ := questionEffect(shippedBundle(t, wf), id)
 		assert.NotEqual(t, sessionspec.EffectDeny, eff, "%s/%s keeps the question tool", wf, id)
 	}

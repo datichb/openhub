@@ -1,0 +1,126 @@
+apiVersion: oh/v1
+kind: Workflow
+id: implement-spec
+category: develop
+label: { fr: Implémenter une spec, en: Implement a spec }
+description:
+  fr: Implémenter les tickets d'une spec l'un après l'autre (développement, review et commit par ticket), puis revoir l'ensemble
+  en: Implement the tickets of a spec one after the other (development, review and commit per ticket), then review the whole
+risk: write
+entry:
+  agent: orchestrator-dev
+inputs:
+  tickets:
+    type: beads-ids
+    required: true
+    # R5: by default, the tickets created by the last spec session of the
+    # project (or by the session the launch is chained from, --parent).
+    from: session.output(spec.tickets)
+    label: { fr: Tickets, en: Tickets }
+    help:
+      fr: Tickets Beads à implémenter, dans une seule session (par défaut, ceux créés par la dernière session spec du projet)
+      en: Beads tickets to implement, in a single session (by default, those created by the last spec session of the project)
+    picker: { multi: true }
+  spec:
+    type: path
+    from: session.output(spec.spec)
+    label: { fr: Spec, en: Spec }
+    help:
+      fr: Spec des tickets dans le wiki (facultatif ; par défaut, celle de la dernière session spec du projet)
+      en: Spec of the tickets in the wiki (optional; by default, the one of the last spec session of the project)
+  method:
+    type: enum
+    values: [standard, tdd]
+    default: standard
+    label: { fr: Méthode, en: Method }
+    help:
+      fr: "tdd : le développeur présente les points d'injection et les tests prévus (cp-seams), écrit d'abord des tests qui échouent, vérifiés par oh (cp-red), puis implémente"
+      en: "tdd: the developer presents the seams and the planned tests (cp-seams), writes failing tests first, checked by oh (cp-red), then implements"
+  instructions:
+    type: text
+    label: { fr: Consignes, en: Instructions }
+    help:
+      fr: Précisions facultatives pour cette session
+      en: Optional details for this session
+    max_length: 4000
+prompt:
+  template: prompts/implement-spec.md.tmpl
+# R5: sequential version (one ticket after the other, in the session's
+# worktree). Child sessions, parallelism and the merge by oh come with R6.
+agents:
+  orchestrator-dev: { role: workflow }
+  developer: { role: workflow, after: cp-1 }
+  reviewer: { role: workflow, mode: subagent }
+  documentarian: { role: independent }
+checkpoints:
+  cp-plan:
+    by: [orchestrator-dev]
+    label: { fr: Valider le plan, en: Approve the plan }
+    description:
+      fr: Avant toute implémentation, présenter le tableau des tickets (ordre de traitement selon les dépendances puis la priorité, agent prévu, tickets écartés et pourquoi).
+      en: Before any implementation, present the ticket table (processing order by dependencies then priority, planned agent, tickets left out and why).
+    mandatory: true
+    mode: { manuel: pause, semi-auto: pause, auto: pause }
+  cp-1:
+    by: [orchestrator-dev]
+    label: { fr: Démarrer le ticket, en: Start the ticket }
+    description:
+      fr: Présenter le ticket et l'agent prévu avant de lancer son implémentation.
+      en: Present the ticket and the planned agent before starting its implementation.
+    mode: { manuel: pause, semi-auto: auto, auto: auto }
+  cp-seams:
+    by: [developer]
+    method: tdd
+    label: { fr: Points d'injection et tests prévus, en: Seams and planned tests }
+    description:
+      fr: "Méthode TDD, avant d'écrire un test : présenter les points d'injection, les interfaces et les tests prévus (comportement attendu, cas limites). Une fois par ticket."
+      en: "TDD method, before writing a test: present the seams, the interfaces and the planned tests (expected behaviour, edge cases). Once per ticket."
+    mode: { manuel: pause, semi-auto: pause, auto: auto }
+  cp-red:
+    by: [developer]
+    method: tdd
+    label: { fr: Tests en échec, en: Failing tests }
+    description:
+      fr: "Méthode TDD, tests écrits et avant le code : oh vérifie que les tests échouent pour la bonne raison et que les changements depuis cp-seams sont des tests (et les seules amorces nécessaires). Une fois par ticket."
+      en: "TDD method, once the tests are written and before the code: oh checks that the tests fail for the right reason and that the changes since cp-seams are tests (and only the stubs they need). Once per ticket."
+    mode: { manuel: auto, semi-auto: auto, auto: auto }
+    verify: { from: stack, expect: fail, must_touch_tests: true, outside_tests: warn, since: cp-seams }
+  cp-2:
+    by: [orchestrator-dev]
+    label: { fr: Commit ou correction, en: Commit or fix }
+    description:
+      fr: Après la review du ticket, présenter le résultat et demander s'il faut committer ou corriger. Un ticket est commité puis fermé avant le suivant.
+      en: After the review of the ticket, present the result and ask whether to commit or fix. A ticket is committed then closed before the next one.
+    mandatory: true
+    mode: { manuel: pause, semi-auto: pause, auto: pause }
+    unlocks: [commit, close]
+    verify: { from: stack, expect: pass }
+  cp-3:
+    by: [orchestrator-dev]
+    label: { fr: Ticket suivant, en: Next ticket }
+    description:
+      fr: Passer au ticket suivant du plan ou s'arrêter.
+      en: Move on to the next ticket of the plan or stop.
+    mode: { manuel: pause, semi-auto: auto, auto: auto }
+  cp-final:
+    by: [orchestrator-dev]
+    label: { fr: Revue de l'ensemble et récap, en: Review of the whole and recap }
+    description:
+      fr: Tous les tickets traités (ou arrêt), la revue de l'ensemble faite — présenter son verdict, les tickets traités et leurs commits, les points ouverts ; l'utilisateur décide d'un tour de correction ou de s'arrêter.
+      en: All tickets processed (or stopped), the review of the whole done — present its verdict, the processed tickets and their commits, the open points; the user decides on a fix round or to stop.
+    mode: { manuel: pause, semi-auto: pause, auto: auto }
+modes: { default: semi-auto, allowed: [manuel, semi-auto, auto] }
+circuit_breaker: { max_consecutive_subagents: 12 }
+limits: { max_fix_rounds: 3 }
+preconditions:
+  project-context:
+    label:
+      fr: Aucun contexte projet trouvé (docs/wiki/index.md, ONBOARDING.md ou CONVENTIONS.md)
+      en: No project context found (docs/wiki/index.md, ONBOARDING.md or CONVENTIONS.md)
+    check: { path_exists: [docs/wiki/index.md, ONBOARDING.md, CONVENTIONS.md] }
+    suggest: { workflow: onboarding, resume: true }
+beads: { allow: [show, list, ready, children, dep, update, close, comments, label] }
+runtime: { default: local, allowed: [local] }
+outputs:
+  - { id: branch, type: branch, label: { fr: Branche de travail, en: Working branch } }
+  - { id: tickets, type: beads-ids, record: closed, label: { fr: Tickets terminés, en: Finished tickets } }

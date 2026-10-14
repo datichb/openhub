@@ -19,6 +19,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/adapters"
+	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/daemon"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/evalrun"
@@ -426,6 +427,8 @@ type evalPassSpec struct {
 	Timeout   time.Duration     `json:"timeout_ns"`
 	Answers   evalrun.Answers   `json:"answers"`
 	OutDir    string            `json:"out_dir"`
+	// Previous are sessions recorded in the project before the launch (R5).
+	Previous []evalrun.PreviousSession `json:"previous,omitempty"`
 }
 
 // Files written by the child in the pass output directory.
@@ -506,7 +509,7 @@ func (e *childEvalExecutor) Execute(ctx context.Context, p evalrun.Pass) (*evalr
 	}
 	c := p.Case
 	spec := evalPassSpec{CaseID: c.ID, Workflow: c.Workflow, Mode: c.Mode, Inputs: c.Inputs, Text: c.Text, Tickets: c.Tickets,
-		Project: p.Project, Model: p.Model, BudgetUSD: p.BudgetUSD, Timeout: c.TimeoutOrDefault(), Answers: c.Answers, OutDir: p.OutDir}
+		Project: p.Project, Model: p.Model, BudgetUSD: p.BudgetUSD, Timeout: c.TimeoutOrDefault(), Answers: c.Answers, OutDir: p.OutDir, Previous: c.Previous}
 	data, err := json.Marshal(spec)
 	if err != nil {
 		return nil, err
@@ -689,6 +692,9 @@ func runEvalSession(ctx context.Context, cmd *cobra.Command, spec evalPassSpec, 
 		return fmt.Errorf("registering the project: %w", err)
 	}
 	errOut := cmd.ErrOrStderr()
+	if err := evalPrevious(ctx, a, project, spec.Previous); err != nil {
+		return fmt.Errorf("recording the previous sessions: %w", err)
+	}
 	opts := runOptions{Workflow: spec.Workflow, Project: project, Inputs: spec.Inputs, Mode: spec.Mode, Text: spec.Text, Tickets: spec.Tickets,
 		Attach: string(sessionspec.AttachNone), Location: "base", Dirty: runsvc.DirtyAllow, OneSession: true}
 	p, err := prepareWorkflowRun(ctx, a, opts, errOut)
@@ -732,6 +738,7 @@ func runEvalSession(ctx context.Context, cmd *cobra.Command, spec evalPassSpec, 
 		return err
 	}
 	defer f.Close()
+	appendNextEvents(tctx, a, tr, sid)
 	if err := tr.WriteJSONL(f); err != nil {
 		return err
 	}
@@ -878,4 +885,20 @@ func stopEvalPass(svc *runsvc.Service, sid string) {
 	if capability, _, err := daemonCapability(ctx); err == nil {
 		_ = daemon.NewClient(daemon.Paths{Dir: ohRunDir()}).WithCapability(capability).Shutdown(ctx, true)
 	}
+}
+
+// evalPrevious records the previous sessions of a case in the project of
+// the pass, finished, oldest first (R5: `from: session.output(…)`).
+func evalPrevious(ctx context.Context, a *app.App, project *domain.Project, prev []evalrun.PreviousSession) error {
+	start := time.Now().Add(-time.Duration(len(prev)+1) * time.Hour)
+	for i, p := range prev {
+		at := start.Add(time.Duration(i) * time.Hour)
+		end := at.Add(30 * time.Minute)
+		s := &domain.Session{ID: fmt.Sprintf("ses_eval_prev_%d", i+1), ProjectID: project.ID, WorkflowID: p.Workflow, StartedAt: at, EndedAt: &end,
+			Status: domain.SessionStatusCompleted, State: domain.RunCompleted, LaunchPath: project.Path, Outputs: p.Outputs}
+		if err := a.Sessions.Create(ctx, s); err != nil {
+			return err
+		}
+	}
+	return nil
 }

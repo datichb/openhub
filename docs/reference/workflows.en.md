@@ -26,8 +26,8 @@ A workflow is launched with `oh run <workflow>` or the TUI launch form; the form
 | `feature` | `orchestrator` | `pathfinder`, `planner`, `designer`, `orchestrator-dev`, `developer`, `reviewer`, `documentarian` (on demand) | write | local | `oh start` (former modes A, B and E) |
 | `quick` | `developer` | — | write | local | quick session |
 | `infra-change` | `operator` | — | write (infrastructure, no file) | local | former `infra` agent (application part) |
-| `cadrage` | `conductor` | `pathfinder`, `planner`, `designer` | plan | local | former mode A without implementation |
-| `spec` | `conductor` | `planner` (writes `docs/wiki/specs/`), `designer` | plan (+ `writes:`) | local | `cadrage` with a written and checked spec |
+| `spec` (alias `cadrage`) | `conductor` | `pathfinder` (when the request compares designs), `planner` (writes `docs/wiki/specs/`), `designer` | plan (+ `writes:`) | local | `cadrage` (former mode A without implementation), with a written and checked spec |
+| `implement-spec` | `orchestrator-dev` | `developer`, `reviewer`, `documentarian` (on demand) | write | local | implementation part of `feature` |
 | `onboarding` | `onboarder` | — | write (`docs/wiki/`) | local, remote | `oh start --onboard` (former mode C) |
 | `doc-sync` | `documentarian` | — | write (`docs/wiki/`) | local | — |
 | `skill-refresh` | `documentarian` | — | write (stack skills of the hub) | local | — |
@@ -71,7 +71,7 @@ preconditions:
 - Other tests: `git_clean: true` (no uncommitted change, `.beads/` excluded), `branch: [main, "release/*"]` (current branch), `tools: [goreleaser]` (commands in the `PATH`); on failure, the message says what was found (changes, branch, missing tools). See the [schema](workflow-schema.en.md#preconditions).
 - Relative paths, without `..`. A patch (`extends`) changes a precondition by its id or removes it (`disabled: true`).
 
-`release` refuses to start on a dirty tree or outside `main`, `master` and `release/*`. `feature`, `cadrage` and `spec` suggest `onboarding` when the project has no wiki, no `ONBOARDING.md` and no `CONVENTIONS.md`.
+`release` refuses to start on a dirty tree or outside `main`, `master` and `release/*`. `feature`, `spec` (and its alias `cadrage`) and `implement-spec` suggest `onboarding` when the project has no wiki, no `ONBOARDING.md` and no `CONVENTIONS.md`.
 
 ---
 
@@ -127,6 +127,8 @@ No ticket is created before `cp-tickets` (with existing tickets only, `cp-ticket
 
 The former onboarding pre-phase (mode C) is no longer part of `feature`: the `project-context` precondition suggests the `onboarding` workflow, then coming back to `feature`.
 
+The same chain exists as two composed workflows (R5): [`spec`](#spec), which proposes [`implement-spec`](#implement-spec) on the created tickets when it ends. `feature` is unchanged in this version; it will become the chain `spec` → `implement-spec` (an alias routed by the inputs: `aliases: [{ id: feature, with: tickets }]` in `implement-spec`, `feature` in `spec`) once the team layers extending it are migrated.
+
 ## `quick`
 
 Direct development session with the `developer` agent, without planning. A single checkpoint, `cp-commit` (mandatory, paused in every mode): it unlocks `commit` and `close`; before it, oh refuses every `git commit` and the closing of a ticket. Pushing is left to the user. The developer infers the domain from the request and loads the matching standards. It suggests `feature` when the request turns out to be large. Allowed Beads commands: `show`, `list`, `ready`, `search`, `query`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `close`, `dep`, `label`.
@@ -134,22 +136,6 @@ Direct development session with the `developer` agent, without planning. A singl
 | Input | Type | Required | Purpose |
 |---|---|---|---|
 | `request` | `text` (8,000 characters max) | no | What to do; otherwise the session waits for the request |
-
-## `cadrage`
-
-Explores, plans and specifies a feature without implementing it: only Beads tickets are created (`risk: plan`). The `conductor` chains `pathfinder` (exploration), `planner` (breakdown and ticket creation) and `designer` (UX/UI spec when needed).
-
-| Input | Type | Required | Purpose |
-|---|---|---|---|
-| `request` | `text` (8,000 characters max) | yes | The feature to scope |
-
-| Checkpoint | manuel | semi-auto | auto |
-|---|---|---|---|
-| `cp-scope` Approve the scope (before planning) | pause | pause | auto |
-| `cp-tickets` Approve the breakdown (mandatory, unlocks `create`) | pause | pause | pause |
-| `cp-recap` Scoping recap | pause | pause | auto |
-
-`planner` only starts after `cp-scope`. Before `cp-tickets`, oh refuses every ticket creation (shell rules and Beads gateway): the planner proposes the breakdown, the `conductor` passes `cp-tickets`, then relaunches the planner, which creates the tickets. Default mode: `semi-auto`. Allowed Beads commands: `show`, `list`, `ready`, `children`, `search`, `query`, `count`, `lint`, `find-duplicates`, `label`, `dep`, `create`, `update`, `comments`, `duplicate`, `supersede`. Output: `tickets`. To implement afterwards: `ticket` or `feature` on the created tickets.
 
 ## `spec`
 
@@ -174,9 +160,37 @@ Steps:
 4. **`cp-spec`**: the user approves the spec (same check); the planner commits it alone: `git add docs/wiki/specs/<slug>.md`, then `git commit -m "docs(spec): <slug>" -- docs/wiki/specs/<slug>.md`.
 5. **`cp-tickets`**: the user approves the breakdown; the planner creates one ticket per slice, whose description cites the spec and its criteria. A spec or breakdown changed at a checkpoint goes again through `cp-converge`, `cp-spec` (new commit) and `cp-tickets`.
 
-Pause budget (CP-R2) in semi-auto: 3 pauses (1 decision, 2 irreversible actions), for a budget of 4. Default mode: `semi-auto`. Allowed Beads commands: those of `cadrage`. Outputs: `spec` (path) and `tickets`. To implement afterwards: `ticket` or `feature` on the created tickets.
+Exploration: when the request compares designs or asks for an analysis of the code before specifying, the `conductor` first launches the `pathfinder` (skill `codebase-design`) and hands its report to the planner; otherwise the interview starts right away.
 
-`cadrage` is kept as it is (exploration by the `pathfinder`, `cp-scope`, no file written): its evaluation cases (S5, S15, S19, S27) depend on it. `spec` is its version with a written and checked spec; `cadrage` will become an alias of `spec` once `feature` is composed of `spec` then `implement-spec` (R5).
+Pause budget (CP-R2) in semi-auto: 3 pauses (1 decision, 2 irreversible actions), for a budget of 4. Default mode: `semi-auto`. Allowed Beads commands: `show`, `list`, `ready`, `children`, `search`, `query`, `count`, `lint`, `find-duplicates`, `label`, `dep`, `create`, `update`, `comments`, `duplicate`, `supersede`.
+
+Outputs **recorded by oh** (no agent declares them): `spec` (the spec checked at `cp-converge` and `cp-spec`) and `tickets` (the tickets created after `cp-tickets`). Proposed next step (`next:`) when tickets were created: **`implement-spec`** on these tickets and this spec; oh shows it when the client closes (`oh run`), in `oh session next <id>` and in “Chain with…” of the TUI, without launching it.
+
+**`cadrage` is an alias of `spec`** (R5): `oh run cadrage` launches `spec` (`aliases: [cadrage]`). The former `cadrage` (systematic exploration, `cp-scope`, `cp-recap`, no file written) no longer exists; a team or project layer defining a `cadrage` workflow wins over the alias.
+
+## `implement-spec`
+
+Implements the tickets of a spec one after the other, in a single session (`risk: write`), then has the whole reviewed. It is the implementation part of `feature`, without planning: the `orchestrator-dev` reads the tickets itself (`bd show`) and sets the order (dependencies, then priority). **Sequential version**: child sessions in worktrees, parallelism and the merge by oh come with R6.
+
+| Input | Type | Required | Role |
+|---|---|---|---|
+| `tickets` | `beads-ids` | yes | Tickets to implement; by default `session.output(spec.tickets)`: those of the `spec` session the launch is chained from (`--parent`), otherwise of the last `spec` session of the project |
+| `spec` | `path` | no | Spec of the tickets; by default `session.output(spec.spec)` |
+| `method` | `enum`: `standard`, `tdd` | no (`standard`) | TDD method: `cp-seams` and `cp-red` for each ticket |
+| `instructions` | `text` (4,000 characters max) | no | Details for the session |
+
+| Checkpoint | manual | semi-auto | auto |
+|---|---|---|---|
+| `cp-plan` Approve the plan (mandatory): order of the tickets, planned agent, tickets left out | pause | pause | pause |
+| `cp-1` Start the ticket | pause | auto | auto |
+| `cp-seams`, `cp-red` (`tdd` method) | as in `ticket` | | |
+| `cp-2` Commit or fix (mandatory, checked by oh, unlocks `commit` and `close`) | pause | pause | pause |
+| `cp-3` Next ticket | pause | auto | auto |
+| `cp-final` Review of the whole and recap | pause | pause | auto |
+
+No delegation before `cp-plan`. Each ticket goes through its `cp-2` (commit, then close, before the next one). Once every ticket is processed, the `reviewer` makes an adversarial review of all the commits of the session; `cp-final` presents its verdict, the tickets and their commits, the open points: the user decides on a fix round (one only, through `cp-2` again) or to stop.
+
+Pause budget (CP-R2) in semi-auto: `cp-plan`, `cp-2`, `cp-final`, i.e. 3 pauses for a budget of 3 (2 decisions, 1 irreversible action); the `tdd` method adds one (`cp-seams`). A feature of N tickets thus costs N + 2 pauses (instead of N + 3 in `feature`). Default mode: `semi-auto`. Runs: locally. Allowed Beads commands: `show`, `list`, `ready`, `children`, `dep`, `update`, `close`, `comments`, `label`. Outputs: `branch` (declared), `tickets` (closed tickets, recorded by oh).
 
 ## `onboarding`
 

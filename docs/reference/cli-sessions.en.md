@@ -197,16 +197,24 @@ Results of the **whole session**, as a merge request description ready to paste:
 oh session trace <session> [--json] [-o <file>]
 ```
 
-Full trace of a session, in order: prompts received, messages and tool calls of the entry agent and of its subagents (every event of a subagent carries `in_subagent`), skills loaded, delegations, decisions (permissions granted or refused with `granted`, questions, checkpoints, budget) and their answer, checkpoint timeline, verifications (the build, test and lint commands of the detected stack carry `verification`), calls refused by the rules (`denied`), declared outputs, costs and tokens per turn, then a summary (totals, per agent, oh usage ledger).
+Full trace of a session, in order: prompts received, messages and tool calls of the entry agent and of its subagents (every event of a subagent carries `in_subagent`), skills loaded, delegations, decisions (permissions granted or refused with `granted`, questions, checkpoints, budget) and their answer, checkpoint timeline, verifications (the build, test and lint commands of the detected stack carry `verification`), calls refused by the rules (`denied`), outputs declared or recorded by oh, workflows proposed next (`next`), costs and tokens per turn, then a summary (totals, per agent, oh usage ledger).
 
 Sources: the session and its decisions recorded by oh, the checkpoint timeline kept by the daemon, and the tool history, read live while the server runs (a masked snapshot is then kept in `~/.oh/sessions/<id>/transcript.json`), else from that last snapshot. Secrets are masked everywhere (oh tokens, AWS, Bedrock, GitHub, GitLab and Slack keys, JWTs, private keys, values of `password`, `token`, `api_key`…, URL passwords).
 
 | Flag | Type | Description |
 |------|------|-------------|
-| `--json` | bool | One JSON event per line (JSONL): `seq`, `time`, `kind` (`session`, `prompt`, `text`, `tool`, `skill`, `subagent`, `decision`, `checkpoint`, `usage`, `end`, `output`, `summary`) and the fields of the kind |
+| `--json` | bool | One JSON event per line (JSONL): `seq`, `time`, `kind` (`session`, `prompt`, `text`, `tool`, `skill`, `subagent`, `decision`, `checkpoint`, `usage`, `end`, `output`, `next`, `summary`) and the fields of the kind |
 | `-o`, `--output` | string | Write the JSONL trace to this file |
 
 It is the input of the evaluations ([`oh eval`](cli-tools.en.md#oh-eval)) and of retrospectives.
+
+### oh session next
+
+```
+oh session next <session>
+```
+
+What follows a session (R5): its outputs (declared by the agents or recorded by oh) and the [`next`](workflow-schema.en.md#next--what-oh-proposes-next-e4) steps of its workflow whose condition holds, each with the command that launches it (`oh run implement-spec --parent <session> --tickets … -i spec=…`). Nothing is launched. `oh run` shows the same when the client of a session it opened closes; the Sessions view of the TUI puts these steps first in “Chain with…”.
 
 ### oh session report
 

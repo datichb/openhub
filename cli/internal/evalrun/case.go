@@ -65,9 +65,19 @@ type Case struct {
 	// (workflow_report answers "not recorded": the agents must fall back on
 	// their whole report); "" keeps them.
 	Reports string `yaml:"reports" json:"reports,omitempty"`
+	// Previous are sessions recorded in the project before the launch, with
+	// their outputs (R5: the inputs read with `from: session.output(…)`).
+	Previous []PreviousSession `yaml:"previous" json:"previous,omitempty"`
 
 	// Dir is the case directory.
 	Dir string `yaml:"-" json:"-"`
+}
+
+// PreviousSession is a session of the project recorded before the launch
+// (finished, oldest first).
+type PreviousSession struct {
+	Workflow string         `yaml:"workflow" json:"workflow"`
+	Outputs  map[string]any `yaml:"outputs" json:"outputs,omitempty"`
 }
 
 // BeadsSetup describes the Beads database of a case.
@@ -198,6 +208,11 @@ func (c *Case) Validate() error {
 			if _, _, err := ParseChoice(v); err != nil {
 				errs = append(errs, fmt.Errorf("answers.sequence.%s[%d]: %w", id, i, err))
 			}
+		}
+	}
+	for i, p := range c.Previous {
+		if p.Workflow == "" {
+			errs = append(errs, fmt.Errorf("previous[%d].workflow is required", i))
 		}
 	}
 	switch c.Answers.Permission {

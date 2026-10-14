@@ -1,14 +1,17 @@
 %% OpenHub -- Workflow scenarios map (v5)
-%% "What do you need?" -> one of the 14 workflows shipped by the hub
+%% "What do you need?" -> one of the workflows shipped by the hub
 %% (workflows/*.yaml), grouped by category, with their entry agent, risk and
 %% allowed runtimes (⌂ local, ▣ container, ☁ remote).
 %% Solid arrows: "Chain with…" suggestions at the end of a session (a typed output
 %% feeds an input of the next workflow: branch → branch, beads-ids → beads-id(s)).
+%% Thick arrows: steps declared by the workflow (`next:`, R5), proposed first,
+%% with the outputs recorded by oh as inputs; never launched by oh.
 %% Dotted arrows: preconditions (missing project context → run onboarding first, then resume).
 
 flowchart LR
     Start(["What do you need?"])
-    Start -->|"frame a need, create tickets"| CAD
+    Start -->|"specify a need, create tickets"| SPEC
+    Start -->|"implement the tickets of a spec"| IMPL
     Start -->|"new feature, end to end"| FEAT
     Start -->|"implement ready tickets"| TICK
     Start -->|"small change"| QUICK
@@ -23,11 +26,12 @@ flowchart LR
     Start -->|"one agent, no workflow"| LIB
 
     subgraph FRAME ["Frame"]
-        CAD["<b>cadrage</b><br/>conductor · plan · ⌂"]
+        SPEC["<b>spec</b> (alias cadrage)<br/>conductor · plan · ⌂"]
     end
 
     subgraph DEVELOP ["Develop"]
         FEAT["<b>feature</b><br/>orchestrator · write · ⌂"]
+        IMPL["<b>implement-spec</b><br/>orchestrator-dev · write · ⌂<br/>tickets one after the other"]
         TICK["<b>ticket</b><br/>orchestrator-dev · write · ⌂ ▣ ☁<br/>one session per ticket"]
         QUICK["<b>quick</b><br/>developer · write · ⌂"]
         SWEEP["<b>sweep</b><br/>conductor · write · ⌂"]
@@ -51,9 +55,10 @@ flowchart LR
         LIB["<b>libre</b><br/>entry agent of your choice · write · ⌂ ▣"]
     end
 
-    CAD -->|"tickets"| TICK
-    CAD -->|"tickets"| FEAT
-    CAD -->|"tickets"| BRF
+    SPEC ==>|"next: tickets, spec"| IMPL
+    SPEC -->|"tickets"| TICK
+    SPEC -->|"tickets"| BRF
+    IMPL -->|"branch"| REV
     FEAT -->|"branch"| REV
     FEAT -->|"tickets"| TICK
     TICK -->|"branch"| REV
@@ -63,7 +68,8 @@ flowchart LR
     DBG -->|"tickets"| TICK
 
     FEAT -.->|"no project context"| ONB
-    CAD -.->|"no project context"| ONB
+    SPEC -.->|"no project context"| ONB
+    IMPL -.->|"no project context"| ONB
 
     style FRAME fill:#9b59b610,stroke:#9b59b6
     style DEVELOP fill:#2ecc7110,stroke:#2ecc71

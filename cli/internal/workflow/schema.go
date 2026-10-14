@@ -95,6 +95,9 @@ const (
 	OutputMergeRequest OutputType = "merge_request"
 	OutputBeadsIDs     OutputType = "beads-ids"
 	OutputPath         OutputType = "path"
+	// OutputReport is the id of a report deposited with workflow_report
+	// (R5).
+	OutputReport OutputType = "report"
 )
 
 // Runtime names an execution environment.
@@ -166,6 +169,14 @@ type Spec struct {
 	// no agent asks a question, a missing piece of information goes in its
 	// output.
 	Headless bool `yaml:"headless,omitempty"`
+
+	// R5 (schema_next.go): composition of workflows.
+
+	// Next lists the workflows oh proposes once a session ends (E4), with
+	// inputs taken from its outputs; never launched by oh itself.
+	Next []NextStep `yaml:"next,omitempty"`
+	// Aliases are other ids that launch this workflow (`oh run cadrage`).
+	Aliases []Alias `yaml:"aliases,omitempty"`
 }
 
 // Entry selects the agent the session starts on.
@@ -435,6 +446,11 @@ type Output struct {
 	ID    string        `yaml:"id"`
 	Type  OutputType    `yaml:"type"`
 	Label LocalizedText `yaml:"label,omitempty"`
+
+	// R5 (schema_next.go): Record makes oh record the output itself, from
+	// what it saw the session do (tickets created, spec checked…); the
+	// agents cannot declare it.
+	Record OutputRecord `yaml:"record,omitempty"`
 }
 
 // Precondition is a check made before launch (in the session location).
@@ -572,7 +588,7 @@ func (t InputType) Valid() bool {
 // Valid reports whether t is a known output type.
 func (t OutputType) Valid() bool {
 	switch t {
-	case OutputBranch, OutputMergeRequest, OutputBeadsIDs, OutputPath:
+	case OutputBranch, OutputMergeRequest, OutputBeadsIDs, OutputPath, OutputReport:
 		return true
 	}
 	return false

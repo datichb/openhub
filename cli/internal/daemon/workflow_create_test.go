@@ -22,8 +22,9 @@ import (
 )
 
 // N9 (DC8): through the real Beads gateway, `bd create` is refused before
-// the checkpoint that unlocks `create` (cadrage, feature: cp-tickets) and
-// accepted after it.
+// the checkpoint that unlocks `create` (spec, feature: cp-tickets) and
+// accepted after it; the tickets created are recorded in the session output
+// declared with `record: created` (R5).
 func TestWorkflowCreateGuard(t *testing.T) {
 	p := shortPaths(t)
 	st, err := sqlite.Open(filepath.Join(p.Dir, "oh.db"))
@@ -40,7 +41,8 @@ func TestWorkflowCreateGuard(t *testing.T) {
 
 	bundles := t.TempDir()
 	require.NoError(t, os.MkdirAll(filepath.Join(bundles, "h1"), 0o755))
-	data, _ := json.Marshal(sessionspec.BundleSpec{Hash: "h1", Workflow: &sessionspec.WorkflowRuntime{ID: "cadrage", DefaultMode: "manuel",
+	data, _ := json.Marshal(sessionspec.BundleSpec{Hash: "h1", Workflow: &sessionspec.WorkflowRuntime{ID: "spec", DefaultMode: "manuel",
+		Outputs: []sessionspec.OutputDef{{ID: "tickets", Type: "beads-ids", Record: checkpoint.RecordCreated}},
 		Checkpoints: []sessionspec.CheckpointDef{
 			{ID: "cp-tickets", Label: map[string]string{"": "Valider le découpage"}, Behaviors: map[string]string{"manuel": "pause"}, Mandatory: true,
 				Unlocks: []string{sessionspec.UnlockCreate}},
@@ -49,10 +51,11 @@ func TestWorkflowCreateGuard(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(bundles, "h1", "bundle.json"), data, 0o644))
 	require.NoError(t, servers.Upsert(ctx, &domain.Server{GroupKey: "g1", Adapter: "fake", ProjectID: "p1", PID: os.Getpid(), Status: domain.ServerReady}))
 	require.NoError(t, sessions.Create(ctx, &domain.Session{ID: "ses_c", ProjectID: "p1", Status: domain.SessionStatusRunning, GroupKey: "g1",
-		BundleHash: "h1", Mode: "manuel", State: domain.RunActive, LaunchPath: project, WorkflowID: "cadrage"}))
+		BundleHash: "h1", Mode: "manuel", State: domain.RunActive, LaunchPath: project, WorkflowID: "spec"}))
 
 	bd := filepath.Join(t.TempDir(), "bd")
-	require.NoError(t, os.WriteFile(bd, []byte(fakeWhere+"echo \"bd $*\"\n"), 0o755))
+	created := `case " $* " in *" create "*) n=$(cat "$0.n" 2>/dev/null || echo 0); n=$((n+1)); echo $n > "$0.n"; echo "✓ Created issue: ev-$n — x";; esac` + "\n"
+	require.NoError(t, os.WriteFile(bd, []byte(fakeWhere+"echo \"bd $*\"\n"+created), 0o755))
 	require.NoError(t, os.MkdirAll(filepath.Join(project, ".beads"), 0o700))
 	fake := &rulesAdapter{fakeAdapter: newFake(), rules: map[string][]sessionspec.PermissionRule{}}
 	cp := &checkpoint.Service{Sessions: sessions, States: states, SessionOutputs: states, BundlesDir: bundles, SessionsDir: t.TempDir()}
@@ -122,4 +125,7 @@ func TestWorkflowCreateGuard(t *testing.T) {
 	require.Equal(t, http.StatusOK, code, out.Error)
 	code, _ = bdExec("create", "Un autre", "-t", "task")
 	assert.Equal(t, http.StatusOK, code, "the window stays open for the whole split")
+	sess, err := sessions.Get(ctx, "ses_c")
+	require.NoError(t, err)
+	assert.Equal(t, []any{"ev-1", "ev-2"}, sess.Outputs["tickets"], "R5: created tickets recorded by oh")
 }

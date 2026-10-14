@@ -32,7 +32,8 @@ Un checkpoint conditionnel y figure avec la mention « si sa condition est vraie
 | `feature` en méthode `tdd` | les mêmes et `cp-seams` | `cp-tickets`, `cp-2` | 4 + 1 |
 | `ticket` | `cp-2` | `cp-2` | 3 |
 | `ticket` en méthode `tdd` | `cp-seams`, `cp-2` | `cp-2` | 3 + 1 |
-| `cadrage` | `cp-scope`, `cp-tickets`, `cp-recap` | `cp-tickets` | 3 |
+| `implement-spec` | `cp-plan`, `cp-2`, `cp-final` | `cp-2` | 3 |
+| `implement-spec` en méthode `tdd` | les mêmes et `cp-seams` | `cp-2` | 3 + 1 |
 | `spec` | `cp-understanding`, `cp-spec`, `cp-tickets` (`cp-converge` est vérifié par oh, sans pause) | `cp-spec`, `cp-tickets` | 4 |
 | `sweep` | `cp-plan`, `cp-commit`, `cp-recap` | `cp-commit` | 3 |
 | `review-feedback` | `cp-fix`, `cp-2` | `cp-2` | 3 |
@@ -161,7 +162,7 @@ Si les chemins modifiés ne peuvent pas être lus (git refuse le dépôt), une c
 
 ## Méthode TDD : `cp-seams` et `cp-red` (R7)
 
-`ticket` et `feature` ont une entrée **Méthode** (`method`, `standard` par défaut). Lancés avec `tdd` (`oh run ticket -t <id> -i method=tdd`, ou la fiche de lancement), ils ajoutent deux checkpoints, passés par le `developer`, une fois par ticket, avant l'implémentation :
+`ticket`, `feature` et `implement-spec` ont une entrée **Méthode** (`method`, `standard` par défaut). Lancés avec `tdd` (`oh run ticket -t <id> -i method=tdd`, ou la fiche de lancement), ils ajoutent deux checkpoints, passés par le `developer`, une fois par ticket, avant l'implémentation :
 
 ```
 cp-1 → cp-seams (pause) → cp-red (vérifié par oh) → implémentation → review → cp-2

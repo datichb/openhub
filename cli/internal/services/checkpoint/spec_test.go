@@ -23,7 +23,7 @@ const specFM = "---\nupdated: 2026-10-14\nconfidence: mixed\nagents: [planner]\n
 
 func specWorkflow() *sessionspec.WorkflowRuntime {
 	paths := []string{"docs/wiki/specs/**"}
-	return &sessionspec.WorkflowRuntime{ID: "spec", DefaultMode: "auto", Checkpoints: []sessionspec.CheckpointDef{
+	return &sessionspec.WorkflowRuntime{ID: "spec", DefaultMode: "auto", Outputs: []sessionspec.OutputDef{{ID: "spec", Type: "path", Record: RecordSpec}}, Checkpoints: []sessionspec.CheckpointDef{
 		{ID: "cp-spec", Behaviors: map[string]string{"auto": "auto"}, Verify: &sessionspec.VerifyDef{Expect: "pass", TimeoutSec: 60,
 			Spec: &sessionspec.SpecCheckDef{Paths: paths}}},
 		{ID: "cp-converge", Behaviors: map[string]string{"auto": "auto"}, Verify: &sessionspec.VerifyDef{Expect: "pass", TimeoutSec: 60,
@@ -72,6 +72,9 @@ func TestSpecChecks(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, domain.VerifyPassed, r.Status)
 	assert.Equal(t, 0, ex.count(), "no command run")
+	sess, err := svc.Sessions.Get(ctx, "ses_s")
+	require.NoError(t, err)
+	assert.Equal(t, "docs/wiki/specs/percent.md", sess.Outputs["spec"], "R5: the spec checked is recorded by oh")
 
 	// The frontmatter of the wiki (p4-debts): keys and values of
 	// doc-wiki-protocol, confidence tags well formed.

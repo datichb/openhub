@@ -39,7 +39,8 @@ const (
 	TraceCheckpoint = "checkpoint" // an entry of the checkpoint timeline
 	TraceUsage      = "usage"      // cost and tokens of one model turn
 	TraceEnd        = "end"        // an agent loop ended
-	TraceOutput     = "output"     // a typed output declared by the session
+	TraceOutput     = "output"     // a typed output declared by the session (or recorded by oh)
+	TraceNext       = "next"       // a workflow oh proposes after the session (R5, `next:`), Title = workflow, Text = inputs
 	TraceSummary    = "summary"    // last event: totals
 )
 

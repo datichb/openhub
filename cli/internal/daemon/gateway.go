@@ -92,7 +92,11 @@ func (d *Daemon) ticketsDone(ctx context.Context, g gateway.Grant, op gateway.Be
 	d.recordProvenance(ctx, g, op)
 	d.trackLease(g, op)
 	cp := d.opts.Checkpoints
-	if cp == nil || op.Kind == gateway.OpCreate {
+	if cp == nil {
+		return
+	}
+	d.recordTickets(ctx, g, op)
+	if op.Kind == gateway.OpCreate {
 		return
 	}
 	kind := checkpoint.BeadsClaim
@@ -106,6 +110,24 @@ func (d *Daemon) ticketsDone(ctx context.Context, g gateway.Grant, op gateway.Be
 	}
 	if changed {
 		d.applyRules(ctx, g.SessionID)
+	}
+}
+
+// recordTickets records the tickets created or closed in the session
+// outputs declared with `record: created` or `record: closed` (R5). A
+// failure is only logged.
+func (d *Daemon) recordTickets(ctx context.Context, g gateway.Grant, op gateway.BeadsOp) {
+	kind := ""
+	switch op.Kind {
+	case gateway.OpCreate:
+		kind = checkpoint.RecordCreated
+	case gateway.OpClose:
+		kind = checkpoint.RecordClosed
+	default:
+		return
+	}
+	if _, err := d.opts.Checkpoints.Record(ctx, g.SessionID, kind, op.IDs...); err != nil {
+		slog.Debug("ohd: session output not recorded", "session", g.SessionID, "kind", kind, "error", err)
 	}
 }
 

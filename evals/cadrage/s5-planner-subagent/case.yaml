@@ -1,5 +1,5 @@
 id: S5
-title: "Cadrage : le planner suit la variante sous-agent (enveloppe vers conductor)"
+title: "Cadrage (alias de spec) : le planner suit la variante sous-agent (enveloppe vers conductor)"
 workflow: cadrage
 mode: semi-auto
 text: "Ajouter à calc une fonction Mul(a, b int) int, avec son test."
@@ -9,8 +9,9 @@ timeout: 25m
 answers:
   question: first
   checkpoints:
-    cp-scope: approve
-    # La création des tickets n'est pas évaluée ici.
+    # R5 : cadrage lance spec. L'évaluation s'arrête à cp-spec : ni commit
+    # de la spec, ni création de ticket (évalués par S29).
+    cp-spec: "reject: Évaluation terminée : ne commite rien, ne crée aucun ticket et termine le workflow."
     cp-tickets: "reject: Évaluation terminée : ne crée aucun ticket et termine le workflow."
     "*": approve
 assertions:
@@ -29,7 +30,8 @@ assertions:
     agent: planner
     pattern: "Retour (intermédiaire )?vers"
   - type: checkpoint_order
-    order: [cp-scope, cp-tickets]
+    order: [cp-understanding, cp-spec]
   - type: changed_within
-    name: aucun fichier modifié
+    name: aucun fichier modifié hors de la spec
+    paths: ["docs/wiki/specs/**"]
   - type: no_denied_loop

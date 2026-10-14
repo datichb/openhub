@@ -218,4 +218,8 @@ func (d *Daemon) reported(ctx context.Context, root string, rp domain.Report) {
 	if err := d.opts.Checkpoints.Reported(ctx, root, rp.ID(), rp.Agent); err != nil && !errors.Is(err, checkpoint.ErrNoState) {
 		slog.Debug("ohd: report not in the timeline", "session", root, "report", rp.ID(), "error", err)
 	}
+	// R5: the output `record: report` of the session is its last report.
+	if _, err := d.opts.Checkpoints.Record(ctx, root, checkpoint.RecordReport, rp.ID()); err != nil {
+		slog.Debug("ohd: report output not recorded", "session", root, "report", rp.ID(), "error", err)
+	}
 }

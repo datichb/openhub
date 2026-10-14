@@ -32,7 +32,8 @@ A conditional checkpoint is listed with "if its condition holds". Repeated check
 | `feature`, `tdd` method | the same and `cp-seams` | `cp-tickets`, `cp-2` | 4 + 1 |
 | `ticket` | `cp-2` | `cp-2` | 3 |
 | `ticket`, `tdd` method | `cp-seams`, `cp-2` | `cp-2` | 3 + 1 |
-| `cadrage` | `cp-scope`, `cp-tickets`, `cp-recap` | `cp-tickets` | 3 |
+| `implement-spec` | `cp-plan`, `cp-2`, `cp-final` | `cp-2` | 3 |
+| `implement-spec`, `tdd` method | the same and `cp-seams` | `cp-2` | 3 + 1 |
 | `spec` | `cp-understanding`, `cp-spec`, `cp-tickets` (`cp-converge` is checked by oh, without a pause) | `cp-spec`, `cp-tickets` | 4 |
 | `sweep` | `cp-plan`, `cp-commit`, `cp-recap` | `cp-commit` | 3 |
 | `review-feedback` | `cp-fix`, `cp-2` | `cp-2` | 3 |
@@ -161,7 +162,7 @@ When the changed paths cannot be read (git refuses the repository), a `paths` co
 
 ## TDD method: `cp-seams` and `cp-red` (R7)
 
-`ticket` and `feature` have a **Method** input (`method`, `standard` by default). Launched with `tdd` (`oh run ticket -t <id> -i method=tdd`, or the launch form), they add two checkpoints, passed by the `developer`, once per ticket, before the implementation:
+`ticket`, `feature` and `implement-spec` have a **Method** input (`method`, `standard` by default). Launched with `tdd` (`oh run ticket -t <id> -i method=tdd`, or the launch form), they add two checkpoints, passed by the `developer`, once per ticket, before the implementation:
 
 ```
 cp-1 → cp-seams (pause) → cp-red (verified by oh) → implementation → review → cp-2

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -30,7 +31,8 @@ import (
 const maxSpecSize = 1 << 20
 
 // specCheck checks the specs of verification v: a failed result when they
-// are missing or incomplete (ok false).
+// are missing or incomplete (ok false). The specs checked are recorded in
+// the output `record: spec` of the session (R5).
 func (s *Service) specCheck(ctx context.Context, sess *domain.Session, v *sessionspec.VerifyDef) (failed domain.CheckpointVerify, ok bool) {
 	c := v.Spec
 	if c == nil {
@@ -76,6 +78,9 @@ func (s *Service) specCheck(ctx context.Context, sess *domain.Session, v *sessio
 		return domain.CheckpointVerify{Status: domain.VerifyFailed,
 			Reason:  i18n.Tf("tui.checkpoint.verify.spec_problems", len(problems), strings.Join(specs, ", ")),
 			Excerpt: strings.Join(problems, "\n")}, false
+	}
+	if _, err := s.Record(ctx, sess.ID, RecordSpec, specs...); err != nil {
+		slog.Debug("checkpoint: spec output not recorded", "session", sess.ID, "error", err)
 	}
 	return domain.CheckpointVerify{}, true
 }

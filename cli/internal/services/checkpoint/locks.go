@@ -329,8 +329,8 @@ func (s *Service) Finish(ctx context.Context, root string, branch func() string)
 		return false, err
 	}
 	for _, o := range wf.Outputs {
-		if _, ok := sess.Outputs[o.ID]; ok {
-			continue
+		if _, ok := sess.Outputs[o.ID]; ok || o.Record != "" {
+			continue // declared, or recorded by oh as it happens (R5)
 		}
 		value := ""
 		switch o.Type {

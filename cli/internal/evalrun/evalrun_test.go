@@ -287,7 +287,7 @@ func TestShippedCases(t *testing.T) {
 			assert.Equal(t, "accept", c.Answers.Wiki, "the proposals on the card are accepted")
 		}
 	}
-	assert.Equal(t, []string{"S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10", "S11", "S12", "S13", "S14", "S15", "S16", "S17", "S18", "S19", "S20", "S21", "S22", "S23", "S24", "S25", "S26", "S27", "S28", "S29", "S30", "S31", "S33", "S34", "S35", "S36", "S47", "S48"}, ids)
+	assert.Equal(t, []string{"S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10", "S11", "S12", "S13", "S14", "S15", "S16", "S17", "S18", "S19", "S20", "S21", "S22", "S23", "S24", "S25", "S26", "S27", "S28", "S29", "S30", "S31", "S33", "S34", "S35", "S36", "S37", "S38", "S39", "S40", "S47", "S48"}, ids)
 }
 
 func requireGit(t *testing.T) {
@@ -421,6 +421,10 @@ func TestRunnerAndReport(t *testing.T) {
 // notInBaseline are the active cases added after the reference measure
 // (measured at the next make test-eval OH_EVAL_RECORD=1).
 var notInBaseline = map[string]string{
+	"S37": "added by R5 (implement-spec: two existing tickets in order, one cp-2 each, review of the whole at cp-final)",
+	"S38": "added by R5 (implement-spec: plan refused at cp-plan, nothing delegated, changed nor committed)",
+	"S39": "added by R5 (spec: spec and created tickets recorded by oh, implement-spec proposed next)",
+	"S40": "added by R5 (implement-spec: tickets and spec read from the last spec session, session.output)",
 	"S47": "added by onboarding-refresh (re-onboarding: stale page fixed through wiki_propose accepted on cp-wiki, no direct write)",
 	"S48": "added by onboarding-refresh (re-onboarding: up-to-date wiki, nothing proposed nor written)",
 }

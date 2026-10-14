@@ -275,6 +275,7 @@ orchestrator-workflow-modes	Checkpoints (dans l'ordre)	`pause` (et `conditional`
 orchestrator-workflow-modes	Checkpoints (dans l'ordre)	`skip` : le checkpoint est ignoré dans ce mode, ne l'appelle pas.
 orchestrator-workflow-modes	Checkpoints (dans l'ordre)	Un checkpoint obligatoire n'est jamais sauté, quel que soit le mode.
 orchestrator-workflow-modes	Checkpoints (dans l'ordre)	Les checkpoints passent **uniquement** par `workflow_checkpoint` : n'utilise jamais l'outil `question` ni un message texte pour poser ou valider un checkpoint (« CP-2 : commit ou corriger ? »). oh ferme une telle question sans effet et le checkpoint reste à passer. `workflow_status` donne l'état courant (checkpoints passés, prochain checkpoint, agents et opérations encore verrouillés).
+orchestrator-workflow-modes	Checkpoints (dans l'ordre)	**cp-plan** — Valider le plan (obligatoire) | pause | pause | pause
 orchestrator-workflow-modes	Checkpoints (dans l'ordre)	**cp-2** déverrouille `commit` : avant son passage, oh refuse à tous les agents de la session `git commit` (et les commandes qui commitent : revert, cherry-pick, merge, pull), quel que soit le mode. Une fois passé, commite aussitôt ; la fenêtre se referme une fois tout le travail commité, ou quand **cp-2** est demandé de nouveau. Le push revient à l'utilisateur : ne pousse pas.
 orchestrator-workflow-modes	Checkpoints (dans l'ordre)	**cp-2** — Commit ou correction (obligatoire) | pause | pause | pause | defer
 quick-fix	Rôle	✅ Corrections éligibles (auto-applicables)

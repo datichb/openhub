@@ -11,7 +11,8 @@ Agent d'entrée : `conductor`. Seuls les agents ci-dessous existent dans cette s
 
 | Agent | Rôle | Mode | Après | Peut déléguer à |
 |---|---|---|---|---|
-| `conductor` | workflow (entrée) | primary | — | `designer`, `planner` |
+| `conductor` | workflow (entrée) | primary | — | `designer`, `pathfinder`, `planner` |
+| `pathfinder` | workflow | subagent | — | `designer` |
 | `planner` | workflow | subagent | — | `designer` |
 | `designer` | workflow | subagent | — | — |
 

@@ -97,8 +97,8 @@ func TestWritesPlannerOfSpec(t *testing.T) {
 		}
 	}
 
-	// The planner of cadrage keeps its refusal.
-	c := scratchBundle(t, "cadrage", "")
+	// The planner of feature (no writes:) keeps its refusal.
+	c := scratchBundle(t, "feature", "")
 	for _, a := range c.Spec.Agents {
 		if a.ID != "planner" {
 			continue

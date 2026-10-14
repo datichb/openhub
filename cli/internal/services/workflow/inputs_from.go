@@ -22,6 +22,12 @@ func (s *Service) ComputeInputs(ctx context.Context, c Context, sp *wf.Spec, val
 		if in.From == "" || given(values[k]) {
 			continue
 		}
+		if wf.IsSessionSource(in.From) {
+			if err := s.computeFromSession(ctx, c, k, in, values); err != nil {
+				return err
+			}
+			continue
+		}
 		src, argName, ok := wf.ParseFrom(in.From)
 		if !ok {
 			continue // reported by validation
@@ -59,4 +65,34 @@ func given(v any) bool {
 		return strings.TrimSpace(s) != ""
 	}
 	return true
+}
+
+// computeFromSession fills an input read from a previous session (R5):
+// session.output(<workflow>.<id>) and session.trace([<workflow>]). The
+// source gets the argument "<workflow>.<id>" or "<workflow>"; nothing found
+// leaves the input empty (the required-input check applies).
+func (s *Service) computeFromSession(ctx context.Context, c Context, k string, in wf.Input, values map[string]any) error {
+	f, ok := wf.ParseSessionFrom(in.From)
+	if !ok {
+		return nil // reported by validation
+	}
+	fn := s.InputSources[f.Source]
+	if fn == nil {
+		return nil
+	}
+	arg := f.Workflow
+	if f.Output != "" {
+		arg += "." + f.Output
+	}
+	v, err := fn(ctx, c, arg)
+	if err != nil {
+		if in.Required && in.Default == nil {
+			return fmt.Errorf("input %s (%s): %w", k, in.From, err)
+		}
+		return nil
+	}
+	if v != "" {
+		values[k] = v
+	}
+	return nil
 }

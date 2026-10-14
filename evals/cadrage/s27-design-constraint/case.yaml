@@ -1,5 +1,5 @@
 id: S27
-title: "Cadrage : entre deux conceptions, celle qui respecte la frontière du domaine (internal/order sans import interne) est recommandée, contrainte citée"
+title: "Cadrage (alias de spec) : entre deux conceptions, celle qui respecte la frontière du domaine (internal/order sans import interne) est recommandée, contrainte citée"
 workflow: cadrage
 mode: semi-auto
 # La règle depguard de .golangci.yml interdit à internal/order d'importer un
@@ -16,7 +16,9 @@ beads:
 timeout: 20m
 answers:
   question: first
-  # L'évaluation s'arrête au premier checkpoint (périmètre) : le choix de
+  # L'évaluation s'arrête au premier checkpoint (cp-understanding depuis
+  # R5 : cadrage lance spec, dont l'exploration par le pathfinder précède
+  # l'entretien quand la demande compare des conceptions) : le choix de
   # conception est dans le rapport d'exploration.
   checkpoints:
     "*": "reject: Évaluation terminée : arrête le workflow ici, sans créer de ticket ni modifier de fichier."

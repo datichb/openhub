@@ -1,0 +1,39 @@
+id: S39
+title: "Spec : oh relève la spec et les tickets créés (sorties record), puis propose implement-spec avec ces tickets (next:)"
+workflow: spec
+mode: semi-auto
+reports: off
+text: "Ajouter à calc une fonction Mul(a, b int) int, avec son test."
+beads:
+  prefix: ev
+timeout: 25m
+answers:
+  question: first
+  checkpoints:
+    "*": approve
+# R5 : les sorties de spec ne sont plus déclarées par un agent : oh relève
+# la spec vérifiée à cp-converge et cp-spec, et les tickets créés par le
+# gateway Beads après cp-tickets. La fin de session propose implement-spec
+# (next:), sans le lancer.
+assertions:
+  - type: checkpoint_order
+    order: [cp-understanding, cp-spec, cp-tickets]
+  - type: output
+    name: la spec, relevée par oh
+    output: spec
+    pattern: "^docs/wiki/specs/[^,]+\\.md$"
+  - type: output
+    name: les tickets créés, relevés par oh
+    output: tickets
+    pattern: "^ev-"
+  - type: next
+    name: implement-spec proposé avec les tickets et la spec
+    workflow: implement-spec
+    pattern: "tickets=ev-[\\s\\S]*spec=docs/wiki/specs/"
+  - type: called
+    name: aucune sortie déclarée par un agent
+    tool: "*workflow*outputs*"
+    absent: true
+  - type: no_question_in_subagent
+    agents: [planner, designer]
+  - type: no_denied_loop

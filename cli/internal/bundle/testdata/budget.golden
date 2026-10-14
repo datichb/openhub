@@ -17,11 +17,6 @@ instruct benchmark              benchmarker                      6536     1236  
 instruct benchmark              TOTAL                            6536     1236    4    1     36    1     36
 instruct brief-enrich           brief-enricher                   4516        0    0    0      0    0      0
 instruct brief-enrich           TOTAL                            4516        0    0    0      0    0      0
-instruct cadrage                conductor                        3579     2377    5    0      0    0      0
-instruct cadrage                designer                         4496     2427    6   12    411   12    411
-instruct cadrage                pathfinder                       5772     3832    7    4    160    4    160
-instruct cadrage                planner                          4982     3339    7   13    442   13    442
-instruct cadrage                TOTAL                           18829    11975   25   24    823   24    823
 instruct debug                  debugger                         7194     2415    6    7    240    7    240
 instruct debug                  developer                       11236     5013    7   17    621   17    621
 instruct debug                  TOTAL                           18430     7428   13   23    825   23    825
@@ -36,6 +31,11 @@ instruct feature                pathfinder                       5773     3832  
 instruct feature                planner                          5052     3408    7   13    442   13    442
 instruct feature                reviewer                        11644     5185    6   13    447   13    447
 instruct feature                TOTAL                           56304    32599   53   58   2025   58   2025
+instruct implement-spec         developer                       11832     5555    8   17    621   17    621
+instruct implement-spec         documentarian                    4686     3021    5    9    289    9    289
+instruct implement-spec         orchestrator-dev                 4825     3286    6   17    617   17    617
+instruct implement-spec         reviewer                        11618     5185    6   13    447   13    447
+instruct implement-spec         TOTAL                           32961    17047   25   37   1314   37   1314
 instruct infra-change           operator                         6487     1236    4    2     71    2     71
 instruct infra-change           TOTAL                            6487     1236    4    2     71    2     71
 instruct libre                  debugger                         7631     2858    7    7    240    7    240
@@ -63,10 +63,11 @@ instruct review-feedback        reviewer                        11618     5185  
 instruct review-feedback        TOTAL                           28005    13800   20   29   1062   29   1062
 instruct skill-refresh          documentarian                    4267     2713    4    9    289    9    289
 instruct skill-refresh          TOTAL                            4267     2713    4    9    289    9    289
-instruct spec                   conductor                        3860     2665    5    0      0    0      0
-instruct spec                   designer                         4477     2427    6   12    411   12    411
-instruct spec                   planner                          5869     3408    7   13    442   13    442
-instruct spec                   TOTAL                           14206     8500   18   23    773   23    773
+instruct spec                   conductor                        3830     2613    5    0      0    0      0
+instruct spec                   designer                         4495     2427    6   12    411   12    411
+instruct spec                   pathfinder                       5771     3832    7    4    160    4    160
+instruct spec                   planner                          5895     3425    7   13    442   13    442
+instruct spec                   TOTAL                           19991    12297   25   24    823   24    823
 instruct sweep                  conductor                        3592     2415    5    5    181    5    181
 instruct sweep                  developer                       11826     5555    8   17    621   17    621
 instruct sweep                  pathfinder                       5691     3832    7    4    160    4    160
@@ -84,11 +85,6 @@ none     benchmark              benchmarker                      2100      762  
 none     benchmark              TOTAL                            2100      762    3    1     36    1     36
 none     brief-enrich           brief-enricher                    513        0    0    0      0    0      0
 none     brief-enrich           TOTAL                             513        0    0    0      0    0      0
-none     cadrage                conductor                        3487     2377    5    0      0    0      0
-none     cadrage                designer                         4098     2427    6   12    411   12    411
-none     cadrage                pathfinder                       4904     3358    6    4    160    4    160
-none     cadrage                planner                          4584     3339    7   13    442   13    442
-none     cadrage                TOTAL                           17073    11501   24   24    823   24    823
 none     debug                  debugger                         2717     1942    5    7    240    7    240
 none     debug                  developer                        6757     4540    6   20    725   20    725
 none     debug                  TOTAL                            9474     6482   11   26    929   26    929
@@ -103,6 +99,11 @@ none     feature                pathfinder                       4905     3358  
 none     feature                planner                          4654     3408    7   13    442   13    442
 none     feature                reviewer                         6832     4630    5   16    551   16    551
 none     feature                TOTAL                           44443    31097   50   61   2129   61   2129
+none     implement-spec         developer                        7353     5082    7   20    725   20    725
+none     implement-spec         documentarian                    4271     3021    5    9    289    9    289
+none     implement-spec         orchestrator-dev                 4427     3286    6   20    721   20    721
+none     implement-spec         reviewer                         6806     4630    5   16    551   16    551
+none     implement-spec         TOTAL                           22857    16019   23   40   1418   40   1418
 none     infra-change           operator                         2010      762    3    2     71    2     71
 none     infra-change           TOTAL                            2010      762    3    2     71    2     71
 none     libre                  debugger                         3154     2385    6    7    240    7    240
@@ -130,10 +131,11 @@ none     review-feedback        reviewer                         6806     4630  
 none     review-feedback        TOTAL                           18317    12772   18   32   1166   32   1166
 none     skill-refresh          documentarian                    3851     2713    4    9    289    9    289
 none     skill-refresh          TOTAL                            3851     2713    4    9    289    9    289
-none     spec                   conductor                        3767     2665    5    0      0    0      0
-none     spec                   designer                         4079     2427    6   12    411   12    411
-none     spec                   planner                          5471     3408    7   13    442   13    442
-none     spec                   TOTAL                           13317     8500   18   23    773   23    773
+none     spec                   conductor                        3738     2613    5    0      0    0      0
+none     spec                   designer                         4097     2427    6   12    411   12    411
+none     spec                   pathfinder                       4903     3358    6    4    160    4    160
+none     spec                   planner                          5497     3425    7   13    442   13    442
+none     spec                   TOTAL                           18235    11823   24   24    823   24    823
 none     sweep                  conductor                        3500     2415    5    5    181    5    181
 none     sweep                  developer                        7348     5082    7   20    725   20    725
 none     sweep                  pathfinder                       4823     3358    6    4    160    4    160
@@ -151,11 +153,6 @@ stacks   benchmark              benchmarker                      2100      762  
 stacks   benchmark              TOTAL                            2100      762    3    1     36    1     36
 stacks   brief-enrich           brief-enricher                    513        0    0    0      0    0      0
 stacks   brief-enrich           TOTAL                             513        0    0    0      0    0      0
-stacks   cadrage                conductor                        3487     2377    5    0      0    0      0
-stacks   cadrage                designer                         4098     2427    6   12    411   12    411
-stacks   cadrage                pathfinder                       4904     3358    6    4    160    4    160
-stacks   cadrage                planner                          4584     3339    7   13    442   13    442
-stacks   cadrage                TOTAL                           17073    11501   24   24    823   24    823
 stacks   debug                  debugger                         2717     1942    5   14    487   14    487
 stacks   debug                  developer                        6757     4540    6   27    972   27    972
 stacks   debug                  TOTAL                            9474     6482   11   33   1176   33   1176
@@ -170,6 +167,11 @@ stacks   feature                pathfinder                       4905     3358  
 stacks   feature                planner                          4654     3408    7   13    442   13    442
 stacks   feature                reviewer                         6832     4630    5   23    798   23    798
 stacks   feature                TOTAL                           44443    31097   50   68   2376   68   2376
+stacks   implement-spec         developer                        7353     5082    7   27    972   27    972
+stacks   implement-spec         documentarian                    4271     3021    5    9    289    9    289
+stacks   implement-spec         orchestrator-dev                 4427     3286    6   20    721   20    721
+stacks   implement-spec         reviewer                         6806     4630    5   23    798   23    798
+stacks   implement-spec         TOTAL                           22857    16019   23   47   1665   47   1665
 stacks   infra-change           operator                         2010      762    3    9    318    9    318
 stacks   infra-change           TOTAL                            2010      762    3    9    318    9    318
 stacks   libre                  debugger                         3154     2385    6   14    487   14    487
@@ -197,10 +199,11 @@ stacks   review-feedback        reviewer                         6806     4630  
 stacks   review-feedback        TOTAL                           18317    12772   18   39   1413   39   1413
 stacks   skill-refresh          documentarian                    3851     2713    4    9    289    9    289
 stacks   skill-refresh          TOTAL                            3851     2713    4    9    289    9    289
-stacks   spec                   conductor                        3767     2665    5    0      0    0      0
-stacks   spec                   designer                         4079     2427    6   12    411   12    411
-stacks   spec                   planner                          5471     3408    7   13    442   13    442
-stacks   spec                   TOTAL                           13317     8500   18   23    773   23    773
+stacks   spec                   conductor                        3738     2613    5    0      0    0      0
+stacks   spec                   designer                         4097     2427    6   12    411   12    411
+stacks   spec                   pathfinder                       4903     3358    6    4    160    4    160
+stacks   spec                   planner                          5497     3425    7   13    442   13    442
+stacks   spec                   TOTAL                           18235    11823   24   24    823   24    823
 stacks   sweep                  conductor                        3500     2415    5    5    181    5    181
 stacks   sweep                  developer                        7348     5082    7   27    972   27    972
 stacks   sweep                  pathfinder                       4823     3358    6    4    160    4    160
@@ -218,16 +221,16 @@ orchestrator-protocol                      3152 orchestrator
 doc-protocol                               1951 documentarian
 pathfinder-protocol                        1917 pathfinder
 planner-workflow                           1699 planner
-workflow-map                               1380 conductor
 dev-standards-simplicity                   1375 developer
 dev-standards-universal                    1343 developer
+workflow-map                               1328 conductor
 orchestrator-dev-protocol                  1148 orchestrator-dev
 audit-protocol-light                       1122 auditor,auditor-subagent
 onboarder-workflow                         1072 onboarder
 beads-dev                                  1060 developer
 designer-protocol                          1001 designer
+orchestrator-workflow-modes                 989 orchestrator,orchestrator-dev
 debugger-workflow                           984 debugger
-orchestrator-workflow-modes                 870 orchestrator,orchestrator-dev
 auditor-workflow                            740 auditor
 wiki-navigation                             598 auditor-subagent,benchmarker,debugger,developer,onboarder,operator,pathfinder,reviewer
 coordinator-posture                         523 auditor,conductor,orchestrator,orchestrator-dev

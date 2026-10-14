@@ -209,6 +209,22 @@ type OutputDef struct {
 	ID    string            `json:"id"`
 	Type  string            `json:"type"`
 	Label map[string]string `json:"label,omitempty"`
+	// Record is how oh records the output itself (R5: created, closed,
+	// spec, report); such an output is never declared by an agent.
+	Record string `json:"record,omitempty"`
+}
+
+// Recorded returns the output recorded with kind record (first one).
+func (w *WorkflowRuntime) Recorded(record string) (OutputDef, bool) {
+	if w == nil {
+		return OutputDef{}, false
+	}
+	for _, o := range w.Outputs {
+		if o.Record == record {
+			return o, true
+		}
+	}
+	return OutputDef{}, false
 }
 
 // Checkpoint returns the checkpoint with id (case-insensitive: agent

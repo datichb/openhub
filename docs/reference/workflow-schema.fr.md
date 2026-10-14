@@ -62,7 +62,7 @@ Tous les champs de premier niveau sont verrouillables par `enforce`, sauf `apiVe
 enforce: [checkpoints, modes]   # ou ["*"] pour tout le document
 ```
 
-- Valeurs : `category`, `label`, `description`, `risk`, `isolation`, `code_mode`, `entry`, `inputs`, `prompt`, `agents`, `checkpoints`, `modes`, `circuit_breaker`, `models`, `skills`, `plugins`, `mcp`, `beads`, `runtime`, `outputs`, `limits`, `preconditions`, ou `"*"`. Une autre valeur : `enforce_unknown_field`.
+- Valeurs : `category`, `label`, `description`, `risk`, `isolation`, `code_mode`, `entry`, `inputs`, `prompt`, `agents`, `checkpoints`, `modes`, `circuit_breaker`, `models`, `skills`, `plugins`, `mcp`, `beads`, `runtime`, `outputs`, `limits`, `preconditions`, `headless`, `next`, `aliases`, ou `"*"`. Une autre valeur : `enforce_unknown_field`.
 - Le verrou porte sur le champ de premier niveau entier (`checkpoints` verrouille tous les checkpoints).
 - Les verrous s'additionnent le long de la chaîne `extends` ; une couche plus spécifique ne peut pas en retirer.
 - Les options de lancement (mode, environnement, entrées) restent permises, dans les limites du workflow.
@@ -254,6 +254,23 @@ inputs:
 - La fiche de lancement ne demande pas ces entrées (elles restent modifiables).
 - Contrôles : `input_from_invalid` (syntaxe), `input_from_unknown_source`, `input_from_unknown_input` (argument absent, ou l'entrée elle-même).
 
+#### Sources lues dans une session précédente (R5)
+
+```yaml
+inputs:
+  tickets: { type: beads-ids, required: true, from: session.output(spec.tickets) }
+  digest:  { type: text, from: session.trace(ticket) }
+```
+
+| Source | Calcule | Session lue |
+|---|---|---|
+| `session.output(<workflow>.<sortie>)` | la valeur d'une [sortie](#sorties-outputs) (liste de tickets jointe par des virgules) | la session dont le lancement découle (`oh run … --parent <id>`) si c'est une session de ce workflow qui a cette sortie ; sinon la **dernière** session du projet de ce workflow qui l'a |
+| `session.trace()`, `session.trace(<workflow>)` | un résumé de la trace de la session (checkpoints, décisions refusées, appels refusés, skills, délégations, sorties, totaux ; 8 000 caractères au plus), pour une rétrospective | la session parente, sinon la dernière session terminée du projet (de ce workflow) |
+
+- Pas d'argument d'entrée : ces sources se calculent sans autre entrée. Le lancement affiche la session lue (« session.output(spec.tickets) : session ses_… ev-1,ev-2 »).
+- Rien trouvé : l'entrée reste vide ; une entrée obligatoire est alors refusée au lancement (`session_input_missing`).
+- Contrôles : le workflow nommé existe (`input_from_unknown_workflow`), déclare la sortie (`input_from_unknown_output`), le type de la sortie convient à l'entrée (`input_from_type` : `beads-ids` → `beads-ids`/`beads-id`, `path` → `path`/`string`/`text`, `branch` → `branch`/`string`, `report` → `string`/`text` ; `session.trace` → `text`) ; `session.output(<sortie>)` sans workflow est refusé dans `from:` (`input_from_session_workflow`).
+
 ---
 
 ## Prompt
@@ -341,7 +358,7 @@ E8 (R4) : un agent qui ne modifie aucun fichier (le `planner`) peut écrire les 
 | shell, refusé | `git commit --amend`, `-a`/`--all`, `--include`/`-i`, `--only`/`-o`, `-C`, `git add -A`/`--all`/`-u`/`.`/`-f` (ils prendraient le travail de l'utilisateur) |
 
 - Le commit reste verrouillé jusqu'au checkpoint qui le déverrouille (`unlocks: [commit]`) ; les gardes d'oh (`.git/`, `.beads/`, hooks, `--no-verify`, brouillons, garde globale) passent après et gagnent. Comme les autres gardes, des règles sur le texte brut des commandes : un garde-fou, pas un bac à sable.
-- Le contrat de session de l'agent liste ses écritures, la carte du workflow les rappelle, et la condition `writes` des blocs (`<!-- oh:when writes -->`) ne garde un texte que dans ces sessions : le planner de `cadrage` garde son prompt « tu ne modifies jamais de fichiers ».
+- Le contrat de session de l'agent liste ses écritures, la carte du workflow les rappelle, et la condition `writes` des blocs (`<!-- oh:when writes -->`) ne garde un texte que dans ces sessions : le planner de `feature` garde son prompt « tu ne modifies jamais de fichiers ».
 - Chemins : relatifs, sous `docs/`, un fichier ou un dossier terminé par `/**`, aucun autre joker (`writes_path_invalid`), chacun une fois (`duplicate_entry`) ; refusé dans un workflow `risk: read` (`writes_read_only`).
 - Patch, **en réduction seulement** : une couche d'équipe ou de projet garde, retire ou restreint les chemins hérités (`docs/wiki/specs/equipe/**` sous `docs/wiki/specs/**`, `writes: []`) ; un chemin que le parent ne couvre pas, `writes` sur un agent qui n'en avait pas ou sur un agent ajouté par la couche, est un assouplissement (`loosening`), et la liste du parent est gardée.
 
@@ -535,10 +552,60 @@ outputs:
 | Champ | Type | Valeurs |
 |---|---|---|
 | `id` | texte | unique dans la liste |
-| `type` | texte | `branch`, `merge_request`, `beads-ids`, `path` |
+| `type` | texte | `branch`, `merge_request`, `beads-ids`, `path`, `report` (identifiant d'un rapport `rp-…`) |
 | `label` | texte traduisible | libellé affiché |
+| `record` | texte | absent : déclarée par l'agent ; sinon **relevée par oh** (R5) : `created`, `closed`, `spec`, `report` |
 
-L'agent déclare les valeurs avec l'outil MCP `workflow_outputs`. En fin de session, elles proposent « Enchaîner avec… » (touche `e` de la vue Sessions) et `oh session results`. Patch : liste remplacée en bloc.
+Sans `record`, l'agent déclare la valeur avec l'outil MCP `workflow_outputs` (la carte du workflow la liste dans « Sorties à déclarer », `workflow_status` dans `expected_outputs`). En fin de session, les sorties proposent « Enchaîner avec… » (touche `e` de la vue Sessions), les étapes [`next`](#composition-next-et-aliases) et `oh session results`. Patch : liste remplacée en bloc.
+
+### Sorties relevées par oh (`record`)
+
+Une sortie `record:` est remplie par oh à partir de ce qu'il voit la session faire ; aucun agent ne peut la déclarer (`workflow_outputs` la refuse) et la carte du workflow ne la mentionne pas.
+
+| `record` | Type | Ce que oh relève |
+|---|---|---|
+| `created` | `beads-ids` | les tickets créés par la session à travers la passerelle Beads (`bd create`, `create --file`, `q`, `--json`, `--silent`), ajoutés au fil des créations |
+| `closed` | `beads-ids` | les tickets fermés par la session à travers la passerelle Beads |
+| `spec` | `path` | les specs vérifiées par oh à un checkpoint `verify.spec` réussi (plusieurs : jointes par des virgules) ; sans checkpoint `verify.spec`, avertissement `output_record_spec_unchecked` |
+| `report` | `report` | le dernier rapport déposé avec `workflow_report` |
+
+- Le type doit être celui du tableau (`output_record_type`).
+- En fin de workflow, oh ne complète plus une sortie relevée avec les tickets fermés (comme il le fait pour une sortie `beads-ids` déclarée).
+- Une session distante ne relève pas les créations (les tickets n'y ont qu'un identifiant provisoire).
+
+---
+
+## Composition (`next` et `aliases`)
+
+```yaml
+aliases: [cadrage]                 # oh run cadrage lance ce workflow
+next:
+  - workflow: implement-spec
+    when: { outputs: [tickets] }   # proposé seulement si la session a cette sortie
+    inputs:
+      tickets: session.output(tickets)
+      spec: session.output(spec)
+```
+
+### `next` — ce que oh propose ensuite (E4)
+
+| Champ | Type | Rôle |
+|---|---|---|
+| `workflow` | id | workflow proposé (ou un alias) |
+| `label` | texte traduisible | libellé de la proposition (défaut : celui du workflow) |
+| `when.outputs` | liste d'ids | la proposition n'est faite que si la session a toutes ces sorties |
+| `inputs.<entrée>` | `session.output(<sortie>)` | entrée du workflow proposé, préremplie avec une sortie de la session qui se termine |
+
+- **Une proposition, jamais un lancement** : quand le client d'une session lancée par `oh run` se ferme, oh affiche les sorties de la session et la commande de chaque étape (`oh run implement-spec --parent ses_… --tickets ev-1,ev-2 -i spec=…`) ; `oh session next <id>` les redonne ; la vue Sessions de la TUI les place en tête de « Enchaîner avec… » et dans la notification de fin de session.
+- Le lancement proposé porte `--parent` : les sources `session.output(…)` de ses entrées lisent d'abord cette session.
+- Contrôles : `next_unknown_workflow`, `next_self`, `duplicate_entry`, `next_unknown_output` (sortie de `when` ou de `inputs` non déclarée), `next_input_invalid` (autre forme que `session.output(<sortie>)`), `next_unknown_input` (entrée absente du workflow proposé), `next_input_type` (type incompatible). Patch : liste remplacée en bloc.
+
+### `aliases` — autres noms du workflow
+
+- `aliases: [cadrage]` ou `aliases: [{ id: feature, with: tickets }]` : `oh run <alias>` (et la fiche de lancement, `oh eval`) lance ce workflow et l'annonce (« cadrage est un alias : lancement de spec »). Les entrées données vont au workflow cible.
+- **`with`** : l'alias ne va vers ce workflow que si cette entrée est donnée au lancement (`--tickets` remplit l'entrée de tickets) ; sinon il va vers le workflow qui le déclare sans `with`. Un même alias peut ainsi aller vers deux workflows selon les entrées.
+- Un document qui porte l'id de l'alias, dans n'importe quelle couche, l'emporte : l'alias ne s'applique plus (`alias_shadowed`, avertissement).
+- Contrôles : `id_invalid`, `alias_self`, `duplicate_entry`, `alias_with_unknown_input` ; sur le catalogue : `alias_ambiguous` (alias déclaré sans `with` par deux workflows), `alias_without_default` (alias qui n'a que des routes `with`). Patch : liste remplacée en bloc.
 
 ---
 
@@ -584,6 +651,7 @@ Un diagnostic a une gravité (erreur ou avertissement), un code, le chemin du ch
 | `method_input_type`, `checkpoint_method_no_input`, `checkpoint_method_mandatory`, `checkpoint_method_after`, `verify_since_unknown`, `verify_since_method`, `verify_outside_tests_ignored` | méthode de la session et test écrit d'abord (R7) |
 | `precondition_check_invalid`, `precondition_path_invalid`, `precondition_branch_invalid`, `precondition_tool_invalid`, `precondition_self`, `precondition_unknown_workflow`, `patch_unknown_precondition` | préconditions |
 | `prompt_both`, `prompt_empty`, `prompt_template_path`, `prompt_template_missing`, `prompt_parse`, `prompt_unknown_variable` | prompt |
+| `next_unknown_workflow`, `next_self`, `next_unknown_output`, `next_input_invalid`, `next_unknown_input`, `next_input_type`, `alias_self`, `alias_shadowed`, `alias_with_unknown_input`, `alias_ambiguous`, `alias_without_default`, `output_record_type`, `output_record_spec_unchecked`, `input_from_type`, `input_from_unknown_workflow`, `input_from_unknown_output`, `input_from_session_workflow` | composition : `next`, `aliases`, sorties relevées par oh, sources `session.*` (R5) |
 | `read_agent_writes`, `read_beads_unrestricted`, `read_beads_write`, `read_plugin_exec` | règles de `risk: read` |
 | `plan_agent_writes`, `plan_beads_unrestricted`, `plan_beads_delete`, `plan_without_beads_write` | règles de `risk: plan` |
 | `remote_forbidden_checkpoint`, `publish_remote_runtime`, `runtime_default_not_allowed`, `mode_default_not_allowed`, `isolation_unsupported` | environnements, modes, isolation |
