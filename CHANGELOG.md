@@ -9,6 +9,13 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Fixed — défauts de la vague 2 de P4 (lot p4-fixes)
+
+- **Garde git** : seule la sous-commande de git est visée (`git x`, après `env`, un chemin, ses options globales comme `git -C <dossier>`, dans `sh -c '…'` ou `eval`, `'git'`, plusieurs espaces) ; un message de tag ou de commit qui contient « git » puis « clean » (« cleanup ») n'est plus refusé. La définition d'un alias git (`git config … alias…`) est refusée. Faux positifs acceptés : la commande citée telle quelle dans un message, un mot du message après une option globale de git.
+- **`question` réservé aux agents d'entrée** : un agent qui n'a aucun rôle d'entrée dans le workflow (planner de `spec` et `cadrage`, pathfinder de `feature`…) ne reçoit plus l'outil (refus sur `*`, opencode le retire des outils du modèle) ; son contrat le renvoie à `### Questions bloquantes`. Un agent à double rôle (reviewer de `review`) le garde. Aucune question de sous-agent sur S2, S3, S5 (3/3) et S29 (2/2), contre des appels relevés sur S15, S21, S29 et S31 dans la référence 3.
+- **Commit de `writes:`** : seuls les chemins déclarés sont commités : message entre guillemets et seul avant `--` (`-m x src/a.go -- …`, `-p`, `--pathspec-from-file`, `:(glob)` refusés), un seul chemin après `--`, sans `..`, `/.`, guillemet, `$` ni redirection ; `git add` de même. Un chemin par commit, ou son dossier.
+- **Reviewer, ticket cité** : `bd show <ID>` juste après `git log -1`, même en review en lecture seule ; un « ticket non accessible » doit venir d'un `bd show` lancé. S26 3/3 contre 0/3 dans la référence 3 ; reviewer +0,9 % de tokens. Coût des évaluations du lot : 3,07 $ (Haiku).
+
 ### Changed — mesure de référence après la vague 2 de P4 (lot eval-baseline-3)
 
 - **Nouvelle référence `oh eval`** (Haiku ×3, 35 cas, 18,63 $) : S1 à S14 3/3 (S1 2/3 → 3/3, S3 1/3 → 3/3, S4 2/3 → 3/3, S10 2/3 → 3/3), S15 2/3 (3/3), S16–S18 3/3, S19 1/3, S20 0/3, S21 1/3, S22 3/3, S23 2/3, S24 3/3, S25 2/3, S26 0/3, S27 1/3, S28 0/3, S29 2/3, S30 3/3, S31 0/3, S33 2/3, S34 2/3, S35 3/3, S36 2/3. Les cas de cadrage et de spec (S19–S21, S27, S29, S31), S26 et S28 restent faibles sur Haiku ; tous les cas actifs sont dans la référence (`notInBaseline` retiré).
