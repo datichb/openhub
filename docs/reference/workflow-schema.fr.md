@@ -4,7 +4,7 @@
 
 Un workflow est un fichier YAML `apiVersion: oh/v1`, `kind: Workflow`, nommé `<id>.yaml`. Cette page décrit chaque champ : type, valeurs, valeur effective quand le champ est absent, comportement dans un patch (`extends`) et verrouillage (`enforce`).
 
-Le schéma est **figé** (`cli/internal/workflow/schema.go`, type `Spec`) : il n'évolue que par ajouts facultatifs. Ajouts faits après le gel : `risk: plan`, `preconditions`, `enforce`, `limits.models`, `limits.max_fix_rounds`, `entry.selectable`, `checkpoints.<id>.verify` et `checkpoints.<id>.when` (R3), `checkpoints.<id>.by` (L3), `checkpoints.<id>.wiki` (LD-D), `checkpoints.<id>.method` et les champs `must_touch_tests`, `outside_tests`, `since` de `verify` (R7), `agents.<id>.writes` et `verify.spec` (R4), `agents.<id>.writes_after` et `checkpoints.<id>.after` (r5-fixes). Décision : [ADR-039](../architecture/adr/039-declarative-workflows-oh-v1.fr.md).
+Le schéma est **figé** (`cli/internal/workflow/schema.go`, type `Spec`) : il n'évolue que par ajouts facultatifs. Ajouts faits après le gel : `risk: plan`, `preconditions`, `enforce`, `limits.models`, `limits.max_fix_rounds`, `entry.selectable`, `checkpoints.<id>.verify` et `checkpoints.<id>.when` (R3), `checkpoints.<id>.by` (L3), `checkpoints.<id>.wiki` (LD-D), `checkpoints.<id>.method` et les champs `must_touch_tests`, `outside_tests`, `since` de `verify` (R7), `agents.<id>.writes` et `verify.spec` (R4), `agents.<id>.writes_after` et `checkpoints.<id>.after` (r5-fixes), `fanout.source`, `checkpoints.<id>.tasks`, `agents.<id>.fanout` et `record: tasks` (sweep-fanout). Décision : [ADR-039](../architecture/adr/039-declarative-workflows-oh-v1.fr.md).
 
 Voir aussi : [workflows livrés](workflows.fr.md) · [workflows d'équipe](../guides/team-workflows.fr.md) · [CLI workflows](cli-workflows.fr.md).
 
@@ -318,6 +318,7 @@ La clé est l'id d'un agent du catalogue de briques (hub + équipe), en kebab-ca
 | `scratch` | table | `{ readers: [<agent>…] }` | pas de brouillons | dossier de brouillons de session de l'agent (voir [ci-dessous](#scratch-brouillons-de-session)) |
 | `writes` | liste | chemins sous `docs/` : un fichier, ou un dossier terminé par `/**` | aucune écriture ouverte | chemins de documentation que l'agent peut écrire et commiter (voir [ci-dessous](#writes-chemins-de-documentation)) |
 | `writes_after` | texte | id d'un checkpoint | écritures ouvertes dès le début | les chemins `writes` ne s'ouvrent qu'une fois ce checkpoint passé (voir [ci-dessous](#writes-chemins-de-documentation)) |
+| `fanout` | texte | `only`, `never` | agent de toutes les sessions | `never` : retiré des sessions en fan-out (le `developer` de `sweep`, dont les enfants font le travail) ; `only` : de celles qui ne le sont pas. Exige un fan-out (`agent_fanout_without_fanout`), jamais sur l'agent d'entrée (`agent_fanout_entry`) ; ne se change que dans la couche hub (`loosening`) |
 
 - **Graphe** : `calls` quand il est écrit, sinon la permission `task` de l'agent, limitée aux membres. L'auto-délégation n'est retenue que si elle est écrite (`reviewer: { calls: [reviewer] }`). La profondeur maximale du graphe devient `experimental.subagent_depth` d'opencode.
 - **Patch** : fusion par id, champ par champ ; `role: disabled` retire l'agent (sauf l'agent d'entrée) et le retire des listes `calls` des autres. `after` ne peut pas être retiré ni avancé (seulement reporté à un checkpoint déclaré plus loin) ; `calls` écrit par le parent ne peut que se réduire (sous-ensemble) ; un agent ajouté est accepté.
@@ -398,6 +399,7 @@ L'id est en kebab-case (`checkpoint_id_invalid`) et ne doit pas être celui d'un
 | `method` | texte | `tdd` | checkpoint de toutes les sessions | ne se pose pas sur un checkpoint hérité (`loosening`) ; un checkpoint ajouté peut en porter une |
 | `after` | texte | id d'un checkpoint déclaré avant | aucun ordre imposé | durcit : s'ajoute ou se reporte à un checkpoint déclaré plus loin, jamais retiré ni avancé (`loosening`) |
 | `fanout` | texte | `only` (sessions en fan-out seulement), `never` (les autres seulement) | checkpoint de toutes les sessions | ne se pose ni ne change sur un checkpoint hérité hors de la couche hub (`loosening`) |
+| `tasks` | objet | `max` (1 à 20, défaut 12), `domains` | aucun découpage relevé | oh lit, vérifie et relève le découpage passé dans l'appel (voir [ci-dessous](#tasks--découpage-relevé-par-oh)) ; une couche baisse `max` et restreint `domains`, sans retirer le champ (`loosening`) |
 
 - **`after`** (r5-fixes) : oh refuse le checkpoint tant que celui qu'il attend n'est pas passé (un checkpoint sauté dans le mode, ou absent de la session, compte comme passé) ; le refus nomme le checkpoint à passer d'abord, rien n'est déverrouillé et l'utilisateur n'est pas sollicité. Un checkpoint déclaré avant (`checkpoint_after_order`, `checkpoint_after_unknown`), présent dans toutes les sessions (`order_method_after`). La carte du workflow l'indique sur la ligne du checkpoint.
 - **Comportements** : `pause` demande toujours l'utilisateur ; `auto` continue seul ; `skip` saute le checkpoint ; `conditional` demande selon `condition`. oh n'évalue pas la phrase `condition` : sans `when:`, un checkpoint `conditional` demande toujours l'utilisateur quand il est signalé ; avec `when:`, oh l'évalue (voir ci-dessous).
@@ -491,6 +493,7 @@ fanout:
   merger: merge-conflicts  # workflow lancé par oh sur un conflit qu'il ne résout pas
   inputs: [method, instructions]  # entrées de la parente transmises à chaque enfant (même nom)
   fix: { workflow: quick, input: request }  # tour de correction quand cp-merge est refusé
+  # source: tasks          # sweep-fanout : les tâches relevées par oh au checkpoint tasks: (pas de tickets:)
 checkpoints:
   cp-2: { fanout: never, … }
   cp-merge:
@@ -508,9 +511,26 @@ Une session lancée avec l'entrée `fanout` à `true` (`oh run implement-spec -i
 
 **Tour de correction.** `fix` nomme le workflow qu'oh lance dans le worktree d'intégration quand le checkpoint de merge est refusé avec une consigne, et son entrée texte qui la reçoit, avec ce qui a échoué à la vérification (`fanout_fix_input`). Ce workflow doit avoir un checkpoint obligatoire qui déverrouille le commit (`fanout_fix_commit`) : sa correction est validée par l'utilisateur, jamais déléguée. oh reprend ses commits, puis le checkpoint de merge se repasse et se revérifie sur la branche d'intégration : la substitution de contrôle ne change pas. Au plus `limits.max_fix_rounds` tours (1 sans limite). Un patch d'une autre couche que le hub ne le change pas (`loosening`).
 
+**Enfants issus du découpage** (`source: tasks`, sweep-fanout). Au lieu d'une entrée `beads-ids` (`tickets:` ne s'écrit pas : `fanout_tasks_tickets`), les enfants sont les tâches **enregistrées par oh** au checkpoint qui porte [`tasks:`](#tasks--découpage-relevé-par-oh) : obligatoire (`fanout_tasks_mandatory`), présent dans toutes les sessions (`fanout_tasks_scope`), déclaré avant le checkpoint de merge (`fanout_tasks_after_merge` ; sans lui : `fanout_tasks_checkpoint`). oh écrit chaque tâche dans les entrées du workflow enfant : `task` (titre et description) et `files` (une entrée du périmètre par ligne), entrées texte qu'il doit déclarer (`fanout_task_input`), et `domain` s'il la déclare (un `enum` qui contient chaque valeur de `tasks.domains` : `fanout_task_domain`) ; `inputs` ne les nomme pas (`fanout_inputs_reserved`). Aucun ticket : oh ne lit pas Beads, ne ferme rien au merge, et la vérification du checkpoint délégué d'un enfant échoue si un changement sort du périmètre de sa tâche. Changer `source` est un `loosening` hors de la couche hub.
+
+**Checkpoint que les enfants passent, modifié par une couche** : un patch d'équipe ou de projet sur un checkpoint `fanout: never` (le `cp-commit` de `sweep`, le `cp-2` d'`implement-spec`) reste valide hors fan-out, mais une session en fan-out n'a pas ce checkpoint : avertissement `fanout_never_patched`, et `oh doctor` liste ces couches. Pour durcir aussi le fan-out, modifier le checkpoint de merge.
+
 Opération `merge` : `git merge`, `git pull` et les merges des forges (`glab mr merge`, `gh pr merge`, leurs API, outil MCP `gitlab` `merge_mr`). Seul le checkpoint de merge d'un fan-out la déverrouille (`unlock_merge_fanout_only`), et c'est oh qui merge au passage : aucune fenêtre ne s'ouvre pour les agents.
 
-Diagnostics : `fanout_input`, `fanout_tickets`, `fanout_parallel`, `fanout_unknown_workflow`, `fanout_child_self`, `fanout_child_nested` (un seul niveau d'enfants), `fanout_delegate_unknown` (checkpoint absent du workflow enfant), `fanout_merge_unknown`, `fanout_merge_scope`, `fanout_merge_mandatory`, `fanout_merge_unlocks`, `fanout_merge_verify`, `fanout_merge_verify_on`, `fanout_merge_verify_expect`, `fanout_delegates_layer`, `checkpoint_fanout_without_fanout`, `unlock_merge_fanout_only`, `verify_on_integration_merge_only`, `fanout_inputs_parent`, `fanout_inputs_child`, `fanout_inputs_type`, `fanout_inputs_value`, `fanout_fix_input`, `fanout_fix_commit`.
+Diagnostics : `fanout_input`, `fanout_tickets`, `fanout_parallel`, `fanout_unknown_workflow`, `fanout_child_self`, `fanout_child_nested` (un seul niveau d'enfants), `fanout_delegate_unknown` (checkpoint absent du workflow enfant), `fanout_merge_unknown`, `fanout_merge_scope`, `fanout_merge_mandatory`, `fanout_merge_unlocks`, `fanout_merge_verify`, `fanout_merge_verify_on`, `fanout_merge_verify_expect`, `fanout_delegates_layer`, `checkpoint_fanout_without_fanout`, `unlock_merge_fanout_only`, `verify_on_integration_merge_only`, `fanout_inputs_parent`, `fanout_inputs_child`, `fanout_inputs_type`, `fanout_inputs_value`, `fanout_fix_input`, `fanout_fix_commit`, `fanout_tasks_tickets`, `fanout_tasks_checkpoint`, `fanout_tasks_mandatory`, `fanout_tasks_scope`, `fanout_tasks_after_merge`, `fanout_task_input`, `fanout_task_domain`, `fanout_inputs_reserved`, `agent_fanout_without_fanout`, `agent_fanout_entry`, `fanout_never_patched` (avertissement).
+
+### `tasks` — découpage relevé par oh
+
+```yaml
+checkpoints:
+  cp-plan:
+    mandatory: true
+    tasks: { max: 12, domains: [frontend, backend, refactor, tests] }
+outputs:
+  - { id: tasks, type: text, record: tasks }
+```
+
+L'agent passe le checkpoint avec son découpage dans l'argument `tasks` de `workflow_checkpoint` : une entrée `{ title, description, files, domain, parallel }` par tâche. oh ne le croit pas sur parole : avant toute carte, il vérifie de 1 à `max` tâches, un titre sur une ligne, un domaine de `domains` (quand la liste est écrite), un périmètre `files` dont chaque entrée (chemin, dossier, motif `*`/`**`) désigne des fichiers du dépôt (`git ls-files`) ou un fichier à créer dans un dossier existant, jamais absolu, hors de l'emplacement, une option ou `.git`, et que deux tâches qui peuvent tourner en même temps (`parallel` toutes deux, ou toutes dans un fan-out) ne partagent aucun fichier. Un découpage refusé ne fait pas de carte : l'appel est refusé avec la liste des problèmes. Accepté, la carte le montre tel qu'oh l'a lu (`t1`, `t2`… numérotés par oh) et l'appel qui passe le checkpoint doit apporter le même (sinon refusé). Passé, oh l'enregistre dans l'état des checkpoints de la session et dans la sortie `record: tasks` ; la réponse du checkpoint le rend à l'agent. Un seul checkpoint par workflow (`tasks_duplicate`), `max` borné (`tasks_max`).
 
 ### Budget de pauses
 
@@ -597,7 +617,7 @@ outputs:
 | `id` | texte | unique dans la liste |
 | `type` | texte | `branch`, `merge_request`, `beads-ids`, `path`, `report` (identifiant d'un rapport `rp-…`), `text` (une valeur, par exemple une entrée relevée) |
 | `label` | texte traduisible | libellé affiché |
-| `record` | texte | absent : déclarée par l'agent ; sinon **relevée par oh** (R5) : `created`, `closed`, `spec`, `report`, `input` |
+| `record` | texte | absent : déclarée par l'agent ; sinon **relevée par oh** (R5) : `created`, `closed`, `spec`, `report`, `input`, `tasks` |
 
 Sans `record`, l'agent déclare la valeur avec l'outil MCP `workflow_outputs` (la carte du workflow la liste dans « Sorties à déclarer », `workflow_status` dans `expected_outputs`). En fin de session, les sorties proposent « Enchaîner avec… » (touche `e` de la vue Sessions), les étapes [`next`](#composition-next-et-aliases) et `oh session results`. Patch : liste remplacée en bloc.
 
@@ -612,6 +632,7 @@ Une sortie `record:` est remplie par oh à partir de ce qu'il voit la session fa
 | `spec` | `path` | les specs vérifiées par oh à un checkpoint `verify.spec` réussi (plusieurs : jointes par des virgules) ; sans checkpoint `verify.spec`, avertissement `output_record_spec_unchecked` |
 | `report` | `report` | le dernier rapport déposé avec `workflow_report` |
 | `input` | `text` | la valeur de l'entrée de même id, au lancement (sinon sa valeur par défaut), pour la transmettre par `next:` : `spec` relève `method` et la passe à `implement-spec` ; sans entrée de ce nom, `output_record_input_unknown` |
+| `tasks` | `text` | le découpage vérifié et enregistré par oh au checkpoint [`tasks:`](#tasks--découpage-relevé-par-oh), une ligne par tâche (`t1 [domaine] titre — périmètre`) ; sans ce checkpoint, `output_record_tasks_unchecked` |
 
 - Le type doit être celui du tableau (`output_record_type`).
 - En fin de workflow, oh ne complète plus une sortie relevée avec les tickets fermés (comme il le fait pour une sortie `beads-ids` déclarée).
@@ -694,7 +715,8 @@ Un diagnostic a une gravité (erreur ou avertissement), un code, le chemin du ch
 | `verify_spec_path_invalid` | chemin de `verify.spec` absolu ou hors de l'emplacement |
 | `checkpoint_agent_clash`, `checkpoint_mode_unknown`, `checkpoint_mode_missing`, `checkpoint_condition_missing`, `mandatory_checkpoint_removed`, `unlocking_checkpoint_removed`, `unlock_duplicate`, `unlock_again_first`, `unlock_again_without_commit`, `unlock_unknown`, `unlock_skip`, `unlock_push_without_publish`, `unlock_requires_publish`, `publish_checkpoint_remote`, `publish_checkpoint_pause`, `patch_unknown_checkpoint`, `checkpoint_by_unknown`, `checkpoint_by_duplicate`, `checkpoint_wiki_commit`, `headless_checkpoint_pause` | checkpoints |
 | `verify_empty`, `verify_cmd_template`, `verify_in_invalid`, `verify_timeout_invalid`, `verified_checkpoint_removed`, `when_empty`, `when_mandatory`, `when_unknown_agent`, `when_unknown_output`, `pause_budget_exceeded` | vérification lancée par oh, conditions, budget de pauses (R3) |
-| `fanout_input`, `fanout_tickets`, `fanout_parallel`, `fanout_unknown_workflow`, `fanout_child_self`, `fanout_child_nested`, `fanout_delegate_unknown`, `fanout_merge_unknown`, `fanout_merge_scope`, `fanout_merge_mandatory`, `fanout_merge_unlocks`, `fanout_merge_verify`, `fanout_merge_verify_on`, `fanout_merge_verify_expect`, `fanout_delegates_layer`, `checkpoint_fanout_without_fanout`, `unlock_merge_fanout_only`, `verify_on_integration_merge_only`, `fanout_inputs_parent`, `fanout_inputs_child`, `fanout_inputs_type`, `fanout_inputs_value`, `fanout_fix_input`, `fanout_fix_commit` | fan-out et substitution de contrôle (R6) |
+| `fanout_input`, `fanout_tickets`, `fanout_parallel`, `fanout_unknown_workflow`, `fanout_child_self`, `fanout_child_nested`, `fanout_delegate_unknown`, `fanout_merge_unknown`, `fanout_merge_scope`, `fanout_merge_mandatory`, `fanout_merge_unlocks`, `fanout_merge_verify`, `fanout_merge_verify_on`, `fanout_merge_verify_expect`, `fanout_delegates_layer`, `checkpoint_fanout_without_fanout`, `unlock_merge_fanout_only`, `verify_on_integration_merge_only`, `fanout_inputs_parent`, `fanout_inputs_child`, `fanout_inputs_type`, `fanout_inputs_value`, `fanout_fix_input`, `fanout_fix_commit`, `fanout_tasks_tickets`, `fanout_tasks_checkpoint`, `fanout_tasks_mandatory`, `fanout_tasks_scope`, `fanout_tasks_after_merge`, `fanout_task_input`, `fanout_task_domain`, `fanout_inputs_reserved`, `agent_fanout_without_fanout`, `agent_fanout_entry`, `fanout_never_patched` (avertissement) | fan-out et substitution de contrôle (R6, sweep-fanout) |
+| `tasks_duplicate`, `tasks_max`, `output_record_tasks_unchecked` | découpage relevé par oh (sweep-fanout) |
 | `method_input_type`, `checkpoint_method_no_input`, `checkpoint_method_mandatory`, `checkpoint_method_after`, `verify_since_unknown`, `verify_since_method`, `verify_outside_tests_ignored` | méthode de la session et test écrit d'abord (R7) |
 | `precondition_check_invalid`, `precondition_path_invalid`, `precondition_branch_invalid`, `precondition_tool_invalid`, `precondition_self`, `precondition_unknown_workflow`, `patch_unknown_precondition` | préconditions |
 | `prompt_both`, `prompt_empty`, `prompt_template_path`, `prompt_template_missing`, `prompt_parse`, `prompt_unknown_variable` | prompt |

@@ -1,8 +1,8 @@
 > [Lire en français](fan-out.fr.md)
 
-# Fan-out: one child session per ticket (experimental)
+# Fan-out: one child session per ticket or subtask (experimental)
 
-The fan-out has the tickets of a spec implemented by **child sessions**, one per ticket, each on its own branch and worktree, sometimes at the same time. oh merges them itself into an integration branch, has the `merger` resolve a conflict it cannot resolve alone, and merges the whole into your branch only after **a single validation**, `cp-merge`, verified by oh on the integration branch. It is **experimental** and off by default.
+The fan-out has the tickets of a spec (`implement-spec`) or the subtasks of a sweep (`sweep`) implemented by **child sessions**, one per ticket or subtask, each on its own branch and worktree, sometimes at the same time. oh merges them itself into an integration branch, has the `merger` resolve a conflict it cannot resolve alone, and merges the whole into your branch only after **a single validation**, `cp-merge`, verified by oh on the integration branch. It is **experimental** and off by default.
 
 ## Enable
 
@@ -28,6 +28,7 @@ Without `experimental`, a launch with `fanout=true` is refused. The fan-out only
 ```
 oh run implement-spec -i fanout=true                  # tickets and spec of the last spec session of the project
 oh run implement-spec -i fanout=true -t ev-1 -t ev-2  # or given tickets
+oh run sweep -i goal="migrate the logs to slog" -i fanout=true   # one child session per subtask approved at cp-plan
 ```
 
 `oh run` also starts, in the background, the **driver** of the fan-out (`oh fanout drive <session>`, log in `~/.oh/sessions/<session>/fanout.log`): it launches, follows and merges the child sessions, whether you keep the client of the parent session open or not. If it stopped (machine turned off), start it again: `oh fanout drive <session>` goes on where it was.
@@ -43,6 +44,17 @@ oh run implement-spec -i fanout=true -t ev-1 -t ev-2  # or given tickets
 7. **`cp-final`**: recap. The unmerged tickets (unresolved conflict, failure, budget) stay open: launch `implement-spec` again for them.
 
 In semi-auto, three pauses whatever the number of tickets: `cp-plan`, `cp-merge`, `cp-final` (two more per fix round: its `cp-commit` and the new `cp-merge`).
+
+## Fan-out sweep
+
+`sweep` follows the same steps, with subtasks instead of tickets (`fanout.source: tasks`):
+
+1. **`cp-plan`** (pause): the `conductor` gives the breakdown of the `pathfinder` in the `tasks` argument of the checkpoint (title, description, file scope, domain per subtask). oh **checks it before showing it to you**: files of the repository (or new files in an existing folder), pairwise **disjoint** scopes, at most 12 subtasks, a known domain; otherwise the call is refused and the `conductor` fixes it. The card shows the breakdown as oh read it, and oh records that one only (`tasks` output).
+2. **Child sessions**: one `sweep-task` session per recorded subtask, on `oh/fanout/<session>/t1`, `t2`…, with its subtask, scope, domain, the goal and the verification asked (`verify`). Its `cp-commit` passes without a pause (replaced by your `cp-merge`), oh runs the verification in its worktree there and **refuses the commit of a change outside the scope** of the subtask.
+3. **Merge by oh**, review of the whole, **`cp-merge`** verified on the integration branch, a fix round when you refuse it with an instruction (one round): as above. No ticket: nothing to close.
+4. **`cp-recap`**: the subtasks merged or not.
+
+Without `[fanout] experimental`, `sweep` keeps its sequential version (subtasks in the session, `cp-commit`) and `-i fanout=true` is refused. Three pauses in semi-auto in both versions.
 
 ## Clean-up
 
@@ -82,10 +94,10 @@ In the TUI, key `B` of the Sessions view: the waiting checkpoints of the fan-out
 
 ## Guarantees
 
-The guards of the control substitution (declared by the hub layer only, mandatory `cp-merge` verified by oh, children without push, merge nor closing, merge by oh, traceability, flag) are detailed in [Checkpoints](../reference/checkpoints.en.md#fan-out-control-substitution-cp-r3). A team layer cannot loosen the fan-out of `implement-spec`: it can only lower `fanout.parallel`.
+The guards of the control substitution (declared by the hub layer only, mandatory `cp-merge` verified by oh, children without push, merge nor closing, merge by oh, traceability, flag) are detailed in [Checkpoints](../reference/checkpoints.en.md#fan-out-control-substitution-cp-r3). A team layer cannot loosen the fan-out of `implement-spec` nor that of `sweep`: it can only lower `fanout.parallel` (and, for `sweep`, `tasks.max` or the `tasks.domains` list). A layer that hardens the `cp-2` of `implement-spec` or the `cp-commit` of `sweep` keeps it outside a fan-out, but these checkpoints do not exist in a fan-out session: `oh workflow validate` warns about it (`fanout_never_patched`) and `oh doctor` lists these layers; harden `cp-merge` too.
 
 ## Limits (experimental)
 
-- `sweep` does not use this mechanism yet. `feature` is an alias (`spec`, or `implement-spec` with `--tickets`): `oh run feature --tickets … -i fanout=true` thus launches this fan-out.
+- `feature` is an alias (`spec`, or `implement-spec` with `--tickets`): `oh run feature --tickets … -i fanout=true` thus launches this fan-out.
 - A child that waits for an answer in its text (without the `question` tool) is only stopped by the 10-minute guard and stays unmerged.
 - The driver follows the fan-out until `cp-merge` passes (to launch the fix rounds): if it stopped, start `oh fanout drive <session>` again.
