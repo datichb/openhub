@@ -1,5 +1,5 @@
 id: S19
-title: "Cadrage : deux exigences implicites (tâches privées, corbeille) remontent en questions bloquantes relayées à l'utilisateur"
+title: "Cadrage (alias de spec) : deux exigences implicites (tâches privées, corbeille) remontent en questions bloquantes relayées à l'utilisateur"
 workflow: cadrage
 mode: semi-auto
 text: "Ajouter un export CSV de toutes les tâches de l'équipe, pour que la manageuse suive l'avancement chaque lundi."
@@ -8,11 +8,10 @@ beads:
 timeout: 25m
 answers:
   question: first
+  # R5 : cadrage lance spec ; les questions de l'entretien viennent avant
+  # cp-understanding, où l'évaluation s'arrête (rien n'est écrit).
   checkpoints:
-    cp-scope: approve
-    # La création des tickets n'est pas évaluée ici.
-    cp-tickets: "reject: Évaluation terminée : ne crée aucun ticket et termine le workflow."
-    "*": approve
+    "*": "reject: Évaluation terminée : n'écris aucune spec, ne crée aucun ticket et termine le workflow."
 # R1-a : « toutes les tâches » heurte deux règles que seul le code dit : une
 # tâche privée n'est visible que de son autrice, une tâche supprimée reste
 # 30 jours dans la corbeille. Ni l'une ni l'autre ne se tranche par

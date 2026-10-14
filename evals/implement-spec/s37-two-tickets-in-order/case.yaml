@@ -1,0 +1,53 @@
+id: S37
+title: "Implement-spec : deux tickets existants traités l'un après l'autre (cp-plan, un cp-2 par ticket, revue de l'ensemble à cp-final), tickets terminés relevés par oh"
+workflow: implement-spec
+mode: semi-auto
+tickets: [ev-1, ev-2]
+beads:
+  prefix: ev
+  tickets:
+    - id: ev-1
+      title: "Corriger Sub qui additionne au lieu de soustraire"
+      type: bug
+      labels: [ai-delegated]
+      description: "calc.Sub(a, b) renvoie a + b au lieu de a - b."
+      acceptance: "Sub(5, 3) == 2 ; un test TestSub couvre Sub ; go test ./... passe."
+    - id: ev-2
+      title: "Ajouter Mul(a, b int) int"
+      type: feature
+      labels: [ai-delegated]
+      description: "Ajouter à calc la fonction Mul(a, b int) int qui renvoie le produit a × b, avec son commentaire de documentation."
+      acceptance: "Mul(4, 3) == 12 ; Mul(-2, 3) == -6 ; un test TestMul couvre Mul ; go test ./... passe."
+timeout: 30m
+budget_usd: 1.5
+answers:
+  checkpoints:
+    "*": approve
+  question: first
+# R5 : version séquentielle d'implement-spec (les sessions enfants viennent
+# avec R6). Le plan passe avant toute délégation ; chaque ticket est commité
+# après son cp-2 puis fermé ; la revue de l'ensemble précède cp-final ; oh
+# relève les tickets fermés (sortie tickets, record: closed).
+assertions:
+  - type: checkpoint_order
+    order: [cp-plan, cp-2, cp-final]
+  - type: called
+    name: aucune délégation avant cp-plan
+    tool: task
+    absent: true
+    before: { checkpoint_passed: cp-plan }
+  - type: ran
+    name: aucun commit avant la validation de cp-2
+    command: "git commit*"
+    absent: true
+    before: { checkpoint_passed: cp-2 }
+  - type: output
+    name: les deux tickets terminés, relevés par oh
+    output: tickets
+    pattern: "ev-1[\\s\\S]*ev-2|ev-2[\\s\\S]*ev-1"
+  - type: no_question_in_subagent
+    agents: [developer, reviewer]
+  - type: changed_within
+    paths: ["calc.go", "*_test.go", "CHANGELOG.md"]
+  - type: hidden_tests
+  - type: no_denied_loop

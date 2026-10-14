@@ -1,5 +1,5 @@
 id: S15
-title: "Cadrage : une demande d'interface fait invoquer le designer (ui-protocol chargé, sans question, enveloppe vers l'appelant)"
+title: "Cadrage (alias de spec) : une demande d'interface fait invoquer le designer (ui-protocol chargé, sans question, enveloppe vers l'appelant)"
 workflow: cadrage
 mode: semi-auto
 text: |
@@ -11,11 +11,10 @@ timeout: 25m
 answers:
   question: first
   checkpoints:
-    cp-scope: approve
-    # La création des tickets n'est pas évaluée ici.
+    # R5 : cadrage lance spec. La création des tickets n'est pas évaluée ici.
     cp-tickets: "reject: Évaluation terminée : ne crée aucun ticket et termine le workflow."
     "*": approve
-# L6 cleanup : le designer, sous-agent dans cadrage, est lancé par
+# L6 cleanup : le designer, sous-agent dans cadrage (spec depuis R5), est lancé par
 # conductor, pathfinder ou planner (contrat de session) : son enveloppe
 # s'adresse à l'un d'eux, jamais à un agent hors du workflow.
 assertions:
@@ -35,5 +34,6 @@ assertions:
   - type: no_question_in_subagent
     agents: [designer, pathfinder, planner]
   - type: changed_within
-    name: aucun fichier modifié
+    name: aucun fichier modifié hors de la spec
+    paths: ["docs/wiki/specs/**"]
   - type: no_denied_loop

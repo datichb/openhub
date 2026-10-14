@@ -1,0 +1,47 @@
+id: S40
+title: "Implement-spec sans ticket donné : les tickets et la spec viennent de la dernière session spec du projet (session.output), implémentés et relevés par oh"
+workflow: implement-spec
+mode: semi-auto
+beads:
+  prefix: ev
+  tickets:
+    - id: ev-1
+      title: "Corriger Sub qui additionne au lieu de soustraire"
+      type: bug
+      labels: [ai-delegated]
+      description: "calc.Sub(a, b) renvoie a + b au lieu de a - b. Spec : docs/wiki/specs/soustraction.md (T1)."
+      acceptance: "CA-1 et CA-2 de la spec ; go test ./... passe."
+# R5 : une session spec terminée a relevé ses sorties ; implement-spec les
+# reprend par `from: session.output(spec.tickets)` et `session.output(spec.spec)`.
+previous:
+  - workflow: spec
+    outputs:
+      spec: docs/wiki/specs/soustraction.md
+      tickets: [ev-1]
+timeout: 25m
+answers:
+  checkpoints:
+    "*": approve
+  question: first
+assertions:
+  - type: ran
+    name: le ticket de la session spec est lu
+    command: "bd show*ev-1*"
+    before: { checkpoint: cp-plan }
+  - type: checkpoint_order
+    order: [cp-plan, cp-2, cp-final]
+  - type: ran
+    name: aucun commit avant la validation de cp-2
+    command: "git commit*"
+    absent: true
+    before: { checkpoint_passed: cp-2 }
+  - type: output
+    name: le ticket terminé, relevé par oh
+    output: tickets
+    pattern: "^ev-1$"
+  - type: no_question_in_subagent
+    agents: [developer, reviewer]
+  - type: changed_within
+    paths: ["calc.go", "*_test.go", "CHANGELOG.md"]
+  - type: hidden_tests
+  - type: no_denied_loop
