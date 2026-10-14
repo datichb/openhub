@@ -141,6 +141,11 @@ type Runner struct {
 	BudgetTotalUSD float64
 	// Retry runs again a pass stopped by a provider rate limit.
 	Retry RetryPolicy
+	// Plan sets the repetitions of some cases (the others run Reps).
+	Plan []CasePlan
+	// EscalateTo: a case planned below it whose pass fails runs up to
+	// EscalateTo repetitions in the same run (0: never).
+	EscalateTo int
 	// Sleep waits before a retry (tests); nil: a timer bound to ctx.
 	Sleep func(ctx context.Context, d time.Duration) error
 	Log   func(format string, args ...any)

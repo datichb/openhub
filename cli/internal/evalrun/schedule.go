@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -53,6 +54,95 @@ type passJob struct {
 	variant Variant
 	model   string
 	rep     int
+	// ci, mi, vi are the ranks of the case, the model and the variant: the
+	// order of the report.
+	ci, mi, vi int
+}
+
+// before tells whether j comes before k in the report: case, model,
+// repetition, variant.
+func (j passJob) before(k passJob) bool {
+	switch {
+	case j.ci != k.ci:
+		return j.ci < k.ci
+	case j.mi != k.mi:
+		return j.mi < k.mi
+	case j.rep != k.rep:
+		return j.rep < k.rep
+	}
+	return j.vi < k.vi
+}
+
+// jobQueue hands the passes to the workers; an escalation puts its passes
+// in front. pop returns -1 once every pass is done.
+type jobQueue struct {
+	mu      sync.Mutex
+	cond    *sync.Cond
+	items   []int
+	pending int // queued or running
+}
+
+func newJobQueue(n int) *jobQueue {
+	q := &jobQueue{pending: n}
+	q.cond = sync.NewCond(&q.mu)
+	for i := 0; i < n; i++ {
+		q.items = append(q.items, i)
+	}
+	return q
+}
+
+func (q *jobQueue) pop() int {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	for len(q.items) == 0 && q.pending > 0 {
+		q.cond.Wait()
+	}
+	if len(q.items) == 0 {
+		return -1
+	}
+	i := q.items[0]
+	q.items = q.items[1:]
+	return i
+}
+
+// front queues passes before the others.
+func (q *jobQueue) front(ids []int) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	q.items = append(append([]int{}, ids...), q.items...)
+	q.pending += len(ids)
+	q.cond.Broadcast()
+}
+
+func (q *jobQueue) done() {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	q.pending--
+	if q.pending <= 0 {
+		q.cond.Broadcast()
+	}
+}
+
+// CasePlan is the number of repetitions of a case in a run with
+// repetitions per case (oh eval --tiered, --reps-case).
+type CasePlan struct {
+	Case string `json:"case"`
+	Reps int    `json:"reps"`
+	// Reason says why (tiered plan, forced).
+	Reason string `json:"reason,omitempty"`
+	// Escalated: a pass failed below Report.EscalateTo, so the case ran up
+	// to it.
+	Escalated bool `json:"escalated,omitempty"`
+}
+
+// repsOf is the number of repetitions planned for a case.
+func (r *Runner) repsOf(id string, def int) int {
+	for _, p := range r.Plan {
+		if p.Case == id && p.Reps > 0 {
+			return p.Reps
+		}
+	}
+	return def
 }
 
 // label names the pass in the logs.
@@ -68,7 +158,9 @@ func (j passJob) label() string {
 // repetition, variant: the variants of a repetition run side by side)
 // whatever the order they end in. The run goes on after a
 // failed pass; ctx cancellation stops it (the passes not started are left
-// out).
+// out). With Plan, each case runs its own number of repetitions; with
+// EscalateTo, a case whose pass fails below it runs up to it in the same
+// run (its new passes go first in the queue).
 func (r *Runner) Run(ctx context.Context, cases []*Case) (*Report, error) {
 	if r.Exec == nil {
 		return nil, errors.New("evalrun: no executor")
@@ -87,55 +179,104 @@ func (r *Runner) Run(ctx context.Context, cases []*Case) (*Report, error) {
 		variants = []Variant{{}}
 	}
 	var jobs []passJob
-	for _, c := range cases {
-		rep.Cases = append(rep.Cases, CaseInfo{ID: c.ID, Key: c.Key(), Title: c.Title, Workflow: c.Workflow, Active: c.IsActive(), InactiveReason: c.InactiveReason})
+	planned := map[string]int{}
+	maxJobs := 0
+	for ci, c := range cases {
+		rep.Cases = append(rep.Cases, c.Info())
 		if !c.IsActive() {
 			continue
 		}
-		for _, m := range r.Models {
-			for i := 1; i <= reps; i++ {
-				for _, v := range variants {
-					jobs = append(jobs, passJob{c, v, m, i})
+		n := r.repsOf(c.ID, reps)
+		planned[c.ID] = n
+		if r.Plan != nil {
+			p := CasePlan{Case: c.ID, Reps: n}
+			for _, q := range r.Plan {
+				if q.Case == c.ID {
+					p.Reason = q.Reason
 				}
 			}
+			rep.Plan = append(rep.Plan, p)
 		}
+		for mi, m := range r.Models {
+			for i := 1; i <= n; i++ {
+				for vi, v := range variants {
+					jobs = append(jobs, passJob{c: c, variant: v, model: m, rep: i, ci: ci, mi: mi, vi: vi})
+				}
+			}
+			maxJobs += max(n, r.EscalateTo) * len(variants)
+		}
+	}
+	if r.EscalateTo > 0 {
+		rep.EscalateTo = r.EscalateTo
 	}
 	workers := r.Parallel
 	if workers < 1 {
 		workers = 1
 	}
-	if workers > len(jobs) {
-		workers = len(jobs)
+	if workers > maxJobs {
+		workers = maxJobs
 	}
 	if workers > 1 {
 		r.logf("%d passes, %d at a time", len(jobs), workers)
 	}
 
 	var (
-		mu      sync.Mutex
-		spent   float64
-		done    int
-		results = make([]*PassResult, len(jobs))
-		skipped = make([]bool, len(jobs))
-		next    = make(chan int)
-		wg      sync.WaitGroup
+		mu        sync.Mutex
+		spent     float64
+		done      int
+		results   = make([]*PassResult, len(jobs), maxJobs)
+		skipped   = make([]bool, len(jobs), maxJobs)
+		escalated = map[string]bool{} // case + model
+		queue     = newJobQueue(len(jobs))
+		wg        sync.WaitGroup
 	)
 	// overBudget tells whether the run spent its cost cap (mu held).
 	overBudget := func() bool { return r.BudgetTotalUSD > 0 && spent >= r.BudgetTotalUSD }
+	// escalate queues the missing repetitions of a case after a failed
+	// pass (mu held); they go first.
+	escalate := func(j passJob) {
+		key := j.c.ID + "\x00" + j.model
+		n := planned[j.c.ID]
+		if r.EscalateTo <= n || escalated[key] {
+			return
+		}
+		escalated[key] = true
+		var ids []int
+		for i := n + 1; i <= r.EscalateTo; i++ {
+			for vi, v := range variants {
+				jobs = append(jobs, passJob{c: j.c, variant: v, model: j.model, rep: i, ci: j.ci, mi: j.mi, vi: vi})
+				results, skipped = append(results, nil), append(skipped, false)
+				ids = append(ids, len(jobs)-1)
+			}
+		}
+		for k := range rep.Plan {
+			if rep.Plan[k].Case == j.c.ID {
+				rep.Plan[k].Escalated = true
+			}
+		}
+		r.logf("%s: failed, %d more pass(es) up to ×%d", j.label(), len(ids), r.EscalateTo)
+		queue.front(ids)
+	}
 	for w := 0; w < workers; w++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			for i := range next {
-				j := jobs[i]
+			for {
+				i := queue.pop()
+				if i < 0 {
+					return
+				}
 				mu.Lock()
+				j := jobs[i]
 				if overBudget() {
 					skipped[i] = true
 					mu.Unlock()
+					queue.done()
 					continue
 				}
 				mu.Unlock()
 				if ctx.Err() != nil {
+					queue.done()
 					continue
 				}
 				if workers > 1 {
@@ -149,28 +290,29 @@ func (r *Runner) Run(ctx context.Context, cases []*Case) (*Report, error) {
 				})
 				mu.Lock()
 				done++
-				n := done
-				mu.Unlock()
-				r.logf("[%d/%d] %s: %s %s ($%.3f, %.0fs)", n, len(jobs), j.label(), res.Outcome, passWord(res.Pass), res.CostUSD, res.Seconds)
+				n, total := done, len(jobs)
 				results[i] = &res
+				if !res.Pass && ctx.Err() == nil {
+					escalate(j)
+					total = len(jobs)
+				}
+				mu.Unlock()
+				r.logf("[%d/%d] %s: %s %s ($%.3f, %.0fs)", n, total, j.label(), res.Outcome, passWord(res.Pass), res.CostUSD, res.Seconds)
+				queue.done()
 			}
 		}()
 	}
-feed:
-	for i := range jobs {
-		select {
-		case <-ctx.Done():
-			break feed
-		case next <- i:
-		}
-	}
-	close(next)
 	wg.Wait()
 
-	for i, res := range results {
+	order := make([]int, len(jobs))
+	for i := range order {
+		order[i] = i
+	}
+	sort.SliceStable(order, func(a, b int) bool { return jobs[order[a]].before(jobs[order[b]]) })
+	for _, i := range order {
 		switch {
-		case res != nil:
-			rep.Passes = append(rep.Passes, *res)
+		case results[i] != nil:
+			rep.Passes = append(rep.Passes, *results[i])
 		case skipped[i]:
 			rep.Skipped = append(rep.Skipped, SkippedPass{Case: jobs[i].c.ID, Variant: jobs[i].variant.Name, Model: jobs[i].model, Rep: jobs[i].rep})
 		}

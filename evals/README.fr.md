@@ -115,6 +115,26 @@ Les assertions sont décrites dans la [référence d'`oh eval`](../docs/referenc
 
 La mesure de référence (Haiku, trois répétitions) est enregistrée dans `cli/internal/evalrun/testdata/evals/baseline.json` ; `make test-eval` la compare au passage courant.
 
+## Référence par niveaux
+
+Depuis la référence 4, un cas resté à 100 % sur ses deux dernières mesures passe ×1, les autres ×3 ; un cas à ×1 qui échoue est relancé jusqu'à ×3 dans le même passage (escalade). `baseline.json` garde, pour chaque cas, ses quatre dernières mesures (`history` : réussite x/n, coût moyen, empreinte du dossier du cas) ; une mesure prise sur une autre version du cas (fixture, `case.yaml` ou tests cachés modifiés) ne compte pas.
+
+```
+cd cli
+# 1. ce que coûterait la référence, sans rien lancer
+make test-eval OH_EVAL_TIERED=1 OH_EVAL_PLAN=1 OH_EVAL_BUDGET_TOTAL=14 \
+  OH_EVAL_REPS_CASE=S5=3,S15=3
+# 2. la mesure
+make test-eval OH_EVAL_TIERED=1 OH_EVAL_RECORD=1 OH_EVAL_PARALLEL=4 OH_EVAL_BUDGET_TOTAL=14 \
+  OH_EVAL_REPS_CASE=S5=3,S15=3 OH_EVAL_NOTE="référence 4"
+```
+
+- `OH_EVAL_REPS_CASE` (`--reps-case`) impose les répétitions de cas précis : une assertion changée sans que le dossier change autrement, un cas à confirmer.
+- `OH_EVAL_HISTORY` (`--history`, motifs glob séparés par des espaces) ajoute les `report.json` des lots mesurés depuis la dernière référence : leurs mesures comptent par date, après celles de la référence. Les rapports d'avant ce lot n'ont pas d'empreinte : seule une différence d'assertions les écarte.
+- `OH_EVAL_STABLE_MEASURES=1` (`--stable-measures`) se contente de la dernière mesure, `0` lance tous les cas ×1 et laisse l'escalade décider ; `OH_EVAL_ESCALATE=0` coupe l'escalade.
+- `OH_EVAL_PLAN=1` (`--plan`) donne les passages de chaque cas et le coût estimé depuis les coûts moyens enregistrés (référence, puis `OH_EVAL_HISTORY` et `OH_EVAL_COSTS`), avec les escalades probables et le pire cas si toutes ont lieu. Aucune clé n'est demandée.
+- `TestShippedBaseline` vérifie que chaque cas actif a le nombre de passages de son plan (×3 si un passage à ×1 a échoué) et que son historique commence par la mesure enregistrée.
+
 ## Lancer plus vite, sans dépasser un budget
 
 ```

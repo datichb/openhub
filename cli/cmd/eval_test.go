@@ -6,13 +6,16 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/pelletier/go-toml/v2"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/evalrun"
+	"github.com/datichb/openhub/cli/internal/i18n"
 )
 
 func TestEvalSettings(t *testing.T) {
@@ -104,4 +107,85 @@ func TestPrepareEvalVariants(t *testing.T) {
 	err = prepareEvalVariants(vs, []*evalrun.Case{{ID: "S9", Workflow: "review-feedback"}}, work, &log)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "sans-mode")
+}
+
+// writeEvalCase writes a case of a quick workflow in root.
+func writeEvalCase(t *testing.T, root, id string) {
+	t.Helper()
+	dir := filepath.Join(root, "quick", strings.ToLower(id))
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, evalrun.FixtureDir), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, evalrun.CaseFile), []byte("id: "+id+"\nworkflow: quick\nassertions:\n  - type: no_denied_loop\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, evalrun.FixtureDir, "README"), []byte(id), 0o644))
+}
+
+// runEvalCmd runs oh eval with these arguments on a command of its own.
+func runEvalCmd(t *testing.T, args ...string) (string, error) {
+	t.Helper()
+	c := &cobra.Command{Use: "eval", RunE: runEval}
+	addEvalFlags(c.Flags())
+	var out, errOut bytes.Buffer
+	c.SetOut(&out)
+	c.SetErr(&errOut)
+	c.SetArgs(args)
+	err := c.Execute()
+	return out.String(), err
+}
+
+// oh eval --tiered --plan computes the repetitions of each case from the
+// history of the baseline and estimates the cost, without any key nor
+// pass; --reps-case forces a case.
+func TestEvalPlanDryRun(t *testing.T) {
+	t.Setenv(envEvalReps, "")
+	t.Setenv(envEvalToken, "")
+	t.Setenv("OH_E2E_BEDROCK_TOKEN", "")
+	root := t.TempDir()
+	for _, id := range []string{"S1", "S2", "S3"} {
+		writeEvalCase(t, root, id)
+	}
+	cases, err := evalrun.LoadCases(root)
+	require.NoError(t, err)
+	baseline := filepath.Join(t.TempDir(), "baseline.json")
+	at := time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC)
+	var base *evalrun.Report
+	for d, res := range []map[string][2]int{{"S1": {3, 3}, "S2": {3, 3}}, {"S1": {3, 3}, "S2": {2, 3}, "S3": {3, 3}}} {
+		r := &evalrun.Report{StartedAt: at.AddDate(0, 0, d), Models: []string{defaultEvalModel}, Reps: 3}
+		for _, c := range cases {
+			r.Cases = append(r.Cases, c.Info())
+			if v, ok := res[c.ID]; ok {
+				r.Stats = append(r.Stats, evalrun.CaseStats{Case: c.ID, Model: defaultEvalModel, Passed: v[0], Runs: v[1], MeanCost: 0.1})
+			}
+		}
+		base = r.Baseline("ref").WithHistory(base)
+	}
+	require.NoError(t, base.WriteJSON(baseline))
+
+	out, err := runEvalCmd(t, "--cases", root, "--baseline", baseline, "--tiered", "--plan", "--budget-total", "1")
+	require.NoError(t, err)
+	for _, want := range []string{
+		"| S1 | quick | 1 | 100 % sur les deux dernières mesures (3/3, 3/3) | $0.100 |",
+		"| S2 | quick | 3 | dernières mesures 2/3, 3/3 |",
+		"| S3 | quick | 3 | une seule mesure (3/3) |",
+		"- Total : 7 passages · ≈ $0.70",
+		"- Si tous les cas à moins de ×3 échouent (escalade) : 9 passages · ≈ $0.90",
+		"- Plafond global : $1.00 (suffisant)",
+	} {
+		assert.Contains(t, out, want)
+	}
+	out, err = runEvalCmd(t, "--cases", root, "--baseline", baseline, "--tiered", "--plan", "--reps-case", "S1=3,S3=1", "--stable-measures", "1", "--escalate=false")
+	require.NoError(t, err)
+	assert.Contains(t, out, "| S1 | quick | 3 | imposé (--reps-case) |")
+	assert.Contains(t, out, "| S3 | quick | 1 | imposé (--reps-case) |")
+	assert.NotContains(t, out, "escalade")
+
+	_, err = runEvalCmd(t, "--cases", root, "--tiered", "--plan")
+	assert.ErrorContains(t, err, "--baseline")
+	_, err = runEvalCmd(t, "--cases", root, "--baseline", baseline, "--plan", "--reps-case", "S9=1")
+	assert.ErrorContains(t, err, "S9")
+}
+
+func TestEvalPlanSummary(t *testing.T) {
+	assert.Equal(t, 1, defaultEvalReps(false))
+	assert.Equal(t, 3, defaultEvalReps(true))
+	plan := []evalrun.CasePlan{{Case: "S1", Reps: 1}, {Case: "S2", Reps: 3}, {Case: "S3", Reps: 1}}
+	assert.Equal(t, "×1 : 2, ×3 : 1, "+i18n.Tf("cmd.eval.plan_escalate", 3), planSummary(plan, 3))
 }

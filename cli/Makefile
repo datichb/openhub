@@ -114,13 +114,32 @@ embed-bd:
 # (OH_EVAL_NOTE: its note); OH_EVAL_OUT keeps the traces and reports there.
 # OH_EVAL_VARIANTS compares versions of the hub, separated by spaces, the
 # first one being the reference (e.g. "base sans-23=-skill:debugger-phase-2-3").
-OH_EVAL_REPS ?= 1
+# OH_EVAL_TIERED=1 runs a reference by tiers: a case at 100 % on its last two
+# measures of the baseline runs once, the others OH_EVAL_REPS times (3 by
+# default), a case run once that fails runs again up to that (escalation;
+# OH_EVAL_ESCALATE=0 turns it off). OH_EVAL_REPS_CASE forces the repetitions
+# of some cases (S5=3,S15=3). OH_EVAL_PLAN=1 prints the passes per case and
+# the estimated cost without running anything (OH_EVAL_COSTS: other
+# report.json, glob patterns separated by spaces, for the costs of the cases
+# not in the baseline). OH_EVAL_HISTORY: other report.json whose measures
+# count in the tiered plan after those of the baseline, by date (the passes
+# of the lots since the last reference), and in the cost estimate;
+# OH_EVAL_STABLE_MEASURES the number of last measures at 100 % that let a
+# case run once (2 by default).
 EVAL_BASELINE := internal/evalrun/testdata/evals/baseline.json
 
 .PHONY: test-eval
 test-eval:
 	go build -ldflags "$(LDFLAGS)" -o bin/oh .
-	./bin/oh eval --cases ../evals --reps $(OH_EVAL_REPS) --baseline $(EVAL_BASELINE) \
+	./bin/oh eval --cases ../evals --baseline $(EVAL_BASELINE) \
+		$(if $(OH_EVAL_REPS),--reps $(OH_EVAL_REPS)) \
+		$(if $(filter-out 0 false no,$(OH_EVAL_TIERED)),--tiered) \
+		$(if $(OH_EVAL_ESCALATE),--escalate=$(if $(filter 0 false no,$(OH_EVAL_ESCALATE)),false,true)) \
+		$(if $(OH_EVAL_REPS_CASE),--reps-case $(OH_EVAL_REPS_CASE)) \
+		$(if $(filter-out 0 false no,$(OH_EVAL_PLAN)),--plan) \
+		$(foreach c,$(OH_EVAL_COSTS),--costs '$(c)') \
+		$(foreach c,$(OH_EVAL_HISTORY),--history '$(c)') \
+		$(if $(OH_EVAL_STABLE_MEASURES),--stable-measures $(OH_EVAL_STABLE_MEASURES)) \
 		$(if $(OH_EVAL_CASES),--case $(OH_EVAL_CASES)) \
 		$(if $(OH_EVAL_PARALLEL),--parallel $(OH_EVAL_PARALLEL)) \
 		$(if $(OH_EVAL_BUDGET_TOTAL),--budget-total $(OH_EVAL_BUDGET_TOTAL)) \
