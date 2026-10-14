@@ -6,7 +6,8 @@ import (
 )
 
 // Patch rules of the fan-out (R6, schema_fanout.go): the fan-out is a
-// security field. A layer other than the hub may only lower `parallel`;
+// security field. A layer other than the hub may only lower `parallel`
+// and give the children fewer inputs (`inputs`, a subset of the parent's);
 // changing the input, the tickets, the child workflow, the merge
 // checkpoint, the merger or the delegated checkpoints (CP-R3) is a
 // loosening, and the parent value is kept. Giving or changing the scope
@@ -44,6 +45,17 @@ func (p *patcher) fanout() {
 	str("fanout.merger", v.Merger, old.Merger)
 	if p.has("fanout.delegates") && !slices.Equal(v.Delegates, old.Delegates) {
 		p.loosening("fanout.delegates", fmt.Sprint(v.Delegates), fmt.Sprint(old.Delegates))
+	}
+	if p.has("fanout.inputs") {
+		subset := true
+		for _, id := range v.Inputs {
+			subset = subset && slices.Contains(old.Inputs, id)
+		}
+		if subset {
+			c.Inputs = cloneSlice(v.Inputs)
+		} else {
+			p.loosening("fanout.inputs", fmt.Sprint(v.Inputs), fmt.Sprint(old.Inputs))
+		}
 	}
 	if p.has("fanout.parallel") {
 		if v.Parallel < 1 || v.EffectiveParallel() > old.EffectiveParallel() {
@@ -84,6 +96,9 @@ func (p *patcher) hubFanout(v, old *Fanout) *Fanout {
 	}
 	if p.has("fanout.merger") {
 		c.Merger = v.Merger
+	}
+	if p.has("fanout.inputs") {
+		c.Inputs = cloneSlice(v.Inputs)
 	}
 	return c
 }

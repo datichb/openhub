@@ -159,10 +159,9 @@ func prepareWorkflowRun(ctx context.Context, a *app.App, opts runOptions, errOut
 	}
 	if res.Fanout {
 		base.Fanout = fanoutParentRecord(a)
-		if m, ok := res.Inputs[workflow.MethodInput]; ok {
-			// The children work with the method of the parent (tdd).
-			base.Fanout.ChildInputs = map[string]string{workflow.MethodInput: fmt.Sprint(m)}
-		}
+		// The inputs the workflow gives to the children (fanout.inputs:
+		// method, instructions), when the session got them.
+		base.Fanout.ChildInputs = res.Spec.ChildInputs(res.Inputs)
 	}
 	if kind == sessionspec.RuntimeContainer {
 		if id := gitIdentityEnv(opts.Project.Path); len(id) > 0 {

@@ -240,3 +240,59 @@ func TestFanoutOf(t *testing.T) {
 		t.Fatal("no fan-out declared")
 	}
 }
+
+// fanout.inputs: only declared value inputs of the parent reach the
+// children, under a name and a type the child workflow declares.
+func TestFanout_ChildInputs(t *testing.T) {
+	child := strings.Replace(fanoutChild, "  ticket: { type: beads-id, required: true }\n",
+		"  ticket: { type: beads-id, required: true }\n  method: { type: enum, values: [standard, tdd], default: standard }\n  instructions: { type: text }\n  count: { type: int }\n", 1)
+	parent := strings.Replace(fanoutParent, "  fanout: { type: bool, default: false }\n",
+		"  fanout: { type: bool, default: false }\n  method: { type: enum, values: [standard, tdd], default: standard }\n  instructions: { type: text }\n  count: { type: string }\n  other: { type: text }\n  big: { type: enum, values: [standard, tdd, bdd] }\n", 1)
+	ok := strings.Replace(parent, "  delegates: [cp-2]\n", "  delegates: [cp-2]\n  inputs: [method, instructions]\n", 1)
+	r, diags := fanoutCheck(t, map[string]string{"hub:x": ok, "hub:child": child}, Ref{LayerHub, "x"},
+		&SessionOptions{Inputs: map[string]any{"tickets": []string{"a"}, "fanout": true, "method": "tdd", "other": "x"}})
+	if errs := errorsOf(diags); len(errs) > 0 {
+		t.Fatalf("valid inputs: %v", diagList(diags))
+	}
+	got := r.Spec.ChildInputs(map[string]any{"method": "tdd", "other": "x", "tickets": []string{"a"}})
+	if len(got) != 1 || got["method"] != "tdd" {
+		t.Fatalf("only the declared inputs given, not the defaults: %v", got)
+	}
+
+	cases := []struct{ name, list, code string }{
+		{"unknown in the parent", "[nope]", "fanout_inputs_parent"},
+		{"the tickets", "[tickets]", "fanout_inputs_parent"},
+		{"the fan-out input", "[fanout]", "fanout_inputs_parent"},
+		{"absent from the child", "[other]", "fanout_inputs_child"},
+		{"another type", "[count]", "fanout_inputs_type"},
+		{"an enum absent from the child", "[big]", "fanout_inputs_child"},
+		{"twice", "[method, method]", "duplicate_entry"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			doc := strings.Replace(parent, "  delegates: [cp-2]\n", "  delegates: [cp-2]\n  inputs: "+c.list+"\n", 1)
+			_, diags := fanoutCheck(t, map[string]string{"hub:x": doc, "hub:child": child}, Ref{LayerHub, "x"}, nil)
+			found := false
+			for _, d := range errorsOf(diags) {
+				found = found || d.Code == c.code
+			}
+			if !found {
+				t.Fatalf("want %s: %v", c.code, diagList(diags))
+			}
+		})
+	}
+	// An enum value the child does not know.
+	bigChild := strings.Replace(child, "  instructions: { type: text }\n", "  instructions: { type: text }\n  big: { type: enum, values: [standard, tdd] }\n", 1)
+	doc := strings.Replace(parent, "  delegates: [cp-2]\n", "  delegates: [cp-2]\n  inputs: [big]\n", 1)
+	_, diags = fanoutCheck(t, map[string]string{"hub:x": doc, "hub:child": bigChild}, Ref{LayerHub, "x"}, nil)
+	assertDiag(t, diags, "fanout_inputs_value", "fanout.inputs[0]", SeverityError)
+
+	// A team layer may give fewer inputs, never more.
+	patch := func(body string) string { return "apiVersion: oh/v1\nkind: Workflow\nid: x\nextends: hub:x\n" + body }
+	r, diags = fanoutCheck(t, map[string]string{"hub:x": ok, "hub:child": child, "team:x": patch("fanout: { inputs: [method] }\n")}, Ref{LayerTeam, "x"}, nil)
+	if errs := errorsOf(diags); len(errs) > 0 || strings.Join(r.Spec.Fanout.Inputs, ",") != "method" {
+		t.Fatalf("fewer inputs: %v %v", r.Spec.Fanout, diagList(diags))
+	}
+	_, diags = fanoutCheck(t, map[string]string{"hub:x": ok, "hub:child": child, "team:x": patch("fanout: { inputs: [method, instructions, other] }\n")}, Ref{LayerTeam, "x"}, nil)
+	assertDiag(t, diags, "loosening", "fanout.inputs", SeverityError)
+}

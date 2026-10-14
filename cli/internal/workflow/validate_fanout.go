@@ -16,7 +16,10 @@ import (
 //   - `delegates` is declared by the hub layer only, never by a team or
 //     project layer nor by a draft (`fanout_delegates_layer`);
 //   - the merge operation is unlocked by the merge checkpoint only, and
-//     `verify.on: integration` is only used there.
+//     `verify.on: integration` is only used there;
+//   - each input given to the children is a value input of the parent,
+//     neither the fan-out nor the tickets input, that the child workflow
+//     declares with the same type (and every value of an enum).
 func (v *validator) fanout() {
 	s := v.s
 	f := s.Fanout
@@ -51,6 +54,7 @@ func (v *validator) fanout() {
 	}
 	v.fanoutMerge(f)
 	v.fanoutChild(f)
+	v.fanoutChildInputs(f)
 	v.fanoutDelegatesLayer(f)
 	if f.Merger != "" && !v.knownWorkflow(f.Merger) {
 		v.err("fanout_unknown_workflow", "fanout.merger", f.Merger)
@@ -163,6 +167,46 @@ func (v *validator) fanoutDelegatesLayer(f *Fanout) {
 		if o.Layer != LayerHub || o.Draft {
 			v.err("fanout_delegates_layer", "fanout.delegates", o.Ref().String())
 			return
+		}
+	}
+}
+
+// fanoutChildInputs checks the inputs given to the children
+// (`fanout.inputs`).
+func (v *validator) fanoutChildInputs(f *Fanout) {
+	var child *Spec
+	if f.Child != "" && f.Child != v.s.ID {
+		child = v.specOf(f.Child)
+	}
+	seen := map[string]bool{}
+	for i, id := range f.Inputs {
+		at := fmt.Sprintf("fanout.inputs[%d]", i)
+		if seen[id] {
+			v.err("duplicate_entry", at, id)
+			continue
+		}
+		seen[id] = true
+		in, ok := v.s.Inputs.Get(id)
+		if !ok || id == f.Input || id == f.Tickets || !slices.Contains(FanoutInputTypes, in.Type) {
+			v.err("fanout_inputs_parent", at, id)
+			continue
+		}
+		if child == nil {
+			continue // the environment cannot tell
+		}
+		cin, ok := child.Inputs.Get(id)
+		if !ok {
+			v.err("fanout_inputs_child", at, id, f.Child)
+			continue
+		}
+		if cin.Type != in.Type {
+			v.err("fanout_inputs_type", at, id, string(in.Type), f.Child, string(cin.Type))
+			continue
+		}
+		for _, val := range in.Values {
+			if !slices.Contains(cin.Values, val) {
+				v.err("fanout_inputs_value", at, id, val, f.Child)
+			}
 		}
 	}
 }
