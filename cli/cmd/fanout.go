@@ -346,11 +346,9 @@ func fanoutRunning(ctx context.Context, a *app.App, id string) bool {
 	if err != nil || sess.Fanout == nil || sess.Fanout.Role != domain.RoleParent {
 		return false
 	}
-	switch sess.Fanout.Status {
-	case domain.FanoutWaiting, domain.FanoutRunning:
-		return true
-	}
-	return false
+	// Waiting: the children start once the parent passes cp-plan, which
+	// only the parent does; an idle parent then is done.
+	return sess.Fanout.Status == domain.FanoutRunning
 }
 
 // fanoutChildren returns the sessions of the fan-out of a parent (children

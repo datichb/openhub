@@ -161,3 +161,26 @@ func TestCheckDetectsTamperedConfig(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(wt, ".git"), []byte("gitdir: "+filepath.Join(repo, ".git")+"\n"), 0o644))
 	assert.Error(t, Check(ctx, wt), "pointer file redirected")
 }
+
+// R6: each worktree keeps its own record. Sessions started in two worktrees
+// of the same repository (a fan-out) do not make each other look changed;
+// a change of the shared configuration is still seen by both.
+func TestTrustPerWorktree(t *testing.T) {
+	SetTrustDir(t.TempDir())
+	t.Cleanup(func() { SetTrustDir("") })
+	ctx := context.Background()
+	root := t.TempDir()
+	repo := filepath.Join(root, "repo")
+	gitIn(t, root, "init", "-q", repo)
+	gitIn(t, repo, "-c", "user.name=t", "-c", "user.email=t@x", "commit", "-q", "--allow-empty", "-m", "init")
+	wt := filepath.Join(root, "wt")
+	gitIn(t, repo, "worktree", "add", "-q", "-b", "child", wt)
+	require.NoError(t, Trust(ctx, repo))
+	require.NoError(t, Trust(ctx, wt))
+	require.NoError(t, Check(ctx, repo), "the record of the worktree does not replace the one of the main worktree")
+	require.NoError(t, Check(ctx, wt))
+
+	gitIn(t, repo, "config", "core.fsmonitor", "touch /tmp/x")
+	assert.ErrorIs(t, Check(ctx, repo), ErrConfigChanged)
+	assert.ErrorIs(t, Check(ctx, wt), ErrConfigChanged, "the shared configuration is checked from every worktree")
+}
