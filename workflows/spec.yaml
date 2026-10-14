@@ -1,0 +1,78 @@
+apiVersion: oh/v1
+kind: Workflow
+id: spec
+category: frame
+label: { fr: Spécification, en: Specification }
+description:
+  fr: Comprendre une demande, écrire sa spec dans le wiki (glossaire, critères et points de test) et la découper en tickets Beads, sans l'implémenter
+  en: Understand a request, write its spec in the wiki (glossary, criteria and test points) and slice it into Beads tickets, without implementing it
+risk: plan
+inputs:
+  request:
+    type: text
+    required: true
+    label: { fr: Demande, en: Request }
+    help:
+      fr: La feature à spécifier en langage naturel (ou l'identifiant d'un ticket ou d'une MR GitLab)
+      en: The feature to specify in natural language (or the id of a GitLab issue or merge request)
+    max_length: 8000
+prompt:
+  template: prompts/spec.md.tmpl
+agents:
+  # E8 (R4): the planner stays read-only, except its spec in the wiki.
+  planner: { role: workflow, mode: subagent, writes: ["docs/wiki/specs/**"] }
+  designer: { role: workflow, mode: subagent }
+checkpoints:
+  cp-understanding:
+    by: [conductor]
+    label: { fr: Valider la compréhension, en: Approve the understanding }
+    description:
+      fr: Présenter la reformulation de la demande par le planner, son vocabulaire et les réponses aux questions, avant l'écriture de la spec.
+      en: Present the planner's restatement of the request, its vocabulary and the answers to the questions, before the spec is written.
+    mode: { manuel: pause, semi-auto: pause, auto: auto }
+  cp-converge:
+    by: [conductor]
+    label: { fr: Convergence de la spec et du découpage, en: Spec and breakdown convergence }
+    description:
+      fr: Vérifié par oh, sans pause, avant de montrer la spec — glossaire, points de test, chaque critère couvert par une tranche du découpage et aucune tranche hors spec ; un écart est rendu au planner.
+      en: Checked by oh, without a pause, before the spec is shown — glossary, test points, every criterion covered by a slice of the breakdown and no slice outside the spec; a gap goes back to the planner.
+    mode: { manuel: auto, semi-auto: auto, auto: auto }
+    verify:
+      spec: { paths: ["docs/wiki/specs/**"], breakdown: true }
+  cp-spec:
+    by: [conductor]
+    label: { fr: Valider la spec, en: Approve the spec }
+    description:
+      fr: oh vérifie la spec écrite sous docs/wiki/specs/ (glossaire, chaque critère avec son point de test, découpage qui les couvre) ; une fois validée, le planner la commite.
+      en: oh checks the spec written under docs/wiki/specs/ (glossary, each criterion with its test point, a breakdown that covers them); once approved, the planner commits it.
+    mandatory: true
+    mode: { manuel: pause, semi-auto: pause, auto: pause }
+    unlocks: [commit]
+    verify:
+      spec: { paths: ["docs/wiki/specs/**"], breakdown: true }
+  cp-tickets:
+    by: [conductor]
+    label: { fr: Valider le découpage, en: Approve the breakdown }
+    description:
+      fr: Les tickets (une tranche du découpage chacun) ne sont créés qu'après validation du découpage par l'utilisateur.
+      en: Tickets (one slice of the breakdown each) are only created once the user has approved the breakdown.
+    mandatory: true
+    mode: { manuel: pause, semi-auto: pause, auto: pause }
+    unlocks: [create]
+    verify:
+      spec: { paths: ["docs/wiki/specs/**"], breakdown: true }
+modes: { default: semi-auto, allowed: [manuel, semi-auto, auto] }
+circuit_breaker: { max_consecutive_subagents: 12 }
+preconditions:
+  project-context:
+    label:
+      fr: Aucun contexte projet trouvé (docs/wiki/index.md, ONBOARDING.md ou CONVENTIONS.md)
+      en: No project context found (docs/wiki/index.md, ONBOARDING.md or CONVENTIONS.md)
+    check: { path_exists: [docs/wiki/index.md, ONBOARDING.md, CONVENTIONS.md] }
+    suggest: { workflow: onboarding, resume: true }
+beads:
+  allow: [show, list, ready, children, search, query, count, lint, find-duplicates, label, dep, create, update, comments, duplicate, supersede]
+runtime: { default: local, allowed: [local] }
+outputs:
+  - { id: spec, type: path, label: { fr: Spec écrite, en: Written spec } }
+  - { id: tickets, type: beads-ids, label: { fr: Tickets créés, en: Created tickets } }

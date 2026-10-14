@@ -10,7 +10,7 @@
   - `onboarder` : `contexte-établi`, `contexte-partiel`, `bloqué`
   - `orchestrator-dev` : `succès`, `partiel`, `bloqué`
   - `pathfinder` : `direct`, `escalade-planner`, `reconnaissance-partielle`
-  - `planner` : `découpage-à-valider`, `planification-complète`, `planification-partielle`, `bloqué`
+  - `planner` : `compréhension-à-valider`, `spec-à-valider`, `découpage-à-valider`, `planification-complète`, `planification-partielle`, `bloqué`
   - `reviewer` : `commit`, `corriger`, `corriger-sécurité`
 - **Questions** : outil `question` pour les choix et les confirmations (jamais pour un checkpoint).
 - **Rapports** : outil `workflow_report` disponible ; `workflow_report_get` lit un rapport cité par un agent que tu as lancé (en entier ou une section) : ne le recopie pas, la carte du checkpoint le montre.

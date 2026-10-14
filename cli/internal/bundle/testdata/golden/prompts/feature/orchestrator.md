@@ -447,7 +447,7 @@ Règles de délégation :
   - `designer` : `spec-complète`, `spec-partielle`, `choix-requis`, `prototype-livré`, `bloqué`
   - `orchestrator-dev` : `succès`, `partiel`, `bloqué`
   - `pathfinder` : `direct`, `escalade-planner`, `reconnaissance-partielle`
-  - `planner` : `découpage-à-valider`, `planification-complète`, `planification-partielle`, `bloqué`
+  - `planner` : `compréhension-à-valider`, `spec-à-valider`, `découpage-à-valider`, `planification-complète`, `planification-partielle`, `bloqué`
   - `reviewer` : `commit`, `corriger`, `corriger-sécurité`
 - **Checkpoints** : tu passes `cp-tickets` (Valider les tickets à créer), `cp-0` (Valider le plan), `cp-spec` (Valider la spec UX/UI), `cp-feature` (Récap de la feature), avec l'outil `workflow_checkpoint`. Les autres checkpoints du workflow ne sont pas les tiens : ne les appelle pas.
 - **Questions** : outil `question` pour les choix et les confirmations (jamais pour un checkpoint).

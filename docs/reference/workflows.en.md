@@ -27,6 +27,7 @@ A workflow is launched with `oh run <workflow>` or the TUI launch form; the form
 | `quick` | `developer` | — | write | local | quick session |
 | `infra-change` | `operator` | — | write (infrastructure, no file) | local | former `infra` agent (application part) |
 | `cadrage` | `conductor` | `pathfinder`, `planner`, `designer` | plan | local | former mode A without implementation |
+| `spec` | `conductor` | `planner` (writes `docs/wiki/specs/`), `designer` | plan (+ `writes:`) | local | `cadrage` with a written and checked spec |
 | `onboarding` | `onboarder` | — | write (`docs/wiki/`) | local, remote | `oh start --onboard` (former mode C) |
 | `doc-sync` | `documentarian` | — | write (`docs/wiki/`) | local | — |
 | `skill-refresh` | `documentarian` | — | write (stack skills of the hub) | local | — |
@@ -44,7 +45,7 @@ A workflow is launched with `oh run <workflow>` or the TUI launch form; the form
 | `risk` | Files | Beads |
 |---|---|---|
 | `read` | no change, restricted shell | read only; `beads.allow` required, without write commands |
-| `plan` | no change, restricted shell | `beads.allow` required; writes allowed except `delete` |
+| `plan` | no change, restricted shell; only the documentation paths of `writes:` (and their commit) are open to the agents that declare them | `beads.allow` required; writes allowed except `delete` |
 | `write` | modified | `beads.allow` of the workflow; read only when `beads` is absent |
 | `publish` | modified, branches pushed, MRs opened | same |
 
@@ -68,7 +69,7 @@ preconditions:
 - Remote or headless: a `suggest` failure becomes a warning, a `block` failure stops the session.
 - Relative paths, without `..`. A patch (`extends`) changes a precondition by its id or removes it (`disabled: true`).
 
-`feature` and `cadrage` suggest `onboarding` when the project has no wiki, no `ONBOARDING.md` and no `CONVENTIONS.md`.
+`feature`, `cadrage` and `spec` suggest `onboarding` when the project has no wiki, no `ONBOARDING.md` and no `CONVENTIONS.md`.
 
 ---
 
@@ -147,6 +148,33 @@ Explores, plans and specifies a feature without implementing it: only Beads tick
 | `cp-recap` Scoping recap | pause | pause | auto |
 
 `planner` only starts after `cp-scope`. Before `cp-tickets`, oh refuses every ticket creation (shell rules and Beads gateway): the planner proposes the breakdown, the `conductor` passes `cp-tickets`, then relaunches the planner, which creates the tickets. Default mode: `semi-auto`. Allowed Beads commands: `show`, `list`, `ready`, `children`, `search`, `query`, `count`, `lint`, `find-duplicates`, `label`, `dep`, `create`, `update`, `comments`, `duplicate`, `supersede`. Output: `tickets`. To implement afterwards: `ticket` or `feature` on the created tickets.
+
+## `spec`
+
+Understands a request, writes its spec in the wiki and slices it into Beads tickets, without implementing it (`risk: plan`). The `conductor` relaunches the `planner` at each step; the planner stays read-only, except its spec: `agents.planner.writes: ["docs/wiki/specs/**"]` ([`writes`](workflow-schema.en.md#writes-documentation-paths)).
+
+| Input | Type | Required | Purpose |
+|---|---|---|---|
+| `request` | `text` (8,000 characters max) | yes | The feature to specify |
+
+| Checkpoint | manuel | semi-auto | auto |
+|---|---|---|---|
+| `cp-understanding` Approve the understanding (restatement, vocabulary, answers to the questions) | pause | pause | auto |
+| `cp-converge` Spec and breakdown convergence (checked by oh) | auto | auto | auto |
+| `cp-spec` Approve the spec (mandatory, checked by oh, unlocks `commit`) | pause | pause | pause |
+| `cp-tickets` Approve the breakdown (mandatory, checked by oh, unlocks `create`) | pause | pause | pause |
+
+Steps:
+
+1. **Interview**: the planner explores the code and loads `grilling`; its blocking questions (one per decision) are asked by the `conductor`. It returns its restatement and the vocabulary (each word of the request against the names of the code), shown at `cp-understanding`.
+2. **Spec**: the planner writes `docs/wiki/specs/<slug>.md`: goal, scope, **glossary**, **acceptance criteria** (`CA-n`, each with its test point on its line: `· Test : TestPercent_ZeroTotal`), decisions and a **breakdown** into vertical slices (`Couvre : CA-…`). The format is in the planner's prompt (section “Spec écrite”), not in a skill to load.
+3. **Convergence pass** (`cp-converge`, no pause): oh reads the spec and checks the glossary, the test point of each criterion, that every criterion is covered by a slice and that no slice is outside the spec. A gap refuses the checkpoint with the list of problems: the planner fixes it (or asks a question when the gap needs a decision), then the checkpoint is asked again.
+4. **`cp-spec`**: the user approves the spec (same check); the planner commits it alone: `git add docs/wiki/specs/<slug>.md`, then `git commit -m "docs(spec): <slug>" -- docs/wiki/specs/<slug>.md`.
+5. **`cp-tickets`**: the user approves the breakdown; the planner creates one ticket per slice, whose description cites the spec and its criteria. A spec or breakdown changed at a checkpoint goes again through `cp-converge`, `cp-spec` (new commit) and `cp-tickets`.
+
+Pause budget (CP-R2) in semi-auto: 3 pauses (1 decision, 2 irreversible actions), for a budget of 4. Default mode: `semi-auto`. Allowed Beads commands: those of `cadrage`. Outputs: `spec` (path) and `tickets`. To implement afterwards: `ticket` or `feature` on the created tickets.
+
+`cadrage` is kept as it is (exploration by the `pathfinder`, `cp-scope`, no file written): its evaluation cases (S5, S15, S19, S27) depend on it. `spec` is its version with a written and checked spec; `cadrage` will become an alias of `spec` once `feature` is composed of `spec` then `implement-spec` (R5).
 
 ## `onboarding`
 

@@ -1,7 +1,7 @@
 ---
 name: planner-payload
 description: "Utiliser en fin de planification : statuts de ton retour et sections de ton rapport (tickets, ordre, hypothèses)."
-statuses: [découpage-à-valider, planification-complète, planification-partielle, bloqué]
+statuses: [compréhension-à-valider, spec-à-valider, découpage-à-valider, planification-complète, planification-partielle, bloqué]
 when: role=subagent
 ---
 
@@ -11,6 +11,10 @@ when: role=subagent
 
 | Statut | Condition |
 |---|---|
+<!-- oh:when writes -->
+| `compréhension-à-valider` | Entretien fini (reformulation, vocabulaire, réponses) : rien d'écrit, tu attends la validation de ta compréhension |
+| `spec-à-valider` | Spec et découpage écrits sous `docs/wiki/specs/`, aucun ticket créé : tu attends leur validation (commit et création verrouillés jusqu'aux checkpoints de ton appelant) |
+<!-- /oh:when -->
 | `découpage-à-valider` | Découpage prêt, aucun ticket créé : tu attends sa validation (création verrouillée jusqu'au checkpoint de ton appelant) |
 | `planification-complète` | Tickets créés, validés et prêts à être routés |
 | `planification-partielle` | Tickets créés, mais certains incomplets ou des points restent à préciser (listés) |

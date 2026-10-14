@@ -37,10 +37,16 @@ agents: [<agents>]
 
 ## Objectif
 ## Périmètre (inclus, exclus)
-## Critères d'acceptance
-## Points de test
+## Glossaire
+- **<Terme>** : <sens dans ce projet> — code : `<Type ou champ>`
+## Critères d'acceptation
+- **CA-1** — <comportement observable> · Test : `<TestNom>` (`<commande>`)
 ## Décisions et questions ouvertes
+## Découpage
+- **T1** — <tranche verticale> · Couvre : CA-1
 ```
+
+Écrites par le planner du workflow `spec` ; oh vérifie le glossaire, le point de test sur la ligne de chaque critère et le découpage (chaque critère couvert, aucune tranche hors spec) avant de les montrer à l'utilisateur.
 
 ## Format canonique — `docs/wiki/decisions/`
 
