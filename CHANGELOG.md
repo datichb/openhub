@@ -9,6 +9,14 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Fixed — restes P4 (lot p4-leftovers)
+
+- **Reviewer en agent d'entrée** : il affiche son rapport complet au lieu de rendre une enveloppe de sous-agent. Un agent d'entrée qu'un autre agent peut lancer reçoit, dans `handoff-envelope`, un bloc réservé à son rôle d'entrée (l'enveloppe ne sert que s'il est invoqué), et la ligne « Rapports » de son contrat ne vaut que s'il est invoqué. Rapport complet affiché 6/6 contre 1/6 ; S1 6/6 contre 5/6 (Haiku ×6) ; reviewer +1,0 %.
+- **`skill-authoring-protocol`** : description qui commence par « Utiliser … » et fait au plus 200 caractères (au lieu de 1 024), liste complète des clés lues par oh, comme le vérifie `oh skill check`.
+- **Liens périmés vers le `documentarian`** : retirés de la base `developer-rw` (le developer ne délègue à personne) et du workflow `debug`. Somme des prompts : 225 596 → 220 995 (−2,0 %).
+- **Tests** : la maintenance automatique de git est coupée (`gittest`) dans tous les paquets dont les tests font des commits ou des push (cmd, runsvc, beads, gc, gitutil, tracker, worktree, services…).
+- **Évalué et non retenu** : `grilling` au pathfinder (S3 3/3 = 3/3, coût +24 % ; S19 2/3 = 2/3). Coût des évaluations du lot : 3,39 $.
+
 ### Added — skills de développement (lot R1-b)
 
 - **`verification-before-completion`** (developer, à la demande, à la gate de complétion et avant `cp-commit` en `quick`) : relever les vraies vérifications du projet (CI, Makefile, scripts, conventions), les lancer sur tout le dépôt avec les drapeaux de la CI, traiter chaque échec, revérifier la demande, montrer la sortie de chaque vérification. S23 (`go vet` de la CI hors du paquet modifié) : 3/6 contre 1/6 sans le skill (Haiku ×6).
