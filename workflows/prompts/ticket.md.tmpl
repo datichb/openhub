@@ -22,6 +22,9 @@ Pour chaque ticket :
 1. `bd show <ID>` : lire le détail complet et l'état actuel avant tout.
 2. Si le ticket est déjà en cours, reprendre là où il en est (pas de nouvelle réservation) ; sinon c'est l'agent développeur qui le réserve (`bd update <ID> --claim`) : demande-le-lui dans son prompt d'invocation, ne lance jamais cette commande toi-même (tu n'as accès qu'à `bd show` et `bd list`).
 3. Router vers l'agent développeur adapté (il implémente, teste et passe le ticket en review, sans committer), puis faire la pre-review et la review.
+{{- if eq .method "tdd" }}
+   Méthode TDD : dans le prompt du développeur, demande-lui de passer `cp-seams` puis `cp-red` avant d'implémenter (pas dans les relances de correction) ; dans celui du reviewer, demande-lui de vérifier que les tests couvrent chaque critère et n'ont pas été affaiblis après `cp-red` (passage rapporté par le développeur), sinon finding 🟠 Majeur.
+{{- end }}
 4. Appeler `workflow_checkpoint` pour cp-2 « Commit ou correction » (jamais l'outil `question`). Tant que cp-2 n'est pas validé, oh refuse `git commit` et la fermeture du ticket.
 5. cp-2 validé (« commit ») : relancer aussitôt l'agent développeur avec l'instruction de commit : message Conventional Commits terminé par l'ID du ticket entre parenthèses (`feat(api): export CSV (<ID>)`), puis `bd close <ID> --reason "Implemented in commit <hash>" --suggest-next`. « Corriger d'abord » : relancer le développeur avec les corrections, puis nouvelle review et nouveau cp-2.
 

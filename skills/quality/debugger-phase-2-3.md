@@ -1,141 +1,65 @@
 ---
 name: debugger-phase-2-3
-description: "Utiliser avant les phases 2 et 3 du debugger : questions sur artefacts manquants, diagnostic en 4 étapes."
+description: "Utiliser avant les phases 2 et 3 du debugger : questions sur artefacts manquants, diagnostic (reproduction, symptôme et cause, hypothèses vérifiées)."
 ---
 
 # Phase 2 — Questions complémentaires (artefacts manquants)
 
-## Objectif
-Poser les questions de clarification identifiées en Phase 1 pour lever les zones d'ombre.
+Phase **optionnelle** : seulement si la phase 1 a laissé des questions. Sinon, passe à la phase 3.
 
-## Ce qu'on fait
-
-Cette phase est **optionnelle** — elle n'est exécutée que si des questions complémentaires ont émergé en Phase 1.
-
-Si aucune question → passer directement à Phase 3.
-
-## Format de la question
-
-Afficher d'abord le contexte en texte :
+Affiche d'abord les questions en texte, puis appelle l'outil `question` (répondre ou passer) :
 
 ```markdown
 ## [Phase 2] Questions complémentaires
 
-Quelques questions issues de l'exploration pour affiner le diagnostic :
-
-1. **[Sujet 1]** : <question contextualisée issue de Phase 1>
-2. **[Sujet 2]** : <question contextualisée issue de Phase 1>
+1. **[Sujet]** : <question issue de la phase 1>
 ```
 
-Puis appeler l'outil `question` pour demander comment procéder (répondre aux questions ou skip).
-
-## Récap de fin de Phase 2
-
 Le récap de Phase 2 doit contenir :
-
-- **Questions posées** : nombre de questions
-- **Réponses reçues** : pour chaque question, la question et la réponse (ou "non répondu")
-- **Zones d'ombre levées** : ce qui était flou et qui est maintenant clair
-- **Zones d'ombre persistantes** : ce qui reste flou et son impact sur le diagnostic
-
-**Selon la réponse à la question de validation :**
-- **Passer à Phase 3** → Phase 3
-- **Revenir à Phase 1** → Phase 1 (les réponses reçues modifient le périmètre d'exploration)
+questions posées, réponse à chacune (ou « non répondu »), zones d'ombre levées, zones d'ombre restantes et leur effet sur le diagnostic. Selon la validation : phase 3, ou retour en phase 1 si les réponses changent le périmètre.
 
 ---
 
-# Phase 3 — Analyse approfondie : Diagnostic en 4 étapes
+# Phase 3 — Diagnostic
 
-## Objectif
-Appliquer la méthodologie de diagnostic pour identifier la cause racine.
+Objectif : trouver **où la faute naît**, pas seulement où elle se voit.
 
-## ÉTAPE 3.1 — Reproduction
+## 3.1 — Reproduire
 
-Identifier et documenter le scénario de reproduction. Ton shell est limité à la
+Comportement observé, comportement attendu, conditions (entrées, état, environnement), fréquence. Ton shell est limité à la
 lecture (git, fichiers, Beads) : pour reproduire, lance un test existant du projet
 (confirmation demandée à l'utilisateur) ou demande à l'utilisateur de lancer la
 commande et de te donner la sortie ; ne cherche pas d'autre moyen d'exécuter du code.
-
-- **Comportement observé** : ce qui se passe
-- **Comportement attendu** : ce qui devrait se passer
-- **Conditions de déclenchement** : données d'entrée, état du système, environnement
-- **Fréquence** : systématique, intermittent, sous charge
-
-Si les informations sont insuffisantes pour reproduire, lister explicitement ce qui manque.
+Ce qui manque pour reproduire : liste-le.
 
 **Brouillon de reproduction** — seulement si ton prompt contient la ligne « Brouillons de session (oh) » (workflow `debug`) : écris ton test ou script de reproduction et tes notes dans ton dossier de brouillons (chemin dans l'entrée `oh.scratch` du contexte de session), avec l'outil d'écriture de fichiers : le shell n'y a pas accès. Ce dossier est hors dépôt et supprimé avec la session : décris ce test **en texte** dans le ticket de correction (étapes de reproduction, entrées, résultat attendu), sans le chemin du brouillon. Le `developer`, lecteur déclaré, en fait le test définitif du projet. Le chemin d'un brouillon n'est jamais cité dans le rapport, la documentation ni le wiki.
 
----
+## 3.2 — Séparer le lieu du symptôme de la cause
 
-## ÉTAPE 3.2 — Isolation
+La pile, l'assertion qui échoue ou le dernier commit montrent **où une mauvaise valeur est constatée**. La cause est l'endroit où elle **devient** fausse, souvent plus haut.
 
-Réduire le périmètre du problème :
+1. **Lieu du symptôme** : la frame où l'erreur est levée (en haut de la pile en Go, Java, JavaScript ; en bas d'un traceback Python), la première dans le code du projet.
+2. **Valeur fautive** : nomme-la précisément (liste vide, identifiant nul, date dans le mauvais fuseau, état périmé).
+3. **Remonte sa provenance**, producteur après producteur (appelant, constructeur, parseur, sérialisation, configuration, données d'entrée), en lisant le code de chacun, jusqu'au premier endroit où la valeur n'est plus celle attendue.
+4. **Arbitre avec les contrats** : documentation, commentaires, types et tests du producteur. Le producteur promet ce que le consommateur suppose et ne le tient pas → la cause est chez le producteur. Personne ne le promet → elle est chez le consommateur.
+5. **Le dernier changement n'est pas coupable par défaut** : il peut seulement révéler un défaut plus ancien. `git log` et `git blame` sur le producteur autant que sur le lieu du symptôme.
 
-- Identifier la **couche concernée** : UI, API, service, repository, base de données, infra
-- Identifier le **point d'entrée** : première ligne/fonction où le comportement dévie
-- Écarter les causes improbables : changements récents (git log), dépendances externes, config
+## 3.3 — Hypothèses graduées, vérifiées
 
----
-
-## ÉTAPE 3.3 — Identification
-
-Analyser les artefacts disponibles pour localiser la cause :
-
-### Lecture d'une stacktrace
-
-```
-1. Lire de bas en haut : le bas est l'origine, le haut est la propagation
-2. Identifier la première frame dans le code applicatif (hors node_modules, hors framework)
-3. Repérer le fichier et la ligne — c'est le point de départ du diagnostic
-4. Identifier le type d'erreur (TypeError, NullPointerException, etc.) et son message
-```
-
-### Lecture des logs applicatifs
-
-```
-1. Chercher les entrées ERROR et WARN dans la fenêtre temporelle du bug
-2. Identifier la corrélation entre les logs et le comportement décrit
-3. Repérer les patterns : répétitions, séquences anormales, timestamps inhabituels
-4. Vérifier les logs des dépendances (base de données, cache, message broker)
-```
-
-### Lecture des logs système / réseau
-
-```
-1. Codes HTTP : 4xx → erreur client, 5xx → erreur serveur
-2. Timeouts : identifier si le problème est de latence ou d'absence de réponse
-3. Vérifier les erreurs de connexion (DNS, TLS, ports)
-```
-
----
-
-## ÉTAPE 3.4 — Hypothèse et vérification
-
-Formuler la ou les hypothèses de cause racine :
-
-```
-Hypothèse 1 (haute probabilité) : <description>
-  → Éléments qui l'étayent : <preuves dans les artefacts>
-  → Pour confirmer : <action à effectuer (log supplémentaire, test, breakpoint)>
-
-Hypothèse 2 (probabilité moyenne) : <description>
-  → Éléments qui l'étayent : ...
-  → Pour confirmer : ...
-```
+- Au moins deux hypothèses, dont une **en amont** du lieu du symptôme.
+- Pour chacune : la prédiction qu'elle fait (« si H, l'entrée X donne Y »), puis sa vérification (code lu, test existant lancé, exemple tracé à la main) : confirmée, réfutée ou non vérifiée.
+- Probabilité : **haute** = prédiction vérifiée ; **moyenne** = cohérente, non vérifiée ; **faible** = possible, sans élément.
+- **Cause racine** = l'endroit dont la correction supprime le défaut pour tous ses consommateurs. Un garde-fou au lieu du symptôme (test de bornes, nil, `try`/`catch`) est un palliatif : présente-le comme tel, jamais comme la correction.
+- Cherche les autres effets de la même cause (autres consommateurs de la valeur) : ils confirment l'hypothèse et vont dans le ticket.
 
 ## Récap de fin de Phase 3
 
 Le récap de Phase 3 doit contenir :
 
-- **Symptôme** : comportement observé vs attendu, conditions de déclenchement, fréquence
+- **Symptôme** : observé, attendu, conditions, fréquence, lieu du symptôme (`fichier:ligne`)
 - **Périmètre analysé** : artefacts fournis (stacktrace, logs, description, ticket Beads) et ce qui n'était PAS disponible
-- **Localisation probable** : `chemin/vers/fichier.ts:ligne` + description courte
-- **Cause racine** :
-  - Hypothèse principale (probabilité haute/moyenne/faible) : explication en 2-5 phrases, éléments qui l'étayent, action pour confirmer
-  - Hypothèse secondaire (si applicable) : même structure
-- **Fichiers impliqués** : tableau fichier / rôle dans le bug
+- **Chaîne de provenance** : du lieu du symptôme à la cause, une ligne par étape (`fichier:fonction` → valeur)
+- **Cause racine** : `fichier:fonction` (ligne), hypothèse principale (probabilité, éléments, vérification), hypothèse secondaire si besoin ; palliatifs écartés et pourquoi ; le ticket de correction (phase 5) reprend cette cause, nommée par son fichier et sa fonction
+- **Fichiers impliqués** : fichier / rôle dans le bug
 
-**Selon la réponse à la question de validation :**
-- **Passer à Phase 4** → charger `debugger-phase-4-5`, puis Phase 4
-- **Réviser** → rester en Phase 3, ajuster le diagnostic, re-présenter
-- **Skip Phase 4** → charger `debugger-phase-4-5`, puis Phase 5 (pas de vérification de cas particuliers)
+Selon la validation : **Passer à Phase 4** → charger `debugger-phase-4-5`, puis Phase 4 ; **Réviser** → rester en phase 3 ; **Skip Phase 4** → charger `debugger-phase-4-5`, puis Phase 5.

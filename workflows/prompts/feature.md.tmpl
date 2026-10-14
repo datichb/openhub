@@ -35,6 +35,9 @@ Déroulé :
 3. `cp-0` : afficher le tableau des tickets (`### Ordre de traitement`, agent prévu) et attendre la confirmation de l'utilisateur.
 4. Si une spécification UX ou UI a été produite, `cp-spec` avant l'implémentation.
 5. Implémentation : invoquer `orchestrator-dev` avec les tickets dans l'ordre de traitement du planner. Il passe lui-même `cp-1`, `cp-2` (un par ticket : chaque ticket est commité puis fermé avant le suivant) et `cp-3`.
+{{- if eq .method "tdd" }}
+   Méthode TDD : demande à `orchestrator-dev` de faire passer au développeur `cp-seams` puis `cp-red` avant d'implémenter (une fois par ticket) et de faire vérifier au reviewer que les tests couvrent chaque critère et n'ont pas été affaiblis après `cp-red`.
+{{- end }}
 6. Review de fin : invoquer le `reviewer` en review adversariale sur l'ensemble de la feature (skill `orchestrator-recap-edge`) ; s'il demande des corrections, rappeler `orchestrator-dev` avec un ticket de correction (qui repasse par son propre `cp-2`) — un seul tour de correction final, puis `cp-feature` en signalant les points encore ouverts.
 7. `cp-feature` : récap global de la feature.
 {{- if and (not .request) (not .tickets) }}

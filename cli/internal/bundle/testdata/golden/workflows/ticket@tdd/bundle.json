@@ -297,8 +297,10 @@
         "dev-standards-testing",
         "living-docs-enrichment",
         "quick-fix",
+        "resolving-merge-conflicts",
         "reviewer-reception",
-        "test-generation"
+        "test-generation",
+        "verification-before-completion"
       ]
     },
     {
@@ -518,12 +520,14 @@
     "orchestrator-dev-routing",
     "orchestrator-dev-ticket-workflow",
     "quick-fix",
+    "resolving-merge-conflicts",
     "review-merge",
     "reviewer-adversarial",
     "reviewer-edge-case",
     "reviewer-reception",
     "skill-authoring-protocol",
     "test-generation",
+    "verification-before-completion",
     "websearch-usage"
   ],
   "subagent_graph": {

@@ -896,8 +896,10 @@
         "dev-standards-testing",
         "living-docs-enrichment",
         "quick-fix",
+        "resolving-merge-conflicts",
         "reviewer-reception",
-        "test-generation"
+        "test-generation",
+        "verification-before-completion"
       ]
     },
     {
@@ -1049,6 +1051,7 @@
     "planner-phase-5-6",
     "prototype-protocol",
     "quick-fix",
+    "resolving-merge-conflicts",
     "review-merge",
     "reviewer-adversarial",
     "reviewer-edge-case",
@@ -1059,6 +1062,7 @@
     "ui-patterns-reference",
     "ui-protocol",
     "ux-protocol",
+    "verification-before-completion",
     "websearch-design-patterns",
     "websearch-stack-research",
     "websearch-usage"

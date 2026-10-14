@@ -329,8 +329,10 @@
         "dev-standards-testing",
         "living-docs-enrichment",
         "quick-fix",
+        "resolving-merge-conflicts",
         "reviewer-reception",
-        "test-generation"
+        "test-generation",
+        "verification-before-completion"
       ]
     },
     {
@@ -466,9 +468,11 @@
     "expert-posture",
     "living-docs-enrichment",
     "quick-fix",
+    "resolving-merge-conflicts",
     "reviewer-reception",
     "skill-authoring-protocol",
     "test-generation",
+    "verification-before-completion",
     "websearch-usage"
   ],
   "subagent_graph": {
