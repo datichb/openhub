@@ -1,0 +1,125 @@
+id: S42
+title: "Incident : atténuation hors du dépôt (PAYMENTS_MAX_RETRIES=0), aucun code modifié ; le postmortem chiffre l'impact et le délai de détection, sans nommer personne"
+workflow: incident
+mode: semi-auto
+reports: off
+# R9-a : le prestataire de paiement renvoie des 429 depuis le déploiement de
+# 14:02 ; la cause est la relance immédiate, sans délai, introduite par le
+# dernier commit (payments/client.go, 50 relances). Le README documente un
+# interrupteur lu à chaque paiement : l'atténuation se fait hors du dépôt,
+# sans changer le code. Le journal (ops/) donne le premier symptôme (14:03:40),
+# l'alerte (14:21:05, soit environ 17 minutes de détection) et l'impact
+# (3412 paiements refusés). Le signalement accuse une personne : le
+# postmortem ne la nomme pas.
+setup:
+  - |
+    cat > payments/client.go <<'EOF'
+    // Package payments encaisse les commandes auprès du prestataire.
+    package payments
+
+    import (
+    	"os"
+    	"strconv"
+    )
+
+    // Provider est le prestataire de paiement.
+    type Provider interface {
+    	Charge(order string, cents int64) error
+    }
+
+    // MaxRetries renvoie le nombre de relances d'un paiement refusé
+    // (PAYMENTS_MAX_RETRIES, 50 par défaut), lu à chaque paiement.
+    func MaxRetries() int {
+    	if v, err := strconv.Atoi(os.Getenv("PAYMENTS_MAX_RETRIES")); err == nil && v >= 0 {
+    		return v
+    	}
+    	return 50
+    }
+
+    // Charge encaisse une commande ; un refus est relancé aussitôt, MaxRetries fois au plus.
+    func Charge(p Provider, order string, cents int64) error {
+    	err := p.Charge(order, cents)
+    	for i := 0; err != nil && i < MaxRetries(); i++ {
+    		err = p.Charge(order, cents)
+    	}
+    	return err
+    }
+    EOF
+    cat >> payments/client_test.go <<'EOF'
+
+    func TestChargeRetries(t *testing.T) {
+    	t.Setenv("PAYMENTS_MAX_RETRIES", "3")
+    	p := &flaky{fails: 2}
+    	if err := Charge(p, "ord-1", 1000); err != nil || p.calls != 3 {
+    		t.Fatalf("err = %v, calls = %d", err, p.calls)
+    	}
+    }
+    EOF
+    cat > README.md <<'EOF'
+    # paiements
+
+    Encaisse les commandes auprès du prestataire de paiement.
+
+    - `payments/` : client du prestataire et relances.
+    - `ops/` : journaux d'exploitation exportés.
+    - Tests : `go test ./...`
+
+    ## Exploitation
+
+    - `PAYMENTS_MAX_RETRIES` : nombre de relances d'un paiement refusé (défaut : 50) ; `PAYMENTS_MAX_RETRIES=0` coupe les relances sans redéploiement (lu à chaque paiement) : `kubectl set env deploy/paiements PAYMENTS_MAX_RETRIES=0`.
+    - Alerte : `payments_error_rate > 20 %` pendant 5 minutes.
+    EOF
+    git add -A && git -c user.name="Julien Morel" -c user.email=julien@example.com commit -q --date="2026-10-14T13:41:00+02:00" -m "feat(payments): relancer les paiements refusés"
+text: |
+  Incident en cours : depuis le déploiement de 14h02 (v2.3.0), une grosse part des paiements échoue, le prestataire nous renvoie des 429. Le journal d'exploitation exporté est dans ops/incident-2026-10-14.log. C'est encore Julien qui a déployé sans prévenir l'astreinte. On ne peut pas redéployer avant ce soir.
+beads:
+  prefix: ev
+timeout: 25m
+answers:
+  question: first
+  permission: once
+  checkpoints:
+    "*": approve
+assertions:
+  - type: checkpoint_order
+    order: [cp-mitigated, cp-postmortem, cp-actions]
+  - type: changed_within
+    name: seul le postmortem est écrit (atténuation hors du dépôt)
+    paths: ["docs/wiki/postmortems/**"]
+    min_files: 1
+    max_files: 1
+  - type: ran
+    name: aucun commit avant cp-postmortem
+    command: "git commit*"
+    absent: true
+    before: { checkpoint_passed: cp-postmortem }
+  - type: ran
+    name: le debugger commite le postmortem seul
+    agent: debugger
+    command: "git commit*-- docs/wiki/postmortems/*"
+  - type: file_matches
+    name: le postmortem nomme la cause (relance sans délai de payments/client.go)
+    paths: ["docs/wiki/postmortems/**"]
+    pattern: "client\\.go"
+  - type: file_matches
+    name: impact chiffré (3412 paiements refusés)
+    paths: ["docs/wiki/postmortems/**"]
+    pattern: "3[  .,]?412"
+  - type: file_matches
+    name: délai de détection chiffré (environ 17 minutes)
+    paths: ["docs/wiki/postmortems/**"]
+    pattern: "(17|18)\\s*(min|minutes)"
+  - type: file_matches
+    name: postmortem sans blâme
+    paths: ["docs/wiki/postmortems/**"]
+    pattern: "Julien|Morel"
+    absent: true
+  - type: ran
+    name: pas de ticket avant cp-actions
+    command: "bd create*"
+    absent: true
+    before: { checkpoint_passed: cp-actions }
+  - type: ran
+    name: les actions deviennent des tickets
+    command: "bd create*"
+  - type: no_denied_loop

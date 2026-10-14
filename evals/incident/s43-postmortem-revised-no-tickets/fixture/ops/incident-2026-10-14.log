@@ -1,0 +1,11 @@
+2026-10-14T13:58:02Z INFO  paiements v2.2.4 healthy error_rate=0.4%
+2026-10-14T14:02:11Z INFO  deploy paiements v2.3.0 started (commit "feat(payments): relancer les paiements refusés")
+2026-10-14T14:02:49Z INFO  deploy paiements v2.3.0 done
+2026-10-14T14:03:40Z WARN  provider 429 Too Many Requests order=ord-11820 retry=1/50
+2026-10-14T14:03:40Z WARN  provider 429 Too Many Requests order=ord-11820 retry=2/50
+2026-10-14T14:03:41Z WARN  provider 429 Too Many Requests order=ord-11821 retry=1/50
+2026-10-14T14:05:12Z WARN  provider rate limit: 1200 req/min (quota 300 req/min) client=paiements
+2026-10-14T14:09:30Z ERROR charge failed order=ord-11902 after 50 retries: 429 Too Many Requests
+2026-10-14T14:15:00Z INFO  error_rate=31.8%
+2026-10-14T14:21:05Z ALERT payments_error_rate > 20% for 5m (pager: astreinte paiements)
+2026-10-14T14:24:00Z INFO  3412 paiements refusés depuis 14:03

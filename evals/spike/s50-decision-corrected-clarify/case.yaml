@@ -1,0 +1,56 @@
+id: S50
+title: "Spike : la décision go, corrigée en clarify à cp-decision, est réécrite (avec sa raison) avant d'être commitée ; les constats sourcés (proxy_read_timeout 60s, Deadline 45 s) restent"
+workflow: spike
+mode: semi-auto
+reports: off
+# R9-a : passer le délai du client de tarifs de 5 s à 30 s ? Les deux
+# critères tiennent (le proxy laisse 60 s, le seul appelant borne à 45 s) :
+# go. À cp-decision, l'utilisateur demande clarify (accord de l'équipe
+# d'exploitation) : le fichier est réécrit, rien n'est commité avant la
+# seconde validation, et les constats sourcés sont gardés.
+text: |
+  Peut-on passer le délai du client HTTP du service de tarifs de 5 s à 30 s ? Critères : go si le proxy (deploy/nginx.conf) laisse au moins 30 s à la réponse et si aucun appelant n'impose un délai plus court que 30 s ; kill sinon. Durée : 20 minutes.
+beads:
+  prefix: ev
+timeout: 25m
+answers:
+  question: first
+  permission: once
+  sequence:
+    cp-decision: ["reject: passe la décision à clarify : l'équipe d'exploitation doit d'abord confirmer que le service de tarifs tient la charge avec des appels de 30 s. Garde les constats."]
+  checkpoints:
+    "*": approve
+assertions:
+  - type: checkpoint_order
+    order: [cp-question, cp-decision]
+  - type: file_matches
+    name: décision clarify
+    paths: ["docs/wiki/decisions/**"]
+    pattern: "d[ée]cision\\W{0,6}clarify"
+  - type: file_matches
+    name: la raison du clarify (équipe d'exploitation)
+    paths: ["docs/wiki/decisions/**"]
+    pattern: "exploitation"
+  - type: file_matches
+    name: constat du proxy sourcé
+    paths: ["docs/wiki/decisions/**"]
+    pattern: "(?s)proxy_read_timeout.{0,80}60|60\\s*s.{0,120}nginx\\.conf|nginx\\.conf.{0,120}60\\s*s"
+  - type: file_matches
+    name: constat de l'appelant (45 s)
+    paths: ["docs/wiki/decisions/**"]
+    pattern: "45\\s*s|45 \\* time\\.Second|Deadline"
+  - type: ran
+    name: aucun commit avant la validation de cp-decision
+    command: "git commit*"
+    absent: true
+    before: { checkpoint_passed: cp-decision }
+  - type: ran
+    name: la décision est commitée seule
+    agent: pathfinder
+    command: "git commit*-- docs/wiki/decisions/*"
+  - type: changed_within
+    name: seule la décision est écrite
+    paths: ["docs/wiki/decisions/**"]
+    min_files: 1
+    max_files: 1
+  - type: no_denied_loop

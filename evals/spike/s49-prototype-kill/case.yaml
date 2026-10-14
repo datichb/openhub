@@ -1,0 +1,50 @@
+id: S49
+title: "Spike : encoding/csv ne lit pas le relevé réel (guillemet nu) — décision kill écrite sous docs/wiki/decisions/, avec la preuve, prototype supprimé, seule la décision commitée après cp-decision"
+workflow: spike
+mode: semi-auto
+reports: off
+# R9-a : remplacer le lecteur maison par encoding/csv ? Le critère porte sur
+# le relevé réel (testdata/releve.csv), dont une ligne contient des
+# guillemets au milieu d'un champ non entouré de guillemets. Sans
+# LazyQuotes (exclu par le critère), encoding/csv refuse la ligne 2
+# (« bare " in non-quoted-field ») : décision kill. Le fait se tranche en
+# exécutant du code (prototype jetable dans .oh-spike/, supprimé avant
+# cp-decision, vérifié par oh) ou en lisant la documentation de
+# encoding/csv ; la décision cite la raison.
+text: |
+  Peut-on remplacer notre lecteur maison csvlite par encoding/csv de la bibliothèque standard ? Critère : go si encoding/csv, réglé avec Comma = ';' et sans LazyQuotes ni prétraitement, lit les trois lignes de testdata/releve.csv avec les mêmes champs que csvlite ; kill sinon. Durée : 30 minutes.
+beads:
+  prefix: ev
+timeout: 25m
+answers:
+  question: first
+  permission: once
+  checkpoints:
+    "*": approve
+assertions:
+  - type: checkpoint_order
+    order: [cp-question, cp-decision]
+  - type: file_matches
+    name: décision kill
+    paths: ["docs/wiki/decisions/**"]
+    pattern: "d[ée]cision\\W{0,6}kill"
+  - type: file_matches
+    name: la raison est le guillemet nu de la ligne 2
+    paths: ["docs/wiki/decisions/**"]
+    pattern: "bare|non-quoted|guillemets? nus?|ligne 2|line 2"
+  - type: changed_within
+    name: seule la décision reste (prototype supprimé, rien d'autre)
+    paths: ["docs/wiki/decisions/**"]
+    min_files: 1
+    max_files: 1
+  - type: ran
+    name: aucun commit avant cp-decision
+    command: "git commit*"
+    absent: true
+    before: { checkpoint_passed: cp-decision }
+  - type: ran
+    name: la décision est commitée seule
+    agent: pathfinder
+    command: "git commit*-- docs/wiki/decisions/*"
+  - type: no_question_in_subagent
+  - type: no_denied_loop

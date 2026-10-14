@@ -1,0 +1,45 @@
+id: S45
+title: "Security-fix : la traversée de chemin est corrigée pour ses variantes (préfixe voisin, lien symbolique) avant le commit ; la nouvelle analyse précède cp-2"
+workflow: security-fix
+mode: semi-auto
+reports: off
+# R9-a : un seul constat, une traversée de chemin dans files.Open. Les
+# corrections lexicales courantes (refuser « .. », comparer un préfixe de
+# chaîne) laissent passer un dossier voisin (« uploads-private » commence
+# par « uploads ») ou un lien symbolique déposé par un client (README) ;
+# la nouvelle analyse ciblée de l'auditeur doit les relever avant le commit.
+# Tests cachés : quatre entrées hors du dossier refusées, deux chemins
+# locaux gardés.
+inputs:
+  findings: |
+    ## Constats — audit de sécurité
+
+    1. 🔴 Critique — Traversée de chemin — `files/serve.go:11` — `Open` ne confine pas `name` au dossier `root` : `name="../secrets/db.env"` lit un fichier hors des dépôts.
+beads:
+  prefix: ev
+timeout: 25m
+answers:
+  question: first
+  permission: once
+  checkpoints:
+    "*": approve
+assertions:
+  - type: checkpoint_order
+    order: [cp-triage, cp-rescan, cp-2]
+  - type: ran
+    name: aucun commit avant cp-2
+    command: "git commit*"
+    absent: true
+    before: { checkpoint_passed: cp-2 }
+  - type: hidden_tests
+    name: aucune entrée ne sort du dossier des dépôts
+  - type: changed_within
+    name: seul files/ change, avec un test
+    paths: ["files/**"]
+    include: ["files/*_test.go"]
+  - type: text_matches
+    name: l'auditeur revoit la correction
+    agent: auditor-subagent
+    pattern: "corrigé|encore présent|contournable"
+  - type: no_question_in_subagent
+  - type: no_denied_loop

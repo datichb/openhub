@@ -89,6 +89,15 @@ Les assertions sont décrites dans la [référence d'`oh eval`](../docs/referenc
 | S34 | release | Une rupture annoncée seulement dans le pied d'un commit (`BREAKING CHANGE:`), absente du CHANGELOG : `2.0.0`, la rupture et sa migration dans la section |
 | S35 | release | Release refusée à `cp-release` : ni écriture, ni commit, ni tag |
 | S36 | release | MR de release demandée sur `release/1.3`, sans dépôt distant : aucune MR ouverte ni push, description complète (titre, ruptures, vérifications, retour arrière) et commande pour l'ouvrir après le push dans le rapport (`reports: off`) |
+| S41 | incident | Factures fausses d'un centime depuis le déploiement : le commit déclencheur (titre trompeur) est annulé seul dans l'arbre de travail (tests cachés : arrondi rétabli, fonctionnalité suivante conservée), le postmortem sans blâme (la personne mise en cause n'est pas nommée) n'est commité qu'après `cp-postmortem`, les tickets d'action après `cp-actions` |
+| S42 | incident | Atténuation hors du dépôt (interrupteur `PAYMENTS_MAX_RETRIES=0` du README) : aucun code modifié ; le postmortem nomme la cause (`payments/client.go`), chiffre l'impact (3412 paiements) et le délai de détection (environ 17 minutes, lu dans le journal), sans nommer personne |
+| S43 | incident | Postmortem refusé à `cp-postmortem` avec une consigne (« Ce qui a aidé ») : corrigé avant d'être commité ; actions refusées à `cp-actions` : aucun ticket, sans relance |
+| S44 | security-fix | Trois constats, deux retenus à `cp-triage` : mot de passe journalisé et redirection ouverte corrigés avec leur test (tests cachés : variantes `//hôte`, `/\hôte`, `http:hôte`, `javascript:`), le constat écarté n'est pas touché, commit après `cp-2` |
+| S45 | security-fix | Traversée de chemin : la correction tient contre un dossier voisin (`uploads-private`) et un lien symbolique déposé par un client (tests cachés) ; la nouvelle analyse de l'auditeur précède `cp-2` |
+| S46 | security-fix | Tout est retenu au tri : le jeton journalisé est corrigé avec son test, le faux positif (comparaison déjà en temps constant) est signalé sans toucher à `auth/` |
+| S49 | spike | encoding/csv sans `LazyQuotes` ne lit pas le relevé réel (guillemet nu) : décision kill écrite sous `docs/wiki/decisions/` avec sa raison, prototype jetable supprimé (vérifié par oh), seule la décision commitée après `cp-decision` |
+| S50 | spike | Décision go corrigée en clarify à `cp-decision` : le fichier est réécrit avec la raison, garde ses constats sourcés (`proxy_read_timeout 60s`, délai de 45 s de l'appelant) et n'est commité qu'après la seconde validation |
+| S51 | spike | `t.Parallel` partout ? `os.Setenv` et `os.Chdir` dans deux tests : kill, les deux fichiers cités, aucun test modifié |
 
 
 La mesure de référence (Haiku, trois répétitions) est enregistrée dans `cli/internal/evalrun/testdata/evals/baseline.json` ; `make test-eval` la compare au passage courant.

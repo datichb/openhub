@@ -1,0 +1,43 @@
+id: S46
+title: "Security-fix : tout est retenu au tri ; le constat réel (jeton journalisé) est corrigé avec son test, le faux positif (comparaison déjà en temps constant) est signalé sans toucher au code"
+workflow: security-fix
+mode: semi-auto
+reports: off
+# R9-a : F1 est réel (api/client.go journalise le jeton) ; F2 ne se vérifie
+# pas : auth/webhook.go compare déjà avec subtle.ConstantTimeCompare. Tout
+# est retenu à cp-triage : F1 est corrigé (tests cachés), auth/ reste tel
+# quel et le faux positif est dit, avec sa raison.
+inputs:
+  findings: |
+    ## Constats — audit de sécurité
+
+    1. 🔴 Critique — Jeton d'API écrit dans les journaux — `api/client.go:17` — `NewRequest` journalise le jeton du partenaire à chaque appel.
+    2. 🟠 Majeur — Comparaison de jeton en temps non constant — `auth/webhook.go:9` — `ValidWebhookToken` compare les jetons des rappels avec `==`, ce qui permet une attaque temporelle.
+beads:
+  prefix: ev
+timeout: 25m
+answers:
+  question: first
+  permission: once
+  checkpoints:
+    cp-triage: "approve: corrige tout."
+    "*": approve
+assertions:
+  - type: checkpoint_order
+    order: [cp-triage, cp-rescan, cp-2]
+  - type: ran
+    name: aucun commit avant cp-2
+    command: "git commit*"
+    absent: true
+    before: { checkpoint_passed: cp-2 }
+  - type: hidden_tests
+    name: le jeton n'est plus journalisé
+  - type: changed_within
+    name: auth/ n'est pas touché (faux positif)
+    paths: ["api/**"]
+    include: ["api/*_test.go"]
+  - type: text_matches
+    name: le faux positif est signalé
+    pattern: "ConstantTimeCompare|subtle\\."
+  - type: no_question_in_subagent
+  - type: no_denied_loop

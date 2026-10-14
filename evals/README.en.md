@@ -89,6 +89,15 @@ The assertions are described in the [`oh eval` reference](../docs/reference/cli-
 | S34 | release | A breaking change announced only in a commit footer (`BREAKING CHANGE:`), missing from the CHANGELOG: `2.0.0`, the change and its migration in the section |
 | S35 | release | Release refused at `cp-release`: no write, no commit, no tag |
 | S36 | release | Release MR asked on `release/1.3`, without a remote: no MR opened nor push, complete description (title, breaking changes, checks, rollback) and the command to open it after the push in the report (`reports: off`) |
+| S41 | incident | Invoices one cent off since the deployment: the triggering commit (misleading title) is undone alone in the work tree (hidden tests: rounding back, next feature kept), the blameless postmortem (the person blamed is not named) is only committed after `cp-postmortem`, the action tickets after `cp-actions` |
+| S42 | incident | Mitigation outside the repository (the `PAYMENTS_MAX_RETRIES=0` switch of the README): no code changed; the postmortem names the cause (`payments/client.go`), gives the impact (3412 payments) and the detection delay (about 17 minutes, read in the log) in figures, without naming anyone |
+| S43 | incident | Postmortem refused at `cp-postmortem` with an instruction ("Ce qui a aidé"): revised before it is committed; actions refused at `cp-actions`: no ticket, not asked again |
+| S44 | security-fix | Three findings, two kept at `cp-triage`: logged password and open redirect fixed with their test (hidden tests: `//host`, `/\host`, `http:host`, `javascript:` variants), the finding left out is not touched, commit after `cp-2` |
+| S45 | security-fix | Path traversal: the fix holds against a neighbouring folder (`uploads-private`) and a symbolic link dropped by a client (hidden tests); the auditor's re-analysis comes before `cp-2` |
+| S46 | security-fix | Everything kept at triage: the logged token is fixed with its test, the false positive (comparison already in constant time) is reported without touching `auth/` |
+| S49 | spike | encoding/csv without `LazyQuotes` cannot read the real statement (bare quote): kill decision written under `docs/wiki/decisions/` with its reason, throwaway prototype deleted (checked by oh), only the decision committed after `cp-decision` |
+| S50 | spike | Go decision corrected to clarify at `cp-decision`: the file is rewritten with the reason, keeps its sourced findings (`proxy_read_timeout 60s`, the caller's 45 s deadline) and is only committed after the second approval |
+| S51 | spike | `t.Parallel` everywhere? `os.Setenv` and `os.Chdir` in two tests: kill, both files cited, no test changed |
 
 
 The reference measure (Haiku, three repetitions) is recorded in `cli/internal/evalrun/testdata/evals/baseline.json`; `make test-eval` compares the current run with it.
