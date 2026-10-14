@@ -270,6 +270,10 @@ func (l *fanoutLauncher) Done(ctx context.Context, id string) (bool, error) {
 }
 
 func (l *fanoutLauncher) Stop(ctx context.Context, id string) error {
+	// The transcript of a child stays readable in the trace once stopped.
+	if err := l.ssvc.SaveTranscript(ctx, id); err != nil {
+		fmt.Fprintf(l.log, "fan-out: transcript of %s not saved: %v\n", id, err)
+	}
 	return l.rsvc.StopSession(ctx, id)
 }
 
