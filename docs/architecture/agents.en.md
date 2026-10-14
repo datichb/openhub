@@ -50,7 +50,7 @@ flowchart TD
         PATH["pathfinder<br/>Recon"]
         ONB["onboarder<br/>Discovery"]
     end
-    subgraph DV ["Developer (3)"]
+    subgraph DV ["Developer (1)"]
         DEV["developer<br/>Subagent"]
     end
     subgraph IN ["Infra (1)"]
@@ -74,6 +74,11 @@ flowchart TD
     subgraph UT ["Utility (1)"]
         BRF["brief-enricher<br/>Subagent"]
     end
+    subgraph DL ["Delivery (2)"]
+        REL["release-manager<br/>Release entry"]
+        MRG["merger<br/>Merge conflicts"]
+    end
+    OHF(["oh: fan-out"])
     COND -.->|workflow members| PATH & PLAN & DES
     ORCH --> PATH & PLAN & ONB & DES & ORCHDEV & REV & DBG
     ORCHDEV --> DEV & REV & DOC
@@ -81,6 +86,7 @@ flowchart TD
     PATH --> DES
     AUD --> AUDS
     REV -->|calls: reviewer| REV
+    OHF -.->|unresolved conflict, merge-conflicts| MRG
 ```
 
 > Detailed diagram: [`docs/diagrams/agent-hierarchy.mermaid`](../diagrams/agent-hierarchy.mermaid)

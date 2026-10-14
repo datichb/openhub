@@ -17,6 +17,12 @@ import (
 var testBinary string
 
 func TestMain(m *testing.M) {
+	// os.Exit skips the deferred calls: the code is returned once the
+	// temporary folders are removed (runMain).
+	os.Exit(runMain(m))
+}
+
+func runMain(m *testing.M) int {
 	// Build the binary into a temp directory
 	tmpDir, err := os.MkdirTemp("", "oh-integration-*")
 	if err != nil {
@@ -54,7 +60,7 @@ func TestMain(m *testing.M) {
 	// No background git maintenance (a commit, a fetch or a push starts a
 	// detached `git maintenance run --auto` that keeps writing to
 	// .git/objects while t.TempDir is removed: flaky TestMigrateLegacyWorkflows).
-	os.Exit(gittest.Main(m))
+	return gittest.Main(m)
 }
 
 func runOh(t *testing.T, args ...string) (string, string, int) {

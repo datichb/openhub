@@ -201,7 +201,7 @@ func TestWikiView(t *testing.T) {
 	assert.Contains(t, header, "2 proposition(s) en attente")
 	require.Len(t, texts, 6, "two sections, two proposals, two pages")
 	assert.Contains(t, texts[0], "Propositions en attente (2)")
-	assert.Contains(t, texts[1], "[wp-a] conventions")
+	assert.Contains(t, texts[1], tview.Escape("[wp-a]")+" conventions", "the id escaped")
 	assert.Contains(t, texts[1], "reviewer")
 	assert.Contains(t, texts[1], "il y a 2 heures")
 	assert.Contains(t, texts[3], "Pages wiki (2)")
@@ -326,4 +326,14 @@ func TestWikiViewFailuresAndEmpty(t *testing.T) {
 	assert.Contains(t, sh.toastList(), "Team non configurée")
 	assert.Len(t, off.ContextCommands(), 2)
 	assert.Equal(t, "team.wiki", off.ID())
+}
+
+// p5-fixes: the id of a proposal (team state, written by others) is shown
+// with its brackets, never read as a style tag.
+func TestWikiProposalIDEscaped(t *testing.T) {
+	v := NewWikiView(func() TeamResolution { return TeamResolution{} })
+	it := v.buildProposalItem(teamstate.WikiProposal{ID: "red", Page: "p", Author: "a"})
+	tv := tview.NewTextView().SetDynamicColors(true)
+	tv.SetText(it.MainText)
+	assert.Contains(t, tv.GetText(true), "[red] p")
 }

@@ -18,7 +18,7 @@ un projet existant : stack, architecture, risques, et agents à prioriser.
 | Tu lances `feature` ou `cadrage` sur un projet sans contexte | oh te propose de lancer d'abord le workflow `onboarding` — tu peux accepter ou continuer |
 
 L'onboarder est en **lecture seule**. Il n'écrit aucun code, ne modifie aucun
-fichier du projet (sauf `docs/wiki/`, `ONBOARDING.md` minimaliste et `projects.md` — uniquement après confirmation explicite).
+fichier du projet, sauf `docs/wiki/` (création du wiki), `ONBOARDING.md` minimaliste et, s'il le génère, `CONVENTIONS.md`.
 
 Lorsque `docs/wiki/index.md` **existe déjà** (enrichi par d'autres agents),
 l'onboarder ne modifie aucune page : il **propose** chaque mise à jour avec `wiki_propose`
@@ -224,16 +224,9 @@ Il passe ensuite le checkpoint `cp-wiki` (pages créées) ; une fois validé, il
 > Le wiki remplace les anciens fichiers `CONVENTIONS.md`, `docs/context/technical.md` et `docs/context/business/`. L'`index.md` identifie les "god nodes" — les concepts clés apparaissant dans plusieurs pages — pour guider les agents vers l'essentiel.
 > Chaque enrichissement porte un tag de confiance : `` `CONFIRMÉ` `` (observation directe dans le code), `` `DÉDUIT` `` (raisonnement contextuel) ou `` `INCERTAIN` `` (hypothèse à valider).
 
-### 8. Proposition de mise à jour `projects.md`
+### 8. Fin de la session
 
-Si le champ `Stack` est absent ou générique dans `projects.md` :
-
-```
-J'ai détecté la stack suivante : TypeScript 5.3, Vue 3 + Nuxt 3, Fastify 4,
-PostgreSQL 15, Redis 7.
-
-Souhaites-tu que je mette à jour le champ `Stack` dans projects.md ? (oui / non)
-```
+La stack détectée est écrite dans `docs/wiki/technical/stack.md` ; l'onboarder ne modifie pas la configuration du projet (l'ancien `projects.md` n'existe plus : la configuration est dans `hub.toml`, modifiable avec `oh project configure`). Il termine par le résumé de la session : pages créées, commit du wiki, ce qui te revient (`ONBOARDING.md`, `CONVENTIONS.md`, push).
 
 ---
 
