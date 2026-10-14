@@ -107,6 +107,18 @@ type WorkflowRuntime struct {
 	// R7: Method is the method of the session ("" = standard): the
 	// bundle holds only the checkpoints of this method.
 	Method string `json:"method,omitempty"`
+
+	// r5-fixes: WritesGates hold the `writes:` paths of an agent until a
+	// checkpoint is passed (`writes_after`).
+	WritesGates []WritesGate `json:"writes_gates,omitempty"`
+}
+
+// WritesGate holds the `writes:` paths of Agent until the checkpoint After
+// is passed.
+type WritesGate struct {
+	Agent string   `json:"agent"`
+	Paths []string `json:"paths"`
+	After string   `json:"after"`
 }
 
 // ScratchDef is the scratch folder of an agent for a session: written by
@@ -145,6 +157,11 @@ type CheckpointDef struct {
 	// is passed (a later verification counts the changes from there,
 	// VerifyDef.Since).
 	Base bool `json:"base,omitempty"`
+
+	// r5-fixes: After is the checkpoint that must be passed first (a
+	// checkpoint skipped in the mode, or absent from the session, counts as
+	// passed): oh refuses this one until then.
+	After string `json:"after,omitempty"`
 }
 
 // WikiSync is the `wiki:` of a checkpoint that synchronizes the wiki.

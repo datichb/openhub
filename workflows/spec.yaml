@@ -24,8 +24,9 @@ agents:
   # R5: exploration before the interview when the request compares designs
   # or asks for an analysis of the code (codebase-design), as in cadrage.
   pathfinder: { role: workflow, mode: subagent }
-  # E8 (R4): the planner stays read-only, except its spec in the wiki.
-  planner: { role: workflow, mode: subagent, writes: ["docs/wiki/specs/**"] }
+  # E8 (R4): the planner stays read-only, except its spec in the wiki,
+  # which oh opens once the understanding is approved (r5-fixes).
+  planner: { role: workflow, mode: subagent, writes: ["docs/wiki/specs/**"], writes_after: cp-understanding }
   designer: { role: workflow, mode: subagent }
 checkpoints:
   cp-understanding:
@@ -37,6 +38,8 @@ checkpoints:
     mode: { manuel: pause, semi-auto: pause, auto: auto }
   cp-converge:
     by: [conductor]
+    # r5-fixes: oh refuses a checkpoint called before the one it waits for.
+    after: cp-understanding
     label: { fr: Convergence de la spec et du découpage, en: Spec and breakdown convergence }
     description:
       fr: Vérifié par oh, sans pause, avant de montrer la spec — glossaire, points de test, chaque critère couvert par une tranche du découpage et aucune tranche hors spec ; un écart est rendu au planner.
@@ -46,6 +49,7 @@ checkpoints:
       spec: { paths: ["docs/wiki/specs/**"], breakdown: true }
   cp-spec:
     by: [conductor]
+    after: cp-converge
     label: { fr: Valider la spec, en: Approve the spec }
     description:
       fr: oh vérifie la spec écrite sous docs/wiki/specs/ (glossaire, chaque critère avec son point de test, découpage qui les couvre) ; une fois validée, le planner la commite.
@@ -57,6 +61,7 @@ checkpoints:
       spec: { paths: ["docs/wiki/specs/**"], breakdown: true }
   cp-tickets:
     by: [conductor]
+    after: cp-spec
     label: { fr: Valider le découpage, en: Approve the breakdown }
     description:
       fr: Les tickets (une tranche du découpage chacun) ne sont créés qu'après validation du découpage par l'utilisateur.

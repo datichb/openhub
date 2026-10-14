@@ -3,6 +3,7 @@ package bundle
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -17,7 +18,8 @@ import (
 // the other workflows are unchanged.
 func TestWritesPlannerOfSpec(t *testing.T) {
 	b := scratchBundle(t, "spec", "")
-	open := &domain.CheckpointState{Unlocks: map[string]domain.CheckpointUnlock{sessionspec.UnlockCommit: {Checkpoint: "cp-spec"}}}
+	understood := &domain.CheckpointState{Passed: map[string]time.Time{"cp-understanding": time.Now()}}
+	open := &domain.CheckpointState{Passed: understood.Passed, Unlocks: map[string]domain.CheckpointUnlock{sessionspec.UnlockCommit: {Checkpoint: "cp-spec"}}}
 	agent := func(id string, st *domain.CheckpointState, plugin bool) scratchAgent {
 		var own []sessionspec.PermissionRule
 		for _, a := range b.Spec.Agents {
@@ -87,9 +89,15 @@ func TestWritesPlannerOfSpec(t *testing.T) {
 		} {
 			assert.Equal(t, sessionspec.EffectDeny, writesShell(p, cmd), "%s (plugin %v)", cmd, plugin)
 		}
-		locked := agent("planner", nil, plugin)
+		locked := agent("planner", understood, plugin)
 		assert.Equal(t, sessionspec.EffectDeny, writesShell(locked, `git commit -m "x" -- docs/wiki/specs/percent.md`), "the commit waits for cp-spec (plugin %v)", plugin)
-		assert.Equal(t, sessionspec.EffectAllow, locked.effect(sessionspec.ActionEdit, "docs/wiki/specs/percent.md"), "writing does not wait")
+		assert.Equal(t, sessionspec.EffectAllow, locked.effect(sessionspec.ActionEdit, "docs/wiki/specs/percent.md"), "writing waits for cp-understanding only")
+		// r5-fixes: before cp-understanding the edit asks, so that oh
+		// refuses it with its message (services/checkpoint EvaluateEdit);
+		// the other files keep their refusal.
+		early := agent("planner", nil, plugin)
+		assert.Equal(t, sessionspec.EffectAsk, early.effect(sessionspec.ActionEdit, "docs/wiki/specs/percent.md"), "writing waits for cp-understanding (plugin %v)", plugin)
+		assert.Equal(t, sessionspec.EffectDeny, early.effect(sessionspec.ActionEdit, "calc.go"), "plugin %v", plugin)
 
 		for _, id := range []string{"conductor", "designer"} {
 			o := agent(id, open, plugin)
@@ -113,6 +121,7 @@ func TestWritesPlannerOfSpec(t *testing.T) {
 		if a.ID == "planner" {
 			assert.Contains(t, a.Body, "## Spec écrite")
 			assert.Contains(t, a.Body, "- **Écritures** (`writes:` du workflow) : tu peux créer et modifier `docs/wiki/specs/**`")
+			assert.Contains(t, a.Body, "Seulement une fois `cp-understanding` passé : avant, oh bloque l'écriture")
 			assert.NotContains(t, a.Body, "Tu ne modifies jamais de fichiers")
 		}
 	}

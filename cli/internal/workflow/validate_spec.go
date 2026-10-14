@@ -132,6 +132,7 @@ func (r *Resolved) Validate(env Env) Diagnostics {
 	v.checkpoints()
 	v.checkpointsVerify()
 	v.methods()
+	v.order()
 	v.checkpointsBy()
 	v.preconditions()
 	v.modes()

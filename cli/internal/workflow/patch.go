@@ -264,7 +264,7 @@ func (p *patcher) agents() {
 				// R4: a layer may not open documentation paths to an agent
 				// it adds.
 				p.loosening(base+".writes", strings.Join(v.Writes, ","), "[]")
-				v.Writes = nil
+				v.Writes, v.WritesAfter = nil, ""
 			}
 			p.dst.Agents.Set(k, v)
 			continue
@@ -293,6 +293,12 @@ func (p *patcher) agents() {
 		}
 		if h("writes") {
 			p.writes(base+".writes", &old, v.Writes)
+		}
+		if h("writes_after") {
+			p.orderAfter(base+".writes_after", &old.WritesAfter, v.WritesAfter)
+		}
+		if len(old.Writes) == 0 {
+			old.WritesAfter = "" // writes: [] — nothing left to gate
 		}
 		p.dst.Agents.Set(k, old)
 	}
@@ -379,6 +385,9 @@ func (p *patcher) checkpoints() {
 		}
 		if h("wiki") {
 			old.Wiki = v.Wiki
+		}
+		if h("after") {
+			p.orderAfter(base+".after", &old.After, v.After)
 		}
 		p.dst.Checkpoints.Set(k, old)
 	}

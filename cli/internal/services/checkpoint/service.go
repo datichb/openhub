@@ -103,6 +103,9 @@ type Status struct {
 	// LockedOps lists the operations refused until their checkpoint is
 	// passed (commit, push, close).
 	LockedOps []string `json:"locked_operations,omitempty"`
+	// LockedWrites lists the `writes:` paths still closed, with the
+	// checkpoint that opens them (r5-fixes, `writes_after`).
+	LockedWrites []sessionspec.WritesGate `json:"locked_writes,omitempty"`
 }
 
 // CheckpointStatus is a checkpoint of the workflow in the session mode.
@@ -227,6 +230,7 @@ func (s *Service) Status(ctx context.Context, sessionID string) (Status, error) 
 	}
 	st.Breaker = cs.Breaker
 	st.LockedOps = bundle.LockedOps(wf, sess.Mode, &cs)
+	st.LockedWrites = bundle.LockedWrites(wf, sess.Mode, &cs)
 	st.Outputs, _ = s.Outputs(ctx, sessionID)
 	return st, nil
 }
@@ -246,6 +250,9 @@ func (s *Service) Reached(ctx context.Context, sessionID string, call Call) (Res
 	res := Result{ID: c.ID, Label: c.LabelFor(i18n.Locale()), Behavior: c.Behavior(sess.Mode)}
 	res.Warning = byWarning(sess.ID, c, call.Agent)
 	if s.States != nil {
+		if err := s.orderError(ctx, sess.ID, sess.Mode, wf, c); err != nil {
+			return res, err
+		}
 		ap, err := s.pass(ctx, sess, c)
 		if err != nil {
 			return res, err

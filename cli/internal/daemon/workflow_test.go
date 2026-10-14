@@ -35,7 +35,9 @@ func TestWorkflowAPI(t *testing.T) {
 	require.NoError(t, os.MkdirAll(filepath.Join(bundles, "h1"), 0o755))
 	data, _ := json.Marshal(sessionspec.BundleSpec{Hash: "h1", Workflow: &sessionspec.WorkflowRuntime{ID: "ticket", Checkpoints: []sessionspec.CheckpointDef{
 		{ID: "cp-1", Behaviors: map[string]string{"manuel": "pause"}},
-	}, Outputs: []sessionspec.OutputDef{{ID: "branch", Type: "branch"}}}})
+		{ID: "cp-2", Behaviors: map[string]string{"manuel": "auto"}, After: "cp-1"},
+	}, Outputs: []sessionspec.OutputDef{{ID: "branch", Type: "branch"}},
+		WritesGates: []sessionspec.WritesGate{{Agent: "planner", Paths: []string{"docs/wiki/specs/**"}, After: "cp-1"}}}})
 	require.NoError(t, os.WriteFile(filepath.Join(bundles, "h1", "bundle.json"), data, 0o644))
 	require.NoError(t, sessions.Create(ctx, &domain.Session{ID: "ses_a", ProjectID: "p1", Status: domain.SessionStatusRunning, GroupKey: "g1", BundleHash: "h1", Mode: "manuel", State: domain.RunActive}))
 
@@ -58,6 +60,12 @@ func TestWorkflowAPI(t *testing.T) {
 	var api *APIError
 	require.True(t, errors.As(err, &api))
 	assert.Equal(t, 409, api.Status, "N1: cp-1 pauses in manuel and was not validated")
+
+	// r5-fixes: cp-2 waits for cp-1.
+	_, err = c.WorkflowCheckpoint(ctx, "ses_a", checkpoint.Call{ID: "cp-2"})
+	require.True(t, errors.As(err, &api))
+	assert.Equal(t, 409, api.Status, "cp-2 before cp-1")
+	assert.Contains(t, err.Error(), "cp-1")
 
 	_, err = c.WorkflowCheckpoint(ctx, "ses_a", checkpoint.Call{ID: "cp-9"})
 	require.True(t, errors.As(err, &api))
@@ -98,6 +106,18 @@ func TestWorkflowAPI(t *testing.T) {
 	code, out = hook(g.Token, `{"sessionID":"ses_a","action":"mcp:workflow/checkpoint","input":{"id":"cp-9"}}`)
 	assert.Equal(t, 200, code)
 	assert.JSONEq(t, `{"effect":"allow"}`, out, "unknown checkpoint let through (the call lists the checkpoints)")
+
+	// r5-fixes: the edit of a writes: path before its checkpoint is
+	// refused with the reason; another path keeps the decision of the tool.
+	code, out = hook(g.Token, `{"sessionID":"ses_a","agent":"planner","action":"edit","resources":["docs/wiki/specs/x.md"]}`)
+	assert.Equal(t, 200, code)
+	var resp HookPermissionResponse
+	require.NoError(t, json.Unmarshal([]byte(out), &resp))
+	assert.Equal(t, "deny", resp.Effect)
+	assert.Contains(t, resp.Message, "cp-1")
+	code, out = hook(g.Token, `{"sessionID":"ses_a","agent":"planner","action":"edit","resources":["src/x.go"]}`)
+	assert.Equal(t, 200, code)
+	assert.JSONEq(t, `{}`, out)
 }
 
 func TestRootSessionOfSubagent(t *testing.T) {

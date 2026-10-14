@@ -69,6 +69,8 @@ type mapData struct {
 type agentWrites struct {
 	Agent string
 	Paths []string
+	// After is the checkpoint that opens them (r5-fixes, writes_after).
+	After string
 }
 
 type agentSequence struct{ Agent, Sequence string }
@@ -93,6 +95,8 @@ type checkpointRow struct {
 	// Check is what oh checks before it passes, for a test written first
 	// (R7, testCheckText; "" otherwise).
 	Check string
+	// After is the checkpoint it waits for (r5-fixes): oh refuses it before.
+	After string
 }
 
 type outputRow struct {
@@ -221,7 +225,8 @@ func buildMapData(spec *workflow.Spec, graph map[string][]string, modeOf func(st
 	}
 	for _, id := range spec.Agents.Keys() {
 		if w := spec.WritesOf(id); len(w) > 0 {
-			d.Writes = append(d.Writes, agentWrites{Agent: id, Paths: w})
+			a, _ := spec.Agents.Get(id)
+			d.Writes = append(d.Writes, agentWrites{Agent: id, Paths: w, After: a.WritesAfter})
 		}
 	}
 	if cb := spec.CircuitBreaker; cb != nil && cb.MaxConsecutiveSubagents != nil {
@@ -255,6 +260,7 @@ func buildMapData(spec *workflow.Spec, graph map[string][]string, modeOf func(st
 			Remote:      cp.RemotePolicy(),
 			By:          spec.CheckpointBy(id, graph),
 			Check:       testCheckText(cp.Verify),
+			After:       cp.After,
 		}
 		for _, a := range row.By {
 			if !slices.Contains(d.CheckpointAgents, a) {

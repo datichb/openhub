@@ -270,6 +270,14 @@ type AgentRef struct {
 	// stage and commit them, and nothing else. A layer may only narrow an
 	// inherited list (WritesCovered).
 	Writes []string `yaml:"writes,omitempty"`
+
+	// r5-fixes (schema_writes.go): order of the writes.
+
+	// WritesAfter opens the `writes:` paths only once this checkpoint has
+	// been passed (or is skipped in the mode): before, oh refuses their
+	// edit to every agent of the session, telling it to wait. A layer may
+	// add it or move it to a later checkpoint, never remove it.
+	WritesAfter string `yaml:"writes_after,omitempty"`
 }
 
 // CheckpointSpec is a gate of the workflow.
@@ -322,6 +330,14 @@ type CheckpointSpec struct {
 	// method (input `method`, e.g. tdd): elsewhere it does not exist. It
 	// may only add a step: never mandatory, never unlocking.
 	Method Method `yaml:"method,omitempty"`
+
+	// r5-fixes: order of the checkpoints.
+
+	// After makes the checkpoint wait for an earlier one: oh refuses it
+	// while this checkpoint has not been passed (a checkpoint skipped in the
+	// mode counts as passed). A layer may add it or move it to a later
+	// checkpoint, never remove it.
+	After string `yaml:"after,omitempty"`
 }
 
 // CheckpointWiki is the role of a checkpoint for the wiki of the project.

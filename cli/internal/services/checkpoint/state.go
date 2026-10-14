@@ -120,7 +120,9 @@ func (s *Service) Asked(ctx context.Context, root, toolSession string, p adapter
 	}
 	c, known := wf.Checkpoint(id)
 	behavior := s.behavior(ctx, sess, c)
-	if !known || !s.needsDecision(ctx, sess, c) {
+	if !known || !s.needsDecision(ctx, sess, c) || s.outOfOrder(ctx, sess, wf, c) {
+		// An unknown checkpoint, or one called before the checkpoint it
+		// waits for: the call then fails with the reason.
 		return nil, true, false, nil
 	}
 	id = c.ID
@@ -534,7 +536,7 @@ func (s *Service) Evaluate(ctx context.Context, root, action string, input map[s
 	}
 	id, _ := input["id"].(string)
 	c, known := wf.Checkpoint(strings.TrimSpace(id))
-	if !known || !s.needsDecision(ctx, sess, c) {
+	if !known || !s.needsDecision(ctx, sess, c) || s.outOfOrder(ctx, sess, wf, c) {
 		return string(sessionspec.EffectAllow), nil
 	}
 	// Asked even when the tool would let it run (an "always" answer saved
