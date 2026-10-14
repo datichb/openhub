@@ -30,7 +30,10 @@ func TestShippedImplementSpecFanout(t *testing.T) {
 	}
 	assert.Equal(t, []string{"cp-plan", "cp-merge", "cp-final"}, ids)
 	require.NotNil(t, wf.Fanout)
-	assert.Equal(t, sessionspec.FanoutDef{Child: "ticket", Tickets: "tickets", Parallel: 3, Merge: "cp-merge", Delegates: []string{"cp-2"}, Merger: "merge-conflicts"}, *wf.Fanout)
+	assert.Equal(t, sessionspec.FanoutDef{Child: "ticket", Tickets: "tickets", Parallel: 3, Merge: "cp-merge", Delegates: []string{"cp-2"}, Merger: "merge-conflicts",
+		Fix: "quick", FixInput: "request"}, *wf.Fanout)
+	assert.Equal(t, map[string]string{"method": "tdd", "instructions": "x"}, r.Spec.ChildInputs(map[string]any{"method": "tdd", "instructions": "x", "spec": "s.md"}),
+		"the children get the method and the instructions, nothing else")
 	assert.True(t, wf.Substitutes("cp-2"), "cp-merge replaces the cp-2 of the children")
 	assert.False(t, wf.Substitutes("cp-1"))
 	assert.False(t, b.Spec.HasAgent("developer"), "the children implement")
@@ -73,6 +76,8 @@ func TestShippedImplementSpecFanoutTeamLayer(t *testing.T) {
 		"checkpoints.cp-merge.fanout":                   "checkpoints:\n  cp-merge: { fanout: never }\n",
 		"checkpoints.cp-final.unlocks[0]":               "checkpoints:\n  cp-final: { unlocks: [merge] }\n",
 		"checkpoints.cp-merge.verify (shorter timeout)": "checkpoints:\n  cp-merge: { verify: { from: stack, expect: pass, on: integration, timeout: 1m } }\n",
+		"fanout.fix":                                    "fanout: { fix: { workflow: libre, input: request } }\n",
+		"fanout.inputs":                                 "fanout: { inputs: [method, instructions, spec] }\n",
 	}
 	for path, body := range patches {
 		t.Run(path, func(t *testing.T) {

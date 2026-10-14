@@ -15,7 +15,7 @@ Déroulé :
 2. `cp-plan` : passe `cp-plan` (`workflow_checkpoint`) avec le tableau des tickets (ordre, dépendances, tickets déjà fermés).
 3. `cp-plan` validé : termine aussitôt ton tour par une phrase (« Sessions enfants lancées par oh. »), sans rien appeler d'autre. oh t'écrira quand les enfants seront terminés et mergés.
 4. Message d'oh reçu (tableau des enfants, branche d'intégration et sa base) : invoque le `reviewer` en review adversariale de l'ensemble, sur la branche d'intégration (`git diff <base>...<branche d'intégration>`, tickets, spec `src/exemple`), sans rien modifier.
-5. `cp-merge` : le tableau des enfants (état, merge, conflits résolus) et le verdict de la revue. oh vérifie la branche d'intégration ; validé, oh la merge dans ta branche et ferme les tickets mergés. Si le message d'oh dit que le fan-out s'est arrêté, ne passe pas `cp-merge`.
-6. `cp-final` : tickets mergés et fermés par oh, tickets non mergés et pourquoi, points ouverts. Pas de tour de correction dans cette session : propose un nouvel `implement-spec` pour les tickets restants.
+5. `cp-merge` : le tableau des enfants (état, merge, conflits résolus) et le verdict de la revue. oh vérifie la branche d'intégration ; validé, oh la merge dans ta branche et ferme les tickets mergés. Si le message d'oh dit que le fan-out s'est arrêté, ne passe pas `cp-merge`. Refusé avec une consigne : oh lance un tour de correction sur la branche d'intégration ; termine ton tour, puis, à son message, fais relire la correction par le `reviewer` et repasse `cp-merge`.
+6. `cp-final` : tickets mergés et fermés par oh, tickets non mergés et pourquoi, points ouverts ; pour les tickets non mergés, propose un nouvel `implement-spec`.
 
 Commence par lire les tickets avec `bd show`.
