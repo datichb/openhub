@@ -77,6 +77,11 @@ living-docs-enrichment	Tags de confiance	`CONFIRMÉ` | Observation directe dans 
 living-docs-enrichment	Découvertes et pages cibles	`technical/conventions.md` : linting, nommage, git, configuration et secrets, patterns de l'équipe, à ne pas utiliser ;
 living-docs-enrichment	Qualité	✅ Factuel (fichier, ligne, pattern), concis (une ligne ou un bloc court), tagué avec sa source, absent de la page, compréhensible sans le rapport source.
 living-docs-enrichment	Qualité	❌ Ni rapport complet, ni avis subjectif ou spéculatif, ni changement de structure des pages (titres, sections existantes) : du contenu seulement.
+postmortem	Skill — Écrire un postmortem	Un postmortem sert à ce que l'incident ne se reproduise pas, ou soit vu et arrêté plus tôt. Il décrit un système, pas des coupables.
+postmortem	Sans blâme	Écris ce que le système a permis : « le changement a été fusionné sans test sur le cas qui a cassé », pas « X a oublié les tests ». Chaque « erreur humaine » cache une question : qu'est-ce qui l'a rendue possible, et qu'est-ce qui ne l'a pas arrêtée (revue, test, alerte, déploiement progressif) ?
+postmortem	Actions	Une action par ligne, chacune vérifiable (« test de non-régression sur l'export d'une liste vide », pas « mieux tester »), rattachée à un type : **prévenir** (la cause ne revient pas), **détecter** (l'alerte arrive plus tôt), **atténuer** (l'arrêt est plus rapide).
+postmortem	Actions	Au moins une action sur la cause racine et une sur la détection, si le délai de détection n'est pas nul.
+postmortem	Actions	Pas d'action qui consiste à « faire attention » : elle ne change pas le système.
 universal-guardrails	Garde-fous transverses	Git push — interdit
 universal-guardrails	Git push — interdit	Tu ne lances jamais `git push` sous aucune forme, option ou alias.
 universal-guardrails	Commandes non-terminantes	ne bloquent jamais ton tour : lance-les en arrière-plan. Si les outils context-mode

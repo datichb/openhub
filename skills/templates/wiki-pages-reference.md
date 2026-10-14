@@ -52,6 +52,7 @@ agents: [<agents>]
 
 - ADR : `decisions/NNN-<titre>.md`, au format des ADR du projet (s'il n'en a pas : contexte, décision, statut, conséquences).
 - `decisions/decisions-rejetees.md` : une entrée `### <Concept rejeté>` par rejet (date, raison, tickets liés, statut `ACTIVE | EXPIRED | SUPERSEDED`, contexte de réévaluation).
+- Spike : `decisions/<slug>.md`, écrite par le pathfinder du workflow `spike` (`# Spike — <question>`, ligne `**Décision : go | clarify | kill**`, question et critères, constats sourcés par critère, prototype, suites).
 
 ## Format canonique — `docs/wiki/postmortems/YYYY-MM-DD-<incident>.md`
 
@@ -67,5 +68,8 @@ agents: [<agents>]
 ## Résumé (impact, durée)
 ## Chronologie
 ## Cause racine
+## Atténuation
 ## Actions (avec tickets)
 ```
+
+Écrits sans blâme par le debugger du workflow `incident`, commités après `cp-postmortem`.

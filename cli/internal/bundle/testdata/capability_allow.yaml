@@ -13,6 +13,13 @@ commands:
   # only (writes_test.go).
   - "spec/planner: git add x"
   - 'spec/planner: git commit -m "x" -- x'
+  # R9-a (writes:): the debugger of incident commits its postmortem
+  # (docs/wiki/postmortems/), the pathfinder of spike its decision
+  # (docs/wiki/decisions/), allowed for that path only.
+  - "incident/debugger: git add x"
+  - 'incident/debugger: git commit -m "x" -- x'
+  - "spike/pathfinder: git add x"
+  - 'spike/pathfinder: git commit -m "x" -- x'
 tasks:
   # orchestrator-dev-protocol (inlined): its invocation table names the
   # documentarian, absent from review-feedback (feedback mode, no
@@ -25,6 +32,10 @@ checkpoints:
   # [MODE:feedback] replaces them with orchestrator-dev-feedback-mode.
   - "review-feedback/orchestrator-dev: cp-1"
   - "review-feedback/orchestrator-dev: cp-3"
+  # The phase 4-5 and report skills of the debugger name cp-ticket of
+  # debug; in incident, the prompt of the session replaces it (block
+  # `writes` of the debugger).
+  - "incident/debugger: cp-ticket"
 claims:
   # Agents whose body says they change no file (of the project code) but
   # write their deliverable (readonly_claims_test.go).

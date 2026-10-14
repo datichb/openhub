@@ -1,7 +1,12 @@
+cp     incident/debugger: cp-ticket
 cp     review-feedback/orchestrator-dev: cp-1
 cp     review-feedback/orchestrator-dev: cp-3
+deny   incident/debugger: git add x
+deny   incident/debugger: git commit -m "x" -- x
 deny   spec/planner: git add x
 deny   spec/planner: git commit -m "x" -- x
+deny   spike/pathfinder: git add x
+deny   spike/pathfinder: git commit -m "x" -- x
 locked cadrage/planner: bd create
 locked cadrage/planner: bd create -t epic
 locked cadrage/planner: bd duplicate
@@ -13,6 +18,7 @@ locked feature/planner: bd create -t epic
 locked feature/planner: bd duplicate
 locked feature/planner: bd duplicate x --of x
 locked feature/planner: bd supersede
+locked incident/debugger: bd create
 locked infra-change/operator: helm upgrade
 locked infra-change/operator: helm upgrade x x -f x
 locked infra-change/operator: kubectl apply

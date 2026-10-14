@@ -36,6 +36,9 @@ instruct feature                pathfinder                       5773     3832  
 instruct feature                planner                          5052     3408    7   13    442   13    442
 instruct feature                reviewer                        11644     5185    6   13    447   13    447
 instruct feature                TOTAL                           56304    32599   53   58   2025   58   2025
+instruct incident               debugger                         7298     2366    6    8    284    8    284
+instruct incident               developer                       11827     5555    8   17    621   17    621
+instruct incident               TOTAL                           19125     7921   14   24    869   24    869
 instruct infra-change           operator                         6487     1236    4    2     71    2     71
 instruct infra-change           TOTAL                            6487     1236    4    2     71    2     71
 instruct libre                  debugger                         7631     2858    7    7    240    7    240
@@ -61,12 +64,19 @@ instruct review-feedback        developer                       11832     5555  
 instruct review-feedback        orchestrator-dev                 4555     3060    6   19    686   19    686
 instruct review-feedback        reviewer                        11618     5185    6   13    447   13    447
 instruct review-feedback        TOTAL                           28005    13800   20   29   1062   29   1062
+instruct security-fix           auditor-subagent                 7885     2803    6   14    499   14    499
+instruct security-fix           conductor                        3708     2507    5    0      0    0      0
+instruct security-fix           developer                       11828     5555    8   17    621   17    621
+instruct security-fix           TOTAL                           23421    10865   19   30   1084   30   1084
 instruct skill-refresh          documentarian                    4267     2713    4    9    289    9    289
 instruct skill-refresh          TOTAL                            4267     2713    4    9    289    9    289
 instruct spec                   conductor                        3860     2665    5    0      0    0      0
 instruct spec                   designer                         4477     2427    6   12    411   12    411
 instruct spec                   planner                          5845     3408    7   13    442   13    442
 instruct spec                   TOTAL                           14182     8500   18   23    773   23    773
+instruct spike                  developer                       11827     5555    8   17    621   17    621
+instruct spike                  pathfinder                       5190     3202    6    4    160    4    160
+instruct spike                  TOTAL                           17017     8757   14   19    714   19    714
 instruct sweep                  conductor                        3592     2415    5    5    181    5    181
 instruct sweep                  developer                       11826     5555    8   17    621   17    621
 instruct sweep                  pathfinder                       5691     3832    7    4    160    4    160
@@ -103,6 +113,9 @@ none     feature                pathfinder                       4905     3358  
 none     feature                planner                          4654     3408    7   13    442   13    442
 none     feature                reviewer                         6832     4630    5   16    551   16    551
 none     feature                TOTAL                           44443    31097   50   61   2129   61   2129
+none     incident               debugger                         2821     1893    5    8    284    8    284
+none     incident               developer                        7348     5082    7   20    725   20    725
+none     incident               TOTAL                           10169     6975   12   27    973   27    973
 none     infra-change           operator                         2010      762    3    2     71    2     71
 none     infra-change           TOTAL                            2010      762    3    2     71    2     71
 none     libre                  debugger                         3154     2385    6    7    240    7    240
@@ -128,12 +141,19 @@ none     review-feedback        developer                        7354     5082  
 none     review-feedback        orchestrator-dev                 4157     3060    6   22    790   22    790
 none     review-feedback        reviewer                         6806     4630    5   16    551   16    551
 none     review-feedback        TOTAL                           18317    12772   18   32   1166   32   1166
+none     security-fix           auditor-subagent                 3382     2262    5   13    463   13    463
+none     security-fix           conductor                        3615     2507    5    0      0    0      0
+none     security-fix           developer                        7349     5082    7   20    725   20    725
+none     security-fix           TOTAL                           14346     9851   17   33   1188   33   1188
 none     skill-refresh          documentarian                    3851     2713    4    9    289    9    289
 none     skill-refresh          TOTAL                            3851     2713    4    9    289    9    289
 none     spec                   conductor                        3767     2665    5    0      0    0      0
 none     spec                   designer                         4079     2427    6   12    411   12    411
 none     spec                   planner                          5447     3408    7   13    442   13    442
 none     spec                   TOTAL                           13293     8500   18   23    773   23    773
+none     spike                  developer                        7348     5082    7   20    725   20    725
+none     spike                  pathfinder                       4322     2728    5    4    160    4    160
+none     spike                  TOTAL                           11670     7810   12   22    818   22    818
 none     sweep                  conductor                        3500     2415    5    5    181    5    181
 none     sweep                  developer                        7348     5082    7   20    725   20    725
 none     sweep                  pathfinder                       4823     3358    6    4    160    4    160
@@ -170,6 +190,9 @@ stacks   feature                pathfinder                       4905     3358  
 stacks   feature                planner                          4654     3408    7   13    442   13    442
 stacks   feature                reviewer                         6832     4630    5   23    798   23    798
 stacks   feature                TOTAL                           44443    31097   50   68   2376   68   2376
+stacks   incident               debugger                         2821     1893    5   15    531   15    531
+stacks   incident               developer                        7348     5082    7   27    972   27    972
+stacks   incident               TOTAL                           10169     6975   12   34   1220   34   1220
 stacks   infra-change           operator                         2010      762    3    9    318    9    318
 stacks   infra-change           TOTAL                            2010      762    3    9    318    9    318
 stacks   libre                  debugger                         3154     2385    6   14    487   14    487
@@ -195,12 +218,19 @@ stacks   review-feedback        developer                        7354     5082  
 stacks   review-feedback        orchestrator-dev                 4157     3060    6   22    790   22    790
 stacks   review-feedback        reviewer                         6806     4630    5   23    798   23    798
 stacks   review-feedback        TOTAL                           18317    12772   18   39   1413   39   1413
+stacks   security-fix           auditor-subagent                 3382     2262    5   13    463   13    463
+stacks   security-fix           conductor                        3615     2507    5    0      0    0      0
+stacks   security-fix           developer                        7349     5082    7   27    972   27    972
+stacks   security-fix           TOTAL                           14346     9851   17   40   1435   40   1435
 stacks   skill-refresh          documentarian                    3851     2713    4    9    289    9    289
 stacks   skill-refresh          TOTAL                            3851     2713    4    9    289    9    289
 stacks   spec                   conductor                        3767     2665    5    0      0    0      0
 stacks   spec                   designer                         4079     2427    6   12    411   12    411
 stacks   spec                   planner                          5447     3408    7   13    442   13    442
 stacks   spec                   TOTAL                           13293     8500   18   23    773   23    773
+stacks   spike                  developer                        7348     5082    7   27    972   27    972
+stacks   spike                  pathfinder                       4322     2728    5    4    160    4    160
+stacks   spike                  TOTAL                           11670     7810   12   29   1065   29   1065
 stacks   sweep                  conductor                        3500     2415    5    5    181    5    181
 stacks   sweep                  developer                        7348     5082    7   27    972   27    972
 stacks   sweep                  pathfinder                       4823     3358    6    4    160    4    160
@@ -244,7 +274,7 @@ debugger-payload                            321 debugger
 auditor-subagent-payload                    307 auditor-subagent
 onboarder-payload                           305 onboarder
 documentarian-payload                       280 documentarian
-user-facing-posture                         259 auditor,benchmarker,conductor,debugger,developer,documentarian,onboarder,operator,orchestrator,orchestrator-dev,release-manager,reviewer
+user-facing-posture                         259 auditor,benchmarker,conductor,debugger,developer,documentarian,onboarder,operator,orchestrator,orchestrator-dev,pathfinder,release-manager,reviewer
 execution-protocol                          196 auditor,debugger,designer,onboarder,pathfinder,planner
 onboarder-profiles                          173 onboarder
 core-posture                                114 auditor,auditor-subagent,benchmarker,conductor,debugger,designer,developer,documentarian,onboarder,operator,orchestrator,orchestrator-dev,pathfinder,planner,release-manager,reviewer

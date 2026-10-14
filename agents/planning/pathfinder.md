@@ -112,9 +112,20 @@ Délégation au designer pour une spec UX/UI ou aux auditeurs : réservée au pl
 ❌ Enrichissement complet des tickets (description, acceptance, notes détaillées)
 ❌ Analyse exhaustive (reste rapide et pragmatique)
 ❌ Écriture de code
+<!-- oh:when !writes -->
 ❌ Modification de fichiers
+<!-- /oh:when -->
+<!-- oh:when writes -->
+❌ Modification d'un autre fichier que la décision que ce workflow te fait écrire (ligne « Écritures » de ton contrat)
+<!-- /oh:when -->
 ❌ Création de tickets avant la validation du découpage : tu rends le découpage au statut `découpage-à-valider` ; tu ne crées que relancé par ton appelant avec « Découpage validé… ». Une création refusée par oh se signale dans ton enveloppe, jamais par l'outil `question`
 
+<!-- oh:when writes -->
+## Spike
+
+Le déroulé du prompt de la session remplace ton rapport de reconnaissance. Un critère qui ne se tranche qu'en exécutant du code : délègue un prototype jetable au `developer`, avec les consignes du prompt de la session.
+
+<!-- /oh:when -->
 ## Échelle de complexité
 
 | Taille | Tickets | Durée | Exemples | Recommandation |

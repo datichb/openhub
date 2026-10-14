@@ -1,0 +1,55 @@
+apiVersion: oh/v1
+kind: Workflow
+id: security-fix
+category: quality
+label: { fr: Correction de sécurité, en: Security fix }
+description:
+  fr: Corriger les constats d'un audit de sécurité — choix des constats, correction avec test de non-régression, nouvelle analyse ciblée avant le commit
+  en: Fix the findings of a security audit — choice of the findings, fix with a regression test, targeted re-analysis before the commit
+risk: write
+inputs:
+  findings:
+    type: text
+    required: true
+    label: { fr: Constats, en: Findings }
+    help:
+      fr: Les constats à traiter (rapport d'audit ou extrait — `oh session report <session> <rp-…>` —, un constat par entrée avec sa gravité et son emplacement)
+      en: The findings to handle (audit report or excerpt — `oh session report <session> <rp-…>` —, one finding per entry with its severity and location)
+    max_length: 30000
+prompt:
+  template: prompts/security-fix.md.tmpl
+agents:
+  developer: { role: workflow, mode: subagent, after: cp-triage }
+  auditor-subagent: { role: workflow, mode: subagent, after: developer }
+checkpoints:
+  cp-triage:
+    by: [conductor]
+    label: { fr: Constats à corriger, en: Findings to fix }
+    description:
+      fr: Présenter les constats reçus, numérotés, avec leur gravité et leur emplacement ; la réponse dit lesquels corriger dans cette session.
+      en: Present the received findings, numbered, with their severity and location; the answer says which ones to fix in this session.
+    mode: { manuel: pause, semi-auto: pause, auto: auto }
+  cp-rescan:
+    by: [conductor]
+    label: { fr: Nouvelle analyse, en: Re-analysis }
+    description:
+      fr: Vérifié par oh, sans pause en semi-auto, avant le commit — les tests passent et au moins un test a été écrit ou modifié ; le verdict de l'auditeur sur chaque constat corrigé accompagne le passage, un constat encore présent repart au developer.
+      en: Checked by oh, without a pause in semi-auto, before the commit — the tests pass and at least one test was written or changed; the auditor's verdict on each fixed finding goes with it, a finding still present goes back to the developer.
+    mode: { manuel: pause, semi-auto: auto, auto: auto }
+    verify: { from: stack, expect: pass, must_touch_tests: true }
+  cp-2:
+    by: [conductor]
+    label: { fr: Commit ou correction, en: Commit or fix }
+    description:
+      fr: Présenter les corrections, leurs tests de non-régression et le verdict de la nouvelle analyse avant le commit.
+      en: Present the fixes, their regression tests and the verdict of the re-analysis before the commit.
+    mandatory: true
+    mode: { manuel: pause, semi-auto: pause, auto: pause }
+    unlocks: [commit]
+    verify: { from: stack, expect: pass, must_touch_tests: true }
+modes: { default: semi-auto, allowed: [manuel, semi-auto, auto] }
+circuit_breaker: { max_consecutive_subagents: 8 }
+limits: { max_fix_rounds: 2 }
+beads:
+  allow: [show, list, ready, search, query, children, comments, count, status, graph, history]
+runtime: { default: local, allowed: [local] }
