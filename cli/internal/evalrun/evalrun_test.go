@@ -287,7 +287,7 @@ func TestShippedCases(t *testing.T) {
 			assert.Equal(t, "accept", c.Answers.Wiki, "the proposals on the card are accepted")
 		}
 	}
-	assert.Equal(t, []string{"S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10", "S11", "S12", "S13", "S14", "S15", "S16", "S17", "S18", "S19", "S20", "S21", "S22", "S23", "S24", "S25", "S26", "S27", "S28", "S29", "S30", "S31", "S33", "S34", "S35", "S36", "S37", "S38", "S39", "S40", "S47", "S48"}, ids)
+	assert.Equal(t, []string{"S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10", "S11", "S12", "S13", "S14", "S15", "S16", "S17", "S18", "S19", "S20", "S21", "S22", "S23", "S24", "S25", "S26", "S27", "S28", "S29", "S30", "S31", "S33", "S34", "S35", "S36", "S37", "S38", "S39", "S40", "S47", "S48", "S50", "S51"}, ids)
 }
 
 func requireGit(t *testing.T) {
@@ -427,6 +427,8 @@ var notInBaseline = map[string]string{
 	"S40": "added by R5 (implement-spec: tickets and spec read from the last spec session, session.output)",
 	"S47": "added by onboarding-refresh (re-onboarding: stale page fixed through wiki_propose accepted on cp-wiki, no direct write)",
 	"S48": "added by onboarding-refresh (re-onboarding: up-to-date wiki, nothing proposed nor written)",
+	"S50": "added by R6 (fan-out: two independent tickets, one child each, merged by oh, cp-2 delegated to cp-merge)",
+	"S51": "added by R6 (fan-out: two children change the same line, conflict resolved by the merger, checked by oh)",
 }
 
 // The reference measure kept in the repository (make test-eval
