@@ -220,13 +220,24 @@ func (s *Spec) hasSpecCheck() bool {
 }
 
 // sessionFrom checks a `from:` reading a previous session.
-func (v *validator) sessionFrom(at string, in Input) {
+func (v *validator) sessionFrom(at, k string, in Input) {
 	f, ok := ParseSessionFrom(in.From)
 	if !ok {
 		v.err("input_from_invalid", at, in.From)
 		return
 	}
 	switch f.Source {
+	case SourceSessionTraces:
+		if in.Type != InputText {
+			v.err("input_from_type", at, in.From, string(in.Type), string(InputText))
+		}
+		arg, ok := v.s.Inputs.Get(f.Input)
+		switch {
+		case !ok || f.Input == k:
+			v.err("input_from_unknown_input", at, f.Input)
+		case arg.Type != InputString && arg.Type != InputText:
+			v.err("input_from_type", at, in.From, string(arg.Type), string(InputString))
+		}
 	case SourceSessionTrace:
 		if in.Type != InputText {
 			v.err("input_from_type", at, in.From, string(in.Type), string(InputText))

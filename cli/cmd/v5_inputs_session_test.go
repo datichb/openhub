@@ -103,3 +103,61 @@ func TestSessionOutputSourceReadsReports(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "security", got, "other outputs as they are")
 }
+
+// r9b (retro): session.traces(<input>) reads the sessions the input names
+// (ids, a period, workflows), the launched workflow's own sessions aside,
+// at most tracesMaxSessions; empty, the parent session or the last one.
+func TestSessionTracesSource(t *testing.T) {
+	st, err := sqlite.Open(filepath.Join(t.TempDir(), "oh.db"))
+	require.NoError(t, err)
+	t.Cleanup(func() { st.Close() })
+	ctx := context.Background()
+	for _, p := range []string{"p1", "p2"} {
+		_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES (?, ?, ?)`, p, p, "/"+p)
+		require.NoError(t, err)
+	}
+	sessions := sqlite.NewSessionStore(st)
+	now := time.Now()
+	add := func(id, project, wf string, ago time.Duration, state domain.RunState) {
+		require.NoError(t, sessions.Create(ctx, &domain.Session{ID: id, ProjectID: project, WorkflowID: wf, StartedAt: now.Add(-ago),
+			Status: domain.SessionStatusCompleted, State: state}))
+	}
+	add("ses_t1", "p1", "ticket", 10*24*time.Hour, domain.RunCompleted)
+	add("ses_t2", "p1", "ticket", 2*24*time.Hour, domain.RunCompleted)
+	add("ses_s1", "p1", "spec", 24*time.Hour, domain.RunCompleted)
+	add("ses_r1", "p1", "retro", 12*time.Hour, domain.RunCompleted)
+	add("ses_live", "p1", "ticket", time.Hour, domain.RunActive)
+	add("ses_p2", "p2", "ticket", time.Hour, domain.RunCompleted)
+
+	old := sessionTraceDigest
+	t.Cleanup(func() { sessionTraceDigest = old })
+	sessionTraceDigest = func(_ context.Context, _ *app.App, id string) (string, error) { return "Session " + id, nil }
+	var notes bytes.Buffer
+	src := inputSources(&app.App{Sessions: sessions}, noteTo(&notes))[workflow.SourceSessionTraces]
+	c := workflowsvc.Context{ProjectID: "p1", Workflow: "retro"}
+
+	got, err := src(ctx, c, "7d")
+	require.NoError(t, err)
+	assert.Equal(t, "=== Session 1/2 ===\nSession ses_s1\n\n=== Session 2/2 ===\nSession ses_t2", got,
+		"the last 7 days, most recent first, without the running session, the retro itself or another project")
+	got, err = src(ctx, c, "ticket")
+	require.NoError(t, err)
+	assert.Equal(t, "=== Session 1/2 ===\nSession ses_t2\n\n=== Session 2/2 ===\nSession ses_t1", got)
+	got, err = src(ctx, c, "ses_t1, ses_r1")
+	require.NoError(t, err)
+	assert.Contains(t, got, "Session ses_r1", "a session named is read, whatever its workflow")
+	assert.Contains(t, notes.String(), "ses_t1, ses_r1")
+	got, err = src(ctx, c, "retro,"+now.Add(-5*24*time.Hour).Format("2006-01-02"))
+	require.NoError(t, err)
+	assert.Equal(t, "=== Session 1/1 ===\nSession ses_r1", got, "asked for: a workflow named, since a day")
+	got, err = src(ctx, workflowsvc.Context{ProjectID: "p1", FromSession: "ses_t1"}, "")
+	require.NoError(t, err)
+	assert.Equal(t, "Session ses_t1", got, "empty: session.trace(), the parent session first")
+
+	_, err = src(ctx, c, "ses_p2")
+	assert.ErrorContains(t, err, "ses_p2", "a session of another project")
+	_, err = src(ctx, c, "hier!")
+	assert.Error(t, err)
+	_, err = src(ctx, c, "audit")
+	assert.Error(t, err, "nothing fits")
+}

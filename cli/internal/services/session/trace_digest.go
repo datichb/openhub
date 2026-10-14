@@ -4,12 +4,17 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
+
+	"github.com/datichb/openhub/cli/internal/domain"
 )
 
 // Digest of a trace (R5, source `session.trace()` of a workflow input): a
 // short text a later session (retro) reads instead of the whole trace —
-// the session, its checkpoints, refused decisions and calls, skills,
-// delegations, outputs and totals. Secrets are already masked in t.
+// the session (title, state, duration), its checkpoints and those asked
+// several times, refused decisions (with the user's instruction) and
+// calls, skills, delegations, outputs, totals and cost per agent. Secrets
+// are already masked in t.
 
 // digestMaxItems bounds each list of the digest.
 const digestMaxItems = 12
@@ -23,6 +28,7 @@ func (t *Trace) Digest() string {
 		b                  strings.Builder
 		cps, refused       []string
 		skills, subagents  = map[string]int{}, map[string]int{}
+		asked              = map[string]int{}
 		denied             []string
 		outputs            []string
 		summary, sessionEv *TraceEvent
@@ -35,6 +41,9 @@ func (t *Trace) Digest() string {
 		case TraceSummary:
 			summary = e
 		case TraceCheckpoint:
+			if e.Event == string(domain.CheckpointWaiting) {
+				asked[e.Checkpoint]++
+			}
 			line := e.Checkpoint + " " + e.Event
 			if e.Text != "" {
 				line += " — " + clipText(oneLine(e.Text), 160)
@@ -42,7 +51,11 @@ func (t *Trace) Digest() string {
 			cps = append(cps, line)
 		case TraceDecision:
 			if e.Resolution != "" && e.Resolution != "approve" && e.Resolution != "once" && e.Resolution != "always" {
-				refused = append(refused, fmt.Sprintf("%s %s → %s", e.DecisionKind, firstNonEmpty(e.Checkpoint, e.Title), e.Resolution))
+				line := fmt.Sprintf("%s %s → %s", e.DecisionKind, firstNonEmpty(e.Checkpoint, e.Title), e.Resolution)
+				if m, _ := e.Data["message"].(string); m != "" {
+					line += " — « " + clipText(oneLine(m), 160) + " »"
+				}
+				refused = append(refused, line)
 			}
 		case TraceSkill:
 			skills[e.Skill]++
@@ -65,13 +78,26 @@ func (t *Trace) Digest() string {
 			b.WriteString(")")
 		}
 		b.WriteString("\n")
+		if t, ok := sessionEv.Data["title"].(string); ok && t != "" {
+			fmt.Fprintf(&b, "Titre : %s\n", clipText(oneLine(t), 160))
+		}
+		if st, _ := sessionEv.Data["state"].(string); st != "" {
+			fmt.Fprintf(&b, "État : %s\n", st)
+		}
+		if d, ok := sessionDuration(sessionEv.Data); ok {
+			fmt.Fprintf(&b, "Durée : %s\n", d)
+		}
 	}
 	if summary != nil {
 		d := summary.Data
 		fmt.Fprintf(&b, "Totaux : %v $, %v appels d'outils, %v délégations, %v décisions, %v refus\n",
 			roundCost(d["cost_usd"]), d["tool_calls"], d["subagent_calls"], d["decisions"], d["denied"])
+		if per := agentCosts(d["per_agent"]); per != "" {
+			fmt.Fprintf(&b, "Coût par agent : %s\n", per)
+		}
 	}
 	section(&b, "Checkpoints", cps)
+	section(&b, "Checkpoints demandés plusieurs fois", repeated(asked))
 	section(&b, "Décisions refusées ou corrigées", refused)
 	section(&b, "Appels refusés", denied)
 	section(&b, "Skills chargées", counted(skills))
@@ -126,4 +152,74 @@ func roundCost(v any) string {
 		return fmt.Sprintf("%.2f", f)
 	}
 	return fmt.Sprint(v)
+}
+
+// sessionDuration is the time from the start to the end of the session.
+func sessionDuration(d map[string]any) (string, bool) {
+	start, ok1 := traceTime(d["started_at"])
+	end, ok2 := traceTime(d["ended_at"])
+	if !ok1 || !ok2 || end.Before(start) {
+		return "", false
+	}
+	return end.Sub(start).Round(time.Second).String(), true
+}
+
+func traceTime(v any) (time.Time, bool) {
+	switch x := v.(type) {
+	case time.Time:
+		return x, !x.IsZero()
+	case string:
+		t, err := time.Parse(time.RFC3339Nano, x)
+		return t, err == nil
+	}
+	return time.Time{}, false
+}
+
+// agentCosts lists the cost of each agent, most expensive first.
+func agentCosts(v any) string {
+	per, ok := v.(map[string]map[string]any)
+	if !ok {
+		return ""
+	}
+	type ac struct {
+		agent string
+		cost  float64
+	}
+	var list []ac
+	for agent, m := range per {
+		if c, ok := m["cost"].(float64); ok && agent != "" {
+			list = append(list, ac{agent, c})
+		}
+	}
+	sort.Slice(list, func(i, j int) bool {
+		if list[i].cost != list[j].cost {
+			return list[i].cost > list[j].cost
+		}
+		return list[i].agent < list[j].agent
+	})
+	parts := make([]string, len(list))
+	for i, x := range list {
+		parts[i] = fmt.Sprintf("%s %.2f $", x.agent, x.cost)
+	}
+	return strings.Join(parts, ", ")
+}
+
+// repeated lists the checkpoints asked more than once (retries).
+func repeated(asked map[string]int) []string {
+	var out []string
+	for _, id := range sortedKeys(asked) {
+		if asked[id] > 1 {
+			out = append(out, fmt.Sprintf("%s ×%d", id, asked[id]))
+		}
+	}
+	return out
+}
+
+func sortedKeys(m map[string]int) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }
