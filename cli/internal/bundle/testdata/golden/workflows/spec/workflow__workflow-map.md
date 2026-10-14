@@ -9,7 +9,7 @@ Comprendre une demande, écrire sa spec dans le wiki (glossaire, critères et po
 
 - Agent d'entrée : `conductor`
 - Risque : `plan` : aucune modification de fichier hors des chemins de documentation ci-dessous ; écritures Beads limitées aux commandes autorisées
-- Écritures de `planner` : `docs/wiki/specs/**` (et leur commit, une fois déverrouillé)
+- Écritures de `planner` : `docs/wiki/specs/**`, à partir de `cp-understanding` (et leur commit, une fois déverrouillé)
 - Commandes Beads autorisées : `show`, `list`, `ready`, `children`, `search`, `query`, `count`, `lint`, `find-duplicates`, `label`, `dep`, `create`, `update`, `comments`, `duplicate`, `supersede`
 
 Cette carte est la seule référence sur l'enchaînement : n'invente ni agent, ni étape, ni checkpoint qui n'y figure pas.
@@ -39,13 +39,13 @@ Seuls les checkpoints que tu passes figurent ici (contrat de session).
 | **cp-understanding** — Valider la compréhension | pause | pause | auto |
 <!-- /oh:when -->
 <!-- oh:when agent=conductor -->
-| **cp-converge** — Convergence de la spec et du découpage | auto | auto | auto |
+| **cp-converge** — Convergence de la spec et du découpage (après `cp-understanding`, refusé avant) | auto | auto | auto |
 <!-- /oh:when -->
 <!-- oh:when agent=conductor -->
-| **cp-spec** — Valider la spec (obligatoire) | pause | pause | pause |
+| **cp-spec** — Valider la spec (obligatoire) (après `cp-converge`, refusé avant) | pause | pause | pause |
 <!-- /oh:when -->
 <!-- oh:when agent=conductor -->
-| **cp-tickets** — Valider le découpage (obligatoire) | pause | pause | pause |
+| **cp-tickets** — Valider le découpage (obligatoire) (après `cp-spec`, refusé avant) | pause | pause | pause |
 <!-- /oh:when -->
 
 <!-- oh:when agent=conductor -->

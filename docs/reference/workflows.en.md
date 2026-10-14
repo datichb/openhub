@@ -155,10 +155,12 @@ Understands a request, writes its spec in the wiki and slices it into Beads tick
 Steps:
 
 1. **Interview**: the planner explores the code and loads `grilling`; its blocking questions (one per decision) are asked by the `conductor`. It returns its restatement and the vocabulary (each word of the request against the names of the code), shown at `cp-understanding`.
-2. **Spec**: the planner writes `docs/wiki/specs/<slug>.md`: goal, scope, **glossary**, **acceptance criteria** (`CA-n`, each with its test point on its line: `· Test : TestPercent_ZeroTotal`), decisions and a **breakdown** into vertical slices (`Couvre : CA-…`). The format is in the planner's prompt (section “Spec écrite”), not in a skill to load.
+2. **Spec**: once `cp-understanding` is passed (before, oh refuses the write of the spec and tells the planner to wait for that checkpoint), the planner writes `docs/wiki/specs/<slug>.md`: goal, scope, **glossary**, **acceptance criteria** (`CA-n`, each with its test point on its line: `· Test : TestPercent_ZeroTotal`), decisions and a **breakdown** into vertical slices (`Couvre : CA-…`). The format is in the planner's prompt (section “Spec écrite”), not in a skill to load.
 3. **Convergence pass** (`cp-converge`, no pause): oh reads the spec and checks the glossary, the test point of each criterion, that every criterion is covered by a slice and that no slice is outside the spec. A gap refuses the checkpoint with the list of problems: the planner fixes it (or asks a question when the gap needs a decision), then the checkpoint is asked again.
 4. **`cp-spec`**: the user approves the spec (same check); the planner commits it alone: `git add docs/wiki/specs/<slug>.md`, then `git commit -m "docs(spec): <slug>" -- docs/wiki/specs/<slug>.md`.
 5. **`cp-tickets`**: the user approves the breakdown; the planner creates one ticket per slice, whose description cites the spec and its criteria. A spec or breakdown changed at a checkpoint goes again through `cp-converge`, `cp-spec` (new commit) and `cp-tickets`.
+
+Order enforced by oh: `cp-converge` is refused before `cp-understanding`, `cp-spec` before `cp-converge`, `cp-tickets` before `cp-spec` (`after:`); the refusal names the checkpoint to pass first.
 
 Exploration: when the request compares designs or asks for an analysis of the code before specifying, the `conductor` first launches the `pathfinder` (skill `codebase-design`) and hands its report to the planner; otherwise the interview starts right away.
 

@@ -155,10 +155,12 @@ Comprend une demande, écrit sa spec dans le wiki et la découpe en tickets Bead
 Déroulé :
 
 1. **Entretien** : le planner explore le code et charge `grilling` ; ses questions bloquantes (une par décision) sont posées par le `conductor`. Il rend sa reformulation et le vocabulaire (chaque mot de la demande en face des noms du code), présentés à `cp-understanding`.
-2. **Spec** : le planner écrit `docs/wiki/specs/<slug>.md` : objectif, périmètre, **glossaire**, **critères d'acceptation** (`CA-n`, chacun avec son point de test sur sa ligne : `· Test : TestPercent_ZeroTotal`), décisions et **découpage** en tranches verticales (`Couvre : CA-…`). Le format est dans le prompt du planner (section « Spec écrite »), pas dans une skill à charger.
+2. **Spec** : une fois `cp-understanding` passé (avant, oh refuse l'écriture de la spec et dit au planner d'attendre ce checkpoint), le planner écrit `docs/wiki/specs/<slug>.md` : objectif, périmètre, **glossaire**, **critères d'acceptation** (`CA-n`, chacun avec son point de test sur sa ligne : `· Test : TestPercent_ZeroTotal`), décisions et **découpage** en tranches verticales (`Couvre : CA-…`). Le format est dans le prompt du planner (section « Spec écrite »), pas dans une skill à charger.
 3. **Passe de convergence** (`cp-converge`, sans pause) : oh lit la spec et vérifie le glossaire, le point de test de chaque critère, que chaque critère est couvert par une tranche et qu'aucune tranche n'est hors spec. Un écart refuse le checkpoint avec la liste des problèmes : le planner corrige (ou pose une question si l'écart demande une décision), puis le checkpoint est redemandé.
 4. **`cp-spec`** : l'utilisateur valide la spec (même vérification) ; le planner la commite seule : `git add docs/wiki/specs/<slug>.md`, puis `git commit -m "docs(spec): <slug>" -- docs/wiki/specs/<slug>.md`.
 5. **`cp-tickets`** : l'utilisateur valide le découpage ; le planner crée un ticket par tranche, dont la description cite la spec et ses critères. Une spec ou un découpage modifiés à un checkpoint repassent par `cp-converge`, `cp-spec` (nouveau commit) et `cp-tickets`.
+
+Ordre imposé par oh : `cp-converge` est refusé avant `cp-understanding`, `cp-spec` avant `cp-converge`, `cp-tickets` avant `cp-spec` (`after:`) ; le refus nomme le checkpoint à passer d'abord.
 
 Exploration : quand la demande compare des conceptions ou demande d'analyser le code avant de spécifier, le `conductor` lance d'abord le `pathfinder` (skill `codebase-design`) et passe son rapport au planner ; sinon l'entretien commence directement.
 

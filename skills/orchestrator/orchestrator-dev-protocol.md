@@ -29,7 +29,7 @@ Sous-agent : mode, tickets et `Branche de travail` sont dans ton prompt d'invoca
 <!-- /oh:when -->
 
 1. Charge la skill `orchestrator-dev-routing` : domaine de chaque ticket et prompt d'invocation du developer.
-2. `bd show <ID>` de chaque ticket : labels (dont `tdd`), priorité, type.
+2. `bd show <ID> <ID>…` (tous les tickets en une commande, seule sur sa ligne : tu es déjà dans le projet, sans `cd`) : labels (dont `tdd`), priorité, type. Une ligne qui enchaîne une commande non permise (`echo`, `which`, `| head`) est refusée en entier.
 3. Affiche le récapitulatif :
 
 ```
