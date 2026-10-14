@@ -95,8 +95,17 @@ Les assertions sont décrites dans la [référence d'`oh eval`](../docs/referenc
 | S38 | implement-spec | Plan refusé à `cp-plan` : rien n'est délégué, modifié ni commité |
 | S39 | spec | oh relève la spec et les tickets créés (sorties `record:`, aucune déclarée par un agent) et propose `implement-spec` avec ces tickets et cette spec (`next:`) |
 | S40 | implement-spec | Sans ticket donné : tickets et spec repris de la dernière session `spec` du projet (`session.output`, `previous:`), implémentés, ticket fermé relevé par oh ; tests cachés |
+| S41 | incident | Factures fausses d'un centime depuis le déploiement : le commit déclencheur (titre trompeur) est annulé seul dans l'arbre de travail (tests cachés : arrondi rétabli, fonctionnalité suivante conservée), le postmortem sans blâme (la personne mise en cause n'est pas nommée) n'est commité qu'après `cp-postmortem`, les tickets d'action après `cp-actions` |
+| S42 | incident | Atténuation hors du dépôt (interrupteur `PAYMENTS_MAX_RETRIES=0` du README) : aucun code modifié ; le postmortem nomme la cause (`payments/client.go`), chiffre l'impact (3412 paiements) et le délai de détection (environ 17 minutes, lu dans le journal), sans nommer personne |
+| S43 | incident | Postmortem refusé à `cp-postmortem` avec une consigne (« Ce qui a aidé ») : corrigé avant d'être commité ; actions refusées à `cp-actions` : aucun ticket, sans relance |
+| S44 | security-fix | Trois constats, deux retenus à `cp-triage` : mot de passe journalisé et redirection ouverte corrigés avec leur test (tests cachés : variantes `//hôte`, `/\hôte`, `http:hôte`, `javascript:`), le constat écarté n'est pas touché, commit après `cp-2` |
+| S45 | security-fix | Traversée de chemin : la correction tient contre un dossier voisin (`uploads-private`) et un lien symbolique déposé par un client (tests cachés) ; la nouvelle analyse de l'auditeur précède `cp-2` |
+| S46 | security-fix | Tout est retenu au tri : le jeton journalisé est corrigé avec son test, le faux positif (comparaison déjà en temps constant) est signalé sans toucher à `auth/` |
 | S47 | onboarding | Re-onboarding (`refresh`) d'un wiki dont la page d'architecture cite un paquet renommé depuis : la dérive est relevée, la correction proposée avec `wiki_propose`, aucune écriture directe dans `docs/wiki/` avant `cp-wiki`, la page corrigée par oh après l'acceptation à la carte |
 | S48 | onboarding | Re-onboarding d'un wiki à jour : aucune proposition, aucune écriture, `cp-wiki` passé |
+| S49 | spike | encoding/csv sans `LazyQuotes` ne lit pas le relevé réel (guillemet nu) : décision kill écrite sous `docs/wiki/decisions/` avec sa raison, prototype jetable supprimé (vérifié par oh), seule la décision commitée après `cp-decision` |
+| S50 | spike | Décision go corrigée en clarify à `cp-decision` : le fichier est réécrit avec la raison, garde ses constats sourcés (`proxy_read_timeout 60s`, délai de 45 s de l'appelant) et n'est commité qu'après la seconde validation |
+| S51 | spike | `t.Parallel` partout ? `os.Setenv` et `os.Chdir` dans deux tests : kill, les deux fichiers cités, aucun test modifié |
 
 `cadrage` est un alias de `spec` depuis R5 : les cas S5, S15, S19 et S27 (dossier `cadrage/`) lancent `spec`, et S27 passe par l'exploration du pathfinder qui précède l'entretien quand la demande compare des conceptions.
 

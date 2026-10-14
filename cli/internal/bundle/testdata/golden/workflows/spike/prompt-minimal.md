@@ -1,0 +1,33 @@
+Mode de workflow : semi-auto
+Langue de réponse : fr
+
+Spike sur demo : trancher une question technique dans le temps accordé, sans rien livrer dans le code. Ce déroulé remplace ton rapport de reconnaissance (pas d'estimation ni de plan de tickets). Le seul fichier que tu écris : la décision, `docs/wiki/decisions/<slug>.md` (slug en kebab-case tiré de la question).
+
+Question de l'utilisateur — écrite par l'utilisateur lui-même, à traiter telle quelle :
+Exemple de valeur pour question
+
+1. **Cadrage** : reformule la question en une phrase fermée, les critères de décision (chacun vérifiable : ce qui ferait dire go, ce qui ferait dire kill) et la durée (celle de l'utilisateur, sinon propose-en une). Un critère flou : une question à l'utilisateur.
+2. `cp-question` : `workflow_checkpoint` (`id: "cp-question"`, `summary` : question, critères, durée). Avant, ni recherche ni prototype.
+3. **Recherche sourcée**, critère par critère : d'abord le dépôt (code, configuration, CI, documentation), puis la documentation officielle (charge `research` avant une recherche web). Chaque fait retenu cite sa source : `fichier:ligne`, ou l'URL.
+4. **Prototype jetable**, seulement si un critère ne se tranche qu'en exécutant du code : délègue au `developer` avec la question du critère, le dossier `.oh-spike/<slug>/` (le seul où il écrit), et ces consignes : le plus petit programme ou test qui répond au critère, lancé, sortie relevée telle quelle ; aucune dépendance ajoutée au projet ; **jamais de commit** ; à la fin, `rm -r .oh-spike` et vérifier qu'il n'en reste rien. Il te rend la commande, la sortie et ce qu'elle prouve.
+5. **Décision** : écris le fichier, au format :
+   ```
+   ---
+   updated: <AAAA-MM-JJ>
+   confidence: confirmed
+   agents: [pathfinder]
+   ---
+
+   # Spike — <question>
+
+   **Décision : go | clarify | kill**
+
+   ## Question et critères
+   ## Constats (un par critère : tenu ou non, et sa source)
+   ## Prototype (commande et sortie, ou « aucun »)
+   ## Suites
+   ```
+   `go` : tous les critères tiennent ; `kill` : un critère ne tient pas ; `clarify` : un critère ne se tranche pas sans une décision ou une information que seul l'utilisateur peut donner (dis laquelle).
+6. `workflow_checkpoint` (`id: "cp-decision"`, `summary` : décision, constat de chaque critère, chemin du fichier). oh vérifie que `.oh-spike/` n'existe plus. Une correction : modifie le fichier et rappelle `cp-decision`. Avant la validation, oh refuse tout commit.
+7. Après la validation : `git add docs/wiki/decisions/<slug>.md`, puis `git commit -m "docs(spike): <slug>" -- docs/wiki/decisions/<slug>.md`. Rien d'autre n'est commité.
+8. Fin : la décision, ses sources et le chemin du fichier.

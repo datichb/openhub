@@ -1,0 +1,62 @@
+apiVersion: oh/v1
+kind: Workflow
+id: incident
+category: quality
+label: { fr: Incident, en: Incident }
+description:
+  fr: Gérer un incident en cours — atténuer d'abord, puis écrire le postmortem sans blâme dans le wiki et créer les actions en tickets
+  en: Handle an ongoing incident — mitigate first, then write the blameless postmortem in the wiki and create the follow-up actions as tickets
+risk: write
+entry:
+  agent: debugger
+inputs:
+  incident:
+    type: text
+    required: true
+    label: { fr: Incident, en: Incident }
+    help:
+      fr: Ce qui se passe (symptômes, depuis quand, impact, alertes, logs, dernier déploiement)
+      en: What is happening (symptoms, since when, impact, alerts, logs, last deployment)
+    max_length: 16000
+prompt:
+  template: prompts/incident.md.tmpl
+agents:
+  # E8 (R4): the debugger stays read-only, except its postmortem in the wiki.
+  debugger: { role: workflow, writes: ["docs/wiki/postmortems/**"], calls: [developer] }
+  developer: { role: workflow, mode: subagent }
+checkpoints:
+  # One checkpoint unlocks each operation (unlock_duplicate): the commit of
+  # a code mitigation waits for cp-postmortem, in its own commit; until
+  # then it stays in the work tree, checked by oh at cp-mitigated.
+  cp-mitigated:
+    by: [debugger]
+    label: { fr: Atténuation, en: Mitigation }
+    description:
+      fr: Présenter le diagnostic rapide et la mesure d'atténuation (retour arrière, désactivation, configuration, ou correction de code déjà appliquée dans l'arbre de travail, vérifiée par oh) ; l'utilisateur décide de l'appliquer, ou confirme qu'elle est en place.
+      en: Present the quick diagnosis and the mitigation (rollback, switch-off, configuration, or a code fix already applied in the work tree, checked by oh); the user decides to apply it, or confirms it is in place.
+    mandatory: true
+    mode: { manuel: pause, semi-auto: pause, auto: pause }
+    verify: { from: stack, expect: pass }
+  cp-postmortem:
+    by: [debugger]
+    label: { fr: Postmortem, en: Postmortem }
+    description:
+      fr: Présenter le postmortem sans blâme écrit sous docs/wiki/postmortems/ ; une fois validé, le correctif d'atténuation (s'il y en a un) puis le postmortem sont commités, chacun dans son commit.
+      en: Present the blameless postmortem written under docs/wiki/postmortems/; once approved, the mitigation fix (if any) then the postmortem are committed, each in its own commit.
+    mandatory: true
+    mode: { manuel: pause, semi-auto: pause, auto: pause }
+    unlocks: [commit]
+  cp-actions:
+    by: [debugger]
+    label: { fr: Actions, en: Actions }
+    description:
+      fr: Les actions du postmortem (prévenir, détecter, atténuer plus vite) ne deviennent des tickets qu'après validation de la liste par l'utilisateur.
+      en: The actions of the postmortem (prevent, detect, mitigate faster) only become tickets once the user has approved the list.
+    mandatory: true
+    mode: { manuel: pause, semi-auto: pause, auto: pause }
+    unlocks: [create]
+modes: { default: semi-auto, allowed: [manuel, semi-auto, auto] }
+circuit_breaker: { max_consecutive_subagents: 6 }
+beads:
+  allow: [show, list, ready, search, query, lint, children, comments, count, status, graph, history, create, update, dep, label]
+runtime: { default: local, allowed: [local] }

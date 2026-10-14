@@ -1,0 +1,49 @@
+apiVersion: oh/v1
+kind: Workflow
+id: spike
+category: frame
+label: { fr: Spike, en: Spike }
+description:
+  fr: Répondre à une question technique dans un temps borné — recherche sourcée, prototype jetable au besoin, décision go, clarify ou kill écrite dans le wiki
+  en: Answer a technical question within a time box — sourced research, throwaway prototype when needed, go, clarify or kill decision written in the wiki
+risk: write
+entry:
+  agent: pathfinder
+inputs:
+  question:
+    type: text
+    required: true
+    label: { fr: Question, en: Question }
+    help:
+      fr: La question à trancher, les critères de décision (ce qui ferait dire go ou kill) et la durée accordée
+      en: The question to settle, the decision criteria (what would mean go or kill) and the time allowed
+    max_length: 8000
+prompt:
+  template: prompts/spike.md.tmpl
+agents:
+  # E8 (R4): the pathfinder stays read-only, except its decision in the wiki.
+  pathfinder: { role: workflow, writes: ["docs/wiki/decisions/**"], calls: [developer] }
+  developer: { role: workflow, mode: subagent, after: cp-question }
+checkpoints:
+  cp-question:
+    by: [pathfinder]
+    label: { fr: Question et critères, en: Question and criteria }
+    description:
+      fr: Valider la question reformulée, les critères de décision et la durée avant toute recherche ou prototype.
+      en: Approve the restated question, the decision criteria and the time box before any research or prototype.
+    mode: { manuel: pause, semi-auto: pause, auto: auto }
+  cp-decision:
+    by: [pathfinder]
+    label: { fr: Décision du spike, en: Spike decision }
+    description:
+      fr: Présenter la décision (go, clarify ou kill) critère par critère avec ses sources, écrite sous docs/wiki/decisions/ ; oh vérifie que le prototype jetable (.oh-spike/) a été supprimé ; une fois validée, seule la décision est commitée.
+      en: Present the decision (go, clarify or kill) criterion by criterion with its sources, written under docs/wiki/decisions/; oh checks that the throwaway prototype (.oh-spike/) was deleted; once approved, only the decision is committed.
+    mandatory: true
+    mode: { manuel: pause, semi-auto: pause, auto: pause }
+    unlocks: [commit]
+    verify: { cmd: ["test ! -e .oh-spike"] }
+modes: { default: semi-auto, allowed: [manuel, semi-auto, auto] }
+circuit_breaker: { max_consecutive_subagents: 6 }
+beads:
+  allow: [show, list, search, query, count]
+runtime: { default: local, allowed: [local] }

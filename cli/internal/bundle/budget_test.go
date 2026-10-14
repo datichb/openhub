@@ -196,7 +196,7 @@ func readBudgetGolden(t *testing.T, name string) map[string]int {
 // of the project when it sets stack_skills, for the entry agent the workflow
 // `skills.extra` and the skills named in the prompt template, for an agent
 // that sets skills_from_callers the skills its callers name in their prompt
-// or in the on-demand skills they reach (their natives aside), their requires closure and, transitively, the skills named by the
+// or in the on-demand skills they reach (their natives and inlined skills aside), their requires closure and, transitively, the skills named by the
 // on-demand skills reached, among the skills it may load ([SKILL:…] tags
 // invite the callee, stack skills come from the stack only). It is
 // written apart from the build: the catalogue of each agent must match it.
@@ -311,7 +311,7 @@ func reachableSkills(t *testing.T, hub string, spec *workflow.Spec, b *Bundle, p
 						}
 					}
 					for _, ref := range named {
-						if !natives[ref] {
+						if !natives[ref] && !byID[c].inlined[skillID(ref)] {
 							roots = append(roots, ref)
 						}
 					}

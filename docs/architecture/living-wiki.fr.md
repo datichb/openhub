@@ -48,6 +48,8 @@ docs/wiki/
 `wiki_check` signale une page hors de cette arborescence (`layout`, avertissement) ; les pages de `specs/`,
 `decisions/` et `postmortems/` consignent des décisions ou des faits datés : leur frontmatter est vérifié, pas leurs
 tags de confiance.
+Trois workflows y écrivent directement, chacun un seul dossier, déclaré par `writes:` et commité seul après son
+checkpoint : `spec` (planner, `specs/`), `incident` (debugger, `postmortems/`) et `spike` (pathfinder, `decisions/`).
 
 À la racine du projet :
 ```

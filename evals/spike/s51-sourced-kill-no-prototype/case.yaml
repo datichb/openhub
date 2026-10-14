@@ -1,0 +1,50 @@
+id: S51
+title: "Spike : t.Parallel partout ? Deux tests changent un état global du processus (os.Setenv, os.Chdir) — kill, chaque constat cité par fichier, sans toucher aux tests"
+workflow: spike
+mode: semi-auto
+reports: off
+# R9-a : la question se tranche en lisant le dépôt : clock_test.go change
+# TZ par os.Setenv et store_test.go le dossier courant par os.Chdir, deux
+# états globaux du processus incompatibles avec t.Parallel ; report_test.go
+# n'en change aucun. Décision kill, les deux fichiers cités ; aucun test
+# modifié (le spike ne livre rien), seule la décision est commitée.
+text: |
+  Peut-on ajouter t.Parallel() à tous les tests du projet pour accélérer la CI ? Critère : go si aucun test ne modifie un état global du processus (variables d'environnement, dossier courant, variables de paquet) ; kill sinon. Durée : 15 minutes.
+beads:
+  prefix: ev
+timeout: 20m
+answers:
+  question: first
+  permission: once
+  checkpoints:
+    "*": approve
+assertions:
+  - type: checkpoint_order
+    order: [cp-question, cp-decision]
+  - type: file_matches
+    name: décision kill
+    paths: ["docs/wiki/decisions/**"]
+    pattern: "d[ée]cision\\W{0,6}kill"
+  - type: file_matches
+    name: constat clock_test.go (os.Setenv)
+    paths: ["docs/wiki/decisions/**"]
+    pattern: "clock_test\\.go"
+  - type: file_matches
+    name: constat store_test.go (os.Chdir)
+    paths: ["docs/wiki/decisions/**"]
+    pattern: "store_test\\.go"
+  - type: changed_within
+    name: aucun test modifié, seule la décision est écrite
+    paths: ["docs/wiki/decisions/**"]
+    min_files: 1
+    max_files: 1
+  - type: ran
+    name: aucun commit avant cp-decision
+    command: "git commit*"
+    absent: true
+    before: { checkpoint_passed: cp-decision }
+  - type: ran
+    name: la décision est commitée seule
+    agent: pathfinder
+    command: "git commit*-- docs/wiki/decisions/*"
+  - type: no_denied_loop

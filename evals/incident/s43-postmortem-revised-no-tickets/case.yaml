@@ -1,0 +1,108 @@
+id: S43
+title: "Incident : le postmortem refusé à cp-postmortem est complété (« Ce qui a aidé ») avant d'être commité ; les actions refusées à cp-actions ne deviennent pas des tickets"
+workflow: incident
+mode: semi-auto
+reports: off
+# R9-a : même incident que S42. À cp-postmortem, l'utilisateur demande une
+# section sur ce qui a aidé (l'interrupteur PAYMENTS_MAX_RETRIES) : le
+# fichier est corrigé et rien n'est commité avant la seconde validation. À
+# cp-actions, il refuse les tickets (les actions iront en rétro) : aucun
+# ticket n'est créé, sans relance en boucle.
+setup:
+  - |
+    cat > payments/client.go <<'EOF'
+    // Package payments encaisse les commandes auprès du prestataire.
+    package payments
+
+    import (
+    	"os"
+    	"strconv"
+    )
+
+    // Provider est le prestataire de paiement.
+    type Provider interface {
+    	Charge(order string, cents int64) error
+    }
+
+    // MaxRetries renvoie le nombre de relances d'un paiement refusé
+    // (PAYMENTS_MAX_RETRIES, 50 par défaut), lu à chaque paiement.
+    func MaxRetries() int {
+    	if v, err := strconv.Atoi(os.Getenv("PAYMENTS_MAX_RETRIES")); err == nil && v >= 0 {
+    		return v
+    	}
+    	return 50
+    }
+
+    // Charge encaisse une commande ; un refus est relancé aussitôt, MaxRetries fois au plus.
+    func Charge(p Provider, order string, cents int64) error {
+    	err := p.Charge(order, cents)
+    	for i := 0; err != nil && i < MaxRetries(); i++ {
+    		err = p.Charge(order, cents)
+    	}
+    	return err
+    }
+    EOF
+    cat >> payments/client_test.go <<'EOF'
+
+    func TestChargeRetries(t *testing.T) {
+    	t.Setenv("PAYMENTS_MAX_RETRIES", "3")
+    	p := &flaky{fails: 2}
+    	if err := Charge(p, "ord-1", 1000); err != nil || p.calls != 3 {
+    		t.Fatalf("err = %v, calls = %d", err, p.calls)
+    	}
+    }
+    EOF
+    cat > README.md <<'EOF'
+    # paiements
+
+    Encaisse les commandes auprès du prestataire de paiement.
+
+    - `payments/` : client du prestataire et relances.
+    - `ops/` : journaux d'exploitation exportés.
+    - Tests : `go test ./...`
+
+    ## Exploitation
+
+    - `PAYMENTS_MAX_RETRIES` : nombre de relances d'un paiement refusé (défaut : 50) ; `PAYMENTS_MAX_RETRIES=0` coupe les relances sans redéploiement (lu à chaque paiement) : `kubectl set env deploy/paiements PAYMENTS_MAX_RETRIES=0`.
+    - Alerte : `payments_error_rate > 20 %` pendant 5 minutes.
+    EOF
+    git add -A && git -c user.name="Julien Morel" -c user.email=julien@example.com commit -q --date="2026-10-14T13:41:00+02:00" -m "feat(payments): relancer les paiements refusés"
+text: |
+  Incident en cours : depuis le déploiement de 14h02 (v2.3.0), une grosse part des paiements échoue, le prestataire nous renvoie des 429. Le journal d'exploitation exporté est dans ops/incident-2026-10-14.log. On ne peut pas redéployer avant ce soir.
+beads:
+  prefix: ev
+timeout: 25m
+answers:
+  question: first
+  permission: once
+  sequence:
+    cp-postmortem: ["reject: ajoute une section « Ce qui a aidé » : l'interrupteur PAYMENTS_MAX_RETRIES a arrêté l'impact sans redéploiement. Garde le reste."]
+    cp-actions: ["reject: ne crée aucun ticket, les actions seront reprises en rétrospective."]
+  checkpoints:
+    "*": approve
+assertions:
+  - type: checkpoint_order
+    order: [cp-mitigated, cp-postmortem, cp-actions]
+  - type: ran
+    name: aucun commit avant la validation de cp-postmortem
+    command: "git commit*"
+    absent: true
+    before: { checkpoint_passed: cp-postmortem }
+  - type: file_matches
+    name: la section demandée est ajoutée
+    paths: ["docs/wiki/postmortems/**"]
+    pattern: "(?s)ce qui a aidé.*PAYMENTS_MAX_RETRIES"
+  - type: ran
+    name: le postmortem corrigé est commité seul
+    agent: debugger
+    command: "git commit*-- docs/wiki/postmortems/*"
+  - type: changed_within
+    name: seul le postmortem est écrit
+    paths: ["docs/wiki/postmortems/**"]
+    min_files: 1
+    max_files: 1
+  - type: ran
+    name: aucun ticket (actions refusées)
+    command: "bd create*"
+    absent: true
+  - type: no_denied_loop

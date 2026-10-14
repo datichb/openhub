@@ -46,6 +46,8 @@ docs/wiki/
 **A single place (LD-F)**: specs, glossary, decisions and postmortems live in the wiki, not next to it. `wiki_check`
 reports a page out of this layout (`layout`, warning); the pages of `specs/`, `decisions/` and `postmortems/` record
 decisions or dated facts: their frontmatter is checked, not their confidence tags.
+Three workflows write there directly, each a single folder, declared by `writes:` and committed alone after its
+checkpoint: `spec` (planner, `specs/`), `incident` (debugger, `postmortems/`) and `spike` (pathfinder, `decisions/`).
 
 At the project root:
 ```

@@ -1,0 +1,51 @@
+id: S44
+title: "Security-fix : seuls les constats retenus au tri (F1, F3) sont corrigés avec leur test, la redirection ouverte l'est pour toutes ses variantes, F2 n'est pas touché, commit après cp-2"
+workflow: security-fix
+mode: semi-auto
+reports: off
+# R9-a : trois constats d'un audit de sécurité ; l'utilisateur ne retient
+# que F1 (mot de passe journalisé) et F3 (redirection ouverte) à cp-triage.
+# F2 (comparaison de jeton) reste tel quel : auth/token.go inchangé. La
+# redirection doit refuser les variantes (//hôte, /\hôte, schéma sans
+# barres, javascript:) et garder les chemins locaux : tests cachés. La
+# nouvelle analyse de l'auditeur précède le commit.
+inputs:
+  findings: |
+    ## Constats — audit de sécurité du 2026-10-12
+
+    1. 🔴 Critique — Mot de passe écrit dans les journaux — `auth/login.go:17` — `Login` journalise le mot de passe en clair à chaque tentative.
+    2. 🟠 Majeur — Comparaison de jeton en temps non constant — `auth/token.go:5` — `ValidToken` compare avec `==`.
+    3. 🟠 Majeur — Redirection ouverte — `web/redirect.go:9` — `SafeNext` renvoie le paramètre `next` tel quel : `?next=https://evil.example` envoie l'utilisateur sur un autre site après la connexion.
+beads:
+  prefix: ev
+timeout: 25m
+answers:
+  question: first
+  permission: once
+  checkpoints:
+    cp-triage: "approve: corrige seulement F1 et F3 ; F2 sera traité plus tard, n'y touche pas."
+    "*": approve
+assertions:
+  - type: checkpoint_order
+    order: [cp-triage, cp-rescan, cp-2]
+  - type: ran
+    name: aucun commit avant cp-2
+    command: "git commit*"
+    absent: true
+    before: { checkpoint_passed: cp-2 }
+  - type: ran
+    name: les corrections sont commitées
+    agent: developer
+    command: "git commit*"
+  - type: hidden_tests
+    name: mot de passe absent des journaux, redirections vers un autre site refusées
+  - type: changed_within
+    name: F2 n'est pas touché (auth/token.go inchangé)
+    paths: ["auth/login*", "auth/auth_test.go", "web/**"]
+    include: ["web/*_test.go"]
+  - type: text_matches
+    name: l'auditeur revoit F3
+    agent: auditor-subagent
+    pattern: "F3|redirect"
+  - type: no_question_in_subagent
+  - type: no_denied_loop

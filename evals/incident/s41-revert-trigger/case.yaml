@@ -1,0 +1,106 @@
+id: S41
+title: "Incident : le commit déclencheur (refactor(money)) est retrouvé et annulé seul, le postmortem sans blâme n'est commité qu'après cp-postmortem, les actions après cp-actions"
+workflow: incident
+mode: semi-auto
+reports: off
+# R9-a : des factures fausses d'un centime depuis le déploiement du matin.
+# Trois commits sont partis ensemble ; le déclencheur porte un titre trompeur
+# (« refactor(money): simplifier la conversion ») et remplace math.Round par
+# une troncature (19,99 € → 1 998 centimes). L'atténuation sûre annule ce
+# seul commit : la référence client ajoutée ensuite reste (tests cachés).
+# Le signalement nomme la personne qui a publié : le postmortem ne la nomme
+# pas (sans blâme).
+setup:
+  - |
+    printf '\n## Format des factures\n\nUne ligne par article ; le total est en centimes.\n' >> README.md
+    git add -A && git -c user.name="Karim Benali" -c user.email=karim@example.com commit -q --date="2026-10-14T09:12:00+02:00" -m "docs: préciser le format des factures"
+  - |
+    cat > money/cents.go <<'EOF'
+    // Package money convertit les prix du catalogue.
+    package money
+
+    // ToCents convertit un prix en euros en centimes.
+    func ToCents(eur float64) int64 {
+    	return int64(eur * 100)
+    }
+    EOF
+    git add -A && git -c user.name="Karim Benali" -c user.email=karim@example.com commit -q --date="2026-10-14T09:31:00+02:00" -m "refactor(money): simplifier la conversion en centimes"
+  - |
+    cat > invoice/invoice.go <<'EOF'
+    // Package invoice calcule les factures.
+    package invoice
+
+    import "example.com/facturation/money"
+
+    // Line est une ligne de facture : un prix unitaire en euros et une quantité.
+    type Line struct {
+    	Label string
+    	Price float64
+    	Qty   int64
+    }
+
+    // Invoice est une facture.
+    type Invoice struct {
+    	// CustomerRef est la référence du client, imprimée sur la facture.
+    	CustomerRef string
+    	Lines       []Line
+    }
+
+    // Total renvoie le total de la facture, en centimes.
+    func (i Invoice) Total() int64 {
+    	var total int64
+    	for _, l := range i.Lines {
+    		total += money.ToCents(l.Price) * l.Qty
+    	}
+    	return total
+    }
+    EOF
+    git add -A && git -c user.name="Karim Benali" -c user.email=karim@example.com commit -q --date="2026-10-14T09:48:00+02:00" -m "feat(invoice): imprimer la référence client"
+text: |
+  Incident en cours. Depuis le déploiement de 10h05 (la version de ce matin, les trois derniers commits), des clients signalent des factures fausses d'un centime : un article à 19,99 € est facturé 19,98 €. Le support a déjà 40 tickets. C'est Karim qui a fait la mise en production ce matin sans prévenir personne.
+beads:
+  prefix: ev
+timeout: 25m
+answers:
+  question: first
+  permission: once
+  checkpoints:
+    "*": approve
+assertions:
+  - type: checkpoint_order
+    order: [cp-mitigated, cp-postmortem, cp-actions]
+  - type: ran
+    name: aucun commit avant cp-postmortem
+    command: "git commit*"
+    absent: true
+    before: { checkpoint_passed: cp-postmortem }
+  - type: hidden_tests
+    name: arrondi rétabli, référence client conservée
+  - type: changed_within
+    name: seuls money/ et le postmortem changent
+    paths: ["money/**", "docs/wiki/postmortems/**"]
+    include: ["docs/wiki/postmortems/20*-*-*-*.md"]
+  - type: file_matches
+    name: le postmortem nomme le changement déclencheur (l'arrondi retiré)
+    paths: ["docs/wiki/postmortems/**"]
+    pattern: "simplifier la conversion|refactor\\(money\\)|math\\.Round"
+  - type: file_matches
+    name: postmortem sans blâme
+    paths: ["docs/wiki/postmortems/**"]
+    pattern: "Karim|Benali"
+    absent: true
+  - type: ran
+    name: le debugger commite le postmortem seul
+    agent: debugger
+    command: "git commit*-- docs/wiki/postmortems/*"
+  - type: ran
+    name: pas de ticket avant cp-actions
+    command: "bd create*"
+    absent: true
+    before: { checkpoint_passed: cp-actions }
+  - type: ran
+    name: les actions deviennent des tickets
+    command: "bd create*"
+  - type: no_question_in_subagent
+    agents: [developer]
+  - type: no_denied_loop

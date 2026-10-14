@@ -95,8 +95,17 @@ The assertions are described in the [`oh eval` reference](../docs/reference/cli-
 | S38 | implement-spec | Plan refused at `cp-plan`: nothing is delegated, changed nor committed |
 | S39 | spec | oh records the spec and the created tickets (`record:` outputs, none declared by an agent) and proposes `implement-spec` with these tickets and this spec (`next:`) |
 | S40 | implement-spec | No ticket given: tickets and spec taken from the last `spec` session of the project (`session.output`, `previous:`), implemented, closed ticket recorded by oh; hidden tests |
+| S41 | incident | Invoices one cent off since the deployment: the triggering commit (misleading title) is undone alone in the work tree (hidden tests: rounding back, next feature kept), the blameless postmortem (the person blamed is not named) is only committed after `cp-postmortem`, the action tickets after `cp-actions` |
+| S42 | incident | Mitigation outside the repository (the `PAYMENTS_MAX_RETRIES=0` switch of the README): no code changed; the postmortem names the cause (`payments/client.go`), gives the impact (3412 payments) and the detection delay (about 17 minutes, read in the log) in figures, without naming anyone |
+| S43 | incident | Postmortem refused at `cp-postmortem` with an instruction ("Ce qui a aidé"): revised before it is committed; actions refused at `cp-actions`: no ticket, not asked again |
+| S44 | security-fix | Three findings, two kept at `cp-triage`: logged password and open redirect fixed with their test (hidden tests: `//host`, `/\host`, `http:host`, `javascript:` variants), the finding left out is not touched, commit after `cp-2` |
+| S45 | security-fix | Path traversal: the fix holds against a neighbouring folder (`uploads-private`) and a symbolic link dropped by a client (hidden tests); the auditor's re-analysis comes before `cp-2` |
+| S46 | security-fix | Everything kept at triage: the logged token is fixed with its test, the false positive (comparison already in constant time) is reported without touching `auth/` |
 | S47 | onboarding | Re-onboarding (`refresh`) of a wiki whose architecture page cites a package renamed since: the drift is raised, the fix proposed with `wiki_propose`, no direct write in `docs/wiki/` before `cp-wiki`, the page fixed by oh once accepted on the card |
 | S48 | onboarding | Re-onboarding of an up-to-date wiki: no proposal, no write, `cp-wiki` passed |
+| S49 | spike | encoding/csv without `LazyQuotes` cannot read the real statement (bare quote): kill decision written under `docs/wiki/decisions/` with its reason, throwaway prototype deleted (checked by oh), only the decision committed after `cp-decision` |
+| S50 | spike | Go decision corrected to clarify at `cp-decision`: the file is rewritten with the reason, keeps its sourced findings (`proxy_read_timeout 60s`, the caller's 45 s deadline) and is only committed after the second approval |
+| S51 | spike | `t.Parallel` everywhere? `os.Setenv` and `os.Chdir` in two tests: kill, both files cited, no test changed |
 
 `cadrage` is an alias of `spec` since R5: cases S5, S15, S19 and S27 (folder `cadrage/`) launch `spec`, and S27 goes through the exploration by the pathfinder that precedes the interview when the request compares designs.
 

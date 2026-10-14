@@ -287,7 +287,7 @@ func TestShippedCases(t *testing.T) {
 			assert.Equal(t, "accept", c.Answers.Wiki, "the proposals on the card are accepted")
 		}
 	}
-	assert.Equal(t, []string{"S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10", "S11", "S12", "S13", "S14", "S15", "S16", "S17", "S18", "S19", "S20", "S21", "S22", "S23", "S24", "S25", "S26", "S27", "S28", "S29", "S30", "S31", "S33", "S34", "S35", "S36", "S37", "S38", "S39", "S40", "S47", "S48"}, ids)
+	assert.Equal(t, []string{"S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10", "S11", "S12", "S13", "S14", "S15", "S16", "S17", "S18", "S19", "S20", "S21", "S22", "S23", "S24", "S25", "S26", "S27", "S28", "S29", "S30", "S31", "S33", "S34", "S35", "S36", "S37", "S38", "S39", "S40", "S41", "S42", "S43", "S44", "S45", "S46", "S47", "S48", "S49", "S50", "S51"}, ids)
 }
 
 func requireGit(t *testing.T) {
@@ -425,8 +425,17 @@ var notInBaseline = map[string]string{
 	"S38": "added by R5 (implement-spec: plan refused at cp-plan, nothing delegated, changed nor committed)",
 	"S39": "added by R5 (spec: spec and created tickets recorded by oh, implement-spec proposed next)",
 	"S40": "added by R5 (implement-spec: tickets and spec read from the last spec session, session.output)",
+	"S41": "added by R9-a (incident: trigger commit undone alone, blameless postmortem committed after cp-postmortem, tickets after cp-actions)",
+	"S42": "added by R9-a (incident: mitigation outside the repository, impact and detection delay in the postmortem)",
+	"S43": "added by R9-a (incident: postmortem revised at cp-postmortem before its commit, actions refused, no ticket)",
+	"S44": "added by R9-a (security-fix: only the findings kept at cp-triage are fixed, every variant of the open redirect)",
+	"S45": "added by R9-a (security-fix: path traversal fixed for its bypasses, re-analysis before cp-2)",
+	"S46": "added by R9-a (security-fix: real finding fixed, false positive reported without a change)",
 	"S47": "added by onboarding-refresh (re-onboarding: stale page fixed through wiki_propose accepted on cp-wiki, no direct write)",
 	"S48": "added by onboarding-refresh (re-onboarding: up-to-date wiki, nothing proposed nor written)",
+	"S49": "added by R9-a (spike: kill decision proved by a throwaway prototype, only the decision committed)",
+	"S50": "added by R9-a (spike: decision corrected to clarify at cp-decision before its commit)",
+	"S51": "added by R9-a (spike: kill decision sourced from the repository, no test changed)",
 }
 
 // The reference measure kept in the repository (make test-eval
