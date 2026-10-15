@@ -9,14 +9,31 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 )
 
 // HelpView displays keyboard shortcuts and documentation links.
 type HelpView struct {
-	app *tview.Application
+	app   *tview.Application
+	shell ShellAccess
 }
 
-var _ View = (*HelpView)(nil)
+var (
+	_ View            = (*HelpView)(nil)
+	_ CommandProvider = (*HelpView)(nil)
+)
+
+// SetShell gives the view the shell (notice of the new keys).
+func (v *HelpView) SetShell(s ShellAccess) { v.shell = s }
+
+// ContextCommands offers the notice of the new keys again.
+func (v *HelpView) ContextCommands() []ContextCommand {
+	return []ContextCommand{{
+		ID: "keys.notice", Label: i18n.T("tui.keys.notice.show"), Aliases: []string{"keys", "touches"},
+		Description: i18n.T("tui.keys.help.notice_desc"),
+		Action:      func() { ShowKeysNotice(v.shell, nil) },
+	}}
+}
 
 // NewHelpView creates a new help view.
 func NewHelpView() *HelpView { return &HelpView{} }
@@ -29,7 +46,7 @@ func (v *HelpView) Title() string { return i18n.T("tui.help.title") }
 
 // StatusHints returns keybinding hints.
 func (v *HelpView) StatusHints() string {
-	return fmt.Sprintf("Esc %s", i18n.T("tui.hints.back"))
+	return keys.Hints("Ctrl+P "+i18n.T("tui.keys.notice.show"), keys.Back.Hint())
 }
 
 // Mount builds the help display.
@@ -51,10 +68,11 @@ func (v *HelpView) Mount(content *tview.Flex, app *tview.Application) {
 	fmt.Fprintf(&sb, "  %sOpenHub%s — %s\n\n", accent, c, i18n.T("tui.help.description"))
 	fmt.Fprintf(&sb, "  %s%s%s\n", accent, i18n.T("tui.help.shortcuts_title"), c)
 	fmt.Fprintf(&sb, "    Ctrl+P       %s\n", i18n.T("tui.help.shortcut_palette"))
-	fmt.Fprintf(&sb, "    ?  / F1      %s\n", i18n.T("tui.help.shortcut_help"))
-	fmt.Fprintf(&sb, "    j / k        %s\n", i18n.T("tui.help.shortcut_navigate"))
 	fmt.Fprintf(&sb, "    Ctrl+T       %s\n", i18n.T("tui.help.shortcut_toggle"))
 	fmt.Fprintf(&sb, "    Ctrl+Q       %s\n\n", i18n.T("tui.help.shortcut_quit"))
+	fmt.Fprintf(&sb, "  %s%s%s\n\n", accent, i18n.T("tui.keys.help.convention"), c)
+	WriteKeyConvention(&sb, "    ")
+	fmt.Fprintf(&sb, "\n    %s%s%s\n\n", muted, i18n.T("tui.keys.notice.again"), c)
 	fmt.Fprintf(&sb, "  %s%s%s\n", accent, i18n.T("tui.help.sessions_title"), c)
 	fmt.Fprintf(&sb, "    %s\n", i18n.T("tui.help.sessions_line1"))
 	fmt.Fprintf(&sb, "    %s\n\n", i18n.T("tui.help.sessions_line2"))

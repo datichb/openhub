@@ -57,6 +57,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/router"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
@@ -1440,7 +1441,7 @@ func (s *Shell) globalKeyHandler(event *tcell.EventKey) *tcell.EventKey {
 	}
 	focus := s.app.GetFocus()
 	textInput := focusIsTextInput(focus)
-	if event.Key() == tcell.KeyRune && event.Rune() == '?' && !textInput {
+	if event.Key() == tcell.KeyRune && keys.Help.Matches(event) && !textInput {
 		s.showHelpOverlay()
 		return nil
 	}
@@ -1462,18 +1463,19 @@ func (s *Shell) globalKeyHandler(event *tcell.EventKey) *tcell.EventKey {
 	}
 
 	// Fallbacks: j/k/g/G are the universal list keys (arrows, Home, End);
-	// / opens the palette; every other letter goes to the focused widget.
+	// / opens the palette when the view has no filter; every other letter
+	// goes to the focused widget (key convention: package keys).
 	if event.Key() == tcell.KeyRune {
-		switch event.Rune() {
-		case 'j':
+		switch {
+		case keys.Down.Matches(event):
 			return tcell.NewEventKey(tcell.KeyDown, 0, tcell.ModNone)
-		case 'k':
+		case keys.Up.Matches(event):
 			return tcell.NewEventKey(tcell.KeyUp, 0, tcell.ModNone)
-		case 'g':
+		case keys.First.Matches(event):
 			return tcell.NewEventKey(tcell.KeyHome, 0, tcell.ModNone)
-		case 'G':
+		case keys.Last.Matches(event):
 			return tcell.NewEventKey(tcell.KeyEnd, 0, tcell.ModNone)
-		case '/':
+		case keys.Filter.Matches(event):
 			s.omnibar.Activate()
 			return nil
 		}
