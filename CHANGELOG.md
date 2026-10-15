@@ -9,6 +9,11 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Fixed — wiki et fan-out (lot p8-fixes)
+
+- **`oh wiki check --fix`** retire une ligne de god node qu'aucune page ne nomme plus (concept renommé ou accentué) : les liens de la table ne suffisent plus à la garder ; ils comptent tant qu'une page nomme encore le concept.
+- **Fan-out** : un enfant vu « en cours » dans un état lu avant la fin de son suivi est relu avant d'être repris ; il n'est plus fusionné deux fois ni marqué en échec (« no commit on the branch of the child ») après sa fusion. `TestDriverConflictResolvedByMerger` et les tests voisins du pilote attendent des conditions et non plus des délais (stables sous charge et avec `-race`).
+
 ### Changed — TUI : touches harmonisées (lot tui-keys)
 
 - **Convention de touches unique** (paquet `tui/v2/keys`, vérifiée par `TestKeyConvention`) : partout `↑↓`/`jk`, `g`/`G`, `/` filtrer, `r` rafraîchir, `?` aide, `Entrée` ouvrir, `Échap` revenir ; listes `n` créer, `e` éditer, `d` supprimer (toujours confirmé), `x` archiver (jamais destructif), `R` reprendre/restaurer, `c` comparer ; décisions `y` valider, `n` refuser (avec consigne), `e` modifier, `s` laisser, `A` tout accepter. Tableau dans l'aide (`?`) et dans la référence TUI.
