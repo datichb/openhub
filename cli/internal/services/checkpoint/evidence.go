@@ -313,6 +313,9 @@ type CardR3 struct {
 	Remote     *domain.CheckpointVerify
 	Evidence   []domain.CheckpointEvidence
 	Unresolved string
+	// NoOverride: a failed verification of this checkpoint is never
+	// overridden (merge checkpoint of a fan-out, CP-R3).
+	NoOverride bool
 }
 
 // Card returns the R3 part of the card of checkpoint id of a session.
@@ -329,6 +332,7 @@ func (s *Service) Card(ctx context.Context, sessionID, id string) CardR3 {
 		c.Remote = &r
 	}
 	c.Evidence = st.Evidence[id]
+	c.NoOverride = s.isMergeDecision(ctx, sessionID, id)
 	if _, wf, err := s.session(ctx, sessionID); err == nil {
 		if cp, ok := wf.Checkpoint(id); ok && slices.Contains(cp.Unlocks, sessionspec.UnlockCommit) {
 			c.Unresolved = st.Unresolved
