@@ -200,3 +200,30 @@ func hasCode(diags Diagnostics, code string) bool {
 	}
 	return false
 }
+
+// p6-debts: an input that is the file scope of the session: text, alone,
+// recorded at launch.
+func TestValidate_ScopeInput(t *testing.T) {
+	for _, c := range []struct{ name, doc, code string }{
+		{"ok", "inputs:\n  files: { type: text, scope: true }\noutputs:\n  - { id: files, type: text, record: input }\n", ""},
+		{"type", "inputs:\n  files: { type: int, scope: true }\noutputs:\n  - { id: files, type: text, record: input }\n", "input_scope_type"},
+		{"unrecorded", "inputs:\n  files: { type: text, scope: true }\n", "input_scope_unrecorded"},
+		{"twice", "inputs:\n  files: { type: text, scope: true }\n  more: { type: text, scope: true }\noutputs:\n  - { id: files, type: text, record: input }\n  - { id: more, type: text, record: input }\n", "input_scope_twice"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			_, diags := checkDoc(t, "entry: { agent: orchestrator-dev }\nrisk: write\n"+c.doc)
+			if c.code == "" {
+				if diags.HasErrors() {
+					t.Fatalf("diags = %v", diagList(diags))
+				}
+				return
+			}
+			for _, d := range diags {
+				if d.Code == c.code {
+					return
+				}
+			}
+			t.Fatalf("diags = %v, want %s", diagList(diags), c.code)
+		})
+	}
+}

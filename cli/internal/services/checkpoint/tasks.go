@@ -368,8 +368,8 @@ func (s *Service) recordTasks(ctx context.Context, sessionID, id string, tasks [
 // the scopes of the tasks are disjoint, a change outside would meet the
 // work of another child.
 func (s *Service) scopeCheck(ctx context.Context, sess *domain.Session) (domain.CheckpointVerify, bool) {
-	f := sess.Fanout
-	if f == nil || f.Role != domain.RoleChild || f.Task == nil || len(f.Task.Files) == 0 {
+	id, scope := s.sessionScope(ctx, sess)
+	if len(scope) == 0 {
 		return domain.CheckpointVerify{}, true
 	}
 	paths, err := s.changedPaths(ctx, sess)
@@ -378,7 +378,7 @@ func (s *Service) scopeCheck(ctx context.Context, sess *domain.Session) (domain.
 	}
 	var outside []string
 	for _, p := range paths {
-		if !InTaskScope(p, f.Task.Files) {
+		if !InTaskScope(p, scope) {
 			outside = append(outside, p)
 		}
 	}
@@ -386,5 +386,61 @@ func (s *Service) scopeCheck(ctx context.Context, sess *domain.Session) (domain.
 		return domain.CheckpointVerify{}, true
 	}
 	return domain.CheckpointVerify{Status: domain.VerifyFailed,
-		Reason: i18n.Tf("tui.checkpoint.verify.task_scope", f.Task.ID, listed(outside), strings.Join(f.Task.Files, ", "))}, false
+		Reason: i18n.Tf("tui.checkpoint.verify.task_scope", id, listed(outside), strings.Join(scope, ", "))}, false
+}
+
+// sessionScope returns the file scope of a session: the task oh recorded
+// for a child of a fan-out of tasks, else the scope input of its workflow
+// as recorded at launch (p6-debts: sweep-task launched by hand).
+func (s *Service) sessionScope(ctx context.Context, sess *domain.Session) (string, []string) {
+	if f := sess.Fanout; f != nil && f.Role == domain.RoleChild && f.Task != nil && len(f.Task.Files) > 0 {
+		return f.Task.ID, f.Task.Files
+	}
+	_, wf, err := s.session(ctx, sess.ID)
+	if err != nil || wf == nil || wf.ScopeInput == "" {
+		return "", nil
+	}
+	raw, ok := sess.Outputs[wf.ScopeInput].(string)
+	if !ok {
+		return "", nil
+	}
+	var scope []string
+	for _, e := range filesOf(raw) {
+		if clean, ok := scopeEntry(e); ok {
+			scope = append(scope, clean)
+		}
+	}
+	return wf.ScopeInput, scope
+}
+
+// CheckScope reads a file scope given at launch (one entry per line or
+// comma) against the files of dir: the entries as oh keeps them, or the
+// problems (an entry that is not a path of the repository, nor a new file
+// in an existing folder).
+func CheckScope(ctx context.Context, dir, input, raw string) (scope, problems []string) {
+	at := input
+	entries := filesOf(raw)
+	if len(entries) == 0 {
+		return nil, []string{i18n.Tf("cmd.daemon.workflow.tasks_files", at)}
+	}
+	if len(entries) > maxTaskFiles {
+		problems = append(problems, i18n.Tf("cmd.daemon.workflow.tasks_files_many", at, maxTaskFiles))
+	}
+	tracked, err := (&Service{}).trackedFiles(ctx, dir)
+	if err != nil {
+		return nil, append(problems, i18n.Tf("cmd.daemon.workflow.tasks_unreadable", err))
+	}
+	for _, e := range entries {
+		clean, ok := scopeEntry(e)
+		if !ok {
+			problems = append(problems, i18n.Tf("cmd.daemon.workflow.tasks_file_invalid", at, e))
+			continue
+		}
+		if len(matchScope(tracked, clean)) == 0 && !newFile(dir, clean) {
+			problems = append(problems, i18n.Tf("cmd.daemon.workflow.tasks_file_unknown", at, clean))
+			continue
+		}
+		scope = append(scope, clean)
+	}
+	return scope, problems
 }

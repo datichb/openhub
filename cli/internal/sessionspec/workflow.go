@@ -118,6 +118,9 @@ type WorkflowRuntime struct {
 	// git add and git commit lines of these paths the rules cannot read
 	// (several paths, several -m).
 	Writes map[string][]string `json:"writes,omitempty"`
+	// ScopeInput is the input that is the file scope of the session
+	// (p6-debts, recorded as an output of the same id; "" = none).
+	ScopeInput string `json:"scope_input,omitempty"`
 }
 
 // WritesGate holds the `writes:` paths of Agent until the checkpoint After

@@ -4,7 +4,7 @@
 
 A workflow is a YAML file `apiVersion: oh/v1`, `kind: Workflow`, named `<id>.yaml`. This page describes every field: type, values, effective value when the field is absent, behavior in a patch (`extends`) and locking (`enforce`).
 
-The schema is **frozen** (`cli/internal/workflow/schema.go`, type `Spec`): it only changes through optional additions. Additions made after the freeze: `risk: plan`, `preconditions`, `enforce`, `limits.models`, `limits.max_fix_rounds`, `entry.selectable`, `checkpoints.<id>.verify` and `checkpoints.<id>.when` (R3), `checkpoints.<id>.by` (L3), `checkpoints.<id>.wiki` (LD-D), `checkpoints.<id>.method` and the `must_touch_tests`, `outside_tests`, `since` fields of `verify` (R7), `agents.<id>.writes` and `verify.spec` (R4), `agents.<id>.writes_after` and `checkpoints.<id>.after` (r5-fixes), `fanout.source`, `checkpoints.<id>.tasks`, `agents.<id>.fanout` and `record: tasks` (sweep-fanout). Decision: [ADR-039](../architecture/adr/039-declarative-workflows-oh-v1.en.md).
+The schema is **frozen** (`cli/internal/workflow/schema.go`, type `Spec`): it only changes through optional additions. Additions made after the freeze: `risk: plan`, `preconditions`, `enforce`, `limits.models`, `limits.max_fix_rounds`, `entry.selectable`, `checkpoints.<id>.verify` and `checkpoints.<id>.when` (R3), `checkpoints.<id>.by` (L3), `checkpoints.<id>.wiki` (LD-D), `checkpoints.<id>.method` and the `must_touch_tests`, `outside_tests`, `since` fields of `verify` (R7), `agents.<id>.writes` and `verify.spec` (R4), `agents.<id>.writes_after` and `checkpoints.<id>.after` (r5-fixes), `fanout.source`, `checkpoints.<id>.tasks`, `agents.<id>.fanout` and `record: tasks` (sweep-fanout), `inputs.<id>.from_equals` and `inputs.<id>.scope` (p6-debts). Decision: [ADR-039](../architecture/adr/039-declarative-workflows-oh-v1.en.md).
 
 See also: [shipped workflows](workflows.en.md) · [team workflows](../guides/team-workflows.en.md) · [workflows CLI](cli-workflows.en.md).
 
@@ -212,6 +212,8 @@ An input id follows `^[a-z][a-z0-9_]*$` (`input_id_invalid`); `oh` is reserved f
 | `picker` | table | — | ticket picker (`beads-id`, `beads-ids` only) |
 | `max_length` | integer ≥ 0 | `0` = 20,000 characters | truncation of the injected value |
 | `from` | `source(input)` | — | value computed by oh at launch when it is not given (see below) |
+| `from_equals` | table output → value | — | with `from: session.output(…)`: only reads the sessions whose outputs have these values (see below) |
+| `scope` | boolean | `false` | the input (`text` or `string`, one per workflow, recorded by a `record: input` output of the same id) is the **file scope** of the session: one entry per line or comma (path, folder, pattern of the repository, or a new file in an existing folder, never absolute nor outside the repository), checked by oh at launch (launch refused with the list of problems); at the checkpoints oh verifies, a change outside the scope refuses the passage. `sweep-task`: `files` (`input_scope_type`, `input_scope_twice`, `input_scope_unrecorded`) |
 
 | Type | Value | In the prompt |
 |---|---|---|

@@ -4,7 +4,7 @@
 
 Un workflow est un fichier YAML `apiVersion: oh/v1`, `kind: Workflow`, nommé `<id>.yaml`. Cette page décrit chaque champ : type, valeurs, valeur effective quand le champ est absent, comportement dans un patch (`extends`) et verrouillage (`enforce`).
 
-Le schéma est **figé** (`cli/internal/workflow/schema.go`, type `Spec`) : il n'évolue que par ajouts facultatifs. Ajouts faits après le gel : `risk: plan`, `preconditions`, `enforce`, `limits.models`, `limits.max_fix_rounds`, `entry.selectable`, `checkpoints.<id>.verify` et `checkpoints.<id>.when` (R3), `checkpoints.<id>.by` (L3), `checkpoints.<id>.wiki` (LD-D), `checkpoints.<id>.method` et les champs `must_touch_tests`, `outside_tests`, `since` de `verify` (R7), `agents.<id>.writes` et `verify.spec` (R4), `agents.<id>.writes_after` et `checkpoints.<id>.after` (r5-fixes), `fanout.source`, `checkpoints.<id>.tasks`, `agents.<id>.fanout` et `record: tasks` (sweep-fanout). Décision : [ADR-039](../architecture/adr/039-declarative-workflows-oh-v1.fr.md).
+Le schéma est **figé** (`cli/internal/workflow/schema.go`, type `Spec`) : il n'évolue que par ajouts facultatifs. Ajouts faits après le gel : `risk: plan`, `preconditions`, `enforce`, `limits.models`, `limits.max_fix_rounds`, `entry.selectable`, `checkpoints.<id>.verify` et `checkpoints.<id>.when` (R3), `checkpoints.<id>.by` (L3), `checkpoints.<id>.wiki` (LD-D), `checkpoints.<id>.method` et les champs `must_touch_tests`, `outside_tests`, `since` de `verify` (R7), `agents.<id>.writes` et `verify.spec` (R4), `agents.<id>.writes_after` et `checkpoints.<id>.after` (r5-fixes), `fanout.source`, `checkpoints.<id>.tasks`, `agents.<id>.fanout` et `record: tasks` (sweep-fanout), `inputs.<id>.from_equals` et `inputs.<id>.scope` (p6-debts). Décision : [ADR-039](../architecture/adr/039-declarative-workflows-oh-v1.fr.md).
 
 Voir aussi : [workflows livrés](workflows.fr.md) · [workflows d'équipe](../guides/team-workflows.fr.md) · [CLI workflows](cli-workflows.fr.md).
 
@@ -212,6 +212,8 @@ L'id d'une entrée suit `^[a-z][a-z0-9_]*$` (`input_id_invalid`) ; `oh` est rés
 | `picker` | table | — | sélecteur de tickets (`beads-id`, `beads-ids` seulement) |
 | `max_length` | entier ≥ 0 | `0` = 20 000 caractères | troncature de la valeur injectée |
 | `from` | `source(entrée)` | — | valeur calculée par oh au lancement quand elle n'est pas donnée (voir ci-dessous) |
+| `from_equals` | table sortie → valeur | — | avec `from: session.output(…)` : ne lit que les sessions dont ces sorties ont ces valeurs (voir ci-dessous) |
+| `scope` | booléen | `false` | l'entrée (`text` ou `string`, une seule par workflow, relevée par une sortie `record: input` du même id) est le **périmètre de fichiers** de la session : une entrée par ligne ou virgule (chemin, dossier, motif du dépôt, ou nouveau fichier d'un dossier existant, jamais absolu ni hors du dépôt), vérifiée par oh au lancement (lancement refusé avec la liste des problèmes) ; aux checkpoints qu'oh vérifie, une modification hors du périmètre refuse le passage. `sweep-task` : `files` (`input_scope_type`, `input_scope_twice`, `input_scope_unrecorded`) |
 
 | Type | Valeur | Dans le prompt |
 |---|---|---|

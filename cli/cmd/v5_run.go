@@ -18,6 +18,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/launcher"
 	"github.com/datichb/openhub/cli/internal/provider"
 	"github.com/datichb/openhub/cli/internal/runsvc"
+	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 	remotesvc "github.com/datichb/openhub/cli/internal/services/remote"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
@@ -157,6 +158,19 @@ func prepareWorkflowRun(ctx context.Context, a *app.App, opts runOptions, errOut
 	base.Limits = sessionLimits(ctx, a, opts.Project, res.Spec)
 	if res.Spec.Beads != nil {
 		base.BeadsAllow = append([]string{}, res.Spec.Beads.Allow...) // non-nil: declared
+	}
+	// p6-debts: a file scope given at launch (sweep-task by hand) is checked
+	// now, as oh checks the tasks of a breakdown.
+	if id := res.Spec.ScopeInput(); id != "" {
+		if raw, _ := res.Inputs[id].(string); strings.TrimSpace(raw) != "" {
+			dir := opts.Project.Path
+			if l := runsvc.ParseLocation(opts.Location); l.Kind == runsvc.LocationWorktree {
+				dir = l.Path
+			}
+			if _, problems := checkpoint.CheckScope(ctx, dir, id, raw); len(problems) > 0 {
+				return nil, errors.New(i18n.Tf("cmd.run.scope_refused", id, "- "+strings.Join(problems, "\n- ")))
+			}
+		}
 	}
 	// The inputs passed on by `next:` (the method of spec), recorded now.
 	base.Outputs = res.Spec.RecordedInputs(res.Inputs)

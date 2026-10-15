@@ -152,6 +152,6 @@ func daemonOptions(ctx context.Context, a *app.App, capability string) daemon.Op
 			_, err := spawnFanoutDriver(id, "--relaunch")
 			return err
 		},
-		Adapter:      detectedAdapters(ctx),
+		Adapter: detectedAdapters(ctx),
 	}
 }

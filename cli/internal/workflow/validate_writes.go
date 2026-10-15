@@ -30,6 +30,20 @@ func (v *validator) writes(base string, a AgentRef) {
 	}
 }
 
+// scopeInput checks an input that is the file scope of the session
+// (p6-debts): text, the only one, recorded at launch.
+func (v *validator) scopeInput(at, id string, in Input) {
+	if in.Type != InputText && in.Type != InputString {
+		v.err("input_scope_type", at, id, string(in.Type))
+	}
+	if first := v.s.ScopeInput(); first != id {
+		v.err("input_scope_twice", at, id, first)
+	}
+	if o, ok := v.s.Output(id); !ok || o.Record != RecordInput {
+		v.err("input_scope_unrecorded", at, id)
+	}
+}
+
 // specCheck checks the `verify.spec` of a checkpoint.
 func (v *validator) specCheck(base string, c *SpecCheck) {
 	if c == nil {
