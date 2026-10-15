@@ -9,6 +9,15 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Changed — petits restes (lot p7-leftovers)
+
+- **`oh run -m "…"`** : raccourci de `-i request=…`, accepté seulement si le workflow lancé (alias résolu : `feature`, `cadrage`) a l'entrée `request` ; sinon refus avec ses entrées (`oh run feature --tickets … -m` lance `implement-spec` : `-i instructions=…`). `-m` et `-i request=` ensemble sont refusés. Docs : `-m` devient la forme courte.
+- ⚠ **`libre`** : plus d'auto-délégation déduite de la permission `task` (un agent ne s'appelle jamais lui-même) ; profondeur 3 → 2 ; les modes combinés du reviewer passent par `oh run review` (`calls: [reviewer]` inchangé).
+- **`merger`** : `team-awareness` et `team-policies-enforcement`, comme les autres agents (projets d'équipe seulement).
+- **Wiki d'oh** (`docs/wiki/`) au format actuel : `index.md`, pages sous `technical/`, frontmatter `updated`/`confidence`/`agents`, tags de confiance ; `oh wiki check` sans avertissement, vérifié par `TestOwnWiki`.
+- **`TestDocLinks`** : liens relatifs et ancres (calculées comme GitHub) de tous les `.md` du dépôt ; 5 liens rendus cassés par des blocs de code mal imbriqués (skills du documentarian, gabarits) corrigés, ancres suivies. Accents des docs fr corrigés (40 fichiers, hors code). `TestDriverChildEndSignal` attend par condition, plus par le temps.
+- Cas d'évaluation S75 (commit du developer sous-agent avant `cp-2`, refusé), S76 (`security-fix` sans audit de sécurité : les constats sont demandés), S77 (`sweep-task` à la main, changement hors périmètre refusé à `cp-commit`), hors mesure de référence. Somme des prompts (projet sans instructions) : 255 921 → 255 861 (`libre` −60). Aucune migration.
+
 ### Added — valideur humain d'un checkpoint (lot approver-1, CP-R9 étape 1)
 
 - **`checkpoints.<id>.approver`** : les personnes qui valident un checkpoint (nom `user.name` ou e-mail `user.email` de git, une ou une liste de 20 au plus), déclarées par la **couche d'équipe seulement** (`checkpoint_approver_layer` ailleurs) ; une couche de projet ne le retire ni ne le change, ne retire pas le checkpoint (`approver_checkpoint_removed`) et ne le fait pas moins mettre en pause (`loosening`). Retirer un valideur est un assouplissement dans le résumé d'impact. Avertissements `checkpoint_approver_no_pause`, `checkpoint_approver_remote_auto`. [ADR-055](docs/architecture/adr/055-checkpoint-approver.fr.md).
@@ -112,7 +121,7 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 - **Substitution de contrôle (CP-R3)** : le `cp-2` des enfants ne fait plus de pause, remplacé par le `cp-merge` obligatoire de la parente, vérifié par oh sur la branche d'intégration et jamais forcé. Déclarée par la couche hub seulement (`fanout.delegates` ; une couche d'équipe ou de projet ou un brouillon : `fanout_delegates_layer`), revérifiée par le démon à chaque appel, la vérification de l'enfant tourne toujours, passage tracé (`delegated`). `implement-spec` en fan-out : 3 pauses en semi-auto quel que soit le nombre de tickets. ADR-053.
 - **Agent `merger` et workflow `merge-conflicts`** : oh confie au merger un conflit qu'il ne résout pas et vérifie son résultat (merge commité, deux côtés, aucun marqueur) ; jamais de push.
 - **Budget global (F-04)** : `[fanout] budget_usd` (10 $) pour la parente et ses sessions ; au-delà, plus d'enfant et arrêt de celui en cours (état `budget`), tracé.
-- **Validation par lot (CP-R6)** : `oh session approve --batch` (`--fanout`, `--session`, `--checkpoint`, `--except`, `--reject id=consigne`, `--dry-run`), chaque élément listé et refusable. TUI : à venir.
+- **Validation par lot (CP-R6)** : `oh session approve --batch` (`--fanout`, `--session`, `--checkpoint`, `--except`, `--reject id=consigne`, `--dry-run`), chaque élément listé et refusable. TUI : touche `B` (lot r6-leftovers).
 - **Corrigé** : l'empreinte de la configuration git d'une session est enregistrée par worktree ; une session lancée dans un autre worktree du dépôt ne la fait plus passer pour modifiée.
 - `oh eval` : assertion `fanout`, champ de cas `fanout: { parallel }` ; cas S52 et S53 hors mesure de référence. Évaluations : S52 2/2 et S53 2/2 (Haiku), S52 1/1 (Sonnet), témoin S37 1/1 ; 7,45 $. Migration v46. Non fait : validation par lot dans la TUI, migration de `sweep` (conception dans `docs/reference/workflows.*`) et de `feature`.
 
