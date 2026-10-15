@@ -1,0 +1,18 @@
+┌ Patterns ──────────────────────────────────────────────────────┐┌ Détail ──────────────────────────────────┐
+│ Les patterns sont des modèles de décomposition réutilisables.  ││ api-crud                                 │
+│ Quand l'IA planifie une feature, elle propose les patterns     ││                                          │
+│ validés qui correspondent. Créez, testez, puis validez.        ││ Ressource CRUD                           │
+│                                                                ││                                          │
+│                                                                ││ Statut : ○ en attente de validation      │
+│   ── En attente de validation (1) ──                         ▲ ││ Complexité : medium                      │
+│                                                                ││ Tags : api                               │
+│     ○ api-crud                       medium · api              ││ Date : 2026-10-01                        │
+│         Ressource CRUD                                         ││                                          │
+│                                                                ││ Touches                                  │
+│                                                                ││   Entrée voir                            │
+│   ── Actions ──                                                ││   y      valider                         │
+│                                                                ││   d      supprimer                       │
+│     ▸ Créer un nouveau pattern                                 ││   r      rafraîchir                      │
+│                                                                ││                                          │
+│                                                                ││                                          │
+└────────────────────────────────────────────────────────────────┘└──────────────────────────────────────────┘
