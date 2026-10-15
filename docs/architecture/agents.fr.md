@@ -202,7 +202,7 @@ Relevé des frontmatter de `agents/`.
 Ce tableau est la référence faisant autorite pour les skills charges par chaque agent. Il est relevé dans les frontmatter reels des agents. Pour les descriptions des skills, voir [Référence des skills](./skills.fr.md).
 
 > `shared/universal-guardrails` est Bucket A (inline) dans **chaque** agent sauf `brief-enricher` : il n'est pas répété dans les tableaux.
-> `shared/team-awareness` et `shared/team-policies-enforcement` sont Bucket B dans **chaque** agent sauf `merger` (aucun des deux) : ils ne sont pas répétés non plus.
+> `shared/team-awareness` et `shared/team-policies-enforcement` sont Bucket B dans **chaque** agent (chargés seulement avec le MCP `team`) : ils ne sont pas répétés non plus.
 > `shared/living-docs-enrichment` est Bucket B (natif / a la demande) partout ou il apparaît.
 
 ### Famille planning

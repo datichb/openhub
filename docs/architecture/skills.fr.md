@@ -157,8 +157,8 @@ Notations courtes :
 | `hub-workflow-reference` | A : orchestrator, planner | Catalogue des agents, heuristique pathfinder vs planner, séquences standard, table des handoffs. **Version générée depuis le workflow** dans le paquet |
 | `research` | B : auditor-subagent, designer, documentarian, onboarder, pathfinder, planner | Recherche web (`websearch`, `webfetch`) : partir de l'existant, requêtes ciblées, recoupement par deux sources ou la source officielle, comparaison de librairies, sécurité, restitution (fusion de `websearch-usage` et `websearch-stack-research`, R1-c) |
 | `living-docs-enrichment` | B : auditor, dev-rw, onboarder, operator, pathfinder, planner, benchmarker, debugger, reviewer | Enrichissement incrémental du wiki (`docs/wiki/`), d'`ONBOARDING.md` et de `CONVENTIONS.md`  : propositions avec `wiki_propose` (interdits, tags, pages cibles, ligne remplacée avec `replaces`), repli dans `### Enrichissements wiki proposés` sans l'outil ; aucune écriture directe ni délégation au documentarian |
-| `team-awareness` | B (`mcp: team`) : tous les agents sauf merger | Collaboration via le serveur MCP `team` (claims, statut, activité) |
-| `team-policies-enforcement` | B (`mcp: team`) : tous les agents sauf merger | Respect des politiques d'équipe |
+| `team-awareness` | B (`mcp: team`) : tous les agents | Collaboration via le serveur MCP `team` (claims, statut, activité) |
+| `team-policies-enforcement` | B (`mcp: team`) : tous les agents | Respect des politiques d'équipe |
 | `skill-authoring-protocol` | B : documentarian | Rédaction de skills — TDD RED/GREEN/REFACTOR, checklist SDO, anti-patterns, checklist de validation |
 | `rtk-usage` | B : 16 agents (tous sauf benchmarker et brief-enricher) | **Antérieure à v5** — guide RTK (voir [Skills antérieures à v5](#skills-antérieures-à-v5)) |
 | `context-mode-usage` | A : dev-rw | **Antérieure à v5** — usage des outils `ctx_*` de context-mode (voir [Skills antérieures à v5](#skills-antérieures-à-v5)) |
@@ -562,8 +562,8 @@ Résumé du frontmatter des 18 agents (`agents/**/*.md`). Pour la vue par agent,
 Communs, non répétés dans le tableau :
 
 - `shared/universal-guardrails` (A) : tous les agents sauf `brief-enricher` ;
-- `shared/team-awareness` (B, `mcp: team`) : tous les agents sauf `merger` ;
-- `shared/team-policies-enforcement` (B, `mcp: team`) : tous sauf `merger` ;
+- `shared/team-awareness` (B, `mcp: team`) : tous les agents ;
+- `shared/team-policies-enforcement` (B, `mcp: team`) : tous les agents ;
 - `shared/rtk-usage` (B, [antérieure à v5](#skills-antérieures-à-v5)) : les agents marqués ¹.
 
 Retours entre agents (L5) : l'agent lancé inclut `handoff-envelope` et son payload `<agent>-payload` ; l'appelant lit les statuts dans son contrat de session (table générée depuis les payloads des agents qu'il lance) et le rapport avec `workflow_report_get`. Les postures `user-facing-posture`, `handoff-envelope` et les payloads sont filtrées par rôle (`when:`).

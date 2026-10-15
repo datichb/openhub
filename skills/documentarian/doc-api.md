@@ -237,7 +237,7 @@ gestion des erreurs.
 
 ### Structure type — Guide d'utilisation API
 
-```markdown
+````markdown
 # Guide d'utilisation — API [Nom]
 
 ## Authentification
@@ -298,7 +298,7 @@ Toutes les erreurs suivent le format :
 | `UNAUTHORIZED` | Token expiré | Rafraîchir le token |
 | `VALIDATION_ERROR` | Champ manquant | Vérifier `details` pour le champ concerné |
 | `RATE_LIMITED` | Trop de requêtes | Attendre `Retry-After` secondes |
-```
+````
 
 ---
 

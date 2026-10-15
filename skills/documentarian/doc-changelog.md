@@ -286,7 +286,7 @@ L'agent :
 
 Pour les releases majeures ou les communications publiques, un format plus narratif :
 
-```markdown
+````markdown
 # Release v2.0.0 — 15 mars 2024
 
 ## Résumé
@@ -323,7 +323,7 @@ npm update @monapp/core
 ```
 
 Voir le [CHANGELOG complet](CHANGELOG.md) pour tous les détails.
-```
+````
 
 ---
 

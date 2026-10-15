@@ -4,7 +4,7 @@ Le frontmatter de chaque template est remplacé par le `marpFrontmatter` du bran
 
 ## Tech demo / feature
 
-```markdown
+````markdown
 ---
 marp: true
 theme: default
@@ -43,7 +43,7 @@ paginate: true
 
 [Schéma ou liste structurée — éviter les phrases]
 
-```
+````
 [Composant A] → [Composant B] → [Composant C]
 ```
 
@@ -196,7 +196,7 @@ paginate: true
 
 ## Onboarding / formation
 
-```markdown
+````markdown
 ---
 marp: true
 theme: default
@@ -260,4 +260,4 @@ Formation · [Audience] · [Date]
 - [Lien doc externe]
 
 **Questions ?**
-```
+````

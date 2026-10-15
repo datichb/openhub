@@ -25,7 +25,7 @@ permission:
   webfetch: deny
   websearch: deny
 skills: [shared/universal-guardrails, posture/core-posture]
-native_skills: [developer/resolving-merge-conflicts, developer/verification-before-completion, developer/dev-standards-git, shared/rtk-usage]
+native_skills: [developer/resolving-merge-conflicts, developer/verification-before-completion, developer/dev-standards-git, shared/rtk-usage, shared/team-awareness, shared/team-policies-enforcement]
 stack_skills: true
 ---
 
