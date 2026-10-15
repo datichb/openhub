@@ -2,6 +2,8 @@ package views
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"testing"
@@ -552,4 +554,50 @@ func TestHistoryViewRendersAndKeys(t *testing.T) {
 	}
 	onLoop(app, func() { v.HandleKey(runeKey('R')) })
 	assert.Equal(t, 1, sh.confirmCount())
+}
+
+// ── Team detail ────────────────────────────────────────────────────────────
+
+func TestTeamDetailKeys(t *testing.T) {
+	frLocale(t)
+	_, tc := soloState(t)
+	tc.Solo = false
+	discovered := 0
+	v := teamDetailFor(tc, nil)
+	v.cfg.OnDiscoverTracker = func() { discovered++ }
+	sh := &viewShell{}
+	v.SetShell(sh)
+	v.Mount(tview.NewFlex(), nil)
+	hints := v.StatusHints()
+	assert.Contains(t, hints, "T découvrir le tracker")
+	assert.NotContains(t, hints, "discovery")
+	assert.NotContains(t, hints, "a ajouter")
+
+	// y no longer launches the discovery; T does.
+	v.HandleKey(runeKey('y'))
+	assert.Zero(t, discovered)
+	v.HandleKey(runeKey('T'))
+	assert.Equal(t, 1, discovered)
+
+	// r reloads at once when nothing changed, and asks first otherwise.
+	v.HandleKey(runeKey('r'))
+	assert.Zero(t, sh.confirmCount())
+	v.dirtyTeam = true
+	v.HandleKey(runeKey('r'))
+	assert.Equal(t, 1, sh.confirmCount())
+	sh.confirmed(t, nil)
+	assert.False(t, v.dirtyTeam, "the changes are dropped once confirmed")
+
+	// A sync without credentials offers to type the token (typed error,
+	// whatever its text); another error is a toast.
+	syncErr := error(fmt.Errorf("sync: %w", &TrackerCredentialsError{Msg: "missing", Err: assert.AnError}))
+	v.cfg.SyncTracker = func(context.Context) (*SyncTrackerResult, error) { return nil, syncErr }
+	content := tview.NewFlex()
+	app := runApp(t, content)
+	onLoop(app, func() { v.Mount(content, app); v.HandleKey(runeKey('s')) })
+	waitFor(t, app, func() bool { return sh.modalTitle == "Token manquant" })
+	syncErr = errors.New("token expired")
+	onLoop(app, func() { sh.modalTitle = ""; v.HandleKey(runeKey('s')) })
+	waitFor(t, app, func() bool { return strings.Contains(sh.lastToast(), "token expired") })
+	assert.Empty(t, sh.modalTitle, "an error that mentions a token is not a missing token")
 }
