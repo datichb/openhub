@@ -63,6 +63,15 @@ func buildCommands(a *app.App) []shell.Command {
 			Action:      actionCleanup,
 		},
 		{
+			ID:          "gc",
+			Label:       i18n.T("tui.gc.cmd"),
+			Aliases:     []string{"oh gc", "garbage", "espace disque", "disk"},
+			Description: i18n.T("tui.gc.cmd_desc"),
+			Category:    i18n.T("tui.category.system"),
+			Priority:    31,
+			Action:      actionGC,
+		},
+		{
 			ID:          "bricks",
 			Label:       i18n.T("tui.bricks.cmd"),
 			Aliases:     []string{"briques", "agents", "skills", "catalogue des briques"},
