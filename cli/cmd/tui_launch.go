@@ -43,6 +43,13 @@ type tuiLaunchRequest struct {
 	Draft bool
 	// Location preselects a location (an existing worktree path).
 	Location string
+	// Agent preselects the entry agent of a workflow whose entry is
+	// selectable (`libre`: free session with this agent).
+	Agent string
+	// AliasTarget is the workflow an alias (WorkflowID) opens, chosen in the
+	// omnibar (« feature → implement-spec (avec tickets) »); "" = resolved
+	// from the inputs given, like oh run.
+	AliasTarget string
 }
 
 // openLaunchForm resolves the workflow and the project off the event loop,
@@ -106,7 +113,8 @@ func launchFormConfig(ctx context.Context, a *app.App, project *domain.Project, 
 	if req.Draft {
 		resolve = wsvc.ResolveDraft
 	}
-	res, err := resolve(ctx, workflowsvc.Context{ProjectID: project.ID}, req.WorkflowID, workflowsvc.ResolveOpts{})
+	id, alias := tuiLaunchAlias(ctx, wsvc, project.ID, req)
+	res, err := resolve(ctx, workflowsvc.Context{ProjectID: project.ID}, id, workflowsvc.ResolveOpts{})
 	if err != nil {
 		var invalid *workflowsvc.InvalidError
 		if errors.As(err, &invalid) {
@@ -131,6 +139,9 @@ func launchFormConfig(ctx context.Context, a *app.App, project *domain.Project, 
 		Runtimes: tuiRuntimes(ctx, a, sp, project), Locations: preferLocation(tuiLocations(project), req.Location),
 		Attach: tuiAttachOptions(), DefaultAttach: attachPreference(a),
 		DefaultMode: req.Mode, DefaultRuntime: req.Runtime,
+		Alias: alias, AliasWith: aliasRoute(sp, alias), EntryAgents: res.EntryChoices(), Agent: req.Agent,
+		FromPreview: tuiFromPreview(a, project, req.Parent, sp), CheckInput: tuiCheckInput(project.Path),
+		InputNotes: tuiInputNotes(a, sp),
 	}
 	if cfg.DefaultRuntime == "" {
 		cfg.DefaultRuntime = string(pickLaunchRuntime(a, sp, project))
@@ -146,7 +157,7 @@ func launchFormConfig(ctx context.Context, a *app.App, project *domain.Project, 
 	}
 	runs := &tuiRunCache{}
 	opts := func(c views.LaunchChoices) runOptions {
-		return runOptions{Workflow: sp.ID, Project: project, Inputs: c.Inputs, Tickets: c.Tickets, Mode: c.Mode,
+		return runOptions{Workflow: sp.ID, Project: project, Agent: c.Agent, Inputs: c.Inputs, Tickets: c.Tickets, Mode: c.Mode,
 			Runtime: c.Runtime, Location: c.Location, Attach: c.Attach, ParentSessionID: req.Parent, OneSession: c.OneSession, Draft: req.Draft,
 			Dirty: runsvc.DirtyPolicy(c.Dirty), OnExisting: runsvc.OnExisting(c.OnExisting), DiscardBaseChanges: c.DiscardBaseChanges}
 	}

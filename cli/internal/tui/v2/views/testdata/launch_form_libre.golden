@@ -1,0 +1,22 @@
+╔ Lancer · libre ══════════════════════════════════════════════════════════════════════════════════╗
+║ ● Entrées ─── ○ Options ─── ○ Récap   hub · demo                                                 ║
+║ Session avec l'agent de ton choix                                                                ║
+║                                                                                                  ║
+║                                                                                                  ║
+║  Agent d'entrée   orchestrator  ▼                                                                ║
+║                 Agents « selectable » du workflow : l'agent choisi démarre la session, avec      ║
+║                 les agents qu'il peut appeler                                                    ║
+║                                                                                                  ║
+║  Demande                                                                                         ║
+║                                                                                                  ║
+║                                                                                                  ║
+║                                                                                                  ║
+║                 Ce qu'il faut faire (facultatif)                                                 ║
+║                                                                                                  ║
+║                                                                                                  ║
+║      Suivant                                                                                     ║
+║                                                                                                  ║
+║                                                                                                  ║
+║Tab champ suivant · Ctrl+S récap · Alt+→/PgDn suivant · Alt+←/PgUp retour · Esc fermer            ║
+║                                                                                                  ║
+╚══════════════════════════════════════════════════════════════════════════════════════════════════╝

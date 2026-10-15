@@ -13,10 +13,11 @@ import (
 
 // Launch on a ticket already worked on (runsvc.RunPlan.Existing): the recap
 // compares each open session of the tickets with the launch and, for the
-// session the choices apply to, offers them as buttons and keys: [r]
-// reprendre, [t] reprendre ailleurs (transfer), [k] remplacer en gardant le
-// travail, [d] supprimer et relancer (confirmed), [p] en parallèle. A choice
-// launches at once.
+// session the choices apply to, offers them as buttons and keys: [R]
+// reprendre (the key of the convention), [T] transférer (resume elsewhere:
+// another runtime or model), [k] remplacer en gardant le travail, [d]
+// supprimer et relancer (confirmed), [p] en parallèle. A choice launches at
+// once.
 
 // ErrTransferFailed marks a launch error caused by a failed transfer of the
 // existing session (left unchanged): the form offers to replace it while
@@ -39,8 +40,8 @@ type existingChoice struct {
 }
 
 var existingChoices = []existingChoice{
-	{'r', LaunchExistingResume},
-	{'t', LaunchExistingTransfer},
+	{'R', LaunchExistingResume},
+	{'T', LaunchExistingTransfer},
 	{'k', LaunchExistingKeep},
 	{'d', LaunchExistingDelete},
 	{'p', LaunchExistingParallel},

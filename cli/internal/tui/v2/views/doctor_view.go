@@ -1,7 +1,9 @@
 package views
 
 import (
+	"context"
 	"fmt"
+	"strings"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -9,6 +11,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
@@ -19,7 +22,33 @@ type DoctorCheck struct {
 	Detail string
 	OK     bool
 	Warn   bool
+	// Fix repairs what the check found (oh doctor --fix); nil: nothing to
+	// repair from the TUI.
+	Fix *DoctorFix
 }
+
+// DoctorFix is the repair of a check (key f « corriger »): Plan describes
+// it for the confirmation, then Apply repairs (both off the event loop);
+// or Open shows the view that repairs it (event loop).
+type DoctorFix struct {
+	Plan  func(ctx context.Context) (string, error)
+	Apply func(ctx context.Context) (string, error)
+	Open  func()
+}
+
+// DoctorFixFor gives the repair of a check (set by the command layer; nil
+// or a nil result: none).
+var DoctorFixFor func(DoctorCheck) *DoctorFix
+
+// DoctorOfflineSwitch is the offline mode of the checks (oh doctor
+// --offline): no network call (published version, provider key).
+type DoctorOfflineSwitch struct {
+	On  func() bool
+	Set func(on bool)
+}
+
+// DoctorOffline is set by the command layer (nil: no offline option).
+var DoctorOffline *DoctorOfflineSwitch
 
 // DoctorView displays system health checks with real execution.
 type DoctorView struct {
@@ -31,6 +60,10 @@ type DoctorView struct {
 	checks  []DoctorCheck
 	loading string // non-empty while the checks run
 	run     func() []DoctorCheck
+	shell   ShellAccess
+	fixing  bool
+	ctx     context.Context
+	cancel  context.CancelFunc
 }
 
 var _ View = (*DoctorView)(nil)
@@ -46,14 +79,34 @@ func (v *DoctorView) ID() string { return "doctor" }
 // Title returns the display title.
 func (v *DoctorView) Title() string { return i18n.T("tui.doctor.title") }
 
+// SetShell implements the shell-aware interface.
+func (v *DoctorView) SetShell(s ShellAccess) { v.shell = s }
+
+// doctorFixKey repairs the selected check; doctorOfflineKey switches the
+// offline mode.
+const (
+	doctorFixKey     = 'f'
+	doctorOfflineKey = 'o'
+)
+
 // StatusHints returns keybinding hints.
 func (v *DoctorView) StatusHints() string {
-	return fmt.Sprintf("j/k %s · r %s · Esc %s", i18n.T("tui.hints.nav"), i18n.T("tui.hints.recheck"), i18n.T("tui.hints.back"))
+	offline := ""
+	if DoctorOffline != nil {
+		offline = string(doctorOfflineKey) + " " + i18n.T("tui.doctor.offline")
+	}
+	return keys.Hints(keys.Navigate.Hint(), string(doctorFixKey)+" "+i18n.T("tui.doctor.fix"), offline,
+		keys.Refresh.HintAs(i18n.T("tui.hints.recheck")), keys.Back.Hint())
 }
 
 // Mount builds the doctor checks display and runs all checks.
 func (v *DoctorView) Mount(content *tview.Flex, tvApp *tview.Application) {
 	v.app = tvApp
+	parent := context.Background()
+	if v.shell != nil {
+		parent = v.shell.Context()
+	}
+	v.ctx, v.cancel = context.WithCancel(parent)
 
 	v.summary = tview.NewTextView().SetDynamicColors(true)
 	v.summary.SetBackgroundColor(theme.BgPanel)
@@ -88,31 +141,148 @@ func (v *DoctorView) Mount(content *tview.Flex, tvApp *tview.Application) {
 
 // Unmount cleans up resources.
 func (v *DoctorView) Unmount() {
+	if v.cancel != nil {
+		v.cancel()
+	}
 	v.app = nil
 	v.summary, v.list, v.page = nil, nil, nil
 }
 
 // HandleKey processes view-specific key events.
 func (v *DoctorView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
-	if event.Rune() == 'r' {
-		if v.list == nil || v.app == nil {
-			return nil
-		}
-		v.loading = i18n.T("tui.doctor.rechecking")
-		v.render()
-		go func() {
-			checks := v.collectChecks()
-			v.app.QueueUpdateDraw(func() {
-				if v.list == nil || v.app == nil {
-					return
-				}
-				v.checks, v.loading = checks, ""
-				v.render()
-			})
-		}()
+	switch {
+	case keys.Refresh.Matches(event):
+		v.recheck()
+		return nil
+	case event.Key() == tcell.KeyRune && event.Rune() == doctorFixKey && event.Modifiers()&(tcell.ModCtrl|tcell.ModAlt) == 0:
+		v.fixSelected()
+		return nil
+	case event.Key() == tcell.KeyRune && event.Rune() == doctorOfflineKey && DoctorOffline != nil && event.Modifiers()&(tcell.ModCtrl|tcell.ModAlt) == 0:
+		DoctorOffline.Set(!DoctorOffline.On())
+		v.recheck()
 		return nil
 	}
 	return event
+}
+
+// recheck runs the checks again off the event loop.
+func (v *DoctorView) recheck() {
+	if v.list == nil || v.app == nil {
+		return
+	}
+	v.loading = i18n.T("tui.doctor.rechecking")
+	v.render()
+	tv := v.app
+	go func() {
+		checks := v.collectChecks()
+		tv.QueueUpdateDraw(func() {
+			if v.list == nil || v.app == nil {
+				return
+			}
+			v.checks, v.loading = checks, ""
+			v.render()
+		})
+	}()
+}
+
+// selected is the check under the cursor.
+func (v *DoctorView) selected() (DoctorCheck, bool) {
+	if v.list == nil {
+		return DoctorCheck{}, false
+	}
+	_, it, ok := v.list.CurrentItem()
+	if !ok {
+		return DoctorCheck{}, false
+	}
+	i, ok := it.Reference.(int)
+	if !ok || i < 0 || i >= len(v.checks) {
+		return DoctorCheck{}, false
+	}
+	return v.checks[i], true
+}
+
+// fixSelected repairs the selected check: its plan, a confirmation, the
+// repair, its report, then the checks again.
+func (v *DoctorView) fixSelected() {
+	c, ok := v.selected()
+	if !ok || v.loading != "" || v.fixing {
+		return
+	}
+	if c.Fix == nil {
+		v.toast(i18n.T("tui.doctor.no_fix"), false)
+		return
+	}
+	if c.Fix.Open != nil {
+		c.Fix.Open()
+		return
+	}
+	if c.Fix.Apply == nil || v.shell == nil || v.app == nil {
+		return
+	}
+	v.fixing = true
+	tv, ctx, fix := v.app, v.ctx, c.Fix
+	go func() {
+		plan := ""
+		var err error
+		if fix.Plan != nil {
+			plan, err = fix.Plan(ctx)
+		}
+		if ctx.Err() != nil {
+			return
+		}
+		tv.QueueUpdateDraw(func() {
+			v.fixing = false
+			if err != nil {
+				v.toast(err.Error(), false)
+				return
+			}
+			detail := strings.TrimSpace(plan)
+			if detail != "" {
+				detail += "\n\n"
+			}
+			v.shell.Confirm(i18n.Tf("tui.doctor.fix_title", c.Name), detail+i18n.T("tui.doctor.fix_confirm"), true, func() { v.applyFix(c, fix) })
+		})
+	}()
+}
+
+func (v *DoctorView) applyFix(c DoctorCheck, fix *DoctorFix) {
+	if v.app == nil || v.fixing {
+		return
+	}
+	v.fixing = true
+	v.loading = i18n.Tf("tui.doctor.fixing", c.Name)
+	v.render()
+	tv, ctx := v.app, v.ctx
+	go func() {
+		report, err := fix.Apply(ctx)
+		checks := v.collectChecks()
+		if ctx.Err() != nil {
+			return
+		}
+		tv.QueueUpdateDraw(func() {
+			v.fixing = false
+			if v.list == nil {
+				return
+			}
+			v.checks, v.loading = checks, ""
+			v.render()
+			if err != nil {
+				v.toast(err.Error(), false)
+				return
+			}
+			if report = strings.TrimSpace(report); report != "" && v.shell != nil {
+				v.shell.ShowScrollableModal(i18n.Tf("tui.doctor.fixed_title", c.Name), tview.Escape(report), nil)
+				return
+			}
+			v.toast(i18n.Tf("tui.doctor.fixed", c.Name), true)
+		})
+	}()
+}
+
+func (v *DoctorView) toast(msg string, ok bool) {
+	if v.shell != nil {
+		v.shell.ShowToastMsg(msg, ok)
+	}
 }
 
 // collectChecks runs all health checks and returns the results.
@@ -121,7 +291,13 @@ func (v *DoctorView) collectChecks() []DoctorCheck {
 	if v.run == nil {
 		return nil
 	}
-	return v.run()
+	checks := v.run()
+	for i := range checks {
+		if checks[i].Fix == nil && DoctorFixFor != nil {
+			checks[i].Fix = DoctorFixFor(checks[i])
+		}
+	}
+	return checks
 }
 
 // DoctorChecks runs the checks of `oh doctor` (set by the command layer): the
@@ -148,8 +324,12 @@ func (v *DoctorView) render() {
 		if c.OK {
 			passed++
 		}
+		name := doctorIcon(c) + "  " + tview.Escape(c.Name)
+		if c.Fix != nil {
+			name += "  " + theme.ColorTag(theme.TextMutedHex) + "[" + string(doctorFixKey) + "[] " + i18n.T("tui.doctor.fix") + theme.TagColor
+		}
 		items = append(items, widgets.SectionItem{
-			MainText:      doctorIcon(c) + "  " + tview.Escape(c.Name),
+			MainText:      name,
 			SecondaryText: theme.ColorTag(theme.TextSecondaryHex) + tview.Escape(c.Detail) + theme.TagColor,
 			Reference:     i,
 		})
@@ -159,6 +339,9 @@ func (v *DoctorView) render() {
 		line := fmt.Sprintf("[::b]%s[::-]  %s%s%s",
 			i18n.T("tui.doctor.check_title"),
 			theme.ColorTag(theme.TextPrimaryHex), i18n.Tf("tui.doctor.summary", passed, len(v.checks)), theme.TagColor)
+		if DoctorOffline != nil && DoctorOffline.On() {
+			line += "  " + theme.ColorTag(theme.WarningHex) + i18n.T("tui.doctor.offline_on") + theme.TagColor
+		}
 		if passed == len(v.checks) {
 			line += fmt.Sprintf("  %s%s %s%s", theme.ColorTag(theme.SuccessHex), theme.IconSuccess, i18n.T("tui.doctor.all_passed"), theme.TagColor)
 		}
@@ -203,6 +386,10 @@ func (v *DoctorView) showDetail(it widgets.SectionItem) {
 	d.title(tview.Escape(c.Name))
 	d.field(i18n.T("tui.detail.status"), doctorIcon(c)+" "+status)
 	d.gap().para(tview.Escape(c.Detail))
-	d.keys("r", i18n.T("tui.hints.recheck"))
+	if c.Fix != nil {
+		d.keys(string(doctorFixKey), i18n.T("tui.doctor.fix"), "r", i18n.T("tui.hints.recheck"))
+	} else {
+		d.keys("r", i18n.T("tui.hints.recheck"))
+	}
 	v.page.SetDetail(d.String())
 }

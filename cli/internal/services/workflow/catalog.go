@@ -48,6 +48,16 @@ type Summary struct {
 	// NewBricks are the team bricks a draft uses that its published version
 	// does not (O12 « nouvelle brique » badge).
 	NewBricks []string `json:"new_bricks,omitempty"`
+	// Aliases are the other ids that launch the workflow (`aliases:`, the
+	// route `with` an input included).
+	Aliases []AliasSummary `json:"aliases,omitempty"`
+}
+
+// AliasSummary is an alias of a workflow: With names the input that routes
+// the alias to it ("" = the default target).
+type AliasSummary struct {
+	ID   string `json:"id"`
+	With string `json:"with,omitempty"`
 }
 
 // InputSummary is a launch input of a workflow.
@@ -165,6 +175,9 @@ func (s *Service) summarize(cat *catalog, ref wf.Ref) Summary {
 		}
 		sum.Description = sp.Description.Text(s.lang())
 		sum.EntryAgent = sp.EntryAgent()
+		for _, a := range sp.Aliases {
+			sum.Aliases = append(sum.Aliases, AliasSummary{ID: a.ID, With: a.With})
+		}
 		sum.Runtimes, sum.Modes, sum.DefaultMode = sp.AllowedRuntimes(), sp.AllowedModes(), sp.DefaultMode()
 		sum.TicketInput, sum.MultiTickets = TicketInput(sp)
 		for _, k := range sp.Inputs.Keys() {
