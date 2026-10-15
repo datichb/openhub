@@ -163,7 +163,7 @@ preconditions:
     check: { path_exists: [docs/wiki/index.md, ONBOARDING.md, CONVENTIONS.md] }
     suggest: { workflow: onboarding, resume: true }
 beads: { allow: [show, list, ready, children, dep, update, close, comments, label] }
-runtime: { default: local, allowed: [local] }
+runtime: { default: local, allowed: [local, container] }
 outputs:
   - { id: branch, type: branch, label: { fr: Branche de travail, en: Working branch } }
   - { id: tickets, type: beads-ids, record: closed, label: { fr: Tickets terminés, en: Finished tickets } }

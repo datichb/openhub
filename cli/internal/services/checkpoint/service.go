@@ -58,8 +58,12 @@ type Service struct {
 	// Account runs the verifications and their git reads as the account
 	// of the agents (remote job: the oh account of the image, never root;
 	// R3-remote); nil = the account of oh.
-	Account  *Account
-	verifier verifier
+	Account *Account
+	// ContainerExec runs the verifications of a session that works in a
+	// container, in a container (verify_container.go); nil: they cannot
+	// run (never on the machine instead).
+	ContainerExec ContainerExecFunc
+	verifier      verifier
 
 	// CommitPassed runs when a checkpoint that unlocks the commit is
 	// passed, before the call returns to the agent (LD-J: oh applies the

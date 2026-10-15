@@ -36,4 +36,4 @@ agents:
   merger: { role: workflow }
 modes: { default: auto, allowed: [auto] }
 beads: { allow: [show] }
-runtime: { default: local, allowed: [local] }
+runtime: { default: local, allowed: [local, container] }

@@ -138,7 +138,7 @@ modes: { default: semi-auto, allowed: [manuel, semi-auto, auto] }
 circuit_breaker: { max_consecutive_subagents: 12 }
 beads:
   allow: [show, list, search, query]
-runtime: { default: local, allowed: [local] }
+runtime: { default: local, allowed: [local, container] }
 outputs:
   - { id: branch, type: branch, label: { fr: Branche de travail, en: Working branch } }
   - { id: tasks, type: text, record: tasks, label: { fr: Sous-tâches relevées par oh, en: Subtasks recorded by oh } }

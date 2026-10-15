@@ -203,7 +203,7 @@ func (s *Service) StartVerify(sess *domain.Session, c sessionspec.CheckpointDef)
 		s.recordUnavailable(ctx, sess.ID, c, unreadableWork())
 		return
 	}
-	if r, ok := s.currentVerify(ctx, sess.ID, c, fp); ok && (r.Done() || !s.stale(r, c)) {
+	if r, ok := s.currentVerify(ctx, sess.ID, c, fp); ok && s.reusable(r, c) {
 		return
 	}
 	s.launchVerify(sess, c, fp)
@@ -241,7 +241,7 @@ func (s *Service) verification(ctx context.Context, sess *domain.Session, c sess
 		return s.recordUnavailable(ctx, sess.ID, c, unreadableWork()), nil
 	}
 	r, ok := s.currentVerify(ctx, sess.ID, c, fp)
-	if !ok || (!r.Done() && s.stale(r, c)) {
+	if !ok || !s.reusable(r, c) {
 		s.launchVerify(sess, c, fp)
 	}
 	deadline := time.Now().Add(wait)
@@ -382,6 +382,15 @@ func (s *Service) runVerify(ctx context.Context, sess *domain.Session, c session
 		}
 	}
 	env := verifyEnv(os.Environ(), s.Account)
+	if inContainer(sess) {
+		// fanout-container: where the agents run, never on the machine.
+		in, done, failed, ok := s.containerRunner(ctx, sess)
+		if !ok {
+			return failed
+		}
+		defer done()
+		run, env = in, containerVerifyEnv
+	}
 	r := domain.CheckpointVerify{}
 	var failed *TailBuffer
 	for _, cmd := range runs {

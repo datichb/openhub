@@ -23,11 +23,11 @@ On lance un workflow avec `oh run <workflow>` ou la fiche de lancement de la TUI
 | Workflow | Agent d'entrée | Agents | Risque | Exécution | Remplace |
 |---|---|---|---|---|---|
 | `ticket` | `orchestrator-dev` | `developer`, `reviewer`, `documentarian` (à la demande) | write | local, conteneur, distant | `oh start --dev`, `-t` |
-| `quick` | `developer` | — | write | local | session rapide |
+| `quick` | `developer` | — | write | local, conteneur | session rapide |
 | `infra-change` | `operator` | — | write (infrastructure, aucun fichier) | local | ancien agent `infra` (partie application) |
 | `spec` (alias `cadrage`, `feature`) | `conductor` | `pathfinder` (si la demande compare des conceptions), `planner` (écrit `docs/wiki/specs/`), `designer` | plan (+ `writes:`) | local | `cadrage` (ancien mode A sans implémentation), avec une spec écrite et vérifiée |
-| `implement-spec` (alias `feature` avec `--tickets`) | `orchestrator-dev` | `developer`, `reviewer`, `documentarian` (à la demande) ; en fan-out : `reviewer` et une session enfant `ticket` par ticket | write | local | partie implémentation de l'ancien `feature` (mode B : tickets existants) |
-| `merge-conflicts` | `merger` | — | write (conclut un merge en cours ; jamais de push) | local | — (lancé par oh dans un fan-out) |
+| `implement-spec` (alias `feature` avec `--tickets`) | `orchestrator-dev` | `developer`, `reviewer`, `documentarian` (à la demande) ; en fan-out : `reviewer` et une session enfant `ticket` par ticket | write | local, conteneur | partie implémentation de l'ancien `feature` (mode B : tickets existants) |
+| `merge-conflicts` | `merger` | — | write (conclut un merge en cours ; jamais de push) | local, conteneur | — (lancé par oh dans un fan-out) |
 | `onboarding` | `onboarder` | — | write (`docs/wiki/`) | local, distant | `oh start --onboard` (ancien mode C) |
 | `doc-sync` | `documentarian` | — | write (`docs/wiki/`) | local | — |
 | `skill-refresh` | `documentarian` | — | write (skills de stack du hub) | local | — |
@@ -42,8 +42,8 @@ On lance un workflow avec `oh run <workflow>` ou la fiche de lancement de la TUI
 | `retro` | `debugger` (écrit `docs/wiki/retros/`) | — | write | local | — |
 | `triage` | `planner` | — | plan | local | — |
 | `benchmark` | `benchmarker` | — | write (`reports/benchmarks/`) | local | `oh run libre --agent benchmarker` |
-| `sweep` | `conductor` | `pathfinder`, `developer`, `reviewer` ; en fan-out : `pathfinder`, `reviewer` et une session enfant `sweep-task` par sous-tâche | write | local | `oh start --sweep` |
-| `sweep-task` | `developer` | — | write | local | — (lancé par oh dans un sweep en fan-out) |
+| `sweep` | `conductor` | `pathfinder`, `developer`, `reviewer` ; en fan-out : `pathfinder`, `reviewer` et une session enfant `sweep-task` par sous-tâche | write | local, conteneur | `oh start --sweep` |
+| `sweep-task` | `developer` | — | write | local, conteneur | — (lancé par oh dans un sweep en fan-out) |
 | `brief-enrich` | `brief-enricher` | — | read | local | `oh takeover-brief enrich` |
 | `libre` | au choix (`orchestrator` par défaut, son seul workflow) | ceux que l'agent choisi peut appeler | write | local, conteneur | `oh start --agent`, session libre de la TUI |
 
@@ -199,7 +199,7 @@ Implémente les tickets d'une spec l'un après l'autre, dans une seule session (
 
 Aucune délégation avant `cp-plan`. Chaque ticket passe par son `cp-2` (commit, puis fermeture, avant le suivant). Tous les tickets traités, le `reviewer` fait une review adversariale de tous les commits de la session ; `cp-final` présente son verdict, les tickets et leurs commits, les points ouverts : l'utilisateur décide d'un tour de correction (un seul, repassé par `cp-2`) ou de s'arrêter.
 
-Budget de pauses (CP-R2) en semi-auto : `cp-plan`, `cp-2`, `cp-final`, soit 3 pauses pour un budget de 3 (2 décisions, 1 action irréversible) ; la méthode `tdd` en ajoute une (`cp-seams`). Une feature de N tickets coûte donc N + 2 pauses (au lieu de N + 3 dans l'ancien `feature`). Mode par défaut : `semi-auto`. Exécution : locale. Commandes Beads autorisées : `show`, `list`, `ready`, `children`, `dep`, `update`, `close`, `comments`, `label`. Sorties : `branch` (déclarée), `tickets` (tickets fermés, relevés par oh).
+Budget de pauses (CP-R2) en semi-auto : `cp-plan`, `cp-2`, `cp-final`, soit 3 pauses pour un budget de 3 (2 décisions, 1 action irréversible) ; la méthode `tdd` en ajoute une (`cp-seams`). Une feature de N tickets coûte donc N + 2 pauses (au lieu de N + 3 dans l'ancien `feature`). Mode par défaut : `semi-auto`. Exécution : locale ou en conteneur. Commandes Beads autorisées : `show`, `list`, `ready`, `children`, `dep`, `update`, `close`, `comments`, `label`. Sorties : `branch` (déclarée), `tickets` (tickets fermés, relevés par oh).
 
 ### Fan-out (`fanout=true`, expérimental)
 
@@ -213,6 +213,8 @@ Budget de pauses (CP-R2) en semi-auto : `cp-plan`, `cp-2`, `cp-final`, soit 3 pa
 6. `cp-final` : récap ; un nouvel `implement-spec` pour les tickets non mergés. oh supprime ensuite les worktrees et branches `oh/fanout/…` (après `cp-merge`, ou à l'arrêt de la parente ; jamais une branche dont les commits ne sont sur aucune autre : `oh fanout clean --discard`).
 
 Budget de pauses en semi-auto : `cp-plan`, `cp-merge`, `cp-final`, soit **3 pauses quel que soit le nombre de tickets** (2 de plus par tour de correction). Budget global (F-04) : la parente et ses enfants ne dépassent pas `[fanout] budget_usd` (10 $ par défaut) ; au-delà, oh ne lance plus d'enfant et arrête celui qui tourne (état `budget`), et chaque enfant reçoit ce qui reste comme budget de session. État : `oh fanout status <session>` ; dans `oh session list` et la TUI, un enfant est marqué `↳` (avec son ticket), la parente `⑂`. Guide : [Fan-out](../guides/fan-out.fr.md).
+
+**En conteneur** (session parente lancée avec `--runtime container`) : les enfants, le merger et le tour de correction tournent dans le runtime de la parente, chacun dans un conteneur de son workflow avec son worktree monté ; le pilote, les merges et la fermeture des tickets restent sur la machine ; les vérifications (enfants et `cp-merge` sur la branche d'intégration) tournent dans un conteneur de l'image du projet, jamais sur la machine à la place. Session distante : fan-out refusé (à venir). Détail : [Fan-out › En conteneur](../guides/fan-out.fr.md#en-conteneur).
 
 ## `merge-conflicts`
 

@@ -21,7 +21,7 @@ parallel = 2
 budget_usd = 10
 ```
 
-Sans `experimental`, un lancement avec `fanout=true` est refusé. Le fan-out ne tourne qu'en local (ni conteneur, ni session distante).
+Sans `experimental`, un lancement avec `fanout=true` est refusé. Le fan-out tourne en local ou [en conteneur](#en-conteneur) ; une session distante (`--runtime remote`) est refusée (à venir).
 
 ## Lancer
 
@@ -67,6 +67,15 @@ oh fanout clean <session> --discard    # supprime aussi les branches non mergée
 
 Une branche supprimée avec `--discard` se restaure avec `git branch <branche> <commit>` tant que git garde le commit.
 
+## En conteneur
+
+Une session parente lancée en conteneur (`oh run implement-spec -i fanout=true --runtime container`, ou le runtime par défaut du projet) fait tout son fan-out en conteneur, jamais sur la machine à sa place :
+
+- **Worktrees et branches** : le pilote les crée sur la machine, comme en local, à côté du projet (`<projet>-oh-fanout-…`) ; ce sont les chemins qu'oh garde, pour ses merges, ses vérifications de l'état du travail et le nettoyage. Dans un conteneur, chaque worktree est monté sous `/work/<nom>` et le dossier git commun du dépôt à son chemin sur la machine (les liens `gitdir:` des worktrees se résolvent des deux côtés) : les commits d'un enfant sont aussitôt visibles d'oh. Le dossier parent du projet doit donc être partagé avec la VM du moteur (c'est le cas du dossier personnel avec Colima et Podman par défaut).
+- **Sessions enfants, merger, tour de correction** : lancées par le pilote dans le runtime de la parente, chacune dans un conteneur de son workflow (`ticket`, `sweep-task`, `merge-conflicts`, `quick`) avec son worktree monté, jamais dans celui de la parente (un autre workflow, un autre monde fermé). Deux enfants en même temps ont chacun leur conteneur ; un conteneur inactif est redémarré pour monter le worktree suivant. Même image du projet, mêmes règles qu'en local, posées dès la création de chaque session : ni push, ni merge, ni fermeture de ticket, ni déplacement des branches `oh/fanout/…`, quel que soit le chemin employé (`/work/…` ou le chemin du dépôt sur la machine).
+- **Pilote, merges et tickets** : le pilote reste un processus d'oh sur la machine (relancé par le démon), oh merge les enfants et la branche d'intégration et ferme les tickets sur la machine. Le budget global couvre la parente et toutes ses sessions, comme en local.
+- **Vérifications** : celle de chaque enfant et celle de `cp-merge` sur la branche d'intégration tournent **dans un conteneur** de l'image du projet, lancé pour l'occasion avec le worktree monté puis supprimé (voir [Checkpoints › Sessions en conteneur](../reference/checkpoints.fr.md#sessions-en-conteneur)). Moteur arrêté ou image impossible à construire : la vérification est impossible, `cp-merge` ne passe pas (il ne se force jamais) et elle est relancée au prochain appel ; elle ne tourne jamais sur la machine à la place.
+
 ## Suivre
 
 ```
@@ -101,3 +110,5 @@ Les garde-fous de la substitution de contrôle (déclarée par la couche hub seu
 - `feature` est un alias (`spec`, ou `implement-spec` avec `--tickets`) : `oh run feature --tickets … -i fanout=true` lance donc ce fan-out.
 - Un enfant qui attend une réponse dans son texte (sans l'outil `question`) n'est arrêté qu'au garde-fou de 10 minutes et reste non mergé.
 - Le pilote suit le fan-out jusqu'au passage de `cp-merge` (pour lancer les tours de correction) : s'il s'est arrêté, le démon le relance (ou `oh fanout drive <session>`).
+- En conteneur, un worktree neuf ne voit pas les volumes de cache relatifs (`node_modules`…) des autres emplacements : ils sont vides pour lui et pour sa vérification, comme les dépendances non suivies d'un worktree neuf en local.
+- Session distante : pas de fan-out (les enfants, les merges par oh et la vérification de `cp-merge` tournent sur la machine de la parente) ; à venir.

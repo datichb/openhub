@@ -48,4 +48,4 @@ skills:
     - developer/test-generation
 beads:
   allow: [show, list, ready, search, query, children, comments, count, status, graph, history, create, update, close, dep, label]
-runtime: { default: local, allowed: [local] }
+runtime: { default: local, allowed: [local, container] }

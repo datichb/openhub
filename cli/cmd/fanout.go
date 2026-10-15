@@ -75,13 +75,15 @@ func fanoutParentRecord(a *app.App) *domain.SessionFanout {
 }
 
 // checkFanoutLaunch refuses a fan-out launch the configuration or the
-// runtime does not allow.
+// runtime does not allow: local or container (fanout-container), never
+// remote (backlog: the children, the merges by oh and the verification on
+// the integration branch run on the machine of the parent).
 func checkFanoutLaunch(a *app.App, runtime sessionspec.RuntimeKind, perSession []string) error {
 	switch {
 	case !fanoutEnabled(a):
 		return errors.New(i18n.T("cmd.fanout.disabled"))
-	case runtime == sessionspec.RuntimeRemote || runtime == sessionspec.RuntimeContainer:
-		return errors.New(i18n.Tf("cmd.fanout.local_only", string(runtime)))
+	case runtime == sessionspec.RuntimeRemote:
+		return errors.New(i18n.Tf("cmd.fanout.remote_refused", string(runtime)))
 	case len(perSession) > 0:
 		return errors.New(i18n.T("cmd.fanout.one_session"))
 	}
@@ -307,9 +309,13 @@ type fanoutLauncher struct {
 }
 
 func (l *fanoutLauncher) Start(ctx context.Context, req fanout.LaunchRequest) (string, error) {
+	rt, err := fanoutRuntime(req.Parent)
+	if err != nil {
+		return "", err
+	}
 	opts := runOptions{Workflow: req.Workflow, Project: l.project, Mode: req.Parent.Mode, Location: req.Dir,
 		Attach: string(sessionspec.AttachNone), ParentSessionID: req.Parent.ID, Dirty: runsvc.DirtyAllow, OneSession: true,
-		OnExisting: runsvc.OnExistingParallel, LooseInputs: req.Inputs}
+		OnExisting: runsvc.OnExistingParallel, LooseInputs: req.Inputs, Runtime: string(rt)}
 	if req.Record.Role == domain.RoleChild && req.Ticket != "" && req.Task == nil {
 		opts.Tickets = []string{req.Ticket} // a task (sweep-fanout) has no ticket
 	}
@@ -352,6 +358,21 @@ func (l *fanoutLauncher) Start(ctx context.Context, req fanout.LaunchRequest) (s
 		return "", errors.New("no session started")
 	}
 	return results[0].SessionID, nil
+}
+
+// fanoutRuntime is where the sessions of the fan-out of parent run: in its
+// runtime (fanout-container: a parent in a container gets its children,
+// mergers and fixers in containers too, never on the machine), never
+// remote.
+func fanoutRuntime(parent *domain.Session) (sessionspec.RuntimeKind, error) {
+	switch rt := sessionspec.RuntimeKind(parent.Runtime); rt {
+	case "", sessionspec.RuntimeLocal:
+		return sessionspec.RuntimeLocal, nil
+	case sessionspec.RuntimeContainer:
+		return rt, nil
+	default:
+		return "", errors.New(i18n.Tf("cmd.fanout.remote_refused", string(rt)))
+	}
 }
 
 func (l *fanoutLauncher) Status(ctx context.Context, id string) (fanout.SessionStatus, error) {

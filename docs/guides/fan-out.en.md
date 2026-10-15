@@ -21,7 +21,7 @@ parallel = 2
 budget_usd = 10
 ```
 
-Without `experimental`, a launch with `fanout=true` is refused. The fan-out only runs locally (no container, no remote session).
+Without `experimental`, a launch with `fanout=true` is refused. The fan-out runs locally or [in a container](#in-a-container); a remote session (`--runtime remote`) is refused (to come).
 
 ## Launch
 
@@ -67,6 +67,15 @@ oh fanout clean <session> --discard    # also deletes the unmerged branches, the
 
 A branch deleted with `--discard` comes back with `git branch <branch> <commit>` while git keeps the commit.
 
+## In a container
+
+A parent session launched in a container (`oh run implement-spec -i fanout=true --runtime container`, or the default runtime of the project) runs its whole fan-out in containers, never on the machine instead:
+
+- **Worktrees and branches**: the driver creates them on the machine, as locally, next to the project (`<project>-oh-fanout-…`); these are the paths oh keeps, for its merges, its checks of the state of the work and the clean-up. In a container, each worktree is mounted under `/work/<name>` and the common git directory of the repository at its machine path (the `gitdir:` links of the worktrees resolve on both sides): the commits of a child are seen by oh at once. The parent folder of the project must therefore be shared with the VM of the engine (the home folder is, by default, with Colima and Podman).
+- **Child sessions, merger, fix round**: launched by the driver in the runtime of the parent, each in a container of its workflow (`ticket`, `sweep-task`, `merge-conflicts`, `quick`) with its worktree mounted, never in the parent's (another workflow, another closed world). Two children at once get a container each; an idle container is restarted to mount the next worktree. Same project image, same rules as locally, set from the creation of each session: no push, no merge, no ticket closing, no moving of the `oh/fanout/…` branches, whatever path is used (`/work/…` or the machine path of the repository).
+- **Driver, merges and tickets**: the driver stays an oh process on the machine (started again by the daemon); oh merges the children and the integration branch and closes the tickets on the machine. The global budget covers the parent and all its sessions, as locally.
+- **Verifications**: that of each child and that of `cp-merge` on the integration branch run **in a container** of the project image, started for it with the worktree mounted, then removed (see [Checkpoints › Container sessions](../reference/checkpoints.en.md#container-sessions)). Engine stopped or image that cannot be built: the verification is impossible, `cp-merge` does not pass (it is never forced) and it is tried again at the next call; it never runs on the machine instead.
+
 ## Follow
 
 ```
@@ -101,3 +110,5 @@ The guards of the control substitution (declared by the hub layer only, mandator
 - `feature` is an alias (`spec`, or `implement-spec` with `--tickets`): `oh run feature --tickets … -i fanout=true` thus launches this fan-out.
 - A child that waits for an answer in its text (without the `question` tool) is only stopped by the 10-minute guard and stays unmerged.
 - The driver follows the fan-out until `cp-merge` passes (to launch the fix rounds): if it stopped, the daemon starts it again (or `oh fanout drive <session>`).
+- In a container, a new worktree does not see the relative cache volumes (`node_modules`…) of the other locations: they are empty for it and for its verification, as the untracked dependencies of a new worktree locally.
+- Remote session: no fan-out (the children, the merges by oh and the verification of `cp-merge` run on the machine of the parent); to come.
