@@ -115,9 +115,10 @@ Un concept devient un **god node** quand il apparaît dans ≥ 2 pages wiki dist
    mot d'insistance (**jamais**, **Important**…), nom de produit ou de langage (`TypeScript`, `GitHub`…). Dans
    le glossaire, un terme défini (`**Panier** : …`) est un candidat.
 2. Une page cite un concept quand elle le nomme comme mot entier (sans tenir compte de la casse), hors des
-   métadonnées de ses tags (agent, date, source) et des cibles de ses liens, ou, pour un concept déclaré, quand la
-   table la lie. Les cartes du wiki (`index.md`, l'index d'un dossier, `glossary.md`) ne comptent pas : elles
-   nomment tous les concepts.
+   métadonnées de ses tags (agent, date, source) et des cibles de ses liens, ou, pour un concept déclaré qu'une page
+   nomme encore, quand la table la lie (un concept renommé qu'aucune page ne nomme plus est périmé, quels que soient
+   ses liens). Les cartes du wiki (`index.md`, l'index d'un dossier, `glossary.md`) ne comptent pas : elles nomment
+   tous les concepts.
 3. Si ≥ 2 pages : god node. Les concepts déclarés gardent leur ordre, puis viennent les autres, par nombre de pages.
 4. Criticité : `Critique` (≥ 4 pages, cité dans « Points critiques actifs » ou déclaré `Critique`), `Haute`
    (3 pages ou déclaré `Haute`), `Normale` (2 pages).

@@ -116,8 +116,9 @@ A concept becomes a **god node** when it appears in ≥ 2 distinct wiki pages (t
    **Important**…), a product or language name (`TypeScript`, `GitHub`…). In the glossary, a defined term
    (`**Panier** : …`) is a candidate.
 2. A page cites a concept when it names it as a whole word (case insensitive), outside the metadata of its tags
-   (agent, date, source) and the targets of its links, or, for a declared concept, when the table links to it. The
-   maps of the wiki (`index.md`, the index of a folder, `glossary.md`) do not count: they name every concept.
+   (agent, date, source) and the targets of its links, or, for a declared concept that a page still names, when the
+   table links to it (a renamed concept no page names any more is stale, whatever its links). The maps of the wiki
+   (`index.md`, the index of a folder, `glossary.md`) do not count: they name every concept.
 3. At ≥ 2 pages: god node. Declared concepts keep their order, then come the others, by number of pages.
 4. Criticality (written in French in the wiki): `Critique` (≥ 4 pages, named in « Points critiques actifs » or
    declared `Critique`), `Haute` (3 pages or declared `Haute`), `Normale` (2 pages).

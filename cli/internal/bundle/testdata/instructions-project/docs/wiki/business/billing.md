@@ -7,5 +7,5 @@ agents: [onboarder]
 # Facturation
 
 ## Règles de gestion
-- Une facture par paiement, TVA du pays de livraison.
+- Facturation et TVA : une facture par paiement, TVA du pays de livraison.
   — `CONFIRMÉ` · onboarder · 2026-09-12 · api/billing/vat.go:18

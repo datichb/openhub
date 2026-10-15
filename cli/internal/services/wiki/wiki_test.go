@@ -101,6 +101,44 @@ func TestGodNodeRowChanges(t *testing.T) {
 		"a page more: the row is computed again, its declared link kept")
 }
 
+// A declared row whose concept no page names any more (renamed, accented)
+// is stale even when the pages it links still exist: the table alone does
+// not keep it (p8-fixes: "Contenu embarque" stayed after "Contenu embarqué").
+func TestGodNodeDeclaredOnlyByTable(t *testing.T) {
+	root := writeWiki(t, map[string]string{
+		"index.md": atlasIndex("| Contenu embarque | [technical/architecture.md](technical/architecture.md), [technical/stack.md](technical/stack.md) | Normale |\n" +
+			"| Commande | [business/orders.md](business/orders.md), [technical/stack.md](technical/stack.md) | Normale |\n"),
+		"technical/architecture.md": fm + "# Architecture\n\n- Le **Contenu embarqué** est copié.\n— `DÉDUIT` · dev · 2026-09-01\n",
+		"technical/stack.md":        fm + "# Stack\n\n- Go et le contenu embarqué.\n— `DÉDUIT` · dev · 2026-09-01\n",
+		"business/orders.md":        fm + "# Commandes\n\n- Une commande.\n— `DÉDUIT` · dev · 2026-09-01\n",
+	})
+	w, err := Load(root)
+	require.NoError(t, err)
+	var order []string
+	for _, g := range w.Index().GodNodes {
+		order = append(order, g.Concept)
+	}
+	assert.Equal(t, []string{"Commande", "Contenu embarqué"}, order, "a page still names Commande: its declared link counts")
+
+	rep, err := Check(context.Background(), root, nil)
+	require.NoError(t, err)
+	stale := 0
+	for _, i := range rep.Issues {
+		if i.Kind == IssueGodNodeStale {
+			stale++
+			assert.Contains(t, i.Message, "Contenu embarque")
+		}
+	}
+	assert.Equal(t, 1, stale, "%+v", rep.Issues)
+
+	_, err = Fix(root, time.Date(2026, 10, 15, 9, 0, 0, 0, time.UTC))
+	require.NoError(t, err)
+	index, _ := ReadPage(root, IndexPage, "")
+	assert.NotContains(t, index, "| Contenu embarque |")
+	assert.Contains(t, index, "| Contenu embarqué | [technical/architecture.md](technical/architecture.md), [technical/stack.md](technical/stack.md) | Normale |")
+	assert.Contains(t, index, "| Commande | [business/orders.md](business/orders.md), [technical/stack.md](technical/stack.md) | Normale |", "kept as written")
+}
+
 func TestReadPage(t *testing.T) {
 	root := writeWiki(t, map[string]string{"technical/stack.md": fm + "# Stack\n\n## Go\n- 1.26\n\n## Web\n- React\n"})
 	text, err := ReadPage(root, "docs/wiki/technical/stack.md", "")
