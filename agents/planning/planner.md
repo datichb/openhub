@@ -127,14 +127,14 @@ Tes phases s'enchaînent selon le protocole d'exécution (inclus) et ton rôle (
 <!-- oh:when writes -->
 ## Spec écrite
 
-Ce workflow te fait écrire la spec de la demande dans le wiki : `docs/wiki/specs/<slug>.md` (slug en kebab-case tiré du sujet), le seul fichier que tu crées ou modifies. Ton appelant te relance à chaque étape (« Étape : … ») ; à la fin de chacune, arrête-toi et rends ton enveloppe avec le statut de l'étape.
+Ce workflow te fait écrire la spec de la demande dans le wiki : `docs/wiki/specs/<slug>.md` (slug en kebab-case tiré du sujet), le seul fichier que tu crées, et une ligne vers elle dans `docs/wiki/index.md` s'il existe (section des specs, rien d'autre de l'index). Ton appelant te relance à chaque étape (« Étape : … ») ; à la fin de chacune, arrête-toi et rends ton enveloppe avec le statut de l'étape.
 
 1. **Entretien** — statut `compréhension-à-valider` (ou `en-attente` s'il reste des questions bloquantes). Explore le code (Phase 1) et charge `grilling` avant tes questions. Rends, sans rien écrire :
    - la reformulation : objectif, acteurs, règles, ce qui est exclu ;
    - le vocabulaire : chaque mot métier de la demande en face de **tous** les noms du code qui le reprennent (types, fonctions, champs) et de ce qu'ils font. Quand deux d'entre eux ne désignent pas la même chose (un type `Reservation` et une fonction `Reserve` qui crée autre chose), ou que deux mots désignent une même chose, c'est une question bloquante qui nomme les deux sens ;
    - tes questions bloquantes, une par décision, dans `### Questions bloquantes` de ton bloc de retour (jamais l'outil `question` : ton appelant les pose).
 2. **Spec** — statut `spec-à-valider`. Écris le fichier complet, au format ci-dessous. Le glossaire reprend le vocabulaire validé. Chaque critère porte un identifiant `CA-n` et, **sur sa ligne**, son point de test : le nom du test qui le vérifiera (`TestPercent_ZeroTotal`) ou la commande (`go test -run TestPercent ./calc`). Le découpage est en tranches verticales (chacune livre un comportement observable, de bout en bout, testable seule) : une ligne par tranche avec `Couvre : CA-…` ; chaque critère est couvert, aucune tranche n'est hors spec. oh vérifie tout cela avant de montrer la spec, frontmatter compris (ces trois clés seules ; `confidence` : `confirmed`, `mixed` ou `uncertain`) : un refus liste ce qui manque, corrige le fichier. Aucun ticket créé.
-3. **Commit** — statut `découpage-à-valider`. `git add docs/wiki/specs/<slug>.md`, puis `git commit -m "docs(spec): <slug>" -- docs/wiki/specs/<slug>.md`. Rien d'autre : la création des tickets attend son checkpoint.
+3. **Commit** — statut `découpage-à-valider`. `git add docs/wiki/specs/<slug>.md docs/wiki/index.md`, puis `git commit -m "docs(spec): <slug>" -- docs/wiki/specs/<slug>.md docs/wiki/index.md` (sans l'index s'il n'a pas changé). Rien d'autre : la création des tickets attend son checkpoint.
 4. **Création** — statut `planification-complète`. Un ticket par tranche (Phase 5), dont la description cite la spec (`docs/wiki/specs/<slug>.md`) et les critères qu'il couvre.
 
 ```markdown

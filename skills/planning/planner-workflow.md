@@ -26,8 +26,8 @@ Tu ne CODES JAMAIS, tu PLANIFIES uniquement.
 - Exécuter des commandes autres que celles listées dans ce skill
 <!-- /oh:when -->
 <!-- oh:when writes -->
-- Créer ou modifier un autre fichier que ta spec (`docs/wiki/specs/`, section « Spec écrite » de ton prompt)
-- Exécuter des commandes autres que celles listées dans ce skill, ou que le `git add` et le `git commit` de ta spec
+- Créer ou modifier un autre fichier que ta spec (`docs/wiki/specs/`) et sa ligne dans `docs/wiki/index.md` (section « Spec écrite » de ton prompt)
+- Exécuter des commandes autres que celles listées dans ce skill, ou que le `git add` et le `git commit` de ta spec (et de l'index)
 <!-- /oh:when -->
 - Utiliser `bd edit`, `bd delete` ou tout autre verbe `bd` non listé ici
 - Continuer vers Phase 3 si une information manquante critique rend le plan peu fiable — s'arrêter et poser la question

@@ -141,7 +141,7 @@ Direct development session with the `developer` agent, without planning. A singl
 
 ## `spec`
 
-Understands a request, writes its spec in the wiki and slices it into Beads tickets, without implementing it (`risk: plan`). The `conductor` relaunches the `planner` at each step; the planner stays read-only, except its spec: `agents.planner.writes: ["docs/wiki/specs/**"]` ([`writes`](workflow-schema.en.md#writes-documentation-paths)).
+Understands a request, writes its spec in the wiki and slices it into Beads tickets, without implementing it (`risk: plan`). The `conductor` relaunches the `planner` at each step; the planner stays read-only, except its spec and its line in the wiki index: `agents.planner.writes: ["docs/wiki/specs/**", "docs/wiki/index.md"]` ([`writes`](workflow-schema.en.md#writes-documentation-paths)).
 
 | Input | Type | Required | Purpose |
 |---|---|---|---|
@@ -161,7 +161,7 @@ Steps:
 1. **Interview**: the planner explores the code and loads `grilling`; its blocking questions (one per decision) are asked by the `conductor`. It returns its restatement and the vocabulary (each word of the request against the names of the code), shown at `cp-understanding`.
 2. **Spec**: once `cp-understanding` is passed (before, oh refuses the write of the spec and tells the planner to wait for that checkpoint), the planner writes `docs/wiki/specs/<slug>.md`: goal, scope, **glossary**, **acceptance criteria** (`CA-n`, each with its test point on its line: `· Test : TestPercent_ZeroTotal`), decisions and a **breakdown** into vertical slices (`Couvre : CA-…`). The format is in the planner's prompt (section “Spec écrite”), not in a skill to load.
 3. **Convergence pass** (`cp-converge`, no pause): oh reads the spec and checks the glossary, the test point of each criterion, that every criterion is covered by a slice and that no slice is outside the spec. A gap refuses the checkpoint with the list of problems: the planner fixes it (or asks a question when the gap needs a decision), then the checkpoint is asked again.
-4. **`cp-spec`**: the user approves the spec (same check); the planner commits it alone: `git add docs/wiki/specs/<slug>.md`, then `git commit -m "docs(spec): <slug>" -- docs/wiki/specs/<slug>.md`.
+4. **`cp-spec`**: the user approves the spec (same check); the planner commits it with its line in `docs/wiki/index.md` (when it exists): `git add docs/wiki/specs/<slug>.md docs/wiki/index.md`, then `git commit -m "docs(spec): <slug>" -- docs/wiki/specs/<slug>.md docs/wiki/index.md`.
 5. **`cp-tickets`**: the user approves the breakdown; the planner creates one ticket per slice, whose description cites the spec and its criteria. A spec or breakdown changed at a checkpoint goes again through `cp-converge`, `cp-spec` (new commit) and `cp-tickets`.
 
 Order enforced by oh: `cp-converge` is refused before `cp-understanding`, `cp-spec` before `cp-converge`, `cp-tickets` before `cp-spec` (`after:`); the refusal names the checkpoint to pass first.
@@ -225,7 +225,7 @@ Discovers the project and creates or enriches the `docs/wiki/` wiki (`doc-wiki-p
 | `refresh` | `bool` (default: no) | no | Rediscover the project and propose the updates of the existing wiki (validated one by one on the card of `cp-wiki`), without deleting anything |
 | `focus` | `text` (4,000 characters max) | no | Modules or topics to dig into |
 
-The onboarder only writes `docs/wiki/`, `ONBOARDING.md` and `CONVENTIONS.md`: it is a permission (any other write is refused, `.gitignore` and `.git/` included). Without a wiki, it creates the pages; with a wiki (`docs/wiki/index.md`), it changes none and proposes each update with `wiki_propose` (nothing when the wiki is faithful to the code). It then passes `cp-wiki` (mandatory, unlocks the commit, `remote: defer`): the card shows its proposals, the user accepts, edits or refuses each one, oh applies the accepted ones; then the onboarder commits `docs/wiki/` alone (`writes: ["docs/wiki/**"]`). `ONBOARDING.md`, `CONVENTIONS.md` and the push are left to the user. One pause in semi-auto (CP-R2 budget: one irreversible action). Output: `wiki`. Allowed Beads commands (read only): `show`, `list`, `search`, `query`.
+The onboarder only writes `docs/wiki/`, `ONBOARDING.md` and `CONVENTIONS.md`: it is a permission (any other write is refused, `.gitignore` and `.git/` included). Without a wiki, it creates the pages; with a wiki (`docs/wiki/index.md`), it changes none and proposes each update with `wiki_propose` (nothing when the wiki is faithful to the code). It then passes `cp-wiki` (mandatory, unlocks the commit, `remote: defer`): the card shows its proposals, the user accepts, edits or refuses each one, oh applies the accepted ones; then the onboarder commits `docs/wiki/`, `ONBOARDING.md` and `CONVENTIONS.md` in one commit (`writes: ["docs/wiki/**", ONBOARDING.md, CONVENTIONS.md]`), nothing else. The push is left to the user. One pause in semi-auto (CP-R2 budget: one irreversible action). Output: `wiki`. Allowed Beads commands (read only): `show`, `list`, `search`, `query`.
 
 ## `doc-sync`
 
@@ -390,7 +390,7 @@ Fixes the findings of a security audit: triage, fix with a regression test, targ
 
 | Input | Type | Required | Role |
 |---|---|---|---|
-| `findings` | `text` (65,536 characters max) | yes | The findings: audit report or excerpt, one finding per entry with its severity and location; by default, the report of the `audit` session the launch is chained from (`--parent`), else of the last `audit` session of the project that deposited one (`from: session.output(audit.findings)`) |
+| `findings` | `text` (65,536 characters max) | no | The findings: audit report or excerpt, one finding per entry with its severity and location; by default, the report of the security audit the launch is chained from (`--parent`), else of the last security audit of the project (`from: session.output(audit.findings)`, `from_equals: { type: security }`); none: the session asks for them before any step (`question` tool) |
 
 | Checkpoint | manuel | semi-auto | auto |
 |---|---|---|---|
@@ -409,7 +409,7 @@ Flow:
 
 Why the re-analysis comes before the commit: a fix the auditor finds bypassable must not be committed; `cp-2` decides with the tests (oh) and the verdict at hand. Pause budget in semi-auto: 2 pauses (2 irreversible actions: the ticket creation at `cp-triage`, the commit at `cp-2`), for a budget of 4. Allowed Beads commands: `show`, `list`, `ready`, `search`, `query`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`.
 
-**From an audit**: a `security` audit proposes `security-fix` (`next:`); `oh run security-fix --parent <audit session>` reads the report of that audit (its content, not its id). Without `--parent` nor `-i findings=…`, oh takes the report of the last `audit` session of the project that deposited one, whatever its type, and says so at launch. An excerpt can always be given as input: `oh run security-fix -i findings="…"`.
+**From an audit**: a `security` audit proposes `security-fix` (`next:`); `oh run security-fix --parent <audit session>` reads the report of that audit (its content, not its id). Without `--parent` nor `-i findings=…`, oh takes the report of the last `security` audit of the project (never one of another type) and says so at launch; without a security audit, it says so and the session asks for the findings. An excerpt can always be given as input: `oh run security-fix -i findings="…"`.
 
 ## `spike`
 
@@ -497,7 +497,7 @@ Pause budget in semi-auto: `cp-plan`, `cp-merge`, `cp-recap`, i.e. 3 pauses what
 
 ## `sweep-task`
 
-One subtask of a sweep, without a ticket (`risk: write`): the `developer` (entry agent) does it within its file scope, runs the verification asked, passes `cp-commit` (mandatory, verified by oh, unlocks `commit`) and commits. Launched by oh for each subtask of a fan-out `sweep`, where its `cp-commit` is delegated to the `cp-merge` of the parent and oh refuses a change outside the recorded scope; usable by hand (`oh run sweep-task -i task="…" -i files="…"`), without that scope check. Inputs: `task` and `files` (required, one path, folder or pattern per line), `domain` (same list as `sweep`), `goal`, `verify`, `verify_cmd`. Allowed Beads commands: `show`, `list`, `search`, `query`. Default mode: `semi-auto` (in a fan-out, the parent's).
+One subtask of a sweep, without a ticket (`risk: write`): the `developer` (entry agent) does it within its file scope, runs the verification asked, passes `cp-commit` (mandatory, verified by oh, unlocks `commit`) and commits. Launched by oh for each subtask of a fan-out `sweep`, where its `cp-commit` is delegated to the `cp-merge` of the parent and oh refuses a change outside the recorded scope; usable by hand (`oh run sweep-task -i task="…" -i files="…"`) with the same check: oh checks the scope at launch (each entry a path, a folder or a pattern of the repository, or a new file in an existing folder; otherwise the launch is refused with the list of problems), records it (output `files`) and refuses `cp-commit` on a change outside the scope (`inputs.files.scope`). Inputs: `task` and `files` (required, one path, folder or pattern per line), `domain` (same list as `sweep`), `goal`, `verify`, `verify_cmd`. Allowed Beads commands: `show`, `list`, `search`, `query`. Default mode: `semi-auto` (in a fan-out, the parent's).
 
 ## `brief-enrich`
 

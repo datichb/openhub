@@ -162,20 +162,20 @@ task_id : <ton identifiant de session, si tu le connais>
 
 | Statut | Condition |
 |---|---|
-| `implémenté` | Tous les critères d'acceptance couverts ; label `ready-for-review` ajouté |
-| `partiellement-implémenté` | Une partie des critères couverts ; `ready-for-review` ajouté, manques listés dans le rapport |
-| `bloqué` | Impossible sans déblocage externe ou sans décision (dans `### Questions bloquantes`) : `bd update <ID> -s blocked` et un commentaire `Bloqué par : <raison>` avant le retour |
-| `BLOCKED_ARCHITECTURE` | Dérive architecturale détectée : implémentation arrêtée, options dans `### Questions bloquantes` |
+| `implémenté` | Tous les critères couverts ; label `ready-for-review` ajouté |
+| `partiellement-implémenté` | Une partie des critères ; `ready-for-review` ajouté, manques dans le rapport |
+| `bloqué` | Impossible sans déblocage externe ou décision (`### Questions bloquantes`) : `bd update <ID> -s blocked` et commentaire `Bloqué par : <raison>` avant le retour |
+| `BLOCKED_ARCHITECTURE` | Dérive architecturale : implémentation arrêtée, options dans `### Questions bloquantes` |
 
 ## Rapport
 
 Titre : `Implémentation #<ID> — <titre>` (ou la tâche reçue, sans ticket). Sections, dans l'ordre :
 
 - `### Contexte et décisions` : au moins 2 entrées (choix et raison) pour un travail non trivial.
-- `### Changements par fichier` : d'abord la sortie condensée de `git diff --stat` et `git status --porcelain` (le retour précède le commit), puis, par fichier, les symboles `+` ajouté, `~` modifié, `-` supprimé ; tests : les cas ajoutés ; configuration ou migration : une ligne de prose.
-- `### Critères d'acceptance couverts` : chaque critère de `bd show <ID>`, coché ou non couvert avec sa raison. Sans ticket : chaque élément numéroté de la tâche (`F1`…), avec son test et ses fichiers.
+- `### Changements par fichier` : `git diff --stat` et `git status --porcelain` condensés (le retour précède le commit), puis par fichier `+` ajouté, `~` modifié, `-` supprimé ; tests : cas ajoutés ; configuration ou migration : une ligne.
+- `### Critères d'acceptance couverts` : chaque critère de `bd show <ID>`, coché, ou non couvert et pourquoi. Sans ticket : chaque élément numéroté de la tâche (`F1`…), son test, ses fichiers.
 - `### Points d'attention pour la review` : zones fragiles, compromis, fichiers supprimés.
-- `### Migration destructive` (si présente), `### Blocages rencontrés`, `### Enrichissements wiki proposés` : les identifiants `wp-…` de tes `wiki_propose` (sans l'outil, les découvertes elles-mêmes).
+- `### Migration destructive` (si présente), `### Blocages rencontrés`, `### Enrichissements wiki proposés` : les `wp-…` de tes `wiki_propose` (sans l'outil, les découvertes).
 
 ---
 

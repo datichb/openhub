@@ -27,7 +27,7 @@ inputs:
 prompt:
   template: prompts/onboarding.md.tmpl
 agents:
-  onboarder: { role: workflow, writes: ["docs/wiki/**"] }
+  onboarder: { role: workflow, writes: ["docs/wiki/**", ONBOARDING.md, CONVENTIONS.md] }
 checkpoints:
   cp-wiki:
     by: [onboarder]

@@ -39,7 +39,8 @@ func TestWritesPlannerOfSpec(t *testing.T) {
 		for _, f := range []string{"docs/wiki/specs/percent.md", "docs/wiki/specs/team/auth.md"} {
 			assert.Equal(t, sessionspec.EffectAllow, p.effect(sessionspec.ActionEdit, f), "%s (plugin %v)", f, plugin)
 		}
-		for _, f := range []string{"calc.go", "docs/wiki/index.md", "docs/wiki/glossary.md", "README.md", "docs/wiki/specs.md", ".git/config", ".beads/config.yaml"} {
+		assert.Equal(t, sessionspec.EffectAllow, p.effect(sessionspec.ActionEdit, "docs/wiki/index.md"), "p6-debts: the planner adds its spec to the index (plugin %v)", plugin)
+		for _, f := range []string{"calc.go", "docs/wiki/glossary.md", "README.md", "docs/wiki/specs.md", ".git/config", ".beads/config.yaml"} {
 			assert.Equal(t, sessionspec.EffectDeny, p.effect(sessionspec.ActionEdit, f), "%s (plugin %v)", f, plugin)
 		}
 		for _, cmd := range []string{
@@ -64,6 +65,8 @@ func TestWritesPlannerOfSpec(t *testing.T) {
 			"git add docs/wiki/specs/x.md docs/wiki/specs/team/y.md",
 			"git add -- docs/wiki/specs/x.md docs/wiki/specs/team/y.md",
 			`git add docs/wiki/specs/x.md docs/wiki/specs/y.md && git commit -m "x" -m "y" -- docs/wiki/specs/x.md docs/wiki/specs/y.md`,
+			"git add docs/wiki/specs/x.md docs/wiki/index.md",
+			`git commit -m "docs(spec): x" -- docs/wiki/specs/x.md docs/wiki/index.md`,
 		} {
 			assert.Equal(t, sessionspec.EffectAsk, writesShell(p, cmd), "%s (plugin %v)", cmd, plugin)
 			assert.Equal(t, sessionspec.EffectAllow, writesOh(p, paths, cmd), "%s (plugin %v)", cmd, plugin)
@@ -160,9 +163,9 @@ func TestWritesPlannerOfSpec(t *testing.T) {
 	}
 }
 
-// onboarding-refresh: the onboarder of onboarding commits the wiki alone,
-// once cp-wiki is passed; it keeps its own edits (ONBOARDING.md), so its
-// contract does not say the wiki is the only file it may write.
+// onboarding-refresh: the onboarder of onboarding commits the wiki once
+// cp-wiki is passed; p6-debts: with ONBOARDING.md and CONVENTIONS.md, its
+// writes: paths too, in one commit.
 func TestWritesOnboarderOfOnboarding(t *testing.T) {
 	b := scratchBundle(t, "onboarding", "")
 	var own []sessionspec.PermissionRule
@@ -181,6 +184,16 @@ func TestWritesOnboarderOfOnboarding(t *testing.T) {
 	for _, f := range []string{"docs/wiki/index.md", "docs/wiki/technical/architecture.md", "ONBOARDING.md", "CONVENTIONS.md"} {
 		assert.Equal(t, sessionspec.EffectAllow, o.effect(sessionspec.ActionEdit, f), f)
 	}
+	paths := b.Spec.Workflow.Writes["onboarder"]
+	// p6-debts: ONBOARDING.md and CONVENTIONS.md are committed with the
+	// wiki at cp-wiki, nothing else.
+	for _, cmd := range []string{"git add ONBOARDING.md", `git commit -m "x" -- ONBOARDING.md`,
+		"git add docs/wiki/ ONBOARDING.md CONVENTIONS.md", `git commit -m "docs(wiki): onboarding" -- docs/wiki/ ONBOARDING.md CONVENTIONS.md`} {
+		assert.Equal(t, sessionspec.EffectAllow, writesOh(o, paths, cmd), cmd)
+	}
+	for _, cmd := range []string{"git add docs/wiki/ ONBOARDING.md README.md", `git commit -m "x" -- ONBOARDING.md main.go`, "git add ONBOARDING.md .gitignore"} {
+		assert.Equal(t, sessionspec.EffectDeny, writesOh(o, paths, cmd), cmd)
+	}
 	for _, f := range []string{"main.go", "README.md", ".gitignore"} {
 		assert.Equal(t, sessionspec.EffectDeny, o.effect(sessionspec.ActionEdit, f), f)
 	}
@@ -188,11 +201,11 @@ func TestWritesOnboarderOfOnboarding(t *testing.T) {
 		assert.Equal(t, sessionspec.EffectAllow, writesShell(o, cmd), cmd)
 	}
 	assert.Equal(t, sessionspec.EffectDeny, writesShell(agent(nil), `git commit -m "docs(wiki): onboarding" -- docs/wiki/`), "the commit waits for cp-wiki")
-	for _, cmd := range []string{"git add ONBOARDING.md", `git commit -m "x" -- ONBOARDING.md`, "git add -A", `git commit -am "x"`, "git push"} {
+	for _, cmd := range []string{"git add -A", `git commit -am "x"`, "git push"} {
 		assert.Equal(t, sessionspec.EffectDeny, writesShell(o, cmd), cmd)
 	}
-	assert.Contains(t, body, "- **Écritures** (`writes:` du workflow) : commit de `docs/wiki/**`, une fois déverrouillé")
-	assert.NotContains(t, body, "et seulement ces chemins")
+	assert.Contains(t, body, "- **Écritures** (`writes:` du workflow) : tu peux créer et modifier `docs/wiki/**`, `ONBOARDING.md`, `CONVENTIONS.md`")
+	assert.Contains(t, body, "un ou plusieurs de ces chemins")
 }
 
 // writesOh is what the session gets for a line once oh answered the

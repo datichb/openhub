@@ -21,6 +21,9 @@ inputs:
   files:
     type: text
     required: true
+    # p6-debts: the file scope of the session, checked by oh at launch and
+    # at cp-commit (by hand as in the fan-out).
+    scope: true
     label: { fr: Périmètre de fichiers, en: File scope }
     help:
       fr: Chemins, dossiers ou motifs du dépôt, un par ligne ; dans un fan-out, oh refuse le commit d'un changement hors périmètre
@@ -83,3 +86,6 @@ modes: { default: semi-auto, allowed: [manuel, semi-auto, auto] }
 beads:
   allow: [show, list, search, query]
 runtime: { default: local, allowed: [local] }
+# p6-debts: the scope given at launch, recorded for the check of cp-commit.
+outputs:
+  - { id: files, type: text, record: input, label: { fr: Périmètre de fichiers, en: File scope } }

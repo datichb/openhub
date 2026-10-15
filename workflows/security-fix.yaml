@@ -10,15 +10,16 @@ risk: write
 inputs:
   findings:
     type: text
-    required: true
     # B1: by default, the report of the audit the launch is chained from
     # (--parent, proposed by audit's next:), else of the last audit session
-    # of the project; the content of the report, not its id.
+    # of the project; the content of the report, not its id. p6-debts: of a
+    # security audit only (from_equals); none: the session asks for them.
     from: session.output(audit.findings)
+    from_equals: { type: security }
     label: { fr: Constats, en: Findings }
     help:
-      fr: Les constats à traiter (rapport d'audit ou extrait, un constat par entrée avec sa gravité et son emplacement ; par défaut, le rapport de la dernière session audit du projet)
-      en: The findings to handle (audit report or excerpt, one finding per entry with its severity and location; by default, the report of the last audit session of the project)
+      fr: Les constats à traiter (rapport d'audit ou extrait, un constat par entrée avec sa gravité et son emplacement ; par défaut, le rapport du dernier audit de sécurité du projet ; sans audit de sécurité, la session les demande au début)
+      en: The findings to handle (audit report or excerpt, one finding per entry with its severity and location; by default, the report of the last security audit of the project; without one, the session asks for them first)
     # A report holds up to 64 KiB.
     max_length: 65536
 prompt:
