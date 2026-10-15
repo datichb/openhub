@@ -28,7 +28,8 @@ team-state/
 │   ├── prompts/<id>.md.tmpl           # prompt templates
 │   └── history/<id>/<version>.yaml    # previous versions (+ <version>.prompt.md.tmpl)
 ├── projects/<project>/workflows/…     # same layout for a project
-├── catalog/{agents,skills}/           # team bricks
+├── catalog/{agents,skills}/           # team bricks (+ drafts/, history/)
+├── catalog.lock                       # integrity of the published bricks
 └── workflows.lock                     # integrity of the published files
 ```
 
@@ -125,6 +126,25 @@ team-state/catalog/
 - Team and project workflows use them like hub bricks (validation and session bundle).
 - An identifier already used by the hub (agent id, skill path or name) is **refused**, unless the brick explicitly declares `extends: hub:<id>` (agent) or `extends: hub:<path>` (skill) in its frontmatter: it then replaces the hub brick. A refused brick is skipped with a warning (`oh doctor`).
 - An annex cannot replace a hub file.
+- A symbolic link of the catalogue is skipped: nothing outside the repository reaches a bundle.
+
+### Editing and publishing with `oh brick`
+
+Bricks are managed like workflows ([reference](../reference/cli-bricks.en.md), [ADR-054](../architecture/adr/054-team-brick-catalogue.en.md)):
+
+```bash
+oh brick list --skills --origin                  # hub and team, origin and version
+oh brick new skill team/hotfix-protocol          # draft from a valid template
+oh brick new agent reviewer --extends            # replace a hub agent explicitly
+oh brick edit team/hotfix-protocol               # editor, validation when saved
+oh brick publish team/hotfix-protocol -m "First protocol"
+oh brick history team/hotfix-protocol
+```
+
+- **Validation**: hub rules (`oh skill check`); a skill description starts with "Utiliser …" and is 200 characters at most; the frontmatter of an agent is checked (id, description, mode, keys, skills, `permission_base`).
+- **Publication**: team governance (below), revalidation on the up-to-date team-state, previous version in `catalog/history/`, hash in `catalog.lock`, `brick.published` event. Replacing a hub brick is reported and asks for confirmation.
+- **Integrity**: once `catalog.lock` exists, a brick edited by hand or committed without oh is skipped (`oh brick list`, `oh doctor`). A catalogue committed by hand before `oh brick` keeps loading; it is sealed at once with `oh brick publish --adopt -m "…"`, required before the first publication.
+- No import of external bricks; annexes (`skills/templates/`) stay committed by hand.
 
 ## Governance
 
@@ -135,7 +155,7 @@ Publishing is configured in the team-state `config.toml`:
 publish = "any_member"   # default, the only supported value
 ```
 
-- `any_member`: any member listed in `members.toml` may publish; validating the workflow is still required.
+- `any_member`: any member listed in `members.toml` may publish (workflows and bricks); validation is still required.
 - A value this version of oh does not know **blocks publishing** (the rest of the configuration still works): update oh or go back to `any_member`.
 
 ## Project without a team: solo space

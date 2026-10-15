@@ -51,7 +51,7 @@ Unchanged: `oh skill check`, the team catalogue (validation, bundles, "new brick
 
 To be taken up in a dedicated evolution (new ADR):
 
-1. **A brick command** (`oh brick` or `oh catalog`), modelled on `oh workflow`: `list [--agents|--skills] [--origin]`, `show`, `new`, `edit`, `publish`, `history` for the team catalogue, with the same governance and integrity check.
+1. **A brick command** (`oh brick` or `oh catalog`), modelled on `oh workflow`: `list [--agents|--skills] [--origin]`, `show`, `new`, `edit`, `publish`, `history` for the team catalogue, with the same governance and integrity check. **Done**: `oh brick` ([ADR-054](054-team-brick-catalogue.en.md)).
 2. **Importing external bricks into the team catalogue** (not onto the machine): version pinned by commit, verified hash, checked names and paths, `https` only, review before publication.
 3. **TUI**: editable brick catalogue, a picker for `skills.extra` / `skills.deny` in the workflow editor, an "entry agent" field in the launch form when the workflow allows it (`selectable`), a "free session with this agent" action.
 4. **Checks**: agent and family identifiers verified by `oh config model agent|family` (CLI and Models view).

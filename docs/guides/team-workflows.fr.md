@@ -28,7 +28,8 @@ team-state/
 │   ├── prompts/<id>.md.tmpl           # gabarits de prompt
 │   └── history/<id>/<version>.yaml    # versions précédentes (+ <version>.prompt.md.tmpl)
 ├── projects/<projet>/workflows/…      # même structure pour un projet
-├── catalog/{agents,skills}/           # briques d'équipe
+├── catalog/{agents,skills}/           # briques d'équipe (+ drafts/, history/)
+├── catalog.lock                       # intégrité des briques publiées
 └── workflows.lock                     # intégrité des fichiers publiés
 ```
 
@@ -125,6 +126,25 @@ team-state/catalog/
 - Les workflows de l'équipe et des projets les utilisent comme les briques du hub (validation et paquet de session).
 - Un identifiant déjà utilisé par le hub (id d'agent, chemin ou nom de skill) est **refusé**, sauf si la brique déclare explicitement `extends: hub:<id>` (agent) ou `extends: hub:<chemin>` (skill) dans son frontmatter : elle remplace alors la brique du hub. Une brique refusée est ignorée avec un avertissement (`oh doctor`).
 - Une annexe ne peut pas remplacer un fichier du hub.
+- Un lien symbolique du catalogue est ignoré : rien hors du dépôt n'entre dans un paquet.
+
+### Éditer et publier avec `oh brick`
+
+Les briques se gèrent comme les workflows ([référence](../reference/cli-bricks.fr.md), [ADR-054](../architecture/adr/054-team-brick-catalogue.fr.md)) :
+
+```bash
+oh brick list --skills --origin                  # hub et équipe, origine et version
+oh brick new skill team/hotfix-protocol          # brouillon depuis un gabarit valide
+oh brick new agent reviewer --extends            # remplacer explicitement un agent du hub
+oh brick edit team/hotfix-protocol               # éditeur, validation à l'enregistrement
+oh brick publish team/hotfix-protocol -m "Premier protocole"
+oh brick history team/hotfix-protocol
+```
+
+- **Validation** : règles du hub (`oh skill check`) ; la description d'une skill commence par « Utiliser … » et fait 200 caractères au plus ; le frontmatter d'un agent est vérifié (id, description, mode, clés, skills, `permission_base`).
+- **Publication** : gouvernance de l'équipe (ci-dessous), revalidation sur le team-state à jour, version précédente dans `catalog/history/`, empreinte dans `catalog.lock`, événement `brick.published`. Le remplacement d'une brique du hub est signalé et demande confirmation.
+- **Intégrité** : une fois `catalog.lock` créé, une brique modifiée à la main ou commitée sans oh est ignorée (`oh brick list`, `oh doctor`). Un catalogue commité à la main avant `oh brick` reste chargé ; il se scelle en une fois avec `oh brick publish --adopt -m "…"`, nécessaire avant la première publication.
+- Pas d'import de brique externe ; les annexes (`skills/templates/`) restent commitées à la main.
 
 ## Gouvernance
 
@@ -135,7 +155,7 @@ La publication se règle dans `config.toml` du team-state :
 publish = "any_member"   # valeur par défaut, seule prise en charge
 ```
 
-- `any_member` : tout membre inscrit dans `members.toml` peut publier ; la validation du workflow reste obligatoire.
+- `any_member` : tout membre inscrit dans `members.toml` peut publier (workflows et briques) ; la validation reste obligatoire.
 - Une valeur inconnue de cette version d'oh **bloque la publication** (sans gêner le reste de la configuration) : mettez oh à jour ou revenez à `any_member`.
 
 ## Projet sans équipe : espace solo
