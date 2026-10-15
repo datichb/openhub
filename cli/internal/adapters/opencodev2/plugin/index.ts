@@ -199,7 +199,7 @@ export default {
           headers: { "content-type": "application/json", authorization: `Bearer ${process.env[opts.tokenEnv!] ?? ""}` },
           body: JSON.stringify({
             sessionID: event.sessionID,
-            agent: event.agent,
+            agent: typeof event.agent === "string" ? event.agent : event.agent?.id,
             action: event.action,
             resources: event.resources,
             callID,

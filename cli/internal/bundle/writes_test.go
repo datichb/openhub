@@ -53,6 +53,21 @@ func TestWritesPlannerOfSpec(t *testing.T) {
 		} {
 			assert.Equal(t, sessionspec.EffectAllow, writesShell(p, cmd), "%s (plugin %v)", cmd, plugin)
 		}
+		// p6-debts: several declared paths, several -m: the rules ask, oh
+		// reads the line and lets it through.
+		paths := b.Spec.Workflow.Writes["planner"]
+		require.NotEmpty(t, paths)
+		for _, cmd := range []string{
+			`git commit -m "x" -- docs/wiki/specs/x.md docs/wiki/specs/y.md`,
+			`git commit -m "docs(spec): percent" -m "Corps du commit, l'API." -- docs/wiki/specs/percent.md`,
+			`git commit -m 'docs(spec): x' -m 'corps' -- docs/wiki/specs/x.md docs/wiki/specs/`,
+			"git add docs/wiki/specs/x.md docs/wiki/specs/team/y.md",
+			"git add -- docs/wiki/specs/x.md docs/wiki/specs/team/y.md",
+			`git add docs/wiki/specs/x.md docs/wiki/specs/y.md && git commit -m "x" -m "y" -- docs/wiki/specs/x.md docs/wiki/specs/y.md`,
+		} {
+			assert.Equal(t, sessionspec.EffectAsk, writesShell(p, cmd), "%s (plugin %v)", cmd, plugin)
+			assert.Equal(t, sessionspec.EffectAllow, writesOh(p, paths, cmd), "%s (plugin %v)", cmd, plugin)
+		}
 		for _, cmd := range []string{
 			`git commit -m "docs(spec): percent"`,
 			`git commit -am "x" -- docs/wiki/specs/percent.md`,
@@ -75,7 +90,6 @@ func TestWritesPlannerOfSpec(t *testing.T) {
 			`git commit -m "x" --pathspec-from-file=list -- docs/wiki/specs/x.md`,
 			`git commit --pathspec-from-file=list -m "x" -- docs/wiki/specs/x.md`,
 			`git commit -m "x" -- docs/wiki/specs/x.md src/a.go`,
-			`git commit -m "x" -- docs/wiki/specs/x.md docs/wiki/specs/y.md`,
 			`git commit -m "x" -- docs/wiki/specs/../../src/a.go`,
 			`git commit -m "x" -- docs/wiki/specs/\.\./\.\./src/a.go`,
 			`git commit -m "x" -- docs/wiki/specs/'..'/../src/a.go`,
@@ -86,8 +100,27 @@ func TestWritesPlannerOfSpec(t *testing.T) {
 			"git add docs/wiki/specs/x.md src/a.go", "git add -- docs/wiki/specs/x.md src/a.go",
 			"git add docs/wiki/specs/../../src/a.go", "git add docs/wiki/specs/x.md	src/a.go",
 			"git add ':(glob)**'", "git add --pathspec-from-file=list",
+			// p6-debts: one undeclared path among several, injection in -m
+			`git commit -m "x" -- docs/wiki/specs/x.md docs/wiki/specs/y.md src/a.go`,
+			`git commit -m "x" -- docs/wiki/specs/x.md docs/wiki/specs/../../src/a.go`,
+			`git commit -m "x" -- docs/wiki/specs/x.md ../src/a.go`,
+			`git commit -m "x" -- docs/wiki/specs/x.md .`,
+			`git commit -m "x" -- docs/wiki/specs/x.md docs/wiki/specs/.hidden`,
+			`git commit -m "x" -- docs/wiki/specs/x.md -a`,
+			`git commit -m "x" -- docs/wiki/specs/x.md ':(top)src'`,
+			`git commit -m "x" -- docs/wiki/specs/x.md docs/wiki`,
+			`git commit -m "x" -m "$(rm -rf src)" -- docs/wiki/specs/x.md`,
+			"git commit -m \"x\" -m \"`id`\" -- docs/wiki/specs/x.md",
+			`git commit -m "x" -m "y" -a -- docs/wiki/specs/x.md`,
+			`git commit -m "x" -m "y" src/a.go -- docs/wiki/specs/x.md`,
+			`git commit -m "x" -m "y" --amend -- docs/wiki/specs/x.md`,
+			`git commit -m "x" -m 'y'"z" -- docs/wiki/specs/x.md`,
+			`git commit -m "x" -m "y -- docs/wiki/specs/x.md`,
+			"git add docs/wiki/specs/x.md docs/wiki/specs/y.md src/a.go",
+			"git add docs/wiki/specs/x.md docs/wiki/specs/y.md > /tmp/x",
+			"git add docs/wiki/specs/x.md docs/wiki/specs/y.md *",
 		} {
-			assert.Equal(t, sessionspec.EffectDeny, writesShell(p, cmd), "%s (plugin %v)", cmd, plugin)
+			assert.Equal(t, sessionspec.EffectDeny, writesOh(p, paths, cmd), "%s (plugin %v)", cmd, plugin)
 		}
 		locked := agent("planner", understood, plugin)
 		assert.Equal(t, sessionspec.EffectDeny, writesShell(locked, `git commit -m "x" -- docs/wiki/specs/percent.md`), "the commit waits for cp-spec (plugin %v)", plugin)
@@ -162,6 +195,26 @@ func TestWritesOnboarderOfOnboarding(t *testing.T) {
 	assert.NotContains(t, body, "et seulement ces chemins")
 }
 
+// writesOh is what the session gets for a line once oh answered the
+// requests the rules ask (EvaluateWrites).
+func writesOh(a scratchAgent, paths []string, line string) sessionspec.Effect {
+	eff := writesShell(a, line)
+	if eff != sessionspec.EffectAsk {
+		return eff
+	}
+	for _, c := range ShellCommands(line) {
+		if !IsWritesLine(c) {
+			return eff
+		}
+	}
+	for _, c := range ShellCommands(line) {
+		if WritesLineProblem(paths, c) != "" {
+			return sessionspec.EffectDeny
+		}
+	}
+	return sessionspec.EffectAllow
+}
+
 // writesShell is what the tool decides for a command line: the guard of the
 // plugin refuses first, then the rules of the agent.
 func writesShell(a scratchAgent, line string) sessionspec.Effect {
@@ -185,4 +238,55 @@ func TestWritesRules(t *testing.T) {
 	for _, r := range rules[2:] {
 		assert.False(t, strings.Contains(r.Resource, "push"), r.Resource)
 	}
+}
+
+// p6-debts: the lines oh reads for a writes: agent.
+func TestWritesLineProblem(t *testing.T) {
+	paths := []string{"docs/wiki/**", "ONBOARDING.md", "CONVENTIONS.md"}
+	for _, cmd := range []string{
+		"git add docs/wiki/ ONBOARDING.md CONVENTIONS.md",
+		"git add -- ONBOARDING.md docs/wiki/technical/architecture.md",
+		`git commit -m "docs(wiki): onboarding" -- docs/wiki/ ONBOARDING.md CONVENTIONS.md`,
+		`git commit -m "docs: guide" -m "Corps : l'équipe, les conventions." -m 'Ref: oh-12' -- ONBOARDING.md`,
+		"git commit -m wip -- docs/wiki",
+	} {
+		assert.Empty(t, WritesLineProblem(paths, cmd), cmd)
+	}
+	for _, cmd := range []string{
+		"git add docs/wiki/ ONBOARDING.md src/main.go",
+		"git add README.md",
+		"git add ONBOARDING.md/",
+		"git add ONBOARDING.mdx",
+		"git add docs/wiki/../../src",
+		"git add docs/wiki/./x",
+		"git add docs/wiki/.git",
+		"git add /etc/passwd",
+		"git add ':(top)src'",
+		"git add -f ONBOARDING.md",
+		"git add -A",
+		"git add",
+		"git add --",
+		"git add docs/wiki/*",
+		"git add docs/wiki/$X",
+		"git add docs/wiki/x;rm",
+		"git add ONBOARDING.md && rm -rf src",
+		`git commit -m "x" ONBOARDING.md`,
+		`git commit -- ONBOARDING.md`,
+		`git commit -m "x" -a -- ONBOARDING.md`,
+		`git commit -m "x" --amend -- ONBOARDING.md`,
+		`git commit -m "x" src/a.go -- ONBOARDING.md`,
+		`git commit -m "$(id)" -- ONBOARDING.md`,
+		"git commit -m \"`id`\" -- ONBOARDING.md",
+		`git commit -m "a\" b" -- ONBOARDING.md`,
+		`git commit -m "x -- ONBOARDING.md`,
+		`git commit -m "x"y -- ONBOARDING.md`,
+		"git commit -m 'a\nb' -- ONBOARDING.md",
+		`git commit -m "x" -- "ONBOARDING.md"`,
+		`git commit -m "x" -- ONBOARDING.md -- src`,
+		"git -C src add ONBOARDING.md",
+		"git push",
+	} {
+		assert.NotEmpty(t, WritesLineProblem(paths, cmd), cmd)
+	}
+	assert.NotEmpty(t, WritesLineProblem(nil, "git add docs/wiki/x"))
 }

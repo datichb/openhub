@@ -48,6 +48,12 @@ func WorkflowRuntime(s *workflow.Spec) *sessionspec.WorkflowRuntime {
 		if a.Role != workflow.RoleDisabled && a.After != "" {
 			rt.Gates = append(rt.Gates, sessionspec.AgentGate{Agent: id, After: a.After})
 		}
+		if a.Role != workflow.RoleDisabled && len(a.Writes) > 0 {
+			if rt.Writes == nil {
+				rt.Writes = map[string][]string{}
+			}
+			rt.Writes[id] = append([]string(nil), a.Writes...)
+		}
 		if a.Role != workflow.RoleDisabled && a.WritesAfter != "" && len(a.Writes) > 0 {
 			rt.WritesGates = append(rt.WritesGates, sessionspec.WritesGate{Agent: id, Paths: append([]string(nil), a.Writes...), After: a.WritesAfter})
 		}

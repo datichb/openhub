@@ -342,6 +342,12 @@ func (d *Daemon) handleHookPermission(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	// p6-debts: the git add and git commit lines of a writes: agent the
+	// rules cannot read (several paths, several -m) are read by oh.
+	if effect, msg, err := d.opts.Checkpoints.EvaluateWrites(r.Context(), root, req.Agent, action, req.Resources); err == nil && effect != "" {
+		writeJSON(w, http.StatusOK, HookPermissionResponse{Effect: effect, Message: msg})
+		return
+	}
 	// r5-fixes: the edit of a `writes:` path held until a checkpoint is
 	// refused with the reason.
 	if effect, msg, err := d.opts.Checkpoints.EvaluateEdit(r.Context(), root, action, req.Resources); err == nil && effect != "" {

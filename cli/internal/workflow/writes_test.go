@@ -24,6 +24,19 @@ func TestWritesPathProblem(t *testing.T) {
 		"docs/wiki//specs/**":     false,
 		`docs\wiki\**`:            false,
 		"":                        false,
+		// p6-debts: named root files, never a folder nor code
+		"ONBOARDING.md":       true,
+		"CONVENTIONS.md":      true,
+		"README.md":           true,
+		"CHANGELOG.md":        true,
+		"ONBOARDING.md/**":    false,
+		"README.md/x":         false,
+		"main.go":             false,
+		"Makefile":            false,
+		"readme.md":           false,
+		"./README.md":         false,
+		"CHANGELOG.md/../src": false,
+		"src/README.md":       false,
 	} {
 		if got := WritesPathProblem(p) == ""; got != ok {
 			t.Errorf("WritesPathProblem(%q) = %q, want valid=%v", p, WritesPathProblem(p), ok)

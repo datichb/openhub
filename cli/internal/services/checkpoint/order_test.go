@@ -25,6 +25,35 @@ var orderWorkflow = sessionspec.WorkflowRuntime{
 		{ID: "cp-spec", Label: map[string]string{"": "Spec"}, Behaviors: map[string]string{"manuel": "pause", "semi-auto": "pause", "auto": "pause"}, Mandatory: true, After: "cp-converge"},
 	},
 	WritesGates: []sessionspec.WritesGate{{Agent: "planner", Paths: []string{"docs/wiki/specs/**"}, After: "cp-understanding"}},
+	Writes:      map[string][]string{"planner": {"docs/wiki/specs/**", "docs/wiki/index.md"}},
+}
+
+// p6-debts: the lines of a writes: agent the rules cannot read are read by
+// oh: allowed when they only name declared paths, refused with the reason
+// otherwise; another agent or another command keeps the decision of the tool.
+func TestEvaluateWrites(t *testing.T) {
+	svc, ctx := newOrderService(t, "semi-auto")
+	ok := []string{"git add docs/wiki/specs/a.md docs/wiki/index.md", `git commit -m "docs(spec): a" -m "corps" -- docs/wiki/specs/a.md docs/wiki/index.md`}
+	eff, _, err := svc.EvaluateWrites(ctx, "ses_o", "planner", sessionspec.ActionShell, ok)
+	require.NoError(t, err)
+	assert.Equal(t, "allow", eff)
+	eff, msg, err := svc.EvaluateWrites(ctx, "ses_o", "planner", sessionspec.ActionShell, []string{ok[0], `git commit -m "x" -- docs/wiki/specs/a.md src/a.go`})
+	require.NoError(t, err)
+	assert.Equal(t, "deny", eff)
+	assert.Contains(t, msg, "src/a.go")
+	for _, c := range []struct {
+		agent, action string
+		res           []string
+	}{
+		{"developer", sessionspec.ActionShell, ok},
+		{"planner", sessionspec.ActionShell, []string{ok[0], "npm test"}},
+		{"planner", sessionspec.ActionEdit, []string{"docs/wiki/specs/a.md"}},
+		{"", sessionspec.ActionShell, ok},
+	} {
+		eff, _, err := svc.EvaluateWrites(ctx, "ses_o", c.agent, c.action, c.res)
+		require.NoError(t, err)
+		assert.Empty(t, eff, "%+v", c)
+	}
 }
 
 func newOrderService(t *testing.T, mode string) (*Service, context.Context) {
