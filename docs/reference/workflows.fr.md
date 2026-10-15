@@ -520,6 +520,17 @@ Session avec l'agent de ton choix, sans checkpoint ni verrou de commit (l'agent 
 
 ---
 
+## Limites connues
+
+Acceptées en l'état (p6-debts) ; elles ne changent ni les verrous ni les checkpoints :
+
+- **Gardes sur le texte des commandes** : les règles shell (verrous `unlocks:`, `writes:`, fenêtre du premier commit d'un `unlock_again`, garde-fou global) comparent le texte brut de chaque commande, sans le normaliser : `git 'clean'` ou deux espaces ne correspondent pas au motif. Ce sont des garde-fous contre les erreurs d'un modèle, pas une barrière ([SECURITY](../../SECURITY.fr.md#ce-que-les-règles-shell-ne-protègent-pas)). Ce qui ne dépend pas du texte : la validation des checkpoints, la passerelle Beads, les vérifications d'oh, et les lignes `git add`/`git commit` de plusieurs chemins `writes:`, lues mot à mot par oh.
+- **Pas de message de refus personnalisé** (opencode 2.0.20) : une commande refusée par une règle reçoit le message générique de l'outil. oh ne donne sa raison que pour ce que le plugin oh lui relaie (écriture tenue par `writes_after`, opération verrouillée tant qu'oh n'a pas confirmé les règles de la session, ligne `writes:` lue par oh) ; une `question` ne peut pas être refusée avec un message.
+- **MR seulement si la branche est poussée** : `release` (`mr=true`) n'ouvre la merge request que si la branche est déjà sur le dépôt distant ; oh ne pousse jamais, le rapport donne les commandes.
+- **2 pauses par tour de correction** du fan-out (`fanout.fix`) : le `cp-commit` de la session de correction, puis `cp-merge` repassé.
+- **Éditeur de workflow de la TUI** : il propose `risk: publish` sans message propre à ce niveau (hub seulement, jamais en distant, `tag` et `mr`, préconditions durcies seulement) ; les refus apparaissent à la validation.
+- **Sessions distantes** : les identifiants `wp-…` des propositions du wiki cités dans la transcription importée ne sont pas renumérotés (les rapports le sont).
+
 ## Restrictions
 
 ```yaml

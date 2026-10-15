@@ -520,6 +520,17 @@ Session with the agent of your choice, without checkpoints nor commit lock (the 
 
 ---
 
+## Known limits
+
+Accepted as they are (p6-debts); they change neither the locks nor the checkpoints:
+
+- **Guards on the text of the commands**: the shell rules (`unlocks:` locks, `writes:`, window of the first commit of an `unlock_again`, global guard) compare the raw text of each command, without normalising it: `git 'clean'` or two spaces do not match the pattern. They are guard rails against the mistakes of a model, not a barrier ([SECURITY](../../SECURITY.md#what-the-shell-rules-do-not-protect)). What does not depend on the text: the checkpoint validation, the Beads gateway, oh's verifications, and the `git add`/`git commit` lines of several `writes:` paths, read word by word by oh.
+- **No custom refusal message** (opencode 2.0.20): a command refused by a rule gets the generic message of the tool. oh gives its reason only for what the oh plugin relays to it (a write held by `writes_after`, an operation locked while oh has not confirmed the session rules, a `writes:` line read by oh); a `question` cannot be refused with a message.
+- **MR only when the branch is pushed**: `release` (`mr=true`) opens the merge request only when the branch is already on the remote; oh never pushes, the report gives the commands.
+- **2 pauses per fix round** of the fan-out (`fanout.fix`): the `cp-commit` of the fix session, then `cp-merge` passed again.
+- **Workflow editor of the TUI**: it offers `risk: publish` without a message of its own for this level (hub only, never remote, `tag` and `mr`, preconditions only hardened); the refusals show at validation.
+- **Remote sessions**: the `wp-…` ids of the wiki proposals cited in the imported transcript are not renumbered (the reports are).
+
 ## Limits
 
 ```yaml
