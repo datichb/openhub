@@ -286,3 +286,34 @@ func TestPrepareRunFeatureWithoutRequest(t *testing.T) {
 		assert.False(t, given, id)
 	}
 }
+
+// oh run -m: accepted when the resolved workflow (alias included) has a
+// request input, refused otherwise with the inputs it has.
+func TestPrepareRunMessage(t *testing.T) {
+	setupWorkflowCLI(t, "alice")
+	t.Setenv(workflowsDirEnv, filepath.Join(repoRoot(t), "workflows")) // the shipped workflows
+	for _, id := range []string{"feature", "cadrage", "spec"} {
+		var errOut bytes.Buffer
+		opts := runOptions{Workflow: id, Inputs: map[string]string{"request": "Export CSV"}, Message: true,
+			Project: &domain.Project{ID: "p1", Name: "p", Path: t.TempDir()}}
+		res, _, _, err := resolveLaunch(t.Context(), application, &opts, &errOut)
+		require.NoError(t, err, "%s: %s", id, errOut.String())
+		assert.Equal(t, "spec", res.Spec.ID, id)
+		assert.Equal(t, "Export CSV", res.Inputs["request"], id)
+	}
+	for _, c := range []struct{ id, name string }{
+		{"review", "review"},
+		{"feature", "feature → implement-spec"}, // with tickets
+	} {
+		var errOut bytes.Buffer
+		opts := runOptions{Workflow: c.id, Inputs: map[string]string{"request": "x"}, Message: true,
+			Project: &domain.Project{ID: "p1", Name: "p", Path: t.TempDir()}}
+		if c.id == "feature" {
+			opts.Tickets = []string{"bd-1"}
+		}
+		_, _, _, err := resolveLaunch(t.Context(), application, &opts, &errOut)
+		require.Error(t, err, c.id)
+		assert.Contains(t, err.Error(), c.name, c.id)
+		assert.Contains(t, err.Error(), "-i", c.id)
+	}
+}

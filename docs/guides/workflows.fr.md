@@ -49,24 +49,24 @@ Dans la TUI, la vue **Sessions** (omnibar `sessions`) regroupe les mêmes inform
 
 ---
 
-## Scenario 0 — Votre premiere session (agent simple)
+## Scenario 0 — Votre première session (agent simple)
 
-**Contexte :** vous voulez essayer OpenHub pour la premiere fois sur un projet existant.
+**Contexte :** vous voulez essayer OpenHub pour la première fois sur un projet existant.
 Pas de tickets Beads, pas d'orchestration complexe -- juste une interaction simple avec un agent.
 
-**Prerequis :**
+**Prérequis :**
 - `oh init` complete (voir [Tutoriel](tutorial.fr.md))
 - Credentials provider configures
-- Aucune etape de deploy : le paquet de session est construit au lancement (`oh deploy` supprime en v5)
+- Aucune étape de deploy : le paquet de session est construit au lancement (`oh deploy` supprime en v5)
 
 ### Explication de code simple
 
 ```bash
-oh run libre -i request="Explique l'architecture de ce projet"
+oh run libre -m "Explique l'architecture de ce projet"
 ```
 
 L'orchestrateur analyse la structure du codebase et fournit une explication de haut niveau.
-Pas de delegation, pas de tickets -- un seul agent qui repond a votre question.
+Pas de delegation, pas de tickets -- un seul agent qui répond a votre question.
 
 ### Revue de code simple
 
@@ -74,7 +74,7 @@ Pas de delegation, pas de tickets -- un seul agent qui repond a votre question.
 oh run review
 ```
 
-L'agent reviewer analyse le diff de votre branche courante et produit un rapport de revue structure avec des constats categorises par severite.
+L'agent reviewer analyse le diff de votre branche courante et produit un rapport de revue structure avec des constats categorises par sévérité.
 
 ### Audit simple
 
@@ -82,7 +82,7 @@ L'agent reviewer analyse le diff de votre branche courante et produit un rapport
 oh run audit -i type=security
 ```
 
-L'agent auditor delegue a un sous-agent specialise securite qui scanne votre codebase et produit un rapport structure.
+L'agent auditor delegue a un sous-agent specialise sécurité qui scanne votre codebase et produit un rapport structure.
 
 ### Diagramme
 
@@ -96,7 +96,7 @@ sequenceDiagram
     O-->>U: Explication structuree
 ```
 
-**Point cle :** Vous pouvez utiliser n'importe quel agent directement pour une tache delimitee. L'orchestrateur n'est necessaire que lorsque vous voulez une coordination multi-agents (planification + design + implementation + review).
+**Point clé :** Vous pouvez utiliser n'importe quel agent directement pour une tâche delimitee. L'orchestrateur n'est nécessaire que lorsque vous voulez une coordination multi-agents (planification + design + implémentation + review).
 
 > **Pret pour la suite ?** Voir le Scenario 1 pour une feature complète (`spec`, puis `implement-spec`).
 
@@ -119,7 +119,7 @@ sequenceDiagram
     participant DEV as developer
     participant R as Reviewer
 
-    U->>C: oh run feature -i request="Implémente l'authentification JWT"
+    U->>C: oh run feature -m "Implémente l'authentification JWT"
     C->>PL: Entretien (exploration du code, grilling)
     PL-->>C: Questions bloquantes
     C->>U: Questions (outil question)
@@ -151,8 +151,8 @@ sequenceDiagram
 #### 1. Lancer `feature` (alias de `spec`)
 
 ```bash
-oh run feature -i request="Implémente l'authentification JWT pour notre API REST"   # mode : --mode manuel|semi-auto|auto
-oh run feature -i method=tdd -i request="…"                                        # l'implémentation qui suivra sera en TDD
+oh run feature -m "Implémente l'authentification JWT pour notre API REST"           # mode : --mode manuel|semi-auto|auto
+oh run feature -m "…" -i method=tdd                                                 # l'implémentation qui suivra sera en TDD
 ```
 
 oh annonce la redirection (`feature → spec`). Sans demande (`oh run feature`, `oh start`), la session vous la demande au début. Avec des tickets déjà créés, `oh run feature --tickets bd-1,bd-2` lance directement `implement-spec` (étape 5).
@@ -887,7 +887,7 @@ Le code n'est jamais modifié : une optimisation à faire devient une recommanda
 **Contexte :** un changement Terraform est fusionné sur `main` et doit arriver en `staging`. Le code est déjà écrit (par vous ou une session `developer`) ; la session se contente de planifier, faire valider et appliquer.
 
 ```bash
-oh run infra-change -i target=staging -i request="Appliquer la nouvelle classe d'instance RDS d'infra/db (commit a1b2c3d)"
+oh run infra-change -i target=staging -m "Appliquer la nouvelle classe d'instance RDS d'infra/db (commit a1b2c3d)"
 ```
 
 1. L'`operator` vérifie le contexte réel (`terraform workspace show`, `aws sts get-caller-identity`) par rapport à `staging` et s'arrête en cas d'écart.

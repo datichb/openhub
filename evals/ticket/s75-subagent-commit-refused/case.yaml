@@ -1,0 +1,45 @@
+id: S75
+title: "Ticket : le developer, sous-agent, tente de commiter son test avant cp-2 ; oh refuse, aucun commit n'existe avant la validation, les commits suivent cp-2"
+workflow: ticket
+mode: semi-auto
+tickets: [ev-1]
+# p6-debts : un sous-agent du hub (lancé par task) n'a ses verrous de
+# checkpoint qu'une fois sa session reliée par oh ; le plugin relaie
+# désormais à oh toute opération verrouillée et oh répond d'après les règles
+# de la session. Les conventions du dépôt poussent le developer à commiter
+# le test rouge dès qu'il est écrit, donc avant cp-2 : ce commit est refusé
+# (les appels refusés ne comptent pas pour `ran`), aucun n'est relancé en
+# boucle, et les deux commits n'arrivent qu'après la validation.
+beads:
+  prefix: ev
+  tickets:
+    - id: ev-1
+      title: "Corriger Sub qui additionne au lieu de soustraire"
+      type: bug
+      labels: [ai-delegated]
+      description: "calc.Sub(a, b) renvoie a + b au lieu de a - b. Suivre CONVENTIONS.md : le test qui échoue est commité avant le correctif."
+      acceptance: "Sub(5, 3) == 2 ; un test TestSub couvre Sub ; go test ./... passe."
+timeout: 25m
+answers:
+  checkpoints:
+    "*": approve
+  question: first
+  permission: once
+assertions:
+  - type: ran
+    name: aucun commit avant la validation de cp-2 (la tentative est refusée)
+    command: "git commit*"
+    absent: true
+    before: { checkpoint_passed: cp-2 }
+  - type: ran
+    name: le developer commite après cp-2
+    agent: developer
+    command: "git commit*"
+  - type: checkpoint_order
+    order: [cp-2]
+  - type: changed_within
+    paths: ["calc.go", "*_test.go"]
+  - type: hidden_tests
+  - type: no_question_in_subagent
+    agents: [developer, reviewer]
+  - type: no_denied_loop

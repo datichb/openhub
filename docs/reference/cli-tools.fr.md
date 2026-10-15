@@ -1,6 +1,6 @@
 > [Read in English](cli-tools.en.md)
 
-# Reference CLI — Outils
+# Référence CLI — Outils
 
 ## Skills
 
@@ -214,7 +214,7 @@ oh worktree cleanup [options]
 
 | Flag | Court | Type | Description |
 |------|-------|------|-------------|
-| `--base` | `-b` | string | Branche de base (defaut : detection automatique) |
+| `--base` | `-b` | string | Branche de base (défaut : detection automatique) |
 | `--force` | `-f` | bool | Supprimer sans confirmation |
 
 **Exemple :**
@@ -230,7 +230,7 @@ oh worktree cleanup -b develop --force
 
 ### oh metrics
 
-Metriques d'utilisation : sessions, tokens, couts et economies.
+Metriques d'utilisation : sessions, tokens, coûts et economies.
 
 ```
 oh metrics [options]
@@ -238,7 +238,7 @@ oh metrics [options]
 
 | Flag | Court | Type | Description |
 |------|-------|------|-------------|
-| `--period` | `-d` | string | Periode d'analyse : `7d`, `30d` ou `all` (defaut : `all`) |
+| `--period` | `-d` | string | Période d'analyse : `7d`, `30d` ou `all` (défaut : `all`) |
 
 **Exemple :**
 
@@ -262,7 +262,7 @@ oh dashboard
 
 ### oh board
 
-Tableau kanban des tickets en plein ecran.
+Tableau kanban des tickets en plein écran.
 
 ```
 oh board [options]
@@ -287,15 +287,15 @@ oh board --watch
 
 ### oh secrets
 
-Secrets stockes dans le trousseau du systeme (ou, a defaut, dans un fichier chiffre `~/.oh/secrets.enc`, phrase de passe demandee ou `OH_PASSPHRASE`). Ils sont references par nom dans `hub.toml` (`token_key`) et resolus a l'execution, en portee projet ou globale. Ordre de resolution : secret du projet (dans un dossier de projet), puis secret global, puis variable d'environnement correspondante.
+Secrets stockes dans le trousseau du système (ou, a défaut, dans un fichier chiffre `~/.oh/secrets.enc`, phrase de passe demandée ou `OH_PASSPHRASE`). Ils sont références par nom dans `hub.toml` (`token_key`) et resolus a l'exécution, en portee projet ou globale. Ordre de résolution : secret du projet (dans un dossier de projet), puis secret global, puis variable d'environnement correspondante.
 
 | Commande | Flags | Description |
 |----------|-------|-------------|
-| `oh secrets set <cle>` | `--global`, `--project <id>` | Stocke un secret ; la valeur est saisie au terminal (masquee), ou lue sur l'entree standard sans terminal (`printf %s "$TOKEN" \| oh secrets set <cle>`). Portee : projet si le dossier courant est un projet enregistre, sinon globale ; `--global` force la portee globale, `--project` cible un projet |
+| `oh secrets set <cle>` | `--global`, `--project <id>` | Stocke un secret ; la valeur est saisie au terminal (masquee), ou lue sur l'entrée standard sans terminal (`printf %s "$TOKEN" \| oh secrets set <cle>`). Portee : projet si le dossier courant est un projet enregistre, sinon globale ; `--global` force la portee globale, `--project` cible un projet |
 | `oh secrets get <cle>` | `--global`, `--project <id>`, `--reveal` | Affiche un secret, masque sauf avec `--reveal` ; `--global` : portee globale uniquement |
 | `oh secrets list` | | Liste les secrets connus |
 | `oh secrets delete <cle>` | `--global`, `--project <id>` | Supprime un secret du trousseau |
-| `oh secrets cleanup` | `--dry-run` | Supprime les entrees orphelines du trousseau (absentes de l'index des secrets) ; `--dry-run` : les afficher sans supprimer |
+| `oh secrets cleanup` | `--dry-run` | Supprime les entrées orphelines du trousseau (absentes de l'index des secrets) ; `--dry-run` : les afficher sans supprimer |
 
 ```bash
 oh secrets set openhub.mcp.gitlab.token

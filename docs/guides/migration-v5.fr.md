@@ -45,7 +45,7 @@ Ne fonctionnent plus :
 L'ancien lancement « par agent » devient le workflow livré **`libre`** : l'agent de ton choix (par défaut `orchestrator`) et les agents qu'il peut appeler, sans checkpoint, dans un monde fermé.
 
 ```bash
-oh run libre --agent debugger -i request="le test X échoue depuis hier"
+oh run libre --agent debugger -m "le test X échoue depuis hier"
 ```
 
 Dans la TUI : commande `coder`, ou ouverture d'une session depuis la vue Worktrees.

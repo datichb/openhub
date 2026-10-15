@@ -62,7 +62,7 @@ No Beads tickets, no complex orchestration -- just a simple interaction with one
 ### Simple code explanation
 
 ```bash
-oh run libre -i request="Explain the architecture of this project"
+oh run libre -m "Explain the architecture of this project"
 ```
 
 The orchestrator analyzes the codebase structure and provides a high-level explanation.
@@ -119,7 +119,7 @@ sequenceDiagram
     participant DEV as developer
     participant R as Reviewer
 
-    U->>C: oh run feature -i request="Implement JWT authentication"
+    U->>C: oh run feature -m "Implement JWT authentication"
     C->>PL: Interview (code exploration, grilling)
     PL-->>C: Blocking questions
     C->>U: Questions (question tool)
@@ -151,8 +151,8 @@ sequenceDiagram
 #### 1. Launch `feature` (alias of `spec`)
 
 ```bash
-oh run feature -i request="Implement JWT authentication for our REST API"   # mode: --mode manuel|semi-auto|auto
-oh run feature -i method=tdd -i request="…"                                # the implementation that follows will be TDD
+oh run feature -m "Implement JWT authentication for our REST API"           # mode: --mode manuel|semi-auto|auto
+oh run feature -m "…" -i method=tdd                                         # the implementation that follows will be TDD
 ```
 
 oh announces the redirection (`feature → spec`). Without a request (`oh run feature`, `oh start`), the session asks you for it first. With tickets already created, `oh run feature --tickets bd-1,bd-2` launches `implement-spec` directly (step 5).
@@ -887,7 +887,7 @@ The code is never modified: an optimisation to make becomes a recommendation for
 **Context:** a Terraform change is merged on `main` and must reach `staging`. The code is already written (by you or a `developer` session); the session only plans, gets approval and applies.
 
 ```bash
-oh run infra-change -i target=staging -i request="Apply the new RDS instance class of infra/db (commit a1b2c3d)"
+oh run infra-change -i target=staging -m "Apply the new RDS instance class of infra/db (commit a1b2c3d)"
 ```
 
 1. The `operator` checks the real context (`terraform workspace show`, `aws sts get-caller-identity`) against `staging` and stops on a mismatch.

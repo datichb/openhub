@@ -119,6 +119,9 @@ Les assertions sont décrites dans la [référence d'`oh eval`](../docs/referenc
 | S65 | triage | Un crash en production monte en priorité, son doublon est marqué doublon, un ticket qui mêle quatre livrables reçoit des tickets enfants ; rien dans Beads avant `cp-triage` ; oh relève les tickets modifiés, créés et le doublon fermé |
 | S66 | triage | Changements refusés à `cp-triage` : rien n'est écrit dans Beads, rien n'est relevé |
 | S67 | triage | Deux constats : celui que couvre déjà un ticket y est rattaché par un commentaire, l'autre devient un ticket après `cp-triage` ; oh relève les deux et propose `ticket` |
+| S75 | ticket | Les conventions poussent le developer (sous-agent) à commiter son test rouge avant `cp-2` : oh refuse, aucun commit n'existe avant la validation, pas de relance en boucle ; les commits suivent `cp-2` ; tests cachés |
+| S76 | security-fix | Le seul audit terminé est un audit `quality` : ses constats ne sont pas repris (`from_equals`) ; le conductor demande les constats avec `question` avant `cp-triage` et présente celui de la réponse |
+| S77 | sweep-task | Lancé à la main avec `files: strx/` : la tâche demande aussi `README.md` ; un changement hors périmètre est refusé par oh à `cp-commit`, seul `strx/` est commité, oh relève le périmètre (sortie `files`) ; tests cachés |
 
 `cadrage` est un alias de `spec` depuis R5 : les cas S5, S15, S19 et S27 (dossier `cadrage/`) lancent `spec`, et S27 passe par l'exploration du pathfinder qui précède l'entretien quand la demande compare des conceptions.
 

@@ -100,7 +100,7 @@ cd /path/to/mon-projet
 oh run audit -i type=security
 
 # Cadrage avec recherche de stack (pathfinder, planner, designer)
-oh run cadrage -i request="Ajouter l'export PDF"
+oh run cadrage -m "Ajouter l'export PDF"
 
 # Session avec l'agent de ton choix
 oh run libre --agent designer
@@ -142,11 +142,11 @@ WebSearch : activé
 | **Planning** (3) | | |
 | | `pathfinder` | Quick stack research, library comparison |
 | | `onboarder` | Tech stack documentation, setup guides |
-| | `planner` | Library comparison, architecture patterns, integration guides |
+| | `planner` | Library comparison, architecture patterns, intégration guides |
 | **Design** (1) | | |
 | | `designer` | UX patterns, interaction best practices, usability research, UI patterns, design systems, visual trends |
 | **Documentation** (1) | | |
-| | `documentarian` | Documentation examples, API reference formats, changelog standards |
+| | `documentarian` | Documentation examples, API référence formats, changelog standards |
 
 ### Skills associées
 

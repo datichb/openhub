@@ -37,12 +37,12 @@ instruct libre                  designer                         4519     2427  
 instruct libre                  developer                       11842     5544    8   17    621   17    621
 instruct libre                  documentarian                    4634     2949    5    9    289    9    289
 instruct libre                  onboarder                        4576     3163    8   11    381   11    381
-instruct libre                  orchestrator                     7068     5013    7    3    102    3    102
+instruct libre                  orchestrator                     7065     5011    7    3    102    3    102
 instruct libre                  orchestrator-dev                 4552     2963    7   17    617   17    617
 instruct libre                  pathfinder                       5795     3832    7    4    160    4    160
-instruct libre                  planner                          5101     3435    7   13    442   13    442
-instruct libre                  reviewer                        11664     5185    6   13    447   13    447
-instruct libre                  TOTAL                           67448    37369   68   69   2392   69   2392
+instruct libre                  planner                          5099     3433    7   13    442   13    442
+instruct libre                  reviewer                        11608     5185    6   13    447   13    447
+instruct libre                  TOTAL                           67387    37365   68   69   2392   69   2392
 instruct merge-conflicts        merger                           5063      503    2    3    138    3    138
 instruct merge-conflicts        TOTAL                            5063      503    2    3    138    3    138
 instruct onboarding             onboarder                        4264     2801    7   11    381   11    381
@@ -114,12 +114,12 @@ none     libre                  designer                         4121     2427  
 none     libre                  developer                        7363     5071    7   20    725   20    725
 none     libre                  documentarian                    4218     2949    5    9    289    9    289
 none     libre                  onboarder                        4136     3121    8   11    381   11    381
-none     libre                  orchestrator                     6975     5013    7    3    102    3    102
+none     libre                  orchestrator                     6973     5011    7    3    102    3    102
 none     libre                  orchestrator-dev                 4154     2963    7   20    721   20    721
 none     libre                  pathfinder                       4927     3358    6    4    160    4    160
-none     libre                  planner                          4703     3435    7   13    442   13    442
-none     libre                  reviewer                         6852     4630    5   16    551   16    551
-none     libre                  TOTAL                           50669    35352   64   72   2496   72   2496
+none     libre                  planner                          4701     3433    7   13    442   13    442
+none     libre                  reviewer                         6796     4630    5   16    551   16    551
+none     libre                  TOTAL                           50609    35348   64   72   2496   72   2496
 none     merge-conflicts        merger                           1061      503    2    3    138    3    138
 none     merge-conflicts        TOTAL                            1061      503    2    3    138    3    138
 none     onboarding             onboarder                        3824     2759    7   11    381   11    381
@@ -191,12 +191,12 @@ stacks   libre                  designer                         4121     2427  
 stacks   libre                  developer                        7363     5071    7   27    972   27    972
 stacks   libre                  documentarian                    4218     2949    5    9    289    9    289
 stacks   libre                  onboarder                        4136     3121    8   11    381   11    381
-stacks   libre                  orchestrator                     6975     5013    7    3    102    3    102
+stacks   libre                  orchestrator                     6973     5011    7    3    102    3    102
 stacks   libre                  orchestrator-dev                 4154     2963    7   20    721   20    721
 stacks   libre                  pathfinder                       4927     3358    6    4    160    4    160
-stacks   libre                  planner                          4703     3435    7   13    442   13    442
-stacks   libre                  reviewer                         6852     4630    5   23    798   23    798
-stacks   libre                  TOTAL                           50669    35352   64   79   2743   79   2743
+stacks   libre                  planner                          4701     3433    7   13    442   13    442
+stacks   libre                  reviewer                         6796     4630    5   23    798   23    798
+stacks   libre                  TOTAL                           50609    35348   64   79   2743   79   2743
 stacks   merge-conflicts        merger                           1061      503    2   10    385   10    385
 stacks   merge-conflicts        TOTAL                            1061      503    2   10    385   10    385
 stacks   onboarding             onboarder                        3824     2759    7   11    381   11    381
@@ -268,7 +268,7 @@ universal-guardrails                        389 auditor,auditor-subagent,benchma
 pathfinder-payload                          361 pathfinder
 designer-payload                            346 designer
 reviewer-payload                            335 reviewer
-hub-workflow-reference                      329 orchestrator,planner
+hub-workflow-reference                      327 orchestrator,planner
 orchestrator-dev-payload                    324 orchestrator-dev
 debugger-payload                            321 debugger
 auditor-subagent-payload                    307 auditor-subagent

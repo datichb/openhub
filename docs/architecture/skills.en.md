@@ -157,8 +157,8 @@ Short notations:
 | `hub-workflow-reference` | A: orchestrator, planner | Agent catalog, pathfinder vs planner heuristic, standard sequences, handoff table. **Generated from the workflow** in the bundle |
 | `research` | B: auditor-subagent, designer, documentarian, onboarder, pathfinder, planner | Web research (`websearch`, `webfetch`): start from what exists, targeted queries, cross-checking with two sources or the official one, library comparison, security, reporting (merge of `websearch-usage` and `websearch-stack-research`, R1-c) |
 | `living-docs-enrichment` | B: auditor, dev-rw, onboarder, operator, pathfinder, planner, benchmarker, debugger, reviewer | Incremental enrichment of the wiki (`docs/wiki/`), `ONBOARDING.md` and `CONVENTIONS.md`: proposals with `wiki_propose` (forbidden content, tags, target pages, line replaced with `replaces`), fallback to `### Enrichissements wiki proposés` without the tool; no direct write nor delegation to the documentarian |
-| `team-awareness` | B (`mcp: team`): every agent except merger | Collaboration through the `team` MCP server (claims, status, activity) |
-| `team-policies-enforcement` | B (`mcp: team`): every agent except merger | Compliance with team policies |
+| `team-awareness` | B (`mcp: team`): every agent | Collaboration through the `team` MCP server (claims, status, activity) |
+| `team-policies-enforcement` | B (`mcp: team`): every agent | Compliance with team policies |
 | `skill-authoring-protocol` | B: documentarian | Skill authoring — TDD RED/GREEN/REFACTOR, SDO checklist, anti-patterns, validation checklist |
 | `rtk-usage` | B: 16 agents (all except benchmarker and brief-enricher) | **Pre-v5** — RTK guide (see [Pre-v5 skills](#pre-v5-skills)) |
 | `context-mode-usage` | A: dev-rw | **Pre-v5** — usage of the context-mode `ctx_*` tools (see [Pre-v5 skills](#pre-v5-skills)) |
@@ -562,8 +562,8 @@ Summary of the frontmatter of the 18 agents (`agents/**/*.md`). For the per-agen
 Common skills, not repeated in the table:
 
 - `shared/universal-guardrails` (A): all agents except `brief-enricher`;
-- `shared/team-awareness` (B, `mcp: team`): every agent except `merger`;
-- `shared/team-policies-enforcement` (B, `mcp: team`): every agent except `merger`;
+- `shared/team-awareness` (B, `mcp: team`): every agent;
+- `shared/team-policies-enforcement` (B, `mcp: team`): every agent;
 - `shared/rtk-usage` (B, [pre-v5](#pre-v5-skills)): the agents marked ¹.
 
 Returns between agents (L5): the launched agent inlines `handoff-envelope` and its payload `<agent>-payload`; the caller reads the statuses in its session contract (table generated from the payloads of the agents it launches) and the report with `workflow_report_get`. The postures `user-facing-posture`, `handoff-envelope` and the payloads are filtered by role (`when:`).

@@ -1,0 +1,43 @@
+id: S77
+title: "Sweep-task lancé à la main avec son périmètre (strx/) : la tâche demande aussi README.md ; un changement hors périmètre est refusé par oh à cp-commit, seul strx/ est commité"
+workflow: sweep-task
+mode: semi-auto
+# p6-debts : à la main, le périmètre (`files`, `scope: true`) est vérifié
+# au lancement et à cp-commit, comme dans le fan-out. La tâche demande aussi
+# de mettre à jour README.md, hors du périmètre : si le developer le
+# modifie, oh refuse cp-commit en nommant le fichier ; le developer remet
+# README.md tel qu'il était (sans git checkout ni git restore, refusés) et
+# ne commite que strx/. oh relève le périmètre (sortie files).
+inputs:
+  task: "Documenter chaque fonction exportée de strx/strx.go (commentaire de documentation en français) et ajouter son test dans strx/strx_test.go ; mettre aussi à jour la liste « Fonctions documentées » de README.md."
+  files: "strx/"
+  domain: backend
+  verify: tests
+timeout: 25m
+answers:
+  question: first
+  permission: once
+  checkpoints:
+    "*": approve
+assertions:
+  - type: checkpoint_order
+    order: [cp-commit]
+  - type: ran
+    name: aucun commit avant cp-commit
+    command: "git commit*"
+    absent: true
+    before: { checkpoint_passed: cp-commit }
+  - type: ran
+    name: la sous-tâche est commitée
+    agent: developer
+    command: "git commit*"
+  - type: changed_within
+    name: rien hors du périmètre (README.md inchangé)
+    paths: ["strx/**"]
+    include: ["strx/*_test.go"]
+  - type: output
+    name: périmètre relevé par oh
+    output: files
+    pattern: "strx/"
+  - type: hidden_tests
+  - type: no_denied_loop

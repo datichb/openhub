@@ -5,7 +5,7 @@
 The `spec` workflow turns a request into a spec written in the project wiki (`docs/wiki/specs/<topic>.md`), then into Beads tickets, without implementing it. oh checks the spec before you approve it: a glossary, a test point for each criterion, a breakdown that covers every criterion and nothing else.
 
 ```bash
-oh run spec -i request="Limit to 3 the current reservations per member"
+oh run spec -m "Limit to 3 the current reservations per member"
 ```
 
 In short:

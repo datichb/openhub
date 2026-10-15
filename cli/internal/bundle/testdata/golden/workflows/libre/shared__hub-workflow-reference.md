@@ -18,7 +18,7 @@ Agent d'entrée : `orchestrator`. Seuls les agents ci-dessous existent dans cett
 | `orchestrator-dev` | workflow | subagent | — | `developer`, `documentarian`, `reviewer` |
 | `pathfinder` | workflow | subagent | — | `designer` |
 | `planner` | workflow | subagent | — | `designer` |
-| `reviewer` | workflow | subagent | — | `reviewer` |
+| `reviewer` | workflow | subagent | — | — |
 | `developer` | workflow | subagent | — | — |
 | `documentarian` | workflow | subagent | — | — |
 

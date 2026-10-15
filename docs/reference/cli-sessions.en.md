@@ -434,7 +434,7 @@ oh start [options]
 | `--onboard` | | Create or enrich the project wiki | `oh run onboarding` |
 | `--parallel` | | One session per ticket, requires `--tickets` (refused otherwise) | `oh run ticket --tickets a,b` |
 | `--project` | `-p` | Project ID (auto-detected otherwise) | `-p` |
-| `--prompt` | `-m` | Initial prompt | First text input (`-i request=…` for `feature`) |
+| `--prompt` | `-m` | Initial prompt | First text input (`oh run feature -m …`) |
 | `--provider` | `-P` | LLM provider (bedrock, anthropic, openrouter, github-copilot) | `-P` |
 | `--recap` | | Show summary and ask for confirmation | `--recap` |
 | `--refresh` | | Re-discover the wiki (requires `--onboard`) | `oh run onboarding -i refresh=true` |
@@ -456,12 +456,12 @@ oh start [options]
 **Example:**
 
 ```bash
-oh run feature -p my-app -i request="Fix the login bug"
-oh run libre --agent debugger -i request="Test X has been failing since yesterday"
+oh run feature -p my-app -m "Fix the login bug"
+oh run libre --agent debugger -m "Test X has been failing since yesterday"
 oh session attach abc123-session-id --how here
 oh run ticket --tickets TICKET-123 --location new
 oh run onboarding -i refresh=true
-oh run feature -i request="Refactor the auth module" --recap
+oh run feature -m "Refactor the auth module" --recap
 oh run ticket --tickets bd-42,bd-43,bd-44
 oh run sweep -i goal="Migrate deprecated API calls" -i strategy=llm -i verify=tests
 oh run sweep -i goal="Fix lint warnings" -i strategy=by-package -i dry_run=true

@@ -1,8 +1,8 @@
 > [Read in English](mcp-gslides.en.md)
 
-# Reference serveur MCP Google Slides
+# Référence serveur MCP Google Slides
 
-Le serveur MCP Google Slides fournit un acces en lecture aux presentations Google Slides pour l'analyse.
+Le serveur MCP Google Slides fournit un accès en lecture aux présentations Google Slides pour l'analyse.
 
 ## Configuration
 
@@ -17,10 +17,10 @@ token_key = "openhub.mcp.gslides.token"
 
 ## Outils
 
-| Outil | Description | Parametres |
+| Outil | Description | Paramètres |
 |-------|-------------|------------|
-| `gslides_get_presentation` | Obtenir les metadonnees de la presentation et la liste des slides | `presentation_id` (string, requis) |
-| `gslides_get_slide` | Obtenir le contenu d'un slide specifique | `presentation_id` (string, requis), `slide_id` (string, requis) |
+| `gslides_get_presentation` | Obtenir les métadonnées de la présentation et la liste des slides | `presentation_id` (string, requis) |
+| `gslides_get_slide` | Obtenir le contenu d'un slide spécifique | `presentation_id` (string, requis), `slide_id` (string, requis) |
 
 ## Exemples d'utilisation
 
@@ -32,6 +32,6 @@ gslides_get_presentation(presentation_id: "1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74Og
 gslides_get_slide(presentation_id: "1Bxi...", slide_id: "p")
 ```
 
-## Utilise par
+## Utilisé par
 
-Disponible pour les agents quand le serveur MCP `gslides` est active. Utilise principalement par l'agent `documentarian` pour l'analyse de presentations (voir [skill doc-slides](../architecture/skills.fr.md)).
+Disponible pour les agents quand le serveur MCP `gslides` est activé. Utilisé principalement par l'agent `documentarian` pour l'analyse de présentations (voir [skill doc-slides](../architecture/skills.fr.md)).

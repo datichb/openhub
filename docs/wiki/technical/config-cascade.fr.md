@@ -1,23 +1,14 @@
 ---
-page: config-cascade
-title: Cascade de configuration
-confidence: CONFIRMED
+updated: 2026-10-15
+confidence: confirmed
 agents: [developer]
-sources:
-  - cli/internal/config/resolution.go
-  - cli/internal/config/config.go
-  - cli/internal/mcpresolve/resolve.go
-  - cli/internal/tracker/resolve_config.go
-  - cli/internal/bricks/model_resolve.go
-  - cli/internal/limits/limits.go
-  - cli/internal/workflow/layers.go
-  - docs/architecture/adr/033-config-cascade-enforcement.fr.md
-last_updated: 2026-10-06
 ---
 
 > [Read in English](config-cascade.en.md)
 
 # Cascade de configuration — OpenHub
+
+Sources de la page — `CONFIRMÉ` · developer · 2026-10-06 · cli/internal/config/resolution.go, cli/internal/config/config.go, cli/internal/mcpresolve/resolve.go, cli/internal/tracker/resolve_config.go, cli/internal/bricks/model_resolve.go, cli/internal/limits/limits.go, cli/internal/workflow/layers.go, docs/architecture/adr/033-config-cascade-enforcement.fr.md
 
 ## Vue d'ensemble
 
@@ -40,7 +31,7 @@ logique de cascade avec des sémantiques spécifiques.
 │  Surcharges projet · Bloqué si team enforced                  │
 └──────────────────────────────────────────────────────────────┘
 ```
-— `CONFIRMÉ` · developer · 2026-09-10 · config/resolution.go
+— `CONFIRMÉ` · developer · 2026-09-10 · cli/internal/config/resolution.go
 
 ## Principe d'affichage : nil = "non configuré"
 
@@ -49,7 +40,7 @@ Au niveau projet, une parenthèse précise la source d'héritage :
 `"non configuré (hérite du hub)"` ou `"non configuré (hérite de l'équipe)"`.
 Au niveau hub (plus haut niveau), pas de parenthèse.
 
-— `CONFIRMÉ` · developer · 2026-09-10 · tui/v2/views/config_field.go
+— `CONFIRMÉ` · developer · 2026-09-10 · cli/internal/tui/v2/views/config_field.go
 
 ## Matrice de cascade par domaine
 
@@ -66,7 +57,7 @@ Au niveau hub (plus haut niveau), pas de parenthèse.
 
 Supprimées en v5 (ignorées si elles restent dans `hub.toml`) : `opencode.version`, `opencode.channel`, `opencode.auto_update`, `opencode.install_dir` (opencode V2 s'installe avec son propre outil) et `deploy.disable_native_agents` (le monde fermé désactive toujours les agents natifs d'opencode). Les sections `[session]` ([Sessions v5](../../guides/sessions-v5.fr.md#configuration)), `[execution]` ([conteneur](../../guides/container.fr.md)), `[remote]` ([runners distants](../../guides/remote-runners.fr.md)) et `[limits]` (`oh budget`) sont décrites dans les guides.
 
-— `CONFIRMÉ` · developer · 2026-10-06 · config/config.go
+— `CONFIRMÉ` · developer · 2026-10-06 · cli/internal/config/config.go
 
 ### MCP Services (5 niveaux, enforceable)
 
@@ -81,7 +72,7 @@ Supprimées en v5 (ignorées si elles restent dans `hub.toml`) : `opencode.versi
 
 En v5, les serveurs activés à l'issue de cette cascade sont placés dans le paquet de session au lancement (`oh mcp serve <nom> --token-key <clé>` : seul le nom de la clé, le jeton reste dans le trousseau) ; le champ `mcp:` du workflow ne peut que les filtrer.
 
-— `CONFIRMÉ` · developer · 2026-10-06 · mcpresolve/resolve.go
+— `CONFIRMÉ` · developer · 2026-10-06 · cli/internal/mcpresolve/resolve.go
 
 ### Tracker local (2 niveaux, pointeur nil-inherit)
 
@@ -97,7 +88,7 @@ En v5, les serveurs activés à l'issue de cette cascade sont placés dans le pa
 
 Sémantique hub `*bool` : `nil` = non configuré, `true/false` = surcharge explicite.
 
-— `CONFIRMÉ` · developer · 2026-09-10 · tracker/resolve_config.go
+— `CONFIRMÉ` · developer · 2026-09-10 · cli/internal/tracker/resolve_config.go
 
 ### Tracker connexion (2 niveaux)
 
@@ -110,7 +101,7 @@ Sémantique hub `*bool` : `nil` = non configuré, `true/false` = surcharge expli
 | tracker_token_key | `string` source | `string` override | |
 | ticket_pattern | `string` source | `string` override | |
 
-— `CONFIRMÉ` · developer · 2026-09-10 · tracker/resolve_config.go
+— `CONFIRMÉ` · developer · 2026-09-10 · cli/internal/tracker/resolve_config.go
 
 ### Models (3 niveaux, toujours recommandation)
 
@@ -120,7 +111,7 @@ Sémantique hub `*bool` : `nil` = non configuré, `true/false` = surcharge expli
 
 > **Limite v5 :** les niveaux Team existent dans `bricks.ResolveAgentModel`, mais le lancement (`cmd/v5_launch.go`, `modelOverridesFor`) ne renseigne que le hub et le projet : les recommandations `[models]` du team-state ne sont pas appliquées aux sessions v5.
 
-— `CONFIRMÉ` · developer · 2026-10-06 · bricks/model_resolve.go
+— `CONFIRMÉ` · developer · 2026-10-06 · cli/internal/bricks/model_resolve.go
 
 ### Workflows (couches, sécurité qui ne fait que se durcir)
 
@@ -132,7 +123,7 @@ Sémantique hub `*bool` : `nil` = non configuré, `true/false` = surcharge expli
 
 L'ancien overlay `TeamConfig.Workflow.Enforced` (vue Workflow, surcharges des checkpoints) n'existe plus. Voir [Workflows livrés](../../reference/workflows.fr.md).
 
-— `CONFIRMÉ` · developer · 2026-10-06 · internal/workflow
+— `CONFIRMÉ` · developer · 2026-10-06 · cli/internal/workflow/
 
 ### Restrictions des sessions (I6, désactivées par défaut)
 
@@ -140,7 +131,7 @@ L'ancien overlay `TeamConfig.Workflow.Enforced` (vue Workflow, surcharges des ch
 
 Sessions actives max, budget par session et journalier (USD), plafond mémoire, liste de modèles. Commandes : `oh budget show|set|unset|raise`.
 
-— `CONFIRMÉ` · developer · 2026-10-06 · internal/limits
+— `CONFIRMÉ` · developer · 2026-10-06 · cli/internal/limits/
 
 ### Environnement d'exécution (runtime)
 
@@ -148,7 +139,7 @@ Sessions actives max, budget par session et journalier (USD), plafond mémoire, 
 
 Un runtime que le workflow n'autorise pas (`runtime.allowed`) est ignoré. `[execution]` de `hub.toml` porte aussi `engine`, `keep_images`, `tool_version` et `strict_isolation` (hub seulement) ; la config Exécution du projet porte le Dockerfile de dev, les build args, les volumes, le workflow et le runtime par défaut. Voir [Conteneur](../../guides/container.fr.md).
 
-— `CONFIRMÉ` · developer · 2026-10-06 · config/config.go
+— `CONFIRMÉ` · developer · 2026-10-06 · cli/internal/config/config.go
 
 ### Team-only (pas de cascade)
 
@@ -159,7 +150,7 @@ Un runtime que le workflow n'autorise pas (`runtime.allowed`) est ignoré. `[exe
 | Parallel | max_sessions (défaut : 5), port_range_start, auto_merge_beads — réglages de l'ancien mode parallèle, sans effet sur les sessions v5 (limiter les sessions : `oh budget`) |
 | Claim | done_retention_days (défaut: 7) |
 
-— `CONFIRMÉ` · developer · 2026-09-10 · teamstate/teamconfig.go
+— `CONFIRMÉ` · developer · 2026-09-10 · cli/internal/teamstate/teamconfig.go
 
 ## Champs d'enforcement
 

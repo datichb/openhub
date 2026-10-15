@@ -122,10 +122,10 @@ oh project add --name my-app --path ~/workspace/my-app --language typescript
 From the project directory:
 
 ```bash
-oh run quick -i request="Add a test for parseDate"   # small change, no checkpoint
-oh run feature -i request="…"                                 # a complete feature: spec and tickets, then implementation proposed
+oh run quick -m "Add a test for parseDate"                    # small change, no checkpoint
+oh run feature -m "…"                                         # a complete feature: spec and tickets, then implementation proposed
 oh run                                                # the project default workflow
-oh run feature -i request="…" --recap                         # show the recap, then confirm
+oh run feature -m "…" --recap                                 # show the recap, then confirm
 ```
 
 oh resolves the workflow (hub, team, project layers), builds the session bundle, picks the location (an automatic worktree when another session already writes in the directory), starts the opencode server and opens the session window: a new iTerm2 or Terminal.app tab, tmux, or the browser, depending on your Settings.

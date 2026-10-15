@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -197,12 +198,24 @@ func newFixture(t *testing.T, tickets ...string) *fixture {
 
 func (f *fixture) runDriver(t *testing.T) *domain.SessionFanout {
 	t.Helper()
+	fo, err := f.runDriverErr()
+	require.NoError(t, err)
+	return fo
+}
+
+// runDriverErr runs the driver to its end (30 s at most) and returns the
+// record of the parent; usable out of the test goroutine.
+func (f *fixture) runDriverErr() (*domain.SessionFanout, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	require.NoError(t, f.driver.Run(ctx, "ses_parent"))
+	if err := f.driver.Run(ctx, "ses_parent"); err != nil {
+		return nil, err
+	}
 	p, err := f.store.Get(context.Background(), "ses_parent")
-	require.NoError(t, err)
-	return p.Fanout
+	if err != nil {
+		return nil, err
+	}
+	return p.Fanout, nil
 }
 
 func TestDriverMergesIndependentChildren(t *testing.T) {
@@ -495,53 +508,104 @@ func doneReason(fo *domain.SessionFanout, ticket string) string {
 }
 
 // The end of a child is its end of work seen by oh, not its idleness: a
-// child idle with a commit but whose commit checkpoint did not pass is
-// only stopped by the guard; once it passed, the signal ends it at once.
+// child idle with a commit but whose commit checkpoint did not pass, or
+// idle without a commit, is not done; once the missing part is there, the
+// signal ends it. Waits by condition, not by time: the guard is an hour
+// in these cases (it cannot decide), the driver is seen checking the idle
+// child several times without ending it, then the test completes the work.
 func TestDriverChildEndSignal(t *testing.T) {
 	childWf := &sessionspec.WorkflowRuntime{ID: "ticket", Checkpoints: []sessionspec.CheckpointDef{
 		{ID: "cp-2", Mandatory: true, Unlocks: []string{sessionspec.UnlockCommit}}}}
 	for _, tc := range []struct {
 		name   string
-		passed bool
-		work   bool
-		want   string
+		passed bool // cp-2 passed from the start
+		work   bool // the child commits its work
 	}{
-		{"signal", true, true, DoneSignal},
-		{"checkpoint not passed", false, true, DoneIdle},
-		{"no commit", true, false, DoneIdle},
+		{"signal", true, true},
+		{"checkpoint not passed", false, true},
+		{"no commit", true, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t, "ev-1")
-			// No bound on the time taken (flaky under load): the reason
-			// tells which check stopped the wait. With the signal, the guard
-			// cannot fire before the end of the test (ctx of runDriver);
-			// without it, the guard is short and only a lower bound holds.
-			guard := time.Hour
-			if tc.want != DoneSignal {
-				guard = 300 * time.Millisecond
-			}
-			f.driver.IdleTimeout = guard
+			f.driver.IdleTimeout = time.Hour
 			if tc.work {
 				f.launcher.work["ev-1"] = [2]string{"a.go", "package calc\n"}
 			}
+			var passed atomic.Bool
+			passed.Store(tc.passed)
+			var checks atomic.Int64 // end-of-work checks of the idle child
 			parentWf := f.wf
 			f.driver.Workflow = func(_ context.Context, id string) (*sessionspec.WorkflowRuntime, domain.CheckpointState, error) {
 				st := domain.CheckpointState{Passed: map[string]time.Time{"cp-plan": time.Now()}}
 				if id == "ses_parent" {
 					return parentWf, st, nil
 				}
-				if tc.passed {
+				checks.Add(1)
+				if passed.Load() {
 					st.Passed["cp-2"] = time.Now()
 				}
 				return childWf, st, nil
 			}
-			start := time.Now()
-			fo := f.runDriver(t)
-			assert.Equal(t, tc.want, doneReason(fo, "ev-1"))
-			if tc.want != DoneSignal {
-				assert.GreaterOrEqual(t, time.Since(start), guard, "stopped by the guard only")
+			done := make(chan driverEnd, 1)
+			go func() {
+				fo, err := f.runDriverErr()
+				done <- driverEnd{fo, err}
+			}()
+			if !tc.passed || !tc.work {
+				const seen = 5
+				waitFor(t, done, func() bool { return checks.Load() >= seen }, "the driver checks the idle child")
+				p, err := f.store.Get(context.Background(), "ses_parent")
+				require.NoError(t, err)
+				require.Empty(t, doneReason(p.Fanout, "ev-1"), "idle without its end of work: not done")
+				if !tc.passed {
+					passed.Store(true)
+				} else {
+					require.Len(t, p.Fanout.Children, 1)
+					c := p.Fanout.Children[0]
+					run(t, c.Path, "git", "-c", "user.name=t", "-c", "user.email=t@x", "commit", "-q", "--allow-empty", "-m", "feat: ev-1")
+				}
+			}
+			select {
+			case end := <-done:
+				require.NoError(t, end.err)
+				assert.Equal(t, DoneSignal, doneReason(end.fo, "ev-1"))
+			case <-t.Context().Done():
+				t.Fatal("the driver did not end")
 			}
 		})
+	}
+}
+
+// The guard ends an idle child that never shows its end of work.
+func TestDriverChildIdleGuard(t *testing.T) {
+	f := newFixture(t, "ev-1")
+	f.driver.IdleTimeout = 50 * time.Millisecond
+	fo := f.runDriver(t)
+	assert.Equal(t, DoneIdle, doneReason(fo, "ev-1"))
+}
+
+// driverEnd is how a driver run in a goroutine ended.
+type driverEnd struct {
+	fo  *domain.SessionFanout
+	err error
+}
+
+// waitFor waits until cond holds, failing when the driver ends first.
+func waitFor(t *testing.T, done <-chan driverEnd, cond func() bool, what string) {
+	t.Helper()
+	tick := time.NewTicker(5 * time.Millisecond)
+	defer tick.Stop()
+	for !cond() {
+		select {
+		case end := <-done:
+			if end.err != nil {
+				t.Fatalf("%s: the driver failed first: %v", what, end.err)
+			}
+			t.Fatalf("%s: the driver ended first (%s)", what, doneReason(end.fo, "ev-1"))
+		case <-t.Context().Done():
+			t.Fatalf("%s: never", what)
+		case <-tick.C:
+		}
 	}
 }
 

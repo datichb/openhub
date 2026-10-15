@@ -26,7 +26,7 @@ reviewer) ou créer des agents dédiés ?
 Deux agents dédiés sont créés :
 
 - **`qa-engineer`** : reçoit une implémentation, écrit les tests manquants
-  (unit / integration / E2E), produit un rapport de couverture. Ne modifie jamais
+  (unit / intégration / E2E), produit un rapport de couverture. Ne modifie jamais
   le code fonctionnel. Invocable standalone ou comme étape optionnelle `[CP-QA]`
   dans l'agent orchestrator.
 

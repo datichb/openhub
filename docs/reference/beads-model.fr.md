@@ -306,7 +306,7 @@ Lors du `tracker setup`, le champ **ID ou chemin du projet GitLab** accepte troi
 | URL complète | `https://gitlab.com/mon-groupe/mon-projet` | Chemin extrait automatiquement avec un avertissement |
 
 > **Conseil** : préférer l'ID numérique ou le chemin `namespace/projet`.
-> L'ID numérique est visible dans GitLab sous **Settings → General** (en haut de page).
+> L'ID numérique est visible dans GitLab sous **Settings → Général** (en haut de page).
 
 Après le setup, la connexion est testée automatiquement via `bd gitlab status`.
 En cas d'échec, les valeurs configurées sont affichées pour faciliter le diagnostic.

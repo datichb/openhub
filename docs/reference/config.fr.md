@@ -236,7 +236,7 @@ Ordre du runtime : `--runtime` > projet > Réglages (`[execution] runtime`) > `r
 
 Les notifications d'équipe sont configurées dans le `config.toml` du **team-state** (pas dans `hub.toml`). Elles sont gérées via `oh team init` ou en éditant la configuration du team-state. Les notifications **système** des sessions se règlent dans `[session] notify` de `hub.toml`.
 
-Voir le [guide de configuration d'équipe](../guides/team-setup.fr.md) et le [guide de configuration](../guides/configuration-guide.fr.md#5-configuration-equipe).
+Voir le [guide de configuration d'équipe](../guides/team-setup.fr.md) et le [guide de configuration](../guides/configuration-guide.fr.md#5-configuration-équipe).
 
 ```toml
 # config.toml du team-state (PAS hub.toml)

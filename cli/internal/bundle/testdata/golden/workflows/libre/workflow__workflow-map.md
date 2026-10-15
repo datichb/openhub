@@ -24,7 +24,7 @@ Cette carte est la seule référence sur l'enchaînement : n'invente ni agent, n
 | `orchestrator-dev` | workflow | subagent | — | `developer`, `documentarian`, `reviewer` |
 | `pathfinder` | workflow | subagent | — | `designer` |
 | `planner` | workflow | subagent | — | `designer` |
-| `reviewer` | workflow | subagent | — | `reviewer` |
+| `reviewer` | workflow | subagent | — | — |
 | `developer` | workflow | subagent | — | — |
 | `documentarian` | workflow | subagent | — | — |
 

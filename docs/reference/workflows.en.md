@@ -111,12 +111,12 @@ With the `tdd` method (`-i method=tdd`), the `developer` passes `cp-seams` itsel
 
 | Launch | Workflow launched | Former mode |
 |---|---|---|
-| `oh run feature -i request="…"` (and `oh start -m "…"`); without a request, the session asks for it | `spec`: `aliases: [cadrage, feature]` | A (feature in natural language) |
-| `oh run feature --tickets bd-1,bd-2` | `implement-spec`: `aliases: [{ id: feature, with: tickets }]`; `-m` goes to its `instructions` input | B (existing tickets) |
+| `oh run feature -m "…"` (and `oh start -m "…"`); without a request, the session asks for it | `spec`: `aliases: [cadrage, feature]` | A (feature in natural language) |
+| `oh run feature --tickets bd-1,bd-2` | `implement-spec`: `aliases: [{ id: feature, with: tickets }]`; guidance: `-i instructions=…` (`-m` is refused there: no `request` input) | B (existing tickets) |
 
 oh shows the redirection (`feature → spec`). When `spec` ends, oh proposes `implement-spec` on the created tickets and the written spec, without launching it (`oh session next <id>`, when the client closes, "Chain with…" in the TUI).
 
-**TDD method passed on.** `spec` takes the `method` input (`standard` or `tdd`) without using it itself: oh records it at launch (output `method`, `record: input`) and passes it to `implement-spec` in the proposed next step (`-i method=tdd`). `oh run feature -i method=tdd -i request="…"` thus gives a spec, then a TDD implementation.
+**TDD method passed on.** `spec` takes the `method` input (`standard` or `tdd`) without using it itself: oh records it at launch (output `method`, `record: input`) and passes it to `implement-spec` in the proposed next step (`-i method=tdd`). `oh run feature -m "…" -i method=tdd` thus gives a spec, then a TDD implementation.
 
 What changes compared with the former `feature` (⚠):
 
@@ -571,7 +571,7 @@ Enriches a ticket takeover brief, without interaction (headless session: `oh run
 
 ## `libre`
 
-Session with the agent of your choice, without checkpoints nor commit lock (the agent asks for confirmation before any irreversible action): `oh run libre --agent debugger -i request="…"` (without `--agent`: `orchestrator`, the entry agent of this workflow only since `feature` became an alias: it coordinates without reading or changing any file, routes to the `pathfinder` or the `planner` then the `orchestrator-dev`, and has the plan approved with `question`, for lack of a checkpoint). The entry of the workflow is **selectable** (`entry.selectable: true`): oh computes the members from the chosen agent and the agents it may call (`task` permission of the catalogue, transitively). The world stays closed: nothing else is visible. In the TUI, the free session (`coder` command, or « Démarrer » when the catalogue is empty) opens the launch form with the default agent. Allowed Beads commands: `show`, `list`, `ready`, `search`, `query`, `children`, `comments`, `count`, `lint`, `find-duplicates`, `status`, `graph`, `history`, `create`, `update`, `close`, `reopen`, `edit`, `comment`, `dep`, `label`, `duplicate`, `supersede` (everything but `delete`).
+Session with the agent of your choice, without checkpoints nor commit lock (the agent asks for confirmation before any irreversible action): `oh run libre --agent debugger -m "…"` (without `--agent`: `orchestrator`, the entry agent of this workflow only since `feature` became an alias: it coordinates without reading or changing any file, routes to the `pathfinder` or the `planner` then the `orchestrator-dev`, and has the plan approved with `question`, for lack of a checkpoint). The entry of the workflow is **selectable** (`entry.selectable: true`): oh computes the members from the chosen agent and the agents it may call (`task` permission of the catalogue, transitively). The world stays closed: nothing else is visible. An agent never calls itself there (no parallel `reviewer` sessions: `oh run review` for the combined modes). In the TUI, the free session (`coder` command, or « Démarrer » when the catalogue is empty) opens the launch form with the default agent. Allowed Beads commands: `show`, `list`, `ready`, `search`, `query`, `children`, `comments`, `count`, `lint`, `find-duplicates`, `status`, `graph`, `history`, `create`, `update`, `close`, `reopen`, `edit`, `comment`, `dep`, `label`, `duplicate`, `supersede` (everything but `delete`).
 
 | Input | Type | Required | Role |
 |---|---|---|---|

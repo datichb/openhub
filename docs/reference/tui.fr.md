@@ -104,7 +104,7 @@ La colonne Commande donne le libellé affiché ; on peut aussi taper un alias. C
 |----------|-------|------|-------------|
 | `run <workflow>` | l'id du workflow ; anciens noms : `dev`, `start.dev` → `ticket` · `start`, `feature`, `orchestrator`, `cadrage` → `spec` · `fast` → `quick` · `secu`, `security`, `perf`, `archi`, `a11y` → `audit` · `rev`, `cr` → `review` · `dbg`, `debugger`, `diag` → `debug` · `onboard`, `start.onboard` → `onboarding` · `feedback`, `rf`, `retours` → `review-feedback` | — | Fiche de lancement du workflow (une commande par workflow du catalogue) |
 | Session libre | `coder`, session, code, free | Projet/Équipe | Fiche de lancement du workflow `libre` (agent d'entrée au choix, par défaut `orchestrator`) |
-| Sessions | `sessions`, parallel, par, multi, inbox, à traiter, decisions | — | Vue Sessions |
+| Sessions | `sessions`, parallel, par, multi, inbox, à traiter, décisions | — | Vue Sessions |
 | Workflows | `workflows`, catalogue, catalog, wf, workflow | — | Catalogue des workflows (brouillons, publication, historique) |
 | Briques | `bricks`, briques, agents, skills, catalogue des briques | — | Catalogue des briques (agents et skills : origine, coût, workflows) |
 | Review Publish | `review.publish`, publish, mr | Projet/Équipe | Créer la MR de la branche courante (`oh review --publish`, terminal suspendu) ; présent seulement si l'écriture GitLab est activée |
@@ -184,7 +184,7 @@ Sections : **À traiter** (sessions qui ont des décisions en attente, chacune s
 | Provider | `provider`, prov, api | — | Fournisseur LLM (la région Bedrock est vérifiée dès la saisie : message sous le champ, valeur invalide refusée) |
 | MCP | `mcp`, servers | — | Serveurs MCP |
 | Secrets & Tokens | `secrets`, tokens, credentials, keychain | — | Secrets du trousseau |
-| Équipes | `teams`, team, equipe, equipes | — | Liste des équipes |
+| Équipes | `teams`, team, équipe, équipes | — | Liste des équipes |
 | Configuration équipe | `team-detail`, tracker, sync, team detail | Équipe | Détail et configuration de l'équipe |
 | Discover Tracker | `team.discover`, tracker discovery, discover, configurer tracker | Équipe | Configurer les colonnes du board depuis le tracker |
 | Configurer le hub | `init`, setup, reconfigure, configurer | — | Assistant de configuration (premier lancement) |
@@ -224,7 +224,7 @@ Le mode Équipe s'active avec `Ctrl+T` (ou en choisissant une équipe à l'accue
 
 | Commande | Alias | Mode | Description |
 |----------|-------|------|-------------|
-| Board Équipe | `team.board`, team board, team kanban, equipe board | Équipe | Kanban d'équipe |
+| Board Équipe | `team.board`, team board, team kanban, équipe board | Équipe | Kanban d'équipe |
 | Statut | `team.status`, team stat, status team | Équipe | Statut d'équipe |
 | Activité | `team.activity`, activite, feed, activity | Équipe | Activité récente |
 | Historique Équipe | `history.team`, team history, team sessions | Équipe | Historique des sessions de l'équipe (vue Activité) |
@@ -233,7 +233,7 @@ Le mode Équipe s'active avec `Ctrl+T` (ou en choisissant une équipe à l'accue
 | Policies | `team.policies`, pol, rules, policies | Équipe | Politiques d'équipe |
 | Wiki | `team.wiki`, wiki, proposals, pending | Équipe | Propositions de wiki |
 | Sync Tracker | `team.sync`, sync tracker, synchroniser tracker | Équipe | Synchroniser le tracker |
-| Équipe du projet | `team.configure`, team projet, configurer equipe | Équipe | Équipe rattachée au projet |
+| Équipe du projet | `team.configure`, team projet, configurer équipe | Équipe | Équipe rattachée au projet |
 | Initialiser l'équipe | `team.init`, team init, initialiser | — | Assistant `team init` |
 | Rejoindre une équipe | `team.rejoin`, team rejoin, rejoindre, rejoin | — | Rejoindre une équipe existante |
 | Worktrees | `worktrees`, wt, git worktree | — | Gestion des git worktrees |

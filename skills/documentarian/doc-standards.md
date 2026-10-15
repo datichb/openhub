@@ -56,7 +56,7 @@ Présenter l'information du plus simple au plus complexe :
 
 ### 3. Exemples avant théorie
 
-```markdown
+````markdown
 # Mauvais
 La fonction `formatDate` prend un objet Date JavaScript et applique
 le formatage selon la locale ISO 8601 avec les options...
@@ -67,7 +67,7 @@ formatDate(new Date('2024-01-15')) // → "15 janvier 2024"
 formatDate(new Date('2024-01-15'), { locale: 'en' }) // → "January 15, 2024"
 ```
 Formate une date selon la locale du projet. Par défaut : `fr-FR`.
-```
+````
 
 ### 4. Test du nouveau contributeur
 
@@ -96,7 +96,7 @@ Pour s'authentifier : POST /api/auth/login avec { email, password }.
 
 ### README.md
 
-```markdown
+````markdown
 # Nom du projet
 
 Description en 1-2 phrases — ce que le projet fait, pour qui.
@@ -129,11 +129,11 @@ npm run dev
 ## Licence
 
 MIT
-```
+````
 
 ### Guide pratique (how-to)
 
-```markdown
+````markdown
 # Comment [accomplir la tâche]
 
 ## Prérequis
@@ -156,11 +156,11 @@ MIT
 ## Dépannage
 
 [Erreurs fréquentes et solutions]
-```
+````
 
 ### Documentation de référence
 
-```markdown
+````markdown
 # [Nom du composant / module / commande]
 
 [Description en 1 phrase]
@@ -189,7 +189,7 @@ exemple({ option: true })
 ## Voir aussi
 
 - [Lien vers concept lié]
-```
+````
 
 ---
 

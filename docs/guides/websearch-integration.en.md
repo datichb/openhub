@@ -100,7 +100,7 @@ cd /path/to/my-project
 oh run audit -i type=security
 
 # Scoping with stack research (pathfinder, planner, designer)
-oh run cadrage -i request="Add PDF export"
+oh run cadrage -m "Add PDF export"
 
 # Session with the agent of your choice
 oh run libre --agent designer

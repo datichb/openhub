@@ -45,7 +45,7 @@ No longer working:
 The former launch "by agent" becomes the shipped **`libre`** workflow: the agent of your choice (`orchestrator` by default) and the agents it may call, without checkpoints, in a closed world.
 
 ```bash
-oh run libre --agent debugger -i request="test X fails since yesterday"
+oh run libre --agent debugger -m "test X fails since yesterday"
 ```
 
 In the TUI: the `coder` command, or opening a session from the Worktrees view.

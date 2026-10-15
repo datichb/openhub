@@ -160,7 +160,7 @@ Définir le format des blocs pour chaque checkpoint :
 
 Pour chaque appel `question({...})` :
 
-```markdown
+````markdown
 **Si CONTEXTE = standalone :**
 ```
 question({...})  [inchangé]
@@ -174,7 +174,7 @@ question({...})  [inchangé]
 ...
 ```
 → TERMINER LA SESSION
-```
+````
 
 ### 4. Ajouter dans le fichier agent
 

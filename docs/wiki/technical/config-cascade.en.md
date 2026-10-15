@@ -1,23 +1,14 @@
 ---
-page: config-cascade
-title: Configuration Cascade
-confidence: CONFIRMED
+updated: 2026-10-15
+confidence: confirmed
 agents: [developer]
-sources:
-  - cli/internal/config/resolution.go
-  - cli/internal/config/config.go
-  - cli/internal/mcpresolve/resolve.go
-  - cli/internal/tracker/resolve_config.go
-  - cli/internal/bricks/model_resolve.go
-  - cli/internal/limits/limits.go
-  - cli/internal/workflow/layers.go
-  - docs/architecture/adr/033-config-cascade-enforcement.en.md
-last_updated: 2026-10-06
 ---
 
 > [Lire en français](config-cascade.fr.md)
 
 # Configuration Cascade — OpenHub
+
+Sources of the page — `CONFIRMÉ` · developer · 2026-10-06 · cli/internal/config/resolution.go, cli/internal/config/config.go, cli/internal/mcpresolve/resolve.go, cli/internal/tracker/resolve_config.go, cli/internal/bricks/model_resolve.go, cli/internal/limits/limits.go, cli/internal/workflow/layers.go, docs/architecture/adr/033-config-cascade-enforcement.en.md
 
 ## Overview
 

@@ -175,3 +175,24 @@ func TestRunRecapRows(t *testing.T) {
 		}
 	}
 }
+
+// -m is short for -i request=…; both together are refused.
+func TestRunOptionsMessage(t *testing.T) {
+	opts, err := runOptionsFromFlags(runFlagsCmd(t, "-m", "Ajouter l'export CSV", "-i", "method=tdd"), "feature")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if opts.Inputs["request"] != "Ajouter l'export CSV" || !opts.Message || opts.Inputs["method"] != "tdd" {
+		t.Fatalf("opts = %+v", opts)
+	}
+	if _, err := runOptionsFromFlags(runFlagsCmd(t, "-m", "a", "-i", "request=b"), "feature"); err == nil ||
+		err.Error() != i18n.T("cmd.run.message_and_request") {
+		t.Fatalf("-m with -i request= : %v", err)
+	}
+	if _, err := runOptionsFromFlags(runFlagsCmd(t, "-m", "  "), "feature"); err == nil {
+		t.Fatal("empty -m accepted")
+	}
+	if opts, _ := runOptionsFromFlags(runFlagsCmd(t, "-i", "request=b"), "feature"); opts.Message {
+		t.Fatal("-i request= taken for -m")
+	}
+}

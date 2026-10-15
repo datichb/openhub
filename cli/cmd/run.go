@@ -34,6 +34,7 @@ func init() {
 func addRunFlags(c *cobra.Command) {
 	f := c.Flags()
 	f.StringArrayP("input", "i", nil, "Entrée du workflow (clé=valeur, répétable)")
+	f.StringP("message", "m", "", "Demande (raccourci de -i request=…, si le workflow a cette entrée)")
 	f.String("mode", "", "Mode du workflow (manuel, semi-auto, auto)")
 	f.StringP("agent", "a", "", i18n.T("cmd.run.flags.agent"))
 	f.String("runtime", "", i18n.T("cmd.run.flags.runtime"))
@@ -137,6 +138,17 @@ func runOptionsFromFlags(cmd *cobra.Command, workflowID string) (runOptions, err
 			return opts, errors.New(i18n.Tf("cmd.run.bad_input", kv))
 		}
 		opts.Inputs[strings.TrimSpace(k)] = v
+	}
+	if f.Changed("message") {
+		msg, _ := f.GetString("message")
+		if _, set := opts.Inputs[requestInput]; set {
+			return opts, errors.New(i18n.T("cmd.run.message_and_request"))
+		}
+		if strings.TrimSpace(msg) == "" {
+			return opts, errors.New(i18n.T("cmd.run.message_empty"))
+		}
+		opts.Inputs[requestInput] = msg
+		opts.Message = true
 	}
 	opts.Mode, _ = f.GetString("mode")
 	opts.Runtime, _ = f.GetString("runtime")

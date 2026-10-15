@@ -111,7 +111,7 @@ agents: [<agents>]
 
 ## Format canonique — `docs/wiki/technical/tests.md`
 
-```markdown
+````markdown
 ---
 updated: YYYY-MM-DD
 confidence: confirmed | mixed | uncertain
@@ -157,7 +157,7 @@ agents: [<agents>]
 ## Conventions de nommage des tests
 
 - <Convention observée> — `CONFIRMÉ` · <agent> · <date> · <fichier exemple>
-```
+````
 
 ---
 

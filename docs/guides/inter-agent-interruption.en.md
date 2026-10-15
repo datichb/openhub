@@ -160,7 +160,7 @@ At EACH checkpoint:
 
 For each `question({...})` call:
 
-```markdown
+````markdown
 **If CONTEXT = standalone:**
 ```
 question({...})  [unchanged]
@@ -174,7 +174,7 @@ question({...})  [unchanged]
 ...
 ```
 → TERMINATE THE SESSION
-```
+````
 
 ### 4. Add to the agent file
 

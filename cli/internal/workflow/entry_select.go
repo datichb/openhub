@@ -13,7 +13,8 @@ type AgentLister interface {
 // delegate to according to the task permissions of the catalogue, followed
 // transitively (closed world: nothing else is visible). The agents reached
 // are subagents: an agent left primary by its frontmatter cannot be
-// launched through task.
+// launched through task. No `calls:` is derived: an agent never calls
+// itself (its task permission to itself is not a delegation).
 func (r *Resolved) SelectEntry(id string, agents AgentCatalog) Diagnostics {
 	var diags Diagnostics
 	add := func(d Diagnostic) {
@@ -52,21 +53,6 @@ func (r *Resolved) SelectEntry(id string, agents AgentCatalog) Diagnostics {
 			members.Set(other, AgentRef{Role: RoleWorkflow, Mode: ModeSubagent})
 			queue = append(queue, other)
 		}
-	}
-	// An explicit self-delegation (reviewer → parallel reviewer sessions)
-	// is never derived from the task permission: keep it as `calls`.
-	for _, id := range members.Keys() {
-		info, ok := agents.Agent(id)
-		if !ok || !info.SelfTask {
-			continue
-		}
-		ref, _ := members.Get(id)
-		for _, other := range members.Keys() {
-			if other == id || matchAny(info.Tasks, other) {
-				ref.Calls = append(ref.Calls, other)
-			}
-		}
-		members.Set(id, ref)
 	}
 	entry := *s.Entry
 	entry.Agent = id

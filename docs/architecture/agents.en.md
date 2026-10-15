@@ -202,7 +202,7 @@ Taken from the frontmatter files in `agents/`.
 This table is the authoritative reference for which skills each agent loads. It is taken from the actual agent frontmatter files. For skill descriptions, see [Skills reference](./skills.en.md).
 
 > `shared/universal-guardrails` is Bucket A (inline) in **every** agent except `brief-enricher`: it is not repeated in the tables.
-> `shared/team-awareness` and `shared/team-policies-enforcement` are Bucket B in **every** agent except `merger` (neither of them): they are not repeated either.
+> `shared/team-awareness` and `shared/team-policies-enforcement` are Bucket B in **every** agent (only with the `team` MCP): they are not repeated either.
 > `shared/living-docs-enrichment` is Bucket B (native / on-demand) everywhere it appears.
 
 ### Planning family

@@ -1,18 +1,14 @@
 ---
-page: stack
-title: Technology Stack
-confidence: CONFIRMED
-sources:
-  - cli/go.mod
-  - cli/.goreleaser.yml
-  - cli/Makefile
-  - docs/architecture/overview.en.md
-last_updated: 2026-10-06
+updated: 2026-10-15
+confidence: confirmed
+agents: [onboarder, documentarian]
 ---
 
 > [Lire en francais](stack.fr.md)
 
 # Technology Stack
+
+Sources of the page — `CONFIRMÉ` · onboarder · 2026-10-06 · cli/go.mod, cli/.goreleaser.yml, cli/Makefile, docs/architecture/overview.en.md
 
 ## Runtime
 
@@ -49,10 +45,12 @@ last_updated: 2026-10-06
 | Protocol | MCP (Model Context Protocol) -- stdin/stdout subprocess; streamable HTTP through the daemon gateway off the machine |
 | Credentials | `ohd` credential proxy (per-group `ohs_` token; real keys stay in the keychain; SigV4 for AWS profiles) |
 | Providers | Anthropic Claude, AWS Bedrock, OpenAI, OpenRouter (configurable) |
-| Workflows | 22 declarative `oh/v1` workflows (YAML, embedded via go:embed) |
+| Workflows | 24 declarative `oh/v1` workflows and the aliases `feature`, `cadrage` (YAML, embedded via go:embed) |
 | Agents | 18 agents with hybrid skill architecture (Bucket A/B), including the generic entry agent `conductor` |
-| Skills | 179 protocol skills + 11 annexes (embedded via go:embed, delivered through the session bundle) |
+| Skills | 181 protocol skills + 11 annexes (embedded via go:embed, delivered through the session bundle) |
 | Plugin | oh plugin for opencode (TypeScript, embedded; closed world and checkpoints) |
+
+Counts taken from `workflows/`, `agents/` and `skills/` — `CONFIRMÉ` · documentarian · 2026-10-15 · workflows/spec.yaml
 
 ## External Integrations (MCP Servers)
 
