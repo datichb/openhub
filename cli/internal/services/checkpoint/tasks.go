@@ -392,7 +392,7 @@ func (s *Service) scopeCheck(ctx context.Context, sess *domain.Session) (domain.
 // sessionScope returns the file scope of a session: the task oh recorded
 // for a child of a fan-out of tasks, else the scope input of its workflow
 // as recorded at launch (p6-debts: sweep-task launched by hand).
-func (s *Service) sessionScope(ctx context.Context, sess *domain.Session) (string, []string) {
+func (s *Service) sessionScope(ctx context.Context, sess *domain.Session) (id string, scope []string) {
 	if f := sess.Fanout; f != nil && f.Role == domain.RoleChild && f.Task != nil && len(f.Task.Files) > 0 {
 		return f.Task.ID, f.Task.Files
 	}
@@ -404,7 +404,6 @@ func (s *Service) sessionScope(ctx context.Context, sess *domain.Session) (strin
 	if !ok {
 		return "", nil
 	}
-	var scope []string
 	for _, e := range filesOf(raw) {
 		if clean, ok := scopeEntry(e); ok {
 			scope = append(scope, clean)

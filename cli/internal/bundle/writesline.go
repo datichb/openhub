@@ -119,15 +119,15 @@ type writesWord struct {
 // writesWords splits a line into its words: words of plain characters, or
 // a whole word in single or double quotes. Anything the shell would
 // expand, redirect or chain is refused.
-func writesWords(cmd string) ([]writesWord, string) {
+func writesWords(cmd string) (words []writesWord, problem string) {
 	var out []writesWord
 	r := []rune(cmd)
 	for i := 0; i < len(r); {
 		c := r[i]
-		switch {
-		case c == ' ':
+		switch c {
+		case ' ':
 			i++
-		case c == '\'' || c == '"':
+		case '\'', '"':
 			end := -1
 			for j := i + 1; j < len(r); j++ {
 				if r[j] == c {

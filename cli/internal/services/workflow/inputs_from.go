@@ -79,20 +79,20 @@ func FromEqualsSuffix(eq map[string]string) string {
 
 // ParseFromArg splits the argument of a session source into the argument
 // and its `from_equals`.
-func ParseFromArg(arg string) (string, map[string]string) {
-	base, query, ok := strings.Cut(arg, "?")
+func ParseFromArg(arg string) (base string, equals map[string]string) {
+	b, query, ok := strings.Cut(arg, "?")
 	if !ok {
 		return arg, nil
 	}
 	q, err := url.ParseQuery(query)
 	if err != nil {
-		return base, map[string]string{"": ""} // matches nothing
+		return b, map[string]string{"": "\x00"} // matches no session
 	}
-	eq := map[string]string{}
+	equals = map[string]string{}
 	for k := range q {
-		eq[k] = q.Get(k)
+		equals[k] = q.Get(k)
 	}
-	return base, eq
+	return b, equals
 }
 
 func given(v any) bool {
