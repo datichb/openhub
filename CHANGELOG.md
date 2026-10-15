@@ -9,6 +9,14 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Added — TUI : sessions, fan-out et validation par lot (lot tui-sessions)
+
+- **Détail d'une session à onglets** (`Tab`) : Détail (sorties relevées par oh, suites `next:` distinguées des autres suggestions d'« Enchaîner avec… », marquées aussi dans `e`), Trace (texte de `oh session trace` : `/` rechercher, `n`/`N`, `g`/`G`), Rapports (liste et lecteur), Fan-out.
+- **Fan-out** : enfants `↳` regroupés en arbre sous leur parente `⑂` (le groupe passe dans « À traiter » quand l'un d'eux attend) ; onglet Fan-out avec l'état des enfants (branche, coût, raison de fin), les tours de correction, le dernier refus de `cp-merge`, la branche d'intégration et le budget ; `p` relance le pilote, `d` nettoie (aperçu de ce qui est supprimé ou gardé, `--discard` à cocher, confirmation).
+- **Vérification échouée** : `y` ouvre la fiche sur « Corriger (consigne) » / « Passer outre… » (motif, confirmation, tracé ; absent sur `cp-merge`) au lieu d'un message d'erreur ; `n` affiche le valideur attendu et l'avertissement « hors valideur ».
+- **Validation par lot** (`B lot`) à la place de la liste : filtre par checkpoint (`/`, comme `--checkpoint`), `y`/`s`/`n` par élément, vérification échouée → `Entrée` ouvre la fiche, `C` confirme ; seuls les éléments du filtre sont répondus.
+- ⚠ Touches de Sessions alignées sur la convention : `d` supprimer, `R` reprendre ou récupérer une session distante (plus `D`, `c`, `g`). Dans les onglets et le lot, l'aide est sur `F1`.
+
 ### Changed — TUI : fiche de lancement, nettoyage et Doctor (lot tui-launch)
 
 - **Fiche de lancement** : agent d'entrée au choix pour `libre` (agents « selectable », F-15) et commande « Session libre avec un agent… » ; l'aide de chaque entrée sous son champ ; « Entier attendu » (bloquant), « Chemin introuvable », « Branche introuvable : … » (avertissements) ; une entrée `from:` affiche « ⚙ calculé par oh : … → ses_… ». **Corrigé** : une entrée `from:` n'est plus préremplie par son défaut, qui écrasait le calcul d'oh (`base: main` de `review-feedback` au lieu de la branche cible de la MR).
