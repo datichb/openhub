@@ -5,21 +5,20 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 )
 
 // Wiki proposals on the card of the commit checkpoint (modernisation LD-J,
-// CP-R4): the open proposals of the session, each accepted, edited or
-// refused from the card; oh applies the accepted ones when the checkpoint
-// is passed, before the commit. Proposal texts come from agents: always
-// escaped.
-
-// checkpointCardWiki is the number of proposals with their own action on
-// the card.
-const checkpointCardWiki = 4
+// CP-R4, tui-wiki-bricks): the card lists the open proposals of the
+// session; its button opens them all in a list (wiki_proposals.go) where
+// each one is accepted, modified, refused or left pending; oh applies the
+// accepted ones when the checkpoint is passed, before the commit. Proposal
+// texts come from agents: always escaped.
 
 // wikiNewline stands for a line break in the one-line content field.
 const wikiNewline = " ⏎ "
@@ -35,19 +34,7 @@ const (
 )
 
 // CheckpointWikiProposal is a wiki proposal on a checkpoint card.
-type CheckpointWikiProposal struct {
-	ID      string
-	Agent   string
-	Page    string
-	Section string
-	Tag     string
-	Source  string
-	Status  string // pending | accepted
-	Content string
-	// Replaces is the line of the page the content replaces (p5-fixes):
-	// the card shows it before the new one.
-	Replaces string
-}
+type CheckpointWikiProposal = WikiProposalView
 
 // CheckpointWikiDecider is implemented by session backends that can record
 // the decision of the user on a proposal (optional: without it, the card
@@ -63,164 +50,186 @@ type CheckpointWikiEditor interface {
 	CheckpointWikiEdit(name, content string) (string, error)
 }
 
-// writeCheckpointWiki renders the wiki section of the card.
+// writeCheckpointWiki renders the wiki section of the card: one line per
+// proposal, the list (button) shows their content.
 func writeCheckpointWiki(b *strings.Builder, list []CheckpointWikiProposal) {
 	if len(list) == 0 {
 		return
 	}
 	fmt.Fprintf(b, "%s─ %s%s\n", theme.ColorTag(theme.TextMutedHex), i18n.Tf("tui.checkpoint.wiki", len(list)), theme.TagColor)
+	accepted := 0
 	for _, p := range list {
 		page := p.Page
 		if p.Section != "" {
 			page += " § " + p.Section
 		}
-		head := fmt.Sprintf("%s · %s · %s · %s", p.ID, firstText(p.Agent, "?"), page, p.Tag)
-		fmt.Fprintf(b, "  %s  %s\n", tview.Escape(head), muted(tview.Escape(wikiStatus(p.Status))))
-		if p.Replaces != "" {
-			// A replacement: the line of the page, then the new one.
-			fmt.Fprintf(b, "    %s\n", muted(tview.Escape(i18n.T("tui.checkpoint.wiki_replaces"))))
-			fmt.Fprintf(b, "    %s%s%s\n", theme.ColorTag(theme.ErrorHex), tview.Escape("− "+clipText(p.Replaces, 160)), theme.TagColor)
-			fmt.Fprintf(b, "    %s%s%s\n", theme.ColorTag(theme.SuccessHex), tview.Escape("+ "+clipText(p.Content, 160)), theme.TagColor)
-			continue
-		}
-		lines := strings.Split(p.Content, "\n")
-		for i, l := range lines {
-			if i == 2 {
-				fmt.Fprintf(b, "    %s\n", muted("…"))
-				break
-			}
-			fmt.Fprintf(b, "    %s\n", muted(tview.Escape(clipText(l, 160))))
+		head := strings.Join([]string{p.ID, firstText(p.Agent, "?"), page, wikiKind(p), p.Tag}, " · ")
+		fmt.Fprintf(b, "  %s  %s\n", tview.Escape(head), muted(tview.Escape(wikiCardStatus(p.Status))))
+		if p.Status == wikiStatusAccepted {
+			accepted++
 		}
 	}
+	fmt.Fprintf(b, "  %s\n", muted(i18n.Tf("tui.cpwiki.card_count", accepted, len(list)-accepted)))
 	fmt.Fprintf(b, "  %s\n\n", muted(i18n.T("tui.checkpoint.wiki_hint")))
 }
 
-func wikiStatus(status string) string {
-	if status == "accepted" {
+func wikiCardStatus(status string) string {
+	if status == wikiStatusAccepted {
 		return i18n.T("tui.checkpoint.wiki_accepted")
 	}
 	return i18n.T("tui.checkpoint.wiki_pending")
 }
 
-// wikiActions are the actions of the card on the proposals: accept them
-// all, then one per proposal (the first ones).
+// wikiActions is the button of the card that opens the list of the
+// proposals.
 func (v *SessionsView) wikiActions(r *SessionRow, d *SessionDecision, list []CheckpointWikiProposal) []ModalAction {
 	wd, ok := v.cfg.Backend.(CheckpointWikiDecider)
 	if !ok || d.SessionID == "" || len(list) == 0 {
 		return nil
 	}
 	dec, row := *d, r
-	var out []ModalAction
-	if len(list) > 1 {
-		all := append([]CheckpointWikiProposal(nil), list...)
-		out = append(out, ModalAction{Label: i18n.Tf("tui.checkpoint.wiki_accept_all", len(all)), Callback: func() {
-			v.wikiDecide(row, &dec, func(ctx context.Context) error {
-				for _, p := range all {
-					if p.Status != "accepted" {
-						if err := wd.CheckpointWikiDecide(ctx, dec.SessionID, p.ID, wikiAccept, ""); err != nil {
-							return err
-						}
-					}
-				}
-				return nil
-			})
-		}})
-	}
-	for i, p := range list {
-		if i == checkpointCardWiki {
-			break
-		}
-		wp := p
-		out = append(out, ModalAction{Label: i18n.Tf("tui.checkpoint.wiki_decide", wp.ID), Callback: func() {
-			v.wikiForm(wd, row, &dec, wp)
-		}})
-	}
-	return out
+	props := append([]CheckpointWikiProposal(nil), list...)
+	return []ModalAction{{Label: i18n.Tf("tui.cpwiki.button", len(props)), Callback: func() {
+		v.openCheckpointWiki(wd, row, &dec, props)
+	}}}
 }
 
-// wikiForm asks for the decision on a proposal: accept, edit (the content
-// on one line, ⏎ for a line break, or on several lines in $EDITOR when the
-// backend can), refuse, or leave it pending.
-func (v *SessionsView) wikiForm(wd CheckpointWikiDecider, r *SessionRow, d *SessionDecision, p CheckpointWikiProposal) {
+// openCheckpointWiki shows the proposals of the card in a list (a view
+// pushed over Sessions); Esc goes back to the card, Enter to the decision
+// on the checkpoint.
+func (v *SessionsView) openCheckpointWiki(wd CheckpointWikiDecider, r *SessionRow, d *SessionDecision, list []CheckpointWikiProposal) {
 	if v.shell == nil {
 		return
 	}
-	dec := *d
-	choice := wikiAccept
-	content := strings.ReplaceAll(p.Content, "\n", wikiNewline)
-	options := []SelectOption{
-		{Label: i18n.T("tui.checkpoint.wiki_choice.accept"), Value: wikiAccept},
-		{Label: i18n.T("tui.checkpoint.wiki_choice.edit"), Value: wikiEdit},
-	}
-	ed, canEdit := v.cfg.Backend.(CheckpointWikiEditor)
-	if canEdit {
-		options = append(options, SelectOption{Label: i18n.T("tui.checkpoint.wiki_choice.editor"), Value: wikiEditor})
-	}
-	options = append(options,
-		SelectOption{Label: i18n.T("tui.checkpoint.wiki_choice.refuse"), Value: wikiRefuse},
-		SelectOption{Label: i18n.T("tui.checkpoint.wiki_choice.pending"), Value: wikiPend})
-	v.shell.ShowInlineForm(InlineFormConfig{
-		Title: tview.Escape(i18n.Tf("tui.checkpoint.wiki_form_title", p.ID, p.Page)),
-		Fields: []FormField{
-			{Key: "choice", Label: i18n.T("tui.inbox.decision"), Type: FieldSelect, Default: choice, Options: options},
-			{Key: "content", Label: i18n.T("tui.checkpoint.wiki_content"), Type: FieldText, Default: content,
-				Hint: i18n.T("tui.checkpoint.wiki_content_hint")},
-		},
-		OnSubmit: func(values map[string]string, _ map[string][]string) {
-			ch := values["choice"]
-			text := fromWikiField(values["content"])
-			if ch == wikiEditor && canEdit {
-				// The field (perhaps already changed) is the starting text.
-				v.wikiEdit(ed, wd, r, &dec, p, text)
-				return
-			}
-			if ch == wikiAccept && text != fromWikiField(content) {
-				ch = wikiEdit // the content was changed: an edit
-			}
-			if ch != wikiEdit {
-				text = ""
-			}
-			v.wikiDecide(r, &dec, func(ctx context.Context) error {
-				return wd.CheckpointWikiDecide(ctx, dec.SessionID, p.ID, ch, text)
-			})
-		},
-		OnCancel: func() { v.openCheckpoint(r, &dec) },
-	})
-	v.trackDecision(dec.ID)
+	v.untrackDecision()
+	cw := newCheckpointWikiView(v, wd, r, d, list)
+	v.shell.PushView(cw)
 }
 
-// wikiEdit edits the content of a proposal in $EDITOR, then records it as
-// an edit; an emptied or untouched text records nothing.
-func (v *SessionsView) wikiEdit(ed CheckpointWikiEditor, wd CheckpointWikiDecider, r *SessionRow, d *SessionDecision, p CheckpointWikiProposal, text string) {
-	dec := *d
-	out, err := ed.CheckpointWikiEdit(p.ID+".md", text+"\n")
-	if err != nil {
-		v.toast(err.Error(), false)
-		v.openCheckpoint(r, &dec)
+// CheckpointWikiView is the list of the wiki proposals of a checkpoint
+// card.
+type CheckpointWikiView struct {
+	sessions *SessionsView
+	dec      SessionDecision
+	row      *SessionRow
+	shell    ShellAccess
+	wiki     *wikiList
+	// leaving: the view goes to the decision of the checkpoint (Enter), not
+	// back to the card.
+	leaving bool
+}
+
+var _ View = (*CheckpointWikiView)(nil)
+
+func newCheckpointWikiView(v *SessionsView, wd CheckpointWikiDecider, r *SessionRow, d *SessionDecision, list []CheckpointWikiProposal) *CheckpointWikiView {
+	cw := &CheckpointWikiView{sessions: v, dec: *d, row: r, shell: v.shell}
+	sessionID := d.SessionID
+	cfg := wikiListOpts{
+		Title:  i18n.Tf("tui.cpwiki.title", firstText(d.Summary, d.ID), len(list)),
+		Layout: DetailBelow,
+		Shell:  v.shell,
+		Decide: func(ctx context.Context, id, choice, content string) error {
+			return wd.CheckpointWikiDecide(ctx, sessionID, id, choice, content)
+		},
+		OnOpen:    cw.decideCheckpoint,
+		OpenLabel: i18n.T("tui.cpwiki.decide"),
+	}
+	if ed, ok := v.cfg.Backend.(CheckpointWikiEditor); ok {
+		cfg.Edit = ed.CheckpointWikiEdit
+	}
+	cw.wiki = newWikiList(cfg)
+	cw.wiki.set(list, nil)
+	return cw
+}
+
+// SetShell injects the shell.
+func (cw *CheckpointWikiView) SetShell(s ShellAccess) {
+	cw.shell = s
+	cw.wiki.cfg.Shell = s
+	cw.wiki.list.cfg.Shell = s
+}
+
+// ID returns the view identifier.
+func (cw *CheckpointWikiView) ID() string { return "sessions.checkpoint_wiki" }
+
+// Title returns the display title.
+func (cw *CheckpointWikiView) Title() string { return i18n.T("tui.cpwiki.view_title") }
+
+// StatusHints returns the keys of the list, then Esc.
+func (cw *CheckpointWikiView) StatusHints() string {
+	return keys.Hints(cw.wiki.hints(), keys.Back.HintAs(i18n.T("tui.cpwiki.back")))
+}
+
+// Mount shows the list.
+func (cw *CheckpointWikiView) Mount(content *tview.Flex, app *tview.Application) {
+	ctx := context.Background()
+	if cw.shell != nil {
+		ctx = cw.shell.Context()
+	}
+	cw.leaving = false
+	cw.wiki.mount(app, ctx)
+	content.AddItem(cw.wiki.list.Primitive(), 0, 1, true)
+	if app != nil {
+		app.SetFocus(cw.wiki.list.Focusable())
+	}
+}
+
+// Unmount goes back to the card (Esc), unless the view went to the
+// decision or elsewhere (the Sessions view is not shown again then).
+func (cw *CheckpointWikiView) Unmount() {
+	app := cw.wiki.app
+	cw.wiki.unmount()
+	if cw.leaving || app == nil {
 		return
 	}
-	edited := strings.TrimSpace(out)
-	if edited == "" || edited == strings.TrimSpace(p.Content) {
-		v.toast(i18n.T("tui.checkpoint.wiki_unchanged"), true)
-		v.openCheckpoint(r, &dec)
+	v, dec, row := cw.sessions, cw.dec, cw.row
+	// After the pop (Sessions mounted again); QueueUpdate waits for the
+	// loop: never called on it.
+	go app.QueueUpdateDraw(func() {
+		if v.app != nil { // Sessions is shown again: back to its card
+			v.openCheckpoint(row, &dec)
+		}
+	})
+}
+
+// HandleKey forwards the keys to the list.
+func (cw *CheckpointWikiView) HandleKey(ev *tcell.EventKey) *tcell.EventKey {
+	return cw.wiki.list.HandleKey(ev)
+}
+
+// decideCheckpoint is Enter: back to Sessions, then the decision form of
+// the checkpoint (the card is read again: verification, approver).
+func (cw *CheckpointWikiView) decideCheckpoint() {
+	cw.leaving = true
+	v, dec, row := cw.sessions, cw.dec, cw.row
+	app := cw.wiki.app
+	if cw.shell != nil {
+		cw.shell.PopView()
+	}
+	if app == nil {
 		return
 	}
-	v.wikiDecide(r, &dec, func(ctx context.Context) error {
-		return wd.CheckpointWikiDecide(ctx, dec.SessionID, p.ID, wikiEdit, edited)
+	go app.QueueUpdateDraw(func() {
+		if v.app == nil {
+			return
+		}
+		cb, ok := v.cfg.Backend.(CheckpointBackend)
+		if !ok {
+			v.checkpointForm(row, &dec, CheckpointApproverView{}, checkpointApprove)
+			return
+		}
+		var card CheckpointCardView
+		v.async(func(ctx context.Context) (string, error) {
+			var err error
+			card, err = cb.CheckpointCard(ctx, dec.ID)
+			return "", err
+		}, func(string) {
+			v.checkpointForm(row, &dec, card.Approver, checkpointDefaultChoice(card.Verify), checkpointExtraChoices(card.Verify)...)
+		})
 	})
 }
 
 // fromWikiField restores the line breaks of the one-line content field.
 func fromWikiField(s string) string {
 	return strings.TrimSpace(strings.ReplaceAll(strings.ReplaceAll(s, wikiNewline, "\n"), strings.TrimSpace(wikiNewline), "\n"))
-}
-
-// wikiDecide records decisions off the event loop, then shows the card
-// again.
-func (v *SessionsView) wikiDecide(r *SessionRow, d *SessionDecision, fn func(ctx context.Context) error) {
-	dec := *d
-	v.async(func(ctx context.Context) (string, error) { return "", fn(ctx) }, func(string) {
-		v.toast(i18n.T("tui.checkpoint.wiki_recorded"), true)
-		v.openCheckpoint(r, &dec)
-	})
 }

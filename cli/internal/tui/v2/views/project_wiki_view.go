@@ -4,12 +4,14 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 )
 
 // Metrics of the project wiki (modernisation LD-I): coverage of the
@@ -44,15 +46,35 @@ type ProjectWikiViewConfig struct {
 	Project func() (name, path string)
 	// Metrics computes the figures of the wiki of a project.
 	Metrics func(ctx context.Context, path string) (ProjectWikiMetrics, error)
+	// Proposals reads the queue of the project: pending, accepted (to
+	// apply) and stale proposals (nil: metrics only).
+	Proposals func(ctx context.Context, path string) ([]WikiProposalView, error)
+	// Decide records the decision of the user on a proposal (`oh wiki
+	// decide`).
+	Decide func(ctx context.Context, path, id, choice, content string) error
+	// Edit edits a content in $EDITOR, the TUI suspended (event loop).
+	Edit func(name, content string) (string, error)
+	// Now is the clock of the ages (tests).
+	Now func() time.Time
 }
 
-// ProjectWikiView shows the metrics of the wiki of the active project.
+// ProjectWikiView shows the wiki of the active project: a summary of its
+// metrics (m: all of them) and the queue of its proposals outside any
+// checkpoint (tui-wiki-bricks), decided like on the card of the commit
+// checkpoint: pending (workflows without a commit, doc-sync), accepted to
+// apply at the next commit, stale.
 type ProjectWikiView struct {
-	app   *tview.Application
-	tv    *tview.TextView
-	shell ShellAccess
-	cfg   ProjectWikiViewConfig
-	gen   uint64
+	app     *tview.Application
+	tv      *tview.TextView
+	shell   ShellAccess
+	cfg     ProjectWikiViewConfig
+	gen     uint64
+	wiki    *wikiList
+	name    string
+	path    string
+	metrics ProjectWikiMetrics
+	merr    error
+	loaded  bool
 }
 
 var _ View = (*ProjectWikiView)(nil)
@@ -73,16 +95,57 @@ func (v *ProjectWikiView) Title() string { return i18n.T("tui.project_wiki.title
 
 // StatusHints returns keybinding hints.
 func (v *ProjectWikiView) StatusHints() string {
-	return fmt.Sprintf("r %s · Esc %s", i18n.T("tui.hints.refresh"), i18n.T("tui.hints.back"))
+	parts := []string{}
+	if v.wiki != nil {
+		parts = append(parts, v.wiki.hints(), keys.Filter.Hint())
+	}
+	return keys.Hints(append(parts, i18n.T("tui.project_wiki.metrics_hint"), keys.Refresh.Hint(), keys.Back.Hint())...)
 }
 
-// Mount builds the view and loads the metrics in the background.
+// Mount builds the view and loads the metrics and the queue in the
+// background.
 func (v *ProjectWikiView) Mount(content *tview.Flex, app *tview.Application) {
 	v.app = app
 	v.tv = tview.NewTextView().SetDynamicColors(true).SetTextAlign(tview.AlignLeft)
 	v.tv.SetBackgroundColor(theme.BgPanel)
-	v.tv.SetBorderPadding(1, 0, 2, 2)
-	content.AddItem(v.tv, 0, 1, true)
+	v.tv.SetBorderPadding(0, 0, 1, 1)
+	v.name, v.path = "", ""
+	if v.cfg.Project != nil {
+		v.name, v.path = v.cfg.Project()
+	}
+	if v.cfg.Proposals == nil {
+		v.wiki = nil
+		v.tv.SetBorderPadding(1, 0, 2, 2)
+		content.AddItem(v.tv, 0, 1, true)
+		v.refresh()
+		return
+	}
+	path := v.path
+	opts := wikiListOpts{
+		Title:  i18n.Tf("tui.project_wiki.heading", v.name),
+		Layout: DetailRight,
+		Queue:  true,
+		Shell:  v.shell,
+		Load:   func(ctx context.Context) ([]WikiProposalView, error) { return v.cfg.Proposals(ctx, path) },
+		Edit:   v.cfg.Edit,
+		Now:    v.cfg.Now,
+	}
+	if v.cfg.Decide != nil {
+		opts.Decide = func(ctx context.Context, id, choice, content string) error {
+			return v.cfg.Decide(ctx, path, id, choice, content)
+		}
+	}
+	v.wiki = newWikiList(opts)
+	box := tview.NewFlex().SetDirection(tview.FlexRow).
+		AddItem(v.tv, 2, 0, false).
+		AddItem(v.wiki.list.Primitive(), 0, 1, true)
+	box.SetBackgroundColor(theme.BgPanel)
+	content.AddItem(box, 0, 1, true)
+	ctx := context.Background()
+	if v.shell != nil {
+		ctx = v.shell.Context()
+	}
+	v.wiki.mount(app, ctx)
 	v.refresh()
 }
 
@@ -92,32 +155,61 @@ func (v *ProjectWikiView) refresh() {
 	}
 	v.gen++
 	gen := v.gen
-	name, path := "", ""
-	if v.cfg.Project != nil {
-		name, path = v.cfg.Project()
-	}
+	name, path := v.name, v.path
 	if path == "" || v.cfg.Metrics == nil {
-		v.tv.SetText("\n  " + muted(i18n.T("tui.project.no_active")))
+		v.tv.SetText("  " + muted(i18n.T("tui.project.no_active")))
 		return
 	}
-	v.tv.SetText("\n  " + muted(i18n.T("tui.project_wiki.loading")))
+	v.tv.SetText("  " + muted(i18n.T("tui.project_wiki.loading")))
+	if v.wiki != nil {
+		v.wiki.reload()
+	}
 	ctx := context.Background()
 	if v.shell != nil {
 		ctx = v.shell.Context()
 	}
-	app := v.app
+	app, full := v.app, v.wiki == nil
 	go func() {
 		m, err := v.cfg.Metrics(ctx, path)
-		text := renderProjectWiki(name, m, err)
 		if app == nil {
 			return
 		}
 		app.QueueUpdateDraw(func() {
-			if v.tv != nil && v.gen == gen {
-				v.tv.SetText(text)
+			if v.tv == nil || v.gen != gen {
+				return
 			}
+			v.metrics, v.merr, v.loaded = m, err, true
+			if full {
+				v.tv.SetText(renderProjectWiki(name, m, err))
+				return
+			}
+			v.tv.SetText(renderProjectWikiSummary(m, err))
 		})
 	}()
+}
+
+// renderProjectWikiSummary is the line of the metrics above the queue.
+func renderProjectWikiSummary(m ProjectWikiMetrics, err error) string {
+	switch {
+	case err != nil:
+		return "  " + tview.Escape(i18n.Tf("tui.project_wiki.error", err.Error()))
+	case m.NoWiki:
+		return "  " + muted(i18n.T("tui.project_wiki.no_wiki"))
+	}
+	parts := []string{i18n.Tf("tui.project_wiki.summary.pages", m.Pages)}
+	if m.Domains > 0 {
+		parts = append(parts, i18n.Tf("tui.project_wiki.summary.coverage", wikiPercent(m.DomainsCovered, m.Domains)))
+	}
+	if m.Tagged > 0 {
+		parts = append(parts, i18n.Tf("tui.project_wiki.summary.confirmed", wikiPercent(m.Confirmed, m.Tagged)),
+			i18n.Tf("tui.project_wiki.summary.uncertain", wikiPercent(m.Uncertain, m.Tagged)))
+	}
+	if m.Synced != "" {
+		parts = append(parts, i18n.Tf("tui.project_wiki.summary.synced", wikiShortRef(m.Synced)))
+	} else {
+		parts = append(parts, i18n.T("tui.project_wiki.summary.never_synced"))
+	}
+	return "  " + tview.Escape(strings.Join(parts, " · ")) + "  " + muted(i18n.T("tui.project_wiki.summary.more"))
 }
 
 // renderProjectWiki renders the metrics of the wiki of a project.
@@ -205,17 +297,41 @@ func wikiShortRef(c string) string {
 	return c
 }
 
-// Unmount stops the pending load.
+// Unmount stops the pending loads.
 func (v *ProjectWikiView) Unmount() {
 	v.gen++
+	if v.wiki != nil {
+		v.wiki.unmount()
+	}
 	v.tv, v.app = nil, nil
 }
 
-// HandleKey refreshes on r.
+// HandleKey: r refreshes, m shows every metric, / filters the queue; the
+// decisions go to the list.
 func (v *ProjectWikiView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
-	if event.Key() == tcell.KeyRune && (event.Rune() == 'r' || event.Rune() == 'R') {
+	switch {
+	case keys.Refresh.Matches(event):
 		v.refresh()
 		return nil
+	case event.Key() == tcell.KeyRune && event.Rune() == 'm' && event.Modifiers()&(tcell.ModCtrl|tcell.ModAlt) == 0:
+		v.showMetrics()
+		return nil
+	case v.wiki != nil && keys.Filter.Matches(event):
+		if v.shell != nil {
+			v.shell.ShowInputModal(i18n.T("tui.project_wiki.filter"), v.wiki.query, v.wiki.setQuery)
+		}
+		return nil
+	}
+	if v.wiki != nil {
+		return v.wiki.list.HandleKey(event)
 	}
 	return event
+}
+
+// showMetrics shows every metric of the wiki (m).
+func (v *ProjectWikiView) showMetrics() {
+	if v.shell == nil || !v.loaded {
+		return
+	}
+	v.shell.ShowScrollableModal(tview.Escape(i18n.Tf("tui.project_wiki.heading", v.name)), renderProjectWiki(v.name, v.metrics, v.merr), nil)
 }

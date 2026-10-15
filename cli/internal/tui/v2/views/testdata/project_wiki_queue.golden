@@ -1,0 +1,18 @@
+   Pages 14 · domaines 75 % · CONFIRMÉ 61 % · INCERTAIN 9 % · dernier sync 0123456789ab  (m : toutes les métriques)     
+                                                                                                                        
+┌ Wiki du projet · openhub ────────────────────────────────────────────┐┌ wp-17 · technical/conventions.md ────────────┐
+│   id     page                       type      tag       âge          ││ doc-sync · ses_41c0 · il y a 3 h · PROBABLE  │
+│ En attente de décision (2) · doc-sync                                ││ + - Les commits suivent Conventional         │
+│ ▸ wp-17  technical/conventions.md   ajout     PROBABLE  3 h          ││ Commits,                                     │
+│   wp-18  technical/stack.md         remplace  CONFIRMÉ  3 h          ││ +   suffixe `(modernisation <lot>)`.         │
+│ Acceptées, à appliquer au prochain commit (1)                        ││ source : CONTRIBUTING.md:12 · auteur         │
+│   wp-12  technical/tests.md         ajout     DÉDUIT    1 j          ││ documentarian                                │
+│ Périmées : ligne remplacée disparue (1)                              ││                                              │
+│   wp-9   technical/architecture.md  remplace  PROBABLE  2 j          ││                                              │
+│                                                                      ││                                              │
+│                                                                      ││                                              │
+│                                                                      ││                                              │
+│                                                                      ││                                              │
+│                                                                      ││                                              │
+│ 1/4                                                                  ││                                              │
+└──────────────────────────────────────────────────────────────────────┘└──────────────────────────────────────────────┘
