@@ -9,6 +9,21 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Security — sous-agents fermés par défaut (lot p6-debts)
+
+- ⚠ Une session de sous-agent du hub (créée par l'outil `task` d'opencode) ne recevait les verrous de ses checkpoints qu'une fois reliée par le démon (délai illimité si le démon était coupé) : un developer pouvait commiter avant `cp-2`, un planner écrire sa spec avant `cp-understanding`. Le plugin oh relaie désormais à oh toute opération que les règles de session peuvent verrouiller (commit, push, merge, tag, tickets, MR, `apply`, écritures `writes_after`, délégation verrouillée) ; oh relie la session sur-le-champ et répond d'après ses règles. Sans réponse d'oh (démon arrêté, session inconnue, 6 s), refus avec un message. Une session importée (job distant, transfert) reçoit ses règles à l'import, ses sous-agents aussi. ⚠ Démon arrêté : ces opérations sont refusées dans toute session ; sans plugin oh actif, un workflow qui délègue à des sous-agents ne démarre plus.
+
+### Changed — dettes de mécanique (lot p6-debts)
+
+- ⚠ **`writes:`** : plusieurs chemins déclarés par ligne et plusieurs `-m`, lus mot à mot par oh (sinon refus avec la raison) ; fichiers racine `ONBOARDING.md`, `CONVENTIONS.md`, `README.md`, `CHANGELOG.md` (fichiers seulement). Le planner de `spec` met à jour `docs/wiki/index.md` ; l'onboarder commite `ONBOARDING.md` et `CONVENTIONS.md` avec le wiki à `cp-wiki`.
+- ⚠ **`security-fix`** sans `--parent` : seulement le dernier audit `security` (`inputs.<id>.from_equals`), annoncé au lancement ; sans audit de sécurité, la session demande les constats.
+- **`unlock_again`** : la fenêtre du premier commit refuse les chemins `writes:` (le postmortem d'`incident` ne part plus avec l'atténuation).
+- **Fan-out** : le démon relance un pilote arrêté avant `cp-merge` (une instance, une fois par minute au plus, événement `driver`) ; un merger inactif 2 minutes sans merge conclu est arrêté.
+- **`wiki.json` schéma 2** : les remplacements de ligne voyagent à part (une version au schéma 1 les ignore au lieu de les ajouter) ; un schéma plus récent est refusé.
+- ⚠ **Préconditions** lues là où la session travaillera (worktree `--location new` : sa branche, propre, ses fichiers).
+- **`sweep-task` à la main** : périmètre vérifié au lancement et à `cp-commit` (nouvelle entrée `scope`, sortie `files`).
+- `developer-payload` raccourci (≈ 366 tokens sous 400). Limites connues documentées (`docs/reference/workflows.*`). Somme des prompts (projet sans instructions) : 256 032 → 255 921 après merge. Aucune migration. Cas à écrire : S75 (commit avant `cp-2` par un sous-agent), S76 (`security-fix` sans audit de sécurité), S77 (`sweep-task` hors périmètre).
+
 ### Added — rétrospective et tri (lot R9-b réduit)
 
 - **Workflow `retro`** (`debugger`) : rétrospective de sessions passées à partir de leur trace. oh calcule les résumés (`-i sessions="ticket 7d"`, des identifiants `ses_…`, une période, des workflows ; vide : la session parente, sinon la dernière terminée), le debugger en tire des constats sourcés (`<session> · <section> · <ligne>` : checkpoints refusés et leur consigne, relances, commandes refusées, coûts, durées), sans blâme, et des actions vérifiables dans une trace suivante. Page `docs/wiki/retros/<date>-<slug>.md` (`writes:`), `cp-retro` (commit de la page seule), `cp-actions` (tickets) ; 2 pauses en semi-auto. oh relève la page et les tickets et propose `triage`.
