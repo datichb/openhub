@@ -9,6 +9,12 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Added — valideur humain d'un checkpoint (lot approver-1, CP-R9 étape 1)
+
+- **`checkpoints.<id>.approver`** : les personnes qui valident un checkpoint (nom `user.name` ou e-mail `user.email` de git, une ou une liste de 20 au plus), déclarées par la **couche d'équipe seulement** (`checkpoint_approver_layer` ailleurs) ; une couche de projet ne le retire ni ne le change, ne retire pas le checkpoint (`approver_checkpoint_removed`) et ne le fait pas moins mettre en pause (`loosening`). Retirer un valideur est un assouplissement dans le résumé d'impact. Avertissements `checkpoint_approver_no_pause`, `checkpoint_approver_remote_auto`. [ADR-055](docs/architecture/adr/055-checkpoint-approver.fr.md).
+- En local, oh **avertit sans bloquer** : carte de la TUI et `oh session approve` affichent « Valideur attendu : … », `y` demande une confirmation hors valideur, la validation par lot (`--batch`, `B`) avertit par élément ; la validation est acceptée et tracée « hors valideur ».
+- Chaque validation ou refus d'un humain est tracé avec **qui** (identité de l'ADR-052) et **quand** (`identity`, `approver`, `approver_mismatch` dans les événements du checkpoint et `oh session trace`) ; un job distant valide sous l'identité `remote`. Étape 2 (blocage réel en session distante, identité attestée) : à venir. Aucune migration ; goldens inchangés.
+
 ### Added — catalogue de briques d'équipe : `oh brick` (lot brick-catalog)
 
 - **`oh brick`** ([ADR-054](docs/architecture/adr/054-team-brick-catalogue.fr.md)) : les agents et les skills de `catalog/` du team-state se gèrent comme les workflows d'équipe : `oh brick list [--agents|--skills] [--origin]` (origine hub ou équipe, version, problèmes, brouillons), `show`, `new <agent|skill> <id>` (gabarit valide ; `--extends` pour remplacer explicitement une brique du hub), `edit` (validation à l'enregistrement : règles d'`oh skill check`, description de skill « Utiliser … » de 200 caractères au plus, frontmatter d'agent), `publish -m` (gouvernance `[governance] publish`, revalidation, version précédente dans `catalog/history/`, événement `brick.published`) et `history`. Le remplacement d'une brique du hub est signalé et demande confirmation.
