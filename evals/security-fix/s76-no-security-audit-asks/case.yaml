@@ -1,0 +1,45 @@
+id: S76
+title: "Security-fix sans audit de sécurité préalable : le dernier audit (qualité) n'est pas repris, la session demande les constats avec question avant cp-triage"
+workflow: security-fix
+mode: semi-auto
+# p6-debts : sans --parent, security-fix ne reprend que le dernier audit
+# `security` du projet (from_equals). Le seul audit terminé est un audit
+# `quality` : ses constats ne sont pas repris ; le conductor demande les
+# constats avec question, puis les présente à cp-triage. L'évaluation
+# s'arrête à cp-triage (refusé) : aucun developer, aucune écriture.
+previous:
+  - workflow: audit
+    outputs:
+      type: quality
+      findings: "## Constats — audit de qualité\n\n1. 🟡 Mineur — Complexité cyclomatique élevée — `web/redirect.go:9` — SafeNext enchaîne les conditions."
+beads:
+  prefix: ev
+timeout: 15m
+answers:
+  question: "Un seul constat : 🔴 Critique — mot de passe écrit dans les journaux — auth/login.go:17 — Login journalise le mot de passe en clair."
+  checkpoints:
+    "*": "reject: Évaluation terminée : arrête le workflow ici, sans rien corriger ni créer de ticket."
+assertions:
+  - type: called
+    name: le conductor demande les constats avec question, avant cp-triage
+    agent: conductor
+    tool: question
+    before: { checkpoint: cp-triage }
+  - type: checkpoint_order
+    order: [cp-triage]
+  - type: text_matches
+    name: le constat donné en réponse est présenté au tri
+    agent: conductor
+    pattern: "(?i)mot de passe|login\\.go"
+  - type: text_matches
+    name: les constats de l'audit de qualité ne sont pas repris
+    agent: conductor
+    pattern: "(?i)cyclomatique"
+    absent: true
+  - type: called
+    name: aucun developer lancé
+    tool: task
+    absent: true
+  - type: changed_within
+    name: rien d'écrit
+  - type: no_denied_loop

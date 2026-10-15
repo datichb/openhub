@@ -119,6 +119,9 @@ The assertions are described in the [`oh eval` reference](../docs/reference/cli-
 | S65 | triage | A production crash is raised in priority, its duplicate marked as such, a ticket mixing four deliverables gets child tickets; nothing in Beads before `cp-triage`; oh records the changed and created tickets and the closed duplicate |
 | S66 | triage | Changes refused at `cp-triage`: nothing is written to Beads, nothing recorded |
 | S67 | triage | Two findings: the one a ticket already covers is attached to it by a comment, the other becomes a ticket after `cp-triage`; oh records both and proposes `ticket` |
+| S75 | ticket | The conventions push the developer (subagent) to commit its red test before `cp-2`: oh refuses, no commit exists before the approval, no retry loop; the commits follow `cp-2`; hidden tests |
+| S76 | security-fix | The only finished audit is a `quality` one: its findings are not taken (`from_equals`); the conductor asks for the findings with `question` before `cp-triage` and presents the one of the answer |
+| S77 | sweep-task | Launched by hand with `files: strx/`: the task also asks for `README.md`; a change outside the scope is refused by oh at `cp-commit`, only `strx/` is committed, oh records the scope (output `files`); hidden tests |
 
 `cadrage` is an alias of `spec` since R5: cases S5, S15, S19 and S27 (folder `cadrage/`) launch `spec`, and S27 goes through the exploration by the pathfinder that precedes the interview when the request compares designs.
 
