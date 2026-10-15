@@ -324,7 +324,7 @@ func (v *WorkflowEditorView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 			v.changed()
 		}
 		return nil
-	case rawYAMLKey:
+	case rawYAMLKey.Rune():
 		v.editRaw(0)
 		return nil
 	case 'w':
@@ -1095,7 +1095,7 @@ func (v *WorkflowEditorView) activate(ref any) {
 
 // rawYAMLKey opens the raw YAML in $EDITOR (Y; y is accept in the key
 // convention).
-const rawYAMLKey = 'Y'
+var rawYAMLKey = keys.Own("editor.raw_yaml", 'Y', "tui.editor.raw_yaml")
 
 // removeCurrent removes the selected element (d / Delete) after a
 // confirmation: a field written in this document goes back to the

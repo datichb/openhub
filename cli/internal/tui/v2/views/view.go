@@ -49,6 +49,20 @@ type InputCapturing interface {
 	CapturesInput() bool
 }
 
+// ShellKeysPassing is implemented by input-capturing views without a text
+// field (the tabs and the batch of Sessions): the keys go to the view
+// first, then the shell takes ? (help) and Ctrl+P (palette) when the view
+// did not use them.
+type ShellKeysPassing interface {
+	PassesShellKeys() bool
+}
+
+// HintsRefresher is implemented by shells that show the hints line of the
+// current view again (a view whose keys change: tabs, batch).
+type HintsRefresher interface {
+	RefreshHints()
+}
+
 // View defines the contract for a navigable view in the TUI shell.
 // All views must be safe to Mount/Unmount multiple times throughout
 // the shell lifecycle.

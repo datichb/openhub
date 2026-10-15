@@ -163,14 +163,14 @@ func (v *SessionsView) showTab(t sessionTab) {
 	v.tabs.cur = t
 	v.tabs.pages.SwitchToPage(sessionTabKeys[t])
 	v.tabs.renderBar(r)
+	v.tabs.focused = t != tabDetail
+	defer v.refreshHints()
 	if t == tabDetail {
-		v.tabs.focused = false
 		if v.app != nil && v.list != nil {
 			v.app.SetFocus(v.list)
 		}
 		return
 	}
-	v.tabs.focused = true
 	id := r.ID
 	if v.tabs.session != id {
 		v.tabs.session = id
@@ -298,7 +298,7 @@ func newReportsPane(v *SessionsView) *reportsPane {
 func (p *reportsPane) reset() {
 	p.bodies = map[string]string{}
 	p.reading = false
-	p.list.cfg.Empty = i18n.T("tui.sessions.reports.loading")
+	p.list.SetEmpty(i18n.T("tui.sessions.reports.loading"))
 	p.list.SetItems(nil)
 	p.reader.SetEmpty("")
 	p.reader.SetText("")
@@ -330,7 +330,7 @@ func (v *SessionsView) loadReports(id string) {
 	p := v.tabs.reports
 	rl, ok := v.cfg.Backend.(SessionReportLister)
 	if !ok {
-		p.list.cfg.Empty = i18n.T("tui.sessions.reports.unavailable")
+		p.list.SetEmpty(i18n.T("tui.sessions.reports.unavailable"))
 		p.list.SetItems(nil)
 		return
 	}
@@ -343,7 +343,7 @@ func (v *SessionsView) loadReports(id string) {
 		if v.tabs == nil || v.tabs.session != id {
 			return
 		}
-		p.list.cfg.Empty = i18n.T("tui.sessions.reports.none")
+		p.list.SetEmpty(i18n.T("tui.sessions.reports.none"))
 		p.list.SetItems(reportItems(list))
 	})
 }

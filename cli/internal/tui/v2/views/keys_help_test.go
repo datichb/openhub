@@ -30,13 +30,14 @@ func TestKeysNotice(t *testing.T) {
 		"Liste      n créer · e éditer · d supprimer · x archiver · R reprendre · c comparer",
 		"Décision   y valider · n refuser · e modifier · s laisser · A tout accepter",
 		"Partout    g/G début/fin · / filtrer · r rafraîchir · ? aide",
-		"D → d  Sessions : supprimer une session",
-		"r → R  Historique d'un workflow : restaurer une version",
-		"a → y  Propositions wiki : accepter",
-		"D → c  Workflows : diff du brouillon",
+		"Sessions                   D→d supprimer · c→R reprendre · g→R récupérer · B valider en lot",
+		"Historique                 r→R restaurer",
+		"Propositions wiki          a→y accepter · x→n refuser",
+		"Workflows                  D→c comparer · x→d supprimer un brouillon",
 	} {
 		assert.Contains(t, text, want)
 	}
+	assertGolden(t, "keys_notice", text)
 
 	sh := &noticeShell{}
 	closed := false

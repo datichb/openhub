@@ -146,7 +146,7 @@ func (v *ModelsView) showDetail(idx int) {
 		level = i18n.T("tui.secrets.section_project") + " " + tview.Escape(e.Level)
 	}
 	v.page.SetDetail(modelOverrideDetail(section, key, value, level,
-		keyPairs(keys.Create, keys.Edit, keys.Delete)...))
+		keys.Pairs(keys.Create, keys.Edit, keys.Delete)...))
 }
 
 // HandleKey processes models view key events.

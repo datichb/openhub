@@ -143,7 +143,7 @@ func (v *SecretsView) showDetail(item widgets.SectionItem) {
 		if len(v.entries) == 0 {
 			d.title(i18n.T("tui.secrets.empty"))
 			d.para(i18n.T("tui.detail.secret.desc"))
-			d.keys(keyPairs(keys.Create, keys.Refresh)...)
+			d.keys(keys.Pairs(keys.Create, keys.Refresh)...)
 			v.page.SetDetail(d.String())
 			return
 		}
@@ -166,11 +166,11 @@ func (v *SecretsView) showDetail(item widgets.SectionItem) {
 	}
 	d.field(i18n.T("tui.secrets.referenced_by"), tview.Escape(e.Source))
 	d.field(i18n.T("tui.detail.secret.fallback"), tview.Escape(e.Fallback))
-	pairs := append([]string{keys.Open.Keys(), i18n.T("tui.hints.edit")}, keyPairs(keys.Create)...)
+	pairs := append([]string{keys.Open.Keys(), i18n.T("tui.hints.edit")}, keys.Pairs(keys.Create)...)
 	if e.Present {
-		pairs = append(pairs, keyPairs(keys.Delete)...)
+		pairs = append(pairs, keys.Pairs(keys.Delete)...)
 	}
-	d.keys(append(pairs, keyPairs(keys.Refresh)...)...)
+	d.keys(append(pairs, keys.Pairs(keys.Refresh)...)...)
 	v.page.SetDetail(d.String())
 }
 

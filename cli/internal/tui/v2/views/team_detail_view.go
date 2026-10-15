@@ -37,7 +37,7 @@ func (e *TrackerCredentialsError) Unwrap() error { return e.Err }
 
 // discoverKey launches the tracker discovery wizard (T: tracker; y is
 // accept in the key convention).
-const discoverKey = 'T'
+var discoverKey = keys.Own("team.discover", 'T', "tui.team.detail.hint_discover")
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -119,10 +119,10 @@ func (v *TeamDetailView) StatusHints() string {
 		return keys.Hints(keys.Navigate.Hint(), keys.Open.HintAs(i18n.T("tui.hints.edit")),
 			"w "+i18n.T("tui.hints.save"), "u "+i18n.T("tui.hints.undo"))
 	}
-	return keys.Hints(keys.Navigate.Hint(), i18n.T("tui.hints.space_key")+" "+i18n.T("tui.hints.toggle"),
+	return keys.Hints(keys.Navigate.Hint(), keys.SpaceName()+" "+i18n.T("tui.hints.toggle"),
 		keys.Open.HintAs(i18n.T("tui.hints.edit")), "w "+i18n.T("tui.hints.save"),
 		"s "+i18n.T("tui.hints.sync"), "t "+i18n.T("tui.hints.test"), "u "+i18n.T("tui.hints.undo"),
-		keys.Refresh.Hint(), string(discoverKey)+" "+i18n.T("tui.team.detail.hint_discover"),
+		keys.Refresh.Hint(), discoverKey.Hint(),
 		"K "+i18n.T("tui.team.llm_key.hint"))
 }
 
@@ -170,7 +170,7 @@ func (v *TeamDetailView) extraKeys() []string {
 	}
 	return append(pairs,
 		"s", i18n.T("tui.hints.sync"), "t", i18n.T("tui.hints.test"),
-		string(discoverKey), i18n.T("tui.team.detail.hint_discover"),
+		discoverKey.Keys(), discoverKey.Label(),
 		"K", i18n.T("tui.team.llm_key.hint"), keys.Refresh.Keys(), keys.Refresh.Label())
 }
 
@@ -225,7 +225,7 @@ func (v *TeamDetailView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	case 'K':
 		v.setTeamProviderKey()
 		return nil
-	case discoverKey:
+	case discoverKey.Rune():
 		if v.cfg.OnDiscoverTracker != nil && !v.solo() {
 			v.cfg.OnDiscoverTracker()
 		}

@@ -44,8 +44,12 @@ func KeysNoticeText() string {
 	line(keys.Decision, keys.Accept, keys.Refuse, keys.Modify, keys.Leave, keys.AcceptAll)
 	line(keys.Everywhere, keys.Ends, keys.Filter, keys.Refresh, keys.Help)
 	b.WriteString("\n" + i18n.T("tui.keys.notice.changed") + "\n")
-	for _, c := range keys.Changes() {
-		fmt.Fprintf(&b, "  %s → %s  %s\n", c.From, c.To, c.Label())
+	for _, g := range keys.ChangesByView() {
+		parts := make([]string, len(g.Changes))
+		for i, c := range g.Changes {
+			parts[i] = c.Text()
+		}
+		fmt.Fprintf(&b, "  %-26s %s\n", g.View, keys.Hints(parts...))
 	}
 	b.WriteString("\n" + i18n.T("tui.keys.notice.again"))
 	return b.String()

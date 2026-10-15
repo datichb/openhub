@@ -93,7 +93,7 @@ func (v *ProviderView) Title() string { return i18n.T("tui.provider.title") }
 // StatusHints returns keybinding hints.
 func (v *ProviderView) StatusHints() string {
 	return keys.Hints(keys.Navigate.Hint(), "{/} "+i18n.T("tui.hints.sections"),
-		i18n.T("tui.hints.space_key")+" "+i18n.T("tui.provider.hint_default"),
+		keys.SpaceName()+" "+i18n.T("tui.provider.hint_default"),
 		keys.Open.HintAs(i18n.T("tui.hints.edit")), keys.Edit.Hint(),
 		"s "+i18n.T("tui.hints.setup"), keys.Delete.HintAs(i18n.T("tui.provider.hint_delete")),
 		keys.Refresh.Hint())

@@ -275,9 +275,9 @@ func (v *PatternsView) showItemDetail(idx int) {
 		d.field(i18n.T("tui.detail.date"), tview.Escape(p.CreatedAt))
 		pairs := []string{keys.Open.Keys(), i18n.T("tui.hints.see")}
 		if !p.Validated {
-			pairs = append(pairs, keyPairs(keys.Accept)...)
+			pairs = append(pairs, keys.Pairs(keys.Accept)...)
 		}
-		d.keys(append(pairs, keyPairs(keys.Delete, keys.Refresh)...)...)
+		d.keys(append(pairs, keys.Pairs(keys.Delete, keys.Refresh)...)...)
 		v.page.SetDetail(d.String())
 		return
 	}
@@ -285,7 +285,7 @@ func (v *PatternsView) showItemDetail(idx int) {
 		var d detailText
 		d.title(i18n.T("tui.patterns.action_create"))
 		d.para(i18n.T("tui.patterns.hint_complexity"))
-		d.keys(keyPairs(keys.Open, keys.Create)...)
+		d.keys(keys.Pairs(keys.Open, keys.Create)...)
 		v.page.SetDetail(d.String())
 		return
 	}

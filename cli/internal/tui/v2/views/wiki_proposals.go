@@ -196,11 +196,11 @@ func (w *wikiList) render() {
 	}
 	w.list.SetTitle(title)
 	if w.err != nil {
-		w.list.cfg.Empty = i18n.Tf("tui.wikilist.error", w.err.Error())
+		w.list.SetEmpty(i18n.Tf("tui.wikilist.error", w.err.Error()))
 		w.list.SetItems(nil)
 		return
 	}
-	w.list.cfg.Empty = i18n.T("tui.wikilist.empty")
+	w.list.SetEmpty(i18n.T("tui.wikilist.empty"))
 	var shown []WikiProposalView
 	for _, p := range w.props {
 		if w.matches(p) {
