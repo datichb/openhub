@@ -60,6 +60,47 @@ Everything else goes through the omnibar or the view keys (shown in the hint lin
 
 The mode bar shows the sessions badge **`● N ⏸ M`** (N working sessions, M pending decisions); it turns to alert when a decision is waiting.
 
+## Key convention
+
+A key has the same meaning in every view. A view may add its own letters (`a` attach, `t` transfer…), but never gives a key of the convention another meaning, nor an action of the convention another key. The help (`?`) shows this table; it also brings back the message about the new keys (« New keys » button), shown once at the first launch after the update.
+
+| Context | Key | Action |
+|---------|-----|--------|
+| Everywhere | `↑` `↓` / `j` `k` | Up / down |
+| Everywhere | `g` / `G` (`Home` / `End`) | First / last element |
+| Everywhere | `/` | Filter the list; without a filter in the view: command palette |
+| Everywhere | `r` | Refresh |
+| Everywhere | `?` / `F1` | Help and keys |
+| Everywhere | `Enter` | Open the selected element (palette when nothing uses it) |
+| Everywhere | `Esc` | Back (closes the toasts first) |
+| List | `n` | Create |
+| List | `e` | Edit |
+| List | `d` | Delete, **always confirmed** |
+| List | `x` | Archive or file away, **never destructive** |
+| List | `R` | Resume or restore (sleeping session, remote session, version of a workflow) |
+| List | `c` | Compare (diff of a workflow draft, of a version) |
+| Decision | `y` | Accept (checkpoint, wiki proposal, element of a batch) |
+| Decision | `n` | Refuse, with an instruction; validating the instruction is the confirmation |
+| Decision | `e` | Modify before accepting |
+| Decision | `s` | Leave pending |
+| Decision | `A` | Accept all |
+| Reader | `/` | Search the text (trace, reports) |
+| Reader | `n` / `N` | Next / previous match |
+
+**Changed keys**:
+
+| Before | Now | Where |
+|--------|-----|-------|
+| `D` | `d` | Sessions: delete a session |
+| `c` | `R` | Sessions: resume a sleeping session |
+| `g` | `R` | Sessions: recover a remote session |
+| `r` | `R` | History of a workflow: restore a version |
+| `a` | `y` | Wiki proposals: accept |
+| `x` | `n` | Wiki proposals: refuse |
+| `D` | `c` | Workflows: diff of the draft |
+
+`a` stays « attach » in Sessions. Views adopt the convention along the TUI lots: until a view has moved, its hint line is the reference.
+
 ## The Omnibar
 
 The omnibar is always visible at the bottom of the screen. It has two modes:

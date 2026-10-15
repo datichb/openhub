@@ -60,6 +60,47 @@ Le reste passe par l'omnibar ou par les touches de la vue (affichées dans la li
 
 La barre de mode affiche le badge des sessions **`● N ⏸ M`** (N sessions qui travaillent, M décisions en attente) ; il passe en alerte quand une décision attend.
 
+## Convention des touches
+
+Une touche a le même sens dans toutes les vues. Une vue peut ajouter ses propres lettres (`a` attacher, `t` transférer…), mais ne donne jamais un autre sens à une touche de la convention, ni une autre touche à une action de la convention. L'aide (`?`) affiche ce tableau ; elle rappelle aussi le message des nouvelles touches (bouton « Nouvelles touches »), montré une seule fois au premier lancement après la mise à jour.
+
+| Contexte | Touche | Action |
+|----------|--------|--------|
+| Partout | `↑` `↓` / `j` `k` | Monter / descendre |
+| Partout | `g` / `G` (`Début` / `Fin`) | Premier / dernier élément |
+| Partout | `/` | Filtrer la liste ; sans filtre dans la vue : palette de commandes |
+| Partout | `r` | Rafraîchir |
+| Partout | `?` / `F1` | Aide et touches |
+| Partout | `Entrée` | Ouvrir l'élément sélectionné (palette si rien ne l'utilise) |
+| Partout | `Échap` | Revenir (ferme d'abord les toasts) |
+| Liste | `n` | Créer |
+| Liste | `e` | Éditer |
+| Liste | `d` | Supprimer, **toujours confirmé** |
+| Liste | `x` | Archiver ou classer, **jamais destructif** |
+| Liste | `R` | Reprendre ou restaurer (session en veille, session distante, version d'un workflow) |
+| Liste | `c` | Comparer (diff d'un brouillon de workflow, d'une version) |
+| Décision | `y` | Valider ou accepter (checkpoint, proposition wiki, élément d'un lot) |
+| Décision | `n` | Refuser, avec une consigne ; la consigne validée vaut confirmation |
+| Décision | `e` | Modifier avant de valider |
+| Décision | `s` | Laisser en attente |
+| Décision | `A` | Tout accepter |
+| Lecteur | `/` | Rechercher dans le texte (trace, rapports) |
+| Lecteur | `n` / `N` | Résultat suivant / précédent |
+
+**Touches changées** :
+
+| Avant | Maintenant | Où |
+|-------|------------|----|
+| `D` | `d` | Sessions : supprimer une session |
+| `c` | `R` | Sessions : reprendre une session en veille |
+| `g` | `R` | Sessions : récupérer une session distante |
+| `r` | `R` | Historique d'un workflow : restaurer une version |
+| `a` | `y` | Propositions wiki : accepter |
+| `x` | `n` | Propositions wiki : refuser |
+| `D` | `c` | Workflows : diff du brouillon |
+
+`a` reste « attacher » dans Sessions. Les vues adoptent la convention au fil des lots TUI : tant qu'une vue n'est pas passée, sa ligne d'aide fait foi.
+
 ## L'Omnibar
 
 L'omnibar est toujours visible en bas de l'écran. Il a deux modes :
