@@ -1,6 +1,6 @@
 > [Read in English](cli-sessions.en.md)
 
-# Reference CLI — Sessions
+# Référence CLI — Sessions
 
 Cette page couvre la **gestion des sessions v5** (`oh session …`), les **restrictions** (`oh budget`), l'**historique** (`oh history`), le proxy `oh beads` et les **alias dépréciés** de lancement (`oh start`, `oh audit`, `oh review`, `oh debug`). Le lancement lui-même se fait avec [`oh run`](cli-workflows.fr.md#oh-run). Guide : [Sessions v5](../guides/sessions-v5.fr.md) ; décisions : [ADR-042](../architecture/adr/042-checkpoints-headless-decisions.fr.md), [ADR-047](../architecture/adr/047-session-interaction-daemon.fr.md).
 

@@ -35,7 +35,7 @@ Conséquence : les permissions `task` du frontmatter décrivent ce qu'un agent *
 Dans une session, seuls les agents du paquet sont joignables. Pour voir le contenu réel d'une session :
 `oh workflow show <id>` et `oh bundle show <id>`.
 
-## Hierarchie des agents
+## Hiérarchie des agents
 
 Le schéma montre les délégations permises par le frontmatter (`permission.task`), en trait plein, et celles
 qu'un workflow déclare avec `calls:` (ou, pour le `conductor`, vers les membres de son workflow), en pointillé.
@@ -197,13 +197,13 @@ Relevé des frontmatter de `agents/`.
 
 ---
 
-## Matrice d'assignation des skills (source de verite)
+## Matrice d'assignation des skills (source de vérité)
 
-Ce tableau est la reference faisant autorite pour les skills charges par chaque agent. Il est relevé dans les frontmatter reels des agents. Pour les descriptions des skills, voir [Reference des skills](./skills.fr.md).
+Ce tableau est la référence faisant autorite pour les skills charges par chaque agent. Il est relevé dans les frontmatter reels des agents. Pour les descriptions des skills, voir [Référence des skills](./skills.fr.md).
 
 > `shared/universal-guardrails` est Bucket A (inline) dans **chaque** agent sauf `brief-enricher` : il n'est pas répété dans les tableaux.
 > `shared/team-awareness` et `shared/team-policies-enforcement` sont Bucket B dans **chaque** agent sauf `merger` (aucun des deux) : ils ne sont pas répétés non plus.
-> `shared/living-docs-enrichment` est Bucket B (natif / a la demande) partout ou il apparait.
+> `shared/living-docs-enrichment` est Bucket B (natif / a la demande) partout ou il apparaît.
 
 ### Famille planning
 
@@ -282,7 +282,7 @@ Agents qui pilotent d'autres agents sans jamais coder eux-mêmes.
 | **Fichier** | `agents/planning/conductor.md` |
 | **Mode** | `primary` |
 | **Permissions** | Base `coordinator` : pas de `bash`, pas d'`edit` ni de `write`. `task` ouvert sur `*` dans le frontmatter, restreint par le paquet au graphe du workflow. `question` et `todowrite` autorisés. |
-| **Skills** | Voir [Matrice d'assignation des skills](#matrice-dassignation-des-skills-source-de-verite) — ligne conductor |
+| **Skills** | Voir [Matrice d'assignation des skills](#matrice-dassignation-des-skills-source-de-vérité) — ligne conductor |
 | **Invocation** | Agent d'entrée par défaut d'un workflow sans `entry.agent` (`spec` et ses alias `cadrage` et `feature`, `sweep`, `security-fix`) |
 
 Agent générique de coordination des workflows. Il ne contient aucun enchaînement en dur : il suit la skill
@@ -311,7 +311,7 @@ Questions montantes d'un agent : il relaie la question avec `question`, puis rel
 |--|--|
 | **Label** | Orchestrator |
 | **Fichier** | `agents/planning/orchestrator.md` |
-| **Skills** | Voir [Matrice d'assignation des skills](#matrice-dassignation-des-skills-source-de-verite) — ligne orchestrator |
+| **Skills** | Voir [Matrice d'assignation des skills](#matrice-dassignation-des-skills-source-de-vérité) — ligne orchestrator |
 | **MCP Servers** | _(aucun)_ |
 | **Invocation** | Agent d'entrée par défaut de `libre`, son seul workflow depuis que `feature` est un alias de `spec` → `implement-spec` — `"Implémente [feature]"` / `"Prends en charge les tickets [IDs]"` |
 
@@ -343,7 +343,7 @@ Ne route jamais directement vers le `developer` — délègue toujours à `orche
 |--|--|
 | **Label** | OrchestratorDev |
 | **Fichier** | `agents/planning/orchestrator-dev.md` |
-| **Skills** | Voir [Matrice d'assignation des skills](#matrice-dassignation-des-skills-source-de-verite) — ligne orchestrator-dev |
+| **Skills** | Voir [Matrice d'assignation des skills](#matrice-dassignation-des-skills-source-de-vérité) — ligne orchestrator-dev |
 | **Invocation** | Agent d'entrée des workflows `ticket`, `implement-spec` et `review-feedback` ; sous-agent de l'`orchestrator` dans `libre` — `"Implémente les tickets [IDs]"` |
 
 Tech lead IA spécialisé dans le pilotage de l'implémentation. Prend en charge une
@@ -369,7 +369,7 @@ Dans `implement-spec`, il lit lui-même les tickets (`bd show`), fixe l'ordre à
 |--|--|
 | **Label** | Auditeur |
 | **Fichier** | `agents/auditor/auditor.md` |
-| **Skills** | Voir [Matrice d'assignation des skills](#matrice-dassignation-des-skills-source-de-verite) — ligne auditor |
+| **Skills** | Voir [Matrice d'assignation des skills](#matrice-dassignation-des-skills-source-de-vérité) — ligne auditor |
 | **Invocation** | Agent d'entrée du workflow `audit` (`oh run audit`) — `"Audite [projet/périmètre]"` / `"Audit [domaine]"` |
 
 Coordinateur d'audit multi-domaine. Pilote la réalisation d'audits en 5 phases structurées :
@@ -418,7 +418,7 @@ Suit le même workflow Beads (`bd claim → implémenter → tester → bd close
 Le **domaine** et les **native_skills à charger** sont transmis par `orchestrator-dev` dans le prompt d'invocation.
 Chaque instance `task` s'exécute dans sa propre session enfant — les invocations parallèles avec des domaines différents sont indépendantes.
 
-Skills de l'agent `developer` : voir la [matrice](#matrice-dassignation-des-skills-source-de-verite) (ligne developer). Les standards de domaine sont ses skills natives ; l'appelant lui dit lesquels charger.
+Skills de l'agent `developer` : voir la [matrice](#matrice-dassignation-des-skills-source-de-vérité) (ligne developer). Les standards de domaine sont ses skills natives ; l'appelant lui dit lesquels charger.
 
 | Agent | Fichier | Domaine | Où il travaille |
 |-------|---------|---------|-----------------|
@@ -461,7 +461,7 @@ Les skills de stack détectées dans le projet sont ajoutées au paquet de sessi
 |--|--|
 | **Label** | Opérateur infra |
 | **Fichier** | `agents/infra/operator.md` |
-| **Skills** | Voir [Matrice d'assignation des skills](#matrice-dassignation-des-skills-source-de-verite) — ligne operator |
+| **Skills** | Voir [Matrice d'assignation des skills](#matrice-dassignation-des-skills-source-de-vérité) — ligne operator |
 | **Invocation** | Agent d'entrée du workflow `infra-change` (`oh run infra-change`) |
 
 Applique un changement d'infrastructure déjà écrit dans le dépôt. Vérifie le contexte réel par rapport à la cible, produit le plan (`terraform plan -out`, `kubectl diff`, `helm diff upgrade`, `pulumi preview`), le delta de coût, les risques et le retour arrière, les présente à `cp-plan`, puis après `cp-apply` applique exactement le plan validé (`terraform apply <fichier de plan>`) et vérifie le résultat. Base `readonly-ops` : ni édition, ni écriture, ni délégation ; ses outils d'infrastructure sont demandés et le garde-fou infra d'oh autorise les lectures, demande les secrets et refuse toute modification jusqu'à `cp-apply`. L'écriture du code IaC revient au `developer` (domaine devops, skills de stack Terraform/Helm/Kubernetes), l'analyse en lecture seule au domaine d'audit `infra`.
@@ -476,7 +476,7 @@ Applique un changement d'infrastructure déjà écrit dans le dépôt. Vérifie 
 |--|--|
 | **Label** | Release Manager |
 | **Fichier** | `agents/delivery/release-manager.md` |
-| **Skills** | Voir [Matrice d'assignation des skills](#matrice-dassignation-des-skills-source-de-verite) — ligne release-manager |
+| **Skills** | Voir [Matrice d'assignation des skills](#matrice-dassignation-des-skills-source-de-vérité) — ligne release-manager |
 | **Invocation** | Agent d'entrée du workflow `release` (`oh run release`) |
 
 Prépare une release : version SemVer déduite des commits depuis le dernier tag et du CHANGELOG, section `[Unreleased]` datée, notes, tag annoté et, sur demande, description de la merge request de release. Présente tout à `cp-release` sans rien écrire, puis écrit le CHANGELOG (les fichiers de version sont demandés un à un), commite, tague le commit de release et ouvre la MR si la branche est déjà sur le dépôt distant. Ni délégation, ni web ; il lit les tags avec `git describe` et `git for-each-ref`. oh lui refuse le commit, le tag et la MR avant `cp-release`, le tag avant le commit de release, et il ne pousse jamais. Guide : [Préparer une release](../guides/release.fr.md).
@@ -487,7 +487,7 @@ Prépare une release : version SemVer déduite des commits depuis le dernier tag
 |--|--|
 | **Label** | Merger |
 | **Fichier** | `agents/delivery/merger.md` |
-| **Skills** | Voir [Matrice d'assignation des skills](#matrice-dassignation-des-skills-source-de-verite) — ligne merger |
+| **Skills** | Voir [Matrice d'assignation des skills](#matrice-dassignation-des-skills-source-de-vérité) — ligne merger |
 | **Invocation** | Agent d'entrée du workflow `merge-conflicts`, lancé par oh dans un fan-out (`implement-spec -i fanout=true`) quand le merge d'une session enfant dans la branche d'intégration est en conflit |
 
 Termine un merge en cours sans rien perdre : intention de chaque côté depuis l'ancêtre commun, conflits sans marqueur, vérification (build, tests), puis `git add` et `git commit --no-edit`. Permissions de `developer-rw` moins tout ce qui lance, annule ou pousse un merge (`git merge`, `pull`, `rebase`, `reset`, `push`), change de branche ou de worktree, ou écrit dans Beads (`bd show` seulement) ; ni délégation, ni web. oh vérifie ensuite lui-même le résultat (merge commité, les deux côtés dans l'historique, aucun marqueur). Guide : [Fan-out](../guides/fan-out.fr.md).
@@ -507,7 +507,7 @@ Ne code jamais. Invocable directement ou via l'`orchestrator`.
 | **Fichier** | `agents/design/designer.md` |
 | **Mode** | `primary` (`subagent` dans `spec` et `libre`) |
 | **Permissions** | Pas de `write`, pas d'`edit`. `bash` deny-by-default (allowlist : `bd show *`, `bd list *`). Accès MCP Figma (seul agent du hub avec cette permission). |
-| **Skills** | Voir [Matrice d'assignation des skills](#matrice-dassignation-des-skills-source-de-verite) — ligne designer |
+| **Skills** | Voir [Matrice d'assignation des skills](#matrice-dassignation-des-skills-source-de-vérité) — ligne designer |
 | **Invocation** | `"Explore Figma pour [feature]"` / `"Spec UX pour [ticket]"` / `"Spec UI pour [composant]"` / `"Spec design complète pour [feature]"` |
 
 Agent de design unifié. Opère en quatre modes précisés à l'invocation :
@@ -543,7 +543,7 @@ Agents dédiés à la qualité du code, invocables comme agent d'entrée d'un wo
 |--|--|
 | **Label** | CodeReviewer |
 | **Fichier** | `agents/quality/reviewer.md` |
-| **Skills** | Voir [Matrice d'assignation des skills](#matrice-dassignation-des-skills-source-de-verite) — ligne reviewer |
+| **Skills** | Voir [Matrice d'assignation des skills](#matrice-dassignation-des-skills-source-de-vérité) — ligne reviewer |
 | **Invocation** | Agent d'entrée du workflow `review` (`oh run review`) ; sous-agent d'`orchestrator-dev` (`ticket`, `implement-spec`, `review-feedback`) et du `conductor` (`sweep`) — nom de branche / URL de PR + optionnellement `bd show <ID>` (le reviewer récupère lui-même le diff via `git diff`) |
 
 Analyse les diffs de PR/MR. Produit un rapport structuré par sévérité (Critique /
@@ -570,7 +570,7 @@ Les modes combinés (`standard+adversarial`, `all`) lancent des **sessions paral
 |--|--|
 | **Label** | Debugger |
 | **Fichier** | `agents/quality/debugger.md` |
-| **Skills** | Voir [Matrice d'assignation des skills](#matrice-dassignation-des-skills-source-de-verite) — ligne debugger |
+| **Skills** | Voir [Matrice d'assignation des skills](#matrice-dassignation-des-skills-source-de-vérité) — ligne debugger |
 | **Invocation** | Agent d'entrée des workflows `debug` (`oh run debug`) et `incident` (`oh run incident`) — `"Ce bug : [stacktrace]"` / `"Analyse ces logs : [logs]"` |
 
 Diagnostique la cause racine d'un bug en 6 phases structurées : vérification des artefacts
@@ -631,7 +631,7 @@ Ne modifie pas le code : il n'écrit que dans `reports/benchmarks/` (permission)
 |--|--|
 | **Label** | ProjectPlanner |
 | **Fichier** | `agents/planning/planner.md` |
-| **Skills** | Voir [Matrice d'assignation des skills](#matrice-dassignation-des-skills-source-de-verite) — ligne planner |
+| **Skills** | Voir [Matrice d'assignation des skills](#matrice-dassignation-des-skills-source-de-vérité) — ligne planner |
 | **MCP Servers** | `gitlab`, `github` |
 | **Invocation** | Sous-agent dans `spec` (alias `cadrage`, `feature`), relancé par le `conductor` à chaque étape, et dans `libre` — description d'une feature en langage naturel / `"Planifie le ticket #42"` |
 
@@ -676,7 +676,7 @@ les accepte ou les refuse à la carte du checkpoint de commit.
 |--|--|
 | **Label** | Pathfinder |
 | **Fichier** | `agents/planning/pathfinder.md` |
-| **Skills** | Voir [Matrice d'assignation des skills](#matrice-dassignation-des-skills-source-de-verite) — ligne pathfinder |
+| **Skills** | Voir [Matrice d'assignation des skills](#matrice-dassignation-des-skills-source-de-vérité) — ligne pathfinder |
 | **MCP Servers** | `gitlab`, `github` |
 | **Invocation** | Sous-agent dans `spec` (quand la demande compare des conceptions : skill `codebase-design`), `sweep` (découpage) et `libre` ; agent d'entrée de `spike` — `"Pathfinder la feature [X]"` / `"Estime la complexité de [feature]"` / `"Pathfinder le ticket #42"` |
 
@@ -705,7 +705,7 @@ la reconnaissance Figma au `designer` (mode `recon`) pour détecter les composan
 |--|--|
 | **Label** | Onboarder |
 | **Fichier** | `agents/planning/onboarder.md` |
-| **Skills** | Voir [Matrice d'assignation des skills](#matrice-dassignation-des-skills-source-de-verite) — ligne onboarder |
+| **Skills** | Voir [Matrice d'assignation des skills](#matrice-dassignation-des-skills-source-de-vérité) — ligne onboarder |
 | **MCP Servers** | `gitlab`, `github` |
 | **Invocation** | Agent d'entrée du workflow `onboarding` (`oh run onboarding`) — `"Onboarde-toi sur ce projet"` / `"Découvre ce projet"` |
 
@@ -746,7 +746,7 @@ Sous-agent : une seule session (protocole d'exécution) ; il s'arrête seulement
 |--|--|
 | **Label** | Documentarian |
 | **Fichier** | `agents/documentation/documentarian.md` |
-| **Skills** | Voir [Matrice d'assignation des skills](#matrice-dassignation-des-skills-source-de-verite) — ligne documentarian |
+| **Skills** | Voir [Matrice d'assignation des skills](#matrice-dassignation-des-skills-source-de-vérité) — ligne documentarian |
 | **Invocation** | Agent d'entrée de `doc-sync` et `skill-refresh` ; membre `independent` de `ticket` et `implement-spec`, lancé par `orchestrator-dev` (CHANGELOG) — `"Documente [sujet]"` / `"Crée un ADR pour [décision]"` / `"Mets à jour le CHANGELOG"` / `"Enrichis le wiki"` |
 
 Rédige et met à jour la documentation technique, fonctionnelle, architecturale, API,

@@ -32,9 +32,9 @@ Un workflow déclaratif `oh/v1` est résolu par couches (hub, équipe, projet), 
 | Concept | Pages liées | Criticité |
 |---------|-------------|-----------|
 | Sessions | [technical/architecture.en.md](technical/architecture.en.md), [technical/architecture.fr.md](technical/architecture.fr.md), [technical/config-cascade.en.md](technical/config-cascade.en.md), [technical/config-cascade.fr.md](technical/config-cascade.fr.md), [technical/conventions.en.md](technical/conventions.en.md), [technical/conventions.fr.md](technical/conventions.fr.md) | Critique |
-| Contenu embarque | [technical/architecture.fr.md](technical/architecture.fr.md), [technical/stack.fr.md](technical/stack.fr.md) | Normale |
 | Embedded content | [technical/architecture.en.md](technical/architecture.en.md), [technical/stack.en.md](technical/stack.en.md) | Normale |
 | modelOverridesFor | [technical/config-cascade.en.md](technical/config-cascade.en.md), [technical/config-cascade.fr.md](technical/config-cascade.fr.md) | Normale |
+| Contenu embarqué | [technical/architecture.fr.md](technical/architecture.fr.md), [technical/stack.fr.md](technical/stack.fr.md) | Normale |
 
 ## Carte des domaines métier
 

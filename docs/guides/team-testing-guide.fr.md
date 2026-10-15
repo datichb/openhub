@@ -152,8 +152,8 @@ team-state/
 | **Format** | Wizard tview plein écran, sidebar 5 étapes | Modal pas-à-pas, 3-4 étapes |
 | **Étape 1** | URL repo team-state | URL repo team-state |
 | **Étape 2** | Config globale (stale_days) | Auth HTTPS (si nécessaire) |
-| **Étape 3** | Identité complète (5 champs) | Identité (member_id, display_name, role) |
-| **Étape 4** | Notifications (webhook, channel, bot) | — (configurable après via detail) |
+| **Étape 3** | Identité complète (5 champs) | Identité (member_id, display_name, rôle) |
+| **Étape 4** | Notifications (webhook, channel, bot) | — (configurable après via détail) |
 | **Étape 5** | Policies (checkboxes) | — (configurable après) |
 | **Adaptatif** | Si repo non vide → propose "Modifier ?" | Toujours le même flow |
 | **Résultat** | Commit + push + hub.toml | Idem via `teamInitCore()` |
@@ -824,7 +824,7 @@ Légende:
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-### Raccourcis TUI detail
+### Raccourcis TUI détail
 
 | Touche | Action |
 |--------|--------|
@@ -1613,7 +1613,7 @@ Timeout HTTP: 10 secondes pour tous les clients.
 | `Esc` | Clear filter |
 | `q` | Quit (CLI) |
 
-### Vue Detail (`team.detail`)
+### Vue Détail (`team.detail`)
 
 | Touche | Action |
 |--------|--------|

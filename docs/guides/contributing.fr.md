@@ -7,15 +7,15 @@ ajout d'agents et de skills, et processus de PR.
 
 ---
 
-## Developpement du CLI (contributions code)
+## Développement du CLI (contributions code)
 
-### Prerequis
+### Prérequis
 
 | Outil | Version | Installation |
 |-------|---------|-------------|
 | Go | 1.26.4+ | [go.dev/dl](https://go.dev/dl/) |
 | golangci-lint | 2.1+ | `brew install golangci-lint` ou [docs](https://golangci-lint.run/welcome/install/) |
-| git | 2.5+ | Fourni par le systeme |
+| git | 2.5+ | Fourni par le système |
 
 ### Installation locale
 
@@ -90,27 +90,27 @@ Le CLI est un binaire Go unique (`cli/main.go` -> `cli/cmd/root.go`). L'architec
 
 | Package | Responsabilite |
 |---------|---------------|
-| `cmd/` | Commandes Cobra (point d'entree CLI) |
+| `cmd/` | Commandes Cobra (point d'entrée CLI) |
 | `internal/config/` | Configuration hub (`hub.toml`, TOML + Viper) |
 | `internal/mcp/` | Serveurs MCP built-in (Figma, GitLab, GitHub, Jira, Linear, GSlides, Team, Workflow) |
-| `internal/teamstate/` | Gestion de l'etat equipe (claims, wiki, policies, patterns, workflows d'equipe) |
+| `internal/teamstate/` | Gestion de l'état équipe (claims, wiki, policies, patterns, workflows d'équipe) |
 | `internal/workflow/` | Workflows declaratifs `oh/v1` (schema, couches, validation) |
 | `internal/bundle/` | Paquet de session (agents, skills, permissions, compile hors du projet sous `~/.oh/bundles/`) |
-| `internal/sessionspec/` | Modele de session independant de l'outil (paquet, emplacement, runtime, fournisseur) |
+| `internal/sessionspec/` | Modèle de session independant de l'outil (paquet, emplacement, runtime, fournisseur) |
 | `internal/adapters/` | Contrat oh ↔ outil agentique ; adaptateur opencode V2 (`opencodev2/`) |
 | `internal/runsvc/` | Lancement des sessions v5 (groupes de serveurs, proxy, monde ferme, checkpoints) |
-| `internal/daemon/` | Demon `ohd` (supervision des sessions, decisions, notifications) |
+| `internal/daemon/` | Démon `ohd` (supervision des sessions, décisions, notifications) |
 | `internal/credproxy/` | Proxy d'identifiants LLM (jetons par groupe) |
-| `internal/runtime/`, `internal/remote/` | Environnements d'execution (conteneur, distant GitLab CI) |
-| `internal/limits/` | Restrictions des sessions (sessions actives, budgets, memoire, modeles) |
-| `internal/deploycleanup/` | Nettoyage des anciens deploiements (`oh migrate deploy-cleanup`) |
+| `internal/runtime/`, `internal/remote/` | Environnements d'exécution (conteneur, distant GitLab CI) |
+| `internal/limits/` | Restrictions des sessions (sessions actives, budgets, mémoire, modèles) |
+| `internal/deploycleanup/` | Nettoyage des anciens déploiements (`oh migrate deploy-cleanup`) |
 | `internal/tui/` | Interface TUI (tview ; huh pour quelques invites en ligne hors TUI ; shell, vues, widgets) |
 | `internal/storage/` | SQLite (projets, sessions), keychain, chiffrement fichier |
 | `internal/tracker/` | Sync trackers externes (GitLab, Jira) |
 | `internal/i18n/` | Internationalisation (FR + EN, JSON) |
 
 Le binaire embarque les agents, skills et permissions via `go:embed` (`internal/hubcontent/`).
-`CGO_ENABLED=0` — pas de dependance C, binaire statique.
+`CGO_ENABLED=0` — pas de dépendance C, binaire statique.
 
 ### Conventions de code
 

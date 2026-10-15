@@ -1,6 +1,6 @@
 > [Read in English](cli-projects.en.md)
 
-# Reference CLI — Projets
+# Référence CLI — Projets
 
 ## Projets
 
@@ -44,7 +44,7 @@ oh project add [options]
 | Flag | Court | Type | Description |
 |------|-------|------|-------------|
 | `--name` | `-n` | string | Nom du projet |
-| `--path` | `-d` | string | Chemin du projet (defaut : repertoire courant) |
+| `--path` | `-d` | string | Chemin du projet (défaut : répertoire courant) |
 | `--language` | `-l` | string | Langage principal |
 | `--yes` | `-y` | bool | Beads zéro impact : retirer ce que `bd init` a écrit sans confirmation et annuler son commit s'il n'est pas poussé (sinon : liste, annulation du commit comprise, puis confirmation ; sans terminal, rien n'est changé) |
 
@@ -100,7 +100,7 @@ oh project rename
 
 ### oh project move
 
-Met a jour le chemin enregistre d'un projet (apres un deplacement sur le disque). Ne deplace pas le dossier. Interactif si les arguments sont omis.
+Met a jour le chemin enregistre d'un projet (après un deplacement sur le disque). Ne deplace pas le dossier. Interactif si les arguments sont omis.
 
 ```
 oh project move [project-id] [new-path]
@@ -117,7 +117,7 @@ oh project move
 
 ### oh project configure
 
-Configure les parametres d'un projet : provider LLM, modele, langage. Ils sont utilises au lancement des sessions (`oh run`). Sans flag, lance un assistant interactif.
+Configure les paramètres d'un projet : provider LLM, modèle, langage. Ils sont utilises au lancement des sessions (`oh run`). Sans flag, lance un assistant interactif.
 
 ```
 oh project configure [project-id] [options]
@@ -125,11 +125,11 @@ oh project configure [project-id] [options]
 
 | Flag | Court | Type | Description |
 |------|-------|------|-------------|
-| `--provider` | `-P` | string | Provider LLM : `bedrock`, `anthropic`, `openrouter`, `github-copilot` (valeur non verifiee) |
-| `--model` | `-m` | string | Modele LLM |
+| `--provider` | `-P` | string | Provider LLM : `bedrock`, `anthropic`, `openrouter`, `github-copilot` (valeur non vérifiée) |
+| `--model` | `-m` | string | Modèle LLM |
 | `--language` | `-l` | string | Langage principal |
 
-Le workflow et l'environnement d'execution par defaut du projet se reglent dans la TUI (Config projet › Execution), voir [`oh run`](cli-workflows.fr.md#oh-run).
+Le workflow et l'environnement d'exécution par défaut du projet se reglent dans la TUI (Config projet › Exécution), voir [`oh run`](cli-workflows.fr.md#oh-run).
 
 **Exemple :**
 

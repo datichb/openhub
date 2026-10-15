@@ -1,12 +1,12 @@
 > [Read in English](mcp-figma.en.md)
 
-# Reference serveur MCP Figma
+# Référence serveur MCP Figma
 
-Le serveur MCP Figma fournit un acces en lecture aux fichiers Figma, composants et styles.
+Le serveur MCP Figma fournit un accès en lecture aux fichiers Figma, composants et styles.
 
 ## Configuration
 
-**Requis :** `FIGMA_TOKEN` (Token d'acces personnel Figma)
+**Requis :** `FIGMA_TOKEN` (Token d'accès personnel Figma)
 
 ```toml
 # hub.toml
@@ -17,11 +17,11 @@ token_key = "openhub.mcp.figma.token"
 
 ## Outils
 
-| Outil | Description | Parametres |
+| Outil | Description | Paramètres |
 |-------|-------------|------------|
-| `figma_get_file` | Obtenir la structure et les metadonnees d'un fichier Figma | `file_key` (string, requis) |
-| `figma_get_node` | Obtenir un noeud specifique dans un fichier Figma | `file_key` (string, requis), `node_id` (string, requis) |
-| `figma_get_styles` | Obtenir tous les styles publies d'un fichier | `file_key` (string, requis) |
+| `figma_get_file` | Obtenir la structure et les métadonnées d'un fichier Figma | `file_key` (string, requis) |
+| `figma_get_node` | Obtenir un noeud spécifique dans un fichier Figma | `file_key` (string, requis), `node_id` (string, requis) |
+| `figma_get_styles` | Obtenir tous les styles publiés d'un fichier | `file_key` (string, requis) |
 
 ## Exemples d'utilisation
 
@@ -36,8 +36,8 @@ figma_get_node(file_key: "abc123XYZ", node_id: "1:42")
 figma_get_styles(file_key: "abc123XYZ")
 ```
 
-## Utilise par
+## Utilisé par
 
-L'agent `designer` a l'acces MCP Figma active par defaut. Les autres agents n'y ont pas acces.
+L'agent `designer` à l'accès MCP Figma active par défaut. Les autres agents n'y ont pas accès.
 
-Voir le [guide d'integration Figma](../guides/figma-integration.fr.md) pour des exemples de workflows.
+Voir le [guide d'intégration Figma](../guides/figma-integration.fr.md) pour des exemples de workflows.

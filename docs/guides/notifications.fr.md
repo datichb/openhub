@@ -2,11 +2,11 @@
 
 # Notifications — Guide de configuration
 
-## Presentation
+## Présentation
 
-openhub peut envoyer des notifications vers les plateformes de messagerie d'equipe lorsque des evenements cles surviennent pendant les sessions IA. Les notifications sont envoyees vers Slack, Discord, Mattermost ou Microsoft Teams via des webhooks entrants.
+openhub peut envoyer des notifications vers les plateformes de messagerie d'équipe lorsque des événements clés surviennent pendant les sessions IA. Les notifications sont envoyées vers Slack, Discord, Mattermost ou Microsoft Teams via des webhooks entrants.
 
-### Plateformes supportees
+### Plateformes supportées
 
 | Plateforme | Format du payload | Nom du bot | Redirection de canal |
 |------------|-------------------|------------|---------------------|
@@ -17,33 +17,33 @@ openhub peut envoyer des notifications vers les plateformes de messagerie d'equi
 
 ---
 
-## Evenements
+## Événements
 
-Tous les evenements d'equipe ne declenchent pas de notifications. Le tableau ci-dessous indique quels evenements sont automatiquement envoyes :
+Tous les événements d'équipe ne déclenchent pas de notifications. Le tableau ci-dessous indique quels événements sont automatiquement envoyés :
 
-| Evenement | Type | Auto-notifie | Description |
+| Événement | Type | Auto-notifie | Description |
 |-----------|------|:---:|-------------|
-| Revue prete | `review.ready` | Oui | Revue IA terminee, MR prete pour revue humaine |
-| Revue approuvee | `review.approved` | Oui | Le relecteur humain a approuve la MR |
-| Revue rejetee | `review.rejected` | Oui | Le relecteur humain a rejete la MR |
-| Proposition wiki | `wiki.proposal` | Oui | L'agent a propose une mise a jour de page wiki |
-| Notification personnalisee | `custom.notification` | Oui | L'agent a envoye un message personnalise via `team_notify` |
-| Session terminee | `session.complete` | Non | Session IA terminee (journalise uniquement) |
-| Ticket pris en charge | `claim.taken` | Non | L'agent a pris en charge un ticket (journalise uniquement) |
-| Conflit de prise en charge | `claim.conflict` | Non | Deux agents ont tente de prendre le meme ticket (journalise uniquement) |
-| Ticket transfere | `claim.transferred` | Non | Ticket transfere entre agents (journalise uniquement) |
-| Ticket libere | `claim.released` | Non | L'agent a libere un ticket (journalise uniquement) |
-| Wiki accepte | `wiki.accepted` | Non | Proposition wiki acceptee (journalise uniquement) |
-| Wiki rejete | `wiki.rejected` | Non | Proposition wiki rejetee (journalise uniquement) |
-| Constat d'audit | `audit.finding` | Non | L'audit a rapporte des constats (journalise uniquement) |
+| Revue prête | `review.ready` | Oui | Revue IA terminée, MR prête pour revue humaine |
+| Revue approuvée | `review.approved` | Oui | Le relecteur humain a approuvé la MR |
+| Revue rejetée | `review.rejected` | Oui | Le relecteur humain a rejeté la MR |
+| Proposition wiki | `wiki.proposal` | Oui | L'agent a proposé une mise à jour de page wiki |
+| Notification personnalisee | `custom.notification` | Oui | L'agent a envoyé un message personnalisé via `team_notify` |
+| Session terminée | `session.complete` | Non | Session IA terminée (journalisé uniquement) |
+| Ticket pris en charge | `claim.taken` | Non | L'agent a pris en charge un ticket (journalisé uniquement) |
+| Conflit de prise en charge | `claim.conflict` | Non | Deux agents ont tenté de prendre le même ticket (journalisé uniquement) |
+| Ticket transféré | `claim.transferred` | Non | Ticket transféré entre agents (journalisé uniquement) |
+| Ticket libéré | `claim.released` | Non | L'agent a libéré un ticket (journalisé uniquement) |
+| Wiki accepté | `wiki.accepted` | Non | Proposition wiki acceptée (journalisé uniquement) |
+| Wiki rejeté | `wiki.rejected` | Non | Proposition wiki rejetée (journalisé uniquement) |
+| Constat d'audit | `audit.finding` | Non | L'audit a rapporté des constats (journalisé uniquement) |
 
-> **Note :** Les evenements « journalise uniquement » sont enregistres dans le journal d'evenements du team-state et visibles dans l'historique des notifications du TUI, mais ne sont pas envoyes vers les plateformes externes.
+> **Note :** Les événements « journalisé uniquement » sont enregistrés dans le journal d'événements du team-state et visibles dans l'historique des notifications du TUI, mais ne sont pas envoyés vers les plateformes externes.
 
 ---
 
 ## Configuration
 
-Les notifications sont configurees dans le fichier `config.toml` du depot **team-state** (PAS dans `hub.toml`).
+Les notifications sont configurées dans le fichier `config.toml` du dépôt **team-state** (PAS dans `hub.toml`).
 
 ### Destination unique
 
@@ -79,21 +79,21 @@ bot_name = "MattermostBot"        # Redefinition par destination
 
 ### Configuration par plateforme
 
-**Slack :** Creez un [Incoming Webhook](https://api.slack.com/messaging/webhooks) dans les parametres de votre espace de travail Slack.
+**Slack :** Créez un [Incoming Webhook](https://api.slack.com/messaging/webhooks) dans les paramètres de votre espace de travail Slack.
 
-**Discord :** Dans les parametres du canal > Integrations > Webhooks > Nouveau Webhook. Copiez l'URL du webhook.
+**Discord :** Dans les paramètres du canal > Intégrations > Webhooks > Nouveau Webhook. Copiez l'URL du webhook.
 
-**Mattermost :** Dans la Console Systeme > Integrations > Incoming Webhooks. Vous pouvez optionnellement specifier une redefinition de `channel`.
+**Mattermost :** Dans la Console Système > Intégrations > Incoming Webhooks. Vous pouvez optionnellement spécifier une redefinition de `channel`.
 
-**Microsoft Teams :** Creez un [workflow Power Automate](https://learn.microsoft.com/en-us/microsoftteams/platform/webhooks-and-connectors/how-to/add-incoming-webhook) ou utilisez un connecteur de webhook entrant legacy.
+**Microsoft Teams :** Créez un [workflow Power Automate](https://learn.microsoft.com/en-us/microsoftteams/platform/webhooks-and-connectors/how-to/add-incoming-webhook) ou utilisez un connecteur de webhook entrant legacy.
 
 ---
 
 ## Processus d'installation
 
-1. **Pendant `oh team init`** — L'assistant interactif propose la configuration des notifications comme etape optionnelle
+1. **Pendant `oh team init`** — L'assistant interactif propose la configuration des notifications comme étape optionnelle
 2. **Manuellement** — Editez directement `~/.oh/team-state/config.toml`
-3. **Commitez** — Poussez la configuration pour la partager avec l'equipe :
+3. **Commitez** — Poussez la configuration pour la partager avec l'équipe :
    ```bash
    cd ~/.oh/team-state && git add config.toml && git commit -m "feat: ajout des notifications" && git push
    ```
@@ -109,50 +109,50 @@ oh team notify test --message "Bonjour!" # Message de test personnalise
 
 ---
 
-## Integration TUI
+## Intégration TUI
 
-Les notifications apparaissent egalement dans le TUI :
+Les notifications apparaissent également dans le TUI :
 
-- **Notifications toast** — Apparaissent en temps reel pour tous les evenements
+- **Notifications toast** — Apparaissent en temps réel pour tous les événements
 - **Historique des notifications** — Tapez `notifications` (ou `notif`, `logs`, `messages`, `toasts`) dans l'omnibar
-- **Persistance** — Les 50 dernieres notifications sont stockees dans `~/.oh/notifications.jsonl`
-- **Erreurs** — Les notifications de niveau erreur sont ecrites sur stderr
+- **Persistance** — Les 50 dernières notifications sont stockées dans `~/.oh/notifications.jsonl`
+- **Erreurs** — Les notifications de niveau erreur sont écrites sur stderr
 
 ---
 
-## Depannage
+## Dépannage
 
-### Notifications non envoyees
+### Notifications non envoyées
 
-1. Verifiez que `enabled = true` est present dans `[notification]`
-2. Verifiez que l'URL du webhook est correcte et accessible
+1. Vérifiez que `enabled = true` est présent dans `[notification]`
+2. Vérifiez que l'URL du webhook est correcte et accessible
 3. Testez avec `oh team notify test`
-4. Consultez les logs : les URLs de webhook sont masquees dans les logs pour des raisons de securite (`httplog.WithMaskURL`)
+4. Consultez les logs : les URLs de webhook sont masquées dans les logs pour des raisons de sécurité (`httplog.WithMaskURL`)
 
 ### Mauvais format de plateforme
 
-Chaque plateforme attend un format de payload specifique. Si vous obtenez `400 Bad Request`, verifiez que le champ `type` correspond bien a la plateforme du webhook.
+Chaque plateforme attend un format de payload spécifique. Si vous obtenez `400 Bad Request`, vérifiez que le champ `type` correspond bien à la plateforme du webhook.
 
 ### Canal Mattermost introuvable
 
-Le champ `channel` doit inclure le prefixe `#` (par exemple `#dev-ai`). S'il est omis, le canal par defaut du webhook est utilise.
+Le champ `channel` doit inclure le préfixe `#` (par exemple `#dev-ai`). S'il est omis, le canal par défaut du webhook est utilisé.
 
 ---
 
 ## Limitations connues
 
-- **Messages de notification en francais uniquement** — Toutes les chaines de formatage des evenements sont actuellement codees en dur en francais. L'internationalisation des messages de notification est prevue mais pas encore implementee.
-- **Pas de filtrage par evenement** — Tous les evenements auto-notifies sont envoyes a toutes les destinations. Le filtrage par evenement ou par destination n'est pas supporte.
-- **Pas de renvoi en cas d'echec** — Si un appel webhook echoue, l'erreur est journalisee mais la notification n'est pas renvoyee.
-- **Timeout de 10 secondes** — Les appels HTTP de webhook expirent apres 10 secondes.
+- **Messages de notification en français uniquement** — Toutes les chaînes de formatage des événements sont actuellement codées en dur en français. L'internationalisation des messages de notification est prévue mais pas encore implémentée.
+- **Pas de filtrage par événement** — Tous les événements auto-notifies sont envoyés à toutes les destinations. Le filtrage par événement ou par destination n'est pas supporté.
+- **Pas de renvoi en cas d'échec** — Si un appel webhook échoue, l'erreur est journalisée mais la notification n'est pas renvoyee.
+- **Timeout de 10 secondes** — Les appels HTTP de webhook expirent après 10 secondes.
 
 ---
 
 ## Ressources
 
-- [Guide de configuration d'equipe](team-setup.fr.md)
-- [Reference du serveur MCP Team](../reference/mcp-team.fr.md) — outil `team_notify`
-- [Reference de configuration](../reference/config.fr.md)
+- [Guide de configuration d'équipe](team-setup.fr.md)
+- [Référence du serveur MCP Team](../reference/mcp-team.fr.md) — outil `team_notify`
+- [Référence de configuration](../reference/config.fr.md)
 
 ---
 
@@ -163,4 +163,4 @@ oh team notify test      # Tester l'envoi de notifications
 oh team status           # Verifier la configuration d'equipe
 ```
 
-Pour signaler un probleme : [GitHub Issues](https://github.com/datichb/openhub/issues)
+Pour signaler un problème : [GitHub Issues](https://github.com/datichb/openhub/issues)

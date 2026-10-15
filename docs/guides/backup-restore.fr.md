@@ -92,7 +92,7 @@ Cette commande va :
 oh import ma-sauvegarde.tar.gz --overwrite
 ```
 
-### Fusionner avec les donnees existantes
+### Fusionner avec les données existantes
 
 ```bash
 oh import ma-sauvegarde.tar.gz --merge
@@ -109,7 +109,7 @@ Error: checksum mismatch for oh.db (expected abc123..., got xyz789...)
 Backup archive may be corrupted. Aborting restore.
 ```
 
-Pour verifier une sauvegarde sans restaurer, extraire et verifier le manifest manuellement :
+Pour vérifier une sauvegarde sans restaurer, extraire et vérifier le manifest manuellement :
 
 ```bash
 tar -tzf ma-sauvegarde.tar.gz manifest.json
@@ -159,7 +159,7 @@ Tente de récupérer la base de données en :
 
 ### Recuperation partielle
 
-Pour les problemes partiels, restaurer depuis la sauvegarde puis corriger le probleme specifique :
+Pour les problèmes partiels, restaurer depuis la sauvegarde puis corriger le problème spécifique :
 
 ```bash
 # Restauration complete

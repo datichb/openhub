@@ -1,14 +1,14 @@
 > [Read in English](cli-team.en.md)
 
-# Reference CLI — Equipe
+# Référence CLI — Équipe
 
-Les fonctions d'equipe reposent sur un depot git **team-state** partage (claims, evenements, wiki, policies, patterns, workflows d'equipe). Voir [Workflows d'equipe](../guides/team-workflows.fr.md) pour les workflows et l'[ADR-040](../architecture/adr/040-workflows-team-state-governance.fr.md).
+Les fonctions d'équipe reposent sur un dépôt git **team-state** partage (claims, événements, wiki, policies, patterns, workflows d'équipe). Voir [Workflows d'équipe](../guides/team-workflows.fr.md) pour les workflows et l'[ADR-040](../architecture/adr/040-workflows-team-state-governance.fr.md).
 
 ## Collaboration (oh team)
 
 ### oh team init
 
-Assistant interactif de configuration de l'equipe, en 4 etapes adaptatives : configuration globale (reprise, sessions), identite (inscription dans l'equipe), notifications Mattermost (optionnel), policies d'equipe (conventions automatisees). Le depot team-state doit exister au prealable sur GitLab ou GitHub ; s'il est deja configure, seules les etapes utiles sont proposees.
+Assistant interactif de configuration de l'équipe, en 4 étapes adaptatives : configuration globale (reprise, sessions), identité (inscription dans l'équipe), notifications Mattermost (optionnel), policies d'équipe (conventions automatisées). Le dépôt team-state doit exister au préalable sur GitLab ou GitHub ; s'il est déjà configuré, seules les étapes utiles sont proposées.
 
 ```
 oh team init [--solo [--id <id>] [--name <nom>] [--member-id <id>] [--project <projet>]]
@@ -49,7 +49,7 @@ En cas d'échec (dépôt absent, non vide, accès refusé), l'espace reste solo.
 
 ### oh team rejoin
 
-Rejoint une equipe existante apres une reinstallation du hub : clone le depot team-state, verifie l'identite via GitLab et restaure la configuration. Ne pas lancer pendant que la TUI effectue des operations d'equipe sur le meme clone (le verrou ne protege pas contre un autre processus).
+Rejoint une équipe existante après une réinstallation du hub : clone le dépôt team-state, vérifie l'identité via GitLab et restaure la configuration. Ne pas lancer pendant que la TUI effectue des opérations d'équipe sur le même clone (le verrou ne protège pas contre un autre processus).
 
 ```
 oh team rejoin [--repo <url>] [--member-id <id>] [--no-retro-tag]
@@ -57,13 +57,13 @@ oh team rejoin [--repo <url>] [--member-id <id>] [--no-retro-tag]
 
 | Flag | Type | Description |
 |------|------|-------------|
-| `--repo` | string | URL du depot git team-state |
+| `--repo` | string | URL du dépôt git team-state |
 | `--member-id` | string | Identifiant membre (interactif si omis) |
-| `--no-retro-tag` | bool | Ne pas rattacher les sessions existantes a votre identite |
+| `--no-retro-tag` | bool | Ne pas rattacher les sessions existantes à votre identité |
 
 ### oh team config
 
-Assistant de configuration des services MCP partages (GitLab, Jira…) et de la synchronisation du tracker, au niveau equipe et/ou local. `oh team config status` affiche la configuration effective (resolution equipe + local).
+Assistant de configuration des services MCP partagés (GitLab, Jira…) et de la synchronisation du tracker, au niveau équipe et/ou local. `oh team config status` affiche la configuration effective (résolution équipe + local).
 
 ```bash
 oh team config
@@ -88,18 +88,18 @@ oh team status [--detail]
 
 ### oh team activity
 
-Journal d'activite de l'equipe.
+Journal d'activité de l'équipe.
 
 ```
 oh team activity [options]
 ```
 
-| Flag | Type | Defaut | Description |
+| Flag | Type | Défaut | Description |
 |------|------|--------|-------------|
-| `--limit` | int | `20` | Nombre maximal d'evenements |
+| `--limit` | int | `20` | Nombre maximal d'événements |
 | `--member` | string | | Filtrer par membre |
 | `--project` | string | | Filtrer par projet |
-| `--today` | bool | `false` | Evenements du jour seulement |
+| `--today` | bool | `false` | Événements du jour seulement |
 | `--week` | bool | `false` | 7 derniers jours |
 
 ```bash
@@ -111,7 +111,7 @@ oh team activity --member alice --limit 50
 
 ### oh team board
 
-Tableau kanban de l'equipe en plein ecran (tickets en cours, prevus, termines).
+Tableau kanban de l'équipe en plein écran (tickets en cours, prévus, terminés).
 
 ```
 oh team board [--watch]
@@ -119,13 +119,13 @@ oh team board [--watch]
 
 | Flag | Type | Description |
 |------|------|-------------|
-| `--watch` | bool | Rafraichissement automatique (touche `r` pour rafraichir a la main) |
+| `--watch` | bool | Rafraîchissement automatique (touche `r` pour rafraîchir à la main) |
 
 ---
 
 ### oh team claim
 
-Reclame un ticket dans le team-state pour signaler a l'equipe que vous travaillez dessus. Si le ticket est deja pris, un avertissement s'affiche (non bloquant). Si le ticket est inactif depuis plusieurs jours, oh propose de generer un brief de reprise avant de le reclamer.
+Réclame un ticket dans le team-state pour signaler à l'équipe que vous travaillez dessus. Si le ticket est déjà pris, un avertissement s'affiche (non bloquant). Si le ticket est inactif depuis plusieurs jours, oh propose de générer un brief de reprise avant de le réclamer.
 
 ```
 oh team claim <ticket-id> [options]
@@ -133,9 +133,9 @@ oh team claim <ticket-id> [options]
 
 | Flag | Court | Type | Description |
 |------|-------|------|-------------|
-| `--planned` | | bool | Cree le claim en statut `planned` (colonne TODO) au lieu de `in_progress` |
-| `--project` | `-p` | string | Projet (detecte depuis le dossier courant si omis) |
-| `--worktree` | | string | Nom de la branche ou du worktree associe |
+| `--planned` | | bool | Crée le claim en statut `planned` (colonne TODO) au lieu de `in_progress` |
+| `--project` | `-p` | string | Projet (détecté depuis le dossier courant si omis) |
+| `--worktree` | | string | Nom de la branche ou du worktree associé |
 
 **Exemple :**
 
@@ -147,7 +147,7 @@ oh team claim TICKET-123 --worktree feat/ticket-123
 
 ### oh team claim transfer
 
-Change le proprietaire d'un claim existant sans le liberer.
+Change le propriétaire d'un claim existant sans le libérer.
 
 ```
 oh team claim transfer <ticket-id> --to <member-id> [-p <projet>]
@@ -156,7 +156,7 @@ oh team claim transfer <ticket-id> --to <member-id> [-p <projet>]
 | Flag | Court | Type | Description |
 |------|-------|------|-------------|
 | `--to` | | string | Membre destinataire (obligatoire) |
-| `--project` | `-p` | string | Projet (detecte depuis le dossier courant si omis) |
+| `--project` | `-p` | string | Projet (détecté depuis le dossier courant si omis) |
 
 ```bash
 oh team claim transfer TICKET-123 --to bob
@@ -164,7 +164,7 @@ oh team claim transfer TICKET-123 --to bob
 
 ### oh team release
 
-Libere un ticket reclame (il redevient disponible pour les autres membres).
+Libère un ticket réclamé (il redevient disponible pour les autres membres).
 
 ```
 oh team release <ticket-id> [-p <projet>]
@@ -172,7 +172,7 @@ oh team release <ticket-id> [-p <projet>]
 
 | Flag | Court | Type | Description |
 |------|-------|------|-------------|
-| `--project` | `-p` | string | Projet (detecte depuis le dossier courant si omis) |
+| `--project` | `-p` | string | Projet (détecté depuis le dossier courant si omis) |
 
 ```bash
 oh team release TICKET-123
@@ -182,7 +182,7 @@ oh team release TICKET-123
 
 ### oh team sync-tracker
 
-Synchronise les claims avec le tracker externe (GitLab Issues, Jira, Linear) : tire l'etat des issues, met a jour le statut des claims, recopie les labels et cree des claims `planned` pour les issues assignees pas encore reclamees. Sans flag ; la configuration vient de `[tracker]` dans le `config.toml` du team-state, completee par `[tracker]` du `hub.toml` local.
+Synchronise les claims avec le tracker externe (GitLab Issues, Jira, Linear) : tire l'état des issues, met à jour le statut des claims, recopie les labels et crée des claims `planned` pour les issues assignées pas encore réclamées. Sans flag ; la configuration vient de `[tracker]` dans le `config.toml` du team-state, complétée par `[tracker]` du `hub.toml` local.
 
 ```bash
 oh team sync-tracker
@@ -192,7 +192,7 @@ oh team sync-tracker
 
 ### oh team notify test
 
-Envoie un message de test au(x) webhook(s) configure(s) dans le team-state.
+Envoie un message de test au(x) webhook(s) configuré(s) dans le team-state.
 
 ```
 oh team notify test [-m <message>]
@@ -200,7 +200,7 @@ oh team notify test [-m <message>]
 
 | Flag | Court | Type | Description |
 |------|-------|------|-------------|
-| `--message` | `-m` | string | Message personnalise (defaut : message de test standard) |
+| `--message` | `-m` | string | Message personnalisé (défaut : message de test standard) |
 
 ```bash
 oh team notify test
@@ -211,7 +211,7 @@ oh team notify test --message "Deploiement en cours"
 
 ### oh team wiki
 
-Wiki d'equipe : pages et propositions.
+Wiki d'équipe : pages et propositions.
 
 ```bash
 oh team wiki list                  # pages et propositions en attente
@@ -221,13 +221,13 @@ oh team wiki review [id]           # reviser une proposition (interactif sans id
 
 ---
 
-## Gestion d'equipes (oh teams)
+## Gestion d'équipes (oh teams)
 
-Un utilisateur peut appartenir a plusieurs equipes ; chaque projet est rattache a 0 ou 1 equipe.
+Un utilisateur peut appartenir à plusieurs équipes ; chaque projet est rattaché à 0 ou 1 équipe.
 
 ### oh teams list
 
-Lister les equipes configurees.
+Lister les équipes configurées.
 
 ```bash
 oh teams list
@@ -235,7 +235,7 @@ oh teams list
 
 ### oh teams add
 
-Ajouter une equipe au hub.
+Ajouter une équipe au hub.
 
 ```bash
 oh teams add --repo git@github.com:org/team-state.git --member-id alice
@@ -243,14 +243,14 @@ oh teams add --repo git@github.com:org/team-state.git --member-id alice
 
 | Flag | Type | Description |
 |------|------|-------------|
-| `--repo` | string | URL du depot git team-state (`git@…` ou `https://…`) |
-| `--member-id` | string | Votre identifiant membre dans l'equipe |
-| `--id` | string | Identifiant local de l'equipe (derive du depot si omis) |
+| `--repo` | string | URL du dépôt git team-state (`git@…` ou `https://…`) |
+| `--member-id` | string | Votre identifiant membre dans l'équipe |
+| `--id` | string | Identifiant local de l'équipe (dérive du dépôt si omis) |
 | `--name` | string | Nom d'affichage (optionnel) |
 
 ### oh teams remove
 
-Supprimer une equipe du hub ; les projets rattaches deviennent des projets sans equipe.
+Supprimer une équipe du hub ; les projets rattachés deviennent des projets sans équipe.
 
 ```
 oh teams remove [team-id] [-f]
@@ -262,7 +262,7 @@ oh teams remove [team-id] [-f]
 
 ### oh teams detach
 
-Detacher un projet de son equipe sans supprimer l'equipe.
+Détacher un projet de son équipe sans supprimer l'équipe.
 
 ```bash
 oh teams detach [project-name]
@@ -270,7 +270,7 @@ oh teams detach [project-name]
 
 ### oh teams archive / restore
 
-Archiver une equipe (desactivee, configuration et team-state local conserves) ou la reactiver (et synchroniser son team-state) :
+Archiver une équipe (désactivée, configuration et team-state local conservés) ou la réactiver (et synchroniser son team-state) :
 
 ```bash
 oh teams archive [team-id]
@@ -283,7 +283,7 @@ oh teams restore [team-id]
 
 ### oh conventions check
 
-Verifie la branche courante et les derniers commits par rapport aux conventions du wiki projet (`docs/wiki/technical/conventions.md`) et du wiki d'equipe. Avertissements non bloquants.
+Vérifie la branche courante et les derniers commits par rapport aux conventions du wiki projet (`docs/wiki/technical/conventions.md`) et du wiki d'équipe. Avertissements non bloquants.
 
 ```bash
 oh conventions check
@@ -291,7 +291,7 @@ oh conventions check
 
 ### oh patterns
 
-Bibliotheque de patterns de decomposition, stockee dans le team-state.
+Bibliothèque de patterns de décomposition, stockée dans le team-state.
 
 ```bash
 oh patterns list [--all] [--tags a,b]   # patterns valides (--all : aussi les non valides)
@@ -303,7 +303,7 @@ oh patterns remove <nom>                # supprimer un pattern
 
 ### oh policies
 
-Regles d'equipe appliquees a tous les projets (`policies.toml` du team-state, surchargeables par projet dans `policies-override.toml`).
+Règles d'équipe appliquées à tous les projets (`policies.toml` du team-state, surchargeables par projet dans `policies-override.toml`).
 
 ```bash
 oh policies list [-p <projet>]                                       # policies actives (vue fusionnee avec -p)
@@ -317,7 +317,7 @@ oh policies add                                                      # ajouter u
 
 ### oh takeover-brief
 
-Briefs de reprise generes lors des transferts de tickets. **Alias :** `oh tb`. Toutes les sous-commandes acceptent `-p, --project <projet>`.
+Briefs de reprise générés lors des transferts de tickets. **Alias :** `oh tb`. Toutes les sous-commandes acceptent `-p, --project <projet>`.
 
 ```bash
 oh takeover-brief show <ticket-id>    # voir le contexte de reprise

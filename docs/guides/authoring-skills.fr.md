@@ -15,10 +15,10 @@ Avant d'écrire un skill, identifier son type. Le type conditionne le format att
 |------|------|----------------|---------|
 | **Technique** | Workflow procédural — guide l'agent étape par étape | Phases numérotées, templates, autocontrôles | `debugger-workflow`, `planner-workflow`, `auditor-workflow` |
 | **Pattern** | Contrainte récurrente — impose un comportement à tout moment | Règles ✅/❌, exemples de violations, triggers | `posture/user-facing-posture`, `posture/coordinator-posture` |
-| **Reference** | Catalogue / lookup — consulté à la demande | Tableaux, listes structurées, source de vérité | `shared/hub-workflow-reference`, `developer/dev-standards-*` |
+| **Référence** | Catalogue / lookup — consulté à la demande | Tableaux, listes structurées, source de vérité | `shared/hub-workflow-reference`, `developer/dev-standards-*` |
 | **Discipline** | Norme comportementale transversale — façonne la posture globale | Principes, interdictions absolues, exemples | `posture/expert-posture`, `posture/core-posture` |
 
-> Un skill peut être hybride (ex : Technique + Reference), mais l'un des types domine toujours. Identifier le type dominant pour choisir le format principal.
+> Un skill peut être hybride (ex : Technique + Référence), mais l'un des types domine toujours. Identifier le type dominant pour choisir le format principal.
 
 ---
 

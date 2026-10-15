@@ -1,6 +1,6 @@
 > [Read in English](cli-infra.en.md)
 
-# Reference CLI — Infrastructure
+# Référence CLI — Infrastructure
 
 ## Infrastructure
 

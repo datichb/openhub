@@ -206,8 +206,8 @@ Les deux dernières ne sont dans aucun frontmatter d'agent : `elicitation-techni
 | `planner-phase-0` | B : planner | Phase 0 (prérequis) et 0.5 (complexity scoring : 4 critères × 4 pts, tiers Small/Medium/Large/Enterprise) |
 | `planner-phase-1` | B : planner | Phase 1 (exploration) et 1.5 (délégation design) |
 | `grilling` | B : planner | Interroger la demande avant les questions : la confronter au code et aux règles (quantificateurs, acteurs, visibilité, cycle de vie, invariants), une question par décision, priorisée |
-| `planner-phase-2` | B : planner | Phase 2 — questions complémentaires ([FACT] / [DECISION], batch ou frontier) |
-| `planner-phase-2-5` | B : planner | Phase 2.5 (complexité Large ou Enterprise, Medium sur demande) — compréhension partagée, decision map Enterprise |
+| `planner-phase-2` | B : planner | Phase 2 — questions complémentaires ([FACT] / [DÉCISION], batch ou frontier) |
+| `planner-phase-2-5` | B : planner | Phase 2.5 (complexité Large ou Enterprise, Medium sur demande) — compréhension partagée, décision map Enterprise |
 | `planner-phase-3-4` | B : planner | Phase 3 (plan hiérarchique) et 4 (cas particuliers) |
 | `planner-phase-5-6` | B : planner | Phase 5 (création Beads avec ses templates : epics, features, tasks, dépendances, labels), 5.5 (ai-delegated), 6 (vérification) |
 | `planner-design-templates` | B : planner | Délégation design Phase 1.5 — options UX/UI, contexte à transmettre, reprise après spec |
@@ -557,7 +557,7 @@ Une skill qui n'est pas dans le hub s'ajoute au **catalogue d'équipe** (`catalo
 
 ## Matrice agents ↔ skills
 
-Résumé du frontmatter des 18 agents (`agents/**/*.md`). Pour la vue par agent, voir aussi la [Matrice d'assignation des skills](./agents.fr.md#matrice-dassignation-des-skills-source-de-verite).
+Résumé du frontmatter des 18 agents (`agents/**/*.md`). Pour la vue par agent, voir aussi la [Matrice d'assignation des skills](./agents.fr.md#matrice-dassignation-des-skills-source-de-vérité).
 
 Communs, non répétés dans le tableau :
 

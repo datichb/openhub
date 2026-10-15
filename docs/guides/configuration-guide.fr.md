@@ -2,7 +2,7 @@
 
 # Guide de configuration
 
-Ce guide vous accompagne pas a pas dans la configuration d'OpenHub, depuis le setup minimal jusqu'a la configuration equipe avancee. Pour la reference exhaustive de chaque cle de configuration, voir [Reference configuration](../reference/config.fr.md).
+Ce guide vous accompagne pas à pas dans la configuration d'OpenHub, depuis le setup minimal jusqu'à la configuration équipe avancée. Pour la référence exhaustive de chaque clé de configuration, voir [Référence configuration](../reference/config.fr.md).
 
 **Ce que couvre ce guide :**
 
@@ -10,14 +10,14 @@ Ce guide vous accompagne pas a pas dans la configuration d'OpenHub, depuis le se
 2. [Configuration du provider](#2-configuration-du-provider) -- Configurer votre fournisseur LLM
 3. [Enregistrement de projets](#3-enregistrement-de-projets) -- Enregistrer et configurer des projets
 4. [Serveurs MCP](#4-serveurs-mcp) -- Connecter des outils externes
-5. [Configuration equipe](#5-configuration-equipe) -- Collaboration multi-utilisateurs
-6. [Configuration avancee](#6-configuration-avancee) -- Personnaliser les workflows, fichiers d'instructions, worktrees
+5. [Configuration équipe](#5-configuration-équipe) -- Collaboration multi-utilisateurs
+6. [Configuration avancée](#6-configuration-avancée) -- Personnaliser les workflows, fichiers d'instructions, worktrees
 
 ---
 
 ## 1. Setup Solo Minimal
 
-Apres avoir execute `oh init`, votre configuration hub vit dans `~/.oh/hub.toml`. La configuration minimale viable ne requiert que 3 parametres :
+Après avoir exécuté `oh init`, votre configuration hub vit dans `~/.oh/hub.toml`. La configuration minimale viable ne requiert que 3 paramètres :
 
 ```toml
 # ~/.oh/hub.toml -- configuration minimale
@@ -28,7 +28,7 @@ language = "fr"              # "en" ou "fr"
 default_provider = "anthropic"   # votre fournisseur LLM
 ```
 
-C'est tout. Tout le reste a des valeurs par defaut sensibles. Les credentials du provider sont stockes dans votre trousseau OS (pas dans ce fichier).
+C'est tout. Tout le reste a des valeurs par défaut sensibles. Les credentials du provider sont stockés dans votre trousseau OS (pas dans ce fichier).
 
 ### Emplacements des fichiers
 
@@ -36,9 +36,9 @@ C'est tout. Tout le reste a des valeurs par defaut sensibles. Les credentials du
 |--------|-------|
 | `~/.oh/hub.toml` | Configuration du hub |
 | `~/.oh/oh.db` | Registre de projets (SQLite) |
-| `~/.oh/hub/` | Agents et skills embarques |
-| `~/.oh/secrets.enc` | Secrets chiffres (fallback trousseau) |
-| `~/.oh/bundles/<hash>/` | Paquets de session (agents, skills, config) construits au lancement — plus rien n'est deploye dans `<projet>/.opencode/` |
+| `~/.oh/hub/` | Agents et skills embarqués |
+| `~/.oh/secrets.enc` | Secrets chiffrés (fallback trousseau) |
+| `~/.oh/bundles/<hash>/` | Paquets de session (agents, skills, config) construits au lancement — plus rien n'est déployé dans `<projet>/.opencode/` |
 
 ---
 
@@ -65,13 +65,13 @@ oh provider setup
 # Entrez votre cle API depuis console.anthropic.com
 ```
 
-La cle est stockee dans votre trousseau OS. Pour verifier :
+La clé est stockée dans votre trousseau OS. Pour vérifier :
 
 ```bash
 oh doctor
 ```
 
-Parametre hub.toml :
+Paramètre hub.toml :
 
 ```toml
 [llm]
@@ -146,13 +146,13 @@ default_provider = "github-copilot"
 
 ### Override provider par projet
 
-Un projet peut utiliser un provider different du defaut du hub :
+Un projet peut utiliser un provider différent du défaut du hub :
 
 ```bash
 oh project configure --provider bedrock
 ```
 
-### Configuration des modeles
+### Configuration des modèles
 
 ```bash
 # Definir le modele par defaut pour tous les agents
@@ -181,7 +181,7 @@ planning = "claude-opus-4-6"
 reviewer = "claude-opus-4-6"
 ```
 
-La resolution de modele suit une **cascade a 10 niveaux** (premier match gagne), precedee du bloc `models:` du workflow de la session :
+La résolution de modèle suit une **cascade à 10 niveaux** (premier match gagne), precedee du bloc `models:` du workflow de la session :
 
 ```
 Workflow agent > Workflow defaut >
@@ -191,7 +191,7 @@ Team agent > Team famille > Team defaut >
 Plancher frontmatter agent
 ```
 
-Voir [Reference resolution de modeles](../reference/model-resolution.fr.md) pour les details.
+Voir [Référence résolution de modèles](../reference/model-resolution.fr.md) pour les détails.
 
 ---
 
@@ -219,7 +219,7 @@ oh project list
 
 ### Paquet de session d'un projet
 
-Plus rien n'est deploye dans le projet (`oh deploy` supprime en v5) : chaque session demarre d'un paquet construit au lancement a partir de son workflow.
+Plus rien n'est déployé dans le projet (`oh deploy` supprimé en v5) : chaque session démarre d'un paquet construit au lancement à partir de son workflow.
 
 ```bash
 cd ~/workspace/my-app
@@ -244,7 +244,7 @@ flowchart LR
     MCP --> D
 ```
 
-### Parametres par projet
+### Paramètres par projet
 
 ```bash
 oh project configure --provider bedrock       # override provider
@@ -256,7 +256,7 @@ oh project configure --language fr            # override langue
 
 ## 4. Serveurs MCP
 
-OpenHub inclut 7 serveurs MCP integres pour l'integration d'outils externes :
+OpenHub inclut 7 serveurs MCP intégrés pour l'intégration d'outils externes :
 
 | Serveur | Usage | Token requis |
 |---------|-------|-------------|
@@ -264,9 +264,9 @@ OpenHub inclut 7 serveurs MCP integres pour l'integration d'outils externes :
 | **GitHub** | Issues, PR, Actions | PAT GitHub |
 | **Figma** | Fichiers design, composants | PAT Figma |
 | **Jira** | Issues, projets, transitions | Token API Jira |
-| **Linear** | Issues via GraphQL | Cle API Linear |
-| **Google Slides** | Analyse de presentations | OAuth Google |
-| **Team** | Etat equipe, claims, wiki | (pas de token -- donnees locales) |
+| **Linear** | Issues via GraphQL | Clé API Linear |
+| **Google Slides** | Analyse de présentations | OAuth Google |
+| **Team** | État équipe, claims, wiki | (pas de token -- données locales) |
 
 ### Configurer les serveurs MCP
 
@@ -297,34 +297,34 @@ enabled = false
 
 ### Override MCP par projet
 
-Les serveurs MCP peuvent etre actives/desactives par projet (`oh mcp enable|setup`). A chaque lancement, les parametres hub combines aux overrides projet sont places dans le paquet de session — aucun redeploiement necessaire.
+Les serveurs MCP peuvent être activés/désactivés par projet (`oh mcp enable|setup`). À chaque lancement, les paramètres hub combinés aux overrides projet sont placés dans le paquet de session — aucun redéploiement nécessaire.
 
 ---
 
-## 5. Configuration Equipe
+## 5. Configuration Équipe
 
-Les fonctionnalites equipe permettent a plusieurs developpeurs de collaborer via un depot Git partage ("team-state repo") qui synchronise les claims, policies, wiki et evenements.
+Les fonctionnalités équipe permettent à plusieurs développeurs de collaborer via un dépôt Git partage ("team-state repo") qui synchronise les claims, policies, wiki et événements.
 
-> **Utilisateur solo ?** Passez cette section entierement. Les fonctionnalites equipe sont optionnelles et n'affectent pas l'usage solo.
+> **Utilisateur solo ?** Passez cette section entièrement. Les fonctionnalités équipe sont optionnelles et n'affectent pas l'usage solo.
 
 ### Configuration initiale
 
-**Etape 1 -- Creer un depot team-state :**
+**Étape 1 -- Créer un dépôt team-state :**
 
-Creez un nouveau depot Git (sur n'importe quel hebergeur Git) pour contenir l'etat equipe.
+Créez un nouveau dépôt Git (sur n'importe quel hébergeur Git) pour contenir l'état équipe.
 
-**Etape 2 -- Initialiser les fonctionnalites equipe :**
+**Étape 2 -- Initialiser les fonctionnalités équipe :**
 
 ```bash
 oh team init
 ```
 
-L'assistant vous guide a travers :
-1. **Connexion au depot** -- URL de votre depot team-state
-2. **Configuration globale** -- Parametres par defaut pour tous les membres
-3. **Identite** -- Votre member ID (utilise pour les claims)
+L'assistant vous guide à travers :
+1. **Connexion au dépôt** -- URL de votre dépôt team-state
+2. **Configuration globale** -- Paramètres par défaut pour tous les membres
+3. **Identité** -- Votre member ID (utilisé pour les claims)
 4. **Notifications** -- Destinations webhook (Slack, Discord, Teams, Mattermost)
-5. **Policies** -- Regles de revue de code, nommage de branches, conventions de commits
+5. **Policies** -- Règles de revue de code, nommage de branches, conventions de commits
 
 Dans `hub.toml` :
 
@@ -340,7 +340,7 @@ member_id = "alice"
 
 ### Support multi-equipe
 
-Vous pouvez appartenir a plusieurs equipes. Chaque equipe a son propre depot :
+Vous pouvez appartenir à plusieurs équipes. Chaque équipe a son propre dépôt :
 
 ```bash
 oh teams list                # lister toutes les equipes
@@ -348,9 +348,9 @@ oh teams add --repo git@... --member-id alice
 oh teams remove <team-id>
 ```
 
-### Policies d'equipe
+### Policies d'équipe
 
-Les policies definissent des regles applicables a l'equipe :
+Les policies définissent des règles applicables à l'équipe :
 
 ```bash
 oh policies list             # afficher les policies actives
@@ -358,7 +358,7 @@ oh policies check            # valider le projet courant contre les policies
 oh policies add              # ajouter une nouvelle policy
 ```
 
-### Conventions d'equipe
+### Conventions d'équipe
 
 ```bash
 oh conventions check         # valider le projet contre les conventions d'equipe
@@ -366,7 +366,7 @@ oh conventions check         # valider le projet contre les conventions d'equipe
 
 ### Notifications
 
-Les notifications sont configurees dans le fichier de configuration team-state (pas dans `hub.toml`) :
+Les notifications sont configurées dans le fichier de configuration team-state (pas dans `hub.toml`) :
 
 ```toml
 # team-state config.toml
@@ -380,7 +380,7 @@ channel = "#dev-ai"
 bot_name = "openhub"
 ```
 
-Plateformes supportees : Slack, Discord, Microsoft Teams, Mattermost.
+Plateformes supportées : Slack, Discord, Microsoft Teams, Mattermost.
 
 ### Claims et collaboration
 
@@ -403,11 +403,11 @@ oh takeover-brief list               # lister les briefs disponibles
 oh run brief-enrich --headless -i ticket=<ticket-id>   # enrichir avec l'analyse du code
 ```
 
-`oh takeover-brief enrich <ticket-id>` reste un alias deprecie de `oh run brief-enrich --headless`.
+`oh takeover-brief enrich <ticket-id>` reste un alias déprécié de `oh run brief-enrich --headless`.
 
-### Bibliotheque de patterns
+### Bibliothèque de patterns
 
-Partager des patterns reutilisables au sein de l'equipe :
+Partager des patterns réutilisables au sein de l'équipe :
 
 ```bash
 oh patterns list             # lister les patterns d'equipe
@@ -418,11 +418,11 @@ oh patterns validate         # valider les patterns
 
 ---
 
-## 6. Configuration Avancee
+## 6. Configuration Avancée
 
 ### Personnaliser les workflows
 
-Le bloc `[workflow]` de `hub.toml` n'existe plus en v5 : il est migre automatiquement vers un workflow `implement-spec` du team-state (voir [Workflows d'equipe › Migration des anciennes surcharges](team-workflows.fr.md#migration-des-anciennes-surcharges-de-workflow-v5)). Pour adapter un workflow (checkpoints, mode, modeles, limites), creez une couche d'equipe ou de projet :
+Le bloc `[workflow]` de `hub.toml` n'existe plus en v5 : il est migré automatiquement vers un workflow `implement-spec` du team-state (voir [Workflows d'équipe › Migration des anciennes surcharges](team-workflows.fr.md#migration-des-anciennes-surcharges-de-workflow-v5)). Pour adapter un workflow (checkpoints, mode, modèles, limites), créez une couche d'équipe ou de projet :
 
 ```bash
 oh workflow list              # workflows disponibles (toutes les couches)
@@ -430,11 +430,11 @@ oh workflow show feature      # workflow resolu, avec l'origine des valeurs
 oh workflow edit feature      # brouillon, puis oh workflow publish
 ```
 
-Voir [Workflows d'equipe](team-workflows.fr.md) et la [Reference des workflows](../reference/workflows.fr.md).
+Voir [Workflows d'équipe](team-workflows.fr.md) et la [Référence des workflows](../reference/workflows.fr.md).
 
 ### Fichiers d'instructions
 
-`disable_native_agents` a ete supprime en v5 (les agents d'une session sont ceux de son workflow). Seuls les fichiers d'instructions supplementaires restent, integres a chaque agent des paquets de session :
+`disable_native_agents` a été supprimé en v5 (les agents d'une session sont ceux de son workflow). Seuls les fichiers d'instructions supplémentaires restent, intégrées à chaque agent des paquets de session :
 
 ```toml
 [deploy]
@@ -450,7 +450,7 @@ base_branch = "main"         # branche de base pour les nouveaux worktrees
 branch_pattern = "oh/%s"     # pattern de nommage de branche (%s = nom worktree)
 ```
 
-### Integration tracker
+### Intégration tracker
 
 Configurer la synchronisation tracker externe pour les tickets Beads :
 
@@ -461,7 +461,7 @@ auto_sync = true             # synchroniser en fin de session
 push_labels = true           # pousser les labels vers le tracker externe
 ```
 
-### Parametres OpenCode
+### Paramètres OpenCode
 
 ```toml
 [llm]
@@ -479,13 +479,13 @@ oh secrets delete <key>        # supprimer un secret
 
 ### Plugins
 
-`oh plugin` (plugins globaux d'opencode V1, dont RTK) est supprime en v5. Les plugins se declarent par workflow (`plugins:`) ; voir [Workflows livres › Plugins et code mode](../reference/workflows.fr.md#plugins-et-code-mode).
+`oh plugin` (plugins globaux d'opencode V1, dont RTK) est supprimé en v5. Les plugins se déclarent par workflow (`plugins:`) ; voir [Workflows livrés › Plugins et code mode](../reference/workflows.fr.md#plugins-et-code-mode).
 
 ---
 
 ## Precedence de Configuration
 
-Quand plusieurs sources definissent le meme parametre, la resolution suit cet ordre (priorite la plus haute en premier) :
+Quand plusieurs sources définissent le même paramètre, la résolution suit cet ordre (priorité la plus haute en premier) :
 
 ```mermaid
 flowchart TD
@@ -498,8 +498,8 @@ flowchart TD
     style F fill:#95a5a6,color:white
 ```
 
-Les policies **ENFORCED** de l'equipe overrident tous les parametres locaux. Les policies **RECOMMENDED** de l'equipe servent de defauts qui peuvent etre overrides localement.
+Les policies **ENFORCED** de l'équipe overrident tous les paramètres locaux. Les policies **RECOMMENDED** de l'équipe servent de defauts qui peuvent être overrides localement.
 
 ---
 
-**Suite :** Explorez les [Workflows](workflows.fr.md) pour des scenarios d'usage reels, ou consultez la [Reference configuration](../reference/config.fr.md) pour la liste exhaustive de toutes les cles.
+**Suite :** Explorez les [Workflows](workflows.fr.md) pour des scénarios d'usage réels, ou consultez la [Référence configuration](../reference/config.fr.md) pour la liste exhaustive de toutes les clés.

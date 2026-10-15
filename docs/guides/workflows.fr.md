@@ -49,15 +49,15 @@ Dans la TUI, la vue **Sessions** (omnibar `sessions`) regroupe les mêmes inform
 
 ---
 
-## Scenario 0 — Votre premiere session (agent simple)
+## Scenario 0 — Votre première session (agent simple)
 
-**Contexte :** vous voulez essayer OpenHub pour la premiere fois sur un projet existant.
+**Contexte :** vous voulez essayer OpenHub pour la première fois sur un projet existant.
 Pas de tickets Beads, pas d'orchestration complexe -- juste une interaction simple avec un agent.
 
-**Prerequis :**
+**Prérequis :**
 - `oh init` complete (voir [Tutoriel](tutorial.fr.md))
 - Credentials provider configures
-- Aucune etape de deploy : le paquet de session est construit au lancement (`oh deploy` supprime en v5)
+- Aucune étape de deploy : le paquet de session est construit au lancement (`oh deploy` supprime en v5)
 
 ### Explication de code simple
 
@@ -66,7 +66,7 @@ oh run libre -m "Explique l'architecture de ce projet"
 ```
 
 L'orchestrateur analyse la structure du codebase et fournit une explication de haut niveau.
-Pas de delegation, pas de tickets -- un seul agent qui repond a votre question.
+Pas de delegation, pas de tickets -- un seul agent qui répond a votre question.
 
 ### Revue de code simple
 
@@ -74,7 +74,7 @@ Pas de delegation, pas de tickets -- un seul agent qui repond a votre question.
 oh run review
 ```
 
-L'agent reviewer analyse le diff de votre branche courante et produit un rapport de revue structure avec des constats categorises par severite.
+L'agent reviewer analyse le diff de votre branche courante et produit un rapport de revue structure avec des constats categorises par sévérité.
 
 ### Audit simple
 
@@ -82,7 +82,7 @@ L'agent reviewer analyse le diff de votre branche courante et produit un rapport
 oh run audit -i type=security
 ```
 
-L'agent auditor delegue a un sous-agent specialise securite qui scanne votre codebase et produit un rapport structure.
+L'agent auditor delegue a un sous-agent specialise sécurité qui scanne votre codebase et produit un rapport structure.
 
 ### Diagramme
 
@@ -96,7 +96,7 @@ sequenceDiagram
     O-->>U: Explication structuree
 ```
 
-**Point cle :** Vous pouvez utiliser n'importe quel agent directement pour une tache delimitee. L'orchestrateur n'est necessaire que lorsque vous voulez une coordination multi-agents (planification + design + implementation + review).
+**Point clé :** Vous pouvez utiliser n'importe quel agent directement pour une tâche delimitee. L'orchestrateur n'est nécessaire que lorsque vous voulez une coordination multi-agents (planification + design + implémentation + review).
 
 > **Pret pour la suite ?** Voir le Scenario 1 pour une feature complète (`spec`, puis `implement-spec`).
 
