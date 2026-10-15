@@ -85,7 +85,7 @@ skills:
 modes: { default: semi-auto, allowed: [manuel, semi-auto, auto] }
 beads:
   allow: [show, list, search, query]
-runtime: { default: local, allowed: [local] }
+runtime: { default: local, allowed: [local, container] }
 # p6-debts: the scope given at launch, recorded for the check of cp-commit.
 outputs:
   - { id: files, type: text, record: input, label: { fr: Périmètre de fichiers, en: File scope } }

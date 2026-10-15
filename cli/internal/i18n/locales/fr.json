@@ -471,7 +471,7 @@
   "cmd.fanout.clean.kept_hint": "Les branches gardées ont des commits présents sur aucune autre branche (ou un worktree non propre) : mergez-les, ou oh fanout clean --discard pour les supprimer quand même.",
   "cmd.fanout.status.short": "État du fan-out d'une session : branche d'intégration, sessions enfants, budget global, événements",
   "cmd.fanout.disabled": "Le fan-out est expérimental et désactivé : oh config set fanout.experimental true pour l'activer (voir docs/guides/fan-out.fr.md).",
-  "cmd.fanout.local_only": "Le fan-out ne tourne qu'en local (runtime %s refusé).",
+  "cmd.fanout.remote_refused": "Le fan-out ne tourne pas en session distante (runtime %s refusé) : en local ou en conteneur seulement.",
   "cmd.fanout.one_session": "Le fan-out donne tous les tickets à une seule session parente : retirez l'option qui lance une session par ticket.",
   "cmd.fanout.driven": "Le fan-out de %s est déjà piloté par un autre processus oh.",
   "cmd.fanout.drive.done": "Fan-out de %s : sessions enfants terminées, la session parente est prévenue.",

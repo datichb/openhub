@@ -471,7 +471,7 @@
   "cmd.fanout.clean.kept_hint": "The kept branches have commits on no other branch (or a worktree not clean): merge them, or oh fanout clean --discard to delete them anyway.",
   "cmd.fanout.status.short": "State of the fan-out of a session: integration branch, child sessions, global budget, events",
   "cmd.fanout.disabled": "The fan-out is experimental and disabled: oh config set fanout.experimental true to enable it (see docs/guides/fan-out.en.md).",
-  "cmd.fanout.local_only": "The fan-out only runs locally (runtime %s refused).",
+  "cmd.fanout.remote_refused": "The fan-out does not run in a remote session (runtime %s refused): locally or in a container only.",
   "cmd.fanout.one_session": "The fan-out gives every ticket to a single parent session: remove the option that starts one session per ticket.",
   "cmd.fanout.driven": "The fan-out of %s is already driven by another oh process.",
   "cmd.fanout.drive.done": "Fan-out of %s: child sessions done, the parent session is told.",
