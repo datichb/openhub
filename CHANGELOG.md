@@ -9,6 +9,14 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Changed — TUI : fiche de lancement, nettoyage et Doctor (lot tui-launch)
+
+- **Fiche de lancement** : agent d'entrée au choix pour `libre` (agents « selectable », F-15) et commande « Session libre avec un agent… » ; l'aide de chaque entrée sous son champ ; « Entier attendu » (bloquant), « Chemin introuvable », « Branche introuvable : … » (avertissements) ; une entrée `from:` affiche « ⚙ calculé par oh : … → ses_… ». **Corrigé** : une entrée `from:` n'est plus préremplie par son défaut, qui écrasait le calcul d'oh (`base: main` de `review-feedback` au lieu de la branche cible de la MR).
+- ⚠ **Alias lus dans les YAML** (`aliases:`) : plus de table en dur dans l'omnibar ; `feature` avec des tickets ouvre `implement-spec` (« feature → implement-spec (avec tickets) ») ; `orchestrator` n'ouvre plus `spec` ; les termes en dur absents des YAML (`dev`, `start`, `fast`, `secu`, `perf`, `rev`, `dbg`, `feedback`, `retours`…) ne sont plus reconnus. `oh workflow list --json` : champ `aliases`.
+- **Nouvelle vue « Nettoyage (oh gc) »** : éléments par catégorie avec leur taille, aperçu sans suppression, `d` supprimer, `A` tout nettoyer (confirmés), résultat.
+- **Doctor** : `f` corriger (comme `oh doctor --fix`, avec confirmation, sur la configuration, Beads et les serveurs orphelins ; ouvre `oh gc` sur le contrôle du nettoyage), `o` hors ligne.
+- ⚠ Touches : sur le récap d'une session existante, `R` reprendre et `T` transférer (au lieu de `r` et `t`).
+
 ### Changed — TUI : wiki et briques (lot tui-wiki-bricks)
 
 - **Fiche du checkpoint** : les propositions wiki s'ouvrent dans une liste sans limite (avant/après, source, auteur, tag) : `y` accepter, `n` refuser (motif, confirmé), `e` modifier (une ligne ou `$EDITOR`), `s` laisser, `A` tout accepter, `Entrée` décider le checkpoint, `Échap` revenir à la fiche.
