@@ -2,6 +2,7 @@ package views
 
 import (
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
@@ -21,6 +22,9 @@ type LaunchRuntime struct {
 
 // LaunchChoices are the choices of the form.
 type LaunchChoices struct {
+	// Agent is the entry agent chosen ("" = the workflow's; selectable
+	// entry only).
+	Agent    string
 	Inputs   map[string]string
 	Tickets  []string // ticket input (one session per ticket when multi)
 	Mode     string
@@ -193,6 +197,9 @@ type launchModel struct {
 	dirty       string
 	onExisting  string
 	discardBase bool
+	// agent is the entry agent chosen among agents (selectable entry).
+	agent  string
+	agents []string
 }
 
 func newLaunchModel(cfg LaunchFormConfig) *launchModel {
@@ -211,6 +218,9 @@ func newLaunchModel(cfg LaunchFormConfig) *launchModel {
 				m.multi = in.Type == workflow.InputBeadsIDs || m.perSession
 				continue
 			}
+		}
+		if in.From != "" {
+			continue // computed by oh at launch, else its default
 		}
 		if s, ok := in.Default.(string); ok && !strings.Contains(s, "{{") {
 			m.values[k] = s
@@ -236,6 +246,13 @@ func newLaunchModel(cfg LaunchFormConfig) *launchModel {
 	}
 	if len(cfg.Locations) > 0 {
 		m.location = cfg.Locations[0].Value
+	}
+	if len(cfg.EntryAgents) > 0 {
+		m.agents = cfg.EntryAgents
+		m.agent = cfg.EntryAgents[0]
+		if cfg.Agent != "" {
+			m.agent = cfg.Agent
+		}
 	}
 	return m
 }
@@ -281,6 +298,11 @@ func (m *launchModel) validate() []string {
 			out = append(out, i18n.Tf("tui.launch.required", m.inputLabel(k)))
 		}
 	}
+	for _, k := range m.spec.Inputs.Keys() {
+		if e := m.typeError(k); e != "" {
+			out = append(out, m.inputLabel(k)+" : "+e)
+		}
+	}
 	if !m.multi && len(m.tickets) > 1 {
 		out = append(out, i18n.T("tui.launch.single_ticket"))
 	}
@@ -294,7 +316,7 @@ func (m *launchModel) validate() []string {
 
 // choices returns the launch choices.
 func (m *launchModel) choices() LaunchChoices {
-	c := LaunchChoices{Inputs: map[string]string{}, Mode: m.mode, Runtime: m.runtime, Location: m.location, Attach: m.attach,
+	c := LaunchChoices{Agent: m.chosenAgent(), Inputs: map[string]string{}, Mode: m.mode, Runtime: m.runtime, Location: m.location, Attach: m.attach,
 		OneSession: m.oneSession && m.perSession, Dirty: m.dirty, OnExisting: m.onExisting, DiscardBaseChanges: m.discardBase}
 	keys := make([]string, 0, len(m.values))
 	for k := range m.values {
@@ -308,6 +330,30 @@ func (m *launchModel) choices() LaunchChoices {
 	}
 	c.Tickets = append([]string(nil), m.tickets...)
 	return c
+}
+
+// chosenAgent is the entry agent of the launch ("" = the workflow's).
+func (m *launchModel) chosenAgent() string {
+	if len(m.agents) == 0 || m.agent == m.agents[0] {
+		return ""
+	}
+	return m.agent
+}
+
+// typeError is the error of the value of input k that the launch would
+// refuse (« Entier attendu »; "" = none).
+func (m *launchModel) typeError(k string) string {
+	in, _ := m.spec.Inputs.Get(k)
+	v := strings.TrimSpace(m.values[k])
+	if v == "" || k == m.ticketInput {
+		return ""
+	}
+	if in.Type == workflow.InputInt {
+		if _, err := strconv.Atoi(v); err != nil {
+			return i18n.T("tui.launch.input.int")
+		}
+	}
+	return ""
 }
 
 // sessionsLine summarizes a multi-ticket launch (« 3 sessions · 1 serveur »).

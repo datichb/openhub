@@ -3,7 +3,4 @@ package keys
 // deviationsLaunch: hints outside the key convention left to the lot
 // tui-launch (TestKeyConvention). Remove a line once fixed; this file
 // belongs to tui-launch only.
-var deviationsLaunch = []string{
-	"fr.json tui.keys.launch_recap_existing | r reprendre → r est réservée (refresh)",
-	"fr.json tui.keys.launch_recap_existing | t reprendre ailleurs → resume se fait avec R",
-}
+var deviationsLaunch = []string{}

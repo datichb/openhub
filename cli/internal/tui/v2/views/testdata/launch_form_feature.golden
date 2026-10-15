@@ -1,0 +1,40 @@
+╔ Lancer · feature → implement-spec (avec tickets) ════════════════════════════════════════════════╗
+║ ● Entrées ─── ○ Options ─── ○ Récap   hub · demo                                                 ║
+║ Implémenter les tickets d'une spec l'un après l'autre                                            ║
+║                                                                                                  ║
+║                                                                                                  ║
+║  Tickets      oh-12, oh-13, oh-14                                                                ║
+║               Tickets Beads à implémenter, dans une seule session                                ║
+║                                                                                                  ║
+║  Spec                                                                                            ║
+║               ⚙ calculé par oh : session.output(spec.spec) → ses_41c0 (docs/wiki/specs/          ║
+║               export.md)                                                                         ║
+║               Spec des tickets dans le wiki (facultatif)                                         ║
+║                                                                                                  ║
+║  Méthode        tdd  ▼                                                                           ║
+║               standard · tdd — tdd : tests écrits d'abord, vérifiés par oh                       ║
+║                                                                                                  ║
+║  Fan-out                                                                                         ║
+║               Expérimental : désactivé dans les réglages ([fanout] experimental = true)          ║
+║                                                                                                  ║
+║  Instructions respecter l'API publique                                                           ║
+║                                                                                                  ║
+║                                                                                                  ║
+║                                                                                                  ║
+║               Consignes données à chaque ticket (texte, facultatif)                              ║
+║                                                                                                  ║
+║  Tours                                                                                           ║
+║                                                                                                  ║
+║                                                                                                  ║
+║      Suivant                                                                                     ║
+║                                                                                                  ║
+║                                                                                                  ║
+║                                                                                                  ║
+║                                                                                                  ║
+║                                                                                                  ║
+║                                                                                                  ║
+║                                                                                                  ║
+║                                                                                                  ║
+║Tab champ suivant · Ctrl+S récap · Alt+→/PgDn suivant · Alt+←/PgUp retour · Esc fermer            ║
+║                                                                                                  ║
+╚══════════════════════════════════════════════════════════════════════════════════════════════════╝

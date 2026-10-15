@@ -36,6 +36,27 @@ type LaunchFormConfig struct {
 	Tickets []string
 	// AtOptions opens the form on the options step (inputs prefilled).
 	AtOptions bool
+	// Alias is the alias the form was opened with (`aliases:`, « feature »);
+	// AliasWith the input that routed it to this workflow ("" = default
+	// target). Shown in the title: « feature → implement-spec (avec
+	// tickets) ».
+	Alias, AliasWith string
+	// EntryAgents are the entry agents to choose from (selectable entry,
+	// `libre`), the default one first; Agent preselects one.
+	EntryAgents []string
+	Agent       string
+
+	// FromPreview describes what oh will compute for an input with `from:`
+	// (« session.output(spec.spec) → ses_41c0 »; called off the event loop
+	// with the values typed so far). nil: the source only.
+	FromPreview func(ctx context.Context, input string, values map[string]string) string
+	// CheckInput checks a path or branch value (called off the event loop):
+	// a warning shown under the field (« Chemin introuvable »), never
+	// blocking. nil: no check.
+	CheckInput func(ctx context.Context, in workflow.Input, value string) string
+	// InputNotes are notes shown under inputs (« désactivé dans les
+	// réglages »).
+	InputNotes map[string]string
 
 	DefaultMode    string // "" = workflow default
 	DefaultRuntime string // "" = workflow default
@@ -108,6 +129,7 @@ type LaunchFormView struct {
 	recapTV *tview.TextView
 
 	step      int
+	inputs    inputNotes
 	recap     *LaunchRecap
 	recapErr  error
 	recapGen  int
@@ -140,7 +162,15 @@ func (v *LaunchFormView) SetShell(s ShellAccess) { v.shell = s }
 
 func (v *LaunchFormView) ID() string { return "launch." + v.cfg.WorkflowID }
 
-func (v *LaunchFormView) Title() string { return i18n.Tf("tui.launch.title", v.cfg.WorkflowID) }
+func (v *LaunchFormView) Title() string {
+	switch {
+	case v.cfg.Alias != "" && v.cfg.AliasWith != "":
+		return i18n.Tf("tui.launch.title_alias_with", v.cfg.Alias, v.cfg.WorkflowID, strings.ToLower(v.m.plainLabel(v.cfg.AliasWith)))
+	case v.cfg.Alias != "":
+		return i18n.Tf("tui.launch.title_alias", v.cfg.Alias, v.cfg.WorkflowID)
+	}
+	return i18n.Tf("tui.launch.title", v.cfg.WorkflowID)
+}
 
 // CapturesInput keeps every key for the form while it is mounted.
 func (v *LaunchFormView) CapturesInput() bool { return v.app != nil }
@@ -307,46 +337,64 @@ func (v *LaunchFormView) mountForm(f *tview.Form) {
 
 func (v *LaunchFormView) renderInputs() {
 	f := v.newForm()
+	f.SetItemPadding(0) // each field is followed by its note and a gap
 	m := v.m
+	v.inputs.reset(f)
+	if len(m.agents) > 0 {
+		f.AddDropDown(i18n.T("tui.launch.agent"), m.agents, indexOf(m.agents, m.agent), func(opt string, _ int) { m.agent = opt })
+		v.inputs.add(f, "", "["+theme.TextMutedHex+"]"+i18n.T("tui.launch.agent_help")+"[-]")
+	}
 	for _, k := range m.spec.Inputs.Keys() {
 		k := k
 		in, _ := m.spec.Inputs.Get(k)
 		label := m.inputLabel(k)
+		changed := func(t string) {
+			m.values[k] = t
+			v.inputChanged(k)
+		}
 		switch {
 		case k == m.ticketInput:
-			f.AddInputField(label, strings.Join(m.tickets, ", "), 40, nil, func(t string) { m.tickets = splitTickets(t) })
+			f.AddInputField(label, strings.Join(m.tickets, ", "), 40, nil, func(t string) { m.tickets = splitTickets(t); v.refreshNote(k) })
 			if v.cfg.Beads != nil {
 				f.AddButton(i18n.T("tui.launch.pick_tickets"), func() { v.openPicker(in) })
 			}
 		case in.Type == workflow.InputBool:
 			f.AddCheckbox(label, m.values[k] == "true", func(c bool) { m.values[k] = boolString(c) })
 		case in.Type == workflow.InputEnum:
-			cur := 0
+			cur := -1
 			for i, val := range in.Values {
 				if val == m.values[k] {
 					cur = i
 				}
 			}
-			if m.values[k] == "" && len(in.Values) > 0 {
-				m.values[k] = in.Values[cur]
+			if cur < 0 && len(in.Values) > 0 && in.From == "" {
+				cur = 0 // a value outside the list is never sent unseen
+				m.values[k] = in.Values[0]
 			}
 			f.AddDropDown(label, in.Values, cur, func(opt string, _ int) { m.values[k] = opt })
 		case in.Type == workflow.InputText:
-			f.AddTextArea(label, m.values[k], 0, 4, 0, func(t string) { m.values[k] = t })
+			f.AddTextArea(label, m.values[k], 0, 4, 0, changed)
 		default:
 			field := tview.NewInputField().SetLabel(label).SetText(m.values[k]).SetFieldWidth(48)
-			if d, ok := in.Default.(string); ok && strings.Contains(d, "{{") {
+			if d, ok := in.Default.(string); ok && (strings.Contains(d, "{{") || in.From != "") {
 				field.SetPlaceholder(d)
 			}
-			field.SetChangedFunc(func(t string) { m.values[k] = t })
+			field.SetChangedFunc(changed)
 			f.AddFormItem(field)
 		}
+		v.inputs.add(f, k, v.noteText(k))
 	}
 	if m.spec.Inputs.Len() == 0 {
 		v.body.AddItem(tview.NewTextView().SetText("  "+i18n.T("tui.launch.no_inputs")), 2, 0, false)
 	}
 	f.AddButton(i18n.T("tui.launch.next"), v.next)
 	v.mountForm(f)
+	v.loadFromPreviews()
+	for _, k := range m.spec.Inputs.Keys() {
+		if v.inputs.checks[k] == nil {
+			v.checkInput(k)
+		}
+	}
 }
 
 func boolString(b bool) string {

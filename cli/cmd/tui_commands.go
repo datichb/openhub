@@ -35,6 +35,16 @@ func buildCommands(a *app.App) []shell.Command {
 			Modes:       modeSession,
 		},
 		{
+			ID:          "coder.agent",
+			Label:       i18n.T("tui.launch.agent_cmd"),
+			Aliases:     []string{"libre agent", "free agent", "session agent"},
+			Description: i18n.T("tui.launch.agent_cmd_desc"),
+			Category:    "Sessions",
+			Priority:    78,
+			Action:      actionFreeSessionWithAgent,
+			Modes:       modeSession,
+		},
+		{
 			ID:          "sessions",
 			Label:       i18n.T("tui.sessions.title"),
 			Aliases:     []string{"parallel", "par", "multi", "inbox", "à traiter", "decisions"},
@@ -530,46 +540,69 @@ func buildCommands(a *app.App) []shell.Command {
 // workflowCommandPrefix prefixes the generated `run <workflow>` commands.
 const workflowCommandPrefix = "run."
 
-// workflowCommandAliases are the former session commands, now aliases of
-// their workflow (O15).
-var workflowCommandAliases = map[string][]string{
-	"ticket":          {"dev", "start.dev"},
-	"spec":            {"start", "feature", "orchestrator", "cadrage"},
-	"quick":           {"fast"},
-	"audit":           {"secu", "security", "perf", "archi", "a11y"},
-	"review":          {"rev", "cr"},
-	"debug":           {"dbg", "debugger", "diag"},
-	"onboarding":      {"onboard", "start.onboard"},
-	"review-feedback": {"feedback", "rf", "retours"},
-}
-
 // registerWorkflowCommands replaces the `run <workflow>` commands of the
-// omnibar by those of the catalogue (P1-T24).
+// omnibar by those of the catalogue (P1-T24). The terms of a command are
+// the id of the workflow and its `aliases:` read in the YAML (resolved by
+// the workflow service); an alias routed `with` an input (feature with
+// tickets → implement-spec) gets its own command, which opens the form of
+// that route.
 func registerWorkflowCommands(a *app.App, list []workflowsvc.Summary) {
 	sh := tuiShell
 	if sh == nil {
 		return
 	}
+	sh.Commands().ReplaceGroup(workflowCommandPrefix, workflowCommands(list, func(req tuiLaunchRequest) {
+		req.ProjectID = activeScope().ProjectID
+		openLaunchForm(a, req)
+	}))
+}
+
+// workflowCommands are the omnibar commands of the catalogue; open opens a
+// launch form.
+func workflowCommands(list []workflowsvc.Summary, open func(tuiLaunchRequest)) []shell.Command {
+	ids := map[string]bool{}
+	for _, s := range list {
+		ids[s.ID] = true
+	}
 	cmds := make([]shell.Command, 0, len(list))
+	var routes []shell.Command
 	for _, s := range list {
 		id := s.ID
 		desc := s.Description
 		if desc == "" {
 			desc = s.Label
 		}
+		terms := []string{id}
+		for _, al := range s.Aliases {
+			if ids[al.ID] {
+				continue // a workflow of that id wins (alias_shadowed)
+			}
+			if al.With == "" {
+				terms = append(terms, al.ID)
+				continue
+			}
+			alias, with := al.ID, al.With
+			routes = append(routes, shell.Command{
+				ID:          workflowCommandPrefix + alias + "." + id,
+				Label:       i18n.Tf("tui.launch.alias_command", alias, id, with),
+				Aliases:     []string{alias + " " + with},
+				Description: desc,
+				Category:    i18n.T("tui.category.workflows"),
+				Priority:    84,
+				Action:      func() { open(tuiLaunchRequest{WorkflowID: alias, AliasTarget: id}) },
+			})
+		}
 		cmds = append(cmds, shell.Command{
 			ID:          workflowCommandPrefix + id,
 			Label:       "run " + id,
-			Aliases:     append([]string{id}, workflowCommandAliases[id]...),
+			Aliases:     terms,
 			Description: desc,
 			Category:    i18n.T("tui.category.workflows"),
 			Priority:    85,
-			Action: func() {
-				openLaunchForm(a, tuiLaunchRequest{WorkflowID: id, ProjectID: activeScope().ProjectID})
-			},
+			Action:      func() { open(tuiLaunchRequest{WorkflowID: id}) },
 		})
 	}
-	sh.Commands().ReplaceGroup(workflowCommandPrefix, cmds)
+	return append(cmds, routes...)
 }
 
 // actionReviewPublish runs `oh review --publish` on the active project with

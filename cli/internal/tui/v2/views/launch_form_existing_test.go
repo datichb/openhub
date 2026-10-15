@@ -198,14 +198,20 @@ func TestLaunchFormExistingOnlyAllowedChoices(t *testing.T) {
 	f := newExistingForm(t, true, e)
 	assert.Equal(t, []string{i18n.T("tui.launch.back"), i18n.T("tui.launch.existing.choice.parallel")}, recapButtons(f.app, f.v))
 	assert.Equal(t, i18n.T("tui.launch.existing.choice.parallel"), focusedButton(f.app))
-	f.key('r') // not allowed
+	f.key('R') // not allowed
 	time.Sleep(50 * time.Millisecond)
 	assert.Empty(t, f.launches())
 }
 
-// r / t / k / p launch at once with the choice.
+// R / T / k / p launch at once with the choice (R: the resume key of the
+// convention; r stays refresh, t is no longer a choice).
 func TestLaunchFormExistingKeys(t *testing.T) {
-	for key, want := range map[rune]string{'r': LaunchExistingResume, 't': LaunchExistingTransfer, 'k': LaunchExistingKeep, 'p': LaunchExistingParallel} {
+	f := newExistingForm(t, true, sameWorkflowExisting())
+	f.key('r')
+	f.key('t')
+	time.Sleep(50 * time.Millisecond)
+	assert.Empty(t, f.launches(), "r and t launch nothing")
+	for key, want := range map[rune]string{'R': LaunchExistingResume, 'T': LaunchExistingTransfer, 'k': LaunchExistingKeep, 'p': LaunchExistingParallel} {
 		t.Run(want, func(t *testing.T) {
 			f := newExistingForm(t, true, sameWorkflowExisting())
 			f.key(key)
@@ -260,7 +266,7 @@ func TestLaunchFormExistingTransferFallback(t *testing.T) {
 		return nil
 	}
 	f.mu.Unlock()
-	f.key('t')
+	f.key('T')
 	var c recordedConfirm
 	require.Eventually(t, func() bool {
 		var ok bool
