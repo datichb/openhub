@@ -529,14 +529,14 @@ func (v *SessionsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		case d != nil && d.Kind == DecisionKindPermission:
 			v.decide(d, "once", "", nil)
 		case d != nil && d.Kind == DecisionKindCheckpoint:
-			v.decide(d, checkpointApprove, "", nil)
+			v.approveCheckpoint(d)
 		}
 	case 'n':
 		switch {
 		case d != nil && d.Kind == DecisionKindPermission:
 			v.decide(d, "reject", "", nil)
 		case d != nil && d.Kind == DecisionKindCheckpoint:
-			v.checkpointForm(r, d, checkpointFix)
+			v.checkpointForm(r, d, CheckpointApproverView{}, checkpointFix)
 		}
 	case 'x':
 		if d != nil && (d.Kind == DecisionKindError || d.Kind == DecisionKindBudget || d.Kind == DecisionKindCircuit) {

@@ -119,6 +119,14 @@ type CheckpointApproval struct {
 	Message string `json:"message,omitempty"`
 	// Override: the user validated despite a failed verification (traced).
 	Override bool `json:"override,omitempty"`
+
+	// approver-1 (CP-R9): Identity is the person who validated (git
+	// user.name <user.email> where the session works, ADR-052; "" for a
+	// validation by the mode or a delegation). ApproverMismatch: the
+	// checkpoint names approvers and this person is none of them (warned
+	// and traced, not refused on this machine).
+	Identity         string `json:"identity,omitempty"`
+	ApproverMismatch bool   `json:"approver_mismatch,omitempty"`
 }
 
 // CheckpointEvent is an entry of the checkpoint timeline.
@@ -128,6 +136,13 @@ type CheckpointEvent struct {
 	ID      string    `json:"id"`   // checkpoint or agent
 	By      string    `json:"by,omitempty"`
 	Message string    `json:"message,omitempty"`
+
+	// approver-1 (CP-R9): who validated or refused (CheckpointApproval),
+	// the approvers the checkpoint names and whether the person is none of
+	// them.
+	Identity         string   `json:"identity,omitempty"`
+	Approver         []string `json:"approver,omitempty"`
+	ApproverMismatch bool     `json:"approver_mismatch,omitempty"`
 }
 
 // HasPassed reports whether the checkpoint was passed.

@@ -45,6 +45,12 @@ func (t *Trace) Digest() string {
 				asked[e.Checkpoint]++
 			}
 			line := e.Checkpoint + " " + e.Event
+			if e.Identity != "" {
+				line += " par " + e.Identity
+			}
+			if e.ApproverMismatch {
+				line += " (hors valideur, attendu : " + strings.Join(e.Approver, ", ") + ")"
+			}
 			if e.Text != "" {
 				line += " — " + clipText(oneLine(e.Text), 160)
 			}

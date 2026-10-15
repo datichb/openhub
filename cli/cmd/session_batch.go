@@ -12,6 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
 )
 
@@ -70,6 +71,20 @@ func runApproveBatch(cmd *cobra.Command, svc *sessionsvc.Service) error {
 	if err := tw.Flush(); err != nil {
 		return err
 	}
+	// CP-R9: a checkpoint validated out of its approver, item by item.
+	for _, it := range batch {
+		if it.Action != sessionsvc.BatchApprove || it.Error != "" {
+			continue
+		}
+		if ac := approverOf(ctx, svc, it.Decision); ac.Mismatch {
+			key := "cmd.session.approver_mismatch_done"
+			if dry {
+				key = "cmd.session.approver_mismatch_dry"
+			}
+			fmt.Fprintln(cmd.ErrOrStderr(), i18n.Tf("cmd.session.batch.approver", it.Decision.ID, it.Checkpoint,
+				i18n.Tf(key, firstNonEmpty(ac.Identity.String(), "?"), ac.ApproverText())))
+		}
+	}
 	if failed > 0 {
 		return errors.New(i18n.Tf("cmd.session.batch.some_failed", failed, len(batch)))
 	}
@@ -103,4 +118,36 @@ func truncate(s string, n int) string {
 		return s
 	}
 	return string(r[:n-1]) + "…"
+}
+
+// approverOf is the approver check of a checkpoint decision (CP-R9; zero
+// without the checkpoint service).
+func approverOf(ctx context.Context, svc *sessionsvc.Service, d domain.Decision) checkpoint.ApproverCheck {
+	if svc.Checkpoints == nil || d.Kind != domain.DecisionCheckpoint {
+		return checkpoint.ApproverCheck{}
+	}
+	id, _ := d.Payload.Data[checkpoint.DataCheckpoint].(string)
+	return svc.Checkpoints.Approver(ctx, d.SessionID, id)
+}
+
+// approving reports whether a decision choice validates a checkpoint.
+func approving(choice string) bool {
+	switch choice {
+	case "", "once", "always", checkpoint.ChoiceApprove, checkpoint.ChoiceOverride:
+		return true
+	}
+	return false
+}
+
+// printApprover prints the approver of a checkpoint answered, and the
+// warning when the person who validated is none of them (traced, not
+// refused on this machine).
+func printApprover(cmd *cobra.Command, ac checkpoint.ApproverCheck, approved bool) {
+	if !ac.Expected() {
+		return
+	}
+	fmt.Fprintln(cmd.OutOrStdout(), i18n.Tf("cmd.session.approver", ac.ApproverText()))
+	if ac.Mismatch && approved {
+		fmt.Fprintln(cmd.ErrOrStderr(), "⚠ "+i18n.Tf("cmd.session.approver_mismatch_done", firstNonEmpty(ac.Identity.String(), "?"), ac.ApproverText()))
+	}
 }

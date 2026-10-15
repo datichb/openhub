@@ -16,6 +16,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/launcher"
 	"github.com/datichb/openhub/cli/internal/runsvc"
+	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
 	"github.com/datichb/openhub/cli/internal/termlaunch"
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
@@ -305,7 +306,8 @@ func (t *tuiSessions) List(ctx context.Context, projectID string, all bool) ([]v
 
 func toViewDecision(d domain.Decision) views.SessionDecision {
 	out := views.SessionDecision{ID: d.ID, SessionID: d.SessionID, Kind: string(d.Kind), Icon: sessionsvc.KindIcon(d.Kind),
-		Summary: sessionsvc.DecisionSummary(d), Message: d.Payload.Message, Created: d.CreatedAt}
+		Summary: sessionsvc.DecisionSummary(d), Message: d.Payload.Message, Created: d.CreatedAt,
+		Approver: strings.Join(checkpoint.PayloadApprover(d.Payload.Data), ", ")}
 	for _, f := range d.Payload.Fields {
 		vf := views.SessionDecisionField{Key: f.Key, Title: f.Title, Description: f.Description, Type: f.Type, Custom: f.Custom, Required: f.Required}
 		for _, o := range f.Options {

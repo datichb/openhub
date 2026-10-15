@@ -77,6 +77,9 @@ type CheckpointCard struct {
 	// checkpoint is that one.
 	Wiki       []domain.WikiProposal
 	WikiCommit bool
+	// Approver is the approver the checkpoint names and the person who
+	// would validate it now (CP-R9: warned when it is someone else).
+	Approver checkpoint.ApproverCheck
 }
 
 // cardMessages is the number of messages shown on a checkpoint card.
@@ -104,6 +107,7 @@ func (s *Service) CheckpointCard(ctx context.Context, decisionID string) (*Check
 	c.Timeline, _ = s.Timeline(ctx, d.SessionID)
 	if s.Checkpoints != nil {
 		c.R3 = s.Checkpoints.Card(ctx, d.SessionID, c.Checkpoint)
+		c.Approver = s.Checkpoints.Approver(ctx, d.SessionID, c.Checkpoint)
 	}
 	c.Reports = s.cardReports(ctx, *d)
 	c.Wiki, c.WikiCommit = s.cardWiki(ctx, *d, c.Checkpoint)
