@@ -1,0 +1,14 @@
+┌ Wiki du projet · openhub ──────────────────────────────────────┐┌ wp-17 · technical/conventions.md ────────┐
+│   id     page             type      âge                        ││ doc-sync · ses_41c0 · il y a 3 h ·       │
+│ En attente (doc-sync, sans commit)                             ││ PROBABLE                                 │
+│ ▸ wp-17  conventions.md   ajout     3 h                        ││ + - Les commits suivent Conventional     │
+│   wp-18  stack.md         remplace  3 h                        ││ Commits.                                 │
+│ Acceptées, à appliquer au prochain commit                      ││                                          │
+│   wp-12  tests.md         ajout     1 j                        ││                                          │
+│ Périmées (ligne disparue)                                      ││                                          │
+│   wp-9   architecture.md  remplace  2 j                        ││                                          │
+│                                                                ││                                          │
+│                                                                ││                                          │
+│                                                                ││                                          │
+│ 1/4                                                            ││                                          │
+└────────────────────────────────────────────────────────────────┘└──────────────────────────────────────────┘
