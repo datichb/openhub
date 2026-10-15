@@ -12,6 +12,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/bricks"
 	"github.com/datichb/openhub/cli/internal/bundle"
+	"github.com/datichb/openhub/cli/internal/teamstate"
 )
 
 // Brick catalogue (P3-T27, read-only view `project.agents`): the agents and
@@ -56,6 +57,19 @@ type BrickEntry struct {
 	Agents []string `json:"agents,omitempty"`
 	// Workflows lists the catalogue workflows that ship the brick.
 	Workflows []string `json:"workflows,omitempty"`
+
+	// Team bricks (ADR-054). TeamID is the ref of the team file (it differs
+	// from ID for a skill that replaces a hub skill of the same name).
+	TeamID string `json:"team_id,omitempty"`
+	// Source is the team file, relative to the team-state.
+	Source string `json:"source,omitempty"`
+	// Shadows is the hub brick the team brick replaces (extends).
+	Shadows string `json:"shadows,omitempty"`
+	// Version is the published version (catalog.lock; 0 = not sealed).
+	Version int `json:"version,omitempty"`
+	// Errors and Warnings count the findings of the checks of the brick.
+	Errors   int `json:"errors,omitempty"`
+	Warnings int `json:"warnings,omitempty"`
 }
 
 type skillFront struct {
@@ -74,6 +88,27 @@ func (s *Service) BrickCatalog(ctx context.Context, c Context) ([]BrickEntry, er
 	team := map[string]bool{}
 	for _, t := range b.Team {
 		team[t] = true
+	}
+	lock, _, _ := teamstate.ReadBricksLock(b.Root)
+	if b.Root == "" {
+		lock = nil
+	}
+	teamInfo := func(e *BrickEntry) {
+		key := string(e.Kind) + ":" + e.ID
+		src, ok := b.Sources[key]
+		if !ok {
+			return
+		}
+		e.Shadows = b.Shadows[key]
+		rel, _ := filepath.Rel(b.Root, src)
+		e.Source = filepath.ToSlash(rel)
+		e.TeamID = e.ID
+		if e.Kind == BrickSkill {
+			e.TeamID = strings.TrimSuffix(strings.TrimPrefix(e.Source, teamstate.CatalogDirName+"/skills/"), ".md")
+		}
+		if le, ok := lock.Get(string(e.Kind), e.TeamID); ok {
+			e.Version = le.Version
+		}
 	}
 	origin := func(kind BrickKind, id string) BrickOrigin {
 		if team[string(kind)+":"+id] {
@@ -143,6 +178,11 @@ func (s *Service) BrickCatalog(ctx context.Context, c Context) ([]BrickEntry, er
 		}
 	}
 	s.markWorkflowUses(ctx, c, b.Dir, agents, skills)
+	for _, m := range []map[string]*BrickEntry{agents, skills} {
+		for _, e := range m {
+			teamInfo(e)
+		}
+	}
 
 	out := make([]BrickEntry, 0, len(agents)+len(skills))
 	for _, m := range []map[string]*BrickEntry{agents, skills} {

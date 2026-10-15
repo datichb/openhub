@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	wf "github.com/datichb/openhub/cli/internal/workflow"
@@ -103,10 +104,4 @@ func (s *Service) Integrity(ctx context.Context, c Context) (wf.Diagnostics, err
 	return out, nil
 }
 
-func isBrickDiag(d wf.Diagnostic) bool {
-	switch d.Code {
-	case DiagBrickCollision, DiagBrickBadExtends, DiagBrickDuplicate, DiagBrickAnnexConflict:
-		return true
-	}
-	return false
-}
+func isBrickDiag(d wf.Diagnostic) bool { return slices.Contains(brickDiagCodes, d.Code) }

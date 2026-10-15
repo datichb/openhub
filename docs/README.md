@@ -154,7 +154,7 @@ The `workflow` MCP server (`workflow_status`, `workflow_checkpoint`, `workflow_o
 | [Task Delegation](architecture/task-delegation.en.md) | Inter-agent delegation model (`calls:`, `after:`) |
 | [Living Wiki](architecture/living-wiki.en.md) | Living documentation wiki architecture |
 | [TodoWrite Isolation](architecture/todowrite-session-isolation.en.md) | Session isolation design |
-| [ADRs](architecture/adr/) | 53 Architecture Decision Records (v5: 038 to 053) |
+| [ADRs](architecture/adr/) | 54 Architecture Decision Records (v5: 038 to 054) |
 
 ### v5 decisions
 
@@ -176,6 +176,7 @@ The `workflow` MCP server (`workflow_status`, `workflow_checkpoint`, `workflow_o
 | [051](architecture/adr/051-community-skills-disconnection.en.md) | Community skills registry disconnected |
 | [052](architecture/adr/052-beads-identity-provenance.en.md) | Beads identity and provenance: `--readonly`, actor, provenance events |
 | [053](architecture/adr/053-fanout-control-substitution.en.md) | Fan-out: child sessions driven by oh and control substitution (CP-R3) |
+| [054](architecture/adr/054-team-brick-catalogue.en.md) | Team brick catalogue: `oh brick`, governance and integrity (`catalog.lock`) |
 
 ---
 

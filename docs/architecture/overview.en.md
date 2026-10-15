@@ -262,7 +262,7 @@ oh's **MCP servers** are native Go implementations (`cli/internal/mcp/`), run by
 
 ### Adding bricks
 
-Agents and skills outside the hub come from the team catalogue (`catalog/` of the team-state, or of a solo space), versioned and shared; `oh skill check` checks the catalogue. The former community skills registry (`oh skill add|list|remove|search`, `~/.oh/skills/`) is disconnected in v5 ([ADR-051](./adr/051-community-skills-disconnection.en.md)).
+Agents and skills outside the hub come from the team catalogue (`catalog/` of the team-state, or of a solo space), versioned and shared; `oh brick` edits and publishes it with the governance of the workflows and seals it in `catalog.lock` ([ADR-054](./adr/054-team-brick-catalogue.en.md)), `oh skill check` checks it. The former community skills registry (`oh skill add|list|remove|search`, `~/.oh/skills/`) is disconnected in v5 ([ADR-051](./adr/051-community-skills-disconnection.en.md)).
 
 ### Observability
 
@@ -393,6 +393,7 @@ Implementing and diagnosing are given to different agents (developer, debugger);
 | [051](./adr/051-community-skills-disconnection.en.md) | Community skills registry disconnected | partly replaces 027 (skill marketplace) |
 | [052](./adr/052-beads-identity-provenance.en.md) | Beads identity and provenance: `--readonly`, actor, provenance events | evolves 046 |
 | [053](./adr/053-fanout-control-substitution.en.md) | Fan-out: child sessions driven by oh and control substitution (CP-R3) | — |
+| [054](./adr/054-team-brick-catalogue.en.md) | Team brick catalogue: `oh brick`, governance and integrity (`catalog.lock`) | evolves 040, follows 051 |
 
 All ADRs: [`docs/architecture/adr/`](./adr/).
 

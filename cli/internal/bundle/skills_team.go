@@ -75,3 +75,7 @@ func CheckTeamSkills(catalogDir string) ([]SkillProblem, error) {
 	}
 	return problems, nil
 }
+
+// MaxSkillDescriptionLen is the description limit of the Agent Skills
+// standard (an error for a team skill past it).
+const MaxSkillDescriptionLen = maxSkillDescriptionLen

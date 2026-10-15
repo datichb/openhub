@@ -51,7 +51,7 @@ Restent inchangés : `oh skill check`, le catalogue d'équipe (validation, paque
 
 À reprendre dans une évolution dédiée (nouvel ADR) :
 
-1. **Commande des briques** (`oh brick` ou `oh catalog`), sur le modèle de `oh workflow` : `list [--agents|--skills] [--origin]`, `show`, `new`, `edit`, `publish`, `history` pour le catalogue d'équipe, avec la même gouvernance et le même contrôle d'intégrité.
+1. **Commande des briques** (`oh brick` ou `oh catalog`), sur le modèle de `oh workflow` : `list [--agents|--skills] [--origin]`, `show`, `new`, `edit`, `publish`, `history` pour le catalogue d'équipe, avec la même gouvernance et le même contrôle d'intégrité. **Fait** : `oh brick` ([ADR-054](054-team-brick-catalogue.fr.md)).
 2. **Import de briques externes vers le catalogue d'équipe** (et non vers la machine) : version fixée par commit, empreinte vérifiée, noms et chemins contrôlés, `https` seulement, revue avant publication.
 3. **TUI** : catalogue des briques éditable, liste de choix pour `skills.extra` / `skills.deny` dans l'éditeur de workflow, champ « agent d'entrée » dans la fiche de lancement quand le workflow le permet (`selectable`), action « session libre avec cet agent ».
 4. **Contrôles** : identifiants d'agent et de famille vérifiés par `oh config model agent|family` (CLI et vue Modèles).

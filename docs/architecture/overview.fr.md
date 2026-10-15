@@ -262,7 +262,7 @@ Les **serveurs MCP** d'oh sont des implémentations Go natives (`cli/internal/mc
 
 ### Ajout de briques
 
-Les agents et les skills hors hub viennent du catalogue d'équipe (`catalog/` du team-state, ou d'un espace solo), versionné et partagé ; `oh skill check` contrôle le catalogue. L'ancien registre de skills communautaires (`oh skill add|list|remove|search`, `~/.oh/skills/`) est déconnecté en v5 ([ADR-051](./adr/051-community-skills-disconnection.fr.md)).
+Les agents et les skills hors hub viennent du catalogue d'équipe (`catalog/` du team-state, ou d'un espace solo), versionné et partagé ; `oh brick` l'édite et le publie avec la gouvernance des workflows et le scelle dans `catalog.lock` ([ADR-054](./adr/054-team-brick-catalogue.fr.md)), `oh skill check` le contrôle. L'ancien registre de skills communautaires (`oh skill add|list|remove|search`, `~/.oh/skills/`) est déconnecté en v5 ([ADR-051](./adr/051-community-skills-disconnection.fr.md)).
 
 ### Observabilité
 
@@ -393,6 +393,7 @@ Implémenter et diagnostiquer sont confiés à des agents différents (developer
 | [051](./adr/051-community-skills-disconnection.fr.md) | Déconnexion du registre de skills communautaires | remplace en partie 027 (marketplace de skills) |
 | [052](./adr/052-beads-identity-provenance.fr.md) | Identité et provenance Beads : `--readonly`, auteur, événements de provenance | fait évoluer 046 |
 | [053](./adr/053-fanout-control-substitution.fr.md) | Fan-out : sessions enfants pilotées par oh et substitution de contrôle (CP-R3) | — |
+| [054](./adr/054-team-brick-catalogue.fr.md) | Catalogue des briques d'équipe : `oh brick`, gouvernance et intégrité (`catalog.lock`) | fait évoluer 040, suite de 051 |
 
 Tous les ADR : [`docs/architecture/adr/`](./adr/).
 
