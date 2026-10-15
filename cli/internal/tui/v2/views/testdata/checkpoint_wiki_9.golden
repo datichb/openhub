@@ -1,0 +1,18 @@
+┌ Propositions du wiki · cp-2 « Commit » · 9 proposition(s) ─────────────────────────────┐
+│   wp-1  technical/stack.md        ajout     CONFIRMÉ  ✓ acceptée                       │
+│ ▸ wp-2  technical/stack.md        remplace  PROBABLE  ? en attente                     │
+│   wp-3  business/index.md         ajout     PROBABLE  ? en attente                     │
+│   wp-4  technical/tests.md        remplace  CONFIRMÉ  ? en attente                     │
+│   wp-5  technical/conventions.md  ajout     PROBABLE  ? en attente                     │
+│   wp-6  technical/conventions.md  ajout     PROBABLE  ? en attente                     │
+│   wp-7  technical/conventions.md  ajout     PROBABLE  ? en attente                     │
+│ 2/9  ·  2 de plus ↓                                                                    │
+└────────────────────────────────────────────────────────────────────────────────────────┘
+┌ wp-2 · technical/stack.md · section « Paquets » ───────────────────────────────────────┐
+│ − - `internal/store` : stockage SQLite                                                 │
+│ + - `internal/storage` : stockage SQLite (renommé, commit 3f2a1c)                      │
+│ source : internal/storage/store.go:1 · auteur onboarder · PROBABLE                     │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+└────────────────────────────────────────────────────────────────────────────────────────┘

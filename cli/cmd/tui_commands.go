@@ -402,9 +402,9 @@ func buildCommands(a *app.App) []shell.Command {
 			},
 			shell.Command{
 				ID:          "team.wiki",
-				Label:       "Wiki",
-				Aliases:     []string{"wiki", "proposals", "pending"},
-				Description: "Browse wiki pages and review pending proposals",
+				Label:       i18n.T("tui.teamwiki.title"),
+				Aliases:     []string{"wiki", "proposals", "pending", "team-state"},
+				Description: i18n.T("tui.teamwiki.cmd_desc"),
 				Category:    i18n.T("tui.category.team"),
 				Priority:    55,
 				ViewID:      "team.wiki",
