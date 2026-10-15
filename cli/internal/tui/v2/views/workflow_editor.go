@@ -693,6 +693,7 @@ func (v *WorkflowEditorView) graphModel() widgets.GraphModel {
 
 func (v *WorkflowEditorView) renderGraph(prev string) {
 	v.graph = widgets.NewModelGraph(v.graphModel(), false)
+	v.graph.SetEmptyText(i18n.T("tui.editor.graph.empty"))
 	mode := tview.NewTextView().SetDynamicColors(true)
 	mode.SetBackgroundColor(theme.BgPanel)
 	mode.SetText("[" + theme.TextMutedHex + "]" + tview.Escape(i18n.Tf("tui.editor.graph.mode", v.graphMode())) + "[-]")

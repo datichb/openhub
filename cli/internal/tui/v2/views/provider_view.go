@@ -224,7 +224,7 @@ func (v *ProviderView) buildLines() {
 	v.lines = append(v.lines,
 		providerConfigLine{
 			provider: "bedrock", key: "auth_mode", kind: "select",
-			options: bedrockAuthModeOptions,
+			options: bedrockAuthModeOptions(),
 			visible: func() bool { return v.selectedProvider == "bedrock" },
 			get:     func(c *config.Config) string { return c.Provider.Bedrock.AuthMode },
 			set:     func(c *config.Config, val string) { c.Provider.Bedrock.AuthMode = val },
@@ -780,24 +780,28 @@ func (v *ProviderView) refresh() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Provider options for setup
-var providerSetupOptions = []SelectOption{
-	{Label: "Amazon Bedrock", Value: "bedrock"},
-	{Label: "Anthropic (API directe)", Value: "anthropic"},
-	{Label: "OpenRouter", Value: "openrouter"},
-	{Label: "GitHub Copilot", Value: "github-copilot"},
+func providerSetupOptions() []SelectOption {
+	return []SelectOption{
+		{Label: "Amazon Bedrock", Value: "bedrock"},
+		{Label: i18n.T("tui.provider.option_anthropic"), Value: "anthropic"},
+		{Label: "OpenRouter", Value: "openrouter"},
+		{Label: "GitHub Copilot", Value: "github-copilot"},
+	}
 }
 
-var bedrockAuthModeOptions = []SelectOption{
-	{Label: "Bearer Token (SSO/STS)", Value: "bearer"},
-	{Label: "AWS Profile", Value: "profile"},
-	{Label: "Variables d'env", Value: "env"},
+func bedrockAuthModeOptions() []SelectOption {
+	return []SelectOption{
+		{Label: "Bearer Token (SSO/STS)", Value: "bearer"},
+		{Label: i18n.T("tui.provider.option_aws_profile"), Value: "profile"},
+		{Label: i18n.T("tui.provider.option_env"), Value: "env"},
+	}
 }
 
 func (v *ProviderView) setupProvider() {
 	if v.shell == nil {
 		return
 	}
-	v.shell.ShowSelectModal(i18n.T("tui.provider.choose"), providerSetupOptions, "", func(prov string) {
+	v.shell.ShowSelectModal(i18n.T("tui.provider.choose"), providerSetupOptions(), "", func(prov string) {
 		switch prov {
 		case "bedrock":
 			v.setupBedrock()
@@ -814,7 +818,7 @@ func (v *ProviderView) setupProvider() {
 }
 
 func (v *ProviderView) setupBedrock() {
-	v.shell.ShowSelectModal(i18n.T("tui.provider.bedrock_auth_mode"), bedrockAuthModeOptions, "", func(authMode string) {
+	v.shell.ShowSelectModal(i18n.T("tui.provider.bedrock_auth_mode"), bedrockAuthModeOptions(), "", func(authMode string) {
 		cfg := v.vcfg.GetConfig()
 		cfg.Provider.Bedrock.AuthMode = authMode
 

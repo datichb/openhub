@@ -25,6 +25,9 @@ type WorkflowGraph struct {
 
 	// Scroll offset for large graphs.
 	scrollX, scrollY int
+
+	// emptyText is drawn when the graph has no element.
+	emptyText string
 }
 
 // NewModelGraph creates a graph of a model (oh/v1 workflows: SpecGraphModel).
@@ -63,6 +66,10 @@ func (g *WorkflowGraph) Select(id string) bool {
 }
 
 // SetOnSelect sets the callback fired when an element is activated (Enter).
+// SetEmptyText sets the text drawn when the graph has no element (the
+// widgets do not translate: the view passes it).
+func (g *WorkflowGraph) SetEmptyText(s string) { g.emptyText = s }
+
 func (g *WorkflowGraph) SetOnSelect(fn func(GraphElement)) {
 	g.onSelect = fn
 }
@@ -95,7 +102,7 @@ func (g *WorkflowGraph) Draw(screen tcell.Screen) {
 	x, y, w, h := g.GetInnerRect()
 
 	if g.layout == nil || len(g.layout.Elements) == 0 {
-		drawTextAt(screen, x+2, y+1, "No workflow defined", theme.StyleMuted)
+		drawTextAt(screen, x+2, y+1, g.emptyText, theme.StyleMuted)
 		return
 	}
 

@@ -388,8 +388,8 @@ func (v *ProjectsView) showDetail(p ProjectItem) {
 	fmt.Fprintf(&b, "%s %s\n", label("ID :"), p.ID)
 	fmt.Fprintf(&b, "%s %s\n", label(i18n.T("tui.projects.label_path")), p.Path)
 	fmt.Fprintf(&b, "%s %s\n", label(i18n.T("tui.projects.label_language")), displayOrPlaceholder(p.Language, "-"))
-	fmt.Fprintf(&b, "%s %s\n", label("Provider :"), displayOrPlaceholder(p.Provider, "hub default"))
-	fmt.Fprintf(&b, "%s %s\n", label(i18n.T("tui.projects.label_model")), displayOrPlaceholder(p.Model, "hub default"))
+	fmt.Fprintf(&b, "%s %s\n", label(i18n.T("tui.projects.label_provider")), displayOrPlaceholder(p.Provider, i18n.T("tui.projects.hub_default")))
+	fmt.Fprintf(&b, "%s %s\n", label(i18n.T("tui.projects.label_model")), displayOrPlaceholder(p.Model, i18n.T("tui.projects.hub_default")))
 	team := p.TeamID
 	if team == "" {
 		team = i18n.T("tui.projects.solo")
