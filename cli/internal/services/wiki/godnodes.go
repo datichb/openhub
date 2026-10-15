@@ -23,7 +23,7 @@ import (
 // not a product name such as `TypeScript`). A page cites a concept when it
 // names it as a whole word (case insensitive) outside the metadata of its
 // tags (an agent, a source) and the targets of its links, or, for a
-// declared one, when the table links to it. The maps of the wiki (the
+// declared one that a page still names, when the table links to it. The maps of the wiki (the
 // index of the wiki or of a folder, the glossary) cite no concept: they
 // name them all by design.
 //
@@ -280,13 +280,16 @@ func (w *Wiki) godNodes(ix Index, critical string) []GodNode {
 		}
 		seen[key] = true
 		set := map[string]bool{}
+		named := cites(d.Concept)
+		for _, p := range named {
+			set[p] = true
+		}
+		// The links of the table count while a page still names the
+		// concept: alone, they would keep a renamed concept forever.
 		for _, p := range d.Pages {
-			if exists[p] && p != IndexPage {
+			if len(named) > 0 && exists[p] && p != IndexPage {
 				set[p] = true
 			}
-		}
-		for _, p := range cites(d.Concept) {
-			set[p] = true
 		}
 		if len(set) < MinGodNodePages {
 			continue
