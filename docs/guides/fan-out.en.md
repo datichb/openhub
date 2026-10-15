@@ -31,7 +31,7 @@ oh run implement-spec -i fanout=true -t ev-1 -t ev-2  # or given tickets
 oh run sweep -i goal="migrate the logs to slog" -i fanout=true   # one child session per subtask approved at cp-plan
 ```
 
-`oh run` also starts, in the background, the **driver** of the fan-out (`oh fanout drive <session>`, log in `~/.oh/sessions/<session>/fanout.log`): it launches, follows and merges the child sessions, whether you keep the client of the parent session open or not. If it stopped (machine turned off), start it again: `oh fanout drive <session>` goes on where it was.
+`oh run` also starts, in the background, the **driver** of the fan-out (`oh fanout drive <session>`, log in `~/.oh/sessions/<session>/fanout.log`): it launches, follows and merges the child sessions, whether you keep the client of the parent session open or not. If it stopped before `cp-merge`, the oh daemon starts it again by itself when the parent session goes on or ends a step (`driver` event); `oh fanout drive <session>` starts it by hand and goes on where it was.
 
 ## Steps
 
@@ -100,4 +100,4 @@ The guards of the control substitution (declared by the hub layer only, mandator
 
 - `feature` is an alias (`spec`, or `implement-spec` with `--tickets`): `oh run feature --tickets … -i fanout=true` thus launches this fan-out.
 - A child that waits for an answer in its text (without the `question` tool) is only stopped by the 10-minute guard and stays unmerged.
-- The driver follows the fan-out until `cp-merge` passes (to launch the fix rounds): if it stopped, start `oh fanout drive <session>` again.
+- The driver follows the fan-out until `cp-merge` passes (to launch the fix rounds): if it stopped, the daemon starts it again (or `oh fanout drive <session>`).

@@ -258,6 +258,7 @@ func (w *watcher) onEvent(ctx context.Context, ev adapters.ToolEvent) {
 	switch {
 	case ev.Kind == adapters.EventExecStarted:
 		w.reopenCompleted(ctx, ev.SessionID)
+		w.d.ensureFanoutDriver(ctx, ev.SessionID) // p6-debts
 		if !w.holdOverBudget(ctx, ev.SessionID, ev.SessionID) {
 			w.clearAlerts(ctx, ev.SessionID)
 			w.syncBudget(ctx, ev.SessionID, false) // after a raise
@@ -283,6 +284,7 @@ func (w *watcher) onEvent(ctx context.Context, ev adapters.ToolEvent) {
 		w.finishWorkflow(ctx, ev.SessionID)
 	}
 	if ev.Kind == adapters.EventExecEnded {
+		w.d.ensureFanoutDriver(ctx, ev.SessionID) // p6-debts: the step is over, the driver may have ended with it
 		w.flushDeferred(ctx, ev.SessionID)
 		w.raiseBudget(ctx, ev.SessionID) // the step is over: budgets apply now
 		w.clearResume(ctx, ev.SessionID)
@@ -357,6 +359,7 @@ func (w *watcher) resync(ctx context.Context) {
 		w.mu.Unlock()
 		w.refreshPending(ctx, s.ID)
 		w.persist(ctx, s.ID, true)
+		w.d.ensureFanoutDriver(ctx, s.ID)
 	}
 	w.adoptChildren(ctx)
 	w.applyAllRules(ctx, sessions)

@@ -44,6 +44,11 @@ type Options struct {
 	// when its workflow is finished (completed) (team
 	// session.complete event).
 	OnSessionEnd func(ctx context.Context, s domain.Session)
+	// FanoutDriver starts the driver of the fan-out of a parent session in
+	// the background (`oh fanout drive --relaunch`; p6-debts): the daemon
+	// starts it again when it stopped before the merge checkpoint. Nil = not
+	// started by the daemon.
+	FanoutDriver func(ctx context.Context, sessionID string) error
 	// Sessions is updated by the session watchers (run state, cost, tokens).
 	Sessions domain.SessionStore
 	// Decisions receives the pending decisions of the tracked sessions (inbox).
@@ -160,6 +165,8 @@ type Daemon struct {
 	// prevProxyPort is the proxy port of the previous daemon when it could
 	// not be bound again (0 = unchanged).
 	prevProxyPort int
+	// drivers are the last starts of a fan-out driver by session (p6-debts).
+	drivers map[string]time.Time
 	ledger        ledger
 	memoryMB      int                          // memory used by the ready servers (last measure)
 	memoryOver    bool                         // above the cap at the last pass (warned)

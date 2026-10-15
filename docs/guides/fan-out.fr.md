@@ -31,7 +31,7 @@ oh run implement-spec -i fanout=true -t ev-1 -t ev-2  # ou des tickets donnés
 oh run sweep -i goal="migrer les logs vers slog" -i fanout=true   # une session enfant par sous-tâche validée à cp-plan
 ```
 
-`oh run` démarre aussi, en arrière-plan, le **pilote** du fan-out (`oh fanout drive <session>`, journal dans `~/.oh/sessions/<session>/fanout.log`) : c'est lui qui lance, suit et merge les sessions enfants, que vous gardiez ou non le client de la session parente ouvert. S'il s'est arrêté (machine éteinte), relancez-le : `oh fanout drive <session>` reprend là où il en était.
+`oh run` démarre aussi, en arrière-plan, le **pilote** du fan-out (`oh fanout drive <session>`, journal dans `~/.oh/sessions/<session>/fanout.log`) : c'est lui qui lance, suit et merge les sessions enfants, que vous gardiez ou non le client de la session parente ouvert. S'il s'est arrêté avant `cp-merge`, le démon d'oh le relance de lui-même quand la session parente reprend ou finit une étape (événement `driver`) ; `oh fanout drive <session>` le relance à la main et reprend là où il en était.
 
 ## Déroulé
 
@@ -100,4 +100,4 @@ Les garde-fous de la substitution de contrôle (déclarée par la couche hub seu
 
 - `feature` est un alias (`spec`, ou `implement-spec` avec `--tickets`) : `oh run feature --tickets … -i fanout=true` lance donc ce fan-out.
 - Un enfant qui attend une réponse dans son texte (sans l'outil `question`) n'est arrêté qu'au garde-fou de 10 minutes et reste non mergé.
-- Le pilote suit le fan-out jusqu'au passage de `cp-merge` (pour lancer les tours de correction) : s'il s'est arrêté, relancez `oh fanout drive <session>`.
+- Le pilote suit le fan-out jusqu'au passage de `cp-merge` (pour lancer les tours de correction) : s'il s'est arrêté, le démon le relance (ou `oh fanout drive <session>`).

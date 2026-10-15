@@ -451,15 +451,19 @@ func TestDriverRefusals(t *testing.T) {
 	require.NoError(t, f.store.SetSessionFanout(context.Background(), p.ID, nil))
 	assert.ErrorIs(t, f.driver.Run(context.Background(), "ses_parent"), ErrNotFanout)
 
-	// The parent ends before cp-plan: the fan-out stops, nothing launched.
-	g := newFixture(t, "ev-1")
-	g.passed = false
-	q, _ := g.store.Get(context.Background(), "ses_parent")
-	q.State = domain.RunCompleted
-	require.NoError(t, g.store.Update(context.Background(), q))
-	fo := g.runDriver(t)
-	assert.Equal(t, domain.FanoutStopped, fo.Status)
-	assert.Empty(t, g.launcher.started)
+	// The parent ends its step before cp-plan: nothing launched, the
+	// fan-out waits for the daemon to start the driver again (p6-debts);
+	// stopped for good, the fan-out stops.
+	for state, want := range map[domain.RunState]domain.FanoutStatus{domain.RunCompleted: domain.FanoutWaiting, domain.RunStopped: domain.FanoutStopped} {
+		g := newFixture(t, "ev-1")
+		g.passed = false
+		q, _ := g.store.Get(context.Background(), "ses_parent")
+		q.State = state
+		require.NoError(t, g.store.Update(context.Background(), q))
+		fo := g.runDriver(t)
+		assert.Equal(t, want, fo.Status, state)
+		assert.Empty(t, g.launcher.started)
+	}
 }
 
 func TestIntegrateRefusesDirtyParent(t *testing.T) {

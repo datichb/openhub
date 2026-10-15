@@ -153,6 +153,19 @@ func (d *Driver) update(ctx context.Context, parent string, fn func(*domain.Sess
 // creates the integration branch, then launches, follows and merges the
 // children, and tells the parent the result.
 func (d *Driver) Run(ctx context.Context, parent string) error {
+	return d.run(ctx, parent)
+}
+
+// Relaunched records that the daemon started the driver again (p6-debts),
+// before Run.
+func (d *Driver) Relaunched(ctx context.Context, parent string) error {
+	_, err := d.update(ctx, parent, func(f *domain.SessionFanout) {
+		f.AddEvent(domain.FanoutEventDriver, "", "", "started again by the daemon ("+string(f.Status)+")")
+	})
+	return err
+}
+
+func (d *Driver) run(ctx context.Context, parent string) error {
 	p, err := d.Sessions.Get(ctx, parent)
 	if err != nil {
 		return err
@@ -265,9 +278,15 @@ func (d *Driver) waitStart(ctx context.Context, p *domain.Session) (*sessionspec
 		if err != nil {
 			return nil, st, err
 		}
-		if terminal(cur.State) {
+		if cur.State == domain.RunStopped || cur.State == domain.RunFailed {
 			_, err := d.update(ctx, p.ID, func(f *domain.SessionFanout) { f.Status = domain.FanoutStopped })
 			return nil, st, err
+		}
+		if cur.State == domain.RunCompleted {
+			// p6-debts: the parent ended its step before the checkpoints
+			// that start the children; the fan-out waits, the daemon starts
+			// the driver again when the parent goes on.
+			return nil, st, nil
 		}
 		select {
 		case <-ctx.Done():
