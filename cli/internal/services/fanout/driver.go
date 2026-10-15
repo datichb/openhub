@@ -83,6 +83,11 @@ const (
 // no decision waiting, without its end of work, before oh stops it.
 const DefaultIdleTimeout = 10 * time.Minute
 
+// DefaultMergerIdleTimeout is the guard of a merger (p6-debts): it runs in
+// auto, nobody answers it, and its work is one merge; idle without the
+// merge concluded, it gave up.
+const DefaultMergerIdleTimeout = 2 * time.Minute
+
 // Driver runs fan-outs.
 type Driver struct {
 	Sessions Store
@@ -101,6 +106,9 @@ type Driver struct {
 	// IdleTimeout is the guard on an idle session without its end of work
 	// (0 = DefaultIdleTimeout).
 	IdleTimeout time.Duration
+	// MergerIdleTimeout is the guard on an idle merger without the merge
+	// concluded (0 = DefaultMergerIdleTimeout, IdleTimeout when shorter).
+	MergerIdleTimeout time.Duration
 	// Log receives a line per step (nil = none).
 	Log func(format string, args ...any)
 
@@ -734,12 +742,27 @@ func (d *Driver) follow(ctx context.Context, parent string, wf *sessionspec.Work
 // the turn of the session is over, on two checks in a row; an idle
 // session without it is stopped after IdleTimeout.
 func (d *Driver) wait(ctx context.Context, id string, finished, stop func() bool) (why string, ok bool) {
-	t := time.NewTicker(d.poll())
-	defer t.Stop()
 	timeout := d.IdleTimeout
 	if timeout <= 0 {
 		timeout = DefaultIdleTimeout
 	}
+	return d.waitIdle(ctx, id, timeout, finished, stop)
+}
+
+// mergerGuard is the idle guard of a merger.
+func (d *Driver) mergerGuard() time.Duration {
+	if d.MergerIdleTimeout > 0 {
+		return d.MergerIdleTimeout
+	}
+	if d.IdleTimeout > 0 {
+		return min(DefaultMergerIdleTimeout, d.IdleTimeout)
+	}
+	return DefaultMergerIdleTimeout
+}
+
+func (d *Driver) waitIdle(ctx context.Context, id string, timeout time.Duration, finished, stop func() bool) (why string, ok bool) {
+	t := time.NewTicker(d.poll())
+	defer t.Stop()
 	var idleSince time.Time
 	signals := 0
 	for {
@@ -882,7 +905,7 @@ func (d *Driver) resolve(ctx context.Context, p *domain.Session, wf *sessionspec
 		}
 		f.AddEvent(domain.FanoutEventMerger, c.Ticket, sid, strings.Join(conflicts, ", "))
 	})
-	why, ok := d.wait(ctx, sid, func() bool {
+	why, ok := d.waitIdle(ctx, sid, d.mergerGuard(), func() bool {
 		head, err := Head(ctx, ig.Path)
 		return err == nil && head != ig.Head && !MergeInProgress(ctx, ig.Path)
 	}, nil)
