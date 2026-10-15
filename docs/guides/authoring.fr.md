@@ -267,7 +267,7 @@ Chargez la ou les skills pertinentes via l'outil `skill` avant de commencer :
 
 ## Exemple commenté — Créer un skill `dev-standards-api`
 
-```markdown
+````markdown
 ---
 name: dev-standards-api                   # ← kebab-case, lisible
 description: Standards spécifiques aux    # ← bénéfice concret pour l'agent
@@ -287,7 +287,7 @@ Il complète `dev-standards-backend.md`.  # ← pointer les complémentaires
 ```json
 { "data": [...], "pagination": { ... } }
 ```
-```
+````
 
 **À ne pas faire :**
 ```markdown

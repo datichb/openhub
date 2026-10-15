@@ -266,7 +266,7 @@ Load the relevant skill(s) via the `skill` tool before starting work:
 
 ## Annotated example — Creating a `dev-standards-api` skill
 
-```markdown
+````markdown
 ---
 name: dev-standards-api                   # ← kebab-case, readable
 description: Standards specific to        # ← concrete benefit for the agent
@@ -286,7 +286,7 @@ It complements `dev-standards-backend.md`.  # ← point to complements
 ```json
 { "data": [...], "pagination": { ... } }
 ```
-```
+````
 
 **What not to do:**
 ```markdown
