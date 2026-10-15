@@ -550,7 +550,7 @@ preconditions:
     suggest: { workflow: onboarding, resume: true }
 ```
 
-Checked before launch, in file order, in the project directory. `check` holds at least one test (`precondition_check_invalid`); with several, all must hold.
+Checked before launch, in file order, where the session will work: the project directory, the worktree given with `--location <path>`, or, for a worktree created at launch (`--location new`, automatic worktree), what it will hold: its branch, nothing uncommitted, the files of that branch when it exists, otherwise those of the project `HEAD`. Remote session: the project directory. `check` holds at least one test (`precondition_check_invalid`); with several, all must hold.
 
 ```yaml
 preconditions:

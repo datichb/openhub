@@ -3,20 +3,102 @@ package cmd
 import (
 	"context"
 	"errors"
+	"io"
+	"io/fs"
+	"os"
 	"os/exec"
+	"path"
 	"strings"
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/gitutil"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/runsvc"
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
 // R8 (E7): preconditions on the repository and the tools, read by oh at
-// launch on the project directory.
+// launch where the session works (p6-debts): the project directory, the
+// worktree given with --location, or, for a worktree created at launch
+// (--location new), what it will hold: the files of its branch (or of the
+// HEAD of the project for a new branch), that branch, nothing uncommitted.
 
 // preconditionGitTimeout bounds each git call of the preconditions.
 const preconditionGitTimeout = 10 * time.Second
+
+// preconditionTarget returns where the preconditions of a launch are read:
+// the location of its first session (remote: the project, which the job
+// clones).
+func preconditionTarget(project string, sessions []runsvc.PlannedSession, remote bool) (fs.FS, workflow.PreconditionProbe) {
+	if remote || len(sessions) == 0 || sessions[0].Location.Path == "" {
+		return os.DirFS(project), preconditionProbe(project)
+	}
+	loc := sessions[0].Location
+	if !loc.Create {
+		return os.DirFS(loc.Path), preconditionProbe(loc.Path)
+	}
+	ref := "HEAD"
+	if branchExists(project, loc.Branch) {
+		ref = "refs/heads/" + loc.Branch
+	}
+	probe := preconditionProbe(project)
+	probe.Git = func() (workflow.GitState, error) {
+		if _, err := preconditionGitState(project); err != nil {
+			return workflow.GitState{}, err // not a git repository
+		}
+		return workflow.GitState{Branch: loc.Branch}, nil // a new worktree: clean, on its branch
+	}
+	return gitTreeFS(project, ref), probe
+}
+
+func branchExists(dir, branch string) bool {
+	if branch == "" {
+		return false
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), preconditionGitTimeout)
+	defer cancel()
+	return gitutil.Command(ctx, dir, "show-ref", "--verify", "--quiet", "refs/heads/"+branch).Run() == nil
+}
+
+// gitTreeFS is the files of a commit of dir, for the path checks (empty
+// when git cannot read it).
+func gitTreeFS(dir, ref string) fs.FS {
+	ctx, cancel := context.WithTimeout(context.Background(), preconditionGitTimeout)
+	defer cancel()
+	out, _ := gitutil.Command(ctx, dir, "ls-tree", "-r", "-t", "--name-only", "-z", ref).Output()
+	t := treeFS{".": true}
+	for _, name := range strings.Split(string(out), "\x00") {
+		if name != "" {
+			t[name] = true
+		}
+	}
+	return t
+}
+
+// treeFS answers Stat for the paths of a tree (contents are not read).
+type treeFS map[string]bool
+
+func (t treeFS) Open(name string) (fs.File, error) {
+	if !fs.ValidPath(name) || !t[name] {
+		return nil, &fs.PathError{Op: "open", Path: name, Err: fs.ErrNotExist}
+	}
+	return treeFile(path.Base(name)), nil
+}
+
+type treeFile string
+
+func (f treeFile) Stat() (fs.FileInfo, error) { return treeInfo(f), nil }
+func (treeFile) Read([]byte) (int, error)     { return 0, io.EOF }
+func (treeFile) Close() error                 { return nil }
+
+type treeInfo string
+
+func (i treeInfo) Name() string     { return string(i) }
+func (treeInfo) Size() int64        { return 0 }
+func (treeInfo) Mode() fs.FileMode  { return 0o444 }
+func (treeInfo) ModTime() time.Time { return time.Time{} }
+func (treeInfo) IsDir() bool        { return false }
+func (treeInfo) Sys() any           { return nil }
 
 // preconditionProbe reads the git state of dir (current branch, uncommitted
 // changes outside .beads) with the safe git of oh, and looks the tools up

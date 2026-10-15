@@ -550,7 +550,7 @@ preconditions:
     suggest: { workflow: onboarding, resume: true }
 ```
 
-Testées avant le lancement, dans l'ordre du fichier, dans le dossier du projet. `check` porte au moins un test (`precondition_check_invalid`) ; s'il en porte plusieurs, tous doivent être vrais.
+Testées avant le lancement, dans l'ordre du fichier, là où la session travaillera : le dossier du projet, le worktree donné par `--location <chemin>`, ou, pour un worktree créé au lancement (`--location new`, worktree automatique), ce qu'il contiendra : sa branche, rien de non commité, les fichiers de cette branche si elle existe, sinon ceux du `HEAD` du projet. Session distante : le dossier du projet. `check` porte au moins un test (`precondition_check_invalid`) ; s'il en porte plusieurs, tous doivent être vrais.
 
 ```yaml
 preconditions:
