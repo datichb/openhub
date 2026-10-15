@@ -9,6 +9,11 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Added — catalogue de briques d'équipe : `oh brick` (lot brick-catalog)
+
+- **`oh brick`** ([ADR-054](docs/architecture/adr/054-team-brick-catalogue.fr.md)) : les agents et les skills de `catalog/` du team-state se gèrent comme les workflows d'équipe : `oh brick list [--agents|--skills] [--origin]` (origine hub ou équipe, version, problèmes, brouillons), `show`, `new <agent|skill> <id>` (gabarit valide ; `--extends` pour remplacer explicitement une brique du hub), `edit` (validation à l'enregistrement : règles d'`oh skill check`, description de skill « Utiliser … » de 200 caractères au plus, frontmatter d'agent), `publish -m` (gouvernance `[governance] publish`, revalidation, version précédente dans `catalog/history/`, événement `brick.published`) et `history`. Le remplacement d'une brique du hub est signalé et demande confirmation.
+- ⚠ **`catalog.lock`** : une fois créé, une brique modifiée à la main ou commitée sans oh est ignorée (`brick_unlocked`, `brick_hash_mismatch`) ; un catalogue commité à la main reste chargé, signalé « jamais scellé », et se scelle avec `oh brick publish --adopt`. ⚠ Les liens symboliques et fichiers non réguliers du catalogue sont ignorés (`brick_unsafe_path`). `oh doctor` signale les briques d'équipe invalides, ignorées ou jamais scellées. Pas de couche projet pour les briques ; pas d'import de brique externe (backlog). Aucune migration.
+
 ### Added — fan-out en conteneur (lot fanout-container)
 
 - **Fan-out d'une session parente en conteneur** (`oh run implement-spec|sweep -i fanout=true --runtime container`, toujours expérimental) : le pilote crée les worktrees et branches `oh/fanout/…` sur la machine, à côté du projet (montés sous `/work/<nom>` dans les conteneurs, dossier git commun à son chemin machine) ; les sessions enfants, le merger et le tour de correction tournent dans le runtime de la parente, chacune dans un conteneur de son workflow (jamais celui de la parente), avec les mêmes règles dès leur création ; pilote, merges par oh, fermeture des tickets et budget global restent sur la machine. CP-R3 inchangé. Session distante : fan-out toujours refusé, avec un message.
