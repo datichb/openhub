@@ -157,6 +157,12 @@ type CheckpointDef struct {
 	// from the delegation graph); oh warns when another agent passes it.
 	By []string `json:"by,omitempty"`
 
+	// approver-1 (CP-R9): Approver are the people expected to validate the
+	// checkpoint (git user.name or e-mail, declared by a team layer): the
+	// card shows them and a validation by someone else is traced as out of
+	// approver (approver_mismatch). Not enforced on this machine.
+	Approver []string `json:"approver,omitempty"`
+
 	// LD-D: Wiki "sync" makes the checkpoint synchronize the wiki
 	// (doc-sync): its card shows the whole queue of the project, and when it
 	// is passed oh applies the accepted proposals and records the
@@ -324,4 +330,10 @@ func OhExecutable() string {
 		return p
 	}
 	return "oh"
+}
+
+// NormalizeIdentity is the form the identities of approvers are compared
+// in (CP-R9): trimmed, inner spaces collapsed, case folded.
+func NormalizeIdentity(id string) string {
+	return strings.ToLower(strings.Join(strings.Fields(id), " "))
 }

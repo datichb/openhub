@@ -137,6 +137,7 @@ func (r *Resolved) Validate(env Env) Diagnostics {
 	v.methods()
 	v.order()
 	v.checkpointsBy()
+	v.checkpointsApprover() // CP-R9
 	v.preconditions()
 	v.modes()
 	v.resources()

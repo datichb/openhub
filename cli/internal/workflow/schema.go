@@ -394,6 +394,15 @@ type CheckpointSpec struct {
 	// workflow_checkpoint), check it, show it on the card and record it:
 	// the agents cannot pass the checkpoint on their word.
 	Tasks *TasksCheck `yaml:"tasks,omitempty"`
+
+	// approver-1 (schema_approver.go): human approver (CP-R9).
+
+	// Approver names the people expected to validate the checkpoint (git
+	// user.name or e-mail, ADR-052). Only a team layer declares it, and no
+	// other layer removes it nor makes the checkpoint pause less. On this
+	// machine, a validation by someone else is warned and traced, not
+	// refused.
+	Approver Approvers `yaml:"approver,omitempty"`
 }
 
 // CheckpointWiki is the role of a checkpoint for the wiki of the project.

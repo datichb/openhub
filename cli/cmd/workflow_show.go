@@ -209,6 +209,9 @@ func printWorkflowShow(w io.Writer, res *workflowsvc.Resolution, withOrigin bool
 			if c.Method != "" {
 				parts = append(parts, i18n.Tf("cmd.workflow.show.method", string(c.Method)))
 			}
+			if len(c.Approver) > 0 {
+				parts = append(parts, i18n.Tf("cmd.workflow.show.approver", c.Approver.String()))
+			}
 			line(k, strings.Join(parts, " · "), "checkpoints."+k)
 		}
 	}
