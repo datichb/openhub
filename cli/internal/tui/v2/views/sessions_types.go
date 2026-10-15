@@ -73,6 +73,46 @@ type SessionRow struct {
 	// RemoteDetail its line (pipeline, MR, journal).
 	Remote       string
 	RemoteDetail string
+	// Outputs are the outputs oh recorded for the session (session.Outputs,
+	// `record:`), sorted by name.
+	Outputs []SessionOutput
+	// FanoutRole is the role of the session in a fan-out (parent, child,
+	// merger, fixer; "" = none), FanoutParent the parent of a child, and
+	// FanoutLine the state of the fan-out of a parent (detail).
+	FanoutRole   string
+	FanoutParent string
+	FanoutLine   string
+}
+
+// Fan-out roles of SessionRow.FanoutRole.
+const (
+	FanoutRoleParent = "parent"
+	FanoutRoleChild  = "child"
+	FanoutRoleMerger = "merger"
+	FanoutRoleFixer  = "fixer"
+)
+
+// InFanout reports whether the session is part of a fan-out.
+func (r SessionRow) InFanout() bool { return r.FanoutRole != "" }
+
+// SessionOutput is an output recorded by oh for a session.
+type SessionOutput struct {
+	Name  string
+	Value string
+}
+
+// SessionNextStep is a `next:` step of the workflow of a session whose
+// condition holds (R5): what oh proposes after it, never launched alone.
+type SessionNextStep struct {
+	Workflow string
+	Label    string
+	Inputs   string // "branch=feat/auth tickets=oh-12"
+}
+
+// SessionNexter is implemented by backends that read the `next:` steps of
+// a session (detail).
+type SessionNexter interface {
+	NextSteps(ctx context.Context, sessionID string) ([]SessionNextStep, error)
 }
 
 // SessionFeedLine is one line of a session live feed.

@@ -8,7 +8,7 @@ import (
 // cardVerify renders the R3 part of a checkpoint card (CP-R5): the
 // verification run by oh, the evidence checked, the fix rounds.
 func cardVerify(r checkpoint.CardR3) views.CheckpointVerifyView {
-	v := views.CheckpointVerifyView{Unresolved: r.Unresolved}
+	v := views.CheckpointVerifyView{Unresolved: r.Unresolved, NoOverride: r.NoOverride}
 	if r.Verify != nil {
 		v.Status, v.Summary, v.Excerpt = r.Verify.Status, checkpoint.VerifySummary(*r.Verify), r.Verify.Excerpt
 	}

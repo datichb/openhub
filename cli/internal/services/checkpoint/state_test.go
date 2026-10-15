@@ -159,6 +159,7 @@ func TestVerifyOverride(t *testing.T) {
 	d := askV(t, svc, ctx, "cp-2", nil)
 	waitVerify(t, svc, ctx, "cp-2")
 	tool := &fakeTool{}
+	assert.False(t, svc.Card(ctx, "ses_v", "cp-2").NoOverride, "overridden on purpose")
 	require.NoError(t, svc.Resolve(ctx, tool, *d, ChoiceOverride, "flaky test, known"))
 	assert.Equal(t, []string{"once"}, tool.replies)
 

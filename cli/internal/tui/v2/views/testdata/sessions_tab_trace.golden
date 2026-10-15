@@ -1,0 +1,12 @@
+╔ Détail · implement-spec ⑂ ═════════════════════════════════════════════════════════════╗
+║  Détail  [Trace]  Rapports   Fan-out                                                   ║
+║ /cp-merge  résultat 2 sur 2                                                            ║
+║ Trace de ses_8f2a01 (source : en direct)                                               ║
+║ 10:02:00  checkpoint orchestrator-dev cp-plan approved (oh)                            ║
+║ 10:05:00  tool       ↳              bash  git commit -m "feat(auth)"  completed        ║
+║ 10:31:00  checkpoint oh             cp-merge refused (oh)                              ║
+║ 10:32:00  fanout     oh             fix ses_93f0                                       ║
+║ 10:40:00  checkpoint oh             cp-merge approved (oh)  hors valideur              ║
+║ / rechercher · n/N suivant/précédent · g/G début/fin · r rafraîchir · Tab onglet ·     ║
+║ Échap retour                                                                           ║
+╚════════════════════════════════════════════════════════════════════════════════════════╝

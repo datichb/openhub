@@ -344,6 +344,7 @@ func TestFanoutMergeCheckpointGuards(t *testing.T) {
 		err := f.svc.Resolve(f.ctx, tool, d, ChoiceOverride, "")
 		require.Error(t, err)
 		assert.Empty(t, tool.replies)
+		assert.True(t, f.svc.Card(f.ctx, "ses_p", "cp-merge").NoOverride, "the card offers no override")
 	})
 	t.Run("merge by oh failed", func(t *testing.T) {
 		f := newFanoutFixture(t)

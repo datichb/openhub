@@ -1,0 +1,16 @@
+╔ Détail · implement-spec ⑂ ═══════════════════════════════════════════════════════════════════════╗
+║  Détail   Trace   Rapports  [Fan-out]                                                            ║
+║ Expérimental · en cours · parallèle 2 · pilote ● actif · budget $1.84 / $10.00 ▓░░░░░░░          ║
+║ Parente : ses_8f2a01                                                                             ║
+║ ╔ Enfants ═════════════════════════════════════════════════════════════════════════════════════╗ ║
+║ ║   ticket  enfant      branche               coût   fin     état                              ║ ║
+║ ║   oh-13   ses_91ab01  oh/fanout/8f2a/oh-13  $0.37  —       ● en cours                        ║ ║
+║ ║   oh-14   ses_91ac01  oh/fanout/8f2a/oh-14  $0.22  —       ● en cours                        ║ ║
+║ ║   oh-15   —           —                     —      —       … à lancer                        ║ ║
+║ ║ 1/4                                                                                          ║ ║
+║ ╚══════════════════════════════════════════════════════════════════════════════════════════════╝ ║
+║ Tours de correction : 1 / 3 · dernier refus de cp-merge : « tests auth »                         ║
+║ Branche d'intégration : oh/fanout/8f2a/integration (3 commits)                                   ║
+║ Entrée ouvrir l'enfant · p relancer le pilote · d nettoyer… · B lot · r rafraîchir · Tab onglet  ║
+║ · Échap retour                                                                                   ║
+╚══════════════════════════════════════════════════════════════════════════════════════════════════╝

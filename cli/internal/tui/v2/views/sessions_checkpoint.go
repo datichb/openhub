@@ -2,6 +2,7 @@ package views
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -95,11 +96,10 @@ func (v *SessionsView) showCheckpoint(r *SessionRow, d *SessionDecision, c Check
 	if r != nil {
 		id = r.ID
 	}
-	actions := []ModalAction{
-		{Label: i18n.T("tui.checkpoint.decide"), Callback: func() {
-			v.checkpointForm(r, &dec, c.Approver, checkpointDefaultChoice(c.Verify), checkpointExtraChoices(c.Verify)...)
-		}},
-	}
+	actions := v.verifyFailedActions(r, &dec, c)
+	actions = append(actions, ModalAction{Label: i18n.T("tui.checkpoint.decide"), Separator: len(actions) > 0, Callback: func() {
+		v.checkpointForm(r, &dec, c.Approver, checkpointDefaultChoice(c.Verify), checkpointExtraChoices(c.Verify)...)
+	}})
 	actions = append(actions, v.reportActions(dec.SessionID, dec.ID, c.Reports)...)
 	actions = append(actions, v.wikiActions(r, &dec, c.Wiki)...)
 	if c.Patch != "" {
@@ -189,14 +189,16 @@ func writeCheckpointApprover(b *strings.Builder, a CheckpointApproverView) {
 	b.WriteString("\n")
 }
 
-// approveCheckpoint validates a checkpoint at once (y). When it names
+// approveCheckpoint validates a checkpoint at once (y). When its
+// verification by oh failed, the card opens on « Corriger » / « Passer
+// outre… » instead (the validation is refused by oh). When it names
 // approvers and the person who validates is none of them, oh asks for a
 // confirmation first, with the warning (CP-R9: never refused).
-func (v *SessionsView) approveCheckpoint(d *SessionDecision) {
-	dec := *d
+func (v *SessionsView) approveCheckpoint(r *SessionRow, d *SessionDecision) {
+	dec, row := *d, r
 	cb, ok := v.cfg.Backend.(CheckpointBackend)
 	if dec.Approver == "" || !ok || v.shell == nil {
-		v.decide(&dec, checkpointApprove, "", nil)
+		v.approveOrOpen(row, &dec)
 		return
 	}
 	var card CheckpointCardView
@@ -205,13 +207,64 @@ func (v *SessionsView) approveCheckpoint(d *SessionDecision) {
 		card, err = cb.CheckpointCard(ctx, dec.ID)
 		return "", err
 	}, func(string) {
-		if !card.Approver.Mismatch {
+		switch {
+		case card.Verify.Failed():
+			v.showCheckpoint(row, &dec, card)
+		case !card.Approver.Mismatch:
 			v.decide(&dec, checkpointApprove, "", nil)
+		default:
+			v.shell.Confirm(i18n.Tf("tui.checkpoint.approver_confirm", firstText(card.Checkpoint, dec.Summary)),
+				tview.Escape(i18n.Tf("tui.checkpoint.approver", card.Approver.Expected)+"\n"+i18n.Tf("tui.checkpoint.approver_mismatch", firstText(card.Approver.Identity, "?"))),
+				false, func() { v.decide(&dec, checkpointApprove, "", nil) })
+		}
+	})
+}
+
+// ErrOverrideRequired is matched by the error of a backend refusing the
+// validation of a checkpoint whose verification failed (only « Passer
+// outre » passes it).
+var ErrOverrideRequired = errors.New("checkpoint verification must be overridden")
+
+// approveOrOpen validates a checkpoint; refused by its verification, it
+// opens its card instead of a toast.
+func (v *SessionsView) approveOrOpen(r *SessionRow, d *SessionDecision) {
+	dec, row := *d, r
+	v.untrackDecision()
+	failed := false
+	v.async(func(ctx context.Context) (string, error) {
+		err := v.cfg.Backend.Decide(ctx, dec.ID, checkpointApprove, "", nil)
+		if errors.Is(err, ErrOverrideRequired) {
+			failed = true
+			return "", nil
+		}
+		return i18n.T("tui.inbox.answered"), err
+	}, func(msg string) {
+		if failed {
+			v.openCheckpoint(row, &dec)
 			return
 		}
-		v.shell.Confirm(i18n.Tf("tui.checkpoint.approver_confirm", firstText(card.Checkpoint, dec.Summary)),
-			tview.Escape(i18n.Tf("tui.checkpoint.approver", card.Approver.Expected)+"\n"+i18n.Tf("tui.checkpoint.approver_mismatch", firstText(card.Approver.Identity, "?"))),
-			false, func() { v.decide(&dec, checkpointApprove, "", nil) })
+		v.toast(msg, true)
+		v.reload()
+	})
+}
+
+// refuseCheckpoint asks the instruction of a refusal (n), with the
+// approver the checkpoint names and the warning when the person who
+// answers is none of them (CP-R9).
+func (v *SessionsView) refuseCheckpoint(r *SessionRow, d *SessionDecision) {
+	dec, row := *d, r
+	cb, ok := v.cfg.Backend.(CheckpointBackend)
+	if !ok || dec.Approver == "" {
+		v.checkpointForm(row, &dec, CheckpointApproverView{Expected: dec.Approver}, checkpointFix)
+		return
+	}
+	var card CheckpointCardView
+	v.async(func(ctx context.Context) (string, error) {
+		var err error
+		card, err = cb.CheckpointCard(ctx, dec.ID)
+		return "", err
+	}, func(string) {
+		v.checkpointForm(row, &dec, card.Approver, checkpointFix)
 	})
 }
 
@@ -231,7 +284,7 @@ func (v *SessionsView) checkpointForm(r *SessionRow, d *SessionDecision, approve
 	v.shell.ShowInlineForm(InlineFormConfig{
 		Title: tview.Escape(title),
 		Fields: []FormField{
-			{Key: "decision", Label: i18n.T("tui.inbox.decision"), Type: FieldSelect, Default: choice,
+			{Key: "decision", Label: i18n.T("tui.inbox.decision"), Type: FieldSelect, Default: choice, Hint: approverHint(approver),
 				Options: append([]SelectOption{
 					{Label: i18n.T("tui.checkpoint.choice.approve"), Value: checkpointApprove},
 					{Label: i18n.T("tui.checkpoint.choice.fix"), Value: checkpointFix},
@@ -249,4 +302,21 @@ func (v *SessionsView) checkpointForm(r *SessionRow, d *SessionDecision, approve
 		},
 	})
 	v.trackDecision(dec.ID)
+}
+
+// approverHint is the approver line of the decision form: who the
+// checkpoint names and, when the person who answers is none of them, the
+// warning (CP-R9).
+func approverHint(a CheckpointApproverView) string {
+	if a.Expected == "" {
+		return ""
+	}
+	line := tview.Escape(i18n.Tf("tui.checkpoint.approver", a.Expected))
+	switch {
+	case a.Mismatch:
+		line += "\n  " + theme.ColorTag(theme.WarningHex) + tview.Escape(i18n.Tf("tui.checkpoint.approver_mismatch", firstText(a.Identity, "?"))) + theme.TagColor
+	case a.Identity != "":
+		line += "\n  " + muted(tview.Escape(i18n.Tf("tui.checkpoint.approver_you", a.Identity)))
+	}
+	return line
 }

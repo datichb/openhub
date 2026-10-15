@@ -48,6 +48,9 @@ type CheckpointVerifyView struct {
 	// the session (R3-remote); RemoteOK tells whether it let it pass.
 	Remote   string
 	RemoteOK bool
+	// NoOverride: oh never passes this checkpoint over a failed
+	// verification (merge checkpoint of a fan-out, CP-R3).
+	NoOverride bool
 }
 
 // CheckpointEvidenceView is an evidence of the agent.
@@ -98,7 +101,12 @@ func writeCheckpointVerify(b *strings.Builder, v CheckpointVerifyView, section f
 				b.WriteString("    " + muted(tview.Escape(clipText(l, 200))) + "\n")
 			}
 		}
-		if v.Failed() {
+		switch {
+		case v.Failed() && v.NoOverride:
+			b.WriteString("  " + theme.ColorTag(theme.WarningHex) + i18n.T("tui.checkpoint.verify.blocked") + theme.TagColor + "\n")
+			b.WriteString("  " + muted(i18n.T("tui.checkpoint.verify.no_override_hint")) + "\n")
+		case v.Failed():
+			b.WriteString("  " + theme.ColorTag(theme.WarningHex) + i18n.T("tui.checkpoint.verify.blocked") + theme.TagColor + "\n")
 			b.WriteString("  " + muted(i18n.T("tui.checkpoint.verify.override_hint")) + "\n")
 		}
 	}
@@ -138,7 +146,7 @@ func writeCheckpointVerify(b *strings.Builder, v CheckpointVerifyView, section f
 // checkpointExtraChoices are the choices added to the decision form: the
 // override of a failed verification.
 func checkpointExtraChoices(v CheckpointVerifyView) []SelectOption {
-	if !v.Failed() {
+	if !v.Failed() || v.NoOverride {
 		return nil
 	}
 	return []SelectOption{{Label: i18n.T("tui.checkpoint.choice.override"), Value: checkpointOverride}}
@@ -151,4 +159,61 @@ func checkpointDefaultChoice(v CheckpointVerifyView) string {
 		return checkpointFix
 	}
 	return checkpointApprove
+}
+
+// verifyFailedActions are the first actions of the card of a checkpoint
+// whose verification failed: « Corriger » (an instruction to the agent)
+// and « Passer outre… » (a reason, a confirmation, traced), absent where oh
+// forbids it (merge checkpoint of a fan-out).
+func (v *SessionsView) verifyFailedActions(r *SessionRow, d *SessionDecision, c CheckpointCardView) []ModalAction {
+	if !c.Verify.Failed() || v.shell == nil {
+		return nil
+	}
+	dec := *d
+	cp := firstText(c.Checkpoint, d.Summary)
+	agent := ""
+	if r != nil {
+		agent = r.Agent
+	}
+	fixLabel := i18n.T("tui.checkpoint.fix_action")
+	if agent != "" {
+		fixLabel = i18n.Tf("tui.checkpoint.fix_action_to", agent)
+	}
+	actions := []ModalAction{{Label: fixLabel, Callback: func() {
+		v.shell.ShowInputModal(i18n.Tf("tui.checkpoint.fix_title", cp), "", func(msg string) {
+			msg = strings.TrimSpace(msg)
+			if msg == "" {
+				v.toast(i18n.T("tui.checkpoint.message_required"), false)
+				return
+			}
+			v.decide(&dec, checkpointFix, msg, nil)
+		})
+		v.trackDecision(dec.ID)
+	}}}
+	if !c.Verify.NoOverride {
+		actions = append(actions, ModalAction{Label: i18n.T("tui.checkpoint.override_action"), Danger: true, Callback: func() {
+			v.overrideCheckpoint(&dec, cp, c.Verify)
+		}})
+	}
+	return actions
+}
+
+// overrideCheckpoint asks the reason of an override, then its
+// confirmation; the reason is traced with the validation.
+func (v *SessionsView) overrideCheckpoint(d *SessionDecision, cp string, verify CheckpointVerifyView) {
+	dec := *d
+	v.shell.ShowInputModal(i18n.Tf("tui.checkpoint.override_reason", cp), "", func(reason string) {
+		reason = strings.TrimSpace(reason)
+		if reason == "" {
+			v.toast(i18n.T("tui.checkpoint.override_reason_required"), false)
+			return
+		}
+		detail := tview.Escape(firstText(verify.Summary, i18n.T("tui.checkpoint.verify.status.fail"))) + "\n\n" +
+			tview.Escape(i18n.Tf("tui.checkpoint.override_detail", reason))
+		v.shell.Confirm(i18n.Tf("tui.checkpoint.override_confirm", cp), detail, true, func() {
+			v.decide(&dec, checkpointOverride, reason, nil)
+		})
+		v.trackDecision(dec.ID)
+	})
+	v.trackDecision(dec.ID)
 }

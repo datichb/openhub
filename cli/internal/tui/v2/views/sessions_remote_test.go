@@ -120,7 +120,7 @@ func TestSessionsFetchAndConflictWindow(t *testing.T) {
 	onLoop(func() {
 		v.Focus("ses_r2")
 		v.render()
-		v.HandleKey(tcell.NewEventKey(tcell.KeyRune, 'g', 0))
+		v.HandleKey(tcell.NewEventKey(tcell.KeyRune, 'R', 0))
 	})
 	assert.Empty(t, be.fetched)
 
@@ -128,7 +128,7 @@ func TestSessionsFetchAndConflictWindow(t *testing.T) {
 	onLoop(func() {
 		v.Focus("ses_r1")
 		v.render()
-		v.HandleKey(tcell.NewEventKey(tcell.KeyRune, 'g', 0))
+		v.HandleKey(tcell.NewEventKey(tcell.KeyRune, 'R', 0))
 	})
 	require.Eventually(t, func() bool { _, _, n := sh.last(); return n == 1 }, 3*time.Second, 20*time.Millisecond)
 	title, acts, _ := sh.last()

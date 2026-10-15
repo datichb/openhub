@@ -33,8 +33,14 @@ func (b *batchSessions) ApplyBatch(_ context.Context, choices []BatchChoice) ([]
 	defer b.bmu.Unlock()
 	b.applied = append(b.applied, choices...)
 	var out []BatchResult
-	for i, c := range choices {
-		r := BatchResult{BatchDecision: b.items[i], Action: c.Action}
+	for _, c := range choices {
+		var d BatchDecision
+		for _, it := range b.items {
+			if it.ID == c.ID {
+				d = it
+			}
+		}
+		r := BatchResult{BatchDecision: d, Action: c.Action}
 		if c.ID == "checkpoint:ses_c2:1" && c.Action == BatchApprove {
 			r.Error = "verification failed"
 		}
@@ -69,103 +75,190 @@ func (s *batchShell) ShowToastMsg(msg string, _ bool) {
 	s.toasts = append(s.toasts, msg)
 }
 
-// R6, CP-R6: B lists every checkpoint waiting in the fan-out of the
-// selection, each one validated, left waiting or refused with its
-// instruction; nothing is answered before the confirmation, and the
-// answer of each one is shown.
-func TestSessionsBatch(t *testing.T) {
-	now := time.Now()
-	be := &batchSessions{fakeSessions: fakeSessions{rows: []SessionRow{
-		{ID: "ses_parent", Workflow: "implement-spec", Agent: "orchestrator-dev", State: "waiting", Started: now,
-			Decisions: []SessionDecision{{ID: "checkpoint:ses_parent:1", SessionID: "ses_parent", Kind: DecisionKindCheckpoint, Summary: "cp-merge", Created: now}}},
-		{ID: "ses_c1", Workflow: "ticket", Agent: "orchestrator-dev", State: "waiting", Started: now},
-		{ID: "ses_c2", Workflow: "ticket", Agent: "orchestrator-dev", State: "waiting", Started: now},
-	}}, items: []BatchDecision{
-		{ID: "checkpoint:ses_parent:1", SessionID: "ses_parent", Checkpoint: "cp-merge", Summary: "2 enfants mergés", Verify: "pass"},
-		{ID: "checkpoint:ses_c1:1", SessionID: "ses_c1", Checkpoint: "cp-seams", Summary: "points d'injection"},
-		{ID: "checkpoint:ses_c2:1", SessionID: "ses_c2", Checkpoint: "cp-seams", Summary: "tests prévus"},
-	}}
-	sh := &batchShell{}
-	v := NewSessionsView(SessionsViewConfig{Backend: be})
-	v.SetShell(sh)
+// dialogShell answers the prompts of the view: the next answer of the
+// input modals, the value chosen in the select modals.
+type dialogShell struct {
+	batchShell
+	dmu     sync.Mutex
+	inputs  []string // titles asked
+	answers []string
+	selects []string
+	choose  string
+	danger  bool
+}
+
+func (s *dialogShell) ShowInputModal(title, _ string, done func(string)) {
+	s.dmu.Lock()
+	s.inputs = append(s.inputs, title)
+	var a string
+	if len(s.answers) > 0 {
+		a, s.answers = s.answers[0], s.answers[1:]
+	}
+	s.dmu.Unlock()
+	done(a)
+}
+
+func (s *dialogShell) ShowSelectModal(title string, _ []SelectOption, _ string, done func(string)) {
+	s.dmu.Lock()
+	s.selects = append(s.selects, title)
+	c := s.choose
+	s.dmu.Unlock()
+	done(c)
+}
+
+func (s *dialogShell) Confirm(title, detail string, danger bool, onYes func()) {
+	s.dmu.Lock()
+	s.danger = danger
+	s.dmu.Unlock()
+	s.batchShell.Confirm(title, detail, danger, onYes)
+}
+
+func (s *dialogShell) answer(a ...string) {
+	s.dmu.Lock()
+	defer s.dmu.Unlock()
+	s.answers = append(s.answers, a...)
+}
+
+// harness mounts the view in a running application; onLoop runs on its
+// event loop.
+func harness(t *testing.T, v *SessionsView, rows []SessionRow) func(func()) {
+	t.Helper()
 	sim := tcell.NewSimulationScreen("")
 	require.NoError(t, sim.Init())
+	sim.SetSize(140, 40)
 	app := tview.NewApplication().SetScreen(sim)
 	content := tview.NewFlex()
 	app.SetRoot(content, true)
 	done := make(chan struct{})
 	go func() { _ = app.Run(); close(done) }()
-	t.Cleanup(func() { app.Stop(); <-done })
 	onLoop := func(fn func()) {
 		ch := make(chan struct{})
 		app.QueueUpdateDraw(func() { fn(); close(ch) })
 		<-ch
 	}
-	onLoop(func() { v.Mount(content, app); v.rows = be.rows; v.render() })
-	onLoop(func() {
-		v.selectKey("s:ses_c1")
-		v.HandleKey(tcell.NewEventKey(tcell.KeyRune, 'B', 0))
-	})
-	var form *InlineFormConfig
-	require.Eventually(t, func() bool {
-		sh.mu.Lock()
-		defer sh.mu.Unlock()
-		form = sh.form
-		return form != nil
-	}, 3*time.Second, 10*time.Millisecond)
-	scope, _ := be.state()
-	assert.Equal(t, []string{"ses_c1"}, scope, "the fan-out of the selection")
-	require.Len(t, form.Fields, 6, "a choice and an instruction per checkpoint")
-	assert.Contains(t, form.Fields[0].Label, "cp-merge")
-	assert.Contains(t, form.Fields[0].Label, "implement-spec")
-	assert.Contains(t, form.Fields[0].Label, "pass")
-
-	// A refusal without its instruction is not submitted.
-	onLoop(func() {
-		form.OnSubmit(map[string]string{"a:checkpoint:ses_parent:1": BatchReject}, nil)
-	})
-	sh.cmu.Lock()
-	assert.Nil(t, sh.confirm)
-	assert.NotEmpty(t, sh.toasts)
-	sh.cmu.Unlock()
-
-	onLoop(func() {
-		form.OnSubmit(map[string]string{
-			"a:checkpoint:ses_parent:1": BatchReject, "m:checkpoint:ses_parent:1": "relancer les tests",
-			"a:checkpoint:ses_c1:1": BatchKeep,
-			"a:checkpoint:ses_c2:1": BatchApprove,
-		}, nil)
-	})
-	sh.cmu.Lock()
-	confirm, title, detail := sh.confirm, sh.ctitle, sh.cdetail
-	sh.cmu.Unlock()
-	require.NotNil(t, confirm, "confirmation first")
-	_, applied := be.state()
-	assert.Empty(t, applied, "nothing answered before the confirmation")
-	assert.Contains(t, title, "1")
-	assert.Contains(t, detail, "relancer les tests")
-
-	onLoop(confirm)
-	require.Eventually(t, func() bool { _, a := be.state(); return len(a) == 3 }, 3*time.Second, 10*time.Millisecond)
-	_, applied = be.state()
-	assert.Equal(t, BatchChoice{ID: "checkpoint:ses_parent:1", Action: BatchReject, Message: "relancer les tests"}, applied[0])
-	assert.Equal(t, BatchKeep, applied[1].Action)
-	assert.Equal(t, BatchApprove, applied[2].Action)
-	require.Eventually(t, func() bool {
-		title, body, _ := sh.modal()
-		return title != "" && strings.Contains(body, "verification failed")
-	}, 3*time.Second, 10*time.Millisecond)
-	title, _, _ = sh.modal()
-	assert.Contains(t, title, "2")
-	onLoop(func() { v.Unmount() })
+	t.Cleanup(func() { onLoop(func() { v.Unmount() }); app.Stop(); <-done })
+	onLoop(func() { v.Mount(content, app); v.rows = rows; v.render() })
+	return onLoop
 }
 
-func TestBatchChoices(t *testing.T) {
-	items := []BatchDecision{{ID: "d1", Checkpoint: "cp-2"}, {ID: "d2"}}
-	got, err := batchChoices(items, map[string]string{"a:d1": "weird"})
-	assert.Empty(t, err)
-	assert.Equal(t, BatchKeep, got[0].Action, "an unknown choice answers nothing")
-	assert.Equal(t, BatchApprove, got[1].Action, "validated by default")
-	_, err = batchChoices(items, map[string]string{"a:d1": BatchReject, "m:d1": "  "})
-	assert.Contains(t, err, "cp-2")
+// press sends a key to the view, then to the focused list of the batch
+// (the table of the list gets the keys the view returns).
+func pressBatch(v *SessionsView, ev *tcell.EventKey) {
+	if v.HandleKey(ev) != nil && v.batch != nil {
+		v.batch.list.HandleKey(ev)
+	}
+}
+
+func batchRows() []SessionRow {
+	now := time.Now()
+	return []SessionRow{
+		{ID: "ses_parent", Workflow: "implement-spec", Agent: "orchestrator-dev", State: "waiting", Started: now, FanoutRole: FanoutRoleParent,
+			Decisions: []SessionDecision{{ID: "checkpoint:ses_parent:1", SessionID: "ses_parent", Kind: DecisionKindCheckpoint, Summary: "cp-merge", Created: now}}},
+		{ID: "ses_c1", Workflow: "ticket", Agent: "developer", State: "waiting", Started: now, FanoutRole: FanoutRoleChild, FanoutParent: "ses_parent",
+			Decisions: []SessionDecision{{ID: "checkpoint:ses_c1:1", SessionID: "ses_c1", Kind: DecisionKindCheckpoint, Summary: "cp-seams", Created: now}}},
+		{ID: "ses_c2", Workflow: "ticket", Agent: "developer", State: "waiting", Started: now, FanoutRole: FanoutRoleChild, FanoutParent: "ses_parent",
+			Decisions: []SessionDecision{{ID: "checkpoint:ses_c2:1", SessionID: "ses_c2", Kind: DecisionKindCheckpoint, Summary: "cp-seams", Created: now}}},
+	}
+}
+
+// R6, CP-R6: B shows the checkpoints of the fan-out of the selection in
+// place of the list, filtered by checkpoint (/, as --checkpoint); a failed
+// verification is not validated in the batch (Enter opens its card); the
+// choices are y/s/n (refusal with its instruction); C confirms; only the
+// lines of the filter are answered, and the answer of each is shown.
+func TestSessionsBatch(t *testing.T) {
+	frLocale(t)
+	be := &batchSessions{fakeSessions: fakeSessions{rows: batchRows()}, items: []BatchDecision{
+		{ID: "checkpoint:ses_parent:1", SessionID: "ses_parent", Checkpoint: "cp-merge", Summary: "2 enfants mergés", Verify: "pass"},
+		{ID: "checkpoint:ses_c1:1", SessionID: "ses_c1", Checkpoint: "cp-seams", Summary: "points d'injection", Verify: "pass",
+			Approver: "Grace Hopper", Identity: "Ada", ApproverMismatch: true},
+		{ID: "checkpoint:ses_c2:1", SessionID: "ses_c2", Checkpoint: "cp-seams", Summary: "tests prévus", Verify: "fail"},
+	}}
+	sh := &dialogShell{}
+	v := NewSessionsView(SessionsViewConfig{Backend: be})
+	v.SetShell(sh)
+	onLoop := harness(t, v, be.rows)
+	onLoop(func() {
+		v.selectKey("d:checkpoint:ses_c1:1")
+		v.HandleKey(key('B'))
+	})
+	require.Eventually(t, func() bool { var ok bool; onLoop(func() { ok = v.batch != nil }); return ok }, 3*time.Second, 10*time.Millisecond)
+	scope, _ := be.state()
+	assert.Equal(t, []string{"ses_c1"}, scope, "the fan-out of the selection")
+	onLoop(func() {
+		assert.True(t, v.CapturesInput(), "Esc closes the batch")
+		assert.Equal(t, "cp-seams", v.batch.filter, "the checkpoint of the decision selected")
+		assert.Equal(t, 2, v.batch.list.Len())
+		// The failed verification is left waiting and is not validated.
+		v.batch.list.Select("checkpoint:ses_c2:1")
+		pressBatch(v, key('y'))
+		assert.Equal(t, BatchKeep, v.batch.choice["checkpoint:ses_c2:1"].Action)
+		assert.NotEmpty(t, sh.toasts)
+		// n asks the instruction.
+		v.batch.list.Select("checkpoint:ses_c1:1")
+	})
+	sh.answer("relancer les tests")
+	onLoop(func() {
+		pressBatch(v, key('n'))
+		assert.Equal(t, BatchChoice{ID: "checkpoint:ses_c1:1", Action: BatchReject, Message: "relancer les tests"}, v.batch.choice["checkpoint:ses_c1:1"])
+		assertGolden(t, "sessions_batch_filtered", screenText(t, v.batch.root, 110, 16))
+	})
+
+	// / every checkpoint, then back to cp-seams.
+	onLoop(func() {
+		v.HandleKey(key('/'))
+		assert.Equal(t, 3, v.batch.list.Len())
+		sh.choose = "cp-seams"
+		v.HandleKey(key('/'))
+		assert.Equal(t, 2, v.batch.list.Len())
+	})
+
+	// Enter on the failed verification: its card.
+	onLoop(func() {
+		v.batch.list.Select("checkpoint:ses_c2:1")
+		pressBatch(v, tcell.NewEventKey(tcell.KeyEnter, 0, 0))
+	})
+	title, _, _ := sh.modal()
+	assert.Contains(t, title, "cp-seams")
+
+	// C: confirmation, then only the lines of the filter are answered.
+	onLoop(func() { v.HandleKey(key('C')) })
+	sh.cmu.Lock()
+	confirm, ctitle, detail := sh.confirm, sh.ctitle, sh.cdetail
+	sh.cmu.Unlock()
+	require.NotNil(t, confirm)
+	_, applied := be.state()
+	assert.Empty(t, applied, "nothing answered before the confirmation")
+	assert.Contains(t, ctitle, "refuser 1")
+	assert.Contains(t, detail, "relancer les tests")
+	onLoop(confirm)
+	require.Eventually(t, func() bool { _, a := be.state(); return len(a) == 2 }, 3*time.Second, 10*time.Millisecond)
+	_, applied = be.state()
+	assert.Equal(t, BatchReject, applied[0].Action)
+	assert.Equal(t, BatchKeep, applied[1].Action)
+	require.Eventually(t, func() bool { title, _, _ := sh.modal(); return strings.Contains(title, "Lot") }, 3*time.Second, 10*time.Millisecond)
+	onLoop(func() {
+		assert.Nil(t, v.batch, "the list is back")
+		assert.False(t, v.CapturesInput())
+	})
+}
+
+// Esc closes the batch without answering anything.
+func TestSessionsBatchCancel(t *testing.T) {
+	be := &batchSessions{fakeSessions: fakeSessions{rows: batchRows()}, items: []BatchDecision{
+		{ID: "checkpoint:ses_parent:1", SessionID: "ses_parent", Checkpoint: "cp-merge"},
+	}}
+	sh := &dialogShell{}
+	v := NewSessionsView(SessionsViewConfig{Backend: be})
+	v.SetShell(sh)
+	onLoop := harness(t, v, be.rows)
+	onLoop(func() { v.selectKey("s:ses_parent"); v.HandleKey(key('B')) })
+	require.Eventually(t, func() bool { var ok bool; onLoop(func() { ok = v.batch != nil }); return ok }, 3*time.Second, 10*time.Millisecond)
+	onLoop(func() {
+		assert.Empty(t, v.batch.filter, "no decision selected: every checkpoint")
+		v.HandleKey(tcell.NewEventKey(tcell.KeyEscape, 0, 0))
+		assert.Nil(t, v.batch)
+	})
+	_, applied := be.state()
+	assert.Empty(t, applied)
 }

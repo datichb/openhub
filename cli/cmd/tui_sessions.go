@@ -299,6 +299,10 @@ func (t *tuiSessions) List(ctx context.Context, projectID string, all bool) ([]v
 			r.Decisions = append(r.Decisions, toViewDecision(d))
 		}
 		r.Timeline = sessionTimeline(ctx, svc, s.ID)
+		r.Outputs = sessionOutputs(s.Outputs)
+		if f := s.Fanout; f != nil {
+			r.FanoutRole, r.FanoutParent, r.FanoutLine = string(f.Role), f.Parent, fanoutLine(&s)
+		}
 		rows = append(rows, r)
 	}
 	return t.decorateRemote(ctx, rows), nil
@@ -377,8 +381,20 @@ func (t *tuiSessions) Decide(ctx context.Context, decisionID, choice, message st
 			return err
 		}
 	}
-	return decisionError(svc.Decide(ctx, reply))
+	err = svc.Decide(ctx, reply)
+	if errors.Is(err, checkpoint.ErrOverrideRequired) {
+		// The view opens the card (« Corriger », « Passer outre… »).
+		return overrideRequired{err}
+	}
+	return decisionError(err)
 }
+
+// overrideRequired is a validation refused by the verification of the
+// checkpoint: its message, matched by views.ErrOverrideRequired.
+type overrideRequired struct{ err error }
+
+func (e overrideRequired) Error() string        { return e.err.Error() }
+func (e overrideRequired) Is(target error) bool { return target == views.ErrOverrideRequired }
 
 func (t *tuiSessions) Send(ctx context.Context, sessionID, text string) error {
 	svc, err := t.service(ctx)
