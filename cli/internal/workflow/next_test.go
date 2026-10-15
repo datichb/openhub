@@ -140,6 +140,10 @@ func TestValidate_SessionFrom(t *testing.T) {
 		{"unknown output", "  tickets: { type: beads-ids, from: session.output(from.branch) }\n", "input_from_unknown_output"},
 		{"type", "  tickets: { type: int, from: session.output(from.tickets) }\n", "input_from_type"},
 		{"invalid", "  tickets: { type: beads-ids, from: session.input(tickets) }\n", "input_from_invalid"},
+		// p6-debts: from_equals narrows the sessions read
+		{"from_equals", "  tickets: { type: beads-ids, from: session.output(from.tickets), from_equals: { tickets: x } }\n", ""},
+		{"from_equals unknown output", "  tickets: { type: beads-ids, from: session.output(from.tickets), from_equals: { type: x } }\n", "input_from_unknown_output"},
+		{"from_equals not a session output", "  digest: { type: text, from: session.trace(), from_equals: { type: x } }\n", "input_from_equals"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

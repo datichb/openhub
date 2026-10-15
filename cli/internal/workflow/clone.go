@@ -22,6 +22,7 @@ func (s *Spec) Clone() *Spec {
 		in.Help = in.Help.clone()
 		in.Values = cloneSlice(in.Values)
 		in.Picker = clonePtr(in.Picker)
+		in.FromEquals = cloneMap(in.FromEquals)
 		return in
 	})
 	c.Prompt = clonePtr(s.Prompt)

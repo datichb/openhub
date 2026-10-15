@@ -31,14 +31,27 @@ func sessionInputSources(a *app.App, note func(string)) map[string]workflowsvc.I
 		note = func(string) {}
 	}
 	return map[string]workflowsvc.InputSource{
-		workflow.SourceSessionOutput: func(ctx context.Context, c workflowsvc.Context, arg string) (string, error) {
+		workflow.SourceSessionOutput: func(ctx context.Context, c workflowsvc.Context, full string) (string, error) {
+			arg, equals := workflowsvc.ParseFromArg(full)
 			wfID, out, _ := strings.Cut(arg, ".")
-			sess, err := pickSession(ctx, a, c, wfID, func(s *domain.Session) bool { return outputText(s.Outputs[out]) != "" })
+			sess, err := pickSession(ctx, a, c, wfID, func(s *domain.Session) bool {
+				if outputText(s.Outputs[out]) == "" {
+					return false
+				}
+				// p6-debts: only the sessions whose outputs match (from_equals).
+				for k, want := range equals {
+					if outputText(s.Outputs[k]) != want {
+						return false
+					}
+				}
+				return true
+			})
 			if err != nil {
+				note(i18n.Tf("cmd.run.input_from_session_none", workflow.SourceSessionOutput+"("+full+")"))
 				return "", err
 			}
 			v := outputText(sess.Outputs[out])
-			note(i18n.Tf("cmd.run.input_from_session", workflow.SourceSessionOutput+"("+arg+")", sess.ID, v))
+			note(i18n.Tf("cmd.run.input_from_session", workflow.SourceSessionOutput+"("+full+")", sess.ID, v))
 			// B1: a report goes on as its content (the findings of an audit).
 			if sessionOutputType(ctx, c, sess.WorkflowID, out) == workflow.OutputReport {
 				return sessionReportBody(ctx, a, sess.ID, v)

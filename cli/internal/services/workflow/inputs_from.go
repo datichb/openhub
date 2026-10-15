@@ -3,6 +3,8 @@ package workflow
 import (
 	"context"
 	"fmt"
+	"net/url"
+	"sort"
 	"strings"
 
 	wf "github.com/datichb/openhub/cli/internal/workflow"
@@ -57,6 +59,42 @@ func (s *Service) ComputeInputs(ctx context.Context, c Context, sp *wf.Spec, val
 	return nil
 }
 
+// FromEqualsSuffix encodes the `from_equals` of an input after the
+// argument of its session source: "?k=v&k2=v2" (sorted, "" without).
+func FromEqualsSuffix(eq map[string]string) string {
+	if len(eq) == 0 {
+		return ""
+	}
+	keys := make([]string, 0, len(eq))
+	for k := range eq {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	q := url.Values{}
+	for _, k := range keys {
+		q.Set(k, eq[k])
+	}
+	return "?" + q.Encode()
+}
+
+// ParseFromArg splits the argument of a session source into the argument
+// and its `from_equals`.
+func ParseFromArg(arg string) (string, map[string]string) {
+	base, query, ok := strings.Cut(arg, "?")
+	if !ok {
+		return arg, nil
+	}
+	q, err := url.ParseQuery(query)
+	if err != nil {
+		return base, map[string]string{"": ""} // matches nothing
+	}
+	eq := map[string]string{}
+	for k := range q {
+		eq[k] = q.Get(k)
+	}
+	return base, eq
+}
+
 func given(v any) bool {
 	if v == nil {
 		return false
@@ -84,6 +122,7 @@ func (s *Service) computeFromSession(ctx context.Context, c Context, k string, i
 	if f.Output != "" {
 		arg += "." + f.Output
 	}
+	arg += FromEqualsSuffix(in.FromEquals)
 	v, err := fn(ctx, c, arg)
 	if err != nil {
 		if in.Required && in.Default == nil {

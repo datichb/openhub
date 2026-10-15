@@ -219,6 +219,10 @@ type Input struct {
 	// "<source>(<input>)", e.g. "mr.discussions(mr)" (additive, QB2;
 	// sources: InputSources).
 	From string `yaml:"from,omitempty"`
+	// FromEquals (p6-debts) narrows a `from: session.output(…)` to the
+	// sessions whose outputs listed were recorded with these values (the
+	// last security audit: { type: security }).
+	FromEquals map[string]string `yaml:"from_equals,omitempty"`
 }
 
 // InputSources are the sources of computed inputs (`from:`), computed by

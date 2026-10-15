@@ -226,6 +226,9 @@ func (v *validator) sessionFrom(at string, in Input) {
 		v.err("input_from_invalid", at, in.From)
 		return
 	}
+	if len(in.FromEquals) > 0 && f.Source != SourceSessionOutput {
+		v.err("input_from_equals", at+".from_equals", in.From)
+	}
 	switch f.Source {
 	case SourceSessionTrace:
 		if in.Type != InputText {
@@ -254,6 +257,11 @@ func (v *validator) sessionFrom(at string, in Input) {
 		}
 		if !OutputFits(out.Type, in.Type) {
 			v.err("input_from_type", at, in.From, string(in.Type), string(out.Type))
+		}
+		for _, k := range sortedKeys(in.FromEquals) {
+			if _, ok := sp.Output(k); !ok {
+				v.err("input_from_unknown_output", at+".from_equals", k, f.Workflow, outputIDs(sp))
+			}
 		}
 	}
 }
