@@ -103,3 +103,26 @@ func TestImpactAnyAddedModeWidens(t *testing.T) {
 		assert.Equal(t, "mode_added", w[0].Code)
 	}
 }
+
+// CP-R9: dropping the approver of a checkpoint widens the workflow (a draft
+// that does it is refused); setting or changing it is shown.
+func TestImpactApprover(t *testing.T) {
+	with := specOf(t, "apiVersion: oh/v1\nkind: Workflow\nid: x\ncheckpoints:\n  cp-1: { approver: [Ada, Bob], mode: { manuel: pause } }\n")
+	without := specOf(t, "apiVersion: oh/v1\nkind: Workflow\nid: x\ncheckpoints:\n  cp-1: { mode: { manuel: pause } }\n")
+	other := specOf(t, "apiVersion: oh/v1\nkind: Workflow\nid: x\ncheckpoints:\n  cp-1: { approver: Bob, mode: { manuel: pause } }\n")
+
+	removed := impactOf(with, without, nil)
+	w := removed.Widenings()
+	if assert.Len(t, w, 1) {
+		assert.Equal(t, "checkpoint_approver_removed", w[0].Code)
+		assert.Equal(t, "checkpoints.cp-1.approver", w[0].Path)
+		assert.Contains(t, w[0].Message, "Ada, Bob")
+	}
+	for _, r := range []*ImpactReport{new(impactOf(without, with, nil)), new(impactOf(with, other, nil))} {
+		assert.Empty(t, r.Widenings())
+		if assert.Len(t, r.Items, 1) {
+			assert.Equal(t, "checkpoint_approver_set", r.Items[0].Code)
+		}
+	}
+	assert.Empty(t, impactOf(with, with, nil).Items)
+}

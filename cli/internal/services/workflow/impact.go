@@ -213,6 +213,17 @@ func impactCheckpoints(r *ImpactReport, f, t *wf.Spec) {
 				r.add(ImpactWiden, "checkpoint_loosened", base+".mode."+m, id, m, fb, tb)
 			}
 		}
+		// CP-R9: the approver of a checkpoint.
+		switch {
+		case len(fc.Approver) > 0 && len(tc.Approver) == 0:
+			r.add(ImpactWiden, "checkpoint_approver_removed", base+".approver", id, fc.Approver.String())
+		case !slices.Equal(fc.Approver, tc.Approver):
+			was := fc.Approver.String()
+			if was == "" {
+				was = "—"
+			}
+			r.add(ImpactInfo, "checkpoint_approver_set", base+".approver", id, was, tc.Approver.String())
+		}
 	}
 	for _, id := range t.Checkpoints.Keys() {
 		if _, ok := f.Checkpoints.Get(id); !ok {

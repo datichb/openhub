@@ -53,6 +53,7 @@ func (s *Spec) Clone() *Spec {
 		cp.Verify = cp.Verify.clone()
 		cp.When = cp.When.clone()
 		cp.By = cloneSlice(cp.By)
+		cp.Approver = cloneSlice(cp.Approver)
 		cp.Tasks = cp.Tasks.clone()
 		return cp
 	})

@@ -46,7 +46,10 @@ func newTestService(t *testing.T) (*Service, context.Context) {
 	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1','p1','/p1')`)
 	require.NoError(t, err)
 	cs := sqlite.NewCheckpointStore(st)
-	svc := &Service{Sessions: sqlite.NewSessionStore(st), States: cs, SessionOutputs: cs, BundlesDir: t.TempDir(), SessionsDir: t.TempDir(), ApprovalWait: 20 * time.Millisecond}
+	svc := &Service{Sessions: sqlite.NewSessionStore(st), States: cs, SessionOutputs: cs, BundlesDir: t.TempDir(), SessionsDir: t.TempDir(), ApprovalWait: 20 * time.Millisecond,
+		Identity: func(context.Context, string) Identity {
+			return Identity{Name: "Ada Lovelace", Email: "ada@example.com"}
+		}}
 	writeBundle(t, svc.BundlesDir, "h_wf", &TestWorkflow)
 	writeBundle(t, svc.BundlesDir, "h_plain", nil)
 	ctx := context.Background()

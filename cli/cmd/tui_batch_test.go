@@ -31,3 +31,12 @@ func TestChoicesBatch(t *testing.T) {
 		assert.Equal(t, sessionsvc.BatchKeep, got[2].Action, "an unknown action answers nothing")
 	}
 }
+
+func TestApprovingChoices(t *testing.T) {
+	for _, c := range []string{"", "once", "approve", "override", "always"} {
+		assert.True(t, approving(c), c)
+	}
+	for _, c := range []string{"fix", "other", "reject"} {
+		assert.False(t, approving(c), c)
+	}
+}

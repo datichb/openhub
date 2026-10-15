@@ -741,7 +741,9 @@ func (s *Service) verifyGate(ctx context.Context, sess *domain.Session, c sessio
 	}
 	if approved && ap.Override {
 		_, err = s.update(ctx, sess.ID, func(st *domain.CheckpointState) error {
-			s.record(st, domain.CheckpointOverridden, c.ID, ap.By, firstNonEmpty(ap.Message, VerifySummary(r)))
+			o := ap
+			o.Message = firstNonEmpty(ap.Message, VerifySummary(r))
+			s.recordApproval(st, domain.CheckpointOverridden, c.ID, o, c.Approver)
 			return nil
 		})
 		return err

@@ -16,6 +16,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/bricks"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
@@ -94,6 +95,12 @@ type TraceEvent struct {
 	// Checkpoint timeline.
 	Event string `json:"event,omitempty"`
 	By    string `json:"by,omitempty"`
+	// Identity is the person who validated or refused the checkpoint;
+	// Approver are the approvers it names and ApproverMismatch tells a
+	// validation out of approver (CP-R9).
+	Identity         string   `json:"identity,omitempty"`
+	Approver         []string `json:"approver,omitempty"`
+	ApproverMismatch bool     `json:"approver_mismatch,omitempty"`
 
 	// Usage and end of a loop.
 	Cost      float64 `json:"cost,omitempty"`
@@ -166,7 +173,8 @@ func (s *Service) Trace(ctx context.Context, sessionID string, o TraceOptions) (
 	if s.Checkpoints != nil {
 		if st, err := s.Checkpoints.State(ctx, sess.ID); err == nil {
 			for _, c := range st.Timeline {
-				evs = append(evs, TraceEvent{Time: c.At, Kind: TraceCheckpoint, Event: c.Kind, Checkpoint: c.ID, By: c.By, Text: c.Message})
+				evs = append(evs, TraceEvent{Time: c.At, Kind: TraceCheckpoint, Event: c.Kind, Checkpoint: c.ID, By: c.By, Text: c.Message,
+					Identity: c.Identity, Approver: c.Approver, ApproverMismatch: c.ApproverMismatch})
 			}
 		}
 	}
@@ -428,6 +436,7 @@ func decisionEvent(d domain.Decision) TraceEvent {
 	if ag, ok := d.Payload.Data["agent"].(string); ok {
 		ev.Agent = ag
 	}
+	ev.Approver = checkpoint.PayloadApprover(d.Payload.Data)
 	if len(d.Payload.Fields) > 0 {
 		var fields []any
 		for _, f := range d.Payload.Fields {

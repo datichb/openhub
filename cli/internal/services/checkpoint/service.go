@@ -11,6 +11,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/bundle"
@@ -44,6 +45,12 @@ type Service struct {
 	// ApprovalWait bounds the wait for the tool approval of a paused
 	// checkpoint (0 = 3 s).
 	ApprovalWait time.Duration
+	// Identity names the person who validates a checkpoint of a session
+	// working in dir (nil = git user.name and user.email of dir, else the
+	// login name; CP-R9, ADR-052).
+	Identity   func(ctx context.Context, dir string) Identity
+	identityMu sync.Mutex
+	identities map[string]cachedIdentity
 
 	// R3 (verify.go, when.go): verification run by oh and conditions.
 	// Exec runs a verification command (nil = exec); Fingerprint and

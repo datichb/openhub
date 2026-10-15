@@ -13,7 +13,7 @@
 %% oh is the control tower: it resolves a workflow, builds a session bundle,
 %% starts one opencode server per group and supervises the sessions through
 %% its daemon (credential proxy, gateways, decisions, MCP servers of oh).
-%% See ADR-038 to ADR-053.
+%% See ADR-038 to ADR-055.
 
 flowchart LR
     U["fa:fa-user User"] -->|"oh run &lt;workflow&gt;<br/>TUI · oh session …"| CLI["fa:fa-terminal oh<br/>CLI + TUI"]
@@ -394,6 +394,7 @@ Implementing and diagnosing are given to different agents (developer, debugger);
 | [052](./adr/052-beads-identity-provenance.en.md) | Beads identity and provenance: `--readonly`, actor, provenance events | evolves 046 |
 | [053](./adr/053-fanout-control-substitution.en.md) | Fan-out: child sessions driven by oh and control substitution (CP-R3) | — |
 | [054](./adr/054-team-brick-catalogue.en.md) | Team brick catalogue: `oh brick`, governance and integrity (`catalog.lock`) | evolves 040, follows 051 |
+| [055](./adr/055-checkpoint-approver.en.md) | Human approver of a checkpoint (`approver:`, CP-R9), step 1 | — |
 
 All ADRs: [`docs/architecture/adr/`](./adr/).
 

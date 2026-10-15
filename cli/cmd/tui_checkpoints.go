@@ -48,6 +48,7 @@ func (t *tuiSessions) CheckpointCard(ctx context.Context, decisionID string) (vi
 		out.Reports = append(out.Reports, views.CheckpointReport{ID: r.ID(), Agent: r.Agent, Title: r.Title, Bytes: r.Bytes, At: r.CreatedAt})
 	}
 	out.Wiki = cardWiki(c.Wiki)
+	out.Approver = views.CheckpointApproverView{Expected: c.Approver.ApproverText(), Identity: c.Approver.Identity.String(), Mismatch: c.Approver.Mismatch}
 	return out, nil
 }
 

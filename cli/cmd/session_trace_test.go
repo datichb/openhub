@@ -28,3 +28,18 @@ func TestPrintTrace(t *testing.T) {
 		assert.Contains(t, out, want)
 	}
 }
+
+// CP-R9: who validated, and a validation out of approver.
+func TestPrintTraceApprover(t *testing.T) {
+	at := time.Date(2026, 10, 15, 9, 0, 0, 0, time.UTC)
+	tr := &sessionsvc.Trace{SessionID: "ses_a", Transcript: sessionsvc.TranscriptNone, Events: []sessionsvc.TraceEvent{
+		{Seq: 1, Time: at, Kind: sessionsvc.TraceCheckpoint, Event: "passed", Checkpoint: "cp-2", By: "oh",
+			Identity: "Ada Lovelace <ada@example.com>", Approver: []string{"Grace Hopper"}, ApproverMismatch: true},
+		{Seq: 2, Time: at, Kind: sessionsvc.TraceSummary, Data: map[string]any{}},
+	}}
+	var b bytes.Buffer
+	printTrace(&b, tr)
+	out := b.String()
+	assert.Contains(t, out, "Ada Lovelace <ada@example.com>")
+	assert.Contains(t, out, "Grace Hopper")
+}

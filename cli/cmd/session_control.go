@@ -129,6 +129,9 @@ var sessionApproveCmd = &cobra.Command{
 			return decisionError(err)
 		}
 		fmt.Fprintln(cmd.OutOrStdout(), i18n.Tf("cmd.session.decided", sessionsvc.DecisionSummary(*d), decision))
+		if d.Kind == domain.DecisionCheckpoint {
+			printApprover(cmd, approverOf(cmd.Context(), svc, *d), approving(decision))
+		}
 		return nil
 	},
 }

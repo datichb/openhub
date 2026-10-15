@@ -44,8 +44,10 @@ func (t *tuiSessions) BatchItems(ctx context.Context, sessionID string) ([]views
 }
 
 func batchDecisionView(ctx context.Context, svc *sessionsvc.Service, it sessionsvc.BatchItem) views.BatchDecision {
+	ac := approverOf(ctx, svc, it.Decision)
 	return views.BatchDecision{ID: it.Decision.ID, SessionID: it.Decision.SessionID, Checkpoint: it.Checkpoint,
-		Summary: sessionsvc.DecisionSummary(it.Decision), Verify: batchVerify(ctx, svc, it)}
+		Summary: sessionsvc.DecisionSummary(it.Decision), Verify: batchVerify(ctx, svc, it),
+		Approver: ac.ApproverText(), Identity: ac.Identity.String(), ApproverMismatch: ac.Mismatch}
 }
 
 func (t *tuiSessions) ApplyBatch(ctx context.Context, choices []views.BatchChoice) ([]views.BatchResult, error) {

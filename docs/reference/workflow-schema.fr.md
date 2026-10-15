@@ -400,6 +400,7 @@ L'id est en kebab-case (`checkpoint_id_invalid`) et ne doit pas être celui d'un
 | `verify` | objet | `from`, `kinds`, `cmd`, `expect`, `in`, `timeout`, `must_touch`, `must_touch_tests`, `outside_tests`, `since`, `spec` | pas de vérification | durcit (une vérification héritée ne se retire ni ne s'affaiblit) |
 | `when` | objet | `entry`, `labels`, `paths`, `outputs` | pas de condition | durcit (conditions héritées gardées) |
 | `by` | liste | agents membres du workflow | déduit du graphe : les agents qui lancent un agent verrouillé par ce checkpoint (`after:`), sinon l'agent d'entrée | remplace |
+| `approver` | identité ou liste | nom (`user.name` de git) ou e-mail, au plus 20 | aucun valideur | couche d'équipe seulement ; une couche de projet ne le retire ni ne le change |
 | `wiki` | texte | `sync` | la carte montre les propositions du wiki de la session | remplace |
 | `method` | texte | `tdd` | checkpoint de toutes les sessions | ne se pose pas sur un checkpoint hérité (`loosening`) ; un checkpoint ajouté peut en porter une |
 | `after` | texte | id d'un checkpoint déclaré avant | aucun ordre imposé | durcit : s'ajoute ou se reporte à un checkpoint déclaré plus loin, jamais retiré ni avancé (`loosening`) |
@@ -459,6 +460,20 @@ Une condition suffit. Un checkpoint `auto` met en pause quand une condition est 
 ```
 
 Les agents qui passent le checkpoint (CP-R11). Le contrat de session de chaque agent ne nomme que ses checkpoints, et la table générée des checkpoints ne montre à un agent que les siens. Quand un autre agent passe le checkpoint, oh le laisse passer, l'écrit dans son journal et ajoute un avertissement à la réponse de `workflow_checkpoint`. Tous les checkpoints des workflows livrés l'écrivent (test `TestCheckpointByMembers`). Diagnostics : `checkpoint_by_unknown` (erreur : pas un membre), `checkpoint_by_duplicate` (avertissement).
+
+### `approver` — valideur humain
+
+```yaml
+  cp-apply:
+    approver: [Grace Hopper, lead@example.com]   # ou : approver: Grace Hopper
+```
+
+Les personnes qui doivent valider le checkpoint (CP-R9, étape 1, [ADR-055](../architecture/adr/055-checkpoint-approver.fr.md)), à côté de `by:` pour l'agent. Une identité est un nom (`user.name` de git, l'identité de l'[ADR-052](../architecture/adr/052-beads-identity-provenance.fr.md)) ou une adresse e-mail (`user.email`, reconnue au `@`), sur une ligne, 100 caractères au plus ; comparée sans casse ni espaces en trop. Pas de rôle nommé : un rôle s'écrit comme la liste de ses membres.
+
+- **Couche d'équipe seulement** : écrit par le hub, une couche de projet (définition complète ou patch, même avec la valeur héritée) ou un brouillon de projet : `checkpoint_approver_layer` (erreur, la valeur de l'équipe est gardée). Une couche d'équipe qui étend un document d'équipe peut le changer.
+- **Ne fait que se durcir** hors couche d'équipe : retirer le checkpoint (`approver_checkpoint_removed`) ou le faire moins mettre en pause dans un mode (`loosening`) est refusé, comme pour un checkpoint obligatoire. Dans le résumé d'impact d'une publication, retirer un valideur est un assouplissement (un brouillon qui le fait est refusé au lancement) ; le changer est signalé.
+- **Effet** : en local, oh affiche le valideur sur la carte, avertit quand la personne qui valide n'en fait pas partie et trace la validation `approver_mismatch`, sans la refuser ; voir [Checkpoints](checkpoints.fr.md#valideur-humain-approver-cp-r9). `approver:` ne fait pas pauser un checkpoint : un checkpoint qui passe seul dans le mode de la session n'est soumis à personne.
+- Diagnostics : `checkpoint_approver_layer`, `approver_checkpoint_removed`, `checkpoint_approver_invalid`, `checkpoint_approver_max` (erreurs) ; `checkpoint_approver_duplicate`, `checkpoint_approver_no_pause` (aucun mode ne met en pause), `checkpoint_approver_remote_auto` (`remote: auto` : passé par la politique en session distante, tracé hors valideur) (avertissements) ; `expected_approver` (ni identité ni liste).
 
 ### `wiki` — synchronisation du wiki
 
@@ -701,6 +716,7 @@ next:
 - **Ordre** : hub < team < project < brouillon < session. Un brouillon n'est pas une couche : il remplace, pour son auteur et en local seulement, le document publié de sa couche ; il est refusé s'il assouplit la version publiée.
 - **Résolution** : oh suit `extends` jusqu'à la définition racine, applique chaque patch de la racine vers le document demandé, puis les options de session. Chaque valeur garde son origine (`oh workflow show <id> --origin`, éditeur de la TUI).
 - **Intégrité** : seuls les fichiers publiés dont l'empreinte correspond à `workflows.lock` sont chargés ; les autres sont ignorés avec un avertissement. Voir [Workflows d'équipe](../guides/team-workflows.fr.md#workflowslock-et-intégrité).
+- **Champs d'équipe** : le valideur humain d'un checkpoint (`approver:`, CP-R9) ne s'écrit que dans la couche d'équipe ; une couche de projet ne le retire ni ne le change (voir [`approver`](#approver--valideur-humain)).
 - Gouvernance, brouillons et publication : [ADR-040](../architecture/adr/040-workflows-team-state-governance.fr.md).
 
 ---
@@ -726,7 +742,7 @@ Un diagnostic a une gravité (erreur ou avertissement), un code, le chemin du ch
 | `writes_after_unknown`, `writes_after_without_writes`, `checkpoint_after_unknown`, `checkpoint_after_order`, `order_method_after` | ordre des écritures et des checkpoints (r5-fixes) |
 | `writes_path_invalid`, `writes_read_only` | chemin d'écriture hors de `docs/` ou avec un joker autre que `/**` ; `writes` dans un workflow `risk: read` |
 | `verify_spec_path_invalid` | chemin de `verify.spec` absolu ou hors de l'emplacement |
-| `checkpoint_agent_clash`, `checkpoint_mode_unknown`, `checkpoint_mode_missing`, `checkpoint_condition_missing`, `mandatory_checkpoint_removed`, `unlocking_checkpoint_removed`, `unlock_duplicate`, `unlock_again_first`, `unlock_again_without_commit`, `unlock_unknown`, `unlock_skip`, `unlock_push_without_publish`, `unlock_requires_publish`, `publish_checkpoint_remote`, `publish_checkpoint_pause`, `patch_unknown_checkpoint`, `checkpoint_by_unknown`, `checkpoint_by_duplicate`, `checkpoint_wiki_commit`, `headless_checkpoint_pause` | checkpoints |
+| `checkpoint_agent_clash`, `checkpoint_mode_unknown`, `checkpoint_mode_missing`, `checkpoint_condition_missing`, `mandatory_checkpoint_removed`, `unlocking_checkpoint_removed`, `unlock_duplicate`, `unlock_again_first`, `unlock_again_without_commit`, `unlock_unknown`, `unlock_skip`, `unlock_push_without_publish`, `unlock_requires_publish`, `publish_checkpoint_remote`, `publish_checkpoint_pause`, `patch_unknown_checkpoint`, `checkpoint_by_unknown`, `checkpoint_by_duplicate`, `checkpoint_approver_layer`, `approver_checkpoint_removed`, `checkpoint_approver_invalid`, `checkpoint_approver_max`, `checkpoint_approver_duplicate`, `checkpoint_approver_no_pause`, `checkpoint_approver_remote_auto`, `expected_approver`, `checkpoint_wiki_commit`, `headless_checkpoint_pause` | checkpoints |
 | `verify_empty`, `verify_cmd_template`, `verify_in_invalid`, `verify_timeout_invalid`, `verified_checkpoint_removed`, `when_empty`, `when_mandatory`, `when_unknown_agent`, `when_unknown_output`, `pause_budget_exceeded` | vérification lancée par oh, conditions, budget de pauses (R3) |
 | `fanout_input`, `fanout_tickets`, `fanout_parallel`, `fanout_unknown_workflow`, `fanout_child_self`, `fanout_child_nested`, `fanout_delegate_unknown`, `fanout_merge_unknown`, `fanout_merge_scope`, `fanout_merge_mandatory`, `fanout_merge_unlocks`, `fanout_merge_verify`, `fanout_merge_verify_on`, `fanout_merge_verify_expect`, `fanout_delegates_layer`, `checkpoint_fanout_without_fanout`, `unlock_merge_fanout_only`, `verify_on_integration_merge_only`, `fanout_inputs_parent`, `fanout_inputs_child`, `fanout_inputs_type`, `fanout_inputs_value`, `fanout_fix_input`, `fanout_fix_commit`, `fanout_tasks_tickets`, `fanout_tasks_checkpoint`, `fanout_tasks_mandatory`, `fanout_tasks_scope`, `fanout_tasks_after_merge`, `fanout_task_input`, `fanout_task_domain`, `fanout_inputs_reserved`, `agent_fanout_without_fanout`, `agent_fanout_entry`, `fanout_never_patched` (avertissement) | fan-out et substitution de contrôle (R6, sweep-fanout) |
 | `tasks_duplicate`, `tasks_max`, `output_record_tasks_unchecked` | découpage relevé par oh (sweep-fanout) |

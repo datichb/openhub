@@ -144,6 +144,8 @@ func runRunnerJob(cmd *cobra.Command, _ []string) error {
 	// once the clone is its own: never as root in a repository the agent
 	// configures, never with safe.directory (R3-remote-git).
 	checkpoints := newCheckpointService(a)
+	// In the job nobody validates: the remote policy answers (CP-R9).
+	checkpoints.Identity = checkpoint.JobIdentity
 	if user != nil {
 		checkpoints.Account = &checkpoint.Account{UID: user.UID, GID: user.GID, Home: serverHome}
 		gitutil.RegisterOwner(checkpoints.Account.Owner())

@@ -82,7 +82,7 @@ func jobCheckpoints(t *testing.T, clone string) (*checkpoint.Service, *verifyExe
 	require.NoError(t, err)
 	cs := sqlite.NewCheckpointStore(st)
 	svc := &checkpoint.Service{Sessions: sqlite.NewSessionStore(st), States: cs, SessionOutputs: cs, BundlesDir: t.TempDir(),
-		SessionsDir: t.TempDir(), ApprovalWait: 20 * time.Millisecond, VerifyWait: 2 * time.Second}
+		SessionsDir: t.TempDir(), ApprovalWait: 20 * time.Millisecond, VerifyWait: 2 * time.Second, Identity: checkpoint.JobIdentity}
 	wf := &sessionspec.WorkflowRuntime{ID: "ticket", DefaultMode: "semi-auto", Checkpoints: []sessionspec.CheckpointDef{
 		{ID: "cp-2", Label: map[string]string{"": "Commit"}, Behaviors: map[string]string{"semi-auto": "pause"}, Mandatory: true,
 			Unlocks: []string{sessionspec.UnlockCommit}, Verify: &sessionspec.VerifyDef{Cmd: []string{"make check"}, Expect: "pass", TimeoutSec: 60}},

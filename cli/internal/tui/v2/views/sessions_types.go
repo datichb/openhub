@@ -41,6 +41,8 @@ type SessionDecision struct {
 	Message   string
 	Created   time.Time
 	Fields    []SessionDecisionField
+	// Approver lists the approvers a checkpoint names (CP-R9, "" = none).
+	Approver string
 }
 
 // SessionRow is one session of the Sessions view.

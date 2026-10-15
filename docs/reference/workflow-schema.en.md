@@ -400,6 +400,7 @@ The id is in kebab-case (`checkpoint_id_invalid`) and must not be an agent id (`
 | `verify` | object | `from`, `kinds`, `cmd`, `expect`, `in`, `timeout`, `must_touch`, `must_touch_tests`, `outside_tests`, `since`, `spec` | no verification | hardens (an inherited verification is never removed nor weakened) |
 | `when` | object | `entry`, `labels`, `paths`, `outputs` | no condition | hardens (inherited conditions kept) |
 | `by` | list | member agents of the workflow | deduced from the graph: the agents that launch an agent gated by this checkpoint (`after:`), else the entry agent | replaces |
+| `approver` | identity or list | name (git `user.name`) or e-mail, at most 20 | no approver | team layer only; a project layer neither removes nor changes it |
 | `wiki` | text | `sync` | the card shows the wiki proposals of the session | replaces |
 | `method` | text | `tdd` | checkpoint of every session | not set on an inherited checkpoint (`loosening`); an added checkpoint may carry one |
 | `after` | text | id of a checkpoint declared before | no order enforced | hardens: added or moved to a checkpoint declared later, never removed nor moved earlier (`loosening`) |
@@ -459,6 +460,20 @@ One condition is enough. An `auto` checkpoint pauses when a condition holds; a `
 ```
 
 The agents that pass the checkpoint (CP-R11). Each agent's session contract names only its own checkpoints, and the generated checkpoint table shows an agent only its own. When another agent passes the checkpoint, oh lets it through, logs it and adds a warning to the `workflow_checkpoint` answer. Every checkpoint of the shipped workflows sets it (test `TestCheckpointByMembers`). Diagnostics: `checkpoint_by_unknown` (error: not a member), `checkpoint_by_duplicate` (warning).
+
+### `approver` — human approver
+
+```yaml
+  cp-apply:
+    approver: [Grace Hopper, lead@example.com]   # or: approver: Grace Hopper
+```
+
+The people who must validate the checkpoint (CP-R9, step 1, [ADR-055](../architecture/adr/055-checkpoint-approver.en.md)), next to `by:` for the agent. An identity is a name (git `user.name`, the identity of [ADR-052](../architecture/adr/052-beads-identity-provenance.en.md)) or an e-mail address (`user.email`, recognised by the `@`), on one line, at most 100 characters; compared ignoring case and extra spaces. No named role: a role is written as the list of its members.
+
+- **Team layer only**: written by the hub, a project layer (full definition or patch, even with the inherited value) or a project draft: `checkpoint_approver_layer` (error, the team value is kept). A team layer extending a team document may change it.
+- **Only hardens** outside the team layer: removing the checkpoint (`approver_checkpoint_removed`) or making it pause less in a mode (`loosening`) is refused, as for a mandatory checkpoint. In the impact summary of a publication, removing an approver is a widening (a draft that does it is refused at launch); changing it is shown.
+- **Effect**: on the machine, oh shows the approver on the card, warns when the person who validates is none of them and traces the validation `approver_mismatch`, without refusing it; see [Checkpoints](checkpoints.en.md#human-approver-approver-cp-r9). `approver:` does not make a checkpoint pause: a checkpoint that passes on its own in the session mode is submitted to nobody.
+- Diagnostics: `checkpoint_approver_layer`, `approver_checkpoint_removed`, `checkpoint_approver_invalid`, `checkpoint_approver_max` (errors); `checkpoint_approver_duplicate`, `checkpoint_approver_no_pause` (no mode pauses), `checkpoint_approver_remote_auto` (`remote: auto`: passed by the policy in a remote session, traced as out of approver) (warnings); `expected_approver` (neither an identity nor a list).
 
 ### `wiki` — synchronization of the wiki
 
@@ -701,6 +716,7 @@ next:
 - **Order**: hub < team < project < draft < session. A draft is not a layer: it replaces, for its author and locally only, the published document of its layer; it is refused when it loosens the published version.
 - **Resolution**: oh follows `extends` up to the root definition, applies each patch from the root down to the requested document, then the session options. Each value keeps its origin (`oh workflow show <id> --origin`, TUI editor).
 - **Integrity**: only published files whose hash matches `workflows.lock` are loaded; the others are skipped with a warning. See [Team workflows](../guides/team-workflows.en.md#workflowslock-and-integrity).
+- **Team fields**: the human approver of a checkpoint (`approver:`, CP-R9) is written only in the team layer; a project layer neither removes nor changes it (see [`approver`](#approver--human-approver)).
 - Governance, drafts and publication: [ADR-040](../architecture/adr/040-workflows-team-state-governance.en.md).
 
 ---
@@ -726,7 +742,7 @@ A diagnostic has a severity (error or warning), a code, the field path, the sour
 | `writes_after_unknown`, `writes_after_without_writes`, `checkpoint_after_unknown`, `checkpoint_after_order`, `order_method_after` | order of the writes and of the checkpoints (r5-fixes) |
 | `writes_path_invalid`, `writes_read_only` | write path outside `docs/` or with a wildcard other than `/**`; `writes` in a `risk: read` workflow |
 | `verify_spec_path_invalid` | `verify.spec` path absolute or outside the location |
-| `checkpoint_agent_clash`, `checkpoint_mode_unknown`, `checkpoint_mode_missing`, `checkpoint_condition_missing`, `mandatory_checkpoint_removed`, `unlocking_checkpoint_removed`, `unlock_duplicate`, `unlock_again_first`, `unlock_again_without_commit`, `unlock_unknown`, `unlock_skip`, `unlock_push_without_publish`, `unlock_requires_publish`, `publish_checkpoint_remote`, `publish_checkpoint_pause`, `patch_unknown_checkpoint`, `checkpoint_by_unknown`, `checkpoint_by_duplicate`, `checkpoint_wiki_commit`, `headless_checkpoint_pause` | checkpoints |
+| `checkpoint_agent_clash`, `checkpoint_mode_unknown`, `checkpoint_mode_missing`, `checkpoint_condition_missing`, `mandatory_checkpoint_removed`, `unlocking_checkpoint_removed`, `unlock_duplicate`, `unlock_again_first`, `unlock_again_without_commit`, `unlock_unknown`, `unlock_skip`, `unlock_push_without_publish`, `unlock_requires_publish`, `publish_checkpoint_remote`, `publish_checkpoint_pause`, `patch_unknown_checkpoint`, `checkpoint_by_unknown`, `checkpoint_by_duplicate`, `checkpoint_approver_layer`, `approver_checkpoint_removed`, `checkpoint_approver_invalid`, `checkpoint_approver_max`, `checkpoint_approver_duplicate`, `checkpoint_approver_no_pause`, `checkpoint_approver_remote_auto`, `expected_approver`, `checkpoint_wiki_commit`, `headless_checkpoint_pause` | checkpoints |
 | `verify_empty`, `verify_cmd_template`, `verify_in_invalid`, `verify_timeout_invalid`, `verified_checkpoint_removed`, `when_empty`, `when_mandatory`, `when_unknown_agent`, `when_unknown_output`, `pause_budget_exceeded` | verification run by oh, conditions, pause budget (R3) |
 | `fanout_input`, `fanout_tickets`, `fanout_parallel`, `fanout_unknown_workflow`, `fanout_child_self`, `fanout_child_nested`, `fanout_delegate_unknown`, `fanout_merge_unknown`, `fanout_merge_scope`, `fanout_merge_mandatory`, `fanout_merge_unlocks`, `fanout_merge_verify`, `fanout_merge_verify_on`, `fanout_merge_verify_expect`, `fanout_delegates_layer`, `checkpoint_fanout_without_fanout`, `unlock_merge_fanout_only`, `verify_on_integration_merge_only`, `fanout_inputs_parent`, `fanout_inputs_child`, `fanout_inputs_type`, `fanout_inputs_value`, `fanout_fix_input`, `fanout_fix_commit`, `fanout_tasks_tickets`, `fanout_tasks_checkpoint`, `fanout_tasks_mandatory`, `fanout_tasks_scope`, `fanout_tasks_after_merge`, `fanout_task_input`, `fanout_task_domain`, `fanout_inputs_reserved`, `agent_fanout_without_fanout`, `agent_fanout_entry`, `fanout_never_patched` (warning) | fan-out and control substitution (R6, sweep-fanout) |
 | `tasks_duplicate`, `tasks_max`, `output_record_tasks_unchecked` | breakdown read by oh (sweep-fanout) |

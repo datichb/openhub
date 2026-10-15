@@ -326,6 +326,8 @@ func (p *patcher) checkpoints() {
 				p.report(errDiag("mandatory_checkpoint_removed", base+".disabled", k))
 			case old.Verify != nil:
 				p.report(errDiag("verified_checkpoint_removed", base+".disabled", k))
+			case p.approverHeld(old):
+				p.report(errDiag("approver_checkpoint_removed", base+".disabled", k, old.Approver.String()))
 			default:
 				p.dst.Checkpoints.Delete(k)
 				p.removed = append(p.removed, base)
@@ -362,7 +364,7 @@ func (p *patcher) checkpoints() {
 				continue
 			}
 			b := v.Mode[mode]
-			if old.IsMandatory() && b.Strictness() < old.Behavior(mode).Strictness() {
+			if (old.IsMandatory() || p.approverHeld(old)) && b.Strictness() < old.Behavior(mode).Strictness() {
 				p.loosening(base+".mode."+mode, b, old.Behavior(mode))
 				continue
 			}
@@ -401,6 +403,7 @@ func (p *patcher) checkpoints() {
 		if h("by") {
 			old.By = v.By
 		}
+		p.patchApprover(base, &old, v)
 		if h("wiki") {
 			old.Wiki = v.Wiki
 		}

@@ -35,6 +35,12 @@ type BatchDecision struct {
 	Summary    string
 	// Verify is the state of the verification by oh ("—" = none).
 	Verify string
+	// Approver lists the approvers the checkpoint names (CP-R9, "" =
+	// none); ApproverMismatch: Identity, who validates, is none of them
+	// (warned on the line, traced, not refused).
+	Approver         string
+	Identity         string
+	ApproverMismatch bool
 }
 
 // BatchChoice is what to do with a decision of the batch.
@@ -92,8 +98,13 @@ func (v *SessionsView) batchLabel(d BatchDecision) string {
 		who = sessionLabel(*r) + " " + who
 	}
 	verify := firstText(d.Verify, "—")
-	return clipText(fmt.Sprintf("%s · %s · %s · %s", firstText(d.Checkpoint, d.ID), who, firstText(d.Summary, "—"),
+	line := clipText(fmt.Sprintf("%s · %s · %s · %s", firstText(d.Checkpoint, d.ID), who, firstText(d.Summary, "—"),
 		i18n.Tf("tui.batch.verify", verify)), 90)
+	if d.ApproverMismatch {
+		// Never clipped away: the warning of the item (CP-R9).
+		line += " · " + i18n.Tf("tui.batch.approver_mismatch", d.Approver)
+	}
+	return line
 }
 
 // batchForm asks, for each decision, validate / leave waiting / refuse,

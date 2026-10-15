@@ -177,6 +177,7 @@ The `workflow` MCP server (`workflow_status`, `workflow_checkpoint`, `workflow_o
 | [052](architecture/adr/052-beads-identity-provenance.en.md) | Beads identity and provenance: `--readonly`, actor, provenance events |
 | [053](architecture/adr/053-fanout-control-substitution.en.md) | Fan-out: child sessions driven by oh and control substitution (CP-R3) |
 | [054](architecture/adr/054-team-brick-catalogue.en.md) | Team brick catalogue: `oh brick`, governance and integrity (`catalog.lock`) |
+| [055](architecture/adr/055-checkpoint-approver.en.md) | Human approver of a checkpoint (`approver:`, CP-R9), step 1 |
 
 ---
 

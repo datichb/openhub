@@ -90,9 +90,10 @@ func TestTraceIsCompleteAndMasked(t *testing.T) {
 	_, err = svc.Decisions.Resolve(ctx, "permission:ses_root:p1", domain.ResolvedByOh, &domain.DecisionResolution{Decision: "reject"}, resolved)
 	require.NoError(t, err)
 	require.NoError(t, svc.Decisions.Upsert(ctx, &domain.Decision{ID: "checkpoint:ses_root:cp-2", SessionID: "ses_root", GroupKey: "g1", Kind: domain.DecisionCheckpoint,
-		ToolRef: "cp-2", CreatedAt: at(13), Payload: domain.DecisionPayload{Title: "Commit", Data: map[string]any{checkpoint.DataCheckpoint: "cp-2"}}}))
+		ToolRef: "cp-2", CreatedAt: at(13), Payload: domain.DecisionPayload{Title: "Commit", Data: map[string]any{checkpoint.DataCheckpoint: "cp-2", checkpoint.DataApprover: []string{"Grace Hopper"}}}}))
 	_, err = cps.UpdateCheckpointState(ctx, "ses_root", func(s *domain.CheckpointState) error {
-		s.Timeline = append(s.Timeline, domain.CheckpointEvent{At: at(14), Kind: domain.CheckpointPassed, ID: "cp-2", By: "oh"})
+		s.Timeline = append(s.Timeline, domain.CheckpointEvent{At: at(14), Kind: domain.CheckpointPassed, ID: "cp-2", By: "oh",
+			Identity: "Ada Lovelace <ada@example.com>", Approver: []string{"Grace Hopper"}, ApproverMismatch: true})
 		return nil
 	})
 	require.NoError(t, err)
@@ -132,6 +133,16 @@ func TestTraceIsCompleteAndMasked(t *testing.T) {
 	for _, e := range evs {
 		if e.CallID != "" {
 			byCall[e.CallID] = e
+		}
+		switch {
+		case e.Kind == TraceCheckpoint:
+			// CP-R9: who validated, when, and out of approver.
+			assert.Equal(t, "Ada Lovelace <ada@example.com>", e.Identity)
+			assert.True(t, e.ApproverMismatch)
+			assert.Equal(t, []string{"Grace Hopper"}, e.Approver)
+			assert.False(t, e.Time.IsZero())
+		case e.DecisionKind == string(domain.DecisionCheckpoint):
+			assert.Equal(t, []string{"Grace Hopper"}, e.Approver, "read back from the stored payload")
 		}
 		if e.DecisionKind == string(domain.DecisionPermission) {
 			perm = e

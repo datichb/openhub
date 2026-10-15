@@ -91,6 +91,25 @@ enforce: [checkpoints, modes]   # ou ["*"] pour tout le document
 - Les verrous s'additionnent le long de la chaîne `extends` ; une couche plus spécifique ne peut pas les retirer.
 - Les options de lancement (mode, environnement, entrées) restent choisies dans les limites du workflow.
 
+## Valideur d'un checkpoint (`approver:`)
+
+L'équipe peut nommer les personnes qui valident un checkpoint sensible (CP-R9, [ADR-055](../architecture/adr/055-checkpoint-approver.fr.md)), par exemple un lead pour `cp-apply` et `cp-publish` :
+
+```yaml
+apiVersion: oh/v1
+kind: Workflow
+id: infra-change
+extends: hub:infra-change
+checkpoints:
+  cp-apply:
+    approver: [Grace Hopper, lead@example.com]   # user.name ou user.email de git
+```
+
+- Seule la **couche d'équipe** le déclare ; une couche de projet ne peut ni le retirer, ni le changer, ni retirer le checkpoint, ni le faire moins mettre en pause (`checkpoint_approver_layer`, `approver_checkpoint_removed`, `loosening`).
+- Chaque valideur écrit son identité comme dans sa configuration git (`git config user.name`, ou `user.email`) : c'est elle qu'oh compare, comme pour l'auteur des écritures Beads.
+- **En local, oh avertit sans bloquer** : la carte affiche « Valideur attendu : … », une validation par quelqu'un d'autre est acceptée et tracée « hors valideur » (`oh session trace`). Qui valide et quand est toujours tracé.
+- En session distante, préférez `remote: defer` pour ces checkpoints : avec `remote: auto`, la politique les passe sans valideur (avertissement). Le blocage réel en session distante est l'étape 2.
+
 ## Brouillons, publication, historique
 
 Le cycle de vie d'un workflow d'équipe ou de projet passe par le WorkflowService (CLI : `oh workflow new|edit|diff|publish|history|restore|archive`, voir la [référence](../reference/cli-workflows.fr.md#édition-des-workflows-déquipe-et-de-projet)) :
@@ -102,7 +121,7 @@ Le cycle de vie d'un workflow d'équipe ou de projet passe par le WorkflowServic
 
 ### Résumé d'impact
 
-Chaque publication compare la nouvelle version à la précédente : risque relevé, nouveaux agents (et ceux qui écrivent), exécution distante ou nouveaux environnements autorisés, checkpoints retirés, rendus facultatifs ou assouplis, commandes Beads ajoutées, budget relevé, nouveaux MCP ou plugins, Code Mode, entrées et prompt modifiés. Les changements qui **élargissent** le workflow sont signalés. Les briques du catalogue d'équipe utilisées pour la première fois portent le badge « nouvelle brique ».
+Chaque publication compare la nouvelle version à la précédente : risque relevé, nouveaux agents (et ceux qui écrivent), exécution distante ou nouveaux environnements autorisés, checkpoints retirés, rendus facultatifs ou assouplis, valideur (`approver:`) retiré ou changé, commandes Beads ajoutées, budget relevé, nouveaux MCP ou plugins, Code Mode, entrées et prompt modifiés. Les changements qui **élargissent** le workflow sont signalés. Les briques du catalogue d'équipe utilisées pour la première fois portent le badge « nouvelle brique ».
 
 ### Historique, restauration, archivage
 

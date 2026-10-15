@@ -47,6 +47,8 @@ const (
 	DataBehavior   = "behavior"
 	DataAgent      = "agent"
 	DataCount      = "count"
+	// DataApprover lists the approvers the checkpoint names (CP-R9).
+	DataApprover = "approver"
 )
 
 // timelineMax caps the stored timeline.
@@ -150,6 +152,9 @@ func (s *Service) Asked(ctx context.Context, root, toolSession string, p adapter
 	if len(tasks) > 0 {
 		d.Payload.Data[DataTasks] = RenderTasks(tasks)
 	}
+	if len(c.Approver) > 0 {
+		d.Payload.Data[DataApprover] = append([]string(nil), c.Approver...)
+	}
 	if toolSession != "" && toolSession != root {
 		d.Payload.Data[domain.DataToolSession] = toolSession
 	}
@@ -232,6 +237,7 @@ func (s *Service) ToolReplied(ctx context.Context, d domain.Decision, approved b
 	if id == "" {
 		return
 	}
+	ap, _ := s.approval(ctx, d.SessionID, id, domain.ResolvedByTool, "", false)
 	_, _ = s.update(ctx, d.SessionID, func(st *domain.CheckpointState) error {
 		if _, ok := st.Approved[id]; ok {
 			return errUnchanged
@@ -239,7 +245,7 @@ func (s *Service) ToolReplied(ctx context.Context, d domain.Decision, approved b
 		if st.Approved == nil {
 			st.Approved = map[string]domain.CheckpointApproval{}
 		}
-		st.Approved[id] = domain.CheckpointApproval{By: string(domain.ResolvedByTool)}
+		st.Approved[id] = ap
 		return nil
 	})
 }
@@ -342,6 +348,7 @@ func (s *Service) tryPass(ctx context.Context, sess *domain.Session, c sessionsp
 		}
 		if delegatedBy != "" {
 			ap.By, ap.Message = TimelineDelegated, delegatedBy // CP-R3, traced
+			ap.Identity, ap.ApproverMismatch = "", false
 		}
 		if st.Passed == nil {
 			st.Passed = map[string]time.Time{}
@@ -374,7 +381,7 @@ func (s *Service) tryPass(ctx context.Context, sess *domain.Session, c sessionsp
 		if c.Base {
 			setBase(st, id, base)
 		}
-		s.record(st, domain.CheckpointPassed, id, ap.By, ap.Message)
+		s.recordApproval(st, domain.CheckpointPassed, id, ap, c.Approver)
 		if integrated != "" {
 			s.record(st, domain.CheckpointWindow, id, "oh", integrated)
 			ap.Message = strings.TrimSpace(ap.Message + "\n" + integrated)
@@ -557,6 +564,7 @@ func (s *Service) Resolve(ctx context.Context, tool Tool, d domain.Decision, cho
 			// replaces the checkpoints of the children: never overridden.
 			return errors.New(i18n.T("cmd.fanout.no_override"))
 		}
+		ap, _ := s.approval(ctx, d.SessionID, id, domain.ResolvedByOh, message, override)
 		if _, err := s.update(ctx, d.SessionID, func(st *domain.CheckpointState) error {
 			if r, ok := st.Verify[id]; ok && r.NeedsOverride() && !override {
 				// A failed (or impossible) verification is passed only on
@@ -566,7 +574,7 @@ func (s *Service) Resolve(ctx context.Context, tool Tool, d domain.Decision, cho
 			if st.Approved == nil {
 				st.Approved = map[string]domain.CheckpointApproval{}
 			}
-			st.Approved[id] = domain.CheckpointApproval{By: string(domain.ResolvedByOh), Message: message, Override: override}
+			st.Approved[id] = ap
 			return nil
 		}); err != nil {
 			return err
@@ -584,6 +592,7 @@ func (s *Service) Resolve(ctx context.Context, tool Tool, d domain.Decision, cho
 			fix = s.fanoutFix(ctx, d.SessionID, id, message) // R6: fix round on the integration branch
 		}
 		unlocked := false
+		refusal, approver := s.approval(ctx, d.SessionID, id, domain.ResolvedByOh, message, false)
 		_, _ = s.update(ctx, d.SessionID, func(st *domain.CheckpointState) error {
 			if st.Waiting == id {
 				st.Waiting = ""
@@ -593,7 +602,7 @@ func (s *Service) Resolve(ctx context.Context, tool Tool, d domain.Decision, cho
 				// More work asked for: new fix rounds (E5).
 				unlocked = resetRounds(st, "")
 			}
-			s.record(st, domain.CheckpointRefused, id, string(domain.ResolvedByOh), message)
+			s.recordApproval(st, domain.CheckpointRefused, id, refusal, approver)
 			return nil
 		})
 		if unlocked {

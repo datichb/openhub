@@ -41,6 +41,17 @@ type CheckpointCardView struct {
 	Verify     CheckpointVerifyView     // R3 (sessions_checkpoint_verify.go)
 	Reports    []CheckpointReport       // sessions_checkpoint_reports.go
 	Wiki       []CheckpointWikiProposal // sessions_checkpoint_wiki.go
+	Approver   CheckpointApproverView   // CP-R9
+}
+
+// CheckpointApproverView is the approver of a checkpoint (CP-R9): the
+// people it names, the person who would validate now, and whether that
+// person is none of them (warned; the validation is traced as out of
+// approver, not refused).
+type CheckpointApproverView struct {
+	Expected string // "Grace Hopper, lead@example.com" ("" = none)
+	Identity string // "Ada Lovelace <ada@example.com>"
+	Mismatch bool
 }
 
 // CheckpointFile is a changed file of the session.
@@ -86,7 +97,7 @@ func (v *SessionsView) showCheckpoint(r *SessionRow, d *SessionDecision, c Check
 	}
 	actions := []ModalAction{
 		{Label: i18n.T("tui.checkpoint.decide"), Callback: func() {
-			v.checkpointForm(r, &dec, checkpointDefaultChoice(c.Verify), checkpointExtraChoices(c.Verify)...)
+			v.checkpointForm(r, &dec, c.Approver, checkpointDefaultChoice(c.Verify), checkpointExtraChoices(c.Verify)...)
 		}},
 	}
 	actions = append(actions, v.reportActions(dec.SessionID, dec.ID, c.Reports)...)
@@ -127,6 +138,7 @@ func checkpointBody(c CheckpointCardView) string {
 	if c.Summary != "" {
 		b.WriteString(tview.Escape(c.Summary) + "\n\n")
 	}
+	writeCheckpointApprover(&b, c.Approver)
 	writeCheckpointVerify(&b, c.Verify, section)
 	writeCheckpointReports(&b, c.Reports)
 	writeCheckpointWiki(&b, c.Wiki)
@@ -160,8 +172,51 @@ func checkpointBody(c CheckpointCardView) string {
 	return b.String()
 }
 
+// writeCheckpointApprover writes the approver the checkpoint names and,
+// when the person who validates is none of them, the warning (CP-R9).
+func writeCheckpointApprover(b *strings.Builder, a CheckpointApproverView) {
+	if a.Expected == "" {
+		return
+	}
+	fmt.Fprintf(b, "%s\n", tview.Escape(i18n.Tf("tui.checkpoint.approver", a.Expected)))
+	switch {
+	case a.Mismatch:
+		fmt.Fprintf(b, "%s%s%s\n", theme.ColorTag(theme.WarningHex),
+			tview.Escape(i18n.Tf("tui.checkpoint.approver_mismatch", firstText(a.Identity, "?"))), theme.TagColor)
+	case a.Identity != "":
+		b.WriteString(muted(tview.Escape(i18n.Tf("tui.checkpoint.approver_you", a.Identity))) + "\n")
+	}
+	b.WriteString("\n")
+}
+
+// approveCheckpoint validates a checkpoint at once (y). When it names
+// approvers and the person who validates is none of them, oh asks for a
+// confirmation first, with the warning (CP-R9: never refused).
+func (v *SessionsView) approveCheckpoint(d *SessionDecision) {
+	dec := *d
+	cb, ok := v.cfg.Backend.(CheckpointBackend)
+	if dec.Approver == "" || !ok || v.shell == nil {
+		v.decide(&dec, checkpointApprove, "", nil)
+		return
+	}
+	var card CheckpointCardView
+	v.async(func(ctx context.Context) (string, error) {
+		var err error
+		card, err = cb.CheckpointCard(ctx, dec.ID)
+		return "", err
+	}, func(string) {
+		if !card.Approver.Mismatch {
+			v.decide(&dec, checkpointApprove, "", nil)
+			return
+		}
+		v.shell.Confirm(i18n.Tf("tui.checkpoint.approver_confirm", firstText(card.Checkpoint, dec.Summary)),
+			tview.Escape(i18n.Tf("tui.checkpoint.approver", card.Approver.Expected)+"\n"+i18n.Tf("tui.checkpoint.approver_mismatch", firstText(card.Approver.Identity, "?"))),
+			false, func() { v.decide(&dec, checkpointApprove, "", nil) })
+	})
+}
+
 // checkpointForm asks for the decision and the message to the agent.
-func (v *SessionsView) checkpointForm(r *SessionRow, d *SessionDecision, choice string, extra ...SelectOption) {
+func (v *SessionsView) checkpointForm(r *SessionRow, d *SessionDecision, approver CheckpointApproverView, choice string, extra ...SelectOption) {
 	if v.shell == nil {
 		return
 	}
@@ -169,6 +224,9 @@ func (v *SessionsView) checkpointForm(r *SessionRow, d *SessionDecision, choice 
 	title := i18n.Tf("tui.checkpoint.form_title", firstText(d.Summary, d.ID))
 	if r != nil {
 		title += " · " + sessionLabel(*r)
+	}
+	if approver.Mismatch {
+		title += " · " + i18n.Tf("tui.checkpoint.approver_form", approver.Expected)
 	}
 	v.shell.ShowInlineForm(InlineFormConfig{
 		Title: tview.Escape(title),

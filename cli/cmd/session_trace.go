@@ -121,6 +121,12 @@ func traceLine(e sessionsvc.TraceEvent) string {
 		if e.By != "" {
 			s += "  (" + e.By + ")"
 		}
+		if e.Identity != "" {
+			s += "  " + i18n.Tf("cmd.session.trace.identity", e.Identity)
+		}
+		if e.ApproverMismatch {
+			s += "  " + i18n.Tf("cmd.session.trace.approver_mismatch", strings.Join(e.Approver, ", "))
+		}
 	case sessionsvc.TraceUsage:
 		s = fmt.Sprintf("$%.4f  %d → %d", e.Cost, e.TokensIn, e.TokensOut)
 	case sessionsvc.TraceEnd:
