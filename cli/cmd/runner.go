@@ -196,8 +196,9 @@ func runRunnerJob(cmd *cobra.Command, _ []string) error {
 		Runtimes: map[sessionspec.RuntimeKind]ohruntime.Runtime{
 			sessionspec.RuntimeRemote: &runner.JobRuntime{User: user, Home: serverHome, Root: home},
 		},
-		SessionEnv: runnerSessionEnv(dc),
-		Daemon:     func(context.Context) (runsvc.DaemonClient, error) { return dc, nil },
+		SessionEnv:   runnerSessionEnv(dc),
+		Daemon:       func(context.Context) (runsvc.DaemonClient, error) { return dc, nil },
+		RefreshRules: dc.WorkflowRefresh,
 	}
 	ss := &sessionsvc.Service{Sessions: a.Sessions, Projects: a.Projects, Decisions: sqlite.NewDecisionStore(store),
 		Servers: sqlite.NewServerStore(store), BundlesDir: ohBundlesDir(), SessionsDir: ohSessionsDir(), Adapter: ad,

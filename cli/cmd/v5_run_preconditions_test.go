@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/runsvc"
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
@@ -93,5 +94,75 @@ preconditions:
 	git("checkout", "-q", "--detach")
 	if _, _, err = preconditionWarnings(doc.Spec, dir); err == nil || !strings.Contains(err.Error(), "HEAD détaché") {
 		t.Fatalf("detached: %v", err)
+	}
+}
+
+// p6-debts: the preconditions are read where the session works: a worktree
+// created at launch (--location new) is clean, on its branch, with the
+// files of that branch or of the HEAD of the project; an existing worktree
+// is read as it is.
+func TestPreconditionsInSessionLocation(t *testing.T) {
+	doc, diags := workflow.Parse([]byte(`apiVersion: oh/v1
+kind: Workflow
+id: release
+preconditions:
+  clean: { check: { git_clean: true }, on_fail: block }
+  branch: { check: { branch: [main, "release/*"] }, on_fail: block }
+  changelog: { check: { path_exists: [CHANGELOG.md] }, on_fail: block }
+`), workflow.Source{Layer: workflow.LayerHub})
+	if diags.HasErrors() {
+		t.Fatal(diags)
+	}
+	dir := t.TempDir()
+	git := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
+		cmd.Env = append(os.Environ(), "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@x", "GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@x")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	git("init", "-q", "-b", "main")
+	if err := os.WriteFile(filepath.Join(dir, "CHANGELOG.md"), []byte("# Changelog\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	git("add", ".")
+	git("commit", "-q", "-m", "init")
+	git("checkout", "-q", "-b", "feat/x")
+	if err := os.WriteFile(filepath.Join(dir, "wip.txt"), []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	check := func(sessions []runsvc.PlannedSession, remote bool) error {
+		fsys, probe := preconditionTarget(dir, sessions, remote)
+		_, _, err := preconditionWarningsIn(doc.Spec, fsys, probe)
+		return err
+	}
+	if check(nil, false) == nil {
+		t.Fatal("the project directory (feat/x, dirty) refuses the release")
+	}
+	created := []runsvc.PlannedSession{{Location: runsvc.Location{Path: filepath.Join(dir, "..", "wt"), Kind: runsvc.LocationWorktree, Branch: "release/5.2", Create: true}}}
+	if err := check(created, false); err != nil {
+		t.Fatalf("new worktree on release/5.2: %v", err)
+	}
+	if check(created, true) == nil {
+		t.Fatal("remote: the project")
+	}
+	created[0].Location.Branch = "feat/y"
+	if err := check(created, false); err == nil || !strings.Contains(err.Error(), "feat/y") {
+		t.Fatalf("new worktree on feat/y: %v", err)
+	}
+	git("rm", "-q", "CHANGELOG.md")
+	git("commit", "-q", "-m", "rm")
+	created[0].Location.Branch = "release/5.3"
+	if check(created, false) == nil {
+		t.Fatal("the files of the HEAD of the project: no CHANGELOG.md")
+	}
+	git("branch", "release/5.3", "main")
+	if err := check(created, false); err != nil {
+		t.Fatalf("an existing branch: its files: %v", err)
+	}
+	existing := []runsvc.PlannedSession{{Location: runsvc.Location{Path: dir, Kind: runsvc.LocationWorktree}}}
+	if check(existing, false) == nil {
+		t.Fatal("an existing worktree is read as it is")
 	}
 }

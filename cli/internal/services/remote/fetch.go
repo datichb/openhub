@@ -311,8 +311,12 @@ func (s *Service) importWiki(ctx context.Context, sess *domain.Session, dir stri
 	if err := json.Unmarshal(data, &wk); err != nil {
 		return 0, nil, fmt.Errorf("%s: %w", remote.WikiFile, err)
 	}
-	list := make([]wiki.Imported, 0, len(wk.Proposals))
-	for _, e := range wk.Proposals {
+	entries, err := wk.Entries()
+	if err != nil {
+		return 0, nil, err
+	}
+	list := make([]wiki.Imported, 0, len(entries))
+	for _, e := range entries {
 		list = append(list, wiki.Imported{ID: e.ID, Agent: e.Agent, ToolSession: e.ToolSession, CreatedAt: e.CreatedAt,
 			Proposal: wiki.Proposal{Page: e.Page, Section: e.Section, Content: e.Content, Tag: e.Tag, Source: e.Source, Replaces: e.Replaces}})
 	}

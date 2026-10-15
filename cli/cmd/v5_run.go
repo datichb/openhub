@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"strings"
 	"time"
@@ -17,6 +18,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/launcher"
 	"github.com/datichb/openhub/cli/internal/provider"
 	"github.com/datichb/openhub/cli/internal/runsvc"
+	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 	remotesvc "github.com/datichb/openhub/cli/internal/services/remote"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
@@ -157,6 +159,19 @@ func prepareWorkflowRun(ctx context.Context, a *app.App, opts runOptions, errOut
 	if res.Spec.Beads != nil {
 		base.BeadsAllow = append([]string{}, res.Spec.Beads.Allow...) // non-nil: declared
 	}
+	// p6-debts: a file scope given at launch (sweep-task by hand) is checked
+	// now, as oh checks the tasks of a breakdown.
+	if id := res.Spec.ScopeInput(); id != "" {
+		if raw, _ := res.Inputs[id].(string); strings.TrimSpace(raw) != "" {
+			dir := opts.Project.Path
+			if l := runsvc.ParseLocation(opts.Location); l.Kind == runsvc.LocationWorktree {
+				dir = l.Path
+			}
+			if _, problems := checkpoint.CheckScope(ctx, dir, id, raw); len(problems) > 0 {
+				return nil, errors.New(i18n.Tf("cmd.run.scope_refused", id, "- "+strings.Join(problems, "\n- ")))
+			}
+		}
+	}
 	// The inputs passed on by `next:` (the method of spec), recorded now.
 	base.Outputs = res.Spec.RecordedInputs(res.Inputs)
 	if res.Fanout {
@@ -221,12 +236,8 @@ func prepareWorkflowRun(ctx context.Context, a *app.App, opts runOptions, errOut
 		req.Sessions = append(req.Sessions, runsvc.PlannedInput{Label: label, Title: title, Branch: sessionBranch(res.Spec, v, label, opts.Branch),
 			Tickets: remoteTickets(v, ticketInput)})
 	}
-	preconds, suggestions, err := preconditionWarnings(res.Spec, opts.Project.Path)
-	if err != nil {
-		return nil, err
-	}
-	p := &preparedRun{opts: opts, project: opts.Project, resolution: res, bundle: b, svc: svc, suggestions: suggestions, remote: rp,
-		sessions: sessions, values: values, ticketInput: ticketInput, preconds: preconds, missingMCP: missingMCP}
+	p := &preparedRun{opts: opts, project: opts.Project, resolution: res, bundle: b, svc: svc, remote: rp,
+		sessions: sessions, values: values, ticketInput: ticketInput, missingMCP: missingMCP}
 	if err := p.planRun(ctx, req); err != nil {
 		return nil, err
 	}
@@ -248,6 +259,12 @@ func (p *preparedRun) planRun(ctx context.Context, req runsvc.RunRequest) error 
 	plan, err := p.svc.Plan(ctx, req)
 	if err != nil {
 		return runPlanError(err)
+	}
+	// p6-debts: the preconditions are read where the session works (its
+	// worktree with --location new), not in the project directory.
+	fsys, probe := preconditionTarget(opts.Project.Path, plan.Sessions, rp != nil)
+	if p.preconds, p.suggestions, err = preconditionWarningsIn(p.resolution.Spec, fsys, probe); err != nil {
+		return err
 	}
 	plan.Warnings = append(append([]runsvc.Warning{}, p.preconds...), plan.Warnings...)
 	for _, m := range p.missingMCP {
@@ -390,11 +407,15 @@ func launchTickets(sp *workflow.Spec, opts *runOptions, inputs map[string]any, s
 // directory: a failed `block` refuses the launch, a failed `suggest` is a
 // warning naming the workflow to run first.
 func preconditionWarnings(sp *workflow.Spec, dir string) ([]runsvc.Warning, []preconditionSuggestion, error) {
+	return preconditionWarningsIn(sp, os.DirFS(dir), preconditionProbe(dir))
+}
+
+func preconditionWarningsIn(sp *workflow.Spec, fsys fs.FS, probe workflow.PreconditionProbe) ([]runsvc.Warning, []preconditionSuggestion, error) {
 	var (
 		out         []runsvc.Warning
 		suggestions []preconditionSuggestion
 	)
-	for _, r := range workflow.FailedPreconditions(workflow.EvaluatePreconditionsWith(sp, os.DirFS(dir), preconditionProbe(dir))) {
+	for _, r := range workflow.FailedPreconditions(workflow.EvaluatePreconditionsWith(sp, fsys, probe)) {
 		label := r.Label.Text(i18n.Locale())
 		if label == "" {
 			label = r.ID

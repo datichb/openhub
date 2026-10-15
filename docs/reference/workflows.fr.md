@@ -143,7 +143,7 @@ Session de développement directe avec l'agent `developer`, sans planification. 
 
 ## `spec`
 
-Comprend une demande, écrit sa spec dans le wiki et la découpe en tickets Beads, sans l'implémenter (`risk: plan`). Le `conductor` relance le `planner` à chaque étape ; le planner reste en lecture seule, sauf sa spec : `agents.planner.writes: ["docs/wiki/specs/**"]` ([`writes`](workflow-schema.fr.md#writes-chemins-de-documentation)).
+Comprend une demande, écrit sa spec dans le wiki et la découpe en tickets Beads, sans l'implémenter (`risk: plan`). Le `conductor` relance le `planner` à chaque étape ; le planner reste en lecture seule, sauf sa spec et sa ligne dans l'index du wiki : `agents.planner.writes: ["docs/wiki/specs/**", "docs/wiki/index.md"]` ([`writes`](workflow-schema.fr.md#writes-chemins-de-documentation)).
 
 | Entrée | Type | Obligatoire | Rôle |
 |---|---|---|---|
@@ -163,7 +163,7 @@ Déroulé :
 1. **Entretien** : le planner explore le code et charge `grilling` ; ses questions bloquantes (une par décision) sont posées par le `conductor`. Il rend sa reformulation et le vocabulaire (chaque mot de la demande en face des noms du code), présentés à `cp-understanding`.
 2. **Spec** : une fois `cp-understanding` passé (avant, oh refuse l'écriture de la spec et dit au planner d'attendre ce checkpoint), le planner écrit `docs/wiki/specs/<slug>.md` : objectif, périmètre, **glossaire**, **critères d'acceptation** (`CA-n`, chacun avec son point de test sur sa ligne : `· Test : TestPercent_ZeroTotal`), décisions et **découpage** en tranches verticales (`Couvre : CA-…`). Le format est dans le prompt du planner (section « Spec écrite »), pas dans une skill à charger.
 3. **Passe de convergence** (`cp-converge`, sans pause) : oh lit la spec et vérifie le glossaire, le point de test de chaque critère, que chaque critère est couvert par une tranche et qu'aucune tranche n'est hors spec. Un écart refuse le checkpoint avec la liste des problèmes : le planner corrige (ou pose une question si l'écart demande une décision), puis le checkpoint est redemandé.
-4. **`cp-spec`** : l'utilisateur valide la spec (même vérification) ; le planner la commite seule : `git add docs/wiki/specs/<slug>.md`, puis `git commit -m "docs(spec): <slug>" -- docs/wiki/specs/<slug>.md`.
+4. **`cp-spec`** : l'utilisateur valide la spec (même vérification) ; le planner la commite avec sa ligne dans `docs/wiki/index.md` (s'il existe) : `git add docs/wiki/specs/<slug>.md docs/wiki/index.md`, puis `git commit -m "docs(spec): <slug>" -- docs/wiki/specs/<slug>.md docs/wiki/index.md`.
 5. **`cp-tickets`** : l'utilisateur valide le découpage ; le planner crée un ticket par tranche, dont la description cite la spec et ses critères. Une spec ou un découpage modifiés à un checkpoint repassent par `cp-converge`, `cp-spec` (nouveau commit) et `cp-tickets`.
 
 Ordre imposé par oh : `cp-converge` est refusé avant `cp-understanding`, `cp-spec` avant `cp-converge`, `cp-tickets` avant `cp-spec` (`after:`) ; le refus nomme le checkpoint à passer d'abord.
@@ -207,7 +207,7 @@ Budget de pauses (CP-R2) en semi-auto : `cp-plan`, `cp-2`, `cp-final`, soit 3 pa
 
 1. `cp-plan` validé, oh crée la branche d'intégration `oh/fanout/<session>/integration` (worktree voisin) depuis la branche de la session, puis lance une session enfant `ticket` par ticket (sa branche `oh/fanout/<session>/<ticket>` depuis la branche d'intégration, son worktree), 1 à 3 à la fois (`fanout.parallel` du workflow et `[fanout] parallel`), un ticket après ceux dont il dépend, aucun pour un ticket déjà fermé ; les enfants héritent du mode de la parente et des entrées déclarées par `fanout.inputs` (`method`, `instructions`).
 2. Chaque enfant implémente, fait relire et passe son `cp-2` **sans pause** (délégué à `cp-merge`, CP-R3), vérifié par oh dans son worktree, puis commite ; il ne ferme pas son ticket, ne merge pas et ne pousse pas (oh le refuse).
-3. Un enfant terminé (session arrêtée, ou fin de travail constatée par oh, son tour fini sans décision en attente : checkpoint de commit passé, un commit sur sa branche, rien de non commité ; garde-fou : 10 minutes d'inactivité sans ce signal), oh le merge dans la branche d'intégration (`--no-ff`). Un conflit : oh lance [`merge-conflicts`](#merge-conflicts) dans le worktree d'intégration, puis vérifie le résultat (merge commité, les deux côtés dans l'historique, aucun marqueur) ; sinon il remet la branche d'intégration où elle était et l'enfant reste non mergé. Sans commit, avec des modifications non commitées, ou arrêté par le budget global : non mergé.
+3. Un enfant terminé (session arrêtée, ou fin de travail constatée par oh, son tour fini sans décision en attente : checkpoint de commit passé, un commit sur sa branche, rien de non commité ; garde-fou : 10 minutes d'inactivité sans ce signal), oh le merge dans la branche d'intégration (`--no-ff`). Un conflit : oh lance [`merge-conflicts`](#merge-conflicts) dans le worktree d'intégration (garde-fou du merger : 2 minutes d'inactivité sans merge conclu), puis vérifie le résultat (merge commité, les deux côtés dans l'historique, aucun marqueur) ; sinon il remet la branche d'intégration où elle était et l'enfant reste non mergé. Sans commit, avec des modifications non commitées, ou arrêté par le budget global : non mergé.
 4. Tous les enfants terminés, oh écrit à la session parente (tableau des enfants) ; le `reviewer` revoit l'ensemble de la branche d'intégration, puis `cp-merge` (obligatoire, pause dans tous les modes) : oh y lance la vérification **sur la branche d'intégration**, jamais forcée ; validé, oh merge la branche d'intégration dans celle de la session et ferme lui-même les tickets mergés (sortie `tickets`).
 5. `cp-merge` refusé avec une consigne : **tour de correction** (`fanout.fix`) ; oh lance une session [`quick`](#quick) dans le worktree d'intégration (rôle `fixer` : ni push, ni merge, ni fermeture, ni déplacement de branche) avec la consigne et ce qui a échoué, son `cp-commit` validé par l'utilisateur (jamais délégué) ; oh reprend ses commits s'ils sont par-dessus la branche d'intégration, sans merge et sans rien de non commité, sinon il remet la branche où elle était ; la parente fait relire la correction et repasse `cp-merge`, revérifié sur la branche d'intégration. Au plus `limits.max_fix_rounds` tours (3).
 6. `cp-final` : récap ; un nouvel `implement-spec` pour les tickets non mergés. oh supprime ensuite les worktrees et branches `oh/fanout/…` (après `cp-merge`, ou à l'arrêt de la parente ; jamais une branche dont les commits ne sont sur aucune autre : `oh fanout clean --discard`).
@@ -227,7 +227,7 @@ Découvre le projet et crée ou enrichit le wiki `docs/wiki/` (protocole `doc-wi
 | `refresh` | `bool` (défaut : non) | non | Re-découvrir le projet et proposer les mises à jour du wiki existant (validées une à une à la carte de `cp-wiki`), sans rien supprimer |
 | `focus` | `text` (4 000 caractères max) | non | Modules ou sujets à approfondir |
 
-L'onboarder n'écrit que dans `docs/wiki/`, `ONBOARDING.md` et `CONVENTIONS.md` : c'est une permission (toute autre écriture est refusée, `.gitignore` et `.git/` compris). Sans wiki, il crée les pages ; avec un wiki (`docs/wiki/index.md`), il n'en modifie aucune et propose chaque mise à jour avec `wiki_propose` (rien si le wiki est fidèle au code). Il passe ensuite `cp-wiki` (obligatoire, déverrouille le commit, `remote: defer`) : la carte montre ses propositions, l'utilisateur accepte, modifie ou refuse chacune, oh applique les acceptées ; puis l'onboarder commite `docs/wiki/` seul (`writes: ["docs/wiki/**"]`). `ONBOARDING.md`, `CONVENTIONS.md` et le push reviennent à l'utilisateur. Une pause en semi-auto (budget CP-R2 : une action irréversible). Sortie : `wiki`. Commandes Beads autorisées (lecture seule) : `show`, `list`, `search`, `query`.
+L'onboarder n'écrit que dans `docs/wiki/`, `ONBOARDING.md` et `CONVENTIONS.md` : c'est une permission (toute autre écriture est refusée, `.gitignore` et `.git/` compris). Sans wiki, il crée les pages ; avec un wiki (`docs/wiki/index.md`), il n'en modifie aucune et propose chaque mise à jour avec `wiki_propose` (rien si le wiki est fidèle au code). Il passe ensuite `cp-wiki` (obligatoire, déverrouille le commit, `remote: defer`) : la carte montre ses propositions, l'utilisateur accepte, modifie ou refuse chacune, oh applique les acceptées ; puis l'onboarder commite en un commit `docs/wiki/`, `ONBOARDING.md` et `CONVENTIONS.md` (`writes: ["docs/wiki/**", ONBOARDING.md, CONVENTIONS.md]`), rien d'autre. Le push revient à l'utilisateur. Une pause en semi-auto (budget CP-R2 : une action irréversible). Sortie : `wiki`. Commandes Beads autorisées (lecture seule) : `show`, `list`, `search`, `query`.
 
 ## `doc-sync`
 
@@ -392,7 +392,7 @@ Corrige les constats d'un audit de sécurité : tri, correction avec test de non
 
 | Entrée | Type | Obligatoire | Rôle |
 |---|---|---|---|
-| `findings` | `text` (65 536 caractères max) | oui | Les constats : rapport d'audit ou extrait, un constat par entrée avec sa gravité et son emplacement ; par défaut, le rapport de la session `audit` dont le lancement est chaîné (`--parent`), sinon de la dernière session `audit` du projet qui en a déposé un (`from: session.output(audit.findings)`) |
+| `findings` | `text` (65 536 caractères max) | non | Les constats : rapport d'audit ou extrait, un constat par entrée avec sa gravité et son emplacement ; par défaut, le rapport de l'audit de sécurité dont le lancement est chaîné (`--parent`), sinon du dernier audit de sécurité du projet (`from: session.output(audit.findings)`, `from_equals: { type: security }`) ; aucun : la session les demande avant toute étape (outil `question`) |
 
 | Checkpoint | manuel | semi-auto | auto |
 |---|---|---|---|
@@ -411,7 +411,7 @@ Déroulé :
 
 Pourquoi la nouvelle analyse précède le commit : une correction que l'auditeur juge contournable ne doit pas être commitée ; `cp-2` décide avec les tests (oh) et le verdict sous les yeux. Budget de pauses en semi-auto : 2 pauses (2 actions irréversibles : la création des tickets à `cp-triage`, le commit à `cp-2`), pour un budget de 4. Commandes Beads autorisées : `show`, `list`, `ready`, `search`, `query`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`.
 
-**Depuis un audit** : un audit `security` propose `security-fix` (`next:`) ; `oh run security-fix --parent <session d'audit>` lit le rapport de cet audit (son contenu, pas son identifiant). Sans `--parent` ni `-i findings=…`, oh prend le rapport de la dernière session `audit` du projet qui en a déposé un, quel que soit son type, et l'annonce au lancement. Un extrait se donne toujours en entrée : `oh run security-fix -i findings="…"`.
+**Depuis un audit** : un audit `security` propose `security-fix` (`next:`) ; `oh run security-fix --parent <session d'audit>` lit le rapport de cet audit (son contenu, pas son identifiant). Sans `--parent` ni `-i findings=…`, oh prend le rapport du dernier audit `security` du projet (jamais celui d'un audit d'un autre type) et l'annonce au lancement ; sans audit de sécurité, il le dit et la session demande les constats. Un extrait se donne toujours en entrée : `oh run security-fix -i findings="…"`.
 
 ## `spike`
 
@@ -556,7 +556,7 @@ Budget de pauses en semi-auto : `cp-plan`, `cp-merge`, `cp-recap`, soit 3 pauses
 
 ## `sweep-task`
 
-Une sous-tâche d'un sweep, sans ticket (`risk: write`) : le `developer` (agent d'entrée) la fait dans son périmètre de fichiers, lance la vérification demandée, passe `cp-commit` (obligatoire, vérifié par oh, déverrouille `commit`) et commite. Lancé par oh pour chaque sous-tâche d'un `sweep` en fan-out, où son `cp-commit` est délégué au `cp-merge` de la parente et où oh refuse un changement hors du périmètre enregistré ; utilisable à la main (`oh run sweep-task -i task="…" -i files="…"`), sans ce contrôle du périmètre. Entrées : `task` et `files` (obligatoires, un chemin, dossier ou motif par ligne), `domain` (même liste que `sweep`), `goal`, `verify`, `verify_cmd`. Commandes Beads autorisées : `show`, `list`, `search`, `query`. Mode par défaut : `semi-auto` (dans un fan-out, celui de la parente).
+Une sous-tâche d'un sweep, sans ticket (`risk: write`) : le `developer` (agent d'entrée) la fait dans son périmètre de fichiers, lance la vérification demandée, passe `cp-commit` (obligatoire, vérifié par oh, déverrouille `commit`) et commite. Lancé par oh pour chaque sous-tâche d'un `sweep` en fan-out, où son `cp-commit` est délégué au `cp-merge` de la parente et où oh refuse un changement hors du périmètre enregistré ; utilisable à la main (`oh run sweep-task -i task="…" -i files="…"`) avec le même contrôle : oh vérifie le périmètre au lancement (chaque entrée est un chemin, un dossier ou un motif du dépôt, ou un nouveau fichier d'un dossier existant ; sinon le lancement est refusé avec la liste des problèmes), le relève (sortie `files`) et refuse `cp-commit` sur un changement hors du périmètre (`inputs.files.scope`). Entrées : `task` et `files` (obligatoires, un chemin, dossier ou motif par ligne), `domain` (même liste que `sweep`), `goal`, `verify`, `verify_cmd`. Commandes Beads autorisées : `show`, `list`, `search`, `query`. Mode par défaut : `semi-auto` (dans un fan-out, celui de la parente).
 
 ## `brief-enrich`
 
@@ -578,6 +578,17 @@ Session avec l'agent de ton choix, sans checkpoint ni verrou de commit (l'agent 
 `entry.selectable` est un ajout additif au schéma `oh/v1` : un autre workflow peut le déclarer ; `--agent` est refusé sur un workflow dont l'entrée n'est pas au choix.
 
 ---
+
+## Limites connues
+
+Acceptées en l'état (p6-debts) ; elles ne changent ni les verrous ni les checkpoints :
+
+- **Gardes sur le texte des commandes** : les règles shell (verrous `unlocks:`, `writes:`, fenêtre du premier commit d'un `unlock_again`, garde-fou global) comparent le texte brut de chaque commande, sans le normaliser : `git 'clean'` ou deux espaces ne correspondent pas au motif. Ce sont des garde-fous contre les erreurs d'un modèle, pas une barrière ([SECURITY](../../SECURITY.fr.md#ce-que-les-règles-shell-ne-protègent-pas)). Ce qui ne dépend pas du texte : la validation des checkpoints, la passerelle Beads, les vérifications d'oh, et les lignes `git add`/`git commit` de plusieurs chemins `writes:`, lues mot à mot par oh.
+- **Pas de message de refus personnalisé** (opencode 2.0.20) : une commande refusée par une règle reçoit le message générique de l'outil. oh ne donne sa raison que pour ce que le plugin oh lui relaie (écriture tenue par `writes_after`, opération verrouillée tant qu'oh n'a pas confirmé les règles de la session, ligne `writes:` lue par oh) ; une `question` ne peut pas être refusée avec un message.
+- **MR seulement si la branche est poussée** : `release` (`mr=true`) n'ouvre la merge request que si la branche est déjà sur le dépôt distant ; oh ne pousse jamais, le rapport donne les commandes.
+- **2 pauses par tour de correction** du fan-out (`fanout.fix`) : le `cp-commit` de la session de correction, puis `cp-merge` repassé.
+- **Éditeur de workflow de la TUI** : il propose `risk: publish` sans message propre à ce niveau (hub seulement, jamais en distant, `tag` et `mr`, préconditions durcies seulement) ; les refus apparaissent à la validation.
+- **Sessions distantes** : les identifiants `wp-…` des propositions du wiki cités dans la transcription importée ne sont pas renumérotés (les rapports le sont).
 
 ## Restrictions
 

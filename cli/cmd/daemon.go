@@ -144,6 +144,14 @@ func daemonOptions(ctx context.Context, a *app.App, capability string) daemon.Op
 		// Async: a git push must not stall supervision (the daemon
 		// outlives the last server by IdleAfter).
 		OnSessionEnd: sessionEndHook(a, true),
-		Adapter:      detectedAdapters(ctx),
+		// p6-debts: a fan-out driver that stopped before the merge checkpoint.
+		FanoutDriver: func(_ context.Context, id string) error {
+			if !fanoutEnabled(a) {
+				return nil
+			}
+			_, err := spawnFanoutDriver(id, "--relaunch")
+			return err
+		},
+		Adapter: detectedAdapters(ctx),
 	}
 }

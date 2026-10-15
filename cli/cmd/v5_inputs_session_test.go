@@ -161,3 +161,46 @@ func TestSessionTracesSource(t *testing.T) {
 	_, err = src(ctx, c, "audit")
 	assert.Error(t, err, "nothing fits")
 }
+
+// p6-debts: security-fix without --parent reads the last audit of type
+// security only (from_equals), never the report of another audit; without
+// one the input stays empty and the launch says so.
+func TestSessionOutputSourceFromEquals(t *testing.T) {
+	st, err := sqlite.Open(filepath.Join(t.TempDir(), "oh.db"))
+	require.NoError(t, err)
+	t.Cleanup(func() { st.Close() })
+	ctx := context.Background()
+	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1', 'p1', '/p1')`)
+	require.NoError(t, err)
+	sessions := sqlite.NewSessionStore(st)
+	t0 := time.Date(2026, 10, 14, 9, 0, 0, 0, time.UTC)
+	add := func(id, typ string, at time.Duration) {
+		require.NoError(t, sessions.Create(ctx, &domain.Session{ID: id, ProjectID: "p1", WorkflowID: "audit", StartedAt: t0.Add(at),
+			Status: domain.SessionStatusCompleted, State: domain.RunCompleted, Outputs: map[string]any{"findings": "rp-" + id, "type": typ}}))
+	}
+	add("sec", "security", 0)
+	add("perf", "performance", time.Hour)
+
+	oldType := sessionOutputType
+	t.Cleanup(func() { sessionOutputType = oldType })
+	sessionOutputType = func(context.Context, workflowsvc.Context, string, string) workflow.OutputType {
+		return workflow.OutputText
+	}
+	var notes bytes.Buffer
+	src := inputSources(&app.App{Sessions: sessions}, noteTo(&notes))[workflow.SourceSessionOutput]
+	arg := "audit.findings" + workflowsvc.FromEqualsSuffix(map[string]string{"type": "security"})
+	got, err := src(ctx, workflowsvc.Context{ProjectID: "p1"}, arg)
+	require.NoError(t, err)
+	assert.Equal(t, "rp-sec", got, "the last security audit, not the last audit")
+	assert.Contains(t, notes.String(), "sec")
+	got, err = src(ctx, workflowsvc.Context{ProjectID: "p1", FromSession: "perf"}, arg)
+	require.NoError(t, err)
+	assert.Equal(t, "rp-sec", got, "a parent audit of another type is not read")
+	got, _ = src(ctx, workflowsvc.Context{ProjectID: "p1"}, "audit.findings")
+	assert.Equal(t, "rp-perf", got, "without from_equals: the last audit")
+
+	notes.Reset()
+	_, err = src(ctx, workflowsvc.Context{ProjectID: "p1"}, "audit.findings"+workflowsvc.FromEqualsSuffix(map[string]string{"type": "privacy"}))
+	assert.Error(t, err)
+	assert.Contains(t, notes.String(), "type=privacy", "the launch says no session fits")
+}

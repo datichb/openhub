@@ -1,6 +1,7 @@
 package bundle
 
 import (
+	"path"
 	"slices"
 	"sort"
 	"strings"
@@ -88,6 +89,7 @@ func SessionRules(wf *sessionspec.WorkflowRuntime, mode string, st *domain.Check
 	}
 	rules = append(rules, fixLockRules(wf, st)...)
 	rules = append(rules, writesLockRules(wf, mode, st)...)
+	rules = append(rules, earlyWindowRules(wf, st)...)
 	for _, op := range LockedOps(wf, mode, st) {
 		if op == sessionspec.UnlockMR {
 			rules = append(rules, publishLockRules(op)...) // shell and MCP
@@ -99,6 +101,61 @@ func SessionRules(wf *sessionspec.WorkflowRuntime, mode string, st *domain.Check
 	}
 	rules = append(rules, ApplyLockedByDefault(wf)...)
 	return append(rules, PublishLockedByDefault(wf)...)
+}
+
+// earlyWindowRules keep the `writes:` paths out of the commit window of a
+// checkpoint followed by another commit checkpoint (unlock_again,
+// p6-debts): the postmortem of incident is committed at cp-postmortem, not
+// with the mitigation at cp-mitigated. git add and git commit naming a
+// writes: path or a folder above it, and the forms that take every change
+// (-A, ., -u, commit -a), are refused while that window is open. A guard
+// rail on the text of the commands (globalguard.go).
+func earlyWindowRules(wf *sessionspec.WorkflowRuntime, st *domain.CheckpointState) []sessionspec.PermissionRule {
+	u, open := unlocked(st, sessionspec.UnlockCommit)
+	if !open || len(wf.Writes) == 0 {
+		return nil
+	}
+	c, ok := wf.Checkpoint(u.Checkpoint)
+	if !ok || c.CommitNext == "" {
+		return nil
+	}
+	var patterns []string
+	seen := map[string]bool{}
+	add := func(p string) {
+		if !seen[p] {
+			seen[p] = true
+			patterns = append(patterns, p)
+		}
+	}
+	for _, p := range []string{"*git*add* -A*", "*git*add*--all*", "*git*add* -u*", "*git*add*--update*", "*git*add* .", "*git*add* . *",
+		"*git*add* ./*", "*git*add* :*", "*git*add* '*", `*git*add* "*`, "*git*commit* -a*", "*git*commit*--all*"} {
+		add(p)
+	}
+	agents := make([]string, 0, len(wf.Writes))
+	for a := range wf.Writes {
+		agents = append(agents, a)
+	}
+	sort.Strings(agents)
+	for _, a := range agents {
+		for _, w := range wf.Writes[a] {
+			dir := strings.TrimSuffix(w, workflow.WritesAll)
+			for _, cmd := range []string{"add", "commit"} {
+				add("*git*" + cmd + "* " + dir + "*")
+				// the folders above it (git add docs/)
+				for d := path.Dir(dir); d != "." && d != "/"; d = path.Dir(d) {
+					add("*git*" + cmd + "* " + d)
+					add("*git*" + cmd + "* " + d + " *")
+					add("*git*" + cmd + "* " + d + "/")
+					add("*git*" + cmd + "* " + d + "/ *")
+				}
+			}
+		}
+	}
+	out := make([]sessionspec.PermissionRule, 0, len(patterns))
+	for _, p := range patterns {
+		out = append(out, sessionspec.PermissionRule{Action: sessionspec.ActionShell, Resource: p, Effect: sessionspec.EffectDeny})
+	}
+	return out
 }
 
 // lockPatterns are the shell commands refused while an operation is locked.

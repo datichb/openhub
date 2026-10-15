@@ -18,7 +18,7 @@ import (
 func TestShippedSpecOrder(t *testing.T) {
 	wf := shippedBundle(t, "spec").Spec.Workflow
 	require.NotNil(t, wf)
-	assert.Equal(t, []sessionspec.WritesGate{{Agent: "planner", Paths: []string{"docs/wiki/specs/**"}, After: "cp-understanding"}}, wf.WritesGates)
+	assert.Equal(t, []sessionspec.WritesGate{{Agent: "planner", Paths: []string{"docs/wiki/specs/**", "docs/wiki/index.md"}, After: "cp-understanding"}}, wf.WritesGates)
 	after := map[string]string{}
 	for _, c := range wf.Checkpoints {
 		after[c.ID] = c.After

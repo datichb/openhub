@@ -15,17 +15,18 @@ import (
 //	edit       docs/wiki/specs/*                          allow
 //	shell      git add [--] docs/wiki/specs/*             allow
 //	shell      git commit -m "*" -- docs/wiki/specs/*     allow  (also -m '*': only this path is committed)
+//	shell      … a second path, a second -m               ask    (read by oh, below)
 //	shell      amend, -a/--all, --include, add -A/./-u      deny
-//	shell      a path that is not one declared path         deny
+//	shell      a way out of a declared folder               deny
 //
 // Only declared paths are committed (p4-fixes): the message is quoted and
-// alone before `--` (a third quote of its kind is refused, so no pathspec
-// hides between the message and `--`: `-m x src/a.go -- …`, `-m "x" a.go ""
-// -- …`, `-p`, `--pathspec-from-file`, `:(glob)…`), and after `--` comes a
-// single path under the declared one: no space, `..`, `/.`, quote, `$`,
-// backquote or redirection after its folder. Several declared files are
-// committed one by one, or by their folder. Not covered: a message holding
-// as many quotes of its kind (refused, like an escaped `\"`).
+// alone before `--` (a third quote of its kind asks), and after `--` comes
+// a path under the declared one: no `..`, `/.`, quote, `$`, backquote or
+// redirection after its folder. A line the rules cannot read (several
+// paths, several -m: p6-debts) asks: the oh plugin relays it and oh reads
+// it word by word (WritesLineProblem): every path declared, nothing but -m
+// messages before `--`, otherwise refused. Without oh's answer it asks the
+// user (the commit stays held, pending.go).
 //
 // The commit stays locked until the checkpoint that unlocks it (session
 // rules), and the guards of the bundle (git, hooks, Beads data, scratch
@@ -68,6 +69,9 @@ func WritesRules(paths []string) []sessionspec.PermissionRule {
 			add(sessionspec.ActionShell, form+t, sessionspec.EffectAllow)
 		}
 	}
+	for _, p := range writesPathAsk(paths) {
+		add(sessionspec.ActionShell, p, sessionspec.EffectAsk)
+	}
 	for _, p := range writesDeny {
 		add(sessionspec.ActionShell, p, sessionspec.EffectDeny)
 	}
@@ -80,20 +84,24 @@ func WritesRules(paths []string) []sessionspec.PermissionRule {
 // writesForms are the commands allowed on a declared path, followed by it.
 var writesForms = []string{"git add ", "git add -- ", `git commit -m "*" -- `, "git commit -m '*' -- "}
 
-// writesMessageDeny refuses a third quote of the kind that opens the
-// message: the only way to put an argument between the message and `--`.
-var writesMessageDeny = []string{`git commit -m "*"*"*`, "git commit -m '*'*'*"}
+// writesMessageAsk is a third quote of the kind that opens the message:
+// an argument between the message and `--`, or a second -m. oh reads it.
+var writesMessageAsk = []string{`git commit -m "*"*"*`, "git commit -m '*'*'*"}
 
 // writesAfterDir is what may not follow the folder of a declared path: a
-// second argument, a way out of the folder, a quote, an expansion, a
-// redirection. " ?*" and not " *": a pattern ending in " *" also matches
-// nothing after the space (toolMatch), so it would refuse every path.
-var writesAfterDir = []string{" ?*", "\t*", "\n*", "..*", "/.*", "'*", `"*`, "$*", "`*", ">*", "<*"}
+// way out of the folder, a quote, an expansion, a redirection, a tab or a
+// newline. A space (another path) asks: oh reads the line.
+var writesAfterDir = []string{"\t*", "\n*", "..*", "/.*", "'*", `"*`, "$*", "`*", ">*", "<*"}
+
+// writesMore is a space after a declared path (another argument). " ?*"
+// and not " *": a pattern ending in " *" also matches nothing after the
+// space (toolMatch), so it would hold every path.
+const writesMore = " ?*"
 
 // writesPathDeny returns the refusals of a path that is not one declared
-// path, after each allowed form.
+// path, after each allowed form; writesPathAsk the lines oh reads.
 func writesPathDeny(paths []string) []string {
-	out := append([]string(nil), writesMessageDeny...)
+	var out []string
 	for _, p := range paths {
 		dir, ok := strings.CutSuffix(p, workflow.WritesAll)
 		if !ok {
@@ -103,6 +111,16 @@ func writesPathDeny(paths []string) []string {
 			for _, bad := range writesAfterDir {
 				out = append(out, form+dir+"*"+bad)
 			}
+		}
+	}
+	return out
+}
+
+func writesPathAsk(paths []string) []string {
+	out := append([]string(nil), writesMessageAsk...)
+	for _, p := range paths {
+		for _, form := range writesForms {
+			out = append(out, form+WritesPattern(p)+writesMore)
 		}
 	}
 	return out

@@ -9,7 +9,7 @@ Comprendre une demande, écrire sa spec dans le wiki (glossaire, critères et po
 
 - Agent d'entrée : `conductor`
 - Risque : `plan` : aucune modification de fichier hors des chemins de documentation ci-dessous ; écritures Beads limitées aux commandes autorisées
-- Écritures de `planner` : `docs/wiki/specs/**`, à partir de `cp-understanding` (et leur commit, une fois déverrouillé)
+- Écritures de `planner` : `docs/wiki/specs/**`, `docs/wiki/index.md`, à partir de `cp-understanding` (et leur commit, une fois déverrouillé)
 - Commandes Beads autorisées : `show`, `list`, `ready`, `children`, `search`, `query`, `count`, `lint`, `find-duplicates`, `label`, `dep`, `create`, `update`, `comments`, `duplicate`, `supersede`
 
 Cette carte est la seule référence sur l'enchaînement : n'invente ni agent, ni étape, ni checkpoint qui n'y figure pas.

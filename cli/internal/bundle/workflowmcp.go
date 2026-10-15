@@ -27,7 +27,7 @@ func applyWorkflowRuntime(spec *sessionspec.BundleSpec, s *workflow.Spec) {
 // WorkflowRuntime extracts from a resolved workflow what a running session
 // needs (tool-agnostic).
 func WorkflowRuntime(s *workflow.Spec) *sessionspec.WorkflowRuntime {
-	rt := &sessionspec.WorkflowRuntime{ID: s.ID, DefaultMode: s.DefaultMode()}
+	rt := &sessionspec.WorkflowRuntime{ID: s.ID, DefaultMode: s.DefaultMode(), ScopeInput: s.ScopeInput()}
 	for _, id := range s.Checkpoints.Keys() {
 		cp, _ := s.Checkpoints.Get(id)
 		if cp.Disabled {
@@ -47,6 +47,12 @@ func WorkflowRuntime(s *workflow.Spec) *sessionspec.WorkflowRuntime {
 		a, _ := s.Agents.Get(id)
 		if a.Role != workflow.RoleDisabled && a.After != "" {
 			rt.Gates = append(rt.Gates, sessionspec.AgentGate{Agent: id, After: a.After})
+		}
+		if a.Role != workflow.RoleDisabled && len(a.Writes) > 0 {
+			if rt.Writes == nil {
+				rt.Writes = map[string][]string{}
+			}
+			rt.Writes[id] = append([]string(nil), a.Writes...)
 		}
 		if a.Role != workflow.RoleDisabled && a.WritesAfter != "" && len(a.Writes) > 0 {
 			rt.WritesGates = append(rt.WritesGates, sessionspec.WritesGate{Agent: id, Paths: append([]string(nil), a.Writes...), After: a.WritesAfter})

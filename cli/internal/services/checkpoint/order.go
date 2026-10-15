@@ -80,6 +80,40 @@ func (s *Service) EvaluateEdit(ctx context.Context, root, action string, resourc
 	return "", "", nil
 }
 
+// EvaluateWrites answers a shell permission request of a `writes:` agent
+// relayed by the oh plugin (p6-debts): the git add and git commit lines
+// the rules cannot read (several declared paths, several -m) are read by
+// oh, allowed when every word is one of a declared path or a message,
+// refused otherwise with the reason. effect "" keeps the decision of the
+// tool (another agent, another command among the resources).
+func (s *Service) EvaluateWrites(ctx context.Context, root, agent, action string, resources []string) (effect, message string, err error) {
+	if action != sessionspec.ActionShell || agent == "" || len(resources) == 0 {
+		return "", "", nil
+	}
+	for _, r := range resources {
+		if !bundle.IsWritesLine(r) {
+			return "", "", nil // the user decides the other commands of the line
+		}
+	}
+	_, wf, err := s.session(ctx, root)
+	if errors.Is(err, ErrNoWorkflow) {
+		return "", "", nil
+	}
+	if err != nil {
+		return "", "", err
+	}
+	paths := wf.Writes[agent]
+	if len(paths) == 0 {
+		return "", "", nil
+	}
+	for _, r := range resources {
+		if why := bundle.WritesLineProblem(paths, r); why != "" {
+			return string(sessionspec.EffectDeny), i18n.Tf("cmd.daemon.workflow.writes_line_refused", r, why, strings.Join(paths, ", ")), nil
+		}
+	}
+	return string(sessionspec.EffectAllow), "", nil
+}
+
 // outOfOrder reports whether checkpoint c waits for a checkpoint not passed
 // yet: it is let through, so that the call fails with the reason instead of
 // asking the user.

@@ -37,7 +37,7 @@
 {{- end }}{{ end }}
 {{- end }}
 {{- if .Writes }}
-- **Écritures** (`writes:` du workflow) : {{ if .WritesOnly }}tu peux créer et modifier {{ codes .Writes }}, et seulement ces chemins (outils `edit` et `write`) ; tout autre fichier reste en lecture seule.{{ if .WritesAfter }} Seulement une fois `{{ .WritesAfter }}` passé : avant, oh bloque l'écriture ; n'écris rien, rends ce qui est à valider à ce checkpoint et attends d'être relancé.{{ end }} Commit{{ else }}commit de {{ codes .Writes }}{{ end }}, une fois déverrouillé par son checkpoint : `git add <chemin>`, puis `git commit -m "<message>" -- <chemin>` (un seul chemin par commit, rien d'autre n'est commité).
+- **Écritures** (`writes:` du workflow) : {{ if .WritesOnly }}tu peux créer et modifier {{ codes .Writes }}, et seulement ces chemins (outils `edit` et `write`) ; tout autre fichier reste en lecture seule.{{ if .WritesAfter }} Seulement une fois `{{ .WritesAfter }}` passé : avant, oh bloque l'écriture ; n'écris rien, rends ce qui est à valider à ce checkpoint et attends d'être relancé.{{ end }} Commit{{ else }}commit de {{ codes .Writes }}{{ end }}, une fois déverrouillé par son checkpoint : `git add <chemins>`, puis `git commit -m "<message>" [-m "<corps>"] -- <chemins>` (un ou plusieurs de ces chemins, sans autre option ; rien d'autre n'est commité).
 {{- end }}
 {{- if .MaxFixRounds }}
 - **Tours de correction** : au plus {{ .MaxFixRounds }} (developer → reviewer) par ticket ; au-delà, passe le checkpoint de commit en signalant les points non résolus.

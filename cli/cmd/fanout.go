@@ -42,6 +42,7 @@ func init() {
 		Args:  cobra.ExactArgs(1),
 		RunE:  runFanoutDrive,
 	}
+	drive.Flags().Bool("relaunch", false, i18n.T("cmd.fanout.drive.flags.relaunch"))
 	status := &cobra.Command{
 		Use:   "status <session-id>",
 		Short: i18n.T("cmd.fanout.status.short"),
@@ -110,6 +111,11 @@ func runFanoutDrive(cmd *cobra.Command, args []string) error {
 		return errors.New(i18n.Tf("cmd.fanout.driven", sess.ID))
 	}
 	defer unlock()
+	if relaunch, _ := cmd.Flags().GetBool("relaunch"); relaunch {
+		if err := d.Relaunched(ctx, sess.ID); err != nil {
+			return err
+		}
+	}
 	if err := d.Run(ctx, sess.ID); err != nil {
 		return err
 	}
@@ -262,7 +268,7 @@ func printFanout(w io.Writer, id string, f *domain.SessionFanout) {
 // spawnFanoutDriver starts `oh fanout drive <id>` in the background (its
 // output in ~/.oh/sessions/<id>/fanout.log): the children are launched
 // once the parent passes cp-plan, whatever the client of the parent does.
-func spawnFanoutDriver(sessionID string) (string, error) {
+func spawnFanoutDriver(sessionID string, extra ...string) (string, error) {
 	exe, err := os.Executable()
 	if err != nil {
 		return "", err
@@ -277,7 +283,7 @@ func spawnFanoutDriver(sessionID string) (string, error) {
 		return "", err
 	}
 	defer logf.Close()
-	c := exec.Command(exe, "fanout", "drive", sessionID)
+	c := exec.Command(exe, append([]string{"fanout", "drive", sessionID}, extra...)...)
 	c.Stdout, c.Stderr, c.Stdin = logf, logf, nil
 	c.Env = os.Environ()
 	daemon.SetDetached(c)

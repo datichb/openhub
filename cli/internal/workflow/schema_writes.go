@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"path"
+	"slices"
 	"strings"
 )
 
@@ -16,7 +17,8 @@ import (
 //	  cp-converge:
 //	    verify: { spec: { paths: ["docs/wiki/specs/**"], breakdown: true } }
 //
-// `writes:` opens documentation paths only (WritesRoot), to an agent whose
+// `writes:` opens documentation paths only (WritesRoot, and the root files
+// of WritesRootFiles: p6-debts), to an agent whose
 // own rules refuse the edit tools: the bundle adds, after its own rules and
 // before the guards, the edit of these paths and the commit of these paths
 // only (bundle.WritesRules). A layer may only narrow an inherited list: a
@@ -26,12 +28,17 @@ import (
 // WritesRoot is the folder every `writes:` path lies in: the documentation.
 const WritesRoot = "docs/"
 
+// WritesRootFiles are the files at the root of the project a `writes:`
+// path may name, besides docs/ (p6-debts): documentation files only, never
+// a folder nor code.
+var WritesRootFiles = []string{"ONBOARDING.md", "CONVENTIONS.md", "README.md", "CHANGELOG.md"}
+
 // WritesAll is the suffix of a path that covers a whole folder.
 const WritesAll = "/**"
 
 // WritesPathProblem returns why p is not a valid `writes:` path ("" when it
 // is): a relative path under docs/, a file or a folder ending in /**, no
-// other wildcard.
+// other wildcard; or one of WritesRootFiles.
 func WritesPathProblem(p string) string {
 	clean := path.Clean(p)
 	dir := strings.TrimSuffix(p, WritesAll)
@@ -40,8 +47,10 @@ func WritesPathProblem(p string) string {
 		return "empty"
 	case strings.Contains(p, `\`) || path.IsAbs(p) || clean != p:
 		return "not a clean relative path"
+	case slices.Contains(WritesRootFiles, p):
+		return ""
 	case !strings.HasPrefix(p, WritesRoot) || len(p) == len(WritesRoot):
-		return "outside " + WritesRoot
+		return "outside " + WritesRoot + " and not a root file of " + strings.Join(WritesRootFiles, ", ")
 	case strings.ContainsAny(dir, "*?[]{}"):
 		return "wildcard other than a final /**"
 	case strings.Contains(p, "/../") || strings.HasSuffix(dir, "/.."):

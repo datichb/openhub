@@ -47,7 +47,7 @@ agents:
   pathfinder: { role: workflow, mode: subagent }
   # E8 (R4): the planner stays read-only, except its spec in the wiki,
   # which oh opens once the understanding is approved (r5-fixes).
-  planner: { role: workflow, mode: subagent, writes: ["docs/wiki/specs/**"], writes_after: cp-understanding }
+  planner: { role: workflow, mode: subagent, writes: ["docs/wiki/specs/**", "docs/wiki/index.md"], writes_after: cp-understanding }
   designer: { role: workflow, mode: subagent }
 checkpoints:
   cp-understanding:

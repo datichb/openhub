@@ -195,6 +195,7 @@ const (
 	FanoutEventDiscarded  = "discarded"  // a branch not merged deleted on request (its commit)
 	FanoutEventFix        = "fix"        // fix round launched on the integration branch
 	FanoutEventFixed      = "fixed"      // fix round done (taken by oh, or not)
+	FanoutEventDriver     = "driver"     // driver started again by the daemon (p6-debts)
 )
 
 // fanoutEventsMax caps the stored events.

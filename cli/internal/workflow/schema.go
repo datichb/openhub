@@ -219,6 +219,27 @@ type Input struct {
 	// "<source>(<input>)", e.g. "mr.discussions(mr)" (additive, QB2;
 	// sources: InputSources).
 	From string `yaml:"from,omitempty"`
+	// FromEquals (p6-debts) narrows a `from: session.output(…)` to the
+	// sessions whose outputs listed were recorded with these values (the
+	// last security audit: { type: security }).
+	FromEquals map[string]string `yaml:"from_equals,omitempty"`
+	// Scope (p6-debts) makes a text input the file scope of the session:
+	// one entry per line or comma (path, folder, pattern of the repository,
+	// or a new file in an existing folder). oh checks it at launch and
+	// refuses, at the checkpoints it verifies, a change outside it. The
+	// input must be recorded (`record: input` output of the same id).
+	Scope bool `yaml:"scope,omitempty"`
+}
+
+// ScopeInput returns the input that is the file scope of the session ("" =
+// none).
+func (s *Spec) ScopeInput() string {
+	for _, k := range s.Inputs.Keys() {
+		if in, _ := s.Inputs.Get(k); in.Scope {
+			return k
+		}
+	}
+	return ""
 }
 
 // InputSources are the sources of computed inputs (`from:`), computed by

@@ -258,6 +258,7 @@ func (w *watcher) onEvent(ctx context.Context, ev adapters.ToolEvent) {
 	switch {
 	case ev.Kind == adapters.EventExecStarted:
 		w.reopenCompleted(ctx, ev.SessionID)
+		w.d.ensureFanoutDriver(ctx, ev.SessionID) // p6-debts
 		if !w.holdOverBudget(ctx, ev.SessionID, ev.SessionID) {
 			w.clearAlerts(ctx, ev.SessionID)
 			w.syncBudget(ctx, ev.SessionID, false) // after a raise
@@ -283,6 +284,7 @@ func (w *watcher) onEvent(ctx context.Context, ev adapters.ToolEvent) {
 		w.finishWorkflow(ctx, ev.SessionID)
 	}
 	if ev.Kind == adapters.EventExecEnded {
+		w.d.ensureFanoutDriver(ctx, ev.SessionID) // p6-debts: the step is over, the driver may have ended with it
 		w.flushDeferred(ctx, ev.SessionID)
 		w.raiseBudget(ctx, ev.SessionID) // the step is over: budgets apply now
 		w.clearResume(ctx, ev.SessionID)
@@ -357,6 +359,7 @@ func (w *watcher) resync(ctx context.Context) {
 		w.mu.Unlock()
 		w.refreshPending(ctx, s.ID)
 		w.persist(ctx, s.ID, true)
+		w.d.ensureFanoutDriver(ctx, s.ID)
 	}
 	w.adoptChildren(ctx)
 	w.applyAllRules(ctx, sessions)
@@ -523,6 +526,79 @@ func (w *watcher) rootOf(id string) (string, bool) {
 	r, ok := w.children[id]
 	return r, ok
 }
+
+// adoptNow links a subagent session to its oh session from the tool's list
+// of sessions, ancestors first, when its creation event was not handled yet
+// (event just emitted, stream lost, daemon restarted): its session rules
+// are set at once. ok is false when id is no descendant of an oh session.
+func (w *watcher) adoptNow(ctx context.Context, id string) (string, bool) {
+	if r, ok := w.rootOf(id); ok {
+		return r, true
+	}
+	cl, ok := w.ad.(adapters.ChildLister)
+	if !ok {
+		return "", false
+	}
+	parents, err := cl.Children(ctx, w.handle())
+	if err != nil {
+		return "", false
+	}
+	var chain []string
+	for cur := id; len(chain) <= maxAdoptDepth; {
+		p, ok := parents[cur]
+		if !ok {
+			break
+		}
+		chain = append(chain, cur)
+		if _, linked := w.rootOf(p); linked || w.isKnown(ctx, p) {
+			break
+		}
+		cur = p
+	}
+	for i := len(chain) - 1; i >= 0; i-- {
+		w.adoptChild(ctx, chain[i], parents[chain[i]])
+	}
+	return w.rootOf(id)
+}
+
+// maxAdoptDepth bounds the delegation chain walked by adoptNow.
+const maxAdoptDepth = 32
+
+// adoptForHook returns the oh session of a tool session that asks about a
+// held request (p6-debts): the session itself when oh knows it, else its
+// root once adopted, retried for a few seconds (the tool may list a new
+// session a moment after its first call); id when none.
+func (d *Daemon) adoptForHook(ctx context.Context, id, group string) string {
+	if s, err := d.opts.Sessions.Get(ctx, id); err == nil && s.GroupKey == group {
+		return id
+	}
+	d.wmu.Lock()
+	w := d.watchers[group]
+	d.wmu.Unlock()
+	if w == nil {
+		return id
+	}
+	for i := 0; ; i++ {
+		if r, ok := w.adoptNow(ctx, id); ok {
+			return r
+		}
+		if i+1 >= adoptTries {
+			return id
+		}
+		select {
+		case <-ctx.Done():
+			return id
+		case <-time.After(adoptRetry):
+		}
+	}
+}
+
+// adoptTries and adoptRetry bound the wait of adoptForHook (under the
+// timeout of the plugin for a held request).
+var (
+	adoptTries = 5
+	adoptRetry = 600 * time.Millisecond
+)
 
 // onChildEvent reports the activity of a subagent on its root session: feed
 // entries (with the subagent name) and the requests it waits for.

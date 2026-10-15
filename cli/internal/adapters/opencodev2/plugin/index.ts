@@ -11,7 +11,8 @@
 //   3. Checkpoints (level 3): before a permission is asked, the request is
 //      relayed to the oh daemon, which may turn it into allow / deny. The
 //      plugin only forwards: oh decides. Without an answer (oh unreachable,
-//      timeout) the rendered decision stands.
+//      timeout) the rendered decision stands, except for the requests held
+//      until oh confirms the session rules (option pending): refused.
 //   4. Guard: the deny/ask rules of oh that come last for every agent are
 //      applied to each evaluated permission (a line already refused by the
 //      rules never reaches the hook); the shell never gets the server
@@ -34,6 +35,11 @@
 //                 being rendered in every agent)
 //   scopedGuard   deny rules of oh in force last for every agent but those
 //                 of their `except` list (session scratch folders)
+//   pending       requests held until oh confirms the session rules of the
+//                 session (operations locked by a checkpoint): relayed to
+//                 oh even when allowed, refused when oh does not answer
+//                 (subagent session not adopted yet, daemon unreachable)
+//   pendingMessage refusal of a held request oh did not answer
 
 import { appendFileSync, readFileSync } from "fs"
 import { join } from "path"
@@ -50,12 +56,16 @@ type Options = {
   scrubEnv?: string[]
   guard?: Rule[]
   scopedGuard?: ScopedRule[]
+  pending?: Rule[]
+  pendingMessage?: string
 }
 
 type Rule = { action: string; resource: string; effect: string }
 type ScopedRule = Rule & { except?: string[] }
 
 const hookTimeoutMs = 2000
+// oh may adopt a subagent session before it answers a held request.
+const pendingTimeoutMs = 6000
 const maxCalls = 500
 
 const bodies = new Map<string, string | null>()
@@ -156,10 +166,23 @@ export default {
         if (inputs.size > maxCalls) inputs.delete(inputs.keys().next().value as string)
       })
     }
-    if (relay || guard.length > 0 || scoped.length > 0) {
+    // Held requests (p6-debts, closed by default): the rendered rules of a
+    // session do not hold the locks of its checkpoints until oh has set its
+    // session rules; only oh's answer lets them through.
+    const pending = (opts.pending ?? []).filter((r) => r.effect === "deny")
+    const pendingMessage = opts.pendingMessage || "Refused by oh: the rules of this session are not confirmed."
+    if (relay || guard.length > 0 || scoped.length > 0 || pending.length > 0) {
       await ctx.permission.hook("evaluate", async (event: any) => {
-        if (relay && (event?.effect === "ask" || (event?.effect === "allow" && gated.has(event?.action)))) {
-          await relayToOh(event)
+        const held =
+          pending.length > 0 && event?.effect !== "deny" && guardEffect(pending, event?.action, event?.resources ?? []) === "deny"
+        if (held) {
+          const answered = relay ? await relayToOh(event, true) : false
+          if (!answered) {
+            event.effect = "deny"
+            event.message = pendingMessage
+          }
+        } else if (relay && (event?.effect === "ask" || (event?.effect === "allow" && gated.has(event?.action)))) {
+          await relayToOh(event, false)
         }
         // The guard of oh, last of every agent: never loosened by the relay.
         const restricted = guardEffect(guardOf(event?.agent), event?.action, event?.resources ?? [])
@@ -167,7 +190,8 @@ export default {
       })
     }
 
-    async function relayToOh(event: any) {
+    // relayToOh asks oh about a permission; it reports whether oh answered.
+    async function relayToOh(event: any, held: boolean): Promise<boolean> {
       const callID = event.source?.id
       try {
         const res = await fetch(`${opts.hookURL}/permission`, {
@@ -175,20 +199,23 @@ export default {
           headers: { "content-type": "application/json", authorization: `Bearer ${process.env[opts.tokenEnv!] ?? ""}` },
           body: JSON.stringify({
             sessionID: event.sessionID,
-            agent: event.agent,
+            agent: typeof event.agent === "string" ? event.agent : event.agent?.id,
             action: event.action,
             resources: event.resources,
             callID,
             input: callID ? inputs.get(callID) : undefined,
+            pending: held || undefined,
           }),
-          signal: AbortSignal.timeout(hookTimeoutMs),
+          signal: AbortSignal.timeout(held ? pendingTimeoutMs : hookTimeoutMs),
         })
-        if (!res.ok) return
+        if (!res.ok) return false
         const out: any = await res.json()
         if (out?.effect === "allow" || out?.effect === "deny" || out?.effect === "ask") event.effect = out.effect
         if (typeof out?.message === "string" && out.message) event.message = out.message
+        return true
       } catch {
-        // oh unreachable: the rendered decision stands
+        // oh unreachable: the rendered decision stands (a held request is refused)
+        return false
       }
     }
 

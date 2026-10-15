@@ -194,11 +194,19 @@ type BundleSpec struct {
 	// ScopedGuard are deny rules of the guard for every agent but those of
 	// Except (session scratch): applied by the adapter with AgentGuard when
 	// it can (an adapter that cannot apply them per agent ignores them).
-	ScopedGuard   []ScopedRule        `json:"scoped_guard,omitempty"`
-	SubagentGraph map[string][]string `json:"subagent_graph,omitempty"`
-	MaxDepth      int                 `json:"max_depth"`
-	CodeMode      bool                `json:"code_mode"`
-	Isolation     IsolationLevel      `json:"isolation"`
+	ScopedGuard []ScopedRule `json:"scoped_guard,omitempty"`
+	// PendingGuard are the requests the adapter holds until oh confirms the
+	// session rules of the session (subagent session not adopted yet,
+	// daemon unreachable: refused). Derived from Workflow when the server
+	// starts (bundle.PendingGuard), never stored: an older bundle gets it too.
+	PendingGuard []PermissionRule `json:"-"`
+	// PendingMessage is the refusal of a PendingGuard request oh did not
+	// answer (in the language of the user).
+	PendingMessage string              `json:"-"`
+	SubagentGraph  map[string][]string `json:"subagent_graph,omitempty"`
+	MaxDepth       int                 `json:"max_depth"`
+	CodeMode       bool                `json:"code_mode"`
+	Isolation      IsolationLevel      `json:"isolation"`
 	// StrictIsolation mirrors the workflow `isolation: strict`: no permission
 	// may be granted "always" from oh.
 	StrictIsolation bool      `json:"strict_isolation,omitempty"`

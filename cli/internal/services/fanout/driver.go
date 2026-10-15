@@ -83,6 +83,11 @@ const (
 // no decision waiting, without its end of work, before oh stops it.
 const DefaultIdleTimeout = 10 * time.Minute
 
+// DefaultMergerIdleTimeout is the guard of a merger (p6-debts): it runs in
+// auto, nobody answers it, and its work is one merge; idle without the
+// merge concluded, it gave up.
+const DefaultMergerIdleTimeout = 2 * time.Minute
+
 // Driver runs fan-outs.
 type Driver struct {
 	Sessions Store
@@ -101,6 +106,9 @@ type Driver struct {
 	// IdleTimeout is the guard on an idle session without its end of work
 	// (0 = DefaultIdleTimeout).
 	IdleTimeout time.Duration
+	// MergerIdleTimeout is the guard on an idle merger without the merge
+	// concluded (0 = DefaultMergerIdleTimeout, IdleTimeout when shorter).
+	MergerIdleTimeout time.Duration
 	// Log receives a line per step (nil = none).
 	Log func(format string, args ...any)
 
@@ -153,6 +161,19 @@ func (d *Driver) update(ctx context.Context, parent string, fn func(*domain.Sess
 // creates the integration branch, then launches, follows and merges the
 // children, and tells the parent the result.
 func (d *Driver) Run(ctx context.Context, parent string) error {
+	return d.run(ctx, parent)
+}
+
+// Relaunched records that the daemon started the driver again (p6-debts),
+// before Run.
+func (d *Driver) Relaunched(ctx context.Context, parent string) error {
+	_, err := d.update(ctx, parent, func(f *domain.SessionFanout) {
+		f.AddEvent(domain.FanoutEventDriver, "", "", "started again by the daemon ("+string(f.Status)+")")
+	})
+	return err
+}
+
+func (d *Driver) run(ctx context.Context, parent string) error {
 	p, err := d.Sessions.Get(ctx, parent)
 	if err != nil {
 		return err
@@ -265,9 +286,15 @@ func (d *Driver) waitStart(ctx context.Context, p *domain.Session) (*sessionspec
 		if err != nil {
 			return nil, st, err
 		}
-		if terminal(cur.State) {
+		if cur.State == domain.RunStopped || cur.State == domain.RunFailed {
 			_, err := d.update(ctx, p.ID, func(f *domain.SessionFanout) { f.Status = domain.FanoutStopped })
 			return nil, st, err
+		}
+		if cur.State == domain.RunCompleted {
+			// p6-debts: the parent ended its step before the checkpoints
+			// that start the children; the fan-out waits, the daemon starts
+			// the driver again when the parent goes on.
+			return nil, st, nil
 		}
 		select {
 		case <-ctx.Done():
@@ -715,12 +742,27 @@ func (d *Driver) follow(ctx context.Context, parent string, wf *sessionspec.Work
 // the turn of the session is over, on two checks in a row; an idle
 // session without it is stopped after IdleTimeout.
 func (d *Driver) wait(ctx context.Context, id string, finished, stop func() bool) (why string, ok bool) {
-	t := time.NewTicker(d.poll())
-	defer t.Stop()
 	timeout := d.IdleTimeout
 	if timeout <= 0 {
 		timeout = DefaultIdleTimeout
 	}
+	return d.waitIdle(ctx, id, timeout, finished, stop)
+}
+
+// mergerGuard is the idle guard of a merger.
+func (d *Driver) mergerGuard() time.Duration {
+	if d.MergerIdleTimeout > 0 {
+		return d.MergerIdleTimeout
+	}
+	if d.IdleTimeout > 0 {
+		return min(DefaultMergerIdleTimeout, d.IdleTimeout)
+	}
+	return DefaultMergerIdleTimeout
+}
+
+func (d *Driver) waitIdle(ctx context.Context, id string, timeout time.Duration, finished, stop func() bool) (why string, ok bool) {
+	t := time.NewTicker(d.poll())
+	defer t.Stop()
 	var idleSince time.Time
 	signals := 0
 	for {
@@ -863,7 +905,7 @@ func (d *Driver) resolve(ctx context.Context, p *domain.Session, wf *sessionspec
 		}
 		f.AddEvent(domain.FanoutEventMerger, c.Ticket, sid, strings.Join(conflicts, ", "))
 	})
-	why, ok := d.wait(ctx, sid, func() bool {
+	why, ok := d.waitIdle(ctx, sid, d.mergerGuard(), func() bool {
 		head, err := Head(ctx, ig.Path)
 		return err == nil && head != ig.Head && !MergeInProgress(ctx, ig.Path)
 	}, nil)

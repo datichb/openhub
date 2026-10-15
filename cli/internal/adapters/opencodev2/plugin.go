@@ -111,6 +111,10 @@ func withOhPlugin(b sessionspec.BundleSpec, dir, traceFile string, hooks map[str
 	if len(b.ScopedGuard) > 0 {
 		opts["scopedGuard"] = toScopedRules(b.ScopedGuard)
 	}
+	if len(b.PendingGuard) > 0 {
+		opts["pending"] = toRules(b.PendingGuard)
+		opts["pendingMessage"] = b.PendingMessage
+	}
 	if traceFile != "" {
 		opts["traceFile"] = traceFile
 	}

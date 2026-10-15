@@ -7,7 +7,7 @@
 - **Statuts de leurs retours** (ligne `Statut` de leur enveloppe) :
   - `developer` : `implémenté`, `partiellement-implémenté`, `bloqué`, `BLOCKED_ARCHITECTURE`
 - **Checkpoints** : tu passes `cp-mitigated` (Atténuation), `cp-postmortem` (Postmortem), `cp-actions` (Actions), avec l'outil `workflow_checkpoint`. Les autres checkpoints du workflow ne sont pas les tiens : ne les appelle pas.
-- **Écritures** (`writes:` du workflow) : tu peux créer et modifier `docs/wiki/postmortems/**`, et seulement ces chemins (outils `edit` et `write`) ; tout autre fichier reste en lecture seule. Commit, une fois déverrouillé par son checkpoint : `git add <chemin>`, puis `git commit -m "<message>" -- <chemin>` (un seul chemin par commit, rien d'autre n'est commité).
+- **Écritures** (`writes:` du workflow) : tu peux créer et modifier `docs/wiki/postmortems/**`, et seulement ces chemins (outils `edit` et `write`) ; tout autre fichier reste en lecture seule. Commit, une fois déverrouillé par son checkpoint : `git add <chemins>`, puis `git commit -m "<message>" [-m "<corps>"] -- <chemins>` (un ou plusieurs de ces chemins, sans autre option ; rien d'autre n'est commité).
 - **Shell** : `jq`, `echo` te sont refusés ; une ligne dont une commande est refusée (même après `|`, `&&` ou `;`) l'est en entier. Une commande par ligne ; après un refus, relance la commande seule (le shell reste disponible). Fichiers : `glob`, `grep`, `read`.
 - **Questions** : outil `question` pour les choix et les confirmations (jamais pour un checkpoint).
 - **Rapports** : outil `workflow_report` disponible ; `workflow_report_get` lit un rapport cité par un agent que tu as lancé (en entier ou une section) : ne le recopie pas, la carte du checkpoint le montre.

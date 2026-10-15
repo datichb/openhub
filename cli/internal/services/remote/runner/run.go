@@ -265,7 +265,7 @@ func Run(ctx context.Context, in Input) (*remote.Summary, error) {
 		if list, err := in.Wiki(ctx, sid); err != nil {
 			slog.Warn("runner: reading the wiki proposals", "err", err)
 		} else if len(list) > 0 {
-			if err := writeJSON(filepath.Join(in.OutDir, remote.WikiFile), remote.Wiki{Schema: remote.WikiSchema, Proposals: list}); err != nil {
+			if err := writeJSON(filepath.Join(in.OutDir, remote.WikiFile), remote.NewWiki(list)); err != nil {
 				slog.Warn("runner: writing the wiki proposals", "err", err)
 			}
 		}

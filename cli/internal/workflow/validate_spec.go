@@ -275,6 +275,9 @@ func (v *validator) inputs() {
 		if in.MaxLength < 0 {
 			v.err("negative_value", base+".max_length", in.MaxLength)
 		}
+		if in.Scope {
+			v.scopeInput(base+".scope", k, in)
+		}
 		if IsSessionSource(in.From) {
 			v.sessionFrom(base+".from", k, in)
 		} else if in.From != "" {

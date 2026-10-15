@@ -177,7 +177,7 @@ Wiki du projet (`docs/wiki/`), modernisation LD-J. Injecté dans les sessions la
 
 **`wiki_apply`.** Refusé par une règle de permission à tous les agents sauf le `documentarian`, pour qui il est soumis à l'utilisateur (`ask`) ; le démon le refuse aussi (403) à tout autre agent qu'il voit appeler, quelles que soient les règles de la session. Il applique les propositions en attente ou acceptées du projet.
 
-**Session distante.** Mêmes outils, servis par le démon du job sur le wiki de son clone ; `wiki_apply` y est refusé à tous les agents (« les propositions remontent sur la machine ») et le checkpoint de commit n'applique rien. Les propositions reviennent avec l'artefact `wiki.json` et entrent, en attente, dans la file du projet au `oh session fetch` ; voir [Wiki documentaire vivant › Sessions distantes](../architecture/living-wiki.fr.md#sessions-distantes).
+**Session distante.** Mêmes outils, servis par le démon du job sur le wiki de son clone ; `wiki_apply` y est refusé à tous les agents (« les propositions remontent sur la machine ») et le checkpoint de commit n'applique rien. Les propositions reviennent avec l'artefact `wiki.json` et entrent, en attente, dans la file du projet au `oh session fetch` (schéma 2 : une proposition qui remplace une ligne voyage à part, qu'une version d'oh au schéma 1 laisse de côté au lieu de l'ajouter ; un `wiki.json` d'un schéma plus récent fait échouer l'import : mettez oh à jour, puis relancez `oh session fetch`) ; les identifiants `wp-…` de la transcription distante ne sont pas renumérotés (limite connue) ; voir [Wiki documentaire vivant › Sessions distantes](../architecture/living-wiki.fr.md#sessions-distantes).
 
 ---
 

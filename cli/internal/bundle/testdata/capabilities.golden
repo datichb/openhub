@@ -2,16 +2,6 @@ cp     incident/debugger: cp-ticket
 cp     retro/debugger: cp-ticket
 cp     review-feedback/orchestrator-dev: cp-1
 cp     review-feedback/orchestrator-dev: cp-3
-deny   incident/debugger: git add x
-deny   incident/debugger: git commit -m "x" -- x
-deny   onboarding/onboarder: git add x
-deny   onboarding/onboarder: git commit -m "x" -- x
-deny   retro/debugger: git add x
-deny   retro/debugger: git commit -m "x" -- x
-deny   spec/planner: git add x
-deny   spec/planner: git commit -m "x" -- x
-deny   spike/pathfinder: git add x
-deny   spike/pathfinder: git commit -m "x" -- x
 locked debug/debugger: bd create
 locked incident/debugger: bd create
 locked infra-change/operator: helm upgrade
@@ -34,7 +24,6 @@ locked spec/planner: bd create -t epic
 locked spec/planner: bd duplicate
 locked spec/planner: bd duplicate x --of x
 locked spec/planner: bd supersede
-locked spec/planner: git commit -m "docs(spec): x" -- docs/wiki/specs/x.md
 locked triage/planner: bd comments add
 locked triage/planner: bd comments add x "⚠️ Spec UI à compléter — ce ticket nécessite une spécification visuelle.
 locked triage/planner: bd create

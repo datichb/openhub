@@ -203,6 +203,17 @@ func newRunService(ctx context.Context, a *app.App) (*runsvc.Service, error) {
 		},
 	}
 	svc.WakeSession = func(ctx context.Context, id string) error { return resumeV5Session(ctx, a, svc, id) }
+	svc.RefreshRules = func(ctx context.Context, id string) error {
+		dc, _, err := ensureDaemon(ctx)
+		if err != nil {
+			return err
+		}
+		capability, _, err := daemonCapability(ctx) // privileged route (N1)
+		if err != nil {
+			return err
+		}
+		return dc.WithCapability(capability).WorkflowRefresh(ctx, id)
+	}
 	return svc, nil
 }
 
