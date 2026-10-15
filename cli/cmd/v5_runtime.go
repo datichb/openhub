@@ -263,7 +263,8 @@ func newSessionService(ctx context.Context, a *app.App) (*sessionsvc.Service, er
 // sessions; the daemon feeds it, the CLI and the TUI answer its decisions).
 func newCheckpointService(a *app.App) *checkpoint.Service {
 	cs := sqlite.NewCheckpointStore(store)
-	return &checkpoint.Service{Sessions: a.Sessions, States: cs, SessionOutputs: cs, BundlesDir: ohBundlesDir(), SessionsDir: ohSessionsDir()}
+	return &checkpoint.Service{Sessions: a.Sessions, States: cs, SessionOutputs: cs, BundlesDir: ohBundlesDir(), SessionsDir: ohSessionsDir(),
+		ContainerExec: containerVerify(a)}
 }
 
 // newWikiService wires the WikiService (proposals of the wiki MCP server,
