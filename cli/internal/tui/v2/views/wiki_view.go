@@ -11,10 +11,14 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
-// WikiView displays wiki pages and pending proposals for human review.
+// WikiView is « Propositions d'équipe (team-state) »: the pages of the
+// wiki of the team-state and the proposals waiting there (teamstate
+// WikiListPending), y accept, n refuse (confirmed). The wiki of a project
+// and its queue are in project.wiki.
 type WikiView struct {
 	app         *tview.Application
 	resolveTeam ResolveTeamFunc
@@ -50,14 +54,12 @@ func (v *WikiView) SetShell(s ShellAccess) { v.shell = s }
 func (v *WikiView) ID() string { return "team.wiki" }
 
 // Title returns the display title.
-func (v *WikiView) Title() string { return i18n.T("tui.team.wiki") }
+func (v *WikiView) Title() string { return i18n.T("tui.teamwiki.title") }
 
 // StatusHints returns keybinding hints.
 func (v *WikiView) StatusHints() string {
-	return fmt.Sprintf("j/k %s · {/} %s · Enter %s · a %s · x %s · r %s",
-		i18n.T("tui.hints.nav"), "sections",
-		i18n.T("tui.hints.see"), i18n.T("tui.wiki.hints_accept"), i18n.T("tui.wiki.hints_reject"),
-		i18n.T("tui.hints.refresh"))
+	return keys.Hints(keys.Navigate.Hint(), "{/} "+i18n.T("tui.teamwiki.sections"), keys.Open.HintAs(i18n.T("tui.hints.see")),
+		keys.Accept.HintAs(i18n.T("tui.wikilist.accept")), keys.Refuse.Hint(), keys.Refresh.Hint())
 }
 
 // Mount builds the wiki view with a descriptive header and SectionedList.
@@ -104,14 +106,14 @@ func (v *WikiView) Unmount() {
 
 // HandleKey processes wiki view key events.
 func (v *WikiView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
-	switch event.Rune() {
-	case 'r':
+	switch {
+	case keys.Refresh.Matches(event):
 		v.refresh()
 		return nil
-	case 'a':
+	case keys.Accept.Matches(event):
 		v.acceptSelected()
 		return nil
-	case 'x':
+	case keys.Refuse.Matches(event):
 		v.rejectSelected()
 		return nil
 	}
@@ -203,7 +205,7 @@ func (v *WikiView) renderContent(repo teamstate.TeamStateWriter) {
 	case len(proposals) == 0 && len(pages) == 0:
 		v.setHeaderText(i18n.T("tui.wiki.empty_state"))
 	case len(proposals) > 0:
-		v.setHeaderText(i18n.Tf("tui.wiki.pending_header_hint", len(proposals)))
+		v.setHeaderText(i18n.Tf("tui.teamwiki.pending_header", len(proposals)))
 	default:
 		v.setHeaderText(i18n.T("tui.wiki.pages_header_hint"))
 	}
@@ -269,7 +271,7 @@ func (v *WikiView) showItemDetail(idx int) {
 		if !p.CreatedAt.IsZero() {
 			d.field(i18n.T("tui.wiki.detail_date"), p.CreatedAt.Format("2006-01-02 15:04"))
 		}
-		d.keys("Enter", i18n.T("tui.hints.see"), "a", i18n.T("tui.wiki.hints_accept"), "x", i18n.T("tui.wiki.hints_reject"))
+		d.keys(keys.Open.Keys(), i18n.T("tui.hints.see"), keys.Accept.Keys(), i18n.T("tui.wikilist.accept"), keys.Refuse.Keys(), keys.Refuse.Label())
 		d.gap().para(tview.Escape(p.Content))
 		v.page.SetDetail(d.String())
 		return
@@ -336,8 +338,8 @@ func (v *WikiView) showProposal(proposalIdx int) {
 		{Label: i18n.T("tui.wiki.btn_accept"), Callback: func() {
 			v.doAcceptProposal(p)
 		}},
-		{Label: i18n.T("tui.wiki.btn_reject"), Callback: func() {
-			v.doRejectProposal(p)
+		{Label: i18n.T("tui.teamwiki.btn_refuse"), Danger: true, Callback: func() {
+			v.confirmReject(p)
 		}},
 		{Label: i18n.T("tui.wiki.btn_close"), Callback: func() {}},
 	})
@@ -395,11 +397,15 @@ func (v *WikiView) rejectSelected() {
 	if !isProposal || pi < 0 || pi >= len(v.proposals) {
 		return
 	}
-	proposal := v.proposals[pi]
+	v.confirmReject(v.proposals[pi])
+}
+
+// confirmReject refuses a proposal once confirmed (n, button).
+func (v *WikiView) confirmReject(proposal teamstate.WikiProposal) {
 	if v.shell == nil {
 		return
 	}
-	v.shell.Confirm(i18n.T("tui.confirm.wiki_reject.title"), i18n.Tf("tui.confirm.wiki_reject.detail", proposal.Page, proposal.ID), true, func() {
+	v.shell.Confirm(i18n.T("tui.teamwiki.refuse_title"), i18n.Tf("tui.confirm.wiki_reject.detail", proposal.Page, proposal.ID), true, func() {
 		v.doRejectProposal(proposal)
 	})
 }
@@ -413,12 +419,17 @@ func (v *WikiView) doAcceptProposal(proposal teamstate.WikiProposal) {
 		return
 	}
 
+	// The application is read on the event loop only (Unmount clears it).
+	app := v.app
+	if app == nil {
+		return
+	}
 	go func() {
 		err := repo.WikiAcceptProposal(context.Background(), proposal.ID)
-		if v.app == nil {
-			return
-		}
-		v.app.QueueUpdateDraw(func() {
+		app.QueueUpdateDraw(func() {
+			if v.app == nil {
+				return // unmounted meanwhile
+			}
 			if err != nil {
 				if v.shell != nil {
 					v.shell.ShowToastMsg(i18n.Tf("tui.wiki.accept_failed", err.Error()), false)
@@ -453,12 +464,17 @@ func (v *WikiView) doRejectProposal(proposal teamstate.WikiProposal) {
 		return
 	}
 
+	// The application is read on the event loop only (Unmount clears it).
+	app := v.app
+	if app == nil {
+		return
+	}
 	go func() {
 		err := repo.WikiRejectProposal(context.Background(), proposal.ID)
-		if v.app == nil {
-			return
-		}
-		v.app.QueueUpdateDraw(func() {
+		app.QueueUpdateDraw(func() {
+			if v.app == nil {
+				return // unmounted meanwhile
+			}
 			if err != nil {
 				if v.shell != nil {
 					v.shell.ShowToastMsg(i18n.Tf("tui.wiki.reject_failed", err.Error()), false)
@@ -487,8 +503,8 @@ func (v *WikiView) doRejectProposal(proposal teamstate.WikiProposal) {
 // ContextCommands implements CommandProvider.
 func (v *WikiView) ContextCommands() []ContextCommand {
 	return []ContextCommand{
-		{ID: "wiki.accept", Label: i18n.T("tui.wiki.cmd_accept"), Aliases: []string{"accept", "approve", "merge"}, Description: i18n.T("tui.wiki.cmd_accept_desc"), Category: i18n.T("tui.wiki.cmd_category"), Action: func() { v.acceptSelected() }},
-		{ID: "wiki.reject", Label: i18n.T("tui.wiki.cmd_reject"), Aliases: []string{"reject", "refuse", "decline"}, Description: i18n.T("tui.wiki.cmd_reject_desc"), Category: i18n.T("tui.wiki.cmd_category"), Action: func() { v.rejectSelected() }},
+		{ID: "wiki.accept", Label: i18n.T("tui.wiki.cmd_accept"), Aliases: []string{"accept", "approve", "merge"}, Description: i18n.T("tui.wiki.cmd_accept_desc"), Category: i18n.T("tui.teamwiki.title"), Action: func() { v.acceptSelected() }},
+		{ID: "wiki.reject", Label: i18n.T("tui.teamwiki.cmd_refuse"), Aliases: []string{"reject", "refuse", "decline"}, Description: i18n.T("tui.teamwiki.cmd_refuse_desc"), Category: i18n.T("tui.teamwiki.title"), Action: func() { v.rejectSelected() }},
 	}
 }
 

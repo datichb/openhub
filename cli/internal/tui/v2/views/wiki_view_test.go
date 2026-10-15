@@ -157,7 +157,7 @@ func runWikiView(t *testing.T, v *WikiView) (onLoop func(func())) {
 }
 
 // The team wiki view: proposals then pages, the detail of the selected
-// item, accept (a), reject (x, confirmed), the proposal and page modals.
+// item, accept (y), refuse (n, confirmed), the proposal and page modals.
 func TestWikiView(t *testing.T) {
 	withFrench(t)
 	repo := &wikiRepo{
@@ -198,7 +198,9 @@ func TestWikiView(t *testing.T) {
 		current, _, _ = v.slist.CurrentItem()
 		detail = v.page.Detail.GetText(true)
 	})
-	assert.Contains(t, header, "2 proposition(s) en attente")
+	assert.Contains(t, header, "2 proposition(s) d'équipe en attente dans le team-state")
+	assert.Equal(t, "Propositions d'équipe (team-state)", v.Title())
+	assert.Equal(t, "↑↓/jk naviguer · {/} sections · Entrée voir · y accepter · n refuser · r rafraîchir", v.StatusHints())
 	require.Len(t, texts, 6, "two sections, two proposals, two pages")
 	assert.Contains(t, texts[0], "Propositions en attente (2)")
 	assert.Contains(t, texts[1], tview.Escape("[wp-a]")+" conventions", "the id escaped")
@@ -224,11 +226,12 @@ func TestWikiView(t *testing.T) {
 	assert.Equal(t, "Proposition : conventions", title)
 	assert.Contains(t, body, "kebab-case [red[]partout[-[]")
 	require.Len(t, actions, 3)
-	assert.Equal(t, []string{"[Accepter]", "[Rejeter]", "[Fermer]"}, []string{actions[0].Label, actions[1].Label, actions[2].Label})
+	assert.Equal(t, []string{"[Accepter]", "[Refuser]", "[Fermer]"}, []string{actions[0].Label, actions[1].Label, actions[2].Label})
 
-	// a: the selected proposal is accepted, an event recorded, the list
+	assert.True(t, actions[1].Danger)
+	// y: the selected proposal is accepted, an event recorded, the list
 	// reloaded.
-	onLoop(func() { v.HandleKey(tcell.NewEventKey(tcell.KeyRune, 'a', 0)) })
+	onLoop(func() { v.HandleKey(tcell.NewEventKey(tcell.KeyRune, 'y', 0)) })
 	require.Eventually(t, loaded(1), 3*time.Second, 20*time.Millisecond)
 	calls, events := repo.got()
 	assert.Equal(t, []string{"accept wp-a"}, calls)
@@ -238,14 +241,14 @@ func TestWikiView(t *testing.T) {
 	assert.Equal(t, "wp-a", events[0].Data["proposal_id"])
 	assert.Contains(t, sh.toastList(), "Proposition acceptée : conventions")
 
-	// x: confirmed, then rejected.
-	onLoop(func() { v.slist.SelectIndex(1); v.HandleKey(tcell.NewEventKey(tcell.KeyRune, 'x', 0)) })
+	// n: confirmed, then refused.
+	onLoop(func() { v.slist.SelectIndex(1); v.HandleKey(tcell.NewEventKey(tcell.KeyRune, 'n', 0)) })
 	require.Eventually(t, loaded(0), 3*time.Second, 20*time.Millisecond)
 	calls, events = repo.got()
 	assert.Equal(t, []string{"accept wp-a", "reject wp-b"}, calls)
 	assert.Equal(t, teamstate.EventWikiRejected, events[1].Type)
 	sh.mu.Lock()
-	assert.Equal(t, []string{"Rejeter la proposition ? · La proposition pour la page architecture (wp-b) sera supprimée."}, sh.confirms)
+	assert.Equal(t, []string{"Refuser la proposition d'équipe ? · La proposition pour la page architecture (wp-b) sera supprimée."}, sh.confirms)
 	sh.mu.Unlock()
 	assert.Contains(t, sh.toastList(), "Proposition rejetée : architecture")
 
@@ -259,10 +262,10 @@ func TestWikiView(t *testing.T) {
 	title, body, _ = sh.modal()
 	assert.Equal(t, "architecture", title)
 	assert.Equal(t, "# Architecture [b[]x[-[]", body)
-	// a / x on a page do nothing.
+	// y / n on a page do nothing.
 	onLoop(func() {
-		v.HandleKey(tcell.NewEventKey(tcell.KeyRune, 'a', 0))
-		v.HandleKey(tcell.NewEventKey(tcell.KeyRune, 'x', 0))
+		v.HandleKey(tcell.NewEventKey(tcell.KeyRune, 'y', 0))
+		v.HandleKey(tcell.NewEventKey(tcell.KeyRune, 'n', 0))
 	})
 	calls, _ = repo.got()
 	assert.Len(t, calls, 2)
@@ -285,7 +288,7 @@ func TestWikiViewFailuresAndEmpty(t *testing.T) {
 		onLoop(func() { ok = len(v.proposals) == 1 })
 		return ok
 	}, 3*time.Second, 20*time.Millisecond)
-	onLoop(func() { v.HandleKey(tcell.NewEventKey(tcell.KeyRune, 'a', 0)) })
+	onLoop(func() { v.HandleKey(tcell.NewEventKey(tcell.KeyRune, 'y', 0)) })
 	require.Eventually(t, func() bool {
 		for _, m := range sh.toastList() {
 			if m == "Échec d'acceptation : push refusé" {
@@ -337,3 +340,40 @@ func TestWikiProposalIDEscaped(t *testing.T) {
 	tv.SetText(it.MainText)
 	assert.Contains(t, tv.GetText(true), "[red] p")
 }
+
+// The button of the modal refuses only once confirmed; a decision that
+// ends after Unmount touches nothing (race fixed: the application is read
+// on the event loop only).
+func TestWikiViewRefuseButtonConfirmedAndUnmount(t *testing.T) {
+	withFrench(t)
+	repo := &wikiRepo{proposals: []teamstate.WikiProposal{{ID: "wp-a", Page: "conventions", Author: "reviewer"}}}
+	sh := &refuseShell{}
+	v := NewWikiView(func() TeamResolution { return TeamResolution{Enabled: true} })
+	v.openRepo = func() teamstate.TeamStateWriter { return repo }
+	v.SetShell(sh)
+	onLoop := runWikiView(t, v)
+	require.Eventually(t, func() bool { ok := false; onLoop(func() { ok = len(v.proposals) == 1 }); return ok }, 3*time.Second, 20*time.Millisecond)
+	onLoop(func() { v.showProposal(0) })
+	_, _, actions := sh.modal()
+	onLoop(func() { actions[1].Callback() })
+	calls, _ := repo.got()
+	assert.Empty(t, calls, "not refused before the confirmation")
+	require.NotNil(t, sh.yes)
+	var app *tview.Application
+	onLoop(func() { app = v.app })
+	p := repo.proposals[0]
+	for i := 0; i < 20; i++ {
+		onLoop(func() { v.doAcceptProposal(p); v.Unmount(); v.Mount(tview.NewFlex(), app) })
+	}
+	onLoop(func() { sh.yes() })
+	require.Eventually(t, func() bool { c, _ := repo.got(); return len(c) > 0 && c[len(c)-1] == "reject wp-a" }, 3*time.Second, 20*time.Millisecond)
+	onLoop(func() { v.Unmount() })
+}
+
+// refuseShell keeps the confirmation for the test to answer.
+type refuseShell struct {
+	wikiShell
+	yes func()
+}
+
+func (s *refuseShell) Confirm(_, _ string, _ bool, onYes func()) { s.yes = onYes }
