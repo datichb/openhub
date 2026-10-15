@@ -56,14 +56,26 @@ func TestBuildFromWorkflowSpec_Errors(t *testing.T) {
 }
 
 // The reviewer launches parallel reviewer sessions (standard+adversarial,
-// all): its explicit `task: { reviewer: allow }` is kept, in the phase 0
-// bundle as in the oh/v1 one (calls: [reviewer]). The sessions it launches
-// delegate nothing more: one level is enough.
+// all) only where the workflow writes it (review: calls: [reviewer]); the
+// sessions it launches delegate nothing more: one level is enough. Its
+// task permission to itself is never a delegation by itself: a free
+// session on the reviewer calls nothing (p7-leftovers).
 func TestReviewerSelfDelegation(t *testing.T) {
-	b, err := Build(Request{HubDir: repoHub(t), OutDir: t.TempDir(), Spec: agentSpec(t, repoHub(t), "reviewer")})
+	b, err := Build(Request{HubDir: repoHub(t), OutDir: t.TempDir(), Spec: parseSpec(t, `apiVersion: oh/v1
+kind: Workflow
+id: review
+risk: read
+entry: { agent: reviewer }
+agents:
+  reviewer: { role: workflow, calls: [reviewer] }
+`)})
 	require.NoError(t, err)
 	assert.Equal(t, []string{"reviewer"}, b.Spec.SubagentGraph["reviewer"])
 	assert.Equal(t, 1, b.Spec.MaxDepth)
+
+	b, err = Build(Request{HubDir: repoHub(t), OutDir: t.TempDir(), Spec: agentSpec(t, repoHub(t), "reviewer")})
+	require.NoError(t, err)
+	assert.Empty(t, b.Spec.SubagentGraph["reviewer"], "no self-delegation derived")
 }
 
 func TestBuildStrictIsolationFromSpec(t *testing.T) {

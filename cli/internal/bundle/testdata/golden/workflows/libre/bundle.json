@@ -3635,11 +3635,8 @@
     ],
     "planner": [
       "designer"
-    ],
-    "reviewer": [
-      "reviewer"
     ]
   },
-  "max_depth": 3,
+  "max_depth": 2,
   "code_mode": false
 }

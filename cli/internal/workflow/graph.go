@@ -19,8 +19,9 @@ type AgentInfo struct {
 	// Tasks lists the agents the agent may launch according to its own task
 	// permission, as glob patterns ("*" means any agent).
 	Tasks []string
-	// SelfTask reports an explicit permission to launch itself (reviewer →
-	// parallel reviewer sessions); never part of Tasks.
+	// SelfTask reports a task permission to launch itself (reviewer); never
+	// part of Tasks nor derived into a delegation: only `calls: [<self>]` in
+	// the workflow lets an agent call itself (review).
 	SelfTask bool
 	// Skills lists the skill refs the agent loads (inlined and on demand).
 	Skills []string

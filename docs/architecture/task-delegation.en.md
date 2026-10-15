@@ -28,9 +28,9 @@ When the session bundle is built, oh computes the delegation graph (`SubagentGra
 - otherwise, its targets come from the `task` permission of its frontmatter, **restricted to the workflow members**
   (`conductor` has `task: "*": allow`: it can only launch the members of its workflow);
 - **self-delegation** only exists when explicit: `calls: [reviewer]` in the `review` workflow (parallel `reviewer`
-  sessions). A `task` permission to itself in the frontmatter is not enough, except in a workflow whose entry is
-  selectable (`libre`): oh computes the members step by step there and turns the `task` permission that names the
-  agent itself (the reviewer) into `calls:`;
+  sessions). A `task` permission to itself in the frontmatter is never enough, including in a workflow whose entry
+  is selectable (`libre`): oh computes the members step by step there without deriving any `calls:`, and an agent
+  never calls itself there (the reviewer's combined modes go through `oh run review`);
 - `calls:` may also open a delegation the frontmatter does not have: in `incident` and `spike`, the `debugger` and
   the `pathfinder` (without a `task` permission towards it) launch the `developer` (`calls: [developer]`).
 
@@ -44,7 +44,7 @@ agents:
 
 The maximum depth of the graph, from the entry agent, is written to the session config
 (`experimental.subagent_depth`, at least 1). Otherwise opencode V2 limits delegation to a single level.
-Examples: `libre` gives 3 (orchestrator → orchestrator-dev → reviewer → reviewer), `spec` 2 (conductor → planner → designer), `ticket`, `implement-spec`, `audit` and `incident` 1.
+Examples: `libre` gives 2 (orchestrator → orchestrator-dev → reviewer), `spec` 2 (conductor → planner → designer), `ticket`, `implement-spec`, `audit` and `incident` 1.
 
 ### Refusal outside the graph
 
@@ -211,7 +211,7 @@ restricted to the workflow members, or replaced by `calls:`.
 | `auditor` | `auditor-subagent` |
 | `planner` | `designer` |
 | `pathfinder` | `designer`; `developer` with `calls:` (`spike`) |
-| `reviewer` | `reviewer` (itself) only with `calls: [reviewer]` (`review`, and `libre`) |
+| `reviewer` | `reviewer` (itself) only with `calls: [reviewer]` (`review`; never in `libre`) |
 | `debugger` | *(none)*; `developer` with `calls:` (`incident`) |
 | `developer`, `merger`, `release-manager`, `benchmarker`, `operator`, `auditor-subagent`, `designer`, `documentarian`, `onboarder`, `brief-enricher` | *(none)* |
 
