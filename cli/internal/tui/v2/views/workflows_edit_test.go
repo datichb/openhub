@@ -26,7 +26,11 @@ type formShell struct {
 	body   string
 	input  func(string)
 	pushed View
+	// confirm is the onYes of the last confirmation.
+	confirm func()
 }
+
+func (s *formShell) Confirm(_, _ string, _ bool, onYes func()) { s.confirm = onYes }
 
 func (s *formShell) ShowInlineForm(c InlineFormConfig) { s.form = &c }
 func (s *formShell) ShowScrollableModal(title, body string, a []ModalAction) {
@@ -108,10 +112,10 @@ func TestWorkflowCatalogEditing(t *testing.T) {
 	onLoop(app, func() { v.HandleKey(key('h')) })
 	assert.Empty(t, calls["history"])
 
-	// Published with a draft: t, p, D, h act on it; x asks a message.
+	// Published with a draft: t, p, c, h act on it; x asks a message.
 	onLoop(app, func() {
 		selectRef(t, v, "team:hotfix|hotfix")
-		for _, r := range "tpDhe" {
+		for _, r := range "tpche" {
 			v.HandleKey(key(r))
 		}
 		v.HandleKey(key('x'))
@@ -123,13 +127,17 @@ func TestWorkflowCatalogEditing(t *testing.T) {
 	sh.input(" obsolète ")
 	assert.Equal(t, "team:hotfix:obsolète", archived)
 
-	// Draft: x discards after confirmation.
+	// Draft: x does not destroy it; d discards it after a confirmation.
 	onLoop(app, func() {
 		selectRef(t, v, "draft:team:release")
 		v.HandleKey(key('x'))
 	})
-	require.NotEmpty(t, sh.modal)
-	sh.modal[0].Callback()
+	assert.Nil(t, sh.confirm)
+	assert.Empty(t, calls["discard"])
+	onLoop(app, func() { v.HandleKey(key('d')) })
+	require.NotNil(t, sh.confirm)
+	assert.Empty(t, calls["discard"], "nothing discarded before the confirmation")
+	sh.confirm()
 	assert.Equal(t, "team:release", calls["discard"])
 
 	// Without a team-state, n is refused with a message.
@@ -283,12 +291,15 @@ func TestHistoryViewRestore(t *testing.T) {
 		return n == 2
 	}, 2*time.Second, 20*time.Millisecond)
 
-	// The current version cannot be restored.
-	onLoop(app, func() { v.list.SelectIndex(0); v.HandleKey(key('r')) })
-	assert.Nil(t, sh.modal)
+	// The current version cannot be restored; R asks before restoring.
+	onLoop(app, func() { v.list.SelectIndex(0); v.HandleKey(key('R')) })
+	assert.Nil(t, sh.confirm)
 	onLoop(app, func() { v.list.SelectIndex(1); v.HandleKey(key('r')) })
-	require.NotEmpty(t, sh.modal)
-	sh.modal[0].Callback()
+	assert.Nil(t, sh.confirm, "r refreshes, it does not restore")
+	onLoop(app, func() { v.list.SelectIndex(1); v.HandleKey(key('R')) })
+	require.NotNil(t, sh.confirm)
+	assert.Empty(t, restored, "nothing restored before the confirmation")
+	sh.confirm()
 	select {
 	case n := <-restored:
 		assert.Equal(t, 1, n)

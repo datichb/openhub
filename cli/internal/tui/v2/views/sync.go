@@ -7,6 +7,7 @@ import (
 
 	"github.com/rivo/tview"
 
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 )
 
@@ -91,7 +92,7 @@ func syncFuncAsync(
 	timer := time.AfterFunc(pullSlowThreshold, func() {
 		app.QueueUpdateDraw(func() {
 			if shell != nil {
-				shell.ShowToastMsg("Synchronisation...", true)
+				shell.ShowToastMsg(i18n.T("tui.teams.sync_pulling"), true)
 			}
 		})
 	})
@@ -116,7 +117,7 @@ func syncFuncAsync(
 				app.QueueUpdateDraw(func() {
 					if err != nil && !teamstate.IsPullWarning(err) {
 						if shell != nil {
-							shell.ShowToastMsg("Sync impossible — données locales", false)
+							shell.ShowToastMsg(i18n.T("tui.teams.sync_pull_failed"), false)
 						}
 					}
 					onDone(err)

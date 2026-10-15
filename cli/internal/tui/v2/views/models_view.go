@@ -14,6 +14,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
@@ -52,16 +53,13 @@ func (v *ModelsView) SetShell(s ShellAccess) { v.shell = s }
 func (v *ModelsView) ID() string { return "models" }
 
 // Title returns the display title.
-func (v *ModelsView) Title() string { return "Models" }
+func (v *ModelsView) Title() string { return i18n.T("tui.models.title") }
 
 // StatusHints returns keybinding hints.
 func (v *ModelsView) StatusHints() string {
-	return fmt.Sprintf("j/k nav · Enter %s · a %s · d %s · Ctrl+P %s",
-		i18n.T("tui.hints.edit"),
-		i18n.T("tui.hints.add"),
-		i18n.T("tui.hints.delete"),
-		i18n.T("tui.hints.commands"),
-	)
+	return keys.Hints(keys.Navigate.Hint(), keys.Open.HintAs(i18n.T("tui.hints.edit")),
+		keys.Create.Hint(), keys.Edit.Hint(), keys.Delete.Hint(), keys.Refresh.Hint(),
+		"Ctrl+P "+i18n.T("tui.hints.commands"))
 }
 
 // Mount builds the models cascade table.
@@ -147,17 +145,31 @@ func (v *ModelsView) showDetail(idx int) {
 	if e.Level != "hub" {
 		level = i18n.T("tui.secrets.section_project") + " " + tview.Escape(e.Level)
 	}
-	v.page.SetDetail(modelOverrideDetail(section, key, value, level, "a", i18n.T("tui.hints.add")))
+	v.page.SetDetail(modelOverrideDetail(section, key, value, level,
+		keyPairs(keys.Create, keys.Edit, keys.Delete)...))
 }
 
 // HandleKey processes models view key events.
 func (v *ModelsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
-	switch event.Rune() {
-	case 'a':
+	switch {
+	case keys.Create.Matches(event):
 		v.addOverride()
 		return nil
-	case 'd':
+	case keys.Edit.Matches(event):
+		if v.table != nil {
+			row, _ := v.table.GetSelection()
+			v.editEntry(row - 1)
+		}
+		return nil
+	case keys.Delete.Matches(event):
 		v.deleteEntry()
+		return nil
+	case keys.Refresh.Matches(event):
+		if v.table != nil {
+			v.loadEntries()
+			v.buildCommands()
+			v.populateTable()
+		}
 		return nil
 	}
 	return event
@@ -355,14 +367,8 @@ func (v *ModelsView) deleteEntry() {
 	if v.shell == nil {
 		return
 	}
-	label := i18n.Tf("tui.models.delete_confirm", entry.Scope, entry.Level)
-	v.shell.ShowSelectModal(label, []SelectOption{
-		{Label: i18n.T("tui.models.cancel"), Value: ""},
-		{Label: i18n.T("tui.models.confirm_delete"), Value: "yes"},
-	}, "", func(choice string) {
-		if choice != "yes" {
-			return
-		}
+	title := i18n.Tf("tui.models.delete_confirm", entry.Scope, entry.Level)
+	v.shell.Confirm(title, i18n.T("tui.models.delete_detail"), true, func() {
 		if entry.Level == "hub" {
 			if err := config.Update(func(c *config.Config) error {
 				switch {
@@ -375,10 +381,11 @@ func (v *ModelsView) deleteEntry() {
 				}
 				return nil
 			}); err != nil {
-				v.shell.ShowToastMsg("Error: "+err.Error(), false)
+				v.shell.ShowToastMsg(errorText(err), false)
+				return
 			}
-		} else {
-			v.deleteProjectModel(entry.Level, entry.Scope)
+		} else if !v.deleteProjectModel(entry.Level, entry.Scope) {
+			return
 		}
 
 		v.loadEntries()
@@ -406,8 +413,9 @@ func (v *ModelsView) setHubModel(scope, model string) {
 		return nil
 	}); err != nil {
 		if v.shell != nil {
-			v.shell.ShowToastMsg("Error: "+err.Error(), false)
+			v.shell.ShowToastMsg(errorText(err), false)
 		}
+		return
 	}
 	if v.shell != nil {
 		v.shell.ShowToastMsg(i18n.T("tui.models.override_saved"), true)
@@ -446,24 +454,30 @@ func (v *ModelsView) setProjectModel(projectName, scope, model string) {
 	}
 	if err := v.appCtx.Projects.Update(ctx, project); err != nil {
 		if v.shell != nil {
-			v.shell.ShowToastMsg("Error: "+err.Error(), false)
+			v.shell.ShowToastMsg(errorText(err), false)
 		}
 	}
 }
 
-func (v *ModelsView) deleteProjectModel(projectName, scope string) {
+// deleteProjectModel reports whether the override was removed.
+func (v *ModelsView) deleteProjectModel(projectName, scope string) bool {
 	if v.appCtx == nil || v.appCtx.Projects == nil {
-		return
+		return false
 	}
 	ctx := context.Background()
 	project, err := v.appCtx.Projects.GetByName(ctx, projectName)
-	if err != nil || project.ModelOverrides == nil {
-		return
+	if err != nil {
+		if v.shell != nil {
+			v.shell.ShowToastMsg(errorText(err), false)
+		}
+		return false
 	}
 
 	switch {
 	case scope == "default":
 		project.Model = ""
+	case project.ModelOverrides == nil:
+		return true
 	case len(scope) > 7 && scope[:7] == "family:":
 		delete(project.ModelOverrides.Families, scope[7:])
 	case len(scope) > 6 && scope[:6] == "agent:":
@@ -471,9 +485,11 @@ func (v *ModelsView) deleteProjectModel(projectName, scope string) {
 	}
 	if err := v.appCtx.Projects.Update(ctx, project); err != nil {
 		if v.shell != nil {
-			v.shell.ShowToastMsg("Error: "+err.Error(), false)
+			v.shell.ShowToastMsg(errorText(err), false)
 		}
+		return false
 	}
+	return true
 }
 
 // ContextCommands returns contextual commands for the omnibar.
@@ -485,18 +501,18 @@ func (v *ModelsView) buildCommands() {
 	v.commands = []ContextCommand{
 		{
 			ID:          "models.add.family",
-			Label:       "add family",
-			Aliases:     []string{"ajouter famille", "override family"},
+			Label:       i18n.T("tui.models.cmd_add_family_label"),
+			Aliases:     []string{"add family", "ajouter famille", "override family"},
 			Description: i18n.T("tui.models.cmd_add_family"),
-			Category:    "Models",
+			Category:    v.Title(),
 			Action:      v.addOverride,
 		},
 		{
 			ID:          "models.delete",
-			Label:       "delete",
-			Aliases:     []string{"supprimer", "remove"},
+			Label:       i18n.T("tui.hints.delete"),
+			Aliases:     []string{"delete", "supprimer", "remove"},
 			Description: i18n.T("tui.models.cmd_delete"),
-			Category:    "Models",
+			Category:    v.Title(),
 			Action:      v.deleteEntry,
 		},
 	}
@@ -509,7 +525,7 @@ func (v *ModelsView) buildCommands() {
 			Label:       e.Key,
 			Aliases:     []string{e.Value, e.Scope},
 			Description: e.Level + " → " + e.Value,
-			Category:    "Models",
+			Category:    v.Title(),
 			Action: func() {
 				for i, entry := range v.entries {
 					if entry.Key == e.Key && entry.Level == e.Level && entry.Scope == e.Scope {

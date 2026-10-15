@@ -12,6 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
@@ -51,11 +52,9 @@ func (v *PatternsView) Title() string { return i18n.T("tui.team.patterns") }
 
 // StatusHints returns keybinding hints.
 func (v *PatternsView) StatusHints() string {
-	return fmt.Sprintf("j/k %s · {/} %s · Enter %s · a %s · v %s · d %s · r %s",
-		i18n.T("tui.hints.nav"), "sections",
-		i18n.T("tui.hints.see"), i18n.T("tui.hints.add"),
-		i18n.T("tui.hints.validate"), i18n.T("tui.hints.delete"),
-		i18n.T("tui.hints.refresh"))
+	return keys.Hints(keys.Navigate.Hint(), "{/} "+i18n.T("tui.hints.sections"),
+		keys.Open.HintAs(i18n.T("tui.hints.see")), keys.Create.Hint(),
+		keys.Accept.Hint(), keys.Delete.Hint(), keys.Refresh.Hint())
 }
 
 // Mount builds the patterns view with a descriptive header and SectionedList.
@@ -102,17 +101,17 @@ func (v *PatternsView) Unmount() {
 
 // HandleKey processes patterns view key events.
 func (v *PatternsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
-	switch event.Rune() {
-	case 'r':
+	switch {
+	case keys.Refresh.Matches(event):
 		v.refresh()
 		return nil
-	case 'a':
+	case keys.Create.Matches(event):
 		v.addPattern()
 		return nil
-	case 'v':
+	case keys.Accept.Matches(event):
 		v.validatePattern()
 		return nil
-	case 'd':
+	case keys.Delete.Matches(event):
 		v.removePattern()
 		return nil
 	}
@@ -178,7 +177,7 @@ func (v *PatternsView) renderPatterns(repo teamstate.TeamStateWriter) {
 	patterns, err := repo.ListPatterns(nil, 0)
 	if err != nil {
 		v.slist.SetItems([]widgets.SectionItem{
-			{MainText: "  " + i18n.T("tui.settings.error") + ": " + err.Error()},
+			{MainText: "  " + errorText(err)},
 		})
 		return
 	}
@@ -274,11 +273,11 @@ func (v *PatternsView) showItemDetail(idx int) {
 		d.field(i18n.T("tui.detail.origin"), tview.Escape(p.Source))
 		d.field(i18n.T("tui.detail.project"), tview.Escape(p.Project))
 		d.field(i18n.T("tui.detail.date"), tview.Escape(p.CreatedAt))
-		keys := []string{"Enter", i18n.T("tui.hints.see")}
+		pairs := []string{keys.Open.Keys(), i18n.T("tui.hints.see")}
 		if !p.Validated {
-			keys = append(keys, "v", i18n.T("tui.hints.validate"))
+			pairs = append(pairs, keyPairs(keys.Accept)...)
 		}
-		d.keys(append(keys, "d", i18n.T("tui.hints.delete"), "r", i18n.T("tui.hints.refresh"))...)
+		d.keys(append(pairs, keyPairs(keys.Delete, keys.Refresh)...)...)
 		v.page.SetDetail(d.String())
 		return
 	}
@@ -286,7 +285,7 @@ func (v *PatternsView) showItemDetail(idx int) {
 		var d detailText
 		d.title(i18n.T("tui.patterns.action_create"))
 		d.para(i18n.T("tui.patterns.hint_complexity"))
-		d.keys("Enter", i18n.T("tui.hints.open"), "a", i18n.T("tui.hints.add"))
+		d.keys(keyPairs(keys.Open, keys.Create)...)
 		v.page.SetDetail(d.String())
 		return
 	}
@@ -341,7 +340,7 @@ func (v *PatternsView) showPattern(patternIdx int) {
 	}
 
 	if v.shell != nil {
-		v.shell.ShowScrollableModal("Pattern: "+p.Name, content, []ModalAction{
+		v.shell.ShowScrollableModal(i18n.Tf("tui.patterns.modal_title", p.Name), content, []ModalAction{
 			{Label: i18n.T("tui.policies.close"), Callback: func() {}},
 		})
 	}
@@ -393,13 +392,13 @@ func (v *PatternsView) addPattern() {
 			}
 
 			// Build richer markdown template
-			descLine := "Décrivez ce pattern ici."
+			descLine := i18n.T("tui.patterns.template_description")
 			if description != "" {
 				descLine = description
 			}
-			content := fmt.Sprintf("# %s\n\n## Description\n\n%s\n\n## Quand utiliser ce pattern\n\nDécrivez les situations dans lesquelles ce pattern s'applique.\n\n## Étapes de décomposition\n\n1. ...\n2. ...\n3. ...\n\n## Critères de validation\n\n- [ ] ...\n", name, descLine)
+			content := i18n.Tf("tui.patterns.template", name, descLine)
 			if err := repo.CreatePattern(context.Background(), p, content); err != nil {
-				v.shell.ShowToastMsg(i18n.T("tui.settings.error")+": "+err.Error(), false)
+				v.shell.ShowToastMsg(errorText(err), false)
 			} else {
 				v.shell.ShowToastMsg(i18n.Tf("tui.patterns.created", name), true)
 				v.refresh()
@@ -432,7 +431,7 @@ func (v *PatternsView) validatePattern() {
 
 	if err := repo.ValidatePattern(context.Background(), p.Name); err != nil {
 		if v.shell != nil {
-			v.shell.ShowToastMsg(i18n.T("tui.settings.error")+": "+err.Error(), false)
+			v.shell.ShowToastMsg(errorText(err), false)
 		}
 	} else {
 		if v.shell != nil {
@@ -465,15 +464,9 @@ func (v *PatternsView) removePattern() {
 		return
 	}
 
-	v.shell.ShowSelectModal(i18n.Tf("tui.patterns.confirm_delete", p.Name), []SelectOption{
-		{Label: i18n.T("tui.settings.cancel"), Value: ""},
-		{Label: i18n.T("tui.patterns.yes_delete"), Value: "yes"},
-	}, "", func(choice string) {
-		if choice != "yes" {
-			return
-		}
+	v.shell.Confirm(i18n.Tf("tui.patterns.confirm_delete", p.Name), i18n.T("tui.patterns.delete_detail"), true, func() {
 		if err := repo.RemovePattern(context.Background(), p.Name); err != nil {
-			v.shell.ShowToastMsg(i18n.T("tui.settings.error")+": "+err.Error(), false)
+			v.shell.ShowToastMsg(errorText(err), false)
 		} else {
 			v.shell.ShowToastMsg(i18n.Tf("tui.patterns.deleted", p.Name), true)
 			v.refresh()
@@ -484,9 +477,9 @@ func (v *PatternsView) removePattern() {
 // ContextCommands implements CommandProvider.
 func (v *PatternsView) ContextCommands() []ContextCommand {
 	return []ContextCommand{
-		{ID: "patterns.add", Label: i18n.T("tui.hints.add"), Aliases: []string{"add", "new", "ajouter", "créer"}, Description: i18n.T("tui.patterns.cmd_add"), Category: "Patterns", Action: func() { v.addPattern() }},
-		{ID: "patterns.validate", Label: i18n.T("tui.hints.validate"), Aliases: []string{"validate", "valider"}, Description: i18n.T("tui.patterns.cmd_validate"), Category: "Patterns", Action: func() { v.validatePattern() }},
-		{ID: "patterns.delete", Label: i18n.T("tui.hints.delete"), Aliases: []string{"delete", "remove", "supprimer"}, Description: i18n.T("tui.patterns.cmd_delete"), Category: "Patterns", Action: func() { v.removePattern() }},
+		{ID: "patterns.add", Label: i18n.T("tui.keys.action.create"), Aliases: []string{"add", "new", "ajouter", "créer"}, Description: i18n.T("tui.patterns.cmd_add"), Category: v.Title(), Action: func() { v.addPattern() }},
+		{ID: "patterns.validate", Label: i18n.T("tui.hints.validate"), Aliases: []string{"validate", "valider"}, Description: i18n.T("tui.patterns.cmd_validate"), Category: v.Title(), Action: func() { v.validatePattern() }},
+		{ID: "patterns.delete", Label: i18n.T("tui.hints.delete"), Aliases: []string{"delete", "remove", "supprimer"}, Description: i18n.T("tui.patterns.cmd_delete"), Category: v.Title(), Action: func() { v.removePattern() }},
 	}
 }
 

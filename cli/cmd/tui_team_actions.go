@@ -593,7 +593,7 @@ func actionTeamRejoin() {
 			case "reuse":
 				status = i18n.T("cmd.init.wizard_rejoin_token_reuse_short")
 			case "new":
-				status = "stored"
+				status = i18n.T("tui.team.wizard.token_stored")
 			default:
 				status = i18n.T("cmd.init.wizard_team_skipped")
 			}
@@ -743,9 +743,9 @@ func actionTeamRejoin() {
 		},
 		InfoFields: func() []views.InfoField {
 			if mismatchChoice == "skip" {
-				return []views.InfoField{{Label: "Identity", Value: i18n.T("cmd.init.wizard_identity_skip")}}
+				return []views.InfoField{{Label: i18n.T("tui.team.wizard.identity"), Value: i18n.T("cmd.init.wizard_identity_skip")}}
 			}
-			return []views.InfoField{{Label: "Identity", Value: "verified"}}
+			return []views.InfoField{{Label: i18n.T("tui.team.wizard.identity"), Value: i18n.T("tui.team.wizard.identity_verified")}}
 		},
 	}
 
@@ -1080,12 +1080,12 @@ func runSyncTrackerForTUI(a *app.App, ctx context.Context) (*views.SyncTrackerRe
 
 	creds, err := tracker.ResolveCredentials(ctx, credSrc, trackerType)
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", i18n.Tf("tui.team.sync.credentials_missing", teamCfg.Tracker.Type), err)
+		return nil, &views.TrackerCredentialsError{Msg: i18n.Tf("tui.team.sync.credentials_missing", teamCfg.Tracker.Type), Err: err}
 	}
 
 	t, err := tracker.New(creds)
 	if err != nil {
-		return nil, fmt.Errorf("initialisation tracker: %w", err)
+		return nil, fmt.Errorf("%s: %w", i18n.T("tui.team.discovery.tracker_init_error"), err)
 	}
 
 	// Build the Projects map from hub projects (same as CLI sync-tracker and resolveTrackerEngine).

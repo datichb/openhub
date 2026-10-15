@@ -104,7 +104,7 @@ func TestTeamDetailSoloHidesTeamFeatures(t *testing.T) {
 			assert.NotEqual(t, i18n.T("tui.config.section.notifications"), f.Label)
 		}
 	}
-	assert.NotContains(t, v.StatusHints(), "discovery")
+	assert.NotContains(t, v.StatusHints(), i18n.T("tui.team.detail.hint_discover"))
 
 	v = teamDetailFor(TeamResolution{Enabled: true, TeamID: "core", StatePath: t.TempDir()}, nil)
 	v.SetShell(&formShell{})

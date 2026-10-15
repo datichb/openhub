@@ -12,6 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
@@ -59,14 +60,8 @@ func (v *ProjectModelsView) SetShell(s ShellAccess) { v.shell = s }
 func (v *ProjectModelsView) ID() string    { return "project.models" }
 func (v *ProjectModelsView) Title() string { return i18n.T("tui.project_models.title") }
 func (v *ProjectModelsView) StatusHints() string {
-	return fmt.Sprintf("j/k %s · Enter %s · a %s · d %s · u %s · Esc %s",
-		i18n.T("tui.hints.nav"),
-		i18n.T("tui.hints.edit"),
-		i18n.T("tui.hints.add"),
-		i18n.T("tui.hints.delete"),
-		i18n.T("tui.hints.undo"),
-		i18n.T("tui.hints.back"),
-	)
+	return keys.Hints(keys.Navigate.Hint(), keys.Open.HintAs(i18n.T("tui.hints.edit")),
+		keys.Create.Hint(), keys.Delete.Hint(), "u "+i18n.T("tui.hints.undo"), keys.Back.Hint())
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -147,7 +142,7 @@ func (v *ProjectModelsView) showDetail(item widgets.SectionItem) {
 	if v.page == nil || v.live == nil {
 		return
 	}
-	extra := []string{"a", i18n.T("tui.hints.add"), "u", i18n.T("tui.hints.undo")}
+	extra := append(keyPairs(keys.Create, keys.Delete), "u", i18n.T("tui.hints.undo"))
 	ref, ok := item.Reference.(projectModelsRef)
 	if !ok {
 		v.page.SetDetail(modelOverrideDetail("", "", "", "", extra...))
@@ -179,14 +174,19 @@ func (v *ProjectModelsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		}
 		return nil
 	}
-	switch event.Rune() {
-	case 'a':
+	switch {
+	case keys.Create.Matches(event):
 		v.addEntry()
 		return nil
-	case 'd':
+	case keys.Edit.Matches(event):
+		if _, item, ok := v.list.CurrentItem(); ok {
+			v.editByItem(item)
+		}
+		return nil
+	case keys.Delete.Matches(event):
 		v.deleteEntry()
 		return nil
-	case 'u':
+	case event.Key() == tcell.KeyRune && event.Rune() == 'u':
 		v.undo()
 		return nil
 	}
@@ -284,7 +284,7 @@ func (v *ProjectModelsView) editByItem(item widgets.SectionItem) {
 	switch ref.section {
 	case "general":
 		cur := v.live.Model
-		v.shell.ShowInputModal("model", cur, func(newVal string) {
+		v.shell.ShowInputModal(i18n.T("tui.config.field.default_model.label"), cur, func(newVal string) {
 			v.pushUndo()
 			v.live.Model = newVal
 			if v.autoSaver != nil {
@@ -384,14 +384,8 @@ func (v *ProjectModelsView) deleteEntry() {
 		return // cannot delete the default model field
 	}
 
-	label := i18n.Tf("tui.project_models.confirm_delete", ref.section, ref.key)
-	v.shell.ShowSelectModal(label, []SelectOption{
-		{Label: i18n.T("tui.project_models.cancel"), Value: ""},
-		{Label: i18n.T("tui.project_models.confirm_delete_btn"), Value: "yes"},
-	}, "", func(choice string) {
-		if choice != "yes" {
-			return
-		}
+	title := i18n.Tf("tui.project_models.confirm_delete", ref.section, ref.key)
+	v.shell.Confirm(title, i18n.T("tui.models.delete_detail"), true, func() {
 		v.pushUndo()
 		v.ensureOverrides()
 		switch ref.section {
@@ -460,7 +454,7 @@ func (v *ProjectModelsView) doSave() {
 func (v *ProjectModelsView) ContextCommands() []ContextCommand {
 	return []ContextCommand{
 		{ID: "project.models.undo", Label: i18n.T("tui.hints.undo"), Aliases: []string{"undo", "annuler"}, Description: i18n.T("tui.settings.cmd_undo"), Category: i18n.T("tui.project_models.category"), Action: func() { v.undo() }},
-		{ID: "project.models.add", Label: i18n.T("tui.hints.add"), Aliases: []string{"ajouter", "add override"}, Description: i18n.T("tui.project_models.add_override_desc"), Category: i18n.T("tui.project_models.category"), Action: func() { v.addEntry() }},
+		{ID: "project.models.add", Label: i18n.T("tui.keys.action.create"), Aliases: []string{"ajouter", "add override"}, Description: i18n.T("tui.project_models.add_override_desc"), Category: i18n.T("tui.project_models.category"), Action: func() { v.addEntry() }},
 	}
 }
 

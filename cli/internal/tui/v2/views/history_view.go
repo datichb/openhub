@@ -11,13 +11,15 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
 // History screen (P2-T15, 10-tui §10): the published version then the
 // previous ones (author, date, message); Enter shows the diff of a version
-// against the current one, r restores it (republished as a new version).
+// against the current one (c too), R restores it (republished as a new
+// version), r reloads the list.
 // ─────────────────────────────────────────────────────────────────────────────
 
 // HistoryVersion is one version of a workflow.
@@ -36,7 +38,7 @@ type HistoryViewConfig struct {
 	Load func(ctx context.Context) ([]HistoryVersion, error)
 	// Diff returns the unified diff of version against the current one.
 	Diff func(ctx context.Context, version int) (string, error)
-	// Restore republishes version (off the event loop); nil hides `r`.
+	// Restore republishes version (off the event loop); nil hides `R`.
 	Restore func(ctx context.Context, version int) (*PublishResult, error)
 	// OnRestored is called on the event loop after a restore.
 	OnRestored func(*PublishResult)
@@ -123,10 +125,19 @@ func (v *HistoryView) SetVersions(vs []HistoryVersion) {
 }
 
 func (v *HistoryView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
-	if event.Key() == tcell.KeyRune && event.Rune() == 'r' && v.cfg.Restore != nil {
+	switch {
+	case keys.Resume.Matches(event) && v.cfg.Restore != nil:
 		if n, ok := v.currentVersion(); ok {
 			v.askRestore(n)
 		}
+		return nil
+	case keys.Compare.Matches(event):
+		if n, ok := v.currentVersion(); ok {
+			v.showDiff(n)
+		}
+		return nil
+	case keys.Refresh.Matches(event):
+		v.load()
 		return nil
 	}
 	return event
@@ -198,11 +209,11 @@ func (v *HistoryView) showDetail(it widgets.SectionItem) {
 	if h.Current {
 		d.gap().muted(i18n.T("tui.detail.history.current"))
 	}
-	keys := []string{"Enter", i18n.T("tui.detail.history.diff")}
+	pairs := []string{keys.Open.Keys() + "/" + keys.Compare.Keys(), i18n.T("tui.detail.history.diff")}
 	if v.cfg.Restore != nil && !h.Current {
-		keys = append(keys, "r", i18n.T("tui.detail.history.restore"))
+		pairs = append(pairs, keys.Resume.Keys(), i18n.T("tui.detail.history.restore"))
 	}
-	d.keys(keys...)
+	d.keys(append(pairs, keyPairs(keys.Refresh)...)...)
 	v.page.SetDetail(d.String())
 }
 
@@ -247,10 +258,8 @@ func (v *HistoryView) askRestore(n int) {
 		v.shell.ShowToastMsg(i18n.T("tui.history.already_current"), false)
 		return
 	}
-	v.shell.ShowScrollableModal(i18n.Tf("tui.history.restore_title", v.cfg.Ref, n), i18n.Tf("tui.history.restore_body", n), []ModalAction{
-		{Label: i18n.T("tui.history.restore"), Callback: func() { v.restore(n) }},
-		{Label: i18n.T("tui.catalog.edit.cancel"), Callback: func() {}, Separator: true},
-	})
+	v.shell.Confirm(i18n.Tf("tui.history.restore_title", v.cfg.Ref, n), i18n.Tf("tui.history.restore_body", n), false,
+		func() { v.restore(n) })
 }
 
 // restore runs once at a time.

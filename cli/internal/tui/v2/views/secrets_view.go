@@ -11,6 +11,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/storage/keychain"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
@@ -77,14 +78,11 @@ func NewSecretsView(cfg SecretsViewConfig) *SecretsView {
 
 func (v *SecretsView) SetShell(s ShellAccess) { v.shell = s }
 func (v *SecretsView) ID() string             { return "secrets" }
-func (v *SecretsView) Title() string          { return "Secrets & Tokens" }
+func (v *SecretsView) Title() string          { return i18n.T("tui.secrets.title") }
 func (v *SecretsView) StatusHints() string {
-	return fmt.Sprintf("j/k %s · {/} %s · Enter %s · e %s · a %s · d %s · r %s · Esc %s",
-		i18n.T("tui.hints.nav"), i18n.T("tui.hints.navigate"),
-		i18n.T("tui.hints.edit"),
-		i18n.T("tui.hints.edit"), i18n.T("tui.hints.add"),
-		i18n.T("tui.hints.delete"), i18n.T("tui.hints.refresh"),
-		i18n.T("tui.hints.back"))
+	return keys.Hints(keys.Navigate.Hint(), "{/} "+i18n.T("tui.hints.sections"),
+		keys.Open.HintAs(i18n.T("tui.hints.edit")), keys.Edit.Hint(), keys.Create.Hint(),
+		keys.Delete.Hint(), keys.Refresh.Hint(), keys.Back.Hint())
 }
 
 func (v *SecretsView) Mount(content *tview.Flex, app *tview.Application) {
@@ -145,7 +143,7 @@ func (v *SecretsView) showDetail(item widgets.SectionItem) {
 		if len(v.entries) == 0 {
 			d.title(i18n.T("tui.secrets.empty"))
 			d.para(i18n.T("tui.detail.secret.desc"))
-			d.keys("a", i18n.T("tui.hints.add"), "r", i18n.T("tui.hints.refresh"))
+			d.keys(keyPairs(keys.Create, keys.Refresh)...)
 			v.page.SetDetail(d.String())
 			return
 		}
@@ -156,7 +154,7 @@ func (v *SecretsView) showDetail(item widgets.SectionItem) {
 	var d detailText
 	d.title(tview.Escape(e.Key))
 	d.para(i18n.T("tui.detail.secret.desc"))
-	scope := "global"
+	scope := i18n.T("tui.secrets.scope_global")
 	if e.Scope != "global" && e.Scope != "" {
 		scope = i18n.T("tui.secrets.section_project") + " " + tview.Escape(e.Scope)
 	}
@@ -168,26 +166,26 @@ func (v *SecretsView) showDetail(item widgets.SectionItem) {
 	}
 	d.field(i18n.T("tui.secrets.referenced_by"), tview.Escape(e.Source))
 	d.field(i18n.T("tui.detail.secret.fallback"), tview.Escape(e.Fallback))
-	keys := []string{"Enter", i18n.T("tui.hints.edit"), "a", i18n.T("tui.hints.add")}
+	pairs := append([]string{keys.Open.Keys(), i18n.T("tui.hints.edit")}, keyPairs(keys.Create)...)
 	if e.Present {
-		keys = append(keys, "d", i18n.T("tui.hints.delete"))
+		pairs = append(pairs, keyPairs(keys.Delete)...)
 	}
-	d.keys(append(keys, "r", i18n.T("tui.hints.refresh"))...)
+	d.keys(append(pairs, keyPairs(keys.Refresh)...)...)
 	v.page.SetDetail(d.String())
 }
 
 func (v *SecretsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
-	switch event.Rune() {
-	case 'e':
+	switch {
+	case keys.Edit.Matches(event):
 		v.editCurrent()
 		return nil
-	case 'a':
+	case keys.Create.Matches(event):
 		v.addSecret()
 		return nil
-	case 'd':
+	case keys.Delete.Matches(event):
 		v.deleteCurrent()
 		return nil
-	case 'r':
+	case keys.Refresh.Matches(event):
 		v.refresh()
 		return nil
 	}
@@ -447,7 +445,7 @@ func (v *SecretsView) editEntry(entry secretEntry) {
 	}
 
 	v.shell.ShowSelectModal(
-		fmt.Sprintf("%s %s (%s)", i18n.T("tui.hints.edit"), entry.Key, scopeLabel(entry.Scope)),
+		i18n.Tf("tui.secrets.edit_title", entry.Key, scopeLabel(entry.Scope)),
 		[]SelectOption{
 			{Label: i18n.T("tui.secrets.edit_value"), Value: "value"},
 			{Label: i18n.T("tui.secrets.move_scope"), Value: "move"},
@@ -476,7 +474,7 @@ func (v *SecretsView) promptSecretValue(key, scope string) {
 		}
 		ctx := context.Background()
 		if err := store.SetScoped(ctx, key, value, scope); err != nil {
-			v.shell.ShowToastMsg(i18n.T("tui.settings.error")+": "+err.Error(), false)
+			v.shell.ShowToastMsg(errorText(err), false)
 			return
 		}
 		v.shell.ShowToastMsg(i18n.T("tui.secrets.updated"), true)
@@ -492,7 +490,7 @@ func (v *SecretsView) moveSecret(entry secretEntry) {
 
 	ctx := context.Background()
 	newScope := "global"
-	newLabel := "global"
+	newLabel := i18n.T("tui.secrets.scope_global")
 	if entry.Scope == "global" || entry.Scope == "" {
 		projectID := v.cfg.GetActiveProjectID()
 		if projectID == "" {
@@ -509,11 +507,13 @@ func (v *SecretsView) moveSecret(entry secretEntry) {
 		return
 	}
 	if err := store.SetScoped(ctx, entry.Key, val, newScope); err != nil {
-		v.shell.ShowToastMsg(i18n.T("tui.settings.error")+": "+err.Error(), false)
+		v.shell.ShowToastMsg(errorText(err), false)
 		return
 	}
 	if err := store.DeleteScoped(ctx, entry.Key, entry.Scope); err != nil {
-		v.shell.ShowToastMsg("Error: "+err.Error(), false)
+		v.shell.ShowToastMsg(errorText(err), false)
+		v.refresh()
+		return
 	}
 
 	v.shell.ShowToastMsg(i18n.Tf("tui.secrets.moved_to", newLabel), true)
@@ -534,7 +534,7 @@ func (v *SecretsView) addSecret() {
 		projectID := v.cfg.GetActiveProjectID()
 		projectName := v.cfg.GetActiveProjectName()
 
-		opts := []SelectOption{{Label: "Global", Value: "global"}}
+		opts := []SelectOption{{Label: i18n.T("tui.secrets.scope_global_option"), Value: "global"}}
 		if projectID != "" {
 			opts = append(opts, SelectOption{Label: i18n.T("tui.secrets.section_project") + ": " + projectName, Value: projectID})
 		}
@@ -564,23 +564,14 @@ func (v *SecretsView) deleteCurrent() {
 	}
 
 	label := fmt.Sprintf("%s (%s)", entry.Key, scopeLabel(entry.Scope))
-	v.shell.ShowSelectModal(
-		i18n.Tf("tui.secrets.confirm_delete", label),
-		[]SelectOption{
-			{Label: i18n.T("tui.settings.cancel"), Value: ""},
-			{Label: i18n.T("tui.secrets.yes_delete"), Value: "yes"},
-		}, "", func(choice string) {
-			if choice != "yes" {
-				return
-			}
-			ctx := context.Background()
-			if err := store.DeleteScoped(ctx, entry.Key, entry.Scope); err != nil {
-				v.shell.ShowToastMsg(i18n.T("tui.settings.error")+": "+err.Error(), false)
-				return
-			}
-			v.shell.ShowToastMsg(i18n.T("tui.secrets.deleted"), true)
-			v.refresh()
-		})
+	v.shell.Confirm(i18n.Tf("tui.secrets.confirm_delete", label), i18n.T("tui.secrets.delete_detail"), true, func() {
+		if err := store.DeleteScoped(context.Background(), entry.Key, entry.Scope); err != nil {
+			v.shell.ShowToastMsg(errorText(err), false)
+			return
+		}
+		v.shell.ShowToastMsg(i18n.T("tui.secrets.deleted"), true)
+		v.refresh()
+	})
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -589,7 +580,7 @@ func (v *SecretsView) deleteCurrent() {
 
 func scopeLabel(scope string) string {
 	if scope == "global" || scope == "" {
-		return "global"
+		return i18n.T("tui.secrets.scope_global")
 	}
 	return i18n.T("tui.secrets.section_project")
 }
@@ -597,7 +588,7 @@ func scopeLabel(scope string) string {
 // ContextCommands implements CommandProvider.
 func (v *SecretsView) ContextCommands() []ContextCommand {
 	return []ContextCommand{
-		{ID: "secrets.add", Label: i18n.T("tui.hints.add"), Aliases: []string{"add", "new", "ajouter"}, Description: i18n.T("tui.secrets.cmd_add"), Category: "Secrets", Action: func() { v.addSecret() }},
-		{ID: "secrets.refresh", Label: i18n.T("tui.hints.refresh"), Aliases: []string{"refresh", "reload", "rafraîchir"}, Description: i18n.T("tui.secrets.cmd_refresh"), Category: "Secrets", Action: func() { v.refresh() }},
+		{ID: "secrets.add", Label: i18n.T("tui.keys.action.create"), Aliases: []string{"add", "new", "ajouter"}, Description: i18n.T("tui.secrets.cmd_add"), Category: v.Title(), Action: func() { v.addSecret() }},
+		{ID: "secrets.refresh", Label: i18n.T("tui.hints.refresh"), Aliases: []string{"refresh", "reload", "rafraîchir"}, Description: i18n.T("tui.secrets.cmd_refresh"), Category: v.Title(), Action: func() { v.refresh() }},
 	}
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
@@ -57,14 +58,9 @@ func (v *TeamsView) ID() string    { return "teams" }
 func (v *TeamsView) Title() string { return i18n.T("tui.teams") }
 
 func (v *TeamsView) StatusHints() string {
-	return fmt.Sprintf("Enter %s · a %s · d %s · s %s · r %s · u %s",
-		i18n.T("tui.hints.detail"),
-		i18n.T("tui.hints.add"),
-		i18n.T("tui.hints.delete"),
-		i18n.T("tui.hints.sync"),
-		i18n.T("tui.hints.refresh"),
-		i18n.T("tui.hints.undo"),
-	)
+	return keys.Hints(keys.Open.HintAs(i18n.T("tui.hints.detail")), keys.Create.Hint(),
+		keys.Delete.Hint(), "s "+i18n.T("tui.hints.sync"), keys.Refresh.Hint(),
+		"u "+i18n.T("tui.hints.undo"))
 }
 
 func (v *TeamsView) Mount(content *tview.Flex, app *tview.Application) {
@@ -95,7 +91,7 @@ func (v *TeamsView) showDetail(it widgets.SectionItem) {
 		var d detailText
 		d.title(i18n.T("tui.teams.no_teams"))
 		d.para(i18n.T("tui.teams.no_teams_hint"))
-		d.keys("a", i18n.T("tui.hints.add"), "u", i18n.T("tui.hints.undo"))
+		d.keys(append(keyPairs(keys.Create), "u", i18n.T("tui.hints.undo"))...)
 		v.page.SetDetail(d.String())
 		return
 	}
@@ -115,37 +111,34 @@ func (v *TeamsView) showDetail(it widgets.SectionItem) {
 	d.field(i18n.T("tui.detail.status"), status)
 	d.field(i18n.T("tui.detail.repo"), tview.Escape(repo))
 	d.field(i18n.T("tui.detail.path"), tview.Escape(team.StatePath))
-	d.keys("Enter", i18n.T("tui.hints.detail"), "s", i18n.T("tui.hints.sync"),
-		"a", i18n.T("tui.hints.add"), "d", i18n.T("tui.hints.delete"),
-		"r", i18n.T("tui.hints.refresh"), "u", i18n.T("tui.hints.undo"))
+	pairs := []string{keys.Open.Keys(), i18n.T("tui.hints.detail"), "s", i18n.T("tui.hints.sync")}
+	pairs = append(pairs, keyPairs(keys.Create, keys.Delete, keys.Refresh)...)
+	d.keys(append(pairs, "u", i18n.T("tui.hints.undo"))...)
 	v.page.SetDetail(d.String())
 }
 
 func (v *TeamsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
-	switch event.Key() {
-	case tcell.KeyEnter:
+	switch {
+	case keys.Open.Matches(event):
 		if _, item, ok := v.list.CurrentItem(); ok {
 			v.handleSelect(0, item)
 		}
 		return nil
-	case tcell.KeyRune:
-		switch event.Rune() {
-		case 'a':
-			v.handleAdd()
-			return nil
-		case 'd':
-			v.handleDelete()
-			return nil
-		case 's':
-			v.handleSync()
-			return nil
-		case 'r':
-			v.rebuild()
-			return nil
-		case 'u':
-			v.handleUndo()
-			return nil
-		}
+	case keys.Create.Matches(event):
+		v.handleAdd()
+		return nil
+	case keys.Delete.Matches(event):
+		v.handleDelete()
+		return nil
+	case keys.Refresh.Matches(event):
+		v.rebuild()
+		return nil
+	case event.Key() == tcell.KeyRune && event.Rune() == 's':
+		v.handleSync()
+		return nil
+	case event.Key() == tcell.KeyRune && event.Rune() == 'u':
+		v.handleUndo()
+		return nil
 	}
 	return event
 }
@@ -301,7 +294,7 @@ func (v *TeamsView) handleAdd() {
 						v.cfg.Teams = prev
 					}
 					v.rebuild()
-					v.shell.ShowToastMsg("save failed: "+err.Error(), false)
+					v.shell.ShowToastMsg(i18n.Tf("tui.teams.save_failed", err.Error()), false)
 					return
 				}
 			}
@@ -326,13 +319,7 @@ func (v *TeamsView) handleDelete() {
 		return
 	}
 
-	v.shell.ShowSelectModal(i18n.Tf("tui.teams.confirm_delete", teamID), []SelectOption{
-		{Label: i18n.T("tui.teams.cancel"), Value: ""},
-		{Label: i18n.T("tui.teams.confirm_delete_btn"), Value: "yes"},
-	}, "", func(choice string) {
-		if choice != "yes" {
-			return
-		}
+	v.shell.Confirm(i18n.Tf("tui.teams.confirm_delete", teamID), i18n.T("tui.teams.delete_detail"), true, func() {
 
 		// Push undo state before mutation
 		v.undoStack.Push(copyTeams(v.cfg.Teams))
@@ -354,7 +341,7 @@ func (v *TeamsView) handleDelete() {
 					v.cfg.Teams = prev
 				}
 				v.rebuild()
-				v.shell.ShowToastMsg("save failed: "+err.Error(), false)
+				v.shell.ShowToastMsg(i18n.Tf("tui.teams.save_failed", err.Error()), false)
 				return
 			}
 		}
@@ -394,7 +381,9 @@ func (v *TeamsView) handleUndo() {
 			// Restore pre-undo state and re-push the snapshot.
 			v.cfg.Teams = current
 			v.undoStack.Push(prev)
-			v.shell.ShowToastMsg("undo failed: "+err.Error(), false)
+			if v.shell != nil {
+				v.shell.ShowToastMsg(i18n.Tf("tui.teams.undo_failed", err.Error()), false)
+			}
 			return
 		}
 	}

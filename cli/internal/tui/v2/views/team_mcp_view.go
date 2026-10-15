@@ -14,6 +14,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
@@ -83,17 +84,12 @@ func NewTeamMCPView(cfg TeamMCPViewConfig) *TeamMCPView {
 func (v *TeamMCPView) SetShell(s ShellAccess) { v.shell = s }
 
 func (v *TeamMCPView) ID() string    { return "team.mcp" }
-func (v *TeamMCPView) Title() string { return "MCP Services" }
+func (v *TeamMCPView) Title() string { return i18n.T("tui.config.section.mcp_services") }
 func (v *TeamMCPView) StatusHints() string {
-	return fmt.Sprintf("j/k %s · {/} %s · Space %s · Enter %s · w %s · u %s · t %s",
-		i18n.T("tui.hints.nav"),
-		i18n.T("tui.hints.navigate"),
-		i18n.T("tui.hints.toggle"),
-		i18n.T("tui.hints.edit"),
-		i18n.T("tui.hints.save"),
-		i18n.T("tui.hints.undo"),
-		"test",
-	)
+	return keys.Hints(keys.Navigate.Hint(), "{/} "+i18n.T("tui.hints.sections"),
+		i18n.T("tui.hints.space_key")+" "+i18n.T("tui.hints.toggle"),
+		keys.Open.HintAs(i18n.T("tui.hints.edit")), "w "+i18n.T("tui.hints.save"),
+		"u "+i18n.T("tui.hints.undo"), "t "+i18n.T("tui.hints.test"), keys.Refresh.Hint())
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -181,7 +177,7 @@ func (v *TeamMCPView) Unmount() {
 
 // teamMCPExtraKeys are the page keys listed in the detail pane.
 func teamMCPExtraKeys() []string {
-	return []string{"t", i18n.T("tui.hints.test"), "w", i18n.T("tui.hints.save"), "u", i18n.T("tui.hints.undo"), "r", i18n.T("tui.hints.refresh")}
+	return []string{"t", i18n.T("tui.hints.test"), "w", i18n.T("tui.hints.save"), "u", i18n.T("tui.hints.undo"), keys.Refresh.Keys(), keys.Refresh.Label()}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -198,6 +194,13 @@ func (v *TeamMCPView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		}
 		return nil
 	}
+	if keys.Refresh.Matches(event) {
+		confirmDiscard(v.shell, v.dirtyTeam || v.dirtyLocal, v.reload)
+		return nil
+	}
+	if event.Key() != tcell.KeyRune {
+		return event
+	}
 	switch event.Rune() {
 	case ' ':
 		v.toggleSelected()
@@ -211,21 +214,25 @@ func (v *TeamMCPView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	case 't':
 		v.testConnection()
 		return nil
-	case 'r':
-		tc := v.cfg.ResolveTeam()
-		if tc.Enabled {
-			repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
-			syncAsync(v.app, repo, v.shell, func(_ error) {
-				v.loadData()
-				v.buildFields()
-				v.renderFields()
-				v.dirtyTeam = false
-				v.dirtyLocal = false
-			})
-		}
-		return nil
 	}
 	return event
+}
+
+// reload pulls the team-state and reloads the fields; unsaved changes are
+// dropped (r asks first, confirmDiscard).
+func (v *TeamMCPView) reload() {
+	tc := v.cfg.ResolveTeam()
+	if !tc.Enabled {
+		return
+	}
+	repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
+	syncAsync(v.app, repo, v.shell, func(_ error) {
+		v.loadData()
+		v.buildFields()
+		v.renderFields()
+		v.dirtyTeam = false
+		v.dirtyLocal = false
+	})
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -455,7 +462,7 @@ func (v *TeamMCPView) onItemSelected(_ int, item widgets.SectionItem) {
 			if v.cfg.SetSecret != nil {
 				ctx := context.Background()
 				if err := v.cfg.SetSecret(ctx, tokenKey, val); err != nil {
-					v.shell.ShowToastMsg(i18n.T("tui.settings.error")+": "+err.Error(), false)
+					v.shell.ShowToastMsg(errorText(err), false)
 					return
 				}
 			}

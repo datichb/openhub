@@ -13,6 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 	"github.com/datichb/openhub/cli/internal/worktree"
 )
@@ -83,7 +84,9 @@ func (v *WorktreeView) Title() string { return i18n.T("tui.worktree.title") }
 
 // StatusHints returns keybinding hints.
 func (v *WorktreeView) StatusHints() string {
-	return fmt.Sprintf("j/k %s · Enter %s · a %s · d %s · o %s · p %s · x %s · r %s · Esc %s", i18n.T("tui.hints.nav"), i18n.T("tui.hints.open"), i18n.T("tui.hints.add"), i18n.T("tui.hints.delete"), i18n.T("tui.hints.open"), i18n.T("tui.hints.prune"), i18n.T("tui.hints.cleanup"), i18n.T("tui.hints.refresh"), i18n.T("tui.hints.back"))
+	return keys.Hints(keys.Navigate.Hint(), keys.Open.Hint(), keys.Create.Hint(), keys.Delete.Hint(),
+		"o "+i18n.T("tui.hints.open"), "p "+i18n.T("tui.hints.prune"),
+		string(cleanupMergedKey)+" "+i18n.T("tui.worktree.hint_cleanup_merged"), keys.Refresh.Hint(), keys.Back.Hint())
 }
 
 // Mount builds the worktree list.
@@ -116,9 +119,7 @@ func (v *WorktreeView) showDetail() {
 		d.field(i18n.T("tui.detail.branch"), tview.Escape(wt.Branch))
 		d.field(i18n.T("tui.detail.path"), tview.Escape(wt.Path))
 		d.field("HEAD :", tview.Escape(wt.Head))
-		d.keys("Enter", i18n.T("tui.hints.open"), "d", i18n.T("tui.hints.delete"),
-			"a", i18n.T("tui.hints.add"), "p", i18n.T("tui.hints.prune"),
-			"x", i18n.T("tui.hints.cleanup"), "r", i18n.T("tui.hints.refresh"))
+		d.keys(append(keyPairs(keys.Open, keys.Delete, keys.Create), v.globalKeyPairs()...)...)
 		v.page.SetDetail(d.String())
 		return
 	}
@@ -130,9 +131,19 @@ func (v *WorktreeView) showDetail() {
 	main, secondary := v.list.GetItemText(idx)
 	d.title(tview.Escape(strings.TrimSpace(main)))
 	d.para(tview.Escape(strings.TrimSpace(secondary)))
-	d.keys("a", i18n.T("tui.hints.add"), "p", i18n.T("tui.hints.prune"),
-		"x", i18n.T("tui.hints.cleanup"), "r", i18n.T("tui.hints.refresh"))
+	d.keys(append(keyPairs(keys.Create), v.globalKeyPairs()...)...)
 	v.page.SetDetail(d.String())
+}
+
+// cleanupMergedKey removes the merged worktrees (M: merged; x never
+// destroys anything in the key convention).
+const cleanupMergedKey = 'M'
+
+// globalKeyPairs are the keys of the actions on every worktree.
+func (v *WorktreeView) globalKeyPairs() []string {
+	return []string{"p", i18n.T("tui.hints.prune"),
+		string(cleanupMergedKey), i18n.T("tui.worktree.hint_cleanup_merged"),
+		keys.Refresh.Keys(), keys.Refresh.Label()}
 }
 
 // Unmount cleans up resources.
@@ -145,27 +156,31 @@ func (v *WorktreeView) Unmount() {
 
 // HandleKey processes worktree view key events.
 func (v *WorktreeView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
-	if event.Key() == tcell.KeyEnter {
+	switch {
+	case keys.Open.Matches(event):
 		v.openInTerminal()
 		return nil
-	}
-	switch event.Rune() {
-	case 'r':
+	case keys.Refresh.Matches(event):
 		v.refresh()
 		return nil
-	case 'a':
+	case keys.Create.Matches(event):
 		v.addWorktree()
 		return nil
-	case 'd':
+	case keys.Delete.Matches(event):
 		v.removeWorktree()
 		return nil
+	}
+	if event.Key() != tcell.KeyRune {
+		return event
+	}
+	switch event.Rune() {
 	case 'o':
 		v.openInTerminal()
 		return nil
 	case 'p':
 		v.pruneWorktrees()
 		return nil
-	case 'x':
+	case cleanupMergedKey:
 		v.cleanupWorktrees()
 		return nil
 	}
@@ -220,10 +235,10 @@ func (v *WorktreeView) render(projectPath string, entries []worktree.Entry, err 
 			// Display as a non-actionable informational header.
 			label := e.Branch
 			if label == "" {
-				label = "(detached)"
+				label = i18n.T("tui.worktree.detached")
 			}
 			v.list.AddItem(
-				fmt.Sprintf("  %s %s  [principal]", theme.IconActive, label),
+				fmt.Sprintf("  %s %s  %s", theme.IconActive, label, tview.Escape("["+i18n.T("tui.worktree.main")+"]")),
 				"    "+e.Path,
 				0, nil)
 			v.headerCount++
@@ -358,7 +373,7 @@ func (v *WorktreeView) pruneWorktrees() {
 	})
 }
 
-// cleanupWorktrees is `x`: removes the merged worktrees after confirmation,
+// cleanupWorktrees is `M`: removes the merged worktrees after confirmation,
 // never one used by a session that is not stopped.
 func (v *WorktreeView) cleanupWorktrees() {
 	if v.shell == nil {

@@ -14,6 +14,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
@@ -146,20 +147,11 @@ func (v *TeamBoardView) Title() string { return i18n.T("tui.team.board") }
 
 // StatusHints returns keybinding hints.
 func (v *TeamBoardView) StatusHints() string {
-	hints := fmt.Sprintf("h/l %s · j/k %s · Enter %s · a %s · [[] /] %s · / %s · f %s · c %s · x %s · t %s · s %s · r %s",
-		i18n.T("tui.hints.columns"),
-		i18n.T("tui.hints.items"),
-		i18n.T("tui.hints.detail"),
-		i18n.T("tui.hints.actions"),
-		i18n.T("tui.hints.projects"),
-		i18n.T("tui.hints.search"),
-		i18n.T("tui.hints.filter"),
-		i18n.T("tui.hints.claim"),
-		i18n.T("tui.hints.release"),
-		i18n.T("tui.hints.transfer"),
-		i18n.T("tui.hints.status"),
-		i18n.T("tui.hints.refresh"),
-	)
+	hints := keys.Hints("h/l "+i18n.T("tui.hints.columns"), "j/k "+i18n.T("tui.hints.items"),
+		keys.Open.HintAs(i18n.T("tui.hints.detail")), "a "+i18n.T("tui.hints.actions"),
+		"[[] /] "+i18n.T("tui.hints.projects"), keys.Filter.Hint(),
+		"c "+i18n.T("tui.hints.claim"), string(releaseKey)+" "+i18n.T("tui.hints.release"),
+		"t "+i18n.T("tui.hints.transfer"), "s "+i18n.T("tui.hints.status"), keys.Refresh.Hint())
 	if v.filterText != "" || v.filterAssignee != "" || v.filterLabel != "" {
 		hints += " · [yellow]" + i18n.T("tui.hints.filtered") + "[-]"
 	}
@@ -331,15 +323,12 @@ func (v *TeamBoardView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		}
 		return nil
 	case '/':
-		v.showSearchFilter()
-		return nil
-	case 'f':
 		v.showFilterMenu()
 		return nil
 	case 'c':
 		v.claimTicket()
 		return nil
-	case 'x':
+	case releaseKey:
 		v.releaseTicket()
 		return nil
 	case 't':
@@ -1133,13 +1122,18 @@ func (v *TeamBoardView) showSearchFilter() {
 	})
 }
 
-// showFilterMenu opens a predefined filter selection modal.
+// releaseKey releases the claim of a ticket (L: libérer / release; x never
+// destroys anything in the key convention).
+const releaseKey = 'L'
+
+// showFilterMenu is /: the filters of the board (text search first).
 func (v *TeamBoardView) showFilterMenu() {
 	if v.shell == nil {
 		return
 	}
 
 	options := []SelectOption{
+		{Label: i18n.T("tui.teamboard.filter_text"), Value: "_text"},
 		{Label: i18n.T("tui.teamboard.filter_my_tickets"), Value: "_mine"},
 		{Label: i18n.T("tui.teamboard.filter_by_assignee"), Value: "_assignee"},
 		{Label: i18n.T("tui.teamboard.filter_by_label"), Value: "_label"},
@@ -1148,6 +1142,8 @@ func (v *TeamBoardView) showFilterMenu() {
 
 	v.shell.ShowSelectModal(i18n.T("tui.teamboard.filter_title"), options, "", func(choice string) {
 		switch choice {
+		case "_text":
+			v.showSearchFilter()
 		case "_mine":
 			// Use the MemberID from the config if available via Members
 			if len(v.cfg.Members) > 0 {

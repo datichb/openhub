@@ -12,6 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/provider"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
@@ -87,19 +88,15 @@ func (v *ProviderView) SetShell(s ShellAccess) { v.shell = s }
 func (v *ProviderView) ID() string { return "provider" }
 
 // Title returns the display title.
-func (v *ProviderView) Title() string { return "Provider" }
+func (v *ProviderView) Title() string { return i18n.T("tui.provider.title") }
 
 // StatusHints returns keybinding hints.
 func (v *ProviderView) StatusHints() string {
-	return fmt.Sprintf("j/k %s · {/} %s · Space %s · Enter %s · e %s · s %s · d reset · r %s",
-		i18n.T("tui.hints.nav"),
-		i18n.T("tui.hints.navigate"),
-		i18n.T("tui.hints.toggle"),
-		i18n.T("tui.hints.edit"),
-		i18n.T("tui.hints.edit"),
-		i18n.T("tui.hints.setup"),
-		i18n.T("tui.hints.refresh"),
-	)
+	return keys.Hints(keys.Navigate.Hint(), "{/} "+i18n.T("tui.hints.sections"),
+		i18n.T("tui.hints.space_key")+" "+i18n.T("tui.provider.hint_default"),
+		keys.Open.HintAs(i18n.T("tui.hints.edit")), keys.Edit.Hint(),
+		"s "+i18n.T("tui.hints.setup"), keys.Delete.HintAs(i18n.T("tui.provider.hint_delete")),
+		keys.Refresh.Hint())
 }
 
 // Mount builds the provider configuration interface.
@@ -169,20 +166,20 @@ func (v *ProviderView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	if v.list == nil {
 		return event
 	}
-	switch event.Rune() {
-	case ' ':
+	switch {
+	case event.Key() == tcell.KeyRune && event.Rune() == ' ':
 		v.setAsDefault()
 		return nil
-	case 'e':
+	case keys.Edit.Matches(event):
 		v.editCurrent()
 		return nil
-	case 's':
+	case event.Key() == tcell.KeyRune && event.Rune() == 's':
 		v.setupProvider()
 		return nil
-	case 'd':
+	case keys.Delete.Matches(event):
 		v.resetCurrentProvider()
 		return nil
-	case 'r':
+	case keys.Refresh.Matches(event):
 		v.refresh()
 		return nil
 	}
@@ -501,7 +498,7 @@ func (v *ProviderView) showCurrentDetail() {
 	if line.get != nil {
 		val = line.get(cfg)
 	}
-	pageKeys := []string{"s", i18n.T("tui.hints.setup"), "d", i18n.T("tui.detail.provider.reset"), "r", i18n.T("tui.hints.refresh")}
+	pageKeys := []string{"s", i18n.T("tui.hints.setup"), keys.Delete.Keys(), i18n.T("tui.provider.hint_delete"), keys.Refresh.Keys(), keys.Refresh.Label()}
 	var d detailText
 	switch line.kind {
 	case "provider-item":
@@ -666,7 +663,7 @@ func (v *ProviderView) editCurrent() {
 			}
 			if keychainKey != "" {
 				if err := v.vcfg.SetSecret(context.Background(), keychainKey, val); err != nil {
-					v.shell.ShowToastMsg("Error: "+err.Error(), false)
+					v.shell.ShowToastMsg(errorText(err), false)
 				}
 			}
 			v.renderList()
@@ -715,17 +712,11 @@ func (v *ProviderView) resetCurrentProvider() {
 		return
 	}
 	name := v.selectedProvider
-	v.shell.ShowSelectModal(
-		i18n.Tf("tui.provider.confirm_reset", name),
-		[]SelectOption{
-			{Label: i18n.T("tui.provider.yes_reset"), Value: "yes"},
-			{Label: i18n.T("tui.provider.cancel"), Value: "no"},
-		},
-		"",
-		func(choice string) {
-			if choice != "yes" {
-				return
-			}
+	if name == "" {
+		return
+	}
+	v.shell.Confirm(i18n.Tf("tui.provider.confirm_reset", name), i18n.T("tui.provider.reset_detail"), true,
+		func() {
 			cfg := v.vcfg.GetConfig()
 			// Clear provider config fields
 			switch name {
@@ -733,7 +724,7 @@ func (v *ProviderView) resetCurrentProvider() {
 				cfg.Provider.Bedrock = config.ProviderConfig{}
 				if v.vcfg.DeleteSecret != nil {
 					if err := v.vcfg.DeleteSecret(context.Background(), provider.KeychainKey(provider.Bedrock, "")); err != nil {
-						v.shell.ShowToastMsg("Error: "+err.Error(), false)
+						v.shell.ShowToastMsg(errorText(err), false)
 					}
 				}
 			case "anthropic":
@@ -741,7 +732,7 @@ func (v *ProviderView) resetCurrentProvider() {
 				if v.vcfg.DeleteSecret != nil {
 					key := provider.KeychainKey(provider.Anthropic, "")
 					if err := v.vcfg.DeleteSecret(context.Background(), key); err != nil {
-						v.shell.ShowToastMsg("Error: "+err.Error(), false)
+						v.shell.ShowToastMsg(errorText(err), false)
 					}
 				}
 			case "openrouter":
@@ -749,7 +740,7 @@ func (v *ProviderView) resetCurrentProvider() {
 				if v.vcfg.DeleteSecret != nil {
 					key := provider.KeychainKey(provider.OpenRouter, "")
 					if err := v.vcfg.DeleteSecret(context.Background(), key); err != nil {
-						v.shell.ShowToastMsg("Error: "+err.Error(), false)
+						v.shell.ShowToastMsg(errorText(err), false)
 					}
 				}
 			}
@@ -831,7 +822,7 @@ func (v *ProviderView) setupBedrock() {
 		saveBedrock := func(cfg *config.Config, toastKey string) {
 			cfg.LLM.DefaultProvider = "bedrock"
 			if err := v.vcfg.SaveConfig(cfg); err != nil {
-				v.shell.ShowToastMsg("Error: "+err.Error(), false)
+				v.shell.ShowToastMsg(errorText(err), false)
 			}
 			v.buildLines()
 			v.renderList()
@@ -873,7 +864,7 @@ func (v *ProviderView) setupBedrock() {
 					// Store new token in keychain if provided.
 					if token != "" && v.vcfg.SetSecret != nil {
 						if err := v.vcfg.SetSecret(context.Background(), provider.KeychainKey(provider.Bedrock, ""), token); err != nil {
-							v.shell.ShowToastMsg("Error: "+err.Error(), false)
+							v.shell.ShowToastMsg(errorText(err), false)
 						}
 					}
 					// Reject if no token at all (neither new nor in keychain).
@@ -937,7 +928,7 @@ func (v *ProviderView) setupBedrock() {
 		case "env":
 			cfg.LLM.DefaultProvider = "bedrock"
 			if err := v.vcfg.SaveConfig(cfg); err != nil {
-				v.shell.ShowToastMsg("Error: "+err.Error(), false)
+				v.shell.ShowToastMsg(errorText(err), false)
 			}
 			v.buildLines()
 			v.renderList()
@@ -954,13 +945,13 @@ func (v *ProviderView) setupAPIKey(name provider.Name, title string) {
 		keychainKey := provider.KeychainKey(name, "")
 		if v.vcfg.SetSecret != nil && keychainKey != "" {
 			if err := v.vcfg.SetSecret(context.Background(), keychainKey, key); err != nil {
-				v.shell.ShowToastMsg("Error: "+err.Error(), false)
+				v.shell.ShowToastMsg(errorText(err), false)
 			}
 		}
 		cfg := v.vcfg.GetConfig()
 		cfg.LLM.DefaultProvider = string(name)
 		if err := v.vcfg.SaveConfig(cfg); err != nil {
-			v.shell.ShowToastMsg("Error: "+err.Error(), false)
+			v.shell.ShowToastMsg(errorText(err), false)
 		}
 		v.buildLines()
 		v.renderList()

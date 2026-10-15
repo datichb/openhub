@@ -102,7 +102,7 @@ func buildProjectAddInlineWizard(a *app.App) *views.InlineWizardView {
 				var err error
 				absPath, err = filepath.Abs(expandPath(path))
 				if err != nil {
-					return fmt.Errorf("resolving path: %w", err)
+					return fmt.Errorf("%s: %w", i18n.T("tui.projects.wizard.path_error"), err)
 				}
 				if _, err := os.Stat(absPath); os.IsNotExist(err) {
 					return fmt.Errorf("%s", i18n.Tf("cmd.project.add.dir_not_exist", absPath))
@@ -111,9 +111,9 @@ func buildProjectAddInlineWizard(a *app.App) *views.InlineWizardView {
 			},
 			InfoFields: func() []views.InfoField {
 				return []views.InfoField{
-					{Label: "Name", Value: name},
-					{Label: "Path", Value: absPath},
-					{Label: "Language", Value: language},
+					{Label: i18n.T("tui.projects.field_name"), Value: name},
+					{Label: i18n.T("tui.projects.field_path"), Value: absPath},
+					{Label: i18n.T("tui.projects.wizard.language"), Value: language},
 				}
 			},
 		},
@@ -139,13 +139,13 @@ func buildProjectAddInlineWizard(a *app.App) *views.InlineWizardView {
 				return beads.Init(absPath, id)
 			},
 			InfoFields: func() []views.InfoField {
-				return []views.InfoField{{Label: "Beads", Value: "initialized"}}
+				return []views.InfoField{{Label: "Beads", Value: i18n.T("tui.projects.wizard.beads_initialized")}}
 			},
 		},
 
 		// ── Step 3: Provider ──
 		{
-			Label: "Provider",
+			Label: i18n.T("tui.provider.title"),
 			Form: func(_ *tview.Application, onDone func()) *tview.Form {
 				form := tview.NewForm()
 				form.AddCheckbox(
@@ -158,15 +158,15 @@ func buildProjectAddInlineWizard(a *app.App) *views.InlineWizardView {
 			},
 			InfoFields: func() []views.InfoField {
 				if useCustom {
-					return []views.InfoField{{Label: "Provider", Value: "custom"}}
+					return []views.InfoField{{Label: i18n.T("tui.provider.title"), Value: i18n.T("tui.projects.wizard.provider_custom")}}
 				}
-				return []views.InfoField{{Label: "Provider", Value: hubProvider + " (hub)"}}
+				return []views.InfoField{{Label: i18n.T("tui.provider.title"), Value: hubProvider + " (hub)"}}
 			},
 		},
 
 		// ── Step 4: Provider config (conditional) ──
 		{
-			Label: "Provider config",
+			Label: i18n.T("tui.projects.wizard.provider_config"),
 			SkipIf: func() bool {
 				return !useCustom
 			},
@@ -193,15 +193,15 @@ func buildProjectAddInlineWizard(a *app.App) *views.InlineWizardView {
 				if apiKey != "" && a.Secrets != nil {
 					keyName := providerVal + "-token-project"
 					if err := a.Secrets.Set(context.Background(), keyName, apiKey); err != nil {
-						return fmt.Errorf("storing API key: %w", err)
+						return fmt.Errorf("%s: %w", i18n.T("tui.projects.wizard.api_key_error"), err)
 					}
 				}
 				return nil
 			},
 			InfoFields: func() []views.InfoField {
 				return []views.InfoField{
-					{Label: "Provider", Value: providerVal},
-					{Label: "Model", Value: model},
+					{Label: i18n.T("tui.provider.title"), Value: providerVal},
+					{Label: i18n.T("tui.project_models.model"), Value: model},
 				}
 			},
 		},
@@ -230,7 +230,7 @@ func buildProjectAddInlineWizard(a *app.App) *views.InlineWizardView {
 			},
 			InfoFields: func() []views.InfoField {
 				if len(mcpServices) == 0 {
-					return []views.InfoField{{Label: "MCP", Value: "none"}}
+					return []views.InfoField{{Label: "MCP", Value: i18n.T("tui.projects.wizard.none")}}
 				}
 				return []views.InfoField{{Label: "MCP", Value: strings.Join(mcpServices, ", ")}}
 			},
