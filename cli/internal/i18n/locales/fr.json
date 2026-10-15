@@ -2525,6 +2525,7 @@
   "tui.secrets.scope_global_option": "Global",
   "tui.secrets.edit_title": "Éditer %s (%s)",
   "tui.secrets.delete_detail": "La valeur est effacée du trousseau du système ; ce qui la référence n'aura plus de token.",
+  "tui.secrets.section_project_named": "Projet : %s",
   "tui.policies.team_not_configured": "Team non configurée",
   "tui.policies.close": "Fermer",
   "tui.policies.field_name": "Nom",

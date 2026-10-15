@@ -346,7 +346,7 @@ func (v *SecretsView) renderList() {
 	if len(globals) > 0 {
 		items = append(items, widgets.SectionItem{
 			IsHeader: true,
-			MainText: "Global",
+			MainText: i18n.T("tui.secrets.scope_global_option"),
 		})
 		for _, i := range globals {
 			items = append(items, v.entryToItem(v.entries[i], i))
@@ -360,7 +360,7 @@ func (v *SecretsView) renderList() {
 		}
 		items = append(items, widgets.SectionItem{
 			IsHeader: true,
-			MainText: fmt.Sprintf("%s: %s", i18n.T("tui.secrets.section_project"), projectName),
+			MainText: i18n.Tf("tui.secrets.section_project_named", projectName),
 		})
 		for _, i := range projects {
 			items = append(items, v.entryToItem(v.entries[i], i))
@@ -536,7 +536,7 @@ func (v *SecretsView) addSecret() {
 
 		opts := []SelectOption{{Label: i18n.T("tui.secrets.scope_global_option"), Value: "global"}}
 		if projectID != "" {
-			opts = append(opts, SelectOption{Label: i18n.T("tui.secrets.section_project") + ": " + projectName, Value: projectID})
+			opts = append(opts, SelectOption{Label: i18n.Tf("tui.secrets.section_project_named", projectName), Value: projectID})
 		}
 
 		v.shell.ShowSelectModal(i18n.T("tui.secrets.scope"), opts, "", func(scope string) {

@@ -2525,6 +2525,7 @@
   "tui.secrets.scope_global_option": "Global",
   "tui.secrets.edit_title": "Edit %s (%s)",
   "tui.secrets.delete_detail": "The value is erased from the system keychain; what references it will have no token anymore.",
+  "tui.secrets.section_project_named": "Project: %s",
   "tui.policies.team_not_configured": "Team not configured",
   "tui.policies.close": "Close",
   "tui.policies.field_name": "Name",
