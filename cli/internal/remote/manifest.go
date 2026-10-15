@@ -2,6 +2,10 @@ package remote
 
 import (
 	"encoding/json"
+	"fmt"
+	"sort"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -243,8 +247,11 @@ type ReportEntry struct {
 	Body        string    `json:"body"`
 }
 
-// WikiSchema is the version of wiki.json.
-const WikiSchema = 1
+// WikiSchema is the version of wiki.json. 2 (p6-debts): the proposals
+// that replace a line (`replaces`) are in Replacements, a key an oh of
+// schema 1 does not read: it leaves them out instead of queueing them as
+// lines to add. A wiki.json of a newer schema is not imported.
+const WikiSchema = 2
 
 // Wiki is the wiki.json artifact: the proposals the agents filed with
 // wiki_propose in the job (never applied there), queued on the machine when
@@ -253,6 +260,44 @@ const WikiSchema = 1
 type Wiki struct {
 	Schema    int         `json:"schema"`
 	Proposals []WikiEntry `json:"proposals"`
+	// Replacements are the proposals that replace a line (schema 2).
+	Replacements []WikiEntry `json:"replacements,omitempty"`
+}
+
+// NewWiki returns the wiki.json of proposals: those that replace a line
+// in Replacements.
+func NewWiki(list []WikiEntry) Wiki {
+	w := Wiki{Schema: WikiSchema}
+	for _, e := range list {
+		if e.Replaces != "" {
+			w.Replacements = append(w.Replacements, e)
+		} else {
+			w.Proposals = append(w.Proposals, e)
+		}
+	}
+	if w.Proposals == nil {
+		w.Proposals = []WikiEntry{}
+	}
+	return w
+}
+
+// Entries returns every proposal of a wiki.json, in the order of their
+// ids in the job: an error for a schema this oh does not know.
+func (w Wiki) Entries() ([]WikiEntry, error) {
+	if w.Schema > WikiSchema {
+		return nil, fmt.Errorf("%s of schema %d, this oh reads %d at most: update oh, then fetch the session again", WikiFile, w.Schema, WikiSchema)
+	}
+	out := append(append([]WikiEntry(nil), w.Proposals...), w.Replacements...)
+	sort.SliceStable(out, func(i, j int) bool { return wikiSeq(out[i].ID) < wikiSeq(out[j].ID) })
+	return out, nil
+}
+
+func wikiSeq(id string) int {
+	n, err := strconv.Atoi(strings.TrimPrefix(id, "wp-"))
+	if err != nil {
+		return 1 << 30
+	}
+	return n
 }
 
 // WikiEntry is a proposal of wiki.json.
