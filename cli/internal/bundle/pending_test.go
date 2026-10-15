@@ -94,3 +94,25 @@ func TestSessionRulesEffect(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, sessionspec.EffectAsk, eff)
 }
+
+// p6-debts: the mitigation of incident is committed at cp-mitigated without
+// the postmortem, which waits for cp-postmortem.
+func TestEarlyCommitWindowKeepsWritesPaths(t *testing.T) {
+	b := shippedBundle(t, "incident")
+	wf := b.Spec.Workflow
+	require.Equal(t, []string{"docs/wiki/postmortems/**"}, wf.Writes["debugger"])
+	at := func(cp string) []sessionspec.PermissionRule {
+		return SessionRules(wf, "semi-auto", &domain.CheckpointState{Unlocks: map[string]domain.CheckpointUnlock{sessionspec.UnlockCommit: {Checkpoint: cp}}})
+	}
+	early, late := at("cp-mitigated"), at("cp-postmortem")
+	for _, cmd := range []string{
+		"git add docs/wiki/postmortems/2026-10-14.md", "git add docs/", "git add docs/wiki", "git add -A", "git add .", "git commit -am fix",
+		`git commit -m "fix" -- docs/wiki/postmortems/x.md`, "git add 'docs/*'", "git add :/",
+	} {
+		assert.Equal(t, sessionspec.EffectDeny, ShellEffect(early, cmd), "cp-mitigated: %s", cmd)
+		assert.NotEqual(t, sessionspec.EffectDeny, ShellEffect(late, cmd), "cp-postmortem: %s", cmd)
+	}
+	for _, cmd := range []string{"git add src/cache.go", `git commit -m "fix(cache): ttl" -- src/cache.go`, "git add docs-site/x.md"} {
+		assert.NotEqual(t, sessionspec.EffectDeny, ShellEffect(early, cmd), cmd)
+	}
+}
