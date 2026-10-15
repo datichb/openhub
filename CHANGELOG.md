@@ -9,6 +9,13 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Added — fan-out en conteneur (lot fanout-container)
+
+- **Fan-out d'une session parente en conteneur** (`oh run implement-spec|sweep -i fanout=true --runtime container`, toujours expérimental) : le pilote crée les worktrees et branches `oh/fanout/…` sur la machine, à côté du projet (montés sous `/work/<nom>` dans les conteneurs, dossier git commun à son chemin machine) ; les sessions enfants, le merger et le tour de correction tournent dans le runtime de la parente, chacune dans un conteneur de son workflow (jamais celui de la parente), avec les mêmes règles dès leur création ; pilote, merges par oh, fermeture des tickets et budget global restent sur la machine. CP-R3 inchangé. Session distante : fan-out toujours refusé, avec un message.
+- ⚠ **Vérifications des sessions en conteneur dans un conteneur** : oh lance la vérification d'un checkpoint (`verify:`) dans un conteneur de l'image du projet, l'emplacement de la session monté (le worktree d'intégration pour `cp-merge`), puis le supprime ; rien de l'environnement de la machine. Moteur arrêté ou image impossible à construire : vérification impossible (jamais sur la machine à la place), retentée à l'appel suivant ; `cp-merge` ne passe pas.
+- ⚠ `implement-spec`, `sweep`, `sweep-task`, `merge-conflicts` et `quick` acceptent le conteneur (`runtime.allowed`) : avec un runtime par défaut `container` (projet ou Réglages), ils s'y lancent désormais.
+- Tests de contournement en conteneur (push, merge, fermeture, branches du fan-out par `/work/…` ou le chemin du dépôt ; vérification hors conteneur impossible) ; tests réels `-tags container` (Colima, sans modèle). Aucune migration ; pas de cas d'éval (le harness ne lance pas en conteneur).
+
 ### Security — sous-agents fermés par défaut (lot p6-debts)
 
 - ⚠ Une session de sous-agent du hub (créée par l'outil `task` d'opencode) ne recevait les verrous de ses checkpoints qu'une fois reliée par le démon (délai illimité si le démon était coupé) : un developer pouvait commiter avant `cp-2`, un planner écrire sa spec avant `cp-understanding`. Le plugin oh relaie désormais à oh toute opération que les règles de session peuvent verrouiller (commit, push, merge, tag, tickets, MR, `apply`, écritures `writes_after`, délégation verrouillée) ; oh relie la session sur-le-champ et répond d'après ses règles. Sans réponse d'oh (démon arrêté, session inconnue, 6 s), refus avec un message. Une session importée (job distant, transfert) reçoit ses règles à l'import, ses sous-agents aussi. ⚠ Démon arrêté : ces opérations sont refusées dans toute session ; sans plugin oh actif, un workflow qui délègue à des sous-agents ne démarre plus.
