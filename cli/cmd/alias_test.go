@@ -20,6 +20,9 @@ func TestAliasReplacement(t *testing.T) {
 	if got := aliasReplacement(al); got != want {
 		t.Fatalf("got  %s\nwant %s", got, want)
 	}
+	if got := aliasReplacement(workflowAlias{Workflow: "feature", Opts: runOptions{Text: "Export CSV"}}); got != "oh run feature -m 'Export CSV'" {
+		t.Fatalf("aliasReplacement with a request = %q", got)
+	}
 	if got := aliasReplacement(workflowAlias{Workflow: "feature"}); got != "oh run feature" {
 		t.Fatalf("got %s", got)
 	}

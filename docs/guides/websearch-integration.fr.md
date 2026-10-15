@@ -100,7 +100,7 @@ cd /path/to/mon-projet
 oh run audit -i type=security
 
 # Cadrage avec recherche de stack (pathfinder, planner, designer)
-oh run cadrage -i request="Ajouter l'export PDF"
+oh run cadrage -m "Ajouter l'export PDF"
 
 # Session avec l'agent de ton choix
 oh run libre --agent designer

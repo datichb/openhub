@@ -30,6 +30,9 @@ import (
 // workflow, compile its bundle, plan the sessions (locations, warnings),
 // render their prompts, then start them through the RunService.
 
+// requestInput is the input -m fills (oh run -m).
+const requestInput = "request"
+
 // runOptions are the choices of a workflow launch.
 type runOptions struct {
 	Workflow string
@@ -47,6 +50,9 @@ type runOptions struct {
 	// LooseInputs are kept only when the workflow declares them (aliases of
 	// the former commands map their flags this way).
 	LooseInputs map[string]string
+	// Message is true when Inputs[request] comes from -m: the resolved
+	// workflow must declare a request input.
+	Message bool
 	// Text goes to the first free text input (text, else string) that is
 	// not set otherwise (former --prompt, --issue…).
 	Text string
@@ -315,6 +321,7 @@ func resolveLaunch(ctx context.Context, a *app.App, opts *runOptions, errOut io.
 	}
 	// R5: an alias (`aliases:`) launches its target; `with` routes it by
 	// the inputs given (feature --tickets → implement-spec).
+	asked := opts.Workflow
 	if target, ok := wsvc.ResolveAlias(ctx, workflowsvc.Context{ProjectID: opts.Project.ID}, opts.Workflow, func(input string) bool {
 		return strings.TrimSpace(opts.Inputs[input]) != "" || (len(opts.Tickets) > 0 && aliasTicketInput(ctx, wsvc, opts.Project.ID, opts.Workflow, input))
 	}); ok {
@@ -327,6 +334,9 @@ func resolveLaunch(ctx context.Context, a *app.App, opts *runOptions, errOut io.
 	probe, err := resolve(ctx, workflowsvc.Context{ProjectID: opts.Project.ID}, opts.Workflow, workflowsvc.ResolveOpts{})
 	if err != nil {
 		return nil, "", nil, workflowError(errOut, opts.Workflow, err)
+	}
+	if _, declared := probe.Spec.Inputs.Get(requestInput); opts.Message && !declared {
+		return nil, "", nil, messageWithoutRequest(asked, probe.Spec)
 	}
 	inputs := launchInputs(probe.Spec, *opts)
 	if opts.Runtime == "" {
@@ -476,6 +486,20 @@ func sessionBranch(sp *workflow.Spec, values map[string]any, label, fallback str
 		suffix = time.Now().Format("20060102-150405")
 	}
 	return "oh/" + sp.ID + "-" + suffix
+}
+
+// messageWithoutRequest refuses -m for a workflow (alias resolved) that has
+// no request input, naming the inputs it has.
+func messageWithoutRequest(asked string, sp *workflow.Spec) error {
+	name := sp.ID
+	if asked != "" && asked != sp.ID {
+		name = asked + " → " + sp.ID
+	}
+	inputs := strings.Join(sp.Inputs.Keys(), ", ")
+	if inputs == "" {
+		return errors.New(i18n.Tf("cmd.run.message_no_request_none", name))
+	}
+	return errors.New(i18n.Tf("cmd.run.message_no_request", name, inputs))
 }
 
 // textInput is the input receiving free text: the first `text` input, else

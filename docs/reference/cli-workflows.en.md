@@ -16,6 +16,7 @@ oh run [workflow] [-i key=value]… [--tickets a,b] [--one-session] [--mode <mod
 | Flag | Short | Type | Default | Description |
 |------|-------|------|---------|-------------|
 | `--input` | `-i` | string (repeatable) | | Workflow input `key=value` |
+| `--message` | `-m` | string | | Request: short for `-i request=…`, when the workflow has a `request` input |
 | `--tickets` | | list (commas) | | Beads tickets (one session per ticket when the workflow allows it) |
 | `--one-session` | | bool | `false` | Every ticket in a single session |
 | `--mode` | | string | workflow default mode | `manuel`, `semi-auto` or `auto` |
@@ -39,6 +40,7 @@ oh run [workflow] [-i key=value]… [--tickets a,b] [--one-session] [--mode <mod
 Launches a workflow: layer resolution and validation, session bundle, session plan, initial prompt rendering, then start through the RunService (one server per group: bundle version, project, runtime).
 
 - **Inputs** (`-i`, repeatable): values of the workflow `inputs` (`true`, `3`, `a,b` are converted to the input type). Defaults may depend on other inputs (`branch: feat/{{ .ticket }}`). In the prompt template, text inputs go through the `data` function: truncated (`max_length`, else 20,000 characters), and wrapped in `<oh:data name="…">…</oh:data>` tags when oh computed them from an outside source (`from:`); what you type is written as it is; see [Workflow schema](workflow-schema.en.md).
+- **Request** (`-m "…"`): fills the `request` input (`quick`, `spec` and its aliases `feature` and `cadrage`, `libre`, `infra-change`). Refused, with the list of its inputs, when the launched workflow (alias resolved) has no `request` input: `oh run feature --tickets … -m …` launches `implement-spec`, which takes `-i instructions=…`. `-m` and `-i request=…` together are refused.
 - **Tickets** (`--tickets`): fill the first `beads-id` input; with `picker.multi`, **one session per ticket**, all in the same server group, each in its own worktree when the workflow writes. An **epic** stands for its open or in-progress children (one session each, or a single session with all of them with `--one-session`; the recap shows `Epic  <epic> → <children>`); an epic without such a child is refused. A `beads-ids` input receives the list in a single session. In a team project, each ticket is claimed for the active member when its session starts, or moves from « planned » to the work status (for any workflow, not only `oh start --dev`); a ticket claimed by another member is reported. When the session stops, the claim of a closed ticket moves to the terminal status of the board (then goes away after the retention), the claim of a ticket still open is released; a sleeping session keeps its claims. `oh doctor` reports the orphan claims (ticket closed, or every session on the ticket ended) with the command to release them.
 - **Computed inputs** (`from:`): an empty input that declares `from:` is computed by oh at launch (e.g. `review-feedback`: branch, target branch and discussions read on the MR of the `mr` input; `brief-enrich`: the takeover brief of the ticket). Sources: [workflow schema](workflow-schema.en.md#computed-inputs-from).
 - **Location** (`--location`): `base` (default, project directory), `new` (a new worktree per session, branch = `branch` input or `oh/<workflow>-<ticket>`), or the path of an existing worktree. A writing session (`risk` other than `read`) **automatically gets a worktree** when another writing session (running or asleep) uses the same directory. Replaces `--worktree`.
@@ -61,10 +63,10 @@ Launches a workflow: layer resolution and validation, session bundle, session pl
 
 ```bash
 oh run                                              # project default workflow
-oh run feature -i request="Add a /health endpoint"
+oh run feature -m "Add a /health endpoint"
 oh run ticket --tickets bd-42,bd-43                 # one session per ticket
 oh run ticket --tickets bd-42,bd-43 --one-session
-oh run libre --agent debugger -i request="Test X fails"
+oh run libre --agent debugger -m "Test X fails"
 oh run audit -i type=security --runtime container
 oh run review --headless --output review.md --timeout 20m
 oh run ticket --tickets bd-42 --runtime remote

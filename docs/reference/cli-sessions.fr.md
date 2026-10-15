@@ -432,7 +432,7 @@ oh start [options]
 | `--onboard` | | Créer ou enrichir le wiki projet | `oh run onboarding` |
 | `--parallel` | | Une session par ticket, exige `--tickets` (sinon refusé) | `oh run ticket --tickets a,b` |
 | `--project` | `-p` | ID du projet (détection auto sinon) | `-p` |
-| `--prompt` | `-m` | Prompt initial | Première entrée texte (`-i request=…` pour `feature`) |
+| `--prompt` | `-m` | Prompt initial | Première entrée texte (`oh run feature -m …`) |
 | `--provider` | `-P` | Fournisseur LLM (bedrock, anthropic, openrouter, github-copilot) | `-P` |
 | `--recap` | | Afficher le récap et demander confirmation | `--recap` |
 | `--refresh` | | Re-découvrir le wiki (requiert `--onboard`) | `oh run onboarding -i refresh=true` |
@@ -454,12 +454,12 @@ oh start [options]
 **Exemple :**
 
 ```bash
-oh run feature -p mon-projet -i request="Ajoute un endpoint /health"
-oh run libre --agent debugger -i request="Le test X échoue depuis hier"
+oh run feature -p mon-projet -m "Ajoute un endpoint /health"
+oh run libre --agent debugger -m "Le test X échoue depuis hier"
 oh session attach abc123-def456 --how here
 oh run ticket --tickets TICKET-123 --location new
 oh run onboarding -i refresh=true
-oh run feature -i request="Refactorer le module auth" --recap
+oh run feature -m "Refactorer le module auth" --recap
 oh run ticket --tickets bd-42,bd-43,bd-44
 oh run sweep -i goal="Migrer les appels API dépréciés" -i strategy=llm -i verify=tests
 oh run sweep -i goal="Corriger les warnings lint" -i strategy=by-package -i dry_run=true

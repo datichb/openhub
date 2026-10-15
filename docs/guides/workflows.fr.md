@@ -62,7 +62,7 @@ Pas de tickets Beads, pas d'orchestration complexe -- juste une interaction simp
 ### Explication de code simple
 
 ```bash
-oh run libre -i request="Explique l'architecture de ce projet"
+oh run libre -m "Explique l'architecture de ce projet"
 ```
 
 L'orchestrateur analyse la structure du codebase et fournit une explication de haut niveau.
@@ -119,7 +119,7 @@ sequenceDiagram
     participant DEV as developer
     participant R as Reviewer
 
-    U->>C: oh run feature -i request="Implémente l'authentification JWT"
+    U->>C: oh run feature -m "Implémente l'authentification JWT"
     C->>PL: Entretien (exploration du code, grilling)
     PL-->>C: Questions bloquantes
     C->>U: Questions (outil question)
@@ -151,8 +151,8 @@ sequenceDiagram
 #### 1. Lancer `feature` (alias de `spec`)
 
 ```bash
-oh run feature -i request="Implémente l'authentification JWT pour notre API REST"   # mode : --mode manuel|semi-auto|auto
-oh run feature -i method=tdd -i request="…"                                        # l'implémentation qui suivra sera en TDD
+oh run feature -m "Implémente l'authentification JWT pour notre API REST"           # mode : --mode manuel|semi-auto|auto
+oh run feature -m "…" -i method=tdd                                                 # l'implémentation qui suivra sera en TDD
 ```
 
 oh annonce la redirection (`feature → spec`). Sans demande (`oh run feature`, `oh start`), la session vous la demande au début. Avec des tickets déjà créés, `oh run feature --tickets bd-1,bd-2` lance directement `implement-spec` (étape 5).
@@ -887,7 +887,7 @@ Le code n'est jamais modifié : une optimisation à faire devient une recommanda
 **Contexte :** un changement Terraform est fusionné sur `main` et doit arriver en `staging`. Le code est déjà écrit (par vous ou une session `developer`) ; la session se contente de planifier, faire valider et appliquer.
 
 ```bash
-oh run infra-change -i target=staging -i request="Appliquer la nouvelle classe d'instance RDS d'infra/db (commit a1b2c3d)"
+oh run infra-change -i target=staging -m "Appliquer la nouvelle classe d'instance RDS d'infra/db (commit a1b2c3d)"
 ```
 
 1. L'`operator` vérifie le contexte réel (`terraform workspace show`, `aws sts get-caller-identity`) par rapport à `staging` et s'arrête en cas d'écart.

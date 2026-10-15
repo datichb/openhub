@@ -61,8 +61,8 @@ opencode V1 n'est plus pris en charge : oh refuse de lancer une session, avec un
 
 ```bash
 oh init                              # Premier réglage : langue, vérification d'opencode V2, projet, MCP, espace des workflows
-oh run quick -i request="Corriger la coquille de l'en-tête"   # Petite modification, un seul agent
-oh run spec -i request="Export CSV des factures"   # Spec dans le wiki puis tickets Beads, sans implémenter
+oh run quick -m "Corriger la coquille de l'en-tête"   # Petite modification, un seul agent
+oh run spec -m "Export CSV des factures"   # Spec dans le wiki puis tickets Beads, sans implémenter
 oh run feature                       # Alias de spec (comme oh start) : la session demande la feature
 oh session next <session>            # Suite proposée par oh (ici : implement-spec sur les tickets créés)
 oh run implement-spec --parent <session>   # Implémenter les tickets de la spec, revue de l'ensemble

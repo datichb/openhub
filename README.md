@@ -61,8 +61,8 @@ opencode V1 is no longer supported: oh refuses to start a session with a clear m
 
 ```bash
 oh init                              # First-time setup: language, opencode V2 check, project, MCP, workflow space
-oh run quick -i request="Fix the typo in the header"   # Small change, one agent
-oh run spec -i request="CSV export of the invoices"   # Spec in the wiki then Beads tickets, no implementation
+oh run quick -m "Fix the typo in the header"   # Small change, one agent
+oh run spec -m "CSV export of the invoices"   # Spec in the wiki then Beads tickets, no implementation
 oh run feature                       # Alias of spec (like oh start): the session asks for the feature
 oh session next <session>            # Next step proposed by oh (here: implement-spec on the created tickets)
 oh run implement-spec --parent <session>   # Implement the tickets of the spec, review of the whole

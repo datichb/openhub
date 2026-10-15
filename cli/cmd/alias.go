@@ -64,6 +64,9 @@ func aliasReplacement(al workflowAlias) string {
 			parts = append(parts, "-i", k+"="+shellQuote(v))
 		}
 	}
+	if al.Opts.Text != "" && (al.Workflow == "feature" || al.Workflow == "libre") {
+		parts = append(parts, "-m", shellQuote(al.Opts.Text))
+	}
 	if al.Opts.Location != "" {
 		parts = append(parts, "--location", al.Opts.Location)
 	}

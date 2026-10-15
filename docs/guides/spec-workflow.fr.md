@@ -5,7 +5,7 @@
 Le workflow `spec` transforme une demande en une spec écrite dans le wiki du projet (`docs/wiki/specs/<sujet>.md`), puis en tickets Beads, sans implémenter. La spec est vérifiée par oh avant que vous la validiez : un glossaire, un point de test pour chaque critère, un découpage qui couvre chaque critère et rien d'autre.
 
 ```bash
-oh run spec -i request="Limiter à 3 le nombre de réservations en cours par abonné"
+oh run spec -m "Limiter à 3 le nombre de réservations en cours par abonné"
 ```
 
 En bref :

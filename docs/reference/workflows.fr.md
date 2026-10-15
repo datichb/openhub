@@ -111,12 +111,12 @@ En méthode `tdd` (`-i method=tdd`), le `developer` passe lui-même `cp-seams` (
 
 | Lancement | Workflow lancé | Ancien mode |
 |---|---|---|
-| `oh run feature -i request="…"` (et `oh start -m "…"`) ; sans demande, la session la demande | `spec` : `aliases: [cadrage, feature]` | A (feature en langage naturel) |
-| `oh run feature --tickets bd-1,bd-2` | `implement-spec` : `aliases: [{ id: feature, with: tickets }]` ; `-m` va à son entrée `instructions` | B (tickets existants) |
+| `oh run feature -m "…"` (et `oh start -m "…"`) ; sans demande, la session la demande | `spec` : `aliases: [cadrage, feature]` | A (feature en langage naturel) |
+| `oh run feature --tickets bd-1,bd-2` | `implement-spec` : `aliases: [{ id: feature, with: tickets }]` ; consigne : `-i instructions=…` (`-m` y est refusé : pas d'entrée `request`) | B (tickets existants) |
 
 oh affiche la redirection (`feature → spec`). À la fin de `spec`, oh propose `implement-spec` sur les tickets créés et la spec écrite, sans le lancer (`oh session next <id>`, fermeture du client, « Enchaîner avec… » dans la TUI).
 
-**Méthode TDD transmise.** `spec` accepte l'entrée `method` (`standard` ou `tdd`) sans l'utiliser lui-même : oh la relève au lancement (sortie `method`, `record: input`) et la passe à `implement-spec` dans la suite proposée (`-i method=tdd`). `oh run feature -i method=tdd -i request="…"` donne donc une spec, puis une implémentation en TDD.
+**Méthode TDD transmise.** `spec` accepte l'entrée `method` (`standard` ou `tdd`) sans l'utiliser lui-même : oh la relève au lancement (sortie `method`, `record: input`) et la passe à `implement-spec` dans la suite proposée (`-i method=tdd`). `oh run feature -m "…" -i method=tdd` donne donc une spec, puis une implémentation en TDD.
 
 Ce qui change par rapport à l'ancien `feature` (⚠) :
 
@@ -569,7 +569,7 @@ Enrichit un brief de reprise de ticket, sans interaction (session sans interface
 
 ## `libre`
 
-Session avec l'agent de ton choix, sans checkpoint ni verrou de commit (l'agent demande confirmation avant toute action irréversible) : `oh run libre --agent debugger -i request="…"` (sans `--agent` : `orchestrator`, l'agent d'entrée de ce seul workflow depuis que `feature` est un alias : il coordonne sans lire ni modifier de fichier, route vers le `pathfinder` ou le `planner` puis l'`orchestrator-dev`, et fait valider le plan avec `question`, faute de checkpoint). L'entrée du workflow est **au choix** (`entry.selectable: true`) : oh calcule les membres à partir de l'agent choisi et des agents qu'il peut appeler (permission `task` du catalogue, de proche en proche). Le monde reste fermé : rien d'autre n'est visible. Dans la TUI, la session libre (commande `coder`, ou « Démarrer » quand le catalogue est vide) ouvre la fiche avec l'agent par défaut. Commandes Beads autorisées : `show`, `list`, `ready`, `search`, `query`, `children`, `comments`, `count`, `lint`, `find-duplicates`, `status`, `graph`, `history`, `create`, `update`, `close`, `reopen`, `edit`, `comment`, `dep`, `label`, `duplicate`, `supersede` (tout sauf `delete`).
+Session avec l'agent de ton choix, sans checkpoint ni verrou de commit (l'agent demande confirmation avant toute action irréversible) : `oh run libre --agent debugger -m "…"` (sans `--agent` : `orchestrator`, l'agent d'entrée de ce seul workflow depuis que `feature` est un alias : il coordonne sans lire ni modifier de fichier, route vers le `pathfinder` ou le `planner` puis l'`orchestrator-dev`, et fait valider le plan avec `question`, faute de checkpoint). L'entrée du workflow est **au choix** (`entry.selectable: true`) : oh calcule les membres à partir de l'agent choisi et des agents qu'il peut appeler (permission `task` du catalogue, de proche en proche). Le monde reste fermé : rien d'autre n'est visible. Dans la TUI, la session libre (commande `coder`, ou « Démarrer » quand le catalogue est vide) ouvre la fiche avec l'agent par défaut. Commandes Beads autorisées : `show`, `list`, `ready`, `search`, `query`, `children`, `comments`, `count`, `lint`, `find-duplicates`, `status`, `graph`, `history`, `create`, `update`, `close`, `reopen`, `edit`, `comment`, `dep`, `label`, `duplicate`, `supersede` (tout sauf `delete`).
 
 | Entrée | Type | Obligatoire | Rôle |
 |---|---|---|---|
