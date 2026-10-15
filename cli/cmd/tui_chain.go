@@ -61,6 +61,11 @@ func (t *tuiSessions) ChainOptions(ctx context.Context, sessionID string) ([]vie
 		if len(with) > 0 {
 			label += "  (" + strings.Join(with, ", ") + ")"
 		}
+		if s.Declared {
+			// R5: a `next:` step of the workflow, apart from the
+			// suggestions by output type.
+			label = "↪ " + label + "  · " + i18n.T("tui.launch.chain_declared")
+		}
 		opts = append(opts, views.SelectOption{Label: label, Value: s.WorkflowID})
 	}
 	return opts, nil

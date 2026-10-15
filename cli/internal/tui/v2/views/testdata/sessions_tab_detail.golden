@@ -1,0 +1,22 @@
+┌ Détail · implement-spec ⑂ ─────────────────────────────────────────┐
+│ [Détail]  Trace   Rapports   Fan-out                               │
+│ implement-spec ⑂ · semi-auto · ⌂                                   │
+│ ● en cours · orchestrator-dev · $1.840 · démarrée il y a 2m        │
+│ ⑂ Fan-out : 1/3 enfants mergés · en cours                          │
+│                                                                    │
+│ ─ Sorties relevées par oh                                          │
+│   method   tdd                                                     │
+│   tickets  oh-12,oh-13,oh-14                                       │
+│                                                                    │
+│ ↪ Suites proposées (next:)                                         │
+│   review — Revue  branch=feat/auth                                 │
+│                                                                    │
+│ ↪ Enchaîner avec audit (e)                                         │
+│                                                                    │
+│ ses_8f2a01                                                         │
+│                                                                    │
+│                                                                    │
+│                                                                    │
+│ Tab onglet                                                         │
+│                                                                    │
+└────────────────────────────────────────────────────────────────────┘

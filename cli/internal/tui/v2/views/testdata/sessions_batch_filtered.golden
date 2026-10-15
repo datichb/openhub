@@ -1,0 +1,16 @@
+╔ Valider en lot · fan-out parent · filtre : cp-seams · 2 ═══════════════════════════════════════════════════╗
+║   session    checkpoint  résumé              vérification                 choix                            ║
+║ ▸ c1 ticket  cp-seams    points d'injection  ✓ vérif ok  ⚠ hors valideur  ✗ refuser                        ║
+║   c2 ticket  cp-seams    tests prévus        ✗ vérif → ouvrir la fiche    · laisser                        ║
+║                                                                                                            ║
+║ 1/2                                                                                                        ║
+╚════════════════════════════════════════════════════════════════════════════════════════════════════════════╝
+┌ cp-seams · c1 ─────────────────────────────────────────────────────────────────────────────────────────────┐
+│ points d'injection                                                                                         │
+│ vérification pass                                                                                          │
+│ Valideur attendu : Grace Hopper                                                                            │
+│ ⚠ hors valideur (attendu : Grace Hopper)                                                                   │
+└────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+0 à valider · 1 à refuser · 1 laissé(s) en attente                                                            
+y valider · n refuser · s laisser · A tout valider · Entrée ouvrir la fiche · / filtrer par checkpoint · C    
+confirmer · Échap annuler                                                                                     

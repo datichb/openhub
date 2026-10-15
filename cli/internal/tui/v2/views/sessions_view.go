@@ -3,7 +3,6 @@ package views
 import (
 	"context"
 	"fmt"
-	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
@@ -47,11 +47,15 @@ type SessionsView struct {
 	shell ShellAccess
 	app   *tview.Application
 
-	root   *tview.Flex
-	top    *tview.Flex
-	list   *widgets.SectionedList
-	detail *tview.TextView
-	feed   *tview.TextView
+	content *tview.Flex
+	root    *tview.Flex
+	top     *tview.Flex
+	list    *widgets.SectionedList
+	detail  *tview.TextView
+	feed    *tview.TextView
+	tabs    *sessionTabs // detail in tabs (sessions_tabs.go)
+	batch   *batchPane   // batch shown in place of the list (B)
+	next    map[string]sessionNext
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -101,11 +105,17 @@ func (v *SessionsView) Mount(content *tview.Flex, app *tview.Application) {
 	}
 
 	v.list = widgets.NewSectionedList().SetApp(app)
+	v.list.SetTabCaptureDisabled(true) // Tab changes the tab of the detail
 	v.list.SetItemChangedFunc(func(int, widgets.SectionItem) { v.onSelectionChanged() })
 
 	page := widgets.NewListDetailPage(v.Title(), i18n.T("tui.catalog.detail"))
 	page.SetMain(v.list)
-	v.detail = page.Detail
+	v.tabs = newSessionTabs(v)
+	v.detail = v.tabs.detail
+	v.batch = nil
+	if v.next == nil {
+		v.next = map[string]sessionNext{}
+	}
 
 	v.feed = tview.NewTextView().SetDynamicColors(true).SetWrap(true).SetScrollable(true)
 	v.feed.SetBackgroundColor(theme.BgPanel)
@@ -114,9 +124,10 @@ func (v *SessionsView) Mount(content *tview.Flex, app *tview.Application) {
 
 	// Right column: the detail, and the live feed below it when shown.
 	v.top = tview.NewFlex().SetDirection(tview.FlexRow)
-	v.top.AddItem(v.detail, 0, 1, false)
+	v.top.AddItem(v.tabs.root, 0, 1, false)
 	page.SetRight(v.top)
 	v.root = page.Root
+	v.content = content
 	content.AddItem(v.root, 0, 1, true)
 	app.SetFocus(v.list)
 
@@ -141,6 +152,7 @@ func (v *SessionsView) Unmount() {
 	}
 	v.stopFollow()
 	v.app, v.root, v.top, v.list, v.detail, v.feed = nil, nil, nil, nil, nil, nil
+	v.content, v.tabs, v.batch = nil, nil, nil
 }
 
 // ── Loading ───────────────────────────────────────────────────────────────
@@ -171,6 +183,9 @@ func (v *SessionsView) reload() {
 			v.rows = rows
 			v.render()
 			v.closeSettledDecision()
+			if v.batch != nil {
+				v.batch.refresh()
+			}
 		})
 	}()
 }
@@ -206,26 +221,7 @@ func (v *SessionsView) watchChanges(ctx context.Context, gen uint64, app *tview.
 // (« À traiter », oldest decision first), then the other running, sleeping
 // and recently finished sessions. A session appears in a single section.
 func sessionsSections(rows []SessionRow, now time.Time) (inbox, running, sleeping, finished []SessionRow) {
-	for _, r := range rows {
-		switch {
-		case r.Finished:
-			if now.Sub(r.Changed) <= sessionsFinishedFor || r.Changed.IsZero() {
-				finished = append(finished, r)
-			}
-		case len(r.Decisions) > 0:
-			r.Decisions = append([]SessionDecision(nil), r.Decisions...)
-			sort.SliceStable(r.Decisions, func(i, j int) bool { return r.Decisions[i].Created.Before(r.Decisions[j].Created) })
-			inbox = append(inbox, r)
-		case r.State == "sleeping":
-			sleeping = append(sleeping, r)
-		default:
-			running = append(running, r)
-		}
-	}
-	sort.SliceStable(inbox, func(i, j int) bool {
-		return inbox[i].Decisions[0].Created.Before(inbox[j].Decisions[0].Created)
-	})
-	return inbox, running, sleeping, finished
+	return sessionsSectionsGrouped(rows, nil, now)
 }
 
 func (v *SessionsView) row(id string) *SessionRow {
@@ -244,7 +240,8 @@ func (v *SessionsView) render() {
 	}
 	v.focusID = ""
 	rest, toFetch := splitRemote(v.rows)
-	inbox, running, sleeping, finished := sessionsSections(rest, time.Now())
+	top, kids := fanoutGroups(rest)
+	inbox, running, sleeping, finished := sessionsSectionsGrouped(top, kids, time.Now())
 	var items []widgets.SectionItem
 	header := func(key string, n int) {
 		items = append(items, widgets.SectionItem{MainText: i18n.Tf(key, n), IsHeader: true})
@@ -253,17 +250,17 @@ func (v *SessionsView) render() {
 		n := 0
 		for _, r := range inbox {
 			n += len(r.Decisions)
+			for _, k := range kids[r.ID] {
+				n += len(k.Decisions)
+			}
 		}
 		header("tui.sessions.section.inbox", n)
 		for _, r := range inbox {
-			items = append(items, inboxSessionItem(r))
-			for _, d := range r.Decisions {
-				items = append(items, decisionItem(d))
-			}
+			items = append(items, groupItems(r, kids[r.ID], true)...)
 		}
 		// Land on the first decision to handle.
 		if keep == "" {
-			keep = "d:" + inbox[0].Decisions[0].ID
+			keep = firstDecisionKey(inbox[0], kids[inbox[0].ID])
 		}
 	}
 	header("tui.sessions.section.running", len(running))
@@ -271,19 +268,19 @@ func (v *SessionsView) render() {
 		items = append(items, widgets.SectionItem{MainText: "  " + muted(i18n.T("tui.sessions.none")), Reference: nil})
 	}
 	for _, r := range running {
-		items = append(items, sessionItem(r))
+		items = append(items, groupItems(r, kids[r.ID], false)...)
 	}
 	items = remoteSection(items, toFetch)
 	if len(sleeping) > 0 {
 		header("tui.sessions.section.sleeping", len(sleeping))
 		for _, r := range sleeping {
-			items = append(items, sessionItem(r))
+			items = append(items, groupItems(r, kids[r.ID], false)...)
 		}
 	}
 	if len(finished) > 0 {
 		header("tui.sessions.section.finished", len(finished))
 		for _, r := range finished {
-			items = append(items, sessionItem(r))
+			items = append(items, groupItems(r, kids[r.ID], false)...)
 		}
 	}
 	v.list.SetItems(items)
@@ -333,13 +330,8 @@ func sessionItem(r SessionRow) widgets.SectionItem {
 	return sessionRowItem(r, false)
 }
 
-// inboxSessionItem is the row of a session with open decisions (« À
-// traiter »): its state (en veille, en cours…) is on the main line since it
-// is not listed under its state section.
-func inboxSessionItem(r SessionRow) widgets.SectionItem {
-	return sessionRowItem(r, true)
-}
-
+// sessionRowItem is the row of a session; withState puts its state on the
+// main line (« À traiter »: it is not listed under its state section).
 func sessionRowItem(r SessionRow, withState bool) widgets.SectionItem {
 	color := theme.ActiveMode.PrimaryHex
 	switch r.State {
@@ -466,12 +458,25 @@ func (v *SessionsView) renderDetail(r *SessionRow) {
 	if v.detail == nil {
 		return
 	}
+	var box interface{ SetTitle(string) *tview.Box } = v.detail
+	if v.tabs != nil {
+		box = v.tabs.root
+		v.tabs.renderBar(r)
+	}
 	if r == nil {
-		v.detail.SetTitle(" " + i18n.T("tui.catalog.detail") + " ")
+		box.SetTitle(" " + i18n.T("tui.catalog.detail") + " ")
 		v.detail.SetText(muted(i18n.T("tui.sessions.detail_empty")))
 		return
 	}
-	v.detail.SetTitle(" " + i18n.Tf("tui.sessions.detail_title", sessionLabel(*r)) + " ")
+	box.SetTitle(" " + tview.Escape(i18n.Tf("tui.sessions.detail_title", sessionLabel(*r))) + " ")
+	v.detail.SetText(sessionDetailText(*r, v.nextSteps(r)))
+	v.detail.ScrollToBeginning()
+}
+
+// sessionDetailText is the Détail tab: state, timeline, decisions, the
+// fan-out, the outputs recorded by oh, the `next:` steps (R5) apart from
+// the other suggestion of « Enchaîner avec… ».
+func sessionDetailText(r SessionRow, next []SessionNextStep) string {
 	var b strings.Builder
 	parts := []string{}
 	for _, p := range []string{r.Workflow, r.Mode, runtimeIcon(r.Runtime), r.Location, shortHash(r.Bundle)} {
@@ -479,19 +484,47 @@ func (v *SessionsView) renderDetail(r *SessionRow) {
 			parts = append(parts, p)
 		}
 	}
-	b.WriteString(strings.Join(parts, " · ") + "\n")
+	b.WriteString(tview.Escape(strings.Join(parts, " · ")) + "\n")
 	fmt.Fprintf(&b, "%s %s · %s · $%.3f · %s\n", r.StateIcon, r.StateLabel, r.Agent, r.Cost, i18n.Tf("tui.sessions.started", ago(r.Started)))
 	if r.Timeline != "" {
 		b.WriteString(tview.Escape(r.Timeline) + "\n")
 	}
 	for _, d := range r.Decisions {
-		fmt.Fprintf(&b, "%s%s%s %s\n", theme.ColorTag(theme.WarningHex), d.Icon, theme.TagColor, d.Summary)
+		fmt.Fprintf(&b, "%s%s%s %s\n", theme.ColorTag(theme.WarningHex), d.Icon, theme.TagColor, tview.Escape(d.Summary))
 	}
-	if r.Next != "" {
-		fmt.Fprintf(&b, "%s↪ %s%s\n", theme.ColorTag(theme.SuccessHex), i18n.Tf("tui.launch.chain_next", r.Next), theme.TagColor)
+	if r.FanoutLine != "" {
+		b.WriteString(tview.Escape(r.FanoutLine) + "\n")
 	}
-	b.WriteString(muted(r.ID))
-	v.detail.SetText(b.String())
+	if len(r.Outputs) > 0 {
+		b.WriteString("\n" + theme.ColorTag(theme.TextMutedHex) + "─ " + i18n.T("tui.sessions.outputs") + theme.TagColor + "\n")
+		w := 0
+		for _, o := range r.Outputs {
+			w = max(w, len([]rune(o.Name)))
+		}
+		for _, o := range r.Outputs {
+			fmt.Fprintf(&b, "  %s%s  %s\n", tview.Escape(o.Name), strings.Repeat(" ", w-len([]rune(o.Name))), tview.Escape(clipText(o.Value, 120)))
+		}
+	}
+	declared := map[string]bool{}
+	if len(next) > 0 {
+		b.WriteString("\n" + theme.ColorTag(theme.SuccessHex) + "↪ " + i18n.T("tui.sessions.next_steps") + theme.TagColor + "\n")
+		for _, n := range next {
+			declared[n.Workflow] = true
+			line := n.Workflow
+			if n.Label != "" && n.Label != n.Workflow {
+				line += " — " + n.Label
+			}
+			if n.Inputs != "" {
+				line += "  " + n.Inputs
+			}
+			b.WriteString("  " + tview.Escape(line) + "\n")
+		}
+	}
+	if r.Next != "" && !declared[r.Next] {
+		fmt.Fprintf(&b, "\n%s↪ %s%s\n", theme.ColorTag(theme.TextSecondaryHex), tview.Escape(i18n.Tf("tui.launch.chain_next", r.Next)), theme.TagColor)
+	}
+	b.WriteString("\n" + muted(r.ID))
+	return b.String()
 }
 
 func runtimeIcon(rt string) string { return theme.RuntimeIcon(rt) }
@@ -507,8 +540,21 @@ func shortHash(h string) string {
 
 // HandleKey processes the view keys (10 §7.1).
 func (v *SessionsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
-	if event.Key() == tcell.KeyEnter {
+	if v.batch != nil {
+		return v.batch.handleKey(event)
+	}
+	if v.tabs != nil && v.tabs.focused {
+		return v.handleTabKey(event)
+	}
+	switch event.Key() {
+	case tcell.KeyEnter:
 		v.onEnter()
+		return nil
+	case tcell.KeyTab:
+		v.switchTab(1)
+		return nil
+	case tcell.KeyBacktab:
+		v.switchTab(-1)
 		return nil
 	}
 	if event.Key() != tcell.KeyRune {
@@ -529,14 +575,14 @@ func (v *SessionsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		case d != nil && d.Kind == DecisionKindPermission:
 			v.decide(d, "once", "", nil)
 		case d != nil && d.Kind == DecisionKindCheckpoint:
-			v.approveCheckpoint(d)
+			v.approveCheckpoint(r, d)
 		}
 	case 'n':
 		switch {
 		case d != nil && d.Kind == DecisionKindPermission:
 			v.decide(d, "reject", "", nil)
 		case d != nil && d.Kind == DecisionKindCheckpoint:
-			v.checkpointForm(r, d, CheckpointApproverView{}, checkpointFix)
+			v.refuseCheckpoint(r, d)
 		}
 	case 'x':
 		if d != nil && (d.Kind == DecisionKindError || d.Kind == DecisionKindBudget || d.Kind == DecisionKindCircuit) {
@@ -596,10 +642,15 @@ func (v *SessionsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 				}
 			})
 		}
-	case 'c':
-		if r != nil && r.State == "sleeping" {
+	case keys.Resume.Rune():
+		switch {
+		case r != nil && toFetch(*r):
+			v.fetchSelected(r)
+		case r != nil && r.State == "sleeping":
 			id := r.ID
 			v.run(func(ctx context.Context) error { return v.cfg.Backend.Resume(ctx, id) }, i18n.T("tui.sessions.resumed"))
+		case r != nil && r.Remote != "":
+			v.fetchSelected(r)
 		}
 	case 'o':
 		if r != nil {
@@ -621,12 +672,10 @@ func (v *SessionsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 				v.shell.ShowSelectModal(i18n.T("tui.launch.chain_title"), opts, "", func(wf string) { ch.Chain(id, wf) })
 			})
 		}
-	case 'B':
-		v.openBatch(r)
-	case 'D':
+	case keyBatch:
+		v.openBatch(r, d)
+	case keys.Delete.Rune():
 		v.deleteSession(r)
-	case 'g':
-		v.fetchSelected(r)
 	case 'w':
 		if r != nil && !r.Finished {
 			id := r.ID
@@ -901,7 +950,7 @@ func (v *SessionsView) showFeedPanel(on bool) {
 		return
 	}
 	v.top.Clear()
-	v.top.AddItem(v.detail, 0, 1, false)
+	v.top.AddItem(v.tabs.root, 0, 1, false)
 	if on {
 		v.top.AddItem(v.feed, 0, 2, false)
 	}

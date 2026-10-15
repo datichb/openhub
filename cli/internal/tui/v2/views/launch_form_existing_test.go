@@ -342,11 +342,11 @@ func TestSessionsViewDelete(t *testing.T) {
 		onLoop(app, func() { n = len(v.rows) })
 		return n > 0
 	}, 2*time.Second, 10*time.Millisecond)
-	assert.Contains(t, v.StatusHints(), "D ")
+	assert.Contains(t, v.StatusHints(), "d ")
 	onLoop(app, func() {
 		v.Focus("ses_b")
 		v.render()
-		assert.Nil(t, v.HandleKey(tcell.NewEventKey(tcell.KeyRune, 'D', tcell.ModNone)))
+		assert.Nil(t, v.HandleKey(tcell.NewEventKey(tcell.KeyRune, 'd', tcell.ModNone)))
 	})
 	var c recordedConfirm
 	require.Eventually(t, func() bool {

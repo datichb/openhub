@@ -1,0 +1,32 @@
+┌────────────────────────── ⏸ cp-2 · Commit · ticket · openhub ──────────────────────────┐
+│ticket oh-14 prêt                                                                       │
+│                                                                                        │
+│Valideur attendu : Grace Hopper                                                         │
+│⚠ Vous validez en tant que Ben Datiche, qui n'est pas le valideur attendu : la          │
+│validation est acceptée et tracée « hors valideur ».                                    │
+│                                                                                        │
+│─ Vérification lancée par oh                                                            │
+│  ✗ échouée — go test ./... ✗ (1)                                                       │
+│    --- FAIL: TestTokenRefresh (0.84s)                                                  │
+│    FAIL internal/auth                                                                  │
+│  La validation est impossible tant que la vérification échoue.                         │
+│  Valider exige de passer outre (choix tracé) ; sinon, demander une correction.         │
+│                                                                                        │
+│─ Rapports                                                                              │
+│  rp-7 · reviewer · Revue  4.1 Ko                                                       │
+│                                                                                        │
+│─ Changements                                                                           │
+│  aucun changement                                                                      │
+│                                                                                        │
+│─ Derniers messages                                                                     │
+│  aucun message récent (démon oh arrêté ?)                                              │
+│                                                                                        │
+│[ Corriger (consigne à orchestrator-dev) ]  [ Passer outre… ]  [ Décider ]  [ Diff      │
+│complet ]  [ Attacher ]                                                                 │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+└────────────────────────────────────────────────────────────────────────────────────────┘
