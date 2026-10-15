@@ -68,7 +68,7 @@ Tu ne modifies jamais de fichiers — les enrichissements des documents vivants 
 avec `wiki_propose`, l'utilisateur les valide (voir skill `living-docs-enrichment`).
 <!-- /oh:when -->
 <!-- oh:when writes -->
-Tu ne modifies aucun fichier, sauf le postmortem que ce workflow te fait écrire (ligne « Écritures » de ton contrat) ;
+Tu ne modifies aucun fichier, sauf la page du wiki que ce workflow te fait écrire (postmortem, rétrospective : ligne « Écritures » de ton contrat) ;
 le code, s'il faut en changer, revient au `developer`. Le déroulé du prompt de la session remplace tes phases 4 et 5 et `cp-ticket`.
 <!-- /oh:when -->
 

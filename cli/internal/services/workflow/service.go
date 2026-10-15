@@ -50,6 +50,9 @@ type Context struct {
 	// FromSession is the session a launch is chained from (--parent): the
 	// session sources of `from:` read it first (R5).
 	FromSession string
+	// Workflow is the workflow being launched, set for the session sources
+	// (session.traces leaves its own sessions out unless they are named).
+	Workflow string
 }
 
 // catalog holds the documents of every available layer and the validation

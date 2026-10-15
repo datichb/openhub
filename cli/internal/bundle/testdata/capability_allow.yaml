@@ -24,11 +24,18 @@ commands:
   - 'incident/debugger: git commit -m "x" -- x'
   - "spike/pathfinder: git add x"
   - 'spike/pathfinder: git commit -m "x" -- x'
+  # r9b (writes:): the debugger of retro commits its retrospective
+  # (docs/wiki/retros/), allowed for that path only.
+  - "retro/debugger: git add x"
+  - 'retro/debugger: git commit -m "x" -- x'
 tasks:
   # orchestrator-dev-protocol (inlined): its invocation table names the
   # documentarian, absent from review-feedback (feedback mode, no
   # CHANGELOG). The lightening phase reworks the protocol.
   - "review-feedback/orchestrator-dev: documentarian"
+  # r9b: the planner of triage launches no agent (its prompt replaces its
+  # phases, Figma recon and design delegation included).
+  - "triage/planner: designer"
 checkpoints:
   # Ticket path of orchestrator-dev (on-demand skills ticket-workflow,
   # standalone, subagent, parallel: cp-1 → cp-2 → cp-3 of ticket and
@@ -40,6 +47,7 @@ checkpoints:
   # debug; in incident, the prompt of the session replaces it (block
   # `writes` of the debugger).
   - "incident/debugger: cp-ticket"
+  - "retro/debugger: cp-ticket"
 claims:
   # Agents whose body says they change no file (of the project code) but
   # write their deliverable (readonly_claims_test.go).

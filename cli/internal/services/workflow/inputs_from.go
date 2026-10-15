@@ -23,7 +23,9 @@ func (s *Service) ComputeInputs(ctx context.Context, c Context, sp *wf.Spec, val
 			continue
 		}
 		if wf.IsSessionSource(in.From) {
-			if err := s.computeFromSession(ctx, c, k, in, values); err != nil {
+			sc := c
+			sc.Workflow = sp.ID
+			if err := s.computeFromSession(ctx, sc, k, in, values); err != nil {
 				return err
 			}
 			continue
@@ -68,9 +70,10 @@ func given(v any) bool {
 }
 
 // computeFromSession fills an input read from a previous session (R5):
-// session.output(<workflow>.<id>) and session.trace([<workflow>]). The
-// source gets the argument "<workflow>.<id>" or "<workflow>"; nothing found
-// leaves the input empty (the required-input check applies).
+// session.output(<workflow>.<id>), session.trace([<workflow>]) and
+// session.traces(<input>). The source gets the argument "<workflow>.<id>",
+// "<workflow>" or the value of the input; nothing found leaves the input
+// empty (the required-input check applies).
 func (s *Service) computeFromSession(ctx context.Context, c Context, k string, in wf.Input, values map[string]any) error {
 	f, ok := wf.ParseSessionFrom(in.From)
 	if !ok {
@@ -83,6 +86,9 @@ func (s *Service) computeFromSession(ctx context.Context, c Context, k string, i
 	arg := f.Workflow
 	if f.Output != "" {
 		arg += "." + f.Output
+	}
+	if f.Source == wf.SourceSessionTraces {
+		arg, _ = values[f.Input].(string) // "" = the parent session, else the last one
 	}
 	v, err := fn(ctx, c, arg)
 	if err != nil {

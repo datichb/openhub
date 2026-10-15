@@ -64,7 +64,7 @@ func TestPageKindAndLayout(t *testing.T) {
 	for rel, want := range map[string]string{
 		"index.md": KindIndex, "glossary.md": KindGlossary, "technical/stack.md": KindTechnical, "business/a.md": KindBusiness,
 		"specs/panier.md": KindSpec, "decisions/adr-001.md": KindDecision, RejectedDecisionsPage: KindDecision,
-		"postmortems/2026-10-01-panne.md": KindPostmortem, "notes.md": KindOther, "misc/x.md": KindOther,
+		"postmortems/2026-10-01-panne.md": KindPostmortem, "retros/2026-10-14-semaine.md": KindRetro, "notes.md": KindOther, "misc/x.md": KindOther,
 	} {
 		assert.Equal(t, want, PageKind(rel), rel)
 	}

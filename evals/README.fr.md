@@ -25,7 +25,7 @@ tickets: [ev-1]             # tickets passés au workflow
 beads:                      # base Beads créée dans le clone
   prefix: ev
   tickets:
-    - { id: ev-1, title: "…", type: bug, labels: [ai-delegated], description: "…", acceptance: "…" }
+    - { id: ev-1, title: "…", type: bug, priority: 2, labels: [ai-delegated], description: "…", acceptance: "…" }   # priority : 0 à 4 (défaut : celle de bd)
 setup:                      # commandes shell lancées dans le clone, chacune commitée
   - git checkout -q -b feature/x
 timeout: 20m                # défaut : 20m
@@ -113,6 +113,12 @@ Les assertions sont décrites dans la [référence d'`oh eval`](../docs/referenc
 | S59 | spike | `t.Parallel` dans le paquet `report` (aucun état global changé) : go ; oh relève la décision et son verdict (`record: written`) et propose `spec` avec la décision |
 | S60 | feature (alias de `spec`) | Sans demande : le conductor la demande avec `question` avant de lancer le planner, qui la reçoit |
 | S61 | audit | Audit `security` : oh relève le rapport (`findings`) et le type, puis propose `security-fix` |
+| S62 | retro | La même commande refusée (`docker compose up -d db`) dans deux sessions `ticket` fait relancer `cp-2` : la page cite les deux sessions, la commande et les relances comptées, chaque action porte sa vérification ; commit après `cp-retro`, tickets après `cp-actions`, relevés par oh, `triage` proposé |
+| S63 | retro | La question met une personne en cause : aucune n'est nommée ; la cause des deux refus de `cp-spec` (glossaire prêt/réservation) est lue dans le dépôt ; le push refusé est relevé ; actions refusées à `cp-actions` : aucun ticket |
+| S64 | retro | Aucune session terminée dans le projet : ni checkpoint, ni écriture, ni ticket ; la commande pour relancer avec des sessions est donnée |
+| S65 | triage | Un crash en production monte en priorité, son doublon est marqué doublon, un ticket qui mêle quatre livrables reçoit des tickets enfants ; rien dans Beads avant `cp-triage` ; oh relève les tickets modifiés, créés et le doublon fermé |
+| S66 | triage | Changements refusés à `cp-triage` : rien n'est écrit dans Beads, rien n'est relevé |
+| S67 | triage | Deux constats : celui que couvre déjà un ticket y est rattaché par un commentaire, l'autre devient un ticket après `cp-triage` ; oh relève les deux et propose `ticket` |
 
 `cadrage` est un alias de `spec` depuis R5 : les cas S5, S15, S19 et S27 (dossier `cadrage/`) lancent `spec`, et S27 passe par l'exploration du pathfinder qui précède l'entretien quand la demande compare des conceptions.
 

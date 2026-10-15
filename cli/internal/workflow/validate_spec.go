@@ -276,7 +276,7 @@ func (v *validator) inputs() {
 			v.err("negative_value", base+".max_length", in.MaxLength)
 		}
 		if IsSessionSource(in.From) {
-			v.sessionFrom(base+".from", in)
+			v.sessionFrom(base+".from", k, in)
 		} else if in.From != "" {
 			src, arg, ok := ParseFrom(in.From)
 			switch {

@@ -63,7 +63,7 @@ doc-standards	Critères de qualité — checklist finale	Le document ne mélange
 doc-standards	Principes spécifiques	Glossaire métier obligatoire si le domaine est spécialisé
 doc-wiki-protocol	Rôle	que le `documentarian` doit respecter pour maintenir la cohérence du système.
 doc-wiki-protocol	Rôle	Les autres agents n'écrivent pas dans le wiki : ils proposent avec `wiki_propose` ; oh applique
-doc-wiki-protocol	Structure du wiki	Un seul référentiel : specs, glossaire, décisions et postmortems vivent dans `docs/wiki/`. `wiki_check` signale une page hors de cette arborescence (`layout`). Le champ `synced:` du frontmatter d'`index.md` est écrit par oh (`doc-sync`) : ne le modifie jamais.
+doc-wiki-protocol	Structure du wiki	Un seul référentiel : specs, glossaire, décisions, postmortems et rétrospectives vivent dans `docs/wiki/`. `wiki_check` signale une page hors de cette arborescence (`layout`). Le champ `synced:` du frontmatter d'`index.md` est écrit par oh (`doc-sync`) : ne le modifie jamais.
 doc-wiki-protocol	Structure du wiki	Frontmatter obligatoire
 doc-wiki-protocol	Frontmatter obligatoire	Chaque page wiki doit commencer par un frontmatter YAML :
 doc-wiki-protocol	Format des tags de confiance	Chaque enrichissement doit porter un tag de confiance inline en fin de ligne ou de bloc :

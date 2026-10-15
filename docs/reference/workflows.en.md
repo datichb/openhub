@@ -39,6 +39,8 @@ A workflow is launched with `oh run <workflow>` or the TUI launch form; the form
 | `incident` | `debugger` (writes `docs/wiki/postmortems/`) | `developer` | write | local | — |
 | `security-fix` | `conductor` | `developer`, `auditor-subagent` | write | local | — |
 | `spike` | `pathfinder` (writes `docs/wiki/decisions/`) | `developer` (throwaway prototype) | write | local | — |
+| `retro` | `debugger` (writes `docs/wiki/retros/`) | — | write | local | — |
+| `triage` | `planner` | — | plan | local | — |
 | `benchmark` | `benchmarker` | — | write (`reports/benchmarks/`) | local | `oh run libre --agent benchmarker` |
 | `sweep` | `conductor` | `pathfinder`, `developer`, `reviewer`; in a fan-out: `pathfinder`, `reviewer` and one `sweep-task` child session per subtask | write | local | `oh start --sweep` |
 | `sweep-task` | `developer` | — | write | local | — (launched by oh in a fan-out sweep) |
@@ -435,6 +437,63 @@ Flow:
 Outputs **recorded by oh** when a checkpoint passes (`record: written`): `decision` (the file written under `docs/wiki/decisions/`) and `verdict` (`go`, `clarify` or `kill`, read on the `**Décision : …**` line, `match:`). Proposed next step (`next:`) after a `go` only: **`spec`**, with the decision as source page (`-i source=…`), without launching it.
 
 Pause budget in semi-auto: 2 pauses (1 decision, 1 irreversible action), for a budget of 3. Allowed Beads commands (read only): `show`, `list`, `search`, `query`, `count`.
+
+## `retro`
+
+Retrospective of past sessions, from their trace: what slowed, cost or blocked the work, and verifiable actions. The `debugger` leads the session; it stays read-only, except for the page of the retrospective (`agents.debugger.writes: ["docs/wiki/retros/**"]`); it does not read the traces itself, oh gives them. Guide: [Retrospective and triage](../guides/retro-triage.en.md).
+
+| Input | Type | Required | Role |
+|---|---|---|---|
+| `sessions` | `string` (400 characters max) | no | The sessions to look at: ids (`ses_…`), a period (`7d`, `24h`, `2w`, or a date `YYYY-MM-DD`: since that day) and workflows (`ticket`), separated by spaces or commas; empty: the session the launch is chained from (`--parent`), else the last finished session of the project |
+| `trace` | `text` (20,000 characters max) | no | The trace summaries, **computed by oh** (`from: session.traces(sessions)`); given at launch only to replay a retrospective |
+| `focus` | `text` (2,000 characters max) | no | What the user wants to understand |
+
+Sessions picked with a period or workflows: the most recent first, finished, 6 at most, without the `retro` sessions themselves (unless named). Each summary (the one of [`oh session trace`](cli-sessions.en.md), shortened) gives the title, the state, the duration, the totals and the cost per agent, the checkpoints and those asked several times (retries), the refused decisions with the user's instruction, the refused calls, the skills, the delegations and the outputs; 16,000 characters at most for all of them.
+
+| Checkpoint | manuel | semi-auto | auto |
+|---|---|---|---|
+| `cp-retro` Retrospective (mandatory, unlocks `commit`) | pause | pause | pause |
+| `cp-actions` Actions (mandatory, after `cp-retro`, unlocks `create`) | pause | pause | pause |
+
+Flow:
+
+1. **Facts**: session by session, the facts of the summary, each with its source (`<session> · <section> · <line>`); nothing else: a fact missing from the summary does not exist.
+2. **Findings**: the facts grouped by cause (a command refused in two sessions, the same instruction at two checkpoints), with their count, their cost (retries, duration, dollars) and their cause in the system (prompt, permission, workflow, convention, missing check), **blameless**; an unproven cause is a hypothesis. The repository is read only to shed light on a cause.
+3. **Actions**: one per finding at most, each with the sign that will tell, in a later trace, that it is done.
+4. **Page**: `docs/wiki/retros/<YYYY-MM-DD>-<slug>.md` (wiki frontmatter; sessions looked at, what went well, findings `C<n>`, actions `- [ ] A<n> … — vérification : …`).
+5. **`cp-retro`**: once approved, the page alone is committed (`git commit -m "docs(retro): <slug>" -- <file>`).
+6. **`cp-actions`**: one ticket per approved action; a refusal: no ticket.
+
+With no session to look at, the debugger says so, gives the command to run again (`oh run retro -i sessions="…"`) and stops: no checkpoint, no write.
+
+Why `writes:` and not `wiki_propose`: a retrospective is a new, dated page written in one go (like the postmortem of `incident` and the decision of `spike`); `wiki_propose` adds or replaces lines in an existing page, a proposal of 60 lines at most approved one by one on the commit card. With `writes:`, oh opens only `docs/wiki/retros/**` to the debugger, lets it commit that path only after `cp-retro`, and records the page (`record: written`).
+
+Outputs **recorded by oh**: `retro` (the page, `record: written`) and `actions` (the created tickets). Proposed next step (`next:`), never launched: **`triage`** on the action tickets. Pause budget in semi-auto: 2 pauses (2 irreversible actions), for a budget of 4. Allowed Beads commands: `show`, `list`, `search`, `query`, `count`, `create`.
+
+## `triage`
+
+Triage of a batch of Beads tickets or findings: priorities, duplicates, labels, ticket too big to be done at once. The `planner` leads the session; it changes no file and launches no agent. **Nothing is written to Beads before `cp-triage`**, which shows every proposed change. Guide: [Retrospective and triage](../guides/retro-triage.en.md).
+
+| Input | Type | Required | Role |
+|---|---|---|---|
+| `tickets` | `beads-ids` | no | The tickets to triage |
+| `query` | `string` (400 characters max) | no | A `bd query` filter of the tickets to triage; without tickets or filter: the open tickets of the project, 30 at most |
+| `findings` | `text` (16,000 characters max) | no | Findings (review, audit, retrospective…): each is attached to the ticket that already covers it (a comment) or becomes a ticket |
+
+| Checkpoint | manuel | semi-auto | auto |
+|---|---|---|---|
+| `cp-triage` Triage changes (mandatory, unlocks `create` and `update`) | pause | pause | pause |
+
+Flow:
+
+1. **Reading**: `bd show`, `bd label list-all`, `bd find-duplicates --status open` (candidates), `bd search` for each finding.
+2. **Triage**: a priority changed only when the ticket justifies it; a duplicate only when both tickets describe the same problem at the same place (the most complete one is kept), else a `related` link; the project's labels only; a ticket that mixes independent deliverables gets one child ticket per deliverable; neither status, assignee nor description change.
+3. **`cp-triage`**: the table of changes (ticket, field, before → after, reason), the tickets to create, the unchanged ones. Before it passes, oh refuses **every write to Beads**: creating (`create`) and changing (`update`: `bd update`, `label add|remove`, `dep add|remove`, `comments add`, `duplicate`, `supersede`, `reopen`…), in the shell and in the Beads gateway. A refusal: nothing is written.
+4. **Writes**: exactly the approved lines, one command per line.
+
+Outputs **recorded by oh** from what the Beads gateway saw: `updated` (the changed tickets, `record: updated`), `created` (the created tickets) and `duplicates` (the duplicates closed, `record: closed`). Proposed next step: **`ticket`** on the created tickets. Pause budget in semi-auto: 1 pause (1 irreversible action), for a budget of 3. Allowed Beads commands: `show`, `list`, `ready`, `search`, `query`, `count`, `children`, `lint`, `find-duplicates`, `label`, `dep`, `comments`, `create`, `update`, `duplicate`, `supersede`.
+
+Prerequisites from audit v5 (S-13, S-31, S-32, still open): they concern the MCP gateway and the Jira and GitHub MCP servers, which `triage` does not use: it only triages Beads tickets (Beads gateway, `create` and `update` locks) and findings given as input.
 
 ## `benchmark`
 

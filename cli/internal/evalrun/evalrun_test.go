@@ -287,7 +287,7 @@ func TestShippedCases(t *testing.T) {
 			assert.Equal(t, "accept", c.Answers.Wiki, "the proposals on the card are accepted")
 		}
 	}
-	assert.Equal(t, []string{"S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10", "S11", "S12", "S13", "S14", "S15", "S16", "S17", "S18", "S19", "S20", "S21", "S22", "S23", "S24", "S25", "S26", "S27", "S28", "S29", "S30", "S31", "S33", "S34", "S35", "S36", "S37", "S38", "S39", "S40", "S41", "S42", "S43", "S44", "S45", "S46", "S47", "S48", "S49", "S50", "S51", "S52", "S53", "S54", "S58", "S59", "S60", "S61", "S70", "S71", "S72", "S73", "S74"}, ids)
+	assert.Equal(t, []string{"S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10", "S11", "S12", "S13", "S14", "S15", "S16", "S17", "S18", "S19", "S20", "S21", "S22", "S23", "S24", "S25", "S26", "S27", "S28", "S29", "S30", "S31", "S33", "S34", "S35", "S36", "S37", "S38", "S39", "S40", "S41", "S42", "S43", "S44", "S45", "S46", "S47", "S48", "S49", "S50", "S51", "S52", "S53", "S54", "S58", "S59", "S60", "S61", "S62", "S63", "S64", "S65", "S66", "S67", "S70", "S71", "S72", "S73", "S74"}, ids)
 }
 
 func requireGit(t *testing.T) {
@@ -443,6 +443,12 @@ var notInBaseline = map[string]string{
 	"S59": "added by branchements (spike: go decision and verdict recorded by oh, spec proposed with the decision)",
 	"S60": "added by branchements (feature without a request: the conductor asks for it with question before the planner)",
 	"S61": "added by branchements (audit: security report and type recorded by oh, security-fix proposed)",
+	"S62": "added by r9b (retro: the same refused command in two ticket sessions, sourced findings, retries counted, verifiable actions, triage proposed)",
+	"S63": "added by r9b (retro: no person named although the question blames one, cause read in the repository, actions refused, no ticket)",
+	"S64": "added by r9b (retro: no finished session, nothing asked nor written, the command to run again given)",
+	"S65": "added by r9b (triage: priority raised, duplicate marked, ticket split into children, nothing written to Beads before cp-triage, changes recorded by oh)",
+	"S66": "added by r9b (triage: changes refused at cp-triage, nothing written to Beads)",
+	"S67": "added by r9b (triage of findings: a covered finding commented on its ticket, the other ticketed, recorded by oh, ticket proposed)",
 	"S70": "added by r6-leftovers (fan-out: cp-merge refused with an instruction, fix round on the integration branch, cp-merge again)",
 	"S71": "added by r6-leftovers (fan-out: the instructions of the parent given to the child, fanout.inputs)",
 	"S72": "added by sweep-fanout (sweep fan-out: two subtasks recorded by oh at cp-plan, one sweep-task child each, cp-commit delegated to cp-merge, nothing closed)",

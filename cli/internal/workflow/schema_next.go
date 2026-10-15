@@ -128,6 +128,10 @@ const (
 	// RecordClosed: the tickets closed through the Beads gateway
 	// (beads-ids).
 	RecordClosed OutputRecord = "closed"
+	// RecordUpdated: the tickets changed through the Beads gateway, without
+	// being created or closed (priority, labels, dependencies…; beads-ids,
+	// r9b).
+	RecordUpdated OutputRecord = "updated"
 	// RecordSpec: the specs checked by oh at a checkpoint with
 	// `verify.spec` (path).
 	RecordSpec OutputRecord = "spec"
@@ -150,7 +154,7 @@ const (
 )
 
 // OutputRecords lists the valid record kinds.
-var OutputRecords = []OutputRecord{RecordCreated, RecordClosed, RecordSpec, RecordReport, RecordInput, RecordWritten, RecordTasks}
+var OutputRecords = []OutputRecord{RecordCreated, RecordClosed, RecordUpdated, RecordSpec, RecordReport, RecordInput, RecordWritten, RecordTasks}
 
 // Valid reports whether r is known ("" = declared by the session).
 func (r OutputRecord) Valid() bool { return r == "" || slices.Contains(OutputRecords, r) }
@@ -158,7 +162,7 @@ func (r OutputRecord) Valid() bool { return r == "" || slices.Contains(OutputRec
 // OutputType is the type of the outputs recorded this way.
 func (r OutputRecord) OutputType() OutputType {
 	switch r {
-	case RecordCreated, RecordClosed:
+	case RecordCreated, RecordClosed, RecordUpdated:
 		return OutputBeadsIDs
 	case RecordSpec:
 		return OutputPath
@@ -240,23 +244,35 @@ const (
 	// session.trace() or session.trace(<workflow>): the parent session, else
 	// the last session of the project (of that workflow).
 	SourceSessionTrace = "session.trace"
+	// SourceSessionTraces: the summaries of the traces of several sessions
+	// (text, r9b: retro), session.traces(<input>): the sessions the value of
+	// that input names (session ids, a period such as 7d or 2026-10-01, a
+	// workflow), else as session.trace().
+	SourceSessionTraces = "session.traces"
 )
 
 // SessionSources are the sources read from a previous session.
-var SessionSources = []string{SourceSessionOutput, SourceSessionTrace}
+var SessionSources = []string{SourceSessionOutput, SourceSessionTrace, SourceSessionTraces}
 
 var reSessionFrom = regexp.MustCompile(`^(session\.output|session\.trace)\(\s*(?:([a-z0-9]+(?:-[a-z0-9]+)*)(?:\.([a-z][a-z0-9_-]*))?)?\s*\)$`)
 
+var reSessionTraces = regexp.MustCompile(`^session\.traces\(\s*([A-Za-z0-9_-]+)\s*\)$`)
+
 // SessionFrom is a parsed session source.
 type SessionFrom struct {
-	Source   string // SourceSessionOutput or SourceSessionTrace
+	Source   string // SourceSessionOutput, SourceSessionTrace or SourceSessionTraces
 	Workflow string // workflow of the session ("" = the session that ends, or any)
 	Output   string // output id (session.output)
+	Input    string // input naming the sessions (session.traces)
 }
 
 // ParseSessionFrom parses a session source: session.output(<workflow>.<id>),
-// session.output(<id>) (Workflow empty), session.trace([<workflow>]).
+// session.output(<id>) (Workflow empty), session.trace([<workflow>]),
+// session.traces(<input>).
 func ParseSessionFrom(from string) (SessionFrom, bool) {
+	if m := reSessionTraces.FindStringSubmatch(from); m != nil {
+		return SessionFrom{Source: SourceSessionTraces, Input: m[1]}, true
+	}
 	m := reSessionFrom.FindStringSubmatch(from)
 	if m == nil {
 		return SessionFrom{}, false

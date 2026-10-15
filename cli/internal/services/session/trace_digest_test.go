@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 )
 
 // R5: the digest of a trace (source session.trace()) names the session, its
@@ -40,5 +41,29 @@ func TestTraceDigest(t *testing.T) {
 	}
 	if (&Trace{}).Digest() != "" {
 		t.Error("empty trace")
+	}
+}
+
+// r9b (retro): the digest gives the duration, the cost per agent, the
+// checkpoints asked several times and the instruction of a refusal.
+func TestTraceDigestRetroFacts(t *testing.T) {
+	start := time.Date(2026, 10, 14, 9, 0, 0, 0, time.UTC)
+	end := start.Add(42*time.Minute + 5*time.Second)
+	tr := &Trace{SessionID: "ses_2", Events: []TraceEvent{
+		{Kind: TraceSession, ToolSession: "ses_2", Data: map[string]any{"workflow": "ticket", "state": "completed", "title": "ev-1",
+			"started_at": start, "ended_at": end}},
+		{Kind: TraceCheckpoint, Checkpoint: "cp-2", Event: "waiting"},
+		{Kind: TraceDecision, DecisionKind: "checkpoint", Checkpoint: "cp-2", Resolution: "reject", Data: map[string]any{"message": "ajoute le test\ndu cas vide"}},
+		{Kind: TraceCheckpoint, Checkpoint: "cp-2", Event: "waiting"},
+		{Kind: TraceCheckpoint, Checkpoint: "cp-2", Event: "passed"},
+		{Kind: TraceSummary, Data: map[string]any{"cost_usd": 1.2, "per_agent": map[string]map[string]any{
+			"developer": {"cost": 0.9}, "reviewer": {"cost": 0.3}}}},
+	}}
+	d := tr.Digest()
+	for _, want := range []string{"Titre : ev-1", "État : completed", "Durée : 42m5s", "Coût par agent : developer 0.90 $, reviewer 0.30 $",
+		"Checkpoints demandés plusieurs fois :\n- cp-2 ×2", "checkpoint cp-2 → reject — « ajoute le test … »"} {
+		if !strings.Contains(d, want) {
+			t.Errorf("digest lacks %q:\n%s", want, d)
+		}
 	}
 }

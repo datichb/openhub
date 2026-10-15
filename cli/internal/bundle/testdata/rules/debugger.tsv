@@ -82,6 +82,11 @@ postmortem	Sans blâme	Écris ce que le système a permis : « le changement a �
 postmortem	Actions	Une action par ligne, chacune vérifiable (« test de non-régression sur l'export d'une liste vide », pas « mieux tester »), rattachée à un type : **prévenir** (la cause ne revient pas), **détecter** (l'alerte arrive plus tôt), **atténuer** (l'arrêt est plus rapide).
 postmortem	Actions	Au moins une action sur la cause racine et une sur la détection, si le délai de détection n'est pas nul.
 postmortem	Actions	Pas d'action qui consiste à « faire attention » : elle ne change pas le système.
+retro	Lire un résumé de trace	Section | Ce qu'elle dit | Ce qu'elle ne dit pas
+retro	Lire un résumé de trace	Checkpoints demandés plusieurs fois | une étape refaite (relance) : le travail montré ne convenait pas, ou oh l'a refusé | pourquoi : la consigne est dans « Décisions refusées »
+retro	Remonter à une cause du système	**une consigne** (prompt du workflow, convention du projet) floue ou absente : l'agent ne pouvait pas savoir ;
+retro	Sans blâme	Ni l'utilisateur, ni un collègue, ni « le modèle » : on décrit ce que le système a laissé passer. Si la question nomme quelqu'un, réponds sur le système et ne reprends pas le nom.
+retro	Actions	Garde aussi ce qui a bien marché : une session sans relance dit ce qu'il ne faut pas casser.
 universal-guardrails	Garde-fous transverses	Git push — interdit
 universal-guardrails	Git push — interdit	Tu ne lances jamais `git push` sous aucune forme, option ou alias.
 universal-guardrails	Commandes non-terminantes	ne bloquent jamais ton tour : lance-les en arrière-plan. Si les outils context-mode

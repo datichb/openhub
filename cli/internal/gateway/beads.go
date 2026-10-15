@@ -161,6 +161,9 @@ func (b *Beads) Exec(ctx context.Context, g Grant, req beadswire.ExecRequest) (r
 	if !isOp {
 		op, isOp = createOp(c)
 	}
+	if !isOp {
+		op, isOp = updateOp(c)
+	}
 	if isOp && op.Status != "" && !b.closingStatus(ctx, bin, dir, beadsDir, op.Status) {
 		isOp = false
 	}

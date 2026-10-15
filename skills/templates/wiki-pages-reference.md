@@ -73,3 +73,7 @@ agents: [<agents>]
 ```
 
 Écrits sans blâme par le debugger du workflow `incident`, commités après `cp-postmortem`.
+
+## Format canonique — `docs/wiki/retros/YYYY-MM-DD-<sujet>.md`
+
+Écrites sans blâme par le debugger du workflow de rétrospective, à partir des résumés de trace donnés par oh, commitées après `cp-retro` : `# Rétrospective — <sujet> (YYYY-MM-DD)`, puis `## Sessions examinées`, `## Ce qui a bien marché`, `## Constats` (`### C<n> — <titre>`, faits sourcés `<session> · <section> · <ligne>`, cause), `## Actions` (`- [ ] A<n> <action> — vérification : <signe> (C<n>)`).

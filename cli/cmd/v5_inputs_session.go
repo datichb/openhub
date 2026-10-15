@@ -7,14 +7,13 @@ import (
 	"io"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/services/report"
-	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
-	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
@@ -30,7 +29,7 @@ func sessionInputSources(a *app.App, note func(string)) map[string]workflowsvc.I
 	if note == nil {
 		note = func(string) {}
 	}
-	return map[string]workflowsvc.InputSource{
+	sources := map[string]workflowsvc.InputSource{
 		workflow.SourceSessionOutput: func(ctx context.Context, c workflowsvc.Context, arg string) (string, error) {
 			wfID, out, _ := strings.Cut(arg, ".")
 			sess, err := pickSession(ctx, a, c, wfID, func(s *domain.Session) bool { return outputText(s.Outputs[out]) != "" })
@@ -50,22 +49,31 @@ func sessionInputSources(a *app.App, note func(string)) map[string]workflowsvc.I
 			if err != nil {
 				return "", err
 			}
-			ssvc, err := newSessionService(ctx, a)
-			if err != nil {
-				return "", err
-			}
-			tr, err := ssvc.Trace(ctx, sess.ID, sessionsvc.TraceOptions{Usage: sqlite.NewUsageStore(store)})
+			d, err := sessionTraceDigest(ctx, a, sess.ID)
 			if err != nil {
 				return "", err
 			}
 			note(i18n.Tf("cmd.run.input_from_session", workflow.SourceSessionTrace+"("+wfID+")", sess.ID, ""))
-			d := tr.Digest()
-			if len(d) > traceDigestMax {
-				d = d[:traceDigestMax]
-			}
-			return d, nil
+			return clipUTF8(d, traceDigestMax), nil
 		},
 	}
+	// r9b: the sessions named by an input (ids, period, workflows).
+	sources[workflow.SourceSessionTraces] = func(ctx context.Context, c workflowsvc.Context, value string) (string, error) {
+		if strings.TrimSpace(value) == "" {
+			return sources[workflow.SourceSessionTrace](ctx, c, "")
+		}
+		sel, err := parseTraceSelection(ctx, a, value, time.Now())
+		if err != nil {
+			return "", err
+		}
+		list, err := pickTraceSessions(ctx, a, c, sel)
+		if err != nil {
+			return "", err
+		}
+		note(i18n.Tf("cmd.run.input_from_session", workflow.SourceSessionTraces+"("+value+")", sessionIDs(list), ""))
+		return traceDigests(ctx, a, list)
+	}
+	return sources
 }
 
 // sessionOutputType returns the type of output out of workflow wfID ("" when

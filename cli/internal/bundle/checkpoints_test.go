@@ -139,6 +139,29 @@ func TestSessionRulesLockCreate(t *testing.T) {
 	assert.Empty(t, LockedOps(wf, "manuel", open))
 }
 
+// r9b: changing tickets (update, labels, dependencies, comments,
+// duplicates…) is refused on the shell until the checkpoint that unlocks
+// `update`; reading them is not.
+func TestSessionRulesLockUpdate(t *testing.T) {
+	wf := testRuntime()
+	wf.Checkpoints[0].Unlocks = []string{sessionspec.UnlockUpdate}
+	var rules []sessionspec.PermissionRule
+	for _, r := range SessionRules(wf, "manuel", nil) {
+		if r.Action == sessionspec.ActionShell {
+			rules = append(rules, r)
+		}
+	}
+	for _, line := range []string{"bd update ev-1 -p 1", "bd label add ev-1 bug", "bd dep add ev-2 ev-1", "bd comments add ev-1 x",
+		"bd comment ev-1 x", "bd duplicate ev-2 --of ev-1", "bd --json update ev-1 -p 0", "env bd reopen ev-3"} {
+		assert.True(t, lockedLine(rules, line), line)
+	}
+	for _, line := range []string{"bd show ev-1", "bd list --label bug", "bd label list-all", "bd comments ev-1", "bd dep tree ev-1", "bd find-duplicates"} {
+		assert.False(t, lockedLine(rules, line), line)
+	}
+	open := &domain.CheckpointState{Unlocks: map[string]domain.CheckpointUnlock{"update": {Checkpoint: wf.Checkpoints[0].ID}}}
+	assert.Empty(t, LockedOps(wf, "manuel", open))
+}
+
 // lockedLine tells whether a shell line is refused by the deny rules, the
 // way the tool evaluates it: each command of a compound line on its own
 // (&&, ||, ;, |, subshells), a VAR=x prefix kept (both forms are covered).

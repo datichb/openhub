@@ -1,0 +1,96 @@
+id: S65
+title: "Triage : un crash en production remonté en priorité, son doublon marqué doublon, un ticket qui mêle quatre livrables découpé en tickets enfants — rien n'est écrit dans Beads avant cp-triage ; oh relève les tickets modifiés, créés et le doublon fermé"
+workflow: triage
+mode: semi-auto
+reports: off
+# r9b : ev-1 (crash de l'export sur une liste vide, en production chaque
+# nuit) est en priorité 2 : il monte (0 ou 1). ev-2 décrit le même crash,
+# moins bien : doublon de ev-1. ev-3 mêle quatre livrables indépendants :
+# des tickets enfants (--parent ev-3). ev-4 (faute de frappe) ne bouge pas.
+# Aucune écriture Beads avant cp-triage ; après, exactement celles-là ; oh
+# relève ev-1 dans updated, le doublon dans duplicates, les enfants dans
+# created.
+tickets: [ev-1, ev-2, ev-3, ev-4]
+beads:
+  prefix: ev
+  tickets:
+    - id: ev-1
+      title: "Crash de l'export CSV quand la liste d'écritures est vide"
+      type: bug
+      priority: 2
+      labels: [bug, export]
+      description: "L'export de nuit plante (index out of range, export/csv.go) dès qu'un client n'a aucune écriture dans la journée ; tous les clients en production sont concernés et l'export suivant ne part pas."
+      acceptance: "CSV([]) renvoie l'en-tête seul, sans panic."
+    - id: ev-2
+      title: "Export qui plante parfois"
+      type: bug
+      priority: 2
+      description: "Parfois l'export CSV plante la nuit, quand il n'y a pas d'écriture."
+    - id: ev-3
+      title: "Refaire la page de profil"
+      type: feature
+      priority: 2
+      labels: [ui]
+      description: "Changer l'avatar, changer le mot de passe, choisir les notifications par e-mail et télécharger ses données (RGPD), sur la page de profil."
+      acceptance: "1. L'avatar se change et s'affiche. 2. Le mot de passe se change avec l'ancien. 3. Les notifications par e-mail se règlent par type. 4. L'export RGPD se télécharge en JSON."
+    - id: ev-4
+      title: "Faute de frappe « Paramêtres » dans le menu"
+      type: bug
+      priority: 3
+      labels: [ui]
+      description: "Le menu affiche « Paramêtres » au lieu de « Paramètres »."
+timeout: 20m
+answers:
+  question: first
+  permission: once
+  checkpoints:
+    "*": approve
+assertions:
+  - type: checkpoint_order
+    order: [cp-triage]
+  - type: skill_loaded_before
+    skill: triage
+    before: { checkpoint: cp-triage }
+  - type: ran
+    name: aucune modification avant cp-triage
+    command: "bd update*"
+    absent: true
+    before: { checkpoint_passed: cp-triage }
+  - type: ran
+    name: aucun doublon marqué avant cp-triage
+    command: "bd duplicate*"
+    absent: true
+    before: { checkpoint_passed: cp-triage }
+  - type: ran
+    name: aucune création avant cp-triage
+    command: "bd create*"
+    absent: true
+    before: { checkpoint_passed: cp-triage }
+  - type: ran
+    name: ev-2 marqué doublon de ev-1
+    agent: planner
+    command: "bd duplicate ev-2*ev-1*"
+  - type: ran
+    name: des tickets enfants de ev-3
+    agent: planner
+    command: "bd create*ev-3*"
+  - type: output
+    name: la priorité de ev-1 changée, relevée par oh (ev-4 inchangé)
+    output: updated
+    pattern: "(^|,)ev-1(,|$)"
+  - type: output
+    name: ev-4 n'est pas touché
+    output: updated
+    pattern: "(^|,)ev-4(,|$)"
+    absent: true
+  - type: output
+    name: le doublon fermé, relevé par oh
+    output: duplicates
+    pattern: "^ev-2$"
+  - type: output
+    name: les tickets enfants créés, relevés par oh
+    output: created
+    pattern: "^ev-[^,]+(,ev-[^,]+){1,}$"
+  - type: changed_within
+    name: aucun fichier modifié
+  - type: no_denied_loop

@@ -193,7 +193,7 @@ func oneCommit(wf *sessionspec.WorkflowRuntime, id string) bool {
 // closedByNextCheckpoint are the windows that close when another mandatory
 // checkpoint passes (CP-R8): the tickets were created, the release tagged
 // and its merge request opened before it.
-var closedByNextCheckpoint = []string{sessionspec.UnlockCreate, sessionspec.UnlockTag, sessionspec.UnlockMR}
+var closedByNextCheckpoint = []string{sessionspec.UnlockCreate, sessionspec.UnlockUpdate, sessionspec.UnlockTag, sessionspec.UnlockMR}
 
 // closeCreateWindow closes the create, tag and mr windows when another
 // mandatory checkpoint passes.

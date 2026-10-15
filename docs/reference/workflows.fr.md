@@ -39,6 +39,8 @@ On lance un workflow avec `oh run <workflow>` ou la fiche de lancement de la TUI
 | `incident` | `debugger` (écrit `docs/wiki/postmortems/`) | `developer` | write | local | — |
 | `security-fix` | `conductor` | `developer`, `auditor-subagent` | write | local | — |
 | `spike` | `pathfinder` (écrit `docs/wiki/decisions/`) | `developer` (prototype jetable) | write | local | — |
+| `retro` | `debugger` (écrit `docs/wiki/retros/`) | — | write | local | — |
+| `triage` | `planner` | — | plan | local | — |
 | `benchmark` | `benchmarker` | — | write (`reports/benchmarks/`) | local | `oh run libre --agent benchmarker` |
 | `sweep` | `conductor` | `pathfinder`, `developer`, `reviewer` ; en fan-out : `pathfinder`, `reviewer` et une session enfant `sweep-task` par sous-tâche | write | local | `oh start --sweep` |
 | `sweep-task` | `developer` | — | write | local | — (lancé par oh dans un sweep en fan-out) |
@@ -435,6 +437,63 @@ Déroulé :
 Sorties **relevées par oh** quand un checkpoint passe (`record: written`) : `decision` (le fichier écrit sous `docs/wiki/decisions/`) et `verdict` (`go`, `clarify` ou `kill`, lu sur la ligne `**Décision : …**`, `match:`). Suite proposée (`next:`) après un `go` seulement : **`spec`**, avec la décision pour page d'origine (`-i source=…`), sans la lancer.
 
 Budget de pauses en semi-auto : 2 pauses (1 décision, 1 action irréversible), pour un budget de 3. Commandes Beads autorisées (lecture seule) : `show`, `list`, `search`, `query`, `count`.
+
+## `retro`
+
+Rétrospective de sessions passées, à partir de leur trace : ce qui a ralenti, coûté ou bloqué le travail, et des actions vérifiables. Le `debugger` mène la session ; il reste en lecture seule, sauf la page de la rétrospective (`agents.debugger.writes: ["docs/wiki/retros/**"]`) ; il ne lit pas les traces lui-même, oh les lui donne. Guide : [Rétrospective et tri](../guides/retro-triage.fr.md).
+
+| Entrée | Type | Obligatoire | Rôle |
+|---|---|---|---|
+| `sessions` | `string` (400 caractères max) | non | Les sessions à examiner : identifiants (`ses_…`), une période (`7d`, `24h`, `2w`, ou une date `AAAA-MM-JJ` : depuis ce jour) et des workflows (`ticket`), séparés par des espaces ou des virgules ; vide : la session dont le lancement est chaîné (`--parent`), sinon la dernière session terminée du projet |
+| `trace` | `text` (20 000 caractères max) | non | Les résumés des traces, **calculés par oh** (`from: session.traces(sessions)`) ; donnés au lancement seulement pour rejouer une rétrospective |
+| `focus` | `text` (2 000 caractères max) | non | Ce que l'utilisateur veut comprendre |
+
+Sessions retenues avec une période ou des workflows : les plus récentes d'abord, terminées, 6 au plus, sans les sessions `retro` elles-mêmes (sauf si on les nomme). Chaque résumé (celui de [`oh session trace`](cli-sessions.fr.md), raccourci) donne le titre, l'état, la durée, les totaux et le coût par agent, les checkpoints et ceux demandés plusieurs fois (relances), les décisions refusées avec la consigne de l'utilisateur, les appels refusés, les skills, les délégations et les sorties ; 16 000 caractères au plus pour l'ensemble.
+
+| Checkpoint | manuel | semi-auto | auto |
+|---|---|---|---|
+| `cp-retro` Rétrospective (obligatoire, déverrouille `commit`) | pause | pause | pause |
+| `cp-actions` Actions (obligatoire, après `cp-retro`, déverrouille `create`) | pause | pause | pause |
+
+Déroulé :
+
+1. **Relevé** : session par session, les faits du résumé, chacun avec sa source (`<session> · <section> · <ligne>`) ; rien d'autre : un fait absent du résumé n'existe pas.
+2. **Constats** : les faits regroupés par cause (une commande refusée dans deux sessions, la même consigne à deux checkpoints), avec leur nombre, leur coût (relances, durée, dollars) et leur cause dans le système (prompt, permission, workflow, convention, vérification absente), **sans blâme** ; une cause non prouvée est une hypothèse. Le dépôt n'est lu que pour éclairer une cause.
+3. **Actions** : au plus une par constat, chacune avec le signe qui dira, dans une prochaine trace, qu'elle est faite.
+4. **Page** : `docs/wiki/retros/<AAAA-MM-JJ>-<slug>.md` (frontmatter du wiki ; sessions examinées, ce qui a bien marché, constats `C<n>`, actions `- [ ] A<n> … — vérification : …`).
+5. **`cp-retro`** : une fois validée, la page est commitée seule (`git commit -m "docs(retro): <slug>" -- <fichier>`).
+6. **`cp-actions`** : un ticket par action validée ; un refus : aucun ticket.
+
+Sans session à examiner, le debugger le dit, donne la commande pour relancer (`oh run retro -i sessions="…"`) et s'arrête : ni checkpoint, ni écriture.
+
+Pourquoi `writes:` et pas `wiki_propose` : une rétrospective est une page nouvelle et datée, écrite d'un seul tenant (comme le postmortem d'`incident` et la décision de `spike`) ; `wiki_propose` sert à ajouter ou remplacer des lignes dans une page existante, une proposition de 60 lignes au plus validée une à une à la carte du commit. Avec `writes:`, oh n'ouvre que `docs/wiki/retros/**` au debugger, ne laisse commiter que ce chemin après `cp-retro` et relève la page (`record: written`).
+
+Sorties **relevées par oh** : `retro` (la page, `record: written`) et `actions` (les tickets créés). Suite proposée (`next:`), jamais lancée : **`triage`** sur les tickets des actions. Budget de pauses en semi-auto : 2 pauses (2 actions irréversibles), pour un budget de 4. Commandes Beads autorisées : `show`, `list`, `search`, `query`, `count`, `create`.
+
+## `triage`
+
+Tri d'un lot de tickets Beads ou de constats : priorités, doublons, étiquettes, ticket trop gros à découper. Le `planner` mène la session ; il ne modifie aucun fichier et ne lance aucun agent. **Rien n'est écrit dans Beads avant `cp-triage`**, qui montre tous les changements proposés. Guide : [Rétrospective et tri](../guides/retro-triage.fr.md).
+
+| Entrée | Type | Obligatoire | Rôle |
+|---|---|---|---|
+| `tickets` | `beads-ids` | non | Les tickets à trier |
+| `query` | `string` (400 caractères max) | non | Un filtre `bd query` des tickets à trier ; sans tickets ni filtre : les tickets ouverts du projet, 30 au plus |
+| `findings` | `text` (16 000 caractères max) | non | Des constats (revue, audit, rétrospective…) : chacun est rattaché au ticket qui le couvre déjà (un commentaire) ou devient un ticket |
+
+| Checkpoint | manuel | semi-auto | auto |
+|---|---|---|---|
+| `cp-triage` Changements du tri (obligatoire, déverrouille `create` et `update`) | pause | pause | pause |
+
+Déroulé :
+
+1. **Lecture** : `bd show`, `bd label list-all`, `bd find-duplicates --status open` (des candidats), `bd search` pour chaque constat.
+2. **Tri** : priorité changée seulement si le ticket le justifie ; doublon seulement si les deux tickets décrivent le même problème au même endroit (on garde le plus complet), sinon un lien `related` ; étiquettes du projet seulement ; un ticket qui mêle des livrables indépendants reçoit un ticket enfant par livrable ; ni statut, ni assignation, ni description ne changent.
+3. **`cp-triage`** : le tableau des changements (ticket, champ, avant → après, raison), les tickets à créer, les inchangés. Avant son passage, oh refuse **toute écriture dans Beads** : création (`create`), et modification (`update` : `bd update`, `label add|remove`, `dep add|remove`, `comments add`, `duplicate`, `supersede`, `reopen`…), dans le shell comme dans la passerelle Beads. Un refus : rien n'est écrit.
+4. **Écritures** : exactement les lignes validées, une commande par ligne.
+
+Sorties **relevées par oh** à partir de ce que la passerelle Beads a vu : `updated` (les tickets modifiés, `record: updated`), `created` (les tickets créés) et `duplicates` (les doublons fermés, `record: closed`). Suite proposée : **`ticket`** sur les tickets créés. Budget de pauses en semi-auto : 1 pause (1 action irréversible), pour un budget de 3. Commandes Beads autorisées : `show`, `list`, `ready`, `search`, `query`, `count`, `children`, `lint`, `find-duplicates`, `label`, `dep`, `comments`, `create`, `update`, `duplicate`, `supersede`.
+
+Préalables de l'audit v5 (S-13, S-31, S-32, toujours ouverts) : ils touchent la passerelle MCP et les serveurs MCP Jira et GitHub, que `triage` n'utilise pas : il ne trie que des tickets Beads (passerelle Beads, verrous `create` et `update`) et des constats donnés en entrée.
 
 ## `benchmark`
 

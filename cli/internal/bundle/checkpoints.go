@@ -117,7 +117,14 @@ var lockPatterns = map[string][]string{
 	sessionspec.UnlockPush:   subcommandPatterns("git", "push"),
 	sessionspec.UnlockClose:  append(subcommandPatterns("bd", "close", "done"), "bd update *closed*", "* bd update *closed*", "*/bd update *closed*"),
 	sessionspec.UnlockCreate: append(subcommandPatterns("bd", "create", "duplicate", "supersede"), "bd q *", "* bd q *", "*/bd q *"),
-	sessionspec.UnlockApply:  ApplyLockPatterns,
+	// r9b: every write of the gateway that neither creates nor closes
+	// (gateway.updateOp); `comment` is a word of its own (`bd comments`
+	// lists).
+	sessionspec.UnlockUpdate: append(subcommandPatterns("bd", "update", "edit", "label add", "label remove", "label propagate",
+		"dep add", "dep remove", "dep relate", "dep unrelate", "link", "comments add", "reopen", "defer", "undefer", "unclaim",
+		"assign", "priority", "set-state", "rename", "promote", "tag", "note", "delete", "duplicate", "supersede"),
+		"bd comment *", "* bd comment *", "*/bd comment *"),
+	sessionspec.UnlockApply: ApplyLockPatterns,
 	// R8 (publishguard.go)
 	sessionspec.UnlockTag: tagLockPatterns,
 	sessionspec.UnlockMR:  mrLockPatterns,

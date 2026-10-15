@@ -38,17 +38,23 @@ func (s *Service) GuardCreate(ctx context.Context, root string) error {
 }
 
 // relockOnClose locks again the operations of checkpoint id once a ticket
-// is closed, except `create`: the tickets of a split are created after one
-// approval, whatever is closed meanwhile.
+// is closed, except `create` and `update`: the tickets of a split are
+// created (and those of a triage changed) after one approval, whatever is
+// closed meanwhile.
 func relockOnClose(st *domain.CheckpointState, id string) bool {
-	keep, kept := st.Unlocks[sessionspec.UnlockCreate]
+	keep := map[string]domain.CheckpointUnlock{}
+	for _, op := range []string{sessionspec.UnlockCreate, sessionspec.UnlockUpdate} {
+		if u, ok := st.Unlocks[op]; ok {
+			keep[op] = u
+		}
+	}
 	changed := relock(st, id)
-	if kept {
+	for op, u := range keep {
 		if st.Unlocks == nil {
 			st.Unlocks = map[string]domain.CheckpointUnlock{}
 		}
-		if _, still := st.Unlocks[sessionspec.UnlockCreate]; !still {
-			st.Unlocks[sessionspec.UnlockCreate] = keep
+		if _, still := st.Unlocks[op]; !still {
+			st.Unlocks[op] = u
 		}
 	}
 	return changed

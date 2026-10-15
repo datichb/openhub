@@ -72,8 +72,14 @@ func (d *Daemon) guardTickets(ctx context.Context, g gateway.Grant, op gateway.B
 	if cp != nil && op.Kind == gateway.OpCreate {
 		return d.guardCreate(ctx, g)
 	}
-	if cp == nil || op.Kind != gateway.OpClose {
+	if cp != nil && op.Kind != gateway.OpClose {
+		return d.guardUpdate(ctx, g, false) // a change or a claim (r9b)
+	}
+	if cp == nil {
 		return nil
+	}
+	if err := d.guardUpdate(ctx, g, true); err != nil {
+		return err // duplicate, supersede… in a workflow that does not lock closing
 	}
 	err := cp.GuardClose(ctx, g.SessionID, g.Location)
 	var lock *checkpoint.LockError
@@ -96,7 +102,7 @@ func (d *Daemon) ticketsDone(ctx context.Context, g gateway.Grant, op gateway.Be
 		return
 	}
 	d.recordTickets(ctx, g, op)
-	if op.Kind == gateway.OpCreate {
+	if op.Kind == gateway.OpCreate || op.Kind == gateway.OpUpdate {
 		return
 	}
 	kind := checkpoint.BeadsClaim
@@ -113,9 +119,9 @@ func (d *Daemon) ticketsDone(ctx context.Context, g gateway.Grant, op gateway.Be
 	}
 }
 
-// recordTickets records the tickets created or closed in the session
-// outputs declared with `record: created` or `record: closed` (R5). A
-// failure is only logged.
+// recordTickets records the tickets created, closed or changed in the
+// session outputs declared with `record: created`, `record: closed` (R5)
+// or `record: updated` (r9b). A failure is only logged.
 func (d *Daemon) recordTickets(ctx context.Context, g gateway.Grant, op gateway.BeadsOp) {
 	kind := ""
 	switch op.Kind {
@@ -123,6 +129,8 @@ func (d *Daemon) recordTickets(ctx context.Context, g gateway.Grant, op gateway.
 		kind = checkpoint.RecordCreated
 	case gateway.OpClose:
 		kind = checkpoint.RecordClosed
+	case gateway.OpUpdate:
+		kind = checkpoint.RecordUpdated
 	default:
 		return
 	}

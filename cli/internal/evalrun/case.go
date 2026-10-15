@@ -105,6 +105,8 @@ type BeadTicket struct {
 	Acceptance  string   `yaml:"acceptance" json:"acceptance,omitempty"`
 	Labels      []string `yaml:"labels" json:"labels,omitempty"`
 	Parent      string   `yaml:"parent" json:"parent,omitempty"`
+	// Priority is the Beads priority (0 to 4; nil: the default of bd).
+	Priority *int `yaml:"priority" json:"priority,omitempty"`
 }
 
 // Answers tell how a pass answers the decisions of its session.
@@ -217,6 +219,13 @@ func (c *Case) Validate() error {
 		for i, v := range vs {
 			if _, _, err := ParseChoice(v); err != nil {
 				errs = append(errs, fmt.Errorf("answers.sequence.%s[%d]: %w", id, i, err))
+			}
+		}
+	}
+	if c.Beads != nil {
+		for _, t := range c.Beads.Tickets {
+			if t.Priority != nil && (*t.Priority < 0 || *t.Priority > 4) {
+				errs = append(errs, fmt.Errorf("beads ticket %s: priority %d (0 to 4)", t.ID, *t.Priority))
 			}
 		}
 	}

@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -371,27 +372,35 @@ func setupBeads(ctx context.Context, b *BeadsSetup, dir string) error {
 	}
 	_ = bd("config", "set", "dolt.local-only", "true")
 	for _, t := range b.Tickets {
-		args := []string{"create", t.Title, "--id", t.ID, "--force"}
-		if t.Type != "" {
-			args = append(args, "-t", t.Type)
-		}
-		if t.Description != "" {
-			args = append(args, "-d", t.Description)
-		}
-		if t.Acceptance != "" {
-			args = append(args, "--acceptance", t.Acceptance)
-		}
-		if t.Parent != "" {
-			args = append(args, "--parent", t.Parent)
-		}
-		if len(t.Labels) > 0 {
-			args = append(args, "-l", strings.Join(t.Labels, ","))
-		}
-		if err := bd(args...); err != nil {
+		if err := bd(beadCreateArgs(t)...); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// beadCreateArgs is the bd command that creates a ticket of a case.
+func beadCreateArgs(t BeadTicket) []string {
+	args := []string{"create", t.Title, "--id", t.ID, "--force"}
+	if t.Type != "" {
+		args = append(args, "-t", t.Type)
+	}
+	if t.Priority != nil {
+		args = append(args, "-p", strconv.Itoa(*t.Priority))
+	}
+	if t.Description != "" {
+		args = append(args, "-d", t.Description)
+	}
+	if t.Acceptance != "" {
+		args = append(args, "--acceptance", t.Acceptance)
+	}
+	if t.Parent != "" {
+		args = append(args, "--parent", t.Parent)
+	}
+	if len(t.Labels) > 0 {
+		args = append(args, "-l", strings.Join(t.Labels, ","))
+	}
+	return args
 }
 
 // ChangedFiles lists the files of the clone changed since base: committed,
