@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/rivo/tview"
+
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
@@ -34,10 +36,6 @@ func (s *Shell) showHelpOverlay() {
 		accent, i18n.T("tui.help.section.global"), reset)
 	rows := []struct{ key, desc string }{
 		{"Ctrl+P · /", i18n.T("tui.help.ctrl_p")},
-		{"?  / F1", i18n.T("tui.help.help")},
-		{"Enter", i18n.T("tui.help.enter")},
-		{"Esc", i18n.T("tui.help.esc")},
-		{"j/k / ↑↓", i18n.T("tui.help.arrows")},
 		{"Ctrl+T", i18n.T("tui.keys.help.ctrl_t")},
 		{"Ctrl+Q", i18n.T("tui.help.quit")},
 	}
@@ -45,6 +43,10 @@ func (s *Shell) showHelpOverlay() {
 		fmt.Fprintf(&b, "  %s%-14s%s  %s\n", accent, r.key, reset, r.desc)
 	}
 	fmt.Fprintf(&b, "  %s%s%s\n", muted, i18n.T("tui.keys.help.letters"), reset)
+
+	// ── Key convention (package keys) ─────────────────────────────────────────
+	fmt.Fprintf(&b, "\n  %s%s%s\n\n", accent, i18n.T("tui.keys.help.convention"), reset)
+	views.WriteKeyConvention(&b, "  ")
 
 	// ── Launch form and wizards ───────────────────────────────────────────────
 	fmt.Fprintf(&b, "\n  %s%s%s\n\n", accent, i18n.T("tui.keys.help.forms"), reset)
@@ -118,7 +120,38 @@ func (s *Shell) showHelpOverlay() {
 		b.WriteString("\n")
 	}
 
-	s.showInlineScrollable(i18n.T("tui.help.title"), b.String(), nil)
+	// The text keeps the focus (↑↓ scroll it); Tab reaches the button.
+	text := b.String()
+	textView := tview.NewTextView().SetText(text)
+	styleScrollableText(textView)
+	actions := []views.ModalAction{
+		{Label: i18n.T("tui.keys.notice.show"), Callback: func() { views.ShowKeysNotice(s, nil) }},
+	}
+	s.showModal(modalConfig{
+		Title:        i18n.T("tui.help.title"),
+		Content:      textView,
+		Actions:      actions,
+		Size:         modalSizeHint{ContentLines: countLines(text), HasButtons: true, ButtonCount: len(actions), ProportionalWidth: -4},
+		Hints:        i18n.T("tui.modal.hints.scrollable"),
+		LightDismiss: true,
+		PageName:     "inline-overlay",
+		FocusReturn:  s.content,
+		FocusTarget:  textView,
+	})
+}
+
+// OfferKeysNotice shows the notice of the new keys at startup, unless a
+// window is already open (it will come at a later launch); seen records it
+// was shown. Call it on the event loop.
+func (s *Shell) OfferKeysNotice(seen func()) bool {
+	if s.hasOverlay() {
+		return false
+	}
+	views.ShowKeysNotice(s, nil)
+	if seen != nil {
+		seen()
+	}
+	return true
 }
 
 // helpGroup is a named group of commands for display in the help overlay.
