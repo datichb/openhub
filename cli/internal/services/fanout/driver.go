@@ -439,12 +439,15 @@ func (d *Driver) runChildren(ctx context.Context, parent string, wf *sessionspec
 			if c.State == domain.ChildRunning && c.Session != "" {
 				runMu.Lock()
 				resumed := !running[c.Ticket]
-				if resumed {
-					running[c.Ticket] = true // a previous driver launched it
-					n++
-				}
 				runMu.Unlock()
 				if resumed {
+					c, resumed = d.resumable(ctx, parent, c)
+				}
+				if resumed {
+					runMu.Lock()
+					running[c.Ticket] = true // a previous driver launched it
+					runMu.Unlock()
+					n++
 					wg.Add(1)
 					go func(c domain.FanoutChild) {
 						defer wg.Done()
@@ -505,6 +508,19 @@ func (d *Driver) runChildren(ctx context.Context, parent string, wf *sessionspec
 		case <-time.After(d.poll()):
 		}
 	}
+}
+
+// resumable reads again child c, seen running in a record read before:
+// its follower may have ended since (merged, failed) and is then gone
+// from the running ones; following it again would merge it a second
+// time (p8-fixes: a merged child marked failed, « no commit »). The
+// follower writes the record before it leaves the running ones.
+func (d *Driver) resumable(ctx context.Context, parent string, c domain.FanoutChild) (domain.FanoutChild, bool) {
+	cur, ok := d.childOf(ctx, parent, c.Ticket)
+	if !ok || cur.State != domain.ChildRunning || cur.Session == "" {
+		return c, false
+	}
+	return cur, true
 }
 
 // dependencies reads, for each ticket of the fan-out, the tickets of the

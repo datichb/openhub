@@ -65,6 +65,12 @@ type fakeLauncher struct {
 	running int
 	hold    time.Duration
 	ended   bool // the sessions complete instead of going idle
+	// together: a child does its work once that many sessions started
+	// (children at the same time, by condition, not by hold).
+	together int
+	all      chan struct{}
+	// onWork runs in a session before its work (nil = none).
+	onWork func(LaunchRequest)
 	// fix is what a fixer commits (file, content); fixMerge: it commits a
 	// merge instead.
 	fix      [2]string
@@ -78,10 +84,26 @@ func (l *fakeLauncher) Start(ctx context.Context, req LaunchRequest) (string, er
 	l.started = append(l.started, req)
 	l.running++
 	l.maxSeen = max(l.maxSeen, l.running)
+	if l.all == nil {
+		l.all = make(chan struct{})
+	}
+	if l.n == l.together {
+		close(l.all)
+	}
+	all := l.all
 	l.mu.Unlock()
 	require.NoError(l.t, l.store.Create(ctx, &domain.Session{ID: id, ProjectID: "p1", Status: domain.SessionStatusRunning, State: domain.RunActive,
 		LaunchPath: req.Dir, Cost: l.cost, Fanout: req.Record, ParentSessionID: req.Parent.ID}))
 	go func() {
+		if l.together > 0 && req.Record.Role == domain.RoleChild {
+			select {
+			case <-all:
+			case <-time.After(time.Minute):
+			}
+		}
+		if l.onWork != nil {
+			l.onWork(req)
+		}
 		time.Sleep(l.hold)
 		switch req.Record.Role {
 		case domain.RoleChild:
@@ -281,6 +303,7 @@ func TestDriverParallelCap(t *testing.T) {
 		f.launcher.work[fmt.Sprintf("ev-%d", i)] = [2]string{fmt.Sprintf("f%d.go", i), "package calc\n"}
 	}
 	f.launcher.hold = 150 * time.Millisecond
+	f.launcher.together = 2
 	f.driver.Parallel = 2
 	fo := f.runDriver(t)
 	assert.Equal(t, domain.FanoutReady, fo.Status)
@@ -313,7 +336,7 @@ func TestDriverDependencies(t *testing.T) {
 // change calc.go: the second merge conflicts.
 func TestDriverConflictResolvedByMerger(t *testing.T) {
 	f := newFixture(t, "ev-1", "ev-2")
-	f.launcher.hold = 150 * time.Millisecond
+	f.launcher.together = 2
 	f.launcher.work["ev-1"] = [2]string{"calc.go", "package calc\n\nfunc Sub() {}\n"}
 	f.launcher.work["ev-2"] = [2]string{"calc.go", "package calc\n\nfunc Mul() {}\n"}
 	f.launcher.resolve = "package calc\n\nfunc Sub() {}\n\nfunc Mul() {}\n"
@@ -334,7 +357,7 @@ func TestDriverConflictResolvedByMerger(t *testing.T) {
 
 func TestDriverConflictUnresolved(t *testing.T) {
 	f := newFixture(t, "ev-1", "ev-2")
-	f.launcher.hold = 150 * time.Millisecond
+	f.launcher.together = 2
 	f.launcher.work["ev-1"] = [2]string{"calc.go", "package calc\n\nfunc Sub() {}\n"}
 	f.launcher.work["ev-2"] = [2]string{"calc.go", "package calc\n\nfunc Mul() {}\n"}
 	f.launcher.resolve = "" // the merger gives up
@@ -348,7 +371,7 @@ func TestDriverConflictUnresolved(t *testing.T) {
 
 	// A merger that commits markers is refused too.
 	g := newFixture(t, "ev-1", "ev-2")
-	g.launcher.hold = 150 * time.Millisecond
+	g.launcher.together = 2
 	g.launcher.work = f.launcher.work
 	g.launcher.resolve = "<<<<<<< HEAD\nx\n=======\ny\n>>>>>>> b\n"
 	fo = g.runDriver(t)
@@ -395,6 +418,60 @@ func TestDriverChildWithoutCommit(t *testing.T) {
 	assert.Equal(t, domain.FanoutReady, fo.Status)
 }
 
+// slowStore is a store slow to read the parent: the driver works on a
+// record read a while before (a loaded machine).
+type slowStore struct {
+	Store
+	delay time.Duration
+}
+
+func (s slowStore) Get(ctx context.Context, id string) (*domain.Session, error) {
+	p, err := s.Store.Get(ctx, id)
+	if id == "ses_parent" {
+		time.Sleep(s.delay)
+	}
+	return p, err
+}
+
+// A child seen running in a record read before its follower ended is not
+// followed (and merged) a second time (p8-fixes: TestDriverConflictResolvedByMerger,
+// a merged child marked failed, « no commit on the branch of the child »).
+func TestDriverChildFollowedOnce(t *testing.T) {
+	f := newFixture(t, "ev-1", "ev-2")
+	f.driver.Sessions = slowStore{Store: f.store, delay: 30 * time.Millisecond}
+	f.launcher.together = 2
+	f.launcher.work["ev-1"] = [2]string{"calc.go", "package calc\n\nfunc Sub() {}\n"}
+	f.launcher.work["ev-2"] = [2]string{"calc.go", "package calc\n\nfunc Mul() {}\n"}
+	f.launcher.resolve = "package calc\n\nfunc Sub() {}\n\nfunc Mul() {}\n"
+	fo := f.runDriver(t)
+	require.Equal(t, domain.FanoutReady, fo.Status)
+	for _, c := range fo.Children {
+		assert.Equal(t, domain.ChildMerged, c.State, "%s: %s", c.Ticket, c.Error)
+	}
+	done := map[string]int{}
+	for _, e := range fo.Events {
+		if e.Kind == domain.FanoutEventChildDone && e.Session != "" && !strings.HasPrefix(e.Session, "ses_merger") {
+			done[e.Session]++
+		}
+	}
+	for s, n := range done {
+		assert.Equal(t, 1, n, "%s followed once: %+v", s, fo.Events)
+	}
+
+	// Deterministic: the record says merged, the stale copy running.
+	p, err := f.store.Get(context.Background(), "ses_parent")
+	require.NoError(t, err)
+	stale := p.Fanout.Children[0]
+	stale.State = domain.ChildRunning
+	_, ok := f.driver.resumable(context.Background(), "ses_parent", stale)
+	assert.False(t, ok, "merged since: not followed again")
+	_, err = f.driver.update(context.Background(), "ses_parent", func(fo *domain.SessionFanout) { fo.Children[0].State = domain.ChildRunning })
+	require.NoError(t, err)
+	c, ok := f.driver.resumable(context.Background(), "ses_parent", stale)
+	assert.True(t, ok, "still running (launched by a previous driver): followed")
+	assert.Equal(t, stale.Session, c.Session)
+}
+
 func TestDriverGlobalBudget(t *testing.T) {
 	f := newFixture(t, "ev-1", "ev-2")
 	f.wf.Fanout.Parallel = 1
@@ -427,19 +504,11 @@ func TestDriverTamperedIntegration(t *testing.T) {
 	// The first child also moves the integration branch by hand.
 	orig := f.launcher.work
 	f.launcher.work = map[string][2]string{"ev-1": orig["ev-1"]}
-	go func() {
-		for {
-			p, err := f.store.Get(context.Background(), "ses_parent")
-			if err == nil && p.Fanout.Integration != nil {
-				if c, ok := p.Fanout.Child("ev-1"); ok && c.Session != "" {
-					commit(t, p.Fanout.Integration.Path, "evil.go", "package calc\n", "evil")
-					return
-				}
-			}
-			time.Sleep(5 * time.Millisecond)
+	f.launcher.onWork = func(req LaunchRequest) {
+		if req.Ticket == "ev-1" {
+			quiet(req.Parent.Fanout.Integration.Path, "git", "commit", "-q", "--allow-empty", "-m", "evil")
 		}
-	}()
-	f.launcher.hold = 200 * time.Millisecond
+	}
 	fo := f.runDriver(t)
 	assert.Equal(t, domain.FanoutFailed, fo.Status)
 	var tampered bool
