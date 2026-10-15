@@ -9,6 +9,13 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Changed — TUI : wiki et briques (lot tui-wiki-bricks)
+
+- **Fiche du checkpoint** : les propositions wiki s'ouvrent dans une liste sans limite (avant/après, source, auteur, tag) : `y` accepter, `n` refuser (motif, confirmé), `e` modifier (une ligne ou `$EDITOR`), `s` laisser, `A` tout accepter, `Entrée` décider le checkpoint, `Échap` revenir à la fiche.
+- **« Wiki du projet »** : file des propositions hors checkpoint (en attente, acceptées à appliquer au prochain commit, périmées), mêmes décisions que `oh wiki decide`, filtre `/`, métriques résumées (`m` pour le détail).
+- ⚠ **« Wiki » d'équipe renommée « Propositions d'équipe (team-state) »** ; `y` accepter et `n` refuser (confirmé, bouton compris) remplacent `a` / `x` ; course corrigée lors d'une décision pendant la sortie de la vue.
+- **Briques** : origine (hub, équipe, équipe ⟳ hub, non scellée), version, état ✓ ! ✗ ; détail avec remplacement, publication (auteur, date), agents et workflows, coût, problèmes et commandes `oh brick` d'écriture.
+
 ### Fixed — wiki et fan-out (lot p8-fixes)
 
 - **`oh wiki check --fix`** retire une ligne de god node qu'aucune page ne nomme plus (concept renommé ou accentué) : les liens de la table ne suffisent plus à la garder ; ils comptent tant qu'une page nomme encore le concept.
