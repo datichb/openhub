@@ -80,6 +80,8 @@ strict_isolation = true      # also hides your opencode config from local server
    - a `HOME` of the project's own: your opencode config is never visible.
 3. **Network**: the server port is published on `127.0.0.1` only. The opencode client runs on the machine and attaches to the server in the container.
 4. **Secrets**: no secret enters the container. The container gets an `ohs_…` token, which the oh credential proxy swaps for the real key. `bd` goes through the Beads gateway, with the workflow `beads.allow` list (read-only by default). The oh MCP servers (gitlab, team, workflow…) run on the machine.
+5. **oh verifications** (`verify:` of the checkpoints): in a container of the same image, started for them with the location of the session mounted, then removed, never on the machine instead ([details](../reference/checkpoints.en.md#container-sessions)).
+6. **Fan-out** (`implement-spec`, `sweep` with `-i fanout=true`, experimental): the child sessions, the merger and the fix round each run in a container of their workflow, with their worktree mounted; oh merges on the machine ([guide](fan-out.en.md#in-a-container)).
 
 ## Checking with Doctor
 

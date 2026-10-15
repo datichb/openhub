@@ -23,11 +23,11 @@ A workflow is launched with `oh run <workflow>` or the TUI launch form; the form
 | Workflow | Entry agent | Agents | Risk | Runtime | Replaces |
 |---|---|---|---|---|---|
 | `ticket` | `orchestrator-dev` | `developer`, `reviewer`, `documentarian` (on demand) | write | local, container, remote | `oh start --dev`, `-t` |
-| `quick` | `developer` | — | write | local | quick session |
+| `quick` | `developer` | — | write | local, container | quick session |
 | `infra-change` | `operator` | — | write (infrastructure, no file) | local | former `infra` agent (application part) |
 | `spec` (aliases `cadrage`, `feature`) | `conductor` | `pathfinder` (when the request compares designs), `planner` (writes `docs/wiki/specs/`), `designer` | plan (+ `writes:`) | local | `cadrage` (former mode A without implementation), with a written and checked spec |
-| `implement-spec` (alias `feature` with `--tickets`) | `orchestrator-dev` | `developer`, `reviewer`, `documentarian` (on demand); as a fan-out: `reviewer` and one `ticket` child session per ticket | write | local | implementation part of the former `feature` (mode B: existing tickets) |
-| `merge-conflicts` | `merger` | — | write (concludes a merge in progress; never a push) | local | — (launched by oh in a fan-out) |
+| `implement-spec` (alias `feature` with `--tickets`) | `orchestrator-dev` | `developer`, `reviewer`, `documentarian` (on demand); as a fan-out: `reviewer` and one `ticket` child session per ticket | write | local, container | implementation part of the former `feature` (mode B: existing tickets) |
+| `merge-conflicts` | `merger` | — | write (concludes a merge in progress; never a push) | local, container | — (launched by oh in a fan-out) |
 | `onboarding` | `onboarder` | — | write (`docs/wiki/`) | local, remote | `oh start --onboard` (former mode C) |
 | `doc-sync` | `documentarian` | — | write (`docs/wiki/`) | local | — |
 | `skill-refresh` | `documentarian` | — | write (stack skills of the hub) | local | — |
@@ -42,8 +42,8 @@ A workflow is launched with `oh run <workflow>` or the TUI launch form; the form
 | `retro` | `debugger` (writes `docs/wiki/retros/`) | — | write | local | — |
 | `triage` | `planner` | — | plan | local | — |
 | `benchmark` | `benchmarker` | — | write (`reports/benchmarks/`) | local | `oh run libre --agent benchmarker` |
-| `sweep` | `conductor` | `pathfinder`, `developer`, `reviewer`; in a fan-out: `pathfinder`, `reviewer` and one `sweep-task` child session per subtask | write | local | `oh start --sweep` |
-| `sweep-task` | `developer` | — | write | local | — (launched by oh in a fan-out sweep) |
+| `sweep` | `conductor` | `pathfinder`, `developer`, `reviewer`; in a fan-out: `pathfinder`, `reviewer` and one `sweep-task` child session per subtask | write | local, container | `oh start --sweep` |
+| `sweep-task` | `developer` | — | write | local, container | — (launched by oh in a fan-out sweep) |
 | `brief-enrich` | `brief-enricher` | — | read | local | `oh takeover-brief enrich` |
 | `libre` | your choice (`orchestrator` by default, its only workflow) | those the chosen agent may call | write | local, container | `oh start --agent`, TUI free session |
 
@@ -199,7 +199,7 @@ Implements the tickets of a spec one after the other, in a single session (`risk
 
 No delegation before `cp-plan`. Each ticket goes through its `cp-2` (commit, then close, before the next one). Once every ticket is processed, the `reviewer` makes an adversarial review of all the commits of the session; `cp-final` presents its verdict, the tickets and their commits, the open points: the user decides on a fix round (one only, through `cp-2` again) or to stop.
 
-Pause budget (CP-R2) in semi-auto: `cp-plan`, `cp-2`, `cp-final`, i.e. 3 pauses for a budget of 3 (2 decisions, 1 irreversible action); the `tdd` method adds one (`cp-seams`). A feature of N tickets thus costs N + 2 pauses (instead of N + 3 in the former `feature`). Default mode: `semi-auto`. Runs: locally. Allowed Beads commands: `show`, `list`, `ready`, `children`, `dep`, `update`, `close`, `comments`, `label`. Outputs: `branch` (declared), `tickets` (closed tickets, recorded by oh).
+Pause budget (CP-R2) in semi-auto: `cp-plan`, `cp-2`, `cp-final`, i.e. 3 pauses for a budget of 3 (2 decisions, 1 irreversible action); the `tdd` method adds one (`cp-seams`). A feature of N tickets thus costs N + 2 pauses (instead of N + 3 in the former `feature`). Default mode: `semi-auto`. Runs: locally or in a container. Allowed Beads commands: `show`, `list`, `ready`, `children`, `dep`, `update`, `close`, `comments`, `label`. Outputs: `branch` (declared), `tickets` (closed tickets, recorded by oh).
 
 ### Fan-out (`fanout=true`, experimental)
 
@@ -213,6 +213,8 @@ Pause budget (CP-R2) in semi-auto: `cp-plan`, `cp-2`, `cp-final`, i.e. 3 pauses 
 6. `cp-final`: recap; a new `implement-spec` for the unmerged tickets. oh then removes the `oh/fanout/…` worktrees and branches (after `cp-merge`, or when the parent is stopped; never a branch whose commits are on no other branch: `oh fanout clean --discard`).
 
 Pause budget in semi-auto: `cp-plan`, `cp-merge`, `cp-final`, i.e. **3 pauses whatever the number of tickets** (2 more per fix round). Global budget (F-04): the parent and its children stay within `[fanout] budget_usd` (10 USD by default); beyond it, oh launches no more child and stops the running one (state `budget`), and each child gets what remains as its session budget. State: `oh fanout status <session>`; in `oh session list` and the TUI, a child is marked `↳` (with its ticket), the parent `⑂`. Guide: [Fan-out](../guides/fan-out.en.md).
+
+**In a container** (parent session launched with `--runtime container`): the children, the merger and the fix round run in the runtime of the parent, each in a container of its workflow with its worktree mounted; the driver, the merges and the closing of the tickets stay on the machine; the verifications (children and `cp-merge` on the integration branch) run in a container of the project image, never on the machine instead. Remote session: fan-out refused (to come). Details: [Fan-out › In a container](../guides/fan-out.en.md#in-a-container).
 
 ## `merge-conflicts`
 
