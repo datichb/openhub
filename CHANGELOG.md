@@ -9,6 +9,12 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Changed — TUI : touches harmonisées (lot tui-keys)
+
+- **Convention de touches unique** (paquet `tui/v2/keys`, vérifiée par `TestKeyConvention`) : partout `↑↓`/`jk`, `g`/`G`, `/` filtrer, `r` rafraîchir, `?` aide, `Entrée` ouvrir, `Échap` revenir ; listes `n` créer, `e` éditer, `d` supprimer (toujours confirmé), `x` archiver (jamais destructif), `R` reprendre/restaurer, `c` comparer ; décisions `y` valider, `n` refuser (avec consigne), `e` modifier, `s` laisser, `A` tout accepter. Tableau dans l'aide (`?`) et dans la référence TUI.
+- ⚠ Touches changées : `D`→`d` (supprimer une session), `c`→`R` (reprendre), `g`→`R` (récupérer une session distante), `r`→`R` (restaurer une version d'un workflow), `a`→`y` et `x`→`n` (accepter / refuser une proposition wiki), `D`→`c` (diff du brouillon d'un workflow). Les vues adoptent la convention au fil des lots TUI.
+- Message unique « Nouvelles touches » au lancement qui suit la mise à jour, à revoir depuis l'aide. Composant partagé « liste avec actions par élément » (propositions wiki, lots, fan-out, briques) : sans limite d'éléments, refus avec consigne, suppression confirmée.
+
 ### Changed — petits restes (lot p7-leftovers)
 
 - **`oh run -m "…"`** : raccourci de `-i request=…`, accepté seulement si le workflow lancé (alias résolu : `feature`, `cadrage`) a l'entrée `request` ; sinon refus avec ses entrées (`oh run feature --tickets … -m` lance `implement-spec` : `-i instructions=…`). `-m` et `-i request=` ensemble sont refusés. Docs : `-m` devient la forme courte.
