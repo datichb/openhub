@@ -129,7 +129,7 @@ Chaque convention détectée porte le tag de confiance approprié :
 
 **`docs/wiki/glossary.md`** (racine du wiki) — **optionnel**, créer uniquement si des termes de domaine ambigus sont détectés en Phase 1 (entités avec noms similaires, abréviations non évidentes, termes métier spécifiques au projet), au format du glossaire de `doc-wiki-protocol` (`- **Terme** : définition`, tagué). Sinon, ne pas la créer : un agent la proposera plus tard.
 
-ADR existants du projet (`docs/adr/`, `adr/`…) : ne pas les déplacer, les citer dans `## Décisions architecturales notables` d'`architecture.md`. `specs/` et `postmortems/` se créent plus tard (workflows `spec`, `incident`) : pas de dossier vide.
+ADR existants du projet (`docs/adr/`, `adr/`…) : ne pas les déplacer, les citer dans `## Décisions architecturales notables` d'`architecture.md`. `specs/`, `postmortems/` et `retros/` se créent plus tard (workflows `spec`, `incident` et de rétrospective) : pas de dossier vide.
 
 **`docs/wiki/decisions/decisions-rejetees.md`** — toujours créer cette page (même vide) pour que les agents puissent la consulter et l'enrichir :
 

@@ -59,10 +59,11 @@ docs/wiki/
 │   └── <domain>.md             ← règles de gestion, flux, entités, risques
 ├── specs/<sujet>.md            ← spécifications
 ├── decisions/                  ← ADR (NNN-<titre>.md) et decisions-rejetees.md (cycle ACTIVE/EXPIRED/SUPERSEDED)
-└── postmortems/YYYY-MM-DD-<incident>.md
+├── postmortems/YYYY-MM-DD-<incident>.md
+└── retros/YYYY-MM-DD-<sujet>.md  ← rétrospectives (workflow de rétrospective)
 ```
 
-Un seul référentiel : specs, glossaire, décisions et postmortems vivent dans `docs/wiki/`. `wiki_check` signale une page hors de cette arborescence (`layout`). Le champ `synced:` du frontmatter d'`index.md` est écrit par oh (`doc-sync`) : ne le modifie jamais.
+Un seul référentiel : specs, glossaire, décisions, postmortems et rétrospectives vivent dans `docs/wiki/`. `wiki_check` signale une page hors de cette arborescence (`layout`). Le champ `synced:` du frontmatter d'`index.md` est écrit par oh (`doc-sync`) : ne le modifie jamais.
 
 À la racine du projet :
 ```
@@ -145,7 +146,7 @@ format canonique ; un enrichissement d'une page existante n'en a pas besoin (sui
 | `docs/wiki/index.md`, `ONBOARDING.md` | `templates/wiki-pages-index.md` |
 | `technical/conventions.md`, `architecture.md`, `stack.md`, `tests.md`, `review-rules.md` | `templates/wiki-pages-technical.md` |
 | `business/index.md`, `business/<domain>.md` | `templates/wiki-pages-business.md` |
-| `glossary.md`, `specs/`, `decisions/`, `postmortems/` | `templates/wiki-pages-reference.md` |
+| `glossary.md`, `specs/`, `decisions/`, `postmortems/`, `retros/` | `templates/wiki-pages-reference.md` |
 
 **Règles des pages :**
 - `index.md` est la seule page que tous les agents lisent systématiquement. Elle doit rester compacte — 40-80 lignes maximum hors frontmatter
