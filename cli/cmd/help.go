@@ -55,7 +55,7 @@ var helpSectionOrder = []struct {
 	key      string
 	commands []string
 }{
-	{"help.section.workflows", []string{"run", "workflow", "bundle", "skill", "eval"}},
+	{"help.section.workflows", []string{"run", "workflow", "brick", "bundle", "skill", "eval"}},
 	{"help.section.session", []string{"session", "fanout", "budget", "start", "audit", "review", "debug", "takeover-brief"}},
 	{"help.section.project", []string{"project", "worktree", "board", "wiki"}},
 	{"help.section.mcp", []string{"mcp"}},

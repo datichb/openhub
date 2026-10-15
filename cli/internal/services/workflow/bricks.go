@@ -43,7 +43,19 @@ const (
 	DiagBrickBadExtends    = "brick_bad_extends"
 	DiagBrickDuplicate     = "brick_duplicate"
 	DiagBrickAnnexConflict = "brick_annex_conflict"
+	// Integrity of the sealed catalogue (catalog.lock, ADR-054).
+	DiagBrickUnlocked     = "brick_unlocked"
+	DiagBrickHashMismatch = "brick_hash_mismatch"
+	DiagBrickLockOrphan   = "brick_lock_orphan"
+	DiagBrickLockInvalid  = "brick_lock_invalid"
+	DiagBrickUnsafePath   = "brick_unsafe_path"
 )
+
+// brickDiagCodes are the codes of the refused team bricks.
+var brickDiagCodes = []string{
+	DiagBrickCollision, DiagBrickBadExtends, DiagBrickDuplicate, DiagBrickAnnexConflict,
+	DiagBrickUnlocked, DiagBrickHashMismatch, DiagBrickLockOrphan, DiagBrickLockInvalid, DiagBrickUnsafePath,
+}
 
 // Bricks is the brick catalogue of a context.
 type Bricks struct {
@@ -54,6 +66,18 @@ type Bricks struct {
 	Team []string `json:"team,omitempty"`
 	// Diagnostics are the refused team bricks (warnings).
 	Diagnostics wf.Diagnostics `json:"diagnostics,omitempty"`
+	// Shadows maps the team bricks that replace a hub brick (extends) to
+	// that brick ("skill:shared/x" → "hub:shared/x").
+	Shadows map[string]string `json:"shadows,omitempty"`
+	// Sources maps the team bricks in use to their file in the team-state.
+	Sources map[string]string `json:"sources,omitempty"`
+	// Root is the team-state of the catalogue ("" = hub only).
+	Root string `json:"-"`
+	// Sealed: catalog.lock exists, only sealed bricks are loaded.
+	Sealed bool `json:"sealed,omitempty"`
+	// Unsealed lists the team bricks loaded without a lock entry (catalogue
+	// committed by hand, never sealed: catalog.lock absent).
+	Unsealed []string `json:"unsealed,omitempty"`
 }
 
 func brickDiag(code, source string, args ...any) wf.Diagnostic {
@@ -93,7 +117,7 @@ func (s *Service) useTeamBricks(cat *catalog, ts *TeamState) error {
 	if s.HubDir == "" || !hasFiles(team) {
 		return nil
 	}
-	b, err := mergeBricks(s.HubDir, team, s.bricksCacheDir())
+	b, err := mergeBricks(s.HubDir, team, s.bricksCacheDir(), nil)
 	if err != nil {
 		return err
 	}
@@ -134,15 +158,35 @@ type teamBrick struct {
 	kind    string // agent | skill | annex
 	id      string // agent id, skill ref, annex path (relative to skills/)
 	src     string // absolute path
+	rel     string // path relative to the team-state root (catalog/…)
 	extends string // frontmatter extends ("" = none)
 	data    []byte
 }
 
-// mergeBricks builds (or reuses) the hub + team content directory.
-func mergeBricks(hubDir, teamDir, cacheRoot string) (*Bricks, error) {
-	bricks, err := readTeamBricks(teamDir)
+// mergeBricks builds (or reuses) the hub + team content directory. teamDir
+// is the catalog/ folder of a team-state; its catalog.lock (next to it)
+// decides which bricks are loaded. candidate, when not nil, is a brick
+// being validated (draft): it replaces the published brick of the same key
+// and is not checked against the lock.
+func mergeBricks(hubDir, teamDir, cacheRoot string, candidate *teamBrick) (*Bricks, error) {
+	bricks, unsafe, err := readTeamBricks(teamDir)
 	if err != nil {
 		return nil, err
+	}
+	out := &Bricks{Root: filepath.Dir(teamDir)}
+	for _, u := range unsafe {
+		out.Diagnostics = append(out.Diagnostics, brickDiag(DiagBrickUnsafePath, u, u))
+	}
+	bricks, out.Diagnostics = checkBricksLock(filepath.Dir(teamDir), bricks, candidate, out, out.Diagnostics)
+	if candidate != nil {
+		kept := make([]teamBrick, 0, len(bricks)+1)
+		for _, b := range bricks {
+			if b.kind != candidate.kind || b.id != candidate.id {
+				kept = append(kept, b)
+			}
+		}
+		kept = append(kept, *candidate)
+		bricks = kept
 	}
 	hubAgents, err := listFiles(filepath.Join(hubDir, "agents"), ".md")
 	if err != nil {
@@ -164,7 +208,6 @@ func mergeBricks(hubDir, teamDir, cacheRoot string) (*Bricks, error) {
 		}
 	}
 
-	out := &Bricks{}
 	type placed struct {
 		dst  string
 		data []byte
@@ -187,12 +230,14 @@ func mergeBricks(hubDir, teamDir, cacheRoot string) (*Bricks, error) {
 					continue
 				}
 				dst = filepath.Join("agents", hubRel)
+				out.shadow(key, "hub:"+b.id)
 			} else if b.extends != "" {
 				out.Diagnostics = append(out.Diagnostics, brickDiag(DiagBrickBadExtends, b.src, key, b.extends))
 				continue
 			}
 			files = append(files, placed{dst, stripExtends(b.data)})
 			out.Team = append(out.Team, key)
+			out.source(key, b.src)
 		case "skill":
 			name := filepath.Base(b.id)
 			key := "skill:" + b.id
@@ -209,12 +254,14 @@ func mergeBricks(hubDir, teamDir, cacheRoot string) (*Bricks, error) {
 				}
 				dst = filepath.Join("skills", filepath.FromSlash(hubRef)+".md")
 				key = "skill:" + hubRef
+				out.shadow(key, "hub:"+hubRef)
 			} else if b.extends != "" {
 				out.Diagnostics = append(out.Diagnostics, brickDiag(DiagBrickBadExtends, b.src, key, b.extends))
 				continue
 			}
 			files = append(files, placed{dst, stripExtends(b.data)})
 			out.Team = append(out.Team, key)
+			out.source(key, b.src)
 		case "annex":
 			dst := filepath.Join("skills", b.id)
 			if _, err := os.Stat(filepath.Join(hubDir, dst)); err == nil {
@@ -279,38 +326,133 @@ func cacheRoot0(root string) string {
 	return root
 }
 
-// readTeamBricks lists the agents, skills and annexes of the team catalogue.
-func readTeamBricks(teamDir string) ([]teamBrick, error) {
-	var out []teamBrick
+// readTeamBricks lists the agents, skills and annexes of the team catalogue
+// (drafts and history aside). Links are refused: nothing outside catalog/
+// reaches a bundle (ADR-051, ADR-054); unsafe lists them.
+func readTeamBricks(teamDir string) (out []teamBrick, unsafe []string, err error) {
+	root := filepath.Dir(teamDir)
+	read := func(dir, rel string) ([]byte, bool, error) {
+		src := filepath.Join(teamDir, dir, rel)
+		if st, err := os.Lstat(src); err != nil {
+			return nil, false, err
+		} else if !st.Mode().IsRegular() {
+			unsafe = append(unsafe, src)
+			return nil, false, nil
+		}
+		data, err := os.ReadFile(src)
+		return data, err == nil, err
+	}
 	agents, err := listFiles(filepath.Join(teamDir, "agents"), ".md")
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	for _, rel := range agents {
-		src := filepath.Join(teamDir, "agents", rel)
-		data, err := os.ReadFile(src)
+		data, ok, err := read("agents", rel)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		out = append(out, teamBrick{kind: "agent", id: strings.TrimSuffix(filepath.Base(rel), ".md"), src: src, data: data, extends: frontmatterExtends(data)})
+		if !ok {
+			continue
+		}
+		src := filepath.Join(teamDir, "agents", rel)
+		r, _ := filepath.Rel(root, src)
+		out = append(out, teamBrick{kind: "agent", id: strings.TrimSuffix(filepath.Base(rel), ".md"), src: src, rel: r, data: data, extends: frontmatterExtends(data)})
 	}
 	skills, err := listFiles(filepath.Join(teamDir, "skills"), "")
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	for _, rel := range skills {
-		src := filepath.Join(teamDir, "skills", rel)
-		data, err := os.ReadFile(src)
+		data, ok, err := read("skills", rel)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
+		if !ok {
+			continue
+		}
+		src := filepath.Join(teamDir, "skills", rel)
+		r, _ := filepath.Rel(root, src)
 		if strings.HasSuffix(rel, ".md") && !strings.HasPrefix(rel, "templates"+string(filepath.Separator)) {
-			out = append(out, teamBrick{kind: "skill", id: filepath.ToSlash(strings.TrimSuffix(rel, ".md")), src: src, data: data, extends: frontmatterExtends(data)})
+			out = append(out, teamBrick{kind: "skill", id: filepath.ToSlash(strings.TrimSuffix(rel, ".md")), src: src, rel: r, data: data, extends: frontmatterExtends(data)})
 		} else {
-			out = append(out, teamBrick{kind: "annex", id: rel, src: src, data: data})
+			out = append(out, teamBrick{kind: "annex", id: rel, src: src, rel: r, data: data})
 		}
 	}
-	return out, nil
+	return out, unsafe, nil
+}
+
+// checkBricksLock keeps the bricks catalog.lock allows. Without the lock
+// (catalogue never sealed), every brick is kept and listed in Unsealed.
+// With it, a brick without entry, at another path or whose content changed
+// is refused; an entry without file is reported. Annexes are not sealed.
+func checkBricksLock(root string, bricks []teamBrick, candidate *teamBrick, out *Bricks, diags wf.Diagnostics) ([]teamBrick, wf.Diagnostics) {
+	lock, sealed, err := teamstate.ReadBricksLock(root)
+	lockFile := filepath.Join(root, teamstate.BricksLockFile)
+	if err != nil {
+		var kept []teamBrick
+		for _, b := range bricks {
+			if b.kind == "annex" {
+				kept = append(kept, b)
+			}
+		}
+		return kept, append(diags, brickDiag(DiagBrickLockInvalid, lockFile, err))
+	}
+	out.Sealed = sealed
+	var kept []teamBrick
+	seen := map[string]bool{}
+	for _, b := range bricks {
+		if b.kind == "annex" {
+			kept = append(kept, b)
+			continue
+		}
+		key := teamstate.BrickKey(b.kind, b.id)
+		if teamstate.ValidBrickID(b.kind, b.id) != nil {
+			diags = append(diags, brickDiag(DiagBrickUnsafePath, b.src, b.src))
+			continue
+		}
+		if candidate != nil && candidate.kind == b.kind && candidate.id == b.id {
+			seen[key] = true
+			continue // replaced by the candidate
+		}
+		if !sealed {
+			out.Unsealed = append(out.Unsealed, key)
+			kept = append(kept, b)
+			continue
+		}
+		e, ok := lock.Get(b.kind, b.id)
+		if ok {
+			seen[key] = true
+		}
+		switch {
+		case !ok || e.CheckPath(b.kind, b.id) != nil || filepath.ToSlash(e.Path) != filepath.ToSlash(b.rel):
+			diags = append(diags, brickDiag(DiagBrickUnlocked, b.src, key))
+			continue
+		case teamstate.HashContent(b.data) != e.Hash:
+			diags = append(diags, brickDiag(DiagBrickHashMismatch, b.src, key, e.Version))
+			continue
+		}
+		kept = append(kept, b)
+	}
+	for _, key := range lock.Keys() {
+		if !seen[key] {
+			diags = append(diags, brickDiag(DiagBrickLockOrphan, lockFile, key))
+		}
+	}
+	return kept, diags
+}
+
+func (b *Bricks) shadow(key, hub string) {
+	if b.Shadows == nil {
+		b.Shadows = map[string]string{}
+	}
+	b.Shadows[key] = hub
+}
+
+func (b *Bricks) source(key, src string) {
+	if b.Sources == nil {
+		b.Sources = map[string]string{}
+	}
+	b.Sources[key] = src
 }
 
 // listFiles returns the files under dir (relative paths, sorted), with ext
