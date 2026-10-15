@@ -1,18 +1,14 @@
 ---
-page: architecture
-title: Vue d'ensemble de l'architecture
-confidence: CONFIRMED
-sources:
-  - cli/cmd/root.go
-  - cli/internal/bundle/build.go
-  - cli/internal/runsvc/service.go
-  - docs/architecture/overview.fr.md
-last_updated: 2026-10-06
+updated: 2026-10-15
+confidence: confirmed
+agents: [onboarder]
 ---
 
 > [Read in English](architecture.en.md)
 
 # Vue d'ensemble de l'architecture
+
+Sources de la page — `CONFIRMÉ` · onboarder · 2026-10-06 · cli/cmd/root.go, cli/internal/bundle/build.go, cli/internal/runsvc/service.go, docs/architecture/overview.fr.md
 
 ## Conception du systeme
 
@@ -84,11 +80,11 @@ Les agents, skills, permissions et workflows livres sont compiles dans le binair
 
 ## Monde ferme
 
-Une session ne voit que les agents et les skills de son paquet : agents natifs d'opencode desactives, skills integrees refusees, agents hors du workflow invisibles. L'adaptateur le verifie a chaque demarrage de serveur (`Attest`) ; en cas d'ecart, la session ne demarre pas. Voir [ADR-041](../architecture/adr/041-closed-world-isolation.fr.md).
+Une session ne voit que les agents et les skills de son paquet : agents natifs d'opencode desactives, skills integrees refusees, agents hors du workflow invisibles. L'adaptateur le verifie a chaque demarrage de serveur (`Attest`) ; en cas d'ecart, la session ne demarre pas. Voir [ADR-041](../../architecture/adr/041-closed-world-isolation.fr.md).
 
 ## Secrets et demon
 
-Le demon `ohd` heberge le proxy d'identifiants : opencode ne recoit qu'un jeton de groupe (`ohs_…`), la vraie cle reste dans le trousseau (listes blanches de chemins et de modeles, SigV4 pour les profils AWS). Le socket du demon est en 0600 avec verification de l'UID du pair ; les routes qui emettent des jetons exigent une capacite (`X-Oh-Capability`). Sous Windows, le demon tourne dans le processus oh. Voir [SECURITY](../../SECURITY.fr.md) et [ADR-044](../architecture/adr/044-credential-proxy-session-limits.fr.md).
+Le demon `ohd` heberge le proxy d'identifiants : opencode ne recoit qu'un jeton de groupe (`ohs_…`), la vraie cle reste dans le trousseau (listes blanches de chemins et de modeles, SigV4 pour les profils AWS). Le socket du demon est en 0600 avec verification de l'UID du pair ; les routes qui emettent des jetons exigent une capacite (`X-Oh-Capability`). Sous Windows, le demon tourne dans le processus oh. Voir [SECURITY](../../../SECURITY.fr.md) et [ADR-044](../../architecture/adr/044-credential-proxy-session-limits.fr.md).
 
 ## Architecture MCP
 
@@ -102,11 +98,11 @@ Les serveurs MCP d'oh actives pour le projet sont declares dans le paquet de ses
 | conteneur | un conteneur par groupe (Colima, Podman, Docker CLI), image de dev du projet + couche oh, paquet en lecture seule | cles (proxy), Beads (passerelle), serveurs MCP d'oh (passerelle) |
 | distant | job GitLab CI du projet `oh-runner` | cles ; Beads : instantane en entree, journal en sortie, rejoue par `oh session resolve` |
 
-Voir [ADR-045](../architecture/adr/045-execution-environments.fr.md) et [ADR-046](../architecture/adr/046-beads-gateways.fr.md).
+Voir [ADR-045](../../architecture/adr/045-execution-environments.fr.md) et [ADR-046](../../architecture/adr/046-beads-gateways.fr.md).
 
 ## Workflows et sessions
 
-Chaque session est lancee depuis un workflow declaratif (`oh run <workflow>` ou la fiche de lancement de la TUI) et se suit dans la vue **Sessions** ou avec `oh session …`. Voir [Workflows livres](../reference/workflows.fr.md).
+Chaque session est lancee depuis un workflow declaratif (`oh run <workflow>` ou la fiche de lancement de la TUI) et se suit dans la vue **Sessions** ou avec `oh session …`. Voir [Workflows livres](../../reference/workflows.fr.md).
 
 | Usage | Point d'entree | Description |
 |------|---------------|-------------|

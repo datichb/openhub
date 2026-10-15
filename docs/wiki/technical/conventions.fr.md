@@ -1,16 +1,14 @@
 ---
-page: conventions
-title: Conventions
-confidence: CONFIRMED
-sources:
-  - docs/guides/contributing.fr.md
-  - skills/shared/team-policies-enforcement.md
-last_updated: 2026-10-06
+updated: 2026-10-15
+confidence: confirmed
+agents: [onboarder]
 ---
 
 > [Read in English](conventions.en.md)
 
 # Conventions
+
+Sources de la page — `CONFIRMÉ` · onboarder · 2026-10-06 · docs/guides/contributing.fr.md, skills/shared/team-policies-enforcement.md
 
 ## Format des commits
 
@@ -47,7 +45,7 @@ L'ancien prefixe `sweep/<slug>` (une branche par sous-tache du mode sweep) n'est
 ## Style de code
 
 - **Go** : formatage `gofmt -s` obligatoire, `golangci-lint` v2.1+ avec `bodyclose`, `gocritic`, `misspell`, `nilerr`, sans aucun signalement (`make lint` : macOS, Linux, Windows, avec les tags de test)
-- **Indépendance vis-à-vis de l'outil** (D19, [ADR-049](../architecture/adr/049-tool-independence-architecture-guard.fr.md)) : rien de propre à l'outil des sessions hors de `internal/adapters/<outil>` ; passer par l'interface ou une capacité de l'adaptateur, le nom affiché vient de `ToolInfo.DisplayName`. Le test `internal/archtest` le vérifie
+- **Indépendance vis-à-vis de l'outil** (D19, [ADR-049](../../architecture/adr/049-tool-independence-architecture-guard.fr.md)) : rien de propre à l'outil des sessions hors de `internal/adapters/<outil>` ; passer par l'interface ou une capacité de l'adaptateur, le nom affiché vient de `ToolInfo.DisplayName`. Le test `internal/archtest` le vérifie
 - **Markdown** : bilingue FR/EN pour les docs utilisateur (`README`, `SECURITY`, `docs/guides/`, `docs/reference/`, `docs/architecture/` et ses ADR, `docs/wiki/`), avec les memes sections dans les deux langues et un lien de langue en ligne 1 (juste apres le frontmatter pour les pages du wiki) ; les docs dev-internes (`docs/dev/`) sont monolingues
 - **TOML** : utilise pour toute configuration (`hub.toml`, team-state `config.toml`) ; les workflows sont en YAML (`apiVersion: oh/v1`)
 

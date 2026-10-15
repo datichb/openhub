@@ -1,18 +1,14 @@
 ---
-page: architecture
-title: Architecture Overview
-confidence: CONFIRMED
-sources:
-  - cli/cmd/root.go
-  - cli/internal/bundle/build.go
-  - cli/internal/runsvc/service.go
-  - docs/architecture/overview.en.md
-last_updated: 2026-10-06
+updated: 2026-10-15
+confidence: confirmed
+agents: [onboarder]
 ---
 
 > [Lire en francais](architecture.fr.md)
 
 # Architecture Overview
+
+Sources of the page — `CONFIRMÉ` · onboarder · 2026-10-06 · cli/cmd/root.go, cli/internal/bundle/build.go, cli/internal/runsvc/service.go, docs/architecture/overview.en.md
 
 ## System Design
 
@@ -84,11 +80,11 @@ Agents, skills, permissions and the shipped workflows are compiled into the bina
 
 ## Closed World
 
-A session sees only the agents and skills of its bundle: opencode's native agents are disabled, built-in skills refused, agents outside the workflow invisible. The adapter checks it at each server start (`Attest`); on mismatch, the session does not start. See [ADR-041](../architecture/adr/041-closed-world-isolation.en.md).
+A session sees only the agents and skills of its bundle: opencode's native agents are disabled, built-in skills refused, agents outside the workflow invisible. The adapter checks it at each server start (`Attest`); on mismatch, the session does not start. See [ADR-041](../../architecture/adr/041-closed-world-isolation.en.md).
 
 ## Secrets and the Daemon
 
-The `ohd` daemon hosts the credential proxy: opencode gets only a per-group token (`ohs_…`), the real key stays in the keychain (path and model allow-lists, SigV4 for AWS profiles). The daemon socket is 0600 with peer UID check; routes that issue tokens require a capability (`X-Oh-Capability`). On Windows the daemon runs inside the oh process. See [SECURITY](../../SECURITY.md) and [ADR-044](../architecture/adr/044-credential-proxy-session-limits.en.md).
+The `ohd` daemon hosts the credential proxy: opencode gets only a per-group token (`ohs_…`), the real key stays in the keychain (path and model allow-lists, SigV4 for AWS profiles). The daemon socket is 0600 with peer UID check; routes that issue tokens require a capability (`X-Oh-Capability`). On Windows the daemon runs inside the oh process. See [SECURITY](../../../SECURITY.md) and [ADR-044](../../architecture/adr/044-credential-proxy-session-limits.en.md).
 
 ## MCP Architecture
 
@@ -102,11 +98,11 @@ The oh MCP servers enabled for the project are declared in the session bundle as
 | container | one container per group (Colima, Podman, Docker CLI), project dev image + oh layer, bundle read-only | keys (proxy), Beads (gateway), oh MCP servers (gateway) |
 | remote | GitLab CI job of the `oh-runner` project | keys; Beads: snapshot in, journal out, replayed with `oh session resolve` |
 
-See [ADR-045](../architecture/adr/045-execution-environments.en.md) and [ADR-046](../architecture/adr/046-beads-gateways.en.md).
+See [ADR-045](../../architecture/adr/045-execution-environments.en.md) and [ADR-046](../../architecture/adr/046-beads-gateways.en.md).
 
 ## Workflows and Sessions
 
-Every session is launched from a declarative workflow (`oh run <workflow>` or the TUI launch form) and is followed in the **Sessions** view or with `oh session …`. See [Shipped workflows](../reference/workflows.en.md).
+Every session is launched from a declarative workflow (`oh run <workflow>` or the TUI launch form) and is followed in the **Sessions** view or with `oh session …`. See [Shipped workflows](../../reference/workflows.en.md).
 
 | Use | Entry Point | Description |
 |------|------------|-------------|

@@ -1,16 +1,14 @@
 ---
-page: conventions
-title: Conventions
-confidence: CONFIRMED
-sources:
-  - docs/guides/contributing.en.md
-  - skills/shared/team-policies-enforcement.md
-last_updated: 2026-10-06
+updated: 2026-10-15
+confidence: confirmed
+agents: [onboarder]
 ---
 
 > [Lire en francais](conventions.fr.md)
 
 # Conventions
+
+Sources of the page — `CONFIRMÉ` · onboarder · 2026-10-06 · docs/guides/contributing.en.md, skills/shared/team-policies-enforcement.md
 
 ## Commit Format
 
@@ -47,7 +45,7 @@ The former `sweep/<slug>` prefix (one branch per subtask of the sweep mode) is n
 ## Code Style
 
 - **Go**: `gofmt -s` formatting enforced, `golangci-lint` v2.1+ with `bodyclose`, `gocritic`, `misspell`, `nilerr`, with no finding at all (`make lint`: macOS, Linux, Windows, with the test tags)
-- **Tool independence** (D19, [ADR-049](../architecture/adr/049-tool-independence-architecture-guard.en.md)): nothing specific to the session tool outside `internal/adapters/<tool>`; go through the interface or a capability of the adapter, the displayed name comes from `ToolInfo.DisplayName`. The `internal/archtest` test checks it
+- **Tool independence** (D19, [ADR-049](../../architecture/adr/049-tool-independence-architecture-guard.en.md)): nothing specific to the session tool outside `internal/adapters/<tool>`; go through the interface or a capability of the adapter, the displayed name comes from `ToolInfo.DisplayName`. The `internal/archtest` test checks it
 - **Markdown**: bilingual FR/EN for user-facing docs (`README`, `SECURITY`, `docs/guides/`, `docs/reference/`, `docs/architecture/` and its ADRs, `docs/wiki/`), with the same sections in both languages and a language link on line 1 (right after the frontmatter for wiki pages); dev-internal docs (`docs/dev/`) are monolingual
 - **TOML**: used for all configuration (`hub.toml`, team-state `config.toml`); workflows are YAML (`apiVersion: oh/v1`)
 

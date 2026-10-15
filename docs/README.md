@@ -213,10 +213,10 @@ Diagram sources (`.mermaid`, one diagram per file) live in [`diagrams/`](diagram
 
 | Page | Description |
 |------|-------------|
-| [Wiki index](wiki/README.md) | Entry point of the project wiki |
-| [Architecture](wiki/architecture.en.md) | System architecture overview |
-| [Stack](wiki/stack.en.md) | Technology stack and dependencies |
-| [Conventions](wiki/conventions.en.md) | Code style, commit format, review process |
+| [Wiki index](wiki/index.md) | Entry point of the project wiki |
+| [Architecture](wiki/technical/architecture.en.md) | System architecture overview |
+| [Stack](wiki/technical/stack.en.md) | Technology stack and dependencies |
+| [Conventions](wiki/technical/conventions.en.md) | Code style, commit format, review process |
 | [Config Cascade](wiki/technical/config-cascade.en.md) | Configuration resolution across levels |
 
 ---
