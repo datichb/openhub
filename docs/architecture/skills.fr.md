@@ -589,4 +589,4 @@ Retours entre agents (L5) : l'agent lancé inclut `handoff-envelope` et son payl
 | `benchmarker` | core-posture, user-facing-posture, wiki-navigation | living-docs-enrichment |
 | `brief-enricher` | — (`skills: []`) | — (communs seulement) |
 
-Chaque agent livré est membre d'au moins un des 22 workflows livrés. Les skills de stack s'ajoutent à chaque paquet selon le projet ([Skills de stack](#skills-de-stack--developerstacks)).
+Chaque agent livré est membre d'au moins un des 24 workflows livrés. Les skills de stack s'ajoutent à chaque paquet selon le projet ([Skills de stack](#skills-de-stack--developerstacks)).

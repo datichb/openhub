@@ -122,7 +122,7 @@ Dans la TUI, **Démarrer** liste les workflows (★ épinglés, récents), ouvre
 
 ## Workflows
 
-Les 22 workflows livrés par le hub :
+Les 24 workflows livrés par le hub :
 
 | Workflow | Agent d'entrée | Usage |
 |----------|----------------|-------|
@@ -138,6 +138,8 @@ Les 22 workflows livrés par le hub :
 | `debug` | `debugger` | Diagnostiquer un bug (`-i issue="…"`) |
 | `incident` | `debugger` | Atténuer un incident, postmortem sans blâme dans le wiki, actions en tickets |
 | `spike` | `pathfinder` | Trancher une question technique : recherche, prototype jetable, décision go / clarify / kill |
+| `retro` | `debugger` | Rétrospective sourcée de sessions passées (trace), sans blâme, page dans `docs/wiki/retros/`, actions en tickets |
+| `triage` | `planner` | Trier des tickets ou des constats : priorité, doublons, étiquettes, découpage, montrés à `cp-triage` avant toute écriture |
 | `benchmark` | `benchmarker` | Mesurer les performances, avant/après (`-i target=…`) |
 | `infra-change` | `operator` | Appliquer un changement d'infrastructure déjà écrit : plan, validation, application (`-i target=staging`) |
 | `onboarding` | `onboarder` | Découvrir un projet, créer ou mettre à jour son wiki (`docs/wiki/`) |

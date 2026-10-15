@@ -589,4 +589,4 @@ Returns between agents (L5): the launched agent inlines `handoff-envelope` and i
 | `benchmarker` | core-posture, user-facing-posture, wiki-navigation | living-docs-enrichment |
 | `brief-enricher` | — (`skills: []`) | — (common skills only) |
 
-Every shipped agent is a member of at least one of the 22 shipped workflows. Stack skills are added to each bundle depending on the project ([Stack skills](#stack-skills--developerstacks)).
+Every shipped agent is a member of at least one of the 24 shipped workflows. Stack skills are added to each bundle depending on the project ([Stack skills](#stack-skills--developerstacks)).

@@ -122,7 +122,7 @@ In the TUI, **Start** lists the workflows (★ pinned, recent ones), opens the l
 
 ## Workflows
 
-The 22 workflows shipped by the hub:
+The 24 workflows shipped by the hub:
 
 | Workflow | Entry agent | Use |
 |----------|-------------|-----|
@@ -138,6 +138,8 @@ The 22 workflows shipped by the hub:
 | `debug` | `debugger` | Diagnose a bug (`-i issue="…"`) |
 | `incident` | `debugger` | Mitigate an incident, blameless postmortem in the wiki, actions as tickets |
 | `spike` | `pathfinder` | Settle a technical question: research, throwaway prototype, go / clarify / kill decision |
+| `retro` | `debugger` | Sourced retrospective of past sessions (trace), blameless, page in `docs/wiki/retros/`, action tickets |
+| `triage` | `planner` | Triage tickets or findings: priority, duplicates, labels, split, shown at `cp-triage` before any write |
 | `benchmark` | `benchmarker` | Measure performance, before/after (`-i target=…`) |
 | `infra-change` | `operator` | Apply an infrastructure change already written: plan, approval, apply (`-i target=staging`) |
 | `onboarding` | `onboarder` | Discover a project, create or update its wiki (`docs/wiki/`) |
