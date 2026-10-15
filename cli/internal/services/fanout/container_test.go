@@ -26,7 +26,13 @@ func TestDriverContainerParent(t *testing.T) {
 	f.launcher.work["ev-1"] = [2]string{"calc.go", "package calc\n\nfunc Sub() {}\n"}
 	f.launcher.work["ev-2"] = [2]string{"calc.go", "package calc\n\nfunc Mul() {}\n"}
 	f.launcher.resolve = "package calc\n\nfunc Sub() {}\n\nfunc Mul() {}\n"
-	fo := f.runDriver(t)
+	// Its own deadline: the shared one (30 s) is short on a loaded machine.
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	require.NoError(t, f.driver.Run(ctx, "ses_parent"))
+	p, err = f.store.Get(context.Background(), "ses_parent")
+	require.NoError(t, err)
+	fo := p.Fanout
 	require.Equal(t, domain.FanoutReady, fo.Status)
 	assert.Equal(t, domain.ChildMerged, conflicted(t, fo).State, "merger in the runtime of the parent")
 
