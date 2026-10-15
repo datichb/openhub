@@ -210,9 +210,15 @@ func TestWorkflowEditorGeneralUndoSave(t *testing.T) {
 	env.key(tcell.KeyEscape, 0)
 	assert.Equal(t, 1, env.sh.popped, "no guard once saved")
 
-	// x goes back to the inherited value.
+	// x does nothing; d goes back to the inherited value after a
+	// confirmation.
 	env.selectField(t, "Risk")
 	env.key(tcell.KeyRune, 'x')
+	assert.Nil(t, env.sh.confirm)
+	env.key(tcell.KeyRune, 'd')
+	require.NotNil(t, env.sh.confirm)
+	assert.Contains(t, env.text(), "risk:", "nothing removed before the confirmation")
+	onLoop(env.app, env.sh.confirm)
 	assert.NotContains(t, env.text(), "risk:")
 }
 
@@ -303,12 +309,12 @@ func TestWorkflowEditorGraph(t *testing.T) {
 	onLoop(env.app, func() { env.sh.selectFn("debugger") })
 	assert.Contains(t, env.text(), "debugger:\n    role: workflow")
 
-	// x on an inherited checkpoint: disabled in the draft.
+	// d on an inherited checkpoint: disabled in the draft (confirmed).
 	env.waitCheck(t)
 	onLoop(env.app, func() { env.v.graph.Select("cp-1") })
-	env.key(tcell.KeyRune, 'x')
-	require.NotEmpty(t, env.sh.modal)
-	onLoop(env.app, func() { env.sh.modal[0].Callback() })
+	env.key(tcell.KeyRune, 'd')
+	require.NotNil(t, env.sh.confirm)
+	onLoop(env.app, env.sh.confirm)
 	assert.Contains(t, env.text(), "cp-1:\n    disabled: true")
 
 	// m cycles the shown mode.
@@ -342,7 +348,7 @@ func TestWorkflowEditorInputsAndRaw(t *testing.T) {
 	onLoop(env.app, func() { prompt = env.v.m.savePrompt() })
 	assert.Equal(t, "Hotfix {{ .ticket }}", string(prompt))
 
-	env.key(tcell.KeyRune, 'y')
+	env.key(tcell.KeyRune, 'Y')
 	assert.Contains(t, env.text(), "description: Raw")
 	assert.Equal(t, []string{"prompt.md.tmpl", "ticket-hotfix.yaml"}, external)
 }

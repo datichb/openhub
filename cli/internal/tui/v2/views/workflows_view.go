@@ -11,6 +11,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
@@ -327,9 +328,9 @@ func (v *WorkflowCatalogView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 			}
 			return nil
 		}
-	case 'p', 'D':
+	case 'p', keys.Compare.Rune():
 		fn := v.cfg.Publish
-		if event.Rune() == 'D' {
+		if event.Rune() == keys.Compare.Rune() {
 			fn = v.cfg.Diff
 		}
 		if ok && fn != nil {
@@ -349,9 +350,14 @@ func (v *WorkflowCatalogView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 			}
 			return nil
 		}
-	case 'x':
+	case keys.Archive.Rune():
 		if ok {
-			v.askRemove(e)
+			v.askArchive(e)
+			return nil
+		}
+	case keys.Delete.Rune():
+		if ok {
+			v.askDiscard(e)
 			return nil
 		}
 	case 'r':
@@ -494,22 +500,35 @@ func (v *WorkflowCatalogView) submitNew(n CatalogNew) {
 
 // askRemove archives a published workflow (with a message) or discards a
 // draft, after confirmation.
-func (v *WorkflowCatalogView) askRemove(e CatalogEntry) {
+// askArchive is x: archive a published workflow (its versions stay in the
+// history, R restores one). A draft is discarded with d.
+func (v *WorkflowCatalogView) askArchive(e CatalogEntry) {
 	if v.shell == nil {
 		return
 	}
 	switch {
-	case e.Draft && v.cfg.Discard != nil:
-		v.shell.ShowScrollableModal(i18n.Tf("tui.catalog.edit.discard_title", e.Ref), i18n.T("tui.catalog.edit.discard_body"), []ModalAction{
-			{Label: i18n.T("tui.catalog.edit.discard"), Callback: func() { v.cfg.Discard(e) }},
-			{Label: i18n.T("tui.catalog.edit.cancel"), Callback: func() {}, Separator: true},
-		})
+	case e.Draft:
+		v.toast(i18n.T("tui.catalog.edit.archive_draft"), false)
 	case e.ReadOnly:
 		v.toast(i18n.T("tui.catalog.edit.hub_read_only"), false)
 	case v.cfg.Archive != nil:
 		v.shell.ShowInputModal(i18n.Tf("tui.catalog.edit.archive_title", e.Ref), "", func(msg string) {
 			v.cfg.Archive(e, strings.TrimSpace(msg))
 		})
+	}
+}
+
+// askDiscard is d: discard a draft, after a confirmation (destructive).
+func (v *WorkflowCatalogView) askDiscard(e CatalogEntry) {
+	if v.shell == nil {
+		return
+	}
+	switch {
+	case !e.Draft:
+		v.toast(i18n.T("tui.catalog.edit.discard_published"), false)
+	case v.cfg.Discard != nil:
+		v.shell.Confirm(i18n.Tf("tui.catalog.edit.discard_title", e.Ref), i18n.T("tui.catalog.edit.discard_body"), true,
+			func() { v.cfg.Discard(e) })
 	}
 }
 

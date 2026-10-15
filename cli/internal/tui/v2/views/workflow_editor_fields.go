@@ -28,7 +28,7 @@ type edField struct {
 	boolean bool
 	// edit asks for a new value (Enter).
 	edit func()
-	// remove overrides the default removal (x).
+	// remove overrides the default removal (d).
 	remove func()
 	// action replaces the edit (an « add » or « $EDITOR » line).
 	action func()
@@ -502,7 +502,9 @@ func (v *WorkflowEditorView) inputField(id string, in workflow.Input) *edField {
 				v.toast(i18n.T("tui.editor.inputs.inherited"), false)
 				return
 			}
-			v.edit(func(e *workflow.DocEdit) error { e.Unset("inputs", id); return nil })
+			v.confirmRemove(i18n.Tf("tui.editor.inputs.remove_title", id), i18n.T("tui.editor.inputs.remove_body"), func() {
+				v.edit(func(e *workflow.DocEdit) error { e.Unset("inputs", id); return nil })
+			})
 		},
 	}
 }
@@ -844,19 +846,16 @@ func (v *WorkflowEditorView) removeGraphElement() {
 		return
 	}
 	id, inherited := sel.ID, v.inherited(key+"."+sel.ID)
-	v.shell.ShowScrollableModal(i18n.Tf("tui.editor.graph.remove_title", id), i18n.T("tui.editor.graph.remove_body_"+map[bool]string{true: "inherited", false: "own"}[inherited]), []ModalAction{
-		{Label: i18n.T("tui.editor.graph.remove"), Callback: func() {
-			v.edit(func(e *workflow.DocEdit) error {
-				if !inherited {
-					e.Unset(key, id)
-					return nil
-				}
-				if key == "agents" {
-					return e.Set(string(workflow.RoleDisabled), key, id, "role")
-				}
-				return e.Set(true, key, id, "disabled")
-			})
-		}},
-		{Label: i18n.T("tui.catalog.edit.cancel"), Callback: func() {}, Separator: true},
+	v.confirmRemove(i18n.Tf("tui.editor.graph.remove_title", id), i18n.T("tui.editor.graph.remove_body_"+map[bool]string{true: "inherited", false: "own"}[inherited]), func() {
+		v.edit(func(e *workflow.DocEdit) error {
+			if !inherited {
+				e.Unset(key, id)
+				return nil
+			}
+			if key == "agents" {
+				return e.Set(string(workflow.RoleDisabled), key, id, "role")
+			}
+			return e.Set(true, key, id, "disabled")
+		})
 	})
 }

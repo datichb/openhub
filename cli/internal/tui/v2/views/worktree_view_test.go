@@ -84,8 +84,8 @@ func (s *confirmShell) take() (titles []string, yes func()) {
 	return append([]string(nil), s.titles...), s.pending
 }
 
-// Worktrees: d, p and x ask first; nothing happens before the
-// confirmation; x keeps a worktree used by a session (N19).
+// Worktrees: d, p and M ask first; nothing happens before the
+// confirmation; M keeps a worktree used by a session (N19).
 func TestWorktreeViewConfirmsDestructiveKeys(t *testing.T) {
 	git := &fakeWorktrees{entries: []worktree.Entry{
 		{Path: "/p", Branch: "main"},
@@ -127,7 +127,7 @@ func TestWorktreeViewConfirmsDestructiveKeys(t *testing.T) {
 	onLoop(app, yes)
 	require.Eventually(t, func() bool { _, p, _ := git.state(); return p == 1 }, 2*time.Second, 10*time.Millisecond)
 
-	press('x')
+	press(cleanupMergedKey)
 	titles, yes = sh.take()
 	assert.Len(t, titles, 3)
 	onLoop(app, yes)

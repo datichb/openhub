@@ -596,7 +596,7 @@ func (v *SettingsView) editTokenKey(f *configField) {
 					}
 					ctx := context.Background()
 					if err := v.cfg.SetSecret(ctx, keyName, value); err != nil {
-						v.shell.ShowToastMsg(i18n.T("tui.settings.error")+": "+err.Error(), false)
+						v.shell.ShowToastMsg(errorText(err), false)
 						return
 					}
 					v.shell.ShowToastMsg(i18n.T("tui.settings.secret_updated"), true)

@@ -2,6 +2,7 @@ package views
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -13,8 +14,30 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tracker"
+	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
+
+// TrackerCredentialsError is the error of a tracker sync that has no
+// credentials: the team detail then offers to type the token.
+type TrackerCredentialsError struct {
+	// Msg is the translated message (« credentials manquants… »).
+	Msg string
+	Err error
+}
+
+func (e *TrackerCredentialsError) Error() string {
+	if e.Err == nil {
+		return e.Msg
+	}
+	return e.Msg + ": " + e.Err.Error()
+}
+
+func (e *TrackerCredentialsError) Unwrap() error { return e.Err }
+
+// discoverKey launches the tracker discovery wizard (T: tracker; y is
+// accept in the key convention).
+const discoverKey = 'T'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -41,7 +64,7 @@ type TeamDetailViewConfig struct {
 	// credential for a provider ("" when no team is active). Used by 'k'.
 	TeamProviderKey func(provider string) string
 	// OnDiscoverTracker launches the tracker discovery wizard.
-	// Called when the user presses 'y' in the team detail view.
+	// Called when the user presses T in the team detail view.
 	OnDiscoverTracker func()
 	// PromoteSolo turns the solo space teamID into a team pushed to remote
 	// (« Passer en équipe », P2-T16).
@@ -93,14 +116,14 @@ func (v *TeamDetailView) Title() string          { return i18n.T("tui.team.detai
 
 func (v *TeamDetailView) StatusHints() string {
 	if v.solo() {
-		return fmt.Sprintf("j/k %s · Enter edit · w %s · u %s",
-			i18n.T("tui.hints.nav"), i18n.T("tui.hints.save"), i18n.T("tui.hints.undo"))
+		return keys.Hints(keys.Navigate.Hint(), keys.Open.HintAs(i18n.T("tui.hints.edit")),
+			"w "+i18n.T("tui.hints.save"), "u "+i18n.T("tui.hints.undo"))
 	}
-	return fmt.Sprintf("j/k %s · Space %s · Enter edit · w %s · s %s · t %s · a %s · d %s · u %s · r %s · y discovery · K %s",
-		i18n.T("tui.hints.nav"), i18n.T("tui.hints.toggle"), i18n.T("tui.hints.save"),
-		i18n.T("tui.hints.sync"), i18n.T("tui.hints.test"), i18n.T("tui.hints.add"),
-		i18n.T("tui.hints.del"), i18n.T("tui.hints.undo"), i18n.T("tui.hints.refresh"),
-		i18n.T("tui.team.llm_key.hint"))
+	return keys.Hints(keys.Navigate.Hint(), i18n.T("tui.hints.space_key")+" "+i18n.T("tui.hints.toggle"),
+		keys.Open.HintAs(i18n.T("tui.hints.edit")), "w "+i18n.T("tui.hints.save"),
+		"s "+i18n.T("tui.hints.sync"), "t "+i18n.T("tui.hints.test"), "u "+i18n.T("tui.hints.undo"),
+		keys.Refresh.Hint(), string(discoverKey)+" "+i18n.T("tui.team.detail.hint_discover"),
+		"K "+i18n.T("tui.team.llm_key.hint"))
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -141,19 +164,19 @@ func (v *TeamDetailView) Mount(content *tview.Flex, app *tview.Application) {
 
 // extraKeys are the page keys listed in the detail pane.
 func (v *TeamDetailView) extraKeys() []string {
-	keys := []string{"w", i18n.T("tui.hints.save"), "u", i18n.T("tui.hints.undo")}
+	pairs := []string{"w", i18n.T("tui.hints.save"), "u", i18n.T("tui.hints.undo")}
 	if v.solo() {
-		return keys
+		return pairs
 	}
-	return append(keys,
-		"a", i18n.T("tui.hints.add"), "d", i18n.T("tui.hints.del"),
+	return append(pairs,
 		"s", i18n.T("tui.hints.sync"), "t", i18n.T("tui.hints.test"),
-		"K", i18n.T("tui.team.llm_key.hint"), "r", i18n.T("tui.hints.refresh"))
+		string(discoverKey), i18n.T("tui.team.detail.hint_discover"),
+		"K", i18n.T("tui.team.llm_key.hint"), keys.Refresh.Keys(), keys.Refresh.Label())
 }
 
 func (v *TeamDetailView) Unmount() {
 	if (v.dirtyTeam || v.dirtyLocal) && v.shell != nil {
-		v.shell.ShowToastMsg("⚠ Modifications non sauvegardées — 'w' pour sauvegarder", false)
+		v.shell.ShowToastMsg(i18n.T("tui.team.detail.unsaved"), false)
 	}
 	v.app = nil
 	v.list = nil
@@ -168,9 +191,16 @@ func (v *TeamDetailView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	if v.list == nil {
 		return event
 	}
-	if event.Key() == tcell.KeyEnter {
+	if keys.Open.Matches(event) || keys.Edit.Matches(event) {
 		v.editSelected()
 		return nil
+	}
+	if keys.Refresh.Matches(event) {
+		confirmDiscard(v.shell, v.dirtyTeam || v.dirtyLocal, v.reload)
+		return nil
+	}
+	if event.Key() != tcell.KeyRune {
+		return event
 	}
 	switch event.Rune() {
 	case ' ':
@@ -189,38 +219,36 @@ func (v *TeamDetailView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 			v.testConnection()
 		}
 		return nil
-	case 'a':
-		v.addDynamic()
-		return nil
-	case 'd':
-		v.deleteDynamic()
-		return nil
 	case 'u':
 		v.undo()
 		return nil
 	case 'K':
 		v.setTeamProviderKey()
 		return nil
-	case 'r':
-		tc := v.cfg.ResolveTeam()
-		if tc.Enabled {
-			repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
-			syncAsync(v.app, repo, v.shell, func(_ error) {
-				v.loadData()
-				v.buildFields()
-				v.renderFields()
-				v.dirtyTeam = false
-				v.dirtyLocal = false
-			})
-		}
-		return nil
-	case 'y':
+	case discoverKey:
 		if v.cfg.OnDiscoverTracker != nil && !v.solo() {
 			v.cfg.OnDiscoverTracker()
 		}
 		return nil
 	}
 	return event
+}
+
+// reload pulls the team-state and reloads the fields; unsaved changes are
+// dropped (r asks first, confirmDiscard).
+func (v *TeamDetailView) reload() {
+	tc := v.cfg.ResolveTeam()
+	if !tc.Enabled {
+		return
+	}
+	repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
+	syncAsync(v.app, repo, v.shell, func(_ error) {
+		v.loadData()
+		v.buildFields()
+		v.renderFields()
+		v.dirtyTeam = false
+		v.dirtyLocal = false
+	})
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -582,72 +610,6 @@ func (v *TeamDetailView) editSelected() {
 		v.renderFields()
 	})
 }
-func (v *TeamDetailView) addDynamic() {
-	if v.shell == nil {
-		return
-	}
-
-	// Determine which dynamic section we're in
-	_, item, ok := v.list.CurrentItem()
-	section := ""
-	if ok {
-		ref, refOk := item.Reference.(int)
-		if refOk && ref >= 0 && ref < len(v.fields) {
-			// Walk back from current field to find section
-			for i := ref; i >= 0; i-- {
-				f := v.fields[i]
-				if f.Kind == CfgFieldSectionHeader || f.Kind == CfgFieldSubHeader {
-					section = f.Label
-					break
-				}
-				if f.Section != "" {
-					section = f.Section
-					break
-				}
-			}
-		}
-	}
-
-	switch section {
-	case "Mappings", "Mappings projets":
-		v.shell.ShowInputModal("Hub project ID", "", func(key string) {
-			if key == "" {
-				return
-			}
-			v.shell.ShowInputModal("Tracker project ID/path", "", func(val string) {
-				if val == "" {
-					return
-				}
-				if v.teamCfg.Tracker.Projects == nil { //nolint:staticcheck // backward compat: deprecated field
-					v.teamCfg.Tracker.Projects = make(map[string]string)
-				}
-				v.teamCfg.Tracker.Projects[key] = val //nolint:staticcheck // backward compat: deprecated field
-				v.dirtyTeam = true
-				v.buildFields()
-				v.renderFields()
-			})
-		})
-	case "label_status_mapping":
-		v.shell.ShowToastMsg("Les mappings label→statut se configurent dans l'éditeur de colonnes (Ctrl+P → Colonnes du board)", false)
-	default:
-		v.shell.ShowToastMsg("'a' disponible dans: Mappings", false)
-	}
-}
-
-func (v *TeamDetailView) deleteDynamic() {
-	f, _, ok := v.selectedField()
-	if !ok || !f.Dynamic || v.shell == nil {
-		if v.shell != nil {
-			v.shell.ShowToastMsg("'d' disponible uniquement sur les entrées dynamiques", false)
-		}
-		return
-	}
-
-	_ = f.Key
-	// NOTE: no sections support deletion yet; early-return above covers all cases.
-	// When a section supports deletion, add a switch on f.Section here and
-	// set v.dirtyTeam = true, then call v.buildFields() / v.renderFields().
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Undo
@@ -699,10 +661,10 @@ func (v *TeamDetailView) save() {
 
 	if v.dirtyTeam && v.cfg.SaveTeamConfig != nil {
 		if err := v.cfg.SaveTeamConfig(ctx, v.teamCfg); err != nil {
-			v.shell.ShowToastMsg("Erreur sauvegarde équipe: "+err.Error(), false)
+			v.shell.ShowToastMsg(i18n.Tf("tui.team.detail.save_team_error", err.Error()), false)
 			return
 		}
-		saved = append(saved, "équipe")
+		saved = append(saved, i18n.T("tui.team.detail.saved_team"))
 		v.dirtyTeam = false
 	}
 
@@ -712,18 +674,18 @@ func (v *TeamDetailView) save() {
 			hubCfg.MCP = v.localMCP
 			hubCfg.Tracker = v.localTrk
 			if err := config.Save(hubCfg); err != nil {
-				v.shell.ShowToastMsg("Erreur sauvegarde locale: "+err.Error(), false)
+				v.shell.ShowToastMsg(i18n.Tf("tui.team.detail.save_local_error", err.Error()), false)
 				return
 			}
 		}
-		saved = append(saved, "local")
+		saved = append(saved, i18n.T("tui.team.detail.saved_local"))
 		v.dirtyLocal = false
 	}
 
 	if len(saved) == 0 {
-		v.shell.ShowToastMsg("Rien à sauvegarder", false)
+		v.shell.ShowToastMsg(i18n.T("tui.team.detail.nothing_to_save"), false)
 	} else {
-		v.shell.ShowToastMsg("✓ Sauvegardé ("+strings.Join(saved, " + ")+")", true)
+		v.shell.ShowToastMsg(i18n.Tf("tui.team.detail.saved", strings.Join(saved, " + ")), true)
 	}
 }
 
@@ -736,11 +698,11 @@ func (v *TeamDetailView) syncTracker() {
 		return
 	}
 	if v.cfg.SyncTracker == nil {
-		v.shell.ShowToastMsg("Sync tracker non disponible", false)
+		v.shell.ShowToastMsg(i18n.T("tui.team.detail.sync_unavailable"), false)
 		return
 	}
 
-	v.shell.ShowToastMsg("Synchronisation en cours...", true)
+	v.shell.ShowToastMsg(i18n.T("tui.team.sync.in_progress"), true)
 
 	app := v.app // capture stable reference before goroutine
 	go func() {
@@ -762,26 +724,24 @@ func (v *TeamDetailView) syncTracker() {
 				return
 			}
 			if err != nil {
-				errMsg := err.Error()
-				if strings.Contains(errMsg, "credentials manquants") || strings.Contains(errMsg, "token") {
-					v.shell.ShowScrollableModal("Token manquant",
-						"Le token n'est pas configuré pour ce service.\n\n"+
-							"Voulez-vous le saisir maintenant ?\n\n"+
-							"Le token sera stocké dans le keychain système (sécurisé).",
+				var credErr *TrackerCredentialsError
+				if errors.As(err, &credErr) {
+					v.shell.ShowScrollableModal(i18n.T("tui.team.detail.token_missing_title"),
+						i18n.T("tui.team.detail.token_missing_body"),
 						[]ModalAction{
-							{Label: "Configurer le token", Callback: func() {
+							{Label: i18n.T("tui.team.detail.token_configure"), Callback: func() {
 								v.promptTokenSetup()
 							}},
-							{Label: "Plus tard", Callback: func() {}},
+							{Label: i18n.T("tui.team.detail.later"), Callback: func() {}},
 						})
 				} else {
-					v.shell.ShowToastMsg("✗ Sync échouée: "+errMsg, false)
+					v.shell.ShowToastMsg(i18n.Tf("tui.team.detail.sync_failed", err.Error()), false)
 				}
 				return
 			}
 			content := formatSyncTrackerResultView(result)
-			v.shell.ShowScrollableModal("Résultat sync tracker", content, []ModalAction{
-				{Label: "OK", Callback: func() {
+			v.shell.ShowScrollableModal(i18n.T("tui.team.sync.result_title"), content, []ModalAction{
+				{Label: i18n.T("tui.team.detail.ok"), Callback: func() {
 					v.loadData()
 					v.buildFields()
 					v.renderFields()
@@ -815,7 +775,7 @@ func (v *TeamDetailView) promptTokenSetup() {
 		}
 	}
 
-	v.shell.ShowPasswordModal("Token "+trackerType+" (clé: "+tokenKey+")", func(value string) {
+	v.shell.ShowPasswordModal(i18n.Tf("tui.team.detail.token_prompt", trackerType, tokenKey), func(value string) {
 		if value == "" {
 			return
 		}
@@ -834,7 +794,7 @@ func (v *TeamDetailView) promptTokenSetup() {
 			}
 			if err := config.Save(hubCfg); err != nil {
 				if v.shell != nil {
-					v.shell.ShowToastMsg("Error: "+err.Error(), false)
+					v.shell.ShowToastMsg(errorText(err), false)
 				}
 			}
 		}
@@ -846,14 +806,14 @@ func (v *TeamDetailView) promptTokenSetup() {
 			}); ok {
 				if err := setter.Set(ctx, tokenKey, value); err != nil {
 					if v.shell != nil {
-						v.shell.ShowToastMsg("Erreur sauvegarde token: "+err.Error(), false)
+						v.shell.ShowToastMsg(i18n.Tf("tui.team.detail.token_save_error", err.Error()), false)
 					}
 					return
 				}
 			}
 		}
 
-		v.shell.ShowToastMsg("✓ Token configuré — relancez 's' pour synchroniser", true)
+		v.shell.ShowToastMsg(i18n.T("tui.team.detail.token_saved"), true)
 		v.loadData()
 		v.buildFields()
 		v.renderFields()
@@ -880,11 +840,11 @@ func (v *TeamDetailView) testConnection() {
 		return
 	}
 	if v.teamCfg == nil || v.teamCfg.Tracker.Type == "" {
-		v.shell.ShowToastMsg("Tracker non configuré (configurez le type d'abord)", false)
+		v.shell.ShowToastMsg(i18n.T("tui.team.detail.tracker_not_configured"), false)
 		return
 	}
 
-	v.shell.ShowToastMsg("Test de connexion...", true)
+	v.shell.ShowToastMsg(i18n.T("tui.team.detail.testing"), true)
 
 	app := v.app // capture stable reference before goroutine
 	go func() {
@@ -905,7 +865,7 @@ func (v *TeamDetailView) testConnection() {
 				if v.shell == nil {
 					return
 				}
-				v.shell.ShowToastMsg("✗ Credentials non disponibles: "+err.Error(), false)
+				v.shell.ShowToastMsg(i18n.Tf("tui.team.detail.credentials_unavailable", err.Error()), false)
 			})
 			return
 		}
@@ -916,7 +876,7 @@ func (v *TeamDetailView) testConnection() {
 				if v.shell == nil {
 					return
 				}
-				v.shell.ShowToastMsg("✗ Initialisation échouée: "+err.Error(), false)
+				v.shell.ShowToastMsg(i18n.Tf("tui.team.detail.init_failed", err.Error()), false)
 			})
 			return
 		}
@@ -932,9 +892,9 @@ func (v *TeamDetailView) testConnection() {
 				return
 			}
 			if err != nil {
-				v.shell.ShowToastMsg("✗ Connexion échouée: "+err.Error(), false)
+				v.shell.ShowToastMsg(i18n.Tf("tui.team.detail.connection_failed", err.Error()), false)
 			} else {
-				v.shell.ShowToastMsg("✓ Connecté en tant que @"+username, true)
+				v.shell.ShowToastMsg(i18n.Tf("tui.team.detail.connected_as", username), true)
 			}
 		})
 	}()
@@ -976,26 +936,26 @@ func triStateToPtrBool(val string) *bool {
 
 func formatSyncTrackerResultView(r *SyncTrackerResult) string {
 	if r == nil {
-		return "Aucun résultat"
+		return i18n.T("tui.team.sync.no_result")
 	}
 	var sb strings.Builder
-	fmt.Fprintf(&sb, "Claims créés:      %d\n", r.ClaimsCreated)
-	fmt.Fprintf(&sb, "Claims mis à jour: %d\n", r.ClaimsUpdated)
-	fmt.Fprintf(&sb, "Labels poussés:    %d\n", r.LabelsPushed)
+	fmt.Fprintf(&sb, "%s\n", i18n.Tf("tui.team.sync.claims_created", r.ClaimsCreated))
+	fmt.Fprintf(&sb, "%s\n", i18n.Tf("tui.team.sync.claims_updated", r.ClaimsUpdated))
+	fmt.Fprintf(&sb, "%s\n", i18n.Tf("tui.team.sync.labels_pushed", r.LabelsPushed))
 	if len(r.Projects) > 0 {
-		sb.WriteString("\nProjets:\n")
+		sb.WriteString("\n" + i18n.T("tui.team.sync.projects_header") + "\n")
 		for _, p := range r.Projects {
 			fmt.Fprintf(&sb, "  %s\n", p)
 		}
 	}
 	if len(r.Warnings) > 0 {
-		sb.WriteString("\nWarnings:\n")
+		sb.WriteString("\n" + i18n.T("tui.team.sync.warnings_header") + "\n")
 		for _, w := range r.Warnings {
 			fmt.Fprintf(&sb, "  ⚠ %s\n", w)
 		}
 	}
 	if len(r.Errors) > 0 {
-		sb.WriteString("\nErreurs:\n")
+		sb.WriteString("\n" + i18n.T("tui.team.sync.errors_header") + "\n")
 		for _, e := range r.Errors {
 			fmt.Fprintf(&sb, "  ✗ %s\n", e)
 		}

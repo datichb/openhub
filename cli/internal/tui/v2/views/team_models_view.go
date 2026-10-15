@@ -11,6 +11,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
@@ -72,13 +73,8 @@ func (v *TeamModelsView) ID() string             { return "team.models" }
 func (v *TeamModelsView) Title() string          { return i18n.T("tui.config.section.models") }
 
 func (v *TeamModelsView) StatusHints() string {
-	return fmt.Sprintf("%s · %s · %s · %s · %s",
-		i18n.T("tui.hints.enter"),
-		i18n.T("tui.hints.add"),
-		i18n.T("tui.hints.del"),
-		i18n.T("tui.hints.save"),
-		i18n.T("tui.hints.undo"),
-	)
+	return keys.Hints(keys.Open.HintAs(i18n.T("tui.hints.edit")), keys.Create.Hint(),
+		keys.Delete.Hint(), "w "+i18n.T("tui.hints.save"), "u "+i18n.T("tui.hints.undo"))
 }
 
 // SupportedModes implements ModeAware — this view is only relevant in team mode.
@@ -163,7 +159,7 @@ func (v *TeamModelsView) showDetail(item widgets.SectionItem) {
 	if v.page == nil || v.teamCfg == nil {
 		return
 	}
-	extra := []string{"a", i18n.T("tui.hints.add"), "w", i18n.T("tui.hints.save"), "u", i18n.T("tui.hints.undo")}
+	extra := append(keyPairs(keys.Create, keys.Delete), "w", i18n.T("tui.hints.save"), "u", i18n.T("tui.hints.undo"))
 	ref, ok := item.Reference.(teamModelsRef)
 	if !ok {
 		v.page.SetDetail(modelOverrideDetail("", "", "", "", extra...))
@@ -314,17 +310,24 @@ func (v *TeamModelsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		}
 		return nil
 	}
-	switch event.Rune() {
-	case 'a':
+	switch {
+	case keys.Create.Matches(event):
 		v.addEntry()
 		return nil
-	case 'd':
+	case keys.Edit.Matches(event):
+		if v.list != nil {
+			if _, item, ok := v.list.CurrentItem(); ok {
+				v.editByItem(item)
+			}
+		}
+		return nil
+	case keys.Delete.Matches(event):
 		v.deleteEntry()
 		return nil
-	case 'w':
+	case event.Key() == tcell.KeyRune && event.Rune() == 'w':
 		v.save()
 		return nil
-	case 'u':
+	case event.Key() == tcell.KeyRune && event.Rune() == 'u':
 		v.undo()
 		return nil
 	}
@@ -344,7 +347,7 @@ func (v *TeamModelsView) editByItem(item widgets.SectionItem) {
 	switch ref.section {
 	case "general":
 		cur := v.teamCfg.Models.Default
-		v.shell.ShowInputModal("default", cur, func(newVal string) {
+		v.shell.ShowInputModal(i18n.T("tui.config.field.default_model.label"), cur, func(newVal string) {
 			v.pushUndo()
 			v.teamCfg.Models.Default = newVal
 			v.dirty = true
@@ -391,7 +394,7 @@ func (v *TeamModelsView) addEntry() {
 		if scope == "" {
 			return
 		}
-		v.shell.ShowInputModal("Key", "", func(key string) {
+		v.shell.ShowInputModal(i18n.T("tui.project_models.key"), "", func(key string) {
 			if key == "" {
 				return
 			}
@@ -429,14 +432,8 @@ func (v *TeamModelsView) deleteEntry() {
 		return
 	}
 
-	label := i18n.Tf("tui.team_models.delete_confirm", ref.section, ref.key)
-	v.shell.ShowSelectModal(label, []SelectOption{
-		{Label: i18n.T("tui.team_models.cancel"), Value: ""},
-		{Label: i18n.T("tui.team_models.confirm_delete"), Value: "yes"},
-	}, "", func(choice string) {
-		if choice != "yes" {
-			return
-		}
+	title := i18n.Tf("tui.team_models.delete_confirm", ref.section, ref.key)
+	v.shell.Confirm(title, i18n.T("tui.team_models.delete_detail"), true, func() {
 		v.pushUndo()
 		v.ensureMaps()
 		switch ref.section {
@@ -516,7 +513,7 @@ func (v *TeamModelsView) ContextCommands() []ContextCommand {
 			Category:    i18n.T("tui.config.section.models"), Action: func() { v.undo() },
 		},
 		{
-			ID: "team.models.add", Label: i18n.T("tui.hints.add"),
+			ID: "team.models.add", Label: i18n.T("tui.keys.action.create"),
 			Aliases:     []string{"ajouter", "add"},
 			Description: i18n.T("tui.team.models.add_recommendation"),
 			Category:    i18n.T("tui.config.section.models"), Action: func() { v.addEntry() },
@@ -532,12 +529,12 @@ func (v *TeamModelsView) ContextCommands() []ContextCommand {
 // Named distinctly to avoid collisions with the package-level sortedKeys used
 // by ProjectModelsView.
 func teamModelsSortedKeys(m map[string]string) []string {
-	keys := make([]string, 0, len(m))
+	out := make([]string, 0, len(m))
 	for k := range m {
-		keys = append(keys, k)
+		out = append(out, k)
 	}
-	sort.Strings(keys)
-	return keys
+	sort.Strings(out)
+	return out
 }
 
 // deepCopyTeamModels creates a value-copy of TeamModelsConfig, including deep

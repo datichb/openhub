@@ -11,6 +11,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
@@ -56,14 +57,10 @@ func (v *ProjectMCPView) SetShell(s ShellAccess) { v.shell = s }
 func (v *ProjectMCPView) ID() string             { return "project.mcp" }
 func (v *ProjectMCPView) Title() string          { return i18n.T("tui.config.section.mcp_services") }
 func (v *ProjectMCPView) StatusHints() string {
-	return fmt.Sprintf("j/k %s · {/} %s · Enter %s · Space %s · u %s · Esc %s",
-		i18n.T("tui.hints.nav"),
-		i18n.T("tui.hints.navigate"),
-		i18n.T("tui.hints.edit"),
-		i18n.T("tui.hints.toggle"),
-		i18n.T("tui.hints.undo"),
-		i18n.T("tui.hints.back"),
-	)
+	return keys.Hints(keys.Navigate.Hint(), "{/} "+i18n.T("tui.hints.sections"),
+		keys.Open.HintAs(i18n.T("tui.hints.edit")),
+		i18n.T("tui.hints.space_key")+" "+i18n.T("tui.hints.toggle"),
+		"u "+i18n.T("tui.hints.undo"), keys.Back.Hint())
 }
 
 func (v *ProjectMCPView) Mount(content *tview.Flex, app *tview.Application) {
@@ -145,6 +142,9 @@ func (v *ProjectMCPView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 			v.onItemSelected(idx, item)
 		}
 		return nil
+	}
+	if event.Key() != tcell.KeyRune {
+		return event
 	}
 	switch event.Rune() {
 	case ' ':

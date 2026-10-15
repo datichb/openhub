@@ -1,0 +1,18 @@
+┌ Policies ──────────────────────────────────────────────────────┐┌ Détail ──────────────────────────────────┐
+│ Les policies sont des règles automatiques vérifiées par l'IA   ││ branch-naming                            │
+│ et les hooks. "warn" affiche un avertissement, "refuse"        ││                                          │
+│ bloque l'opération. Les projets peuvent durcir mais jamais     ││ Nom:           branch-naming             │
+│ assouplir une règle d'équipe.                                  ││ Type:          regex                     │
+│                                                                ││ Cible:         branch_name               │
+│   ── Règles de nommage (1) ──                                ▲ ││ Enforcement:   ✗ Bloquante               │
+│                                                                ││ Message:       feat/*                    │
+│     ✗ branch-naming                  regex · refuse            ││ Règle:         ^feat/                    │
+│         feat/*                                                 ││                                          │
+│                                                                ││ Touches                                  │
+│                                                                ││   Entrée actions                         │
+│   ── Actions ──                                                ││   e      éditer                          │
+│                                                                ││   d      supprimer                       │
+│     ▸ Créer depuis un template                                 ││   c      vérifier                        │
+│                                                                ││   r      rafraîchir                      │
+│     ▸ Créer une policy personnalisée                         ▼ ││                                          │
+└────────────────────────────────────────────────────────────────┘└──────────────────────────────────────────┘

@@ -16,6 +16,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
@@ -44,7 +45,7 @@ func builtinPolicyTemplates() []policyTemplate {
 			Target:      "branch_name",
 			Rule:        `^(feat|fix|chore|docs|refactor|test)/`,
 			Enforcement: "refuse",
-			Message:     "Branches must follow type/description format (feat/*, fix/*, ...)",
+			Message:     i18n.T("tui.policies.tpl_branch_naming_msg"),
 		},
 		{
 			LabelKey:    "tui.policies.tpl_conventional_commits",
@@ -53,7 +54,7 @@ func builtinPolicyTemplates() []policyTemplate {
 			Target:      "commit_message",
 			Rule:        `^(feat|fix|chore|docs|refactor|perf|test|ci|build|style)(\(.+\))?!?: .+`,
 			Enforcement: "warn",
-			Message:     "Commits must follow Conventional Commits format",
+			Message:     i18n.T("tui.policies.tpl_conventional_commits_msg"),
 		},
 		{
 			LabelKey:    "tui.policies.tpl_max_wip",
@@ -62,7 +63,7 @@ func builtinPolicyTemplates() []policyTemplate {
 			Target:      "wip_tickets",
 			Max:         "3",
 			Enforcement: "warn",
-			Message:     "Maximum 3 in-progress tickets per member",
+			Message:     i18n.T("tui.policies.tpl_max_wip_msg"),
 		},
 		{
 			LabelKey:    "tui.policies.tpl_no_console_log",
@@ -71,7 +72,7 @@ func builtinPolicyTemplates() []policyTemplate {
 			Patterns:    "console.log, console.debug, debugger",
 			Scope:       "diff_only",
 			Enforcement: "refuse",
-			Message:     "No console.log/debugger in committed code",
+			Message:     i18n.T("tui.policies.tpl_no_console_log_msg"),
 		},
 		{
 			LabelKey:    "tui.policies.tpl_no_todo",
@@ -80,7 +81,7 @@ func builtinPolicyTemplates() []policyTemplate {
 			Patterns:    "TODO, FIXME, HACK, XXX",
 			Scope:       "diff_only",
 			Enforcement: "warn",
-			Message:     "Resolve TODO/FIXME before merging",
+			Message:     i18n.T("tui.policies.tpl_no_todo_msg"),
 		},
 		{
 			LabelKey:    "tui.policies.tpl_require_review",
@@ -89,7 +90,7 @@ func builtinPolicyTemplates() []policyTemplate {
 			Target:      "review",
 			Enabled:     true,
 			Enforcement: "refuse",
-			Message:     "Every PR must have an approved review",
+			Message:     i18n.T("tui.policies.tpl_require_review_msg"),
 		},
 		{
 			LabelKey:    "tui.policies.tpl_require_tests",
@@ -98,7 +99,7 @@ func builtinPolicyTemplates() []policyTemplate {
 			Target:      "tests",
 			Enabled:     true,
 			Enforcement: "warn",
-			Message:     "Changes must include tests",
+			Message:     i18n.T("tui.policies.tpl_require_tests_msg"),
 		},
 		{
 			LabelKey:    "tui.policies.tpl_no_secrets",
@@ -107,7 +108,7 @@ func builtinPolicyTemplates() []policyTemplate {
 			Patterns:    "password=, secret_key=, api_key=, AWS_SECRET, PRIVATE_KEY",
 			Scope:       "diff_only",
 			Enforcement: "refuse",
-			Message:     "No plaintext secrets in code",
+			Message:     i18n.T("tui.policies.tpl_no_secrets_msg"),
 		},
 	}
 }
@@ -148,12 +149,10 @@ func (v *PoliciesView) Title() string { return i18n.T("tui.team.policies") }
 
 // StatusHints returns keybinding hints.
 func (v *PoliciesView) StatusHints() string {
-	return fmt.Sprintf("j/k %s · {/} %s · Enter %s · a %s · t %s · e %s · d %s · c %s · r %s",
-		i18n.T("tui.hints.nav"), "sections",
-		i18n.T("tui.hints.detail"), i18n.T("tui.hints.add"),
-		"template", i18n.T("tui.hints.edit"),
-		i18n.T("tui.hints.delete"), i18n.T("tui.hints.check"),
-		i18n.T("tui.hints.refresh"))
+	return keys.Hints(keys.Navigate.Hint(), "{/} "+i18n.T("tui.hints.sections"),
+		keys.Open.HintAs(i18n.T("tui.hints.detail")), keys.Create.Hint(),
+		"t "+i18n.T("tui.hints.template"), keys.Edit.Hint(), keys.Delete.Hint(),
+		"c "+i18n.T("tui.hints.check"), keys.Refresh.Hint())
 }
 
 // Mount builds the policies view with a descriptive header and SectionedList.
@@ -187,23 +186,23 @@ func (v *PoliciesView) Unmount() {
 
 // HandleKey processes policies view key events.
 func (v *PoliciesView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
-	switch event.Rune() {
-	case 'r':
+	switch {
+	case keys.Refresh.Matches(event):
 		v.refresh()
 		return nil
-	case 'c':
+	case event.Key() == tcell.KeyRune && event.Rune() == 'c':
 		v.checkPolicies()
 		return nil
-	case 'a':
+	case keys.Create.Matches(event):
 		v.addPolicy()
 		return nil
-	case 't':
+	case event.Key() == tcell.KeyRune && event.Rune() == 't':
 		v.addFromTemplate()
 		return nil
-	case 'e':
+	case keys.Edit.Matches(event):
 		v.editSelectedPolicy()
 		return nil
-	case 'd':
+	case keys.Delete.Matches(event):
 		v.removeSelectedPolicy()
 		return nil
 	}
@@ -285,7 +284,7 @@ func (v *PoliciesView) renderPolicies(repo teamstate.TeamStateWriter) {
 	policies, err := repo.LoadPolicies("")
 	if err != nil {
 		v.slist.SetItems([]widgets.SectionItem{
-			{MainText: "  " + i18n.T("tui.settings.error") + ": " + err.Error()},
+			{MainText: "  " + errorText(err)},
 		})
 		return
 	}
@@ -399,9 +398,8 @@ func (v *PoliciesView) showItemDetail(idx int) {
 		var d detailText
 		d.title(tview.Escape(p.Name))
 		d.b.WriteString(tview.Escape(v.formatPolicyDetail(p)))
-		d.keys("Enter", i18n.T("tui.hints.actions"),
-			"e", i18n.T("tui.hints.edit"), "d", i18n.T("tui.hints.delete"),
-			"c", i18n.T("tui.hints.check"), "r", i18n.T("tui.hints.refresh"))
+		pairs := append([]string{keys.Open.Keys(), i18n.T("tui.hints.actions")}, keyPairs(keys.Edit, keys.Delete)...)
+		d.keys(append(pairs, "c", i18n.T("tui.hints.check"), keys.Refresh.Keys(), keys.Refresh.Label())...)
 		v.page.SetDetail(d.String())
 		return
 	}
@@ -412,7 +410,7 @@ func (v *PoliciesView) showItemDetail(idx int) {
 			d.title(strings.TrimSpace(items[idx].MainText))
 		}
 		d.para(i18n.T("tui.detail.policy.action"))
-		d.keys("Enter", i18n.T("tui.hints.open"), "a", i18n.T("tui.hints.add"), "t", "template")
+		d.keys(append(keyPairs(keys.Open, keys.Create), "t", i18n.T("tui.hints.template"))...)
 		v.page.SetDetail(d.String())
 		return
 	}
@@ -490,7 +488,7 @@ func (v *PoliciesView) showDetail(policyIdx int) {
 	)
 
 	if v.shell != nil {
-		v.shell.ShowScrollableModal("Policy: "+p.Name, detail, actions)
+		v.shell.ShowScrollableModal(i18n.Tf("tui.policies.modal_title", p.Name), detail, actions)
 	}
 }
 
@@ -517,13 +515,13 @@ func (v *PoliciesView) formatPolicyDetail(p teamstate.Policy) string {
 		detail += fmt.Sprintf("%-14s %s\n", i18n.T("tui.policies.field_rule")+":", p.Rule)
 	}
 	if p.Max > 0 {
-		detail += fmt.Sprintf("Max:          %d %s\n", p.Max, p.Unit)
+		detail += fmt.Sprintf("%-14s %d %s\n", i18n.T("tui.policies.field_max")+":", p.Max, p.Unit)
 	}
 	if len(p.Patterns) > 0 {
-		detail += fmt.Sprintf("Patterns:     %s\n", strings.Join(p.Patterns, ", "))
+		detail += fmt.Sprintf("%-14s %s\n", i18n.T("tui.policies.field_patterns_label")+":", strings.Join(p.Patterns, ", "))
 	}
 	if p.Scope != "" {
-		detail += fmt.Sprintf("Scope:        %s\n", p.Scope)
+		detail += fmt.Sprintf("%-14s %s\n", i18n.T("tui.policies.field_scope")+":", p.Scope)
 	}
 	return detail
 }
@@ -544,7 +542,7 @@ func (v *PoliciesView) setEnforcement(policyIdx int, enforcement teamstate.Polic
 	pMap, err := v.loadPoliciesMap(repo)
 	if err != nil {
 		if v.shell != nil {
-			v.shell.ShowToastMsg(i18n.T("tui.settings.error")+": "+err.Error(), false)
+			v.shell.ShowToastMsg(errorText(err), false)
 		}
 		return
 	}
@@ -555,7 +553,7 @@ func (v *PoliciesView) setEnforcement(policyIdx int, enforcement teamstate.Polic
 
 	if err := repo.SavePolicies(context.Background(), pMap); err != nil {
 		if v.shell != nil {
-			v.shell.ShowToastMsg(i18n.T("tui.settings.error")+": "+err.Error(), false)
+			v.shell.ShowToastMsg(errorText(err), false)
 		}
 		return
 	}
@@ -650,21 +648,15 @@ func (v *PoliciesView) removePolicy(policyIdx int) {
 		return
 	}
 
-	v.shell.ShowSelectModal(i18n.Tf("tui.policies.confirm_delete", p.Name), []SelectOption{
-		{Label: i18n.T("tui.settings.cancel"), Value: ""},
-		{Label: i18n.T("tui.policies.yes_delete"), Value: "yes"},
-	}, "", func(choice string) {
-		if choice != "yes" {
-			return
-		}
+	v.shell.Confirm(i18n.Tf("tui.policies.confirm_delete", p.Name), i18n.T("tui.policies.delete_detail"), true, func() {
 		pMap, err := v.loadPoliciesMap(repo)
 		if err != nil {
-			v.shell.ShowToastMsg(i18n.T("tui.settings.error")+": "+err.Error(), false)
+			v.shell.ShowToastMsg(errorText(err), false)
 			return
 		}
 		delete(pMap, p.Name)
 		if err := repo.SavePolicies(context.Background(), pMap); err != nil {
-			v.shell.ShowToastMsg(i18n.T("tui.settings.error")+": "+err.Error(), false)
+			v.shell.ShowToastMsg(errorText(err), false)
 			return
 		}
 		v.shell.ShowToastMsg(i18n.Tf("tui.policies.deleted", p.Name), true)
@@ -892,13 +884,13 @@ func (v *PoliciesView) showPolicyForm(repo teamstate.TeamStateWriter, tpl *polic
 			{Key: "name", Label: i18n.T("tui.policies.field_name_slug"), Type: FieldText, Required: true,
 				Default: defaultName, Hint: i18n.T("tui.policies.hint_name")},
 			{Key: "type", Label: i18n.T("tui.policies.field_type"), Type: FieldSelect,
-				Options: policyTypeOptions, Default: defaultType, Required: true,
+				Options: policyTypeOptions(), Default: defaultType, Required: true,
 				Hint: i18n.T("tui.policies.hint_type")},
 			{Key: "target", Label: i18n.T("tui.policies.field_target"), Type: FieldText,
 				Default: defaultTarget, Hint: i18n.T("tui.policies.hint_target"),
 				Conditional: func(v map[string]string) bool { return v["type"] != "forbidden_pattern" }},
 			{Key: "enforcement", Label: i18n.T("tui.policies.field_enforcement"), Type: FieldSelect,
-				Options: policyEnforcementOptions, Default: defaultEnforcement,
+				Options: policyEnforcementOptions(), Default: defaultEnforcement,
 				Hint: i18n.T("tui.policies.hint_enforcement")},
 			{Key: "message", Label: i18n.T("tui.policies.field_message"), Type: FieldText,
 				Default: defaultMessage, Hint: i18n.T("tui.policies.hint_message")},
@@ -954,18 +946,23 @@ func (v *PoliciesView) showPolicyForm(repo teamstate.TeamStateWriter, tpl *polic
 	})
 }
 
-// Policy type options for the add wizard.
-var policyTypeOptions = []SelectOption{
-	{Label: "Regex (branch/commit)", Value: "regex"},
-	{Label: "Forbidden pattern (code)", Value: "forbidden_pattern"},
-	{Label: "Limit (max WIP, etc.)", Value: "limit"},
-	{Label: "Boolean (toggle)", Value: "boolean"},
+// policyTypeOptions are the policy types of the form.
+func policyTypeOptions() []SelectOption {
+	return []SelectOption{
+		{Label: i18n.T("tui.policies.type_regex"), Value: "regex"},
+		{Label: i18n.T("tui.policies.type_forbidden"), Value: "forbidden_pattern"},
+		{Label: i18n.T("tui.policies.type_limit"), Value: "limit"},
+		{Label: i18n.T("tui.policies.type_boolean"), Value: "boolean"},
+	}
 }
 
-var policyEnforcementOptions = []SelectOption{
-	{Label: "Disabled", Value: "disabled"},
-	{Label: "Warn", Value: "warn"},
-	{Label: "Refuse", Value: "refuse"},
+// policyEnforcementOptions are the enforcement levels of the form.
+func policyEnforcementOptions() []SelectOption {
+	return []SelectOption{
+		{Label: i18n.T("tui.policies.status_disabled"), Value: "disabled"},
+		{Label: i18n.T("tui.policies.status_warn"), Value: "warn"},
+		{Label: i18n.T("tui.policies.status_refuse"), Value: "refuse"},
+	}
 }
 
 var policyScopeOptions = []SelectOption{
@@ -979,7 +976,7 @@ func (v *PoliciesView) savePolicyEdit(repo teamstate.TeamStateWriter, oldName, n
 	pMap, err := v.loadPoliciesMap(repo)
 	if err != nil {
 		if v.shell != nil {
-			v.shell.ShowToastMsg(i18n.T("tui.settings.error")+": "+err.Error(), false)
+			v.shell.ShowToastMsg(errorText(err), false)
 		}
 		return
 	}
@@ -1008,7 +1005,7 @@ func (v *PoliciesView) savePolicyEdit(repo teamstate.TeamStateWriter, oldName, n
 
 	if err := repo.SavePolicies(context.Background(), pMap); err != nil {
 		if v.shell != nil {
-			v.shell.ShowToastMsg(i18n.T("tui.settings.error")+": "+err.Error(), false)
+			v.shell.ShowToastMsg(errorText(err), false)
 		}
 		return
 	}
@@ -1050,7 +1047,7 @@ func (v *PoliciesView) writePolicyToml(repo teamstate.TeamStateWriter, name, pTy
 	f, err := os.OpenFile(policiesPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {
 		if v.shell != nil {
-			v.shell.ShowToastMsg(i18n.T("tui.settings.error")+": "+err.Error(), false)
+			v.shell.ShowToastMsg(errorText(err), false)
 		}
 		return
 	}
@@ -1079,10 +1076,10 @@ func (v *PoliciesView) writePolicyToml(repo teamstate.TeamStateWriter, name, pTy
 // ContextCommands implements CommandProvider.
 func (v *PoliciesView) ContextCommands() []ContextCommand {
 	return []ContextCommand{
-		{ID: "policies.add", Label: i18n.T("tui.hints.add"), Aliases: []string{"add", "template", "ajouter"}, Description: i18n.T("tui.policies.cmd_add"), Category: "Policies", Action: func() { v.addFromTemplate() }},
-		{ID: "policies.add.custom", Label: i18n.T("tui.hints.add"), Aliases: []string{"custom", "personnalisé"}, Description: i18n.T("tui.policies.cmd_add_custom"), Category: "Policies", Action: func() { v.addPolicy() }},
-		{ID: "policies.edit", Label: i18n.T("tui.hints.edit"), Aliases: []string{"edit", "éditer", "modifier"}, Description: i18n.T("tui.policies.cmd_edit"), Category: "Policies", Action: func() { v.editSelectedPolicy() }},
-		{ID: "policies.delete", Label: i18n.T("tui.hints.delete"), Aliases: []string{"delete", "remove", "supprimer"}, Description: i18n.T("tui.policies.cmd_delete"), Category: "Policies", Action: func() { v.removeSelectedPolicy() }},
-		{ID: "policies.check", Label: i18n.T("tui.hints.check"), Aliases: []string{"check", "verify", "vérifier"}, Description: i18n.T("tui.policies.cmd_check"), Category: "Policies", Action: func() { v.checkPolicies() }},
+		{ID: "policies.add", Label: i18n.T("tui.policies.action_template"), Aliases: []string{"add", "template", "ajouter"}, Description: i18n.T("tui.policies.cmd_add"), Category: v.Title(), Action: func() { v.addFromTemplate() }},
+		{ID: "policies.add.custom", Label: i18n.T("tui.policies.action_custom"), Aliases: []string{"custom", "personnalisé"}, Description: i18n.T("tui.policies.cmd_add_custom"), Category: v.Title(), Action: func() { v.addPolicy() }},
+		{ID: "policies.edit", Label: i18n.T("tui.hints.edit"), Aliases: []string{"edit", "éditer", "modifier"}, Description: i18n.T("tui.policies.cmd_edit"), Category: v.Title(), Action: func() { v.editSelectedPolicy() }},
+		{ID: "policies.delete", Label: i18n.T("tui.hints.delete"), Aliases: []string{"delete", "remove", "supprimer"}, Description: i18n.T("tui.policies.cmd_delete"), Category: v.Title(), Action: func() { v.removeSelectedPolicy() }},
+		{ID: "policies.check", Label: i18n.T("tui.hints.check"), Aliases: []string{"check", "verify", "vérifier"}, Description: i18n.T("tui.policies.cmd_check"), Category: v.Title(), Action: func() { v.checkPolicies() }},
 	}
 }

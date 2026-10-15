@@ -9,6 +9,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
@@ -103,17 +104,10 @@ func (v *ProjectsView) Title() string { return i18n.T("tui.projects.title") }
 
 // StatusHints returns keybinding hints.
 func (v *ProjectsView) StatusHints() string {
-	return fmt.Sprintf("j/k %s · Enter %s · p %s · b %s · n %s · m %s · a %s · d %s · r %s",
-		i18n.T("tui.hints.navigate"),
-		i18n.T("tui.hints.configure"),
-		i18n.T("tui.hints.project_mode"),
-		i18n.T("tui.hints.init_board"),
-		i18n.T("tui.hints.rename"),
-		i18n.T("tui.hints.move"),
-		i18n.T("tui.hints.add"),
-		i18n.T("tui.hints.delete"),
-		i18n.T("tui.hints.refresh"),
-	)
+	return keys.Hints(keys.Navigate.Hint(), keys.Open.HintAs(i18n.T("tui.hints.configure")),
+		"p "+i18n.T("tui.hints.project_mode"), "b "+i18n.T("tui.hints.init_board"),
+		keys.Create.Hint(), keys.Edit.HintAs(i18n.T("tui.hints.rename")), "m "+i18n.T("tui.hints.move"),
+		keys.Delete.Hint(), keys.Refresh.Hint())
 }
 
 // Mount builds the projects list with footer detail.
@@ -223,16 +217,28 @@ func (v *ProjectsView) Unmount() {
 
 // HandleKey processes view-specific key events.
 func (v *ProjectsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
-	switch event.Rune() {
-	case 'a':
+	switch {
+	case keys.Create.Matches(event):
 		v.addProject()
 		return nil
-	case 'd':
+	case keys.Delete.Matches(event):
 		v.removeProject()
 		return nil
-	case 'n':
+	case keys.Edit.Matches(event):
 		v.renameProject()
 		return nil
+	case keys.Refresh.Matches(event):
+		v.refreshProjects()
+		return nil
+	}
+	if event.Key() != tcell.KeyRune {
+		if event.Key() == tcell.KeyEnter {
+			v.openProjectConfig()
+			return nil
+		}
+		return event
+	}
+	switch event.Rune() {
 	case 'm':
 		v.moveProject()
 		return nil
@@ -241,13 +247,6 @@ func (v *ProjectsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		return nil
 	case 'b':
 		v.initBeads()
-		return nil
-	case 'r':
-		v.refreshProjects()
-		return nil
-	}
-	if event.Key() == tcell.KeyEnter {
-		v.openProjectConfig()
 		return nil
 	}
 	return event
@@ -297,13 +296,7 @@ func (v *ProjectsView) removeProject() {
 	if v.shell == nil {
 		return
 	}
-	v.shell.ShowSelectModal(i18n.Tf("tui.projects.delete_confirm", project.Name), []SelectOption{
-		{Label: i18n.T("tui.projects.cancel"), Value: ""},
-		{Label: i18n.T("tui.projects.confirm_delete"), Value: "yes"},
-	}, "", func(choice string) {
-		if choice != "yes" {
-			return
-		}
+	v.shell.Confirm(i18n.Tf("tui.projects.delete_confirm", project.Name), i18n.T("tui.projects.delete_detail"), true, func() {
 		if v.onRemove != nil {
 			v.onRemove(project.ID)
 		}
@@ -395,8 +388,8 @@ func (v *ProjectsView) showDetail(p ProjectItem) {
 	fmt.Fprintf(&b, "%s %s\n", label("ID :"), p.ID)
 	fmt.Fprintf(&b, "%s %s\n", label(i18n.T("tui.projects.label_path")), p.Path)
 	fmt.Fprintf(&b, "%s %s\n", label(i18n.T("tui.projects.label_language")), displayOrPlaceholder(p.Language, "-"))
-	fmt.Fprintf(&b, "%s %s\n", label("Provider :"), displayOrPlaceholder(p.Provider, "hub default"))
-	fmt.Fprintf(&b, "%s %s\n", label(i18n.T("tui.projects.label_model")), displayOrPlaceholder(p.Model, "hub default"))
+	fmt.Fprintf(&b, "%s %s\n", label(i18n.T("tui.projects.label_provider")), displayOrPlaceholder(p.Provider, i18n.T("tui.projects.hub_default")))
+	fmt.Fprintf(&b, "%s %s\n", label(i18n.T("tui.projects.label_model")), displayOrPlaceholder(p.Model, i18n.T("tui.projects.hub_default")))
 	team := p.TeamID
 	if team == "" {
 		team = i18n.T("tui.projects.solo")

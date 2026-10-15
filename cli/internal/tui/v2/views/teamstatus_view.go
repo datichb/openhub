@@ -185,12 +185,12 @@ func (v *TeamStatusView) render(tc TeamResolution, repo teamstate.TeamStateWrite
 			key   string
 			label string
 		}{
-			{teamstate.ClaimStatusPlanned, "planned"},
-			{teamstate.ClaimStatusInProgress, "in progress"},
-			{teamstate.ClaimStatusReview, "review"},
-			{teamstate.ClaimStatusValidation, "validation"},
-			{teamstate.ClaimStatusBlocked, "blocked"},
-			{teamstate.ClaimStatusDone, "done"},
+			{teamstate.ClaimStatusPlanned, i18n.T("tui.teamstatus.status_planned")},
+			{teamstate.ClaimStatusInProgress, i18n.T("tui.teamstatus.status_in_progress")},
+			{teamstate.ClaimStatusReview, i18n.T("tui.teamstatus.status_review")},
+			{teamstate.ClaimStatusValidation, i18n.T("tui.teamstatus.status_validation")},
+			{teamstate.ClaimStatusBlocked, i18n.T("tui.teamstatus.status_blocked")},
+			{teamstate.ClaimStatusDone, i18n.T("tui.teamstatus.status_done")},
 		}
 		var parts []string
 		for _, s := range statuses {

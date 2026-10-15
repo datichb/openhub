@@ -12,6 +12,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
@@ -323,13 +324,13 @@ func (v *WorkflowEditorView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 			v.changed()
 		}
 		return nil
-	case 'y':
+	case rawYAMLKey:
 		v.editRaw(0)
 		return nil
 	case 'w':
 		v.save()
 		return nil
-	case 'x':
+	case keys.Delete.Rune():
 		v.removeCurrent()
 		return nil
 	case 'a':
@@ -692,6 +693,7 @@ func (v *WorkflowEditorView) graphModel() widgets.GraphModel {
 
 func (v *WorkflowEditorView) renderGraph(prev string) {
 	v.graph = widgets.NewModelGraph(v.graphModel(), false)
+	v.graph.SetEmptyText(i18n.T("tui.editor.graph.empty"))
 	mode := tview.NewTextView().SetDynamicColors(true)
 	mode.SetBackgroundColor(theme.BgPanel)
 	mode.SetText("[" + theme.TextMutedHex + "]" + tview.Escape(i18n.Tf("tui.editor.graph.mode", v.graphMode())) + "[-]")
@@ -1091,9 +1093,14 @@ func (v *WorkflowEditorView) activate(ref any) {
 	}
 }
 
-// removeCurrent removes the selected element (x / Delete): a field written
-// in this document goes back to the inherited value; graph elements and
-// inputs are removed (disabled when inherited).
+// rawYAMLKey opens the raw YAML in $EDITOR (Y; y is accept in the key
+// convention).
+const rawYAMLKey = 'Y'
+
+// removeCurrent removes the selected element (d / Delete) after a
+// confirmation: a field written in this document goes back to the
+// inherited value; graph elements and inputs are removed (disabled when
+// inherited). u undoes it until the draft is saved.
 func (v *WorkflowEditorView) removeCurrent() {
 	switch v.section {
 	case edGraph:
@@ -1118,7 +1125,18 @@ func (v *WorkflowEditorView) removeCurrent() {
 		v.toast(i18n.T("tui.editor.not_written"), false)
 		return
 	}
-	v.edit(func(e *workflow.DocEdit) error { e.Unset(f.path...); return nil })
+	v.confirmRemove(i18n.Tf("tui.editor.unset_title", f.label), i18n.T("tui.editor.unset_body"), func() {
+		v.edit(func(e *workflow.DocEdit) error { e.Unset(f.path...); return nil })
+	})
+}
+
+// confirmRemove asks before a removal (d); without a shell it removes.
+func (v *WorkflowEditorView) confirmRemove(title, body string, remove func()) {
+	if v.shell == nil {
+		remove()
+		return
+	}
+	v.shell.Confirm(title, body, true, remove)
 }
 
 // add adds an element to the current section (a).

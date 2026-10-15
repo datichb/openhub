@@ -202,7 +202,7 @@ func (v *TakeoverView) showBrief() {
 	}
 
 	if v.shell != nil {
-		v.shell.ShowScrollableModal("Brief: "+b.TicketID, content, []ModalAction{
+		v.shell.ShowScrollableModal(i18n.Tf("tui.takeover.brief_title", b.TicketID), content, []ModalAction{
 			{Label: i18n.T("tui.takeover.close"), Callback: func() {}},
 		})
 	}

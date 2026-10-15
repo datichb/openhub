@@ -12,6 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
@@ -68,18 +69,13 @@ func (v *MCPView) SetShell(s ShellAccess) { v.shell = s }
 func (v *MCPView) ID() string { return "mcp" }
 
 // Title returns the display title.
-func (v *MCPView) Title() string { return "MCP" }
+func (v *MCPView) Title() string { return i18n.T("tui.mcp.title") }
 
 // StatusHints returns keybinding hints.
 func (v *MCPView) StatusHints() string {
-	return fmt.Sprintf("j/k %s · {/} %s · Space %s · t %s · w %s · r %s",
-		i18n.T("tui.hints.nav"),
-		i18n.T("tui.hints.navigate"),
-		i18n.T("tui.hints.toggle"),
-		i18n.T("tui.hints.token"),
-		i18n.T("tui.hints.write"),
-		i18n.T("tui.hints.refresh"),
-	)
+	return keys.Hints(keys.Navigate.Hint(), "{/} "+i18n.T("tui.hints.sections"),
+		i18n.T("tui.hints.space_key")+" "+i18n.T("tui.hints.toggle"),
+		"t "+i18n.T("tui.hints.token"), "w "+i18n.T("tui.hints.write"), keys.Refresh.Hint())
 }
 
 // Mount builds the MCP management interface.
@@ -134,6 +130,20 @@ func (v *MCPView) Unmount() {
 
 // HandleKey processes key events.
 func (v *MCPView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
+	if keys.Refresh.Matches(event) {
+		if v.list == nil {
+			return nil
+		}
+		v.loadServices()
+		v.populateList()
+		if v.shell != nil {
+			v.shell.ShowToastMsg(i18n.T("tui.mcp.refreshed"), true)
+		}
+		return nil
+	}
+	if event.Key() != tcell.KeyRune {
+		return event
+	}
 	switch event.Rune() {
 	case ' ':
 		v.toggleHubCurrent()
@@ -143,13 +153,6 @@ func (v *MCPView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		return nil
 	case 'w':
 		v.toggleWriteCurrent()
-		return nil
-	case 'r':
-		v.loadServices()
-		v.populateList()
-		if v.shell != nil {
-			v.shell.ShowToastMsg(i18n.T("tui.mcp.refreshed"), true)
-		}
 		return nil
 	}
 	return event
@@ -222,14 +225,14 @@ func (v *MCPView) showDetail(i int) {
 	if svc.Name == "gitlab" {
 		d.field(i18n.T("tui.detail.mcp.write"), onOff(svc.WriteEnabled))
 	}
-	keys := []string{"Space", i18n.T("tui.hints.toggle")}
+	pairs := []string{i18n.T("tui.hints.space_key"), i18n.T("tui.hints.toggle")}
 	if svc.Name != "team" {
-		keys = append(keys, "t", i18n.T("tui.hints.token"))
+		pairs = append(pairs, "t", i18n.T("tui.hints.token"))
 	}
 	if svc.Name == "gitlab" {
-		keys = append(keys, "w", i18n.T("tui.hints.write"))
+		pairs = append(pairs, "w", i18n.T("tui.hints.write"))
 	}
-	d.keys(append(keys, "r", i18n.T("tui.hints.refresh"))...)
+	d.keys(append(pairs, keyPairs(keys.Refresh)...)...)
 	v.page.SetDetail(d.String())
 }
 
@@ -334,11 +337,11 @@ func (v *MCPView) promptTokenCurrent() {
 		return
 	}
 	if v.shell != nil {
-		v.shell.ShowPasswordModal("Token "+svc.Name, func(token string) {
+		v.shell.ShowPasswordModal(i18n.Tf("tui.mcp.token_title", svc.Name), func(token string) {
 			if token != "" && v.appCtx != nil && v.appCtx.Secrets != nil {
 				key := fmt.Sprintf("%s-token", svc.Name)
 				if err := v.appCtx.Secrets.Set(context.Background(), key, token); err != nil {
-					v.shell.ShowToastMsg("Error: "+err.Error(), false)
+					v.shell.ShowToastMsg(errorText(err), false)
 				}
 				v.services[idx].HasToken = true
 				v.populateList()
@@ -394,7 +397,7 @@ func (v *MCPView) toggleService(name string, enable bool) {
 		v.setMCPEnabled(cfg, name, enable)
 		if err := v.cfg.SaveConfig(cfg); err != nil {
 			if v.shell != nil {
-				v.shell.ShowToastMsg("Error: "+err.Error(), false)
+				v.shell.ShowToastMsg(errorText(err), false)
 			}
 		}
 		v.populateList()
@@ -464,7 +467,7 @@ func (v *MCPView) buildCommands() {
 			Label:       svc.Name,
 			Aliases:     []string{"toggle " + svc.Name},
 			Description: desc,
-			Category:    "MCP",
+			Category:    v.Title(),
 			Action:      func() { v.toggleService(svc.Name, !svc.Enabled) },
 		})
 		if svc.Name != "team" {
@@ -473,7 +476,7 @@ func (v *MCPView) buildCommands() {
 				Label:       "token " + svc.Name,
 				Aliases:     []string{svc.Name + " token"},
 				Description: i18n.T("tui.mcp.cmd_token"),
-				Category:    "MCP",
+				Category:    v.Title(),
 				Action: func() {
 					for i, s := range v.services {
 						if s.Name == svc.Name {
@@ -492,7 +495,7 @@ func (v *MCPView) buildCommands() {
 		Label:       "gitlab " + i18n.T("tui.hints.write"),
 		Aliases:     []string{"write gitlab"},
 		Description: i18n.T("tui.mcp.cmd_write_toggle"),
-		Category:    "MCP",
+		Category:    v.Title(),
 		Action: func() {
 			for i, s := range v.services {
 				if s.Name == "gitlab" {

@@ -122,7 +122,7 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 			if _, _, err := upsertProject(context.Background(), a.Projects, p); err != nil {
 				slog.Warn("failed to create/update project", "error", err)
 				if tuiShell != nil {
-					tuiShell.ShowToastMsg("Project save failed: "+err.Error(), false)
+					tuiShell.ShowToastMsg(i18n.Tf("tui.projects.save_failed", err.Error()), false)
 				}
 			} else {
 				offerBeadsClean(a, p.Path)
@@ -132,7 +132,7 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 			if err := a.Projects.Delete(context.Background(), id); err != nil {
 				slog.Warn("failed to remove project", "error", err)
 				if tuiShell != nil {
-					tuiShell.ShowToastMsg("Project delete failed: "+err.Error(), false)
+					tuiShell.ShowToastMsg(i18n.Tf("tui.projects.delete_failed", err.Error()), false)
 				}
 			}
 		})
@@ -172,7 +172,7 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 			if err := a.Projects.Update(ctx, project); err != nil {
 				slog.Warn("failed to update project config", "id", id, "error", err)
 				if tuiShell != nil {
-					tuiShell.ShowToastMsg("Config save failed: "+err.Error(), false)
+					tuiShell.ShowToastMsg(i18n.Tf("tui.projects.config_save_failed", err.Error()), false)
 				}
 			}
 		})
@@ -188,7 +188,7 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 			if err := a.Projects.Update(ctx, project); err != nil {
 				slog.Warn("failed to rename project", "id", id, "error", err)
 				if tuiShell != nil {
-					tuiShell.ShowToastMsg("Rename failed: "+err.Error(), false)
+					tuiShell.ShowToastMsg(i18n.Tf("tui.projects.rename_failed", err.Error()), false)
 				}
 			}
 		})
@@ -204,7 +204,7 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 			if err := a.Projects.Update(ctx, project); err != nil {
 				slog.Warn("failed to move project", "id", id, "error", err)
 				if tuiShell != nil {
-					tuiShell.ShowToastMsg("Move failed: "+err.Error(), false)
+					tuiShell.ShowToastMsg(i18n.Tf("tui.projects.move_failed", err.Error()), false)
 				}
 			}
 		})

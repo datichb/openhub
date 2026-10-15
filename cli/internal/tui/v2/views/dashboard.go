@@ -7,6 +7,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
@@ -48,7 +49,7 @@ func RunDashboard(cfg DashboardConfig) error {
 	statsView.SetBackgroundColor(theme.BgPanel).
 		SetBorder(true).
 		SetBorderColor(theme.BorderNormal).
-		SetTitle(" Stats ").
+		SetTitle(" " + i18n.T("tui.dashboard.panel_stats") + " ").
 		SetTitleColor(theme.Accent)
 
 	var statsContent strings.Builder
@@ -69,7 +70,7 @@ func RunDashboard(cfg DashboardConfig) error {
 	tokenView.SetBackgroundColor(theme.BgPanel).
 		SetBorder(true).
 		SetBorderColor(theme.BorderNormal).
-		SetTitle(" Token Usage ").
+		SetTitle(" " + i18n.T("tui.dashboard.panel_tokens") + " ").
 		SetTitleColor(theme.Accent)
 
 	var tokenContent strings.Builder
@@ -96,7 +97,7 @@ func RunDashboard(cfg DashboardConfig) error {
 			pct)
 	}
 	if len(cfg.TokenUsage) == 0 {
-		fmt.Fprintf(&tokenContent, "  %sNo data[-]", widgets.ColorTag(theme.FgMuted))
+		fmt.Fprintf(&tokenContent, "  %s%s[-]", widgets.ColorTag(theme.FgMuted), i18n.T("tui.dashboard.no_data"))
 	}
 	tokenView.SetText(tokenContent.String())
 
@@ -106,7 +107,7 @@ func RunDashboard(cfg DashboardConfig) error {
 	activityView.SetBackgroundColor(theme.BgPanel).
 		SetBorder(true).
 		SetBorderColor(theme.BorderNormal).
-		SetTitle(" Recent Activity ").
+		SetTitle(" " + i18n.T("tui.dashboard.panel_activity") + " ").
 		SetTitleColor(theme.Accent)
 
 	var activityContent strings.Builder
@@ -115,7 +116,7 @@ func RunDashboard(cfg DashboardConfig) error {
 			widgets.ColorTag(theme.FgMuted), theme.IconDot, item)
 	}
 	if len(cfg.RecentItems) == 0 {
-		fmt.Fprintf(&activityContent, "  %sNo recent activity[-]", widgets.ColorTag(theme.FgMuted))
+		fmt.Fprintf(&activityContent, "  %s%s[-]", widgets.ColorTag(theme.FgMuted), i18n.T("tui.dashboard.no_activity"))
 	}
 	activityView.SetText(activityContent.String())
 

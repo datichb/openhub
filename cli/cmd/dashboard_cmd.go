@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
@@ -59,16 +60,16 @@ func runDashboard(cmd *cobra.Command, args []string) error {
 		Layout: layout.Config{
 			ProjectName: a.Config.Name,
 			Command:     "dashboard",
-			StatusHints: "q quit",
+			StatusHints: i18n.T("tui.dashboard.quit"),
 		},
 		Stats: []views.DashboardStat{
-			{Label: "Projects", Value: fmt.Sprintf("%d (%d active)", len(projects), active)},
-			{Label: "Top Project", Value: topProject},
-			{Label: "Sessions", Value: fmt.Sprintf("%d total / %d today", totalSessions, todaySessions)},
-			{Label: "Tokens Used", Value: formatTokens(tokensUsed)},
+			{Label: i18n.T("tui.dashboard.projects"), Value: i18n.Tf("tui.dashboard.projects_value", len(projects), active)},
+			{Label: i18n.T("tui.dashboard.top_project"), Value: topProject},
+			{Label: i18n.T("tui.dashboard.sessions"), Value: i18n.Tf("tui.dashboard.sessions_value", totalSessions, todaySessions)},
+			{Label: i18n.T("tui.dashboard.tokens_used_label"), Value: formatTokens(tokensUsed)},
 		},
 		TokenUsage: []views.TokenBar{
-			{Label: "Today", Current: todaySessions, Max: 50},
+			{Label: i18n.T("tui.dashboard.today_label"), Current: todaySessions, Max: 50},
 		},
 		RecentItems: []string{},
 	}
