@@ -529,12 +529,12 @@ func (v *TeamModelsView) ContextCommands() []ContextCommand {
 // Named distinctly to avoid collisions with the package-level sortedKeys used
 // by ProjectModelsView.
 func teamModelsSortedKeys(m map[string]string) []string {
-	keys := make([]string, 0, len(m))
+	out := make([]string, 0, len(m))
 	for k := range m {
-		keys = append(keys, k)
+		out = append(out, k)
 	}
-	sort.Strings(keys)
-	return keys
+	sort.Strings(out)
+	return out
 }
 
 // deepCopyTeamModels creates a value-copy of TeamModelsConfig, including deep

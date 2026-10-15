@@ -464,10 +464,10 @@ func (v *ProjectModelsView) ContextCommands() []ContextCommand {
 
 // sortedKeys returns the keys of a string map in sorted order.
 func sortedKeys(m map[string]string) []string {
-	keys := make([]string, 0, len(m))
+	out := make([]string, 0, len(m))
 	for k := range m {
-		keys = append(keys, k)
+		out = append(out, k)
 	}
-	sort.Strings(keys)
-	return keys
+	sort.Strings(out)
+	return out
 }

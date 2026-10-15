@@ -225,14 +225,14 @@ func (v *MCPView) showDetail(i int) {
 	if svc.Name == "gitlab" {
 		d.field(i18n.T("tui.detail.mcp.write"), onOff(svc.WriteEnabled))
 	}
-	keys := []string{"Space", i18n.T("tui.hints.toggle")}
+	pairs := []string{i18n.T("tui.hints.space_key"), i18n.T("tui.hints.toggle")}
 	if svc.Name != "team" {
-		keys = append(keys, "t", i18n.T("tui.hints.token"))
+		pairs = append(pairs, "t", i18n.T("tui.hints.token"))
 	}
 	if svc.Name == "gitlab" {
-		keys = append(keys, "w", i18n.T("tui.hints.write"))
+		pairs = append(pairs, "w", i18n.T("tui.hints.write"))
 	}
-	d.keys(append(keys, "r", i18n.T("tui.hints.refresh"))...)
+	d.keys(append(pairs, keyPairs(keys.Refresh)...)...)
 	v.page.SetDetail(d.String())
 }
 

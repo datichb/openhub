@@ -330,13 +330,13 @@ func (v *ProviderView) prefetchDetections() map[string]provider.DetectionResult 
 // Returns a map keyed by secret name.
 func (v *ProviderView) prefetchSecrets() map[string]secretCacheEntry {
 	ctx := context.Background()
-	keys := []string{
+	names := []string{
 		provider.KeychainKey(provider.Bedrock, ""),
 		provider.KeychainKey(provider.Anthropic, ""),
 		provider.KeychainKey(provider.OpenRouter, ""),
 	}
-	m := make(map[string]secretCacheEntry, len(keys))
-	for _, k := range keys {
+	m := make(map[string]secretCacheEntry, len(names))
+	for _, k := range names {
 		present, masked := v.vcfg.CheckSecret(ctx, k)
 		m[k] = secretCacheEntry{present: present, masked: masked}
 	}
