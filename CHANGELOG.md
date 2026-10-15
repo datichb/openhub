@@ -9,6 +9,13 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Changed — TUI : propreté des autres vues (lot tui-cleanup)
+
+- ⚠ **Touches harmonisées** dans les vues de configuration, d'équipe et de workflows : `n` crée partout (au lieu de `a`) ; Workflows : `c` comparer (au lieu de `D`), `v` vérifier, `d` supprime un brouillon, `x` n'archive que les workflows publiés ; Historique : `R` restaure (confirmé), `r` rafraîchit ; Éditeur : `d` retire ou revient à la valeur héritée (confirmé), `Y` ouvre le YAML brut ; Board d'équipe : `/` filtre (menu), `L` libère ; Projets : `e` renomme ; Worktrees : `M` nettoie les worktrees fusionnés ; Détail d'équipe : `T` découvre le tracker ; Patterns : `y` valide.
+- **Confirmations** avant toute suppression (modèles, patterns, policies, secrets, équipes, projets, configuration du fournisseur, brouillons, éléments de l'éditeur) et avant de rafraîchir une vue qui a des modifications non sauvegardées.
+- **Textes traduits** (fr/en) : messages du détail d'équipe, de la synchronisation, erreurs, titres de fenêtres, policies, assistant projet, tableau de bord ; un token de tracker manquant est reconnu par une erreur typée et non plus par son texte.
+- **Tests** des vues modèles, patterns, policies, activité, reprises, secrets, MCP projet et équipe, historique (avec instantanés du rendu) ; `RunPicker` (inutilisé) retiré ; `tui_team_actions.go` découpé par thème.
+
 ### Added — TUI : sessions, fan-out et validation par lot (lot tui-sessions)
 
 - **Détail d'une session à onglets** (`Tab`) : Détail (sorties relevées par oh, suites `next:` distinguées des autres suggestions d'« Enchaîner avec… », marquées aussi dans `e`), Trace (texte de `oh session trace` : `/` rechercher, `n`/`N`, `g`/`G`), Rapports (liste et lecteur), Fan-out.
