@@ -109,6 +109,8 @@ oh session approve dec_91 --decision reject
 oh session approve 7f3a --decision fix -m "Ajoute d'abord les tests"
 ```
 
+**Valideur** (`approver:`, CP-R9) : pour un checkpoint qui nomme ses valideurs, la commande affiche « Valideur attendu : … » ; si la personne qui valide (`user.name <user.email>` de git dans l'emplacement de la session) n'en fait pas partie, un avertissement sur la sortie d'erreur, et la validation est acceptée, tracée « hors valideur ». Avec `--batch`, une ligne d'avertissement par élément concerné, après le tableau (aussi avec `--dry-run`). Voir [Checkpoints](checkpoints.fr.md#valideur-humain-approver-cp-r9).
+
 **Validation par lot** (CP-R6) : `oh session approve --batch` liste les checkpoints en attente (décision, session, checkpoint, résumé, résultat de la vérification lancée par oh) puis les valide un par un, chacun par le même chemin qu'une validation seule (une vérification échouée refuse celui-là seulement, qui reste en attente ; la commande finit en erreur et le dit).
 
 | Flag | Type | Description |
@@ -227,7 +229,7 @@ Résultats de **toute la session**, sous la forme d'une description de MR prête
 oh session trace <session> [--json] [-o <fichier>]
 ```
 
-Trace complète d'une session, dans l'ordre : prompts reçus, messages et appels d'outils de l'agent d'entrée et de ses sous-agents (chaque événement d'un sous-agent porte `in_subagent`), skills chargés, délégations, décisions (permissions accordées ou refusées avec `granted`, questions, checkpoints, budget) et leur réponse, chronologie des checkpoints, vérifications (les commandes de build, de tests et de lint de la stack détectée portent `verification`), appels refusés par les règles (`denied`), sorties déclarées ou relevées par oh, workflows proposés ensuite (`next`), coûts et tokens par tour, puis un résumé (totaux, par agent, registre d'usage d'oh).
+Trace complète d'une session, dans l'ordre : prompts reçus, messages et appels d'outils de l'agent d'entrée et de ses sous-agents (chaque événement d'un sous-agent porte `in_subagent`), skills chargés, délégations, décisions (permissions accordées ou refusées avec `granted`, questions, checkpoints, budget) et leur réponse, chronologie des checkpoints (avec, pour chaque validation ou refus d'un humain, qui — `identity` — et, si le checkpoint nomme ses valideurs, `approver` et `approver_mismatch` : CP-R9), vérifications (les commandes de build, de tests et de lint de la stack détectée portent `verification`), appels refusés par les règles (`denied`), sorties déclarées ou relevées par oh, workflows proposés ensuite (`next`), coûts et tokens par tour, puis un résumé (totaux, par agent, registre d'usage d'oh).
 
 Sources : la session et ses décisions enregistrées par oh, la chronologie des checkpoints tenue par le démon, et l'historique de l'outil, lu en direct tant que le serveur tourne (un instantané masqué est alors gardé dans `~/.oh/sessions/<id>/transcript.json`), sinon depuis ce dernier instantané. Les secrets sont masqués partout (jetons d'oh, clés AWS, Bedrock, GitHub, GitLab, Slack, JWT, clés privées, valeurs de `password`, `token`, `api_key`…, mots de passe des URL).
 

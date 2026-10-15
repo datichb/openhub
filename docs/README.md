@@ -176,6 +176,7 @@ The `workflow` MCP server (`workflow_status`, `workflow_checkpoint`, `workflow_o
 | [051](architecture/adr/051-community-skills-disconnection.en.md) | Community skills registry disconnected |
 | [052](architecture/adr/052-beads-identity-provenance.en.md) | Beads identity and provenance: `--readonly`, actor, provenance events |
 | [053](architecture/adr/053-fanout-control-substitution.en.md) | Fan-out: child sessions driven by oh and control substitution (CP-R3) |
+| [055](architecture/adr/055-checkpoint-approver.en.md) | Human approver of a checkpoint (`approver:`, CP-R9), step 1 |
 
 ---
 

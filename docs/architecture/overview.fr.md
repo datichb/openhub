@@ -393,6 +393,7 @@ Implémenter et diagnostiquer sont confiés à des agents différents (developer
 | [051](./adr/051-community-skills-disconnection.fr.md) | Déconnexion du registre de skills communautaires | remplace en partie 027 (marketplace de skills) |
 | [052](./adr/052-beads-identity-provenance.fr.md) | Identité et provenance Beads : `--readonly`, auteur, événements de provenance | fait évoluer 046 |
 | [053](./adr/053-fanout-control-substitution.fr.md) | Fan-out : sessions enfants pilotées par oh et substitution de contrôle (CP-R3) | — |
+| [055](./adr/055-checkpoint-approver.fr.md) | Valideur humain d'un checkpoint (`approver:`, CP-R9), étape 1 | — |
 
 Tous les ADR : [`docs/architecture/adr/`](./adr/).
 

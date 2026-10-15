@@ -248,10 +248,29 @@ Each checkpoint names the agents that pass it (`by:`; otherwise deduced from the
 
 ---
 
+## Human approver (`approver:`, CP-R9)
+
+`by:` says which agent passes a checkpoint; `approver:` says which **human** must validate it (step 1, [ADR-055](../architecture/adr/055-checkpoint-approver.en.md)):
+
+```yaml
+checkpoints:
+  cp-apply:
+    approver: [Grace Hopper, lead@example.com]
+```
+
+- **Who declares it**: a team layer only (team-state). Neither the hub, nor a project layer, nor the launch options; a project layer neither removes nor changes it, does not remove the checkpoint and does not make it pause less. Format and diagnostics: [Workflow schema](workflow-schema.en.md#approver--human-approver).
+- **Identity**: the one of [ADR-052](../architecture/adr/052-beads-identity-provenance.en.md), git `user.name` (and `user.email`) of the session location, else the login name. An entry with `@` is compared with the e-mail, the others with the name (ignoring case and extra spaces).
+- **On the machine, oh does not block**: it cannot know who sits at the machine. The TUI card and `oh session approve` show "Expected approver: …"; when the person who validates is none of them, a warning says so (the TUI asks for a confirmation on `y`) and the validation is accepted, traced as "out of approver". Validation by batch (`--batch`, TUI `B`) shows it for each item.
+- **Tracing**: every validation or refusal by a human, with or without an approver, records in the checkpoint events `identity` (who), `at` (when), `approver` (expected approvers) and `approver_mismatch`; `oh session trace` shows them ("by …", "⚠ out of approver"). The mode (`auto`) and a delegation (CP-R3) pass without an identity; in a remote job, `remote: auto` validates under the identity `remote` (out of approver, warning `checkpoint_approver_remote_auto`: prefer `remote: defer`).
+- **Step 2, not done**: in a remote session, a checkpoint with an approver will pass only on the answer of an approver with an attested identity (forge account or signature); see the ADR.
+
+---
+
 ## Decision card (CP-R5, verification part)
 
 For a paused checkpoint, the TUI card shows, besides the agent summary, the changes, the last messages and the timeline:
 
+- **Expected approver** (`approver:`, CP-R9): the approvers of the checkpoint and, when the person who validates is none of them, the "out of approver" warning;
 - **Verification run by oh**: status, commands and exit code, output excerpt on failure; for a fetched remote session, the result obtained in the job;
 - **Evidence of the agent**: each command reported, observed or not;
 - **Unresolved**: the ticket whose fix rounds reached the limit;

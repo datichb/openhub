@@ -248,10 +248,29 @@ Chaque checkpoint nomme les agents qui le passent (`by:` ; sinon déduit du grap
 
 ---
 
+## Valideur humain (`approver:`, CP-R9)
+
+`by:` dit quel agent passe un checkpoint ; `approver:` dit quel **humain** doit le valider (étape 1, [ADR-055](../architecture/adr/055-checkpoint-approver.fr.md)) :
+
+```yaml
+checkpoints:
+  cp-apply:
+    approver: [Grace Hopper, lead@example.com]
+```
+
+- **Qui le déclare** : une couche d'équipe seulement (team-state). Ni le hub, ni une couche de projet, ni les options de lancement ; une couche de projet ne le retire ni ne le change, ne retire pas le checkpoint et ne le fait pas moins mettre en pause. Format et diagnostics : [Schéma des workflows](workflow-schema.fr.md#approver--valideur-humain).
+- **Identité** : celle de l'[ADR-052](../architecture/adr/052-beads-identity-provenance.fr.md), `user.name` (et `user.email`) de git dans l'emplacement de la session, sinon le nom de connexion. Une entrée avec `@` se compare à l'e-mail, les autres au nom (sans casse ni espaces en trop).
+- **En local, oh ne bloque pas** : il ne peut pas savoir qui est devant la machine. La carte de la TUI et `oh session approve` affichent « Valideur attendu : … » ; si la personne qui valide n'en fait pas partie, un avertissement le dit (la TUI demande une confirmation sur `y`) et la validation est acceptée, tracée « hors valideur ». La validation par lot (`--batch`, TUI `B`) l'affiche pour chaque élément.
+- **Traçage** : chaque validation ou refus d'un humain, avec ou sans valideur, enregistre dans les événements du checkpoint `identity` (qui), `at` (quand), `approver` (valideurs attendus) et `approver_mismatch` ; `oh session trace` les montre (« par … », « ⚠ hors valideur »). Le mode (`auto`) et une délégation (CP-R3) passent sans identité ; dans un job distant, `remote: auto` valide sous l'identité `remote` (hors valideur, avertissement `checkpoint_approver_remote_auto` : préférez `remote: defer`).
+- **Étape 2, non faite** : en session distante, un checkpoint avec valideur ne passera que sur la réponse d'un valideur à l'identité attestée (compte de la forge ou signature) ; voir l'ADR.
+
+---
+
 ## Carte de décision (CP-R5, partie vérification)
 
 Pour un checkpoint en pause, la carte de la TUI affiche, en plus du résumé de l'agent, des changements, des derniers messages et de la frise :
 
+- **Valideur attendu** (`approver:`, CP-R9) : les valideurs du checkpoint et, si la personne qui valide n'en fait pas partie, l'avertissement « hors valideur » ;
 - **Vérification lancée par oh** : statut, commandes et code de sortie, extrait de la sortie en cas d'échec ; pour une session distante récupérée, le résultat obtenu dans le job ;
 - **Preuves de l'agent** : chaque commande annoncée, observée ou non ;
 - **Non résolu** : le ticket dont les tours de correction ont atteint la limite ;

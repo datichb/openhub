@@ -109,6 +109,8 @@ oh session approve dec_91 --decision reject
 oh session approve 7f3a --decision fix -m "Add the tests first"
 ```
 
+**Approver** (`approver:`, CP-R9): for a checkpoint that names its approvers, the command shows "Expected approver: …"; when the person who validates (git `user.name <user.email>` of the session location) is none of them, a warning on standard error, and the validation is accepted, traced as "out of approver". With `--batch`, one warning line per item concerned, after the table (also with `--dry-run`). See [Checkpoints](checkpoints.en.md#human-approver-approver-cp-r9).
+
 **Validation by batch** (CP-R6): `oh session approve --batch` lists the waiting checkpoints (decision, session, checkpoint, summary, result of the verification run by oh) then approves them one by one, each through the same path as a single approval (a failed verification refuses that one only, which stays waiting; the command ends in error and says so).
 
 | Flag | Type | Description |
@@ -227,7 +229,7 @@ Results of the **whole session**, as a merge request description ready to paste:
 oh session trace <session> [--json] [-o <file>]
 ```
 
-Full trace of a session, in order: prompts received, messages and tool calls of the entry agent and of its subagents (every event of a subagent carries `in_subagent`), skills loaded, delegations, decisions (permissions granted or refused with `granted`, questions, checkpoints, budget) and their answer, checkpoint timeline, verifications (the build, test and lint commands of the detected stack carry `verification`), calls refused by the rules (`denied`), outputs declared or recorded by oh, workflows proposed next (`next`), costs and tokens per turn, then a summary (totals, per agent, oh usage ledger).
+Full trace of a session, in order: prompts received, messages and tool calls of the entry agent and of its subagents (every event of a subagent carries `in_subagent`), skills loaded, delegations, decisions (permissions granted or refused with `granted`, questions, checkpoints, budget) and their answer, checkpoint timeline (with, for each validation or refusal by a human, who — `identity` — and, when the checkpoint names its approvers, `approver` and `approver_mismatch`: CP-R9), verifications (the build, test and lint commands of the detected stack carry `verification`), calls refused by the rules (`denied`), outputs declared or recorded by oh, workflows proposed next (`next`), costs and tokens per turn, then a summary (totals, per agent, oh usage ledger).
 
 Sources: the session and its decisions recorded by oh, the checkpoint timeline kept by the daemon, and the tool history, read live while the server runs (a masked snapshot is then kept in `~/.oh/sessions/<id>/transcript.json`), else from that last snapshot. Secrets are masked everywhere (oh tokens, AWS, Bedrock, GitHub, GitLab and Slack keys, JWTs, private keys, values of `password`, `token`, `api_key`…, URL passwords).
 

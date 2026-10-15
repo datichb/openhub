@@ -90,6 +90,25 @@ enforce: [checkpoints, modes]   # or ["*"] for the whole document
 - Locks add up along the `extends` chain; a more specific layer cannot remove them.
 - Launch options (mode, runtime, inputs) are still chosen within the limits of the workflow.
 
+## Approver of a checkpoint (`approver:`)
+
+The team may name the people who validate a sensitive checkpoint (CP-R9, [ADR-055](../architecture/adr/055-checkpoint-approver.en.md)), for instance a lead for `cp-apply` and `cp-publish`:
+
+```yaml
+apiVersion: oh/v1
+kind: Workflow
+id: infra-change
+extends: hub:infra-change
+checkpoints:
+  cp-apply:
+    approver: [Grace Hopper, lead@example.com]   # git user.name or user.email
+```
+
+- Only the **team layer** declares it; a project layer can neither remove nor change it, nor remove the checkpoint, nor make it pause less (`checkpoint_approver_layer`, `approver_checkpoint_removed`, `loosening`).
+- Each approver writes their identity as in their git configuration (`git config user.name`, or `user.email`): that is what oh compares, as for the author of Beads writes.
+- **On the machine, oh warns without blocking**: the card shows "Expected approver: …", a validation by someone else is accepted and traced as "out of approver" (`oh session trace`). Who validates and when is always traced.
+- In a remote session, prefer `remote: defer` for these checkpoints: with `remote: auto`, the policy passes them without an approver (warning). Real blocking in a remote session is step 2.
+
 ## Drafts, publication, history
 
 The life cycle of a team or project workflow goes through the WorkflowService (CLI: `oh workflow new|edit|diff|publish|history|restore|archive`, see the [reference](../reference/cli-workflows.en.md#editing-team-and-project-workflows)):
@@ -101,7 +120,7 @@ The life cycle of a team or project workflow goes through the WorkflowService (C
 
 ### Impact summary
 
-Every publication compares the new version with the previous one: risk raised, new agents (and those that write), remote execution or new runtimes allowed, checkpoints removed, made optional or loosened, Beads commands added, budget raised, new MCP servers or plugins, Code Mode, inputs and prompt changed. Changes that **widen** the workflow are flagged. Team catalogue bricks used for the first time get the "new brick" badge.
+Every publication compares the new version with the previous one: risk raised, new agents (and those that write), remote execution or new runtimes allowed, checkpoints removed, made optional or loosened, approver (`approver:`) removed or changed, Beads commands added, budget raised, new MCP servers or plugins, Code Mode, inputs and prompt changed. Changes that **widen** the workflow are flagged. Team catalogue bricks used for the first time get the "new brick" badge.
 
 ### History, restore, archive
 

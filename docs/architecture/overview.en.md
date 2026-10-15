@@ -393,6 +393,7 @@ Implementing and diagnosing are given to different agents (developer, debugger);
 | [051](./adr/051-community-skills-disconnection.en.md) | Community skills registry disconnected | partly replaces 027 (skill marketplace) |
 | [052](./adr/052-beads-identity-provenance.en.md) | Beads identity and provenance: `--readonly`, actor, provenance events | evolves 046 |
 | [053](./adr/053-fanout-control-substitution.en.md) | Fan-out: child sessions driven by oh and control substitution (CP-R3) | — |
+| [055](./adr/055-checkpoint-approver.en.md) | Human approver of a checkpoint (`approver:`, CP-R9), step 1 | — |
 
 All ADRs: [`docs/architecture/adr/`](./adr/).
 
