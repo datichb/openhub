@@ -3,6 +3,7 @@ package daemon
 import (
 	"context"
 	"log/slog"
+	"sort"
 	"sync"
 	"time"
 
@@ -365,6 +366,7 @@ func (w *watcher) resync(ctx context.Context) {
 		w.d.ensureFanoutDriver(ctx, s.ID)
 	}
 	w.adoptChildren(ctx)
+	w.accountChildren(ctx)
 	w.applyAllRules(ctx, sessions)
 	w.mu.Lock()
 	w.synced = true
@@ -403,6 +405,54 @@ func (w *watcher) adoptChildren(ctx context.Context) {
 	w.mu.Unlock()
 	for child, root := range links {
 		w.refreshChildPending(ctx, root, child)
+	}
+}
+
+// accountChildren reads the cost of every subagent session of the working
+// oh sessions, running or ended, and records what the ledger does not hold
+// yet, then checks the budgets: a subagent that ended while the daemon was
+// not listening (reconnection, restart, sleep) would otherwise never be
+// counted, and subagents carry most of the cost of a session. account
+// records the difference with what it already holds: a subagent counted
+// before is not counted twice.
+func (w *watcher) accountChildren(ctx context.Context) {
+	if w.d.opts.Usage == nil || w.d.opts.Sessions == nil {
+		return
+	}
+	w.mu.Lock()
+	links := make(map[string]string, len(w.children))
+	for c, r := range w.children {
+		links[c] = r
+	}
+	w.mu.Unlock()
+	children := make([]string, 0, len(links))
+	for c := range links {
+		children = append(children, c)
+	}
+	sort.Strings(children)
+	working := map[string]bool{} // root → not ended
+	var roots []string
+	for _, child := range children {
+		root := links[child]
+		live, seen := working[root]
+		if !seen {
+			sess, err := w.d.opts.Sessions.Get(ctx, root)
+			live = err == nil && !isTerminal(sess.State)
+			working[root] = live
+			if live {
+				roots = append(roots, root)
+			}
+		}
+		if !live {
+			continue
+		}
+		if res, err := w.usage(ctx, child); err == nil {
+			w.account(ctx, root, child, res)
+		}
+	}
+	for _, root := range roots {
+		w.storeTotal(ctx, root)
+		w.raiseBudget(ctx, root, false)
 	}
 }
 

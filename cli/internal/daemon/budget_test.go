@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"sync"
@@ -25,6 +26,23 @@ type limitAdapter struct {
 	cmu        sync.Mutex
 	interrupts []string
 	prompts    map[string]string
+	// parents are the subagent sessions the tool lists (child → parent),
+	// as after a reconnection; nil: the adapter cannot list them.
+	parents map[string]string
+}
+
+// Children implements adapters.ChildLister.
+func (a *limitAdapter) Children(context.Context, adapters.ServerHandle) (map[string]string, error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.parents == nil {
+		return nil, errors.New("subagents not listed")
+	}
+	out := make(map[string]string, len(a.parents))
+	for c, p := range a.parents {
+		out[c] = p
+	}
+	return out, nil
 }
 
 func (a *limitAdapter) Control(_ context.Context, _ adapters.ServerHandle, id string, op adapters.ControlOp) error {
