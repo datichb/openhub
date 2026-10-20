@@ -65,12 +65,49 @@ type Grant struct {
 	Credential    CredentialRef // names the real credential (logs, refusals)
 }
 
-// Usage is the traffic accounted to a grant.
+// Usage is the traffic accounted to a grant. InputTokens leaves the cache
+// out: the tokens read from or written to the provider cache have their own
+// counters (they are priced apart).
 type Usage struct {
-	Requests     int64
-	InputTokens  int64
-	OutputTokens int64
+	Requests         int64
+	InputTokens      int64
+	OutputTokens     int64
+	CacheReadTokens  int64
+	CacheWriteTokens int64
+	// Estimated counts the responses cut before their end whose counters
+	// were estimated, not read (S-27).
+	Estimated int64
 }
+
+// Tokens is every token counted: input, output and cache.
+func (u Usage) Tokens() int64 {
+	return u.InputTokens + u.OutputTokens + u.CacheReadTokens + u.CacheWriteTokens
+}
+
+func (u Usage) empty() bool {
+	return u.InputTokens == 0 && u.OutputTokens == 0 && u.CacheReadTokens == 0 && u.CacheWriteTokens == 0
+}
+
+// Admission describes a model request about to be relayed, for the budget
+// reservation: the amounts are estimates that err high.
+type Admission struct {
+	Model string
+	// InputTokens is the prompt size, from the size of the request.
+	InputTokens int64
+	// MaxOutputTokens is the output the request allows itself
+	// (DefaultMaxOutputTokens when it names none).
+	MaxOutputTokens int64
+}
+
+// Refusal is the error of a Gate that refuses a request. With a RetryAfter
+// the refusal is momentary (429: the reservations of the requests in flight
+// fill the budget); without, the budget is spent (402).
+type Refusal struct {
+	Message    string
+	RetryAfter time.Duration
+}
+
+func (r *Refusal) Error() string { return r.Message }
 
 type grantState struct {
 	Grant
@@ -80,6 +117,8 @@ type grantState struct {
 	rejected *AuthRejection // last credential refusal not followed by a success
 	// rateLimited counts the 429 answers in a row (checkRateLimit).
 	rateLimited int
+	// reserved is the token budget held by the requests in flight.
+	reserved int64
 }
 
 // Proxy is a local HTTP proxy. Routes: /<provider>/... → upstream /... .
@@ -99,6 +138,11 @@ type Proxy struct {
 	// OnUsage, when set, receives the usage accounted to the grants (by
 	// owner), for a persistent ledger shared across restarts and new tokens.
 	OnUsage func(owner string, delta Usage)
+	// Gate, when set, is called before each model request is relayed (F-04,
+	// S-27) with the owner of the grant. It returns the function the proxy
+	// calls once the request is over, with the usage accounted to it (zero
+	// when it failed), or a *Refusal.
+	Gate func(ctx context.Context, owner string, a Admission) (release func(Usage), err error)
 	// OnAuthRejected, when set, is called (in its own goroutine) when the
 	// provider starts refusing the credential of a grant (401/403).
 	OnAuthRejected func(r AuthRejection)
@@ -378,7 +422,7 @@ func (p *Proxy) Exhausted(ref string) bool {
 	}
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	return g.usage.InputTokens+g.usage.OutputTokens >= g.MaxTokens
+	return g.usage.Tokens() >= g.MaxTokens
 }
 
 // TokenPrefix starts every proxy session token.
@@ -523,12 +567,22 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if g.MaxTokens > 0 {
 		g.mu.Lock()
-		used := g.usage.InputTokens + g.usage.OutputTokens
+		used := g.usage.Tokens()
 		g.mu.Unlock()
 		if used >= g.MaxTokens {
 			http.Error(w, "credproxy: session token budget exhausted", http.StatusTooManyRequests)
 			return
 		}
+	}
+	release := func(Usage) {}
+	if modelCall(provider, r.Method, escapedRest) {
+		rel, err := p.admit(r.Context(), g, admission(model, body))
+		if err != nil {
+			refuse(w, err)
+			return
+		}
+		release = rel
+		defer release(Usage{}) // no-op once the response was accounted
 	}
 
 	if err := checkUpstream(g.Provider, g.Upstream.BaseURL); err != nil { // checked again on every request (S-21)
@@ -560,7 +614,14 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			p.checkAuth(g, provider, resp)
 			p.checkRateLimit(g, provider, model, resp)
 			resp.Body = &usageReader{rc: resp.Body, g: g, frames: base64Frames(provider, escapedRest),
-				onReport: func(in, out int64) { p.account(g, Usage{InputTokens: in, OutputTokens: out}) }}
+				stream: isEventStream(resp), estimate: modelCall(provider, r.Method, escapedRest) && resp.StatusCode/100 == 2,
+				reqBytes: int64(len(body)), maxOutput: maxOutputTokens(body),
+				onReport: func(us Usage) {
+					if !us.empty() {
+						p.account(g, us)
+					}
+					release(us)
+				}}
 			return nil
 		},
 		ErrorHandler: func(w http.ResponseWriter, _ *http.Request, err error) {
@@ -663,6 +724,10 @@ func (t authTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	}
 	return t.base.RoundTrip(req)
 }
+
+// ModelAllowed reports whether a model id matches one of the allow-list
+// patterns (empty list = any): the check the proxy makes on each request.
+func ModelAllowed(patterns []string, model string) bool { return modelAllowed(patterns, model) }
 
 func modelAllowed(patterns []string, model string) bool {
 	if len(patterns) == 0 {
