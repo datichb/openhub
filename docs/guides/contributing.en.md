@@ -61,6 +61,38 @@ anymore). `internal/docstest` checks that no diagram SVG is referenced, that a b
 "Diagram source" is identical to its source and, when `mmdc` is installed
 (`npm i -g @mermaid-js/mermaid-cli`), that every diagram renders without error.
 
+#### Automatic test isolation
+
+Tests never touch your real hub nor your real `HOME`, even when your shell exports `OH_HOME` or
+`OH_TEST_*` variables (for instance after `source openhub-test/env.sh`). The `TestMain` of the
+packages concerned calls `internal/testenv`, which, before `m.Run()`:
+
+- creates a temporary folder and puts `HOME` and `XDG_CONFIG_HOME`, `XDG_DATA_HOME`,
+  `XDG_CACHE_HOME`, `XDG_STATE_HOME` in it;
+- removes the `OH_*` variables (`OH_HOME`, `OH_TEST_*`, `OH_PASSPHRASE`, session and gateway…),
+  except `OH_E2E_*` and `OH_EVAL_*` (tests that call a real model). The hub is then `~/.oh` of the
+  temporary `HOME`; a test that wants another hub sets `OH_HOME` with `t.Setenv`;
+- keeps the `PATH` (`opencode`, `bd`), the Go caches and your git configuration (identity).
+
+A watchdog compares, before and after the tests, the size and modification time of `hub.toml` and
+`oh.db` in the former `OH_HOME` and in `~/.oh`: if either changed, the package fails (message
+"changed the real hub"). It is read only: it creates nothing. If you used oh on that hub while the
+tests ran, run them again.
+
+`env -u OH_HOME go test` is therefore no longer needed. A new package whose tests read `OH_HOME`,
+`HOME` or a derived path (`~/.oh`, `~/.config`, keychain…), directly or through the code under
+test, adds a `main_test.go`:
+
+```go
+func TestMain(m *testing.M) {
+	finish := testenv.Isolate()
+	os.Exit(finish(m.Run()))
+}
+```
+
+(with `gittest.Main(m)` instead of `m.Run()` if the tests run git). A test that re-executes the test
+binary as a helper process inherits the isolated environment.
+
 ### Linting and formatting
 
 ```bash
