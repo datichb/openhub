@@ -56,14 +56,35 @@ func init() {
 
 func runExport(cmd *cobra.Command, args []string) error {
 	a := MustApp()
-	hubDir := config.HubDir()
-
 	output, _ := cmd.Flags().GetString("output")
 	if output == "" {
 		output = fmt.Sprintf("oh-backup-%s.tar.gz", time.Now().Format("2006-01-02"))
 	}
+	return exportArchive(a.IO.Out, output)
+}
 
-	fmt.Fprintf(a.IO.Out, "Export vers %s...\n", output)
+// snapshotDatabase writes a consistent copy of the database at dbPath into
+// dir (VACUUM INTO, WAL included) and returns its path. The database is
+// opened without any migration, on its own connection: writes still sitting in
+// oh.db-wal are part of the copy, and a database in use is not disturbed.
+func snapshotDatabase(dbPath, dir string) (string, error) {
+	s, err := sqlite.OpenRaw(dbPath)
+	if err != nil {
+		return "", err
+	}
+	defer s.Close()
+	dest := filepath.Join(dir, "oh.db")
+	if err := s.Backup(dest); err != nil {
+		return "", err
+	}
+	return dest, nil
+}
+
+// exportArchive writes the backup archive of the hub to output.
+func exportArchive(w io.Writer, output string) error {
+	hubDir := config.HubDir()
+
+	fmt.Fprintf(w, "Export vers %s...\n", output)
 
 	// Files to include in the archive
 	filesToArchive := []struct {
@@ -80,20 +101,39 @@ func runExport(cmd *cobra.Command, args []string) error {
 		filesToArchive = append(filesToArchive, struct{ src, name string }{secretsPath, "secrets.enc"})
 	}
 
-	// Compute checksum over all files
+	// The database is archived from a consistent copy, not from oh.db: in WAL
+	// mode the file alone misses the writes not yet checkpointed. When the copy
+	// cannot be made (corrupted database), the file is archived as is, with a
+	// warning.
+	if fileExists(filesToArchive[0].src) {
+		snapDir, err := os.MkdirTemp(hubDir, ".export-*")
+		if err != nil {
+			return fmt.Errorf("creating snapshot directory: %w", err)
+		}
+		defer os.RemoveAll(snapDir)
+		if snap, err := snapshotDatabase(filesToArchive[0].src, snapDir); err != nil {
+			fmt.Fprintf(w, "  %s\n", i18n.Tf("cmd.export.snapshot_failed", err))
+		} else {
+			filesToArchive[0].src = snap
+		}
+	}
+
+	// Each file is read once: the checksum and the archive see the same bytes.
 	h := sha256.New()
 	var fileNames []string
+	var contents [][]byte
 	for _, f := range filesToArchive {
 		data, err := os.ReadFile(f.src)
 		if err != nil {
 			if os.IsNotExist(err) {
-				fmt.Fprintf(a.IO.Out, "  Ignoré (absent): %s\n", f.name)
+				fmt.Fprintf(w, "  Ignoré (absent): %s\n", f.name)
 				continue
 			}
 			return fmt.Errorf("reading %s: %w", f.name, err)
 		}
 		h.Write(data)
 		fileNames = append(fileNames, f.name)
+		contents = append(contents, data)
 	}
 	checksum := hex.EncodeToString(h.Sum(nil))
 
@@ -126,18 +166,11 @@ func runExport(cmd *cobra.Command, args []string) error {
 	}
 
 	// Write each file
-	for _, f := range filesToArchive {
-		data, err := os.ReadFile(f.src)
-		if err != nil {
-			if os.IsNotExist(err) {
-				continue
-			}
-			return fmt.Errorf("reading %s: %w", f.name, err)
+	for i, name := range fileNames {
+		if err := writeTarEntry(tw, name, contents[i]); err != nil {
+			return fmt.Errorf("archiving %s: %w", name, err)
 		}
-		if err := writeTarEntry(tw, f.name, data); err != nil {
-			return fmt.Errorf("archiving %s: %w", f.name, err)
-		}
-		fmt.Fprintf(a.IO.Out, "  Ajouté: %s (%d KB)\n", f.name, len(data)/1024)
+		fmt.Fprintf(w, "  Ajouté: %s (%d KB)\n", name, len(contents[i])/1024)
 	}
 
 	// Explicitly close writers to catch flush errors (defers remain as safety net).
@@ -148,8 +181,8 @@ func runExport(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("finalizing gzip: %w", err)
 	}
 
-	fmt.Fprintf(a.IO.Out, "\nBackup créé: %s\n", output)
-	fmt.Fprintf(a.IO.Out, "Checksum SHA-256: %s\n", checksum)
+	fmt.Fprintf(w, "\nBackup créé: %s\n", output)
+	fmt.Fprintf(w, "Checksum SHA-256: %s\n", checksum)
 	return nil
 }
 
@@ -264,6 +297,12 @@ func runImport(cmd *cobra.Command, args []string) error {
 		tmp := dest + ".import-tmp"
 		if err := os.WriteFile(tmp, data, 0o600); err != nil {
 			return fmt.Errorf("écriture %s: %w", name, err)
+		}
+		if name == "oh.db" {
+			// A journal left by the replaced database must not be replayed on the
+			// restored one.
+			_ = os.Remove(dest + "-wal")
+			_ = os.Remove(dest + "-shm")
 		}
 		if err := os.Rename(tmp, dest); err != nil {
 			os.Remove(tmp)

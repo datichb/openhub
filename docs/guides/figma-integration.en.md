@@ -28,7 +28,7 @@ oh mcp setup -p my-project   # token specific to a project
 
 The wizard:
 1. Asks for your Figma **Personal Access Token** (masked input)
-2. Stores it in the OS keychain (key `figma-token`, or `figma-token-<project-id>` for a project)
+2. Stores it in the OS keychain (key `openhub.mcp.figma.token`, or `openhub.mcp.figma.token.<project-id>` for a project)
 3. Enables the service: `[mcp.figma]` block of `hub.toml`, or project override
 
 Without a token, the server reads the `FIGMA_TOKEN` environment variable.

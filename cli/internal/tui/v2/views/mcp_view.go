@@ -377,8 +377,7 @@ func (v *MCPView) promptTokenCurrent() {
 	if v.shell != nil {
 		v.shell.ShowPasswordModal(i18n.Tf("tui.mcp.token_title", svc.Name), func(token string) {
 			if token != "" && v.appCtx != nil && v.appCtx.Secrets != nil {
-				key := fmt.Sprintf("%s-token", svc.Name)
-				if err := v.appCtx.Secrets.Set(context.Background(), key, token); err != nil {
+				if _, err := config.StoreMCPToken(context.Background(), v.appCtx.Secrets, svc.Name, "", token); err != nil {
 					v.shell.ShowToastMsg(errorText(err), false)
 				}
 				v.services[idx].HasToken = true
@@ -550,8 +549,7 @@ func (v *MCPView) checkToken(serviceName string) bool {
 	if v.appCtx == nil || v.appCtx.Secrets == nil {
 		return false
 	}
-	key := fmt.Sprintf("%s-token", serviceName)
-	val, err := v.appCtx.Secrets.Get(context.Background(), key)
+	val, err := config.ReadMCPToken(context.Background(), v.appCtx.Secrets, serviceName, "")
 	return err == nil && val != ""
 }
 

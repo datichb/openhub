@@ -33,11 +33,49 @@ import (
 // reports of workflow_report are read and filed through oh only, L4).
 var controlPlaneDeny = []string{
 	"*ohd.sock*", "*--unix-socket*", "*.oh/run*", "*.oh/servers*", "*.oh/bundles*", "*.oh/oh.db*", "*.oh/sessions*",
-	"*oh mcp serve*", "*oh * mcp * serve*",
 	// the environment of other processes of the user (the tool server holds
 	// its password and tokens there)
 	"*/proc/*/environ*", "*ps *eww*", "*ps *-E*", "*ps *axe*",
 }
+
+// ohCommandPatterns returns the shell patterns of an oh command written with
+// the given words (`mcp`, `trust`): the words in a row, or separated by
+// options (`oh --no-tui mcp trust`, `oh mcp --x trust`). The leading `*` also
+// covers the full path of the binary, `env`, `sh -c '…'` and an environment
+// prefix.
+func ohCommandPatterns(words ...string) []string {
+	var out []string
+	for gaps := 0; gaps < 1<<len(words); gaps++ {
+		p := "*oh"
+		for i, w := range words {
+			if gaps&(1<<i) != 0 {
+				p += " *"
+			}
+			p += " " + w
+		}
+		out = append(out, p+"*")
+	}
+	return out
+}
+
+// ohControlDeny: oh commands an agent must not run from its shell. `mcp serve`
+// starts a server with the tokens of the user. The others change what the user
+// trusts or his personal settings, which a prompt-injected agent could
+// otherwise use to approve a malicious MCP URL (`mcp trust`), swap a model, a
+// token or a workflow setting for its own. Reads (`mcp status`, `config get`,
+// `config list`, `config model show`) stay allowed.
+var ohControlDeny = func() []string {
+	out := ohCommandPatterns("mcp", "serve")
+	for _, words := range [][]string{
+		{"mcp", "trust"}, {"mcp", "untrust"}, {"mcp", "setup"},
+		{"config", "set"}, {"config", "unset"},
+		{"config", "model", "default"}, {"config", "model", "family"}, {"config", "model", "agent"}, {"config", "model", "unset"},
+		{"service", "setup"}, {"service", "remove"},
+	} {
+		out = append(out, ohCommandPatterns(words...)...)
+	}
+	return out
+}()
 
 // gitEnvDeny: git environment and transport options that run a program or
 // redirect the repository (also refused by name; `export` escapes the name
@@ -124,7 +162,7 @@ func GlobalShellGuard(ohHome string) []sessionspec.PermissionRule {
 	add := func(p string, eff sessionspec.Effect) {
 		out = append(out, sessionspec.PermissionRule{Action: sessionspec.ActionShell, Resource: p, Effect: eff})
 	}
-	lists := [][]string{controlPlaneDeny, gitEnvDeny, hookDeny, commitNoVerifyDeny(), execDeny, outsideDeny, installDeny, dockerDeny, credentialDeny, scratchShellDeny}
+	lists := [][]string{controlPlaneDeny, ohControlDeny, gitEnvDeny, hookDeny, commitNoVerifyDeny(), execDeny, outsideDeny, installDeny, dockerDeny, credentialDeny, scratchShellDeny}
 	for _, l := range lists {
 		for _, p := range l {
 			add(p, sessionspec.EffectDeny)

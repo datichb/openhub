@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -277,4 +278,85 @@ func TestPatch_DisabledAgentLeavesCalls(t *testing.T) {
 	if a, _ := hub.Spec.Agents.Get("orchestrator-dev"); len(a.Calls) != 2 {
 		t.Fatal("parent mutated")
 	}
+}
+
+// A refusal of the parent (`skills.deny`) is a security field: outside the
+// hub layer the lists are combined, a layer never lifts a refusal.
+func TestPatch_SkillsDenyIsUnioned(t *testing.T) {
+	hub := hubLayered + "skills: { deny: [a/one, a/two] }\n"
+	resolve := func(layer, patch string) (*Resolved, Diagnostics) {
+		docs := map[string]string{
+			"hub:layered":  hub,
+			"team:layered": "apiVersion: oh/v1\nkind: Workflow\nid: layered\nextends: hub:layered\n" + patch,
+		}
+		ref := Ref{LayerTeam, "layered"}
+		switch layer {
+		case "project":
+			docs["team:layered"] = "apiVersion: oh/v1\nkind: Workflow\nid: layered\nextends: hub:layered\n"
+			docs["project:layered"] = "apiVersion: oh/v1\nkind: Workflow\nid: layered\nextends: team:layered\n" + patch
+			ref = Ref{LayerProject, "layered"}
+		case "hub":
+			docs = map[string]string{
+				"hub:layered": hub,
+				"hub:child":   "apiVersion: oh/v1\nkind: Workflow\nid: child\nextends: hub:layered\n" + patch,
+			}
+			ref = Ref{LayerHub, "child"}
+		}
+		return ResolveSpec(catalogOf(t, docs), ref, nil)
+	}
+
+	for _, layer := range []string{"team", "project"} {
+		t.Run(layer+": added refusals are combined", func(t *testing.T) {
+			r, diags := resolve(layer, "skills: { deny: [a/one, a/two, b/three] }\n")
+			if len(diags) != 0 || !reflect.DeepEqual(r.Spec.Skills.Deny, []string{"a/one", "a/two", "b/three"}) {
+				t.Fatalf("diags = %v, deny = %v", diagList(diags), r.Spec.Skills.Deny)
+			}
+		})
+		t.Run(layer+": a list that only adds a new refusal omits the parent's", func(t *testing.T) {
+			// Refused, and the parent's refusals are kept with the new one.
+			r, diags := resolve(layer, "skills: { deny: [b/three] }\n")
+			if got := diags.Codes(); !reflect.DeepEqual(got, []string{"loosening"}) || diags[0].Path != "skills.deny" {
+				t.Fatalf("diags = %v", diagList(diags))
+			}
+			if !reflect.DeepEqual(r.Spec.Skills.Deny, []string{"a/one", "a/two", "b/three"}) {
+				t.Fatalf("deny = %v", r.Spec.Skills.Deny)
+			}
+		})
+		t.Run(layer+": lifting a refusal is a loosening", func(t *testing.T) {
+			for name, patch := range map[string]string{
+				"removed one": "skills: { deny: [a/one] }\n",
+				"emptied":     "skills: { deny: [] }\n",
+				"swapped":     "skills: { deny: [a/one, a/other] }\n",
+			} {
+				r, diags := resolve(layer, patch)
+				if got := diags.Codes(); !reflect.DeepEqual(got, []string{"loosening"}) || diags[0].Path != "skills.deny" || !diags.HasErrors() {
+					t.Errorf("%s: diags = %v", name, diagList(diags))
+				}
+				for _, kept := range []string{"a/one", "a/two"} {
+					if !slices.Contains(r.Spec.Skills.Deny, kept) {
+						t.Errorf("%s: parent refusal %s lost: %v", name, kept, r.Spec.Skills.Deny)
+					}
+				}
+			}
+		})
+		t.Run(layer+": a layer that does not write skills.deny keeps the parent's", func(t *testing.T) {
+			r, diags := resolve(layer, "description: another\n")
+			if len(diags) != 0 || !reflect.DeepEqual(r.Spec.Skills.Deny, []string{"a/one", "a/two"}) {
+				t.Fatalf("diags = %v, deny = %v", diagList(diags), r.Spec.Skills.Deny)
+			}
+		})
+	}
+
+	t.Run("hub layer: replaces, as before", func(t *testing.T) {
+		r, diags := resolve("hub", "skills: { deny: [b/three] }\n")
+		if len(diags) != 0 || !reflect.DeepEqual(r.Spec.Skills.Deny, []string{"b/three"}) {
+			t.Fatalf("diags = %v, deny = %v", diagList(diags), r.Spec.Skills.Deny)
+		}
+	})
+	t.Run("parent without refusals: any list is accepted", func(t *testing.T) {
+		r, diags := layeredDiags(t, "skills: { deny: [b/three, b/three] }\n")
+		if len(diags) != 0 || !reflect.DeepEqual(r.Spec.Skills.Deny, []string{"b/three"}) {
+			t.Fatalf("diags = %v, deny = %v", diagList(diags), r.Spec.Skills.Deny)
+		}
+	})
 }

@@ -28,7 +28,7 @@ oh mcp setup -p mon-projet   # token propre à un projet
 
 L'assistant :
 1. Demande votre **Personal Access Token** Figma (saisie masquée)
-2. Le stocke dans le trousseau système (clé `figma-token`, ou `figma-token-<id-projet>` pour un projet)
+2. Le stocke dans le trousseau système (clé `openhub.mcp.figma.token`, ou `openhub.mcp.figma.token.<id-projet>` pour un projet)
 3. Active le service : bloc `[mcp.figma]` de `hub.toml`, ou surcharge du projet
 
 Sans token saisi, le serveur lit la variable d'environnement `FIGMA_TOKEN`.

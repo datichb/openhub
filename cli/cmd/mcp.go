@@ -88,6 +88,14 @@ func removeProjectMCPService(project *domain.Project, serviceName string) {
 	project.MCPConfig.Services = services
 }
 
+// projectIDOf returns the ID of a project, or "" when there is none (hub scope).
+func projectIDOf(p *domain.Project) string {
+	if p == nil {
+		return ""
+	}
+	return p.ID
+}
+
 // --- oh mcp enable ---
 
 func mcpEnableCmd() *cobra.Command {
@@ -399,11 +407,7 @@ func runMCPSetupForService(cmd *cobra.Command, serviceName string, project *doma
 						theme.WarningStyle.Render(theme.IconWarning),
 						i18n.Tf("cmd.service.token_empty_warning", envHint))
 				} else if token != "" && a.Secrets != nil {
-					keyName := serviceName + "-token"
-					if project != nil {
-						keyName = serviceName + "-token-" + project.ID
-					}
-					if err := a.Secrets.Set(ctx, keyName, token); err != nil {
+					if _, err := config.StoreMCPToken(ctx, a.Secrets, serviceName, projectIDOf(project), token); err != nil {
 						return fmt.Errorf("%s", i18n.Tf("cmd.service.keychain_error", err))
 					}
 				}
@@ -452,7 +456,7 @@ func runMCPSetupForService(cmd *cobra.Command, serviceName string, project *doma
 			Processing: i18n.T("cmd.mcp.setup.persist_processing"),
 			OnDone: func() error {
 				if project != nil {
-					tokenKey := serviceName + "-token-" + project.ID
+					tokenKey := config.MCPProjectTokenKey(serviceName, project.ID)
 					if token == "" {
 						tokenKey = "" // inherit hub token
 					}
@@ -473,7 +477,7 @@ func runMCPSetupForService(cmd *cobra.Command, serviceName string, project *doma
 					if err := config.Update(func(c *config.Config) error {
 						if s := c.MCPServer(serviceName); s != nil {
 							s.Enabled = true
-							s.Token = serviceName + "-token"
+							s.Token = config.MCPTokenKey(serviceName)
 							if mcpWriteEnv[serviceName] != "" {
 								s.WriteEnabled = writeEnabled
 							}
@@ -617,7 +621,7 @@ func runMCPStatus(cmd *cobra.Command, args []string) error {
 			if ps, ok := projectOverrides[svc.name]; ok && ps.TokenKey != "" {
 				tokenKey = ps.TokenKey
 			}
-			if t, _ := a.Secrets.Get(ctx, tokenKey); t != "" {
+			if t, _ := config.ReadMCPToken(ctx, a.Secrets, svc.name, tokenKey); t != "" {
 				tokenStatus = "keychain"
 			} else {
 				tokenStatus = theme.WarningStyle.Render(i18n.T("cmd.service.token_missing"))
@@ -703,8 +707,14 @@ func injectTokenFromKeychain(serviceName, tokenKey string) error {
 	if secrets == nil {
 		return fmt.Errorf("no secret store available")
 	}
+	return injectTokenFromStore(secrets, serviceName, tokenKey)
+}
 
-	token, err := secrets.Get(context.Background(), tokenKey)
+// injectTokenFromStore sets the environment variable of a service from its
+// keychain token (current key name, legacy name as a fallback).
+func injectTokenFromStore(secrets domain.SecretStore, serviceName, tokenKey string) error {
+	envVar := mcpServiceEnvVar[serviceName]
+	token, err := config.ReadMCPToken(context.Background(), secrets, serviceName, tokenKey)
 	if err != nil {
 		return fmt.Errorf("reading key %q: %w", tokenKey, err)
 	}
@@ -793,15 +803,13 @@ func checkProjectToken(ctx context.Context, a *app.App, serviceName string, proj
 
 	// Check project-scoped token
 	if project != nil {
-		projectKey := serviceName + "-token-" + project.ID
-		if t, _ := a.Secrets.Get(ctx, projectKey); t != "" {
+		if t, _ := config.ReadMCPToken(ctx, a.Secrets, serviceName, config.MCPProjectTokenKey(serviceName, project.ID)); t != "" {
 			return true
 		}
 	}
 
 	// Check hub-level token
-	hubKey := serviceName + "-token"
-	if t, _ := a.Secrets.Get(ctx, hubKey); t != "" {
+	if t, _ := config.ReadMCPToken(ctx, a.Secrets, serviceName, ""); t != "" {
 		return true
 	}
 

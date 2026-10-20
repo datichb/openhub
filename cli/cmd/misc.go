@@ -83,6 +83,8 @@ var serviceRemoveCmd = &cobra.Command{
 
 func init() {
 	serviceRemoveCmd.Flags().BoolP("force", "f", false, "Skip confirmation")
+	serviceRemoveCmd.Flags().StringP("project", "p", "", i18n.T("cmd.mcp.flags.project"))
+	_ = serviceRemoveCmd.RegisterFlagCompletionFunc("project", completeProjectIDs)
 	serviceSetupCmd.Flags().StringP("project", "p", "", "Configure MCP for a specific project (overrides hub-level)")
 }
 
@@ -118,7 +120,7 @@ func runServiceStatus(cmd *cobra.Command, args []string) error {
 				hasToken = true
 				tokenStatus = fmt.Sprintf(" (env: %s)", svc.envVar)
 			} else if svc.token != "" && a.Secrets != nil {
-				if t, _ := a.Secrets.Get(ctx, svc.token); t != "" {
+				if t, _ := config.ReadMCPToken(ctx, a.Secrets, svc.name, svc.token); t != "" {
 					hasToken = true
 					tokenStatus = " (keychain)"
 				}
@@ -213,11 +215,7 @@ func runServiceSetup(cmd *cobra.Command, args []string) error {
 					return nil
 				}
 				if a.Secrets != nil {
-					keyName := serviceName + "-token"
-					if project != nil {
-						keyName = serviceName + "-token-" + project.ID
-					}
-					if err := a.Secrets.Set(ctx, keyName, token); err != nil {
+					if _, err := config.StoreMCPToken(ctx, a.Secrets, serviceName, projectIDOf(project), token); err != nil {
 						return fmt.Errorf("%s", i18n.Tf("cmd.service.keychain_error", err))
 					}
 				}
@@ -280,7 +278,7 @@ func runServiceSetup(cmd *cobra.Command, args []string) error {
 	// Persist configuration
 	if project != nil {
 		// Project-scoped: update project.MCPConfig in DB
-		tokenKey := serviceName + "-token-" + project.ID
+		tokenKey := config.MCPProjectTokenKey(serviceName, project.ID)
 		svc := domain.ProjectMCPService{
 			Name:     serviceName,
 			TokenKey: tokenKey,
@@ -317,7 +315,7 @@ func runServiceSetup(cmd *cobra.Command, args []string) error {
 		if err := config.Update(func(c *config.Config) error {
 			if s := c.MCPServer(serviceName); s != nil {
 				s.Enabled = true
-				s.Token = serviceName + "-token"
+				s.Token = config.MCPTokenKey(serviceName)
 				if serviceName == "gitlab" {
 					s.WriteEnabled = writeEnabled
 				}
@@ -342,6 +340,28 @@ func removeServiceTokens(ctx context.Context, secrets domain.SecretStore, cfg *c
 		return
 	}
 	for _, key := range config.ServiceTokenKeys(cfg, serviceName) {
+		_ = secrets.Delete(ctx, key)
+	}
+}
+
+// removeProjectServiceTokens deletes the token a project keeps for a service
+// from the keychain under every key that can hold it (the one recorded in the
+// project, the current and the legacy names), then forgets the recorded key.
+// A key that does not exist is ignored; the hub token is left alone.
+func removeProjectServiceTokens(ctx context.Context, secrets domain.SecretStore, project *domain.Project, serviceName string) {
+	recorded := ""
+	if project.MCPConfig != nil {
+		for i := range project.MCPConfig.Services {
+			if svc := &project.MCPConfig.Services[i]; svc.Name == serviceName {
+				recorded = svc.TokenKey
+				svc.TokenKey = ""
+			}
+		}
+	}
+	if secrets == nil {
+		return
+	}
+	for _, key := range config.ProjectTokenKeys(serviceName, project.ID, recorded) {
 		_ = secrets.Delete(ctx, key)
 	}
 }
@@ -389,6 +409,21 @@ func runServiceRemove(cmd *cobra.Command, args []string) error {
 		if !confirm {
 			return nil
 		}
+	}
+
+	if projectID, _ := cmd.Flags().GetString("project"); projectID != "" {
+		project, err := resolveProject(ctx, a, projectID, projectWrite)
+		if err != nil {
+			return err
+		}
+		removeProjectServiceTokens(ctx, a.Secrets, project, serviceName)
+		if err := a.Projects.Update(ctx, project); err != nil {
+			return fmt.Errorf("updating project MCP config: %w", err)
+		}
+		fmt.Fprintf(a.IO.Out, "%s %s\n",
+			theme.SuccessStyle.Render(theme.IconSuccess),
+			i18n.Tf("cmd.service.project_token_removed", theme.Bold.Render(serviceName), project.Name))
+		return nil
 	}
 
 	removeServiceTokens(ctx, a.Secrets, a.Config, serviceName)

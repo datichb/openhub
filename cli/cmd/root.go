@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -198,6 +199,14 @@ func initApp() error {
 	// Auto-migrate legacy keychain entries (gitlab-token → openhub.mcp.gitlab.token, etc.)
 	if n := migrateKeychainKeysOnce(a.Secrets); n > 0 {
 		slog.Info("migrated keychain keys to unified convention", "count", n)
+	}
+
+	// Project-scoped MCP token keys (<svc>-token-<id> → openhub.mcp.<svc>.token.<id>):
+	// the value is copied, then the project record is updated. Replayable.
+	if n, mErr := config.MigrateProjectTokenKeys(context.Background(), a.Secrets, a.Projects); mErr != nil {
+		slog.Warn("project token key migration failed", "error", mErr)
+	} else if n > 0 {
+		slog.Info("migrated project MCP token keys to the openhub.mcp.* convention", "count", n)
 	}
 
 	application = a
