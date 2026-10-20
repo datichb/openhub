@@ -25,7 +25,9 @@ func (d *Daemon) onProxyUsage(owner string, delta credproxy.Usage) {
 	}
 	u := d.proxyUsage[owner]
 	u.Requests += delta.Requests
-	u.TokensIn += delta.InputTokens
+	// The ledger has no column of its own for the cache (no migration for
+	// it): its tokens count as input.
+	u.TokensIn += delta.InputTokens + delta.CacheReadTokens + delta.CacheWriteTokens
 	u.TokensOut += delta.OutputTokens
 	d.proxyUsage[owner] = u
 }

@@ -16,11 +16,16 @@ import (
 
 // Budgets (I6). The cost the tool reports for each session (and for its
 // subagent sessions) is added to the usage ledger as it grows. When a
-// session's budget or the daily budget is spent, the current step finishes,
-// then a budget decision ($) is raised; while it is open, any new agent loop
-// of the session is interrupted. Answers: raise the budget, stop the
-// session, or dismiss (one more step). Budgets are soft caps: a step may
-// overrun them.
+// session's budget or the daily budget is spent, a budget decision ($) is
+// raised; while it is open, any new agent loop of the session is
+// interrupted, and so is any model request (budgetgate.go). Answers: raise
+// the budget, stop the session, or dismiss (one more step).
+//
+// The decision is raised as soon as the spending is seen (F-04): when a
+// subagent spends or ends, and when a model request is admitted, not only
+// at the end of the root step, which may delegate to a dozen subagents.
+// Budgets stay soft caps: a request in flight is not cut, and dismissing the
+// decision lets the step run on until it ends.
 
 // isLimitDecision reports whether a decision is a budget decision of the
 // restrictions.
@@ -118,8 +123,19 @@ func (w *watcher) storeTotal(ctx context.Context, root string) {
 	w.d.feed.publishChange(domain.SessionChange{SessionID: root, GroupKey: w.srv.GroupKey, State: sess.State})
 }
 
-// overBudget returns the budget decision a session must get now, if any.
-func (d *Daemon) overBudget(ctx context.Context, w *watcher, root string) *domain.Decision {
+// budgetLine is one budget of a session with what it spent.
+type budgetLine struct {
+	kind, scope, day string // limits.BudgetSession | BudgetDaily; raise scope; day of a daily raise
+	budget, spent    float64
+	allowance        float64 // budget + raises
+}
+
+// reservationKey names what the reservations of a line are held against.
+func (l budgetLine) reservationKey() string { return l.kind + ":" + l.scope + ":" + l.day }
+
+// budgetLines returns the budgets the restrictions of a session set, with
+// their spending (a ledger error leaves the line out).
+func (d *Daemon) budgetLines(ctx context.Context, root string) []budgetLine {
 	if d.opts.Usage == nil || d.opts.SessionsDir == "" {
 		return nil
 	}
@@ -127,69 +143,82 @@ func (d *Daemon) overBudget(ctx context.Context, w *watcher, root string) *domai
 	if err != nil || (lim.SessionBudgetUSD == 0 && lim.DailyBudgetUSD == 0) {
 		return nil
 	}
-	day := domain.UsageDay(time.Now())
-	check := func(kind, scope, extraDay string, budget, spent float64) *domain.Decision {
-		extra, _ := d.opts.Usage.BudgetExtra(ctx, scope, extraDay)
-		allowance := budget + extra
-		if spent < allowance {
-			return nil
-		}
-		msg := i18n.Tf("cmd.budget.decision."+kind, spent, allowance)
-		return &domain.Decision{
-			ID:        domain.DecisionID(domain.DecisionBudget, root, fmt.Sprintf("%s-%s-%.4f", kind, extraDay, allowance)),
-			SessionID: root, GroupKey: w.srv.GroupKey, Kind: domain.DecisionBudget,
-			Payload: domain.DecisionPayload{Message: msg, Data: map[string]any{
-				limits.DataBudgetLimit: kind, limits.DataBudgetScope: scope, limits.DataBudgetDay: extraDay,
-				limits.DataBudgetUSD: allowance, limits.DataBudgetSpent: spent, limits.DataBudgetUnit: budget,
-			}},
-		}
+	var out []budgetLine
+	line := func(kind, scope, day string, budget, spent float64) {
+		extra, _ := d.opts.Usage.BudgetExtra(ctx, scope, day)
+		out = append(out, budgetLine{kind: kind, scope: scope, day: day, budget: budget, spent: spent, allowance: budget + extra})
 	}
 	if lim.SessionBudgetUSD > 0 {
 		if tot, err := d.opts.Usage.SessionTotal(ctx, root); err == nil {
-			if dec := check(limits.BudgetSession, limits.SessionScope(root), "", lim.SessionBudgetUSD, tot.CostUSD); dec != nil {
-				return dec
-			}
+			line(limits.BudgetSession, limits.SessionScope(root), "", lim.SessionBudgetUSD, tot.CostUSD)
 		}
 	}
 	if lim.DailyBudgetUSD > 0 {
-		scope := lim.DailyScope()
+		day, scope := domain.UsageDay(time.Now()), lim.DailyScope()
 		if spent, err := d.opts.Usage.DayCost(ctx, day, limits.ScopeProject(scope)); err == nil {
-			return check(limits.BudgetDaily, scope, day, lim.DailyBudgetUSD, spent)
+			line(limits.BudgetDaily, scope, day, lim.DailyBudgetUSD, spent)
+		}
+	}
+	return out
+}
+
+// overBudget returns the budget decision a session must get now, if any.
+func (d *Daemon) overBudget(ctx context.Context, w *watcher, root string) *domain.Decision {
+	for _, l := range d.budgetLines(ctx, root) {
+		if l.spent < l.allowance {
+			continue
+		}
+		return &domain.Decision{
+			ID:        domain.DecisionID(domain.DecisionBudget, root, fmt.Sprintf("%s-%s-%.4f", l.kind, l.day, l.allowance)),
+			SessionID: root, GroupKey: w.srv.GroupKey, Kind: domain.DecisionBudget,
+			Payload: domain.DecisionPayload{Message: i18n.Tf("cmd.budget.decision."+l.kind, l.spent, l.allowance), Data: map[string]any{
+				limits.DataBudgetLimit: l.kind, limits.DataBudgetScope: l.scope, limits.DataBudgetDay: l.day,
+				limits.DataBudgetUSD: l.allowance, limits.DataBudgetSpent: l.spent, limits.DataBudgetUnit: l.budget,
+			}},
 		}
 	}
 	return nil
 }
 
-// raiseBudget records the budget decision of a session whose step ended
-// over its budget (idempotent per allowance: a raise opens a new one later).
-func (w *watcher) raiseBudget(ctx context.Context, root string) {
+// raiseBudget records the budget decision of a session over its budget
+// (idempotent per allowance: a raise opens a new one later). It reports
+// whether a decision is open for the session after the call.
+//
+// A decision dismissed by the user (one more step) is asked again after that
+// step: at its end (stepEnd), not when a subagent spends or a request is
+// admitted meanwhile.
+func (w *watcher) raiseBudget(ctx context.Context, root string, stepEnd bool) bool {
 	store := w.d.opts.Decisions
 	if store == nil {
-		return
+		return false
 	}
 	dec := w.d.overBudget(ctx, w, root)
 	if dec == nil {
-		return
+		return false
 	}
 	if prev, err := store.Get(ctx, dec.ID); err == nil && prev != nil {
 		if prev.Open() {
-			return
+			return true
 		}
-		// Dismissed (one more step allowed): asked again after that step.
-		if err := store.Reopen(ctx, dec.ID); err == nil {
-			w.refreshAlerts(ctx, root)
+		if !stepEnd {
+			return false
 		}
-		return
+		if err := store.Reopen(ctx, dec.ID); err != nil {
+			return false
+		}
+		w.refreshAlerts(ctx, root)
+		return true
 	}
 	if err := store.Upsert(ctx, dec); err != nil {
 		slog.Debug("ohd: budget decision not recorded", "session", root, "error", err)
-		return
+		return false
 	}
 	slog.Info("ohd: session over budget", "session", root, "limit", dec.Payload.Data[limits.DataBudgetLimit])
 	w.refreshAlerts(ctx, root)
 	if dec.Payload.Data[limits.DataBudgetLimit] == limits.BudgetSession {
 		w.syncBudget(ctx, root, true)
 	}
+	return true
 }
 
 // openLimitDecision reports whether a session has an open budget decision

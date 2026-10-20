@@ -70,6 +70,9 @@ type watcher struct {
 	started      time.Time
 	done         chan struct{} // closed when run returns
 
+	// childUsageAt: last usage read of each subagent session (childUsageDue).
+	childUsageAt map[string]time.Time
+
 	// childGrantEnded: subagents whose gateway token was revoked at the end
 	// of their run (given again when they resume, S-14).
 	childGrantEnded map[string]bool
@@ -286,7 +289,7 @@ func (w *watcher) onEvent(ctx context.Context, ev adapters.ToolEvent) {
 	if ev.Kind == adapters.EventExecEnded {
 		w.d.ensureFanoutDriver(ctx, ev.SessionID) // p6-debts: the step is over, the driver may have ended with it
 		w.flushDeferred(ctx, ev.SessionID)
-		w.raiseBudget(ctx, ev.SessionID) // the step is over: budgets apply now
+		w.raiseBudget(ctx, ev.SessionID, true) // the step is over: a dismissed decision is asked again
 		w.clearResume(ctx, ev.SessionID)
 		w.d.wake() // a pending "sleep when idle" policy may apply now
 		if ev.Outcome == "succeeded" {
@@ -629,10 +632,34 @@ func (w *watcher) onChildEvent(ctx context.Context, root string, ev adapters.Too
 	case adapters.EventExecStarted:
 		w.holdOverBudget(ctx, root, ev.SessionID)
 		w.resumeChildGrant(root, ev.SessionID)
+	case adapters.EventUsage:
+		if w.childUsageDue(ev.SessionID) {
+			w.accountChild(ctx, root, ev.SessionID)
+			w.raiseBudget(ctx, root, false) // F-04: not at the end of the root step only
+		}
 	case adapters.EventExecEnded:
 		w.accountChild(ctx, root, ev.SessionID) // subagent cost counts for the oh session
+		w.raiseBudget(ctx, root, false)
 		w.endChildGrant(root, ev.SessionID)
 	}
+}
+
+// childUsageEvery spaces the usage reads of a running subagent session.
+var childUsageEvery = time.Second
+
+// childUsageDue reports whether the usage of a subagent session is read now
+// (its usage events come after each model step).
+func (w *watcher) childUsageDue(child string) bool {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.childUsageAt == nil {
+		w.childUsageAt = map[string]time.Time{}
+	}
+	if time.Since(w.childUsageAt[child]) < childUsageEvery {
+		return false
+	}
+	w.childUsageAt[child] = time.Now()
+	return true
 }
 
 func (w *watcher) refreshChildPending(ctx context.Context, root, child string) {

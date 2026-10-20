@@ -386,3 +386,18 @@ func TestForkBaselineNotCountedTwice(t *testing.T) {
 	require.NoError(t, err)
 	assert.InDelta(t, 0.7, day, 1e-9, "0.5 + 0.2, the copied history once")
 }
+
+// The cache tokens counted by the proxy go to the ledger as input tokens
+// (it has no column for them), so that a restart continues the count.
+func TestProxyUsageLedgerCountsCache(t *testing.T) {
+	st, err := sqlite.Open(filepath.Join(t.TempDir(), "oh.db"))
+	require.NoError(t, err)
+	t.Cleanup(func() { st.Close() })
+	us := sqlite.NewUsageStore(st)
+	d := &Daemon{opts: Options{Usage: us}, proxy: credproxy.New()}
+	d.onProxyUsage("g1", credproxy.Usage{InputTokens: 10, OutputTokens: 4, CacheReadTokens: 1000, CacheWriteTokens: 200, Estimated: 1})
+	d.flushProxyUsage(context.Background())
+	tot, err := us.ProxyTotal(context.Background(), "g1")
+	require.NoError(t, err)
+	assert.Equal(t, domain.ProxyUsage{TokensIn: 1210, TokensOut: 4}, tot)
+}
