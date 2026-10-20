@@ -1,6 +1,6 @@
 # Conventions de la TUI : touches et liste d'actions
 
-Guide des lots TUI (`tui-sessions`, `tui-wiki-bricks`, `tui-launch`, `tui-cleanup`). La convention de touches est décidée (esquisses du 15/10) ; la référence utilisateur est le tableau « Convention des touches » de [`docs/reference/tui.fr.md`](../reference/tui.fr.md#convention-des-touches).
+Guide des vues de la TUI (lots `tui-keys` à `tui-docs`). La convention de touches est décidée (esquisses du 15/10) ; la référence utilisateur est le tableau « Convention des touches » de [`docs/reference/tui.fr.md`](../reference/tui.fr.md#convention-des-touches).
 
 ## La convention en bref
 
@@ -32,8 +32,24 @@ keys.Resume.HintAs(i18n.T(...)) // "R récupérer" : libellé précis, même sen
 keys.HintsOf(keys.Open, keys.Back)             // "Entrée ouvrir · Échap revenir"
 keys.Hints(keys.Accept.Hint(), "a attacher")   // assemble avec " · ", ignore les vides
 keys.HelpRows(keys.Decision)    // lignes de l'aide : touches + description
-keys.ByContext(keys.List), keys.All(), keys.Changes()
+keys.ByContext(keys.List), keys.All()
+keys.Changes(), keys.ChangesByView() // touches changées, par vue (message « Nouvelles touches »)
+keys.Pairs(keys.Create, keys.Delete) // "n", "créer", "d", "supprimer" : bloc « Touches » d'un détail
+keys.SpaceName()                // « Espace » / « Space »
 ```
+
+Une touche propre à une vue se déclare avec `keys.Own`, en variable du paquet de la vue :
+
+```go
+var relaunchKey = keys.Own("sessions.relaunch", 'p', "tui.sessions.fanout.relaunch")
+
+relaunchKey.Matches(ev) // sans Ctrl ni Alt
+relaunchKey.Hint()      // "p relancer le pilote"
+```
+
+`keys.Own` panique sur une touche stricte de la convention (`g G / r ? d x R y n`) ou un déplacement (`j k`) ; `TestOwnActions` (`keys/own_test.go`) vérifie que chaque action déclarée est traduite, a un identifiant unique et que son libellé ne reprend pas une action de la convention sur une autre touche (« a ajouter », « f filtrer »). Actions propres déclarées : `p` relancer le pilote et `B` lot (fan-out), `C` confirmer le lot, `T` découvrir le tracker, `L` libérer un ticket, `M` nettoyer les worktrees fusionnés, `Y` YAML brut, `f` corriger et `o` hors ligne (Doctor).
+
+Un changement de touche visible s'ajoute à `keys.Changes()` (vue, avant, après, libellé `tui.keys.change.<vue>.<action>`) : le message « Nouvelles touches » et la référence le montrent.
 
 Actions : `Up`, `Down`, `First`, `Last`, `Navigate` (↑↓/jk), `Ends` (g/G), `Filter`, `Refresh`, `Help`, `Open`, `Back` ; `Create`, `Edit`, `Delete`, `Archive`, `Resume`, `Compare` ; `Accept`, `Refuse`, `Modify`, `Leave`, `AcceptAll` ; `Search`, `NextMatch`, `PrevMatch`. `Action.Confirm` (d, n) et `Action.Reason` (n) disent ce que l'action exige.
 
@@ -60,6 +76,8 @@ func (v *MaVue) HandleKey(ev *tcell.EventKey) *tcell.EventKey {
 
 Le shell garde `Échap`, `?`/`F1`, `Ctrl+P`, `Ctrl+T`, `Ctrl+Q` ; il transforme `j`/`k`/`g`/`G` en flèches/`Début`/`Fin` et ouvre la palette sur `/` quand la vue ne prend pas `/` (une vue qui filtre consomme `/` dans `HandleKey`).
 
+Une vue qui garde toutes les touches (`InputCapturing`, pour garder `Échap`) les reçoit d'abord ; sans champ de texte, elle implémente aussi `ShellKeysPassing` (`PassesShellKeys() bool`) : le shell prend alors `?` et `Ctrl+P` qu'elle n'a pas utilisés, et rend le focus au widget de la vue en fermant la palette ou l'aide (onglets et lot de Sessions, sections du Nettoyage). Quand ses touches changent (onglet, lot, section), elle appelle `RefreshHints()` du shell (`HintsRefresher`) pour que la ligne d'aide suive.
+
 ## Le composant `ActionList`
 
 `views.ActionList` (`cli/internal/tui/v2/views/action_list.go`) : liste d'éléments sur une ligne (colonnes alignées, sections facultatives, état), détail sous la liste (`DetailBelow`, défaut) ou à côté (`DetailRight`), actions sur l'élément sélectionné et actions globales, sans limite d'éléments (la liste défile, le pied indique « 2/9 · 2 de plus ↓ »). Il sert aux propositions wiki (fiche, file du projet), à la validation par lot, aux enfants du fan-out, aux briques.
@@ -80,6 +98,7 @@ l := views.NewActionList(views.ActionListConfig{
 	OnOpen: v.validateCheckpoint, OpenLabel: i18n.T("tui.cpwiki.validate"),
 })
 l.SetItems(items) // []views.ActionItem{ID, Section, Cells, State, Detail, Ref}
+l.SetEmpty(i18n.T("tui.mavue.loading")) // texte sans élément (chargement, erreur, aucun)
 content.AddItem(l.Primitive(), 0, 1, true)
 ```
 

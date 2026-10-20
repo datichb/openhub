@@ -56,8 +56,8 @@ A session of **another workflow** is reported for information: the new one start
 
 | Choice | TUI | `--on-existing` | Effect |
 |---|---|---|---|
-| Resume | `r` | `resume` | no new session: the existing session is opened again (woken up when asleep) |
-| Resume elsewhere | `t` | `transfer` | the session and its conversation move to the chosen runtime (local ↔ container) and model; on failure it stays unchanged and oh offers "Replace" |
+| Resume | `R` | `resume` | no new session: the existing session is opened again (woken up when asleep) |
+| Resume elsewhere | `T` | `transfer` | the session and its conversation move to the chosen runtime (local ↔ container) and model; on failure it stays unchanged and oh offers "Replace" |
 | Replace (keep the work) | `k` | `keep` | the session is stopped; the new one works in the same directory and branch and gets a **handoff brief** (objective, results, decisions taken, commits, changed files) |
 | Delete and relaunch | `d` | `delete` | the session and its work are deleted (confirmation, see `oh session delete`), then the launch starts afresh |
 | In parallel | `p` | `parallel` | the new session starts beside it, in another worktree (the two may conflict) |
@@ -98,7 +98,7 @@ Open it from the omnibar (`sessions`) or from the "Sessions" sections of the hom
 
 - **To handle**: sessions with waiting decisions, each followed by its decisions (a session shows only once in the view; short ID on the row). `Enter` opens the card (permission: once / always / reject + message; question: generated form; alert: dismiss or attach), `y`/`n` approve or reject a permission, `x` dismisses an alert.
 - **Running, Sleeping, Finished (7 days), To fetch** (finished remote sessions); detail of the selected session at the bottom.
-- `t` (or `Enter` on a session): live feed on the right (agent, tools, messages, cost). `a` attach, `A` choose how to open (iTerm2, Terminal.app, tmux, browser, here), `m` instruction, `i` interrupt, `M` model, `s` stop, `D` delete (confirmation, as `oh session delete`), `c` resume, `o` results and merge request description, `w` browser, `e` chain another workflow, `g` fetch a remote session, `f` active project / every project, `r` refresh.
+- `t` (or `Enter` on a session): live feed on the right (agent, tools, messages, cost). `a` attach, `A` choose how to open (iTerm2, Terminal.app, tmux, browser, here), `m` instruction, `i` interrupt, `M` model, `s` stop, `d` delete (confirmation, as `oh session delete`), `R` resume (or fetch a remote session), `B` batch validation, `o` results and merge request description, `w` browser, `e` chain another workflow, `f` active project / every project, `r` refresh.
 
 With tmux, the session opens in a new window; with `[session] iterm_style = "split"`, in a pane next to it.
 
