@@ -25,6 +25,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/runtime/container"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/testenv"
 )
 
 // TestMain runs the test binary as a stdio MCP server standing for an oh
@@ -39,7 +40,9 @@ func TestMain(m *testing.M) {
 		_ = s.Serve()
 		os.Exit(0)
 	}
-	os.Exit(gittest.Main(m))
+	// The helper process above must keep the variables its parent gave it.
+	finish := testenv.Isolate()
+	os.Exit(finish(gittest.Main(m)))
 }
 
 // TestRealBeadsGateway runs bd from the shell of a container session (no

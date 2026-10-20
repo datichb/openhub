@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
+	"github.com/datichb/openhub/cli/internal/testenv"
 )
 
 // TestMain stops the servers left by interrupted test runs (N18): a test
@@ -20,10 +21,11 @@ import (
 // directories are those of a test or of the native agents discovery are
 // stopped (other packages may be running their own servers meanwhile).
 func TestMain(m *testing.M) {
+	finish := testenv.Isolate()
 	sweepTestServers()
 	code := gittest.Main(m)
 	sweepTestServers()
-	os.Exit(code)
+	os.Exit(finish(code))
 }
 
 func sweepTestServers() {

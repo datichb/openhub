@@ -5,8 +5,13 @@ import (
 	"testing"
 
 	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
+	"github.com/datichb/openhub/cli/internal/testenv"
 )
 
 // The tests commit in temporary repositories: no automatic git
 // maintenance left running in their temporary directories (gittest.Config).
-func TestMain(m *testing.M) { os.Exit(gittest.Main(m)) }
+// They are also isolated from the real hub and home (testenv).
+func TestMain(m *testing.M) {
+	finish := testenv.Isolate()
+	os.Exit(finish(gittest.Main(m)))
+}

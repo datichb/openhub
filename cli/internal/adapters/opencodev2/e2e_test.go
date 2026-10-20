@@ -26,6 +26,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/credproxy"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
+	"github.com/datichb/openhub/cli/internal/testenv"
 )
 
 const e2eModel = "amazon-bedrock/eu.anthropic.claude-haiku-4-5-20251001-v1:0"
@@ -35,7 +36,10 @@ func bedrockToken(t *testing.T) string {
 	if tok := os.Getenv("OH_E2E_BEDROCK_TOKEN"); tok != "" {
 		return tok
 	}
-	out, err := exec.Command("opencode", "auth", "export").Output()
+	// The credentials are those of the real home, which the tests do not use.
+	auth := exec.Command("opencode", "auth", "export")
+	auth.Env = testenv.OriginalEnv()
+	out, err := auth.Output()
 	if err != nil {
 		t.Skip("no Bedrock credential available")
 	}
