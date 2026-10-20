@@ -102,6 +102,8 @@ oh upgrade oh [version] [--check]
 | `version` | argument | Version cible (défaut : la dernière publiée). Sans version, oh n'installe jamais une version plus ancienne que la sienne ; une version plus ancienne demandée explicitement est installée avec un avertissement de rétrogradation |
 | `--check` | bool | Vérifier seulement si une mise à jour est disponible |
 
+Le téléchargement ne suit une redirection que vers HTTPS sur GitHub et son CDN de releases ; la version reçue doit être celle qui est demandée, et plus récente que celle qui tourne (sauf rétrogradation demandée explicitement, voir ci-dessus). Voir [SECURITY.fr.md](../../SECURITY.fr.md#mise-à-jour-automatique).
+
 **Exemple :**
 
 ```bash

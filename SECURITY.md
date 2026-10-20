@@ -236,6 +236,8 @@ The `oh upgrade oh` command downloads binaries exclusively from GitHub Releases 
 
 - **URL allowlist** — only `github.com` and `objects.githubusercontent.com` are accepted
 - **HTTPS-only** — plaintext HTTP is rejected
+- **Redirects checked** — a download only follows a redirect to HTTPS (port 443) and to `github.com`, `api.github.com`, `objects.githubusercontent.com`, `release-assets.githubusercontent.com` or `github-releases.githubusercontent.com` (the releases CDN). Any other destination stops the update, without a retry; 5 redirects at most
+- **No implicit downgrade** — `oh upgrade oh` refuses to install a version equal to or older than the running one (so a replayed or forged API answer cannot bring back a vulnerable version); the requested version must also be the one of the release received. Only an older version **requested explicitly** (`oh upgrade oh 4.2.0`, flagged as a downgrade) is installed
 - **SHA256 checksums** — the downloaded binary is verified against the published checksum file; installation is refused if checksums do not match
 - **Cosign signing** — release checksums are signed with [Sigstore](https://www.sigstore.dev/) (keyless OIDC, identity: the `release.yml` workflow of this repository on a `v*` tag). When the `cosign` CLI is installed, `oh upgrade oh` and `install.sh` verify the signature and **refuse** an invalid one. Without `cosign` they only verify the checksum and print a warning; set `OH_REQUIRE_SIGNATURE=1` to refuse any update whose signature cannot be verified
 - **Atomic replacement** — the binary is replaced atomically with automatic rollback on failure

@@ -102,6 +102,8 @@ oh upgrade oh [version] [--check]
 | `version` | argument | Target version (default: the latest published). Without a version, oh never installs a version older than its own; an older version requested explicitly is installed with a downgrade warning |
 | `--check` | bool | Only check whether an update is available |
 
+The download only follows a redirect to HTTPS on GitHub and its releases CDN; the version received must be the one requested, and newer than the running one (unless an explicit downgrade was requested, see above). See [SECURITY.md](../../SECURITY.md#self-update).
+
 **Example:**
 
 ```bash

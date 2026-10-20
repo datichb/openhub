@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -17,13 +18,19 @@ import (
 	"strings"
 	"time"
 
+	"github.com/datichb/openhub/cli/internal/buildinfo"
 	"github.com/datichb/openhub/cli/internal/httplog"
 	"github.com/datichb/openhub/cli/internal/retry"
+	"github.com/datichb/openhub/cli/internal/semver"
+)
+
+// GitHub API URLs of the releases (variables for the tests).
+var (
+	ohReleasesAPI   = "https://api.github.com/repos/datichb/openhub/releases/latest"
+	ohReleaseTagAPI = "https://api.github.com/repos/datichb/openhub/releases/tags/v%s"
 )
 
 const (
-	ohReleasesAPI     = "https://api.github.com/repos/datichb/openhub/releases/latest"
-	ohReleaseTagAPI   = "https://api.github.com/repos/datichb/openhub/releases/tags/v%s"
 	ohAPITimeout      = 15 * time.Second
 	ohDownloadTimeout = 5 * time.Minute
 	ohMaxRetries      = 3
@@ -73,7 +80,7 @@ func ReleaseByVersion(version string) (*Release, error) {
 }
 
 func fetchRelease(apiURL string) (*Release, error) {
-	client := httplog.Wrap(&http.Client{Timeout: ohAPITimeout}, "selfupdate")
+	client := newHTTPClient(ohAPITimeout)
 	req, err := http.NewRequest("GET", apiURL, http.NoBody)
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
@@ -90,7 +97,7 @@ func fetchRelease(apiURL string) (*Release, error) {
 	}, func(attempt int) (bool, error) {
 		resp, err := client.Do(req)
 		if err != nil {
-			return true, fmt.Errorf("fetching release (attempt %d/%d): %w", attempt, ohMaxRetries, err)
+			return !errors.Is(err, ErrRedirect), fmt.Errorf("fetching release (attempt %d/%d): %w", attempt, ohMaxRetries, err)
 		}
 		if retry.IsTransientHTTP(resp.StatusCode) || resp.StatusCode == http.StatusTooManyRequests {
 			resp.Body.Close()
@@ -141,10 +148,58 @@ func AssetName() (string, error) {
 // ProgressFunc is called during download with bytes downloaded and total.
 type ProgressFunc func(downloaded, total int64)
 
+// Option changes the behaviour of Update.
+type Option func(*updateOptions)
+
+type updateOptions struct{ allowDowngrade bool }
+
+// AllowDowngrade lets Update install a version older than (or equal to) the
+// running one: the caller got an explicit request for it (S-39).
+func AllowDowngrade() Option { return func(o *updateOptions) { o.allowDowngrade = true } }
+
+// currentVersion is the running version (variable for the tests).
+var currentVersion = func() string { return buildinfo.Version }
+
+// ErrDowngrade is returned when a release is not newer than the running oh
+// and nothing explicit asked for it.
+var ErrDowngrade = errors.New("not a newer version")
+
+// checkVersionChange refuses an update that would not go forward (S-39):
+// a release not newer than current, which is what a replayed or forged API
+// answer would offer; and, when a version was requested, a release that is not
+// that version. A development build ("dev", unparsable) has nothing to
+// compare with.
+func checkVersionChange(current string, release *Release, requested string, opts updateOptions) error {
+	requested = strings.TrimPrefix(requested, "v")
+	if requested != "" && requested != "latest" && release.Version() != requested {
+		return fmt.Errorf("release %s is not the requested version %s", release.TagName, requested)
+	}
+	if opts.allowDowngrade || current == "" || current == "dev" {
+		return nil
+	}
+	cmp, ok := semver.Compare(current, release.Version())
+	if !ok {
+		if strings.TrimPrefix(current, "v") == release.Version() {
+			cmp, ok = 0, true
+		} else {
+			return nil
+		}
+	}
+	if cmp >= 0 {
+		return fmt.Errorf("%w: release %s is not newer than the running version %s", ErrDowngrade, release.TagName, current)
+	}
+	return nil
+}
+
 // Update downloads the specified version of oh and replaces the running binary.
-// If version is empty or "latest", fetches the latest release.
-// Returns the new binary path on success.
-func Update(version string, progress ProgressFunc) (string, error) {
+// If version is empty or "latest", fetches the latest release. A release that
+// is not newer than the running version is refused, unless AllowDowngrade is
+// given. Returns the new binary path on success.
+func Update(version string, progress ProgressFunc, opts ...Option) (string, error) {
+	var o updateOptions
+	for _, opt := range opts {
+		opt(&o)
+	}
 	var release *Release
 	var err error
 	if version == "" || version == "latest" {
@@ -154,6 +209,9 @@ func Update(version string, progress ProgressFunc) (string, error) {
 	}
 	if err != nil {
 		return "", fmt.Errorf("fetching release info: %w", err)
+	}
+	if err := checkVersionChange(currentVersion(), release, version, o); err != nil {
+		return "", err
 	}
 
 	assetName, err := AssetName()
@@ -310,10 +368,10 @@ func downloadAsset(asset *Asset, dest *os.File, progress ProgressFunc) error {
 			}
 		}
 
-		client := httplog.Wrap(&http.Client{Timeout: ohDownloadTimeout}, "selfupdate")
+		client := newHTTPClient(ohDownloadTimeout)
 		resp, err := client.Get(asset.BrowserDownloadURL)
 		if err != nil {
-			return true, fmt.Errorf("downloading %s (attempt %d): %w", asset.Name, attempt, err)
+			return !errors.Is(err, ErrRedirect), fmt.Errorf("downloading %s (attempt %d): %w", asset.Name, attempt, err)
 		}
 		defer resp.Body.Close()
 
@@ -364,6 +422,55 @@ func extractBinary(archivePath, destPath string) error {
 	return extractFromTarGz(archivePath, destPath)
 }
 
+// ErrRedirect is returned when a redirect leaves the hosts oh trusts (S-39).
+var ErrRedirect = errors.New("redirect refused")
+
+// maxRedirects bounds the redirects of one request.
+const maxRedirects = 5
+
+// allowedRedirectHosts are the hosts a request may be redirected to: GitHub
+// and the CDN serving its release assets (github.com answers with a redirect
+// to one of them; GitHub moved the assets to release-assets.* in 2025).
+var allowedRedirectHosts = []string{
+	"github.com",
+	"api.github.com",
+	"objects.githubusercontent.com",
+	"release-assets.githubusercontent.com",
+	"github-releases.githubusercontent.com",
+}
+
+// checkRedirect lets a request follow a redirect to HTTPS (default port) on
+// an allowed host only.
+func checkRedirect(req *http.Request, via []*http.Request) error {
+	if len(via) >= maxRedirects {
+		return fmt.Errorf("%w: more than %d redirects", ErrRedirect, maxRedirects)
+	}
+	u := req.URL
+	if u.Scheme != "https" {
+		return fmt.Errorf("%w: %q is not HTTPS", ErrRedirect, u.Redacted())
+	}
+	if p := u.Port(); p != "" && p != "443" {
+		return fmt.Errorf("%w: port %s of %q", ErrRedirect, p, u.Hostname())
+	}
+	host := strings.ToLower(u.Hostname())
+	for _, h := range allowedRedirectHosts {
+		if host == h {
+			return nil
+		}
+	}
+	return fmt.Errorf("%w: untrusted host %q", ErrRedirect, u.Hostname())
+}
+
+// httpTransport is the transport of the update requests (nil = default;
+// variable for the tests).
+var httpTransport http.RoundTripper
+
+// newHTTPClient is the logged client of the update requests, which follows
+// redirects to the allowed hosts only.
+func newHTTPClient(timeout time.Duration) *http.Client {
+	return httplog.Wrap(&http.Client{Timeout: timeout, Transport: httpTransport, CheckRedirect: checkRedirect}, "selfupdate")
+}
+
 // allowedDownloadHosts is the set of hosts trusted for binary downloads.
 var allowedDownloadHosts = []string{
 	"github.com",
@@ -400,10 +507,10 @@ func fetchChecksums(checksumAsset *Asset) ([]byte, error) {
 		MaxDelay:    30 * time.Second,
 		Jitter:      0.2,
 	}, func(attempt int) (bool, error) {
-		client := httplog.Wrap(&http.Client{Timeout: ohAPITimeout}, "selfupdate")
+		client := newHTTPClient(ohAPITimeout)
 		resp, err := client.Get(checksumAsset.BrowserDownloadURL)
 		if err != nil {
-			return true, fmt.Errorf("downloading checksums (attempt %d): %w", attempt, err)
+			return !errors.Is(err, ErrRedirect), fmt.Errorf("downloading checksums (attempt %d): %w", attempt, err)
 		}
 		defer resp.Body.Close()
 
