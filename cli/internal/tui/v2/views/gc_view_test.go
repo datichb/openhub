@@ -130,8 +130,8 @@ func (r *deployRecorder) config() *DeployCleanupConfig {
 			if r.left == 0 {
 				return DeployCleanupPlan{}, nil
 			}
-			return DeployCleanupPlan{Projects: r.left, Text: "demo  /work/demo\n  − .opencode/agents/ (12 fichiers)\n",
-				DiffTitle: "opencode.json : diff du nettoyage", Diff: "- \"agent\": {…}\n"}, nil
+			return DeployCleanupPlan{Projects: r.left, Text: "demo  /work/demo\n  − .tool/agents/ (12 fichiers)\n",
+				DiffTitle: "tool.json : diff du nettoyage", Diff: "- \"agent\": {…}\n"}, nil
 		},
 		Apply: func(context.Context) (string, bool) {
 			r.mu.Lock()
@@ -167,7 +167,7 @@ func TestCleanupViewSections(t *testing.T) {
 	require.Eventually(t, func() bool {
 		var txt string
 		onLoop(app, func() { txt = v.deploy.text.GetText(true) })
-		return strings.Contains(txt, ".opencode/agents/")
+		return strings.Contains(txt, ".tool/agents/")
 	}, 2*time.Second, 10*time.Millisecond)
 	onLoop(app, func() {
 		assert.Equal(t, "Nettoyage", v.Title())
