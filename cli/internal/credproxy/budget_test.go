@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -151,19 +152,47 @@ func TestProxyCountsCacheTokens(t *testing.T) {
 	}
 }
 
-// The token budget counts the cache.
-func TestProxyBudgetCountsCache(t *testing.T) {
+// The token budget is in input-equivalent tokens: the cache counts for its
+// price (read ×0.1, write ×1.25), not as raw tokens, and the output ×5.
+func TestProxyBudgetIsWeighted(t *testing.T) {
 	var s seen
+	var usage atomic.Value
+	usage.Store(`{"usage":{"cache_read_input_tokens":98}}`)
 	up := upstream(t, &s, func(w http.ResponseWriter, _ *http.Request) {
-		fmt.Fprint(w, `{"usage":{"input_tokens":1,"output_tokens":1,"cache_read_input_tokens":98}}`)
+		fmt.Fprint(w, usage.Load().(string))
 	})
 	p := startProxy(t)
-	tok, _ := p.Issue(Grant{Provider: ProviderAnthropic, Upstream: Upstream{BaseURL: up.URL, Auth: BearerAuth{Token: "k"}}, MaxTokens: 100})
+	tok, _ := p.Issue(Grant{Provider: ProviderAnthropic, Upstream: Upstream{BaseURL: up.URL, Auth: BearerAuth{Token: "k"}}, MaxTokens: 10})
+	settled := func(want float64) {
+		t.Helper()
+		require.Eventually(t, func() bool { u, _ := p.Usage(tok); return u.Weighted() > want-1e-9 && u.Weighted() < want+1e-9 }, 2*time.Second, 5*time.Millisecond)
+	}
+
+	// 98 cache reads are 9.8 equivalents: under the budget of 10 (raw, they
+	// would have spent it).
 	status, _, _ := call(t, p, tok, ProviderAnthropic, "/messages", `{"model":"m"}`)
 	assert.Equal(t, http.StatusOK, status)
-	require.Eventually(t, func() bool { return p.Exhausted(tok) }, 2*time.Second, 5*time.Millisecond)
+	settled(9.8)
+	u, _ := p.Usage(tok)
+	assert.Equal(t, int64(98), u.Tokens(), "the raw count stays")
+	assert.False(t, p.Exhausted(tok))
+	status, _, _ = call(t, p, tok, ProviderAnthropic, "/messages", `{"model":"m"}`)
+	assert.Equal(t, http.StatusOK, status, "9.8 of 10 is not spent")
+	settled(19.6)
+	assert.True(t, p.Exhausted(tok))
 	status, _, _ = call(t, p, tok, ProviderAnthropic, "/messages", `{"model":"m"}`)
 	assert.Equal(t, http.StatusTooManyRequests, status)
+
+	// Output weighs ×5: 2 tokens of output spend a budget of 10 on their own.
+	usage.Store(`{"usage":{"output_tokens":1}}`)
+	tok2, _ := p.Issue(Grant{Provider: ProviderAnthropic, Upstream: Upstream{BaseURL: up.URL, Auth: BearerAuth{Token: "k"}}, MaxTokens: 10})
+	status, _, _ = call(t, p, tok2, ProviderAnthropic, "/messages", `{"model":"m"}`)
+	assert.Equal(t, http.StatusOK, status)
+	require.Eventually(t, func() bool { u, _ := p.Usage(tok2); return u.OutputTokens == 1 }, 2*time.Second, 5*time.Millisecond)
+	assert.False(t, p.Exhausted(tok2), "5 of 10")
+	status, _, _ = call(t, p, tok2, ProviderAnthropic, "/messages", `{"model":"m"}`)
+	assert.Equal(t, http.StatusOK, status)
+	require.Eventually(t, func() bool { return p.Exhausted(tok2) }, 2*time.Second, 5*time.Millisecond, "10 of 10")
 }
 
 // A stream cut before its usage message is counted with what was seen; a
@@ -253,8 +282,9 @@ func TestProxyReservesTheTokenBudget(t *testing.T) {
 		fmt.Fprint(w, `{"usage":{"input_tokens":50,"output_tokens":50}}`)
 	})
 	p := startProxy(t)
+	// A request reserves its input and 5 times its output (equivalents).
 	tok, _ := p.Issue(Grant{Provider: ProviderAnthropic, Upstream: Upstream{BaseURL: up.URL, Auth: HeaderAuth{Name: "x-api-key", Value: "k"}}, MaxTokens: 100000})
-	body := `{"model":"m","max_tokens":60000}`
+	body := `{"model":"m","max_tokens":12000}`
 
 	first := make(chan int, 1)
 	go func() {
@@ -283,11 +313,15 @@ func TestProxyReservesTheTokenBudget(t *testing.T) {
 
 	// Both are over and counted: the reservation is released.
 	require.Eventually(t, func() bool {
+		p.mu.RLock()
 		g := p.byToken[RefHash(tok)]
+		p.mu.RUnlock()
 		g.mu.Lock()
 		defer g.mu.Unlock()
 		return g.reserved == 0 && g.usage.Tokens() == 200
 	}, 2*time.Second, 5*time.Millisecond)
+	u, _ := p.Usage(tok)
+	assert.InDelta(t, 600, u.Weighted(), 1e-9, "the real usage replaced the reservations: 2 × (50 + 5 × 50)")
 	status, _, msg = call(t, p, tok, ProviderAnthropic, "/messages", body)
 	assert.Equal(t, http.StatusOK, status, msg)
 }

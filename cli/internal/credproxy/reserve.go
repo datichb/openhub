@@ -95,10 +95,10 @@ func admission(model string, body []byte) Admission {
 // admit reserves the estimate of a request on the token budget of the grant
 // and asks the Gate. The returned function releases the reservations (once).
 func (p *Proxy) admit(ctx context.Context, g *grantState, a Admission) (func(Usage), error) {
-	est := a.InputTokens + a.MaxOutputTokens
+	est := WeightedTokens(a.InputTokens, a.MaxOutputTokens, 0, 0)
 	if g.MaxTokens > 0 {
 		g.mu.Lock()
-		if used := g.usage.Tokens(); g.reserved > 0 && used+g.reserved+est > g.MaxTokens {
+		if used := g.usage.Weighted(); g.reserved > 0 && used+g.reserved+est > float64(g.MaxTokens) {
 			g.mu.Unlock()
 			return nil, &Refusal{Message: "credproxy: session token budget reserved by the requests in flight", RetryAfter: reserveRetry}
 		}

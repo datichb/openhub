@@ -61,7 +61,7 @@ type Grant struct {
 	Provider      string // provider id of the tool (adapters.ProviderMapper)
 	Upstream      Upstream
 	AllowedModels []string      // wildcard patterns on the model id; empty = any
-	MaxTokens     int64         // input+output token budget; 0 = unlimited
+	MaxTokens     int64         // budget in input-equivalent tokens (WeightedTokens); 0 = unlimited
 	Credential    CredentialRef // names the real credential (logs, refusals)
 }
 
@@ -79,7 +79,7 @@ type Usage struct {
 	Estimated int64
 }
 
-// Tokens is every token counted: input, output and cache.
+// Tokens is the raw count of every token: input, output and cache.
 func (u Usage) Tokens() int64 {
 	return u.InputTokens + u.OutputTokens + u.CacheReadTokens + u.CacheWriteTokens
 }
@@ -117,8 +117,8 @@ type grantState struct {
 	rejected *AuthRejection // last credential refusal not followed by a success
 	// rateLimited counts the 429 answers in a row (checkRateLimit).
 	rateLimited int
-	// reserved is the token budget held by the requests in flight.
-	reserved int64
+	// reserved is the token budget (input-equivalent) held by the requests in flight.
+	reserved float64
 }
 
 // Proxy is a local HTTP proxy. Routes: /<provider>/... → upstream /... .
@@ -422,7 +422,7 @@ func (p *Proxy) Exhausted(ref string) bool {
 	}
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	return g.usage.Tokens() >= g.MaxTokens
+	return g.usage.Weighted() >= float64(g.MaxTokens)
 }
 
 // TokenPrefix starts every proxy session token.
@@ -567,9 +567,9 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if g.MaxTokens > 0 {
 		g.mu.Lock()
-		used := g.usage.Tokens()
+		used := g.usage.Weighted()
 		g.mu.Unlock()
-		if used >= g.MaxTokens {
+		if used >= float64(g.MaxTokens) {
 			http.Error(w, "credproxy: session token budget exhausted", http.StatusTooManyRequests)
 			return
 		}
