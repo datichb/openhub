@@ -62,8 +62,14 @@ func ohCommandPatterns(words ...string) []string {
 // starts a server with the tokens of the user. The others change what the user
 // trusts or his personal settings, which a prompt-injected agent could
 // otherwise use to approve a malicious MCP URL (`mcp trust`), swap a model, a
-// token or a workflow setting for its own. Reads (`mcp status`, `config get`,
-// `config list`, `config model show`) stay allowed.
+// token or a workflow setting for its own: the secrets (`secrets set|delete`),
+// the MCP services (`mcp enable|disable|reset`), the language and the web
+// search (`config language|websearch`) and the restrictions of the sessions
+// (`budget set|unset|raise`: an agent would lift its own limit). Reads (`mcp
+// status`, `config get`, `config list`, `config model show`, `secrets list`,
+// `budget show`) stay allowed; `config language` and `config websearch` are
+// refused whole, their reading form included (the pattern cannot tell them
+// apart).
 var ohControlDeny = func() []string {
 	out := ohCommandPatterns("mcp", "serve")
 	for _, words := range [][]string{
@@ -71,6 +77,10 @@ var ohControlDeny = func() []string {
 		{"config", "set"}, {"config", "unset"},
 		{"config", "model", "default"}, {"config", "model", "family"}, {"config", "model", "agent"}, {"config", "model", "unset"},
 		{"service", "setup"}, {"service", "remove"},
+		{"secrets", "set"}, {"secrets", "delete"},
+		{"mcp", "enable"}, {"mcp", "disable"}, {"mcp", "reset"},
+		{"config", "language"}, {"config", "websearch"},
+		{"budget", "set"}, {"budget", "unset"}, {"budget", "raise"},
 	} {
 		out = append(out, ohCommandPatterns(words...)...)
 	}
