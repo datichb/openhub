@@ -183,7 +183,7 @@ func migrateLegacyWorkflows(ctx context.Context, a *app.App, store legacyWorkflo
 	svc := newWorkflowService(ctx)
 	target, err := svc.Resolve(ctx, workflowsvc.Context{}, "hub:"+workflow.LegacyWorkflowID, workflowsvc.ResolveOpts{})
 	if target == nil {
-		m.Errors = append(m.Errors, fmt.Errorf("hub:%s unavailable, migration postponed: %w", workflow.LegacyWorkflowID, err))
+		m.Errors = append(m.Errors, fmt.Errorf(i18n.T("cmd.workflow_migrate.hub_unavailable_migration_postponed"), workflow.LegacyWorkflowID, err))
 		return m
 	}
 	known := legacyTarget{checkpoints: target.Spec.Checkpoints.Keys(), agents: append([]string{target.Spec.EntryAgent()}, target.Spec.Agents.Keys()...)}
@@ -220,14 +220,14 @@ func migrateHubWorkflowConfig(a *app.App, m *workflowMigration, known legacyTarg
 			err = os.WriteFile(filepath.Join(dir, workflow.LegacyWorkflowID+".hub.yaml"), patch.YAML, 0o644)
 		}
 		if err != nil {
-			m.Errors = append(m.Errors, fmt.Errorf("hub workflow overrides: %w", err))
+			m.Errors = append(m.Errors, fmt.Errorf(i18n.T("cmd.workflow_migrate.hub_workflow_overrides"), err))
 			return
 		}
 		m.notice("hub", dir)
 	}
 	// Saving the configuration drops the section (no such field any more).
 	if err := config.Save(a.Config); err != nil {
-		m.Errors = append(m.Errors, fmt.Errorf("writing hub.toml: %w", err))
+		m.Errors = append(m.Errors, fmt.Errorf(i18n.T("cmd.workflow_migrate.writing_hub_toml"), err))
 	}
 }
 
@@ -308,7 +308,7 @@ func migrateProjectWorkflowConfigs(ctx context.Context, a *app.App, svc *workflo
 		if jerr != nil || (wc.Overrides == nil || wc.Overrides.IsEmpty()) && len(keys) > 0 && !onlyEmptyOverrides(keys) {
 			// Unreadable or unknown format (A7): archived, never dropped silently.
 			if path, err := archiveLegacyProjectConfig(pid, raw); err != nil {
-				m.Errors = append(m.Errors, fmt.Errorf("project %s: unknown workflow_config format (kept): %w", pid, err))
+				m.Errors = append(m.Errors, fmt.Errorf(i18n.T("cmd.workflow_migrate.project_unknown_workflow_config_format_kept"), pid, err))
 			} else {
 				m.notice("project_unknown", projectLabel(ctx, a, pid), path)
 				_ = store.ClearLegacyWorkflowConfig(ctx, pid)
@@ -411,7 +411,7 @@ func projectTeamStateForMigration(ctx context.Context, a *app.App, project *doma
 		}
 		repo := teamstate.NewRepo(tc.StateRepo, path)
 		if !repo.IsCloned() {
-			return nil, "", fmt.Errorf("team-state %s not cloned", path)
+			return nil, "", fmt.Errorf(i18n.T("cmd.workflow_migrate.team_state_not_cloned"), path)
 		}
 		return repo, tc.MemberID, nil
 	}

@@ -22,9 +22,21 @@ type DoctorCheck struct {
 	Detail string
 	OK     bool
 	Warn   bool
+	// Optional marks a check of something oh can do without (container
+	// engine, bd…): when it fails it is reported as a warning and does not
+	// change the exit code of oh doctor (U-05). See Normalized.
+	Optional bool
 	// Fix repairs what the check found (oh doctor --fix); nil: nothing to
 	// repair from the TUI.
 	Fix *DoctorFix
+}
+
+// Normalized turns the failure of an optional check into a warning.
+func (c DoctorCheck) Normalized() DoctorCheck {
+	if c.Optional && !c.OK {
+		c.OK, c.Warn = true, true
+	}
+	return c
 }
 
 // DoctorFix is the repair of a check (key f « corriger »): Plan describes

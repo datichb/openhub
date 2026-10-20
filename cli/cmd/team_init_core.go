@@ -6,6 +6,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 )
 
@@ -38,12 +39,12 @@ func teamInitCore(ctx context.Context, a *app.App, p teamInitParams) error {
 
 	// Ensure repo is ready (clone if needed, pull if already cloned)
 	if err := repo.EnsureReady(ctx); err != nil {
-		return fmt.Errorf("cloning team-state: %w", err)
+		return fmt.Errorf(i18n.T("cmd.team_init_core.cloning_team_state"), err)
 	}
 
 	// Initialize directory structure (idempotent)
 	if err := repo.InitStructure(ctx); err != nil {
-		return fmt.Errorf("init structure: %w", err)
+		return fmt.Errorf(i18n.T("cmd.team_init_core.init_structure"), err)
 	}
 
 	// Register or update member
@@ -57,11 +58,11 @@ func teamInitCore(ctx context.Context, a *app.App, p teamInitParams) error {
 	}
 	if repo.HasMember(p.MemberID) {
 		if err := repo.UpdateMember(ctx, member); err != nil {
-			return fmt.Errorf("update member: %w", err)
+			return fmt.Errorf(i18n.T("cmd.team_init_core.update_member"), err)
 		}
 	} else {
 		if err := repo.AddMember(ctx, member); err != nil {
-			return fmt.Errorf("add member: %w", err)
+			return fmt.Errorf(i18n.T("cmd.team_init_core.add_member"), err)
 		}
 	}
 
@@ -83,7 +84,7 @@ func teamInitCore(ctx context.Context, a *app.App, p teamInitParams) error {
 	a.Config.Team = config.TeamConfig{}
 
 	if err := config.Save(a.Config); err != nil {
-		return fmt.Errorf("writing hub.toml: %w", err)
+		return fmt.Errorf(i18n.T("cmd.team_init_core.writing_hub_toml"), err)
 	}
 
 	return nil

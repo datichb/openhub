@@ -126,7 +126,7 @@ oh project configure [project-id] [options]
 | Flag | Court | Type | Description |
 |------|-------|------|-------------|
 | `--provider` | `-P` | string | Provider LLM : `bedrock`, `anthropic`, `openrouter`, `github-copilot` (valeur non vérifiée) |
-| `--model` | `-m` | string | Modèle LLM |
+| `--model` | | string | Modèle LLM (l'ancienne forme courte `-m` reste acceptée, avec un avertissement) |
 | `--language` | `-l` | string | Langage principal |
 
 Le workflow et l'environnement d'exécution par défaut du projet se reglent dans la TUI (Config projet › Exécution), voir [`oh run`](cli-workflows.fr.md#oh-run).
@@ -137,6 +137,28 @@ Le workflow et l'environnement d'exécution par défaut du projet se reglent dan
 oh project configure api -P anthropic -m claude-sonnet-4-20250514
 oh project configure api -l go
 oh project configure
+```
+
+---
+
+## Merge requests
+
+### oh mr create
+
+Crée (ou retrouve) la merge request GitLab de la branche courante, vers la branche de base du projet, et assigne si besoin un relecteur de l'équipe. Remplace `oh review --publish`. La review elle-même est un workflow : [`oh run review`](cli-workflows.fr.md#oh-run). Demande l'accès en écriture à GitLab (`oh mcp setup gitlab`) ; la fusion reste une action manuelle.
+
+```
+oh mr create [-p <projet>] [--reviewer <membre>]
+```
+
+| Flag | Court | Type | Description |
+|------|-------|------|-------------|
+| `--project` | `-p` | string | Projet (détecté depuis le dossier courant) |
+| `--reviewer` | | string | Identifiant du membre de l'équipe à assigner comme relecteur |
+
+```bash
+oh mr create
+oh mr create --reviewer alice
 ```
 
 ---

@@ -119,6 +119,9 @@ func (sb *StatusBar) SetHints(hints string) {
 
 // colorTag converts a tcell.Color to a tview color tag string like "[#rrggbb]".
 func colorTag(c tcell.Color) string {
+	if theme.NoColor() {
+		return ""
+	}
 	r, g, b := c.RGB()
 	return fmt.Sprintf("[#%02x%02x%02x]", r, g, b)
 }

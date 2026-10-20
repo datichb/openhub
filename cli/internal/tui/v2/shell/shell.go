@@ -1186,7 +1186,7 @@ func (s *Shell) RemountIf(ids ...string) {
 	}
 }
 
-// SetSessionsBadge sets the sessions badge of the mode bar ("● 2 ⏸ 1", ""
+// SetSessionsBadge sets the sessions badge of the mode bar ("● 2 ◐ 1", ""
 // to hide it). Must be called on the event loop.
 func (s *Shell) SetSessionsBadge(badge string, alert bool) {
 	s.badge, s.badgeAlert = badge, alert

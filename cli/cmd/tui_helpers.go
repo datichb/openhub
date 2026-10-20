@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -24,7 +24,7 @@ import (
 func resolveActiveProject(a *app.App) (*domain.Project, error) {
 	ctx := context.Background()
 	if a == nil || a.Projects == nil {
-		return nil, fmt.Errorf("no project store")
+		return nil, errors.New(i18n.T("cmd.tui_helpers.no_project_store"))
 	}
 	if tuiShell != nil {
 		if ap := tuiShell.ActiveProject(); ap != nil && ap.ID != "" {
@@ -44,7 +44,7 @@ func resolveActiveProject(a *app.App) (*domain.Project, error) {
 	if len(projects) == 1 {
 		return &projects[0], nil
 	}
-	return nil, fmt.Errorf("no active project selected")
+	return nil, errors.New(i18n.T("cmd.tui_helpers.no_active_project_selected"))
 }
 
 // projectAtCwd returns the project containing the current directory, if any.

@@ -52,7 +52,7 @@ Switching between layouts keeps the selected item. Setting `[cli] compact = auto
 
 ### Sessions badge
 
-The bottom bar shows `● N ⏸ M` everywhere: `N` live sessions (neither sleeping nor finished), `M` waiting decisions. The badge turns to the alert color when `M > 0`, and a toast announces each new decision. System notifications come from the oh daemon, even with the TUI closed.
+The bottom bar shows `● N ◐ M` everywhere: `N` live sessions (neither sleeping nor finished), `M` waiting decisions. The badge turns to the alert color when `M > 0`, and a toast announces each new decision. System notifications come from the oh daemon, even with the TUI closed.
 
 ### Modes
 
@@ -142,7 +142,7 @@ A preview of the ticket (acceptance criteria) shows below the list; a ticket cla
 
 | Section | Content |
 |---------|---------|
-| **To handle** | sessions with waiting decisions, each followed by its decisions: `⏸` checkpoint, `?` question, `!` permission, `$` budget, `✗` error or circuit breaker |
+| **To handle** | sessions with waiting decisions, each followed by its decisions: `⏸` checkpoint, `?` question, `!` permission, `$` budget, `✗` error, `⊘` circuit breaker |
 | **Running** | live sessions (working, waiting, idle) |
 | **To fetch** | remote sessions (GitLab CI): pipeline running, MR ready, Beads journal to replay |
 | **Sleeping** | sessions whose server sleeps; `R` resumes them |

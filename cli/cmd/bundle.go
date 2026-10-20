@@ -115,7 +115,7 @@ func buildBundleFor(cmd *cobra.Command, id string) (*bundle.Bundle, error) {
 	}
 	b, missing, err := buildWorkflowBundle(a, project, res, prov)
 	if err != nil {
-		return nil, fmt.Errorf("building session bundle: %w", err)
+		return nil, fmt.Errorf(i18n.T("cmd.bundle.building_session_bundle"), err)
 	}
 	for _, m := range missing {
 		fmt.Fprintf(cmd.ErrOrStderr(), "%s %s\n", theme.WarningStyle.Render(theme.IconWarning), warningText(runsvc.Warning{Code: "mcp_missing", Args: []any{m}}))

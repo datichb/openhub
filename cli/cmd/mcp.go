@@ -181,7 +181,7 @@ func runMCPEnable(cmd *cobra.Command, args []string) error {
 	upsertProjectMCPService(project, svc)
 
 	if err := a.Projects.Update(ctx, project); err != nil {
-		return fmt.Errorf("updating project: %w", err)
+		return fmt.Errorf(i18n.T("cmd.mcp.updating_project"), err)
 	}
 
 	fmt.Fprintf(cmd.OutOrStdout(), "%s %s\n",
@@ -245,7 +245,7 @@ func runMCPDisable(cmd *cobra.Command, args []string) error {
 	upsertProjectMCPService(project, svc)
 
 	if err := a.Projects.Update(ctx, project); err != nil {
-		return fmt.Errorf("updating project: %w", err)
+		return fmt.Errorf(i18n.T("cmd.mcp.updating_project"), err)
 	}
 
 	fmt.Fprintf(cmd.OutOrStdout(), "%s %s\n",
@@ -291,7 +291,7 @@ func runMCPReset(cmd *cobra.Command, args []string) error {
 	removeProjectMCPService(project, serviceName)
 
 	if err := a.Projects.Update(ctx, project); err != nil {
-		return fmt.Errorf("updating project: %w", err)
+		return fmt.Errorf(i18n.T("cmd.mcp.updating_project"), err)
 	}
 
 	fmt.Fprintf(cmd.OutOrStdout(), "%s %s\n",
@@ -397,7 +397,7 @@ func runMCPSetupForService(cmd *cobra.Command, serviceName string, project *doma
 					"", 0, '*',
 					func(text string) { token = text },
 				)
-				form.AddButton("Next", func() { onDone() })
+				form.AddButton(i18n.T("cmd.button.next"), func() { onDone() })
 				return form
 			},
 			OnDone: func() error {
@@ -420,7 +420,7 @@ func runMCPSetupForService(cmd *cobra.Command, serviceName string, project *doma
 				}
 				return []views.InfoField{
 					{Label: "Token", Value: status},
-					{Label: "Env hint", Value: envHint},
+					{Label: i18n.T("cmd.mcp.env_hint"), Value: envHint},
 				}
 			},
 			SkipIf: func() bool { return envHint == "" },
@@ -434,7 +434,7 @@ func runMCPSetupForService(cmd *cobra.Command, serviceName string, project *doma
 					false,
 					func(checked bool) { writeEnabled = checked },
 				)
-				form.AddButton("Next", func() { onDone() })
+				form.AddButton(i18n.T("cmd.button.next"), func() { onDone() })
 				return form
 			},
 			OnDone: func() error {
@@ -471,7 +471,7 @@ func runMCPSetupForService(cmd *cobra.Command, serviceName string, project *doma
 					upsertProjectMCPService(project, svc)
 
 					if err := a.Projects.Update(ctx, project); err != nil {
-						return fmt.Errorf("updating project MCP config: %w", err)
+						return fmt.Errorf(i18n.T("cmd.mcp.updating_project_mcp_config"), err)
 					}
 				} else {
 					if err := config.Update(func(c *config.Config) error {
@@ -559,8 +559,7 @@ func runMCPStatus(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	fmt.Fprintf(cmd.OutOrStdout(), "%s Services MCP",
-		theme.Title.Render("oh mcp status"))
+	fmt.Fprint(cmd.OutOrStdout(), i18n.Tf("cmd.mcp.mcp_services", theme.Title.Render("oh mcp status")))
 	if project != nil {
 		fmt.Fprintf(cmd.OutOrStdout(), " — %s", project.Name)
 	}
@@ -656,7 +655,7 @@ func mcpServeCmd() *cobra.Command {
 			tokenKey, _ := cmd.Flags().GetString("token-key")
 			if tokenKey != "" {
 				if err := injectTokenFromKeychain(name, tokenKey); err != nil {
-					fmt.Fprintf(os.Stderr, "warning: could not resolve token from keychain: %v\n", err)
+					fmt.Fprint(os.Stderr, i18n.Tf("cmd.mcp.warning_could_not_resolve_token_from", err))
 				}
 			}
 
@@ -705,7 +704,7 @@ func injectTokenFromKeychain(serviceName, tokenKey string) error {
 
 	secrets := resolveSecretStore()
 	if secrets == nil {
-		return fmt.Errorf("no secret store available")
+		return errors.New(i18n.T("cmd.mcp.no_secret_store_available"))
 	}
 	return injectTokenFromStore(secrets, serviceName, tokenKey)
 }
@@ -716,7 +715,7 @@ func injectTokenFromStore(secrets domain.SecretStore, serviceName, tokenKey stri
 	envVar := mcpServiceEnvVar[serviceName]
 	token, err := config.ReadMCPToken(context.Background(), secrets, serviceName, tokenKey)
 	if err != nil {
-		return fmt.Errorf("reading key %q: %w", tokenKey, err)
+		return fmt.Errorf(i18n.T("cmd.mcp.reading_key"), tokenKey, err)
 	}
 	if token == "" {
 		return fmt.Errorf("%s", i18n.Tf("cmd.mcp.setup.token_not_found", tokenKey, tokenKey))

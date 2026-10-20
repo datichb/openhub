@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -87,15 +88,13 @@ func runPatternsList(cmd *cobra.Command, args []string) error {
 
 	patterns, err := repo.ListPatterns(tags, minTags)
 	if err != nil {
-		return fmt.Errorf("listing patterns: %w", err)
+		return fmt.Errorf(i18n.T("cmd.patterns_cmd.listing_patterns"), err)
 	}
 
 	fmt.Fprintln(a.IO.Out)
 	if len(patterns) == 0 {
-		fmt.Fprintf(a.IO.Out, "%s Aucun pattern dans la bibliothèque.\n",
-			theme.Subtitle.Render(theme.IconInfo))
-		fmt.Fprintf(a.IO.Out, "  Utilise %s pour en créer un.\n\n",
-			theme.Bold.Render("oh patterns add"))
+		fmt.Fprint(a.IO.Out, i18n.Tf("cmd.patterns_cmd.no_pattern_in_the_library", theme.Subtitle.Render(theme.IconInfo)))
+		fmt.Fprint(a.IO.Out, i18n.Tf("cmd.patterns_cmd.use_to_create_one", theme.Bold.Render("oh patterns add")))
 		return nil
 	}
 
@@ -150,7 +149,7 @@ func runPatternsShow(cmd *cobra.Command, args []string) error {
 	name := args[0]
 	content, err := repo.ReadPattern(name)
 	if err != nil {
-		return fmt.Errorf("reading pattern: %w", err)
+		return fmt.Errorf(i18n.T("cmd.patterns_cmd.reading_pattern"), err)
 	}
 
 	fmt.Fprintln(a.IO.Out)
@@ -178,7 +177,7 @@ func runPatternsAdd(cmd *cobra.Command, args []string) error {
 	if len(args) == 1 {
 		data, err := os.ReadFile(args[0])
 		if err != nil {
-			return fmt.Errorf("reading file %s: %w", args[0], err)
+			return fmt.Errorf(i18n.T("cmd.patterns_cmd.reading_file"), args[0], err)
 		}
 		content = string(data)
 	}
@@ -189,7 +188,7 @@ func runPatternsAdd(cmd *cobra.Command, args []string) error {
 
 	steps := []views.WizardStep{
 		{
-			Label: "Pattern Info",
+			Label: i18n.T("cmd.patterns_cmd.pattern_info"),
 			Form: func(_ *tview.Application, onDone func()) *tview.Form {
 				form := tview.NewForm()
 				form.AddInputField("Nom du pattern (slug)", name, 0, nil,
@@ -199,15 +198,15 @@ func runPatternsAdd(cmd *cobra.Command, args []string) error {
 				complexities := []string{"low", "medium", "high"}
 				form.AddDropDown("Complexité", complexities, 0,
 					func(_ string, idx int) { complexity = complexities[idx] })
-				form.AddButton("Create", func() { onDone() })
+				form.AddButton(i18n.T("cmd.button.create"), func() { onDone() })
 				return form
 			},
 			OnDone: func() error {
 				if name == "" {
-					return fmt.Errorf("le nom est requis")
+					return errors.New(i18n.T("cmd.patterns_cmd.the_name_is_required"))
 				}
 				if strings.Contains(name, " ") {
-					return fmt.Errorf("utilise des tirets, pas d'espaces")
+					return errors.New(i18n.T("cmd.patterns_cmd.use_hyphens_not_spaces"))
 				}
 				return nil
 			},
@@ -248,8 +247,7 @@ func runPatternsAdd(cmd *cobra.Command, args []string) error {
 	// If no content from file, open editor or ask
 	if content == "" {
 		content = i18n.Tf("cmd.patterns.new_content", name)
-		fmt.Fprintf(a.IO.Out, "\n%s Contenu par défaut créé. Édite le fichier après création pour le compléter.\n",
-			theme.Subtitle.Render(theme.IconInfo))
+		fmt.Fprint(a.IO.Out, i18n.Tf("cmd.patterns_cmd.default_content_created_edit_the_file", theme.Subtitle.Render(theme.IconInfo)))
 	}
 
 	project := detectCurrentProject(ctx, a)
@@ -264,20 +262,18 @@ func runPatternsAdd(cmd *cobra.Command, args []string) error {
 	}
 
 	if err := repo.CreatePattern(ctx, p, content); err != nil {
-		return fmt.Errorf("creating pattern: %w", err)
+		return fmt.Errorf(i18n.T("cmd.patterns_cmd.creating_pattern"), err)
 	}
 
 	// Commit and push
 	relIndex := "patterns/index.toml"
 	relMd := "patterns/" + name + ".md"
 	if err := repo.CommitAndPush(ctx, fmt.Sprintf("patterns: add %s", name), relIndex, relMd); err != nil {
-		return fmt.Errorf("committing pattern: %w", err)
+		return fmt.Errorf(i18n.T("cmd.patterns_cmd.committing_pattern"), err)
 	}
 
-	fmt.Fprintf(a.IO.Out, "\n%s Pattern %q ajouté avec succès.\n",
-		theme.SuccessStyle.Render(theme.IconSuccess), name)
-	fmt.Fprintf(a.IO.Out, "  %s pour voir le contenu.\n\n",
-		theme.Bold.Render("oh patterns show "+name))
+	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.patterns_cmd.pattern_added", theme.SuccessStyle.Render(theme.IconSuccess), name))
+	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.patterns_cmd.to_see_the_content", theme.Bold.Render("oh patterns show "+name)))
 	return nil
 }
 
@@ -292,12 +288,12 @@ func runPatternsValidate(cmd *cobra.Command, args []string) error {
 
 	name := args[0]
 	if err := repo.ValidatePattern(ctx, name); err != nil {
-		return fmt.Errorf("validating pattern: %w", err)
+		return fmt.Errorf(i18n.T("cmd.patterns_cmd.validating_pattern"), err)
 	}
 
 	// Commit and push
 	if err := repo.CommitAndPush(ctx, fmt.Sprintf("patterns: validate %s", name), "patterns/index.toml"); err != nil {
-		return fmt.Errorf("committing validation: %w", err)
+		return fmt.Errorf(i18n.T("cmd.patterns_cmd.committing_validation"), err)
 	}
 
 	fmt.Fprintf(a.IO.Out, "%s Pattern %q validé.\n",
@@ -316,12 +312,12 @@ func runPatternsRemove(cmd *cobra.Command, args []string) error {
 
 	name := args[0]
 	if err := repo.RemovePattern(ctx, name); err != nil {
-		return fmt.Errorf("removing pattern: %w", err)
+		return fmt.Errorf(i18n.T("cmd.patterns_cmd.removing_pattern"), err)
 	}
 
 	// Commit and push
 	if err := repo.CommitAndPush(ctx, fmt.Sprintf("patterns: remove %s", name), "patterns/index.toml"); err != nil {
-		return fmt.Errorf("committing removal: %w", err)
+		return fmt.Errorf(i18n.T("cmd.patterns_cmd.committing_removal"), err)
 	}
 
 	fmt.Fprintf(a.IO.Out, "%s Pattern %q supprimé.\n",

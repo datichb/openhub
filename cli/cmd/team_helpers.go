@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -378,7 +379,7 @@ func buildTrackerSetupSteps(a **app.App, state *initWizardTeamState) []views.Wiz
 							tokenKey = "openhub.tracker." + teamCfg.Tracker.Type + ".token"
 						}
 						if err := (*a).Secrets.Set(state.Ctx, tokenKey, state.TrackerToken); err != nil {
-							return fmt.Errorf("storing tracker token: %w", err)
+							return fmt.Errorf(i18n.T("cmd.team_helpers.storing_tracker_token"), err)
 						}
 					}
 				}
@@ -803,10 +804,10 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 				Role:           role,
 			}
 			if state.TeamRepo == nil {
-				return fmt.Errorf("team-state repository not available")
+				return errors.New(i18n.T("cmd.team_helpers.team_state_repository_not_available"))
 			}
 			if err := state.TeamRepo.AddMember(state.Ctx, member); err != nil {
-				return fmt.Errorf("adding member: %w", err)
+				return fmt.Errorf(i18n.T("cmd.team_helpers.adding_member"), err)
 			}
 			// Update members list with the new member.
 			state.Members = append(state.Members, member)
@@ -1038,7 +1039,7 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 			if state.MismatchPAT != "" && (*a).Secrets != nil {
 				teamID := config.RepoNameFromRemote(state.Repo)
 				if err := (*a).Secrets.Set(state.Ctx, config.TeamGitLabTokenKey(teamID), state.MismatchPAT); err != nil {
-					return fmt.Errorf("storing token: %w", err)
+					return fmt.Errorf(i18n.T("cmd.team_helpers.storing_token"), err)
 				}
 			}
 			// Re-run identity validation with the new token
@@ -1046,10 +1047,10 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 			repo := teamstate.NewRepo(state.Repo, statePath)
 			member, err := repo.GetMember(state.MemberID)
 			if err != nil {
-				return fmt.Errorf("member lookup: %w", err)
+				return fmt.Errorf(i18n.T("cmd.team_helpers.member_lookup"), err)
 			}
 			if err := validateGitLabIdentity(state.Ctx, *a, repo, member); err != nil {
-				return fmt.Errorf("identity verification: %w", err)
+				return fmt.Errorf(i18n.T("cmd.team_helpers.identity_verification"), err)
 			}
 			state.IdentityMismatch = nil
 			return nil

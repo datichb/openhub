@@ -185,7 +185,10 @@ func TestSessionRulesNeverAllowShell(t *testing.T) {
 // An agent's shell cannot approve an MCP URL imposed by the team nor change
 // the personal settings of the user: the commands that do are refused, with
 // the variants already handled for `oh mcp serve` (full path of the binary,
-// env, options before or inside the command). The reads stay allowed.
+// env, options before or inside the command): trust (`mcp trust`), settings
+// (`config set`, `config language`, `config websearch`, `mcp enable|disable|
+// reset`), secrets (`secrets set|delete`) and the restrictions of the
+// sessions (`budget set|unset|raise`). The reads stay allowed.
 func TestGlobalGuardRefusesOhCommandsThatChangeTrustAndSettings(t *testing.T) {
 	forms := [][]string{
 		{"mcp", "serve", "jira"},
@@ -200,6 +203,16 @@ func TestGlobalGuardRefusesOhCommandsThatChangeTrustAndSettings(t *testing.T) {
 		{"config", "model", "unset", "agent", "developer"},
 		{"service", "setup"},
 		{"service", "remove", "gitlab", "--force"},
+		{"secrets", "set", "openhub.mcp.gitlab.token"},
+		{"secrets", "delete", "openhub.mcp.gitlab.token"},
+		{"mcp", "enable", "gitlab"},
+		{"mcp", "disable", "gitlab"},
+		{"mcp", "reset", "gitlab"},
+		{"config", "language", "fr"},
+		{"config", "websearch", "enable"},
+		{"budget", "set", "max_budget_usd", "100"},
+		{"budget", "unset", "max_budget_usd"},
+		{"budget", "raise", "ses_a", "50"},
 	}
 	rules := GlobalShellGuard("")
 	for _, f := range forms {
@@ -232,6 +245,8 @@ func TestGlobalGuardRefusesOhCommandsThatChangeTrustAndSettings(t *testing.T) {
 		"oh mcp status", "oh mcp status --project my-project", "oh mcp list", "oh --no-tui mcp status", "/usr/local/bin/oh mcp status",
 		"oh config get llm.default_provider", "oh config list", "oh config path", "oh config model show", "oh config model show --project p",
 		"oh doctor", "oh version", "oh session list", "oh project list",
+		"oh secrets list", "oh --no-tui secrets list", "/usr/local/bin/oh budget show", "oh budget show --project p",
+		"oh mcp status gitlab", "oh session list --all",
 	} {
 		assert.NotEqual(t, sessionspec.EffectDeny, ShellEffect(rules, cmd), cmd)
 	}
@@ -241,7 +256,9 @@ func TestGlobalGuardRefusesOhCommandsThatChangeTrustAndSettings(t *testing.T) {
 func TestShippedAgentsRefuseTrustAndConfigCommands(t *testing.T) {
 	for _, ag := range [][2]string{{"developer", "developer"}, {"reviewer", "reviewer"}, {"operator", "operator"}} {
 		rules := effectiveRules(t, ag[0], ag[1])
-		for _, cmd := range []string{"oh mcp trust jira --yes", "env oh config set mcp.jira.url https://x", "/usr/local/bin/oh service setup", "oh mcp untrust jira"} {
+		for _, cmd := range []string{"oh mcp trust jira --yes", "env oh config set mcp.jira.url https://x", "/usr/local/bin/oh service setup", "oh mcp untrust jira",
+			"oh secrets set k", "oh secrets delete k", "oh mcp enable gitlab", "oh mcp disable gitlab", "oh mcp reset gitlab",
+			"oh config language en", "oh config websearch disable", "oh budget set max_budget_usd 1", "oh budget raise ses_a"} {
 			assert.Equal(t, sessionspec.EffectDeny, ShellEffect(rules, cmd), "%s: %s", ag[1], cmd)
 		}
 	}

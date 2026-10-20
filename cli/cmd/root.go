@@ -77,9 +77,10 @@ var rootCmd = &cobra.Command{
 func Execute() error {
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Fprintf(os.Stderr, "\noh: internal error (panic): %v\n", r)
-			fmt.Fprintf(os.Stderr, "Please report this bug at https://github.com/datichb/openhub/issues\n")
-			os.Exit(2)
+			ensureLocale()
+			fmt.Fprint(os.Stderr, i18n.Tf("cmd.root.oh_internal_error_panic", r))
+			fmt.Fprint(os.Stderr, i18n.T("cmd.root.please_report_this_bug_at_https"))
+			os.Exit(ExitFailure)
 		}
 	}()
 	defer func() {
@@ -91,7 +92,10 @@ func Execute() error {
 	// sessions to sleep.
 	defer stopInProcessDaemon()
 
+	theme.ApplyNoColor()
+	defer silenceCobraDeprecation(rootCmd, os.Args[1:])()
 	if err := rootCmd.Execute(); err != nil {
+		err = usageError(err)
 		var exit *ExitError
 		if !errors.As(err, &exit) {
 			ensureLocale()
@@ -102,24 +106,6 @@ func Execute() error {
 	return nil
 }
 
-// ExitError ends oh with Code without printing anything more (the command
-// already reported the failure, or a proxied command printed its own).
-type ExitError struct{ Code int }
-
-func (e *ExitError) Error() string { return fmt.Sprintf("exit status %d", e.Code) }
-
-// ExitCode returns the process exit code for an error returned by Execute.
-func ExitCode(err error) int {
-	var exit *ExitError
-	if errors.As(err, &exit) && exit.Code > 0 {
-		return exit.Code
-	}
-	if err != nil {
-		return 1
-	}
-	return 0
-}
-
 // MustApp returns the initialized application instance.
 // It panics if the app has not been initialized — this indicates a programming
 // error (command registered without PersistentPreRunE running first).
@@ -127,7 +113,7 @@ func MustApp() *app.App {
 	if application == nil {
 		ensureLocale()
 		fmt.Fprintln(os.Stderr, i18n.T("cmd.init.level.not_initialized"))
-		os.Exit(1)
+		os.Exit(ExitFailure)
 	}
 	return application
 }
@@ -179,7 +165,7 @@ func initApp() error {
 	// Open SQLite store
 	s, err := sqlite.OpenDefault()
 	if err != nil {
-		return fmt.Errorf("opening database: %w", err)
+		return fmt.Errorf(i18n.T("cmd.root.opening_database"), err)
 	}
 	store = s
 
@@ -293,6 +279,9 @@ func init() {
 	cobra.EnableTraverseRunHooks = true
 
 	rootCmd.CompletionOptions.HiddenDefaultCmd = true
+	// An unknown or malformed option is a usage error (exit code 2); cobra
+	// walks up to this function from any subcommand.
+	rootCmd.SetFlagErrorFunc(func(_ *cobra.Command, err error) error { return withExitCode(ExitUsage, err) })
 	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Enable verbose output (debug logging)")
 	rootCmd.PersistentFlags().String("log-format", "pretty", "Log output format: pretty (default) or json")
 	rootCmd.PersistentFlags().Bool("no-tui", false, "Disable rich TUI (use inline prompts only)")
@@ -323,6 +312,9 @@ func localizeCommands(cmd *cobra.Command) {
 	key := cmdI18nKey(cmd)
 	cmd.Short = localizedHelp(key+".short", cmd.Short)
 	cmd.Long = localizedHelp(key+".long", cmd.Long)
+	if cmd.Deprecated != "" {
+		cmd.Deprecated = localizedHelp(key+".deprecated", cmd.Deprecated)
+	}
 	localize := func(f *pflag.Flag) {
 		if f.Name != "help" {
 			f.Usage = localizedHelp(key+".flags."+f.Name, f.Usage)

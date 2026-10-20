@@ -5,9 +5,11 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/runtime/container"
+	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 	"github.com/datichb/openhub/cli/internal/worktree"
 )
@@ -21,7 +23,25 @@ func init() { registerDoctorCheck(containerDoctorChecks) }
 // doctorProjectImages is the number of project images checked (newest first).
 const doctorProjectImages = 3
 
+// containerRequired reports whether the hub is configured to run sessions in
+// containers (execution.runtime = container): only then a missing or stopped
+// engine is a failure; otherwise the container runtime is optional (U-05).
+func containerRequired(a *app.App) bool {
+	return executionConfig(a).Runtime == string(sessionspec.RuntimeContainer)
+}
+
+// containerDoctorChecks runs the container checks; their failures are
+// warnings unless the container runtime is required.
 func containerDoctorChecks(ctx context.Context) []views.DoctorCheck {
+	out := containerChecks(ctx)
+	optional := !containerRequired(TryApp())
+	for i := range out {
+		out[i].Optional = optional
+	}
+	return out
+}
+
+func containerChecks(ctx context.Context) []views.DoctorCheck {
 	a := TryApp()
 	rt := v5ContainerRuntime(a)
 	e, av := rt.Engine(ctx)
@@ -29,9 +49,9 @@ func containerDoctorChecks(ctx context.Context) []views.DoctorCheck {
 		return views.DoctorCheck{Name: i18n.T("tui.doctor.container." + key), OK: ok, Detail: detail}
 	}
 	if !av.OK {
-		// No engine at all, or Windows: the container runtime is optional.
-		optional := av.Reason == "cmd.runtime.container.no_engine" || av.Reason == "cmd.runtime.container.unsupported_os"
-		return []views.DoctorCheck{check("engine", optional, av.Message())}
+		// Unavailable engine (none, stopped, unreachable, Windows…): a failure
+		// only when the container runtime is required (see containerDoctorChecks).
+		return []views.DoctorCheck{check("engine", false, av.Message())}
 	}
 	engine := strings.TrimSpace(string(e.Kind) + " " + e.Version)
 	if len(e.Details) > 0 {

@@ -12,6 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/daemon"
 	"github.com/datichb/openhub/cli/internal/gateway"
 	"github.com/datichb/openhub/cli/internal/gateway/beadswire"
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/runsvc"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
@@ -65,7 +66,7 @@ func ensureBeadsShim(dir, exe string) error {
 func localShellPath() ([]string, error) {
 	dir := ohShimsDir()
 	if err := ensureBeadsShim(dir, sessionspec.OhExecutable()); err != nil {
-		return nil, fmt.Errorf("preparing the bd of local sessions: %w", err)
+		return nil, fmt.Errorf(i18n.T("cmd.v5_beads_local.preparing_the_bd_of_local_sessions"), err)
 	}
 	return []string{dir}, nil
 }

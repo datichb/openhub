@@ -101,6 +101,8 @@ var auditCmd = &cobra.Command{
 	Use:   "audit",
 	Short: i18n.T("cmd.audit.short"),
 	Long:  i18n.T("cmd.audit.long"),
+	// Hidden from the help; still works (U-02).
+	Deprecated: i18n.T("cmd.audit.deprecated"),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		auditType, _ := cmd.Flags().GetString("type")
 
@@ -117,9 +119,13 @@ var reviewCmd = &cobra.Command{
 	Use:   "review",
 	Short: i18n.T("cmd.review.short"),
 	Long:  i18n.T("cmd.review.long"),
+	// Hidden from the help; still works (U-02). --publish and feedback have
+	// their replacements: oh mr create, oh run review-feedback.
+	Deprecated: i18n.T("cmd.review.deprecated"),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		publish, _ := cmd.Flags().GetBool("publish")
 		if publish {
+			warnDeprecatedAlias(cmd.ErrOrStderr(), "oh review --publish", "oh mr create")
 			return runReviewPublish(cmd)
 		}
 
@@ -136,6 +142,8 @@ var debugCmd = &cobra.Command{
 	Use:   "debug",
 	Short: i18n.T("cmd.debug.short"),
 	Long:  i18n.T("cmd.debug.long"),
+	// Hidden from the help; still works (U-02).
+	Deprecated: i18n.T("cmd.debug.deprecated"),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		issue, _ := cmd.Flags().GetString("issue")
 		return agentCommandAlias(cmd, "oh debug", "debug", map[string]string{"issue": issue}, issue)
@@ -366,14 +374,17 @@ func publishReviewToTeamState(ctx context.Context, a *app.App, projectID, ticket
 func init() {
 	rootCmd.AddCommand(auditCmd)
 	auditCmd.Flags().StringP("project", "p", "", "Nom du projet")
-	auditCmd.Flags().StringP("type", "t", "security", "Type d'audit")
+	auditCmd.Flags().String("type", "security", "Type d'audit")
+	deprecateShorthand(auditCmd, "t", "type") // -t is the ticket
 	_ = auditCmd.RegisterFlagCompletionFunc("project", completeProjectIDs)
 	_ = auditCmd.RegisterFlagCompletionFunc("type", completeWorkflowInput("audit", "type"))
 
 	rootCmd.AddCommand(reviewCmd)
 	reviewCmd.Flags().StringP("project", "p", "", "Nom du projet")
-	reviewCmd.Flags().StringP("mode", "m", "", "Mode de review")
-	reviewCmd.Flags().StringP("branch", "b", "", "Branche à reviewer (diff vs main). Par défaut : branche courante si feature branch")
+	reviewCmd.Flags().String("mode", "", "Mode de review")
+	deprecateShorthand(reviewCmd, "m", "mode") // -m is the message
+	reviewCmd.Flags().String("branch", "", "Branche à reviewer (diff vs main). Par défaut : branche courante si feature branch")
+	deprecateShorthand(reviewCmd, "b", "branch") // -b is the base branch of oh worktree cleanup
 	reviewCmd.Flags().Bool("publish", false, "Créer une MR sur GitLab et optionnellement assigner un reviewer (nécessite write_enabled)")
 	reviewCmd.Flags().String("reviewer", "", "Member ID du reviewer à assigner sur la MR (utilisé avec --publish)")
 	_ = reviewCmd.RegisterFlagCompletionFunc("project", completeProjectIDs)
@@ -382,6 +393,7 @@ func init() {
 
 	rootCmd.AddCommand(debugCmd)
 	debugCmd.Flags().StringP("project", "p", "", "Nom du projet")
-	debugCmd.Flags().StringP("issue", "i", "", "Description du problème")
+	debugCmd.Flags().String("issue", "", "Description du problème")
+	deprecateShorthand(debugCmd, "i", "issue") // -i is the input of oh run
 	_ = debugCmd.RegisterFlagCompletionFunc("project", completeProjectIDs)
 }

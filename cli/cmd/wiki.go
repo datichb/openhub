@@ -28,7 +28,7 @@ var wikiCmd = &cobra.Command{
 }
 
 // errWikiCheck makes `oh wiki check` exit non-zero when the wiki has errors.
-var errWikiCheck = errors.New("wiki check failed")
+var errWikiCheck = errors.New(i18n.T("cmd.wiki.wiki_check_failed"))
 
 func init() {
 	check := &cobra.Command{

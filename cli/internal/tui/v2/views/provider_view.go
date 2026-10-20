@@ -791,7 +791,7 @@ func providerSetupOptions() []SelectOption {
 
 func bedrockAuthModeOptions() []SelectOption {
 	return []SelectOption{
-		{Label: "Bearer Token (SSO/STS)", Value: "bearer"},
+		{Label: i18n.T("tui.view.provider_view.bearer_token_sso_sts"), Value: "bearer"},
 		{Label: i18n.T("tui.provider.option_aws_profile"), Value: "profile"},
 		{Label: i18n.T("tui.provider.option_env"), Value: "env"},
 	}
@@ -852,7 +852,7 @@ func (v *ProviderView) setupBedrock() {
 				hasKeychainToken = present
 			}
 
-			tokenField := FormField{Label: "Bearer token", Key: "token", Type: FieldPassword, Required: !hasKeychainToken}
+			tokenField := FormField{Label: i18n.T("cmd.provider_view.bearer_token"), Key: "token", Type: FieldPassword, Required: !hasKeychainToken}
 			if hasKeychainToken {
 				tokenField.Hint = i18n.T("cmd.init.wizard_keychain_hint")
 			}
@@ -861,7 +861,7 @@ func (v *ProviderView) setupBedrock() {
 				Title: i18n.T("tui.provider.bedrock_bearer_title"),
 				Fields: []FormField{
 					tokenField,
-					{Label: "AWS Region", Key: "region", Type: FieldSelect, Options: regionOptions(), Required: true},
+					{Label: i18n.T("cmd.provider_view.aws_region"), Key: "region", Type: FieldSelect, Options: regionOptions(), Required: true},
 				},
 				OnSubmit: func(values map[string]string, _ map[string][]string) {
 					token := values["token"]
@@ -901,8 +901,8 @@ func (v *ProviderView) setupBedrock() {
 			v.shell.ShowInlineForm(InlineFormConfig{
 				Title: i18n.T("tui.provider.bedrock_profile_title"),
 				Fields: []FormField{
-					{Label: "AWS Profile", Key: "profile", Type: FieldText, Default: "default"},
-					{Label: "AWS Region", Key: "region", Type: FieldSelect, Options: regionOptions(), Required: true},
+					{Label: i18n.T("cmd.provider_view.aws_profile"), Key: "profile", Type: FieldText, Default: "default"},
+					{Label: i18n.T("cmd.provider_view.aws_region"), Key: "region", Type: FieldSelect, Options: regionOptions(), Required: true},
 				},
 				OnSubmit: func(values map[string]string, _ map[string][]string) {
 					if profile := values["profile"]; profile != "" {

@@ -214,11 +214,7 @@ func printTrustProposal(out io.Writer, p *trustProposal) {
 func askYes(in io.Reader, out io.Writer, question string) bool {
 	fmt.Fprintf(out, "\n%s ", question)
 	line, _ := bufio.NewReader(in).ReadString('\n')
-	switch strings.ToLower(strings.TrimSpace(line)) {
-	case "o", "oui", "y", "yes":
-		return true
-	}
-	return false
+	return confirmed(line, false)
 }
 
 func runMCPTrust(cmd *cobra.Command, args []string) error {

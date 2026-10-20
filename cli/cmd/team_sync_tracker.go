@@ -86,10 +86,10 @@ func runSyncTracker(cmd *cobra.Command, _ []string) error {
 	projects, ticketPatterns := resolveTrackerProjects(ctx, a, effTracker)
 
 	if len(projects) == 0 {
-		fmt.Fprintf(a.IO.ErrOut, "\n  %s Aucun projet configuré pour le tracker sync.\n", theme.WarningStyle.Render(theme.IconWarning))
+		fmt.Fprint(a.IO.ErrOut, i18n.Tf("cmd.team_sync_tracker.no_project_configured_for_the_tracker", theme.WarningStyle.Render(theme.IconWarning)))
 		fmt.Fprintf(a.IO.ErrOut, "  Vérifiez:\n")
-		fmt.Fprintf(a.IO.ErrOut, "  · tracker_project est défini dans la config team (Team Detail > Tracker)\n")
-		fmt.Fprintf(a.IO.ErrOut, "  · Ou un projet hub a un override tracker_project (Project Config > Tracker)\n\n")
+		fmt.Fprint(a.IO.ErrOut, i18n.T("cmd.team_sync_tracker.tracker_project_is_set_in_the"))
+		fmt.Fprint(a.IO.ErrOut, i18n.T("cmd.team_sync_tracker.or_a_hub_project_overrides_tracker"))
 		return nil
 	}
 
@@ -165,12 +165,12 @@ func runSyncTracker(cmd *cobra.Command, _ []string) error {
 	}
 
 	if totalIssues == 0 && result.ClaimsCreated == 0 {
-		fmt.Fprintf(out, "\n  %s Aucune issue trouvée. Vérifiez:\n", theme.WarningStyle.Render("ℹ"))
-		fmt.Fprintf(out, "  · Le tracker_project correspond au projet GitLab (ID ou path)\n")
-		fmt.Fprintf(out, "  · Le token a accès au projet (scope read_api)\n")
-		fmt.Fprintf(out, "  · Des issues sont assignées aux membres (gitlab_username)\n")
-		fmt.Fprintf(out, "  · auto_plan_assigned est activé\n")
-		fmt.Fprintf(out, "  Astuce: relancez avec --verbose pour voir les appels API\n\n")
+		fmt.Fprint(out, i18n.Tf("cmd.team_sync_tracker.no_issue_found_check_that", theme.WarningStyle.Render("ℹ")))
+		fmt.Fprint(out, i18n.T("cmd.team_sync_tracker.tracker_project_matches_the_gitlab_project"))
+		fmt.Fprint(out, i18n.T("cmd.team_sync_tracker.the_token_can_access_the_project"))
+		fmt.Fprint(out, i18n.T("cmd.team_sync_tracker.issues_are_assigned_to_members_gitlab"))
+		fmt.Fprint(out, i18n.T("cmd.team_sync_tracker.auto_plan_assigned_is_enabled"))
+		fmt.Fprint(out, i18n.T("cmd.team_sync_tracker.tip_run_again_with_verbose_to"))
 	}
 
 	if len(result.Warnings) > 0 {

@@ -68,7 +68,7 @@ func promoteSoloTeam(ctx context.Context, a *app.App, teamID, remote string) (*c
 	team.Solo = false
 	team.StateRepo = remote
 	if err := config.Save(a.Config); err != nil {
-		return nil, fmt.Errorf("writing hub.toml: %w", err)
+		return nil, fmt.Errorf(i18n.T("cmd.team_promote.writing_hub_toml"), err)
 	}
 	return team, nil
 }

@@ -41,7 +41,7 @@ openhub (`oh`) is a single Go binary that launches and drives AI coding sessions
 5. **Check**: closed world (`Attest`); otherwise the session does not start.
 6. **Session**: created through the API (id chosen by oh), initial prompt.
 7. **Opening**: iTerm2 → Terminal.app → tmux → browser → current terminal.
-8. **Follow-up and decisions**: `ohd` daemon (⏸ ? ! $ ✗), notifications, sleep after 5 minutes of inactivity.
+8. **Follow-up and decisions**: `ohd` daemon (⏸ ? ! $ ✗ ⊘), notifications, sleep after 5 minutes of inactivity.
 
 Nothing is written into the project any more (`oh deploy` and `oh sync` are migration-message aliases).
 
@@ -112,6 +112,6 @@ Every session is launched from a declarative workflow (`oh run <workflow>` or th
 | Sweep | `oh run sweep -i goal=<goal>` | Goal decomposed into subtasks, run in parallel in the same session, then verified |
 | Free | `oh run libre --agent <id>` | Entry agent of your choice, no checkpoint |
 | Headless | `oh run <workflow> --headless` | Non-interactive (CI/scripting) |
-| Review | `oh run review` | AI code review; MR publication with `oh review --publish` |
+| Review | `oh run review` | AI code review; MR publication with `oh mr create` |
 
 The former modes (`oh start --parallel`, `--sweep`, `--dev`) are deprecated aliases of these workflows; the monitor and merge view of the parallel mode were removed.

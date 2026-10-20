@@ -8,6 +8,7 @@ import (
 
 	"github.com/rivo/tview"
 
+	"github.com/datichb/openhub/cli/internal/glyph"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
@@ -119,7 +120,7 @@ func (v *SessionsView) showCheckpoint(r *SessionRow, d *SessionDecision, c Check
 }
 
 func checkpointTitle(r *SessionRow, d *SessionDecision, c CheckpointCardView) string {
-	parts := []string{"⏸ " + firstText(c.Checkpoint, d.Summary)}
+	parts := []string{glyph.Checkpoint + " " + firstText(c.Checkpoint, d.Summary)}
 	if c.Label != "" && c.Label != c.Checkpoint {
 		parts = append(parts, c.Label)
 	}

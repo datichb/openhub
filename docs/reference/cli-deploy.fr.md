@@ -11,7 +11,7 @@ oh deploy [anciens drapeaux…]
 oh sync [anciens drapeaux…]
 ```
 
-Pendant v5.x, les deux commandes restent des **alias de migration** : elles acceptent tous les anciens drapeaux et arguments (`-p`, `--check`, `--diff`, `--all`…, ignorés, y compris `--help`), ne modifient rien, affichent ce message sur la sortie d'erreur et sortent avec le **code 0** (les scripts existants ne cassent pas) :
+Pendant v5.x, les deux commandes restent des **alias de migration** : elles acceptent tous les anciens drapeaux et arguments (`-p`, `--check`, `--diff`, `--all`…, ignorés, y compris `--help`), ne modifient rien, affichent ce message sur la sortie d'erreur et sortent avec le **code 2** (commande supprimée : un script qui comptait sur un déploiement le voit ; `oh deploy || true` suffit pour l'ignorer) :
 
 ```
 ! oh deploy n'existe plus : oh ne déploie plus rien dans les projets, chaque session part d'un paquet construit au lancement, hors du projet.

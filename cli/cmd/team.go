@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/url"
@@ -152,16 +153,15 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 			if err := repo.Pull(ctx); err != nil {
 				// Non-fatal: continue with local state but warn the user
 				slog.Warn("team.init.pull_failed", "error", err)
-				fmt.Fprintf(a.IO.ErrOut, "%s synchronisation échouée, contenu local utilisé\n",
-					theme.WarningStyle.Render(theme.IconWarning))
+				fmt.Fprint(a.IO.ErrOut, i18n.Tf("cmd.team.sync_failed_using_the_local_content", theme.WarningStyle.Render(theme.IconWarning)))
 			}
 		} else {
 			if err := repo.Clone(ctx); err != nil {
-				return fmt.Errorf("cloning team-state: %w", err)
+				return fmt.Errorf(i18n.T("cmd.team.cloning_team_state"), err)
 			}
 		}
 		if err := repo.InitStructure(ctx); err != nil {
-			return fmt.Errorf("initializing structure: %w", err)
+			return fmt.Errorf(i18n.T("cmd.team.initializing_structure"), err)
 		}
 	}
 
@@ -261,7 +261,7 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 				i18n.T("cmd.team.init.repo_url_title"),
 				stateRepo, 0, nil,
 				func(text string) { stateRepo = text })
-			form.AddButton("Next", func() {
+			form.AddButton(i18n.T("cmd.button.next"), func() {
 				onDone()
 			})
 			return form
@@ -295,11 +295,11 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 				}
 			} else {
 				if err := repo.Clone(ctx); err != nil {
-					return fmt.Errorf("cloning team-state: %w", err)
+					return fmt.Errorf(i18n.T("cmd.team.cloning_team_state"), err)
 				}
 			}
 			if err := repo.InitStructure(ctx); err != nil {
-				return fmt.Errorf("initializing structure: %w", err)
+				return fmt.Errorf(i18n.T("cmd.team.initializing_structure"), err)
 			}
 
 			// Now that repo is available, pre-fill state for subsequent steps
@@ -512,7 +512,7 @@ func runTeamStatus(cmd *cobra.Command, args []string) error {
 	// List members
 	members, err := repo.ListMembers()
 	if err != nil {
-		return fmt.Errorf("listing members: %w", err)
+		return fmt.Errorf(i18n.T("cmd.team.listing_members"), err)
 	}
 
 	if len(members) == 0 {
@@ -525,7 +525,7 @@ func runTeamStatus(cmd *cobra.Command, args []string) error {
 	// List all claims
 	claims, err := repo.ListClaims("")
 	if err != nil {
-		return fmt.Errorf("listing claims: %w", err)
+		return fmt.Errorf(i18n.T("cmd.team.listing_claims"), err)
 	}
 
 	// Index claims by member
@@ -643,8 +643,7 @@ func runTeamActivity(cmd *cobra.Command, args []string) error {
 	repo := teamRepo
 
 	if err := repo.Pull(ctx); err != nil {
-		fmt.Fprintf(a.IO.ErrOut, "%s Impossible de synchroniser: %v\n",
-			theme.WarningStyle.Render(theme.IconWarning), err)
+		fmt.Fprint(a.IO.ErrOut, i18n.Tf("cmd.team.cannot_sync", theme.WarningStyle.Render(theme.IconWarning), err))
 	}
 
 	// Determine time filter
@@ -666,7 +665,7 @@ func runTeamActivity(cmd *cobra.Command, args []string) error {
 
 	events, err := repo.ListEvents(project, since)
 	if err != nil {
-		return fmt.Errorf("listing events: %w", err)
+		return fmt.Errorf(i18n.T("cmd.team.listing_events"), err)
 	}
 
 	// Filter by member if specified
@@ -726,8 +725,7 @@ func ensureTeamRepo(ctx context.Context, a *app.App) (*teamstate.Repo, error) {
 func ensureTeamRepoForProject(ctx context.Context, a *app.App, project *domain.Project) (*teamstate.Repo, error) {
 	tc := resolvedTeamConfig(a, project)
 	if !tc.Enabled {
-		return nil, fmt.Errorf("fonctions d'équipe non activées. Lance %s d'abord",
-			theme.Bold.Render("oh team init"))
+		return nil, fmt.Errorf(i18n.T("cmd.team.team_features_not_enabled_run_first"), theme.Bold.Render("oh team init"))
 	}
 	statePath := tc.StatePath
 	if statePath == "" {
@@ -735,8 +733,7 @@ func ensureTeamRepoForProject(ctx context.Context, a *app.App, project *domain.P
 	}
 	repo := teamstate.NewRepo(tc.StateRepo, statePath)
 	if !repo.IsCloned() {
-		return nil, fmt.Errorf("repo team-state non trouvé dans %s. Lance %s",
-			statePath, theme.Bold.Render("oh team init"))
+		return nil, fmt.Errorf(i18n.T("cmd.team.team_state_repository_not_found_in"), statePath, theme.Bold.Render("oh team init"))
 	}
 	return repo, nil
 }
@@ -979,7 +976,7 @@ func runTeamRejoin(cmd *cobra.Command, _ []string) error {
 
 	// ── Step 1: Repo URL ──
 	if repoURL == "" {
-		return fmt.Errorf("--repo is required: URL of the team-state Git repository")
+		return errors.New(i18n.T("cmd.team.repo_is_required_url_of_the"))
 	}
 
 	fmt.Fprintln(a.IO.Out)
@@ -987,13 +984,13 @@ func runTeamRejoin(cmd *cobra.Command, _ []string) error {
 	fmt.Fprintln(a.IO.Out)
 
 	// ── Step 2: Clone/pull and list members ──
-	fmt.Fprintf(a.IO.Out, "  %s Cloning team-state...\n", theme.WarningStyle.Render(theme.IconDot))
+	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.team.cloning_team_state_2", theme.WarningStyle.Render(theme.IconDot)))
 	_, members, _, err := listTeamMembers(ctx, repoURL, "")
 	if err != nil {
 		return err
 	}
 	if len(members) == 0 {
-		return fmt.Errorf("no members found in the team-state repository")
+		return errors.New(i18n.T("cmd.team.no_members_found_in_the_team"))
 	}
 
 	// ── Step 3: Member selection ──
@@ -1014,7 +1011,7 @@ func runTeamRejoin(cmd *cobra.Command, _ []string) error {
 
 		var choice int
 		if _, err := fmt.Fscanln(a.IO.In, &choice); err != nil || choice < 1 || choice > len(members) {
-			return fmt.Errorf("invalid selection")
+			return errors.New(i18n.T("cmd.team.invalid_selection"))
 		}
 		memberID = members[choice-1].ID
 	} else {
@@ -1027,7 +1024,7 @@ func runTeamRejoin(cmd *cobra.Command, _ []string) error {
 			}
 		}
 		if !found {
-			return fmt.Errorf("member %q not found in the team-state repository", memberID)
+			return fmt.Errorf(i18n.T("cmd.team.member_not_found_in_the_team"), memberID)
 		}
 	}
 
@@ -1154,9 +1151,7 @@ func runTeamRejoin(cmd *cobra.Command, _ []string) error {
 								theme.WarningStyle.Render(theme.IconDot), err.Error(),
 							)
 						} else {
-							fmt.Fprintf(a.IO.Out, "  %s Identity verified\n",
-								theme.SuccessStyle.Render(theme.IconSuccess),
-							)
+							fmt.Fprint(a.IO.Out, i18n.Tf("cmd.team.identity_verified", theme.SuccessStyle.Render(theme.IconSuccess)))
 						}
 					}
 				}

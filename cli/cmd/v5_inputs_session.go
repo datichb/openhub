@@ -108,7 +108,7 @@ var sessionReportBody = func(ctx context.Context, a *app.App, sessionID, id stri
 	}
 	_, body, err := ssvc.Report(ctx, sessionID, id)
 	if err != nil {
-		return "", fmt.Errorf("report %s of session %s: %w", id, sessionID, err)
+		return "", fmt.Errorf(i18n.T("cmd.v5_inputs_session.report_of_session"), id, sessionID, err)
 	}
 	return report.Clean(body), nil
 }
@@ -118,7 +118,7 @@ var sessionReportBody = func(ctx context.Context, a *app.App, sessionID, id stri
 // that fits.
 func pickSession(ctx context.Context, a *app.App, c workflowsvc.Context, wfID string, fits func(*domain.Session) bool) (*domain.Session, error) {
 	if a.Sessions == nil {
-		return nil, errors.New("no session store")
+		return nil, errors.New(i18n.T("cmd.v5_inputs_session.no_session_store"))
 	}
 	if c.FromSession != "" {
 		if s, err := a.Sessions.Get(ctx, c.FromSession); err == nil && (wfID == "" || s.WorkflowID == wfID) && fits(s) {

@@ -58,7 +58,7 @@ func importBedrockEnvToken(ctx context.Context, a *app.App, project *domain.Proj
 	}
 	key, scope := bedrockImportKey(ctx, a, project, explicit)
 	if err := a.Secrets.Set(ctx, key, tok); err != nil {
-		return "", fmt.Errorf("storing bedrock token: %w", err)
+		return "", fmt.Errorf(i18n.T("cmd.provider_import.storing_bedrock_token"), err)
 	}
 	projectMode := project != nil && project.ProviderConfig != nil && project.ProviderConfig.AuthMode != "" && project.ProviderConfig.AuthMode != provider.AuthBearer
 	if project != nil && (scope == "project" || projectMode) {
@@ -88,10 +88,10 @@ func setBedrockAuthMode(ctx context.Context, a *app.App, project *domain.Project
 		}
 		project.ProviderConfig.AuthMode = mode
 		if a.Projects == nil {
-			return errors.New("no project store")
+			return errors.New(i18n.T("cmd.provider_import.no_project_store"))
 		}
 		if err := a.Projects.Update(ctx, project); err != nil {
-			return fmt.Errorf("updating project provider config: %w", err)
+			return fmt.Errorf(i18n.T("cmd.provider_import.updating_project_provider_config"), err)
 		}
 		return nil
 	}

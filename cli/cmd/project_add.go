@@ -58,7 +58,7 @@ func projectAddCmd() *cobra.Command {
 
 			absPath, err := filepath.Abs(expandPath(path))
 			if err != nil {
-				return fmt.Errorf("resolving path: %w", err)
+				return fmt.Errorf(i18n.T("cmd.project_add.resolving_path"), err)
 			}
 
 			return doCreateProjectMinimal(ctx, a, name, absPath, language)
@@ -129,7 +129,7 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 							language = languageValues[index]
 						}
 					})
-				form.AddButton("Next", func() { onDone() })
+				form.AddButton(i18n.T("cmd.button.next"), func() { onDone() })
 				return form
 			},
 			OnDone: func() error {
@@ -142,7 +142,7 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 				var err error
 				absPath, err = filepath.Abs(expandPath(path))
 				if err != nil {
-					return fmt.Errorf("resolving path: %w", err)
+					return fmt.Errorf(i18n.T("cmd.project_add.resolving_path"), err)
 				}
 				if _, err := os.Stat(absPath); os.IsNotExist(err) {
 					return fmt.Errorf("%s", i18n.Tf("cmd.project.add.dir_not_exist", absPath))
@@ -170,7 +170,7 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 				doInit := true
 				form.AddCheckbox(i18n.T("form.project.beads_init"), true,
 					func(checked bool) { doInit = checked })
-				form.AddButton("Next", func() {
+				form.AddButton(i18n.T("cmd.button.next"), func() {
 					if !doInit {
 						onDone()
 						return
@@ -206,7 +206,7 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 					false,
 					func(checked bool) { useCustom = checked },
 				)
-				form.AddButton("Next", func() { onDone() })
+				form.AddButton(i18n.T("cmd.button.next"), func() { onDone() })
 				return form
 			},
 			OnDone: func() error { return nil },
@@ -219,7 +219,7 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 		},
 		// ── Step 4: Provider & Model details (conditional) ──
 		{
-			Label: "Provider config",
+			Label: i18n.T("cmd.project_add.provider_config"),
 			SkipIf: func() bool {
 				return !useCustom
 			},
@@ -236,7 +236,7 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 					func(text string) { model = text })
 				form.AddPasswordField(i18n.T("form.project.api_key"), "", 0, '*',
 					func(text string) { apiKey = text })
-				form.AddButton("Next", func() { onDone() })
+				form.AddButton(i18n.T("cmd.button.next"), func() { onDone() })
 				return form
 			},
 			OnDone: func() error {
@@ -264,7 +264,7 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 					{Label: "Model", Value: model},
 				}
 				if apiKey != "" {
-					fields = append(fields, views.InfoField{Label: "API Key", Value: "stored"})
+					fields = append(fields, views.InfoField{Label: i18n.T("cmd.project_add.api_key"), Value: "stored"})
 				}
 				return fields
 			},
@@ -280,7 +280,7 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 					form.AddCheckbox(opt.label, false,
 						func(checked bool) { selected[optVal] = checked })
 				}
-				form.AddButton("Next", func() {
+				form.AddButton(i18n.T("cmd.button.next"), func() {
 					mcpServices = nil
 					for _, opt := range mcpOptions {
 						if selected[opt.value] {
@@ -339,7 +339,7 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 
 	result, _, err := upsertProject(ctx, a.Projects, p)
 	if err != nil {
-		return fmt.Errorf("creating project: %w", err)
+		return fmt.Errorf(i18n.T("cmd.project_add.creating_project"), err)
 	}
 	id = result.ID
 
@@ -404,7 +404,7 @@ func doCreateProjectMinimal(ctx context.Context, a *app.App, name, absPath, lang
 	}
 
 	if _, _, err := upsertProject(ctx, a.Projects, p); err != nil {
-		return fmt.Errorf("creating project: %w", err)
+		return fmt.Errorf(i18n.T("cmd.project_add.creating_project"), err)
 	}
 
 	fmt.Fprintf(a.IO.Out, "%s %s\n",

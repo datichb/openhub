@@ -80,7 +80,7 @@ func parseTraceSelection(ctx context.Context, a *app.App, value string, now time
 // (named ones in the given order).
 func pickTraceSessions(ctx context.Context, a *app.App, c workflowsvc.Context, sel traceSelection) ([]*domain.Session, error) {
 	if a.Sessions == nil {
-		return nil, errors.New("no session store")
+		return nil, errors.New(i18n.T("cmd.v5_inputs_traces.no_session_store"))
 	}
 	var out []*domain.Session
 	for _, id := range sel.ids {
@@ -138,7 +138,7 @@ var sessionTraceDigest = func(ctx context.Context, a *app.App, id string) (strin
 	}
 	tr, err := ssvc.Trace(ctx, id, sessionsvc.TraceOptions{Usage: sqlite.NewUsageStore(store)})
 	if err != nil {
-		return "", fmt.Errorf("trace of %s: %w", id, err)
+		return "", fmt.Errorf(i18n.T("cmd.v5_inputs_traces.trace_of"), id, err)
 	}
 	return tr.Digest(), nil
 }

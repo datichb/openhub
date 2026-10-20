@@ -112,7 +112,7 @@ func runProviderSetup(cmd *cobra.Command, args []string) error {
 	case provider.GithubCopilot:
 		return setupGithubCopilot(a)
 	default:
-		return fmt.Errorf("unsupported provider: %s", providerName)
+		return fmt.Errorf(i18n.T("cmd.provider.unsupported_provider"), providerName)
 	}
 }
 
@@ -165,7 +165,7 @@ func setupBedrock(ctx context.Context, a *app.App, project *domain.Project) erro
 	steps = []views.WizardStep{
 		// Step 1: Use existing detected config?
 		{
-			Label: "Detect existing",
+			Label: i18n.T("cmd.provider.detect_existing"),
 			SkipIf: func() bool {
 				return !detection.Available
 			},
@@ -176,7 +176,7 @@ func setupBedrock(ctx context.Context, a *app.App, project *domain.Project) erro
 					true,
 					func(checked bool) { useExisting = checked },
 				)
-				form.AddButton("Next", func() { onDone() })
+				form.AddButton(i18n.T("cmd.button.next"), func() { onDone() })
 				return form
 			},
 			OnDone: func() error {
@@ -214,7 +214,7 @@ func setupBedrock(ctx context.Context, a *app.App, project *domain.Project) erro
 		},
 		// Step 2: Auth mode selection
 		{
-			Label: "Auth mode",
+			Label: i18n.T("cmd.provider.auth_mode"),
 			SkipIf: func() bool {
 				return useExisting
 			},
@@ -235,7 +235,7 @@ func setupBedrock(ctx context.Context, a *app.App, project *domain.Project) erro
 				)
 				// Set default
 				authMode = "bearer"
-				form.AddButton("Next", func() { onDone() })
+				form.AddButton(i18n.T("cmd.button.next"), func() { onDone() })
 				return form
 			},
 			OnDone: func() error { return nil },
@@ -246,7 +246,7 @@ func setupBedrock(ctx context.Context, a *app.App, project *domain.Project) erro
 		// Step 3: Bearer token + region (conditional on authMode == "bearer")
 		{
 			ID:    "bedrock-bearer",
-			Label: "Bearer credentials",
+			Label: i18n.T("cmd.provider.bearer_credentials"),
 			SkipIf: func() bool {
 				return useExisting || authMode != "bearer"
 			},
@@ -268,7 +268,7 @@ func setupBedrock(ctx context.Context, a *app.App, project *domain.Project) erro
 					func(text string) { token = text },
 				)
 				addBedrockRegionDropDown(form, &awsRegion, &awsRegionIdx, &awsCustomReg, rerenderSafe)
-				form.AddButton("Next", func() { onDone() })
+				form.AddButton(i18n.T("cmd.button.next"), func() { onDone() })
 				return form
 			},
 			OnDone: func() error { return nil },
@@ -286,7 +286,7 @@ func setupBedrock(ctx context.Context, a *app.App, project *domain.Project) erro
 		// Step 4: AWS profile + region (conditional on authMode == "profile")
 		{
 			ID:    "bedrock-profile",
-			Label: "Profile credentials",
+			Label: i18n.T("cmd.provider.profile_credentials"),
 			SkipIf: func() bool {
 				return useExisting || authMode != "profile"
 			},
@@ -308,7 +308,7 @@ func setupBedrock(ctx context.Context, a *app.App, project *domain.Project) erro
 					func(text string) { awsProfile = text },
 				)
 				addBedrockRegionDropDown(form, &awsRegion, &awsRegionIdx, &awsCustomReg, rerenderSafe)
-				form.AddButton("Next", func() { onDone() })
+				form.AddButton(i18n.T("cmd.button.next"), func() { onDone() })
 				return form
 			},
 			OnDone: func() error { return nil },
@@ -321,7 +321,7 @@ func setupBedrock(ctx context.Context, a *app.App, project *domain.Project) erro
 		},
 		// Step 5: Persist configuration
 		{
-			Label:      "Save config",
+			Label:      i18n.T("cmd.provider.save_config"),
 			Processing: "Saving credentials...",
 			SkipIf: func() bool {
 				return useExisting
@@ -335,7 +335,7 @@ func setupBedrock(ctx context.Context, a *app.App, project *domain.Project) erro
 				if token != "" && a.Secrets != nil {
 					keyName := provider.KeychainKey(provider.Bedrock, projectIDOrEmpty(project))
 					if err := a.Secrets.Set(ctx, keyName, token); err != nil {
-						return fmt.Errorf("storing bedrock token: %w", err)
+						return fmt.Errorf(i18n.T("cmd.provider.storing_bedrock_token"), err)
 					}
 				}
 
@@ -380,7 +380,7 @@ func setupAPIKey(ctx context.Context, a *app.App, project *domain.Project, name 
 	steps := []views.WizardStep{
 		// Step 1: Use existing detected key?
 		{
-			Label: "Detect existing",
+			Label: i18n.T("cmd.provider.detect_existing"),
 			SkipIf: func() bool {
 				return !detection.Available
 			},
@@ -391,7 +391,7 @@ func setupAPIKey(ctx context.Context, a *app.App, project *domain.Project, name 
 					true,
 					func(checked bool) { useExisting = checked },
 				)
-				form.AddButton("Next", func() { onDone() })
+				form.AddButton(i18n.T("cmd.button.next"), func() { onDone() })
 				return form
 			},
 			OnDone: func() error {
@@ -412,7 +412,7 @@ func setupAPIKey(ctx context.Context, a *app.App, project *domain.Project, name 
 		},
 		// Step 2: Enter API key
 		{
-			Label: "API Key",
+			Label: i18n.T("cmd.provider.api_key"),
 			SkipIf: func() bool {
 				return useExisting
 			},
@@ -427,7 +427,7 @@ func setupAPIKey(ctx context.Context, a *app.App, project *domain.Project, name 
 					i18n.Tf("cmd.provider.api_key_hint", envVar),
 					"", 0, nil, nil,
 				)
-				form.AddButton("Next", func() { onDone() })
+				form.AddButton(i18n.T("cmd.button.next"), func() { onDone() })
 				return form
 			},
 			OnDone: func() error { return nil },
@@ -441,7 +441,7 @@ func setupAPIKey(ctx context.Context, a *app.App, project *domain.Project, name 
 		},
 		// Step 3: Store key and persist
 		{
-			Label:      "Save config",
+			Label:      i18n.T("cmd.provider.save_config"),
 			Processing: "Saving credentials...",
 			SkipIf: func() bool {
 				return useExisting
@@ -458,7 +458,7 @@ func setupAPIKey(ctx context.Context, a *app.App, project *domain.Project, name 
 				if a.Secrets != nil {
 					keyName := provider.KeychainKey(name, projectIDOrEmpty(project))
 					if err := a.Secrets.Set(ctx, keyName, apiKey); err != nil {
-						return fmt.Errorf("storing API key: %w", err)
+						return fmt.Errorf(i18n.T("cmd.provider.storing_api_key"), err)
 					}
 				}
 
@@ -528,7 +528,7 @@ func persistProviderConfig(ctx context.Context, a *app.App, project *domain.Proj
 		}
 		project.ProviderConfig.TokenKey = string(provider.KeychainKey(name, project.ID))
 		if err := a.Projects.Update(ctx, project); err != nil {
-			return fmt.Errorf("updating project provider config: %w", err)
+			return fmt.Errorf(i18n.T("cmd.provider.updating_project_provider_config"), err)
 		}
 		fmt.Fprintf(a.IO.Out, "%s %s\n",
 			theme.SuccessStyle.Render(theme.IconSuccess),

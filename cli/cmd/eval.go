@@ -237,7 +237,7 @@ func runEval(cmd *cobra.Command, _ []string) error {
 	if strict, _ := cmd.Flags().GetBool("strict"); strict {
 		for _, p := range rep.Passes {
 			if !p.Pass {
-				return &ExitError{Code: 1}
+				return &ExitError{Code: ExitFailure}
 			}
 		}
 	}
@@ -840,11 +840,11 @@ func runEvalSession(ctx context.Context, cmd *cobra.Command, spec evalPassSpec, 
 	a.WithSecretStore(evalSecrets{"openhub.provider.bedrock.token": token})
 	project := &domain.Project{ID: "eval", Name: "eval-" + strings.ToLower(spec.CaseID), Path: spec.Project, Provider: "bedrock", Model: spec.Model, Status: domain.ProjectStatusActive}
 	if err := a.Projects.Create(ctx, project); err != nil {
-		return fmt.Errorf("registering the project: %w", err)
+		return fmt.Errorf(i18n.T("cmd.eval.registering_the_project"), err)
 	}
 	errOut := cmd.ErrOrStderr()
 	if err := evalPrevious(ctx, a, project, spec.Previous); err != nil {
-		return fmt.Errorf("recording the previous sessions: %w", err)
+		return fmt.Errorf(i18n.T("cmd.eval.recording_the_previous_sessions"), err)
 	}
 	if spec.Fanout != nil {
 		// R6: the fan-out of the pass, its global budget the one of the pass.
@@ -854,7 +854,7 @@ func runEvalSession(ctx context.Context, cmd *cobra.Command, spec evalPassSpec, 
 		Attach: string(sessionspec.AttachNone), Location: "base", Dirty: runsvc.DirtyAllow, OneSession: true}
 	p, err := prepareWorkflowRun(ctx, a, opts, errOut)
 	if err != nil {
-		return fmt.Errorf("preparing the launch: %w", err)
+		return fmt.Errorf(i18n.T("cmd.eval.preparing_the_launch"), err)
 	}
 	p.plan.Request.Base.Attach, p.plan.Request.Base.Headless = sessionspec.AttachNone, true
 	// Hard cap at the credential proxy (input-equivalent tokens, cache
@@ -863,7 +863,7 @@ func runEvalSession(ctx context.Context, cmd *cobra.Command, spec evalPassSpec, 
 	p.plan.Request.Base.MaxTokens = evalMaxTokens(spec.Model, spec.BudgetUSD)
 	results, err := p.svc.Start(ctx, p.plan)
 	if err != nil || len(results) == 0 {
-		return fmt.Errorf("starting the session: %w", err)
+		return fmt.Errorf(i18n.T("cmd.eval.starting_the_session"), err)
 	}
 	sid := results[0].SessionID
 	res.SessionID = sid

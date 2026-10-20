@@ -43,8 +43,8 @@ See [Shipped workflows › review](../reference/workflows.en.md#review).
 After the review completes, publish the results as a GitLab merge request. Publishing is not a workflow: it remains an oh command.
 
 ```bash
-oh review --publish                          # Create MR for current branch
-oh review --publish --reviewer alice         # Create MR and assign reviewer
+oh mr create                          # Create MR for current branch
+oh mr create --reviewer alice         # Create MR and assign reviewer
 ```
 
 This command:
@@ -104,7 +104,7 @@ The ticket or branch is required. With `oh run review-feedback`, you provide the
 ```
 1. oh run ticket                          # Implement the feature
 2. oh run review -i review_mode=standard  # AI reviews the code
-3. oh review --publish                    # Create MR on GitLab
+3. oh mr create                    # Create MR on GitLab
 4. [Human reviews on GitLab]              # Reviewer leaves comments
 5. oh review feedback BD-42               # AI addresses feedback (review-feedback workflow)
 6. [Human approves MR]                    # Final approval

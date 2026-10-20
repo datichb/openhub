@@ -92,8 +92,7 @@ func runServiceStatus(cmd *cobra.Command, args []string) error {
 	a := MustApp()
 	ctx := cmd.Context()
 
-	fmt.Fprintf(a.IO.Out, "%s Services MCP\n\n",
-		theme.Title.Render("oh service"))
+	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.misc.mcp_services", theme.Title.Render("oh service")))
 
 	services := []struct {
 		name    string
@@ -177,7 +176,7 @@ func runServiceSetup(cmd *cobra.Command, args []string) error {
 						serviceName = serviceValues[index]
 					}
 				})
-				form.AddButton("Next", func() { onDone() })
+				form.AddButton(i18n.T("cmd.button.next"), func() { onDone() })
 				return form
 			},
 			OnDone: func() error {
@@ -206,7 +205,7 @@ func runServiceSetup(cmd *cobra.Command, args []string) error {
 					"", 0, '*', func(text string) {
 						token = text
 					})
-				form.AddButton("Next", func() { onDone() })
+				form.AddButton(i18n.T("cmd.button.next"), func() { onDone() })
 				return form
 			},
 			OnDone: func() error {
@@ -224,7 +223,7 @@ func runServiceSetup(cmd *cobra.Command, args []string) error {
 			InfoFields: func() []views.InfoField {
 				status := "stored in keychain"
 				if token == "" {
-					status = fmt.Sprintf("use env %s", envHint)
+					status = i18n.Tf("cmd.misc.use_env", envHint)
 				}
 				return []views.InfoField{
 					{Label: "Token", Value: status},
@@ -232,7 +231,7 @@ func runServiceSetup(cmd *cobra.Command, args []string) error {
 			},
 		},
 		{
-			Label: "Write permissions",
+			Label: i18n.T("cmd.misc.write_permissions"),
 			SkipIf: func() bool {
 				return serviceName != "gitlab"
 			},
@@ -241,7 +240,7 @@ func runServiceSetup(cmd *cobra.Command, args []string) error {
 				form.AddCheckbox("Activer le mode écriture (créer MR, commenter, assigner) ?", false, func(checked bool) {
 					writeEnabled = checked
 				})
-				form.AddButton("Next", func() { onDone() })
+				form.AddButton(i18n.T("cmd.button.next"), func() { onDone() })
 				return form
 			},
 			OnDone: func() error {
@@ -305,7 +304,7 @@ func runServiceSetup(cmd *cobra.Command, args []string) error {
 		}
 
 		if err := a.Projects.Update(ctx, project); err != nil {
-			return fmt.Errorf("updating project MCP config: %w", err)
+			return fmt.Errorf(i18n.T("cmd.misc.updating_project_mcp_config"), err)
 		}
 		fmt.Fprintf(a.IO.Out, "%s %s\n",
 			theme.SuccessStyle.Render(theme.IconSuccess),
@@ -418,7 +417,7 @@ func runServiceRemove(cmd *cobra.Command, args []string) error {
 		}
 		removeProjectServiceTokens(ctx, a.Secrets, project, serviceName)
 		if err := a.Projects.Update(ctx, project); err != nil {
-			return fmt.Errorf("updating project MCP config: %w", err)
+			return fmt.Errorf(i18n.T("cmd.misc.updating_project_mcp_config"), err)
 		}
 		fmt.Fprintf(a.IO.Out, "%s %s\n",
 			theme.SuccessStyle.Render(theme.IconSuccess),

@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -143,6 +144,133 @@ func TestFormatArgCount(t *testing.T) {
 	} {
 		if got := formatArgCount(msg); got != want {
 			t.Errorf("formatArgCount(%q) = %d, want %d", msg, got, want)
+		}
+	}
+}
+
+var templateKeyRe = regexp.MustCompile(`\{\{\s*trf?\s+"([^"]+)"`)
+
+// sourceStringLiterals returns every string literal of the non-test Go files
+// under root (keys are also passed through variables, tables, structs and
+// returned as reasons: a literal equal to a key is a use of that key).
+func sourceStringLiterals(t *testing.T, root string) map[string]bool {
+	t.Helper()
+	lits := map[string]bool{}
+	fset := token.NewFileSet()
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			if path != root {
+				if name := d.Name(); name == "testdata" || name == "hubcontent" || strings.HasPrefix(name, ".") {
+					return filepath.SkipDir
+				}
+			}
+			return nil
+		}
+		if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+		f, err := parser.ParseFile(fset, path, nil, parser.SkipObjectResolution)
+		if err != nil {
+			return err
+		}
+		ast.Inspect(f, func(n ast.Node) bool {
+			if lit, ok := n.(*ast.BasicLit); ok && lit.Kind == token.STRING {
+				if s, err := strconv.Unquote(lit.Value); err == nil {
+					lits[s] = true
+					// Keys in the text of a template: {{tr "help.usage.flags"}}.
+					for _, m := range templateKeyRe.FindAllStringSubmatch(s, -1) {
+						lits[m[1]] = true
+					}
+				}
+			}
+			return true
+		})
+		return nil
+	})
+	require.NoError(t, err)
+	return lits
+}
+
+var keyShapeRe = regexp.MustCompile(`^[a-z][a-z0-9_]*(\.[a-z0-9_\-]+){2,}$`)
+
+// dynamicKeyPrefix returns the constant start of a key built at run time:
+// i18n.T("prefix." + x), i18n.T(fmt.Sprintf("prefix.%s", x)), or
+// i18n.T(key + "_eta") with key := "prefix.name". "" when the literal does
+// not look like the start of a key.
+func dynamicKeyPrefix(lit string) string {
+	if i := strings.Index(lit, "%"); i >= 0 {
+		lit = lit[:i]
+		if strings.Count(lit, ".") < 1 || len(lit) < 5 {
+			return ""
+		}
+		return lit
+	}
+	if keyShapeRe.MatchString(lit) || (strings.HasSuffix(lit, ".") && strings.Count(lit, ".") >= 2) {
+		return lit
+	}
+	return ""
+}
+
+// TestNoOrphanKeys fails when a key of en.json is used nowhere in the code: a
+// message nobody shows is a translation to maintain for nothing (U-11). A key
+// is used when a string literal of the code is that key, or when it starts
+// with a literal of the code that looks like a key and that the code
+// completes at run time (i18n.T("prefix." + x), i18n.T(key + "_eta")).
+// The keys of the help of the commands (cmd.<command>.short|long|flags.*)
+// are read by convention from the command tree (localizeCommands) and are
+// not checked here.
+func TestNoOrphanKeys(t *testing.T) {
+	data, err := localeFS.ReadFile("locales/en.json")
+	require.NoError(t, err)
+	var en map[string]string
+	require.NoError(t, json.Unmarshal(data, &en))
+
+	lits := sourceStringLiterals(t, filepath.Join("..", ".."))
+	var prefixes []string
+	for lit := range lits {
+		if p := dynamicKeyPrefix(lit); p != "" {
+			prefixes = append(prefixes, p)
+		}
+	}
+	helpKey := regexp.MustCompile(`^cmd\.[^ ]+\.(short|long|example|deprecated|flags\.[^.]+)$`)
+	var orphans []string
+	for key := range en {
+		if lits[key] || helpKey.MatchString(key) {
+			continue
+		}
+		used := false
+		for _, p := range prefixes {
+			if strings.HasPrefix(key, p) {
+				used = true
+				break
+			}
+		}
+		if !used {
+			orphans = append(orphans, key)
+		}
+	}
+	sort.Strings(orphans)
+	if len(orphans) > 0 {
+		t.Errorf("%d key(s) of en.json are used nowhere in the code (remove them from en.json and fr.json):\n  %s",
+			len(orphans), strings.Join(orphans, "\n  "))
+	}
+}
+
+func TestDynamicKeyPrefix(t *testing.T) {
+	for lit, want := range map[string]string{
+		"tui.doctor.container.":       "tui.doctor.container.",
+		"cmd.mcp.%s.label":            "cmd.mcp.",
+		"tui.launch.runtime.build":    "tui.launch.runtime.build",
+		"plain text":                  "",
+		"a.b":                         "",
+		"https://example.com/a/b.c.d": "",
+		"cmd.run":                     "",
+	} {
+		if got := dynamicKeyPrefix(lit); got != want {
+			t.Errorf("dynamicKeyPrefix(%q) = %q, want %q", lit, got, want)
 		}
 	}
 }

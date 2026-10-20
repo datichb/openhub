@@ -220,3 +220,40 @@ func TestMCPListJSON(t *testing.T) {
 	assert.Contains(t, stdout, `"name"`)
 	assert.Contains(t, stdout, `"figma"`)
 }
+
+// U-05: exit codes seen by a script (0 success, 2 usage).
+func TestExitCodesOfTheBinary(t *testing.T) {
+	_, _, code := runOh(t, "version")
+	assert.Equal(t, 0, code)
+	_, stderr, code := runOh(t, "deploy", "--check")
+	assert.Equal(t, 2, code, "a removed command is not a success")
+	assert.Contains(t, stderr, "oh deploy")
+	_, _, code = runOh(t, "sync")
+	assert.Equal(t, 2, code)
+	_, _, code = runOh(t, "version", "--bogus-flag")
+	assert.Equal(t, 2, code, "unknown option")
+	_, _, code = runOh(t, "bogus-command")
+	assert.Equal(t, 2, code, "unknown command")
+}
+
+// U-02: a deprecated command still works and warns in the language of the
+// hub; the main help does not list it, cobra prints no English sentence.
+func TestDeprecatedCommandsOfTheBinary(t *testing.T) {
+	stdout, _, code := runOh(t, "--help")
+	assert.Equal(t, 0, code)
+	assert.NotContains(t, stdout, "oh start")
+	assert.NotContains(t, stdout, "  audit")
+	assert.NotContains(t, stdout, "  debug")
+	assert.Contains(t, stdout, "mr create")
+
+	// The deprecated command runs (here it stops at the missing GitLab write
+	// access), after its warning that names the replacement.
+	_, stderr, code := runOh(t, "review", "--publish")
+	assert.Equal(t, 1, code)
+	assert.Contains(t, stderr, "oh mr create")
+	assert.NotContains(t, stderr, "is deprecated")
+
+	_, stderr, code = runOh(t, "mr", "create")
+	assert.Equal(t, 1, code)
+	assert.NotContains(t, stderr, "oh mr create", "the replacement does not warn")
+}

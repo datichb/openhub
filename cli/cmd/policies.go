@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -69,21 +70,19 @@ func runPoliciesList(cmd *cobra.Command, args []string) error {
 
 	policies, err := repo.LoadPolicies(project)
 	if err != nil {
-		return fmt.Errorf("loading policies: %w", err)
+		return fmt.Errorf(i18n.T("cmd.policies.loading_policies"), err)
 	}
 
 	if len(policies) == 0 {
-		fmt.Fprintf(a.IO.Out, "\n%s Aucune policy configurée.\n",
-			theme.Subtitle.Render(theme.IconInfo))
-		fmt.Fprintf(a.IO.Out, "  Crée %s dans le repo team-state.\n\n",
-			theme.Bold.Render("policies.toml"))
+		fmt.Fprint(a.IO.Out, i18n.Tf("cmd.policies.no_policy_configured", theme.Subtitle.Render(theme.IconInfo)))
+		fmt.Fprint(a.IO.Out, i18n.Tf("cmd.policies.create_in_the_team_state_repository", theme.Bold.Render("policies.toml")))
 		return nil
 	}
 
 	fmt.Fprintln(a.IO.Out)
 	title := "  Team Policies  "
 	if project != "" {
-		title = fmt.Sprintf("  Team Policies (%s)  ", project)
+		title = i18n.Tf("cmd.policies.team_policies", project)
 	}
 	fmt.Fprintln(a.IO.Out, theme.Title.Render(title))
 	fmt.Fprintln(a.IO.Out)
@@ -224,13 +223,12 @@ func runPoliciesCheck(cmd *cobra.Command, args []string) error {
 
 	violations, err := repo.CheckAll(project, policyCtx)
 	if err != nil {
-		return fmt.Errorf("checking policies: %w", err)
+		return fmt.Errorf(i18n.T("cmd.policies.checking_policies"), err)
 	}
 
 	fmt.Fprintln(a.IO.Out)
 	if len(violations) == 0 {
-		fmt.Fprintf(a.IO.Out, "%s Toutes les policies sont respectées.\n\n",
-			theme.SuccessStyle.Render(theme.IconSuccess))
+		fmt.Fprint(a.IO.Out, i18n.Tf("cmd.policies.all_policies_are_respected", theme.SuccessStyle.Render(theme.IconSuccess)))
 		return nil
 	}
 
@@ -239,7 +237,7 @@ func runPoliciesCheck(cmd *cobra.Command, args []string) error {
 
 	for _, v := range violations {
 		if v.NotEvaluable {
-			fmt.Fprintf(a.IO.Out, "  %s %s [non évaluable]\n", theme.Subtitle.Render("?"), theme.Bold.Render(v.Name))
+			fmt.Fprint(a.IO.Out, i18n.Tf("cmd.policies.not_evaluable", theme.Subtitle.Render("?"), theme.Bold.Render(v.Name)))
 			if v.Details != "" {
 				fmt.Fprintf(a.IO.Out, "    %s\n", theme.Subtitle.Render(v.Details))
 			}
@@ -261,7 +259,7 @@ func runPoliciesCheck(cmd *cobra.Command, args []string) error {
 	}
 
 	if teamstate.HasRefuseViolations(violations) {
-		return fmt.Errorf("policy violations with enforcement=refuse detected")
+		return errors.New(i18n.T("cmd.policies.policy_violations_with_enforcement_refuse_detected"))
 	}
 	return nil
 }
@@ -292,7 +290,7 @@ func runPoliciesAdd(cmd *cobra.Command, args []string) error {
 
 	steps := []views.WizardStep{
 		{
-			Label: "Policy Info",
+			Label: i18n.T("cmd.policies.policy_info"),
 			Form: func(_ *tview.Application, onDone func()) *tview.Form {
 				form := tview.NewForm()
 				form.AddInputField("Nom de la policy", name, 0, nil,
@@ -303,12 +301,12 @@ func runPoliciesAdd(cmd *cobra.Command, args []string) error {
 					func(_ string, idx int) { enforcement = enforcements[idx] })
 				form.AddInputField("Message (violation)", message, 0, nil,
 					func(text string) { message = text })
-				form.AddButton("Next", func() { onDone() })
+				form.AddButton(i18n.T("cmd.button.next"), func() { onDone() })
 				return form
 			},
 			OnDone: func() error {
 				if name == "" {
-					return fmt.Errorf("le nom est requis")
+					return errors.New(i18n.T("cmd.policies.the_name_is_required"))
 				}
 				return nil
 			},
@@ -321,13 +319,13 @@ func runPoliciesAdd(cmd *cobra.Command, args []string) error {
 			},
 		},
 		{
-			Label:  "Regex Config",
+			Label:  i18n.T("cmd.policies.regex_config"),
 			SkipIf: func() bool { return policyType != "regex" },
 			Form: func(_ *tview.Application, onDone func()) *tview.Form {
 				form := tview.NewForm()
 				form.AddInputField("Pattern regex", rule, 0, nil,
 					func(text string) { rule = text })
-				form.AddButton("Next", func() { onDone() })
+				form.AddButton(i18n.T("cmd.button.next"), func() { onDone() })
 				return form
 			},
 			InfoFields: func() []views.InfoField {
@@ -335,7 +333,7 @@ func runPoliciesAdd(cmd *cobra.Command, args []string) error {
 			},
 		},
 		{
-			Label:  "Forbidden Patterns",
+			Label:  i18n.T("cmd.policies.forbidden_patterns"),
 			SkipIf: func() bool { return policyType != "forbidden_pattern" },
 			Form: func(_ *tview.Application, onDone func()) *tview.Form {
 				form := tview.NewForm()
@@ -343,7 +341,7 @@ func runPoliciesAdd(cmd *cobra.Command, args []string) error {
 					func(text string) { patterns = text })
 				form.AddDropDown("Scope", scopes, 0,
 					func(_ string, idx int) { scope = scopes[idx] })
-				form.AddButton("Next", func() { onDone() })
+				form.AddButton(i18n.T("cmd.button.next"), func() { onDone() })
 				return form
 			},
 			InfoFields: func() []views.InfoField {
@@ -354,13 +352,13 @@ func runPoliciesAdd(cmd *cobra.Command, args []string) error {
 			},
 		},
 		{
-			Label:  "Limit Config",
+			Label:  i18n.T("cmd.policies.limit_config"),
 			SkipIf: func() bool { return policyType != "limit" },
 			Form: func(_ *tview.Application, onDone func()) *tview.Form {
 				form := tview.NewForm()
 				form.AddInputField("Valeur maximale", "", 0, nil,
 					func(text string) { rule = text })
-				form.AddButton("Next", func() { onDone() })
+				form.AddButton(i18n.T("cmd.button.next"), func() { onDone() })
 				return form
 			},
 			OnDone: func() error {
@@ -424,22 +422,20 @@ func runPoliciesAdd(cmd *cobra.Command, args []string) error {
 	policiesPath := filepath.Join(repo.Path(), "policies.toml")
 	f, err := openOrCreatePoliciesFile(policiesPath)
 	if err != nil {
-		return fmt.Errorf("opening policies.toml: %w", err)
+		return fmt.Errorf(i18n.T("cmd.policies.opening_policies_toml"), err)
 	}
 	if _, err := f.WriteString(block.String()); err != nil {
 		f.Close()
-		return fmt.Errorf("writing policy: %w", err)
+		return fmt.Errorf(i18n.T("cmd.policies.writing_policy"), err)
 	}
 	f.Close()
 
 	// Commit and push
 	if err := repo.CommitAndPush(ctx, fmt.Sprintf("policies: add %s", name), "policies.toml"); err != nil {
-		return fmt.Errorf("committing policy: %w", err)
+		return fmt.Errorf(i18n.T("cmd.policies.committing_policy"), err)
 	}
 
-	fmt.Fprintf(a.IO.Out, "\n%s Policy %q ajoutée avec succès.\n\n",
-		theme.SuccessStyle.Render(theme.IconSuccess),
-		name)
+	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.policies.policy_added", theme.SuccessStyle.Render(theme.IconSuccess), name))
 	return nil
 }
 

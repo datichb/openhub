@@ -300,7 +300,7 @@ Les modes combinés (`standard+adversarial`, `all`) lancent des sessions `review
 
 Le reviewer lance une fois le build et les tests de la branche, avant les sessions parallèles : dans ce workflow `risk: read` (souvent la merge request d'un tiers, dont les tests exécutent le code), chaque commande est demandée à l'utilisateur ; refusée ou impossible à lancer, elle est signalée en finding 🟡 « non vérifiable ». Rien n'est installé.
 
-La publication d'une MR (`oh review --publish`) n'est pas un workflow : elle reste une commande d'oh.
+La publication d'une MR (`oh mr create`) n'est pas un workflow : elle reste une commande d'oh.
 
 ## `review-feedback`
 

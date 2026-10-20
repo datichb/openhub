@@ -300,7 +300,7 @@ The combined modes (`standard+adversarial`, `all`) launch parallel `reviewer` se
 
 The reviewer runs the build and tests of the branch once, before the parallel sessions: in this `risk: read` workflow (often someone else's merge request, whose tests run its code), each command is asked to the user; refused or impossible to run, it is reported as a 🟡 "not verifiable" finding. Nothing is installed.
 
-Publishing a merge request (`oh review --publish`) is not a workflow: it remains an oh command.
+Publishing a merge request (`oh mr create`) is not a workflow: it remains an oh command.
 
 ## `review-feedback`
 

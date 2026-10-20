@@ -39,7 +39,7 @@ func gatewaySessionEnv(dc func(ctx context.Context) (gatewayGranter, error)) run
 			return nil, nil
 		}
 		if r.GatewayURL == "" {
-			return nil, errors.New("beads gateway: the server group has no gateway address")
+			return nil, errors.New(i18n.T("cmd.v5_gateway.beads_gateway_the_server_group_has"))
 		}
 		c, err := dc(ctx)
 		if err != nil {
@@ -54,7 +54,7 @@ func gatewaySessionEnv(dc func(ctx context.Context) (gatewayGranter, error)) run
 			return nil, errors.New(i18n.T("cmd.gateway.beads.daemon_outdated"))
 		}
 		if err != nil {
-			return nil, fmt.Errorf("beads gateway: %w", err)
+			return nil, fmt.Errorf(i18n.T("cmd.v5_gateway.beads_gateway"), err)
 		}
 		return map[string]string{beadswire.EnvURL: r.GatewayURL, beadswire.EnvToken: g.Token}, nil
 	}
@@ -86,7 +86,7 @@ func gatewayMCPCommand(bundlesDir string) func(ctx context.Context, srv domain.S
 	return func(_ context.Context, srv domain.Server, name string) (gateway.MCPCommand, error) {
 		b, err := bundle.Load(bundlesDir, srv.BundleHash)
 		if err != nil {
-			return gateway.MCPCommand{}, fmt.Errorf("bundle of %s: %w", srv.GroupKey, err)
+			return gateway.MCPCommand{}, fmt.Errorf(i18n.T("cmd.v5_gateway.bundle_of"), srv.GroupKey, err)
 		}
 		return ohMCPCommand(b.Spec, srv, name)
 	}
@@ -99,5 +99,5 @@ func ohMCPCommand(spec sessionspec.BundleSpec, srv domain.Server, name string) (
 			return gateway.MCPCommand{Argv: argv, Env: m.Environment, Dir: srv.WorkDir}, nil
 		}
 	}
-	return gateway.MCPCommand{}, fmt.Errorf("no oh MCP server %q in the bundle of %s", name, srv.GroupKey)
+	return gateway.MCPCommand{}, fmt.Errorf(i18n.T("cmd.v5_gateway.no_oh_mcp_server_in_the"), name, srv.GroupKey)
 }

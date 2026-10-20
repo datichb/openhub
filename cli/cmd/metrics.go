@@ -21,7 +21,8 @@ var metricsCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(metricsCmd)
-	metricsCmd.Flags().StringP("period", "d", "all", "Période d'analyse (7d, 30d, all)")
+	metricsCmd.Flags().String("period", "all", "Période d'analyse (7d, 30d, all)")
+	deprecateShorthand(metricsCmd, "d", "period") // -d is the path of oh project add
 }
 
 func runMetrics(cmd *cobra.Command, args []string) error {
@@ -127,7 +128,7 @@ func runMetrics(cmd *cobra.Command, args []string) error {
 			fmt.Fprintln(a.IO.Out, theme.Subtitle.Render("  Télémétrie agents"))
 			fmt.Fprintln(a.IO.Out)
 			wa := tabwriter.NewWriter(a.IO.Out, 0, 0, 2, ' ', 0)
-			fmt.Fprintln(wa, "  Agent\tRuns\tSuccès\tDurée moy.\tTokens\tCoût")
+			fmt.Fprintln(wa, i18n.T("cmd.metrics.agent_runs_success_avg_duration_tokens"))
 			for _, m := range agentMetrics {
 				dur := "—"
 				if m.AvgDurationSec > 0 {

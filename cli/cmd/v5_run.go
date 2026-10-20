@@ -155,7 +155,7 @@ func prepareWorkflowRun(ctx context.Context, a *app.App, opts runOptions, errOut
 	prov := provider.ResolveProvider(opts.Provider, opts.Project.Provider, a.Config.LLM.DefaultProvider)
 	b, missingMCP, err := buildWorkflowBundle(a, opts.Project, res, prov)
 	if err != nil {
-		return nil, fmt.Errorf("building session bundle: %w", err)
+		return nil, fmt.Errorf(i18n.T("cmd.v5_run.building_session_bundle"), err)
 	}
 
 	base := v5Request(a, opts.Project, opts.Provider)

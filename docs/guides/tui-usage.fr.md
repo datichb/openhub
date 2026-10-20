@@ -52,7 +52,7 @@ Le passage d'une mise en page à l'autre garde l'élément sélectionné. Régla
 
 ### Badge des sessions
 
-La barre du bas affiche partout `● N ⏸ M` : `N` sessions vivantes (ni en veille ni terminées), `M` décisions en attente. Le badge passe en couleur d'alerte quand `M > 0`, et un toast annonce chaque nouvelle décision. Les notifications système viennent du démon oh, même TUI fermée.
+La barre du bas affiche partout `● N ◐ M` : `N` sessions vivantes (ni en veille ni terminées), `M` décisions en attente. Le badge passe en couleur d'alerte quand `M > 0`, et un toast annonce chaque nouvelle décision. Les notifications système viennent du démon oh, même TUI fermée.
 
 ### Modes
 
@@ -142,7 +142,7 @@ Commande `sessions` (alias `parallel`, `inbox`), ou la section Sessions des accu
 
 | Section | Contenu |
 |---------|---------|
-| **À traiter** | sessions qui ont des décisions en attente, chacune suivie de ses décisions : `⏸` checkpoint, `?` question, `!` permission, `$` budget, `✗` erreur ou coupe-circuit |
+| **À traiter** | sessions qui ont des décisions en attente, chacune suivie de ses décisions : `⏸` checkpoint, `?` question, `!` permission, `$` budget, `✗` erreur, `⊘` coupe-circuit |
 | **En cours** | sessions vivantes (au travail, en attente, inactives) |
 | **À récupérer** | sessions distantes (GitLab CI) : pipeline en cours, MR prête, journal Beads à rejouer |
 | **En veille** | sessions dont le serveur dort ; elles se reprennent avec `R` |

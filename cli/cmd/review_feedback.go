@@ -19,7 +19,9 @@ var reviewFeedbackCmd = &cobra.Command{
 	Short: i18n.T("cmd.review.feedback.short"),
 	Long:  i18n.T("cmd.review.feedback.long"),
 	Args:  cobra.ExactArgs(1),
-	RunE:  runReviewFeedback,
+	// Hidden from the help; still works (U-02).
+	Deprecated: i18n.T("cmd.review.feedback.deprecated"),
+	RunE:       runReviewFeedback,
 }
 
 func init() {
@@ -87,8 +89,7 @@ func runReviewFeedback(cmd *cobra.Command, args []string) error {
 		fmt.Fprintf(a.IO.Out, "\n  %s", i18n.T("cmd.review.feedback.confirm"))
 		var resp string
 		_, _ = fmt.Scanln(&resp)
-		resp = strings.TrimSpace(strings.ToLower(resp))
-		if resp == "n" || resp == "no" || resp == "non" {
+		if !confirmed(resp, true) {
 			return nil
 		}
 	}
@@ -215,7 +216,7 @@ func formatFeedbackDiscussions(discussions []gitlabapi.Discussion) string {
 	var sb strings.Builder
 	total := len(discussions)
 	shown := min(total, maxFeedbackDiscussions)
-	fmt.Fprintf(&sb, "Commentaires de review non résolus (%d):\n\n", total)
+	fmt.Fprint(&sb, i18n.Tf("cmd.review_feedback.unresolved_review_comments", total))
 	for i, d := range discussions[:shown] {
 		if len(d.Notes) == 0 {
 			continue
@@ -233,7 +234,7 @@ func formatFeedbackDiscussions(discussions []gitlabapi.Discussion) string {
 		sb.WriteString("\n")
 	}
 	if total > shown {
-		fmt.Fprintf(&sb, "... et %d discussions supplémentaires non affichées.\n", total-shown)
+		fmt.Fprint(&sb, i18n.Tf("cmd.review_feedback.and_more_discussions_not_shown", total-shown))
 	}
 	return sb.String()
 }

@@ -23,11 +23,11 @@ When no provider is configured (first launch), the initial setup wizard opens in
 │                   (adapts to the active view)                    │
 ├──────────────────────────────────────────────────────────────────┤
 │  hints line of the view (keys) or command palette                │ Omnibar
-│  🏠 Hub · ● 2 ⏸ 1                                                │ Mode bar
+│  🏠 Hub · ● 2 ◐ 1                                                │ Mode bar
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-The mode bar shows the sessions badge **`● N ⏸ M`** (N sessions working, M decisions waiting); it turns to the alert colour when a decision waits.
+The mode bar shows the sessions badge **`● N ◐ M`** (N sessions working, M decisions waiting); it turns to the alert colour when a decision waits. The legend of the symbols (states, decisions) and `NO_COLOR` (no color) are in the [CLI reference](cli.en.md#symbols-and-colors).
 
 **Small terminals**: under 32 rows, compact layout (one-line banner, omnibar and mode bar on 3 rows); under 60×16, a « Terminal too small » message and only `Ctrl+Q` works. Setting `[cli] compact = auto | always | never`. Switching layouts keeps the selected element.
 
@@ -171,14 +171,14 @@ Each view shows its keys in the hints line; `?` repeats them. The keys of the co
 
 ### Sessions
 
-Sections: **To handle** (sessions with waiting decisions, each followed by its decisions: `⏸` checkpoint, `?` question, `!` permission, `$` budget, `✗` error or circuit breaker), **Running**, **To recover** (remote sessions), **Sleeping**, **Finished, 7 days**. The children of a fan-out (`↳`) are shown as a tree under their parent (`⑂`); the group goes to « To handle » as soon as a child waits.
+Sections: **To handle** (sessions with waiting decisions, each followed by its decisions: `⏸` checkpoint, `?` question, `!` permission, `$` budget, `✗` error, `⊘` circuit breaker), **Running**, **To recover** (remote sessions), **Sleeping**, **Finished, 7 days**. The children of a fan-out (`↳`) are shown as a tree under their parent (`⑂`); the group goes to « To handle » as soon as a child waits.
 
 ```
 ┌ Sessions ─────────────────────────────┐┌ implement-spec · ses_8f2a ────────────┐
 │ ● ⑂ implement-spec  spec auth   $1.84 ││ [Detail]  Trace  Reports  Fan-out     │
-│   ├ ✓ ↳ ticket  oh-12  merged   $0.41 ││ ⏸ cp-merge: 2/3 children merged       │
-│   └ ⏸ ↳ ticket  oh-14  cp-2     $0.22 ││ Outputs recorded by oh                │
-│ ✓   spec        auth OAuth      $0.93 ││ ↪ Suggested next steps (next:)        │
+│   ├ ✔ ↳ ticket  oh-12  merged   $0.41 ││ ⏸ cp-merge: 2/3 children merged       │
+│   └ ◐ ↳ ticket  oh-14  cp-2     $0.22 ││ Outputs recorded by oh                │
+│ ✔   spec        auth OAuth      $0.93 ││ ↪ Suggested next steps (next:)        │
 └───────────────────────────────────────┘└───────────────────────────────────────┘
 ```
 

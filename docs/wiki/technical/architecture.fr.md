@@ -41,7 +41,7 @@ openhub (`oh`) est un binaire Go unique qui lance et pilote les sessions de coda
 5. **Vérification** : monde fermé (`Attest`) ; sinon la session ne démarre pas.
 6. **Session** : créée par l'API (identifiant choisi par oh), prompt initial.
 7. **Ouverture** : iTerm2 → Terminal.app → tmux → navigateur → terminal courant.
-8. **Suivi et décisions** : démon `ohd` (⏸ ? ! $ ✗), notifications, veille après 5 minutes d'inactivité.
+8. **Suivi et décisions** : démon `ohd` (⏸ ? ! $ ✗ ⊘), notifications, veille après 5 minutes d'inactivité.
 
 Plus rien n'est écrit dans le projet (`oh deploy` et `oh sync` sont des alias qui affichent un message de migration).
 
@@ -112,6 +112,6 @@ Chaque session est lancée depuis un workflow déclaratif (`oh run <workflow>` o
 | Sweep | `oh run sweep -i goal=<objectif>` | Découpage d'un objectif en sous-taches, lancées en parallèle dans la même session, puis vérification |
 | Libre | `oh run libre --agent <id>` | Agent d'entrée au choix, sans checkpoint |
 | Headless | `oh run <workflow> --headless` | Non-interactif (CI/scripting) |
-| Review | `oh run review` | Revue de code IA ; publication MR avec `oh review --publish` |
+| Review | `oh run review` | Revue de code IA ; publication MR avec `oh mr create` |
 
 Les anciens modes (`oh start --parallel`, `--sweep`, `--dev`) sont des alias dépréciés de ces workflows ; le moniteur et la vue de fusion du mode parallèle ont été supprimés.

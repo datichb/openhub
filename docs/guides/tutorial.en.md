@@ -177,7 +177,7 @@ oh session list
 
 ```
 SESSION        PROJECT  AGENT             STATE      DECISIONS  COST    STARTED
-ses_2f9c1a7b   my-app   orchestrator-dev  ⏸ waiting  ⏸ 1        $0.042  06/10 10:02
+ses_2f9c1a7b   my-app   orchestrator-dev  ◐ waiting  ⏸ 1        $0.042  06/10 10:02
 ```
 
 The session already waits for a decision: `cp-1`. Open the TUI:
@@ -186,7 +186,7 @@ The session already waits for a decision: `cp-1`. Open the TUI:
 oh
 ```
 
-The bottom bar shows `● 1 ⏸ 1` (one live session, one waiting decision). Type `sessions` then `Enter` to open the **Sessions view**:
+The bottom bar shows `● 1 ◐ 1` (one live session, one waiting decision). Type `sessions` then `Enter` to open the **Sessions view**:
 
 ```
  Sessions
@@ -194,11 +194,11 @@ The bottom bar shows `● 1 ⏸ 1` (one live session, one waiting decision). Typ
  ▸ ⏸ ticket · my-app  cp-1 "Start the ticket"
       1m ago
  ─ Running (1)
-   ⏸ ticket · my-app
+   ◐ ticket · my-app
       waiting · orchestrator-dev · $0.04 · 1 decision(s) waiting
  ┌ Detail · ticket · my-app ──────────────────────────────────────┐
  │ ticket · manuel · ⌂ · ~/workspace/my-app · 9f3c1d2e…           │
- │ ⏸ waiting · orchestrator-dev · $0.042 · started 1m ago         │
+ │ ◐ waiting · orchestrator-dev · $0.042 · started 1m ago         │
  │ ⏸ cp-1 → ○ cp-2 → ○ cp-3                                       │
  │ ses_2f9c1a7b                                                   │
  └────────────────────────────────────────────────────────────────┘

@@ -238,14 +238,14 @@ oh metrics [options]
 
 | Flag | Short | Type | Description |
 |------|-------|------|-------------|
-| `--period` | `-d` | string | Analysis period: `7d`, `30d` or `all` (default: `all`) |
+| `--period` | | string | Analysis period: `7d`, `30d` or `all` (default: `all`). The former short form `-d` (the path elsewhere) is still accepted, with a warning |
 
 **Example:**
 
 ```bash
 oh metrics
-oh metrics -d 30d
-oh metrics -d 7d
+oh metrics --period 30d
+oh metrics --period 7d
 ```
 
 ---

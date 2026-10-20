@@ -77,7 +77,7 @@ oh run <workflow> (or "Start" in the TUI)
   5. Check                      closed world (Attest): otherwise the session does not start
   6. Session                    created through the API (id chosen by oh), initial prompt
   7. Opening                    iTerm2 → Terminal.app → tmux → browser → current terminal
-  8. Follow-up and decisions    ohd daemon: feed, ⏸ ? ! $ ✗, notifications, sleep after 5 min
+  8. Follow-up and decisions    ohd daemon: feed, ⏸ ? ! $ ✗ ⊘, notifications, sleep after 5 min
   9. End and next step          outputs recorded by oh, next step proposed (next:), never launched by itself
 ```
 
@@ -175,7 +175,7 @@ oh does not take the agent's word for it:
 
 The decision card shows the verification, the evidence, the filed reports and the wiki proposals. See [Checkpoints](../reference/checkpoints.en.md).
 
-Decisions (⏸ checkpoint, ? question, ! permission, $ budget, ✗ error) can be taken from any client: Sessions view and "To handle" box of the TUI, `oh session approve|answer|dismiss`, opencode interface or browser. The first answer wins. Decision: [ADR-042](./adr/042-checkpoints-headless-decisions.en.md) (replaces [ADR-003](./adr/003-orchestrator-checkpoints.en.md)).
+Decisions (⏸ checkpoint, ? question, ! permission, $ budget, ✗ error, ⊘ circuit breaker) can be taken from any client: Sessions view and "To handle" box of the TUI, `oh session approve|answer|dismiss`, opencode interface or browser. The first answer wins. Decision: [ADR-042](./adr/042-checkpoints-headless-decisions.en.md) (replaces [ADR-003](./adr/003-orchestrator-checkpoints.en.md)).
 
 ### Reports and Scratch Folders
 

@@ -44,7 +44,7 @@ func runTUIWithProject(projectName string) error {
 		var err error
 		p, err = a.Projects.GetByName(context.Background(), projectName)
 		if err != nil || p == nil {
-			return fmt.Errorf("projet introuvable: %q", projectName)
+			return fmt.Errorf(i18n.T("cmd.tui.project_not_found"), projectName)
 		}
 	} else if projectName == "" && a.Projects != nil {
 		// Inside a registered project: project mode; elsewhere: hub, no question.

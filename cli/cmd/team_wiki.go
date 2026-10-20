@@ -54,12 +54,12 @@ func runTeamWikiList(cmd *cobra.Command, _ []string) error {
 
 	pages, err := repo.WikiListPages()
 	if err != nil {
-		return fmt.Errorf("listing wiki pages: %w", err)
+		return fmt.Errorf(i18n.T("cmd.team_wiki.listing_wiki_pages"), err)
 	}
 
 	pending, err := repo.WikiListPending()
 	if err != nil {
-		return fmt.Errorf("listing pending proposals: %w", err)
+		return fmt.Errorf(i18n.T("cmd.team_wiki.listing_pending_proposals"), err)
 	}
 
 	fmt.Fprintln(a.IO.Out)
@@ -117,7 +117,7 @@ func runTeamWikiRead(cmd *cobra.Command, args []string) error {
 				i18n.Tf("cmd.team.wiki.page_not_found", name))
 			return nil
 		}
-		return fmt.Errorf("reading wiki page: %w", err)
+		return fmt.Errorf(i18n.T("cmd.team_wiki.reading_wiki_page"), err)
 	}
 
 	fmt.Fprintln(a.IO.Out)
@@ -139,7 +139,7 @@ func runTeamWikiReview(cmd *cobra.Command, args []string) error {
 	if len(args) == 0 {
 		pending, err := repo.WikiListPending()
 		if err != nil {
-			return fmt.Errorf("listing pending proposals: %w", err)
+			return fmt.Errorf(i18n.T("cmd.team_wiki.listing_pending_proposals"), err)
 		}
 
 		fmt.Fprintln(a.IO.Out)
@@ -171,7 +171,7 @@ func runTeamWikiReview(cmd *cobra.Command, args []string) error {
 	id := args[0]
 	pending, err := repo.WikiListPending()
 	if err != nil {
-		return fmt.Errorf("listing pending proposals: %w", err)
+		return fmt.Errorf(i18n.T("cmd.team_wiki.listing_pending_proposals"), err)
 	}
 
 	var proposal *teamstate.WikiProposal
@@ -212,7 +212,7 @@ func runTeamWikiReview(cmd *cobra.Command, args []string) error {
 	switch response {
 	case "a", "accept":
 		if err := repo.WikiAcceptProposal(ctx, id); err != nil {
-			return fmt.Errorf("accepting proposal: %w", err)
+			return fmt.Errorf(i18n.T("cmd.team_wiki.accepting_proposal"), err)
 		}
 
 		// Emit event AFTER WikiAcceptProposal returns (both acquire withWriteLock)
@@ -236,7 +236,7 @@ func runTeamWikiReview(cmd *cobra.Command, args []string) error {
 
 	case "r", "reject":
 		if err := repo.WikiRejectProposal(ctx, id); err != nil {
-			return fmt.Errorf("rejecting proposal: %w", err)
+			return fmt.Errorf(i18n.T("cmd.team_wiki.rejecting_proposal"), err)
 		}
 
 		// Emit event AFTER WikiRejectProposal returns (both acquire withWriteLock)

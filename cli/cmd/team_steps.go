@@ -315,7 +315,7 @@ func buildTeamPoliciesStep(s *teamStepState, opts teamStepOpts) views.WizardStep
 			if s.HasPolicies {
 				existing, err := s.Repo.LoadPolicies("")
 				if err != nil {
-					return fmt.Errorf("loading existing policies: %w", err)
+					return fmt.Errorf(i18n.T("cmd.team_steps.loading_existing_policies"), err)
 				}
 				for _, ep := range existing {
 					if _, ok := policies[ep.Name]; !ok {

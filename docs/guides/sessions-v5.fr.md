@@ -69,7 +69,7 @@ Dans la TUI, un choix lance aussitôt. Sans terminal, `oh run` refuse tant que `
 | Commande | Rôle |
 |---|---|
 | `oh session list [--all] [--json]` | sessions, leur état (active, en attente, inactive, en veille, arrêtée) et leurs décisions en attente |
-| `oh session inbox [--json]` | décisions en attente de toutes les sessions : `⏸` checkpoint, `?` question, `!` permission, `$` budget, `✗` erreur |
+| `oh session inbox [--json]` | décisions en attente de toutes les sessions : `⏸` checkpoint, `?` question, `!` permission, `$` budget, `✗` erreur, `⊘` coupe-circuit |
 | `oh session approve <id> [--decision once\|always\|reject] [-m "…"]` | répondre à une permission sans ouvrir la session (`always` refusé en isolation stricte) ; pour un checkpoint : `once`, `fix`, `other` (avec `-m`) ou `reject` |
 | `oh session answer <id> --field clé=valeur…` | répondre à une question de l'agent ; sans `--field`, affiche les champs attendus |
 | `oh session dismiss <id>` | classer une alerte (erreur, budget) |
@@ -79,7 +79,7 @@ Dans la TUI, un choix lance aussitôt. Sans terminal, `oh run` refuse tant que `
 | `oh session model <id> <fournisseur/modèle>` | changer le modèle des prochaines étapes |
 | `oh session fork <id>` | créer une variante (copie de l'historique, même serveur) |
 | `oh session results <id> [--mr] [--patch] [--json]` | fichiers modifiés, branche, coût ; description de MR ; diff |
-| `oh session attach <id> [--how auto\|iterm\|terminal\|tmux\|browser\|suspend]` | ouvrir (ou reprendre) une session |
+| `oh session attach <id> [--attach auto\|iterm\|terminal\|tmux\|browser\|suspend]` | ouvrir (ou reprendre) une session |
 | `oh session open <id> --browser [--print]` | ouvrir une session dans le navigateur (code à usage unique, 5 min) |
 | `oh session fetch <id> [--no-import]` | récupérer une session distante terminée (artefacts, import pour la reprendre) — [exécution distante](remote-runners.fr.md) |
 | `oh session resolve <id> [--dry-run] [--yes]` | rejouer son journal Beads (conflits, confirmation) |
@@ -94,7 +94,7 @@ Dans ces commandes, `<id>` peut être un début d'identifiant (`oh session follo
 
 ## Vue Sessions (TUI)
 
-Ouvrez-la depuis l'omnibar (`sessions`) ou les sections « Sessions » des pages d'accueil, de projet et d'équipe. La barre du bas affiche partout `● N ⏸ M` (sessions vivantes, décisions en attente).
+Ouvrez-la depuis l'omnibar (`sessions`) ou les sections « Sessions » des pages d'accueil, de projet et d'équipe. La barre du bas affiche partout `● N ◐ M` (sessions vivantes, décisions en attente).
 
 - **À traiter** : sessions qui ont des décisions en attente, chacune suivie de ses décisions (une session n'apparaît qu'une fois dans la vue ; identifiant court sur la ligne). `Entrée` ouvre la fiche (permission : une fois / toujours / refuser + message ; question : formulaire généré ; alerte : classer ou attacher), `y`/`n` valident ou refusent une permission, `x` classe une alerte.
 - **En cours, En veille, Terminées (7 j), À récupérer** (sessions distantes terminées) ; détail de la session sélectionnée en bas.

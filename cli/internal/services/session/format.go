@@ -6,49 +6,18 @@ import (
 	"strings"
 
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/glyph"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/limits"
 )
 
 // Plain-text renderings shared by the CLI and the TUI (the TUI adds colors).
 
-// KindIcon is the glyph of a decision kind (10 §0 legend).
-func KindIcon(k domain.DecisionKind) string {
-	switch k {
-	case domain.DecisionCheckpoint:
-		return "⏸"
-	case domain.DecisionQuestion:
-		return "?"
-	case domain.DecisionPermission:
-		return "!"
-	case domain.DecisionBudget:
-		return "$"
-	case domain.DecisionError, domain.DecisionCircuit:
-		return "✗"
-	}
-	return "•"
-}
+// KindIcon is the glyph of a decision kind (table: internal/glyph).
+func KindIcon(k domain.DecisionKind) string { return glyph.ForKind(k) }
 
-// StateIcon is the glyph of a run state.
-func StateIcon(s domain.RunState) string {
-	switch s {
-	case domain.RunActive, domain.RunPreparing:
-		return "●"
-	case domain.RunWaiting:
-		return "⏸"
-	case domain.RunQueued:
-		return "…"
-	case domain.RunIdle:
-		return "○"
-	case domain.RunSleeping:
-		return "◌"
-	case domain.RunFailed:
-		return "✗"
-	case domain.RunCompleted, domain.RunStopped:
-		return "✔"
-	}
-	return "·"
-}
+// StateIcon is the glyph of a run state (table: internal/glyph).
+func StateIcon(s domain.RunState) string { return glyph.ForState(s) }
 
 // DecisionSummary describes a decision in one line (no secret: commands and
 // paths come from the agent request).
@@ -94,7 +63,7 @@ func DecisionSummary(d domain.Decision) string {
 	return oneLine(firstNonEmpty(p.Title, p.Message, string(d.Kind)))
 }
 
-// DecisionBadges renders open decisions as "! 1  ? 2".
+// DecisionBadges renders open decisions as "⏸ 1  ? 2".
 func DecisionBadges(ds []domain.Decision) string {
 	order := []domain.DecisionKind{domain.DecisionCheckpoint, domain.DecisionQuestion, domain.DecisionPermission, domain.DecisionBudget, domain.DecisionError, domain.DecisionCircuit}
 	counts := map[domain.DecisionKind]int{}

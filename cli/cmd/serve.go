@@ -35,7 +35,8 @@ Exemples:
 
 func init() {
 	rootCmd.AddCommand(serveCmd)
-	serveCmd.Flags().IntP("port", "p", 8080, "Port d'écoute")
+	serveCmd.Flags().Int("port", 8080, "Port d'écoute")
+	deprecateShorthand(serveCmd, "p", "port") // -p is the project everywhere else
 }
 
 func runServe(cmd *cobra.Command, args []string) error {
@@ -180,7 +181,7 @@ func runServe(cmd *cobra.Command, args []string) error {
 	}()
 
 	if err := server.Serve(ln); err != nil && err != http.ErrServerClosed {
-		return fmt.Errorf("serveur HTTP: %w", err)
+		return fmt.Errorf(i18n.T("cmd.serve.http_server"), err)
 	}
 	return nil
 }
