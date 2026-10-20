@@ -134,7 +134,10 @@ func (t *tuiSessions) SessionReports(ctx context.Context, sessionID string) ([]v
 		return out, nil
 	}
 	sess, err := t.a.Sessions.Get(ctx, sessionID)
-	if err != nil || sess.Fanout == nil || sess.Fanout.Role != domain.RoleParent {
+	if err != nil {
+		return out, nil //nolint:nilerr // the own reports are still shown
+	}
+	if sess.Fanout == nil || sess.Fanout.Role != domain.RoleParent {
 		return out, nil
 	}
 	for _, c := range sess.Fanout.Children {
