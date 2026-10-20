@@ -753,4 +753,4 @@ When a session starts, the LLM provider is resolved in this order:
 
 > **Database integrity:** `oh repair --check-only` checks the SQLite database; `oh repair` shows the schema version.
 >
-> **Web dashboard:** `oh serve` binds to `127.0.0.1` only, never to the network.
+> **Web dashboard:** `oh serve` binds to `127.0.0.1` only, never to the network, and requires the access token printed at startup.

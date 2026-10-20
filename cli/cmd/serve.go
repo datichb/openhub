@@ -5,11 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"time"
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
@@ -22,7 +24,8 @@ Le dashboard affiche projets, sessions, métriques, télémétrie agent,
 team board (kanban), timeline et membres.
 
 Par défaut le serveur écoute uniquement sur 127.0.0.1 (localhost).
-Accédez au dashboard sur http://localhost:8080
+L'URL affichée au démarrage contient un jeton d'accès aléatoire
+(http://127.0.0.1:8080/?token=…) : ouvrez-la telle quelle, ne la partagez pas.
 
 Exemples:
   oh serve                   Lance sur le port par défaut (8080)
@@ -38,6 +41,17 @@ func init() {
 func runServe(cmd *cobra.Command, args []string) error {
 	a := MustApp()
 	port, _ := cmd.Flags().GetInt("port")
+	token, err := newServeToken()
+	if err != nil {
+		return err
+	}
+	// Listen first: with --port 0 the port is only known afterwards, and the
+	// Host check and the cookie depend on it.
+	ln, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
+	if err != nil {
+		return fmt.Errorf("%s: %w", i18n.T("cmd.serve.err.listen"), err)
+	}
+	port = ln.Addr().(*net.TCPAddr).Port
 	addr := fmt.Sprintf("127.0.0.1:%d", port)
 	serveCORSOrigin = fmt.Sprintf("http://%s", addr)
 
@@ -130,22 +144,23 @@ func runServe(cmd *cobra.Command, args []string) error {
 			return
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		fmt.Fprint(w, dashboardHTML(addr))
+		fmt.Fprint(w, dashboardHTML)
 	})
 
 	// ── Server ───────────────────────────────────────────────────────────────
 
 	server := &http.Server{
 		Addr:        addr,
-		Handler:     mux,
+		Handler:     serveGuard(mux, port, token),
 		ReadTimeout: 15 * time.Second,
 		// WriteTimeout intentionally omitted (0 = no timeout).
 		// Required for SSE long-lived connections. Safe because this server
 		// binds exclusively to 127.0.0.1 (no external exposure).
 	}
 
-	fmt.Fprintf(a.IO.Out, "%s Dashboard oh disponible sur http://%s\n",
-		theme.SuccessStyle.Render(theme.IconSuccess), addr)
+	fmt.Fprintf(a.IO.Out, "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess),
+		i18n.Tf("cmd.serve.ready", fmt.Sprintf("http://%s/?%s=%s", addr, serveTokenQuery, token)))
+	fmt.Fprintln(a.IO.Out, theme.Subtitle.Render("  "+i18n.T("cmd.serve.token_hint")))
 	fmt.Fprintln(a.IO.Out, theme.Subtitle.Render("  6 panels: Projets, Sessions+Coûts, Agents, Team Board, Timeline, Members"))
 	fmt.Fprintln(a.IO.Out, theme.Subtitle.Render("  SSE temps réel activé (push toutes les 5s)"))
 	fmt.Fprintln(a.IO.Out, theme.Subtitle.Render("  Ctrl+C pour arrêter"))
@@ -164,7 +179,7 @@ func runServe(cmd *cobra.Command, args []string) error {
 		_ = server.Shutdown(shutdownCtx)
 	}()
 
-	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+	if err := server.Serve(ln); err != nil && err != http.ErrServerClosed {
 		return fmt.Errorf("serveur HTTP: %w", err)
 	}
 	return nil

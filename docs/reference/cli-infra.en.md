@@ -316,7 +316,7 @@ Starts a local web dashboard.
 oh serve [--port 8080]
 ```
 
-Starts an HTTP server bound to `127.0.0.1` only (never exposed on the network). The dashboard shows projects, sessions, metrics, agent telemetry, team board (kanban), timeline and members.
+Starts an HTTP server bound to `127.0.0.1` only (never exposed on the network). oh prints the dashboard URL with a random **access token**, specific to this run: `http://127.0.0.1:8080/?token=…`. Open it as it is: the browser keeps the token in a cookie (`HttpOnly`, `SameSite=Strict`) and the address bar then shows `/` only. A request without a valid token gets 401; a request whose `Host` header is not `127.0.0.1:<port>`, `localhost:<port>` or `[::1]:<port>` gets 403. The dashboard shows projects, sessions, metrics, agent telemetry, team board (kanban), timeline and members.
 
 **API endpoints:**
 - `GET /api/v1/health`
@@ -342,4 +342,6 @@ oh serve
 oh serve --port 9090
 ```
 
-> **Security:** the server is bound to `127.0.0.1` only and is never reachable from the network.
+Outside a browser, pass the token in the URL: `curl "http://127.0.0.1:8080/api/v1/health?token=<token>"`.
+
+> **Security:** the server is bound to `127.0.0.1` only and is never reachable from the network. The `Host` header check and the token keep a malicious web page from reading the dashboard (DNS rebinding); the token is not written to disk and changes at every launch. Do not share the printed URL.

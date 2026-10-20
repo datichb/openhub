@@ -753,4 +753,4 @@ Au démarrage d'une session, le fournisseur LLM est résolu dans cet ordre :
 
 > **Intégrité de la base :** `oh repair --check-only` vérifie la base SQLite ; `oh repair` affiche la version du schéma.
 >
-> **Tableau de bord web :** `oh serve` écoute sur `127.0.0.1` uniquement, jamais sur le réseau.
+> **Tableau de bord web :** `oh serve` écoute sur `127.0.0.1` uniquement, jamais sur le réseau, et exige le jeton d'accès affiché au démarrage.

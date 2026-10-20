@@ -159,6 +159,13 @@ MCP server tokens (GitLab, Figma, Jira, Linear, GitHub, Google) are:
 - **No git read as root in the agent's clone.** git refuses a repository of another owner because its configuration can make it run code (`core.fsmonitor`, filters named by an attribute…); oh never lifts that refusal (never `safe.directory`, neither `*` nor an exact path). Every git read of oh in the clone (`commit` window, closing guard, configuration check, start ref, provenance, Beads author, hook token) runs as the `oh` account registered by the job (root only switches to that account, and only for a repository it owns), with its folders, without the credential helper nor the SSH command of root, on top of the usual overrides: what the repository makes git run has the rights of the agent only. A read that fails keeps the protection closed (`commit` window closed, `bd close` refused, verification impossible, `paths` condition true). The configuration check only reads regular files and never blocks on a FIFO planted by the agent. The job waits for the running verifications before it kills the processes of the `oh` account and pushes; their result travels in `summary.json`, imported on the machine cleaned and bounded again, and never counts as a verification of the work on the machine.
 
 
+### Web dashboard (`oh serve`)
+
+- **Local listening only.** The server listens on `127.0.0.1`, never on the network.
+- **`Host` header checked (DNS rebinding).** Any request whose `Host` header is not `127.0.0.1:<port>`, `localhost:<port>` or `[::1]:<port>` is refused (403): a web page that points its name at 127.0.0.1 cannot read the dashboard.
+- **Access token.** A random 256-bit token is drawn at every launch and printed in the URL (`?token=…`). On first access it moves into an `HttpOnly`, `SameSite=Strict` cookie (named after the port) and the page is served again without the token in its URL. Any request without a valid token is refused (401). Comparisons are constant-time. The token is written nowhere and changes at every launch.
+- Limit: the dashboard is read-only, but the printed URL gives access to the data of your projects and sessions: do not share it. The token protects against web pages, not against a process of your user, which can read your data directly anyway.
+
 ### Agent reports (`workflow_report`)
 
 - **Author set by oh.** The daemon takes the author of a report from the calling tool session (the subagent it sees), never from the request; the routes are those of the `workflow` MCP server, with the group token of the session.
