@@ -22,4 +22,6 @@ prompt:
   template: prompts/libre.md.tmpl
 beads:
   allow: [show, list, ready, search, query, children, comments, count, lint, find-duplicates, status, graph, history, create, update, close, reopen, edit, comment, dep, label, duplicate, supersede]
+# Pas de checkpoint, donc pas de verrou de commit (`unlocks:`) : `git commit` est autorisé, volontairement,
+# la session est pilotée par l'utilisateur (SECURITY.fr.md, docs/reference/workflows.fr.md).
 runtime: { default: local, allowed: [local, container] }
