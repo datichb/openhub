@@ -11,6 +11,8 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -27,6 +29,42 @@ const (
 )
 
 var httpClient = httplog.Wrap(&http.Client{Timeout: 30 * time.Second}, "mcp.github")
+
+// apiBase is the server the token is sent to (a variable for the tests).
+var apiBase = githubAPIBase
+
+// Formats of the identifiers the agent gives (S-32): anything else is
+// refused before a request is built. Owners may hold "_" (managed users).
+var (
+	ownerRe    = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{0,38}$`)
+	repoRe     = regexp.MustCompile(`^[A-Za-z0-9._-]{1,100}$`)
+	workflowRe = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9._-]{0,254}$`)
+	shaRe      = regexp.MustCompile(`^[0-9a-fA-F]{40,64}$`)
+)
+
+// repoPath returns /repos/<owner>/<repo>[/<segment>…]: repo must be
+// "owner/repo" and every segment is escaped, so that none can reach another
+// resource (`../`, `?`, `#`, `%2F`). Segments taken from the agent are
+// checked by the caller (positive, workflowRe).
+func repoPath(repo string, segments ...string) (string, error) {
+	owner, name, ok := strings.Cut(repo, "/")
+	if !ok || !ownerRe.MatchString(owner) || !repoRe.MatchString(name) || name == "." || name == ".." {
+		return "", fmt.Errorf("invalid repo %q: expected owner/repo", repo)
+	}
+	p := "/repos/" + url.PathEscape(owner) + "/" + url.PathEscape(name)
+	for _, s := range segments {
+		p += "/" + url.PathEscape(s)
+	}
+	return p, nil
+}
+
+// positive checks an issue or pull request number.
+func positive(what string, n int) (string, error) {
+	if n < 1 {
+		return "", fmt.Errorf("invalid %s %d: expected a positive number", what, n)
+	}
+	return strconv.Itoa(n), nil
+}
 
 // Serve starts the GitHub MCP server.
 func Serve() error {
@@ -158,7 +196,11 @@ func handleGetRepo(_ context.Context, params json.RawMessage) (*protocol.ToolRes
 	if err := json.Unmarshal(params, &args); err != nil {
 		return nil, err
 	}
-	data, err := githubAPI(fmt.Sprintf("/repos/%s", args.Repo), nil)
+	path, err := repoPath(args.Repo)
+	if err != nil {
+		return nil, err
+	}
+	data, err := githubAPI(path, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -188,7 +230,11 @@ func handleListIssues(_ context.Context, params json.RawMessage) (*protocol.Tool
 		q.Set("assignee", args.Assignee)
 	}
 	q.Set("per_page", "50")
-	data, err := githubAPI(fmt.Sprintf("/repos/%s/issues", args.Repo), q)
+	path, err := repoPath(args.Repo, "issues")
+	if err != nil {
+		return nil, err
+	}
+	data, err := githubAPI(path, q)
 	if err != nil {
 		return nil, err
 	}
@@ -203,7 +249,15 @@ func handleGetIssue(_ context.Context, params json.RawMessage) (*protocol.ToolRe
 	if err := json.Unmarshal(params, &args); err != nil {
 		return nil, err
 	}
-	data, err := githubAPI(fmt.Sprintf("/repos/%s/issues/%d", args.Repo, args.IssueNumber), nil)
+	number, err := positive("issue number", args.IssueNumber)
+	if err != nil {
+		return nil, err
+	}
+	path, err := repoPath(args.Repo, "issues", number)
+	if err != nil {
+		return nil, err
+	}
+	data, err := githubAPI(path, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -229,7 +283,11 @@ func handleListPRs(_ context.Context, params json.RawMessage) (*protocol.ToolRes
 		q.Set("base", args.Base)
 	}
 	q.Set("per_page", "30")
-	data, err := githubAPI(fmt.Sprintf("/repos/%s/pulls", args.Repo), q)
+	path, err := repoPath(args.Repo, "pulls")
+	if err != nil {
+		return nil, err
+	}
+	data, err := githubAPI(path, q)
 	if err != nil {
 		return nil, err
 	}
@@ -244,7 +302,15 @@ func handleGetPR(_ context.Context, params json.RawMessage) (*protocol.ToolResul
 	if err := json.Unmarshal(params, &args); err != nil {
 		return nil, err
 	}
-	data, err := githubAPI(fmt.Sprintf("/repos/%s/pulls/%d", args.Repo, args.PRNumber), nil)
+	number, err := positive("pull request number", args.PRNumber)
+	if err != nil {
+		return nil, err
+	}
+	path, err := repoPath(args.Repo, "pulls", number)
+	if err != nil {
+		return nil, err
+	}
+	data, err := githubAPI(path, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -256,12 +322,14 @@ func handleGetPR(_ context.Context, params json.RawMessage) (*protocol.ToolResul
 			SHA string `json:"sha"`
 		} `json:"head"`
 	}
-	if err := json.Unmarshal(data, &pr); err == nil && pr.Head.SHA != "" {
-		checks, _ = githubAPI(fmt.Sprintf("/repos/%s/commits/%s/check-runs", args.Repo, pr.Head.SHA), nil)
+	if err := json.Unmarshal(data, &pr); err == nil && shaRe.MatchString(pr.Head.SHA) {
+		if checksPath, err := repoPath(args.Repo, "commits", pr.Head.SHA, "check-runs"); err == nil {
+			checks, _ = githubAPI(checksPath, nil)
+		}
 	}
 
 	// Also fetch review status
-	reviews, _ := githubAPI(fmt.Sprintf("/repos/%s/pulls/%d/reviews", args.Repo, args.PRNumber), nil)
+	reviews, _ := githubAPI(path+"/reviews", nil)
 
 	combined := fmt.Sprintf("{\"pr\":%s,\"reviews\":%s,\"checks\":%s}",
 		string(data),
@@ -278,7 +346,11 @@ func handleListWorkflows(_ context.Context, params json.RawMessage) (*protocol.T
 	if err := json.Unmarshal(params, &args); err != nil {
 		return nil, err
 	}
-	data, err := githubAPI(fmt.Sprintf("/repos/%s/actions/workflows", args.Repo), nil)
+	path, err := repoPath(args.Repo, "actions", "workflows")
+	if err != nil {
+		return nil, err
+	}
+	data, err := githubAPI(path, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -293,8 +365,15 @@ func handleGetWorkflowRun(_ context.Context, params json.RawMessage) (*protocol.
 	if err := json.Unmarshal(params, &args); err != nil {
 		return nil, err
 	}
+	if !workflowRe.MatchString(args.WorkflowID) {
+		return nil, fmt.Errorf("invalid workflow_id %q: expected a workflow file name or id", args.WorkflowID)
+	}
+	path, err := repoPath(args.Repo, "actions", "workflows", args.WorkflowID, "runs")
+	if err != nil {
+		return nil, err
+	}
 	q := url.Values{"per_page": {"1"}}
-	data, err := githubAPI(fmt.Sprintf("/repos/%s/actions/workflows/%s/runs", args.Repo, args.WorkflowID), q)
+	data, err := githubAPI(path, q)
 	if err != nil {
 		return nil, err
 	}
@@ -312,6 +391,10 @@ func handleCreateIssue(_ context.Context, params json.RawMessage) (*protocol.Too
 		return nil, err
 	}
 
+	path, err := repoPath(args.Repo, "issues")
+	if err != nil {
+		return nil, err
+	}
 	payload := map[string]interface{}{
 		"title": args.Title,
 	}
@@ -321,7 +404,7 @@ func handleCreateIssue(_ context.Context, params json.RawMessage) (*protocol.Too
 	if len(args.Labels) > 0 {
 		payload["labels"] = args.Labels
 	}
-	data, err := githubAPIPost(fmt.Sprintf("/repos/%s/issues", args.Repo), payload)
+	data, err := githubAPIPost(path, payload)
 	if err != nil {
 		return nil, err
 	}
@@ -340,7 +423,7 @@ func githubToken() string {
 }
 
 func githubAPI(path string, query url.Values) ([]byte, error) {
-	reqURL := githubAPIBase + path
+	reqURL := apiBase + path
 	if len(query) > 0 {
 		reqURL += "?" + query.Encode()
 	}
@@ -386,7 +469,7 @@ func githubAPIPost(path string, payload interface{}) ([]byte, error) {
 		return nil, fmt.Errorf("marshaling payload: %w", err)
 	}
 
-	req, err := http.NewRequest("POST", githubAPIBase+path, strings.NewReader(string(body)))
+	req, err := http.NewRequest("POST", apiBase+path, strings.NewReader(string(body)))
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
 	}

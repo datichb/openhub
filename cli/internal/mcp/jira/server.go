@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -23,6 +24,27 @@ const EnvWriteEnabled = "JIRA_WRITE_ENABLED"
 const maxResponseSize = 2 * 1024 * 1024 // 2 MB
 
 var httpClient = httplog.Wrap(&http.Client{Timeout: 30 * time.Second}, "mcp.jira")
+
+// Formats of the identifiers the agent gives (S-32): anything else is
+// refused before a request is built.
+var (
+	issueKeyRe   = regexp.MustCompile(`^[A-Z][A-Z0-9_]+-\d+$`)
+	projectKeyRe = regexp.MustCompile(`^[A-Z][A-Z0-9_]+$`)
+)
+
+// apiPath returns /rest/api/3/<resource>/<key>[/<sub>…]: key must match re
+// and every segment is escaped, so that none can reach another resource
+// (`../`, `?`, `#`, `%2F`).
+func apiPath(resource string, re *regexp.Regexp, key string, sub ...string) (string, error) {
+	if !re.MatchString(key) {
+		return "", fmt.Errorf("invalid %s key %q", resource, key)
+	}
+	p := "/rest/api/3/" + resource + "/" + url.PathEscape(key)
+	for _, s := range sub {
+		p += "/" + url.PathEscape(s)
+	}
+	return p, nil
+}
 
 // Serve starts the Jira MCP server.
 func Serve() error {
@@ -121,7 +143,7 @@ func handleListIssues(_ context.Context, params json.RawMessage) (*protocol.Tool
 	if err := json.Unmarshal(params, &args); err != nil {
 		return nil, err
 	}
-	if args.MaxResults == 0 {
+	if args.MaxResults <= 0 {
 		args.MaxResults = 50
 	}
 	q := url.Values{
@@ -142,7 +164,11 @@ func handleGetIssue(_ context.Context, params json.RawMessage) (*protocol.ToolRe
 	if err := json.Unmarshal(params, &args); err != nil {
 		return nil, err
 	}
-	data, err := jiraAPI(fmt.Sprintf("/rest/api/3/issue/%s", args.IssueKey), nil)
+	path, err := apiPath("issue", issueKeyRe, args.IssueKey)
+	if err != nil {
+		return nil, err
+	}
+	data, err := jiraAPI(path, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -156,7 +182,11 @@ func handleGetProject(_ context.Context, params json.RawMessage) (*protocol.Tool
 	if err := json.Unmarshal(params, &args); err != nil {
 		return nil, err
 	}
-	data, err := jiraAPI(fmt.Sprintf("/rest/api/3/project/%s", args.ProjectKey), nil)
+	path, err := apiPath("project", projectKeyRe, args.ProjectKey)
+	if err != nil {
+		return nil, err
+	}
+	data, err := jiraAPI(path, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -171,10 +201,14 @@ func handleTransitionIssue(_ context.Context, params json.RawMessage) (*protocol
 	if err := json.Unmarshal(params, &args); err != nil {
 		return nil, err
 	}
+	path, err := apiPath("issue", issueKeyRe, args.IssueKey, "transitions")
+	if err != nil {
+		return nil, err
+	}
 	payload := map[string]interface{}{
 		"transition": map[string]string{"id": args.TransitionID},
 	}
-	data, err := jiraAPIPost(fmt.Sprintf("/rest/api/3/issue/%s/transitions", args.IssueKey), payload)
+	data, err := jiraAPIPost(path, payload)
 	if err != nil {
 		return nil, err
 	}
@@ -271,6 +305,9 @@ func handleCreateIssue(_ context.Context, params json.RawMessage) (*protocol.Too
 	if err := json.Unmarshal(params, &args); err != nil {
 		return nil, err
 	}
+	if !projectKeyRe.MatchString(args.ProjectKey) {
+		return nil, fmt.Errorf("invalid project key %q", args.ProjectKey)
+	}
 	if args.IssueType == "" {
 		args.IssueType = "Task"
 	}
@@ -319,7 +356,11 @@ func handleListComments(_ context.Context, params json.RawMessage) (*protocol.To
 	if err := json.Unmarshal(params, &args); err != nil {
 		return nil, err
 	}
-	data, err := jiraAPI(fmt.Sprintf("/rest/api/3/issue/%s/comment", args.IssueKey), nil)
+	path, err := apiPath("issue", issueKeyRe, args.IssueKey, "comment")
+	if err != nil {
+		return nil, err
+	}
+	data, err := jiraAPI(path, nil)
 	if err != nil {
 		return nil, err
 	}
