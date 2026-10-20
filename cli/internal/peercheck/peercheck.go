@@ -93,7 +93,7 @@ func dialAs(ctx context.Context, path string, uid int) (net.Conn, error) {
 func checkDir(dir string, uid int) error {
 	fi, err := os.Lstat(dir)
 	if err != nil {
-		return nil // nobody is listening: the dial fails as usual
+		return nil //nolint:nilerr // nobody is listening: the dial fails as usual
 	}
 	if !fi.IsDir() {
 		return &Error{Kind: DirNotDirectory, Path: dir, Detail: fi.Mode().String()}
@@ -112,7 +112,7 @@ func checkDir(dir string, uid int) error {
 func checkSocketFile(path string, uid int) error {
 	fi, err := os.Lstat(path)
 	if err != nil {
-		return nil // nobody is listening: the dial fails as usual
+		return nil //nolint:nilerr // nobody is listening: the dial fails as usual
 	}
 	if fi.Mode()&os.ModeSocket == 0 {
 		return &Error{Kind: NotSocket, Path: path, Detail: fi.Mode().String()}

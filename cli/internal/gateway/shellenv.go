@@ -147,7 +147,7 @@ func linkConfigHome(dir, userHome string) error {
 	}
 	entries, err := os.ReadDir(userHome)
 	if err != nil {
-		return nil // no configuration home yet: nothing to link
+		return nil //nolint:nilerr // no configuration home yet: nothing to link
 	}
 	for _, e := range entries {
 		if e.Name() == "fish" {

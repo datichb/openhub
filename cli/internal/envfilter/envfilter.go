@@ -169,7 +169,7 @@ func Allowed(name string, extra []string) bool {
 
 // Split sorts an environment ("NAME=value" entries) into the entries that
 // pass and the names that do not (never their values).
-func Split(environ []string, extra []string) (kept, dropped []string) {
+func Split(environ, extra []string) (kept, dropped []string) {
 	for _, kv := range environ {
 		name, _, ok := strings.Cut(kv, "=")
 		if !ok || name == "" {

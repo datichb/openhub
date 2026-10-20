@@ -131,13 +131,13 @@ type grantState struct {
 // bind ties a request to the life of the token: the returned request is
 // cancelled when the token is revoked, as well as when the client goes
 // away. Call stop when the request is over.
-func (g *grantState) bind(r *http.Request) (*http.Request, func()) {
+func (g *grantState) bind(r *http.Request) (bound *http.Request, stop func()) {
 	if g.revoked == nil {
 		return r, func() {}
 	}
 	ctx, cancel := context.WithCancel(r.Context())
-	stop := context.AfterFunc(g.revoked, cancel)
-	return r.WithContext(ctx), func() { stop(); cancel() }
+	unregister := context.AfterFunc(g.revoked, cancel)
+	return r.WithContext(ctx), func() { unregister(); cancel() }
 }
 
 // end revokes the grant state: its requests in flight are cancelled.
