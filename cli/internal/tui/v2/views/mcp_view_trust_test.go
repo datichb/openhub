@@ -1,6 +1,7 @@
 package views
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -8,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
@@ -119,4 +121,49 @@ func TestMCPViewWithoutTeamURLs(t *testing.T) {
 	for _, s := range v.services {
 		assert.Nil(t, s.Enforced, s.Name)
 	}
+}
+
+// passwordShell answers the token modal with a fixed token.
+type passwordShell struct {
+	trustShell
+	token string
+}
+
+func (s *passwordShell) ShowPasswordModal(_ string, onDone func(string)) { onDone(s.token) }
+
+// memSecrets is an in-memory keychain (the real one is never used in tests).
+type memSecrets struct{ m map[string]string }
+
+func (s *memSecrets) Get(_ context.Context, k string) (string, error) { return s.m[k], nil }
+func (s *memSecrets) Set(_ context.Context, k, v string) error        { s.m[k] = v; return nil }
+func (s *memSecrets) Delete(_ context.Context, k string) error        { delete(s.m, k); return nil }
+func (s *memSecrets) List(context.Context) ([]string, error)          { return nil, nil }
+
+// The token typed in the MCP view is stored under the current key name, and
+// the view still finds a token that only exists under the legacy name.
+func TestMCPViewStoresTheTokenUnderTheCurrentKeyName(t *testing.T) {
+	store := &memSecrets{m: map[string]string{}}
+	cfg := &config.Config{}
+	v := NewMCPView(&app.App{Secrets: store}, MCPViewConfig{
+		GetConfig:  func() *config.Config { return cfg },
+		SaveConfig: func(*config.Config) error { return nil },
+	})
+	sh := &passwordShell{token: "s3cret"}
+	v.SetShell(sh)
+	v.app = tview.NewApplication()
+	v.list = widgets.NewSectionedList()
+	v.loadServices()
+	v.populateList()
+	v.buildCommands()
+
+	selectService(t, v, "gitlab")
+	v.promptTokenCurrent()
+
+	assert.Equal(t, map[string]string{"openhub.mcp.gitlab.token": "s3cret"}, store.m)
+	assert.True(t, v.checkToken("gitlab"))
+
+	store.m = map[string]string{"jira-token": "legacy"}
+	assert.True(t, v.checkToken("jira"), "legacy name read as a fallback")
+	assert.Equal(t, "legacy", store.m["openhub.mcp.jira.token"], "and copied")
+	assert.False(t, v.checkToken("figma"))
 }

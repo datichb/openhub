@@ -221,59 +221,7 @@ func checkAPIKeys() (string, bool) {
 	if a == nil {
 		return i18n.T("cmd.doctor.app_unavailable"), false
 	}
-
-	type keyCheck struct {
-		service string
-		enabled bool
-		envVar  string
-		keyName string
-	}
-
-	keys := []keyCheck{
-		{"figma", a.Config.MCP.Figma.Enabled, "FIGMA_TOKEN", a.Config.MCP.Figma.Token},
-		{"gitlab", a.Config.MCP.Gitlab.Enabled, "GITLAB_TOKEN", a.Config.MCP.Gitlab.Token},
-		{"jira", a.Config.MCP.Jira.Enabled, "JIRA_TOKEN", a.Config.MCP.Jira.Token},
-		{"gslides", a.Config.MCP.Gslides.Enabled, "GOOGLE_ACCESS_TOKEN", a.Config.MCP.Gslides.Token},
-	}
-
-	var configured int
-	var foundDetails []string
-	var missingNames []string
-
-	for _, k := range keys {
-		if !k.enabled {
-			continue
-		}
-		configured++
-
-		// Check env var first
-		if k.envVar != "" && os.Getenv(k.envVar) != "" {
-			foundDetails = append(foundDetails, fmt.Sprintf("%s (env)", k.service))
-			continue
-		}
-
-		// Check keychain
-		if k.keyName != "" && a.Secrets != nil {
-			if token, _ := a.Secrets.Get(context.Background(), k.keyName); token != "" {
-				foundDetails = append(foundDetails, fmt.Sprintf("%s (keychain)", k.service))
-				continue
-			}
-		}
-
-		missingNames = append(missingNames, k.service)
-	}
-
-	if configured == 0 {
-		return i18n.T("cmd.doctor.no_mcp_enabled"), true
-	}
-
-	found := len(foundDetails)
-
-	if len(missingNames) > 0 {
-		return i18n.Tf("cmd.doctor.tokens_missing", found, configured, strings.Join(missingNames, ", ")), false
-	}
-
-	return i18n.Tf("cmd.doctor.tokens_ok", found, configured, strings.Join(foundDetails, ", ")), true
+	return mcpTokensReport(a.Config, a.Secrets)
 }
 
 // checkOhUpdate compares the running oh with the latest published release:

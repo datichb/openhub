@@ -118,7 +118,7 @@ func runServiceStatus(cmd *cobra.Command, args []string) error {
 				hasToken = true
 				tokenStatus = fmt.Sprintf(" (env: %s)", svc.envVar)
 			} else if svc.token != "" && a.Secrets != nil {
-				if t, _ := a.Secrets.Get(ctx, svc.token); t != "" {
+				if t, _ := config.ReadMCPToken(ctx, a.Secrets, svc.name, svc.token); t != "" {
 					hasToken = true
 					tokenStatus = " (keychain)"
 				}
@@ -213,11 +213,7 @@ func runServiceSetup(cmd *cobra.Command, args []string) error {
 					return nil
 				}
 				if a.Secrets != nil {
-					keyName := serviceName + "-token"
-					if project != nil {
-						keyName = serviceName + "-token-" + project.ID
-					}
-					if err := a.Secrets.Set(ctx, keyName, token); err != nil {
+					if _, err := config.StoreMCPToken(ctx, a.Secrets, serviceName, projectIDOf(project), token); err != nil {
 						return fmt.Errorf("%s", i18n.Tf("cmd.service.keychain_error", err))
 					}
 				}
@@ -317,7 +313,7 @@ func runServiceSetup(cmd *cobra.Command, args []string) error {
 		if err := config.Update(func(c *config.Config) error {
 			if s := c.MCPServer(serviceName); s != nil {
 				s.Enabled = true
-				s.Token = serviceName + "-token"
+				s.Token = config.MCPTokenKey(serviceName)
 				if serviceName == "gitlab" {
 					s.WriteEnabled = writeEnabled
 				}
