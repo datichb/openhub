@@ -75,7 +75,7 @@ func handleDevMode(cmd *cobra.Command, a *app.App, project *domain.Project, laun
 
 	withLabel, withoutLabel, err := beads.DevPickableOrphanTickets(launchPath, labelFilter)
 	if err != nil {
-		return devSelection{}, fmt.Errorf("querying tickets: %w", err)
+		return devSelection{}, fmt.Errorf(i18n.T("cmd.start_dev_mode.querying_tickets"), err)
 	}
 
 	// Apply assignee filter
@@ -83,7 +83,7 @@ func handleDevMode(cmd *cobra.Command, a *app.App, project *domain.Project, laun
 		readyOpts := beads.ReadyOpts{Assignee: assigneeFilter}
 		filtered, err := beads.ListReady(launchPath, readyOpts)
 		if err != nil {
-			return devSelection{}, fmt.Errorf("querying tickets by assignee: %w", err)
+			return devSelection{}, fmt.Errorf(i18n.T("cmd.start_dev_mode.querying_tickets_by_assignee"), err)
 		}
 		withLabel = nil
 		withoutLabel = nil
@@ -105,7 +105,7 @@ func handleDevMode(cmd *cobra.Command, a *app.App, project *domain.Project, laun
 		if labelFilter != "" {
 			label = labelFilter
 		}
-		return devSelection{}, fmt.Errorf("aucun ticket disponible (todo ou en cours) avec le label %q", label)
+		return devSelection{}, fmt.Errorf(i18n.T("cmd.start_dev_mode.no_ticket_available_todo_or_in"), label)
 	}
 
 	// Build picker
@@ -165,7 +165,7 @@ func handleDevMode(cmd *cobra.Command, a *app.App, project *domain.Project, laun
 	if selected.isEpic {
 		children, err := beads.DevPickableChildren(launchPath, selected.epicID)
 		if err != nil {
-			return devSelection{}, fmt.Errorf("querying epic children: %w", err)
+			return devSelection{}, fmt.Errorf(i18n.T("cmd.start_dev_mode.querying_epic_children"), err)
 		}
 		tickets = children
 		fmt.Fprintf(a.IO.Out, "%s %s\n",

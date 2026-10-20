@@ -39,9 +39,7 @@ func runTeamBoard(cmd *cobra.Command, args []string) error {
 	tickets := views.FetchTeamTickets(repo, nil)
 
 	if len(tickets) == 0 {
-		fmt.Fprintf(a.IO.Out, "%s Aucun membre dans l'équipe. Lance %s\n",
-			theme.Subtitle.Render(theme.IconInfo),
-			theme.Bold.Render("oh team init"))
+		fmt.Fprint(a.IO.Out, i18n.Tf("cmd.team_board.no_member_in_the_team_run", theme.Subtitle.Render(theme.IconInfo), theme.Bold.Render("oh team init")))
 		return nil
 	}
 

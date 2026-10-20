@@ -77,8 +77,9 @@ var rootCmd = &cobra.Command{
 func Execute() error {
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Fprintf(os.Stderr, "\noh: internal error (panic): %v\n", r)
-			fmt.Fprintf(os.Stderr, "Please report this bug at https://github.com/datichb/openhub/issues\n")
+			ensureLocale()
+			fmt.Fprint(os.Stderr, i18n.Tf("cmd.root.oh_internal_error_panic", r))
+			fmt.Fprint(os.Stderr, i18n.T("cmd.root.please_report_this_bug_at_https"))
 			os.Exit(ExitFailure)
 		}
 	}()
@@ -164,7 +165,7 @@ func initApp() error {
 	// Open SQLite store
 	s, err := sqlite.OpenDefault()
 	if err != nil {
-		return fmt.Errorf("opening database: %w", err)
+		return fmt.Errorf(i18n.T("cmd.root.opening_database"), err)
 	}
 	store = s
 

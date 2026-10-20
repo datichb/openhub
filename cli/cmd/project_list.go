@@ -34,7 +34,7 @@ func projectListCmd() *cobra.Command {
 
 			projects, err := a.Projects.List(ctx, domain.ProjectStatus(status))
 			if err != nil {
-				return fmt.Errorf("listing projects: %w", err)
+				return fmt.Errorf(i18n.T("cmd.project_list.listing_projects"), err)
 			}
 
 			jsonOut, _ := cmd.Flags().GetBool("json")

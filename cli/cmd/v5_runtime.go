@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -161,7 +160,7 @@ func v5ContainerRuntime(a *app.App) *container.Runtime {
 // newRunService wires the RunService for the current app.
 func newRunService(ctx context.Context, a *app.App) (*runsvc.Service, error) {
 	if store == nil {
-		return nil, fmt.Errorf("database not initialized")
+		return nil, errors.New(i18n.T("cmd.v5_runtime.database_not_initialized"))
 	}
 	if !v5Available(ctx) {
 		return nil, v2Unsupported(v5Err)
@@ -222,7 +221,7 @@ func newRunService(ctx context.Context, a *app.App) (*runsvc.Service, error) {
 // available.
 func newSessionService(ctx context.Context, a *app.App) (*sessionsvc.Service, error) {
 	if store == nil {
-		return nil, fmt.Errorf("database not initialized")
+		return nil, errors.New(i18n.T("cmd.v5_runtime.database_not_initialized"))
 	}
 	dc := daemon.NewClient(daemon.Paths{Dir: ohRunDir()})
 	svc := &sessionsvc.Service{

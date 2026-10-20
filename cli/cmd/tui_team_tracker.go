@@ -639,7 +639,7 @@ func actionTrackerDiscovery() {
 			}
 			if tomlPreview != "" {
 				fields = append(fields, views.InfoField{
-					Label: "Config TOML", Value: tomlPreview,
+					Label: i18n.T("cmd.tui_team_tracker.config_toml"), Value: tomlPreview,
 				})
 			}
 			return fields

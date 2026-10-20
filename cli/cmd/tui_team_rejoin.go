@@ -226,7 +226,7 @@ func actionTeamRejoin() {
 				status = i18n.T("cmd.init.wizard_team_skipped")
 			}
 			return []views.InfoField{
-				{Label: "GitLab token", Value: status},
+				{Label: i18n.T("cmd.tui_team_rejoin.gitlab_token"), Value: status},
 			}
 		},
 	}
@@ -351,7 +351,7 @@ func actionTeamRejoin() {
 			if mismatchPAT != "" && a.Secrets != nil {
 				teamID := config.RepoNameFromRemote(stateRepo)
 				if err := a.Secrets.Set(ctx, config.TeamGitLabTokenKey(teamID), mismatchPAT); err != nil {
-					return fmt.Errorf("storing token: %w", err)
+					return fmt.Errorf(i18n.T("cmd.tui_team_rejoin.storing_token"), err)
 				}
 			}
 			sp := statePath
@@ -361,10 +361,10 @@ func actionTeamRejoin() {
 			repo := teamstate.NewRepo(stateRepo, sp)
 			member, err := repo.GetMember(memberID)
 			if err != nil {
-				return fmt.Errorf("member lookup: %w", err)
+				return fmt.Errorf(i18n.T("cmd.tui_team_rejoin.member_lookup"), err)
 			}
 			if err := validateGitLabIdentity(ctx, a, repo, member); err != nil {
-				return fmt.Errorf("identity verification: %w", err)
+				return fmt.Errorf(i18n.T("cmd.tui_team_rejoin.identity_verification"), err)
 			}
 			identityMismatch = nil
 			return nil
@@ -536,7 +536,7 @@ func actionTeamRejoin() {
 						tokenKey = "openhub.tracker." + teamCfg.Tracker.Type + ".token"
 					}
 					if err := a.Secrets.Set(ctx, tokenKey, tuiTrackerToken); err != nil {
-						return fmt.Errorf("storing tracker token: %w", err)
+						return fmt.Errorf(i18n.T("cmd.tui_team_rejoin.storing_tracker_token"), err)
 					}
 				}
 			}
@@ -545,11 +545,11 @@ func actionTeamRejoin() {
 		InfoFields: func() []views.InfoField {
 			if tuiTrackerToken != "" {
 				return []views.InfoField{
-					{Label: "Tracker token", Value: i18n.T("cmd.init.wizard_tracker_token_stored")},
+					{Label: i18n.T("cmd.tui_team_rejoin.tracker_token"), Value: i18n.T("cmd.init.wizard_tracker_token_stored")},
 				}
 			}
 			return []views.InfoField{
-				{Label: "Tracker token", Value: i18n.T("cmd.init.wizard_team_skipped")},
+				{Label: i18n.T("cmd.tui_team_rejoin.tracker_token"), Value: i18n.T("cmd.init.wizard_team_skipped")},
 			}
 		},
 	}

@@ -107,7 +107,7 @@ func runClaim(cmd *cobra.Command, args []string) error {
 				fmt.Fprintf(a.IO.Out, "%s %s\n",
 					theme.ErrorStyle.Render(theme.IconWarning), v.Message)
 				fmt.Fprintf(a.IO.Out, "  %s\n", theme.Subtitle.Render(v.Details))
-				return fmt.Errorf("policy violation: %s", v.Name)
+				return fmt.Errorf(i18n.T("cmd.claim.policy_violation"), v.Name)
 			}
 			// Warn only
 			fmt.Fprintf(a.IO.Out, "%s %s\n",
@@ -165,7 +165,7 @@ func runClaim(cmd *cobra.Command, args []string) error {
 			fmt.Fprintf(a.IO.Out, "%s", i18n.T("cmd.claim.stale_confirm"))
 			var response string
 			_, _ = fmt.Scanln(&response)
-			if response == "" || response == "y" || response == "Y" {
+			if confirmed(response, true) {
 				previousOwner := existing.ClaimedBy
 				// Generate brief
 				brief, briefErr := repo.GenerateRawBrief(ctx, project, ticketID, previousOwner, memberID, "stale")
@@ -226,7 +226,7 @@ func runClaim(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 	if err != nil {
-		return fmt.Errorf("creating claim: %w", err)
+		return fmt.Errorf(i18n.T("cmd.claim.creating_claim"), err)
 	}
 
 	fmt.Fprintf(a.IO.Out, "%s %s\n",
@@ -266,7 +266,7 @@ func runRelease(cmd *cobra.Command, args []string) error {
 				i18n.Tf("cmd.release.not_found", project, ticketID))
 			return nil
 		}
-		return fmt.Errorf("releasing claim: %w", err)
+		return fmt.Errorf(i18n.T("cmd.claim.releasing_claim"), err)
 	}
 
 	fmt.Fprintf(a.IO.Out, "%s %s\n",
@@ -313,7 +313,7 @@ func runClaimTransfer(cmd *cobra.Command, args []string) error {
 				i18n.Tf("cmd.claim.transfer.not_found", project, ticketID))
 			return nil
 		}
-		return fmt.Errorf("transferring claim: %w", err)
+		return fmt.Errorf(i18n.T("cmd.claim.transferring_claim"), err)
 	}
 
 	fmt.Fprintf(a.IO.Out, "%s %s\n",

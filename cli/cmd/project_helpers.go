@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/i18n"
 )
 
 // upsertProject creates a new project or updates an existing one matched by
@@ -24,20 +25,20 @@ func upsertProject(ctx context.Context, store domain.ProjectStore, p *domain.Pro
 	if err == nil && existing != nil {
 		// Archived project: refuse to resurrect.
 		if existing.Status == domain.ProjectStatusArchived {
-			return nil, false, fmt.Errorf("project at path %q is archived: %w", p.Path, domain.ErrAlreadyExists)
+			return nil, false, fmt.Errorf(i18n.T("cmd.project_helpers.project_at_path_is_archived"), p.Path, domain.ErrAlreadyExists)
 		}
 
 		// Active project at same path: merge non-zero fields and update.
 		mergeProjectFields(existing, p)
 		if err := store.Update(ctx, existing); err != nil {
-			return nil, false, fmt.Errorf("update project: %w", err)
+			return nil, false, fmt.Errorf(i18n.T("cmd.project_helpers.update_project"), err)
 		}
 		return existing, true, nil
 	}
 
 	// No existing project — create.
 	if err := store.Create(ctx, p); err != nil {
-		return nil, false, fmt.Errorf("create project: %w", err)
+		return nil, false, fmt.Errorf(i18n.T("cmd.project_helpers.create_project"), err)
 	}
 	return p, false, nil
 }

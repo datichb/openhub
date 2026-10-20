@@ -107,7 +107,7 @@ func runStart(cmd *cobra.Command, args []string) error {
 		}
 	}
 	if modeCount > 1 {
-		return fmt.Errorf("les modes --parallel, --sweep, --dev et --onboard sont mutuellement exclusifs")
+		return errors.New(i18n.T("cmd.start.the_modes_parallel_sweep_dev_and"))
 	}
 	if agent != "" && modeCount > 0 {
 		return errors.New(i18n.T("cmd.v1.unsupported.agent_with_mode"))

@@ -43,7 +43,7 @@ func projectRemoveCmd() *cobra.Command {
 					return err
 				}
 				if err := a.Projects.Delete(ctx, projectID); err != nil {
-					return fmt.Errorf("deleting project: %w", err)
+					return fmt.Errorf(i18n.T("cmd.project_remove.deleting_project"), err)
 				}
 				fmt.Fprintf(a.IO.Out, "%s %s\n",
 					theme.SuccessStyle.Render(theme.IconSuccess),
@@ -80,7 +80,7 @@ func projectRemoveCmd() *cobra.Command {
 				}
 
 				if err := a.Projects.Delete(ctx, projectID); err != nil {
-					return fmt.Errorf("deleting project: %w", err)
+					return fmt.Errorf(i18n.T("cmd.project_remove.deleting_project"), err)
 				}
 				fmt.Fprintf(a.IO.Out, "%s %s\n",
 					theme.SuccessStyle.Render(theme.IconSuccess),
@@ -111,14 +111,14 @@ func projectRemoveCmd() *cobra.Command {
 
 			steps := []views.WizardStep{
 				{
-					Label: "Select Project",
+					Label: i18n.T("cmd.project_remove.select_a_project"),
 					Form: func(_ *tview.Application, onDone func()) *tview.Form {
 						form := tview.NewForm()
 						form.AddDropDown(
 							i18n.T("form.project.select_remove"),
 							projectNames, 0,
 							func(_ string, idx int) { selectedIdx = idx })
-						form.AddButton("Next", func() {
+						form.AddButton(i18n.T("cmd.button.next"), func() {
 							projectID = projectIDs[selectedIdx]
 							onDone()
 						})
@@ -139,7 +139,7 @@ func projectRemoveCmd() *cobra.Command {
 							i18n.Tf("form.project.confirm_delete", projectNames[selectedIdx]),
 							false,
 							func(checked bool) { confirm = checked })
-						form.AddButton("Delete", func() { onDone() })
+						form.AddButton(i18n.T("cmd.button.delete"), func() { onDone() })
 						return form
 					},
 					OnDone: func() error {
@@ -148,7 +148,7 @@ func projectRemoveCmd() *cobra.Command {
 							return fmt.Errorf("cancelled")
 						}
 						if err := a.Projects.Delete(ctx, projectID); err != nil {
-							return fmt.Errorf("deleting project: %w", err)
+							return fmt.Errorf(i18n.T("cmd.project_remove.deleting_project"), err)
 						}
 						return nil
 					},

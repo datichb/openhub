@@ -2,6 +2,7 @@ package views
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -170,7 +171,7 @@ func NewBeadsPicker(ctx context.Context, app *tview.Application, cfg BeadsPicker
 // application is set).
 func (p *BeadsPicker) Load() {
 	if p.cfg.Source == nil {
-		p.setTickets(nil, fmt.Errorf("no Beads source"))
+		p.setTickets(nil, errors.New(i18n.T("cmd.beads_picker.no_beads_source")))
 		return
 	}
 	p.loading = true

@@ -137,7 +137,7 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 			func() {
 				defer func() {
 					if r := recover(); r != nil {
-						err = fmt.Errorf("tracker sync panic: %v", r)
+						err = fmt.Errorf(i18n.T("cmd.tui_team_board.tracker_sync_panic"), r)
 						slog.Error("tracker_sync.panic", "error", r)
 					}
 				}()

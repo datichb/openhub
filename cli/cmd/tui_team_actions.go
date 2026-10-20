@@ -123,11 +123,11 @@ func actionTeamInit() {
 				_ = repo.Pull(ctx)
 			} else {
 				if err := repo.Clone(ctx); err != nil {
-					return fmt.Errorf("cloning team-state: %w", err)
+					return fmt.Errorf(i18n.T("cmd.tui_team_actions.cloning_team_state"), err)
 				}
 			}
 			if err := repo.InitStructure(ctx); err != nil {
-				return fmt.Errorf("init structure: %w", err)
+				return fmt.Errorf(i18n.T("cmd.tui_team_actions.init_structure"), err)
 			}
 			// Pre-fill for subsequent steps
 			hasConfig = repo.HasConfig()
@@ -421,7 +421,7 @@ func runTakeoverEnrich(a *app.App, project, ticketID string) error {
 	enrichedContent := fmt.Sprintf("# Takeover Brief (enrichi): %s\n\n%s", ticketID, enriched)
 	enrichedFile := filepath.Join(briefsDir, latestBase+".enriched.md")
 	if err := os.WriteFile(enrichedFile, []byte(enrichedContent), 0o644); err != nil {
-		return fmt.Errorf("writing enriched brief: %w", err)
+		return fmt.Errorf(i18n.T("cmd.tui_team_actions.writing_enriched_brief"), err)
 	}
 
 	relPath := filepath.Join("projects", project, "takeover-briefs", latestBase+".enriched.md")

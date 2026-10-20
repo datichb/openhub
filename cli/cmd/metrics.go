@@ -128,7 +128,7 @@ func runMetrics(cmd *cobra.Command, args []string) error {
 			fmt.Fprintln(a.IO.Out, theme.Subtitle.Render("  Télémétrie agents"))
 			fmt.Fprintln(a.IO.Out)
 			wa := tabwriter.NewWriter(a.IO.Out, 0, 0, 2, ' ', 0)
-			fmt.Fprintln(wa, "  Agent\tRuns\tSuccès\tDurée moy.\tTokens\tCoût")
+			fmt.Fprintln(wa, i18n.T("cmd.metrics.agent_runs_success_avg_duration_tokens"))
 			for _, m := range agentMetrics {
 				dur := "—"
 				if m.AvgDurationSec > 0 {

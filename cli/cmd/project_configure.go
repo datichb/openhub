@@ -72,7 +72,7 @@ func projectRenameCmd() *cobra.Command {
 			project.UpdatedAt = time.Now()
 
 			if err := a.Projects.Update(ctx, project); err != nil {
-				return fmt.Errorf("updating project: %w", err)
+				return fmt.Errorf(i18n.T("cmd.project_configure.updating_project"), err)
 			}
 
 			fmt.Fprintf(a.IO.Out, "%s %s\n",
@@ -129,7 +129,7 @@ Ne déplace PAS physiquement le dossier.`,
 
 			absPath, err := filepath.Abs(expandPath(newPath))
 			if err != nil {
-				return fmt.Errorf("resolving path: %w", err)
+				return fmt.Errorf(i18n.T("cmd.project_configure.resolving_path"), err)
 			}
 
 			// Verify the new path exists
@@ -142,7 +142,7 @@ Ne déplace PAS physiquement le dossier.`,
 			project.UpdatedAt = time.Now()
 
 			if err := a.Projects.Update(ctx, project); err != nil {
-				return fmt.Errorf("updating project: %w", err)
+				return fmt.Errorf(i18n.T("cmd.project_configure.updating_project"), err)
 			}
 
 			fmt.Fprintf(a.IO.Out, "%s %s\n  %s → %s\n",
@@ -210,7 +210,7 @@ Sans flags, lance un wizard interactif.`,
 			if changed {
 				project.UpdatedAt = time.Now()
 				if err := a.Projects.Update(ctx, project); err != nil {
-					return fmt.Errorf("updating project: %w", err)
+					return fmt.Errorf(i18n.T("cmd.project_configure.updating_project"), err)
 				}
 				fmt.Fprintf(a.IO.Out, "%s %s\n",
 					theme.SuccessStyle.Render(theme.IconSuccess),
@@ -273,7 +273,7 @@ func runProjectConfigureInteractive(ctx context.Context, a *app.App, project *do
 					displayOrDefault(project.Model, ""), 0, nil,
 					func(text string) { model = text },
 				)
-				form.AddButton("Next", func() { onDone() })
+				form.AddButton(i18n.T("cmd.button.next"), func() { onDone() })
 				return form
 			},
 			OnDone: func() error {
@@ -325,7 +325,7 @@ func runProjectConfigureInteractive(ctx context.Context, a *app.App, project *do
 
 	project.UpdatedAt = time.Now()
 	if err := a.Projects.Update(ctx, project); err != nil {
-		return fmt.Errorf("updating project: %w", err)
+		return fmt.Errorf(i18n.T("cmd.project_configure.updating_project"), err)
 	}
 
 	fmt.Fprintf(a.IO.Out, "%s %s\n",

@@ -30,7 +30,7 @@ func runDashboard(cmd *cobra.Command, args []string) error {
 	// Gather project stats from oh DB
 	projects, err := a.Projects.List(ctx, "")
 	if err != nil {
-		return fmt.Errorf("lecture projets: %w", err)
+		return fmt.Errorf(i18n.T("cmd.dashboard_cmd.reading_projects"), err)
 	}
 	active := 0
 	for _, p := range projects {

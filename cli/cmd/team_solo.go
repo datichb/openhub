@@ -117,7 +117,7 @@ func initSoloTeam(ctx context.Context, a *app.App, p soloTeamParams) (*soloTeamR
 	}
 	a.Config.Teams = append(a.Config.Teams, team)
 	if err := config.Save(a.Config); err != nil {
-		return nil, fmt.Errorf("writing hub.toml: %w", err)
+		return nil, fmt.Errorf(i18n.T("cmd.team_solo.writing_hub_toml"), err)
 	}
 	if project != nil {
 		if err := attachProjectToSolo(ctx, a, repo, project, team.ID); err != nil {

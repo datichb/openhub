@@ -385,7 +385,7 @@ func (l *fanoutLauncher) Start(ctx context.Context, req fanout.LaunchRequest) (s
 		return "", err
 	}
 	if len(results) == 0 {
-		return "", errors.New("no session started")
+		return "", errors.New(i18n.T("cmd.fanout.no_session_started"))
 	}
 	return results[0].SessionID, nil
 }
@@ -423,7 +423,7 @@ func (l *fanoutLauncher) Status(ctx context.Context, id string) (fanout.SessionS
 func (l *fanoutLauncher) Stop(ctx context.Context, id string) error {
 	// The transcript of a child stays readable in the trace once stopped.
 	if err := l.ssvc.SaveTranscript(ctx, id); err != nil {
-		fmt.Fprintf(l.log, "fan-out: transcript of %s not saved: %v\n", id, err)
+		fmt.Fprint(l.log, i18n.Tf("cmd.fanout.fan_out_transcript_of_not_saved", id, err))
 	}
 	return l.rsvc.StopSession(ctx, id)
 }

@@ -183,7 +183,7 @@ func initLight(withDB bool) error {
 		extractHubContent()
 		s, err := sqlite.OpenWith(sqlite.DBPath(), sqlite.OpenOptions{AllowNewer: true})
 		if err != nil {
-			return startupFailed(fmt.Errorf("opening database: %w", err))
+			return startupFailed(fmt.Errorf(i18n.T("cmd.startup.opening_database"), err))
 		}
 		if n := s.SchemaNewer(); n != nil {
 			slog.Warn("database schema is newer than this oh", "unknown", n.Unknown, "known", n.Known)
@@ -205,7 +205,7 @@ func initDegraded() {
 	if err != nil || cfg == nil {
 		r.ConfigErr = err
 		if r.ConfigErr == nil {
-			r.ConfigErr = errors.New("no configuration")
+			r.ConfigErr = errors.New(i18n.T("cmd.startup.no_configuration"))
 		}
 		cfg = &config.Config{Name: "OpenHub"}
 		cfg.CLI.Language = "en"
@@ -277,7 +277,7 @@ func newLazySecrets(resolve func() domain.SecretStore) *lazySecrets {
 	return &lazySecrets{resolve: resolve}
 }
 
-var errNoSecretStore = errors.New("no secret store available")
+var errNoSecretStore = errors.New(i18n.T("cmd.startup.no_secret_store_available"))
 
 func (l *lazySecrets) get() domain.SecretStore {
 	l.once.Do(func() { l.s = l.resolve() })

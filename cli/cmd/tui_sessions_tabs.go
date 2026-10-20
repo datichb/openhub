@@ -287,7 +287,7 @@ func (t *tuiSessions) CleanFanout(ctx context.Context, parentID string, discard,
 		return views.FanoutCleanView{}, errors.New(i18n.Tf("cmd.fanout.clean.not_done", sess.ID, string(sess.Fanout.Status)))
 	}
 	if store == nil {
-		return views.FanoutCleanView{}, fmt.Errorf("fan-out %s: no session store", sess.ID)
+		return views.FanoutCleanView{}, fmt.Errorf(i18n.T("cmd.tui_sessions_tabs.fan_out_no_session_store"), sess.ID)
 	}
 	res, err := fanout.Clean(ctx, sqlite.NewSessionStore(store), sess, fanout.CleanOptions{DryRun: dry, Discard: discard})
 	if err != nil {

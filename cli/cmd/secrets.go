@@ -143,7 +143,7 @@ func runSecretsGet(cmd *cobra.Command, args []string) error {
 	key := args[0]
 
 	if a.Secrets == nil {
-		return fmt.Errorf("secret store non disponible")
+		return errors.New(i18n.T("cmd.secrets.secret_store_not_available"))
 	}
 
 	var value, sourceLabel string
@@ -154,7 +154,7 @@ func runSecretsGet(cmd *cobra.Command, args []string) error {
 		// Try scoped first, fall back to global
 		val, err := ks.GetScoped(ctx, key, scope)
 		if err != nil {
-			return fmt.Errorf("lecture du secret: %w", err)
+			return fmt.Errorf(i18n.T("cmd.secrets.reading_the_secret"), err)
 		}
 		if val != "" {
 			value = val
@@ -163,7 +163,7 @@ func runSecretsGet(cmd *cobra.Command, args []string) error {
 			// Fall back to global
 			val, err = ks.GetScoped(ctx, key, "global")
 			if err != nil {
-				return fmt.Errorf("lecture du secret (global): %w", err)
+				return fmt.Errorf(i18n.T("cmd.secrets.reading_the_secret_global"), err)
 			}
 			value = val
 			sourceLabel = "global"
@@ -171,15 +171,14 @@ func runSecretsGet(cmd *cobra.Command, args []string) error {
 	} else {
 		val, err := a.Secrets.Get(ctx, key)
 		if err != nil {
-			return fmt.Errorf("lecture du secret: %w", err)
+			return fmt.Errorf(i18n.T("cmd.secrets.reading_the_secret"), err)
 		}
 		value = val
 		sourceLabel = "store"
 	}
 
 	if value == "" {
-		fmt.Fprintf(a.IO.Out, "%s Secret %q non trouvé\n",
-			theme.WarningStyle.Render(theme.IconWarning), key)
+		fmt.Fprint(a.IO.Out, i18n.Tf("cmd.secrets.secret_not_found", theme.WarningStyle.Render(theme.IconWarning), key))
 		return nil
 	}
 
@@ -210,16 +209,16 @@ func runSecretsList(cmd *cobra.Command, _ []string) error {
 	ctx := cmd.Context()
 
 	if a.Secrets == nil {
-		return fmt.Errorf("secret store non disponible")
+		return errors.New(i18n.T("cmd.secrets.secret_store_not_available"))
 	}
 
 	if ks, ok := a.Secrets.(*keychain.Store); ok {
 		entries, err := ks.ListAll(ctx)
 		if err != nil {
-			return fmt.Errorf("listage des secrets: %w", err)
+			return fmt.Errorf(i18n.T("cmd.secrets.listing_the_secrets"), err)
 		}
 		if len(entries) == 0 {
-			fmt.Fprintf(a.IO.Out, "  Aucun secret enregistré\n")
+			fmt.Fprint(a.IO.Out, i18n.T("cmd.secrets.no_secret_stored"))
 			return nil
 		}
 		fmt.Fprintf(a.IO.Out, "\n  %-30s %-20s %s\n",
@@ -243,10 +242,10 @@ func runSecretsList(cmd *cobra.Command, _ []string) error {
 		// filecrypt fallback — List returns key names only (all global)
 		keys, err := a.Secrets.List(ctx)
 		if err != nil {
-			return fmt.Errorf("listage des secrets: %w", err)
+			return fmt.Errorf(i18n.T("cmd.secrets.listing_the_secrets"), err)
 		}
 		if len(keys) == 0 {
-			fmt.Fprintf(a.IO.Out, "  Aucun secret enregistré\n")
+			fmt.Fprint(a.IO.Out, i18n.T("cmd.secrets.no_secret_stored"))
 			return nil
 		}
 		fmt.Fprintf(a.IO.Out, "\n  %-30s %-20s %s\n",
@@ -288,27 +287,27 @@ func runSecretsDelete(cmd *cobra.Command, args []string) error {
 	key := args[0]
 
 	if a.Secrets == nil {
-		return fmt.Errorf("secret store non disponible")
+		return errors.New(i18n.T("cmd.secrets.secret_store_not_available"))
 	}
 
 	scope, scopeLabel := resolveSecretScope(ctx, a, secretsDeleteGlobal, secretsDeleteProject)
 
 	// Confirmation
-	fmt.Fprintf(a.IO.Out, "Supprimer %q (%s) ? [y/N] ", key, scopeLabel)
-	var confirm string
-	_, _ = fmt.Scanln(&confirm)
-	if strings.ToLower(strings.TrimSpace(confirm)) != "y" {
-		fmt.Fprintf(a.IO.Out, "Annulé\n")
+	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.secrets.confirm_delete", key, scopeLabel, yesNoHint(false)))
+	var answer string
+	_, _ = fmt.Scanln(&answer)
+	if !confirmed(answer, false) {
+		fmt.Fprint(a.IO.Out, i18n.T("cmd.secrets.cancelled"))
 		return nil
 	}
 
 	if ks, ok := a.Secrets.(*keychain.Store); ok {
 		if err := ks.DeleteScoped(ctx, key, scope); err != nil {
-			return fmt.Errorf("suppression du secret: %w", err)
+			return fmt.Errorf(i18n.T("cmd.secrets.deleting_the_secret"), err)
 		}
 	} else {
 		if err := a.Secrets.Delete(ctx, key); err != nil {
-			return fmt.Errorf("suppression du secret: %w", err)
+			return fmt.Errorf(i18n.T("cmd.secrets.deleting_the_secret"), err)
 		}
 	}
 
@@ -337,7 +336,7 @@ func init() {
 func runSecretsCleanup(dryRun bool) error {
 	ks, ok := resolveKeychainStore()
 	if !ok {
-		return fmt.Errorf("keychain not available")
+		return errors.New(i18n.T("cmd.secrets.keychain_not_available"))
 	}
 
 	// List actual keychain accounts (macOS only).

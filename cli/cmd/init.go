@@ -45,7 +45,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 		fmt.Fprintf(os.Stderr, "%s\n", i18n.T("cmd.init.already_initialized"))
 		fmt.Fprintf(os.Stderr, "%s ", i18n.T("cmd.init.confirm_reinit"))
 		var answer string
-		if _, err := fmt.Fscanln(os.Stdin, &answer); err != nil || (answer != "y" && answer != "Y") {
+		if _, err := fmt.Fscanln(os.Stdin, &answer); err != nil || !confirmed(answer, false) {
 			return nil
 		}
 		// Backup existing config before overwriting.
@@ -60,7 +60,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 	// ── Lockfile: prevent concurrent wizard runs ─────────────────────────────
 	lockPath := filepath.Join(config.HubDir(), "init.lock")
 	if err := acquireInitLock(lockPath); err != nil {
-		return fmt.Errorf("another wizard is already running: %w", err)
+		return fmt.Errorf(i18n.T("cmd.init.another_wizard_is_already_running"), err)
 	}
 	defer releaseInitLock(lockPath)
 
@@ -71,7 +71,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 
 	// ── Ensure a minimal app exists for the wizard ───────────────────────────
 	if err := os.MkdirAll(config.HubDir(), 0o755); err != nil {
-		return fmt.Errorf("creating config directory: %w", err)
+		return fmt.Errorf(i18n.T("cmd.init.creating_config_directory"), err)
 	}
 
 	config.Reset()
@@ -81,11 +81,11 @@ func runInit(cmd *cobra.Command, args []string) error {
 	} else {
 		// First run: create a minimal hub.toml so initApp can succeed.
 		if saveErr := config.Save(&config.Config{}); saveErr != nil {
-			return fmt.Errorf("writing initial config: %w", saveErr)
+			return fmt.Errorf(i18n.T("cmd.init.writing_initial_config"), saveErr)
 		}
 		config.Reset()
 		if err := initApp(); err != nil {
-			return fmt.Errorf("initializing app: %w", err)
+			return fmt.Errorf(i18n.T("cmd.init.initializing_app"), err)
 		}
 		a = MustApp()
 	}
@@ -271,7 +271,7 @@ func acquireInitLock(path string) error {
 	if info, err := os.Stat(path); err == nil {
 		if time.Since(info.ModTime()) > time.Hour {
 			if rmErr := os.Remove(path); rmErr != nil {
-				return fmt.Errorf("removing stale lockfile %s: %w (delete it manually to proceed)", path, rmErr)
+				return fmt.Errorf(i18n.T("cmd.init.removing_stale_lockfile_delete_it_manually"), path, rmErr)
 			}
 		} else {
 			return fmt.Errorf("lockfile %s exists (created %s ago)", path, time.Since(info.ModTime()).Truncate(time.Second))

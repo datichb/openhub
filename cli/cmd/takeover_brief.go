@@ -75,18 +75,17 @@ func runTakeoverBriefShow(cmd *cobra.Command, args []string) error {
 	if project == "" {
 		project = detectCurrentProject(ctx, a)
 		if project == "" {
-			return fmt.Errorf("impossible de détecter le projet courant. Utilise --project")
+			return errors.New(i18n.T("cmd.takeover_brief.cannot_detect_the_current_project_use"))
 		}
 	}
 
 	content, err := repo.ReadBrief(project, ticketID)
 	if err != nil {
 		if err == teamstate.ErrBriefNotFound {
-			fmt.Fprintf(a.IO.Out, "\n%s Aucun brief trouvé pour %s/%s\n\n",
-				theme.Subtitle.Render(theme.IconInfo), project, ticketID)
+			fmt.Fprint(a.IO.Out, i18n.Tf("cmd.takeover_brief.no_brief_found_for", theme.Subtitle.Render(theme.IconInfo), project, ticketID))
 			return nil
 		}
-		return fmt.Errorf("reading brief: %w", err)
+		return fmt.Errorf(i18n.T("cmd.takeover_brief.reading_brief"), err)
 	}
 
 	fmt.Fprintln(a.IO.Out)
@@ -107,23 +106,22 @@ func runTakeoverBriefList(cmd *cobra.Command, args []string) error {
 	if project == "" {
 		project = detectCurrentProject(ctx, a)
 		if project == "" {
-			return fmt.Errorf("impossible de détecter le projet courant. Utilise --project")
+			return errors.New(i18n.T("cmd.takeover_brief.cannot_detect_the_current_project_use"))
 		}
 	}
 
 	metas, err := repo.ListBriefs(project)
 	if err != nil {
-		return fmt.Errorf("listing briefs: %w", err)
+		return fmt.Errorf(i18n.T("cmd.takeover_brief.listing_briefs"), err)
 	}
 
 	fmt.Fprintln(a.IO.Out)
 	if len(metas) == 0 {
-		fmt.Fprintf(a.IO.Out, "%s Aucun brief de reprise pour %s\n\n",
-			theme.Subtitle.Render(theme.IconInfo), project)
+		fmt.Fprint(a.IO.Out, i18n.Tf("cmd.takeover_brief.no_takeover_brief_for", theme.Subtitle.Render(theme.IconInfo), project))
 		return nil
 	}
 
-	fmt.Fprintln(a.IO.Out, theme.Title.Render(fmt.Sprintf("  Takeover Briefs — %s  ", project)))
+	fmt.Fprintln(a.IO.Out, theme.Title.Render(i18n.Tf("cmd.takeover_brief.takeover_briefs", project)))
 	fmt.Fprintln(a.IO.Out)
 
 	for _, m := range metas {
@@ -154,22 +152,21 @@ func runTakeoverBriefEnrich(cmd *cobra.Command, args []string) error {
 	if project == "" {
 		project = detectCurrentProject(ctx, a)
 		if project == "" {
-			return fmt.Errorf("impossible de détecter le projet courant. Utilise --project")
+			return errors.New(i18n.T("cmd.takeover_brief.cannot_detect_the_current_project_use"))
 		}
 	}
 
 	// Find the project path for the headless run
 	p, err := a.Projects.GetByName(ctx, project)
 	if err != nil {
-		return fmt.Errorf("projet %s introuvable dans le hub: %w", project, err)
+		return fmt.Errorf(i18n.T("cmd.takeover_brief.project_not_found_in_the_hub"), project, err)
 	}
 
-	fmt.Fprintf(a.IO.Out, "\n%s Enrichissement du brief via IA...\n",
-		theme.Subtitle.Render(theme.IconArrow))
+	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.takeover_brief.enriching_the_brief_with_ai", theme.Subtitle.Render(theme.IconArrow)))
 
 	enriched, err := enrichBrief(cmd, a, p, ticketID)
 	if err != nil {
-		return fmt.Errorf("enrichment failed: %w", err)
+		return fmt.Errorf(i18n.T("cmd.takeover_brief.enrichment_failed"), err)
 	}
 
 	// Save the enriched version
@@ -187,12 +184,12 @@ func runTakeoverBriefEnrich(cmd *cobra.Command, args []string) error {
 	}
 
 	if latestBase == "" {
-		return fmt.Errorf("impossible de trouver le fichier brief de base")
+		return errors.New(i18n.T("cmd.takeover_brief.cannot_find_the_base_brief_file"))
 	}
 
 	enrichedFile := filepath.Join(enrichedPath, latestBase+".enriched.md")
 	if err := writeFile(enrichedFile, []byte(enrichedContent)); err != nil {
-		return fmt.Errorf("écriture du brief enrichi: %w", err)
+		return fmt.Errorf(i18n.T("cmd.takeover_brief.writing_the_enriched_brief"), err)
 	}
 
 	// Commit and push
@@ -204,9 +201,7 @@ func runTakeoverBriefEnrich(cmd *cobra.Command, args []string) error {
 			i18n.T("cmd.claim.sync_pending"))
 	}
 
-	fmt.Fprintf(a.IO.Out, "%s Brief enrichi sauvegardé. %s\n\n",
-		theme.SuccessStyle.Render(theme.IconSuccess),
-		theme.Subtitle.Render("oh takeover-brief show "+ticketID))
+	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.takeover_brief.enriched_brief_saved", theme.SuccessStyle.Render(theme.IconSuccess), theme.Subtitle.Render("oh takeover-brief show "+ticketID)))
 	return nil
 }
 
@@ -259,7 +254,7 @@ func runBriefEnrich(ctx context.Context, a *app.App, p *domain.Project, ticketID
 		return "", err
 	}
 	if len(results) == 0 {
-		return "", errors.New("brief-enrich: no answer")
+		return "", errors.New(i18n.T("cmd.takeover_brief.brief_enrich_no_answer"))
 	}
 	return results[0].Text, nil
 }

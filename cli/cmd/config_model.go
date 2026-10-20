@@ -502,9 +502,7 @@ func unsetProjectModelDefault(ctx context.Context, projectID string) error {
 		return err
 	}
 
-	fmt.Fprintf(os.Stdout, "%s project %s model.default unset\n",
-		theme.SuccessStyle.Render(theme.IconSuccess),
-		theme.Bold.Render(project.Name))
+	fmt.Fprint(os.Stdout, i18n.Tf("cmd.config_model.project_model_default_unset", theme.SuccessStyle.Render(theme.IconSuccess), theme.Bold.Render(project.Name)))
 	return nil
 }
 

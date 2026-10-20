@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"text/tabwriter"
@@ -69,11 +70,11 @@ func runHistory(cmd *cobra.Command, _ []string) error {
 	ctx := cmd.Context()
 	sessions, err := a.Sessions.List(ctx, "")
 	if err != nil {
-		return fmt.Errorf("listing sessions: %w", err)
+		return fmt.Errorf(i18n.T("cmd.history.listing_sessions"), err)
 	}
 
 	if len(sessions) == 0 {
-		fmt.Fprintln(a.IO.Out, "No sessions found.")
+		fmt.Fprintln(a.IO.Out, i18n.T("cmd.history.no_sessions_found"))
 		return nil
 	}
 
@@ -102,7 +103,7 @@ func runHistoryTeam(ctx context.Context, limit int) error {
 	a := MustApp()
 	activeTeam := a.Config.ActiveTeam()
 	if !activeTeam.Enabled {
-		return fmt.Errorf("no team configured — use 'oh team init' or 'oh team rejoin'")
+		return errors.New(i18n.T("cmd.history.no_team_configured_use_oh_team"))
 	}
 
 	statePath := activeTeam.StatePath
@@ -111,12 +112,12 @@ func runHistoryTeam(ctx context.Context, limit int) error {
 	}
 	repo := teamstate.NewRepo(activeTeam.StateRepo, statePath)
 	if !repo.IsCloned() {
-		return fmt.Errorf("team-state repository not cloned — run 'oh team rejoin --repo <url>'")
+		return errors.New(i18n.T("cmd.history.team_state_repository_not_cloned_run"))
 	}
 
 	events, err := repo.ListEventsLimited("", limit)
 	if err != nil {
-		return fmt.Errorf("listing team events: %w", err)
+		return fmt.Errorf(i18n.T("cmd.history.listing_team_events"), err)
 	}
 
 	// Filter to session.complete events for the current member
@@ -128,7 +129,7 @@ func runHistoryTeam(ctx context.Context, limit int) error {
 	}
 
 	if len(filtered) == 0 {
-		fmt.Fprintln(a.IO.Out, "No team session history found for member:", activeTeam.MemberID)
+		fmt.Fprintln(a.IO.Out, i18n.T("cmd.history.no_team_session_history_found_for"), activeTeam.MemberID)
 		return nil
 	}
 
@@ -156,7 +157,7 @@ func runHistoryExport(cmd *cobra.Command, _ []string) error {
 
 	sessions, err := a.Sessions.List(ctx, "")
 	if err != nil {
-		return fmt.Errorf("listing sessions: %w", err)
+		return fmt.Errorf(i18n.T("cmd.history.listing_sessions"), err)
 	}
 
 	memberID := ""
@@ -172,7 +173,7 @@ func runHistoryExport(cmd *cobra.Command, _ []string) error {
 
 	encoded, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
-		return fmt.Errorf("encoding export: %w", err)
+		return fmt.Errorf(i18n.T("cmd.history.encoding_export"), err)
 	}
 
 	if output == "" {
@@ -180,11 +181,10 @@ func runHistoryExport(cmd *cobra.Command, _ []string) error {
 	}
 
 	if err := os.WriteFile(output, encoded, 0o644); err != nil {
-		return fmt.Errorf("writing export: %w", err)
+		return fmt.Errorf(i18n.T("cmd.history.writing_export"), err)
 	}
 
-	fmt.Fprintf(a.IO.Out, "%s Exported %d sessions to %s\n",
-		theme.SuccessStyle.Render(theme.IconSuccess), len(sessions), output)
+	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.history.exported_sessions_to", theme.SuccessStyle.Render(theme.IconSuccess), len(sessions), output))
 	return nil
 }
 
@@ -195,12 +195,12 @@ func runHistoryImport(cmd *cobra.Command, args []string) error {
 
 	raw, err := os.ReadFile(args[0])
 	if err != nil {
-		return fmt.Errorf("reading import file: %w", err)
+		return fmt.Errorf(i18n.T("cmd.history.reading_import_file"), err)
 	}
 
 	var data historyExportData
 	if err := json.Unmarshal(raw, &data); err != nil {
-		return fmt.Errorf("parsing import file: %w", err)
+		return fmt.Errorf(i18n.T("cmd.history.parsing_import_file"), err)
 	}
 
 	// Determine member_id: override > export data > current config

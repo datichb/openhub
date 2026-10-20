@@ -2,6 +2,7 @@ package views
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -481,7 +482,7 @@ func (v *WorktreeView) openInTerminal() {
 func resolveFirstProject(a *app.App) (*domain.Project, error) {
 	projects, err := a.Projects.List(context.Background(), "")
 	if err != nil || len(projects) == 0 {
-		return nil, fmt.Errorf("no projects")
+		return nil, errors.New(i18n.T("cmd.worktree_view.no_projects"))
 	}
 	return &projects[0], nil
 }

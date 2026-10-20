@@ -181,7 +181,7 @@ func runServe(cmd *cobra.Command, args []string) error {
 	}()
 
 	if err := server.Serve(ln); err != nil && err != http.ErrServerClosed {
-		return fmt.Errorf("serveur HTTP: %w", err)
+		return fmt.Errorf(i18n.T("cmd.serve.http_server"), err)
 	}
 	return nil
 }

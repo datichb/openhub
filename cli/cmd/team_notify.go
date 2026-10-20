@@ -1,11 +1,13 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/notify"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
@@ -40,22 +42,21 @@ func runTeamNotifyTest(cmd *cobra.Command, args []string) error {
 
 	repo := teamRepo
 	if repo == nil {
-		return fmt.Errorf("team-state non configuré — lancez 'oh team init'")
+		return errors.New(i18n.T("cmd.team_notify.team_state_not_configured_run_oh"))
 	}
 
 	// Pull latest config
 	if err := repo.Pull(ctx); err != nil {
-		fmt.Fprintf(a.IO.ErrOut, "%s sync échouée: %s\n",
-			theme.WarningStyle.Render(theme.IconWarning), err)
+		fmt.Fprint(a.IO.ErrOut, i18n.Tf("cmd.team_notify.sync_failed", theme.WarningStyle.Render(theme.IconWarning), err))
 	}
 
 	teamCfg, err := repo.LoadConfig()
 	if err != nil {
-		return fmt.Errorf("impossible de charger la config team: %w", err)
+		return fmt.Errorf(i18n.T("cmd.team_notify.cannot_load_the_team_config"), err)
 	}
 
 	if !teamCfg.Notification.Enabled {
-		return fmt.Errorf("notifications désactivées dans la config team — configurez-les via le TUI (Team Detail > Notifications) ou 'oh team init'")
+		return errors.New(i18n.T("cmd.team_notify.notifications_are_disabled_in_the_team"))
 	}
 
 	// Build test message
@@ -90,8 +91,7 @@ func runTeamNotifyTest(cmd *cobra.Command, args []string) error {
 	if notifyType == "" {
 		notifyType = "webhook"
 	}
-	fmt.Fprintf(a.IO.Out, "%s Notification envoyée via %s\n",
-		theme.SuccessStyle.Render("✓"), notifyType)
+	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.team_notify.notification_sent_via", theme.SuccessStyle.Render("✓"), notifyType))
 
 	return nil
 }

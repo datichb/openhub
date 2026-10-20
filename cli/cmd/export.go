@@ -84,7 +84,7 @@ func snapshotDatabase(dbPath, dir string) (string, error) {
 func exportArchive(w io.Writer, output string) error {
 	hubDir := config.HubDir()
 
-	fmt.Fprintf(w, "Export vers %s...\n", output)
+	fmt.Fprint(w, i18n.Tf("cmd.export.exporting_to", output))
 
 	// Files to include in the archive
 	filesToArchive := []struct {
@@ -108,7 +108,7 @@ func exportArchive(w io.Writer, output string) error {
 	if fileExists(filesToArchive[0].src) {
 		snapDir, err := os.MkdirTemp(hubDir, ".export-*")
 		if err != nil {
-			return fmt.Errorf("creating snapshot directory: %w", err)
+			return fmt.Errorf(i18n.T("cmd.export.creating_snapshot_directory"), err)
 		}
 		defer os.RemoveAll(snapDir)
 		if snap, err := snapshotDatabase(filesToArchive[0].src, snapDir); err != nil {
@@ -147,7 +147,7 @@ func exportArchive(w io.Writer, output string) error {
 	// Create archive
 	out, err := os.Create(output)
 	if err != nil {
-		return fmt.Errorf("creating archive: %w", err)
+		return fmt.Errorf(i18n.T("cmd.export.creating_archive"), err)
 	}
 	defer out.Close()
 
@@ -159,10 +159,10 @@ func exportArchive(w io.Writer, output string) error {
 	// Write manifest
 	manifestData, err := json.MarshalIndent(manifest, "", "  ")
 	if err != nil {
-		return fmt.Errorf("marshaling manifest: %w", err)
+		return fmt.Errorf(i18n.T("cmd.export.marshaling_manifest"), err)
 	}
 	if err := writeTarEntry(tw, "manifest.json", manifestData); err != nil {
-		return fmt.Errorf("writing manifest: %w", err)
+		return fmt.Errorf(i18n.T("cmd.export.writing_manifest"), err)
 	}
 
 	// Write each file
@@ -175,14 +175,14 @@ func exportArchive(w io.Writer, output string) error {
 
 	// Explicitly close writers to catch flush errors (defers remain as safety net).
 	if err := tw.Close(); err != nil {
-		return fmt.Errorf("finalizing tar: %w", err)
+		return fmt.Errorf(i18n.T("cmd.export.finalizing_tar"), err)
 	}
 	if err := gw.Close(); err != nil {
-		return fmt.Errorf("finalizing gzip: %w", err)
+		return fmt.Errorf(i18n.T("cmd.export.finalizing_gzip"), err)
 	}
 
-	fmt.Fprintf(w, "\nBackup créé: %s\n", output)
-	fmt.Fprintf(w, "Checksum SHA-256: %s\n", checksum)
+	fmt.Fprint(w, i18n.Tf("cmd.export.backup_created", output))
+	fmt.Fprint(w, i18n.Tf("cmd.export.checksum_sha_256", checksum))
 	return nil
 }
 
@@ -195,11 +195,11 @@ func runImport(cmd *cobra.Command, args []string) error {
 		return errors.New(i18n.T("cmd.import.merge_overwrite"))
 	}
 
-	fmt.Fprintf(a.IO.Out, "Import depuis %s...\n", archivePath)
+	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.export.importing_from", archivePath))
 
 	f, err := os.Open(archivePath)
 	if err != nil {
-		return fmt.Errorf("ouverture archive: %w", err)
+		return fmt.Errorf(i18n.T("cmd.export.opening_archive"), err)
 	}
 	defer f.Close()
 
@@ -214,7 +214,7 @@ func runImport(cmd *cobra.Command, args []string) error {
 	// Extract files to a temp dir first
 	tmpDir, err := os.MkdirTemp("", "oh-import-*")
 	if err != nil {
-		return fmt.Errorf("création répertoire temp: %w", err)
+		return fmt.Errorf(i18n.T("cmd.export.creating_temporary_directory"), err)
 	}
 	defer os.RemoveAll(tmpDir)
 
@@ -227,7 +227,7 @@ func runImport(cmd *cobra.Command, args []string) error {
 			break
 		}
 		if err != nil {
-			return fmt.Errorf("lecture archive: %w", err)
+			return fmt.Errorf(i18n.T("cmd.export.reading_archive"), err)
 		}
 		const maxFileSize = 100 * 1024 * 1024 // 100 MB
 		data, err := io.ReadAll(io.LimitReader(tr, maxFileSize))
@@ -238,7 +238,7 @@ func runImport(cmd *cobra.Command, args []string) error {
 		if header.Name == "manifest.json" {
 			manifest = &backupManifest{}
 			if err := json.Unmarshal(data, manifest); err != nil {
-				return fmt.Errorf("parsing manifest: %w", err)
+				return fmt.Errorf(i18n.T("cmd.export.parsing_manifest"), err)
 			}
 		} else {
 			extracted[header.Name] = data
@@ -246,7 +246,7 @@ func runImport(cmd *cobra.Command, args []string) error {
 	}
 
 	if manifest == nil {
-		return fmt.Errorf("archive invalide: manifest.json manquant")
+		return errors.New(i18n.T("cmd.export.invalid_archive_manifest_json_missing"))
 	}
 
 	// Verify checksum
@@ -258,10 +258,9 @@ func runImport(cmd *cobra.Command, args []string) error {
 	}
 	actualChecksum := hex.EncodeToString(h.Sum(nil))
 	if actualChecksum != manifest.Checksum {
-		return fmt.Errorf("checksum invalide — archive corrompue ou modifiée\n  attendu: %s\n  obtenu:  %s",
-			manifest.Checksum, actualChecksum)
+		return fmt.Errorf(i18n.T("cmd.export.invalid_checksum_archive_corrupted_or_modified"), manifest.Checksum, actualChecksum)
 	}
-	fmt.Fprintf(a.IO.Out, "  Checksum OK (%s)\n", manifest.Checksum[:16]+"...")
+	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.export.checksum_ok", manifest.Checksum[:16]+"..."))
 
 	if merge {
 		return importMerge(ctxOf(cmd), a, extracted)
@@ -271,15 +270,15 @@ func runImport(cmd *cobra.Command, args []string) error {
 	hubDir := config.HubDir()
 	dbExists := fileExists(sqlite.DBPath())
 	if dbExists && !overwrite {
-		fmt.Fprintf(a.IO.Out, "\nAttention: une base de données existe déjà.\n")
-		fmt.Fprintf(a.IO.Out, "Utilisez --overwrite pour écraser ou --merge pour fusionner.\n")
-		fmt.Fprintf(a.IO.Out, "Backup actuel recommandé: oh export --output oh-backup-pre-import.tar.gz\n")
-		return fmt.Errorf("annulé — utilisez --overwrite pour forcer")
+		fmt.Fprint(a.IO.Out, i18n.T("cmd.export.warning_a_database_already_exists"))
+		fmt.Fprint(a.IO.Out, i18n.T("cmd.export.use_overwrite_to_overwrite_or_merge"))
+		fmt.Fprint(a.IO.Out, i18n.T("cmd.export.back_up_the_current_data_first"))
+		return errors.New(i18n.T("cmd.export.cancelled_use_overwrite_to_force"))
 	}
 
 	// Restore files
 	if err := os.MkdirAll(hubDir, 0o700); err != nil {
-		return fmt.Errorf("création hubDir: %w", err)
+		return fmt.Errorf(i18n.T("cmd.export.creating_the_hub_directory"), err)
 	}
 
 	destinations := map[string]string{
@@ -311,8 +310,8 @@ func runImport(cmd *cobra.Command, args []string) error {
 		fmt.Fprintf(a.IO.Out, "  Restauré: %s\n", name)
 	}
 
-	fmt.Fprintf(a.IO.Out, "\nImport terminé. Backup du %s restauré.\n", manifest.CreatedAt.Format("2006-01-02 15:04"))
-	fmt.Fprintf(a.IO.Out, "Lancez 'oh doctor' pour valider l'installation.\n")
+	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.export.import_complete_backup_of_restored", manifest.CreatedAt.Format("2006-01-02 15:04")))
+	fmt.Fprint(a.IO.Out, i18n.T("cmd.export.run_oh_doctor_to_validate_the"))
 	return nil
 }
 

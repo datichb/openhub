@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -916,7 +917,7 @@ func buildProjectStep(s *initStepState) views.WizardStep {
 			}
 			store := (*s.AppPtr).Projects
 			if store == nil {
-				return fmt.Errorf("project store not initialized")
+				return errors.New(i18n.T("cmd.init_steps.project_store_not_initialized"))
 			}
 			ctx := context.Background()
 
@@ -933,7 +934,7 @@ func buildProjectStep(s *initStepState) views.WizardStep {
 				}
 				if needUpdate {
 					if err := store.Update(ctx, existing); err != nil {
-						return fmt.Errorf("update project: %w", err)
+						return fmt.Errorf(i18n.T("cmd.init_steps.update_project"), err)
 					}
 				}
 				s.ProjectID = existing.ID

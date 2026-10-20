@@ -8,20 +8,20 @@ import (
 
 func TestT_English(t *testing.T) {
 	SetLocale("en")
-	assert.Equal(t, "OpenHub", T("app.name"))
-	assert.Equal(t, "Loading...", T("tui.spinner.loading"))
+	assert.Equal(t, "Help", T("help.flag.help"))
+	assert.Equal(t, "OTHER", T("help.section.other"))
 }
 
 func TestT_French(t *testing.T) {
 	SetLocale("fr")
-	assert.Equal(t, "OpenHub", T("app.name"))
-	assert.Equal(t, "Chargement...", T("tui.spinner.loading"))
+	assert.Equal(t, "Aide", T("help.flag.help"))
+	assert.Equal(t, "AUTRES", T("help.section.other"))
 }
 
 func TestT_FallbackToEnglish(t *testing.T) {
 	SetLocale("fr")
 	// Key that only exists in English or both
-	assert.Equal(t, "OpenHub", T("app.name"))
+	assert.Equal(t, "Aide", T("help.flag.help"))
 }
 
 func TestT_UnknownKey(t *testing.T) {
@@ -32,13 +32,13 @@ func TestT_UnknownKey(t *testing.T) {
 func TestT_UnknownLocale(t *testing.T) {
 	SetLocale("ja")
 	// Should fallback to English
-	assert.Equal(t, "Loading...", T("tui.spinner.loading"))
+	assert.Equal(t, "Help", T("help.flag.help"))
 }
 
 func TestTf_Format(t *testing.T) {
 	SetLocale("en")
-	result := Tf("error.project_not_found", "my-app")
-	assert.Equal(t, "Project not found: my-app", result)
+	result := Tf("cmd.export.exporting_to", "backup.tar.gz")
+	assert.Equal(t, "Exporting to backup.tar.gz...\n", result)
 }
 
 // keyOfScan is the former KeyOf: a scan of every message.

@@ -105,7 +105,7 @@ func runRunnerJob(cmd *cobra.Command, _ []string) error {
 	}
 	if err := a.Projects.Create(ctx, &domain.Project{ID: m.Project.OhID, Name: m.Project.Name, Path: m.WorkDir, Provider: job.Provider}); err != nil &&
 		!errors.Is(err, domain.ErrAlreadyExists) {
-		return fmt.Errorf("recording the project: %w", err)
+		return fmt.Errorf(i18n.T("cmd.runner.recording_the_project"), err)
 	}
 
 	// Beads: the gateway of the job daemon runs the fake bd in journal mode.
@@ -245,13 +245,13 @@ func waitDaemon(ctx context.Context, dc *daemon.Client, done <-chan error) error
 		}
 		select {
 		case err := <-done:
-			return fmt.Errorf("oh daemon: %w", err)
+			return fmt.Errorf(i18n.T("cmd.runner.oh_daemon"), err)
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-time.After(200 * time.Millisecond):
 		}
 	}
-	return errors.New("oh daemon did not start")
+	return errors.New(i18n.T("cmd.runner.oh_daemon_did_not_start"))
 }
 
 // runnerSessionEnv gives the sessions of the job their Beads gateway token
@@ -262,14 +262,14 @@ func runnerSessionEnv(dc gatewayGranter) runsvc.SessionEnvFunc {
 			return nil, nil
 		}
 		if r.GatewayURL == "" {
-			return nil, errors.New("beads gateway: the server group has no gateway address")
+			return nil, errors.New(i18n.T("cmd.runner.beads_gateway_the_server_group_has"))
 		}
 		g, err := dc.IssueGatewayGrant(ctx, daemon.GatewayGrantRequest{
 			SessionID: r.SessionID, GroupKey: r.GroupKey, ProjectID: r.ProjectID, WorkflowID: r.WorkflowID,
 			Location: r.Location, BeadsAllow: r.BeadsAllow, GatewayURL: r.GatewayURL,
 		})
 		if err != nil {
-			return nil, fmt.Errorf("beads gateway: %w", err)
+			return nil, fmt.Errorf(i18n.T("cmd.runner.beads_gateway"), err)
 		}
 		return map[string]string{beadswire.EnvURL: r.GatewayURL, beadswire.EnvToken: g.Token}, nil
 	}
@@ -339,7 +339,7 @@ func (j *jobSession) Export(ctx context.Context, sid string) ([]json.RawMessage,
 	}
 	porter, ok := j.ad.(adapters.SessionPorter)
 	if !ok {
-		return nil, nil, fmt.Errorf("adapter %s cannot export sessions", j.ad.Name())
+		return nil, nil, fmt.Errorf(i18n.T("cmd.runner.adapter_cannot_export_sessions"), j.ad.Name())
 	}
 	ids := []string{sid}
 	if cl, ok := j.ad.(adapters.ChildLister); ok {

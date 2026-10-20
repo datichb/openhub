@@ -12,6 +12,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tracker"
 )
@@ -45,15 +46,9 @@ type identityMismatchError struct {
 
 func (e *identityMismatchError) Error() string {
 	if e.IsBot {
-		return fmt.Sprintf(
-			"le token appartient à un bot (%s), pas à un compte personnel — la vérification nécessite un Personal Access Token (PAT)",
-			e.AuthenticatedAs,
-		)
+		return i18n.Tf("cmd.team_rejoin_core.the_token_belongs_to_a_bot", e.AuthenticatedAs)
 	}
-	return fmt.Sprintf(
-		"le token appartient à %q mais le membre sélectionné (%s) a le username GitLab %q",
-		e.AuthenticatedAs, e.MemberID, e.ExpectedUser,
-	)
+	return i18n.Tf("cmd.team_rejoin_core.the_token_belongs_to_but_the", e.AuthenticatedAs, e.MemberID, e.ExpectedUser)
 }
 
 // teamRejoinCore performs the core rejoin operations:
@@ -77,7 +72,7 @@ func teamRejoinCore(ctx context.Context, a *app.App, p teamRejoinParams) (*teamR
 	var staleData bool
 	if err := repo.EnsureReady(ctx); err != nil {
 		if !teamstate.IsPullWarning(err) {
-			return nil, fmt.Errorf("cloning team-state: %w", err)
+			return nil, fmt.Errorf(i18n.T("cmd.team_rejoin_core.cloning_team_state"), err)
 		}
 		slog.Warn("team-state sync warning (using local content)", "error", err)
 		staleData = true
@@ -86,7 +81,7 @@ func teamRejoinCore(ctx context.Context, a *app.App, p teamRejoinParams) (*teamR
 	// Verify that the member exists in the repo
 	member, err := repo.GetMember(p.MemberID)
 	if err != nil {
-		return nil, fmt.Errorf("member %q not found in team-state repository", p.MemberID)
+		return nil, fmt.Errorf(i18n.T("cmd.team_rejoin_core.member_not_found_in_team_state"), p.MemberID)
 	}
 
 	// Validate identity via GitLab token (if available)
@@ -133,7 +128,7 @@ func teamRejoinCore(ctx context.Context, a *app.App, p teamRejoinParams) (*teamR
 	a.Config.Team = config.TeamConfig{}
 
 	if err := config.Save(a.Config); err != nil {
-		return nil, fmt.Errorf("writing hub.toml: %w", err)
+		return nil, fmt.Errorf(i18n.T("cmd.team_rejoin_core.writing_hub_toml"), err)
 	}
 
 	// Count team events for this member (for summary display)
@@ -198,11 +193,11 @@ func validateGitLabIdentity(ctx context.Context, a *app.App, repo *teamstate.Rep
 	}
 	t, err := tracker.New(cfg)
 	if err != nil {
-		return fmt.Errorf("creating GitLab client: %w", err)
+		return fmt.Errorf(i18n.T("cmd.team_rejoin_core.creating_gitlab_client"), err)
 	}
 	username, err := t.TestConnection(ctx)
 	if err != nil {
-		return fmt.Errorf("GitLab authentication failed: %w", err)
+		return fmt.Errorf(i18n.T("cmd.team_rejoin_core.gitlab_authentication_failed"), err)
 	}
 
 	// Compare usernames (case-insensitive)
@@ -286,7 +281,7 @@ func listTeamMembers(ctx context.Context, stateRepo, statePath string) (*teamsta
 	var stale bool
 	if err := repo.EnsureReady(ctx); err != nil {
 		if !teamstate.IsPullWarning(err) {
-			return nil, nil, false, fmt.Errorf("cloning team-state: %w", err)
+			return nil, nil, false, fmt.Errorf(i18n.T("cmd.team_rejoin_core.cloning_team_state"), err)
 		}
 		slog.Warn("team-state sync warning (using local content)", "error", err)
 		stale = true
@@ -294,7 +289,7 @@ func listTeamMembers(ctx context.Context, stateRepo, statePath string) (*teamsta
 
 	members, err := repo.ListMembers()
 	if err != nil {
-		return nil, nil, false, fmt.Errorf("listing members: %w", err)
+		return nil, nil, false, fmt.Errorf(i18n.T("cmd.team_rejoin_core.listing_members"), err)
 	}
 
 	return repo, members, stale, nil
@@ -304,20 +299,20 @@ func listTeamMembers(ctx context.Context, stateRepo, statePath string) (*teamsta
 // with the given member ID. Returns the number of sessions updated.
 func retroTagSessions(ctx context.Context, memberID string) (int, error) {
 	if store == nil {
-		return 0, fmt.Errorf("database not initialized")
+		return 0, errors.New(i18n.T("cmd.team_rejoin_core.database_not_initialized"))
 	}
 	db := store.DB()
 
 	// Update sessions
 	result, err := db.ExecContext(ctx, `UPDATE sessions SET member_id = ? WHERE member_id IS NULL`, memberID)
 	if err != nil {
-		return 0, fmt.Errorf("retro-tagging sessions: %w", err)
+		return 0, fmt.Errorf(i18n.T("cmd.team_rejoin_core.retro_tagging_sessions"), err)
 	}
 	sessionsUpdated, _ := result.RowsAffected()
 
 	// Update agent_events
 	if _, err := db.ExecContext(ctx, `UPDATE agent_events SET member_id = ? WHERE member_id IS NULL`, memberID); err != nil {
-		return int(sessionsUpdated), fmt.Errorf("retro-tagging agent events: %w", err)
+		return int(sessionsUpdated), fmt.Errorf(i18n.T("cmd.team_rejoin_core.retro_tagging_agent_events"), err)
 	}
 
 	return int(sessionsUpdated), nil
