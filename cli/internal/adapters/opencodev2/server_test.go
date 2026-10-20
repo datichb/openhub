@@ -1,6 +1,8 @@
 package opencodev2
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -61,6 +63,39 @@ func TestRandomPasswordAndFreePort(t *testing.T) {
 	p, err := FreePort()
 	assert.NoError(t, err)
 	assert.Greater(t, p, 0)
+}
+
+// A server that is not ready in time says which agent it was waited for,
+// whether it answered (the agent is not listed) or not (a slow start, the
+// first list is still being built): on a cold CI runner the answer can come
+// after the timeout, and the error must not depend on it.
+func TestWaitReadyTimeoutNamesTheAgent(t *testing.T) {
+	answer := func(body string, slow bool) *Server {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if slow {
+				<-r.Context().Done()
+				return
+			}
+			_, _ = w.Write([]byte(body))
+		}))
+		t.Cleanup(ts.Close)
+		return &Server{Client: NewClient(ts.URL, "pw"), exited: make(chan struct{})}
+	}
+
+	err := answer("", true).waitReady(t.Context(), t.TempDir(), "does-not-exist", 400*time.Millisecond)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not ready after 400ms")
+	assert.Contains(t, err.Error(), `agent "does-not-exist"`)
+
+	err = answer(`{"data":[{"id":"other"}]}`, false).waitReady(t.Context(), t.TempDir(), "does-not-exist", 400*time.Millisecond)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `agent "does-not-exist"`)
+	assert.Contains(t, err.Error(), "not listed")
+
+	// Without an agent to wait for, the message does not invent one.
+	err = answer("", true).waitReady(t.Context(), t.TempDir(), "", 300*time.Millisecond)
+	require.Error(t, err)
+	assert.NotContains(t, err.Error(), "waiting for agent")
 }
 
 func TestStartServerValidatesOptions(t *testing.T) {
