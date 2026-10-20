@@ -5676,5 +5676,11 @@
   "modelcheck.unknown_family": "famille inconnue %q (familles connues : %s)",
   "modelcheck.did_you_mean": "Vouliez-vous dire : %s ?",
   "modelcheck.bad_model": "modèle invalide %q : écrire fournisseur/modèle (par exemple anthropic/claude-sonnet-4-5)",
-  "modelcheck.catalog_unavailable": "catalogue des agents indisponible : %q non vérifié"
+  "modelcheck.catalog_unavailable": "catalogue des agents indisponible : %q non vérifié",
+  "cmd.import.merge_overwrite": "--merge et --overwrite s'excluent",
+  "cmd.import.merge_no_db": "archive invalide : oh.db manquant, rien à fusionner",
+  "cmd.import.merge_open": "ouverture de la base de l'archive",
+  "cmd.import.merge_added": "Ajouté : projet %s",
+  "cmd.import.merge_skipped": "Conservé : le projet %s existe déjà (id, nom ou chemin)",
+  "cmd.import.merge_done": "Fusion terminée : %d projet(s) ajouté(s), %d conservé(s) tel quel. hub.toml, secrets et données existantes inchangés."
 }

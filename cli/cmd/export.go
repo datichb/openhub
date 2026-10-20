@@ -3,9 +3,11 @@ package cmd
 import (
 	"archive/tar"
 	"compress/gzip"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -14,7 +16,9 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 )
@@ -153,6 +157,10 @@ func runImport(cmd *cobra.Command, args []string) error {
 	a := MustApp()
 	archivePath := args[0]
 	overwrite, _ := cmd.Flags().GetBool("overwrite")
+	merge, _ := cmd.Flags().GetBool("merge")
+	if merge && overwrite {
+		return errors.New(i18n.T("cmd.import.merge_overwrite"))
+	}
 
 	fmt.Fprintf(a.IO.Out, "Import depuis %s...\n", archivePath)
 
@@ -222,6 +230,10 @@ func runImport(cmd *cobra.Command, args []string) error {
 	}
 	fmt.Fprintf(a.IO.Out, "  Checksum OK (%s)\n", manifest.Checksum[:16]+"...")
 
+	if merge {
+		return importMerge(ctxOf(cmd), a, extracted)
+	}
+
 	// Check if existing data would be overwritten
 	hubDir := config.HubDir()
 	dbExists := fileExists(sqlite.DBPath())
@@ -263,6 +275,71 @@ func runImport(cmd *cobra.Command, args []string) error {
 	fmt.Fprintf(a.IO.Out, "\nImport terminé. Backup du %s restauré.\n", manifest.CreatedAt.Format("2006-01-02 15:04"))
 	fmt.Fprintf(a.IO.Out, "Lancez 'oh doctor' pour valider l'installation.\n")
 	return nil
+}
+
+// importMerge adds the projects of the backup that the hub does not know yet
+// and leaves everything else (existing projects, hub.toml, secrets) as is.
+func importMerge(ctx context.Context, a *app.App, extracted map[string][]byte) error {
+	data, ok := extracted["oh.db"]
+	if !ok {
+		return errors.New(i18n.T("cmd.import.merge_no_db"))
+	}
+	added, skipped, err := mergeBackupProjects(ctx, data, a.Projects)
+	if err != nil {
+		return err
+	}
+	for _, name := range added {
+		fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.import.merge_added", name))
+	}
+	for _, name := range skipped {
+		fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.import.merge_skipped", name))
+	}
+	fmt.Fprintf(a.IO.Out, "\n%s\n", i18n.Tf("cmd.import.merge_done", len(added), len(skipped)))
+	return nil
+}
+
+// mergeBackupProjects copies into dst the projects of the backup database db
+// whose id, name and path are all absent from dst; the others are reported as
+// skipped (the existing project wins). Returns the names of each group.
+func mergeBackupProjects(ctx context.Context, db []byte, dst domain.ProjectStore) (added, skipped []string, err error) {
+	dir, err := os.MkdirTemp("", "oh-import-merge-*")
+	if err != nil {
+		return nil, nil, err
+	}
+	defer os.RemoveAll(dir)
+	path := filepath.Join(dir, "oh.db")
+	if err := os.WriteFile(path, db, 0o600); err != nil {
+		return nil, nil, err
+	}
+	backup, err := sqlite.Open(path)
+	if err != nil {
+		return nil, nil, fmt.Errorf("%s: %w", i18n.T("cmd.import.merge_open"), err)
+	}
+	defer backup.Close()
+	projects, err := sqlite.NewProjectStore(backup).List(ctx, "")
+	if err != nil {
+		return nil, nil, err
+	}
+	existing, err := dst.List(ctx, "")
+	if err != nil {
+		return nil, nil, err
+	}
+	known := map[string]bool{}
+	for _, p := range existing {
+		known["id:"+p.ID], known["name:"+p.Name], known["path:"+p.Path] = true, true, true
+	}
+	for i := range projects {
+		p := &projects[i]
+		if known["id:"+p.ID] || known["name:"+p.Name] || (p.Path != "" && known["path:"+p.Path]) {
+			skipped = append(skipped, p.Name)
+			continue
+		}
+		if err := dst.Create(ctx, p); err != nil {
+			return added, skipped, fmt.Errorf("%s: %w", p.Name, err)
+		}
+		added = append(added, p.Name)
+	}
+	return added, skipped, nil
 }
 
 // writeTarEntry writes bytes to a tar archive under the given name.
