@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"runtime/debug"
 	"sort"
 	"strconv"
 	"strings"
@@ -110,6 +111,10 @@ type Options struct {
 	// daemon stops (in-process daemon: the proxy ends with the oh process,
 	// the servers could not reach their provider any more).
 	StopServersOnExit bool
+	// ProxyHeaderTimeout is how long the credential proxy waits for a model
+	// provider to start answering (0 = credproxy.DefaultResponseHeaderTimeout,
+	// 5 minutes). The streams have no total limit.
+	ProxyHeaderTimeout time.Duration
 	// Capability guards the routes that hand out access or stop sessions
 	// (LoadCapability; "" = unguarded).
 	Capability string
@@ -146,40 +151,65 @@ type Daemon struct {
 	listener net.Listener
 	http     *http.Server
 
+	// The state is split by lock (audit v5, A-04): each group of fields has
+	// the mutex named in its comment. usageMu, memMu, tokenMu and driverMu
+	// are leaf locks, held only around a field or map access: never while
+	// taking another lock or calling out (store, proxy, tool). The groups
+	// are independent, no operation needs two of them at once.
+
+	// wmu guards watchers.
 	wmu      sync.Mutex
 	watchers map[string]*watcher
-	feed     *hub
-	notes    *notifier
+	watchWG  sync.WaitGroup // the running watchers (stopWatchers waits for them)
+	// watchersWait bounds that wait (0 = watchersStopWait).
+	watchersWait time.Duration
+	feed         *hub
+	notes        *notifier
 
-	mu          sync.Mutex
-	clients     map[string]client
-	verified    map[string]bool // "group#pid" → authenticated as our server
-	verifyFails map[string]int  // "group#pid" → consecutive failed checks
-	policies    map[string]QuitPolicy
-	pending     map[string]domain.ProxyGrant
-	lastBusy    time.Time
-	stop        chan struct{}
-	restored    chan struct{} // closed once the persisted grants are restored
-	stopOnce    sync.Once
-	started     time.Time
-	// prevProxyPort is the proxy port of the previous daemon when it could
-	// not be bound again (0 = unchanged).
-	prevProxyPort int
-	// drivers are the last starts of a fan-out driver by session (p6-debts).
-	drivers      map[string]time.Time
-	ledger       ledger
-	reservations budgetReservations           // dollars held by the model requests in flight (F-04)
-	memoryMB     int                          // memory used by the ready servers (last measure)
-	memoryOver   bool                         // above the cap at the last pass (warned)
-	queuedGroups map[string]bool              // groups holding queued sessions (never sleep)
-	periodicBusy bool                         // the periodic task has work (remote sessions)
-	proxyUsage   map[string]domain.ProxyUsage // proxy traffic not flushed yet, by group
-	sigMu        sync.Mutex
-	sigCache     map[string]credproxy.Auth // SigV4 signers by profile/region
-	kick         chan struct{}
+	// usageMu guards proxyUsage, written at every proxy request.
+	usageMu    sync.Mutex
+	proxyUsage map[string]domain.ProxyUsage // proxy traffic not flushed yet, by group
+	// memMu guards memoryMB and memoryOver.
+	memMu      sync.Mutex
+	memoryMB   int  // memory used by the ready servers (last measure)
+	memoryOver bool // above the cap at the last pass (warned)
+	// tokenMu guards wfTokens.
+	tokenMu sync.Mutex
 	// wfTokens are the tokens handed to the workflow MCP servers the
 	// daemon runs itself (gateway, container): hash → server group.
 	wfTokens map[string]string
+	// driverMu guards drivers.
+	driverMu sync.Mutex
+	// drivers are the last starts of a fan-out driver by session (p6-debts).
+	drivers map[string]time.Time
+	// sigMu guards sigCache.
+	sigMu    sync.Mutex
+	sigCache map[string]credproxy.Auth // SigV4 signers by profile/region
+
+	// mu guards the supervision state: clients, verified, verifyFails,
+	// policies, pending, lastBusy, queuedGroups and periodicBusy.
+	mu           sync.Mutex
+	clients      map[string]client
+	verified     map[string]bool // "group#pid" → authenticated as our server
+	verifyFails  map[string]int  // "group#pid" → consecutive failed checks
+	policies     map[string]QuitPolicy
+	pending      map[string]domain.ProxyGrant
+	lastBusy     time.Time
+	queuedGroups map[string]bool // groups holding queued sessions (never sleep)
+	periodicBusy bool            // the periodic task has work (remote sessions)
+
+	// Set at startup, then read only (or closed once).
+	stop     chan struct{}
+	restored chan struct{} // closed once the persisted grants are restored
+	stopOnce sync.Once
+	started  time.Time
+	kick     chan struct{}
+	// prevProxyPort is the proxy port of the previous daemon when it could
+	// not be bound again (0 = unchanged).
+	prevProxyPort int
+
+	ledger       ledger             // has its own lock
+	reservations budgetReservations // dollars held by the model requests in flight (F-04); has its own lock
 }
 
 type stateFile struct {
@@ -210,6 +240,10 @@ func Run(ctx context.Context, opts Options) error {
 	if err := os.MkdirAll(opts.Paths.Dir, 0o700); err != nil {
 		return err
 	}
+	// Checked before anything is created in it, and before Listen (S-28).
+	if err := securePrivateDir(opts.Paths.Dir); err != nil {
+		return err
+	}
 	unlock, err := lockFile(opts.Paths.Lock())
 	if err != nil {
 		return err
@@ -217,6 +251,7 @@ func Run(ctx context.Context, opts Options) error {
 	defer unlock()
 
 	d := &Daemon{opts: opts, proxy: credproxy.New(), pending: map[string]domain.ProxyGrant{}, clients: map[string]client{}, verified: map[string]bool{}, verifyFails: map[string]int{}, policies: map[string]QuitPolicy{}, watchers: map[string]*watcher{}, feed: newHub(), lastBusy: time.Now(), started: time.Now(), stop: make(chan struct{}), restored: make(chan struct{}), sigCache: map[string]credproxy.Auth{}, ledger: ledger{last: map[string]adapters.SessionResult{}}, kick: make(chan struct{}, 1)}
+	d.proxy.SetResponseHeaderTimeout(opts.ProxyHeaderTimeout)
 	d.proxy.Hooks = d.hooksHandler()
 	d.proxy.OnUsage = d.onProxyUsage
 	d.proxy.Gate = d.admitModel
@@ -236,38 +271,49 @@ func Run(ctx context.Context, opts Options) error {
 	d.startGateway(ctx)
 
 	_ = os.Remove(opts.Paths.Socket())
+	// The socket is created in a folder only the user can enter (checked
+	// above): nobody else can reach it between Listen and Chmod. No umask
+	// change: it is global to the process, which hosts other goroutines
+	// (the daemon runs inside oh on Windows).
 	l, err := net.Listen("unix", opts.Paths.Socket())
 	if err != nil {
 		return fmt.Errorf("listening on %s: %w", opts.Paths.Socket(), err)
 	}
-	_ = os.Chmod(opts.Paths.Socket(), 0o600)
+	if err := os.Chmod(opts.Paths.Socket(), 0o600); err != nil {
+		_ = l.Close()
+		_ = os.Remove(opts.Paths.Socket())
+		return fmt.Errorf("securing %s: %w", opts.Paths.Socket(), err)
+	}
 	l = peerListener{Listener: l}
 	d.listener = l
 	d.http = &http.Server{Handler: d.routes(), ReadHeaderTimeout: 10 * time.Second, ConnContext: withConn}
-	go func() {
+	safego.Go(func() {
 		if err := d.http.Serve(l); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			slog.Error("ohd api stopped", "error", err)
 		}
-	}()
+	})
 	slog.Info("ohd started", "pid", os.Getpid(), "proxy", d.proxy.URL(), "socket", opts.Paths.Socket())
 	defer d.stopWatchers()
-	go func() {
+	// A panic of a background job must not take the daemon down (A-02). The
+	// restoration is done once (its deferred calls release the proxy and
+	// the routes even on a panic); the loops are run again after a panic,
+	// each one is something the daemon cannot do without.
+	safego.Go(func() {
 		defer close(d.restored)
 		defer d.proxy.Release()
 		d.restoreGrants(ctx)
-	}()
+	})
 	if opts.Notify != nil {
 		d.notes = newNotifier(d, opts.Notify)
-		go d.notes.run(ctx)
+		d.superviseLoop(ctx, "notifications", d.notes.run)
 	}
 	if opts.Periodic != nil {
-		go d.runPeriodic(ctx)
+		d.superviseLoop(ctx, "periodic", d.runPeriodic)
 	}
-	// A panic of these background jobs must not take the daemon down (A-02).
-	safego.Go(func() { d.runLogRotation(ctx) })
-	safego.Go(func() { d.runLeases(ctx) })
+	d.superviseLoop(ctx, "log rotation", d.runLogRotation)
+	d.superviseLoop(ctx, "leases", d.runLeases)
 	for _, t := range opts.Tasks {
-		safego.Go(func() { d.runTask(ctx, t) })
+		d.superviseLoop(ctx, "task "+t.Name, func(ctx context.Context) { d.runTask(ctx, t) })
 	}
 	// Supervision revokes grants: it must not race with their restoration.
 	select {
@@ -275,7 +321,7 @@ func Run(ctx context.Context, opts Options) error {
 	case <-ctx.Done():
 		return d.shutdown()
 	}
-	d.supervise(ctx)
+	d.superviseSafe(ctx)
 
 	ticker := time.NewTicker(opts.Tick)
 	defer ticker.Stop()
@@ -286,9 +332,9 @@ func Run(ctx context.Context, opts Options) error {
 		case <-d.stop:
 			return d.shutdown()
 		case <-d.kick:
-			d.supervise(ctx)
+			d.superviseSafe(ctx)
 		case <-ticker.C:
-			if d.supervise(ctx) {
+			if d.superviseSafe(ctx) {
 				slog.Info("ohd idle, stopping", "idle_after", opts.IdleAfter)
 				return d.shutdown()
 			}
@@ -296,10 +342,17 @@ func Run(ctx context.Context, opts Options) error {
 	}
 }
 
+// superviseLoop runs a background loop of the daemon in its own goroutine,
+// started again after a panic (safego.Supervise).
+func (d *Daemon) superviseLoop(ctx context.Context, name string, loop func(ctx context.Context)) {
+	safego.Go(func() { safego.Supervise(ctx, "ohd "+name, loop) })
+}
+
 func (d *Daemon) shutdown() error {
 	if d.opts.StopServersOnExit {
 		d.sleepAll()
 	}
+	d.stopWatchers() // none writes after Run returns (A-04)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	d.flushProxyUsage(ctx)
@@ -450,6 +503,7 @@ func (d *Daemon) restoreGrants(ctx context.Context) {
 	}
 	d.hashLegacyTokens(ctx)
 	d.movePasswords(ctx)
+	d.purgeOrphanGrants(ctx)
 	grants, err := d.opts.Grants.ListActive(ctx)
 	if err != nil {
 		slog.Warn("ohd: cannot list grants", "error", err)
@@ -457,8 +511,9 @@ func (d *Daemon) restoreGrants(ctx context.Context) {
 	}
 	for _, g := range grants {
 		if d.orphanGrant(ctx, g) {
-			_ = d.opts.Grants.Revoke(ctx, g.TokenHash, time.Now())
-			slog.Info("ohd: orphan grant revoked", "owner", g.Owner)
+			if d.revokeGrant(ctx, g.TokenHash, g.Owner) {
+				slog.Info("ohd: orphan grant revoked", "owner", g.Owner)
+			}
 			continue
 		}
 		secret := ""
@@ -593,6 +648,19 @@ func upstreamFor(provider, region string, auth credproxy.Auth) (credproxy.Upstre
 	return credproxy.Upstream{}, fmt.Errorf("unsupported provider %q", provider)
 }
 
+// superviseSafe is supervise with a panic logged instead of ending the
+// daemon (A-02): the next pass runs as usual. A pass that panicked does not
+// report the daemon as idle.
+func (d *Daemon) superviseSafe(ctx context.Context) (idle bool) {
+	defer func() {
+		if r := recover(); r != nil {
+			slog.Error("ohd: panic in the supervision pass", "panic", r, "stack", string(debug.Stack()))
+			idle = false
+		}
+	}()
+	return d.supervise(ctx)
+}
+
 // supervise marks dead servers stopped, revokes their grants, and reports
 // whether the daemon has been idle long enough to exit.
 func (d *Daemon) supervise(ctx context.Context) bool {
@@ -679,7 +747,10 @@ func (d *Daemon) isOurServer(ctx context.Context, s domain.Server) bool {
 	return d.verifyFails[key] < verifyFailLimit
 }
 
-func (d *Daemon) revokeOwner(ctx context.Context, owner string) {
+// revokeOwner revokes the tokens of a server group: in memory (proxy,
+// gateway, MCP processes), then in the database. It reports whether the
+// database write succeeded (the memory revocation always happens).
+func (d *Daemon) revokeOwner(ctx context.Context, owner string) bool {
 	d.proxy.RevokeSession(owner)
 	if d.gateway != nil {
 		d.gateway.RevokeOwner(owner)
@@ -687,9 +758,7 @@ func (d *Daemon) revokeOwner(ctx context.Context, owner string) {
 	if d.mcp != nil {
 		d.mcp.StopGroup(owner)
 	}
-	if d.opts.Grants != nil {
-		_ = d.opts.Grants.RevokeOwner(ctx, owner, time.Now())
-	}
+	stored := d.revokeOwnerGrants(ctx, owner)
 	d.mu.Lock()
 	for t, g := range d.pending {
 		if g.Owner == owner {
@@ -697,6 +766,7 @@ func (d *Daemon) revokeOwner(ctx context.Context, owner string) {
 		}
 	}
 	d.mu.Unlock()
+	return stored
 }
 
 func (d *Daemon) liveServers(ctx context.Context) int {

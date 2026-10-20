@@ -9,6 +9,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/sessionctx"
 )
 
@@ -131,7 +132,7 @@ func (d *Daemon) syncWatchers(ctx context.Context, live []domain.Server) {
 		wctx, cancel := context.WithCancel(ctx)
 		w := &watcher{d: d, srv: s, ad: ad, cancel: cancel, tracks: map[string]*sessionTrack{}, known: map[string]bool{}, unknownAt: map[string]time.Time{}, children: map[string]string{}, childAgent: map[string]string{}, started: time.Now(), done: make(chan struct{})}
 		d.watchers[s.GroupKey] = w
-		go w.run(wctx)
+		d.startWatcher(wctx, w)
 	}
 	for gk, w := range d.watchers {
 		if !keep[gk] {
@@ -141,17 +142,55 @@ func (d *Daemon) syncWatchers(ctx context.Context, live []domain.Server) {
 	}
 }
 
+// startWatcher runs the watcher of a group in the background. A panic of its
+// loop is logged and the loop restarted (it resynchronizes at each
+// connection): a group whose watcher died would no longer be followed
+// (state, cost, decisions, idle sleep) until the daemon restarts, and
+// stopping the daemon for it would cut every other group's proxy. The
+// daemon waits for the watchers when it stops (stopWatchers).
+func (d *Daemon) startWatcher(ctx context.Context, w *watcher) {
+	d.watchWG.Add(1)
+	safego.Go(func() {
+		defer d.watchWG.Done()
+		defer close(w.done)
+		safego.Supervise(ctx, "ohd watcher "+w.srv.GroupKey, w.run)
+	})
+}
+
+// watchersStopWait bounds the wait for the watchers when the daemon stops:
+// one blocked on a tool server that does not answer must not hold it.
+const watchersStopWait = 5 * time.Second
+
+// stopWatchers cancels every watcher and waits (at most watchersStopWait)
+// until they have returned, so that none writes to the stores or the feed
+// once the daemon is stopped.
 func (d *Daemon) stopWatchers() {
 	d.wmu.Lock()
-	defer d.wmu.Unlock()
 	for gk, w := range d.watchers {
 		w.cancel()
 		delete(d.watchers, gk)
 	}
+	d.wmu.Unlock()
+	// Not under wmu: a watcher finishing its event may need it.
+	wait := d.watchersWait
+	if wait <= 0 {
+		wait = watchersStopWait
+	}
+	done := make(chan struct{})
+	safego.Go(func() {
+		d.watchWG.Wait()
+		close(done)
+	})
+	select {
+	case <-done:
+	case <-time.After(wait):
+		slog.Warn("ohd: watchers still running at exit", "waited", wait)
+	}
 }
 
+// run follows the event stream of the group until ctx ends. Its caller
+// (startWatcher) closes w.done once run is over for good.
 func (w *watcher) run(ctx context.Context) {
-	defer close(w.done)
 	backoff := time.Second
 	for ctx.Err() == nil {
 		evs, err := w.ad.Events(ctx, w.handle())
@@ -216,7 +255,7 @@ func (w *watcher) onEvent(ctx context.Context, ev adapters.ToolEvent) {
 	checked := w.shellChecked[ev.SessionID]
 	w.mu.Unlock()
 	if !checked {
-		go w.checkShellOnce(context.WithoutCancel(ctx), ev.SessionID)
+		safego.Go(func() { w.checkShellOnce(context.WithoutCancel(ctx), ev.SessionID) })
 	}
 	if ev.Feed != nil && ev.Feed.Kind == domain.FeedAgent && ev.Feed.Agent != "" {
 		w.mu.Lock()
@@ -569,7 +608,7 @@ func (w *watcher) adoptChild(ctx context.Context, child, parent string) {
 	w.mu.Unlock()
 	if !had {
 		w.applyRulesTo(ctx, root, child) // locks hold in nested delegations too
-		go w.applyChildEnv(child, root)
+		safego.Go(func() { w.applyChildEnv(child, root) })
 	}
 }
 

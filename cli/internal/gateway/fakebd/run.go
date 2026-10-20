@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/gateway/beadswire"
+	"github.com/datichb/openhub/cli/internal/peercheck"
 )
 
 // backend runs one bd command.
@@ -123,9 +124,10 @@ func hookToken(getenv env, args []string) (string, error) {
 		return "", err
 	}
 	client := &http.Client{Timeout: 30 * time.Second, Transport: &http.Transport{
+		// The token is sent to the socket only after checking that the user's
+		// daemon is behind it (S-28).
 		DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
-			var d net.Dialer
-			return d.DialContext(ctx, "unix", sock)
+			return peercheck.Dial(ctx, sock)
 		},
 	}}
 	resp, err := client.Post("http://ohd"+beadswire.HookTokenPath, "application/json", bytes.NewReader(body))

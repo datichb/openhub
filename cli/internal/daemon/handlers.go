@@ -10,6 +10,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/credproxy"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/safego"
 )
 
 func (d *Daemon) routes() http.Handler {
@@ -160,7 +161,12 @@ func (d *Daemon) handlePending(w http.ResponseWriter, _ *http.Request) {
 }
 
 func (d *Daemon) handleRevokeOwner(w http.ResponseWriter, r *http.Request) {
-	d.revokeOwner(r.Context(), r.PathValue("owner"))
+	// The tokens are dead in memory in any case; the client is told when the
+	// database could not be written, so that it tries again (S-29).
+	if !d.revokeOwner(r.Context(), r.PathValue("owner")) {
+		writeErr(w, http.StatusInternalServerError, "revocation not saved in the database")
+		return
+	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -202,7 +208,7 @@ func (d *Daemon) handleShutdown(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusAccepted)
-	go d.requestStop()
+	safego.Go(d.requestStop)
 }
 
 // handleListen adds a proxy listener on a private or loopback address (a

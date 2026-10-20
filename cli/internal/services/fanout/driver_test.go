@@ -61,6 +61,7 @@ type fakeLauncher struct {
 	started []LaunchRequest
 	told    []string
 	cost    float64
+	costOf  map[string]float64 // ticket → cost of its child, instead of cost
 	maxSeen int
 	running int
 	hold    time.Duration
@@ -91,9 +92,13 @@ func (l *fakeLauncher) Start(ctx context.Context, req LaunchRequest) (string, er
 		close(l.all)
 	}
 	all := l.all
+	cost := l.cost
+	if c, ok := l.costOf[req.Ticket]; ok && req.Record.Role == domain.RoleChild {
+		cost = c
+	}
 	l.mu.Unlock()
 	require.NoError(l.t, l.store.Create(ctx, &domain.Session{ID: id, ProjectID: "p1", Status: domain.SessionStatusRunning, State: domain.RunActive,
-		LaunchPath: req.Dir, Cost: l.cost, Fanout: req.Record, ParentSessionID: req.Parent.ID}))
+		LaunchPath: req.Dir, Cost: cost, Fanout: req.Record, ParentSessionID: req.Parent.ID}))
 	go func() {
 		if l.together > 0 && req.Record.Role == domain.RoleChild {
 			select {
@@ -486,7 +491,7 @@ func TestDriverGlobalBudget(t *testing.T) {
 	second, _ := fo.Child("ev-2")
 	assert.Equal(t, domain.ChildBudget, second.State, "not launched once the global budget is spent")
 	assert.Contains(t, []domain.FanoutChildState{domain.ChildBudget, domain.ChildMerged}, first.State)
-	assert.InDelta(t, 0.5, f.launcher.started[0].BudgetUSD, 1e-9, "the child gets what remains of the budget")
+	assert.InDelta(t, 0.25, f.launcher.started[0].BudgetUSD, 1e-9, "the child gets its share of what remains (two children left: half)")
 	assert.Len(t, f.launcher.started, 1)
 	var budget bool
 	for _, e := range fo.Events {

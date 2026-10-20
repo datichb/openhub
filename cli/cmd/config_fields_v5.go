@@ -6,8 +6,10 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/envfilter"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/limits"
 	"github.com/datichb/openhub/cli/internal/semver"
@@ -116,7 +118,25 @@ func v5ConfigFields() map[string]configField {
 		},
 		"execution.keep_images":      intField("execution.keep_images", func(c *config.Config) *int { return &c.Execution.KeepImages }, 1, 20),
 		"execution.strict_isolation": boolField("execution.strict_isolation", func(c *config.Config) *bool { return &c.Execution.StrictIsolation }),
-		"remote.experimental":        boolField("remote.experimental", func(c *config.Config) *bool { return &c.Remote.Experimental }),
+		"execution.env_allow": {
+			Set: func(c *config.Config, v string) error {
+				var out []string
+				for _, e := range strings.FieldsFunc(v, func(r rune) bool { return r == ',' || unicode.IsSpace(r) }) {
+					if !envfilter.ValidPattern(e) {
+						return invalidConfigValue("execution.env_allow", e, "NAME | PREFIX_*")
+					}
+					if !slices.Contains(out, e) {
+						out = append(out, e)
+					}
+				}
+				c.Execution.EnvAllow = out
+				return nil
+			},
+			Unset: func(c *config.Config) { c.Execution.EnvAllow = nil },
+		},
+		"execution.proxy_first_byte_timeout_minutes": intField("execution.proxy_first_byte_timeout_minutes",
+			func(c *config.Config) *int { return &c.Execution.ProxyFirstByteTimeoutMinutes }, 1, 240),
+		"remote.experimental": boolField("remote.experimental", func(c *config.Config) *bool { return &c.Remote.Experimental }),
 		// R6: fan-out (experimental).
 		"fanout.experimental": boolField("fanout.experimental", func(c *config.Config) *bool { return &c.Fanout.Experimental }),
 		"fanout.parallel":     intField("fanout.parallel", func(c *config.Config) *int { return &c.Fanout.Parallel }, 1, 3),

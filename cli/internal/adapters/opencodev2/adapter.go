@@ -234,6 +234,7 @@ func (a *Adapter) start(ctx context.Context, g adapters.ServerGroup, b sessionsp
 		DataDir:    g.DataDir,
 		ReadyAgent: b.EntryAgent,
 		LogPath:    filepath.Join(g.DataDir, "oh-server.log"),
+		EnvAllow:   g.EnvAllow,
 	}
 	if g.Runtime != nil && g.Prepared != nil {
 		var err error

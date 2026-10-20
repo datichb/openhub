@@ -88,7 +88,15 @@ oh session trace <session>        # trace de la parente, avec les événements d
 
 ## Budget global
 
-La session parente et toutes ses sessions (enfants et merger) partagent `fanout.budget_usd`. Avant chaque enfant, oh compare ce qu'elles ont dépensé au budget : atteint, plus aucun enfant ne démarre ; dépassé pendant un enfant, oh l'arrête. Chaque enfant reçoit ce qui reste comme budget de session. Tout est noté dans les événements du fan-out et dans le message à la session parente.
+La session parente et toutes ses sessions (enfants et merger) partagent `fanout.budget_usd`. Avant chaque enfant, oh compare ce qu'elles ont dépensé au budget : atteint, plus aucun enfant ne démarre ; dépassé pendant un enfant, oh l'arrête. Tout est noté dans les événements du fan-out et dans le message à la session parente.
+
+**Budget d'un enfant.** Un enfant ne reçoit pas tout ce qui reste : il reçoit une **part**, comme budget de session (vérifié par le proxy à chaque requête au modèle). La part est ce sur quoi personne n'a de droit, divisé entre les enfants qui n'ont pas encore démarré, lui compris :
+
+```
+part = (budget − dépensé − ce que les enfants en cours peuvent encore dépenser) ÷ enfants restant à démarrer
+```
+
+Avec trois enfants en même temps et un budget de 3 $, chacun reçoit 1 $ (et non 3 $ chacun, ce qui leur permettrait de dépenser 9 $ ensemble). La règle est recalculée à chaque démarrage : un enfant qui se termine sous sa part libère le reste, et les enfants suivants reçoivent davantage (trois enfants, 3 $, l'un après l'autre, les deux premiers dépensant 0,20 $ chacun : parts de 1,00, 1,40 puis 2,60 $). La part est gardée dans l'enregistrement de l'enfant (`oh fanout status`). Si les enfants en cours retiennent tout ce qui reste, les suivants attendent la fin de l'un d'eux au lieu de démarrer sans rien. Diviser entre les enfants restants, et non entre les créneaux, garde une part pour ceux qui viennent après : le premier enfant ne peut pas prendre tout le budget. Le merger (résolution de conflit) reçoit toujours ce qui reste.
 
 ## Valider par lot
 

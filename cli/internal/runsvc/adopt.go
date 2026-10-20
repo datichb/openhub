@@ -197,7 +197,7 @@ func (s *Service) releaseServer(ctx context.Context, srv *domain.Server, left do
 	s.stopServer(ctx, srv)
 	_ = s.Servers.SetStatus(ctx, left.GroupKey, domain.ServerStopped)
 	if dc, err := s.Daemon(ctx); err == nil {
-		_ = dc.RevokeOwner(ctx, left.GroupKey)
+		revokeOwner(ctx, dc, left.GroupKey)
 	}
 }
 
@@ -208,7 +208,7 @@ func (s *Service) wake(ctx context.Context, sess *domain.Session, req StartReque
 		return s.WakeSession(ctx, sess.ID)
 	}
 	r := StartRequest{ProjectID: sess.ProjectID, TeamID: req.TeamID, ProjectTokenKey: req.ProjectTokenKey,
-		Provider: req.Provider, ProviderCfg: req.ProviderCfg, IsolateUserConfig: req.IsolateUserConfig}
+		Provider: req.Provider, ProviderCfg: req.ProviderCfg, IsolateUserConfig: req.IsolateUserConfig, EnvAllow: req.EnvAllow}
 	if sess.Provider != "" {
 		r.Provider = sess.Provider
 	}

@@ -112,6 +112,7 @@ func TestRunAsksHookToken(t *testing.T) {
 	sock := filepath.Join(dir, "ohd.sock")
 	l, err := net.Listen("unix", sock)
 	require.NoError(t, err)
+	require.NoError(t, os.Chmod(sock, 0o600)) // as the daemon does: the bd refuses a socket open to the others (S-28)
 	var asked beadswire.HookTokenRequest
 	daemon := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, beadswire.HookTokenPath, r.URL.Path)

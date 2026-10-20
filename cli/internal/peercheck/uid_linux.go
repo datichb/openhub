@@ -1,6 +1,6 @@
 //go:build linux
 
-package daemon
+package peercheck
 
 import (
 	"net"
@@ -8,9 +8,9 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// peerUID returns the user id of the process at the other end of a Unix
-// socket connection (SO_PEERCRED).
-func peerUID(c net.Conn) (int, error) {
+// UID returns the user id of the process at the other end of a Unix socket
+// connection (SO_PEERCRED).
+func UID(c net.Conn) (int, error) {
 	return sockoptUID(c, func(fd int) (int, error) {
 		cred, err := unix.GetsockoptUcred(fd, unix.SOL_SOCKET, unix.SO_PEERCRED)
 		if err != nil {

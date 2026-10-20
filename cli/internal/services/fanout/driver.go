@@ -41,7 +41,9 @@ type LaunchRequest struct {
 	Inputs map[string]string
 	// Record is the fan-out record of the new session.
 	Record *domain.SessionFanout
-	// BudgetUSD is what remains of the global budget (0 = no cap).
+	// BudgetUSD is the share of the global budget granted to the session
+	// (a child: its share of what remains, see childShare; a merger: what
+	// remains; 0 = no cap).
 	BudgetUSD float64
 }
 
@@ -446,6 +448,21 @@ func (d *Driver) runChildren(ctx context.Context, parent string, wf *sessionspec
 			if !c.State.Done() {
 				allDone = false
 			}
+			if c.State == domain.ChildRunning && c.Session == "" {
+				runMu.Lock()
+				launching := running[c.Ticket]
+				runMu.Unlock()
+				if !launching {
+					// A driver stopped between the reservation of the share
+					// of the child and the start of its session: it starts
+					// again, with a new share.
+					_, _ = d.update(ctx, parent, func(f *domain.SessionFanout) {
+						if ch, ok := f.Child(c.Ticket); ok && ch.State == domain.ChildRunning && ch.Session == "" {
+							ch.State, ch.BudgetUSD = domain.ChildPending, 0
+						}
+					})
+				}
+			}
 			if c.State == domain.ChildRunning && c.Session != "" {
 				runMu.Lock()
 				resumed := !running[c.Ticket]
@@ -496,6 +513,16 @@ func (d *Driver) runChildren(ctx context.Context, parent string, wf *sessionspec
 				d.budgetReached(ctx, parent, c.Ticket, spent, budget)
 				continue
 			}
+			// The share of the global budget is reserved here, one child
+			// after the other, before the child starts (F-04).
+			share, ok, err := d.reserveShare(ctx, parent, c.Ticket)
+			if err != nil {
+				d.logf("fan-out %s: %s: %v", parent, c.Ticket, err)
+				continue
+			}
+			if !ok {
+				continue // what is left is held by the children running: wait for one of them
+			}
 			runMu.Lock()
 			running[c.Ticket] = true
 			runMu.Unlock()
@@ -503,7 +530,7 @@ func (d *Driver) runChildren(ctx context.Context, parent string, wf *sessionspec
 			wg.Add(1)
 			go func(ticket string) {
 				defer wg.Done()
-				if err := d.launch(ctx, parent, wf, ticket); err != nil {
+				if err := d.launch(ctx, parent, wf, ticket, share); err != nil {
 					d.logf("fan-out %s: %s: %v", parent, ticket, err)
 				}
 				runMu.Lock()
@@ -629,9 +656,97 @@ func (d *Driver) budgetReached(ctx context.Context, parent, ticket string, spent
 	d.logf("fan-out %s: %s: global budget reached (%s)", parent, ticket, msg)
 }
 
+// minChildBudget is the smallest share of the global budget worth starting
+// a child with (and the floor of the cap of a session).
+const minChildBudget = 0.01
+
+// childShare is the part of the global budget a child about to start may
+// spend (audit v5, F-04 follow-up): what no one has a claim on, split among
+// the children that have not started, this one included.
+//
+//   - free is the budget minus what was spent and minus what the running
+//     children may still spend (the unspent part of their share): the sum of
+//     the shares of the children at the same time never exceeds the budget,
+//     where each used to get all that remained (N children could spend N
+//     times the budget).
+//   - dividing among the children left, not among the slots, keeps a share
+//     for those that come after: a child started first cannot starve the
+//     others, and the one that comes last has what the others left.
+//   - nothing is stored for a child that ends: its unspent share is free
+//     again at the next start, so the children after it get more.
+//
+// ok is false when the share is below minChildBudget while children run:
+// the child waits for one of them to end (and release its claim).
+func childShare(budget, spent, claims float64, pending, running int) (share float64, ok bool) {
+	free := budget - spent - claims
+	share = free / float64(max(pending, 1))
+	if share >= minChildBudget {
+		return share, true
+	}
+	if running > 0 {
+		return 0, false
+	}
+	return minChildBudget, true
+}
+
+// reserveShare grants the child of ticket its share of the global budget and
+// marks it running, in one update of the record (so that the children start
+// one after the other, each seeing the claims of the previous ones). With no
+// global budget the share is 0 (no cap). ok is false when the child must wait.
+func (d *Driver) reserveShare(ctx context.Context, parent, ticket string) (share float64, ok bool, err error) {
+	ok = true
+	_, err = d.update(ctx, parent, func(f *domain.SessionFanout) {
+		c, found := f.Child(ticket)
+		if !found || c.State != domain.ChildPending {
+			ok = false
+			return
+		}
+		if f.BudgetUSD > 0 {
+			var claims float64
+			pending, running := 0, 0
+			for i := range f.Children {
+				switch ch := &f.Children[i]; ch.State {
+				case domain.ChildPending:
+					pending++
+				case domain.ChildRunning:
+					running++
+					claims += max(ch.BudgetUSD-d.costOf(ctx, ch.Session), 0)
+				}
+			}
+			if share, ok = childShare(f.BudgetUSD, d.spentOf(ctx, parent, f), claims, pending, running); !ok {
+				return
+			}
+			c.BudgetUSD = share
+		}
+		c.State = domain.ChildRunning
+	})
+	return share, ok, err
+}
+
+// costOf is the cost of a session ("" or unknown = 0).
+func (d *Driver) costOf(ctx context.Context, id string) float64 {
+	if id == "" {
+		return 0
+	}
+	if s, err := d.Sessions.Get(ctx, id); err == nil {
+		return s.Cost
+	}
+	return 0
+}
+
+// spentOf is what the parent and the sessions of the record f spent.
+func (d *Driver) spentOf(ctx context.Context, parent string, f *domain.SessionFanout) float64 {
+	total := d.costOf(ctx, parent)
+	for _, id := range Sessions(f) {
+		total += d.costOf(ctx, id)
+	}
+	return total
+}
+
 // launch creates the branch and the worktree of the child of ticket from
-// the integration head, launches it and follows it.
-func (d *Driver) launch(ctx context.Context, parent string, wf *sessionspec.WorkflowRuntime, ticket string) error {
+// the integration head (the child is already marked running, with its share
+// of the budget: reserveShare), launches it and follows it.
+func (d *Driver) launch(ctx context.Context, parent string, wf *sessionspec.WorkflowRuntime, ticket string, share float64) error {
 	p, err := d.Sessions.Get(ctx, parent)
 	if err != nil {
 		return err
@@ -645,10 +760,6 @@ func (d *Driver) launch(ctx context.Context, parent string, wf *sessionspec.Work
 	if err != nil {
 		d.childFailed(ctx, parent, ticket, err.Error())
 		return err
-	}
-	remaining := 0.0
-	if f.BudgetUSD > 0 {
-		remaining = max(f.BudgetUSD-d.spent(ctx, p), 0.01)
 	}
 	child, _ := f.Child(ticket)
 	var task *domain.PlanTask
@@ -666,7 +777,7 @@ func (d *Driver) launch(ctx context.Context, parent string, wf *sessionspec.Work
 	}); err != nil {
 		return err
 	}
-	sid, err := d.Launcher.Start(ctx, LaunchRequest{Parent: p, Workflow: wf.Fanout.Child, Dir: path, Ticket: ticket, Task: task, Record: rec, BudgetUSD: remaining,
+	sid, err := d.Launcher.Start(ctx, LaunchRequest{Parent: p, Workflow: wf.Fanout.Child, Dir: path, Ticket: ticket, Task: task, Record: rec, BudgetUSD: share,
 		Inputs: childInputs(f.ChildInputs, task)})
 	if err != nil {
 		d.childFailed(ctx, parent, ticket, err.Error())

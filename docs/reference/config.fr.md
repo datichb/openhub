@@ -96,6 +96,8 @@ engine = "auto"                    # auto | colima | podman | docker
 keep_images = 2                    # images conservées par projet et par rôle
 tool_version = ""                  # version de l'outil (opencode) des images ; vide = celle de la machine
 strict_isolation = false           # masquer aussi la config personnelle d'opencode en local
+env_allow = []                     # variables de votre environnement transmises aux agents en plus de la liste de base : noms ou PREFIXE_*
+proxy_first_byte_timeout_minutes = 5  # attente du proxy d'identifiants avant que le fournisseur commence à répondre
 
 [fanout]
 experimental = false               # fan-out expérimental (R6) : sessions enfants d'implement-spec
@@ -144,6 +146,8 @@ Supprimés en v5 (ignorés s'ils restent dans le fichier) : `[opencode] version`
 | | `keep_images` | `2` | Images conservées par projet et par rôle (base, dev) |
 | | `tool_version` | vide | Version d'opencode des images ; si elle diffère du client de la machine, le lancement en conteneur est refusé |
 | | `strict_isolation` | `false` | Masque aussi la configuration personnelle d'opencode (`XDG_CONFIG_HOME`) des serveurs locaux ; `Attest` refuse alors tout plugin que le paquet n'apporte pas (sans cette option : avertissement seulement) |
+| | `env_allow` | `[]` | Variables de votre environnement qui parviennent au serveur de l'outil et aux shells des agents des sessions locales, **en plus d'une liste de base** : noms (`SSH_AUTH_SOCK`) ou motifs `PREFIXE_*` (`MYCO_*`). S'applique au démarrage d'un serveur (un groupe qui tourne garde son environnement jusqu'à sa mise en veille). Les conteneurs et les jobs distants n'héritent jamais de votre environnement. Voir [L'environnement des agents](#lenvironnement-des-agents) |
+| | `proxy_first_byte_timeout_minutes` | `5` | Durée pendant laquelle le proxy d'identifiants attend qu'un fournisseur de modèle commence à répondre (en-têtes) avant d'abandonner par un 504. Un flux commencé n'a aucune limite de durée. À augmenter pour des modèles très lents ou des requêtes non diffusées qui génèrent beaucoup |
 | `[fanout]` | `experimental` | `false` | Active le fan-out, **expérimental** (R6) : sans lui, `oh run implement-spec -i fanout=true` est refusé et le démon ne délègue aucun checkpoint d'enfant ([guide](../guides/fan-out.fr.md)) |
 | | `parallel` | `1` | Sessions enfants en même temps (1 à 3 ; au plus le `fanout.parallel` du workflow) |
 | | `budget_usd` | `10` | Budget global d'une session parente et de toutes ses sessions (enfants, merger), en dollars (F-04) |
@@ -163,6 +167,40 @@ Supprimés en v5 (ignorés s'ils restent dans le fichier) : `[opencode] version`
 | | `log_max_mb`, `log_keep` | `20`, `3` | Taille au-delà de laquelle un journal est décalé, copies gardées |
 
 Voir [conteneur](../guides/container.fr.md), [exécution distante](../guides/remote-runners.fr.md) et [sessions v5](../guides/sessions-v5.fr.md#restrictions).
+
+---
+
+## L'environnement des agents
+
+Dans une session locale, le serveur de l'outil (opencode) et les shells des agents n'héritent pas de tout votre environnement : **seule une liste blanche passe**. Une liste de noms interdits oublie toujours le secret du jour (`GEMINI_API_KEY`, `GH_TOKEN`, `NPM_TOKEN`, une URL de base de données…) ; ici, ce qui est nécessaire est nommé, et le reste ne passe pas.
+
+**La liste de base** (passe toujours) :
+
+| Famille | Variables |
+|---------|-----------|
+| Processus et identité | `PATH`, `HOME`, `USER`, `LOGNAME`, `SHELL`, `TERM`, `COLORTERM`, `TMPDIR`, `TMP`, `TEMP`, `TZ`, `NO_COLOR`, `CLICOLOR`, `CLICOLOR_FORCE`, `FORCE_COLOR` |
+| Langue | `LANG`, `LANGUAGE`, `LC_*` |
+| Dossiers XDG | `XDG_*` (le dossier de données du serveur de l'outil est fixé par oh) |
+| Réseau | `HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY`, `ALL_PROXY` (et en minuscules), `SSL_CERT_FILE`, `SSL_CERT_DIR`, `NODE_EXTRA_CA_CERTS`, `REQUESTS_CA_BUNDLE`, `CURL_CA_BUNDLE`, `GIT_SSL_CAINFO` |
+| Chaînes d'outils (emplacements, jamais d'identifiants) | `GOPATH`, `GOROOT`, `GOCACHE`, `GOMODCACHE`, `GOBIN`, `JAVA_HOME`, `MAVEN_HOME`, `M2_HOME`, `GRADLE_HOME`, `GRADLE_USER_HOME`, `CARGO_HOME`, `RUSTUP_HOME`, `NVM_DIR`, `PNPM_HOME`, `VOLTA_HOME`, `BUN_INSTALL`, `PYENV_ROOT`, `VIRTUAL_ENV`, `CONDA_PREFIX`, `RBENV_ROOT`, `GEM_HOME`, `GEM_PATH`, `ASDF_DIR`, `ASDF_DATA_DIR`, `DOTNET_ROOT`, `ANDROID_HOME`, `ANDROID_SDK_ROOT`, `HOMEBREW_PREFIX` |
+| oh (lues par les processus qu'oh lance sous le serveur) | `OH_HOME`, `OH_WORKFLOWS_DIR`, `OH_WORKFLOW_REPORTS`, `OH_ALLOW_NEWER_SCHEMA`, `OH_SKIP_DB_BACKUP`, `OH_DAEMON_INPROCESS` |
+| Windows | `SystemRoot`, `COMSPEC`, `PATHEXT`, `USERPROFILE`, `APPDATA`, `LOCALAPPDATA`, `ProgramFiles*`, `ProgramData`, `HOMEDRIVE`, `HOMEPATH`… |
+
+La liste exacte est dans `cli/internal/envfilter/envfilter.go`. N'y figurent pas, volontairement : `SSH_AUTH_SOCK` (il donne les clés de votre ssh-agent aux agents), `ZDOTDIR`, `BASH_ENV` et `ENV` (démarrage du shell : oh les fixe et charge les vôtres, voir [SECURITY](../../SECURITY.fr.md)), toutes les variables en `*_KEY`, `*_TOKEN`, `*_SECRET`, `*_PASSWORD`.
+
+**Ajouter des variables** : `execution.env_allow` est une liste de noms ou de motifs `PREFIXE_*`.
+
+```bash
+oh config set execution.env_allow "SSH_AUTH_SOCK, MYCO_*"   # un nom, et toute variable qui commence par MYCO_
+oh config unset execution.env_allow
+```
+
+- Un `*` seul, un motif de moins de deux caractères avant l'étoile, ou tout ce qui n'est pas un nom sont refusés.
+- Les identifiants qu'oh gère lui-même (`AWS_BEARER_TOKEN_BEDROCK`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`, `AWS_PROFILE`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `OPENROUTER_API_KEY`, `GITLAB_TOKEN`, `GITHUB_TOKEN`, `FIGMA_TOKEN`, `JIRA_TOKEN`, `LINEAR_API_KEY`, `GOOGLE_ACCESS_TOKEN`, `OH_PASSPHRASE`) restent retirés quoi que dise la liste : les agents n'ont que le jeton de session du proxy d'oh.
+- Un nom qui ressemble à un secret que vous ajoutez (`*_KEY`, `*_TOKEN`, `*_SECRET`, `*_PASSWORD`…) est autorisé mais signalé par `oh doctor` (⚠) : les agents peuvent le lire et l'envoyer partout où leurs outils accèdent.
+- `oh doctor` liste aussi, par leur nom seulement, les variables de votre environnement qui sont retenues, pour vous aider à décider quoi ajouter.
+- Le réglage s'applique au démarrage d'un serveur (nouveau groupe, redémarrage, reprise d'une session en veille). Un groupe qui tourne garde son environnement.
+- **Conteneurs et jobs distants** n'héritent jamais de votre environnement (ils reçoivent seulement les réglages d'oh) : `env_allow` ne s'y applique pas.
 
 ---
 

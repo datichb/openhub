@@ -18,8 +18,8 @@ func (d *Daemon) onProxyUsage(owner string, delta credproxy.Usage) {
 	if d.opts.Usage == nil {
 		return
 	}
-	d.mu.Lock()
-	defer d.mu.Unlock()
+	d.usageMu.Lock()
+	defer d.usageMu.Unlock()
 	if d.proxyUsage == nil {
 		d.proxyUsage = map[string]domain.ProxyUsage{}
 	}
@@ -37,10 +37,10 @@ func (d *Daemon) flushProxyUsage(ctx context.Context) {
 	if d.opts.Usage == nil {
 		return
 	}
-	d.mu.Lock()
+	d.usageMu.Lock()
 	pending := d.proxyUsage
 	d.proxyUsage = nil
-	d.mu.Unlock()
+	d.usageMu.Unlock()
 	day := domain.UsageDay(time.Now())
 	for group, u := range pending {
 		if err := d.opts.Usage.AddProxy(ctx, group, day, u); err != nil {
@@ -59,9 +59,9 @@ func (d *Daemon) continueProxyUsage(ctx context.Context, group, hash string) {
 	if err != nil {
 		return
 	}
-	d.mu.Lock()
+	d.usageMu.Lock()
 	p := d.proxyUsage[group]
-	d.mu.Unlock()
+	d.usageMu.Unlock()
 	d.proxy.SetUsage(hash, credproxy.Usage{Requests: tot.Requests + p.Requests,
 		InputTokens: tot.TokensIn + p.TokensIn, OutputTokens: tot.TokensOut + p.TokensOut})
 }

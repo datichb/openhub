@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/datichb/openhub/cli/internal/safego"
 )
 
 // CredentialRef names the real credential of a grant without containing it:
@@ -148,7 +150,7 @@ func (p *Proxy) checkAuth(g *grantState, provider string, resp *http.Response) {
 	f := p.OnAuthRejected
 	p.mu.RUnlock()
 	if f != nil {
-		go f(rej)
+		safego.Go(func() { f(rej) })
 	}
 }
 

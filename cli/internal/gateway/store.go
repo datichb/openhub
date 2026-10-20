@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -56,6 +57,8 @@ type Store struct {
 	mu     sync.Mutex
 	byHash map[string]Grant
 	hooks  map[string]hookTicket // one-time hook tokens (memory only)
+	// writeFile saves the grants (os.WriteFile; replaced in tests).
+	writeFile func(name string, data []byte, perm os.FileMode) error
 }
 
 type storedGrant struct {
@@ -245,8 +248,18 @@ func (s *Store) revoke(match func(Grant) bool) {
 			delete(s.byHash, h)
 		}
 	}
-	if len(s.byHash) != n {
-		_ = s.saveLocked()
+	if len(s.byHash) == n {
+		return
+	}
+	// A revocation that is not written would come back with the next
+	// daemon (audit v5, S-29): the error is logged, the save tried again.
+	err := s.saveLocked()
+	if err == nil {
+		return
+	}
+	slog.Warn("gateway: saving the revoked grants failed, trying again", "error", err)
+	if err := s.saveLocked(); err != nil {
+		slog.Error("gateway: revoked grants not saved, they come back at the next start unless their group is gone", "error", err)
 	}
 }
 
@@ -281,7 +294,11 @@ func (s *Store) saveLocked() error {
 		return err
 	}
 	tmp := s.path + ".tmp"
-	if err := os.WriteFile(tmp, data, 0o600); err != nil {
+	write := s.writeFile
+	if write == nil {
+		write = os.WriteFile
+	}
+	if err := write(tmp, data, 0o600); err != nil {
 		return err
 	}
 	return os.Rename(tmp, s.path)

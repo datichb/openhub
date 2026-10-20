@@ -17,8 +17,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/datichb/openhub/cli/internal/envfilter"
 	"github.com/datichb/openhub/cli/internal/logrotate"
 	ohruntime "github.com/datichb/openhub/cli/internal/runtime"
+	"github.com/datichb/openhub/cli/internal/safego"
 )
 
 // ServerOptions configures a dedicated `opencode serve` process.
@@ -29,6 +31,7 @@ type ServerOptions struct {
 	ConfigHome    string            // optional isolated config home → XDG_CONFIG_HOME (strict isolation)
 	ConfigContent string            // inline config → OPENCODE_CONFIG_CONTENT
 	Env           map[string]string // extra environment (e.g. provider session token)
+	EnvAllow      []string          // variables of the user's environment inherited besides the base list (names or PREFIX_*)
 	Port          int               // 0 = pick a free port
 	Password      string            // "" = random
 	LogPath       string            // default: <DataDir>/oh-server.log
@@ -61,33 +64,18 @@ type Server struct {
 	mu      sync.Mutex
 }
 
-// secretEnvKeys are never inherited by the server process: credentials reach
-// the tool only through the oh credential proxy session token.
-var secretEnvKeys = map[string]bool{
-	"AWS_BEARER_TOKEN_BEDROCK": true,
-	"AWS_ACCESS_KEY_ID":        true,
-	"AWS_SECRET_ACCESS_KEY":    true,
-	"AWS_SESSION_TOKEN":        true,
-	"AWS_PROFILE":              true,
-	"ANTHROPIC_API_KEY":        true,
-	"OPENAI_API_KEY":           true,
-	"OPENROUTER_API_KEY":       true,
-	"GITLAB_TOKEN":             true,
-	"GITHUB_TOKEN":             true,
-	"FIGMA_TOKEN":              true,
-	"JIRA_TOKEN":               true,
-	"LINEAR_API_KEY":           true,
-	"GOOGLE_ACCESS_TOKEN":      true,
-	"OH_PASSPHRASE":            true,
-}
-
-// buildEnv returns the server environment: the parent environment minus
-// secrets and any OPENCODE_* / tool-isolation variables, plus oh's settings.
+// buildEnv returns the server environment: the part of the parent
+// environment that internal/envfilter lets through (an allow-list: a short
+// base list, plus ServerOptions.EnvAllow; the credentials oh manages never
+// pass), without any OPENCODE_* / tool-isolation variable, plus oh's
+// settings. Credentials reach the tool only through the session token of the
+// oh credential proxy.
 func buildEnv(parent []string, opts ServerOptions, password string) []string {
 	env := make([]string, 0, len(parent)+8)
-	for _, kv := range parent {
+	allowed, _ := envfilter.Split(parent, opts.EnvAllow)
+	for _, kv := range allowed {
 		k, _, _ := strings.Cut(kv, "=")
-		if secretEnvKeys[k] || strings.HasPrefix(k, "OPENCODE_") || k == "XDG_DATA_HOME" {
+		if strings.HasPrefix(k, "OPENCODE_") || k == "XDG_DATA_HOME" {
 			continue
 		}
 		if opts.ConfigHome != "" && k == "XDG_CONFIG_HOME" {
@@ -288,14 +276,14 @@ func startServer(ctx context.Context, opts ServerOptions, bin string, port int) 
 		Client:   NewClient(url, password),
 		exited:   make(chan struct{}),
 	}
-	go func() {
+	safego.Go(func() {
+		defer close(s.exited)
 		err := cmd.Wait()
 		logFile.Close()
 		s.mu.Lock()
 		s.exitErr = err
 		s.mu.Unlock()
-		close(s.exited)
-	}()
+	})
 
 	if timeout == 0 {
 		timeout = 30 * time.Second

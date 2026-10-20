@@ -24,6 +24,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/datichb/openhub/cli/internal/safego"
 )
 
 // Auth applies the real credential to an upstream request.
@@ -119,6 +121,30 @@ type grantState struct {
 	rateLimited int
 	// reserved is the token budget (input-equivalent) held by the requests in flight.
 	reserved float64
+	// revoked ends when the token is revoked: the requests in flight are
+	// cut with it (audit v5, S-28), a stream would otherwise go on for
+	// minutes with a credential that no longer exists. cancel ends it.
+	revoked context.Context
+	cancel  context.CancelFunc
+}
+
+// bind ties a request to the life of the token: the returned request is
+// cancelled when the token is revoked, as well as when the client goes
+// away. Call stop when the request is over.
+func (g *grantState) bind(r *http.Request) (bound *http.Request, stop func()) {
+	if g.revoked == nil {
+		return r, func() {}
+	}
+	ctx, cancel := context.WithCancel(r.Context())
+	unregister := context.AfterFunc(g.revoked, cancel)
+	return r.WithContext(ctx), func() { unregister(); cancel() }
+}
+
+// end revokes the grant state: its requests in flight are cancelled.
+func (g *grantState) end() {
+	if g.cancel != nil {
+		g.cancel()
+	}
 }
 
 // Proxy is a local HTTP proxy. Routes: /<provider>/... → upstream /... .
@@ -163,18 +189,45 @@ func HookOwner(r *http.Request) string {
 	return s
 }
 
+// Timeouts of the connection to the providers. There is deliberately no
+// timeout on the whole request or on the body: a model stream may run for
+// a long time. Only the wait for the start of the answer is bounded.
+const (
+	// DefaultResponseHeaderTimeout is how long the proxy waits, once the
+	// request is sent, for the provider to start answering (the headers). It
+	// is generous: a slow model, or a request that is not streamed, answers
+	// after minutes (audit v5, A-04). Without a bound, a provider that never
+	// answers holds the request, its reservation and the agent forever.
+	DefaultResponseHeaderTimeout = 5 * time.Minute
+	// TLSHandshakeTimeout bounds the TLS handshake with a provider.
+	TLSHandshakeTimeout = 10 * time.Second
+	// IdleConnTimeout closes a provider connection left idle.
+	IdleConnTimeout = 90 * time.Second
+)
+
 // New returns an unstarted proxy.
 func New() *Proxy {
 	return &Proxy{
 		byToken: map[string]*grantState{},
 		client: &http.Transport{
-			Proxy:               http.ProxyFromEnvironment,
-			ForceAttemptHTTP2:   true,
-			MaxIdleConns:        32,
-			IdleConnTimeout:     90 * time.Second,
-			TLSHandshakeTimeout: 10 * time.Second,
+			Proxy:                 http.ProxyFromEnvironment,
+			ForceAttemptHTTP2:     true,
+			MaxIdleConns:          32,
+			IdleConnTimeout:       IdleConnTimeout,
+			TLSHandshakeTimeout:   TLSHandshakeTimeout,
+			ResponseHeaderTimeout: DefaultResponseHeaderTimeout,
 		},
 	}
+}
+
+// SetResponseHeaderTimeout changes how long the proxy waits for a provider
+// to start answering (d <= 0 keeps DefaultResponseHeaderTimeout). Call it
+// before Start.
+func (p *Proxy) SetResponseHeaderTimeout(d time.Duration) {
+	if d <= 0 {
+		d = DefaultResponseHeaderTimeout
+	}
+	p.client.ResponseHeaderTimeout = d
 }
 
 // Start listens on addr ("127.0.0.1:0" for a free local port).
@@ -186,11 +239,11 @@ func (p *Proxy) Start(addr string) error {
 	p.listener = l
 	p.url = "http://" + l.Addr().String()
 	p.server = &http.Server{Handler: p, ReadHeaderTimeout: 30 * time.Second}
-	go func() {
+	safego.Go(func() {
 		if err := p.server.Serve(l); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			slog.Error("credproxy stopped", "error", err)
 		}
-	}()
+	})
 	return nil
 }
 
@@ -220,11 +273,11 @@ func (p *Proxy) Listen(host string) (string, error) {
 		}
 	}
 	srv := &http.Server{Handler: p, ReadHeaderTimeout: 30 * time.Second}
-	go func() {
+	safego.Go(func() {
 		if err := srv.Serve(l); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			slog.Error("credproxy listener stopped", "addr", l.Addr().String(), "error", err)
 		}
-	}()
+	})
 	if p.extra == nil {
 		p.extra, p.extraURL = map[string]*http.Server{}, map[string]string{}
 	}
@@ -367,6 +420,12 @@ func (p *Proxy) IssueWithHash(hash string, g Grant) error {
 		prev.mu.Lock()
 		st.usage = prev.usage
 		prev.mu.Unlock()
+		// The same token continues: revoking it also cuts the requests
+		// still running on the state it replaces.
+		st.revoked, st.cancel = prev.revoked, prev.cancel
+	}
+	if st.revoked == nil {
+		st.revoked, st.cancel = context.WithCancel(context.Background())
 	}
 	p.byToken[hash] = st
 	p.mu.Unlock()
@@ -384,19 +443,28 @@ func (p *Proxy) Has(ref string) bool {
 // Revoke invalidates a token (or token hash).
 func (p *Proxy) Revoke(ref string) {
 	p.mu.Lock()
+	g := p.byToken[RefHash(ref)]
 	delete(p.byToken, RefHash(ref))
 	p.mu.Unlock()
+	if g != nil {
+		g.end() // the streams in flight are cut
+	}
 }
 
 // RevokeSession invalidates every token of a session.
 func (p *Proxy) RevokeSession(sessionID string) {
+	var ended []*grantState
 	p.mu.Lock()
 	for t, g := range p.byToken {
 		if g.SessionID == sessionID {
 			delete(p.byToken, t)
+			ended = append(ended, g)
 		}
 	}
 	p.mu.Unlock()
+	for _, g := range ended {
+		g.end() // the streams in flight are cut
+	}
 }
 
 // Usage returns the usage accounted to a token (or token hash).
@@ -526,6 +594,10 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "credproxy: invalid session token", http.StatusUnauthorized)
 		return
 	}
+	// A revoked token ends this request too (the stream, the wait for the
+	// provider), not only the next ones.
+	r, unbind := g.bind(r)
+	defer unbind()
 
 	escapedRest, _ := strings.CutPrefix(r.URL.EscapedPath(), "/"+provider+"/")
 	pathModel, err := parsePath(provider, r.Method, escapedRest)
@@ -628,6 +700,12 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			if errors.Is(err, errAuth) {
 				slog.Error("credproxy: applying credentials", "provider", provider, "error", err)
 				http.Error(w, "credproxy: cannot apply the provider credentials", http.StatusBadGateway)
+				return
+			}
+			var timeout interface{ Timeout() bool }
+			if errors.As(err, &timeout) && timeout.Timeout() {
+				slog.Warn("credproxy: upstream did not answer in time", "provider", provider, "waited", p.client.ResponseHeaderTimeout, "error", err)
+				http.Error(w, "credproxy: upstream did not answer in time", http.StatusGatewayTimeout)
 				return
 			}
 			slog.Warn("credproxy: upstream error", "provider", provider, "error", err)

@@ -141,6 +141,8 @@ func daemonOptions(ctx context.Context, a *app.App, capability string) daemon.Op
 		LogMaxBytes: a.Config.GC.LogMaxBytes(),
 		LogKeep:     a.Config.GC.Logs(),
 		IdleSleep:   time.Duration(a.Config.Session.IdleSleepMinutes) * time.Minute,
+		// [execution] proxy_first_byte_timeout_minutes.
+		ProxyHeaderTimeout: a.Config.Execution.ProxyFirstByteTimeout(),
 		// Async: a git push must not stall supervision (the daemon
 		// outlives the last server by IdleAfter).
 		OnSessionEnd: sessionEndHook(a, true),

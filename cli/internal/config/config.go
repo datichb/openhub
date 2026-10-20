@@ -83,10 +83,33 @@ type ExecutionConfig struct {
 	// StrictIsolation hides the user tool configuration (XDG_CONFIG_HOME) of
 	// local servers too (containers never see it).
 	StrictIsolation bool `mapstructure:"strict_isolation" toml:"strict_isolation,omitempty"`
+	// ProxyFirstByteTimeoutMinutes is how long the credential proxy waits
+	// for a model provider to start answering before it gives up on the
+	// request (default 5). A stream, once started, has no time limit.
+	ProxyFirstByteTimeoutMinutes int `mapstructure:"proxy_first_byte_timeout_minutes" toml:"proxy_first_byte_timeout_minutes,omitempty"`
+	// EnvAllow adds variables of the user's environment to those the tool
+	// server of a local session inherits (and so the shells of the agents).
+	// Only a short base list passes (PATH, HOME, LANG, proxies…): names, or
+	// PREFIX_* patterns. Containers and remote jobs never inherit.
+	EnvAllow []string `mapstructure:"env_allow" toml:"env_allow,omitempty"`
 }
 
 // DefaultKeepImages is the default number of container images kept.
 const DefaultKeepImages = 2
+
+// DefaultProxyFirstByteTimeoutMinutes is the default wait of the proxy for
+// the start of a provider answer: slow models take minutes before the first
+// byte.
+const DefaultProxyFirstByteTimeoutMinutes = 5
+
+// ProxyFirstByteTimeout returns how long the proxy waits for a provider to
+// start answering (default 5 minutes).
+func (e ExecutionConfig) ProxyFirstByteTimeout() time.Duration {
+	if e.ProxyFirstByteTimeoutMinutes <= 0 {
+		return DefaultProxyFirstByteTimeoutMinutes * time.Minute
+	}
+	return time.Duration(e.ProxyFirstByteTimeoutMinutes) * time.Minute
+}
 
 // Images returns the number of container images kept (default 2).
 func (e ExecutionConfig) Images() int {

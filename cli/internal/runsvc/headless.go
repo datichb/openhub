@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/adapters"
+	"github.com/datichb/openhub/cli/internal/safego"
 )
 
 // Headless runs (`oh run --headless`, brief-enrich of takeover briefs):
@@ -51,7 +52,7 @@ func (s *Service) AwaitTurn(ctx context.Context, sessionID string) (*HeadlessRes
 	defer cancel()
 	pending := make(chan adapters.PendingDecision, 1)
 	poll := decisionPoll
-	go func() {
+	safego.Go(func() {
 		t := time.NewTicker(poll)
 		defer t.Stop()
 		for {
@@ -66,7 +67,7 @@ func (s *Service) AwaitTurn(ctx context.Context, sessionID string) (*HeadlessRes
 				}
 			}
 		}
-	}()
+	})
 	err = w.WaitIdle(wctx, h, sessionID)
 	select {
 	case d := <-pending:

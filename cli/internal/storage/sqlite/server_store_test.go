@@ -137,3 +137,55 @@ func TestSessionStoreWorkflowLaunchFields(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, got.Outputs, again.Outputs)
 }
+
+// S-29: RevokeOrphans revokes the active grants whose owner has no starting
+// or ready server, old enough, whether they can be listed or not.
+func TestGrantStoreRevokeOrphans(t *testing.T) {
+	st := openTemp(t)
+	gs, ss := NewGrantStore(st), NewServerStore(st)
+	ctx := context.Background()
+	now := time.Now()
+	old := now.Add(-time.Hour)
+	for _, s := range []domain.Server{
+		{GroupKey: "ready", Adapter: "x", Status: domain.ServerReady, CreatedAt: old},
+		{GroupKey: "starting", Adapter: "x", Status: domain.ServerStarting, CreatedAt: old},
+		{GroupKey: "sleeping", Adapter: "x", Status: domain.ServerSleeping, CreatedAt: old},
+		{GroupKey: "stopped", Adapter: "x", Status: domain.ServerStopped, CreatedAt: old},
+	} {
+		require.NoError(t, ss.Upsert(ctx, &s))
+	}
+	for _, g := range []domain.ProxyGrant{
+		{TokenHash: "t-ready", Owner: "ready", CreatedAt: old},
+		{TokenHash: "t-starting", Owner: "starting", CreatedAt: old},
+		{TokenHash: "t-sleeping", Owner: "sleeping", CreatedAt: old},
+		{TokenHash: "t-stopped", Owner: "stopped", CreatedAt: old},
+		{TokenHash: "t-nobody", Owner: "nobody", CreatedAt: old},
+		{TokenHash: "t-recent", Owner: "nobody", CreatedAt: now}, // a client is starting its server
+		{TokenHash: "t-done", Owner: "nobody", CreatedAt: old},
+	} {
+		g.Provider = "amazon-bedrock"
+		require.NoError(t, gs.Insert(ctx, &g))
+	}
+	require.NoError(t, gs.Revoke(ctx, "t-done", now)) // already revoked: not counted
+	_, err := st.DB().Exec(`UPDATE proxy_grants SET source = 'not json' WHERE token = 't-nobody'`)
+	require.NoError(t, err)
+
+	n, err := gs.RevokeOrphans(ctx, now.Add(-time.Minute), now)
+	require.NoError(t, err)
+	assert.Equal(t, 3, n)
+
+	var left []string
+	rows, err := st.DB().Query(`SELECT token FROM proxy_grants WHERE revoked_at IS NULL ORDER BY token`)
+	require.NoError(t, err)
+	defer rows.Close()
+	for rows.Next() {
+		var tok string
+		require.NoError(t, rows.Scan(&tok))
+		left = append(left, tok)
+	}
+	assert.Equal(t, []string{"t-ready", "t-recent", "t-starting"}, left)
+
+	n, err = gs.RevokeOrphans(ctx, now.Add(-time.Minute), now)
+	require.NoError(t, err)
+	assert.Zero(t, n, "idempotent")
+}
