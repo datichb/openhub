@@ -5423,7 +5423,7 @@
   "cmd.secrets.set.stored": "Secret %q enregistré (%s)",
   "cmd.secrets.scope_project": "projet %s",
   "cmd.serve.short": "Lance le dashboard web oh",
-  "cmd.serve.long": "Lance un serveur HTTP local qui expose le dashboard oh :\nprojets, sessions, métriques, télémétrie des agents, board d'équipe (kanban), chronologie et membres.\n\nLe serveur n'écoute que sur 127.0.0.1 et ne répond qu'aux requêtes adressées à 127.0.0.1, localhost ou [::1] sur son port. L'URL affichée au démarrage contient un jeton d'accès aléatoire (http://127.0.0.1:8080/?token=…) : ouvrez-la telle quelle, ne la partagez pas.\n\nExemples :\n  oh serve                   Port par défaut (8080)\n  oh serve --port 9090       Autre port",
+  "cmd.serve.long": "Lance un serveur HTTP local qui expose le dashboard oh :\nprojets, sessions, métriques, télémétrie des agents, board d'équipe (kanban), chronologie et membres.\n\nLe serveur n'écoute que sur 127.0.0.1 et ne répond qu'aux requêtes adressées à 127.0.0.1, localhost ou [::1] sur son port. L'URL affichée au lancement contient un jeton d'accès aléatoire (http://127.0.0.1:8080/?token=…) : ouvrez-la telle quelle, ne la partagez pas.\n\nExemples :\n  oh serve                   Port par défaut (8080)\n  oh serve --port 9090       Autre port",
   "cmd.serve.flags.port": "Port d'écoute",
   "cmd.serve.ready": "Dashboard oh disponible sur %s",
   "cmd.serve.token_hint": "Le lien contient un jeton d'accès valable jusqu'à l'arrêt du serveur : ne le partagez pas.",

@@ -24,7 +24,7 @@ Le dashboard affiche projets, sessions, métriques, télémétrie agent,
 team board (kanban), timeline et membres.
 
 Par défaut le serveur écoute uniquement sur 127.0.0.1 (localhost).
-L'URL affichée au démarrage contient un jeton d'accès aléatoire
+L'URL affichée au lancement contient un jeton d'accès aléatoire
 (http://127.0.0.1:8080/?token=…) : ouvrez-la telle quelle, ne la partagez pas.
 
 Exemples:
