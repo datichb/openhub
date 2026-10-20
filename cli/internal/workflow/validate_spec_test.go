@@ -283,8 +283,15 @@ func TestValidate_DiagnosticPointsToPatchLayer(t *testing.T) {
 		"team:x": vHeader + "extends: hub:x\nagents:\n  ghost: { role: independent }\n",
 	})
 	_, diags := Check(cat, Ref{LayerTeam, "x"}, nil, testEnv())
-	if len(diags) != 1 || diags[0].Source != "team:x.yaml" || diags[0].Pos != (Pos{6, 3}) {
+	// The unknown agent is an error; an agent added by a team layer also gets
+	// a warning (S-20), at the same place.
+	if errs := diags.Errors(); len(errs) != 1 || errs[0].Source != "team:x.yaml" || errs[0].Pos != (Pos{6, 3}) {
 		t.Fatalf("diags = %+v", diags)
+	}
+	for _, d := range diags {
+		if d.Source != "team:x.yaml" || d.Pos != (Pos{6, 3}) {
+			t.Fatalf("diagnostic %s points to %s %v", d.Code, d.Source, d.Pos)
+		}
 	}
 }
 

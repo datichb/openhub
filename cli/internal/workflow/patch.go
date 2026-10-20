@@ -115,6 +115,12 @@ func (p *patcher) apply() {
 			d.Skills = &SkillSelection{}
 		}
 		if p.has("skills.extra") {
+			// S-20: skills the parent does not list are added to what the
+			// agents can load; removing some stays allowed. Reported like an
+			// added agent (see agents).
+			if extra := missingFrom(s.Skills.Extra, d.Skills.Extra); len(extra) > 0 && !p.widens() {
+				p.report(warnDiag("patch_skills_extra_added", "skills.extra", strings.Join(extra, ","), p.parent))
+			}
 			d.Skills.Extra = s.Skills.Extra
 		}
 		if p.has("skills.deny") {
@@ -266,6 +272,13 @@ func (p *patcher) agents() {
 				// it adds.
 				p.loosening(base+".writes", strings.Join(v.Writes, ","), "[]")
 				v.Writes, v.WritesAfter = nil, ""
+			}
+			if !p.widens() {
+				// S-20: a team or project layer widens the workflow by adding
+				// an agent. Refusing it would break the agents of the team
+				// catalogue, a documented use: it is reported (and shown as a
+				// new agent in the impact summary of a publication).
+				p.report(warnDiag("patch_agent_added", base, k, p.parent))
 			}
 			p.dst.Agents.Set(k, v)
 			continue

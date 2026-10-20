@@ -187,6 +187,11 @@ MCP server tokens (GitLab, Figma, Jira, Linear, GitHub, Google) are:
 - **`branch` inputs.** They follow the rules of `git check-ref-format --branch`: no space or control character, no `..`, `@{` or `//`, none of the characters `~ ^ : ? * [ \`, no component starting with `.` or ending with `.lock`, 255 bytes at most. A trapped branch is refused when the prompt is rendered. The `review-feedback` workflow gives the branches of the MR inside data blocks.
 - Limit: this helps the model tell data from instructions; it is not a barrier. A piece of data can still try to persuade it; the locks that matter (checkpoints, gateways, container) do not depend on what the model reads.
 
+### Workflow layers (team, project)
+
+- **Security fields can only be hardened.** A team or project layer that extends a hub workflow cannot raise the risk, give up strict isolation, widen `beads.allow`, the allowed environments, the budgets or the `calls` lists, remove a mandatory checkpoint or one that locks an action, nor (outside the hub layer) add plugins or MCP servers. A loosening is an error (`loosening`) and the parent value is kept.
+- **What a layer may widen: an agent, skills.** Adding an agent to an inherited workflow (for example an agent of the team catalogue) or skills to `skills.extra` does not loosen a security field, but widens what the workflow can do. oh accepts it with a **warning** (`patch_agent_added`, `patch_skills_extra_added`), and the impact summary of a publication shows it ("new agent"). An agent added by a layer never gets `writes`. Removing skills stays allowed. The hub layer adds without a warning.
+
 ### Session limits (I6)
 
 Optional and disabled by default (`oh budget show|set|unset|raise`): maximum active sessions, budget per session and daily budget in USD, memory cap, list of allowed models (enforced by the proxy on the group token). Cascade: workflow (`limits:`) > project > hub > team recommended; a team's enforced value is a ceiling. Budgets are soft ceilings: they are checked at the end of each step, which then raises a `$` decision.

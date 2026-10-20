@@ -186,6 +186,11 @@ Les jetons des serveurs MCP (GitLab, Figma, Jira, Linear, GitHub, Google) sont :
 - **Entrée de type `branch`.** Elle suit les règles de `git check-ref-format --branch` : ni espace ni caractère de contrôle, ni `..`, `@{`, `//`, ni aucun des caractères `~ ^ : ? * [ \`, pas de composant qui commence par `.` ou finit par `.lock`, 255 octets au plus. Une branche piégée est refusée au rendu du prompt. Le workflow `review-feedback` donne les branches de la MR dans des blocs de données.
 - Limite : c'est une aide donnée au modèle pour distinguer données et consignes, pas une barrière. Une donnée peut toujours chercher à le convaincre ; les verrous qui comptent (checkpoints, passerelles, conteneur) ne dépendent pas de ce que le modèle lit.
 
+### Couches de workflow (équipe, projet)
+
+- **Les champs de sécurité ne peuvent que se durcir.** Une couche d'équipe ou de projet qui étend un workflow du hub ne peut pas relever le risque, abandonner l'isolation stricte, élargir `beads.allow`, les environnements autorisés, les budgets ni les listes `calls`, retirer un checkpoint obligatoire ou qui verrouille une action, ni (hors couche hub) ajouter des plugins ou des serveurs MCP. Un assouplissement est une erreur (`loosening`) et la valeur du parent est gardée.
+- **Ce qu'une couche peut élargir : un agent, des skills.** Ajouter un agent à un workflow hérité (par exemple un agent du catalogue d'équipe) ou des skills à `skills.extra` n'assouplit pas un champ de sécurité, mais élargit ce que le workflow peut faire. oh l'accepte avec un **avertissement** (`patch_agent_added`, `patch_skills_extra_added`), et le résumé d'impact d'une publication le signale (« nouvel agent »). Un agent ajouté par une couche n'a jamais de `writes`. Retirer des skills reste permis. La couche hub ajoute sans avertissement.
+
 ### Restrictions des sessions (I6)
 
 Optionnelles et désactivées par défaut (`oh budget show|set|unset|raise`) : sessions actives max, budget par session et budget journalier en USD, plafond mémoire, liste des modèles autorisés (appliquée par le proxy sur le jeton du groupe). Cascade : workflow (`limits:`) > projet > hub > recommandé d'équipe ; l'imposé d'équipe est un plafond. Les budgets sont des plafonds souples : contrôlés en fin d'étape, ils lèvent alors une décision `$`.
