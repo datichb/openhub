@@ -1237,6 +1237,7 @@
   "cmd.root.long": "oh is the monolithic CLI for OpenHub.\nIt orchestrates agentic sessions, manages projects, runs workflows in isolated sessions (one bundle per session),\nand provides an interactive TUI for development tracking.",
   "cmd.root.short": "OpenHub CLI — orchestrator of agentic sessions",
   "cmd.service.disabled": "Service %s disabled.",
+  "cmd.service.project_token_removed": "Token of %s removed for project %s.",
   "cmd.service.enabled": "Service %s enabled and configured.",
   "cmd.service.flags.project": "Project ID",
   "cmd.service.project_scope": "Project configuration",

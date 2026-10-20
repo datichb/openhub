@@ -155,9 +155,9 @@ Les tokens sont lus par les serveurs MCP au runtime via des variables d'environn
 | `anthropic-api-key-<project-id>` | Clé API Anthropic par projet |
 | `openrouter-api-key-default` | Clé API OpenRouter |
 | `openrouter-api-key-<project-id>` | Clé API OpenRouter par projet |
-| `figma-token` | Token API Figma |
-| `gitlab-token` | Token API GitLab |
-| `gslides-token` | Token OAuth Google Slides |
+| `openhub.mcp.figma.token` | Token API Figma |
+| `openhub.mcp.gitlab.token` | Token API GitLab |
+| `openhub.mcp.gslides.token` | Token OAuth Google Slides |
 
 **Fallback :** Fichier chiffré à `~/.oh/secrets.enc`
 

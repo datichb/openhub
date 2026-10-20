@@ -456,7 +456,7 @@ func runMCPSetupForService(cmd *cobra.Command, serviceName string, project *doma
 			Processing: i18n.T("cmd.mcp.setup.persist_processing"),
 			OnDone: func() error {
 				if project != nil {
-					tokenKey := serviceName + "-token-" + project.ID
+					tokenKey := config.MCPProjectTokenKey(serviceName, project.ID)
 					if token == "" {
 						tokenKey = "" // inherit hub token
 					}

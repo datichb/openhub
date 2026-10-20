@@ -74,6 +74,8 @@ oh mcp reset figma --project mon-projet
 
 Configure un service MCP (assistant interactif : token, options). Services : `figma`, `gitlab`, `gslides`, `jira` ; sans argument, le service est choisi dans une liste. Le mode écriture est propose pour les services qui ont des outils d'écriture (`gitlab`, `jira`). Avec `--project`, le token est stocke dans le trousseau sous une clé propre au projet.
 
+Noms des clés du trousseau : `openhub.mcp.<service>.token` (hub) et `openhub.mcp.<service>.token.<id-projet>` (projet). Les anciens noms (`<service>-token`, `<service>-token-<id-projet>`) restent lus en repli : un jeton trouvé seulement sous l'ancien nom est copié sous le nouveau, et l'ancienne clé est conservée (jamais supprimée automatiquement). Au démarrage, oh copie aussi les clés des projets vers le nouveau nom et met à jour la clé enregistrée dans le projet ; cette migration peut être rejouée. `oh doctor` signale une clé configurée dont la valeur est vide ou introuvable, avec la commande pour la refaire (`oh mcp setup <service>`).
+
 ```
 oh mcp setup [service] [options]
 ```
@@ -244,7 +246,7 @@ oh mcp ls --json
 
 ### oh service (déprécié)
 
-`oh service`, `oh service setup` et `oh service remove` existent encore mais sont deprecies et masques de l'aide : utilisez `oh mcp status`, `oh mcp setup` et `oh mcp disable`.
+`oh service`, `oh service setup` et `oh service remove` existent encore mais sont deprecies et masques de l'aide : utilisez `oh mcp status`, `oh mcp setup` et `oh mcp disable`. `oh service remove --project <projet>` supprime le jeton d'un projet (nom actuel et ancien nom de clé, jamais le jeton du hub) et oublie la clé enregistrée dans le projet.
 
 ---
 

@@ -74,6 +74,8 @@ oh mcp reset figma --project my-project
 
 Configures an MCP service (interactive wizard: token, options). Services: `figma`, `gitlab`, `gslides`, `jira`; without argument, the service is chosen from a list. The write mode is offered for the services that have write tools (`gitlab`, `jira`). With `--project`, the token is stored in the keychain under a project-scoped key.
 
+Keychain key names: `openhub.mcp.<service>.token` (hub) and `openhub.mcp.<service>.token.<project-id>` (project). The former names (`<service>-token`, `<service>-token-<project-id>`) are still read as a fallback: a token found only under the former name is copied under the new one, and the former key is kept (never deleted automatically). At startup, oh also copies the project keys to the new name and updates the key recorded in the project; this migration can be replayed. `oh doctor` reports a configured key whose value is empty or not found, with the command to redo it (`oh mcp setup <service>`).
+
 ```
 oh mcp setup [service] [options]
 ```
@@ -244,7 +246,7 @@ oh mcp ls --json
 
 ### oh service (deprecated)
 
-`oh service`, `oh service setup` and `oh service remove` still exist but are deprecated and hidden from the help: use `oh mcp status`, `oh mcp setup` and `oh mcp disable`.
+`oh service`, `oh service setup` and `oh service remove` still exist but are deprecated and hidden from the help: use `oh mcp status`, `oh mcp setup` and `oh mcp disable`. `oh service remove --project <project>` deletes the token of a project (current and former key names, never the hub token) and forgets the key recorded in the project.
 
 ---
 

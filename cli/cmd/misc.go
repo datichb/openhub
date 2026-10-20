@@ -83,6 +83,8 @@ var serviceRemoveCmd = &cobra.Command{
 
 func init() {
 	serviceRemoveCmd.Flags().BoolP("force", "f", false, "Skip confirmation")
+	serviceRemoveCmd.Flags().StringP("project", "p", "", i18n.T("cmd.mcp.flags.project"))
+	_ = serviceRemoveCmd.RegisterFlagCompletionFunc("project", completeProjectIDs)
 	serviceSetupCmd.Flags().StringP("project", "p", "", "Configure MCP for a specific project (overrides hub-level)")
 }
 
@@ -276,7 +278,7 @@ func runServiceSetup(cmd *cobra.Command, args []string) error {
 	// Persist configuration
 	if project != nil {
 		// Project-scoped: update project.MCPConfig in DB
-		tokenKey := serviceName + "-token-" + project.ID
+		tokenKey := config.MCPProjectTokenKey(serviceName, project.ID)
 		svc := domain.ProjectMCPService{
 			Name:     serviceName,
 			TokenKey: tokenKey,
@@ -342,6 +344,28 @@ func removeServiceTokens(ctx context.Context, secrets domain.SecretStore, cfg *c
 	}
 }
 
+// removeProjectServiceTokens deletes the token a project keeps for a service
+// from the keychain under every key that can hold it (the one recorded in the
+// project, the current and the legacy names), then forgets the recorded key.
+// A key that does not exist is ignored; the hub token is left alone.
+func removeProjectServiceTokens(ctx context.Context, secrets domain.SecretStore, project *domain.Project, serviceName string) {
+	recorded := ""
+	if project.MCPConfig != nil {
+		for i := range project.MCPConfig.Services {
+			if svc := &project.MCPConfig.Services[i]; svc.Name == serviceName {
+				recorded = svc.TokenKey
+				svc.TokenKey = ""
+			}
+		}
+	}
+	if secrets == nil {
+		return
+	}
+	for _, key := range config.ProjectTokenKeys(serviceName, project.ID, recorded) {
+		_ = secrets.Delete(ctx, key)
+	}
+}
+
 func runServiceRemove(cmd *cobra.Command, args []string) error {
 	a := MustApp()
 	ctx := cmd.Context()
@@ -385,6 +409,21 @@ func runServiceRemove(cmd *cobra.Command, args []string) error {
 		if !confirm {
 			return nil
 		}
+	}
+
+	if projectID, _ := cmd.Flags().GetString("project"); projectID != "" {
+		project, err := resolveProject(ctx, a, projectID, projectWrite)
+		if err != nil {
+			return err
+		}
+		removeProjectServiceTokens(ctx, a.Secrets, project, serviceName)
+		if err := a.Projects.Update(ctx, project); err != nil {
+			return fmt.Errorf("updating project MCP config: %w", err)
+		}
+		fmt.Fprintf(a.IO.Out, "%s %s\n",
+			theme.SuccessStyle.Render(theme.IconSuccess),
+			i18n.Tf("cmd.service.project_token_removed", theme.Bold.Render(serviceName), project.Name))
+		return nil
 	}
 
 	removeServiceTokens(ctx, a.Secrets, a.Config, serviceName)
