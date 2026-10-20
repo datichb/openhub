@@ -170,6 +170,10 @@ type fakeDaemon struct {
 	memoryMB int
 	grants   []daemon.GrantRequest
 	touches  int
+	// failRevokes is the number of RevokeOwner calls that fail, and
+	// revokeCalls the number of calls made.
+	failRevokes int
+	revokeCalls int
 }
 
 func (d *fakeDaemon) Health(context.Context) (daemon.Health, error) {
@@ -186,8 +190,13 @@ func (d *fakeDaemon) IssueGrant(_ context.Context, req daemon.GrantRequest) (dae
 }
 func (d *fakeDaemon) RevokeOwner(_ context.Context, owner string) error {
 	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.revokeCalls++
+	if d.failRevokes > 0 {
+		d.failRevokes--
+		return errors.New("daemon unreachable")
+	}
 	d.revoked = append(d.revoked, owner)
-	d.mu.Unlock()
 	return nil
 }
 func (d *fakeDaemon) Usage(context.Context, string) (daemon.UsageResponse, error) {

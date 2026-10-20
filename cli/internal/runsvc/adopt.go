@@ -197,7 +197,7 @@ func (s *Service) releaseServer(ctx context.Context, srv *domain.Server, left do
 	s.stopServer(ctx, srv)
 	_ = s.Servers.SetStatus(ctx, left.GroupKey, domain.ServerStopped)
 	if dc, err := s.Daemon(ctx); err == nil {
-		_ = dc.RevokeOwner(ctx, left.GroupKey)
+		revokeOwner(ctx, dc, left.GroupKey)
 	}
 }
 

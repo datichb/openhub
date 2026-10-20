@@ -450,6 +450,7 @@ func (d *Daemon) restoreGrants(ctx context.Context) {
 	}
 	d.hashLegacyTokens(ctx)
 	d.movePasswords(ctx)
+	d.purgeOrphanGrants(ctx)
 	grants, err := d.opts.Grants.ListActive(ctx)
 	if err != nil {
 		slog.Warn("ohd: cannot list grants", "error", err)
@@ -457,8 +458,9 @@ func (d *Daemon) restoreGrants(ctx context.Context) {
 	}
 	for _, g := range grants {
 		if d.orphanGrant(ctx, g) {
-			_ = d.opts.Grants.Revoke(ctx, g.TokenHash, time.Now())
-			slog.Info("ohd: orphan grant revoked", "owner", g.Owner)
+			if d.revokeGrant(ctx, g.TokenHash, g.Owner) {
+				slog.Info("ohd: orphan grant revoked", "owner", g.Owner)
+			}
 			continue
 		}
 		secret := ""
@@ -679,7 +681,10 @@ func (d *Daemon) isOurServer(ctx context.Context, s domain.Server) bool {
 	return d.verifyFails[key] < verifyFailLimit
 }
 
-func (d *Daemon) revokeOwner(ctx context.Context, owner string) {
+// revokeOwner revokes the tokens of a server group: in memory (proxy,
+// gateway, MCP processes), then in the database. It reports whether the
+// database write succeeded (the memory revocation always happens).
+func (d *Daemon) revokeOwner(ctx context.Context, owner string) bool {
 	d.proxy.RevokeSession(owner)
 	if d.gateway != nil {
 		d.gateway.RevokeOwner(owner)
@@ -687,9 +692,7 @@ func (d *Daemon) revokeOwner(ctx context.Context, owner string) {
 	if d.mcp != nil {
 		d.mcp.StopGroup(owner)
 	}
-	if d.opts.Grants != nil {
-		_ = d.opts.Grants.RevokeOwner(ctx, owner, time.Now())
-	}
+	stored := d.revokeOwnerGrants(ctx, owner)
 	d.mu.Lock()
 	for t, g := range d.pending {
 		if g.Owner == owner {
@@ -697,6 +700,7 @@ func (d *Daemon) revokeOwner(ctx context.Context, owner string) {
 		}
 	}
 	d.mu.Unlock()
+	return stored
 }
 
 func (d *Daemon) liveServers(ctx context.Context) int {

@@ -46,7 +46,9 @@ func (d *Daemon) startGateway(ctx context.Context) {
 					live[s.GroupKey] = true
 				}
 			}
-			st.Retain(func(g gateway.Grant) bool { return live[g.GroupKey] })
+			// The grants of a group that is gone, or of a session deleted or
+			// stopped for good, are purged (S-29).
+			st.Retain(func(g gateway.Grant) bool { return live[g.GroupKey] && d.sessionNotEnded(ctx, g.SessionID) })
 		}
 	}
 	d.gateway = st
@@ -210,6 +212,20 @@ func (d *Daemon) beadsAgent(ctx context.Context, g gateway.Grant) string {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	return w.childAgent[g.Holder]
+}
+
+// sessionNotEnded is false for a session that no longer exists or was
+// stopped for good; a doubt (store error, no store) keeps the grant. Unlike
+// sessionAlive, a completed or failed session may be resumed: it keeps it.
+func (d *Daemon) sessionNotEnded(ctx context.Context, id string) bool {
+	if d.opts.Sessions == nil {
+		return true
+	}
+	s, err := d.opts.Sessions.Get(ctx, id)
+	if errors.Is(err, domain.ErrNotFound) {
+		return false
+	}
+	return err != nil || s == nil || s.State != domain.RunStopped
 }
 
 // sessionAlive: Beads is reachable while the session is open and awake.

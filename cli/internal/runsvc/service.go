@@ -594,7 +594,7 @@ func (s *Service) ensureServer(ctx context.Context, dc DaemonClient, req StartRe
 			slog.Warn("runsvc: existing server failed attestation, restarting", "group", gk, "error", aerr, "unexpected", rep.Unexpected)
 		}
 		s.stopServer(ctx, srv)
-		_ = dc.RevokeOwner(ctx, gk)
+		revokeOwner(ctx, dc, gk)
 	}
 	if prev != nil {
 		// Keep the locations of the group's other sessions (resumable).
@@ -611,7 +611,7 @@ func (s *Service) ensureServer(ctx context.Context, dc DaemonClient, req StartRe
 			slog.Info("runsvc: unexpected agents, re-discovering native agents", "unexpected", rep.Unexpected)
 			r.RefreshNatives(ctx)
 			s.stopServer(ctx, srv)
-			_ = dc.RevokeOwner(ctx, gk)
+			revokeOwner(ctx, dc, gk)
 			srv, rep, pg, err = s.startServer(ctx, dc, req, key, gk, cred, region, rt, g)
 		}
 	}
@@ -620,7 +620,7 @@ func (s *Service) ensureServer(ctx context.Context, dc DaemonClient, req StartRe
 	}
 	if !rep.OK() {
 		s.stopServer(ctx, srv)
-		_ = dc.RevokeOwner(ctx, gk)
+		revokeOwner(ctx, dc, gk)
 		_ = s.Servers.SetStatus(ctx, gk, domain.ServerStopped)
 		return nil, false, rep, nil, fmt.Errorf("%w: visible outside the bundle: %v", ErrIsolation, rep.Unexpected)
 	}
@@ -657,16 +657,16 @@ func (s *Service) startServer(ctx context.Context, dc DaemonClient, req StartReq
 	baseURL := grant.BaseURL
 	if pg != nil {
 		if baseURL, err = s.proxyURLFor(ctx, dc, pg, grant.BaseURL); err != nil {
-			_ = dc.RevokeOwner(ctx, gk)
+			revokeOwner(ctx, dc, gk)
 			return nil, adapters.VisibilityReport{}, nil, err
 		}
 	}
 	if err := s.saveGatewayURL(gk, baseURL); err != nil {
-		_ = dc.RevokeOwner(ctx, gk)
+		revokeOwner(ctx, dc, gk)
 		return nil, adapters.VisibilityReport{}, nil, err
 	}
 	if err := s.saveProxyURL(gk, baseURL); err != nil {
-		_ = dc.RevokeOwner(ctx, gk)
+		revokeOwner(ctx, dc, gk)
 		return nil, adapters.VisibilityReport{}, nil, err
 	}
 
@@ -677,7 +677,7 @@ func (s *Service) startServer(ctx context.Context, dc DaemonClient, req StartReq
 		ProxyTokenHash: credproxy.TokenHash(grant.Token), Status: domain.ServerStarting, CreatedAt: time.Now(),
 	}
 	if err := s.Servers.Upsert(ctx, srv); err != nil {
-		_ = dc.RevokeOwner(ctx, gk)
+		revokeOwner(ctx, dc, gk)
 		return nil, adapters.VisibilityReport{}, nil, err
 	}
 	spec := req.Bundle.Spec
@@ -693,7 +693,7 @@ func (s *Service) startServer(ctx context.Context, dc DaemonClient, req StartReq
 	if err != nil {
 		cctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 15*time.Second)
 		defer cancel()
-		_ = dc.RevokeOwner(cctx, gk)
+		revokeOwner(cctx, dc, gk)
 		_ = s.Servers.SetStatus(cctx, gk, domain.ServerStopped)
 		if rt != nil {
 			_ = rt.Teardown(cctx, pg)
@@ -723,7 +723,7 @@ func (s *Service) abandonServer(ctx context.Context, dc DaemonClient, srv *domai
 	cctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 15*time.Second)
 	defer cancel()
 	s.stopServer(cctx, srv)
-	_ = dc.RevokeOwner(cctx, srv.GroupKey)
+	revokeOwner(cctx, dc, srv.GroupKey)
 	_ = s.Servers.SetStatus(cctx, srv.GroupKey, domain.ServerStopped)
 }
 
@@ -988,7 +988,7 @@ func (s *Service) StopSession(ctx context.Context, sessionID string) error {
 			s.stopServer(ctx, srv)
 			_ = s.Servers.SetStatus(ctx, sess.GroupKey, domain.ServerStopped)
 			if dc, err := s.Daemon(ctx); err == nil {
-				_ = dc.RevokeOwner(ctx, sess.GroupKey)
+				revokeOwner(ctx, dc, sess.GroupKey)
 			}
 		}
 	}

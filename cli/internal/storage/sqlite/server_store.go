@@ -380,6 +380,47 @@ func hashLegacy(ctx context.Context, db *sql.DB, table, column, prefix string, h
 	return len(vals), tx.Commit()
 }
 
+// RevokeOrphans revokes the active grants created before createdBefore whose
+// owner (a server group) has no row in the starting or ready status: no
+// server can hold them. It reaches the rows ListActive leaves out
+// (unreadable credential source or model list). The age is compared in Go:
+// dates are stored in the driver's text format, not comparable in SQL.
+func (gs *GrantStore) RevokeOrphans(ctx context.Context, createdBefore, at time.Time) (int, error) {
+	tx, err := gs.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = tx.Rollback() }()
+	rows, err := tx.QueryContext(ctx, `SELECT token, created_at FROM proxy_grants
+		WHERE revoked_at IS NULL AND owner NOT IN (SELECT group_key FROM servers WHERE status IN (?, ?))`,
+		string(domain.ServerStarting), string(domain.ServerReady))
+	if err != nil {
+		return 0, fmt.Errorf("listing orphan proxy grants: %w", err)
+	}
+	var orphans []string
+	for rows.Next() {
+		var token string
+		var created time.Time
+		if err := rows.Scan(&token, &created); err != nil {
+			rows.Close()
+			return 0, fmt.Errorf("reading orphan proxy grants: %w", err)
+		}
+		if created.Before(createdBefore) {
+			orphans = append(orphans, token)
+		}
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return 0, err
+	}
+	for _, token := range orphans {
+		if _, err := tx.ExecContext(ctx, `UPDATE proxy_grants SET revoked_at = ? WHERE token = ? AND revoked_at IS NULL`, at, token); err != nil {
+			return 0, fmt.Errorf("revoking orphan proxy grants: %w", err)
+		}
+	}
+	return len(orphans), tx.Commit()
+}
+
 // RevokeOwner revokes every grant of an owner.
 func (gs *GrantStore) RevokeOwner(ctx context.Context, owner string, at time.Time) error {
 	_, err := gs.db.ExecContext(ctx, `UPDATE proxy_grants SET revoked_at = ? WHERE owner = ? AND revoked_at IS NULL`, at, owner)
