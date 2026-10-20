@@ -279,7 +279,7 @@ func (s *Service) StartSession(ctx context.Context, req StartRequest) (*StartRes
 	if sid == "" {
 		sid = sessionspec.NewSessionID()
 	}
-	static := withMachineShellEnv(kind, withShellStartup(kind, req.SessionEnv, s.LocalShellEnv), s.LocalShellPath)
+	static := withMachineShellEnv(kind, withShellStartup(kind, req.SessionEnv, s.LocalShellEnv), s.LocalShellPath, req.EnvAllow...)
 	env, err := s.buildSessionEnv(ctx, static, SessionEnvRequest{SessionID: sid, GroupKey: gk, ProjectID: req.ProjectID, Location: req.Location,
 		Runtime: kind, WorkflowID: req.WorkflowID, BeadsAllow: req.BeadsAllow, GatewayURL: s.loadGatewayURL(gk)})
 	if err != nil {

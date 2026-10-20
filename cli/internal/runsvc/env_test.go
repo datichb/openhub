@@ -144,3 +144,31 @@ func TestWithMachineShellEnvPathFirst(t *testing.T) {
 	env := withMachineShellEnv(sessionspec.RuntimeLocal, nil, []string{"/oh/run/bin"})
 	assert.Equal(t, "/oh/run/bin"+string(os.PathListSeparator)+"/usr/bin", env["PATH"])
 }
+
+// S-28: the shell of a local session gets the same allow-list as the tool
+// server: the base list, plus [execution] env_allow. A secret of the user's
+// shell does not reach the agents, a variable they allowed does.
+func TestWithMachineShellEnvAllowList(t *testing.T) {
+	t.Setenv("PATH", "/usr/bin")
+	t.Setenv("HTTPS_PROXY", "http://proxy:3128")
+	t.Setenv("LC_ALL", "C")
+	t.Setenv("GEMINI_API_KEY", "g-secret")
+	t.Setenv("GH_TOKEN", "gh-secret")
+	t.Setenv("SSH_AUTH_SOCK", "/tmp/agent")
+	t.Setenv("MYCO_REGION", "eu")
+	t.Setenv("ANTHROPIC_API_KEY", "a-secret")
+
+	env := withMachineShellEnv(sessionspec.RuntimeLocal, nil, nil)
+	assert.Equal(t, "http://proxy:3128", env["HTTPS_PROXY"])
+	assert.Equal(t, "C", env["LC_ALL"])
+	for _, k := range []string{"GEMINI_API_KEY", "GH_TOKEN", "SSH_AUTH_SOCK", "MYCO_REGION", "ANTHROPIC_API_KEY"} {
+		assert.NotContains(t, env, k)
+	}
+
+	env = withMachineShellEnv(sessionspec.RuntimeLocal, nil, nil, "SSH_AUTH_SOCK", "MYCO_*", "GEMINI_API_KEY", "ANTHROPIC_API_KEY")
+	assert.Equal(t, "/tmp/agent", env["SSH_AUTH_SOCK"])
+	assert.Equal(t, "eu", env["MYCO_REGION"])
+	assert.Equal(t, "g-secret", env["GEMINI_API_KEY"], "the user decides")
+	assert.NotContains(t, env, "GH_TOKEN")
+	assert.NotContains(t, env, "ANTHROPIC_API_KEY", "the credentials oh manages stay behind the proxy")
+}
