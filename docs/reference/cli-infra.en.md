@@ -148,7 +148,7 @@ oh import <file> [--overwrite | --merge]
 | Flag | Type | Description |
 |------|------|-------------|
 | `--overwrite` | bool | Overwrite existing data without confirmation |
-| `--merge` | bool | Merge with existing data (projects only) |
+| `--merge` | bool | Merge with existing data (projects only): adds the projects of the archive whose id, name and path do not exist yet; existing projects, `hub.toml` and secrets are left unchanged. Excludes `--overwrite` |
 
 **Example:**
 

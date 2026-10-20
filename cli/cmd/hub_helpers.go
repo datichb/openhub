@@ -51,6 +51,8 @@ func buildMCPServersForProject(a *app.App, mcpConfig *domain.ProjectMCPConfig, r
 		"gitlab":  a.Config.MCP.Gitlab,
 		"jira":    a.Config.MCP.Jira,
 		"gslides": a.Config.MCP.Gslides,
+		"github":  a.Config.MCP.Github,
+		"linear":  a.Config.MCP.Linear,
 	}
 
 	// Token environment variable fallbacks
@@ -59,6 +61,8 @@ func buildMCPServersForProject(a *app.App, mcpConfig *domain.ProjectMCPConfig, r
 		"gitlab":  "GITLAB_TOKEN",
 		"jira":    "JIRA_TOKEN",
 		"gslides": "GOOGLE_ACCESS_TOKEN",
+		"github":  "GITHUB_TOKEN",
+		"linear":  "LINEAR_API_KEY",
 	}
 
 	teamID := ""
@@ -68,7 +72,7 @@ func buildMCPServersForProject(a *app.App, mcpConfig *domain.ProjectMCPConfig, r
 
 	// Resolve each service using the full 3-level cascade
 	var servers []bricks.MCPServerDef
-	for _, name := range []string{"figma", "gitlab", "jira", "gslides"} {
+	for _, name := range []string{"figma", "gitlab", "jira", "gslides", "github", "linear"} {
 		hub := hubServices[name]
 		var shared *teamstate.SharedMCPConfig
 		if sharedMCP != nil {

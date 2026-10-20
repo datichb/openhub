@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -18,8 +19,10 @@ import (
 	"github.com/datichb/openhub/cli/internal/gitutil"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/notify"
+	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
 // agentCommandAlias runs `oh audit|review|debug` as their workflow (O15):
@@ -40,6 +43,60 @@ func agentCommandAlias(cmd *cobra.Command, old, workflowID string, inputs map[st
 		Opts: runOptions{Project: project, LooseInputs: inputs, Text: text}})
 }
 
+// workflowInputValues returns the choices of the enum input of a workflow,
+// as the resolved workflow declares them (hub, team and project layers);
+// nil when the workflow or the input cannot be read, which skips the check
+// (the launch validates the inputs anyway).
+func workflowInputValues(cmd *cobra.Command, workflowID, input string) []string {
+	c, err := workflowReadContext(cmd)
+	if err != nil {
+		c = workflowsvc.Context{}
+	}
+	// Without newWorkflowService: no detection of the tool for a help or a completion.
+	svc := &workflowsvc.Service{HubDir: findHubDir(), HubWorkflowsDir: os.Getenv(workflowsDirEnv), TeamState: workflowTeamState}
+	res, err := svc.Resolve(ctxOf(cmd), c, workflowID, workflowsvc.ResolveOpts{})
+	if err != nil || res == nil || res.Spec == nil {
+		return nil
+	}
+	in, ok := res.Spec.Inputs.Get(input)
+	if !ok || in.Type != workflow.InputEnum {
+		return nil
+	}
+	return in.Values
+}
+
+// completeWorkflowInput completes a flag with the choices of a workflow enum.
+func completeWorkflowInput(workflowID, input string) func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective) {
+	return func(cmd *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
+		return workflowInputValues(cmd, workflowID, input), cobra.ShellCompDirectiveNoFileComp
+	}
+}
+
+// workflowEnumFlags are the flags of the aliases whose help lists the choices
+// of a workflow enum.
+var workflowEnumFlags = []struct {
+	cmd                   *cobra.Command
+	flag, workflow, input string
+}{
+	{auditCmd, "type", "audit", "type"},
+	{reviewCmd, "mode", "review", "review_mode"},
+}
+
+// listWorkflowEnumChoices appends the choices of the workflow enum to the
+// usage of the flags of c (after the usage was localized).
+func listWorkflowEnumChoices(c *cobra.Command) {
+	for _, w := range workflowEnumFlags {
+		if w.cmd != c {
+			continue
+		}
+		if f := c.Flags().Lookup(w.flag); f != nil {
+			if values := workflowInputValues(c, w.workflow, w.input); len(values) > 0 {
+				f.Usage += " (" + strings.Join(values, ", ") + ")"
+			}
+		}
+	}
+}
+
 var auditCmd = &cobra.Command{
 	Use:   "audit",
 	Short: i18n.T("cmd.audit.short"),
@@ -47,21 +104,9 @@ var auditCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		auditType, _ := cmd.Flags().GetString("type")
 
-		// Validate audit type
-		validTypes := map[string]string{
-			"security":      "sécurité (vulnérabilités, injections, secrets, dépendances)",
-			"performance":   "performance (fuites mémoire, N+1, rendering, bundle size)",
-			"architecture":  "architecture (couplage, cohésion, patterns, dette technique)",
-			"accessibility": "accessibilité (WCAG, ARIA, contraste, navigation clavier)",
-			"ecodesign":     "éco-conception (empreinte carbone, poids, requêtes inutiles)",
-			"observability": "observabilité (logs, traces, métriques, alerting, SLI/SLO)",
-			"privacy":       "vie privée (RGPD, données personnelles, consentement, rétention)",
-			"infra":         "infrastructure (revue IaC, sécurité, coût, drift)",
-			"database":      "base de données (privilèges, RLS, injections, chiffrement, sauvegardes, migrations)",
-		}
-
-		if _, ok := validTypes[auditType]; !ok {
-			return fmt.Errorf("%s", i18n.Tf("cmd.audit.invalid_type", auditType))
+		// The types are the enum of the audit workflow (read, not copied).
+		if values := workflowInputValues(cmd, "audit", "type"); len(values) > 0 && !slices.Contains(values, auditType) {
+			return errors.New(i18n.Tf("cmd.audit.invalid_type", auditType, strings.Join(values, ", ")))
 		}
 
 		return agentCommandAlias(cmd, "oh audit", "audit", map[string]string{"type": auditType}, "")
@@ -80,10 +125,8 @@ var reviewCmd = &cobra.Command{
 
 		mode, _ := cmd.Flags().GetString("mode")
 		reviewBranch, _ := cmd.Flags().GetString("branch")
-		switch mode {
-		case "", "standard", "adversarial", "edge-case", "standard+adversarial", "all":
-		default:
-			return errors.New(i18n.Tf("cmd.review.invalid_mode", mode))
+		if values := workflowInputValues(cmd, "review", "review_mode"); mode != "" && len(values) > 0 && !slices.Contains(values, mode) {
+			return errors.New(i18n.Tf("cmd.review.invalid_mode", mode, strings.Join(values, ", ")))
 		}
 		return agentCommandAlias(cmd, "oh review", "review", map[string]string{"review_mode": mode, "branch": reviewBranch}, "")
 	},
@@ -323,20 +366,19 @@ func publishReviewToTeamState(ctx context.Context, a *app.App, projectID, ticket
 func init() {
 	rootCmd.AddCommand(auditCmd)
 	auditCmd.Flags().StringP("project", "p", "", "Nom du projet")
-	auditCmd.Flags().StringP("type", "t", "security", "Type d'audit (security, performance, architecture, accessibility, ecodesign, observability, privacy, infra, database)")
+	auditCmd.Flags().StringP("type", "t", "security", "Type d'audit")
 	_ = auditCmd.RegisterFlagCompletionFunc("project", completeProjectIDs)
+	_ = auditCmd.RegisterFlagCompletionFunc("type", completeWorkflowInput("audit", "type"))
 
 	rootCmd.AddCommand(reviewCmd)
 	reviewCmd.Flags().StringP("project", "p", "", "Nom du projet")
-	reviewCmd.Flags().StringP("mode", "m", "", "Mode de review (standard, adversarial, edge-case, standard+adversarial, all)")
+	reviewCmd.Flags().StringP("mode", "m", "", "Mode de review")
 	reviewCmd.Flags().StringP("branch", "b", "", "Branche à reviewer (diff vs main). Par défaut : branche courante si feature branch")
 	reviewCmd.Flags().Bool("publish", false, "Créer une MR sur GitLab et optionnellement assigner un reviewer (nécessite write_enabled)")
 	reviewCmd.Flags().String("reviewer", "", "Member ID du reviewer à assigner sur la MR (utilisé avec --publish)")
 	_ = reviewCmd.RegisterFlagCompletionFunc("project", completeProjectIDs)
 	reviewCmd.AddCommand(reviewFeedbackCmd)
-	_ = reviewCmd.RegisterFlagCompletionFunc("mode", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"standard", "adversarial", "edge-case", "standard+adversarial", "all"}, cobra.ShellCompDirectiveNoFileComp
-	})
+	_ = reviewCmd.RegisterFlagCompletionFunc("mode", completeWorkflowInput("review", "review_mode"))
 
 	rootCmd.AddCommand(debugCmd)
 	debugCmd.Flags().StringP("project", "p", "", "Nom du projet")

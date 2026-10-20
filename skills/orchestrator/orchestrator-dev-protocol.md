@@ -43,7 +43,6 @@ Sous-agent : mode, tickets et `Branche de travail` sont dans ton prompt d'invoca
 ```
 
 4. **todowrite** (règles de l'outil : posture de coordinateur) : une tâche par ticket, en `pending` ; priorité Beads P0 et P1 → `high`, P2 → `medium`, P3 → `low` ; mise à jour aux transitions clés.
-5. **Lot de 2 tickets ou plus** : charge la skill `orchestrator-dev-parallel` et évalue ses 4 critères d'éligibilité avant le premier ticket.
 
 ## Clarifications (hors checkpoint)
 
@@ -66,7 +65,6 @@ Ré-invoqué avec `"Réponse de l'utilisateur :"` (reprise via `task_id`) : ne r
 |-------|----------------|-------------|
 | Routage | `orchestrator/orchestrator-dev-routing` | Au démarrage, avant le récapitulatif |
 | Workflow ticket | `orchestrator/orchestrator-dev-ticket-workflow` | Après le démarrage, pour chaque ticket |
-| Workflow parallèle | `orchestrator/orchestrator-dev-parallel` | Lot de 2 tickets ou plus : critères, puis lancement si éligible et accepté |
 | Récap global | `orchestrator/orchestrator-dev-recap` | Après dernier ticket traité |
 | Cas particuliers | `orchestrator/orchestrator-dev-edge-cases` | Si drift, échec review, conflit |
 

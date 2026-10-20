@@ -65,6 +65,7 @@ An agent's family is derived from its directory in `agents/`:
 | `agents/quality/` | `quality` | reviewer, debugger, benchmarker |
 | `agents/auditor/` | `auditor` | auditor, auditor-subagent |
 | `agents/infra/` | `infra` | operator |
+| `agents/delivery/` | `delivery` | merger, release-manager |
 | `agents/design/` | `design` | designer |
 | `agents/documentation/` | `documentation` | documentarian |
 | `agents/utility/` | `utility` | brief-enricher |

@@ -148,7 +148,7 @@ oh import <fichier> [--overwrite | --merge]
 | Flag | Type | Description |
 |------|------|-------------|
 | `--overwrite` | bool | Écraser les données existantes sans confirmation |
-| `--merge` | bool | Fusionner avec les données existantes (projets uniquement) |
+| `--merge` | bool | Fusionner avec les données existantes (projets uniquement) : ajoute les projets de l'archive dont ni l'identifiant, ni le nom, ni le chemin n'existent déjà ; les projets existants, `hub.toml` et les secrets restent inchangés. Incompatible avec `--overwrite` |
 
 **Exemple :**
 

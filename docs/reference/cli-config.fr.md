@@ -206,7 +206,9 @@ oh config model unset default|family <famille>|agent <agent-id> [-p <projet>]
 
 `show` affiche toute la cascade, dans l'ordre de priorité : workflow (avec `-w`), projet, hub, équipe du projet (recommandations), puis le frontmatter des agents.
 
-Familles : `planning`, `developer`, `quality`, `auditor`, `design`, `documentation`.
+Familles : les dossiers de `agents/` du catalogue effectif (`planning`, `developer`, `quality`, `auditor`, `design`, `documentation`, `infra`, `delivery`, `utility`, ainsi que les familles du catalogue d'équipe).
+
+Les identifiants sont vérifiés avant l'écriture (CLI et vue Modèles de la TUI) : l'agent doit exister dans le catalogue effectif (hub, équipe, projet : voir `oh brick list --agents`), la famille doit être celle d'au moins un agent, et le modèle s'écrit `fournisseur/modèle` (`anthropic/claude-sonnet-4-5`). Un identifiant inconnu est refusé avec les noms proches ; si le catalogue est illisible, la commande avertit et écrit quand même.
 
 Ordre de résolution (priorité décroissante) : workflow·agent > workflow (`models` du workflow) > projet·agent > projet·famille > projet > hub·agent > hub·famille > hub > recommandations d'équipe (agent, famille, global, `config.toml` du team-state) > `model:` du frontmatter de l'agent. Les deux niveaux workflow se règlent dans le workflow, pas avec cette commande. Voir [Résolution des modèles](model-resolution.fr.md).
 

@@ -134,7 +134,9 @@ func (c *Config) FindTeamByRepo(repo string) *TeamConfig {
 }
 
 // MCPServer returns a pointer to the MCPServerConfig for the given service name
-// (e.g. "figma", "gitlab", "jira", "gslides"). Returns nil if the name is unknown.
+// (e.g. "figma", "gitlab", "jira", "gslides", "github", "linear"). Returns nil
+// for a service without hub-level section: "team" (derived from the team
+// config) and the custom servers, which are configured per project only.
 // This allows dynamic dispatch by service name instead of hardcoding field access.
 func (c *Config) MCPServer(name string) *MCPServerConfig {
 	switch strings.ToLower(name) {
@@ -146,6 +148,10 @@ func (c *Config) MCPServer(name string) *MCPServerConfig {
 		return &c.MCP.Jira
 	case "gslides":
 		return &c.MCP.Gslides
+	case "github":
+		return &c.MCP.Github
+	case "linear":
+		return &c.MCP.Linear
 	default:
 		return nil
 	}
@@ -303,6 +309,8 @@ type MCPConfig struct {
 	Gitlab  MCPServerConfig `mapstructure:"gitlab" toml:"gitlab"`
 	Jira    MCPServerConfig `mapstructure:"jira" toml:"jira"`
 	Gslides MCPServerConfig `mapstructure:"gslides" toml:"gslides"`
+	Github  MCPServerConfig `mapstructure:"github" toml:"github"`
+	Linear  MCPServerConfig `mapstructure:"linear" toml:"linear"`
 }
 
 // MCPServerConfig holds individual MCP server settings.
@@ -389,6 +397,33 @@ func DefaultTokenKeyForService(service string) string {
 	default:
 		return "openhub.mcp." + service + ".token"
 	}
+}
+
+// ServiceTokenKeys lists the keychain keys that can hold the token of an MCP
+// service at hub level: the key configured in hub.toml, the current
+// convention (openhub.mcp.<service>.token) and the legacy name
+// (<service>-token), without duplicates.
+func ServiceTokenKeys(c *Config, service string) []string {
+	var keys []string
+	add := func(k string) {
+		if k == "" {
+			return
+		}
+		for _, existing := range keys {
+			if existing == k {
+				return
+			}
+		}
+		keys = append(keys, k)
+	}
+	if c != nil {
+		if s := c.MCPServer(service); s != nil {
+			add(s.Token)
+		}
+	}
+	add(DefaultTokenKeyForService(service))
+	add(service + "-token")
+	return keys
 }
 
 // TeamGitLabTokenKey returns the keychain key for a team-specific GitLab token.

@@ -253,6 +253,25 @@ func TestBuildMCPServersForProject_NilEnabledInheritsHub(t *testing.T) {
 	}
 }
 
+func TestBuildMCPServersForProject_GithubAndLinear(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	config.Reset()
+	cfg, _ := config.Load()
+	cfg.MCP.Github = config.MCPServerConfig{Enabled: true, Token: "openhub.mcp.github.token"}
+	cfg.MCP.Linear.Enabled = true
+	a := &app.App{Config: cfg}
+
+	byName := map[string]bricks.MCPServerDef{}
+	for _, s := range buildMCPServersForProject(a, nil, config.ResolvedTeamConfig{}) {
+		byName[s.Name] = s
+	}
+	assert.True(t, byName["github"].Enabled)
+	assert.Equal(t, "openhub.mcp.github.token", byName["github"].TokenKey)
+	assert.Equal(t, "GITHUB_TOKEN", byName["github"].TokenEnv)
+	assert.True(t, byName["linear"].Enabled)
+	assert.Equal(t, "LINEAR_API_KEY", byName["linear"].TokenEnv)
+}
+
 func TestBuildProjectMCPConfig(t *testing.T) {
 	// Empty list returns nil
 	assert.Nil(t, buildProjectMCPConfig(nil))

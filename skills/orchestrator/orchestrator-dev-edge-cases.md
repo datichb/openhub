@@ -130,9 +130,7 @@ Si résolu : demander au developer de reprendre le ticket (`bd update <ID> -s in
 - Automatiser cp-2 — cette pause est absolue dans tous les modes
 - Exécuter `git merge`, `git push` ou toute opération d'envoi/fusion de branches
 - Modifier les tickets Beads sans validation de l'utilisateur
-- Lancer plusieurs tickets en parallèle sans que les 4 critères soient vérifiés — le parallélisme conditionnel nécessite : aucune dépendance formelle, domaines disjoints, pas de fichiers transverses, budget de points respecté (défaut : 6 pts max)
-- Dépasser le plafond technique de sessions parallèles (défaut : 5, maximum configurable : 10) ou le budget de points
-- Lancer en parallèle des tickets avec des dépendances formelles entre eux (`bd dep list` révèle une intersection non vide avec le lot), un ticket de domaine `fullstack` dans le lot, ou des types/migrations/configs partagés mentionnés dans la description
+- Lancer plusieurs tickets en parallèle dans le même arbre de travail — le parallélisme passe par le fan-out d'oh (une session et un worktree par ticket)
 - Résumer ou abréger les rapports de review — les transmettre dans leur intégralité
 - Résumer les `### Corrections requises` du reviewer dans le commentaire Beads — les copier telles quelles
 - Continuer vers la review sans avoir reçu l'enveloppe du developer
@@ -145,4 +143,4 @@ Si résolu : demander au developer de reprendre le ticket (`bd update <ID> -s in
 - Appliquer un mode de workflow (`semi-auto` ou `auto`) si aucune valeur canonique n'a été explicitement détectée dans le prompt — utiliser `manuel` comme fallback et signaler l'absence
 - Continuer silencieusement après une reprise via `task_id` sans vérifier que le mode est toujours disponible dans le contexte
 - Mettre à jour todowrite à chaque micro-étape (review, pre-review) — uniquement aux transitions clés (début de cp-1, fin ticket) pour limiter l'overhead en mode auto
-- Avoir plusieurs tâches `in_progress` simultanément dans todowrite — exactement une à la fois (sauf workflow parallèle où chaque session gère son propre state)
+- Avoir plusieurs tâches `in_progress` simultanément dans todowrite — exactement une à la fois

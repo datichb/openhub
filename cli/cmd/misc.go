@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -333,6 +334,18 @@ func runServiceSetup(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// removeServiceTokens deletes the token of a service from the keychain under
+// every key that can hold it (configured, current and legacy names). A key
+// that does not exist is ignored.
+func removeServiceTokens(ctx context.Context, secrets domain.SecretStore, cfg *config.Config, serviceName string) {
+	if secrets == nil {
+		return
+	}
+	for _, key := range config.ServiceTokenKeys(cfg, serviceName) {
+		_ = secrets.Delete(ctx, key)
+	}
+}
+
 func runServiceRemove(cmd *cobra.Command, args []string) error {
 	a := MustApp()
 	ctx := cmd.Context()
@@ -378,11 +391,7 @@ func runServiceRemove(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Remove token from keychain
-	if a.Secrets != nil {
-		keyName := serviceName + "-token"
-		_ = a.Secrets.Delete(ctx, keyName) // ignore error if not found
-	}
+	removeServiceTokens(ctx, a.Secrets, a.Config, serviceName)
 
 	// Disable in config
 	if err := config.Update(func(c *config.Config) error {

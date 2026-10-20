@@ -7,7 +7,7 @@ Le hub utilise une **architecture hybride** avec deux chemins de livraison (Buck
 
 Sources de vérité :
 
-- le dossier `skills/` du hub (190 fichiers : 179 skills et 11 annexes dans `skills/templates/`) ;
+- le dossier `skills/` du hub (189 fichiers : 178 skills et 11 annexes dans `skills/templates/`) ;
 - le frontmatter des agents (`agents/**/*.md`) : `skills:` = Bucket A (inliné), `native_skills:` = Bucket B (à la demande).
 
 Depuis la v5, rien n'est plus déployé dans le projet : les skills arrivent dans la session par le **paquet de session**, construit à chaque lancement depuis le workflow (voir ci-dessous).
@@ -137,7 +137,7 @@ Tous les agents du hub ont `permission: skill: allow`, directement ou par leur `
 
 ## Inventaire des skills (source de vérité)
 
-**179 skills** dans 14 dossiers (138 skills de domaine + 41 skills de stack), plus **11 annexes** dans `skills/templates/`.
+**178 skills** dans 14 dossiers (137 skills de domaine + 41 skills de stack), plus **11 annexes** dans `skills/templates/`.
 
 Lecture des tableaux : la colonne **Agents** donne le bucket et les agents d'après leur frontmatter (`A` = `skills:`, `B` = `native_skills:`). `—` = aucun agent ne la référence : la skill n'est dans un paquet que si un workflow l'ajoute par `skills.extra`.
 
@@ -176,7 +176,7 @@ Les deux dernières ne sont dans aucun frontmatter d'agent : `elicitation-techni
 | `coordinator-posture` | A : auditor, conductor, orchestrator, orchestrator-dev | Coordinateur : déléguer, lire l'enveloppe et le rapport (`workflow_report_get`) au lieu de le retranscrire, relayer les questions bloquantes, `todowrite` en agent d'entrée |
 | `expert-posture` | B : auditor-subagent, designer, documentarian, onboarder, planner, debugger | Exploration avant de répondre, recommandation contraire argumentée (⚠️), pause de confirmation avant une action à risque (🛑) |
 
-### `orchestrator/` — 14 skills
+### `orchestrator/` — 13 skills
 
 | Skill | Agents | Contenu |
 |-------|--------|---------|
@@ -190,7 +190,6 @@ Les deux dernières ne sont dans aucun frontmatter d'agent : `elicitation-techni
 | `orchestrator-dev-recap` | B : orchestrator-dev | Récap d'implémentation, bloc retour, métriques |
 | `orchestrator-dev-edge-cases` | B : orchestrator-dev | Cas particuliers : dérive, review échouée, conflits, panne d'agent |
 | `orchestrator-dev-feedback-mode` | — | Mini-workflow de correction depuis un feedback de review (`[MODE:feedback]`) |
-| `orchestrator-dev-parallel` | B : orchestrator-dev | **Antérieure à v5** — parallélisme par worktrees dans une session (voir [Skills antérieures à v5](#skills-antérieures-à-v5)) |
 | `error-recovery-protocol` | B : orchestrator-dev | Retry et reprise après échec d'un sous-agent : classification, budget de retry, replis |
 | `team-coordination` | B (`mcp: team`) : orchestrator-dev | Coordination d'équipe (claims, conflits, passage de relais) |
 | `takeover-context-protocol` | B (`mcp: team`) : orchestrator, orchestrator-dev | Utiliser un brief de reprise sur un ticket transféré par un autre membre |
@@ -378,7 +377,6 @@ Ces fichiers existent toujours dans `skills/`. Ils décrivent un comportement an
 |-------|-----------------|-----------------------|
 | `shared/rtk-usage` | Oui — Bucket B de 16 agents (tous sauf `benchmarker` et `brief-enricher`), donc dans tous les paquets livrés sauf `benchmark` et `brief-enrich` | RTK s'installait comme plugin global opencode V1 (`oh plugin`, supprimé en v5). oh ne l'installe plus |
 | `shared/context-mode-usage` | Oui — Bucket A de `developer` | Décrit les outils `ctx_*` du plugin `context-mode`, qui ne se charge pas sous opencode V2. `universal-guardrails` en parle aussi |
-| `orchestrator/orchestrator-dev-parallel` | Oui — Bucket B d'`orchestrator-dev` (paquets `ticket`, `implement-spec`, `review-feedback`, `libre`) | Implémentation simultanée dans l'arborescence de la session, puis un `cp-2` et un commit par ticket (plus de worktrees créés par l'agent ni de validation groupée). Pour une session et un worktree par ticket : `oh run ticket --tickets a,b` |
 
 ---
 
@@ -572,7 +570,7 @@ Retours entre agents (L5) : l'agent lancé inclut `handoff-envelope` et son payl
 |-------|----------------------|-----------------------------|
 | `conductor` ¹ | core-posture, user-facing-posture, coordinator-posture, **workflow-map** (générée) | — |
 | `orchestrator` ¹ | core-posture, user-facing-posture, coordinator-posture, orchestrator-workflow-modes (générée), orchestrator-protocol, hub-workflow-reference (générée) | orchestrator-recap-edge, beads-plan, takeover-context-protocol |
-| `orchestrator-dev` ¹ | core-posture, user-facing-posture, handoff-envelope, coordinator-posture, orchestrator-workflow-modes (générée), orchestrator-dev-protocol, orchestrator-dev-payload | dev-drift-detection, orchestrator-dev-routing, orchestrator-dev-ticket-workflow, orchestrator-dev-parallel, orchestrator-dev-recap, orchestrator-dev-edge-cases, error-recovery-protocol, team-coordination, takeover-context-protocol |
+| `orchestrator-dev` ¹ | core-posture, user-facing-posture, handoff-envelope, coordinator-posture, orchestrator-workflow-modes (générée), orchestrator-dev-protocol, orchestrator-dev-payload | dev-drift-detection, orchestrator-dev-routing, orchestrator-dev-ticket-workflow, orchestrator-dev-recap, orchestrator-dev-edge-cases, error-recovery-protocol, team-coordination, takeover-context-protocol |
 | `pathfinder` ¹ | core-posture, user-facing-posture, handoff-envelope, execution-protocol, pathfinder-payload, pathfinder-protocol, gitlab-pathfinder-protocol, github-pathfinder-protocol, wiki-navigation | research, codebase-design, living-docs-enrichment, beads-plan |
 | `planner` ¹ | core-posture, user-facing-posture, handoff-envelope, execution-protocol, planner-payload, planner-workflow, gitlab-planner-protocol, github-planner-protocol, hub-workflow-reference (générée) | research, planner-phase-0, planner-phase-1, planner-phase-2, planner-phase-2-5, planner-phase-3-4, planner-phase-5-6, planner-patterns-protocol (`mcp: team`), living-docs-enrichment, planner-design-templates, beads-plan, expert-posture |
 | `onboarder` ¹ | core-posture, user-facing-posture, handoff-envelope, execution-protocol, onboarder-payload, onboarder-workflow, onboarder-profiles, gitlab-onboarder-protocol, github-onboarder-protocol, wiki-navigation | research, onboarder-phase-0, onboarder-phase-1, onboarder-phase-2, onboarder-phase-3-4, onboarder-phase-5, onboarder-phase-5-reonboarding, living-docs-enrichment, expert-posture |
