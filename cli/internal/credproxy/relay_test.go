@@ -94,7 +94,7 @@ func TestRelayHeadersOfEachProvider(t *testing.T) {
 		{
 			provider: ProviderAnthropic, auth: "x-api-key", method: http.MethodPost, path: "/messages?beta=true",
 			sent: map[string]string{
-				"Content-Type": "application/json", "Accept": "application/json", "User-Agent": "opencode/2.0.20",
+				"Content-Type": "application/json", "Accept": "application/json", "User-Agent": "agent-cli/1.0",
 				"anthropic-version": "2023-06-01", "anthropic-beta": "interleaved-thinking-2025-05-14",
 				"X-Stainless-Lang": "js", "X-Stainless-Retry-Count": "0", "X-Stainless-OS": "MacOS",
 			},
@@ -103,7 +103,7 @@ func TestRelayHeadersOfEachProvider(t *testing.T) {
 		{
 			provider: ProviderBedrock, auth: "bearer", method: http.MethodPost, path: "/model/eu.anthropic.claude-haiku-4-5-20251001-v1%3A0/converse-stream",
 			sent: map[string]string{
-				"Content-Type": "application/json", "Accept": "application/vnd.amazon.eventstream", "User-Agent": "opencode/2.0.20",
+				"Content-Type": "application/json", "Accept": "application/vnd.amazon.eventstream", "User-Agent": "agent-cli/1.0",
 				"X-Amzn-Bedrock-Accept": "application/json",
 				// signed by the tool: replaced by the credential of oh
 				"X-Amz-Date": "20260101T000000Z", "X-Amz-Security-Token": "tool", "X-Amz-Content-Sha256": "abc",
@@ -113,16 +113,16 @@ func TestRelayHeadersOfEachProvider(t *testing.T) {
 		{
 			provider: ProviderOpenAI, auth: "bearer", method: http.MethodPost, path: "/responses",
 			sent: map[string]string{
-				"Content-Type": "application/json", "Accept": "text/event-stream", "User-Agent": "opencode/2.0.20",
-				"X-Session-Id": "ses_1", "X-Session-Affinity": "ses_1", "X-Opencode-Session": "ses_1", "X-Parent-Session-Id": "ses_0",
+				"Content-Type": "application/json", "Accept": "text/event-stream", "User-Agent": "agent-cli/1.0",
+				"X-Session-Id": "ses_1", "X-Session-Affinity": "ses_1", "X-Agent-Session": "ses_1", "X-Parent-Session-Id": "ses_0",
 			},
 			kept: []string{"Accept", "Content-Type", "User-Agent", "X-Session-Affinity", "X-Session-Id"},
 		},
 		{
 			provider: ProviderOpenRouter, auth: "bearer", method: http.MethodPost, path: "/chat/completions",
 			sent: map[string]string{
-				"Content-Type": "application/json", "Accept": "text/event-stream", "User-Agent": "opencode/2.0.20",
-				"HTTP-Referer": "https://opencode.ai/", "X-Title": "opencode", "X-Session-Id": "ses_1",
+				"Content-Type": "application/json", "Accept": "text/event-stream", "User-Agent": "agent-cli/1.0",
+				"HTTP-Referer": "https://agent.example/", "X-Title": "agent-cli", "X-Session-Id": "ses_1",
 			},
 			kept: []string{"Accept", "Content-Type", "Http-Referer", "User-Agent", "X-Session-Id", "X-Title"},
 		},
