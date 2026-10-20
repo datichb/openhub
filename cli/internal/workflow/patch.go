@@ -124,7 +124,7 @@ func (p *patcher) apply() {
 			d.Skills.Extra = s.Skills.Extra
 		}
 		if p.has("skills.deny") {
-			d.Skills.Deny = s.Skills.Deny
+			p.skillsDeny()
 		}
 	}
 	p.plugins()
@@ -146,6 +146,32 @@ func (p *patcher) apply() {
 	p.limits()
 	p.preconditions()
 	p.fanout() // R6
+}
+
+// skillsDeny applies `skills.deny`. A refusal is a security field: outside
+// the hub layer the lists are combined (union), a layer adds refusals and
+// never lifts one of its parent; a list that omits a refusal of the parent is
+// a loosening (the parent refusal is kept). The hub layer replaces the list.
+func (p *patcher) skillsDeny() {
+	s, d := p.doc.Spec, p.dst
+	if p.widens() {
+		d.Skills.Deny = s.Skills.Deny
+		return
+	}
+	if lifted := missingFrom(d.Skills.Deny, s.Skills.Deny); len(lifted) > 0 {
+		shown := "[]"
+		if len(s.Skills.Deny) > 0 {
+			shown = strings.Join(s.Skills.Deny, ",")
+		}
+		p.loosening("skills.deny", shown, strings.Join(d.Skills.Deny, ","))
+	}
+	union := slices.Clone(d.Skills.Deny)
+	for _, ref := range s.Skills.Deny {
+		if !slices.Contains(union, ref) {
+			union = append(union, ref)
+		}
+	}
+	d.Skills.Deny = union
 }
 
 // preconditions are merged by id; `disabled: true` removes one. In a

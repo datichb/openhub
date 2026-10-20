@@ -23,7 +23,7 @@ oh workflow show ticket --origin         # resolved values and source document
 - **Translatable texts** (`label`, `description`, `help`): a plain text, or a table per language `{ fr: …, en: … }`. Without the requested language, oh takes the plain text, then `en`, then `fr`.
 - **Ordered maps**: `inputs`, `agents`, `checkpoints` and `preconditions` keep the file order (order of the launch form, of the checkpoints and of the checks).
 - **Patch** (`extends`): the **presence** of a field in the file replaces it, not its value. Maps are merged by key; lists and texts are replaced as a whole.
-- **Security**: `risk`, `isolation`, `runtime.allowed`, `modes.allowed`, `code_mode`, `beads.allow`, mandatory checkpoints (and checkpoints with `unlocks`), `remote`, `limits`, `after` gates, `calls` lists, `circuit_breaker`, the preconditions of a `risk: publish` workflow, and outside the hub layer `mcp` and `plugins`, may only **be hardened**. A loosening is an error (`loosening`) and the parent value is kept.
+- **Security**: `risk`, `isolation`, `runtime.allowed`, `modes.allowed`, `code_mode`, `beads.allow`, mandatory checkpoints (and checkpoints with `unlocks`), `remote`, `limits`, `after` gates, `calls` lists, `circuit_breaker`, the preconditions of a `risk: publish` workflow, and outside the hub layer `mcp`, `plugins` and `skills.deny`, may only **be hardened**. A loosening is an error (`loosening`) and the parent value is kept.
 - **Widening**: a team or project layer that **adds an agent** to the workflow of its parent (for example an agent of the team catalogue), or adds skills to `skills.extra` that the parent does not list, widens the workflow without loosening a security field. The addition is accepted, with a **warning** (`patch_agent_added`, `patch_skills_extra_added`); the added agent never gets `writes` (`loosening`, see below). The impact summary of a publication shows it ("new agent"). The hub layer adds without a warning; removing skills stays allowed, without a warning.
 - **Lock**: a top-level field listed in the `enforce` of a parent document can no longer be written by a document that extends it (`enforced_field`).
 
@@ -612,7 +612,7 @@ preconditions:
 | `models.default` | `provider/model[#variant]` | cascade without workflow level | replaces |
 | `models.agents.<agent>` | `provider/model[#variant]` | — | merged by agent |
 | `skills.extra` | list of skill refs | — | replaces (skill added outside the hub layer: `patch_skills_extra_added` warning) |
-| `skills.deny` | list (ref or bare name) | — | replaces |
+| `skills.deny` | list (ref or bare name) | — | hub layer: replaces. Other layers: **union** with the parent list (a layer adds refusals, never lifts one); a list that omits a refusal of the parent is a `loosening` error and the parent refusal is kept |
 | `mcp` | list of oh MCP server ids | MCP servers of the project | hardens outside the hub layer (subset of the parent list; parent without a list: any list hardens) |
 | `plugins` | list | no plugin besides the oh plugin | hardens outside the hub layer (subset of the parent: a plugin runs code) |
 | `beads.allow` | see [Security](#beads) | | |

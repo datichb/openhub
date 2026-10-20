@@ -2799,7 +2799,7 @@
   "workflow.diag.isolation_unsupported": "isolation: strict exige une isolation complète ; l'adaptateur courant annonce %q (le lancement sera refusé)",
   "workflow.diag.kind": "kind %q invalide (attendu : %s)",
   "workflow.diag.loosening": "La valeur %s assouplit celle du parent (%s, %s)",
-  "workflow.diag.loosening.hint": "Les champs de sécurité (risk, isolation, runtime.allowed, modes.allowed, code_mode, beads.allow — comparé à la liste en lecture seule par défaut quand le parent n'en déclare pas —, checkpoints obligatoires, qui déverrouillent une opération ou qui ont un valideur (approver, hors couche d'équipe), vérifications lancées par oh (verify) et conditions (when) des checkpoints, remote, limits, after, calls, writes, circuit_breaker ; mcp et plugins hors couche hub) ne peuvent que se durcir.",
+  "workflow.diag.loosening.hint": "Les champs de sécurité (risk, isolation, runtime.allowed, modes.allowed, code_mode, beads.allow — comparé à la liste en lecture seule par défaut quand le parent n'en déclare pas —, checkpoints obligatoires, qui déverrouillent une opération ou qui ont un valideur (approver, hors couche d'équipe), vérifications lancées par oh (verify) et conditions (when) des checkpoints, remote, limits, after, calls, writes, circuit_breaker ; mcp, plugins et skills.deny hors couche hub) ne peuvent que se durcir.",
   "workflow.diag.mandatory_checkpoint_removed": "Le checkpoint obligatoire %s ne peut pas être retiré",
   "workflow.diag.verified_checkpoint_removed": "Le checkpoint %s porte une vérification lancée par oh : le retirer est un assouplissement",
   "workflow.diag.verify_empty": "La vérification ne dit pas quoi lancer : indiquez from: stack ou cmd",
