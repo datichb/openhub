@@ -297,6 +297,8 @@ Secrets stockes dans le trousseau du système (ou, a défaut, dans un fichier ch
 | `oh secrets delete <cle>` | `--global`, `--project <id>` | Supprime un secret du trousseau |
 | `oh secrets cleanup` | `--dry-run` | Supprime les entrées orphelines du trousseau (absentes de l'index des secrets) ; `--dry-run` : les afficher sans supprimer |
 
+`oh secrets set`, `get`, `delete` et `cleanup` sont refusés au shell des agents (garde global) : seul l'utilisateur les lance, depuis son terminal.
+
 ```bash
 oh secrets set openhub.mcp.gitlab.token
 oh secrets set openhub.mcp.gitlab.token --project t-sru-b267fbf1
