@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/daemon"
+	"github.com/datichb/openhub/cli/internal/safego"
 )
 
 // In-process daemon (Windows option A, daemon.InProcessMode): the credential
@@ -38,7 +39,13 @@ func startInProcessDaemon() error {
 	opts.StopServersOnExit = true
 	opts.IdleAfter = 100 * 365 * 24 * time.Hour // lives with the oh process
 	done := make(chan error, 1)
-	go func() { done <- daemon.Run(ctx, opts) }()
+	// A panic must not take the interface down with the daemon (A-02): it is
+	// logged, and stopInProcessDaemon is not left waiting for an answer.
+	safego.Go(func() {
+		var err error
+		defer func() { done <- err }()
+		err = daemon.Run(ctx, opts)
+	})
 	inProcess.cancel, inProcess.done = cancel, done
 	return nil
 }
