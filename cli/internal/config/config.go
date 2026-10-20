@@ -315,6 +315,11 @@ type MCPServerConfig struct {
 	// the team recommendation stored in team-state config.toml.
 	// When empty, the team-state shared URL (if any) or the built-in default is used.
 	URL string `mapstructure:"url,omitempty" toml:"url,omitempty"`
+	// TrustedURL is the URL the member approved for this service when the
+	// team imposes one (`oh mcp trust`, audit v5 S-31). The URL imposed by
+	// the team is used only when it equals this one (mcpresolve). It lives
+	// in the personal hub.toml, never in the team-state.
+	TrustedURL string `mapstructure:"trusted_url,omitempty" toml:"trusted_url,omitempty"`
 }
 
 // TrackerLocalConfig holds the member's personal overrides for tracker sync settings.

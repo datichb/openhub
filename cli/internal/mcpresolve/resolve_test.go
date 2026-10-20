@@ -75,15 +75,18 @@ func TestResolveFull_URLEnforced(t *testing.T) {
 		URL:         "https://enforced.gitlab.com",
 		URLEnforced: boolPtr(true),
 	}
-	hub := config.MCPServerConfig{URL: "https://my-override.com"}
+	hub := config.MCPServerConfig{URL: "https://my-override.com", TrustedURL: "https://enforced.gitlab.com"}
 	project := &domain.ProjectMCPService{URL: "https://project.com"}
 
 	eff := ResolveFull(shared, hub, project, "acme")
 	if eff.URL != "https://enforced.gitlab.com" {
-		t.Errorf("URL enforced should win, got %s", eff.URL)
+		t.Errorf("URL enforced and pinned should win, got %s", eff.URL)
 	}
 	if !eff.URLEnforced {
 		t.Error("should be marked as URL enforced")
+	}
+	if eff.EnforcedURLPending != "" {
+		t.Errorf("nothing to warn about, got %q", eff.EnforcedURLPending)
 	}
 }
 
