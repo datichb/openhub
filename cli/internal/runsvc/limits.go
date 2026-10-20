@@ -12,6 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/limits"
+	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
@@ -183,7 +184,7 @@ var daemonBusyEvery = time.Minute
 func keepDaemonBusy(ctx context.Context, dc DaemonClient, gk string) func() {
 	cctx, cancel := context.WithCancel(ctx)
 	done := make(chan struct{})
-	go func() {
+	safego.Go(func() {
 		defer close(done)
 		t := time.NewTicker(daemonBusyEvery)
 		defer t.Stop()
@@ -195,6 +196,6 @@ func keepDaemonBusy(ctx context.Context, dc DaemonClient, gk string) func() {
 				_ = dc.Touch(cctx, gk)
 			}
 		}
-	}()
+	})
 	return func() { cancel(); <-done }
 }

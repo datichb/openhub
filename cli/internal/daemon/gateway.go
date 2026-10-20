@@ -21,6 +21,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/gateway/beadswire"
 	"github.com/datichb/openhub/cli/internal/gitutil"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
@@ -336,7 +337,7 @@ func (w *watcher) resumeChildGrant(root, child string) {
 	delete(w.childGrantEnded, child)
 	w.mu.Unlock()
 	if ended {
-		go w.applyChildEnv(child, root)
+		safego.Go(func() { w.applyChildEnv(child, root) })
 	}
 }
 

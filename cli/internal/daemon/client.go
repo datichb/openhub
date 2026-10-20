@@ -18,6 +18,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/filelock"
 	"github.com/datichb/openhub/cli/internal/logrotate"
+	"github.com/datichb/openhub/cli/internal/safego"
 )
 
 // Client talks to ohd over its Unix socket.
@@ -224,7 +225,7 @@ func (c *Client) Stream(ctx context.Context, sessionID string) (<-chan StreamEve
 		return nil, fmt.Errorf("ohd stream: %s", resp.Status)
 	}
 	out := make(chan StreamEvent, 64)
-	go func() {
+	safego.Go(func() {
 		defer close(out)
 		defer resp.Body.Close()
 		dec := json.NewDecoder(resp.Body)
@@ -242,7 +243,7 @@ func (c *Client) Stream(ctx context.Context, sessionID string) (<-chan StreamEve
 				return
 			}
 		}
-	}()
+	})
 	return out, nil
 }
 
@@ -364,7 +365,7 @@ func Ensure(ctx context.Context, paths Paths, opts EnsureOptions) (*Client, Heal
 	if err := cmd.Start(); err != nil {
 		return nil, Health{}, fmt.Errorf("starting ohd: %w", err)
 	}
-	go func() { _ = cmd.Wait() }()
+	safego.Go(func() { _ = cmd.Wait() })
 
 	timeout := opts.Timeout
 	if timeout == 0 {

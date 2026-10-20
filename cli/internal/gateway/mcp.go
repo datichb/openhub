@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/safego"
 )
 
 // MCPCommand is the machine command of an oh MCP server (stdio).
@@ -238,19 +239,19 @@ func startMCP(group, name string, c MCPCommand) (*mcpProc, error) {
 		return nil, err
 	}
 	p := &mcpProc{group: group, name: name, cmd: cmd, stdin: stdin, pending: map[string]chan map[string]json.RawMessage{}, done: make(chan struct{})}
-	go p.read(stdout)
-	go func() {
+	safego.Go(func() { p.read(stdout) })
+	safego.Go(func() {
 		err := cmd.Wait()
+		slog.Debug("gateway: MCP server stopped", "group", group, "server", name, "error", err)
 		p.pmu.Lock()
+		defer p.pmu.Unlock()
 		p.err = fmt.Errorf("server exited: %v %s", err, bytes.TrimSpace(stderr.Bytes()))
 		for _, ch := range p.pending {
 			close(ch)
 		}
 		p.pending = map[string]chan map[string]json.RawMessage{}
 		close(p.done)
-		p.pmu.Unlock()
-		slog.Debug("gateway: MCP server stopped", "group", group, "server", name, "error", err)
-	}()
+	})
 	return p, nil
 }
 

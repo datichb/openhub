@@ -24,6 +24,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/datichb/openhub/cli/internal/safego"
 )
 
 // Auth applies the real credential to an upstream request.
@@ -186,11 +188,11 @@ func (p *Proxy) Start(addr string) error {
 	p.listener = l
 	p.url = "http://" + l.Addr().String()
 	p.server = &http.Server{Handler: p, ReadHeaderTimeout: 30 * time.Second}
-	go func() {
+	safego.Go(func() {
 		if err := p.server.Serve(l); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			slog.Error("credproxy stopped", "error", err)
 		}
-	}()
+	})
 	return nil
 }
 
@@ -220,11 +222,11 @@ func (p *Proxy) Listen(host string) (string, error) {
 		}
 	}
 	srv := &http.Server{Handler: p, ReadHeaderTimeout: 30 * time.Second}
-	go func() {
+	safego.Go(func() {
 		if err := srv.Serve(l); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			slog.Error("credproxy listener stopped", "addr", l.Addr().String(), "error", err)
 		}
-	}()
+	})
 	if p.extra == nil {
 		p.extra, p.extraURL = map[string]*http.Server{}, map[string]string{}
 	}

@@ -10,6 +10,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/credproxy"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/safego"
 )
 
 func (d *Daemon) routes() http.Handler {
@@ -207,7 +208,7 @@ func (d *Daemon) handleShutdown(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusAccepted)
-	go d.requestStop()
+	safego.Go(d.requestStop)
 }
 
 // handleListen adds a proxy listener on a private or loopback address (a

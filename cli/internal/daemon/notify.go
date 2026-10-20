@@ -9,6 +9,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/safego"
 )
 
 // System notifications (P3-T13): the daemon is the only process alive when
@@ -36,7 +37,7 @@ type notifier struct {
 	mu      sync.Mutex
 	seen    map[string]bool // decision ids already notified (or open at start)
 	queue   []note
-	timer   *time.Timer
+	pending bool // a flush is scheduled
 	primed  bool
 	scanReq chan struct{}
 }
@@ -117,15 +118,20 @@ func (n *notifier) turnDone(sessionID string) {
 
 func (n *notifier) enqueueLocked(nt note) {
 	n.queue = append(n.queue, nt)
-	if n.timer == nil {
-		n.timer = time.AfterFunc(n.window, n.flush)
+	if !n.pending {
+		n.pending = true
+		// The notification command may panic: the wait and flush run under safego.
+		safego.Go(func() {
+			time.Sleep(n.window)
+			n.flush()
+		})
 	}
 }
 
 func (n *notifier) flush() {
 	n.mu.Lock()
 	queue := n.queue
-	n.queue, n.timer = nil, nil
+	n.queue, n.pending = nil, false
 	n.mu.Unlock()
 	if len(queue) == 0 {
 		return

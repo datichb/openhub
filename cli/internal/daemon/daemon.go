@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"runtime/debug"
 	"sort"
 	"strconv"
 	"strings"
@@ -148,8 +149,11 @@ type Daemon struct {
 
 	wmu      sync.Mutex
 	watchers map[string]*watcher
-	feed     *hub
-	notes    *notifier
+	watchWG  sync.WaitGroup // the running watchers (stopWatchers waits for them)
+	// watchersWait bounds that wait (0 = watchersStopWait).
+	watchersWait time.Duration
+	feed         *hub
+	notes        *notifier
 
 	mu          sync.Mutex
 	clients     map[string]client
@@ -244,30 +248,33 @@ func Run(ctx context.Context, opts Options) error {
 	l = peerListener{Listener: l}
 	d.listener = l
 	d.http = &http.Server{Handler: d.routes(), ReadHeaderTimeout: 10 * time.Second, ConnContext: withConn}
-	go func() {
+	safego.Go(func() {
 		if err := d.http.Serve(l); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			slog.Error("ohd api stopped", "error", err)
 		}
-	}()
+	})
 	slog.Info("ohd started", "pid", os.Getpid(), "proxy", d.proxy.URL(), "socket", opts.Paths.Socket())
 	defer d.stopWatchers()
-	go func() {
+	// A panic of a background job must not take the daemon down (A-02). The
+	// restoration is done once (its deferred calls release the proxy and
+	// the routes even on a panic); the loops are run again after a panic,
+	// each one is something the daemon cannot do without.
+	safego.Go(func() {
 		defer close(d.restored)
 		defer d.proxy.Release()
 		d.restoreGrants(ctx)
-	}()
+	})
 	if opts.Notify != nil {
 		d.notes = newNotifier(d, opts.Notify)
-		go d.notes.run(ctx)
+		d.superviseLoop(ctx, "notifications", d.notes.run)
 	}
 	if opts.Periodic != nil {
-		go d.runPeriodic(ctx)
+		d.superviseLoop(ctx, "periodic", d.runPeriodic)
 	}
-	// A panic of these background jobs must not take the daemon down (A-02).
-	safego.Go(func() { d.runLogRotation(ctx) })
-	safego.Go(func() { d.runLeases(ctx) })
+	d.superviseLoop(ctx, "log rotation", d.runLogRotation)
+	d.superviseLoop(ctx, "leases", d.runLeases)
 	for _, t := range opts.Tasks {
-		safego.Go(func() { d.runTask(ctx, t) })
+		d.superviseLoop(ctx, "task "+t.Name, func(ctx context.Context) { d.runTask(ctx, t) })
 	}
 	// Supervision revokes grants: it must not race with their restoration.
 	select {
@@ -275,7 +282,7 @@ func Run(ctx context.Context, opts Options) error {
 	case <-ctx.Done():
 		return d.shutdown()
 	}
-	d.supervise(ctx)
+	d.superviseSafe(ctx)
 
 	ticker := time.NewTicker(opts.Tick)
 	defer ticker.Stop()
@@ -286,9 +293,9 @@ func Run(ctx context.Context, opts Options) error {
 		case <-d.stop:
 			return d.shutdown()
 		case <-d.kick:
-			d.supervise(ctx)
+			d.superviseSafe(ctx)
 		case <-ticker.C:
-			if d.supervise(ctx) {
+			if d.superviseSafe(ctx) {
 				slog.Info("ohd idle, stopping", "idle_after", opts.IdleAfter)
 				return d.shutdown()
 			}
@@ -296,10 +303,17 @@ func Run(ctx context.Context, opts Options) error {
 	}
 }
 
+// superviseLoop runs a background loop of the daemon in its own goroutine,
+// started again after a panic (safego.Supervise).
+func (d *Daemon) superviseLoop(ctx context.Context, name string, loop func(ctx context.Context)) {
+	safego.Go(func() { safego.Supervise(ctx, "ohd "+name, loop) })
+}
+
 func (d *Daemon) shutdown() error {
 	if d.opts.StopServersOnExit {
 		d.sleepAll()
 	}
+	d.stopWatchers() // none writes after Run returns (A-04)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	d.flushProxyUsage(ctx)
@@ -593,6 +607,19 @@ func upstreamFor(provider, region string, auth credproxy.Auth) (credproxy.Upstre
 		return credproxy.Upstream{BaseURL: "https://api.openai.com/v1", Auth: auth}, nil
 	}
 	return credproxy.Upstream{}, fmt.Errorf("unsupported provider %q", provider)
+}
+
+// superviseSafe is supervise with a panic logged instead of ending the
+// daemon (A-02): the next pass runs as usual. A pass that panicked does not
+// report the daemon as idle.
+func (d *Daemon) superviseSafe(ctx context.Context) (idle bool) {
+	defer func() {
+		if r := recover(); r != nil {
+			slog.Error("ohd: panic in the supervision pass", "panic", r, "stack", string(debug.Stack()))
+			idle = false
+		}
+	}()
+	return d.supervise(ctx)
 }
 
 // supervise marks dead servers stopped, revokes their grants, and reports
