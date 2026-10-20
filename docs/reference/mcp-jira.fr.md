@@ -40,6 +40,19 @@ export JIRA_URL=https://entreprise.atlassian.net
 
 La variable `JIRA_URL` est obligatoire. Elle doit pointer vers la racine de votre instance Jira (sans slash final).
 
+Au lancement d'une session, oh pose `JIRA_URL` à partir de la cascade d'URL : projet, puis hub (`[mcp.jira].url`), puis équipe. Une URL que l'équipe **impose** (`url_enforced` dans le team-state) n'est utilisée qu'une fois que vous l'avez approuvée avec `oh mcp trust jira` (votre jeton Jira est envoyé à cette URL) ; voir [`oh mcp trust`](cli-mcp.fr.md#oh-mcp-trust). Un Jira sur site, sur une adresse privée, est accepté une fois approuvé.
+
+## Identifiants
+
+Le serveur vérifie les identifiants qu'il reçoit avant de construire une requête, et échappe chaque segment du chemin d'API : un identifiant qui n'est pas ce que Jira attend est refusé (`invalid issue key "…"`) et aucune requête n'est envoyée.
+
+| Paramètre | Format |
+|-----------|--------|
+| `issue_key` | `^[A-Z][A-Z0-9_]+-\d+$` (ex. `PROJ-123`) |
+| `project_key` | `^[A-Z][A-Z0-9_]+$` (ex. `PROJ`) |
+
+`../`, `?`, `#`, `%2F`, les espaces et tout autre caractère sont refusés. La requête (`jql`, `max_results`) passe par des paramètres d'URL, jamais dans le chemin. L'identifiant Jira n'est envoyé qu'au serveur de `JIRA_URL`.
+
 ## Outils disponibles
 
 | Outil | Description | Accès |

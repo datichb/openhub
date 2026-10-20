@@ -56,7 +56,7 @@ Décision D9 : Beads reste toujours sur la machine.
   - transport « streamable HTTP » avec réponses JSON ;
   - identifiants de requête réécrits, pour plusieurs clients par processus ;
   - un processus par groupe et par serveur, relancé s'il meurt et arrêté avec le groupe.
-- Un appel dont le `_meta` désigne une session d'un autre groupe est refusé (403). Le serveur `workflow` ([ADR-042](./042-checkpoints-headless-decisions.fr.md)) fonctionne ainsi à l'identique en conteneur.
+- Un appel dont le `_meta` désigne une session d'un autre groupe est refusé (403). La passerelle échoue en fermé : un `tools/call` sans session dans `_meta`, avec une session inconnue ou avec plusieurs sessions est refusé aussi, et un message est limité à 1 Mio (voir [SECURITY.fr.md](../../../SECURITY.fr.md)). Le serveur `workflow` ([ADR-042](./042-checkpoints-headless-decisions.fr.md)) fonctionne ainsi à l'identique en conteneur.
 - Les autres serveurs MCP locaux restent dans le conteneur.
 
 ### 3. Distant : instantané et journal

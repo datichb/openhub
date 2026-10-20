@@ -32,6 +32,18 @@ Scopes requis :
 
 Le mode écriture nécessite le scope supplémentaire : `repo` (écriture)
 
+## Identifiants
+
+Le serveur vérifie les identifiants qu'il reçoit avant de construire une requête, et échappe chaque segment du chemin d'API : un identifiant qui n'est pas ce que GitHub attend est refusé (`invalid repo "…"`) et aucune requête n'est envoyée.
+
+| Paramètre | Format |
+|-----------|--------|
+| `repo` | `owner/name` : owner avec lettres, chiffres, `-` et `_` (39 caractères au plus, commençant par une lettre ou un chiffre) ; name avec lettres, chiffres, `.`, `_` et `-` (100 caractères au plus ; `.` et `..` refusés) |
+| `issue_number`, `pr_number` | entier positif |
+| `workflow_id` | nom du fichier de workflow (`ci.yml`) ou id : lettres, chiffres, `.`, `_` et `-`, sans commencer par `.` ni `-` |
+
+`../`, `?`, `#`, `%2F`, les espaces et tout autre caractère sont refusés. Les filtres (`state`, `labels`, `assignee`, `base`) passent par des paramètres d'URL, jamais dans le chemin. Le jeton n'est envoyé qu'à `api.github.com`.
+
 ## Outils disponibles
 
 | Outil | Description | Accès |

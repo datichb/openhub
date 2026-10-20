@@ -339,7 +339,7 @@ Commande `doctor`. `f` corriger le contrôle sélectionné (comme `oh doctor --f
 | Réglages, Config projet | `{` / `}` sections, `Espace` basculer, `Entrée` modifier, `u` annuler, `r` recharger (confirmé s'il reste des modifications) |
 | Modèles (hub, projet, équipe) | `Entrée` modifier, `n` créer, `d` supprimer (confirmé), `u` annuler, `w` enregistrer (équipe) |
 | Fournisseur | `Espace` par défaut, `Entrée` / `e` modifier, `s` configurer, `d` effacer la configuration et la clé du trousseau (confirmé) |
-| MCP (hub, projet, équipe) | `Espace` activer, `Entrée` modifier, `t` jeton ou test, `w` enregistrer, `u` annuler |
+| MCP (hub, projet, équipe) | `Espace` activer, `Entrée` modifier, `t` jeton ou test, `w` enregistrer, `u` annuler, `T` approuver l'URL imposée par l'équipe (vue du hub ; confirmé, voir [`oh mcp trust`](cli-mcp.fr.md#oh-mcp-trust)) |
 | Secrets | `Entrée` / `e` modifier, `n` créer, `d` supprimer (confirmé) |
 | Équipes | `Entrée` ouvrir, `n` créer, `d` supprimer (confirmé), `s` synchroniser, `u` annuler |
 | Détail d'équipe | `Espace` basculer, `Entrée` modifier, `w` enregistrer, `s` synchroniser, `t` tester, `u` annuler, `T` découvrir le tracker, `K` clé du fournisseur de l'équipe |

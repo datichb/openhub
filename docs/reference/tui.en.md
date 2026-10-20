@@ -339,7 +339,7 @@ Command `doctor`. `f` fix the selected check (like `oh doctor --fix`, with a pre
 | Settings, Project config | `{` / `}` sections, `Space` toggle, `Enter` modify, `u` undo, `r` reload (confirmed when changes are unsaved) |
 | Models (hub, project, team) | `Enter` modify, `n` create, `d` delete (confirmed), `u` undo, `w` save (team) |
 | Provider | `Space` default, `Enter` / `e` modify, `s` set up, `d` clear the configuration and the key of the keychain (confirmed) |
-| MCP (hub, project, team) | `Space` enable, `Enter` modify, `t` token or test, `w` save, `u` undo |
+| MCP (hub, project, team) | `Space` enable, `Enter` modify, `t` token or test, `w` save, `u` undo, `T` approve the URL imposed by the team (hub view; confirmed, see [`oh mcp trust`](cli-mcp.en.md#oh-mcp-trust)) |
 | Secrets | `Enter` / `e` modify, `n` create, `d` delete (confirmed) |
 | Teams | `Enter` open, `n` create, `d` delete (confirmed), `s` sync, `u` undo |
 | Team detail | `Space` toggle, `Enter` modify, `w` save, `s` sync, `t` test, `u` undo, `T` discover the tracker, `K` provider key of the team |
