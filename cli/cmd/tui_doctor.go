@@ -18,8 +18,8 @@ import (
 // Doctor view repairs (modernisation tui-launch): the repairs of oh doctor
 // --fix on the checks that have one (configuration restored from a
 // backup, Beads zero impact, orphan servers), each planned, confirmed in
-// the view, then applied like `oh doctor --fix --yes`; the clean-up check
-// opens the oh gc view. The offline mode is oh doctor --offline.
+// the view, then applied like `oh doctor --fix --yes`; the clean-up checks
+// open their section of the clean-up view. The offline mode is oh doctor --offline.
 
 func init() {
 	views.DoctorFixFor = doctorFixFor
@@ -39,7 +39,9 @@ func init() {
 func doctorFixFor(c views.DoctorCheck) *views.DoctorFix {
 	switch {
 	case c.Name == i18n.T("cmd.gc.doctor.name") && c.Warn:
-		return &views.DoctorFix{Open: actionGC}
+		return &views.DoctorFix{Open: actionCleanup}
+	case c.Name == i18n.T("cmd.migrate.cleanup.doctor_name") && !c.OK:
+		return &views.DoctorFix{Open: actionCleanupDeploy}
 	case c.OK:
 		return nil
 	case c.Name == i18n.T("cmd.doctor.check.config"):

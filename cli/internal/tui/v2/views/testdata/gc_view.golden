@@ -1,7 +1,7 @@
  Nettoyage proposé : 23.0 MB récupérables  aperçu : rien n'est supprimé sans confirmation           
  Rétentions [gc] : sessions arrêtées 30 j · historique 90 j · usage 365 j                           
                                                                                                     
-┌ Nettoyage (oh gc) ───────────────────────────────────────────────────────────────────────────────┐
+┌ Données d'oh (oh gc) ────────────────────────────────────────────────────────────────────────────┐
 │   Élément          Taille   Emplacement                                                          │
 │ Paquets de session inutilisés · 2 · 3.0 MB                                                       │
 │ ▸ 3f2a1c9e         2.0 MB   /home/me/.oh/bundles/3f2a1c9e                                        │

@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"strings"
+	"sync"
 
 	"github.com/rivo/tview"
 
@@ -14,9 +15,10 @@ import (
 )
 
 // TUI screen of `oh migrate deploy-cleanup` (P3-T28, 10-tui §12): shown
-// once after the update when former deployments remain (and from the
-// `cleanup` omnibar command): what goes, what is kept, Nettoyer / Voir le
-// diff / Plus tard. The projects are scanned off the event loop.
+// once after the update when former deployments remain: what goes, what
+// is kept, Nettoyer / Voir le diff / Plus tard. The same clean-up is the
+// section « Anciens déploiements » of the clean-up view (`cleanup` omnibar
+// command, tui_gc.go). The projects are scanned off the event loop.
 
 // offerCleanupInTUI opens the cleanup screen once (startup).
 func offerCleanupInTUI(ctx context.Context, a *app.App, sh *shell.Shell) {
@@ -35,29 +37,40 @@ func offerCleanupInTUI(ctx context.Context, a *app.App, sh *shell.Shell) {
 	}()
 }
 
-// actionCleanup is the `cleanup` omnibar command.
-func actionCleanup() {
-	sh := tuiShell
-	if sh == nil {
-		return
-	}
-	a := MustApp()
-	go func() {
-		list, err := scanDeployLeftovers(context.Background(), a, "")
-		sh.App().QueueUpdateDraw(func() {
-			switch {
-			case err != nil:
-				sh.ShowToastMsg(err.Error(), false)
-			case len(list) == 0:
-				sh.ShowToastMsg(i18n.T("cmd.migrate.cleanup.none"), true)
-			default:
-				showCleanupScreen(a, sh, list)
+// deployCleanupConfig is the section « Anciens déploiements » of the
+// clean-up view: Apply cleans the projects of the last scan.
+func deployCleanupConfig(a *app.App) *views.DeployCleanupConfig {
+	var (
+		mu   sync.Mutex
+		last []projectCleanup
+	)
+	return &views.DeployCleanupConfig{
+		Scan: func(ctx context.Context) (views.DeployCleanupPlan, error) {
+			list, err := scanDeployLeftovers(ctx, a, "")
+			if err != nil {
+				return views.DeployCleanupPlan{}, err
 			}
-		})
-	}()
+			mu.Lock()
+			last = list
+			mu.Unlock()
+			return views.DeployCleanupPlan{Projects: len(list), Text: cleanupText(list),
+				DiffTitle: i18n.Tf("tui.cleanup.diff_title", cleanupConfigFile(list)), Diff: cleanupDiffText(list)}, nil
+		},
+		Apply: func(context.Context) (string, bool) {
+			mu.Lock()
+			list := last
+			mu.Unlock()
+			return applyCleanup(list)
+		},
+	}
 }
 
 func showCleanupScreen(a *app.App, sh *shell.Shell, list []projectCleanup) {
+	sh.ShowScrollableModal(i18n.T("tui.cleanup.title"), cleanupText(list), cleanupActions(a, sh, list, true))
+}
+
+// cleanupText is what goes and what is kept, by project.
+func cleanupText(list []projectCleanup) string {
 	var b strings.Builder
 	b.WriteString(i18n.T("tui.cleanup.intro") + "\n\n")
 	for _, pc := range list {
@@ -68,7 +81,7 @@ func showCleanupScreen(a *app.App, sh *shell.Shell, list []projectCleanup) {
 		b.WriteString("\n")
 	}
 	b.WriteString(theme.ColorTag(theme.TextMutedHex) + i18n.Tf("tui.cleanup.kept_note", cleanupConfigFile(list)) + theme.TagColor)
-	sh.ShowScrollableModal(i18n.T("tui.cleanup.title"), b.String(), cleanupActions(a, sh, list, true))
+	return b.String()
 }
 
 func cleanupActions(a *app.App, sh *shell.Shell, list []projectCleanup, withDiff bool) []views.ModalAction {
@@ -80,6 +93,11 @@ func cleanupActions(a *app.App, sh *shell.Shell, list []projectCleanup, withDiff
 }
 
 func showCleanupDiff(a *app.App, sh *shell.Shell, list []projectCleanup) {
+	sh.ShowScrollableModal(i18n.Tf("tui.cleanup.diff_title", cleanupConfigFile(list)), cleanupDiffText(list), cleanupActions(a, sh, list, false))
+}
+
+// cleanupDiffText is the diff of the configuration, by project.
+func cleanupDiffText(list []projectCleanup) string {
 	var b strings.Builder
 	for _, pc := range list {
 		b.WriteString("[::b]" + tview.Escape(pc.Name) + "[::-]\n")
@@ -103,7 +121,7 @@ func showCleanupDiff(a *app.App, sh *shell.Shell, list []projectCleanup) {
 		}
 		b.WriteString("\n")
 	}
-	sh.ShowScrollableModal(i18n.Tf("tui.cleanup.diff_title", cleanupConfigFile(list)), b.String(), cleanupActions(a, sh, list, false))
+	return b.String()
 }
 
 // cleanupConfigFile is the tool configuration file the plans clean.
@@ -118,18 +136,22 @@ func cleanupConfigFile(list []projectCleanup) string {
 
 func applyCleanupInTUI(sh *shell.Shell, list []projectCleanup) {
 	go func() {
-		var failed []string
-		for _, pc := range list {
-			if err := pc.Plan.Apply(); err != nil {
-				failed = append(failed, pc.Name+": "+err.Error())
-			}
-		}
-		sh.App().QueueUpdateDraw(func() {
-			if len(failed) > 0 {
-				sh.ShowToastMsg(i18n.Tf("tui.cleanup.failed", strings.Join(failed, "; ")), false)
-				return
-			}
-			sh.ShowToastMsg(i18n.Tf("tui.cleanup.done", len(list)), true)
-		})
+		msg, ok := applyCleanup(list)
+		sh.App().QueueUpdateDraw(func() { sh.ShowToastMsg(msg, ok) })
 	}()
+}
+
+// applyCleanup cleans the projects: the message of the result and whether
+// everything was cleaned.
+func applyCleanup(list []projectCleanup) (string, bool) {
+	var failed []string
+	for _, pc := range list {
+		if err := pc.Plan.Apply(); err != nil {
+			failed = append(failed, pc.Name+": "+err.Error())
+		}
+	}
+	if len(failed) > 0 {
+		return i18n.Tf("tui.cleanup.failed", strings.Join(failed, "; ")), false
+	}
+	return i18n.Tf("tui.cleanup.done", len(list)), true
 }
