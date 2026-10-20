@@ -5,9 +5,16 @@ import (
 	"log/slog"
 	"net"
 	"os"
+
+	"github.com/datichb/openhub/cli/internal/peercheck"
 )
 
-var errUnsupportedPeer = errors.New("peer credentials not supported")
+var errUnsupportedPeer = peercheck.ErrUnsupported
+
+// peerUID returns the user id of the process at the other end of a Unix
+// socket connection (getpeereid, SO_PEERCRED): see package peercheck, which
+// the clients use the other way round.
+func peerUID(c net.Conn) (int, error) { return peercheck.UID(c) }
 
 // peerListener accepts only the connections of processes running as the
 // daemon's user (M12): the socket mode (0600) is checked again on each

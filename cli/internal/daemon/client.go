@@ -18,6 +18,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/filelock"
 	"github.com/datichb/openhub/cli/internal/logrotate"
+	"github.com/datichb/openhub/cli/internal/peercheck"
 	"github.com/datichb/openhub/cli/internal/safego"
 )
 
@@ -49,9 +50,10 @@ func (c *Client) WithCapability(capability string) *Client {
 // NewClient returns a client for the daemon at paths.
 func NewClient(paths Paths) *Client {
 	tr := &http.Transport{
+		// The socket is checked before anything is sent (S-28): if the
+		// daemon is stopped, any process of the user could create it.
 		DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
-			var d net.Dialer
-			return d.DialContext(ctx, "unix", paths.Socket())
+			return peercheck.Dial(ctx, paths.Socket())
 		},
 	}
 	return &Client{paths: paths, http: &http.Client{Transport: tr, Timeout: 30 * time.Second}, stream: &http.Client{Transport: tr}}
@@ -59,6 +61,19 @@ func NewClient(paths Paths) *Client {
 
 // ErrNotRunning is returned when the daemon socket does not answer.
 var ErrNotRunning = errors.New("ohd is not running")
+
+// notRunningOr maps the error of a request: a refused socket is an
+// UntrustedSocketError, a connection that fails is ErrNotRunning.
+func notRunningOr(err error) error {
+	if err = clientError(err); errors.Is(err, ErrUntrustedSocket) {
+		return err
+	}
+	var opErr *net.OpError
+	if errors.As(err, &opErr) {
+		return ErrNotRunning
+	}
+	return err
+}
 
 func (c *Client) do(ctx context.Context, method, path string, body, out any) error {
 	var rdr io.Reader = http.NoBody
@@ -84,11 +99,7 @@ func (c *Client) do(ctx context.Context, method, path string, body, out any) err
 	}
 	resp, err := c.http.Do(req)
 	if err != nil {
-		var opErr *net.OpError
-		if errors.As(err, &opErr) {
-			return ErrNotRunning
-		}
-		return err
+		return notRunningOr(err)
 	}
 	defer resp.Body.Close()
 	data, _ := io.ReadAll(resp.Body)
@@ -214,11 +225,7 @@ func (c *Client) Stream(ctx context.Context, sessionID string) (<-chan StreamEve
 	}
 	resp, err := c.stream.Do(req) //nolint:bodyclose // closed by the reader goroutine
 	if err != nil {
-		var opErr *net.OpError
-		if errors.As(err, &opErr) {
-			return nil, ErrNotRunning
-		}
-		return nil, err
+		return nil, notRunningOr(err)
 	}
 	if resp.StatusCode != http.StatusOK {
 		resp.Body.Close()
@@ -304,7 +311,11 @@ func Ensure(ctx context.Context, paths Paths, opts EnsureOptions) (*Client, Heal
 	if InProcessMode() {
 		return ensureInProcess(ctx, c, opts)
 	}
-	if h, err := c.Health(ctx); err == nil {
+	h, err := c.Health(ctx)
+	if errors.Is(err, ErrUntrustedSocket) {
+		return nil, Health{}, err // a daemon spawned now would not be reached either
+	}
+	if err == nil {
 		if opts.Version == "" || h.Version == opts.Version {
 			return c, h, nil
 		}
@@ -373,8 +384,12 @@ func Ensure(ctx context.Context, paths Paths, opts EnsureOptions) (*Client, Heal
 	}
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
-		if h, err := c.Health(ctx); err == nil {
+		h, err := c.Health(ctx)
+		if err == nil {
 			return c, h, nil
+		}
+		if errors.Is(err, ErrUntrustedSocket) {
+			return nil, Health{}, err
 		}
 		select {
 		case <-ctx.Done():

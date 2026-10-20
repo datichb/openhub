@@ -240,6 +240,10 @@ func Run(ctx context.Context, opts Options) error {
 	if err := os.MkdirAll(opts.Paths.Dir, 0o700); err != nil {
 		return err
 	}
+	// Checked before anything is created in it, and before Listen (S-28).
+	if err := securePrivateDir(opts.Paths.Dir); err != nil {
+		return err
+	}
 	unlock, err := lockFile(opts.Paths.Lock())
 	if err != nil {
 		return err
@@ -267,11 +271,19 @@ func Run(ctx context.Context, opts Options) error {
 	d.startGateway(ctx)
 
 	_ = os.Remove(opts.Paths.Socket())
+	// The socket is created in a folder only the user can enter (checked
+	// above): nobody else can reach it between Listen and Chmod. No umask
+	// change: it is global to the process, which hosts other goroutines
+	// (the daemon runs inside oh on Windows).
 	l, err := net.Listen("unix", opts.Paths.Socket())
 	if err != nil {
 		return fmt.Errorf("listening on %s: %w", opts.Paths.Socket(), err)
 	}
-	_ = os.Chmod(opts.Paths.Socket(), 0o600)
+	if err := os.Chmod(opts.Paths.Socket(), 0o600); err != nil {
+		_ = l.Close()
+		_ = os.Remove(opts.Paths.Socket())
+		return fmt.Errorf("securing %s: %w", opts.Paths.Socket(), err)
+	}
 	l = peerListener{Listener: l}
 	d.listener = l
 	d.http = &http.Server{Handler: d.routes(), ReadHeaderTimeout: 10 * time.Second, ConnContext: withConn}

@@ -5756,5 +5756,16 @@
   "cmd.import.merge_open": "ouverture de la base de l'archive",
   "cmd.import.merge_added": "Ajouté : projet %s",
   "cmd.import.merge_skipped": "Conservé : le projet %s existe déjà (id, nom ou chemin)",
-  "cmd.import.merge_done": "Fusion terminée : %d projet(s) ajouté(s), %d conservé(s) tel quel. hub.toml, secrets et données existantes inchangés."
+  "cmd.import.merge_done": "Fusion terminée : %d projet(s) ajouté(s), %d conservé(s) tel quel. hub.toml, secrets et données existantes inchangés.",
+  "daemon.socket.dir_not_directory": "Connexion au démon oh refusée, rien n'a été envoyé : %s n'est pas un dossier ordinaire (un lien ou un fichier). Si vous ne l'avez pas créé, supprimez-le, puis relancez oh.",
+  "daemon.socket.dir_owner": "Connexion au démon oh refusée, rien n'a été envoyé : le dossier %s appartient à un autre utilisateur. Cherchez qui l'a créé (oh lancé avec sudo ?), supprimez-le, puis relancez oh.",
+  "daemon.socket.dir_writable": "Connexion au démon oh refusée, rien n'a été envoyé : le dossier %[1]s peut être modifié par d'autres utilisateurs, l'un d'eux pourrait y mettre son propre socket à la place de celui du démon. Corrigez avec chmod 700 %[1]s, puis relancez oh.",
+  "daemon.socket.not_socket": "Connexion au démon oh refusée, rien n'a été envoyé : %s n'est pas un socket (un lien ou un fichier). Si vous ne l'avez pas créé, supprimez-le, puis relancez oh.",
+  "daemon.socket.socket_owner": "Connexion au démon oh refusée, rien n'a été envoyé : le socket %s appartient à un autre utilisateur. Cherchez qui l'a créé (oh lancé avec sudo ?), supprimez-le, puis relancez oh.",
+  "daemon.socket.socket_mode": "Connexion au démon oh refusée, rien n'a été envoyé : le socket %[1]s est ouvert à d'autres utilisateurs. Arrêtez le démon (oh daemon stop --force) ou corrigez avec chmod 600 %[1]s, puis relancez oh.",
+  "daemon.socket.peer_uid": "Connexion au démon oh refusée, rien n'a été envoyé : le processus qui écoute sur %s ne tourne pas sous votre utilisateur. Si vous ne l'avez pas lancé, supprimez le socket, puis relancez oh.",
+  "daemon.socket.untrusted": "Connexion au démon oh refusée, rien n'a été envoyé : le socket %s n'est pas digne de confiance.",
+  "daemon.rundir.not_directory": "Le démon oh ne démarre pas : %s n'est pas un dossier ordinaire (un lien ou un fichier). Si vous ne l'avez pas créé, supprimez-le, puis relancez oh.",
+  "daemon.rundir.owner": "Le démon oh ne démarre pas : le dossier %s appartient à un autre utilisateur (uid %d). Cherchez qui l'a créé (oh lancé avec sudo ?), supprimez-le, puis relancez oh.",
+  "daemon.rundir.chmod": "Le démon oh ne démarre pas : le dossier %s est ouvert à d'autres utilisateurs et ne peut pas être refermé (%v). Corrigez avec chmod 700, puis relancez oh."
 }
