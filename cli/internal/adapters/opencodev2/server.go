@@ -335,6 +335,11 @@ func (s *Server) waitReady(ctx context.Context, dir, agent string, timeout time.
 		case <-s.exited:
 			return fmt.Errorf("%w: %v", errServerExited, s.exitError())
 		case <-ctx.Done():
+			// Whatever the last answer was (a slow start gives none), the
+			// error says what the server was waited for.
+			if agent != "" {
+				return fmt.Errorf("opencode serve not ready after %s (waiting for agent %q): %w", timeout, agent, lastErr)
+			}
 			return fmt.Errorf("opencode serve not ready after %s: %w", timeout, lastErr)
 		case <-time.After(150 * time.Millisecond):
 		}

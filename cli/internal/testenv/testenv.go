@@ -3,8 +3,12 @@
 // variables that could lead to a real hub (OH_HOME, OH_TEST_*…) are removed.
 // OH_HOME is left unset rather than fixed: the hub is then ~/.oh of the
 // temporary HOME, which is what the tests that set HOME themselves expect
-// (and what they find in CI); the tests that want another hub set OH_HOME. It is used by the TestMain of the packages whose tests, directly
-// or through the code they exercise, read these paths.
+// (and what they find in CI); the tests that want another hub set OH_HOME.
+// The global git configuration (GIT_CONFIG_GLOBAL) is the one of
+// gittest.Defaults, not the user's: an identity and main as the initial
+// branch, so that no test depends on the machine (a CI runner has neither).
+// It is used by the TestMain of the packages whose tests, directly or through
+// the code they exercise, read these paths.
 //
 //	func TestMain(m *testing.M) {
 //		finish := testenv.Isolate()
@@ -23,6 +27,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 )
 
 // marker is set in the environment of the isolated test binary. A helper
@@ -63,7 +69,6 @@ func Isolate() (finish func(code int) int) {
 	hubs := realHubs()
 	before := snapshot(hubs)
 	pins := toolPins()
-	gitConfig := globalGitConfig()
 
 	dir, err := os.MkdirTemp("", "ohti-")
 	if err != nil {
@@ -86,11 +91,12 @@ func Isolate() (finish func(code int) int) {
 			os.Exit(1)
 		}
 	}
-	if gitConfig != "" {
-		path := filepath.Join(dir, "gitconfig")
-		if os.WriteFile(path, []byte(gitConfig), 0o600) == nil {
-			env["GIT_CONFIG_GLOBAL"] = path
-		}
+	// The git configuration of the tests, not the one of the user: no test
+	// depends on the identity or the defaults of the machine (a CI runner has
+	// none).
+	path := filepath.Join(dir, "gitconfig")
+	if os.WriteFile(path, []byte(gittest.Defaults()), 0o600) == nil {
+		env["GIT_CONFIG_GLOBAL"] = path
 	}
 	for k, v := range pins {
 		env[k] = v
@@ -228,26 +234,4 @@ func toolPins() map[string]string {
 		}
 	}
 	return pins
-}
-
-// globalGitConfig is a git configuration that includes the user's own (the
-// identity and the defaults stay, HOME having moved), or empty when the
-// user already points GIT_CONFIG_GLOBAL somewhere.
-func globalGitConfig() string {
-	if _, ok := os.LookupEnv("GIT_CONFIG_GLOBAL"); ok {
-		return ""
-	}
-	home, err := os.UserHomeDir()
-	if err != nil || home == "" {
-		return ""
-	}
-	xdg := os.Getenv("XDG_CONFIG_HOME")
-	if xdg == "" {
-		xdg = filepath.Join(home, ".config")
-	}
-	var b strings.Builder
-	for _, p := range []string{filepath.Join(xdg, "git", "config"), filepath.Join(home, ".gitconfig")} {
-		fmt.Fprintf(&b, "[include]\n\tpath = %s\n", strings.ReplaceAll(p, `\`, `/`))
-	}
-	return b.String()
 }

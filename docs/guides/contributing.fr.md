@@ -52,6 +52,13 @@ make test-cover     # Genere coverage.out + coverage.html
 
 Le CI exige un seuil de couverture minimum de **60%** avec le race detector actif.
 
+La CI GitHub (`.github/workflows/ci.yml`) lance, sous Linux, macOS et Windows, `go vet`, le lint,
+`govulncheck`, la suite `go test -race` (délai de 40 minutes) et le seuil de couverture ; un job à
+part lance les tests de contrat (tag `integration`) contre un vrai `opencode serve` de version
+épinglée, sans appeler de modèle. Les tests e2e (tag `e2e`, vrai modèle Bedrock) et les évaluations
+(`make test-eval`) ne tournent jamais en CI : ils sont locaux et manuels, et aucune clé de modèle
+n'est confiée aux secrets GitHub.
+
 La suite complète dépasse le délai par défaut de `go test` (10 minutes), surtout quand d'autres
 suites tournent en parallèle : en dehors de `make test`, passez le délai vous-même
 (`go test -timeout 40m ./...`).
@@ -72,7 +79,11 @@ paquets concernés appelle `internal/testenv`, qui, avant `m.Run()` :
 - retire les variables `OH_*` (`OH_HOME`, `OH_TEST_*`, `OH_PASSPHRASE`, session et passerelle…),
   sauf `OH_E2E_*` et `OH_EVAL_*` (tests qui appellent un vrai modèle). Le hub est alors `~/.oh` du
   `HOME` temporaire ; un test qui veut un autre hub fixe `OH_HOME` avec `t.Setenv` ;
-- garde le `PATH` (`opencode`, `bd`), les caches Go et votre configuration git (identité).
+- garde le `PATH` (`opencode`, `bd`) et les caches Go ;
+- remplace votre configuration git globale par celle des tests (`gittest.Defaults` : une identité
+  factice, `main` comme branche initiale, pas de signature, pas de maintenance automatique), comme
+  sur un runner de CI qui n'a ni l'un ni l'autre : un test ne doit dépendre ni de votre identité ni de
+  vos réglages git.
 
 Un garde-fou compare, avant et après les tests, la taille et la date de modification de `hub.toml` et
 de `oh.db` dans l'ancien `OH_HOME` et dans `~/.oh` : si l'un a changé, le paquet échoue (message

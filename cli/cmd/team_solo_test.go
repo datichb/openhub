@@ -146,7 +146,7 @@ func TestTeamPromote(t *testing.T) {
 	require.Error(t, runTeamSub(t, promote, out, "--remote", ""))
 
 	bare := t.TempDir()
-	testGitCmd(t, bare, "init", "--bare")
+	testGitCmd(t, bare, "init", "--bare", "-b", "main")
 	out.Reset()
 	require.NoError(t, runTeamSub(t, promote, out, "--remote", bare))
 	assert.Contains(t, out.String(), "oh team init")

@@ -327,7 +327,9 @@ func TestBeadsPickerAsyncLoad(t *testing.T) {
 	go func() { errc <- app.Run() }()
 	t.Cleanup(func() { app.Stop(); <-errc })
 
-	p.Load()
+	// Load runs on the event loop, as the view does when it is mounted: the
+	// loop draws the picker meanwhile.
+	onLoop(app, p.Load)
 	require.Eventually(t, func() bool {
 		ready := make(chan bool, 1)
 		app.QueueUpdate(func() { _, ok := p.details["bd-42"]; ready <- !p.loading && ok })

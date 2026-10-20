@@ -10,6 +10,12 @@ on:
 permissions:
   contents: read
 
+env:
+  # The full suite under -race is far longer than the 10 minutes that `go test`
+  # allows by default (internal/bundle alone takes about 15 minutes): the timeout
+  # is the one of `make test` (cli/Makefile, TEST_TIMEOUT).
+  GO_TEST_TIMEOUT: 40m
+
 jobs:
   go-cli:
     name: Go CLI (${{ matrix.os }})
@@ -20,8 +26,18 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
     defaults:
       run:
+        # Every script below is bash: on Windows the default shell is PowerShell
+        # (Git Bash is installed on the runner).
+        shell: bash
         working-directory: cli
     steps:
+      # The tests expect LF files: the Git for Windows of the runner would check
+      # out CRLF (core.autocrlf=true).
+      - name: Keep LF line endings
+        if: runner.os == 'Windows'
+        working-directory: ${{ github.workspace }}
+        run: git config --global core.autocrlf false
+
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -59,28 +75,52 @@ jobs:
           govulncheck ./...
 
       - name: Test
-        run: go test ./... -v -race -count=1
+        run: go test ./... -v -race -count=1 -timeout "$GO_TEST_TIMEOUT"
 
       - name: Coverage
         run: |
-          go test ./... -coverprofile=coverage.out -covermode=atomic
+          go test ./... -coverprofile=coverage.out -covermode=atomic -timeout "$GO_TEST_TIMEOUT"
           COVERAGE=$(go tool cover -func=coverage.out | grep "^total:" | awk '{print $3}' | tr -d '%')
           echo "Total coverage: ${COVERAGE}%"
           THRESHOLD=60
-          if [ "$(echo "$COVERAGE < $THRESHOLD" | bc -l)" = "1" ]; then
+          # awk, not bc: Git Bash on Windows has no bc (and an empty answer would pass).
+          if awk -v c="$COVERAGE" -v t="$THRESHOLD" 'BEGIN { exit !(c < t) }'; then
             echo "Coverage ${COVERAGE}% is below threshold ${THRESHOLD}%"
             exit 1
           fi
-        shell: bash
 
       - name: Build
         run: go build -o bin/oh .
 
+  # Integration job: the contract tests (build tag `integration`) against a real
+  # `opencode serve` of the pinned version, started without any model.
+  #
+  # Nothing here calls a model: no model key, no cloud credential and no
+  # repository secret is given to this job, and none must be added.
+  # On purpose (decision of the user, audit v5 A-06 in docs/dev/audit-v5.md),
+  # CI never runs the end-to-end tests that call a real Bedrock model (build tag
+  # `e2e`) nor the behaviour evaluations (`make test-eval`): they are local and
+  # manual (docs/guides/contributing.*.md). The container runtime tests (build
+  # tag `container`) need a container engine and are not run here either.
   go-cli-integration:
     name: Go CLI integration (opencode V2, no LLM)
     runs-on: macos-latest
+    env:
+      # The only place where the version of opencode is chosen, with its
+      # checksums. It must stay in the range of
+      # cli/internal/adapters/opencodev2/compatibility.json (2.0.0 to 2.99.99).
+      # opencode V2 is published on npm (@opencode/cli-<os>-<arch>), not as GitHub
+      # release assets (see linux_binary.go): SHA-256 of the .tgz of the version,
+      # for the two macOS architectures. To move to another version: download
+      # https://registry.npmjs.org/@opencode/cli-darwin-arm64/-/cli-darwin-arm64-<version>.tgz
+      # (and darwin-x64), check it against the `dist.integrity` (sha512) the
+      # registry publishes for the version, then record its `shasum -a 256`.
+      OPENCODE_VERSION: "2.0.25"
+      OPENCODE_SHA256_DARWIN_ARM64: "1b3bc78066ad05acb4242c4c15ba6056accb7dccc3909100d5141161ac2179e1"
+      OPENCODE_SHA256_DARWIN_X64: "c0fca95b7b3c7e60159ce2873955837646411de87872c6c4b64bd6d16f766656"
     defaults:
       run:
+        shell: bash
         working-directory: cli
     steps:
       - name: Checkout
@@ -92,10 +132,23 @@ jobs:
           go-version: "1.26"
           cache-dependency-path: cli/go.sum
 
-      - name: Install opencode V2
+      - name: Install opencode V2 (pinned version, checksum verified)
         run: |
-          brew install opencode
-          opencode --version
+          case "$(uname -m)" in
+            arm64) target=darwin-arm64; sha="$OPENCODE_SHA256_DARWIN_ARM64" ;;
+            x86_64) target=darwin-x64; sha="$OPENCODE_SHA256_DARWIN_X64" ;;
+            *) echo "::error::no opencode checksum for architecture $(uname -m)"; exit 1 ;;
+          esac
+          bin="$RUNNER_TEMP/opencode-bin"
+          mkdir -p "$bin"
+          archive="$RUNNER_TEMP/opencode-$target-$OPENCODE_VERSION.tgz"
+          curl --fail --silent --show-error --location --retry 3 \
+            --output "$archive" \
+            "https://registry.npmjs.org/@opencode/cli-$target/-/cli-$target-$OPENCODE_VERSION.tgz"
+          echo "$sha  $archive" | shasum -a 256 -c -
+          tar -xzf "$archive" -C "$bin" --strip-components=2 package/bin/opencode
+          echo "$bin" >> "$GITHUB_PATH"
+          "$bin/opencode" --version | tee /dev/stderr | grep -F "v$OPENCODE_VERSION"
 
       - name: Prepare embedded hub content
         run: |
@@ -107,7 +160,7 @@ jobs:
           for a in amd64 arm64; do CGO_ENABLED=0 GOOS=linux GOARCH=$a go build -trimpath -ldflags "-s -w" -o internal/runtime/container/assets/bd-linux-$a ./cmd/oh-bd; done
 
       - name: Integration tests (real opencode serve, no model calls)
-        run: go test ./... -race -count=1 -tags integration
+        run: go test ./... -race -count=1 -tags integration -timeout "$GO_TEST_TIMEOUT"
 
   docs-checks:
     name: Documentation checks

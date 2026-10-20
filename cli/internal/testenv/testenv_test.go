@@ -10,6 +10,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 )
 
 func TestMain(m *testing.M) {
@@ -28,6 +30,16 @@ func TestIsolated(t *testing.T) {
 	assert.Equal(t, os.Getenv("HOME"), home)
 	_, set := os.LookupEnv("OH_HOME")
 	assert.False(t, set, "OH_HOME is removed: the hub is ~/.oh of the temporary HOME")
+}
+
+// The tests get the git configuration of the tests, not the user's: an
+// identity and main as the initial branch, whatever the machine.
+func TestGitConfig(t *testing.T) {
+	path := os.Getenv("GIT_CONFIG_GLOBAL")
+	require.True(t, strings.HasPrefix(path, os.Getenv(marker)+string(filepath.Separator)), path)
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	assert.Equal(t, gittest.Defaults(), string(data))
 }
 
 func TestRemoved(t *testing.T) {
@@ -109,4 +121,42 @@ func TestWatchdog(t *testing.T) {
 			assert.Equal(t, "witness", string(got))
 		}
 	}
+}
+
+func TestFakeSecrets(t *testing.T) {
+	secrets := FakeSecrets()
+	assert.Len(t, secrets, len(FakeSecretNames))
+	for a, va := range secrets {
+		for b, vb := range secrets {
+			if a != b {
+				assert.NotContains(t, va, vb, "%s holds the value of %s", a, b)
+			}
+		}
+	}
+
+	set := SetFakeSecrets(t)
+	assert.Equal(t, secrets, set)
+	assert.Equal(t, secrets["GH_TOKEN"], os.Getenv("GH_TOKEN"))
+}
+
+func TestLeaks(t *testing.T) {
+	secrets := FakeSecrets()
+	assert.Empty(t, Leaks(secrets, []string{"PATH=/bin", "LANG=fr_FR.UTF-8", "GH_TOKEN=gh"}))
+	assert.Empty(t, LeaksInMap(secrets, map[string]string{"A": "b"}))
+	assert.Empty(t, LeaksIn(secrets, "docker run -e HOME=/h"))
+
+	got := Leaks(secrets, []string{
+		"PATH=/bin",
+		"RENAMED=" + secrets["GEMINI_API_KEY"],
+		`SERVER_CONFIG_CONTENT={"key":"` + secrets["GH_TOKEN"] + `"}`,
+	})
+	assert.Equal(t, []string{
+		"RENAMED holds the value of GEMINI_API_KEY",
+		"SERVER_CONFIG_CONTENT holds the value of GH_TOKEN",
+	}, got)
+	for _, l := range got {
+		assert.NotContains(t, l, "oh-fake-secret", "the report never shows a value")
+	}
+	assert.Len(t, LeaksInMap(secrets, map[string]string{"X": secrets["OPENAI_API_KEY"]}), 1)
+	assert.Len(t, LeaksIn(secrets, "--token "+secrets["GITLAB_TOKEN"]), 1)
 }

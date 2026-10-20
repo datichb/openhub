@@ -17,7 +17,10 @@ func TestGetChild(t *testing.T) {
 		assert.True(t, errors.Is(err, ErrUnsupported))
 		return
 	}
-	cmd := exec.Command("/bin/sh", "-c", "sleep 5", "procinfo-marker")
+	// Not the last command of the script: dash would replace itself with
+	// sleep (exec), and the arguments read right after the start would be
+	// those of sleep, or empty for a moment during the exec.
+	cmd := exec.Command("/bin/sh", "-c", "sleep 5; exit 0", "procinfo-marker")
 	if err := cmd.Start(); err != nil {
 		t.Skip("no sleep command")
 	}
@@ -25,7 +28,7 @@ func TestGetChild(t *testing.T) {
 	p, err := Get(cmd.Process.Pid)
 	require.NoError(t, err)
 	assert.Equal(t, os.Getpid(), p.PPID)
-	assert.Equal(t, []string{"/bin/sh", "-c", "sleep 5", "procinfo-marker"}, p.Args)
+	assert.Equal(t, []string{"/bin/sh", "-c", "sleep 5; exit 0", "procinfo-marker"}, p.Args)
 
 	_, err = Get(1 << 30)
 	assert.Error(t, err)
