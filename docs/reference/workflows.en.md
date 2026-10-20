@@ -16,6 +16,8 @@ oh workflow validate ./my-wf.yaml   # a file
 
 A workflow is launched with `oh run <workflow>` or the TUI launch form; the former commands (`oh start`, `oh audit`…) are deprecated aliases of it.
 
+A workflow may have other names, its `aliases:` (see [`aliases`](workflow-schema.en.md#aliases--other-names-of-the-workflow)), recognised by `oh run` and by the TUI palette alike: `cadrage` and `feature` (`spec`), `feature` with `--tickets` (`implement-spec`), `secu` (`security-fix`), `perf` (`benchmark`), `dbg` (`debug`), `feedback` and `retours` (`review-feedback`). The other terms of the former palette table (`dev`, `start`, `fast`, `rev`…) are no longer recognised.
+
 ---
 
 ## Overview
@@ -33,15 +35,15 @@ A workflow is launched with `oh run <workflow>` or the TUI launch form; the form
 | `skill-refresh` | `documentarian` | — | write (stack skills of the hub) | local | — |
 | `release` | `release-manager` | — | publish (CHANGELOG, release commit and tag; never a push) | local | — |
 | `review` | `reviewer` | — | read | local, remote | `oh review` |
-| `review-feedback` | `orchestrator-dev` | `developer`, `reviewer` | write | local | `oh review feedback` |
+| `review-feedback` (aliases `feedback`, `retours`) | `orchestrator-dev` | `developer`, `reviewer` | write | local | `oh review feedback` |
 | `audit` | `auditor` | `auditor-subagent` | read | local, remote | `oh audit`, former `infra` and `database` agents (analysis part) |
-| `debug` | `debugger` | `developer` (on demand) | write | local | `oh debug` (former mode D) |
+| `debug` (alias `dbg`) | `debugger` | `developer` (on demand) | write | local | `oh debug` (former mode D) |
 | `incident` | `debugger` (writes `docs/wiki/postmortems/`) | `developer` | write | local | — |
-| `security-fix` | `conductor` | `developer`, `auditor-subagent` | write | local | — |
+| `security-fix` (alias `secu`) | `conductor` | `developer`, `auditor-subagent` | write | local | — |
 | `spike` | `pathfinder` (writes `docs/wiki/decisions/`) | `developer` (throwaway prototype) | write | local | — |
 | `retro` | `debugger` (writes `docs/wiki/retros/`) | — | write | local | — |
 | `triage` | `planner` | — | plan | local | — |
-| `benchmark` | `benchmarker` | — | write (`reports/benchmarks/`) | local | `oh run libre --agent benchmarker` |
+| `benchmark` (alias `perf`) | `benchmarker` | — | write (`reports/benchmarks/`) | local | `oh run libre --agent benchmarker` |
 | `sweep` | `conductor` | `pathfinder`, `developer`, `reviewer`; in a fan-out: `pathfinder`, `reviewer` and one `sweep-task` child session per subtask | write | local, container | `oh start --sweep` |
 | `sweep-task` | `developer` | — | write | local, container | — (launched by oh in a fan-out sweep) |
 | `brief-enrich` | `brief-enricher` | — | read | local | `oh takeover-brief enrich` |

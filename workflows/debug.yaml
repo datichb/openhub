@@ -7,6 +7,8 @@ description:
   fr: Diagnostiquer un bug ou un problème isolé (rapport de diagnostic, ticket de correction)
   en: Diagnose a bug or an isolated problem (diagnostic report, fix ticket)
 risk: write
+# tui-docs: terms of the former omnibar table, kept as aliases (`oh run dbg`).
+aliases: [dbg]
 entry:
   agent: debugger
 inputs:
