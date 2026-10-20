@@ -5727,6 +5727,7 @@
   "cmd.review_feedback.and_more_discussions_not_shown": "... and %d more discussions not shown.\n",
   "cmd.root.opening_database": "opening database: %w",
   "cmd.runner.recording_the_project": "recording the project: %w",
+  "cmd.runner.daemon_panic": "the daemon of the job stopped on an internal error (see the logs)",
   "cmd.runner.oh_daemon": "oh daemon: %w",
   "cmd.runner.oh_daemon_did_not_start": "oh daemon did not start",
   "cmd.runner.beads_gateway_the_server_group_has": "beads gateway: the server group has no gateway address",

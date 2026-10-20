@@ -17,12 +17,26 @@ import (
 // panic (safego.Go; safego.Supervise for a loop the process needs).
 
 // guardedDirs are the directories (and their subdirectories) where a bare
-// `go` statement is refused in non-test files.
+// `go` statement is refused in non-test files. An entry that is not a
+// directory names the files that start with it.
+//
+// cmd/ is guarded where it runs the daemon: cmd/runner.go (the daemon of a
+// remote job) and cmd/daemon*.go (ohd). The rest of cmd/ is left out on
+// purpose: about forty `go` statements, almost all of them the tview
+// interface pushing a redraw (`go func() { app.QueueUpdateDraw(...) }()`) or
+// a spinner, in the process of a user who is looking at it. The few that
+// are not (cmd/serve.go: a shutdown wait; cmd/v5_claims.go: the end of the
+// ticket claims; cmd/v5_launch.go: the heartbeat of an attach;
+// cmd/eval_fanout.go: the fan-out driver of an evaluation) are not exempted
+// by a list: they are outside the guard, and move into it, with a safego.Go,
+// when they are touched.
 var guardedDirs = []string{
 	"internal/daemon/",
 	"internal/credproxy/",
 	"internal/runsvc/",
 	"internal/gateway/",
+	"cmd/runner.go",
+	"cmd/daemon",
 }
 
 // bareGoStatements returns the position of every go statement of a Go
