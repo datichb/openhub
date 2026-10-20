@@ -2,15 +2,64 @@ package views
 
 import (
 	"errors"
+	"slices"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/envfilter"
 	"github.com/datichb/openhub/cli/internal/i18n"
 )
 
 // « Exécution » section of the Settings (P4-T10, 10 §11): default runtime,
-// container engine, image cache, pinned tool version, strict isolation.
+// container engine, image cache, pinned tool version, strict isolation,
+// variables passed to the agents (execution.env_allow) and the wait of the
+// proxy for a provider (execution.proxy_first_byte_timeout_minutes).
+
+// ParseEnvAllow reads the value of execution.env_allow: names of variables
+// and PREFIX_* patterns, separated by commas or spaces, without duplicates.
+// It is the rule of `oh config set execution.env_allow`: an entry must be a
+// name or a pattern (envfilter.ValidPattern), and "*" alone is refused, since
+// it would switch the filter off.
+func ParseEnvAllow(value string) ([]string, error) {
+	var out []string
+	for _, e := range strings.FieldsFunc(value, func(r rune) bool { return r == ',' || unicode.IsSpace(r) }) {
+		switch {
+		case e == "*":
+			return nil, errors.New(i18n.T("tui.settings.exec.env_allow.star"))
+		case !envfilter.ValidPattern(e):
+			return nil, errors.New(i18n.Tf("tui.settings.exec.env_allow.invalid", e))
+		}
+		if !slices.Contains(out, e) {
+			out = append(out, e)
+		}
+	}
+	return out, nil
+}
+
+// envAllowWarning says what is wrong, without being refused, with the entries
+// of env_allow: names that look like secrets (the agents can read them and send
+// them anywhere their tools reach) and credentials oh manages (removed anyway).
+func envAllowWarning(entries []string) string {
+	var secret, managed []string
+	for _, e := range entries {
+		switch {
+		case envfilter.HardDenied(e):
+			managed = append(managed, e)
+		case envfilter.LooksSecret(e):
+			secret = append(secret, e)
+		}
+	}
+	var notes []string
+	if len(secret) > 0 {
+		notes = append(notes, "⚠ "+i18n.Tf("tui.settings.exec.env_allow.secret", strings.Join(secret, ", ")))
+	}
+	if len(managed) > 0 {
+		notes = append(notes, i18n.Tf("tui.settings.exec.env_allow.managed", strings.Join(managed, ", ")))
+	}
+	return strings.Join(notes, " · ")
+}
 
 // checkVersion accepts "" or a version such as 2.0.20 (optional "v").
 func checkVersion(s string) error {
@@ -103,5 +152,31 @@ func (v *SettingsView) execSettingsFields() []configField {
 			Description: i18n.T("tui.settings.exec.strict.desc"),
 			Get:         func() string { return boolStr(ex().StrictIsolation) },
 			Set:         func(val string) { ex().StrictIsolation = val == "true" }},
+		{Key: "exec_env_allow", Kind: CfgFieldString, Label: i18n.T("tui.settings.exec.env_allow.label"),
+			Description: i18n.T("tui.settings.exec.env_allow.desc"),
+			Placeholder: i18n.T("tui.settings.exec.env_allow.placeholder"),
+			Validator:   &FieldValidator{Check: func(val string) error { _, err := ParseEnvAllow(val); return err }},
+			Get:         func() string { return strings.Join(ex().EnvAllow, ", ") },
+			Set: func(val string) {
+				if entries, err := ParseEnvAllow(val); err == nil { // an invalid list is refused by the validator
+					ex().EnvAllow = entries
+				}
+			},
+			Source: func() string { return envAllowWarning(ex().EnvAllow) },
+			Warn: func(val string) string {
+				entries, _ := ParseEnvAllow(val)
+				return envAllowWarning(entries)
+			}},
+		{Key: "exec_proxy_first_byte", Kind: CfgFieldInt, Label: i18n.T("tui.settings.exec.proxy_timeout.label"),
+			Description: i18n.T("tui.settings.exec.proxy_timeout.desc"),
+			Placeholder: strconv.Itoa(config.DefaultProxyFirstByteTimeoutMinutes),
+			Validator:   &FieldValidator{Numeric: true, MinInt: intPtr(1), MaxInt: intPtr(240), AllowEmpty: true},
+			Get: func() string {
+				if ex().ProxyFirstByteTimeoutMinutes == 0 {
+					return ""
+				}
+				return strconv.Itoa(ex().ProxyFirstByteTimeoutMinutes)
+			},
+			Set: func(val string) { ex().ProxyFirstByteTimeoutMinutes, _ = strconv.Atoi(val) }},
 	}
 }

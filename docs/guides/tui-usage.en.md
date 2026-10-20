@@ -324,7 +324,7 @@ Sections (`Tab` / `Shift+Tab`): **General**, **Graph**, **Inputs & prompt**, **R
 |---------|--------|
 | **Sessions** | Open sessions in (auto, iTerm2, Terminal.app, tmux, browser, suspend), iTerm2 style (tab, split, window), Sleep after (minutes, default 5) |
 | **Session restrictions** (off when empty) | Max working sessions, Budget per session (USD), Daily budget (USD), Memory cap (MB), Allowed models |
-| **Execution** | Default runtime, Container engine (auto = Colima, then Podman, then Docker), Image cache, Pinned opencode version, Strict isolation |
+| **Execution** | Default runtime, Container engine (auto = Colima, then Podman, then Docker), Image cache, Pinned opencode version, Strict isolation, Variables for the agents (`execution.env_allow`: names or `PREFIX_*`, `*` alone refused, a warning for a name that looks like a secret), Provider wait (`execution.proxy_first_byte_timeout_minutes`, 1 to 240) |
 | **Remote (GitLab CI)** | per target: instance, `oh-runner` project, token key (read only), tag, image builder, architecture, maximum duration; applied by the next `oh remote setup` |
 
 The other sections (General, CLI, Opencode, Workflows, MCP, Worktree, Tracker) keep their role. In configuration views: `j`/`k` to navigate, `Enter` to edit; changes are saved.

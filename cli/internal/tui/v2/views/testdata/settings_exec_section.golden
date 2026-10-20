@@ -1,0 +1,16 @@
+  ── Exécution ──                                                                                                      ▲
+                                                                                                                        
+  Runtime par défaut           non configuré                                                                            
+    Utilisé si le workflow l'autorise et que le projet n'en choisit pas                                                 
+  Moteur de conteneurs         auto                                                                                     
+    auto = Colima, puis Podman, puis Docker                                                                             
+  Cache des images             non configuré                                                                            
+    Images gardées par projet (image de base et image oh), les plus anciennes sont supprimées (défaut 2)                
+  Version de l'outil figée     non configuré                                                                            
+    Version installée dans les images ; elle doit être celle du client de la machine (vide = version du client)         
+  Isolation stricte            ✗ désactivé                                                                              
+    Masque aussi la configuration personnelle de l'outil aux serveurs locaux (XDG_CONFIG_HOME) ; les conteneurs ne la…  
+  Variables pour les agents    SSH_AUTH_SOCK, GEMINI_API_KEY, MYCO_*  ⚠ GEMINI_API_KEY ressemble à un secret : les ag…  
+    Variables de votre environnement transmises aux agents d'une session locale, en plus de la liste de base (PATH, H…  
+  Attente fournisseur (min)    10                                                                                       
+    Durée pendant laquelle le proxy d'identifiants attend qu'un fournisseur de modèle commence à répondre avant d'aba…  
