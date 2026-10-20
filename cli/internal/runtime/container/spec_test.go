@@ -12,6 +12,7 @@ import (
 
 	ohruntime "github.com/datichb/openhub/cli/internal/runtime"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
+	"github.com/datichb/openhub/cli/internal/testenv"
 )
 
 // layout creates a project repository with a sibling linked worktree.
@@ -201,4 +202,46 @@ func TestBuildSpecRefusesUnsafeVolumes(t *testing.T) {
 		return ""
 	}
 	assert.NotEqual(t, home(a), home(b), "HOME is not shared by the groups of a project")
+}
+
+// Regression test of the leak of 2026-09-29 (the Bedrock key of the
+// environment of oh read by an agent with `env`): the environment of a
+// container is built from nothing, oh's settings only. With fake credentials
+// of every kind in the process environment, none of their values is in the
+// command of the engine, in its environment, in the env file the container
+// reads, or in the spec kept on disk.
+func TestContainerHoldsNoCredentialOfTheMachine(t *testing.T) {
+	secrets := testenv.SetFakeSecrets(t)
+	t.Setenv("LANG", "fr_FR.UTF-8")
+
+	_, project, worktree, bundle, data := layout(t)
+	st := &fakeStore{images: map[string]string{}}
+	r := newImageEngine(t, st)
+	r.on("docker rm -f", "", nil)
+	rt := newImageRuntime(t, r)
+	g := ohruntime.Group{Key: sessionspec.GroupKey{BundleHash: "abc", ProjectID: "app", Runtime: sessionspec.RuntimeContainer},
+		ProjectID: "app", ProjectDir: project, Locations: []string{worktree}, BundleDir: bundle, DataDir: data,
+		Tool: &fakeTool{ver: "2.0.20", bin: writeBin(t)}}
+	r.on("docker run --rm --entrypoint sh --add-host host.docker.internal:host-gateway", "172.17.0.1      host.docker.internal\n", nil)
+	pg, err := rt.Prepare(context.Background(), g)
+	require.NoError(t, err)
+
+	// The settings of oh for the server, as the adapter gives them: the
+	// session token of the credential proxy under the name of the key.
+	cmd, err := rt.Command(context.Background(), pg, ohruntime.Proc{Argv: []string{"faketool", "serve"},
+		Env: map[string]string{"AWS_BEARER_TOKEN_BEDROCK": "ohs_session", "TOOL_SERVER_PASSWORD": "pw"}})
+	require.NoError(t, err)
+
+	assert.Empty(t, testenv.LeaksIn(secrets, strings.Join(cmd.Args, " ")))
+	assert.Empty(t, testenv.Leaks(secrets, cmd.Env))
+	assert.NotContains(t, cmd.Env, "LANG=fr_FR.UTF-8", "the engine CLI gets its own few variables")
+	envFile, err := os.ReadFile(filepath.Join(filepath.Dir(data), "container.env"))
+	require.NoError(t, err)
+	assert.Empty(t, testenv.LeaksIn(secrets, string(envFile)))
+	assert.Contains(t, string(envFile), "AWS_BEARER_TOKEN_BEDROCK=ohs_session\n", "the proxy session token, not the one of the user")
+	assert.NotContains(t, string(envFile), "LANG=", "nothing of the machine is inherited, not even the base list")
+	spec, err := os.ReadFile(specFile(data))
+	require.NoError(t, err)
+	assert.Empty(t, testenv.LeaksIn(secrets, string(spec)))
+	require.NoError(t, rt.Teardown(context.Background(), pg))
 }
