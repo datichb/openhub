@@ -179,11 +179,10 @@ func checkVersionChange(current string, release *Release, requested string, opts
 	}
 	cmp, ok := semver.Compare(current, release.Version())
 	if !ok {
-		if strings.TrimPrefix(current, "v") == release.Version() {
-			cmp, ok = 0, true
-		} else {
+		if strings.TrimPrefix(current, "v") != release.Version() {
 			return nil
 		}
+		cmp = 0
 	}
 	if cmp >= 0 {
 		return fmt.Errorf("%w: release %s is not newer than the running version %s", ErrDowngrade, release.TagName, current)
