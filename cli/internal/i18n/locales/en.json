@@ -549,6 +549,8 @@
   "cmd.fanout.summary_next": "Next: have the reviewer review all the changes of the integration branch (diff from its base), then pass cp-merge with the table above and the verdict of the review; oh runs the verification on the integration branch there and, once validated, merges itself and closes the merged tickets.",
   "cmd.fanout.short": "Experimental fan-out: child sessions of a parent session, one per ticket or subtask, merged by oh",
   "cmd.fanout.drive.flags.relaunch": "Started by the oh daemon, which starts again a driver stopped before the merge checkpoint (traced in the fan-out events)",
+  "cmd.fanout.drive.flags.relaunch_by": "Who started the driver again, \"user\" or \"daemon\" (traced in the fan-out events; --relaunch means \"daemon\")",
+  "cmd.fanout.drive.relaunch_by_invalid": "--relaunch-by: \"%s\" is not \"user\" or \"daemon\"",
   "cmd.fanout.drive.short": "Drives the fan-out of a session (launches, follows and merges its child sessions); started in the background by oh run",
   "cmd.fanout.clean.short": "Removes the worktrees and branches oh/fanout/… of a merged or abandoned fan-out (never an unmerged branch without --discard)",
   "cmd.fanout.clean.flags.dry_run": "Show what would be removed, remove nothing",

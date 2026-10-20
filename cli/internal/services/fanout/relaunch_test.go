@@ -11,13 +11,24 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 )
 
-// p6-debts: a driver started again by the daemon says so in the events.
+// p6-debts: a driver started again says by whom in the events: the daemon
+// (what it always wrote), or the user (from the TUI).
 func TestDriverRelaunched(t *testing.T) {
-	f := newFixture(t, "ev-1")
-	require.NoError(t, f.driver.Relaunched(context.Background(), "ses_parent"))
-	p, _ := f.store.Get(context.Background(), "ses_parent")
-	require.NotEmpty(t, p.Fanout.Events)
-	assert.Equal(t, domain.FanoutEventDriver, p.Fanout.Events[len(p.Fanout.Events)-1].Kind)
+	for _, tc := range []struct{ by, want string }{
+		{RelaunchByDaemon, "started again by the daemon (waiting)"},
+		{RelaunchByUser, "started again by the user (waiting)"},
+		{"", "started again by the daemon (waiting)"},
+	} {
+		t.Run(tc.by, func(t *testing.T) {
+			f := newFixture(t, "ev-1")
+			require.NoError(t, f.driver.Relaunched(context.Background(), "ses_parent", tc.by))
+			p, _ := f.store.Get(context.Background(), "ses_parent")
+			require.NotEmpty(t, p.Fanout.Events)
+			last := p.Fanout.Events[len(p.Fanout.Events)-1]
+			assert.Equal(t, domain.FanoutEventDriver, last.Kind)
+			assert.Equal(t, tc.want, last.Message)
+		})
+	}
 }
 
 // p6-debts: a merger that gives up (idle, the merge not concluded) is

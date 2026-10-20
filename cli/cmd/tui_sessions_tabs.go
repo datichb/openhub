@@ -243,7 +243,7 @@ func (t *tuiSessions) RelaunchFanout(ctx context.Context, parentID string) (stri
 	if fanoutDriverRunning(sess.ID) {
 		return "", errors.New(i18n.T("tui.sessions.fanout.driver_running"))
 	}
-	log, err := spawnFanoutDriver(sess.ID)
+	log, err := spawnDriver(sess.ID, relaunchByUserArg)
 	if err != nil {
 		return "", err
 	}

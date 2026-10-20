@@ -164,11 +164,21 @@ func (d *Driver) Run(ctx context.Context, parent string) error {
 	return d.run(ctx, parent)
 }
 
-// Relaunched records that the daemon started the driver again (p6-debts),
-// before Run.
-func (d *Driver) Relaunched(ctx context.Context, parent string) error {
+// Who started the driver again (Relaunched).
+const (
+	RelaunchByDaemon = "daemon"
+	RelaunchByUser   = "user"
+)
+
+// Relaunched records that the driver was started again by the daemon
+// (p6-debts) or by the user (from the TUI), before Run. An origin other
+// than RelaunchByUser is the daemon's.
+func (d *Driver) Relaunched(ctx context.Context, parent, by string) error {
+	if by != RelaunchByUser {
+		by = RelaunchByDaemon
+	}
 	_, err := d.update(ctx, parent, func(f *domain.SessionFanout) {
-		f.AddEvent(domain.FanoutEventDriver, "", "", "started again by the daemon ("+string(f.Status)+")")
+		f.AddEvent(domain.FanoutEventDriver, "", "", "started again by the "+by+" ("+string(f.Status)+")")
 	})
 	return err
 }
