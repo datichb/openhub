@@ -9,6 +9,13 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Added — Wiki : motif du refus d'une proposition (lot p9-wiki-refusal)
+
+- **Motif du refus enregistré** (migration 49, colonne `reason` de `wiki_proposals`) : facultatif, sur une ligne, sans caractère de contrôle, 500 caractères au plus.
+- **`oh wiki decide --refuse --reason "…"`** ; `--reason` sans `--refuse` est une erreur. `oh wiki pending --all` ajoute une colonne « Motif du refus » quand un motif existe ; la sortie `--json` contient `reason`.
+- **TUI** : le motif saisi avec `n` (fiche de checkpoint et wiki du projet) n'est plus perdu ; il s'affiche sous la proposition refusée. Valider sans rien saisir refuse toujours aussi vite.
+- **MCP wiki** : la ligne d'une proposition donne son motif de refus. Les agents ne voient pas encore les propositions refusées (`wiki_pending` ne liste que les ouvertes), et `decisions-rejetees.md` n'est pas encore alimentée par les motifs.
+
 ### Changed — TUI : passe finale (lot tui-docs)
 
 - ⚠ **Une seule vue « Nettoyage »** (commande `cleanup`, alias `gc`, `nettoyage`, `deploy-cleanup`) à deux sections (`Tab`) : « Anciens déploiements » (`oh migrate deploy-cleanup` : `c` diff, `d` nettoyer, confirmé) et « Données d'oh » (`oh gc` : aperçu, `d`, `A`, résultat). Doctor › `f` ouvre la section du contrôle.
