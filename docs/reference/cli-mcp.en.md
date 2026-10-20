@@ -6,7 +6,7 @@
 
 MCP servers built into oh: `figma`, `github`, `gitlab`, `gslides`, `jira`, `linear`, `team`, plus the custom servers declared in `~/.oh/mcp/<name>/manifest.json`. A session gets the project MCP servers (or only those listed by the workflow `mcp:` field) in its session bundle. Per-server pages: [Figma](mcp-figma.en.md), [GitHub](mcp-github.en.md), [GitLab](mcp-gitlab.en.md), [Google Slides](mcp-gslides.en.md), [Jira](mcp-jira.en.md), [Linear](mcp-linear.en.md), [Team](mcp-team.en.md).
 
-Every command below (except `list` and `serve`) accepts `-p, --project <name or ID>`.
+Every command below (except `list`, `serve` and `untrust`) accepts `-p, --project <name or ID>`.
 
 ### oh mcp enable
 
@@ -93,7 +93,7 @@ oh mcp setup jira --project my-project
 
 ### oh mcp status
 
-Shows the status of every MCP service. With `--project`, shows the effective config (project overrides included).
+Shows the status of every MCP service. With `--project`, shows the effective config (project overrides included). A URL imposed by the team that you have not approved is listed with a warning (see [`oh mcp trust`](#oh-mcp-trust)).
 
 ```
 oh mcp status [options]
@@ -108,6 +108,44 @@ oh mcp status [options]
 ```bash
 oh mcp status
 oh mcp status --project my-project
+```
+
+---
+
+### oh mcp trust
+
+Approves the URL that the team imposes on an MCP service. The token of a service is sent to its URL, and the team-state is shared by the whole team: a URL imposed there (`url_enforced = true`) is therefore **not used** until you approve it. Until then the cascade goes on with the project, hub and default URLs, and `oh doctor`, `oh mcp status`, `oh team config` and the MCP view of the TUI (key `T`) warn that a URL is waiting.
+
+```
+oh mcp trust <service> [options]
+```
+
+The command shows the URL (normalized), the addresses its host resolves to (a private, loopback or link-local address is flagged), asks for a confirmation (`o`/`oui`/`y`/`yes`), then pins the URL in your `hub.toml` (`[mcp.<service>] trusted_url`, never in the team-state). The imposed URL is used only if it equals the pinned one once normalized (scheme and host in lower case, no trailing slash, default port removed). A team that changes its URL later waits again for your approval.
+
+Only `https` is accepted (`http` for `localhost`, `127.0.0.1` and `::1`), with no credentials, query or fragment in the URL: such a URL is refused and cannot be pinned. A private host (on-premise Jira) is accepted once approved. Services: `figma`, `gitlab`, `gslides`, `jira`.
+
+| Flag | Short | Type | Description |
+|------|-------|------|-------------|
+| `--yes` | `-y` | bool | Confirm without asking. Without a terminal, the confirmation is impossible: `--yes` is required |
+| `--project` | `-p` | string | Project whose team imposes the URL (default: project of the current directory, else the hub team) |
+
+**Example:**
+
+```bash
+oh mcp trust jira
+oh mcp trust jira --yes
+```
+
+A remote job resolves nothing: it receives the URL already resolved on your machine, so a URL you did not approve never reaches it.
+
+---
+
+### oh mcp untrust
+
+Withdraws the approval given with `oh mcp trust`: the URL imposed by the team is no longer used.
+
+```
+oh mcp untrust <service>
 ```
 
 ---

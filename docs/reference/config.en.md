@@ -60,6 +60,7 @@ enabled = true
 token_key = "openhub.mcp.gitlab.token"
 write_enabled = true
 url = ""                           # empty = team-state URL or default
+trusted_url = ""                   # URL imposed by the team that you approved (oh mcp trust)
 
 [mcp.jira]
 enabled = false
@@ -369,12 +370,16 @@ I6 restrictions (`[limits.*]`) follow their own rule: the most specific value wi
 enabled = true
 enabled_enforced = true    # members MUST have GitLab enabled
 url = "https://gitlab.company.com"
-url_enforced = true        # the URL cannot be overridden locally
+url_enforced = true        # the URL cannot be overridden locally (used once each member approved it: oh mcp trust)
 write_recommended = true   # informational: writing stays set by the hub write_enabled
 
 [mcp.jira]
 enabled = true             # recommended (no _enforced = overridable)
 ```
+
+### A URL imposed by the team must be approved
+
+The token of an MCP service is sent to its URL, and the team-state is shared: a URL a team **imposes** (`url_enforced = true`) is not used as soon as it is written. Each member approves it with [`oh mcp trust <service>`](cli-mcp.en.md#oh-mcp-trust), which pins it in the personal `hub.toml` (`[mcp.<service>] trusted_url`, never in the team-state). Step 1 of the cascade uses the imposed URL only if it equals the pinned one after normalization (scheme and host in lower case, no trailing slash); otherwise it is skipped, the token is not sent to it, the cascade goes on (project, hub, default) and `oh doctor`, `oh mcp status` and the MCP view of the TUI warn that a URL is waiting. A URL imposed by the team that is not `https` (`http` is accepted for `localhost`, `127.0.0.1` and `::1`) is refused and cannot be pinned. A URL that the team only *recommends* is not concerned: it is still used when you have no URL of your own.
 
 ### TUI display
 

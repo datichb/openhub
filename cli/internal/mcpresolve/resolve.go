@@ -23,10 +23,19 @@ type EffectiveConfig struct {
 	// EnabledEnforced is true when Enabled is imposed by the team (cannot be overridden).
 	EnabledEnforced bool
 	// URL is the resolved base URL for the service.
-	// Precedence: team enforced → local → team recommended → built-in default.
+	// Precedence: team enforced (pinned by the member) → local → team
+	// recommended → built-in default.
 	URL string
-	// URLEnforced is true when URL is imposed by the team.
+	// URLEnforced is true when URL is imposed by the team (and approved by
+	// the member: see EnforcedURLPending).
 	URLEnforced bool
+	// EnforcedURLPending is the URL the team imposes when it is NOT used,
+	// because the member did not pin it (`oh mcp trust`), pinned another one,
+	// or because it is not acceptable (audit v5, S-31). The service token is
+	// never sent to it; empty when there is nothing to warn about.
+	EnforcedURLPending string
+	// EnforcedURLReason tells why EnforcedURLPending is not used.
+	EnforcedURLReason PendingReason
 	// TokenKey is the keychain key name. Always from the local config (never shared).
 	TokenKey string
 	// WriteEnabled is the local write permission. Always from the local config.
@@ -43,7 +52,8 @@ type EffectiveConfig struct {
 // MCP server config for a single service (e.g. "gitlab", "figma").
 //
 // Resolution cascade (ADR-030):
-//  1. Team ENFORCED → imposed value, cannot be overridden
+//  1. Team ENFORCED → imposed value, cannot be overridden (a URL only once
+//     the member pinned it: local.TrustedURL, `oh mcp trust`)
 //  2. Local hub.toml → member's personal choice
 //  3. Team RECOMMENDED → fallback when no local preference
 //
@@ -68,16 +78,13 @@ func Resolve(shared *teamstate.SharedMCPConfig, local config.MCPServerConfig) Ef
 	}
 
 	// --- URL resolution ---
-	// Step 1: Team enforced URL?
-	if shared != nil && shared.IsURLEnforced() && shared.URL != "" {
-		eff.URL = shared.URL
-		eff.URLEnforced = true
-	} else {
+	// Step 1: Team enforced URL, if the member pinned it
+	if used, skipShared := eff.applyEnforcedURL(shared, local.TrustedURL); !used {
 		// Step 2: Local URL override → Step 3: Team recommended URL
 		switch {
 		case local.URL != "":
 			eff.URL = local.URL
-		case shared != nil && shared.URL != "":
+		case shared != nil && shared.URL != "" && !skipShared:
 			eff.URL = shared.URL
 		}
 	}
@@ -142,11 +149,8 @@ func ResolveFull(
 	}
 
 	// ─── URL (5-step cascade) ────────────────────────────────────────
-	// 1. Team enforced
-	if shared != nil && shared.IsURLEnforced() && shared.URL != "" {
-		eff.URL = shared.URL
-		eff.URLEnforced = true
-	} else {
+	// 1. Team enforced, if the member pinned it (hub.TrustedURL)
+	if used, skipShared := eff.applyEnforcedURL(shared, hub.TrustedURL); !used {
 		// 2. Project override
 		switch {
 		case project != nil && project.URL != "":
@@ -154,7 +158,7 @@ func ResolveFull(
 		case hub.URL != "":
 			// 3. Hub value
 			eff.URL = hub.URL
-		case shared != nil && shared.URL != "":
+		case shared != nil && shared.URL != "" && !skipShared:
 			// 4. Team recommended
 			eff.URL = shared.URL
 		}

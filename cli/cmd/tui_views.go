@@ -462,7 +462,9 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 			},
 		}),
 		views.NewMCPView(a, views.MCPViewConfig{
-			GetConfig: func() *config.Config { return a.Config },
+			GetConfig:    func() *config.Config { return a.Config },
+			EnforcedURLs: func() map[string]*views.MCPEnforcedURL { return tuiEnforcedURLs(a) },
+			HostInfo:     tuiHostInfo,
 			SaveConfig: func(c *config.Config) error {
 				if err := config.Save(c); err != nil {
 					return err
@@ -743,8 +745,11 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 					return strconv.FormatBool(eff.Enabled), src, eff.EnabledEnforced
 				case "url":
 					src := ""
-					if eff.URLEnforced {
+					switch {
+					case eff.URLEnforced:
 						src = fmt.Sprintf("[%s: enforced]", teamID)
+					case eff.EnforcedURLPending != "":
+						src = i18n.Tf("tui.config.url_pending", teamID, service)
 					}
 					return eff.URL, src, eff.URLEnforced
 				default:

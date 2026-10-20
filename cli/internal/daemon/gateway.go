@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -354,26 +355,94 @@ func (d *Daemon) resolveMCP(ctx context.Context, group, name string) (gateway.MC
 	return c, nil
 }
 
-// checkMCP refuses tool calls made for a session of another group (the
-// workflow server trusts the session given in `_meta`).
+// checkMCP is the gate of the MCP gateway (audit v5, S-13): it fails
+// closed. The workflow and wiki servers trust the session the tool names in
+// the `_meta` of tools/call, so a call is relayed only when `_meta` names
+// one session, which belongs to the group of the token (the group of the
+// tool server). A missing, unreadable or unknown `_meta`, several sessions,
+// or the session of another group, refuse the call.
+//
+// The token is the one of the server group (one per tool server): sessions of
+// a group cannot be told apart by it, but `_meta` is written by the tool,
+// which does not give its token to the shell (serverSecretEnv).
 func (d *Daemon) checkMCP(ctx context.Context, group string, msg map[string]json.RawMessage) error {
-	var p struct {
-		Meta map[string]any `json:"_meta"`
+	var method string
+	if err := json.Unmarshal(msg["method"], &method); err != nil || method == "" {
+		return gateway.Denied(i18n.T("cmd.gateway.mcp.no_method"))
 	}
-	if len(msg["params"]) == 0 || d.opts.Sessions == nil {
+	ids, err := mcpMetaSessions(msg["params"])
+	if err != nil {
+		return gateway.Denied(err.Error())
+	}
+	switch {
+	case len(ids) == 0 && mcpSessionless(method):
 		return nil
+	case len(ids) == 0:
+		return gateway.Denied(i18n.Tf("cmd.gateway.mcp.no_session", method))
+	case len(ids) > 1:
+		return gateway.Denied(i18n.T("cmd.gateway.mcp.many_sessions"))
 	}
-	if err := json.Unmarshal(msg["params"], &p); err != nil {
-		return fmt.Errorf("%w: %v", gateway.ErrMCPDenied, err)
+	return d.checkMCPSession(ctx, group, ids[0])
+}
+
+// mcpSessionless are the messages that carry no session and act on nothing:
+// opening the connection, discovery, notifications.
+func mcpSessionless(method string) bool {
+	switch method {
+	case "initialize", "ping", "tools/list", "prompts/list", "resources/list", "resources/templates/list":
+		return true
 	}
-	for k, v := range p.Meta {
-		id, ok := v.(string)
-		if !ok || id == "" || !strings.HasSuffix(strings.ToLower(k), "sessionid") {
+	return strings.HasPrefix(method, "notifications/")
+}
+
+// mcpMetaSessions returns the distinct sessions named in the `_meta` of
+// params (the tool names them "<vendor>/sessionID": any key ending with
+// "sessionid" is read, as mcp/workflow.ToolSession does).
+func mcpMetaSessions(params json.RawMessage) ([]string, error) {
+	if len(params) == 0 {
+		return nil, nil
+	}
+	var p struct {
+		Meta map[string]json.RawMessage `json:"_meta"`
+	}
+	if err := json.Unmarshal(params, &p); err != nil {
+		return nil, errors.New(i18n.T("cmd.gateway.mcp.bad_meta"))
+	}
+	var ids []string
+	for k, raw := range p.Meta {
+		if !strings.HasSuffix(strings.ToLower(k), "sessionid") {
 			continue
 		}
-		if s, err := d.opts.Sessions.Get(ctx, d.rootSession(id)); err == nil && s.GroupKey != group {
-			return gateway.ErrMCPDenied
+		var id string
+		if err := json.Unmarshal(raw, &id); err != nil || id == "" {
+			return nil, errors.New(i18n.Tf("cmd.gateway.mcp.bad_session", k))
 		}
+		if !slices.Contains(ids, id) {
+			ids = append(ids, id)
+		}
+	}
+	return ids, nil
+}
+
+// checkMCPSession refuses a session that is not one of the group: a root
+// session, or a subagent session of one (the tool may name it before the
+// daemon has linked it: it is looked up in the tool, as for the hooks).
+func (d *Daemon) checkMCPSession(ctx context.Context, group, id string) error {
+	if d.opts.Sessions == nil {
+		return gateway.Denied(i18n.Tf("cmd.gateway.mcp.session_unverified", id))
+	}
+	s, err := d.opts.Sessions.Get(ctx, d.rootSession(id))
+	if errors.Is(err, domain.ErrNotFound) {
+		s, err = d.opts.Sessions.Get(ctx, d.adoptForHook(ctx, id, group))
+	}
+	switch {
+	case errors.Is(err, domain.ErrNotFound):
+		return gateway.Denied(i18n.Tf("cmd.gateway.mcp.foreign_session", id))
+	case err != nil || s == nil:
+		slog.Warn("ohd: session of an MCP call not verified", "session", id, "error", err)
+		return gateway.Denied(i18n.Tf("cmd.gateway.mcp.session_unverified", id))
+	case s.GroupKey != group:
+		return gateway.Denied(i18n.Tf("cmd.gateway.mcp.foreign_session", id))
 	}
 	return nil
 }

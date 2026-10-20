@@ -40,7 +40,7 @@ type MCP struct {
 	// Resolve returns the command of server name in a group.
 	Resolve func(ctx context.Context, group, name string) (MCPCommand, error)
 	// Check refuses a call (403) before it reaches the server (session of
-	// another group…). Optional.
+	// another group…); any error refuses. Optional.
 	Check   func(ctx context.Context, group string, msg map[string]json.RawMessage) error
 	Timeout time.Duration // per request, default 10 minutes
 
@@ -50,8 +50,24 @@ type MCP struct {
 
 const defaultMCPTimeout = 10 * time.Minute
 
+// MaxMCPBodyBytes bounds the body of an MCP message (413 beyond), as the
+// proxy bounds the other hook routes (credproxy.serveHook, 1 MiB).
+const MaxMCPBodyBytes = 1 << 20
+
+// rpcRefused is the JSON-RPC code of a call refused by Check.
+const rpcRefused = -32003
+
 // ErrMCPDenied is returned by Check to refuse a call.
 var ErrMCPDenied = errors.New("gateway: MCP call refused")
+
+// Denied returns an ErrMCPDenied whose message is the reason given to the
+// client of the refused call.
+func Denied(reason string) error { return &deniedError{reason} }
+
+type deniedError struct{ reason string }
+
+func (e *deniedError) Error() string        { return e.reason }
+func (e *deniedError) Is(target error) bool { return target == ErrMCPDenied }
 
 func procKey(group, name string) string { return group + "\x00" + name }
 
@@ -67,8 +83,13 @@ func (m *MCP) ServeHTTP(w http.ResponseWriter, r *http.Request, group, name stri
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	body, err := io.ReadAll(r.Body)
+	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, MaxMCPBodyBytes))
 	if err != nil {
+		var tooBig *http.MaxBytesError
+		if errors.As(err, &tooBig) {
+			http.Error(w, i18n.Tf("cmd.gateway.mcp.too_large", name, tooBig.Limit), http.StatusRequestEntityTooLarge)
+			return
+		}
 		http.Error(w, "gateway: reading request", http.StatusBadRequest)
 		return
 	}
@@ -79,7 +100,7 @@ func (m *MCP) ServeHTTP(w http.ResponseWriter, r *http.Request, group, name stri
 	}
 	if m.Check != nil {
 		if err := m.Check(r.Context(), group, msg); err != nil {
-			http.Error(w, i18n.Tf("cmd.gateway.mcp.refused", name, err), http.StatusForbidden)
+			writeRPCErrorStatus(w, http.StatusForbidden, msg["id"], rpcRefused, i18n.Tf("cmd.gateway.mcp.refused", name, err))
 			return
 		}
 	}
@@ -330,10 +351,18 @@ func writeJSONMsg(w http.ResponseWriter, msg any) {
 }
 
 func writeRPCError(w http.ResponseWriter, id json.RawMessage, code int, message string) {
+	writeRPCErrorStatus(w, http.StatusOK, id, code, message)
+}
+
+// writeRPCErrorStatus answers with an HTTP status and a JSON-RPC error body,
+// which the client shows to the agent.
+func writeRPCErrorStatus(w http.ResponseWriter, status int, id json.RawMessage, code int, message string) {
 	if id == nil {
 		id = json.RawMessage("null")
 	}
-	writeJSONMsg(w, map[string]any{"jsonrpc": "2.0", "id": id, "error": map[string]any{"code": code, "message": message}})
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(map[string]any{"jsonrpc": "2.0", "id": id, "error": map[string]any{"code": code, "message": message}})
 }
 
 type limitedWriter struct {

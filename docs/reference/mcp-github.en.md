@@ -32,6 +32,18 @@ Required token scopes:
 
 Write mode requires additional scope: `repo` (write)
 
+## Identifiers
+
+The server checks the identifiers it receives before it builds a request, and escapes every segment of the API path: an identifier that is not what GitHub expects is refused (`invalid repo "…"`) and no request is sent.
+
+| Parameter | Format |
+|-----------|--------|
+| `repo` | `owner/name`: owner with letters, digits, `-` and `_` (39 characters at most, starting with a letter or a digit); name with letters, digits, `.`, `_` and `-` (100 characters at most; `.` and `..` refused) |
+| `issue_number`, `pr_number` | positive integer |
+| `workflow_id` | workflow file name (`ci.yml`) or id: letters, digits, `.`, `_` and `-`, not starting with `.` or `-` |
+
+`../`, `?`, `#`, `%2F`, spaces and any other character are refused. Filters (`state`, `labels`, `assignee`, `base`) go through URL parameters, never in the path. The token is sent to `api.github.com` only.
+
 ## Available Tools
 
 | Tool | Description | Access |

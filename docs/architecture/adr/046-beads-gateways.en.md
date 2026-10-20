@@ -56,7 +56,7 @@ Decision D9: Beads always stays on the machine.
   - "streamable HTTP" transport with JSON responses;
   - request IDs rewritten, for several clients per process;
   - one process per group and per server, restarted if it dies and stopped with the group.
-- A call whose `_meta` names a session of another group is refused (403). The `workflow` server ([ADR-042](./042-checkpoints-headless-decisions.en.md)) thus works the same way in a container.
+- A call whose `_meta` names a session of another group is refused (403). The gateway fails closed: a `tools/call` without a `_meta` session, with an unknown session or with several sessions is refused too, and a message is limited to 1 MiB (see [SECURITY.md](../../../SECURITY.md)). The `workflow` server ([ADR-042](./042-checkpoints-headless-decisions.en.md)) thus works the same way in a container.
 - Other local MCP servers stay inside the container.
 
 ### 3. Remote: snapshot and journal

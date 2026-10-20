@@ -60,6 +60,7 @@ enabled = true
 token_key = "openhub.mcp.gitlab.token"
 write_enabled = true
 url = ""                           # vide = URL du team-state ou défaut
+trusted_url = ""                   # URL imposée par l'équipe que vous avez approuvée (oh mcp trust)
 
 [mcp.jira]
 enabled = false
@@ -369,12 +370,16 @@ Les restrictions I6 (`[limits.*]`) suivent leur propre règle : la valeur la plu
 enabled = true
 enabled_enforced = true    # les membres DOIVENT avoir GitLab activé
 url = "https://gitlab.company.com"
-url_enforced = true        # l'URL ne peut pas être modifiée localement
+url_enforced = true        # l'URL ne peut pas être modifiée localement (utilisée une fois approuvée par chaque membre : oh mcp trust)
 write_recommended = true   # indicatif : l'écriture reste réglée par write_enabled du hub
 
 [mcp.jira]
 enabled = true             # recommandé (sans _enforced = modifiable)
 ```
+
+### Une URL imposée par l'équipe doit être approuvée
+
+Le jeton d'un service MCP est envoyé à son URL, et le team-state est partagé : une URL qu'une équipe **impose** (`url_enforced = true`) n'est pas utilisée dès qu'elle est écrite. Chaque membre l'approuve avec [`oh mcp trust <service>`](cli-mcp.fr.md#oh-mcp-trust), qui l'épingle dans son `hub.toml` personnel (`[mcp.<service>] trusted_url`, jamais dans le team-state). L'étape 1 de la cascade n'utilise l'URL imposée que si elle est égale à l'URL épinglée après normalisation (schéma et hôte en minuscules, sans slash final) ; sinon elle est sautée, le jeton ne lui est pas envoyé, la cascade continue (projet, hub, défaut) et `oh doctor`, `oh mcp status` et la vue MCP de la TUI signalent qu'une URL attend. Une URL imposée qui n'est pas en `https` (`http` est accepté pour `localhost`, `127.0.0.1` et `::1`) est refusée et ne peut pas être épinglée. Une URL que l'équipe ne fait que *recommander* n'est pas concernée : elle reste utilisée quand vous n'en avez pas de vôtre.
 
 ### Affichage dans la TUI
 

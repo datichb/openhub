@@ -22,6 +22,19 @@ type MCPService struct {
 	Enabled      bool
 	HasToken     bool
 	WriteEnabled bool
+	// Enforced is the URL the team imposes when it is not used (audit v5,
+	// S-31); nil when there is none.
+	Enforced *MCPEnforcedURL
+}
+
+// MCPEnforcedURL is a URL the team imposes on a service that the member has
+// not approved: the service token is not sent to it until it is pinned.
+type MCPEnforcedURL struct {
+	// URL is the normalized URL that pinning stores; empty when it is refused
+	// (not https…) and cannot be pinned.
+	URL string
+	// Warning is the localized warning, with the command that fixes it.
+	Warning string
 }
 
 // MCPViewConfig holds configuration for the MCP view.
@@ -30,7 +43,18 @@ type MCPViewConfig struct {
 	GetConfig func() *config.Config
 	// SaveConfig persists the modified config to hub.toml (unified mutation path).
 	SaveConfig func(c *config.Config) error
+	// EnforcedURLs returns, by service, the URL the team imposes when it is
+	// not used (empty: none, or no team). Optional.
+	EnforcedURLs func() map[string]*MCPEnforcedURL
+	// HostInfo describes the addresses a URL resolves to, and whether one is
+	// private, loopback or link-local. It may block: the view calls it off
+	// the event loop. Optional.
+	HostInfo func(url string) (lines []string, sensitive bool)
 }
+
+// trustKey pins the URL the team imposes on the selected service (the same
+// as `oh mcp trust`, after a confirmation).
+var trustKey = keys.Own("mcp.trust", 'T', "tui.mcp.trust_key")
 
 // MCPView displays MCP server management with a SectionedList panel
 // for hub-level configuration (enable/disable, token, write).
@@ -75,7 +99,7 @@ func (v *MCPView) Title() string { return i18n.T("tui.mcp.title") }
 func (v *MCPView) StatusHints() string {
 	return keys.Hints(keys.Navigate.Hint(), "{/} "+i18n.T("tui.hints.sections"),
 		keys.SpaceName()+" "+i18n.T("tui.hints.toggle"),
-		"t "+i18n.T("tui.hints.token"), "w "+i18n.T("tui.hints.write"), keys.Refresh.Hint())
+		"t "+i18n.T("tui.hints.token"), "w "+i18n.T("tui.hints.write"), trustKey.Hint(), keys.Refresh.Hint())
 }
 
 // Mount builds the MCP management interface.
@@ -139,6 +163,10 @@ func (v *MCPView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		if v.shell != nil {
 			v.shell.ShowToastMsg(i18n.T("tui.mcp.refreshed"), true)
 		}
+		return nil
+	}
+	if trustKey.Matches(event) {
+		v.trustCurrent()
 		return nil
 	}
 	if event.Key() != tcell.KeyRune {
@@ -225,12 +253,18 @@ func (v *MCPView) showDetail(i int) {
 	if svc.Name == "gitlab" {
 		d.field(i18n.T("tui.detail.mcp.write"), onOff(svc.WriteEnabled))
 	}
+	if e := svc.Enforced; e != nil {
+		d.field(i18n.T("tui.detail.mcp.team_url"), theme.ColorTag(theme.WarningHex)+"⚠ "+e.Warning+theme.TagReset)
+	}
 	pairs := []string{keys.SpaceName(), i18n.T("tui.hints.toggle")}
 	if svc.Name != "team" {
 		pairs = append(pairs, "t", i18n.T("tui.hints.token"))
 	}
 	if svc.Name == "gitlab" {
 		pairs = append(pairs, "w", i18n.T("tui.hints.write"))
+	}
+	if svc.Enforced != nil {
+		pairs = append(pairs, keys.Pairs(trustKey)...)
 	}
 	d.keys(append(pairs, keys.Pairs(keys.Refresh)...)...)
 	v.page.SetDetail(d.String())
@@ -270,6 +304,10 @@ func (v *MCPView) hubItemSubtext(svc MCPService) string {
 		} else {
 			parts = append(parts, fmt.Sprintf("%s%s ✗%s", theme.ColorTag(theme.TextMutedHex), i18n.T("tui.hints.write"), theme.TagColor))
 		}
+	}
+
+	if svc.Enforced != nil {
+		parts = append(parts, fmt.Sprintf("%s⚠ URL%s", theme.ColorTag(theme.WarningHex), theme.TagColor))
 	}
 
 	return strings.Join(parts, "  ")
@@ -387,6 +425,70 @@ func (v *MCPView) toggleWriteCurrent() {
 	}
 }
 
+// trustCurrent asks to pin the URL the team imposes on the selected service.
+// The addresses of its host are looked up off the event loop, then shown in
+// the confirmation (a private address is flagged).
+func (v *MCPView) trustCurrent() {
+	idx := v.currentServiceIndex()
+	if idx < 0 || v.shell == nil || v.app == nil {
+		return
+	}
+	svc := v.services[idx]
+	switch {
+	case svc.Enforced == nil:
+		v.shell.ShowToastMsg(i18n.Tf("tui.mcp.trust_none", svc.Name), false)
+		return
+	case svc.Enforced.URL == "":
+		v.shell.ShowToastMsg(svc.Enforced.Warning, false)
+		return
+	}
+	url, tvApp := svc.Enforced.URL, v.app
+	go func() {
+		var lines []string
+		sensitive := false
+		if v.cfg.HostInfo != nil {
+			lines, sensitive = v.cfg.HostInfo(url)
+		}
+		tvApp.QueueUpdateDraw(func() {
+			if v.app != tvApp || v.shell == nil {
+				return // the view was left meanwhile
+			}
+			v.confirmTrust(svc.Name, url, lines, sensitive)
+		})
+	}()
+}
+
+func (v *MCPView) confirmTrust(name, url string, hostLines []string, sensitive bool) {
+	detail := url + "\n\n" + i18n.T("tui.mcp.trust_resolves") + "\n  " + strings.Join(hostLines, "\n  ")
+	if sensitive {
+		detail += "\n\n⚠ " + i18n.Tf("tui.mcp.trust_private", name)
+	}
+	detail += "\n\n" + i18n.Tf("tui.mcp.trust_detail", name)
+	v.shell.Confirm(i18n.Tf("tui.mcp.trust_title", name), detail, sensitive, func() { v.pinURL(name, url) })
+}
+
+// pinURL stores the approved URL in the personal config.
+func (v *MCPView) pinURL(name, url string) {
+	cfg := v.cfg.GetConfig()
+	s := cfg.MCPServer(name)
+	if s == nil {
+		return
+	}
+	s.TrustedURL = url
+	if err := v.cfg.SaveConfig(cfg); err != nil {
+		if v.shell != nil {
+			v.shell.ShowToastMsg(i18n.T("tui.mcp.save_error")+": "+err.Error(), false)
+		}
+		return
+	}
+	v.loadServices()
+	v.populateList()
+	v.buildCommands()
+	if v.shell != nil {
+		v.shell.ShowToastMsg(i18n.Tf("tui.mcp.trust_done", name, url), true)
+	}
+}
+
 func (v *MCPView) toggleService(name string, enable bool) {
 	for i := range v.services {
 		if v.services[i].Name != name {
@@ -432,6 +534,12 @@ func (v *MCPView) loadServices() {
 		{Name: "gslides", Enabled: cfg.MCP.Gslides.Enabled, HasToken: v.checkToken("gslides"), WriteEnabled: false},
 		{Name: "jira", Enabled: cfg.MCP.Jira.Enabled, HasToken: v.checkToken("jira"), WriteEnabled: false},
 		{Name: "team", Enabled: true, HasToken: true, WriteEnabled: false},
+	}
+	if v.cfg.EnforcedURLs != nil {
+		enforced := v.cfg.EnforcedURLs()
+		for i := range v.services {
+			v.services[i].Enforced = enforced[v.services[i].Name]
+		}
 	}
 }
 
@@ -488,6 +596,29 @@ func (v *MCPView) buildCommands() {
 				},
 			})
 		}
+	}
+
+	for _, svc := range v.services {
+		if svc.Enforced == nil {
+			continue
+		}
+		name := svc.Name
+		cmds = append(cmds, ContextCommand{
+			ID:          "trust." + name,
+			Label:       "trust " + name,
+			Aliases:     []string{name + " trust"},
+			Description: i18n.T("tui.mcp.cmd_trust"),
+			Category:    v.Title(),
+			Action: func() {
+				for i, s := range v.services {
+					if s.Name == name {
+						v.list.SelectIndex(i + 1) // +1 for header
+						v.trustCurrent()
+						return
+					}
+				}
+			},
+		})
 	}
 
 	cmds = append(cmds, ContextCommand{

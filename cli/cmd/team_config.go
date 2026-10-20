@@ -650,10 +650,14 @@ func printMCPStatus(out interface{ Write([]byte) (int, error) },
 	}
 	if local.URL != "" {
 		urlSource = "local"
-	} else if shared != nil && shared.URL != "" {
+	} else if shared != nil && shared.URL != "" && eff.EnforcedURLPending == "" {
 		urlSource = "équipe"
 	}
 	fmt.Fprintf(out, "  url:           %s  %s\n", urlVal, theme.Subtitle.Render("("+urlSource+")"))
+	if eff.EnforcedURLPending != "" {
+		n := enforcedURLNotice{Service: name, URL: eff.EnforcedURLPending, Pinned: local.TrustedURL, Reason: eff.EnforcedURLReason}
+		fmt.Fprintf(out, "  %s %s\n", theme.WarningStyle.Render(theme.IconWarning), n.Message())
+	}
 
 	// Token
 	tokenDisplay := "(non configuré)"

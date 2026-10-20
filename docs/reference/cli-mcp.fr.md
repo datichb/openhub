@@ -6,7 +6,7 @@
 
 Serveurs MCP integres a oh : `figma`, `github`, `gitlab`, `gslides`, `jira`, `linear`, `team`, plus les serveurs personnalises déclarés dans `~/.oh/mcp/<nom>/manifest.json`. Une session reçoit les serveurs MCP du projet (ou seulement ceux listes par le champ `mcp:` du workflow) dans son paquet de session. Pages par serveur : [Figma](mcp-figma.fr.md), [GitHub](mcp-github.fr.md), [GitLab](mcp-gitlab.fr.md), [Google Slides](mcp-gslides.fr.md), [Jira](mcp-jira.fr.md), [Linear](mcp-linear.fr.md), [Team](mcp-team.fr.md).
 
-Toutes les commandes ci-dessous (sauf `list` et `serve`) acceptent `-p, --project <nom ou ID>`.
+Toutes les commandes ci-dessous (sauf `list`, `serve` et `untrust`) acceptent `-p, --project <nom ou ID>`.
 
 ### oh mcp enable
 
@@ -93,7 +93,7 @@ oh mcp setup jira --project mon-projet
 
 ### oh mcp status
 
-Affiche le statut de tous les services MCP. Avec `--project`, affiche la config effective (overrides du projet compris).
+Affiche le statut de tous les services MCP. Avec `--project`, affiche la config effective (overrides du projet compris). Une URL imposée par l'équipe que vous n'avez pas approuvée est signalée par un avertissement (voir [`oh mcp trust`](#oh-mcp-trust)).
 
 ```
 oh mcp status [options]
@@ -108,6 +108,44 @@ oh mcp status [options]
 ```bash
 oh mcp status
 oh mcp status --project mon-projet
+```
+
+---
+
+### oh mcp trust
+
+Approuve l'URL qu'impose l'équipe à un service MCP. Le jeton d'un service est envoyé à son URL, et le team-state est partagé par toute l'équipe : une URL imposée là (`url_enforced = true`) n'est donc **pas utilisée** tant que vous ne l'avez pas approuvée. D'ici là, la cascade continue avec les URL du projet, du hub et par défaut, et `oh doctor`, `oh mcp status`, `oh team config` et la vue MCP de la TUI (touche `T`) signalent qu'une URL attend.
+
+```
+oh mcp trust <service> [options]
+```
+
+La commande affiche l'URL (normalisée), les adresses vers lesquelles son hôte se résout (une adresse privée, de bouclage ou locale au lien est signalée), demande une confirmation (`o`/`oui`/`y`/`yes`), puis épingle l'URL dans votre `hub.toml` (`[mcp.<service>] trusted_url`, jamais dans le team-state). L'URL imposée n'est utilisée que si elle est égale à l'URL épinglée une fois normalisée (schéma et hôte en minuscules, sans slash final, port par défaut retiré). Une équipe qui change son URL plus tard attend de nouveau votre approbation.
+
+Seul `https` est accepté (`http` pour `localhost`, `127.0.0.1` et `::1`), sans identifiants, requête ni fragment dans l'URL : une telle URL est refusée et ne peut pas être épinglée. Un hôte privé (Jira sur site) est accepté une fois approuvé. Services : `figma`, `gitlab`, `gslides`, `jira`.
+
+| Flag | Court | Type | Description |
+|------|-------|------|-------------|
+| `--yes` | `-y` | bool | Confirmer sans demander. Sans terminal, la confirmation est impossible : `--yes` est obligatoire |
+| `--project` | `-p` | string | Projet dont l'équipe impose l'URL (défaut : projet du dossier courant, sinon équipe du hub) |
+
+**Exemple :**
+
+```bash
+oh mcp trust jira
+oh mcp trust jira --yes
+```
+
+Un job distant ne résout rien : il reçoit l'URL déjà résolue sur votre machine, une URL que vous n'avez pas approuvée ne l'atteint donc jamais.
+
+---
+
+### oh mcp untrust
+
+Retire l'approbation donnée avec `oh mcp trust` : l'URL imposée par l'équipe n'est plus utilisée.
+
+```
+oh mcp untrust <service>
 ```
 
 ---

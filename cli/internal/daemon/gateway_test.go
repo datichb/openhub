@@ -238,6 +238,7 @@ func TestDaemonMCPGateway(t *testing.T) {
 	for _, g := range []string{"g1", "g2"} {
 		require.NoError(t, servers.Upsert(ctx, &domain.Server{GroupKey: g, Adapter: "x", ProjectID: "p1", PID: os.Getpid(), Status: domain.ServerReady, WorkDir: work}))
 	}
+	require.NoError(t, sessions.Create(ctx, &domain.Session{ID: "ses_g1", ProjectID: "p1", Status: domain.SessionStatusRunning, GroupKey: "g1", State: domain.RunActive}))
 	require.NoError(t, sessions.Create(ctx, &domain.Session{ID: "ses_g2", ProjectID: "p1", Status: domain.SessionStatusRunning, GroupKey: "g2", State: domain.RunActive}))
 	exe, err := os.Executable()
 	require.NoError(t, err)
@@ -276,13 +277,25 @@ func TestDaemonMCPGateway(t *testing.T) {
 	code, body := post(grant.Token, `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}`)
 	require.Equal(t, http.StatusOK, code, body)
 	assert.Contains(t, body, `"serverInfo"`)
-	code, body = post(grant.Token, `{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"whoami","_meta":{"ai.tool/sessionID":"ses_unknown"}}}`)
+	code, body = post(grant.Token, `{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"whoami","_meta":{"ai.tool/sessionID":"ses_g1"}}}`)
 	require.Equal(t, http.StatusOK, code, body)
 	assert.Contains(t, body, "from-keychain-g1@"+work, "secret read by the server on the machine, in the group directory")
 
-	// A session of another group is refused.
-	code, _ = post(grant.Token, `{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"whoami","_meta":{"ai.tool/sessionID":"ses_g2"}}}`)
-	assert.Equal(t, http.StatusForbidden, code)
+	// The gateway fails closed (S-13): a session of another group, an
+	// unknown one, no session, two sessions, a body that is too large.
+	for name, params := range map[string]string{
+		"another group": `{"name":"whoami","_meta":{"ai.tool/sessionID":"ses_g2"}}`,
+		"unknown":       `{"name":"whoami","_meta":{"ai.tool/sessionID":"ses_unknown"}}`,
+		"no _meta":      `{"name":"whoami"}`,
+		"two sessions":  `{"name":"whoami","_meta":{"a/sessionID":"ses_g1","b/sessionID":"ses_g2"}}`,
+	} {
+		code, body = post(grant.Token, `{"jsonrpc":"2.0","id":3,"method":"tools/call","params":`+params+`}`)
+		assert.Equal(t, http.StatusForbidden, code, name)
+		assert.Contains(t, body, `"error"`, name)
+		assert.NotContains(t, body, "from-keychain", name)
+	}
+	code, _ = post(grant.Token, `{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"whoami","_meta":{"ai.tool/sessionID":"ses_g1"},"arguments":{"x":"`+strings.Repeat("a", gateway.MaxMCPBodyBytes)+`"}}}`)
+	assert.Equal(t, http.StatusRequestEntityTooLarge, code)
 
 	// Revoking the group stops its MCP servers and the token.
 	require.NoError(t, c.RevokeOwner(ctx, "g1"))
