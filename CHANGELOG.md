@@ -9,6 +9,15 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Fixed — Audit v5 : bugs fonctionnels (lot v5-fix-bugs)
+
+- **`oh config model unset family|agent`** supprime enfin la clé au niveau du hub. Les deux tests de préfixe ne pouvaient jamais être vrais.
+- **Identifiants vérifiés (F-15)** : dans `oh config model agent|family|default` et la vue Modèles, l'agent doit exister dans le catalogue effectif, la famille doit être connue et le modèle doit suivre le format `provider/model[#variante]`. Les erreurs proposent les noms proches.
+- **GitHub et Linear (F-14)** : `oh mcp enable|setup` écrit enfin leur config (`[mcp.github]`, `[mcp.linear]`), et ces serveurs sont pris en compte au lancement des sessions. `oh service remove` supprime la clé de trousseau actuelle et l'ancienne.
+- **`oh import --merge` est implémentée (F-13)** : seuls les projets de l'archive absents du hub sont ajoutés. `hub.toml`, les secrets et les projets existants ne bougent pas. Incompatible avec `--overwrite`.
+- **`oh audit` et `oh review` lisent leurs types et leurs modes dans les entrées du workflow (F-12)** : validation, aide et complétion.
+- **Skill `orchestrator-dev-parallel` retirée (F-10)**, remplacée par le fan-out d'oh. La somme des prompts baisse de 852 jetons. **`libre` sans verrou de commit** : comportement voulu, désormais documenté (F-05).
+
 ### Fixed — TUI : fan-out (lot tui-fanout)
 
 - **La relance du pilote depuis Sessions (`p`) est tracée** : événement « started again by the user », à côté de « by the daemon ». `oh fanout drive` accepte `--relaunch-by=user|daemon` ; `--relaunch` reste celle du démon.
