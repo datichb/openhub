@@ -710,4 +710,12 @@ DROP TABLE IF EXISTS wiki_proposals`,
 		up:      `ALTER TABLE wiki_proposals ADD COLUMN replaces TEXT NOT NULL DEFAULT ''`,
 		down:    `ALTER TABLE wiki_proposals DROP COLUMN replaces`,
 	},
+	{
+		// Modernisation p9-wiki-refusal: the reason the user gave when
+		// refusing a wiki proposal ('' = none, or not refused). v50 is taken
+		// by another lot.
+		version: 49,
+		up:      `ALTER TABLE wiki_proposals ADD COLUMN reason TEXT NOT NULL DEFAULT ''`,
+		down:    `ALTER TABLE wiki_proposals DROP COLUMN reason`,
+	},
 }

@@ -138,3 +138,72 @@ func TestWikiProposalPurge(t *testing.T) {
 	require.NoError(t, ws.AddWikiProposal(ctx, p, 0, 0))
 	assert.Equal(t, "wp-6", p.ID(), "a purged number is never given again")
 }
+
+// v49 (p9-wiki-refusal): the reason of a refusal goes to the database and
+// comes back from Get and List; a proposal without one reads "".
+func TestWikiProposalReasonRoundTrip(t *testing.T) {
+	st := openTestStore(t)
+	ctx := context.Background()
+	ws := NewWikiProposalStore(st)
+	add := func(content string) *domain.WikiProposal {
+		p := &domain.WikiProposal{ProjectID: "p1", SessionID: "ses_a", Page: "index.md", Content: content, Tag: "DÉDUIT"}
+		require.NoError(t, ws.AddWikiProposal(ctx, p, 0, 0))
+		return p
+	}
+	refused, plain := add("un"), add("deux")
+	now := time.Date(2026, 10, 13, 10, 0, 0, 0, time.UTC)
+	refused.Status, refused.DecidedBy, refused.DecidedAt, refused.Reason = domain.WikiRefused, "oh", &now, "déjà couvert ; « stack.md »"
+	require.NoError(t, ws.UpdateWikiProposal(ctx, refused))
+
+	got, err := ws.GetWikiProposal(ctx, "p1", refused.Seq)
+	require.NoError(t, err)
+	assert.Equal(t, "déjà couvert ; « stack.md »", got.Reason)
+	assert.Equal(t, domain.WikiRefused, got.Status)
+	list, err := ws.ListWikiProposals(ctx, domain.WikiProposalFilter{ProjectID: "p1", Statuses: []string{domain.WikiRefused}})
+	require.NoError(t, err)
+	require.Len(t, list, 1)
+	assert.Equal(t, got.Reason, list[0].Reason)
+	other, err := ws.GetWikiProposal(ctx, "p1", plain.Seq)
+	require.NoError(t, err)
+	assert.Empty(t, other.Reason)
+
+	// A reason given at the creation is kept as well.
+	q := &domain.WikiProposal{ProjectID: "p2", SessionID: "s", Page: "index.md", Content: "x", Tag: "DÉDUIT", Status: domain.WikiRefused, Reason: "non"}
+	require.NoError(t, ws.AddWikiProposal(ctx, q, 0, 0))
+	got, err = ws.GetWikiProposal(ctx, "p2", q.Seq)
+	require.NoError(t, err)
+	assert.Equal(t, "non", got.Reason)
+}
+
+// v49: the column is added with an empty default and dropped by the
+// rollback; the proposals stay readable on both sides (fixture: a database
+// as left by v48).
+func TestMigrationV49WikiProposalReason(t *testing.T) {
+	s := openTestStore(t)
+	ctx := context.Background()
+	ws := NewWikiProposalStore(s)
+	require.NoError(t, s.MigrateDown(48))
+	assert.False(t, hasColumn(t, s, "wiki_proposals", "reason"), "rollback drops the column")
+	version, err := s.SchemaVersion()
+	require.NoError(t, err)
+	assert.Equal(t, 48, version)
+	_, err = s.DB().Exec(`INSERT INTO wiki_proposals (project_id, seq, session_id, page, content, tag, status, created_at)
+		VALUES ('p1', 1, 'ses_a', 'index.md', 'un', 'DÉDUIT', 'refused', ?)`, time.Now())
+	require.NoError(t, err)
+
+	require.NoError(t, s.migrate())
+	assert.True(t, hasColumn(t, s, "wiki_proposals", "reason"), "v49 adds the column")
+	got, err := ws.GetWikiProposal(ctx, "p1", 1)
+	require.NoError(t, err)
+	assert.Empty(t, got.Reason, "existing rows read an empty reason")
+	assert.Equal(t, "un", got.Content)
+	got.Reason = "non"
+	require.NoError(t, ws.UpdateWikiProposal(ctx, got))
+	require.NoError(t, s.migrate(), "idempotent")
+
+	require.NoError(t, s.MigrateDown(48))
+	assert.False(t, hasColumn(t, s, "wiki_proposals", "reason"))
+	var content string
+	require.NoError(t, s.DB().QueryRow(`SELECT content FROM wiki_proposals WHERE project_id = 'p1' AND seq = 1`).Scan(&content))
+	assert.Equal(t, "un", content)
+}
