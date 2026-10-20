@@ -246,7 +246,7 @@ The `oh upgrade oh` command downloads binaries exclusively from GitHub Releases 
 - All release artifacts are signed with [Cosign/Sigstore](https://www.sigstore.dev/) (keyless, OIDC-based)
 - Dependency updates are managed by Dependabot (weekly cadence)
 - Security-critical code paths are protected by [CODEOWNERS](CODEOWNERS) requiring maintainer review
-- The opencode layer of container images is installed from the npm package checked by its sha512 integrity
+- The opencode layer of container images is installed from the npm package checked by its sha512 integrity. That fingerprint comes from the same npm registry response as the archive: it protects against a corrupted or swapped archive, not against a compromised registry entry (the opencode version is the installed one, oh does not pin it, so there is no fingerprint to pin). The extracted binary is kept in the cache with its SHA-256 fingerprint, computed at download time and checked again before each reuse; a modified, truncated, replaced or fingerprint-less binary is downloaded again, never used. Limit: someone who can write to the cache (`~/.oh`) can replace the binary and its fingerprint together.
 
 ## Best Practices for Users
 

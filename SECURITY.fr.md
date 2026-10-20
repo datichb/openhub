@@ -245,7 +245,7 @@ La commande `oh upgrade oh` télécharge les binaires exclusivement depuis GitHu
 - Tous les artefacts de release sont signés avec [Cosign/Sigstore](https://www.sigstore.dev/) (sans clé, basé sur OIDC)
 - Les mises à jour de dépendances sont gérées par Dependabot (cadence hebdomadaire)
 - Les chemins critiques du code sont protégés par [CODEOWNERS](CODEOWNERS), qui exige une revue du mainteneur
-- La couche opencode des images de conteneur est installée depuis le paquet npm vérifié par son intégrité sha512
+- La couche opencode des images de conteneur est installée depuis le paquet npm vérifié par son intégrité sha512. Cette empreinte vient de la même réponse du registre npm que l'archive : elle protège contre une archive corrompue ou échangée, pas contre une entrée du registre compromise (la version d'opencode est celle qui est installée, oh ne l'épingle pas, donc il n'y a pas d'empreinte à épingler). Le binaire extrait est gardé dans le cache avec son empreinte SHA-256, calculée au téléchargement et revérifiée avant chaque réutilisation ; un binaire modifié, tronqué, remplacé ou sans empreinte est retéléchargé, jamais utilisé. Limite : quelqu'un qui peut écrire dans le cache (`~/.oh`) peut remplacer le binaire et son empreinte ensemble.
 
 ## Bonnes pratiques pour les utilisateurs
 
