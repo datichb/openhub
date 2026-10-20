@@ -9,6 +9,14 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Security — MCP : passerelle fermée, URL d'équipe approuvées, chemins d'API échappés (lot v5-fix-m, audit v5 S-13, S-31, S-32, A-09)
+
+- ⚠ **Passerelle MCP fermée par défaut** : un `tools/call` n'est relayé que si son `_meta` nomme une seule session connue d'oh et appartenant au groupe du jeton (un sous-agent compte pour sa session racine). Sinon, refus 403, avec la raison dans l'erreur. Un message est limité à 1 Mio (413). Limite : deux sessions d'un même groupe ne sont pas encore distinguées.
+- ⚠ **URL MCP imposée par l'équipe, approuvée par chaque membre** : elle n'est utilisée qu'après `oh mcp trust <service>`, qui l'épingle dans le `hub.toml` personnel (`mcp.<service>.trusted_url`). Le https est obligatoire, sauf en loopback.
+  - Sans approbation, le jeton n'est pas envoyé et un avertissement s'affiche dans `oh doctor`, `oh mcp status`, `oh team config` et la vue MCP de la TUI (touche `T`).
+  - `oh mcp trust` affiche l'URL et sa résolution DNS, en signalant les adresses privées. `oh mcp untrust` retire l'approbation.
+- **Serveurs MCP Jira et GitHub** : identifiants validés, segments de chemin échappés, filtres passés en paramètres d'URL. Un identifiant piégé (`../`, `?`, `#`, `%2F`) n'envoie aucune requête. Les deux serveurs ont désormais des tests.
+
 ### Fixed — Budgets (lot v5-fix-l, audit v5 F-04 et S-27)
 
 - ⚠ **La décision `$` est levée dès que le dépassement est vu**, et non plus seulement à la fin de l'étape racine. Il suffit de l'usage ou de la fin d'un sous-agent, ou d'une requête de modèle au proxy. Les requêtes suivantes sont refusées (402) jusqu'à la réponse, puis l'étape interrompue reprend (F-04).
