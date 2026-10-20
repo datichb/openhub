@@ -95,7 +95,7 @@ func TestPromote(t *testing.T) {
 
 	// A non-empty remote is refused and the space stays solo.
 	busy := t.TempDir()
-	gitCmd(t, busy, "init", "--bare")
+	gitCmd(t, busy, "init", "--bare", "-b", "main")
 	tmp := filepath.Join(t.TempDir(), "w")
 	gitCmd(t, t.TempDir(), "clone", busy, tmp)
 	require.NoError(t, os.WriteFile(filepath.Join(tmp, "x"), []byte("x"), 0o644))
@@ -107,7 +107,7 @@ func TestPromote(t *testing.T) {
 	assert.True(t, repo.IsLocalOnly(ctx))
 
 	bare := t.TempDir()
-	gitCmd(t, bare, "init", "--bare")
+	gitCmd(t, bare, "init", "--bare", "-b", "main")
 	require.NoError(t, repo.Promote(ctx, bare))
 	assert.False(t, repo.IsLocalOnly(ctx))
 	assert.Equal(t, bare, repo.Remote())

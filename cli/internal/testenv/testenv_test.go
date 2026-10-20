@@ -10,6 +10,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 )
 
 func TestMain(m *testing.M) {
@@ -28,6 +30,16 @@ func TestIsolated(t *testing.T) {
 	assert.Equal(t, os.Getenv("HOME"), home)
 	_, set := os.LookupEnv("OH_HOME")
 	assert.False(t, set, "OH_HOME is removed: the hub is ~/.oh of the temporary HOME")
+}
+
+// The tests get the git configuration of the tests, not the user's: an
+// identity and main as the initial branch, whatever the machine.
+func TestGitConfig(t *testing.T) {
+	path := os.Getenv("GIT_CONFIG_GLOBAL")
+	require.True(t, strings.HasPrefix(path, os.Getenv(marker)+string(filepath.Separator)), path)
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	assert.Equal(t, gittest.Defaults(), string(data))
 }
 
 func TestRemoved(t *testing.T) {
