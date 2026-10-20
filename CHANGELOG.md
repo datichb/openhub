@@ -9,6 +9,20 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Security — robustesse du démon, socket, environnement et démarrage du shell (lot v5-fix-h2, audit v5 S-29, A-02, A-04, S-28, S-15)
+
+- ⚠ **L'environnement du serveur opencode est filtré par une liste blanche** (S-28). Ne passent que :
+  - une courte liste de base : `PATH`, `HOME`, langue, `XDG_*`, proxys, certificats, emplacements des chaînes d'outils… ;
+  - les variables ajoutées avec `execution.env_allow` (noms ou `PRÉFIXE_*`).
+
+  `GEMINI_API_KEY`, `GH_TOKEN`, `SSH_AUTH_SOCK` et les autres variables ne passent plus. `oh doctor` liste les variables retenues et avertit quand un nom de secret est ajouté.
+- **Le client vérifie le démon avant d'envoyer** : dossier et socket appartenant à l'utilisateur et fermés aux autres, processus à l'écoute sous son identité. Sinon, refus avec la raison. Le démon ferme son dossier (0700) avant de créer le socket, et un jeton révoqué coupe aussi ses flux en cours (S-28).
+- **Révocations fiables** (S-29) : une erreur de révocation est journalisée et retentée. Au démarrage, le démon révoque les jetons dont le groupe a disparu.
+- **Le démon survit à une panique** (A-02) : toutes les goroutines de `daemon`, `credproxy`, `runsvc` et `gateway` passent par `safego`, et un test interdit les `go` nus. Les watchers sont relancés en cas de panique et attendus à l'arrêt (A-04).
+- **Proxy** : un fournisseur qui ne répond pas est abandonné au bout de 5 minutes (`execution.proxy_first_byte_timeout_minutes`, réponse 504). Un flux déjà commencé n'a aucune limite de durée.
+- **Démarrage du shell** (S-15) : `ENV` (sh, dash) et la config de fish sont contrôlés comme `ZDOTDIR` et `BASH_ENV`. bash interactif (`~/.bashrc`) est seulement détecté, car il ne peut pas être redirigé.
+- ⚠ **Fan-out : chaque enfant reçoit une part du budget restant, et non plus tout le reste**. Trois enfants lancés ensemble avec 3 $ reçoivent 1 $ chacun. Le reliquat d'un enfant qui finit sous sa part profite aux suivants.
+
 ### Security — Trousseau MCP, sauvegarde, garde global, `skills.deny` (lot keychain-mcp)
 
 - ⚠ **Garde global du shell** : les agents ne peuvent plus lancer `oh mcp trust|untrust|setup`, `oh config set|unset`, `oh config model default|family|agent|unset` ni `oh service setup|remove`, même avec le chemin complet, `env`, `sh -c` ou des options intercalées. Un agent piégé ne peut donc plus approuver lui-même une URL MCP. Les lectures restent permises. `oh --no-tui mcp serve`, qui passait jusqu'ici, est désormais refusé lui aussi.
