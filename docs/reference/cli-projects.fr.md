@@ -177,14 +177,14 @@ oh wiki pending [dir] [--all] [--session <id>] [--json]
 | `--session` | string | Seulement celles d'une session |
 | `--json` | bool | Sortie JSON |
 
-Le projet est celui qu'oh connaît pour le dossier (ou un dossier parent). Un remplacement de ligne (`replaces`) s'affiche « ancienne ligne » → « nouvelle ligne » ; une proposition dont la ligne a disparu à l'application est `stale` (périmée, non appliquée, visible avec `--all`). Pour décider d'une proposition hors de la TUI : [`oh wiki decide`](#oh-wiki-decide).
+Le projet est celui qu'oh connaît pour le dossier (ou un dossier parent). Un remplacement de ligne (`replaces`) s'affiche « ancienne ligne » → « nouvelle ligne » ; une proposition dont la ligne a disparu à l'application est `stale` (périmée, non appliquée, visible avec `--all`). Avec `--all`, une proposition refusée avec un motif ajoute une colonne `MOTIF DU REFUS` (le motif est aussi le champ `reason` de `--json`). Pour décider d'une proposition hors de la TUI : [`oh wiki decide`](#oh-wiki-decide).
 
 ### oh wiki decide
 
 Enregistre la décision de l'utilisateur sur des propositions de la file, hors de la TUI : mêmes choix que sur la carte du checkpoint de commit, même service.
 
 ```
-oh wiki decide <id>... (--accept | --edit | --content <texte> | --file <fichier|-> | --refuse | --pending) [--dir <dossier>]
+oh wiki decide <id>... (--accept | --edit | --content <texte> | --file <fichier|-> | --refuse [--reason <motif>] | --pending) [--dir <dossier>]
 ```
 
 | Flag | Type | Description |
@@ -194,10 +194,13 @@ oh wiki decide <id>... (--accept | --edit | --content <texte> | --file <fichier|
 | `--content` | string | Modifier sans éditeur : le nouveau contenu |
 | `--file` | string | Modifier sans éditeur : fichier du nouveau contenu (`-` : entrée standard) |
 | `--refuse` | bool | Refuser (alias `--reject`) |
+| `--reason` | string | Motif d'un refus (facultatif, avec `--refuse` seulement) |
 | `--pending` | bool | Remettre en attente |
 | `--dir` | string | Dossier du projet (défaut : le dossier courant) |
 
 Une décision et une seule ; une modification porte sur une seule proposition. Le contenu modifié est nettoyé comme une proposition et l'original est conservé. Les identifiants (`wp-<n>`) sont ceux du projet, donnés par `oh wiki pending` ; une proposition déjà appliquée ou refusée n'est plus modifiable. Avec plusieurs identifiants, oh décide de chacun et signale ceux qui échouent (code de sortie non nul). La décision est signée `oh` (`decided_by`).
+
+**Motif d'un refus.** `--reason` enregistre pourquoi la proposition est refusée, comme le motif facultatif demandé par `n` dans la TUI. Le motif est nettoyé (une seule ligne, sans caractère de contrôle) et borné à 500 caractères ; vide, il est simplement omis. Il est conservé avec la proposition (colonne `reason`, affiché par `oh wiki pending --all` et dans la TUI sur la proposition refusée). Une acceptation, une modification ou une remise en attente ne prend pas de motif : `--reason` sans `--refuse` est une erreur.
 
 ### oh wiki stats
 

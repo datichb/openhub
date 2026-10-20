@@ -222,7 +222,7 @@ Sections: **To handle** (sessions with waiting decisions, each followed by its d
 
 Failed verification: the card opens on **Fix (instruction)** and **Override…** (reason, confirmation, traced in `oh session trace`); never an « Override » on the `cp-merge` of a fan-out.
 
-**Wiki proposals of a checkpoint** (button of the card): list without a limit (before / after, source, author, tag), `y` accept, `n` refuse (optional reason, confirmed), `e` modify (one line, or `$EDITOR`), `s` leave, `A` accept all, `Enter` decide the checkpoint, `Esc` back to the card. The accepted ones are applied when the checkpoint passes, before the commit.
+**Wiki proposals of a checkpoint** (button of the card): list without a limit (before / after, source, author, tag), `y` accept, `n` refuse (optional reason, confirmed; `Enter` with nothing typed refuses without a reason), `e` modify (one line, or `$EDITOR`), `s` leave, `A` accept all, `Enter` decide the checkpoint, `Esc` back to the card. The reason typed is kept with the proposal and shows under it once refused (“Reason for the refusal: …”). The accepted ones are applied when the checkpoint passes, before the commit.
 
 **Batch validation** (`B`): replaces the list; scope = the fan-out of the selected session (else every session), filter = the checkpoint of the selected decision.
 
@@ -264,7 +264,7 @@ Command `project-wiki` (Project mode). At the top, the summarised metrics (pages
 
 | Key | Action |
 |-----|--------|
-| `y` / `n` / `e` / `s` / `A` | Accept / refuse (confirmed) / modify / leave / accept all, like `oh wiki decide` |
+| `y` / `n` / `e` / `s` / `A` | Accept / refuse (optional reason, confirmed) / modify / leave / accept all, like `oh wiki decide` |
 | `/` | Filter (page, content, agent, workflow) |
 | `m` | Every metric |
 | `r` | Refresh |
