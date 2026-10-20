@@ -336,6 +336,13 @@ func TestMCPServer_Dispatch(t *testing.T) {
 	assert.NotNil(t, c.MCPServer("gslides"))
 	assert.NotNil(t, c.MCPServer("Figma")) // case-insensitive
 	assert.Nil(t, c.MCPServer("unknown"))
+	assert.Nil(t, c.MCPServer("team"), "team has no hub-level section")
+
+	// github and linear are hub-level services too: enabling them must write.
+	c.MCPServer("github").Enabled = true
+	c.MCPServer("linear").Token = "openhub.mcp.linear.token"
+	assert.True(t, c.MCP.Github.Enabled)
+	assert.Equal(t, "openhub.mcp.linear.token", c.MCP.Linear.Token)
 
 	// Verify pointer identity — mutation through MCPServer must affect the config
 	c.MCPServer("gitlab").Enabled = true
@@ -364,4 +371,17 @@ func TestToMap_AllKeys(t *testing.T) {
 	assert.Equal(t, true, m["mcp.gitlab.enabled"])
 	assert.Equal(t, "gitlab-token", m["mcp.gitlab.token_key"])
 	assert.Equal(t, true, m["websearch.enabled"])
+}
+
+func TestServiceTokenKeys(t *testing.T) {
+	c := &Config{}
+	assert.Equal(t, []string{"openhub.mcp.gitlab.token", "gitlab-token"}, ServiceTokenKeys(c, "gitlab"))
+
+	c.MCP.Gitlab.Token = "custom-gitlab"
+	assert.Equal(t, []string{"custom-gitlab", "openhub.mcp.gitlab.token", "gitlab-token"}, ServiceTokenKeys(c, "gitlab"))
+
+	c.MCP.Gitlab.Token = "gitlab-token" // legacy name still configured: listed once
+	assert.Equal(t, []string{"gitlab-token", "openhub.mcp.gitlab.token"}, ServiceTokenKeys(c, "gitlab"))
+
+	assert.Equal(t, []string{"openhub.mcp.github.token", "github-token"}, ServiceTokenKeys(nil, "github"))
 }
