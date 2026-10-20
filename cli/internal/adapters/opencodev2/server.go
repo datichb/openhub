@@ -20,6 +20,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/envfilter"
 	"github.com/datichb/openhub/cli/internal/logrotate"
 	ohruntime "github.com/datichb/openhub/cli/internal/runtime"
+	"github.com/datichb/openhub/cli/internal/safego"
 )
 
 // ServerOptions configures a dedicated `opencode serve` process.
@@ -275,14 +276,14 @@ func startServer(ctx context.Context, opts ServerOptions, bin string, port int) 
 		Client:   NewClient(url, password),
 		exited:   make(chan struct{}),
 	}
-	go func() {
+	safego.Go(func() {
+		defer close(s.exited)
 		err := cmd.Wait()
 		logFile.Close()
 		s.mu.Lock()
 		s.exitErr = err
 		s.mu.Unlock()
-		close(s.exited)
-	}()
+	})
 
 	if timeout == 0 {
 		timeout = 30 * time.Second
