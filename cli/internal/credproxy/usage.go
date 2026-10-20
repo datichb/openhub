@@ -220,6 +220,7 @@ func (u *usageReader) report() {
 	us := u.tally()
 	if u.estimate && !u.complete() {
 		us = u.estimateCut(us)
+		us.Cut = 1
 		slog.Warn("credproxy: response cut before its end, usage counted from what was seen",
 			"session", u.g.SessionID, "estimated", us.Estimated > 0, "bytes", u.bytes)
 	}
@@ -229,6 +230,7 @@ func (u *usageReader) report() {
 	u.g.usage.CacheReadTokens += us.CacheReadTokens
 	u.g.usage.CacheWriteTokens += us.CacheWriteTokens
 	u.g.usage.Estimated += us.Estimated
+	u.g.usage.Cut += us.Cut
 	u.g.mu.Unlock()
 	if u.onReport != nil {
 		u.onReport(us)

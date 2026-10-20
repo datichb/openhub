@@ -36,3 +36,16 @@ func Reserve(inputTokens, maxOutputTokens int64, allowance float64) float64 {
 	}
 	return est
 }
+
+// CutCost is the dollars charged for a response the proxy saw cut before its
+// end (audit v5, S-27 follow-up). The tool reports no cost for a step that
+// has no end, so the proxy's count of tokens (read, or estimated high) is
+// priced at the reservation rates, which err high, and bounded by the same
+// share of the allowance as a reservation (0 = no allowance, not bounded).
+func CutCost(input, output, cacheRead, cacheWrite int64, allowance float64) float64 {
+	est := ReservationRates.Cost(input, output, cacheRead, cacheWrite)
+	if allowance > 0 {
+		est = min(est, allowance*ReservationShare)
+	}
+	return est
+}

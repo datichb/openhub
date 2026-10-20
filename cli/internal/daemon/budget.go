@@ -75,6 +75,7 @@ func (w *watcher) account(ctx context.Context, root, toolSession string, res ada
 		return
 	}
 	l.last[toolSession] = seen
+	w.absorbCuts(ctx, root, d.CostUSD)
 }
 
 // accountChild reads and records the usage of a subagent session.

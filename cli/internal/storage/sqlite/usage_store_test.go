@@ -53,3 +53,36 @@ func TestUsageStore(t *testing.T) {
 	require.NoError(t, err)
 	assert.Zero(t, x)
 }
+
+// The estimates of responses cut before their end are rows of the ledger under
+// the mark of domain.EstimatedUsageID, summed with the others in the totals of
+// the oh session and of the day, and given back by a negative delta when the
+// tool reports the cost after all (no column, no migration).
+func TestUsageStoreEstimatedRows(t *testing.T) {
+	st, err := Open(filepath.Join(t.TempDir(), "oh.db"))
+	require.NoError(t, err)
+	t.Cleanup(func() { st.Close() })
+	us := NewUsageStore(st)
+	ctx := context.Background()
+	est := domain.EstimatedUsageID("s1")
+
+	require.NoError(t, us.AddSession(ctx, domain.SessionUsage{Day: "2026-10-20", SessionID: "s1", ProjectID: "p1", CostUSD: 1}))
+	require.NoError(t, us.AddSession(ctx, domain.SessionUsage{Day: "2026-10-20", SessionID: est, RootID: "s1", ProjectID: "p1", CostUSD: 0.4}))
+	require.NoError(t, us.AddSession(ctx, domain.SessionUsage{Day: "2026-10-20", SessionID: est, RootID: "s1", ProjectID: "p1", CostUSD: 0.2}))
+
+	tot, err := us.SessionTotal(ctx, "s1")
+	require.NoError(t, err)
+	assert.InDelta(t, 1.6, tot.CostUSD, 1e-9, "the estimates count in the session")
+	only, err := us.ToolSessionTotal(ctx, est)
+	require.NoError(t, err)
+	assert.InDelta(t, 0.6, only.CostUSD, 1e-9, "and can be told apart")
+	day, err := us.DayCost(ctx, "2026-10-20", "p1")
+	require.NoError(t, err)
+	assert.InDelta(t, 1.6, day, 1e-9, "and in the day")
+
+	require.NoError(t, us.AddSession(ctx, domain.SessionUsage{Day: "2026-10-20", SessionID: est, RootID: "s1", ProjectID: "p1", CostUSD: -0.5}))
+	tot, _ = us.SessionTotal(ctx, "s1")
+	assert.InDelta(t, 1.1, tot.CostUSD, 1e-9)
+	only, _ = us.ToolSessionTotal(ctx, est)
+	assert.InDelta(t, 0.1, only.CostUSD, 1e-9, "given back")
+}
