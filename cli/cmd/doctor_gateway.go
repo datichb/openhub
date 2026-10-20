@@ -31,7 +31,27 @@ const (
 	gatewayMCPProbePath   = "/oh/v1/hooks/mcp/team"
 )
 
+// gatewayDoctorChecks runs the gateway checks. bd is optional, and so is
+// the container side (reach of the routes) unless the container runtime is
+// required: their failures are warnings (U-05).
 func gatewayDoctorChecks(ctx context.Context) []views.DoctorCheck {
+	out := gatewayChecks(ctx)
+	optional := map[string]bool{}
+	for _, key := range []string{"bd", "shell_bd"} {
+		optional[i18n.T("cmd.doctor.gateway."+key)] = true
+	}
+	if !containerRequired(TryApp()) {
+		for _, key := range []string{"reach", "beads", "mcp"} {
+			optional[i18n.T("cmd.doctor.gateway."+key)] = true
+		}
+	}
+	for i := range out {
+		out[i].Optional = optional[out[i].Name]
+	}
+	return out
+}
+
+func gatewayChecks(ctx context.Context) []views.DoctorCheck {
 	check := func(key string, ok bool, detail string) views.DoctorCheck {
 		return views.DoctorCheck{Name: i18n.T("cmd.doctor.gateway." + key), OK: ok, Detail: detail}
 	}

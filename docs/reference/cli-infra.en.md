@@ -24,7 +24,7 @@ oh init
 
 ### oh doctor
 
-Checks the system health and dependencies. Exits with code 1 when a check fails (✗); warnings (⚠) do not count. The TUI Doctor view runs exactly the same checks.
+Checks the system health and dependencies. Exits with code 1 when a mandatory check fails (✗); warnings (⚠) do not count, and the optional checks (container engine stopped or missing, `bd` missing, gateways seen from a container) are warnings, unless `execution.runtime = container` makes the container mandatory. The TUI Doctor view runs exactly the same checks.
 
 `oh doctor` works even when `hub.toml` does not load or the database does not open (degraded startup): the failing check says so (TOML error with line and column, unreadable database) and the other checks run. The database is opened **without being migrated**: schema version and the version this oh knows, pending migrations (⚠), last failed migration, schema newer than this oh, quick integrity check, WAL size.
 

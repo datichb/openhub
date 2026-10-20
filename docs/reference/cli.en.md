@@ -38,9 +38,24 @@ Internal commands (hidden from the help, not documented in detail): `oh daemon r
 
 ## Exit Codes
 
-| Code | Meaning |
-|------|---------|
-| `0` | Success. Also for `oh deploy` / `oh sync` (migration message), and for `oh doctor` when no check fails (warnings do not count) |
-| `1` | Error: the message is written to standard error. For example: `oh workflow validate` or `oh skill check` finding errors, `oh run --headless` with a session waiting for a decision or exceeding `--timeout`, `oh doctor` when a check fails (✗) |
-| `bd` code | `oh beads` passes the exit code of `bd` through |
-| `2` | Internal error (panic): oh prints a message asking to report the bug |
+The codes are defined in one place (`cli/cmd/exitcodes.go`). A script can test them.
+
+| Code | Constant | Meaning |
+|------|----------|---------|
+| `0` | `ExitOK` | Success. For `oh doctor`, also when only warnings (⚠) are shown: the optional checks (container engine, `bd`, gateway reach from a container) never fail the command, unless `execution.runtime = container` makes the container mandatory |
+| `1` | `ExitFailure` | Failure: the message is written to standard error. For example: `oh workflow validate` or `oh skill check` finding errors, `oh run --headless` with a failed session or exceeding `--timeout`, `oh doctor` when a mandatory check fails (✗), internal error (panic: oh asks to report the bug) |
+| `2` | `ExitUsage` | Wrong usage: unknown command or option, or removed command (`oh deploy`, `oh sync`: the migration message is shown) |
+| `3` | `ExitPending` | Waiting: `oh run --headless` with a session waiting for a decision (checkpoint) that nobody can answer without an interface. The session is left running: `oh session approve <id>` or `oh session answer <id>`. If another session failed, the code is `1` |
+| `bd` code | | `oh beads` passes the exit code of `bd` through |
+
+`oh doctor` checks: a mandatory check (system, `git`, configuration, database, session tool, workflow integrity…) that fails gives `1`. An optional check that fails is shown as a warning and does not change the code.
+
+## Short options
+
+A letter has one meaning in every command. The former forms stay accepted for one version, with a warning, and are hidden from the help.
+
+{{SHORTS_EN}}
+
+## Symbols and colors
+
+{{SYMBOLS_EN}}

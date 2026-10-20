@@ -96,6 +96,7 @@ func (c check) results() []views.DoctorCheck {
 		if res[i].Name == "" {
 			res[i].Name = c.name
 		}
+		res[i] = res[i].Normalized()
 	}
 	return res
 }
@@ -123,8 +124,9 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 	return runDoctorChecks(a.IO.Out, doctorRegistry())
 }
 
-// runDoctorChecks prints each check; a failed check makes oh exit with 1
-// (warnings are reported as passed checks).
+// runDoctorChecks prints each check; a failed mandatory check makes oh exit
+// with ExitFailure. Warnings, including the failures of optional checks
+// (container engine, bd…), are reported as passed checks (U-05).
 func runDoctorChecks(w io.Writer, checks []check) error {
 	allPassed := true
 	for _, c := range checks {
@@ -151,7 +153,7 @@ func runDoctorChecks(w io.Writer, checks []check) error {
 		fmt.Fprintln(w, theme.SuccessStyle.Render(i18n.T("cmd.doctor.all_passed")))
 	} else {
 		fmt.Fprintln(w, theme.WarningStyle.Render(i18n.T("cmd.doctor.some_failed")))
-		return &ExitError{Code: 1}
+		return &ExitError{Code: ExitFailure}
 	}
 	return nil
 }

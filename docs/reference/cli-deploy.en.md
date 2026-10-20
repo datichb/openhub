@@ -11,7 +11,7 @@ oh deploy [former flags…]
 oh sync [former flags…]
 ```
 
-During v5.x, both commands remain **migration aliases**: they accept every former flag and argument (`-p`, `--check`, `--diff`, `--all`…, ignored, `--help` included), change nothing, print this message on standard error and exit with **code 0** (existing scripts do not break):
+During v5.x, both commands remain **migration aliases**: they accept every former flag and argument (`-p`, `--check`, `--diff`, `--all`…, ignored, `--help` included), change nothing, print this message on standard error and exit with **code 2** (removed command: a script that relied on a deployment notices it; `oh deploy || true` ignores it):
 
 ```
 ! oh deploy no longer exists: oh no longer deploys anything into projects, every session starts from a bundle built at launch, outside the project.

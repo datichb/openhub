@@ -63,14 +63,16 @@ func runHeadless(ctx context.Context, a *app.App, p *preparedRun, ui launcher.La
 		defer cancel()
 	}
 	var (
-		out  []*runsvc.HeadlessResult
-		errs []error
+		out     []*runsvc.HeadlessResult
+		errs    []error
+		pending int
 	)
 	for _, s := range started {
 		r, err := p.svc.AwaitTurn(wctx, s.SessionID)
 		switch {
 		case errors.Is(err, runsvc.ErrDecisionPending):
 			errs = append(errs, errors.New(i18n.Tf("cmd.run.headless_decision", s.SessionID)))
+			pending++
 			continue // left running: the decision can still be answered
 		case err != nil:
 			errs = append(errs, err)
@@ -81,5 +83,16 @@ func runHeadless(ctx context.Context, a *app.App, p *preparedRun, ui launcher.La
 			errs = append(errs, serr)
 		}
 	}
-	return out, errors.Join(errs...)
+	return out, headlessError(errs, pending)
+}
+
+// headlessError joins the errors of a headless launch. When every error is a
+// session waiting for a decision, the exit code is ExitPending (nothing
+// failed, the user has to answer); a failure of any session makes it
+// ExitFailure.
+func headlessError(errs []error, pending int) error {
+	if len(errs) > 0 && len(errs) == pending {
+		return withExitCode(ExitPending, errors.Join(errs...))
+	}
+	return errors.Join(errs...)
 }

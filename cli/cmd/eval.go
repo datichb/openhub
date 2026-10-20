@@ -237,7 +237,7 @@ func runEval(cmd *cobra.Command, _ []string) error {
 	if strict, _ := cmd.Flags().GetBool("strict"); strict {
 		for _, p := range rep.Passes {
 			if !p.Pass {
-				return &ExitError{Code: 1}
+				return &ExitError{Code: ExitFailure}
 			}
 		}
 	}

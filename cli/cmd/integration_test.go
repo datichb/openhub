@@ -220,3 +220,18 @@ func TestMCPListJSON(t *testing.T) {
 	assert.Contains(t, stdout, `"name"`)
 	assert.Contains(t, stdout, `"figma"`)
 }
+
+// U-05: exit codes seen by a script (0 success, 2 usage).
+func TestExitCodesOfTheBinary(t *testing.T) {
+	_, _, code := runOh(t, "version")
+	assert.Equal(t, 0, code)
+	_, stderr, code := runOh(t, "deploy", "--check")
+	assert.Equal(t, 2, code, "a removed command is not a success")
+	assert.Contains(t, stderr, "oh deploy")
+	_, _, code = runOh(t, "sync")
+	assert.Equal(t, 2, code)
+	_, _, code = runOh(t, "version", "--bogus-flag")
+	assert.Equal(t, 2, code, "unknown option")
+	_, _, code = runOh(t, "bogus-command")
+	assert.Equal(t, 2, code, "unknown command")
+}

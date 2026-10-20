@@ -61,7 +61,7 @@ func runRepair(cmd *cobra.Command, _ []string) error {
 		if err != nil {
 			fmt.Fprintln(w, i18n.Tf("cmd.repair.open_failed", err))
 			if checkOnly {
-				return &ExitError{Code: 1}
+				return &ExitError{Code: ExitFailure}
 			}
 			return repairRecovery(w, dbPath)
 		}
@@ -75,7 +75,7 @@ func runRepair(cmd *cobra.Command, _ []string) error {
 		fmt.Fprintln(w, i18n.Tf("cmd.repair.detail", err))
 		fmt.Fprintln(w)
 		if checkOnly {
-			return &ExitError{Code: 1}
+			return &ExitError{Code: ExitFailure}
 		}
 		return repairRecovery(w, dbPath)
 	}
@@ -91,7 +91,7 @@ func runRepair(cmd *cobra.Command, _ []string) error {
 	}
 	if len(st.newer) > 0 {
 		fmt.Fprintln(w, i18n.Tf("cmd.repair.newer", joinInts(st.newer)))
-		return &ExitError{Code: 1}
+		return &ExitError{Code: ExitFailure}
 	}
 	if len(st.pending) > 0 {
 		fmt.Fprintln(w, i18n.Tf("cmd.repair.pending", joinInts(st.pending)))
@@ -122,7 +122,7 @@ func repairMigrate(w io.Writer, s *sqlite.Store) error {
 		} else {
 			fmt.Fprintln(w, i18n.Tf("cmd.repair.migrate_failed", err))
 		}
-		return &ExitError{Code: 1}
+		return &ExitError{Code: ExitFailure}
 	}
 	if b := s.Backups(); len(b) > 0 {
 		fmt.Fprintln(w, i18n.Tf("cmd.repair.backup_done", b[0]))

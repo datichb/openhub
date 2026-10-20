@@ -11,7 +11,8 @@ import (
 
 // `oh deploy` and `oh sync` were removed in v5 (D14, P3-T23): sessions run
 // from a bundle built at launch, outside the project. The commands stay
-// during v5.x as aliases that explain the migration.
+// during v5.x to explain the migration; they exit with ExitUsage (U-05: a
+// removed command did nothing yet exited 0).
 
 func init() {
 	for _, name := range []string{"deploy", "sync"} {
@@ -23,7 +24,7 @@ func init() {
 			DisableFlagParsing: true, // former flags (--check, --diff, --all…) accepted
 			RunE: func(cmd *cobra.Command, _ []string) error {
 				deployRemoved(cmd, "oh "+name)
-				return nil
+				return &ExitError{Code: ExitUsage} // the message is printed: the script must notice
 			},
 		})
 	}

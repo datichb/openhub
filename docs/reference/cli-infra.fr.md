@@ -24,7 +24,7 @@ oh init
 
 ### oh doctor
 
-Vérifie l'état du système et les dépendances. Sort avec le code 1 si un contrôle échoue (✗) ; les avertissements (⚠) ne comptent pas. La vue Doctor de la TUI exécute exactement les mêmes contrôles.
+Vérifie l'état du système et les dépendances. Sort avec le code 1 si un contrôle obligatoire échoue (✗) ; les avertissements (⚠) ne comptent pas, et les contrôles optionnels (moteur de conteneurs arrêté ou absent, `bd` absent, passerelles vues d'un conteneur) en font partie, sauf si `execution.runtime = container` rend le conteneur obligatoire. La vue Doctor de la TUI exécute exactement les mêmes contrôles.
 
 `oh doctor` fonctionne même quand `hub.toml` ne se charge pas ou que la base ne s'ouvre pas (démarrage dégradé) : le contrôle en échec le dit (erreur TOML avec ligne et colonne, base illisible), les autres contrôles s'exécutent. La base est ouverte **sans être migrée** : version du schéma et version connue d'oh, migrations en attente (⚠), dernière migration en échec, schéma plus récent que cette version d'oh, contrôle rapide d'intégrité, taille du WAL.
 
