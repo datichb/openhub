@@ -9,6 +9,16 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Security — Restes techniques (lot tech-leftovers)
+
+- ⚠ **Le proxy ne relaie plus tels quels les en-têtes et la query de l'agent** (S-28). Seuls passent, pour chaque fournisseur, ceux qu'envoient les vrais clients (`anthropic-version`, `anthropic-beta`, `HTTP-Referer`…) et les paramètres prévus par la route (`beta=true`). Un en-tête personnalisé ajouté aux options du fournisseur d'opencode est retiré ; son nom est journalisé au niveau debug.
+- ⚠ **Empreinte du paquet opencode épinglée** (S-38) : pour la 2.0.20 (quatre cibles Linux), le téléchargement est refusé si npm annonce une autre empreinte. Une version absente de la table déclenche un avertissement, ou un refus avec `execution.strict_isolation = true`.
+- **Fan-out : le merger reçoit une part du budget restant**, calculée comme celle d'un enfant de plus. Il n'est pas lancé si les enfants en cours retiennent tout le reste.
+- **Flux coupés comptés en dollars** : le démon ajoute au registre une estimation aux tarifs majorants, plafonnée à 10 % du budget (`ledger_estimated_cost_usd` dans `oh session trace`). Si opencode rapporte un coût dans la minute qui suit, il remplace l'estimation, sans double comptage.
+- **Le démon d'un job distant survit à une panique** (`cmd/runner.go` sous `safego`, couvert par le test d'architecture).
+- **Réglages TUI** : `execution.env_allow` et le délai du proxy sont éditables, avec les mêmes règles que `oh config set`.
+- **Wiki** : `wiki_pending` liste les refus des 30 derniers jours avec leur motif. `wiki_propose` avertit, sans refuser, quand une proposition reprend une proposition déjà refusée.
+
 ### Changed — Ergonomie de la CLI et i18n (lot v5-fix-ei, audit v5 U-02, U-03, U-05, U-09, U-11)
 
 - ⚠ **Codes de sortie** (table dans `docs/reference/cli.*.md`) :
