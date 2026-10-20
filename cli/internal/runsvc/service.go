@@ -173,6 +173,10 @@ type StartRequest struct {
 	// IsolateUserConfig hides the user tool configuration from local
 	// servers (strict isolation setting, part of the group key).
 	IsolateUserConfig bool
+	// EnvAllow adds variables of the user's environment to those a local
+	// server inherits ([execution] env_allow). It applies when the server
+	// starts: a running group keeps the environment it started with.
+	EnvAllow []string
 
 	// SessionEnv holds static, non-secret variables of the session shell
 	// (persisted for resumes). Secrets go through Service.SessionEnv.
@@ -688,7 +692,7 @@ func (s *Service) startServer(ctx context.Context, dc DaemonClient, req StartReq
 	h, err := s.Adapter.StartServer(ctx, adapters.ServerGroup{
 		Key: key, Bundle: spec, DataDir: dataDir, WorkDir: req.Location,
 		Provider: sessionspec.ProviderSpec{ID: ocProvider, Region: region, BaseURL: baseURL, SessionToken: grant.Token},
-		Runtime:  rt, Prepared: pg, IsolateUserConfig: req.IsolateUserConfig,
+		Runtime:  rt, Prepared: pg, IsolateUserConfig: req.IsolateUserConfig, EnvAllow: req.EnvAllow,
 	})
 	if err != nil {
 		cctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 15*time.Second)

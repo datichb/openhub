@@ -17,7 +17,8 @@ func TestExecutionConfigRoundtrip(t *testing.T) {
 	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, ".oh"), 0o755))
 
 	c := &Config{Name: "hub", Execution: ExecutionConfig{Runtime: "container", Engine: "podman", KeepImages: 3,
-		ToolVersion: "2.0.20", StrictIsolation: true, ProxyFirstByteTimeoutMinutes: 9}}
+		ToolVersion: "2.0.20", StrictIsolation: true, ProxyFirstByteTimeoutMinutes: 9,
+		EnvAllow: []string{"SSH_AUTH_SOCK", "MYCO_*"}}}
 	require.NoError(t, Save(c))
 	data, err := os.ReadFile(filepath.Join(tmpDir, ".oh", "hub.toml"))
 	require.NoError(t, err)

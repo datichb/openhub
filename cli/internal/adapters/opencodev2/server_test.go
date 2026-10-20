@@ -109,3 +109,56 @@ func TestStartServerRetriesATakenPort(t *testing.T) {
 	assert.True(t, portTaken("Bind for 0.0.0.0:4096 failed: port is already allocated"))
 	assert.False(t, portTaken("error: no provider"))
 }
+
+// S-28: the environment of the server is an allow-list. A secret the user
+// has in the shell, whatever its name, is not handed to the tool and to the
+// shells of the agents.
+func TestBuildEnvAllowListDropsSecretsOutsideTheList(t *testing.T) {
+	parent := []string{
+		"PATH=/usr/bin", "HOME=/home/u", "USER=u", "SHELL=/bin/zsh", "TERM=xterm", "LANG=fr_FR.UTF-8", "LC_ALL=C",
+		"TMPDIR=/tmp/x", "TZ=Europe/Paris", "XDG_CACHE_HOME=/cache", "HTTPS_PROXY=http://proxy:3128", "NO_PROXY=localhost",
+		"SSL_CERT_FILE=/etc/ca.pem", "NODE_EXTRA_CA_CERTS=/etc/ca2.pem", "OH_HOME=/oh",
+		"GEMINI_API_KEY=g-secret", "GH_TOKEN=gh-secret", "NPM_TOKEN=npm-secret", "SLACK_BOT_TOKEN=s-secret",
+		"DATABASE_URL=postgres://u:p@h/db", "SSH_AUTH_SOCK=/tmp/agent", "OH_LLM_KEY=oh-secret", "ZDOTDIR=/z", "BASH_ENV=/b", "ENV=/e",
+	}
+	m := envMap(buildEnv(parent, ServerOptions{DataDir: "/data"}, "pw"))
+	for _, k := range []string{"PATH", "HOME", "USER", "SHELL", "TERM", "LANG", "LC_ALL", "TMPDIR", "TZ", "XDG_CACHE_HOME",
+		"HTTPS_PROXY", "NO_PROXY", "SSL_CERT_FILE", "NODE_EXTRA_CA_CERTS", "OH_HOME"} {
+		assert.Contains(t, m, k)
+	}
+	for _, k := range []string{"GEMINI_API_KEY", "GH_TOKEN", "NPM_TOKEN", "SLACK_BOT_TOKEN", "DATABASE_URL", "SSH_AUTH_SOCK", "OH_LLM_KEY",
+		"ZDOTDIR", "BASH_ENV", "ENV"} {
+		assert.NotContains(t, m, k)
+	}
+	for k, v := range m {
+		assert.NotContains(t, v, "secret", k)
+	}
+	assert.Equal(t, "/data", m["XDG_DATA_HOME"])
+}
+
+func TestBuildEnvAllowAddsNamesAndPatterns(t *testing.T) {
+	parent := []string{
+		"PATH=/usr/bin", "SSH_AUTH_SOCK=/tmp/agent", "MYCO_REGION=eu", "MYCO_TEAM=t", "MYCOX=no", "GEMINI_API_KEY=g-secret", "OTHER=1",
+		"ANTHROPIC_API_KEY=a-secret", "AWS_REGION=eu-west-1", "AWS_SECRET_ACCESS_KEY=aws-secret",
+	}
+	m := envMap(buildEnv(parent, ServerOptions{DataDir: "/data", EnvAllow: []string{"SSH_AUTH_SOCK", "MYCO_*", "GEMINI_API_KEY", "ANTHROPIC_API_KEY", "AWS_*"}}, "pw"))
+	assert.Equal(t, "/tmp/agent", m["SSH_AUTH_SOCK"], "a name added by env_allow")
+	assert.Equal(t, "eu", m["MYCO_REGION"], "a pattern added by env_allow")
+	assert.Equal(t, "t", m["MYCO_TEAM"])
+	assert.NotContains(t, m, "MYCOX", "the pattern is a prefix with its underscore")
+	assert.NotContains(t, m, "OTHER")
+	assert.Equal(t, "g-secret", m["GEMINI_API_KEY"], "the user decides for a variable oh does not manage")
+	assert.Equal(t, "eu-west-1", m["AWS_REGION"])
+	assert.NotContains(t, m, "ANTHROPIC_API_KEY", "the credentials oh manages stay behind the proxy")
+	assert.NotContains(t, m, "AWS_SECRET_ACCESS_KEY")
+}
+
+// The tool variables stay under oh's control whatever env_allow says.
+func TestBuildEnvAllowDoesNotLetToolVariablesIn(t *testing.T) {
+	parent := []string{"OPENCODE_CONFIG=/x", "OPENCODE_SERVER_PASSWORD=old", "XDG_DATA_HOME=/old", "XDG_CONFIG_HOME=/cfg"}
+	m := envMap(buildEnv(parent, ServerOptions{DataDir: "/d", ConfigHome: "/iso", EnvAllow: []string{"OPENCODE_*", "XDG_DATA_HOME"}}, "pw"))
+	assert.NotContains(t, m, "OPENCODE_CONFIG")
+	assert.Equal(t, "pw", m["OPENCODE_SERVER_PASSWORD"])
+	assert.Equal(t, "/d", m["XDG_DATA_HOME"])
+	assert.Equal(t, "/iso", m["XDG_CONFIG_HOME"])
+}

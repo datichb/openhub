@@ -64,6 +64,12 @@ type ServerGroup struct {
 	// on the machine (strict isolation setting); runtimes outside the machine
 	// never see it.
 	IsolateUserConfig bool
+
+	// EnvAllow lists the variables of the user's environment, besides a
+	// short base list, that a server run on the machine inherits (names or
+	// PREFIX_* patterns; [execution] env_allow). Runtimes outside the machine
+	// never inherit the environment.
+	EnvAllow []string
 }
 
 // ServerHandle identifies a running tool server.

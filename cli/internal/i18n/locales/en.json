@@ -5767,5 +5767,13 @@
   "daemon.socket.untrusted": "Connection to the oh daemon refused, nothing was sent: the socket %s cannot be trusted.",
   "daemon.rundir.not_directory": "The oh daemon does not start: %s is not a plain folder (a link or a file). If you did not create it, remove it, then run oh again.",
   "daemon.rundir.owner": "The oh daemon does not start: the folder %s belongs to another user (uid %d). Check who created it (oh run with sudo?), remove it, then run oh again.",
-  "daemon.rundir.chmod": "The oh daemon does not start: the folder %s is open to other users and cannot be closed (%v). Fix it with chmod 700, then run oh again."
+  "daemon.rundir.chmod": "The oh daemon does not start: the folder %s is open to other users and cannot be closed (%v). Fix it with chmod 700, then run oh again.",
+  "cmd.doctor.env_allow": "Agent environment",
+  "cmd.doctor.env_allow.base": "Only a short base list of your environment variables (PATH, HOME, LANG, proxies, certificates…) reaches the agents, plus %d entry(ies) of execution.env_allow",
+  "cmd.doctor.env_allow.more": " and %d more",
+  "cmd.doctor.env_allow.held": "%d variable(s) of your environment are held back from the agents: %s. To pass one: oh config set execution.env_allow \"NAME, PREFIX_*\"",
+  "cmd.doctor.env_allow.invalid": "execution.env_allow: entries ignored (a variable name or PREFIX_* is expected): %s",
+  "cmd.doctor.env_allow.secret_entries": "execution.env_allow lets through variables named like secrets: %s. The agents can read them, and send them anywhere their tools can reach: keep only what they need",
+  "cmd.doctor.env_allow.secret_passed": "execution.env_allow lets through variables of your environment named like secrets: %s. The agents can read them: narrow the pattern",
+  "cmd.doctor.env_allow.managed": "execution.env_allow: %s are credentials managed by oh, they are removed anyway (the agents only get the session token of the oh proxy)"
 }

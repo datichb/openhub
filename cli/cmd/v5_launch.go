@@ -56,6 +56,7 @@ func v5Request(a *app.App, project *domain.Project, providerFlag string) runsvc.
 	}
 	applyProjectExec(&req, project)
 	req.IsolateUserConfig = a.Config.Execution.StrictIsolation
+	req.EnvAllow = a.Config.Execution.EnvAllow
 	req.Limits = sessionLimits(context.Background(), a, project, nil)
 	if tc := config.ResolveTeamForProject(a.Config, project); tc.Enabled {
 		req.TeamID = tc.TeamID
