@@ -9,6 +9,15 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Changed — TUI : passe finale (lot tui-docs)
+
+- ⚠ **Une seule vue « Nettoyage »** (commande `cleanup`, alias `gc`, `nettoyage`, `deploy-cleanup`) à deux sections (`Tab`) : « Anciens déploiements » (`oh migrate deploy-cleanup` : `c` diff, `d` nettoyer, confirmé) et « Données d'oh » (`oh gc` : aperçu, `d`, `A`, résultat). Doctor › `f` ouvre la section du contrôle.
+- ⚠ **Alias rétablis dans les YAML** : `secu` → `security-fix`, `perf` → `benchmark`, `dbg` → `debug`, `feedback` et `retours` → `review-feedback` (palette et `oh run`) ; `dev`, `start`, `fast`, `rev` ne sont plus reconnus.
+- **`?` et `Ctrl+P` dans les onglets d'une session et dans la validation par lot** (plus seulement `F1`) ; le focus revient dans l'onglet ; la ligne d'aide de l'omnibar suit l'onglet et le lot.
+- **Message « Nouvelles touches » complet**, regroupé par vue. Une machine qui a déjà vu la première version ne le revoit pas (préférence `tui.keys_notice`) : il reste accessible depuis l'aide.
+- **Fondation** : `keys.Own` pour les touches propres à une vue (vérifiées par `TestOwnActions`), `ActionList.SetEmpty`, `keys.Pairs`, `keys.SpaceName` ; 131 clés i18n inutilisées retirées.
+- **Docs** : référence TUI (touches par vue, onglets, fiche de checkpoint, lot, fan-out, wiki, briques, Nettoyage, Doctor) et guide (parcours : décider un checkpoint, propositions wiki, lot, fan-out, alias et agent de `libre`, nettoyer) réécrits d'après le code.
+
 ### Changed — TUI : propreté des autres vues (lot tui-cleanup)
 
 - ⚠ **Touches harmonisées** dans les vues de configuration, d'équipe et de workflows : `n` crée partout (au lieu de `a`) ; Workflows : `c` comparer (au lieu de `D`), `v` vérifier, `d` supprime un brouillon, `x` n'archive que les workflows publiés ; Historique : `R` restaure (confirmé), `r` rafraîchit ; Éditeur : `d` retire ou revient à la valeur héritée (confirmé), `Y` ouvre le YAML brut ; Board d'équipe : `/` filtre (menu), `L` libère ; Projets : `e` renomme ; Worktrees : `M` nettoie les worktrees fusionnés ; Détail d'équipe : `T` découvre le tracker ; Patterns : `y` valide.
