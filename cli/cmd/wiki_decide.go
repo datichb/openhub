@@ -41,6 +41,7 @@ func init() {
 	decide.Flags().Bool("edit", false, i18n.T("cmd.wiki.decide.flags.edit"))
 	decide.Flags().String("content", "", i18n.T("cmd.wiki.decide.flags.content"))
 	decide.Flags().String("file", "", i18n.T("cmd.wiki.decide.flags.file"))
+	decide.Flags().String("reason", "", i18n.T("cmd.wiki.decide.flags.reason"))
 	decide.Flags().String("dir", ".", i18n.T("cmd.wiki.decide.flags.dir"))
 	wikiCmd.AddCommand(withInitDB(decide))
 }
@@ -51,15 +52,18 @@ type wikiDecision struct {
 	// Content is the new content of an edit ("" with Editor: from $EDITOR).
 	Content string
 	Editor  bool
+	// Reason is the optional reason of a refusal (p9-wiki-refusal).
+	Reason string
 }
 
 // wikiDecisionFlags reads the choice of the flags: exactly one of
 // --accept, --refuse (--reject), --pending, --edit; --content or --file
-// edit without $EDITOR.
+// edit without $EDITOR; --reason goes with --refuse only.
 func wikiDecisionFlags(cmd *cobra.Command) (wikiDecision, error) {
 	flag := func(name string) bool { v, _ := cmd.Flags().GetBool(name); return v }
 	content, _ := cmd.Flags().GetString("content")
 	file, _ := cmd.Flags().GetString("file")
+	reason, _ := cmd.Flags().GetString("reason")
 	var d wikiDecision
 	n := 0
 	for _, c := range []struct {
@@ -78,6 +82,12 @@ func wikiDecisionFlags(cmd *cobra.Command) (wikiDecision, error) {
 	}
 	if n != 1 {
 		return d, errors.New(i18n.T("cmd.wiki.decide.one_choice"))
+	}
+	if strings.TrimSpace(reason) != "" {
+		if d.Choice != wiki.ChoiceRefuse {
+			return d, errors.New(i18n.T("cmd.wiki.decide.reason_refuse_only"))
+		}
+		d.Reason = reason
 	}
 	if content != "" && file != "" {
 		return d, errors.New(i18n.T("cmd.wiki.decide.content_or_file"))
@@ -147,6 +157,9 @@ func wikiDecide(ctx context.Context, svc *wiki.Service, projectID string, ids []
 	for _, id := range ids {
 		id = strings.TrimSpace(id)
 		content := d.Content
+		if d.Choice == wiki.ChoiceRefuse {
+			content = d.Reason
+		}
 		if d.Editor {
 			p, err := svc.Get(ctx, projectID, id)
 			if err == nil && !p.Open() {
@@ -187,6 +200,8 @@ func wikiDecidedText(p *domain.WikiProposal, choice string) string {
 		return i18n.T("cmd.wiki.decide.edited")
 	case p.Status == domain.WikiAccepted:
 		return i18n.T("cmd.wiki.decide.accepted")
+	case p.Status == domain.WikiRefused && p.Reason != "":
+		return i18n.Tf("cmd.wiki.decide.refused_reason", p.Reason)
 	case p.Status == domain.WikiRefused:
 		return i18n.T("cmd.wiki.decide.refused")
 	default:

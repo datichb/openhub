@@ -50,7 +50,8 @@ type ProjectWikiViewConfig struct {
 	// apply) and stale proposals (nil: metrics only).
 	Proposals func(ctx context.Context, path string) ([]WikiProposalView, error)
 	// Decide records the decision of the user on a proposal (`oh wiki
-	// decide`).
+	// decide`); content is the new content of an edit, or the optional
+	// reason of a refusal.
 	Decide func(ctx context.Context, path, id, choice, content string) error
 	// Edit edits a content in $EDITOR, the TUI suspended (event loop).
 	Edit func(name, content string) (string, error)

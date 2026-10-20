@@ -1,0 +1,18 @@
+┌ Propositions du wiki · cp-2 « Commit » · 9 proposition(s) ─────────────────────────────┐
+│   wp-1  technical/stack.md        ajout     CONFIRMÉ  ✓ acceptée                       │
+│   wp-2  technical/stack.md        remplace  PROBABLE  ? en attente                     │
+│ ▸ wp-3  business/index.md         ajout     PROBABLE  ✗ refusée                        │
+│   wp-4  technical/tests.md        remplace  CONFIRMÉ  ✗ refusée                        │
+│   wp-5  technical/conventions.md  ajout     PROBABLE  ? en attente                     │
+│   wp-6  technical/conventions.md  ajout     PROBABLE  ? en attente                     │
+│   wp-7  technical/conventions.md  ajout     PROBABLE  ? en attente                     │
+│ 3/9  ·  2 de plus ↓                                                                    │
+└────────────────────────────────────────────────────────────────────────────────────────┘
+┌ wp-3 · business/index.md ──────────────────────────────────────────────────────────────┐
+│ + Facturation [red]B2B[-]                                                              │
+│ auteur onboarder · PROBABLE                                                            │
+│ Motif du refus : déjà couvert par la page [red]stack[-]                                │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+└────────────────────────────────────────────────────────────────────────────────────────┘
