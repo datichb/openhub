@@ -8,6 +8,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
+	"github.com/datichb/openhub/cli/internal/glyph"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
@@ -319,7 +320,7 @@ func (p *batchPane) openCard(it ActionItem) {
 		return
 	}
 	r := p.v.row(d.SessionID)
-	dec := SessionDecision{ID: d.ID, SessionID: d.SessionID, Kind: DecisionKindCheckpoint, Icon: "⏸", Summary: firstText(d.Checkpoint, d.Summary), Approver: d.Approver}
+	dec := SessionDecision{ID: d.ID, SessionID: d.SessionID, Kind: DecisionKindCheckpoint, Icon: glyph.Checkpoint, Summary: firstText(d.Checkpoint, d.Summary), Approver: d.Approver}
 	if r != nil {
 		for _, x := range r.Decisions {
 			if x.ID == d.ID {

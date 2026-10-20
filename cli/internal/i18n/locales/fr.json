@@ -5523,7 +5523,7 @@
   "cmd.session.dismiss.short": "Classe une alerte (✗ erreur, ✗ coupe-circuit, $ budget) d'une session",
   "cmd.session.follow.short": "Suit une session en direct (lecture seule : agent courant, outils, messages, coût) ; Ctrl+C pour quitter",
   "cmd.session.fork.short": "Crée une variante d'une session (copie de son historique, même serveur)",
-  "cmd.session.inbox.short": "Décisions en attente de toutes les sessions (⏸ checkpoint · ? question · ! permission · $ budget · ✗ erreur)",
+  "cmd.session.inbox.short": "Décisions en attente de toutes les sessions (⏸ checkpoint · ? question · ! permission · $ budget · ✗ erreur · ⊘ coupe-circuit)",
   "cmd.session.interrupt.short": "Interrompt l'étape en cours (la session reste ouverte)",
   "cmd.session.list.short": "Liste les sessions v5 (en cours, en attente, en veille ; --all pour les terminées)",
   "cmd.session.list.flags.all": "Inclure les sessions terminées",

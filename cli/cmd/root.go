@@ -91,6 +91,7 @@ func Execute() error {
 	// sessions to sleep.
 	defer stopInProcessDaemon()
 
+	theme.ApplyNoColor()
 	defer silenceCobraDeprecation(rootCmd, os.Args[1:])()
 	if err := rootCmd.Execute(); err != nil {
 		err = usageError(err)

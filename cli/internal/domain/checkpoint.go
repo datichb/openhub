@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// DecisionCircuit is the circuit breaker alert (✗): too many consecutive
+// DecisionCircuit is the circuit breaker alert (⊘): too many consecutive
 // subagent calls without the user; delegation is denied until it is dismissed.
 const DecisionCircuit DecisionKind = "circuit"
 

@@ -79,3 +79,36 @@ A letter has one meaning in every command. The former forms stay accepted for on
 A former form stays accepted for one version: it does the same as the new one, prints a warning ("Option -p of oh serve is deprecated, use --port.") and is gone from the help. The short forms of `oh start`, `oh audit`, `oh review` and `oh debug` (deprecated aliases of `oh run`) follow the same rule.
 
 **Opening a window.** One option, `--attach` (`auto`, `iterm`, `terminal`, `tmux`, `browser`, `suspend`, and `none` for `oh run`), in `oh run` as in `oh session attach`. The former name `--how` of `oh session attach` is still accepted (warning), and so is the value `here`, former synonym of `suspend`.
+
+## Symbols and colors
+
+A symbol stands for one thing, in the CLI (`oh session list`, `oh session inbox`) as in the TUI (Sessions view, mode bar badge, landing sections). Both read the same table (`cli/internal/glyph`).
+
+**Session state**
+
+| Symbol | State | Meaning |
+|--------|-------|---------|
+| `◓` | `preparing` | the session bundle is being prepared |
+| `…` | `queued` | queued (session limit) |
+| `●` | `active` | the agent is working |
+| `◐` | `waiting` | waits for a decision from you |
+| `○` | `idle` | turn over, waiting for an instruction |
+| `◌` | `sleeping` | asleep (the server is stopped, the session can be resumed) |
+| `✔` | `completed` | finished |
+| `⊗` | `failed` | failed |
+| `■` | `stopped` | stopped by the user |
+
+**Waiting decision**
+
+| Symbol | Kind | Meaning |
+|--------|------|---------|
+| `⏸` | checkpoint | a workflow gate to approve |
+| `?` | question | the agent asks a question |
+| `!` | permission | an action asks for your approval |
+| `$` | budget | a restriction is reached |
+| `✗` | error | the agent hit an error to handle |
+| `⊘` | circuit breaker | too many subagent calls without you: delegation is denied until you dismiss it |
+
+The mode bar badge, `● N  ◐ M`, counts live sessions (`●`) and waiting decisions (`◐`). Elsewhere, `✓` marks a successful command result, `✗` a failed one, `⚠` or `!` a warning.
+
+**Colors.** `NO_COLOR` (any non-empty value, see [no-color.org](https://no-color.org)) removes the colors of the CLI (help, tables, forms, logs) and of the TUI; the symbols above are enough to read the state. Without `NO_COLOR`, the terminal decides (redirected output = no color). There is no `--no-color` option.

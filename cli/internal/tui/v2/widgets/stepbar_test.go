@@ -85,3 +85,15 @@ func TestStatusBar_SetHints_Updates(t *testing.T) {
 	assert.Contains(t, text, "updated hints")
 	assert.NotContains(t, text, "initial")
 }
+
+// U-09: no color tag with NO_COLOR.
+func TestColorTagWithNoColor(t *testing.T) {
+	t.Setenv("NO_COLOR", "")
+	if got := ColorTag(tcell.NewRGBColor(1, 2, 3)); got != "[#010203]" {
+		t.Fatalf("control: %q", got)
+	}
+	t.Setenv("NO_COLOR", "1")
+	if got := ColorTag(tcell.NewRGBColor(1, 2, 3)); got != "" {
+		t.Errorf("ColorTag with NO_COLOR = %q", got)
+	}
+}

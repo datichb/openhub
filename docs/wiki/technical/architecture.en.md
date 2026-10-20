@@ -41,7 +41,7 @@ openhub (`oh`) is a single Go binary that launches and drives AI coding sessions
 5. **Check**: closed world (`Attest`); otherwise the session does not start.
 6. **Session**: created through the API (id chosen by oh), initial prompt.
 7. **Opening**: iTerm2 → Terminal.app → tmux → browser → current terminal.
-8. **Follow-up and decisions**: `ohd` daemon (⏸ ? ! $ ✗), notifications, sleep after 5 minutes of inactivity.
+8. **Follow-up and decisions**: `ohd` daemon (⏸ ? ! $ ✗ ⊘), notifications, sleep after 5 minutes of inactivity.
 
 Nothing is written into the project any more (`oh deploy` and `oh sync` are migration-message aliases).
 

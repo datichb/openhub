@@ -8,6 +8,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/termenv"
+
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
@@ -166,5 +169,35 @@ func TestUsageErrors(t *testing.T) {
 	flagErr := c.FlagErrorFunc()(c, errors.New("unknown flag: --bogus"))
 	if ExitCode(flagErr) != ExitUsage {
 		t.Errorf("flag error: code %d", ExitCode(flagErr))
+	}
+}
+
+// U-09: with NO_COLOR the output of the CLI holds no escape sequence, even on
+// a color terminal (forced here); without it the same output is colored.
+func TestNoColorHelpHasNoEscapeSequence(t *testing.T) {
+	prev := lipgloss.ColorProfile()
+	lipgloss.SetColorProfile(termenv.TrueColor)
+	defer lipgloss.SetColorProfile(prev)
+
+	t.Setenv("NO_COLOR", "")
+	theme.ApplyNoColor()
+	if !strings.Contains(buildHelpContent(rootCmd), "\x1b[") {
+		t.Fatal("control: the help is colored without NO_COLOR")
+	}
+	var out bytes.Buffer
+	_ = runDoctorChecks(&out, []check{{"x", single(func() (string, bool) { return "fine", true })}})
+	if !strings.Contains(out.String(), "\x1b[") {
+		t.Fatalf("control: oh doctor is colored without NO_COLOR: %q", out.String())
+	}
+
+	t.Setenv("NO_COLOR", "1")
+	theme.ApplyNoColor()
+	if help := buildHelpContent(rootCmd); strings.Contains(help, "\x1b[") {
+		t.Errorf("the help has an escape sequence with NO_COLOR=1")
+	}
+	out.Reset()
+	_ = runDoctorChecks(&out, []check{{"x", single(func() (string, bool) { return "fine", true })}})
+	if strings.Contains(out.String(), "\x1b[") {
+		t.Errorf("oh doctor has an escape sequence with NO_COLOR=1: %q", out.String())
 	}
 }

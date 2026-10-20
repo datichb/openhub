@@ -23,11 +23,11 @@ Si aucun fournisseur n'est configuré (premier lancement), l'assistant de config
 │                 (s'adapte à la vue active)                       │
 ├──────────────────────────────────────────────────────────────────┤
 │  ligne d'aide de la vue (touches) ou palette de commandes        │ Omnibar
-│  🏠 Hub · ● 2 ⏸ 1                                                │ Barre de mode
+│  🏠 Hub · ● 2 ◐ 1                                                │ Barre de mode
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-La barre de mode affiche le badge des sessions **`● N ⏸ M`** (N sessions qui travaillent, M décisions en attente) ; il passe en alerte quand une décision attend.
+La barre de mode affiche le badge des sessions **`● N ◐ M`** (N sessions qui travaillent, M décisions en attente) ; il passe en alerte quand une décision attend. La légende des symboles (états, décisions) et `NO_COLOR` (sans couleur) sont dans la [référence CLI](cli.fr.md#symboles-et-couleurs).
 
 **Petits terminaux** : sous 32 lignes, mise en page compacte (bandeau sur une ligne, omnibar et barre de mode sur 3 lignes) ; sous 60×16, message « Terminal trop petit » et seul `Ctrl+Q` fonctionne. Réglage `[cli] compact = auto | always | never`. Le changement de mise en page garde l'élément sélectionné.
 
@@ -171,14 +171,14 @@ Chaque vue affiche ses touches dans la ligne d'aide ; `?` les reprend. Les touch
 
 ### Sessions
 
-Sections : **À traiter** (sessions avec des décisions en attente, chacune suivie de ses décisions : `⏸` checkpoint, `?` question, `!` permission, `$` budget, `✗` erreur ou coupe-circuit), **En cours**, **À récupérer** (sessions distantes), **En veille**, **Terminées, 7 j**. Les enfants d'un fan-out (`↳`) sont rangés en arbre sous leur parente (`⑂`) ; le groupe passe dans « À traiter » dès qu'un enfant attend.
+Sections : **À traiter** (sessions avec des décisions en attente, chacune suivie de ses décisions : `⏸` checkpoint, `?` question, `!` permission, `$` budget, `✗` erreur, `⊘` coupe-circuit), **En cours**, **À récupérer** (sessions distantes), **En veille**, **Terminées, 7 j**. Les enfants d'un fan-out (`↳`) sont rangés en arbre sous leur parente (`⑂`) ; le groupe passe dans « À traiter » dès qu'un enfant attend.
 
 ```
 ┌ Sessions ─────────────────────────────┐┌ implement-spec · ses_8f2a ────────────┐
 │ ● ⑂ implement-spec  spec auth   $1.84 ││ [Détail]  Trace  Rapports  Fan-out    │
-│   ├ ✓ ↳ ticket  oh-12  merged   $0.41 ││ ⏸ cp-merge : 2/3 enfants mergés       │
-│   └ ⏸ ↳ ticket  oh-14  cp-2     $0.22 ││ Sorties relevées par oh               │
-│ ✓   spec        auth OAuth      $0.93 ││ ↪ Suites proposées (next:)            │
+│   ├ ✔ ↳ ticket  oh-12  merged   $0.41 ││ ⏸ cp-merge : 2/3 enfants mergés       │
+│   └ ◐ ↳ ticket  oh-14  cp-2     $0.22 ││ Sorties relevées par oh               │
+│ ✔   spec        auth OAuth      $0.93 ││ ↪ Suites proposées (next:)            │
 └───────────────────────────────────────┘└───────────────────────────────────────┘
 ```
 

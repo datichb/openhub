@@ -5523,7 +5523,7 @@
   "cmd.session.dismiss.short": "Dismisses an alert (✗ error, ✗ circuit breaker, $ budget) of a session",
   "cmd.session.follow.short": "Follows a session live (read only: current agent, tools, messages, cost); Ctrl+C to quit",
   "cmd.session.fork.short": "Creates a variant of a session (copy of its history, same server)",
-  "cmd.session.inbox.short": "Pending decisions of every session (⏸ checkpoint · ? question · ! permission · $ budget · ✗ error)",
+  "cmd.session.inbox.short": "Pending decisions of every session (⏸ checkpoint · ? question · ! permission · $ budget · ✗ error · ⊘ circuit breaker)",
   "cmd.session.interrupt.short": "Interrupts the current step (the session stays open)",
   "cmd.session.list.short": "Lists the v5 sessions (running, waiting, sleeping; --all for the finished ones)",
   "cmd.session.list.flags.all": "Include the finished sessions",

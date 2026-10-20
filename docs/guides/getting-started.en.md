@@ -160,7 +160,7 @@ Projects deployed with an earlier version: remove the leftovers (`.opencode/agen
 
 The opencode window opens next to oh: you talk to the agent there as usual. Meanwhile, oh follows the session:
 
-- **TUI, Sessions view** (`sessions` in the omnibar): sessions To handle, Running, Sleeping, Finished. `t` shows the live feed (current agent, tools, cost). The bottom bar shows `● N ⏸ M` everywhere: live sessions, waiting decisions.
+- **TUI, Sessions view** (`sessions` in the omnibar): sessions To handle, Running, Sleeping, Finished. `t` shows the live feed (current agent, tools, cost). The bottom bar shows `● N ◐ M` everywhere: live sessions, waiting decisions.
 - **CLI**:
 
 ```bash
@@ -180,7 +180,7 @@ When the agent needs you, a decision shows up: system notification, line in "To 
 | `⏸` checkpoint | `cp-2 "Commit or fix"` | `Enter` → card → **Decide**: Validate / Fix first / Other instruction; `y` validates | `oh session approve <id>` (`--decision once\|fix\|other\|reject`, `-m "…"`) |
 | `?` question | "MVP scope?" | `Enter` → form | `oh session answer <id> --field key=value` |
 | `!` permission | `shell npm run e2e` | `y` once, `n` reject, `Enter` for the card | `oh session approve <id> --decision once\|always\|reject` |
-| `$` budget, `✗` error | session budget reached | `x` dismiss | `oh session dismiss <id>` |
+| `$` budget, `✗` error, `⊘` circuit breaker | session budget reached | `x` dismiss | `oh session dismiss <id>` |
 
 ```bash
 oh session inbox                 # every waiting decision

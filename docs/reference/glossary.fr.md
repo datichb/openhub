@@ -48,7 +48,7 @@ En mode équipe, un claim est une assignation de ticket : un membre de l'équipe
 
 ### Décision
 
-Ce qu'une session attend de l'utilisateur : ⏸ checkpoint, ? question, ! permission, $ budget, ✗ erreur ou coupe-circuit. La première réponse gagne, d'où qu'elle vienne (TUI, opencode, navigateur, `oh session approve|answer`). Visible dans la section « À traiter » de la vue Sessions et dans `oh session inbox`. Voir [Sessions v5](../guides/sessions-v5.fr.md#checkpoints).
+Ce qu'une session attend de l'utilisateur : ⏸ checkpoint, ? question, ! permission, $ budget, ✗ erreur, ⊘ coupe-circuit. La première réponse gagne, d'où qu'elle vienne (TUI, opencode, navigateur, `oh session approve|answer`). Visible dans la section « À traiter » de la vue Sessions et dans `oh session inbox`. Voir [Sessions v5](../guides/sessions-v5.fr.md#checkpoints).
 
 ### Démon ohd
 

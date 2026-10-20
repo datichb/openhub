@@ -41,7 +41,7 @@ openhub (`oh`) est un binaire Go unique qui lance et pilote les sessions de coda
 5. **Vérification** : monde fermé (`Attest`) ; sinon la session ne démarre pas.
 6. **Session** : créée par l'API (identifiant choisi par oh), prompt initial.
 7. **Ouverture** : iTerm2 → Terminal.app → tmux → navigateur → terminal courant.
-8. **Suivi et décisions** : démon `ohd` (⏸ ? ! $ ✗), notifications, veille après 5 minutes d'inactivité.
+8. **Suivi et décisions** : démon `ohd` (⏸ ? ! $ ✗ ⊘), notifications, veille après 5 minutes d'inactivité.
 
 Plus rien n'est écrit dans le projet (`oh deploy` et `oh sync` sont des alias qui affichent un message de migration).
 

@@ -59,7 +59,7 @@ func decisionError(err error) error {
 
 var sessionInboxCmd = &cobra.Command{
 	Use:   "inbox",
-	Short: "Décisions en attente de toutes les sessions (⏸ checkpoint · ? question · ! permission · $ budget · ✗ erreur)",
+	Short: "Décisions en attente de toutes les sessions (⏸ checkpoint · ? question · ! permission · $ budget · ✗ erreur · ⊘ coupe-circuit)",
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		svc, err := sessionService(cmd)
 		if err != nil {

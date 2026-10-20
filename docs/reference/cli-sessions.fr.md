@@ -10,7 +10,7 @@ Cette page couvre la **gestion des sessions v5** (`oh session …`), les **restr
 
 - **Désigner une session** : son identifiant complet ou un **préfixe unique** (avec ou sans `ses_`) ; `oh session list` les affiche.
 - **Désigner une décision** (`approve`, `answer`, `dismiss`, `oh budget raise`) : l'identifiant de la décision (`oh session inbox`) ou celui de la session ; si la session a plusieurs décisions en attente du type visé, oh refuse et les liste.
-- **Types de décisions** : ⏸ checkpoint, ? question, ! permission, $ budget, ✗ erreur ou coupe-circuit. La **première réponse gagne** (oh, interface d'opencode, navigateur, CLI) ; une réponse arrivée trop tard affiche qui a déjà décidé.
+- **Types de décisions** : ⏸ checkpoint, ? question, ! permission, $ budget, ✗ erreur, ⊘ coupe-circuit. La **première réponse gagne** (oh, interface d'opencode, navigateur, CLI) ; une réponse arrivée trop tard affiche qui a déjà décidé.
 - Le suivi en direct, les notifications et les décisions passent par le démon `ohd` ([`oh daemon`](cli-infra.fr.md#oh-daemon)).
 
 | Commande | Rôle |
@@ -56,7 +56,7 @@ Liste les sessions v5 : identifiant, projet, agent d'entrée, état, décisions 
 oh session inbox [--json]
 ```
 
-Décisions en attente de toutes les sessions : type (⏸ ? ! $ ✗), identifiant de la décision, agent, résumé, ancienneté.
+Décisions en attente de toutes les sessions : type (⏸ ? ! $ ✗ ⊘), identifiant de la décision, agent, résumé, ancienneté.
 
 | Flag | Type | Défaut | Description |
 |------|------|--------|-------------|

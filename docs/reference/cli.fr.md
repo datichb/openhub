@@ -79,3 +79,36 @@ Une lettre a un seul sens dans toutes les commandes. Les anciennes formes resten
 Une ancienne forme reste acceptée pendant une version : elle fait la même chose que la nouvelle, affiche un avertissement (« L'option -p de oh serve est dépréciée, utilisez --port. ») et disparaît de l'aide. Les formes courtes de `oh start`, `oh audit`, `oh review` et `oh debug` (alias dépréciés de `oh run`) suivent la même règle.
 
 **Ouvrir une fenêtre.** Une seule option, `--attach` (`auto`, `iterm`, `terminal`, `tmux`, `browser`, `suspend`, et `none` pour `oh run`), dans `oh run` comme dans `oh session attach`. L'ancien nom `--how` de `oh session attach` reste accepté (avertissement), de même que la valeur `here`, ancien synonyme de `suspend`.
+
+## Symboles et couleurs
+
+Un symbole désigne une seule chose, dans la CLI (`oh session list`, `oh session inbox`) comme dans la TUI (vue Sessions, badge de la barre de mode, sections des accueils). Les deux lisent la même table (`cli/internal/glyph`).
+
+**État d'une session**
+
+| Symbole | État | Sens |
+|---------|------|------|
+| `◓` | `preparing` | le paquet de session se prépare |
+| `…` | `queued` | en file d'attente (limite de sessions) |
+| `●` | `active` | l'agent travaille |
+| `◐` | `waiting` | attend une décision de votre part |
+| `○` | `idle` | tour terminé, en attente de consigne |
+| `◌` | `sleeping` | en veille (le serveur est arrêté, la session se reprend) |
+| `✔` | `completed` | terminée |
+| `⊗` | `failed` | en échec |
+| `■` | `stopped` | arrêtée par l'utilisateur |
+
+**Décision en attente**
+
+| Symbole | Type | Sens |
+|---------|------|------|
+| `⏸` | checkpoint | point de passage d'un workflow à valider |
+| `?` | question | l'agent pose une question |
+| `!` | permission | une action demande votre accord |
+| `$` | budget | une restriction est atteinte |
+| `✗` | erreur | l'agent a rencontré une erreur à traiter |
+| `⊘` | coupe-circuit | trop d'appels de sous-agents sans vous : la délégation est refusée jusqu'à ce que vous l'acquittiez |
+
+Le badge de la barre de mode, `● N  ◐ M`, compte les sessions vivantes (`●`) et les décisions en attente (`◐`). Ailleurs, `✓` marque un retour de commande réussi, `✗` un retour en erreur, `⚠` ou `!` un avertissement.
+
+**Couleurs.** `NO_COLOR` (toute valeur non vide, voir [no-color.org](https://no-color.org)) supprime les couleurs de la CLI (aide, tableaux, formulaires, journaux) et de la TUI ; les symboles ci-dessus suffisent à lire l'état. Sans `NO_COLOR`, le terminal décide (sortie redirigée = sans couleur). Il n'y a pas d'option `--no-color`.

@@ -10,7 +10,7 @@
 //	  → 15:50:05 members   count=1
 //	  ⚠ 15:50:05 token.miss type=gitlab error=not found
 //
-// When output is not a TTY (pipe, CI), colors are stripped and Unicode icons
+// When output is not a TTY (pipe, CI) or NO_COLOR is set, colors are stripped and Unicode icons
 // are replaced with ASCII equivalents.
 package prettylog
 
@@ -63,8 +63,14 @@ func NewPrettyHandler(w io.Writer, opts *Options) *PrettyHandler {
 	return &PrettyHandler{
 		w:       w,
 		level:   level,
-		noColor: !isTerminal(w),
+		noColor: colorDisabled(isTerminal(w)),
 	}
+}
+
+// colorDisabled reports whether the logs go without color and Unicode icons:
+// the output is not a terminal, or NO_COLOR is set (https://no-color.org).
+func colorDisabled(terminal bool) bool {
+	return !terminal || os.Getenv("NO_COLOR") != ""
 }
 
 // Enabled reports whether the handler handles records at the given level.

@@ -10,7 +10,7 @@ This page covers **v5 session management** (`oh session …`), **restrictions** 
 
 - **Referring to a session**: its full id or a **unique prefix** (with or without `ses_`); `oh session list` shows them.
 - **Referring to a decision** (`approve`, `answer`, `dismiss`, `oh budget raise`): the decision id (`oh session inbox`) or the session id; when the session has several pending decisions of the expected kind, oh refuses and lists them.
-- **Decision kinds**: ⏸ checkpoint, ? question, ! permission, $ budget, ✗ error or circuit breaker. The **first answer wins** (oh, opencode interface, browser, CLI); a late answer tells who already decided.
+- **Decision kinds**: ⏸ checkpoint, ? question, ! permission, $ budget, ✗ error, ⊘ circuit breaker. The **first answer wins** (oh, opencode interface, browser, CLI); a late answer tells who already decided.
 - Live follow-up, notifications and decisions go through the `ohd` daemon ([`oh daemon`](cli-infra.en.md#oh-daemon)).
 
 | Command | Purpose |
@@ -56,7 +56,7 @@ Lists the v5 sessions: id, project, entry agent, state, pending decisions (badge
 oh session inbox [--json]
 ```
 
-Pending decisions of every session: kind (⏸ ? ! $ ✗), decision id, agent, summary, age.
+Pending decisions of every session: kind (⏸ ? ! $ ✗ ⊘), decision id, agent, summary, age.
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|

@@ -51,7 +51,7 @@ func (s *cardShell) modal() (string, string, []ModalAction) {
 
 func checkpointRows() []SessionRow {
 	now := time.Now()
-	return []SessionRow{{ID: "ses_a", Project: "openhub", Workflow: "ticket", Agent: "orchestrator-dev", State: "waiting", StateIcon: "⏸", Started: now,
+	return []SessionRow{{ID: "ses_a", Project: "openhub", Workflow: "ticket", Agent: "orchestrator-dev", State: "waiting", StateIcon: "◐", Started: now,
 		Timeline:  "✔ cp-1 10:03 → developer (3) → ⏸ cp-2",
 		Decisions: []SessionDecision{{ID: "checkpoint:ses_a:per_2", SessionID: "ses_a", Kind: DecisionKindCheckpoint, Icon: "⏸", Summary: "cp-2 « Commit »", Created: now}}}}
 }

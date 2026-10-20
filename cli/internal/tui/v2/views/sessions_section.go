@@ -3,6 +3,7 @@ package views
 import (
 	"strconv"
 
+	"github.com/datichb/openhub/cli/internal/glyph"
 	"github.com/datichb/openhub/cli/internal/i18n"
 )
 
@@ -57,14 +58,15 @@ func sessionsSection(cfg SessionsSectionConfig, scope SessionsScope, headerKey s
 	return header, items, true
 }
 
-// SessionsBadge renders the mode bar badge: "● 2 ⏸ 1".
+// SessionsBadge renders the mode bar badge: "● 2  ◐ 1" (live sessions, then
+// the decisions that wait; the glyphs of the active and waiting states).
 func SessionsBadge(running, decisions int) string {
 	if running == 0 && decisions == 0 {
 		return ""
 	}
-	s := "● " + strconv.Itoa(running)
+	s := glyph.BadgeRunning + " " + strconv.Itoa(running)
 	if decisions > 0 {
-		s += "  ⏸ " + strconv.Itoa(decisions)
+		s += "  " + glyph.BadgeWaiting + " " + strconv.Itoa(decisions)
 	}
 	return s
 }

@@ -77,7 +77,7 @@ oh run <workflow> (ou « Démarrer » dans la TUI)
   5. Vérification               monde fermé (Attest) : sinon la session ne démarre pas
   6. Session                    créée par l'API (identifiant choisi par oh), prompt initial
   7. Ouverture                  iTerm2 → Terminal.app → tmux → navigateur → terminal courant
-  8. Suivi et décisions         démon ohd : flux, ⏸ ? ! $ ✗, notifications, veille après 5 min
+  8. Suivi et décisions         démon ohd : flux, ⏸ ? ! $ ✗ ⊘, notifications, veille après 5 min
   9. Fin et suite               sorties relevées par oh, suite proposée (next:), jamais lancée seule
 ```
 
@@ -175,7 +175,7 @@ oh ne croit pas l'agent sur parole :
 
 La carte de décision montre la vérification, les preuves, les rapports déposés et les propositions du wiki. Voir [Checkpoints](../reference/checkpoints.fr.md).
 
-Les décisions (⏸ checkpoint, ? question, ! permission, $ budget, ✗ erreur) se prennent depuis n'importe quel client : vue Sessions et boîte « À traiter » de la TUI, `oh session approve|answer|dismiss`, interface opencode ou navigateur. La première réponse gagne. Décision : [ADR-042](./adr/042-checkpoints-headless-decisions.fr.md) (remplace l'[ADR-003](./adr/003-orchestrator-checkpoints.fr.md)).
+Les décisions (⏸ checkpoint, ? question, ! permission, $ budget, ✗ erreur, ⊘ coupe-circuit) se prennent depuis n'importe quel client : vue Sessions et boîte « À traiter » de la TUI, `oh session approve|answer|dismiss`, interface opencode ou navigateur. La première réponse gagne. Décision : [ADR-042](./adr/042-checkpoints-headless-decisions.fr.md) (remplace l'[ADR-003](./adr/003-orchestrator-checkpoints.fr.md)).
 
 ### Rapports et brouillons
 

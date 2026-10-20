@@ -160,7 +160,7 @@ Projets déployés avec une version précédente : retirez les restes (`.opencod
 
 La fenêtre opencode s'ouvre à côté : vous y discutez avec l'agent comme d'habitude. Pendant ce temps, oh suit la session :
 
-- **TUI, vue Sessions** (`sessions` dans l'omnibar) : sessions À traiter, En cours, En veille, Terminées. `t` affiche le flux en direct (agent courant, outils, coût). La barre du bas affiche partout `● N ⏸ M` : sessions vivantes, décisions en attente.
+- **TUI, vue Sessions** (`sessions` dans l'omnibar) : sessions À traiter, En cours, En veille, Terminées. `t` affiche le flux en direct (agent courant, outils, coût). La barre du bas affiche partout `● N ◐ M` : sessions vivantes, décisions en attente.
 - **CLI** :
 
 ```bash
@@ -180,7 +180,7 @@ Quand l'agent a besoin de vous, une décision apparaît : notification système,
 | `⏸` checkpoint | `cp-2 « Commit ou correction »` | `Entree` → fiche → **Décider** : Valider / Corriger d'abord / Autre consigne ; `y` valide | `oh session approve <id>` (`--decision once\|fix\|other\|reject`, `-m "…"`) |
 | `?` question | « Périmètre MVP ? » | `Entree` → formulaire | `oh session answer <id> --field cle=valeur` |
 | `!` permission | `shell npm run e2e` | `y` une fois, `n` refuser, `Entree` pour la fiche | `oh session approve <id> --decision once\|always\|reject` |
-| `$` budget, `✗` erreur | budget de session atteint | `x` classer | `oh session dismiss <id>` |
+| `$` budget, `✗` erreur, `⊘` coupe-circuit | budget de session atteint | `x` classer | `oh session dismiss <id>` |
 
 ```bash
 oh session inbox                 # toutes les decisions en attente

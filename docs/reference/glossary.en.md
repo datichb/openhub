@@ -56,7 +56,7 @@ In team mode, a claim is a ticket assignment: a team member "claims" a ticket to
 
 ### Decision
 
-What a session waits for from the user: ⏸ checkpoint, ? question, ! permission, $ budget, ✗ error or circuit breaker. The first answer wins, wherever it comes from (TUI, opencode, browser, `oh session approve|answer`). Shown in the "To handle" section of the Sessions view and in `oh session inbox`. See [v5 sessions](../guides/sessions-v5.en.md#checkpoints).
+What a session waits for from the user: ⏸ checkpoint, ? question, ! permission, $ budget, ✗ error, ⊘ circuit breaker. The first answer wins, wherever it comes from (TUI, opencode, browser, `oh session approve|answer`). Shown in the "To handle" section of the Sessions view and in `oh session inbox`. See [v5 sessions](../guides/sessions-v5.en.md#checkpoints).
 
 ### Deploy (removed in v5)
 

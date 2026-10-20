@@ -61,7 +61,7 @@ func (f *fakeSessions) decisions() []string {
 func sampleRows() []SessionRow {
 	now := time.Now()
 	return []SessionRow{
-		{ID: "ses_a", Project: "openhub", Workflow: "ticket", Agent: "developer", State: "waiting", StateIcon: "⏸", Started: now,
+		{ID: "ses_a", Project: "openhub", Workflow: "ticket", Agent: "developer", State: "waiting", StateIcon: "◐", Started: now,
 			Decisions: []SessionDecision{{ID: "permission:ses_a:per_1", SessionID: "ses_a", Kind: DecisionKindPermission, Icon: "!", Summary: "shell npm test", Created: now}}},
 		{ID: "ses_b", Project: "api", Agent: "reviewer", State: "active", StateIcon: "●", Started: now},
 		{ID: "ses_c", Project: "api", Agent: "reviewer", State: "sleeping", StateIcon: "◌"},
@@ -191,7 +191,7 @@ func TestQuestionForm(t *testing.T) {
 
 func TestSessionsSectionAndBadge(t *testing.T) {
 	assert.Equal(t, "", SessionsBadge(0, 0))
-	assert.Equal(t, "● 2  ⏸ 1", SessionsBadge(2, 1))
+	assert.Equal(t, "● 2  ◐ 1", SessionsBadge(2, 1))
 	assert.Equal(t, "● 3", SessionsBadge(3, 0))
 
 	_, _, ok := sessionsSection(SessionsSectionConfig{}, SessionsScope{}, "tui.sessions.home_section")
@@ -205,7 +205,7 @@ func TestSessionsSectionAndBadge(t *testing.T) {
 	}
 	header, items, ok := sessionsSection(cfg, SessionsScope{}, "tui.sessions.home_section")
 	require.True(t, ok)
-	assert.Contains(t, header, "● 2  ⏸ 1")
+	assert.Contains(t, header, "● 2  ◐ 1")
 	require.Len(t, items, 2)
 	items[0].Action()
 	items[1].Action()

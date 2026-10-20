@@ -177,7 +177,7 @@ oh session list
 
 ```
 SESSION        PROJET  AGENT             ÉTAT          DÉCISIONS  COÛT    DÉBUT
-ses_2f9c1a7b   my-app  orchestrator-dev  ⏸ en attente  ⏸ 1        $0.042  06/10 10:02
+ses_2f9c1a7b   my-app  orchestrator-dev  ◐ en attente  ⏸ 1        $0.042  06/10 10:02
 ```
 
 La session attend déjà une décision : `cp-1`. Ouvrez la TUI :
@@ -186,7 +186,7 @@ La session attend déjà une décision : `cp-1`. Ouvrez la TUI :
 oh
 ```
 
-La barre du bas affiche `● 1 ⏸ 1` (une session vivante, une décision en attente). Tapez `sessions` puis `Entree` pour ouvrir la **vue Sessions** :
+La barre du bas affiche `● 1 ◐ 1` (une session vivante, une décision en attente). Tapez `sessions` puis `Entree` pour ouvrir la **vue Sessions** :
 
 ```
  Sessions
@@ -194,11 +194,11 @@ La barre du bas affiche `● 1 ⏸ 1` (une session vivante, une décision en att
  ▸ ⏸ ticket · my-app  cp-1 « Démarrer le ticket »
       il y a 1m
  ─ En cours (1)
-   ⏸ ticket · my-app
+   ◐ ticket · my-app
       en attente · orchestrator-dev · $0.04 · 1 décision(s) en attente
  ┌ Détail · ticket · my-app ──────────────────────────────────────┐
  │ ticket · manuel · ⌂ · ~/workspace/my-app · 9f3c1d2e…           │
- │ ⏸ en attente · orchestrator-dev · $0.042 · démarrée il y a 1m  │
+ │ ◐ en attente · orchestrator-dev · $0.042 · démarrée il y a 1m  │
  │ ⏸ cp-1 → ○ cp-2 → ○ cp-3                                       │
  │ ses_2f9c1a7b                                                   │
  └────────────────────────────────────────────────────────────────┘
