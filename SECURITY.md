@@ -174,6 +174,12 @@ MCP server tokens (GitLab, Figma, Jira, Linear, GitHub, Google) are:
 - **No symbolic link.** oh never reads nor writes through a symbolic link in `docs/` or `docs/wiki/`; page paths are relative, without `..` nor hidden components; writes are atomic. The pages and the files they cite are read without ever leaving the project, even when a link is swapped in during the read (`os.Root`).
 - **Remote session.** The daemon of the job (root) serves the wiki of the clone, which belongs to the agents' `oh` account: reads confined to the clone, git reads as the `oh` account. No proposal is applied in the job (`wiki_apply` refused to all, nothing applied at the commit checkpoint); they come back in `wiki.json`, are cleaned, bounded and queued **pending** again on the machine, where the user validates them.
 
+### External data in prompts
+
+- **Data tags named after the content.** What oh computes from an outside source (merge request discussions and branches, ticket brief, project memories) is placed in a `<oh:data-<fingerprint> name="…">…</oh:data-<fingerprint>>` block. The fingerprint is the first 16 hex characters of the SHA-256 of the content: a piece of data cannot spell out its own closing tag, so it cannot leave its block. The name is the same for the same content (prompts stay reproducible). Any `oh:data` tag inside the value, whatever its case, is also neutralised.
+- **`branch` inputs.** They follow the rules of `git check-ref-format --branch`: no space or control character, no `..`, `@{` or `//`, none of the characters `~ ^ : ? * [ \`, no component starting with `.` or ending with `.lock`, 255 bytes at most. A trapped branch is refused when the prompt is rendered. The `review-feedback` workflow gives the branches of the MR inside data blocks.
+- Limit: this helps the model tell data from instructions; it is not a barrier. A piece of data can still try to persuade it; the locks that matter (checkpoints, gateways, container) do not depend on what the model reads.
+
 ### Session limits (I6)
 
 Optional and disabled by default (`oh budget show|set|unset|raise`): maximum active sessions, budget per session and daily budget in USD, memory cap, list of allowed models (enforced by the proxy on the group token). Cascade: workflow (`limits:`) > project > hub > team recommended; a team's enforced value is a ceiling. Budgets are soft ceilings: they are checked at the end of each step, which then raises a `$` decision.

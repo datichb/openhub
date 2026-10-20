@@ -223,12 +223,12 @@ L'id d'une entrée suit `^[a-z][a-z0-9_]*$` (`input_id_invalid`) ; `oh` est rés
 | `int` | entier | entier (`0` par défaut) |
 | `enum` | une des `values` | texte |
 | `path` | chemin, une seule ligne | texte |
-| `branch` | nom de branche, une seule ligne | texte |
+| `branch` | nom de branche, une seule ligne, valide pour `git check-ref-format --branch` (ni espace, ni `..`, `~ ^ : ? * [ \`, `@{` ; 255 octets au plus) | texte |
 | `beads-id` | un id Beads (plusieurs si `picker.multi`) | ids joints par `, ` |
 | `beads-ids` | liste d'ids Beads (`a,b` ou liste YAML) | liste (`join`) |
 
 - **`picker`** : `filter` (ex. `ai-delegated`), `epic` (restreindre à une epic), `multi` (plusieurs tickets). Une entrée `beads-id` avec `multi: true` donne **une session par ticket** (`--tickets a,b`) ; une entrée `beads-ids` reçoit toute la liste dans une seule session.
-- **Contrôles** : un id Beads invalide, ou un `path` / `branch` sur plusieurs lignes, est refusé au rendu. Une valeur ne correspondant pas au type : `session_input_invalid` ; une entrée inconnue : `session_input_unknown` ; un défaut invalide : `input_default_invalid`.
+- **Contrôles** : un id Beads invalide, un `path` sur plusieurs lignes, ou une `branch` que git refuserait, est refusé au rendu. Une valeur ne correspondant pas au type : `session_input_invalid` ; une entrée inconnue : `session_input_unknown` ; un défaut invalide : `input_default_invalid`.
 - **Troncature** (O11) : les valeurs `string`, `text`, `path`, `branch` sont coupées à `max_length` caractères, avec la mention `[… tronqué : N caractères sur M]`.
 - **Entrées calculées** (`from`) : voir [ci-dessous](#entrées-calculées-from).
 - **Patch** : fusion par id, champ par champ (`picker` aussi). Une entrée ne peut pas être retirée.
@@ -293,7 +293,7 @@ prompt:
 - Exactement un des deux (`prompt_both`, `prompt_empty`). Absent : pas de premier message (la session attend l'utilisateur).
 - **Variables** : les entrées au premier niveau (`{{ .ticket }}`) ; le contexte de session sous `.oh` : `.oh.project`, `.oh.location`, `.oh.mode`, `.oh.runtime`, `.oh.lang`, `.oh.workflow`, `.oh.branch`, `.oh.memories` (mémoires persistantes du Beads du projet, `bd remember`, déjà entre balises de données ; vide sans mémoire). Toute autre variable : `prompt_unknown_variable`.
 - **Fonctions** :
-  - `{{ data "request" .request }}` écrit la valeur, tronquée. Une entrée calculée (`from:`) est placée entre `<oh:data name="…">` et `</oh:data>` : l'agent la traite comme une donnée, jamais comme une consigne (une balise contenue dans la valeur est neutralisée). Une entrée saisie par l'utilisateur est écrite telle quelle : c'est sa demande. Toute entrée `string` ou `text` doit passer par `data`.
+  - `{{ data "request" .request }}` écrit la valeur, tronquée. Une entrée calculée (`from:`) est placée entre `<oh:data-<empreinte> name="…">` et `</oh:data-<empreinte>>` (l'empreinte vient du SHA-256 du contenu, donc la valeur ne peut pas fermer son bloc) : l'agent la traite comme une donnée, jamais comme une consigne (une balise contenue dans la valeur est en plus neutralisée). Une entrée saisie par l'utilisateur est écrite telle quelle : c'est sa demande. Toute entrée `string` ou `text` doit passer par `data`.
   - `{{ join .tickets ", " }}` joint une liste.
 - Une entrée absente vaut son défaut, sinon la valeur vide de son type : `{{ if .request }}…{{ end }}` fonctionne.
 - oh termine le prompt par la liste des checkpoints à signaler avant chaque agent verrouillé.

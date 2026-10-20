@@ -223,12 +223,12 @@ An input id follows `^[a-z][a-z0-9_]*$` (`input_id_invalid`); `oh` is reserved f
 | `int` | integer | integer (`0` by default) |
 | `enum` | one of the `values` | text |
 | `path` | path, a single line | text |
-| `branch` | branch name, a single line | text |
+| `branch` | branch name, a single line, valid for `git check-ref-format --branch` (no space, `..`, `~ ^ : ? * [ \`, `@{`; 255 bytes at most) | text |
 | `beads-id` | one Beads id (several with `picker.multi`) | ids joined with `, ` |
 | `beads-ids` | list of Beads ids (`a,b` or YAML list) | list (`join`) |
 
 - **`picker`**: `filter` (e.g. `ai-delegated`), `epic` (restrict to an epic), `multi` (several tickets). A `beads-id` input with `multi: true` gives **one session per ticket** (`--tickets a,b`); a `beads-ids` input receives the whole list in a single session.
-- **Checks**: an invalid Beads id, or a multi-line `path` / `branch`, is refused at render time. A value that does not match the type: `session_input_invalid`; an unknown input: `session_input_unknown`; an invalid default: `input_default_invalid`.
+- **Checks**: an invalid Beads id, a multi-line `path`, or a `branch` that git would refuse, is refused at render time. A value that does not match the type: `session_input_invalid`; an unknown input: `session_input_unknown`; an invalid default: `input_default_invalid`.
 - **Truncation** (O11): `string`, `text`, `path`, `branch` values are cut to `max_length` characters, with the note `[… tronqué : N caractères sur M]`.
 - **Computed inputs** (`from`): see [below](#computed-inputs-from).
 - **Patch**: merged by id, field by field (`picker` too). An input cannot be removed.
@@ -293,7 +293,7 @@ prompt:
 - Exactly one of the two (`prompt_both`, `prompt_empty`). Absent: no first message (the session waits for the user).
 - **Variables**: inputs at the top level (`{{ .ticket }}`); the session context under `.oh`: `.oh.project`, `.oh.location`, `.oh.mode`, `.oh.runtime`, `.oh.lang`, `.oh.workflow`, `.oh.branch`, `.oh.memories` (persistent memories of the project's Beads, `bd remember`, already inside data tags; empty without any). Any other variable: `prompt_unknown_variable`.
 - **Functions**:
-  - `{{ data "request" .request }}` writes the value, truncated. A computed input (`from:`) goes between `<oh:data name="…">` and `</oh:data>`: the agent treats it as data, never as instructions (a tag inside the value is neutralised). An input typed by the user is written as it is: it is their request. Every `string` or `text` input must go through `data`.
+  - `{{ data "request" .request }}` writes the value, truncated. A computed input (`from:`) goes between `<oh:data-<fingerprint> name="…">` and `</oh:data-<fingerprint>>` (the fingerprint comes from the SHA-256 of the content, so the value cannot close its own block): the agent treats it as data, never as instructions (a tag inside the value is also neutralised). An input typed by the user is written as it is: it is their request. Every `string` or `text` input must go through `data`.
   - `{{ join .tickets ", " }}` joins a list.
 - An absent input takes its default, otherwise the empty value of its type: `{{ if .request }}…{{ end }}` works.
 - oh ends the prompt with the list of checkpoints to report before each gated agent.

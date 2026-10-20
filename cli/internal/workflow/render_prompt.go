@@ -1,12 +1,15 @@
 package workflow
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"path"
 	"regexp"
 	"strconv"
 	"strings"
 	"text/template"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -17,12 +20,22 @@ var reBeadsID = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
 // that declares no max_length (O11).
 const DefaultInputMaxLength = 20000
 
-// Data tags delimiting an input in a rendered prompt (O11). The agents are
-// told that the content of these tags is data, never instructions.
-const (
-	dataOpenTag  = "<oh:data"
-	dataCloseTag = "</oh:data>"
-)
+// reDataTag matches a data tag opening or closing, whatever its case (S-34).
+var reDataTag = regexp.MustCompile(`(?i)</?oh:data`)
+
+// dataTagPrefix starts the name of the tags delimiting an input in a rendered
+// prompt (O11). The agents are told that the content of these tags is data,
+// never instructions. The full name carries a fingerprint of the content
+// (see dataTagName).
+const dataTagPrefix = "oh:data-"
+
+// dataTagHexLen is the number of hex digits of the SHA-256 of the content kept
+// in the tag name: 64 bits, out of reach of a search for a content that holds
+// its own closing tag.
+const dataTagHexLen = 16
+
+// MaxBranchLength caps a branch input (git refuses longer path components).
+const MaxBranchLength = 255
 
 // PromptContext is the session context exposed under .oh in prompt
 // templates (see OhVariables).
@@ -88,34 +101,33 @@ func promptFuncs(s *Spec) template.FuncMap {
 	}
 }
 
-// DelimitData wraps value in data tags named name. Tag-like sequences of
-// the value are neutralised so that it cannot close the block.
+// DelimitData wraps value in data tags named name. The tags are named after
+// a fingerprint of the content (S-34): the content cannot hold the closing
+// tag, which it would have to spell out together with its own SHA-256. The
+// fingerprint is a function of the content, so a prompt stays reproducible.
+// Tag-like sequences of the value are neutralised on top of that.
 func DelimitData(name, value string) string {
-	value = neutralise(value)
+	value = strings.TrimRight(neutralise(value), "\n")
+	tag := dataTagName(value)
 	var sb strings.Builder
-	fmt.Fprintf(&sb, "%s name=%q>\n", dataOpenTag, name)
-	sb.WriteString(strings.TrimRight(value, "\n"))
-	sb.WriteString("\n" + dataCloseTag)
+	fmt.Fprintf(&sb, "<%s name=%q>\n", tag, name)
+	sb.WriteString(value)
+	fmt.Fprintf(&sb, "\n</%s>", tag)
 	return sb.String()
 }
 
+// dataTagName is the name of the tags delimiting body: "oh:data-" and the
+// first hex digits of its SHA-256.
+func dataTagName(body string) string {
+	sum := sha256.Sum256([]byte(body))
+	return dataTagPrefix + hex.EncodeToString(sum[:])[:dataTagHexLen]
+}
+
+// neutralise breaks every data tag of v, whatever its case. It matches the
+// text itself, not a lower-cased copy: lower-casing changes the length of
+// some letters (İ), which shifts the offsets.
 func neutralise(v string) string {
-	lower := strings.ToLower(v)
-	if !strings.Contains(lower, "<oh:data") && !strings.Contains(lower, "</oh:data") {
-		return v
-	}
-	var sb strings.Builder
-	for i := 0; i < len(v); {
-		rest := lower[i:]
-		if strings.HasPrefix(rest, "<oh:data") || strings.HasPrefix(rest, "</oh:data") {
-			sb.WriteString("&lt;")
-			i++
-			continue
-		}
-		sb.WriteByte(v[i])
-		i++
-	}
-	return sb.String()
+	return reDataTag.ReplaceAllStringFunc(v, func(m string) string { return "&lt;" + m[1:] })
 }
 
 // ReadPromptSource returns the template of the resolved workflow: the
@@ -266,11 +278,52 @@ func typedInput(name string, in Input, v any) (any, error) {
 	if (in.Type == InputPath || in.Type == InputBranch) && strings.ContainsAny(str, "\r\n") {
 		return nil, fmt.Errorf("input %q: a %s value is a single line", name, in.Type)
 	}
+	if in.Type == InputBranch {
+		if err := ValidateBranchName(str); err != nil {
+			return nil, fmt.Errorf("input %q: %w", name, err)
+		}
+	}
 	limit := in.MaxLength
 	if limit <= 0 {
 		limit = DefaultInputMaxLength
 	}
 	return truncate(str, limit), nil
+}
+
+// ValidateBranchName applies the rules of `git check-ref-format --branch` to
+// a branch input (S-34): the name ends up in prompts and commands. The empty
+// name is accepted (no branch given).
+func ValidateBranchName(b string) error {
+	if b == "" {
+		return nil
+	}
+	bad := func(why string) error { return fmt.Errorf("invalid branch name %q: %s", b, why) }
+	if len(b) > MaxBranchLength {
+		return fmt.Errorf("invalid branch name: longer than %d bytes", MaxBranchLength)
+	}
+	if b == "@" || strings.HasPrefix(b, "-") {
+		return bad("cannot be '@' or start with '-'")
+	}
+	if strings.Contains(b, "..") || strings.Contains(b, "@{") || strings.Contains(b, "//") {
+		return bad("contains '..', '@{' or '//'")
+	}
+	for _, r := range b {
+		switch {
+		case unicode.IsControl(r) || unicode.Is(unicode.Cf, r) || unicode.IsSpace(r):
+			return bad("contains a space or a control character")
+		case strings.ContainsRune("~^:?*[\\", r):
+			return bad(fmt.Sprintf("contains %q", r))
+		}
+	}
+	if strings.HasPrefix(b, "/") || strings.HasSuffix(b, "/") || strings.HasSuffix(b, ".") {
+		return bad("cannot start or end with '/' or end with '.'")
+	}
+	for _, c := range strings.Split(b, "/") {
+		if strings.HasPrefix(c, ".") || strings.HasSuffix(c, ".lock") {
+			return bad("a component cannot start with '.' or end with '.lock'")
+		}
+	}
+	return nil
 }
 
 func textOf(v any) string {
