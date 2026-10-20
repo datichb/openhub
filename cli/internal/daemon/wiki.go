@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
@@ -48,6 +49,17 @@ type WikiApplyRequest struct {
 type WikiProposal struct {
 	ID string `json:"id"`
 	domain.WikiProposal
+	// PreviouslyRefused is set on the answer of a proposal that repeats one
+	// the user refused (same page, same text): the agent is warned, the
+	// proposal is queued all the same.
+	PreviouslyRefused *WikiRefusal `json:"previously_refused,omitempty"`
+}
+
+// WikiRefusal is a refused proposal that a new one repeats.
+type WikiRefusal struct {
+	ID     string     `json:"id"`
+	Reason string     `json:"reason,omitempty"`
+	At     *time.Time `json:"at,omitempty"`
 }
 
 // WikiPageInfo is a page of the index.
@@ -183,7 +195,11 @@ func (d *Daemon) handleWikiPropose(w http.ResponseWriter, r *http.Request) {
 		d.wikiErr(w, err)
 		return
 	}
-	writeJSON(w, http.StatusCreated, wikiView(p))
+	view := wikiView(p)
+	if prior, err := d.opts.Wiki.PriorRefusal(r.Context(), p); err == nil && prior != nil {
+		view.PreviouslyRefused = &WikiRefusal{ID: prior.ID(), Reason: prior.Reason, At: prior.DecidedAt}
+	}
+	writeJSON(w, http.StatusCreated, view)
 }
 
 func (d *Daemon) handleWikiPending(w http.ResponseWriter, r *http.Request) {
@@ -197,6 +213,30 @@ func (d *Daemon) handleWikiPending(w http.ResponseWriter, r *http.Request) {
 		scope = root
 	}
 	list, err := d.opts.Wiki.Open(r.Context(), sess.ProjectID, scope)
+	if err != nil {
+		d.wikiErr(w, err)
+		return
+	}
+	out := make([]WikiProposal, 0, len(list))
+	for _, p := range list {
+		out = append(out, wikiView(p))
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+// handleWikiRefused lists the recent refusals of the project (or of the
+// session): what the agents must not propose again unchanged.
+func (d *Daemon) handleWikiRefused(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	sess, root, ok := d.wikiSession(w, r, q.Get("tool_session"))
+	if !ok {
+		return
+	}
+	scope := ""
+	if q.Get("scope") == "session" {
+		scope = root
+	}
+	list, err := d.opts.Wiki.Refused(r.Context(), sess.ProjectID, scope)
 	if err != nil {
 		d.wikiErr(w, err)
 		return
@@ -288,6 +328,18 @@ func (c *Client) WikiPending(ctx context.Context, toolSession string, sessionOnl
 	}
 	var out []WikiProposal
 	err := c.do(ctx, http.MethodGet, "/wiki/pending?"+q.Encode(), nil, &out)
+	return out, err
+}
+
+// WikiRefused lists the recent refusals of the project (or of the session),
+// with the reason the user gave. A daemon without the route answers 404.
+func (c *Client) WikiRefused(ctx context.Context, toolSession string, sessionOnly bool) ([]WikiProposal, error) {
+	q := url.Values{"tool_session": {toolSession}}
+	if sessionOnly {
+		q.Set("scope", "session")
+	}
+	var out []WikiProposal
+	err := c.do(ctx, http.MethodGet, "/wiki/refused?"+q.Encode(), nil, &out)
 	return out, err
 }
 

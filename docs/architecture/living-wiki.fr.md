@@ -180,7 +180,7 @@ source), met à jour le frontmatter (`updated`, `agents`, `confidence`) et recal
 | `wiki_index` | Index, pages, god nodes calculés par oh, propositions en attente | Tous les agents |
 | `wiki_read(page, section)` | Lecture ciblée d'une page ou d'une section | Tous les agents |
 | `wiki_propose(page, contenu, tag, source[, replaces])` | Met une proposition en file (ajout, ou remplacement d'une ligne : `replaces`, vérifiée à la proposition et à l'application, sinon `stale`) ; fonctionne aussi dans les workflows en lecture seule | Tous les agents |
-| `wiki_pending` | Propositions en attente (projet ou session) | Coordinateurs |
+| `wiki_pending` | Propositions en attente (projet ou session), puis les refus récents avec leur motif | Coordinateurs |
 | `wiki_apply(ids)` | Applique des propositions | **documentarian seulement**, soumis à l'utilisateur |
 | `wiki_check([paths, base, head, since_sync])` | Frontmatter, liens, tags, fraîcheur, arborescence, god nodes ; restreint à un changement : pages concernées et dérive | Tous les agents, `oh wiki check` |
 
