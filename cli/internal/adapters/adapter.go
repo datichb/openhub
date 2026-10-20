@@ -73,6 +73,12 @@ type ServerHandle struct {
 	Password string
 	PID      int
 	Started  time.Time
+
+	// StrictIsolation says that the server runs under the strict isolation
+	// setting (`[execution] strict_isolation`): the user tool configuration is
+	// hidden from it. Attest then refuses what it would otherwise only report
+	// (plugins that the bundle does not bring).
+	StrictIsolation bool
 }
 
 // VisibilityReport is the result of Attest: what the model can actually see.

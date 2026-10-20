@@ -16,8 +16,11 @@ import (
 //   - agents: non-hidden agents ⊆ bundle agents; hidden agents ⊆ system agents ∪ bundle;
 //   - skills: listed skills (the list honours global permission rules) ⊆ bundle skills,
 //     and each agent sees only the skills of its catalogue (AgentDef.Skills);
-//   - MCP: configured servers ⊆ bundle MCP servers.
-func Attest(ctx context.Context, c *Client, b sessionspec.BundleSpec, location string) (adapters.VisibilityReport, error) {
+//   - MCP: configured servers ⊆ bundle MCP servers;
+//   - plugins: under the strict isolation setting, plugins ⊆ the oh plugin and
+//     the bundle plugins, and the plugin list must be readable. Otherwise the
+//     plugins of the user configuration are legitimate and only reported.
+func Attest(ctx context.Context, c *Client, b sessionspec.BundleSpec, location string, strict bool) (adapters.VisibilityReport, error) {
 	rep := adapters.VisibilityReport{Level: sessionspec.IsolationFull}
 
 	agents, err := waitAgents(ctx, c, location)
@@ -86,18 +89,30 @@ func Attest(ctx context.Context, c *Client, b sessionspec.BundleSpec, location s
 	}
 
 	// Plugins loaded from the user's global config also run in oh sessions.
-	// They are reported as warnings: they do not add agents or skills (that is
-	// checked above) but may alter prompts or tools.
-	if plugins, err := c.Plugins(ctx, location); err == nil {
-		allowed := map[string]bool{OhPluginID: true}
-		for _, p := range b.Plugins {
-			allowed[p.ID] = true
+	// They do not add agents or skills (checked above) but may alter prompts
+	// or tools. Under strict isolation the user configuration is hidden from
+	// the server: a plugin that is there anyway is a break of the isolation,
+	// and a plugin list that cannot be read leaves it unchecked (S-11).
+	plugins, err := c.Plugins(ctx, location)
+	if err != nil {
+		if strict {
+			return rep, fmt.Errorf("listing plugins: %w", err)
 		}
-		for _, p := range plugins {
-			if p.Source.Type == "builtin" || allowed[p.ID] {
-				continue
-			}
-			rep.Warnings = append(rep.Warnings, fmt.Sprintf("plugin:%s (%s)", p.ID, p.Source.Path))
+		rep.Warnings = append(rep.Warnings, fmt.Sprintf("plugins:unchecked (GET /api/plugin failed: %v)", err))
+	}
+	allowed := map[string]bool{OhPluginID: true}
+	for _, p := range b.Plugins {
+		allowed[p.ID] = true
+	}
+	for _, p := range plugins {
+		if p.Source.Type == "builtin" || allowed[p.ID] {
+			continue
+		}
+		found := fmt.Sprintf("plugin:%s (%s)", p.ID, p.Source.Path)
+		if strict {
+			rep.Unexpected = append(rep.Unexpected, found)
+		} else {
+			rep.Warnings = append(rep.Warnings, found)
 		}
 	}
 

@@ -582,7 +582,9 @@ func (s *Service) ensureServer(ctx context.Context, dc DaemonClient, req StartRe
 			}
 			slog.Info("runsvc: restarting the container group to mount a new location", "group", gk, "location", req.Location)
 		default:
-			rep, aerr := s.Adapter.Attest(ctx, handle(srv), req.Bundle.Spec, innerPath(prev, req.Location))
+			h := handle(srv)
+			h.StrictIsolation = req.IsolateUserConfig
+			rep, aerr := s.Adapter.Attest(ctx, h, req.Bundle.Spec, innerPath(prev, req.Location))
 			if aerr == nil && rep.OK() {
 				return srv, true, rep, prev, nil
 			}
@@ -702,6 +704,7 @@ func (s *Service) startServer(ctx context.Context, dc DaemonClient, req StartReq
 		s.abandonServer(ctx, dc, srv)
 		return nil, adapters.VisibilityReport{}, nil, err
 	}
+	h.StrictIsolation = req.IsolateUserConfig
 	rep, err := s.Adapter.Attest(ctx, h, req.Bundle.Spec, innerPath(pg, req.Location))
 	if err != nil {
 		s.abandonServer(ctx, dc, srv)

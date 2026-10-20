@@ -142,7 +142,7 @@ Removed in v5 (ignored if still in the file): `[opencode] version`, `channel`, `
 | | `engine` | `auto` | Container engine |
 | | `keep_images` | `2` | Images kept per project and role (base, dev) |
 | | `tool_version` | empty | opencode version of the images; when it differs from the machine client, container launches are refused |
-| | `strict_isolation` | `false` | Also hides the personal opencode configuration (`XDG_CONFIG_HOME`) from local servers |
+| | `strict_isolation` | `false` | Also hides the personal opencode configuration (`XDG_CONFIG_HOME`) from local servers; `Attest` then refuses any plugin the bundle does not bring (without it: a warning only) |
 | `[fanout]` | `experimental` | `false` | Enables the fan-out, **experimental** (R6): without it, `oh run implement-spec -i fanout=true` is refused and the daemon delegates no checkpoint of a child ([guide](../guides/fan-out.en.md)) |
 | | `parallel` | `1` | Child sessions at the same time (1 to 3; at most the `fanout.parallel` of the workflow) |
 | | `budget_usd` | `10` | Global budget of a parent session and all its sessions (children, merger), in dollars (F-04) |
