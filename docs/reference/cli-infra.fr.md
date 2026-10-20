@@ -126,6 +126,8 @@ oh export [--output <chemin>]
 
 Archive `.tar.gz` contenant `oh.db`, `hub.toml` et `secrets.enc` (chiffré), avec un fichier de somme de contrôle SHA-256.
 
+La base est archivée à partir d'une copie cohérente (`VACUUM INTO`, WAL inclus), et non depuis `oh.db` lui-même : les écritures pas encore reportées de `oh.db-wal` dans `oh.db` figurent dans l'archive, et une base en cours d'utilisation n'est pas perturbée. Si la copie échoue (base corrompue), le fichier est archivé tel quel, avec un avertissement. `oh import` restaure `oh.db` et supprime les fichiers `oh.db-wal` / `oh.db-shm` laissés par la base qu'il remplace.
+
 | Flag | Court | Type | Description |
 |------|-------|------|-------------|
 | `--output` | `-o` | string | Chemin de sortie (défaut : `./oh-backup-<date>.tar.gz`) |

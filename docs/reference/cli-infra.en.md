@@ -126,6 +126,8 @@ oh export [--output <path>]
 
 `.tar.gz` archive holding `oh.db`, `hub.toml` and `secrets.enc` (encrypted), with a SHA-256 checksum file.
 
+The database is archived from a consistent copy (`VACUUM INTO`, WAL included), not from `oh.db` itself: the writes not yet checkpointed into `oh.db-wal` are in the archive, and a database in use is not disturbed. If the copy fails (corrupted database), the file is archived as is, with a warning. `oh import` restores `oh.db` and removes the `oh.db-wal` / `oh.db-shm` files left by the database it replaces.
+
 | Flag | Short | Type | Description |
 |------|-------|------|-------------|
 | `--output` | `-o` | string | Output path (default: `./oh-backup-<date>.tar.gz`) |

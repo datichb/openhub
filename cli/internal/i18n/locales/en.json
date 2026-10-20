@@ -3050,6 +3050,7 @@
   "board.pool_claimed": "Ticket claimed: %s",
   "board.pool_claim_failed": "Claim failed: %s",
   "cmd.export.flag.overwrite": "Overwrite existing data without confirmation",
+  "cmd.export.snapshot_failed": "Consistent copy of the database impossible (%v): archiving the file as is, recent writes still in the WAL may be missing.",
   "cmd.export.flag.merge": "Merge with existing data (projects only)",
   "cmd.init.wizard_intro": "This wizard will configure the essential elements:",
   "cmd.init.wizard_title": "Initial setup",

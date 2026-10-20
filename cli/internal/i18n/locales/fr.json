@@ -3050,6 +3050,7 @@
   "board.pool_claimed": "Ticket récupéré : %s",
   "board.pool_claim_failed": "Récupération échouée : %s",
   "cmd.export.flag.overwrite": "Écraser les données existantes sans confirmation",
+  "cmd.export.snapshot_failed": "Copie cohérente de la base impossible (%v) : archivage du fichier tel quel, les écritures récentes encore dans le WAL peuvent manquer.",
   "cmd.export.flag.merge": "Fusionner avec les données existantes (projets uniquement)",
   "cmd.init.wizard_intro": "Ce wizard va configurer les éléments essentiels :",
   "cmd.init.wizard_title": "Configuration initiale",
