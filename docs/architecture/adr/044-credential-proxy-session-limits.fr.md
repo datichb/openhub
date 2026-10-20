@@ -66,9 +66,13 @@ La config rendue refuse `provider.use` pour tout fournisseur autre que celui de 
 - Restrictions disponibles : sessions actives max, budget par session et budget journalier en USD, plafond mémoire, liste de modèles.
 - **Cascade** : workflow (`limits.budget_usd`, `limits.models`) > projet > hub (`[limits]`) > équipe recommandé. L'imposé d'équipe est un plafond.
 - **Registre d'usage** (migration v40) : `usage_sessions` (par jour et par session, avec la session racine, pour compter le coût des sous-agents), `usage_proxy`, `budget_extra` (relèvements).
-- **Dépassement**, contrôlé par le démon en fin d'étape :
-  - une décision `$` est levée : relever, arrêter ou classer ;
-  - une étape qui démarre pendant qu'une décision `$` est ouverte est interrompue.
+- **Dépassement**, contrôlé par le démon dès qu'il est vu (audit v5 F-04, S-27), pas seulement en fin d'étape racine, qui peut déléguer à une douzaine de sous-agents :
+  - quand l'usage d'une session de sous-agent change ou que le sous-agent se termine, et quand le proxy demande (`Gate`) avant de relayer une requête de modèle ;
+  - une décision `$` est levée : relever, arrêter ou classer (une décision classée revient à la fin de l'étape, pas entre-temps) ;
+  - une étape ou un sous-agent qui démarre pendant qu'une décision `$` est ouverte est interrompu, et les requêtes de modèle de la session sont refusées (402) ; l'étape est marquée comme interrompue par le budget (pas de décision d'erreur) et reprend une fois la décision traitée.
+- **Réservation** : une requête de modèle réserve, pendant qu'elle s'exécute, une estimation par excès (entrée d'après la taille de la requête, sortie d'après `max_tokens`, aux tarifs des modèles les plus chers, au plus un dixième du budget) ; celle qui dépasserait le budget avec les requêtes en cours est refusée (429, `Retry-After`) jusqu'à leur fin. Une requête seule n'est jamais refusée pour son estimation. Les réservations vivent en mémoire dans le démon (pas de migration) ; le budget de jetons d'un jeton (`MaxTokens`) réserve de même dans le proxy.
+- **Comptage** : le proxy compte les jetons de cache (lecture et écriture : Anthropic, Bedrock, OpenAI, OpenRouter), à part de l'entrée ; ils comptent dans le budget de jetons et vont au registre du proxy comme jetons d'entrée. Une réponse coupée avant sa fin compte ce qui a été vu, sinon une estimation par excès (`Usage.Estimated`, non persisté). Le coût en dollars reste celui que l'outil indique : oh n'a pas de grille de prix, les tarifs ci-dessus ne servent qu'aux réservations.
+- **Modèles autorisés** vérifiés au lancement : quand une liste est définie, un agent dont le modèle résolu n'en fait pas partie fait échouer le lancement avant tout démarrage, en nommant l'agent et le modèle.
 - Au-delà du nombre de sessions actives ou du plafond mémoire, le premier prompt est mis en file. Budget journalier épuisé : nouvelle session refusée.
 - Commandes : `oh budget show|set|unset|raise`, section Restrictions des réglages TUI, contrôle Doctor.
 
@@ -90,7 +94,7 @@ Le démon tourne dans le processus d'oh : le proxy s'arrête quand oh quitte, et
 - En local, l'agent tourne sous le compte de l'utilisateur : il peut lire le trousseau ou lancer `oh` (documenté dans `SECURITY`). Le mot de passe des serveurs reste en clair dans `oh.db`.
 - Un jeton par groupe : le coût par session vient de ce que rapporte opencode, pas du proxy.
 - Les budgets sont des **plafonds souples** :
-  - contrôlés en fin d'étape, une étape peut dépasser ;
+  - contrôlés à chaque requête de modèle et à chaque usage d'un sous-agent, sur le coût que l'outil indique un instant après : une requête en cours n'est pas coupée et une requête seule peut dépasser ; le coût d'une réponse coupée avant sa fin n'est compté qu'en jetons ;
   - un fork recompte le coût de l'historique copié ;
   - le plafond mémoire ne compte pas les conteneurs ;
   - deux lancements simultanés peuvent dépasser le maximum de sessions actives.

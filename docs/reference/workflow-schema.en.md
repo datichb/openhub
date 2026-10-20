@@ -147,7 +147,7 @@ limits:
 ```
 
 - Adds up with the I6 restrictions of the hub, the team and the project (`oh budget show`): the most specific value wins (workflow > project > hub > team recommendation); a value enforced by the team stays a ceiling. See [ADR-044](../architecture/adr/044-credential-proxy-session-limits.en.md).
-- `budget_usd`: soft cap, checked between two steps; beyond it, a `$` decision asks to raise it or stop. Negative value: `negative_value`.
+- `budget_usd`: soft cap, checked at each model request and each subagent usage; beyond it, a `$` decision asks to raise it or stop. Negative value: `negative_value`.
 - `models`: patterns on the id sent to the provider; the credential proxy refuses the others. An empty pattern: `field_required`.
 - `max_fix_rounds`: cap on the fix rounds (developer → reviewer) per ticket. It is an instruction, written in the « Mode de workflow » section of the generated skills (« Au plus N tours de correction… ; au-delà, passe le checkpoint de commit en signalant les points non résolus. »), **and a lock** (R3): oh counts the developer → reviewer pairs of the current ticket; past the cap, it refuses delegations to the `developer*` agents and marks the commit checkpoint "unresolved", until the user gives an instruction at that checkpoint or the ticket is closed ([Checkpoints](checkpoints.en.md#fix-rounds-limit-limitsmax_fix_rounds)). `0` or absent: no cap. A layer may only lower it (`loosening` otherwise). Negative value: `negative_value`. The hub `ticket`, `implement-spec` and `review-feedback` workflows set `3`.
 

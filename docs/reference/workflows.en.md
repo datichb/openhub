@@ -603,7 +603,7 @@ limits:
 ```
 
 - Both are optional and add to the hub, team and project restrictions (`oh budget show`, guide [Sessions v5](../guides/sessions-v5.en.md#restrictions)). The most specific value wins; a value enforced by the team is a ceiling.
-- `budget_usd` is a soft cap on the cost the tool reports for the session and its subagents: the step that overruns it finishes, then a `$` decision asks to raise the budget or stop.
+- `budget_usd` is a soft cap on the cost the tool reports for the session and its subagents: as soon as it is overrun (a subagent spends, a model request), a `$` decision asks to raise the budget or stop, and the session's next requests are refused until it is answered.
 - `models` applies to the model id sent to the provider (Bedrock: `eu.anthropic.…`); the credential proxy refuses the others.
 - With `extends`, a workflow may only tighten them: a lower budget, and models covered by the parent's patterns.
 

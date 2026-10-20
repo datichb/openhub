@@ -66,9 +66,13 @@ The rendered config refuses `provider.use` for any provider other than the sessi
 - Available restrictions: maximum active sessions, per-session and daily budget in USD, memory ceiling, model list.
 - **Cascade**: workflow (`limits.budget_usd`, `limits.models`) > project > hub (`[limits]`) > team recommended. Team enforced values are a ceiling.
 - **Usage registry** (migration v40): `usage_sessions` (per day and per session, with the root session, to count sub-agent cost), `usage_proxy`, `budget_extra` (raises).
-- **Overrun**, checked by the daemon at the end of a step:
-  - a `$` decision is raised: raise, stop or dismiss;
-  - a step that starts while a `$` decision is open is interrupted.
+- **Overrun**, checked by the daemon as soon as it is seen (audit v5 F-04, S-27), not only at the end of a root step, which may delegate to a dozen subagents:
+  - when the usage of a subagent session changes or the subagent ends, and when the proxy asks (`Gate`) before relaying a model request;
+  - a `$` decision is raised: raise, stop or dismiss (a dismissed decision comes back at the end of the step, not meanwhile);
+  - a step or subagent that starts while a `$` decision is open is interrupted, and the model requests of the session are refused (402); the step is marked as interrupted by the budget (no error decision) and resumes once the decision is answered.
+- **Reservation**: a model request reserves an estimate that errs high (input from the request size, output from `max_tokens`, at the prices of the dearest models, at most a tenth of the budget) while it runs; one that would pass the budget with the requests in flight is refused (429, `Retry-After`) until they are over. A request alone is never refused for its estimate. The reservations live in the daemon memory (no migration); the token budget of a grant (`MaxTokens`) reserves the same way in the proxy.
+- **Counting**: the proxy counts the cache tokens (read and write: Anthropic, Bedrock, OpenAI, OpenRouter), kept apart from the input; they count in the token budget and go to the proxy ledger as input tokens. A response cut before its end counts what was seen, else an estimate that errs high (`Usage.Estimated`, not persisted). The dollar cost remains the one the tool reports: oh has no price list, the rates above are used for reservations only.
+- **Allowed models** are checked at launch: when a list is set, an agent whose resolved model is outside it makes the launch fail before anything starts, naming the agent and the model.
 - Beyond the number of active sessions or the memory ceiling, the first prompt is queued. Daily budget spent: new session refused.
 - Commands: `oh budget show|set|unset|raise`, Restrictions section of the TUI settings, Doctor check.
 
@@ -90,7 +94,7 @@ The daemon runs inside the oh process: the proxy stops when oh exits, and groups
 - Locally, the agent runs under the user's account: it can read the keychain or run `oh` (documented in `SECURITY`). The servers' password stays in clear text in `oh.db`.
 - One token per group: per-session cost comes from what opencode reports, not from the proxy.
 - Budgets are **soft ceilings**:
-  - checked at the end of a step, a step can overrun;
+  - checked at each model request and subagent usage on the cost the tool reports a moment later: a request in flight is not cut and a request alone may overrun; the cost of a response cut before its end is only counted in tokens;
   - a fork counts the cost of the copied history again;
   - the memory ceiling does not count containers;
   - two simultaneous launches can exceed the maximum number of active sessions.
