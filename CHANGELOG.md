@@ -9,6 +9,15 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Fixed — Budgets (lot v5-fix-l, audit v5 F-04 et S-27)
+
+- ⚠ **La décision `$` est levée dès que le dépassement est vu**, et non plus seulement à la fin de l'étape racine. Il suffit de l'usage ou de la fin d'un sous-agent, ou d'une requête de modèle au proxy. Les requêtes suivantes sont refusées (402) jusqu'à la réponse, puis l'étape interrompue reprend (F-04).
+- **Comptage complet du proxy** (S-27) : jetons de cache en lecture et en écriture (Anthropic, Bedrock, OpenAI, OpenRouter). Une réponse coupée avant son message d'usage compte ce qui a été vu, ou une estimation par excès.
+- **Réservation des requêtes concurrentes** : chaque requête réserve une estimation, plafonnée à un dixième du budget. Si elle dépasse le budget avec les requêtes en cours, elle reçoit un 429 avec `Retry-After`. Une requête seule n'est jamais refusée pour son estimation.
+- **Plafond de jetons des évals pondéré par le prix relatif** : sortie ×5, lecture de cache ×0,1, écriture ×1,25, en jetons équivalent entrée. Il suit désormais le coût réel, au lieu de n'en couvrir que 10 % (soit environ 7 fois le budget autorisé).
+- **Sous-agents relus au resync** (redémarrage du démon, flux perdu) : un sous-agent dont la fin a été manquée n'est plus perdu, seule la différence est ajoutée, et le budget est réévalué.
+- **Modèles vérifiés au lancement** : quand `limits.models` est définie, une session dont un agent résout vers un modèle hors liste échoue avant de démarrer, y compris en `--headless`.
+
 ### Security — petits constats de l'audit v5 (lot v5-fix-sec)
 
 - ⚠ **Balises de données des prompts** (S-34) :
