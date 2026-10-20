@@ -63,6 +63,7 @@ func ohCommandPatterns(words ...string) []string {
 // trusts or his personal settings, which a prompt-injected agent could
 // otherwise use to approve a malicious MCP URL (`mcp trust`), swap a model, a
 // token or a workflow setting for its own: the secrets (`secrets set|delete`),
+// a secret read in clear or the cleanup of the keychain (`secrets get|cleanup`),
 // the MCP services (`mcp enable|disable|reset`), the language and the web
 // search (`config language|websearch`) and the restrictions of the sessions
 // (`budget set|unset|raise`: an agent would lift its own limit). Reads (`mcp
@@ -77,7 +78,7 @@ var ohControlDeny = func() []string {
 		{"config", "set"}, {"config", "unset"},
 		{"config", "model", "default"}, {"config", "model", "family"}, {"config", "model", "agent"}, {"config", "model", "unset"},
 		{"service", "setup"}, {"service", "remove"},
-		{"secrets", "set"}, {"secrets", "delete"},
+		{"secrets", "set"}, {"secrets", "delete"}, {"secrets", "get"}, {"secrets", "cleanup"},
 		{"mcp", "enable"}, {"mcp", "disable"}, {"mcp", "reset"},
 		{"config", "language"}, {"config", "websearch"},
 		{"budget", "set"}, {"budget", "unset"}, {"budget", "raise"},

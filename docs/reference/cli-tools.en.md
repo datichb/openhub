@@ -297,6 +297,8 @@ Secrets stored in the system keychain (or, as a fallback, in an encrypted file `
 | `oh secrets delete <key>` | `--global`, `--project <id>` | Deletes a secret from the keychain |
 | `oh secrets cleanup` | `--dry-run` | Removes orphaned keychain entries (absent from the secrets index); `--dry-run`: show them without deleting |
 
+`oh secrets set`, `get`, `delete` and `cleanup` are refused to the agents' shell (global guard): only the user runs them, from their terminal.
+
 ```bash
 oh secrets set openhub.mcp.gitlab.token
 oh secrets set openhub.mcp.gitlab.token --project t-sru-b267fbf1
