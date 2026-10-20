@@ -121,6 +121,30 @@ type grantState struct {
 	rateLimited int
 	// reserved is the token budget (input-equivalent) held by the requests in flight.
 	reserved float64
+	// revoked ends when the token is revoked: the requests in flight are
+	// cut with it (audit v5, S-28), a stream would otherwise go on for
+	// minutes with a credential that no longer exists. cancel ends it.
+	revoked context.Context
+	cancel  context.CancelFunc
+}
+
+// bind ties a request to the life of the token: the returned request is
+// cancelled when the token is revoked, as well as when the client goes
+// away. Call stop when the request is over.
+func (g *grantState) bind(r *http.Request) (*http.Request, func()) {
+	if g.revoked == nil {
+		return r, func() {}
+	}
+	ctx, cancel := context.WithCancel(r.Context())
+	stop := context.AfterFunc(g.revoked, cancel)
+	return r.WithContext(ctx), func() { stop(); cancel() }
+}
+
+// end revokes the grant state: its requests in flight are cancelled.
+func (g *grantState) end() {
+	if g.cancel != nil {
+		g.cancel()
+	}
 }
 
 // Proxy is a local HTTP proxy. Routes: /<provider>/... → upstream /... .
@@ -396,6 +420,12 @@ func (p *Proxy) IssueWithHash(hash string, g Grant) error {
 		prev.mu.Lock()
 		st.usage = prev.usage
 		prev.mu.Unlock()
+		// The same token continues: revoking it also cuts the requests
+		// still running on the state it replaces.
+		st.revoked, st.cancel = prev.revoked, prev.cancel
+	}
+	if st.revoked == nil {
+		st.revoked, st.cancel = context.WithCancel(context.Background())
 	}
 	p.byToken[hash] = st
 	p.mu.Unlock()
@@ -413,19 +443,28 @@ func (p *Proxy) Has(ref string) bool {
 // Revoke invalidates a token (or token hash).
 func (p *Proxy) Revoke(ref string) {
 	p.mu.Lock()
+	g := p.byToken[RefHash(ref)]
 	delete(p.byToken, RefHash(ref))
 	p.mu.Unlock()
+	if g != nil {
+		g.end() // the streams in flight are cut
+	}
 }
 
 // RevokeSession invalidates every token of a session.
 func (p *Proxy) RevokeSession(sessionID string) {
+	var ended []*grantState
 	p.mu.Lock()
 	for t, g := range p.byToken {
 		if g.SessionID == sessionID {
 			delete(p.byToken, t)
+			ended = append(ended, g)
 		}
 	}
 	p.mu.Unlock()
+	for _, g := range ended {
+		g.end() // the streams in flight are cut
+	}
 }
 
 // Usage returns the usage accounted to a token (or token hash).
@@ -555,6 +594,10 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "credproxy: invalid session token", http.StatusUnauthorized)
 		return
 	}
+	// A revoked token ends this request too (the stream, the wait for the
+	// provider), not only the next ones.
+	r, unbind := g.bind(r)
+	defer unbind()
 
 	escapedRest, _ := strings.CutPrefix(r.URL.EscapedPath(), "/"+provider+"/")
 	pathModel, err := parsePath(provider, r.Method, escapedRest)
