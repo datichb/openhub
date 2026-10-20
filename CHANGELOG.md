@@ -9,6 +9,20 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Fixed — CI verte et tests indépendants de la machine (lot ci-fix)
+
+- **CI** :
+  - le job Go s'exécute en bash sur les trois systèmes ; la boucle de préparation cassait sous PowerShell ;
+  - fins de ligne LF sous Windows ;
+  - délai de test de 40 minutes, au lieu des 10 par défaut qui coupaient `internal/bundle` sous `-race` ;
+  - seuil de couverture vérifié sans `bc`.
+- **Job d'intégration** : opencode est épinglé (2.0.25, paquet npm vérifié par SHA-256, version déclarée une seule fois). **Les tests e2e et les évals restent locaux et manuels** : aucune clé de modèle dans les secrets de la CI (audit A-06, partiel).
+- **Tests** :
+  - leur configuration git ne dépend plus de la machine (identité factice, branche `main`) ;
+  - quatre courses corrigées : rechargement MCP, sélecteur Beads, vérification de checkpoint distante, `procinfo` sous dash ;
+  - quand le serveur démarre tard, l'erreur nomme l'agent attendu.
+- **Non-régression sur les secrets** : de faux identifiants placés dans l'environnement n'atteignent ni le serveur opencode, ni le shell des agents, ni le conteneur, ni le job distant, quelle que soit la valeur de `execution.env_allow` pour les identifiants gérés par oh. `oh doctor` avertit des motifs larges.
+
 ### Security — Restes techniques (lot tech-leftovers)
 
 - ⚠ **Le proxy ne relaie plus tels quels les en-têtes et la query de l'agent** (S-28). Seuls passent, pour chaque fournisseur, ceux qu'envoient les vrais clients (`anthropic-version`, `anthropic-beta`, `HTTP-Referer`…) et les paramètres prévus par la route (`beta=true`). Un en-tête personnalisé ajouté aux options du fournisseur d'opencode est retiré ; son nom est journalisé au niveau debug.
