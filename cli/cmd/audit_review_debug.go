@@ -52,7 +52,9 @@ func workflowInputValues(cmd *cobra.Command, workflowID, input string) []string 
 	if err != nil {
 		c = workflowsvc.Context{}
 	}
-	res, err := newWorkflowService(nil).Resolve(ctxOf(cmd), c, workflowID, workflowsvc.ResolveOpts{})
+	// Without newWorkflowService: no detection of the tool for a help or a completion.
+	svc := &workflowsvc.Service{HubDir: findHubDir(), HubWorkflowsDir: os.Getenv(workflowsDirEnv), TeamState: workflowTeamState}
+	res, err := svc.Resolve(ctxOf(cmd), c, workflowID, workflowsvc.ResolveOpts{})
 	if err != nil || res == nil || res.Spec == nil {
 		return nil
 	}
