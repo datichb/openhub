@@ -111,6 +111,10 @@ type Options struct {
 	// daemon stops (in-process daemon: the proxy ends with the oh process,
 	// the servers could not reach their provider any more).
 	StopServersOnExit bool
+	// ProxyHeaderTimeout is how long the credential proxy waits for a model
+	// provider to start answering (0 = credproxy.DefaultResponseHeaderTimeout,
+	// 5 minutes). The streams have no total limit.
+	ProxyHeaderTimeout time.Duration
 	// Capability guards the routes that hand out access or stop sessions
 	// (LoadCapability; "" = unguarded).
 	Capability string
@@ -147,6 +151,13 @@ type Daemon struct {
 	listener net.Listener
 	http     *http.Server
 
+	// The state is split by lock (audit v5, A-04): each group of fields has
+	// the mutex named in its comment. usageMu, memMu, tokenMu and driverMu
+	// are leaf locks, held only around a field or map access: never while
+	// taking another lock or calling out (store, proxy, tool). The groups
+	// are independent, no operation needs two of them at once.
+
+	// wmu guards watchers.
 	wmu      sync.Mutex
 	watchers map[string]*watcher
 	watchWG  sync.WaitGroup // the running watchers (stopWatchers waits for them)
@@ -155,35 +166,50 @@ type Daemon struct {
 	feed         *hub
 	notes        *notifier
 
-	mu          sync.Mutex
-	clients     map[string]client
-	verified    map[string]bool // "group#pid" → authenticated as our server
-	verifyFails map[string]int  // "group#pid" → consecutive failed checks
-	policies    map[string]QuitPolicy
-	pending     map[string]domain.ProxyGrant
-	lastBusy    time.Time
-	stop        chan struct{}
-	restored    chan struct{} // closed once the persisted grants are restored
-	stopOnce    sync.Once
-	started     time.Time
-	// prevProxyPort is the proxy port of the previous daemon when it could
-	// not be bound again (0 = unchanged).
-	prevProxyPort int
-	// drivers are the last starts of a fan-out driver by session (p6-debts).
-	drivers      map[string]time.Time
-	ledger       ledger
-	reservations budgetReservations           // dollars held by the model requests in flight (F-04)
-	memoryMB     int                          // memory used by the ready servers (last measure)
-	memoryOver   bool                         // above the cap at the last pass (warned)
-	queuedGroups map[string]bool              // groups holding queued sessions (never sleep)
-	periodicBusy bool                         // the periodic task has work (remote sessions)
-	proxyUsage   map[string]domain.ProxyUsage // proxy traffic not flushed yet, by group
-	sigMu        sync.Mutex
-	sigCache     map[string]credproxy.Auth // SigV4 signers by profile/region
-	kick         chan struct{}
+	// usageMu guards proxyUsage, written at every proxy request.
+	usageMu    sync.Mutex
+	proxyUsage map[string]domain.ProxyUsage // proxy traffic not flushed yet, by group
+	// memMu guards memoryMB and memoryOver.
+	memMu      sync.Mutex
+	memoryMB   int  // memory used by the ready servers (last measure)
+	memoryOver bool // above the cap at the last pass (warned)
+	// tokenMu guards wfTokens.
+	tokenMu sync.Mutex
 	// wfTokens are the tokens handed to the workflow MCP servers the
 	// daemon runs itself (gateway, container): hash → server group.
 	wfTokens map[string]string
+	// driverMu guards drivers.
+	driverMu sync.Mutex
+	// drivers are the last starts of a fan-out driver by session (p6-debts).
+	drivers map[string]time.Time
+	// sigMu guards sigCache.
+	sigMu    sync.Mutex
+	sigCache map[string]credproxy.Auth // SigV4 signers by profile/region
+
+	// mu guards the supervision state: clients, verified, verifyFails,
+	// policies, pending, lastBusy, queuedGroups and periodicBusy.
+	mu           sync.Mutex
+	clients      map[string]client
+	verified     map[string]bool // "group#pid" → authenticated as our server
+	verifyFails  map[string]int  // "group#pid" → consecutive failed checks
+	policies     map[string]QuitPolicy
+	pending      map[string]domain.ProxyGrant
+	lastBusy     time.Time
+	queuedGroups map[string]bool // groups holding queued sessions (never sleep)
+	periodicBusy bool            // the periodic task has work (remote sessions)
+
+	// Set at startup, then read only (or closed once).
+	stop     chan struct{}
+	restored chan struct{} // closed once the persisted grants are restored
+	stopOnce sync.Once
+	started  time.Time
+	kick     chan struct{}
+	// prevProxyPort is the proxy port of the previous daemon when it could
+	// not be bound again (0 = unchanged).
+	prevProxyPort int
+
+	ledger       ledger             // has its own lock
+	reservations budgetReservations // dollars held by the model requests in flight (F-04); has its own lock
 }
 
 type stateFile struct {
@@ -221,6 +247,7 @@ func Run(ctx context.Context, opts Options) error {
 	defer unlock()
 
 	d := &Daemon{opts: opts, proxy: credproxy.New(), pending: map[string]domain.ProxyGrant{}, clients: map[string]client{}, verified: map[string]bool{}, verifyFails: map[string]int{}, policies: map[string]QuitPolicy{}, watchers: map[string]*watcher{}, feed: newHub(), lastBusy: time.Now(), started: time.Now(), stop: make(chan struct{}), restored: make(chan struct{}), sigCache: map[string]credproxy.Auth{}, ledger: ledger{last: map[string]adapters.SessionResult{}}, kick: make(chan struct{}, 1)}
+	d.proxy.SetResponseHeaderTimeout(opts.ProxyHeaderTimeout)
 	d.proxy.Hooks = d.hooksHandler()
 	d.proxy.OnUsage = d.onProxyUsage
 	d.proxy.Gate = d.admitModel

@@ -61,12 +61,12 @@ const wfTokenPrefix = "ohw_"
 // the daemon (valid while the daemon lives).
 func (d *Daemon) workflowToken(group string) string {
 	tok := wfTokenPrefix + strings.TrimPrefix(credproxy.NewToken(), credproxy.TokenPrefix)
-	d.mu.Lock()
+	d.tokenMu.Lock()
 	if d.wfTokens == nil {
 		d.wfTokens = map[string]string{}
 	}
 	d.wfTokens[credproxy.TokenHash(tok)] = group
-	d.mu.Unlock()
+	d.tokenMu.Unlock()
 	return tok
 }
 
@@ -78,9 +78,9 @@ func (d *Daemon) workflowOwner(r *http.Request) (string, bool) {
 		return "", false
 	}
 	if strings.HasPrefix(tok, wfTokenPrefix) {
-		d.mu.Lock()
+		d.tokenMu.Lock()
 		g, ok := d.wfTokens[credproxy.TokenHash(tok)]
-		d.mu.Unlock()
+		d.tokenMu.Unlock()
 		return g, ok
 	}
 	if d.proxy == nil {

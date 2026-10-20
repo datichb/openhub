@@ -165,18 +165,45 @@ func HookOwner(r *http.Request) string {
 	return s
 }
 
+// Timeouts of the connection to the providers. There is deliberately no
+// timeout on the whole request or on the body: a model stream may run for
+// a long time. Only the wait for the start of the answer is bounded.
+const (
+	// DefaultResponseHeaderTimeout is how long the proxy waits, once the
+	// request is sent, for the provider to start answering (the headers). It
+	// is generous: a slow model, or a request that is not streamed, answers
+	// after minutes (audit v5, A-04). Without a bound, a provider that never
+	// answers holds the request, its reservation and the agent forever.
+	DefaultResponseHeaderTimeout = 5 * time.Minute
+	// TLSHandshakeTimeout bounds the TLS handshake with a provider.
+	TLSHandshakeTimeout = 10 * time.Second
+	// IdleConnTimeout closes a provider connection left idle.
+	IdleConnTimeout = 90 * time.Second
+)
+
 // New returns an unstarted proxy.
 func New() *Proxy {
 	return &Proxy{
 		byToken: map[string]*grantState{},
 		client: &http.Transport{
-			Proxy:               http.ProxyFromEnvironment,
-			ForceAttemptHTTP2:   true,
-			MaxIdleConns:        32,
-			IdleConnTimeout:     90 * time.Second,
-			TLSHandshakeTimeout: 10 * time.Second,
+			Proxy:                 http.ProxyFromEnvironment,
+			ForceAttemptHTTP2:     true,
+			MaxIdleConns:          32,
+			IdleConnTimeout:       IdleConnTimeout,
+			TLSHandshakeTimeout:   TLSHandshakeTimeout,
+			ResponseHeaderTimeout: DefaultResponseHeaderTimeout,
 		},
 	}
+}
+
+// SetResponseHeaderTimeout changes how long the proxy waits for a provider
+// to start answering (d <= 0 keeps DefaultResponseHeaderTimeout). Call it
+// before Start.
+func (p *Proxy) SetResponseHeaderTimeout(d time.Duration) {
+	if d <= 0 {
+		d = DefaultResponseHeaderTimeout
+	}
+	p.client.ResponseHeaderTimeout = d
 }
 
 // Start listens on addr ("127.0.0.1:0" for a free local port).
@@ -630,6 +657,12 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			if errors.Is(err, errAuth) {
 				slog.Error("credproxy: applying credentials", "provider", provider, "error", err)
 				http.Error(w, "credproxy: cannot apply the provider credentials", http.StatusBadGateway)
+				return
+			}
+			var timeout interface{ Timeout() bool }
+			if errors.As(err, &timeout) && timeout.Timeout() {
+				slog.Warn("credproxy: upstream did not answer in time", "provider", provider, "waited", p.client.ResponseHeaderTimeout, "error", err)
+				http.Error(w, "credproxy: upstream did not answer in time", http.StatusGatewayTimeout)
 				return
 			}
 			slog.Warn("credproxy: upstream error", "provider", provider, "error", err)

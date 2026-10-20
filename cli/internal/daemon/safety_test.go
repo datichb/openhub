@@ -12,7 +12,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/adapters"
+	"github.com/datichb/openhub/cli/internal/credproxy"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 )
 
 func healthOK(t *testing.T, p Paths) {
@@ -233,4 +235,39 @@ func TestShutdownWaitsForWatchers(t *testing.T) {
 	case <-time.After(10 * time.Second):
 		t.Fatal("shutdown never returned")
 	}
+}
+
+// A-04: the proxy traffic, the memory reading and the workflow tokens do not
+// wait for the lock of the supervision state: a proxy request is never held
+// by a slow supervision pass.
+func TestLeafLocksAreIndependentOfTheSupervisionLock(t *testing.T) {
+	st, _, _ := revokeEnv(t)
+	d := &Daemon{opts: Options{Usage: sqlite.NewUsageStore(st)}, proxy: credproxy.New()}
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	done := make(chan string, 1)
+	go func() {
+		d.onProxyUsage("g1", credproxy.Usage{Requests: 1, InputTokens: 5})
+		d.memMu.Lock()
+		d.memoryMB = 300
+		d.memMu.Unlock()
+		if d.memoryUsed() != 300 {
+			done <- "memory"
+			return
+		}
+		tok := d.workflowToken("g1")
+		if g, ok := d.wfTokens[credproxy.TokenHash(tok)]; !ok || g != "g1" {
+			done <- "token"
+			return
+		}
+		done <- ""
+	}()
+	select {
+	case what := <-done:
+		assert.Empty(t, what)
+	case <-time.After(10 * time.Second):
+		t.Fatal("waited for the lock of the supervision state")
+	}
+	assert.Equal(t, int64(5), d.proxyUsage["g1"].TokensIn)
 }

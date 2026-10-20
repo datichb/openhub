@@ -32,16 +32,16 @@ func (d *Daemon) ensureFanoutDriver(ctx context.Context, id string) {
 	if err != nil || !needsDriver(s) {
 		return
 	}
-	d.mu.Lock()
+	d.driverMu.Lock()
 	if d.drivers == nil {
 		d.drivers = map[string]time.Time{}
 	}
 	if at, ok := d.drivers[id]; ok && time.Since(at) < driverRetry {
-		d.mu.Unlock()
+		d.driverMu.Unlock()
 		return
 	}
 	d.drivers[id] = time.Now()
-	d.mu.Unlock()
+	d.driverMu.Unlock()
 	unlock, err := filelock.TryLock(filepath.Join(d.opts.SessionsDir, id, "fanout.lock"))
 	if err != nil {
 		return // a driver runs

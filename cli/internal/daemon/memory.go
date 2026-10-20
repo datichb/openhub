@@ -93,14 +93,14 @@ func (d *Daemon) measureMemory(ctx context.Context, ready []domain.Server) {
 		slog.Debug("ohd: memory not measured", "error", err)
 		return
 	}
-	d.mu.Lock()
+	d.memMu.Lock()
 	d.memoryMB = mb
-	d.mu.Unlock()
+	d.memMu.Unlock()
 }
 
 func (d *Daemon) memoryUsed() int {
-	d.mu.Lock()
-	defer d.mu.Unlock()
+	d.memMu.Lock()
+	defer d.memMu.Unlock()
 	return d.memoryMB
 }
 
@@ -136,10 +136,10 @@ func (d *Daemon) enforceMemory(ctx context.Context, ready []domain.Server, held 
 	limitMB := d.memoryCap(ctx, ready)
 	used := d.memoryUsed()
 	over := limitMB > 0 && used > limitMB
-	d.mu.Lock()
+	d.memMu.Lock()
 	warn := over && !d.memoryOver
 	d.memoryOver = over
-	d.mu.Unlock()
+	d.memMu.Unlock()
 	if !over {
 		return
 	}
