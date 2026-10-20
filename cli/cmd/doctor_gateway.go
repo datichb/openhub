@@ -46,7 +46,12 @@ func gatewayDoctorChecks(ctx context.Context) []views.DoctorCheck {
 		case err == nil:
 			out = append(out, check("shell_bd", true, got))
 		case errors.Is(err, gateway.ErrShellBD):
-			out = append(out, check("shell_bd", false, i18n.Tf("cmd.doctor.gateway.shell_bd_other", orNone(got))))
+			detail := i18n.Tf("cmd.doctor.gateway.shell_bd_other", orNone(got))
+			var be *gateway.ShellBDError
+			if errors.As(err, &be) && be.Mode == gateway.ShellModeInteractive {
+				detail = i18n.Tf("cmd.doctor.gateway.shell_bd_interactive", orNone(got))
+			}
+			out = append(out, check("shell_bd", false, detail))
 		default:
 			out = append(out, check("shell_bd", false, err.Error()))
 		}

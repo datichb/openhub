@@ -5775,5 +5775,7 @@
   "cmd.doctor.env_allow.invalid": "execution.env_allow: entries ignored (a variable name or PREFIX_* is expected): %s",
   "cmd.doctor.env_allow.secret_entries": "execution.env_allow lets through variables named like secrets: %s. The agents can read them, and send them anywhere their tools can reach: keep only what they need",
   "cmd.doctor.env_allow.secret_passed": "execution.env_allow lets through variables of your environment named like secrets: %s. The agents can read them: narrow the pattern",
-  "cmd.doctor.env_allow.managed": "execution.env_allow: %s are credentials managed by oh, they are removed anyway (the agents only get the session token of the oh proxy)"
+  "cmd.doctor.env_allow.managed": "execution.env_allow: %s are credentials managed by oh, they are removed anyway (the agents only get the session token of the oh proxy)",
+  "cmd.gateway.beads.shell_bd_detail_interactive": "In an interactive shell of the session (bash -i, zsh -i, sh -i, fish -i), `bd` is %s instead of the oh fake bd (%s): Beads commands typed there would bypass the gateway and beads.allow. Your ~/.bashrc, ~/.zshrc or fish configuration puts another bd first: for bash, add `[ -n \"$OH_PATH_FIRST\" ] && PATH=\"$OH_PATH_FIRST:$PATH\"` at the end of ~/.bashrc, then run oh doctor.",
+  "cmd.doctor.gateway.shell_bd_interactive": "an interactive session shell finds %s first: for bash add `[ -n \"$OH_PATH_FIRST\" ] && PATH=\"$OH_PATH_FIRST:$PATH\"` at the end of ~/.bashrc, and check ~/.zshrc and your fish configuration"
 }

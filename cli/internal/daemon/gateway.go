@@ -505,7 +505,9 @@ func (w *watcher) checkShellOnce(ctx context.Context, root string) {
 		return // started without oh's shell start-up (older oh)
 	}
 	first := strings.Split(env[gateway.EnvPathFirst], string(os.PathListSeparator))[0]
-	cctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	// The shell is started twice (as the tool does, then interactive, S-15):
+	// each start has its own time limit.
+	cctx, cancel := context.WithTimeout(ctx, 40*time.Second)
 	defer cancel()
 	got, err := gateway.CheckShellBD(cctx, env, filepath.Join(first, "bd"))
 	if !errors.Is(err, gateway.ErrShellBD) {
@@ -514,9 +516,14 @@ func (w *watcher) checkShellOnce(ctx context.Context, root string) {
 	if got == "" {
 		got = "—"
 	}
+	msg := i18n.Tf("cmd.gateway.beads.shell_bd_detail", got, first)
+	var be *gateway.ShellBDError
+	if errors.As(err, &be) && be.Mode == gateway.ShellModeInteractive {
+		msg = i18n.Tf("cmd.gateway.beads.shell_bd_detail_interactive", got, first)
+	}
 	d := domain.Decision{SessionID: root, GroupKey: sess.GroupKey, Kind: domain.DecisionError, ToolRef: alertShellBD,
 		Payload: domain.DecisionPayload{Title: i18n.T("cmd.gateway.beads.shell_bd_title"),
-			Message: i18n.Tf("cmd.gateway.beads.shell_bd_detail", got, first),
+			Message: msg,
 			Data:    map[string]any{dataOhAlert: alertShellBD}}}
 	d.ID = domain.DecisionID(d.Kind, root, d.ToolRef)
 	if prev, err := w.d.opts.Decisions.Get(ctx, d.ID); err == nil && prev != nil {
