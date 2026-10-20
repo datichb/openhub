@@ -96,6 +96,8 @@ engine = "auto"                    # auto | colima | podman | docker
 keep_images = 2                    # images kept per project and role
 tool_version = ""                  # tool (opencode) version of the images; empty = the machine's
 strict_isolation = false           # also hide the personal opencode config locally
+env_allow = []                     # variables of your environment passed to the agents besides the base list: names or PREFIX_*
+proxy_first_byte_timeout_minutes = 5  # wait of the credential proxy for a provider to start answering
 
 [fanout]
 experimental = false               # experimental fan-out (R6): child sessions of implement-spec
@@ -144,6 +146,8 @@ Removed in v5 (ignored if still in the file): `[opencode] version`, `channel`, `
 | | `keep_images` | `2` | Images kept per project and role (base, dev) |
 | | `tool_version` | empty | opencode version of the images; when it differs from the machine client, container launches are refused |
 | | `strict_isolation` | `false` | Also hides the personal opencode configuration (`XDG_CONFIG_HOME`) from local servers; `Attest` then refuses any plugin the bundle does not bring (without it: a warning only) |
+| | `env_allow` | `[]` | Variables of your environment that reach the tool server and the shells of the agents of local sessions, **besides a base list**: names (`SSH_AUTH_SOCK`) or `PREFIX_*` patterns (`MYCO_*`). Applies when a server starts (a running group keeps its environment until it sleeps). Containers and remote jobs never inherit your environment. See [The environment of the agents](#the-environment-of-the-agents) |
+| | `proxy_first_byte_timeout_minutes` | `5` | How long the credential proxy waits for a model provider to start answering (headers) before it gives up with a 504. A stream that has started has no time limit. Raise it for very slow models or non-streamed requests that generate a lot |
 | `[fanout]` | `experimental` | `false` | Enables the fan-out, **experimental** (R6): without it, `oh run implement-spec -i fanout=true` is refused and the daemon delegates no checkpoint of a child ([guide](../guides/fan-out.en.md)) |
 | | `parallel` | `1` | Child sessions at the same time (1 to 3; at most the `fanout.parallel` of the workflow) |
 | | `budget_usd` | `10` | Global budget of a parent session and all its sessions (children, merger), in dollars (F-04) |
@@ -163,6 +167,40 @@ Removed in v5 (ignored if still in the file): `[opencode] version`, `channel`, `
 | | `log_max_mb`, `log_keep` | `20`, `3` | Size above which a log is shifted, copies kept |
 
 See [container](../guides/container.en.md), [remote runners](../guides/remote-runners.en.md) and [v5 sessions](../guides/sessions-v5.en.md#restrictions).
+
+---
+
+## The environment of the agents
+
+In a local session, the tool server (opencode) and the shells of the agents do not inherit your whole environment: **only an allow-list passes**. A list of forbidden names always misses the secret of the day (`GEMINI_API_KEY`, `GH_TOKEN`, `NPM_TOKEN`, a database URL…); here what is needed is named, and the rest does not pass.
+
+**The base list** (always passes):
+
+| Family | Variables |
+|--------|-----------|
+| Process and identity | `PATH`, `HOME`, `USER`, `LOGNAME`, `SHELL`, `TERM`, `COLORTERM`, `TMPDIR`, `TMP`, `TEMP`, `TZ`, `NO_COLOR`, `CLICOLOR`, `CLICOLOR_FORCE`, `FORCE_COLOR` |
+| Language | `LANG`, `LANGUAGE`, `LC_*` |
+| XDG folders | `XDG_*` (the data folder of the tool server is set by oh) |
+| Network | `HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY`, `ALL_PROXY` (and lowercase), `SSL_CERT_FILE`, `SSL_CERT_DIR`, `NODE_EXTRA_CA_CERTS`, `REQUESTS_CA_BUNDLE`, `CURL_CA_BUNDLE`, `GIT_SSL_CAINFO` |
+| Toolchains (locations, never credentials) | `GOPATH`, `GOROOT`, `GOCACHE`, `GOMODCACHE`, `GOBIN`, `JAVA_HOME`, `MAVEN_HOME`, `M2_HOME`, `GRADLE_HOME`, `GRADLE_USER_HOME`, `CARGO_HOME`, `RUSTUP_HOME`, `NVM_DIR`, `PNPM_HOME`, `VOLTA_HOME`, `BUN_INSTALL`, `PYENV_ROOT`, `VIRTUAL_ENV`, `CONDA_PREFIX`, `RBENV_ROOT`, `GEM_HOME`, `GEM_PATH`, `ASDF_DIR`, `ASDF_DATA_DIR`, `DOTNET_ROOT`, `ANDROID_HOME`, `ANDROID_SDK_ROOT`, `HOMEBREW_PREFIX` |
+| oh (read by the processes oh starts under the server) | `OH_HOME`, `OH_WORKFLOWS_DIR`, `OH_WORKFLOW_REPORTS`, `OH_ALLOW_NEWER_SCHEMA`, `OH_SKIP_DB_BACKUP`, `OH_DAEMON_INPROCESS` |
+| Windows | `SystemRoot`, `COMSPEC`, `PATHEXT`, `USERPROFILE`, `APPDATA`, `LOCALAPPDATA`, `ProgramFiles*`, `ProgramData`, `HOMEDRIVE`, `HOMEPATH`… |
+
+The exact list is in `cli/internal/envfilter/envfilter.go`. Not in it, on purpose: `SSH_AUTH_SOCK` (it hands your ssh-agent keys to the agents), `ZDOTDIR`, `BASH_ENV` and `ENV` (shell start-up: oh sets them and loads yours, see [SECURITY](../../SECURITY.md)), every `*_KEY`, `*_TOKEN`, `*_SECRET`, `*_PASSWORD`.
+
+**Adding variables**: `execution.env_allow` is a list of names or `PREFIX_*` patterns.
+
+```bash
+oh config set execution.env_allow "SSH_AUTH_SOCK, MYCO_*"   # a name, and every variable starting with MYCO_
+oh config unset execution.env_allow
+```
+
+- A bare `*`, a pattern shorter than two characters before the star, or anything that is not a name are refused.
+- The credentials that oh manages itself (`AWS_BEARER_TOKEN_BEDROCK`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`, `AWS_PROFILE`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `OPENROUTER_API_KEY`, `GITLAB_TOKEN`, `GITHUB_TOKEN`, `FIGMA_TOKEN`, `JIRA_TOKEN`, `LINEAR_API_KEY`, `GOOGLE_ACCESS_TOKEN`, `OH_PASSPHRASE`) stay removed whatever the list says: the agents only get the session token of the oh proxy.
+- A secret-looking name you add (`*_KEY`, `*_TOKEN`, `*_SECRET`, `*_PASSWORD`…) is allowed but reported by `oh doctor` (⚠): the agents can read it and send it wherever their tools reach.
+- `oh doctor` also lists, by name only, the variables of your environment that are held back, to help you decide what to add.
+- The setting applies when a server starts (new group, restart, resume of a sleeping session). A running group keeps its environment.
+- **Containers and remote jobs** never inherit your environment (they get oh's settings only): `env_allow` does not apply there.
 
 ---
 

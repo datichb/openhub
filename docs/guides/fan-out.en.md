@@ -88,7 +88,15 @@ States of a child: `pending`, `running`, `merged`, `conflict` (unresolved), `fai
 
 ## Global budget
 
-The parent session and all its sessions (children and merger) share `fanout.budget_usd`. Before each child, oh compares what they spent with the budget: reached, no child starts any more; exceeded during a child, oh stops it. Each child gets what remains as its session budget. Everything is written in the events of the fan-out and in the message to the parent session.
+The parent session and all its sessions (children and merger) share `fanout.budget_usd`. Before each child, oh compares what they spent with the budget: reached, no child starts any more; exceeded during a child, oh stops it. Everything is written in the events of the fan-out and in the message to the parent session.
+
+**Budget of a child.** A child does not get all that remains: it gets a **share**, as its session budget (checked by the proxy at each model request). The share is what no one has a claim on, divided among the children that have not started yet, itself included:
+
+```
+share = (budget − spent − what the running children may still spend) ÷ children left to start
+```
+
+With three children at the same time and a budget of 3 USD, each gets 1 USD (not 3 USD each, which would let them spend 9 USD together). The rule is recomputed at each start: a child that ends under its share releases the rest, and the children after it get more (three children, 3 USD, one after the other, the first two spending 0.20 USD each: shares of 1.00, 1.40 then 2.60 USD). The share is kept in the record of the child (`oh fanout status`). If the running children hold everything that is left, the next ones wait for one of them to end instead of starting with nothing. Dividing among the children left, not among the slots, keeps a share for those that come after: the first child cannot take the whole budget. The merger (conflict resolution) still gets what remains.
 
 ## Validate by batch
 
