@@ -9,6 +9,13 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Security — Trousseau MCP, sauvegarde, garde global, `skills.deny` (lot keychain-mcp)
+
+- ⚠ **Garde global du shell** : les agents ne peuvent plus lancer `oh mcp trust|untrust|setup`, `oh config set|unset`, `oh config model default|family|agent|unset` ni `oh service setup|remove`, même avec le chemin complet, `env`, `sh -c` ou des options intercalées. Un agent piégé ne peut donc plus approuver lui-même une URL MCP. Les lectures restent permises. `oh --no-tui mcp serve`, qui passait jusqu'ici, est désormais refusé lui aussi.
+- ⚠ **`skills.deny` ne peut que se durcir** : hors couche hub, les refus d'une couche s'ajoutent à ceux du parent. Une couche qui en retire déclenche une erreur `loosening`.
+- **Clés du trousseau MCP** : `oh mcp setup`, `oh service setup` et la TUI écrivent sous `openhub.mcp.<service>.token`, ou `….token.<id-projet>` pour un projet. L'ancien nom reste lu en repli et sa valeur est copiée sous le nouveau. Les clés de projet sont migrées au démarrage : copie, puis mise à jour de `TokenKey`, sans suppression des anciennes clés. `oh doctor` signale une clé vide ou introuvable et indique la commande pour la recréer. `oh service remove --project` supprime le jeton d'un projet.
+- **`oh export`** archive une copie cohérente de la base (`VACUUM INTO`) : les écritures encore dans le journal WAL ne sont plus perdues. `oh import` supprime un journal WAL périmé avant de restaurer.
+
 ### Changed — Tests isolés du vrai hub et du vrai HOME (lot test-isolation)
 
 - **Les tests ne lisent ni n'écrivent plus** dans `OH_HOME`, `~/.oh`, `~/.config` ni dans le trousseau de l'utilisateur. `internal/testenv` place `HOME` et `XDG_*` dans un dossier temporaire et retire les variables `OH_*`, dont `OH_HOME` et `OH_TEST_*`. Cela concerne 28 paquets. `env -u OH_HOME go test` n'est plus nécessaire.
