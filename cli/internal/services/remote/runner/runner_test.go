@@ -178,6 +178,13 @@ func (f *fakeDecisions) decide(_ context.Context, r sessionsvc.Reply) error {
 	return nil
 }
 
+// hasOpen reports whether a decision still waits for its answer.
+func (f *fakeDecisions) hasOpen() bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return len(f.open) > 0
+}
+
 func (f *fakeDecisions) add(d domain.Decision) {
 	f.mu.Lock()
 	f.open = append(f.open, d)
@@ -257,6 +264,12 @@ func (s *fakeSession) AwaitTurn(ctx context.Context, sid string) (*runsvc.Headle
 		d := s.raise[0]
 		s.raise = s.raise[1:]
 		s.fd.add(d)
+		return nil, runsvc.ErrDecisionPending
+	}
+	// As with the tool, the turn does not end while a decision is open: it
+	// waits for the responder, however long it takes to answer (the
+	// verification of a checkpoint runs while the decision is being resolved).
+	if s.fd.hasOpen() {
 		return nil, runsvc.ErrDecisionPending
 	}
 	select {

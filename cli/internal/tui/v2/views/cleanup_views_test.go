@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -490,9 +491,10 @@ func TestTeamMCPViewRefreshAsksWhenDirty(t *testing.T) {
 	frLocale(t)
 	_, tc := soloState(t)
 	var saved *teamstate.TeamConfig
+	var loads atomic.Int32
 	v := NewTeamMCPView(TeamMCPViewConfig{
 		ResolveTeam:    func() TeamResolution { return tc },
-		GetMCPConfig:   func() config.MCPConfig { return config.MCPConfig{} },
+		GetMCPConfig:   func() config.MCPConfig { loads.Add(1); return config.MCPConfig{} },
 		SaveTeamConfig: func(_ context.Context, c *teamstate.TeamConfig) error { saved = c; return nil },
 		GetHubConfig:   func() *config.Config { return &config.Config{} },
 	})
@@ -504,9 +506,13 @@ func TestTeamMCPViewRefreshAsksWhenDirty(t *testing.T) {
 	onLoop(app, func() { v.Mount(content, app) })
 	waitFor(t, app, func() bool { return v.list != nil })
 
-	// Clean: r reloads without asking.
+	// Clean: r reloads without asking. The reload ends later, on the loop,
+	// and clears the dirty flags: a change made before it would be dropped.
+	loaded := loads.Load()
 	onLoop(app, func() { v.HandleKey(runeKey('r')) })
 	assert.Zero(t, sh.confirmCount())
+	require.Eventually(t, func() bool { return loads.Load() > loaded }, 5*time.Second, 5*time.Millisecond, "reloaded")
+	onLoop(app, func() {}) // the end of the reload, on the loop
 
 	onLoop(app, func() {
 		selectSection(t, v.list, i18n.T("tui.config.field.mcp_enabled.label"))
