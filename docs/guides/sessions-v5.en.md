@@ -79,7 +79,7 @@ In the TUI, a choice launches at once. Without a terminal, `oh run` refuses unti
 | `oh session model <id> <provider/model>` | switch the model of the next steps |
 | `oh session fork <id>` | create a variant (copy of the history, same server) |
 | `oh session results <id> [--mr] [--patch] [--json]` | changed files, branch, cost; merge request description; diff |
-| `oh session attach <id> [--how auto\|iterm\|terminal\|tmux\|browser\|suspend]` | open (or resume) a session |
+| `oh session attach <id> [--attach auto\|iterm\|terminal\|tmux\|browser\|suspend]` | open (or resume) a session |
 | `oh session open <id> --browser [--print]` | open a session in the browser (one-time code, 5 min) |
 | `oh session fetch <id> [--no-import]` | fetch a finished remote session (artifacts, import to resume it) — [remote execution](remote-runners.en.md) |
 | `oh session resolve <id> [--dry-run] [--yes]` | replay its Beads journal (conflicts, confirmation) |

@@ -54,8 +54,28 @@ The codes are defined in one place (`cli/cmd/exitcodes.go`). A script can test t
 
 A letter has one meaning in every command. The former forms stay accepted for one version, with a warning, and are hidden from the help.
 
-{{SHORTS_EN}}
+| Letter | Meaning | Commands | Former form (deprecated) |
+|--------|---------|----------|--------------------------|
+| `-a` | `--agent` | `oh run`, `oh start` | |
+| `-A` | `--assignee` | `oh start` | |
+| `-b` | `--base` (base branch) | `oh worktree cleanup` | `oh review -b` (now `--branch`) |
+| `-d` | `--path` (folder) | `oh project add` | `oh metrics -d` (now `--period`) |
+| `-f` | `--force` | `oh project remove`, `oh teams remove`, `oh worktree remove`, `oh worktree cleanup`, `oh service remove` | |
+| `-h` | `--help` | all | |
+| `-i` | `--input` (workflow input) | `oh run` | `oh debug -i` (now `--issue`) |
+| `-l` | `--language` | `oh project add`, `oh project configure` | `oh start -l` (now `--label`) |
+| `-m` | `--message`: a text (the request of `oh run`, the publication note, the message passed to the agent). `--prompt` of `oh start` is the request | `oh run`, `oh brick publish`, `oh workflow publish`, `oh workflow archive`, `oh session approve`, `oh team notify test`, `oh start` | `oh review -m` (now `--mode`), `oh project configure -m` (now `--model`) |
+| `-n` | `--name` | `oh project add` | |
+| `-o` | `--output` | `oh export`, `oh session trace` | |
+| `-p` | `--project` | every command that targets a project, `oh` | `oh serve -p` (now `--port`) |
+| `-P` | `--provider` | `oh run`, `oh bundle build\|show`, `oh project configure`, `oh start` | |
+| `-r` | `--resume` | `oh start` | |
+| `-s` | `--status` | `oh project list` | |
+| `-t` | `--ticket` | `oh start` | `oh audit -t` (now `--type`) |
+| `-v` | `--verbose` | all | |
+| `-w` | `--workflow` | `oh config model show` | `oh start -w` (now `--worktree`) |
+| `-y` | `--yes` (no confirmation) | `oh doctor`, `oh gc`, `oh mcp trust`, `oh migrate deploy-cleanup`, `oh project add`, `oh session delete`, `oh session resolve`, `oh brick publish`, `oh workflow publish\|archive\|restore` | |
 
-## Symbols and colors
+A former form stays accepted for one version: it does the same as the new one, prints a warning ("Option -p of oh serve is deprecated, use --port.") and is gone from the help. The short forms of `oh start`, `oh audit`, `oh review` and `oh debug` (deprecated aliases of `oh run`) follow the same rule.
 
-{{SYMBOLS_EN}}
+**Opening a window.** One option, `--attach` (`auto`, `iterm`, `terminal`, `tmux`, `browser`, `suspend`, and `none` for `oh run`), in `oh run` as in `oh session attach`. The former name `--how` of `oh session attach` is still accepted (warning), and so is the value `here`, former synonym of `suspend`.

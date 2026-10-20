@@ -29,7 +29,7 @@ They still work during v5.x, with a warning that gives the command to use:
 | `oh start --onboard [--refresh]` | `oh run onboarding [-i refresh=true]` |
 | `oh start --parallel --tickets a,b` | `oh run ticket --tickets a,b` |
 | `oh start --sweep <goal>` | `oh run sweep -i goal=<goal>` |
-| `oh start --resume <id>` | `oh session attach <id> --how here` |
+| `oh start --resume <id>` | `oh session attach <id> --attach suspend` |
 | `oh audit`, `oh review`, `oh debug` | `oh run audit`, `oh run review`, `oh run debug` |
 | `oh review feedback <mr>` | still available: reads the GitLab discussions, then launches `oh run review-feedback` (launched directly, this workflow expects the `feedback` input) |
 | `oh takeover-brief enrich` | `oh run brief-enrich --headless` |

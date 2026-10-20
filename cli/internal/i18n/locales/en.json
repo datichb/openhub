@@ -5511,7 +5511,7 @@
   "cmd.session.approve.flags.reject": "With --batch: decision refused, id or id=message (repeatable)",
   "cmd.session.approve.flags.dry_run": "With --batch: list without answering",
   "cmd.session.attach.short": "Opens the interface of a session (new tab/window, tmux, browser or current terminal); resumes a sleeping session",
-  "cmd.session.attach.flags.how": "auto | iterm | terminal | tmux | browser | suspend | here (in the current terminal; « suspend » too)",
+  "cmd.session.attach.flags.attach": "auto | iterm | terminal | tmux | browser | suspend (suspend: in the current terminal)",
   "cmd.session.attach.flags.iterm-style": "tab | split | window",
   "cmd.session.compact.short": "Compacts the history of a session",
   "cmd.session.dismiss.short": "Dismisses an alert (✗ error, ✗ circuit breaker, $ budget) of a session",
@@ -5780,5 +5780,7 @@
   "cmd.doctor.env_allow.secret_passed": "execution.env_allow lets through variables of your environment named like secrets: %s. The agents can read them: narrow the pattern",
   "cmd.doctor.env_allow.managed": "execution.env_allow: %s are credentials managed by oh, they are removed anyway (the agents only get the session token of the oh proxy)",
   "cmd.gateway.beads.shell_bd_detail_interactive": "In an interactive shell of the session (bash -i, zsh -i, sh -i, fish -i), `bd` is %s instead of the oh fake bd (%s): Beads commands typed there would bypass the gateway and beads.allow. Your ~/.bashrc, ~/.zshrc or fish configuration puts another bd first: for bash, add `[ -n \"$OH_PATH_FIRST\" ] && PATH=\"$OH_PATH_FIRST:$PATH\"` at the end of ~/.bashrc, then run oh doctor.",
-  "cmd.doctor.gateway.shell_bd_interactive": "an interactive session shell finds %s first: for bash add `[ -n \"$OH_PATH_FIRST\" ] && PATH=\"$OH_PATH_FIRST:$PATH\"` at the end of ~/.bashrc, and check ~/.zshrc and your fish configuration"
+  "cmd.doctor.gateway.shell_bd_interactive": "an interactive session shell finds %s first: for bash add `[ -n \"$OH_PATH_FIRST\" ] && PATH=\"$OH_PATH_FIRST:$PATH\"` at the end of ~/.bashrc, and check ~/.zshrc and your fish configuration",
+  "cmd.deprecated_option.warn": "Option %s of `%s` is deprecated, use %s.",
+  "cmd.deprecated_option.value": "The value %s of %s is deprecated, use %s."
 }

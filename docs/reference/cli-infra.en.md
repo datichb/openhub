@@ -337,7 +337,7 @@ Starts an HTTP server bound to `127.0.0.1` only (never exposed on the network). 
 
 | Flag | Short | Type | Description |
 |------|-------|------|-------------|
-| `--port` | `-p` | int | Listening port (default: 8080) |
+| `--port` | | int | Listening port (default: 8080). The former short form `-p` (the project everywhere else) is still accepted, with a warning |
 
 **Example:**
 

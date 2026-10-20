@@ -337,7 +337,7 @@ Démarre un serveur HTTP lié à `127.0.0.1` uniquement (jamais exposé sur le r
 
 | Flag | Court | Type | Description |
 |------|-------|------|-------------|
-| `--port` | `-p` | int | Port d'écoute (défaut : 8080) |
+| `--port` | | int | Port d'écoute (défaut : 8080). L'ancienne forme courte `-p` (le projet partout ailleurs) reste acceptée, avec un avertissement |
 
 **Exemple :**
 

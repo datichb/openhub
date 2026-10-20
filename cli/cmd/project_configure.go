@@ -221,7 +221,8 @@ Sans flags, lance un wizard interactif.`,
 	}
 
 	cmd.Flags().StringVarP(&provider, "provider", "P", "", "Provider LLM (bedrock, anthropic, openai)")
-	cmd.Flags().StringVarP(&model, "model", "m", "", "Modèle LLM")
+	cmd.Flags().StringVar(&model, "model", "", "Modèle LLM")
+	deprecateShorthand(cmd, "m", "model") // -m is the message everywhere else
 	cmd.Flags().StringVarP(&language, "language", "l", "", "Langage principal")
 
 	return cmd

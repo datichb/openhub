@@ -126,7 +126,7 @@ oh project configure [project-id] [options]
 | Flag | Court | Type | Description |
 |------|-------|------|-------------|
 | `--provider` | `-P` | string | Provider LLM : `bedrock`, `anthropic`, `openrouter`, `github-copilot` (valeur non vérifiée) |
-| `--model` | `-m` | string | Modèle LLM |
+| `--model` | | string | Modèle LLM (l'ancienne forme courte `-m` reste acceptée, avec un avertissement) |
 | `--language` | `-l` | string | Langage principal |
 
 Le workflow et l'environnement d'exécution par défaut du projet se reglent dans la TUI (Config projet › Exécution), voir [`oh run`](cli-workflows.fr.md#oh-run).

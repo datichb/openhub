@@ -29,10 +29,10 @@ func addStartFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP("provider", "P", "", "Provider LLM (bedrock, anthropic, openai)")
 	startCmd.Flags().StringP("project", "p", "", "Nom du projet (détection auto sinon)")
 	startCmd.Flags().StringP("resume", "r", "", "Reprendre une session existante (ID)")
-	startCmd.Flags().StringP("worktree", "w", "", "Branche pour lancer dans un git worktree")
+	startCmd.Flags().String("worktree", "", "Branche pour lancer dans un git worktree")
 	startCmd.Flags().Bool("dev", false, "Mode développement (orchestrator-dev + tickets)")
 	startCmd.Flags().StringP("ticket", "t", "", "Ticket ID à travailler directement (skip le picker, requiert --dev)")
-	startCmd.Flags().StringP("label", "l", "", "Filtrer tickets par label (requiert --dev)")
+	startCmd.Flags().String("label", "", "Filtrer tickets par label (requiert --dev)")
 	startCmd.Flags().StringP("assignee", "A", "", "Filtrer tickets par assignee (requiert --dev)")
 	startCmd.Flags().Bool("onboard", false, "Mode onboarding — crée/enrichit le wiki projet")
 	startCmd.Flags().Bool("refresh", false, "Force la re-découverte du wiki (requiert --onboard)")
@@ -54,6 +54,8 @@ func addStartFlags(startCmd *cobra.Command) {
 	startCmd.Flags().Bool("sweep-dry-run", false, "Afficher le plan décomposé sans exécuter")
 	startCmd.Flags().String("sweep-branch-prefix", "sweep/", "Préfixe des branches sweep")
 
+	deprecateShorthand(startCmd, "w", "worktree") // -w is the workflow of oh config model show
+	deprecateShorthand(startCmd, "l", "label")    // -l is the language of oh project add
 	// Mark --yes as deprecated (no-op with warning)
 	_ = startCmd.Flags().MarkDeprecated("yes", "le lancement rapide est le défaut. Utilisez --recap pour forcer le récap.")
 	// Options of the former parallel and sweep launches, without equivalent
@@ -72,7 +74,7 @@ func runStart(cmd *cobra.Command, args []string) error {
 
 	// --- Resume: attach to an existing session (resumed when asleep) ---
 	if resumeID, _ := cmd.Flags().GetString("resume"); resumeID != "" {
-		warnDeprecatedAlias(cmd.ErrOrStderr(), "oh start --resume", "oh session attach "+resumeID+" --how here")
+		warnDeprecatedAlias(cmd.ErrOrStderr(), "oh start --resume", "oh session attach "+resumeID+" --attach suspend")
 		id, err := resolveSessionRef(ctx, resumeID)
 		if err != nil {
 			return err

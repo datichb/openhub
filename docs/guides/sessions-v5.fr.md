@@ -79,7 +79,7 @@ Dans la TUI, un choix lance aussitôt. Sans terminal, `oh run` refuse tant que `
 | `oh session model <id> <fournisseur/modèle>` | changer le modèle des prochaines étapes |
 | `oh session fork <id>` | créer une variante (copie de l'historique, même serveur) |
 | `oh session results <id> [--mr] [--patch] [--json]` | fichiers modifiés, branche, coût ; description de MR ; diff |
-| `oh session attach <id> [--how auto\|iterm\|terminal\|tmux\|browser\|suspend]` | ouvrir (ou reprendre) une session |
+| `oh session attach <id> [--attach auto\|iterm\|terminal\|tmux\|browser\|suspend]` | ouvrir (ou reprendre) une session |
 | `oh session open <id> --browser [--print]` | ouvrir une session dans le navigateur (code à usage unique, 5 min) |
 | `oh session fetch <id> [--no-import]` | récupérer une session distante terminée (artefacts, import pour la reprendre) — [exécution distante](remote-runners.fr.md) |
 | `oh session resolve <id> [--dry-run] [--yes]` | rejouer son journal Beads (conflits, confirmation) |

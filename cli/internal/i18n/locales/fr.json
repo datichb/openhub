@@ -5511,7 +5511,7 @@
   "cmd.session.approve.flags.reject": "Avec --batch : décision refusée, id ou id=message (répétable)",
   "cmd.session.approve.flags.dry_run": "Avec --batch : lister sans répondre",
   "cmd.session.attach.short": "Ouvre l'interface d'une session (nouvel onglet/fenêtre, tmux, navigateur ou terminal courant) ; reprend une session en veille",
-  "cmd.session.attach.flags.how": "auto | iterm | terminal | tmux | browser | suspend | here (dans le terminal courant ; « suspend » aussi)",
+  "cmd.session.attach.flags.attach": "auto | iterm | terminal | tmux | browser | suspend (suspend : dans le terminal courant)",
   "cmd.session.attach.flags.iterm-style": "tab | split | window",
   "cmd.session.compact.short": "Compacte l'historique d'une session",
   "cmd.session.dismiss.short": "Classe une alerte (✗ erreur, ✗ coupe-circuit, $ budget) d'une session",
@@ -5780,5 +5780,7 @@
   "cmd.doctor.env_allow.secret_passed": "execution.env_allow laisse passer des variables de votre environnement nommées comme des secrets : %s. Les agents peuvent les lire : réduisez le motif",
   "cmd.doctor.env_allow.managed": "execution.env_allow : %s sont des identifiants gérés par oh, ils sont retirés quand même (les agents n'ont que le jeton de session du proxy oh)",
   "cmd.gateway.beads.shell_bd_detail_interactive": "Dans un shell interactif de la session (bash -i, zsh -i, sh -i, fish -i), `bd` désigne %s et non le faux bd d'oh (%s) : les commandes Beads tapées là contourneraient la passerelle et beads.allow. Votre ~/.bashrc, ~/.zshrc ou la configuration de fish met un autre bd en premier : pour bash, ajoutez `[ -n \"$OH_PATH_FIRST\" ] && PATH=\"$OH_PATH_FIRST:$PATH\"` à la fin de ~/.bashrc, puis lancez oh doctor.",
-  "cmd.doctor.gateway.shell_bd_interactive": "un shell interactif de la session trouve d'abord %s : pour bash, ajoutez `[ -n \"$OH_PATH_FIRST\" ] && PATH=\"$OH_PATH_FIRST:$PATH\"` à la fin de ~/.bashrc, et vérifiez ~/.zshrc et la configuration de fish"
+  "cmd.doctor.gateway.shell_bd_interactive": "un shell interactif de la session trouve d'abord %s : pour bash, ajoutez `[ -n \"$OH_PATH_FIRST\" ] && PATH=\"$OH_PATH_FIRST:$PATH\"` à la fin de ~/.bashrc, et vérifiez ~/.zshrc et la configuration de fish",
+  "cmd.deprecated_option.warn": "L'option %s de `%s` est dépréciée, utilisez %s.",
+  "cmd.deprecated_option.value": "La valeur %s de %s est dépréciée, utilisez %s."
 }
