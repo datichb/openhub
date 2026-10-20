@@ -9,6 +9,12 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Changed — Tests isolés du vrai hub et du vrai HOME (lot test-isolation)
+
+- **Les tests ne lisent ni n'écrivent plus** dans `OH_HOME`, `~/.oh`, `~/.config` ni dans le trousseau de l'utilisateur. `internal/testenv` place `HOME` et `XDG_*` dans un dossier temporaire et retire les variables `OH_*`, dont `OH_HOME` et `OH_TEST_*`. Cela concerne 28 paquets. `env -u OH_HOME go test` n'est plus nécessaire.
+- **Restent ceux de l'utilisateur** : le `PATH` (`opencode`, `bd`), les caches Go et la configuration git (incluse via un `GIT_CONFIG_GLOBAL` temporaire).
+- **Garde-fou** : si un test modifie `hub.toml` ou `oh.db` du vrai hub, son paquet échoue.
+
 ### Security — MCP : passerelle fermée, URL d'équipe approuvées, chemins d'API échappés (lot v5-fix-m, audit v5 S-13, S-31, S-32, A-09)
 
 - ⚠ **Passerelle MCP fermée par défaut** : un `tools/call` n'est relayé que si son `_meta` nomme une seule session connue d'oh et appartenant au groupe du jeton (un sous-agent compte pour sa session racine). Sinon, refus 403, avec la raison dans l'erreur. Un message est limité à 1 Mio (413). Limite : deux sessions d'un même groupe ne sont pas encore distinguées.
