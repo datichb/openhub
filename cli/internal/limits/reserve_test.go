@@ -23,3 +23,13 @@ func TestReserveErrsHighWithinAShareOfTheAllowance(t *testing.T) {
 	// No allowance known: no cap.
 	assert.InDelta(t, 1.2+0.015, Reserve(1000, 16000, 0), 1e-9)
 }
+
+func TestCutCostPricesTheTokensAtTheReservationRates(t *testing.T) {
+	// 1000 input, 2000 output, 3000 cache read, 400 cache write.
+	want := (1000*15 + 2000*75 + 3000*1.5 + 400*18.75) / 1e6
+	assert.InDelta(t, want, CutCost(1000, 2000, 3000, 400, 0), 1e-12, "no allowance: not bounded")
+	assert.InDelta(t, want, CutCost(1000, 2000, 3000, 400, 100), 1e-12, "within a tenth of the allowance")
+	assert.InDelta(t, 0.003, CutCost(1000, 2000, 3000, 400, 0.03), 1e-12, "bounded by a tenth of the allowance, like a reservation")
+	assert.Zero(t, CutCost(0, 0, 0, 0, 5))
+	assert.Greater(t, CutCost(1000, 0, 0, 0, 0), 0.0)
+}

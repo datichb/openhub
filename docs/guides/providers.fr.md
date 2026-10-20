@@ -81,6 +81,8 @@ oh provider setup bedrock
 
 Le token ne quitte jamais la machine et n'est jamais transmis à opencode : le proxy d'identifiants du démon oh le détient et signe les appels ; la session ne reçoit qu'un jeton `ohs_…` propre à son groupe (voir [Sessions v5 › Clés LLM](sessions-v5.fr.md#clés-llm)).
 
+Le proxy ne relaie au fournisseur que les en-têtes et les paramètres de query des vrais clients (la liste est dans [SECURITY › Proxy d'identifiants LLM](../../SECURITY.fr.md)). Un en-tête personnalisé ajouté aux options du fournisseur d'opencode (autre organisation, option de passerelle…) est retiré ; le proxy en journalise le nom au niveau debug dans `~/.oh/run/ohd.log`.
+
 Configuration via la commande dédiée :
 
 ```bash

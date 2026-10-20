@@ -6,6 +6,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/adapters/opencodev2"
+	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/runsvc"
 )
 
@@ -17,8 +18,19 @@ var toolRegistry = newToolRegistry()
 
 func newToolRegistry() *adapters.Registry {
 	r := &adapters.Registry{}
-	r.Register(opencodev2.Name, func(string) adapters.ToolAdapter { return opencodev2.New("", ohCacheDir()) })
+	r.Register(opencodev2.Name, func(string) adapters.ToolAdapter {
+		a := opencodev2.New("", ohCacheDir())
+		a.StrictPins = strictIsolation
+		return a
+	})
 	return r
+}
+
+// strictIsolation reports execution.strict_isolation: under it, a tool
+// version whose package integrity is not pinned in oh is refused (S-38).
+func strictIsolation() bool {
+	c, err := config.Load()
+	return err == nil && c != nil && c.Execution.StrictIsolation
 }
 
 // detectTool returns the first installed and supported tool (D3: oh v5 runs

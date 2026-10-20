@@ -165,7 +165,11 @@ type FanoutChild struct {
 	// when it started (its session cap; 0 = none or a child started before
 	// shares existed). What it has not spent is held for it while it runs.
 	BudgetUSD float64 `json:"budget_usd,omitempty"`
-	Error     string  `json:"error,omitempty"`
+	// MergerBudgetUSD is the share of the global budget granted to the
+	// merger of its conflict (its session cap; 0 = none). What the merger
+	// has not spent is held for it while the child is being merged.
+	MergerBudgetUSD float64 `json:"merger_budget_usd,omitempty"`
+	Error           string  `json:"error,omitempty"`
 }
 
 // FanoutEvent is an entry of the trace of a fan-out.

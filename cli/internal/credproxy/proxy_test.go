@@ -72,7 +72,7 @@ func TestProxySwapsCredentialAndKeepsPath(t *testing.T) {
 	assert.Empty(t, s.headers.Get("X-Amz-Date"), "tool-side signing headers stripped")
 	assert.Equal(t, "/model/eu.anthropic.claude-haiku-4-5-20251001-v1:0/converse", s.path)
 	assert.Equal(t, "/model/eu.anthropic.claude-haiku-4-5-20251001-v1%3A0/converse", s.rawPath)
-	assert.Equal(t, "x=1", s.query)
+	assert.Empty(t, s.query, "a Bedrock route takes no query parameter (S-28)")
 	assert.Equal(t, `{"messages":[]}`, s.body)
 
 	u, ok := p.Usage(tok)

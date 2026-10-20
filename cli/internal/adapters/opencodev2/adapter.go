@@ -37,6 +37,10 @@ type Adapter struct {
 	// OhBinary runs the oh MCP servers of a bundle (`{{oh.bin}}`; empty =
 	// the running executable).
 	OhBinary string
+	// StrictPins reports execution.strict_isolation: the Linux binary of a
+	// version whose integrity is not pinned (pins.go) is then refused
+	// instead of downloaded with a warning (nil = warning).
+	StrictPins func() bool
 }
 
 var _ adapters.ToolAdapter = (*Adapter)(nil)

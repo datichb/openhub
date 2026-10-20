@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -33,11 +34,17 @@ type LinuxTool struct {
 	CacheDir string       // binaries are cached under <CacheDir>/tools/opencode/<ver>/<target>/
 	Registry string       // default DefaultNPMRegistry
 	HTTP     *http.Client // default: 10 min timeout
+	// Pins is the table of pinned integrities (nil = the one embedded in oh,
+	// an empty table pins nothing: tests).
+	Pins IntegrityPins
+	// Strict, when it returns true (execution.strict_isolation), refuses a
+	// version that is not pinned instead of warning about it.
+	Strict func() bool
 }
 
 // ContainerTool returns the container tool matching the adapter version.
 func (a *Adapter) ContainerTool() ohruntime.Tool {
-	return &LinuxTool{Ver: a.Ver, CacheDir: a.CacheDir}
+	return &LinuxTool{Ver: a.Ver, CacheDir: a.CacheDir, Strict: a.StrictPins}
 }
 
 var _ ohruntime.Tool = (*LinuxTool)(nil)
@@ -81,16 +88,23 @@ type npmVersion struct {
 // SHA-256 of the binary computed when it was downloaded (S-38).
 const binarySumSuffix = ".sha256"
 
+// binaryPinSuffix names the file kept next to the cached binary of a pinned
+// version, with the pinned integrity its archive was checked against: a
+// binary cached before the pin, or under another value, is downloaded again.
+const binaryPinSuffix = ".integrity"
+
 // LinuxBinary returns the path of the cached Linux binary, downloading it
 // from the npm registry when missing. The archive is checked against the
 // registry integrity (sha512) before extraction; the SHA-256 of the extracted
 // binary is kept next to it and checked again before each reuse: a binary that
 // no longer matches (modified, truncated, replaced) is downloaded again.
 //
-// The integrity comes from the same npm response as the tarball: it protects
-// against a corrupted or swapped archive, not against a compromised registry
-// entry (the version of opencode is the installed one, not pinned in oh, so
-// there is no integrity to pin).
+// For a version listed in pinned_integrity.json the integrity announced by npm
+// must be the pinned one: the registry response alone is not trusted (S-38).
+// For another version the integrity comes from the same npm response as the
+// tarball, which protects against a corrupted or swapped archive, not against
+// a compromised registry entry: oh warns about it, and refuses the version
+// when execution.strict_isolation is set (see pins.go to pin a version).
 func (t *LinuxTool) LinuxBinary(ctx context.Context, arch, libc string) (string, error) {
 	if t.Ver == "" {
 		return "", errors.New("opencode version unknown (adapter not detected)")
@@ -99,15 +113,21 @@ func (t *LinuxTool) LinuxBinary(ctx context.Context, arch, libc string) (string,
 	if err != nil {
 		return "", err
 	}
+	pkg := "@opencode/cli-" + target
+	pin, err := t.pin(target)
+	if err != nil {
+		return "", err
+	}
 	dir := filepath.Join(t.CacheDir, "tools", "opencode", t.Ver, target)
 	bin := filepath.Join(dir, "opencode")
-	if cachedBinaryIntact(bin) {
+	if cachedBinaryIntact(bin, pin) {
 		return bin, nil
 	}
 	// A cached binary that fails the check is never used: not even when the
 	// download below fails.
 	_ = os.Remove(bin)
 	_ = os.Remove(bin + binarySumSuffix)
+	_ = os.Remove(bin + binaryPinSuffix)
 	reg := t.Registry
 	if reg == "" {
 		reg = DefaultNPMRegistry
@@ -116,7 +136,6 @@ func (t *LinuxTool) LinuxBinary(ctx context.Context, arch, libc string) (string,
 	if hc == nil {
 		hc = &http.Client{Timeout: 10 * time.Minute}
 	}
-	pkg := "@opencode/cli-" + target
 	var meta npmVersion
 	if err := getJSON(ctx, hc, strings.TrimRight(reg, "/")+"/"+url.PathEscape(pkg)+"/"+url.PathEscape(t.Ver), &meta); err != nil {
 		return "", fmt.Errorf("npm metadata of %s@%s: %w", pkg, t.Ver, err)
@@ -124,6 +143,9 @@ func (t *LinuxTool) LinuxBinary(ctx context.Context, arch, libc string) (string,
 	want, ok := strings.CutPrefix(meta.Dist.Integrity, "sha512-")
 	if !ok || meta.Dist.Tarball == "" {
 		return "", fmt.Errorf("npm metadata of %s@%s: no sha512 integrity", pkg, t.Ver)
+	}
+	if pin != "" && meta.Dist.Integrity != pin {
+		return "", fmt.Errorf("%s@%s: the integrity announced by the npm registry is not the one pinned in oh (a compromised or mirrored registry?): refusing to download", pkg, t.Ver)
 	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", err
@@ -151,20 +173,53 @@ func (t *LinuxTool) LinuxBinary(ctx context.Context, arch, libc string) (string,
 	if err != nil {
 		return "", fmt.Errorf("fingerprint of %s@%s: %w", pkg, t.Ver, err)
 	}
+	if pin != "" {
+		if err := writeFileAtomic(bin+binaryPinSuffix, []byte(pin+"\n")); err != nil {
+			return "", fmt.Errorf("pinned integrity of %s@%s: %w", pkg, t.Ver, err)
+		}
+	}
 	if err := writeFileAtomic(bin+binarySumSuffix, []byte(sum+"\n")); err != nil {
 		return "", fmt.Errorf("fingerprint of %s@%s: %w", pkg, t.Ver, err)
 	}
 	return bin, nil
 }
 
+// pin returns the pinned integrity of the version for a target. A version
+// that is not pinned has none ("" and no error): it is accepted with a
+// warning, or refused under strict isolation.
+func (t *LinuxTool) pin(target string) (string, error) {
+	pins := t.Pins
+	if pins == nil {
+		var err error
+		if pins, err = PinnedIntegrity(); err != nil {
+			return "", err
+		}
+	}
+	if integrity, ok := pins.lookup(t.Ver, target); ok {
+		return integrity, nil
+	}
+	if t.Strict != nil && t.Strict() {
+		return "", fmt.Errorf("opencode %s for %s is not pinned in oh (no integrity in pinned_integrity.json) and execution.strict_isolation is set: refusing it. Use a pinned version, or turn strict isolation off", t.Ver, target)
+	}
+	slog.Warn("opencode Linux binary not pinned: its integrity comes from the same npm response as the package, so a compromised registry could supply both",
+		"package", "@opencode/cli-"+target, "version", t.Ver, "hint", "set execution.strict_isolation to refuse unpinned versions")
+	return "", nil
+}
+
 // cachedBinaryIntact reports whether bin is a regular, non-empty file whose
 // SHA-256 is the one recorded when it was downloaded. Without that record
 // (binary cached by an earlier version of oh, or interrupted download) the
-// binary is not trusted.
-func cachedBinaryIntact(bin string) bool {
+// binary is not trusted. For a pinned version it must also have been
+// downloaded under the pinned integrity.
+func cachedBinaryIntact(bin, pin string) bool {
 	st, err := os.Lstat(bin)
 	if err != nil || !st.Mode().IsRegular() || st.Size() == 0 {
 		return false
+	}
+	if pin != "" {
+		if got, err := os.ReadFile(bin + binaryPinSuffix); err != nil || strings.TrimSpace(string(got)) != pin {
+			return false
+		}
 	}
 	want, err := os.ReadFile(bin + binarySumSuffix)
 	if err != nil {

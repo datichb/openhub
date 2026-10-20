@@ -42,8 +42,8 @@ type LaunchRequest struct {
 	// Record is the fan-out record of the new session.
 	Record *domain.SessionFanout
 	// BudgetUSD is the share of the global budget granted to the session
-	// (a child: its share of what remains, see childShare; a merger: what
-	// remains; 0 = no cap).
+	// (a child, a merger or a fixer: its share of what remains, see
+	// childShare and auxShare; 0 = no cap).
 	BudgetUSD float64
 }
 
@@ -656,6 +656,27 @@ func (d *Driver) budgetReached(ctx context.Context, parent, ticket string, spent
 	d.logf("fan-out %s: %s: global budget reached (%s)", parent, ticket, msg)
 }
 
+// budgetHeld records that the merger of a conflict was not launched: the
+// budget that is left is held by the children still running.
+func (d *Driver) budgetHeld(ctx context.Context, parent, ticket string, spent, budget float64) {
+	msg := i18n.Tf("cmd.fanout.budget_held", fmt.Sprintf("%.2f / %.2f USD", spent, budget))
+	_, _ = d.update(ctx, parent, func(f *domain.SessionFanout) {
+		f.SpentUSD = spent
+		f.AddEvent(domain.FanoutEventBudget, ticket, "", msg)
+	})
+	d.logf("fan-out %s: %s: %s", parent, ticket, msg)
+}
+
+// releaseMergerShare gives back the share reserved for a merger that did not
+// start.
+func (d *Driver) releaseMergerShare(ctx context.Context, parent, ticket string) {
+	_, _ = d.update(ctx, parent, func(f *domain.SessionFanout) {
+		if c, ok := f.Child(ticket); ok {
+			c.MergerBudgetUSD = 0
+		}
+	})
+}
+
 // minChildBudget is the smallest share of the global budget worth starting
 // a child with (and the floor of the cap of a session).
 const minChildBudget = 0.01
@@ -710,7 +731,7 @@ func (d *Driver) reserveShare(ctx context.Context, parent, ticket string) (share
 					pending++
 				case domain.ChildRunning:
 					running++
-					claims += max(ch.BudgetUSD-d.costOf(ctx, ch.Session), 0)
+					claims += d.claim(ctx, ch)
 				}
 			}
 			if share, ok = childShare(f.BudgetUSD, d.spentOf(ctx, parent, f), claims, pending, running); !ok {
@@ -719,6 +740,59 @@ func (d *Driver) reserveShare(ctx context.Context, parent, ticket string) (share
 			c.BudgetUSD = share
 		}
 		c.State = domain.ChildRunning
+	})
+	return share, ok, err
+}
+
+// claim is what a running child, and the merger of its conflict, may still
+// spend of the shares they were granted.
+func (d *Driver) claim(ctx context.Context, ch *domain.FanoutChild) float64 {
+	return max(ch.BudgetUSD-d.costOf(ctx, ch.Session), 0) + max(ch.MergerBudgetUSD-d.costOf(ctx, ch.Merger), 0)
+}
+
+// auxShare is the cap of a merger or of a fixer: the rule of the children
+// (childShare), with the session counted as one more child to start. So it
+// does not take "all that remains": it leaves their part to the children
+// not started, and what the children still running may spend (their claim,
+// and the one of a merger already running) is kept apart. merging is the
+// child whose conflict the merger resolves: it has stopped, it holds
+// nothing. ok is false when what is left is held by running children: the
+// merger cannot wait for them (they need the integration worktree it holds
+// to end), it is not launched.
+func (d *Driver) auxShare(ctx context.Context, parent string, f *domain.SessionFanout, merging string) (share float64, ok bool) {
+	var claims float64
+	pending, running := 0, 0
+	for i := range f.Children {
+		switch ch := &f.Children[i]; {
+		case ch.Ticket == merging:
+		case ch.State == domain.ChildPending:
+			pending++
+		case ch.State == domain.ChildRunning:
+			running++
+			claims += d.claim(ctx, ch)
+		}
+	}
+	return childShare(f.BudgetUSD, d.spentOf(ctx, parent, f), claims, pending+1, running)
+}
+
+// reserveMergerShare grants the merger of the conflict of ticket its share of
+// the global budget, in one update of the record (like reserveShare: the
+// children that start meanwhile see its claim). With no global budget the
+// share is 0 (no cap). ok is false when the merger must not be launched.
+func (d *Driver) reserveMergerShare(ctx context.Context, parent, ticket string) (share float64, ok bool, err error) {
+	ok = true
+	_, err = d.update(ctx, parent, func(f *domain.SessionFanout) {
+		c, found := f.Child(ticket)
+		if !found {
+			ok = false
+			return
+		}
+		if f.BudgetUSD > 0 {
+			if share, ok = d.auxShare(ctx, parent, f, ticket); !ok {
+				return
+			}
+			c.MergerBudgetUSD = share
+		}
 	})
 	return share, ok, err
 }
@@ -1020,20 +1094,30 @@ func (d *Driver) merge(ctx context.Context, parent string, wf *sessionspec.Workf
 // progress, waits for it and checks its result: the merge committed, both
 // sides in the history, no marker left.
 func (d *Driver) resolve(ctx context.Context, p *domain.Session, wf *sessionspec.WorkflowRuntime, c domain.FanoutChild, ig *domain.FanoutIntegration, childHead string, conflicts []string) bool {
-	remaining := 0.0
+	share := 0.0
 	if p.Fanout.BudgetUSD > 0 {
 		spent := d.spent(ctx, p)
 		if spent >= p.Fanout.BudgetUSD {
 			d.budgetReached(ctx, p.ID, "", spent, p.Fanout.BudgetUSD)
 			return false
 		}
-		remaining = p.Fanout.BudgetUSD - spent
+		s, ok, err := d.reserveMergerShare(ctx, p.ID, c.Ticket)
+		if err != nil {
+			d.logf("fan-out %s: merger not launched: %v", p.ID, err)
+			return false
+		}
+		if !ok {
+			d.budgetHeld(ctx, p.ID, c.Ticket, spent, p.Fanout.BudgetUSD)
+			return false
+		}
+		share = s
 	}
 	rec := &domain.SessionFanout{Role: domain.RoleMerger, Parent: p.ID, Ticket: c.Ticket, Branch: c.Branch}
-	sid, err := d.Launcher.Start(ctx, LaunchRequest{Parent: p, Workflow: wf.Fanout.Merger, Dir: ig.Path, Ticket: c.Ticket, Record: rec, BudgetUSD: remaining,
+	sid, err := d.Launcher.Start(ctx, LaunchRequest{Parent: p, Workflow: wf.Fanout.Merger, Dir: ig.Path, Ticket: c.Ticket, Record: rec, BudgetUSD: share,
 		Inputs: map[string]string{"branch": c.Branch, "into": ig.Branch, "files": strings.Join(conflicts, "\n")}})
 	if err != nil {
 		d.logf("fan-out %s: merger not launched: %v", p.ID, err)
+		d.releaseMergerShare(ctx, p.ID, c.Ticket)
 		return false
 	}
 	_, _ = d.update(ctx, p.ID, func(f *domain.SessionFanout) {

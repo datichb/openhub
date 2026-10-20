@@ -25,6 +25,16 @@ type SessionUsage struct {
 	TokensOut int64
 }
 
+// EstimatedUsagePrefix starts the tool session id of the ledger rows that hold
+// dollars estimated by oh, not reported by the tool: the responses cut before
+// their end, for which the tool records no cost. They are summed with the
+// others in the totals of the oh session (root_id); the prefix is the mark.
+const EstimatedUsagePrefix = "estimate:"
+
+// EstimatedUsageID is the tool session id of the estimated dollars of an oh
+// session.
+func EstimatedUsageID(rootID string) string { return EstimatedUsagePrefix + rootID }
+
 // ProxyUsage is the traffic of a server group through the proxy.
 type ProxyUsage struct {
 	Requests  int64

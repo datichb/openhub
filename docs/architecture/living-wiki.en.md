@@ -180,7 +180,7 @@ source), updates the frontmatter (`updated`, `agents`, `confidence`) and recompu
 | `wiki_index` | Index, pages, god nodes computed by oh, pending proposals | Every agent |
 | `wiki_read(page, section)` | Targeted read of a page or a section | Every agent |
 | `wiki_propose(page, content, tag, source[, replaces])` | Queues a proposal (addition, or replacement of a line: `replaces`, checked at the proposal and at the application, else `stale`); works in read-only workflows too | Every agent |
-| `wiki_pending` | Pending proposals (project or session) | Coordinators |
+| `wiki_pending` | Pending proposals (project or session), then the recent refusals with their reason | Coordinators |
 | `wiki_apply(ids)` | Applies proposals | **documentarian only**, asked to the user |
 | `wiki_check([paths, base, head, since_sync])` | Frontmatter, links, tags, freshness, layout, god nodes; restricted to a change: pages concerned and drift | Every agent, `oh wiki check` |
 

@@ -29,6 +29,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/remote"
 	"github.com/datichb/openhub/cli/internal/runsvc"
 	ohruntime "github.com/datichb/openhub/cli/internal/runtime"
+	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 	"github.com/datichb/openhub/cli/internal/services/remote/runner"
 	"github.com/datichb/openhub/cli/internal/services/report"
@@ -158,9 +159,8 @@ func runRunnerJob(cmd *cobra.Command, _ []string) error {
 	secrets := runner.CISecrets{LLMKey: job.Secrets.LLMKey}
 	paths := daemon.Paths{Dir: ohRunDir()}
 	dctx, stopDaemon := context.WithCancel(context.WithoutCancel(ctx))
-	daemonDone := make(chan error, 1)
-	go func() {
-		daemonDone <- daemon.Run(dctx, daemon.Options{
+	daemonDone := runJobDaemon(dctx, func(ctx context.Context) error {
+		return daemon.Run(ctx, daemon.Options{
 			Paths: paths, Version: buildinfo.Version,
 			Grants: sqlite.NewGrantStore(store), Servers: sqlite.NewServerStore(store),
 			GatewayView: func(context.Context, string) (gateway.View, error) {
@@ -178,7 +178,7 @@ func runRunnerJob(cmd *cobra.Command, _ []string) error {
 				return nil
 			},
 		})
-	}()
+	})
 	defer func() {
 		stopDaemon()
 		select {
@@ -235,6 +235,20 @@ func runRunnerJob(cmd *cobra.Command, _ []string) error {
 		fmt.Fprintln(out, i18n.Tf("cmd.runner.run.done", sum.Outcome, sum.Cost, sum.JournalEntries, firstNonEmpty(sum.MRURL, "-")))
 	}
 	return err
+}
+
+// runJobDaemon runs the daemon of the job in a goroutine of its own and
+// reports its end on the returned channel. The goroutine goes through safego
+// (A-02): a panic is logged and does not end the process, and it is reported
+// as an error, so that waitDaemon does not wait for a daemon that is gone.
+func runJobDaemon(ctx context.Context, run func(context.Context) error) <-chan error {
+	done := make(chan error, 1)
+	safego.Go(func() {
+		err := errors.New(i18n.T("cmd.runner.daemon_panic"))
+		defer func() { done <- err }()
+		err = run(ctx)
+	})
+	return done
 }
 
 func waitDaemon(ctx context.Context, dc *daemon.Client, done <-chan error) error {

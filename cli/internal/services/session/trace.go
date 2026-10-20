@@ -520,6 +520,11 @@ func summaryEvent(ctx context.Context, sess *domain.Session, evs []TraceEvent, s
 		if u, err := usage.SessionTotal(ctx, sess.ID); err == nil {
 			d["ledger_cost_usd"], d["ledger_tokens_in"], d["ledger_tokens_out"] = u.CostUSD, u.TokensIn, u.TokensOut
 		}
+		// Part of the ledger cost that oh estimated, for the responses cut
+		// before their end (the tool records no cost for them).
+		if u, err := usage.ToolSessionTotal(ctx, domain.EstimatedUsageID(sess.ID)); err == nil && u.CostUSD > 0 {
+			d["ledger_estimated_cost_usd"] = u.CostUSD
+		}
 	}
 	return TraceEvent{Time: last, Kind: TraceSummary, ToolSession: sess.ID, Data: d}
 }

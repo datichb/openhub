@@ -53,23 +53,33 @@ func (d *Daemon) admitModel(ctx context.Context, owner string, a credproxy.Admis
 		return noop, nil
 	}
 	lines := map[string]budgetLine{}
+	var budgeted, others []string
+	allowance := 0.0
 	for _, root := range w.executingRoots() {
 		own := d.budgetLines(ctx, root)
 		if len(own) == 0 {
+			others = append(others, root)
 			continue
 		}
 		if d.openLimitDecision(ctx, root) || w.raiseBudget(ctx, root, false) {
 			w.holdForBudget(root)
 			return nil, &credproxy.Refusal{Message: i18n.Tf("cmd.budget.refused.spent", root)}
 		}
+		budgeted = append(budgeted, root)
 		for _, l := range own {
 			if _, ok := lines[l.reservationKey()]; !ok {
 				lines[l.reservationKey()] = l
 			}
+			if allowance == 0 || l.allowance < allowance {
+				allowance = l.allowance
+			}
 		}
 	}
+	// A response cut before its end is counted in dollars when the request is
+	// over (cutestimate.go), budget or not.
+	counted := d.countCut(w, append(budgeted, others...), allowance)
 	if len(lines) == 0 {
-		return noop, nil
+		return counted, nil
 	}
 	held := make(map[string]float64, len(lines))
 	for k, l := range lines {
@@ -90,15 +100,16 @@ func (d *Daemon) admitModel(ctx context.Context, owner string, a credproxy.Admis
 		r.held[k] += usd
 	}
 	var once sync.Once
-	return func(credproxy.Usage) {
+	return func(u credproxy.Usage) {
 		once.Do(func() {
 			r.mu.Lock()
-			defer r.mu.Unlock()
 			for k, usd := range held {
 				if r.held[k] -= usd; r.held[k] < 1e-9 {
 					delete(r.held, k)
 				}
 			}
+			r.mu.Unlock()
+			counted(u)
 		})
 	}, nil
 }

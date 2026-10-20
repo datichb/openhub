@@ -79,6 +79,10 @@ type Usage struct {
 	// Estimated counts the responses cut before their end whose counters
 	// were estimated, not read (S-27).
 	Estimated int64
+	// Cut counts the responses cut before their end, estimated or not:
+	// the tool records no cost for a step that has no end, so the dollars
+	// of these responses are known to the proxy only (daemon, cutestimate.go).
+	Cut int64
 }
 
 // Tokens is the raw count of every token: input, output and cache.
@@ -600,7 +604,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer unbind()
 
 	escapedRest, _ := strings.CutPrefix(r.URL.EscapedPath(), "/"+provider+"/")
-	pathModel, err := parsePath(provider, r.Method, escapedRest)
+	rt, pathModel, err := matchRoute(provider, r.Method, escapedRest)
 	if err != nil {
 		slog.Warn("credproxy: path not relayed", "provider", provider, "method", r.Method, "path", r.URL.EscapedPath())
 		http.Error(w, "credproxy: path not relayed for this provider", http.StatusNotFound)
@@ -679,6 +683,8 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			for _, h := range strippedHeaders {
 				pr.Out.Header.Del(h)
 			}
+			headers, params := filterRelay(provider, rt, pr.Out, pr.In.URL.RawQuery)
+			logDropped(provider, headers, params)
 			pr.Out.Body = io.NopCloser(bytes.NewReader(body))
 			pr.Out.ContentLength = int64(len(body))
 		},

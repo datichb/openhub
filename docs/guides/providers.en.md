@@ -81,6 +81,8 @@ oh provider setup bedrock
 
 The token never leaves the machine and is never passed to opencode: the credential proxy of the oh daemon holds it and signs the calls; the session only receives an `ohs_…` token specific to its group (see [Sessions v5 › LLM keys](sessions-v5.en.md#llm-keys)).
 
+The proxy relays to the provider only the request headers and query parameters of the real clients (the list is in [SECURITY › LLM credential proxy](../../SECURITY.md#llm-credential-proxy)). A custom header added to the provider options of opencode (another organization, a gateway option…) is dropped; the proxy logs its name at debug level in `~/.oh/run/ohd.log`.
+
 Configure via the dedicated command:
 
 ```bash

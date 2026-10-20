@@ -74,7 +74,7 @@ func (a *Adapter) InstallLinux(ctx context.Context, o adapters.LinuxInstall) (ad
 	if ver == "" {
 		return adapters.LinuxInstalled{}, fmt.Errorf("%s version unknown (build argument of the oh layer)", DisplayName)
 	}
-	tool := &LinuxTool{Ver: ver, CacheDir: o.CacheDir}
+	tool := &LinuxTool{Ver: ver, CacheDir: o.CacheDir, Strict: a.StrictPins}
 	src, err := tool.LinuxBinary(ctx, o.Arch, o.Libc)
 	if err != nil {
 		return adapters.LinuxInstalled{}, fmt.Errorf("%s %s for linux/%s (%s): %w", DisplayName, ver, o.Arch, o.Libc, err)

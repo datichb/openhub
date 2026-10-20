@@ -324,7 +324,7 @@ Commande `settings`. Les sections propres à v5 :
 |---------|--------|
 | **Sessions** | Ouverture des sessions (auto, iTerm2, Terminal.app, tmux, navigateur, suspension), Style iTerm2 (onglet, volet, fenêtre), Veille après (minutes, 5 par défaut) |
 | **Restrictions des sessions** (désactivées si vides) | Sessions actives max, Budget par session (USD), Budget journalier (USD), Plafond mémoire (Mo), Modèles autorisés |
-| **Exécution** | Runtime par défaut, Moteur de conteneurs (auto = Colima, puis Podman, puis Docker), Cache des images, Version d'opencode figée, Isolation stricte |
+| **Exécution** | Runtime par défaut, Moteur de conteneurs (auto = Colima, puis Podman, puis Docker), Cache des images, Version d'opencode figée, Isolation stricte, Variables pour les agents (`execution.env_allow` : noms ou `PRÉFIXE_*`, `*` seul refusé, avertissement pour un nom qui ressemble à un secret), Attente fournisseur (`execution.proxy_first_byte_timeout_minutes`, 1 à 240) |
 | **Distant (GitLab CI)** | par cible : instance, projet `oh-runner`, clé du jeton (lecture seule), étiquette, construction de l'image, architecture, durée maximale ; appliqués par le prochain `oh remote setup` |
 
 Les autres sections (Général, CLI, Opencode, Workflows, MCP, Worktree, Tracker) gardent leur rôle. Dans les vues de configuration : `j`/`k` pour naviguer, `Entree` pour modifier ; les changements sont enregistrés.

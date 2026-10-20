@@ -75,6 +75,9 @@ type configField struct {
 	// Source returns a resolution annotation (e.g. "[hub]", "[equipe: enforced]").
 	// nil means no annotation.
 	Source func() string
+	// Warn returns a warning about a value that was just accepted ("" =
+	// none); it is shown as a toast, the value is kept.
+	Warn func(value string) string
 	// Locked returns true if the field is enforced and cannot be edited.
 	// nil means always editable.
 	Locked func() bool
@@ -305,6 +308,11 @@ func editConfigField(shell ShellAccess, f *configField, onDone func()) {
 			f.Set(val)
 			if onDone != nil {
 				onDone()
+			}
+			if f.Warn != nil {
+				if w := f.Warn(val); w != "" {
+					shell.ShowToastMsg(w, false)
+				}
 			}
 		})
 

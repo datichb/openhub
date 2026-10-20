@@ -166,6 +166,10 @@ type Daemon struct {
 	feed         *hub
 	notes        *notifier
 
+	// cuts are the estimates of cut responses that the tool may still
+	// replace (cutestimate.go); it has its own mutex.
+	cuts cutEstimates
+
 	// usageMu guards proxyUsage, written at every proxy request.
 	usageMu    sync.Mutex
 	proxyUsage map[string]domain.ProxyUsage // proxy traffic not flushed yet, by group

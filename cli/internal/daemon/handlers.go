@@ -41,6 +41,7 @@ func (d *Daemon) routes() http.Handler {
 	mux.HandleFunc("GET "+apiPrefix+"/wiki/page", d.handleWikiPage)
 	mux.HandleFunc("POST "+apiPrefix+"/wiki/propose", d.handleWikiPropose)
 	mux.HandleFunc("GET "+apiPrefix+"/wiki/pending", d.handleWikiPending)
+	mux.HandleFunc("GET "+apiPrefix+"/wiki/refused", d.handleWikiRefused)
 	mux.HandleFunc("POST "+apiPrefix+"/wiki/apply", d.handleWikiApply)
 	mux.HandleFunc("GET "+apiPrefix+"/wiki/check", d.handleWikiCheck)
 	mux.HandleFunc("POST "+apiPrefix+"/workflow/rules", d.privileged(d.handleWorkflowRules))

@@ -61,7 +61,7 @@ func TestLinuxBinaryDownloadsVerifiesAndCaches(t *testing.T) {
 	var downloads int32
 	srv := fakeRegistry(t, tgz, "sha512-"+base64.StdEncoding.EncodeToString(sum[:]), &downloads)
 
-	tool := &LinuxTool{Ver: "2.0.20", CacheDir: t.TempDir(), Registry: srv.URL}
+	tool := &LinuxTool{Ver: "2.0.20", CacheDir: t.TempDir(), Registry: srv.URL, Pins: IntegrityPins{}}
 	p, err := tool.LinuxBinary(context.Background(), "aarch64", "musl")
 	require.NoError(t, err)
 	data, err := os.ReadFile(p)
@@ -83,7 +83,7 @@ func cachedTool(t *testing.T, content string) (*LinuxTool, string, *int32, *http
 	sum := sha512.Sum512(tgz)
 	var downloads int32
 	srv := fakeRegistry(t, tgz, "sha512-"+base64.StdEncoding.EncodeToString(sum[:]), &downloads)
-	tool := &LinuxTool{Ver: "2.0.20", CacheDir: t.TempDir(), Registry: srv.URL}
+	tool := &LinuxTool{Ver: "2.0.20", CacheDir: t.TempDir(), Registry: srv.URL, Pins: IntegrityPins{}}
 	p, err := tool.LinuxBinary(context.Background(), "arm64", "musl")
 	require.NoError(t, err)
 	require.EqualValues(t, 1, downloads)
@@ -175,7 +175,7 @@ func TestLinuxBinaryWithoutFingerprintIsDownloadedAgain(t *testing.T) {
 	dir := filepath.Join(cache, "tools", "opencode", "2.0.20", "linux-arm64-musl")
 	require.NoError(t, os.MkdirAll(dir, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "opencode"), []byte("old cached binary"), 0o755))
-	tool := &LinuxTool{Ver: "2.0.20", CacheDir: cache, Registry: srv.URL}
+	tool := &LinuxTool{Ver: "2.0.20", CacheDir: cache, Registry: srv.URL, Pins: IntegrityPins{}}
 	p, err := tool.LinuxBinary(context.Background(), "arm64", "musl")
 	require.NoError(t, err)
 	assert.EqualValues(t, 1, downloads)
@@ -188,7 +188,7 @@ func TestLinuxBinaryRejectsIntegrityMismatch(t *testing.T) {
 	other := sha512.Sum512([]byte("something else"))
 	var downloads int32
 	srv := fakeRegistry(t, tgz, "sha512-"+base64.StdEncoding.EncodeToString(other[:]), &downloads)
-	tool := &LinuxTool{Ver: "2.0.20", CacheDir: t.TempDir(), Registry: srv.URL}
+	tool := &LinuxTool{Ver: "2.0.20", CacheDir: t.TempDir(), Registry: srv.URL, Pins: IntegrityPins{}}
 	_, err := tool.LinuxBinary(context.Background(), "arm64", "musl")
 	require.ErrorContains(t, err, "integrity mismatch")
 }

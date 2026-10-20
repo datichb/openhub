@@ -10,7 +10,9 @@
 //     queues a proposal (an addition, or the replacement of a line of the
 //     page); oh sets its author (the agent it sees), the user validates it
 //     on the card of the commit checkpoint and oh applies it;
-//   - wiki_pending  the proposals waiting (of the project, or the session);
+//   - wiki_pending  the proposals waiting (of the project, or the session),
+//     then the ones the user refused lately, with his reason; wiki_propose
+//     warns when a proposal repeats a refused one;
 //   - wiki_apply    {ids}: applies proposals (documentarian only);
 //   - wiki_check    {[paths, base, head, since_sync]}: checks the wiki
 //     (frontmatter, links, tags, freshness, god nodes); restricted to a
@@ -46,6 +48,15 @@ type Backend interface {
 	WikiPending(ctx context.Context, toolSession string, sessionOnly bool) ([]daemon.WikiProposal, error)
 	WikiApply(ctx context.Context, toolSession string, ids []string) ([]wikisvc.Result, error)
 	WikiCheck(ctx context.Context, toolSession string, opts wikisvc.CheckOptions) (wikisvc.CheckReport, error)
+}
+
+// RefusedBackend is a Backend that also tells the proposals the user
+// refused: wiki_pending lists them after the pending ones, so that the
+// agents do not propose them again. The daemon (Client) is one; a backend
+// without it, or a daemon too old to have the route, lists the pending
+// proposals only.
+type RefusedBackend interface {
+	WikiRefused(ctx context.Context, toolSession string, sessionOnly bool) ([]daemon.WikiProposal, error)
 }
 
 // Serve runs the server on stdio against the oh daemon, with the token of
@@ -248,7 +259,16 @@ func (h handlers) propose(ctx context.Context, params json.RawMessage) (*protoco
 	if p.Replaces != "" {
 		key = "cmd.mcp.wiki.proposed_replace"
 	}
-	return text(i18n.Tf(key, p.ID, firstText(p.Agent, "?"), p.Page, p.ID)), nil
+	msg := i18n.Tf(key, p.ID, firstText(p.Agent, "?"), p.Page, p.ID)
+	if r := p.PreviouslyRefused; r != nil {
+		// A warning, not a refusal: the agent may have a new reason.
+		reason := i18n.T("cmd.mcp.wiki.refused_before_noreason")
+		if r.Reason != "" {
+			reason = i18n.Tf("cmd.mcp.wiki.refused_reason", clip(r.Reason, 200))
+		}
+		msg += "\n" + i18n.Tf("cmd.mcp.wiki.refused_before", r.ID, reason)
+	}
+	return text(msg), nil
 }
 
 func (h handlers) pending(ctx context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
@@ -264,16 +284,26 @@ func (h handlers) pending(ctx context.Context, params json.RawMessage) (*protoco
 	if err != nil {
 		return nil, unavailable(err)
 	}
-	if len(list) == 0 {
-		return text(i18n.T("cmd.mcp.wiki.pending_none")), nil
-	}
 	var b strings.Builder
+	if len(list) == 0 {
+		b.WriteString(i18n.T("cmd.mcp.wiki.pending_none") + "\n")
+	}
 	for i, p := range list {
 		if i == pendingShown {
 			fmt.Fprintf(&b, "%s\n", i18n.Tf("cmd.mcp.wiki.pending_more", len(list)-i))
 			break
 		}
 		b.WriteString(proposalLine(p) + "\n")
+	}
+	// The refusals are a help, not the answer: a daemon that cannot give them
+	// (too old, or an error) leaves the pending proposals as they were.
+	if rb, ok := h.b.(RefusedBackend); ok {
+		if refused, err := rb.WikiRefused(ctx, id, in.SessionOnly); err == nil && len(refused) > 0 {
+			fmt.Fprintf(&b, "\n%s\n", i18n.Tf("cmd.mcp.wiki.refused_header", len(refused), int(wikisvc.RefusedWindow.Hours()/24)))
+			for _, p := range refused {
+				b.WriteString(proposalLine(p) + "\n")
+			}
+		}
 	}
 	return text(strings.TrimRight(b.String(), "\n")), nil
 }
