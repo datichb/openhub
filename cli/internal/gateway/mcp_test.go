@@ -180,3 +180,37 @@ func TestMCPCheckTimeoutAndUnknown(t *testing.T) {
 	assert.Equal(t, http.StatusOK, code)
 	assert.Contains(t, string(resp["error"]), "Parse error")
 }
+
+// S-13: the body of a message is bounded, whoever calls the gateway.
+func TestMCPBodyIsBounded(t *testing.T) {
+	f := newMCPFixture(t)
+	big := `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"echo","arguments":{"text":"` + strings.Repeat("a", MaxMCPBodyBytes) + `"}}}`
+	r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(big))
+	w := httptest.NewRecorder()
+	f.m.ServeHTTP(w, r, "g1", "echo")
+	assert.Equal(t, http.StatusRequestEntityTooLarge, w.Code)
+	assert.Contains(t, w.Body.String(), "echo")
+	assert.Empty(t, f.resolved, "a message that is too large reaches no server")
+
+	// A message right under the limit is relayed.
+	ok := `{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"echo","arguments":{"text":"` + strings.Repeat("a", MaxMCPBodyBytes/2) + `"}}}`
+	code, resp := f.post(t, "g1", "echo", ok)
+	require.Equal(t, http.StatusOK, code)
+	assert.True(t, strings.HasPrefix(toolText(t, resp), "aaaa"))
+}
+
+// A refusal of Check is a 403 whose body is a JSON-RPC error with the
+// reason, which the client shows to the agent.
+func TestMCPDeniedAnswersWithTheReason(t *testing.T) {
+	f := newMCPFixture(t)
+	f.m.Check = func(context.Context, string, map[string]json.RawMessage) error {
+		return Denied("no calling session")
+	}
+	code, resp := f.post(t, "g1", "echo", `{"jsonrpc":"2.0","id":"c-9","method":"tools/call","params":{"name":"echo"}}`)
+	assert.Equal(t, http.StatusForbidden, code)
+	assert.Equal(t, `"c-9"`, string(resp["id"]))
+	assert.Contains(t, string(resp["error"]), "no calling session")
+	assert.Contains(t, string(resp["error"]), "echo")
+	assert.ErrorIs(t, Denied("x"), ErrMCPDenied)
+	assert.Empty(t, f.resolved, "a refused call reaches no server")
+}
