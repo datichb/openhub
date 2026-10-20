@@ -91,7 +91,7 @@ func (v *TeamsView) showDetail(it widgets.SectionItem) {
 		var d detailText
 		d.title(i18n.T("tui.teams.no_teams"))
 		d.para(i18n.T("tui.teams.no_teams_hint"))
-		d.keys(append(keyPairs(keys.Create), "u", i18n.T("tui.hints.undo"))...)
+		d.keys(append(keys.Pairs(keys.Create), "u", i18n.T("tui.hints.undo"))...)
 		v.page.SetDetail(d.String())
 		return
 	}
@@ -112,7 +112,7 @@ func (v *TeamsView) showDetail(it widgets.SectionItem) {
 	d.field(i18n.T("tui.detail.repo"), tview.Escape(repo))
 	d.field(i18n.T("tui.detail.path"), tview.Escape(team.StatePath))
 	pairs := []string{keys.Open.Keys(), i18n.T("tui.hints.detail"), "s", i18n.T("tui.hints.sync")}
-	pairs = append(pairs, keyPairs(keys.Create, keys.Delete, keys.Refresh)...)
+	pairs = append(pairs, keys.Pairs(keys.Create, keys.Delete, keys.Refresh)...)
 	d.keys(append(pairs, "u", i18n.T("tui.hints.undo"))...)
 	v.page.SetDetail(d.String())
 }

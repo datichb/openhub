@@ -37,7 +37,9 @@ func TestKeysTranslated(t *testing.T) {
 		}
 		for _, c := range Changes() {
 			check(c.LabelKey())
+			check(c.ViewKey())
 		}
+		check("tui.keys.name.space")
 	}
 }
 
@@ -113,4 +115,37 @@ func keysOf(actions []Action) []string {
 		out[i] = a.Keys()
 	}
 	return out
+}
+
+func TestOwn(t *testing.T) {
+	withLocale(t, "fr")
+	for _, r := range "gG/r?dxRynjk" {
+		assert.Panics(t, func() { Own("test.reserved", r, "tui.keys.action.help") }, string(r))
+	}
+	before := len(Owned())
+	t.Cleanup(func() {
+		ownMu.Lock()
+		owned = owned[:before]
+		ownMu.Unlock()
+	})
+	a := Own("test.own", 'p', "tui.keys.action.refresh")
+	assert.Len(t, Owned(), before+1)
+	assert.Equal(t, View, a.Context)
+	assert.Equal(t, "p rafraîchir", a.Hint())
+	assert.True(t, a.Matches(tcell.NewEventKey(tcell.KeyRune, 'p', tcell.ModNone)))
+	assert.False(t, a.Matches(tcell.NewEventKey(tcell.KeyRune, 'p', tcell.ModCtrl)))
+	assert.Equal(t, []string{"d", "supprimer", "Entrée", "ouvrir"}, Pairs(Delete, Open))
+	assert.Equal(t, "Espace", SpaceName())
+}
+
+func TestChangesByView(t *testing.T) {
+	withLocale(t, "fr")
+	groups := ChangesByView()
+	assert.Equal(t, "Sessions", groups[0].View)
+	assert.Equal(t, "D→d supprimer", groups[0].Changes[0].Text())
+	seen := map[string]bool{}
+	for _, g := range groups {
+		assert.False(t, seen[g.View], "%s split", g.View)
+		seen[g.View] = true
+	}
 }

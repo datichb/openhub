@@ -127,7 +127,7 @@ func TestWorktreeViewConfirmsDestructiveKeys(t *testing.T) {
 	onLoop(app, yes)
 	require.Eventually(t, func() bool { _, p, _ := git.state(); return p == 1 }, 2*time.Second, 10*time.Millisecond)
 
-	press(cleanupMergedKey)
+	press(cleanupMergedKey.Rune())
 	titles, yes = sh.take()
 	assert.Len(t, titles, 3)
 	onLoop(app, yes)

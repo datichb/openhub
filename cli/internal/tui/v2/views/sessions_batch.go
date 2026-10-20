@@ -111,8 +111,8 @@ type batchPane struct {
 	foot   *tview.TextView
 }
 
-// keyConfirmBatch confirms the batch (a letter of the view).
-const keyConfirmBatch = 'C'
+// confirmBatchKey confirms the batch (a letter of the view).
+var confirmBatchKey = keys.Own("batch.confirm", 'C', "tui.batch.confirm_key")
 
 // openBatch loads the checkpoints of the batch, off the event loop, then
 // shows them in place of the list; the checkpoint of the decision selected
@@ -243,7 +243,7 @@ func (p *batchPane) render() {
 
 func (p *batchPane) hints() string {
 	return keys.Hints(p.list.Hints(), keys.Filter.HintAs(i18n.T("tui.batch.filter")),
-		string(keyConfirmBatch)+" "+i18n.T("tui.batch.confirm_key"), keys.Back.HintAs(i18n.T("tui.batch.cancel")))
+		confirmBatchKey.Hint(), keys.Back.HintAs(i18n.T("tui.batch.cancel")))
 }
 
 func (p *batchPane) item(d BatchDecision) ActionItem {
@@ -358,7 +358,7 @@ func (p *batchPane) handleKey(ev *tcell.EventKey) *tcell.EventKey {
 	case keys.Refresh.Matches(ev):
 		p.refresh()
 		return nil
-	case ev.Key() == tcell.KeyRune && ev.Rune() == keyConfirmBatch:
+	case confirmBatchKey.Matches(ev):
 		p.confirm()
 		return nil
 	}
@@ -424,6 +424,7 @@ func (v *SessionsView) showBatch(p *batchPane) {
 	v.batch = p
 	v.content.AddItem(p.root, 0, 1, true)
 	v.focus(p.list.Focusable())
+	v.refreshHints()
 }
 
 // closeBatch puts the list back.
@@ -436,6 +437,7 @@ func (v *SessionsView) closeBatch() {
 	v.batch = nil
 	v.content.AddItem(v.root, 0, 1, true)
 	v.focus(v.list)
+	v.refreshHints()
 }
 
 // batchLabel is the line of a decision in the confirmation and the result.

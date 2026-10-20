@@ -484,3 +484,50 @@ func TestInlineFormValidateAsTyped(t *testing.T) {
 		t.Fatal("valid value not submitted")
 	}
 }
+
+// capturingView keeps the keys (like the tabs of Sessions); passes lets the
+// shell take ? and Ctrl+P.
+type capturingView struct {
+	keyView
+	passes bool
+}
+
+func (v *capturingView) CapturesInput() bool   { return true }
+func (v *capturingView) PassesShellKeys() bool { return v.passes }
+
+// In a view that keeps the keys but passes ? and Ctrl+P (tabs, batch of
+// Sessions), ? opens the help and Ctrl+P the palette; the focus comes back
+// to the widget of the view. A form that keeps every key blocks them.
+func TestKeysHelpAndPaletteInCapturingView(t *testing.T) {
+	home := &keyView{id: "home", focusList: true}
+	tab := &capturingView{keyView: keyView{id: "tab", focusList: true}, passes: true}
+	s := newKeyShell(t, home)
+	s.loop(func() { s.PushView(tab) })
+	var before tview.Primitive
+	s.loop(func() { before = s.app.GetFocus() })
+
+	s.key(tcell.KeyCtrlP, 0, tcell.ModNone)
+	assert.True(t, s.omnibarActive())
+	s.key(tcell.KeyEscape, 0, tcell.ModNone)
+	assert.False(t, s.omnibarActive())
+	var after tview.Primitive
+	s.loop(func() { after = s.app.GetFocus() })
+	assert.Equal(t, before, after, "focus back on the widget of the view")
+
+	s.key(tcell.KeyRune, '?', tcell.ModNone)
+	help := false
+	s.loop(func() { help = s.pages.HasPage("inline-overlay") })
+	assert.True(t, help, "? opens the help")
+	s.key(tcell.KeyEscape, 0, tcell.ModNone)
+	depth := 0
+	s.loop(func() { depth = s.router.StackDepth() })
+	assert.Equal(t, 2, depth, "Esc closes the help, not the view")
+
+	form := &capturingView{keyView: keyView{id: "form", focusList: true}}
+	s.loop(func() { s.PushView(form) })
+	s.key(tcell.KeyCtrlP, 0, tcell.ModNone)
+	assert.False(t, s.omnibarActive(), "a form keeps Ctrl+P")
+	s.key(tcell.KeyRune, '?', tcell.ModNone)
+	s.loop(func() { help = s.pages.HasPage("inline-overlay") })
+	assert.False(t, help, "a form keeps ?")
+}

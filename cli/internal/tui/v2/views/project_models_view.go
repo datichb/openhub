@@ -142,7 +142,7 @@ func (v *ProjectModelsView) showDetail(item widgets.SectionItem) {
 	if v.page == nil || v.live == nil {
 		return
 	}
-	extra := append(keyPairs(keys.Create, keys.Delete), "u", i18n.T("tui.hints.undo"))
+	extra := append(keys.Pairs(keys.Create, keys.Delete), "u", i18n.T("tui.hints.undo"))
 	ref, ok := item.Reference.(projectModelsRef)
 	if !ok {
 		v.page.SetDetail(modelOverrideDetail("", "", "", "", extra...))

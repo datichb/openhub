@@ -398,7 +398,7 @@ func (v *PoliciesView) showItemDetail(idx int) {
 		var d detailText
 		d.title(tview.Escape(p.Name))
 		d.b.WriteString(tview.Escape(v.formatPolicyDetail(p)))
-		pairs := append([]string{keys.Open.Keys(), i18n.T("tui.hints.actions")}, keyPairs(keys.Edit, keys.Delete)...)
+		pairs := append([]string{keys.Open.Keys(), i18n.T("tui.hints.actions")}, keys.Pairs(keys.Edit, keys.Delete)...)
 		d.keys(append(pairs, "c", i18n.T("tui.hints.check"), keys.Refresh.Keys(), keys.Refresh.Label())...)
 		v.page.SetDetail(d.String())
 		return
@@ -410,7 +410,7 @@ func (v *PoliciesView) showItemDetail(idx int) {
 			d.title(strings.TrimSpace(items[idx].MainText))
 		}
 		d.para(i18n.T("tui.detail.policy.action"))
-		d.keys(append(keyPairs(keys.Open, keys.Create), "t", i18n.T("tui.hints.template"))...)
+		d.keys(append(keys.Pairs(keys.Open, keys.Create), "t", i18n.T("tui.hints.template"))...)
 		v.page.SetDetail(d.String())
 		return
 	}

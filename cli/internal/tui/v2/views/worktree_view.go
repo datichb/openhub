@@ -86,7 +86,7 @@ func (v *WorktreeView) Title() string { return i18n.T("tui.worktree.title") }
 func (v *WorktreeView) StatusHints() string {
 	return keys.Hints(keys.Navigate.Hint(), keys.Open.Hint(), keys.Create.Hint(), keys.Delete.Hint(),
 		"o "+i18n.T("tui.hints.open"), "p "+i18n.T("tui.hints.prune"),
-		string(cleanupMergedKey)+" "+i18n.T("tui.worktree.hint_cleanup_merged"), keys.Refresh.Hint(), keys.Back.Hint())
+		cleanupMergedKey.Hint(), keys.Refresh.Hint(), keys.Back.Hint())
 }
 
 // Mount builds the worktree list.
@@ -119,7 +119,7 @@ func (v *WorktreeView) showDetail() {
 		d.field(i18n.T("tui.detail.branch"), tview.Escape(wt.Branch))
 		d.field(i18n.T("tui.detail.path"), tview.Escape(wt.Path))
 		d.field("HEAD :", tview.Escape(wt.Head))
-		d.keys(append(keyPairs(keys.Open, keys.Delete, keys.Create), v.globalKeyPairs()...)...)
+		d.keys(append(keys.Pairs(keys.Open, keys.Delete, keys.Create), v.globalKeyPairs()...)...)
 		v.page.SetDetail(d.String())
 		return
 	}
@@ -131,18 +131,18 @@ func (v *WorktreeView) showDetail() {
 	main, secondary := v.list.GetItemText(idx)
 	d.title(tview.Escape(strings.TrimSpace(main)))
 	d.para(tview.Escape(strings.TrimSpace(secondary)))
-	d.keys(append(keyPairs(keys.Create), v.globalKeyPairs()...)...)
+	d.keys(append(keys.Pairs(keys.Create), v.globalKeyPairs()...)...)
 	v.page.SetDetail(d.String())
 }
 
 // cleanupMergedKey removes the merged worktrees (M: merged; x never
 // destroys anything in the key convention).
-const cleanupMergedKey = 'M'
+var cleanupMergedKey = keys.Own("worktrees.cleanup_merged", 'M', "tui.worktree.hint_cleanup_merged")
 
 // globalKeyPairs are the keys of the actions on every worktree.
 func (v *WorktreeView) globalKeyPairs() []string {
 	return []string{"p", i18n.T("tui.hints.prune"),
-		string(cleanupMergedKey), i18n.T("tui.worktree.hint_cleanup_merged"),
+		cleanupMergedKey.Keys(), cleanupMergedKey.Label(),
 		keys.Refresh.Keys(), keys.Refresh.Label()}
 }
 
@@ -180,7 +180,7 @@ func (v *WorktreeView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	case 'p':
 		v.pruneWorktrees()
 		return nil
-	case cleanupMergedKey:
+	case cleanupMergedKey.Rune():
 		v.cleanupWorktrees()
 		return nil
 	}

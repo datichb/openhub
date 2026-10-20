@@ -264,6 +264,15 @@ func (l *ActionList) SetTitle(title string) {
 	l.listBox.SetTitle(title)
 }
 
+// SetEmpty sets the text shown without elements (loading, error, none),
+// shown at once when the list is empty.
+func (l *ActionList) SetEmpty(text string) {
+	l.cfg.Empty = text
+	if len(l.items) == 0 {
+		l.render("")
+	}
+}
+
 // SetItems replaces the elements; the selected element stays selected
 // when it is still there.
 func (l *ActionList) SetItems(items []ActionItem) {

@@ -22,6 +22,7 @@ package keys
 
 import (
 	"strings"
+	"sync"
 
 	"github.com/gdamore/tcell/v2"
 
@@ -262,11 +263,64 @@ var (
 	PrevMatch = letter("prev_match", Reader, 'N')
 )
 
+// View is the context of the actions of one view, on letters of its own
+// (p relaunch the driver, B batch…): it is not shown in the help table.
+const View Context = "view"
+
+// reservedOwn are the letters an action of a view never takes: the strict
+// keys of the convention and the moves (j/k).
+var reservedOwn = map[rune]bool{'g': true, 'G': true, '/': true, 'r': true, '?': true, 'd': true, 'x': true, 'R': true, 'y': true, 'n': true, 'j': true, 'k': true}
+
+var (
+	ownMu sync.Mutex
+	owned []Action
+)
+
+// Own is an action of a view on a letter of its own (p relaunch the driver,
+// B batch, C confirm, T tracker, L release, M merged, Y raw YAML…); labelKey
+// is the i18n key of its label. It panics when the letter is a strict key of
+// the convention (g G / r ? d x R y n) or a move (j k): a view never gives
+// them another meaning. e, s, A and c are allowed where the view has not the
+// action of the convention. Declare it as a package variable, so that
+// TestOwnActions checks its label against the convention.
+func Own(id string, r rune, labelKey string) Action {
+	if reservedOwn[r] {
+		panic("keys.Own: " + string(r) + " is a key of the convention (" + id + ")")
+	}
+	a := Action{ID: id, Context: View, Bindings: []Binding{Rune(r)}, display: string(r), labelKey: labelKey}
+	ownMu.Lock()
+	owned = append(owned, a)
+	ownMu.Unlock()
+	return a
+}
+
+// Owned lists the actions of the views declared with Own.
+func Owned() []Action {
+	ownMu.Lock()
+	defer ownMu.Unlock()
+	return append([]Action(nil), owned...)
+}
+
+// SpaceName is the translated name of the space bar (« Espace »).
+func SpaceName() string { return i18n.T("tui.keys.name.space") }
+
+// Pairs are the key/label pairs of actions, for the « Touches » block of a
+// detail pane.
+func Pairs(actions ...Action) []string {
+	out := make([]string, 0, 2*len(actions))
+	for _, a := range actions {
+		out = append(out, a.Keys(), a.Label())
+	}
+	return out
+}
+
 // Change is a key changed by the convention (first-launch notice, help,
-// docs).
+// docs). From is empty for a key that is new.
 type Change struct {
 	From, To string
-	// labelKey is the i18n key of what changed ("Sessions : supprimer").
+	// view is the group of the change (i18n key tui.keys.change.view.*).
+	view string
+	// labelKey is the i18n key of what changed (« supprimer »).
 	labelKey string
 }
 
@@ -276,15 +330,70 @@ func (c Change) Label() string { return i18n.T(c.labelKey) }
 // LabelKey is the i18n key of the description.
 func (c Change) LabelKey() string { return c.labelKey }
 
-// Changes are the keys changed by the convention.
+// View is the translated name of the view of the change.
+func (c Change) View() string { return i18n.T(c.ViewKey()) }
+
+// ViewKey is the i18n key of the name of the view.
+func (c Change) ViewKey() string { return "tui.keys.change.view." + c.view }
+
+// Text is the change as shown in the notice: « D→d supprimer », or « B lot »
+// for a new key.
+func (c Change) Text() string {
+	if c.From == "" {
+		return c.To + " " + c.Label()
+	}
+	return c.From + "→" + c.To + " " + c.Label()
+}
+
+func change(view, from, to, label string) Change {
+	return Change{From: from, To: to, view: view, labelKey: "tui.keys.change." + view + "." + label}
+}
+
+// Changes are the keys changed by the convention, grouped by view in
+// display order.
 func Changes() []Change {
 	return []Change{
-		{From: "D", To: Delete.Keys(), labelKey: "tui.keys.change.sessions_delete"},
-		{From: "c", To: Resume.Keys(), labelKey: "tui.keys.change.sessions_resume"},
-		{From: "g", To: Resume.Keys(), labelKey: "tui.keys.change.sessions_recover"},
-		{From: "r", To: Resume.Keys(), labelKey: "tui.keys.change.history_restore"},
-		{From: "a", To: Accept.Keys(), labelKey: "tui.keys.change.wiki_accept"},
-		{From: "x", To: Refuse.Keys(), labelKey: "tui.keys.change.wiki_refuse"},
-		{From: "D", To: Compare.Keys(), labelKey: "tui.keys.change.workflows_diff"},
+		change("sessions", "D", Delete.Keys(), "delete"),
+		change("sessions", "c", Resume.Keys(), "resume"),
+		change("sessions", "g", Resume.Keys(), "recover"),
+		change("sessions", "", "B", "batch"),
+		change("existing", "r", Resume.Keys(), "resume"),
+		change("existing", "t", "T", "transfer"),
+		change("wiki", "a", Accept.Keys(), "accept"),
+		change("wiki", "x", Refuse.Keys(), "refuse"),
+		change("workflows", "D", Compare.Keys(), "compare"),
+		change("workflows", "x", Delete.Keys(), "delete_draft"),
+		change("history", "r", Resume.Keys(), "restore"),
+		change("editor", "x", Delete.Keys(), "remove"),
+		change("editor", "y", "Y", "raw_yaml"),
+		change("patterns", "a", Create.Keys(), "create"),
+		change("patterns", "v", Accept.Keys(), "validate"),
+		change("projects", "a", Create.Keys(), "create"),
+		change("projects", "n", Edit.Keys(), "rename"),
+		change("teamboard", "f", Filter.Keys(), "filter"),
+		change("teamboard", "x", "L", "release"),
+		change("worktrees", "a", Create.Keys(), "create"),
+		change("worktrees", "x", "M", "cleanup_merged"),
+		change("team", "y", "T", "discover"),
+		change("lists", "a", Create.Keys(), "create"),
 	}
+}
+
+// ChangeGroup is the changes of one view.
+type ChangeGroup struct {
+	View    string
+	Changes []Change
+}
+
+// ChangesByView groups Changes by view, in display order.
+func ChangesByView() []ChangeGroup {
+	var out []ChangeGroup
+	for _, c := range Changes() {
+		if n := len(out); n > 0 && out[n-1].Changes[0].view == c.view {
+			out[n-1].Changes = append(out[n-1].Changes, c)
+			continue
+		}
+		out = append(out, ChangeGroup{View: c.View(), Changes: []Change{c}})
+	}
+	return out
 }

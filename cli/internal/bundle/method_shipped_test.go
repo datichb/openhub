@@ -76,6 +76,14 @@ func TestShippedSpecPassesMethodOn(t *testing.T) {
 	assert.Equal(t, "implement-spec", ref.ID)
 	ref, _ = cat.ResolveAlias("cadrage", func(string) bool { return true })
 	assert.Equal(t, "spec", ref.ID)
+	// tui-docs: terms of the former omnibar table kept as aliases.
+	for alias, want := range map[string]string{"secu": "security-fix", "perf": "benchmark", "dbg": "debug", "feedback": "review-feedback", "retours": "review-feedback"} {
+		ref, ok = cat.ResolveAlias(alias, nil)
+		if assert.True(t, ok, alias) {
+			assert.Equal(t, want, ref.ID, alias)
+		}
+	}
+	assert.Empty(t, workflow.CheckAliases(cat), "no ambiguous alias")
 }
 
 // B1: spike records its decision and the verdict of the decision line its

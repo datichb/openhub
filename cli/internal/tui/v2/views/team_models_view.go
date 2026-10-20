@@ -159,7 +159,7 @@ func (v *TeamModelsView) showDetail(item widgets.SectionItem) {
 	if v.page == nil || v.teamCfg == nil {
 		return
 	}
-	extra := append(keyPairs(keys.Create, keys.Delete), "w", i18n.T("tui.hints.save"), "u", i18n.T("tui.hints.undo"))
+	extra := append(keys.Pairs(keys.Create, keys.Delete), "w", i18n.T("tui.hints.save"), "u", i18n.T("tui.hints.undo"))
 	ref, ok := item.Reference.(teamModelsRef)
 	if !ok {
 		v.page.SetDetail(modelOverrideDetail("", "", "", "", extra...))

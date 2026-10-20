@@ -16,6 +16,8 @@ oh workflow validate ./mon-wf.yaml  # un fichier
 
 On lance un workflow avec `oh run <workflow>` ou la fiche de lancement de la TUI ; les anciennes commandes (`oh start`, `oh audit`…) en sont des alias dépréciés.
 
+Un workflow peut avoir d'autres noms, ses `aliases:` (voir [`aliases`](workflow-schema.fr.md#aliases--autres-noms-du-workflow)), reconnus par `oh run` comme par la palette de la TUI : `cadrage` et `feature` (`spec`), `feature` avec `--tickets` (`implement-spec`), `secu` (`security-fix`), `perf` (`benchmark`), `dbg` (`debug`), `feedback` et `retours` (`review-feedback`). Les autres termes de l'ancienne table de la palette (`dev`, `start`, `fast`, `rev`…) ne sont plus reconnus.
+
 ---
 
 ## Vue d'ensemble
@@ -33,15 +35,15 @@ On lance un workflow avec `oh run <workflow>` ou la fiche de lancement de la TUI
 | `skill-refresh` | `documentarian` | — | write (skills de stack du hub) | local | — |
 | `release` | `release-manager` | — | publish (CHANGELOG, commit et tag de release ; jamais de push) | local | — |
 | `review` | `reviewer` | — | read | local, distant | `oh review` |
-| `review-feedback` | `orchestrator-dev` | `developer`, `reviewer` | write | local | `oh review feedback` |
+| `review-feedback` (alias `feedback`, `retours`) | `orchestrator-dev` | `developer`, `reviewer` | write | local | `oh review feedback` |
 | `audit` | `auditor` | `auditor-subagent` | read | local, distant | `oh audit`, anciens agents `infra` et `database` (partie analyse) |
-| `debug` | `debugger` | `developer` (à la demande) | write | local | `oh debug` (ancien mode D) |
+| `debug` (alias `dbg`) | `debugger` | `developer` (à la demande) | write | local | `oh debug` (ancien mode D) |
 | `incident` | `debugger` (écrit `docs/wiki/postmortems/`) | `developer` | write | local | — |
-| `security-fix` | `conductor` | `developer`, `auditor-subagent` | write | local | — |
+| `security-fix` (alias `secu`) | `conductor` | `developer`, `auditor-subagent` | write | local | — |
 | `spike` | `pathfinder` (écrit `docs/wiki/decisions/`) | `developer` (prototype jetable) | write | local | — |
 | `retro` | `debugger` (écrit `docs/wiki/retros/`) | — | write | local | — |
 | `triage` | `planner` | — | plan | local | — |
-| `benchmark` | `benchmarker` | — | write (`reports/benchmarks/`) | local | `oh run libre --agent benchmarker` |
+| `benchmark` (alias `perf`) | `benchmarker` | — | write (`reports/benchmarks/`) | local | `oh run libre --agent benchmarker` |
 | `sweep` | `conductor` | `pathfinder`, `developer`, `reviewer` ; en fan-out : `pathfinder`, `reviewer` et une session enfant `sweep-task` par sous-tâche | write | local, conteneur | `oh start --sweep` |
 | `sweep-task` | `developer` | — | write | local, conteneur | — (lancé par oh dans un sweep en fan-out) |
 | `brief-enrich` | `brief-enricher` | — | read | local | `oh takeover-brief enrich` |

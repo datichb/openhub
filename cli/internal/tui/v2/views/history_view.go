@@ -213,7 +213,7 @@ func (v *HistoryView) showDetail(it widgets.SectionItem) {
 	if v.cfg.Restore != nil && !h.Current {
 		pairs = append(pairs, keys.Resume.Keys(), i18n.T("tui.detail.history.restore"))
 	}
-	d.keys(append(pairs, keyPairs(keys.Refresh)...)...)
+	d.keys(append(pairs, keys.Pairs(keys.Refresh)...)...)
 	v.page.SetDetail(d.String())
 }
 

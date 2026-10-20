@@ -2,83 +2,72 @@
 
 # Référence TUI — OpenHub
 
-> Documentation complète de l'interface terminal interactive (TUI) d'OpenHub.
+> Référence de l'interface terminal (TUI) d'oh : touches, commandes de la palette, vues et leurs actions. Pour les parcours pas à pas, voir le [guide de la TUI](../guides/tui-usage.fr.md).
 
 ## Lancement
 
 ```bash
-oh          # Lance le TUI (terminal interactif détecté)
+oh          # Lance la TUI (terminal interactif détecté)
 oh --no-tui # Force le mode CLI classique
 ```
 
-Le TUI se lance automatiquement quand `oh` est exécuté sans sous-commande dans un terminal interactif. Variables qui désactivent le TUI : `CI=true`, `TERM=dumb`, `OH_RICH_TUI=0`.
+La TUI se lance quand `oh` est exécuté sans sous-commande dans un terminal interactif. Variables qui la désactivent : `CI=true`, `TERM=dumb`, `OH_RICH_TUI=0`.
 
-Si aucun provider n'est configuré (premier lancement), un wizard inline de configuration initiale se lance automatiquement dans le shell. Voir [InlineWizardView](tui-inline-wizard.fr.md) pour les détails du composant.
-
-## Principes de design
-
-Le TUI suit un design **omnibar-first** inspiré des lanceurs fuzzy (fzf, Telescope) et de l'approche minimaliste d'opencode :
-
-- **Point d'interaction unique** : l'omnibar gère toutes les commandes
-- **Contenu d'abord** : espace maximum dédié au contenu
-- **Contextuel** : l'interface s'adapte à la vue active
-- **Raccourcis minimaux** : quelques raccourcis globaux, le reste dans l'omnibar ou la ligne d'aide de la vue
+Si aucun fournisseur n'est configuré (premier lancement), l'assistant de configuration initiale s'ouvre dans la TUI. Voir [InlineWizardView](tui-inline-wizard.fr.md).
 
 ## Layout
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│                                                                   │
-│                    ZONE DE CONTENU                                │
-│              (s'adapte à la vue active)                           │
-│                                                                   │
-├───────────────────────────────────────────────────────────────────┤
-│  > _  Ctrl+P commande · Esc retour · Ctrl+Q quitter             │ Omnibar (1 row)
-└───────────────────────────────────────────────────────────────────┘
+│                       ZONE DE CONTENU                            │
+│                 (s'adapte à la vue active)                       │
+├──────────────────────────────────────────────────────────────────┤
+│  ligne d'aide de la vue (touches) ou palette de commandes        │ Omnibar
+│  🏠 Hub · ● 2 ⏸ 1                                                │ Barre de mode
+└──────────────────────────────────────────────────────────────────┘
 ```
-
-**Petits terminaux** (v5.0) : sous 32 lignes, mise en page compacte (bandeau sur une ligne, omnibar et barre de mode sur 3 lignes, sans pied de page ni espaces) ; sous 60×16, message « Terminal trop petit » et seul `Ctrl+Q` fonctionne. Seuils centralisés dans `views.LevelFor` ; réglage `[cli] compact = auto | always | never`. Le changement de mise en page garde l'élément sélectionné.
-
-## Raccourcis globaux
-
-| Touche | Action |
-|--------|--------|
-| `Ctrl+P` | Activer l'omnibar |
-| `/` | Activer l'omnibar, si la vue n'utilise pas `/` (recherche) |
-| `Esc` | Ferme d'abord les toasts affichés ; sinon retour (vue précédente) ; à la racine d'un mode Projet ou Équipe : retour au mode Hub. Dans les vues qui capturent la saisie (fiche de lancement, assistants, éditeur de workflow, publication), `Esc` va à la vue (fermer la fiche, « Quitter l'assistant ? ») et ne ferme pas les toasts, qui disparaissent seuls |
-| `Ctrl+T` | Mode Équipe (sélecteur si plusieurs équipes) ; depuis le mode Équipe : retour au Hub |
-| `Ctrl+Q` / `Ctrl+C` | Quitter la TUI (si des sessions travaillent : finir l'étape puis veille, arrière-plan, ou arrêter maintenant) |
-| `?` / `F1` | Aide et raccourcis |
-| `j` / `k`, `g` / `G` | Bas / haut, premier / dernier élément (dans toute liste) |
-| `Enter` | Action de la liste, du bouton ou du champ sélectionné ; active l'omnibar seulement si rien ne l'utilise |
-
-**Contrat des touches** (v5.0) : les fenêtres (formulaires, confirmations) et l'omnibar reçoivent toutes les touches ; puis viennent les touches réservées (`Esc`, `Ctrl+P`, `Ctrl+T`, `?`, `F1`, `Ctrl+Q` / `Ctrl+C`), que les vues ne redéfinissent pas ; puis les touches de la vue ; puis la liste ou le champ sélectionné. `Enter` et les lettres ne sont plus pris à la liste : taper une lettre « n'importe où » n'ouvre plus l'omnibar, et `d` ne ferme plus les toasts (`Esc`). Toute action destructrice (suppression, nettoyage, libération d'un ticket, rejet d'une proposition…) demande une confirmation.
-
-**Boutons** : un seul style (`theme.ButtonStyle`, `widgets.DecorateButton`) dans les fenêtres, formulaires, assistants et le récap : action principale en gras dans la couleur du mode, bouton sélectionné sur fond clair et encadré `▸ libellé ◂`. Sélection initiale sur l'action principale (« Annuler » pour une confirmation dangereuse) ; `Tab` / `Shift+Tab` (et `←` / `→`) parcourent tous les boutons ; `↓` / `↑` font défiler le texte d'une fenêtre.
-
-Le reste passe par l'omnibar ou par les touches de la vue (affichées dans la ligne d'aide).
 
 La barre de mode affiche le badge des sessions **`● N ⏸ M`** (N sessions qui travaillent, M décisions en attente) ; il passe en alerte quand une décision attend.
 
+**Petits terminaux** : sous 32 lignes, mise en page compacte (bandeau sur une ligne, omnibar et barre de mode sur 3 lignes) ; sous 60×16, message « Terminal trop petit » et seul `Ctrl+Q` fonctionne. Réglage `[cli] compact = auto | always | never`. Le changement de mise en page garde l'élément sélectionné.
+
+## Touches globales
+
+| Touche | Action |
+|--------|--------|
+| `Ctrl+P` | Palette de commandes |
+| `/` | Filtrer la liste de la vue ; si la vue ne filtre pas : palette |
+| `?` / `F1` | Aide : touches globales, convention, touches de la vue active, légende, commandes |
+| `Échap` | Ferme d'abord les toasts ; sinon revient (vue précédente) ; à la racine d'un mode Projet ou Équipe : retour au Hub |
+| `Ctrl+T` | Mode Équipe (choix si plusieurs équipes) ; depuis le mode Équipe : retour au Hub |
+| `Ctrl+Q` / `Ctrl+C` | Quitter (si des sessions travaillent : finir l'étape puis veille, arrière-plan ou arrêter) |
+| `Entrée` | Action de la liste, du bouton ou du champ sélectionné ; palette seulement si rien ne l'utilise |
+
+**Ordre des touches** : les fenêtres (formulaires, confirmations) et la palette reçoivent toutes les touches ; puis viennent les touches globales ; puis les touches de la vue ; puis la liste ou le champ sélectionné. Taper une lettre « n'importe où » n'ouvre pas la palette.
+
+**Vues qui gardent les touches** : la fiche de lancement, les assistants, l'éditeur de workflow et la publication gardent `Échap` (fermer, « Quitter l'assistant ? ») et ne ferment pas les toasts ; `F1` y ouvre l'aide. Les onglets du détail d'une session et la validation par lot gardent aussi `Échap` (retour au détail, annuler le lot), mais `?` et `Ctrl+P` y restent disponibles, et la ligne d'aide montre les touches de l'onglet ou du lot.
+
+**Boutons** : un seul style dans les fenêtres, formulaires, assistants et le récap. L'action principale est en gras ; le bouton sélectionné est encadré `▸ libellé ◂`. À l'ouverture, l'action principale est sélectionnée (« Annuler » pour une confirmation dangereuse) ; `Tab` / `Shift+Tab` (et `←` / `→`) parcourent les boutons ; `↓` / `↑` font défiler le texte d'une fenêtre.
+
 ## Convention des touches
 
-Une touche a le même sens dans toutes les vues. Une vue peut ajouter ses propres lettres (`a` attacher, `t` transférer…), mais ne donne jamais un autre sens à une touche de la convention, ni une autre touche à une action de la convention. L'aide (`?`) affiche ce tableau ; elle rappelle aussi le message des nouvelles touches (bouton « Nouvelles touches »), montré une seule fois au premier lancement après la mise à jour.
+Une touche a le même sens dans toutes les vues. Une vue peut donner une lettre libre à une action à elle (`a` attacher, `p` relancer le pilote, `B` lot…), mais ne donne jamais un autre sens à une touche de la convention, ni une autre touche à une action de la convention. L'aide (`?`) affiche ce tableau et propose de revoir le message « Nouvelles touches », montré une fois au premier lancement après la mise à jour.
 
 | Contexte | Touche | Action |
 |----------|--------|--------|
 | Partout | `↑` `↓` / `j` `k` | Monter / descendre |
 | Partout | `g` / `G` (`Début` / `Fin`) | Premier / dernier élément |
-| Partout | `/` | Filtrer la liste ; sans filtre dans la vue : palette de commandes |
+| Partout | `/` | Filtrer la liste ; sans filtre dans la vue : palette |
 | Partout | `r` | Rafraîchir |
 | Partout | `?` / `F1` | Aide et touches |
-| Partout | `Entrée` | Ouvrir l'élément sélectionné (palette si rien ne l'utilise) |
+| Partout | `Entrée` | Ouvrir l'élément sélectionné |
 | Partout | `Échap` | Revenir (ferme d'abord les toasts) |
 | Liste | `n` | Créer |
 | Liste | `e` | Éditer |
 | Liste | `d` | Supprimer, **toujours confirmé** |
 | Liste | `x` | Archiver ou classer, **jamais destructif** |
 | Liste | `R` | Reprendre ou restaurer (session en veille, session distante, version d'un workflow) |
-| Liste | `c` | Comparer (diff d'un brouillon de workflow, d'une version) |
+| Liste | `c` | Comparer (diff) |
 | Décision | `y` | Valider ou accepter (checkpoint, proposition wiki, élément d'un lot) |
 | Décision | `n` | Refuser, avec une consigne ; la consigne validée vaut confirmation |
 | Décision | `e` | Modifier avant de valider |
@@ -87,297 +76,286 @@ Une touche a le même sens dans toutes les vues. Une vue peut ajouter ses propre
 | Lecteur | `/` | Rechercher dans le texte (trace, rapports) |
 | Lecteur | `n` / `N` | Résultat suivant / précédent |
 
-**Touches changées** :
+`e`, `s`, `A` et `c` portent une action propre à la vue quand elle n'a pas l'action de la convention (`e` enchaîner dans Sessions, `s` arrêter une session, `A` ouvrir avec…).
 
-| Avant | Maintenant | Où |
-|-------|------------|----|
-| `D` | `d` | Sessions : supprimer une session |
-| `c` | `R` | Sessions : reprendre une session en veille |
-| `g` | `R` | Sessions : récupérer une session distante |
-| `r` | `R` | Historique d'un workflow : restaurer une version |
-| `a` | `y` | Propositions wiki : accepter |
-| `x` | `n` | Propositions wiki : refuser |
-| `D` | `c` | Workflows : diff du brouillon |
+### Touches changées
 
-`a` reste « attacher » dans Sessions. Les vues adoptent la convention au fil des lots TUI : tant qu'une vue n'est pas passée, sa ligne d'aide fait foi.
+| Vue | Avant → maintenant |
+|-----|--------------------|
+| Sessions | `D` → `d` supprimer · `c` → `R` reprendre · `g` → `R` récupérer une session distante · nouveau : `B` valider en lot |
+| Récap d'une session existante (fiche de lancement) | `r` → `R` reprendre · `t` → `T` transférer |
+| Propositions wiki | `a` → `y` accepter · `x` → `n` refuser |
+| Workflows | `D` → `c` comparer · `x` → `d` supprimer un brouillon (`x` n'archive que les workflows publiés) |
+| Historique d'un workflow | `r` → `R` restaurer (`r` rafraîchit) |
+| Éditeur de workflow | `x` → `d` retirer ou revenir à la valeur héritée · `y` → `Y` YAML brut |
+| Patterns | `a` → `n` créer · `v` → `y` valider |
+| Projets | `a` → `n` créer · `n` → `e` renommer |
+| Board d'équipe | `f` → `/` filtrer · `x` → `L` libérer |
+| Worktrees | `a` → `n` créer · `x` → `M` nettoyer les fusionnés |
+| Détail d'équipe | `y` → `T` découvrir le tracker |
+| Autres listes (modèles, policies, secrets, équipes…) | `a` → `n` créer |
 
-## L'Omnibar
+## L'omnibar
 
-L'omnibar est toujours visible en bas de l'écran. Il a deux modes :
-
-### Mode passif (par défaut)
-
-Affiche les hints contextuels de la vue active :
-
-```
-│  Ctrl+P commande · j/k nav · Enter ouvrir · h/l colonnes        │
-```
-
-### Mode actif (saisie)
-
-Accepte la saisie avec suggestions fuzzy au-dessus :
+En bas de l'écran. Au repos, elle affiche la ligne d'aide de la vue (ou de l'onglet) ; `Ctrl+P` (ou `/` hors filtre) l'ouvre en saisie, avec les suggestions au-dessus :
 
 ```
 │  ● run audit           Audit du projet (sécurité, performance…)   │
 │  ○ run review          Review de code d'une branche…               │
-│  ○ run debug           Diagnostiquer un bug ou un problème isolé   │
 ├───────────────────────────────────────────────────────────────────┤
-│  > audit_                                                         │
+│  > aud_                                                           │
 ```
-
-### Contrôles de l'omnibar
 
 | Touche | Action |
 |--------|--------|
 | Saisie | Filtre les commandes (fuzzy, sur le libellé et les alias) |
-| `↓` / `Tab` | Descendre dans les suggestions |
-| `↑` / `Shift+Tab` | Monter dans les suggestions |
-| `Enter` | Exécuter la commande sélectionnée |
-| `Esc` | Fermer et retourner au contenu |
+| `↓` / `Tab`, `↑` / `Shift+Tab` | Parcourir les suggestions |
+| `Entrée` | Exécuter la commande sélectionnée |
+| `Échap` | Fermer ; le focus revient où il était (onglet compris) |
 
-## Commandes disponibles
+## Commandes de la palette
 
-La colonne Commande donne le libellé affiché ; on peut aussi taper un alias. Chaque alias n'a qu'un sens (`q` : quitter, `hub` : mode Hub, `tokens` : secrets, `team config` : configurer l'équipe du projet, `libre` : `run libre`). « Projet » : seulement en mode Projet ; « Équipe » : seulement en mode Équipe ; « Projet/Équipe » : dans les deux ; sinon partout.
+La colonne Commande donne l'identifiant ; on peut taper le libellé ou un alias. Chaque terme n'a qu'un sens. « Projet » : seulement en mode Projet ; « Équipe » : seulement en mode Équipe ; sinon partout.
 
 ### Workflows et sessions
 
 | Commande | Alias | Mode | Description |
 |----------|-------|------|-------------|
-| `run <workflow>` | l'id du workflow ; anciens noms : `dev`, `start.dev` → `ticket` · `start`, `feature`, `orchestrator`, `cadrage` → `spec` · `fast` → `quick` · `secu`, `security`, `perf`, `archi`, `a11y` → `audit` · `rev`, `cr` → `review` · `dbg`, `debugger`, `diag` → `debug` · `onboard`, `start.onboard` → `onboarding` · `feedback`, `rf`, `retours` → `review-feedback` | — | Fiche de lancement du workflow (une commande par workflow du catalogue) |
-| Session libre | `coder`, session, code, free | Projet/Équipe | Fiche de lancement du workflow `libre` (agent d'entrée au choix, par défaut `orchestrator`) |
-| Sessions | `sessions`, parallel, par, multi, inbox, à traiter, décisions | — | Vue Sessions |
-| Workflows | `workflows`, catalogue, catalog, wf, workflow | — | Catalogue des workflows (brouillons, publication, historique) |
-| Briques | `bricks`, briques, agents, skills, catalogue des briques | — | Catalogue des briques (agents et skills : origine, coût, workflows) |
-| Review Publish | `review.publish`, publish, mr | Projet/Équipe | Créer la MR de la branche courante (`oh review --publish`, terminal suspendu) ; présent seulement si l'écriture GitLab est activée |
+| `run.<workflow>` | l'id du workflow et ses `aliases:` : `cadrage`, `feature` (→ `spec`), `secu` (→ `security-fix`), `perf` (→ `benchmark`), `dbg` (→ `debug`), `feedback`, `retours` (→ `review-feedback`) | — | Fiche de lancement du workflow (une commande par workflow du catalogue) |
+| `run.feature.implement-spec` | « run feature → implement-spec (avec tickets) » | — | Fiche d'`implement-spec` sous l'alias `feature` avec des tickets |
+| `coder` | session, code, free | Projet/Équipe | Fiche de `libre` (agent par défaut `orchestrator`) |
+| `coder.agent` | libre agent, free agent, session agent | Projet/Équipe | « Session libre avec un agent… » : choisir l'agent d'entrée, puis la fiche |
+| `sessions` | parallel, par, multi, inbox, à traiter, decisions | — | Vue Sessions |
+| `workflows` | catalogue, catalog, wf, workflow | — | Catalogue des workflows |
+| `bricks` | briques, agents, skills, catalogue des briques | — | Briques (agents et skills) |
+| `review.publish` | publish, mr | Projet/Équipe | Créer la MR de la branche courante ; seulement si l'écriture GitLab est activée |
 
-### Fiche de lancement
+Les alias viennent des YAML des workflows (`aliases:`, voir la [référence des workflows](workflows.fr.md)) : ils valent aussi pour `oh run`. Les anciens termes en dur (`dev`, `start`, `fast`, `rev`…) ne sont plus reconnus.
 
-Générée depuis le YAML du workflow (titre « Lancer · <workflow> »), en trois étapes :
-
-1. **Entrées** : une ligne par entrée (ticket Beads avec sélecteur `Choisir…`, case pour `bool`, liste pour `enum`, zone de texte pour `text`) ; « Ce workflow n'a pas d'entrée » sinon.
-2. **Options** : **Mode** ; **Exécution** (`⌂ local`, `▣ conteneur`, `☁ distant` ; un environnement indisponible affiche la raison ; en conteneur : moteur, image en cache ou à construire avec la durée estimée) ; **Emplacement** (`base`, worktrees existants, `+ nouveau worktree`) ; **Ouverture** (auto, iTerm2, Terminal.app, tmux, navigateur, ce terminal, ne pas ouvrir).
-3. **Récap** : agents, budget du 1er tour, isolation, sessions et emplacements (« N sessions · 1 serveur · un worktree par session qui écrit »), avertissements ; « Lancer » est l'action principale. Si une session ouverte travaille déjà sur le ticket, un bloc la compare au lancement (« Session existante / Nouveau lancement », différences ⚠) ; pour une session du même workflow, « Lancer » laisse place aux choix, boutons ou touches : `r` reprendre, `t` reprendre ailleurs (transfert local ↔ conteneur, modèle), `k` remplacer en gardant le travail (brief de passation), `d` supprimer et relancer (confirmation), `p` en parallèle ; un choix lance aussitôt (voir [Sessions v5](../guides/sessions-v5.fr.md#lancer-sur-un-ticket-déjà-en-cours)).
-
-`Tab` champ suivant ; `Ctrl+S` va au récap depuis n'importe quelle étape, puis lance depuis le récap une fois chargé ; `Alt+←`, `PgUp` ou `Ctrl+B` reviennent à l'étape précédente, `Alt+→` ou `PgDn` passent à la suivante ; `Esc` ferme. Un second lancement pendant la préparation est ignoré. Avec plusieurs tickets, une case « Une seule session pour tous les tickets » est proposée. Quand une précondition suggère un autre workflow, le récap propose « Lancer <wf> d'abord (puis revenir) ». Quand le fournisseur n'a pas d'identifiants, le récap affiche le message et un bouton **Configurer le fournisseur** (sélectionné) : il ouvre la vue Fournisseur ; au retour sur la fiche (`Esc`), le récap vérifie à nouveau.
-
-### Démarrer, board, catalogue
-
-- **Démarrer** (accueil, projet, équipe) : ★ épinglés (5 max par portée), **Récents** (3), suggestions si rien n'est épinglé ni récent (`ticket`, `spec`, `review`) ; le workflow par défaut du projet est en tête (badge « par défaut ») ; en mode Projet/Équipe, catégories repliées (Développer, Cadrer, Qualité, Connaissance, Autres ; Entrée = choix du workflow). `*` épingle ou désépingle (portée : hub, projet ou équipe selon l'accueil). « Tous les workflows (N) » ouvre le catalogue ; « Session libre » ouvre la fiche de `libre`.
-- **Board** : `a` sur un ticket ouvre « Lancer sur <ticket> » avec les workflows qui prennent un ticket Beads ; la fiche s'ouvre à l'étape Options, ticket prérempli.
-- **Catalogue** (`workflows`) : workflows par couche (Hub · intégrés, Équipe, Projet ; version, risque, ⌂ ▣ ☁, validité), détail à droite (entrée, chaîne, entrées, exécution). Entrée lance, `*` épingle. Avec un team-state (équipe ou espace solo), le catalogue est **modifiable** :
-  - sections Hub (lecture seule : `e` étendre, `n` dupliquer), Équipe, Projet, **Mes brouillons** (`✎`, nombre d'erreurs, badge « nouvelle brique » pour une brique d'équipe utilisée pour la première fois) et **⚠ Intégrité** (fichiers publiés ignorés, briques refusées) ; `✎` sur un workflow publié = vous en avez un brouillon, `⏳` = publication en attente du réseau ;
-  - `n` nouveau (Vide, Étendre un workflow (patch), Dupliquer un workflow (copie) ; couche équipe ou projet ; identifiant ; sans team-state, propose de créer un espace solo, puis enchaîne sur le formulaire du nouveau workflow), `e` éditer (sur un workflow du hub : l'étendre), `v` valider, `t` tester le brouillon (fiche « ✎ brouillon », en local), `p` publier, `D` diff du brouillon avec l'impact, `h` historique, `x` archiver (raison facultative ; sur un brouillon : l'abandonner), `r` recharger ; Entrée sur un brouillon = le tester ;
-  - **Publier** : version actuelle → suivante, validation, impact (les élargissements sont marqués ⚠), nouvelles briques, diff du document et du gabarit, gouvernance (« Publication : tout membre ») ; message obligatoire, `Ctrl+S` publie une seule fois ; hors ligne, la publication est mise en attente et rejouée à la synchronisation suivante du team-state (toast « N publication(s) en attente rejouée(s) ») ;
-  - **Historique** : versions (auteur, date, message, actuelle) ; Entrée = diff avec la version actuelle, `r` = restaurer (republiée comme nouvelle version).
-  - **Éditeur** (`e`, `n`) : cinq sections (`Tab` / `Shift+Tab`) — **Général** (identité, sécurité, exécution : chaque champ montre la valeur résolue, ou la valeur écrite (`✎`) quand le brouillon la pose — même refusée, l'erreur dit pourquoi ; booléens en `on` / `off`, `← hub:ticket` son origine, 🔒 s'il est verrouillé par le workflow parent ; Entrée modifie, `x` revient à la valeur héritée), **Graphe** (colonne de démarrage, checkpoints dans l'ordre avec leur comportement dans le mode affiché — `m` pour en changer —, agents sous le checkpoint qu'ils attendent, agents indépendants à part ; Entrée modifie, `a` ajoute un agent du catalogue, `c` un checkpoint, `x` retire — un élément hérité est désactivé), **Entrées & prompt** (entrées, `a` ajouter, gabarit, `P` pour l'écrire dans `$EDITOR`, aperçu du prompt), **Ressources** (skills ajoutées/refusées, MCP, Beads, plugins, sorties), **Aperçu paquet** (agents, skills, budget du 1er tour, profondeur, isolation, MCP ; diagnostics : Entrée mène au champ, ou au YAML à la bonne ligne) ;
-  - `u` / `U` annuler / rétablir, `y` YAML brut dans `$EDITOR`, `w` (ou `Ctrl+S`) enregistrer le brouillon (refusé tant qu'il reste des erreurs), `Esc` : s'il reste des modifications, « Enregistrer et quitter », « Abandonner les modifications » ou « Continuer l'édition ». Les commentaires et la mise en forme du YAML sont conservés ; seuls les champs modifiés sont écrits.
-- **Catalogue des briques** (`bricks`) : sections Agents et Skills (origine hub ou équipe, ~tokens, nombre de workflows qui les utilisent), détail à droite (type, famille, mode, skills, dépendances, chargé par, coût estimé, workflows) ; `/` chercher (identifiant, nom, description), `f` filtrer (tout, agents, skills).
-- **Détail d'équipe** : section « Workflows » avec la gouvernance de publication en lecture seule ; pour un espace solo, ligne « Espace » (« solo (local) ») et action « Passer en équipe » (URL d'un dépôt distant vide) ; le tracker, les notifications et la collaboration, désactivés dans un espace solo, n'y sont pas affichés.
-
-### Vue Sessions
-
-Sections : **À traiter** (sessions qui ont des décisions en attente, chacune suivie de ses décisions ; une session n'apparaît qu'une fois dans la vue, identifiant court), **En cours**, **En veille**, **Terminées, 7 j**, **À récupérer** (sessions distantes terminées). Le détail à droite montre la session (workflow, runtime ⌂ ▣ ☁, emplacement, coût, décisions, sorties, suite proposée « ↪ Enchaîner avec … (e) »).
-
-| Touche | Action |
-|--------|--------|
-| `Enter` | Ouvrir la décision sélectionnée (fiche checkpoint, question, permission ; réglée ailleurs — interface de l'outil, autre fenêtre — la fiche se ferme d'elle-même) ; sur une session sans décision : afficher / masquer le flux |
-| `y` / `n` | Permission : autoriser une fois / refuser ; checkpoint : valider / corriger d'abord |
-| `x` | Classer une erreur, un dépassement de budget ou un coupe-circuit |
-| `a` | Attacher (ouvrir opencode sur la session) |
-| `A` | Choisir la méthode d'ouverture (automatique, iTerm2, Terminal.app, tmux, navigateur, ici) |
-| `w` | Ouvrir dans le navigateur |
-| `t` | Afficher / masquer le flux de la session |
-| `m` | Envoyer une consigne (prise en compte à la prochaine étape) |
-| `i` | Interrompre l'étape en cours |
-| `M` | Changer le modèle des prochaines étapes (`fournisseur/modèle`) |
-| `s` | Arrêter la session (confirmation) |
-| `D` | Supprimer définitivement la session (comme `oh session delete` ; confirmation avec ce qui est supprimé et perdu) |
-| `c` | Reprendre une session en veille |
-| `o` | Résultats (description de MR) |
-| `e` | Enchaîner avec… (workflows qui prennent une sortie de la session) |
-| `g` | Récupérer une session distante (artefacts, rejeu du journal Beads, conflits) |
-| `f` | Filtre : projet actif / tous les projets |
-| `r` | Rafraîchir |
-
-**Fiche checkpoint** (`⏸ <checkpoint>`) : changements de la session (`+N −M · K fichier(s)`, « Diff complet »), derniers messages, frise ; puis **Décider** : Valider, Corriger d'abord ou Autre consigne, avec un message à l'agent (obligatoire pour les deux derniers choix). Un coupe-circuit s'affiche « Coupe-circuit : N délégations d'affilée sans intervention ».
-
-**Récupération distante** (`g`) : import de la session, puis « Rejouer le journal (N op.) » ; un conflit Beads propose Garder local, Appliquer distant, Fusionner les notes ou Plus tard.
-
-### Projets
+### Projets et configuration
 
 | Commande | Alias | Mode | Description |
 |----------|-------|------|-------------|
-| Board Projet | `board`, kanban, tasks, project board | Projet | Kanban du projet actif |
-| Wiki du projet | `project-wiki`, wiki, wiki projet, project wiki, doc metrics | Projet | Métriques du wiki (`docs/wiki/`), calculées par oh : couverture des domaines, âge médian des pages, part de `INCERTAIN`, propositions en attente, dernière synchronisation (`doc-sync`) ; `r` recalcule. Aussi dans la section Projet du mode Projet (📚 Wiki) |
-| Init Board | `board.init`, beads init, init board, init tickets | — | Initialiser Beads dans le projet |
-| Projets | `projects`, proj, list | — | Liste des projets |
-| Ajouter un projet | `project.add`, project add, add project, nouveau projet | — | Assistant d'ajout de projet |
+| `board` | kanban, tasks, project board | Projet | Board Beads du projet |
+| `project-wiki` | wiki, wiki projet, project wiki, doc metrics | Projet | Wiki du projet : file des propositions et métriques |
+| `board.init` | beads init, init board, init tickets | — | Initialiser Beads |
+| `projects`, `project.add` | proj, list · project add, nouveau projet | — | Projets, assistant d'ajout |
+| `settings`, `project-config` | config, cfg · config projet | — / Projet | Réglages du hub, configuration du projet (dont Exécution) |
+| `models`, `provider`, `mcp`, `secrets` | mod, llm · prov, api · servers · tokens, credentials | — | Modèles, fournisseur, serveurs MCP, secrets |
+| `teams`, `team-detail`, `team.discover` | team, équipes · tracker · discover | — / Équipe | Équipes, détail de l'équipe, découverte du tracker |
+| `init` | setup, reconfigure | — | Assistant de configuration |
 
-`deploy` et `sync` n'existent plus (v5 : plus de déploiement dans les projets) ; les restes des anciens déploiements se retirent avec `cleanup`.
-
-### Configuration
-
-| Commande | Alias | Mode | Description |
-|----------|-------|------|-------------|
-| Settings | `settings`, config, cfg, hub config | — | Réglages du hub |
-| Config Projet | `project-config`, config projet, project config | Projet | Configuration du projet (dont Exécution) |
-| Models | `models`, mod, model, llm | — | Modèles |
-| Provider | `provider`, prov, api | — | Fournisseur LLM (la région Bedrock est vérifiée dès la saisie : message sous le champ, valeur invalide refusée) |
-| MCP | `mcp`, servers | — | Serveurs MCP |
-| Secrets & Tokens | `secrets`, tokens, credentials, keychain | — | Secrets du trousseau |
-| Équipes | `teams`, team, équipe, équipes | — | Liste des équipes |
-| Configuration équipe | `team-detail`, tracker, sync, team detail | Équipe | Détail et configuration de l'équipe |
-| Discover Tracker | `team.discover`, tracker discovery, discover, configurer tracker | Équipe | Configurer les colonnes du board depuis le tracker |
-| Configurer le hub | `init`, setup, reconfigure, configurer | — | Assistant de configuration (premier lancement) |
-
-**Réglages** (`settings`), dans l'ordre : Général, CLI, Opencode, Sessions (ouverture, style iTerm2, veille), **Restrictions des sessions** (désactivées si vides : sessions actives max, budget par session, budget journalier, plafond mémoire, modèles autorisés), **Exécution** (runtime par défaut, moteur de conteneurs, cache des images, version d'opencode figée, isolation stricte), Workflows (lien vers le catalogue), MCP GitLab / Jira / Figma / Google Slides, Worktree, Tracker (surcharges locales), **Distant (GitLab CI)** (par cible : instance · groupe, projet oh-runner, étiquette des runners, construction de l'image Kaniko ou Docker-in-Docker, architecture, durée maximale du job, jeton GitLab ; « Vérifier ou compléter » lance `oh remote setup`). Touches : `Enter` / `e` modifier, `Espace` basculer, `u` annuler, `r` recharger.
-
-**Config Projet › Exécution** : Dockerfile de dev (vide = détection ; aucun = image oh par défaut Debian + git), build args (`CLÉ=valeur`, séparés par des virgules), volumes de cache, workflow par défaut, runtime par défaut (vide = réglages / workflow).
-
-### Système
+### Système et navigation
 
 | Commande | Alias | Description |
 |----------|-------|-------------|
-| Statut | `status`, stat, info | État du système |
-| Doctor | `doctor`, doc, health, check | Diagnostic de santé |
-| Métriques | `metrics`, met, stats, usage | Statistiques d'usage |
-| Notifications | `notifications`, notif, logs, messages, toasts, erreurs | Historique des notifications |
-| Nettoyer les anciens déploiements | `cleanup`, deploy-cleanup, nettoyage, migrate | Écran de nettoyage (`oh migrate deploy-cleanup`) |
-| Export historique / Import historique | `history.export`, `history.import` (export history, import history…) | Export / import de l'historique des sessions |
-| Aide | `help`, ?, aide, shortcuts | Aide et raccourcis |
-
-**Écran de nettoyage** (« Nettoyage des anciens déploiements ») : liste des projets avec des restes de `oh deploy` ; « Voir le diff » (diff de `opencode.json`), « Nettoyer », « Plus tard ». Il est aussi proposé une fois au démarrage quand des restes sont trouvés.
-
-`plugins` et `upgrade` ont été retirés en v5 (plugins déclarés par workflow ; opencode V2 s'installe avec son propre outil).
-
-### Navigation
-
-| Commande | Alias | Description | Disponibilité |
-|----------|-------|-------------|---------------|
-| Accueil | `home`, accueil, welcome | Retour à l'accueil | Partout |
-| Mode Projet | `project.mode`, projet, project, focus | Passer en mode Projet | Modes Hub et Équipe |
-| Mode Hub | `hub.mode`, hub, complet, retour | Revenir au mode Hub | Modes Équipe et Projet |
-| Quitter | `quit`, exit, q | Quitter la TUI | Partout |
-
-Le mode Équipe s'active avec `Ctrl+T` (ou en choisissant une équipe à l'accueil).
+| `status`, `doctor`, `metrics`, `notifications` | stat · doc, health · stats, usage · notif, logs | Statut, diagnostic, métriques, notifications |
+| `cleanup` | nettoyage, gc, oh gc, deploy-cleanup, migrate, garbage, espace disque, disk | Vue **Nettoyage** (anciens déploiements et données d'oh) |
+| `history.export`, `history.import` | export history, import history | Export / import de l'historique des sessions |
+| `help` | ?, aide, shortcuts | Aide |
+| `home`, `project.mode`, `hub.mode`, `quit` | accueil · projet, focus · hub, retour · exit, q | Accueil, mode Projet, mode Hub, quitter |
 
 ### Équipe
 
-| Commande | Alias | Mode | Description |
-|----------|-------|------|-------------|
-| Board Équipe | `team.board`, team board, team kanban, équipe board | Équipe | Kanban d'équipe |
-| Statut | `team.status`, team stat, status team | Équipe | Statut d'équipe |
-| Activité | `team.activity`, activite, feed, activity | Équipe | Activité récente |
-| Historique Équipe | `history.team`, team history, team sessions | Équipe | Historique des sessions de l'équipe (vue Activité) |
-| Reprises | `team.briefs`, takeover, briefs, reprises | Équipe | Briefs de reprise de contexte |
-| Patterns | `team.patterns`, pat, patterns | Équipe | Patterns d'équipe |
-| Policies | `team.policies`, pol, rules, policies | Équipe | Politiques d'équipe |
-| Wiki | `team.wiki`, wiki, proposals, pending | Équipe | Propositions de wiki |
-| Sync Tracker | `team.sync`, sync tracker, synchroniser tracker | Équipe | Synchroniser le tracker |
-| Équipe du projet | `team.configure`, team projet, configurer équipe | Équipe | Équipe rattachée au projet |
-| Initialiser l'équipe | `team.init`, team init, initialiser | — | Assistant `team init` |
-| Rejoindre une équipe | `team.rejoin`, team rejoin, rejoindre, rejoin | — | Rejoindre une équipe existante |
-| Worktrees | `worktrees`, wt, git worktree | — | Gestion des git worktrees |
+| Commande | Alias | Description |
+|----------|-------|-------------|
+| `team.board`, `team.status`, `team.activity`, `history.team` | team board, team stat, activity, team history | Board, statut, activité, historique de l'équipe |
+| `team.briefs`, `team.patterns`, `team.policies` | takeover, reprises · pat · pol, rules | Reprises, patterns, policies |
+| `team.wiki` | wiki, proposals, pending, team-state | Propositions d'équipe (team-state) |
+| `team.sync`, `team.configure`, `team.init`, `team.rejoin` | sync tracker · team projet · team init · rejoindre | Synchroniser le tracker, équipe du projet, créer ou rejoindre une équipe |
+| `worktrees` | wt, git worktree | Worktrees git |
 
-## Raccourcis contextuels par vue
+## Vues et touches
 
-Quand une vue est active, ces touches fonctionnent sans activer l'omnibar. Elles sont rappelées dans la ligne d'aide. `j` / `k` (bas / haut) et `g` / `G` (premier / dernier) marchent partout.
+Chaque vue affiche ses touches dans la ligne d'aide ; `?` les reprend. Les touches de la convention (`j`/`k`, `g`/`G`, `r`, `Échap`…) ne sont pas répétées quand elles ont leur sens habituel.
 
-### Vue Board (projet)
+### Sessions
+
+Sections : **À traiter** (sessions avec des décisions en attente, chacune suivie de ses décisions : `⏸` checkpoint, `?` question, `!` permission, `$` budget, `✗` erreur ou coupe-circuit), **En cours**, **À récupérer** (sessions distantes), **En veille**, **Terminées, 7 j**. Les enfants d'un fan-out (`↳`) sont rangés en arbre sous leur parente (`⑂`) ; le groupe passe dans « À traiter » dès qu'un enfant attend.
+
+```
+┌ Sessions ─────────────────────────────┐┌ implement-spec · ses_8f2a ────────────┐
+│ ● ⑂ implement-spec  spec auth   $1.84 ││ [Détail]  Trace  Rapports  Fan-out    │
+│   ├ ✓ ↳ ticket  oh-12  merged   $0.41 ││ ⏸ cp-merge : 2/3 enfants mergés       │
+│   └ ⏸ ↳ ticket  oh-14  cp-2     $0.22 ││ Sorties relevées par oh               │
+│ ✓   spec        auth OAuth      $0.93 ││ ↪ Suites proposées (next:)            │
+└───────────────────────────────────────┘└───────────────────────────────────────┘
+```
 
 | Touche | Action |
 |--------|--------|
-| `h` / `←` | Colonne précédente |
-| `l` / `→` | Colonne suivante |
-| `Enter` | Détail du ticket |
-| `a` | Actions : lancer un workflow sur le ticket |
-| `L` | Lier le ticket au tracker |
+| `Entrée` | Sur une décision : ouvrir sa fiche ; sur une session : afficher / masquer le flux |
+| `y` / `n` | Permission : autoriser une fois / refuser ; checkpoint : valider (fiche si la vérification échoue) / formulaire « Corriger d'abord » (valideur attendu affiché) |
+| `x` | Classer une erreur, un dépassement de budget ou un coupe-circuit |
+| `$` | Relever le budget (décision `$`) |
+| `a` / `A` | Attacher (ouvrir opencode) / ouvrir avec… (automatique, iTerm2, Terminal.app, tmux, navigateur, ici) |
+| `t` | Afficher / masquer le flux en direct |
+| `m` / `i` / `M` | Envoyer une consigne / interrompre l'étape / changer le modèle des prochaines étapes |
+| `s` | Arrêter la session (confirmation) |
+| `e` | Enchaîner avec… (suites `next:` en tête) |
+| `B` | Valider en lot (voir plus bas) |
+| `d` | Supprimer la session (confirmation : ce qui est supprimé et perdu) |
+| `R` | Reprendre une session en veille ; récupérer une session distante prête |
+| `o` / `w` | Résultats (description de MR) / ouvrir dans le navigateur |
+| `f` | Projet actif / tous les projets |
+| `Tab` / `Shift+Tab` | Onglet suivant / précédent du détail |
+
+**Onglets du détail** (`Tab`). Hors Détail, les touches vont à l'onglet ; `Échap` revient au Détail et à la liste ; `?` et `Ctrl+P` restent disponibles.
+
+| Onglet | Contenu | Touches |
+|--------|---------|---------|
+| Détail | Session (workflow, runtime ⌂ ▣ ☁, emplacement, coût, décisions), **sorties relevées par oh**, **suites proposées (`next:`)** | celles de la liste |
+| Trace | Texte de `oh session trace` | `/` rechercher, `n` / `N`, `g` / `G`, `r` |
+| Rapports | Rapports de la session, lecteur à droite | `Entrée` lire (puis `Échap` revient à la liste), `/`, `n` / `N`, `r` |
+| Fan-out | État du fan-out : parallèle, pilote, budget, enfants (ticket, session, état, branche, coût, fin), tours de correction, dernier refus de `cp-merge`, branche d'intégration | `Entrée` ouvrir l'enfant, `p` relancer le pilote, `d` nettoyer, `B` valider en lot, `r` |
+
+`p` refuse de relancer un pilote qui tourne (« tourne déjà ») ; le journal du pilote est `~/.oh/sessions/<id>/fanout.log`. `d` (après `cp-merge` ou une fois la session arrêtée) montre ce qui sera supprimé et gardé, propose `--discard` (branches non mergées) à cocher, puis confirme ; c'est `oh fanout clean`.
+
+**Fiche de checkpoint** (`Entrée` sur `⏸`) : valideur attendu (`approver:`, « ⚠ hors valideur » si votre identité git n'en est pas), **vérification lancée par oh** (commandes et état), preuves de l'agent, changements (`+N −M · K fichier(s)`), derniers messages, frise, rapports. Boutons : **Décider**, **Diff complet**, **Lire rp-N** (un par rapport), **Propositions du wiki (N) : décider…** (s'il y en a), **Attacher**.
+
+| Formulaire « Décider » | Effet | Message |
+|------------------------|-------|---------|
+| Valider | Le checkpoint passe (hors valideur : confirmation, tracé) | facultatif |
+| Corriger d'abord | L'agent corrige puis redemande | obligatoire |
+| Autre consigne | L'agent suit la consigne puis redemande | obligatoire |
+| Passer outre la vérification | Seulement si la vérification a échoué et que le checkpoint le permet | motif obligatoire, tracé |
+
+Vérification échouée : la fiche s'ouvre sur **Corriger (consigne)** et **Passer outre…** (motif, confirmation, tracé dans `oh session trace`) ; jamais de « Passer outre » sur `cp-merge` du fan-out.
+
+**Propositions du wiki d'un checkpoint** (bouton de la fiche) : liste sans limite (avant / après, source, auteur, tag), `y` accepter, `n` refuser (motif facultatif, confirmé), `e` modifier (une ligne, ou `$EDITOR`), `s` laisser, `A` tout accepter, `Entrée` décider le checkpoint, `Échap` revenir à la fiche. Les acceptées sont appliquées au passage du checkpoint, avant le commit.
+
+**Validation par lot** (`B`) : remplace la liste ; portée = le fan-out de la session sélectionnée (sinon toutes les sessions), filtre = le checkpoint de la décision sélectionnée.
+
+| Touche | Action |
+|--------|--------|
+| `y` / `n` / `s` | Valider / refuser (consigne) / laisser l'élément |
+| `A` | Tout valider |
+| `/` | Filtrer par checkpoint (comme `--checkpoint`) |
+| `Entrée` | Ouvrir la fiche (seul moyen pour une vérification échouée : elle ne se valide pas en lot) |
+| `C` | Confirmer : récapitulatif, puis réponse de chaque élément du filtre |
+| `Échap` | Annuler le lot |
+
+Seuls les éléments du filtre sont répondus.
+
+**Récupération distante** (`R` sur une ligne « À récupérer ») : import de la session, puis « Rejouer le journal (N op.) » ; un conflit Beads propose Garder local, Appliquer distant, Fusionner les notes ou Plus tard.
+
+### Fiche de lancement
+
+Générée depuis le YAML du workflow (« Lancer · <workflow> », ou « Lancer · feature → implement-spec (avec tickets) » sous un alias), en trois étapes :
+
+1. **Entrées** : une ligne par entrée (ticket avec « Choisir… », case pour `bool`, liste pour `enum`, texte) ; l'aide de l'entrée sous son champ ; « Entier attendu » bloque, « Chemin introuvable » et « Branche introuvable : … » avertissent. Une entrée `from:` affiche « ⚙ calculé par oh : … → ses_… » (elle n'est pas préremplie par son défaut). Pour `libre` : **Agent d'entrée** (agents « selectable »).
+2. **Options** : mode, exécution (`⌂ local`, `▣ conteneur`, `☁ distant`, avec la raison si indisponible), emplacement (base, worktrees, « + nouveau worktree »), ouverture.
+3. **Récap** : agents, budget du 1er tour, isolation, sessions et emplacements, avertissements ; « Lancer ».
+
+| Touche | Action |
+|--------|--------|
+| `Tab` | Champ suivant |
+| `Ctrl+S` | Aller au récap ; sur le récap chargé : lancer |
+| `Alt+←` / `PgUp` / `Ctrl+B`, `Alt+→` / `PgDn` | Étape précédente, suivante |
+| `Échap` | Fermer |
+
+**Session existante** (une session du même workflow travaille déjà sur le ticket) : le récap compare les deux ; un choix lance aussitôt : `R` reprendre, `T` transférer (local ↔ conteneur, modèle), `k` remplacer en gardant le travail, `d` supprimer et relancer (confirmé), `p` en parallèle.
+
+**Sélecteur de tickets** (« Choisir… ») : `/` rechercher, `f` filtre de libellé, `e` épopée, `Espace` cocher (plusieurs tickets), `Entrée` choisir, `Échap` annuler.
+
+### Wiki du projet
+
+Commande `project-wiki` (mode Projet). En tête, les métriques résumées (pages, couverture des domaines, part de CONFIRMÉ / INCERTAIN, dernière synchronisation) ; dessous, la file des propositions hors checkpoint : **En attente**, **Acceptées, à appliquer au prochain commit**, **Périmées** (ligne remplacée disparue : rien n'est appliqué).
+
+| Touche | Action |
+|--------|--------|
+| `y` / `n` / `e` / `s` / `A` | Accepter / refuser (confirmé) / modifier / laisser / tout accepter, comme `oh wiki decide` |
+| `/` | Filtrer (page, contenu, agent, workflow) |
+| `m` | Toutes les métriques |
 | `r` | Rafraîchir |
-| `i` | Initialiser Beads (projet sans Beads) |
 
-### Vue Team Board
+### Propositions d'équipe (team-state)
 
-Colonnes du `[board]` du team-state ; par défaut **6 colonnes** : TODO, IN PROGRESS, REVIEW, VALIDATION, DONE, BLOCKED. Les tickets affichent des étiquettes compactes : `[AI]` (vert) pour `agent-reviewed`, `[!]` (jaune) pour `needs-human-review`.
+Commande `team.wiki` (mode Équipe) : propositions de wiki du team-state, puis pages. `{` / `}` sections, `Entrée` voir (boutons Accepter, Refuser confirmé, Fermer), `y` accepter, `n` refuser (confirmé), `r` rafraîchir.
 
-| Touche | Action |
-|--------|--------|
-| `h` / `←`, `l` / `→` | Colonne précédente / suivante |
-| `[` / `]` | Onglet de projet précédent / suivant |
-| `c` | Prendre le ticket (s'assigner) |
-| `x` | Libérer le ticket |
-| `t` | Transférer à un autre membre |
-| `s` | Changer le statut |
-| `a` | Actions rapides (dont lancer un workflow) |
-| `/` | Rechercher |
-| `f` | Filtrer |
-| `r` | Rafraîchir (sync tracker si configuré, puis pull git) |
+### Briques
 
-### Vue Projets
+Commande `bricks`, lecture seule. Colonnes : id, origine (`hub`, `équipe`, `équipe ⟳ hub` quand une brique d'équipe remplace celle du hub, `(non scellée)` sans `catalog.lock`), version, état (`✓`, `!` problème, `✗`). Le détail montre le remplacement, la publication (auteur, date), les agents et workflows qui l'utilisent, le coût, les problèmes et les commandes d'écriture (`oh brick new`, `edit`, `publish`).
 
-| Touche | Action |
-|--------|--------|
-| `Enter` | Configurer le projet |
-| `a` | Ajouter un projet |
-| `d` | Supprimer |
-| `n` | Renommer |
-| `m` | Déplacer (nouveau chemin) |
-| `p` | Passer en mode Projet |
-| `b` | Initialiser Beads |
-| `r` | Rafraîchir |
+`/` chercher, `f` agents / skills / tout, `Entrée` ouvrir un workflow qui l'utilise, `r` rafraîchir.
 
-### Vue Config (Réglages)
+### Nettoyage
 
-| Touche | Action |
-|--------|--------|
-| `Enter` / `e` | Modifier la valeur |
-| `Espace` | Basculer un booléen |
-| `u` | Annuler la dernière modification |
-| `r` | Recharger |
+Commande `cleanup` (alias `nettoyage`, `gc`), et Doctor › `f` sur les contrôles de nettoyage. Une vue, deux sections (`Tab`) :
 
-### Vue Équipes
+```
+ [Anciens déploiements]  Données d'oh
+╔ Nettoyage des anciens déploiements ═══════════════════════╗
+║ demo  /work/demo                                          ║
+║   − .opencode/agents/ (12 fichiers)                       ║
+╚═══════════════════════════════════════════════════════════╝
+```
+
+| Section | Contenu | Touches |
+|---------|---------|---------|
+| Anciens déploiements | Ce que les anciens déploiements ont laissé dans les projets et ce qui est gardé (vos clés personnelles), comme `oh migrate deploy-cleanup` | `c` voir le diff de la configuration, `d` nettoyer (confirmé), `r` chercher à nouveau |
+| Données d'oh | Ce que `oh gc` peut supprimer, par catégorie et par taille (paquets, données de serveurs, sessions arrêtées, worktrees, fan-outs, dossiers temporaires, serveurs orphelins, historique) ; l'aperçu ne supprime rien | `d` supprimer l'élément, `A` tout nettoyer (confirmés), `r` actualiser l'aperçu ; le résultat s'affiche au-dessus |
+
+La palette ouvre « Données d'oh » ; Doctor ouvre la section de son contrôle. L'écran « Nettoyage des anciens déploiements » est aussi proposé une fois au démarrage quand des restes sont trouvés. Avec un nettoyage du démon en cours, « Données d'oh » répond « occupé ».
+
+### Doctor
+
+Commande `doctor`. `f` corriger le contrôle sélectionné (comme `oh doctor --fix`, avec un aperçu et une confirmation : configuration restaurée depuis une sauvegarde, Beads, serveurs orphelins ; ouvre la section du Nettoyage sur ses contrôles), `o` hors ligne (aucun appel réseau, comme `--offline`), `r` revérifier.
+
+### Workflows, éditeur, historique
+
+**Catalogue** (`workflows`) : sections Hub (lecture seule), Équipe, Projet, **Mes brouillons**, **⚠ Intégrité**.
 
 | Touche | Action |
 |--------|--------|
-| `a` | Ajouter une équipe |
-| `d` | Supprimer |
-| `s` | Synchroniser |
-| `u` | Annuler |
-| `r` | Rafraîchir |
+| `Entrée` | Lancer ; sur un brouillon : le tester |
+| `n` / `e` | Nouveau (vide, extension, copie) / éditer (sur le hub : étendre) |
+| `v` / `t` / `p` | Vérifier / tester le brouillon / publier |
+| `c` | Comparer : diff du brouillon avec l'impact |
+| `h` | Historique |
+| `x` | Archiver un workflow publié (raison) |
+| `d` | Supprimer un brouillon (confirmé) |
+| `*` | Épingler |
 
-### Vues Statut d'équipe, Activité, Reprises, Worktrees
+**Publication** : version, validation, impact (élargissements ⚠), diff, message obligatoire ; `Ctrl+S` publie ; hors ligne, mise en attente et rejouée à la synchronisation suivante.
+
+**Historique** : `Entrée` ou `c` diff avec la version actuelle, `R` restaurer (confirmé, republiée comme nouvelle version), `r` rafraîchir.
+
+**Éditeur** : sections Général, Graphe, Entrées & prompt, Ressources, Aperçu paquet (`Tab` / `Shift+Tab`). `Entrée` modifier, `d` (ou `Suppr`) retirer un élément ou revenir à la valeur héritée (confirmé), `a` agent ou entrée, `c` checkpoint, `m` mode affiché (Graphe), `P` gabarit dans `$EDITOR`, `Y` YAML brut dans `$EDITOR`, `u` / `U` annuler / rétablir, `w` ou `Ctrl+S` enregistrer, `Échap` (enregistrer et quitter, abandonner ou continuer).
+
+### Boards
 
 | Vue | Touches |
 |-----|---------|
-| Statut d'équipe | `r` rafraîchir |
-| Activité | `t` aujourd'hui, `w` semaine, `0` tout, `r` rafraîchir |
-| Reprises | `Enter` voir le brief, `e` enrichir (IA, workflow `brief-enrich`), `r` rafraîchir |
-| Worktrees | `a` ajouter, `d` supprimer, `o` ouvrir dans un terminal, `p` nettoyer (prune), `x` supprimer les worktrees mergés (jamais ceux qu'utilise une session non arrêtée), `r` rafraîchir ; `d`, `p` et `x` demandent une confirmation |
+| Board du projet | `h` / `l` colonnes, `Entrée` détail, `a` actions (lancer un workflow sur le ticket), `L` lier au tracker, `i` initialiser Beads |
+| Board d'équipe | `h` / `l` colonnes, `[` / `]` projets, `Entrée` détail, `a` actions, `/` filtrer (menu : texte, assigné, libellé), `c` prendre, `L` libérer (confirmé), `t` transférer, `s` statut |
 
-## Wizards inline
+### Autres vues
 
-Les flows de configuration multi-step (`team init`, `init`, `project add`) utilisent un composant **InlineWizardView** qui tourne dans le shell TUI sans switch alt-screen. Le wizard est pushé sur le router stack via `shell.PushView(v)` et pop automatiquement à la fin.
+| Vue | Touches |
+|-----|---------|
+| Projets | `Entrée` configurer, `n` ajouter, `e` renommer, `m` déplacer, `d` supprimer (confirmé), `p` mode Projet, `b` initialiser Beads |
+| Worktrees | `Entrée` / `o` ouvrir dans un terminal, `n` créer, `d` supprimer, `p` nettoyer les références (prune), `M` supprimer les worktrees fusionnés (jamais ceux d'une session non arrêtée) ; confirmés |
+| Réglages, Config projet | `{` / `}` sections, `Espace` basculer, `Entrée` modifier, `u` annuler, `r` recharger (confirmé s'il reste des modifications) |
+| Modèles (hub, projet, équipe) | `Entrée` modifier, `n` créer, `d` supprimer (confirmé), `u` annuler, `w` enregistrer (équipe) |
+| Fournisseur | `Espace` par défaut, `Entrée` / `e` modifier, `s` configurer, `d` effacer la configuration et la clé du trousseau (confirmé) |
+| MCP (hub, projet, équipe) | `Espace` activer, `Entrée` modifier, `t` jeton ou test, `w` enregistrer, `u` annuler |
+| Secrets | `Entrée` / `e` modifier, `n` créer, `d` supprimer (confirmé) |
+| Équipes | `Entrée` ouvrir, `n` créer, `d` supprimer (confirmé), `s` synchroniser, `u` annuler |
+| Détail d'équipe | `Espace` basculer, `Entrée` modifier, `w` enregistrer, `s` synchroniser, `t` tester, `u` annuler, `T` découvrir le tracker, `K` clé du fournisseur de l'équipe |
+| Patterns | `Entrée` voir, `n` créer, `y` valider, `d` supprimer (confirmé) |
+| Policies | `Entrée` détail, `n` créer, `t` modèle, `e` éditer, `d` supprimer (confirmé), `c` vérifier |
+| Statut, Activité, Métriques | `c` vérifier les conventions · `t` / `w` / `0` aujourd'hui, semaine, tout · `7` / `3` / `0` période, `Tab` usage par agent |
+| Reprises | `Entrée` voir le brief, `e` enrichir (workflow `brief-enrich`) |
 
-Raccourcis : `Ctrl+S` valider, `Ctrl+B` / `Alt+←` / `PgUp` retour, `Esc` → « Quitter l'assistant ? » (**Quitter**, **Passer l'étape** si elle est facultative, **Continuer**).
+## Assistants
 
-Voir [Référence InlineWizardView](tui-inline-wizard.fr.md) pour l'API complète et les patterns de création de nouveaux wizards.
-
-### Architecture — PushView
-
-La méthode `PushView(v View)` sur `ShellAccess` permet de pusher une vue éphémère sur le router stack sans pré-enregistrement. Le wizard reçoit automatiquement `ShellAccess` via l'interface `shellAware`. Cette méthode est utilisée par les actions omnibar `team init`, `init`, et `project add`.
+`init`, `project add` et `team init` ouvrent des assistants dans la TUI (`shell.PushView`). `Ctrl+S` valider l'étape, `Ctrl+B` / `Alt+←` / `PgUp` retour, `Échap` → « Quitter l'assistant ? » (**Quitter**, **Passer l'étape** si elle est facultative, **Continuer**). Voir [InlineWizardView](tui-inline-wizard.fr.md).
 
 ## Sessions opencode
 
-Quand une session est lancée (fiche de lancement, `coder`, Démarrer) :
-1. oh construit le paquet de session et démarre la session sur le serveur `opencode serve` de son groupe
-2. Le client opencode s'ouvre à côté (onglet ou fenêtre iTerm2/Terminal, tmux, navigateur) ; le TUI reste utilisable
-3. Fermer opencode n'arrête pas la session : elle se suit et se rouvre depuis la vue **Sessions**
-4. La suspension du TUI n'est qu'un dernier recours (`attach = "suspend"`)
-
-Voir [Sessions v5](../guides/sessions-v5.fr.md).
+Quand une session est lancée, oh construit son paquet et la démarre sur le serveur `opencode serve` de son groupe ; le client opencode s'ouvre à côté (onglet ou fenêtre, tmux, navigateur) et la TUI reste utilisable. Fermer opencode n'arrête pas la session : elle se suit et se rouvre depuis **Sessions**. Voir [Sessions v5](../guides/sessions-v5.fr.md).
 
 ## Synchronisation des vues d'équipe
 
-Toutes les vues d'équipe (board, status, activity, takeover, patterns, policies) tirent automatiquement les dernières données git d'équipe à l'ouverture. Appuyer sur `r` déclenche également un pull avant le rafraîchissement.
-
-- Un toast "Synchronisation..." s'affiche uniquement si le pull dépasse 1 seconde
-- En cas d'erreur réseau : un toast d'avertissement est affiché et les données locales sont utilisées (aucun blocage)
+Les vues d'équipe (board, statut, activité, reprises, patterns, policies) tirent les données git de l'équipe à l'ouverture et sur `r`. Un toast « Synchronisation… » s'affiche si le pull dépasse une seconde ; en cas d'erreur réseau, un avertissement et les données locales.

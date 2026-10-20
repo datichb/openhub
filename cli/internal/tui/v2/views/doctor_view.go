@@ -84,18 +84,18 @@ func (v *DoctorView) SetShell(s ShellAccess) { v.shell = s }
 
 // doctorFixKey repairs the selected check; doctorOfflineKey switches the
 // offline mode.
-const (
-	doctorFixKey     = 'f'
-	doctorOfflineKey = 'o'
+var (
+	doctorFixKey     = keys.Own("doctor.fix", 'f', "tui.doctor.fix")
+	doctorOfflineKey = keys.Own("doctor.offline", 'o', "tui.doctor.offline")
 )
 
 // StatusHints returns keybinding hints.
 func (v *DoctorView) StatusHints() string {
 	offline := ""
 	if DoctorOffline != nil {
-		offline = string(doctorOfflineKey) + " " + i18n.T("tui.doctor.offline")
+		offline = doctorOfflineKey.Hint()
 	}
-	return keys.Hints(keys.Navigate.Hint(), string(doctorFixKey)+" "+i18n.T("tui.doctor.fix"), offline,
+	return keys.Hints(keys.Navigate.Hint(), doctorFixKey.Hint(), offline,
 		keys.Refresh.HintAs(i18n.T("tui.hints.recheck")), keys.Back.Hint())
 }
 
@@ -154,10 +154,10 @@ func (v *DoctorView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	case keys.Refresh.Matches(event):
 		v.recheck()
 		return nil
-	case event.Key() == tcell.KeyRune && event.Rune() == doctorFixKey && event.Modifiers()&(tcell.ModCtrl|tcell.ModAlt) == 0:
+	case doctorFixKey.Matches(event):
 		v.fixSelected()
 		return nil
-	case event.Key() == tcell.KeyRune && event.Rune() == doctorOfflineKey && DoctorOffline != nil && event.Modifiers()&(tcell.ModCtrl|tcell.ModAlt) == 0:
+	case doctorOfflineKey.Matches(event) && DoctorOffline != nil:
 		DoctorOffline.Set(!DoctorOffline.On())
 		v.recheck()
 		return nil
@@ -326,7 +326,7 @@ func (v *DoctorView) render() {
 		}
 		name := doctorIcon(c) + "  " + tview.Escape(c.Name)
 		if c.Fix != nil {
-			name += "  " + theme.ColorTag(theme.TextMutedHex) + "[" + string(doctorFixKey) + "[] " + i18n.T("tui.doctor.fix") + theme.TagColor
+			name += "  " + theme.ColorTag(theme.TextMutedHex) + "[" + doctorFixKey.Keys() + "[] " + doctorFixKey.Label() + theme.TagColor
 		}
 		items = append(items, widgets.SectionItem{
 			MainText:      name,
@@ -387,7 +387,7 @@ func (v *DoctorView) showDetail(it widgets.SectionItem) {
 	d.field(i18n.T("tui.detail.status"), doctorIcon(c)+" "+status)
 	d.gap().para(tview.Escape(c.Detail))
 	if c.Fix != nil {
-		d.keys(string(doctorFixKey), i18n.T("tui.doctor.fix"), "r", i18n.T("tui.hints.recheck"))
+		d.keys(doctorFixKey.Keys(), doctorFixKey.Label(), keys.Refresh.Keys(), i18n.T("tui.hints.recheck"))
 	} else {
 		d.keys("r", i18n.T("tui.hints.recheck"))
 	}

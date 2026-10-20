@@ -150,7 +150,7 @@ func (v *TeamBoardView) StatusHints() string {
 	hints := keys.Hints("h/l "+i18n.T("tui.hints.columns"), "j/k "+i18n.T("tui.hints.items"),
 		keys.Open.HintAs(i18n.T("tui.hints.detail")), "a "+i18n.T("tui.hints.actions"),
 		"[[] /] "+i18n.T("tui.hints.projects"), keys.Filter.Hint(),
-		"c "+i18n.T("tui.hints.claim"), string(releaseKey)+" "+i18n.T("tui.hints.release"),
+		"c "+i18n.T("tui.hints.claim"), releaseKey.Hint(),
 		"t "+i18n.T("tui.hints.transfer"), "s "+i18n.T("tui.hints.status"), keys.Refresh.Hint())
 	if v.filterText != "" || v.filterAssignee != "" || v.filterLabel != "" {
 		hints += " · [yellow]" + i18n.T("tui.hints.filtered") + "[-]"
@@ -328,7 +328,7 @@ func (v *TeamBoardView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	case 'c':
 		v.claimTicket()
 		return nil
-	case releaseKey:
+	case releaseKey.Rune():
 		v.releaseTicket()
 		return nil
 	case 't':
@@ -1124,7 +1124,7 @@ func (v *TeamBoardView) showSearchFilter() {
 
 // releaseKey releases the claim of a ticket (L: libérer / release; x never
 // destroys anything in the key convention).
-const releaseKey = 'L'
+var releaseKey = keys.Own("teamboard.release", 'L', "tui.hints.release")
 
 // showFilterMenu is /: the filters of the board (text search first).
 func (v *TeamBoardView) showFilterMenu() {

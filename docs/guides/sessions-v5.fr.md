@@ -56,8 +56,8 @@ Une session d'un **autre workflow** est signalée pour information : la nouvelle
 
 | Choix | TUI | `--on-existing` | Effet |
 |---|---|---|---|
-| Reprendre | `r` | `resume` | pas de nouvelle session : la session existante est rouverte (réveillée si elle dort) |
-| Reprendre ailleurs | `t` | `transfer` | la session et sa conversation passent à l'environnement (local ↔ conteneur) et au modèle choisis ; en cas d'échec elle reste inchangée et oh propose « Remplacer » |
+| Reprendre | `R` | `resume` | pas de nouvelle session : la session existante est rouverte (réveillée si elle dort) |
+| Reprendre ailleurs | `T` | `transfer` | la session et sa conversation passent à l'environnement (local ↔ conteneur) et au modèle choisis ; en cas d'échec elle reste inchangée et oh propose « Remplacer » |
 | Remplacer (garder le travail) | `k` | `keep` | la session est arrêtée ; la nouvelle travaille dans le même dossier et la même branche et reçoit un **brief de passation** (objectif, résultats, décisions prises, commits, fichiers modifiés) |
 | Supprimer et relancer | `d` | `delete` | la session et son travail sont supprimés (confirmation, voir `oh session delete`), puis le lancement part à neuf |
 | En parallèle | `p` | `parallel` | la nouvelle session démarre à côté, dans un autre worktree (les deux peuvent entrer en conflit) |
@@ -98,7 +98,7 @@ Ouvrez-la depuis l'omnibar (`sessions`) ou les sections « Sessions » des pages
 
 - **À traiter** : sessions qui ont des décisions en attente, chacune suivie de ses décisions (une session n'apparaît qu'une fois dans la vue ; identifiant court sur la ligne). `Entrée` ouvre la fiche (permission : une fois / toujours / refuser + message ; question : formulaire généré ; alerte : classer ou attacher), `y`/`n` valident ou refusent une permission, `x` classe une alerte.
 - **En cours, En veille, Terminées (7 j), À récupérer** (sessions distantes terminées) ; détail de la session sélectionnée en bas.
-- `t` (ou `Entrée` sur une session) : flux en direct à droite (agent, outils, messages, coût). `a` attacher, `A` choisir comment ouvrir (iTerm2, Terminal.app, tmux, navigateur, ici), `m` consigne, `i` interrompre, `M` modèle, `s` arrêter, `D` supprimer (confirmation, comme `oh session delete`), `c` reprendre, `o` résultats et description de MR, `w` navigateur, `e` enchaîner un autre workflow, `g` récupérer une session distante, `f` projet actif / tous les projets, `r` rafraîchir.
+- `t` (ou `Entrée` sur une session) : flux en direct à droite (agent, outils, messages, coût). `a` attacher, `A` choisir comment ouvrir (iTerm2, Terminal.app, tmux, navigateur, ici), `m` consigne, `i` interrompre, `M` modèle, `s` arrêter, `d` supprimer (confirmation, comme `oh session delete`), `R` reprendre (ou récupérer une session distante), `B` valider en lot, `o` résultats et description de MR, `w` navigateur, `e` enchaîner un autre workflow, `f` projet actif / tous les projets, `r` rafraîchir.
 
 Avec tmux, la session s'ouvre dans une nouvelle fenêtre ; avec `[session] iterm_style = "split"`, dans un volet à côté.
 

@@ -135,7 +135,7 @@ func (s *Shell) showHelpOverlay() {
 		Hints:        i18n.T("tui.modal.hints.scrollable"),
 		LightDismiss: true,
 		PageName:     "inline-overlay",
-		FocusReturn:  s.content,
+		FocusReturn:  s.focusReturn(),
 		FocusTarget:  textView,
 	})
 }

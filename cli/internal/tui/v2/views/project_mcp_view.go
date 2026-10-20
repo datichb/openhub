@@ -59,7 +59,7 @@ func (v *ProjectMCPView) Title() string          { return i18n.T("tui.config.sec
 func (v *ProjectMCPView) StatusHints() string {
 	return keys.Hints(keys.Navigate.Hint(), "{/} "+i18n.T("tui.hints.sections"),
 		keys.Open.HintAs(i18n.T("tui.hints.edit")),
-		i18n.T("tui.hints.space_key")+" "+i18n.T("tui.hints.toggle"),
+		keys.SpaceName()+" "+i18n.T("tui.hints.toggle"),
 		"u "+i18n.T("tui.hints.undo"), keys.Back.Hint())
 }
 

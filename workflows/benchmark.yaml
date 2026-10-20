@@ -7,6 +7,8 @@ description:
   fr: Mesurer les performances d'une cible (page, endpoint, package, commande) et les comparer à une référence, sans modifier le code
   en: Measure the performance of a target (page, endpoint, package, command) and compare it with a baseline, without modifying the code
 risk: write
+# tui-docs: terms of the former omnibar table, kept as aliases (`oh run perf`).
+aliases: [perf]
 entry:
   agent: benchmarker
 inputs:

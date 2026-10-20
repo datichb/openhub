@@ -40,6 +40,7 @@ type Omnibar struct {
 	rightPane   *tview.Flex     // container + separator + mode bar
 	compact     bool            // 3-row layout (N20)
 	active      bool
+	focusBack   tview.Primitive // focus to give back on Deactivate
 	suggestions *tview.List
 	visible     []Command
 }
@@ -313,11 +314,10 @@ func (o *Omnibar) Activate() {
 		return
 	}
 	// Block activation when the current view captures all input (e.g. inline wizard).
-	if cur := o.shell.router.Current(); cur != nil {
-		if ic, ok := cur.(views.InputCapturing); ok && ic.CapturesInput() {
-			return
-		}
+	if o.shell.capturesKeys() {
+		return
 	}
+	o.focusBack = o.shell.focusReturn()
 	o.active = true
 	// Suppress ChangedFunc during SetText to avoid a redundant
 	// updateSuggestions call — we call it explicitly right after.
@@ -338,11 +338,10 @@ func (o *Omnibar) ActivateWithRune(r rune) {
 		return
 	}
 	// Block activation when the current view captures all input (e.g. inline wizard).
-	if cur := o.shell.router.Current(); cur != nil {
-		if ic, ok := cur.(views.InputCapturing); ok && ic.CapturesInput() {
-			return
-		}
+	if o.shell.capturesKeys() {
+		return
 	}
+	o.focusBack = o.shell.focusReturn()
 	o.active = true
 	// Suppress ChangedFunc during SetText to avoid a redundant
 	// updateSuggestions call — we call it explicitly right after.
@@ -383,7 +382,12 @@ func (o *Omnibar) Deactivate() {
 	})
 	o.container.SwitchToPage("hints")
 	o.shell.hideSuggestionsFromLayout()
-	o.shell.app.SetFocus(o.shell.content)
+	back := o.focusBack
+	o.focusBack = nil
+	if back == nil {
+		back = o.shell.content
+	}
+	o.shell.app.SetFocus(back)
 }
 
 // HandleKey processes key events when the omnibar is active.

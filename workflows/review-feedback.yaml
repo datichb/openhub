@@ -7,6 +7,8 @@ description:
   fr: Appliquer les commentaires de review non résolus d'une merge request
   en: Apply the unresolved review comments of a merge request
 risk: write
+# tui-docs: terms of the former omnibar table, kept as aliases (`oh run feedback`).
+aliases: [feedback, retours]
 entry:
   agent: orchestrator-dev
 inputs:

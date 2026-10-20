@@ -87,7 +87,7 @@ func (v *TeamMCPView) ID() string    { return "team.mcp" }
 func (v *TeamMCPView) Title() string { return i18n.T("tui.config.section.mcp_services") }
 func (v *TeamMCPView) StatusHints() string {
 	return keys.Hints(keys.Navigate.Hint(), "{/} "+i18n.T("tui.hints.sections"),
-		i18n.T("tui.hints.space_key")+" "+i18n.T("tui.hints.toggle"),
+		keys.SpaceName()+" "+i18n.T("tui.hints.toggle"),
 		keys.Open.HintAs(i18n.T("tui.hints.edit")), "w "+i18n.T("tui.hints.save"),
 		"u "+i18n.T("tui.hints.undo"), "t "+i18n.T("tui.hints.test"), keys.Refresh.Hint())
 }

@@ -1406,6 +1406,17 @@ func (s *Shell) globalKeyHandler(event *tcell.EventKey) *tcell.EventKey {
 			if result == nil {
 				return nil // view consumed the event
 			}
+			// ? and Ctrl+P the view did not use (tabs, batch).
+			if p, ok := cur.(views.ShellKeysPassing); ok && p.PassesShellKeys() {
+				switch {
+				case event.Key() == tcell.KeyCtrlP:
+					s.omnibar.Activate()
+					return nil
+				case event.Key() == tcell.KeyRune && keys.Help.Matches(event) && !focusIsTextInput(s.app.GetFocus()):
+					s.showHelpOverlay()
+					return nil
+				}
+			}
 			// View didn't consume → let tview deliver to the focused widget
 			return event
 		}
@@ -1490,6 +1501,44 @@ func (s *Shell) globalKeyHandler(event *tcell.EventKey) *tcell.EventKey {
 	}
 
 	return event
+}
+
+// RefreshHints shows the hints line of the current view again (its keys
+// changed: a tab, the batch).
+func (s *Shell) RefreshHints() {
+	if cur := s.router.Current(); cur != nil {
+		s.omnibar.SetHints(cur.StatusHints())
+	}
+}
+
+// capturesKeys reports whether the current view keeps every key (forms,
+// wizards); a view that passes ? and Ctrl+P to the shell does not block
+// the palette.
+func (s *Shell) capturesKeys() bool {
+	cur := s.router.Current()
+	if cur == nil {
+		return false
+	}
+	ic, ok := cur.(views.InputCapturing)
+	if !ok || !ic.CapturesInput() {
+		return false
+	}
+	p, ok := cur.(views.ShellKeysPassing)
+	return !ok || !p.PassesShellKeys()
+}
+
+// focusReturn is where the focus goes back after the palette or the help:
+// the focused widget in a view that keeps the keys (a tab), the content
+// otherwise.
+func (s *Shell) focusReturn() tview.Primitive {
+	if cur := s.router.Current(); cur != nil {
+		if ic, ok := cur.(views.InputCapturing); ok && ic.CapturesInput() {
+			if f := s.app.GetFocus(); f != nil {
+				return f
+			}
+		}
+	}
+	return s.content
 }
 
 // toggleTeamMode is Ctrl+T (ADR-032 Phase 3): from team mode, back to the

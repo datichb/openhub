@@ -50,6 +50,10 @@ func TestWorkflowCommandsFromYAMLAliases(t *testing.T) {
 	}
 	assert.ElementsMatch(t, []string{"spec", "cadrage", "feature"}, byID["run.spec"].Aliases)
 	assert.Equal(t, []string{"implement-spec"}, byID["run.implement-spec"].Aliases)
+	assert.ElementsMatch(t, []string{"review-feedback", "feedback", "retours"}, byID["run.review-feedback"].Aliases)
+	for id, alias := range map[string]string{"security-fix": "secu", "benchmark": "perf", "debug": "dbg"} {
+		assert.Contains(t, byID["run."+id].Aliases, alias)
+	}
 	assert.NotContains(t, byID["run.spec"].Aliases, "orchestrator", "orchestrator is the entry agent of libre, not an alias of spec")
 	route, ok := byID["run.feature.implement-spec"]
 	require.True(t, ok, "route of feature with tickets")

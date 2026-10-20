@@ -7,6 +7,8 @@ description:
   fr: Corriger les constats d'un audit de sécurité — choix des constats, correction avec test de non-régression, nouvelle analyse ciblée avant le commit
   en: Fix the findings of a security audit — choice of the findings, fix with a regression test, targeted re-analysis before the commit
 risk: write
+# tui-docs: terms of the former omnibar table, kept as aliases (`oh run secu`).
+aliases: [secu]
 inputs:
   findings:
     type: text

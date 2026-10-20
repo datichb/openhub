@@ -74,7 +74,7 @@ func (v *MCPView) Title() string { return i18n.T("tui.mcp.title") }
 // StatusHints returns keybinding hints.
 func (v *MCPView) StatusHints() string {
 	return keys.Hints(keys.Navigate.Hint(), "{/} "+i18n.T("tui.hints.sections"),
-		i18n.T("tui.hints.space_key")+" "+i18n.T("tui.hints.toggle"),
+		keys.SpaceName()+" "+i18n.T("tui.hints.toggle"),
 		"t "+i18n.T("tui.hints.token"), "w "+i18n.T("tui.hints.write"), keys.Refresh.Hint())
 }
 
@@ -225,14 +225,14 @@ func (v *MCPView) showDetail(i int) {
 	if svc.Name == "gitlab" {
 		d.field(i18n.T("tui.detail.mcp.write"), onOff(svc.WriteEnabled))
 	}
-	pairs := []string{i18n.T("tui.hints.space_key"), i18n.T("tui.hints.toggle")}
+	pairs := []string{keys.SpaceName(), i18n.T("tui.hints.toggle")}
 	if svc.Name != "team" {
 		pairs = append(pairs, "t", i18n.T("tui.hints.token"))
 	}
 	if svc.Name == "gitlab" {
 		pairs = append(pairs, "w", i18n.T("tui.hints.write"))
 	}
-	d.keys(append(pairs, keyPairs(keys.Refresh)...)...)
+	d.keys(append(pairs, keys.Pairs(keys.Refresh)...)...)
 	v.page.SetDetail(d.String())
 }
 

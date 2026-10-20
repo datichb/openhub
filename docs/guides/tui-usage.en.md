@@ -22,19 +22,19 @@ On the first start without configuration, the `oh init` wizard opens in the TUI 
 
 | Key | Action |
 |-----|--------|
-| `Ctrl+P` or `/` | Open the omnibar (`/`: when the view does not use it to search) |
-| `?` or `F1` | Help (global shortcuts, form and wizards, keys of the current view) |
+| `Ctrl+P` or `/` | Open the omnibar (`/`: when the view does not use it to filter) |
+| `?` or `F1` | Help (global shortcuts, key convention, keys of the current view); works in the tabs of a session and in the batch too |
 | `Esc` | Close the toasts shown; otherwise back to the previous view; at the root of a project or team mode, back to Hub mode. In the launch form and the wizards, `Esc` keeps its meaning (close the form, « Quit the wizard? ») and does not close the toasts |
 | `Ctrl+T` | Enter team mode (choice when there are several teams); from team mode, back to the Hub |
 | `Ctrl+Q` (or `Ctrl+C`) | Quit (see [Quitting oh](#quitting-oh)) |
-| `j` / `k`, `g` / `G` | Down / up, top / bottom of a list (in the Sessions view, `g` fetches a remote session) |
+| `j` / `k`, `g` / `G` | Down / up, top / bottom of a list, in every view |
 | `{` / `}` | Previous / next section in sectioned lists |
 | `Tab` | Switch column or field (`h` / `l` on two-column landings) |
 | `Enter` | action of the selected list, button or field (the omnibar opens only when nothing uses it) |
 
 Action results show up as toasts (success, error, info) that disappear by themselves (`Esc` closes them, except in the launch form and the wizards). Each view shows its shortcuts at the bottom.
 
-**Changed in v5.0**: typing a letter « anywhere » no longer opens the omnibar (use `Ctrl+P` or `/`); `Enter` and letters always go to the selected list or field; `d` no longer dismisses toasts (`Esc`). `Esc`, `Ctrl+P`, `Ctrl+T`, `?`, `F1` and `Ctrl+Q` mean the same in every view. Every destructive action (removing a worktree, cleaning up, releasing a ticket, rejecting a wiki proposal…) asks for a confirmation.
+**One key convention**: a key means the same in every view (`n` create, `e` edit, `d` delete, always confirmed, `x` archive, never destructive, `R` resume or restore, `c` compare; for a decision `y` accept, `n` refuse with an instruction, `e` modify, `s` leave, `A` accept all; `r` refresh everywhere). The full table and the list of the changed keys are in the [reference](../reference/tui.en.md#key-convention); the « New keys » message sums them up at the first launch after the update (to see again from `?`). Typing a letter « anywhere » does not open the omnibar (use `Ctrl+P` or `/`).
 
 **Buttons** (windows, forms, wizards, recap): one style everywhere. The primary action is written in bold in the mode color; the focused button has a light background, framed `▸ label ◂`. On opening, the primary action is focused ("Cancel" for a dangerous confirmation, such as a deletion). `Tab` / `Shift+Tab` (or `←` / `→`) move from one button to the next, all of them included; `↓` / `↑` scroll the text of a window that is too long; `Enter` activates the focused button.
 
@@ -93,7 +93,7 @@ Opened from "Start", the catalogue, the omnibar (`run <workflow>`) or the board 
 
 | Step | Content |
 |------|---------|
-| **Inputs** | the workflow inputs: ticket (field + "Pick…" button), text, list (`enum`), checkbox (`bool`), branch… Required fields are marked |
+| **Inputs** | the workflow inputs: ticket (field + "Pick…" button), text, list (`enum`), checkbox (`bool`), branch… Required fields are marked; the help of each input is under its field ("Integer expected" blocks, "Branch not found: …" warns); an input computed by oh (`from:`) shows "⚙ computed by oh: …"; for `libre`, **Entry agent** |
 | **Options** | Mode (allowed modes), Runtime (`⌂ local`, `▣ container`, `☁ remote`, with the reason when unavailable), Location (base, existing worktree, "+ new worktree"), Opening, and "A single session for every ticket" with several tickets |
 | **Recap** | agents, skills and budget, MCP, Code Mode, allowed Beads commands, checkpoints in the chosen mode (mandatory ones marked), isolation, sessions ("N sessions · 1 server · one worktree per writing session"), warnings (decisions already waiting, preconditions). When a writing session would start in a directory with uncommitted changes: `[w]` new worktree (default, your changes stay untouched) · `[s]` stash · `[b]` launch anyway |
 
@@ -111,8 +111,8 @@ A launch always starts from the recap: a first `Ctrl+S` shows it, a second one l
 
 | Key | Button | Effect |
 |-----|--------|--------|
-| `r` | Resume | open the existing session again, no new session |
-| `t` | Resume locally / in a container / with these settings | transfer the session and its conversation to the chosen runtime and model; on failure ("Transfer failed"), the session is unchanged and oh offers "Replace" |
+| `R` | Resume | open the existing session again, no new session |
+| `T` | Resume locally / in a container / with these settings | transfer the session and its conversation to the chosen runtime and model; on failure ("Transfer failed"), the session is unchanged and oh offers "Replace" |
 | `k` | Replace (keep the work) | stop the session; the new one continues in the same directory and branch, with a handoff brief |
 | `d` | Delete and relaunch | delete the session and its work (confirmation: what will be deleted and lost, then, when it worked in the project directory, keep or discard its changes), then launch again |
 | `p` | Launch in parallel | new session beside it, in another worktree |
@@ -138,77 +138,114 @@ A preview of the ticket (acceptance criteria) shows below the list; a ticket cla
 
 ## Sessions view
 
-`sessions` command (aliases `parallel`, `inbox`), or the Sessions section of the landings (at most 3 lines, then "All sessions").
+`sessions` command (aliases `parallel`, `inbox`), or the Sessions section of the landings (3 lines at most, then "All sessions").
 
 | Section | Content |
 |---------|---------|
-| **To handle** | sessions with waiting decisions, each followed by its decisions: `⏸` checkpoint, `?` question, `!` permission, `$` budget, `✗` error or circuit breaker (a session shows only once in the view, with its short ID) |
+| **To handle** | sessions with waiting decisions, each followed by its decisions: `⏸` checkpoint, `?` question, `!` permission, `$` budget, `✗` error or circuit breaker |
 | **Running** | live sessions (working, waiting, idle) |
 | **To fetch** | remote sessions (GitLab CI): pipeline running, MR ready, Beads journal to replay |
-| **Sleeping** | sessions whose server sleeps; they can be resumed |
+| **Sleeping** | sessions whose server sleeps; `R` resumes them |
 | **Finished, 7 days** | sessions stopped or finished less than 7 days ago |
 
-The **Detail** pane shows the selected session: workflow, mode, runtime, directory, bundle, state, agent, cost, the checkpoint **timeline** (`✔ cp-1 10:03 → developer (3) → reviewer → ⏸ cp-2 → ○ cp-3`), the open decisions and, when a follow-up is known, "↪ Chain with <workflow> (e)".
+A fan-out shows as a tree: the parent `⑂`, its children `↳` below.
+
+On the right, the detail has four tabs (`Tab`): **Detail** (workflow, runtime, cost, timeline, decisions, outputs recorded by oh, next steps suggested by `next:`), **Trace**, **Reports**, **Fan-out** (for a fan-out). In a tab, `Esc` goes back to Detail; `?` and `Ctrl+P` work, and the hints line shows the keys of the tab.
+
+Main keys of the list (all of them in the [reference](../reference/tui.en.md#sessions)):
 
 | Key | Action |
 |-----|--------|
 | `Enter` | on a decision: open its card; on a session: show / hide the feed |
-| `y` | approve (permission: once; checkpoint: Validate) |
-| `n` | reject a permission; on a checkpoint: card on "Fix first" |
-| `x` | dismiss an alert (`✗` error, `$` budget, `✗` circuit breaker) |
-| `a` | attach (open the opencode window; resumes a sleeping session) |
-| `A` | open with…: automatic, iTerm2, Terminal.app, tmux, browser, here (oh suspended) |
-| `t` | live feed |
-| `m` | send an instruction (taken at the next step) |
-| `i` | interrupt the current step |
-| `M` | switch the model for the next steps (`provider/model`) |
-| `s` | stop the session (confirmation) |
-| `B` | validate by batch: the waiting checkpoints of the fan-out of the selected session (else all of them), each one to validate, leave waiting or refuse with an instruction; confirmation, then the result of each one (as `oh session approve --batch`) |
-| `D` | delete the session for good: worktree, local branch (never the remote one), decisions, files (confirmation, "Cancel" focused) |
-| `c` | resume a sleeping session |
-| `o` | results and MR description |
-| `w` | open in the browser (one-time code) |
+| `y` / `n` | accept / refuse (permission, checkpoint) |
+| `a` / `A` | attach / open with… |
+| `m`, `i`, `M`, `s` | instruction, interrupt, model, stop |
 | `e` | chain with another workflow |
-| `g` | fetch a remote session |
-| `f` | filter: active project / every project |
-| `r` | refresh |
-
-### Checkpoint card
-
-`Enter` on a `⏸` opens the card: title `⏸ cp-2 · Commit or fix · ticket · my-app`, the agent's summary, **Changes** (`+a −d · N file(s)`, 8 files listed), **Last messages**, **Timeline**. Actions:
-
-- **Decide**: form with three choices and a "Message to the agent":
-
-| Choice | Effect | Message |
-|--------|--------|---------|
-| **Validate** | the checkpoint passes | optional |
-| **Fix first** | the agent fixes, then asks for the checkpoint again | required |
-| **Other instruction** | the agent follows the instruction, then asks again | required |
-
-- **Full diff**: the whole session diff (when it has changes).
-- **Attach**: open the opencode window.
-
-CLI equivalent: `oh session approve <id> --decision once|fix|other|reject [-m "…"]`.
-
-### Other cards
-
-- **Permission** (`!`): action, resource, agent; once / always / reject, with a message. "Always" is refused when the workflow requires strict isolation.
-- **Question** (`?`): form generated from the agent's fields (choices, "other answer" when allowed, boolean, multiple choice, text).
-- **Alert** (`✗`, `$`): dismiss or attach. The circuit breaker (`✗`) suspends delegations after N delegations in a row; dismissing it unblocks them.
-
-When the decision was already taken elsewhere (opencode window, browser, CLI), the card says so: the first answer wins.
+| `B` | batch validation |
+| `d` | delete the session (confirmation) |
+| `R` | resume a sleeping session, fetch a remote session |
+| `x` / `$` | file away an alert / raise the budget |
+| `f` | active project / every project |
 
 ### Live feed (`t`)
 
-A pane opens on the right: current agent, called tools and their result, delegations, messages, cost in the title. It follows the selected session (moving to another line switches the feed). `t` closes it. Without the oh daemon, the feed is unavailable.
+A panel opens under the detail: current agent, tools called and their result, delegations, messages, cost in the title. It follows the selected session. `t` closes it. Without the oh daemon, the feed is unavailable.
 
 ### Chain with… (`e`)
 
-`e` offers the workflows with an input that takes an output of the session (branch, tickets, path), for example `review` after `ticket`. The choice opens the launch form prefilled, linked to the previous session. When a workflow session stops, a toast reminds you: "✔ … finished · $… — Sessions › e: chain with …".
+`e` offers the workflows with an input that takes an output of the session (branch, tickets, path); the next steps declared by the workflow (`next:`) come first. The choice opens the prefilled launch form, linked to the previous session.
 
-### Fetching a remote session (`g`)
+### Other cards
+
+- **Permission** (`!`): action, resource, agent; once / always / refuse, with a message. "Always" is refused when the workflow enforces strict isolation.
+- **Question** (`?`): form generated from the fields of the agent.
+- **Alert** (`✗`, `$`): file away or attach. The circuit breaker suspends delegations after N delegations in a row; filing it away unblocks them.
+
+When the decision was already taken elsewhere (opencode window, browser, CLI), the card closes: the first answer wins.
+
+### Fetching a remote session (`R`)
 
 On a "To fetch" line: report (artifacts, session import, deferred checkpoint), then "Replay the journal" for Beads. A ticket changed in the meantime opens a conflict window: "Keep local", "Apply remote", "Merge the notes" or "Later". See [Remote execution](remote-runners.en.md).
+
+---
+
+## Walkthroughs
+
+### Deciding a checkpoint
+
+1. In **To handle**, select the `⏸ cp-…` line and press `Enter`: the card shows the expected approver, the **verification run by oh**, the changes, the last messages, the timeline and the reports ("Read rp-N" button).
+2. All good: `y` from the list, or **Decide › Validate**. When your git identity is not an expected approver (`approver:`), oh warns "⚠ out of approver", asks a confirmation and traces it.
+3. To fix: `n` opens the form on "Fix first"; the instruction is required.
+4. The verification failed: `y` opens the card on **Fix (instruction)** and **Override…** (required reason, confirmation, traced in `oh session trace`). On the `cp-merge` of a fan-out, oh never overrides: only the fix is offered.
+
+```
+┌ cp-2 · ticket oh-14 ─────────────────────────────────────────┐
+│ Expected approver: Grace Hopper                              │
+│ ✗ Verification run by oh: failed                             │
+│   go test ./...   FAIL internal/auth                         │
+│ Validation is impossible while the verification fails.       │
+│  [ Fix (instruction) ]  [ Override… ]  [ Read rp-7 ]         │
+└──────────────────────────────────────────────────────────────┘
+```
+
+CLI equivalent: `oh session approve <id> --decision once|fix|other|reject [-m "…"]`.
+
+### Deciding wiki proposals
+
+- **During a checkpoint** (onboarding, doc-sync…): on the card, **Wiki proposals (N): decide…** opens the full list: `y` accept, `n` refuse (optional reason, then `Enter`), `e` modify (one line, or `$EDITOR`), `s` leave, `A` accept all. `Esc` goes back to the card, `Enter` decides the checkpoint; the accepted ones are applied when the checkpoint passes, before the commit.
+- **Outside a checkpoint**: `project-wiki` command ("Project wiki"): pending, accepted (applied at the next commit) and stale proposals, same keys, `/` filter, `m` metrics. A decision here is the same as `oh wiki decide`.
+- **Team wiki**: `team.wiki` command ("Team proposals (team-state)"): `y` accept, `n` refuse (confirmed).
+
+### Batch validation
+
+1. Select a `⏸` decision (of a fan-out child, for instance) and press `B`: the batch replaces the list, filtered on that checkpoint.
+2. `/` changes the filter (one checkpoint or all). For each line: `y` validate, `s` leave, `n` refuse (instruction); `A` validate all.
+3. A `✗ verif` line is not validated in a batch: `Enter` opens its card.
+4. `C` shows the summary ("Validate 2, refuse 1, leave 3 waiting?") then answers; only the lines of the filter are answered. `Esc` cancels.
+
+CLI equivalent: `oh session approve --batch [--checkpoint …]`.
+
+### Following a fan-out
+
+1. Launch `implement-spec -i fanout=true` (experimental): the `↳` children show under the `⑂` parent.
+2. On the parent, `Tab` to **Fan-out**: children (ticket, state, branch, cost, end), fix rounds, last refusal of `cp-merge`, integration branch, budget.
+3. `Enter` on a child selects it in the list; `B` validates its checkpoints in a batch.
+4. The driver stopped: `p` relaunches it (refused when it runs; log `~/.oh/sessions/<id>/fanout.log`).
+5. After `cp-merge` or once the session stopped: `d` shows what will be removed (worktrees, merged branches) and kept, offers `--discard`, then confirms (like `oh fanout clean`).
+
+### Launching with an alias or an agent of `libre`
+
+- Type an alias in the palette: `secu` (security-fix), `perf` (benchmark), `dbg` (debug), `feedback` or `retours` (review-feedback), `cadrage` (spec). `feature` offers two lines: `run spec` and "run feature → implement-spec (with tickets)". The aliases come from the `aliases:` of the workflows and are valid for `oh run` too.
+- Free session with an agent: "Free session with an agent…" command (`coder.agent`), or the **Entry agent** field of the form of `libre`: the chosen agent starts the session (`oh run libre --agent debugger`).
+
+### Cleaning up
+
+`cleanup` command ("Cleanup", aliases `gc`, `nettoyage`): one view, two sections (`Tab`).
+
+- **Data of oh** (opened first): what `oh gc` can remove, by category, with the size; the preview removes nothing. `d` removes the selected element, `A` everything; each time after a confirmation, then the result shows at the top.
+- **Former deployments**: what the deployments of oh before v5 left in the projects (`.opencode/agents`, `.opencode/skills`, keys of oh in `opencode.json`) and what is kept (your keys). `c` shows the diff, `d` cleans up after a confirmation. CLI equivalent: `oh migrate deploy-cleanup`.
+
+Doctor: `f` on the "Clean-up (oh gc)" or "Former deployments" check opens the right section.
 
 ---
 
@@ -238,13 +275,14 @@ Waiting or idle sessions are put to sleep right away. `Esc` cancels quitting. Wh
 | `v` | validate (findings) |
 | `t` | test the draft (launch with `--draft`) |
 | `p` | publish the draft |
-| `D` | diff of the draft with the published version |
+| `c` | compare: diff of the draft with the published version and the impact |
 | `h` | version history |
-| `x` | archive a published workflow, discard a draft |
+| `x` | archive a published workflow (optional reason) |
+| `d` | delete a draft (confirmation) |
 | `*` | pin |
 | `r` | reload |
 
-**Publishing** (`p`): validation, impact (rights and controls changed), diff, required message; `Ctrl+S` publishes. Offline, the publication is queued and replayed at the next synchronization. **History** (`h`): `Enter` diff with the current version, `r` restore (published again as a new version). See [Team workflows](team-workflows.en.md).
+**Publishing** (`p`): validation, impact (rights and controls changed), diff, required message; `Ctrl+S` publishes. Offline, the publication is queued and replayed at the next synchronization. **History** (`h`): `Enter` or `c` diff with the current version, `R` restore (confirmed, published again as a new version), `r` refresh. See [Team workflows](team-workflows.en.md).
 
 ### Editor
 
@@ -253,12 +291,12 @@ Sections (`Tab` / `Shift+Tab`): **General**, **Graph**, **Inputs & prompt**, **R
 | Key | Action |
 |-----|--------|
 | `Enter` | edit the field (Bundle preview: go to the field of the finding) |
-| `x` | back to the inherited value; remove an element |
+| `d` (or `Delete`) | back to the inherited value; remove an element (confirmation) |
 | `a` | add an agent (Graph) or an input (Inputs & prompt) |
 | `c` | add a checkpoint (Graph) |
 | `m` | change the shown mode (Graph) |
 | `P` | edit the prompt template in `$EDITOR` |
-| `y` | edit the YAML in `$EDITOR` |
+| `Y` | edit the raw YAML in `$EDITOR` |
 | `u` / `U` | undo / redo |
 | `w` or `Ctrl+S` | save the draft |
 | `Esc` | close (asks what to do when changes remain) |
@@ -267,7 +305,7 @@ Sections (`Tab` / `Shift+Tab`): **General**, **Graph**, **Inputs & prompt**, **R
 
 ## Brick catalogue
 
-`bricks` command (aliases `briques`, `agents`, `skills`). Read-only list of the agents and skills: origin (hub or team), family, estimated cost in tokens, dependencies, workflows using them.
+`bricks` command (aliases `briques`, `agents`, `skills`). Read-only list of the agents and skills: origin (`hub`, `team`, `team ⟳ hub` when a team brick replaces the one of the hub, `(not sealed)`), version, state (`✓`, `!` problem, `✗`); the detail gives the publication (author, date), the agents and workflows using it, the cost, the problems and the `oh brick` commands to write it.
 
 | Key | Action |
 |-----|--------|
@@ -275,12 +313,6 @@ Sections (`Tab` / `Shift+Tab`): **General**, **Graph**, **Inputs & prompt**, **R
 | `/` | search (id, name, description) |
 | `f` | agents / skills / all |
 | `Esc` | back |
-
----
-
-## Cleanup of former deployments
-
-`cleanup` command (aliases `nettoyage`, `deploy-cleanup`). oh v5 no longer deploys anything into projects; the screen lists, per project, the leftovers of former deployments (`.opencode/agents`, `.opencode/skills`, keys written by oh in `opencode.json`…) and what is kept (your own keys). Buttons: **Clean**, **Show the diff**, **Later**. CLI equivalent: `oh migrate deploy-cleanup`.
 
 ---
 
@@ -307,7 +339,7 @@ Fuzzy matching on names and aliases:
 
 ```
 > tick        → run ticket (launch form)
-> secu        → run audit
+> secu        → run security-fix (alias)
 > brick       → brick catalogue
 > inbox       → Sessions view
 ```
@@ -316,26 +348,26 @@ Fuzzy matching on names and aliases:
 
 | Command | Description |
 |---------|-------------|
-| `run <workflow>` | launch form of a catalogue workflow. Aliases: `dev` → `run ticket`, `start`, `feature` → `run spec`, `onboard` → `run onboarding`, `feedback` → `run review-feedback`, `secu`/`perf`/`archi` → `run audit`, `rev` → `run review`, `dbg` → `run debug`, `fast` → `run quick` |
+| `run <workflow>` | launch form of a catalogue workflow; its `aliases:` too: `cadrage`, `feature` → `spec` (`feature` with tickets → `implement-spec`), `secu` → `security-fix`, `perf` → `benchmark`, `dbg` → `debug`, `feedback`, `retours` → `review-feedback` |
 | `run <workflow> ⟨bd-42⟩` | from a board: workflow on the selected ticket |
-| `coder` | Free session (`libre` workflow, agent of your choice) — Project and Team modes |
+| `coder`, `coder.agent` | Free session (`libre` workflow); "Free session with an agent…" chooses the entry agent first — Project and Team modes |
 | `sessions` | Sessions view (aliases `parallel`, `inbox`) |
 | `workflows` | workflow catalogue (aliases `catalogue`, `wf`) |
 | `bricks` | brick catalogue |
-| `cleanup` | cleanup of former deployments |
+| `cleanup` | Cleanup: data of oh (`oh gc`) and former deployments (aliases `gc`, `nettoyage`) |
 | `review.publish` | publish a review (MR + notification), when GitLab write access is enabled |
 
 ### Projects and configuration
 
 | Command | Description |
 |---------|-------------|
-| `projects` | project list (`a` add, `d` remove, `n` rename, `m` move, `p` Project mode, `b` initialize Beads, `r` refresh, `Enter` configure) |
+| `projects` | project list (`n` add, `d` remove, `e` rename, `m` move, `p` Project mode, `b` initialize Beads, `r` refresh, `Enter` configure) |
 | `project add` | project wizard |
 | `board`, `board init` | project Beads board, initialization |
 | `project-config` | project configuration (including Execution) |
-| `worktrees` | git worktrees of the project (`a` add, `d` remove, `o` open a session, `p` prune the references, `x` remove the merged worktrees, never one used by a session; `d`, `p` and `x` ask for a confirmation) |
+| `worktrees` | git worktrees of the project (`n` create, `d` remove, `o` open in a terminal, `p` prune the references, `M` remove the merged worktrees, never one used by a session; confirmed) |
 | `settings`, `models`, `provider`, `mcp`, `secrets` | settings, models, provider (Bedrock region checked as it is typed, message under the field), MCP servers, secrets |
-| `teams`, `team-detail` | teams, team detail (`K` provider key for the team; solo space: "Switch to a team") |
+| `teams`, `team-detail` | teams, team detail (`T` discover the tracker, `K` provider key for the team; solo space: "Switch to a team") |
 | `init` | run the setup wizard again |
 
 ### Team (with a team-state repository)
@@ -343,7 +375,7 @@ Fuzzy matching on names and aliases:
 | Command | Description |
 |---------|-------------|
 | `team board`, `team status`, `team activity` | team board, status, activity |
-| `team briefs`, `team patterns`, `team policies`, `team wiki` | takeover briefs, patterns, policies, wiki |
+| `team briefs`, `team patterns`, `team policies`, `team wiki` | takeover briefs, patterns (`y` validate), policies, team proposals (team-state) |
 | `team sync` | synchronize the claims with the tracker |
 | `team init`, `team rejoin` | create, rejoin a team |
 
@@ -351,7 +383,7 @@ Fuzzy matching on names and aliases:
 
 | Command | Description |
 |---------|-------------|
-| `status`, `doctor`, `metrics`, `notifications`, `help` | status, diagnostics (`r` to rerun), metrics, notifications, help |
+| `status`, `doctor`, `metrics`, `notifications`, `help` | status, diagnostics (`f` fix, `o` offline, `r` check again), metrics, notifications, help |
 | `home`, `project mode`, `hub mode` | home, Project mode, Hub mode |
 | `quit` | quit (same window as `Ctrl+Q`) |
 
@@ -376,6 +408,6 @@ A summary screen ends the wizard: `Enter` opens the detail view, `Esc` goes back
 ## Tips
 
 - **Launch without leaving the board**: `a` on a ticket lists the workflows that take a ticket; the form opens at the Options step, ticket prefilled.
-- **Decide fast**: `y` on a "To handle" line approves a permission or a checkpoint without opening the card.
+- **Decide fast**: `y` on a "To handle" line approves a permission or a checkpoint without opening the card (the card opens when the verification failed).
 - **Several projects**: `f` in the Sessions view switches between the active project and every project.
 - **Contextual help**: `?` lists the shortcuts of the current view.

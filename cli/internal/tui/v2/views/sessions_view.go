@@ -93,7 +93,29 @@ func (v *SessionsView) Title() string { return i18n.T("tui.sessions.title") }
 func (v *SessionsView) Focus(sessionID string) { v.focusID = sessionID }
 
 // StatusHints returns keybinding hints.
-func (v *SessionsView) StatusHints() string { return i18n.T("tui.sessions.hints") }
+// StatusHints are the keys of the list, or of the tab or the batch that
+// has the keys.
+func (v *SessionsView) StatusHints() string {
+	switch {
+	case v.batch != nil:
+		return v.batch.hints()
+	case v.tabs != nil && v.tabs.focused:
+		return v.tabs.hints()
+	}
+	return i18n.T("tui.sessions.hints")
+}
+
+// PassesShellKeys: the tabs and the batch keep Esc but leave ? (help) and
+// Ctrl+P (palette) to the shell.
+func (v *SessionsView) PassesShellKeys() bool { return true }
+
+// refreshHints shows the keys of what has the keys in the hints line of
+// the shell.
+func (v *SessionsView) refreshHints() {
+	if r, ok := v.shell.(HintsRefresher); ok {
+		r.RefreshHints()
+	}
+}
 
 // Mount builds the view and starts loading.
 func (v *SessionsView) Mount(content *tview.Flex, app *tview.Application) {
@@ -672,7 +694,7 @@ func (v *SessionsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 				v.shell.ShowSelectModal(i18n.T("tui.launch.chain_title"), opts, "", func(wf string) { ch.Chain(id, wf) })
 			})
 		}
-	case keyBatch:
+	case batchKey.Rune():
 		v.openBatch(r, d)
 	case keys.Delete.Rune():
 		v.deleteSession(r)

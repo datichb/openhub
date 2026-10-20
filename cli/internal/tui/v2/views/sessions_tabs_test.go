@@ -10,6 +10,8 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/datichb/openhub/cli/internal/i18n"
 )
 
 // tabSessions is a backend with the tabs of the detail: `next:` steps,
@@ -190,6 +192,9 @@ func TestSessionsDetailTabs(t *testing.T) {
 	onLoop(func() {
 		assert.True(t, v.CapturesInput())
 		assert.Equal(t, tabTrace, v.tabs.cur)
+		assert.Contains(t, v.StatusHints(), "/ rechercher", "the hints line follows the tab")
+		assert.True(t, v.PassesShellKeys(), "? and Ctrl+P stay with the shell")
+		assert.Equal(t, "?", string(v.HandleKey(key('?')).Rune()), "? is left to the shell")
 		v.HandleKey(key('/'))
 		assert.Equal(t, []int{3, 5}, v.tabs.trace.hits)
 		assert.Equal(t, 0, v.tabs.trace.cur)
@@ -298,6 +303,7 @@ func TestSessionsDetailTabs(t *testing.T) {
 		v.HandleKey(tcell.NewEventKey(tcell.KeyEscape, 0, 0))
 		assert.Equal(t, tabDetail, v.tabs.cur)
 		assert.False(t, v.CapturesInput())
+		assert.Equal(t, i18n.T("tui.sessions.hints"), v.StatusHints())
 	})
 }
 

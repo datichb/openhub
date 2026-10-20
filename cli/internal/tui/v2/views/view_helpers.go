@@ -2,18 +2,7 @@ package views
 
 import (
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 )
-
-// keyPairs are the key/label pairs of actions of the convention, for the
-// « Touches » block of a detail pane (detailText.keys).
-func keyPairs(actions ...keys.Action) []string {
-	out := make([]string, 0, 2*len(actions))
-	for _, a := range actions {
-		out = append(out, a.Keys(), a.Label())
-	}
-	return out
-}
 
 // errorText is the toast of a failed operation (« Erreur : … »).
 func errorText(err error) string {

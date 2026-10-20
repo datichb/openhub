@@ -15,13 +15,17 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 )
 
-// Clean-up view of `oh gc` (modernisation tui-launch): what oh can remove,
-// by category (session bundles, server data, stopped sessions, worktrees,
-// fan-outs, temporary folders, orphan servers, history), computed without
-// removing anything (the dry run of oh gc); d removes the selected element,
-// A everything, each after a confirmation; the result is shown above the
-// new plan. The deployments of former versions are another clean-up
-// (`oh migrate deploy-cleanup`, omnibar « Nettoyage »).
+// Clean-up view (modernisation tui-launch, merged by tui-docs), in two
+// sections (Tab):
+//   - « Anciens déploiements » (cleanup_deploy.go): what the former
+//     per-project deployments left, as `oh migrate deploy-cleanup` cleans
+//     it;
+//   - « Données d'oh » (`oh gc`): what oh can remove, by category (session
+//     bundles, server data, stopped sessions, worktrees, fan-outs,
+//     temporary folders, orphan servers, history), computed without
+//     removing anything (the dry run of oh gc); d removes the selected
+//     element, A everything, each after a confirmation; the result is
+//     shown above the new plan.
 
 // GCViewConfig wires the view.
 type GCViewConfig struct {
@@ -35,7 +39,21 @@ type GCViewConfig struct {
 	// Retention describes the retentions applied (« sessions arrêtées
 	// gardées 30 j… », optional).
 	Retention string
+	// Deploy is the section of the former deployments (nil: none).
+	Deploy *DeployCleanupConfig
+	// Section is the section shown first.
+	Section CleanupSection
 }
+
+// CleanupSection is a section of the clean-up view.
+type CleanupSection int
+
+const (
+	// CleanupData is « Données d'oh » (oh gc).
+	CleanupData CleanupSection = iota
+	// CleanupDeploy is « Anciens déploiements » (oh migrate deploy-cleanup).
+	CleanupDeploy
+)
 
 // GCView is the clean-up view.
 type GCView struct {
@@ -43,9 +61,14 @@ type GCView struct {
 	shell ShellAccess
 	app   *tview.Application
 
-	root   *tview.Flex
-	header *tview.TextView
-	list   *ActionList
+	root    *tview.Flex
+	bar     *tview.TextView
+	pages   *tview.Pages
+	data    *tview.Flex
+	header  *tview.TextView
+	list    *ActionList
+	deploy  *deployPane
+	section CleanupSection
 
 	plan    gc.Report
 	planErr error
@@ -73,13 +96,20 @@ func NewGCView(cfg GCViewConfig) *GCView {
 func (v *GCView) SetShell(s ShellAccess) { v.shell = s }
 
 func (v *GCView) ID() string    { return "gc" }
-func (v *GCView) Title() string { return i18n.T("tui.gc.title") }
+func (v *GCView) Title() string { return i18n.T("tui.cleanup.view_title") }
 
 func (v *GCView) StatusHints() string {
+	tab := ""
+	if v.cfg.Deploy != nil {
+		tab = i18n.T("tui.cleanup.tab")
+	}
+	if v.section == CleanupDeploy && v.deploy != nil {
+		return keys.Hints(v.deploy.hints(), tab, keys.Back.Hint())
+	}
 	if v.list == nil {
 		return keys.HintsOf(keys.Refresh, keys.Back)
 	}
-	return keys.Hints(keys.Navigate.Hint(), v.list.Hints(), keys.Refresh.HintAs(i18n.T("tui.gc.replan")), keys.Back.Hint())
+	return keys.Hints(keys.Navigate.Hint(), v.list.Hints(), keys.Refresh.HintAs(i18n.T("tui.gc.replan")), tab, keys.Back.Hint())
 }
 
 func (v *GCView) Mount(content *tview.Flex, app *tview.Application) {
@@ -92,10 +122,50 @@ func (v *GCView) Mount(content *tview.Flex, app *tview.Application) {
 	v.build()
 	content.Clear()
 	content.AddItem(v.root, 0, 1, true)
-	if app != nil {
-		app.SetFocus(v.list.Focusable())
-	}
 	v.reload()
+	if v.deploy != nil {
+		v.deploy.scan()
+	}
+	v.showSection(v.cfg.Section)
+}
+
+// showSection shows a section and gives it the focus.
+func (v *GCView) showSection(s CleanupSection) {
+	if v.deploy == nil {
+		s = CleanupData
+	}
+	v.section = s
+	if v.pages != nil {
+		v.pages.SwitchToPage(map[CleanupSection]string{CleanupData: "data", CleanupDeploy: "deploy"}[s])
+	}
+	v.renderBar()
+	if v.app != nil {
+		if s == CleanupDeploy {
+			v.app.SetFocus(v.deploy.text)
+		} else {
+			v.app.SetFocus(v.list.Focusable())
+		}
+	}
+	if r, ok := v.shell.(HintsRefresher); ok {
+		r.RefreshHints()
+	}
+}
+
+// renderBar writes the sections, the one shown in the accent colour.
+func (v *GCView) renderBar() {
+	if v.bar == nil {
+		return
+	}
+	var parts []string
+	for _, s := range []CleanupSection{CleanupDeploy, CleanupData} {
+		label := i18n.T(map[CleanupSection]string{CleanupData: "tui.cleanup.section.data", CleanupDeploy: "tui.cleanup.section.deploy"}[s])
+		if s == v.section {
+			parts = append(parts, theme.ColorTag(theme.ActiveMode.PrimaryHex)+tview.Escape("["+label+"]")+theme.TagColor)
+		} else {
+			parts = append(parts, " "+muted(label)+" ")
+		}
+	}
+	v.bar.SetText(strings.Join(parts, " "))
 }
 
 func (v *GCView) Unmount() {
@@ -106,6 +176,13 @@ func (v *GCView) Unmount() {
 }
 
 func (v *GCView) HandleKey(ev *tcell.EventKey) *tcell.EventKey {
+	if v.deploy != nil && (ev.Key() == tcell.KeyTab || ev.Key() == tcell.KeyBacktab) {
+		v.showSection(1 - v.section)
+		return nil
+	}
+	if v.section == CleanupDeploy && v.deploy != nil {
+		return v.deploy.handleKey(ev)
+	}
 	if keys.Refresh.Matches(ev) {
 		v.reload()
 		return nil
@@ -129,11 +206,24 @@ func (v *GCView) build() {
 			Confirm: func([]ActionItem) (string, string) { return v.confirmAll() },
 			Run:     func([]ActionItem) { v.run(v.plan) }}},
 	})
-	v.root = tview.NewFlex().SetDirection(tview.FlexRow).
+	v.data = tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(v.header, 3, 0, false).
 		AddItem(v.list.Primitive(), 0, 1, true)
+	v.data.SetBackgroundColor(theme.BgPanel)
+	v.pages = tview.NewPages().AddPage("data", v.data, true, true)
+	v.root = tview.NewFlex().SetDirection(tview.FlexRow)
 	v.root.SetBackgroundColor(theme.BgPanel)
+	if v.cfg.Deploy != nil {
+		v.deploy = newDeployPane(v)
+		v.pages.AddPage("deploy", v.deploy.root, true, false)
+		v.bar = tview.NewTextView().SetDynamicColors(true)
+		v.bar.SetBackgroundColor(theme.BgPanel)
+		v.bar.SetBorderPadding(0, 0, 1, 1)
+		v.root.AddItem(v.bar, 1, 0, false)
+	}
+	v.root.AddItem(v.pages, 0, 1, true)
 	v.renderHeader()
+	v.renderBar()
 }
 
 // reload computes the plan again (dry run) off the event loop.

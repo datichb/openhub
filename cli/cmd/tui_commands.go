@@ -56,20 +56,11 @@ func buildCommands(a *app.App) []shell.Command {
 		{
 			ID:          "cleanup",
 			Label:       i18n.T("tui.cleanup.cmd"),
-			Aliases:     []string{"deploy-cleanup", "nettoyage", "migrate"},
+			Aliases:     []string{"nettoyage", "gc", "oh gc", "deploy-cleanup", "migrate", "garbage", "espace disque", "disk"},
 			Description: i18n.T("tui.cleanup.cmd_desc"),
 			Category:    i18n.T("tui.category.system"),
 			Priority:    30,
 			Action:      actionCleanup,
-		},
-		{
-			ID:          "gc",
-			Label:       i18n.T("tui.gc.cmd"),
-			Aliases:     []string{"oh gc", "garbage", "espace disque", "disk"},
-			Description: i18n.T("tui.gc.cmd_desc"),
-			Category:    i18n.T("tui.category.system"),
-			Priority:    31,
-			Action:      actionGC,
 		},
 		{
 			ID:          "bricks",

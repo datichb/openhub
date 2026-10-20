@@ -142,6 +142,8 @@ func TestActionListEmpty(t *testing.T) {
 	assert.Contains(t, screenText(t, l.Primitive(), 60, 6), "Aucune proposition")
 	_, ok := l.Current()
 	assert.False(t, ok)
+	l.SetEmpty("Chargement…")
+	assert.Contains(t, screenText(t, l.Primitive(), 60, 6), "Chargement…")
 }
 
 // y, e, s run at once on the selected element; n asks an instruction

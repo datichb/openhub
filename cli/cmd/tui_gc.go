@@ -11,16 +11,28 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
-// TUI wiring of `oh gc` (modernisation tui-launch): the clean-up view plans
-// with the options of [gc] (the dry run of oh gc), then removes what the
-// user confirmed, like oh gc does after its confirmation.
+// TUI wiring of the clean-up view (modernisation tui-launch, merged by
+// tui-docs): « Données d'oh » plans with the options of [gc] (the dry run
+// of oh gc), then removes what the user confirmed, like oh gc does after
+// its confirmation; « Anciens déploiements » is oh migrate deploy-cleanup
+// (tui_cleanup.go).
 
-// actionGC is the `gc` omnibar command (and Doctor › Nettoyage › Corriger).
-func actionGC() {
+// actionCleanup is the `cleanup` omnibar command (and Doctor › Nettoyage ›
+// Corriger): the clean-up view on « Données d'oh ».
+func actionCleanup() { openCleanup(views.CleanupData) }
+
+// actionCleanupDeploy is Doctor › Anciens déploiements › Corriger.
+func actionCleanupDeploy() { openCleanup(views.CleanupDeploy) }
+
+func openCleanup(section views.CleanupSection) {
 	if tuiShell == nil {
 		return
 	}
-	tuiShell.PushView(views.NewGCView(gcViewConfig(MustApp())))
+	a := MustApp()
+	cfg := gcViewConfig(a)
+	cfg.Deploy = deployCleanupConfig(a)
+	cfg.Section = section
+	tuiShell.PushView(views.NewGCView(cfg))
 }
 
 func gcViewConfig(a *app.App) views.GCViewConfig {

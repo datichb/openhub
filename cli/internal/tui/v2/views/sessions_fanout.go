@@ -82,11 +82,11 @@ type SessionFanouter interface {
 	CleanFanout(ctx context.Context, parentID string, discard, dry bool) (FanoutCleanView, error)
 }
 
-// keyRelaunch starts the driver again (a letter of the view, p).
-const keyRelaunch = 'p'
-
-// keyBatch opens the batch (a letter of the view, B).
-const keyBatch = 'B'
+// Keys of the view: p starts the driver again, B opens the batch.
+var (
+	relaunchKey = keys.Own("sessions.relaunch", 'p', "tui.sessions.fanout.relaunch")
+	batchKey    = keys.Own("sessions.batch", 'B', "tui.sessions.batch_label")
+)
 
 type fanoutPane struct {
 	v      *SessionsView
@@ -126,15 +126,15 @@ func (p *fanoutPane) reset() {
 	p.view, p.parent = nil, ""
 	p.head.SetText("")
 	p.foot.SetText("")
-	p.list.cfg.Empty = i18n.T("tui.sessions.fanout.loading")
+	p.list.SetEmpty(i18n.T("tui.sessions.fanout.loading"))
 	p.list.SetItems(nil)
 }
 
 func (p *fanoutPane) hints(tab, back string) string {
 	return keys.Hints(keys.Open.HintAs(i18n.T("tui.sessions.fanout.open")),
-		string(keyRelaunch)+" "+i18n.T("tui.sessions.fanout.relaunch"),
+		relaunchKey.Hint(),
 		keys.Delete.HintAs(i18n.T("tui.sessions.fanout.clean")),
-		string(keyBatch)+" "+i18n.T("tui.sessions.batch_label"),
+		batchKey.Hint(),
 		keys.Refresh.Hint(), tab, back)
 }
 
@@ -142,7 +142,7 @@ func (v *SessionsView) loadFanout(id string) {
 	p := v.tabs.fanout
 	fb, ok := v.cfg.Backend.(SessionFanouter)
 	if !ok {
-		p.list.cfg.Empty = i18n.T("tui.sessions.fanout.unavailable")
+		p.list.SetEmpty(i18n.T("tui.sessions.fanout.unavailable"))
 		p.list.SetItems(nil)
 		return
 	}
@@ -164,7 +164,7 @@ func (p *fanoutPane) set(fv FanoutView) {
 	p.view, p.parent = &fv, fv.Parent
 	p.head.SetText(fanoutHead(fv))
 	p.foot.SetText(fanoutFoot(fv))
-	p.list.cfg.Empty = i18n.T("tui.sessions.fanout.no_child")
+	p.list.SetEmpty(i18n.T("tui.sessions.fanout.no_child"))
 	p.list.SetItems(fanoutItems(fv))
 }
 
@@ -300,10 +300,10 @@ func (p *fanoutPane) handleKey(ev *tcell.EventKey) *tcell.EventKey {
 	case keys.Delete.Matches(ev):
 		p.clean()
 		return nil
-	case ev.Key() == tcell.KeyRune && ev.Rune() == keyRelaunch && ev.Modifiers()&(tcell.ModCtrl|tcell.ModAlt) == 0:
+	case relaunchKey.Matches(ev):
 		p.relaunch()
 		return nil
-	case ev.Key() == tcell.KeyRune && ev.Rune() == keyBatch:
+	case batchKey.Matches(ev):
 		r := p.v.row(p.parent)
 		p.v.openBatch(r)
 		return nil

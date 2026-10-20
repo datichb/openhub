@@ -114,3 +114,96 @@ func TestGCViewCleanAll(t *testing.T) {
 		return strings.Contains(txt, "✔ "+i18n.Tf("tui.gc.done", 6, gcBytes(23<<20), 130))
 	}, 2*time.Second, 10*time.Millisecond, "result shown")
 }
+
+// deployRecorder is the section of the former deployments of a test.
+type deployRecorder struct {
+	mu      sync.Mutex
+	applied int
+	left    int
+}
+
+func (r *deployRecorder) config() *DeployCleanupConfig {
+	return &DeployCleanupConfig{
+		Scan: func(context.Context) (DeployCleanupPlan, error) {
+			r.mu.Lock()
+			defer r.mu.Unlock()
+			if r.left == 0 {
+				return DeployCleanupPlan{}, nil
+			}
+			return DeployCleanupPlan{Projects: r.left, Text: "demo  /work/demo\n  − .tool/agents/ (12 fichiers)\n",
+				DiffTitle: "tool.json : diff du nettoyage", Diff: "- \"agent\": {…}\n"}, nil
+		},
+		Apply: func(context.Context) (string, bool) {
+			r.mu.Lock()
+			defer r.mu.Unlock()
+			r.applied++
+			r.left = 0
+			return i18n.Tf("tui.cleanup.done", 1), true
+		},
+	}
+}
+
+func (r *deployRecorder) count() int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.applied
+}
+
+// The clean-up view in two sections: « Anciens déploiements » (oh migrate
+// deploy-cleanup: c diff, d cleans after a confirmation) and « Données
+// d'oh » (oh gc); Tab switches; the hints follow the section.
+func TestCleanupViewSections(t *testing.T) {
+	frLocale(t)
+	rec := &deployRecorder{left: 1}
+	v := NewGCView(GCViewConfig{Bytes: gcBytes,
+		Plan:    func(context.Context) (gc.Report, error) { return gcTestPlan(), nil },
+		Deploy:  rec.config(),
+		Section: CleanupDeploy})
+	sh := &deleteShell{}
+	v.SetShell(sh)
+	content := tview.NewFlex()
+	app := runApp(t, content)
+	onLoop(app, func() { v.Mount(content, app) })
+	require.Eventually(t, func() bool {
+		var txt string
+		onLoop(app, func() { txt = v.deploy.text.GetText(true) })
+		return strings.Contains(txt, ".tool/agents/")
+	}, 2*time.Second, 10*time.Millisecond)
+	onLoop(app, func() {
+		assert.Equal(t, "Nettoyage", v.Title())
+		assert.Equal(t, CleanupDeploy, v.section)
+		assert.Contains(t, v.StatusHints(), "d nettoyer · c voir le diff")
+		assertGolden(t, "cleanup_view_deploy", screenText(t, v.root, 80, 8))
+		v.HandleKey(tcell.NewEventKey(tcell.KeyRune, 'c', tcell.ModNone))
+	})
+	sh.cmu.Lock()
+	assert.Contains(t, sh.body, "agent")
+	sh.cmu.Unlock()
+	onLoop(app, func() { v.HandleKey(tcell.NewEventKey(tcell.KeyRune, 'd', tcell.ModNone)) })
+	c, ok := sh.lastConfirm()
+	require.True(t, ok)
+	assert.True(t, c.danger)
+	assert.Zero(t, rec.count(), "not before the confirmation")
+	onLoop(app, c.onYes)
+	require.Eventually(t, func() bool { return rec.count() == 1 }, 2*time.Second, 10*time.Millisecond)
+	require.Eventually(t, func() bool {
+		var txt string
+		onLoop(app, func() { txt = v.deploy.text.GetText(true) })
+		return strings.Contains(txt, i18n.T("cmd.migrate.cleanup.none"))
+	}, 2*time.Second, 10*time.Millisecond, "scanned again")
+
+	onLoop(app, func() {
+		v.HandleKey(tcell.NewEventKey(tcell.KeyTab, 0, tcell.ModNone))
+		assert.Equal(t, CleanupData, v.section)
+		assert.Contains(t, v.StatusHints(), "A tout nettoyer")
+	})
+	require.Eventually(t, func() bool {
+		var n int
+		onLoop(app, func() { n = v.list.Len() })
+		return n == 7
+	}, 2*time.Second, 10*time.Millisecond)
+	onLoop(app, func() {
+		assertGolden(t, "cleanup_view_data", screenText(t, v.root, 100, 24))
+		v.HandleKey(tcell.NewEventKey(tcell.KeyRune, 'd', tcell.ModNone)) // d of the data: the list
+	})
+}

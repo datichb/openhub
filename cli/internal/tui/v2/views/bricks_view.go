@@ -232,11 +232,11 @@ func (v *BricksView) render() {
 	v.list.SetTitle(title)
 	switch {
 	case v.err != nil:
-		v.list.cfg.Empty = v.err.Error()
+		v.list.SetEmpty(v.err.Error())
 	case v.loaded:
-		v.list.cfg.Empty = i18n.T("tui.bricks.empty")
+		v.list.SetEmpty(i18n.T("tui.bricks.empty"))
 	default:
-		v.list.cfg.Empty = i18n.T("tui.bricks.loading")
+		v.list.SetEmpty(i18n.T("tui.bricks.loading"))
 	}
 	var items []ActionItem
 	for _, kind := range []string{"agent", "skill"} {
