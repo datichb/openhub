@@ -206,10 +206,10 @@ Sections: **To handle** (sessions with waiting decisions, each followed by its d
 |-----|---------|------|
 | Detail | Session (workflow, runtime ⌂ ▣ ☁, location, cost, decisions), **outputs recorded by oh**, **suggested next steps (`next:`)** | those of the list |
 | Trace | Text of `oh session trace` | `/` search, `n` / `N`, `g` / `G`, `r` |
-| Reports | Reports of the session, reader on the right | `Enter` read (then `Esc` goes back to the list), `/`, `n` / `N`, `r` |
+| Reports | Reports of the session, reader on the right; on the parent session of a fan-out, those of the children are added, sorted by date, with the child that filed them (column after `rp-N`) | `Enter` read (then `Esc` goes back to the list), `/`, `n` / `N`, `r` |
 | Fan-out | State of the fan-out: parallelism, driver, budget, children (ticket, session, state, branch, cost, end), fix rounds, last refusal of `cp-merge`, integration branch | `Enter` open the child, `p` relaunch the driver, `d` clean up, `B` batch validation, `r` |
 
-`p` refuses to relaunch a driver that runs (« already running »); the log of the driver is `~/.oh/sessions/<id>/fanout.log`. `d` (after `cp-merge` or once the session stopped) shows what is deleted and kept, offers `--discard` (unmerged branches) to tick, then confirms; it is `oh fanout clean`.
+`p` refuses to relaunch a driver that runs (« already running »); an accepted relaunch writes the event « started again by the user » in the events of the fan-out (the daemon writes « by the daemon »); the log of the driver is `~/.oh/sessions/<id>/fanout.log`. `d` (after `cp-merge` or once the session stopped) shows what is deleted and kept, offers `--discard` (unmerged branches) to tick, then confirms; it is `oh fanout clean`.
 
 **Checkpoint card** (`Enter` on `⏸`): expected approver (`approver:`, « ⚠ out of approver » when your git identity is not one), **verification run by oh** (commands and state), evidence of the agent, changes (`+N −M · K file(s)`), last messages, timeline, reports. Buttons: **Decide**, **Full diff**, **Read rp-N** (one per report), **Wiki proposals (N): decide…** (when there are some), **Attach**.
 

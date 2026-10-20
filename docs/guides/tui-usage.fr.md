@@ -230,7 +230,7 @@ Sur une ligne « À récupérer » : compte rendu (artefacts, import de la sessi
 1. Lancez `implement-spec -i fanout=true` (expérimental) : les enfants `↳` apparaissent sous la parente `⑂`.
 2. Sur la parente, `Tab` jusqu'à **Fan-out** : enfants (ticket, état, branche, coût, fin), tours de correction, dernier refus de `cp-merge`, branche d'intégration, budget.
 3. `Entree` sur un enfant le sélectionne dans la liste ; `B` valide ses checkpoints en lot.
-4. Le pilote s'est arrêté : `p` le relance (refusé s'il tourne ; journal `~/.oh/sessions/<id>/fanout.log`).
+4. Le pilote s'est arrêté : `p` le relance (refusé s'il tourne ; journal `~/.oh/sessions/<id>/fanout.log`) ; la relance est tracée dans les événements du fan-out. Les rapports des enfants sont dans l'onglet **Rapports** de la session parente.
 5. Après `cp-merge` ou une fois la session arrêtée : `d` montre ce qui sera supprimé (worktrees, branches mergées) et gardé, propose `--discard`, puis confirme (comme `oh fanout clean`).
 
 ### Lancer avec un alias ou un agent de `libre`

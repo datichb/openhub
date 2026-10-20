@@ -47,7 +47,7 @@ relaunchKey.Matches(ev) // sans Ctrl ni Alt
 relaunchKey.Hint()      // "p relancer le pilote"
 ```
 
-`keys.Own` panique sur une touche stricte de la convention (`g G / r ? d x R y n`) ou un déplacement (`j k`) ; `TestOwnActions` (`keys/own_test.go`) vérifie que chaque action déclarée est traduite, a un identifiant unique et que son libellé ne reprend pas une action de la convention sur une autre touche (« a ajouter », « f filtrer »). Actions propres déclarées : `p` relancer le pilote et `B` lot (fan-out), `C` confirmer le lot, `T` découvrir le tracker, `L` libérer un ticket, `M` nettoyer les worktrees fusionnés, `Y` YAML brut, `f` corriger et `o` hors ligne (Doctor).
+`keys.Own` panique sur une touche stricte de la convention (`g G / r ? d x R y n`) ou un déplacement (`j k`) ; `TestOwnActions` (`keys/own_test.go`) vérifie que chaque action déclarée est traduite, a un identifiant unique et que son libellé ne reprend pas une action de la convention sur une autre touche (« a ajouter », « f filtrer »). Actions propres déclarées : `a` attacher, `m` consigne et `i` interrompre (Sessions), `p` relancer le pilote et `B` lot (fan-out), `C` confirmer le lot, `T` découvrir le tracker, `L` libérer un ticket, `M` nettoyer les worktrees fusionnés, `Y` YAML brut, `f` corriger et `o` hors ligne (Doctor).
 
 Un changement de touche visible s'ajoute à `keys.Changes()` (vue, avant, après, libellé `tui.keys.change.<vue>.<action>`) : le message « Nouvelles touches » et la référence le montrent.
 
