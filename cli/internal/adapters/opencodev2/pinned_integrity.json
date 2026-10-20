@@ -1,0 +1,11 @@
+{
+  "notes": "sha512 integrity (npm dist.integrity) of the opencode native Linux packages @opencode/cli-<target>, by opencode version. See the procedure in pins.go before adding a version.",
+  "versions": {
+    "2.0.20": {
+      "linux-x64": "sha512-C47hADWv2MD6OzwMhn2iBXcQVjvwDTkzpB7kKlL8J+vJQxLzws580vfgpTRYB7JItFG1VUt6IHqqi00VCmrPRg==",
+      "linux-x64-musl": "sha512-XTE1lmYUF8Ako1zEfPpgmGm1YkJX7MOueOsj3z7t7/3YKWynEBQHogPhYsHUwLR7dcZ1Yib2vC8ZId8RJV2Hww==",
+      "linux-arm64": "sha512-JLHDgEPmThZjbQEIwZNBdwLddvxYFIssDaDbDb/nF7aw4D5xt9xGUa1o6nF1IW1Ck+px8kV465W2AuThKRU3sg==",
+      "linux-arm64-musl": "sha512-MwvrzBwRinbyoIVNLZpgPR0M4JQWA0/5YIV8U4tZx6X2dvoCGEulPt9Nn3vu4UgjT6I25jhyhkOdL5lPz1993A=="
+    }
+  }
+}
