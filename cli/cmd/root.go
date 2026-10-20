@@ -298,6 +298,7 @@ func init() {
 			customHelpFunc(c, args)
 			return
 		}
+		listWorkflowEnumChoices(c)
 		defaultHelp(c, args)
 	})
 	rootCmd.AddCommand(secretsCmd)
