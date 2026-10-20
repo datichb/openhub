@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"sort"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -334,13 +335,12 @@ func setHubModelAgent(agentID, model string) error {
 
 func unsetHubModel(key string) error {
 	if err := config.Update(func(c *config.Config) error {
-		switch {
-		case key == "models.default":
+		if key == "models.default" {
 			c.Models.Default = ""
-		case len(key) > 17 && key[:17] == "models.families.":
-			delete(c.Models.Families, key[17:])
-		case len(key) > 15 && key[:15] == "models.agents.":
-			delete(c.Models.Agents, key[15:])
+		} else if family, ok := strings.CutPrefix(key, "models.families."); ok {
+			delete(c.Models.Families, family)
+		} else if agent, ok := strings.CutPrefix(key, "models.agents."); ok {
+			delete(c.Models.Agents, agent)
 		}
 		return nil
 	}); err != nil {
