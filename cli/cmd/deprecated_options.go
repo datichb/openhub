@@ -71,3 +71,18 @@ func deprecateShorthand(c *cobra.Command, letter, target string) {
 func deprecateFlag(c *cobra.Command, name, target string) *deprecatedAlias {
 	return addDeprecatedAlias(c, name, "", target)
 }
+
+// silenceCobraDeprecation stops cobra from printing its own English sentence
+// (« Command "x" is deprecated, … ») for the deprecated command about to
+// run: the command warns in the language of the hub, with the exact
+// replacement (warnDeprecatedAlias). The command stays marked deprecated for
+// the help; the returned function restores the message.
+func silenceCobraDeprecation(root *cobra.Command, args []string) (restore func()) {
+	c, _, err := root.Find(args)
+	if err != nil || c == nil || c.Deprecated == "" {
+		return func() {}
+	}
+	msg := c.Deprecated
+	c.Deprecated = ""
+	return func() { c.Deprecated = msg }
+}

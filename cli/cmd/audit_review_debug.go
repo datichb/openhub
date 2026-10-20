@@ -101,6 +101,8 @@ var auditCmd = &cobra.Command{
 	Use:   "audit",
 	Short: i18n.T("cmd.audit.short"),
 	Long:  i18n.T("cmd.audit.long"),
+	// Hidden from the help; still works (U-02).
+	Deprecated: i18n.T("cmd.audit.deprecated"),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		auditType, _ := cmd.Flags().GetString("type")
 
@@ -117,9 +119,13 @@ var reviewCmd = &cobra.Command{
 	Use:   "review",
 	Short: i18n.T("cmd.review.short"),
 	Long:  i18n.T("cmd.review.long"),
+	// Hidden from the help; still works (U-02). --publish and feedback have
+	// their replacements: oh mr create, oh run review-feedback.
+	Deprecated: i18n.T("cmd.review.deprecated"),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		publish, _ := cmd.Flags().GetBool("publish")
 		if publish {
+			warnDeprecatedAlias(cmd.ErrOrStderr(), "oh review --publish", "oh mr create")
 			return runReviewPublish(cmd)
 		}
 
@@ -136,6 +142,8 @@ var debugCmd = &cobra.Command{
 	Use:   "debug",
 	Short: i18n.T("cmd.debug.short"),
 	Long:  i18n.T("cmd.debug.long"),
+	// Hidden from the help; still works (U-02).
+	Deprecated: i18n.T("cmd.debug.deprecated"),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		issue, _ := cmd.Flags().GetString("issue")
 		return agentCommandAlias(cmd, "oh debug", "debug", map[string]string{"issue": issue}, issue)

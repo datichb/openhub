@@ -43,8 +43,8 @@ Voir [Workflows livrés › review](../reference/workflows.fr.md#review).
 Une fois la revue terminée, publiez les résultats sous forme de merge request GitLab. La publication n'est pas un workflow : elle reste une commande d'oh.
 
 ```bash
-oh review --publish                          # Creer une MR pour la branche courante
-oh review --publish --reviewer alice         # Creer une MR et assigner un relecteur
+oh mr create                          # Creer une MR pour la branche courante
+oh mr create --reviewer alice         # Creer une MR et assigner un relecteur
 ```
 
 Cette commande :
@@ -104,7 +104,7 @@ Le ticket ou la branche est obligatoire. Avec `oh run review-feedback`, les entr
 ```
 1. oh run ticket                          # Implementer la fonctionnalite
 2. oh run review -i review_mode=standard  # L'IA examine le code
-3. oh review --publish                    # Creer la MR sur GitLab
+3. oh mr create                    # Creer la MR sur GitLab
 4. [Revue humaine sur GitLab]             # Le relecteur laisse des commentaires
 5. oh review feedback BD-42               # L'IA traite le feedback (workflow review-feedback)
 6. [Approbation humaine]                  # Approbation finale

@@ -45,7 +45,9 @@ var takeoverBriefEnrichCmd = &cobra.Command{
 	Short: "Enrichit un brief avec l'IA (lecture du code, analyse)",
 	Long:  i18n.T("cmd.takeover_brief.enrich.long"),
 	Args:  cobra.ExactArgs(1),
-	RunE:  runTakeoverBriefEnrich,
+	// Hidden from the help; still works (U-02).
+	Deprecated: i18n.T("cmd.takeover_brief.enrich.deprecated"),
+	RunE:       runTakeoverBriefEnrich,
 }
 
 func init() {

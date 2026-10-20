@@ -13,7 +13,10 @@ var startCmd = &cobra.Command{
 	Use:   "start",
 	Short: "Lance une session (alias de oh run, déprécié)",
 	Long:  i18n.T("cmd.start.long"),
-	RunE:  runStart,
+	// Hidden from the help; still works (U-02). The message names the
+	// replacement and is translated with the help (localizeCommands).
+	Deprecated: i18n.T("cmd.start.deprecated"),
+	RunE:       runStart,
 }
 
 func init() {

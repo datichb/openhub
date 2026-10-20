@@ -415,7 +415,7 @@ oh beads ready
 
 ## Deprecated aliases
 
-> **v5 — deprecated aliases.** These commands launch their workflow through [`oh run`](cli-workflows.en.md#oh-run) and print a warning: `oh start` → `oh run feature` (`--prompt` = first text input), `--agent <id>` → `oh run libre --agent <id>`, `--dev [-t <id>]` → `oh run ticket --tickets <id>` (an epic chosen in the picker: one session for the whole epic or one per ticket, as chosen), `--onboard` → `oh run onboarding`, `--parallel --tickets a,b` → `oh run ticket --tickets a,b` (without `--tickets`: refused), `--sweep <goal>` → `oh run sweep -i goal=<goal>`, `--worktree <branch>` → `--location new`, `--resume <id>` → `oh session attach <id> --attach suspend`, `oh audit|review|debug` → `oh run audit|review|debug` (flags become inputs when the workflow declares them), `oh review feedback` → `oh run review-feedback -i mr=<url>` (preview of the discussions, then the workflow reads them itself). They require opencode V2 and the target workflow; the former launch no longer exists (see the [v5 migration guide](../guides/migration-v5.en.md)). Sessions are then followed with `oh session …` or the TUI **Sessions** view (see [Sessions v5](../guides/sessions-v5.en.md)).
+> **v5 — deprecated aliases.** These commands are marked deprecated (cobra): they are no longer listed in `oh --help` but still work. They launch their workflow through [`oh run`](cli-workflows.en.md#oh-run) and print a warning: `oh start` → `oh run feature` (`--prompt` = first text input), `--agent <id>` → `oh run libre --agent <id>`, `--dev [-t <id>]` → `oh run ticket --tickets <id>` (an epic chosen in the picker: one session for the whole epic or one per ticket, as chosen), `--onboard` → `oh run onboarding`, `--parallel --tickets a,b` → `oh run ticket --tickets a,b` (without `--tickets`: refused), `--sweep <goal>` → `oh run sweep -i goal=<goal>`, `--worktree <branch>` → `--location new`, `--resume <id>` → `oh session attach <id> --attach suspend`, `oh audit|review|debug` → `oh run audit|review|debug` (flags become inputs when the workflow declares them), `oh review feedback` → `oh run review-feedback -i mr=<url>` (preview of the discussions, then the workflow reads them itself). They require opencode V2 and the target workflow; the former launch no longer exists (see the [v5 migration guide](../guides/migration-v5.en.md)). Sessions are then followed with `oh session …` or the TUI **Sessions** view (see [Sessions v5](../guides/sessions-v5.en.md)).
 
 ### oh start
 
@@ -512,7 +512,7 @@ oh audit -p my-app --type performance
 
 ### oh review
 
-Deprecated alias of `oh run review` (read-only code review). `--publish` is not a workflow: it remains an oh command.
+Deprecated alias of `oh run review` (read-only code review). `--publish` is not a workflow: its command is `oh mr create` (`oh review --publish` still works, with a warning).
 
 ```
 oh review [options]
@@ -523,8 +523,8 @@ oh review [options]
 | `--branch` | | Branch to review (diff vs main). Default: current branch if feature branch | `-i branch=<branch>` |
 | `--mode` | | Review mode (see below) | `-i review_mode=<mode>` |
 | `--project` | `-p` | Project ID | `-p` |
-| `--publish` | | Create a MR on GitLab and optionally assign a reviewer (requires write_enabled) | Unchanged: `oh review --publish` |
-| `--reviewer` | | Member ID of the reviewer to assign on the MR (with `--publish`) | Unchanged |
+| `--publish` | | Create a MR on GitLab and optionally assign a reviewer (requires write_enabled) | `oh mr create` |
+| `--reviewer` | | Member ID of the reviewer to assign on the MR (with `--publish`) | `oh mr create --reviewer <member>` |
 
 **Available modes:**
 
@@ -545,8 +545,7 @@ oh run review -p my-app
 oh run review -i review_mode=adversarial
 oh run review -i review_mode=standard+adversarial -p backend
 oh run review -i review_mode=all -i branch=feat/auth
-oh review --publish --reviewer alice
-oh review --publish -b feat/auth
+oh mr create --reviewer alice
 
 # Equivalent deprecated alias
 oh review --mode adversarial

@@ -141,6 +141,28 @@ oh project configure
 
 ---
 
+## Merge requests
+
+### oh mr create
+
+Crée (ou retrouve) la merge request GitLab de la branche courante, vers la branche de base du projet, et assigne si besoin un relecteur de l'équipe. Remplace `oh review --publish`. La review elle-même est un workflow : [`oh run review`](cli-workflows.fr.md#oh-run). Demande l'accès en écriture à GitLab (`oh mcp setup gitlab`) ; la fusion reste une action manuelle.
+
+```
+oh mr create [-p <projet>] [--reviewer <membre>]
+```
+
+| Flag | Court | Type | Description |
+|------|-------|------|-------------|
+| `--project` | `-p` | string | Projet (détecté depuis le dossier courant) |
+| `--reviewer` | | string | Identifiant du membre de l'équipe à assigner comme relecteur |
+
+```bash
+oh mr create
+oh mr create --reviewer alice
+```
+
+---
+
 ## Wiki du projet
 
 ### oh wiki check

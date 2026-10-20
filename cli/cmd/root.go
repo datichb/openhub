@@ -91,6 +91,7 @@ func Execute() error {
 	// sessions to sleep.
 	defer stopInProcessDaemon()
 
+	defer silenceCobraDeprecation(rootCmd, os.Args[1:])()
 	if err := rootCmd.Execute(); err != nil {
 		err = usageError(err)
 		var exit *ExitError
@@ -309,6 +310,9 @@ func localizeCommands(cmd *cobra.Command) {
 	key := cmdI18nKey(cmd)
 	cmd.Short = localizedHelp(key+".short", cmd.Short)
 	cmd.Long = localizedHelp(key+".long", cmd.Long)
+	if cmd.Deprecated != "" {
+		cmd.Deprecated = localizedHelp(key+".deprecated", cmd.Deprecated)
+	}
 	localize := func(f *pflag.Flag) {
 		if f.Name != "help" {
 			f.Usage = localizedHelp(key+".flags."+f.Name, f.Usage)

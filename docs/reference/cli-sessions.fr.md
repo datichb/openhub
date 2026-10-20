@@ -415,7 +415,7 @@ oh beads ready
 
 ## Alias dépréciés
 
-> **v5 — alias dépréciés.** Ces commandes lancent leur workflow via [`oh run`](cli-workflows.fr.md#oh-run) et affichent un avertissement : `oh start` → `oh run feature` (`--prompt` = première entrée texte), `--agent <id>` → `oh run libre --agent <id>`, `--dev [-t <id>]` → `oh run ticket --tickets <id>` (une épopée choisie dans le sélecteur : une session pour toute l'épopée ou une par ticket, au choix), `--onboard` → `oh run onboarding`, `--parallel --tickets a,b` → `oh run ticket --tickets a,b` (sans `--tickets` : refusé), `--sweep <objectif>` → `oh run sweep -i goal=<objectif>`, `--worktree <branche>` → `--location new`, `--resume <id>` → `oh session attach <id> --attach suspend`, `oh audit|review|debug` → `oh run audit|review|debug` (les options deviennent des entrées si le workflow les déclare), `oh review feedback` → `oh run review-feedback -i mr=<url>` (aperçu des discussions, puis le workflow les lit lui-même). Elles demandent opencode V2 et le workflow cible ; l'ancien lancement n'existe plus (voir le [guide de migration v5](../guides/migration-v5.fr.md)). Les sessions se suivent ensuite avec `oh session …` ou la vue **Sessions** de la TUI (voir [Sessions v5](../guides/sessions-v5.fr.md)).
+> **v5 — alias dépréciés.** Ces commandes sont marquées dépréciées (cobra) : elles ne figurent plus dans `oh --help` mais fonctionnent encore. Elles lancent leur workflow via [`oh run`](cli-workflows.fr.md#oh-run) et affichent un avertissement : `oh start` → `oh run feature` (`--prompt` = première entrée texte), `--agent <id>` → `oh run libre --agent <id>`, `--dev [-t <id>]` → `oh run ticket --tickets <id>` (une épopée choisie dans le sélecteur : une session pour toute l'épopée ou une par ticket, au choix), `--onboard` → `oh run onboarding`, `--parallel --tickets a,b` → `oh run ticket --tickets a,b` (sans `--tickets` : refusé), `--sweep <objectif>` → `oh run sweep -i goal=<objectif>`, `--worktree <branche>` → `--location new`, `--resume <id>` → `oh session attach <id> --attach suspend`, `oh audit|review|debug` → `oh run audit|review|debug` (les options deviennent des entrées si le workflow les déclare), `oh review feedback` → `oh run review-feedback -i mr=<url>` (aperçu des discussions, puis le workflow les lit lui-même). Elles demandent opencode V2 et le workflow cible ; l'ancien lancement n'existe plus (voir le [guide de migration v5](../guides/migration-v5.fr.md)). Les sessions se suivent ensuite avec `oh session …` ou la vue **Sessions** de la TUI (voir [Sessions v5](../guides/sessions-v5.fr.md)).
 
 ### oh start
 
@@ -512,7 +512,7 @@ oh audit -p api-gateway --type security
 
 ### oh review
 
-Alias déprécié de `oh run review` (review de code en lecture seule). `--publish` n'est pas un workflow : il reste une commande d'oh.
+Alias déprécié de `oh run review` (review de code en lecture seule). `--publish` n'est pas un workflow : sa commande est `oh mr create` (`oh review --publish` fonctionne encore, avec un avertissement).
 
 ```
 oh review [options]
@@ -523,8 +523,8 @@ oh review [options]
 | `--branch` | | Branche à reviewer (diff vs main). Défaut : branche courante si feature branch | `-i branch=<branche>` |
 | `--mode` | | Mode de review (voir ci-dessous) | `-i review_mode=<mode>` |
 | `--project` | `-p` | ID du projet | `-p` |
-| `--publish` | | Créer une MR sur GitLab et optionnellement assigner un reviewer (requiert write_enabled) | Inchangé : `oh review --publish` |
-| `--reviewer` | | Member ID du reviewer à assigner sur la MR (avec `--publish`) | Inchangé |
+| `--publish` | | Créer une MR sur GitLab et optionnellement assigner un reviewer (requiert write_enabled) | `oh mr create` |
+| `--reviewer` | | Member ID du reviewer à assigner sur la MR (avec `--publish`) | `oh mr create --reviewer <membre>` |
 
 **Modes disponibles :**
 
@@ -545,8 +545,7 @@ oh run review -p frontend
 oh run review -i review_mode=adversarial
 oh run review -i review_mode=standard+adversarial -p backend
 oh run review -i review_mode=all -i branch=feat/auth
-oh review --publish --reviewer alice
-oh review --publish -b feat/auth
+oh mr create --reviewer alice
 
 # Alias déprécié équivalent
 oh review --mode adversarial

@@ -19,7 +19,9 @@ var reviewFeedbackCmd = &cobra.Command{
 	Short: i18n.T("cmd.review.feedback.short"),
 	Long:  i18n.T("cmd.review.feedback.long"),
 	Args:  cobra.ExactArgs(1),
-	RunE:  runReviewFeedback,
+	// Hidden from the help; still works (U-02).
+	Deprecated: i18n.T("cmd.review.feedback.deprecated"),
+	RunE:       runReviewFeedback,
 }
 
 func init() {

@@ -31,7 +31,7 @@ Elles marchent encore pendant v5.x, avec un avertissement qui donne la commande 
 | `oh start --sweep <objectif>` | `oh run sweep -i goal=<objectif>` |
 | `oh start --resume <id>` | `oh session attach <id> --attach suspend` |
 | `oh audit`, `oh review`, `oh debug` | `oh run audit`, `oh run review`, `oh run debug` |
-| `oh review feedback <mr>` | toujours disponible : lit les discussions GitLab puis lance `oh run review-feedback` (lancé directement, ce workflow attend l'entrée `feedback`) |
+| `oh review feedback <mr>` | `oh run review-feedback -i mr=<mr>` (dépréciée : `oh review feedback` lit encore les discussions GitLab, les prévisualise puis lance ce workflow) ; `oh review --publish` : `oh mr create` |
 | `oh takeover-brief enrich` | `oh run brief-enrich --headless` |
 
 Ne fonctionnent plus :
