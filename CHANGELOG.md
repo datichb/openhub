@@ -9,6 +9,19 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Security — petits constats de l'audit v5 (lot v5-fix-sec)
+
+- ⚠ **Balises de données des prompts** (S-34) :
+  - leur nom contient l'empreinte SHA-256 du contenu (`<oh:data-…>`), donc une donnée ne peut plus fermer son bloc ;
+  - la neutralisation ne se décale plus sur les lettres dont la longueur change en minuscule (`İ`) ;
+  - les entrées `branch` suivent `git check-ref-format --branch`, et `review-feedback` place les branches de la MR dans des blocs de données.
+- ⚠ **`oh serve`** refuse (403) tout en-tête `Host` autre que `127.0.0.1`, `localhost` ou `[::1]` sur son port. Il exige un jeton aléatoire, affiché dans l'URL (`?token=…`) puis gardé dans un cookie `HttpOnly` / `SameSite=Strict` (S-36).
+- **tmux** : le `#` du dossier et du titre est doublé, car tmux les lit comme des formats (`#(commande)`) (S-37).
+- **Binaire opencode Linux en cache** : revérifié par son SHA-256 avant chaque réutilisation (S-38).
+- **Mise à jour automatique** : les redirections ne vont qu'en HTTPS vers GitHub et son CDN de releases. `oh upgrade oh` refuse une version qui n'est pas plus récente, sauf rétrogradation demandée explicitement (S-39).
+- **`Attest` en isolation stricte** : un plugin hors paquet, ou une liste de plugins illisible, fait échouer le lancement. Hors isolation stricte, seul un avertissement est émis (S-11).
+- **Couches de workflow** : ajouter un agent ou des skills dans `skills.extra` hors couche hub donne un avertissement (`patch_agent_added`, `patch_skills_extra_added`) (S-20).
+
 ### Fixed — Audit v5 : bugs fonctionnels (lot v5-fix-bugs)
 
 - **`oh config model unset family|agent`** supprime enfin la clé au niveau du hub. Les deux tests de préfixe ne pouvaient jamais être vrais.
