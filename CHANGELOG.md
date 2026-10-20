@@ -9,6 +9,25 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Changed — Ergonomie de la CLI et i18n (lot v5-fix-ei, audit v5 U-02, U-03, U-05, U-09, U-11)
+
+- ⚠ **Codes de sortie** (table dans `docs/reference/cli.*.md`) :
+  - 0 : succès.
+  - 1 : échec, y compris un panic.
+  - 2 : option ou commande inconnue, ainsi que `oh deploy` et `oh sync` (ils sortaient en 0).
+  - 3 : `oh run --headless` quand des sessions attendent une décision sans qu'aucune n'ait échoué.
+- **`oh doctor`** : un moteur de conteneurs absent, `bd` absent ou des passerelles inaccessibles depuis un conteneur sont désormais de simples avertissements, sans effet sur le code de sortie, sauf si `execution.runtime = container`.
+- ⚠ **Options courtes : une lettre, un sens** (`-p` projet, `-m` message, `-i` entrée, `-t` ticket, `-d` chemin, `-l` langue, `-w` workflow, `-b` branche de base). Les anciennes formes restent acceptées pendant une version, masquées de l'aide et accompagnées d'un avertissement : `oh serve -p`, `oh project configure -m`, `oh metrics -d`, `oh review -m|-b`, `oh debug -i`, `oh audit -t`, `oh start -w|-l`. `oh session attach --how` devient `--attach`.
+- **Alias dépréciés** : `oh start|audit|review|debug`, `oh review feedback` et `oh takeover-brief enrich` sont marqués dépréciés et retirés de l'aide principale, mais fonctionnent toujours. La nouvelle commande `oh mr create` remplace `oh review --publish`.
+- **Symboles** : un symbole par état de session et par type de décision, communs à la CLI et à la TUI (`◐` en attente, `⊗` en échec, `■` arrêtée, `⊘` coupe-circuit). Le badge devient `● N ◐ M`.
+- **`NO_COLOR`** (toute valeur non vide) désactive les couleurs de la CLI, des journaux et de la TUI.
+- **i18n** :
+  - environ 380 messages de `cmd/` et des vues TUI passent par les locales ;
+  - le contrôle des messages non traduits couvre tout `cmd/` et les vues ;
+  - un test refuse les clés inutilisées (194 retirées) ;
+  - les confirmations acceptent `o`, `oui`, `y` et `yes`.
+- **Garde global** : les agents ne peuvent plus lancer `oh secrets set|delete`, `oh mcp enable|disable|reset`, `oh config language|websearch` ni `oh budget set|unset|raise`.
+
 ### Security — robustesse du démon, socket, environnement et démarrage du shell (lot v5-fix-h2, audit v5 S-29, A-02, A-04, S-28, S-15)
 
 - ⚠ **L'environnement du serveur opencode est filtré par une liste blanche** (S-28). Ne passent que :
