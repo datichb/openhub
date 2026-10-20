@@ -1,6 +1,7 @@
 package bundle
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -177,6 +178,71 @@ func TestSessionRulesNeverAllowShell(t *testing.T) {
 			if r.Action == sessionspec.ActionShell || r.Action == sessionspec.ActionEdit {
 				assert.Equal(t, sessionspec.EffectDeny, r.Effect, "%+v", r)
 			}
+		}
+	}
+}
+
+// An agent's shell cannot approve an MCP URL imposed by the team nor change
+// the personal settings of the user: the commands that do are refused, with
+// the variants already handled for `oh mcp serve` (full path of the binary,
+// env, options before or inside the command). The reads stay allowed.
+func TestGlobalGuardRefusesOhCommandsThatChangeTrustAndSettings(t *testing.T) {
+	forms := [][]string{
+		{"mcp", "serve", "jira"},
+		{"mcp", "trust", "jira", "--yes"},
+		{"mcp", "untrust", "jira"},
+		{"mcp", "setup", "gitlab"},
+		{"config", "set", "llm.default_provider", "x"},
+		{"config", "unset", "llm.default_provider"},
+		{"config", "model", "default", "m"},
+		{"config", "model", "family", "f", "m"},
+		{"config", "model", "agent", "developer", "m"},
+		{"config", "model", "unset", "agent", "developer"},
+		{"service", "setup"},
+		{"service", "remove", "gitlab", "--force"},
+	}
+	rules := GlobalShellGuard("")
+	for _, f := range forms {
+		line := strings.Join(f, " ")
+		variants := []string{
+			"oh " + line,
+			"/usr/local/bin/oh " + line,
+			"~/.local/bin/oh " + line,
+			"env oh " + line,
+			"env -i HOME=/tmp /usr/local/bin/oh " + line,
+			"X=1 oh " + line,
+			"oh --no-tui " + line,
+			"oh --log-format json " + line,
+			"oh -v " + line,
+			"true && oh " + line,
+			"sh -c 'oh " + line + "'",
+			"echo | oh " + line,
+		}
+		// options between the words of the command
+		variants = append(variants, "oh "+f[0]+" --verbose "+strings.Join(f[1:], " "))
+		if len(f) > 2 && f[0] == "config" && f[1] == "model" {
+			variants = append(variants, "oh config --x model "+strings.Join(f[2:], " "), "oh config model --x "+strings.Join(f[2:], " "))
+		}
+		for _, v := range variants {
+			assert.Equal(t, sessionspec.EffectDeny, ShellEffect(rules, v), v)
+		}
+	}
+
+	for _, cmd := range []string{
+		"oh mcp status", "oh mcp status --project my-project", "oh mcp list", "oh --no-tui mcp status", "/usr/local/bin/oh mcp status",
+		"oh config get llm.default_provider", "oh config list", "oh config path", "oh config model show", "oh config model show --project p",
+		"oh doctor", "oh version", "oh session list", "oh project list",
+	} {
+		assert.NotEqual(t, sessionspec.EffectDeny, ShellEffect(rules, cmd), cmd)
+	}
+}
+
+// Every shipped agent receives them (the guard is added to all).
+func TestShippedAgentsRefuseTrustAndConfigCommands(t *testing.T) {
+	for _, ag := range [][2]string{{"developer", "developer"}, {"reviewer", "reviewer"}, {"operator", "operator"}} {
+		rules := effectiveRules(t, ag[0], ag[1])
+		for _, cmd := range []string{"oh mcp trust jira --yes", "env oh config set mcp.jira.url https://x", "/usr/local/bin/oh service setup", "oh mcp untrust jira"} {
+			assert.Equal(t, sessionspec.EffectDeny, ShellEffect(rules, cmd), "%s: %s", ag[1], cmd)
 		}
 	}
 }

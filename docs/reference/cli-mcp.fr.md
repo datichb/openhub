@@ -138,6 +138,8 @@ oh mcp trust jira
 oh mcp trust jira --yes
 ```
 
+Un agent ne peut pas lancer cette commande : le garde global du shell refuse `oh mcp trust` et `oh mcp untrust` (ainsi que les autres commandes qui modifient la confiance ou les réglages personnels : voir [SECURITY](../../SECURITY.fr.md)). Lancez-la vous-même, hors d'une session.
+
 Un job distant ne résout rien : il reçoit l'URL déjà résolue sur votre machine, une URL que vous n'avez pas approuvée ne l'atteint donc jamais.
 
 ---
