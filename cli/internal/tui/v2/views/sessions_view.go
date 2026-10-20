@@ -583,6 +583,29 @@ func (v *SessionsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		return event
 	}
 	r, d := v.selected()
+	switch {
+	case attachKey.Matches(event):
+		if r != nil {
+			v.cfg.Backend.Attach(r.ID, "")
+		}
+		return nil
+	case sendKey.Matches(event):
+		if r != nil && v.shell != nil {
+			id := r.ID
+			v.shell.ShowInputModal(i18n.T("tui.sessions.send_title"), "", func(text string) {
+				if strings.TrimSpace(text) != "" {
+					v.run(func(ctx context.Context) error { return v.cfg.Backend.Send(ctx, id, text) }, i18n.T("tui.sessions.sent"))
+				}
+			})
+		}
+		return nil
+	case interruptKey.Matches(event):
+		if r != nil {
+			id := r.ID
+			v.run(func(ctx context.Context) error { return v.cfg.Backend.Interrupt(ctx, id) }, i18n.T("tui.sessions.interrupted"))
+		}
+		return nil
+	}
 	switch event.Rune() {
 	case 'r':
 		v.reload()
@@ -614,10 +637,6 @@ func (v *SessionsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		if d != nil && d.Kind == DecisionKindBudget {
 			v.raiseBudget(d)
 		}
-	case 'a':
-		if r != nil {
-			v.cfg.Backend.Attach(r.ID, "")
-		}
 	case 'A':
 		if r != nil && v.shell != nil {
 			id := r.ID
@@ -628,20 +647,6 @@ func (v *SessionsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 			v.shell.ShowSelectModal(i18n.T("tui.sessions.attach_how_title"), opts, "auto", func(how string) {
 				v.cfg.Backend.Attach(id, how)
 			})
-		}
-	case 'm':
-		if r != nil && v.shell != nil {
-			id := r.ID
-			v.shell.ShowInputModal(i18n.T("tui.sessions.send_title"), "", func(text string) {
-				if strings.TrimSpace(text) != "" {
-					v.run(func(ctx context.Context) error { return v.cfg.Backend.Send(ctx, id, text) }, i18n.T("tui.sessions.sent"))
-				}
-			})
-		}
-	case 'i':
-		if r != nil {
-			id := r.ID
-			v.run(func(ctx context.Context) error { return v.cfg.Backend.Interrupt(ctx, id) }, i18n.T("tui.sessions.interrupted"))
 		}
 	case 'M':
 		if r != nil && v.shell != nil {

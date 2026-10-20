@@ -82,10 +82,14 @@ type SessionFanouter interface {
 	CleanFanout(ctx context.Context, parentID string, discard, dry bool) (FanoutCleanView, error)
 }
 
-// Keys of the view: p starts the driver again, B opens the batch.
+// Own keys of the view: p starts the driver again, B opens the batch, a
+// attaches, m sends an instruction, i interrupts the turn.
 var (
-	relaunchKey = keys.Own("sessions.relaunch", 'p', "tui.sessions.fanout.relaunch")
-	batchKey    = keys.Own("sessions.batch", 'B', "tui.sessions.batch_label")
+	relaunchKey  = keys.Own("sessions.relaunch", 'p', "tui.sessions.fanout.relaunch")
+	batchKey     = keys.Own("sessions.batch", 'B', "tui.sessions.batch_label")
+	attachKey    = keys.Own("sessions.attach", 'a', "tui.sessions.key.attach")
+	sendKey      = keys.Own("sessions.send", 'm', "tui.sessions.key.send")
+	interruptKey = keys.Own("sessions.interrupt", 'i', "tui.sessions.key.interrupt")
 )
 
 type fanoutPane struct {
