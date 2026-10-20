@@ -156,13 +156,13 @@ oh project configure --provider bedrock
 
 ```bash
 # Definir le modele par defaut pour tous les agents
-oh config model default claude-sonnet-4-6
+oh config model default anthropic/claude-sonnet-4-6
 
 # Definir un modele pour une famille d'agents
-oh config model family planning claude-opus-4-6
+oh config model family planning anthropic/claude-opus-4-6
 
 # Definir un modele pour un agent specifique
-oh config model agent planner claude-opus-4-6
+oh config model agent planner anthropic/claude-opus-4-6
 
 # Voir la configuration modele actuelle
 oh config model show

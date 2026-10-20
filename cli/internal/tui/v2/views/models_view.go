@@ -13,6 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/modelcheck"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
@@ -36,6 +37,10 @@ type ModelsView struct {
 	shell    ShellAccess
 	commands []ContextCommand
 	mountGen uint64
+	// loadCatalog reads the effective agent catalogue (nil: identifiers not
+	// verified); catalog is its result, loaded off the event loop at Mount.
+	loadCatalog func(ctx context.Context) modelcheck.Catalog
+	catalog     modelcheck.Catalog
 }
 
 var _ View = (*ModelsView)(nil)
@@ -44,6 +49,12 @@ var _ CommandProvider = (*ModelsView)(nil)
 // NewModelsView creates a new model configuration view.
 func NewModelsView(a *app.App) *ModelsView {
 	return &ModelsView{appCtx: a}
+}
+
+// SetCatalog provides the reader of the effective agent catalogue (hub, team,
+// project), used to check the agent and family of an override.
+func (v *ModelsView) SetCatalog(load func(ctx context.Context) modelcheck.Catalog) {
+	v.loadCatalog = load
 }
 
 // SetShell provides the shell reference for modal interactions.
@@ -79,10 +90,15 @@ func (v *ModelsView) Mount(content *tview.Flex, tvApp *tview.Application) {
 
 	// Load entries and populate table asynchronously
 	go func() {
+		var catalog modelcheck.Catalog
+		if v.loadCatalog != nil {
+			catalog = v.loadCatalog(context.Background())
+		}
 		tvApp.QueueUpdateDraw(func() {
 			if v.app == nil || v.mountGen != gen {
 				return // view was unmounted or re-mounted before the goroutine finished
 			}
+			v.catalog = catalog
 			v.loadEntries()
 
 			v.table = tview.NewTable().
@@ -288,6 +304,10 @@ func (v *ModelsView) editEntry(idx int) {
 		if newModel == "" || newModel == entry.Value {
 			return
 		}
+		if err := modelcheck.CheckModel(newModel); err != nil {
+			v.shell.ShowToastMsg(err.Error(), false)
+			return
+		}
 
 		if entry.Level == "hub" {
 			v.setHubModel(entry.Scope, newModel)
@@ -313,8 +333,12 @@ func (v *ModelsView) addOverride() {
 		{Label: i18n.T("tui.models.scope_agent"), Value: "agent"},
 	}
 
-	familyOptions := make([]SelectOption, len(modelFamilies))
-	for i, f := range modelFamilies {
+	families := v.catalog.Families()
+	if len(families) == 0 {
+		families = modelFamilies
+	}
+	familyOptions := make([]SelectOption, len(families))
+	for i, f := range families {
 		familyOptions[i] = SelectOption{Label: f, Value: f}
 	}
 
@@ -322,17 +346,29 @@ func (v *ModelsView) addOverride() {
 		Title: i18n.T("tui.models.add_title"),
 		Fields: []FormField{
 			{Key: "scope", Label: i18n.T("tui.models.col_type"), Type: FieldSelect, Options: scopeOptions, Default: "family", Required: true},
-			{Key: "family", Label: i18n.T("tui.models.scope_family"), Type: FieldSelect, Options: familyOptions, Default: modelFamilies[0],
+			{Key: "family", Label: i18n.T("tui.models.scope_family"), Type: FieldSelect, Options: familyOptions, Default: families[0],
 				Conditional: func(vals map[string]string) bool { return vals["scope"] == "family" }},
 			{Key: "agent_id", Label: i18n.T("tui.models.agent_id"), Type: FieldText,
+				Validate:    v.checkAgent,
 				Conditional: func(vals map[string]string) bool { return vals["scope"] == "agent" }},
-			{Key: "model", Label: i18n.T("tui.models.col_model"), Type: FieldText, Required: true},
+			{Key: "model", Label: i18n.T("tui.models.col_model"), Type: FieldText, Required: true,
+				Validate: func(value string) (string, bool) { return problem(modelcheck.CheckModel(value)) }},
 		},
 		OnSubmit: func(values map[string]string, _ map[string][]string) {
 			scope := values["scope"]
 			model := values["model"]
 			if model == "" {
 				return
+			}
+			if err := modelcheck.CheckModel(model); err != nil {
+				v.shell.ShowToastMsg(err.Error(), false)
+				return
+			}
+			if scope == "agent" {
+				if msg, invalid := v.checkAgent(values["agent_id"]); invalid {
+					v.shell.ShowToastMsg(msg, false)
+					return
+				}
 			}
 			switch scope {
 			case "family":
@@ -351,6 +387,26 @@ func (v *ModelsView) addOverride() {
 		},
 		OnCancel: nil,
 	})
+}
+
+// checkAgent validates an agent id against the catalogue. When the catalogue
+// could not be read the id is accepted with a warning.
+func (v *ModelsView) checkAgent(id string) (string, bool) {
+	if id == "" {
+		return "", false
+	}
+	if v.catalog.Empty() {
+		return i18n.Tf("modelcheck.catalog_unavailable", id), false
+	}
+	return problem(v.catalog.CheckAgent(id))
+}
+
+// problem adapts a check error to the Validate hook of a form field.
+func problem(err error) (string, bool) {
+	if err == nil {
+		return "", false
+	}
+	return err.Error(), true
 }
 
 func (v *ModelsView) deleteEntry() {

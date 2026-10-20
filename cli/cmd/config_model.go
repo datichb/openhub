@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -18,8 +19,10 @@ import (
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/modelcheck"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
 func init() {
@@ -62,6 +65,9 @@ func configModelDefaultCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			model := args[0]
 			projectID, _ := cmd.Flags().GetString("project")
+			if err := modelcheck.CheckModel(model); err != nil {
+				return err
+			}
 
 			if projectID != "" {
 				return setProjectModel(cmd.Context(), projectID, model)
@@ -78,11 +84,14 @@ func configModelFamilyCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "family <name> <model>",
 		Short: "Définit le modèle pour une famille d'agents",
-		Long:  "Familles: planning, developer, quality, auditor, design, documentation.",
+		Long:  "Familles: les dossiers d'agents du catalogue (planning, developer, quality, auditor, design, documentation, infra, delivery, utility, équipe…).",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			family, model := args[0], args[1]
 			projectID, _ := cmd.Flags().GetString("project")
+			if err := checkModelTarget(cmd, func(c modelcheck.Catalog) error { return c.CheckFamily(family) }, family, model); err != nil {
+				return err
+			}
 
 			if projectID != "" {
 				return setProjectModelFamily(cmd.Context(), projectID, family, model)
@@ -103,6 +112,9 @@ func configModelAgentCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			agentID, model := args[0], args[1]
 			projectID, _ := cmd.Flags().GetString("project")
+			if err := checkModelTarget(cmd, func(c modelcheck.Catalog) error { return c.CheckAgent(agentID) }, agentID, model); err != nil {
+				return err
+			}
 
 			if projectID != "" {
 				return setProjectModelAgent(cmd.Context(), projectID, agentID, model)
@@ -113,6 +125,60 @@ func configModelAgentCmd() *cobra.Command {
 	cmd.Flags().StringP("project", "p", "", "Nom du projet (hub-level si absent)")
 	_ = cmd.RegisterFlagCompletionFunc("project", completeProjectIDs)
 	return cmd
+}
+
+// checkModelTarget validates the agent or family (check) and the model of a
+// cascade override. An unreadable agent catalogue only warns: the identifier
+// cannot be verified, and refusing every override would be worse.
+func checkModelTarget(cmd *cobra.Command, check func(modelcheck.Catalog) error, name, model string) error {
+	cat := loadModelCatalog(cmd)
+	if cat.Empty() {
+		fmt.Fprintln(cmd.ErrOrStderr(), theme.WarningStyle.Render(theme.IconWarning)+" "+i18n.Tf("modelcheck.catalog_unavailable", name))
+	} else if err := check(cat); err != nil {
+		return err
+	}
+	return modelcheck.CheckModel(model)
+}
+
+// loadModelCatalog reads the effective agent catalogue (hub, team of the
+// project, project) of the context of cmd; empty when it cannot be read.
+func loadModelCatalog(cmd *cobra.Command) modelcheck.Catalog {
+	c, err := workflowReadContext(cmd)
+	if err != nil {
+		c = workflowsvc.Context{} // an unknown project is reported by the writer
+	}
+	return catalogFor(ctxOf(cmd), c)
+}
+
+// newModelsView wires the Models view with the agent catalogue of the active
+// project (hub, team, project) to check the identifiers it writes.
+func newModelsView(a *app.App) *views.ModelsView {
+	v := views.NewModelsView(a)
+	v.SetCatalog(func(ctx context.Context) modelcheck.Catalog {
+		c := workflowsvc.Context{}
+		if p, err := resolveActiveProject(a); err == nil && p != nil {
+			c.ProjectID = p.ID
+		}
+		return catalogFor(ctx, c)
+	})
+	return v
+}
+
+func catalogFor(ctx context.Context, c workflowsvc.Context) modelcheck.Catalog {
+	b, err := newWorkflowService(ctx).Bricks(ctx, c)
+	if err != nil || b.Dir == "" {
+		return modelcheck.Catalog{}
+	}
+	files, err := bricks.FindAgentFiles(b.Dir)
+	if err != nil {
+		return modelcheck.Catalog{}
+	}
+	agents := make(map[string]string, len(files))
+	for id, path := range files {
+		rel, _ := filepath.Rel(filepath.Join(b.Dir, "agents"), path)
+		agents[id] = bricks.AgentFamily(filepath.ToSlash(rel))
+	}
+	return modelcheck.NewCatalog(agents)
 }
 
 func configModelShowCmd() *cobra.Command {

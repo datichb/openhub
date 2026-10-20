@@ -420,7 +420,7 @@ func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
 				}
 			},
 		}),
-		views.NewModelsView(a),
+		newModelsView(a),
 		views.NewProviderView(a, views.ProviderViewConfig{
 			GetConfig: func() *config.Config { return a.Config },
 			SaveConfig: func(c *config.Config) error {

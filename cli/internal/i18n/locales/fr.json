@@ -5671,5 +5671,10 @@
   "cmd.wiki.decide.bad_id": "un identifiant de proposition s'écrit wp-<numéro>",
   "cmd.wiki.decide.closed": "proposition déjà appliquée ou refusée",
   "tui.checkpoint.wiki_choice.editor": "Modifier dans l'éditeur ($EDITOR, plusieurs lignes)",
-  "tui.checkpoint.wiki_unchanged": "Contenu inchangé : rien n'est enregistré"
+  "tui.checkpoint.wiki_unchanged": "Contenu inchangé : rien n'est enregistré",
+  "modelcheck.unknown_agent": "agent inconnu %q (oh brick list --agents montre le catalogue)",
+  "modelcheck.unknown_family": "famille inconnue %q (familles connues : %s)",
+  "modelcheck.did_you_mean": "Vouliez-vous dire : %s ?",
+  "modelcheck.bad_model": "modèle invalide %q : écrire fournisseur/modèle (par exemple anthropic/claude-sonnet-4-5)",
+  "modelcheck.catalog_unavailable": "catalogue des agents indisponible : %q non vérifié"
 }

@@ -5671,5 +5671,10 @@
   "cmd.wiki.decide.bad_id": "a proposal id reads wp-<number>",
   "cmd.wiki.decide.closed": "proposal already applied or refused",
   "tui.checkpoint.wiki_choice.editor": "Edit in the editor ($EDITOR, several lines)",
-  "tui.checkpoint.wiki_unchanged": "Content unchanged: nothing recorded"
+  "tui.checkpoint.wiki_unchanged": "Content unchanged: nothing recorded",
+  "modelcheck.unknown_agent": "unknown agent %q (oh brick list --agents shows the catalogue)",
+  "modelcheck.unknown_family": "unknown family %q (known families: %s)",
+  "modelcheck.did_you_mean": "Did you mean: %s?",
+  "modelcheck.bad_model": "invalid model %q: write provider/model (for example anthropic/claude-sonnet-4-5)",
+  "modelcheck.catalog_unavailable": "agent catalogue unavailable: %q not verified"
 }
