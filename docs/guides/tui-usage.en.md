@@ -212,7 +212,7 @@ CLI equivalent: `oh session approve <id> --decision once|fix|other|reject [-m "�
 
 ### Deciding wiki proposals
 
-- **During a checkpoint** (onboarding, doc-sync…): on the card, **Wiki proposals (N): decide…** opens the full list: `y` accept, `n` refuse (optional reason, then `Enter`), `e` modify (one line, or `$EDITOR`), `s` leave, `A` accept all. `Esc` goes back to the card, `Enter` decides the checkpoint; the accepted ones are applied when the checkpoint passes, before the commit.
+- **During a checkpoint** (onboarding, doc-sync…): on the card, **Wiki proposals (N): decide…** opens the full list: `y` accept, `n` refuse (optional reason, then `Enter`; the reason is kept and shown on the refused proposal), `e` modify (one line, or `$EDITOR`), `s` leave, `A` accept all. `Esc` goes back to the card, `Enter` decides the checkpoint; the accepted ones are applied when the checkpoint passes, before the commit.
 - **Outside a checkpoint**: `project-wiki` command ("Project wiki"): pending, accepted (applied at the next commit) and stale proposals, same keys, `/` filter, `m` metrics. A decision here is the same as `oh wiki decide`.
 - **Team wiki**: `team.wiki` command ("Team proposals (team-state)"): `y` accept, `n` refuse (confirmed).
 

@@ -177,14 +177,14 @@ oh wiki pending [dir] [--all] [--session <id>] [--json]
 | `--session` | string | Only those of a session |
 | `--json` | bool | JSON output |
 
-The project is the one oh knows for the folder (or a parent folder). A line replacement (`replaces`) is shown "old line" → "new line"; a proposal whose line is gone when applied is `stale` (not applied, shown with `--all`). To decide on a proposal outside the TUI: [`oh wiki decide`](#oh-wiki-decide).
+The project is the one oh knows for the folder (or a parent folder). A line replacement (`replaces`) is shown "old line" → "new line"; a proposal whose line is gone when applied is `stale` (not applied, shown with `--all`). With `--all`, a proposal refused with a reason adds a `REFUSAL REASON` column (the reason is also the `reason` field of `--json`). To decide on a proposal outside the TUI: [`oh wiki decide`](#oh-wiki-decide).
 
 ### oh wiki decide
 
 Records the decision of the user on proposals of the queue, outside the TUI: the same choices as on the card of the commit checkpoint, the same service.
 
 ```
-oh wiki decide <id>... (--accept | --edit | --content <text> | --file <file|-> | --refuse | --pending) [--dir <folder>]
+oh wiki decide <id>... (--accept | --edit | --content <text> | --file <file|-> | --refuse [--reason <reason>] | --pending) [--dir <folder>]
 ```
 
 | Flag | Type | Description |
@@ -194,10 +194,13 @@ oh wiki decide <id>... (--accept | --edit | --content <text> | --file <file|-> |
 | `--content` | string | Edit without an editor: the new content |
 | `--file` | string | Edit without an editor: file of the new content (`-`: standard input) |
 | `--refuse` | bool | Refuse (alias `--reject`) |
+| `--reason` | string | Reason of a refusal (optional, with `--refuse` only) |
 | `--pending` | bool | Put back to pending |
 | `--dir` | string | Folder of the project (default: the current folder) |
 
 Exactly one decision; an edit is about one proposal. The edited content is cleaned like a proposal and the original is kept. The ids (`wp-<n>`) are those of the project, given by `oh wiki pending`; a proposal already applied or refused can no longer be changed. With several ids, oh decides on each one and reports those that fail (non-zero exit code). The decision is signed `oh` (`decided_by`).
+
+**Reason of a refusal.** `--reason` records why the proposal is refused, like the optional reason asked by `n` in the TUI. The reason is cleaned (one line, no control characters) and bounded to 500 characters; empty, it is simply left out. It is kept with the proposal (`reason` column, shown by `oh wiki pending --all` and by the TUI on the refused proposal). An acceptance, an edit or a move back to pending takes no reason: `--reason` without `--refuse` is an error.
 
 ### oh wiki stats
 

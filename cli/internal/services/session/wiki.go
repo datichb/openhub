@@ -77,8 +77,8 @@ func (s *Service) WikiProposals(ctx context.Context, sessionID string) ([]domain
 }
 
 // WikiDecide records the decision of the user on a proposal of a session
-// (wiki.ChoiceAccept, ChoiceEdit with the new content, ChoiceRefuse,
-// ChoicePend); a session that synchronizes the wiki decides on the whole
+// (wiki.ChoiceAccept, ChoiceEdit with the new content, ChoiceRefuse with
+// the optional reason as content, ChoicePend); a session that synchronizes the wiki decides on the whole
 // queue of its project.
 func (s *Service) WikiDecide(ctx context.Context, sessionID, id, choice, content string) (*domain.WikiProposal, error) {
 	if s.Wiki == nil {

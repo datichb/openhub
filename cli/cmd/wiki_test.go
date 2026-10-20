@@ -85,7 +85,25 @@ func TestWikiPendingHelpers(t *testing.T) {
 		Replaces: "- HTTP dans internal/http", Content: "- HTTP dans internal/api"}})
 	assert.Contains(t, b.String(), "« - HTTP dans internal/http » → « - HTTP dans internal/api »")
 	assert.Contains(t, b.String(), "stale")
+	// p9-wiki-refusal: the reason of a refusal gets a column when there is
+	// one; the table is unchanged otherwise.
+	assert.NotContains(t, b.String(), "MOTIF")
+	b.Reset()
+	printWikiProposals(&b, []domain.WikiProposal{
+		{Seq: 4, Status: domain.WikiRefused, Page: "index.md", Tag: "DÉDUIT", Content: "un", Reason: "déjà couvert\nsuite"},
+		{Seq: 5, Status: domain.WikiPending, Page: "index.md", Tag: "DÉDUIT", Content: "deux"}})
+	assert.Contains(t, b.String(), "MOTIF DU REFUS")
+	assert.Contains(t, b.String(), "déjà couvert")
+	assert.NotContains(t, b.String(), "suite")
 	b.Reset()
 	printWikiProposals(&b, nil)
 	assert.Contains(t, b.String(), "Aucune proposition")
+}
+
+// p9-wiki-refusal: the views get the reason of a refusal.
+func TestWikiProposalViewReason(t *testing.T) {
+	v := wikiProposalView(domain.WikiProposal{Seq: 4, Status: domain.WikiRefused, Page: "index.md", Content: "x", Reason: "doublon"})
+	assert.Equal(t, "wp-4", v.ID)
+	assert.Equal(t, "doublon", v.Reason)
+	assert.Equal(t, "doublon", cardWiki([]domain.WikiProposal{{Seq: 4, Reason: "doublon"}})[0].Reason)
 }

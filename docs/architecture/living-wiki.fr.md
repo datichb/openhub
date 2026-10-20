@@ -161,7 +161,7 @@ flowchart LR
    `review-feedback`, `security-fix` ; `cp-commit` de `quick`, `debug`, `sweep`, `sweep-task` ; `cp-wiki`,
    `cp-sync`, `cp-spec`, `cp-postmortem`, `cp-decision`… ; le dernier, quand un workflow déverrouille le commit deux
    fois), la carte de décision affiche les propositions de la session : l'utilisateur accepte, modifie
-   ou refuse chacune (ou, hors de la TUI, `oh wiki decide`).
+   ou refuse chacune, avec un motif facultatif conservé en cas de refus (ou, hors de la TUI, `oh wiki decide`).
 3. Quand le checkpoint passe, **oh applique lui-même** les propositions acceptées, avant de rendre la main à
    l'agent : elles sont donc committées avec le code. L'application est tracée (statut `applied`, `applied_by: oh`,
    date, entrée `✎` dans la chronologie) et l'agent reçoit la liste des fichiers à committer.

@@ -42,7 +42,10 @@ type WikiProposal struct {
 	AppliedBy string     `json:"applied_by,omitempty"`
 	AppliedAt *time.Time `json:"applied_at,omitempty"`
 	// Error is the last failure to apply it.
-	Error     string    `json:"error,omitempty"`
+	Error string `json:"error,omitempty"`
+	// Reason is why the user refused it (p9-wiki-refusal): optional, "" for
+	// a proposal not refused or refused without a word.
+	Reason    string    `json:"reason,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
@@ -96,7 +99,7 @@ type WikiProposalStore interface {
 	ListWikiProposals(ctx context.Context, f WikiProposalFilter) ([]WikiProposal, error)
 	// GetWikiProposal returns a proposal (ErrNotFound).
 	GetWikiProposal(ctx context.Context, projectID string, seq int) (*WikiProposal, error)
-	// UpdateWikiProposal writes the status, content, decision, application
-	// and error fields of p.
+	// UpdateWikiProposal writes the status, content, decision, refusal
+	// reason, application and error fields of p.
 	UpdateWikiProposal(ctx context.Context, p *WikiProposal) error
 }

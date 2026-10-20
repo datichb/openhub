@@ -26,6 +26,7 @@ func decideFlagsCmd(t *testing.T, args ...string) (*cobra.Command, error) {
 	}
 	cmd.Flags().String("content", "", "")
 	cmd.Flags().String("file", "", "")
+	cmd.Flags().String("reason", "", "")
 	return cmd, cmd.ParseFlags(args)
 }
 
@@ -47,6 +48,12 @@ func TestWikiDecisionFlags(t *testing.T) {
 		{args: []string{"--edit"}, want: wikiDecision{Choice: wiki.ChoiceEdit, Editor: true}},
 		{args: []string{"--content", "neuf"}, want: wikiDecision{Choice: wiki.ChoiceEdit, Content: "neuf"}},
 		{args: []string{"--edit", "--file", file}, want: wikiDecision{Choice: wiki.ChoiceEdit, Content: "ligne 1\nligne 2\n"}},
+		{args: []string{"--refuse", "--reason", "déjà couvert"}, want: wikiDecision{Choice: wiki.ChoiceRefuse, Reason: "déjà couvert"}},
+		{args: []string{"--reject", "--reason", "x"}, want: wikiDecision{Choice: wiki.ChoiceRefuse, Reason: "x"}},
+		{args: []string{"--refuse", "--reason", "  "}, want: wikiDecision{Choice: wiki.ChoiceRefuse}},
+		{args: []string{"--accept", "--reason", "x"}, err: "--refuse"},
+		{args: []string{"--pending", "--reason", "x"}, err: "--refuse"},
+		{args: []string{"--content", "neuf", "--reason", "x"}, err: "--refuse"},
 		{args: nil, err: "une seule"},
 		{args: []string{"--accept", "--refuse"}, err: "une seule"},
 		{args: []string{"--accept", "--content", "x"}, err: "une seule"},
@@ -69,6 +76,25 @@ func TestWikiDecisionFlags(t *testing.T) {
 	got, err := wikiDecisionFlags(cmd)
 	require.NoError(t, err)
 	assert.Equal(t, "depuis stdin", got.Content)
+}
+
+// p9-wiki-refusal: the flag is on the real command.
+func TestWikiDecideReasonFlag(t *testing.T) {
+	var decide *cobra.Command
+	for _, c := range wikiCmd.Commands() {
+		if c.Name() == "decide" {
+			decide = c
+		}
+	}
+	require.NotNil(t, decide)
+	f := decide.Flags().Lookup("reason")
+	require.NotNil(t, f, "oh wiki decide --reason")
+	assert.NotEmpty(t, f.Usage)
+	require.NoError(t, decide.Flags().Parse([]string{"--refuse", "--reason", "hors sujet"}))
+	t.Cleanup(func() { _ = decide.Flags().Set("refuse", "false"); _ = decide.Flags().Set("reason", "") })
+	d, err := wikiDecisionFlags(decide)
+	require.NoError(t, err)
+	assert.Equal(t, wikiDecision{Choice: wiki.ChoiceRefuse, Reason: "hors sujet"}, d)
 }
 
 // `oh wiki decide`: the choices of the card, from the command line, on
@@ -164,4 +190,18 @@ func TestWikiDecide(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, out, "déjà appliquée ou refusée", "no editor for a closed proposal")
 	assert.Len(t, opened, 2)
+
+	// p9-wiki-refusal: the reason of a refusal is kept (cleaned) and told;
+	// without one the refusal reads as before.
+	d := propose("p1", "index.md", "quatre")
+	e := propose("p1", "index.md", "cinq")
+	out, err = run([]string{d}, wikiDecision{Choice: wiki.ChoiceRefuse, Reason: "  déjà\x1b[31m couvert\n par stack.md "})
+	require.NoError(t, err)
+	assert.Contains(t, out, "refusée (motif : déjà couvert par stack.md)")
+	assert.Equal(t, "déjà couvert par stack.md", status(d).Reason)
+	out, err = run([]string{e}, wikiDecision{Choice: wiki.ChoiceRefuse})
+	require.NoError(t, err)
+	assert.Contains(t, out, e+" (index.md) : refusée")
+	assert.NotContains(t, out, "motif")
+	assert.Empty(t, status(e).Reason)
 }

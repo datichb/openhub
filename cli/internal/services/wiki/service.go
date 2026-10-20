@@ -34,6 +34,9 @@ const (
 	MaxPerProject = 500
 )
 
+// MaxReason bounds the reason of a refusal, in characters.
+const MaxReason = 500
+
 // AppliedByOh is the author of an application made by oh (proposals the
 // user accepted on the card).
 const AppliedByOh = "oh"
@@ -139,7 +142,10 @@ func (s *Service) Get(ctx context.Context, projectID, id string) (*domain.WikiPr
 
 // Decide records the decision of the user on an open proposal: accept (oh
 // applies it at the commit checkpoint), edit (accepted with the content
-// given, cleaned like a proposal), refuse, or back to pending.
+// given, cleaned like a proposal), refuse, or back to pending. For a
+// refusal, content is the optional reason of the user (p9-wiki-refusal):
+// cleaned and bounded by CleanReason, "" for none; the other choices keep
+// no reason. The callers that pass "" to refuse are unchanged.
 func (s *Service) Decide(ctx context.Context, projectID, id, choice, content, by string) (*domain.WikiProposal, error) {
 	p, err := s.Get(ctx, projectID, id)
 	if err != nil {
@@ -166,6 +172,7 @@ func (s *Service) Decide(ctx context.Context, projectID, id, choice, content, by
 		p.Status = domain.WikiAccepted
 	case ChoiceRefuse:
 		p.Status = domain.WikiRefused
+		p.Reason = CleanReason(content)
 	case ChoicePend:
 		p.Status = domain.WikiPending
 	default:
@@ -174,6 +181,12 @@ func (s *Service) Decide(ctx context.Context, projectID, id, choice, content, by
 	p.DecidedBy, p.DecidedAt = by, &now
 	return p, s.Store.UpdateWikiProposal(ctx, p)
 }
+
+// CleanReason returns the reason of a refusal on one line, without control
+// characters or terminal sequences, bounded to MaxReason characters ("" is
+// allowed). It is a datum written by the user, shown to the next agents:
+// never trusted as markup.
+func CleanReason(s string) string { return oneLine(s, MaxReason) }
 
 // Result is the outcome of the application of a proposal.
 type Result struct {

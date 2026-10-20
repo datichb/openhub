@@ -221,3 +221,57 @@ func TestServiceFlow(t *testing.T) {
 	assert.Equal(t, []string{"technical/stack.md"}, applied)
 	assert.Len(t, failed, 2)
 }
+
+// p9-wiki-refusal: the reason of a refusal is cleaned (one line, no control
+// characters) and bounded; empty is allowed; an acceptance keeps none.
+func TestDecideRefusalReason(t *testing.T) {
+	ctx := context.Background()
+	s := &Service{Store: &memStore{}, Now: func() time.Time { return time.Date(2026, 10, 13, 9, 0, 0, 0, time.UTC) }}
+	propose := func(content string) string {
+		p, err := s.Propose(ctx, Filed{ProjectID: "p1", SessionID: "ses_r", Agent: "reviewer",
+			Proposal: Proposal{Page: "index.md", Content: content, Tag: "DÉDUIT"}})
+		require.NoError(t, err)
+		return p.ID()
+	}
+	reasonOf := func(id string) string {
+		p, err := s.Get(ctx, "p1", id)
+		require.NoError(t, err)
+		assert.Equal(t, domain.WikiRefused, p.Status)
+		return p.Reason
+	}
+
+	id := propose("un")
+	p, err := s.Decide(ctx, "p1", id, ChoiceRefuse, "  trop\x1b[31m vague\x07 \n\tà  relire \x00", "oh")
+	require.NoError(t, err)
+	assert.Equal(t, "trop vague à relire", p.Reason)
+	assert.Equal(t, "trop vague à relire", reasonOf(id))
+
+	id = propose("deux")
+	_, err = s.Decide(ctx, "p1", id, ChoiceRefuse, "", "oh")
+	require.NoError(t, err, "no reason is allowed")
+	assert.Empty(t, reasonOf(id))
+
+	id = propose("trois")
+	_, err = s.Decide(ctx, "p1", id, ChoiceRefuse, strings.Repeat("é", MaxReason*3), "oh")
+	require.NoError(t, err)
+	got := reasonOf(id)
+	assert.Equal(t, MaxReason, len([]rune(got)))
+	assert.True(t, strings.HasSuffix(got, "…"))
+	assert.Equal(t, got, CleanReason(got), "cleaning is idempotent")
+
+	// An acceptance or an edit takes no reason; the text given is the
+	// content (edit) or nothing (accept).
+	id = propose("quatre")
+	p, err = s.Decide(ctx, "p1", id, ChoiceAccept, "un motif", "oh")
+	require.NoError(t, err)
+	assert.Empty(t, p.Reason)
+	assert.Equal(t, "quatre", p.Content)
+	id = propose("cinq")
+	p, err = s.Decide(ctx, "p1", id, ChoiceEdit, "cinq (édité)", "oh")
+	require.NoError(t, err)
+	assert.Empty(t, p.Reason)
+	id = propose("six")
+	p, err = s.Decide(ctx, "p1", id, ChoicePend, "un motif", "oh")
+	require.NoError(t, err)
+	assert.Empty(t, p.Reason)
+}

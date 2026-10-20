@@ -407,16 +407,22 @@ func short(c string) string {
 
 // proposalLine renders a proposal on one line (its content is a datum
 // written by an agent: its first line only, bounded); a replacement shows
-// the line it replaces, then the new one.
+// the line it replaces, then the new one; the reason of a refusal, when
+// there is one, ends the line.
 func proposalLine(p daemon.WikiProposal) string {
 	page := p.Page
 	if p.Section != "" {
 		page += " § " + p.Section
 	}
+	text := "« " + clip(p.Content, 100) + " »"
 	if p.Replaces != "" {
-		return fmt.Sprintf("- %s · %s · %s · %s · %s · « %s » → « %s »", p.ID, p.Status, firstText(p.Agent, "?"), page, p.Tag, clip(p.Replaces, 60), clip(p.Content, 60))
+		text = "« " + clip(p.Replaces, 60) + " » → « " + clip(p.Content, 60) + " »"
 	}
-	return fmt.Sprintf("- %s · %s · %s · %s · %s · « %s »", p.ID, p.Status, firstText(p.Agent, "?"), page, p.Tag, clip(p.Content, 100))
+	line := fmt.Sprintf("- %s · %s · %s · %s · %s · %s", p.ID, p.Status, firstText(p.Agent, "?"), page, p.Tag, text)
+	if p.Reason != "" {
+		line += " · " + i18n.Tf("cmd.mcp.wiki.refused_reason", clip(p.Reason, 200))
+	}
+	return line
 }
 
 // clip returns the first line of s, bounded to n runes.

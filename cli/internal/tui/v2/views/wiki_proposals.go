@@ -18,7 +18,8 @@ import (
 // list of the checkpoint card (sessions_checkpoint_wiki.go) and the queue
 // of the project (project_wiki_view.go) share it. Each proposal on one
 // line, its before/after, source, author and tag below or beside; y
-// accept, n refuse (confirmed by the instruction prompt), e modify (on one
+// accept, n refuse (confirmed by the instruction prompt, the reason of the
+// refusal is optional and kept with the proposal), e modify (on one
 // line, or in $EDITOR), s leave pending, A accept all. No limit: the list
 // scrolls. Proposal texts come from agents: always escaped.
 
@@ -44,6 +45,8 @@ type WikiProposalView struct {
 	Edited bool
 	// Error is the last failure to apply it (stale: the line is gone).
 	Error string
+	// Reason is why the user refused it (p9-wiki-refusal), "" for none.
+	Reason string
 }
 
 // Statuses of a proposal (domain.Wiki*).
@@ -72,7 +75,8 @@ type wikiListOpts struct {
 	Shell ShellAccess
 	// Load reads the proposals (off the event loop).
 	Load func(ctx context.Context) ([]WikiProposalView, error)
-	// Decide records a decision (off the event loop).
+	// Decide records a decision (off the event loop). For a refusal,
+	// content is the optional reason of the user.
 	Decide func(ctx context.Context, id, choice, content string) error
 	// Edit edits a content in $EDITOR, the terminal suspended (event loop;
 	// nil: one-line edit only).
@@ -115,7 +119,7 @@ func newWikiList(cfg wikiListOpts) *wikiList {
 				Run: func(it ActionItem, _ string) { w.decide(it.ID, wikiAccept, "") }},
 			{Key: keys.Refuse, Applies: open, ReasonOptional: true,
 				ReasonTitle: func(it ActionItem) string { return w.refuseTitle(it.ID) },
-				Run:         func(it ActionItem, _ string) { w.decide(it.ID, wikiRefuse, "") }},
+				Run:         func(it ActionItem, reason string) { w.decide(it.ID, wikiRefuse, reason) }},
 			{Key: keys.Modify, Applies: open, Run: func(it ActionItem, _ string) { w.modify(it.ID) }},
 			{Key: keys.Leave, Applies: open, Run: func(it ActionItem, _ string) { w.leave(it.ID) }},
 		},
@@ -173,7 +177,7 @@ func (w *wikiList) matches(p WikiProposalView) bool {
 	if w.query == "" {
 		return true
 	}
-	hay := strings.ToLower(strings.Join([]string{p.ID, p.Page, p.Section, p.Content, p.Replaces, p.Agent, p.Workflow, p.Tag}, " "))
+	hay := strings.ToLower(strings.Join([]string{p.ID, p.Page, p.Section, p.Content, p.Replaces, p.Reason, p.Agent, p.Workflow, p.Tag}, " "))
 	for _, word := range strings.Fields(strings.ToLower(w.query)) {
 		if !strings.Contains(hay, word) {
 			return false
@@ -338,6 +342,9 @@ func (w *wikiList) detail(p WikiProposalView) string {
 	if p.Edited {
 		b.WriteString(muted(i18n.T("tui.wikilist.edited")) + "\n")
 	}
+	if p.Status == wikiStatusRefused && p.Reason != "" {
+		b.WriteString(muted(tview.Escape(i18n.Tf("tui.wikilist.refused_reason", p.Reason))) + "\n")
+	}
 	switch {
 	case p.Status == wikiStatusStale:
 		fmt.Fprintf(&b, "%s%s%s\n", theme.ColorTag(theme.WarningHex), tview.Escape(i18n.T("tui.wikilist.stale")), theme.TagColor)
@@ -472,7 +479,7 @@ func (w *wikiList) applied(done []wikiDecision) {
 			case wikiEdit:
 				p.Status, p.Content, p.Edited = wikiStatusAccepted, d.content, true
 			case wikiRefuse:
-				p.Status = wikiStatusRefused
+				p.Status, p.Reason = wikiStatusRefused, strings.Join(strings.Fields(d.content), " ")
 			case wikiPend:
 				p.Status = wikiStatusPending
 			}

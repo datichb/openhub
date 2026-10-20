@@ -160,7 +160,7 @@ flowchart LR
 2. At the commit checkpoint, the one that unlocks `commit` (`cp-2` of `ticket`, `implement-spec`,
    `review-feedback`, `security-fix`; `cp-commit` of `quick`, `debug`, `sweep`, `sweep-task`; `cp-wiki`, `cp-sync`,
    `cp-spec`, `cp-postmortem`, `cp-decision`…; the last one, when a workflow unlocks the commit twice), the decision
-   card shows the proposals of the session: the user accepts, edits or refuses each one (or,
+   card shows the proposals of the session: the user accepts, edits or refuses each one, with an optional reason kept on a refusal (or,
    outside the TUI, `oh wiki decide`).
 3. When the checkpoint is passed, **oh applies** the accepted proposals itself, before giving control back to the
    agent: they are committed with the code. The application is traced (status `applied`, `applied_by: oh`, date,

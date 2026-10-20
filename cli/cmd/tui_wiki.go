@@ -114,7 +114,7 @@ func queueWiki(ctx context.Context, a *app.App, list []domain.WikiProposal) []vi
 func wikiProposalView(p domain.WikiProposal) views.WikiProposalView {
 	return views.WikiProposalView{ID: p.ID(), Agent: p.Agent, Page: p.Page, Section: p.Section, Tag: p.Tag, Source: p.Source,
 		Status: p.Status, Content: p.Content, Replaces: p.Replaces, SessionID: p.SessionID, Created: p.CreatedAt,
-		Edited: p.Original != "", Error: p.Error}
+		Edited: p.Original != "", Error: p.Error, Reason: p.Reason}
 }
 
 // tuiWikiEdit edits the content of a proposal in $EDITOR, the TUI

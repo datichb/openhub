@@ -195,3 +195,14 @@ func TestProposalLineReplacement(t *testing.T) {
 		Tag: "CONFIRMÉ", Replaces: "- HTTP dans internal/http", Content: "- HTTP dans internal/api"}})
 	assert.Contains(t, line, "« - HTTP dans internal/http » → « - HTTP dans internal/api »")
 }
+
+// p9-wiki-refusal: the reason of a refusal ends the line, bounded to its
+// first line; no reason, nothing added.
+func TestProposalLineRefusalReason(t *testing.T) {
+	p := domain.WikiProposal{Status: "refused", Agent: "onboarder", Page: "technical/stack.md", Tag: "DÉDUIT", Content: "- zod"}
+	assert.Equal(t, "- wp-0 · refused · onboarder · technical/stack.md · DÉDUIT · « - zod »", proposalLine(daemon.WikiProposal{ID: "wp-0", WikiProposal: p}))
+	p.Reason = "déjà couvert par la page stack\nsuite ignorée"
+	line := proposalLine(daemon.WikiProposal{ID: "wp-0", WikiProposal: p})
+	assert.True(t, strings.HasSuffix(line, "déjà couvert par la page stack"), line)
+	assert.NotContains(t, line, "suite ignorée")
+}

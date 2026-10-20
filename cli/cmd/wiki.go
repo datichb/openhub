@@ -268,8 +268,17 @@ func printWikiProposals(w io.Writer, list []domain.WikiProposal) {
 		fmt.Fprintln(w, i18n.T("cmd.wiki.pending.none"))
 		return
 	}
+	// The reason of a refusal gets a column only when one is to show.
+	reasons := false
+	for _, p := range list {
+		reasons = reasons || p.Reason != ""
+	}
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(tw, i18n.T("cmd.wiki.pending.header"))
+	header := i18n.T("cmd.wiki.pending.header")
+	if reasons {
+		header += "\t" + i18n.T("cmd.wiki.pending.header_reason")
+	}
+	fmt.Fprintln(tw, header)
 	for _, p := range list {
 		page := p.Page
 		if p.Section != "" {
@@ -280,7 +289,11 @@ func printWikiProposals(w io.Writer, list []domain.WikiProposal) {
 			// p5-fixes: a replacement, before → after.
 			first = "« " + clipLine(p.Replaces, 28) + " » → « " + clipLine(p.Content, 28) + " »"
 		}
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n", p.ID(), p.Status, firstNonEmpty(p.Agent, "?"), p.SessionID, page, p.Tag, first)
+		row := fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s\t%s", p.ID(), p.Status, firstNonEmpty(p.Agent, "?"), p.SessionID, page, p.Tag, first)
+		if reasons {
+			row += "\t" + clipLine(p.Reason, 60)
+		}
+		fmt.Fprintln(tw, row)
 	}
 	_ = tw.Flush()
 }

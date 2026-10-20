@@ -212,7 +212,7 @@ Sur une ligne « À récupérer » : compte rendu (artefacts, import de la sessi
 
 ### Décider des propositions wiki
 
-- **Pendant un checkpoint** (onboarding, doc-sync…) : sur la fiche, **Propositions du wiki (N) : décider…** ouvre la liste complète : `y` accepter, `n` refuser (motif facultatif, puis `Entree`), `e` modifier (une ligne, ou `$EDITOR`), `s` laisser, `A` tout accepter. `Échap` revient à la fiche, `Entree` décide le checkpoint ; les acceptées sont appliquées au passage du checkpoint, avant le commit.
+- **Pendant un checkpoint** (onboarding, doc-sync…) : sur la fiche, **Propositions du wiki (N) : décider…** ouvre la liste complète : `y` accepter, `n` refuser (motif facultatif, puis `Entree` ; le motif est conservé et affiché sur la proposition refusée), `e` modifier (une ligne, ou `$EDITOR`), `s` laisser, `A` tout accepter. `Échap` revient à la fiche, `Entree` décide le checkpoint ; les acceptées sont appliquées au passage du checkpoint, avant le commit.
 - **Hors checkpoint** : commande `project-wiki` (« Wiki du projet ») : propositions en attente, acceptées (appliquées au prochain commit) et périmées, mêmes touches, `/` filtrer, `m` métriques. Une décision ici est la même que `oh wiki decide`.
 - **Wiki d'équipe** : commande `team.wiki` (« Propositions d'équipe (team-state) ») : `y` accepter, `n` refuser (confirmé).
 

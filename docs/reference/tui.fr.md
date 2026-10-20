@@ -222,7 +222,7 @@ Sections : **À traiter** (sessions avec des décisions en attente, chacune suiv
 
 Vérification échouée : la fiche s'ouvre sur **Corriger (consigne)** et **Passer outre…** (motif, confirmation, tracé dans `oh session trace`) ; jamais de « Passer outre » sur `cp-merge` du fan-out.
 
-**Propositions du wiki d'un checkpoint** (bouton de la fiche) : liste sans limite (avant / après, source, auteur, tag), `y` accepter, `n` refuser (motif facultatif, confirmé), `e` modifier (une ligne, ou `$EDITOR`), `s` laisser, `A` tout accepter, `Entrée` décider le checkpoint, `Échap` revenir à la fiche. Les acceptées sont appliquées au passage du checkpoint, avant le commit.
+**Propositions du wiki d'un checkpoint** (bouton de la fiche) : liste sans limite (avant / après, source, auteur, tag), `y` accepter, `n` refuser (motif facultatif, confirmé ; `Entrée` sans rien saisir refuse sans motif), `e` modifier (une ligne, ou `$EDITOR`), `s` laisser, `A` tout accepter, `Entrée` décider le checkpoint, `Échap` revenir à la fiche. Le motif saisi est conservé avec la proposition et s'affiche sous elle une fois refusée (« Motif du refus : … »). Les acceptées sont appliquées au passage du checkpoint, avant le commit.
 
 **Validation par lot** (`B`) : remplace la liste ; portée = le fan-out de la session sélectionnée (sinon toutes les sessions), filtre = le checkpoint de la décision sélectionnée.
 
@@ -264,7 +264,7 @@ Commande `project-wiki` (mode Projet). En tête, les métriques résumées (page
 
 | Touche | Action |
 |--------|--------|
-| `y` / `n` / `e` / `s` / `A` | Accepter / refuser (confirmé) / modifier / laisser / tout accepter, comme `oh wiki decide` |
+| `y` / `n` / `e` / `s` / `A` | Accepter / refuser (motif facultatif, confirmé) / modifier / laisser / tout accepter, comme `oh wiki decide` |
 | `/` | Filtrer (page, contenu, agent, workflow) |
 | `m` | Toutes les métriques |
 | `r` | Rafraîchir |
