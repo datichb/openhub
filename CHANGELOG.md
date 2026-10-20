@@ -26,7 +26,7 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
   - le contrôle des messages non traduits couvre tout `cmd/` et les vues ;
   - un test refuse les clés inutilisées (194 retirées) ;
   - les confirmations acceptent `o`, `oui`, `y` et `yes`.
-- **Garde global** : les agents ne peuvent plus lancer `oh secrets set|delete`, `oh mcp enable|disable|reset`, `oh config language|websearch` ni `oh budget set|unset|raise`.
+- **Garde global** : les agents ne peuvent plus lancer `oh secrets set|delete|get|cleanup`, `oh mcp enable|disable|reset`, `oh config language|websearch` ni `oh budget set|unset|raise`. Un agent ne peut donc plus lire un secret en clair.
 
 ### Security — robustesse du démon, socket, environnement et démarrage du shell (lot v5-fix-h2, audit v5 S-29, A-02, A-04, S-28, S-15)
 
