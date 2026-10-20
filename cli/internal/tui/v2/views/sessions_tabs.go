@@ -2,6 +2,7 @@ package views
 
 import (
 	"context"
+	"slices"
 	"strings"
 
 	"github.com/gdamore/tcell/v2"
@@ -307,14 +308,25 @@ func (p *reportsPane) reset() {
 // reportItems are the reports as list elements.
 func reportItems(list []CheckpointReport) []ActionItem {
 	items := make([]ActionItem, 0, len(list))
+	withChild := false
+	for _, r := range list {
+		withChild = withChild || r.Child != ""
+	}
 	for i := len(list) - 1; i >= 0; i-- { // the last one first
 		r := list[i]
 		at := ""
 		if !r.At.IsZero() {
 			at = r.At.Local().Format("15:04")
 		}
-		items = append(items, ActionItem{ID: r.ID, Cells: []string{r.ID, firstText(r.Agent, "?"), at, reportSize(r.Bytes), clipText(r.Title, 40)},
-			DetailTitle: r.ID + " · " + firstText(r.Agent, "?"), Ref: r})
+		cells := []string{r.ID, firstText(r.Agent, "?"), at, reportSize(r.Bytes), clipText(r.Title, 40)}
+		title := r.ID + " · " + firstText(r.Agent, "?")
+		if withChild { // the child that filed it, after the id
+			cells = slices.Insert(cells, 1, clipText(r.Child, 14))
+			if r.Child != "" {
+				title = r.Child + " · " + title
+			}
+		}
+		items = append(items, ActionItem{ID: r.key(), Cells: cells, DetailTitle: title, Ref: r})
 	}
 	return items
 }
@@ -354,7 +366,7 @@ func (p *reportsPane) show(it ActionItem) {
 	if !ok {
 		return
 	}
-	if body, ok := p.bodies[r.ID]; ok {
+	if body, ok := p.bodies[r.key()]; ok {
 		p.reader.SetText(body)
 		return
 	}
@@ -363,6 +375,7 @@ func (p *reportsPane) show(it ActionItem) {
 	if !ok || sessionID == "" {
 		return
 	}
+	sessionID = r.owner(sessionID)
 	p.reader.SetEmpty(i18n.T("tui.sessions.reports.loading"))
 	p.reader.SetText("")
 	var body string
@@ -371,8 +384,8 @@ func (p *reportsPane) show(it ActionItem) {
 		_, body, err = rd.CheckpointReport(ctx, sessionID, r.ID)
 		return "", err
 	}, func(string) {
-		p.bodies[r.ID] = body
-		if cur, ok := p.list.Current(); ok && cur.ID == r.ID {
+		p.bodies[r.key()] = body
+		if cur, ok := p.list.Current(); ok && cur.ID == r.key() {
 			p.reader.SetText(body)
 		}
 	})

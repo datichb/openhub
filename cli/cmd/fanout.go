@@ -43,6 +43,7 @@ func init() {
 		RunE:  runFanoutDrive,
 	}
 	drive.Flags().Bool("relaunch", false, i18n.T("cmd.fanout.drive.flags.relaunch"))
+	drive.Flags().String("relaunch-by", "", i18n.T("cmd.fanout.drive.flags.relaunch_by"))
 	status := &cobra.Command{
 		Use:   "status <session-id>",
 		Short: i18n.T("cmd.fanout.status.short"),
@@ -96,6 +97,10 @@ func runFanoutDrive(cmd *cobra.Command, args []string) error {
 	if !fanoutEnabled(a) {
 		return errors.New(i18n.T("cmd.fanout.disabled"))
 	}
+	by, relaunched, err := relaunchOrigin(cmd)
+	if err != nil {
+		return err
+	}
 	ssvc, err := sessionService(cmd)
 	if err != nil {
 		return err
@@ -113,8 +118,8 @@ func runFanoutDrive(cmd *cobra.Command, args []string) error {
 		return errors.New(i18n.Tf("cmd.fanout.driven", sess.ID))
 	}
 	defer unlock()
-	if relaunch, _ := cmd.Flags().GetBool("relaunch"); relaunch {
-		if err := d.Relaunched(ctx, sess.ID); err != nil {
+	if relaunched {
+		if err := d.Relaunched(ctx, sess.ID, by); err != nil {
 			return err
 		}
 	}
@@ -123,6 +128,20 @@ func runFanoutDrive(cmd *cobra.Command, args []string) error {
 	}
 	fmt.Fprintln(cmd.OutOrStdout(), i18n.Tf("cmd.fanout.drive.done", sess.ID))
 	return nil
+}
+
+// relaunchOrigin is who started the driver again (`--relaunch`: the daemon,
+// `--relaunch-by=user|daemon`), and whether it was started again at all.
+func relaunchOrigin(cmd *cobra.Command) (by string, relaunched bool, err error) {
+	by, _ = cmd.Flags().GetString("relaunch-by")
+	switch by {
+	case "":
+		relaunched, _ = cmd.Flags().GetBool("relaunch")
+		return fanout.RelaunchByDaemon, relaunched, nil
+	case fanout.RelaunchByDaemon, fanout.RelaunchByUser:
+		return by, true, nil
+	}
+	return "", false, errors.New(i18n.Tf("cmd.fanout.drive.relaunch_by_invalid", by))
 }
 
 func runFanoutStatus(cmd *cobra.Command, args []string) error {
@@ -266,6 +285,17 @@ func printFanout(w io.Writer, id string, f *domain.SessionFanout) {
 		}
 	}
 }
+
+// Options of `oh fanout drive` that say who starts the driver again: the
+// daemon (traced as such) or the user, from the TUI.
+const (
+	relaunchByDaemonArg = "--relaunch"
+	relaunchByUserArg   = "--relaunch-by=" + fanout.RelaunchByUser
+)
+
+// spawnDriver starts the fan-out driver (a variable so that tests do not
+// start a process).
+var spawnDriver = spawnFanoutDriver
 
 // spawnFanoutDriver starts `oh fanout drive <id>` in the background (its
 // output in ~/.oh/sessions/<id>/fanout.log): the children are launched

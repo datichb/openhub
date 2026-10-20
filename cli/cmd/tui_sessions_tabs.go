@@ -114,7 +114,9 @@ func (t *tuiSessions) SessionTrace(ctx context.Context, sessionID string) (strin
 	return b.String(), nil
 }
 
-// SessionReports lists the reports of a session.
+// SessionReports lists the reports of a session, oldest first. On the
+// parent of a fan-out it adds the reports of each child that has a session,
+// with the child that filed them (a child that cannot be read is left out).
 func (t *tuiSessions) SessionReports(ctx context.Context, sessionID string) ([]views.CheckpointReport, error) {
 	svc, err := t.service(ctx)
 	if err != nil {
@@ -128,6 +130,30 @@ func (t *tuiSessions) SessionReports(ctx context.Context, sessionID string) ([]v
 	for _, r := range list {
 		out = append(out, views.CheckpointReport{ID: r.ID(), Agent: r.Agent, Title: r.Title, Bytes: r.Bytes, At: r.CreatedAt})
 	}
+	if t.a.Sessions == nil {
+		return out, nil
+	}
+	sess, err := t.a.Sessions.Get(ctx, sessionID)
+	if err != nil {
+		return out, nil //nolint:nilerr // the own reports are still shown
+	}
+	if sess.Fanout == nil || sess.Fanout.Role != domain.RoleParent {
+		return out, nil
+	}
+	for _, c := range sess.Fanout.Children {
+		if c.Session == "" {
+			continue
+		}
+		kids, err := svc.SessionReports(ctx, c.Session)
+		if err != nil {
+			continue
+		}
+		for _, r := range kids {
+			out = append(out, views.CheckpointReport{ID: r.ID(), Agent: r.Agent, Title: r.Title, Bytes: r.Bytes, At: r.CreatedAt,
+				Session: c.Session, Child: fanout.ChildLabel(c)})
+		}
+	}
+	sort.SliceStable(out, func(i, j int) bool { return out[i].At.Before(out[j].At) })
 	return out, nil
 }
 
@@ -243,7 +269,7 @@ func (t *tuiSessions) RelaunchFanout(ctx context.Context, parentID string) (stri
 	if fanoutDriverRunning(sess.ID) {
 		return "", errors.New(i18n.T("tui.sessions.fanout.driver_running"))
 	}
-	log, err := spawnFanoutDriver(sess.ID)
+	log, err := spawnDriver(sess.ID, relaunchByUserArg)
 	if err != nil {
 		return "", err
 	}

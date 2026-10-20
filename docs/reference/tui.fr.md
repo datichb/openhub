@@ -206,10 +206,10 @@ Sections : **À traiter** (sessions avec des décisions en attente, chacune suiv
 |--------|---------|---------|
 | Détail | Session (workflow, runtime ⌂ ▣ ☁, emplacement, coût, décisions), **sorties relevées par oh**, **suites proposées (`next:`)** | celles de la liste |
 | Trace | Texte de `oh session trace` | `/` rechercher, `n` / `N`, `g` / `G`, `r` |
-| Rapports | Rapports de la session, lecteur à droite | `Entrée` lire (puis `Échap` revient à la liste), `/`, `n` / `N`, `r` |
+| Rapports | Rapports de la session, lecteur à droite ; sur la session parente d'un fan-out, ceux des enfants s'y ajoutent, triés par date, avec l'enfant qui les a déposés (colonne après `rp-N`) | `Entrée` lire (puis `Échap` revient à la liste), `/`, `n` / `N`, `r` |
 | Fan-out | État du fan-out : parallèle, pilote, budget, enfants (ticket, session, état, branche, coût, fin), tours de correction, dernier refus de `cp-merge`, branche d'intégration | `Entrée` ouvrir l'enfant, `p` relancer le pilote, `d` nettoyer, `B` valider en lot, `r` |
 
-`p` refuse de relancer un pilote qui tourne (« tourne déjà ») ; le journal du pilote est `~/.oh/sessions/<id>/fanout.log`. `d` (après `cp-merge` ou une fois la session arrêtée) montre ce qui sera supprimé et gardé, propose `--discard` (branches non mergées) à cocher, puis confirme ; c'est `oh fanout clean`.
+`p` refuse de relancer un pilote qui tourne (« tourne déjà ») ; une relance acceptée écrit l'événement « started again by the user » dans les événements du fan-out (le démon écrit « by the daemon ») ; le journal du pilote est `~/.oh/sessions/<id>/fanout.log`. `d` (après `cp-merge` ou une fois la session arrêtée) montre ce qui sera supprimé et gardé, propose `--discard` (branches non mergées) à cocher, puis confirme ; c'est `oh fanout clean`.
 
 **Fiche de checkpoint** (`Entrée` sur `⏸`) : valideur attendu (`approver:`, « ⚠ hors valideur » si votre identité git n'en est pas), **vérification lancée par oh** (commandes et état), preuves de l'agent, changements (`+N −M · K fichier(s)`), derniers messages, frise, rapports. Boutons : **Décider**, **Diff complet**, **Lire rp-N** (un par rapport), **Propositions du wiki (N) : décider…** (s'il y en a), **Attacher**.
 

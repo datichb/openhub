@@ -27,6 +27,24 @@ type CheckpointReport struct {
 	Title string
 	Bytes int
 	At    time.Time
+	// Session holds the report when it is not the session shown (the child
+	// of a fan-out, on its parent); Child is that child's label. Ids are
+	// per session: rp-1 exists in each child.
+	Session string
+	Child   string
+}
+
+// key tells reports of different sessions apart.
+func (r CheckpointReport) key() string {
+	if r.Session == "" {
+		return r.ID
+	}
+	return r.Session + "/" + r.ID
+}
+
+// owner is the session that holds the report (shown is the one displayed).
+func (r CheckpointReport) owner(shown string) string {
+	return firstText(r.Session, shown)
 }
 
 // CheckpointReportReader is implemented by session backends that can read

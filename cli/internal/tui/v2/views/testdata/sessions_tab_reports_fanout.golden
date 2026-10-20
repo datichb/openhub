@@ -1,0 +1,11 @@
+╔ Détail · implement-spec ⑂ ═══════════════════════════════════════════════════════════════════════════════════════════╗
+║  Détail   Trace  [Rapports]  Fan-out                                                                                 ║
+║ ╔ Rapports ══════════════════════════════════╗/ rechercher · n/N suivant/précédent · g/G début/fin                   ║
+║ ║ ▸ rp-1         reviewer   10:28  4.1 Ko  … ║Corps de la parente                                                    ║
+║ ║   rp-1  oh-13  developer  10:15  900 o   … ║                                                                       ║
+║ ║   rp-1  oh-12  developer  10:09  2.1 Ko  … ║                                                                       ║
+║ ║ 1/3                                        ║                                                                       ║
+║ ╚════════════════════════════════════════════╝                                                                       ║
+║ Entrée lire · / rechercher · n/N suivant/précédent · Tab onglet · Échap retour                                       ║
+║                                                                                                                      ║
+╚══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════╝

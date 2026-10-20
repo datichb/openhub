@@ -230,7 +230,7 @@ CLI equivalent: `oh session approve --batch [--checkpoint …]`.
 1. Launch `implement-spec -i fanout=true` (experimental): the `↳` children show under the `⑂` parent.
 2. On the parent, `Tab` to **Fan-out**: children (ticket, state, branch, cost, end), fix rounds, last refusal of `cp-merge`, integration branch, budget.
 3. `Enter` on a child selects it in the list; `B` validates its checkpoints in a batch.
-4. The driver stopped: `p` relaunches it (refused when it runs; log `~/.oh/sessions/<id>/fanout.log`).
+4. The driver stopped: `p` relaunches it (refused when it runs; log `~/.oh/sessions/<id>/fanout.log`); the relaunch is traced in the events of the fan-out. The reports of the children are in the **Reports** tab of the parent session.
 5. After `cp-merge` or once the session stopped: `d` shows what will be removed (worktrees, merged branches) and kept, offers `--discard`, then confirms (like `oh fanout clean`).
 
 ### Launching with an alias or an agent of `libre`
