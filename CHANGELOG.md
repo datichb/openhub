@@ -9,6 +9,13 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Fixed — TUI : fan-out (lot tui-fanout)
+
+- **La relance du pilote depuis Sessions (`p`) est tracée** : événement « started again by the user », à côté de « by the daemon ». `oh fanout drive` accepte `--relaunch-by=user|daemon` ; `--relaunch` reste celle du démon.
+- **L'onglet Rapports de la parente liste aussi les rapports des enfants**, triés par date, avec l'enfant qui les a déposés (colonne affichée seulement s'il y en a).
+- **Correctif** : un rapport d'enfant s'ouvre dans la session de l'enfant. Deux `rp-1` d'enfants différents ne sont plus confondus, ni dans la liste ni dans le lecteur.
+- **Sessions** : `a` (attacher), `m` (consigne) et `i` (interrompre) passent par `keys.Own`. Comportement inchangé, sauf qu'`Alt+a`, `Alt+m` et `Alt+i` ne déclenchent plus ces actions.
+
 ### Added — Wiki : motif du refus d'une proposition (lot p9-wiki-refusal)
 
 - **Motif du refus enregistré** (migration 49, colonne `reason` de `wiki_proposals`) : facultatif, sur une ligne, sans caractère de contrôle, 500 caractères au plus.
