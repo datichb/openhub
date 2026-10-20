@@ -857,8 +857,9 @@ func runEvalSession(ctx context.Context, cmd *cobra.Command, spec evalPassSpec, 
 		return fmt.Errorf("preparing the launch: %w", err)
 	}
 	p.plan.Request.Base.Attach, p.plan.Request.Base.Headless = sessionspec.AttachNone, true
-	// Hard cap at the credential proxy (tokens), on top of the session
-	// budget (cost, checked between turns) and of the cost watched below.
+	// Hard cap at the credential proxy (input-equivalent tokens, cache
+	// included), on top of the session budget (cost, checked at each
+	// request) and of the cost watched below.
 	p.plan.Request.Base.MaxTokens = evalMaxTokens(spec.Model, spec.BudgetUSD)
 	results, err := p.svc.Start(ctx, p.plan)
 	if err != nil || len(results) == 0 {
@@ -1022,20 +1023,24 @@ func evalLoop(ctx context.Context, ssvc *sessionsvc.Service, sid string, answers
 	}
 }
 
-// evalTokenPrice is an upper bound of the price of one input or output
-// token (USD, output price; cache reads are not counted by the proxy).
+// evalTokenPrice is an upper bound of the price of one uncached input token
+// (USD, EU prices of the 5.x generation, Opus at the former $5/M). The
+// credential proxy counts tokens weighted by their relative price
+// (credproxy.WeightedTokens: output ×5, cache read ×0.1, cache write ×1.25),
+// so its budget is a number of input-equivalent tokens and this price turns
+// a cost cap into one, cache included.
 func evalTokenPrice(model string) float64 {
 	switch m := strings.ToLower(model); {
 	case strings.Contains(m, "opus"):
-		return 25e-6
+		return 5.5e-6
 	case strings.Contains(m, "sonnet"):
-		return 15e-6
+		return 2.2e-6
 	}
-	return 5e-6 // Haiku
+	return 0.11e-6 // Haiku
 }
 
-// evalMaxTokens is the proxy token budget of a pass: what its cost cap
-// buys at the output price (0 = no cap).
+// evalMaxTokens is the proxy token budget of a pass, in input-equivalent
+// tokens: what its cost cap buys at the input price (0 = no cap).
 func evalMaxTokens(model string, budget float64) int64 {
 	if budget <= 0 {
 		return 0

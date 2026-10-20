@@ -5,10 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
+	"github.com/datichb/openhub/cli/internal/credproxy"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/limits"
+	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
 // ErrDailyBudget is returned when the daily budget of a new session's
@@ -53,6 +57,57 @@ func applyLimits(req *StartRequest) {
 	if len(req.AllowedModels) == 0 && len(req.Limits.Models) > 0 {
 		req.AllowedModels = append([]string(nil), req.Limits.Models...)
 	}
+}
+
+// checkRequestModels is checkAllowedModels for a request, before applyLimits.
+func checkRequestModels(req StartRequest) error {
+	if req.Bundle == nil {
+		return nil
+	}
+	applyLimits(&req)
+	return checkAllowedModels(req.Bundle.Spec, req.AllowedModels)
+}
+
+// ErrModelNotAllowed is returned when a model resolved for an agent of the
+// session is not in the allowed models.
+var ErrModelNotAllowed = errors.New("a model of the session is not allowed")
+
+// ModelNotAllowedError details ErrModelNotAllowed.
+type ModelNotAllowedError struct {
+	Agent, Model string
+	Allowed      []string
+}
+
+func (e *ModelNotAllowedError) Error() string {
+	return i18n.Tf("cmd.proxy.models.refused", e.Agent, e.Model, strings.Join(e.Allowed, ", "))
+}
+
+// Is makes errors.Is(err, ErrModelNotAllowed) true.
+func (e *ModelNotAllowedError) Is(target error) bool { return target == ErrModelNotAllowed }
+
+// checkAllowedModels refuses a launch when an agent of the bundle resolves
+// to a model the allow-list leaves out (F-04): the credential proxy would
+// refuse each of its calls, in the middle of the session. The model of an
+// agent is the one of the cascade (workflow, project, hub, team, agent),
+// else the default of the bundle; an agent with none uses the tool default,
+// which is not known here.
+func checkAllowedModels(spec sessionspec.BundleSpec, allowed []string) error {
+	if len(allowed) == 0 {
+		return nil
+	}
+	for _, a := range spec.Agents {
+		m := a.Model
+		if m == nil {
+			m = spec.DefaultModel
+		}
+		if m == nil || m.Model == "" {
+			continue
+		}
+		if !credproxy.ModelAllowed(allowed, m.Model) && !credproxy.ModelAllowed(allowed, m.Provider+"/"+m.Model) {
+			return &ModelNotAllowedError{Agent: a.ID, Model: m.String(), Allowed: allowed}
+		}
+	}
+	return nil
 }
 
 // queueSlot decides whether the first prompt of a new session must wait

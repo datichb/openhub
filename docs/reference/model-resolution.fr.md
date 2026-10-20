@@ -78,7 +78,7 @@ Les restrictions I6 peuvent limiter les modèles d'une session (motifs avec `*`,
 - la liste la plus précise l'emporte (workflow > projet > hub > recommandation d'équipe) ; une liste **imposée** par l'équipe est un plafond : seuls les motifs qu'elle couvre sont gardés ;
 - la liste ne change pas le modèle choisi par la cascade : elle est appliquée par le **proxy d'identifiants**, qui refuse les appels vers un autre modèle (identifiant envoyé au fournisseur, ex. `eu.anthropic.claude-sonnet-4-6`).
 
-Choisissez donc des modèles de cascade compatibles avec la liste. Voir `oh budget show` et [ADR-044](../architecture/adr/044-credential-proxy-session-limits.fr.md).
+Une session dont les agents résolvent vers un modèle hors de la liste **ne démarre pas** : le lancement (interactif ou `--headless`) échoue avant que rien ne soit créé, avec un message qui nomme l'agent et le modèle. Choisissez donc des modèles de cascade compatibles avec la liste. Voir `oh budget show` et [ADR-044](../architecture/adr/044-credential-proxy-session-limits.fr.md).
 
 ---
 

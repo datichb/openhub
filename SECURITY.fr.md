@@ -193,7 +193,7 @@ Les jetons des serveurs MCP (GitLab, Figma, Jira, Linear, GitHub, Google) sont :
 
 ### Restrictions des sessions (I6)
 
-Optionnelles et désactivées par défaut (`oh budget show|set|unset|raise`) : sessions actives max, budget par session et budget journalier en USD, plafond mémoire, liste des modèles autorisés (appliquée par le proxy sur le jeton du groupe). Cascade : workflow (`limits:`) > projet > hub > recommandé d'équipe ; l'imposé d'équipe est un plafond. Les budgets sont des plafonds souples : contrôlés en fin d'étape, ils lèvent alors une décision `$`.
+Optionnelles et désactivées par défaut (`oh budget show|set|unset|raise`) : sessions actives max, budget par session et budget journalier en USD, plafond mémoire, liste des modèles autorisés (appliquée par le proxy sur le jeton du groupe). Cascade : workflow (`limits:`) > projet > hub > recommandé d'équipe ; l'imposé d'équipe est un plafond. Les budgets sont des plafonds souples : contrôlés à chaque requête de modèle et à chaque usage d'un sous-agent (pas seulement en fin d'étape), ils lèvent alors une décision `$` et refusent les requêtes suivantes de la session ; les requêtes concurrentes réservent une estimation. Un lancement dont les agents utilisent un modèle hors de la liste autorisée échoue avant de démarrer.
 
 ### Limites connues du mode local
 

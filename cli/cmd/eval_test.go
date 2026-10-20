@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/credproxy"
 	"github.com/datichb/openhub/cli/internal/evalrun"
 	"github.com/datichb/openhub/cli/internal/i18n"
 )
@@ -30,12 +31,31 @@ func TestEvalSettings(t *testing.T) {
 	t.Setenv(envEvalBudget, "0.25")
 	assert.InDelta(t, 0.25, envFloat(envEvalBudget, 1), 1e-9)
 
-	assert.Equal(t, int64(200000), evalMaxTokens("claude-haiku-4-5", 1))
-	assert.Equal(t, int64(66667), evalMaxTokens("claude-sonnet-4-6", 1))
+	assert.Equal(t, int64(9090909), evalMaxTokens("claude-haiku-4-5", 1))
+	assert.Equal(t, int64(454545), evalMaxTokens("claude-sonnet-4-6", 1))
+	assert.Equal(t, int64(181818), evalMaxTokens("eu.anthropic.claude-opus-5-5", 1))
 	assert.Zero(t, evalMaxTokens("claude-haiku-4-5", 0))
 
 	assert.InDelta(t, 1.0, defaultPassBudget([]string{"claude-haiku-4-5"}), 1e-9)
 	assert.InDelta(t, 2.5, defaultPassBudget([]string{"claude-haiku-4-5", "eu.anthropic.claude-sonnet-4-6"}), 1e-9, "a Sonnet session goes past $1")
+}
+
+// The token cap of a pass follows its real cost, cache included: the
+// proxy counts input-equivalent tokens (output ×5, cache read ×0.1, cache
+// write ×1.25), and the cap divides the budget by the input price. An Opus
+// pass that read 100k tokens of cache, wrote 20k and produced 3k of output
+// cost about $0.20 (EU 5.5 prices: 0.022 + 0.11 + 0.066): it stays under the
+// cap of $1 and passes the cap of $0.15. A raw count would have cut it at a
+// tenth of the budget, or let 7 times the budget through.
+func TestEvalTokenCapFollowsTheRealCost(t *testing.T) {
+	used := credproxy.Usage{CacheReadTokens: 100_000, CacheWriteTokens: 20_000, OutputTokens: 3_000}
+	assert.InDelta(t, 50_000, used.Weighted(), 1e-6)
+	const opus = "eu.anthropic.claude-opus-5-5"
+	assert.Less(t, used.Weighted(), float64(evalMaxTokens(opus, 1)), "under the cap of $1")
+	assert.Greater(t, used.Weighted(), float64(evalMaxTokens(opus, 0.15)), "over the cap of $0.15")
+
+	assert.Greater(t, evalTokenPrice(opus), evalTokenPrice("claude-sonnet-5-5"))
+	assert.Greater(t, evalTokenPrice("claude-sonnet-5-5"), evalTokenPrice("claude-haiku-5-5"))
 }
 
 // The rate limit of a pass is read on the error lines of its logs, never

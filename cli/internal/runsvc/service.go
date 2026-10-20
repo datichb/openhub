@@ -238,6 +238,9 @@ func (s *Service) StartSession(ctx context.Context, req StartRequest) (*StartRes
 	if err := s.checkDailyBudget(ctx, req.Limits); err != nil {
 		return nil, err
 	}
+	if err := checkRequestModels(req); err != nil {
+		return nil, err
+	}
 	dc, err := s.Daemon(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("starting oh daemon: %w", err)

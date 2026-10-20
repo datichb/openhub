@@ -194,7 +194,7 @@ MCP server tokens (GitLab, Figma, Jira, Linear, GitHub, Google) are:
 
 ### Session limits (I6)
 
-Optional and disabled by default (`oh budget show|set|unset|raise`): maximum active sessions, budget per session and daily budget in USD, memory cap, list of allowed models (enforced by the proxy on the group token). Cascade: workflow (`limits:`) > project > hub > team recommended; a team's enforced value is a ceiling. Budgets are soft ceilings: they are checked at the end of each step, which then raises a `$` decision.
+Optional and disabled by default (`oh budget show|set|unset|raise`): maximum active sessions, budget per session and daily budget in USD, memory cap, list of allowed models (enforced by the proxy on the group token). Cascade: workflow (`limits:`) > project > hub > team recommended; a team's enforced value is a ceiling. Budgets are soft ceilings: they are checked at each model request and each subagent usage (not only at the end of a step), which then raises a `$` decision and refuses the next requests of the session; concurrent requests reserve an estimate. A launch whose agents use a model outside the allowed list fails before it starts.
 
 ### Known limitations of the local mode
 

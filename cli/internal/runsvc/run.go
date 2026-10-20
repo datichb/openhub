@@ -286,6 +286,10 @@ func (s *Service) Start(ctx context.Context, plan *RunPlan) ([]*StartResult, err
 	if plan.NeedsChoice && req.OnExisting == OnExistingUnset {
 		return nil, &ExistingChoiceError{Existing: plan.Existing}
 	}
+	// Before anything is created: worktrees, stashes, stopped sessions.
+	if err := checkRequestModels(req.Base); err != nil {
+		return nil, err
+	}
 	var unlocks []func()
 	defer func() {
 		for _, u := range unlocks {

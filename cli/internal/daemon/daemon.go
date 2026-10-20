@@ -168,6 +168,7 @@ type Daemon struct {
 	// drivers are the last starts of a fan-out driver by session (p6-debts).
 	drivers      map[string]time.Time
 	ledger       ledger
+	reservations budgetReservations           // dollars held by the model requests in flight (F-04)
 	memoryMB     int                          // memory used by the ready servers (last measure)
 	memoryOver   bool                         // above the cap at the last pass (warned)
 	queuedGroups map[string]bool              // groups holding queued sessions (never sleep)
@@ -218,6 +219,7 @@ func Run(ctx context.Context, opts Options) error {
 	d := &Daemon{opts: opts, proxy: credproxy.New(), pending: map[string]domain.ProxyGrant{}, clients: map[string]client{}, verified: map[string]bool{}, verifyFails: map[string]int{}, policies: map[string]QuitPolicy{}, watchers: map[string]*watcher{}, feed: newHub(), lastBusy: time.Now(), started: time.Now(), stop: make(chan struct{}), restored: make(chan struct{}), sigCache: map[string]credproxy.Auth{}, ledger: ledger{last: map[string]adapters.SessionResult{}}, kick: make(chan struct{}, 1)}
 	d.proxy.Hooks = d.hooksHandler()
 	d.proxy.OnUsage = d.onProxyUsage
+	d.proxy.Gate = d.admitModel
 	d.proxy.OnAuthRejected = d.onAuthRejected
 	if err := d.startProxy(); err != nil {
 		return err

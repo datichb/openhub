@@ -148,7 +148,7 @@ limits:
 ```
 
 - S'ajoute aux restrictions I6 du hub, de l'équipe et du projet (`oh budget show`) : la valeur la plus précise l'emporte (workflow > projet > hub > recommandation de l'équipe) ; une valeur imposée par l'équipe reste un plafond. Voir [ADR-044](../architecture/adr/044-credential-proxy-session-limits.fr.md).
-- `budget_usd` : plafond souple, vérifié entre deux étapes ; au-delà, une décision `$` demande de relever ou d'arrêter. Valeur négative : `negative_value`.
+- `budget_usd` : plafond souple, vérifié à chaque requête de modèle et à chaque usage d'un sous-agent ; au-delà, une décision `$` demande de relever ou d'arrêter. Valeur négative : `negative_value`.
 - `models` : motifs sur l'identifiant envoyé au fournisseur ; le proxy d'identifiants refuse les autres. Un motif vide : `field_required`.
 - `max_fix_rounds` : plafond de tours de correction (developer → reviewer) par ticket. C'est une consigne, écrite dans la section « Mode de workflow » des skills générées (« Au plus N tours de correction… ; au-delà, passe le checkpoint de commit en signalant les points non résolus. »), **et un verrou** (R3) : oh compte les paires developer → reviewer du ticket en cours ; au-delà du plafond, il refuse les délégations aux agents `developer*` et marque le checkpoint de commit « non résolu », jusqu'à une consigne de l'utilisateur à ce checkpoint ou la fermeture du ticket ([Checkpoints](checkpoints.fr.md#limite-des-tours-de-correction-limitsmax_fix_rounds)). `0` ou absent : pas de plafond. Une couche ne peut que l'abaisser (`loosening` sinon). Valeur négative : `negative_value`. Les workflows `ticket`, `implement-spec` et `review-feedback` du hub fixent `3`.
 

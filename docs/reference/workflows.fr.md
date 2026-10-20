@@ -603,7 +603,7 @@ limits:
 ```
 
 - Les deux sont facultatifs et s'ajoutent aux restrictions du hub, de l'équipe et du projet (`oh budget show`, guide [Sessions v5](../guides/sessions-v5.fr.md#restrictions)). La valeur la plus précise l'emporte ; une valeur imposée par l'équipe est un plafond.
-- `budget_usd` est un plafond souple sur le coût que l'outil indique pour la session et ses sous-agents : l'étape qui le dépasse se termine, puis une décision `$` demande de relever le budget ou d'arrêter.
+- `budget_usd` est un plafond souple sur le coût que l'outil indique pour la session et ses sous-agents : dès qu'il est dépassé (un sous-agent dépense, une requête de modèle), une décision `$` demande de relever le budget ou d'arrêter, et les requêtes suivantes de la session sont refusées jusqu'à la réponse.
 - `models` porte sur l'identifiant envoyé au fournisseur (Bedrock : `eu.anthropic.…`) ; le proxy d'identifiants refuse les autres.
 - Avec `extends`, un workflow peut seulement les durcir : budget plus bas, modèles couverts par les motifs du parent.
 

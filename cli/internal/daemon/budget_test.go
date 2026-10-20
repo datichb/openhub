@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"sync"
@@ -25,6 +26,23 @@ type limitAdapter struct {
 	cmu        sync.Mutex
 	interrupts []string
 	prompts    map[string]string
+	// parents are the subagent sessions the tool lists (child → parent),
+	// as after a reconnection; nil: the adapter cannot list them.
+	parents map[string]string
+}
+
+// Children implements adapters.ChildLister.
+func (a *limitAdapter) Children(context.Context, adapters.ServerHandle) (map[string]string, error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.parents == nil {
+		return nil, errors.New("subagents not listed")
+	}
+	out := make(map[string]string, len(a.parents))
+	for c, p := range a.parents {
+		out[c] = p
+	}
+	return out, nil
 }
 
 func (a *limitAdapter) Control(_ context.Context, _ adapters.ServerHandle, id string, op adapters.ControlOp) error {
@@ -385,4 +403,19 @@ func TestForkBaselineNotCountedTwice(t *testing.T) {
 	day, err := e.usage.DayCost(e.ctx, domain.UsageDay(time.Now()), "")
 	require.NoError(t, err)
 	assert.InDelta(t, 0.7, day, 1e-9, "0.5 + 0.2, the copied history once")
+}
+
+// The cache tokens counted by the proxy go to the ledger as input tokens
+// (it has no column for them), so that a restart continues the count.
+func TestProxyUsageLedgerCountsCache(t *testing.T) {
+	st, err := sqlite.Open(filepath.Join(t.TempDir(), "oh.db"))
+	require.NoError(t, err)
+	t.Cleanup(func() { st.Close() })
+	us := sqlite.NewUsageStore(st)
+	d := &Daemon{opts: Options{Usage: us}, proxy: credproxy.New()}
+	d.onProxyUsage("g1", credproxy.Usage{InputTokens: 10, OutputTokens: 4, CacheReadTokens: 1000, CacheWriteTokens: 200, Estimated: 1})
+	d.flushProxyUsage(context.Background())
+	tot, err := us.ProxyTotal(context.Background(), "g1")
+	require.NoError(t, err)
+	assert.Equal(t, domain.ProxyUsage{TokensIn: 1210, TokensOut: 4}, tot)
 }

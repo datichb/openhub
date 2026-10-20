@@ -78,7 +78,7 @@ I6 restrictions may limit the models of a session (patterns with `*`, e.g. `eu.a
 - the most specific list wins (workflow > project > hub > team recommendation); a list **enforced** by the team is a ceiling: only the patterns it covers are kept;
 - the list does not change the model picked by the cascade: it is applied by the **credential proxy**, which refuses calls to any other model (id sent to the provider, e.g. `eu.anthropic.claude-sonnet-4-6`).
 
-So pick cascade models that match the list. See `oh budget show` and [ADR-044](../architecture/adr/044-credential-proxy-session-limits.en.md).
+A session whose agents resolve to a model outside the list **does not start**: the launch (interactive or `--headless`) fails before anything is created, with a message naming the agent and the model. So pick cascade models that match the list. See `oh budget show` and [ADR-044](../architecture/adr/044-credential-proxy-session-limits.en.md).
 
 ---
 
