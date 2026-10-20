@@ -19,6 +19,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 	"github.com/datichb/openhub/cli/internal/mcp/protocol"
+	"github.com/datichb/openhub/cli/internal/testenv"
 )
 
 // TestMain runs the test binary as a stdio MCP server when asked to.
@@ -44,6 +45,8 @@ func TestMain(m *testing.M) {
 		_ = s.Serve()
 		os.Exit(0)
 	}
+	// The helper process above must keep the variables its parent gave it.
+	finish := testenv.Isolate()
 	cleanup, err := writeFakeBd()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "fake bd:", err)
@@ -51,7 +54,7 @@ func TestMain(m *testing.M) {
 	}
 	code := gittest.Main(m)
 	cleanup()
-	os.Exit(code)
+	os.Exit(finish(code))
 }
 
 type mcpFixture struct {

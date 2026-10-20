@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
+	"github.com/datichb/openhub/cli/internal/testenv"
 )
 
 // testBinary is the path to the compiled oh binary for integration tests.
@@ -23,6 +24,10 @@ func TestMain(m *testing.M) {
 }
 
 func runMain(m *testing.M) int {
+	// The real hub and home are out of reach of the tests (the Go caches of
+	// the user stay where they are, testenv pins them: the build below).
+	finish := testenv.Isolate()
+
 	// Build the binary into a temp directory
 	tmpDir, err := os.MkdirTemp("", "oh-integration-*")
 	if err != nil {
@@ -60,7 +65,7 @@ func runMain(m *testing.M) int {
 	// No background git maintenance (a commit, a fetch or a push starts a
 	// detached `git maintenance run --auto` that keeps writing to
 	// .git/objects while t.TempDir is removed: flaky TestMigrateLegacyWorkflows).
-	return gittest.Main(m)
+	return finish(gittest.Main(m))
 }
 
 func runOh(t *testing.T, args ...string) (string, string, int) {

@@ -9,6 +9,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/gateway/fakebd"
 	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 	"github.com/datichb/openhub/cli/internal/mcp/protocol"
+	"github.com/datichb/openhub/cli/internal/testenv"
 )
 
 // TestMain runs the test binary as a stdio MCP server (MCP gateway tests).
@@ -27,5 +28,7 @@ func TestMain(m *testing.M) {
 		_ = s.Serve()
 		os.Exit(0)
 	}
-	os.Exit(gittest.Main(m))
+	// The helper processes above must keep the variables their parent gave them.
+	finish := testenv.Isolate()
+	os.Exit(finish(gittest.Main(m)))
 }

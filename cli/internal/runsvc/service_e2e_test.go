@@ -23,13 +23,17 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionctx"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/testenv"
 )
 
 func bedrockKey(t *testing.T) string {
 	if k := os.Getenv("OH_E2E_BEDROCK_TOKEN"); k != "" {
 		return k
 	}
-	out, err := exec.Command("opencode", "auth", "export").Output()
+	// The credentials are those of the real home, which the tests do not use.
+	auth := exec.Command("opencode", "auth", "export")
+	auth.Env = testenv.OriginalEnv()
+	out, err := auth.Output()
 	if err != nil {
 		t.Skip("no Bedrock credential")
 	}
