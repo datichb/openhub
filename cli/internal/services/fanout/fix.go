@@ -104,7 +104,7 @@ func (d *Driver) fix(ctx context.Context, parent string, wf *sessionspec.Workflo
 			d.fixDone(ctx, parent, round, ig, "", i18n.Tf("cmd.fanout.integration_moved", ig.Branch, short(ig.Head), short(head)))
 			return
 		}
-		remaining := 0.0
+		share := 0.0
 		if f.BudgetUSD > 0 {
 			spent := d.spent(ctx, p)
 			if spent >= f.BudgetUSD {
@@ -112,7 +112,15 @@ func (d *Driver) fix(ctx context.Context, parent string, wf *sessionspec.Workflo
 				d.fixDone(ctx, parent, round, ig, "", i18n.Tf("cmd.fanout.budget_reached", fmt.Sprintf("%.2f / %.2f USD", spent, f.BudgetUSD)))
 				return
 			}
-			remaining = f.BudgetUSD - spent
+			// A fix round starts once every child is done (status ready):
+			// no child holds a claim and none waits, so the share is what
+			// is left; it is computed like the one of a merger all the same.
+			var ok bool
+			if share, ok = d.auxShare(ctx, parent, f, ""); !ok {
+				d.budgetHeld(ctx, parent, "", spent, f.BudgetUSD)
+				d.fixDone(ctx, parent, round, ig, "", i18n.Tf("cmd.fanout.budget_held", fmt.Sprintf("%.2f / %.2f USD", spent, f.BudgetUSD)))
+				return
+			}
 		}
 		rec := &domain.SessionFanout{Role: domain.RoleFixer, Parent: parent, Branch: ig.Branch}
 		inputs := map[string]string{}
@@ -121,7 +129,7 @@ func (d *Driver) fix(ctx context.Context, parent string, wf *sessionspec.Workflo
 		}
 		// Listed before the session exists: its record is checked against it.
 		setFix(func(x *domain.FanoutFix) { x.State = domain.ChildRunning })
-		sid, err = d.Launcher.Start(ctx, LaunchRequest{Parent: p, Workflow: wf.Fanout.Fix, Dir: ig.Path, Record: rec, BudgetUSD: remaining, Inputs: inputs})
+		sid, err = d.Launcher.Start(ctx, LaunchRequest{Parent: p, Workflow: wf.Fanout.Fix, Dir: ig.Path, Record: rec, BudgetUSD: share, Inputs: inputs})
 		if err != nil {
 			d.fixDone(ctx, parent, round, ig, "", err.Error())
 			return

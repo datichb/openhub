@@ -512,6 +512,7 @@
   "cmd.fanout.integrated": "oh a mergé %s dans la branche de la session (%s) et fermé les tickets : %s.",
   "cmd.fanout.close_failed": "Tickets non fermés (bd close a échoué) : %s.",
   "cmd.fanout.dependency_failed": "dépendance %s non mergée",
+  "cmd.fanout.budget_held": "budget retenu par les enfants encore en cours (%s)",
   "cmd.fanout.budget_reached": "budget global atteint (%s)",
   "cmd.fanout.child_dirty": "modifications non commitées dans le worktree de l'enfant",
   "cmd.fanout.child_no_commit": "aucun commit sur la branche de l'enfant",
