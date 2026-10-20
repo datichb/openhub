@@ -16,39 +16,51 @@ import (
 type route struct {
 	method   string
 	segments []string
+	// query lists the query parameters relayed on this route, with the
+	// values accepted for each (nil = any value). Any other parameter is
+	// dropped (audit v5, S-28).
+	query map[string][]string
 }
 
 const modelSeg = "{model}"
+
+// Query parameters the Anthropic routes take: "beta=true" selects the beta
+// namespace of the Messages API (the client of opencode adds it), the model
+// list is paginated.
+var (
+	anthropicBetaQuery = map[string][]string{"beta": {"true"}}
+	anthropicListQuery = map[string][]string{"limit": nil, "before_id": nil, "after_id": nil}
+)
 
 // routes are the only upstream paths relayed per provider (after the
 // /<provider>/ prefix): the inference APIs the agentic tools use. Anything
 // else (account, files, fine-tuning, batch…) is refused.
 var routes = map[string][]route{
 	ProviderBedrock: {
-		{http.MethodPost, []string{"model", modelSeg, "converse"}},
-		{http.MethodPost, []string{"model", modelSeg, "converse-stream"}},
-		{http.MethodPost, []string{"model", modelSeg, "invoke"}},
-		{http.MethodPost, []string{"model", modelSeg, "invoke-with-response-stream"}},
-		{http.MethodPost, []string{"model", modelSeg, "count-tokens"}},
+		{http.MethodPost, []string{"model", modelSeg, "converse"}, nil},
+		{http.MethodPost, []string{"model", modelSeg, "converse-stream"}, nil},
+		{http.MethodPost, []string{"model", modelSeg, "invoke"}, nil},
+		{http.MethodPost, []string{"model", modelSeg, "invoke-with-response-stream"}, nil},
+		{http.MethodPost, []string{"model", modelSeg, "count-tokens"}, nil},
 	},
 	ProviderAnthropic: {
-		{http.MethodPost, []string{"messages"}},
-		{http.MethodPost, []string{"messages", "count_tokens"}},
-		{http.MethodGet, []string{"models"}},
-		{http.MethodGet, []string{"models", "*"}},
+		{http.MethodPost, []string{"messages"}, anthropicBetaQuery},
+		{http.MethodPost, []string{"messages", "count_tokens"}, anthropicBetaQuery},
+		{http.MethodGet, []string{"models"}, anthropicListQuery},
+		{http.MethodGet, []string{"models", "*"}, nil},
 	},
 	ProviderOpenAI: {
-		{http.MethodPost, []string{"chat", "completions"}},
-		{http.MethodPost, []string{"completions"}},
-		{http.MethodPost, []string{"responses"}},
-		{http.MethodGet, []string{"models"}},
-		{http.MethodGet, []string{"models", "*"}},
+		{http.MethodPost, []string{"chat", "completions"}, nil},
+		{http.MethodPost, []string{"completions"}, nil},
+		{http.MethodPost, []string{"responses"}, nil},
+		{http.MethodGet, []string{"models"}, nil},
+		{http.MethodGet, []string{"models", "*"}, nil},
 	},
 	ProviderOpenRouter: {
-		{http.MethodPost, []string{"chat", "completions"}},
-		{http.MethodPost, []string{"completions"}},
-		{http.MethodPost, []string{"responses"}},
-		{http.MethodGet, []string{"models"}},
+		{http.MethodPost, []string{"chat", "completions"}, nil},
+		{http.MethodPost, []string{"completions"}, nil},
+		{http.MethodPost, []string{"responses"}, nil},
+		{http.MethodGet, []string{"models"}, nil},
 	},
 }
 
@@ -63,15 +75,21 @@ var (
 // segments, and decoded slashes outside the Bedrock model id, are refused.
 // It returns the model id carried by the path (Bedrock), if any.
 func parsePath(provider, method, escapedRest string) (string, error) {
+	_, model, err := matchRoute(provider, method, escapedRest)
+	return model, err
+}
+
+// matchRoute is parsePath that also returns the route that matched.
+func matchRoute(provider, method, escapedRest string) (route, string, error) {
 	if escapedRest == "" {
-		return "", errPath
+		return route{}, "", errPath
 	}
 	raw := strings.Split(escapedRest, "/")
 	segs := make([]string, len(raw))
 	for i, r := range raw {
 		dec, err := url.PathUnescape(r)
 		if err != nil || dec == "" || dec == "." || dec == ".." || strings.ContainsAny(dec, "\\\x00") {
-			return "", errPath
+			return route{}, "", errPath
 		}
 		segs[i] = dec
 	}
@@ -103,10 +121,10 @@ func parsePath(provider, method, escapedRest string) (string, error) {
 			}
 		}
 		if ok {
-			return model, nil
+			return rt, model, nil
 		}
 	}
-	return "", errPath
+	return route{}, "", errPath
 }
 
 // routingKeys are the top-level body keys that choose the model (OpenRouter

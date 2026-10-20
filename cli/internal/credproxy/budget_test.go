@@ -343,7 +343,7 @@ func TestProxyAdmitsALoneRequestOverTheEstimate(t *testing.T) {
 func TestProxyGate(t *testing.T) {
 	var s seen
 	up := upstream(t, &s, func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Query().Get("fail") != "" {
+		if r.URL.Query().Get("beta") != "" {
 			http.Error(w, "boom", http.StatusInternalServerError)
 			return
 		}
@@ -382,7 +382,7 @@ func TestProxyGate(t *testing.T) {
 	mu.Unlock()
 
 	// No max_tokens: the default, a failure releases with no usage.
-	req, _ := http.NewRequest(http.MethodPost, p.BaseURL(ProviderAnthropic)+"/messages?fail=1", strings.NewReader(`{"model":"claude-x"}`))
+	req, _ := http.NewRequest(http.MethodPost, p.BaseURL(ProviderAnthropic)+"/messages?beta=true", strings.NewReader(`{"model":"claude-x"}`))
 	req.Header.Set("x-api-key", tok)
 	resp, err := http.DefaultClient.Do(req)
 	require.NoError(t, err)
