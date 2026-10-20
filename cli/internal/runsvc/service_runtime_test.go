@@ -40,6 +40,7 @@ type rtAdapter struct {
 	mu        sync.Mutex
 	started   []adapters.ServerGroup
 	attested  []string
+	strict    []bool // StrictIsolation of each handle given to Attest
 	created   []sessionspec.SessionSpec
 	stopped   int
 	attestErr error
@@ -69,9 +70,10 @@ func (a *rtAdapter) StopServer(context.Context, adapters.ServerHandle) error {
 	a.mu.Unlock()
 	return nil
 }
-func (a *rtAdapter) Attest(_ context.Context, _ adapters.ServerHandle, _ sessionspec.BundleSpec, loc string) (adapters.VisibilityReport, error) {
+func (a *rtAdapter) Attest(_ context.Context, h adapters.ServerHandle, _ sessionspec.BundleSpec, loc string) (adapters.VisibilityReport, error) {
 	a.mu.Lock()
 	a.attested = append(a.attested, loc)
+	a.strict = append(a.strict, h.StrictIsolation)
 	err := a.attestErr
 	a.mu.Unlock()
 	return adapters.VisibilityReport{}, err
@@ -435,6 +437,15 @@ func TestResumeUsesProjectDevImageSettings(t *testing.T) {
 	assert.Equal(t, []string{"node_modules"}, g.Volumes)
 }
 
+func TestAttestIsNotStrictWithoutStrictIsolation(t *testing.T) {
+	f := newRTFixture(t)
+	req := f.request(f.project)
+	req.Runtime = ""
+	_, err := f.svc.StartSession(context.Background(), req)
+	require.NoError(t, err)
+	assert.Equal(t, []bool{false}, f.ad.strict)
+}
+
 func TestIsolateUserConfigReachesTheAdapter(t *testing.T) {
 	f := newRTFixture(t)
 	ctx := context.Background()
@@ -445,6 +456,7 @@ func TestIsolateUserConfigReachesTheAdapter(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, f.ad.started, 1)
 	assert.True(t, f.ad.started[0].IsolateUserConfig)
+	assert.Equal(t, []bool{true}, f.ad.strict, "S-11: Attest knows the server runs under strict isolation")
 
 	plain := f.request(f.project)
 	plain.Runtime = ""

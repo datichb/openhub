@@ -4,8 +4,10 @@ import (
 	"archive/tar"
 	"compress/gzip"
 	"context"
+	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -75,9 +77,20 @@ type npmVersion struct {
 	} `json:"dist"`
 }
 
+// binarySumSuffix names the file kept next to the cached binary, with the
+// SHA-256 of the binary computed when it was downloaded (S-38).
+const binarySumSuffix = ".sha256"
+
 // LinuxBinary returns the path of the cached Linux binary, downloading it
 // from the npm registry when missing. The archive is checked against the
-// registry integrity (sha512) before extraction.
+// registry integrity (sha512) before extraction; the SHA-256 of the extracted
+// binary is kept next to it and checked again before each reuse: a binary that
+// no longer matches (modified, truncated, replaced) is downloaded again.
+//
+// The integrity comes from the same npm response as the tarball: it protects
+// against a corrupted or swapped archive, not against a compromised registry
+// entry (the version of opencode is the installed one, not pinned in oh, so
+// there is no integrity to pin).
 func (t *LinuxTool) LinuxBinary(ctx context.Context, arch, libc string) (string, error) {
 	if t.Ver == "" {
 		return "", errors.New("opencode version unknown (adapter not detected)")
@@ -88,9 +101,13 @@ func (t *LinuxTool) LinuxBinary(ctx context.Context, arch, libc string) (string,
 	}
 	dir := filepath.Join(t.CacheDir, "tools", "opencode", t.Ver, target)
 	bin := filepath.Join(dir, "opencode")
-	if st, err := os.Stat(bin); err == nil && st.Mode().IsRegular() && st.Size() > 0 {
+	if cachedBinaryIntact(bin) {
 		return bin, nil
 	}
+	// A cached binary that fails the check is never used: not even when the
+	// download below fails.
+	_ = os.Remove(bin)
+	_ = os.Remove(bin + binarySumSuffix)
 	reg := t.Registry
 	if reg == "" {
 		reg = DefaultNPMRegistry
@@ -130,7 +147,56 @@ func (t *LinuxTool) LinuxBinary(ctx context.Context, arch, libc string) (string,
 	if err := extractFile(tmp, "package/bin/opencode", bin); err != nil {
 		return "", fmt.Errorf("extracting %s@%s: %w", pkg, t.Ver, err)
 	}
+	sum, err := fileSHA256(bin)
+	if err != nil {
+		return "", fmt.Errorf("fingerprint of %s@%s: %w", pkg, t.Ver, err)
+	}
+	if err := writeFileAtomic(bin+binarySumSuffix, []byte(sum+"\n")); err != nil {
+		return "", fmt.Errorf("fingerprint of %s@%s: %w", pkg, t.Ver, err)
+	}
 	return bin, nil
+}
+
+// cachedBinaryIntact reports whether bin is a regular, non-empty file whose
+// SHA-256 is the one recorded when it was downloaded. Without that record
+// (binary cached by an earlier version of oh, or interrupted download) the
+// binary is not trusted.
+func cachedBinaryIntact(bin string) bool {
+	st, err := os.Lstat(bin)
+	if err != nil || !st.Mode().IsRegular() || st.Size() == 0 {
+		return false
+	}
+	want, err := os.ReadFile(bin + binarySumSuffix)
+	if err != nil {
+		return false
+	}
+	got, err := fileSHA256(bin)
+	return err == nil && strings.TrimSpace(string(want)) == got
+}
+
+func fileSHA256(path string) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
+func writeFileAtomic(path string, data []byte) error {
+	part := path + ".part"
+	if err := os.WriteFile(part, data, 0o644); err != nil {
+		return err
+	}
+	if err := os.Rename(part, path); err != nil {
+		os.Remove(part)
+		return err
+	}
+	return nil
 }
 
 func getJSON(ctx context.Context, hc *http.Client, u string, v any) error {

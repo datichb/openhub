@@ -16,7 +16,7 @@
 oh serve
 ```
 
-Démarre le tableau de bord sur `http://127.0.0.1:8080`. Ouvre dans n'importe quel navigateur.
+Démarre le tableau de bord sur `http://127.0.0.1:8080` et affiche l'URL à ouvrir, avec son jeton d'accès (`http://127.0.0.1:8080/?token=…`). Ouvre cette URL telle quelle dans n'importe quel navigateur : le jeton est gardé dans un cookie, il faut seulement ouvrir le lien affiché une fois.
 
 ### Port personnalisé
 
@@ -32,7 +32,7 @@ Appuie sur `Ctrl+C` dans le terminal où `oh serve` tourne.
 
 ## Sécurité
 
-Le tableau de bord **se lie toujours à `127.0.0.1`** (localhost uniquement). Il n'est jamais exposé au réseau, même quand `--port` est défini. Il n'y a pas d'authentification car le serveur n'est pas accessible depuis l'extérieur de la machine.
+Le tableau de bord **se lie toujours à `127.0.0.1`** (localhost uniquement). Il n'est jamais exposé au réseau, même quand `--port` est défini. Deux protections s'ajoutent, pour qu'une page web ouverte dans ton navigateur ne puisse pas lire le tableau de bord (DNS rebinding) : le serveur refuse (403) toute requête dont l'en-tête `Host` n'est pas `127.0.0.1:<port>`, `localhost:<port>` ou `[::1]:<port>`, et exige un jeton d'accès aléatoire (401 sans lui), propre à chaque lancement. Ne partage pas l'URL affichée.
 
 > **Attention :** Ne mets pas le tableau de bord derrière un reverse proxy public sans ajouter une authentification (ex. HTTP Basic Auth via nginx).
 
@@ -92,18 +92,22 @@ Le tableau de bord expose une API REST pour l'accès programmatique :
 
 ### Exemples d'API
 
+Chaque requête porte le jeton affiché au démarrage (`token=` dans l'URL).
+
 ```bash
+TOKEN=<jeton affiché par oh serve>
+
 # Vérification de santé
-curl http://127.0.0.1:8080/api/v1/health
+curl "http://127.0.0.1:8080/api/v1/health?token=$TOKEN"
 
 # Lister tous les projets
-curl http://127.0.0.1:8080/api/v1/projects
+curl "http://127.0.0.1:8080/api/v1/projects?token=$TOKEN"
 
 # Lister les 10 dernières sessions d'un projet spécifique
-curl "http://127.0.0.1:8080/api/v1/sessions?project=mon-projet&limit=10"
+curl "http://127.0.0.1:8080/api/v1/sessions?project=mon-projet&limit=10&token=$TOKEN"
 
 # Obtenir la télémétrie des agents
-curl http://127.0.0.1:8080/api/v1/metrics/agents
+curl "http://127.0.0.1:8080/api/v1/metrics/agents?token=$TOKEN"
 ```
 
 ### Exemple de réponse health
@@ -161,10 +165,10 @@ Utilise le tableau de télémétrie des agents pour identifier les agents avec d
 
 ```bash
 # Exporter toute la télémétrie des agents en JSON
-curl http://127.0.0.1:8080/api/v1/metrics/agents > metriques-agents.json
+curl "http://127.0.0.1:8080/api/v1/metrics/agents?token=$TOKEN" > metriques-agents.json
 
 # Exporter toutes les sessions des 7 derniers jours (nécessite jq)
-curl "http://127.0.0.1:8080/api/v1/sessions?limit=1000" | \
+curl "http://127.0.0.1:8080/api/v1/sessions?limit=1000&token=$TOKEN" | \
   jq '[.[] | select(.started_at > "2026-07-15T00:00:00Z")]' > sessions-semaine.json
 ```
 

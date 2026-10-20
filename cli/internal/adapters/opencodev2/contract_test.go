@@ -274,6 +274,32 @@ func TestContractRenderAndAttest(t *testing.T) {
 	assert.True(t, active, "oh plugin active")
 }
 
+// S-11: under strict isolation the user configuration is hidden, so the
+// server lists no plugin beyond the oh plugin and Attest accepts it.
+func TestContractAttestStrictIsolation(t *testing.T) {
+	a := newContractAdapter(t)
+	root := t.TempDir()
+	project := filepath.Join(root, "proj")
+	require.NoError(t, os.MkdirAll(project, 0o755))
+	b := contractBundle(t, root)
+
+	h, err := a.StartServer(context.Background(), adapters.ServerGroup{
+		Bundle:            b,
+		Provider:          sessionspec.ProviderSpec{ID: "amazon-bedrock", Region: "eu-west-1"},
+		DataDir:           filepath.Join(root, "servers", "g", "data"),
+		WorkDir:           project,
+		IsolateUserConfig: true,
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = a.StopServer(context.Background(), h) })
+	h.StrictIsolation = true
+
+	rep, err := a.Attest(context.Background(), h, b, project)
+	require.NoError(t, err)
+	assert.True(t, rep.OK(), "unexpected: %v", rep.Unexpected)
+	assert.Empty(t, rep.Warnings)
+}
+
 // L2: each agent of the bundle gets only its catalogue, as the server
 // applies it (effective rules listed per agent), and Attest accepts it.
 func TestContractPerAgentCatalogue(t *testing.T) {

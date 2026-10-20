@@ -1,10 +1,9 @@
 package cmd
 
-import "fmt"
-
-// dashboardHTML returns the full dashboard SPA (inline, no external deps).
-func dashboardHTML(addr string) string {
-	return fmt.Sprintf(`<!DOCTYPE html>
+// dashboardHTML is the full dashboard SPA (inline, no external deps). It
+// calls the server it was loaded from (location.origin): the access cookie
+// (S-36) is only sent to the name the page was opened under.
+const dashboardHTML = `<!DOCTYPE html>
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
@@ -31,7 +30,7 @@ header h1 { font-size:15px; color:var(--accent); white-space:nowrap; }
   border-radius:4px; padding:4px 8px; font-family:inherit; font-size:12px; cursor:pointer;
 }
 .filters .period-btn.active { background:var(--accent); color:#fff; border-color:var(--accent); }
-.sse-dot { width:8px; height:8px; border-radius:50%%; background:var(--muted); margin-left:8px; }
+.sse-dot { width:8px; height:8px; border-radius:50%; background:var(--muted); margin-left:8px; }
 .sse-dot.connected { background:var(--green); }
 .sse-dot.error { background:var(--red); }
 
@@ -54,7 +53,7 @@ main {
 .card.span3 { grid-column:span 3; }
 
 /* ── Tables ─────────────────────────────────────── */
-table { width:100%%; border-collapse:collapse; font-size:12px; }
+table { width:100%; border-collapse:collapse; font-size:12px; }
 th { text-align:left; color:var(--muted); font-weight:400; padding:4px 6px; border-bottom:1px solid var(--border); }
 td { padding:5px 6px; border-bottom:1px solid var(--border); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px; }
 tr:last-child td { border-bottom:none; }
@@ -112,7 +111,7 @@ tr:hover { background:rgba(99,102,241,0.04); }
 
 /* ── Sparkline ──────────────────────────────────── */
 .sparkline-container { margin-top:8px; }
-.sparkline-container img { width:100%%; max-width:300px; height:auto; }
+.sparkline-container img { width:100%; max-width:300px; height:auto; }
 
 /* ── Misc ───────────────────────────────────────── */
 .empty { color:var(--muted); font-size:12px; padding:8px; }
@@ -180,7 +179,7 @@ tr:hover { background:rgba(99,102,241,0.04); }
 </main>
 
 <script>
-const BASE = 'http://%s';
+const BASE = location.origin;
 const API = BASE + '/api/v1';
 let selectedProject = '';
 let selectedPeriod = '7d';
@@ -309,7 +308,7 @@ async function loadAgents() {
     for (const m of data) {
       const dur = m.AvgDurationSec > 0 ? Math.round(m.AvgDurationSec) + 's' : '—';
       const tok = formatTokens(m.TotalTokensIn + m.TotalTokensOut);
-      html += '<tr><td>' + esc(m.AgentName) + '</td><td>' + m.TotalRuns + '</td><td>' + m.SuccessRate.toFixed(0) + '%%</td><td>' + dur + '</td><td>' + tok + '</td><td>$' + m.TotalCostUSD.toFixed(2) + '</td></tr>';
+      html += '<tr><td>' + esc(m.AgentName) + '</td><td>' + m.TotalRuns + '</td><td>' + m.SuccessRate.toFixed(0) + '%</td><td>' + dur + '</td><td>' + tok + '</td><td>$' + m.TotalCostUSD.toFixed(2) + '</td></tr>';
     }
     html += '</table>';
     document.getElementById('agents-content').innerHTML = html;
@@ -469,5 +468,4 @@ refreshAll();
 setInterval(function() { if (!sseConnected) refreshAll(); }, 30000);
 </script>
 </body>
-</html>`, addr)
-}
+</html>`

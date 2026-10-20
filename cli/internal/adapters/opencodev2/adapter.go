@@ -293,7 +293,7 @@ func client(h adapters.ServerHandle) *Client { return NewClient(h.URL, h.Passwor
 
 // Attest implements adapters.ToolAdapter.
 func (a *Adapter) Attest(ctx context.Context, h adapters.ServerHandle, b sessionspec.BundleSpec, location string) (adapters.VisibilityReport, error) {
-	return Attest(ctx, client(h), b, location)
+	return Attest(ctx, client(h), b, location, h.StrictIsolation)
 }
 
 // CreateSession implements adapters.ToolAdapter.

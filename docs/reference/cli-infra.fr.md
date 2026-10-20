@@ -102,6 +102,8 @@ oh upgrade oh [version] [--check]
 | `version` | argument | Version cible (défaut : la dernière publiée). Sans version, oh n'installe jamais une version plus ancienne que la sienne ; une version plus ancienne demandée explicitement est installée avec un avertissement de rétrogradation |
 | `--check` | bool | Vérifier seulement si une mise à jour est disponible |
 
+Le téléchargement ne suit une redirection que vers HTTPS sur GitHub et son CDN de releases ; la version reçue doit être celle qui est demandée, et plus récente que celle qui tourne (sauf rétrogradation demandée explicitement, voir ci-dessus). Voir [SECURITY.fr.md](../../SECURITY.fr.md#mise-à-jour-automatique).
+
 **Exemple :**
 
 ```bash
@@ -316,7 +318,7 @@ Lance un tableau de bord web local.
 oh serve [--port 8080]
 ```
 
-Démarre un serveur HTTP lié à `127.0.0.1` uniquement (jamais exposé sur le réseau). Le tableau de bord affiche projets, sessions, métriques, télémétrie des agents, board d'équipe (kanban), chronologie et membres.
+Démarre un serveur HTTP lié à `127.0.0.1` uniquement (jamais exposé sur le réseau). oh affiche l'URL du tableau de bord avec un **jeton d'accès** aléatoire, propre à ce lancement : `http://127.0.0.1:8080/?token=…`. Ouvrez-la telle quelle : le navigateur garde le jeton dans un cookie (`HttpOnly`, `SameSite=Strict`) et la barre d'adresse n'affiche plus que `/`. Une requête sans jeton valide reçoit 401 ; une requête dont l'en-tête `Host` n'est pas `127.0.0.1:<port>`, `localhost:<port>` ou `[::1]:<port>` reçoit 403. Le tableau de bord affiche projets, sessions, métriques, télémétrie des agents, board d'équipe (kanban), chronologie et membres.
 
 **Endpoints API :**
 - `GET /api/v1/health`
@@ -342,4 +344,6 @@ oh serve
 oh serve --port 9090
 ```
 
-> **Sécurité :** le serveur est lié à `127.0.0.1` uniquement et n'est jamais accessible depuis le réseau.
+Pour un appel hors navigateur, passez le jeton dans l'URL : `curl "http://127.0.0.1:8080/api/v1/health?token=<jeton>"`.
+
+> **Sécurité :** le serveur est lié à `127.0.0.1` uniquement et n'est jamais accessible depuis le réseau. Le contrôle de l'en-tête `Host` et le jeton empêchent une page web malveillante de lire le tableau de bord (DNS rebinding) ; le jeton n'est pas écrit sur le disque et change à chaque lancement. Ne partagez pas l'URL affichée.

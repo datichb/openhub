@@ -16,7 +16,7 @@
 oh serve
 ```
 
-Starts the dashboard on `http://127.0.0.1:8080`. Open in any browser.
+Starts the dashboard on `http://127.0.0.1:8080` and prints the URL to open, with its access token (`http://127.0.0.1:8080/?token=…`). Open that URL as it is in any browser: the token is kept in a cookie, so the printed link only has to be opened once.
 
 ### Custom port
 
@@ -32,7 +32,7 @@ Press `Ctrl+C` in the terminal where `oh serve` is running.
 
 ## Security
 
-The dashboard **always binds to `127.0.0.1`** (localhost only). It is never exposed to the network, even when `--port` is set. There is no authentication because the server is not reachable from outside the machine.
+The dashboard **always binds to `127.0.0.1`** (localhost only). It is never exposed to the network, even when `--port` is set. Two protections are added so that a web page open in your browser cannot read the dashboard (DNS rebinding): the server refuses (403) any request whose `Host` header is not `127.0.0.1:<port>`, `localhost:<port>` or `[::1]:<port>`, and requires a random access token (401 without it), specific to each launch. Do not share the printed URL.
 
 > **Warning:** Do not proxy the dashboard behind a public-facing reverse proxy without adding authentication (e.g. HTTP Basic Auth via nginx).
 
@@ -92,18 +92,22 @@ The dashboard exposes a REST API for programmatic access:
 
 ### API examples
 
+Every request carries the token printed at startup (`token=` in the URL).
+
 ```bash
+TOKEN=<token printed by oh serve>
+
 # Health check
-curl http://127.0.0.1:8080/api/v1/health
+curl "http://127.0.0.1:8080/api/v1/health?token=$TOKEN"
 
 # List all projects
-curl http://127.0.0.1:8080/api/v1/projects
+curl "http://127.0.0.1:8080/api/v1/projects?token=$TOKEN"
 
 # List last 10 sessions for a specific project
-curl "http://127.0.0.1:8080/api/v1/sessions?project=my-project&limit=10"
+curl "http://127.0.0.1:8080/api/v1/sessions?project=my-project&limit=10&token=$TOKEN"
 
 # Get agent telemetry
-curl http://127.0.0.1:8080/api/v1/metrics/agents
+curl "http://127.0.0.1:8080/api/v1/metrics/agents?token=$TOKEN"
 ```
 
 ### Health response example
@@ -161,10 +165,10 @@ Use the agent telemetry table to identify agents with high failure rates or unus
 
 ```bash
 # Export all agent telemetry to JSON
-curl http://127.0.0.1:8080/api/v1/metrics/agents > agent-metrics.json
+curl "http://127.0.0.1:8080/api/v1/metrics/agents?token=$TOKEN" > agent-metrics.json
 
 # Export all sessions from the last 7 days (requires jq)
-curl "http://127.0.0.1:8080/api/v1/sessions?limit=1000" | \
+curl "http://127.0.0.1:8080/api/v1/sessions?limit=1000&token=$TOKEN" | \
   jq '[.[] | select(.started_at > "2026-07-15T00:00:00Z")]' > sessions-week.json
 ```
 

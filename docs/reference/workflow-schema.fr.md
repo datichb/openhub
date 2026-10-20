@@ -24,6 +24,7 @@ oh workflow show ticket --origin         # valeurs résolues et document d'origi
 - **Cartes ordonnées** : `inputs`, `agents`, `checkpoints` et `preconditions` gardent l'ordre du fichier (ordre de la fiche de lancement, des checkpoints et des tests).
 - **Patch** (`extends`) : c'est la **présence** d'un champ dans le fichier qui le remplace, pas sa valeur. Les cartes sont fusionnées par clé ; les listes et les textes sont remplacés en bloc.
 - **Sécurité** : `risk`, `isolation`, `runtime.allowed`, `modes.allowed`, `code_mode`, `beads.allow`, checkpoints obligatoires (et checkpoints qui portent `unlocks`), `remote`, `limits`, les verrous `after`, les listes `calls`, `circuit_breaker`, les préconditions d'un workflow `risk: publish`, et hors de la couche hub `mcp` et `plugins`, ne peuvent que **se durcir**. Un assouplissement est une erreur (`loosening`) et la valeur du parent est gardée.
+- **Élargissement** : une couche d'équipe ou de projet qui **ajoute un agent** au workflow de son parent (par exemple un agent du catalogue d'équipe), ou des skills à `skills.extra` que le parent ne liste pas, élargit le workflow sans assouplir un champ de sécurité. L'ajout est accepté, avec un **avertissement** (`patch_agent_added`, `patch_skills_extra_added`) ; l'agent ajouté n'a jamais de `writes` (`loosening`, voir plus bas). Le résumé d'impact d'une publication le signale (« nouvel agent »). La couche hub ajoute sans avertissement ; retirer des skills reste permis, sans avertissement.
 - **Verrou** : un champ de premier niveau cité dans `enforce` d'un document parent ne peut plus être écrit par un document qui l'étend (`enforced_field`).
 
 Dans les tableaux ci-dessous, la colonne **Patch** vaut :
@@ -223,12 +224,12 @@ L'id d'une entrée suit `^[a-z][a-z0-9_]*$` (`input_id_invalid`) ; `oh` est rés
 | `int` | entier | entier (`0` par défaut) |
 | `enum` | une des `values` | texte |
 | `path` | chemin, une seule ligne | texte |
-| `branch` | nom de branche, une seule ligne | texte |
+| `branch` | nom de branche, une seule ligne, valide pour `git check-ref-format --branch` (ni espace, ni `..`, `~ ^ : ? * [ \`, `@{` ; 255 octets au plus) | texte |
 | `beads-id` | un id Beads (plusieurs si `picker.multi`) | ids joints par `, ` |
 | `beads-ids` | liste d'ids Beads (`a,b` ou liste YAML) | liste (`join`) |
 
 - **`picker`** : `filter` (ex. `ai-delegated`), `epic` (restreindre à une epic), `multi` (plusieurs tickets). Une entrée `beads-id` avec `multi: true` donne **une session par ticket** (`--tickets a,b`) ; une entrée `beads-ids` reçoit toute la liste dans une seule session.
-- **Contrôles** : un id Beads invalide, ou un `path` / `branch` sur plusieurs lignes, est refusé au rendu. Une valeur ne correspondant pas au type : `session_input_invalid` ; une entrée inconnue : `session_input_unknown` ; un défaut invalide : `input_default_invalid`.
+- **Contrôles** : un id Beads invalide, un `path` sur plusieurs lignes, ou une `branch` que git refuserait, est refusé au rendu. Une valeur ne correspondant pas au type : `session_input_invalid` ; une entrée inconnue : `session_input_unknown` ; un défaut invalide : `input_default_invalid`.
 - **Troncature** (O11) : les valeurs `string`, `text`, `path`, `branch` sont coupées à `max_length` caractères, avec la mention `[… tronqué : N caractères sur M]`.
 - **Entrées calculées** (`from`) : voir [ci-dessous](#entrées-calculées-from).
 - **Patch** : fusion par id, champ par champ (`picker` aussi). Une entrée ne peut pas être retirée.
@@ -293,7 +294,7 @@ prompt:
 - Exactement un des deux (`prompt_both`, `prompt_empty`). Absent : pas de premier message (la session attend l'utilisateur).
 - **Variables** : les entrées au premier niveau (`{{ .ticket }}`) ; le contexte de session sous `.oh` : `.oh.project`, `.oh.location`, `.oh.mode`, `.oh.runtime`, `.oh.lang`, `.oh.workflow`, `.oh.branch`, `.oh.memories` (mémoires persistantes du Beads du projet, `bd remember`, déjà entre balises de données ; vide sans mémoire). Toute autre variable : `prompt_unknown_variable`.
 - **Fonctions** :
-  - `{{ data "request" .request }}` écrit la valeur, tronquée. Une entrée calculée (`from:`) est placée entre `<oh:data name="…">` et `</oh:data>` : l'agent la traite comme une donnée, jamais comme une consigne (une balise contenue dans la valeur est neutralisée). Une entrée saisie par l'utilisateur est écrite telle quelle : c'est sa demande. Toute entrée `string` ou `text` doit passer par `data`.
+  - `{{ data "request" .request }}` écrit la valeur, tronquée. Une entrée calculée (`from:`) est placée entre `<oh:data-<empreinte> name="…">` et `</oh:data-<empreinte>>` (l'empreinte vient du SHA-256 du contenu, donc la valeur ne peut pas fermer son bloc) : l'agent la traite comme une donnée, jamais comme une consigne (une balise contenue dans la valeur est en plus neutralisée). Une entrée saisie par l'utilisateur est écrite telle quelle : c'est sa demande. Toute entrée `string` ou `text` doit passer par `data`.
   - `{{ join .tickets ", " }}` joint une liste.
 - Une entrée absente vaut son défaut, sinon la valeur vide de son type : `{{ if .request }}…{{ end }}` fonctionne.
 - oh termine le prompt par la liste des checkpoints à signaler avant chaque agent verrouillé.
@@ -610,7 +611,7 @@ preconditions:
 |---|---|---|---|
 | `models.default` | `fournisseur/modèle[#variante]` | cascade sans niveau workflow | remplace |
 | `models.agents.<agent>` | `fournisseur/modèle[#variante]` | — | fusion par agent |
-| `skills.extra` | liste de références de skills | — | remplace |
+| `skills.extra` | liste de références de skills | — | remplace (skill ajoutée hors couche hub : avertissement `patch_skills_extra_added`) |
 | `skills.deny` | liste (référence ou nom seul) | — | remplace |
 | `mcp` | liste d'ids de serveurs MCP oh | serveurs MCP du projet | durcit hors couche hub (sous-ensemble de la liste du parent ; parent sans liste : toute liste durcit) |
 | `plugins` | liste | aucun plugin en plus du plugin oh | durcit hors couche hub (sous-ensemble du parent : un plugin exécute du code) |

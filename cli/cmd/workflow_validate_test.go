@@ -61,7 +61,8 @@ func TestWorkflowValidate_FileWithErrors(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := r.Diagnostics.Codes(); strings.Join(got, ",") != "loosening,agent_unknown" {
+	// The agent added by a team layer is also reported as a warning (S-20).
+	if got := r.Diagnostics.Codes(); strings.Join(got, ",") != "loosening,patch_agent_added,agent_unknown" {
 		t.Fatalf("codes = %v", got)
 	}
 	if r.Workflows[0].Valid || r.Diagnostics[0].Source != file || r.Diagnostics[0].Pos.Line != 5 {
@@ -73,7 +74,7 @@ func TestWorkflowValidate_FileWithErrors(t *testing.T) {
 		t.Fatal("errors must make the command fail")
 	}
 	var decoded workflowValidateReport
-	if err := json.Unmarshal(out.Bytes(), &decoded); err != nil || len(decoded.Diagnostics) != 2 || decoded.Diagnostics[1].Path != "agents.ghost" {
+	if err := json.Unmarshal(out.Bytes(), &decoded); err != nil || len(decoded.Diagnostics) != 3 || decoded.Diagnostics[2].Path != "agents.ghost" {
 		t.Fatalf("json = %s (%v)", out.String(), err)
 	}
 }

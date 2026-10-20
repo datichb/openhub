@@ -81,6 +81,11 @@ Les utilisateurs Homebrew peuvent utiliser: brew upgrade openhub`,
 			fmt.Fprintf(a.IO.Out, "%s %s\n", theme.SuccessStyle.Render(theme.IconArrow), i18n.Tf("cmd.upgrade.oh.downloading", plan.version))
 
 			var lastPercent int
+			// An older version is installed only when the user asked for it.
+			var updateOpts []selfupdate.Option
+			if plan.downgrade {
+				updateOpts = append(updateOpts, selfupdate.AllowDowngrade())
+			}
 			binPath, err := selfupdate.Update(plan.version, func(downloaded, total int64) {
 				if total > 0 {
 					percent := int(downloaded * 100 / total)
@@ -90,7 +95,7 @@ Les utilisateurs Homebrew peuvent utiliser: brew upgrade openhub`,
 							percent, downloaded/1024/1024, total/1024/1024)
 					}
 				}
-			})
+			}, updateOpts...)
 			if err != nil {
 				return fmt.Errorf("%s: %w", i18n.T("cmd.upgrade.oh.failed"), err)
 			}

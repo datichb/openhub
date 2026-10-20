@@ -89,6 +89,22 @@ func TestTmuxArgs(t *testing.T) {
 	assert.Equal(t, []string{"split-window", "-h", "-c", "/p"}, tmuxArgs(Options{Dir: "/p", Title: "oh", ITermStyle: ITermSplit}))
 }
 
+// S-37: tmux reads -c and -n as formats (`#(cmd)` runs a command, `#{var}`
+// reads a variable): a `#` of a name is doubled, which tmux reads as one `#`.
+func TestTmuxArgsEscapeFormats(t *testing.T) {
+	assert.Equal(t, []string{"new-window", "-c", "/p/x##(touch /tmp/pwn)", "-n", "feat##{pane_pid}-##S"},
+		tmuxArgs(Options{Dir: "/p/x#(touch /tmp/pwn)", Title: "feat#{pane_pid}-#S"}))
+	assert.Equal(t, []string{"split-window", "-h", "-c", "/p/##(id)/##{host}"},
+		tmuxArgs(Options{Dir: "/p/#(id)/#{host}", Title: "t#(id)", ITermStyle: ITermSplit}))
+	assert.Equal(t, []string{"new-window", "-c", "/p", "-n", "####"}, tmuxArgs(Options{Dir: "/p", Title: "##"}), "an already doubled # is doubled again")
+	for _, name := range []string{"", "plain", "feat/x-1", "a#b", "#(x)", "#{y}", "##(z)", "a#"} {
+		lit := tmuxLiteral(name)
+		// what tmux does with a doubled #: back to the name, nothing evaluated
+		assert.Equal(t, name, strings.ReplaceAll(lit, "##", "#"), name)
+		assert.NotContains(t, strings.ReplaceAll(lit, "##", ""), "#", "every # of %q is doubled", name)
+	}
+}
+
 func TestShellCommandEnv(t *testing.T) {
 	assert.Equal(t, "cd /p && A=1 OH_HOME='/tmp/my oh' exec oh x",
 		ShellCommandEnv("/p", map[string]string{"OH_HOME": "/tmp/my oh", "A": "1", "bad name": "x", "1X": "y"}, []string{"oh", "x"}))
@@ -108,6 +124,24 @@ func TestTmuxGetsOneShellCommand(t *testing.T) {
 	data, err := os.ReadFile(out)
 	require.NoError(t, err)
 	assert.Equal(t, []string{"new-window", "-c", "/p q", "-n", "oh", "cd '/p q' && OH_HOME=/h exec /bin/oh session attach ses_1 --exec"},
+		strings.Split(strings.TrimSpace(string(data)), "\n"))
+}
+
+// S-37: what the tmux binary receives. The directory and the title are
+// escaped for tmux's formats; the shell command keeps the real directory.
+func TestTmuxReceivesEscapedFormats(t *testing.T) {
+	dir := t.TempDir()
+	out := filepath.Join(dir, "args")
+	script := "#!/bin/sh\nfor a in \"$@\"; do printf '%s\\n' \"$a\" >> " + out + "; done\n"
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "tmux"), []byte(script), 0o755))
+	t.Setenv("PATH", dir)
+	_, _, err := Launch(context.Background(), Options{Pref: PrefTmux, Dir: "/wt/feat#(touch pwn)", Title: "#{pane_pid}",
+		Argv: []string{"/bin/oh", "session", "attach", "ses_1"}})
+	require.NoError(t, err)
+	data, err := os.ReadFile(out)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"new-window", "-c", "/wt/feat##(touch pwn)", "-n", "##{pane_pid}",
+		"cd '/wt/feat#(touch pwn)' && exec /bin/oh session attach ses_1"},
 		strings.Split(strings.TrimSpace(string(data)), "\n"))
 }
 

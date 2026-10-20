@@ -142,7 +142,7 @@ Supprimés en v5 (ignorés s'ils restent dans le fichier) : `[opencode] version`
 | | `engine` | `auto` | Moteur de conteneurs |
 | | `keep_images` | `2` | Images conservées par projet et par rôle (base, dev) |
 | | `tool_version` | vide | Version d'opencode des images ; si elle diffère du client de la machine, le lancement en conteneur est refusé |
-| | `strict_isolation` | `false` | Masque aussi la configuration personnelle d'opencode (`XDG_CONFIG_HOME`) des serveurs locaux |
+| | `strict_isolation` | `false` | Masque aussi la configuration personnelle d'opencode (`XDG_CONFIG_HOME`) des serveurs locaux ; `Attest` refuse alors tout plugin que le paquet n'apporte pas (sans cette option : avertissement seulement) |
 | `[fanout]` | `experimental` | `false` | Active le fan-out, **expérimental** (R6) : sans lui, `oh run implement-spec -i fanout=true` est refusé et le démon ne délègue aucun checkpoint d'enfant ([guide](../guides/fan-out.fr.md)) |
 | | `parallel` | `1` | Sessions enfants en même temps (1 à 3 ; au plus le `fanout.parallel` du workflow) |
 | | `budget_usd` | `10` | Budget global d'une session parente et de toutes ses sessions (enfants, merger), en dollars (F-04) |
@@ -753,4 +753,4 @@ Au démarrage d'une session, le fournisseur LLM est résolu dans cet ordre :
 
 > **Intégrité de la base :** `oh repair --check-only` vérifie la base SQLite ; `oh repair` affiche la version du schéma.
 >
-> **Tableau de bord web :** `oh serve` écoute sur `127.0.0.1` uniquement, jamais sur le réseau.
+> **Tableau de bord web :** `oh serve` écoute sur `127.0.0.1` uniquement, jamais sur le réseau, et exige le jeton d'accès affiché au démarrage.
