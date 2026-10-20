@@ -166,15 +166,27 @@ func launchWith(ctx context.Context, m Method, o Options) error {
 
 // tmuxArgs opens the client in a new tmux window, or in a split pane when
 // the style is "split" (the iTerm2 style setting applies to tmux too).
+//
+// tmux expands -c (start-directory) and -n (window-name) as formats, where
+// `#(command)` runs a command and `#{…}` reads a variable (S-37): both come
+// from names (branch, worktree, title) and go through tmuxLiteral. The shell
+// command is not a format: tmux runs it as it is.
 func tmuxArgs(o Options) []string {
 	if o.ITermStyle == ITermSplit {
-		return []string{"split-window", "-h", "-c", o.Dir}
+		return []string{"split-window", "-h", "-c", tmuxLiteral(o.Dir)}
 	}
-	args := []string{"new-window", "-c", o.Dir}
+	args := []string{"new-window", "-c", tmuxLiteral(o.Dir)}
 	if o.Title != "" {
-		args = append(args, "-n", o.Title)
+		args = append(args, "-n", tmuxLiteral(o.Title))
 	}
 	return args
+}
+
+// tmuxLiteral escapes s for a tmux argument that is expanded as a format: a
+// doubled `##` is read as a single `#`, which keeps `#(`, `#{` and the
+// one-letter aliases (`#S`, `#H`…) from being interpreted.
+func tmuxLiteral(s string) string {
+	return strings.ReplaceAll(s, "#", "##")
 }
 
 // ShellCommand renders `cd <dir> && exec <argv…>` with POSIX quoting.
