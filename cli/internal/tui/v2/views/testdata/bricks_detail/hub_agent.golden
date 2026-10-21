@@ -1,0 +1,14 @@
+Implements tickets
+
+Origine : hub
+Type : agent
+Famille : developer
+Mode : subagent
+Skills : developer/dev-standards
+Workflows : quick, ticket
+Coût estimé : ~1200 tokens
+
+Écriture hors de la TUI : oh brick new (une brique d'équipe qui remplace agent:developer)
+
+Touches
+  Entrée ouvrir un workflow qui l'utilise
