@@ -399,12 +399,17 @@ func copyTeams(teams []config.TeamConfig) []config.TeamConfig {
 	return cp
 }
 
-// truncateString truncates a string for display.
+// truncateString truncates a string for display to maxLen characters (not
+// bytes), the last one being « … » when it was cut.
 func truncateString(s string, maxLen int) string {
-	if len(s) <= maxLen {
+	r := []rune(s)
+	if len(r) <= maxLen {
 		return s
 	}
-	return s[:maxLen-3] + "..."
+	if maxLen <= 0 {
+		return ""
+	}
+	return string(r[:maxLen-1]) + "…"
 }
 
 // teamRepoLabel is the team-state of a team: its remote, or « solo space »
