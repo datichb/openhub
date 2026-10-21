@@ -76,6 +76,8 @@ type fakeLauncher struct {
 	// merge instead.
 	fix      [2]string
 	fixMerge bool
+	// onTell runs when the parent is told (nil = nothing), out of the lock.
+	onTell func()
 }
 
 func (l *fakeLauncher) Start(ctx context.Context, req LaunchRequest) (string, error) {
@@ -176,6 +178,11 @@ func (l *fakeLauncher) Tell(_ context.Context, id, text string) error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.told = append(l.told, id+": "+text)
+	if l.onTell != nil {
+		l.mu.Unlock()
+		l.onTell()
+		l.mu.Lock()
+	}
 	return nil
 }
 
