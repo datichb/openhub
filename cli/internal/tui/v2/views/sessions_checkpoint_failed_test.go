@@ -49,6 +49,36 @@ func cardText(t *testing.T, title, body string, actions []ModalAction) string {
 	return screenText(t, tv, 90, 32)
 }
 
+// compactCardText renders a card like cardText, without the frame and
+// without the empty lines at the end: the text of a golden file.
+func compactCardText(t *testing.T, title, body string, actions []ModalAction) string {
+	t.Helper()
+	tv := tview.NewTextView().SetDynamicColors(true).SetWrap(true)
+	var labels []string
+	for _, a := range actions {
+		labels = append(labels, "[ "+a.Label+" ]")
+	}
+	text := body
+	if title != "" {
+		text = "# " + tview.Escape(title) + "\n" + text
+	}
+	if len(labels) > 0 {
+		text += "\n" + tview.Escape(strings.Join(labels, "  "))
+	}
+	tv.SetText(text)
+	lines := strings.Split(screenText(t, tv, 90, 40), "\n")
+	for i := range lines {
+		lines[i] = strings.TrimRight(lines[i], " ")
+	}
+	return strings.TrimRight(strings.Join(lines, "\n"), "\n") + "\n"
+}
+
+// cardBodyText renders the body of a card.
+func cardBodyText(t *testing.T, c CheckpointCardView) string {
+	t.Helper()
+	return compactCardText(t, "", checkpointBody(c), nil)
+}
+
 // y on a checkpoint whose verification failed opens its card on
 // « Corriger » / « Passer outre… » instead of a toast; the override asks a
 // reason, then a confirmation, and the reason goes with the choice.

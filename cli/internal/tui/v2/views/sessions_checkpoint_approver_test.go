@@ -8,22 +8,23 @@ import (
 	"github.com/rivo/tview"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/datichb/openhub/cli/internal/testutil/golden"
 )
 
 // CP-R9: the card names the expected approver and warns when the person
 // who validates is none of them; y asks for a confirmation then; the batch
 // warns item by item. Never refused.
 func TestCheckpointApproverCard(t *testing.T) {
+	frLocale(t)
 	mismatch := CheckpointApproverView{Expected: "Grace Hopper", Identity: "Ada Lovelace <ada@example.com>", Mismatch: true}
-	body := checkpointBody(CheckpointCardView{Approver: mismatch})
-	assert.Contains(t, body, "Grace Hopper")
-	assert.Contains(t, body, "Ada Lovelace")
-	assert.Contains(t, body, "⚠")
-
-	body = checkpointBody(CheckpointCardView{Approver: CheckpointApproverView{Expected: "Ada Lovelace", Identity: "Ada Lovelace"}})
-	assert.Contains(t, body, "Ada Lovelace")
-	assert.NotContains(t, body, "⚠")
-	assert.NotContains(t, checkpointBody(CheckpointCardView{Approver: CheckpointApproverView{Identity: "Ada"}}), "Ada", "no approver: nothing shown")
+	for name, approver := range map[string]CheckpointApproverView{
+		"mismatch":    mismatch,
+		"expected":    {Expected: "Ada Lovelace", Identity: "Ada Lovelace"},
+		"no_approver": {Identity: "Ada"},
+	} {
+		golden.Assert(t, "checkpoint_card/approver_"+name, cardBodyText(t, CheckpointCardView{Approver: approver}))
+	}
 
 	rows := checkpointRows()
 	rows[0].Decisions[0].Approver = "Grace Hopper"
@@ -56,9 +57,9 @@ func TestCheckpointApproverCard(t *testing.T) {
 	sh.cmu.Lock()
 	confirm, title, detail := sh.confirm, sh.ctitle, sh.cdetail
 	sh.cmu.Unlock()
-	assert.Contains(t, title, "cp-2")
-	assert.Contains(t, detail, "Grace Hopper")
-	assert.Contains(t, detail, "Ada Lovelace")
+	assert.Contains(t, title, "cp-2", "confirmation title names the checkpoint")
+	assert.Contains(t, detail, "Grace Hopper", "confirmation names the expected approver")
+	assert.Contains(t, detail, "Ada Lovelace", "confirmation names the identity")
 	onLoop(confirm)
 	require.Eventually(t, func() bool { return len(be.decisions()) == 1 }, 3*time.Second, 10*time.Millisecond)
 	assert.Equal(t, "checkpoint:ses_a:per_2=approve", be.decisions()[0])
