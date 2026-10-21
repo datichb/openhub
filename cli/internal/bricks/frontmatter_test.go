@@ -95,32 +95,26 @@ skills: [dev-standards]
 	assert.Equal(t, "allow", fm.Permission["edit"])
 }
 
-func TestParseAgentFrontmatterFromBytes_DefaultMode(t *testing.T) {
-	input := []byte(`---
-id: reviewer
-label: Reviewer
-description: Code reviewer
-permission:
-  read: allow
----
-
-# Reviewer
-`)
-
-	fm, err := ParseAgentFrontmatterFromBytes(input)
-	require.NoError(t, err)
-
-	// Mode defaults to "primary" when not specified
-	assert.Equal(t, "primary", fm.Mode)
-	assert.False(t, fm.Verify)
-}
-
-// C1.6: `verify: true` grants the verification commands; unknown keys are
-// ignored.
-func TestParseAgentFrontmatterFromBytes_Verify(t *testing.T) {
-	fm, err := ParseAgentFrontmatterFromBytes([]byte("---\nid: reviewer\nverify: true\nfuture_key: x\n---\n\n# Reviewer\n"))
-	require.NoError(t, err)
-	assert.True(t, fm.Verify)
+// The mode defaults to "primary"; C1.6: `verify: true` grants the
+// verification commands; unknown keys are ignored.
+func TestParseAgentFrontmatterFromBytes_ModeAndVerify(t *testing.T) {
+	tests := []struct {
+		name       string
+		input      string
+		wantMode   string
+		wantVerify bool
+	}{
+		{"mode defaults to primary, verify to false", "---\nid: reviewer\nlabel: Reviewer\ndescription: Code reviewer\npermission:\n  read: allow\n---\n\n# Reviewer\n", "primary", false},
+		{"verify: true, unknown keys ignored", "---\nid: reviewer\nverify: true\nfuture_key: x\n---\n\n# Reviewer\n", "primary", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fm, err := ParseAgentFrontmatterFromBytes([]byte(tt.input))
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantMode, fm.Mode, "mode")
+			assert.Equal(t, tt.wantVerify, fm.Verify, "verify")
+		})
+	}
 }
 
 func TestParseAgentFrontmatterFromBytes_WithComments(t *testing.T) {
@@ -157,44 +151,24 @@ skills: [dev-standards]
 	assert.Equal(t, "allow", bashPerm["npm *"])
 }
 
-func TestParseAgentFrontmatterFromBytes_NoFrontmatter(t *testing.T) {
-	input := []byte(`# Just a markdown file
-
-No frontmatter here.
-`)
-
-	_, err := ParseAgentFrontmatterFromBytes(input)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "does not start with ---")
-}
-
-func TestParseAgentFrontmatterFromBytes_EmptyFrontmatter(t *testing.T) {
-	input := []byte(`---
----
-
-# Empty
-`)
-
-	_, err := ParseAgentFrontmatterFromBytes(input)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "empty frontmatter")
-}
-
-func TestParseAgentFrontmatterFromBytes_UnclosedFrontmatter(t *testing.T) {
-	input := []byte(`---
-id: broken
-label: Broken
-`)
-
-	_, err := ParseAgentFrontmatterFromBytes(input)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "no closing ---")
-}
-
-func TestParseAgentFrontmatterFromBytes_EmptyFile(t *testing.T) {
-	_, err := ParseAgentFrontmatterFromBytes([]byte{})
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "empty file")
+func TestParseAgentFrontmatterFromBytes_Errors(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		wantErr string
+	}{
+		{"no frontmatter", "# Just a markdown file\n\nNo frontmatter here.\n", "does not start with ---"},
+		{"empty frontmatter", "---\n---\n\n# Empty\n", "empty frontmatter"},
+		{"unclosed frontmatter", "---\nid: broken\nlabel: Broken\n", "no closing ---"},
+		{"empty file", "", "empty file"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := ParseAgentFrontmatterFromBytes([]byte(tt.input))
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.wantErr)
+		})
+	}
 }
 
 func TestAgentFamily(t *testing.T) {

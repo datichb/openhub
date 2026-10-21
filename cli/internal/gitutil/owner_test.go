@@ -13,6 +13,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 )
 
 // asRoot makes OwnerOf see oh as root and every directory owned by uid.
@@ -76,7 +78,7 @@ func TestLooksLikeRepository(t *testing.T) {
 // check of oh.
 func TestFingerprintDoesNotBlockOnFIFO(t *testing.T) {
 	repo := t.TempDir()
-	gitIn(t, repo, "init", "-q")
+	gittest.Run(t, repo, "init", "-q")
 	require.NoError(t, syscall.Mkfifo(filepath.Join(repo, ".git", "hooks", "pre-commit"), 0o644))
 	done := make(chan error, 1)
 	go func() { _, _, err := Fingerprint(context.Background(), repo); done <- err }()

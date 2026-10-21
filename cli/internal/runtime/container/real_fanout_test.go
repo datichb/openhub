@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 	ohruntime "github.com/datichb/openhub/cli/internal/runtime"
 	"github.com/datichb/openhub/cli/internal/services/fanout"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
@@ -41,9 +42,9 @@ func realFanoutVerification(t *testing.T, k EngineKind) {
 	if err := os.WriteFile(filepath.Join(project, "Dockerfile.dev"), []byte("FROM debian:bookworm-slim\nRUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates && rm -rf /var/lib/apt/lists/*\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	gitRun(t, project, "init", "-q", "-b", "main")
-	gitRun(t, project, "add", "Dockerfile.dev")
-	gitRun(t, project, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "-m", "init")
+	gittest.Run(t, project, "init", "-q", "-b", "main")
+	gittest.Run(t, project, "add", "Dockerfile.dev")
+	gittest.Run(t, project, "commit", "-q", "-m", "init")
 	base, err := fanout.Head(ctx, project)
 	if err != nil {
 		t.Fatal(err)

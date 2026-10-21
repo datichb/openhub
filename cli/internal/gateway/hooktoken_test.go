@@ -17,6 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/gateway/beadswire"
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 	"github.com/datichb/openhub/cli/internal/procinfo"
 )
 
@@ -91,8 +92,8 @@ func TestCheckHookCaller(t *testing.T) {
 		t.Skip("git")
 	}
 	project := realDir(t)
-	require.NoError(t, exec.Command("git", "-C", project, "init", "-q").Run())
-	require.NoError(t, exec.Command("git", "-C", project, "config", "core.hooksPath", ".beads/hooks").Run())
+	gittest.Run(t, project, "init", "-q")
+	gittest.Run(t, project, "config", "core.hooksPath", ".beads/hooks")
 	hook := filepath.Join(project, ".beads", "hooks", "pre-commit")
 	tree := map[int]procinfo.Process{
 		10: {PID: 10, PPID: 11, Args: []string{"/oh", "__bd", "hooks", "run", "pre-commit"}},

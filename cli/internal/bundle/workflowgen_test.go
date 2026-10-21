@@ -1,19 +1,16 @@
 package bundle
 
 import (
-	"flag"
-	"os"
-	"path/filepath"
+	"path"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/datichb/openhub/cli/internal/testutil/golden"
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
-
-var updateGolden = flag.Bool("update", false, "update golden files")
 
 const genSpec = `apiVersion: oh/v1
 kind: Workflow
@@ -63,15 +60,7 @@ func TestGenerateWorkflowSkills_Golden(t *testing.T) {
 	gen := generateFor(t, genSpec)
 	require.Len(t, gen, len(generatedTemplates))
 	for ref, content := range gen {
-		golden := filepath.Join("testdata", "golden", strings.ReplaceAll(ref, "/", "__")+".md")
-		if *updateGolden {
-			require.NoError(t, os.MkdirAll(filepath.Dir(golden), 0o755))
-			require.NoError(t, os.WriteFile(golden, []byte(content), 0o644))
-			continue
-		}
-		want, err := os.ReadFile(golden)
-		require.NoError(t, err, "missing golden file (go test ./internal/bundle -run Golden -update)")
-		assert.Equal(t, string(want), content, ref)
+		golden.Assert(t, path.Join("golden", strings.ReplaceAll(ref, "/", "__")+".md"), content)
 	}
 }
 

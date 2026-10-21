@@ -20,6 +20,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/adapters"
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
@@ -38,7 +39,7 @@ func startLiveServer(t *testing.T, config string, readyAgent string) *liveServer
 	root := t.TempDir()
 	project := filepath.Join(root, "proj")
 	require.NoError(t, os.MkdirAll(project, 0o755))
-	require.NoError(t, exec.Command("git", "init", "-q", project).Run())
+	gittest.Run(t, project, "init", "-q")
 
 	srv, err := StartServer(context.Background(), ServerOptions{
 		WorkDir:       project,

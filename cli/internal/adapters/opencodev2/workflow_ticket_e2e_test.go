@@ -16,6 +16,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
@@ -84,9 +85,7 @@ func ticketCommitGate(t *testing.T, model string) {
 	b.Hash = "h_ticket_" + strings.NewReplacer("/", "_", ":", "_", ".", "_").Replace(model)
 	e.saveBundle(t, b)
 	h, project := e.startGroup(t, a, b, tok)
-	gitInit := exec.Command("git", "-C", project, "commit", "--allow-empty", "-qm", "init")
-	gitInit.Env = append(os.Environ(), "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@t", "GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@t")
-	require.NoError(t, gitInit.Run())
+	gittest.Run(t, project, "commit", "--allow-empty", "-qm", "init")
 	c := NewClient(h.URL, h.Password)
 	waitMCPConnected(t, c, project, sessionspec.WorkflowMCPServer)
 

@@ -1,7 +1,6 @@
 package ciconfig
 
 import (
-	"flag"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,21 +11,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
+
+	"github.com/datichb/openhub/cli/internal/testutil/golden"
 )
-
-var update = flag.Bool("update", false, "update golden files")
-
-func golden(t *testing.T, name string, got []byte) {
-	t.Helper()
-	path := filepath.Join("testdata", name)
-	if *update {
-		require.NoError(t, os.MkdirAll("testdata", 0o755))
-		require.NoError(t, os.WriteFile(path, got, 0o644))
-	}
-	want, err := os.ReadFile(path)
-	require.NoError(t, err, "missing golden file (go test ./internal/remote/ciconfig -update)")
-	assert.Equal(t, string(want), string(got))
-}
 
 func TestGenerateGolden(t *testing.T) {
 	for _, tc := range []struct {
@@ -39,7 +26,7 @@ func TestGenerateGolden(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			out, err := Generate(tc.opts)
 			require.NoError(t, err)
-			golden(t, tc.name, out)
+			golden.Assert(t, tc.name, out)
 
 			var doc map[string]any
 			require.NoError(t, yaml.Unmarshal(out, &doc), "generated file is valid YAML")

@@ -134,11 +134,6 @@ func TestFanout_NestedChildRefused(t *testing.T) {
 	assertDiag(t, diags, "fanout_child_nested", "fanout.child", SeverityError)
 }
 
-func TestFanout_CheckpointScopeWithoutFanout(t *testing.T) {
-	diags := checkYAML(t, vHeader+"risk: write\ncheckpoints:\n  cp-1: { fanout: never, mode: { manuel: pause, semi-auto: pause, auto: pause } }\n", testEnv())
-	assertDiag(t, diags, "checkpoint_fanout_without_fanout", "checkpoints.cp-1.fanout", SeverityError)
-}
-
 // CP-R3: the substitution is declared by the hub layer only. A team or
 // project layer that writes the delegates, in a full definition or in a
 // patch, is refused; and a patch may only harden the fan-out.

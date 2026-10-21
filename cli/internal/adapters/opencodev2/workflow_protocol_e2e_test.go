@@ -5,7 +5,6 @@ package opencodev2
 import (
 	"context"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -17,6 +16,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
@@ -62,9 +62,7 @@ func subagentPassesItsCheckpoint(t *testing.T, model string) {
 	b.Hash = "h_n6_subagent_" + strings.NewReplacer("/", "_", ":", "_", ".", "_").Replace(model)
 	e.saveBundle(t, b)
 	h, project := e.startGroup(t, a, b, tok)
-	gitInit := exec.Command("git", "-C", project, "commit", "--allow-empty", "-qm", "init")
-	gitInit.Env = append(os.Environ(), "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@t", "GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@t")
-	require.NoError(t, gitInit.Run())
+	gittest.Run(t, project, "commit", "--allow-empty", "-qm", "init")
 	c := NewClient(h.URL, h.Password)
 	waitMCPConnected(t, c, project, sessionspec.WorkflowMCPServer)
 	svc := &sessionsvc.Service{Sessions: e.sessions, Decisions: e.decisions, Servers: e.servers, Adapter: a, BundlesDir: e.bundles}
@@ -197,9 +195,7 @@ func TestE2ELockPatternsWithoutFalsePositives(t *testing.T) {
 	b.Hash = "h_n10_patterns"
 	e.saveBundle(t, b)
 	h, project := e.startGroup(t, a, b, tok)
-	gitInit := exec.Command("git", "-C", project, "commit", "--allow-empty", "-qm", "init commit")
-	gitInit.Env = append(os.Environ(), "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@t", "GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@t")
-	require.NoError(t, gitInit.Run())
+	gittest.Run(t, project, "commit", "--allow-empty", "-qm", "init commit")
 	c := NewClient(h.URL, h.Password)
 	waitMCPConnected(t, c, project, sessionspec.WorkflowMCPServer)
 
@@ -260,9 +256,7 @@ func TestE2EQuickCommitGate(t *testing.T) {
 	b.Hash = "h_quick_e2e"
 	e.saveBundle(t, b)
 	h, project := e.startGroup(t, a, b, tok)
-	gitInit := exec.Command("git", "-C", project, "commit", "--allow-empty", "-qm", "init")
-	gitInit.Env = append(os.Environ(), "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@t", "GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@t")
-	require.NoError(t, gitInit.Run())
+	gittest.Run(t, project, "commit", "--allow-empty", "-qm", "init")
 	c := NewClient(h.URL, h.Password)
 	waitMCPConnected(t, c, project, sessionspec.WorkflowMCPServer)
 	svc := &sessionsvc.Service{Sessions: e.sessions, Decisions: e.decisions, Servers: e.servers, Adapter: a, BundlesDir: e.bundles}

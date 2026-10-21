@@ -3,12 +3,13 @@ package opencodev2
 import (
 	"context"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 )
 
 func TestProjectAmbientInstructions(t *testing.T) {
@@ -25,8 +26,8 @@ func TestProjectAmbientInstructions(t *testing.T) {
 		require.NoError(t, os.MkdirAll(filepath.Dir(p), 0o755))
 		require.NoError(t, os.WriteFile(p, []byte(content), 0o644))
 	}
-	require.NoError(t, exec.Command("git", "init", "-q", dir).Run())
-	require.NoError(t, exec.Command("git", "-C", dir, "add", "AGENTS.md", "packages", ".gitignore").Run())
+	gittest.Run(t, dir, "init", "-q")
+	gittest.Run(t, dir, "add", "AGENTS.md", "packages", ".gitignore")
 
 	a := &Adapter{}
 	ctx := context.Background()

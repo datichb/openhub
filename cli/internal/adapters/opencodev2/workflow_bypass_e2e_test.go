@@ -17,6 +17,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
@@ -49,9 +50,8 @@ func TestE2ECheckpointSocketBypassRefused(t *testing.T) {
 	h, project := e.startGroup(t, a, b, tok)
 	c := NewClient(h.URL, h.Password)
 	waitMCPConnected(t, c, project, sessionspec.WorkflowMCPServer)
-	for _, args := range [][]string{{"config", "user.email", "t@t"}, {"config", "user.name", "t"}} {
-		require.NoError(t, exec.Command("git", append([]string{"-C", project}, args...)...).Run())
-	}
+	gittest.Run(t, project, "config", "user.email", "t@t")
+	gittest.Run(t, project, "config", "user.name", "t")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Minute)
 	defer cancel()

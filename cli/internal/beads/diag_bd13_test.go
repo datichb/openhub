@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/datichb/openhub/cli/internal/beads/bdtest"
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 )
 
 func writeProject(t *testing.T, dir string, files map[string]string) {
@@ -128,15 +129,7 @@ func TestCleanImpactAfterRealBdInit(t *testing.T) {
 // (Tracked) removes the block and keeps the rest.
 func TestCleanImpactCommittedFile(t *testing.T) {
 	dir := t.TempDir()
-	run := func(args ...string) {
-		t.Helper()
-		c := exec.Command("git", args...)
-		c.Dir = dir
-		c.Env = append(os.Environ(), "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@t", "GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@t")
-		if out, err := c.CombinedOutput(); err != nil {
-			t.Fatalf("git %v: %v\n%s", args, err, out)
-		}
-	}
+	run := func(args ...string) { gittest.Run(t, dir, args...) }
 	run("init", "-q")
 	writeProject(t, dir, map[string]string{
 		".beads/config.yaml": "",
@@ -165,29 +158,18 @@ func TestCleanImpactCommittedFile(t *testing.T) {
 // one is never touched.
 func TestCleanImpactUndoesBdInitCommit(t *testing.T) {
 	bdtest.RequireRealBd(t)
-	env := append(os.Environ(), "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@t", "GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@t")
-	git := func(dir string, args ...string) string {
-		t.Helper()
-		c := exec.Command("git", args...)
-		c.Dir, c.Env = dir, env
-		out, err := c.CombinedOutput()
-		if err != nil {
-			t.Fatalf("git %v: %v\n%s", args, err, out)
-		}
-		return strings.TrimSpace(string(out))
-	}
 	setup := func() string {
 		dir := t.TempDir()
-		git(dir, "init", "-q", "-b", "main")
+		gittest.Run(t, dir, "init", "-q", "-b", "main")
 		writeProject(t, dir, map[string]string{"a.txt": "x\n"})
-		git(dir, "add", "a.txt")
-		git(dir, "commit", "-qm", "init")
+		gittest.Run(t, dir, "add", "a.txt")
+		gittest.Run(t, dir, "commit", "-qm", "init")
 		c := exec.Command("bd", "init", "--prefix", "t", "--quiet")
-		c.Dir, c.Env = dir, env
+		c.Dir = dir
 		if out, err := c.CombinedOutput(); err != nil {
 			t.Fatalf("bd init: %v\n%s", err, out)
 		}
-		if git(dir, "log", "-1", "--format=%s") != bdInitCommitSubject {
+		if gittest.Run(t, dir, "log", "-1", "--format=%s") != bdInitCommitSubject {
 			t.Skip("this bd does not commit at init")
 		}
 		return dir
@@ -198,30 +180,30 @@ func TestCleanImpactUndoesBdInitCommit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if git(dir, "log", "-1", "--format=%s") != bdInitCommitSubject {
+	if gittest.Run(t, dir, "log", "-1", "--format=%s") != bdInitCommitSubject {
 		t.Fatalf("commit undone without UndoCommit (N17): %+v", report)
 	}
 	report, err = CleanImpact(dir, CleanOptions{UndoCommit: true})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := git(dir, "log", "-1", "--format=%s"); got != "init" {
+	if got := gittest.Run(t, dir, "log", "-1", "--format=%s"); got != "init" {
 		t.Fatalf("HEAD = %q, report %+v", got, report)
 	}
-	if status := git(dir, "status", "--porcelain"); status != "" {
+	if status := gittest.Run(t, dir, "status", "--porcelain"); status != "" {
 		t.Fatalf("not zero impact:\n%q\n%+v", status, report)
 	}
 
 	pushed := setup()
 	bare := t.TempDir()
-	git(bare, "init", "-q", "--bare")
-	git(pushed, "remote", "add", "origin", bare)
-	git(pushed, "push", "-q", "origin", "main")
+	gittest.Run(t, bare, "init", "-q", "--bare")
+	gittest.Run(t, pushed, "remote", "add", "origin", bare)
+	gittest.Run(t, pushed, "push", "-q", "origin", "main")
 	report, err = CleanImpact(pushed, CleanOptions{UndoCommit: true})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if git(pushed, "log", "-1", "--format=%s") != bdInitCommitSubject {
+	if gittest.Run(t, pushed, "log", "-1", "--format=%s") != bdInitCommitSubject {
 		t.Fatal("a pushed commit was undone")
 	}
 	if !strings.Contains(strings.Join(report.Skipped(), " "), "commit ") {

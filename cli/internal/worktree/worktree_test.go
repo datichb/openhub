@@ -2,13 +2,13 @@ package worktree
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 )
 
 func TestSlug(t *testing.T) {
@@ -81,9 +81,7 @@ func TestResolveOrCreate_Integration(t *testing.T) {
 	}
 
 	// Create a temporary git repo
-	repoDir := t.TempDir()
-	runGit(t, repoDir, "init")
-	runGit(t, repoDir, "commit", "--allow-empty", "-m", "initial commit")
+	repoDir := gittest.Repo(t)
 
 	// Create a worktree
 	wtPath, err := ResolveOrCreate(repoDir, "feat/test-branch")
@@ -105,31 +103,29 @@ func TestIsMerged_Integration(t *testing.T) {
 		t.Skip("skipping integration test in short mode")
 	}
 
-	repoDir := t.TempDir()
-	runGit(t, repoDir, "init", "-b", "main")
-	runGit(t, repoDir, "commit", "--allow-empty", "-m", "initial")
+	repoDir := gittest.Repo(t)
 
 	// A branch with its own commit, merged into main
-	runGit(t, repoDir, "checkout", "-q", "-b", "already-merged")
-	runGit(t, repoDir, "commit", "--allow-empty", "-m", "work")
-	runGit(t, repoDir, "checkout", "-q", "main")
-	runGit(t, repoDir, "merge", "-q", "--no-ff", "-m", "merge", "already-merged")
+	gittest.Run(t, repoDir, "checkout", "-q", "-b", "already-merged")
+	gittest.Run(t, repoDir, "commit", "--allow-empty", "-m", "work")
+	gittest.Run(t, repoDir, "checkout", "-q", "main")
+	gittest.Run(t, repoDir, "merge", "-q", "--no-ff", "-m", "merge", "already-merged")
 
 	merged, err := IsMerged(repoDir, "already-merged", "main")
 	require.NoError(t, err)
 	assert.True(t, merged)
 
 	// Create a branch with new commits (not merged)
-	runGit(t, repoDir, "checkout", "-b", "not-merged")
-	runGit(t, repoDir, "commit", "--allow-empty", "-m", "new work")
-	runGit(t, repoDir, "checkout", "main")
+	gittest.Run(t, repoDir, "checkout", "-b", "not-merged")
+	gittest.Run(t, repoDir, "commit", "--allow-empty", "-m", "new work")
+	gittest.Run(t, repoDir, "checkout", "main")
 
 	merged, err = IsMerged(repoDir, "not-merged", "main")
 	require.NoError(t, err)
 	assert.False(t, merged)
 
 	// A fresh branch (no commit of its own) has nothing merged
-	runGit(t, repoDir, "branch", "fresh")
+	gittest.Run(t, repoDir, "branch", "fresh")
 	merged, err = IsMerged(repoDir, "fresh", "main")
 	require.NoError(t, err)
 	assert.False(t, merged, "a fresh branch is not merged")
@@ -143,17 +139,15 @@ func TestIsMerged_Integration(t *testing.T) {
 // with a "+ " prefix, which the old parser missed; a fresh worktree branch was
 // cleaned up as merged.
 func TestIsMerged_WorktreeBranches(t *testing.T) {
-	repoDir := t.TempDir()
-	runGit(t, repoDir, "init", "-b", "main")
-	runGit(t, repoDir, "commit", "--allow-empty", "-m", "initial")
+	repoDir := gittest.Repo(t)
 
 	done := filepath.Join(t.TempDir(), "done")
-	runGit(t, repoDir, "worktree", "add", "-q", "-b", "feat/done", done)
-	runGit(t, done, "commit", "--allow-empty", "-m", "work")
-	runGit(t, repoDir, "merge", "-q", "--ff-only", "feat/done")
+	gittest.Run(t, repoDir, "worktree", "add", "-q", "-b", "feat/done", done)
+	gittest.Run(t, done, "commit", "--allow-empty", "-m", "work")
+	gittest.Run(t, repoDir, "merge", "-q", "--ff-only", "feat/done")
 
 	fresh := filepath.Join(t.TempDir(), "fresh")
-	runGit(t, repoDir, "worktree", "add", "-q", "-b", "feat/fresh", fresh)
+	gittest.Run(t, repoDir, "worktree", "add", "-q", "-b", "feat/fresh", fresh)
 
 	merged, err := IsMerged(repoDir, "feat/done", "main")
 	require.NoError(t, err)
@@ -174,9 +168,7 @@ func TestDetectBaseBranch_Integration(t *testing.T) {
 		t.Skip("skipping integration test in short mode")
 	}
 
-	repoDir := t.TempDir()
-	runGit(t, repoDir, "init", "-b", "main")
-	runGit(t, repoDir, "commit", "--allow-empty", "-m", "initial")
+	repoDir := gittest.Repo(t)
 
 	// Should detect "main"
 	base := DetectBaseBranch(repoDir)
@@ -188,9 +180,7 @@ func TestList_Integration(t *testing.T) {
 		t.Skip("skipping integration test in short mode")
 	}
 
-	repoDir := t.TempDir()
-	runGit(t, repoDir, "init", "-b", "main")
-	runGit(t, repoDir, "commit", "--allow-empty", "-m", "initial")
+	repoDir := gittest.Repo(t)
 
 	// Initially just the main worktree
 	entries, err := List(repoDir)
@@ -200,7 +190,7 @@ func TestList_Integration(t *testing.T) {
 
 	// Add a worktree
 	wtPath := filepath.Join(filepath.Dir(repoDir), filepath.Base(repoDir)+"-test")
-	runGit(t, repoDir, "worktree", "add", "-b", "test", wtPath)
+	gittest.Run(t, repoDir, "worktree", "add", "-b", "test", wtPath)
 	defer os.RemoveAll(wtPath)
 
 	entries, err = List(repoDir)
@@ -208,27 +198,13 @@ func TestList_Integration(t *testing.T) {
 	assert.Len(t, entries, 2)
 }
 
-func runGit(t *testing.T, dir string, args ...string) {
-	t.Helper()
-	cmd := exec.Command("git", args...)
-	cmd.Dir = dir
-	cmd.Env = append(os.Environ(),
-		"GIT_AUTHOR_NAME=Test",
-		"GIT_AUTHOR_EMAIL=test@test.com",
-		"GIT_COMMITTER_NAME=Test",
-		"GIT_COMMITTER_EMAIL=test@test.com",
-	)
-	out, err := cmd.CombinedOutput()
-	require.NoError(t, err, "git %v: %s", args, string(out))
-}
-
 // A18: Stash keeps every change (tracked and untracked) recoverable.
 func TestStash(t *testing.T) {
 	repoDir := t.TempDir()
-	runGit(t, repoDir, "init", "-b", "main")
+	gittest.Run(t, repoDir, "init", "-b", "main")
 	require.NoError(t, os.WriteFile(filepath.Join(repoDir, "a.txt"), []byte("v1\n"), 0o644))
-	runGit(t, repoDir, "add", "a.txt")
-	runGit(t, repoDir, "commit", "-m", "initial")
+	gittest.Run(t, repoDir, "add", "a.txt")
+	gittest.Run(t, repoDir, "commit", "-m", "initial")
 	require.NoError(t, os.WriteFile(filepath.Join(repoDir, "a.txt"), []byte("v2\n"), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(repoDir, "new.txt"), []byte("n\n"), 0o644))
 	require.True(t, IsDirty(repoDir))
@@ -238,7 +214,7 @@ func TestStash(t *testing.T) {
 	assert.Regexp(t, `^[0-9a-f]{40}([0-9a-f]{24})?$`, ref, "the full commit: an abbreviated one made of digits is read as an index")
 	assert.False(t, IsDirty(repoDir), "untracked files are stashed too")
 
-	runGit(t, repoDir, "stash", "apply", ref)
+	gittest.Run(t, repoDir, "stash", "apply", ref)
 	got, err := os.ReadFile(filepath.Join(repoDir, "a.txt"))
 	require.NoError(t, err)
 	assert.Equal(t, "v2\n", string(got))
@@ -250,23 +226,18 @@ func TestStash(t *testing.T) {
 func TestStartRef(t *testing.T) {
 	repoDir := t.TempDir()
 	assert.Empty(t, StartRef(repoDir), "outside git")
-	runGit(t, repoDir, "init", "-b", "main")
+	gittest.Run(t, repoDir, "init", "-b", "main")
 	assert.Empty(t, StartRef(repoDir), "no commit")
 	require.NoError(t, os.WriteFile(filepath.Join(repoDir, "a.txt"), []byte("v1\n"), 0o644))
-	runGit(t, repoDir, "add", "a.txt")
-	runGit(t, repoDir, "commit", "-m", "initial")
-	head, err := exec.Command("git", "-C", repoDir, "rev-parse", "HEAD").Output()
-	require.NoError(t, err)
-	assert.Equal(t, strings.TrimSpace(string(head)), StartRef(repoDir))
+	gittest.Run(t, repoDir, "add", "a.txt")
+	gittest.Run(t, repoDir, "commit", "-m", "initial")
+	head := gittest.Run(t, repoDir, "rev-parse", "HEAD")
+	assert.Equal(t, head, StartRef(repoDir))
 
 	require.NoError(t, os.WriteFile(filepath.Join(repoDir, "a.txt"), []byte("v2\n"), 0o644))
 	ref := StartRef(repoDir)
-	assert.NotEqual(t, strings.TrimSpace(string(head)), ref)
-	show, err := exec.Command("git", "-C", repoDir, "show", ref+":a.txt").Output()
-	require.NoError(t, err)
-	assert.Equal(t, "v2\n", string(show))
+	assert.NotEqual(t, head, ref)
+	assert.Equal(t, "v2", gittest.Run(t, repoDir, "show", ref+":a.txt"))
 	assert.True(t, IsDirty(repoDir), "the change stays in the tree")
-	out, err := exec.Command("git", "-C", repoDir, "stash", "list").Output()
-	require.NoError(t, err)
-	assert.Empty(t, strings.TrimSpace(string(out)), "nothing stashed")
+	assert.Empty(t, gittest.Run(t, repoDir, "stash", "list"), "nothing stashed")
 }

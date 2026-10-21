@@ -85,22 +85,31 @@ func TestParse_ErrorsCarryLineAndColumn(t *testing.T) {
 	}
 }
 
-func TestParse_CollectsEveryError(t *testing.T) {
-	_, diags := parseString(t, header+"foo: 1\nagents:\n  dev: { role: workflow, bar: 2 }\ndescription: [x]\n")
-	got := diags.Codes()
-	want := []string{"unknown_field", "unknown_field", "expected_text"}
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("codes = %v, want %v", got, want)
+func TestParse_Diagnostics(t *testing.T) {
+	cases := []struct {
+		name, doc string
+		wantCodes []string
+		check     func(t *testing.T, diags Diagnostics)
+	}{
+		{"every error is collected", header + "foo: 1\nagents:\n  dev: { role: workflow, bar: 2 }\ndescription: [x]\n",
+			[]string{"unknown_field", "unknown_field", "expected_text"}, nil},
+		{"the header is checked", "apiVersion: oh/v2\nkind: Flow\n",
+			[]string{"field_required", "api_version", "kind"}, func(t *testing.T, diags Diagnostics) {
+				if diags[1].Pos != (Pos{1, 1}) || diags[0].Path != "id" {
+					t.Fatalf("diags = %+v", diags)
+				}
+			}},
 	}
-}
-
-func TestParse_Header(t *testing.T) {
-	_, diags := parseString(t, "apiVersion: oh/v2\nkind: Flow\n")
-	if got := diags.Codes(); !reflect.DeepEqual(got, []string{"field_required", "api_version", "kind"}) {
-		t.Fatalf("codes = %v", got)
-	}
-	if diags[1].Pos != (Pos{1, 1}) || diags[0].Path != "id" {
-		t.Fatalf("diags = %+v", diags)
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			_, diags := parseString(t, c.doc)
+			if got := diags.Codes(); !reflect.DeepEqual(got, c.wantCodes) {
+				t.Fatalf("codes = %v, want %v", got, c.wantCodes)
+			}
+			if c.check != nil {
+				c.check(t, diags)
+			}
+		})
 	}
 }
 

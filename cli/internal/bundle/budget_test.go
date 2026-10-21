@@ -16,6 +16,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/bricks"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
+	"github.com/datichb/openhub/cli/internal/testutil/golden"
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
@@ -145,7 +146,7 @@ func TestBudgetBaseline(t *testing.T) {
 	}
 
 	name := filepath.Join("testdata", "budget.golden")
-	if !*updateGolden {
+	if !golden.Updating() {
 		pinned := readBudgetGolden(t, name)
 		for _, l := range lines {
 			if was, ok := pinned[l.key()]; ok && float64(l.prompt) > float64(was)*(1+budgetGrowth) {
@@ -154,7 +155,7 @@ func TestBudgetBaseline(t *testing.T) {
 			}
 		}
 	}
-	assertGoldenFile(t, name, out.String())
+	golden.Assert(t, "budget", out.String())
 }
 
 // instructProject copies testdata/instructions-project: about 4 000 tokens

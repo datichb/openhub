@@ -25,6 +25,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/credproxy"
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/testenv"
 )
@@ -82,7 +83,7 @@ func startE2EWith(t *testing.T, b sessionspec.BundleSpec, disablePlugin bool, pr
 	a.PluginTrace = filepath.Join(root, "trace.jsonl")
 	project := filepath.Join(root, "proj")
 	require.NoError(t, os.MkdirAll(project, 0o755))
-	require.NoError(t, exec.Command("git", "init", "-q", project).Run())
+	gittest.Run(t, project, "init", "-q")
 
 	m := sessionspec.ParseModelRef(e2eModel)
 	b.DefaultModel = &m

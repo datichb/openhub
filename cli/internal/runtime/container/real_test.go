@@ -7,7 +7,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -15,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/datichb/openhub/cli/internal/adapters/opencodev2"
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 	ohruntime "github.com/datichb/openhub/cli/internal/runtime"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
@@ -126,15 +126,6 @@ func homeTemp(t *testing.T) string {
 	return clean(dir)
 }
 
-func gitRun(t *testing.T, dir string, args ...string) {
-	t.Helper()
-	cmd := exec.Command("git", args...)
-	cmd.Dir = dir
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("git %v: %v\n%s", args, err, out)
-	}
-}
-
 // TestRealMountsAndNetwork checks, in a real container: worktree and git
 // metadata, file ownership on the machine, read-only bundle, no secret in the
 // environment, machine loopback reachable through the host address.
@@ -158,9 +149,9 @@ func TestRealMountsAndNetwork(t *testing.T) {
 			if err := os.WriteFile(filepath.Join(project, "Dockerfile.dev"), []byte("FROM debian:bookworm-slim\nRUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates && rm -rf /var/lib/apt/lists/*\n"), 0o644); err != nil {
 				t.Fatal(err)
 			}
-			gitRun(t, project, "init", "-q", "-b", "main")
-			gitRun(t, project, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "--allow-empty", "-m", "init")
-			gitRun(t, project, "worktree", "add", "-q", "-b", "feat", worktree)
+			gittest.Run(t, project, "init", "-q", "-b", "main")
+			gittest.Run(t, project, "commit", "-q", "--allow-empty", "-m", "init")
+			gittest.Run(t, project, "worktree", "add", "-q", "-b", "feat", worktree)
 			_ = os.WriteFile(filepath.Join(bundle, "agent.md"), []byte("x"), 0o644)
 
 			l, err := net.Listen("tcp", "127.0.0.1:0")

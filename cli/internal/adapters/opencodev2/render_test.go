@@ -2,7 +2,6 @@ package opencodev2
 
 import (
 	"encoding/json"
-	"flag"
 	"os"
 	"path/filepath"
 	"testing"
@@ -12,9 +11,8 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
+	"github.com/datichb/openhub/cli/internal/testutil/golden"
 )
-
-var update = flag.Bool("update", false, "update golden files")
 
 func sampleBundle() sessionspec.BundleSpec {
 	sonnet := sessionspec.ParseModelRef("amazon-bedrock/eu.anthropic.claude-sonnet-4-6")
@@ -59,22 +57,10 @@ func sampleProvider() sessionspec.ProviderSpec {
 	return sessionspec.ProviderSpec{ID: "amazon-bedrock", Region: "eu-west-1", BaseURL: "http://127.0.0.1:47000/bedrock", SessionToken: "tok"}
 }
 
-func goldenCompare(t *testing.T, name string, got []byte) {
-	t.Helper()
-	path := filepath.Join("testdata", "golden", name)
-	if *update {
-		require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
-		require.NoError(t, os.WriteFile(path, got, 0o644))
-	}
-	want, err := os.ReadFile(path)
-	require.NoError(t, err, "missing golden file (run with -update)")
-	assert.JSONEq(t, string(want), string(got))
-}
-
 func TestRenderGoldenWithoutPlugin(t *testing.T) {
 	rc, err := Render(sampleBundle(), sampleProvider(), DefaultNatives)
 	require.NoError(t, err)
-	goldenCompare(t, "bundle-system.json", rc.Files[ConfigFileName])
+	golden.Assert(t, "golden/bundle-system.json", rc.Files[ConfigFileName])
 	assert.Equal(t, "tok", rc.Env["AWS_BEARER_TOKEN_BEDROCK"])
 	assert.JSONEq(t, string(rc.Files[ConfigFileName]), rc.Env["OPENCODE_CONFIG_CONTENT"])
 }
@@ -85,7 +71,7 @@ func TestRenderGoldenWithPluginAndCodeMode(t *testing.T) {
 	b.CodeMode = true
 	rc, err := Render(b, sampleProvider(), []string{"build", "plan", "general", "explore", "my-global-agent", "title"})
 	require.NoError(t, err)
-	goldenCompare(t, "bundle-plugin.json", rc.Files[ConfigFileName])
+	golden.Assert(t, "golden/bundle-plugin.json", rc.Files[ConfigFileName])
 }
 
 // P1-T15: plugins declared by the workflow (npm specs, with or without
@@ -99,7 +85,7 @@ func TestRenderGoldenWorkflowPlugins(t *testing.T) {
 	}
 	rc, err := Render(b, sampleProvider(), DefaultNatives)
 	require.NoError(t, err)
-	goldenCompare(t, "bundle-workflow-plugins.json", rc.Files[ConfigFileName])
+	golden.Assert(t, "golden/bundle-workflow-plugins.json", rc.Files[ConfigFileName])
 }
 
 func TestRenderSemantics(t *testing.T) {

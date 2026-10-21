@@ -58,8 +58,10 @@ func TestAssert(t *testing.T) {
 	r = check("../escape", "x")
 	require.Len(t, r.errors, 1, "a name outside testdata is refused")
 
+	assert.False(t, Updating(), "a normal run does not update")
 	*update = true
 	t.Cleanup(func() { *update = false })
+	assert.True(t, Updating(), "the flag -update is reported")
 	assert.Empty(t, check("page", "rewritten\n").errors, "update: no failure")
 	assert.Empty(t, check("new/deep", []byte("created")).errors, "update: no failure for a new file")
 	*update = false

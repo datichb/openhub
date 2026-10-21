@@ -28,6 +28,11 @@ import (
 
 var update = flag.Bool("update", false, "rewrite the golden files with the output of the tests")
 
+// Updating reports whether the run rewrites the golden files (-update). A test
+// that keeps its golden files in step with something else (it removes the
+// files of what no longer exists) acts on it.
+func Updating() bool { return *update }
+
 // Assert compares got with testdata/<name>.golden. The name may contain
 // folders (testdata/<dir>/<name>.golden). A difference, or a missing file,
 // fails the test (without stopping it) with the diff and the command that

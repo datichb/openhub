@@ -3,11 +3,14 @@ package beads
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 )
 
 func TestIsReadyStatus(t *testing.T) {
@@ -159,81 +162,64 @@ func TestRunBdJSONParsing(t *testing.T) {
 }
 
 func TestAvailable(t *testing.T) {
-	// This test checks that Available() doesn't panic
-	// It may pass or fail depending on whether bd is installed
-	err := Available()
-	if err != nil {
-		assert.Contains(t, err.Error(), "bd not found")
-		assert.Contains(t, err.Error(), "brew install")
+	if runtime.GOOS == "windows" {
+		t.Skip("bd is looked up as bd.exe")
 	}
+	dir := t.TempDir()
+	t.Setenv("PATH", dir)
+	err := Available()
+	require.Error(t, err, "no bd in PATH")
+	assert.Contains(t, err.Error(), "bd not found")
+	assert.Contains(t, err.Error(), "brew install")
+
+	writeFile(t, filepath.Join(dir, "bd"), "#!/bin/sh\n")
+	require.NoError(t, os.Chmod(filepath.Join(dir, "bd"), 0o755))
+	assert.NoError(t, Available(), "bd in PATH")
 }
 
 // ---------------------------------------------------------------------------
 // EnsureInitFlags
 // ---------------------------------------------------------------------------
 
-func TestEnsureInitFlags_AddsAllMissing(t *testing.T) {
-	args := []string{"init", "--prefix", "myapp"}
-	result := EnsureInitFlags(args)
-
-	assert.Contains(t, result, "--skip-hooks")
-	assert.Contains(t, result, "--skip-agents")
-	assert.Contains(t, result, "--setup-exclude")
-	// Original args are preserved
-	assert.Equal(t, "init", result[0])
-	assert.Equal(t, "--prefix", result[1])
-	assert.Equal(t, "myapp", result[2])
-}
-
-func TestEnsureInitFlags_NoDoubles(t *testing.T) {
-	args := []string{"init", "--skip-hooks", "--skip-agents", "--setup-exclude"}
-	result := EnsureInitFlags(args)
-
-	assert.Equal(t, args, result)
-}
-
-func TestEnsureInitFlags_PartialPresent(t *testing.T) {
-	args := []string{"init", "--skip-hooks", "--prefix", "x"}
-	result := EnsureInitFlags(args)
-
-	assert.Contains(t, result, "--skip-hooks")
-	assert.Contains(t, result, "--skip-agents")
-	assert.Contains(t, result, "--setup-exclude")
-	// --skip-hooks should appear exactly once
-	count := 0
-	for _, a := range result {
-		if a == "--skip-hooks" {
-			count++
-		}
+func TestEnsureInitFlags(t *testing.T) {
+	tests := []struct {
+		name      string
+		args      []string
+		wantAdded []string
+	}{
+		{"adds every missing flag after the original arguments", []string{"init", "--prefix", "myapp"}, []string{"--skip-hooks", "--skip-agents", "--setup-exclude"}},
+		{"adds only the flags that are missing", []string{"init", "--skip-hooks", "--prefix", "x"}, []string{"--skip-agents", "--setup-exclude"}},
+		{"no doubles when every flag is there", []string{"init", "--skip-hooks", "--skip-agents", "--setup-exclude"}, nil},
+		{"--stealth short-circuits: no flag added", []string{"init", "--stealth"}, nil},
 	}
-	assert.Equal(t, 1, count, "--skip-hooks should not be duplicated")
-}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			original := append([]string(nil), tc.args...)
 
-func TestEnsureInitFlags_StealthShortCircuit(t *testing.T) {
-	args := []string{"init", "--stealth"}
-	result := EnsureInitFlags(args)
+			result := EnsureInitFlags(tc.args)
 
-	// When --stealth is present, no flags should be added
-	assert.Equal(t, args, result)
-	assert.NotContains(t, result, "--skip-hooks")
-}
-
-func TestEnsureInitFlags_DoesNotMutateInput(t *testing.T) {
-	args := []string{"init", "--prefix", "x"}
-	original := make([]string, len(args))
-	copy(original, args)
-
-	_ = EnsureInitFlags(args)
-
-	assert.Equal(t, original, args, "input slice must not be mutated")
+			require.Len(t, result, len(original)+len(tc.wantAdded), "original arguments plus the missing flags")
+			assert.Equal(t, original, result[:len(original)], "original arguments are preserved, in order")
+			assert.ElementsMatch(t, tc.wantAdded, result[len(original):], "flags added")
+			assert.Equal(t, original, tc.args, "input slice must not be mutated")
+		})
+	}
 }
 
 // ---------------------------------------------------------------------------
 // removeBeadsSection
 // ---------------------------------------------------------------------------
 
-func TestRemoveBeadsSection_FullHook(t *testing.T) {
-	hook := `#!/usr/bin/env sh
+func TestRemoveBeadsSection(t *testing.T) {
+	tests := []struct {
+		name      string
+		hook      string
+		wantEmpty bool
+		wantKeeps []string
+	}{
+		{
+			name: "a hook that is only the beads section is empty afterwards",
+			hook: `#!/usr/bin/env sh
 # --- BEGIN BEADS INTEGRATION v1.2.2 ---
 # This section is managed by beads. Do not remove these markers.
 if command -v bd >/dev/null 2>&1; then
@@ -241,14 +227,12 @@ if command -v bd >/dev/null 2>&1; then
   bd hook post-checkout "$@"
 fi
 # --- END BEADS INTEGRATION v1.2.2 ---
-`
-	result := removeBeadsSection(hook)
-	assert.True(t, isEmptyHook(result), "hook should be empty after removing beads section")
-	assert.NotContains(t, result, "BEADS INTEGRATION")
-}
-
-func TestRemoveBeadsSection_MixedHook(t *testing.T) {
-	hook := `#!/usr/bin/env bash
+`,
+			wantEmpty: true,
+		},
+		{
+			name: "the project part of a mixed hook stays",
+			hook: `#!/usr/bin/env bash
 # My project's pre-commit hook
 set -euo pipefail
 
@@ -262,36 +246,46 @@ if command -v bd >/dev/null 2>&1; then
   bd hook pre-commit "$@"
 fi
 # --- END BEADS INTEGRATION v1.2.2 ---
-`
-	result := removeBeadsSection(hook)
-
-	assert.NotContains(t, result, "BEADS INTEGRATION")
-	assert.Contains(t, result, "golangci-lint run")
-	assert.Contains(t, result, "set -euo pipefail")
-	assert.False(t, isEmptyHook(result), "hook should still have content")
-}
-
-func TestRemoveBeadsSection_NoBeads(t *testing.T) {
-	hook := `#!/usr/bin/env bash
+`,
+			wantKeeps: []string{"golangci-lint run", "set -euo pipefail"},
+		},
+		{
+			name: "a hook without beads section is unchanged",
+			hook: `#!/usr/bin/env bash
 # Regular hook
 echo "running tests"
 go test ./...
-`
-	result := removeBeadsSection(hook)
-	assert.Equal(t, hook, result, "hook without beads section should be unchanged")
-}
-
-func TestRemoveBeadsSection_MultipleVersions(t *testing.T) {
-	hook := `#!/usr/bin/env sh
+`,
+			wantKeeps: []string{`#!/usr/bin/env bash
+# Regular hook
+echo "running tests"
+go test ./...
+`},
+		},
+		{
+			name: "several versions of the section all go",
+			hook: `#!/usr/bin/env sh
 # --- BEGIN BEADS INTEGRATION v1.0.0 ---
 old stuff
 # --- END BEADS INTEGRATION v1.0.0 ---
 # --- BEGIN BEADS INTEGRATION v1.2.2 ---
 new stuff
 # --- END BEADS INTEGRATION v1.2.2 ---
-`
-	result := removeBeadsSection(hook)
-	assert.True(t, isEmptyHook(result))
+`,
+			wantEmpty: true,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result := removeBeadsSection(tc.hook)
+
+			assert.NotContains(t, result, "BEADS INTEGRATION", "no beads marker left")
+			assert.Equal(t, tc.wantEmpty, isEmptyHook(result), "hook empty after removing the beads section")
+			for _, keep := range tc.wantKeeps {
+				assert.Contains(t, result, keep, "project content kept")
+			}
+		})
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -311,30 +305,33 @@ func TestIsEmptyHook(t *testing.T) {
 // sanitizeHooks (integration with temp git repo)
 // ---------------------------------------------------------------------------
 
-func TestSanitizeHooks_RemovesBeadsHook(t *testing.T) {
-	dir := setupTempGitDir(t)
-
-	hookContent := `#!/usr/bin/env sh
+func TestSanitizeHooks(t *testing.T) {
+	tests := []struct {
+		name          string
+		hook          string
+		content       string
+		wantCleaned   []string
+		wantDeleted   bool
+		wantKeeps     []string
+		wantUnchanged bool
+	}{
+		{
+			name: "a hook that was entirely beads is deleted",
+			hook: "post-checkout",
+			content: `#!/usr/bin/env sh
 # --- BEGIN BEADS INTEGRATION v1.2.2 ---
 if command -v bd >/dev/null 2>&1; then
   bd hook post-checkout "$@"
 fi
 # --- END BEADS INTEGRATION v1.2.2 ---
-`
-	writeHook(t, dir, "post-checkout", hookContent)
-
-	cleaned := sanitizeHooks(dir)
-	assert.Equal(t, []string{"post-checkout"}, cleaned)
-
-	// Hook file should be deleted (it was entirely beads)
-	_, err := os.Stat(filepath.Join(dir, ".git", "hooks", "post-checkout"))
-	assert.True(t, os.IsNotExist(err), "hook file should be deleted")
-}
-
-func TestSanitizeHooks_PreservesProjectHook(t *testing.T) {
-	dir := setupTempGitDir(t)
-
-	hookContent := `#!/usr/bin/env bash
+`,
+			wantCleaned: []string{"post-checkout"},
+			wantDeleted: true,
+		},
+		{
+			name: "the project part of a hook is preserved",
+			hook: "pre-commit",
+			content: `#!/usr/bin/env bash
 # Project linter
 golangci-lint run
 
@@ -343,157 +340,133 @@ if command -v bd >/dev/null 2>&1; then
   bd hook pre-commit "$@"
 fi
 # --- END BEADS INTEGRATION v1.2.2 ---
-`
-	writeHook(t, dir, "pre-commit", hookContent)
-
-	cleaned := sanitizeHooks(dir)
-	assert.Equal(t, []string{"pre-commit"}, cleaned)
-
-	// Hook file should still exist
-	content, err := os.ReadFile(filepath.Join(dir, ".git", "hooks", "pre-commit"))
-	require.NoError(t, err)
-	assert.Contains(t, string(content), "golangci-lint run")
-	assert.NotContains(t, string(content), "BEADS INTEGRATION")
-}
-
-func TestSanitizeHooks_SkipsNonBeadsHook(t *testing.T) {
-	dir := setupTempGitDir(t)
-
-	hookContent := `#!/usr/bin/env bash
+`,
+			wantCleaned: []string{"pre-commit"},
+			wantKeeps:   []string{"golangci-lint run"},
+		},
+		{
+			name: "a hook without beads section is not touched",
+			hook: "pre-push",
+			content: `#!/usr/bin/env bash
 # My custom hook
 echo "running"
-`
-	writeHook(t, dir, "pre-push", hookContent)
+`,
+			wantUnchanged: true,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := gittest.Repo(t)
+			writeHook(t, dir, tc.hook, tc.content)
 
-	cleaned := sanitizeHooks(dir)
-	assert.Empty(t, cleaned, "non-beads hook should not be touched")
+			cleaned := sanitizeHooks(dir)
 
-	// Content should be unchanged
-	content, err := os.ReadFile(filepath.Join(dir, ".git", "hooks", "pre-push"))
-	require.NoError(t, err)
-	assert.Equal(t, hookContent, string(content))
+			assert.Equal(t, tc.wantCleaned, cleaned, "hooks cleaned")
+			content, err := os.ReadFile(filepath.Join(dir, ".git", "hooks", tc.hook))
+			if tc.wantDeleted {
+				assert.True(t, os.IsNotExist(err), "hook file should be deleted")
+				return
+			}
+			require.NoError(t, err, "the hook file still exists")
+			if tc.wantUnchanged {
+				assert.Equal(t, tc.content, string(content), "content unchanged")
+				return
+			}
+			assert.NotContains(t, string(content), "BEADS INTEGRATION", "no beads marker left")
+			for _, keep := range tc.wantKeeps {
+				assert.Contains(t, string(content), keep, "project content kept")
+			}
+		})
+	}
 }
 
 // ---------------------------------------------------------------------------
 // sanitizeGitignore
 // ---------------------------------------------------------------------------
 
-func TestSanitizeGitignore_MovesToExclude(t *testing.T) {
-	dir := setupTempGitDir(t)
-
-	gitignoreContent := `node_modules/
-dist/
-.beads/
-.env
-`
-	writeFile(t, filepath.Join(dir, ".gitignore"), gitignoreContent)
-
-	moved, err := sanitizeGitignoreReport(dir)
-	require.NoError(t, err)
-	assert.Equal(t, []string{".beads/"}, moved)
-
-	// .gitignore should no longer contain .beads/
-	content, err := os.ReadFile(filepath.Join(dir, ".gitignore"))
-	require.NoError(t, err)
-	assert.NotContains(t, string(content), ".beads/")
-	assert.Contains(t, string(content), "node_modules/")
-	assert.Contains(t, string(content), ".env")
-
-	// .git/info/exclude should contain .beads/
-	exclude, err := os.ReadFile(filepath.Join(dir, ".git", "info", "exclude"))
-	require.NoError(t, err)
-	assert.Contains(t, string(exclude), ".beads/")
-}
-
-func TestSanitizeGitignore_NoDuplicatesInExclude(t *testing.T) {
-	dir := setupTempGitDir(t)
-
-	// Pre-populate exclude with .beads/
-	excludePath := filepath.Join(dir, ".git", "info", "exclude")
-	writeFile(t, excludePath, "# existing\n.beads/\n")
-
-	gitignoreContent := `.beads/
-`
-	writeFile(t, filepath.Join(dir, ".gitignore"), gitignoreContent)
-
-	_, err := sanitizeGitignoreReport(dir)
-	require.NoError(t, err)
-
-	// .beads/ should appear only once in exclude
-	exclude, err := os.ReadFile(excludePath)
-	require.NoError(t, err)
-	count := 0
-	for _, line := range splitLines(string(exclude)) {
-		if line == ".beads/" {
-			count++
-		}
+func TestSanitizeGitignore(t *testing.T) {
+	tests := []struct {
+		name         string
+		exclude      string
+		gitignore    string
+		wantMoved    []string
+		wantKept     []string
+		wantGone     []string
+		wantExcluded bool
+	}{
+		{
+			name:         "the beads entry moves to .git/info/exclude",
+			gitignore:    "node_modules/\ndist/\n.beads/\n.env\n",
+			wantMoved:    []string{".beads/"},
+			wantKept:     []string{"node_modules/", ".env"},
+			wantGone:     []string{".beads/"},
+			wantExcluded: true,
+		},
+		{
+			name:         "no duplicate when the exclude already has it",
+			exclude:      "# existing\n.beads/\n",
+			gitignore:    ".beads/\n",
+			wantMoved:    []string{".beads/"},
+			wantGone:     []string{".beads/"},
+			wantExcluded: true,
+		},
+		{
+			name:         "the other entries and comments stay",
+			gitignore:    "# Dependencies\nnode_modules/\n\n# Build\ndist/\nbuild/\n\n# Beads\n.beads/\n\n# Environment\n.env\n.env.local\n",
+			wantMoved:    []string{".beads/"},
+			wantKept:     []string{"node_modules/", "dist/", ".env", ".env.local"},
+			wantGone:     []string{".beads/"},
+			wantExcluded: true,
+		},
+		{
+			name:         "the comment of beads goes with its entry",
+			gitignore:    "node_modules/\n# beads\n.beads/\n.env\n",
+			wantMoved:    []string{".beads/"},
+			wantKept:     []string{"node_modules/", ".env"},
+			wantGone:     []string{"# beads", ".beads/"},
+			wantExcluded: true,
+		},
+		{
+			name:      "nothing to move without beads entries",
+			gitignore: "node_modules/\ndist/\n",
+			wantMoved: nil,
+			wantKept:  []string{"node_modules/", "dist/"},
+		},
 	}
-	assert.Equal(t, 1, count, ".beads/ should appear exactly once in exclude")
-}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := gittest.Repo(t)
+			excludePath := filepath.Join(dir, ".git", "info", "exclude")
+			if tc.exclude != "" {
+				writeFile(t, excludePath, tc.exclude)
+			}
+			writeFile(t, filepath.Join(dir, ".gitignore"), tc.gitignore)
 
-func TestSanitizeGitignore_PreservesOtherEntries(t *testing.T) {
-	dir := setupTempGitDir(t)
+			moved, err := sanitizeGitignoreReport(dir)
 
-	gitignoreContent := `# Dependencies
-node_modules/
-
-# Build
-dist/
-build/
-
-# Beads
-.beads/
-
-# Environment
-.env
-.env.local
-`
-	writeFile(t, filepath.Join(dir, ".gitignore"), gitignoreContent)
-
-	moved, err := sanitizeGitignoreReport(dir)
-	require.NoError(t, err)
-	assert.Equal(t, []string{".beads/"}, moved)
-
-	content, err := os.ReadFile(filepath.Join(dir, ".gitignore"))
-	require.NoError(t, err)
-	s := string(content)
-	assert.Contains(t, s, "node_modules/")
-	assert.Contains(t, s, "dist/")
-	assert.Contains(t, s, ".env")
-	assert.Contains(t, s, ".env.local")
-	assert.NotContains(t, s, ".beads/")
-}
-
-func TestSanitizeGitignore_RemovesBeadsComments(t *testing.T) {
-	dir := setupTempGitDir(t)
-
-	gitignoreContent := `node_modules/
-# beads
-.beads/
-.env
-`
-	writeFile(t, filepath.Join(dir, ".gitignore"), gitignoreContent)
-
-	_, err := sanitizeGitignoreReport(dir)
-	require.NoError(t, err)
-
-	content, err := os.ReadFile(filepath.Join(dir, ".gitignore"))
-	require.NoError(t, err)
-	assert.NotContains(t, string(content), "# beads")
-	assert.NotContains(t, string(content), ".beads/")
-}
-
-func TestSanitizeGitignore_NoBeadsEntries(t *testing.T) {
-	dir := setupTempGitDir(t)
-
-	gitignoreContent := `node_modules/
-dist/
-`
-	writeFile(t, filepath.Join(dir, ".gitignore"), gitignoreContent)
-
-	moved, err := sanitizeGitignoreReport(dir)
-	require.NoError(t, err)
-	assert.Nil(t, moved, "no patterns should be moved when no beads entries exist")
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantMoved, moved, "patterns moved")
+			content, err := os.ReadFile(filepath.Join(dir, ".gitignore"))
+			require.NoError(t, err)
+			for _, keep := range tc.wantKept {
+				assert.Contains(t, string(content), keep, ".gitignore keeps its other entries")
+			}
+			for _, gone := range tc.wantGone {
+				assert.NotContains(t, string(content), gone, ".gitignore no longer has it")
+			}
+			if tc.wantExcluded {
+				exclude, err := os.ReadFile(excludePath)
+				require.NoError(t, err)
+				once := 0
+				for _, line := range splitLines(string(exclude)) {
+					if line == ".beads/" {
+						once++
+					}
+				}
+				assert.Equal(t, 1, once, ".beads/ should appear exactly once in exclude")
+			}
+		})
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -501,7 +474,7 @@ dist/
 // ---------------------------------------------------------------------------
 
 func TestSanitizeBeadsInit_FullScenario(t *testing.T) {
-	dir := setupTempGitDir(t)
+	dir := gittest.Repo(t)
 
 	hookContent := `#!/usr/bin/env sh
 # --- BEGIN BEADS INTEGRATION v1.2.2 ---
@@ -527,7 +500,7 @@ fi
 }
 
 func TestSanitizeBeadsInit_KeepsUserAgentsFile(t *testing.T) {
-	dir := setupTempGitDir(t)
+	dir := gittest.Repo(t)
 	// A file of the user that mentions bd, without block managed by bd.
 	agents := "# AGENTS.md\nThis project uses bd (beads): run bd ready, then bd show <id>.\n"
 	writeFile(t, filepath.Join(dir, "AGENTS.md"), agents)
@@ -542,7 +515,7 @@ func TestSanitizeBeadsInit_KeepsUserAgentsFile(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestDiagnoseBeadsImpact_DetectsIssues(t *testing.T) {
-	dir := setupTempGitDir(t)
+	dir := gittest.Repo(t)
 
 	// Create .beads/ so IsInitialized returns true
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".beads"), 0o755))
@@ -573,7 +546,7 @@ bd hook post-checkout
 
 // Q31: a project excluding .beads/ but not the lock bd 1.3 leaves beside it.
 func TestDiagnoseBeadsImpact_GateLockMissing(t *testing.T) {
-	dir := setupTempGitDir(t)
+	dir := gittest.Repo(t)
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".beads"), 0o755))
 	writeFile(t, filepath.Join(dir, ".git", "info", "exclude"), ".beads/\n")
 
@@ -584,7 +557,7 @@ func TestDiagnoseBeadsImpact_GateLockMissing(t *testing.T) {
 }
 
 func TestDiagnoseBeadsImpact_CleanProject(t *testing.T) {
-	dir := setupTempGitDir(t)
+	dir := gittest.Repo(t)
 
 	// Create .beads/ so IsInitialized returns true
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".beads"), 0o755))
@@ -598,7 +571,7 @@ func TestDiagnoseBeadsImpact_CleanProject(t *testing.T) {
 }
 
 func TestDiagnoseBeadsImpact_SkipsUninitializedProject(t *testing.T) {
-	dir := setupTempGitDir(t)
+	dir := gittest.Repo(t)
 	// No .beads/ directory
 
 	issues := DiagnoseBeadsImpact(dir)
@@ -634,15 +607,6 @@ func TestIsBeadsGitignoreLine(t *testing.T) {
 // ---------------------------------------------------------------------------
 // Test helpers
 // ---------------------------------------------------------------------------
-
-// setupTempGitDir creates a temporary directory with a .git/hooks and .git/info structure.
-func setupTempGitDir(t *testing.T) string {
-	t.Helper()
-	dir := t.TempDir()
-	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".git", "hooks"), 0o755))
-	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".git", "info"), 0o755))
-	return dir
-}
 
 // writeHook creates a hook file in the .git/hooks directory.
 func writeHook(t *testing.T, dir, name, content string) {
