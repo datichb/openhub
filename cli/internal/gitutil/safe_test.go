@@ -12,15 +12,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-)
 
-func gitIn(t *testing.T, dir string, args ...string) {
-	t.Helper()
-	cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
-	cmd.Env = append(os.Environ(), "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@t", "GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@t")
-	out, err := cmd.CombinedOutput()
-	require.NoError(t, err, string(out))
-}
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
+)
 
 // trappedRepo returns a repository whose configuration and hooks try to run
 // programs (each one creates a file under marks), with an origin remote.
@@ -30,19 +24,19 @@ func trappedRepo(t *testing.T) (repo, marks string) {
 	marks = filepath.Join(root, "marks")
 	require.NoError(t, os.MkdirAll(marks, 0o755))
 	origin := filepath.Join(root, "origin")
-	gitIn(t, root, "init", "-q", origin)
+	gittest.Run(t, root, "init", "-q", origin)
 	require.NoError(t, os.WriteFile(filepath.Join(origin, "a.txt"), []byte("a\n"), 0o644))
-	gitIn(t, origin, "add", ".")
-	gitIn(t, origin, "commit", "-qm", "init")
+	gittest.Run(t, origin, "add", ".")
+	gittest.Run(t, origin, "commit", "-qm", "init")
 	repo = filepath.Join(root, "repo")
-	gitIn(t, root, "clone", "-q", origin, repo)
+	gittest.Run(t, root, "clone", "-q", origin, repo)
 	mark := func(name string) string { return "touch " + filepath.Join(marks, name) }
-	gitIn(t, repo, "config", "core.fsmonitor", mark("fsmonitor"))
-	gitIn(t, repo, "config", "diff.external", mark("external"))
-	gitIn(t, repo, "config", "remote.origin.uploadpack", mark("uploadpack")+"; git-upload-pack")
-	gitIn(t, repo, "config", "core.sshCommand", mark("ssh"))
-	gitIn(t, repo, "config", "credential.helper", "!"+mark("credential"))
-	gitIn(t, repo, "config", "diff.trap.textconv", mark("textconv"))
+	gittest.Run(t, repo, "config", "core.fsmonitor", mark("fsmonitor"))
+	gittest.Run(t, repo, "config", "diff.external", mark("external"))
+	gittest.Run(t, repo, "config", "remote.origin.uploadpack", mark("uploadpack")+"; git-upload-pack")
+	gittest.Run(t, repo, "config", "core.sshCommand", mark("ssh"))
+	gittest.Run(t, repo, "config", "credential.helper", "!"+mark("credential"))
+	gittest.Run(t, repo, "config", "diff.trap.textconv", mark("textconv"))
 	require.NoError(t, os.WriteFile(filepath.Join(repo, ".gitattributes"), []byte("*.txt diff=trap\n"), 0o644))
 	for _, h := range []string{"post-checkout", "pre-commit", "reference-transaction", "post-index-change"} {
 		require.NoError(t, os.WriteFile(filepath.Join(repo, ".git", "hooks", h), []byte("#!/bin/sh\n"+mark("hook-"+h)+"\n"), 0o755))
@@ -123,12 +117,12 @@ func TestCheckDetectsTamperedConfig(t *testing.T) {
 	ctx := context.Background()
 	root := t.TempDir()
 	repo := filepath.Join(root, "repo")
-	gitIn(t, root, "init", "-q", repo)
+	gittest.Run(t, root, "init", "-q", repo)
 	require.NoError(t, Check(ctx, repo), "nothing recorded: no check")
 	require.NoError(t, Trust(ctx, repo))
 	require.NoError(t, Check(ctx, repo))
 
-	gitIn(t, repo, "config", "core.fsmonitor", "touch /tmp/x")
+	gittest.Run(t, repo, "config", "core.fsmonitor", "touch /tmp/x")
 	err := Check(ctx, repo)
 	assert.True(t, errors.Is(err, ErrConfigChanged), "config changed")
 	var changed *ConfigChangedError
@@ -153,10 +147,10 @@ func TestCheckDetectsTamperedConfig(t *testing.T) {
 	// A worktree: its pointer file is covered.
 	require.NoError(t, Trust(ctx, repo))
 	require.NoError(t, os.WriteFile(filepath.Join(repo, "a"), []byte("a"), 0o644))
-	gitIn(t, repo, "add", ".")
-	gitIn(t, repo, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "a")
+	gittest.Run(t, repo, "add", ".")
+	gittest.Run(t, repo, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "a")
 	wt := filepath.Join(root, "wt")
-	gitIn(t, repo, "worktree", "add", "-q", wt, "-b", "wt")
+	gittest.Run(t, repo, "worktree", "add", "-q", wt, "-b", "wt")
 	require.NoError(t, Trust(ctx, wt))
 	require.NoError(t, os.WriteFile(filepath.Join(wt, ".git"), []byte("gitdir: "+filepath.Join(repo, ".git")+"\n"), 0o644))
 	assert.Error(t, Check(ctx, wt), "pointer file redirected")
@@ -171,16 +165,16 @@ func TestTrustPerWorktree(t *testing.T) {
 	ctx := context.Background()
 	root := t.TempDir()
 	repo := filepath.Join(root, "repo")
-	gitIn(t, root, "init", "-q", repo)
-	gitIn(t, repo, "-c", "user.name=t", "-c", "user.email=t@x", "commit", "-q", "--allow-empty", "-m", "init")
+	gittest.Run(t, root, "init", "-q", repo)
+	gittest.Run(t, repo, "-c", "user.name=t", "-c", "user.email=t@x", "commit", "-q", "--allow-empty", "-m", "init")
 	wt := filepath.Join(root, "wt")
-	gitIn(t, repo, "worktree", "add", "-q", "-b", "child", wt)
+	gittest.Run(t, repo, "worktree", "add", "-q", "-b", "child", wt)
 	require.NoError(t, Trust(ctx, repo))
 	require.NoError(t, Trust(ctx, wt))
 	require.NoError(t, Check(ctx, repo), "the record of the worktree does not replace the one of the main worktree")
 	require.NoError(t, Check(ctx, wt))
 
-	gitIn(t, repo, "config", "core.fsmonitor", "touch /tmp/x")
+	gittest.Run(t, repo, "config", "core.fsmonitor", "touch /tmp/x")
 	assert.ErrorIs(t, Check(ctx, repo), ErrConfigChanged)
 	assert.ErrorIs(t, Check(ctx, wt), ErrConfigChanged, "the shared configuration is checked from every worktree")
 }

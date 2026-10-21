@@ -3,10 +3,8 @@ package gc
 import (
 	"context"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
-	"strings"
 	"testing"
 	"time"
 
@@ -16,6 +14,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/filelock"
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 )
 
 type fakeStore struct {
@@ -262,17 +261,6 @@ func TestOrphansAreStopped(t *testing.T) {
 
 // --- worktrees, on real repositories ---
 
-func git(t *testing.T, dir string, args ...string) string {
-	t.Helper()
-	c := exec.Command("git", args...)
-	c.Dir = dir
-	c.Env = append(os.Environ(), "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@t", "GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@t",
-		"GIT_CONFIG_COUNT=1", "GIT_CONFIG_KEY_0=maintenance.auto", "GIT_CONFIG_VALUE_0=false")
-	out, err := c.CombinedOutput()
-	require.NoError(t, err, "git %v: %s", args, out)
-	return strings.TrimSpace(string(out))
-}
-
 // N16: a worktree goes only when oh created it, nobody uses it, it is clean,
 // unlocked and pushed; its branch only when merged.
 func TestWorktrees(t *testing.T) {
@@ -280,12 +268,7 @@ func TestWorktrees(t *testing.T) {
 		t.Skip("git")
 	}
 	f := newFixture(t)
-	bare := t.TempDir()
-	git(t, bare, "init", "-q", "--bare", "-b", "main")
-	repo := filepath.Join(t.TempDir(), "proj")
-	git(t, filepath.Dir(repo), "clone", "-q", bare, repo)
-	git(t, repo, "commit", "-q", "--allow-empty", "-m", "init")
-	git(t, repo, "push", "-q", "origin", "HEAD:main")
+	_, repo := gittest.BareClone(t)
 	f.env.ProjectPath = func(context.Context, string) string { return repo }
 	f.env.BaseBranch = func(string) string { return "main" }
 
@@ -293,7 +276,7 @@ func TestWorktrees(t *testing.T) {
 	wts := map[string]string{}
 	add := func(name string, auto bool, state domain.RunState) string {
 		p := filepath.Join(filepath.Dir(repo), "wt-"+name)
-		git(t, repo, "worktree", "add", "-q", "-b", "feat/"+name, p)
+		gittest.Run(t, repo, "worktree", "add", "-q", "-b", "feat/"+name, p)
 		wts[name] = p
 		f.store.sessions = append(f.store.sessions, domain.Session{ID: "s-" + name, ProjectID: "p", State: state, EndedAt: &oldEnd,
 			LaunchPath: p, WorktreeAuto: auto, WorktreeBranch: "feat/" + name})
@@ -301,17 +284,17 @@ func TestWorktrees(t *testing.T) {
 	}
 	add("clean", true, domain.RunStopped) // no own commit: removed, branch (fresh) kept
 	merged := add("merged", true, domain.RunStopped)
-	git(t, merged, "commit", "-q", "--allow-empty", "-m", "work")
-	git(t, repo, "merge", "-q", "--no-ff", "-m", "merge", "feat/merged")
+	gittest.Run(t, merged, "commit", "-q", "--allow-empty", "-m", "work")
+	gittest.Run(t, repo, "merge", "-q", "--no-ff", "-m", "merge", "feat/merged")
 	pushed := add("pushed", true, domain.RunStopped)
-	git(t, pushed, "commit", "-q", "--allow-empty", "-m", "pushed work")
-	git(t, pushed, "push", "-q", "origin", "feat/pushed")
+	gittest.Run(t, pushed, "commit", "-q", "--allow-empty", "-m", "pushed work")
+	gittest.Run(t, pushed, "push", "-q", "origin", "feat/pushed")
 	dirty := add("dirty", true, domain.RunStopped)
 	require.NoError(t, os.WriteFile(filepath.Join(dirty, "x.txt"), []byte("x"), 0o644)) // untracked
 	unpushed := add("unpushed", true, domain.RunStopped)
-	git(t, unpushed, "commit", "-q", "--allow-empty", "-m", "local only")
+	gittest.Run(t, unpushed, "commit", "-q", "--allow-empty", "-m", "local only")
 	add("locked", true, domain.RunStopped)
-	git(t, repo, "worktree", "lock", wts["locked"])
+	gittest.Run(t, repo, "worktree", "lock", wts["locked"])
 	add("used", true, domain.RunCompleted)
 	add("manual", false, domain.RunStopped)
 
@@ -333,7 +316,7 @@ func TestWorktrees(t *testing.T) {
 	for _, kept := range []string{"dirty", "unpushed", "locked", "used", "manual"} {
 		assert.DirExists(t, wts[kept], kept)
 	}
-	branches := git(t, repo, "branch", "--format=%(refname:short)")
+	branches := gittest.Run(t, repo, "branch", "--format=%(refname:short)")
 	assert.NotContains(t, branches, "feat/merged", "merged branch deleted")
 	assert.Contains(t, branches, "feat/clean", "a fresh branch is not merged: kept")
 	assert.Contains(t, branches, "feat/pushed", "pushed but not merged: kept")

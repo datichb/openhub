@@ -5,13 +5,14 @@ package gitutil
 import (
 	"context"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 )
 
 // agentUID is the account of the agents in the root tests (nobody).
@@ -33,11 +34,7 @@ func agentRepo(t *testing.T) (repo, marker string, o Owner) {
 	}
 	require.NoError(t, os.Chmod(shared, 0o777))
 	marker = filepath.Join(shared, "ran-as")
-	git := func(args ...string) {
-		cmd := exec.Command("git", append([]string{"-C", repo, "-c", "user.name=t", "-c", "user.email=t@t"}, args...)...)
-		out, err := cmd.CombinedOutput()
-		require.NoError(t, err, string(out))
-	}
+	git := func(args ...string) { gittest.Run(t, repo, args...) }
 	git("init", "-q")
 	require.NoError(t, os.WriteFile(filepath.Join(repo, "a.txt"), []byte("one\n"), 0o644))
 	git("add", "a.txt")
