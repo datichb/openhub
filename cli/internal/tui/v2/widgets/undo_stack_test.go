@@ -2,149 +2,84 @@ package widgets
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestNewUndoStack_DefaultCapacity(t *testing.T) {
-	s := NewUndoStack[int](0)
-	if s.cap != 10 {
-		t.Errorf("expected default capacity 10, got %d", s.cap)
-	}
-}
-
-func TestUndoStack_PushAndPop(t *testing.T) {
-	s := NewUndoStack[string](5)
-
-	s.Push("a")
-	s.Push("b")
-	s.Push("c")
-
-	if s.Len() != 3 {
-		t.Fatalf("expected len 3, got %d", s.Len())
-	}
-
-	val, ok := s.Pop()
-	if !ok || val != "c" {
-		t.Errorf("expected (c, true), got (%s, %v)", val, ok)
-	}
-
-	val, ok = s.Pop()
-	if !ok || val != "b" {
-		t.Errorf("expected (b, true), got (%s, %v)", val, ok)
-	}
-
-	val, ok = s.Pop()
-	if !ok || val != "a" {
-		t.Errorf("expected (a, true), got (%s, %v)", val, ok)
-	}
-
-	_, ok = s.Pop()
-	if ok {
-		t.Error("expected Pop on empty stack to return false")
-	}
-}
-
-func TestUndoStack_CapacityEviction(t *testing.T) {
-	s := NewUndoStack[int](3)
-
-	s.Push(1)
-	s.Push(2)
-	s.Push(3)
-	s.Push(4) // should evict 1
-
-	if s.Len() != 3 {
-		t.Fatalf("expected len 3 after eviction, got %d", s.Len())
-	}
-
-	val, _ := s.Pop()
-	if val != 4 {
-		t.Errorf("expected 4, got %d", val)
-	}
-	val, _ = s.Pop()
-	if val != 3 {
-		t.Errorf("expected 3, got %d", val)
-	}
-	val, _ = s.Pop()
-	if val != 2 {
-		t.Errorf("expected 2, got %d", val)
-	}
-	_, ok := s.Pop()
-	if ok {
-		t.Error("expected empty after popping all items")
-	}
-}
-
-func TestUndoStack_Peek(t *testing.T) {
-	s := NewUndoStack[string](5)
-
-	_, ok := s.Peek()
-	if ok {
-		t.Error("Peek on empty stack should return false")
-	}
-
-	s.Push("x")
-	val, ok := s.Peek()
-	if !ok || val != "x" {
-		t.Errorf("expected (x, true), got (%s, %v)", val, ok)
-	}
-
-	// Peek should not remove
-	if s.Len() != 1 {
-		t.Errorf("Peek should not change length, got %d", s.Len())
-	}
-}
-
-func TestUndoStack_Clear(t *testing.T) {
-	s := NewUndoStack[int](5)
-	s.Push(1)
-	s.Push(2)
-	s.Clear()
-
-	if !s.IsEmpty() {
-		t.Error("expected stack to be empty after Clear")
-	}
-	if s.Len() != 0 {
-		t.Errorf("expected len 0 after Clear, got %d", s.Len())
-	}
-}
-
-func TestUndoStack_IsEmpty(t *testing.T) {
-	s := NewUndoStack[int](3)
-	if !s.IsEmpty() {
-		t.Error("new stack should be empty")
-	}
-	s.Push(42)
-	if s.IsEmpty() {
-		t.Error("stack with one item should not be empty")
-	}
-	s.Pop()
-	if !s.IsEmpty() {
-		t.Error("stack should be empty after popping all items")
-	}
-}
-
-// TestUndoStack_StructSnapshot verifies the stack works with struct values
-// (copy semantics), which is the primary use case for config state snapshots.
 type configSnapshot struct {
 	Language string
 	Enabled  bool
 	Count    int
 }
 
-func TestUndoStack_StructSnapshot(t *testing.T) {
-	s := NewUndoStack[configSnapshot](5)
+func TestUndoStack(t *testing.T) {
+	t.Run("push, peek and pop in LIFO order", func(t *testing.T) {
+		s := NewUndoStack[string](5)
+		assert.True(t, s.IsEmpty(), "new stack is empty")
+		_, ok := s.Peek()
+		assert.False(t, ok, "Peek on an empty stack")
+		_, ok = s.Pop()
+		assert.False(t, ok, "Pop on an empty stack")
 
-	original := configSnapshot{Language: "fr", Enabled: true, Count: 1}
-	s.Push(original)
+		s.Push("a")
+		s.Push("b")
+		s.Push("c")
+		require.Equal(t, 3, s.Len(), "length after three pushes")
+		assert.False(t, s.IsEmpty(), "stack with items is not empty")
 
-	// Mutate the original — should not affect the stack
-	original.Language = "en"
-	original.Count = 99
+		top, ok := s.Peek()
+		assert.True(t, ok, "Peek finds the top")
+		assert.Equal(t, "c", top, "Peek returns the last push")
+		assert.Equal(t, 3, s.Len(), "Peek does not remove")
 
-	restored, ok := s.Pop()
-	if !ok {
-		t.Fatal("expected Pop to succeed")
-	}
-	if restored.Language != "fr" || restored.Count != 1 {
-		t.Errorf("expected original snapshot, got %+v", restored)
-	}
+		for _, want := range []string{"c", "b", "a"} {
+			got, ok := s.Pop()
+			assert.True(t, ok, "Pop %q", want)
+			assert.Equal(t, want, got, "pop order")
+		}
+		assert.True(t, s.IsEmpty(), "empty after popping everything")
+	})
+
+	t.Run("capacity evicts the oldest", func(t *testing.T) {
+		s := NewUndoStack[int](3)
+		for i := 1; i <= 4; i++ {
+			s.Push(i)
+		}
+		require.Equal(t, 3, s.Len(), "length is capped")
+		for _, want := range []int{4, 3, 2} {
+			got, ok := s.Pop()
+			assert.True(t, ok, "Pop %d", want)
+			assert.Equal(t, want, got, "1 was evicted")
+		}
+		assert.True(t, s.IsEmpty(), "nothing left after the three entries")
+	})
+
+	t.Run("capacity 0 means 10", func(t *testing.T) {
+		s := NewUndoStack[int](0)
+		for i := 0; i < 12; i++ {
+			s.Push(i)
+		}
+		assert.Equal(t, 10, s.Len(), "default capacity")
+	})
+
+	t.Run("clear", func(t *testing.T) {
+		s := NewUndoStack[int](5)
+		s.Push(1)
+		s.Push(2)
+		s.Clear()
+		assert.True(t, s.IsEmpty(), "empty after Clear")
+		assert.Equal(t, 0, s.Len(), "length after Clear")
+	})
+
+	t.Run("struct values are copied", func(t *testing.T) {
+		s := NewUndoStack[configSnapshot](5)
+		original := configSnapshot{Language: "fr", Enabled: true, Count: 1}
+		s.Push(original)
+		original.Language, original.Count = "en", 99
+
+		restored, ok := s.Pop()
+		require.True(t, ok, "Pop succeeds")
+		assert.Equal(t, configSnapshot{Language: "fr", Enabled: true, Count: 1}, restored, "the snapshot is not affected by later changes")
+	})
 }
