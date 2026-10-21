@@ -304,7 +304,7 @@ func (v *LaunchFormView) headerText() string {
 	}
 	origin := ""
 	if v.cfg.Origin != "" {
-		origin = "   [" + theme.TextMutedHex + "]" + v.cfg.Origin + "[-]"
+		origin = "   [" + theme.TextMutedHex + "]" + tview.Escape(v.cfg.Origin) + "[-]"
 	}
 	desc := ""
 	if d := v.cfg.Spec.Description.Text(v.m.lang); d != "" {

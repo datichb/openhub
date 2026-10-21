@@ -117,6 +117,19 @@ func TestLaunchFormLibreGolden(t *testing.T) {
 	golden.Assert(t, "launch_form_libre", mountedText(t, v, 100, 22))
 }
 
+// The origin comes from the hub or the team: a bracket in it is text, not a
+// colour tag.
+func TestLaunchFormOriginIsEscaped(t *testing.T) {
+	frLocale(t)
+	v := NewLaunchFormView(LaunchFormConfig{WorkflowID: "libre", Origin: "équipe [red]v3", Spec: parseSpec(t, libreTestSpec), Lang: "fr",
+		EntryAgents: []string{"orchestrator"}})
+	v.SetShell(&recordingShell{})
+	v.Mount(tview.NewFlex(), tview.NewApplication())
+	t.Cleanup(v.Unmount)
+	header := stripTags(v.headerText())
+	assert.Contains(t, header, "équipe [red]v3", "the origin is shown as typed")
+}
+
 func TestLaunchFormEntryAgent(t *testing.T) {
 	cfg := LaunchFormConfig{WorkflowID: "libre", Spec: parseSpec(t, libreTestSpec), Lang: "fr",
 		EntryAgents: []string{"orchestrator", "debugger"}}
