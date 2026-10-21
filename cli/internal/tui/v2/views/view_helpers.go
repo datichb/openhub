@@ -2,7 +2,13 @@ package views
 
 import (
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
+
+// tagged colours s with a theme colour (hex), then resets the foreground.
+func tagged(hex, s string) string {
+	return theme.ColorTag(hex) + s + theme.TagColor
+}
 
 // errorText is the toast of a failed operation (« Erreur : … »).
 func errorText(err error) string {

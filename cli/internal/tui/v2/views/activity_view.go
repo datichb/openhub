@@ -180,31 +180,31 @@ func (v *ActivityView) filterLabel() string {
 func eventIcon(eventType string) string {
 	switch eventType {
 	case teamstate.EventClaimTaken:
-		return "[green]●[-]"
+		return tagged(theme.SuccessHex, "●")
 	case teamstate.EventClaimReleased:
-		return "[yellow]○[-]"
+		return tagged(theme.WarningHex, "○")
 	case teamstate.EventClaimTransferred:
-		return "[blue]◆[-]"
+		return tagged(theme.InfoHex, "◆")
 	case teamstate.EventReviewReady:
-		return "[purple]◆[-]"
+		return tagged(theme.ModeTeamHex, "◆")
 	case teamstate.EventSessionComplete:
-		return "[green]✓[-]"
+		return tagged(theme.SuccessHex, "✓")
 	case teamstate.EventAuditFinding:
-		return "[red]![-]"
+		return tagged(theme.ErrorHex, "!")
 	case teamstate.EventClaimConflict:
-		return "[red]✗[-]"
+		return tagged(theme.ErrorHex, "✗")
 	case teamstate.EventWikiProposal:
-		return "[blue]📝[-]"
+		return tagged(theme.InfoHex, "📝")
 	case teamstate.EventWikiAccepted:
-		return "[green]✓[-]"
+		return tagged(theme.SuccessHex, "✓")
 	case teamstate.EventWikiRejected:
-		return "[red]✗[-]"
+		return tagged(theme.ErrorHex, "✗")
 	case teamstate.EventWorkflowPublished, teamstate.EventWorkflowRestored:
-		return "[blue]◆[-]"
+		return tagged(theme.InfoHex, "◆")
 	case teamstate.EventWorkflowArchived:
-		return "[yellow]○[-]"
+		return tagged(theme.WarningHex, "○")
 	default:
-		return "[white]·[-]"
+		return tagged(theme.TextPrimaryHex, "·")
 	}
 }
 

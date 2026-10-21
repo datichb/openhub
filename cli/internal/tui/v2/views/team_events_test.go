@@ -32,5 +32,18 @@ func TestTeamEventPhrases(t *testing.T) {
 			assert.Equal(t, tc.want, formatEventDescription(parse(tc.event)), "event phrase")
 		})
 	}
-	assert.NotEqual(t, "[white]·[-]", eventIcon(teamstate.EventWorkflowPublished), "workflow events have their own icon")
+	assert.NotEqual(t, eventIcon("unknown.event"), eventIcon(teamstate.EventWorkflowPublished), "workflow events have their own icon")
+}
+
+// The icons are coloured with theme colours, never with tview colour names.
+func TestEventIconsUseThemeColors(t *testing.T) {
+	t.Setenv("NO_COLOR", "")
+	for _, ev := range []string{
+		teamstate.EventClaimTaken, teamstate.EventClaimReleased, teamstate.EventClaimTransferred, teamstate.EventReviewReady,
+		teamstate.EventSessionComplete, teamstate.EventAuditFinding, teamstate.EventClaimConflict, teamstate.EventWikiProposal,
+		teamstate.EventWikiAccepted, teamstate.EventWikiRejected, teamstate.EventWorkflowPublished, teamstate.EventWorkflowArchived,
+		"unknown.event",
+	} {
+		assert.Regexp(t, `^\[#[0-9a-f]{6}\].+\[-\]$`, eventIcon(ev), "icon of %s", ev)
+	}
 }
