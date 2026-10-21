@@ -1,7 +1,6 @@
 package views
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
@@ -39,6 +38,18 @@ type TeamBoardConfig struct {
 	Members     []string
 	RefreshFunc func() []TeamTicket
 	RefreshRate time.Duration
+	// LabelStatusMapping holds the label → status mapping from the team config.
+	// Its labels are already reflected by the column and are not shown on cards.
+	LabelStatusMapping map[string]string
+}
+
+// buildFullScreenCard builds the card of a ticket for the full-screen board.
+func buildFullScreenCard(ticket TeamTicket, workflow map[string]string) widgets.Card {
+	return widgets.Card{
+		MainText:      tview.Escape(ticket.Title) + " " + formatAssignee(ticket.Assignee, widgets.ColorTag(theme.Accent)),
+		SecondaryText: ticket.ID,
+		MetaText:      formatTicketLabels(ticket.Labels, workflow),
+	}
 }
 
 // RunTeamBoard launches the full-screen team kanban board.
@@ -71,28 +82,7 @@ func RunTeamBoard(cfg TeamBoardConfig) error {
 				if ticket.Status != col.Status {
 					continue
 				}
-				// Line 1: title + assignee
-				assignee := ""
-				if ticket.Assignee != "" {
-					assignee = fmt.Sprintf(" %s@%s[-]",
-						widgets.ColorTag(theme.Accent), ticket.Assignee)
-				} else {
-					assignee = fmt.Sprintf(" %s[claimable][-]",
-						widgets.ColorTag(theme.Warning))
-				}
-				mainText := ticket.Title + assignee
-				// Line 2: ID
-				secondary := ticket.ID
-				// Line 3: labels
-				meta := ""
-				if len(ticket.Labels) > 0 {
-					meta = formatTicketLabels(ticket.Labels)
-				}
-				columnCards[i].AddCard(widgets.Card{
-					MainText:      mainText,
-					SecondaryText: secondary,
-					MetaText:      meta,
-				})
+				columnCards[i].AddCard(buildFullScreenCard(ticket, cfg.LabelStatusMapping))
 				break
 			}
 		}

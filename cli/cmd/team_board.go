@@ -43,13 +43,19 @@ func runTeamBoard(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
+	var labelStatusMapping map[string]string
+	if teamCfg, err := repo.LoadConfig(); err == nil && teamCfg != nil {
+		labelStatusMapping = teamCfg.Tracker.LabelStatusMapping
+	}
+
 	cfg := views.TeamBoardConfig{
 		Layout: layout.Config{
 			ProjectName: a.Config.Name,
 			Command:     "team board",
 			StatusHints: "←→ columns · ↑↓ scroll · r refresh · q quit",
 		},
-		Tickets: tickets,
+		Tickets:            tickets,
+		LabelStatusMapping: labelStatusMapping,
 		RefreshFunc: func() []views.TeamTicket {
 			r, err := ensureTeamRepo(ctx, a)
 			if err != nil {

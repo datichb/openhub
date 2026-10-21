@@ -153,7 +153,7 @@ func (v *TeamBoardView) StatusHints() string {
 		"c "+i18n.T("tui.hints.claim"), releaseKey.Hint(),
 		"t "+i18n.T("tui.hints.transfer"), "s "+i18n.T("tui.hints.status"), keys.Refresh.Hint())
 	if v.filterText != "" || v.filterAssignee != "" || v.filterLabel != "" {
-		hints += " · [yellow]" + i18n.T("tui.hints.filtered") + "[-]"
+		hints += " · " + theme.ColorTag(theme.WarningHex) + i18n.T("tui.hints.filtered") + theme.TagColor
 	}
 	return hints
 }
@@ -375,7 +375,7 @@ func (v *TeamBoardView) buildTeamCard(t TeamTicket) widgets.Card {
 			badgeStr = fmt.Sprintf(" [%s][%d/%d][-]", color, bs.Done, bs.Total)
 		}
 	}
-	mainText := projectTag + title + badgeStr
+	mainText := projectTag + tview.Escape(title) + badgeStr
 
 	// ── Line 2: ID · priority ──
 	secondary := t.ID
@@ -383,33 +383,10 @@ func (v *TeamBoardView) buildTeamCard(t TeamTicket) widgets.Card {
 		secondary += " · " + t.Priority
 	}
 
-	// ── Line 3: @assignee · label1 · label2 (filtered) ──
-	var parts []string
-	if t.Assignee != "" {
-		parts = append(parts, widgets.ColorTag(theme.ActiveMode.Primary)+"@"+t.Assignee+"[-]")
-	} else {
-		parts = append(parts, fmt.Sprintf("[%s]%s[-]", theme.WarningHex, i18n.T("board.claimable")))
-	}
-	// Filter out workflow labels (already reflected by column)
-	for _, l := range t.Labels {
-		if v.cfg.LabelStatusMapping != nil {
-			if _, isWorkflow := v.cfg.LabelStatusMapping[l]; isWorkflow {
-				continue
-			}
-		}
-		switch l {
-		case teamstate.LabelAgentReviewed:
-			parts = append(parts, "[green][AI][-]")
-		case teamstate.LabelNeedsHumanReview:
-			parts = append(parts, "[yellow][!][-]")
-		default:
-			parts = append(parts, "[gray]"+tview.Escape(l)+"[-]")
-		}
-	}
-	meta := ""
-	if len(parts) > 0 {
-		meta = strings.Join(parts, " · ")
-	}
+	// ── Line 3: @assignee · label1 · label2 (workflow labels filtered) ──
+	parts := []string{formatAssignee(t.Assignee, widgets.ColorTag(theme.ActiveMode.Primary))}
+	parts = append(parts, ticketLabelParts(t.Labels, v.cfg.LabelStatusMapping)...)
+	meta := strings.Join(parts, " · ")
 
 	return widgets.Card{
 		MainText:      mainText,
@@ -504,24 +481,42 @@ func (v *TeamBoardView) applyFilters(tickets []TeamTicket) []TeamTicket {
 	return result
 }
 
-// formatTicketLabels renders a compact label string for board display.
-// Well-known labels get special icons; others are displayed as-is.
-func formatTicketLabels(labels []string) string {
-	if len(labels) == 0 {
-		return ""
+// formatAssignee renders "@assignee" in the given color tag, or the
+// "claimable" marker when nobody holds the ticket. Both texts are escaped: a
+// name like "[dev]" would otherwise be read as a color tag and vanish.
+func formatAssignee(assignee, colorTag string) string {
+	if assignee == "" {
+		return fmt.Sprintf("[%s]%s[-]", theme.WarningHex, tview.Escape(i18n.T("board.claimable")))
 	}
-	result := " "
+	return colorTag + "@" + tview.Escape(assignee) + "[-]"
+}
+
+// ticketLabelParts renders one markup chunk per ticket label, shared by both
+// team boards. Workflow labels (keys of workflow, already shown by the column)
+// are skipped. Known labels get a badge, the others are shown in brackets;
+// literal brackets are escaped the tview way ("[AI[]" displays "[AI]").
+func ticketLabelParts(labels []string, workflow map[string]string) []string {
+	var parts []string
 	for _, l := range labels {
+		if _, isWorkflow := workflow[l]; isWorkflow {
+			continue
+		}
 		switch l {
-		case "agent-reviewed":
-			result += "[green][AI][-]"
-		case "needs-human-review":
-			result += "[yellow][!][-]"
+		case teamstate.LabelAgentReviewed:
+			parts = append(parts, theme.ColorTag(theme.SuccessHex)+"[AI[]"+theme.TagColor)
+		case teamstate.LabelNeedsHumanReview:
+			parts = append(parts, theme.ColorTag(theme.WarningHex)+"[![]"+theme.TagColor)
 		default:
-			result += "[gray][" + tview.Escape(l) + "][-]"
+			parts = append(parts, theme.ColorTag(theme.TextMutedHex)+tview.Escape("["+l+"]")+theme.TagColor)
 		}
 	}
-	return result
+	return parts
+}
+
+// formatTicketLabels renders the labels of a ticket as a single line for the
+// board cards (see ticketLabelParts).
+func formatTicketLabels(labels []string, workflow map[string]string) string {
+	return strings.Join(ticketLabelParts(labels, workflow), " · ")
 }
 
 // ─── Project Tabs ────────────────────────────────────────────────────────────

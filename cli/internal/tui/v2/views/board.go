@@ -177,7 +177,7 @@ func RunBoard(cfg BoardConfig) error {
 					priority = fmt.Sprintf("%s%s[-] ",
 						widgets.ColorTag(priorityColor(ticket.Priority)), ticket.Priority)
 				}
-				mainText := priority + ticket.Title
+				mainText := priority + tview.Escape(ticket.Title)
 				// Line 2: ID
 				secondary := ticket.ID
 				// Line 3: external ref (if any)
