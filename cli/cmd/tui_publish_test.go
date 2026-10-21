@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 	"github.com/datichb/openhub/cli/internal/prefsvc"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/workflow"
@@ -56,14 +57,14 @@ func TestTUIPublishWiring(t *testing.T) {
 	assert.Equal(t, 2, p.Next)
 	assert.Contains(t, p.Diff, "+description: v2")
 
-	gitIn(t, env.clones["alice"], "remote", "set-url", "origin", "http://127.0.0.1:1/team-state.git")
+	gittest.Run(t, env.clones["alice"], "remote", "set-url", "origin", "http://127.0.0.1:1/team-state.git")
 	pub, err = newWorkflowService(ctx).Publish(ctx, c, "team:ticket-hotfix", "v2")
 	require.NoError(t, err)
 	require.True(t, pub.Queued)
 	p, err = loadPublishPreview(ctx, c, "team:ticket-hotfix")
 	require.NoError(t, err)
 	assert.True(t, p.Queued, "the pending publication is visible")
-	gitIn(t, env.clones["alice"], "remote", "set-url", "origin", env.bare)
+	gittest.Run(t, env.clones["alice"], "remote", "set-url", "origin", env.bare)
 
 	data, err = loadCatalogData(ctx, testTUIStart())
 	require.NoError(t, err)
@@ -77,7 +78,7 @@ func TestTUIPublishWiring(t *testing.T) {
 	ops, err := newWorkflowService(ctx).QueuedOps(ctx, c)
 	require.NoError(t, err)
 	assert.Empty(t, ops, "replayed")
-	assert.Contains(t, gitIn(t, env.bare, "log", "-1", "--format=%s"), "v2 by alice")
+	assert.Contains(t, gittest.Run(t, env.bare, "log", "-1", "--format=%s"), "v2 by alice")
 
 	// History: versions and the diff of v1 against the current one.
 	vs, err := newWorkflowService(ctx).History(ctx, c, "team:ticket-hotfix")

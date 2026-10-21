@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/teamstate"
@@ -35,15 +35,6 @@ func (m memLegacyStore) LegacyWorkflowConfigs(context.Context) (map[string]strin
 func (m memLegacyStore) ClearLegacyWorkflowConfig(_ context.Context, id string) error {
 	delete(m, id)
 	return nil
-}
-
-func gitIn(t *testing.T, dir string, args ...string) string {
-	t.Helper()
-	c := exec.Command("git", args...)
-	c.Dir = dir
-	out, err := c.CombinedOutput()
-	require.NoError(t, err, "git %v: %s", args, out)
-	return strings.TrimSpace(string(out))
 }
 
 // Fixtures of the former configurations (acceptance criterion 5).
@@ -81,9 +72,9 @@ func TestMigrateLegacyWorkflows(t *testing.T) {
 
 	alice := env.clones["alice"]
 	require.NoError(t, os.WriteFile(filepath.Join(alice, "config.toml"), []byte(legacyTeamConfig), 0o644))
-	gitIn(t, alice, "add", "config.toml")
-	gitIn(t, alice, "commit", "-m", "former team workflow config")
-	gitIn(t, alice, "push")
+	gittest.Run(t, alice, "add", "config.toml")
+	gittest.Run(t, alice, "commit", "-m", "former team workflow config")
+	gittest.Run(t, alice, "push")
 
 	a := application
 	team := "acme"
@@ -125,7 +116,7 @@ func TestMigrateLegacyWorkflows(t *testing.T) {
 	published, err := os.ReadFile(filepath.Join(alice, "workflows", "published", "implement-spec.yaml"))
 	require.NoError(t, err)
 	assert.Contains(t, string(published), "# Not translated: checkpoint cp-routing")
-	assert.Contains(t, gitIn(t, env.bare, "log", "--format=%s"), "workflow: migrate the team workflow configuration")
+	assert.Contains(t, gittest.Run(t, env.bare, "log", "--format=%s"), "workflow: migrate the team workflow configuration")
 
 	// Project of the team: extends team:implement-spec.
 	res, err = svc.Resolve(ctx, workflowsvcContext("web"), "project:implement-spec", resolveNone())
@@ -173,7 +164,7 @@ func TestMigrateLegacyWorkflows(t *testing.T) {
 
 	// Bob, after a sync: nothing to migrate (config.toml already migrated).
 	env.as(t, "bob")
-	gitIn(t, env.clones["bob"], "pull")
+	gittest.Run(t, env.clones["bob"], "pull")
 	assert.False(t, legacyWorkflowPending(ctx, application, memLegacyStore{}))
 }
 
@@ -183,9 +174,9 @@ func TestMigrateLegacyEnforcedTeam(t *testing.T) {
 	ctx := t.Context()
 	alice := env.clones["alice"]
 	require.NoError(t, os.WriteFile(filepath.Join(alice, "config.toml"), []byte("[workflow]\nenforced = true\n"), 0o644))
-	gitIn(t, alice, "add", "config.toml")
-	gitIn(t, alice, "commit", "-m", "enforced")
-	gitIn(t, alice, "push")
+	gittest.Run(t, alice, "add", "config.toml")
+	gittest.Run(t, alice, "commit", "-m", "enforced")
+	gittest.Run(t, alice, "push")
 	team := "acme"
 	application.Projects = &mockProjectStore{projects: []domain.Project{{ID: "web", Name: "web", Path: t.TempDir(), TeamID: &team}}}
 	legacy := memLegacyStore{"web": legacyProjectWeb}

@@ -1,12 +1,10 @@
 package cmd
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -16,15 +14,9 @@ import (
 // setupGitRepo creates a temp git repo with an initial commit and the given branches.
 func setupGitRepo(t *testing.T, branches ...string) string {
 	t.Helper()
-	dir := t.TempDir()
-	testGitCmd(t, dir, "init")
-	testGitCmd(t, dir, "config", "user.email", "test@test.com")
-	testGitCmd(t, dir, "config", "user.name", "Test")
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "README.md"), []byte("x"), 0o644))
-	testGitCmd(t, dir, "add", ".")
-	testGitCmd(t, dir, "commit", "-m", "init")
+	dir := gittest.Repo(t)
 	for _, b := range branches {
-		testGitCmd(t, dir, "branch", b)
+		gittest.Run(t, dir, "branch", b)
 	}
 	return dir
 }

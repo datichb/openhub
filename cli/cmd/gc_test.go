@@ -18,6 +18,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/gc"
 	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
 // gcTestApp is a hub with an old stopped session: its bundle and its folder
@@ -40,8 +41,7 @@ func gcTestApp(t *testing.T) (*app.App, string) {
 	application = a
 	t.Cleanup(func() { application = nil })
 
-	_, err = s.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p', 'p', '/p')`)
-	require.NoError(t, err)
+	sqlitetest.Seed(t, s).Project("p", "/p")
 	ended := time.Now().Add(-60 * 24 * time.Hour)
 	require.NoError(t, a.Sessions.Create(context.Background(), &domain.Session{ID: "ses_old", ProjectID: "p", State: domain.RunStopped,
 		StartedAt: ended.Add(-time.Hour), EndedAt: &ended, BundleHash: "deadbeef", Status: domain.SessionStatusCompleted}))

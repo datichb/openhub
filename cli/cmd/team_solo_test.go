@@ -16,6 +16,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
@@ -146,7 +147,7 @@ func TestTeamPromote(t *testing.T) {
 	require.Error(t, runTeamSub(t, promote, out, "--remote", ""))
 
 	bare := t.TempDir()
-	testGitCmd(t, bare, "init", "--bare", "-b", "main")
+	gittest.Run(t, bare, "init", "--bare", "-b", "main")
 	out.Reset()
 	require.NoError(t, runTeamSub(t, promote, out, "--remote", bare))
 	assert.Contains(t, out.String(), "oh team init")
@@ -161,7 +162,7 @@ func TestTeamPromote(t *testing.T) {
 
 	// Another member clones the shared team-state: the workflow is there and valid.
 	other := filepath.Join(t.TempDir(), "other")
-	testGitCmd(t, t.TempDir(), "clone", bare, other)
+	gittest.Run(t, t.TempDir(), "clone", bare, other)
 	cat := workflow.NewMemCatalog()
 	require.Empty(t, teamstate.NewRepo(bare, other).LoadWorkflowLayers(cat, "web"))
 	_, ok := cat.Lookup(workflow.Ref{Layer: workflow.LayerProject, ID: "quick"})

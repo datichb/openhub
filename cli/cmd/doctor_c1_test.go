@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/config/configtest"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 	"github.com/datichb/openhub/cli/internal/provider"
@@ -64,7 +65,7 @@ func TestPlanUpgradeNeverDowngradesImplicitly(t *testing.T) {
 // current project → team → hub → AWS profile), not only the hub key.
 func TestProviderCredentialStatusFollowsCascade(t *testing.T) {
 	i18ntest.Set(t, "en")
-	t.Setenv("HOME", t.TempDir())
+	configtest.Home(t)
 	for _, k := range []string{"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_BEARER_TOKEN_BEDROCK", "AWS_PROFILE"} {
 		t.Setenv(k, "")
 	}

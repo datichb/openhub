@@ -16,6 +16,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
@@ -69,12 +70,9 @@ func TestLaunchFormConfigEntryAgents(t *testing.T) {
 // What oh will compute for an input with `from:`: the session read, or
 // that no session fits; never an error.
 func TestTUIFromPreview(t *testing.T) {
-	st, err := sqlite.Open(filepath.Join(t.TempDir(), "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
+	st := sqlitetest.New(t)
 	ctx := context.Background()
-	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1', 'demo', '/p1')`)
-	require.NoError(t, err)
+	sqlitetest.Seed(t, st).Project("p1", "/p1")
 	sessions := sqlite.NewSessionStore(st)
 	require.NoError(t, sessions.Create(ctx, &domain.Session{ID: "ses_41c0", ProjectID: "p1", WorkflowID: "spec", StartedAt: time.Now(),
 		Status: domain.SessionStatusCompleted, State: domain.RunCompleted, Outputs: map[string]any{"spec": "docs/wiki/specs/export.md"}}))

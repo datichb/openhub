@@ -16,6 +16,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 	"github.com/datichb/openhub/cli/internal/services/wiki"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
 func decideFlagsCmd(t *testing.T, args ...string) (*cobra.Command, error) {
@@ -99,14 +100,9 @@ func TestWikiDecideReasonFlag(t *testing.T) {
 // the queue of the project.
 func TestWikiDecide(t *testing.T) {
 	i18ntest.Set(t, "fr")
-	st, err := sqlite.Open(filepath.Join(t.TempDir(), "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
+	st := sqlitetest.New(t)
 	ctx := context.Background()
-	for _, id := range []string{"p1", "p2"} {
-		_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES (?, ?, ?)`, id, id, "/"+id)
-		require.NoError(t, err)
-	}
+	sqlitetest.Seed(t, st).Project("p1", "/p1").Project("p2", "/p2")
 	svc := &wiki.Service{Store: sqlite.NewWikiProposalStore(st)}
 	propose := func(project, page, content string) string {
 		p, err := svc.Propose(ctx, wiki.Filed{ProjectID: project, SessionID: "ses_a", Agent: "reviewer",
