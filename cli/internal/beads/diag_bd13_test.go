@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/datichb/openhub/cli/internal/beads/bdtest"
 )
 
 func writeProject(t *testing.T, dir string, files map[string]string) {
@@ -54,9 +56,7 @@ func TestDiagnoseBeadsImpactBd13AgentFiles(t *testing.T) {
 // the commit is undone (UndoCommit) when the repository had one before; as
 // the first commit of a repository it is kept (F-01) and nothing changes.
 func TestCleanImpactAfterRealBdInit(t *testing.T) {
-	if _, err := exec.LookPath("bd"); err != nil {
-		t.Skip("bd not installed")
-	}
+	bdtest.RequireRealBd(t)
 	for _, firstCommit := range []bool{false, true} {
 		dir := t.TempDir()
 		run := func(name string, args ...string) {
@@ -164,9 +164,7 @@ func TestCleanImpactCommittedFile(t *testing.T) {
 // The commit of `bd init` is undone when it is HEAD and not pushed; a pushed
 // one is never touched.
 func TestCleanImpactUndoesBdInitCommit(t *testing.T) {
-	if _, err := exec.LookPath("bd"); err != nil {
-		t.Skip("bd not installed")
-	}
+	bdtest.RequireRealBd(t)
 	env := append(os.Environ(), "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@t", "GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@t")
 	git := func(dir string, args ...string) string {
 		t.Helper()

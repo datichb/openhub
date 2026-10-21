@@ -19,7 +19,6 @@ import (
 // twoCases are two active cases and an inactive one.
 func twoCases(t *testing.T) []*Case {
 	t.Helper()
-	requireGit(t)
 	root := t.TempDir()
 	writeCase(t, root, "quick", "s7", "id: S7\nworkflow: quick\nassertions:\n  - type: ran\n    command: go test*\n")
 	writeCase(t, root, "quick", "s10", "id: S10\nworkflow: quick\nassertions:\n  - type: changed_within\n    paths: [\"*.go\"]\n")
@@ -53,6 +52,14 @@ func simulated(delay func(p Pass) time.Duration) ExecutorFunc {
 	}
 }
 
+// noGit prepares a pass without git: the folder of the project, and an
+// empty commit, so that no changed file is listed. For the tests of the
+// scheduling, the budgets and the retries, whose executors do not read the
+// project; PrepareClone keeps its own tests (git).
+func noGit(_ context.Context, _ *Case, dest string) (string, error) {
+	return "", os.MkdirAll(dest, 0o755)
+}
+
 func fixedNow() time.Time { return time.Date(2026, 10, 13, 12, 0, 0, 0, time.UTC) }
 
 // A parallel run writes the same reports as a sequential one: the passes
@@ -62,7 +69,7 @@ func TestParallelReportsMatchSequential(t *testing.T) {
 	models := []string{"claude-haiku-4-5", "claude-sonnet-4-6"}
 	run := func(parallel int, delay func(p Pass) time.Duration) (*Report, []byte, string) {
 		out := t.TempDir()
-		r := &Runner{Exec: simulated(delay), Models: models, Reps: 3, BudgetUSD: 1, WorkRoot: t.TempDir(), OutDir: out, Parallel: parallel, Now: fixedNow}
+		r := &Runner{Exec: simulated(delay), Models: models, Reps: 3, BudgetUSD: 1, WorkRoot: t.TempDir(), OutDir: out, Parallel: parallel, Now: fixedNow, Prepare: noGit}
 		rep, err := r.Run(context.Background(), cases)
 		require.NoError(t, err)
 		data, err := json.Marshal(rep)
@@ -113,7 +120,7 @@ func TestParallelScheduling(t *testing.T) {
 		return &PassOutput{Outcome: OutcomeCompleted}, nil
 	})
 	var logs []string
-	r := &Runner{Exec: exec, Models: []string{"m"}, Reps: 4, WorkRoot: t.TempDir(), OutDir: t.TempDir(), Parallel: 3,
+	r := &Runner{Exec: exec, Models: []string{"m"}, Reps: 4, WorkRoot: t.TempDir(), OutDir: t.TempDir(), Parallel: 3, Prepare: noGit,
 		Log: func(format string, args ...any) { logs = append(logs, fmt.Sprintf(format, args...)) }}
 	rep, err := r.Run(context.Background(), cases)
 	require.NoError(t, err)
@@ -141,7 +148,7 @@ func TestBudgetTotal(t *testing.T) {
 	exec := ExecutorFunc(func(ctx context.Context, p Pass) (*PassOutput, error) {
 		return &PassOutput{Outcome: OutcomeCompleted, CostUSD: 0.4}, nil
 	})
-	r := &Runner{Exec: exec, Models: []string{"m"}, Reps: 4, WorkRoot: t.TempDir(), OutDir: t.TempDir(), BudgetTotalUSD: 1}
+	r := &Runner{Exec: exec, Models: []string{"m"}, Reps: 4, WorkRoot: t.TempDir(), OutDir: t.TempDir(), BudgetTotalUSD: 1, Prepare: noGit}
 	rep, err := r.Run(context.Background(), cases)
 	require.NoError(t, err)
 	require.Len(t, rep.Passes, 3, "0.4 + 0.4 < 1: the third starts, then the cap is reached")
@@ -195,7 +202,7 @@ func TestThrottlingRetry(t *testing.T) {
 	})
 	var waits []time.Duration
 	out := t.TempDir()
-	r := &Runner{Exec: exec, Models: []string{"m"}, Reps: 4, WorkRoot: t.TempDir(), OutDir: out,
+	r := &Runner{Exec: exec, Models: []string{"m"}, Reps: 4, WorkRoot: t.TempDir(), OutDir: out, Prepare: noGit,
 		Retry: RetryPolicy{Max: 3, Base: 30 * time.Second, Cap: 4 * time.Minute},
 		Sleep: func(_ context.Context, d time.Duration) error { waits = append(waits, d); return nil }}
 	rep, err := r.Run(context.Background(), cases)
@@ -271,4 +278,59 @@ func TestRemoveAllReadOnly(t *testing.T) {
 	require.NoError(t, os.Chmod(ro, 0o555))
 	require.NoError(t, RemoveAll(dir))
 	assert.NoDirExists(t, dir)
+}
+
+// Runner.Prepare replaces PrepareClone: it is called once per pass, with the
+// project of the pass; its error is a setup error; an empty commit lists no
+// changed file instead of failing on a folder without git.
+func TestRunnerPrepare(t *testing.T) {
+	cases := twoCases(t)[:1]
+	var mu sync.Mutex
+	var dests []string
+	prepare := func(ctx context.Context, c *Case, dest string) (string, error) {
+		mu.Lock()
+		dests = append(dests, dest)
+		mu.Unlock()
+		assert.Equal(t, "S7", c.ID)
+		return noGit(ctx, c, dest)
+	}
+	var projects []string
+	exec := ExecutorFunc(func(ctx context.Context, p Pass) (*PassOutput, error) {
+		projects = append(projects, p.Project)
+		assert.DirExists(t, p.Project)
+		assert.NoDirExists(t, filepath.Join(p.Project, ".git"), "no clone")
+		return &PassOutput{Outcome: OutcomeCompleted}, nil
+	})
+	r := &Runner{Exec: exec, Models: []string{"m"}, Reps: 2, WorkRoot: t.TempDir(), OutDir: t.TempDir(), Prepare: prepare}
+	rep, err := r.Run(context.Background(), cases)
+	require.NoError(t, err)
+	require.Len(t, rep.Passes, 2)
+	assert.Equal(t, projects, dests, "one preparation per pass, for the project it runs in")
+	for _, p := range rep.Passes {
+		assert.Empty(t, p.Error)
+	}
+
+	r.Prepare = func(context.Context, *Case, string) (string, error) { return "", os.ErrPermission }
+	rep, err = r.Run(context.Background(), cases)
+	require.NoError(t, err)
+	assert.Equal(t, OutcomeError, rep.Passes[0].Outcome)
+	assert.Contains(t, rep.Passes[0].Error, "setup: ")
+}
+
+// The fake preparation changes nothing to what a run reports: the report of
+// a run on real clones is the one of a run without git.
+func TestNoGitSameReport(t *testing.T) {
+	requireGit(t)
+	cases := twoCases(t)[2:] // S10: changed_within, read from the clone
+	run := func(prepare func(context.Context, *Case, string) (string, error)) []byte {
+		r := &Runner{Exec: simulated(func(Pass) time.Duration { return 0 }), Models: []string{"m"}, Reps: 1, BudgetUSD: 1,
+			WorkRoot: t.TempDir(), OutDir: t.TempDir(), Now: fixedNow, Prepare: prepare}
+		rep, err := r.Run(context.Background(), cases)
+		require.NoError(t, err)
+		require.Len(t, rep.Passes, 1)
+		data, err := json.Marshal(rep)
+		require.NoError(t, err)
+		return data
+	}
+	assert.JSONEq(t, string(run(nil)), string(run(noGit)))
 }

@@ -216,14 +216,13 @@ func failing(fail map[string]map[int]bool, cost float64) ExecutorFunc {
 // A case planned once whose pass fails runs up to EscalateTo in the same
 // run; the report keeps the order of a sequential run, in parallel too.
 func TestEscalation(t *testing.T) {
-	requireGit(t)
 	cases := tierCases(t)
 	plan := []CasePlan{{Case: "S1", Reps: 1, Reason: "stable"}, {Case: "S2", Reps: 1, Reason: "stable"}, {Case: "S3", Reps: 3, Reason: "nouveau"}, {Case: "S4", Reps: 2}}
 	fail := map[string]map[int]bool{"S2": {1: true}, "S4": {2: true}}
 	run := func(parallel int) (*Report, []string) {
 		var mu sync.Mutex
 		var logs []string
-		r := &Runner{Exec: failing(fail, 0.1), Models: []string{"m"}, Reps: 3, WorkRoot: t.TempDir(), OutDir: t.TempDir(), Parallel: parallel,
+		r := &Runner{Exec: failing(fail, 0.1), Models: []string{"m"}, Reps: 3, WorkRoot: t.TempDir(), OutDir: t.TempDir(), Parallel: parallel, Prepare: noGit,
 			Plan: plan, EscalateTo: 3, Now: fixedNow, Log: func(format string, args ...any) {
 				mu.Lock()
 				defer mu.Unlock()
@@ -274,7 +273,7 @@ func TestEscalation(t *testing.T) {
 	assert.JSONEq(t, string(a), string(b))
 
 	// The cost cap of the run applies to the escalated passes too.
-	r := &Runner{Exec: failing(map[string]map[int]bool{"S1": {1: true}}, 0.4), Models: []string{"m"}, Reps: 3, WorkRoot: t.TempDir(), OutDir: t.TempDir(),
+	r := &Runner{Exec: failing(map[string]map[int]bool{"S1": {1: true}}, 0.4), Models: []string{"m"}, Reps: 3, WorkRoot: t.TempDir(), OutDir: t.TempDir(), Prepare: noGit,
 		Plan: []CasePlan{{Case: "S1", Reps: 1}, {Case: "S2", Reps: 1}, {Case: "S3", Reps: 1}, {Case: "S4", Reps: 1}}, EscalateTo: 3, BudgetTotalUSD: 1}
 	capped, err := r.Run(context.Background(), cases)
 	require.NoError(t, err)
@@ -282,7 +281,7 @@ func TestEscalation(t *testing.T) {
 	assert.Equal(t, []SkippedPass{{Case: "S2", Model: "m", Rep: 1}, {Case: "S3", Model: "m", Rep: 1}, {Case: "S4", Model: "m", Rep: 1}}, capped.Skipped)
 
 	// Without a plan nor an escalation, the report has neither.
-	r = &Runner{Exec: failing(nil, 0.1), Models: []string{"m"}, Reps: 1, WorkRoot: t.TempDir(), OutDir: t.TempDir()}
+	r = &Runner{Exec: failing(nil, 0.1), Models: []string{"m"}, Reps: 1, WorkRoot: t.TempDir(), OutDir: t.TempDir(), Prepare: noGit}
 	plain, err := r.Run(context.Background(), cases)
 	require.NoError(t, err)
 	assert.Nil(t, plain.Plan)

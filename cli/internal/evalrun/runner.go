@@ -147,6 +147,10 @@ type Runner struct {
 	// EscalateTo: a case planned below it whose pass fails runs up to
 	// EscalateTo repetitions in the same run (0: never).
 	EscalateTo int
+	// Prepare makes the project of a pass at dest and returns the commit
+	// the session starts from; nil: PrepareClone. An empty commit means a
+	// project without git: the changed files are not listed (tests).
+	Prepare func(ctx context.Context, c *Case, dest string) (string, error)
 	// Sleep waits before a retry (tests); nil: a timer bound to ctx.
 	Sleep func(ctx context.Context, d time.Duration) error
 	Log   func(format string, args ...any)
@@ -197,7 +201,11 @@ func (r *Runner) runAttempt(ctx context.Context, j passJob) (res PassResult, thr
 		return res, ""
 	}
 	p := Pass{Case: c, Model: model, Rep: rep, BudgetUSD: budget, Variant: j.variant.Name, HubDir: j.variant.Hub, Dir: dir, Project: filepath.Join(dir, "project"), OutDir: out}
-	base, err := PrepareClone(ctx, c, p.Project)
+	prepare := r.Prepare
+	if prepare == nil {
+		prepare = PrepareClone
+	}
+	base, err := prepare(ctx, c, p.Project)
 	if err != nil {
 		res.Outcome, res.Error = OutcomeError, "setup: "+err.Error()
 		return res, ""
@@ -235,9 +243,12 @@ func (r *Runner) runAttempt(ctx context.Context, j passJob) (res PassResult, thr
 			res.CostUSD, _ = s.Data["cost_usd"].(float64)
 		}
 	}
-	changed, err := ChangedFiles(ctx, p.Project, base)
-	if err != nil {
-		res.Error = strings.TrimSpace(res.Error + "; changes: " + err.Error())
+	var changed []string
+	if base != "" {
+		changed, err = ChangedFiles(ctx, p.Project, base)
+		if err != nil {
+			res.Error = strings.TrimSpace(res.Error + "; changes: " + err.Error())
+		}
 	}
 	ev := Evidence{Events: events, Changed: changed, HiddenTests: func() (bool, string, error) {
 		return RunHiddenTests(ctx, c, p.Project)

@@ -11,6 +11,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/datichb/openhub/cli/internal/beads/bdtest"
 )
 
 func TestQueryExpr(t *testing.T) {
@@ -42,12 +44,9 @@ func patientBd(t *testing.T) {
 
 // Contract with the real bd: a quoted value is read as one value.
 func TestQueryRealBd(t *testing.T) {
-	if _, err := exec.LookPath("bd"); err != nil {
-		t.Skip("bd is not installed")
-	}
+	bdtest.RequireRealBd(t)
 	patientBd(t)
-	dir, err := filepath.EvalSymlinks(t.TempDir())
-	require.NoError(t, err)
+	dir := bdtest.InitedRepo(t)
 	run := func(args ...string) {
 		cmd := exec.Command(args[0], args[1:]...)
 		cmd.Dir = dir
@@ -55,8 +54,6 @@ func TestQueryRealBd(t *testing.T) {
 		out, err := cmd.CombinedOutput()
 		require.NoError(t, err, "%v: %s", args, out)
 	}
-	run("git", "init", "-q")
-	run("bd", "init", "--quiet", "--prefix", "qy", "--skip-hooks", "--skip-agents")
 	run("bd", "create", "CSV export", "-l", "ready-for-review")
 	run("bd", "create", "x OR status=open")
 	t.Setenv("BEADS_DIR", "")
@@ -94,12 +91,9 @@ func TestListsAreNotTruncated(t *testing.T) {
 // Contract with the real bd: lint names the missing sections, and exits 1
 // with a JSON answer.
 func TestLintRealBd(t *testing.T) {
-	if _, err := exec.LookPath("bd"); err != nil {
-		t.Skip("bd is not installed")
-	}
+	bdtest.RequireRealBd(t)
 	patientBd(t)
-	dir, err := filepath.EvalSymlinks(t.TempDir())
-	require.NoError(t, err)
+	dir := bdtest.InitedRepo(t)
 	out := func(args ...string) string {
 		cmd := exec.Command(args[0], args[1:]...)
 		cmd.Dir = dir
@@ -108,8 +102,6 @@ func TestLintRealBd(t *testing.T) {
 		require.NoError(t, err, "%v", args)
 		return strings.TrimSpace(string(b))
 	}
-	out("git", "init", "-q")
-	out("bd", "init", "--quiet", "--prefix", "li", "--skip-hooks", "--skip-agents")
 	bare := out("bd", "q", "bare", "-t", "task")
 	done := out("bd", "q", "done", "-t", "task")
 	out("bd", "update", done, "--acceptance", "- works", "-q")
@@ -130,12 +122,9 @@ func TestLintRealBd(t *testing.T) {
 
 // Contract with the real bd: follow-up of done work and closable epics.
 func TestTrackingRealBd(t *testing.T) {
-	if _, err := exec.LookPath("bd"); err != nil {
-		t.Skip("bd is not installed")
-	}
+	bdtest.RequireRealBd(t)
 	patientBd(t)
-	dir, err := filepath.EvalSymlinks(t.TempDir())
-	require.NoError(t, err)
+	dir := bdtest.InitedRepo(t)
 	out := func(args ...string) string {
 		cmd := exec.Command(args[0], args[1:]...)
 		cmd.Dir = dir
@@ -144,8 +133,6 @@ func TestTrackingRealBd(t *testing.T) {
 		require.NoError(t, err, "%v", args)
 		return strings.TrimSpace(string(b))
 	}
-	out("git", "init", "-q")
-	out("bd", "init", "--quiet", "--prefix", "tr", "--skip-hooks", "--skip-agents")
 	done := out("bd", "q", "done")
 	out("git", "-c", "user.name=A", "-c", "user.email=a@b", "-c", "commit.gpgsign=false", "commit", "-q", "--allow-empty", "-m", "feat(x): done ("+done+")")
 	epic := out("bd", "q", "epic", "-t", "epic")

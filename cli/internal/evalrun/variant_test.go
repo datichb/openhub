@@ -187,7 +187,6 @@ func TestVerdictOf(t *testing.T) {
 // A run with variants: every case runs with every variant (its hub given
 // to the executor), the report compares them, rescoring keeps them.
 func TestRunnerWithVariants(t *testing.T) {
-	requireGit(t)
 	root := t.TempDir()
 	writeCase(t, root, "debug", "s6", "id: S6\nworkflow: debug\nassertions:\n  - type: skill_loaded_before\n    skill: dbg-2\n  - type: text_matches\n    name: diagnostic\n    pattern: Sub\n")
 	cases, err := LoadCases(root)
@@ -212,7 +211,7 @@ func TestRunnerWithVariants(t *testing.T) {
 		return &PassOutput{Outcome: OutcomeCompleted, CostUSD: cost, TracePath: path}, nil
 	})
 	out := t.TempDir()
-	r := &Runner{Exec: exec, Models: []string{"m"}, Reps: 3, BudgetUSD: 1, WorkRoot: t.TempDir(), OutDir: out, Variants: variants, Now: fixedNow}
+	r := &Runner{Exec: exec, Models: []string{"m"}, Reps: 3, BudgetUSD: 1, WorkRoot: t.TempDir(), OutDir: out, Variants: variants, Now: fixedNow, Prepare: noGit}
 	rep, err := r.Run(context.Background(), cases)
 	require.NoError(t, err)
 	require.Len(t, rep.Passes, 6)
