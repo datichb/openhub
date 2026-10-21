@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -17,6 +16,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/gateway/beadswire"
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
@@ -29,17 +29,10 @@ func TestDaemonBeadsActorAndProvenance(t *testing.T) {
 	ctx := context.Background()
 	project, err := filepath.EvalSymlinks(t.TempDir())
 	require.NoError(t, err)
-	git := func(args ...string) {
-		cmd := exec.Command("git", append([]string{"-C", project, "-c", "user.email=a@b", "-c", "commit.gpgsign=false"}, args...)...)
-		out, err := cmd.CombinedOutput()
-		require.NoError(t, err, string(out))
-	}
-	git("init", "-q", "-b", "feat/x")
-	git("config", "user.name", "Ada Lovelace")
-	git("commit", "-q", "--allow-empty", "-m", "work")
-	head, err := exec.Command("git", "-C", project, "rev-parse", "HEAD").Output()
-	require.NoError(t, err)
-	sha := strings.TrimSpace(string(head))
+	gittest.Run(t, project, "init", "-q", "-b", "feat/x")
+	gittest.Run(t, project, "config", "user.name", "Ada Lovelace")
+	gittest.Run(t, project, "-c", "user.email=a@b", "commit", "-q", "--allow-empty", "-m", "work")
+	sha := gittest.Run(t, project, "rev-parse", "HEAD")
 
 	sqlitetest.Seed(t, st).Project("p1", project)
 	sessions, servers := sqlite.NewSessionStore(st), sqlite.NewServerStore(st)

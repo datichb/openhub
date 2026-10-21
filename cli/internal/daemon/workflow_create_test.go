@@ -16,6 +16,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/gateway/beadswire"
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
@@ -32,7 +33,7 @@ func TestWorkflowCreateGuard(t *testing.T) {
 	ctx := context.Background()
 	project, err := filepath.EvalSymlinks(t.TempDir())
 	require.NoError(t, err)
-	gitRun(t, project, "init", "-q")
+	gittest.Run(t, project, "init", "-q")
 	sqlitetest.Seed(t, st).Project("p1", project)
 	sessions, servers, decisions := sqlite.NewSessionStore(st), sqlite.NewServerStore(st), sqlite.NewDecisionStore(st)
 	states := sqlite.NewCheckpointStore(st)
