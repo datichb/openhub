@@ -16,6 +16,7 @@ import (
 // freely; oh refuses it the commit, the tag and the merge request until
 // cp-release, the tag until the release is committed, and the push always.
 func TestShippedReleaseLocks(t *testing.T) {
+	t.Parallel()
 	hub, cat, _ := shippedWorkflows(t)
 	r, diags := workflow.ResolveSpec(cat, workflow.Ref{Layer: workflow.LayerHub, ID: "release"}, nil)
 	require.Empty(t, diags.Errors())
@@ -69,8 +70,7 @@ func TestShippedReleaseLocks(t *testing.T) {
 
 	// Outside a workflow that unlocks it (free session on the
 	// release-manager), the tag and the merge request are always refused.
-	free, err := Build(Request{HubDir: hub, OutDir: t.TempDir(), Spec: agentSpec(t, hub, "release-manager"), Provider: "bedrock"})
-	require.NoError(t, err)
+	free := agentBuild(t, "release-manager", "bedrock")
 	freeRules := append(append([]sessionspec.PermissionRule(nil), own...), SessionRules(free.Spec.Workflow, "", nil)...)
 	for _, cmd := range []string{"git tag -a v5.0.0 -m x", "glab mr create --fill", "gh pr create --fill"} {
 		assert.Equal(t, deny, ShellEffect(freeRules, cmd), "free session: %s", cmd)

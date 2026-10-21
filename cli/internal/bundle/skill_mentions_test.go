@@ -24,7 +24,8 @@ var inlinedHeadingRe = regexp.MustCompile("(?m)^> Skill `([a-z0-9_-]+)` : inclus
 // agent to load a skill (rules for the consumer of a handoff…) are left out
 // (L2, invitingText).
 func TestShippedWorkflowSkillMentionsResolve(t *testing.T) {
-	hub, cat, env := shippedWorkflows(t)
+	t.Parallel()
+	hub, cat, _ := shippedWorkflows(t)
 	files, err := bricks.FindAgentFiles(hub)
 	require.NoError(t, err)
 	agentIDs := map[string]bool{}
@@ -33,10 +34,7 @@ func TestShippedWorkflowSkillMentionsResolve(t *testing.T) {
 	}
 	for _, ref := range cat.Refs() {
 		t.Run(ref.ID, func(t *testing.T) {
-			r, diags := workflow.Check(cat, ref, nil, env)
-			require.False(t, diags.HasErrors(), "%v", diags)
-			b, err := Build(Request{HubDir: hub, OutDir: t.TempDir(), Spec: r.Spec})
-			require.NoError(t, err)
+			r, b := shippedBuild(t, "", ref)
 			generated, err := specSkills(hub, r.Spec)
 			require.NoError(t, err)
 			index := hubSkillIndex(hub, generated)
@@ -138,6 +136,7 @@ var (
 // dev-standards-security-hardening, the orchestrator injected
 // [SKILL:planning/planner-subagent]… for skills merged long ago).
 func TestHubSkillReferencesExist(t *testing.T) {
+	t.Parallel()
 	hub := repoHub(t)
 	generated := map[string]string{"workflow/workflow-map": "", "shared/hub-workflow-reference": ""}
 	index := hubSkillIndex(hub, generated)
@@ -190,11 +189,8 @@ func TestHubSkillReferencesExist(t *testing.T) {
 // (auditor/audit-<domain>), in the catalogue of auditor-subagent that loads
 // it (L2: named by its caller auditor, skills_from_callers).
 func TestAuditBundleShipsDomainChecklists(t *testing.T) {
-	hub, cat, env := shippedWorkflows(t)
-	r, diags := workflow.Check(cat, workflow.Ref{Layer: workflow.LayerHub, ID: "audit"}, nil, env)
-	require.False(t, diags.HasErrors(), "%v", diags)
-	b, err := Build(Request{HubDir: hub, OutDir: t.TempDir(), Spec: r.Spec})
-	require.NoError(t, err)
+	hub, _, _ := shippedWorkflows(t)
+	_, b := shippedBuild(t, "", workflow.Ref{Layer: workflow.LayerHub, ID: "audit"})
 	shipped := map[string]bool{}
 	for _, s := range b.Spec.Skills {
 		shipped[s.ID] = true

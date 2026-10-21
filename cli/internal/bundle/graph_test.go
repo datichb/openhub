@@ -31,6 +31,7 @@ agents:
 `
 
 func TestBuildFromWorkflowSpec(t *testing.T) {
+	t.Parallel()
 	b, err := Build(Request{HubDir: repoHub(t), OutDir: t.TempDir(), Spec: parseSpec(t, ticketSpec), Provider: "bedrock"})
 	require.NoError(t, err)
 	s := b.Spec
@@ -61,6 +62,7 @@ func TestBuildFromWorkflowSpec_Errors(t *testing.T) {
 // task permission to itself is never a delegation by itself: a free
 // session on the reviewer calls nothing (p7-leftovers).
 func TestReviewerSelfDelegation(t *testing.T) {
+	t.Parallel()
 	b, err := Build(Request{HubDir: repoHub(t), OutDir: t.TempDir(), Spec: parseSpec(t, `apiVersion: oh/v1
 kind: Workflow
 id: review
@@ -73,12 +75,12 @@ agents:
 	assert.Equal(t, []string{"reviewer"}, b.Spec.SubagentGraph["reviewer"])
 	assert.Equal(t, 1, b.Spec.MaxDepth)
 
-	b, err = Build(Request{HubDir: repoHub(t), OutDir: t.TempDir(), Spec: agentSpec(t, repoHub(t), "reviewer")})
-	require.NoError(t, err)
+	b = agentBuild(t, "reviewer", "")
 	assert.Empty(t, b.Spec.SubagentGraph["reviewer"], "no self-delegation derived")
 }
 
 func TestBuildStrictIsolationFromSpec(t *testing.T) {
+	t.Parallel()
 	out := t.TempDir()
 	std, err := Build(Request{HubDir: repoHub(t), OutDir: out, Spec: parseSpec(t, ticketSpec)})
 	require.NoError(t, err)

@@ -21,6 +21,20 @@ import (
 func instructionsFixture(t *testing.T, wiki bool) string {
 	t.Helper()
 	dir := t.TempDir()
+	require.NoError(t, writeInstructionsFixture(dir, wiki))
+	return dir
+}
+
+// sharedInstructionsFixture is instructionsFixture built once for the tests
+// that only read the project (see sharedProjectDir).
+func sharedInstructionsFixture(t *testing.T, wiki bool) string {
+	t.Helper()
+	return sharedProjectDir(t, fmt.Sprintf("instructions-wiki-%t", wiki), func(dir string) error {
+		return writeInstructionsFixture(dir, wiki)
+	})
+}
+
+func writeInstructionsFixture(dir string, wiki bool) error {
 	files := map[string]string{
 		"CONVENTIONS.md":    "# Conventions Atlas\n\nRègles de code.\n\n## Nommage\n\n- snake_case.\n\n```md\n## Pas une section\n```\n\n## Tests\n\n- Table-driven.\n",
 		"ONBOARDING.md":     "---\nupdated: 2026-10-01\n---\n\n# Onboarding Atlas\n\n## Démarrer\n\nmake dev.\n",
@@ -36,10 +50,14 @@ func instructionsFixture(t *testing.T, wiki bool) string {
 	}
 	for name, content := range files {
 		p := filepath.Join(dir, name)
-		require.NoError(t, os.MkdirAll(filepath.Dir(p), 0o755))
-		require.NoError(t, os.WriteFile(p, []byte(content), 0o644))
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			return err
+		}
+		if err := os.WriteFile(p, []byte(content), 0o644); err != nil {
+			return err
+		}
 	}
-	return dir
+	return nil
 }
 
 // instructionsOf returns the project instructions of a composed prompt: the
@@ -61,11 +79,9 @@ func instructionsOf(body string) string {
 // its level, are pinned in testdata/golden/instructions/libre/<agent>.md
 // (go test ./internal/bundle -run ProjectInstructions -update).
 func TestProjectInstructionsGolden(t *testing.T) {
-	hub, cat, env := shippedWorkflows(t)
-	r, diags := workflow.Check(cat, workflow.Ref{Layer: workflow.LayerHub, ID: "libre"}, nil, env)
-	require.False(t, diags.HasErrors(), "%v", diags)
-	b, err := Build(Request{HubDir: hub, OutDir: t.TempDir(), ProjectPath: instructionsFixture(t, true), Spec: r.Spec})
-	require.NoError(t, err)
+	t.Parallel()
+	hub, _, _ := shippedWorkflows(t)
+	_, b := shippedBuild(t, sharedInstructionsFixture(t, true), workflow.Ref{Layer: workflow.LayerHub, ID: "libre"})
 	files, err := bricks.FindAgentFiles(hub)
 	require.NoError(t, err)
 	levels := map[string]bool{}
@@ -149,6 +165,7 @@ func TestInstructionsRender(t *testing.T) {
 // computed by oh from the pages; the same data renders as the table of the
 // index.
 func TestWikiIndexOf(t *testing.T) {
+	t.Parallel()
 	assert.Nil(t, wikiIndexOf(""), "no project")
 	assert.Nil(t, wikiIndexOf(instructionsFixture(t, false)), "no wiki")
 	w := wikiIndexOf(instructionsFixture(t, true))
@@ -209,6 +226,7 @@ func TestFrontmatterProjectInstructions(t *testing.T) {
 // L7: an agent at the level index may read each file of its index, on its
 // exact path only; an explicit refusal of the agent and the guards win.
 func TestIndexReadRules(t *testing.T) {
+	t.Parallel()
 	hub, cat, env := shippedWorkflows(t)
 	r, diags := workflow.Check(cat, workflow.Ref{Layer: workflow.LayerHub, ID: "libre"}, nil, env)
 	require.False(t, diags.HasErrors(), "%v", diags)

@@ -78,6 +78,7 @@ func TestWorkflowModels(t *testing.T) {
 }
 
 func TestBuildAppliesWorkflowModels(t *testing.T) {
+	t.Parallel()
 	b, err := Build(Request{
 		HubDir: repoHub(t), OutDir: t.TempDir(), Spec: agentSpec(t, repoHub(t), "orchestrator-dev"), Provider: "bedrock",
 		WorkflowModels: WorkflowModels(&workflow.Models{

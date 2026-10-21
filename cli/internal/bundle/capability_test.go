@@ -367,24 +367,28 @@ func capAgentText(t *testing.T, hub string, b *Bundle, a sessionspec.AgentDef, f
 // Rust, Maven, Make.
 func capProject(t *testing.T) string {
 	t.Helper()
-	dir := t.TempDir()
-	for name, content := range map[string]string{
-		"go.mod":         "module example.com/demo\n",
-		"package.json":   `{"dependencies":{"react":"19","react-dom":"19"},"devDependencies":{"typescript":"6","vitest":"4"}}`,
-		"pyproject.toml": "[project]\nname = \"demo\"\ndependencies = [\"pytest\"]\n",
-		"Cargo.toml":     "[package]\nname = \"demo\"\n",
-		"pom.xml":        "<project/>\n",
-		"Makefile":       "test:\n",
-		"uv.lock":        "",
-		"poetry.lock":    "",
-	} {
-		require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644))
-	}
-	return dir
+	return sharedProjectDir(t, "cap", func(dir string) error {
+		for name, content := range map[string]string{
+			"go.mod":         "module example.com/demo\n",
+			"package.json":   `{"dependencies":{"react":"19","react-dom":"19"},"devDependencies":{"typescript":"6","vitest":"4"}}`,
+			"pyproject.toml": "[project]\nname = \"demo\"\ndependencies = [\"pytest\"]\n",
+			"Cargo.toml":     "[package]\nname = \"demo\"\n",
+			"pom.xml":        "<project/>\n",
+			"Makefile":       "test:\n",
+			"uv.lock":        "",
+			"poetry.lock":    "",
+		} {
+			if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 func TestCapabilities(t *testing.T) {
-	hub, cat, env := shippedWorkflows(t)
+	t.Parallel()
+	hub, cat, _ := shippedWorkflows(t)
 	project := capProject(t)
 	hc, err := hubcat.New(hub)
 	require.NoError(t, err)
@@ -425,13 +429,24 @@ func TestCapabilities(t *testing.T) {
 		}
 	}
 
+	items := map[workflow.Ref][]shippedOpts{}
+	for _, run := range runs {
+		o := shippedOpts{Project: project}
+		if run.opts != nil {
+			o.Entry = run.opts.EntryAgent
+		}
+		items[run.ref] = append(items[run.ref], o)
+	}
+	warmShipped(t, items)
+
 	var report, errs []string
 	for _, run := range runs {
 		ref := run.ref
-		r, diags := workflow.Check(cat, ref, run.opts, env)
-		require.False(t, diags.HasErrors(), "%s: %v", run.key, diags)
-		b, err := Build(Request{HubDir: hub, OutDir: t.TempDir(), ProjectPath: project, Spec: r.Spec})
-		require.NoError(t, err)
+		var entry string
+		if run.opts != nil {
+			entry = run.opts.EntryAgent
+		}
+		r, b := shippedBuildWith(t, ref, shippedOpts{Project: project, Entry: entry})
 		wf := b.Spec.Workflow
 		locks := SessionRules(wf, r.Spec.DefaultMode(), nil)
 		for _, a := range b.Spec.Agents {

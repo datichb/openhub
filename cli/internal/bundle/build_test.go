@@ -28,6 +28,7 @@ func repoHub(t *testing.T) string {
 }
 
 func TestBuildOrchestratorDevBundle(t *testing.T) {
+	t.Parallel()
 	out := t.TempDir()
 	project := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(project, "CONVENTIONS.md"), []byte("Always write tests.\n"), 0o644))
@@ -95,8 +96,7 @@ func TestBuildOrchestratorDevBundle(t *testing.T) {
 }
 
 func TestBuildOrchestratorDepth(t *testing.T) {
-	b, err := Build(Request{HubDir: repoHub(t), OutDir: t.TempDir(), Spec: agentSpec(t, repoHub(t), "orchestrator"), Provider: "bedrock"})
-	require.NoError(t, err)
+	b := agentBuild(t, "orchestrator", "bedrock")
 	assert.Contains(t, b.Spec.AgentIDs(), "orchestrator-dev")
 	assert.Contains(t, b.Spec.AgentIDs(), "developer")
 	assert.GreaterOrEqual(t, b.Spec.MaxDepth, 2, "orchestrator → orchestrator-dev → developer")
@@ -127,6 +127,7 @@ func TestConvertPermissions(t *testing.T) {
 }
 
 func TestBuildResolvesModels(t *testing.T) {
+	t.Parallel()
 	b, err := Build(Request{
 		HubDir: repoHub(t), OutDir: t.TempDir(), Spec: agentSpec(t, repoHub(t), "orchestrator-dev"), Provider: "bedrock",
 		HubOverrides: &bricks.ModelOverrides{Default: "claude-sonnet-4-5", Agents: map[string]string{"reviewer": "claude-opus-4-6"}},
@@ -160,8 +161,8 @@ func TestConvertPermissionsMergedKeysAreRestrictive(t *testing.T) {
 
 // An entry agent without a model still gets a session model (never the tool's own default).
 func TestBuildEntryWithoutModelGetsFallback(t *testing.T) {
-	b, err := Build(Request{HubDir: repoHub(t), OutDir: t.TempDir(), Spec: agentSpec(t, repoHub(t), "developer"), Provider: "bedrock"})
-	require.NoError(t, err)
+	t.Parallel()
+	b := agentBuild(t, "developer", "bedrock")
 	require.NotNil(t, b.Spec.DefaultModel)
 	assert.Equal(t, "amazon-bedrock", b.Spec.DefaultModel.Provider)
 	assert.Contains(t, b.Spec.DefaultModel.Model, "claude-sonnet-4-6")

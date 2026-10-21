@@ -39,6 +39,7 @@ func docWriter(rel string) bool {
 }
 
 func TestScratchNeverInTheDocs(t *testing.T) {
+	t.Parallel()
 	root := repoHub(t)
 	checked := 0
 	for _, dir := range []string{"agents", "skills", "workflows"} {

@@ -161,6 +161,7 @@ func hubTexts(t *testing.T) map[string]string {
 
 // L3: the markers of the hub content are well formed and balanced.
 func TestHubWhenMarkersBalanced(t *testing.T) {
+	t.Parallel()
 	n := 0
 	for rel, text := range hubTexts(t) {
 		blocks, err := scanWhen(text)
@@ -220,6 +221,7 @@ var questionCallRe = regexp.MustCompile("question\\(|outil `question` (?:pour|av
 // L3 (C-6): a subagent never asks the user: no block written for subagents
 // calls the question tool.
 func TestNoQuestionInSubagentBlocks(t *testing.T) {
+	t.Parallel()
 	for rel, text := range hubTexts(t) {
 		for _, b := range subagentOnlyBlocks(text) {
 			for _, ln := range strings.Split(b, "\n") {
@@ -234,13 +236,11 @@ func TestNoQuestionInSubagentBlocks(t *testing.T) {
 // L3: an agent's own text has no block for a role it never has in the
 // shipped workflows (dead text).
 func TestNoDeadRoleBlocksInAgents(t *testing.T) {
-	hub, cat, env := shippedWorkflows(t)
+	t.Parallel()
+	_, cat, _ := shippedWorkflows(t)
 	roles := map[string]map[string]bool{}
 	for _, ref := range cat.Refs() {
-		r, diags := workflow.Check(cat, ref, nil, env)
-		require.False(t, diags.HasErrors(), "%v", diags)
-		b, err := Build(Request{HubDir: hub, OutDir: t.TempDir(), Spec: r.Spec})
-		require.NoError(t, err)
+		r, b := shippedBuild(t, "", ref)
 		selectable := r.Spec.Entry != nil && r.Spec.Entry.Selectable
 		for id, e := range bundleWhenEnvs(r.Spec, "", b.Spec) {
 			if roles[id] == nil {

@@ -59,6 +59,7 @@ checkpoints:
 // developer, with what oh checks; the bundle of another session is the one
 // of a workflow without them.
 func TestMethodBundle(t *testing.T) {
+	t.Parallel()
 	hub, cat, env := shippedWorkflows(t)
 	doc, pd := workflow.Parse([]byte(tddWorkflow), workflow.Source{Layer: workflow.LayerHub, Path: "tdd-test.yaml"})
 	require.False(t, pd.HasErrors(), "%v", pd)
@@ -111,12 +112,9 @@ func TestMethodBundle(t *testing.T) {
 	assert.NotContains(t, lead, "tu passes `cp-1` (Démarrer le ticket), `cp-seams`", "its own checkpoints only")
 
 	// A method without checkpoint in the workflow changes nothing.
-	q, diags := workflow.Check(cat, workflow.Ref{Layer: workflow.LayerHub, ID: "quick"}, nil, env)
-	require.False(t, diags.HasErrors())
-	a, err := Build(Request{HubDir: hub, OutDir: t.TempDir(), Spec: q.Spec})
-	require.NoError(t, err)
-	b, err := Build(Request{HubDir: hub, OutDir: t.TempDir(), Spec: q.Spec, Method: workflow.MethodTDD})
-	require.NoError(t, err)
+	quick := workflow.Ref{Layer: workflow.LayerHub, ID: "quick"}
+	_, a := shippedBuild(t, "", quick)
+	_, b := shippedBuildWith(t, quick, shippedOpts{Method: workflow.MethodTDD})
 	assert.Equal(t, a.Spec.Hash, b.Spec.Hash)
 }
 

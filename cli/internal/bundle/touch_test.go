@@ -12,6 +12,7 @@ import (
 
 // N16: a reused bundle is marked as used (oh gc keeps it for a grace period).
 func TestBuildTouchesAReusedBundle(t *testing.T) {
+	t.Parallel()
 	out := t.TempDir()
 	req := Request{HubDir: repoHub(t), OutDir: out, ProjectPath: t.TempDir(), Spec: agentSpec(t, repoHub(t), "orchestrator-dev"), Provider: "bedrock"}
 	b, err := Build(req)

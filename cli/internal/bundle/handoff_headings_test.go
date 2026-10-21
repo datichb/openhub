@@ -25,6 +25,7 @@ var handoffAllow = map[string]string{}
 // C4: a handoff heading names its recipient by its agent id (or the
 // placeholder `<appelant>`): the coordinator looks for that exact heading.
 func TestHandoffHeadingsNameAgents(t *testing.T) {
+	t.Parallel()
 	hub := repoHub(t)
 	files, err := bricks.FindAgentFiles(hub)
 	require.NoError(t, err)

@@ -43,6 +43,7 @@ func TestSessionRoleFromGraph(t *testing.T) {
 
 // C0.1: no shipped text decides the mode from a `[SKILL:…]` tag any more.
 func TestNoModeDetectionFromSkillTag(t *testing.T) {
+	t.Parallel()
 	hub := repoHub(t)
 	for _, dir := range []string{"agents", "skills"} {
 		require.NoError(t, filepath.WalkDir(filepath.Join(hub, dir), func(path string, d os.DirEntry, err error) error {

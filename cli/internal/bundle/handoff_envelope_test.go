@@ -139,6 +139,7 @@ func TestReturnTitlesFromContract(t *testing.T) {
 
 // Skills never name a caller in a return title: the contract does.
 func TestSkillsNameNoReturnRecipient(t *testing.T) {
+	t.Parallel()
 	hub := repoHub(t)
 	files, err := bricks.FindAgentFiles(hub)
 	require.NoError(t, err)

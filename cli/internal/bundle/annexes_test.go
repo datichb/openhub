@@ -113,8 +113,8 @@ func TestCheckSkillsAnnexes(t *testing.T) {
 }
 
 func TestHubAnnexesResolve(t *testing.T) {
-	b, err := Build(Request{HubDir: repoHub(t), OutDir: t.TempDir(), Spec: agentSpec(t, repoHub(t), "orchestrator"), Provider: "bedrock"})
-	require.NoError(t, err)
+	t.Parallel()
+	b := agentBuild(t, "orchestrator", "bedrock")
 	found := 0
 	for _, a := range b.Spec.WithBundleRoot(b.Spec.Root).Agents {
 		for _, line := range strings.Split(a.Body, "\n") {

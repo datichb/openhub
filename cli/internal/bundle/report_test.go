@@ -8,6 +8,7 @@ import (
 )
 
 func TestShow(t *testing.T) {
+	t.Parallel()
 	b, err := Build(Request{HubDir: repoHub(t), OutDir: t.TempDir(), Spec: parseSpec(t, ticketSpec), Provider: "bedrock"})
 	require.NoError(t, err)
 	r := Show(b)

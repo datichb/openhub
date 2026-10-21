@@ -144,14 +144,12 @@ type catalogueCase struct {
 // the common-stack project.
 func shippedCatalogues(t *testing.T) (string, []catalogueCase) {
 	t.Helper()
-	hub, cat, env := shippedWorkflows(t)
+	hub, cat, _ := shippedWorkflows(t)
 	var out []catalogueCase
+	warmRefs(t, "", capProject(t))
 	for _, project := range []string{"", capProject(t)} {
 		for _, ref := range cat.Refs() {
-			r, diags := workflow.Check(cat, ref, nil, env)
-			require.False(t, diags.HasErrors(), "%v", diags)
-			b, err := Build(Request{HubDir: hub, OutDir: t.TempDir(), ProjectPath: project, Spec: r.Spec})
-			require.NoError(t, err)
+			r, b := shippedBuild(t, project, ref)
 			out = append(out, catalogueCase{project: project, ref: ref, spec: r.Spec, b: b})
 		}
 	}
@@ -168,6 +166,7 @@ var skillTagLineRe = regexp.MustCompile(`subagent_type:\s*"([a-z0-9-]+)"`)
 // callers put in the delegation prompts written for it, and the skills
 // named by the on-demand skills of its catalogue (transitive closure).
 func TestAgentSkillReachability(t *testing.T) {
+	t.Parallel()
 	hub, cases := shippedCatalogues(t)
 	files, err := bricks.FindAgentFiles(hub)
 	require.NoError(t, err)
@@ -281,6 +280,7 @@ func TestAgentSkillReachability(t *testing.T) {
 // computed apart from the build), nor a skill inlined in its prompt, nor a
 // stack skill without stack_skills; every shipped skill is in a catalogue.
 func TestNoSpuriousCatalogue(t *testing.T) {
+	t.Parallel()
 	hub, cases := shippedCatalogues(t)
 	files, err := bricks.FindAgentFiles(hub)
 	require.NoError(t, err)
@@ -291,7 +291,7 @@ func TestNoSpuriousCatalogue(t *testing.T) {
 		stackIDs[strings.TrimSuffix(filepath.Base(f), ".md")] = true
 	}
 	for _, c := range cases {
-		reach := reachableSkills(t, hub, c.spec, c.b, c.project)
+		reach := shippedReach(t, c.project, c.ref)
 		inSome := map[string]bool{}
 		for _, a := range c.b.Spec.Agents {
 			where := c.ref.ID + " " + a.ID

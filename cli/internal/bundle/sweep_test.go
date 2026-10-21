@@ -14,7 +14,7 @@ import (
 
 // N7 (DC11): the sweep workflow.
 func TestSweepWorkflow(t *testing.T) {
-	hub, cat, env := shippedWorkflows(t)
+	hub, cat, _ := shippedWorkflows(t)
 	hc, err := hubcat.New(hub)
 	require.NoError(t, err)
 	ref := workflow.Ref{Layer: workflow.LayerHub, ID: "sweep"}
@@ -44,10 +44,7 @@ func TestSweepWorkflow(t *testing.T) {
 	// The runtime: cp-plan pauses in every mode, developers and reviewer
 	// stay locked before it (auto included), pathfinder is free, commit is
 	// locked until cp-commit.
-	r, diags := workflow.Check(cat, ref, nil, env)
-	require.False(t, diags.HasErrors(), "%v", diags)
-	b, err := Build(Request{HubDir: hub, OutDir: t.TempDir(), Spec: r.Spec})
-	require.NoError(t, err)
+	_, b := shippedBuild(t, "", ref)
 	wf := b.Spec.Workflow
 	cp, ok := wf.Checkpoint("cp-plan")
 	require.True(t, ok)

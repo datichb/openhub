@@ -103,6 +103,7 @@ func TestGenerateWorkflowSkills_Content(t *testing.T) {
 }
 
 func TestBuildFromWorkflowSpec_InlinesGeneratedSkills(t *testing.T) {
+	t.Parallel()
 	b, err := Build(Request{HubDir: repoHub(t), OutDir: t.TempDir(), Spec: parseSpec(t, genSpec)})
 	require.NoError(t, err)
 	od := findAgent(b.Spec.Agents, "orchestrator-dev")
@@ -113,6 +114,7 @@ func TestBuildFromWorkflowSpec_InlinesGeneratedSkills(t *testing.T) {
 }
 
 func TestBuildConductorWorkflow(t *testing.T) {
+	t.Parallel()
 	src := `apiVersion: oh/v1
 kind: Workflow
 id: cadrage

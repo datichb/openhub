@@ -45,6 +45,7 @@ func writeProjectFile(t *testing.T, dir, rel, content string) {
 // skills, neither the frontend domain skills nor the skills of plugins the
 // workflow does not load (context-mode, rtk).
 func TestBundleSkillsFollowStackAndPlugins(t *testing.T) {
+	t.Parallel()
 	api := t.TempDir()
 	writeProjectFile(t, api, "pyproject.toml", "[project]\nname = \"api\"\ndependencies = [\"fastapi\"]\n")
 	writeProjectFile(t, api, "app/main.py", "from fastapi import FastAPI\n")
@@ -68,6 +69,7 @@ func TestBundleSkillsFollowStackAndPlugins(t *testing.T) {
 // ctx_* tools, rtk shell) are given to the agents only when the workflow
 // loads the plugin.
 func TestPluginPermissionsFollowPlugins(t *testing.T) {
+	t.Parallel()
 	hub, cat, env := shippedWorkflows(t)
 	r, diags := workflow.Check(cat, workflow.Ref{Layer: workflow.LayerHub, ID: "quick"}, nil, env)
 	require.False(t, diags.HasErrors(), "%v", diags)
@@ -96,6 +98,7 @@ func TestPluginPermissionsFollowPlugins(t *testing.T) {
 // (the reviewer names the frontend standards in its workflow; L6 moved the
 // routing of orchestrator-dev to an on-demand skill).
 func TestAbsentSkillsNote(t *testing.T) {
+	t.Parallel()
 	api := t.TempDir()
 	writeProjectFile(t, api, "pyproject.toml", "[project]\ndependencies = [\"fastapi\"]\n")
 	hub, cat, env := shippedWorkflows(t)

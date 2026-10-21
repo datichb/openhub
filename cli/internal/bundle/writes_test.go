@@ -17,6 +17,7 @@ import (
 // the guards of the bundle still win; the other agents and the planner of
 // the other workflows are unchanged.
 func TestWritesPlannerOfSpec(t *testing.T) {
+	t.Parallel()
 	b := scratchBundle(t, "spec", "")
 	understood := &domain.CheckpointState{Passed: map[string]time.Time{"cp-understanding": time.Now()}}
 	open := &domain.CheckpointState{Passed: understood.Passed, Unlocks: map[string]domain.CheckpointUnlock{sessionspec.UnlockCommit: {Checkpoint: "cp-spec"}}}
@@ -167,6 +168,7 @@ func TestWritesPlannerOfSpec(t *testing.T) {
 // cp-wiki is passed; p6-debts: with ONBOARDING.md and CONVENTIONS.md, its
 // writes: paths too, in one commit.
 func TestWritesOnboarderOfOnboarding(t *testing.T) {
+	t.Parallel()
 	b := scratchBundle(t, "onboarding", "")
 	var own []sessionspec.PermissionRule
 	var body string

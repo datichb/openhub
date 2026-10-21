@@ -12,6 +12,7 @@ import (
 // refused to every agent (layer 0, sessionDataDeny), before the scratch
 // exceptions: the owner of a scratch folder still reads and writes it.
 func TestSessionDataRefusedScratchKept(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct{ name, ohHome, sessions string }{
 		{"~/.oh", "", scratchSessions},
 		{"custom oh home", "/data/oh", "/data/oh/sessions"},

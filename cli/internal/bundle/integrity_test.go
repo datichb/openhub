@@ -13,6 +13,7 @@ import (
 // is never used: Load refuses it, Build rebuilds it; its files are
 // read-only.
 func TestBundleIntegrity(t *testing.T) {
+	t.Parallel()
 	out := t.TempDir()
 	t.Cleanup(func() { _ = Unseal(out) })
 	req := Request{HubDir: repoHub(t), OutDir: out, Spec: agentSpec(t, repoHub(t), "developer"), Provider: "bedrock", Seal: true}

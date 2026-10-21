@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
@@ -16,8 +15,7 @@ import (
 // its own rules, then the guard of the bundle (last).
 func effectiveRules(t *testing.T, entry, agent string) []sessionspec.PermissionRule {
 	t.Helper()
-	b, err := Build(Request{HubDir: repoHub(t), OutDir: t.TempDir(), Spec: agentSpec(t, repoHub(t), entry), Provider: "bedrock"})
-	require.NoError(t, err)
+	b := agentBuild(t, entry, "bedrock")
 	for _, a := range b.Spec.Agents {
 		if a.ID == agent {
 			return append(append([]sessionspec.PermissionRule(nil), a.Permissions...), b.Spec.AgentGuard...)
@@ -31,6 +29,7 @@ func effectiveRules(t *testing.T, entry, agent string) []sessionspec.PermissionR
 // analysis (S2.3 and audit S-12) are refused to every shipped agent, as the
 // tool matches them (simulator of lot 0).
 func TestGlobalGuard(t *testing.T) {
+	t.Parallel()
 	bypasses := []string{
 		// destructive git anywhere in the command
 		"X=1 git checkout app/store.py", "env git checkout app/store.py", "sh -c 'git checkout app/store.py'",
@@ -190,6 +189,7 @@ func TestSessionRulesNeverAllowShell(t *testing.T) {
 // reset`), secrets (`secrets set|delete|get|cleanup`) and the restrictions of the
 // sessions (`budget set|unset|raise`). The reads stay allowed.
 func TestGlobalGuardRefusesOhCommandsThatChangeTrustAndSettings(t *testing.T) {
+	t.Parallel()
 	forms := [][]string{
 		{"mcp", "serve", "jira"},
 		{"mcp", "trust", "jira", "--yes"},

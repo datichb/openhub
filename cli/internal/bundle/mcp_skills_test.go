@@ -15,6 +15,7 @@ import (
 // session has that MCP server: without it, the agent gets no instructions
 // for tools it does not have.
 func TestTrackerAdaptersFollowSessionMCP(t *testing.T) {
+	t.Parallel()
 	hub, cat, env := shippedWorkflows(t)
 	r, diags := workflow.Check(cat, workflow.Ref{Layer: workflow.LayerHub, ID: "spec"}, nil, env)
 	require.False(t, diags.HasErrors(), "%v", diags)
@@ -46,6 +47,7 @@ func TestTrackerAdaptersFollowSessionMCP(t *testing.T) {
 // The team skills (`mcp: team`) are shipped on demand only when the session
 // has the team MCP server.
 func TestTeamSkillsFollowSessionMCP(t *testing.T) {
+	t.Parallel()
 	hub, cat, env := shippedWorkflows(t)
 	r, diags := workflow.Check(cat, workflow.Ref{Layer: workflow.LayerHub, ID: "libre"}, nil, env)
 	require.False(t, diags.HasErrors(), "%v", diags)

@@ -95,16 +95,14 @@ func checkpointProtocolViolations(n checkpointNamer, text string) []string {
 }
 
 func TestShippedCheckpointProtocol(t *testing.T) {
-	hub, cat, env := shippedWorkflows(t)
+	t.Parallel()
+	_, cat, _ := shippedWorkflows(t)
 	for _, ref := range cat.Refs() {
 		t.Run(ref.ID, func(t *testing.T) {
-			r, diags := workflow.Check(cat, ref, nil, env)
-			require.False(t, diags.HasErrors(), "%v", diags)
+			r, b := shippedBuild(t, "", ref)
 			if r.Spec.Checkpoints.Len() == 0 {
 				return
 			}
-			b, err := Build(Request{HubDir: hub, OutDir: t.TempDir(), Spec: r.Spec})
-			require.NoError(t, err)
 			n := newCheckpointNamer(r.Spec)
 			var bad []string
 			require.NoError(t, filepath.WalkDir(b.Dir, func(p string, d fs.DirEntry, err error) error {
@@ -171,6 +169,7 @@ func TestStaticGeneratedSkillsAreStubs(t *testing.T) {
 // skills of the deployment era (orchestrator-modes, orchestrator-ticket-
 // routing) were orphans.
 func TestNoOrphanSkills(t *testing.T) {
+	t.Parallel()
 	hub := repoHub(t)
 	index := hubSkillIndex(hub, nil)
 	reached := map[string]bool{}

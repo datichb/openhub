@@ -99,6 +99,7 @@ func worst(effects ...sessionspec.Effect) sessionspec.Effect {
 }
 
 func TestScratchOwnerReaderOthers(t *testing.T) {
+	t.Parallel()
 	b := scratchBundle(t, "debug", "", scratchOther)
 	require.Equal(t, []sessionspec.ScratchDef{{Owner: "debugger", Readers: []string{"developer"}}}, b.Spec.Workflow.Scratch)
 	dir := ScratchDir(scratchSessions, "ses_a", "debugger")
@@ -139,6 +140,7 @@ func TestScratchOwnerReaderOthers(t *testing.T) {
 // Another session is refused, the owner and the reader included (parallel
 // sessions of the same bundle share the agent rules).
 func TestScratchOtherSession(t *testing.T) {
+	t.Parallel()
 	b := scratchBundle(t, "debug", "", scratchOther)
 	file := ScratchDir(scratchSessions, "ses_a", "debugger") + "/repro_test.go"
 	for _, plugin := range []bool{true, false} {
@@ -214,6 +216,7 @@ func TestScratchGuardOrder(t *testing.T) {
 // A workflow without scratch folder refuses them all, once in the global
 // guard; nothing is added to the agents nor to the session rules.
 func TestScratchWithoutFolder(t *testing.T) {
+	t.Parallel()
 	b := scratchBundle(t, "ticket", "")
 	assert.Empty(t, b.Spec.ScopedGuard)
 	assert.Nil(t, ScratchSessionRules(b.Spec.Workflow, scratchSessions, "ses_a"))
@@ -233,6 +236,7 @@ func TestScratchWithoutFolder(t *testing.T) {
 
 // A custom oh home is refused by its path too.
 func TestScratchCustomOhHome(t *testing.T) {
+	t.Parallel()
 	home := "/data/oh"
 	sessions := home + "/sessions"
 	b := scratchBundle(t, "debug", home, scratchOther)
@@ -253,6 +257,7 @@ func TestScratchCustomOhHome(t *testing.T) {
 // The owner and the readers are told where their folder is; the others
 // are not.
 func TestScratchNote(t *testing.T) {
+	t.Parallel()
 	b := scratchBundle(t, "debug", "", scratchOther)
 	for _, a := range b.Spec.Agents {
 		note := strings.Contains(a.Body, "Brouillons de session (oh)")

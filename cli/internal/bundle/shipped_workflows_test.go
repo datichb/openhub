@@ -21,19 +21,6 @@ import (
 // bundle compiled from it is pinned by golden files
 // (go test ./internal/bundle -run ShippedWorkflow -update).
 
-func shippedWorkflows(t *testing.T) (string, *workflow.MemCatalog, workflow.Env) {
-	t.Helper()
-	hub := repoHub(t)
-	cat, diags := hubcat.LoadWorkflows(hub)
-	require.Empty(t, diags, "loading %s/workflows", hub)
-	require.NotEmpty(t, cat.Refs(), "no shipped workflow")
-	hc, err := hubcat.New(hub)
-	require.NoError(t, err)
-	env := hc.Env()
-	env.Skills = NewSkillCatalog(hub)
-	return hub, cat, env
-}
-
 func TestShippedWorkflowsAreValid(t *testing.T) {
 	_, cat, env := shippedWorkflows(t)
 	for _, ref := range cat.Refs() {
@@ -103,6 +90,7 @@ var extraSamples = map[string]map[string]map[string]any{
 }
 
 func TestShippedWorkflowPrompts(t *testing.T) {
+	t.Parallel()
 	hub, cat, _ := shippedWorkflows(t)
 	hc, err := hubcat.New(hub)
 	require.NoError(t, err)
@@ -267,16 +255,15 @@ type agentSummary struct {
 }
 
 func TestShippedWorkflowBundles(t *testing.T) {
-	hub, cat, env := shippedWorkflows(t)
+	t.Parallel()
+	hub, cat, _ := shippedWorkflows(t)
 	hc, err := hubcat.New(hub)
 	require.NoError(t, err)
 	for _, v := range shippedVariants(t, cat) {
 		ref, name := v.ref, v.name
 		t.Run(name, func(t *testing.T) {
-			r, diags := workflow.Check(cat, ref, nil, env) // as the launch: selectable entries expanded
-			require.False(t, diags.HasErrors(), "%v", diags)
-			b, err := Build(Request{HubDir: hub, OutDir: t.TempDir(), Spec: r.Spec, Method: v.method, Fanout: v.fanout})
-			require.NoError(t, err)
+			// as the launch: selectable entries expanded
+			r, b := shippedBuildWith(t, ref, shippedOpts{Method: v.method, Fanout: v.fanout})
 			require.NoError(t, Verify(b.Dir, b.Spec.Hash), "N23: a built bundle verifies")
 
 			s := b.Spec

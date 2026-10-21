@@ -46,8 +46,11 @@ const budgetRow = "%-8s %-22s %-28s %8d %8d %4d %4d %6d %4d %6d\n"
 const budgetColumns = 10
 
 func TestBudgetBaseline(t *testing.T) {
-	hub, cat, env := shippedWorkflows(t)
+	t.Parallel()
+	_, cat, _ := shippedWorkflows(t)
 	projects := []struct{ name, path string }{{"none", ""}, {"stacks", capProject(t)}, {"instruct", instructProject(t)}}
+
+	warmRefs(t, "", projects[1].path, projects[2].path)
 
 	var lines []budgetLine
 	totals := map[string]budgetLine{}
@@ -58,15 +61,12 @@ func TestBudgetBaseline(t *testing.T) {
 	inlined := map[string]*inlinedUse{}
 	for _, p := range projects {
 		for _, ref := range cat.Refs() {
-			r, diags := workflow.Check(cat, ref, nil, env)
-			require.False(t, diags.HasErrors(), "%v", diags)
-			b, err := Build(Request{HubDir: hub, OutDir: t.TempDir(), ProjectPath: p.path, Spec: r.Spec})
-			require.NoError(t, err)
+			_, b := shippedBuild(t, p.path, ref)
 			tot := budgetLine{project: p.name, workflow: ref.ID, agent: "TOTAL", catalog: len(b.Spec.Skills)}
 			for _, sk := range b.Spec.Skills {
 				tot.catalogTokens += SkillCatalogTokens(sk)
 			}
-			reach := reachableSkills(t, hub, r.Spec, b, p.path)
+			reach := shippedReach(t, p.path, ref)
 			reachedByOne := map[string]bool{}
 			for _, a := range b.Spec.Agents {
 				l := budgetLine{project: p.name, workflow: ref.ID, agent: a.ID, prompt: EstimateTokens(a.Body)}
@@ -162,9 +162,9 @@ func TestBudgetBaseline(t *testing.T) {
 // and docs/wiki/index.md.
 func instructProject(t *testing.T) string {
 	t.Helper()
-	dir := t.TempDir()
-	require.NoError(t, os.CopyFS(dir, os.DirFS(filepath.Join("testdata", "instructions-project"))))
-	return dir
+	return sharedProjectDir(t, "instruct", func(dir string) error {
+		return os.CopyFS(dir, os.DirFS(filepath.Join("testdata", "instructions-project")))
+	})
 }
 
 // readBudgetGolden returns the pinned prompt tokens by "project workflow agent".

@@ -22,13 +22,9 @@ import (
 var snapshotWorkflows = []string{"audit", "implement-spec", "quick", "review", "spec", "ticket"}
 
 func TestShippedWorkflowPromptSnapshots(t *testing.T) {
-	hub, cat, env := shippedWorkflows(t)
 	for _, id := range snapshotWorkflows {
 		t.Run(id, func(t *testing.T) {
-			r, diags := workflow.Check(cat, workflow.Ref{Layer: workflow.LayerHub, ID: id}, nil, env)
-			require.False(t, diags.HasErrors(), "%v", diags)
-			b, err := Build(Request{HubDir: hub, OutDir: t.TempDir(), Spec: r.Spec})
-			require.NoError(t, err)
+			_, b := shippedBuild(t, "", workflow.Ref{Layer: workflow.LayerHub, ID: id})
 			require.NotEmpty(t, b.Spec.Agents)
 
 			dir := filepath.Join("testdata", "golden", "prompts", id)
