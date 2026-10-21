@@ -26,6 +26,27 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
+// fixtures bounds the fixtures alive at the same time: each driver polls and
+// runs git every few milliseconds, and ten of them at once on a busy machine
+// make git (and the 2 min guards) the ones that fail.
+var fixtures = make(chan struct{}, 4)
+
+var fixtureOwners sync.Map // *testing.T → struct{}: one place per test, whatever its fixtures
+
+// acquireFixture waits for a place among the fixtures; the test gives it back
+// when it ends.
+func acquireFixture(t *testing.T) {
+	t.Helper()
+	if _, owned := fixtureOwners.LoadOrStore(t, struct{}{}); owned {
+		return
+	}
+	fixtures <- struct{}{}
+	t.Cleanup(func() {
+		fixtureOwners.Delete(t)
+		<-fixtures
+	})
+}
+
 // newProject returns a repository on main with README.md and calc.go
 // committed, in a directory of its own.
 func newProject(t *testing.T) string {

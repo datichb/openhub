@@ -198,6 +198,7 @@ type fixture struct {
 
 func newFixture(t *testing.T, tickets ...string) *fixture {
 	t.Helper()
+	acquireFixture(t)
 	st := sqlitetest.New(t)
 	sqlitetest.Seed(t, st).Project("p1", "/p1")
 	project := newProject(t)
