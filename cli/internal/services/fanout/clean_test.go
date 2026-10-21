@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 )
 
 func branchExists(t *testing.T, repo, branch string) bool {
@@ -113,7 +114,7 @@ func TestCleanAbandoned(t *testing.T) {
 		traced = traced || (e.Kind == domain.FanoutEventDiscarded && strings.Contains(e.Message, unmerged.Branch+" "+head))
 	}
 	assert.True(t, traced, "the commit of a discarded branch is in the events")
-	run(t, f.project, "git", "branch", "restored", head) // still recoverable
+	gittest.Run(t, f.project, "branch", "restored", head) // still recoverable
 }
 
 // Guards: a worktree with uncommitted changes, or where a session of the
@@ -132,7 +133,7 @@ func TestCleanKeeps(t *testing.T) {
 
 	dirty, live := fo.Children[0], fo.Children[1]
 	require.NoError(t, os.WriteFile(filepath.Join(dirty.Path, "wip.go"), []byte("package calc\n"), 0o644))
-	run(t, f.project, "git", "branch", "feature/mine")
+	gittest.Run(t, f.project, "branch", "feature/mine")
 	p.Fanout.Children = append(p.Fanout.Children, domain.FanoutChild{Ticket: "ev-x", Branch: "feature/mine", Path: f.project, State: domain.ChildFailed})
 	res, err := Clean(ctx, f.store, p, CleanOptions{Discard: true, Live: func(_ context.Context, id string) bool { return id == live.Session }})
 	require.NoError(t, err)
