@@ -1,0 +1,16 @@
+  ── Execution ──                                                                                                      ▲
+                                                                                                                        
+  Default runtime              not configured                                                                           
+    Used when the workflow allows it and the project sets none                                                          
+  Container engine             auto                                                                                     
+    auto = Colima, then Podman, then Docker                                                                             
+  Image cache                  not configured                                                                           
+    Images kept per project (base image and oh image), the oldest are removed (default 2)                               
+  Pinned tool version          not configured                                                                           
+    Version installed in the images; it must be the machine client's (empty = client version)                           
+  Strict isolation             ✗ disabled                                                                               
+    Also hides the user's own tool configuration from local servers (XDG_CONFIG_HOME); containers never see it. Also …  
+  Variables for the agents     SSH_AUTH_SOCK, GEMINI_API_KEY, MYCO_*  ⚠ GEMINI_API_KEY looks like a secret: the agent…  
+    Variables of your environment passed to the agents in a local session, besides the base list (PATH, HOME, languag…  
+  Provider wait (min)          10                                                                                       
+    How long the credential proxy waits for a model provider to start answering before it gives up (1 to 240). A stre…  
