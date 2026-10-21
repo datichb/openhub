@@ -80,7 +80,6 @@
 ./internal/specdoc
 ./internal/storage/keychain
 ./internal/sysnotify
-./internal/task
 ./internal/termtext
 ./internal/tracker
 ./internal/tui/common
