@@ -10,13 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func fieldPath(path, name string) string {
-	if path == "" {
-		return name
-	}
-	return path + "." + name
-}
-
 // fill sets every exported field reachable from v to a non-zero value that
 // depends only on the order of the walk: two fills give two equal values.
 // Pointers point to a value, slices hold two elements, maps two entries.
@@ -73,14 +66,14 @@ func fill(v reflect.Value, n *int, depth int) {
 
 // mutate changes everything reachable from v: pointed values, slice
 // elements, map entries (and adds one), strings, numbers, booleans.
-func mutate(v reflect.Value, path string, skip map[string]string, depth int) {
-	if depth > 8 || skip[path] != "" {
+func mutate(v reflect.Value, depth int) {
+	if depth > 8 {
 		return
 	}
 	switch v.Kind() {
 	case reflect.Pointer:
 		if !v.IsNil() {
-			mutate(v.Elem(), path, skip, depth+1)
+			mutate(v.Elem(), depth+1)
 		}
 	case reflect.Struct:
 		if v.Type() == reflect.TypeOf(time.Time{}) {
@@ -89,18 +82,18 @@ func mutate(v reflect.Value, path string, skip map[string]string, depth int) {
 		}
 		for i := range v.NumField() {
 			if v.Field(i).CanSet() {
-				mutate(v.Field(i), fieldPath(path, v.Type().Field(i).Name), skip, depth+1)
+				mutate(v.Field(i), depth+1)
 			}
 		}
 	case reflect.Slice:
 		for i := range v.Len() {
-			mutate(v.Index(i), path, skip, depth+1)
+			mutate(v.Index(i), depth+1)
 		}
 	case reflect.Map:
 		for _, key := range v.MapKeys() {
 			elem := reflect.New(v.Type().Elem()).Elem()
 			elem.Set(v.MapIndex(key))
-			mutate(elem, path, skip, depth+1)
+			mutate(elem, depth+1)
 			v.SetMapIndex(key, elem)
 		}
 		if v.Type().Key().Kind() == reflect.String && !v.IsNil() {
@@ -123,7 +116,7 @@ func mutate(v reflect.Value, path string, skip map[string]string, depth int) {
 
 // checkDeepCopy fills a value, copies it, changes every field of the copy
 // and checks that the original did not move.
-func checkDeepCopy[T any](t *testing.T, copyOf func(*T) T, skip map[string]string) {
+func checkDeepCopy[T any](t *testing.T, copyOf func(*T) T) {
 	t.Helper()
 	build := func() *T {
 		var x T
@@ -137,35 +130,20 @@ func checkDeepCopy[T any](t *testing.T, copyOf func(*T) T, skip map[string]strin
 	cp := copyOf(orig)
 	require.Equal(t, *pristine, cp, "the copy equals the original")
 
-	mutate(reflect.ValueOf(&cp).Elem(), "", skip, 0)
+	mutate(reflect.ValueOf(&cp).Elem(), 0)
 	require.NotEqual(t, *pristine, cp, "the test changed the copy")
 	assert.Equal(t, pristine, orig, "changing the copy must leave the original intact (aliased pointer, slice or map)")
 }
 
-// Fields that deepCopyConfig and deepCopyTeamConfig still share with the
-// original (found by this test): the slice or pointer is copied by
-// reference. They are left out of the check until the copy functions clone
-// them; remove the entry when it is fixed.
-var (
-	configSharedFields = map[string]string{
-		"Execution.EnvAllow": "slice copied by reference",
-		"Limits.Models":      "slice copied by reference",
-	}
-	teamConfigSharedFields = map[string]string{
-		"Board.Columns": "slice copied by reference",
-		"Limits":        "pointer copied by reference",
-	}
-)
-
 func TestDeepCopy(t *testing.T) {
 	t.Run("config", func(t *testing.T) {
-		checkDeepCopy(t, deepCopyConfig, configSharedFields)
+		checkDeepCopy(t, deepCopyConfig)
 	})
 	t.Run("project", func(t *testing.T) {
-		checkDeepCopy(t, deepCopyProject, nil)
+		checkDeepCopy(t, deepCopyProject)
 	})
 	t.Run("team config", func(t *testing.T) {
-		checkDeepCopy(t, deepCopyTeamConfig, teamConfigSharedFields)
+		checkDeepCopy(t, deepCopyTeamConfig)
 	})
 	t.Run("string map", func(t *testing.T) {
 		assert.Nil(t, cloneStringMap(nil), "nil map stays nil")
