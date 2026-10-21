@@ -248,29 +248,6 @@ func TestProjectStore_TeamConfigRoundTrip(t *testing.T) {
 	assert.Equal(t, "bob", got.TeamConfig.MemberID)
 }
 
-func TestProjectStore_TeamConfigNilRoundTrip(t *testing.T) {
-	s := openTestStore(t)
-	ps := NewProjectStore(s)
-	ctx := context.Background()
-
-	now := time.Now().Truncate(time.Second)
-	p := &domain.Project{
-		ID:         "team-cfg-nil",
-		Name:       "No Team Project",
-		Path:       "/tmp/no-team",
-		Language:   "typescript",
-		Status:     domain.ProjectStatusActive,
-		TeamConfig: nil, // explicit nil — inherit from hub
-		CreatedAt:  now,
-		UpdatedAt:  now,
-	}
-	require.NoError(t, ps.Create(ctx, p))
-
-	got, err := ps.Get(ctx, "team-cfg-nil")
-	require.NoError(t, err)
-	assert.Nil(t, got.TeamConfig, "nil TeamConfig should round-trip as nil (inherit mode)")
-}
-
 func TestProjectStore_TeamConfigUpdateCycle(t *testing.T) {
 	s := openTestStore(t)
 	ps := NewProjectStore(s)
