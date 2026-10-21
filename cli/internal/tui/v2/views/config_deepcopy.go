@@ -1,8 +1,11 @@
 package views
 
 import (
+	"slices"
+
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/limits"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 )
 
@@ -22,6 +25,10 @@ func deepCopyConfig(c *config.Config) config.Config {
 	if c.Deploy.InstructionFiles != nil {
 		cp.Deploy.InstructionFiles = append([]string(nil), c.Deploy.InstructionFiles...)
 	}
+
+	// Clone Execution.EnvAllow and Limits.Models slices
+	cp.Execution.EnvAllow = slices.Clone(c.Execution.EnvAllow)
+	cp.Limits = cloneLimits(c.Limits)
 
 	// Clone Models maps
 	if c.Models.Families != nil {
@@ -240,10 +247,27 @@ func deepCopyTeamConfig(c *teamstate.TeamConfig) teamstate.TeamConfig {
 		copy(cp.Notification.Destinations, c.Notification.Destinations)
 	}
 
+	// Clone Board.Columns slice
+	cp.Board.Columns = slices.Clone(c.Board.Columns)
+
+	// Clone Limits pointer (both ceilings hold a Models slice)
+	if c.Limits != nil {
+		tl := limits.TeamLimits{
+			Recommended: cloneLimits(c.Limits.Recommended),
+			Enforced:    cloneLimits(c.Limits.Enforced),
+		}
+		cp.Limits = &tl
+	}
+
 	return cp
 }
 
 // ---------- Generic helpers ----------
+
+func cloneLimits(l limits.Limits) limits.Limits {
+	l.Models = slices.Clone(l.Models)
+	return l
+}
 
 func cloneStringMap(m map[string]string) map[string]string {
 	if m == nil {

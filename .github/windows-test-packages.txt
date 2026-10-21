@@ -39,6 +39,7 @@
 ./internal/httplog
 ./internal/hubcontent
 ./internal/i18n
+./internal/i18n/i18ntest
 ./internal/launcher
 ./internal/limits
 ./internal/mcp/figma
@@ -79,6 +80,7 @@
 ./internal/sessionstats
 ./internal/specdoc
 ./internal/storage/keychain
+./internal/storage/sqlite/sqlitetest
 ./internal/sysnotify
 ./internal/termtext
 ./internal/tracker
