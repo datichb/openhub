@@ -14,6 +14,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
 // envAdapter records SetSessionEnv calls (other methods are not used).
@@ -32,11 +33,8 @@ func (e *envAdapter) SetSessionEnv(_ context.Context, _ adapters.ServerHandle, i
 
 func TestSessionEnvBuildPersistReapply(t *testing.T) {
 	ctx := context.Background()
-	st, err := sqlite.Open(filepath.Join(t.TempDir(), "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
-	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1','p1','/p1')`)
-	require.NoError(t, err)
+	st := sqlitetest.New(t)
+	sqlitetest.Seed(t, st).Project("p1", "/p1")
 	sessions := sqlite.NewSessionStore(st)
 
 	ad := &envAdapter{}
@@ -83,11 +81,8 @@ func TestSessionEnvBuildPersistReapply(t *testing.T) {
 
 func TestBeadsAllowKeptForResumes(t *testing.T) {
 	ctx := context.Background()
-	st, err := sqlite.Open(filepath.Join(t.TempDir(), "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
-	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1','p1','/p1')`)
-	require.NoError(t, err)
+	st := sqlitetest.New(t)
+	sqlitetest.Seed(t, st).Project("p1", "/p1")
 	sessions := sqlite.NewSessionStore(st)
 	var calls []SessionEnvRequest
 	svc := &Service{Adapter: &envAdapter{}, Sessions: sessions, SessionsDir: t.TempDir(),

@@ -2,7 +2,6 @@ package runsvc
 
 import (
 	"context"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -12,6 +11,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/daemon"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
 type policyDaemon struct {
@@ -26,11 +26,8 @@ func (p *policyDaemon) SetPolicy(_ context.Context, group string, pol daemon.Qui
 
 func TestQuitPlanAndApply(t *testing.T) {
 	ctx := context.Background()
-	st, err := sqlite.Open(filepath.Join(t.TempDir(), "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
-	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1','p1','/p1')`)
-	require.NoError(t, err)
+	st := sqlitetest.New(t)
+	sqlitetest.Seed(t, st).Project("p1", "/p1")
 	sessions := sqlite.NewSessionStore(st)
 	for _, s := range []domain.Session{
 		{ID: "ses_work1", GroupKey: "g1", State: domain.RunActive},
@@ -69,9 +66,7 @@ func TestQuitPlanAndApply(t *testing.T) {
 // In-process daemon (Windows): quitting waits for the groups whose step
 // must finish to be asleep.
 func TestWaitFinished(t *testing.T) {
-	st, err := sqlite.Open(filepath.Join(t.TempDir(), "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
+	st := sqlitetest.New(t)
 	ctx := context.Background()
 	servers := sqlite.NewServerStore(st)
 	for _, g := range []string{"g1", "g2"} {
