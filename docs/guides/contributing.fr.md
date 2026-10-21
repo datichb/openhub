@@ -50,12 +50,27 @@ make test-tui       # Tests TUI uniquement (./internal/tui/...)
 make test-cover     # Genere coverage.out + coverage.html
 ```
 
+Mesurer les durées de la suite : `make test-durations` lance `go test ./... -short -count=1 -json`
+(`TEST_DURATIONS_PKGS`, `TEST_DURATIONS_ARGS` et `TEST_DURATIONS_OUT` changent les paquets, les
+arguments — par exemple `-race` — et le fichier JSON, `bin/test-durations.json` par défaut), puis
+affiche la durée réelle, le nombre de tests réussis, en échec et ignorés, la durée de chaque paquet et
+les tests de premier niveau les plus lents (`TEST_DURATIONS_TOP`). Le même résumé se lit sur n'importe
+quelle sortie `go test -json`, et deux mesures se comparent paquet par paquet :
+
+```bash
+go test ./internal/semver/... -json | go run scripts/testdurations/main.go
+go run scripts/testdurations/main.go -compare avant.json apres.json   # depuis cli/
+```
+
 Le CI exige un seuil de couverture minimum de **60%** avec le race detector actif.
 
 La CI GitHub (`.github/workflows/ci.yml`) lance, sous Linux, macOS et Windows, `go vet`, le lint,
-`govulncheck`, la suite `go test -race` (délai de 40 minutes) et, sous Linux et macOS, le seuil de couverture ; un job à
+`govulncheck` et une seule exécution `go test -race` de la suite (délai de 40 minutes) qui écrit aussi
+le profil de couverture, dont le total est comparé au seuil sous Linux et macOS ; un job à
 part lance les tests de contrat (tag `integration`) contre un vrai `opencode serve` de version
-épinglée, sans appeler de modèle. Les tests e2e (tag `e2e`, vrai modèle Bedrock) et les évaluations
+épinglée, sans appeler de modèle, sur les seuls paquets qui en ont (la liste est calculée à partir des
+fichiers de test `//go:build integration`, un nouveau paquet la rejoint donc tout seul ; aujourd'hui
+`internal/adapters/opencodev2`, `internal/gateway`, `internal/runsvc` et `internal/services/remote`). Les tests e2e (tag `e2e`, vrai modèle Bedrock) et les évaluations
 (`make test-eval`) ne tournent jamais en CI : ils sont locaux et manuels, et aucune clé de modèle
 n'est confiée aux secrets GitHub.
 

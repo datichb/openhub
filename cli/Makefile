@@ -1,4 +1,4 @@
-.PHONY: build build-linux run test test-tui test-unit test-integration test-e2e test-container lint clean install embed-sync embed-bd sync-content
+.PHONY: build build-linux run test test-tui test-unit test-durations test-integration test-e2e test-container lint clean install embed-sync embed-bd sync-content
 
 # Build variables
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
@@ -50,6 +50,24 @@ test-e2e:
 # Container runtime tests against real engines (Colima and/or Podman running)
 test-container:
 	go test ./internal/runtime/... ./internal/runsvc/... -count=1 -tags container -v -run 'TestReal'
+
+# Duration of the suite: runs `go test -json` (no race by default) and prints the
+# real duration, the pass/fail/skip counts, the duration of each package and the
+# slowest tests. Variables: TEST_DURATIONS_PKGS (packages), TEST_DURATIONS_ARGS
+# (other go test arguments, e.g. "-race -count=1"), TEST_DURATIONS_OUT (JSON kept
+# for `go run scripts/testdurations/main.go -compare before.json after.json`),
+# TEST_DURATIONS_TOP (number of slowest tests listed).
+TEST_DURATIONS_PKGS ?= ./...
+TEST_DURATIONS_ARGS ?= -short -count=1
+TEST_DURATIONS_OUT  ?= bin/test-durations.json
+TEST_DURATIONS_TOP  ?= 20
+test-durations:
+	@mkdir -p $(dir $(TEST_DURATIONS_OUT))
+	@status=0; \
+	go test $(TEST_DURATIONS_PKGS) $(TEST_DURATIONS_ARGS) -timeout $(TEST_TIMEOUT) -json > $(TEST_DURATIONS_OUT) || status=$$?; \
+	go run scripts/testdurations/main.go -top $(TEST_DURATIONS_TOP) $(TEST_DURATIONS_OUT); \
+	echo "JSON: $(TEST_DURATIONS_OUT)"; \
+	exit $$status
 
 # Run tests with coverage
 test-cover:

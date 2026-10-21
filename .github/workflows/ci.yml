@@ -11,9 +11,10 @@ permissions:
   contents: read
 
 env:
-  # The full suite under -race is far longer than the 10 minutes that `go test`
-  # allows by default (internal/bundle alone takes about 15 minutes): the timeout
-  # is the one of `make test` (cli/Makefile, TEST_TIMEOUT).
+  # The full suite under -race (with the coverage profile) is far longer than the
+  # 10 minutes that `go test` allows by default (internal/bundle alone takes about
+  # 15 minutes): the timeout is the one of `make test` (cli/Makefile,
+  # TEST_TIMEOUT). It runs once per system: the "Test and coverage" step.
   GO_TEST_TIMEOUT: 40m
 
 jobs:
@@ -84,7 +85,14 @@ jobs:
         if: runner.os == 'Windows'
         run: ../.github/scripts/windows-packages.sh check
 
-      - name: Test
+      # One run per system: the tests under -race and the coverage profile come
+      # from the same `go test` (they used to run twice, in two steps).
+      #
+      # Not checked on Windows: the 60 % threshold is the one of the whole module
+      # (./...) and a total computed on the listed packages only would not be
+      # comparable with it (the excluded ones would count for nothing). The
+      # threshold stays the one of the systems that run every package.
+      - name: Test and coverage
         run: |
           packages=(./...)
           if [ "$RUNNER_OS" = "Windows" ]; then
@@ -92,16 +100,11 @@ jobs:
             [ "${#packages[@]}" -gt 0 ] || exit 1
             echo "Windows: ${#packages[@]} packages (.github/windows-test-packages.txt)"
           fi
-          go test "${packages[@]}" -v -race -count=1 -timeout "$GO_TEST_TIMEOUT"
-
-      # Not on Windows: the 60 % threshold is the one of the whole module (./...)
-      # and a total computed on the listed packages only would not be comparable
-      # with it (the excluded ones would count for nothing). The threshold stays
-      # the one of the systems that run every package.
-      - name: Coverage
-        if: runner.os != 'Windows'
-        run: |
-          go test ./... -coverprofile=coverage.out -covermode=atomic -timeout "$GO_TEST_TIMEOUT"
+          go test "${packages[@]}" -race -count=1 -coverprofile=coverage.out -covermode=atomic -timeout "$GO_TEST_TIMEOUT"
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            echo "Windows: coverage threshold not checked (listed packages only)"
+            exit 0
+          fi
           COVERAGE=$(go tool cover -func=coverage.out | grep "^total:" | awk '{print $3}' | tr -d '%')
           echo "Total coverage: ${COVERAGE}%"
           THRESHOLD=60
@@ -181,8 +184,26 @@ jobs:
           cp -r ../workflows internal/hubcontent/hub/workflows
           for a in amd64 arm64; do CGO_ENABLED=0 GOOS=linux GOARCH=$a go build -trimpath -ldflags "-s -w" -o internal/runtime/container/assets/bd-linux-$a ./cmd/oh-bd; done
 
+      # Only the packages that have integration tests: the other ones have no file
+      # in the `integration` tag and run in the "Test and coverage" step of the
+      # main job. The list is computed from the files, so that a new package
+      # with `//go:build integration` tests joins it with no change here. A
+      # constraint that excludes the tag (`!integration || windows`) or that asks
+      # for e2e too (`integration && e2e`, never run in CI) does not count.
       - name: Integration tests (real opencode serve, no model calls)
-        run: go test ./... -race -count=1 -tags integration -timeout "$GO_TEST_TIMEOUT"
+        run: |
+          pkgs=$(grep -rHE --include='*_test.go' '^//go:build ' . |
+            awk -F: '{ f = $1; expr = substr($0, length(f) + 2) }
+              expr ~ /(^|[^!A-Za-z0-9_])integration([^A-Za-z0-9_]|$)/ && expr !~ /e2e/ { print f }' |
+            sed 's#/[^/]*$##' | LC_ALL=C sort -u || true)
+          if [ -z "$pkgs" ]; then
+            echo "::error::no package has integration tests (//go:build integration)"
+            exit 1
+          fi
+          echo "Packages with integration tests:"
+          echo "$pkgs"
+          # $pkgs unquoted on purpose: one argument per package (no space in the paths).
+          go test $pkgs -race -count=1 -tags integration -timeout "$GO_TEST_TIMEOUT"
 
   docs-checks:
     name: Documentation checks
