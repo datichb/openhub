@@ -688,12 +688,36 @@ func TestDriverSkipsClosedTicket(t *testing.T) {
 	assert.Equal(t, "ev-2", f.launcher.started[0].Ticket)
 }
 
-func TestDriverChildWithoutCommit(t *testing.T) {
-	f := newFixture(t, "ev-1")
-	fo := f.runDriver(t)
-	c, _ := fo.Child("ev-1")
-	assert.Equal(t, domain.ChildFailed, c.State)
-	assert.Equal(t, domain.FanoutReady, fo.Status)
+// How a lone child ends when it did not signal its end of work: failed when
+// it has not committed, put aside after the idle timeout, or ended with its
+// session.
+func TestDriverChildOutcome(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		setup func(f *fixture)
+		check func(t *testing.T, fo *domain.SessionFanout)
+	}{
+		{"no commit", func(*fixture) {}, func(t *testing.T, fo *domain.SessionFanout) {
+			c, _ := fo.Child("ev-1")
+			assert.Equal(t, domain.ChildFailed, c.State)
+			assert.Equal(t, domain.FanoutReady, fo.Status)
+		}},
+		{"idle past the timeout", func(f *fixture) { f.driver.IdleTimeout = 50 * time.Millisecond }, func(t *testing.T, fo *domain.SessionFanout) {
+			assert.Equal(t, DoneIdle, doneReason(fo, "ev-1"))
+		}},
+		{"session ended", func(f *fixture) {
+			f.driver.IdleTimeout = time.Hour
+			f.launcher.ended = true
+		}, func(t *testing.T, fo *domain.SessionFanout) {
+			assert.Equal(t, DoneEnded, doneReason(fo, "ev-1"))
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t, "ev-1")
+			tc.setup(f)
+			tc.check(t, f.runDriver(t))
+		})
+	}
 }
 
 // slowStore is a store slow to read the parent: the driver works on a
@@ -923,14 +947,6 @@ func TestDriverChildEndSignal(t *testing.T) {
 	}
 }
 
-// The guard ends an idle child that never shows its end of work.
-func TestDriverChildIdleGuard(t *testing.T) {
-	f := newFixture(t, "ev-1")
-	f.driver.IdleTimeout = 50 * time.Millisecond
-	fo := f.runDriver(t)
-	assert.Equal(t, DoneIdle, doneReason(fo, "ev-1"))
-}
-
 // driverEnd is how a driver run in a goroutine ended.
 type driverEnd struct {
 	fo  *domain.SessionFanout
@@ -954,13 +970,4 @@ func waitFor(t *testing.T, done <-chan driverEnd, cond func() bool, what string)
 		case <-tick.C:
 		}
 	}
-}
-
-// A session that ends is done whatever its work.
-func TestDriverChildEnded(t *testing.T) {
-	f := newFixture(t, "ev-1")
-	f.driver.IdleTimeout = time.Hour
-	f.launcher.ended = true
-	fo := f.runDriver(t)
-	assert.Equal(t, DoneEnded, doneReason(fo, "ev-1"))
 }
