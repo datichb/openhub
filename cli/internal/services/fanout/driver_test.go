@@ -581,6 +581,90 @@ func TestDriverStopsOnACriticalRecordItCannotWrite(t *testing.T) {
 	}
 }
 
+// A write that fails in a fix round is in the journal (the round goes on once
+// the store answers again); one that fails right after a child session was
+// created stops the driver and the session no one follows.
+func TestDriverRecordFailuresAreNeitherSilentNorLeaveASession(t *testing.T) {
+	t.Parallel()
+	lastEvent := func(kind string) func(fo *domain.SessionFanout) bool {
+		return func(fo *domain.SessionFanout) bool {
+			n := len(fo.Events)
+			return n > 0 && fo.Events[n-1].Kind == kind
+		}
+	}
+	for _, tc := range []struct {
+		name  string
+		fix   bool // the failure is in a fix round, asked once the children are merged
+		fail  func(fo *domain.SessionFanout) bool
+		setup func(f *fixture)
+		check func(t *testing.T, f *fixture, rec *stopRecorder, journal func() string)
+	}{
+		{"end of a fix round", true, lastEvent(domain.FanoutEventFixed),
+			func(f *fixture) {
+				f.launcher.fix = [2]string{"fix.go", "package calc // fixed\n"}
+				f.wf.Fanout.Fix, f.wf.Fanout.FixInput = "quick", "request"
+				f.wf.MaxFixRounds = 2
+			},
+			func(t *testing.T, f *fixture, _ *stopRecorder, journal func() string) {
+				require.Eventually(t, func() bool { return strings.Contains(journal(), "record not written: database is locked") }, runGuard, 20*time.Millisecond,
+					"the write of the end of the round that failed is in the journal")
+				fo := f.waitStatus(t, domain.FanoutReady)
+				require.Len(t, fo.Fixes, 1)
+				assert.Equal(t, domain.ChildMerged, fo.Fixes[0].State, "the round is recorded once the store answers: %s", fo.Fixes[0].Error)
+			}},
+		{"child session created", false, lastEvent(domain.FanoutEventChild),
+			func(f *fixture) { f.launcher.work["ev-1"] = [2]string{"a.go", "package calc\n"} },
+			func(t *testing.T, f *fixture, rec *stopRecorder, _ func() string) {
+				require.Len(t, f.launcher.started, 1, "the child was started")
+				assert.Equal(t, []string{"ses_child_1"}, rec.stoppedIDs(), "the child session no one follows is stopped")
+			}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t, "ev-1")
+			tc.setup(f)
+			errWrite := errors.New("database is locked")
+			f.driver.Sessions = &failStore{Store: f.store, fail: tc.fail, errWrite: errWrite}
+			rec := &stopRecorder{Launcher: f.launcher}
+			f.driver.Launcher = rec
+			var logMu sync.Mutex
+			var lines []string
+			f.driver.Log = func(format string, args ...any) {
+				logMu.Lock()
+				defer logMu.Unlock()
+				lines = append(lines, fmt.Sprintf(format, args...))
+			}
+			journal := func() string {
+				logMu.Lock()
+				defer logMu.Unlock()
+				return strings.Join(lines, "\n")
+			}
+
+			ctx, cancel := context.WithTimeout(context.Background(), runGuard)
+			defer cancel()
+			done := make(chan error, 1)
+			go func() { done <- f.driver.Run(ctx, "ses_parent") }()
+			if tc.fix {
+				f.waitStatus(t, domain.FanoutReady)
+				require.NoError(t, f.requestFix(t, "fix it"))
+				tc.check(t, f, rec, journal)
+				cancel()
+				<-done
+				return
+			}
+			var err error
+			select {
+			case err = <-done:
+			case <-ctx.Done():
+				t.Fatal("the driver did not stop")
+			}
+			require.Error(t, err, "the driver stops")
+			assert.ErrorIs(t, err, errWrite, "with the error of the write")
+			assert.ErrorIs(t, err, errRecord, "as a record it could not write")
+			tc.check(t, f, rec, journal)
+		})
+	}
+}
+
 func TestDriverParallelCap(t *testing.T) {
 	t.Parallel()
 	f := newFixture(t, "ev-1", "ev-2", "ev-3", "ev-4")

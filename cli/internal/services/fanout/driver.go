@@ -927,7 +927,12 @@ func (d *Driver) launch(ctx context.Context, parent string, wf *sessionspec.Work
 		f.AddEvent(domain.FanoutEventChild, ticket, sid, branch)
 	})
 	if err != nil {
-		return err
+		// Not in the record: nobody would follow the child, stop it (the
+		// context may be the one that ended, hence a detached one).
+		sctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), recordTimeout)
+		defer cancel()
+		_ = d.Launcher.Stop(sctx, sid)
+		return fmt.Errorf("%w: %w", errRecord, err)
 	}
 	d.logf("fan-out %s: %s → session %s on %s", parent, ticket, sid, branch)
 	c, _ := d.childOf(ctx, parent, ticket)

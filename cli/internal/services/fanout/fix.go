@@ -194,7 +194,8 @@ func (d *Driver) checkFix(ctx context.Context, ig *domain.FanoutIntegration) (he
 // (head not ""), the fan-out ready for its merge checkpoint again, and
 // the parent told.
 func (d *Driver) fixDone(ctx context.Context, parent string, round int, ig *domain.FanoutIntegration, head, refused string) {
-	f, err := d.update(ctx, parent, func(f *domain.SessionFanout) {
+	ready := false
+	if err := d.record(ctx, parent, func(f *domain.SessionFanout) {
 		if x, ok := f.LastFix(); ok && x.Round == round {
 			x.State, x.Error = domain.ChildFailed, refused
 			if head != "" {
@@ -205,13 +206,13 @@ func (d *Driver) fixDone(ctx context.Context, parent string, round int, ig *doma
 		if f.Status == domain.FanoutFixing {
 			f.Status = domain.FanoutReady
 		}
+		ready = f.Status == domain.FanoutReady
 		msg := short(head)
 		if refused != "" {
 			msg = refused
 		}
 		f.AddEvent(domain.FanoutEventFixed, "", "", fmt.Sprintf("round %d: %s", round, msg))
-	})
-	if err != nil || f.Status != domain.FanoutReady {
+	}); err != nil || !ready {
 		return
 	}
 	text := i18n.Tf("cmd.fanout.fix_done", round, ig.Branch, short(head), short(ig.Head))
