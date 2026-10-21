@@ -2,7 +2,6 @@ package sqlite
 
 import (
 	"context"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -11,15 +10,6 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/domain"
 )
-
-func openTestStore(t *testing.T) *Store {
-	t.Helper()
-	dbPath := filepath.Join(t.TempDir(), "test.db")
-	s, err := Open(dbPath)
-	require.NoError(t, err)
-	t.Cleanup(func() { s.Close() })
-	return s
-}
 
 func TestProjectStore_CRUD(t *testing.T) {
 	s := openTestStore(t)

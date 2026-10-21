@@ -2,7 +2,6 @@ package sqlite
 
 import (
 	"context"
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -12,9 +11,7 @@ import (
 )
 
 func TestUsageStore(t *testing.T) {
-	st, err := Open(filepath.Join(t.TempDir(), "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
+	st := openTestStore(t)
 	us := NewUsageStore(st)
 	ctx := context.Background()
 
@@ -59,9 +56,7 @@ func TestUsageStore(t *testing.T) {
 // the oh session and of the day, and given back by a negative delta when the
 // tool reports the cost after all (no column, no migration).
 func TestUsageStoreEstimatedRows(t *testing.T) {
-	st, err := Open(filepath.Join(t.TempDir(), "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
+	st := openTestStore(t)
 	us := NewUsageStore(st)
 	ctx := context.Background()
 	est := domain.EstimatedUsageID("s1")

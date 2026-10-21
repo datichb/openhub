@@ -2,8 +2,6 @@ package sqlite
 
 import (
 	"context"
-	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -13,20 +11,8 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 )
 
-func openTemp(t *testing.T) *Store {
-	t.Helper()
-	path := filepath.Join(t.TempDir(), "oh.db")
-	s, err := Open(path)
-	require.NoError(t, err)
-	t.Cleanup(func() { s.Close() })
-	info, err := os.Stat(path)
-	require.NoError(t, err)
-	assert.Equal(t, os.FileMode(0o600), info.Mode().Perm())
-	return s
-}
-
 func TestServerStoreCRUD(t *testing.T) {
-	st := NewServerStore(openTemp(t))
+	st := NewServerStore(openTestStore(t))
 	ctx := context.Background()
 	srv := &domain.Server{GroupKey: "p-abc-local", Adapter: "tool-v2", Runtime: "local", PID: 42, URL: "http://127.0.0.1:1", Password: "pw", Status: domain.ServerReady}
 	require.NoError(t, st.Upsert(ctx, srv))
@@ -54,7 +40,7 @@ func TestServerStoreCRUD(t *testing.T) {
 }
 
 func TestGrantStore(t *testing.T) {
-	gs := NewGrantStore(openTemp(t))
+	gs := NewGrantStore(openTestStore(t))
 	ctx := context.Background()
 	src := domain.CredentialSource{Kind: domain.CredentialBearer, KeychainKey: "openhub.provider.bedrock.token", Scope: "hub"}
 	require.NoError(t, gs.Insert(ctx, &domain.ProxyGrant{TokenHash: "ohs_1", Owner: "g1", Provider: "amazon-bedrock", Region: "eu-west-1", Source: src, AllowedModels: []string{"eu.*"}}))
@@ -78,7 +64,7 @@ func TestGrantStore(t *testing.T) {
 // S-23 (audit v5): a grant whose model list cannot be read is not restored
 // (never "any model").
 func TestGrantStoreUnreadableModels(t *testing.T) {
-	st := openTemp(t)
+	st := openTestStore(t)
 	gs := NewGrantStore(st)
 	ctx := context.Background()
 	require.NoError(t, gs.Insert(ctx, &domain.ProxyGrant{TokenHash: "ohs_1", Owner: "g1", Provider: "amazon-bedrock", AllowedModels: []string{"eu.*"}}))
@@ -96,10 +82,9 @@ func TestGrantStoreUnreadableModels(t *testing.T) {
 }
 
 func TestSessionStoreV5Fields(t *testing.T) {
-	s := openTemp(t)
+	s := openTestStore(t)
 	ctx := context.Background()
-	_, err := s.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1', 'p1', '/p1')`)
-	require.NoError(t, err)
+	seedProject(t, s, "p1")
 	ss := NewSessionStore(s)
 	sess := &domain.Session{ID: "ses_1", ProjectID: "p1", Status: domain.SessionStatusRunning,
 		WorkflowID: "ticket", EntryAgent: "orchestrator-dev", BundleHash: "h", GroupKey: "g", Runtime: "local", Mode: "semi-auto", State: domain.RunActive}
@@ -114,10 +99,9 @@ func TestSessionStoreV5Fields(t *testing.T) {
 }
 
 func TestSessionStoreWorkflowLaunchFields(t *testing.T) {
-	s := openTemp(t)
+	s := openTestStore(t)
 	ctx := context.Background()
-	_, err := s.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1', 'p1', '/p1')`)
-	require.NoError(t, err)
+	seedProject(t, s, "p1")
 	ss := NewSessionStore(s)
 	sess := &domain.Session{ID: "ses_1", ProjectID: "p1", Status: domain.SessionStatusRunning, WorkflowID: "ticket",
 		WorkflowLayer: "hub", WorkflowVersion: 3, WorkflowRisk: "write", Location: "worktree", ParentSessionID: "ses_0"}
@@ -141,7 +125,7 @@ func TestSessionStoreWorkflowLaunchFields(t *testing.T) {
 // S-29: RevokeOrphans revokes the active grants whose owner has no starting
 // or ready server, old enough, whether they can be listed or not.
 func TestGrantStoreRevokeOrphans(t *testing.T) {
-	st := openTemp(t)
+	st := openTestStore(t)
 	gs, ss := NewGrantStore(st), NewServerStore(st)
 	ctx := context.Background()
 	now := time.Now()

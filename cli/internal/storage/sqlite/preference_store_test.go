@@ -13,7 +13,7 @@ import (
 )
 
 func TestPreferenceStoreCRUD(t *testing.T) {
-	st := NewPreferenceStore(openTemp(t))
+	st := NewPreferenceStore(openTestStore(t))
 	ctx := context.Background()
 
 	_, err := st.Get(ctx, domain.PreferenceScopeGlobal, "start.pins")
@@ -41,7 +41,7 @@ func TestPreferenceStoreCRUD(t *testing.T) {
 }
 
 func TestPreferenceStoreRecentWorkflows(t *testing.T) {
-	s := openTemp(t)
+	s := openTestStore(t)
 	ctx := context.Background()
 	projects := NewProjectStore(s)
 	for _, id := range []string{"p1", "p2"} {
@@ -84,7 +84,7 @@ func useIDs(us []domain.WorkflowUse) []string {
 // Migrations reserved by parallel branches run even when a higher version
 // was applied first (a branch merged out of order).
 func TestMigrationsAppliedOutOfOrder(t *testing.T) {
-	s := openTemp(t)
+	s := openTestStore(t)
 	_, err := s.DB().Exec(`DROP TABLE preferences; DELETE FROM schema_migrations WHERE version = 32`)
 	require.NoError(t, err)
 	require.NoError(t, s.migrate())

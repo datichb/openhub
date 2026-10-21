@@ -14,13 +14,12 @@ import (
 // N16: the history past its retention is counted then deleted; the rest
 // (recent rows, sessions not stopped) stays.
 func TestHistoryStore(t *testing.T) {
-	s := openTemp(t)
+	s := openTestStore(t)
 	ctx := context.Background()
 	ss := NewSessionStore(s)
 	old := time.Now().Add(-200 * 24 * time.Hour)
 	recent := time.Now().Add(-time.Hour)
-	_, err := s.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p', 'p', '/p')`)
-	require.NoError(t, err)
+	seedProject(t, s, "p")
 	for _, c := range []struct {
 		id    string
 		state domain.RunState
@@ -33,7 +32,7 @@ func TestHistoryStore(t *testing.T) {
 		_, err := s.DB().Exec(`INSERT INTO agent_events (id, session_id, project_id, agent_name, started_at) VALUES (?, 's', 'p', 'a', ?)`, "ev"+string(rune('0'+i)), at)
 		require.NoError(t, err)
 	}
-	_, err = s.DB().Exec(`INSERT INTO pending_decisions (id, session_id, kind, resolved_at) VALUES ('d-old', 's', 'k', ?), ('d-open', 's', 'k', NULL), ('d-new', 's', 'k', ?)`, old, recent)
+	_, err := s.DB().Exec(`INSERT INTO pending_decisions (id, session_id, kind, resolved_at) VALUES ('d-old', 's', 'k', ?), ('d-open', 's', 'k', NULL), ('d-new', 's', 'k', ?)`, old, recent)
 	require.NoError(t, err)
 	_, err = s.DB().Exec(`INSERT INTO usage_sessions (day, session_id) VALUES ('2024-01-01', 'a'), ('2099-01-01', 'b');
 INSERT INTO usage_proxy (day, group_key) VALUES ('2024-01-01', 'g');
@@ -60,10 +59,9 @@ INSERT INTO budget_extra (scope, day, extra_usd) VALUES ('s', '2024-01-01', 1), 
 
 // v43: the worktree created by oh is kept on the session.
 func TestSessionStore_Worktree(t *testing.T) {
-	s := openTemp(t)
+	s := openTestStore(t)
 	ctx := context.Background()
-	_, err := s.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p', 'p', '/p')`)
-	require.NoError(t, err)
+	seedProject(t, s, "p")
 	ss := NewSessionStore(s)
 	require.NoError(t, ss.Create(ctx, &domain.Session{ID: "s1", ProjectID: "p", WorktreeAuto: true, WorktreeBranch: "feat/x"}))
 	got, err := ss.Get(ctx, "s1")
