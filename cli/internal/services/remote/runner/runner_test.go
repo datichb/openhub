@@ -22,6 +22,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 	"github.com/datichb/openhub/cli/internal/remote"
 	"github.com/datichb/openhub/cli/internal/runsvc"
 	ohruntime "github.com/datichb/openhub/cli/internal/runtime"
@@ -452,30 +453,20 @@ func TestGitCloneAndFinish(t *testing.T) {
 	}
 	ctx := context.Background()
 	root := t.TempDir()
-	gitc := func(dir string, args ...string) string {
-		cmd := exec.Command("git", args...)
-		cmd.Dir = dir
-		cmd.Env = append(os.Environ(), "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@t", "GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@t")
-		out, err := cmd.CombinedOutput()
-		require.NoError(t, err, "%v: %s", args, out)
-		return strings.TrimSpace(string(out))
-	}
 	origin := filepath.Join(root, "origin.git")
-	gitc(root, "init", "-q", "--bare", "-b", "main", origin)
-	gitc(origin, "config", "receive.advertisePushOptions", "true")
+	gittest.Run(t, root, "init", "-q", "--bare", "-b", "main", origin)
+	gittest.Run(t, origin, "config", "receive.advertisePushOptions", "true")
 	seed := filepath.Join(root, "seed")
-	gitc(root, "clone", "-q", origin, seed)
-	require.NoError(t, os.WriteFile(filepath.Join(seed, "README.md"), []byte("x"), 0o644))
-	gitc(seed, "add", ".")
-	gitc(seed, "commit", "-q", "-m", "init")
-	gitc(seed, "push", "-q", "origin", "HEAD:main")
+	gittest.Run(t, root, "clone", "-q", origin, seed)
+	gittest.Commit(t, seed, "README.md", "x", "init")
+	gittest.Run(t, seed, "push", "-q", "origin", "HEAD:main")
 
 	g := Git{Token: "project-secret"}
 	work := filepath.Join(root, "work")
 	base, err := g.Clone(ctx, origin, "main", "", "feat/bd-42", work)
 	require.NoError(t, err)
 	assert.Len(t, base, 40)
-	assert.Equal(t, "feat/bd-42", gitc(work, "rev-parse", "--abbrev-ref", "HEAD"))
+	assert.Equal(t, "feat/bd-42", gittest.Run(t, work, "rev-parse", "--abbrev-ref", "HEAD"))
 	cfg, _ := os.ReadFile(filepath.Join(work, ".git", "config"))
 	assert.NotContains(t, string(cfg), "Authorization", "token never written in the clone")
 
@@ -487,8 +478,8 @@ func TestGitCloneAndFinish(t *testing.T) {
 	res, err = g.Finish(ctx, origin, work, base, "main", "feat/bd-42", "oh: ticket bd-42", "Remote oh session")
 	require.NoError(t, err)
 	assert.Len(t, res.Commit, 40)
-	assert.Equal(t, res.Commit, gitc(origin, "rev-parse", "feat/bd-42"), "branch pushed")
-	assert.Equal(t, "oh: ticket bd-42", gitc(origin, "log", "-1", "--format=%s", "feat/bd-42"))
+	assert.Equal(t, res.Commit, gittest.Run(t, origin, "rev-parse", "feat/bd-42"), "branch pushed")
+	assert.Equal(t, "oh: ticket bd-42", gittest.Run(t, origin, "log", "-1", "--format=%s", "feat/bd-42"))
 }
 
 func TestTeamProgress(t *testing.T) {

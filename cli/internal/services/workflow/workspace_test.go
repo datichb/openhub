@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	wf "github.com/datichb/openhub/cli/internal/workflow"
 )
@@ -87,7 +88,7 @@ func TestWorkspace(t *testing.T) {
 	// Published: the bricks are no longer new; offline publication queued.
 	_, err = svc.Publish(ctx, Context{}, "hotfix", "v1")
 	require.NoError(t, err)
-	git(t, repo.Path(), "remote", "set-url", "origin", "http://127.0.0.1:1/team-state.git")
+	gittest.Run(t, repo.Path(), "remote", "set-url", "origin", "http://127.0.0.1:1/team-state.git")
 	pub, err := svc.Publish(ctx, Context{}, "ticket-hotfix", "offline")
 	require.NoError(t, err)
 	require.True(t, pub.Queued)
@@ -177,11 +178,11 @@ func TestFlushQueueProjectOpFromTeamContext(t *testing.T) {
 	require.NoError(t, err)
 	saveDraft(t, alice, wf.LayerProject, "apiVersion: oh/v1\nkind: Workflow\nid: ticket-hotfix\nextends: team:ticket-hotfix\ndescription: Web\n")
 
-	git(t, repo.Path(), "remote", "set-url", "origin", "http://127.0.0.1:1/team-state.git")
+	gittest.Run(t, repo.Path(), "remote", "set-url", "origin", "http://127.0.0.1:1/team-state.git")
 	pub, err := alice.Publish(ctx, Context{}, "project:ticket-hotfix", "offline")
 	require.NoError(t, err)
 	require.True(t, pub.Queued)
-	git(t, repo.Path(), "remote", "set-url", "origin", env.bare)
+	gittest.Run(t, repo.Path(), "remote", "set-url", "origin", env.bare)
 
 	team := testService(t)
 	team.TeamState = func(context.Context, Context) (*TeamState, error) {

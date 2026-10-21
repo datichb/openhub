@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 	"github.com/datichb/openhub/cli/internal/remote"
 )
 
@@ -30,27 +31,21 @@ func newGitFixture(t *testing.T) *gitFixture {
 	}
 	f := &gitFixture{t: t, root: t.TempDir()}
 	f.origin = filepath.Join(f.root, "origin.git")
-	f.git(f.root, "init", "-q", "--bare", "-b", "main", f.origin)
-	f.git(f.origin, "config", "receive.advertisePushOptions", "true")
+	gittest.Run(t, f.root, "init", "-q", "--bare", "-b", "main", f.origin)
+	gittest.Run(t, f.origin, "config", "receive.advertisePushOptions", "true")
 	seed := filepath.Join(f.root, "seed")
-	f.git(f.root, "clone", "-q", f.origin, seed)
-	require.NoError(t, os.WriteFile(filepath.Join(seed, "README.md"), []byte("x"), 0o644))
+	gittest.Run(t, f.root, "clone", "-q", f.origin, seed)
 	require.NoError(t, os.WriteFile(filepath.Join(seed, ".gitignore"), []byte("build/\n"), 0o644))
-	f.git(seed, "add", ".")
-	f.git(seed, "commit", "-q", "-m", "init")
-	f.git(seed, "push", "-q", "origin", "HEAD:main")
+	gittest.Run(t, seed, "add", ".gitignore")
+	gittest.Commit(t, seed, "README.md", "x", "init")
+	gittest.Run(t, seed, "push", "-q", "origin", "HEAD:main")
 	return f
 }
 
 // git runs a test git command, never affected by the traps of the agent.
 func (f *gitFixture) git(dir string, args ...string) string {
 	f.t.Helper()
-	cmd := exec.Command("git", append([]string{"-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false", "-c", "safe.directory=*"}, args...)...)
-	cmd.Dir = dir
-	cmd.Env = append(gitEnv(), "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@t", "GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@t")
-	out, err := cmd.CombinedOutput()
-	require.NoError(f.t, err, "%v: %s", args, out)
-	return strings.TrimSpace(string(out))
+	return gittest.Run(f.t, dir, append([]string{"-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false", "-c", "safe.directory=*"}, args...)...)
 }
 
 // PoC S-01 (audit v5): hooks, core.fsmonitor, a clean filter, another
