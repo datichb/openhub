@@ -3,7 +3,6 @@ package runsvc
 import (
 	"context"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -12,6 +11,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/filelock"
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/worktree"
 )
@@ -310,17 +310,9 @@ func TestStartOnADirtyBaseKeepsTheUserChanges(t *testing.T) {
 	f := newRTFixture(t)
 	f.svc.LaunchLocksDir = filepath.Join(f.root, "locks")
 	ctx := context.Background()
-	git := func(args ...string) {
-		cmd := exec.Command("git", append([]string{"-C", f.project}, args...)...)
-		cmd.Env = append(os.Environ(), "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@t", "GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@t")
-		out, err := cmd.CombinedOutput()
-		require.NoError(t, err, string(out))
-	}
-	git("init", "-b", "main")
+	gittest.Run(t, f.project, "init", "-q", "-b", "main")
 	store := filepath.Join(f.project, "store.py")
-	require.NoError(t, os.WriteFile(store, []byte("v1\n"), 0o644))
-	git("add", "store.py")
-	git("commit", "-m", "init")
+	gittest.Commit(t, f.project, "store.py", "v1\n", "init")
 	require.NoError(t, os.WriteFile(store, []byte("v1 + user change\n"), 0o644))
 
 	plan, err := f.svc.Plan(ctx, f.run("write", LocationChoice{Kind: LocationBase}, PlannedInput{Branch: "feat/pt-1"}))

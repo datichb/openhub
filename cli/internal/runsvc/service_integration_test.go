@@ -21,6 +21,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/daemon"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
@@ -60,7 +61,7 @@ func newFixture(t *testing.T, secrets mapSecrets) *fixture {
 	st := sqlitetest.New(t)
 	project := filepath.Join(root, "proj")
 	require.NoError(t, os.MkdirAll(project, 0o755))
-	require.NoError(t, exec.Command("git", "init", "-q", project).Run())
+	gittest.Run(t, project, "init", "-q")
 	sqlitetest.Seed(t, st).Project("p1", project)
 
 	a := opencodev2.New("", filepath.Join(root, "cache"))

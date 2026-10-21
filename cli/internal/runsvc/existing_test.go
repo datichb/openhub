@@ -15,6 +15,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/worktree"
 )
@@ -147,20 +148,6 @@ func TestPendingWarningCounts(t *testing.T) {
 	assert.Equal(t, 2, existing[0].OpenDecisions)
 }
 
-// gitRepo makes the project a git repository with one commit on main.
-func gitRepo(t *testing.T, dir string) {
-	t.Helper()
-	git(t, dir, "init", "-q", "-b", "main")
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "README"), []byte("v1\n"), 0o644))
-	git(t, dir, "add", "README")
-	gitCommit(t, dir, "init")
-}
-
-func gitCommit(t *testing.T, dir, msg string) {
-	t.Helper()
-	git(t, dir, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", msg)
-}
-
 // sessionWorktree creates the worktree of a branch with a commit and an
 // uncommitted change, and an open session working there.
 func sessionWorktree(t *testing.T, f *rtFixture, id, branch string) string {
@@ -168,9 +155,7 @@ func sessionWorktree(t *testing.T, f *rtFixture, id, branch string) string {
 	wt, err := worktree.ResolveOrCreate(f.project, branch)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = os.RemoveAll(wt) })
-	require.NoError(t, os.WriteFile(filepath.Join(wt, "store.py"), []byte("work\n"), 0o644))
-	git(t, wt, "add", "store.py")
-	gitCommit(t, wt, "feat: the store")
+	gittest.Commit(t, wt, "store.py", "work\n", "feat: the store")
 	require.NoError(t, os.WriteFile(filepath.Join(wt, "wip.txt"), []byte("wip\n"), 0o644))
 	f.addSession(t, domain.Session{ID: id, LaunchPath: wt, State: domain.RunIdle, WorkflowID: "ticket", Tickets: []string{"bd-1"},
 		Location: "worktree", WorktreeAuto: true, WorktreeBranch: branch, Title: ptr("p1 · ticket · bd-1")})
@@ -186,7 +171,8 @@ func TestStartKeepContinuesTheWork(t *testing.T) {
 	f.svc.LaunchLocksDir = filepath.Join(f.root, "locks")
 	f.svc.SessionsDir = filepath.Join(f.root, "sessions")
 	ctx := context.Background()
-	gitRepo(t, f.project)
+	gittest.Run(t, f.project, "init", "-q", "-b", "main")
+	gittest.Commit(t, f.project, "README", "v1\n", "init")
 	wt := sessionWorktree(t, f, "ses_old", "feat/bd-1")
 
 	req := f.run("write", LocationChoice{Kind: LocationBase}, ticketInput("bd-1"))
@@ -252,7 +238,8 @@ func TestPlanDeleteAndDeleteSession(t *testing.T) {
 	f := newRTFixture(t)
 	f.svc.SessionsDir = filepath.Join(f.root, "sessions")
 	ctx := context.Background()
-	gitRepo(t, f.project)
+	gittest.Run(t, f.project, "init", "-q", "-b", "main")
+	gittest.Commit(t, f.project, "README", "v1\n", "init")
 	wt := sessionWorktree(t, f, "ses_old", "feat/bd-1")
 	require.NoError(t, os.MkdirAll(filepath.Join(f.svc.SessionsDir, "ses_old"), 0o700))
 
@@ -295,7 +282,8 @@ func TestPlanDeleteAndDeleteSession(t *testing.T) {
 func TestDeleteSessionInTheBase(t *testing.T) {
 	f := newRTFixture(t)
 	ctx := context.Background()
-	gitRepo(t, f.project)
+	gittest.Run(t, f.project, "init", "-q", "-b", "main")
+	gittest.Commit(t, f.project, "README", "v1\n", "init")
 	readme := filepath.Join(f.project, "README")
 	require.NoError(t, os.WriteFile(readme, []byte("changed\n"), 0o644))
 	for _, id := range []string{"ses_a", "ses_b"} {
@@ -327,7 +315,8 @@ func TestStartDeleteThenLaunch(t *testing.T) {
 	f := newRTFixture(t)
 	f.svc.LaunchLocksDir = filepath.Join(f.root, "locks")
 	ctx := context.Background()
-	gitRepo(t, f.project)
+	gittest.Run(t, f.project, "init", "-q", "-b", "main")
+	gittest.Commit(t, f.project, "README", "v1\n", "init")
 	wt := sessionWorktree(t, f, "ses_old", "feat/bd-1")
 	req := f.run("write", LocationChoice{Kind: LocationNew}, ticketInput("bd-1"))
 	req.OnExisting = OnExistingDelete

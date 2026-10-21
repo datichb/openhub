@@ -17,6 +17,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/daemon"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 	ohruntime "github.com/datichb/openhub/cli/internal/runtime"
 	"github.com/datichb/openhub/cli/internal/runtime/container"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
@@ -73,9 +74,7 @@ func realContainerSession(t *testing.T, engine container.EngineKind) {
 	if err := os.MkdirAll(project, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if out, err := exec.Command("git", "init", "-q", project).CombinedOutput(); err != nil {
-		t.Fatalf("%v %s", err, out)
-	}
+	gittest.Run(t, project, "init", "-q")
 	sqlitetest.Seed(t, st).Project("p1", project)
 
 	a := opencodev2.New("", filepath.Join(home, "Library", "Caches", "oh-container-tests"))
