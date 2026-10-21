@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -52,7 +53,11 @@ type fakeLauncher struct {
 	// together: a child does its work once that many sessions started
 	// (children at the same time, by condition, not by hold).
 	together int
-	all      chan struct{}
+	// togetherTickets: the same, once the children of these tickets started
+	// (whatever the order and the other children).
+	togetherTickets []string
+	startedTickets  map[string]bool
+	all             chan struct{}
 	// onWork runs in a session before its work (nil = none).
 	onWork func(LaunchRequest)
 	// fix is what a fixer commits (file, content); fixMerge: it commits a
@@ -73,8 +78,19 @@ func (l *fakeLauncher) Start(ctx context.Context, req LaunchRequest) (string, er
 	if l.all == nil {
 		l.all = make(chan struct{})
 	}
-	if l.n == l.together {
+	if l.n == l.together && l.together > 0 {
 		close(l.all)
+	}
+	if req.Record.Role == domain.RoleChild && slices.Contains(l.togetherTickets, req.Ticket) {
+		if l.startedTickets == nil {
+			l.startedTickets = map[string]bool{}
+		}
+		if !l.startedTickets[req.Ticket] {
+			l.startedTickets[req.Ticket] = true
+			if len(l.startedTickets) == len(l.togetherTickets) {
+				close(l.all)
+			}
+		}
 	}
 	all := l.all
 	cost := l.cost
@@ -85,7 +101,7 @@ func (l *fakeLauncher) Start(ctx context.Context, req LaunchRequest) (string, er
 	require.NoError(l.t, l.store.Create(ctx, &domain.Session{ID: id, ProjectID: "p1", Status: domain.SessionStatusRunning, State: domain.RunActive,
 		LaunchPath: req.Dir, Cost: cost, Fanout: req.Record, ParentSessionID: req.Parent.ID}))
 	go func() {
-		if l.together > 0 && req.Record.Role == domain.RoleChild {
+		if (l.together > 0 || len(l.togetherTickets) > 0) && req.Record.Role == domain.RoleChild {
 			select {
 			case <-all:
 			case <-time.After(runGuard):

@@ -119,7 +119,10 @@ func TestReserveMergerShareRecordsItInTheChild(t *testing.T) {
 func conflictFixture(t *testing.T, budget float64, costs map[string]float64, tickets ...string) *fixture {
 	t.Helper()
 	f := newFixture(t, tickets...)
-	f.launcher.together = 2
+	// ev-1 and ev-2 start from the same head, whichever child starts first:
+	// the conflict is for sure (a child that started after the other was
+	// merged would not conflict).
+	f.launcher.togetherTickets = []string{"ev-1", "ev-2"}
 	f.launcher.costOf = costs
 	f.launcher.work["ev-1"] = [2]string{"calc.go", "package calc\n\nfunc Sub() {}\n"}
 	f.launcher.work["ev-2"] = [2]string{"calc.go", "package calc\n\nfunc Mul() {}\n"}
