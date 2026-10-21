@@ -547,7 +547,7 @@ func (v *BoardView) populateColumns(tickets []BoardTicket, columns []BoardColumn
 			mainText := fmt.Sprintf("%s%s%s%s",
 				widgets.ColorTag(color),
 				prefix,
-				truncateTitle(t.Title, 36),
+				tview.Escape(truncateTitle(t.Title, 36)),
 				"[-]",
 			)
 			// Line 2 (secondary): "ID · type"

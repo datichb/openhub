@@ -2,6 +2,7 @@ package widgets
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/mattn/go-runewidth"
@@ -389,26 +390,51 @@ func (c *CardColumn) drawColoredText(screen tcell.Screen, x, y, maxW int, text s
 
 	// Parse tview color tags and render manually.
 	// Tags have the form [color], [color:bg], [color:bg:attr], [-], [-:-:-].
+	// Like tview, "[text[]" is an escaped literal "[text]"; any other bracket
+	// content that is not a valid tag (e.g. "[!]", "[2/3]") is plain text.
 	runes := []rune(text)
 	dx := 0
 	style := defaultStyle
+	put := func(r rune) bool {
+		w := runewidth.RuneWidth(r)
+		if w == 0 {
+			return true
+		}
+		if dx+w > maxW {
+			return false
+		}
+		screen.SetContent(x+dx, y, r, nil, style)
+		dx += w
+		return true
+	}
 	i := 0
 	for i < len(runes) && dx < maxW {
 		if runes[i] == '[' {
-			// Try to parse a color tag
 			end := -1
 			for j := i + 1; j < len(runes); j++ {
 				if runes[j] == ']' {
 					end = j
 					break
 				}
-				// Tags shouldn't be very long
-				if j-i > 30 {
-					break
-				}
 			}
 			if end > i {
 				tagContent := string(runes[i+1 : end])
+				if strings.HasSuffix(tagContent, "[") {
+					literal := append([]rune{'['}, runes[i+1:end-1]...)
+					literal = append(literal, ']')
+					stopped := false
+					for _, r := range literal {
+						if !put(r) {
+							stopped = true
+							break
+						}
+					}
+					if stopped {
+						break
+					}
+					i = end + 1
+					continue
+				}
 				if newStyle, ok := c.parseColorTag(tagContent, defaultStyle); ok {
 					style = newStyle.Background(bgCard)
 					i = end + 1
@@ -416,16 +442,9 @@ func (c *CardColumn) drawColoredText(screen tcell.Screen, x, y, maxW int, text s
 				}
 			}
 		}
-		w := runewidth.RuneWidth(runes[i])
-		if w == 0 {
-			i++
-			continue
-		}
-		if dx+w > maxW {
+		if !put(runes[i]) {
 			break
 		}
-		screen.SetContent(x+dx, y, runes[i], nil, style)
-		dx += w
 		i++
 	}
 	// Pad remaining
@@ -441,6 +460,9 @@ func (c *CardColumn) drawColoredText(screen tcell.Screen, x, y, maxW int, text s
 func (c *CardColumn) parseColorTag(tag string, defaultStyle tcell.Style) (tcell.Style, bool) {
 	if tag == "-" || tag == "-:-:-" || tag == "-:-" {
 		return defaultStyle, true
+	}
+	if !validColorTag(tag) {
+		return tcell.StyleDefault, false
 	}
 
 	// Handle simple foreground: [#rrggbb] or [color]
@@ -478,6 +500,37 @@ func (c *CardColumn) parseColorTag(tag string, defaultStyle tcell.Style) (tcell.
 	}
 
 	return tcell.StyleDefault, false
+}
+
+// validColorTag reports whether tag (the text between [ and ]) is a tview
+// style tag: up to three ':'-separated parts, foreground and background being
+// empty, "-", a color name or "#rrggbb", the attributes empty, "-" or made of
+// the letters l b i d r u s.
+func validColorTag(tag string) bool {
+	parts := strings.Split(tag, ":")
+	if len(parts) > 3 {
+		return false
+	}
+	for i, p := range parts {
+		switch {
+		case p == "" || p == "-":
+		case i == 2:
+			if strings.Trim(p, "lbidrus") != "" {
+				return false
+			}
+		case p[0] == '#':
+			if len(p) != 7 || strings.Trim(p[1:], "0123456789abcdefABCDEF") != "" {
+				return false
+			}
+		default:
+			for _, r := range p {
+				if (r < 'a' || r > 'z') && (r < 'A' || r > 'Z') {
+					return false
+				}
+			}
+		}
+	}
+	return true
 }
 
 // splitTag splits a color tag by ':' (max 3 parts).
