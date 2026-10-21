@@ -126,6 +126,59 @@ func TestMain(m *testing.M) {
 (avec `gittest.Main(m)` à la place de `m.Run()` si les tests lancent git). Un test qui relance le
 binaire de test comme processus auxiliaire hérite de l'environnement isolé.
 
+#### Fixtures de test
+
+Quatre paquets d'outils communs évitent d'écrire, paquet après paquet, les mêmes préparations.
+Un test les utilise au lieu d'un helper local, et n'ajoute pas de nouveau helper local qui
+duplique l'un d'eux : s'il manque quelque chose, on complète l'outil commun.
+
+- **`sqlitetest`** (`internal/storage/sqlite/sqlitetest`) : une base SQLite temporaire, migrations
+  appliquées et fermée en fin de test, et de quoi la remplir par les stores publics. Le paquet
+  `sqlite` lui-même ne peut pas l'importer (cycle) : ses tests ouvrent la base eux-mêmes.
+
+  ```go
+  st := sqlitetest.New(t)
+  sqlitetest.Seed(t, st).
+      Project("p1", "/p1").
+      Session(&domain.Session{ID: "ses_a", ProjectID: "p1", Status: domain.SessionStatusRunning})
+  ```
+
+- **`gittest`** (`internal/gitutil/gittest`) : `Run`, `Repo`, `Commit` et `BareClone` lancent git
+  avec l'identité et les réglages de `gittest.Defaults`, avec ou sans `gittest.Main` : ils ne
+  lisent jamais votre configuration git. `Run` échoue le test avec la sortie de git et renvoie la
+  sortie standard sans espaces de bord.
+
+  ```go
+  bare, clone := gittest.BareClone(t)          // dépôt nu + clone sur main, prêt à pousser
+  gittest.Commit(t, clone, "docs/a.md", "a\n", "add a")
+  gittest.Run(t, clone, "push", "-q")
+  head := gittest.Run(t, bare, "rev-parse", "main")
+  ```
+
+- **`configtest`** (`internal/config/configtest`) : `Home(t)` place `HOME` dans un dossier
+  temporaire (le hub est `<home>/.oh`), annule `OH_HOME` et vide le cache de `config` avant le
+  test et à sa fin.
+
+  ```go
+  home := configtest.Home(t)
+  require.NoError(t, config.Save(cfg)) // écrit <home>/.oh/hub.toml
+  ```
+
+- **`golden`** (`internal/testutil/golden`) : `golden.Assert(t, "rendu", sortie)` compare la
+  sortie (`string` ou `[]byte`) à `testdata/rendu.golden`. En cas d'écart, l'échec montre le diff et
+  la commande qui régénère le fichier ; `-update` le réécrit (relisez alors le diff du golden comme du
+  code). Le drapeau `-update` est déclaré par ce paquet : un paquet qui l'importe ne déclare pas le
+  sien (`flag.Bool("update", …)`), sinon le binaire de test panique au démarrage.
+
+  ```go
+  golden.Assert(t, "rendu", out) // testdata/rendu.golden
+  ```
+
+Les tests qui lancent le vrai `bd` (démarrage de Dolt, plusieurs secondes) appellent
+`bdtest.RequireRealBd(t)` : ils sont ignorés par `go test -short` et par `make test-unit`, mais
+tournent dans la suite complète si `bd` est installé. `bdtest.InitedRepo(t)` fournit un dépôt déjà
+initialisé. Les tests d'ordonnancement d'`evalrun` utilisent `Runner.Prepare` pour éviter git.
+
 ### Linting et formatage
 
 ```bash

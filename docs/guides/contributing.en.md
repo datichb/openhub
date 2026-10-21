@@ -125,6 +125,59 @@ func TestMain(m *testing.M) {
 (with `gittest.Main(m)` instead of `m.Run()` if the tests run git). A test that re-executes the test
 binary as a helper process inherits the isolated environment.
 
+#### Test fixtures
+
+Four shared tool packages save every package from writing the same setup again. A test uses them
+instead of a local helper, and does not add a new local helper that duplicates one of them: if
+something is missing, extend the shared tool.
+
+- **`sqlitetest`** (`internal/storage/sqlite/sqlitetest`): a temporary SQLite database, migrations
+  applied and closed at the end of the test, and a way to fill it through the public stores. The
+  `sqlite` package itself cannot import it (cycle): its tests open the database themselves.
+
+  ```go
+  st := sqlitetest.New(t)
+  sqlitetest.Seed(t, st).
+      Project("p1", "/p1").
+      Session(&domain.Session{ID: "ses_a", ProjectID: "p1", Status: domain.SessionStatusRunning})
+  ```
+
+- **`gittest`** (`internal/gitutil/gittest`): `Run`, `Repo`, `Commit` and `BareClone` run git with
+  the identity and settings of `gittest.Defaults`, with or without `gittest.Main`: they never read
+  your git configuration. `Run` fails the test with the output of git and returns the standard
+  output without surrounding whitespace.
+
+  ```go
+  bare, clone := gittest.BareClone(t)          // bare repository + clone on main, ready to push
+  gittest.Commit(t, clone, "docs/a.md", "a\n", "add a")
+  gittest.Run(t, clone, "push", "-q")
+  head := gittest.Run(t, bare, "rev-parse", "main")
+  ```
+
+- **`configtest`** (`internal/config/configtest`): `Home(t)` puts `HOME` in a temporary folder (the
+  hub is `<home>/.oh`), clears `OH_HOME` and resets the `config` cache before the test and when it
+  ends.
+
+  ```go
+  home := configtest.Home(t)
+  require.NoError(t, config.Save(cfg)) // writes <home>/.oh/hub.toml
+  ```
+
+- **`golden`** (`internal/testutil/golden`): `golden.Assert(t, "render", output)` compares the output
+  (`string` or `[]byte`) with `testdata/render.golden`. On a difference, the failure shows the diff
+  and the command that regenerates the file; `-update` rewrites it (then review the diff of the golden
+  file like code). The `-update` flag is declared by this package: a package that imports it does
+  not declare its own (`flag.Bool("update", …)`), otherwise the test binary panics at start.
+
+  ```go
+  golden.Assert(t, "render", out) // testdata/render.golden
+  ```
+
+Tests that run the real `bd` (Dolt startup, several seconds) call `bdtest.RequireRealBd(t)`: they
+are skipped by `go test -short` and by `make test-unit`, but run in the full suite if `bd` is
+installed. `bdtest.InitedRepo(t)` provides an already initialized repository. The scheduling tests of
+`evalrun` use `Runner.Prepare` to avoid git.
+
 ### Linting and formatting
 
 ```bash

@@ -156,6 +156,24 @@ func (c *Config) FindTeamByRepo(repo string) *TeamConfig {
 	return nil
 }
 
+// UpsertTeam saves t in Teams without touching any other entry: it replaces
+// the entry with the same ID or, when t has a StateRepo, the same StateRepo
+// (keeping its Name if t has none), and appends t otherwise.
+func (c *Config) UpsertTeam(t TeamConfig) {
+	for i := range c.Teams {
+		cur := c.Teams[i]
+		if cur.ID != t.ID && (t.StateRepo == "" || cur.StateRepo != t.StateRepo) {
+			continue
+		}
+		if t.Name == "" {
+			t.Name = cur.Name
+		}
+		c.Teams[i] = t
+		return
+	}
+	c.Teams = append(c.Teams, t)
+}
+
 // MCPServer returns a pointer to the MCPServerConfig for the given service name
 // (e.g. "figma", "gitlab", "jira", "gslides", "github", "linear"). Returns nil
 // for a service without hub-level section: "team" (derived from the team
