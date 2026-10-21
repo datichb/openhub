@@ -50,6 +50,18 @@ make test-tui       # TUI tests only (./internal/tui/...)
 make test-cover     # Generates coverage.out + coverage.html
 ```
 
+Measuring the suite durations: `make test-durations` runs `go test ./... -short -count=1 -json`
+(`TEST_DURATIONS_PKGS`, `TEST_DURATIONS_ARGS` and `TEST_DURATIONS_OUT` change the packages, the
+arguments — for instance `-race` — and the JSON file, `bin/test-durations.json` by default), then
+prints the real duration, the number of passed, failed and skipped tests, the duration of each package
+and the slowest top-level tests (`TEST_DURATIONS_TOP`). The same summary can be read from any
+`go test -json` output, and two measures are compared package by package:
+
+```bash
+go test ./internal/semver/... -json | go run scripts/testdurations/main.go
+go run scripts/testdurations/main.go -compare before.json after.json   # from cli/
+```
+
 CI enforces a minimum coverage threshold of **60%** with the race detector enabled.
 
 GitHub CI (`.github/workflows/ci.yml`) runs, on Linux, macOS and Windows, `go vet`, the lint,
