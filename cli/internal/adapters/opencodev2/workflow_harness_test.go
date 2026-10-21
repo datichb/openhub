@@ -18,6 +18,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/credproxy"
 	"github.com/datichb/openhub/cli/internal/daemon"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 	"github.com/datichb/openhub/cli/internal/services/report"
 	"github.com/datichb/openhub/cli/internal/services/wiki"
@@ -172,7 +173,7 @@ func (e *workflowEnv) startServer(t *testing.T, a *Adapter, b sessionspec.Bundle
 	root := t.TempDir()
 	project := filepath.Join(root, "proj")
 	require.NoError(t, os.MkdirAll(project, 0o755))
-	require.NoError(t, exec.Command("git", "init", "-q", project).Run())
+	gittest.Run(t, project, "init", "-q")
 	env := map[string]string{"OH_HOME": e.home}
 	for k, v := range e.env {
 		env[k] = v

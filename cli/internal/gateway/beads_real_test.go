@@ -18,6 +18,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/beads/bdtest"
 	"github.com/datichb/openhub/cli/internal/gateway/beadswire"
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 )
 
 // Contract with the real bd (1.3.1 when the table was generated): the
@@ -156,7 +157,7 @@ func TestRealBeadsReadOnlyContract(t *testing.T) {
 		out, err := cmd.CombinedOutput()
 		return string(out), err
 	}
-	require.NoError(t, exec.Command("git", "-C", p, "init", "-q").Run())
+	gittest.Run(t, p, "init", "-q")
 	out, err := run("init", "--quiet", "--prefix", "ro", "--skip-hooks", "--skip-agents")
 	require.NoError(t, err, out)
 	id, err := run("q", "a")
@@ -188,7 +189,7 @@ func TestRealBeadsReadOnlyContract(t *testing.T) {
 func TestRealBeadsProvenance(t *testing.T) {
 	bd := bdtest.RequireRealBd(t)
 	p := realDir(t)
-	require.NoError(t, exec.Command("git", "-C", p, "init", "-q").Run())
+	gittest.Run(t, p, "init", "-q")
 	run := func(args ...string) string {
 		cmd := exec.Command("bd", args...)
 		cmd.Dir = p
