@@ -8,6 +8,7 @@ import (
 )
 
 func TestLoadPolicies_GlobalOnly(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	repo := &Repo{path: dir}
 
@@ -55,6 +56,7 @@ message = "Too many tickets in progress"
 }
 
 func TestLoadPolicies_WithOverride(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	repo := &Repo{path: dir}
 
@@ -116,6 +118,7 @@ message = "Tests MUST pass on T-SRU"
 }
 
 func TestOverride_CannotWeaken(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	repo := &Repo{path: dir}
 
@@ -160,6 +163,7 @@ enforcement = "warn"
 }
 
 func TestCheckPolicy_Regex_BranchNaming(t *testing.T) {
+	t.Parallel()
 	p := Policy{
 		Name:        "branch_naming",
 		Type:        PolicyTypeRegex,
@@ -191,6 +195,7 @@ func TestCheckPolicy_Regex_BranchNaming(t *testing.T) {
 }
 
 func TestCheckPolicy_Regex_CommitFormat(t *testing.T) {
+	t.Parallel()
 	p := Policy{
 		Name:        "commit_format",
 		Type:        PolicyTypeRegex,
@@ -220,6 +225,7 @@ func TestCheckPolicy_Regex_CommitFormat(t *testing.T) {
 }
 
 func TestCheckPolicy_Limit_MaxWIP(t *testing.T) {
+	t.Parallel()
 	p := Policy{
 		Name:        "max_ticket_wip",
 		Type:        PolicyTypeLimit,
@@ -248,6 +254,7 @@ func TestCheckPolicy_Limit_MaxWIP(t *testing.T) {
 }
 
 func TestCheckPolicy_ForbiddenPattern(t *testing.T) {
+	t.Parallel()
 	p := Policy{
 		Name:        "custom_no_console_log",
 		Type:        PolicyTypeForbiddenPattern,
@@ -278,6 +285,7 @@ func TestCheckPolicy_ForbiddenPattern(t *testing.T) {
 }
 
 func TestCheckPolicy_Boolean_Disabled(t *testing.T) {
+	t.Parallel()
 	p := Policy{
 		Name:        "review_required",
 		Type:        PolicyTypeBoolean,
@@ -293,6 +301,7 @@ func TestCheckPolicy_Boolean_Disabled(t *testing.T) {
 }
 
 func TestHasRefuseViolations(t *testing.T) {
+	t.Parallel()
 	results := []PolicyResult{
 		{Name: "a", Passed: false, Enforcement: EnforcementWarn},
 		{Name: "b", Passed: true, Enforcement: EnforcementRefuse},
@@ -308,6 +317,7 @@ func TestHasRefuseViolations(t *testing.T) {
 }
 
 func TestLoadPolicies_NoFile(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	repo := &Repo{path: dir}
 
@@ -321,6 +331,7 @@ func TestLoadPolicies_NoFile(t *testing.T) {
 }
 
 func TestCheckAll(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	repo := &Repo{path: dir}
 
@@ -359,6 +370,7 @@ message = "too many WIP"
 }
 
 func TestSavePolicies(t *testing.T) {
+	t.Parallel()
 	repo, _ := setupGitTestRepo(t)
 
 	policies := map[string]Policy{
@@ -420,6 +432,7 @@ func TestSavePolicies(t *testing.T) {
 }
 
 func TestSavePoliciesOverwrite(t *testing.T) {
+	t.Parallel()
 	repo, _ := setupGitTestRepo(t)
 
 	// First save
@@ -451,6 +464,7 @@ func TestSavePoliciesOverwrite(t *testing.T) {
 }
 
 func TestCheckPolicy_DisabledSkipped(t *testing.T) {
+	t.Parallel()
 	p := Policy{
 		Name:        "branch-naming",
 		Type:        PolicyTypeRegex,
@@ -466,6 +480,7 @@ func TestCheckPolicy_DisabledSkipped(t *testing.T) {
 }
 
 func TestCheckAll_SkipsDisabled(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	repo := &Repo{path: dir}
 
@@ -504,6 +519,7 @@ enforcement = "warn"
 }
 
 func TestCheckPolicy_WithExplicitTarget(t *testing.T) {
+	t.Parallel()
 	// Policy named generically but with explicit target — should work.
 	p := Policy{
 		Name:        "my-custom-naming-rule",
@@ -526,6 +542,7 @@ func TestCheckPolicy_WithExplicitTarget(t *testing.T) {
 }
 
 func TestCheckPolicy_BooleanWithTarget(t *testing.T) {
+	t.Parallel()
 	p := Policy{
 		Name:        "must-have-review",
 		Type:        PolicyTypeBoolean,
@@ -545,6 +562,7 @@ func TestCheckPolicy_BooleanWithTarget(t *testing.T) {
 }
 
 func TestCheckPolicy_LimitWithTarget(t *testing.T) {
+	t.Parallel()
 	p := Policy{
 		Name:        "team-capacity",
 		Type:        PolicyTypeLimit,
@@ -563,6 +581,7 @@ func TestCheckPolicy_LimitWithTarget(t *testing.T) {
 }
 
 func TestMergePolicies_StrictnessOrder(t *testing.T) {
+	t.Parallel()
 	global := map[string]Policy{
 		"p1": {Type: PolicyTypeBoolean, Enforcement: EnforcementDisabled},
 		"p2": {Type: PolicyTypeBoolean, Enforcement: EnforcementWarn},
@@ -587,6 +606,7 @@ func TestMergePolicies_StrictnessOrder(t *testing.T) {
 }
 
 func TestLoadPolicies_WithTarget(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	repo := &Repo{path: dir}
 

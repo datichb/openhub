@@ -14,6 +14,7 @@ import (
 )
 
 func TestCreateClaimBasic(t *testing.T) {
+	t.Parallel()
 	repo := setupTestRepo(t)
 
 	// Create claims directory and file manually (no git needed for unit test)
@@ -39,6 +40,7 @@ status = "in_progress"
 }
 
 func TestGetClaimNotFound(t *testing.T) {
+	t.Parallel()
 	repo := setupTestRepo(t)
 
 	_, err := repo.GetClaim("T-SRU", "NONEXISTENT")
@@ -46,6 +48,7 @@ func TestGetClaimNotFound(t *testing.T) {
 }
 
 func TestListClaimsForProject(t *testing.T) {
+	t.Parallel()
 	repo := setupTestRepo(t)
 
 	dir := filepath.Join(repo.path, "projects", "T-SRU", "claims")
@@ -76,6 +79,7 @@ status = "review"
 }
 
 func TestListClaimsAllProjects(t *testing.T) {
+	t.Parallel()
 	repo := setupTestRepo(t)
 
 	dir1 := filepath.Join(repo.path, "projects", "T-SRU", "claims")
@@ -96,6 +100,7 @@ status = "in_progress"
 }
 
 func TestListClaimsEmptyProject(t *testing.T) {
+	t.Parallel()
 	repo := setupTestRepo(t)
 
 	claims, err := repo.ListClaims("NONEXISTENT")
@@ -104,6 +109,7 @@ func TestListClaimsEmptyProject(t *testing.T) {
 }
 
 func TestClaimWithMetadata(t *testing.T) {
+	t.Parallel()
 	repo := setupTestRepo(t)
 
 	dir := filepath.Join(repo.path, "projects", "T-SRU", "claims")
@@ -129,6 +135,7 @@ tracker_status = "In Progress"
 }
 
 func TestClaimWithMetadata_BackwardCompat(t *testing.T) {
+	t.Parallel()
 	// Old TOML format without title/description/tracker_status should still work.
 	repo := setupTestRepo(t)
 
@@ -152,6 +159,7 @@ status = "review"
 }
 
 func TestUpdateClaimStatusFromTracker_SkipsTransitionValidation(t *testing.T) {
+	t.Parallel()
 	repo, _ := setupGitTestRepo(t)
 	ctx := context.Background()
 
@@ -178,6 +186,7 @@ func TestUpdateClaimStatusFromTracker_SkipsTransitionValidation(t *testing.T) {
 }
 
 func TestUpdateClaimStatusFromTracker_Noop(t *testing.T) {
+	t.Parallel()
 	repo, _ := setupGitTestRepo(t)
 	ctx := context.Background()
 
@@ -195,6 +204,7 @@ func TestUpdateClaimStatusFromTracker_Noop(t *testing.T) {
 }
 
 func TestUpdateClaimMetadata(t *testing.T) {
+	t.Parallel()
 	repo, _ := setupGitTestRepo(t)
 	ctx := context.Background()
 
@@ -220,6 +230,7 @@ func TestUpdateClaimMetadata(t *testing.T) {
 }
 
 func TestUpdateClaimMetadata_Noop(t *testing.T) {
+	t.Parallel()
 	repo, _ := setupGitTestRepo(t)
 	ctx := context.Background()
 
@@ -251,6 +262,7 @@ func setupGitTestRepo(t *testing.T) (*Repo, string) {
 }
 
 func TestCreateClaimIntegration(t *testing.T) {
+	t.Parallel()
 	repo, _ := setupGitTestRepo(t)
 	ctx := context.Background()
 
@@ -269,6 +281,7 @@ func TestCreateClaimIntegration(t *testing.T) {
 }
 
 func TestCreateClaimConflictIntegration(t *testing.T) {
+	t.Parallel()
 	repo, _ := setupGitTestRepo(t)
 	ctx := context.Background()
 
@@ -294,6 +307,7 @@ func TestCreateClaimConflictIntegration(t *testing.T) {
 }
 
 func TestReleaseClaimIntegration(t *testing.T) {
+	t.Parallel()
 	repo, _ := setupGitTestRepo(t)
 	ctx := context.Background()
 
@@ -315,6 +329,7 @@ func TestReleaseClaimIntegration(t *testing.T) {
 }
 
 func TestReleaseClaimNotFound(t *testing.T) {
+	t.Parallel()
 	repo, _ := setupGitTestRepo(t)
 	ctx := context.Background()
 
@@ -323,6 +338,7 @@ func TestReleaseClaimNotFound(t *testing.T) {
 }
 
 func TestTransferClaimIntegration(t *testing.T) {
+	t.Parallel()
 	repo, _ := setupGitTestRepo(t)
 	ctx := context.Background()
 
@@ -346,6 +362,7 @@ func TestTransferClaimIntegration(t *testing.T) {
 }
 
 func TestIsValidTransition_Allowed(t *testing.T) {
+	t.Parallel()
 	allowed := []struct {
 		from string
 		to   string
@@ -365,6 +382,7 @@ func TestIsValidTransition_Allowed(t *testing.T) {
 }
 
 func TestIsValidTransition_Rejected(t *testing.T) {
+	t.Parallel()
 	rejected := []struct {
 		from string
 		to   string
@@ -389,6 +407,7 @@ func TestIsValidTransition_Rejected(t *testing.T) {
 }
 
 func TestUpdateClaimStatus_InvalidTransition(t *testing.T) {
+	t.Parallel()
 	repo, _ := setupGitTestRepo(t)
 	ctx := context.Background()
 
@@ -412,6 +431,7 @@ func TestUpdateClaimStatus_InvalidTransition(t *testing.T) {
 }
 
 func TestUpdateClaimStatus_ValidTransition(t *testing.T) {
+	t.Parallel()
 	repo, _ := setupGitTestRepo(t)
 	ctx := context.Background()
 
@@ -448,6 +468,7 @@ func writeClaimFile(t *testing.T, repo *Repo, project, ticketID string, c Claim)
 }
 
 func TestCleanupDoneClaims_RemovesOld(t *testing.T) {
+	t.Parallel()
 	if testing.Short() {
 		t.Skip("skipping integration test in short mode")
 	}
@@ -483,6 +504,7 @@ func TestCleanupDoneClaims_RemovesOld(t *testing.T) {
 }
 
 func TestCleanupDoneClaims_KeepsActive(t *testing.T) {
+	t.Parallel()
 	if testing.Short() {
 		t.Skip("skipping integration test in short mode")
 	}
@@ -514,6 +536,7 @@ func TestCleanupDoneClaims_KeepsActive(t *testing.T) {
 }
 
 func TestCleanupDoneClaims_Empty(t *testing.T) {
+	t.Parallel()
 	if testing.Short() {
 		t.Skip("skipping integration test in short mode")
 	}
@@ -526,6 +549,7 @@ func TestCleanupDoneClaims_Empty(t *testing.T) {
 }
 
 func TestCleanupDoneClaims_AllRecent(t *testing.T) {
+	t.Parallel()
 	if testing.Short() {
 		t.Skip("skipping integration test in short mode")
 	}

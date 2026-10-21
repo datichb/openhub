@@ -8,6 +8,7 @@ import (
 )
 
 func TestIsAuthError(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		err  error
@@ -28,6 +29,7 @@ func TestIsAuthError(t *testing.T) {
 }
 
 func TestIsHTTPS(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		remote string
 		want   bool
@@ -46,6 +48,7 @@ func TestIsHTTPS(t *testing.T) {
 }
 
 func TestAuthErrorMessage(t *testing.T) {
+	t.Parallel()
 	remote := "https://gitlab.octo.tools/org/team-state.git"
 	msg := authErrorMessage(remote)
 	assert.Contains(t, msg, remote, "names the remote")

@@ -8,6 +8,7 @@ import (
 )
 
 func TestCreateAndListPatterns(t *testing.T) {
+	t.Parallel()
 	repo, _ := setupGitTestRepo(t)
 	ctx := context.Background()
 
@@ -48,6 +49,7 @@ func TestCreateAndListPatterns(t *testing.T) {
 }
 
 func TestListPatterns_FilterByTags(t *testing.T) {
+	t.Parallel()
 	repo, _ := setupGitTestRepo(t)
 	ctx := context.Background()
 
@@ -89,6 +91,7 @@ func TestListPatterns_FilterByTags(t *testing.T) {
 }
 
 func TestReadPattern(t *testing.T) {
+	t.Parallel()
 	repo, _ := setupGitTestRepo(t)
 	ctx := context.Background()
 
@@ -108,6 +111,7 @@ func TestReadPattern(t *testing.T) {
 }
 
 func TestReadPattern_NotFound(t *testing.T) {
+	t.Parallel()
 	repo := setupTestRepo(t)
 
 	_, err := repo.ReadPattern("nonexistent")
@@ -117,6 +121,7 @@ func TestReadPattern_NotFound(t *testing.T) {
 }
 
 func TestValidatePattern(t *testing.T) {
+	t.Parallel()
 	repo, _ := setupGitTestRepo(t)
 	ctx := context.Background()
 
@@ -144,6 +149,7 @@ func TestValidatePattern(t *testing.T) {
 }
 
 func TestRemovePattern(t *testing.T) {
+	t.Parallel()
 	repo, _ := setupGitTestRepo(t)
 	ctx := context.Background()
 
@@ -169,6 +175,7 @@ func TestRemovePattern(t *testing.T) {
 }
 
 func TestCreatePattern_Duplicate(t *testing.T) {
+	t.Parallel()
 	repo, _ := setupGitTestRepo(t)
 	ctx := context.Background()
 

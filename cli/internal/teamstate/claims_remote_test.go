@@ -9,6 +9,7 @@ import (
 )
 
 func TestSetClaimRemote(t *testing.T) {
+	t.Parallel()
 	repo, _ := setupGitTestRepo(t)
 	ctx := context.Background()
 	err := repo.SetClaimRemote(ctx, "T-SRU", "SRU-1", ClaimRemote{Session: "ses_x", Status: RemoteSent})

@@ -33,6 +33,7 @@ func counterBuild(calls *int, who ...string) func(context.Context, *Tx) (TxResul
 }
 
 func TestTransact_RebuildsAfterRejectedPush(t *testing.T) {
+	t.Parallel()
 	repo, bare := setupGitTestRepo(t)
 	ctx := context.Background()
 	other := NewRepo(bare, filepath.Join(t.TempDir(), "other"))
@@ -56,6 +57,7 @@ func TestTransact_RebuildsAfterRejectedPush(t *testing.T) {
 }
 
 func TestTransact_BuildErrorRestoresFiles(t *testing.T) {
+	t.Parallel()
 	repo, _ := setupGitTestRepo(t)
 	ctx := context.Background()
 	err := repo.Transact(ctx, func(_ context.Context, tx *Tx) (TxResult, error) {
@@ -71,6 +73,7 @@ func TestTransact_BuildErrorRestoresFiles(t *testing.T) {
 }
 
 func TestTransact_Offline(t *testing.T) {
+	t.Parallel()
 	repo, _ := setupGitTestRepo(t)
 	ctx := context.Background()
 	gittest.Run(t, repo.Path(), "remote", "set-url", "origin", "http://127.0.0.1:1/x.git")
@@ -82,6 +85,7 @@ func TestTransact_Offline(t *testing.T) {
 }
 
 func TestQueue(t *testing.T) {
+	t.Parallel()
 	repo, _ := setupGitTestRepo(t)
 	require.NoError(t, repo.Enqueue(QueuedOp{Kind: "publish", Scope: "team", ID: "a", Member: "alice"}))
 	require.NoError(t, repo.Enqueue(QueuedOp{Kind: "publish", Scope: "project:web", ID: "a", Member: "alice"}))

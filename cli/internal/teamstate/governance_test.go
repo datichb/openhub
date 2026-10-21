@@ -11,12 +11,14 @@ import (
 )
 
 func TestGovernance_PublishPolicy(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, GovernancePublishAnyMember, GovernanceConfig{}.PublishPolicy())
 	assert.Equal(t, GovernancePublishAnyMember, DefaultGovernance().PublishPolicy())
 	assert.Equal(t, "leads", GovernanceConfig{Publish: "leads"}.PublishPolicy())
 }
 
 func TestGovernance_CanPublish(t *testing.T) {
+	t.Parallel()
 	members := func(id string) bool { return id == "alice" }
 	assert.NoError(t, GovernanceConfig{}.CanPublish("alice", members))
 	assert.ErrorIs(t, GovernanceConfig{}.CanPublish("mallory", members), ErrNotMember)
@@ -28,6 +30,7 @@ func TestGovernance_CanPublish(t *testing.T) {
 }
 
 func TestGovernance_ConfigTOML(t *testing.T) {
+	t.Parallel()
 	repo := setupTestRepo(t)
 	writeMembersToml(t, repo, "[members.alice]\ndisplay_name = \"Alice\"\n")
 

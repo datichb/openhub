@@ -71,6 +71,7 @@ func publishLocal(t *testing.T, repo *Repo, scope WorkflowScope, id, yaml, promp
 func codesOf(ds workflow.Diagnostics) []string { return ds.Codes() }
 
 func TestWorkflowPaths(t *testing.T) {
+	t.Parallel()
 	rel, err := PublishedRel(TeamScope(), "ticket-hotfix")
 	require.NoError(t, err)
 	assert.Equal(t, filepath.Join("workflows", "published", "ticket-hotfix.yaml"), rel)
@@ -108,6 +109,7 @@ func TestWorkflowPaths(t *testing.T) {
 }
 
 func TestInitStructureCreatesWorkflowLayout(t *testing.T) {
+	t.Parallel()
 	repo := setupTestRepo(t)
 	require.NoError(t, repo.InitStructure(context.Background()))
 	for _, d := range []string{"workflows/published", "workflows/drafts", "workflows/prompts", "workflows/history", "catalog/agents", "catalog/skills"} {
@@ -123,6 +125,7 @@ func TestInitStructureCreatesWorkflowLayout(t *testing.T) {
 }
 
 func TestWorkflowLockRoundTrip(t *testing.T) {
+	t.Parallel()
 	repo := setupTestRepo(t)
 	at := time.Date(2026, 10, 6, 10, 0, 0, 0, time.UTC)
 	l := &WorkflowLock{}
@@ -144,6 +147,7 @@ func TestWorkflowLockRoundTrip(t *testing.T) {
 }
 
 func TestLoadWorkflowLayers_PublishedAndResolved(t *testing.T) {
+	t.Parallel()
 	repo := setupTestRepo(t)
 	require.NoError(t, repo.InitStructure(context.Background()))
 	files := publishLocal(t, repo, TeamScope(), "ticket-hotfix", teamHotfixYAML, "Hotfix {{ .ticket }}")
@@ -179,6 +183,7 @@ description: Web hotfix
 // Acceptance criterion 2: a published file changed by hand is skipped with a
 // warning (also after a commit and a clone by another member).
 func TestLoadWorkflowLayers_HandEditedFileIsSkipped(t *testing.T) {
+	t.Parallel()
 	repo, bare := setupGitTestRepo(t)
 	ctx := context.Background()
 	require.NoError(t, repo.InitStructure(ctx))
@@ -208,6 +213,7 @@ func TestLoadWorkflowLayers_HandEditedFileIsSkipped(t *testing.T) {
 }
 
 func TestLoadWorkflowLayers_IntegrityWarnings(t *testing.T) {
+	t.Parallel()
 	repo := setupTestRepo(t)
 	require.NoError(t, repo.InitStructure(context.Background()))
 	publishLocal(t, repo, TeamScope(), "ticket-hotfix", teamHotfixYAML, "Hotfix {{ .ticket }}")
@@ -239,6 +245,7 @@ func TestLoadWorkflowLayers_IntegrityWarnings(t *testing.T) {
 }
 
 func TestLoadWorkflowLayers_ParseErrorsAreReported(t *testing.T) {
+	t.Parallel()
 	repo := setupTestRepo(t)
 	publishLocal(t, repo, TeamScope(), "broken", "apiVersion: oh/v1\nkind: Workflow\nid: broken\nnope: 1\n", "")
 	publishLocal(t, repo, TeamScope(), "renamed", "apiVersion: oh/v1\nkind: Workflow\nid: other\nrisk: read\n", "")
@@ -250,6 +257,7 @@ func TestLoadWorkflowLayers_ParseErrorsAreReported(t *testing.T) {
 }
 
 func TestPromptSource(t *testing.T) {
+	t.Parallel()
 	repo := setupTestRepo(t)
 	writeRepoFile(t, repo, filepath.Join("workflows", "prompts", "a.md.tmpl"), "team")
 	writeRepoFile(t, repo, filepath.Join("projects", "web", "workflows", "prompts", "a.md.tmpl"), "project")

@@ -14,6 +14,7 @@ import (
 
 // N15 step B: "." is refused; the caller lists its files.
 func TestCommitEverythingIsRefused(t *testing.T) {
+	t.Parallel()
 	repo, _ := setupGitTestRepo(t)
 	ctx := context.Background()
 	require.ErrorIs(t, repo.CommitAndPush(ctx, "all", "."), ErrStageAll)
@@ -28,6 +29,7 @@ func TestCommitEverythingIsRefused(t *testing.T) {
 // N15 step B: a write commits its own files only; another writer's files
 // (untracked or modified) stay out of the commit and in place.
 func TestWritesCommitTheirFilesOnly(t *testing.T) {
+	t.Parallel()
 	repo, _ := setupGitTestRepo(t)
 	ctx := context.Background()
 	require.NoError(t, os.WriteFile(filepath.Join(repo.Path(), "other.txt"), []byte("not mine"), 0o644))
@@ -43,6 +45,7 @@ func TestWritesCommitTheirFilesOnly(t *testing.T) {
 // N15 step B: CommitAndPush is a transaction too: a push overtaken by
 // another member is retried on top of it, the caller's file kept.
 func TestCommitAndPushRetriesOnTop(t *testing.T) {
+	t.Parallel()
 	repo, bare := setupGitTestRepo(t)
 	ctx := context.Background()
 	other := NewRepo(bare, filepath.Join(t.TempDir(), "other"))
@@ -64,6 +67,7 @@ func TestCommitAndPushRetriesOnTop(t *testing.T) {
 // N15 step B: inside a transaction, the public methods join it — one
 // commit, no second lock nor pull (no deadlock).
 func TestPublicMethodsJoinTheTransaction(t *testing.T) {
+	t.Parallel()
 	repo, bare := setupGitTestRepo(t)
 	ctx := context.Background()
 	base, _ := strconv.Atoi(gittest.Run(t, repo.Path(), "rev-list", "--count", "HEAD"))
@@ -92,6 +96,7 @@ func TestPublicMethodsJoinTheTransaction(t *testing.T) {
 
 // A failed write puts its files back (no half-written state left).
 func TestWriteErrorRestoresFiles(t *testing.T) {
+	t.Parallel()
 	repo, _ := setupGitTestRepo(t)
 	ctx := context.Background()
 	err := repo.WithWriteLock(ctx, func(ctx context.Context) error {

@@ -184,6 +184,7 @@ func BenchmarkListMembers(b *testing.B) {
 // ─── Concurrency Tests ───────────────────────────────────────────────────────
 
 func TestConcurrentClaims(t *testing.T) {
+	t.Parallel()
 	repo, _ := setupGitTestRepo(t)
 	ctx := context.Background()
 
@@ -221,6 +222,7 @@ func TestConcurrentClaims(t *testing.T) {
 }
 
 func TestConcurrentReadWrite(t *testing.T) {
+	t.Parallel()
 	repo, _ := setupGitTestRepo(t)
 	ctx := context.Background()
 
