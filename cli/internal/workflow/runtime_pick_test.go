@@ -3,6 +3,7 @@ package workflow
 import "testing"
 
 func TestPickRuntime(t *testing.T) {
+	t.Parallel()
 	sp := &Spec{Runtime: &RuntimeSpec{Default: RuntimeLocal, Allowed: []Runtime{RuntimeLocal, RuntimeContainer}}}
 	cases := []struct {
 		prefs []string

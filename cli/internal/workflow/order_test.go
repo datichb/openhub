@@ -8,6 +8,7 @@ import (
 // r5-fixes: `writes_after` names a checkpoint of every session and needs
 // `writes:`; the `after` of a checkpoint names one declared before it.
 func TestValidate_Order(t *testing.T) {
+	t.Parallel()
 	base := "risk: plan\nbeads: { allow: [show] }\nentry: { agent: orchestrator-dev }\ninputs:\n  method: { type: enum, values: [standard, tdd], default: standard }\n" +
 		"agents:\n  orchestrator-dev: { role: workflow, calls: [reviewer] }\n"
 	cps := "checkpoints:\n" +
@@ -62,6 +63,7 @@ func TestValidate_Order(t *testing.T) {
 // r5-fixes: a layer adds an order or moves it to a later checkpoint, never
 // removes it nor moves it earlier (loosening, the parent's kept).
 func TestPatch_Order(t *testing.T) {
+	t.Parallel()
 	hub := strings.Replace(hubLayered, "  developer: { role: workflow, after: cp-1 }\n",
 		"  developer: { role: workflow, after: cp-1, writes: [docs/wiki/specs/**], writes_after: cp-2 }\n", 1)
 	hub = strings.Replace(hub, "  cp-3: { label: End,", "  cp-3: { label: End, after: cp-2,", 1)

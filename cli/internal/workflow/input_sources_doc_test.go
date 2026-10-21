@@ -12,6 +12,7 @@ import (
 // QB2: the sources of computed inputs are a public contract: the workflow
 // schema reference (fr and en) lists exactly the sources of InputSources.
 func TestInputSourcesAreDocumented(t *testing.T) {
+	t.Parallel()
 	want := append([]string(nil), InputSources...)
 	sort.Strings(want)
 	re := regexp.MustCompile("`([a-z]+\\.[a-z_]+)\\([a-z]+\\)`")

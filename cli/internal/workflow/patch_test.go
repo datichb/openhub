@@ -39,6 +39,7 @@ func layeredDiags(t *testing.T, patch string) (*Resolved, Diagnostics) {
 // PoC S-16: the parent has no `beads:` block (the gateway applies the
 // read-only default list); the child may not grant writes.
 func TestPatch_BeadsWithoutParentBlockComparedToDefault(t *testing.T) {
+	t.Parallel()
 	r, diags := layeredDiags(t, "beads: { allow: [show, create, close, delete] }\n")
 	if got := diags.Codes(); !reflect.DeepEqual(got, []string{"loosening"}) || diags[0].Path != "beads.allow" {
 		t.Fatalf("diags = %v", diagList(diags))
@@ -56,6 +57,7 @@ func TestPatch_BeadsWithoutParentBlockComparedToDefault(t *testing.T) {
 // PoC S-17: a checkpoint that unlocks an operation, even not mandatory, may
 // not be skipped (the lock would disappear).
 func TestPatch_UnlockingCheckpointCannotBeSkipped(t *testing.T) {
+	t.Parallel()
 	for _, mode := range []string{"manuel", "semi-auto", "auto"} {
 		r, diags := layeredDiags(t, "checkpoints:\n  cp-2: { mode: { "+mode+": skip } }\n")
 		if got := diags.Codes(); !reflect.DeepEqual(got, []string{"loosening"}) || diags[0].Path != "checkpoints.cp-2.mode."+mode {
@@ -76,6 +78,7 @@ func TestPatch_UnlockingCheckpointCannotBeSkipped(t *testing.T) {
 }
 
 func TestPatch_HardenOnlyTable(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name, patch, path string // path "" = accepted
 	}{
@@ -116,6 +119,7 @@ func TestPatch_HardenOnlyTable(t *testing.T) {
 // reported. Removing skills stays allowed and silent; the hub layer adds
 // freely.
 func TestPatch_LayerWideningIsWarned(t *testing.T) {
+	t.Parallel()
 	hub := hubLayered + "skills: { extra: [a/one, a/two] }\n"
 	resolve := func(layer, patch string) (*Resolved, Diagnostics) {
 		docs := map[string]string{
@@ -229,6 +233,7 @@ func TestPatch_LayerWideningIsWarned(t *testing.T) {
 // server of the project), and the hub layer (oh's own content) may add plugins
 // and MCP servers.
 func TestPatch_AllowedChanges(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name    string
 		docs    map[string]string
@@ -261,6 +266,7 @@ func TestPatch_AllowedChanges(t *testing.T) {
 
 // S-19: a read-only workflow may not load a plugin whose tools run commands.
 func TestValidate_ReadWorkflowRefusesExecPlugin(t *testing.T) {
+	t.Parallel()
 	body := "risk: read\nbeads: { allow: [show] }\nplugins: [context-mode@latest]\n"
 	assertDiag(t, checkYAML(t, vHeader+body, testEnv()), "read_plugin_exec", "plugins[0]", SeverityError)
 	if !strings.Contains(strings.Join(ExecPlugins, ","), "context-mode") {
@@ -271,6 +277,7 @@ func TestValidate_ReadWorkflowRefusesExecPlugin(t *testing.T) {
 // A disabled agent leaves the explicit delegations of the others (the
 // feature orchestrator lists documentarian; a team may disable it).
 func TestPatch_DisabledAgentLeavesCalls(t *testing.T) {
+	t.Parallel()
 	r, diags := layeredDiags(t, "agents:\n  reviewer: { role: disabled }\n")
 	if len(diags) != 0 {
 		t.Fatalf("diags = %v", diagList(diags))
@@ -288,6 +295,7 @@ func TestPatch_DisabledAgentLeavesCalls(t *testing.T) {
 // A refusal of the parent (`skills.deny`) is a security field: outside the
 // hub layer the lists are combined, a layer never lifts a refusal.
 func TestPatch_SkillsDenyIsUnioned(t *testing.T) {
+	t.Parallel()
 	hub := hubLayered + "skills: { deny: [a/one, a/two] }\n"
 	resolve := func(layer, patch string) (*Resolved, Diagnostics) {
 		docs := map[string]string{

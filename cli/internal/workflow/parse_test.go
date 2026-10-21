@@ -15,6 +15,7 @@ func parseString(t *testing.T, doc string) (*Document, Diagnostics) {
 const header = "apiVersion: oh/v1\nkind: Workflow\nid: x\n"
 
 func TestParse_FullExampleIsClean(t *testing.T) {
+	t.Parallel()
 	data, err := os.ReadFile("testdata/spec_v1_full.yaml")
 	if err != nil {
 		t.Fatal(err)
@@ -42,6 +43,7 @@ func TestParse_FullExampleIsClean(t *testing.T) {
 }
 
 func TestParse_ErrorsCarryLineAndColumn(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name, doc, code, path string
 		pos                   Pos
@@ -86,6 +88,7 @@ func TestParse_ErrorsCarryLineAndColumn(t *testing.T) {
 }
 
 func TestParse_Diagnostics(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name, doc string
 		wantCodes []string
@@ -114,6 +117,7 @@ func TestParse_Diagnostics(t *testing.T) {
 }
 
 func TestParse_DocumentShape(t *testing.T) {
+	t.Parallel()
 	cases := map[string]string{
 		"":                        "empty_document",
 		"- a\n":                   "expected_mapping",
@@ -128,6 +132,7 @@ func TestParse_DocumentShape(t *testing.T) {
 }
 
 func TestParse_MessagesAreLocalized(t *testing.T) {
+	t.Parallel()
 	_, diags := parseString(t, header+"foo: 1\n")
 	if len(diags) != 1 || strings.HasPrefix(diags[0].Message, "workflow.diag.") || !strings.Contains(diags[0].Message, "foo") {
 		t.Fatalf("message not localized: %+v", diags)
@@ -135,6 +140,7 @@ func TestParse_MessagesAreLocalized(t *testing.T) {
 }
 
 func TestParseRef(t *testing.T) {
+	t.Parallel()
 	r, err := ParseRef("team:ticket-hotfix")
 	if err != nil || r != (Ref{LayerTeam, "ticket-hotfix"}) || r.String() != "team:ticket-hotfix" {
 		t.Fatalf("ref = %v, %v", r, err)

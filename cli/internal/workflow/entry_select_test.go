@@ -23,6 +23,7 @@ func (l listedAgents) AgentIDs() []string {
 // whose task permission names itself (reviewer) never calls itself by
 // derivation (libre: depth 2, not 3).
 func TestSelectEntryNoSelfDelegation(t *testing.T) {
+	t.Parallel()
 	cat := listedAgents{fakeAgents{
 		"orchestrator":     {Tasks: []string{"orchestrator-dev", "reviewer"}},
 		"orchestrator-dev": {Tasks: []string{"developer", "reviewer"}},

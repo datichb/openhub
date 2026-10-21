@@ -19,6 +19,7 @@ checkpoints:
 `
 
 func TestDocEdit(t *testing.T) {
+	t.Parallel()
 	e, err := ParseDocEdit([]byte(editDoc))
 	require.NoError(t, err)
 	v, ok := e.Scalar("risk")

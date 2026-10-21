@@ -72,6 +72,7 @@ func mustRef(t *testing.T, s string) Ref {
 }
 
 func TestResolve_RootOnly(t *testing.T) {
+	t.Parallel()
 	cat := catalogOf(t, map[string]string{"hub:ticket": hubTicket})
 	r := resolveOK(t, cat, "hub:ticket")
 	if r.Spec.ID != "ticket" || r.Mode != ModeSemiAuto || r.Runtime != RuntimeLocal {
@@ -87,6 +88,7 @@ func TestResolve_RootOnly(t *testing.T) {
 }
 
 func TestResolve_PatchChainAndOrigins(t *testing.T) {
+	t.Parallel()
 	cat := catalogOf(t, map[string]string{
 		"hub:ticket": hubTicket,
 		"team:ticket": `apiVersion: oh/v1
@@ -179,6 +181,7 @@ inputs:
 }
 
 func TestResolve_HardeningOnly(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name, patch, path string
 	}{
@@ -218,6 +221,7 @@ func TestResolve_HardeningOnly(t *testing.T) {
 }
 
 func TestResolve_RuntimeCannotWiden(t *testing.T) {
+	t.Parallel()
 	for _, patch := range []string{
 		"runtime: { allowed: [local, remote] }\n",
 		"runtime: { default: remote }\n", // a default outside the parent list is caught by validation
@@ -240,6 +244,7 @@ func TestResolve_RuntimeCannotWiden(t *testing.T) {
 }
 
 func TestResolve_HardeningAccepted(t *testing.T) {
+	t.Parallel()
 	cat := catalogOf(t, map[string]string{
 		"hub:ticket": hubTicket,
 		"team:ticket": `apiVersion: oh/v1
@@ -266,6 +271,7 @@ checkpoints:
 // A team layer cannot remove what keeps the workflow safe or runnable: a
 // mandatory checkpoint, a checkpoint that unlocks an operation, the entry agent.
 func TestResolve_RemovalRefused(t *testing.T) {
+	t.Parallel()
 	const header = "apiVersion: oh/v1\nkind: Workflow\nid: ticket\nextends: hub:ticket\n"
 	cases := []struct {
 		name, hub, patch, code string
@@ -286,6 +292,7 @@ func TestResolve_RemovalRefused(t *testing.T) {
 }
 
 func TestResolve_ChainErrors(t *testing.T) {
+	t.Parallel()
 	hdr := func(id, extends string) string {
 		s := "apiVersion: oh/v1\nkind: Workflow\nid: " + id + "\n"
 		if extends != "" {
@@ -324,6 +331,7 @@ func TestResolve_ChainErrors(t *testing.T) {
 }
 
 func TestResolve_SameLayerExtendsOtherID(t *testing.T) {
+	t.Parallel()
 	cat := catalogOf(t, map[string]string{
 		"hub:ticket":         hubTicket,
 		"team:ticket-hotfix": "apiVersion: oh/v1\nkind: Workflow\nid: ticket-hotfix\nextends: hub:ticket\nrisk: write\n",
@@ -335,6 +343,7 @@ func TestResolve_SameLayerExtendsOtherID(t *testing.T) {
 }
 
 func TestResolve_SessionOptions(t *testing.T) {
+	t.Parallel()
 	cat := catalogOf(t, map[string]string{"hub:ticket": hubTicket})
 	r, diags := ResolveSpec(cat, Ref{LayerHub, "ticket"}, &SessionOptions{
 		Mode: ModeAuto, Runtime: RuntimeContainer,
@@ -358,6 +367,7 @@ func TestResolve_SessionOptions(t *testing.T) {
 }
 
 func TestCheckInputValue(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		in   Input
 		v    any
@@ -383,6 +393,7 @@ func TestCheckInputValue(t *testing.T) {
 }
 
 func TestApplyPatch_LeavesParentIntact(t *testing.T) {
+	t.Parallel()
 	parentDoc, _ := Parse([]byte(hubTicket), Source{Layer: LayerHub})
 	patch, _ := Parse([]byte("apiVersion: oh/v1\nkind: Workflow\nid: ticket\nextends: hub:ticket\nagents:\n  developer: { calls: [reviewer] }\nmodes: { allowed: [manuel] , default: manuel }\n"), Source{Layer: LayerTeam})
 	out, diags := ApplyPatch(parentDoc.Spec, patch, "hub:ticket")
@@ -402,6 +413,7 @@ func TestApplyPatch_LeavesParentIntact(t *testing.T) {
 }
 
 func TestSpecClone_Independent(t *testing.T) {
+	t.Parallel()
 	s := loadFullSpec(t)
 	c := s.Clone()
 	if !reflect.DeepEqual(s, c) {
@@ -421,6 +433,7 @@ func TestSpecClone_Independent(t *testing.T) {
 }
 
 func TestSubagentGraphAndMaxDepth(t *testing.T) {
+	t.Parallel()
 	cat := catalogOf(t, map[string]string{"hub:ticket": hubTicket})
 	r := resolveOK(t, cat, "hub:ticket")
 	members, graph := SubagentGraph(r.Spec, testAgents)
@@ -456,6 +469,7 @@ func TestSubagentGraphAndMaxDepth(t *testing.T) {
 
 // QB1: code_mode and modes.allowed are security fields (hardening only).
 func TestResolve_CodeModeAndModesHardeningOnly(t *testing.T) {
+	t.Parallel()
 	const hubQuick = "apiVersion: oh/v1\nkind: Workflow\nid: quick\nmodes: { default: manuel, allowed: [manuel, semi-auto] }\n"
 	refused := []struct{ name, hub, patch, path string }{
 		{"code mode enabled", hubQuick, "code_mode: true\n", "code_mode"},
@@ -494,6 +508,7 @@ func codeMode(s *Spec) bool { return s.CodeMode != nil && *s.CodeMode }
 // QB2: a patch writing only entry.selectable keeps the parent's entry agent
 // and changes the flag (it had no effect).
 func TestResolve_EntrySelectableAlone(t *testing.T) {
+	t.Parallel()
 	cat := catalogOf(t, map[string]string{
 		"hub:ticket":  hubTicket,
 		"team:ticket": "apiVersion: oh/v1\nkind: Workflow\nid: ticket\nextends: hub:ticket\nentry: { selectable: true }\n",

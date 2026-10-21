@@ -46,6 +46,7 @@ func verifiedDiags(t *testing.T, patch string) (*Resolved, Diagnostics) {
 // Removing or weakening an inherited verification, or dropping a condition,
 // is a loosening: the parent value is kept.
 func TestPatch_VerifyOnlyHardens(t *testing.T) {
+	t.Parallel()
 	loosen := []struct{ name, patch, path string }{
 		{"removed", "checkpoints:\n  cp-2: { verify: null }\n", "checkpoints.cp-2.verify"},
 		{"expect", "checkpoints:\n  cp-2: { verify: { from: stack, kinds: [build, test], expect: fail, timeout: 5m } }\n", "checkpoints.cp-2.verify"},
@@ -87,6 +88,7 @@ func TestPatch_VerifyOnlyHardens(t *testing.T) {
 }
 
 func TestValidate_VerifyAndWhen(t *testing.T) {
+	t.Parallel()
 	doc := vHeader + `risk: write
 entry: { agent: orchestrator-dev }
 agents:
@@ -150,6 +152,7 @@ checkpoints:
 // CP-R2: 2 human decisions plus 1 per checkpoint that unlocks an
 // irreversible action, in semi-auto; warned by validate.
 func TestPauseBudget(t *testing.T) {
+	t.Parallel()
 	doc := func(cps string) string {
 		return vHeader + "risk: write\nentry: { agent: orchestrator-dev }\nagents:\n  orchestrator-dev: { role: workflow }\ncheckpoints:\n" + cps
 	}
@@ -202,6 +205,7 @@ func resolveYAML(t *testing.T, doc string) *Resolved {
 }
 
 func TestVerifySpecDefaults(t *testing.T) {
+	t.Parallel()
 	var v *VerifySpec
 	if v.ExpectOrPass() != VerifyPass || v.TimeoutOrDefault() != DefaultVerifyTimeout || !reflect.DeepEqual(v.EffectiveKinds(), DefaultVerifyKinds) {
 		t.Fatal("defaults")

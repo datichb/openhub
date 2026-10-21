@@ -75,6 +75,7 @@ func checkYAML(t *testing.T, doc string, env Env) Diagnostics {
 const vHeader = "apiVersion: oh/v1\nkind: Workflow\nid: x\n"
 
 func TestValidate_FullExampleIsValid(t *testing.T) {
+	t.Parallel()
 	data, err := os.ReadFile("testdata/spec_v1_full.yaml")
 	if err != nil {
 		t.Fatal(err)
@@ -89,6 +90,7 @@ func TestValidate_FullExampleIsValid(t *testing.T) {
 }
 
 func TestValidate_Rules(t *testing.T) {
+	t.Parallel()
 	const pauses = "mode: { manuel: pause, semi-auto: pause, auto: pause }"
 	cases := []struct {
 		name, body, code, path string
@@ -255,6 +257,7 @@ func diagList(ds Diagnostics) string {
 }
 
 func TestValidate_MinimalWorkflowIsValid(t *testing.T) {
+	t.Parallel()
 	diags := checkYAML(t, vHeader+"risk: write\n", testEnv())
 	if len(diags) != 0 {
 		t.Fatalf("diags:\n%s", diagList(diags))
@@ -267,6 +270,7 @@ func TestValidate_MinimalWorkflowIsValid(t *testing.T) {
 }
 
 func TestValidate_WithoutEnvSkipsCatalogueRules(t *testing.T) {
+	t.Parallel()
 	diags := checkYAML(t, vHeader+"risk: read\nagents:\n  ghost: { role: workflow }\nprompt: { template: prompts/x.tmpl }\n", Env{})
 	if got := diags.Codes(); !reflect.DeepEqual(got, []string{"read_beads_unrestricted"}) {
 		t.Fatalf("codes = %v", got)
@@ -274,6 +278,7 @@ func TestValidate_WithoutEnvSkipsCatalogueRules(t *testing.T) {
 }
 
 func TestValidate_SkillIssues(t *testing.T) {
+	t.Parallel()
 	env := testEnv()
 	env.Skills = fakeSkills{
 		known:  map[string]bool{"a": true},
@@ -286,6 +291,7 @@ func TestValidate_SkillIssues(t *testing.T) {
 }
 
 func TestValidate_IsolationWarning(t *testing.T) {
+	t.Parallel()
 	env := testEnv()
 	env.Isolation = sessionspec.IsolationPartial
 	diags := checkYAML(t, vHeader+"risk: write\nisolation: strict\n", env)
@@ -293,6 +299,7 @@ func TestValidate_IsolationWarning(t *testing.T) {
 }
 
 func TestValidate_DiagnosticPointsToPatchLayer(t *testing.T) {
+	t.Parallel()
 	cat := catalogOf(t, map[string]string{
 		"hub:x":  vHeader + "risk: write\nprompt: { text: go }\n",
 		"team:x": vHeader + "extends: hub:x\nagents:\n  ghost: { role: independent }\n",
@@ -313,6 +320,7 @@ func TestValidate_DiagnosticPointsToPatchLayer(t *testing.T) {
 // C1: a workflow that still names an agent removed from the hub gets its
 // replacement, not a bare "unknown agent".
 func TestValidate_RemovedAgent(t *testing.T) {
+	t.Parallel()
 	cat := catalogOf(t, map[string]string{
 		"hub:x":  vHeader + "risk: write\nprompt: { text: go }\n",
 		"team:x": vHeader + "extends: hub:x\nagents:\n  developer-refactor: { role: workflow }\n",
@@ -337,6 +345,7 @@ func TestValidate_RemovedAgent(t *testing.T) {
 }
 
 func TestTemplateVariables(t *testing.T) {
+	t.Parallel()
 	inputs := map[string]bool{"a": true, "items": true}
 	src := `{{ .a }} {{ .oh.project }} {{ range .items }}{{ .name }}{{ end }} {{ with .a }}{{ .x }}{{ $.b }}{{ end }} {{ upper .c }} {{ define "t" }}{{ .d }}{{ end }}`
 	got, err := TemplateVariables(src, inputs)
@@ -351,6 +360,7 @@ func TestTemplateVariables(t *testing.T) {
 // A10: a team or project workflow without prompt is reported (the session
 // would start without any instruction); a patch inherits the prompt.
 func TestValidate_PromptNone(t *testing.T) {
+	t.Parallel()
 	cat := catalogOf(t, map[string]string{
 		"hub:x":     vHeader + "risk: write\nprompt: { text: go }\n",
 		"team:x":    vHeader + "extends: hub:x\n",

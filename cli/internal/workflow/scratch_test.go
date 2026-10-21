@@ -9,6 +9,7 @@ import (
 // SCR: `agents.<id>.scratch: { readers: […] }`, the readers are other
 // agents of the workflow.
 func TestValidate_Scratch(t *testing.T) {
+	t.Parallel()
 	base := "risk: write\nentry: { agent: orchestrator-dev }\nagents:\n  orchestrator-dev: { role: workflow, calls: [developer, reviewer] }\n  reviewer: { role: workflow }\n"
 	cases := []struct {
 		name, agent, code, path string
@@ -45,6 +46,7 @@ func TestValidate_Scratch(t *testing.T) {
 // SCR: a layer may narrow the readers or remove the folder, not add a
 // reader; a disabled agent leaves the readers.
 func TestPatch_Scratch(t *testing.T) {
+	t.Parallel()
 	hub := strings.Replace(hubLayered, "  developer: { role: workflow, after: cp-1 }\n",
 		"  developer: { role: workflow, after: cp-1, scratch: { readers: [reviewer] } }\n", 1)
 	diagsOf := func(patch string) (*Resolved, Diagnostics) {
