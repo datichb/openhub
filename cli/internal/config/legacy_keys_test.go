@@ -1,19 +1,18 @@
-package config
+package config_test
 
 import (
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/config/configtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestLoad_FromFile(t *testing.T) {
-	Reset()
-
-	tmpDir := t.TempDir()
-	t.Setenv("HOME", tmpDir)
+	tmpDir := configtest.Home(t)
 
 	ohDir := filepath.Join(tmpDir, ".oh")
 	require.NoError(t, os.MkdirAll(ohDir, 0o755))
@@ -29,7 +28,7 @@ auto_update = true
 `
 	require.NoError(t, os.WriteFile(filepath.Join(ohDir, "hub.toml"), []byte(tomlContent), 0o644))
 
-	cfg, err := Load()
+	cfg, err := config.Load()
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
 
@@ -41,9 +40,7 @@ auto_update = true
 // QB7 (D19): the former tool-named keys of hub.toml are still read into
 // the neutral settings, and written back under the neutral keys.
 func TestLegacyKeysAreRead(t *testing.T) {
-	Reset()
-	tmpDir := t.TempDir()
-	t.Setenv("HOME", tmpDir)
+	tmpDir := configtest.Home(t)
 	ohDir := filepath.Join(tmpDir, ".oh")
 	require.NoError(t, os.MkdirAll(ohDir, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(ohDir, "hub.toml"), []byte(`
@@ -53,13 +50,13 @@ default_provider = "anthropic"
 [execution]
 opencode_version = "2.0.19"
 `), 0o644))
-	cfg, err := Load()
+	cfg, err := config.Load()
 	require.NoError(t, err)
 	assert.Equal(t, "anthropic", cfg.LLM.DefaultProvider)
 	assert.Equal(t, "2.0.19", cfg.Execution.ToolVersion)
-	assert.Equal(t, "llm.default_provider", LegacyKeyAliases["opencode.default_provider"])
+	assert.Equal(t, "llm.default_provider", config.LegacyKeyAliases["opencode.default_provider"])
 
-	require.NoError(t, Save(cfg))
+	require.NoError(t, config.Save(cfg))
 	data, err := os.ReadFile(filepath.Join(ohDir, "hub.toml"))
 	require.NoError(t, err)
 	assert.Contains(t, string(data), "[llm]")

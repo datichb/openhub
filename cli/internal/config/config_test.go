@@ -1,22 +1,21 @@
-package config
+package config_test
 
 import (
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/config/configtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestLoad_Defaults(t *testing.T) {
 	// Reset cached config
-	Reset()
+	configtest.Home(t)
 
-	// Point to a temp dir with no config file
-	t.Setenv("HOME", t.TempDir())
-
-	cfg, err := Load()
+	cfg, err := config.Load()
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
 
@@ -28,46 +27,43 @@ func TestLoad_Defaults(t *testing.T) {
 // produces the same values. This catches tag mismatches between mapstructure
 // (used by Load/Viper) and toml (used by Save/go-toml).
 func TestSaveAndLoad_Roundtrip(t *testing.T) {
-	Reset()
-
-	tmpDir := t.TempDir()
-	t.Setenv("HOME", tmpDir)
+	tmpDir := configtest.Home(t)
 
 	ohDir := filepath.Join(tmpDir, ".oh")
 	require.NoError(t, os.MkdirAll(ohDir, 0o755))
 
 	// Build a config with representative values in all fields
-	original := &Config{
+	original := &config.Config{
 		Name: "test-hub",
-		CLI:  CLIConfig{Language: "fr"},
-		LLM: LLMConfig{
+		CLI:  config.CLIConfig{Language: "fr"},
+		LLM: config.LLMConfig{
 			DefaultProvider: "bedrock",
 		},
-		Provider: ProviderConfigs{
-			Bedrock: ProviderConfig{
+		Provider: config.ProviderConfigs{
+			Bedrock: config.ProviderConfig{
 				AWSProfile: "prod",
 				AWSRegion:  "eu-west-1",
 				AuthMode:   "profile",
 			},
 		},
-		MCP: MCPConfig{
-			Gitlab: MCPServerConfig{
+		MCP: config.MCPConfig{
+			Gitlab: config.MCPServerConfig{
 				Enabled:      true,
 				Token:        "gitlab-token",
 				WriteEnabled: true,
 				URL:          "https://gitlab.example.com",
 			},
-			Jira: MCPServerConfig{
+			Jira: config.MCPServerConfig{
 				Enabled: false,
 				Token:   "jira-token",
 			},
 		},
-		Worktree: WorktreeConfig{
+		Worktree: config.WorktreeConfig{
 			AutoCleanup:   true,
 			BaseBranch:    "main",
 			BranchPattern: "feat/%s",
 		},
-		Teams: []TeamConfig{
+		Teams: []config.TeamConfig{
 			{
 				ID:        "acme",
 				Name:      "Equipe ACME",
@@ -83,16 +79,16 @@ func TestSaveAndLoad_Roundtrip(t *testing.T) {
 				MemberID:  "bob",
 			},
 		},
-		Models: ModelsConfig{
+		Models: config.ModelsConfig{
 			Default:  "claude-sonnet-4-20250514",
 			Families: map[string]string{"quality": "claude-opus-4-20250514"},
 			Agents:   map[string]string{"reviewer": "claude-opus-4-20250514"},
 		},
-		Websearch: WebsearchConfig{Enabled: true},
+		Websearch: config.WebsearchConfig{Enabled: true},
 	}
 
 	// Save
-	err := Save(original)
+	err := config.Save(original)
 	require.NoError(t, err)
 
 	// Verify file was written
@@ -108,8 +104,8 @@ func TestSaveAndLoad_Roundtrip(t *testing.T) {
 	assert.NotContains(t, string(content), "DefaultProvider")
 
 	// Reload
-	Reset()
-	loaded, err := Load()
+	config.Reset()
+	loaded, err := config.Load()
 	require.NoError(t, err)
 	require.NotNil(t, loaded)
 
@@ -157,130 +153,62 @@ func TestSaveAndLoad_Roundtrip(t *testing.T) {
 
 // ─── TeamConfig.Validate + ValidateTeams tests ───────────────────────────────
 
-func TestTeamConfig_Validate_Valid(t *testing.T) {
-	tc := TeamConfig{
-		ID:        "my-team",
-		Enabled:   true,
-		StateRepo: "git@gitlab.com:team/ts.git",
-		MemberID:  "alice",
+func TestTeamConfigValidate(t *testing.T) {
+	valid := config.TeamConfig{ID: "my-team", Enabled: true, StateRepo: "git@gitlab.com:team/ts.git", MemberID: "alice"}
+	with := func(mod func(*config.TeamConfig)) config.TeamConfig {
+		tc := valid
+		mod(&tc)
+		return tc
 	}
-	assert.NoError(t, tc.Validate())
-}
-
-func TestTeamConfig_Validate_DisabledNoRepo(t *testing.T) {
-	tc := TeamConfig{
-		ID:      "my-team",
-		Enabled: false, // disabled — repo and memberID not required
+	tests := []struct {
+		name    string
+		team    config.TeamConfig
+		wantErr string // "" : valid
+	}{
+		{"valid", valid, ""},
+		{"disabled: the repo and the member are not required", config.TeamConfig{ID: "my-team"}, ""},
+		{"empty id", config.TeamConfig{}, "required"},
+		{"slug: spaces and punctuation", config.TeamConfig{ID: "My Team!"}, "slug"},
+		{"slug: upper case", config.TeamConfig{ID: "UPPER"}, "slug"},
+		{"slug: space", config.TeamConfig{ID: "has space"}, "slug"},
+		{"slug: slash", config.TeamConfig{ID: "slash/bad"}, "slug"},
+		{"slug: underscore", config.TeamConfig{ID: "under_score"}, "slug"},
+		{"enabled without a repo", with(func(tc *config.TeamConfig) { tc.StateRepo = "" }), "state_repo"},
+		{"enabled without a member", with(func(tc *config.TeamConfig) { tc.MemberID = "" }), "member_id"},
+		{"member with a slash", with(func(tc *config.TeamConfig) { tc.MemberID = "foo/bar" }), "invalid characters"},
+		{"member with a space", with(func(tc *config.TeamConfig) { tc.MemberID = "has space" }), "invalid characters"},
+		{"member with a tab", with(func(tc *config.TeamConfig) { tc.MemberID = "tab\there" }), "invalid characters"},
+		{"member with a newline", with(func(tc *config.TeamConfig) { tc.MemberID = "new\nline" }), "invalid characters"},
+		{"member with a backslash", with(func(tc *config.TeamConfig) { tc.MemberID = "back\\slash" }), "invalid characters"},
 	}
-	assert.NoError(t, tc.Validate())
-}
-
-func TestTeamConfig_Validate_EmptyID(t *testing.T) {
-	tc := TeamConfig{ID: ""}
-	err := tc.Validate()
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "required")
-}
-
-func TestTeamConfig_Validate_InvalidSlug(t *testing.T) {
-	cases := []string{"My Team!", "UPPER", "has space", "slash/bad", "under_score"}
-	for _, id := range cases {
-		tc := TeamConfig{ID: id}
-		err := tc.Validate()
-		assert.Error(t, err, "ID=%q should fail validation", id)
-		assert.Contains(t, err.Error(), "slug")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.team.Validate()
+			if tt.wantErr == "" {
+				assert.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.wantErr)
+		})
 	}
-}
 
-func TestTeamConfig_Validate_MissingRepo(t *testing.T) {
-	tc := TeamConfig{
-		ID:        "my-team",
-		Enabled:   true,
-		StateRepo: "",
-		MemberID:  "alice",
-	}
-	err := tc.Validate()
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "state_repo")
-}
-
-func TestTeamConfig_Validate_MissingMemberID(t *testing.T) {
-	tc := TeamConfig{
-		ID:        "my-team",
-		Enabled:   true,
-		StateRepo: "git@gitlab.com:team/ts.git",
-		MemberID:  "",
-	}
-	err := tc.Validate()
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "member_id")
-}
-
-func TestTeamConfig_Validate_InvalidMemberID(t *testing.T) {
-	cases := []string{"foo/bar", "has space", "tab\there", "new\nline", "back\\slash"}
-	for _, mid := range cases {
-		tc := TeamConfig{
-			ID:        "my-team",
-			Enabled:   true,
-			StateRepo: "git@gitlab.com:team/ts.git",
-			MemberID:  mid,
-		}
-		err := tc.Validate()
-		assert.Error(t, err, "memberID=%q should fail", mid)
-		assert.Contains(t, err.Error(), "invalid characters")
-	}
-}
-
-func TestValidateTeams_Unique(t *testing.T) {
-	teams := []TeamConfig{
-		{ID: "alpha", Enabled: false},
-		{ID: "beta", Enabled: false},
-	}
-	assert.NoError(t, ValidateTeams(teams))
-}
-
-func TestValidateTeams_Duplicates(t *testing.T) {
-	teams := []TeamConfig{
-		{ID: "alpha", Enabled: false},
-		{ID: "alpha", Enabled: false},
-	}
-	err := ValidateTeams(teams)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "duplicate")
+	t.Run("ValidateTeams accepts distinct ids", func(t *testing.T) {
+		assert.NoError(t, config.ValidateTeams([]config.TeamConfig{{ID: "alpha"}, {ID: "beta"}}))
+	})
+	t.Run("ValidateTeams refuses duplicates", func(t *testing.T) {
+		err := config.ValidateTeams([]config.TeamConfig{{ID: "alpha"}, {ID: "alpha"}})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "duplicate")
+	})
 }
 
 // ─── Update tests ────────────────────────────────────────────────────────────
 
-func TestUpdate_Basic(t *testing.T) {
-	Reset()
-	tmpDir := t.TempDir()
-	t.Setenv("HOME", tmpDir)
-	ohDir := filepath.Join(tmpDir, ".oh")
-	require.NoError(t, os.MkdirAll(ohDir, 0o755))
-
-	initial := `[cli]
-language = "en"
-`
-	require.NoError(t, os.WriteFile(filepath.Join(ohDir, "hub.toml"), []byte(initial), 0o644))
-
-	// Update language
-	err := Update(func(c *Config) error {
-		c.CLI.Language = "fr"
-		return nil
-	})
-	require.NoError(t, err)
-
-	// Reload and verify
-	Reset()
-	cfg, err := Load()
-	require.NoError(t, err)
-	assert.Equal(t, "fr", cfg.CLI.Language)
-}
-
-func TestUpdate_ChainedNoExternalModificationError(t *testing.T) {
-	Reset()
-	tmpDir := t.TempDir()
-	t.Setenv("HOME", tmpDir)
+// Sequential updates (the wizard) do not trigger ErrExternalModification and
+// every mutation is kept.
+func TestUpdate_Chained(t *testing.T) {
+	tmpDir := configtest.Home(t)
 	ohDir := filepath.Join(tmpDir, ".oh")
 	require.NoError(t, os.MkdirAll(ohDir, 0o755))
 
@@ -291,33 +219,33 @@ language = "en"
 
 	// Simulate wizard: multiple sequential Update calls must not trigger
 	// ErrExternalModification — this is the core bug fix verification.
-	err := Update(func(c *Config) error {
+	err := config.Update(func(c *config.Config) error {
 		c.CLI.Language = "fr"
 		return nil
 	})
 	require.NoError(t, err)
 
-	err = Update(func(c *Config) error {
+	err = config.Update(func(c *config.Config) error {
 		c.LLM.DefaultProvider = "bedrock"
 		return nil
 	})
 	require.NoError(t, err)
 
-	err = Update(func(c *Config) error {
+	err = config.Update(func(c *config.Config) error {
 		c.MCP.Figma.Enabled = true
 		return nil
 	})
 	require.NoError(t, err)
 
-	err = Update(func(c *Config) error {
+	err = config.Update(func(c *config.Config) error {
 		c.Websearch.Enabled = true
 		return nil
 	})
 	require.NoError(t, err)
 
 	// All four updates should succeed and all mutations should be preserved
-	Reset()
-	cfg, err := Load()
+	config.Reset()
+	cfg, err := config.Load()
 	require.NoError(t, err)
 	assert.Equal(t, "fr", cfg.CLI.Language)
 	assert.Equal(t, "bedrock", cfg.LLM.DefaultProvider)
@@ -328,7 +256,7 @@ language = "en"
 // ─── MCPServer tests ─────────────────────────────────────────────────────────
 
 func TestMCPServer_Dispatch(t *testing.T) {
-	c := &Config{}
+	c := &config.Config{}
 
 	assert.NotNil(t, c.MCPServer("figma"))
 	assert.NotNil(t, c.MCPServer("gitlab"))
@@ -354,13 +282,13 @@ func TestMCPServer_Dispatch(t *testing.T) {
 // ─── ToMap tests ─────────────────────────────────────────────────────────────
 
 func TestToMap_AllKeys(t *testing.T) {
-	c := &Config{
-		CLI: CLIConfig{Language: "fr"},
-		LLM: LLMConfig{DefaultProvider: "bedrock"},
-		MCP: MCPConfig{
-			Gitlab: MCPServerConfig{Enabled: true, Token: "gitlab-token"},
+	c := &config.Config{
+		CLI: config.CLIConfig{Language: "fr"},
+		LLM: config.LLMConfig{DefaultProvider: "bedrock"},
+		MCP: config.MCPConfig{
+			Gitlab: config.MCPServerConfig{Enabled: true, Token: "gitlab-token"},
 		},
-		Websearch: WebsearchConfig{Enabled: true},
+		Websearch: config.WebsearchConfig{Enabled: true},
 	}
 
 	m := c.ToMap()
@@ -374,14 +302,14 @@ func TestToMap_AllKeys(t *testing.T) {
 }
 
 func TestServiceTokenKeys(t *testing.T) {
-	c := &Config{}
-	assert.Equal(t, []string{"openhub.mcp.gitlab.token", "gitlab-token"}, ServiceTokenKeys(c, "gitlab"))
+	c := &config.Config{}
+	assert.Equal(t, []string{"openhub.mcp.gitlab.token", "gitlab-token"}, config.ServiceTokenKeys(c, "gitlab"))
 
 	c.MCP.Gitlab.Token = "custom-gitlab"
-	assert.Equal(t, []string{"custom-gitlab", "openhub.mcp.gitlab.token", "gitlab-token"}, ServiceTokenKeys(c, "gitlab"))
+	assert.Equal(t, []string{"custom-gitlab", "openhub.mcp.gitlab.token", "gitlab-token"}, config.ServiceTokenKeys(c, "gitlab"))
 
 	c.MCP.Gitlab.Token = "gitlab-token" // legacy name still configured: listed once
-	assert.Equal(t, []string{"gitlab-token", "openhub.mcp.gitlab.token"}, ServiceTokenKeys(c, "gitlab"))
+	assert.Equal(t, []string{"gitlab-token", "openhub.mcp.gitlab.token"}, config.ServiceTokenKeys(c, "gitlab"))
 
-	assert.Equal(t, []string{"openhub.mcp.github.token", "github-token"}, ServiceTokenKeys(nil, "github"))
+	assert.Equal(t, []string{"openhub.mcp.github.token", "github-token"}, config.ServiceTokenKeys(nil, "github"))
 }

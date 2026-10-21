@@ -1,6 +1,8 @@
-package config
+package config_test
 
 import (
+	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/config/configtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"os"
@@ -9,9 +11,7 @@ import (
 )
 
 func TestSave_DoesNotLoseTeams(t *testing.T) {
-	Reset()
-	tmpDir := t.TempDir()
-	t.Setenv("HOME", tmpDir)
+	tmpDir := configtest.Home(t)
 	ohDir := filepath.Join(tmpDir, ".oh")
 	require.NoError(t, os.MkdirAll(ohDir, 0o755))
 
@@ -29,18 +29,18 @@ member_id = "alice"
 	require.NoError(t, os.WriteFile(filepath.Join(ohDir, "hub.toml"), []byte(toml), 0o644))
 
 	// Load
-	cfg, err := Load()
+	cfg, err := config.Load()
 	require.NoError(t, err)
 	require.Len(t, cfg.Teams, 1)
 	assert.Equal(t, "acme", cfg.Teams[0].ID)
 
 	// Simulate SettingsView: mutate a non-team field and save
 	cfg.CLI.Language = "fr"
-	require.NoError(t, Save(cfg))
+	require.NoError(t, config.Save(cfg))
 
 	// Reload and verify teams survived
-	Reset()
-	cfg2, err := Load()
+	config.Reset()
+	cfg2, err := config.Load()
 	require.NoError(t, err)
 	require.Len(t, cfg2.Teams, 1, "teams should survive a Save that only changes language")
 	assert.Equal(t, "acme", cfg2.Teams[0].ID)
