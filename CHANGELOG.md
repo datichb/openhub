@@ -9,6 +9,12 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Fixed — CI : derniers échecs (lot ci-fix-2)
+
+- **Fan-out, correctif** : le pilote n'écrit plus rien après avoir prévenu la parente. Un tour de correction pouvait sinon être perdu, et un troisième tour était alors accepté au-delà de la limite de deux (`TestRequestFixGuards`).
+- **Test d'environnement sans opencode** : la non-régression sur les secrets du serveur en mode « runtime » utilise un faux binaire et tourne désormais sur les runners qui n'ont pas opencode.
+- **Windows** : la CI ne teste que les paquets déjà verts sous Windows (`.github/windows-test-packages.txt`). Les paquets exclus sont listés, avec leur cause, dans `.github/windows-test-packages-excluded.txt`, en attendant le lot `windows-tests`. Un avertissement signale tout paquet qui ne figure dans aucune des deux listes (`.github/scripts/windows-packages.sh check`).
+
 ### Fixed — CI verte et tests indépendants de la machine (lot ci-fix)
 
 - **CI** :
