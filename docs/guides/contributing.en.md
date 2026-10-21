@@ -53,11 +53,18 @@ make test-cover     # Generates coverage.out + coverage.html
 CI enforces a minimum coverage threshold of **60%** with the race detector enabled.
 
 GitHub CI (`.github/workflows/ci.yml`) runs, on Linux, macOS and Windows, `go vet`, the lint,
-`govulncheck`, the `go test -race` suite (40-minute timeout) and the coverage threshold; a separate
+`govulncheck`, the `go test -race` suite (40-minute timeout) and, on Linux and macOS, the coverage threshold; a separate
 job runs the contract tests (tag `integration`) against a real `opencode serve` of a pinned
 version, without calling any model. The e2e tests (tag `e2e`, real Bedrock model) and the
 evaluations (`make test-eval`) never run in CI: they are local and manual, and no model key is
 given to the GitHub secrets.
+
+On Windows, CI only tests the packages listed in `.github/windows-test-packages.txt`: the tests of
+the 24 others, written for Unix, fail there. They are listed with their cause in
+`.github/windows-test-packages-excluded.txt` and followed by the `windows-tests` batch, which will make
+them green. A new package that is in neither file is not tested on Windows: CI reports it with a
+warning (`.github/scripts/windows-packages.sh check`); add it to one of the two files. The coverage
+threshold is not computed on Windows, so that it stays the one of the whole module.
 
 The full suite takes longer than the default `go test` timeout (10 minutes), especially while
 other suites run in parallel: outside `make test`, pass the timeout yourself
