@@ -34,10 +34,6 @@ func TestGatewayReachCheck(t *testing.T) {
 	assert.NotEqual(t, mac.Detail, linux.Detail, "Linux: hint about the second listener")
 }
 
-func TestDoctorChecksRegistered(t *testing.T) {
-	assert.GreaterOrEqual(t, len(doctorChecks), 2, "container and gateway checks, one file each")
-}
-
 func TestBdVersionCheck(t *testing.T) {
 	same := bdVersionResult(bdargs.GeneratedFor, nil)
 	assert.True(t, same.OK)

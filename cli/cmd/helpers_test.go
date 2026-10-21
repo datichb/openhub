@@ -11,58 +11,41 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/bricks"
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/config/configtest"
 	"github.com/datichb/openhub/cli/internal/domain"
 )
 
-func TestGenerateProjectID_Normal(t *testing.T) {
-	id := generateProjectID("my-project")
-	// Should be "my-project-<8char uuid>"
-	assert.True(t, strings.HasPrefix(id, "my-project-"), "got: %s", id)
-	parts := strings.Split(id, "-")
-	lastPart := parts[len(parts)-1]
-	assert.Len(t, lastPart, 8, "UUID suffix should be 8 chars, got: %s", lastPart)
-}
+func TestGenerateProjectID(t *testing.T) {
+	tests := []struct {
+		name       string
+		in         string
+		wantPrefix string
+	}{
+		{"a name", "my-project", "my-project-"},
+		{"dashes are kept", "my-cool-project", "my-cool-project-"},
+		{"spaces become dashes", "my cool project", "my-cool-project-"},
+		{"special characters are stripped", "hello@world!", "helloworld-"},
+		{"leading and trailing spaces are trimmed", "  spaced  ", "spaced-"},
+		{"non-ASCII only falls back to project", "日本語プロジェクト", "project-"},
+		{"empty falls back to project", "", "project-"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			id := generateProjectID(tt.in)
+			assert.True(t, strings.HasPrefix(id, tt.wantPrefix), "got: %s", id)
+			assert.Len(t, strings.TrimPrefix(id, tt.wantPrefix), 8, "8-char UUID suffix in %s", id)
+		})
+	}
 
-func TestGenerateProjectID_Unicode(t *testing.T) {
-	id := generateProjectID("日本語プロジェクト")
-	// All non-ascii chars are stripped → slug becomes empty → fallback to "project"
-	assert.True(t, strings.HasPrefix(id, "project-"), "got: %s", id)
-	parts := strings.Split(id, "-")
-	lastPart := parts[len(parts)-1]
-	assert.Len(t, lastPart, 8)
-}
+	t.Run("a long name is cut at 32 characters", func(t *testing.T) {
+		id := generateProjectID(strings.Repeat("a", 50))
+		assert.LessOrEqual(t, len(id), 41, "32 + dash + 8")
+		assert.LessOrEqual(t, len(id[:strings.LastIndex(id, "-")]), 32, "slug of %s", id)
+	})
 
-func TestGenerateProjectID_Long(t *testing.T) {
-	longName := strings.Repeat("a", 50)
-	id := generateProjectID(longName)
-	// Slug is truncated at 32 chars, plus "-" plus 8-char UUID
-	// Total max: 32 + 1 + 8 = 41
-	assert.LessOrEqual(t, len(id), 41)
-	slug := id[:strings.LastIndex(id, "-")]
-	assert.LessOrEqual(t, len(slug), 32)
-}
-
-func TestGenerateProjectID_WithDashes(t *testing.T) {
-	id := generateProjectID("my-cool-project")
-	assert.True(t, strings.HasPrefix(id, "my-cool-project-"), "got: %s", id)
-}
-
-func TestGenerateProjectID_Spaces(t *testing.T) {
-	id := generateProjectID("my cool project")
-	// Spaces are converted to dashes
-	assert.True(t, strings.HasPrefix(id, "my-cool-project-"), "got: %s", id)
-}
-
-func TestGenerateProjectID_SpecialChars(t *testing.T) {
-	id := generateProjectID("hello@world!")
-	// Special chars are stripped
-	assert.True(t, strings.HasPrefix(id, "helloworld-"), "got: %s", id)
-}
-
-func TestGenerateProjectID_LeadingTrailingSpaces(t *testing.T) {
-	id := generateProjectID("  spaced  ")
-	// Should trim and handle properly
-	assert.True(t, strings.HasPrefix(id, "spaced-"), "got: %s", id)
+	t.Run("the same name gives different ids", func(t *testing.T) {
+		assert.NotEqual(t, generateProjectID("test-project"), generateProjectID("test-project"))
+	})
 }
 
 func TestCmdI18nKey(t *testing.T) {
@@ -123,153 +106,105 @@ func TestCmdI18nKey(t *testing.T) {
 	}
 }
 
-func TestGenerateProjectID_Uniqueness(t *testing.T) {
-	// Same name should produce different IDs (UUID suffix differs)
-	id1 := generateProjectID("test-project")
-	id2 := generateProjectID("test-project")
-	assert.NotEqual(t, id1, id2, "IDs should be unique due to UUID suffix")
-}
-
-func TestGenerateProjectID_EmptyString(t *testing.T) {
-	id := generateProjectID("")
-	// Empty name → slug becomes empty → fallback to "project"
-	assert.True(t, strings.HasPrefix(id, "project-"), "got: %s", id)
-}
-
-func TestBuildMCPServersForProject_NilConfig(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
-	config.Reset()
-	cfg, _ := config.Load()
-	a := &app.App{Config: cfg}
-
-	// nil MCPConfig → inherit hub defaults (all disabled since fresh config)
-	servers := buildMCPServersForProject(a, nil, config.ResolvedTeamConfig{})
-	for _, s := range servers {
-		assert.False(t, s.Enabled, "server %s should be disabled with nil MCPConfig", s.Name)
-	}
-}
-
-func TestBuildMCPServersForProject_ProjectOverride(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
-	config.Reset()
-	cfg, _ := config.Load()
-	a := &app.App{Config: cfg}
-
-	// Project explicitly enables figma and gitlab (with token override)
-	mcpCfg := &domain.ProjectMCPConfig{
-		Services: []domain.ProjectMCPService{
-			{Name: "figma", Enabled: boolPtr(true)},
-			{Name: "gitlab", Enabled: boolPtr(true), TokenKey: "gitlab-token-myproject"},
+func TestBuildMCPServersForProject(t *testing.T) {
+	configtest.Home(t)
+	tests := []struct {
+		name    string
+		hub     func(*config.Config)
+		project *domain.ProjectMCPConfig
+		team    config.ResolvedTeamConfig
+		check   func(t *testing.T, servers map[string]bricks.MCPServerDef)
+	}{
+		{
+			name: "no project config: the hub defaults, all disabled on a fresh config",
+			check: func(t *testing.T, servers map[string]bricks.MCPServerDef) {
+				for name, s := range servers {
+					assert.False(t, s.Enabled, "server %s", name)
+				}
+			},
+		},
+		{
+			name: "the project enables services and overrides a token key",
+			project: &domain.ProjectMCPConfig{Services: []domain.ProjectMCPService{
+				{Name: "figma", Enabled: boolPtr(true)},
+				{Name: "gitlab", Enabled: boolPtr(true), TokenKey: "gitlab-token-myproject"},
+			}},
+			check: func(t *testing.T, servers map[string]bricks.MCPServerDef) {
+				assert.True(t, servers["figma"].Enabled, "figma")
+				assert.True(t, servers["gitlab"].Enabled, "gitlab")
+				assert.False(t, servers["gslides"].Enabled, "gslides")
+				assert.False(t, servers["team"].Enabled, "team")
+				assert.Equal(t, "gitlab-token-myproject", servers["gitlab"].TokenKey)
+			},
+		},
+		{
+			name:    "the project disables what the hub enables",
+			hub:     func(c *config.Config) { c.MCP.Figma.Enabled = true },
+			project: &domain.ProjectMCPConfig{Services: []domain.ProjectMCPService{{Name: "figma", Enabled: boolPtr(false)}}},
+			check: func(t *testing.T, servers map[string]bricks.MCPServerDef) {
+				assert.False(t, servers["figma"].Enabled)
+			},
+		},
+		{
+			name:    "an unset enabled inherits the hub and keeps the token override",
+			hub:     func(c *config.Config) { c.MCP.Gitlab.Enabled = true },
+			project: &domain.ProjectMCPConfig{Services: []domain.ProjectMCPService{{Name: "gitlab", TokenKey: "gitlab-token-custom"}}},
+			check: func(t *testing.T, servers map[string]bricks.MCPServerDef) {
+				assert.True(t, servers["gitlab"].Enabled)
+				assert.Equal(t, "gitlab-token-custom", servers["gitlab"].TokenKey)
+			},
+		},
+		{
+			name: "github and linear",
+			hub: func(c *config.Config) {
+				c.MCP.Github = config.MCPServerConfig{Enabled: true, Token: "openhub.mcp.github.token"}
+				c.MCP.Linear.Enabled = true
+			},
+			check: func(t *testing.T, servers map[string]bricks.MCPServerDef) {
+				assert.True(t, servers["github"].Enabled, "github")
+				assert.Equal(t, "openhub.mcp.github.token", servers["github"].TokenKey)
+				assert.Equal(t, "GITHUB_TOKEN", servers["github"].TokenEnv)
+				assert.True(t, servers["linear"].Enabled, "linear")
+				assert.Equal(t, "LINEAR_API_KEY", servers["linear"].TokenEnv)
+			},
+		},
+		{
+			name: "the team server follows the resolved team: enabled for a project team",
+			hub:  func(c *config.Config) { c.Team.Enabled = false },
+			team: config.ResolvedTeamConfig{Enabled: true, StateRepo: "git@github.com:acme/team.git", StatePath: "/tmp/team", MemberID: "alice"},
+			check: func(t *testing.T, servers map[string]bricks.MCPServerDef) {
+				team, ok := servers["team"]
+				require.True(t, ok, "the team server appears in the list")
+				assert.True(t, team.Enabled)
+			},
+		},
+		{
+			name: "the team server follows the resolved team: disabled by the project",
+			hub: func(c *config.Config) {
+				c.Team.Enabled = true
+				c.Team.StateRepo = "git@gitlab.com:acme/team.git"
+			},
+			team: config.ResolvedTeamConfig{Enabled: false},
+			check: func(t *testing.T, servers map[string]bricks.MCPServerDef) {
+				assert.False(t, servers["team"].Enabled)
+			},
 		},
 	}
-
-	servers := buildMCPServersForProject(a, mcpCfg, config.ResolvedTeamConfig{})
-
-	enabledNames := map[string]bool{}
-	for _, s := range servers {
-		if s.Enabled {
-			enabledNames[s.Name] = true
-		}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config.Reset()
+			cfg, err := config.Load()
+			require.NoError(t, err)
+			if tt.hub != nil {
+				tt.hub(cfg)
+			}
+			byName := map[string]bricks.MCPServerDef{}
+			for _, s := range buildMCPServersForProject(&app.App{Config: cfg}, tt.project, tt.team) {
+				byName[s.Name] = s
+			}
+			tt.check(t, byName)
+		})
 	}
-	assert.True(t, enabledNames["figma"], "figma should be enabled")
-	assert.True(t, enabledNames["gitlab"], "gitlab should be enabled")
-	assert.False(t, enabledNames["gslides"], "gslides should not be enabled")
-	assert.False(t, enabledNames["team"], "team should not be enabled")
-
-	// Check token key override for gitlab
-	for _, s := range servers {
-		if s.Name == "gitlab" {
-			assert.Equal(t, "gitlab-token-myproject", s.TokenKey)
-		}
-	}
-}
-
-func TestBuildMCPServersForProject_EnabledOverride(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
-	config.Reset()
-	cfg, _ := config.Load()
-	// Hub has figma disabled (default fresh config)
-	a := &app.App{Config: cfg}
-
-	// Project force-enables figma
-	mcpCfg := &domain.ProjectMCPConfig{
-		Services: []domain.ProjectMCPService{
-			{Name: "figma", Enabled: boolPtr(true)},
-		},
-	}
-
-	servers := buildMCPServersForProject(a, mcpCfg, config.ResolvedTeamConfig{})
-	for _, s := range servers {
-		if s.Name == "figma" {
-			assert.True(t, s.Enabled, "figma should be force-enabled by project override")
-		}
-	}
-}
-
-func TestBuildMCPServersForProject_DisabledOverride(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
-	config.Reset()
-	cfg, _ := config.Load()
-	// Manually enable figma at hub level
-	cfg.MCP.Figma.Enabled = true
-	a := &app.App{Config: cfg}
-
-	// Project force-disables figma
-	mcpCfg := &domain.ProjectMCPConfig{
-		Services: []domain.ProjectMCPService{
-			{Name: "figma", Enabled: boolPtr(false)},
-		},
-	}
-
-	servers := buildMCPServersForProject(a, mcpCfg, config.ResolvedTeamConfig{})
-	for _, s := range servers {
-		if s.Name == "figma" {
-			assert.False(t, s.Enabled, "figma should be force-disabled by project override")
-		}
-	}
-}
-
-func TestBuildMCPServersForProject_NilEnabledInheritsHub(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
-	config.Reset()
-	cfg, _ := config.Load()
-	// Hub has gitlab enabled
-	cfg.MCP.Gitlab.Enabled = true
-	a := &app.App{Config: cfg}
-
-	// Project lists gitlab with Enabled=nil (only overrides token key)
-	mcpCfg := &domain.ProjectMCPConfig{
-		Services: []domain.ProjectMCPService{
-			{Name: "gitlab", TokenKey: "gitlab-token-custom"},
-		},
-	}
-
-	servers := buildMCPServersForProject(a, mcpCfg, config.ResolvedTeamConfig{})
-	for _, s := range servers {
-		if s.Name == "gitlab" {
-			assert.True(t, s.Enabled, "gitlab should inherit hub enabled=true when project Enabled is nil")
-			assert.Equal(t, "gitlab-token-custom", s.TokenKey)
-		}
-	}
-}
-
-func TestBuildMCPServersForProject_GithubAndLinear(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
-	config.Reset()
-	cfg, _ := config.Load()
-	cfg.MCP.Github = config.MCPServerConfig{Enabled: true, Token: "openhub.mcp.github.token"}
-	cfg.MCP.Linear.Enabled = true
-	a := &app.App{Config: cfg}
-
-	byName := map[string]bricks.MCPServerDef{}
-	for _, s := range buildMCPServersForProject(a, nil, config.ResolvedTeamConfig{}) {
-		byName[s.Name] = s
-	}
-	assert.True(t, byName["github"].Enabled)
-	assert.Equal(t, "openhub.mcp.github.token", byName["github"].TokenKey)
-	assert.Equal(t, "GITHUB_TOKEN", byName["github"].TokenEnv)
-	assert.True(t, byName["linear"].Enabled)
-	assert.Equal(t, "LINEAR_API_KEY", byName["linear"].TokenEnv)
 }
 
 func TestBuildProjectMCPConfig(t *testing.T) {
@@ -284,51 +219,4 @@ func TestBuildProjectMCPConfig(t *testing.T) {
 	assert.Equal(t, "figma", cfg.Services[0].Name)
 	assert.Equal(t, "gitlab", cfg.Services[1].Name)
 	assert.Empty(t, cfg.Services[0].TokenKey) // no override
-}
-
-func TestBuildMCPServersForProject_TeamEnabled(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
-	config.Reset()
-	cfg, _ := config.Load()
-	// Hub has team disabled
-	cfg.Team.Enabled = false
-	a := &app.App{Config: cfg}
-
-	// Resolved team is enabled (e.g. project has custom mode)
-	resolvedTeam := config.ResolvedTeamConfig{
-		Enabled:   true,
-		StateRepo: "git@github.com:acme/team.git",
-		StatePath: "/tmp/team",
-		MemberID:  "alice",
-	}
-
-	servers := buildMCPServersForProject(a, nil, resolvedTeam)
-	var teamServer *bricks.MCPServerDef
-	for i := range servers {
-		if servers[i].Name == "team" {
-			teamServer = &servers[i]
-		}
-	}
-	require.NotNil(t, teamServer, "team server must appear in the list")
-	assert.True(t, teamServer.Enabled, "team server must be enabled when resolvedTeam.Enabled=true")
-}
-
-func TestBuildMCPServersForProject_TeamDisabledViaResolvedConfig(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
-	config.Reset()
-	cfg, _ := config.Load()
-	// Hub has team enabled
-	cfg.Team.Enabled = true
-	cfg.Team.StateRepo = "git@gitlab.com:acme/team.git"
-	a := &app.App{Config: cfg}
-
-	// Resolved team is disabled (project used disabled mode)
-	resolvedTeam := config.ResolvedTeamConfig{Enabled: false}
-
-	servers := buildMCPServersForProject(a, nil, resolvedTeam)
-	for _, s := range servers {
-		if s.Name == "team" {
-			assert.False(t, s.Enabled, "team server must be disabled when resolvedTeam.Enabled=false")
-		}
-	}
 }

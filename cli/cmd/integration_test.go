@@ -14,8 +14,12 @@ import (
 	"github.com/datichb/openhub/cli/internal/testenv"
 )
 
-// testBinary is the path to the compiled oh binary for integration tests.
-var testBinary string
+// testBinary is the path to the compiled oh binary for integration tests, and
+// testBinaryHome the HOME it runs with (a minimal hub, so the init gate passes).
+var (
+	testBinary     string
+	testBinaryHome string
+)
 
 func TestMain(m *testing.M) {
 	// os.Exit skips the deferred calls: the code is returned once the
@@ -48,7 +52,7 @@ func runMain(m *testing.M) int {
 		panic("failed to create temp home: " + err.Error())
 	}
 	defer os.RemoveAll(testHome)
-	os.Setenv("HOME", testHome)
+	testBinaryHome = testHome
 
 	// Create minimal hub content structure so the init gate passes
 	hubDir := filepath.Join(testHome, ".oh", "hub")
@@ -71,6 +75,7 @@ func runMain(m *testing.M) int {
 func runOh(t *testing.T, args ...string) (string, string, int) {
 	t.Helper()
 	cmd := exec.Command(testBinary, args...)
+	cmd.Env = append(os.Environ(), "HOME="+testBinaryHome)
 	var stdout, stderr strings.Builder
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
@@ -86,40 +91,11 @@ func runOh(t *testing.T, args ...string) (string, string, int) {
 	return stdout.String(), stderr.String(), exitCode
 }
 
-func TestVersionOutput(t *testing.T) {
-	stdout, _, exitCode := runOh(t, "version")
-	assert.Equal(t, 0, exitCode)
-	assert.Contains(t, stdout, "oh ")
-	assert.Contains(t, stdout, "commit:")
-	assert.Contains(t, stdout, "go:")
-	assert.Contains(t, stdout, "os/arch:")
-}
-
 // QB6: git runs no background maintenance in the tests (temp dir cleanup).
 func TestGitMaintenanceIsOffInTests(t *testing.T) {
 	out, err := exec.Command("git", "config", "--get", "maintenance.auto").Output()
-	if err != nil || strings.TrimSpace(string(out)) != "false" {
-		t.Fatalf("maintenance.auto = %q (%v)", out, err)
-	}
-}
-
-func TestHelpOutput(t *testing.T) {
-	stdout, _, exitCode := runOh(t, "--help")
-	assert.Equal(t, 0, exitCode)
-	assert.Contains(t, stdout, "oh")
-	assert.Contains(t, stdout, "run [workflow]")
-}
-
-func TestCompletionBash(t *testing.T) {
-	stdout, _, exitCode := runOh(t, "completion", "bash")
-	assert.Equal(t, 0, exitCode)
-	assert.Contains(t, stdout, "bash")
-}
-
-func TestCompletionZsh(t *testing.T) {
-	stdout, _, exitCode := runOh(t, "completion", "zsh")
-	assert.Equal(t, 0, exitCode)
-	assert.NotEmpty(t, stdout)
+	require.NoError(t, err, "reading maintenance.auto")
+	assert.Equal(t, "false", strings.TrimSpace(string(out)), "maintenance.auto")
 }
 
 func TestDoctorRuns(t *testing.T) {
@@ -127,133 +103,81 @@ func TestDoctorRuns(t *testing.T) {
 	// Exit code 1 when a check fails (QB1), e.g. no container engine on the
 	// test machine; 0 otherwise.
 	if strings.Contains(stdout, "✗") {
-		assert.Equal(t, 1, exitCode)
+		assert.Equal(t, 1, exitCode, "a failed check")
 	} else {
-		assert.Equal(t, 0, exitCode)
+		assert.Equal(t, 0, exitCode, "all checks passed")
 	}
-	assert.Contains(t, stdout, "OS / Architecture")
-	assert.Contains(t, stdout, "Go runtime")
-	assert.Contains(t, stdout, "git")
+	for _, want := range []string{"OS / Architecture", "Go runtime", "git"} {
+		assert.Contains(t, stdout, want)
+	}
 }
 
-func TestConfigPath(t *testing.T) {
-	stdout, _, exitCode := runOh(t, "config", "path")
-	assert.Equal(t, 0, exitCode)
-	assert.Contains(t, stdout, ".oh")
-	assert.Contains(t, stdout, "hub.toml")
-}
-
-func TestConfigList(t *testing.T) {
-	stdout, _, exitCode := runOh(t, "config", "list")
-	assert.Equal(t, 0, exitCode)
-	// With defaults, should show something (or "Aucune configuration" message)
-	assert.NotEmpty(t, stdout)
-}
-
-func TestProjectListEmpty(t *testing.T) {
-	stdout, _, exitCode := runOh(t, "project", "list")
-	assert.Equal(t, 0, exitCode)
-	// Empty DB — should show "aucun projet" or similar, or just be empty
-	assert.NotEmpty(t, stdout)
-}
-
-func TestStatusRuns(t *testing.T) {
-	_, _, exitCode := runOh(t, "status")
-	assert.Equal(t, 0, exitCode)
-}
-
-func TestUnknownCommand(t *testing.T) {
-	_, stderr, exitCode := runOh(t, "nonexistent-command-xyz")
-	assert.NotEqual(t, 0, exitCode)
-	require.NotEmpty(t, stderr)
-}
-
-func TestVersionFlag(t *testing.T) {
-	stdout, _, exitCode := runOh(t, "version")
-	assert.Equal(t, 0, exitCode)
-	// Should contain version string (dev when built without ldflags)
-	assert.Contains(t, stdout, "dev")
-}
-
-// --- MCP command integration tests ---
-
-func TestMCPStatusRuns(t *testing.T) {
-	stdout, _, exitCode := runOh(t, "mcp", "status")
-	assert.Equal(t, 0, exitCode)
-	// Should display service table with known services
-	assert.Contains(t, stdout, "Figma")
-	assert.Contains(t, stdout, "GitLab")
-}
-
-func TestMCPEnableHub(t *testing.T) {
-	_, _, exitCode := runOh(t, "mcp", "enable", "figma")
-	assert.Equal(t, 0, exitCode)
-}
-
-func TestMCPDisableHub(t *testing.T) {
-	_, _, exitCode := runOh(t, "mcp", "disable", "figma")
-	assert.Equal(t, 0, exitCode)
-}
-
-func TestMCPResetRequiresProject(t *testing.T) {
-	_, stderr, exitCode := runOh(t, "mcp", "reset", "figma")
-	assert.NotEqual(t, 0, exitCode)
-	assert.Contains(t, stderr, "project")
-}
-
-func TestMCPInvalidService(t *testing.T) {
-	_, stderr, exitCode := runOh(t, "mcp", "enable", "invalid-service")
-	assert.NotEqual(t, 0, exitCode)
-	assert.Contains(t, stderr, "unknown service")
-}
-
-func TestMCPListRuns(t *testing.T) {
-	stdout, _, exitCode := runOh(t, "mcp", "list")
-	assert.Equal(t, 0, exitCode)
-	assert.Contains(t, stdout, "figma")
-	assert.Contains(t, stdout, "gitlab")
-}
-
-func TestMCPListJSON(t *testing.T) {
-	stdout, _, exitCode := runOh(t, "mcp", "list", "--json")
-	assert.Equal(t, 0, exitCode)
-	assert.Contains(t, stdout, `"name"`)
-	assert.Contains(t, stdout, `"figma"`)
-}
-
-// U-05: exit codes seen by a script (0 success, 2 usage).
-func TestExitCodesOfTheBinary(t *testing.T) {
-	_, _, code := runOh(t, "version")
-	assert.Equal(t, 0, code)
-	_, stderr, code := runOh(t, "deploy", "--check")
-	assert.Equal(t, 2, code, "a removed command is not a success")
-	assert.Contains(t, stderr, "oh deploy")
-	_, _, code = runOh(t, "sync")
-	assert.Equal(t, 2, code)
-	_, _, code = runOh(t, "version", "--bogus-flag")
-	assert.Equal(t, 2, code, "unknown option")
-	_, _, code = runOh(t, "bogus-command")
-	assert.Equal(t, 2, code, "unknown command")
-}
-
-// U-02: a deprecated command still works and warns in the language of the
-// hub; the main help does not list it, cobra prints no English sentence.
-func TestDeprecatedCommandsOfTheBinary(t *testing.T) {
-	stdout, _, code := runOh(t, "--help")
-	assert.Equal(t, 0, code)
-	assert.NotContains(t, stdout, "oh start")
-	assert.NotContains(t, stdout, "  audit")
-	assert.NotContains(t, stdout, "  debug")
-	assert.Contains(t, stdout, "mr create")
-
-	// The deprecated command runs (here it stops at the missing GitLab write
-	// access), after its warning that names the replacement.
-	_, stderr, code := runOh(t, "review", "--publish")
-	assert.Equal(t, 1, code)
-	assert.Contains(t, stderr, "oh mr create")
-	assert.NotContains(t, stderr, "is deprecated")
-
-	_, stderr, code = runOh(t, "mr", "create")
-	assert.Equal(t, 1, code)
-	assert.NotContains(t, stderr, "oh mr create", "the replacement does not warn")
+// What a script sees of the binary: the exit code (U-05: 0 success, 1 failure,
+// 2 usage) and the two streams. The commands run in order on one hub (mcp
+// enable, then mcp disable), and none of them starts a session.
+func TestBinarySmoke(t *testing.T) {
+	const nonZero = -1
+	tests := []struct {
+		name         string
+		args         []string
+		exit         int // nonZero: any failure
+		stdout       []string
+		stderr       []string
+		stdoutAbsent []string
+		stderrAbsent []string
+	}{
+		{name: "version", args: []string{"version"}, exit: 0, stdout: []string{"oh ", "commit:", "go:", "os/arch:", "dev"}},
+		{name: "help", args: []string{"--help"}, exit: 0, stdout: []string{"oh", "run [workflow]", "mr create"},
+			stdoutAbsent: []string{"oh start", "  audit", "  debug"}},
+		{name: "completion bash", args: []string{"completion", "bash"}, exit: 0, stdout: []string{"bash"}},
+		{name: "completion zsh", args: []string{"completion", "zsh"}, exit: 0, stdout: []string{"compdef"}},
+		{name: "config path", args: []string{"config", "path"}, exit: 0, stdout: []string{".oh", "hub.toml"}},
+		{name: "config list", args: []string{"config", "list"}, exit: 0, stdout: []string{""}},
+		{name: "project list on an empty database", args: []string{"project", "list"}, exit: 0, stdout: []string{""}},
+		{name: "status", args: []string{"status"}, exit: 0},
+		{name: "unknown command", args: []string{"nonexistent-command-xyz"}, exit: 2, stderr: []string{""}},
+		{name: "unknown option", args: []string{"version", "--bogus-flag"}, exit: 2},
+		{name: "removed command: deploy", args: []string{"deploy", "--check"}, exit: 2, stderr: []string{"oh deploy"}},
+		{name: "removed command: sync", args: []string{"sync"}, exit: 2},
+		{name: "mcp status", args: []string{"mcp", "status"}, exit: 0, stdout: []string{"Figma", "GitLab"}},
+		{name: "mcp enable", args: []string{"mcp", "enable", "figma"}, exit: 0},
+		{name: "mcp disable", args: []string{"mcp", "disable", "figma"}, exit: 0},
+		{name: "mcp reset needs a project", args: []string{"mcp", "reset", "figma"}, exit: nonZero, stderr: []string{"project"}},
+		{name: "mcp unknown service", args: []string{"mcp", "enable", "invalid-service"}, exit: nonZero, stderr: []string{"unknown service"}},
+		{name: "mcp list", args: []string{"mcp", "list"}, exit: 0, stdout: []string{"figma", "gitlab"}},
+		{name: "mcp list as JSON", args: []string{"mcp", "list", "--json"}, exit: 0, stdout: []string{`"name"`, `"figma"`}},
+		// A deprecated command runs (here it stops at the missing GitLab write
+		// access) after a warning that names its replacement, in the language
+		// of the hub; cobra prints no English sentence of its own (U-02).
+		{name: "deprecated command", args: []string{"review", "--publish"}, exit: 1, stderr: []string{"oh mr create"}, stderrAbsent: []string{"is deprecated"}},
+		{name: "its replacement does not warn", args: []string{"mr", "create"}, exit: 1, stderrAbsent: []string{"oh mr create"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			stdout, stderr, exit := runOh(t, tt.args...)
+			if tt.exit == nonZero {
+				assert.NotEqual(t, 0, exit, "exit code")
+			} else {
+				assert.Equal(t, tt.exit, exit, "exit code")
+			}
+			for _, want := range tt.stdout {
+				assert.Contains(t, stdout, want, "stdout")
+			}
+			for _, want := range tt.stderr {
+				assert.Contains(t, stderr, want, "stderr")
+			}
+			if len(tt.stdout) > 0 {
+				assert.NotEmpty(t, stdout, "stdout")
+			}
+			if len(tt.stderr) > 0 {
+				assert.NotEmpty(t, stderr, "stderr")
+			}
+			for _, absent := range tt.stdoutAbsent {
+				assert.NotContains(t, stdout, absent, "stdout")
+			}
+			for _, absent := range tt.stderrAbsent {
+				assert.NotContains(t, stderr, absent, "stderr")
+			}
+		})
+	}
 }
