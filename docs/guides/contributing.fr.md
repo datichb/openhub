@@ -65,7 +65,8 @@ go run scripts/testdurations/main.go -compare avant.json apres.json   # depuis c
 Le CI exige un seuil de couverture minimum de **60%** avec le race detector actif.
 
 La CI GitHub (`.github/workflows/ci.yml`) lance, sous Linux, macOS et Windows, `go vet`, le lint,
-`govulncheck`, la suite `go test -race` (délai de 40 minutes) et, sous Linux et macOS, le seuil de couverture ; un job à
+`govulncheck` et une seule exécution `go test -race` de la suite (délai de 40 minutes) qui écrit aussi
+le profil de couverture, dont le total est comparé au seuil sous Linux et macOS ; un job à
 part lance les tests de contrat (tag `integration`) contre un vrai `opencode serve` de version
 épinglée, sans appeler de modèle. Les tests e2e (tag `e2e`, vrai modèle Bedrock) et les évaluations
 (`make test-eval`) ne tournent jamais en CI : ils sont locaux et manuels, et aucune clé de modèle

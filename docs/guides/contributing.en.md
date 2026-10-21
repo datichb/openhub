@@ -65,7 +65,8 @@ go run scripts/testdurations/main.go -compare before.json after.json   # from cl
 CI enforces a minimum coverage threshold of **60%** with the race detector enabled.
 
 GitHub CI (`.github/workflows/ci.yml`) runs, on Linux, macOS and Windows, `go vet`, the lint,
-`govulncheck`, the `go test -race` suite (40-minute timeout) and, on Linux and macOS, the coverage threshold; a separate
+`govulncheck` and one single `go test -race` run of the suite (40-minute timeout) that also writes the
+coverage profile, whose total is checked against the threshold on Linux and macOS; a separate
 job runs the contract tests (tag `integration`) against a real `opencode serve` of a pinned
 version, without calling any model. The e2e tests (tag `e2e`, real Bedrock model) and the
 evaluations (`make test-eval`) never run in CI: they are local and manual, and no model key is
