@@ -122,6 +122,13 @@ func TestRuntimeServerEnvironmentHoldsNoCredential(t *testing.T) {
 				EnvAllow: extra, ConfigContent: `{"a":1}`, Env: map[string]string{"AWS_BEARER_TOKEN_BEDROCK": "ohs_session"},
 			}, "pw", "/opt/oh/data")))
 
+			// StartServer looks the host binary up even when Run starts the
+			// process: a file named opencode in a PATH of its own stands for it
+			// (the Test job of the CI has none).
+			bins := t.TempDir()
+			require.NoError(t, os.WriteFile(filepath.Join(bins, "opencode"), []byte("#!/bin/sh\nexit 1\n"), 0o755))
+			t.Setenv("PATH", bins)
+
 			root := t.TempDir()
 			var given map[string]string
 			_, err := StartServer(t.Context(), ServerOptions{

@@ -1193,6 +1193,9 @@ func (d *Driver) finish(ctx context.Context, parent string) error {
 			f.AddEvent(domain.FanoutEventReady, "", "", "")
 		}
 		f.SpentUSD = spent
+		if f.Status != domain.FanoutStopped {
+			f.AddEvent(domain.FanoutEventResumed, "", parent, "")
+		}
 	})
 	if err != nil {
 		return err
@@ -1200,11 +1203,14 @@ func (d *Driver) finish(ctx context.Context, parent string) error {
 	if f.Status == domain.FanoutStopped {
 		return nil // the parent ended: nobody to tell
 	}
+	// Telling the parent is the last write of the driver: as soon as the parent
+	// is told it may ask a fix round (RequestFix, in the daemon, outside the
+	// lock of update), and a record written by the driver after that, from a
+	// copy read before, would take the round away.
 	text := Summary(f)
 	if err := d.Launcher.Tell(ctx, parent, text); err != nil {
 		return fmt.Errorf("telling the parent: %w", err)
 	}
-	_, _ = d.update(ctx, parent, func(f *domain.SessionFanout) { f.AddEvent(domain.FanoutEventResumed, "", parent, "") })
 	return nil
 }
 

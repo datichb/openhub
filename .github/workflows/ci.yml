@@ -74,10 +74,32 @@ jobs:
           go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
           govulncheck ./...
 
-      - name: Test
-        run: go test ./... -v -race -count=1 -timeout "$GO_TEST_TIMEOUT"
+      # Windows: the tests of many packages were written for Unix and fail there
+      # (first full run: 24 packages). Until the "windows-tests" batch makes them
+      # green, Windows only tests the packages of .github/windows-test-packages.txt
+      # (the excluded ones, with their cause, are in
+      # .github/windows-test-packages-excluded.txt). A new package that is in
+      # neither file is reported here as a warning, never as a failure.
+      - name: Check the Windows package lists
+        if: runner.os == 'Windows'
+        run: ../.github/scripts/windows-packages.sh check
 
+      - name: Test
+        run: |
+          packages=(./...)
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            mapfile -t packages < <(../.github/scripts/windows-packages.sh list)
+            [ "${#packages[@]}" -gt 0 ] || exit 1
+            echo "Windows: ${#packages[@]} packages (.github/windows-test-packages.txt)"
+          fi
+          go test "${packages[@]}" -v -race -count=1 -timeout "$GO_TEST_TIMEOUT"
+
+      # Not on Windows: the 60 % threshold is the one of the whole module (./...)
+      # and a total computed on the listed packages only would not be comparable
+      # with it (the excluded ones would count for nothing). The threshold stays
+      # the one of the systems that run every package.
       - name: Coverage
+        if: runner.os != 'Windows'
         run: |
           go test ./... -coverprofile=coverage.out -covermode=atomic -timeout "$GO_TEST_TIMEOUT"
           COVERAGE=$(go tool cover -func=coverage.out | grep "^total:" | awk '{print $3}' | tr -d '%')

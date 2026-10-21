@@ -53,11 +53,18 @@ make test-cover     # Genere coverage.out + coverage.html
 Le CI exige un seuil de couverture minimum de **60%** avec le race detector actif.
 
 La CI GitHub (`.github/workflows/ci.yml`) lance, sous Linux, macOS et Windows, `go vet`, le lint,
-`govulncheck`, la suite `go test -race` (délai de 40 minutes) et le seuil de couverture ; un job à
+`govulncheck`, la suite `go test -race` (délai de 40 minutes) et, sous Linux et macOS, le seuil de couverture ; un job à
 part lance les tests de contrat (tag `integration`) contre un vrai `opencode serve` de version
 épinglée, sans appeler de modèle. Les tests e2e (tag `e2e`, vrai modèle Bedrock) et les évaluations
 (`make test-eval`) ne tournent jamais en CI : ils sont locaux et manuels, et aucune clé de modèle
 n'est confiée aux secrets GitHub.
+
+Sous Windows, la CI ne teste que les paquets listés dans `.github/windows-test-packages.txt` : les
+tests des 24 autres, écrits pour Unix, y échouent. Ils sont listés avec leur cause dans
+`.github/windows-test-packages-excluded.txt` et suivis par le lot `windows-tests`, qui les rendra
+verts. Un nouveau paquet absent des deux fichiers n'est pas testé sous Windows : la CI le signale par
+un avertissement (`.github/scripts/windows-packages.sh check`) ; ajoutez-le à l'un des deux fichiers.
+Le seuil de couverture n'est pas calculé sous Windows, pour rester celui du module entier.
 
 La suite complète dépasse le délai par défaut de `go test` (10 minutes), surtout quand d'autres
 suites tournent en parallèle : en dehors de `make test`, passez le délai vous-même

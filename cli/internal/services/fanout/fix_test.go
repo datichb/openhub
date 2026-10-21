@@ -139,3 +139,22 @@ func TestRequestFixGuards(t *testing.T) {
 	assert.True(t, errors.Is(err, ErrNoFix), "no fix round declared")
 	assert.Empty(t, p.Fanout.Fixes)
 }
+
+// The parent told is the parent that may ask a fix round: the driver writes
+// nothing to the record after that, or a stale copy of it would take the round
+// away (TestRequestFixGuards failed one time out of fifty on a loaded machine).
+func TestDriverWritesNothingAfterTellingTheParent(t *testing.T) {
+	f := newFixture(t, "ev-1")
+	f.launcher.work["ev-1"] = [2]string{"a.go", "package calc\n"}
+	var atTell *domain.SessionFanout
+	f.launcher.onTell = func() {
+		p, err := f.store.Get(context.Background(), "ses_parent")
+		if err == nil {
+			atTell = p.Fanout
+		}
+	}
+	fo := f.runDriver(t)
+	require.NotNil(t, atTell, "the parent was told")
+	assert.Equal(t, atTell.Status, fo.Status)
+	assert.Equal(t, atTell.Events, fo.Events, "no event after the parent is told")
+}
