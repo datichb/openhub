@@ -382,6 +382,221 @@ func TestDriverRecordSurvivesStopAfterMerge(t *testing.T) {
 	assert.NoFileExists(t, filepath.Join(f.project, "sub.go"), "the project directory is untouched")
 }
 
+// failStore fails once the write of the first record fail accepts.
+type failStore struct {
+	Store
+	fail     func(fo *domain.SessionFanout) bool
+	failed   atomic.Bool
+	errWrite error
+}
+
+func (s *failStore) SetSessionFanout(ctx context.Context, id string, fo *domain.SessionFanout) error {
+	if s.fail(fo) && s.failed.CompareAndSwap(false, true) {
+		return s.errWrite
+	}
+	return s.Store.SetSessionFanout(ctx, id, fo)
+}
+
+// stopRecorder keeps the sessions the driver stopped.
+type stopRecorder struct {
+	Launcher
+	mu      sync.Mutex
+	stopped []string
+}
+
+func (r *stopRecorder) Stop(ctx context.Context, id string) error {
+	r.mu.Lock()
+	r.stopped = append(r.stopped, id)
+	r.mu.Unlock()
+	return r.Launcher.Stop(ctx, id)
+}
+
+func (r *stopRecorder) stoppedIDs() []string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return append([]string(nil), r.stopped...)
+}
+
+// A record the driver cannot write, once git moved or a session started,
+// stops the driver: it goes on from a record that is behind git otherwise.
+func TestDriverStopsOnACriticalRecordItCannotWrite(t *testing.T) {
+	conflict := func(f *fixture) {
+		f.launcher.together = 2
+		f.launcher.work["ev-1"] = [2]string{"calc.go", "package calc\n\nfunc Sub() {}\n"}
+		f.launcher.work["ev-2"] = [2]string{"calc.go", "package calc\n\nfunc Mul() {}\n"}
+	}
+	lastFix := func(fo *domain.SessionFanout) (x domain.FanoutFix, ok bool) {
+		if f, found := fo.LastFix(); found {
+			return *f, true
+		}
+		return x, false
+	}
+	// outcome is what the driver left once it returned.
+	type outcome struct {
+		f        *fixture
+		launcher *stopRecorder
+		stored   *domain.SessionFanout
+	}
+	notInProgress := func(t *testing.T, o outcome) {
+		assert.False(t, MergeInProgress(context.Background(), o.stored.Integration.Path), "no merge left in progress in the integration worktree")
+	}
+	for _, tc := range []struct {
+		name    string
+		tickets []string
+		setup   func(f *fixture)
+		fix     bool // the failure is in a fix round, asked once the children are merged
+		fail    func(fo *domain.SessionFanout) bool
+		check   func(t *testing.T, o outcome)
+	}{
+		{"merge recorded", []string{"ev-1"},
+			func(f *fixture) { f.launcher.work["ev-1"] = [2]string{"sub.go", "package calc\n"} },
+			false,
+			func(fo *domain.SessionFanout) bool {
+				c, ok := fo.Child("ev-1")
+				return ok && c.State == domain.ChildMerged
+			},
+			func(t *testing.T, o outcome) {
+				ig := o.stored.Integration
+				c, _ := o.stored.Child("ev-1")
+				assert.NotEqual(t, domain.ChildMerged, c.State, "the child is not recorded as merged")
+				assert.Equal(t, "1", run(t, ig.Path, "git", "rev-list", "--count", "--merges", ig.Base+"..HEAD"), "git did merge the child")
+				assert.NotEqual(t, ig.Head, run(t, ig.Path, "git", "rev-parse", "HEAD"), "the record is the one behind git")
+				notInProgress(t, o)
+			}},
+		{"conflict left unresolved", []string{"ev-1", "ev-2"},
+			func(f *fixture) { conflict(f); f.wf.Fanout.Merger = "" },
+			false,
+			func(fo *domain.SessionFanout) bool {
+				for _, c := range fo.Children {
+					if c.State == domain.ChildConflict {
+						return true
+					}
+				}
+				return false
+			},
+			func(t *testing.T, o outcome) {
+				ig := o.stored.Integration
+				assert.Equal(t, ig.Head, run(t, ig.Path, "git", "rev-parse", "HEAD"), "the merge was undone: git and the record agree")
+				assert.NotContains(t, readFile(t, filepath.Join(ig.Path, "calc.go")), "<<<<<<<", "no marker left")
+				notInProgress(t, o)
+			}},
+		{"merger started", []string{"ev-1", "ev-2"},
+			conflict,
+			false,
+			func(fo *domain.SessionFanout) bool {
+				for _, c := range fo.Children {
+					if c.Merger != "" {
+						return true
+					}
+				}
+				return false
+			},
+			func(t *testing.T, o outcome) {
+				ig := o.stored.Integration
+				var merger string
+				for i, r := range o.f.launcher.started {
+					if r.Record.Role == domain.RoleMerger {
+						merger = fmt.Sprintf("ses_merger_%d", i+1)
+					}
+				}
+				require.NotEmpty(t, merger, "the merger was started")
+				assert.Contains(t, o.launcher.stoppedIDs(), merger, "the merger no one follows is stopped")
+				assert.Equal(t, ig.Head, run(t, ig.Path, "git", "rev-parse", "HEAD"), "the merge was undone: git and the record agree")
+				notInProgress(t, o)
+			}},
+		{"parent stopped", []string{"ev-1"},
+			func(f *fixture) {
+				p, err := f.store.Get(context.Background(), "ses_parent")
+				require.NoError(t, err)
+				p.State = domain.RunStopped
+				require.NoError(t, f.store.Update(context.Background(), p))
+			},
+			false,
+			func(fo *domain.SessionFanout) bool { return fo.Status == domain.FanoutStopped },
+			func(t *testing.T, o outcome) {
+				assert.Equal(t, domain.FanoutRunning, o.stored.Status, "the fan-out is not recorded as stopped")
+				assert.Empty(t, o.f.launcher.started, "no child started")
+				notInProgress(t, o)
+			}},
+		{"fixer about to start", []string{"ev-1"},
+			func(f *fixture) {
+				f.launcher.work["ev-1"] = [2]string{"a.go", "package calc\n"}
+				f.wf.Fanout.Fix, f.wf.Fanout.FixInput = "quick", "request"
+				f.wf.MaxFixRounds = 2
+			},
+			true,
+			func(fo *domain.SessionFanout) bool { x, ok := lastFix(fo); return ok && x.State == domain.ChildRunning },
+			func(t *testing.T, o outcome) {
+				ig := o.stored.Integration
+				assert.Len(t, o.f.launcher.started, 1, "only the child was started: no fixer")
+				assert.Equal(t, ig.Head, run(t, ig.Path, "git", "rev-parse", "HEAD"), "the integration branch did not move")
+				x, _ := o.stored.LastFix()
+				assert.Equal(t, domain.ChildPending, x.State, "the round is not recorded as running")
+				notInProgress(t, o)
+			}},
+		{"fixer started", []string{"ev-1"},
+			func(f *fixture) {
+				f.launcher.work["ev-1"] = [2]string{"a.go", "package calc\n"}
+				f.wf.Fanout.Fix, f.wf.Fanout.FixInput = "quick", "request"
+				f.wf.MaxFixRounds = 2
+			},
+			true,
+			func(fo *domain.SessionFanout) bool { x, ok := lastFix(fo); return ok && x.Session != "" },
+			func(t *testing.T, o outcome) {
+				ig := o.stored.Integration
+				require.Len(t, o.f.launcher.started, 2, "the child, then the fixer")
+				assert.Equal(t, domain.RoleFixer, o.f.launcher.started[1].Record.Role)
+				assert.Contains(t, o.launcher.stoppedIDs(), "ses_fixer_2", "the fixer no one follows is stopped")
+				x, _ := o.stored.LastFix()
+				assert.Empty(t, x.Session, "the fixer is not in the record")
+				assert.Equal(t, ig.Head, run(t, ig.Path, "git", "rev-parse", "HEAD"), "the integration branch did not move")
+				notInProgress(t, o)
+			}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t, tc.tickets...)
+			tc.setup(f)
+			errWrite := errors.New("database is locked")
+			f.driver.Sessions = &failStore{Store: f.store, fail: tc.fail, errWrite: errWrite}
+			rec := &stopRecorder{Launcher: f.launcher}
+			f.driver.Launcher = rec
+			var logMu sync.Mutex
+			var journal []string
+			f.driver.Log = func(format string, args ...any) {
+				logMu.Lock()
+				defer logMu.Unlock()
+				journal = append(journal, fmt.Sprintf(format, args...))
+			}
+
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			var err error
+			if tc.fix {
+				done := make(chan error, 1)
+				go func() { done <- f.driver.Run(ctx, "ses_parent") }()
+				f.waitStatus(t, domain.FanoutReady)
+				require.NoError(t, f.requestFix(t, "fix it"))
+				select {
+				case err = <-done:
+				case <-ctx.Done():
+					t.Fatal("the driver did not stop")
+				}
+			} else {
+				err = f.driver.Run(ctx, "ses_parent")
+			}
+			require.Error(t, err, "the driver stops")
+			assert.ErrorIs(t, err, errWrite, "with the error of the write")
+			assert.ErrorIs(t, err, errRecord, "as a record it could not write")
+			p, gerr := f.store.Get(context.Background(), "ses_parent")
+			require.NoError(t, gerr)
+			logMu.Lock()
+			defer logMu.Unlock()
+			assert.Contains(t, strings.Join(journal, "\n"), "record not written: "+errWrite.Error(), "the write that failed is in the journal")
+			tc.check(t, outcome{f: f, launcher: rec, stored: p.Fanout})
+		})
+	}
+}
+
 func TestDriverParallelCap(t *testing.T) {
 	f := newFixture(t, "ev-1", "ev-2", "ev-3", "ev-4")
 	for i := 1; i <= 4; i++ {
