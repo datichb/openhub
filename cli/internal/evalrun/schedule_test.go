@@ -19,7 +19,6 @@ import (
 // twoCases are two active cases and an inactive one.
 func twoCases(t *testing.T) []*Case {
 	t.Helper()
-	requireGit(t)
 	root := t.TempDir()
 	writeCase(t, root, "quick", "s7", "id: S7\nworkflow: quick\nassertions:\n  - type: ran\n    command: go test*\n")
 	writeCase(t, root, "quick", "s10", "id: S10\nworkflow: quick\nassertions:\n  - type: changed_within\n    paths: [\"*.go\"]\n")
@@ -70,7 +69,7 @@ func TestParallelReportsMatchSequential(t *testing.T) {
 	models := []string{"claude-haiku-4-5", "claude-sonnet-4-6"}
 	run := func(parallel int, delay func(p Pass) time.Duration) (*Report, []byte, string) {
 		out := t.TempDir()
-		r := &Runner{Exec: simulated(delay), Models: models, Reps: 3, BudgetUSD: 1, WorkRoot: t.TempDir(), OutDir: out, Parallel: parallel, Now: fixedNow}
+		r := &Runner{Exec: simulated(delay), Models: models, Reps: 3, BudgetUSD: 1, WorkRoot: t.TempDir(), OutDir: out, Parallel: parallel, Now: fixedNow, Prepare: noGit}
 		rep, err := r.Run(context.Background(), cases)
 		require.NoError(t, err)
 		data, err := json.Marshal(rep)
@@ -121,7 +120,7 @@ func TestParallelScheduling(t *testing.T) {
 		return &PassOutput{Outcome: OutcomeCompleted}, nil
 	})
 	var logs []string
-	r := &Runner{Exec: exec, Models: []string{"m"}, Reps: 4, WorkRoot: t.TempDir(), OutDir: t.TempDir(), Parallel: 3,
+	r := &Runner{Exec: exec, Models: []string{"m"}, Reps: 4, WorkRoot: t.TempDir(), OutDir: t.TempDir(), Parallel: 3, Prepare: noGit,
 		Log: func(format string, args ...any) { logs = append(logs, fmt.Sprintf(format, args...)) }}
 	rep, err := r.Run(context.Background(), cases)
 	require.NoError(t, err)
@@ -149,7 +148,7 @@ func TestBudgetTotal(t *testing.T) {
 	exec := ExecutorFunc(func(ctx context.Context, p Pass) (*PassOutput, error) {
 		return &PassOutput{Outcome: OutcomeCompleted, CostUSD: 0.4}, nil
 	})
-	r := &Runner{Exec: exec, Models: []string{"m"}, Reps: 4, WorkRoot: t.TempDir(), OutDir: t.TempDir(), BudgetTotalUSD: 1}
+	r := &Runner{Exec: exec, Models: []string{"m"}, Reps: 4, WorkRoot: t.TempDir(), OutDir: t.TempDir(), BudgetTotalUSD: 1, Prepare: noGit}
 	rep, err := r.Run(context.Background(), cases)
 	require.NoError(t, err)
 	require.Len(t, rep.Passes, 3, "0.4 + 0.4 < 1: the third starts, then the cap is reached")
@@ -203,7 +202,7 @@ func TestThrottlingRetry(t *testing.T) {
 	})
 	var waits []time.Duration
 	out := t.TempDir()
-	r := &Runner{Exec: exec, Models: []string{"m"}, Reps: 4, WorkRoot: t.TempDir(), OutDir: out,
+	r := &Runner{Exec: exec, Models: []string{"m"}, Reps: 4, WorkRoot: t.TempDir(), OutDir: out, Prepare: noGit,
 		Retry: RetryPolicy{Max: 3, Base: 30 * time.Second, Cap: 4 * time.Minute},
 		Sleep: func(_ context.Context, d time.Duration) error { waits = append(waits, d); return nil }}
 	rep, err := r.Run(context.Background(), cases)
