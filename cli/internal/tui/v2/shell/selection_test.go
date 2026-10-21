@@ -41,258 +41,174 @@ func newSimScreen(t *testing.T, rows []string) tcell.SimulationScreen {
 	return sc
 }
 
-// ── chebyshevDist ─────────────────────────────────────────────────────────────
-
-func TestChebyshevDist(t *testing.T) {
-	assert.Equal(t, 0, chebyshevDist(CellPos{0, 0}, CellPos{0, 0}))
-	assert.Equal(t, 3, chebyshevDist(CellPos{0, 0}, CellPos{3, 2}))
-	assert.Equal(t, 3, chebyshevDist(CellPos{3, 2}, CellPos{0, 0}))
-	assert.Equal(t, 5, chebyshevDist(CellPos{0, 0}, CellPos{5, 3}))
-}
-
-// ── selectionState.normalized ─────────────────────────────────────────────────
-
-func TestSelectionState_Normalized_AnchorBeforeCursor(t *testing.T) {
-	s := selectionState{
-		active: true,
-		anchor: CellPos{X: 2, Y: 1},
-		cursor: CellPos{X: 8, Y: 3},
-	}
-	start, end := s.normalized()
-	assert.Equal(t, CellPos{X: 2, Y: 1}, start)
-	assert.Equal(t, CellPos{X: 8, Y: 3}, end)
-}
-
-func TestSelectionState_Normalized_CursorBeforeAnchor(t *testing.T) {
-	s := selectionState{
-		active: true,
-		anchor: CellPos{X: 8, Y: 3},
-		cursor: CellPos{X: 2, Y: 1},
-	}
-	start, end := s.normalized()
-	assert.Equal(t, CellPos{X: 2, Y: 1}, start)
-	assert.Equal(t, CellPos{X: 8, Y: 3}, end)
-}
-
-func TestSelectionState_Normalized_SameLine_AnchorRight(t *testing.T) {
-	s := selectionState{
-		active: true,
-		anchor: CellPos{X: 10, Y: 2},
-		cursor: CellPos{X: 3, Y: 2},
-	}
-	start, end := s.normalized()
-	assert.Equal(t, CellPos{X: 3, Y: 2}, start)
-	assert.Equal(t, CellPos{X: 10, Y: 2}, end)
-}
-
-// ── ExtractText ───────────────────────────────────────────────────────────────
-
-func TestExtractText_SingleLine(t *testing.T) {
-	sc := newSimScreen(t, []string{"Hello World"})
-	defer sc.Fini()
-
-	sm := NewSelectionManager(nil)
-	s := selectionState{
-		active: true,
-		anchor: CellPos{X: 0, Y: 0},
-		cursor: CellPos{X: 4, Y: 0},
-	}
-	text := sm.ExtractText(s, sc)
-	assert.Equal(t, "Hello", text)
-}
-
-func TestExtractText_MultiLine(t *testing.T) {
-	sc := newSimScreen(t, []string{
-		"Hello",
-		"World",
+func TestSelectionGeometry(t *testing.T) {
+	t.Run("chebyshev distance", func(t *testing.T) {
+		tests := []struct {
+			a, b CellPos
+			want int
+		}{
+			{CellPos{0, 0}, CellPos{0, 0}, 0},
+			{CellPos{0, 0}, CellPos{3, 2}, 3},
+			{CellPos{3, 2}, CellPos{0, 0}, 3},
+			{CellPos{0, 0}, CellPos{5, 3}, 5},
+		}
+		for _, tc := range tests {
+			assert.Equal(t, tc.want, chebyshevDist(tc.a, tc.b), "distance %v-%v", tc.a, tc.b)
+		}
 	})
-	defer sc.Fini()
 
-	sm := NewSelectionManager(nil)
-	s := selectionState{
-		active: true,
-		anchor: CellPos{X: 2, Y: 0}, // "llo"
-		cursor: CellPos{X: 2, Y: 1}, // "Wor"
+	t.Run("normalized puts the start first", func(t *testing.T) {
+		tests := []struct {
+			name           string
+			anchor, cursor CellPos
+			start, end     CellPos
+		}{
+			{"anchor before cursor", CellPos{X: 2, Y: 1}, CellPos{X: 8, Y: 3}, CellPos{X: 2, Y: 1}, CellPos{X: 8, Y: 3}},
+			{"cursor before anchor", CellPos{X: 8, Y: 3}, CellPos{X: 2, Y: 1}, CellPos{X: 2, Y: 1}, CellPos{X: 8, Y: 3}},
+			{"same line, anchor on the right", CellPos{X: 10, Y: 2}, CellPos{X: 3, Y: 2}, CellPos{X: 3, Y: 2}, CellPos{X: 10, Y: 2}},
+		}
+		for _, tc := range tests {
+			t.Run(tc.name, func(t *testing.T) {
+				start, end := selectionState{active: true, anchor: tc.anchor, cursor: tc.cursor}.normalized()
+				assert.Equal(t, tc.start, start, "start")
+				assert.Equal(t, tc.end, end, "end")
+			})
+		}
+	})
+}
+
+func TestSelectionExtractText(t *testing.T) {
+	tests := []struct {
+		name           string
+		rows           []string
+		active         bool
+		anchor, cursor CellPos
+		want           string
+	}{
+		{"single line", []string{"Hello World"}, true, CellPos{X: 0, Y: 0}, CellPos{X: 4, Y: 0}, "Hello"},
+		{"several lines", []string{"Hello", "World"}, true, CellPos{X: 2, Y: 0}, CellPos{X: 2, Y: 1}, "llo\nWor"},
+		{"inactive selection", []string{"Hello"}, false, CellPos{}, CellPos{X: 4}, ""},
+		{"trailing spaces trimmed per line", []string{"Hi   "}, true, CellPos{X: 0, Y: 0}, CellPos{X: 4, Y: 0}, "Hi"},
 	}
-	text := sm.ExtractText(s, sc)
-	assert.Contains(t, text, "llo")
-	assert.Contains(t, text, "\n")
-	assert.Contains(t, text, "Wor")
-}
-
-func TestExtractText_InactiveReturnsEmpty(t *testing.T) {
-	sc := newSimScreen(t, []string{"Hello"})
-	defer sc.Fini()
-
-	sm := NewSelectionManager(nil)
-	text := sm.ExtractText(selectionState{active: false}, sc)
-	assert.Empty(t, text)
-}
-
-func TestExtractText_TrailingSpacesTrimmedPerLine(t *testing.T) {
-	sc := newSimScreen(t, []string{"Hi   "})
-	defer sc.Fini()
-
-	sm := NewSelectionManager(nil)
-	s := selectionState{
-		active: true,
-		anchor: CellPos{X: 0, Y: 0},
-		cursor: CellPos{X: 4, Y: 0},
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			sc := newSimScreen(t, tc.rows)
+			defer sc.Fini()
+			st := selectionState{active: tc.active, anchor: tc.anchor, cursor: tc.cursor}
+			assert.Equal(t, tc.want, NewSelectionManager(nil).ExtractText(st, sc), "extracted text")
+		})
 	}
-	text := sm.ExtractText(s, sc)
-	// Trailing spaces on the line should be trimmed
-	assert.Equal(t, "Hi", text)
 }
 
-// ── Multi-click detection ─────────────────────────────────────────────────────
-
-func TestHandleMouseDown_SingleClick_SetsAnchor(t *testing.T) {
-	sc := newSimScreen(t, []string{"Hello World"})
-	defer sc.Fini()
-
-	sm := NewSelectionManager(nil)
-	sm.HandleMouseDown(3, 0, sc)
-
-	sm.mu.Lock()
-	defer sm.mu.Unlock()
-	assert.True(t, sm.state.active)
-	assert.Equal(t, CellPos{X: 3, Y: 0}, sm.state.anchor)
-	assert.Equal(t, selectionModeChar, sm.state.mode)
-	assert.Equal(t, 1, sm.clickCount)
-}
-
-func TestHandleMouseDown_DoubleClick_ExpandsToWord(t *testing.T) {
-	sc := newSimScreen(t, []string{"Hello World"})
-	defer sc.Fini()
-
-	sm := NewSelectionManager(nil)
-	// First click
-	sm.HandleMouseDown(2, 0, sc) // middle of "Hello"
-	// Second click immediately after (same position)
-	sm.HandleMouseDown(2, 0, sc)
-
-	sm.mu.Lock()
-	defer sm.mu.Unlock()
-	assert.Equal(t, selectionModeWord, sm.state.mode, "double-click should select word")
-	assert.Equal(t, 2, sm.clickCount)
-}
-
-func TestHandleMouseDown_TripleClick_ExpandsToLine(t *testing.T) {
-	sc := newSimScreen(t, []string{"Hello World"})
-	defer sc.Fini()
-
-	sm := NewSelectionManager(nil)
-	sm.HandleMouseDown(2, 0, sc)
-	sm.HandleMouseDown(2, 0, sc)
-	sm.HandleMouseDown(2, 0, sc)
-
-	sm.mu.Lock()
-	defer sm.mu.Unlock()
-	assert.Equal(t, selectionModeLine, sm.state.mode, "triple-click should select line")
-	assert.Equal(t, 3, sm.clickCount)
-}
-
-func TestHandleMouseDown_SlowDoubleClick_ResetsToSingle(t *testing.T) {
-	sc := newSimScreen(t, []string{"Hello World"})
-	defer sc.Fini()
-
-	sm := NewSelectionManager(nil)
-	sm.HandleMouseDown(2, 0, sc)
-
-	// Manually set last click time to be beyond the threshold
-	sm.mu.Lock()
-	sm.lastClickTime = time.Now().Add(-(multiClickThreshold + 100*time.Millisecond))
-	sm.mu.Unlock()
-
-	sm.HandleMouseDown(2, 0, sc)
-
-	sm.mu.Lock()
-	defer sm.mu.Unlock()
-	assert.Equal(t, 1, sm.clickCount, "slow second click should reset to single click")
-	assert.Equal(t, selectionModeChar, sm.state.mode)
-}
-
-// ── IsActive / Clear ─────────────────────────────────────────────────────────
-
-func TestSelectionManager_IsActive(t *testing.T) {
-	sm := NewSelectionManager(nil)
-	assert.False(t, sm.IsActive())
-
-	sm.mu.Lock()
-	sm.state.active = true
-	sm.mu.Unlock()
-	assert.True(t, sm.IsActive())
-}
-
-func TestSelectionManager_Clear(t *testing.T) {
-	sm := NewSelectionManager(nil)
-	sm.mu.Lock()
-	sm.state = selectionState{active: true, anchor: CellPos{1, 1}, cursor: CellPos{5, 3}}
-	sm.mu.Unlock()
-
-	sm.Clear()
-	assert.False(t, sm.IsActive())
-}
-
-// ── HandleMouseDrag ───────────────────────────────────────────────────────────
-
-func TestHandleMouseDrag_UpdatesCursor(t *testing.T) {
-	sc := newSimScreen(t, []string{"Hello World"})
-	defer sc.Fini()
-
-	sm := NewSelectionManager(nil)
-	sm.HandleMouseDown(0, 0, sc)
-	sm.HandleMouseDrag(5, 0)
-
-	sm.mu.Lock()
-	defer sm.mu.Unlock()
-	assert.Equal(t, CellPos{X: 5, Y: 0}, sm.state.cursor)
-}
-
-func TestHandleMouseDrag_NoEffectWhenNotActive(t *testing.T) {
-	sm := NewSelectionManager(nil)
-	sm.HandleMouseDrag(5, 0) // should not panic or activate
-
-	assert.False(t, sm.IsActive())
-}
-
-// ── ApplyHighlight ────────────────────────────────────────────────────────────
-
-func TestApplyHighlight_InactiveLeavesScreenUnchanged(t *testing.T) {
-	sc := newSimScreen(t, []string{"Hello"})
-	defer sc.Fini()
-
-	// Capture original style of first cell
-	_, styleBefore, _ := sc.Get(0, 0)
-
-	sm := NewSelectionManager(nil)
-	// selection is inactive — ApplyHighlight must be a no-op
-	sm.ApplyHighlight(sc)
-
-	_, styleAfter, _ := sc.Get(0, 0)
-	assert.Equal(t, styleBefore, styleAfter, "inactive selection must not modify any cell")
-}
-
-func TestApplyHighlight_ActiveReversesSelectedCells(t *testing.T) {
-	sc := newSimScreen(t, []string{"Hello World"})
-	defer sc.Fini()
-
-	sm := NewSelectionManager(nil)
-	sm.mu.Lock()
-	sm.state = selectionState{
-		active: true,
-		anchor: CellPos{X: 0, Y: 0},
-		cursor: CellPos{X: 4, Y: 0},
+func TestSelectionMouse(t *testing.T) {
+	clicks := func(t *testing.T, n int) *SelectionManager {
+		t.Helper()
+		sc := newSimScreen(t, []string{"Hello World"})
+		t.Cleanup(sc.Fini)
+		sm := NewSelectionManager(nil)
+		for range n {
+			sm.HandleMouseDown(2, 0, sc)
+		}
+		return sm
 	}
-	sm.mu.Unlock()
 
-	_, styleBefore, _ := sc.Get(0, 0)
-	sm.ApplyHighlight(sc)
-	_, styleAfter, _ := sc.Get(0, 0)
+	t.Run("click count selects a character, a word, then a line", func(t *testing.T) {
+		tests := []struct {
+			name   string
+			clicks int
+			mode   selectionMode
+		}{
+			{"single click", 1, selectionModeChar},
+			{"double click", 2, selectionModeWord},
+			{"triple click", 3, selectionModeLine},
+		}
+		for _, tc := range tests {
+			t.Run(tc.name, func(t *testing.T) {
+				sm := clicks(t, tc.clicks)
+				sm.mu.Lock()
+				defer sm.mu.Unlock()
+				assert.True(t, sm.state.active, "selection active")
+				assert.Equal(t, tc.mode, sm.state.mode, "selection mode")
+				assert.Equal(t, tc.clicks, sm.clickCount, "click count")
+			})
+		}
+	})
 
-	assert.NotEqual(t, styleBefore, styleAfter, "selected cell style should change (reverse video)")
-	// Cell 5 (outside selection) must be unchanged
-	_, styleOutside, _ := sc.Get(5, 0)
-	_, styleOriginal, _ := sc.Get(5, 0)
-	assert.Equal(t, styleOriginal, styleOutside, "non-selected cell must be unchanged")
+	t.Run("single click sets the anchor", func(t *testing.T) {
+		sm := clicks(t, 1)
+		sm.mu.Lock()
+		defer sm.mu.Unlock()
+		assert.Equal(t, CellPos{X: 2, Y: 0}, sm.state.anchor, "anchor")
+	})
+
+	t.Run("a slow second click starts again", func(t *testing.T) {
+		sc := newSimScreen(t, []string{"Hello World"})
+		defer sc.Fini()
+		sm := NewSelectionManager(nil)
+		sm.HandleMouseDown(2, 0, sc)
+		sm.mu.Lock()
+		sm.lastClickTime = time.Now().Add(-(multiClickThreshold + 100*time.Millisecond))
+		sm.mu.Unlock()
+		sm.HandleMouseDown(2, 0, sc)
+
+		sm.mu.Lock()
+		defer sm.mu.Unlock()
+		assert.Equal(t, 1, sm.clickCount, "slow second click resets to a single click")
+		assert.Equal(t, selectionModeChar, sm.state.mode, "mode")
+	})
+
+	t.Run("drag moves the cursor", func(t *testing.T) {
+		sc := newSimScreen(t, []string{"Hello World"})
+		defer sc.Fini()
+		sm := NewSelectionManager(nil)
+		sm.HandleMouseDown(0, 0, sc)
+		sm.HandleMouseDrag(5, 0)
+
+		sm.mu.Lock()
+		defer sm.mu.Unlock()
+		assert.Equal(t, CellPos{X: 5, Y: 0}, sm.state.cursor, "cursor")
+	})
+
+	t.Run("drag without a selection does nothing", func(t *testing.T) {
+		sm := NewSelectionManager(nil)
+		assert.False(t, sm.IsActive(), "inactive at the start")
+		sm.HandleMouseDrag(5, 0)
+		assert.False(t, sm.IsActive(), "still inactive")
+	})
+
+	t.Run("clear ends the selection", func(t *testing.T) {
+		sm := clicks(t, 1)
+		require.True(t, sm.IsActive(), "active after a click")
+		sm.Clear()
+		assert.False(t, sm.IsActive(), "inactive after Clear")
+	})
+}
+
+func TestSelectionHighlight(t *testing.T) {
+	t.Run("inactive selection leaves the screen unchanged", func(t *testing.T) {
+		sc := newSimScreen(t, []string{"Hello"})
+		defer sc.Fini()
+		_, before, _ := sc.Get(0, 0)
+		NewSelectionManager(nil).ApplyHighlight(sc)
+		_, after, _ := sc.Get(0, 0)
+		assert.Equal(t, before, after, "inactive selection must not modify any cell")
+	})
+
+	t.Run("active selection reverses the selected cells only", func(t *testing.T) {
+		sc := newSimScreen(t, []string{"Hello World"})
+		defer sc.Fini()
+		sm := NewSelectionManager(nil)
+		sm.mu.Lock()
+		sm.state = selectionState{active: true, anchor: CellPos{X: 0, Y: 0}, cursor: CellPos{X: 4, Y: 0}}
+		sm.mu.Unlock()
+
+		_, selectedBefore, _ := sc.Get(0, 0)
+		_, outsideBefore, _ := sc.Get(5, 0)
+		sm.ApplyHighlight(sc)
+		_, selectedAfter, _ := sc.Get(0, 0)
+		_, outsideAfter, _ := sc.Get(5, 0)
+
+		assert.NotEqual(t, selectedBefore, selectedAfter, "selected cell style changes (reverse video)")
+		assert.Equal(t, outsideBefore, outsideAfter, "non-selected cell is unchanged")
+	})
 }
