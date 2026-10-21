@@ -1,0 +1,11 @@
+== list
+Équipes | 
+core  Core | @alice · git@example.com:core/state.git · [#a6e3a1]✓[-] active
+solo  solo | @bob · espace solo (local) · inactive
+== commands
+Ajouter une équipe | Référencer un dépôt d'équipe existant | Équipes
+Rafraîchir | Recharger la liste des équipes | Équipes
+Synchroniser Core | Récupérer le dépôt d'équipe de Core | Équipes
+Synchroniser solo | Récupérer le dépôt d'équipe de solo | Équipes
+== empty
+Aucune équipe | a : ajouter une équipe · oh team init pour en créer une
