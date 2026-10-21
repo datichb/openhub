@@ -3,7 +3,6 @@ package checkpoint
 import (
 	"context"
 	"errors"
-	"os/exec"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -11,6 +10,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
@@ -160,24 +160,19 @@ func TestTagWindowClosesAfterFirstTag(t *testing.T) {
 
 func TestGitTags(t *testing.T) {
 	dir := t.TempDir()
-	git := func(args ...string) {
-		cmd := exec.Command("git", append([]string{"-C", dir, "-c", "user.name=t", "-c", "user.email=t@t"}, args...)...)
-		out, err := cmd.CombinedOutput()
-		require.NoError(t, err, string(out))
-	}
-	git("init", "-q")
-	git("commit", "-q", "--allow-empty", "-m", "a")
+	gittest.Run(t, dir, "init", "-q")
+	gittest.Run(t, dir, "commit", "-q", "--allow-empty", "-m", "a")
 	none, err := GitTags(context.Background(), dir)
 	require.NoError(t, err)
 	assert.NotEmpty(t, none)
-	git("tag", "-a", "v1", "-m", "v1")
+	gittest.Run(t, dir, "tag", "-a", "v1", "-m", "v1")
 	one, err := GitTags(context.Background(), dir)
 	require.NoError(t, err)
 	assert.NotEqual(t, none, one, "a new tag changes the fingerprint")
-	git("commit", "-q", "--allow-empty", "-m", "b")
+	gittest.Run(t, dir, "commit", "-q", "--allow-empty", "-m", "b")
 	same, _ := GitTags(context.Background(), dir)
 	assert.Equal(t, one, same, "a commit leaves it")
-	git("tag", "-d", "v1")
+	gittest.Run(t, dir, "tag", "-d", "v1")
 	gone, _ := GitTags(context.Background(), dir)
 	assert.Equal(t, none, gone)
 	_, err = GitTags(context.Background(), t.TempDir())

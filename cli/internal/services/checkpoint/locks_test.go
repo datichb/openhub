@@ -4,10 +4,8 @@ import (
 	"context"
 	"errors"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"slices"
-	"strings"
 	"testing"
 	"time"
 
@@ -18,6 +16,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/gitutil"
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
@@ -248,51 +247,45 @@ func TestImitation(t *testing.T) {
 // commit on top of the checkpoint commit.
 func TestGitWork(t *testing.T) {
 	dir := t.TempDir()
-	git := func(args ...string) string {
-		cmd := exec.Command("git", append([]string{"-C", dir, "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null"}, args...)...)
-		out, err := cmd.CombinedOutput()
-		require.NoError(t, err, string(out))
-		return strings.TrimSpace(string(out))
-	}
 	ctx := context.Background()
-	git("init", "-q")
+	gittest.Run(t, dir, "init", "-q")
 	start := time.Now()
 	time.Sleep(1100 * time.Millisecond)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "a.go"), []byte("a"), 0o644))
-	git("add", "a.go")
-	git("commit", "-qm", "first")
+	gittest.Run(t, dir, "add", "a.go")
+	gittest.Run(t, dir, "commit", "-qm", "first")
 	w, err := GitWork(ctx, dir, "", start)
 	require.NoError(t, err)
 	assert.True(t, w.Committed, "first commit after the checkpoint")
 	_, err = GitWork(ctx, dir, "", start.Add(-time.Hour).Add(2*time.Hour))
 	assert.ErrorIs(t, err, errUnknownStart, "commits older than the checkpoint, start unknown")
 
-	base := git("rev-parse", "HEAD")
-	git("commit", "--allow-empty", "-qm", "empty")
+	base := gittest.Run(t, dir, "rev-parse", "HEAD")
+	gittest.Run(t, dir, "commit", "--allow-empty", "-qm", "empty")
 	w, err = GitWork(ctx, dir, base, time.Now())
 	require.NoError(t, err)
 	assert.False(t, w.Committed, "an empty commit does not count")
 
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".beads"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, ".beads", "issues.jsonl"), []byte("{}"), 0o644))
-	git("add", ".beads")
-	git("commit", "-qm", "beads only")
+	gittest.Run(t, dir, "add", ".beads")
+	gittest.Run(t, dir, "commit", "-qm", "beads only")
 	w, _ = GitWork(ctx, dir, base, time.Now())
 	assert.False(t, w.Committed, "Beads files do not count")
 
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "a.go"), []byte("b"), 0o644))
-	git("commit", "-qam", "work")
+	gittest.Run(t, dir, "commit", "-qam", "work")
 	w, err = GitWork(ctx, dir, base, time.Now())
 	require.NoError(t, err)
 	assert.True(t, w.Committed)
 	assert.False(t, w.Dirty)
 
 	// HEAD elsewhere: a branch that does not contain the checkpoint commit.
-	work := git("rev-parse", "HEAD")
-	git("checkout", "-q", "-b", "other", base)
+	work := gittest.Run(t, dir, "rev-parse", "HEAD")
+	gittest.Run(t, dir, "checkout", "-q", "-b", "other", base)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "c.go"), []byte("c"), 0o644))
-	git("add", "c.go")
-	git("commit", "-qm", "elsewhere")
+	gittest.Run(t, dir, "add", "c.go")
+	gittest.Run(t, dir, "commit", "-qm", "elsewhere")
 	w, err = GitWork(ctx, dir, work, time.Now())
 	require.NoError(t, err)
 	assert.False(t, w.Committed, "not on top of the checkpoint commit")
@@ -303,12 +296,7 @@ func TestGitWork(t *testing.T) {
 
 func TestGitHead(t *testing.T) {
 	dir := t.TempDir()
-	git := func(args ...string) {
-		cmd := exec.Command("git", append([]string{"-C", dir, "-c", "user.name=t", "-c", "user.email=t@t"}, args...)...)
-		out, err := cmd.CombinedOutput()
-		require.NoError(t, err, string(out))
-	}
-	git("init", "-q")
+	gittest.Run(t, dir, "init", "-q")
 	head, dirty, err := GitHead(context.Background(), dir)
 	require.NoError(t, err)
 	assert.Equal(t, "", head, "no commit yet")
@@ -320,8 +308,8 @@ func TestGitHead(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "a.go"), []byte("x"), 0o644))
 	_, dirty, _ = GitHead(context.Background(), dir)
 	assert.True(t, dirty)
-	git("add", "a.go")
-	git("commit", "-qm", "a")
+	gittest.Run(t, dir, "add", "a.go")
+	gittest.Run(t, dir, "commit", "-qm", "a")
 	head, dirty, _ = GitHead(context.Background(), dir)
 	assert.Len(t, head, 40)
 	assert.False(t, dirty)
@@ -338,16 +326,14 @@ func TestGuardRefusesTamperedConfig(t *testing.T) {
 	svc, ctx, _ := newLockService(t)
 	svc.Head = nil // real git
 	repo := t.TempDir()
-	out, err := exec.Command("git", "init", "-q", repo).CombinedOutput()
-	require.NoError(t, err, string(out))
-	_, err = svc.Sessions.Get(ctx, "ses_l")
+	gittest.Run(t, repo, "init", "-q")
+	_, err := svc.Sessions.Get(ctx, "ses_l")
 	require.NoError(t, err)
 	require.NoError(t, svc.Sessions.Create(ctx, &domain.Session{ID: "ses_g", ProjectID: "p1", Status: domain.SessionStatusRunning, GroupKey: "g1",
 		BundleHash: "h_lock", Mode: "manuel", State: domain.RunActive, LaunchPath: repo}))
 	require.NoError(t, gitutil.Trust(ctx, repo))
 
-	out, err = exec.Command("git", "-C", repo, "config", "core.fsmonitor", "touch /tmp/oh-pwned").CombinedOutput()
-	require.NoError(t, err, string(out))
+	gittest.Run(t, repo, "config", "core.fsmonitor", "touch /tmp/oh-pwned")
 	_, err = reachValidated(t, svc, ctx, "ses_g", "cp-2")
 	require.ErrorIs(t, err, gitutil.ErrConfigChanged)
 	st, _ := svc.State(ctx, "ses_g")

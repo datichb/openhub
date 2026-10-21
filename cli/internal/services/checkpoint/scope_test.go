@@ -3,7 +3,6 @@ package checkpoint
 import (
 	"context"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
@@ -39,13 +39,7 @@ func TestScopeInputOfASession(t *testing.T) {
 
 func TestCheckScope(t *testing.T) {
 	dir := t.TempDir()
-	run := func(args ...string) {
-		t.Helper()
-		cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
-		out, err := cmd.CombinedOutput()
-		require.NoError(t, err, string(out))
-	}
-	run("init", "-q")
+	gittest.Run(t, dir, "init", "-q")
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, "api"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "api", "a.go"), []byte("x"), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "go.sum"), []byte("x"), 0o600))

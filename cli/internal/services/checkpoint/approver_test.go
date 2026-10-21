@@ -2,13 +2,13 @@ package checkpoint
 
 import (
 	"context"
-	"os/exec"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
@@ -125,8 +125,7 @@ func TestValidationIdentityWithoutApprover(t *testing.T) {
 func TestGitIdentity(t *testing.T) {
 	dir := t.TempDir()
 	for _, args := range [][]string{{"init", "-q"}, {"config", "user.name", "Ada Lovelace"}, {"config", "user.email", "ada@example.com"}} {
-		out, err := exec.Command("git", append([]string{"-C", dir}, args...)...).CombinedOutput()
-		require.NoError(t, err, string(out))
+		gittest.Run(t, dir, args...)
 	}
 	assert.Equal(t, Identity{Name: "Ada Lovelace", Email: "ada@example.com"}, GitIdentity(context.Background(), dir))
 }
