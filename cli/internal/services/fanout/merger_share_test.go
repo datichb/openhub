@@ -23,6 +23,7 @@ func (f *fixture) addSession(t *testing.T, id string, cost float64) {
 // counting as one more child to start: it leaves their part to the children
 // not started and keeps apart what the running children may still spend.
 func TestAuxShare(t *testing.T) {
+	t.Parallel()
 	f := newFixture(t, "ev-1")
 	f.addSession(t, "ses_c1", 0.30)
 	f.addSession(t, "ses_c2", 0.10)
@@ -65,6 +66,7 @@ func TestAuxShare(t *testing.T) {
 // A child that starts while a merger runs sees the share of the merger as a
 // claim: the shares together never pass the budget.
 func TestReserveShareCountsTheMergerClaim(t *testing.T) {
+	t.Parallel()
 	f := newFixture(t, "ev-1", "ev-2")
 	f.addSession(t, "ses_c1", 0.2)
 	f.addSession(t, "ses_m1", 0.5)
@@ -85,6 +87,7 @@ func TestReserveShareCountsTheMergerClaim(t *testing.T) {
 }
 
 func TestReserveMergerShareRecordsItInTheChild(t *testing.T) {
+	t.Parallel()
 	f := newFixture(t, "ev-1", "ev-2")
 	p, _ := f.store.Get(context.Background(), "ses_parent")
 	p.Fanout.BudgetUSD = 2
@@ -143,6 +146,7 @@ func (f *fixture) mergerRequests() []LaunchRequest {
 // The merger no longer gets "all that remains": a child still running keeps
 // what it may spend (here 1 USD of the 3), and the merger gets the rest.
 func TestDriverMergerLeavesTheShareOfRunningChildren(t *testing.T) {
+	t.Parallel()
 	f := conflictFixture(t, 3, map[string]float64{"ev-1": 0.2, "ev-2": 0.2, "ev-3": 0}, "ev-1", "ev-2", "ev-3")
 	// ev-3 works until the merger started: it is running during the merge.
 	mergerStarted := make(chan struct{})
@@ -154,7 +158,7 @@ func TestDriverMergerLeavesTheShareOfRunningChildren(t *testing.T) {
 		case req.Ticket == "ev-3":
 			select {
 			case <-mergerStarted:
-			case <-time.After(30 * time.Second):
+			case <-time.After(runGuard):
 			}
 		}
 	}
@@ -174,6 +178,7 @@ func TestDriverMergerLeavesTheShareOfRunningChildren(t *testing.T) {
 // The merger counts as one more child to start: the children not started
 // keep their part.
 func TestDriverMergerKeepsAPartForThePendingChildren(t *testing.T) {
+	t.Parallel()
 	f := conflictFixture(t, 3, map[string]float64{"ev-1": 0.2, "ev-2": 0.2, "ev-3": 0}, "ev-1", "ev-2", "ev-3")
 	f.deps["ev-3"] = []string{"ev-1", "ev-2"} // ev-3 is not started while the conflict is being resolved
 	fo := f.runDriver(t)
@@ -194,6 +199,7 @@ func TestDriverMergerKeepsAPartForThePendingChildren(t *testing.T) {
 // launched (it cannot wait for them: they need the integration worktree to
 // end): the conflict stays unresolved and the trace says why.
 func TestDriverMergerNotLaunchedWhenTheBudgetIsHeld(t *testing.T) {
+	t.Parallel()
 	f := conflictFixture(t, 1, map[string]float64{"ev-1": 0.4, "ev-2": 0.4, "ev-3": 0}, "ev-1", "ev-2", "ev-3")
 	// ev-3 runs until the conflict is recorded.
 	f.launcher.onWork = func(req LaunchRequest) {
@@ -202,7 +208,7 @@ func TestDriverMergerNotLaunchedWhenTheBudgetIsHeld(t *testing.T) {
 		}
 		tick := time.NewTicker(10 * time.Millisecond)
 		defer tick.Stop()
-		deadline := time.After(30 * time.Second)
+		deadline := time.After(runGuard)
 		for {
 			if p, err := f.store.Get(context.Background(), "ses_parent"); err == nil && p.Fanout != nil {
 				for _, c := range p.Fanout.Children {
@@ -236,6 +242,7 @@ func TestDriverMergerNotLaunchedWhenTheBudgetIsHeld(t *testing.T) {
 // A fix round starts when every child is done: nothing is held, it gets what
 // is left, as before.
 func TestFixRoundGetsWhatIsLeft(t *testing.T) {
+	t.Parallel()
 	f := newFixture(t, "ev-1")
 	f.launcher.work["ev-1"] = [2]string{"a.go", "package calc\n"}
 	f.launcher.costOf = map[string]float64{"ev-1": 0.5}
@@ -244,7 +251,7 @@ func TestFixRoundGetsWhatIsLeft(t *testing.T) {
 	p, _ := f.store.Get(context.Background(), "ses_parent")
 	p.Fanout.BudgetUSD = 2
 	require.NoError(t, f.store.SetSessionFanout(context.Background(), p.ID, p.Fanout))
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), runGuard)
 	done := make(chan error, 1)
 	go func() { done <- f.driver.Run(ctx, "ses_parent") }()
 	t.Cleanup(func() { cancel(); <-done })

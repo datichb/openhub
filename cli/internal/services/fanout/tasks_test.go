@@ -42,6 +42,7 @@ func tasksFixture(t *testing.T, tasks []domain.PlanTask) *fixture {
 }
 
 func TestDriverTasksBecomeChildren(t *testing.T) {
+	t.Parallel()
 	tasks := []domain.PlanTask{
 		{ID: "t1", Title: "Soustraction", Description: "ajouter Sub", Files: []string{"sub.go"}, Domain: "backend"},
 		{ID: "t2", Title: "Multiplication", Files: []string{"mul.go"}},
@@ -91,8 +92,9 @@ func TestDriverTasksBecomeChildren(t *testing.T) {
 // No task recorded at cp-plan (the checkpoint passed without a breakdown):
 // no child, the fan-out stops on an error.
 func TestDriverTasksNoneRecorded(t *testing.T) {
+	t.Parallel()
 	f := tasksFixture(t, nil)
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), runGuard)
 	defer cancel()
 	require.Error(t, f.driver.Run(ctx, "ses_parent"))
 	p, _ := f.store.Get(context.Background(), "ses_parent")
