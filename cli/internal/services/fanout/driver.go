@@ -122,6 +122,12 @@ type Driver struct {
 var (
 	ErrNotFanout = errors.New("this session is not the parent of a fan-out")
 	ErrDisabled  = errors.New("the fan-out is experimental and disabled in this configuration")
+
+	// errRecord wraps what stops the driver because the record of a state
+	// already taken (merged in git, a merger started) could not be written:
+	// going on would build on a false state; started again, the driver
+	// reads the record again.
+	errRecord = errors.New("the record of the fan-out could not be written")
 )
 
 func (d *Driver) poll() time.Duration {
@@ -137,8 +143,18 @@ func (d *Driver) logf(format string, args ...any) {
 	}
 }
 
-// update changes the record of the parent (read again first).
+// recordTimeout bounds the write of the record of the parent once ctx
+// ended (see update).
+const recordTimeout = 5 * time.Second
+
+// update changes the record of the parent (read again first). It reads and
+// writes with a context detached from ctx (bounded by recordTimeout): a
+// state already taken in git, a merge for instance, is recorded even when
+// the driver is being stopped. With ctx the read would fail too, and
+// nothing would ever be written.
 func (d *Driver) update(ctx context.Context, parent string, fn func(*domain.SessionFanout)) (*domain.SessionFanout, error) {
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), recordTimeout)
+	defer cancel()
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	p, err := d.Sessions.Get(ctx, parent)
@@ -156,6 +172,16 @@ func (d *Driver) update(ctx context.Context, parent string, fn func(*domain.Sess
 	}
 	fn(&f)
 	return &f, d.Sessions.SetSessionFanout(ctx, parent, &f)
+}
+
+// record is update for the writes whose failure does not stop the driver:
+// it is written in the journal, never dropped.
+func (d *Driver) record(ctx context.Context, parent string, fn func(*domain.SessionFanout)) error {
+	_, err := d.update(ctx, parent, fn)
+	if err != nil {
+		d.logf("fan-out %s: record not written: %v", parent, err)
+	}
+	return err
 }
 
 // Run drives the fan-out of parent until every child is done (or ctx
@@ -216,7 +242,7 @@ func (d *Driver) run(ctx context.Context, parent string) error {
 	}
 	if p.Fanout.Integration == nil {
 		if err := d.startIntegration(ctx, p, wf, st); err != nil {
-			_, _ = d.update(ctx, parent, func(f *domain.SessionFanout) {
+			_ = d.record(ctx, parent, func(f *domain.SessionFanout) {
 				f.Status = domain.FanoutFailed
 				f.AddEvent(domain.FanoutEventFailed, "", "", err.Error())
 			})
@@ -227,8 +253,7 @@ func (d *Driver) run(ctx context.Context, parent string) error {
 		return err
 	}
 	if p, err := d.Sessions.Get(ctx, parent); err == nil && p.State == domain.RunStopped {
-		d.abandonDone(ctx, p)
-		return nil
+		return d.abandonDone(ctx, p)
 	}
 	if err := d.finish(ctx, parent); err != nil {
 		return err
@@ -239,8 +264,10 @@ func (d *Driver) run(ctx context.Context, parent string) error {
 // abandonDone stops what still runs of the fan-out of a parent stopped
 // for good and cleans it up: what can go goes, the work merged so far
 // stays on the integration branch.
-func (d *Driver) abandonDone(ctx context.Context, p *domain.Session) {
-	d.abandon(ctx, p)
+func (d *Driver) abandonDone(ctx context.Context, p *domain.Session) error {
+	if err := d.abandon(ctx, p); err != nil {
+		return err
+	}
 	if cur, err := d.Sessions.Get(ctx, p.ID); err == nil {
 		p = cur
 	}
@@ -249,17 +276,20 @@ func (d *Driver) abandonDone(ctx context.Context, p *domain.Session) {
 	} else {
 		d.logf("fan-out %s: abandoned, %d worktree(s) and %d branch(es) removed, %d kept", p.ID, len(res.Worktrees), len(res.Branches), len(res.Kept))
 	}
+	return nil
 }
 
 // abandon stops the fan-out of a parent stopped for good: no child starts
-// any more and the running ones are stopped.
-func (d *Driver) abandon(ctx context.Context, p *domain.Session) {
+// any more and the running ones are stopped. The error is the one of the
+// record: with the fan-out still running in it, the loop of runChildren
+// would start again.
+func (d *Driver) abandon(ctx context.Context, p *domain.Session) error {
 	for _, id := range Sessions(p.Fanout) {
 		if s, err := d.Sessions.Get(ctx, id); err == nil && !terminal(s.State) {
 			_ = d.Launcher.Stop(ctx, id)
 		}
 	}
-	_, _ = d.update(ctx, p.ID, func(f *domain.SessionFanout) {
+	if err := d.record(ctx, p.ID, func(f *domain.SessionFanout) {
 		if x, ok := f.LastFix(); ok && (x.State == domain.ChildPending || x.State == domain.ChildRunning) {
 			x.State, x.Error = domain.ChildFailed, i18n.T("cmd.fanout.parent_stopped")
 		}
@@ -272,8 +302,11 @@ func (d *Driver) abandon(ctx context.Context, p *domain.Session) {
 				c.State, c.Error = domain.ChildFailed, i18n.T("cmd.fanout.parent_stopped")
 			}
 		}
-	})
+	}); err != nil {
+		return fmt.Errorf("%w: %w", errRecord, err)
+	}
 	d.logf("fan-out %s: the parent was stopped, children stopped", p.ID)
+	return nil
 }
 
 // waitStart waits until the parent passed every mandatory checkpoint
@@ -420,8 +453,27 @@ func (d *Driver) runChildren(ctx context.Context, parent string, wf *sessionspec
 	running := map[string]bool{}
 	var runMu sync.Mutex
 	done := make(chan struct{}, 16)
+	// fatal is what stops the driver: a state taken (merged, ...) that could
+	// not be recorded. The followers end with ctx.
 	var fatal error
+	setFatal := func(err error) {
+		runMu.Lock()
+		defer runMu.Unlock()
+		if fatal == nil {
+			fatal = err
+		}
+	}
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 	for {
+		runMu.Lock()
+		stop := fatal
+		runMu.Unlock()
+		if stop != nil {
+			cancel()
+			wg.Wait()
+			return stop
+		}
 		if ctx.Err() != nil {
 			wg.Wait()
 			return ctx.Err()
@@ -433,7 +485,11 @@ func (d *Driver) runChildren(ctx context.Context, parent string, wf *sessionspec
 		}
 		f := p.Fanout
 		if p.State == domain.RunStopped && f.Status == domain.FanoutRunning {
-			d.abandon(ctx, p) // the parent was stopped for good
+			if err := d.abandon(ctx, p); err != nil { // the parent was stopped for good
+				cancel()
+				wg.Wait()
+				return err
+			}
 			continue
 		}
 		if f.Status != domain.FanoutRunning {
@@ -456,7 +512,7 @@ func (d *Driver) runChildren(ctx context.Context, parent string, wf *sessionspec
 					// A driver stopped between the reservation of the share
 					// of the child and the start of its session: it starts
 					// again, with a new share.
-					_, _ = d.update(ctx, parent, func(f *domain.SessionFanout) {
+					_ = d.record(ctx, parent, func(f *domain.SessionFanout) {
 						if ch, ok := f.Child(c.Ticket); ok && ch.State == domain.ChildRunning && ch.Session == "" {
 							ch.State, ch.BudgetUSD = domain.ChildPending, 0
 						}
@@ -478,7 +534,11 @@ func (d *Driver) runChildren(ctx context.Context, parent string, wf *sessionspec
 					wg.Add(1)
 					go func(c domain.FanoutChild) {
 						defer wg.Done()
-						d.follow(ctx, parent, wf, c)
+						err := d.follow(ctx, parent, wf, c)
+						if err != nil {
+							d.logf("fan-out %s: %s: %v", parent, c.Ticket, err)
+							setFatal(err)
+						}
 						runMu.Lock()
 						delete(running, c.Ticket)
 						runMu.Unlock()
@@ -500,7 +560,7 @@ func (d *Driver) runChildren(ctx context.Context, parent string, wf *sessionspec
 			}
 			switch ready, blocked := depsState(f, deps[c.Ticket]); {
 			case blocked != "":
-				_, _ = d.update(ctx, parent, func(f *domain.SessionFanout) {
+				_ = d.record(ctx, parent, func(f *domain.SessionFanout) {
 					if ch, ok := f.Child(c.Ticket); ok {
 						ch.State, ch.Error = domain.ChildFailed, i18n.Tf("cmd.fanout.dependency_failed", blocked)
 					}
@@ -532,6 +592,9 @@ func (d *Driver) runChildren(ctx context.Context, parent string, wf *sessionspec
 				defer wg.Done()
 				if err := d.launch(ctx, parent, wf, ticket, share); err != nil {
 					d.logf("fan-out %s: %s: %v", parent, ticket, err)
+					if errors.Is(err, errRecord) {
+						setFatal(err)
+					}
 				}
 				runMu.Lock()
 				delete(running, ticket)
@@ -582,7 +645,7 @@ func (d *Driver) dependencies(ctx context.Context, p *domain.Session) map[string
 			continue
 		}
 		if closed && c.State == domain.ChildPending {
-			_, _ = d.update(ctx, p.ID, func(f *domain.SessionFanout) {
+			_ = d.record(ctx, p.ID, func(f *domain.SessionFanout) {
 				if ch, ok := f.Child(c.Ticket); ok {
 					ch.State, ch.Error = domain.ChildFailed, i18n.T("cmd.fanout.ticket_closed")
 				}
@@ -646,7 +709,7 @@ func (d *Driver) spent(ctx context.Context, p *domain.Session) float64 {
 
 func (d *Driver) budgetReached(ctx context.Context, parent, ticket string, spent, budget float64) {
 	msg := fmt.Sprintf("%.2f / %.2f USD", spent, budget)
-	_, _ = d.update(ctx, parent, func(f *domain.SessionFanout) {
+	_ = d.record(ctx, parent, func(f *domain.SessionFanout) {
 		f.SpentUSD = spent
 		if c, ok := f.Child(ticket); ok && !c.State.Done() {
 			c.State, c.Error = domain.ChildBudget, i18n.Tf("cmd.fanout.budget_reached", msg)
@@ -660,7 +723,7 @@ func (d *Driver) budgetReached(ctx context.Context, parent, ticket string, spent
 // budget that is left is held by the children still running.
 func (d *Driver) budgetHeld(ctx context.Context, parent, ticket string, spent, budget float64) {
 	msg := i18n.Tf("cmd.fanout.budget_held", fmt.Sprintf("%.2f / %.2f USD", spent, budget))
-	_, _ = d.update(ctx, parent, func(f *domain.SessionFanout) {
+	_ = d.record(ctx, parent, func(f *domain.SessionFanout) {
 		f.SpentUSD = spent
 		f.AddEvent(domain.FanoutEventBudget, ticket, "", msg)
 	})
@@ -670,7 +733,7 @@ func (d *Driver) budgetHeld(ctx context.Context, parent, ticket string, spent, b
 // releaseMergerShare gives back the share reserved for a merger that did not
 // start.
 func (d *Driver) releaseMergerShare(ctx context.Context, parent, ticket string) {
-	_, _ = d.update(ctx, parent, func(f *domain.SessionFanout) {
+	_ = d.record(ctx, parent, func(f *domain.SessionFanout) {
 		if c, ok := f.Child(ticket); ok {
 			c.MergerBudgetUSD = 0
 		}
@@ -868,8 +931,7 @@ func (d *Driver) launch(ctx context.Context, parent string, wf *sessionspec.Work
 	}
 	d.logf("fan-out %s: %s → session %s on %s", parent, ticket, sid, branch)
 	c, _ := d.childOf(ctx, parent, ticket)
-	d.follow(ctx, parent, wf, c)
-	return nil
+	return d.follow(ctx, parent, wf, c)
 }
 
 // childInputs are the inputs of a child: those of the parent (fanout.inputs)
@@ -906,7 +968,7 @@ func (d *Driver) childOf(ctx context.Context, parent, ticket string) (domain.Fan
 }
 
 func (d *Driver) childFailed(ctx context.Context, parent, ticket, why string) {
-	_, _ = d.update(ctx, parent, func(f *domain.SessionFanout) {
+	_ = d.record(ctx, parent, func(f *domain.SessionFanout) {
 		if c, ok := f.Child(ticket); ok {
 			c.State, c.Error = domain.ChildFailed, why
 		}
@@ -915,8 +977,9 @@ func (d *Driver) childFailed(ctx context.Context, parent, ticket, why string) {
 }
 
 // follow waits for the child to finish (stopping it on the global budget),
-// stops it and merges its branch.
-func (d *Driver) follow(ctx context.Context, parent string, wf *sessionspec.WorkflowRuntime, c domain.FanoutChild) {
+// stops it and merges its branch. The error is the one of a record that
+// could not be written after a merge (see merge).
+func (d *Driver) follow(ctx context.Context, parent string, wf *sessionspec.WorkflowRuntime, c domain.FanoutChild) error {
 	why, ok := d.wait(ctx, c.Session, func() bool { return d.childFinished(ctx, c) }, func() bool {
 		if p, err := d.Sessions.Get(ctx, parent); err == nil && p.Fanout.BudgetUSD > 0 {
 			if spent := d.spent(ctx, p); spent > p.Fanout.BudgetUSD {
@@ -928,23 +991,23 @@ func (d *Driver) follow(ctx context.Context, parent string, wf *sessionspec.Work
 		return false
 	})
 	if !ok {
-		return
+		return nil
 	}
 	_ = d.Launcher.Stop(ctx, c.Session)
 	if p, err := d.Sessions.Get(ctx, parent); err != nil || p.Fanout.Status != domain.FanoutRunning {
-		return // abandoned or failed meanwhile: nothing more is merged
+		return nil //nolint:nilerr // abandoned or failed meanwhile (or unreadable): nothing more is merged
 	}
 	cost := 0.0
 	if s, err := d.Sessions.Get(ctx, c.Session); err == nil {
 		cost = s.Cost
 	}
-	_, _ = d.update(ctx, parent, func(f *domain.SessionFanout) {
+	_ = d.record(ctx, parent, func(f *domain.SessionFanout) {
 		if ch, ok := f.Child(c.Ticket); ok {
 			ch.CostUSD = cost
 		}
 		f.AddEvent(domain.FanoutEventChildDone, c.Ticket, c.Session, fmt.Sprintf("%s, %.3f USD", why, cost))
 	})
-	d.merge(ctx, parent, wf, c)
+	return d.merge(ctx, parent, wf, c)
 }
 
 // wait waits until session id finished its work and tells why (DoneEnded,
@@ -1037,78 +1100,89 @@ func (d *Driver) childFinished(ctx context.Context, c domain.FanoutChild) bool {
 }
 
 // merge merges the branch of child c into the integration branch, with the
-// merger on a conflict.
-func (d *Driver) merge(ctx context.Context, parent string, wf *sessionspec.WorkflowRuntime, c domain.FanoutChild) {
+// merger on a conflict. The error is a record that could not be written
+// once git changed (merged, conflict left): the driver stops, the record
+// being behind git.
+func (d *Driver) merge(ctx context.Context, parent string, wf *sessionspec.WorkflowRuntime, c domain.FanoutChild) error {
 	d.mergeMu.Lock()
 	defer d.mergeMu.Unlock()
 	p, err := d.Sessions.Get(ctx, parent)
 	if err != nil {
-		return
+		return nil
 	}
 	ig := p.Fanout.Integration
 	if dirty, err := Dirty(ctx, c.Path); err == nil && dirty {
 		d.childFailed(ctx, parent, c.Ticket, i18n.T("cmd.fanout.child_dirty"))
-		return
+		return nil
 	}
 	n, err := CommitsAhead(ctx, ig.Path, ig.Head, c.Branch)
 	if err != nil || n == 0 {
 		d.childFailed(ctx, parent, c.Ticket, i18n.T("cmd.fanout.child_no_commit"))
-		return
+		return nil
 	}
 	head, err := Head(ctx, ig.Path)
 	if err != nil || head != ig.Head {
 		d.tampered(ctx, parent, c.Ticket, ig, head)
-		return
+		return nil
 	}
 	childHead, _ := BranchHead(ctx, ig.Path, c.Branch)
 	conflicts, err := Merge(ctx, ig.Path, c.Branch, fmt.Sprintf("Merge %s (%s, fan-out %s)", c.Branch, c.Ticket, parent))
 	switch {
 	case err == nil:
-		d.merged(ctx, parent, c.Ticket, childHead, ig.Path, "")
-		return
+		return d.merged(ctx, parent, c.Ticket, childHead, ig.Path, "")
 	case !errors.Is(err, ErrConflict):
 		AbortMerge(ctx, ig.Path)
 		d.childFailed(ctx, parent, c.Ticket, err.Error())
-		return
+		return nil
 	}
-	_, _ = d.update(ctx, parent, func(f *domain.SessionFanout) {
+	_ = d.record(ctx, parent, func(f *domain.SessionFanout) {
 		if ch, ok := f.Child(c.Ticket); ok {
 			ch.Conflicts = conflicts
 		}
 		f.AddEvent(domain.FanoutEventConflict, c.Ticket, "", strings.Join(conflicts, ", "))
 	})
 	d.logf("fan-out %s: %s: conflict in %s", parent, c.Ticket, strings.Join(conflicts, ", "))
-	if wf.Fanout.Merger == "" || !d.resolve(ctx, p, wf, c, ig, childHead, conflicts) {
+	resolved := false
+	if wf.Fanout.Merger != "" {
+		if resolved, err = d.resolve(ctx, p, wf, c, ig, childHead, conflicts); err != nil {
+			return err
+		}
+	}
+	if !resolved {
 		_ = ResetHard(ctx, ig.Path, ig.Head)
-		_, _ = d.update(ctx, parent, func(f *domain.SessionFanout) {
+		if err := d.record(ctx, parent, func(f *domain.SessionFanout) {
 			if ch, ok := f.Child(c.Ticket); ok {
 				ch.State, ch.Error = domain.ChildConflict, i18n.Tf("cmd.fanout.conflict_unresolved", strings.Join(conflicts, ", "))
 			}
-		})
-		return
+		}); err != nil {
+			return fmt.Errorf("%w: %w", errRecord, err)
+		}
+		return nil
 	}
-	d.merged(ctx, parent, c.Ticket, childHead, ig.Path, domain.FanoutEventResolved)
+	return d.merged(ctx, parent, c.Ticket, childHead, ig.Path, domain.FanoutEventResolved)
 }
 
 // resolve launches the merger in the integration worktree on the merge in
 // progress, waits for it and checks its result: the merge committed, both
-// sides in the history, no marker left.
-func (d *Driver) resolve(ctx context.Context, p *domain.Session, wf *sessionspec.WorkflowRuntime, c domain.FanoutChild, ig *domain.FanoutIntegration, childHead string, conflicts []string) bool {
+// sides in the history, no marker left. The error is the record of the
+// merger that could not be written: it is stopped and the merge undone, so
+// that git and the record agree again.
+func (d *Driver) resolve(ctx context.Context, p *domain.Session, wf *sessionspec.WorkflowRuntime, c domain.FanoutChild, ig *domain.FanoutIntegration, childHead string, conflicts []string) (bool, error) {
 	share := 0.0
 	if p.Fanout.BudgetUSD > 0 {
 		spent := d.spent(ctx, p)
 		if spent >= p.Fanout.BudgetUSD {
 			d.budgetReached(ctx, p.ID, "", spent, p.Fanout.BudgetUSD)
-			return false
+			return false, nil
 		}
 		s, ok, err := d.reserveMergerShare(ctx, p.ID, c.Ticket)
 		if err != nil {
 			d.logf("fan-out %s: merger not launched: %v", p.ID, err)
-			return false
+			return false, nil
 		}
 		if !ok {
 			d.budgetHeld(ctx, p.ID, c.Ticket, spent, p.Fanout.BudgetUSD)
-			return false
+			return false, nil
 		}
 		share = s
 	}
@@ -1118,59 +1192,71 @@ func (d *Driver) resolve(ctx context.Context, p *domain.Session, wf *sessionspec
 	if err != nil {
 		d.logf("fan-out %s: merger not launched: %v", p.ID, err)
 		d.releaseMergerShare(ctx, p.ID, c.Ticket)
-		return false
+		return false, nil
 	}
-	_, _ = d.update(ctx, p.ID, func(f *domain.SessionFanout) {
+	if err := d.record(ctx, p.ID, func(f *domain.SessionFanout) {
 		if ch, ok := f.Child(c.Ticket); ok {
 			ch.Merger = sid
 		}
 		f.AddEvent(domain.FanoutEventMerger, c.Ticket, sid, strings.Join(conflicts, ", "))
-	})
+	}); err != nil {
+		_ = d.Launcher.Stop(ctx, sid)
+		_ = ResetHard(ctx, ig.Path, ig.Head)
+		return false, fmt.Errorf("%w: %w", errRecord, err)
+	}
 	why, ok := d.waitIdle(ctx, sid, d.mergerGuard(), func() bool {
 		head, err := Head(ctx, ig.Path)
 		return err == nil && head != ig.Head && !MergeInProgress(ctx, ig.Path)
 	}, nil)
 	if !ok {
-		return false
+		return false, nil
 	}
 	_ = d.Launcher.Stop(ctx, sid)
-	_, _ = d.update(ctx, p.ID, func(f *domain.SessionFanout) {
+	_ = d.record(ctx, p.ID, func(f *domain.SessionFanout) {
 		f.AddEvent(domain.FanoutEventChildDone, c.Ticket, sid, why)
 	})
 	head, err := Head(ctx, ig.Path)
 	if err != nil || MergeInProgress(ctx, ig.Path) || head == ig.Head || Parents(ctx, ig.Path, head) < 2 ||
 		!IsAncestor(ctx, ig.Path, ig.Head, head) || !IsAncestor(ctx, ig.Path, childHead, head) || HasMarkers(ig.Path, conflicts) {
-		return false
+		return false, nil //nolint:nilerr // the merger's work is refused, not an error of the driver
 	}
 	if dirty, err := Dirty(ctx, ig.Path); err != nil || dirty {
-		return false
+		return false, nil //nolint:nilerr // the merger's work is refused, not an error of the driver
 	}
-	return true
+	return true, nil
 }
 
-// merged records the merge of a child (resolved: by the merger).
-func (d *Driver) merged(ctx context.Context, parent, ticket, childHead, dir, kind string) {
-	head, err := Head(ctx, dir)
+// merged records the merge of a child (resolved: by the merger). Git is
+// already merged: the head is read, and the record written, out of ctx,
+// which may end (the driver stopped) right after the merge; a record left
+// behind git would make the next merge see an integration branch moved
+// outside oh. The error is a record that could not be written.
+func (d *Driver) merged(ctx context.Context, parent, ticket, childHead, dir, kind string) error {
+	head, err := Head(context.WithoutCancel(ctx), dir)
 	if err != nil {
-		return
+		d.logf("fan-out %s: %s merged, head not read: %v", parent, ticket, err)
+		return fmt.Errorf("%w: %w", errRecord, err)
 	}
 	if kind == "" {
 		kind = domain.FanoutEventMerged
 	}
-	_, _ = d.update(ctx, parent, func(f *domain.SessionFanout) {
+	if err := d.record(ctx, parent, func(f *domain.SessionFanout) {
 		f.Integration.Head = head
 		if c, ok := f.Child(ticket); ok {
 			c.State, c.Head, c.Merge = domain.ChildMerged, childHead, head
 		}
 		f.AddEvent(kind, ticket, "", short(head))
-	})
+	}); err != nil {
+		return fmt.Errorf("%w: %w", errRecord, err)
+	}
 	d.logf("fan-out %s: %s merged (%s)", parent, ticket, short(head))
+	return nil
 }
 
 // tampered stops the fan-out: the integration branch moved outside oh.
 func (d *Driver) tampered(ctx context.Context, parent, ticket string, ig *domain.FanoutIntegration, head string) {
 	msg := i18n.Tf("cmd.fanout.integration_moved", ig.Branch, short(ig.Head), short(head))
-	_, _ = d.update(ctx, parent, func(f *domain.SessionFanout) {
+	_ = d.record(ctx, parent, func(f *domain.SessionFanout) {
 		f.Status = domain.FanoutFailed
 		if c, ok := f.Child(ticket); ok {
 			c.State, c.Error = domain.ChildFailed, msg

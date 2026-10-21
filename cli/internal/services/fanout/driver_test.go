@@ -2,6 +2,7 @@ package fanout
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -307,6 +308,78 @@ func TestDriverMergesIndependentChildren(t *testing.T) {
 	assert.Equal(t, head, run(t, f.project, "git", "rev-parse", "HEAD"), "fast forward")
 	p, _ = f.store.Get(context.Background(), "ses_parent")
 	assert.Equal(t, domain.FanoutMerged, p.Fanout.Status)
+}
+
+// stopStore stops the driver (cancel) as the merge of ev-1 is recorded, and
+// fails once the write of the end of work of ev-1.
+type stopStore struct {
+	Store
+	cancel   context.CancelFunc
+	stopped  atomic.Bool
+	failed   atomic.Bool
+	errWrite error
+}
+
+func (s *stopStore) SetSessionFanout(ctx context.Context, id string, fo *domain.SessionFanout) error {
+	if c, ok := fo.Child("ev-1"); ok && c.State == domain.ChildMerged && s.stopped.CompareAndSwap(false, true) {
+		s.cancel()
+	}
+	if n := len(fo.Events); n > 0 && fo.Events[n-1].Kind == domain.FanoutEventChildDone && fo.Events[n-1].Ticket == "ev-1" && s.failed.CompareAndSwap(false, true) {
+		return s.errWrite
+	}
+	return s.Store.SetSessionFanout(ctx, id, fo)
+}
+
+// The driver stopped right after git merged a child: the merge is still
+// recorded, so the driver started again goes on instead of finding the
+// integration branch « modified outside oh ».
+func TestDriverRecordSurvivesStopAfterMerge(t *testing.T) {
+	f := newFixture(t, "ev-1", "ev-2")
+	f.launcher.work["ev-1"] = [2]string{"sub.go", "package calc\n\nfunc Sub(a, b int) int { return a - b }\n"}
+	f.launcher.work["ev-2"] = [2]string{"mul.go", "package calc\n\nfunc Mul(a, b int) int { return a * b }\n"}
+	f.wf.Fanout.Parallel = 1
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	ctx, stop := context.WithCancel(ctx)
+	defer stop()
+	errWrite := errors.New("database is locked")
+	f.driver.Sessions = &stopStore{Store: f.store, cancel: stop, errWrite: errWrite}
+	var logMu sync.Mutex
+	var journal []string
+	f.driver.Log = func(format string, args ...any) {
+		logMu.Lock()
+		defer logMu.Unlock()
+		journal = append(journal, fmt.Sprintf(format, args...))
+	}
+
+	err := f.driver.Run(ctx, "ses_parent")
+	require.ErrorIs(t, err, context.Canceled, "the first driver stops with its context")
+	p, err := f.store.Get(context.Background(), "ses_parent")
+	require.NoError(t, err)
+	ig := p.Fanout.Integration
+	require.NotNil(t, ig)
+	c, _ := p.Fanout.Child("ev-1")
+	require.NotNil(t, c)
+	assert.Equal(t, domain.ChildMerged, c.State, "the merge of ev-1 is recorded though the driver was stopped")
+	assert.Equal(t, run(t, ig.Path, "git", "rev-parse", "HEAD"), ig.Head, "the recorded head is the one of git")
+
+	fo := f.runDriver(t)
+	require.Equal(t, domain.FanoutReady, fo.Status, "the driver started again goes on: %+v", fo.Events)
+	require.Len(t, fo.Children, 2)
+	for _, c := range fo.Children {
+		assert.Equal(t, domain.ChildMerged, c.State, "%s: %s", c.Ticket, c.Error)
+	}
+	for _, e := range fo.Events {
+		assert.NotEqual(t, domain.FanoutEventTampered, e.Kind, "the integration branch is not seen as modified: %s", e.Message)
+	}
+	ig = fo.Integration
+	assert.Equal(t, run(t, ig.Path, "git", "rev-parse", "HEAD"), ig.Head)
+	assert.Equal(t, "2", run(t, ig.Path, "git", "rev-list", "--count", "--merges", ig.Base+"..HEAD"), "one merge commit per child")
+	require.Len(t, f.launcher.told, 1, "the parent is told once")
+	logMu.Lock()
+	defer logMu.Unlock()
+	assert.Contains(t, strings.Join(journal, "\n"), errWrite.Error(), "the write that failed is in the journal")
+	assert.NoFileExists(t, filepath.Join(f.project, "sub.go"), "the project directory is untouched")
 }
 
 func TestDriverParallelCap(t *testing.T) {

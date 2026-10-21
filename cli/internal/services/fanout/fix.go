@@ -77,22 +77,23 @@ func RequestFix(ctx context.Context, store Store, sess *domain.Session, wf *sess
 }
 
 // fix runs the pending fix round of the fan-out of parent: the fixer in
-// the integration worktree, then the check of its work by oh.
-func (d *Driver) fix(ctx context.Context, parent string, wf *sessionspec.WorkflowRuntime) {
+// the integration worktree, then the check of its work by oh. The error is
+// a record of the round that could not be written (see setFix).
+func (d *Driver) fix(ctx context.Context, parent string, wf *sessionspec.WorkflowRuntime) error {
 	p, err := d.Sessions.Get(ctx, parent)
 	if err != nil {
-		return
+		return nil //nolint:nilerr // unreadable record: nothing to run
 	}
 	f := p.Fanout
 	x, ok := f.LastFix()
 	if !ok || f.Integration == nil || x.State.Done() {
-		_, _ = d.update(ctx, parent, func(f *domain.SessionFanout) { f.Status = domain.FanoutReady })
-		return
+		_ = d.record(ctx, parent, func(f *domain.SessionFanout) { f.Status = domain.FanoutReady })
+		return nil
 	}
 	ig := f.Integration
 	round := x.Round
-	setFix := func(fn func(x *domain.FanoutFix)) {
-		_, _ = d.update(ctx, parent, func(f *domain.SessionFanout) {
+	setFix := func(fn func(x *domain.FanoutFix)) error {
+		return d.record(ctx, parent, func(f *domain.SessionFanout) {
 			if x, ok := f.LastFix(); ok && x.Round == round {
 				fn(x)
 			}
@@ -102,7 +103,7 @@ func (d *Driver) fix(ctx context.Context, parent string, wf *sessionspec.Workflo
 	if x.State == domain.ChildPending || sid == "" {
 		if head, err := Head(ctx, ig.Path); err != nil || head != ig.Head || MergeInProgress(ctx, ig.Path) {
 			d.fixDone(ctx, parent, round, ig, "", i18n.Tf("cmd.fanout.integration_moved", ig.Branch, short(ig.Head), short(head)))
-			return
+			return nil //nolint:nilerr // the round is ended as refused (fixDone), not an error of the driver
 		}
 		share := 0.0
 		if f.BudgetUSD > 0 {
@@ -110,7 +111,7 @@ func (d *Driver) fix(ctx context.Context, parent string, wf *sessionspec.Workflo
 			if spent >= f.BudgetUSD {
 				d.budgetReached(ctx, parent, "", spent, f.BudgetUSD)
 				d.fixDone(ctx, parent, round, ig, "", i18n.Tf("cmd.fanout.budget_reached", fmt.Sprintf("%.2f / %.2f USD", spent, f.BudgetUSD)))
-				return
+				return nil
 			}
 			// A fix round starts once every child is done (status ready):
 			// no child holds a claim and none waits, so the share is what
@@ -119,7 +120,7 @@ func (d *Driver) fix(ctx context.Context, parent string, wf *sessionspec.Workflo
 			if share, ok = d.auxShare(ctx, parent, f, ""); !ok {
 				d.budgetHeld(ctx, parent, "", spent, f.BudgetUSD)
 				d.fixDone(ctx, parent, round, ig, "", i18n.Tf("cmd.fanout.budget_held", fmt.Sprintf("%.2f / %.2f USD", spent, f.BudgetUSD)))
-				return
+				return nil
 			}
 		}
 		rec := &domain.SessionFanout{Role: domain.RoleFixer, Parent: parent, Branch: ig.Branch}
@@ -128,14 +129,19 @@ func (d *Driver) fix(ctx context.Context, parent string, wf *sessionspec.Workflo
 			inputs[wf.Fanout.FixInput] = x.Request
 		}
 		// Listed before the session exists: its record is checked against it.
-		setFix(func(x *domain.FanoutFix) { x.State = domain.ChildRunning })
+		if err := setFix(func(x *domain.FanoutFix) { x.State = domain.ChildRunning }); err != nil {
+			return fmt.Errorf("%w: %w", errRecord, err)
+		}
 		sid, err = d.Launcher.Start(ctx, LaunchRequest{Parent: p, Workflow: wf.Fanout.Fix, Dir: ig.Path, Record: rec, BudgetUSD: share, Inputs: inputs})
 		if err != nil {
 			d.fixDone(ctx, parent, round, ig, "", err.Error())
-			return
+			return nil
 		}
-		setFix(func(x *domain.FanoutFix) { x.Session = sid })
-		_, _ = d.update(ctx, parent, func(f *domain.SessionFanout) { f.AddEvent(domain.FanoutEventFix, "", sid, ig.Branch) })
+		if err := setFix(func(x *domain.FanoutFix) { x.Session = sid }); err != nil {
+			_ = d.Launcher.Stop(ctx, sid) // not in the record: nobody would follow it
+			return fmt.Errorf("%w: %w", errRecord, err)
+		}
+		_ = d.record(ctx, parent, func(f *domain.SessionFanout) { f.AddEvent(domain.FanoutEventFix, "", sid, ig.Branch) })
 		d.logf("fan-out %s: fix round %d → session %s on %s", parent, round, sid, ig.Branch)
 	}
 	fixer := domain.FanoutChild{Session: sid, Path: ig.Path, Head: ig.Head, Branch: ig.Branch}
@@ -144,7 +150,7 @@ func (d *Driver) fix(ctx context.Context, parent string, wf *sessionspec.Workflo
 		return err == nil && cur.State == domain.RunStopped // abandoned: await cleans up
 	})
 	if !ok {
-		return
+		return nil
 	}
 	_ = d.Launcher.Stop(ctx, sid)
 	head, reason := d.checkFix(ctx, ig)
@@ -153,6 +159,7 @@ func (d *Driver) fix(ctx context.Context, parent string, wf *sessionspec.Workflo
 	}
 	d.fixDone(ctx, parent, round, ig, head, reason)
 	d.logf("fan-out %s: fix round %d done (%s) %s", parent, round, why, reason)
+	return nil
 }
 
 // checkFix checks the work of the fixer on the integration branch: the
@@ -232,12 +239,13 @@ func (d *Driver) await(ctx context.Context, parent string, wf *sessionspec.Workf
 		}
 		switch {
 		case p.State == domain.RunStopped:
-			d.abandonDone(ctx, p)
-			return nil
+			return d.abandonDone(ctx, p)
 		case terminal(p.State) && p.Fanout.Status == domain.FanoutReady:
 			return nil // the parent ended without its merge checkpoint
 		case p.Fanout.Status == domain.FanoutFixing:
-			d.fix(ctx, parent, wf)
+			if err := d.fix(ctx, parent, wf); err != nil {
+				return err
+			}
 			if ctx.Err() != nil {
 				return ctx.Err()
 			}
