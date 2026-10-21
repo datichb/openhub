@@ -16,6 +16,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/gc"
+	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 )
 
@@ -23,7 +24,7 @@ import (
 // can go.
 func gcTestApp(t *testing.T) (*app.App, string) {
 	t.Helper()
-	useLocale(t, "en")
+	i18ntest.Set(t, "en")
 	home := t.TempDir()
 	t.Setenv("OH_HOME", home)
 	config.Reset()

@@ -10,7 +10,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
-	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 	"github.com/datichb/openhub/cli/internal/provider"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
@@ -18,7 +18,7 @@ import (
 // A1: a pre-release or a dev build newer than the latest published release
 // is never told to "update" to it; a newer release is a warning only.
 func TestOhUpdateResultNeverOffersOlder(t *testing.T) {
-	useLocale(t, "en")
+	i18ntest.Set(t, "en")
 	for _, current := range []string{"5.0.0-test", "5.0.0", "v4.2.0-195-gfe9ed932", "v4.2.0-195-gfe9ed932-dirty"} {
 		r := ohUpdateResult(current, "4.2.0")
 		assert.True(t, r.OK, current)
@@ -63,7 +63,7 @@ func TestPlanUpgradeNeverDowngradesImplicitly(t *testing.T) {
 // A2: the credential check follows the launch cascade (project key of the
 // current project → team → hub → AWS profile), not only the hub key.
 func TestProviderCredentialStatusFollowsCascade(t *testing.T) {
-	useLocale(t, "en")
+	i18ntest.Set(t, "en")
 	t.Setenv("HOME", t.TempDir())
 	for _, k := range []string{"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_BEARER_TOKEN_BEDROCK", "AWS_PROFILE"} {
 		t.Setenv(k, "")
@@ -115,7 +115,7 @@ func TestDoctorViewUsesDoctorRegistry(t *testing.T) {
 		t.Fatal("views.DoctorChecks not set")
 	}
 	assert.Equal(t, reflect.ValueOf(collectDoctorChecks).Pointer(), reflect.ValueOf(views.DoctorChecks).Pointer())
-	useLocale(t, "en")
+	i18ntest.Set(t, "en")
 	var names []string
 	for _, c := range doctorRegistry() {
 		names = append(names, c.name)
@@ -123,11 +123,4 @@ func TestDoctorViewUsesDoctorRegistry(t *testing.T) {
 	for _, want := range []string{"oh version", "Provider credentials", "API keys (keychain)", "Beads zero-impact (hooks and gitignore)", "v5 runtime"} {
 		assert.Contains(t, names, want)
 	}
-}
-
-func useLocale(t *testing.T, l string) {
-	t.Helper()
-	prev := i18n.Locale()
-	i18n.SetLocale(l)
-	t.Cleanup(func() { i18n.SetLocale(prev) })
 }

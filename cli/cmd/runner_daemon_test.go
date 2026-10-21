@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -25,7 +26,7 @@ func waitJobDaemon(t *testing.T, done <-chan error) error {
 // the process: it is reported as the end of the daemon, which waitDaemon
 // returns instead of waiting for it.
 func TestRunJobDaemonSurvivesAPanic(t *testing.T) {
-	useLocale(t, "en")
+	i18ntest.Set(t, "en")
 	done := runJobDaemon(context.Background(), func(context.Context) error { panic("boom") })
 	err := waitJobDaemon(t, done)
 	require.Error(t, err)

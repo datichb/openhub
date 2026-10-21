@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/domain"
-	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 	"github.com/datichb/openhub/cli/internal/services/wiki"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 )
@@ -31,9 +31,7 @@ func decideFlagsCmd(t *testing.T, args ...string) (*cobra.Command, error) {
 }
 
 func TestWikiDecisionFlags(t *testing.T) {
-	prev := i18n.Locale()
-	i18n.SetLocale("fr")
-	t.Cleanup(func() { i18n.SetLocale(prev) })
+	i18ntest.Set(t, "fr")
 	file := filepath.Join(t.TempDir(), "c.md")
 	require.NoError(t, os.WriteFile(file, []byte("ligne 1\nligne 2\n"), 0o644))
 	for _, c := range []struct {
@@ -100,9 +98,7 @@ func TestWikiDecideReasonFlag(t *testing.T) {
 // `oh wiki decide`: the choices of the card, from the command line, on
 // the queue of the project.
 func TestWikiDecide(t *testing.T) {
-	prev := i18n.Locale()
-	i18n.SetLocale("fr")
-	t.Cleanup(func() { i18n.SetLocale(prev) })
+	i18ntest.Set(t, "fr")
 	st, err := sqlite.Open(filepath.Join(t.TempDir(), "oh.db"))
 	require.NoError(t, err)
 	t.Cleanup(func() { st.Close() })

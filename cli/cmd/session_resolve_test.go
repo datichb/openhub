@@ -5,13 +5,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 	remotesvc "github.com/datichb/openhub/cli/internal/services/remote"
 )
 
 // S-05: the replay plan comes from the job; its control sequences cannot
 // erase lines, move the cursor or retitle the terminal.
 func TestPrintReplayPlanNeutralizesControls(t *testing.T) {
-	useLocale(t, "en")
+	i18ntest.Set(t, "en")
 	plan := &remotesvc.ReplayPlan{
 		Items: []remotesvc.ReplayItem{
 			{Seq: 1, Argv: []string{"note", "bd-42", "ok\x1b[2K\x1b[1A\r"}, State: remotesvc.ItemPending},

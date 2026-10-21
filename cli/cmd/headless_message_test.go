@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
@@ -30,7 +31,7 @@ agents:
 // A25: a mandatory checkpoint that pauses in every mode is reported as
 // such (no "choose another mode"); otherwise the modes that work are named.
 func TestHeadlessCheckpointsMessage(t *testing.T) {
-	useLocale(t, "en")
+	i18ntest.Set(t, "en")
 	always := parseTestSpec(t, headlessSpecBase+`checkpoints:
   cp-2:
     label: Commit

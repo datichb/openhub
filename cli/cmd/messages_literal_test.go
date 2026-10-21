@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 )
 
 // U-11: no user message is written in the code. The guard parses every file
@@ -252,7 +253,7 @@ func askSelect(w interface{ Write([]byte) (int, error) }, p string, o []string) 
 
 // A12 follow-up: an unknown project in oh config model says so.
 func TestProjectLoadErrorTranslated(t *testing.T) {
-	useLocale(t, "fr")
+	i18ntest.Set(t, "fr")
 	if err := projectLoadError("nope", errNotFoundForTest()); err.Error() != "projet inconnu : nope (oh project list)" {
 		t.Fatalf("err = %v", err)
 	}

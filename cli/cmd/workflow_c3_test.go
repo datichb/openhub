@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
@@ -18,7 +19,7 @@ import (
 // project:<id>.
 func TestWorkflowShowProjectLayer(t *testing.T) {
 	setupWorkflowCLI(t, "alice")
-	useLocale(t, "en")
+	i18ntest.Set(t, "en")
 	team := "acme"
 	dir := t.TempDir()
 	application.Projects = &mockProjectStore{projects: []domain.Project{{ID: "web", Name: "web", Path: dir, TeamID: &team}}}
@@ -58,7 +59,7 @@ func TestWorkflowShowProjectLayer(t *testing.T) {
 // the workflow is not published.
 func TestWorkflowValidateDraft(t *testing.T) {
 	setupWorkflowCLI(t, "alice")
-	useLocale(t, "en")
+	i18ntest.Set(t, "en")
 	out, err := runWorkflowSub(t, workflowNewCmd, "ticket-hotfix", "--extends", "hub:ticket", "--no-edit")
 	require.NoError(t, err, out)
 	out, err = runWorkflowSub(t, workflowValidateCmd, "team:ticket-hotfix")
@@ -73,7 +74,7 @@ func TestWorkflowValidateDraft(t *testing.T) {
 // names its own template and creates the starter one, with a message.
 func TestWorkflowNewFileWithoutPrompt(t *testing.T) {
 	setupWorkflowCLI(t, "alice")
-	useLocale(t, "en")
+	i18ntest.Set(t, "en")
 	doc := writeTemp(t, "apiVersion: oh/v1\nkind: Workflow\nid: nettoyage\nrisk: write\nentry:\n  agent: developer\n"+
 		"inputs:\n  request:\n    type: text\n    max_length: 4000\nagents:\n  developer: { role: workflow, mode: primary }\n")
 	out, err := runWorkflowSub(t, workflowNewCmd, "nettoyage", "--file", doc, "--no-edit")
@@ -92,7 +93,7 @@ func TestWorkflowNewFileWithoutPrompt(t *testing.T) {
 // hub workflow retired as an alias (hub:feature → spec, implement-spec).
 func TestRetiredExtendsCheck(t *testing.T) {
 	env := setupWorkflowCLI(t, "alice")
-	useLocale(t, "en")
+	i18ntest.Set(t, "en")
 	repo := teamstate.NewRepo(env.bare, env.clones["alice"])
 	hub := filepath.Join(repoRoot(t), "cli", "internal", "services", "workflow", "testdata", "workflows")
 	_, ok := retiredExtendsCheck("acme", repo, hub)
@@ -123,7 +124,7 @@ func TestRetiredExtendsCheck(t *testing.T) {
 // sweep-fanout: oh doctor names the team and project workflows that change a
 // checkpoint the children of a hub fan-out pass (cp-commit of sweep).
 func TestFanoutNeverFindings(t *testing.T) {
-	useLocale(t, "en")
+	i18ntest.Set(t, "en")
 	hub := workflow.NewMemCatalog()
 	require.Empty(t, hub.LoadDir(filepath.Join(repoRoot(t), "workflows"), workflow.LayerHub).Errors())
 	cat := workflow.NewMemCatalog()

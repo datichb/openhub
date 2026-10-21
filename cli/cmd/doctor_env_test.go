@@ -10,6 +10,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 	"github.com/datichb/openhub/cli/internal/testenv"
 )
 
@@ -55,7 +56,7 @@ func TestAnalyzeEnvAllow(t *testing.T) {
 }
 
 func TestEnvAllowDoctorChecks(t *testing.T) {
-	useLocale(t, "en")
+	i18ntest.Set(t, "en")
 	t.Setenv("GEMINI_API_KEY", "g-secret")
 	checks := envAllowDoctorChecks(t.Context())
 	if assert.NotEmpty(t, checks) {
@@ -82,7 +83,7 @@ func TestEnvAllowDoctorChecks(t *testing.T) {
 // says so; the suffix patterns are not patterns, and the doctor says so too.
 // Neither the names held back nor the warnings ever show a value.
 func TestEnvAllowDoctorWarnsOfWhatAWidePatternLetsThrough(t *testing.T) {
-	useLocale(t, "en")
+	i18ntest.Set(t, "en")
 	secrets := testenv.SetFakeSecrets(t)
 	environ := os.Environ()
 

@@ -13,6 +13,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/workflow"
@@ -241,7 +242,7 @@ func appendFile(t *testing.T, path, text string) {
 // A7: a project configuration in an unknown format (or unreadable) is
 // archived with a notice, never cleared silently.
 func TestMigrateUnknownProjectConfigArchived(t *testing.T) {
-	useLocale(t, "en")
+	i18ntest.Set(t, "en")
 	home := t.TempDir()
 	t.Setenv("OH_HOME", home)
 	a := newMockApp(nil, nil)

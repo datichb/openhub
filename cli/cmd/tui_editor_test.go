@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
@@ -20,9 +20,7 @@ import (
 // normalized).
 func TestTUIEditorCheck(t *testing.T) {
 	setupWorkflowCLI(t, "alice")
-	prev := i18n.Locale()
-	i18n.SetLocale("en")
-	t.Cleanup(func() { i18n.SetLocale(prev) })
+	i18ntest.Set(t, "en")
 	ctx := t.Context()
 	c := workflowsvc.Context{}
 

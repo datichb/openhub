@@ -6,7 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
+	"github.com/stretchr/testify/assert"
 )
 
 // U-11: one function reads a confirmation, with the same words everywhere.
@@ -28,14 +29,15 @@ func TestConfirmed(t *testing.T) {
 
 // The hint shown with a question follows the language of the hub.
 func TestYesNoHint(t *testing.T) {
-	defer i18n.SetLocale("en")
-	i18n.SetLocale("en")
-	if yesNoHint(true) != "[Y/n]" || yesNoHint(false) != "[y/N]" {
-		t.Errorf("en: %s %s", yesNoHint(true), yesNoHint(false))
-	}
-	i18n.SetLocale("fr")
-	if yesNoHint(true) != "[O/n]" || yesNoHint(false) != "[o/N]" {
-		t.Errorf("fr: %s %s", yesNoHint(true), yesNoHint(false))
+	for _, tc := range []struct{ lang, yes, no string }{
+		{"en", "[Y/n]", "[y/N]"},
+		{"fr", "[O/n]", "[o/N]"},
+	} {
+		t.Run(tc.lang, func(t *testing.T) {
+			i18ntest.Set(t, tc.lang)
+			assert.Equal(t, tc.yes, yesNoHint(true), "the default is yes")
+			assert.Equal(t, tc.no, yesNoHint(false), "the default is no")
+		})
 	}
 }
 

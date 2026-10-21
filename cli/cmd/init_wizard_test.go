@@ -9,7 +9,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/config/configtest"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 )
 
 // findButtonForm scans a Flex container for the last *tview.Form child
@@ -41,6 +43,7 @@ func findButtonForm(container *tview.Flex) *tview.Form {
 // ---------------------------------------------------------------------------
 
 func TestBuildFirstRunInlineWizard_Structure(t *testing.T) {
+	i18ntest.Restore(t)
 	a := newMockApp(nil, nil)
 	a.Config = &config.Config{}
 	a.Projects = &mockProjectStore{projects: []domain.Project{}}
@@ -81,6 +84,7 @@ func TestBuildFirstRunInlineWizard_Structure(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestBuildFirstRunInlineWizard_ProviderSkip(t *testing.T) {
+	i18ntest.Restore(t)
 	a := newMockApp(nil, nil)
 	a.Config = &config.Config{}
 	a.Projects = &mockProjectStore{projects: []domain.Project{}}
@@ -414,8 +418,8 @@ func TestBuildFirstRunInlineWizard_E2E_MountWithPreconfig(t *testing.T) {
 		t.Skip("skipping E2E wizard test in short mode")
 	}
 
-	t.Setenv("HOME", t.TempDir())
-	config.Reset()
+	configtest.Home(t)
+	i18ntest.Restore(t)
 
 	tests := []struct {
 		name   string
@@ -502,8 +506,8 @@ func TestBuildFirstRunInlineWizard_E2E_HandleKey(t *testing.T) {
 		t.Skip("skipping E2E wizard HandleKey test in short mode")
 	}
 
-	t.Setenv("HOME", t.TempDir())
-	config.Reset()
+	configtest.Home(t)
+	i18ntest.Restore(t)
 
 	a := newMockApp(nil, nil)
 	a.Config = &config.Config{}

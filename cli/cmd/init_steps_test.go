@@ -1,8 +1,6 @@
 package cmd
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/rivo/tview"
@@ -10,8 +8,10 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/config/configtest"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 	providerPkg "github.com/datichb/openhub/cli/internal/provider"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
@@ -263,11 +263,8 @@ func TestBuildMCPGitLabStep_FormRendering(t *testing.T) {
 // setupConfigDir creates a temp HOME with a minimal hub.toml so config.Update works.
 func setupConfigDir(t *testing.T) {
 	t.Helper()
-	tmpHome := t.TempDir()
-	t.Setenv("HOME", tmpHome)
-	config.Reset()
-	hubDir := filepath.Join(tmpHome, ".oh")
-	require.NoError(t, os.MkdirAll(hubDir, 0o755))
+	configtest.Home(t)
+	i18ntest.Restore(t) // the steps set the language of the messages
 	require.NoError(t, config.Save(&config.Config{}))
 	config.Reset()
 }
@@ -571,6 +568,7 @@ func TestBuildInitOnComplete_NotCompletedNoOp(t *testing.T) {
 }
 
 func TestBuildInitRefreshLabels_UpdatesLabels(t *testing.T) {
+	i18ntest.Restore(t)
 	a := newMockApp(nil, nil)
 	a.Config = &config.Config{}
 	a.Projects = &mockProjectStore{}

@@ -4,12 +4,13 @@ import (
 	"testing"
 
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 )
 
 // A-04: the wait of the proxy for the start of a provider answer is
 // settable (`oh config set execution.proxy_first_byte_timeout_minutes`).
 func TestConfigSetProxyFirstByteTimeout(t *testing.T) {
-	useLocale(t, "en")
+	i18ntest.Set(t, "en")
 	f, ok := lookupConfigField("execution.proxy_first_byte_timeout_minutes")
 	if !ok {
 		t.Fatal("unknown key")
@@ -35,7 +36,7 @@ func TestConfigSetProxyFirstByteTimeout(t *testing.T) {
 // S-28: [execution] env_allow adds variables to the environment the tool
 // server inherits (`oh config set execution.env_allow`).
 func TestConfigSetEnvAllow(t *testing.T) {
-	useLocale(t, "en")
+	i18ntest.Set(t, "en")
 	f, ok := lookupConfigField("execution.env_allow")
 	if !ok {
 		t.Fatal("unknown key")
