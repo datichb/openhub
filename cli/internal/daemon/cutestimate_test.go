@@ -156,6 +156,9 @@ func TestEstimateIsFinalAfterTheWindow(t *testing.T) {
 	est := limits.CutCost(got.InputTokens, got.OutputTokens, got.CacheReadTokens, got.CacheWriteTokens, 0)
 	require.InDelta(t, est, e.waitEstimated(), 1e-9)
 
+	e.w.absorbCuts(e.ctx, "ses_a", 0)
+	assert.InDelta(t, est, e.estimated(), 1e-9, "nothing reported: nothing given back")
+
 	now = now.Add(cutAbsorbWindow + time.Second)
 	e.w.account(e.ctx, "ses_a", "ses_a", adapters.SessionResult{Cost: 3 * est})
 	assert.InDelta(t, est, e.estimated(), 1e-9, "a report after the minute does not replace it")
