@@ -1,0 +1,12 @@
+╔ Modèles ═════════════════════════════════════════════════╗┌ Détail ──────────────────────────────┐
+║   Niveau     Type        Clé           Modèle            ║│ Modèle par défaut                    │
+║   hub        default     défaut        sonnet            ║│                                      │
+║   hub        family      planning      opus              ║│ Modèle utilisé par défaut par        │
+║                                                          ║│ toutes les sessions de ce niveau.    │
+║                                                          ║│                                      │
+║                                                          ║│ Niveau : hub                         │
+║                                                          ║│ Valeur : sonnet                      │
+║                                                          ║│                                      │
+║                                                          ║│ Vide = hérite du niveau supérieur.   │
+║                                                          ║│ Résolution : agent → famille →       │
+╚══════════════════════════════════════════════════════════╝└──────────────────────────────────────┘

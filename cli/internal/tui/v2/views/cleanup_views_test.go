@@ -172,9 +172,7 @@ func TestModelsViewKeys(t *testing.T) {
 	app := runApp(t, content)
 	onLoop(app, func() { v.Mount(content, app) })
 	waitFor(t, app, func() bool { return v.table != nil })
-	text := drawn(t, app, content, 100, 12)
-	assert.Contains(t, text, "planning")
-	assert.Contains(t, text, "opus")
+	golden.Assert(t, "models_view", drawn(t, app, content, 100, 12))
 
 	// a no longer adds; n opens the form.
 	onLoop(app, func() { v.HandleKey(runeKey('a')) })
@@ -217,9 +215,7 @@ func TestProjectModelsViewKeys(t *testing.T) {
 	app := runApp(t, content)
 	onLoop(app, func() { v.Mount(content, app) })
 	waitFor(t, app, func() bool { return v.list != nil })
-	text := drawn(t, app, content, 100, 16)
-	assert.Contains(t, text, "Modèles du projet · web")
-	assert.Contains(t, text, "haiku")
+	golden.Assert(t, "project_models_view", drawn(t, app, content, 100, 16))
 
 	onLoop(app, func() { v.HandleKey(runeKey('n')) })
 	require.NotEmpty(t, sh.selectOpts, "n asks the kind of override")
@@ -262,7 +258,7 @@ func TestTeamModelsViewKeys(t *testing.T) {
 	app := runApp(t, content)
 	onLoop(app, func() { v.Mount(content, app) })
 	waitFor(t, app, func() bool { return v.list != nil })
-	assert.Contains(t, drawn(t, app, content, 100, 16), "quality")
+	golden.Assert(t, "team_models_view", drawn(t, app, content, 100, 16))
 
 	onLoop(app, func() { selectSection(t, v.list, "quality"); v.HandleKey(runeKey('d')) })
 	require.Equal(t, 1, sh.confirmCount())
@@ -290,8 +286,6 @@ func TestPatternsViewKeys(t *testing.T) {
 	content := tview.NewFlex()
 	v.Mount(content, nil) // without app, the pull is skipped: the list is built at once
 	text := screenText(t, content, 110, 18)
-	assert.Contains(t, text, "api-crud")
-	assert.Contains(t, text, "En attente de validation (1)")
 	golden.Assert(t, "patterns_view", text)
 
 	v.HandleKey(runeKey('n'))
@@ -334,7 +328,6 @@ func TestPoliciesViewKeys(t *testing.T) {
 	content := tview.NewFlex()
 	v.Mount(content, nil)
 	text := screenText(t, content, 110, 18)
-	assert.Contains(t, text, "branch-naming")
 	golden.Assert(t, "policies_view", text)
 
 	v.HandleKey(runeKey('n'))
@@ -439,9 +432,7 @@ func TestSecretsViewKeys(t *testing.T) {
 	app := runApp(t, content)
 	onLoop(app, func() { v.Mount(content, app) })
 	waitFor(t, app, func() bool { return v.list != nil })
-	text := drawn(t, app, content, 100, 12)
-	assert.Contains(t, text, "gitlab-token")
-	assert.Contains(t, text, "absent")
+	golden.Assert(t, "secrets_view", drawn(t, app, content, 100, 12))
 
 	onLoop(app, func() { selectSection(t, v.list, "gitlab-token"); v.HandleKey(runeKey('d')) })
 	assert.Zero(t, sh.confirmCount(), "nothing to delete: no confirmation")

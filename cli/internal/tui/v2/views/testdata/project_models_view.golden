@@ -1,0 +1,16 @@
+╔ Modèles du projet · web ═════════════════════════════════╗┌ Détail ──────────────────────────────┐
+║   ── Général ──                                        ▲ ║│ Modèle par défaut                    │
+║                                                          ║│                                      │
+║   model:                       sonnet                    ║│ Modèle utilisé par défaut par        │
+║                                                          ║│ toutes les sessions de ce niveau.    │
+║                                                          ║│                                      │
+║                                                          ║│ Valeur : sonnet                      │
+║   ── Par famille ──                                      ║│                                      │
+║                                                          ║│ Vide = hérite du niveau supérieur.   │
+║   developer:                   haiku                     ║│ Résolution : agent → famille →       │
+║                                                          ║│ défaut, puis projet → équipe → hub.  │
+║                                                          ║│                                      │
+║                                                          ║│                                      │
+║   ── Par agent ──                                        ║│ Touches                              │
+║                                                        ▼ ║│   Enter  éditer                      │
+╚══════════════════════════════════════════════════════════╝└──────────────────────────────────────┘

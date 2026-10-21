@@ -1,0 +1,16 @@
+╔ Modèles ═════════════════════════════════════════════════╗┌ Détail ──────────────────────────────┐
+║   ── Général ──                                        ▲ ║│ Modèle par défaut                    │
+║                                                          ║│                                      │
+║   Modèle par défaut            non configuré             ║│ Modèle utilisé par défaut par        │
+║     Modèle utilisé quand aucune surcharge agent n'exi…   ║│ toutes les sessions de ce niveau.    │
+║                                                          ║│                                      │
+║                                                          ║│ Valeur : non configuré               │
+║   ── Familles ──                                         ║│                                      │
+║                                                          ║│ Vide = hérite du niveau supérieur.   │
+║   quality                      sonnet                    ║│ Résolution : agent → famille →       │
+║                                                          ║│ défaut, puis projet → équipe → hub.  │
+║                                                          ║│                                      │
+║                                                          ║│                                      │
+║   ── Agents ──                                           ║│ Touches                              │
+║                                                        ▼ ║│   Enter  éditer                      │
+╚══════════════════════════════════════════════════════════╝└──────────────────────────────────────┘
