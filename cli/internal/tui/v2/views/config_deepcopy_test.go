@@ -1,259 +1,179 @@
 package views
 
 import (
+	"fmt"
+	"reflect"
 	"testing"
+	"time"
 
-	"github.com/datichb/openhub/cli/internal/config"
-	"github.com/datichb/openhub/cli/internal/domain"
-	"github.com/datichb/openhub/cli/internal/teamstate"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-// ---------- helpers ----------
+func fieldPath(path, name string) string {
+	if path == "" {
+		return name
+	}
+	return path + "." + name
+}
 
-func dcBoolPtr(b bool) *bool    { return &b }
-func dcIntPtr(n int) *int       { return &n }
-func dcStrPtr(s string) *string { return &s }
-
-// ---------- deepCopyConfig ----------
-
-func TestDeepCopyConfig_Scalars(t *testing.T) {
-	orig := &config.Config{Name: "hub"}
-	cp := deepCopyConfig(orig)
-	cp.Name = "changed"
-	if orig.Name != "hub" {
-		t.Fatalf("scalar Name aliased: got %q", orig.Name)
+// fill sets every exported field reachable from v to a non-zero value that
+// depends only on the order of the walk: two fills give two equal values.
+// Pointers point to a value, slices hold two elements, maps two entries.
+func fill(v reflect.Value, n *int, depth int) {
+	if depth > 8 {
+		return
+	}
+	*n++
+	switch v.Kind() {
+	case reflect.Ptr:
+		v.Set(reflect.New(v.Type().Elem()))
+		fill(v.Elem(), n, depth+1)
+	case reflect.Struct:
+		if v.Type() == reflect.TypeOf(time.Time{}) {
+			v.Set(reflect.ValueOf(time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)))
+			return
+		}
+		for i := range v.NumField() {
+			if v.Field(i).CanSet() {
+				fill(v.Field(i), n, depth+1)
+			}
+		}
+	case reflect.Slice:
+		s := reflect.MakeSlice(v.Type(), 2, 2)
+		for i := range 2 {
+			fill(s.Index(i), n, depth+1)
+		}
+		v.Set(s)
+	case reflect.Map:
+		if v.Type().Key().Kind() != reflect.String {
+			return
+		}
+		m := reflect.MakeMap(v.Type())
+		for range 2 {
+			key := reflect.New(v.Type().Key()).Elem()
+			fill(key, n, depth+1)
+			elem := reflect.New(v.Type().Elem()).Elem()
+			fill(elem, n, depth+1)
+			m.SetMapIndex(key, elem)
+		}
+		v.Set(m)
+	case reflect.String:
+		v.SetString(fmt.Sprintf("%s-%d", v.Type().Name(), *n))
+	case reflect.Bool:
+		v.SetBool(true)
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		v.SetInt(int64(*n))
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		v.SetUint(uint64(*n))
+	case reflect.Float32, reflect.Float64:
+		v.SetFloat(float64(*n) + 0.5)
 	}
 }
 
-func TestDeepCopyConfig_Maps(t *testing.T) {
-	orig := &config.Config{
-		Models: config.ModelsConfig{
-			Default:  "sonnet",
-			Families: map[string]string{"fast": "haiku"},
-			Agents:   map[string]string{"coder": "opus"},
-		},
+// mutate changes everything reachable from v: pointed values, slice
+// elements, map entries (and adds one), strings, numbers, booleans.
+func mutate(v reflect.Value, path string, skip map[string]string, depth int) {
+	if depth > 8 || skip[path] != "" {
+		return
 	}
-	cp := deepCopyConfig(orig)
-	cp.Models.Families["fast"] = "changed"
-	cp.Models.Agents["new"] = "added"
-	if orig.Models.Families["fast"] != "haiku" {
-		t.Fatal("Models.Families map aliased")
-	}
-	if _, ok := orig.Models.Agents["new"]; ok {
-		t.Fatal("Models.Agents map aliased")
-	}
-}
-
-func TestDeepCopyConfig_TrackerPointers(t *testing.T) {
-	orig := &config.Config{
-		Tracker: config.TrackerLocalConfig{
-			Enabled:              dcBoolPtr(true),
-			AutoSync:             dcBoolPtr(false),
-			PushLabels:           dcBoolPtr(true),
-			AutoPlanAssigned:     dcBoolPtr(false),
-			MaxAutoPlanPerMember: dcIntPtr(5),
-		},
-	}
-	cp := deepCopyConfig(orig)
-	*cp.Tracker.Enabled = false
-	*cp.Tracker.MaxAutoPlanPerMember = 99
-	if *orig.Tracker.Enabled != true {
-		t.Fatal("Tracker.Enabled pointer aliased")
-	}
-	if *orig.Tracker.MaxAutoPlanPerMember != 5 {
-		t.Fatal("Tracker.MaxAutoPlanPerMember pointer aliased")
-	}
-}
-
-func TestDeepCopyConfig_Teams(t *testing.T) {
-	orig := &config.Config{
-		Teams: []config.TeamConfig{{ID: "t1", Name: "team1"}},
-	}
-	cp := deepCopyConfig(orig)
-	cp.Teams[0].Name = "changed"
-	if orig.Teams[0].Name != "team1" {
-		t.Fatal("Teams slice aliased")
-	}
-}
-
-// ---------- deepCopyProject ----------
-
-func TestDeepCopyProject_MCPServices(t *testing.T) {
-	orig := &domain.Project{
-		MCPConfig: &domain.ProjectMCPConfig{
-			Services: []domain.ProjectMCPService{
-				{Name: "gitlab", Enabled: dcBoolPtr(true), WriteEnabled: dcBoolPtr(false)},
-			},
-		},
-	}
-	cp := deepCopyProject(orig)
-
-	// Mutate copy
-	*cp.MCPConfig.Services[0].Enabled = false
-	*cp.MCPConfig.Services[0].WriteEnabled = true
-
-	if *orig.MCPConfig.Services[0].Enabled != true {
-		t.Fatal("MCPConfig.Services[0].Enabled aliased")
-	}
-	if *orig.MCPConfig.Services[0].WriteEnabled != false {
-		t.Fatal("MCPConfig.Services[0].WriteEnabled aliased")
+	switch v.Kind() {
+	case reflect.Ptr:
+		if !v.IsNil() {
+			mutate(v.Elem(), path, skip, depth+1)
+		}
+	case reflect.Struct:
+		if v.Type() == reflect.TypeOf(time.Time{}) {
+			v.Set(reflect.ValueOf(time.Date(2030, 1, 1, 0, 0, 0, 0, time.UTC)))
+			return
+		}
+		for i := range v.NumField() {
+			if v.Field(i).CanSet() {
+				mutate(v.Field(i), fieldPath(path, v.Type().Field(i).Name), skip, depth+1)
+			}
+		}
+	case reflect.Slice:
+		for i := range v.Len() {
+			mutate(v.Index(i), path, skip, depth+1)
+		}
+	case reflect.Map:
+		for _, key := range v.MapKeys() {
+			elem := reflect.New(v.Type().Elem()).Elem()
+			elem.Set(v.MapIndex(key))
+			mutate(elem, path, skip, depth+1)
+			v.SetMapIndex(key, elem)
+		}
+		if v.Type().Key().Kind() == reflect.String && !v.IsNil() {
+			fresh := reflect.New(v.Type().Elem()).Elem()
+			fill(fresh, new(int), depth+1)
+			v.SetMapIndex(reflect.ValueOf("added by the test").Convert(v.Type().Key()), fresh)
+		}
+	case reflect.String:
+		v.SetString(v.String() + " (changed)")
+	case reflect.Bool:
+		v.SetBool(!v.Bool())
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		v.SetInt(v.Int() + 1000)
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		v.SetUint(v.Uint() + 1000)
+	case reflect.Float32, reflect.Float64:
+		v.SetFloat(v.Float() + 1000)
 	}
 }
 
-func TestDeepCopyProject_ModelOverrides(t *testing.T) {
-	orig := &domain.Project{
-		ModelOverrides: &domain.ProjectModelOverrides{
-			Families: map[string]string{"fast": "haiku"},
-			Agents:   map[string]string{"coder": "opus"},
-		},
+// checkDeepCopy fills a value, copies it, changes every field of the copy
+// and checks that the original did not move.
+func checkDeepCopy[T any](t *testing.T, copyOf func(*T) T, skip map[string]string) {
+	t.Helper()
+	build := func() *T {
+		var x T
+		n := 0
+		fill(reflect.ValueOf(&x).Elem(), &n, 0)
+		return &x
 	}
-	cp := deepCopyProject(orig)
-	cp.ModelOverrides.Families["fast"] = "changed"
-	if orig.ModelOverrides.Families["fast"] != "haiku" {
-		t.Fatal("ModelOverrides.Families aliased")
-	}
+	orig, pristine := build(), build()
+	require.Equal(t, pristine, orig, "the fixture is deterministic")
+
+	cp := copyOf(orig)
+	require.Equal(t, *pristine, cp, "the copy equals the original")
+
+	mutate(reflect.ValueOf(&cp).Elem(), "", skip, 0)
+	require.NotEqual(t, *pristine, cp, "the test changed the copy")
+	assert.Equal(t, pristine, orig, "changing the copy must leave the original intact (aliased pointer, slice or map)")
 }
 
-func TestDeepCopyProject_DeprecatedMCP(t *testing.T) {
-	orig := &domain.Project{
-		MCP: []string{"gitlab", "jira"},
+// Fields that deepCopyConfig and deepCopyTeamConfig still share with the
+// original (found by this test): the slice or pointer is copied by
+// reference. They are left out of the check until the copy functions clone
+// them; remove the entry when it is fixed.
+var (
+	configSharedFields = map[string]string{
+		"Execution.EnvAllow": "slice copied by reference",
+		"Limits.Models":      "slice copied by reference",
 	}
-	cp := deepCopyProject(orig)
-	cp.MCP[0] = "changed"
-	if orig.MCP[0] != "gitlab" {
-		t.Fatal("deprecated MCP slice aliased")
+	teamConfigSharedFields = map[string]string{
+		"Board.Columns": "slice copied by reference",
+		"Limits":        "pointer copied by reference",
 	}
-}
+)
 
-func TestDeepCopyProject_TeamID(t *testing.T) {
-	orig := &domain.Project{TeamID: dcStrPtr("team1")}
-	cp := deepCopyProject(orig)
-	*cp.TeamID = "changed"
-	if *orig.TeamID != "team1" {
-		t.Fatal("TeamID pointer aliased")
-	}
-}
+func TestDeepCopy(t *testing.T) {
+	t.Run("config", func(t *testing.T) {
+		checkDeepCopy(t, deepCopyConfig, configSharedFields)
+	})
+	t.Run("project", func(t *testing.T) {
+		checkDeepCopy(t, deepCopyProject, nil)
+	})
+	t.Run("team config", func(t *testing.T) {
+		checkDeepCopy(t, deepCopyTeamConfig, teamConfigSharedFields)
+	})
+	t.Run("string map", func(t *testing.T) {
+		assert.Nil(t, cloneStringMap(nil), "nil map stays nil")
 
-// ---------- deepCopyTeamConfig ----------
-
-func TestDeepCopyTeamConfig_MCPMap(t *testing.T) {
-	orig := &teamstate.TeamConfig{
-		MCP: map[string]teamstate.SharedMCPConfig{
-			"gitlab": {
-				Enabled:         dcBoolPtr(true),
-				EnabledEnforced: dcBoolPtr(true),
-				URL:             "https://gitlab.example.com",
-				URLEnforced:     dcBoolPtr(false),
-			},
-		},
-	}
-	cp := deepCopyTeamConfig(orig)
-
-	// Mutate copy
-	*cp.MCP["gitlab"].Enabled = false
-	gitlab := cp.MCP["gitlab"]
-	gitlab.URL = "changed"
-	cp.MCP["gitlab"] = gitlab
-
-	// Verify original unchanged
-	if *orig.MCP["gitlab"].Enabled != true {
-		t.Fatal("MCP.Enabled pointer aliased")
-	}
-	if orig.MCP["gitlab"].URL != "https://gitlab.example.com" {
-		t.Fatal("MCP map entry aliased")
-	}
-}
-
-func TestDeepCopyTeamConfig_TrackerMaps(t *testing.T) {
-	orig := &teamstate.TeamConfig{
-		Tracker: teamstate.TrackerConfig{
-			LabelStatusMapping: map[string]string{"blocked": "blocked"},
-			StatusMapping:      map[string]string{"In Progress": "in_progress"},
-			Projects:           map[string]string{"p1": "42"},      //nolint:staticcheck // legacy tracker fields still read by the sync engine (backward compatibility)
-			TicketPatterns:     map[string]string{"p1": `PRJ-\d+`}, //nolint:staticcheck // legacy tracker fields still read by the sync engine (backward compatibility)
-			UnassignedLabels:   []string{"team::backend"},
-			TypeEnforced:       dcBoolPtr(true),
-			PushLabelsEnforced: dcBoolPtr(false),
-		},
-	}
-	cp := deepCopyTeamConfig(orig)
-
-	// Mutate copy maps
-	cp.Tracker.LabelStatusMapping["blocked"] = "changed"
-	cp.Tracker.StatusMapping["new"] = "added"
-	cp.Tracker.UnassignedLabels[0] = "changed"
-	*cp.Tracker.TypeEnforced = false
-	*cp.Tracker.PushLabelsEnforced = true
-
-	// Verify original unchanged
-	if orig.Tracker.LabelStatusMapping["blocked"] != "blocked" {
-		t.Fatal("LabelStatusMapping aliased")
-	}
-	if _, ok := orig.Tracker.StatusMapping["new"]; ok {
-		t.Fatal("StatusMapping aliased")
-	}
-	if orig.Tracker.UnassignedLabels[0] != "team::backend" {
-		t.Fatal("UnassignedLabels aliased")
-	}
-	if *orig.Tracker.TypeEnforced != true {
-		t.Fatal("TypeEnforced pointer aliased")
-	}
-	if *orig.Tracker.PushLabelsEnforced != false {
-		t.Fatal("PushLabelsEnforced pointer aliased")
-	}
-}
-
-func TestDeepCopyTeamConfig_Models(t *testing.T) {
-	orig := &teamstate.TeamConfig{
-		Models: teamstate.TeamModelsConfig{
-			Default:  "sonnet",
-			Families: map[string]string{"fast": "haiku"},
-			Agents:   map[string]string{"coder": "opus"},
-		},
-	}
-	cp := deepCopyTeamConfig(orig)
-	cp.Models.Families["fast"] = "changed"
-	cp.Models.Agents["new"] = "added"
-	if orig.Models.Families["fast"] != "haiku" {
-		t.Fatal("Models.Families aliased")
-	}
-	if _, ok := orig.Models.Agents["new"]; ok {
-		t.Fatal("Models.Agents aliased")
-	}
-}
-
-func TestDeepCopyTeamConfig_NotificationDestinations(t *testing.T) {
-	orig := &teamstate.TeamConfig{
-		Notification: teamstate.NotificationConfig{
-			Destinations: []teamstate.NotificationDestination{
-				{Type: "slack", WebhookURL: "https://hooks.slack.com/xxx"},
-			},
-		},
-	}
-	cp := deepCopyTeamConfig(orig)
-	cp.Notification.Destinations[0].WebhookURL = "changed"
-	if orig.Notification.Destinations[0].WebhookURL != "https://hooks.slack.com/xxx" {
-		t.Fatal("Notification.Destinations aliased")
-	}
-}
-
-// ---------- cloneStringMap ----------
-
-func TestCloneStringMap_Nil(t *testing.T) {
-	if cloneStringMap(nil) != nil {
-		t.Fatal("cloneStringMap(nil) should return nil")
-	}
-}
-
-func TestCloneStringMap_Independent(t *testing.T) {
-	orig := map[string]string{"a": "1", "b": "2"}
-	cp := cloneStringMap(orig)
-	cp["a"] = "changed"
-	cp["c"] = "new"
-	if orig["a"] != "1" {
-		t.Fatal("cloneStringMap aliased")
-	}
-	if _, ok := orig["c"]; ok {
-		t.Fatal("cloneStringMap aliased (new key)")
-	}
+		orig := map[string]string{"a": "1", "b": "2"}
+		cp := cloneStringMap(orig)
+		cp["a"] = "changed"
+		cp["c"] = "new"
+		assert.Equal(t, map[string]string{"a": "1", "b": "2"}, orig, "changing the copy leaves the original intact")
+	})
 }
