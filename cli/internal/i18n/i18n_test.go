@@ -6,39 +6,36 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestT_English(t *testing.T) {
-	SetLocale("en")
-	assert.Equal(t, "Help", T("help.flag.help"))
-	assert.Equal(t, "OTHER", T("help.section.other"))
-}
+func TestT(t *testing.T) {
+	tests := []struct {
+		name   string
+		locale string
+		key    string
+		want   string
+	}{
+		{"english", "en", "help.flag.help", "Help"},
+		{"english section", "en", "help.section.other", "OTHER"},
+		{"french", "fr", "help.flag.help", "Aide"},
+		{"french section", "fr", "help.section.other", "AUTRES"},
+		{"a locale with no messages falls back to english", "ja", "help.flag.help", "Help"},
+		{"an unknown key is returned as is", "en", "unknown.key.xyz", "unknown.key.xyz"},
+		{"an unknown key is returned as is in french", "fr", "unknown.key.xyz", "unknown.key.xyz"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			prev := Locale()
+			t.Cleanup(func() { SetLocale(prev) })
+			SetLocale(tt.locale)
+			assert.Equal(t, tt.want, T(tt.key))
+		})
+	}
 
-func TestT_French(t *testing.T) {
-	SetLocale("fr")
-	assert.Equal(t, "Aide", T("help.flag.help"))
-	assert.Equal(t, "AUTRES", T("help.section.other"))
-}
-
-func TestT_FallbackToEnglish(t *testing.T) {
-	SetLocale("fr")
-	// Key that only exists in English or both
-	assert.Equal(t, "Aide", T("help.flag.help"))
-}
-
-func TestT_UnknownKey(t *testing.T) {
-	SetLocale("en")
-	assert.Equal(t, "unknown.key.xyz", T("unknown.key.xyz"))
-}
-
-func TestT_UnknownLocale(t *testing.T) {
-	SetLocale("ja")
-	// Should fallback to English
-	assert.Equal(t, "Help", T("help.flag.help"))
-}
-
-func TestTf_Format(t *testing.T) {
-	SetLocale("en")
-	result := Tf("cmd.export.exporting_to", "backup.tar.gz")
-	assert.Equal(t, "Exporting to backup.tar.gz...\n", result)
+	t.Run("Tf formats the message", func(t *testing.T) {
+		prev := Locale()
+		t.Cleanup(func() { SetLocale(prev) })
+		SetLocale("en")
+		assert.Equal(t, "Exporting to backup.tar.gz...\n", Tf("cmd.export.exporting_to", "backup.tar.gz"))
+	})
 }
 
 // keyOfScan is the former KeyOf: a scan of every message.
