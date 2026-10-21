@@ -126,14 +126,12 @@ func TestWithMachineShellEnv(t *testing.T) {
 
 	static := map[string]string{"FOO": "bar"}
 	assert.Equal(t, static, withMachineShellEnv(sessionspec.RuntimeContainer, static, []string{"/shims"}), "container: machine PATH is meaningless inside")
-}
 
-// QB1: the fake bd comes first on the PATH of local sessions (kept in the
-// static environment: resumes and subagents get it too).
-func TestWithMachineShellEnvPathFirst(t *testing.T) {
+	// QB1: the fake bd comes first on the PATH of local sessions (kept in the
+	// static environment: resumes and subagents get it too).
 	t.Setenv("PATH", "/usr/bin")
-	env := withMachineShellEnv(sessionspec.RuntimeLocal, nil, []string{"/oh/run/bin"})
-	assert.Equal(t, "/oh/run/bin"+string(os.PathListSeparator)+"/usr/bin", env["PATH"])
+	env = withMachineShellEnv(sessionspec.RuntimeLocal, nil, []string{"/oh/run/bin"})
+	assert.Equal(t, "/oh/run/bin"+string(os.PathListSeparator)+"/usr/bin", env["PATH"], "the shims come first")
 }
 
 // S-28: the shell of a local session gets the same allow-list as the tool

@@ -53,28 +53,30 @@ func headlessFixture(t *testing.T, pending bool) (*rtFixture, *waitAdapter, stri
 }
 
 func TestAwaitTurn(t *testing.T) {
-	f, wa, sid := headlessFixture(t, false)
-	close(wa.block)
-	out, err := f.svc.AwaitTurn(context.Background(), sid)
-	require.NoError(t, err)
-	assert.Equal(t, "# Brief enrichi", out.Text)
-	assert.Equal(t, "amazon-bedrock/claude", out.Result.Model)
-	assert.Equal(t, sid, out.SessionID)
-}
+	t.Run("answers with the text and the result of the turn", func(t *testing.T) {
+		f, wa, sid := headlessFixture(t, false)
+		close(wa.block)
+		out, err := f.svc.AwaitTurn(context.Background(), sid)
+		require.NoError(t, err)
+		assert.Equal(t, "# Brief enrichi", out.Text)
+		assert.Equal(t, "amazon-bedrock/claude", out.Result.Model)
+		assert.Equal(t, sid, out.SessionID)
+	})
 
-func TestAwaitTurnStopsOnPendingDecision(t *testing.T) {
-	old := decisionPoll
-	decisionPoll = 10 * time.Millisecond
-	t.Cleanup(func() { decisionPoll = old })
-	f, _, sid := headlessFixture(t, true)
-	_, err := f.svc.AwaitTurn(context.Background(), sid)
-	assert.ErrorIs(t, err, ErrDecisionPending)
-}
+	t.Run("stops on a pending decision", func(t *testing.T) {
+		old := decisionPoll
+		decisionPoll = 10 * time.Millisecond
+		t.Cleanup(func() { decisionPoll = old })
+		f, _, sid := headlessFixture(t, true)
+		_, err := f.svc.AwaitTurn(context.Background(), sid)
+		assert.ErrorIs(t, err, ErrDecisionPending)
+	})
 
-func TestAwaitTurnUnsupported(t *testing.T) {
-	f, _ := runFixture(t)
-	_, err := f.svc.AwaitTurn(context.Background(), "ses_x")
-	assert.ErrorIs(t, err, ErrHeadlessUnsupported)
+	t.Run("refuses a session that is not headless", func(t *testing.T) {
+		f, _ := runFixture(t)
+		_, err := f.svc.AwaitTurn(context.Background(), "ses_x")
+		assert.ErrorIs(t, err, ErrHeadlessUnsupported)
+	})
 }
 
 func TestHeadlessSessionType(t *testing.T) {

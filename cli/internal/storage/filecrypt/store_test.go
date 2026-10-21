@@ -50,45 +50,34 @@ func TestRoundTrip(t *testing.T) {
 	assert.Equal(t, "gsl-ccc", val)
 }
 
-func TestWrongPassphrase(t *testing.T) {
-	path := tempPath(t)
-	s := New(path, fixedPrompt("correct-passphrase"))
-	ctx := context.Background()
-	require.NoError(t, s.Set(ctx, "key", "value"))
-
-	// Open with wrong passphrase
-	s2 := New(path, fixedPrompt("wrong-passphrase"))
-	_, err := s2.Get(ctx, "key")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "wrong passphrase")
-}
-
-func TestCorruptedFile(t *testing.T) {
-	path := tempPath(t)
-	ctx := context.Background()
-
-	// Write random garbage
+// A store that cannot be read says why: another passphrase, garbage, or a
+// file too short to hold a header.
+func TestUnreadableStore(t *testing.T) {
 	garbage := make([]byte, 100)
 	_, _ = rand.Read(garbage)
-	require.NoError(t, os.WriteFile(path, garbage, 0600))
-
-	s := New(path, fixedPrompt("any-passphrase"))
-	_, err := s.Get(ctx, "key")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "corrupted")
-}
-
-func TestCorruptedFileTooShort(t *testing.T) {
-	path := tempPath(t)
-	ctx := context.Background()
-
-	// Write a file that's too short
-	require.NoError(t, os.WriteFile(path, []byte("OH"), 0600))
-
-	s := New(path, fixedPrompt("any"))
-	_, err := s.Get(ctx, "key")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "too short")
+	for _, tc := range []struct {
+		name       string
+		file       []byte // nil: a real store written with "correct-passphrase"
+		passphrase string
+		want       string
+	}{
+		{"wrong passphrase", nil, "wrong-passphrase", "wrong passphrase"},
+		{"corrupted file", garbage, "any-passphrase", "corrupted"},
+		{"file too short", []byte("OH"), "any", "too short"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			path := tempPath(t)
+			ctx := context.Background()
+			if tc.file == nil {
+				require.NoError(t, New(path, fixedPrompt("correct-passphrase")).Set(ctx, "key", "value"))
+			} else {
+				require.NoError(t, os.WriteFile(path, tc.file, 0600))
+			}
+			_, err := New(path, fixedPrompt(tc.passphrase)).Get(ctx, "key")
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.want)
+		})
+	}
 }
 
 func TestDelete(t *testing.T) {
@@ -111,7 +100,10 @@ func TestDelete(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "val2", val)
 
-	// Delete non-existent key — no error
+	// A key that never existed reads as empty, and deleting it is no error
+	val, err = s.Get(ctx, "does-not-exist")
+	require.NoError(t, err)
+	assert.Equal(t, "", val)
 	require.NoError(t, s.Delete(ctx, "nonexistent"))
 }
 
@@ -129,24 +121,6 @@ func TestList(t *testing.T) {
 	keys, err := s.List(ctx)
 	require.NoError(t, err)
 	assert.Equal(t, []string{"alpha", "bravo", "charlie", "delta", "echo"}, keys)
-}
-
-func TestEmptyStore(t *testing.T) {
-	path := tempPath(t)
-	ctx := context.Background()
-
-	// File doesn't exist — first Set should create it
-	s := New(path, fixedPrompt("passphrase"))
-	require.NoError(t, s.Set(ctx, "first-key", "first-value"))
-
-	// File should now exist
-	_, err := os.Stat(path)
-	require.NoError(t, err)
-
-	// Read it back
-	val, err := s.Get(ctx, "first-key")
-	require.NoError(t, err)
-	assert.Equal(t, "first-value", val)
 }
 
 func TestAtomicWrite(t *testing.T) {
@@ -227,20 +201,6 @@ func TestEnvVarPassphrase(t *testing.T) {
 	val, err := s2.Get(ctx, "env-key")
 	require.NoError(t, err)
 	assert.Equal(t, "env-value", val)
-}
-
-func TestGetNonExistentKey(t *testing.T) {
-	path := tempPath(t)
-	s := New(path, fixedPrompt("passphrase"))
-	ctx := context.Background()
-
-	// Initialize store
-	require.NoError(t, s.Set(ctx, "exists", "yes"))
-
-	// Get non-existent key returns empty string, no error
-	val, err := s.Get(ctx, "does-not-exist")
-	require.NoError(t, err)
-	assert.Equal(t, "", val)
 }
 
 func TestOverwriteKey(t *testing.T) {
