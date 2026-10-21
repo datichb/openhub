@@ -3,13 +3,13 @@ package team
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/config/configtest"
 )
 
 // chdir changes the working directory for the duration of the test and restores
@@ -22,15 +22,12 @@ func chdir(t *testing.T, dir string) {
 	t.Cleanup(func() { os.Chdir(orig) }) //nolint:errcheck
 }
 
-// useHub writes a hub.toml in a temporary OH_HOME (teams given as TOML).
+// useHub writes a hub.toml in a temporary hub (teams given as TOML).
 func useHub(t *testing.T, teams string) {
 	t.Helper()
-	home := t.TempDir()
-	t.Setenv("OH_HOME", home)
-	t.Setenv("HOME", home)
-	require.NoError(t, os.WriteFile(filepath.Join(home, "hub.toml"), []byte(teams), 0o600))
-	config.Reset()
-	t.Cleanup(config.Reset)
+	configtest.Home(t)
+	require.NoError(t, os.MkdirAll(config.HubDir(), 0o755))
+	require.NoError(t, os.WriteFile(config.ConfigPath(), []byte(teams), 0o600))
 	resetRepoCache()
 }
 
