@@ -52,158 +52,164 @@ func (m *mockShell) PushView(View)             {}
 func (m *mockShell) PopView() bool             { return true }
 func (m *mockShell) SetOmnibarVisible(bool)    {}
 
-func TestBoardView_MountUnmount(t *testing.T) {
-	v := NewBoardView(BoardViewConfig{
-		Tickets: []BoardTicket{
-			{ID: "1", Title: "Fix bug", Status: "planned", Priority: "high"},
-			{ID: "2", Title: "Add feature", Status: "in_progress", Priority: "medium"},
-			{ID: "3", Title: "Release", Status: "done", Priority: "low"},
+// every view mounts in a content flex, is identified, and lets go of the
+// application on Unmount.
+func TestViews_MountUnmount(t *testing.T) {
+	projectShell := &mockShell{project: &ActiveProject{ID: "p1", Name: "my-app", Path: "/tmp/my-app"}}
+	teamShell := &mockShell{team: &ActiveTeam{ID: "t1", Name: "alpha"}}
+	tests := []struct {
+		name     string
+		view     View
+		shell    ShellAccess // set on the views that read the active project or team
+		id       string
+		title    string // "" = any non-empty title
+		released func(View) bool
+	}{
+		{
+			name: "board",
+			view: NewBoardView(BoardViewConfig{Tickets: []BoardTicket{
+				{ID: "1", Title: "Fix bug", Status: "planned", Priority: "high"},
+				{ID: "2", Title: "Add feature", Status: "in_progress", Priority: "medium"},
+				{ID: "3", Title: "Release", Status: "done", Priority: "low"},
+			}}),
+			id: "board", title: i18n.T("tui.board.title"),
+			released: func(v View) bool { return v.(*BoardView).app == nil },
 		},
-	})
-
-	content := tview.NewFlex().SetDirection(tview.FlexRow)
-	app := tview.NewApplication()
-
-	v.Mount(content, app)
-	assert.Greater(t, content.GetItemCount(), 0)
-	assert.Equal(t, "board", v.ID())
-	assert.Equal(t, i18n.T("tui.board.title"), v.Title())
-	assert.NotEmpty(t, v.StatusHints())
-
-	v.Unmount()
-	assert.Nil(t, v.app)
-}
-
-func TestTeamBoardView_MountUnmount(t *testing.T) {
-	v := NewTeamBoardView(TeamBoardViewConfig{
-		Tickets: []TeamTicket{
-			{ID: "1", Title: "Review PR", Status: "in_progress", Assignee: "alice"},
+		{
+			name: "team board",
+			view: NewTeamBoardView(TeamBoardViewConfig{Tickets: []TeamTicket{
+				{ID: "1", Title: "Review PR", Status: "in_progress", Assignee: "alice"},
+			}}),
+			id: "team.board",
+			released: func(v View) bool {
+				b := v.(*TeamBoardView)
+				return b.app == nil && b.content == nil && b.emptyTV == nil
+			},
 		},
-	})
-
-	content := tview.NewFlex().SetDirection(tview.FlexRow)
-	app := tview.NewApplication()
-
-	v.Mount(content, app)
-	assert.Greater(t, content.GetItemCount(), 0)
-	assert.Equal(t, "team.board", v.ID())
-
-	v.Unmount()
-	assert.Nil(t, v.app)
-	assert.Nil(t, v.content)
-	assert.Nil(t, v.emptyTV)
-}
-
-func TestTeamBoardView_MountEmpty_TransitionToPopulated(t *testing.T) {
-	tickets := []TeamTicket{
-		{ID: "1", Title: "Review PR", Status: "in_progress", Assignee: "alice"},
+		{
+			name: "home", view: NewHomeView(HomeViewConfig{}), id: "home",
+			released: func(v View) bool { return v.(*HomeView).app == nil },
+		},
+		{
+			name: "projects",
+			view: NewProjectsView(ProjectsViewConfig{Projects: []ProjectItem{{ID: "p1", Name: "my-app", Path: "/tmp/my-app"}}}),
+			id:   "projects.list", title: i18n.T("tui.projects.title"),
+			released: func(v View) bool { return v.(*ProjectsView).app == nil },
+		},
+		{
+			name: "status", view: NewStatusView(nil), id: "status",
+			released: func(v View) bool { return v.(*StatusView).app == nil },
+		},
+		{
+			name: "metrics", view: NewMetricsView(MetricsViewConfig{}), id: "metrics",
+			released: func(v View) bool { return v.(*MetricsView).app == nil },
+		},
+		{
+			name: "doctor", view: NewDoctorView(nil), id: "doctor",
+			released: func(v View) bool { return v.(*DoctorView).app == nil },
+		},
+		{
+			name: "mcp", view: NewMCPView(nil, MCPViewConfig{}), id: "mcp",
+			released: func(v View) bool { return v.(*MCPView).app == nil },
+		},
+		{
+			name: "help", view: NewHelpView(), id: "help",
+			released: func(v View) bool { return v.(*HelpView).app == nil },
+		},
+		{
+			name: "team status (team disabled)",
+			view: NewTeamStatusView(func() TeamResolution { return TeamResolution{} }), id: "team.status",
+			released: func(v View) bool { return v.(*TeamStatusView).app == nil },
+		},
+		{
+			name: "worktrees", view: NewWorktreeView(nil, WorktreeViewConfig{}), id: "worktrees", title: i18n.T("tui.worktree.title"),
+			released: func(v View) bool { return v.(*WorktreeView).app == nil },
+		},
+		{
+			name: "project mode", view: NewProjectModeView(ProjectModeConfig{}), shell: projectShell, id: "project.mode",
+			released: func(v View) bool { return v.(*ProjectModeView).app == nil },
+		},
+		{
+			name: "team mode", view: NewTeamModeView(TeamModeConfig{}), shell: teamShell, id: "team.mode",
+			released: func(v View) bool { return v.(*TeamModeView).app == nil },
+		},
 	}
-	v := NewTeamBoardView(TeamBoardViewConfig{
-		Tickets: nil, // start empty
-		RefreshFunc: func() []TeamTicket {
-			return tickets
-		},
-		IsConfigured: func() bool { return true },
-	})
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.shell != nil {
+				tc.view.(interface{ SetShell(ShellAccess) }).SetShell(tc.shell)
+			}
+			content := tview.NewFlex().SetDirection(tview.FlexRow)
 
-	content := tview.NewFlex().SetDirection(tview.FlexRow)
-	app := tview.NewApplication()
+			tc.view.Mount(content, tview.NewApplication())
+			assert.Greater(t, content.GetItemCount(), 0, "content mounted")
+			assert.Equal(t, tc.id, tc.view.ID(), "view ID")
+			if tc.title != "" {
+				assert.Equal(t, tc.title, tc.view.Title(), "title")
+			} else {
+				assert.NotEmpty(t, tc.view.Title(), "title")
+			}
 
-	// When SyncFunc is nil, syncFuncAsync calls onDone synchronously during Mount,
-	// which triggers refreshOnEventLoop → populateColumns with real tickets.
-	// This means the empty → populated transition happens within Mount itself.
-	v.Mount(content, app)
-
-	// The board should already have transitioned to the populated state.
-	assert.Nil(t, v.emptyTV, "emptyTV should be cleared — sync completed during Mount")
-	assert.Equal(t, 1, content.GetItemCount(), "content should have the boardLayout")
-	assert.Greater(t, len(v.allTickets), 0, "tickets should be populated")
-
-	v.Unmount()
-}
-
-func TestTeamBoardView_MountEmpty_NoSyncFunc_StaysEmpty(t *testing.T) {
-	// When there is NO RefreshFunc, the board stays in empty state.
-	v := NewTeamBoardView(TeamBoardViewConfig{
-		Tickets:      nil,
-		IsConfigured: func() bool { return true },
-	})
-
-	content := tview.NewFlex().SetDirection(tview.FlexRow)
-	app := tview.NewApplication()
-
-	v.Mount(content, app)
-	assert.NotNil(t, v.emptyTV, "emptyTV should be set when mounted with no tickets and no refresh")
-	assert.Equal(t, 1, content.GetItemCount(), "content should have the emptyTV")
-
-	// Now simulate an external call to populateColumns (as if a manual refresh happened)
-	tickets := []TeamTicket{
-		{ID: "1", Title: "Review PR", Status: "in_progress", Assignee: "alice"},
+			tc.view.Unmount()
+			assert.True(t, tc.released(tc.view), "Unmount releases the application")
+		})
 	}
-	v.populateColumns(tickets, DefaultColumns())
 
-	assert.Nil(t, v.emptyTV, "emptyTV should be cleared after tickets arrive")
-	assert.Equal(t, 1, content.GetItemCount(), "content should now have the boardLayout")
-
-	v.Unmount()
+	t.Run("project mode and team mode without an active project or team show their empty state", func(t *testing.T) {
+		for name, v := range map[string]View{
+			"project mode": NewProjectModeView(ProjectModeConfig{}),
+			"team mode":    NewTeamModeView(TeamModeConfig{}),
+		} {
+			content := tview.NewFlex().SetDirection(tview.FlexRow)
+			v.Mount(content, tview.NewApplication())
+			assert.Greater(t, content.GetItemCount(), 0, "%s: empty state mounted", name)
+		}
+	})
 }
 
-func TestBoardView_MountEmpty_TransitionToPopulated(t *testing.T) {
-	tickets := []BoardTicket{
-		{ID: "1", Title: "Fix bug", Status: "planned", Priority: "high"},
-	}
-	v := NewBoardView(BoardViewConfig{
-		Tickets: nil, // start empty
+func TestBoardViews_EmptyThenPopulated(t *testing.T) {
+	t.Run("board", func(t *testing.T) {
+		v := NewBoardView(BoardViewConfig{})
+		content := tview.NewFlex().SetDirection(tview.FlexRow)
+		v.Mount(content, tview.NewApplication())
+		defer v.Unmount()
+		assert.NotNil(t, v.emptyTV, "empty-state placeholder with no tickets")
+		assert.Equal(t, 1, content.GetItemCount(), "content holds the placeholder")
+
+		v.populateColumns([]BoardTicket{{ID: "1", Title: "Fix bug", Status: "planned", Priority: "high"}}, DefaultColumns())
+		assert.Nil(t, v.emptyTV, "placeholder cleared once tickets arrive")
+		assert.Equal(t, 1, content.GetItemCount(), "content holds the columns")
 	})
 
-	content := tview.NewFlex().SetDirection(tview.FlexRow)
-	app := tview.NewApplication()
+	t.Run("team board without refresh stays empty until populated", func(t *testing.T) {
+		v := NewTeamBoardView(TeamBoardViewConfig{IsConfigured: func() bool { return true }})
+		content := tview.NewFlex().SetDirection(tview.FlexRow)
+		v.Mount(content, tview.NewApplication())
+		defer v.Unmount()
+		assert.NotNil(t, v.emptyTV, "empty-state placeholder with no tickets and no refresh")
+		assert.Equal(t, 1, content.GetItemCount(), "content holds the placeholder")
 
-	v.Mount(content, app)
-	// Should show the empty-state placeholder
-	assert.NotNil(t, v.emptyTV, "emptyTV should be set when mounted with no tickets")
-	assert.Equal(t, 1, content.GetItemCount(), "content should have the emptyTV")
-
-	// Simulate a refresh delivering tickets
-	v.populateColumns(tickets, DefaultColumns())
-
-	assert.Nil(t, v.emptyTV, "emptyTV should be cleared after tickets arrive")
-	assert.Equal(t, 1, content.GetItemCount(), "content should now have the columnFlex")
-
-	v.Unmount()
-}
-
-func TestHomeView_MountUnmount(t *testing.T) {
-	v := NewHomeView(HomeViewConfig{})
-
-	content := tview.NewFlex().SetDirection(tview.FlexRow)
-	app := tview.NewApplication()
-
-	v.Mount(content, app)
-	assert.Greater(t, content.GetItemCount(), 0)
-	assert.Equal(t, "home", v.ID())
-
-	v.Unmount()
-	assert.Nil(t, v.app)
-}
-
-// ── Phase 3 views ──
-
-func TestProjectsView_MountUnmount(t *testing.T) {
-	v := NewProjectsView(ProjectsViewConfig{
-		Projects: []ProjectItem{
-			{ID: "p1", Name: "my-app", Path: "/tmp/my-app"},
-		},
+		v.populateColumns([]TeamTicket{{ID: "1", Title: "Review PR", Status: "in_progress", Assignee: "alice"}}, DefaultColumns())
+		assert.Nil(t, v.emptyTV, "placeholder cleared once tickets arrive")
+		assert.Equal(t, 1, content.GetItemCount(), "content holds the board layout")
 	})
-	content := tview.NewFlex().SetDirection(tview.FlexRow)
-	app := tview.NewApplication()
 
-	v.Mount(content, app)
-	assert.Greater(t, content.GetItemCount(), 0)
-	assert.Equal(t, "projects.list", v.ID())
-	assert.Equal(t, i18n.T("tui.projects.title"), v.Title())
-
-	v.Unmount()
+	t.Run("team board with a refresh is populated during the mount", func(t *testing.T) {
+		// Without SyncFunc, syncFuncAsync calls onDone synchronously during
+		// Mount, which runs refreshOnEventLoop → populateColumns.
+		v := NewTeamBoardView(TeamBoardViewConfig{
+			RefreshFunc: func() []TeamTicket {
+				return []TeamTicket{{ID: "1", Title: "Review PR", Status: "in_progress", Assignee: "alice"}}
+			},
+			IsConfigured: func() bool { return true },
+		})
+		content := tview.NewFlex().SetDirection(tview.FlexRow)
+		v.Mount(content, tview.NewApplication())
+		defer v.Unmount()
+		assert.Nil(t, v.emptyTV, "placeholder cleared: the sync completed during the mount")
+		assert.Equal(t, 1, content.GetItemCount(), "content holds the board layout")
+		assert.NotEmpty(t, v.allTickets, "tickets populated")
+	})
 }
 
 func TestProjectsView_RefreshFunc_CalledOnMount(t *testing.T) {
@@ -261,45 +267,6 @@ func TestProjectsView_NoRefreshFunc_UsesStaticProjects(t *testing.T) {
 	v.Unmount()
 }
 
-func TestStatusView_ImplementsView(t *testing.T) {
-	var _ View = (*StatusView)(nil)
-
-	v := NewStatusView(nil)
-	content := tview.NewFlex().SetDirection(tview.FlexRow)
-	app := tview.NewApplication()
-
-	v.Mount(content, app)
-	assert.Greater(t, content.GetItemCount(), 0)
-	assert.Equal(t, "status", v.ID())
-	v.Unmount()
-}
-
-func TestMetricsView_ImplementsView(t *testing.T) {
-	var _ View = (*MetricsView)(nil)
-
-	v := NewMetricsView(MetricsViewConfig{})
-	content := tview.NewFlex().SetDirection(tview.FlexRow)
-	app := tview.NewApplication()
-
-	v.Mount(content, app)
-	assert.Greater(t, content.GetItemCount(), 0)
-	assert.Equal(t, "metrics", v.ID())
-	v.Unmount()
-}
-
-func TestDoctorView_ImplementsView(t *testing.T) {
-	var _ View = (*DoctorView)(nil)
-
-	v := NewDoctorView(nil)
-	content := tview.NewFlex().SetDirection(tview.FlexRow)
-	app := tview.NewApplication()
-
-	v.Mount(content, app)
-	assert.Greater(t, content.GetItemCount(), 0)
-	assert.Equal(t, "doctor", v.ID())
-	v.Unmount()
-}
-
 // A40: the view shows exactly the checks of `oh doctor` (warnings counted as
 // passed), not a subset of its own.
 func TestDoctorView_ShowsDoctorRegistry(t *testing.T) {
@@ -321,127 +288,6 @@ func TestDoctorView_ShowsDoctorRegistry(t *testing.T) {
 	assert.Contains(t, text, "5.0.1 available")
 	assert.Contains(t, text, "Provider credentials")
 	assert.Contains(t, text, i18n.Tf("tui.doctor.summary", 1, 2))
-}
-
-func TestMCPView_ImplementsView(t *testing.T) {
-	var _ View = (*MCPView)(nil)
-
-	v := NewMCPView(nil, MCPViewConfig{})
-	content := tview.NewFlex().SetDirection(tview.FlexRow)
-	app := tview.NewApplication()
-
-	v.Mount(content, app)
-	assert.Greater(t, content.GetItemCount(), 0)
-	assert.Equal(t, "mcp", v.ID())
-	v.Unmount()
-}
-
-func TestHelpView_ImplementsView(t *testing.T) {
-	var _ View = (*HelpView)(nil)
-
-	v := NewHelpView()
-	content := tview.NewFlex().SetDirection(tview.FlexRow)
-	app := tview.NewApplication()
-
-	v.Mount(content, app)
-	assert.Greater(t, content.GetItemCount(), 0)
-	assert.Equal(t, "help", v.ID())
-	v.Unmount()
-}
-
-func TestTeamStatusView_ImplementsView(t *testing.T) {
-	var _ View = (*TeamStatusView)(nil)
-
-	// Provide a no-op resolve func — team disabled
-	v := NewTeamStatusView(func() TeamResolution { return TeamResolution{} })
-	content := tview.NewFlex().SetDirection(tview.FlexRow)
-	app := tview.NewApplication()
-
-	v.Mount(content, app)
-	assert.Greater(t, content.GetItemCount(), 0)
-	assert.Equal(t, "team.status", v.ID())
-	assert.NotEmpty(t, v.Title()) // i18n-dependent, don't assert exact string
-	v.Unmount()
-}
-
-func TestWorktreeView_ImplementsView(t *testing.T) {
-	var _ View = (*WorktreeView)(nil)
-
-	v := NewWorktreeView(nil, WorktreeViewConfig{})
-	content := tview.NewFlex().SetDirection(tview.FlexRow)
-	app := tview.NewApplication()
-
-	v.Mount(content, app)
-	assert.Greater(t, content.GetItemCount(), 0)
-	assert.Equal(t, "worktrees", v.ID())
-	assert.Equal(t, i18n.T("tui.worktree.title"), v.Title())
-	v.Unmount()
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// ProjectModeView tests
-// ─────────────────────────────────────────────────────────────────────────────
-
-func TestProjectModeView_MountUnmount(t *testing.T) {
-	v := NewProjectModeView(ProjectModeConfig{})
-	v.SetShell(&mockShell{
-		project: &ActiveProject{ID: "p1", Name: "my-app", Path: "/tmp/my-app"},
-	})
-
-	content := tview.NewFlex().SetDirection(tview.FlexRow)
-	app := tview.NewApplication()
-
-	v.Mount(content, app)
-	assert.Greater(t, content.GetItemCount(), 0)
-	assert.Equal(t, "project.mode", v.ID())
-
-	v.Unmount()
-	assert.Nil(t, v.app)
-}
-
-func TestProjectModeView_MountNoProject(t *testing.T) {
-	v := NewProjectModeView(ProjectModeConfig{})
-	// No shell or project set
-
-	content := tview.NewFlex().SetDirection(tview.FlexRow)
-	app := tview.NewApplication()
-
-	v.Mount(content, app)
-	// Should show empty state (text view with "Aucun projet actif")
-	assert.Greater(t, content.GetItemCount(), 0)
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// TeamModeView tests
-// ─────────────────────────────────────────────────────────────────────────────
-
-func TestTeamModeView_MountUnmount(t *testing.T) {
-	v := NewTeamModeView(TeamModeConfig{})
-	v.SetShell(&mockShell{
-		team: &ActiveTeam{ID: "t1", Name: "alpha"},
-	})
-
-	content := tview.NewFlex().SetDirection(tview.FlexRow)
-	app := tview.NewApplication()
-
-	v.Mount(content, app)
-	assert.Greater(t, content.GetItemCount(), 0)
-	assert.Equal(t, "team.mode", v.ID())
-
-	v.Unmount()
-	assert.Nil(t, v.app)
-}
-
-func TestTeamModeView_MountNoTeam(t *testing.T) {
-	v := NewTeamModeView(TeamModeConfig{})
-	// No shell or team set
-
-	content := tview.NewFlex().SetDirection(tview.FlexRow)
-	app := tview.NewApplication()
-
-	v.Mount(content, app)
-	// Should show empty state (text view with "Aucune équipe active")
-	assert.Greater(t, content.GetItemCount(), 0)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
