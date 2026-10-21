@@ -32,13 +32,10 @@ func contractOf(body string) string {
 // pinned in testdata/golden/contracts/<workflow>/<agent>.md
 // (go test ./internal/bundle -run ShippedWorkflowContracts -update).
 func TestShippedWorkflowContracts(t *testing.T) {
-	hub, cat, env := shippedWorkflows(t)
+	_, cat, _ := shippedWorkflows(t)
 	for _, ref := range cat.Refs() {
 		t.Run(ref.ID, func(t *testing.T) {
-			r, diags := workflow.Check(cat, ref, nil, env)
-			require.False(t, diags.HasErrors(), "%v", diags)
-			b, err := Build(Request{HubDir: hub, OutDir: t.TempDir(), Spec: r.Spec})
-			require.NoError(t, err)
+			_, b := shippedBuild(t, "", ref)
 			dir := filepath.Join("testdata", "golden", "contracts", ref.ID)
 			want := map[string]bool{}
 			for _, a := range b.Spec.Agents {
@@ -67,10 +64,9 @@ func TestShippedWorkflowContracts(t *testing.T) {
 // (`by:`), with members of the workflow that may call workflow_checkpoint,
 // and the runtime of the bundle carries it.
 func TestCheckpointByMembers(t *testing.T) {
-	hub, cat, env := shippedWorkflows(t)
+	_, cat, _ := shippedWorkflows(t)
 	for _, ref := range cat.Refs() {
-		r, diags := workflow.Check(cat, ref, nil, env)
-		require.False(t, diags.HasErrors(), "%v", diags)
+		r, _ := shippedBuild(t, "", ref)
 		members := r.Spec.Members()
 		// R7: a method checkpoint is in the bundle of its method; R6: a
 		// fan-out checkpoint in the bundle of a fan-out session.
@@ -87,9 +83,7 @@ func TestCheckpointByMembers(t *testing.T) {
 			k := kind{method: cp.Method, fanout: cp.Fanout == workflow.FanoutOnly}
 			b := bundles[k]
 			if b == nil {
-				var err error
-				b, err = Build(Request{HubDir: hub, OutDir: t.TempDir(), Spec: r.Spec, Method: cp.Method, Fanout: k.fanout})
-				require.NoError(t, err)
+				_, b = shippedBuildWith(t, ref, shippedOpts{Method: cp.Method, Fanout: k.fanout})
 				bundles[k] = b
 			}
 			for _, agent := range cp.By {

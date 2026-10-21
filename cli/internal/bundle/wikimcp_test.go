@@ -16,11 +16,8 @@ import (
 // server; every agent reads and proposes, only the documentarian applies
 // (asked), and the session contract says so.
 func TestWikiMCPInBundle(t *testing.T) {
-	hub, cat, env := shippedWorkflows(t)
-	r, diags := workflow.Check(cat, workflow.Ref{Layer: workflow.LayerHub, ID: "libre"}, nil, env)
-	require.False(t, diags.HasErrors(), "%v", diags)
-	b, err := Build(Request{HubDir: hub, OutDir: t.TempDir(), ProjectPath: instructionsFixture(t, true), Spec: r.Spec})
-	require.NoError(t, err)
+	libre := workflow.Ref{Layer: workflow.LayerHub, ID: "libre"}
+	_, b := shippedBuild(t, sharedInstructionsFixture(t, true), libre)
 	spec := b.Spec
 	assert.True(t, slices.ContainsFunc(spec.MCP, func(m sessionspec.MCPServerDef) bool { return m.Name == sessionspec.WikiMCPServer }))
 	apply := sessionspec.MCPToolAction(sessionspec.WikiMCPServer, sessionspec.WikiToolApply)
@@ -44,8 +41,7 @@ func TestWikiMCPInBundle(t *testing.T) {
 	assert.Equal(t, 1, seen, "feature ships the documentarian")
 
 	// Without docs/wiki/: no wiki server.
-	b, err = Build(Request{HubDir: hub, OutDir: t.TempDir(), ProjectPath: instructionsFixture(t, false), Spec: r.Spec})
-	require.NoError(t, err)
+	_, b = shippedBuild(t, sharedInstructionsFixture(t, false), libre)
 	assert.False(t, slices.ContainsFunc(b.Spec.MCP, func(m sessionspec.MCPServerDef) bool { return m.Name == sessionspec.WikiMCPServer }))
 	for _, a := range b.Spec.Agents {
 		assert.NotContains(t, a.Body, "wiki_propose` met", a.ID)
@@ -57,8 +53,8 @@ func TestWikiMCPInBundle(t *testing.T) {
 // remotely gets the wiki MCP server with the same tools and rules as in a
 // local session; the job daemon serves them on its clone.
 func TestWikiMCPInRemoteWorkflows(t *testing.T) {
-	hub, cat, env := shippedWorkflows(t)
-	project := instructionsFixture(t, true)
+	_, cat, env := shippedWorkflows(t)
+	project := sharedInstructionsFixture(t, true)
 	propose := sessionspec.MCPToolAction(sessionspec.WikiMCPServer, sessionspec.WikiToolPropose)
 	n := 0
 	for _, ref := range cat.Refs() {
@@ -68,8 +64,7 @@ func TestWikiMCPInRemoteWorkflows(t *testing.T) {
 			continue
 		}
 		n++
-		b, err := Build(Request{HubDir: hub, OutDir: t.TempDir(), ProjectPath: project, Spec: r.Spec})
-		require.NoError(t, err, ref.ID)
+		_, b := shippedBuild(t, project, ref)
 		i := slices.IndexFunc(b.Spec.MCP, func(m sessionspec.MCPServerDef) bool { return m.Name == sessionspec.WikiMCPServer })
 		require.GreaterOrEqual(t, i, 0, "%s: wiki MCP server", ref.ID)
 		assert.Equal(t, sessionspec.WikiMCPDef(), b.Spec.MCP[i], ref.ID)

@@ -15,7 +15,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/bricks"
-	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
 // Rule ledger (modernisation P0.1): no normative rule an agent sees leaves
@@ -160,18 +159,16 @@ func promptSources(agent, body string) []ledgerSource {
 // the agent first, then the skills by ID, each in reading order.
 func agentLedgers(t *testing.T) map[string][]ledgerRule {
 	t.Helper()
-	hub, cat, env := shippedWorkflows(t)
+	_, cat, _ := shippedWorkflows(t)
 	type acc struct {
 		seen    map[ledgerRule]bool
 		sources map[string][]ledgerRule
 	}
+	warmRefs(t, "")
 	all := map[string]*acc{}
 	for _, ref := range cat.Refs() {
-		r, diags := workflow.Check(cat, ref, nil, env)
-		require.False(t, diags.HasErrors(), "%v", diags)
-		b, err := Build(Request{HubDir: hub, OutDir: t.TempDir(), Spec: r.Spec})
-		require.NoError(t, err)
-		reach := reachableSkills(t, hub, r.Spec, b, "")
+		_, b := shippedBuild(t, "", ref)
+		reach := shippedReach(t, "", ref)
 		for _, a := range b.Spec.Agents {
 			ac := all[a.ID]
 			if ac == nil {

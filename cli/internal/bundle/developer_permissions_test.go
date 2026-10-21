@@ -14,8 +14,7 @@ import (
 // system (pip outside a virtual environment, npm -g, gem install); A19: the
 // hooks stay in force.
 func TestDeveloperShellPermissions(t *testing.T) {
-	b, err := Build(Request{HubDir: repoHub(t), OutDir: t.TempDir(), Spec: agentSpec(t, repoHub(t), "developer"), Provider: "bedrock"})
-	require.NoError(t, err)
+	b := agentBuild(t, "developer", "bedrock")
 	var shell []sessionspec.PermissionRule
 	for _, a := range b.Spec.Agents {
 		if a.ID == "developer" {

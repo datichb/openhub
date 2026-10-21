@@ -15,14 +15,17 @@ import (
 // verifyProject is a Go module with a TypeScript front tested by Vitest.
 func verifyProject(t *testing.T) string {
 	t.Helper()
-	dir := t.TempDir()
-	for name, content := range map[string]string{
-		"go.mod":       "module example.com/x\n",
-		"package.json": `{"scripts":{"test":"vitest run"},"devDependencies":{"typescript":"6","vitest":"4"}}`,
-	} {
-		require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644))
-	}
-	return dir
+	return sharedProjectDir(t, "verify", func(dir string) error {
+		for name, content := range map[string]string{
+			"go.mod":       "module example.com/x\n",
+			"package.json": `{"scripts":{"test":"vitest run"},"devDependencies":{"typescript":"6","vitest":"4"}}`,
+		} {
+			if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 // shellOf returns the rules of an agent as the tool applies them: its own,
@@ -39,13 +42,9 @@ func shellOf(t *testing.T, b *Bundle, id string, locks []sessionspec.PermissionR
 // asked in the review of a merge request (risk: read); the other agents get
 // nothing, the guards and the locks still win.
 func TestReviewerVerifyCommands(t *testing.T) {
-	hub, cat, env := shippedWorkflows(t)
 	project := verifyProject(t)
 	build := func(id string) (*Bundle, *workflow.Spec) {
-		r, diags := workflow.Check(cat, workflow.Ref{Layer: workflow.LayerHub, ID: id}, nil, env)
-		require.False(t, diags.HasErrors(), "%v", diags)
-		b, err := Build(Request{HubDir: hub, OutDir: t.TempDir(), ProjectPath: project, Spec: r.Spec})
-		require.NoError(t, err)
+		r, b := shippedBuild(t, project, workflow.Ref{Layer: workflow.LayerHub, ID: id})
 		return b, r.Spec
 	}
 
@@ -85,7 +84,6 @@ func TestReviewerVerifyCommands(t *testing.T) {
 // read-only shell.
 func TestReviewerVerifyWithoutProject(t *testing.T) {
 	assert.Nil(t, VerifyRules(nil, workflow.RiskWrite))
-	b, err := Build(Request{HubDir: repoHub(t), OutDir: t.TempDir(), Spec: agentSpec(t, repoHub(t), "reviewer")})
-	require.NoError(t, err)
+	b := agentBuild(t, "reviewer", "")
 	assert.Equal(t, sessionspec.EffectDeny, ShellEffect(shellOf(t, b, "reviewer", nil), "go test ./..."))
 }

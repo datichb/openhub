@@ -16,11 +16,8 @@ import (
 // reviewed, commits after cp-2 only, and leaves the push and the MR replies
 // to the user.
 func TestReviewFeedbackWorkflow(t *testing.T) {
-	hub, cat, env := shippedWorkflows(t)
-	r, diags := workflow.Check(cat, workflow.Ref{Layer: workflow.LayerHub, ID: "review-feedback"}, nil, env)
-	require.False(t, diags.HasErrors(), "%v", diags)
-	b, err := Build(Request{HubDir: hub, OutDir: t.TempDir(), Spec: r.Spec})
-	require.NoError(t, err)
+	hub, _, _ := shippedWorkflows(t)
+	_, b := shippedBuild(t, "", workflow.Ref{Layer: workflow.LayerHub, ID: "review-feedback"})
 	assert.ElementsMatch(t, []string{"developer", "reviewer"}, b.Spec.SubagentGraph["orchestrator-dev"])
 	wf := b.Spec.Workflow
 	assert.Equal(t, []string{sessionspec.UnlockCommit}, LockedOps(wf, "semi-auto", nil), "commit locked until cp-2, no push")

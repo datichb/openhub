@@ -144,14 +144,12 @@ type catalogueCase struct {
 // the common-stack project.
 func shippedCatalogues(t *testing.T) (string, []catalogueCase) {
 	t.Helper()
-	hub, cat, env := shippedWorkflows(t)
+	hub, cat, _ := shippedWorkflows(t)
 	var out []catalogueCase
+	warmRefs(t, "", capProject(t))
 	for _, project := range []string{"", capProject(t)} {
 		for _, ref := range cat.Refs() {
-			r, diags := workflow.Check(cat, ref, nil, env)
-			require.False(t, diags.HasErrors(), "%v", diags)
-			b, err := Build(Request{HubDir: hub, OutDir: t.TempDir(), ProjectPath: project, Spec: r.Spec})
-			require.NoError(t, err)
+			r, b := shippedBuild(t, project, ref)
 			out = append(out, catalogueCase{project: project, ref: ref, spec: r.Spec, b: b})
 		}
 	}
@@ -291,7 +289,7 @@ func TestNoSpuriousCatalogue(t *testing.T) {
 		stackIDs[strings.TrimSuffix(filepath.Base(f), ".md")] = true
 	}
 	for _, c := range cases {
-		reach := reachableSkills(t, hub, c.spec, c.b, c.project)
+		reach := shippedReach(t, c.project, c.ref)
 		inSome := map[string]bool{}
 		for _, a := range c.b.Spec.Agents {
 			where := c.ref.ID + " " + a.ID

@@ -17,11 +17,7 @@ import (
 
 func shippedBundle(t *testing.T, id string) *Bundle {
 	t.Helper()
-	hub, cat, env := shippedWorkflows(t)
-	r, diags := workflow.Check(cat, workflow.Ref{Layer: workflow.LayerHub, ID: id}, nil, env)
-	require.False(t, diags.HasErrors(), "%v", diags)
-	b, err := Build(Request{HubDir: hub, OutDir: t.TempDir(), Spec: r.Spec})
-	require.NoError(t, err)
+	_, b := shippedBuild(t, "", workflow.Ref{Layer: workflow.LayerHub, ID: id})
 	return b
 }
 

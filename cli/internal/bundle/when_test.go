@@ -234,13 +234,10 @@ func TestNoQuestionInSubagentBlocks(t *testing.T) {
 // L3: an agent's own text has no block for a role it never has in the
 // shipped workflows (dead text).
 func TestNoDeadRoleBlocksInAgents(t *testing.T) {
-	hub, cat, env := shippedWorkflows(t)
+	_, cat, _ := shippedWorkflows(t)
 	roles := map[string]map[string]bool{}
 	for _, ref := range cat.Refs() {
-		r, diags := workflow.Check(cat, ref, nil, env)
-		require.False(t, diags.HasErrors(), "%v", diags)
-		b, err := Build(Request{HubDir: hub, OutDir: t.TempDir(), Spec: r.Spec})
-		require.NoError(t, err)
+		r, b := shippedBuild(t, "", ref)
 		selectable := r.Spec.Entry != nil && r.Spec.Entry.Selectable
 		for id, e := range bundleWhenEnvs(r.Spec, "", b.Spec) {
 			if roles[id] == nil {

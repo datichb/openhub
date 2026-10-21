@@ -16,7 +16,7 @@ import (
 // by the developer after cp-1 and before cp-2, cp-red verified by oh for a
 // test written first; a standard session has neither.
 func TestShippedTDD(t *testing.T) {
-	hub, cat, env := shippedWorkflows(t)
+	_, cat, env := shippedWorkflows(t)
 	for _, id := range []string{"ticket", "implement-spec"} {
 		r, diags := workflow.Check(cat, workflow.Ref{Layer: workflow.LayerHub, ID: id}, nil, env)
 		require.False(t, diags.HasErrors(), "%v", diags)
@@ -35,14 +35,13 @@ func TestShippedTDD(t *testing.T) {
 		assert.True(t, red.Verify.MustTouchTests, id)
 		assert.Equal(t, "cp-seams", red.Verify.Since, id)
 
-		b, err := Build(Request{HubDir: hub, OutDir: t.TempDir(), Spec: r.Spec, Method: workflow.MethodTDD})
-		require.NoError(t, err)
+		ref := workflow.Ref{Layer: workflow.LayerHub, ID: id}
+		_, b := shippedBuildWith(t, ref, shippedOpts{Method: workflow.MethodTDD})
 		seams, ok := b.Spec.Workflow.Checkpoint("cp-seams")
 		require.True(t, ok, id)
 		assert.Equal(t, []string{"developer"}, seams.By, id)
 		assert.True(t, seams.Base, id)
-		std, err := Build(Request{HubDir: hub, OutDir: t.TempDir(), Spec: r.Spec})
-		require.NoError(t, err)
+		_, std := shippedBuild(t, "", ref)
 		_, ok = std.Spec.Workflow.Checkpoint("cp-red")
 		assert.False(t, ok, "%s: no TDD checkpoint in a standard session", id)
 	}
@@ -91,10 +90,7 @@ func TestShippedSpecPassesMethodOn(t *testing.T) {
 // paths and the expression.
 func TestShippedWrittenOutputs(t *testing.T) {
 	hub, cat, env := shippedWorkflows(t)
-	r, diags := workflow.Check(cat, workflow.Ref{Layer: workflow.LayerHub, ID: "spike"}, nil, env)
-	require.False(t, diags.HasErrors(), "%v", diags)
-	b, err := Build(Request{HubDir: hub, OutDir: t.TempDir(), Spec: r.Spec})
-	require.NoError(t, err)
+	r, b := shippedBuild(t, "", workflow.Ref{Layer: workflow.LayerHub, ID: "spike"})
 	var verdict sessionspec.OutputDef
 	for _, o := range b.Spec.Workflow.Outputs {
 		if o.ID == "verdict" {
@@ -115,7 +111,7 @@ func TestShippedWrittenOutputs(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, string(src), "**Décision : go | clarify | kill**", "the line the verdict is read from")
 
-	r, diags = workflow.Check(cat, workflow.Ref{Layer: workflow.LayerHub, ID: "incident"}, nil, env)
+	r, diags := workflow.Check(cat, workflow.Ref{Layer: workflow.LayerHub, ID: "incident"}, nil, env)
 	require.False(t, diags.HasErrors(), "%v", diags)
 	pm, ok := r.Spec.Output("postmortem")
 	require.True(t, ok)

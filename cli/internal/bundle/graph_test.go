@@ -73,8 +73,7 @@ agents:
 	assert.Equal(t, []string{"reviewer"}, b.Spec.SubagentGraph["reviewer"])
 	assert.Equal(t, 1, b.Spec.MaxDepth)
 
-	b, err = Build(Request{HubDir: repoHub(t), OutDir: t.TempDir(), Spec: agentSpec(t, repoHub(t), "reviewer")})
-	require.NoError(t, err)
+	b = agentBuild(t, "reviewer", "")
 	assert.Empty(t, b.Spec.SubagentGraph["reviewer"], "no self-delegation derived")
 }
 

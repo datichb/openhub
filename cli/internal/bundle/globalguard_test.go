@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
@@ -16,8 +15,7 @@ import (
 // its own rules, then the guard of the bundle (last).
 func effectiveRules(t *testing.T, entry, agent string) []sessionspec.PermissionRule {
 	t.Helper()
-	b, err := Build(Request{HubDir: repoHub(t), OutDir: t.TempDir(), Spec: agentSpec(t, repoHub(t), entry), Provider: "bedrock"})
-	require.NoError(t, err)
+	b := agentBuild(t, entry, "bedrock")
 	for _, a := range b.Spec.Agents {
 		if a.ID == agent {
 			return append(append([]sessionspec.PermissionRule(nil), a.Permissions...), b.Spec.AgentGuard...)

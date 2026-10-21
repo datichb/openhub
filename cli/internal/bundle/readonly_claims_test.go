@@ -45,8 +45,7 @@ func TestReadOnlyClaimsMatchPermissions(t *testing.T) {
 			continue
 		}
 		claimed = append(claimed, id)
-		b, err := Build(Request{HubDir: hub, OutDir: t.TempDir(), Spec: agentSpec(t, hub, id), Provider: "bedrock"})
-		require.NoError(t, err)
+		b := agentBuild(t, id, "bedrock")
 		var own []sessionspec.PermissionRule
 		for _, a := range b.Spec.Agents {
 			if a.ID == id {
