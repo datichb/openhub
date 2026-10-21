@@ -7,6 +7,7 @@ import (
 )
 
 func TestResolveAgentModel(t *testing.T) {
+	t.Parallel()
 	projectOverrides := &ModelOverrides{
 		Default:  "claude-sonnet-4-5",
 		Families: map[string]string{"quality": "claude-opus-4"},
@@ -76,6 +77,7 @@ func TestResolveAgentModel(t *testing.T) {
 }
 
 func TestNormalizeModelForProvider(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		model    string
@@ -122,6 +124,7 @@ func TestNormalizeModelForProvider(t *testing.T) {
 }
 
 func TestExtractShortModelName(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		input    string
 		expected string

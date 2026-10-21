@@ -11,6 +11,7 @@ import (
 )
 
 func TestDeepMerge(t *testing.T) {
+	t.Parallel()
 	type perms = map[string]interface{}
 	tests := []struct {
 		name string
@@ -51,6 +52,7 @@ func TestDeepMerge(t *testing.T) {
 }
 
 func TestResolvePermissions_NoBase(t *testing.T) {
+	t.Parallel()
 	fm := &AgentFrontmatter{
 		Permission: map[string]interface{}{
 			"read": "allow",
@@ -62,6 +64,7 @@ func TestResolvePermissions_NoBase(t *testing.T) {
 }
 
 func TestResolvePermissions_WithBase(t *testing.T) {
+	t.Parallel()
 	// Create a temp dir with a permissions file
 	tmpDir := t.TempDir()
 	permDir := filepath.Join(tmpDir, "permissions")
@@ -89,6 +92,7 @@ bash:
 }
 
 func TestResolvePermissions_WithBaseAndOverrides(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	permDir := filepath.Join(tmpDir, "permissions")
 	require.NoError(t, os.MkdirAll(permDir, 0o755))
@@ -138,6 +142,7 @@ task:
 }
 
 func TestResolvePermissions_BaseNotFound(t *testing.T) {
+	t.Parallel()
 	fm := &AgentFrontmatter{
 		PermissionBase: "nonexistent-base",
 	}

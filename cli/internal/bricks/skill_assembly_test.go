@@ -7,6 +7,7 @@ import (
 )
 
 func TestResolveSkillPath_HubFound(t *testing.T) {
+	t.Parallel()
 	tmp := t.TempDir()
 	skillsDir := filepath.Join(tmp, "skills", "shared")
 	_ = os.MkdirAll(skillsDir, 0o755)
@@ -24,6 +25,7 @@ func TestResolveSkillPath_HubFound(t *testing.T) {
 }
 
 func TestResolveSkillPath_Missing(t *testing.T) {
+	t.Parallel()
 	tmp := t.TempDir()
 	skillsDir := filepath.Join(tmp, "skills")
 	_ = os.MkdirAll(skillsDir, 0o755)

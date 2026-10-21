@@ -7,6 +7,7 @@ import (
 )
 
 func TestOrchestratorDocumentarianPerm(t *testing.T) {
+	t.Parallel()
 	fm, err := ParseAgentFrontmatter(filepath.Join("testdata", "orchestrator.md"))
 	if err != nil {
 		t.Fatal(err)

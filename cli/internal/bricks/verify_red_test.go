@@ -10,6 +10,7 @@ import (
 // R7: the test files of a stack and the reason a test written first fails.
 
 func TestTestFilePatterns(t *testing.T) {
+	t.Parallel()
 	g := TestFilePatterns(Signals{"golang": {"."}})
 	assert.Contains(t, g, "*_test.go")
 	assert.Contains(t, g, "**/tests/**", "usual test folders")
@@ -28,6 +29,7 @@ func TestTestFilePatterns(t *testing.T) {
 }
 
 func TestRedFailure(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name string
 		args []string

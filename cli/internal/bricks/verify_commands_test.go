@@ -10,6 +10,7 @@ import (
 // C1.6: the reviewer runs the build, tests, lint and type check of the
 // detected stack, never an install or a publish.
 func TestVerifyCommands(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name   string
 		files  map[string]string
@@ -50,6 +51,7 @@ func TestVerifyCommands(t *testing.T) {
 }
 
 func TestVerifyCommandsNeverInstall(t *testing.T) {
+	t.Parallel()
 	all := Signals{}
 	for _, s := range []string{"javascript", "typescript", "npm", "pnpm", "yarn", "bun", "golang", "python", "uv", "poetry", "pip", "rust", "cargo", "maven", "gradle", "make"} {
 		all.add(s, ".")
@@ -65,6 +67,7 @@ func TestVerifyCommandsNeverInstall(t *testing.T) {
 // R3: the concrete commands oh runs at a checkpoint, by kind; each one is
 // allowed by VerifyCommands (never an install).
 func TestVerifyRuns(t *testing.T) {
+	t.Parallel()
 	all := []string{"build", "test", "lint", "typecheck"}
 	cases := []struct {
 		name  string
