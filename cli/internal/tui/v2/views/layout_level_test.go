@@ -7,6 +7,7 @@ import (
 )
 
 func TestLevelFor(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		cols, rows int
 		pref       string
@@ -30,6 +31,7 @@ func TestLevelFor(t *testing.T) {
 
 // The narrow landing is min(72, width) wide (N20).
 func TestContentWidthFor(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, 72, contentWidthFor(layoutNarrow, 80))
 	assert.Equal(t, 64, contentWidthFor(layoutNarrow, 64))
 	assert.Equal(t, 90, contentWidthFor(layoutWide, 120))

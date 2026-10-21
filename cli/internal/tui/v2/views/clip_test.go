@@ -9,6 +9,7 @@ import (
 // Texts are cut in characters, never in the middle of one, and never panic
 // whatever the limit.
 func TestClipping(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name  string
 		in    string

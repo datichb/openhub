@@ -7,6 +7,7 @@ import (
 )
 
 func TestSettingsRemoteFields(t *testing.T) {
+	t.Parallel()
 	v := &SettingsView{live: &config.Config{}}
 	f := v.remoteFields()
 	if len(f) != 2 || f[0].Kind != CfgFieldSectionHeader || f[1].Kind != CfgFieldPlaceholder {

@@ -64,6 +64,7 @@ func rowIDs(m *beadsPickerModel) []string {
 }
 
 func TestBeadsPickerModelGroupsAndFilters(t *testing.T) {
+	t.Parallel()
 	m := newBeadsPickerModel(sampleBeads().tickets, "ai-delegated", "", nil)
 	assert.Equal(t, []string{"#E-12", "bd-42", "bd-43", "#E-15", "bd-51"}, rowIDs(m), "grouped by epic, priority order, closed and other labels hidden")
 	assert.Equal(t, "bd-42", m.current().ID)
@@ -91,6 +92,7 @@ func TestBeadsPickerModelGroupsAndFilters(t *testing.T) {
 }
 
 func TestBeadsPickerModelSearchAndCursor(t *testing.T) {
+	t.Parallel()
 	m := newBeadsPickerModel(sampleBeads().tickets, "", "", nil)
 	m.setQuery("EXPORT csv")
 	assert.Equal(t, []string{"#E-12", "bd-42"}, rowIDs(m), "every word must match (id, title, labels)")
@@ -114,6 +116,7 @@ func TestBeadsPickerModelSearchAndCursor(t *testing.T) {
 }
 
 func TestBeadsPickerModelSelection(t *testing.T) {
+	t.Parallel()
 	m := newBeadsPickerModel(sampleBeads().tickets, "", "", []string{"bd-51", "ghost", "bd-51"})
 	assert.Equal(t, []string{"bd-51"}, m.selected, "unknown and duplicate preselections dropped")
 	assert.Equal(t, []string{"bd-42"}, m.result(false), "single: current ticket")
@@ -126,6 +129,7 @@ func TestBeadsPickerModelSelection(t *testing.T) {
 }
 
 func TestBeadsPickerConfigApplyInput(t *testing.T) {
+	t.Parallel()
 	var c BeadsPickerConfig
 	c.ApplyInput(workflow.Input{Type: workflow.InputBeadsID, Picker: &workflow.Picker{Filter: "ai-delegated", Epic: "E-12"}})
 	assert.Equal(t, BeadsPickerConfig{Filter: "ai-delegated", Epic: "E-12"}, c)
@@ -138,6 +142,7 @@ func TestBeadsPickerConfigApplyInput(t *testing.T) {
 }
 
 func TestAcceptanceCount(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, 0, acceptanceCount(""))
 	assert.Equal(t, 1, acceptanceCount("Doit marcher."))
 	assert.Equal(t, 3, acceptanceCount("- a\n* b\n1. c\ntexte"))
@@ -220,6 +225,7 @@ func TestBeadsPickerRendersGroupsClaimsAndPreview(t *testing.T) {
 }
 
 func TestBeadsPickerPreviewLint(t *testing.T) {
+	t.Parallel()
 	src := sampleBeads()
 	src.details["bd-42"].Missing = []string{"## Acceptance Criteria"}
 	p := NewBeadsPicker(context.Background(), nil, BeadsPickerConfig{Source: src, Filter: "ai-delegated"})
@@ -230,6 +236,7 @@ func TestBeadsPickerPreviewLint(t *testing.T) {
 }
 
 func TestBeadsPickerKeysSingle(t *testing.T) {
+	t.Parallel()
 	var done []string
 	canceled := false
 	p := NewBeadsPicker(context.Background(), nil, BeadsPickerConfig{
@@ -302,6 +309,7 @@ func TestBeadsPickerStates(t *testing.T) {
 
 // The list scrolls to keep the cursor visible on a small screen.
 func TestBeadsPickerScrolls(t *testing.T) {
+	t.Parallel()
 	var ts []beads.Ticket
 	for i := 0; i < 40; i++ {
 		ts = append(ts, beads.Ticket{ID: "t-" + string(rune('a'+i/26)) + string(rune('a'+i%26)), Title: "x", Status: "open"})
@@ -317,6 +325,7 @@ func TestBeadsPickerScrolls(t *testing.T) {
 // With an application, tickets and previews load in the background and are
 // applied on the event loop.
 func TestBeadsPickerAsyncLoad(t *testing.T) {
+	t.Parallel()
 	sc := tcell.NewSimulationScreen("UTF-8")
 	require.NoError(t, sc.Init())
 	sc.SetSize(100, 20)

@@ -250,6 +250,7 @@ func TestPublishViewPublishesOnce(t *testing.T) {
 }
 
 func TestPublishViewInvalidAndQueued(t *testing.T) {
+	t.Parallel()
 	v := NewPublishView(PublishViewConfig{Ref: "team:x", Publish: func(context.Context, string) (*PublishResult, error) {
 		return &PublishResult{Queued: true}, nil
 	}})

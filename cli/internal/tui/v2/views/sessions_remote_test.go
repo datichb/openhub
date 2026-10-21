@@ -78,6 +78,7 @@ func remoteRows() []SessionRow {
 }
 
 func TestRemoteSection(t *testing.T) {
+	t.Parallel()
 	rest, fetch := splitRemote(remoteRows())
 	require.Len(t, fetch, 1)
 	assert.Equal(t, "ses_r1", fetch[0].ID)

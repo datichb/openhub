@@ -10,6 +10,7 @@ import (
 )
 
 func TestProjectsViewScopedToTeamInTeamMode(t *testing.T) {
+	t.Parallel()
 	v := NewProjectsView(ProjectsViewConfig{})
 	all := []ProjectItem{{ID: "a", TeamID: "t1"}, {ID: "b"}, {ID: "c", TeamID: "t2"}}
 	v.SetShell(&mockShell{})
@@ -22,6 +23,7 @@ func TestProjectsViewScopedToTeamInTeamMode(t *testing.T) {
 }
 
 func TestMetricsScopeFollowsMode(t *testing.T) {
+	t.Parallel()
 	v := NewMetricsView(MetricsViewConfig{TeamProjects: func(id string) []ActiveProject {
 		return []ActiveProject{{ID: "p1", Path: "/p1"}, {ID: "p2", Path: "/p2"}}
 	}})
@@ -37,6 +39,7 @@ func TestMetricsScopeFollowsMode(t *testing.T) {
 }
 
 func TestMergeAgentMetrics(t *testing.T) {
+	t.Parallel()
 	got := mergeAgentMetrics(
 		[]domain.AgentMetrics{{AgentName: "dev", TotalRuns: 2, SuccessCount: 2, AvgDurationSec: 10, TotalCostUSD: 1}},
 		[]domain.AgentMetrics{{AgentName: "dev", TotalRuns: 2, SuccessCount: 0, FailureCount: 2, AvgDurationSec: 20, TotalCostUSD: 2},
@@ -51,6 +54,7 @@ func TestMergeAgentMetrics(t *testing.T) {
 }
 
 func TestAddStats(t *testing.T) {
+	t.Parallel()
 	a := &platform.AggregateStats{TotalSessions: 1, TotalCost: 1}
 	addStats(a, &platform.AggregateStats{TotalSessions: 2, TotalCost: 0.5, ActiveProjects: 1})
 	assert.Equal(t, 3, a.TotalSessions)

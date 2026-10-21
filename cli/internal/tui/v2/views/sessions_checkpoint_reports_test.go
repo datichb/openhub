@@ -70,6 +70,7 @@ func TestCheckpointCardReports(t *testing.T) {
 }
 
 func TestCheckpointCardWithoutReader(t *testing.T) {
+	t.Parallel()
 	v := NewSessionsView(SessionsViewConfig{Backend: &cardSessions{}})
 	assert.Nil(t, v.reportActions("ses_a", "d", []CheckpointReport{{ID: "rp-1"}}), "listed only")
 	body := checkpointBody(CheckpointCardView{Reports: []CheckpointReport{{ID: "rp-1", Bytes: 10}}})
@@ -78,6 +79,7 @@ func TestCheckpointCardWithoutReader(t *testing.T) {
 
 // Order on the card: verification, evidence, then reports.
 func TestCheckpointCardOrderVerifyEvidenceReports(t *testing.T) {
+	t.Parallel()
 	body := checkpointBody(CheckpointCardView{
 		Verify:  CheckpointVerifyView{Status: verifyPass, Summary: "go test ./... ok", Evidence: []CheckpointEvidenceView{{Cmd: "go test ./...", Observed: true}}},
 		Reports: []CheckpointReport{{ID: "rp-1", Agent: "reviewer", Title: "Review"}},

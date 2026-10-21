@@ -149,6 +149,7 @@ func (e *editorEnv) selectField(t *testing.T, label string) {
 }
 
 func TestEditorModelUndoRedo(t *testing.T) {
+	t.Parallel()
 	m := newEditorModel([]byte(editorDoc), nil, false)
 	assert.False(t, m.dirty())
 	require.NoError(t, m.edit(func(e *workflow.DocEdit) error { return e.Set("read", "risk") }))

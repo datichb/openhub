@@ -58,6 +58,7 @@ func TestProviderViewRegionCheckedAsTyped(t *testing.T) {
 }
 
 func TestValidationText(t *testing.T) {
+	t.Parallel()
 	assert.Empty(t, ValidationText("", true))
 	assert.Contains(t, ValidationText("bad [x]", true), "✗ bad")
 	assert.Contains(t, ValidationText("hmm", false), "⚠ hmm")

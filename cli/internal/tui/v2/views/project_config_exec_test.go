@@ -10,6 +10,7 @@ import (
 )
 
 func TestParseBuildArgs(t *testing.T) {
+	t.Parallel()
 	m, err := ParseBuildArgs(" NODE=22 , PY_VER=3.12,EMPTY=")
 	require.NoError(t, err)
 	assert.Equal(t, map[string]string{"NODE": "22", "PY_VER": "3.12", "EMPTY": ""}, m)
@@ -25,6 +26,7 @@ func TestParseBuildArgs(t *testing.T) {
 }
 
 func TestParseVolumes(t *testing.T) {
+	t.Parallel()
 	l, err := ParseVolumes("node_modules, /root/.cache ,node_modules/, ./vendor")
 	require.NoError(t, err)
 	assert.Equal(t, []string{"node_modules", "/root/.cache", "vendor"}, l)
@@ -46,6 +48,7 @@ func execField(t *testing.T, v *ProjectConfigView, key string) *configField {
 }
 
 func TestProjectConfigExecSection(t *testing.T) {
+	t.Parallel()
 	v := NewProjectConfigView(ProjectConfigViewConfig{WorkflowIDs: func() []string { return []string{"ticket", "review"} }})
 	v.live = &domain.Project{ID: "p", Path: "/src/p"}
 	v.execHints = ProjectExecHints{DetectedDockerfile: "Dockerfile.dev"}
@@ -98,6 +101,7 @@ func TestProjectConfigExecSection(t *testing.T) {
 }
 
 func TestStartSectionDefaultFirst(t *testing.T) {
+	t.Parallel()
 	cfg := StartSectionConfig{Entries: func(StartScope) StartEntries {
 		return StartEntries{Loaded: true, Total: 2, Default: &StartEntry{ID: "ticket"},
 			Pinned: []StartEntry{{ID: "review", Pinned: true}}}

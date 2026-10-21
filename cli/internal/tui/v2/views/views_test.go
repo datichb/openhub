@@ -271,6 +271,7 @@ func TestProjectsView_NoRefreshFunc_UsesStaticProjects(t *testing.T) {
 // A40: the view shows exactly the checks of `oh doctor` (warnings counted as
 // passed), not a subset of its own.
 func TestDoctorView_ShowsDoctorRegistry(t *testing.T) {
+	t.Parallel()
 	v := NewDoctorView(nil)
 	v.run = func() []DoctorCheck {
 		return []DoctorCheck{
@@ -296,6 +297,7 @@ func TestDoctorView_ShowsDoctorRegistry(t *testing.T) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 func TestHomeView_SplitItems_DualColumn(t *testing.T) {
+	t.Parallel()
 	v := NewHomeView(HomeViewConfig{
 		ListTeams: func() []TeamEntry {
 			return []TeamEntry{
@@ -326,6 +328,7 @@ func TestHomeView_SplitItems_DualColumn(t *testing.T) {
 }
 
 func TestHomeView_SingleProjectsSection_AddLast(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		name     string
 		projects []ProjectEntry
@@ -354,6 +357,7 @@ func TestHomeView_SingleProjectsSection_AddLast(t *testing.T) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 func TestProjectModeView_SplitItems(t *testing.T) {
+	t.Parallel()
 	v := NewProjectModeView(ProjectModeConfig{
 		Start: StartSectionConfig{Entries: func(StartScope) StartEntries { return StartEntries{Loaded: true} }},
 	})
@@ -379,6 +383,7 @@ func TestProjectModeView_SplitItems(t *testing.T) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 func TestTeamModeView_SplitItems(t *testing.T) {
+	t.Parallel()
 	v := NewTeamModeView(TeamModeConfig{
 		Start: StartSectionConfig{Entries: func(StartScope) StartEntries { return StartEntries{Loaded: true} }},
 	})
@@ -404,6 +409,7 @@ func TestTeamModeView_SplitItems(t *testing.T) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 func TestSectionedList_GotoFirstLast(t *testing.T) {
+	t.Parallel()
 	sl := widgets.NewSectionedList()
 	sl.SetItems([]widgets.SectionItem{
 		{MainText: "Section A", IsHeader: true},

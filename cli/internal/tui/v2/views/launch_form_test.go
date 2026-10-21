@@ -49,6 +49,7 @@ func launchCfg(t *testing.T) LaunchFormConfig {
 }
 
 func TestLaunchModelDefaultsAndValidation(t *testing.T) {
+	t.Parallel()
 	m := newLaunchModel(launchCfg(t))
 	assert.Equal(t, "ticket", m.ticketInput)
 	assert.True(t, m.perSession)
@@ -70,6 +71,7 @@ func TestLaunchModelDefaultsAndValidation(t *testing.T) {
 }
 
 func TestLaunchModelPrefill(t *testing.T) {
+	t.Parallel()
 	cfg := launchCfg(t)
 	cfg.Prefill = map[string]string{"ticket": "bd-7, bd-8", "branch": "feat/x"}
 	m := newLaunchModel(cfg)
@@ -134,7 +136,6 @@ func TestLaunchFormFlow(t *testing.T) {
 		mu.Lock()
 		launched = append(launched, c)
 		mu.Unlock()
-		time.Sleep(50 * time.Millisecond)
 		return nil
 	}
 	v := NewLaunchFormView(cfg)
@@ -242,6 +243,7 @@ func TestLaunchFormBlocksMissingInputs(t *testing.T) {
 }
 
 func TestLaunchFormOpensAtOptions(t *testing.T) {
+	t.Parallel()
 	cfg := launchCfg(t)
 	cfg.AtOptions, cfg.Tickets = true, []string{"bd-4"}
 	v := NewLaunchFormView(cfg)
@@ -284,6 +286,7 @@ func TestLaunchFormEscOnOptionsCloses(t *testing.T) {
 }
 
 func TestStartSection(t *testing.T) {
+	t.Parallel()
 	var launched, pinned string
 	cfg := StartSectionConfig{
 		Entries: func(StartScope) StartEntries {
@@ -323,6 +326,7 @@ func TestStartSection(t *testing.T) {
 }
 
 func TestBoardQuickActions(t *testing.T) {
+	t.Parallel()
 	var launched string
 	qa := &BoardQuickActions{
 		Workflows: func() []TicketWorkflow {
@@ -371,6 +375,7 @@ func TestWorkflowCatalogView(t *testing.T) {
 }
 
 func TestLaunchModelOneSession(t *testing.T) {
+	t.Parallel()
 	m := newLaunchModel(launchCfg(t))
 	m.tickets = []string{"bd-1", "bd-2"}
 	assert.NotEmpty(t, m.sessionsLine())
@@ -419,6 +424,7 @@ func TestLaunchFormSuggestionRunsFirst(t *testing.T) {
 }
 
 func TestSessionsDetailShowsNext(t *testing.T) {
+	t.Parallel()
 	v := &SessionsView{detail: tview.NewTextView()}
 	v.renderDetail(&SessionRow{ID: "ses_1", Workflow: "ticket", Next: "review"})
 	assert.Contains(t, v.detail.GetText(true), i18n.Tf("tui.launch.chain_next", "review"))

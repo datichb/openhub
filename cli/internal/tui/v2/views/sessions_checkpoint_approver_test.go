@@ -75,6 +75,7 @@ func TestCheckpointApproverCard(t *testing.T) {
 }
 
 func TestBatchLabelApprover(t *testing.T) {
+	t.Parallel()
 	v := NewSessionsView(SessionsViewConfig{Backend: &fakeSessions{}})
 	long := BatchDecision{ID: "d", SessionID: "ses_x", Checkpoint: "cp-2", Summary: "un résumé assez long pour remplir toute la ligne de la décision du lot, et plus encore",
 		Approver: "Grace Hopper", Identity: "Ada", ApproverMismatch: true}

@@ -96,39 +96,42 @@ func TestDecisionSettledElsewhereClosesItsWindow(t *testing.T) {
 	}
 	onLoop(func() { v.Mount(content, app); v.rows = permissionRows(); v.render() })
 
+	// reload makes the backend answer rows and waits until the view applied
+	// them (the same slice, not just equal rows), with its reaction to the
+	// decisions that are gone.
+	reload := func(rows []SessionRow) {
+		be.mu.Lock()
+		be.rows = rows
+		be.mu.Unlock()
+		onLoop(func() { v.reload() })
+		require.Eventually(t, func() bool {
+			applied := false
+			onLoop(func() { applied = len(v.rows) == len(rows) && (len(rows) == 0 || &v.rows[0] == &rows[0]) })
+			return applied
+		}, 3*time.Second, time.Millisecond, "the reload applied")
+	}
+
 	// Still open after a reload: the window stays.
 	open()
-	onLoop(func() { v.reload() })
-	time.Sleep(100 * time.Millisecond)
+	reload(permissionRows())
 	closed, _ := sh.state()
 	assert.Zero(t, closed)
 
 	// Answered in the tool interface: gone from the list → window closed.
-	be.mu.Lock()
-	be.rows = []SessionRow{{ID: "ses_a", Project: "openhub", Agent: "developer", State: "active", Started: time.Now()}}
-	be.mu.Unlock()
-	onLoop(func() { v.reload() })
+	reload([]SessionRow{{ID: "ses_a", Project: "openhub", Agent: "developer", State: "active", Started: time.Now()}})
 	require.Eventually(t, func() bool { c, ts := sh.state(); return c == 1 && ts != "" }, 3*time.Second, 20*time.Millisecond)
 	_, toasts := sh.state()
 	assert.Contains(t, toasts, "elsewhere")
 
 	// Answered here: no "settled elsewhere".
-	be.mu.Lock()
-	be.rows = permissionRows()
-	be.mu.Unlock()
-	onLoop(func() { v.reload() })
-	time.Sleep(100 * time.Millisecond)
+	reload(permissionRows())
 	open()
 	sh.mu.Lock()
 	form := sh.form
 	sh.mu.Unlock()
 	form.OnSubmit(map[string]string{"decision": "once"}, nil)
 	require.Eventually(t, func() bool { return len(be.decisions()) == 1 }, 3*time.Second, 20*time.Millisecond)
-	be.mu.Lock()
-	be.rows = nil
-	be.mu.Unlock()
-	onLoop(func() { v.reload() })
-	time.Sleep(150 * time.Millisecond)
+	reload(nil)
 	closed, toasts = sh.state()
 	assert.Equal(t, 1, closed)
 	assert.Equal(t, 1, strings.Count(toasts, "elsewhere"))

@@ -62,6 +62,7 @@ func selectService(t *testing.T, v *MCPView, name string) {
 // S-31: the MCP view warns about a URL the team imposes that is not
 // approved, and pins it after a confirmation.
 func TestMCPViewPinsTheURLOfTheTeamAfterConfirmation(t *testing.T) {
+	t.Parallel()
 	v, cfg, sh, saves := newTrustView(t, map[string]*MCPEnforcedURL{
 		"jira": {URL: "https://jira.corp.example.com", Warning: "not approved: oh mcp trust jira"},
 	})
@@ -99,6 +100,7 @@ func TestMCPViewPinsTheURLOfTheTeamAfterConfirmation(t *testing.T) {
 }
 
 func TestMCPViewTrustWithNothingToTrust(t *testing.T) {
+	t.Parallel()
 	v, cfg, sh, saves := newTrustView(t, map[string]*MCPEnforcedURL{
 		"jira": {Warning: "refused: https is required"}, // cannot be pinned
 	})
@@ -117,6 +119,7 @@ func TestMCPViewTrustWithNothingToTrust(t *testing.T) {
 }
 
 func TestMCPViewWithoutTeamURLs(t *testing.T) {
+	t.Parallel()
 	v, _, _, _ := newTrustView(t, nil)
 	for _, s := range v.services {
 		assert.Nil(t, s.Enforced, s.Name)
@@ -142,6 +145,7 @@ func (s *memSecrets) List(context.Context) ([]string, error)          { return n
 // The token typed in the MCP view is stored under the current key name, and
 // the view still finds a token that only exists under the legacy name.
 func TestMCPViewStoresTheTokenUnderTheCurrentKeyName(t *testing.T) {
+	t.Parallel()
 	store := &memSecrets{m: map[string]string{}}
 	cfg := &config.Config{}
 	v := NewMCPView(&app.App{Secrets: store}, MCPViewConfig{
