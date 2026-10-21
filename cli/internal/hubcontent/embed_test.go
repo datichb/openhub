@@ -167,14 +167,21 @@ func TestExtract_FilesAreReadable(t *testing.T) {
 	}
 }
 
-func TestHubContentDir_ReturnsNonEmpty(t *testing.T) {
-	dir := HubContentDir()
-	if dir == "" {
-		t.Fatal("HubContentDir() returned empty string")
+// The hub lives in OH_HOME when it is set (a relocated hub), else in ~/.oh.
+func TestHubContentDir(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+
+	t.Setenv("OH_HOME", "")
+	if got, want := HubContentDir(), filepath.Join(home, ".oh", "hub"); got != want {
+		t.Errorf("HubContentDir() = %q, want %q", got, want)
 	}
-	// Should end with .oh/hub
-	if filepath.Base(dir) != "hub" {
-		t.Errorf("HubContentDir() = %q, expected to end with 'hub'", dir)
+
+	relocated := t.TempDir()
+	t.Setenv("OH_HOME", relocated)
+	if got, want := HubContentDir(), filepath.Join(relocated, "hub"); got != want {
+		t.Errorf("HubContentDir() with OH_HOME = %q, want %q", got, want)
 	}
 }
 

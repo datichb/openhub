@@ -4,24 +4,22 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestNewCLIUI(t *testing.T) {
-	ui := NewCLIUI(nil)
-	assert.Nil(t, ui.SuspendAndExec(), "CLI UI should have nil SuspendAndExec")
-}
+func TestLaunchUISuspend(t *testing.T) {
+	cli := NewCLIUI(nil)
+	assert.Nil(t, cli.SuspendAndExec(), "the CLI UI does not suspend anything")
 
-func TestNewTUIUI(t *testing.T) {
 	called := false
 	suspendFn := func(fn func() error) error {
 		called = true
 		return fn()
 	}
-	ui := NewTUIUI(suspendFn, nil)
-	assert.NotNil(t, ui.SuspendAndExec(), "TUI UI should have non-nil SuspendAndExec")
+	tui := NewTUIUI(suspendFn, nil)
+	require.NotNil(t, tui.SuspendAndExec(), "the TUI UI suspends through its function")
 
-	// Execute through the suspend
-	err := ui.SuspendAndExec()(func() error { return nil })
+	err := tui.SuspendAndExec()(func() error { return nil })
 	assert.NoError(t, err)
-	assert.True(t, called)
+	assert.True(t, called, "the command runs through the suspend function")
 }
