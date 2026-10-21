@@ -104,7 +104,13 @@ func TestWatchdog(t *testing.T) {
 		real := t.TempDir()
 		require.NoError(t, os.WriteFile(filepath.Join(real, "hub.toml"), []byte("witness"), 0o600))
 		c := exec.Command(os.Args[0], "-test.run=^TestHelperIsolate$", "-test.count=1")
-		c.Env = []string{"PATH=" + os.Getenv("PATH"), "HOME=" + t.TempDir(), "OH_HOME=" + real, "OH_TEST_ROOT=/x",
+		home := t.TempDir()
+		// The Go tool variables are set so that Isolate does not run `go env`
+		// in the helper: the go command leaves a detached process writing its
+		// telemetry under HOME, which races with the removal of the folder.
+		c.Env = []string{"PATH=" + os.Getenv("PATH"), "HOME=" + home, "OH_HOME=" + real, "OH_TEST_ROOT=/x",
+			"GOCACHE=" + filepath.Join(home, "gocache"), "GOMODCACHE=" + filepath.Join(home, "gomod"),
+			"GOPATH=" + filepath.Join(home, "gopath"), "GOENV=off",
 			"TESTENV_HELPER_REAL=" + real}
 		if write {
 			c.Env = append(c.Env, "TESTENV_HELPER_WRITE=1")

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -128,7 +129,18 @@ func TestParallelScheduling(t *testing.T) {
 	assert.Equal(t, 3, maxSeen)
 	require.Len(t, rep.Passes, 8)
 	assert.Contains(t, logs, "8 passes, 3 at a time")
-	assert.Contains(t, logs[len(logs)-1], "[8/8] ")
+	// The counter is the rank of the end of the pass, taken before the
+	// line is written: the lines of concurrent passes arrive in any order.
+	for n := 1; n <= 8; n++ {
+		prefix := fmt.Sprintf("[%d/8] ", n)
+		found := 0
+		for _, l := range logs {
+			if strings.HasPrefix(l, prefix) {
+				found++
+			}
+		}
+		assert.Equal(t, 1, found, "one line starts with %q", prefix)
+	}
 
 	// More workers than passes, and a cancelled run starts nothing.
 	r.Parallel = 50
