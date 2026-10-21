@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/testutil/golden"
 )
 
 type noticeShell struct {
@@ -37,7 +38,7 @@ func TestKeysNotice(t *testing.T) {
 	} {
 		assert.Contains(t, text, want)
 	}
-	assertGolden(t, "keys_notice", text)
+	golden.Assert(t, "keys_notice", text)
 
 	sh := &noticeShell{}
 	closed := false

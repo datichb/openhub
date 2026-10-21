@@ -8,6 +8,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/testutil/golden"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
@@ -195,5 +196,5 @@ func TestSettingsExecSectionRender(t *testing.T) {
 	}
 	require.NotEmpty(t, items)
 	list.SetItems(items)
-	assertGolden(t, "settings_exec_section", screenText(t, list, 120, 16))
+	golden.Assert(t, "settings_exec_section", screenText(t, list, 120, 16))
 }

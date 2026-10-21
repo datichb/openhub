@@ -8,6 +8,8 @@ import (
 	"github.com/rivo/tview"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/datichb/openhub/cli/internal/testutil/golden"
 )
 
 func testBrickRows() []BrickRow {
@@ -52,7 +54,7 @@ func TestBricksViewGolden(t *testing.T) {
 	v := mountedBricks(t)
 	assert.Equal(t, "project.agents", v.ID(), "replaces the former agent selection view")
 	require.True(t, v.list.Select("skill:review/review-protocol"))
-	assertGolden(t, "bricks_view", screenText(t, v.list.Primitive(), 120, 20))
+	golden.Assert(t, "bricks_view", screenText(t, v.list.Primitive(), 120, 20))
 	require.NoError(t, v.list.cfg.Validate())
 }
 

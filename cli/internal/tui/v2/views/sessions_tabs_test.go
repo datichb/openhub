@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/testutil/golden"
 )
 
 // tabSessions is a backend with the tabs of the detail: `next:` steps,
@@ -178,7 +179,7 @@ func TestSessionsDetailTabs(t *testing.T) {
 		for _, want := range []string{"Sorties relevées par oh", "tickets  oh-12,oh-13,oh-14", "Suites proposées (next:)", "review — Revue  branch=feat/auth", "Enchaîner avec audit (e)"} {
 			assert.Contains(t, text, want)
 		}
-		assertGolden(t, "sessions_tab_detail", screenText(t, v.tabs.root, 70, 22))
+		golden.Assert(t, "sessions_tab_detail", screenText(t, v.tabs.root, 70, 22))
 	})
 
 	// Trace.
@@ -204,7 +205,7 @@ func TestSessionsDetailTabs(t *testing.T) {
 		assert.Equal(t, 0, v.tabs.trace.cur, "wraps around")
 		v.HandleKey(key('N'))
 		assert.Equal(t, 1, v.tabs.trace.cur)
-		assertGolden(t, "sessions_tab_trace", screenText(t, v.tabs.root, 90, 12))
+		golden.Assert(t, "sessions_tab_trace", screenText(t, v.tabs.root, 90, 12))
 	})
 
 	// Rapports: the last one first, read in the reader.
@@ -217,7 +218,7 @@ func TestSessionsDetailTabs(t *testing.T) {
 	onLoop(func() {
 		it, _ := v.tabs.reports.list.Current()
 		assert.Equal(t, "rp-7", it.ID)
-		assertGolden(t, "sessions_tab_reports", screenText(t, v.tabs.root, 100, 10))
+		golden.Assert(t, "sessions_tab_reports", screenText(t, v.tabs.root, 100, 10))
 		v.tabs.reports.list.HandleKey(tcell.NewEventKey(tcell.KeyEnter, 0, 0))
 		assert.True(t, v.tabs.reports.reading)
 		v.HandleKey(tcell.NewEventKey(tcell.KeyEscape, 0, 0))
@@ -234,7 +235,7 @@ func TestSessionsDetailTabs(t *testing.T) {
 	}, 3*time.Second, 10*time.Millisecond)
 	onLoop(func() {
 		assert.Equal(t, tabFanout, v.tabs.cur)
-		assertGolden(t, "sessions_tab_fanout", screenText(t, v.tabs.root, 100, 16))
+		golden.Assert(t, "sessions_tab_fanout", screenText(t, v.tabs.root, 100, 16))
 		v.HandleKey(key('p'))
 		assert.Contains(t, strings.Join(sh.toasts, "\n"), "tourne déjà", "the driver runs: not started twice")
 		v.tabs.fanout.view.Driver = false

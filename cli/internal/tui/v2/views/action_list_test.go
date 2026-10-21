@@ -1,10 +1,7 @@
 package views
 
 import (
-	"flag"
 	"fmt"
-	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/gdamore/tcell/v2"
@@ -13,30 +10,15 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/testutil/golden"
 	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 )
-
-var updateGolden = flag.Bool("update", false, "update golden files")
 
 func frLocale(t *testing.T) {
 	t.Helper()
 	prev := i18n.Locale()
 	i18n.SetLocale("fr")
 	t.Cleanup(func() { i18n.SetLocale(prev) })
-}
-
-// assertGolden compares got with testdata/<name>.golden (-update rewrites
-// it).
-func assertGolden(t *testing.T, name, got string) {
-	t.Helper()
-	path := filepath.Join("testdata", name+".golden")
-	if *updateGolden {
-		require.NoError(t, os.MkdirAll("testdata", 0o755))
-		require.NoError(t, os.WriteFile(path, []byte(got), 0o644))
-	}
-	want, err := os.ReadFile(path)
-	require.NoError(t, err, "missing golden file (go test ./internal/tui/v2/views -run %s -update)", t.Name())
-	assert.Equal(t, string(want), got)
 }
 
 // wikiProposals are the proposals of the sketch of the checkpoint card.
@@ -111,7 +93,7 @@ func TestActionListGoldenBelow(t *testing.T) {
 	l := NewActionList(wikiListConfig(&rec))
 	l.SetItems(wikiProposals(9))
 	l.Select("wp-2")
-	assertGolden(t, "action_list_below", screenText(t, l.Primitive(), 80, 18))
+	golden.Assert(t, "action_list_below", screenText(t, l.Primitive(), 80, 18))
 	assert.Equal(t, "y accepter · n refuser · e modifier · s laisser · A tout accepter · Entrée valider cp-wiki", l.Hints())
 }
 
@@ -132,7 +114,7 @@ func TestActionListGoldenRight(t *testing.T) {
 		{ID: "wp-12", Section: "Acceptées, à appliquer au prochain commit", Cells: []string{"wp-12", "tests.md", "ajout", "1 j"}},
 		{ID: "wp-9", Section: "Périmées (ligne disparue)", Cells: []string{"wp-9", "architecture.md", "remplace", "2 j"}},
 	})
-	assertGolden(t, "action_list_right", screenText(t, l.Primitive(), 110, 14))
+	golden.Assert(t, "action_list_right", screenText(t, l.Primitive(), 110, 14))
 }
 
 func TestActionListEmpty(t *testing.T) {

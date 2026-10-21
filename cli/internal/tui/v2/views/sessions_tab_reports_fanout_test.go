@@ -9,6 +9,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/datichb/openhub/cli/internal/testutil/golden"
 )
 
 // childReportsSessions reads the report bodies per (session, id): the ids
@@ -70,7 +72,7 @@ func TestSessionsReportsTabFanoutChildren(t *testing.T) {
 		for _, it := range v.tabs.reports.list.Items() {
 			ids = append(ids, it.ID)
 		}
-		assertGolden(t, "sessions_tab_reports_fanout", screenText(t, v.tabs.root, 120, 11))
+		golden.Assert(t, "sessions_tab_reports_fanout", screenText(t, v.tabs.root, 120, 11))
 	})
 	require.Equal(t, []string{"rp-1", "ses_91ab01/rp-1", "ses_91aa01/rp-1"}, ids, "three reports of the same id, the last one first")
 

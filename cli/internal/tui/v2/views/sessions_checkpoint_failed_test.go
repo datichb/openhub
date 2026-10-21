@@ -9,6 +9,8 @@ import (
 	"github.com/rivo/tview"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/datichb/openhub/cli/internal/testutil/golden"
 )
 
 // failingSessions refuses to validate a checkpoint whose verification
@@ -65,7 +67,7 @@ func TestCheckpointYOnFailedVerification(t *testing.T) {
 	require.Eventually(t, func() bool { title, _, _ := sh.modal(); return title != "" }, 3*time.Second, 10*time.Millisecond)
 	assert.Empty(t, sh.toasts, "no error toast")
 	title, body, actions := sh.modal()
-	assertGolden(t, "sessions_checkpoint_verify_failed", cardText(t, title, body, actions))
+	golden.Assert(t, "sessions_checkpoint_verify_failed", cardText(t, title, body, actions))
 	require.GreaterOrEqual(t, len(actions), 3)
 	assert.Equal(t, "Corriger (consigne à orchestrator-dev)", actions[0].Label)
 	assert.Equal(t, "Passer outre…", actions[1].Label)

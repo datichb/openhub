@@ -7,6 +7,8 @@ import (
 	"github.com/rivo/tview"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/datichb/openhub/cli/internal/testutil/golden"
 )
 
 // p9-wiki-refusal: a refused proposal shows the reason of the refusal in
@@ -23,7 +25,7 @@ func TestWikiRefusedReasonGolden(t *testing.T) {
 	cw.wiki.set(list, nil)
 
 	cw.wiki.list.Select("wp-3")
-	assertGolden(t, "checkpoint_wiki_refused_reason", screenText(t, cw.wiki.list.Primitive(), 90, 18))
+	golden.Assert(t, "checkpoint_wiki_refused_reason", screenText(t, cw.wiki.list.Primitive(), 90, 18))
 	detail := cw.wiki.list.detail.GetText(true)
 	assert.Contains(t, detail, "Motif du refus : déjà couvert par la page [red]stack[-]")
 

@@ -20,6 +20,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/storage/keychain"
 	"github.com/datichb/openhub/cli/internal/teamstate"
+	"github.com/datichb/openhub/cli/internal/testutil/golden"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
@@ -291,7 +292,7 @@ func TestPatternsViewKeys(t *testing.T) {
 	text := screenText(t, content, 110, 18)
 	assert.Contains(t, text, "api-crud")
 	assert.Contains(t, text, "En attente de validation (1)")
-	assertGolden(t, "patterns_view", text)
+	golden.Assert(t, "patterns_view", text)
 
 	v.HandleKey(runeKey('n'))
 	require.NotNil(t, sh.form)
@@ -334,7 +335,7 @@ func TestPoliciesViewKeys(t *testing.T) {
 	v.Mount(content, nil)
 	text := screenText(t, content, 110, 18)
 	assert.Contains(t, text, "branch-naming")
-	assertGolden(t, "policies_view", text)
+	golden.Assert(t, "policies_view", text)
 
 	v.HandleKey(runeKey('n'))
 	require.NotNil(t, sh.form)
@@ -549,7 +550,7 @@ func TestHistoryViewRendersAndKeys(t *testing.T) {
 		})
 	})
 	text := drawn(t, app, content, 100, 18)
-	assertGolden(t, "history_view", text)
+	golden.Assert(t, "history_view", text)
 
 	onLoop(app, func() { v.list.SelectIndex(1); v.HandleKey(runeKey('c')) })
 	select {
