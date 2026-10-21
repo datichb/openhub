@@ -263,25 +263,25 @@ checkpoints:
 	}
 }
 
-func TestResolve_MandatoryCheckpointCannotBeRemoved(t *testing.T) {
-	cat := catalogOf(t, map[string]string{
-		"hub:ticket":  hubTicket,
-		"team:ticket": "apiVersion: oh/v1\nkind: Workflow\nid: ticket\nextends: hub:ticket\ncheckpoints:\n  cp-2: { disabled: true }\n",
-	})
-	_, diags := ResolveSpec(cat, Ref{LayerTeam, "ticket"}, nil)
-	if got := diags.Codes(); !reflect.DeepEqual(got, []string{"mandatory_checkpoint_removed"}) {
-		t.Fatalf("codes = %v", got)
+// A team layer cannot remove what keeps the workflow safe or runnable: a
+// mandatory checkpoint, a checkpoint that unlocks an operation, the entry agent.
+func TestResolve_RemovalRefused(t *testing.T) {
+	const header = "apiVersion: oh/v1\nkind: Workflow\nid: ticket\nextends: hub:ticket\n"
+	cases := []struct {
+		name, hub, patch, code string
+	}{
+		{"mandatory checkpoint", hubTicket, "checkpoints:\n  cp-2: { disabled: true }\n", "mandatory_checkpoint_removed"},
+		{"entry agent", hubTicket, "agents:\n  orchestrator-dev: { role: disabled }\n", "entry_disabled"},
+		{"checkpoint that unlocks an operation", hubTicketUnlocks, "checkpoints:\n  cp-3: { disabled: true }\n", "unlocking_checkpoint_removed"},
 	}
-}
-
-func TestResolve_EntryCannotBeDisabled(t *testing.T) {
-	cat := catalogOf(t, map[string]string{
-		"hub:ticket":  hubTicket,
-		"team:ticket": "apiVersion: oh/v1\nkind: Workflow\nid: ticket\nextends: hub:ticket\nagents:\n  orchestrator-dev: { role: disabled }\n",
-	})
-	_, diags := ResolveSpec(cat, Ref{LayerTeam, "ticket"}, nil)
-	if got := diags.Codes(); !reflect.DeepEqual(got, []string{"entry_disabled"}) {
-		t.Fatalf("codes = %v", got)
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			cat := catalogOf(t, map[string]string{"hub:ticket": c.hub, "team:ticket": header + c.patch})
+			_, diags := ResolveSpec(cat, Ref{LayerTeam, "ticket"}, nil)
+			if got := diags.Codes(); !reflect.DeepEqual(got, []string{c.code}) {
+				t.Fatalf("codes = %v, want %s", got, c.code)
+			}
+		})
 	}
 }
 

@@ -89,6 +89,7 @@ func TestValidate_FullExampleIsValid(t *testing.T) {
 }
 
 func TestValidate_Rules(t *testing.T) {
+	const pauses = "mode: { manuel: pause, semi-auto: pause, auto: pause }"
 	cases := []struct {
 		name, body, code, path string
 		sev                    Severity
@@ -154,10 +155,24 @@ func TestValidate_Rules(t *testing.T) {
 		{"checkpoint condition", "risk: write\ncheckpoints:\n  cp-1: { mode: { manuel: pause, semi-auto: conditional, auto: pause } }\n", "checkpoint_condition_missing", "checkpoints.cp-1.mode.semi-auto", SeverityError},
 		{"checkpoint mode missing", "risk: write\ncheckpoints:\n  cp-1: { mode: { manuel: pause } }\n", "checkpoint_mode_missing", "checkpoints.cp-1.mode", SeverityWarning},
 		{"checkpoint remote", "risk: write\ncheckpoints:\n  cp-1: { remote: later, mode: { manuel: pause, semi-auto: pause, auto: pause } }\n", "enum_invalid", "checkpoints.cp-1.remote", SeverityError},
+		{"checkpoint fanout scope without fanout", "risk: write\ncheckpoints:\n  cp-1: { fanout: never, " + pauses + " }\n", "checkpoint_fanout_without_fanout", "checkpoints.cp-1.fanout", SeverityError},
 		// session contract (L3)
 		{"checkpoint by unknown", "risk: write\ncheckpoints:\n  cp-1: { by: [ghost], mode: { manuel: pause, semi-auto: pause, auto: pause } }\n", "checkpoint_by_unknown", "checkpoints.cp-1.by[0]", SeverityError},
 		{"checkpoint by duplicate", "risk: write\ncheckpoints:\n  cp-1: { by: [conductor, conductor], mode: { manuel: pause, semi-auto: pause, auto: pause } }\n", "checkpoint_by_duplicate", "checkpoints.cp-1.by[1]", SeverityWarning},
 		{"headless pause", "risk: write\nheadless: true\ncheckpoints:\n  cp-1: { mode: { manuel: auto, semi-auto: pause, auto: auto } }\n", "headless_checkpoint_pause", "checkpoints.cp-1", SeverityWarning},
+		// unlocks (piste T, T1)
+		{"unlock duplicate", "risk: write\ncheckpoints:\n  cp-1: { unlocks: [commit], " + pauses + " }\n  cp-2: { unlocks: [close, commit], " + pauses + " }\n", "unlock_duplicate", "checkpoints.cp-2.unlocks[1]", SeverityError},
+		{"unlock skipped", "risk: write\ncheckpoints:\n  cp-1: { unlocks: [commit], mode: { manuel: pause, semi-auto: pause, auto: skip } }\n", "unlock_skip", "checkpoints.cp-1.mode.auto", SeverityWarning},
+		// N10 (DC7): push in unlocks opens nothing outside a publishing workflow
+		{"unlock push without publish", "risk: write\ncheckpoints:\n  cp-1: { unlocks: [commit, push], " + pauses + " }\n", "unlock_push_without_publish", "checkpoints.cp-1.unlocks[1]", SeverityWarning},
+		// LD-D: `wiki: sync` (doc-sync) on a checkpoint that unlocks the commit
+		{"wiki sync without commit", "risk: write\ncheckpoints:\n  cp-sync: { wiki: sync, " + pauses + " }\n", "checkpoint_wiki_commit", "checkpoints.cp-sync.wiki", SeverityError},
+		{"wiki value", "risk: write\ncheckpoints:\n  cp-sync: { wiki: all, unlocks: [commit], " + pauses + " }\n", "enum_invalid", "checkpoints.cp-sync.wiki", SeverityError},
+		// p5-fixes: a second commit checkpoint (`unlock_again`): only the commit, on a checkpoint after the first one that unlocks it
+		{"unlock again first", "risk: write\ncheckpoints:\n  cp-a: { unlocks: [commit], unlock_again: true, " + pauses + " }\n", "unlock_again_first", "checkpoints.cp-a.unlock_again", SeverityError},
+		{"unlock again without commit", "risk: write\ncheckpoints:\n  cp-a: { unlocks: [commit], " + pauses + " }\n  cp-b: { unlocks: [create], unlock_again: true, " + pauses + " }\n", "unlock_again_without_commit", "checkpoints.cp-b.unlock_again", SeverityError},
+		{"unlock again close stays single", "risk: write\ncheckpoints:\n  cp-a: { unlocks: [commit, close], " + pauses + " }\n  cp-b: { unlocks: [commit, close], unlock_again: true, " + pauses + " }\n", "unlock_duplicate", "checkpoints.cp-b.unlocks[1]", SeverityError},
+		{"unlock again declared", "risk: write\ncheckpoints:\n  cp-a: { unlocks: [commit], " + pauses + " }\n  cp-b: { unlocks: [commit], " + pauses + " }\n", "unlock_duplicate", "checkpoints.cp-b.unlocks[0]", SeverityError},
 		// modes
 		{"mode default", "risk: write\nmodes: { default: auto, allowed: [manuel] }\n", "mode_default_not_allowed", "modes.default", SeverityError},
 		{"mode duplicate", "risk: write\nmodes: { allowed: [manuel, manuel] }\n", "duplicate_entry", "modes.allowed[1]", SeverityError},

@@ -7,17 +7,7 @@ import (
 )
 
 // unlocks: (piste T, T1): operations locked until a checkpoint is passed.
-
-func TestValidate_Unlocks(t *testing.T) {
-	cases := []struct{ name, body, code, path string }{
-		{"duplicate", "risk: write\ncheckpoints:\n  cp-1: { unlocks: [commit], mode: { manuel: pause, semi-auto: pause, auto: pause } }\n  cp-2: { unlocks: [close, commit], mode: { manuel: pause, semi-auto: pause, auto: pause } }\n", "unlock_duplicate", "checkpoints.cp-2.unlocks[1]"},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			assertDiag(t, checkYAML(t, vHeader+c.body, testEnv()), c.code, c.path, SeverityError)
-		})
-	}
-}
+// The refusals and warnings are rows of TestValidate_Rules.
 
 // An operation unknown to this version (written by a newer oh) is a warning,
 // not an error: a team on mixed versions keeps working (DC9).
@@ -32,12 +22,54 @@ func TestValidate_UnlockUnknownIsWarning(t *testing.T) {
 	}
 }
 
-func TestValidate_UnlockCreateAndApply(t *testing.T) {
-	body := "risk: write\ncheckpoints:\n  cp-tickets: { unlocks: [create], mode: { manuel: pause, semi-auto: pause, auto: pause } }\n  cp-apply: { unlocks: [apply], mode: { manuel: pause, semi-auto: pause, auto: pause } }\n"
-	for _, d := range checkYAML(t, vHeader+body, testEnv()) {
-		if strings.HasPrefix(d.Code, "unlock_") || d.Code == "enum_invalid" {
-			t.Fatalf("create and apply are valid operations: %v", d)
-		}
+// What the unlocks accept: no diagnostic of the kind the case refuses.
+func TestValidate_UnlocksAccepted(t *testing.T) {
+	pause := "mode: { manuel: pause, semi-auto: pause, auto: pause }"
+	isError := func(d Diagnostic) bool { return d.Severity == SeverityError }
+	cases := []struct {
+		name, body string
+		refused    func(Diagnostic) bool
+	}{
+		{"create and apply are valid operations",
+			"risk: write\ncheckpoints:\n  cp-tickets: { unlocks: [create], " + pause + " }\n  cp-apply: { unlocks: [apply], " + pause + " }\n",
+			func(d Diagnostic) bool { return strings.HasPrefix(d.Code, "unlock_") || d.Code == "enum_invalid" }},
+		{"push in a publish workflow",
+			"risk: publish\ncheckpoints:\n  cp-1: { unlocks: [commit, push], " + pause + " }\n",
+			func(d Diagnostic) bool { return d.Code == "unlock_push_without_publish" }},
+		{"wiki: sync on a checkpoint that unlocks the commit",
+			"risk: write\ncheckpoints:\n  cp-sync: { wiki: sync, unlocks: [commit], " + pause + " }\n", isError},
+		{"a second commit checkpoint after the first",
+			"risk: write\ncheckpoints:\n  cp-a: { unlocks: [commit], " + pause + " }\n  cp-b: { " + pause + " }\n  cp-c: { unlocks: [commit], unlock_again: true, " + pause + " }\n", isError},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			for _, d := range checkYAML(t, vHeader+c.body, testEnv()) {
+				if c.refused(d) {
+					t.Fatalf("refused: %v", d)
+				}
+			}
+		})
+	}
+}
+
+// p5-fixes: the earlier commit checkpoint knows the later (CommitAgain); the
+// repeated commit adds no irreversible pause to the budget.
+func TestSpec_UnlockAgainCommitAgain(t *testing.T) {
+	pause := "mode: { manuel: pause, semi-auto: pause, auto: pause }"
+	ok := "risk: write\ncheckpoints:\n  cp-a: { unlocks: [commit], " + pause + " }\n  cp-b: { " + pause + " }\n  cp-c: { unlocks: [commit], unlock_again: true, " + pause + " }\n"
+	doc, pd := Parse([]byte(vHeader+ok), Source{Layer: LayerHub, Path: "x.yaml"})
+	if pd.HasErrors() {
+		t.Fatal(pd)
+	}
+	s := doc.Spec
+	if got := s.CommitAgain("cp-a"); got != "cp-c" {
+		t.Fatalf("CommitAgain(cp-a) = %q", got)
+	}
+	if s.CommitAgain("cp-c") != "" || s.CommitAgain("cp-b") != "" {
+		t.Fatal("only the earlier commit checkpoint has a later one")
+	}
+	if b := s.PauseBudget(); !reflect.DeepEqual(b.Irreversible, []string{"cp-a"}) || b.Budget != BudgetDecisionPauses+1 {
+		t.Fatalf("budget = %+v", b)
 	}
 }
 
@@ -57,17 +89,6 @@ func TestResolve_UnlocksOnlyAddUp(t *testing.T) {
 	}
 }
 
-func TestResolve_UnlockingCheckpointCannotBeRemoved(t *testing.T) {
-	cat := catalogOf(t, map[string]string{
-		"hub:ticket":  hubTicketUnlocks,
-		"team:ticket": "apiVersion: oh/v1\nkind: Workflow\nid: ticket\nextends: hub:ticket\ncheckpoints:\n  cp-3: { disabled: true }\n",
-	})
-	_, diags := ResolveSpec(cat, Ref{LayerTeam, "ticket"}, nil)
-	if got := diags.Codes(); !reflect.DeepEqual(got, []string{"unlocking_checkpoint_removed"}) {
-		t.Fatalf("codes = %v", got)
-	}
-}
-
 func TestResolve_UnlockMovedIsDuplicate(t *testing.T) {
 	cat := catalogOf(t, map[string]string{
 		"hub:ticket":  hubTicketUnlocks,
@@ -80,73 +101,6 @@ func TestResolve_UnlockMovedIsDuplicate(t *testing.T) {
 		}
 	}
 	t.Fatalf("unlocking commit earlier must be refused: %v", diagList(diags))
-}
-
-// N10 (DC7): push in unlocks opens nothing outside a publishing workflow.
-func TestValidate_UnlockPushWithoutPublish(t *testing.T) {
-	body := "checkpoints:\n  cp-1: { unlocks: [commit, push], mode: { manuel: pause, semi-auto: pause, auto: pause } }\n"
-	assertDiag(t, checkYAML(t, vHeader+"risk: write\n"+body, testEnv()), "unlock_push_without_publish", "checkpoints.cp-1.unlocks[1]", SeverityWarning)
-	for _, d := range checkYAML(t, vHeader+"risk: publish\n"+body, testEnv()) {
-		if d.Code == "unlock_push_without_publish" {
-			t.Fatalf("publish workflow: %v", d)
-		}
-	}
-}
-
-// LD-D: `wiki: sync` (doc-sync) on a checkpoint that unlocks the commit.
-func TestValidate_CheckpointWiki(t *testing.T) {
-	mode := "mode: { manuel: pause, semi-auto: pause, auto: pause }"
-	ok := "risk: write\ncheckpoints:\n  cp-sync: { wiki: sync, unlocks: [commit], " + mode + " }\n"
-	for _, d := range checkYAML(t, vHeader+ok, testEnv()) {
-		if d.Severity == SeverityError {
-			t.Fatalf("valid: %v", d)
-		}
-	}
-	assertDiag(t, checkYAML(t, vHeader+"risk: write\ncheckpoints:\n  cp-sync: { wiki: sync, "+mode+" }\n", testEnv()),
-		"checkpoint_wiki_commit", "checkpoints.cp-sync.wiki", SeverityError)
-	assertDiag(t, checkYAML(t, vHeader+"risk: write\ncheckpoints:\n  cp-sync: { wiki: all, unlocks: [commit], "+mode+" }\n", testEnv()),
-		"enum_invalid", "checkpoints.cp-sync.wiki", SeverityError)
-}
-
-// p5-fixes: a second commit checkpoint (`unlock_again`): only the commit,
-// on a checkpoint after the first one that unlocks it; the earlier one
-// knows the later (CommitAgain); the repeated commit adds no irreversible
-// pause to the budget.
-func TestValidate_UnlockAgain(t *testing.T) {
-	pause := "mode: { manuel: pause, semi-auto: pause, auto: pause }"
-	ok := "risk: write\ncheckpoints:\n  cp-a: { unlocks: [commit], " + pause + " }\n  cp-b: { " + pause + " }\n  cp-c: { unlocks: [commit], unlock_again: true, " + pause + " }\n"
-	diags := checkYAML(t, vHeader+ok, testEnv())
-	for _, d := range diags {
-		if d.Severity == SeverityError {
-			t.Fatalf("unexpected error: %v", diagList(diags))
-		}
-	}
-	doc, pd := Parse([]byte(vHeader+ok), Source{Layer: LayerHub, Path: "x.yaml"})
-	if pd.HasErrors() {
-		t.Fatal(pd)
-	}
-	s := doc.Spec
-	if got := s.CommitAgain("cp-a"); got != "cp-c" {
-		t.Fatalf("CommitAgain(cp-a) = %q", got)
-	}
-	if s.CommitAgain("cp-c") != "" || s.CommitAgain("cp-b") != "" {
-		t.Fatal("only the earlier commit checkpoint has a later one")
-	}
-	if b := s.PauseBudget(); !reflect.DeepEqual(b.Irreversible, []string{"cp-a"}) || b.Budget != BudgetDecisionPauses+1 {
-		t.Fatalf("budget = %+v", b)
-	}
-
-	cases := []struct{ name, body, code, path string }{
-		{"first", "risk: write\ncheckpoints:\n  cp-a: { unlocks: [commit], unlock_again: true, " + pause + " }\n", "unlock_again_first", "checkpoints.cp-a.unlock_again"},
-		{"without commit", "risk: write\ncheckpoints:\n  cp-a: { unlocks: [commit], " + pause + " }\n  cp-b: { unlocks: [create], unlock_again: true, " + pause + " }\n", "unlock_again_without_commit", "checkpoints.cp-b.unlock_again"},
-		{"close stays single", "risk: write\ncheckpoints:\n  cp-a: { unlocks: [commit, close], " + pause + " }\n  cp-b: { unlocks: [commit, close], unlock_again: true, " + pause + " }\n", "unlock_duplicate", "checkpoints.cp-b.unlocks[1]"},
-		{"declared", "risk: write\ncheckpoints:\n  cp-a: { unlocks: [commit], " + pause + " }\n  cp-b: { unlocks: [commit], " + pause + " }\n", "unlock_duplicate", "checkpoints.cp-b.unlocks[0]"},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			assertDiag(t, checkYAML(t, vHeader+c.body, testEnv()), c.code, c.path, SeverityError)
-		})
-	}
 }
 
 // p5-fixes: only the hub layer sets unlock_again (a commit unlocked by one
