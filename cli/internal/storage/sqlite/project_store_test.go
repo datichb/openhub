@@ -89,36 +89,33 @@ func TestProjectStore_ListByStatus(t *testing.T) {
 	assert.Len(t, all, 3)
 }
 
-func TestProjectStore_GetNotFound(t *testing.T) {
-	s := openTestStore(t)
-	ps := NewProjectStore(s)
-	ctx := context.Background()
-
-	_, err := ps.Get(ctx, "nonexistent")
-	assert.ErrorIs(t, err, domain.ErrNotFound)
-}
-
-func TestProjectStore_CreateDuplicate(t *testing.T) {
-	s := openTestStore(t)
-	ps := NewProjectStore(s)
-	ctx := context.Background()
-
-	now := time.Now()
-	p := &domain.Project{ID: "p1", Name: "P1", Path: "/same/path", Status: domain.ProjectStatusActive, CreatedAt: now, UpdatedAt: now}
-	require.NoError(t, ps.Create(ctx, p))
-
-	p2 := &domain.Project{ID: "p2", Name: "P2", Path: "/same/path", Status: domain.ProjectStatusActive, CreatedAt: now, UpdatedAt: now}
-	err := ps.Create(ctx, p2)
-	assert.ErrorIs(t, err, domain.ErrAlreadyExists)
-}
-
-func TestProjectStore_DeleteNotFound(t *testing.T) {
-	s := openTestStore(t)
-	ps := NewProjectStore(s)
-	ctx := context.Background()
-
-	err := ps.Delete(ctx, "nonexistent")
-	assert.ErrorIs(t, err, domain.ErrNotFound)
+// What the store refuses: an unknown project to read or delete, a second
+// project on the same path or under the same name.
+func TestProjectStore_Errors(t *testing.T) {
+	existing := &domain.Project{ID: "p1", Name: "P1", Path: "/same/path", Status: domain.ProjectStatusActive}
+	for _, tc := range []struct {
+		name string
+		do   func(ps *ProjectStore) error
+		want error
+	}{
+		{"get unknown", func(ps *ProjectStore) error { _, err := ps.Get(context.Background(), "nonexistent"); return err }, domain.ErrNotFound},
+		{"delete unknown", func(ps *ProjectStore) error { return ps.Delete(context.Background(), "nonexistent") }, domain.ErrNotFound},
+		{"create on the same path", func(ps *ProjectStore) error {
+			return ps.Create(context.Background(), &domain.Project{ID: "p2", Name: "P2", Path: "/same/path", Status: domain.ProjectStatusActive})
+		}, domain.ErrAlreadyExists},
+		{"create under the same name", func(ps *ProjectStore) error {
+			return ps.Create(context.Background(), &domain.Project{ID: "p2", Name: "P1", Path: "/other/path", Status: domain.ProjectStatusActive})
+		}, domain.ErrAlreadyExists},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ps := NewProjectStore(openTestStore(t))
+			now := time.Now()
+			p := *existing
+			p.CreatedAt, p.UpdatedAt = now, now
+			require.NoError(t, ps.Create(context.Background(), &p), "the project already there")
+			assert.ErrorIs(t, tc.do(ps), tc.want)
+		})
+	}
 }
 
 func TestProjectStore_MCPConfigRoundTrip(t *testing.T) {
@@ -214,21 +211,6 @@ func TestProjectStore_GetByName(t *testing.T) {
 	// Not found by name
 	_, err = ps.GetByName(ctx, "Nonexistent Project")
 	assert.ErrorIs(t, err, domain.ErrNotFound)
-}
-
-func TestProjectStore_CreateDuplicateName(t *testing.T) {
-	s := openTestStore(t)
-	ps := NewProjectStore(s)
-	ctx := context.Background()
-
-	now := time.Now()
-	p1 := &domain.Project{ID: "id-1", Name: "Same Name", Path: "/path/one", Status: domain.ProjectStatusActive, CreatedAt: now, UpdatedAt: now}
-	require.NoError(t, ps.Create(ctx, p1))
-
-	// Creating another project with the same name but different path/id should fail
-	p2 := &domain.Project{ID: "id-2", Name: "Same Name", Path: "/path/two", Status: domain.ProjectStatusActive, CreatedAt: now, UpdatedAt: now}
-	err := ps.Create(ctx, p2)
-	assert.ErrorIs(t, err, domain.ErrAlreadyExists)
 }
 
 func TestProjectStore_TeamConfigRoundTrip(t *testing.T) {

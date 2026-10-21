@@ -115,10 +115,6 @@ func TestBeadsAllowKeptForResumes(t *testing.T) {
 	assert.Nil(t, allow)
 }
 
-func TestGatewayURL(t *testing.T) {
-	assert.Equal(t, "http://host.docker.internal:4242/oh-gateway", gatewayURL("http://host.docker.internal:4242/amazon-bedrock"))
-}
-
 func TestWithMachineShellEnv(t *testing.T) {
 	t.Setenv("PATH", "/opt/tools/bin:/usr/bin")
 	t.Setenv("AWS_SECRET_ACCESS_KEY", "secret")

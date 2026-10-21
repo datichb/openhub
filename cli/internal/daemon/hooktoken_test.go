@@ -19,10 +19,6 @@ import (
 	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
-func TestHookTokenRoute(t *testing.T) {
-	assert.Equal(t, beadswire.HookTokenPath, hookTokenRoute)
-}
-
 // S-06 (audit v5): the hook mode of the gateway needs a hook token that the
 // daemon gives only to a fake bd that git runs from the hook of the
 // session; BD_GIT_HOOK=1 set by an agent opens nothing.

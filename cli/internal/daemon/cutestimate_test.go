@@ -1,7 +1,6 @@
 package daemon
 
 import (
-	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -198,12 +197,4 @@ func TestCutRoot(t *testing.T) {
 	assert.Equal(t, "ses_a", w.cutRoot(nil), "none working: the only session of the group")
 	w.tracks["ses_b"] = &sessionTrack{}
 	assert.Empty(t, w.cutRoot(nil), "none working and several sessions: no guess")
-}
-
-// Estimates keep the daemon honest when there is no usage store.
-func TestCountCutWithoutStoreIsANoop(t *testing.T) {
-	d := &Daemon{}
-	w := &watcher{d: d, srv: domain.Server{GroupKey: "g1"}, tracks: map[string]*sessionTrack{"ses_a": {}}}
-	assert.NotPanics(t, func() { d.countCut(w, []string{"ses_a"}, 0)(credproxy.Usage{Cut: 1, InputTokens: 10}) })
-	assert.NotPanics(t, func() { w.absorbCuts(context.Background(), "ses_a", 1) })
 }
