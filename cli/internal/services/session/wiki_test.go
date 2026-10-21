@@ -15,17 +15,15 @@ import (
 	"github.com/datichb/openhub/cli/internal/services/wiki"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
 // LD-J: the card of the commit checkpoint carries the open wiki proposals
 // of the session; the user decides on each of them there.
 func TestCheckpointCardWiki(t *testing.T) {
-	st, err := sqlite.Open(filepath.Join(t.TempDir(), "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
+	st := sqlitetest.New(t)
 	ctx := context.Background()
-	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1','p1','/p1')`)
-	require.NoError(t, err)
+	sqlitetest.Seed(t, st).Project("p1", "/p1")
 	bundles := t.TempDir()
 	require.NoError(t, os.MkdirAll(filepath.Join(bundles, "h1"), 0o755))
 	data, _ := json.Marshal(sessionspec.BundleSpec{Hash: "h1", Workflow: &sessionspec.WorkflowRuntime{ID: "ticket",
@@ -75,12 +73,9 @@ func TestCheckpointCardWiki(t *testing.T) {
 // LD-D: the card of the checkpoint of doc-sync (`wiki: sync`) carries the
 // whole queue of the project; its user decides on every proposal.
 func TestCheckpointCardWikiSync(t *testing.T) {
-	st, err := sqlite.Open(filepath.Join(t.TempDir(), "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
+	st := sqlitetest.New(t)
 	ctx := context.Background()
-	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1','p1','/p1')`)
-	require.NoError(t, err)
+	sqlitetest.Seed(t, st).Project("p1", "/p1")
 	bundles := t.TempDir()
 	require.NoError(t, os.MkdirAll(filepath.Join(bundles, "h1"), 0o755))
 	data, _ := json.Marshal(sessionspec.BundleSpec{Hash: "h1", Workflow: &sessionspec.WorkflowRuntime{ID: "doc-sync",

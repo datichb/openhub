@@ -2,7 +2,6 @@ package session
 
 import (
 	"context"
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -10,15 +9,14 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
 // The cost of the responses cut before their end is estimated by oh, not
 // reported by the tool: the summary of the trace says how much of the ledger
 // cost it is.
 func TestTraceSummaryShowsTheEstimatedCost(t *testing.T) {
-	st, err := sqlite.Open(filepath.Join(t.TempDir(), "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
+	st := sqlitetest.New(t)
 	ctx := context.Background()
 	usage := sqlite.NewUsageStore(st)
 	sess := &domain.Session{ID: "ses_root"}

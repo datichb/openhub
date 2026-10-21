@@ -24,6 +24,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/remote/gitlab/gitlabtest"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 )
 
@@ -193,11 +194,8 @@ func newSendEnv(t *testing.T) *sendEnv {
 	require.NoError(t, err)
 	tg := (*saved)[len(*saved)-1]
 
-	st, err := sqlite.Open(filepath.Join(t.TempDir(), "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
-	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p-api','api','/work/api')`)
-	require.NoError(t, err)
+	st := sqlitetest.New(t)
+	sqlitetest.Seed(t, st).Project("p-api", "/work/api")
 
 	bdir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(bdir, "bundle.json"), []byte(`{"hash":"abc123"}`), 0o444))

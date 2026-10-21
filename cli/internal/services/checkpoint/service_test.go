@@ -16,6 +16,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
 // TestWorkflow is the runtime of the test bundles (cp-1 auto in semi-auto,
@@ -40,11 +41,8 @@ func writeBundle(t *testing.T, dir, hash string, wf *sessionspec.WorkflowRuntime
 
 func newTestService(t *testing.T) (*Service, context.Context) {
 	t.Helper()
-	st, err := sqlite.Open(filepath.Join(t.TempDir(), "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
-	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1','p1','/p1')`)
-	require.NoError(t, err)
+	st := sqlitetest.New(t)
+	sqlitetest.Seed(t, st).Project("p1", "/p1")
 	cs := sqlite.NewCheckpointStore(st)
 	svc := &Service{Sessions: sqlite.NewSessionStore(st), States: cs, SessionOutputs: cs, BundlesDir: t.TempDir(), SessionsDir: t.TempDir(), ApprovalWait: 20 * time.Millisecond,
 		Identity: func(context.Context, string) Identity {

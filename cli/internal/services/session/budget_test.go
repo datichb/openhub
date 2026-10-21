@@ -2,7 +2,6 @@ package session
 
 import (
 	"context"
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -11,13 +10,12 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/limits"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
 func TestDecideBudgetOfTheRestrictions(t *testing.T) {
 	svc, ctx := newTestService(t)
-	st, err := sqlite.Open(filepath.Join(t.TempDir(), "u.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
+	st := sqlitetest.New(t)
 	usage := sqlite.NewUsageStore(st)
 	var stopped []string
 	svc.Resolvers = map[domain.DecisionKind]Resolver{domain.DecisionBudget: BudgetResolver(usage, func(_ context.Context, id string) error {

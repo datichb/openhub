@@ -20,6 +20,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
 func TestMain(m *testing.M) { os.Exit(gittest.Main(m)) }
@@ -200,11 +201,8 @@ type fixture struct {
 
 func newFixture(t *testing.T, tickets ...string) *fixture {
 	t.Helper()
-	st, err := sqlite.Open(filepath.Join(t.TempDir(), "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
-	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1','p1','/p1')`)
-	require.NoError(t, err)
+	st := sqlitetest.New(t)
+	sqlitetest.Seed(t, st).Project("p1", "/p1")
 	root := t.TempDir()
 	project := filepath.Join(root, "proj")
 	require.NoError(t, os.MkdirAll(project, 0o755))

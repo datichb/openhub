@@ -2,7 +2,6 @@ package session
 
 import (
 	"context"
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -10,15 +9,13 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
 func newTestService(t *testing.T) (*Service, context.Context) {
 	t.Helper()
-	st, err := sqlite.Open(filepath.Join(t.TempDir(), "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
-	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1','p1','/p1')`)
-	require.NoError(t, err)
+	st := sqlitetest.New(t)
+	sqlitetest.Seed(t, st).Project("p1", "/p1")
 	return &Service{Sessions: sqlite.NewSessionStore(st), Decisions: sqlite.NewDecisionStore(st), Servers: sqlite.NewServerStore(st)}, context.Background()
 }
 
