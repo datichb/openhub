@@ -112,7 +112,7 @@ content.AddItem(l.Primitive(), 0, 1, true)
 ## Tests
 
 - **Instantané du rendu** : `screenText(t, l.Primitive(), 80, 18)` puis `assertGolden(t, "<nom>", ...)` (fichiers `views/testdata/<nom>.golden`, régénérés par `go test ./internal/tui/v2/views -run <Test> -update`, diff relu). Exemples : `action_list_test.go`.
-- **`TestKeyConvention`** (`keys/convention_test.go`) lit les lignes d'aide (messages français dont la clé contient « hint », formats `fmt.Sprintf` du code TUI) et signale les touches hors convention. Les écarts restants sont listés par lot dans `keys/deviations_<lot>_test.go` : **chaque lot ne modifie que son fichier**. Corriger un écart fait échouer le test tant que la ligne n'est pas retirée ; un écart nouveau aussi. Une ligne d'aide construite avec `keys.Hint` est conforme par construction.
+- **`TestKeyConvention`** (`keys/convention_test.go`) lit les lignes d'aide (messages français dont la clé contient « hint », formats `fmt.Sprintf` du code TUI) et signale les touches hors convention. Il est strict : tout écart fait échouer le test (plus de liste d'écarts tolérés), la ligne d'aide est à corriger. Une ligne d'aide construite avec `keys.Hint` est conforme par construction.
 - Parité i18n fr/en : `go test ./internal/i18n/...`.
 
 ## Fichiers partagés
