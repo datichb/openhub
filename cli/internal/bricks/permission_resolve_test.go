@@ -1,6 +1,7 @@
 package bricks
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -9,60 +10,44 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestDeepMerge_ScalarOverride(t *testing.T) {
-	dst := map[string]interface{}{
-		"read":  "allow",
-		"write": "allow",
-		"edit":  "allow",
-	}
-	src := map[string]interface{}{
-		"write": "deny",
-	}
-	result := deepMerge(dst, src)
-	assert.Equal(t, "allow", result["read"])
-	assert.Equal(t, "deny", result["write"])
-	assert.Equal(t, "allow", result["edit"])
-}
-
-func TestDeepMerge_NestedMapAddition(t *testing.T) {
-	dst := map[string]interface{}{
-		"bash": map[string]interface{}{
-			"*":           "deny",
-			"git status*": "allow",
-			"git diff*":   "allow",
+func TestDeepMerge(t *testing.T) {
+	type perms = map[string]interface{}
+	tests := []struct {
+		name string
+		dst  perms
+		src  perms
+		want perms
+	}{
+		{
+			name: "a scalar of src overrides the one of dst",
+			dst:  perms{"read": "allow", "write": "allow", "edit": "allow"},
+			src:  perms{"write": "deny"},
+			want: perms{"read": "allow", "write": "deny", "edit": "allow"},
+		},
+		{
+			name: "nested maps are merged key by key",
+			dst:  perms{"bash": perms{"*": "deny", "git status*": "allow", "git diff*": "allow"}},
+			src:  perms{"bash": perms{"alembic*": "allow"}},
+			want: perms{"bash": perms{"*": "deny", "git status*": "allow", "git diff*": "allow", "alembic*": "allow"}},
+		},
+		{
+			name: "a new top-level key is added",
+			dst:  perms{"read": "allow"},
+			src:  perms{"websearch": "allow"},
+			want: perms{"read": "allow", "websearch": "allow"},
 		},
 	}
-	src := map[string]interface{}{
-		"bash": map[string]interface{}{
-			"alembic*": "allow",
-		},
-	}
-	result := deepMerge(dst, src)
-	bash := result["bash"].(map[string]interface{})
-	assert.Equal(t, "deny", bash["*"])
-	assert.Equal(t, "allow", bash["git status*"])
-	assert.Equal(t, "allow", bash["git diff*"])
-	assert.Equal(t, "allow", bash["alembic*"])
-}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dstBefore, srcBefore := fmt.Sprint(tt.dst), fmt.Sprint(tt.src)
 
-func TestDeepMerge_NewTopLevelKey(t *testing.T) {
-	dst := map[string]interface{}{
-		"read": "allow",
-	}
-	src := map[string]interface{}{
-		"websearch": "allow",
-	}
-	result := deepMerge(dst, src)
-	assert.Equal(t, "allow", result["read"])
-	assert.Equal(t, "allow", result["websearch"])
-}
+			result := deepMerge(tt.dst, tt.src)
 
-func TestDeepMerge_DoesNotMutateSrc(t *testing.T) {
-	dst := map[string]interface{}{"a": "1"}
-	src := map[string]interface{}{"b": "2"}
-	_ = deepMerge(dst, src)
-	_, ok := dst["b"]
-	assert.False(t, ok, "dst should not be mutated")
+			assert.Equal(t, tt.want, result)
+			assert.Equal(t, dstBefore, fmt.Sprint(tt.dst), "dst should not be mutated")
+			assert.Equal(t, srcBefore, fmt.Sprint(tt.src), "src should not be mutated")
+		})
+	}
 }
 
 func TestResolvePermissions_NoBase(t *testing.T) {

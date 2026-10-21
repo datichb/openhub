@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestResolveAgentModel_FullCascade(t *testing.T) {
+func TestResolveAgentModel(t *testing.T) {
 	projectOverrides := &ModelOverrides{
 		Default:  "claude-sonnet-4-5",
 		Families: map[string]string{"quality": "claude-opus-4"},
@@ -17,49 +17,7 @@ func TestResolveAgentModel_FullCascade(t *testing.T) {
 		Families: map[string]string{"planning": "claude-sonnet-4-6"},
 		Agents:   map[string]string{"reviewer": "claude-opus-4"},
 	}
-
-	tests := []struct {
-		name             string
-		agentID          string
-		family           string
-		frontmatterModel string
-		provider         string
-		expected         string
-	}{
-		{
-			name:     "Level 1: project agent override wins",
-			agentID:  "debugger",
-			family:   "quality",
-			provider: "anthropic",
-			expected: "anthropic/claude-sonnet-4-6",
-		},
-		{
-			name:     "Level 2: project family override (no agent override)",
-			agentID:  "reviewer",
-			family:   "quality",
-			provider: "anthropic",
-			expected: "anthropic/claude-opus-4",
-		},
-		{
-			name:     "Level 3: project global (no agent/family override)",
-			agentID:  "designer",
-			family:   "design",
-			provider: "anthropic",
-			expected: "anthropic/claude-sonnet-4-5",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := ResolveAgentModel(tt.agentID, tt.family, projectOverrides, hubOverrides, nil, tt.frontmatterModel, tt.provider)
-			assert.Equal(t, tt.expected, result)
-		})
-	}
-}
-
-func TestResolveAgentModel_HubLevels(t *testing.T) {
-	// No project overrides — fall through to hub levels
-	hubOverrides := &ModelOverrides{
+	hubOnly := &ModelOverrides{
 		Default:  "claude-sonnet-4-5",
 		Families: map[string]string{"planning": "claude-sonnet-4-6"},
 		Agents:   map[string]string{"reviewer": "claude-opus-4"},
@@ -69,72 +27,52 @@ func TestResolveAgentModel_HubLevels(t *testing.T) {
 		name             string
 		agentID          string
 		family           string
+		project          *ModelOverrides
+		hub              *ModelOverrides
 		frontmatterModel string
 		provider         string
 		expected         string
 	}{
-		{
-			name:     "Level 4: hub agent override",
-			agentID:  "reviewer",
-			family:   "quality",
-			provider: "anthropic",
-			expected: "anthropic/claude-opus-4",
-		},
-		{
-			name:     "Level 5: hub family override",
-			agentID:  "orchestrator",
-			family:   "planning",
-			provider: "anthropic",
-			expected: "anthropic/claude-sonnet-4-6",
-		},
-		{
-			name:     "Level 6: hub global model",
-			agentID:  "designer",
-			family:   "design",
-			provider: "anthropic",
-			expected: "anthropic/claude-sonnet-4-5",
-		},
+		{name: "Level 1: project agent override wins", agentID: "debugger", family: "quality", project: projectOverrides, hub: hubOverrides,
+			provider: "anthropic", expected: "anthropic/claude-sonnet-4-6"},
+		{name: "Level 2: project family override (no agent override)", agentID: "reviewer", family: "quality", project: projectOverrides, hub: hubOverrides,
+			provider: "anthropic", expected: "anthropic/claude-opus-4"},
+		{name: "Level 3: project global (no agent/family override)", agentID: "designer", family: "design", project: projectOverrides, hub: hubOverrides,
+			provider: "anthropic", expected: "anthropic/claude-sonnet-4-5"},
+		{name: "Level 4: hub agent override", agentID: "reviewer", family: "quality", hub: hubOnly,
+			provider: "anthropic", expected: "anthropic/claude-opus-4"},
+		{name: "Level 5: hub family override", agentID: "orchestrator", family: "planning", hub: hubOnly,
+			provider: "anthropic", expected: "anthropic/claude-sonnet-4-6"},
+		{name: "Level 6: hub global model", agentID: "designer", family: "design", hub: hubOnly,
+			provider: "anthropic", expected: "anthropic/claude-sonnet-4-5"},
+		{name: "frontmatter is the floor when there is no override", agentID: "orchestrator", family: "planning",
+			frontmatterModel: "anthropic/claude-sonnet-4-6", provider: "anthropic", expected: "anthropic/claude-sonnet-4-6"},
+		{name: "no model at any level", agentID: "designer", family: "design", provider: "anthropic", expected: ""},
+		{name: "bedrock provider normalizes the hub override", agentID: "reviewer", family: "quality",
+			hub:      &ModelOverrides{Agents: map[string]string{"reviewer": "claude-opus-4"}},
+			provider: "bedrock", expected: "amazon-bedrock/anthropic.claude-opus-4-6-v1"},
+		{name: "bedrock provider normalizes the frontmatter model", agentID: "orchestrator", family: "planning",
+			frontmatterModel: "anthropic/claude-sonnet-4-6", provider: "bedrock", expected: "amazon-bedrock/anthropic.claude-sonnet-4-6"},
+		{name: "empty provider returns the model as is, without normalization", agentID: "orchestrator", family: "planning",
+			frontmatterModel: "anthropic/claude-sonnet-4-6", expected: "anthropic/claude-sonnet-4-6"},
+		{name: "project override beats hub for the same agent", agentID: "reviewer", family: "quality",
+			project:          &ModelOverrides{Agents: map[string]string{"reviewer": "claude-sonnet-4-5"}},
+			hub:              &ModelOverrides{Agents: map[string]string{"reviewer": "claude-opus-4"}},
+			frontmatterModel: "anthropic/claude-opus-4", provider: "anthropic", expected: "anthropic/claude-sonnet-4-5"},
+		{name: "family override beats the global model", agentID: "reviewer", family: "quality",
+			project:  &ModelOverrides{Default: "claude-haiku-3-5", Families: map[string]string{"quality": "claude-opus-4"}},
+			provider: "anthropic", expected: "anthropic/claude-opus-4"},
+		{name: "an agent without family skips the family levels", agentID: "standalone",
+			project:  &ModelOverrides{Default: "claude-sonnet-4-5", Families: map[string]string{"planning": "claude-opus-4"}},
+			provider: "anthropic", expected: "anthropic/claude-sonnet-4-5"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := ResolveAgentModel(tt.agentID, tt.family, nil, hubOverrides, nil, tt.frontmatterModel, tt.provider)
+			result := ResolveAgentModel(tt.agentID, tt.family, tt.project, tt.hub, nil, tt.frontmatterModel, tt.provider)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
-}
-
-func TestResolveAgentModel_FrontmatterFloor(t *testing.T) {
-	// No overrides at all — falls through to frontmatter
-	result := ResolveAgentModel("orchestrator", "planning", nil, nil, nil, "anthropic/claude-sonnet-4-6", "anthropic")
-	assert.Equal(t, "anthropic/claude-sonnet-4-6", result)
-}
-
-func TestResolveAgentModel_NoModelAnywhere(t *testing.T) {
-	// No model at any level
-	result := ResolveAgentModel("designer", "design", nil, nil, nil, "", "anthropic")
-	assert.Equal(t, "", result)
-}
-
-func TestResolveAgentModel_BedrockProvider(t *testing.T) {
-	hubOverrides := &ModelOverrides{
-		Agents: map[string]string{"reviewer": "claude-opus-4"},
-	}
-
-	result := ResolveAgentModel("reviewer", "quality", nil, hubOverrides, nil, "", "bedrock")
-	assert.Equal(t, "amazon-bedrock/anthropic.claude-opus-4-6-v1", result)
-}
-
-func TestResolveAgentModel_BedrockProviderWithFrontmatter(t *testing.T) {
-	// Frontmatter declares "anthropic/claude-sonnet-4-6", project uses bedrock
-	result := ResolveAgentModel("orchestrator", "planning", nil, nil, nil, "anthropic/claude-sonnet-4-6", "bedrock")
-	assert.Equal(t, "amazon-bedrock/anthropic.claude-sonnet-4-6", result)
-}
-
-func TestResolveAgentModel_EmptyProvider(t *testing.T) {
-	// If provider is empty, return model as-is without normalization
-	result := ResolveAgentModel("orchestrator", "planning", nil, nil, nil, "anthropic/claude-sonnet-4-6", "")
-	assert.Equal(t, "anthropic/claude-sonnet-4-6", result)
 }
 
 func TestNormalizeModelForProvider(t *testing.T) {
@@ -205,40 +143,4 @@ func TestExtractShortModelName(t *testing.T) {
 			assert.Equal(t, tt.expected, result)
 		})
 	}
-}
-
-func TestResolveAgentModel_ProjectOverrideBeatsHub(t *testing.T) {
-	// Both project and hub define the same agent — project wins
-	projectOverrides := &ModelOverrides{
-		Agents: map[string]string{"reviewer": "claude-sonnet-4-5"},
-	}
-	hubOverrides := &ModelOverrides{
-		Agents: map[string]string{"reviewer": "claude-opus-4"},
-	}
-
-	result := ResolveAgentModel("reviewer", "quality", projectOverrides, hubOverrides, nil, "anthropic/claude-opus-4", "anthropic")
-	assert.Equal(t, "anthropic/claude-sonnet-4-5", result)
-}
-
-func TestResolveAgentModel_FamilyOverrideBeatsGlobal(t *testing.T) {
-	// Project has family override AND global — family wins for matching agent
-	projectOverrides := &ModelOverrides{
-		Default:  "claude-haiku-3-5",
-		Families: map[string]string{"quality": "claude-opus-4"},
-	}
-
-	result := ResolveAgentModel("reviewer", "quality", projectOverrides, nil, nil, "", "anthropic")
-	assert.Equal(t, "anthropic/claude-opus-4", result)
-}
-
-func TestResolveAgentModel_NoFamilySkipsLevel(t *testing.T) {
-	// Agent with no family (empty string) — family levels are skipped
-	projectOverrides := &ModelOverrides{
-		Default:  "claude-sonnet-4-5",
-		Families: map[string]string{"planning": "claude-opus-4"},
-	}
-
-	result := ResolveAgentModel("standalone", "", projectOverrides, nil, nil, "", "anthropic")
-	// Falls to level 3 (project global) because no family match
-	assert.Equal(t, "anthropic/claude-sonnet-4-5", result)
 }
