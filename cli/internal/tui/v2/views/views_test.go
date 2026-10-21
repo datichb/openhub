@@ -52,10 +52,6 @@ func (m *mockShell) PushView(View)             {}
 func (m *mockShell) PopView() bool             { return true }
 func (m *mockShell) SetOmnibarVisible(bool)    {}
 
-func TestBoardView_ImplementsView(t *testing.T) {
-	var _ View = (*BoardView)(nil)
-}
-
 func TestBoardView_MountUnmount(t *testing.T) {
 	v := NewBoardView(BoardViewConfig{
 		Tickets: []BoardTicket{
@@ -76,10 +72,6 @@ func TestBoardView_MountUnmount(t *testing.T) {
 
 	v.Unmount()
 	assert.Nil(t, v.app)
-}
-
-func TestTeamBoardView_ImplementsView(t *testing.T) {
-	var _ View = (*TeamBoardView)(nil)
 }
 
 func TestTeamBoardView_MountUnmount(t *testing.T) {
@@ -181,10 +173,6 @@ func TestBoardView_MountEmpty_TransitionToPopulated(t *testing.T) {
 	v.Unmount()
 }
 
-func TestHomeView_ImplementsView(t *testing.T) {
-	var _ View = (*HomeView)(nil)
-}
-
 func TestHomeView_MountUnmount(t *testing.T) {
 	v := NewHomeView(HomeViewConfig{})
 
@@ -200,10 +188,6 @@ func TestHomeView_MountUnmount(t *testing.T) {
 }
 
 // ── Phase 3 views ──
-
-func TestProjectsView_ImplementsView(t *testing.T) {
-	var _ View = (*ProjectsView)(nil)
-}
 
 func TestProjectsView_MountUnmount(t *testing.T) {
 	v := NewProjectsView(ProjectsViewConfig{

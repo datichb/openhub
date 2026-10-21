@@ -35,6 +35,8 @@ func (v *HelpView) ContextCommands() []ContextCommand {
 	}}
 }
 
+var _ View = (*HelpView)(nil)
+
 // NewHelpView creates a new help view.
 func NewHelpView() *HelpView { return &HelpView{} }
 

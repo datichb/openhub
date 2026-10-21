@@ -36,6 +36,8 @@ type TeamsViewDeps struct {
 	OnNavigate func(viewID string)            // Called to navigate to another view
 }
 
+var _ View = (*TeamsView)(nil)
+
 // NewTeamsView creates a new TeamsView.
 func NewTeamsView(deps TeamsViewDeps) *TeamsView {
 	v := &TeamsView{

@@ -14,14 +14,6 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
-func TestInlineWizardView_ImplementsView(t *testing.T) {
-	var _ View = (*InlineWizardView)(nil)
-}
-
-func TestInlineWizardView_ImplementsInputCapturing(t *testing.T) {
-	var _ InputCapturing = (*InlineWizardView)(nil)
-}
-
 func TestInlineWizardView_EmptySteps(t *testing.T) {
 	completed := false
 	v := NewInlineWizardView(InlineWizardConfig{

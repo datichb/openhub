@@ -12,10 +12,6 @@ import (
 // Tests for RunInlineWizardStandalone and standaloneShellStub
 // ─────────────────────────────────────────────────────────────────────────────
 
-func TestStandaloneShellStub_ImplementsShellAccess(t *testing.T) {
-	var _ ShellAccess = (*standaloneShellStub)(nil)
-}
-
 func TestRunInlineWizardStandalone_EmptySteps(t *testing.T) {
 	callbackFired := false
 	wizard := NewInlineWizardView(InlineWizardConfig{
