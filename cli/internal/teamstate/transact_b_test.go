@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -14,7 +15,6 @@ import (
 // N15 step B: "." is refused; the caller lists its files.
 func TestCommitEverythingIsRefused(t *testing.T) {
 	repo, _ := setupGitTestRepo(t)
-	gitIdentity(t)
 	ctx := context.Background()
 	require.ErrorIs(t, repo.CommitAndPush(ctx, "all", "."), ErrStageAll)
 	require.ErrorIs(t, repo.CommitAndPush(ctx, "all", "./"), ErrStageAll)
@@ -29,14 +29,13 @@ func TestCommitEverythingIsRefused(t *testing.T) {
 // (untracked or modified) stay out of the commit and in place.
 func TestWritesCommitTheirFilesOnly(t *testing.T) {
 	repo, _ := setupGitTestRepo(t)
-	gitIdentity(t)
 	ctx := context.Background()
 	require.NoError(t, os.WriteFile(filepath.Join(repo.Path(), "other.txt"), []byte("not mine"), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(repo.Path(), "README.md"), []byte("edited by someone"), 0o644))
 
 	require.NoError(t, repo.AddMember(ctx, Member{ID: "alice", DisplayName: "Alice"}))
-	assert.Equal(t, "members.toml", gitOut(t, repo.Path(), "show", "--name-only", "--format=", "HEAD"))
-	status := gitOut(t, repo.Path(), "status", "--porcelain")
+	assert.Equal(t, "members.toml", gittest.Run(t, repo.Path(), "show", "--name-only", "--format=", "HEAD"))
+	status := gittest.Run(t, repo.Path(), "status", "--porcelain")
 	assert.Contains(t, status, "?? other.txt")
 	assert.Contains(t, status, "M README.md")
 }
@@ -45,7 +44,6 @@ func TestWritesCommitTheirFilesOnly(t *testing.T) {
 // another member is retried on top of it, the caller's file kept.
 func TestCommitAndPushRetriesOnTop(t *testing.T) {
 	repo, bare := setupGitTestRepo(t)
-	gitIdentity(t)
 	ctx := context.Background()
 	other := NewRepo(bare, filepath.Join(t.TempDir(), "other"))
 	require.NoError(t, other.Clone(ctx))
@@ -56,9 +54,9 @@ func TestCommitAndPushRetriesOnTop(t *testing.T) {
 	}
 	require.NoError(t, os.WriteFile(filepath.Join(repo.Path(), "notes.md"), []byte("mine"), 0o644))
 	require.NoError(t, repo.CommitAndPush(ctx, "notes", "notes.md"))
-	assert.Equal(t, "notes", gitOut(t, repo.Path(), "log", "-1", "--format=%s"))
-	assert.Equal(t, "counter 1 by bob", gitOut(t, repo.Path(), "log", "-1", "--skip=1", "--format=%s"))
-	assert.Equal(t, gitOut(t, repo.Path(), "rev-parse", "HEAD"), gitOut(t, bare, "rev-parse", "HEAD"))
+	assert.Equal(t, "notes", gittest.Run(t, repo.Path(), "log", "-1", "--format=%s"))
+	assert.Equal(t, "counter 1 by bob", gittest.Run(t, repo.Path(), "log", "-1", "--skip=1", "--format=%s"))
+	assert.Equal(t, gittest.Run(t, repo.Path(), "rev-parse", "HEAD"), gittest.Run(t, bare, "rev-parse", "HEAD"))
 	got, _ := os.ReadFile(filepath.Join(repo.Path(), "notes.md"))
 	assert.Equal(t, "mine", string(got))
 }
@@ -67,9 +65,8 @@ func TestCommitAndPushRetriesOnTop(t *testing.T) {
 // commit, no second lock nor pull (no deadlock).
 func TestPublicMethodsJoinTheTransaction(t *testing.T) {
 	repo, bare := setupGitTestRepo(t)
-	gitIdentity(t)
 	ctx := context.Background()
-	base, _ := strconv.Atoi(gitOut(t, repo.Path(), "rev-list", "--count", "HEAD"))
+	base, _ := strconv.Atoi(gittest.Run(t, repo.Path(), "rev-list", "--count", "HEAD"))
 	err := repo.Transact(ctx, func(ctx context.Context, tx *Tx) (TxResult, error) {
 		require.NoError(t, repo.Pull(ctx))
 		if _, err := repo.CreateClaim(ctx, Claim{TicketID: "T-1", Project: "p", ClaimedBy: "alice"}); err != nil {
@@ -84,10 +81,10 @@ func TestPublicMethodsJoinTheTransaction(t *testing.T) {
 		return TxResult{Message: "batch"}, repo.AppendEvent(ctx, Event{Type: "test", Actor: "alice", Project: "p"})
 	})
 	require.NoError(t, err)
-	n, _ := strconv.Atoi(gitOut(t, repo.Path(), "rev-list", "--count", "HEAD"))
+	n, _ := strconv.Atoi(gittest.Run(t, repo.Path(), "rev-list", "--count", "HEAD"))
 	assert.Equal(t, base+1, n, "one commit")
-	assert.Equal(t, "batch", gitOut(t, repo.Path(), "log", "-1", "--format=%s"))
-	assert.Equal(t, gitOut(t, repo.Path(), "rev-parse", "HEAD"), gitOut(t, bare, "rev-parse", "HEAD"))
+	assert.Equal(t, "batch", gittest.Run(t, repo.Path(), "log", "-1", "--format=%s"))
+	assert.Equal(t, gittest.Run(t, repo.Path(), "rev-parse", "HEAD"), gittest.Run(t, bare, "rev-parse", "HEAD"))
 	c, err := repo.GetClaim("p", "T-1")
 	require.NoError(t, err)
 	assert.Equal(t, ClaimStatusReview, c.Status)
@@ -96,7 +93,6 @@ func TestPublicMethodsJoinTheTransaction(t *testing.T) {
 // A failed write puts its files back (no half-written state left).
 func TestWriteErrorRestoresFiles(t *testing.T) {
 	repo, _ := setupGitTestRepo(t)
-	gitIdentity(t)
 	ctx := context.Background()
 	err := repo.WithWriteLock(ctx, func(ctx context.Context) error {
 		require.NoError(t, os.WriteFile(filepath.Join(repo.Path(), "README.md"), []byte("half"), 0o644))
@@ -105,5 +101,5 @@ func TestWriteErrorRestoresFiles(t *testing.T) {
 	})
 	require.ErrorIs(t, err, assert.AnError)
 	got, _ := os.ReadFile(filepath.Join(repo.Path(), "README.md"))
-	assert.Equal(t, "init", string(got))
+	assert.Equal(t, "init\n", string(got))
 }
