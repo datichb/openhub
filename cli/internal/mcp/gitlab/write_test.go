@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -178,12 +177,8 @@ func TestHandleAddLabel(t *testing.T) {
 }
 
 func TestIsWriteEnabled(t *testing.T) {
-	t.Setenv("GITLAB_WRITE_ENABLED", "true")
-	assert.True(t, isWriteEnabled())
-
-	t.Setenv("GITLAB_WRITE_ENABLED", "false")
-	assert.False(t, isWriteEnabled())
-
-	os.Unsetenv("GITLAB_WRITE_ENABLED")
-	assert.False(t, isWriteEnabled())
+	for value, want := range map[string]bool{"true": true, "false": false, "": false} {
+		t.Setenv("GITLAB_WRITE_ENABLED", value)
+		assert.Equal(t, want, isWriteEnabled(), "GITLAB_WRITE_ENABLED=%q", value)
+	}
 }
