@@ -101,6 +101,7 @@ preconditions:
 // files of that branch or of the HEAD of the project; an existing worktree
 // is read as it is.
 func TestPreconditionsInSessionLocation(t *testing.T) {
+	t.Parallel()
 	doc, diags := workflow.Parse([]byte(`apiVersion: oh/v1
 kind: Workflow
 id: release

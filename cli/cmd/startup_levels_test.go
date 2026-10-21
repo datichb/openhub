@@ -42,6 +42,7 @@ func newOhHome(t *testing.T) string {
 // check, reports the TOML error with its position and exits with 1; a full
 // command points to oh doctor.
 func TestDoctorWithBrokenConfig(t *testing.T) {
+	t.Parallel()
 	home := newOhHome(t)
 	require.NoError(t, os.WriteFile(filepath.Join(home, "hub.toml"), []byte("[cli]\nlanguage = \"en\nx"), 0o600))
 
@@ -63,6 +64,7 @@ func TestDoctorWithBrokenConfig(t *testing.T) {
 
 // N13: oh doctor --fix restores the latest valid backup of hub.toml.
 func TestDoctorFixRestoresConfig(t *testing.T) {
+	t.Parallel()
 	home := newOhHome(t)
 	good, err := os.ReadFile(filepath.Join(home, "hub.toml"))
 	require.NoError(t, err)
@@ -84,6 +86,7 @@ func TestDoctorFixRestoresConfig(t *testing.T) {
 // N13 + N14: a migration that fails is shown by oh doctor, oh repair says
 // what is pending and restores the backup taken before the migration.
 func TestFailedMigrationDoctorAndRepair(t *testing.T) {
+	t.Parallel()
 	home := newOhHome(t)
 	_, errOut, code := runOhHome(t, home, "project", "list")
 	require.Equal(t, 0, code, errOut)
@@ -124,6 +127,7 @@ func TestFailedMigrationDoctorAndRepair(t *testing.T) {
 
 // N13: a corrupt database does not stop oh repair (no MustApp) nor doctor.
 func TestRepairCorruptDatabase(t *testing.T) {
+	t.Parallel()
 	home := newOhHome(t)
 	require.NoError(t, os.WriteFile(filepath.Join(home, "oh.db"), []byte(strings.Repeat("garbage!", 1024)), 0o600))
 	out, _, code := runOhHome(t, home, "repair")
@@ -141,6 +145,7 @@ func TestRepairCorruptDatabase(t *testing.T) {
 // N13: the MCP server workflow talks to the daemon only: it starts with a
 // database that cannot open, and never creates one.
 func TestMCPServeWorkflowNeedsNoDatabase(t *testing.T) {
+	t.Parallel()
 	home := newOhHome(t)
 	_, errOut, code := runOhHome(t, home, "mcp", "serve", "workflow")
 	assert.Equal(t, 0, code, errOut)

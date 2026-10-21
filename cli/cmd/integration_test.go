@@ -93,12 +93,14 @@ func runOh(t *testing.T, args ...string) (string, string, int) {
 
 // QB6: git runs no background maintenance in the tests (temp dir cleanup).
 func TestGitMaintenanceIsOffInTests(t *testing.T) {
+	t.Parallel()
 	out, err := exec.Command("git", "config", "--get", "maintenance.auto").Output()
 	require.NoError(t, err, "reading maintenance.auto")
 	assert.Equal(t, "false", strings.TrimSpace(string(out)), "maintenance.auto")
 }
 
 func TestDoctorRuns(t *testing.T) {
+	t.Parallel()
 	stdout, _, exitCode := runOh(t, "doctor")
 	// Exit code 1 when a check fails (QB1), e.g. no container engine on the
 	// test machine; 0 otherwise.

@@ -1,10 +1,13 @@
 package cmd
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -12,19 +15,41 @@ import (
 // ─────────────────────────────────────────────────────────────────────────────
 
 // setupGitRepo creates a temp git repo with an initial commit and the given branches.
+//
+// The repository is a copy of one built once, and a branch is the file git
+// writes for it (refs/heads/<name> holding the commit): no git command.
 func setupGitRepo(t *testing.T, branches ...string) string {
 	t.Helper()
-	dir := gittest.Repo(t)
+	dir := t.TempDir()
+	copyTree(t, gitRepoTemplate(t), dir)
+	head, err := os.ReadFile(filepath.Join(dir, ".git", "refs", "heads", "main"))
+	require.NoError(t, err)
 	for _, b := range branches {
-		gittest.Run(t, dir, "branch", b)
+		ref := filepath.Join(dir, ".git", "refs", "heads", filepath.FromSlash(b))
+		require.NoError(t, os.MkdirAll(filepath.Dir(ref), 0o755))
+		require.NoError(t, os.WriteFile(ref, head, 0o644))
 	}
 	return dir
+}
+
+var gitRepoTemplates templates
+
+// gitRepoTemplate is the repository setupGitRepo copies. It lives as long as
+// the test t that asked for it: a test with subtests asks for it first, so
+// that the subtests share it.
+func gitRepoTemplate(t *testing.T) string {
+	t.Helper()
+	return gitRepoTemplates.get(t, "repo", func(dir string) {
+		gittest.Run(t, dir, "init", "-q", "-b", "main")
+		gittest.Commit(t, dir, "README.md", "init\n", "init")
+	})
 }
 
 func TestDetectBranchPatternHeuristic(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping git-dependent test in short mode")
 	}
+	gitRepoTemplate(t)
 
 	t.Run("no_branches_returns_empty", func(t *testing.T) {
 		dir := setupGitRepo(t) // only main/master

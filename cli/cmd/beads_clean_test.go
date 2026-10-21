@@ -151,6 +151,23 @@ func TestPrintBeadsCleanModes(t *testing.T) {
 	}
 }
 
+var bdInitTemplates templates
+
+func bdInitTemplate(t *testing.T, git func(dir string, args ...string) string) string {
+	t.Helper()
+	return bdInitTemplates.get(t, "bdinit", func(dir string) {
+		git(dir, "init", "-q", "-b", "main")
+		git(dir, "commit", "-q", "--allow-empty", "-m", "init")
+		if err := os.MkdirAll(filepath.Join(dir, ".beads"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		_ = os.WriteFile(filepath.Join(dir, ".beads", "config.yaml"), nil, 0o644)
+		_ = os.WriteFile(filepath.Join(dir, "CLAUDE.md"), []byte("<!-- BEGIN BEADS INTEGRATION v:1 -->\nbd\n<!-- END BEADS INTEGRATION -->\n"), 0o644)
+		git(dir, "add", ".")
+		git(dir, "commit", "-qm", "bd init: initialize beads issue tracking")
+	})
+}
+
 // bdInitCommitRepo is a repository whose last commit is the one of bd init
 // (not the first one, not pushed).
 func bdInitCommitRepo(t *testing.T) (dir string, git func(dir string, args ...string) string) {
@@ -167,15 +184,7 @@ func bdInitCommitRepo(t *testing.T) (dir string, git func(dir string, args ...st
 		return strings.TrimSpace(string(out))
 	}
 	dir = t.TempDir()
-	git(dir, "init", "-q", "-b", "main")
-	git(dir, "commit", "-q", "--allow-empty", "-m", "init")
-	if err := os.MkdirAll(filepath.Join(dir, ".beads"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	_ = os.WriteFile(filepath.Join(dir, ".beads", "config.yaml"), nil, 0o644)
-	_ = os.WriteFile(filepath.Join(dir, "CLAUDE.md"), []byte("<!-- BEGIN BEADS INTEGRATION v:1 -->\nbd\n<!-- END BEADS INTEGRATION -->\n"), 0o644)
-	git(dir, "add", ".")
-	git(dir, "commit", "-qm", "bd init: initialize beads issue tracking")
+	copyTree(t, bdInitTemplate(t, git), dir)
 	return dir, git
 }
 

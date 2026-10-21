@@ -111,6 +111,7 @@ func TestEvalPassEnv(t *testing.T) {
 // The variants are prepared from the embedded hub and checked before any
 // pass: a variant that breaks a workflow of the cases stops the run.
 func TestPrepareEvalVariants(t *testing.T) {
+	t.Parallel()
 	work := t.TempDir()
 	cases := []*evalrun.Case{{ID: "S6", Workflow: "debug"}}
 	vs, err := evalrun.ParseVariants([]string{"base", "sans-23=-skill:debugger-phase-2-3"})
