@@ -334,6 +334,7 @@ func TestWikiViewFailuresAndEmpty(t *testing.T) {
 // p5-fixes: the id of a proposal (team state, written by others) is shown
 // with its brackets, never read as a style tag.
 func TestWikiProposalIDEscaped(t *testing.T) {
+	t.Parallel()
 	v := NewWikiView(func() TeamResolution { return TeamResolution{} })
 	it := v.buildProposalItem(teamstate.WikiProposal{ID: "red", Page: "p", Author: "a"})
 	tv := tview.NewTextView().SetDynamicColors(true)

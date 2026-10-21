@@ -10,6 +10,7 @@ import (
 )
 
 func TestMigrateTeamToTeams_AlreadyMigrated(t *testing.T) {
+	t.Parallel()
 	c := &Config{
 		Teams: []TeamConfig{{ID: "existing", Enabled: true}},
 		Team:  TeamConfig{Enabled: true, StateRepo: "git@gitlab.com:acme/team-state.git"},
@@ -20,6 +21,7 @@ func TestMigrateTeamToTeams_AlreadyMigrated(t *testing.T) {
 }
 
 func TestMigrateTeamToTeams_NoTeam(t *testing.T) {
+	t.Parallel()
 	c := &Config{}
 	if MigrateTeamToTeams(c) {
 		t.Error("should not migrate when Team is empty")
@@ -27,6 +29,7 @@ func TestMigrateTeamToTeams_NoTeam(t *testing.T) {
 }
 
 func TestMigrateTeamToTeams_Success(t *testing.T) {
+	t.Parallel()
 	c := &Config{
 		Team: TeamConfig{
 			Enabled:   true,
@@ -66,6 +69,7 @@ func TestMigrateTeamToTeams_Success(t *testing.T) {
 }
 
 func TestMigrateTeamToTeams_IDDerivation(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		repo     string
 		expected string
@@ -109,6 +113,7 @@ func TestBackupHubToml(t *testing.T) {
 }
 
 func TestFindTeam(t *testing.T) {
+	t.Parallel()
 	c := &Config{
 		Teams: []TeamConfig{
 			{ID: "acme", Name: "ACME Team", Enabled: true},
@@ -133,6 +138,7 @@ func TestFindTeam(t *testing.T) {
 }
 
 func TestFindTeamByRepo(t *testing.T) {
+	t.Parallel()
 	c := &Config{
 		Teams: []TeamConfig{
 			{ID: "acme", StateRepo: "git@gitlab.com:acme/team-state.git"},
@@ -152,6 +158,7 @@ func TestFindTeamByRepo(t *testing.T) {
 }
 
 func TestDefaultTeam(t *testing.T) {
+	t.Parallel()
 	// No teams
 	c := &Config{}
 	if c.DefaultTeam() != nil {

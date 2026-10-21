@@ -15,6 +15,7 @@ const stacksDir = "../../../skills/developer/stacks"
 // C3.2: every mapped ref is a shipped stack skill, and every stack skill is
 // reachable from a signal.
 func TestStackSkillMapping_MatchesCatalog(t *testing.T) {
+	t.Parallel()
 	entries, err := os.ReadDir(stacksDir)
 	require.NoError(t, err)
 	shipped := map[string]bool{}
@@ -37,6 +38,7 @@ func TestStackSkillMapping_MatchesCatalog(t *testing.T) {
 }
 
 func TestResolveStackSkills_Projects(t *testing.T) {
+	t.Parallel()
 	const p = "developer/stacks/dev-standards-"
 	cases := []struct {
 		name  string

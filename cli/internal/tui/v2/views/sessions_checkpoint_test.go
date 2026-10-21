@@ -124,6 +124,7 @@ func TestCheckpointCard(t *testing.T) {
 }
 
 func TestCheckpointBodyWithoutData(t *testing.T) {
+	t.Parallel()
 	body := checkpointBody(CheckpointCardView{})
 	assert.True(t, strings.Contains(body, "─"))
 	assert.NotContains(t, body, "+0")

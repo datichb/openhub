@@ -14,6 +14,7 @@ import (
 // p6-debts: a driver started again says by whom in the events: the daemon
 // (what it always wrote), or the user (from the TUI).
 func TestDriverRelaunched(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct{ by, want string }{
 		{RelaunchByDaemon, "started again by the daemon (waiting)"},
 		{RelaunchByUser, "started again by the user (waiting)"},
@@ -34,6 +35,7 @@ func TestDriverRelaunched(t *testing.T) {
 // p6-debts: a merger that gives up (idle, the merge not concluded) is
 // stopped after its own guard, not the 10 minutes of a child.
 func TestMergerGuard(t *testing.T) {
+	t.Parallel()
 	d := &Driver{}
 	assert.Equal(t, 2*time.Minute, d.mergerGuard())
 	d.IdleTimeout = 30 * time.Second

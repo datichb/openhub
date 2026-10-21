@@ -15,6 +15,7 @@ import (
 )
 
 func TestInitSolo(t *testing.T) {
+	t.Parallel()
 	if testing.Short() {
 		t.Skip("git")
 	}
@@ -64,6 +65,7 @@ func TestInitSolo(t *testing.T) {
 
 // Acceptance criterion 4: promoting a solo space keeps everything.
 func TestPromote(t *testing.T) {
+	t.Parallel()
 	if testing.Short() {
 		t.Skip("git")
 	}

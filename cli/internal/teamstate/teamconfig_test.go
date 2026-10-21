@@ -11,6 +11,7 @@ import (
 )
 
 func TestLoadConfig(t *testing.T) {
+	t.Parallel()
 	repo := setupTestRepo(t)
 
 	content := `[notification]
@@ -30,6 +31,7 @@ bot_name = "TeamHub"
 }
 
 func TestLoadConfigDefaults(t *testing.T) {
+	t.Parallel()
 	repo := setupTestRepo(t)
 	// No config.toml — should return defaults
 
@@ -41,6 +43,7 @@ func TestLoadConfigDefaults(t *testing.T) {
 }
 
 func TestLoadConfigEmptyBotName(t *testing.T) {
+	t.Parallel()
 	repo := setupTestRepo(t)
 
 	content := `[notification]
@@ -57,6 +60,7 @@ enabled = true
 }
 
 func TestLoadConfigInvalid(t *testing.T) {
+	t.Parallel()
 	repo := setupTestRepo(t)
 
 	content := `this is {{{{ invalid toml`
@@ -68,6 +72,7 @@ func TestLoadConfigInvalid(t *testing.T) {
 }
 
 func TestSaveConfig(t *testing.T) {
+	t.Parallel()
 	repo, _ := setupGitTestRepo(t)
 
 	cfg := &TeamConfig{
@@ -96,6 +101,7 @@ func TestSaveConfig(t *testing.T) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 func TestBoardConfig_InitialStatus(t *testing.T) {
+	t.Parallel()
 	t.Run("custom columns with initial role", func(t *testing.T) {
 		cfg := BoardConfig{
 			Columns: []BoardColumnConfig{
@@ -125,6 +131,7 @@ func TestBoardConfig_InitialStatus(t *testing.T) {
 }
 
 func TestBoardConfig_DefaultWorkStatus(t *testing.T) {
+	t.Parallel()
 	t.Run("custom columns with active role", func(t *testing.T) {
 		cfg := BoardConfig{
 			Columns: []BoardColumnConfig{
@@ -155,6 +162,7 @@ func TestBoardConfig_DefaultWorkStatus(t *testing.T) {
 }
 
 func TestBoardConfig_TerminalStatuses(t *testing.T) {
+	t.Parallel()
 	t.Run("custom columns with terminal roles", func(t *testing.T) {
 		cfg := BoardConfig{
 			Columns: []BoardColumnConfig{
@@ -174,6 +182,7 @@ func TestBoardConfig_TerminalStatuses(t *testing.T) {
 }
 
 func TestBoardConfig_ActiveStatuses(t *testing.T) {
+	t.Parallel()
 	t.Run("custom columns with active roles", func(t *testing.T) {
 		cfg := BoardConfig{
 			Columns: []BoardColumnConfig{
@@ -193,6 +202,7 @@ func TestBoardConfig_ActiveStatuses(t *testing.T) {
 }
 
 func TestBoardConfig_IsValidStatus(t *testing.T) {
+	t.Parallel()
 	cfg := BoardConfig{
 		Columns: []BoardColumnConfig{
 			{ID: "todo", Name: "TODO", Role: ColumnRoleInitial},
@@ -220,6 +230,7 @@ func TestBoardConfig_IsValidStatus(t *testing.T) {
 }
 
 func TestBoardConfig_Validate(t *testing.T) {
+	t.Parallel()
 	t.Run("valid config", func(t *testing.T) {
 		cfg := BoardConfig{
 			Columns: []BoardColumnConfig{
@@ -322,6 +333,7 @@ func TestBoardConfig_Validate(t *testing.T) {
 }
 
 func TestBoardConfig_HasCustomColumns(t *testing.T) {
+	t.Parallel()
 	t.Run("empty returns false", func(t *testing.T) {
 		cfg := BoardConfig{}
 		assert.False(t, cfg.HasCustomColumns())
@@ -339,6 +351,7 @@ func TestBoardConfig_HasCustomColumns(t *testing.T) {
 }
 
 func TestDefaultBoardConfig(t *testing.T) {
+	t.Parallel()
 	cfg := DefaultBoardConfig()
 
 	require.Len(t, cfg.Columns, 6)

@@ -22,7 +22,7 @@ func fixFixture(t *testing.T) (*fixture, context.CancelFunc, chan error) {
 	f.launcher.work["ev-1"] = [2]string{"a.go", "package calc\n"}
 	f.wf.Fanout.Fix, f.wf.Fanout.FixInput = "quick", "request"
 	f.wf.MaxFixRounds = 2
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), runGuard)
 	done := make(chan error, 1)
 	go func() { done <- f.driver.Run(ctx, "ses_parent") }()
 	t.Cleanup(func() { cancel(); <-done })
@@ -40,7 +40,7 @@ func (f *fixture) waitStatus(t *testing.T, want domain.FanoutStatus) *domain.Ses
 		}
 		fo = p.Fanout
 		return fo.Status == want && (want != domain.FanoutReady || len(f.launcher.toldCopy()) > len(fo.Fixes))
-	}, 30*time.Second, 20*time.Millisecond)
+	}, runGuard, 20*time.Millisecond)
 	return fo
 }
 
@@ -62,6 +62,7 @@ func (f *fixture) requestFix(t *testing.T, instruction string) error {
 // takes its commit, the fan-out is ready again and the parent told; the
 // merge checkpoint is then verified on the new head.
 func TestFixRound(t *testing.T) {
+	t.Parallel()
 	f, _, _ := fixFixture(t)
 	before, _ := f.store.Get(context.Background(), "ses_parent")
 	base := before.Fanout.Integration.Head
@@ -97,6 +98,7 @@ func TestFixRound(t *testing.T) {
 // A fixer that merges, or commits nothing, is not kept: the integration
 // branch goes back where it was.
 func TestFixRoundRefused(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		name  string
 		merge bool
@@ -124,6 +126,7 @@ func TestFixRoundRefused(t *testing.T) {
 // Fix rounds are asked only while the fan-out waits for its merge
 // checkpoint, at most limits.max_fix_rounds times, and only when declared.
 func TestRequestFixGuards(t *testing.T) {
+	t.Parallel()
 	f, _, _ := fixFixture(t)
 	f.launcher.fix = [2]string{"fix.go", "package calc\n"}
 	require.NoError(t, f.requestFix(t, "un"))
@@ -145,6 +148,7 @@ func TestRequestFixGuards(t *testing.T) {
 // nothing to the record after that, or a stale copy of it would take the round
 // away (TestRequestFixGuards failed one time out of fifty on a loaded machine).
 func TestDriverWritesNothingAfterTellingTheParent(t *testing.T) {
+	t.Parallel()
 	f := newFixture(t, "ev-1")
 	f.launcher.work["ev-1"] = [2]string{"a.go", "package calc\n"}
 	var atTell *domain.SessionFanout

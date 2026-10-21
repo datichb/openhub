@@ -40,6 +40,7 @@ func sanityRepo(t *testing.T, files map[string]string, commit bool) string {
 // check, oh doctor --fix (FixImpact) repairs it; a shared .beads/ without
 // the lock in the team's .gitignore is a warning, never repaired.
 func TestBeadsSanityGateLock(t *testing.T) {
+	t.Parallel()
 	local := sanityRepo(t, map[string]string{".beads/config.yaml": "", ".git/info/exclude": ".beads/\n"}, false)
 	res := beadsSanityResults([]domain.Project{{Name: "api", Path: local}})
 	require.Len(t, res, 1)

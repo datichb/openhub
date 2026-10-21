@@ -12,6 +12,7 @@ import (
 // An operation unknown to this version (written by a newer oh) is a warning,
 // not an error: a team on mixed versions keeps working (DC9).
 func TestValidate_UnlockUnknownIsWarning(t *testing.T) {
+	t.Parallel()
 	body := "risk: write\ncheckpoints:\n  cp-1: { unlocks: [deploy, commit], mode: { manuel: pause, semi-auto: pause, auto: pause } }\n"
 	diags := checkYAML(t, vHeader+body, testEnv())
 	assertDiag(t, diags, "unlock_unknown", "checkpoints.cp-1.unlocks[0]", SeverityWarning)
@@ -24,6 +25,7 @@ func TestValidate_UnlockUnknownIsWarning(t *testing.T) {
 
 // What the unlocks accept: no diagnostic of the kind the case refuses.
 func TestValidate_UnlocksAccepted(t *testing.T) {
+	t.Parallel()
 	pause := "mode: { manuel: pause, semi-auto: pause, auto: pause }"
 	isError := func(d Diagnostic) bool { return d.Severity == SeverityError }
 	cases := []struct {
@@ -55,6 +57,7 @@ func TestValidate_UnlocksAccepted(t *testing.T) {
 // p5-fixes: the earlier commit checkpoint knows the later (CommitAgain); the
 // repeated commit adds no irreversible pause to the budget.
 func TestSpec_UnlockAgainCommitAgain(t *testing.T) {
+	t.Parallel()
 	pause := "mode: { manuel: pause, semi-auto: pause, auto: pause }"
 	ok := "risk: write\ncheckpoints:\n  cp-a: { unlocks: [commit], " + pause + " }\n  cp-b: { " + pause + " }\n  cp-c: { unlocks: [commit], unlock_again: true, " + pause + " }\n"
 	doc, pd := Parse([]byte(vHeader+ok), Source{Layer: LayerHub, Path: "x.yaml"})
@@ -78,6 +81,7 @@ var hubTicketUnlocks = strings.Replace(hubTicket,
 	"cp-3: { label: Next, unlocks: [push], mode: { manuel: pause, semi-auto: auto, auto: auto } }\n  cp-2: { label: Commit, mandatory: true, unlocks: [commit, close],", 1)
 
 func TestResolve_UnlocksOnlyAddUp(t *testing.T) {
+	t.Parallel()
 	cat := catalogOf(t, map[string]string{
 		"hub:ticket":  hubTicketUnlocks,
 		"team:ticket": "apiVersion: oh/v1\nkind: Workflow\nid: ticket\nextends: hub:ticket\ncheckpoints:\n  cp-1: { unlocks: [] }\n  cp-2: { unlocks: [close] }\n",
@@ -90,6 +94,7 @@ func TestResolve_UnlocksOnlyAddUp(t *testing.T) {
 }
 
 func TestResolve_UnlockMovedIsDuplicate(t *testing.T) {
+	t.Parallel()
 	cat := catalogOf(t, map[string]string{
 		"hub:ticket":  hubTicketUnlocks,
 		"team:ticket": "apiVersion: oh/v1\nkind: Workflow\nid: ticket\nextends: hub:ticket\ncheckpoints:\n  cp-1: { unlocks: [commit] }\n",
@@ -107,6 +112,7 @@ func TestResolve_UnlockMovedIsDuplicate(t *testing.T) {
 // more checkpoint): a team layer that sets it, on an inherited checkpoint
 // or a new one, is a loosening.
 func TestPatch_UnlockAgainHubOnly(t *testing.T) {
+	t.Parallel()
 	for _, patch := range []string{
 		"checkpoints:\n  cp-1: { unlocks: [commit], unlock_again: true }\n",
 		"checkpoints:\n  cp-9: { unlocks: [commit], unlock_again: true, mode: { manuel: pause, semi-auto: pause, auto: pause } }\n",

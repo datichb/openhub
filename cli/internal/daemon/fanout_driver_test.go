@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -60,7 +59,6 @@ func TestEnsureFanoutDriver(t *testing.T) {
 	d.ensureFanoutDriver(ctx, "ses_ready")
 	assert.Len(t, started, 2, "a driver runs")
 	unlock()
-	time.Sleep(time.Millisecond)
 	d.ensureFanoutDriver(ctx, "ses_ready")
 	assert.Len(t, started, 3)
 }

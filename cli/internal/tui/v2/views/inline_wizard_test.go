@@ -165,6 +165,7 @@ func TestInlineWizardView_DynamicSkipIf(t *testing.T) {
 }
 
 func TestInlineWizardView_NavigationHelpers(t *testing.T) {
+	t.Parallel()
 	v := NewInlineWizardView(InlineWizardConfig{
 		ID:    "wizard.nav",
 		Title: "Nav Test",
@@ -340,6 +341,7 @@ func TestInlineWizardView_HandleKey_CustomViewEsc(t *testing.T) {
 }
 
 func TestInlineWizardView_SummaryTargetFunc(t *testing.T) {
+	t.Parallel()
 	projectCreated := false
 
 	v := NewInlineWizardView(InlineWizardConfig{
@@ -377,6 +379,7 @@ func TestInlineWizardView_SummaryTargetFunc(t *testing.T) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 func TestInlineWizardView_TabToButtonFormWithTrailingTextView(t *testing.T) {
+	t.Parallel()
 	t.Run("InputField+TextView: InputField is last focusable", func(t *testing.T) {
 		form := tview.NewForm()
 		form.AddInputField("Name", "", 0, nil, nil)
@@ -1065,6 +1068,7 @@ func TestInlineWizardView_E2E_HandleKey(t *testing.T) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 func TestStripTviewTags(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    string
@@ -1092,6 +1096,7 @@ func TestStripTviewTags(t *testing.T) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 func TestIsDropDownFocused(t *testing.T) {
+	t.Parallel()
 	form := func() *tview.Form {
 		f := tview.NewForm()
 		f.AddInputField("Name", "", 0, nil, nil)
@@ -1119,6 +1124,7 @@ func TestIsDropDownFocused(t *testing.T) {
 }
 
 func TestFixFormLabelFocus(t *testing.T) {
+	t.Parallel()
 	form := tview.NewForm()
 	form.AddInputField("Name", "", 0, nil, nil)
 	form.AddInputField("Email", "", 0, nil, nil)
@@ -1141,6 +1147,7 @@ func TestFixFormLabelFocus(t *testing.T) {
 }
 
 func TestIsLastFocusableFormItem_Export(t *testing.T) {
+	t.Parallel()
 	form := tview.NewForm()
 	form.AddInputField("A", "", 0, nil, nil)
 	form.AddInputField("B", "", 0, nil, nil)

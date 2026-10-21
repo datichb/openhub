@@ -13,6 +13,7 @@ import (
 )
 
 func TestAppendEventWritesFile(t *testing.T) {
+	t.Parallel()
 	repo := setupTestRepo(t)
 
 	// Create project events dir
@@ -46,6 +47,7 @@ func TestAppendEventWritesFile(t *testing.T) {
 }
 
 func TestListEventsFilterByDate(t *testing.T) {
+	t.Parallel()
 	repo := setupTestRepo(t)
 
 	dir := filepath.Join(repo.path, "projects", "T-SRU", "events")
@@ -78,6 +80,7 @@ func TestListEventsFilterByDate(t *testing.T) {
 }
 
 func TestListEventsMultipleMonths(t *testing.T) {
+	t.Parallel()
 	repo := setupTestRepo(t)
 
 	dir := filepath.Join(repo.path, "projects", "T-SRU", "events")
@@ -102,6 +105,7 @@ func TestListEventsMultipleMonths(t *testing.T) {
 }
 
 func TestListEventsAllProjects(t *testing.T) {
+	t.Parallel()
 	repo := setupTestRepo(t)
 
 	// Events in two projects
@@ -125,6 +129,7 @@ func TestListEventsAllProjects(t *testing.T) {
 }
 
 func TestListEventsLimited(t *testing.T) {
+	t.Parallel()
 	repo := setupTestRepo(t)
 
 	dir := filepath.Join(repo.path, "projects", "T-SRU", "events")
@@ -151,6 +156,7 @@ func TestListEventsLimited(t *testing.T) {
 }
 
 func TestListEventsEmpty(t *testing.T) {
+	t.Parallel()
 	repo := setupTestRepo(t)
 
 	result, err := repo.ListEvents("NONEXISTENT", time.Time{})
@@ -159,6 +165,7 @@ func TestListEventsEmpty(t *testing.T) {
 }
 
 func TestListEventsSkipsMalformed(t *testing.T) {
+	t.Parallel()
 	repo := setupTestRepo(t)
 
 	dir := filepath.Join(repo.path, "projects", "T-SRU", "events")
@@ -177,6 +184,7 @@ this is not json
 }
 
 func TestListEventsLimited_LimitZero(t *testing.T) {
+	t.Parallel()
 	repo := setupTestRepo(t)
 
 	// Create 5 events
@@ -197,6 +205,7 @@ func TestListEventsLimited_LimitZero(t *testing.T) {
 }
 
 func TestNewSessionCompleteEvent(t *testing.T) {
+	t.Parallel()
 	data := map[string]interface{}{
 		"session_id": "sess-123",
 		"duration_s": 120.5,

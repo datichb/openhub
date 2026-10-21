@@ -84,6 +84,17 @@ func (f *existingForm) launches() []LaunchChoices {
 	return append([]LaunchChoices(nil), f.launched...)
 }
 
+// assertNoLaunch checks that nothing launched, without waiting: a launch sets
+// launching on the event loop before its goroutine runs, and clears it only
+// once the launch function returned (after it recorded the launch).
+func (f *existingForm) assertNoLaunch(t *testing.T, msgAndArgs ...any) {
+	t.Helper()
+	var launching bool
+	onLoop(f.app, func() { launching = f.v.launching })
+	assert.False(t, launching, msgAndArgs...)
+	assert.Empty(t, f.launches(), msgAndArgs...)
+}
+
 func (f *existingForm) recapText() string {
 	var txt string
 	onLoop(f.app, func() { txt = f.v.recapTV.GetText(true) })
@@ -168,8 +179,7 @@ func TestLaunchFormExistingSameWorkflow(t *testing.T) {
 
 	// Ctrl+S does not launch without a choice.
 	onLoop(f.app, func() { f.v.HandleKey(tcell.NewEventKey(tcell.KeyCtrlS, 0, tcell.ModNone)) })
-	time.Sleep(50 * time.Millisecond)
-	assert.Empty(t, f.launches())
+	f.assertNoLaunch(t)
 	f.sh.mu.Lock()
 	assert.Contains(t, f.sh.toasts, i18n.T("tui.launch.existing.choose"))
 	f.sh.mu.Unlock()
@@ -199,8 +209,7 @@ func TestLaunchFormExistingOnlyAllowedChoices(t *testing.T) {
 	assert.Equal(t, []string{i18n.T("tui.launch.back"), i18n.T("tui.launch.existing.choice.parallel")}, recapButtons(f.app, f.v))
 	assert.Equal(t, i18n.T("tui.launch.existing.choice.parallel"), focusedButton(f.app))
 	f.key('R') // not allowed
-	time.Sleep(50 * time.Millisecond)
-	assert.Empty(t, f.launches())
+	f.assertNoLaunch(t)
 }
 
 // R / T / k / p launch at once with the choice (R: the resume key of the
@@ -209,8 +218,7 @@ func TestLaunchFormExistingKeys(t *testing.T) {
 	f := newExistingForm(t, true, sameWorkflowExisting())
 	f.key('r')
 	f.key('t')
-	time.Sleep(50 * time.Millisecond)
-	assert.Empty(t, f.launches(), "r and t launch nothing")
+	f.assertNoLaunch(t, "r and t launch nothing")
 	for key, want := range map[rune]string{'R': LaunchExistingResume, 'T': LaunchExistingTransfer, 'k': LaunchExistingKeep, 'p': LaunchExistingParallel} {
 		t.Run(want, func(t *testing.T) {
 			f := newExistingForm(t, true, sameWorkflowExisting())

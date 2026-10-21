@@ -15,6 +15,7 @@ checkpoints:
 `
 
 func TestEnforce_BlocksLockedFields(t *testing.T) {
+	t.Parallel()
 	cat := catalogOf(t, map[string]string{
 		"hub:ticket":  hubTicket,
 		"team:ticket": teamTicketEnforced,
@@ -54,6 +55,7 @@ modes: { default: manuel }
 }
 
 func TestEnforce_AllLocksEverythingButIdentity(t *testing.T) {
+	t.Parallel()
 	cat := catalogOf(t, map[string]string{
 		"hub:ticket": hubTicket,
 		"team:ticket": `apiVersion: oh/v1
@@ -84,6 +86,7 @@ risk: read
 }
 
 func TestEnforce_AccumulatesAndKeepsParentFree(t *testing.T) {
+	t.Parallel()
 	cat := catalogOf(t, map[string]string{
 		"hub:ticket":  hubTicket,
 		"team:ticket": teamTicketEnforced,
@@ -100,6 +103,7 @@ func TestEnforce_AccumulatesAndKeepsParentFree(t *testing.T) {
 }
 
 func TestEnforce_UnknownFieldIsAnError(t *testing.T) {
+	t.Parallel()
 	cat := catalogOf(t, map[string]string{"hub:ticket": hubTicket + "enforce: [checkpoints, nope]\n"})
 	_, diags := Check(cat, mustRef(t, "hub:ticket"), nil, Env{})
 	var found bool
@@ -114,6 +118,7 @@ func TestEnforce_UnknownFieldIsAnError(t *testing.T) {
 }
 
 func TestEnforceableFields(t *testing.T) {
+	t.Parallel()
 	fields := EnforceableFields()
 	for _, want := range []string{"checkpoints", "risk", "limits", "inputs"} {
 		if !IsEnforceable(want) {

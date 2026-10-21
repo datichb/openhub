@@ -154,6 +154,7 @@ func TestSaveAndLoad_Roundtrip(t *testing.T) {
 // ─── TeamConfig.Validate + ValidateTeams tests ───────────────────────────────
 
 func TestTeamConfigValidate(t *testing.T) {
+	t.Parallel()
 	valid := config.TeamConfig{ID: "my-team", Enabled: true, StateRepo: "git@gitlab.com:team/ts.git", MemberID: "alice"}
 	with := func(mod func(*config.TeamConfig)) config.TeamConfig {
 		tc := valid
@@ -256,6 +257,7 @@ language = "en"
 // ─── MCPServer tests ─────────────────────────────────────────────────────────
 
 func TestMCPServer_Dispatch(t *testing.T) {
+	t.Parallel()
 	c := &config.Config{}
 
 	assert.NotNil(t, c.MCPServer("figma"))
@@ -282,6 +284,7 @@ func TestMCPServer_Dispatch(t *testing.T) {
 // ─── ToMap tests ─────────────────────────────────────────────────────────────
 
 func TestToMap_AllKeys(t *testing.T) {
+	t.Parallel()
 	c := &config.Config{
 		CLI: config.CLIConfig{Language: "fr"},
 		LLM: config.LLMConfig{DefaultProvider: "bedrock"},
@@ -302,6 +305,7 @@ func TestToMap_AllKeys(t *testing.T) {
 }
 
 func TestServiceTokenKeys(t *testing.T) {
+	t.Parallel()
 	c := &config.Config{}
 	assert.Equal(t, []string{"openhub.mcp.gitlab.token", "gitlab-token"}, config.ServiceTokenKeys(c, "gitlab"))
 

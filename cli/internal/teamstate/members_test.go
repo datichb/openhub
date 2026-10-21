@@ -36,6 +36,7 @@ default_mode = "auto"
 `
 
 func TestMemberLookups(t *testing.T) {
+	t.Parallel()
 	repo := setupTestRepo(t)
 	writeMembersToml(t, repo, twoMembers)
 
@@ -68,6 +69,7 @@ func TestMemberLookups(t *testing.T) {
 }
 
 func TestMemberLookupErrors(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		toml    string // "" : no members.toml
@@ -107,6 +109,7 @@ func TestMemberLookupErrors(t *testing.T) {
 }
 
 func TestMembersCRUD(t *testing.T) {
+	t.Parallel()
 	repo, _ := setupGitTestRepo(t)
 	ctx := context.Background()
 

@@ -10,6 +10,7 @@ import (
 // sources of from:.
 
 func TestParseSessionFrom(t *testing.T) {
+	t.Parallel()
 	for from, want := range map[string]*SessionFrom{
 		"session.output(spec.tickets)": {Source: SourceSessionOutput, Workflow: "spec", Output: "tickets"},
 		"session.output(tickets)":      {Source: SourceSessionOutput, Output: "tickets"},
@@ -41,6 +42,7 @@ func TestParseSessionFrom(t *testing.T) {
 }
 
 func TestOutputFits(t *testing.T) {
+	t.Parallel()
 	for _, c := range []struct {
 		out OutputType
 		in  InputType
@@ -95,6 +97,7 @@ func hasDiag(ds Diagnostics, code, path string) bool {
 }
 
 func TestValidate_Next(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name, next, code, path string
 	}{
@@ -130,6 +133,7 @@ func TestValidate_Next(t *testing.T) {
 }
 
 func TestValidate_SessionFrom(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name, input, code string
 	}{
@@ -170,6 +174,7 @@ func TestValidate_SessionFrom(t *testing.T) {
 }
 
 func TestValidate_OutputRecord(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name, outputs, code string
 	}{
@@ -213,6 +218,7 @@ func TestValidate_OutputRecord(t *testing.T) {
 }
 
 func TestValidate_Aliases(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name, aliases, code string
 	}{
@@ -242,6 +248,7 @@ func TestValidate_Aliases(t *testing.T) {
 // An alias launches its default target, or the target whose `with` input
 // is given; a document with the alias id wins.
 func TestResolveAlias(t *testing.T) {
+	t.Parallel()
 	plan := "apiVersion: oh/v1\nkind: Workflow\nid: plan\nrisk: write\naliases: [feat, old]\n"
 	impl := "apiVersion: oh/v1\nkind: Workflow\nid: impl\nrisk: write\ninputs:\n  tickets: { type: beads-ids }\naliases: [{ id: feat, with: tickets }]\n"
 	cat := catalogOf(t, map[string]string{"hub:plan": plan, "hub:impl": impl})
@@ -286,6 +293,7 @@ func TestResolveAlias(t *testing.T) {
 
 // A patch replaces next: and aliases: as a whole; the parent is untouched.
 func TestPatch_Next(t *testing.T) {
+	t.Parallel()
 	hub := composeFrom + "aliases: [old]\nnext:\n  - { workflow: to, inputs: { tickets: session.output(tickets) } }\n"
 	cat := catalogOf(t, map[string]string{
 		"hub:from":  hub,
@@ -310,6 +318,7 @@ func TestPatch_Next(t *testing.T) {
 // feature-migration: `record: input` records the value of an input (given,
 // else its default) so that `next:` passes it on (method of spec).
 func TestRecordedInputs(t *testing.T) {
+	t.Parallel()
 	doc, diags := Parse([]byte(vHeader+"risk: write\ninputs:\n  method: { type: enum, values: [standard, tdd], default: standard }\n  request: { type: text }\noutputs:\n  - { id: method, type: text, record: input }\n  - { id: tickets, type: beads-ids, record: created }\n"), Source{Layer: LayerHub})
 	if diags.HasErrors() {
 		t.Fatal(diagList(diags))
@@ -332,6 +341,7 @@ func TestRecordedInputs(t *testing.T) {
 // B1: a step is proposed when its outputs were recorded, with the values of
 // equals (case ignored).
 func TestNextWhenHolds(t *testing.T) {
+	t.Parallel()
 	var none *NextWhen
 	if !none.Holds(nil) {
 		t.Fatal("no condition: always")

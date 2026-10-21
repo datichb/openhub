@@ -131,6 +131,7 @@ func TestLaunchFormOriginIsEscaped(t *testing.T) {
 }
 
 func TestLaunchFormEntryAgent(t *testing.T) {
+	t.Parallel()
 	cfg := LaunchFormConfig{WorkflowID: "libre", Spec: parseSpec(t, libreTestSpec), Lang: "fr",
 		EntryAgents: []string{"orchestrator", "debugger"}}
 	m := newLaunchModel(cfg)

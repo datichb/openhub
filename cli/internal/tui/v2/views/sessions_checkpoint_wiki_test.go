@@ -168,6 +168,7 @@ func TestCheckpointCardWiki(t *testing.T) {
 }
 
 func TestCheckpointCardWikiWithoutDecider(t *testing.T) {
+	t.Parallel()
 	v := NewSessionsView(SessionsViewConfig{Backend: &cardSessions{}})
 	assert.Nil(t, v.wikiActions(nil, &SessionDecision{SessionID: "ses_a"}, []CheckpointWikiProposal{{ID: "wp-1"}}), "listed only")
 	assert.NotContains(t, checkpointBody(CheckpointCardView{}), "wiki")
@@ -320,6 +321,7 @@ func TestCheckpointWikiDecisions(t *testing.T) {
 
 // The configuration of the list keeps the key convention.
 func TestCheckpointWikiConvention(t *testing.T) {
+	t.Parallel()
 	be := &wikiSessions{}
 	_, cw := newTestCheckpointWiki(t, be, be, &wikiCardShell{})
 	require.NoError(t, cw.wiki.list.cfg.Validate())

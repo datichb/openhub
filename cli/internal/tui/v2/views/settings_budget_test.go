@@ -10,6 +10,7 @@ import (
 )
 
 func TestSettingsBudgetFields(t *testing.T) {
+	t.Parallel()
 	v := &SettingsView{live: &config.Config{}}
 	v.buildFields()
 	idx := map[string]int{}

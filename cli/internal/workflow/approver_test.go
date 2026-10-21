@@ -44,6 +44,7 @@ func approverOf(t *testing.T, r *Resolved, id string) []string {
 }
 
 func TestApprover_TeamDeclares(t *testing.T) {
+	t.Parallel()
 	r, diags := approverCheck(t, map[string]string{"team:ticket": approverTeam}, "team:ticket")
 	if errs := errorsOf(diags); len(errs) > 0 {
 		t.Fatalf("team approver: %v", diagList(diags))
@@ -70,6 +71,7 @@ func TestApprover_TeamDeclares(t *testing.T) {
 }
 
 func TestApprover_OtherLayersRefused(t *testing.T) {
+	t.Parallel()
 	hubWith := strings.Replace(hubTicket, "  cp-2: { label: Commit,", "  cp-2: { label: Commit, approver: Ada,", 1)
 	_, diags := approverCheck(t, map[string]string{"hub:ticket": hubWith}, "hub:ticket")
 	assertDiag(t, diags, "checkpoint_approver_layer", "checkpoints.cp-2.approver", SeverityError)
@@ -91,6 +93,7 @@ func TestApprover_OtherLayersRefused(t *testing.T) {
 }
 
 func TestApprover_ProjectMayNotLoosen(t *testing.T) {
+	t.Parallel()
 	cases := []struct{ name, body, code, path string }{
 		{"changes it", "checkpoints:\n  cp-2: { approver: Bob }\n", "checkpoint_approver_layer", "checkpoints.cp-2.approver"},
 		{"removes it", "checkpoints:\n  cp-2: { approver: [] }\n", "checkpoint_approver_layer", "checkpoints.cp-2.approver"},
@@ -128,6 +131,7 @@ func TestApprover_ProjectMayNotLoosen(t *testing.T) {
 }
 
 func TestApprover_Values(t *testing.T) {
+	t.Parallel()
 	team := func(v string) string {
 		return "apiVersion: oh/v1\nkind: Workflow\nid: ticket\nextends: hub:ticket\ncheckpoints:\n  cp-2: { approver: " + v + " }\n"
 	}
@@ -155,6 +159,7 @@ func TestApprover_Values(t *testing.T) {
 }
 
 func TestApprover_RemoteAutoWarned(t *testing.T) {
+	t.Parallel()
 	// cp-1 of hubTicket passes on its own in a remote job.
 	_, diags := approverCheck(t, map[string]string{"team:ticket": approverTeam}, "team:ticket")
 	assertDiag(t, diags, "checkpoint_approver_remote_auto", "checkpoints.cp-1.approver", SeverityWarning)

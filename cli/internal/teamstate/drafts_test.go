@@ -12,6 +12,7 @@ import (
 )
 
 func TestDrafts(t *testing.T) {
+	t.Parallel()
 	repo := setupTestRepo(t)
 	files, err := repo.WriteDraftLocal(TeamScope(), "alice", "ticket-hotfix", []byte(teamHotfixYAML), []byte("Draft {{ .ticket }}"))
 	require.NoError(t, err)
@@ -57,6 +58,7 @@ func TestDrafts(t *testing.T) {
 }
 
 func TestListHistory(t *testing.T) {
+	t.Parallel()
 	repo := setupTestRepo(t)
 	for _, v := range []int{2, 1, 10} {
 		rel, err := HistoryRel(TeamScope(), "ticket", v)

@@ -249,8 +249,9 @@ func TestGitWork(t *testing.T) {
 	dir := t.TempDir()
 	ctx := context.Background()
 	gittest.Run(t, dir, "init", "-q")
-	start := time.Now()
-	time.Sleep(1100 * time.Millisecond)
+	// The checkpoint passed 1.1 s before the commit (commit dates have a
+	// resolution of one second).
+	start := time.Now().Add(-1100 * time.Millisecond)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "a.go"), []byte("a"), 0o644))
 	gittest.Run(t, dir, "add", "a.go")
 	gittest.Run(t, dir, "commit", "-qm", "first")

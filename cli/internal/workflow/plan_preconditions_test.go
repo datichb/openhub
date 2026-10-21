@@ -20,6 +20,7 @@ preconditions:
 `
 
 func TestRiskPlan(t *testing.T) {
+	t.Parallel()
 	cat := catalogOf(t, map[string]string{"hub:x": hubPlan, "hub:other": "apiVersion: oh/v1\nkind: Workflow\nid: other\nrisk: write\n"})
 	_, diags := Check(cat, Ref{LayerHub, "x"}, nil, testEnv())
 	if len(diags) != 0 {
@@ -51,6 +52,7 @@ func TestRiskPlan(t *testing.T) {
 }
 
 func TestPreconditionsPatch(t *testing.T) {
+	t.Parallel()
 	cat := catalogOf(t, map[string]string{
 		"hub:x":     hubPlan,
 		"hub:other": "apiVersion: oh/v1\nkind: Workflow\nid: other\nrisk: write\n",
@@ -83,6 +85,7 @@ preconditions:
 }
 
 func TestEvaluatePreconditions(t *testing.T) {
+	t.Parallel()
 	cat := catalogOf(t, map[string]string{"hub:x": hubPlan})
 	doc, _ := cat.Lookup(Ref{LayerHub, "x"})
 	got := EvaluatePreconditions(doc.Spec, fstest.MapFS{"ONBOARDING.md": {Data: []byte("x")}})
@@ -103,6 +106,7 @@ func TestEvaluatePreconditions(t *testing.T) {
 }
 
 func TestExplicitSelfDelegation(t *testing.T) {
+	t.Parallel()
 	doc := vHeader + "risk: read\nbeads: { allow: [show] }\nentry: { agent: reviewer }\nagents:\n  reviewer: { role: workflow, mode: primary, calls: [reviewer, documentarian] }\n  documentarian: { role: independent }\n"
 	diags := checkYAML(t, doc, Env{Agents: fakeAgents{"reviewer": {Mode: ModePrimary}, "documentarian": {Mode: ModeSubagent}}})
 	if len(diags) != 0 {

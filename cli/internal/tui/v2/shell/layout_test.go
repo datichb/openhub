@@ -92,7 +92,6 @@ func TestLayoutCompact80x24(t *testing.T) {
 // 120×40: full level — figlet banner, 8-row palette.
 func TestLayoutFull120x40(t *testing.T) {
 	s := runHome(t, 120, 40, "")
-	time.Sleep(50 * time.Millisecond)
 	s.waitLevel(t, views.LevelFull)
 	require.Eventually(t, func() bool { return strings.Contains(s.screenText(), "___") }, 2*time.Second, 10*time.Millisecond)
 	var omnibarRows int
@@ -109,7 +108,6 @@ func TestLayoutCompactSetting(t *testing.T) {
 	})
 	t.Run("never", func(t *testing.T) {
 		n := runHome(t, 80, 24, views.CompactNever)
-		time.Sleep(50 * time.Millisecond)
 		n.waitLevel(t, views.LevelFull)
 		require.Eventually(t, func() bool { return strings.Contains(n.screenText(), "___") }, 2*time.Second, 10*time.Millisecond)
 	})
@@ -131,8 +129,9 @@ func TestLayoutTooSmall50x12(t *testing.T) {
 // 120×40 → 80×24: the level changes, the focus stays on the same item.
 func TestLayoutResizeKeepsTheFocus(t *testing.T) {
 	s := runHome(t, 120, 40, "")
-	time.Sleep(50 * time.Millisecond)
 	s.waitLevel(t, views.LevelFull)
+	// The banner of the full level is drawn: the layout is the one of 120×40.
+	require.Eventually(t, func() bool { return strings.Contains(s.screenText(), "___") }, 2*time.Second, 10*time.Millisecond)
 	list := s.focusedList(t)
 	var want widgets.SectionItem
 	s.loop(func() {

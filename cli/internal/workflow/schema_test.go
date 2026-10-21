@@ -35,6 +35,7 @@ func loadFullSpec(t *testing.T) *Spec {
 }
 
 func TestSpec_DecodeFullExample(t *testing.T) {
+	t.Parallel()
 	s := loadFullSpec(t)
 
 	if s.APIVersion != APIVersionV1 || s.Kind != KindWorkflow || s.ID != "ticket" || s.Version != 3 {
@@ -109,6 +110,7 @@ func TestSpec_DecodeFullExample(t *testing.T) {
 }
 
 func TestSpec_RoundTrip(t *testing.T) {
+	t.Parallel()
 	s := loadFullSpec(t)
 	out, err := yaml.Marshal(s)
 	if err != nil {
@@ -124,6 +126,7 @@ func TestSpec_RoundTrip(t *testing.T) {
 }
 
 func TestSpec_StrictRejectsUnknownFields(t *testing.T) {
+	t.Parallel()
 	cases := map[string]string{
 		"top level":     "apiVersion: oh/v1\nkind: Workflow\nid: x\nfoo: 1\n",
 		"inside input":  "apiVersion: oh/v1\nkind: Workflow\nid: x\ninputs:\n  a: { type: string, colour: red }\n",
@@ -141,6 +144,7 @@ func TestSpec_StrictRejectsUnknownFields(t *testing.T) {
 }
 
 func TestSpec_RejectsDuplicateKeys(t *testing.T) {
+	t.Parallel()
 	doc := "apiVersion: oh/v1\nkind: Workflow\nid: x\ncheckpoints:\n  cp-1: {}\n  cp-1: {}\n"
 	if _, err := decodeStrict(t, []byte(doc)); err == nil {
 		t.Fatal("duplicate checkpoint key accepted")
@@ -148,6 +152,7 @@ func TestSpec_RejectsDuplicateKeys(t *testing.T) {
 }
 
 func TestSpec_EntryDefaultsToConductor(t *testing.T) {
+	t.Parallel()
 	s, err := decodeStrict(t, []byte("apiVersion: oh/v1\nkind: Workflow\nid: quick\n"))
 	if err != nil {
 		t.Fatal(err)
@@ -161,6 +166,7 @@ func TestSpec_EntryDefaultsToConductor(t *testing.T) {
 }
 
 func TestLocalizedText_Fallback(t *testing.T) {
+	t.Parallel()
 	plain := LocalizedText{Default: "Bonjour"}
 	if plain.Text("en") != "Bonjour" {
 		t.Fatal("plain form must be used for every language")
@@ -175,6 +181,7 @@ func TestLocalizedText_Fallback(t *testing.T) {
 }
 
 func TestOrderedMap_SetDelete(t *testing.T) {
+	t.Parallel()
 	var m OrderedMap[int]
 	m.Set("b", 1)
 	m.Set("a", 2)
@@ -190,6 +197,7 @@ func TestOrderedMap_SetDelete(t *testing.T) {
 }
 
 func TestEnums_Rank(t *testing.T) {
+	t.Parallel()
 	if RiskRead.Rank() >= RiskWrite.Rank() || RiskWrite.Rank() >= RiskPublish.Rank() {
 		t.Fatal("risk ranks must be ordered")
 	}

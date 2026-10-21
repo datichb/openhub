@@ -24,6 +24,7 @@ func mkProject(t *testing.T, files map[string]string) string {
 
 // C3.2: one signal per detection rule.
 func TestDetectSignals(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name   string
 		files  map[string]string
@@ -127,6 +128,7 @@ func TestDetectSignals(t *testing.T) {
 }
 
 func TestDetectSignals_Monorepo(t *testing.T) {
+	t.Parallel()
 	dir := mkProject(t, map[string]string{
 		"apps/web/package.json":   `{"dependencies":{"next":"15","react":"19","react-dom":"19"},"devDependencies":{"typescript":"5"}}`,
 		"services/api/go.mod":     "module api",
@@ -142,6 +144,7 @@ func TestDetectSignals_Monorepo(t *testing.T) {
 
 // Workspaces deeper than the walk are followed.
 func TestDetectSignals_Workspaces(t *testing.T) {
+	t.Parallel()
 	deep := "a/b/c/d/e"
 	dir := mkProject(t, map[string]string{
 		"package.json":               `{"workspaces":["a/b/c/d/*"]}`,
@@ -169,6 +172,7 @@ func TestDetectSignals_EntryLimit(t *testing.T) {
 }
 
 func TestDetectSignals_UnknownPath(t *testing.T) {
+	t.Parallel()
 	assert.Empty(t, DetectSignals(""))
 	assert.Empty(t, DetectSignals(filepath.Join(t.TempDir(), "missing")))
 }

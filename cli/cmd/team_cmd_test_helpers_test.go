@@ -4,7 +4,11 @@ import (
 	"bytes"
 	"context"
 	"os"
+	"path/filepath"
+	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
@@ -74,17 +78,47 @@ func testIO() (*app.IOStreams, *bytes.Buffer, *bytes.Buffer) {
 
 // setupClaimTestApp creates an App with a real teamstate git repo for claim tests.
 // Returns the app, the teamstate repo, and the stdout buffer.
+var claimTemplates templates
+
+// claimRepos is a bare team-state repository and a clone of it, on main, with
+// the members.toml the team needs, pushed: copies of a pair built once.
+func claimRepos(t *testing.T) (bare, clone string) {
+	t.Helper()
+	root := claimTemplates.get(t, "claims", func(root string) {
+		bare, clone := gittest.BareClone(t)
+		// members.toml is required for the team to be functional
+		gittest.Commit(t, clone, "members.toml", "[members.testuser]\ndisplay_name = \"Test User\"\nrole = \"dev\"\n", "members")
+		gittest.Run(t, clone, "push", "-q")
+		require.NoError(t, os.Rename(bare, filepath.Join(root, "bare")))
+		require.NoError(t, os.Rename(clone, filepath.Join(root, "clone")))
+		repointOrigin(t, filepath.Join(root, "clone"), bare, filepath.Join(root, "bare"))
+	})
+	bare, clone = t.TempDir(), filepath.Join(t.TempDir(), "clone")
+	require.NoError(t, os.Mkdir(clone, 0o755))
+	copyTree(t, filepath.Join(root, "bare"), bare)
+	copyTree(t, filepath.Join(root, "clone"), clone)
+	repointOrigin(t, clone, filepath.Join(root, "bare"), bare)
+	return bare, clone
+}
+
+// repointOrigin makes the clone's origin from (the bare repository it was
+// made from) to (where it is now).
+func repointOrigin(t *testing.T, clone, from, to string) {
+	t.Helper()
+	cfg := filepath.Join(clone, ".git", "config")
+	data, err := os.ReadFile(cfg)
+	require.NoError(t, err)
+	require.Contains(t, string(data), from)
+	require.NoError(t, os.WriteFile(cfg, []byte(strings.ReplaceAll(string(data), from, to)), 0o644))
+}
+
 func setupClaimTestApp(t *testing.T) (*app.App, *teamstate.Repo, *bytes.Buffer) {
 	t.Helper()
 	if testing.Short() {
 		t.Skip("skipping integration test in short mode")
 	}
 
-	bare, clone := gittest.BareClone(t)
-
-	// members.toml is required for the team to be functional
-	gittest.Commit(t, clone, "members.toml", "[members.testuser]\ndisplay_name = \"Test User\"\nrole = \"dev\"\n", "members")
-	gittest.Run(t, clone, "push", "-q")
+	bare, clone := claimRepos(t)
 
 	repo := teamstate.NewRepo(bare, clone)
 

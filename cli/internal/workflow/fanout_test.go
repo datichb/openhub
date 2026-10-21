@@ -67,6 +67,7 @@ func errorsOf(diags Diagnostics) []Diagnostic {
 }
 
 func TestFanout_HubDeclarationIsValid(t *testing.T) {
+	t.Parallel()
 	r, diags := fanoutCheck(t, map[string]string{"hub:x": fanoutParent}, Ref{LayerHub, "x"}, nil)
 	if errs := errorsOf(diags); len(errs) > 0 {
 		t.Fatalf("valid: %v", diagList(diags))
@@ -77,6 +78,7 @@ func TestFanout_HubDeclarationIsValid(t *testing.T) {
 }
 
 func TestFanout_SessionSeesItsCheckpoints(t *testing.T) {
+	t.Parallel()
 	docs := map[string]string{"hub:x": fanoutParent}
 	r, _ := fanoutCheck(t, docs, Ref{LayerHub, "x"}, &SessionOptions{Inputs: map[string]any{"tickets": []string{"a"}}})
 	if r.Fanout || r.Spec.Fanout != nil {
@@ -98,6 +100,7 @@ func TestFanout_SessionSeesItsCheckpoints(t *testing.T) {
 }
 
 func TestFanout_MergeCheckpointGuarantees(t *testing.T) {
+	t.Parallel()
 	cases := []struct{ name, from, to, code, path string }{
 		{"not mandatory", "    mandatory: true\n    unlocks: [merge]\n", "", "fanout_merge_mandatory", "checkpoints.cp-merge.mandatory"},
 		{"no merge unlocked", "    unlocks: [merge]\n", "    unlocks: [commit]\n", "fanout_merge_unlocks", "checkpoints.cp-merge.unlocks"},
@@ -128,6 +131,7 @@ func TestFanout_MergeCheckpointGuarantees(t *testing.T) {
 }
 
 func TestFanout_NestedChildRefused(t *testing.T) {
+	t.Parallel()
 	nested := strings.Replace(fanoutParent, "id: x\n", "id: child\n", 1)
 	nested = strings.Replace(nested, "  child: child", "  child: ticket", 1)
 	_, diags := fanoutCheck(t, map[string]string{"hub:x": fanoutParent, "hub:child": nested, "hub:ticket": strings.Replace(fanoutChild, "id: child", "id: ticket", 1)}, Ref{LayerHub, "x"}, nil)
@@ -138,6 +142,7 @@ func TestFanout_NestedChildRefused(t *testing.T) {
 // project layer that writes the delegates, in a full definition or in a
 // patch, is refused; and a patch may only harden the fan-out.
 func TestFanout_DelegatesHubOnly(t *testing.T) {
+	t.Parallel()
 	teamFull := strings.Replace(fanoutParent, "id: x\n", "id: y\n", 1)
 	_, diags := fanoutCheck(t, map[string]string{"team:y": teamFull}, Ref{LayerTeam, "y"}, nil)
 	assertDiag(t, diags, "fanout_delegates_layer", "fanout.delegates", SeverityError)
@@ -156,6 +161,7 @@ func TestFanout_DelegatesHubOnly(t *testing.T) {
 }
 
 func TestFanout_PatchMayOnlyHarden(t *testing.T) {
+	t.Parallel()
 	hubNoDelegates := strings.Replace(fanoutParent, "  delegates: [cp-2]\n", "", 1)
 	patch := func(body string) string { return "apiVersion: oh/v1\nkind: Workflow\nid: x\nextends: hub:x\n" + body }
 	cases := []struct{ name, hub, body, path string }{
@@ -197,6 +203,7 @@ func TestFanout_PatchMayOnlyHarden(t *testing.T) {
 
 // A draft of the hub workflow never declares the substitution either.
 func TestFanout_DelegatesNotFromDraft(t *testing.T) {
+	t.Parallel()
 	r := &Resolved{Ref: Ref{LayerHub, "x"}, Spec: &Spec{Fanout: &Fanout{Delegates: []string{"cp-2"}}},
 		Origins: Origins{"fanout.delegates": {Layer: LayerTeam, ID: "x", Draft: true}}}
 	refused := func() bool {
@@ -218,6 +225,7 @@ func TestFanout_DelegatesNotFromDraft(t *testing.T) {
 }
 
 func TestFanoutOf(t *testing.T) {
+	t.Parallel()
 	r, _ := fanoutCheck(t, map[string]string{"hub:x": fanoutParent}, Ref{LayerHub, "x"}, nil)
 	for _, c := range []struct {
 		in   any
@@ -239,6 +247,7 @@ func TestFanoutOf(t *testing.T) {
 // fanout.inputs: only declared value inputs of the parent reach the
 // children, under a name and a type the child workflow declares.
 func TestFanout_ChildInputs(t *testing.T) {
+	t.Parallel()
 	child := strings.Replace(fanoutChild, "  ticket: { type: beads-id, required: true }\n",
 		"  ticket: { type: beads-id, required: true }\n  method: { type: enum, values: [standard, tdd], default: standard }\n  instructions: { type: text }\n  count: { type: int }\n", 1)
 	parent := strings.Replace(fanoutParent, "  fanout: { type: bool, default: false }\n",
@@ -295,6 +304,7 @@ func TestFanout_ChildInputs(t *testing.T) {
 // fanout.fix: a fix workflow that takes the instruction in a text input
 // and whose commit is validated by the user; only the hub layer sets it.
 func TestFanout_Fix(t *testing.T) {
+	t.Parallel()
 	quick := "apiVersion: oh/v1\nkind: Workflow\nid: quick\nrisk: write\ninputs:\n  request: { type: text }\n  n: { type: int }\ncheckpoints:\n" +
 		"  cp-commit: { mandatory: true, unlocks: [commit], verify: { from: stack, expect: pass }, mode: { manuel: pause, semi-auto: pause, auto: pause } }\n"
 	with := func(fix string) string {

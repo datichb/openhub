@@ -73,8 +73,10 @@ func TestProxyPortChangeSleepsStaleGroups(t *testing.T) {
 	require.Eventually(t, func() bool {
 		return status("recorded") == domain.ServerSleeping && status("legacy") == domain.ServerSleeping
 	}, 5*time.Second, 50*time.Millisecond)
-	time.Sleep(200 * time.Millisecond)
-	assert.Equal(t, domain.ServerReady, status("fresh"))
+	assert.Never(t, func() bool {
+		s, err := servers.Get(ctx, "fresh")
+		return err != nil || s.Status != domain.ServerReady
+	}, 150*time.Millisecond, 10*time.Millisecond, "a group started after the restart is kept")
 
 	open, err := decisions.ListOpen(ctx, domain.DecisionFilter{})
 	require.NoError(t, err)
@@ -117,10 +119,9 @@ func proxyPortKept(t *testing.T) bool {
 		t.Logf("port %d taken meanwhile (daemon on %d): again", port, got)
 		return false
 	}
-	time.Sleep(300 * time.Millisecond)
-	s, err := servers.Get(ctx, "g")
-	require.NoError(t, err)
-	assert.Equal(t, domain.ServerReady, s.Status)
-	assert.Equal(t, int32(0), ad.stops.Load())
+	assert.Never(t, func() bool {
+		s, err := servers.Get(ctx, "g")
+		return err != nil || s.Status != domain.ServerReady || ad.stops.Load() != 0
+	}, 250*time.Millisecond, 10*time.Millisecond, "the server of the same proxy port is kept")
 	return true
 }

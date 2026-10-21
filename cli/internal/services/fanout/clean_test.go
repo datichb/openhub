@@ -32,6 +32,7 @@ func eventKinds(f *domain.SessionFanout) map[string]int {
 // After the merge checkpoint everything is on the branch of the parent:
 // oh removes every worktree and branch of the fan-out.
 func TestCleanAfterMerge(t *testing.T) {
+	t.Parallel()
 	f := newFixture(t, "ev-1", "ev-2")
 	f.launcher.work["ev-1"] = [2]string{"a.go", "package calc\n"}
 	f.launcher.work["ev-2"] = [2]string{"b.go", "package calc\n"}
@@ -57,6 +58,7 @@ func TestCleanAfterMerge(t *testing.T) {
 // branch (with the children merged into it, whose branches go) and the
 // child left unmerged. --discard deletes them, traced with their commit.
 func TestCleanAbandoned(t *testing.T) {
+	t.Parallel()
 	f := newFixture(t, "ev-1", "ev-2")
 	f.launcher.hold = 150 * time.Millisecond
 	f.launcher.work["ev-1"] = [2]string{"calc.go", "package calc\n\nfunc Sub() {}\n"}
@@ -121,6 +123,7 @@ func TestCleanAbandoned(t *testing.T) {
 // fan-out still runs, stays (and its branch); a branch oh did not create
 // is never touched.
 func TestCleanKeeps(t *testing.T) {
+	t.Parallel()
 	f := newFixture(t, "ev-1", "ev-2")
 	f.launcher.work["ev-1"] = [2]string{"a.go", "package calc\n"}
 	f.launcher.work["ev-2"] = [2]string{"b.go", "package calc\n"}
@@ -151,6 +154,7 @@ func TestCleanKeeps(t *testing.T) {
 // The parent stopped for good while its children run: oh stops them, the
 // fan-out is stopped and cleaned up.
 func TestDriverParentAbandoned(t *testing.T) {
+	t.Parallel()
 	f := newFixture(t, "ev-1", "ev-2")
 	f.wf.Fanout.Parallel = 1
 	f.launcher.hold = time.Hour // the children never finish by themselves

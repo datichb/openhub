@@ -143,6 +143,10 @@ func (d *Daemon) recordTickets(ctx context.Context, g gateway.Grant, op gateway.
 	}
 }
 
+// commitProbeTimeout bounds the git commands that read the commit a ticket is
+// closed on (a variable for the tests: a loaded machine is slower than it).
+var commitProbeTimeout = 10 * time.Second
+
 // recordProvenance binds a claimed ticket to the session, and a closed
 // ticket to the commit it was closed on (bd provenance record). A failure
 // is only logged: it never refuses the operation, which already ran.
@@ -160,7 +164,7 @@ func (d *Daemon) recordProvenance(ctx context.Context, g gateway.Grant, op gatew
 				Actor: actor, Payload: provenancePayload("workflow", g.WorkflowID)})
 		}
 	case gateway.OpClose:
-		gctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		gctx, cancel := context.WithTimeout(ctx, commitProbeTimeout)
 		head, _ := gitutil.Command(gctx, g.Location, "rev-parse", "HEAD").Output()
 		branch, _ := gitutil.Command(gctx, g.Location, "rev-parse", "--abbrev-ref", "HEAD").Output()
 		cancel()

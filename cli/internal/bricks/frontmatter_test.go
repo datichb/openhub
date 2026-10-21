@@ -8,6 +8,7 @@ import (
 )
 
 func TestParseAgentFrontmatterFromBytes_Basic(t *testing.T) {
+	t.Parallel()
 	input := []byte(`---
 id: orchestrator
 label: Orchestrator
@@ -51,6 +52,7 @@ Body content here.
 }
 
 func TestParseAgentFrontmatterFromBytes_Subagent(t *testing.T) {
+	t.Parallel()
 	input := []byte(`---
 id: developer
 label: Developer
@@ -98,6 +100,7 @@ skills: [dev-standards]
 // The mode defaults to "primary"; C1.6: `verify: true` grants the
 // verification commands; unknown keys are ignored.
 func TestParseAgentFrontmatterFromBytes_ModeAndVerify(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name       string
 		input      string
@@ -118,6 +121,7 @@ func TestParseAgentFrontmatterFromBytes_ModeAndVerify(t *testing.T) {
 }
 
 func TestParseAgentFrontmatterFromBytes_WithComments(t *testing.T) {
+	t.Parallel()
 	input := []byte(`---
 id: developer
 label: Developer
@@ -152,6 +156,7 @@ skills: [dev-standards]
 }
 
 func TestParseAgentFrontmatterFromBytes_Errors(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		input   string
@@ -172,6 +177,7 @@ func TestParseAgentFrontmatterFromBytes_Errors(t *testing.T) {
 }
 
 func TestAgentFamily(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		relPath  string
 		expected string
@@ -194,6 +200,7 @@ func TestAgentFamily(t *testing.T) {
 }
 
 func TestParseAgentFrontmatterFromBytes_ComplexPermissions(t *testing.T) {
+	t.Parallel()
 	// Real-world-like frontmatter with many permission types
 	input := []byte(`---
 id: pathfinder

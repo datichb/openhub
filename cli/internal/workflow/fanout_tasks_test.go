@@ -60,6 +60,7 @@ func tasksCheck(t *testing.T, docs map[string]string, ref Ref, opts *SessionOpti
 }
 
 func TestFanoutTasks_HubDeclarationIsValid(t *testing.T) {
+	t.Parallel()
 	r, diags := tasksCheck(t, map[string]string{"hub:x": tasksParent}, Ref{LayerHub, "x"}, nil)
 	if errs := errorsOf(diags); len(errs) > 0 {
 		t.Fatalf("valid: %v", diagList(diags))
@@ -76,6 +77,7 @@ func TestFanoutTasks_HubDeclarationIsValid(t *testing.T) {
 // The session without the fan-out input keeps its developer and its
 // cp-commit; the fan-out session loses both (the children do the work).
 func TestFanoutTasks_SessionSeesItsAgentsAndCheckpoints(t *testing.T) {
+	t.Parallel()
 	docs := map[string]string{"hub:x": tasksParent}
 	r, _ := tasksCheck(t, docs, Ref{LayerHub, "x"}, &SessionOptions{Inputs: map[string]any{"goal": "g"}})
 	if got := strings.Join(r.Spec.Checkpoints.Keys(), ","); got != "cp-plan,cp-commit" {
@@ -94,6 +96,7 @@ func TestFanoutTasks_SessionSeesItsAgentsAndCheckpoints(t *testing.T) {
 }
 
 func TestFanoutTasks_Guarantees(t *testing.T) {
+	t.Parallel()
 	cases := []struct{ name, from, to, code, path string }{
 		{"tickets as well", "  source: tasks\n", "  source: tasks\n  tickets: goal\n", "fanout_tasks_tickets", "fanout.tickets"},
 		{"unknown source", "  source: tasks\n", "  source: files\n", "enum_invalid", "fanout.source"},
@@ -143,6 +146,7 @@ func TestFanoutTasks_Guarantees(t *testing.T) {
 // A team or project layer may only harden the breakdown and the tasks
 // fan-out: fewer tasks, fewer domains, fewer children at once.
 func TestFanoutTasks_PatchMayOnlyHarden(t *testing.T) {
+	t.Parallel()
 	patch := func(body string) string { return "apiVersion: oh/v1\nkind: Workflow\nid: x\nextends: hub:x\n" + body }
 	cases := []struct{ name, body, path string }{
 		{"back to tickets", "fanout: { source: tickets }\n", "fanout.source"},
@@ -172,6 +176,7 @@ func TestFanoutTasks_PatchMayOnlyHarden(t *testing.T) {
 // fanout: never) keeps its hardening outside a fan-out, and is warned that
 // a fan-out session does not have that checkpoint.
 func TestFanoutTasks_NeverPatchedWarned(t *testing.T) {
+	t.Parallel()
 	patch := "apiVersion: oh/v1\nkind: Workflow\nid: x\nextends: hub:x\ncheckpoints:\n  cp-commit: { verify: { from: stack, expect: pass, kinds: [build, test, typecheck, lint] } }\n"
 	r, diags := tasksCheck(t, map[string]string{"hub:x": tasksParent, "team:x": patch}, Ref{LayerTeam, "x"}, nil)
 	if errs := errorsOf(diags); len(errs) > 0 {

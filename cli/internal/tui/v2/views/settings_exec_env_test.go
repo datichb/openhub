@@ -146,6 +146,7 @@ func TestSettingsProxyTimeoutField(t *testing.T) {
 // The two settings come after the others of the section (their texts, in
 // both languages, are in the render goldens below).
 func TestSettingsExecSectionOrder(t *testing.T) {
+	t.Parallel()
 	v, _ := execSettings(t)
 	var keys []string
 	for _, f := range v.fields {

@@ -242,6 +242,7 @@ func TestActionListUpdates(t *testing.T) {
 // Validate refuses two actions on one key, a key every view keeps, an
 // action without Run.
 func TestActionListValidate(t *testing.T) {
+	t.Parallel()
 	noop := func(ActionItem, string) {}
 	assert.NoError(t, wikiListConfig(new([]string)).Validate())
 	assert.Error(t, ActionListConfig{Actions: []ItemAction{{Key: keys.Refuse, Run: noop}, {Key: keys.Create, Run: noop}}}.Validate())

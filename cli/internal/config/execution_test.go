@@ -31,12 +31,14 @@ func TestExecutionConfigRoundtrip(t *testing.T) {
 }
 
 func TestExecutionImagesDefault(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, 2, config.ExecutionConfig{}.Images())
 	assert.Equal(t, 2, config.ExecutionConfig{KeepImages: -1}.Images())
 	assert.Equal(t, 5, config.ExecutionConfig{KeepImages: 5}.Images())
 }
 
 func TestProxyFirstByteTimeout(t *testing.T) {
+	t.Parallel()
 	var e config.ExecutionConfig
 	assert.Equal(t, 5*time.Minute, e.ProxyFirstByteTimeout(), "default")
 	e.ProxyFirstByteTimeoutMinutes = 12

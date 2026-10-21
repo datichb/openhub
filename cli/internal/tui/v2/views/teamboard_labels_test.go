@@ -14,6 +14,7 @@ import (
 // embedded view and the full-screen `oh team board`): the card renderer reads
 // "[word]" as a colour tag, so every literal bracket has to be escaped.
 func TestTeamBoards_TicketLabelsAlwaysVisible(t *testing.T) {
+	t.Parallel()
 	const workflowLabel = "workflow-doing"
 	mapping := map[string]string{workflowLabel: "in_progress"}
 	ticket := TeamTicket{

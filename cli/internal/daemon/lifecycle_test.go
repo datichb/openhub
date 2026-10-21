@@ -90,6 +90,16 @@ func (e *lcEnv) serverStatus(group string) domain.ServerStatus {
 	return s.Status
 }
 
+// staysReady fails the test if the server of the group leaves the ready
+// status during window (checked all along, not once at the end).
+func (e *lcEnv) staysReady(group string, window time.Duration, msg string) {
+	e.t.Helper()
+	assert.Never(e.t, func() bool {
+		s, err := e.servers.Get(e.ctx, group)
+		return err != nil || s.Status != domain.ServerReady
+	}, window, 10*time.Millisecond, msg)
+}
+
 func (e *lcEnv) state(id string) domain.RunState {
 	s, err := e.sessions.Get(e.ctx, id)
 	require.NoError(e.t, err)
@@ -108,8 +118,7 @@ func TestIdleGroupSleeps(t *testing.T) {
 func TestAttachedClientPreventsSleep(t *testing.T) {
 	e := startLifecycle(t, 200*time.Millisecond, "g1", "ses_a")
 	require.NoError(t, e.client.Heartbeat(e.ctx, HeartbeatRequest{ClientID: "c1", Kind: ClientAttach, Group: "g1"}))
-	time.Sleep(700 * time.Millisecond)
-	assert.Equal(t, domain.ServerReady, e.serverStatus("g1"))
+	e.staysReady("g1", 500*time.Millisecond, "an attached client keeps the server awake")
 	require.NoError(t, e.client.ClientGone(e.ctx, "c1"))
 	require.Eventually(t, func() bool { return e.serverStatus("g1") == domain.ServerSleeping }, 5*time.Second, 50*time.Millisecond)
 }
@@ -121,8 +130,7 @@ func TestPendingDecisionKeptAwakeWhileOhOpen(t *testing.T) {
 	require.NoError(t, e.client.Heartbeat(e.ctx, HeartbeatRequest{ClientID: "tui", Kind: ClientPresence}))
 	e.events <- adapters.ToolEvent{Kind: adapters.EventDecisionAsked, SessionID: "ses_w"}
 	require.Eventually(t, func() bool { return e.state("ses_w") == domain.RunWaiting }, 3*time.Second, 20*time.Millisecond)
-	time.Sleep(600 * time.Millisecond)
-	assert.Equal(t, domain.ServerReady, e.serverStatus("g1"), "decision pending and oh open: stay awake")
+	e.staysReady("g1", 500*time.Millisecond, "decision pending and oh open: stay awake")
 
 	require.NoError(t, e.client.ClientGone(e.ctx, "tui")) // oh closed
 	require.Eventually(t, func() bool { return e.serverStatus("g1") == domain.ServerSleeping }, 5*time.Second, 50*time.Millisecond)
@@ -135,8 +143,7 @@ func TestSleepWhenIdlePolicyWaitsForTheTurn(t *testing.T) {
 	require.Eventually(t, func() bool { return e.state("ses_a") == domain.RunActive }, 3*time.Second, 20*time.Millisecond)
 
 	require.NoError(t, e.client.SetPolicy(e.ctx, "g1", PolicySleepWhenIdle))
-	time.Sleep(300 * time.Millisecond)
-	assert.Equal(t, domain.ServerReady, e.serverStatus("g1"), "the agent is still working")
+	e.staysReady("g1", 250*time.Millisecond, "the agent is still working")
 
 	e.ad.set(func() { e.ad.active["ses_a"] = false })
 	e.events <- adapters.ToolEvent{Kind: adapters.EventExecEnded, SessionID: "ses_a", Outcome: "succeeded"}
@@ -147,22 +154,26 @@ func TestSleepWhenIdlePolicyWaitsForTheTurn(t *testing.T) {
 func TestUntrackedToolSessionKeepsGroupAwake(t *testing.T) {
 	e := startLifecycle(t, 100*time.Millisecond, "g1")
 	e.ad.set(func() { e.ad.active["ses_untracked"] = true })
-	time.Sleep(600 * time.Millisecond)
-	assert.Equal(t, domain.ServerReady, e.serverStatus("g1"), "the tool reports an executing session")
+	e.staysReady("g1", 500*time.Millisecond, "the tool reports an executing session")
 	e.ad.set(func() { e.ad.active["ses_untracked"] = false })
 	require.Eventually(t, func() bool { return e.serverStatus("g1") == domain.ServerSleeping }, 5*time.Second, 50*time.Millisecond)
 }
 
 // E14-M2: an event for a session whose row appears just after is tracked.
 func TestLateSessionRowIsTracked(t *testing.T) {
+	// A session unknown to oh stays unknown for unknownTTL (5 s): a shorter
+	// one, set before the daemon starts and restored after it stopped.
+	oldTTL := unknownTTL
+	unknownTTL = 200 * time.Millisecond
+	t.Cleanup(func() { unknownTTL = oldTTL })
 	e := startLifecycle(t, time.Hour, "g1")
 	e.events <- adapters.ToolEvent{Kind: adapters.EventExecStarted, SessionID: "ses_late"}
-	time.Sleep(100 * time.Millisecond)
+	require.Eventually(t, func() bool { return len(e.events) == 0 }, 5*time.Second, time.Millisecond, "the watcher took the event before the row exists")
 	require.NoError(t, e.sessions.Create(e.ctx, &domain.Session{ID: "ses_late", ProjectID: "p1", Status: domain.SessionStatusRunning, GroupKey: "g1", State: domain.RunIdle}))
 	require.Eventually(t, func() bool {
 		e.events <- adapters.ToolEvent{Kind: adapters.EventExecStarted, SessionID: "ses_late"}
 		return e.state("ses_late") == domain.RunActive
-	}, 10*time.Second, 500*time.Millisecond)
+	}, 10*time.Second, 50*time.Millisecond)
 }
 
 func TestStopNowPolicy(t *testing.T) {
@@ -183,8 +194,7 @@ func TestSleepWaitsForTheGroupLock(t *testing.T) {
 	e := startLifecycle(t, 200*time.Millisecond, "g1", "ses_a")
 	unlock, err := filelock.Lock(GroupLockPath(e.servDir, "g1"))
 	require.NoError(t, err)
-	time.Sleep(700 * time.Millisecond)
-	assert.Equal(t, domain.ServerReady, e.serverStatus("g1"), "group locked by a client")
+	e.staysReady("g1", 500*time.Millisecond, "group locked by a client")
 	unlock()
 	require.Eventually(t, func() bool { return e.serverStatus("g1") == domain.ServerSleeping }, 5*time.Second, 50*time.Millisecond)
 }

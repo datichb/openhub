@@ -31,12 +31,19 @@ func trappedRepo(t *testing.T) (repo, marks string) {
 	repo = filepath.Join(root, "repo")
 	gittest.Run(t, root, "clone", "-q", origin, repo)
 	mark := func(name string) string { return "touch " + filepath.Join(marks, name) }
-	gittest.Run(t, repo, "config", "core.fsmonitor", mark("fsmonitor"))
-	gittest.Run(t, repo, "config", "diff.external", mark("external"))
-	gittest.Run(t, repo, "config", "remote.origin.uploadpack", mark("uploadpack")+"; git-upload-pack")
-	gittest.Run(t, repo, "config", "core.sshCommand", mark("ssh"))
-	gittest.Run(t, repo, "config", "credential.helper", "!"+mark("credential"))
-	gittest.Run(t, repo, "config", "diff.trap.textconv", mark("textconv"))
+	// One write of the configuration instead of six `git config`; the values
+	// are quoted (a `;` starts a comment otherwise).
+	quote := func(v string) string { return `"` + strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(v) + `"` }
+	cfg := "[core]\n\tfsmonitor = " + quote(mark("fsmonitor")) + "\n\tsshCommand = " + quote(mark("ssh")) + "\n" +
+		"[diff]\n\texternal = " + quote(mark("external")) + "\n" +
+		"[remote \"origin\"]\n\tuploadpack = " + quote(mark("uploadpack")+"; git-upload-pack") + "\n" +
+		"[credential]\n\thelper = " + quote("!"+mark("credential")) + "\n" +
+		"[diff \"trap\"]\n\ttextconv = " + quote(mark("textconv")) + "\n"
+	f, err := os.OpenFile(filepath.Join(repo, ".git", "config"), os.O_APPEND|os.O_WRONLY, 0o644)
+	require.NoError(t, err)
+	_, err = f.WriteString(cfg)
+	require.NoError(t, err)
+	require.NoError(t, f.Close())
 	require.NoError(t, os.WriteFile(filepath.Join(repo, ".gitattributes"), []byte("*.txt diff=trap\n"), 0o644))
 	for _, h := range []string{"post-checkout", "pre-commit", "reference-transaction", "post-index-change"} {
 		require.NoError(t, os.WriteFile(filepath.Join(repo, ".git", "hooks", h), []byte("#!/bin/sh\n"+mark("hook-"+h)+"\n"), 0o755))

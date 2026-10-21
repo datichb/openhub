@@ -6,6 +6,7 @@ import (
 )
 
 func TestTranslateLegacyOverride(t *testing.T) {
+	t.Parallel()
 	str := func(s string) *string { return &s }
 	yes, no := true, false
 	role := RoleIndependent
@@ -85,6 +86,7 @@ func TestTranslateLegacyOverride(t *testing.T) {
 // feature-migration: the overrides apply to implement-spec; cp-0 becomes
 // cp-plan, the agents implement-spec does not have are listed, not written.
 func TestTranslateLegacyOverrideImplementSpec(t *testing.T) {
+	t.Parallel()
 	str := func(s string) *string { return &s }
 	yes := true
 	role := RoleIndependent

@@ -27,6 +27,12 @@ func TestDaemonBeadsActorAndProvenance(t *testing.T) {
 	p := shortPaths(t)
 	st := sqlitetest.New(t)
 	ctx := context.Background()
+	// The daemon reads the commit with git within a bound (10 s): on a
+	// loaded machine git may be slower, and the provenance of the commit is
+	// then not recorded. Set before the daemon starts, restored after it ends.
+	oldProbe := commitProbeTimeout
+	commitProbeTimeout = 2 * time.Minute
+	t.Cleanup(func() { commitProbeTimeout = oldProbe })
 	project, err := filepath.EvalSymlinks(t.TempDir())
 	require.NoError(t, err)
 	gittest.Run(t, project, "init", "-q", "-b", "feat/x")
@@ -69,14 +75,20 @@ func TestDaemonBeadsActorAndProvenance(t *testing.T) {
 	bdExec("update", "pt-1", "--claim")
 	bdExec("update", "pt-1", "--title", "t")
 	bdExec("close", "pt-1")
-	data, err := os.ReadFile(calls)
-	require.NoError(t, err)
 	actor := "--actor=Ada Lovelace via oh/orchestrator-dev"
-	assert.Equal(t, []string{
+	want := []string{
 		"--actor=Ada Lovelace update --claim -- pt-1",
 		"provenance record --issue=pt-1 --kind=claim --source=oh --ref=ses_a --ref-kind=work-id " + actor + ` --payload={"workflow":"ticket"}`,
 		actor + " update --title=t -- pt-1",
 		actor + " close -- pt-1",
 		"provenance record --issue=pt-1 --kind=commit --source=oh --ref=" + sha + " --ref-kind=git-sha " + actor + ` --payload={"branch":"feat/x","session":"ses_a"}`,
-	}, strings.Split(strings.TrimSpace(string(data)), "\n"))
+	}
+	// The provenance of the commit is the last write, after the close.
+	var got []string
+	require.Eventually(t, func() bool {
+		data, err := os.ReadFile(calls)
+		got = strings.Split(strings.TrimSpace(string(data)), "\n")
+		return err == nil && len(got) >= len(want)
+	}, 30*time.Second, 20*time.Millisecond, "the calls of bd")
+	assert.Equal(t, want, got)
 }

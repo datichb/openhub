@@ -13,6 +13,7 @@ import (
 )
 
 func TestSaveAndReadBrief(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	repo := &Repo{path: dir}
 
@@ -117,6 +118,7 @@ func TestSaveAndReadBrief(t *testing.T) {
 }
 
 func TestReadBrief_NotFound(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	repo := &Repo{path: dir}
 
@@ -127,6 +129,7 @@ func TestReadBrief_NotFound(t *testing.T) {
 }
 
 func TestReadBrief_PrefersEnriched(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	repo := &Repo{path: dir}
 
@@ -148,6 +151,7 @@ func TestReadBrief_PrefersEnriched(t *testing.T) {
 }
 
 func TestIsStale(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	repo := &Repo{path: dir}
 
@@ -178,6 +182,7 @@ func TestIsStale(t *testing.T) {
 }
 
 func TestListBriefs(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	repo := &Repo{path: dir}
 
@@ -221,6 +226,7 @@ func TestListBriefs(t *testing.T) {
 }
 
 func TestListBriefs_AllProjects(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	repo := &Repo{path: dir}
 
@@ -264,6 +270,7 @@ func TestListBriefs_AllProjects(t *testing.T) {
 }
 
 func TestListBriefs_EmptyRepo(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	repo := &Repo{path: dir}
 
@@ -274,6 +281,7 @@ func TestListBriefs_EmptyRepo(t *testing.T) {
 }
 
 func TestGenerateRawBrief(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	repo := &Repo{path: dir}
 

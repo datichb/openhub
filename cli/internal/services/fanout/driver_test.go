@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -22,8 +23,6 @@ import (
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
-
-func TestMain(m *testing.M) { os.Exit(gittest.Main(m)) }
 
 // quiet runs a command of a fake session (in a goroutine that may outlive
 // the test: errors are ignored).
@@ -54,7 +53,11 @@ type fakeLauncher struct {
 	// together: a child does its work once that many sessions started
 	// (children at the same time, by condition, not by hold).
 	together int
-	all      chan struct{}
+	// togetherTickets: the same, once the children of these tickets started
+	// (whatever the order and the other children).
+	togetherTickets []string
+	startedTickets  map[string]bool
+	all             chan struct{}
 	// onWork runs in a session before its work (nil = none).
 	onWork func(LaunchRequest)
 	// fix is what a fixer commits (file, content); fixMerge: it commits a
@@ -75,8 +78,19 @@ func (l *fakeLauncher) Start(ctx context.Context, req LaunchRequest) (string, er
 	if l.all == nil {
 		l.all = make(chan struct{})
 	}
-	if l.n == l.together {
+	if l.n == l.together && l.together > 0 {
 		close(l.all)
+	}
+	if req.Record.Role == domain.RoleChild && slices.Contains(l.togetherTickets, req.Ticket) {
+		if l.startedTickets == nil {
+			l.startedTickets = map[string]bool{}
+		}
+		if !l.startedTickets[req.Ticket] {
+			l.startedTickets[req.Ticket] = true
+			if len(l.startedTickets) == len(l.togetherTickets) {
+				close(l.all)
+			}
+		}
 	}
 	all := l.all
 	cost := l.cost
@@ -87,10 +101,10 @@ func (l *fakeLauncher) Start(ctx context.Context, req LaunchRequest) (string, er
 	require.NoError(l.t, l.store.Create(ctx, &domain.Session{ID: id, ProjectID: "p1", Status: domain.SessionStatusRunning, State: domain.RunActive,
 		LaunchPath: req.Dir, Cost: cost, Fanout: req.Record, ParentSessionID: req.Parent.ID}))
 	go func() {
-		if l.together > 0 && req.Record.Role == domain.RoleChild {
+		if (l.together > 0 || len(l.togetherTickets) > 0) && req.Record.Role == domain.RoleChild {
 			select {
 			case <-all:
-			case <-time.After(time.Minute):
+			case <-time.After(runGuard):
 			}
 		}
 		if l.onWork != nil {
@@ -184,10 +198,10 @@ type fixture struct {
 
 func newFixture(t *testing.T, tickets ...string) *fixture {
 	t.Helper()
+	acquireFixture(t)
 	st := sqlitetest.New(t)
 	sqlitetest.Seed(t, st).Project("p1", "/p1")
-	project := gittest.Repo(t)
-	gittest.Commit(t, project, "calc.go", "package calc\n", "calc")
+	project := newProject(t)
 	f := &fixture{store: sqlite.NewSessionStore(st), project: project, passed: true, deps: map[string][]string{}, closed: map[string]bool{}}
 	f.wf = &sessionspec.WorkflowRuntime{ID: "implement-spec", Checkpoints: []sessionspec.CheckpointDef{{ID: "cp-plan", Mandatory: true}, {ID: "cp-merge", Mandatory: true}},
 		Fanout: &sessionspec.FanoutDef{Child: "ticket", Merge: "cp-merge", Parallel: 3, Merger: "merge-conflicts", Delegates: []string{"cp-2"}}}
@@ -216,10 +230,16 @@ func (f *fixture) runDriver(t *testing.T) *domain.SessionFanout {
 	return fo
 }
 
-// runDriverErr runs the driver to its end (30 s at most) and returns the
-// record of the parent; usable out of the test goroutine.
+// runGuard bounds a test that waits for a driver, a status or a goroutine of
+// a fake. It is a guard against a hang, not a duration a test expects: each
+// one returns as soon as the driver ends, so a loaded machine slows the test
+// down without failing it.
+const runGuard = 2 * time.Minute
+
+// runDriverErr runs the driver to its end and returns the record of the
+// parent; usable out of the test goroutine.
 func (f *fixture) runDriverErr() (*domain.SessionFanout, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), runGuard)
 	defer cancel()
 	if err := f.driver.Run(ctx, "ses_parent"); err != nil {
 		return nil, err
@@ -232,6 +252,7 @@ func (f *fixture) runDriverErr() (*domain.SessionFanout, error) {
 }
 
 func TestDriverMergesIndependentChildren(t *testing.T) {
+	t.Parallel()
 	f := newFixture(t, "ev-1", "ev-2")
 	f.launcher.work["ev-1"] = [2]string{"sub.go", "package calc\n\nfunc Sub(a, b int) int { return a - b }\n"}
 	f.launcher.work["ev-2"] = [2]string{"mul.go", "package calc\n\nfunc Mul(a, b int) int { return a * b }\n"}
@@ -312,11 +333,12 @@ func (s *stopStore) SetSessionFanout(ctx context.Context, id string, fo *domain.
 // recorded, so the driver started again goes on instead of finding the
 // integration branch « modified outside oh ».
 func TestDriverRecordSurvivesStopAfterMerge(t *testing.T) {
+	t.Parallel()
 	f := newFixture(t, "ev-1", "ev-2")
 	f.launcher.work["ev-1"] = [2]string{"sub.go", "package calc\n\nfunc Sub(a, b int) int { return a - b }\n"}
 	f.launcher.work["ev-2"] = [2]string{"mul.go", "package calc\n\nfunc Mul(a, b int) int { return a * b }\n"}
 	f.wf.Fanout.Parallel = 1
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), runGuard)
 	defer cancel()
 	ctx, stop := context.WithCancel(ctx)
 	defer stop()
@@ -398,6 +420,7 @@ func (r *stopRecorder) stoppedIDs() []string {
 // A record the driver cannot write, once git moved or a session started,
 // stops the driver: it goes on from a record that is behind git otherwise.
 func TestDriverStopsOnACriticalRecordItCannotWrite(t *testing.T) {
+	t.Parallel()
 	conflict := func(f *fixture) {
 		f.launcher.together = 2
 		f.launcher.work["ev-1"] = [2]string{"calc.go", "package calc\n\nfunc Sub() {}\n"}
@@ -546,7 +569,7 @@ func TestDriverStopsOnACriticalRecordItCannotWrite(t *testing.T) {
 				journal = append(journal, fmt.Sprintf(format, args...))
 			}
 
-			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), runGuard)
 			defer cancel()
 			var err error
 			if tc.fix {
@@ -575,7 +598,92 @@ func TestDriverStopsOnACriticalRecordItCannotWrite(t *testing.T) {
 	}
 }
 
+// A write that fails in a fix round is in the journal (the round goes on once
+// the store answers again); one that fails right after a child session was
+// created stops the driver and the session no one follows.
+func TestDriverRecordFailuresAreNeitherSilentNorLeaveASession(t *testing.T) {
+	t.Parallel()
+	lastEvent := func(kind string) func(fo *domain.SessionFanout) bool {
+		return func(fo *domain.SessionFanout) bool {
+			n := len(fo.Events)
+			return n > 0 && fo.Events[n-1].Kind == kind
+		}
+	}
+	for _, tc := range []struct {
+		name  string
+		fix   bool // the failure is in a fix round, asked once the children are merged
+		fail  func(fo *domain.SessionFanout) bool
+		setup func(f *fixture)
+		check func(t *testing.T, f *fixture, rec *stopRecorder, journal func() string)
+	}{
+		{"end of a fix round", true, lastEvent(domain.FanoutEventFixed),
+			func(f *fixture) {
+				f.launcher.fix = [2]string{"fix.go", "package calc // fixed\n"}
+				f.wf.Fanout.Fix, f.wf.Fanout.FixInput = "quick", "request"
+				f.wf.MaxFixRounds = 2
+			},
+			func(t *testing.T, f *fixture, _ *stopRecorder, journal func() string) {
+				require.Eventually(t, func() bool { return strings.Contains(journal(), "record not written: database is locked") }, runGuard, 20*time.Millisecond,
+					"the write of the end of the round that failed is in the journal")
+				fo := f.waitStatus(t, domain.FanoutReady)
+				require.Len(t, fo.Fixes, 1)
+				assert.Equal(t, domain.ChildMerged, fo.Fixes[0].State, "the round is recorded once the store answers: %s", fo.Fixes[0].Error)
+			}},
+		{"child session created", false, lastEvent(domain.FanoutEventChild),
+			func(f *fixture) { f.launcher.work["ev-1"] = [2]string{"a.go", "package calc\n"} },
+			func(t *testing.T, f *fixture, rec *stopRecorder, _ func() string) {
+				require.Len(t, f.launcher.started, 1, "the child was started")
+				assert.Equal(t, []string{"ses_child_1"}, rec.stoppedIDs(), "the child session no one follows is stopped")
+			}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t, "ev-1")
+			tc.setup(f)
+			errWrite := errors.New("database is locked")
+			f.driver.Sessions = &failStore{Store: f.store, fail: tc.fail, errWrite: errWrite}
+			rec := &stopRecorder{Launcher: f.launcher}
+			f.driver.Launcher = rec
+			var logMu sync.Mutex
+			var lines []string
+			f.driver.Log = func(format string, args ...any) {
+				logMu.Lock()
+				defer logMu.Unlock()
+				lines = append(lines, fmt.Sprintf(format, args...))
+			}
+			journal := func() string {
+				logMu.Lock()
+				defer logMu.Unlock()
+				return strings.Join(lines, "\n")
+			}
+
+			ctx, cancel := context.WithTimeout(context.Background(), runGuard)
+			defer cancel()
+			done := make(chan error, 1)
+			go func() { done <- f.driver.Run(ctx, "ses_parent") }()
+			if tc.fix {
+				f.waitStatus(t, domain.FanoutReady)
+				require.NoError(t, f.requestFix(t, "fix it"))
+				tc.check(t, f, rec, journal)
+				cancel()
+				<-done
+				return
+			}
+			var err error
+			select {
+			case err = <-done:
+			case <-ctx.Done():
+				t.Fatal("the driver did not stop")
+			}
+			require.Error(t, err, "the driver stops")
+			assert.ErrorIs(t, err, errWrite, "with the error of the write")
+			assert.ErrorIs(t, err, errRecord, "as a record it could not write")
+			tc.check(t, f, rec, journal)
+		})
+	}
+}
+
 func TestDriverParallelCap(t *testing.T) {
+	t.Parallel()
 	f := newFixture(t, "ev-1", "ev-2", "ev-3", "ev-4")
 	for i := 1; i <= 4; i++ {
 		f.launcher.work[fmt.Sprintf("ev-%d", i)] = [2]string{fmt.Sprintf("f%d.go", i), "package calc\n"}
@@ -598,6 +706,7 @@ func TestDriverParallelCap(t *testing.T) {
 }
 
 func TestDriverDependencies(t *testing.T) {
+	t.Parallel()
 	f := newFixture(t, "ev-2", "ev-1")
 	f.deps["ev-2"] = []string{"ev-1"}
 	f.launcher.work["ev-1"] = [2]string{"a.go", "package calc\n"}
@@ -613,6 +722,7 @@ func TestDriverDependencies(t *testing.T) {
 // Two children started from the same integration head (in parallel) both
 // change calc.go: the second merge conflicts.
 func TestDriverConflictResolvedByMerger(t *testing.T) {
+	t.Parallel()
 	f := newFixture(t, "ev-1", "ev-2")
 	f.launcher.together = 2
 	f.launcher.work["ev-1"] = [2]string{"calc.go", "package calc\n\nfunc Sub() {}\n"}
@@ -634,6 +744,7 @@ func TestDriverConflictResolvedByMerger(t *testing.T) {
 }
 
 func TestDriverConflictUnresolved(t *testing.T) {
+	t.Parallel()
 	f := newFixture(t, "ev-1", "ev-2")
 	f.launcher.together = 2
 	f.launcher.work["ev-1"] = [2]string{"calc.go", "package calc\n\nfunc Sub() {}\n"}
@@ -677,6 +788,7 @@ func readFile(t *testing.T, p string) string {
 }
 
 func TestDriverSkipsClosedTicket(t *testing.T) {
+	t.Parallel()
 	f := newFixture(t, "ev-1", "ev-2")
 	f.closed["ev-1"] = true
 	f.launcher.work["ev-2"] = [2]string{"b.go", "package calc\n"}
@@ -692,6 +804,7 @@ func TestDriverSkipsClosedTicket(t *testing.T) {
 // it has not committed, put aside after the idle timeout, or ended with its
 // session.
 func TestDriverChildOutcome(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		name  string
 		setup func(f *fixture)
@@ -739,6 +852,7 @@ func (s slowStore) Get(ctx context.Context, id string) (*domain.Session, error) 
 // followed (and merged) a second time (p8-fixes: TestDriverConflictResolvedByMerger,
 // a merged child marked failed, « no commit on the branch of the child »).
 func TestDriverChildFollowedOnce(t *testing.T) {
+	t.Parallel()
 	f := newFixture(t, "ev-1", "ev-2")
 	f.driver.Sessions = slowStore{Store: f.store, delay: 30 * time.Millisecond}
 	f.launcher.together = 2
@@ -775,6 +889,7 @@ func TestDriverChildFollowedOnce(t *testing.T) {
 }
 
 func TestDriverGlobalBudget(t *testing.T) {
+	t.Parallel()
 	f := newFixture(t, "ev-1", "ev-2")
 	f.wf.Fanout.Parallel = 1
 	f.launcher.work["ev-1"] = [2]string{"a.go", "package calc\n"}
@@ -799,6 +914,7 @@ func TestDriverGlobalBudget(t *testing.T) {
 }
 
 func TestDriverTamperedIntegration(t *testing.T) {
+	t.Parallel()
 	f := newFixture(t, "ev-1", "ev-2")
 	f.wf.Fanout.Parallel = 1
 	f.launcher.work["ev-1"] = [2]string{"a.go", "package calc\n"}
@@ -827,6 +943,7 @@ func TestDriverTamperedIntegration(t *testing.T) {
 }
 
 func TestDriverRefusals(t *testing.T) {
+	t.Parallel()
 	f := newFixture(t, "ev-1")
 	p, _ := f.store.Get(context.Background(), "ses_parent")
 	p.Fanout.Experimental = false
@@ -851,6 +968,7 @@ func TestDriverRefusals(t *testing.T) {
 }
 
 func TestIntegrateRefusesDirtyParent(t *testing.T) {
+	t.Parallel()
 	f := newFixture(t, "ev-1")
 	f.launcher.work["ev-1"] = [2]string{"a.go", "package calc\n"}
 	f.runDriver(t)
@@ -861,6 +979,7 @@ func TestIntegrateRefusesDirtyParent(t *testing.T) {
 }
 
 func TestHasMarkers(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "a"), []byte("x\n<<<<<<< HEAD\ny\n"), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "b"), []byte("x // <<<<<<< not at the start\n"), 0o644))
@@ -885,6 +1004,7 @@ func doneReason(fo *domain.SessionFanout, ticket string) string {
 // in these cases (it cannot decide), the driver is seen checking the idle
 // child several times without ending it, then the test completes the work.
 func TestDriverChildEndSignal(t *testing.T) {
+	t.Parallel()
 	childWf := &sessionspec.WorkflowRuntime{ID: "ticket", Checkpoints: []sessionspec.CheckpointDef{
 		{ID: "cp-2", Mandatory: true, Unlocks: []string{sessionspec.UnlockCommit}}}}
 	for _, tc := range []struct {

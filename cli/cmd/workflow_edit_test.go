@@ -29,6 +29,31 @@ type workflowCLIEnv struct {
 	clones map[string]string
 }
 
+var teamStateTemplates templates
+
+// teamStateTemplate returns a bare team-state repository on main holding the
+// structure and the members, pushed from a seed clone.
+func teamStateTemplate(t *testing.T, members []string) string {
+	t.Helper()
+	root := teamStateTemplates.get(t, strings.Join(members, ","), func(root string) {
+		bare, seed := filepath.Join(root, "bare"), filepath.Join(root, "seed")
+		require.NoError(t, os.Mkdir(bare, 0o755))
+		run := func(dir string, args ...string) { gittest.Run(t, dir, args...) }
+		run(bare, "init", "--bare", "-b", "main")
+		run(root, "clone", bare, seed)
+		var mf strings.Builder
+		for _, m := range members {
+			mf.WriteString("[members." + m + "]\ndisplay_name = \"" + m + "\"\n")
+		}
+		require.NoError(t, os.WriteFile(filepath.Join(seed, "members.toml"), []byte(mf.String()), 0o644))
+		require.NoError(t, teamstate.NewRepo(bare, seed).InitStructure(t.Context()))
+		run(seed, "add", ".")
+		run(seed, "commit", "-m", "init")
+		run(seed, "push", "-u", "origin", "HEAD:main")
+	})
+	return filepath.Join(root, "bare")
+}
+
 func setupWorkflowCLI(t *testing.T, member string, others ...string) *workflowCLIEnv {
 	t.Helper()
 	if testing.Short() {
@@ -44,18 +69,7 @@ func setupWorkflowCLI(t *testing.T, member string, others ...string) *workflowCL
 
 	env := &workflowCLIEnv{bare: t.TempDir(), clones: map[string]string{}}
 	run := func(dir string, args ...string) { gittest.Run(t, dir, args...) }
-	run(env.bare, "init", "--bare", "-b", "main")
-	seed := filepath.Join(t.TempDir(), "seed")
-	run(t.TempDir(), "clone", env.bare, seed)
-	var mf strings.Builder
-	for _, m := range append([]string{member}, others...) {
-		mf.WriteString("[members." + m + "]\ndisplay_name = \"" + m + "\"\n")
-	}
-	require.NoError(t, os.WriteFile(filepath.Join(seed, "members.toml"), []byte(mf.String()), 0o644))
-	require.NoError(t, teamstate.NewRepo(env.bare, seed).InitStructure(t.Context()))
-	run(seed, "add", ".")
-	run(seed, "commit", "-m", "init")
-	run(seed, "push", "-u", "origin", "HEAD:main")
+	copyTree(t, teamStateTemplate(t, append([]string{member}, others...)), env.bare)
 	for _, m := range append([]string{member}, others...) {
 		dir := filepath.Join(t.TempDir(), m)
 		run(t.TempDir(), "clone", env.bare, dir)

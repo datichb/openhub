@@ -12,6 +12,7 @@ import (
 )
 
 func TestColumnsFromConfig(t *testing.T) {
+	t.Parallel()
 	t.Run("no column: the default columns", func(t *testing.T) {
 		cols := ColumnsFromConfig(teamstate.BoardConfig{})
 		defaults := DefaultColumns()

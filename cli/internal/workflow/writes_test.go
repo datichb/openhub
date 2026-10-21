@@ -9,6 +9,7 @@ import (
 // R4 (E8): `agents.<id>.writes` opens documentation paths only: relative,
 // under docs/, a file or a folder ending in /**.
 func TestWritesPathProblem(t *testing.T) {
+	t.Parallel()
 	for p, ok := range map[string]bool{
 		"docs/wiki/specs/**":      true,
 		"docs/wiki/specs/auth.md": true,
@@ -45,6 +46,7 @@ func TestWritesPathProblem(t *testing.T) {
 }
 
 func TestWritesCovered(t *testing.T) {
+	t.Parallel()
 	parent := []string{"docs/wiki/specs/**", "docs/adr/001.md"}
 	for p, ok := range map[string]bool{
 		"docs/wiki/specs/**":      true,
@@ -63,6 +65,7 @@ func TestWritesCovered(t *testing.T) {
 }
 
 func TestValidate_Writes(t *testing.T) {
+	t.Parallel()
 	base := "risk: plan\nbeads: { allow: [show] }\nagents:\n  orchestrator-dev: { role: workflow, calls: [reviewer] }\n"
 	cases := []struct {
 		name, risk, agent, code, path string
@@ -105,6 +108,7 @@ func TestValidate_Writes(t *testing.T) {
 // does not cover, or `writes:` on an agent without (inherited or added),
 // is a loosening; the parent's list is kept.
 func TestPatch_Writes(t *testing.T) {
+	t.Parallel()
 	hub := strings.Replace(hubLayered, "  developer: { role: workflow, after: cp-1 }\n",
 		"  developer: { role: workflow, after: cp-1, writes: [docs/wiki/specs/**] }\n", 1)
 	resolve := func(patch string) (*Resolved, Diagnostics) {
@@ -158,6 +162,7 @@ func TestPatch_Writes(t *testing.T) {
 // R4: `verify.spec` is a verification on its own (no from nor cmd needed);
 // a layer keeps its paths and breakdown.
 func TestVerifySpecCheck(t *testing.T) {
+	t.Parallel()
 	doc := "risk: plan\nbeads: { allow: [show] }\nentry: { agent: orchestrator-dev }\nagents:\n  orchestrator-dev: { role: workflow }\ncheckpoints:\n"
 	_, diags := checkDoc(t, doc+"  cp-spec: { mode: { manuel: pause, semi-auto: pause, auto: pause }, verify: { spec: { paths: [docs/wiki/specs/**] } } }\n")
 	if diags.HasErrors() {
@@ -204,6 +209,7 @@ func hasCode(diags Diagnostics, code string) bool {
 // p6-debts: an input that is the file scope of the session: text, alone,
 // recorded at launch.
 func TestValidate_ScopeInput(t *testing.T) {
+	t.Parallel()
 	for _, c := range []struct{ name, doc, code string }{
 		{"ok", "inputs:\n  files: { type: text, scope: true }\noutputs:\n  - { id: files, type: text, record: input }\n", ""},
 		{"type", "inputs:\n  files: { type: int, scope: true }\noutputs:\n  - { id: files, type: text, record: input }\n", "input_scope_type"},

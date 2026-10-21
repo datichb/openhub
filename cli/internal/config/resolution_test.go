@@ -9,6 +9,7 @@ import (
 )
 
 func TestResolveBool(t *testing.T) {
+	t.Parallel()
 	b := func(v bool) *bool { return &v }
 	tests := []struct {
 		name                      string
@@ -39,6 +40,7 @@ func TestResolveBool(t *testing.T) {
 }
 
 func TestResolveString(t *testing.T) {
+	t.Parallel()
 	enforced := true
 	tests := []struct {
 		name           string

@@ -13,6 +13,7 @@ import (
 // A41: complete phrases (the project of a finished session) and translated
 // workflow events, read back from the team-state JSON.
 func TestTeamEventPhrases(t *testing.T) {
+	t.Parallel()
 	parse := func(s string) teamstate.Event {
 		var e teamstate.Event
 		require.NoError(t, json.Unmarshal([]byte(s), &e))

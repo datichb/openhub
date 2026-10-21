@@ -52,6 +52,7 @@ func tddCatalog(t *testing.T, patch string) *MemCatalog {
 func checkpointKeys(s *Spec) []string { return s.Checkpoints.Keys() }
 
 func TestMethod_Resolve(t *testing.T) {
+	t.Parallel()
 	cat := tddCatalog(t, "")
 	all := []string{"cp-1", "cp-seams", "cp-red", "cp-2"}
 	std := []string{"cp-1", "cp-2"}
@@ -99,6 +100,7 @@ func TestMethod_Resolve(t *testing.T) {
 }
 
 func TestMethod_Validate(t *testing.T) {
+	t.Parallel()
 	doc := vHeader + `risk: write
 entry: { agent: orchestrator-dev }
 inputs:
@@ -164,6 +166,7 @@ checkpoints:
 // A method drops a checkpoint outside of it: giving one to an inherited
 // checkpoint is a loosening; the R7 verification fields only harden.
 func TestMethod_PatchOnlyHardens(t *testing.T) {
+	t.Parallel()
 	loosen := []struct{ name, patch, path string }{
 		{"method on an inherited checkpoint", "checkpoints:\n  cp-1: { method: tdd }\n", "checkpoints.cp-1.method"},
 		{"must_touch_tests dropped", "checkpoints:\n  cp-red: { verify: { from: stack, expect: fail, outside_tests: warn, since: cp-seams } }\n", "checkpoints.cp-red.verify"},
@@ -193,6 +196,7 @@ func TestMethod_PatchOnlyHardens(t *testing.T) {
 // CP-R2 and R7: a method adds at most MethodPauseAllowance pause to the
 // budget, for its sessions only.
 func TestPauseBudget_Method(t *testing.T) {
+	t.Parallel()
 	r := resolveYAML(t, strings.Replace(hubTDD, "id: tdd", "id: x", 1))
 	c := r.Spec.PauseBudget()
 	if !reflect.DeepEqual(c.Pauses, []string{"cp-seams", "cp-2"}) || c.Budget != 3 || c.Exceeded() ||

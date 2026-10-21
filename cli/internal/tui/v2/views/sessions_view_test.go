@@ -71,6 +71,7 @@ func sampleRows() []SessionRow {
 }
 
 func TestSessionsSections(t *testing.T) {
+	t.Parallel()
 	inbox, running, sleeping, finished := sessionsSections(sampleRows(), time.Now())
 	require.Len(t, inbox, 1)
 	assert.Equal(t, "ses_a", inbox[0].ID)
@@ -169,6 +170,7 @@ func TestSessionsView_MountRenderKeys(t *testing.T) {
 }
 
 func TestQuestionForm(t *testing.T) {
+	t.Parallel()
 	fields := []SessionDecisionField{
 		{Key: "q0", Title: "Colour", Type: "string", Options: []SelectOption{{Label: "Blue", Value: "Blue"}, {Label: "Red", Value: "Red"}}, Custom: true},
 		{Key: "ok", Type: "boolean"},
@@ -190,6 +192,7 @@ func TestQuestionForm(t *testing.T) {
 }
 
 func TestSessionsSectionAndBadge(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, "", SessionsBadge(0, 0))
 	assert.Equal(t, "● 2  ◐ 1", SessionsBadge(2, 1))
 	assert.Equal(t, "● 3", SessionsBadge(3, 0))
@@ -265,6 +268,7 @@ func TestSessionsView_RunningApp(t *testing.T) {
 }
 
 func TestLandingsShowSessions(t *testing.T) {
+	t.Parallel()
 	var scopes []SessionsScope
 	cfg := SessionsSectionConfig{Summary: func(s SessionsScope) SessionsSummary {
 		scopes = append(scopes, s)

@@ -8,6 +8,7 @@ import (
 )
 
 func TestBrickNames(t *testing.T) {
+	t.Parallel()
 	for _, ok := range []string{"a", "team/hotfix-protocol", "a/b/c/d"} {
 		assert.NoError(t, ValidBrickID(BrickKindSkill, ok), ok)
 	}

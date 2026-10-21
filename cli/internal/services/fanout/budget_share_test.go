@@ -11,6 +11,7 @@ import (
 )
 
 func TestChildShare(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name                  string
 		budget, spent, claims float64
@@ -41,6 +42,7 @@ func TestChildShare(t *testing.T) {
 // F-04: children at the same time do not each get all that remains. With a
 // budget of 3 USD and three children, they get 1 USD each, not 3 each.
 func TestDriverChildrenShareTheBudget(t *testing.T) {
+	t.Parallel()
 	f := newFixture(t, "ev-1", "ev-2", "ev-3")
 	f.launcher.together = 3 // the three children run at the same time
 	for i, ticket := range []string{"ev-1", "ev-2", "ev-3"} {
@@ -71,6 +73,7 @@ func TestDriverChildrenShareTheBudget(t *testing.T) {
 // What a child did not spend goes to the children after it: the share is
 // computed again at each start.
 func TestDriverUnspentShareGoesToTheNextChildren(t *testing.T) {
+	t.Parallel()
 	f := newFixture(t, "ev-1", "ev-2", "ev-3")
 	f.wf.Fanout.Parallel = 1
 	f.launcher.costOf = map[string]float64{"ev-1": 0.2, "ev-2": 0.2, "ev-3": 0}
@@ -98,6 +101,7 @@ func TestDriverUnspentShareGoesToTheNextChildren(t *testing.T) {
 // When the running children hold all that is left, the next ones wait for
 // one of them to end instead of starting with nothing.
 func TestDriverWaitsWhenTheBudgetIsHeld(t *testing.T) {
+	t.Parallel()
 	f := newFixture(t, "ev-1", "ev-2", "ev-3")
 	for i, ticket := range []string{"ev-1", "ev-2", "ev-3"} {
 		f.launcher.work[ticket] = [2]string{string(rune('a'+i)) + ".go", "package calc\n"}
@@ -119,6 +123,7 @@ func TestDriverWaitsWhenTheBudgetIsHeld(t *testing.T) {
 
 // Without a global budget, no cap is given.
 func TestDriverNoBudgetNoShare(t *testing.T) {
+	t.Parallel()
 	f := newFixture(t, "ev-1", "ev-2")
 	f.launcher.work["ev-1"] = [2]string{"a.go", "package calc\n"}
 	f.launcher.work["ev-2"] = [2]string{"b.go", "package calc\n"}
@@ -132,6 +137,7 @@ func TestDriverNoBudgetNoShare(t *testing.T) {
 // of the child leaves it "running" without a session: the next driver starts
 // it again.
 func TestDriverRestartsAChildReservedButNeverStarted(t *testing.T) {
+	t.Parallel()
 	f := newFixture(t, "ev-1")
 	f.launcher.work["ev-1"] = [2]string{"a.go", "package calc\n"}
 	p, _ := f.store.Get(context.Background(), "ses_parent")

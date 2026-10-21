@@ -11,6 +11,7 @@ import (
 )
 
 func TestMapClaimStatusWithConfig(t *testing.T) {
+	t.Parallel()
 	custom := func(first string) []BoardColumnDef {
 		return []BoardColumnDef{
 			{Name: "FIRST", Status: first, Color: theme.Warning},

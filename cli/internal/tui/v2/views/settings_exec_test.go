@@ -21,6 +21,7 @@ func settingsField(t *testing.T, v *SettingsView, key string) *configField {
 }
 
 func TestSettingsExecSection(t *testing.T) {
+	t.Parallel()
 	cfg := &config.Config{}
 	v := NewSettingsView(SettingsViewConfig{ToolVersion: func() string { return "2.0.20" }})
 	v.live = cfg

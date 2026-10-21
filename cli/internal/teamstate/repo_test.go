@@ -15,6 +15,7 @@ import (
 // The life of a clone: not cloned, cloned (once), ready, and the commands that
 // need a clone refuse to run before it.
 func TestRepoLifecycle(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 
 	t.Run("a folder that is no clone", func(t *testing.T) {
@@ -52,6 +53,7 @@ func TestRepoLifecycle(t *testing.T) {
 }
 
 func TestCommitAndPush(t *testing.T) {
+	t.Parallel()
 	if testing.Short() {
 		t.Skip("skipping integration test in short mode")
 	}
@@ -73,6 +75,7 @@ func TestCommitAndPush(t *testing.T) {
 }
 
 func TestInitStructure(t *testing.T) {
+	t.Parallel()
 	repo := setupTestRepo(t)
 	ctx := context.Background()
 
@@ -93,6 +96,7 @@ func TestInitStructure(t *testing.T) {
 }
 
 func TestRepoHasFiles(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	r := NewRepo("", dir)
 	assert.False(t, r.HasConfig(), "no config.toml")
@@ -145,6 +149,7 @@ func TestGitCloneInvalidURL_FailsFastWithNoPrompt(t *testing.T) {
 }
 
 func TestWithWriteLock_ContextCancelled(t *testing.T) {
+	t.Parallel()
 	if testing.Short() {
 		t.Skip("skipping integration test in short mode")
 	}

@@ -11,6 +11,7 @@ import (
 )
 
 func TestWikiListPages(t *testing.T) {
+	t.Parallel()
 	repo := setupTestRepo(t)
 
 	dir := filepath.Join(repo.path, "wiki")
@@ -28,6 +29,7 @@ func TestWikiListPages(t *testing.T) {
 }
 
 func TestWikiListPagesEmpty(t *testing.T) {
+	t.Parallel()
 	repo := setupTestRepo(t)
 	// No wiki dir
 	pages, err := repo.WikiListPages()
@@ -36,6 +38,7 @@ func TestWikiListPagesEmpty(t *testing.T) {
 }
 
 func TestWikiReadPage(t *testing.T) {
+	t.Parallel()
 	repo := setupTestRepo(t)
 
 	dir := filepath.Join(repo.path, "wiki")
@@ -48,6 +51,7 @@ func TestWikiReadPage(t *testing.T) {
 }
 
 func TestWikiReadPageNotFound(t *testing.T) {
+	t.Parallel()
 	repo := setupTestRepo(t)
 
 	_, err := repo.WikiReadPage("nonexistent")
@@ -55,6 +59,7 @@ func TestWikiReadPageNotFound(t *testing.T) {
 }
 
 func TestValidateProposal(t *testing.T) {
+	t.Parallel()
 	valid := WikiProposal{Page: "decisions", Content: "## New Decision\n\nWe decided to use X.", Confidence: "CONFIRMED", Author: "documentarian", Project: "T-SRU"}
 	with := func(mod func(*WikiProposal)) WikiProposal {
 		p := valid
@@ -91,6 +96,7 @@ func TestValidateProposal(t *testing.T) {
 }
 
 func TestWikiListPending(t *testing.T) {
+	t.Parallel()
 	repo := setupTestRepo(t)
 
 	dir := filepath.Join(repo.path, "wiki", ".pending")
@@ -116,6 +122,7 @@ created_at = 2026-07-07T14:30:00Z
 }
 
 func TestWikiListPendingEmpty(t *testing.T) {
+	t.Parallel()
 	repo := setupTestRepo(t)
 
 	pending, err := repo.WikiListPending()

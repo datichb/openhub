@@ -310,12 +310,14 @@ func TestSessionsDetailTabs(t *testing.T) {
 
 // A session out of a fan-out has no Fan-out tab.
 func TestSessionsTabsWithoutFanout(t *testing.T) {
+	t.Parallel()
 	assert.Len(t, availableTabs(&SessionRow{ID: "s"}), 3)
 	assert.Len(t, availableTabs(&SessionRow{ID: "s", FanoutRole: FanoutRoleChild}), 4)
 	assert.Len(t, availableTabs(nil), 3)
 }
 
 func TestTextReaderSearch(t *testing.T) {
+	t.Parallel()
 	r := newTextReader()
 	r.SetText("alpha\nBeta [red]tag[-]\nalphabet")
 	r.search("ALPHA")

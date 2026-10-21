@@ -68,8 +68,14 @@ func (v *keyView) seen() ([]rune, int) {
 // simShell runs a shell on a simulation screen of the given size.
 type simShell struct {
 	*Shell
-	sim tcell.SimulationScreen
+	sim   tcell.SimulationScreen
+	fence chan struct{}
+	t     *testing.T
 }
+
+// fenceKey is never typed: key() injects it after a key to know the event
+// loop handled that key (the events are handled in the order they come).
+const fenceKey = tcell.KeyF64
 
 func runSimShell(t *testing.T, cols, rows int, cfg Config) *simShell {
 	t.Helper()
@@ -81,7 +87,15 @@ func runSimShell(t *testing.T, cols, rows int, cfg Config) *simShell {
 	done := make(chan struct{})
 	go func() { _ = s.Run(); close(done) }()
 	t.Cleanup(func() { s.app.Stop(); <-done })
-	ss := &simShell{Shell: s, sim: sim}
+	ss := &simShell{Shell: s, sim: sim, fence: make(chan struct{}, 1), t: t}
+	global := s.app.GetInputCapture()
+	s.app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == fenceKey {
+			ss.fence <- struct{}{}
+			return nil
+		}
+		return global(event)
+	})
 	require.Eventually(t, func() bool { return s.IsRunning() }, 2*time.Second, 5*time.Millisecond)
 	return ss
 }
@@ -95,8 +109,14 @@ func (s *simShell) loop(fn func()) {
 
 // key injects a key and waits until the event loop handled it.
 func (s *simShell) key(k tcell.Key, r rune, mod tcell.ModMask) {
+	s.t.Helper()
 	s.sim.InjectKey(k, r, mod)
-	time.Sleep(5 * time.Millisecond)
+	s.sim.InjectKey(fenceKey, 0, tcell.ModNone)
+	select {
+	case <-s.fence:
+	case <-time.After(10 * time.Second):
+		s.t.Fatal("the event loop did not handle the key")
+	}
 	s.loop(func() {})
 	s.loop(func() {})
 }
@@ -295,12 +315,12 @@ func TestKeysCatalogEnterLaunches(t *testing.T) {
 	s.loop(func() { s.NavigateTo("workflows") })
 	require.Eventually(t, func() bool {
 		ok := false
-		s.loop(func() { _, ok = s.app.GetFocus().(*widgets.SectionedList) })
+		s.loop(func() {
+			list, isList := s.app.GetFocus().(*widgets.SectionedList)
+			ok = isList && len(list.GetItems()) > 0 // the catalogue is loaded
+		})
 		return ok
 	}, 2*time.Second, 5*time.Millisecond)
-	// Wait for the catalogue to load.
-	time.Sleep(50 * time.Millisecond)
-	s.loop(func() {})
 	s.key(tcell.KeyEnter, 0, tcell.ModNone)
 	select {
 	case id := <-launched:

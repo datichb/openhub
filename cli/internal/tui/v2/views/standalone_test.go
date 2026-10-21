@@ -43,6 +43,7 @@ func TestRunInlineWizardStandalone(t *testing.T) {
 }
 
 func TestStandaloneShellStub(t *testing.T) {
+	t.Parallel()
 	stub := &standaloneShellStub{app: tview.NewApplication()}
 
 	t.Run("the methods the wizard uses are no-ops", func(t *testing.T) {

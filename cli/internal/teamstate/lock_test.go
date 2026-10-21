@@ -35,6 +35,7 @@ func countEventLines(t *testing.T, repo *Repo, project string) int {
 // N15: two Repo values on the same clone, 50 concurrent writers: 50 lines,
 // 50 commits (the in-process lock is per path, not per Repo).
 func TestConcurrentWritersSameClone(t *testing.T) {
+	t.Parallel()
 	if testing.Short() {
 		t.Skip("git")
 	}
@@ -154,6 +155,7 @@ func TestBusyClone(t *testing.T) {
 // N15: a stale .git/index.lock (killed git) is removed under the lock; a
 // recent one (a git running in the clone) makes the clone busy.
 func TestIndexLock(t *testing.T) {
+	t.Parallel()
 	repo, _ := setupGitTestRepo(t)
 	ctx := context.Background()
 	idx := filepath.Join(repo.Path(), ".git", "index.lock")
@@ -173,6 +175,7 @@ func TestIndexLock(t *testing.T) {
 // N15: a rejected push drops our commit and puts back only the files of the
 // transaction: changes of the clone that are not ours are kept.
 func TestTransactKeepsOtherChanges(t *testing.T) {
+	t.Parallel()
 	repo, bare := setupGitTestRepo(t)
 	ctx := context.Background()
 	other := NewRepo(bare, filepath.Join(t.TempDir(), "other"))
@@ -198,6 +201,7 @@ func TestTransactKeepsOtherChanges(t *testing.T) {
 
 // N15: the offline queue is written under the lock.
 func TestQueueUnderLock(t *testing.T) {
+	t.Parallel()
 	repo, _ := setupGitTestRepo(t)
 	release, err := repo.lockGit(context.Background())
 	require.NoError(t, err)

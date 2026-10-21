@@ -9,6 +9,7 @@ import (
 )
 
 func TestSafeName(t *testing.T) {
+	t.Parallel()
 	for _, name := range []string{"conventions", "my-page", "ticket_BD-42", "2026-07-api-migration", "page.with.dots"} {
 		got, err := SafeName(name)
 		assert.NoError(t, err, "name: %q", name)
@@ -35,6 +36,7 @@ func TestSafeName(t *testing.T) {
 // Every public entry point that takes a name from the outside (an agent, a
 // command line) refuses a name that would leave its folder.
 func TestPublicAPIRefusesUnsafeNames(t *testing.T) {
+	t.Parallel()
 	repo := setupTestRepo(t)
 	ctx := context.Background()
 	unsafe := func(err error) bool { return errors.Is(err, ErrUnsafeName) }

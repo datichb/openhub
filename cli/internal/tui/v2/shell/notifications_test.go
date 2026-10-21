@@ -20,10 +20,7 @@ func TestNotificationStore(t *testing.T) {
 
 		store.Add(ToastInfo, "A")
 		assert.Equal(t, 1, store.Len(), "length after one add")
-		// Small sleep to guarantee distinct timestamps (and insertion order)
-		time.Sleep(time.Millisecond)
 		store.Add(ToastError, "B")
-		time.Sleep(time.Millisecond)
 		store.Add(ToastSuccess, "C")
 
 		all := store.All()
@@ -63,7 +60,6 @@ func TestNotificationStore(t *testing.T) {
 	t.Run("entries carry the level and a time label", func(t *testing.T) {
 		store := NewNotificationStore(50)
 		store.Add(ToastError, "error message")
-		time.Sleep(time.Millisecond)
 		store.Add(ToastSuccess, "success message")
 
 		entries := store.Entries()

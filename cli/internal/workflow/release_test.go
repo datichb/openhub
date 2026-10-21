@@ -12,6 +12,7 @@ const releaseModes = "mode: { manuel: pause, semi-auto: pause, auto: pause }"
 // E7: git_clean, branch and tools are tests of their own, checked by the
 // schema.
 func TestValidate_PreconditionsRepo(t *testing.T) {
+	t.Parallel()
 	ok := vHeader + `risk: write
 preconditions:
   clean: { check: { git_clean: true }, on_fail: block }
@@ -38,6 +39,7 @@ preconditions:
 }
 
 func TestEvaluatePreconditionsRepo(t *testing.T) {
+	t.Parallel()
 	cat := catalogOf(t, map[string]string{"hub:x": vHeader + `risk: publish
 preconditions:
   clean: { check: { git_clean: true }, on_fail: block }
@@ -102,6 +104,7 @@ preconditions:
 }
 
 func TestBranchMatches(t *testing.T) {
+	t.Parallel()
 	for _, c := range []struct {
 		branch string
 		want   bool
@@ -115,6 +118,7 @@ func TestBranchMatches(t *testing.T) {
 // E9 and risk: publish: tag and mr are unlocked by a publishing workflow
 // only, at a checkpoint that pauses in every mode and never runs remotely.
 func TestValidate_Publish(t *testing.T) {
+	t.Parallel()
 	cp := func(extra string) string {
 		return "checkpoints:\n  cp-release: { unlocks: [commit, tag, mr], " + releaseModes + extra + " }\n"
 	}
@@ -150,6 +154,7 @@ func TestValidate_Publish(t *testing.T) {
 // A team layer cannot weaken the publishing checkpoint: remote is hardened
 // only.
 func TestPublishPatchHardened(t *testing.T) {
+	t.Parallel()
 	hub := vHeader + "risk: publish\nruntime: { default: local, allowed: [local] }\n" +
 		"checkpoints:\n  cp-release: { unlocks: [commit, tag], remote: forbid, " + releaseModes + " }\n"
 	cat := catalogOf(t, map[string]string{
@@ -167,6 +172,7 @@ func TestPublishPatchHardened(t *testing.T) {
 // security fields: a layer adds or hardens them, never removes nor loosens
 // them (the parent's value is kept); elsewhere a layer may still do so.
 func TestPublishPreconditionsHardened(t *testing.T) {
+	t.Parallel()
 	hubPre := "preconditions:\n" +
 		"  clean: { check: { git_clean: true }, on_fail: block }\n" +
 		"  branch: { check: { branch: [main, \"release/*\"] }, on_fail: block }\n" +
