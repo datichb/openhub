@@ -2,10 +2,11 @@ package beads
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 )
 
 // N17 / F-01: the commit of bd init and the files of the user are only
@@ -16,18 +17,7 @@ type gitRepo struct {
 	dir string
 }
 
-func (r gitRepo) git(args ...string) string {
-	r.t.Helper()
-	c := exec.Command("git", args...)
-	c.Dir = r.dir
-	c.Env = append(os.Environ(), "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@t", "GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@t",
-		"GIT_CONFIG_COUNT=1", "GIT_CONFIG_KEY_0=maintenance.auto", "GIT_CONFIG_VALUE_0=false")
-	out, err := c.CombinedOutput()
-	if err != nil {
-		r.t.Fatalf("git %v: %v\n%s", args, err, out)
-	}
-	return strings.TrimSpace(string(out))
-}
+func (r gitRepo) git(args ...string) string { return gittest.Run(r.t, r.dir, args...) }
 
 // bdCommitRepo is a repository whose HEAD is a commit of bd init (after a
 // first commit of the user unless first).

@@ -8,6 +8,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 )
 
 func TestIsReadyStatus(t *testing.T) {
@@ -312,7 +314,7 @@ func TestIsEmptyHook(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestSanitizeHooks_RemovesBeadsHook(t *testing.T) {
-	dir := setupTempGitDir(t)
+	dir := gittest.Repo(t)
 
 	hookContent := `#!/usr/bin/env sh
 # --- BEGIN BEADS INTEGRATION v1.2.2 ---
@@ -332,7 +334,7 @@ fi
 }
 
 func TestSanitizeHooks_PreservesProjectHook(t *testing.T) {
-	dir := setupTempGitDir(t)
+	dir := gittest.Repo(t)
 
 	hookContent := `#!/usr/bin/env bash
 # Project linter
@@ -357,7 +359,7 @@ fi
 }
 
 func TestSanitizeHooks_SkipsNonBeadsHook(t *testing.T) {
-	dir := setupTempGitDir(t)
+	dir := gittest.Repo(t)
 
 	hookContent := `#!/usr/bin/env bash
 # My custom hook
@@ -379,7 +381,7 @@ echo "running"
 // ---------------------------------------------------------------------------
 
 func TestSanitizeGitignore_MovesToExclude(t *testing.T) {
-	dir := setupTempGitDir(t)
+	dir := gittest.Repo(t)
 
 	gitignoreContent := `node_modules/
 dist/
@@ -406,7 +408,7 @@ dist/
 }
 
 func TestSanitizeGitignore_NoDuplicatesInExclude(t *testing.T) {
-	dir := setupTempGitDir(t)
+	dir := gittest.Repo(t)
 
 	// Pre-populate exclude with .beads/
 	excludePath := filepath.Join(dir, ".git", "info", "exclude")
@@ -432,7 +434,7 @@ func TestSanitizeGitignore_NoDuplicatesInExclude(t *testing.T) {
 }
 
 func TestSanitizeGitignore_PreservesOtherEntries(t *testing.T) {
-	dir := setupTempGitDir(t)
+	dir := gittest.Repo(t)
 
 	gitignoreContent := `# Dependencies
 node_modules/
@@ -465,7 +467,7 @@ build/
 }
 
 func TestSanitizeGitignore_RemovesBeadsComments(t *testing.T) {
-	dir := setupTempGitDir(t)
+	dir := gittest.Repo(t)
 
 	gitignoreContent := `node_modules/
 # beads
@@ -484,7 +486,7 @@ func TestSanitizeGitignore_RemovesBeadsComments(t *testing.T) {
 }
 
 func TestSanitizeGitignore_NoBeadsEntries(t *testing.T) {
-	dir := setupTempGitDir(t)
+	dir := gittest.Repo(t)
 
 	gitignoreContent := `node_modules/
 dist/
@@ -501,7 +503,7 @@ dist/
 // ---------------------------------------------------------------------------
 
 func TestSanitizeBeadsInit_FullScenario(t *testing.T) {
-	dir := setupTempGitDir(t)
+	dir := gittest.Repo(t)
 
 	hookContent := `#!/usr/bin/env sh
 # --- BEGIN BEADS INTEGRATION v1.2.2 ---
@@ -527,7 +529,7 @@ fi
 }
 
 func TestSanitizeBeadsInit_KeepsUserAgentsFile(t *testing.T) {
-	dir := setupTempGitDir(t)
+	dir := gittest.Repo(t)
 	// A file of the user that mentions bd, without block managed by bd.
 	agents := "# AGENTS.md\nThis project uses bd (beads): run bd ready, then bd show <id>.\n"
 	writeFile(t, filepath.Join(dir, "AGENTS.md"), agents)
@@ -542,7 +544,7 @@ func TestSanitizeBeadsInit_KeepsUserAgentsFile(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestDiagnoseBeadsImpact_DetectsIssues(t *testing.T) {
-	dir := setupTempGitDir(t)
+	dir := gittest.Repo(t)
 
 	// Create .beads/ so IsInitialized returns true
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".beads"), 0o755))
@@ -573,7 +575,7 @@ bd hook post-checkout
 
 // Q31: a project excluding .beads/ but not the lock bd 1.3 leaves beside it.
 func TestDiagnoseBeadsImpact_GateLockMissing(t *testing.T) {
-	dir := setupTempGitDir(t)
+	dir := gittest.Repo(t)
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".beads"), 0o755))
 	writeFile(t, filepath.Join(dir, ".git", "info", "exclude"), ".beads/\n")
 
@@ -584,7 +586,7 @@ func TestDiagnoseBeadsImpact_GateLockMissing(t *testing.T) {
 }
 
 func TestDiagnoseBeadsImpact_CleanProject(t *testing.T) {
-	dir := setupTempGitDir(t)
+	dir := gittest.Repo(t)
 
 	// Create .beads/ so IsInitialized returns true
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".beads"), 0o755))
@@ -598,7 +600,7 @@ func TestDiagnoseBeadsImpact_CleanProject(t *testing.T) {
 }
 
 func TestDiagnoseBeadsImpact_SkipsUninitializedProject(t *testing.T) {
-	dir := setupTempGitDir(t)
+	dir := gittest.Repo(t)
 	// No .beads/ directory
 
 	issues := DiagnoseBeadsImpact(dir)
@@ -634,15 +636,6 @@ func TestIsBeadsGitignoreLine(t *testing.T) {
 // ---------------------------------------------------------------------------
 // Test helpers
 // ---------------------------------------------------------------------------
-
-// setupTempGitDir creates a temporary directory with a .git/hooks and .git/info structure.
-func setupTempGitDir(t *testing.T) string {
-	t.Helper()
-	dir := t.TempDir()
-	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".git", "hooks"), 0o755))
-	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".git", "info"), 0o755))
-	return dir
-}
 
 // writeHook creates a hook file in the .git/hooks directory.
 func writeHook(t *testing.T, dir, name, content string) {
