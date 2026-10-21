@@ -3,6 +3,7 @@ package bundle
 import (
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/bricks"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
+	"github.com/datichb/openhub/cli/internal/testutil/golden"
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
@@ -76,7 +78,7 @@ func instructionsOf(body string) string {
 }
 
 // L7: the project instructions of every agent of the libre workflow, at
-// its level, are pinned in testdata/golden/instructions/libre/<agent>.md
+// its level, are pinned in testdata/golden/instructions/libre/<agent>.md.golden
 // (go test ./internal/bundle -run ProjectInstructions -update).
 func TestProjectInstructionsGolden(t *testing.T) {
 	t.Parallel()
@@ -101,7 +103,7 @@ func TestProjectInstructionsGolden(t *testing.T) {
 			assert.NotContains(t, got, instructionsHeading, a.ID)
 			assert.Contains(t, got, "`project_instructions: none`", a.ID)
 		}
-		assertGolden(t, filepath.Join("instructions", "libre", a.ID+".md"), got)
+		golden.Assert(t, path.Join("golden", "instructions", "libre", a.ID+".md"), got)
 	}
 	assert.Len(t, levels, 3, "libre covers the three levels")
 }

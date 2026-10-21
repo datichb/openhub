@@ -2,8 +2,7 @@ package bundle
 
 import (
 	"encoding/json"
-	"os"
-	"path/filepath"
+	"path"
 	"sort"
 	"strings"
 	"testing"
@@ -12,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/datichb/openhub/cli/internal/testutil/golden"
 	"github.com/datichb/openhub/cli/internal/workflow"
 	"github.com/datichb/openhub/cli/internal/workflow/hubcat"
 )
@@ -117,7 +117,7 @@ func TestShippedWorkflowPrompts(t *testing.T) {
 				require.NoError(t, err)
 				assert.Contains(t, out, "Mode de workflow : "+mode, "contract with the entry agent")
 				assert.Contains(t, out, "Langue de réponse : fr")
-				assertGolden(t, filepath.Join("workflows", ref.ID, "prompt-"+variant+".md"), out)
+				golden.Assert(t, path.Join("golden", "workflows", ref.ID, "prompt-"+variant+".md"), out)
 			}
 		})
 	}
@@ -287,7 +287,7 @@ func TestShippedWorkflowBundles(t *testing.T) {
 			}
 			data, err := json.MarshalIndent(sum, "", "  ")
 			require.NoError(t, err)
-			assertGolden(t, filepath.Join("workflows", name, "bundle.json"), string(data)+"\n")
+			golden.Assert(t, path.Join("golden", "workflows", name, "bundle.json"), string(data)+"\n")
 
 			// As Build: the checkpoints of the method only, and of the
 			// kind of session (fan-out or not, R6).
@@ -299,7 +299,7 @@ func TestShippedWorkflowBundles(t *testing.T) {
 			})
 			require.NoError(t, err)
 			for skill, content := range gen {
-				assertGolden(t, filepath.Join("workflows", name, strings.ReplaceAll(skill, "/", "__")+".md"), content)
+				golden.Assert(t, path.Join("golden", "workflows", name, strings.ReplaceAll(skill, "/", "__")+".md"), content)
 			}
 		})
 	}
@@ -332,19 +332,6 @@ func shippedVariants(t *testing.T, cat *workflow.MemCatalog) []shippedVariant {
 		}
 	}
 	return out
-}
-
-func assertGolden(t *testing.T, name, content string) {
-	t.Helper()
-	golden := filepath.Join("testdata", "golden", name)
-	if *updateGolden {
-		require.NoError(t, os.MkdirAll(filepath.Dir(golden), 0o755))
-		require.NoError(t, os.WriteFile(golden, []byte(content), 0o644))
-		return
-	}
-	want, err := os.ReadFile(golden)
-	require.NoError(t, err, "missing golden file (go test ./internal/bundle -run ShippedWorkflow -update)")
-	assert.Equal(t, string(want), content, name)
 }
 
 // A session that already has its branch says so: the agent does not offer to

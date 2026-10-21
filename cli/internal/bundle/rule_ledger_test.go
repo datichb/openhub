@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/bricks"
+	"github.com/datichb/openhub/cli/internal/testutil/golden"
 )
 
 // Rule ledger (modernisation P0.1): no normative rule an agent sees leaves
@@ -307,7 +308,7 @@ func TestRuleLedger(t *testing.T) {
 			targets[r.source] = r.source // generated workflow skills
 		}
 	}
-	if *updateGolden {
+	if golden.Updating() {
 		require.NoError(t, os.MkdirAll(dir, 0o755))
 	}
 	for _, agent := range sortedKeys(agents) {
@@ -319,9 +320,9 @@ func TestRuleLedger(t *testing.T) {
 			for _, r := range current[agent] {
 				sees[r.text] = true
 			}
-			golden, exists := readLedgerTSV(t, tsv)
+			ledger, exists := readLedgerTSV(t, tsv)
 			var lost []string
-			for _, r := range golden {
+			for _, r := range ledger {
 				if !sees[r.text] && moved[r.text] == "" {
 					lost = append(lost, r.line())
 				}
@@ -343,7 +344,7 @@ func TestRuleLedger(t *testing.T) {
 			assert.Empty(t, obsolete, "%s.moved: obsolete entries, %s still sees these rules", agent, agent)
 			assert.Empty(t, unknown, "%s.moved: moved: names no hub skill or agent", agent)
 			want := renderLedger(current[agent])
-			if *updateGolden {
+			if golden.Updating() {
 				if len(lost) > 0 || len(obsolete) > 0 || len(unknown) > 0 {
 					return
 				}
@@ -355,11 +356,11 @@ func TestRuleLedger(t *testing.T) {
 				return
 			}
 			require.True(t, exists, "missing %s (go test ./internal/bundle -run TestRuleLedger -update)", tsv)
-			if len(lost) > 0 || renderLedger(golden) == want {
+			if len(lost) > 0 || renderLedger(ledger) == want {
 				return
 			}
 			pinnedLines := map[string]bool{}
-			for _, r := range golden {
+			for _, r := range ledger {
 				pinnedLines[r.line()] = true
 			}
 			wantLines := map[string]bool{}
@@ -370,7 +371,7 @@ func TestRuleLedger(t *testing.T) {
 					diff = append(diff, "+ "+r.line())
 				}
 			}
-			for _, r := range golden {
+			for _, r := range ledger {
 				if !wantLines[r.line()] {
 					diff = append(diff, "- "+r.line())
 				}

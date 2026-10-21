@@ -19,6 +19,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/gateway"
 	"github.com/datichb/openhub/cli/internal/gateway/bdargs"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
+	"github.com/datichb/openhub/cli/internal/testutil/golden"
 	"github.com/datichb/openhub/cli/internal/workflow"
 	"github.com/datichb/openhub/cli/internal/workflow/hubcat"
 )
@@ -601,7 +602,7 @@ func TestCapabilities(t *testing.T) {
 	}
 	assert.Empty(t, errs)
 	sort.Strings(report)
-	assertGoldenFile(t, filepath.Join("testdata", "capabilities.golden"), strings.Join(report, "\n")+"\n")
+	golden.Assert(t, "capabilities", strings.Join(report, "\n")+"\n")
 }
 
 var capAsk = regexp.MustCompile(`(?i)invoqu|délègu|lance|task\(`)
@@ -627,17 +628,6 @@ func gatedBeforeCheckpoint(wfID string, wf *sessionspec.WorkflowRuntime, prompt 
 		}
 	}
 	return out
-}
-
-func assertGoldenFile(t *testing.T, name, content string) {
-	t.Helper()
-	if *updateGolden {
-		require.NoError(t, os.WriteFile(name, []byte(content), 0o644))
-		return
-	}
-	want, err := os.ReadFile(name)
-	require.NoError(t, err, "missing %s (go test ./internal/bundle -run TestCapabilities -update)", name)
-	assert.Equal(t, string(want), content, name)
 }
 
 func TestCapCommands(t *testing.T) {

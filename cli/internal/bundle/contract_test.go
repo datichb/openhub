@@ -2,6 +2,7 @@ package bundle
 
 import (
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -10,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/sessionspec"
+	"github.com/datichb/openhub/cli/internal/testutil/golden"
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
@@ -29,7 +31,7 @@ func contractOf(body string) string {
 }
 
 // L3: the session contract of every agent of every shipped workflow is
-// pinned in testdata/golden/contracts/<workflow>/<agent>.md
+// pinned in testdata/golden/contracts/<workflow>/<agent>.md.golden
 // (go test ./internal/bundle -run ShippedWorkflowContracts -update).
 func TestShippedWorkflowContracts(t *testing.T) {
 	_, cat, _ := shippedWorkflows(t)
@@ -42,14 +44,14 @@ func TestShippedWorkflowContracts(t *testing.T) {
 				c := contractOf(a.Body)
 				require.NotEmpty(t, c, "%s/%s: no session contract", ref.ID, a.ID)
 				assert.Equal(t, 1, strings.Count(a.Body, contractHeading), "%s/%s: one contract", ref.ID, a.ID)
-				want[a.ID+".md"] = true
-				assertGolden(t, filepath.Join("contracts", ref.ID, a.ID+".md"), c)
+				want[a.ID+".md.golden"] = true
+				golden.Assert(t, path.Join("golden", "contracts", ref.ID, a.ID+".md"), c)
 			}
 			entries, err := os.ReadDir(dir)
 			require.NoError(t, err)
 			for _, e := range entries {
 				if !want[e.Name()] {
-					if *updateGolden {
+					if golden.Updating() {
 						require.NoError(t, os.Remove(filepath.Join(dir, e.Name())))
 						continue
 					}
