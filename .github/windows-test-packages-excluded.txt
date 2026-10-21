@@ -8,9 +8,11 @@
 ./cmd                           # fake editor/binaries written as shell scripts ("not a valid Win32 application"), team id built from a temp path that is not a slug
 ./internal/adapters/opencodev2  # fake servers written as shell scripts, Unix file modes (0755/0600), "/opt/oh/..." paths turned into backslashes
 ./internal/beads                # needs the bd binary, absent on the runner
+./internal/beads/bdtest         # TestCopyTree expects the Unix file mode (0640) and the "b/f" symbolic link target; the real bd tests need the bd binary
 ./internal/bricks               # stack detection of the android project (TestResolveStackSkills_Projects/android) differs: file path handling
 ./internal/bundle               # backslash paths in the rendered annexes, shell guard tests that expect a Unix shell
 ./internal/config               # hub.toml saved in a temp dir is not found again, settings read back empty
+./internal/config/configtest    # HOME isolation: Windows reads USERPROFILE, so the hub is not under the temporary home
 ./internal/daemon               # shortPaths creates its folders in /tmp (daemon_test.go:30), Unix sockets
 ./internal/gateway              # Beads workspace paths with backslashes, fake bd written as a shell script
 ./internal/gitutil              # TestSafeGitIgnoresRepoConfig: the repo config runs a shell script as fsmonitor hook
@@ -28,4 +30,5 @@
 ./internal/teamstate            # "/" separators expected in brick and claim paths
 ./internal/termlaunch           # tmux and terminal fakes written as shell scripts
 ./internal/testenv              # HOME isolation: Windows reads USERPROFILE; helper process
+./internal/testutil/golden      # TestAssert expects "testdata/..." (slash) in the failure message, filepath.Join gives backslashes
 ./internal/worktree             # "/" separators expected in sibling paths, line endings in TestStash
