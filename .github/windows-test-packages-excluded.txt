@@ -1,0 +1,31 @@
+# Go packages NOT tested by the CI on Windows, with their main cause, seen in
+# the log of run 39478681062. See the header of windows-test-packages.txt: these
+# packages are followed by the "windows-tests" batch, which makes them green and
+# moves them to the list of the tested packages.
+#
+# Format: package, then " # cause" (one line). Same package names as
+# `go list ./...`, relative to the module (cli/).
+./cmd                           # fake editor/binaries written as shell scripts ("not a valid Win32 application"), team id built from a temp path that is not a slug
+./internal/adapters/opencodev2  # fake servers written as shell scripts, Unix file modes (0755/0600), "/opt/oh/..." paths turned into backslashes
+./internal/beads                # needs the bd binary, absent on the runner
+./internal/bricks               # stack detection of the android project (TestResolveStackSkills_Projects/android) differs: file path handling
+./internal/bundle               # backslash paths in the rendered annexes, shell guard tests that expect a Unix shell
+./internal/config               # hub.toml saved in a temp dir is not found again, settings read back empty
+./internal/daemon               # shortPaths creates its folders in /tmp (daemon_test.go:30), Unix sockets
+./internal/gateway              # Beads workspace paths with backslashes, fake bd written as a shell script
+./internal/gitutil              # TestSafeGitIgnoresRepoConfig: the repo config runs a shell script as fsmonitor hook
+./internal/logrotate            # Unix file modes (0600 expected, 0666 given)
+./internal/runsvc               # "/work/proj" paths turned into backslashes, Unix file modes, shell script fakes
+./internal/runtime              # TestPathMap: inner Unix paths rewritten with backslashes (filepath)
+./internal/runtime/container    # container runtime not supported on Windows, fake engine (oh-fake-engine) is a shell script
+./internal/selfupdate           # self-update is unsupported on Windows (AssetName: "unsupported OS")
+./internal/services/checkpoint  # runtime env with Unix paths (HOME=/home/oh), go build without GOCACHE/LocalAppData
+./internal/services/report      # Unix file modes (0600/0700) not applied
+./internal/services/session     # TestSubscribePollsWithoutDaemon (live_test.go:98): daemon discovery written for Unix, to analyse
+./internal/services/workflow    # publication to a team-state git remote (publish_test.go:180, :303): Windows paths, to analyse
+./internal/storage/filecrypt    # Unix file modes (0600 expected, 0666 given)
+./internal/storage/sqlite       # Unix file modes (0600 expected, 0666 given), helper process
+./internal/teamstate            # "/" separators expected in brick and claim paths
+./internal/termlaunch           # tmux and terminal fakes written as shell scripts
+./internal/testenv              # HOME isolation: Windows reads USERPROFILE; helper process
+./internal/worktree             # "/" separators expected in sibling paths, line endings in TestStash

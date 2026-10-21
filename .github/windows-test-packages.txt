@@ -1,0 +1,98 @@
+# Go packages tested by the CI on Windows (job "Go CLI (windows-latest)").
+#
+# Why a list: the first full run of the suite on Windows (run 39478681062)
+# showed that 24 packages fail there, almost all because their tests were
+# written for Unix (/tmp, fake binaries written as shell scripts, Unix
+# sockets, file modes, "/" separators). To keep the CI green meanwhile, on
+# Windows the Test step only runs the packages below, which pass. The 24 others
+# are in windows-test-packages-excluded.txt, each with its main cause: making them
+# green is the job of the "windows-tests" batch, which moves them from that file
+# to this one. The other systems always run ./... .
+#
+# Format: one package per line, relative to the module (cli/), as printed by
+# `go list ./...`; blank lines and # comments are ignored. The packages without
+# test files are listed too: Windows then at least builds them.
+# A package of `go list ./...` that is in neither file is not tested on Windows
+# and is reported as a warning by the CI (.github/scripts/windows-packages.sh check).
+.
+./cmd/oh-bd
+./internal/adapters
+./internal/adapters/opencodev2/deploycleanup
+./internal/app
+./internal/archtest
+./internal/beads/bdschema
+./internal/buildinfo
+./internal/credproxy
+./internal/docstest
+./internal/domain
+./internal/envfilter
+./internal/evalrun
+./internal/filelock
+./internal/gateway/bdargs
+./internal/gateway/beadswire
+./internal/gateway/fakebd
+./internal/gc
+./internal/gitlabapi
+./internal/gitutil/gittest
+./internal/glyph
+./internal/hostnet
+./internal/httplog
+./internal/hubcontent
+./internal/i18n
+./internal/launcher
+./internal/limits
+./internal/mcp/figma
+./internal/mcp/github
+./internal/mcp/gitlab
+./internal/mcp/gslides
+./internal/mcp/jira
+./internal/mcp/linear
+./internal/mcp/mcpregistry
+./internal/mcp/protocol
+./internal/mcp/team
+./internal/mcp/wiki
+./internal/mcp/workflow
+./internal/mcpresolve
+./internal/modelcheck
+./internal/notify
+./internal/peercheck
+./internal/platform
+./internal/prefsvc
+./internal/prettylog
+./internal/procinfo
+./internal/prompt
+./internal/provider
+./internal/remote
+./internal/remote/ciconfig
+./internal/remote/gitlab
+./internal/remote/gitlab/gitlabtest
+./internal/retry
+./internal/safego
+./internal/semver
+./internal/services/fanout
+./internal/services/remote
+./internal/services/remote/runner
+./internal/services/wiki
+./internal/sessionctx
+./internal/sessionresults
+./internal/sessionspec
+./internal/sessionstats
+./internal/specdoc
+./internal/storage/keychain
+./internal/sysnotify
+./internal/task
+./internal/termtext
+./internal/tracker
+./internal/tui/common
+./internal/tui/components/floating
+./internal/tui/components/summary
+./internal/tui/progress
+./internal/tui/theme
+./internal/tui/v2/keys
+./internal/tui/v2/layout
+./internal/tui/v2/router
+./internal/tui/v2/shell
+./internal/tui/v2/views
+./internal/tui/v2/widgets
+./internal/workflow
+./internal/workflow/hubcat
