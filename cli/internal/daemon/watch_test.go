@@ -174,8 +174,10 @@ func TestWatcherTracksSessionState(t *testing.T) {
 	// Sessions of other groups or unknown to oh are ignored.
 	ch <- adapters.ToolEvent{Kind: adapters.EventExecEnded, SessionID: "ses_other"}
 	ch <- adapters.ToolEvent{Kind: adapters.EventExecEnded, SessionID: "ses_unknown"}
-	time.Sleep(200 * time.Millisecond)
-	assert.Equal(t, domain.RunActive, state("ses_other"))
+	assert.Never(t, func() bool {
+		s, err := sessions.Get(ctx, "ses_other")
+		return err != nil || s.State != domain.RunActive
+	}, 150*time.Millisecond, 10*time.Millisecond, "the sessions of other groups are ignored")
 
 	// Stream drop → reconnection with a new resync.
 	close(ch)

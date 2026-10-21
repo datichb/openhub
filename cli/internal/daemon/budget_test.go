@@ -126,6 +126,24 @@ func newLimitEnv(t *testing.T, sessionIDs ...string) *limitEnv {
 	return e
 }
 
+// noBudgetDecision fails the test if a budget decision opens for the
+// session during window (checked all along, not once at the end).
+func (e *limitEnv) noBudgetDecision(id, msg string) {
+	e.t.Helper()
+	assert.Never(e.t, func() bool {
+		open, err := e.decisions.ListOpen(e.ctx, domain.DecisionFilter{SessionID: id})
+		if err != nil {
+			return true
+		}
+		for _, d := range open {
+			if isLimitDecision(d) {
+				return true
+			}
+		}
+		return false
+	}, 150*time.Millisecond, 10*time.Millisecond, msg)
+}
+
 func (e *limitEnv) openBudget(id string) []domain.Decision {
 	open, err := e.decisions.ListOpen(e.ctx, domain.DecisionFilter{SessionID: id})
 	require.NoError(e.t, err)
@@ -165,8 +183,7 @@ func TestSessionBudgetDecisionAndHold(t *testing.T) {
 	require.NoError(t, limits.Save(e.dir, "ses_a", limits.Resolve(limits.Input{Workflow: limits.Limits{SessionBudgetUSD: 1}, ProjectID: "p1"})))
 
 	e.turn("ses_a", 0.4)
-	time.Sleep(200 * time.Millisecond)
-	assert.Empty(t, e.openBudget("ses_a"), "under budget")
+	e.noBudgetDecision("ses_a", "under budget")
 
 	e.turn("ses_a", 1.2) // overruns during the step: no interrupt, decision at the end
 	require.Eventually(t, func() bool { return len(e.openBudget("ses_a")) == 1 }, 3*time.Second, 20*time.Millisecond)
@@ -188,9 +205,8 @@ func TestSessionBudgetDecisionAndHold(t *testing.T) {
 	_, err = e.decisions.Resolve(e.ctx, dec.ID, domain.ResolvedByOh, &domain.DecisionResolution{Decision: "raise"}, time.Now())
 	require.NoError(t, err)
 	e.turn("ses_a", 1.5)
-	time.Sleep(200 * time.Millisecond)
+	e.noBudgetDecision("ses_a", "no decision after the raise")
 	assert.Len(t, e.ad.interrupted(), 1, "no interrupt after the raise")
-	assert.Empty(t, e.openBudget("ses_a"))
 
 	// A subagent session spends for its root: over the raised allowance.
 	e.events <- adapters.ToolEvent{Kind: adapters.EventSessionCreated, SessionID: "ses_child", ParentID: "ses_a"}
@@ -283,8 +299,7 @@ func TestDailyBudget(t *testing.T) {
 		require.NoError(t, limits.Save(e.dir, id, lim))
 	}
 	e.turn("ses_a", 0.7)
-	time.Sleep(200 * time.Millisecond)
-	assert.Empty(t, e.openBudget("ses_a"))
+	e.noBudgetDecision("ses_a", "under the daily budget")
 	e.turn("ses_b", 0.4)
 	require.Eventually(t, func() bool { return len(e.openBudget("ses_b")) == 1 }, 3*time.Second, 20*time.Millisecond)
 	assert.Equal(t, limits.BudgetDaily, e.openBudget("ses_b")[0].Payload.Data[limits.DataBudgetLimit])
@@ -307,11 +322,11 @@ func TestQueuedSessionsStartWhenASlotFrees(t *testing.T) {
 		require.NoError(t, e.sessions.Create(ctx, &domain.Session{ID: q.id, ProjectID: "p1", Status: domain.SessionStatusRunning, GroupKey: "g1", State: domain.RunQueued}))
 		require.NoError(t, limits.SaveQueued(e.dir, q.id, limits.Queued{Prompt: "go " + q.id, Priority: q.pri, QueuedAt: now.Add(time.Duration(i) * time.Second), Scope: limits.ScopeGlobal, MaxActive: 1}))
 	}
-	time.Sleep(300 * time.Millisecond)
-	_, sent := e.ad.prompt("ses_inter")
-	assert.False(t, sent, "no free slot")
-	s, _ := e.sessions.Get(ctx, "ses_inter")
-	assert.Equal(t, domain.RunQueued, s.State, "kept queued by the watcher")
+	assert.Never(t, func() bool {
+		_, sent := e.ad.prompt("ses_inter")
+		s, err := e.sessions.Get(ctx, "ses_inter")
+		return sent || err != nil || s.State != domain.RunQueued
+	}, 250*time.Millisecond, 10*time.Millisecond, "no free slot: kept queued by the watcher")
 	srv, _ := e.servers.Get(ctx, "g1")
 	assert.Equal(t, domain.ServerReady, srv.Status)
 
@@ -326,7 +341,7 @@ func TestQueuedSessionsStartWhenASlotFrees(t *testing.T) {
 		s, _ := e.sessions.Get(ctx, "ses_inter")
 		return !queued && s.State == domain.RunActive
 	}, 10*time.Second, 20*time.Millisecond)
-	_, sent = e.ad.prompt("ses_head")
+	_, sent := e.ad.prompt("ses_head")
 	assert.False(t, sent, "one slot only")
 }
 

@@ -20,9 +20,12 @@ import (
 
 const (
 	touchEvery = 10 * time.Second
-	unknownTTL = 5 * time.Second
 	usageEvery = 5 * time.Second
 )
+
+// unknownTTL is how long a session unknown to oh stays unknown (a variable
+// for the tests).
+var unknownTTL = 5 * time.Second
 
 type sessionTrack struct {
 	executing    bool

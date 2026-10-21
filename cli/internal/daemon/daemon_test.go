@@ -52,7 +52,9 @@ func (e *env) start(t *testing.T, secrets SecretGetter, idle time.Duration) (*Cl
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
+	stopped := make(chan struct{}) // closed once Run returned, whoever read done
 	go func() {
+		defer close(stopped)
 		done <- Run(ctx, Options{
 			Paths: e.paths, Version: "test", Grants: e.grants, Servers: e.servers, Secrets: secrets,
 			IdleAfter: idle, Tick: 50 * time.Millisecond,
@@ -64,7 +66,7 @@ func (e *env) start(t *testing.T, secrets SecretGetter, idle time.Duration) (*Cl
 	t.Cleanup(func() {
 		cancel()
 		select {
-		case <-done:
+		case <-stopped:
 		case <-time.After(5 * time.Second):
 		}
 	})

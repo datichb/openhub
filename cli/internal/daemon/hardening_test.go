@@ -47,12 +47,11 @@ func TestRestartingOldGroupKeepsItsGrant(t *testing.T) {
 		SigV4: func(context.Context, string, string) (credproxy.Auth, error) {
 			return credproxy.BearerAuth{Token: "s"}, nil
 		}})
-	time.Sleep(300 * time.Millisecond)
-	s, err := servers.Get(ctx, "g")
-	require.NoError(t, err)
-	assert.Equal(t, domain.ServerStarting, s.Status)
-	active, _ := grants.ListActive(ctx)
-	assert.Len(t, active, 1, "the token of a starting server is kept")
+	assert.Never(t, func() bool {
+		s, err := servers.Get(ctx, "g")
+		active, _ := grants.ListActive(ctx)
+		return err != nil || s.Status != domain.ServerStarting || len(active) != 1
+	}, 250*time.Millisecond, 10*time.Millisecond, "a starting server stays starting and its token is kept")
 }
 
 // E14-M1: a live PID that does not answer as our server is marked stopped and never signalled.

@@ -80,7 +80,9 @@ func TestShellAlert(t *testing.T) {
 
 	ch <- adapters.ToolEvent{Kind: adapters.EventExecStarted, SessionID: "ses_bad"}
 	ch <- adapters.ToolEvent{Kind: adapters.EventExecEnded, SessionID: "ses_bad", Outcome: "succeeded"}
-	time.Sleep(300 * time.Millisecond)
-	assert.Len(t, open("ses_bad"), 1, "not cleared by the agent loop")
+	assert.Never(t, func() bool {
+		l, err := decisions.ListOpen(ctx, domain.DecisionFilter{SessionID: "ses_bad"})
+		return err != nil || len(l) != 1
+	}, 250*time.Millisecond, 10*time.Millisecond, "not cleared by the agent loop")
 	assert.Empty(t, open("ses_ok"))
 }
