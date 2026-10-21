@@ -1,0 +1,11 @@
+== list
+Teams | 
+core  Core | @alice · git@example.com:core/state.git · [#a6e3a1]✓[-] active
+solo  solo | @bob · solo space (local) · inactive
+== commands
+Add a team | Reference an existing team repository | Teams
+Refresh | Reload the team list | Teams
+Sync Core | Pull the team repository of Core | Teams
+Sync solo | Pull the team repository of solo | Teams
+== empty
+No team | a: add a team · oh team init to create one

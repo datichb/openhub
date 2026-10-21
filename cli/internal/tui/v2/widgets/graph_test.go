@@ -1,9 +1,6 @@
 package widgets
 
 import (
-	"flag"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -11,10 +8,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/datichb/openhub/cli/internal/testutil/golden"
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
-
-var updateGolden = flag.Bool("update", false, "update golden files")
 
 const graphSpec = `apiVersion: oh/v1
 kind: Workflow
@@ -89,13 +85,5 @@ func TestSpecGraphGolden(t *testing.T) {
 		}
 		b.WriteString(strings.TrimRight(line.String(), " ") + "\n")
 	}
-	got := b.String()
-	path := filepath.Join("testdata", "editor_graph.golden")
-	if *updateGolden {
-		require.NoError(t, os.MkdirAll("testdata", 0o755))
-		require.NoError(t, os.WriteFile(path, []byte(got), 0o644))
-	}
-	want, err := os.ReadFile(path)
-	require.NoError(t, err, "missing golden file (go test ./internal/tui/v2/widgets -run Golden -update)")
-	assert.Equal(t, string(want), got)
+	golden.Assert(t, "editor_graph", b.String())
 }

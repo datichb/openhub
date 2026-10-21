@@ -8,6 +8,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/testutil/golden"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
@@ -142,9 +143,9 @@ func TestSettingsProxyTimeoutField(t *testing.T) {
 	assert.Equal(t, 5*60, int(cfg.Execution.ProxyFirstByteTimeout().Seconds()))
 }
 
-// The two settings come after the others of the section, with their own
-// description in both languages.
-func TestSettingsExecSectionOrderAndTexts(t *testing.T) {
+// The two settings come after the others of the section (their texts, in
+// both languages, are in the render goldens below).
+func TestSettingsExecSectionOrder(t *testing.T) {
 	v, _ := execSettings(t)
 	var keys []string
 	for _, f := range v.fields {
@@ -153,18 +154,6 @@ func TestSettingsExecSectionOrderAndTexts(t *testing.T) {
 		}
 	}
 	assert.Equal(t, []string{"exec_runtime", "exec_engine", "exec_keep_images", "exec_tool_version", "exec_strict_isolation", "exec_env_allow", "exec_proxy_first_byte"}, keys)
-	for _, lang := range []string{"en", "fr"} {
-		prev := i18n.Locale()
-		i18n.SetLocale(lang)
-		v, _ := execSettings(t)
-		for _, k := range []string{"exec_env_allow", "exec_proxy_first_byte"} {
-			f := settingsField(t, v, k)
-			assert.NotEmpty(t, f.Label, lang+" "+k)
-			assert.NotEqual(t, "tui.settings.exec.env_allow.label", f.Label)
-			assert.NotEmpty(t, f.Description, lang+" "+k)
-		}
-		i18n.SetLocale(prev)
-	}
 }
 
 func useEnglish(t *testing.T) {
@@ -174,26 +163,35 @@ func useEnglish(t *testing.T) {
 	t.Cleanup(func() { i18n.SetLocale(prev) })
 }
 
-// Render snapshot of the « Exécution » section, in French, with the two
-// settings set (a name that looks like a secret warns).
+// Render snapshot of the « Exécution » section, in both languages, with the
+// two settings set (a name that looks like a secret warns).
 func TestSettingsExecSectionRender(t *testing.T) {
-	frLocale(t)
-	v, cfg := execSettings(t)
-	cfg.Execution.EnvAllow = []string{"SSH_AUTH_SOCK", "GEMINI_API_KEY", "MYCO_*"}
-	cfg.Execution.ProxyFirstByteTimeoutMinutes = 10
+	for _, tc := range []struct{ lang, golden string }{
+		{"fr", "settings_exec_section"},
+		{"en", "settings_exec_section_en"},
+	} {
+		t.Run(tc.lang, func(t *testing.T) {
+			prev := i18n.Locale()
+			i18n.SetLocale(tc.lang)
+			t.Cleanup(func() { i18n.SetLocale(prev) })
+			v, cfg := execSettings(t)
+			cfg.Execution.EnvAllow = []string{"SSH_AUTH_SOCK", "GEMINI_API_KEY", "MYCO_*"}
+			cfg.Execution.ProxyFirstByteTimeoutMinutes = 10
 
-	list := widgets.NewSectionedList()
-	var items []widgets.SectionItem
-	in := false
-	for _, f := range v.fields {
-		if f.Kind == CfgFieldSectionHeader {
-			in = f.Label == i18n.T("tui.settings.exec.section")
-		}
-		if in {
-			items = append(items, renderConfigItem(f, 28))
-		}
+			list := widgets.NewSectionedList()
+			var items []widgets.SectionItem
+			in := false
+			for _, f := range v.fields {
+				if f.Kind == CfgFieldSectionHeader {
+					in = f.Label == i18n.T("tui.settings.exec.section")
+				}
+				if in {
+					items = append(items, renderConfigItem(f, 28))
+				}
+			}
+			require.NotEmpty(t, items, "items of the section")
+			list.SetItems(items)
+			golden.Assert(t, tc.golden, screenText(t, list, 120, 16))
+		})
 	}
-	require.NotEmpty(t, items)
-	list.SetItems(items)
-	assertGolden(t, "settings_exec_section", screenText(t, list, 120, 16))
 }

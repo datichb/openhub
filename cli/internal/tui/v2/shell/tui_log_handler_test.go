@@ -6,76 +6,56 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestTUILogHandler_Enabled(t *testing.T) {
-	h := NewTUILogHandler(nil, nil, slog.LevelWarn)
+func TestTUILogHandler(t *testing.T) {
+	t.Run("enabled from the configured level", func(t *testing.T) {
+		h := NewTUILogHandler(nil, nil, slog.LevelWarn)
+		assert.False(t, h.Enabled(context.TODO(), slog.LevelDebug), "debug")
+		assert.False(t, h.Enabled(context.TODO(), slog.LevelInfo), "info")
+		assert.True(t, h.Enabled(context.TODO(), slog.LevelWarn), "warn")
+		assert.True(t, h.Enabled(context.TODO(), slog.LevelError), "error")
+	})
 
-	assert.False(t, h.Enabled(context.TODO(), slog.LevelDebug))
-	assert.False(t, h.Enabled(context.TODO(), slog.LevelInfo))
-	assert.True(t, h.Enabled(context.TODO(), slog.LevelWarn))
-	assert.True(t, h.Enabled(context.TODO(), slog.LevelError))
-}
+	t.Run("records land in the notification store", func(t *testing.T) {
+		tests := []struct {
+			name      string
+			log       func(*slog.Logger)
+			wantCount int
+			wantParts []string
+		}{
+			{"warning is persisted", func(l *slog.Logger) { l.Warn("test warning") }, 1, []string{"test warning"}},
+			{"below the level is skipped", func(l *slog.Logger) { l.Info("should be filtered") }, 0, nil},
+			{"groups prefix the message", func(l *slog.Logger) { l.WithGroup("tracker").WithGroup("sync").Warn("pull failed") }, 1, []string{"tracker.sync: pull failed"}},
+			{"attributes are appended", func(l *slog.Logger) { l.With("project", "api-backend").Warn("deploy failed") }, 1, []string{"deploy failed", "project=api-backend"}},
+		}
+		for _, tc := range tests {
+			t.Run(tc.name, func(t *testing.T) {
+				store := NewNotificationStore(10)
+				tc.log(slog.New(NewTUILogHandler(nil, store, slog.LevelWarn)))
 
-func TestTUILogHandler_Handle_PersistsToStore(t *testing.T) {
-	store := NewNotificationStore(10)
-	h := NewTUILogHandler(nil, store, slog.LevelWarn)
+				items := store.All()
+				require.Len(t, items, tc.wantCount, "stored notifications")
+				for _, part := range tc.wantParts {
+					assert.Contains(t, items[0].Message, part, "message")
+				}
+				if tc.wantCount > 0 {
+					assert.Equal(t, ToastWarning, items[0].Level, "level")
+				}
+			})
+		}
+	})
 
-	logger := slog.New(h)
-	logger.Warn("test warning")
+	t.Run("levels map to toast levels and durations", func(t *testing.T) {
+		assert.Equal(t, ToastError, slogToToastLevel(slog.LevelError), "error")
+		assert.Equal(t, ToastWarning, slogToToastLevel(slog.LevelWarn), "warn")
+		assert.Equal(t, ToastInfo, slogToToastLevel(slog.LevelInfo), "info")
+		assert.Equal(t, ToastInfo, slogToToastLevel(slog.LevelDebug), "debug")
 
-	items := store.All()
-	assert.Equal(t, 1, len(items))
-	assert.Equal(t, ToastWarning, items[0].Level)
-	assert.Contains(t, items[0].Message, "test warning")
-}
-
-func TestTUILogHandler_Handle_SkipsBelowLevel(t *testing.T) {
-	store := NewNotificationStore(10)
-	h := NewTUILogHandler(nil, store, slog.LevelWarn)
-
-	logger := slog.New(h)
-	logger.Info("should be filtered")
-
-	items := store.All()
-	assert.Equal(t, 0, len(items))
-}
-
-func TestTUILogHandler_WithGroup(t *testing.T) {
-	store := NewNotificationStore(10)
-	h := NewTUILogHandler(nil, store, slog.LevelWarn)
-
-	logger := slog.New(h).WithGroup("tracker").WithGroup("sync")
-	logger.Warn("pull failed")
-
-	items := store.All()
-	assert.Equal(t, 1, len(items))
-	assert.Contains(t, items[0].Message, "tracker.sync: pull failed")
-}
-
-func TestTUILogHandler_WithAttrs(t *testing.T) {
-	store := NewNotificationStore(10)
-	h := NewTUILogHandler(nil, store, slog.LevelWarn)
-
-	logger := slog.New(h).With("project", "api-backend")
-	logger.Warn("deploy failed")
-
-	items := store.All()
-	assert.Equal(t, 1, len(items))
-	assert.Contains(t, items[0].Message, "deploy failed")
-	assert.Contains(t, items[0].Message, "project=api-backend")
-}
-
-func TestSlogToToastLevel(t *testing.T) {
-	assert.Equal(t, ToastError, slogToToastLevel(slog.LevelError))
-	assert.Equal(t, ToastWarning, slogToToastLevel(slog.LevelWarn))
-	assert.Equal(t, ToastInfo, slogToToastLevel(slog.LevelInfo))
-	assert.Equal(t, ToastInfo, slogToToastLevel(slog.LevelDebug))
-}
-
-func TestToastDurationForLevel(t *testing.T) {
-	assert.Equal(t, ToastDurationError, ToastDurationForLevel(ToastError))
-	assert.Equal(t, ToastDurationWarning, ToastDurationForLevel(ToastWarning))
-	assert.Equal(t, ToastDurationSuccess, ToastDurationForLevel(ToastSuccess))
-	assert.Equal(t, ToastDurationInfo, ToastDurationForLevel(ToastInfo))
+		assert.Equal(t, ToastDurationError, ToastDurationForLevel(ToastError), "error duration")
+		assert.Equal(t, ToastDurationWarning, ToastDurationForLevel(ToastWarning), "warning duration")
+		assert.Equal(t, ToastDurationSuccess, ToastDurationForLevel(ToastSuccess), "success duration")
+		assert.Equal(t, ToastDurationInfo, ToastDurationForLevel(ToastInfo), "info duration")
+	})
 }

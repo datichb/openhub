@@ -11,6 +11,8 @@ import (
 	"github.com/rivo/tview"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/datichb/openhub/cli/internal/testutil/golden"
 )
 
 type batchSessions struct {
@@ -201,7 +203,7 @@ func TestSessionsBatch(t *testing.T) {
 	onLoop(func() {
 		pressBatch(v, key('n'))
 		assert.Equal(t, BatchChoice{ID: "checkpoint:ses_c1:1", Action: BatchReject, Message: "relancer les tests"}, v.batch.choice["checkpoint:ses_c1:1"])
-		assertGolden(t, "sessions_batch_filtered", screenText(t, v.batch.root, 110, 16))
+		golden.Assert(t, "sessions_batch_filtered", screenText(t, v.batch.root, 110, 16))
 	})
 
 	// / every checkpoint, then back to cp-seams.

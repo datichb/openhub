@@ -768,12 +768,12 @@ func (v *PoliciesView) checkPolicies() {
 		var icon string
 		switch {
 		case r.Passed:
-			icon = "[green]✓[-]"
+			icon = tagged(theme.SuccessHex, "✓")
 			passed++
 		case r.Enforcement == teamstate.EnforcementRefuse:
-			icon = "[red]✗[-]"
+			icon = tagged(theme.ErrorHex, "✗")
 		default:
-			icon = "[yellow]⚠[-]"
+			icon = tagged(theme.WarningHex, "⚠")
 		}
 		text += fmt.Sprintf("  %s %s", icon, r.Name)
 		if !r.Passed {

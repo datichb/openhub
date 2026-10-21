@@ -10,6 +10,8 @@ import (
 	"github.com/rivo/tview"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/datichb/openhub/cli/internal/testutil/golden"
 )
 
 type reportSessions struct {
@@ -52,19 +54,17 @@ func TestCheckpointCardReports(t *testing.T) {
 		v.HandleKey(tcell.NewEventKey(tcell.KeyEnter, 0, 0))
 	})
 	require.Eventually(t, func() bool { title, _, _ := sh.modal(); return title != "" }, 3*time.Second, 20*time.Millisecond)
-	_, body, actions := sh.modal()
-	assert.Contains(t, body, "rp-1 · developer · Fait [::b[]gras", "agent text escaped")
-	assert.Contains(t, body, "820 o · 10:04")
-	assert.Contains(t, body, "2.1 Ko")
+	title, body, actions := sh.modal()
+	golden.Assert(t, "checkpoint_card/reports", compactCardText(t, title, body, actions))
 	require.Len(t, actions, 4, "decide, read rp-1, read rp-2, attach")
 	assert.Equal(t, "Lire rp-2", actions[2].Label)
 
 	// The reader shows the escaped report.
 	actions[2].Callback()
 	require.Eventually(t, func() bool { title, _, _ := sh.modal(); return title != "" && title[:4] == "rp-2" }, 3*time.Second, 20*time.Millisecond)
-	title, body, _ := sh.modal()
+	title, body, _ = sh.modal()
 	assert.Equal(t, "rp-2 · reviewer · Retour du reviewer", title)
-	assert.Contains(t, body, "[red[]corriger[-[]")
+	golden.Assert(t, "checkpoint_card/report_reader", compactCardText(t, title, body, nil))
 	assert.Equal(t, []string{"ses_a/rp-2"}, be.read)
 	onLoop(func() { v.Unmount() })
 }

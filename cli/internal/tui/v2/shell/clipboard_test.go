@@ -1,7 +1,9 @@
 package shell
 
 import (
-	"encoding/base64"
+	"fmt"
+	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
@@ -10,80 +12,89 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// ── OSC52 format ──────────────────────────────────────────────────────────────
-
-func TestWriteOSC52_ContainsBase64EncodedText(t *testing.T) {
-	// writeOSC52 writes to /dev/tty — we can only test the encoding logic
-	// indirectly by verifying the format. We do this by testing that our
-	// base64 encoding of a known string produces the expected output.
-	text := "hello clipboard"
-	expected := base64.StdEncoding.EncodeToString([]byte(text))
-
-	// Build the sequence manually and verify it matches what writeOSC52 would send
-	seq := "\x1b]52;c;" + expected + "\x07"
-	assert.True(t, strings.HasPrefix(seq, "\x1b]52;c;"), "OSC52 must start with ESC]52;c;")
-	assert.True(t, strings.HasSuffix(seq, "\x07"), "OSC52 must end with BEL")
-	assert.Contains(t, seq, expected, "OSC52 must contain base64-encoded text")
-}
-
-func TestWriteOSC52_EmptyText(t *testing.T) {
-	encoded := base64.StdEncoding.EncodeToString([]byte(""))
-	seq := "\x1b]52;c;" + encoded + "\x07"
-	assert.NotEmpty(t, seq)
-}
-
-func TestWriteOSC52_MultilineText(t *testing.T) {
-	text := "line one\nline two\nline three"
-	encoded := base64.StdEncoding.EncodeToString([]byte(text))
-	// The sequence must be a single line (base64 has no newlines in StdEncoding with no line breaks)
-	assert.NotContains(t, encoded, "\n", "base64 should not contain newlines")
-	seq := "\x1b]52;c;" + encoded + "\x07"
-	assert.NotEmpty(t, seq)
-}
-
-// ── nativeClipboardCmd ────────────────────────────────────────────────────────
-
-func TestNativeClipboardCmd_ReturnsPlatformCommand(t *testing.T) {
+func TestNativeClipboardCmd(t *testing.T) {
 	cmd, args := nativeClipboardCmd()
 
 	switch runtime.GOOS {
 	case "darwin":
-		assert.Equal(t, "pbcopy", cmd)
-		assert.Empty(t, args)
+		assert.Equal(t, "pbcopy", cmd, "macOS command")
+		assert.Empty(t, args, "macOS arguments")
 	case "windows":
-		assert.Equal(t, "clip", cmd)
+		assert.Equal(t, "clip", cmd, "Windows command")
 	case "linux":
-		// On Linux the command depends on the environment — may be empty
-		// if no clipboard tool is installed. Just verify no panic.
-		_ = cmd
-		_ = args
+		// the command depends on the clipboard tools installed
 	default:
-		assert.Empty(t, cmd, "unsupported platform should return empty cmd")
+		assert.Empty(t, cmd, "unsupported platform: no command")
 	}
 }
 
-func TestNativeClipboardCmd_NeverPanics(t *testing.T) {
-	require.NotPanics(t, func() {
-		nativeClipboardCmd()
-	})
+// fakeClipboardCommand puts a fake native clipboard command first (and only)
+// in PATH: a shell script running body, where %s is the file of the text
+// received. It returns that file.
+func fakeClipboardCommand(t *testing.T, body string) string {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("the fake clipboard command is a shell script")
+	}
+	dir := t.TempDir()
+	out := filepath.Join(dir, "clipboard.txt")
+	script := "#!/bin/sh\n" + fmt.Sprintf(body, "'"+out+"'") + "\n"
+	for _, name := range []string{"pbcopy", "xclip", "xsel"} {
+		require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte(script), 0o755), "writing the fake %s", name)
+	}
+	t.Setenv("PATH", dir)
+	t.Setenv("WAYLAND_DISPLAY", "")
+	return out
 }
 
-// ── CopyToClipboard integration (best-effort, environment-dependent) ──────────
+// The text goes to the standard input of the native command, whatever it
+// holds. The command is a script of a temporary PATH: the clipboard of the
+// user is never touched.
+func TestWriteNative(t *testing.T) {
+	out := fakeClipboardCommand(t, "/bin/cat > %s")
 
-func TestCopyToClipboard_DoesNotPanicOnAnyInput(t *testing.T) {
-	// This test doesn't assert success — the clipboard may not be available
-	// in a headless CI environment. We only verify no panic.
-	inputs := []string{
+	for _, text := range []string{
 		"",
 		"simple text",
 		"multi\nline\ntext",
-		strings.Repeat("x", 10_000), // large payload
+		strings.Repeat("x", 10_000),
 		"unicode: 日本語 émoji 🎉",
-		"\x00\x01\x02binary", // binary-safe via base64
+		"\x00\x01\x02binary",
+	} {
+		require.NoError(t, writeNative(text), "writeNative(%.20q)", text)
+		got, err := os.ReadFile(out)
+		require.NoError(t, err, "reading what the command received")
+		assert.Equal(t, text, string(got), "text received by the command")
 	}
-	for _, input := range inputs {
-		assert.NotPanics(t, func() {
-			_ = CopyToClipboard(input)
-		}, "CopyToClipboard must not panic for input: %q", input)
+
+	t.Run("no command available", func(t *testing.T) {
+		if runtime.GOOS != "linux" {
+			t.Skip("only Linux depends on the tools found in PATH")
+		}
+		t.Setenv("PATH", t.TempDir())
+		assert.Error(t, writeNative("x"), "no clipboard tool in PATH")
+	})
+}
+
+// CopyToClipboard also writes an OSC 52 sequence to the terminal: the test
+// is skipped when a terminal is attached, to keep the clipboard of the user
+// untouched.
+func TestCopyToClipboard(t *testing.T) {
+	if tty, err := os.OpenFile("/dev/tty", os.O_WRONLY, 0); err == nil {
+		tty.Close()
+		t.Skip("a terminal is attached: the OSC 52 sequence would reach the real clipboard")
 	}
+
+	t.Run("native command succeeds", func(t *testing.T) {
+		out := fakeClipboardCommand(t, "/bin/cat > %s")
+		require.NoError(t, CopyToClipboard("hello"), "copy")
+		got, err := os.ReadFile(out)
+		require.NoError(t, err, "reading what the command received")
+		assert.Equal(t, "hello", string(got), "text received")
+	})
+
+	t.Run("one strategy is enough", func(t *testing.T) {
+		fakeClipboardCommand(t, "exit 1")
+		assert.NoError(t, CopyToClipboard("hello"), "the OSC 52 write succeeds when the native command fails")
+	})
 }

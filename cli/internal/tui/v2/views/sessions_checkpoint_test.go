@@ -11,6 +11,8 @@ import (
 	"github.com/rivo/tview"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/datichb/openhub/cli/internal/testutil/golden"
 )
 
 type cardSessions struct {
@@ -57,6 +59,7 @@ func checkpointRows() []SessionRow {
 }
 
 func TestCheckpointCard(t *testing.T) {
+	frLocale(t)
 	be := &cardSessions{fakeSessions: fakeSessions{rows: checkpointRows()}, card: CheckpointCardView{
 		Checkpoint: "cp-2", Label: "Commit", Summary: "0 bloquant · 2 mineurs",
 		Files:     []CheckpointFile{{File: "src/export/csv.go", Status: "modified", Additions: 140, Deletions: 18}},
@@ -95,11 +98,7 @@ func TestCheckpointCard(t *testing.T) {
 	})
 	require.Eventually(t, func() bool { title, _, _ := sh.modal(); return title != "" }, 3*time.Second, 20*time.Millisecond)
 	title, body, actions := sh.modal()
-	assert.Contains(t, title, "cp-2")
-	assert.Contains(t, title, "Commit")
-	for _, want := range []string{"0 bloquant", "+140 −18", "src/export/csv.go", "2 remarques mineures", "cp-1"} {
-		assert.Contains(t, body, want)
-	}
+	golden.Assert(t, "checkpoint_card/diff_messages_timeline", compactCardText(t, title, body, actions))
 	require.Len(t, actions, 3, "decide, full diff, attach")
 
 	// Decide → form; "fix" without a message is refused, with one it is sent.

@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/testutil/golden"
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
@@ -105,7 +106,7 @@ func TestLaunchFormFeatureGolden(t *testing.T) {
 	v := featureForm(t)
 	assert.Equal(t, "Lancer · feature → implement-spec (avec tickets)", v.Title())
 	assert.Equal(t, "launch.implement-spec", v.ID())
-	assertGolden(t, "launch_form_feature", mountedText(t, v, 100, 40))
+	golden.Assert(t, "launch_form_feature", mountedText(t, v, 100, 40))
 }
 
 // Sketch §8: the entry agent of `libre` is chosen in the form (F-15).
@@ -113,7 +114,20 @@ func TestLaunchFormLibreGolden(t *testing.T) {
 	frLocale(t)
 	v := NewLaunchFormView(LaunchFormConfig{WorkflowID: "libre", Origin: "hub · demo", Spec: parseSpec(t, libreTestSpec), Lang: "fr",
 		EntryAgents: []string{"orchestrator", "debugger", "planner", "developer"}})
-	assertGolden(t, "launch_form_libre", mountedText(t, v, 100, 22))
+	golden.Assert(t, "launch_form_libre", mountedText(t, v, 100, 22))
+}
+
+// The origin comes from the hub or the team: a bracket in it is text, not a
+// colour tag.
+func TestLaunchFormOriginIsEscaped(t *testing.T) {
+	frLocale(t)
+	v := NewLaunchFormView(LaunchFormConfig{WorkflowID: "libre", Origin: "équipe [red]v3", Spec: parseSpec(t, libreTestSpec), Lang: "fr",
+		EntryAgents: []string{"orchestrator"}})
+	v.SetShell(&recordingShell{})
+	v.Mount(tview.NewFlex(), tview.NewApplication())
+	t.Cleanup(v.Unmount)
+	header := stripTags(v.headerText())
+	assert.Contains(t, header, "équipe [red]v3", "the origin is shown as typed")
 }
 
 func TestLaunchFormEntryAgent(t *testing.T) {

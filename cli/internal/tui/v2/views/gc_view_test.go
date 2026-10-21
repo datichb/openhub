@@ -15,6 +15,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/gc"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/testutil/golden"
 )
 
 func gcTestPlan() gc.Report {
@@ -37,7 +38,7 @@ func TestGCViewGolden(t *testing.T) {
 	v.build()
 	v.showPlan(gcTestPlan(), nil)
 	assert.Equal(t, "gc", v.ID())
-	assertGolden(t, "gc_view", screenText(t, v.root, 100, 32))
+	golden.Assert(t, "gc_view", screenText(t, v.root, 100, 32))
 }
 
 type gcRecorder struct {
@@ -173,7 +174,7 @@ func TestCleanupViewSections(t *testing.T) {
 		assert.Equal(t, "Nettoyage", v.Title())
 		assert.Equal(t, CleanupDeploy, v.section)
 		assert.Contains(t, v.StatusHints(), "d nettoyer · c voir le diff")
-		assertGolden(t, "cleanup_view_deploy", screenText(t, v.root, 80, 8))
+		golden.Assert(t, "cleanup_view_deploy", screenText(t, v.root, 80, 8))
 		v.HandleKey(tcell.NewEventKey(tcell.KeyRune, 'c', tcell.ModNone))
 	})
 	sh.cmu.Lock()
@@ -203,7 +204,7 @@ func TestCleanupViewSections(t *testing.T) {
 		return n == 7
 	}, 2*time.Second, 10*time.Millisecond)
 	onLoop(app, func() {
-		assertGolden(t, "cleanup_view_data", screenText(t, v.root, 100, 24))
+		golden.Assert(t, "cleanup_view_data", screenText(t, v.root, 100, 24))
 		v.HandleKey(tcell.NewEventKey(tcell.KeyRune, 'd', tcell.ModNone)) // d of the data: the list
 	})
 }

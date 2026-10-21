@@ -25,8 +25,7 @@ import (
 //   - an action of the convention on another letter (« a ajouter » instead
 //     of n, « r restaurer » instead of R, « D diff » instead of c).
 //
-// The deviations still to fix are listed per lot in deviations_*_test.go:
-// a new one fails, and so does a listed one that is fixed (remove it).
+// Any deviation fails: fix the hint (see docs/dev/tui-conventions.md).
 func TestKeyConvention(t *testing.T) {
 	fr := frMessages(t)
 	var found []string
@@ -35,25 +34,8 @@ func TestKeyConvention(t *testing.T) {
 			found = append(found, line.source+" | "+d)
 		}
 	}
-	found = uniq(found)
-	known := map[string]bool{}
-	for _, list := range [][]string{deviationsSessions, deviationsWikiBricks, deviationsLaunch, deviationsCleanup} {
-		for _, d := range list {
-			require.False(t, known[d], "listed twice: %s", d)
-			known[d] = true
-		}
-	}
-	got := map[string]bool{}
-	for _, d := range found {
-		got[d] = true
-		if !known[d] {
-			t.Errorf("key outside the convention (fix it, see docs/dev/tui-conventions.md):\n\t%q,", d)
-		}
-	}
-	for d := range known {
-		if !got[d] {
-			t.Errorf("deviation fixed: remove it from deviations_*_test.go:\n\t%q,", d)
-		}
+	for _, d := range uniq(found) {
+		t.Errorf("key outside the convention (fix it, see docs/dev/tui-conventions.md):\n\t%q", d)
 	}
 }
 

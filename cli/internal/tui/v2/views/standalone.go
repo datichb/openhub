@@ -125,6 +125,8 @@ type standaloneShellStub struct {
 	app *tview.Application
 }
 
+var _ ShellAccess = (*standaloneShellStub)(nil)
+
 func (s *standaloneShellStub) Context() context.Context { return context.Background() }
 func (s *standaloneShellStub) SetOmnibarVisible(bool)   {}
 func (s *standaloneShellStub) NavigateTo(string)        { s.app.Stop() }

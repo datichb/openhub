@@ -1,189 +1,105 @@
 # Testing TUI — Developer Guide
 
-> Patterns and conventions for testing TUI components.
+> Patterns and conventions for testing TUI components. Architecture: [`tui-architecture.md`](tui-architecture.md); keys and components: [`tui-conventions.md`](tui-conventions.md).
+
+## Principles
+
+- **One test per scenario**, several assertions, each with a message (`assert.Equal(t, want, got, "what is checked")`). `testify/assert` for checks that let the test go on, `testify/require` for the ones it cannot go on without.
+- **Tables** (`t.Run(tc.name, …)`) when only the data changes: a family of near-identical tests is one table.
+- **Golden file for a screen**, explicit assertions for a behaviour (keys, callbacks, state). A test that stacks `assert.Contains` on a rendering is a golden in waiting.
+- **Nothing that the compiler already checks**: `var _ View = (*MyView)(nil)` goes in the production file, not in a test. No test reads back what it has just assigned (struct fields, getters, constants), none only checks that a call does not panic.
+- **Hermetic**: no real clipboard, terminal, keychain or hub (`testenv.Isolate()` in `TestMain`); an external command is replaced by a script in a temporary `PATH` (see `shell/clipboard_test.go`).
 
 ## Test Levels
 
-| Level | What | How | File |
-|-------|------|-----|------|
-| Interface check | View implements View | `var _ View = (*MyView)(nil)` | `views_test.go` |
-| Mount/Unmount | Full lifecycle | Create content + app, call Mount, verify items | `views_test.go` |
-| Pure logic | Router, command registry | Assertions on state without screen | `router_test.go`, `command_test.go` |
-| Widget | Filtering, selection | `tcell.SimulationScreen` | `filterlist_test.go` |
-| Shell | New, NavigateHome, omnibar | Full shell instantiation | `shell_test.go` |
-| Actions | Callbacks don't panic | Call with nil dependencies | `tui_test.go` |
+| Level | What | How | Where |
+|-------|------|-----|-------|
+| Mount/Unmount | Lifecycle of every view | One table: content mounted, ID, title, `Unmount` releases the app | `views_test.go` (`TestViews_MountUnmount`) |
+| Rendering | What the screen shows | `screenText` + `golden.Assert` | `views/*_test.go`, `testdata/` |
+| Behaviour | Keys, callbacks, confirmations, state | `HandleKey`, `onLoop`, `harness`, fake shells | `views/*_test.go` |
+| Pure logic | Router, command registry, fuzzy match, store, file | Assertions on state, tables | `router_test.go`, `command_test.go`, `notifications_test.go` |
+| Widgets | Selection, filtering, graphs | `tcell.SimulationScreen`, goldens | `widgets/*_test.go` |
+| Shell | New, NavigateHome, omnibar, overlays | Full shell instantiation | `shell_test.go` |
+| Keys | The hints follow the convention | `TestKeyConvention` (strict) | `keys/convention_test.go` |
 
-## Pattern — View Test
+## Golden files
+
+`internal/testutil/golden` compares an output with `testdata/<name>.golden` (the name may hold folders):
 
 ```go
-func TestMyView_ImplementsView(t *testing.T) {
-    var _ View = (*MyView)(nil)
-}
-
-func TestMyView_MountUnmount(t *testing.T) {
-    v := NewMyView(nil) // nil app if no deps required
-    content := tview.NewFlex().SetDirection(tview.FlexRow)
-    app := tview.NewApplication()
-
-    v.Mount(content, app)
-    assert.Greater(t, content.GetItemCount(), 0)
-    assert.Equal(t, "myview", v.ID())
-    assert.NotEmpty(t, v.Title())
-    assert.NotEmpty(t, v.StatusHints())
-
-    v.Unmount()
-}
+golden.Assert(t, "checkpoint_card/verify_failed", cardBodyText(t, card))
 ```
 
-## Pattern — Router Test (pure logic)
+- `go test ./internal/tui/v2/views -run '^TestCheckpointCardVerify$' -update` writes the file; review it like code (read it, then break one line of it and check that the test fails).
+- A golden file that exists is never regenerated to make a test pass: if the rendering changed on purpose, the diff of the golden is the review.
+- The `-update` flag is declared by `golden`: a test package must not declare its own `flag.Bool("update", …)` (the test binary would panic at start).
+- Render with `screenText(t, primitive, w, h)` (`views/mode_hints_test.go`): the text as the screen shows it (tags resolved, escapes undone). `compactCardText` (`sessions_checkpoint_failed_test.go`) trims the empty lines for the cards.
+- Set the language first (`frLocale(t)`): a golden is written for one language.
+
+## Pattern — View mount (table row)
 
 ```go
-func TestRouter_PushPop(t *testing.T) {
-    content := tview.NewFlex()
-    app := tview.NewApplication()
-    r := router.New(content, app, nil)
-
-    home := &mockView{id: "home"}
-    board := &mockView{id: "board"}
-
-    r.Push(home)
-    r.Push(board)
-    assert.Equal(t, "board", r.Current().ID())
-
-    r.Pop()
-    assert.Equal(t, "home", r.Current().ID())
-}
+{
+    name: "my view", view: NewMyView(MyViewConfig{}), id: "my-view",
+    released: func(v View) bool { return v.(*MyView).app == nil },
+},
 ```
 
-## Pattern — Command Registry Test (pure logic)
+A view that needs the active project or team gets `shell: &mockShell{project: …}`. A view with an event loop (async refresh, `QueueUpdateDraw`) is run with `runApp(t, content)` and driven with `onLoop(app, func() { … })`.
+
+## Pattern — Behaviour with a fake shell
 
 ```go
-func TestCommandRegistry_Search(t *testing.T) {
-    r := NewCommandRegistry([]Command{
-        {ID: "start", Label: "Start", Aliases: []string{"session"}},
-        {ID: "board", Label: "Board", Aliases: []string{"kanban"}},
+sh := &viewShell{}
+v.SetShell(sh)
+onLoop(app, func() { v.HandleKey(runeKey('d')) })
+require.Equal(t, 1, sh.confirmCount(), "d asks first")
+assert.Equal(t, "opus", cfg.Models.Families["planning"], "nothing deleted before the confirmation")
+sh.confirmed(t, app)
+```
+
+A destructive key is always checked in two steps: nothing happens before the confirmation, the effect after it.
+
+## Pattern — Table
+
+```go
+tests := []struct {
+    name  string
+    in    string
+    limit int
+    want  string
+}{
+    {"fits", "abc", 3, "abc"},
+    {"cut with an ellipsis", "abcdef", 4, "abc…"},
+}
+for _, tc := range tests {
+    t.Run(tc.name, func(t *testing.T) {
+        assert.Equal(t, tc.want, clipText(tc.in, tc.limit), "clipText")
     })
-
-    results := r.Search("kan")
-    assert.Greater(t, len(results), 0)
-    assert.Equal(t, "board", results[0].ID)
 }
 ```
 
-## Pattern — Shell Lifecycle Test
+## Pattern — Deep copy by reflection
 
-```go
-func TestShell_NavigateHome(t *testing.T) {
-    homeView := &testView{id: "home", title: "Home"}
+`config_deepcopy_test.go` fills every field of a value, copies it, changes every field of the copy and checks that the original did not move: a new field is covered without touching the test. The fields that the copy functions still share are listed in `configSharedFields` / `teamConfigSharedFields` (to empty when the copy functions are fixed).
 
-    cfg := Config{
-        ProjectName: "test",
-        Commands:    []Command{{ID: "home", Label: "Home", ViewID: "home"}},
-        Views:       []views.View{homeView},
-        HomeViewID:  "home",
-    }
+## Pattern — Keys convention
 
-    s := New(cfg)
-    s.NavigateHome("home")
-    assert.True(t, homeView.mounted)
-    assert.Equal(t, "home", s.router.Current().ID())
-}
-```
-
-## Pattern — Omnibar Activation Test
-
-```go
-func TestOmnibar_ActivateDeactivate(t *testing.T) {
-    s := New(cfg) // with some commands and views
-    s.NavigateHome("home")
-
-    assert.False(t, s.omnibar.IsActive())
-    s.omnibar.Activate()
-    assert.True(t, s.omnibar.IsActive())
-    s.omnibar.Deactivate()
-    assert.False(t, s.omnibar.IsActive())
-}
-```
-
-## Pattern — Fuzzy Match (pure logic)
-
-```go
-func TestFuzzyMatch(t *testing.T) {
-    tests := []struct {
-        pattern, str string
-        expected     bool
-    }{
-        {"st", "start", true},
-        {"xyz", "start", false},
-        {"brd", "board", true},
-    }
-    for _, tt := range tests {
-        assert.Equal(t, tt.expected, fuzzyMatch(tt.pattern, tt.str))
-    }
-}
-```
+`TestKeyConvention` reads the hints lines of the TUI and fails on any key outside the convention. There is no list of tolerated deviations: fix the hint (build it with `keys.Hint`, it is conform by construction).
 
 ## Running Tests
 
 ```bash
-make test-tui   # TUI tests only
-make test-unit  # All tests (short mode)
-make test       # All tests complete
+make test-tui                       # TUI tests only
+go test ./internal/tui/... -short   # fast
+go test ./internal/tui/... -race    # data races (event loop, goroutines)
+go test ./internal/i18n/... ./cmd/ -run 'Literal|Translated|Orphan|Help|Key'  # i18n guards
 ```
 
 ## Conventions
 
-- Every view has at minimum `ImplementsView` + `MountUnmount` tests
-- Views with `*app.App` dependency receive `nil` in tests (nil-safe)
-- View mocks use `testView` struct (defined in `shell_test.go`)
-- `t.Helper()` for all setup helpers
-- `testify/assert` for assertions, `testify/require` for fatals
-- Command tests verify fuzzy search ranking and `Enabled` filtering
-
-## Home Views Testing
-
-The 3 home views (Hub, Project, Team) have specific test patterns:
-
-### Mount / Unmount with mock shell
-
-```go
-func TestProjectModeView_MountUnmount(t *testing.T) {
-    v := NewProjectModeView(ProjectModeConfig{})
-    v.SetShell(&mockShell{
-        project: &ActiveProject{ID: "p1", Name: "my-app", Path: "/tmp/my-app"},
-    })
-    content := tview.NewFlex()
-    app := tview.NewApplication()
-    v.Mount(content, app)
-    assert.Greater(t, content.GetItemCount(), 0)
-    v.Unmount()
-}
-```
-
-`mockShell` implements `ShellAccess` and returns preset `ActiveProject`/`ActiveTeam`.
-
-### Split items (dual-column balance)
-
-```go
-func TestProjectModeView_SplitItems(t *testing.T) {
-    v := &ProjectModeView{}
-    v.project = &ActiveProject{ID: "p1", Name: "my-app", Path: "/tmp"}
-    v.items = v.buildItems()
-    left, right := v.splitItems()
-    // Assert: Start + Sessions + Projet → left; Configuration + Team + Hub → right (v5: no Deploy section)
-}
-```
-
-Uses `SectionID` field for structural assertions (immune to i18n changes).
-
-### mountGen guard (stale goroutine protection)
-
-TeamModeView and HomeView use `mountGen` to discard async results from stale mounts. Test by calling `Mount → Unmount → Mount` and verifying the goroutine from the first mount is ignored.
-
-### Race detection
-
-Run with `-race` to verify `atomic.Int32` in `adaptiveHomeMount` eliminates data races:
-
-```bash
-rtk go test -race ./internal/tui/v2/views/ -count=1
-```
+- `t.Helper()` for all setup helpers; `t.Cleanup` to stop an app or restore the language.
+- Views with an `*app.App` dependency receive `nil` in tests (nil-safe).
+- Shell mocks: `mockShell` (`views_test.go`) for the views, `testView` (`shell_test.go`) for the shell.
+- Displayed texts are checked through `i18n.T` / `i18n.Tf` or a golden, never a hard-coded copy of a translation that another language would break.
+- Home views: `splitItems` is checked on the `SectionID` structure (immune to the labels), the `mountGen` guard by `Mount → Unmount → Mount`.

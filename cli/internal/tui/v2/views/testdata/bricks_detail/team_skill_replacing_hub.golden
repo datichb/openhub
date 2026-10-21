@@ -1,0 +1,13 @@
+Origine : équipe (remplace hub:review/review-protocol)
+Fichier : catalog/skills/acme/review-protocol.md
+Version : v3 · publiée par Grace le 12/10/2026
+Type : skill
+Nom : review-protocol
+Chargé par : reviewer
+Workflows : review
+Coût estimé : ~1240 tokens
+
+Écriture hors de la TUI : oh brick edit skill:acme/review-protocol · oh brick publish skill:acme/review-protocol
+
+Touches
+  Entrée ouvrir un workflow qui l'utilise

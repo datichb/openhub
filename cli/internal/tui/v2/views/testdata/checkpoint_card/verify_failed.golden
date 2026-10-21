@@ -1,0 +1,22 @@
+prêt
+
+! Non résolu : le ticket pt-1 a atteint la limite des tours de correction ; le developer
+est verrouillé jusqu'à votre décision
+
+─ Vérification lancée par oh
+  ✗ échouée — go test ./... ✗ (1)
+    --- FAIL: TestSub
+    FAIL calc
+  La validation est impossible tant que la vérification échoue.
+  Valider exige de passer outre (choix tracé) ; sinon, demander une correction.
+
+─ Preuves de l'agent
+  ✓ go test ./... (sortie 0) : observée par oh
+  ! npm test (sortie 0) : preuve non observée
+  ! go vet ./... (sortie 0) : observée en échec
+
+─ Changements
+  aucun changement
+
+─ Derniers messages
+  aucun message récent (démon oh arrêté ?)

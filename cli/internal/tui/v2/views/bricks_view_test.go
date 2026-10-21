@@ -8,6 +8,8 @@ import (
 	"github.com/rivo/tview"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/datichb/openhub/cli/internal/testutil/golden"
 )
 
 func testBrickRows() []BrickRow {
@@ -52,39 +54,24 @@ func TestBricksViewGolden(t *testing.T) {
 	v := mountedBricks(t)
 	assert.Equal(t, "project.agents", v.ID(), "replaces the former agent selection view")
 	require.True(t, v.list.Select("skill:review/review-protocol"))
-	assertGolden(t, "bricks_view", screenText(t, v.list.Primitive(), 120, 20))
+	golden.Assert(t, "bricks_view", screenText(t, v.list.Primitive(), 120, 20))
 	require.NoError(t, v.list.cfg.Validate())
 }
 
 func TestBricksViewDetail(t *testing.T) {
 	v := mountedBricks(t)
 	assert.Equal(t, []string{"Agents (2)", "Skills (3)"}, brickSections(v))
-	detail := func(id string) string {
-		require.True(t, v.list.Select(id))
-		return v.list.detail.GetText(true)
+	for _, tc := range []struct{ name, id string }{
+		{"hub_agent", "agent:developer"},
+		{"team_skill_replacing_hub", "skill:review/review-protocol"},
+		{"unsealed_skill", "skill:legacy-helper"},
+		{"team_agent_with_problem", "agent:my-agent"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			require.True(t, v.list.Select(tc.id), "brick %s selectable", tc.id)
+			golden.Assert(t, "bricks_detail/"+tc.name, v.list.detail.GetText(true))
+		})
 	}
-	d := detail("agent:developer")
-	assert.Contains(t, d, "quick, ticket")
-	assert.Contains(t, d, "~1200 tokens")
-	assert.Contains(t, d, "Origine : hub")
-	assert.Contains(t, d, "oh brick new")
-	assert.NotContains(t, d, "Version", "hub bricks are not versioned")
-
-	d = detail("skill:review/review-protocol")
-	assert.Contains(t, d, "équipe (remplace hub:review/review-protocol)")
-	assert.Contains(t, d, "v3 · publiée par Grace le 12/10/2026")
-	assert.Contains(t, d, "Chargé par : reviewer")
-	assert.Contains(t, d, "oh brick edit skill:acme/review-protocol · oh brick publish skill:acme/review-protocol")
-
-	d = detail("skill:legacy-helper")
-	assert.Contains(t, d, "non scellée (catalog.lock absent)")
-	assert.Contains(t, d, "non publiée")
-	assert.Contains(t, d, "✗ frontmatter [illisible]", "escaped")
-
-	d = detail("agent:my-agent")
-	assert.Contains(t, d, "v1 · publiée par Grace")
-	assert.Contains(t, d, "! description > 200 caractères")
-	assert.Contains(t, d, "aucun workflow")
 }
 
 func TestBricksViewFilters(t *testing.T) {

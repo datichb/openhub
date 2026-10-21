@@ -10,90 +10,44 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
-func TestColorTag_FormatsCorrectly(t *testing.T) {
-	// Red: RGB(255, 0, 0)
-	red := tcell.NewRGBColor(255, 0, 0)
-	tag := ColorTag(red)
-	assert.Equal(t, "[#ff0000]", tag)
+func TestColorTag(t *testing.T) {
+	assert.Equal(t, "[#ff0000]", ColorTag(tcell.NewRGBColor(255, 0, 0)), "RGB colour")
+	assert.Equal(t, "[#f28c50]", ColorTag(theme.Accent), "theme accent")
+
+	t.Setenv("NO_COLOR", "1")
+	assert.Equal(t, "", ColorTag(tcell.NewRGBColor(1, 2, 3)), "NO_COLOR: no tag")
 }
 
-func TestColorTag_ThemeColors(t *testing.T) {
-	tag := ColorTag(theme.Accent)
-	// Accent is #f28c50 = Tangerine (hub accent, aligned with global AccentHex)
-	assert.Equal(t, "[#f28c50]", tag)
-}
-
-func TestNewStepBar_CreatesWidget(t *testing.T) {
-	steps := []Step{
+func TestStepBar(t *testing.T) {
+	sb := NewStepBar([]Step{
 		{Label: "Config", Status: StepDone},
 		{Label: "Identity", Status: StepActive},
 		{Label: "Notifs", Status: StepPending},
-	}
-	sb := NewStepBar(steps)
-	require.NotNil(t, sb)
-	require.NotNil(t, sb.TextView)
-
+	})
+	require.NotNil(t, sb.TextView, "the bar is a text view")
 	text := sb.GetText(true)
-	assert.Contains(t, text, "Config")
-	assert.Contains(t, text, "Identity")
-	assert.Contains(t, text, "Notifs")
-}
-
-func TestStepBar_UpdateStatus(t *testing.T) {
-	steps := []Step{
-		{Label: "One", Status: StepPending},
-		{Label: "Two", Status: StepPending},
+	for _, label := range []string{"Config", "Identity", "Notifs"} {
+		assert.Contains(t, text, label, "step label shown")
 	}
-	sb := NewStepBar(steps)
+
+	sb.SetSteps([]Step{{Label: "One", Status: StepPending}, {Label: "Two", Status: StepPending}})
+	text = sb.GetText(true)
+	assert.Contains(t, text, "One", "new steps shown")
+	assert.NotContains(t, text, "Config", "old steps replaced")
+	assert.NotContains(t, text, theme.IconDone, "no step done yet")
 
 	sb.UpdateStatus(0, StepDone)
-	text := sb.GetText(true)
-	// The done icon (●) should appear for "One"
-	assert.Contains(t, text, theme.IconDone)
+	assert.Contains(t, sb.GetText(true), theme.IconDone, "done icon after UpdateStatus")
 }
 
-func TestStepBar_SetSteps_Replaces(t *testing.T) {
-	steps := []Step{
-		{Label: "Old", Status: StepPending},
-	}
-	sb := NewStepBar(steps)
-
-	newSteps := []Step{
-		{Label: "New1", Status: StepActive},
-		{Label: "New2", Status: StepPending},
-	}
-	sb.SetSteps(newSteps)
-
-	text := sb.GetText(true)
-	assert.Contains(t, text, "New1")
-	assert.Contains(t, text, "New2")
-	assert.NotContains(t, text, "Old")
-}
-
-func TestNewStatusBar_CreatesWidget(t *testing.T) {
+func TestStatusBar(t *testing.T) {
 	sb := NewStatusBar("q quit · h help")
-	require.NotNil(t, sb)
 	text := sb.GetText(true)
-	assert.Contains(t, text, "q quit")
-	assert.Contains(t, text, "h help")
-}
+	assert.Contains(t, text, "q quit", "initial hints")
+	assert.Contains(t, text, "h help", "initial hints")
 
-func TestStatusBar_SetHints_Updates(t *testing.T) {
-	sb := NewStatusBar("initial")
 	sb.SetHints("updated hints")
-	text := sb.GetText(true)
-	assert.Contains(t, text, "updated hints")
-	assert.NotContains(t, text, "initial")
-}
-
-// U-09: no color tag with NO_COLOR.
-func TestColorTagWithNoColor(t *testing.T) {
-	t.Setenv("NO_COLOR", "")
-	if got := ColorTag(tcell.NewRGBColor(1, 2, 3)); got != "[#010203]" {
-		t.Fatalf("control: %q", got)
-	}
-	t.Setenv("NO_COLOR", "1")
-	if got := ColorTag(tcell.NewRGBColor(1, 2, 3)); got != "" {
-		t.Errorf("ColorTag with NO_COLOR = %q", got)
-	}
+	text = sb.GetText(true)
+	assert.Contains(t, text, "updated hints", "new hints")
+	assert.NotContains(t, text, "q quit", "old hints replaced")
 }

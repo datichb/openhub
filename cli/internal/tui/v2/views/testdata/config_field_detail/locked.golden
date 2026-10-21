@@ -1,0 +1,14 @@
+iTerm style
+
+How sessions open in iTerm2
+
+Value: tab
+Key: session_iterm_style
+Origin: [team]
+
+Allowed values:  
+  ● Tab
+    Split
+
+🔒 Enforced by an upper level: not editable here
+

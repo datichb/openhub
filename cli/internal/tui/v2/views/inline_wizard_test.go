@@ -14,14 +14,6 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
-func TestInlineWizardView_ImplementsView(t *testing.T) {
-	var _ View = (*InlineWizardView)(nil)
-}
-
-func TestInlineWizardView_ImplementsInputCapturing(t *testing.T) {
-	var _ InputCapturing = (*InlineWizardView)(nil)
-}
-
 func TestInlineWizardView_EmptySteps(t *testing.T) {
 	completed := false
 	v := NewInlineWizardView(InlineWizardConfig{
@@ -290,95 +282,61 @@ func TestInlineWizardView_HandleKey_FormPassthrough(t *testing.T) {
 	v.Unmount()
 }
 
-func TestInlineWizardView_HandleKey_CustomViewEscRequired(t *testing.T) {
-	v := NewInlineWizardView(InlineWizardConfig{
-		ID:    "wizard.cv.esc",
-		Title: "CustomView Esc Test",
-		Steps: []WizardStep{
-			{
-				Label:    "Welcome",
-				Required: true,
-				CustomView: func(tvApp *tview.Application, container *tview.Flex, onDone func()) {
-					tv := tview.NewTextView()
-					tv.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-						if event.Key() == tcell.KeyEnter {
-							onDone()
-							return nil
-						}
-						return event
-					})
-					container.AddItem(tv, 0, 1, true)
-					tvApp.SetFocus(tv)
-				},
-			},
-			{
-				Label: "Second",
-				Form: func(_ *tview.Application, onDone func()) *tview.Form {
-					form := tview.NewForm()
-					form.AddButton("Done", func() { onDone() })
-					return form
-				},
-			},
+// Esc on a CustomView step opens the quit question: a required step offers
+// no « skip the step », an optional one does.
+func TestInlineWizardView_HandleKey_CustomViewEsc(t *testing.T) {
+	second := WizardStep{
+		Label: "Second",
+		Form: func(_ *tview.Application, onDone func()) *tview.Form {
+			form := tview.NewForm()
+			form.AddButton("Done", func() { onDone() })
+			return form
 		},
-	})
+	}
+	tests := []struct {
+		name     string
+		required bool
+		buttons  []string
+	}{
+		{"required step", true, []string{i18n.T("tui.wizard.quit.quit"), i18n.T("tui.wizard.quit.continue")}},
+		{"optional step", false, []string{i18n.T("tui.wizard.quit.quit"), i18n.T("tui.wizard.quit.skip"), i18n.T("tui.wizard.quit.continue")}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			v := NewInlineWizardView(InlineWizardConfig{
+				ID:    "wizard.cv.esc",
+				Title: "CustomView Esc Test",
+				Steps: []WizardStep{{
+					Label:    "Welcome",
+					Required: tc.required,
+					CustomView: func(tvApp *tview.Application, container *tview.Flex, onDone func()) {
+						tv := tview.NewTextView()
+						tv.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+							if event.Key() == tcell.KeyEnter {
+								onDone()
+								return nil
+							}
+							return event
+						})
+						container.AddItem(tv, 0, 1, true)
+						tvApp.SetFocus(tv)
+					},
+				}, second},
+			})
+			v.Mount(tview.NewFlex().SetDirection(tview.FlexRow), tview.NewApplication())
+			defer v.Unmount()
 
-	content := tview.NewFlex().SetDirection(tview.FlexRow)
-	app := tview.NewApplication()
-	v.Mount(content, app)
+			assert.Nil(t, v.HandleKey(tcell.NewEventKey(tcell.KeyEscape, 0, tcell.ModNone)), "esc is consumed")
+			assert.Equal(t, 0, v.currentStep, "esc alone does not leave the step")
+			assert.Equal(t, tc.buttons, quitButtons(t, v), "buttons of the quit question")
 
-	// Esc on a required CustomView step asks whether to quit, without
-	// « skip the step »
-	escEvent := tcell.NewEventKey(tcell.KeyEscape, 0, tcell.ModNone)
-	result := v.HandleKey(escEvent)
-	assert.Nil(t, result, "esc should be consumed on required CustomView step")
-	assert.Equal(t, 0, v.currentStep, "should NOT advance past required step on Esc")
-	assert.Equal(t, []string{i18n.T("tui.wizard.quit.quit"), i18n.T("tui.wizard.quit.continue")}, quitButtons(t, v))
-
-	v.Unmount()
-}
-
-func TestInlineWizardView_HandleKey_CustomViewEscOptional(t *testing.T) {
-	v := NewInlineWizardView(InlineWizardConfig{
-		ID:    "wizard.cv.skip",
-		Title: "CustomView Skip Test",
-		Steps: []WizardStep{
-			{
-				Label:    "Optional Welcome",
-				Required: false,
-				CustomView: func(tvApp *tview.Application, container *tview.Flex, onDone func()) {
-					tv := tview.NewTextView()
-					container.AddItem(tv, 0, 1, true)
-					tvApp.SetFocus(tv)
-				},
-			},
-			{
-				Label: "Second",
-				Form: func(_ *tview.Application, onDone func()) *tview.Form {
-					form := tview.NewForm()
-					form.AddButton("Done", func() { onDone() })
-					return form
-				},
-			},
-		},
-	})
-
-	content := tview.NewFlex().SetDirection(tview.FlexRow)
-	app := tview.NewApplication()
-	v.Mount(content, app)
-
-	assert.Equal(t, 0, v.currentStep)
-
-	// Esc asks; « skip the step » skips it
-	escEvent := tcell.NewEventKey(tcell.KeyEscape, 0, tcell.ModNone)
-	result := v.HandleKey(escEvent)
-	assert.Nil(t, result, "esc should be consumed on optional CustomView step")
-	assert.Equal(t, 0, v.currentStep, "esc alone does not skip")
-	assert.Equal(t, []string{i18n.T("tui.wizard.quit.quit"), i18n.T("tui.wizard.quit.skip"), i18n.T("tui.wizard.quit.continue")}, quitButtons(t, v))
-	pressQuitButton(t, v, i18n.T("tui.wizard.quit.skip"))
-	assert.Nil(t, v.quitBar)
-	assert.Equal(t, 1, v.currentStep, "should advance to next step after « skip »")
-
-	v.Unmount()
+			if !tc.required {
+				pressQuitButton(t, v, i18n.T("tui.wizard.quit.skip"))
+				assert.Nil(t, v.quitBar, "the question is closed")
+				assert.Equal(t, 1, v.currentStep, "« skip the step » advances")
+			}
+		})
+	}
 }
 
 func TestInlineWizardView_SummaryTargetFunc(t *testing.T) {
@@ -743,124 +701,47 @@ func TestInlineWizardView_ContextualHints(t *testing.T) {
 // Error recovery tests (P2.6)
 // ─────────────────────────────────────────────────────────────────────────────
 
-func TestInlineWizardView_ErrorState_IsSet(t *testing.T) {
-	onDoneCalled := false
+func TestInlineWizardView_ErrorState(t *testing.T) {
+	onDoneCalls := 0
+	step := func(label string) WizardStep {
+		return WizardStep{
+			Label:    label,
+			Required: true,
+			Form: func(_ *tview.Application, onDone func()) *tview.Form {
+				f := tview.NewForm()
+				f.AddButton("Go", func() { onDone() })
+				return f
+			},
+			OnDone: func() error {
+				onDoneCalls++
+				return nil
+			},
+		}
+	}
 	v := NewInlineWizardView(InlineWizardConfig{
-		ID:    "wizard.err.set",
+		ID:    "wizard.err",
 		Title: "Error Test",
-		Steps: []WizardStep{
-			{
-				Label:    "Step A",
-				Required: true,
-				Form: func(_ *tview.Application, onDone func()) *tview.Form {
-					f := tview.NewForm()
-					f.AddButton("Go", func() { onDone() })
-					return f
-				},
-				OnDone: func() error {
-					onDoneCalled = true
-					return nil
-				},
-			},
-		},
+		Steps: []WizardStep{step("Step A"), step("Step B")},
 	})
-	content := tview.NewFlex().SetDirection(tview.FlexRow)
-	app := tview.NewApplication()
-	v.Mount(content, app)
+	v.Mount(tview.NewFlex().SetDirection(tview.FlexRow), tview.NewApplication())
+	defer v.Unmount()
+	assert.NoError(t, v.wizardErr, "no error after the mount")
+	assert.False(t, v.completed, "not completed after the mount")
+	assert.Zero(t, onDoneCalls, "OnDone is not called by the mount")
 
-	// Simulate an error state (as runWithSpinner would set it)
+	// an error on step B, then going back keeps the navigation working
+	v.advanceAfterDone(v.cfg.Steps[0])
+	require.Equal(t, 1, v.currentStep, "on step B")
 	v.wizardErr = assert.AnError
-	assert.NotNil(t, v.wizardErr, "wizardErr should be set")
-	assert.False(t, v.completed, "wizard should NOT be completed when in error state")
-	assert.False(t, onDoneCalled, "OnDone should not have been called during mount")
+	assert.False(t, v.completed, "a wizard in error is not completed")
+	v.goBack()
+	assert.Equal(t, 0, v.currentStep, "back on step A, wizardErr set or not")
 
-	v.Unmount()
-}
-
-func TestInlineWizardView_ErrorState_RetryClears(t *testing.T) {
-	v := NewInlineWizardView(InlineWizardConfig{
-		ID:    "wizard.err.retry",
-		Title: "Retry Test",
-		Steps: []WizardStep{
-			{
-				Label:    "Step A",
-				Required: true,
-				Form: func(_ *tview.Application, onDone func()) *tview.Form {
-					f := tview.NewForm()
-					f.AddButton("Go", func() { onDone() })
-					return f
-				},
-				OnDone: func() error {
-					return nil
-				},
-			},
-		},
-	})
-	content := tview.NewFlex().SetDirection(tview.FlexRow)
-	app := tview.NewApplication()
-	v.Mount(content, app)
-
-	// Set error state and then trigger retry by clearing it (as Enter key handler does)
-	v.wizardErr = assert.AnError
-	assert.NotNil(t, v.wizardErr)
-
-	// Simulate retry: clear error and re-render
+	// retry: the error is cleared and the step is drawn again
 	v.wizardErr = nil
 	v.renderStep(v.currentStep)
-	assert.Nil(t, v.wizardErr, "wizardErr should be nil after retry")
-	assert.Equal(t, 0, v.currentStep, "should still be on step 0 after retry")
-
-	v.Unmount()
-}
-
-func TestInlineWizardView_ErrorState_GoBack(t *testing.T) {
-	v := NewInlineWizardView(InlineWizardConfig{
-		ID:    "wizard.err.back",
-		Title: "GoBack Test",
-		Steps: []WizardStep{
-			{
-				Label:    "Step A",
-				Required: true,
-				Form: func(_ *tview.Application, onDone func()) *tview.Form {
-					f := tview.NewForm()
-					f.AddButton("Go", func() { onDone() })
-					return f
-				},
-				OnDone: func() error {
-					return nil
-				},
-			},
-			{
-				Label:    "Step B",
-				Required: true,
-				Form: func(_ *tview.Application, onDone func()) *tview.Form {
-					f := tview.NewForm()
-					f.AddButton("Go", func() { onDone() })
-					return f
-				},
-				OnDone: func() error {
-					return nil
-				},
-			},
-		},
-	})
-	content := tview.NewFlex().SetDirection(tview.FlexRow)
-	app := tview.NewApplication()
-	v.Mount(content, app)
-
-	// Advance to step 1
-	v.advanceAfterDone(v.cfg.Steps[0])
-	require.Equal(t, 1, v.currentStep, "should be on step 1")
-
-	// Simulate error on step 1, then go back
-	v.wizardErr = assert.AnError
-	v.goBack()
-	assert.Equal(t, 0, v.currentStep, "should be back on step 0 after goBack")
-	// Note: goBack() does not clear wizardErr by itself — the errView's
-	// InputCapture handler does that before calling goBack(). Here we verify
-	// navigation works even with wizardErr set.
-
-	v.Unmount()
+	assert.NoError(t, v.wizardErr, "error cleared by the retry")
+	assert.Equal(t, 0, v.currentStep, "still on step A after the retry")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1207,69 +1088,56 @@ func TestStripTviewTags(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// isDropDownFocused
+// Form helpers (isDropDownFocused, fixFormLabelFocus, exports)
 // ─────────────────────────────────────────────────────────────────────────────
 
-func TestIsDropDownFocused_NilForm(t *testing.T) {
-	assert.False(t, isDropDownFocused(nil))
+func TestIsDropDownFocused(t *testing.T) {
+	form := func() *tview.Form {
+		f := tview.NewForm()
+		f.AddInputField("Name", "", 0, nil, nil)
+		f.AddDropDown("Choice", []string{"a", "b"}, 0, nil)
+		return f
+	}
+	tests := []struct {
+		name  string
+		form  *tview.Form
+		focus int
+		want  bool
+	}{
+		{"nil form", nil, 0, false},
+		{"input field focused", form(), 0, false},
+		{"drop down focused", form(), 1, true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.form != nil {
+				tc.form.SetFocus(tc.focus)
+			}
+			assert.Equal(t, tc.want, isDropDownFocused(tc.form), "isDropDownFocused")
+		})
+	}
 }
 
-func TestIsDropDownFocused_WithInputField(t *testing.T) {
-	form := tview.NewForm()
-	form.AddInputField("Name", "", 0, nil, nil)
-	form.AddDropDown("Choice", []string{"a", "b"}, 0, nil)
-	form.SetFocus(0) // focus on InputField
-	assert.False(t, isDropDownFocused(form), "InputField focused should return false")
-}
-
-func TestIsDropDownFocused_WithDropDown(t *testing.T) {
-	form := tview.NewForm()
-	form.AddInputField("Name", "", 0, nil, nil)
-	form.AddDropDown("Choice", []string{"a", "b"}, 0, nil)
-	form.SetFocus(1) // focus on DropDown
-	assert.True(t, isDropDownFocused(form), "DropDown focused should return true")
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// fixFormLabelFocus
-// ─────────────────────────────────────────────────────────────────────────────
-
-func TestFixFormLabelFocus_AppliesColors(t *testing.T) {
+func TestFixFormLabelFocus(t *testing.T) {
 	form := tview.NewForm()
 	form.AddInputField("Name", "", 0, nil, nil)
 	form.AddInputField("Email", "", 0, nil, nil)
 
-	// Without real tview app focus, GetFocusedItemIndex returns -1.
-	// All labels should get the non-focused (secondary) style.
+	// Without real tview app focus, GetFocusedItemIndex returns -1:
+	// all labels get the non-focused (secondary) style.
 	fixFormLabelFocus(form)
 
-	nameLabel := form.GetFormItem(0).GetLabel()
-	emailLabel := form.GetFormItem(1).GetLabel()
+	for i, text := range []string{"Name", "Email"} {
+		label := form.GetFormItem(i).GetLabel()
+		assert.Contains(t, label, theme.TextSecondaryHex, "%s: secondary colour", text)
+		assert.Contains(t, label, text, "%s: label text preserved", text)
+	}
 
-	// Both should have secondary color tags (non-focused).
-	assert.Contains(t, nameLabel, theme.TextSecondaryHex, "label should contain secondary color")
-	assert.Contains(t, emailLabel, theme.TextSecondaryHex, "label should contain secondary color")
-
-	// The raw text should be preserved inside the tags.
-	assert.Contains(t, nameLabel, "Name", "label text should be preserved")
-	assert.Contains(t, emailLabel, "Email", "label text should be preserved")
-}
-
-func TestFixFormLabelFocus_NilForm(t *testing.T) {
-	// Should not panic.
-	fixFormLabelFocus(nil)
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Exported wrappers
-// ─────────────────────────────────────────────────────────────────────────────
-
-func TestFixFormDropDownStyles_Export_NilSafety(t *testing.T) {
-	FixFormDropDownStyles(nil) // should not panic
-}
-
-func TestFixFormLabelFocus_Export_NilSafety(t *testing.T) {
-	FixFormLabelFocus(nil) // should not panic
+	assert.NotPanics(t, func() {
+		fixFormLabelFocus(nil)
+		FixFormLabelFocus(nil)
+		FixFormDropDownStyles(nil)
+	}, "nil form")
 }
 
 func TestIsLastFocusableFormItem_Export(t *testing.T) {
@@ -1317,61 +1185,63 @@ type popShell struct {
 
 func (s *popShell) PopView() bool { s.popped++; return true }
 
-// N19: Esc on a required step → « Quitter » → OnComplete(false, nil) and the
-// wizard is popped; the focus starts on « Continuer ».
-func TestInlineWizardView_EscQuit(t *testing.T) {
-	var calls []bool
-	v := NewInlineWizardView(InlineWizardConfig{
-		ID: "wizard.quit", Title: "Quit",
-		OnComplete: func(ok bool, err error) { calls = append(calls, ok); assert.NoError(t, err) },
-		Steps: []WizardStep{{
-			Label: "Required", Required: true,
-			Form: func(_ *tview.Application, onDone func()) *tview.Form {
+// N19: leaving a wizard step.
+func TestInlineWizardView_QuitAndBack(t *testing.T) {
+	t.Run("esc then quit calls OnComplete(false) once and pops the wizard", func(t *testing.T) {
+		var calls []bool
+		v := NewInlineWizardView(InlineWizardConfig{
+			ID: "wizard.quit", Title: "Quit",
+			OnComplete: func(ok bool, err error) { calls = append(calls, ok); assert.NoError(t, err) },
+			Steps: []WizardStep{{
+				Label: "Required", Required: true,
+				Form: func(_ *tview.Application, onDone func()) *tview.Form {
+					f := tview.NewForm()
+					f.AddInputField("Name", "", 0, nil, nil)
+					f.AddButton("Next", onDone)
+					return f
+				},
+			}},
+		})
+		sh := &popShell{}
+		v.SetShell(sh)
+		content := tview.NewFlex().SetDirection(tview.FlexRow)
+		app := runApp(t, content)
+		onLoop(app, func() { v.Mount(content, app) })
+		onLoop(app, func() {
+			assert.Nil(t, v.HandleKey(tcell.NewEventKey(tcell.KeyEscape, 0, tcell.ModNone)), "esc is consumed")
+			form := v.quitBar.GetItem(1).(*tview.Form)
+			assert.Equal(t, form.GetButton(form.GetButtonCount()-1), app.GetFocus(), "focus on « continue »")
+			pressQuitButton(t, v, i18n.T("tui.wizard.quit.quit"))
+		})
+		assert.Equal(t, []bool{false}, calls, "OnComplete(false)")
+		assert.Equal(t, 1, sh.popped, "wizard popped")
+		onLoop(app, func() { v.Unmount() })
+		assert.Equal(t, []bool{false}, calls, "OnComplete called once")
+	})
+
+	t.Run("Ctrl+B, Alt+← and PgUp go back", func(t *testing.T) {
+		step := func(label string) WizardStep {
+			return WizardStep{Label: label, Form: func(_ *tview.Application, onDone func()) *tview.Form {
 				f := tview.NewForm()
-				f.AddInputField("Name", "", 0, nil, nil)
 				f.AddButton("Next", onDone)
 				return f
-			},
-		}},
+			}}
+		}
+		for _, ev := range []*tcell.EventKey{
+			tcell.NewEventKey(tcell.KeyCtrlB, 0, tcell.ModNone),
+			tcell.NewEventKey(tcell.KeyLeft, 0, tcell.ModAlt),
+			tcell.NewEventKey(tcell.KeyPgUp, 0, tcell.ModNone),
+		} {
+			t.Run(ev.Name(), func(t *testing.T) {
+				v := NewInlineWizardView(InlineWizardConfig{ID: "wizard.back", Steps: []WizardStep{step("a"), step("b")}})
+				v.Mount(tview.NewFlex(), tview.NewApplication())
+				defer v.Unmount()
+				v.advanceAfterDone(v.cfg.Steps[0])
+				v.renderStep(v.currentStep)
+				require.Equal(t, 1, v.currentStep, "on the second step")
+				assert.Nil(t, v.HandleKey(ev), "key is consumed")
+				assert.Equal(t, 0, v.currentStep, "back on the first step")
+			})
+		}
 	})
-	sh := &popShell{}
-	v.SetShell(sh)
-	content := tview.NewFlex().SetDirection(tview.FlexRow)
-	app := runApp(t, content)
-	onLoop(app, func() { v.Mount(content, app) })
-	onLoop(app, func() {
-		assert.Nil(t, v.HandleKey(tcell.NewEventKey(tcell.KeyEscape, 0, tcell.ModNone)))
-		form := v.quitBar.GetItem(1).(*tview.Form)
-		assert.Equal(t, form.GetButton(form.GetButtonCount()-1), app.GetFocus(), "focus on « continue »")
-		pressQuitButton(t, v, i18n.T("tui.wizard.quit.quit"))
-	})
-	assert.Equal(t, []bool{false}, calls)
-	assert.Equal(t, 1, sh.popped)
-	onLoop(app, func() { v.Unmount() })
-	assert.Equal(t, []bool{false}, calls, "OnComplete called once")
-}
-
-// N19: Ctrl+B, Alt+← and PgUp go back in a wizard.
-func TestInlineWizardView_BackKeys(t *testing.T) {
-	step := func(label string) WizardStep {
-		return WizardStep{Label: label, Form: func(_ *tview.Application, onDone func()) *tview.Form {
-			f := tview.NewForm()
-			f.AddButton("Next", onDone)
-			return f
-		}}
-	}
-	for _, ev := range []*tcell.EventKey{
-		tcell.NewEventKey(tcell.KeyCtrlB, 0, tcell.ModNone),
-		tcell.NewEventKey(tcell.KeyLeft, 0, tcell.ModAlt),
-		tcell.NewEventKey(tcell.KeyPgUp, 0, tcell.ModNone),
-	} {
-		v := NewInlineWizardView(InlineWizardConfig{ID: "wizard.back", Steps: []WizardStep{step("a"), step("b")}})
-		v.Mount(tview.NewFlex(), tview.NewApplication())
-		v.advanceAfterDone(v.cfg.Steps[0])
-		v.renderStep(v.currentStep)
-		require.Equal(t, 1, v.currentStep)
-		assert.Nil(t, v.HandleKey(ev))
-		assert.Equal(t, 0, v.currentStep, ev.Name())
-		v.Unmount()
-	}
 }

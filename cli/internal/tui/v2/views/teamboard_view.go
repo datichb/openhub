@@ -215,14 +215,16 @@ func (v *TeamBoardView) Mount(content *tview.Flex, app *tview.Application) {
 			SetDynamicColors(true).
 			SetTextAlign(tview.AlignCenter)
 		v.emptyTV.SetBackgroundColor(theme.BgPanel)
-		v.emptyTV.SetText(i18n.T("tui.teamboard.empty_no_team"))
+		v.emptyTV.SetText("\n\n" + tagged(theme.WarningHex, i18n.T("tui.teamboard.empty_no_team")) +
+			"\n\n" + i18n.Tf("tui.teamboard.empty_no_team_hint", tagged(theme.TextPrimaryHex, "Team Init")))
 		content.AddItem(v.emptyTV, 0, 1, true)
 	case !hasTickets:
 		v.emptyTV = tview.NewTextView().
 			SetDynamicColors(true).
 			SetTextAlign(tview.AlignCenter)
 		v.emptyTV.SetBackgroundColor(theme.BgPanel)
-		v.emptyTV.SetText(i18n.T("tui.teamboard.empty_no_tickets"))
+		v.emptyTV.SetText("\n\n" + tagged(theme.WarningHex, i18n.T("tui.teamboard.empty_no_tickets")) +
+			"\n\n" + i18n.Tf("tui.teamboard.empty_no_tickets_hint", tagged(theme.TextPrimaryHex, "Sync Tracker"), "[::b]r[::-]"))
 		content.AddItem(v.emptyTV, 0, 1, true)
 	default:
 		content.AddItem(v.boardLayout, 0, 1, true)

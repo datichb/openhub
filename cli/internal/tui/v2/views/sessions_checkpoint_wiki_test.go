@@ -13,6 +13,8 @@ import (
 	"github.com/rivo/tview"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/datichb/openhub/cli/internal/testutil/golden"
 )
 
 type wikiSessions struct {
@@ -188,7 +190,7 @@ func TestCheckpointWikiGolden(t *testing.T) {
 	be := &wikiSessions{}
 	_, cw := newTestCheckpointWiki(t, be, be, &wikiCardShell{})
 	cw.wiki.list.Select("wp-2")
-	assertGolden(t, "checkpoint_wiki_9", screenText(t, cw.wiki.list.Primitive(), 90, 18))
+	golden.Assert(t, "checkpoint_wiki_9", screenText(t, cw.wiki.list.Primitive(), 90, 18))
 	cw.wiki.list.Select("wp-3")
 	detail := cw.wiki.list.detail.GetText(true)
 	assert.Contains(t, detail, "+ Facturation [red]B2B[-]", "agent text escaped, shown as is")

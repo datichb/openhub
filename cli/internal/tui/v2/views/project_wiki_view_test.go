@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/testutil/golden"
 )
 
 func TestRenderProjectWiki(t *testing.T) {
@@ -132,7 +133,7 @@ func TestProjectWikiQueueGolden(t *testing.T) {
 		box := tview.NewFlex().SetDirection(tview.FlexRow).AddItem(v.tv, 2, 0, false).AddItem(v.wiki.list.Primitive(), 0, 1, true)
 		screen = screenText(t, box, 120, 18)
 	})
-	assertGolden(t, "project_wiki_queue", screen)
+	golden.Assert(t, "project_wiki_queue", screen)
 	assert.Equal(t, "y accepter · n refuser · e modifier · s laisser · A tout accepter · / filtrer · m métriques · r rafraîchir · Échap revenir",
 		v.StatusHints())
 

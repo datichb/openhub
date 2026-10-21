@@ -94,9 +94,3 @@ func TestLaunchFormShowsPreparation(t *testing.T) {
 	}, 2*time.Second, 10*time.Millisecond)
 	cfg.Progress.Line("late") // no form listening any more: ignored
 }
-
-func TestLaunchProgressNil(t *testing.T) {
-	var p *LaunchProgress
-	p.Line("x") // no panic
-	p.attach(func(string) {})
-}
