@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/config/configtest"
 	"github.com/datichb/openhub/cli/internal/domain"
 )
 
@@ -48,4 +49,64 @@ func TestSoloTeam_ResolveForProject(t *testing.T) {
 	assert.Equal(t, "solo", got.TeamID)
 	assert.Equal(t, "/s", got.StatePath)
 	assert.Equal(t, "alice", got.MemberID)
+}
+
+// Saving a team (oh init, oh team init) adds it or replaces its own entry:
+// the solo space and the other teams stay as they are, and the entry that is
+// replaced keeps its name.
+func TestUpsertTeam_NeverOverwritesAnotherTeam(t *testing.T) {
+	configtest.Home(t)
+	solo := config.TeamConfig{ID: "solo", Enabled: true, Solo: true, StatePath: "/s/solo", MemberID: "alice"}
+	acme := config.TeamConfig{ID: "acme", Name: "ACME", StateRepo: "git@x:acme/state.git", StatePath: "/s/acme", MemberID: "alice"}
+	beta := config.TeamConfig{ID: "beta", Name: "Beta Team", Enabled: true, StateRepo: "git@x:beta.git", StatePath: "/s/beta", MemberID: "alice"}
+	cfg := &config.Config{Teams: []config.TeamConfig{solo, acme, beta}}
+	require.Equal(t, "beta", cfg.DefaultTeam().ID, "precondition: beta is the default team, not the first entry")
+
+	gamma := config.TeamConfig{ID: "gamma", Enabled: true, StateRepo: "git@x:gamma.git", StatePath: "/s/gamma", MemberID: "alice"}
+	cfg.UpsertTeam(gamma)
+	require.Len(t, cfg.Teams, 4, "a new team is added")
+	assert.Equal(t, solo, cfg.Teams[0], "the solo space is untouched")
+	assert.Equal(t, gamma, cfg.Teams[3], "the new team comes last")
+
+	reconfigured := beta
+	reconfigured.Name = ""
+	reconfigured.MemberID = "bob"
+	cfg.UpsertTeam(reconfigured)
+	require.Len(t, cfg.Teams, 4, "reconfiguring a team adds no entry")
+	assert.Equal(t, solo, cfg.Teams[0], "the solo space is still untouched")
+	assert.Equal(t, acme, cfg.Teams[1], "acme is untouched")
+	assert.Equal(t, "bob", cfg.Teams[2].MemberID, "beta is replaced in place")
+	assert.Equal(t, "Beta Team", cfg.Teams[2].Name, "beta keeps its name")
+	assert.True(t, cfg.Teams[2].Enabled, "beta stays enabled")
+	assert.Equal(t, gamma, cfg.Teams[3], "gamma is untouched")
+
+	byRepo := config.TeamConfig{ID: "acme-state", StateRepo: acme.StateRepo, StatePath: "/s/acme2", MemberID: "carol"}
+	cfg.UpsertTeam(byRepo)
+	require.Len(t, cfg.Teams, 4, "a team found by its repository is not duplicated")
+	assert.Equal(t, "acme-state", cfg.Teams[1].ID, "acme is updated through its repository")
+	assert.Equal(t, "ACME", cfg.Teams[1].Name, "acme keeps its name")
+	assert.Equal(t, "/s/acme2", cfg.Teams[1].StatePath, "acme has the new path")
+	assert.Equal(t, "carol", cfg.Teams[1].MemberID, "acme has the new member")
+
+	check := func(t *testing.T, cfg *config.Config, when string) {
+		t.Helper()
+		require.Len(t, cfg.Teams, 4, "%s: four teams", when)
+		assert.True(t, cfg.Teams[0].Solo, "%s: the solo space is still solo", when)
+		assert.Equal(t, "/s/solo", cfg.Teams[0].StatePath, "%s: the solo space keeps its path", when)
+		assert.Equal(t, "acme-state", cfg.Teams[1].ID, "%s: acme in second position", when)
+		assert.Equal(t, "ACME", cfg.Teams[1].Name, "%s: acme keeps its name", when)
+		assert.Equal(t, "beta", cfg.Teams[2].ID, "%s: beta in third position", when)
+		assert.Equal(t, "Beta Team", cfg.Teams[2].Name, "%s: beta keeps its name", when)
+		assert.Equal(t, "gamma", cfg.Teams[3].ID, "%s: gamma last", when)
+		require.NotNil(t, cfg.DefaultTeam(), "%s: there is a default team", when)
+		assert.Equal(t, "beta", cfg.DefaultTeam().ID, "%s: beta is still the default team", when)
+		assert.Equal(t, "bob", cfg.ActiveTeam().MemberID, "%s: the active team is beta, reconfigured", when)
+	}
+	check(t, cfg, "in memory")
+
+	require.NoError(t, config.Save(cfg), "saving the hub")
+	config.Reset()
+	loaded, err := config.Load()
+	require.NoError(t, err, "loading the hub")
+	check(t, loaded, "after reload")
 }

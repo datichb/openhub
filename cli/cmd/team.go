@@ -752,18 +752,7 @@ func writeTeamConfig(stateRepo, statePath, memberID string) error {
 		MemberID:  memberID,
 	}
 
-	// Update or append
-	found := false
-	for i := range a.Config.Teams {
-		if a.Config.Teams[i].ID == id || a.Config.Teams[i].StateRepo == stateRepo {
-			a.Config.Teams[i] = newTeam
-			found = true
-			break
-		}
-	}
-	if !found {
-		a.Config.Teams = append(a.Config.Teams, newTeam)
-	}
+	a.Config.UpsertTeam(newTeam)
 	// Clear legacy field
 	a.Config.Team = config.TeamConfig{}
 

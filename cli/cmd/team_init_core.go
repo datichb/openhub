@@ -10,8 +10,8 @@ import (
 	"github.com/datichb/openhub/cli/internal/teamstate"
 )
 
-// teamInitParams holds the parameters for the core team initialization logic.
-// This struct is shared by runTeamInit (wizard), runTeamInitFromTUI, and runTeamCustomSetup.
+// teamInitParams holds the parameters for the core team initialization logic
+// (see teamInitCore).
 type teamInitParams struct {
 	StateRepo          string
 	StatePath          string // empty = use default
@@ -22,13 +22,12 @@ type teamInitParams struct {
 	Role               string
 }
 
-// teamInitCore performs the core git+member+config operations shared by:
-//   - runTeamInit (CLI wizard — post-wizard finalization)
-//   - runTeamInitFromTUI (TUI modal)
-//   - runTeamCustomSetup (programmatic project setup)
-//
-// It does NOT display any UI — callers handle presentation.
-// Operations: clone/pull repo → init structure → add/update member → write hub.toml.
+// teamInitCore performs the git+member+config operations of the team step of
+// the `oh init` wizard (teamInitParams come from its state). It does NOT
+// display any UI — the caller handles presentation.
+// Operations: clone/pull repo → init structure → add/update member → write
+// hub.toml (the team is added, or replaces the entry of the same team; the
+// other teams, solo spaces included, are left as they are).
 func teamInitCore(ctx context.Context, a *app.App, p teamInitParams) error {
 	statePath := p.StatePath
 	if statePath == "" {
@@ -74,12 +73,7 @@ func teamInitCore(ctx context.Context, a *app.App, p teamInitParams) error {
 		StatePath: statePath,
 		MemberID:  p.MemberID,
 	}
-	if len(a.Config.Teams) > 0 {
-		// Update first team entry (primary team)
-		a.Config.Teams[0] = newTeam
-	} else {
-		a.Config.Teams = append(a.Config.Teams, newTeam)
-	}
+	a.Config.UpsertTeam(newTeam)
 	// Clear legacy field
 	a.Config.Team = config.TeamConfig{}
 
