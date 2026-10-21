@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/bundle"
-	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 )
 
 func staleHub(t *testing.T, files map[string]string) string {
@@ -34,8 +34,7 @@ func stackMD(name, extra string) string {
 }
 
 func TestRunSkillStale(t *testing.T) {
-	i18n.SetLocale("fr")
-	t.Cleanup(func() { i18n.SetLocale("en") })
+	i18ntest.Set(t, "fr")
 	today := time.Date(2026, 10, 13, 9, 0, 0, 0, time.UTC)
 	hub := staleHub(t, map[string]string{
 		"developer/stacks/dev-standards-react.md":  stackMD("dev-standards-react", "versions:\n  react: \"19.3\"\n  react-compiler: \"1.0\"\nreviewed: 2026-05-01\n"),
@@ -91,7 +90,7 @@ func TestRunSkillStale(t *testing.T) {
 }
 
 func TestRunSkillStaleAllFresh(t *testing.T) {
-	i18n.SetLocale("en")
+	i18ntest.Set(t, "en")
 	hub := staleHub(t, map[string]string{
 		"developer/stacks/dev-standards-golang.md": stackMD("dev-standards-golang", "versions: {go: \"1.27\"}\nreviewed: 2026-10-12\n"),
 		"shared/other.md":                          stackMD("other", ""),

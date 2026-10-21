@@ -8,14 +8,12 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/datichb/openhub/cli/internal/domain"
-	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 	"github.com/datichb/openhub/cli/internal/services/report"
 )
 
 func TestPrintSessionReports(t *testing.T) {
-	prev := i18n.Locale()
-	i18n.SetLocale("fr")
-	t.Cleanup(func() { i18n.SetLocale(prev) })
+	i18ntest.Set(t, "fr")
 	at := time.Date(2026, 10, 13, 9, 5, 0, 0, time.Local)
 	var b bytes.Buffer
 	printSessionReports(&b, "ses_a", []domain.Report{

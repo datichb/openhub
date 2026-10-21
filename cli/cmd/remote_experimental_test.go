@@ -11,6 +11,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
@@ -38,14 +39,14 @@ func assertRemoteDisabled(t *testing.T, what string, err error) {
 // The refusal is translated and names the command that enables the mode.
 func TestRemoteExperimentalMessage(t *testing.T) {
 	for _, l := range []string{"fr", "en"} {
-		useLocale(t, l)
+		i18ntest.Set(t, l)
 		assertRemoteDisabled(t, l, requireRemoteExperimental(nil))
 	}
-	useLocale(t, "fr")
+	i18ntest.Set(t, "fr")
 	if err := requireRemoteExperimental(nil); !strings.Contains(err.Error(), "expérimental") {
 		t.Fatalf("fr: %v", err)
 	}
-	useLocale(t, "en")
+	i18ntest.Set(t, "en")
 	if err := requireRemoteExperimental(nil); !strings.Contains(err.Error(), "experimental remote mode, not validated") {
 		t.Fatalf("en: %v", err)
 	}
@@ -73,7 +74,7 @@ func TestRemoteExperimentalConfigKey(t *testing.T) {
 
 // Every machine entry point of the remote mode refuses without the flag.
 func TestRemoteEntryPointsRefusedWithoutFlag(t *testing.T) {
-	useLocale(t, "en")
+	i18ntest.Set(t, "en")
 	a := withRemoteApp(t, false)
 	ctx := context.Background()
 	cmd := &cobra.Command{}
@@ -124,7 +125,7 @@ func TestPickLaunchRuntimeSkipsDisabledRemote(t *testing.T) {
 
 // oh remote status and Doctor always warn about the experimental mode.
 func TestRemoteExperimentalWarnings(t *testing.T) {
-	useLocale(t, "en")
+	i18ntest.Set(t, "en")
 	var out bytes.Buffer
 	printRemoteExperimentalWarning(&out)
 	if !strings.Contains(out.String(), "never validated on a real GitLab runner") {
@@ -147,7 +148,7 @@ func TestRemoteExperimentalWarnings(t *testing.T) {
 
 // The recap of a remote launch carries the warning.
 func TestRunRecapWarnsRemote(t *testing.T) {
-	useLocale(t, "en")
+	i18ntest.Set(t, "en")
 	if !strings.Contains(strings.Join(remoteRecapWarnings(&preparedRun{remote: &remotePrep{}}), "\n"), "Experimental remote mode") {
 		t.Fatal("remote recap without the experimental warning")
 	}

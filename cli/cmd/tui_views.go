@@ -93,7 +93,7 @@ func loadProjectItems(store domain.ProjectStore) []views.ProjectItem {
 }
 
 // buildViews constructs all registered views for the shell.
-func buildViews(a *app.App, notifStore *shell.NotificationStore) []views.View {
+func buildViews(a *app.App) []views.View {
 	projectItems := loadProjectItems(a.Projects)
 	tuiSess = newTUISessions(a)
 	sessionsSection := tuiSess.sectionConfig()

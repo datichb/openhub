@@ -10,6 +10,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/daemon"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 	"github.com/datichb/openhub/cli/internal/limits"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
@@ -18,7 +19,7 @@ import (
 
 // A15: oh config set|unset know the v5 sections, with validated values.
 func TestConfigSetV5Keys(t *testing.T) {
-	useLocale(t, "en")
+	i18ntest.Set(t, "en")
 	c := &config.Config{Remote: config.RemoteConfig{Targets: []config.RemoteTarget{{Name: "acme", URL: "https://gitlab.com", Group: "acme"}}}}
 	set := func(key, value string) error {
 		t.Helper()
@@ -92,7 +93,7 @@ func TestConfigSetV5Keys(t *testing.T) {
 func TestModelCascadeLevels(t *testing.T) {
 	testHubEnv(t)
 	t.Setenv(workflowsDirEnv, "")
-	useLocale(t, "fr")
+	i18ntest.Set(t, "fr")
 	a := newMockApp(nil, nil)
 	a.Config.Models.Default = "hub-model"
 	project := &domain.Project{ID: "p1", Name: "demo", Model: "project-model",
@@ -125,7 +126,7 @@ func TestModelCascadeLevels(t *testing.T) {
 
 // A12: cobra errors, unknown sessions and the daemon refusal are translated.
 func TestLocalizeError(t *testing.T) {
-	useLocale(t, "fr")
+	i18ntest.Set(t, "fr")
 	cases := map[string]error{
 		"option courte inconnue : 'j' dans -j":   errors.New("unknown shorthand flag: 'j' in -j"),
 		"option inconnue : --nope":               errors.New("unknown flag: --nope"),
@@ -161,7 +162,7 @@ func TestLocalizeError(t *testing.T) {
 // A13: an interactive assistant without terminal stops with a clear message
 // and a non-zero code.
 func TestMCPSetupWithoutTerminal(t *testing.T) {
-	useLocale(t, "en")
+	i18ntest.Set(t, "en")
 	prev := stdinIsTerminal
 	t.Cleanup(func() { stdinIsTerminal = prev })
 	stdinIsTerminal = func() bool { return false }

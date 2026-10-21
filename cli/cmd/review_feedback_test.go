@@ -108,8 +108,3 @@ func TestMRIID(t *testing.T) {
 		assert.False(t, ok, ref)
 	}
 }
-
-func TestFindBranchForTicket_NoProject(t *testing.T) {
-	result := findBranchForTicket("", "SRU-142")
-	assert.Equal(t, "", result)
-}

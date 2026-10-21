@@ -12,269 +12,248 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/datichb/openhub/cli/internal/tracker"
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
-// GitLab client tests
+// Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-func TestGitLab_FetchIssue_Open(t *testing.T) {
-	srv := gitlabServer(t, http.MethodGet, "/api/v4/projects/42/issues/7", map[string]interface{}{
-		"iid":        7,
-		"state":      "opened",
-		"title":      "Fix auth bug",
-		"labels":     []string{"bug", "backend"},
-		"updated_at": "2026-07-01T10:00:00Z",
-		"assignees":  []map[string]interface{}{{"username": "alice"}},
-	})
-	defer srv.Close()
-
-	gl, _ := tracker.New(tracker.Config{Type: tracker.TypeGitLab, BaseURL: srv.URL, Token: "tok"})
-	issue, err := gl.FetchIssue(context.Background(), "42", 7)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if issue.State != "open" {
-		t.Errorf("state: got %q, want %q", issue.State, "open")
-	}
-	if issue.IID != 7 {
-		t.Errorf("IID: got %d, want 7", issue.IID)
-	}
-	if len(issue.Labels) != 2 || issue.Labels[0] != "bug" {
-		t.Errorf("labels: got %v", issue.Labels)
-	}
-	if len(issue.Assignees) != 1 || issue.Assignees[0] != "alice" {
-		t.Errorf("assignees: got %v", issue.Assignees)
-	}
-}
-
-func TestGitLab_FetchIssue_Closed(t *testing.T) {
-	srv := gitlabServer(t, http.MethodGet, "/api/v4/projects/42/issues/8", map[string]interface{}{
-		"iid":   8,
-		"state": "closed",
-		"title": "Done ticket",
-	})
-	defer srv.Close()
-
-	gl, _ := tracker.New(tracker.Config{Type: tracker.TypeGitLab, BaseURL: srv.URL, Token: "tok"})
-	issue, err := gl.FetchIssue(context.Background(), "42", 8)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if !issue.IsClosed() {
-		t.Errorf("expected closed issue")
-	}
-}
-
-func TestGitLab_FetchIssue_NotFound(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
+// jsonServer answers every request with status, the headers and body as JSON.
+func jsonServer(t *testing.T, status int, headers map[string]string, body any) *httptest.Server {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		for k, v := range headers {
+			w.Header().Set(k, v)
+		}
+		w.WriteHeader(status)
+		if body != nil {
+			_ = json.NewEncoder(w).Encode(body)
+		}
 	}))
-	defer srv.Close()
-
-	gl, _ := tracker.New(tracker.Config{Type: tracker.TypeGitLab, BaseURL: srv.URL, Token: "tok"})
-	_, err := gl.FetchIssue(context.Background(), "42", 99)
-	if err != tracker.ErrIssueNotFound {
-		t.Errorf("expected ErrIssueNotFound, got %v", err)
-	}
+	t.Cleanup(srv.Close)
+	return srv
 }
 
-func TestGitLab_FetchIssue_TokenInvalid(t *testing.T) {
+// gitlabServer creates a test HTTP server that responds to one (method, path) pair.
+func gitlabServer(t *testing.T, method, path string, body interface{}) *httptest.Server {
+	t.Helper()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusUnauthorized)
-	}))
-	defer srv.Close()
-
-	gl, _ := tracker.New(tracker.Config{Type: tracker.TypeGitLab, BaseURL: srv.URL, Token: "bad"})
-	_, err := gl.FetchIssue(context.Background(), "42", 1)
-	if err != tracker.ErrTokenInvalid {
-		t.Errorf("expected ErrTokenInvalid, got %v", err)
-	}
-}
-
-func TestGitLab_FetchIssue_RateLimited(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Retry-After", "30")
-		w.WriteHeader(http.StatusTooManyRequests)
-	}))
-	defer srv.Close()
-
-	gl, _ := tracker.New(tracker.Config{Type: tracker.TypeGitLab, BaseURL: srv.URL, Token: "tok"})
-	_, err := gl.FetchIssue(context.Background(), "42", 1)
-	if !tracker.IsRateLimited(err) {
-		t.Errorf("expected rate limit error, got %v", err)
-	}
-}
-
-func TestGitLab_AddLabels_WriteDisabled(t *testing.T) {
-	gl, _ := tracker.New(tracker.Config{
-		Type:         tracker.TypeGitLab,
-		BaseURL:      "http://unused",
-		Token:        "tok",
-		WriteEnabled: false,
-	})
-	err := gl.AddLabels(context.Background(), "42", 1, []string{"my-label"})
-	if err != tracker.ErrWriteDisabled {
-		t.Errorf("expected ErrWriteDisabled, got %v", err)
-	}
-}
-
-func TestGitLab_AddLabels_Success(t *testing.T) {
-	var receivedBody map[string]interface{}
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodPut {
-			json.NewDecoder(r.Body).Decode(&receivedBody)
-			w.WriteHeader(http.StatusOK)
-			json.NewEncoder(w).Encode(map[string]interface{}{"iid": 1})
+		if r.Method != method || r.URL.Path != path {
+			w.WriteHeader(http.StatusNotFound)
 			return
 		}
-		w.WriteHeader(http.StatusMethodNotAllowed)
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(body)
 	}))
-	defer srv.Close()
+	t.Cleanup(srv.Close)
+	return srv
+}
 
-	gl, _ := tracker.New(tracker.Config{
-		Type:         tracker.TypeGitLab,
-		BaseURL:      srv.URL,
-		Token:        "tok",
-		WriteEnabled: true,
+func newClient(t *testing.T, typ tracker.Type, baseURL string, write bool) tracker.Tracker {
+	t.Helper()
+	c, err := tracker.New(tracker.Config{Type: typ, BaseURL: baseURL, Token: "tok", WriteEnabled: write})
+	require.NoError(t, err, "creating the %s client", typ)
+	return c
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FetchIssue
+// ─────────────────────────────────────────────────────────────────────────────
+
+func TestGitLab_FetchIssue(t *testing.T) {
+	tests := []struct {
+		name    string
+		iid     int
+		status  int
+		headers map[string]string
+		body    map[string]any
+		check   func(t *testing.T, issue *tracker.IssueState, err error)
+	}{
+		{
+			name: "open issue with its labels and assignees", iid: 7, status: http.StatusOK,
+			body: map[string]any{
+				"iid": 7, "state": "opened", "title": "Fix auth bug", "labels": []string{"bug", "backend"},
+				"updated_at": "2026-07-01T10:00:00Z", "assignees": []map[string]any{{"username": "alice"}},
+			},
+			check: func(t *testing.T, issue *tracker.IssueState, err error) {
+				require.NoError(t, err)
+				assert.Equal(t, "open", issue.State, "state")
+				assert.Equal(t, 7, issue.IID, "IID")
+				assert.Equal(t, []string{"bug", "backend"}, issue.Labels, "labels")
+				assert.Equal(t, []string{"alice"}, issue.Assignees, "assignees")
+			},
+		},
+		{
+			name: "closed issue", iid: 8, status: http.StatusOK,
+			body: map[string]any{"iid": 8, "state": "closed", "title": "Done ticket"},
+			check: func(t *testing.T, issue *tracker.IssueState, err error) {
+				require.NoError(t, err)
+				assert.True(t, issue.IsClosed(), "the issue is closed")
+			},
+		},
+		{
+			name: "description and status", iid: 10, status: http.StatusOK,
+			body: map[string]any{
+				"iid": 10, "state": "opened", "title": "Add OAuth support",
+				"description": "## Context\n\nWe need OAuth 2.0 for third-party auth.",
+				"labels":      []string{"feature"}, "updated_at": "2026-07-01T10:00:00Z",
+				"assignees": []map[string]any{{"username": "bob"}},
+			},
+			check: func(t *testing.T, issue *tracker.IssueState, err error) {
+				require.NoError(t, err)
+				assert.Equal(t, "## Context\n\nWe need OAuth 2.0 for third-party auth.", issue.Description, "description")
+				assert.Equal(t, "opened", issue.StatusName, "status name")
+				assert.Equal(t, "opened", issue.StatusCategory, "status category")
+			},
+		},
+		{
+			name: "unknown issue", iid: 99, status: http.StatusNotFound,
+			check: func(t *testing.T, _ *tracker.IssueState, err error) { assert.Equal(t, tracker.ErrIssueNotFound, err) },
+		},
+		{
+			name: "invalid token", iid: 1, status: http.StatusUnauthorized,
+			check: func(t *testing.T, _ *tracker.IssueState, err error) { assert.Equal(t, tracker.ErrTokenInvalid, err) },
+		},
+		{
+			name: "rate limited", iid: 1, status: http.StatusTooManyRequests, headers: map[string]string{"Retry-After": "30"},
+			check: func(t *testing.T, _ *tracker.IssueState, err error) {
+				assert.True(t, tracker.IsRateLimited(err), "expected a rate limit error, got %v", err)
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var body any
+			if tt.body != nil {
+				body = tt.body
+			}
+			srv := jsonServer(t, tt.status, tt.headers, body)
+			issue, err := newClient(t, tracker.TypeGitLab, srv.URL, false).FetchIssue(context.Background(), "42", tt.iid)
+			tt.check(t, issue, err)
+		})
+	}
+
+	t.Run("the request targets the issue of the project", func(t *testing.T) {
+		srv := gitlabServer(t, http.MethodGet, "/api/v4/projects/42/issues/7", map[string]any{"iid": 7, "state": "opened"})
+		issue, err := newClient(t, tracker.TypeGitLab, srv.URL, false).FetchIssue(context.Background(), "42", 7)
+		require.NoError(t, err)
+		assert.Equal(t, 7, issue.IID)
 	})
-	err := gl.AddLabels(context.Background(), "42", 1, []string{"agent-reviewed"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Jira client tests
-// ─────────────────────────────────────────────────────────────────────────────
+func TestGitLab_AddLabels(t *testing.T) {
+	t.Run("refused when writing is disabled", func(t *testing.T) {
+		gl := newClient(t, tracker.TypeGitLab, "http://unused", false)
+		assert.Equal(t, tracker.ErrWriteDisabled, gl.AddLabels(context.Background(), "42", 1, []string{"my-label"}))
+	})
 
-func TestJira_FetchIssue_Open(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"id":  "10042",
-			"key": "SRU-42",
-			"fields": map[string]interface{}{
-				"summary":     "Implement login",
-				"description": "As a user, I want to login with my email and password.",
-				"status": map[string]interface{}{
-					"name":           "In Progress",
-					"statusCategory": map[string]interface{}{"key": "indeterminate"},
+	t.Run("sends the labels with a PUT", func(t *testing.T) {
+		var method, path string
+		var received map[string]any
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			method, path = r.Method, r.URL.Path
+			_ = json.NewDecoder(r.Body).Decode(&received)
+			_ = json.NewEncoder(w).Encode(map[string]any{"iid": 1})
+		}))
+		t.Cleanup(srv.Close)
+
+		require.NoError(t, newClient(t, tracker.TypeGitLab, srv.URL, true).AddLabels(context.Background(), "42", 1, []string{"agent-reviewed"}))
+		assert.Equal(t, http.MethodPut, method, "method")
+		assert.Equal(t, "/api/v4/projects/42/issues/1", path, "path")
+		assert.Equal(t, "agent-reviewed", received["add_labels"], "labels")
+	})
+}
+
+func TestJira_FetchIssue(t *testing.T) {
+	tests := []struct {
+		name  string
+		key   string
+		iid   int
+		body  map[string]any
+		check func(t *testing.T, issue *tracker.IssueState)
+	}{
+		{
+			name: "open issue", key: "SRU", iid: 42,
+			body: map[string]any{
+				"id": "10042", "key": "SRU-42",
+				"fields": map[string]any{
+					"summary":     "Implement login",
+					"description": "As a user, I want to login with my email and password.",
+					"status": map[string]any{
+						"name":           "In Progress",
+						"statusCategory": map[string]any{"key": "indeterminate"},
+					},
+					"labels":   []string{"backend"},
+					"updated":  "2026-07-01T10:00:00.000+0000",
+					"assignee": map[string]any{"name": "alice", "displayName": "Alice"},
 				},
-				"labels":   []string{"backend"},
-				"updated":  "2026-07-01T10:00:00.000+0000",
-				"assignee": map[string]interface{}{"name": "alice", "displayName": "Alice"},
 			},
-		})
-	}))
-	defer srv.Close()
-
-	j, _ := tracker.New(tracker.Config{Type: tracker.TypeJira, BaseURL: srv.URL, Token: "tok"})
-	issue, err := j.FetchIssue(context.Background(), "SRU", 42)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if issue.State != "open" {
-		t.Errorf("state: got %q, want %q", issue.State, "open")
-	}
-	if issue.Key != "SRU-42" {
-		t.Errorf("key: got %q, want %q", issue.Key, "SRU-42")
-	}
-	if issue.StatusName != "In Progress" {
-		t.Errorf("statusName: got %q, want %q", issue.StatusName, "In Progress")
-	}
-	if issue.StatusCategory != "indeterminate" {
-		t.Errorf("statusCategory: got %q, want %q", issue.StatusCategory, "indeterminate")
-	}
-	if issue.Description != "As a user, I want to login with my email and password." {
-		t.Errorf("description: got %q", issue.Description)
-	}
-	if issue.Title != "Implement login" {
-		t.Errorf("title: got %q, want %q", issue.Title, "Implement login")
-	}
-}
-
-func TestJira_FetchIssue_Closed(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"id":  "10043",
-			"key": "SRU-43",
-			"fields": map[string]interface{}{
-				"summary": "Done",
-				"status": map[string]interface{}{
-					"statusCategory": map[string]interface{}{"key": "done"},
+			check: func(t *testing.T, issue *tracker.IssueState) {
+				assert.Equal(t, "open", issue.State, "state")
+				assert.Equal(t, "SRU-42", issue.Key, "key")
+				assert.Equal(t, "In Progress", issue.StatusName, "status name")
+				assert.Equal(t, "indeterminate", issue.StatusCategory, "status category")
+				assert.Equal(t, "As a user, I want to login with my email and password.", issue.Description, "description")
+				assert.Equal(t, "Implement login", issue.Title, "title")
+			},
+		},
+		{
+			name: "closed issue", key: "SRU", iid: 43,
+			body: map[string]any{
+				"id": "10043", "key": "SRU-43",
+				"fields": map[string]any{
+					"summary": "Done",
+					"status": map[string]any{
+						"statusCategory": map[string]any{"key": "done"},
+					},
+					"labels":  []string{},
+					"updated": "2026-07-01T10:00:00.000+0000",
 				},
-				"labels":  []string{},
-				"updated": "2026-07-01T10:00:00.000+0000",
 			},
-		})
-	}))
-	defer srv.Close()
-
-	j, _ := tracker.New(tracker.Config{Type: tracker.TypeJira, BaseURL: srv.URL, Token: "tok"})
-	issue, err := j.FetchIssue(context.Background(), "SRU", 43)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+			check: func(t *testing.T, issue *tracker.IssueState) { assert.True(t, issue.IsClosed(), "the issue is closed") },
+		},
 	}
-	if !issue.IsClosed() {
-		t.Errorf("expected closed issue")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := jsonServer(t, http.StatusOK, nil, tt.body)
+			issue, err := newClient(t, tracker.TypeJira, srv.URL, false).FetchIssue(context.Background(), tt.key, tt.iid)
+			require.NoError(t, err)
+			tt.check(t, issue)
+		})
 	}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SyncState tests
+// SyncState
 // ─────────────────────────────────────────────────────────────────────────────
 
 func TestSyncState_RoundTrip(t *testing.T) {
 	dir := t.TempDir()
 
 	s, err := tracker.LoadSyncState(dir)
-	if err != nil {
-		t.Fatalf("load: %v", err)
-	}
-	if s.LastSync(tracker.TypeGitLab, "42") != (time.Time{}) {
-		t.Error("expected zero time for unknown project")
-	}
+	require.NoError(t, err, "load")
+	assert.True(t, s.LastSync(tracker.TypeGitLab, "42").IsZero(), "zero time for an unknown project")
 
 	now := time.Now().UTC().Truncate(time.Second)
 	s.SetLastSync(tracker.TypeGitLab, "42", now)
-	if err := s.Save(dir); err != nil {
-		t.Fatalf("save: %v", err)
-	}
+	require.NoError(t, s.Save(dir), "save")
 
 	s2, err := tracker.LoadSyncState(dir)
-	if err != nil {
-		t.Fatalf("reload: %v", err)
-	}
-	got := s2.LastSync(tracker.TypeGitLab, "42")
-	if !got.Equal(now) {
-		t.Errorf("last sync: got %v, want %v", got, now)
-	}
+	require.NoError(t, err, "reload")
+	assert.True(t, s2.LastSync(tracker.TypeGitLab, "42").Equal(now), "last sync survives the reload")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Helpers
+// MapTrackerStatus and TruncateDescription
 // ─────────────────────────────────────────────────────────────────────────────
 
-// gitlabServer creates a test HTTP server that responds to one (method, path) pair.
-func gitlabServer(t *testing.T, method, path string, body interface{}) *httptest.Server {
-	t.Helper()
-	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != method || r.URL.Path != path {
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(body)
-	}))
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// MapTrackerStatus tests
-// ─────────────────────────────────────────────────────────────────────────────
-
-func TestMapTrackerStatus_ExplicitMapping(t *testing.T) {
-	mapping := map[string]string{
+func TestMapTrackerStatus(t *testing.T) {
+	explicit := map[string]string{
 		"In Progress": "in_progress",
 		"Code Review": "review",
 		"In QA":       "review",
@@ -282,519 +261,263 @@ func TestMapTrackerStatus_ExplicitMapping(t *testing.T) {
 		"Done":        "done",
 		"To Do":       "planned",
 	}
-
 	tests := []struct {
-		statusName     string
-		statusCategory string
-		expected       string
+		name     string
+		mapping  map[string]string
+		status   string
+		category string
+		want     string
 	}{
-		{"In Progress", "indeterminate", "in_progress"},
-		{"Code Review", "indeterminate", "review"},
-		{"In QA", "indeterminate", "review"},
-		{"Blocked", "indeterminate", "blocked"},
-		{"Done", "done", "done"},
-		{"To Do", "new", "planned"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.statusName, func(t *testing.T) {
-			issue := &tracker.IssueState{
-				StatusName:     tt.statusName,
-				StatusCategory: tt.statusCategory,
-			}
-			got := tracker.MapTrackerStatus(issue, mapping, nil)
-			if got != tt.expected {
-				t.Errorf("MapTrackerStatus(%q): got %q, want %q", tt.statusName, got, tt.expected)
-			}
-		})
-	}
-}
-
-func TestMapTrackerStatus_CaseInsensitive(t *testing.T) {
-	mapping := map[string]string{
-		"code review": "review",
-	}
-	issue := &tracker.IssueState{
-		StatusName:     "Code Review",
-		StatusCategory: "indeterminate",
-	}
-	got := tracker.MapTrackerStatus(issue, mapping, nil)
-	if got != "review" {
-		t.Errorf("case insensitive mapping failed: got %q, want %q", got, "review")
-	}
-}
-
-func TestMapTrackerStatus_CategoryFallback(t *testing.T) {
-	tests := []struct {
-		name           string
-		statusName     string
-		statusCategory string
-		expected       string
-	}{
-		{"jira done", "Terminé", "done", "done"},
-		{"jira new", "À faire", "new", "planned"},
-		{"jira indeterminate", "En développement", "indeterminate", "in_progress"},
-		{"gitlab closed", "closed", "closed", "done"},
-		{"gitlab opened", "opened", "opened", "in_progress"},
-		{"unknown category", "Custom", "custom", "in_progress"},
+		{"mapped: in progress", explicit, "In Progress", "indeterminate", "in_progress"},
+		{"mapped: code review", explicit, "Code Review", "indeterminate", "review"},
+		{"mapped: in QA", explicit, "In QA", "indeterminate", "review"},
+		{"mapped: blocked", explicit, "Blocked", "indeterminate", "blocked"},
+		{"mapped: done", explicit, "Done", "done", "done"},
+		{"mapped: to do", explicit, "To Do", "new", "planned"},
+		{"the mapping ignores the case", map[string]string{"code review": "review"}, "Code Review", "indeterminate", "review"},
+		{"a mapping to an invalid status falls through to the category", map[string]string{"In Progress": "invalid_status"}, "In Progress", "indeterminate", "in_progress"},
+		{"jira done", nil, "Terminé", "done", "done"},
+		{"jira new", nil, "À faire", "new", "planned"},
+		{"jira indeterminate", nil, "En développement", "indeterminate", "in_progress"},
+		{"gitlab closed", nil, "closed", "closed", "done"},
+		{"gitlab opened", nil, "opened", "opened", "in_progress"},
+		{"unknown category", nil, "Custom", "custom", "in_progress"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			issue := &tracker.IssueState{
-				StatusName:     tt.statusName,
-				StatusCategory: tt.statusCategory,
-			}
-			// Empty mapping → always uses category fallback
-			got := tracker.MapTrackerStatus(issue, nil, nil)
-			if got != tt.expected {
-				t.Errorf("MapTrackerStatus(%q/%q): got %q, want %q",
-					tt.statusName, tt.statusCategory, got, tt.expected)
-			}
+			issue := &tracker.IssueState{StatusName: tt.status, StatusCategory: tt.category}
+			assert.Equal(t, tt.want, tracker.MapTrackerStatus(issue, tt.mapping, nil))
 		})
 	}
 }
 
-func TestMapTrackerStatus_InvalidMappingValue(t *testing.T) {
-	// If the mapping value is not a valid claim status, fall through to category.
-	mapping := map[string]string{
-		"In Progress": "invalid_status",
+func TestTruncateDescription(t *testing.T) {
+	limit := tracker.MaxDescriptionLen
+	tests := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{"empty", "", ""},
+		{"short", "Short description", "Short description"},
+		{"exactly at the limit", strings.Repeat("a", limit), strings.Repeat("a", limit)},
+		{"over the limit", strings.Repeat("b", limit+100), strings.Repeat("b", limit) + "..."},
 	}
-	issue := &tracker.IssueState{
-		StatusName:     "In Progress",
-		StatusCategory: "indeterminate",
-	}
-	got := tracker.MapTrackerStatus(issue, mapping, nil)
-	// Should fall back to category-based mapping since "invalid_status" is not valid.
-	if got != "in_progress" {
-		t.Errorf("invalid mapping value: got %q, want %q", got, "in_progress")
-	}
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// TruncateDescription tests
-// ─────────────────────────────────────────────────────────────────────────────
-
-func TestTruncateDescription_Short(t *testing.T) {
-	desc := "Short description"
-	got := tracker.TruncateDescription(desc)
-	if got != desc {
-		t.Errorf("short description should not be truncated: got %q", got)
-	}
-}
-
-func TestTruncateDescription_ExactLimit(t *testing.T) {
-	desc := make([]byte, tracker.MaxDescriptionLen)
-	for i := range desc {
-		desc[i] = 'a'
-	}
-	got := tracker.TruncateDescription(string(desc))
-	if got != string(desc) {
-		t.Errorf("exact-limit description should not be truncated")
-	}
-}
-
-func TestTruncateDescription_Long(t *testing.T) {
-	desc := make([]byte, tracker.MaxDescriptionLen+100)
-	for i := range desc {
-		desc[i] = 'b'
-	}
-	got := tracker.TruncateDescription(string(desc))
-	if len(got) != tracker.MaxDescriptionLen+3 { // +3 for "..."
-		t.Errorf("truncated length: got %d, want %d", len(got), tracker.MaxDescriptionLen+3)
-	}
-	if got[len(got)-3:] != "..." {
-		t.Errorf("truncated description should end with '...'")
-	}
-}
-
-func TestTruncateDescription_Empty(t *testing.T) {
-	got := tracker.TruncateDescription("")
-	if got != "" {
-		t.Errorf("empty description should stay empty: got %q", got)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, tracker.TruncateDescription(tt.in))
+		})
 	}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// GitLab description + status parsing tests
+// Discovery and listing
 // ─────────────────────────────────────────────────────────────────────────────
 
-func TestGitLab_FetchIssue_WithDescription(t *testing.T) {
-	srv := gitlabServer(t, http.MethodGet, "/api/v4/projects/42/issues/10", map[string]interface{}{
-		"iid":         10,
-		"state":       "opened",
-		"title":       "Add OAuth support",
-		"description": "## Context\n\nWe need OAuth 2.0 for third-party auth.",
-		"labels":      []string{"feature"},
-		"updated_at":  "2026-07-01T10:00:00Z",
-		"assignees":   []map[string]interface{}{{"username": "bob"}},
-	})
-	defer srv.Close()
-
-	gl, _ := tracker.New(tracker.Config{Type: tracker.TypeGitLab, BaseURL: srv.URL, Token: "tok"})
-	issue, err := gl.FetchIssue(context.Background(), "42", 10)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if issue.Description != "## Context\n\nWe need OAuth 2.0 for third-party auth." {
-		t.Errorf("description: got %q", issue.Description)
-	}
-	if issue.StatusName != "opened" {
-		t.Errorf("statusName: got %q, want %q", issue.StatusName, "opened")
-	}
-	if issue.StatusCategory != "opened" {
-		t.Errorf("statusCategory: got %q, want %q", issue.StatusCategory, "opened")
-	}
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// GitLab DiscoverProject / ListIssuesByLabels / Pagination integration tests
-// ─────────────────────────────────────────────────────────────────────────────
-
-func TestGitLab_DiscoverProject_Labels(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/v4/projects/myproject/labels" {
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		// No X-Next-Page header → single page.
-		json.NewEncoder(w).Encode([]map[string]interface{}{
+func TestGitLab_DiscoverProject(t *testing.T) {
+	t.Run("labels of a single page", func(t *testing.T) {
+		srv := jsonServer(t, http.StatusOK, nil, []map[string]any{
 			{"name": "bug", "description": "Something is broken", "color": "#d9534f"},
 			{"name": "feature", "description": "New functionality", "color": "#428bca"},
 			{"name": "urgent", "description": "", "color": "#d10069"},
 		})
-	}))
-	defer srv.Close()
-
-	gl, _ := tracker.New(tracker.Config{Type: tracker.TypeGitLab, BaseURL: srv.URL, Token: "test-token"})
-	info, err := gl.DiscoverProject(context.Background(), "myproject")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(info.Labels) != 3 {
-		t.Fatalf("labels count: got %d, want 3", len(info.Labels))
-	}
-
-	want := []struct{ name, desc, color string }{
-		{"bug", "Something is broken", "#d9534f"},
-		{"feature", "New functionality", "#428bca"},
-		{"urgent", "", "#d10069"},
-	}
-	for i, w := range want {
-		if info.Labels[i].Name != w.name {
-			t.Errorf("label[%d].Name: got %q, want %q", i, info.Labels[i].Name, w.name)
+		info, err := newClient(t, tracker.TypeGitLab, srv.URL, false).DiscoverProject(context.Background(), "myproject")
+		require.NoError(t, err)
+		require.Len(t, info.Labels, 3, "labels")
+		for i, want := range []struct{ name, desc, color string }{
+			{"bug", "Something is broken", "#d9534f"},
+			{"feature", "New functionality", "#428bca"},
+			{"urgent", "", "#d10069"},
+		} {
+			assert.Equal(t, want.name, info.Labels[i].Name, "label[%d] name", i)
+			assert.Equal(t, want.desc, info.Labels[i].Description, "label[%d] description", i)
+			assert.Equal(t, want.color, info.Labels[i].Color, "label[%d] color", i)
 		}
-		if info.Labels[i].Description != w.desc {
-			t.Errorf("label[%d].Description: got %q, want %q", i, info.Labels[i].Description, w.desc)
+	})
+
+	t.Run("labels follow X-Next-Page", func(t *testing.T) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/api/v4/projects/myproject/labels" {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			switch r.URL.Query().Get("page") {
+			case "", "1":
+				w.Header().Set("X-Next-Page", "2")
+				_ = json.NewEncoder(w).Encode([]map[string]any{
+					{"name": "bug", "description": "Defect", "color": "#d9534f"},
+					{"name": "feature", "description": "Enhancement", "color": "#428bca"},
+				})
+			case "2":
+				_ = json.NewEncoder(w).Encode([]map[string]any{{"name": "urgent", "description": "High priority", "color": "#d10069"}})
+			default:
+				_ = json.NewEncoder(w).Encode([]map[string]any{})
+			}
+		}))
+		t.Cleanup(srv.Close)
+
+		info, err := newClient(t, tracker.TypeGitLab, srv.URL, false).DiscoverProject(context.Background(), "myproject")
+		require.NoError(t, err)
+		var names []string
+		for _, l := range info.Labels {
+			names = append(names, l.Name)
 		}
-		if info.Labels[i].Color != w.color {
-			t.Errorf("label[%d].Color: got %q, want %q", i, info.Labels[i].Color, w.color)
-		}
-	}
-}
+		assert.Equal(t, []string{"bug", "feature", "urgent"}, names, "the labels of both pages, in order")
+	})
 
-func TestGitLab_DiscoverProject_Pagination(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/v4/projects/myproject/labels" {
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
-		page := r.URL.Query().Get("page")
-		w.Header().Set("Content-Type", "application/json")
+	t.Run("a server that never ends the pages is stopped at the page cap", func(t *testing.T) {
+		var requests int
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			requests++
+			page := 1
+			if p := r.URL.Query().Get("page"); p != "" {
+				page, _ = strconv.Atoi(p)
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set("X-Next-Page", strconv.Itoa(page+1))
+			_ = json.NewEncoder(w).Encode([]map[string]any{{"name": fmt.Sprintf("label-page-%d", page), "color": "#000"}})
+		}))
+		t.Cleanup(srv.Close)
 
-		switch page {
-		case "", "1":
-			w.Header().Set("X-Next-Page", "2")
-			json.NewEncoder(w).Encode([]map[string]interface{}{
-				{"name": "bug", "description": "Defect", "color": "#d9534f"},
-				{"name": "feature", "description": "Enhancement", "color": "#428bca"},
-			})
-		case "2":
-			// No X-Next-Page → last page.
-			json.NewEncoder(w).Encode([]map[string]interface{}{
-				{"name": "urgent", "description": "High priority", "color": "#d10069"},
-			})
-		default:
-			json.NewEncoder(w).Encode([]map[string]interface{}{})
-		}
-	}))
-	defer srv.Close()
-
-	gl, _ := tracker.New(tracker.Config{Type: tracker.TypeGitLab, BaseURL: srv.URL, Token: "test-token"})
-	info, err := gl.DiscoverProject(context.Background(), "myproject")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(info.Labels) != 3 {
-		t.Fatalf("labels count: got %d, want 3", len(info.Labels))
-	}
-	names := []string{info.Labels[0].Name, info.Labels[1].Name, info.Labels[2].Name}
-	if names[0] != "bug" || names[1] != "feature" || names[2] != "urgent" {
-		t.Errorf("label names: got %v", names)
-	}
-}
-
-func TestGitLab_DiscoverProject_PageCap(t *testing.T) {
-	var requestCount int
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/v4/projects/myproject/labels" {
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
-		requestCount++
-
-		page := r.URL.Query().Get("page")
-		pageNum := 1
-		if page != "" {
-			pageNum, _ = strconv.Atoi(page)
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		// Always advertise a next page → infinite pagination.
-		w.Header().Set("X-Next-Page", strconv.Itoa(pageNum+1))
-		json.NewEncoder(w).Encode([]map[string]interface{}{
-			{"name": fmt.Sprintf("label-page-%d", pageNum), "description": "", "color": "#000"},
-		})
-	}))
-	defer srv.Close()
-
-	gl, _ := tracker.New(tracker.Config{Type: tracker.TypeGitLab, BaseURL: srv.URL, Token: "test-token"})
-	info, err := gl.DiscoverProject(context.Background(), "myproject")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	// maxLabelPages = 50 in gitlab.go. The loop should stop at page 50.
-	if requestCount > 51 {
-		t.Errorf("expected at most 51 requests (50-page cap), got %d", requestCount)
-	}
-	if len(info.Labels) == 0 {
-		t.Error("expected at least some labels")
-	}
-	if len(info.Labels) > 50 {
-		t.Errorf("expected at most 50 labels (one per page), got %d", len(info.Labels))
-	}
+		info, err := newClient(t, tracker.TypeGitLab, srv.URL, false).DiscoverProject(context.Background(), "myproject")
+		require.NoError(t, err)
+		// maxLabelPages = 50 in gitlab.go.
+		assert.LessOrEqual(t, requests, 51, "requests (50-page cap)")
+		assert.NotEmpty(t, info.Labels, "the labels read before the cap are kept")
+		assert.LessOrEqual(t, len(info.Labels), 50, "one label per page at most")
+	})
 }
 
 func TestGitLab_ListIssuesByLabels(t *testing.T) {
-	var capturedQuery url.Values
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet || !strings.HasPrefix(r.URL.Path, "/api/v4/projects/myproject/issues") {
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
-		capturedQuery = r.URL.Query()
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode([]map[string]interface{}{
-			{
-				"iid": 1, "state": "opened", "title": "First issue",
-				"labels": []string{"backend", "ready"}, "updated_at": "2026-07-01T10:00:00Z",
-				"assignees": []map[string]interface{}{{"username": "alice"}},
-			},
-			{
-				"iid": 2, "state": "opened", "title": "Second issue",
-				"labels": []string{"backend", "ready"}, "updated_at": "2026-07-02T10:00:00Z",
-				"assignees": []map[string]interface{}{},
-			},
-		})
-	}))
-	defer srv.Close()
+	issue := func(iid int, title string) map[string]any {
+		return map[string]any{"iid": iid, "state": "opened", "title": title, "labels": []string{"backend", "ready"}, "updated_at": "2026-07-01T10:00:00Z"}
+	}
 
-	gl, _ := tracker.New(tracker.Config{Type: tracker.TypeGitLab, BaseURL: srv.URL, Token: "test-token"})
-	issues, err := gl.ListIssuesByLabels(context.Background(), "myproject", tracker.ListByLabelsOpts{
-		Labels: []string{"backend", "ready"},
+	t.Run("the query carries the state and the labels", func(t *testing.T) {
+		var query url.Values
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Method != http.MethodGet || !strings.HasPrefix(r.URL.Path, "/api/v4/projects/myproject/issues") {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+			query = r.URL.Query()
+			_ = json.NewEncoder(w).Encode([]map[string]any{issue(1, "First issue"), issue(2, "Second issue")})
+		}))
+		t.Cleanup(srv.Close)
+
+		issues, err := newClient(t, tracker.TypeGitLab, srv.URL, false).ListIssuesByLabels(context.Background(), "myproject",
+			tracker.ListByLabelsOpts{Labels: []string{"backend", "ready"}})
+		require.NoError(t, err)
+		require.Len(t, issues, 2, "issues")
+		assert.Equal(t, []int{1, 2}, []int{issues[0].IID, issues[1].IID}, "issue IIDs")
+		assert.Equal(t, "opened", query.Get("state"), "query state")
+		assert.Equal(t, "backend,ready", query.Get("labels"), "query labels")
 	})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(issues) != 2 {
-		t.Fatalf("issues count: got %d, want 2", len(issues))
-	}
-	if issues[0].IID != 1 || issues[1].IID != 2 {
-		t.Errorf("issue IIDs: got %d, %d", issues[0].IID, issues[1].IID)
-	}
-	// Verify the query string contains the expected parameters.
-	if capturedQuery.Get("state") != "opened" {
-		t.Errorf("query state: got %q, want %q", capturedQuery.Get("state"), "opened")
-	}
-	if capturedQuery.Get("labels") != "backend,ready" {
-		t.Errorf("query labels: got %q, want %q", capturedQuery.Get("labels"), "backend,ready")
-	}
+
+	t.Run("MaxResults stops across the pages", func(t *testing.T) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if !strings.HasPrefix(r.URL.Path, "/api/v4/projects/myproject/issues") {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			switch r.URL.Query().Get("page") {
+			case "", "1":
+				w.Header().Set("X-Next-Page", "2")
+				_ = json.NewEncoder(w).Encode([]map[string]any{issue(1, "A"), issue(2, "B"), issue(3, "C")})
+			case "2":
+				_ = json.NewEncoder(w).Encode([]map[string]any{issue(4, "D"), issue(5, "E"), issue(6, "F")})
+			default:
+				_ = json.NewEncoder(w).Encode([]map[string]any{})
+			}
+		}))
+		t.Cleanup(srv.Close)
+
+		issues, err := newClient(t, tracker.TypeGitLab, srv.URL, false).ListIssuesByLabels(context.Background(), "myproject",
+			tracker.ListByLabelsOpts{MaxResults: 4})
+		require.NoError(t, err)
+		var iids []int
+		for _, is := range issues {
+			iids = append(iids, is.IID)
+		}
+		assert.Equal(t, []int{1, 2, 3, 4}, iids, "the first 4 issues, in order")
+	})
 }
 
-func TestGitLab_PaginatedListIssues_MaxResults(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !strings.HasPrefix(r.URL.Path, "/api/v4/projects/myproject/issues") {
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
-		page := r.URL.Query().Get("page")
-		w.Header().Set("Content-Type", "application/json")
+func TestJira_Discovery(t *testing.T) {
+	t.Run("statuses of every issue type, without duplicates", func(t *testing.T) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			switch r.URL.Path {
+			case "/rest/api/2/project/PROJ/statuses":
+				cat := func(k string) map[string]string { return map[string]string{"key": k} }
+				_ = json.NewEncoder(w).Encode([]map[string]any{
+					{"name": "Bug", "statuses": []map[string]any{
+						{"name": "To Do", "statusCategory": cat("new")},
+						{"name": "In Progress", "statusCategory": cat("indeterminate")},
+						{"name": "Done", "statusCategory": cat("done")},
+					}},
+					{"name": "Story", "statuses": []map[string]any{
+						{"name": "In Progress", "statusCategory": cat("indeterminate")},
+						{"name": "Code Review", "statusCategory": cat("indeterminate")},
+						{"name": "Done", "statusCategory": cat("done")},
+					}},
+				})
+			case "/rest/api/2/label":
+				_ = json.NewEncoder(w).Encode(map[string]any{"values": []string{}})
+			default:
+				w.WriteHeader(http.StatusNotFound)
+			}
+		}))
+		t.Cleanup(srv.Close)
 
-		switch page {
-		case "", "1":
-			w.Header().Set("X-Next-Page", "2")
-			json.NewEncoder(w).Encode([]map[string]interface{}{
-				{"iid": 1, "state": "opened", "title": "A", "labels": []string{}, "updated_at": "2026-07-01T10:00:00Z"},
-				{"iid": 2, "state": "opened", "title": "B", "labels": []string{}, "updated_at": "2026-07-01T10:00:00Z"},
-				{"iid": 3, "state": "opened", "title": "C", "labels": []string{}, "updated_at": "2026-07-01T10:00:00Z"},
-			})
-		case "2":
-			json.NewEncoder(w).Encode([]map[string]interface{}{
-				{"iid": 4, "state": "opened", "title": "D", "labels": []string{}, "updated_at": "2026-07-01T10:00:00Z"},
-				{"iid": 5, "state": "opened", "title": "E", "labels": []string{}, "updated_at": "2026-07-01T10:00:00Z"},
-				{"iid": 6, "state": "opened", "title": "F", "labels": []string{}, "updated_at": "2026-07-01T10:00:00Z"},
-			})
-		default:
-			json.NewEncoder(w).Encode([]map[string]interface{}{})
+		info, err := newClient(t, tracker.TypeJira, srv.URL, false).DiscoverProject(context.Background(), "PROJ")
+		require.NoError(t, err)
+		got := make(map[string]string, len(info.Statuses))
+		for _, s := range info.Statuses {
+			got[s.Name] = s.Category
 		}
-	}))
-	defer srv.Close()
-
-	gl, _ := tracker.New(tracker.Config{Type: tracker.TypeGitLab, BaseURL: srv.URL, Token: "test-token"})
-	issues, err := gl.ListIssuesByLabels(context.Background(), "myproject", tracker.ListByLabelsOpts{
-		MaxResults: 4,
+		assert.Len(t, info.Statuses, 4, "4 unique statuses")
+		assert.Equal(t, map[string]string{"To Do": "new", "In Progress": "indeterminate", "Done": "done", "Code Review": "indeterminate"}, got)
 	})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(issues) != 4 {
-		t.Fatalf("issues count: got %d, want 4", len(issues))
-	}
-	// Verify the first 4 issues are returned in order.
-	for i, iid := range []int{1, 2, 3, 4} {
-		if issues[i].IID != iid {
-			t.Errorf("issue[%d].IID: got %d, want %d", i, issues[i].IID, iid)
-		}
-	}
-}
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Jira DiscoverProject / ListIssuesByLabels integration tests
-// ─────────────────────────────────────────────────────────────────────────────
-
-func TestJira_DiscoverProject_Statuses(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-
-		switch r.URL.Path {
-		case "/rest/api/2/project/PROJ/statuses":
-			// Two issue types with overlapping statuses.
-			json.NewEncoder(w).Encode([]map[string]interface{}{
-				{
-					"name": "Bug",
-					"statuses": []map[string]interface{}{
-						{"name": "To Do", "statusCategory": map[string]string{"key": "new"}},
-						{"name": "In Progress", "statusCategory": map[string]string{"key": "indeterminate"}},
-						{"name": "Done", "statusCategory": map[string]string{"key": "done"}},
+	t.Run("issues by labels are searched with a JQL", func(t *testing.T) {
+		var jql string
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Method != http.MethodPost || r.URL.Path != "/rest/api/2/search" {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+			var req struct {
+				JQL string `json:"jql"`
+			}
+			_ = json.NewDecoder(r.Body).Decode(&req)
+			jql = req.JQL
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]any{"issues": []map[string]any{{
+				"id": "10001", "key": "PROJ-10",
+				"fields": map[string]any{
+					"summary": "Label-matched issue",
+					"status": map[string]any{
+						"name":           "In Progress",
+						"statusCategory": map[string]any{"key": "indeterminate"},
 					},
+					"labels":  []string{"backend", "sprint-42"},
+					"updated": "2026-07-01T10:00:00.000+0000",
 				},
-				{
-					"name": "Story",
-					"statuses": []map[string]interface{}{
-						{"name": "In Progress", "statusCategory": map[string]string{"key": "indeterminate"}}, // duplicate
-						{"name": "Code Review", "statusCategory": map[string]string{"key": "indeterminate"}},
-						{"name": "Done", "statusCategory": map[string]string{"key": "done"}}, // duplicate
-					},
-				},
-			})
-		case "/rest/api/2/label":
-			// Return empty labels (best-effort endpoint).
-			json.NewEncoder(w).Encode(map[string]interface{}{"values": []string{}})
-		default:
-			w.WriteHeader(http.StatusNotFound)
-		}
-	}))
-	defer srv.Close()
+			}}})
+		}))
+		t.Cleanup(srv.Close)
 
-	j, _ := tracker.New(tracker.Config{Type: tracker.TypeJira, BaseURL: srv.URL, Token: "test-token"})
-	info, err := j.DiscoverProject(context.Background(), "PROJ")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	// Expect 4 unique statuses: "To Do", "In Progress", "Done", "Code Review".
-	if len(info.Statuses) != 4 {
-		t.Fatalf("statuses count: got %d, want 4 (deduplicated)", len(info.Statuses))
-	}
-
-	// Build a lookup for assertion.
-	statusMap := make(map[string]string, len(info.Statuses))
-	for _, s := range info.Statuses {
-		statusMap[s.Name] = s.Category
-	}
-	wantStatuses := map[string]string{
-		"To Do":       "new",
-		"In Progress": "indeterminate",
-		"Done":        "done",
-		"Code Review": "indeterminate",
-	}
-	for name, wantCat := range wantStatuses {
-		gotCat, ok := statusMap[name]
-		if !ok {
-			t.Errorf("missing status %q", name)
-			continue
-		}
-		if gotCat != wantCat {
-			t.Errorf("status %q category: got %q, want %q", name, gotCat, wantCat)
-		}
-	}
-}
-
-func TestJira_ListIssuesByLabels(t *testing.T) {
-	var capturedJQL string
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost || r.URL.Path != "/rest/api/2/search" {
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
-		var reqBody struct {
-			JQL string `json:"jql"`
-		}
-		json.NewDecoder(r.Body).Decode(&reqBody)
-		capturedJQL = reqBody.JQL
-
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"issues": []map[string]interface{}{
-				{
-					"id":  "10001",
-					"key": "PROJ-10",
-					"fields": map[string]interface{}{
-						"summary": "Label-matched issue",
-						"status": map[string]interface{}{
-							"name":           "In Progress",
-							"statusCategory": map[string]interface{}{"key": "indeterminate"},
-						},
-						"labels":  []string{"backend", "sprint-42"},
-						"updated": "2026-07-01T10:00:00.000+0000",
-					},
-				},
-			},
-		})
-	}))
-	defer srv.Close()
-
-	j, _ := tracker.New(tracker.Config{Type: tracker.TypeJira, BaseURL: srv.URL, Token: "test-token"})
-	issues, err := j.ListIssuesByLabels(context.Background(), "PROJ", tracker.ListByLabelsOpts{
-		Labels: []string{"backend", "sprint-42"},
+		issues, err := newClient(t, tracker.TypeJira, srv.URL, false).ListIssuesByLabels(context.Background(), "PROJ",
+			tracker.ListByLabelsOpts{Labels: []string{"backend", "sprint-42"}})
+		require.NoError(t, err)
+		require.Len(t, issues, 1, "issues")
+		assert.Equal(t, "PROJ-10", issues[0].Key, "issue key")
+		assert.Equal(t, "open", issues[0].State, "issue state")
+		assert.Contains(t, jql, "labels in (", "JQL labels clause")
+		assert.Contains(t, jql, `"backend"`, "JQL first label")
+		assert.Contains(t, jql, `"sprint-42"`, "JQL second label")
 	})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(issues) != 1 {
-		t.Fatalf("issues count: got %d, want 1", len(issues))
-	}
-	if issues[0].Key != "PROJ-10" {
-		t.Errorf("issue key: got %q, want %q", issues[0].Key, "PROJ-10")
-	}
-	if issues[0].State != "open" {
-		t.Errorf("issue state: got %q, want %q", issues[0].State, "open")
-	}
-	// Verify the JQL contains the expected labels clause.
-	if !strings.Contains(capturedJQL, `labels in (`) {
-		t.Errorf("JQL missing labels clause: %q", capturedJQL)
-	}
-	if !strings.Contains(capturedJQL, `"backend"`) || !strings.Contains(capturedJQL, `"sprint-42"`) {
-		t.Errorf("JQL missing expected label values: %q", capturedJQL)
-	}
 }

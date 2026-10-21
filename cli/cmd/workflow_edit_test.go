@@ -16,6 +16,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/workflow"
@@ -38,19 +39,11 @@ func setupWorkflowCLI(t *testing.T, member string, others ...string) *workflowCL
 	t.Setenv("OH_HOME", home)
 	withoutV2(t, nil)
 	t.Setenv(workflowsDirEnv, filepath.Join(root, "cli", "internal", "services", "workflow", "testdata", "workflows"))
-	for k, v := range map[string]string{"GIT_AUTHOR_NAME": "T", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "T", "GIT_COMMITTER_EMAIL": "t@t"} {
-		t.Setenv(k, v)
-	}
 	// The repository root has the hub layout (agents/, skills/, permissions/).
 	require.NoError(t, os.Symlink(root, filepath.Join(home, "hub")))
 
 	env := &workflowCLIEnv{bare: t.TempDir(), clones: map[string]string{}}
-	run := func(dir string, args ...string) {
-		c := exec.Command("git", args...)
-		c.Dir = dir
-		out, err := c.CombinedOutput()
-		require.NoError(t, err, "git %v: %s", args, out)
-	}
+	run := func(dir string, args ...string) { gittest.Run(t, dir, args...) }
 	run(env.bare, "init", "--bare", "-b", "main")
 	seed := filepath.Join(t.TempDir(), "seed")
 	run(t.TempDir(), "clone", env.bare, seed)

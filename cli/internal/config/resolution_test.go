@@ -1,103 +1,64 @@
-package config
+package config_test
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+
+	"github.com/datichb/openhub/cli/internal/config"
 )
 
-func TestResolveBool_TeamEnforced(t *testing.T) {
-	teamVal := true
+func TestResolveBool(t *testing.T) {
+	b := func(v bool) *bool { return &v }
+	tests := []struct {
+		name                      string
+		team, enforced, hub, proj *bool
+		teamID                    string
+		def                       bool
+		want                      bool
+		wantSource                config.ConfigSource
+		wantLocked                bool
+	}{
+		{"an enforced team value wins over everything", b(true), b(true), b(false), b(false), "acme", false, true, config.SourceTeamEnforced, true},
+		{"the project overrides the hub and the team recommendation", b(true), nil, b(true), b(false), "acme", true, false, config.SourceProject, false},
+		{"the hub wins over the team recommendation", b(true), nil, b(false), nil, "acme", true, false, config.SourceHub, false},
+		{"the team recommendation is the fallback", b(true), nil, nil, nil, "acme", false, true, config.SourceTeamRecommended, false},
+		{"the default when nothing is set", nil, nil, nil, nil, "", true, true, config.SourceDefault, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := config.ResolveBool(tt.team, tt.enforced, tt.hub, tt.proj, tt.teamID, tt.def)
+			assert.Equal(t, tt.want, got.Value, "value")
+			assert.Equal(t, tt.wantSource, got.Source, "source")
+			assert.Equal(t, tt.wantLocked, got.Locked, "locked")
+			if tt.wantSource == config.SourceTeamEnforced {
+				assert.Equal(t, tt.teamID, got.TeamID, "team id")
+			}
+		})
+	}
+}
+
+func TestResolveString(t *testing.T) {
 	enforced := true
-	hubVal := false
-	projectVal := false
-
-	result := ResolveBool(&teamVal, &enforced, &hubVal, &projectVal, "acme", false)
-	if result.Value != true {
-		t.Error("enforced team value should win")
+	tests := []struct {
+		name           string
+		team           string
+		enforced       *bool
+		hub, proj, def string
+		want           string
+		wantSource     config.ConfigSource
+		wantLocked     bool
+	}{
+		{"an enforced team value wins", "https://gitlab.team.com", &enforced, "https://gitlab.mine.com", "", "", "https://gitlab.team.com", config.SourceTeamEnforced, true},
+		{"the project overrides the others", "team-url", nil, "hub-url", "project-url", "default", "project-url", config.SourceProject, false},
+		{"the team recommendation comes before the default", "team-model", nil, "", "", "default-model", "team-model", config.SourceTeamRecommended, false},
 	}
-	if result.Source != SourceTeamEnforced {
-		t.Errorf("expected source team:enforced, got %s", result.Source)
-	}
-	if !result.Locked {
-		t.Error("enforced values should be locked")
-	}
-	if result.TeamID != "acme" {
-		t.Errorf("expected teamID 'acme', got %q", result.TeamID)
-	}
-}
-
-func TestResolveBool_ProjectOverride(t *testing.T) {
-	teamVal := true
-	hubVal := true
-	projectVal := false
-
-	result := ResolveBool(&teamVal, nil, &hubVal, &projectVal, "acme", true)
-	if result.Value != false {
-		t.Error("project override should win over hub and team recommended")
-	}
-	if result.Source != SourceProject {
-		t.Errorf("expected source project, got %s", result.Source)
-	}
-}
-
-func TestResolveBool_HubValue(t *testing.T) {
-	teamVal := true
-	hubVal := false
-
-	result := ResolveBool(&teamVal, nil, &hubVal, nil, "acme", true)
-	if result.Value != false {
-		t.Error("hub value should win over team recommended")
-	}
-	if result.Source != SourceHub {
-		t.Errorf("expected source hub, got %s", result.Source)
-	}
-}
-
-func TestResolveBool_TeamRecommended(t *testing.T) {
-	teamVal := true
-
-	result := ResolveBool(&teamVal, nil, nil, nil, "acme", false)
-	if result.Value != true {
-		t.Error("team recommended should be used as fallback")
-	}
-	if result.Source != SourceTeamRecommended {
-		t.Errorf("expected source team:recommended, got %s", result.Source)
-	}
-	if result.Locked {
-		t.Error("recommended values should not be locked")
-	}
-}
-
-func TestResolveBool_Default(t *testing.T) {
-	result := ResolveBool(nil, nil, nil, nil, "", true)
-	if result.Value != true {
-		t.Error("default value should be used when no other source")
-	}
-	if result.Source != SourceDefault {
-		t.Errorf("expected source default, got %s", result.Source)
-	}
-}
-
-func TestResolveString_TeamEnforced(t *testing.T) {
-	enforced := true
-	result := ResolveString("https://gitlab.team.com", &enforced, "https://gitlab.mine.com", "", "acme", "")
-	if result.Value != "https://gitlab.team.com" {
-		t.Errorf("enforced should win, got %s", result.Value)
-	}
-	if !result.Locked {
-		t.Error("expected locked")
-	}
-}
-
-func TestResolveString_ProjectOverride(t *testing.T) {
-	result := ResolveString("team-url", nil, "hub-url", "project-url", "acme", "default")
-	if result.Value != "project-url" || result.Source != SourceProject {
-		t.Errorf("expected project-url from project, got %s from %s", result.Value, result.Source)
-	}
-}
-
-func TestResolveString_CascadeFallthrough(t *testing.T) {
-	result := ResolveString("team-model", nil, "", "", "acme", "default-model")
-	if result.Value != "team-model" || result.Source != SourceTeamRecommended {
-		t.Errorf("expected team-model from team:recommended, got %s from %s", result.Value, result.Source)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := config.ResolveString(tt.team, tt.enforced, tt.hub, tt.proj, "acme", tt.def)
+			assert.Equal(t, tt.want, got.Value, "value")
+			assert.Equal(t, tt.wantSource, got.Source, "source")
+			assert.Equal(t, tt.wantLocked, got.Locked, "locked")
+		})
 	}
 }

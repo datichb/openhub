@@ -25,10 +25,8 @@ func TestBrickNames(t *testing.T) {
 	assert.Error(t, err)
 	_, err = PublishedBrickRel(BrickKindAgent, "hotfixer", "..")
 	assert.ErrorIs(t, err, ErrInvalidBrickID)
-}
 
-// A lock entry only points at the published file of its brick.
-func TestBrickLockPath(t *testing.T) {
+	// A lock entry only points at the published file of its brick.
 	assert.NoError(t, BrickLockEntry{Path: "catalog/agents/team/hotfixer.md"}.CheckPath(BrickKindAgent, "hotfixer"))
 	assert.NoError(t, BrickLockEntry{Path: "catalog/skills/team/x.md"}.CheckPath(BrickKindSkill, "team/x"))
 	for _, p := range []string{"catalog/agents/team/other.md", "catalog/agents/../../etc/passwd", "/etc/passwd", "catalog/agents/team/../x/hotfixer.md", "workflows.lock"} {

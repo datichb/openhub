@@ -5,17 +5,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/datichb/openhub/cli/internal/platform"
 )
-
-// --- mockSecrets ---
-
-type mockSecrets struct {
-	store map[string]string
-}
-
-func (m *mockSecrets) Get(_ context.Context, key string) (string, error) {
-	return m.store[key], nil
-}
 
 // --- ResolveProvider tests ---
 
@@ -76,78 +68,65 @@ func TestResolveProviderConfig(t *testing.T) {
 
 // --- ResolveCredentials tests ---
 
-func TestResolveCredentials_Bedrock(t *testing.T) {
-	t.Run("project-scoped token takes precedence", func(t *testing.T) {
-		secrets := &mockSecrets{store: map[string]string{
+// The keys read are the canonical ones (KeychainKey), literal here so a change
+// of format is a visible decision.
+func TestResolveCredentials(t *testing.T) {
+	hub := &Config{AWSProfile: "hub-profile", AWSRegion: "eu-west-1"}
+	tests := []struct {
+		name      string
+		secrets   mapSecrets
+		prov      Name
+		projectID string
+		cfg       *Config
+		want      platform.Credentials
+	}{
+		{"bedrock: the token of the project wins", mapSecrets{
 			"openhub.provider.bedrock.token.proj-1": "proj-token",
 			"openhub.provider.bedrock.token":        "global-token",
-		}}
-		cfg := &Config{AWSProfile: "my-profile", AWSRegion: "eu-west-1"}
-		creds := ResolveCredentials(context.Background(), secrets, Bedrock, "proj-1", cfg)
-		assert.Equal(t, "proj-token", creds.BearerToken)
-		assert.Equal(t, "my-profile", creds.AWSProfile)
-		assert.Equal(t, "eu-west-1", creds.AWSRegion)
-	})
-
-	t.Run("falls back to global token", func(t *testing.T) {
-		secrets := &mockSecrets{store: map[string]string{
+		}, Bedrock, "proj-1", hub, platform.Credentials{BearerToken: "proj-token", AWSProfile: "hub-profile", AWSRegion: "eu-west-1"}},
+		{"bedrock: falls back to the global token", mapSecrets{
 			"openhub.provider.bedrock.token": "global-token",
-		}}
-		cfg := &Config{AWSProfile: "default", AWSRegion: "us-east-1"}
-		creds := ResolveCredentials(context.Background(), secrets, Bedrock, "proj-1", cfg)
-		assert.Equal(t, "global-token", creds.BearerToken)
-	})
-
-	t.Run("empty token when nothing in keychain", func(t *testing.T) {
-		secrets := &mockSecrets{store: map[string]string{}}
-		creds := ResolveCredentials(context.Background(), secrets, Bedrock, "", nil)
-		assert.Empty(t, creds.BearerToken)
-	})
-
-	t.Run("nil config does not panic", func(t *testing.T) {
-		secrets := &mockSecrets{store: map[string]string{}}
-		creds := ResolveCredentials(context.Background(), secrets, Bedrock, "", nil)
-		assert.Empty(t, creds.AWSProfile)
-		assert.Empty(t, creds.AWSRegion)
-	})
-}
-
-func TestResolveCredentials_Anthropic(t *testing.T) {
-	t.Run("project-scoped key takes precedence", func(t *testing.T) {
-		secrets := &mockSecrets{store: map[string]string{
+		}, Bedrock, "proj-1", nil, platform.Credentials{BearerToken: "global-token"}},
+		{"bedrock: the AWS profile and region without a token", mapSecrets{}, Bedrock, "p", hub,
+			platform.Credentials{AWSProfile: "hub-profile", AWSRegion: "eu-west-1"}},
+		{"bedrock: nothing stored, no config", mapSecrets{}, Bedrock, "", nil, platform.Credentials{}},
+		{"anthropic: the key of the project wins", mapSecrets{
 			"openhub.provider.anthropic.token.proj-2": "proj-key",
 			"openhub.provider.anthropic.token":        "global-key",
-		}}
-		creds := ResolveCredentials(context.Background(), secrets, Anthropic, "proj-2", nil)
-		assert.Equal(t, "proj-key", creds.APIKey)
-	})
-
-	t.Run("falls back to global key", func(t *testing.T) {
-		secrets := &mockSecrets{store: map[string]string{
+		}, Anthropic, "proj-2", nil, platform.Credentials{APIKey: "proj-key"}},
+		{"anthropic: falls back to the global key", mapSecrets{
 			"openhub.provider.anthropic.token": "global-key",
-		}}
-		creds := ResolveCredentials(context.Background(), secrets, Anthropic, "proj-2", nil)
-		assert.Equal(t, "global-key", creds.APIKey)
+		}, Anthropic, "proj-2", nil, platform.Credentials{APIKey: "global-key"}},
+		{"openrouter: the key of the project wins", mapSecrets{
+			"openhub.provider.openrouter.token.proj-3": "proj-key",
+			"openhub.provider.openrouter.token":        "global-key",
+		}, OpenRouter, "proj-3", nil, platform.Credentials{APIKey: "proj-key"}},
+		{"openrouter: falls back to the global key", mapSecrets{
+			"openhub.provider.openrouter.token": "global-key",
+		}, OpenRouter, "proj-3", nil, platform.Credentials{APIKey: "global-key"}},
+		{"an unknown provider reads nothing", mapSecrets{
+			"openhub.provider.github-copilot.token": "ghu",
+			"openhub.provider.unknown.token":        "x",
+		}, Name("unknown"), "p", hub, platform.Credentials{}},
+		{"github-copilot reads nothing", mapSecrets{
+			"openhub.provider.github-copilot.token": "ghu",
+		}, GithubCopilot, "", nil, platform.Credentials{}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ResolveCredentials(context.Background(), tt.secrets, tt.prov, tt.projectID, tt.cfg)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+
+	t.Run("no secret store", func(t *testing.T) {
+		assert.Equal(t, platform.Credentials{}, ResolveCredentials(context.Background(), nil, Bedrock, "proj-1", hub))
 	})
-}
 
-func TestResolveCredentials_OpenRouter(t *testing.T) {
-	secrets := &mockSecrets{store: map[string]string{
-		"openhub.provider.openrouter.token": "or-key",
-	}}
-	creds := ResolveCredentials(context.Background(), secrets, OpenRouter, "", nil)
-	assert.Equal(t, "or-key", creds.APIKey)
-}
-
-func TestResolveCredentials_NilSecrets(t *testing.T) {
-	creds := ResolveCredentials(context.Background(), nil, Bedrock, "proj-1", nil)
-	assert.Empty(t, creds.BearerToken)
-	assert.Empty(t, creds.APIKey)
-}
-
-func TestResolveCredentials_UnknownProvider(t *testing.T) {
-	secrets := &mockSecrets{store: map[string]string{}}
-	creds := ResolveCredentials(context.Background(), secrets, GithubCopilot, "", nil)
-	assert.Empty(t, creds.BearerToken)
-	assert.Empty(t, creds.APIKey)
+	t.Run("the settings of the project override the hub ones", func(t *testing.T) {
+		merged := ResolveProviderConfig(&ProviderConfig{AWSProfile: "project-profile", AWSRegion: "ap-southeast-1"}, *hub)
+		got := ResolveCredentials(context.Background(), mapSecrets{}, Bedrock, "p1", &merged)
+		assert.Equal(t, "project-profile", got.AWSProfile, "profile of the project")
+		assert.Equal(t, "ap-southeast-1", got.AWSRegion, "region of the project")
+	})
 }

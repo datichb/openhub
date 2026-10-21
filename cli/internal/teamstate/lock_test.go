@@ -17,6 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/filelock"
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 )
 
 func countEventLines(t *testing.T, repo *Repo, project string) int {
@@ -37,17 +38,16 @@ func TestConcurrentWritersSameClone(t *testing.T) {
 	if testing.Short() {
 		t.Skip("git")
 	}
-	gitIdentity(t)
 	dir := filepath.Join(t.TempDir(), "solo")
 	require.NoError(t, os.MkdirAll(dir, 0o755))
-	gitCmd(t, dir, "init", "-q")
+	gittest.Run(t, dir, "init", "-q")
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "README.md"), []byte("init"), 0o644))
-	gitCmd(t, dir, "add", ".")
-	gitCmd(t, dir, "commit", "-qm", "init")
+	gittest.Run(t, dir, "add", ".")
+	gittest.Run(t, dir, "commit", "-qm", "init")
 	repo := NewRepo("", dir) // no remote: commits only (the push path is covered across processes)
 	ctx := context.Background()
 	twin := NewRepo("", dir)
-	base, _ := strconv.Atoi(gitOut(t, repo.Path(), "rev-list", "--count", "HEAD"))
+	base, _ := strconv.Atoi(gittest.Run(t, repo.Path(), "rev-list", "--count", "HEAD"))
 
 	const n = 50
 	var wg sync.WaitGroup
@@ -69,9 +69,9 @@ func TestConcurrentWritersSameClone(t *testing.T) {
 		require.NoError(t, err)
 	}
 	assert.Equal(t, n, countEventLines(t, repo, "p"))
-	commits, _ := strconv.Atoi(gitOut(t, repo.Path(), "rev-list", "--count", "HEAD"))
+	commits, _ := strconv.Atoi(gittest.Run(t, repo.Path(), "rev-list", "--count", "HEAD"))
 	assert.Equal(t, base+n, commits)
-	assert.Empty(t, gitOut(t, repo.Path(), "status", "--porcelain"))
+	assert.Empty(t, gittest.Run(t, repo.Path(), "status", "--porcelain"))
 }
 
 // The child process of TestConcurrentWritersProcesses.
@@ -93,8 +93,7 @@ func TestHelperTeamStateWriter(t *testing.T) {
 // N15: the same race across processes (CLI, TUI, daemon on one clone).
 func TestConcurrentWritersProcesses(t *testing.T) {
 	repo, bare := setupGitTestRepo(t)
-	gitIdentity(t)
-	base, _ := strconv.Atoi(gitOut(t, repo.Path(), "rev-list", "--count", "HEAD"))
+	base, _ := strconv.Atoi(gittest.Run(t, repo.Path(), "rev-list", "--count", "HEAD"))
 	const procs = 4
 	cmds := make([]*exec.Cmd, procs)
 	outs := make([]*strings.Builder, procs)
@@ -110,10 +109,10 @@ func TestConcurrentWritersProcesses(t *testing.T) {
 		require.NoError(t, c.Wait(), "process %d: %s", i, outs[i].String())
 	}
 	assert.Equal(t, procs*5, countEventLines(t, repo, "p"))
-	commits, _ := strconv.Atoi(gitOut(t, repo.Path(), "rev-list", "--count", "HEAD"))
+	commits, _ := strconv.Atoi(gittest.Run(t, repo.Path(), "rev-list", "--count", "HEAD"))
 	assert.Equal(t, base+procs*5, commits)
-	assert.Empty(t, gitOut(t, repo.Path(), "status", "--porcelain"))
-	assert.Equal(t, gitOut(t, repo.Path(), "rev-parse", "HEAD"), gitOut(t, bare, "rev-parse", "HEAD"), "everything pushed")
+	assert.Empty(t, gittest.Run(t, repo.Path(), "status", "--porcelain"))
+	assert.Equal(t, gittest.Run(t, repo.Path(), "rev-parse", "HEAD"), gittest.Run(t, bare, "rev-parse", "HEAD"), "everything pushed")
 }
 
 // N15: a busy clone gives ErrBusy naming the holder; WithTryLock does not
@@ -175,7 +174,6 @@ func TestIndexLock(t *testing.T) {
 // transaction: changes of the clone that are not ours are kept.
 func TestTransactKeepsOtherChanges(t *testing.T) {
 	repo, bare := setupGitTestRepo(t)
-	gitIdentity(t)
 	ctx := context.Background()
 	other := NewRepo(bare, filepath.Join(t.TempDir(), "other"))
 	require.NoError(t, other.Clone(ctx))

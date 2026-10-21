@@ -12,14 +12,16 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/config/configtest"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 	"github.com/datichb/openhub/cli/internal/provider"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
 func clearAWSEnv(t *testing.T) {
 	t.Helper()
-	t.Setenv("HOME", t.TempDir())
+	configtest.Home(t)
 	for _, k := range []string{"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_BEARER_TOKEN_BEDROCK", "AWS_PROFILE", "OH_DOCTOR_OFFLINE"} {
 		t.Setenv(k, "")
 	}
@@ -28,7 +30,7 @@ func clearAWSEnv(t *testing.T) {
 // auth_mode = bearer without a stored key refuses the launch clearly (the
 // TUI shows « Configure the provider »), and proposes the shell key.
 func TestLaunchBearerModeWithoutStoredKey(t *testing.T) {
-	useLocale(t, "en")
+	i18ntest.Set(t, "en")
 	clearAWSEnv(t)
 	ctx := context.Background()
 	a := newMockApp(nil, &config.ProviderConfigs{Bedrock: config.ProviderConfig{AuthMode: "bearer", AWSProfile: "dev"}})
@@ -52,7 +54,7 @@ func TestLaunchBearerModeWithoutStoredKey(t *testing.T) {
 // The shell API key is never reported as a usable credential: oh does not
 // pass it to the tool.
 func TestDoctorDoesNotReportTheShellKeyAsSigV4(t *testing.T) {
-	useLocale(t, "en")
+	i18ntest.Set(t, "en")
 	clearAWSEnv(t)
 	t.Setenv("AWS_BEARER_TOKEN_BEDROCK", "ABSK-shell")
 	a := newMockApp(nil, nil)
@@ -72,7 +74,7 @@ func TestDoctorDoesNotReportTheShellKeyAsSigV4(t *testing.T) {
 
 // auth_mode = profile ignores a stored key.
 func TestProfileModeIgnoresStoredKey(t *testing.T) {
-	useLocale(t, "en")
+	i18ntest.Set(t, "en")
 	clearAWSEnv(t)
 	a := newMockApp(map[string]string{provider.KeychainKey(provider.Bedrock, ""): "stored"},
 		&config.ProviderConfigs{Bedrock: config.ProviderConfig{AuthMode: "profile", AWSProfile: "dev"}})
@@ -84,7 +86,7 @@ func TestProfileModeIgnoresStoredKey(t *testing.T) {
 
 // oh doctor validates a stored Bedrock key with AWS (fake endpoint here).
 func TestDoctorValidatesBedrockKey(t *testing.T) {
-	useLocale(t, "en")
+	i18ntest.Set(t, "en")
 	clearAWSEnv(t)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Authorization") != "Bearer good" {
@@ -136,7 +138,7 @@ func TestDoctorValidatesBedrockKey(t *testing.T) {
 // The shell key is imported under the key a launch uses (here the stale
 // project key), with auth_mode = bearer.
 func TestImportBedrockEnvToken(t *testing.T) {
-	useLocale(t, "en")
+	i18ntest.Set(t, "en")
 	clearAWSEnv(t)
 	t.Setenv("OH_HOME", t.TempDir())
 	ctx := context.Background()

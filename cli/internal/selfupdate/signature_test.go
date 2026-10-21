@@ -90,10 +90,28 @@ func TestVerifySignatureRunsCosign(t *testing.T) {
 }
 
 func TestParseChecksums(t *testing.T) {
-	body := []byte("abc123  oh_darwin_arm64.tar.gz\ndef456 oh_linux_amd64.tar.gz\n")
-	h, err := parseChecksums(body, "oh_linux_amd64.tar.gz")
-	require.NoError(t, err)
-	assert.Equal(t, "def456", h)
-	_, err = parseChecksums(body, "missing")
-	assert.Error(t, err)
+	body := []byte("c826d79e598b90b029ce430704e46b638fc24cff1cb512f3058bba2fc05a7c09  openhub_darwin_amd64.tar.gz\n" +
+		"1f68e1fe441851b2e2451d464bb87972290d80ab2ee84189bd4d399b3d68279e  openhub_darwin_arm64.tar.gz\n" +
+		"8b594c9bf8177b67f22729290a45023d5395b3b92f3f659d46f31fb6342c1c31 openhub_linux_amd64.tar.gz\n")
+	tests := []struct {
+		name  string
+		asset string
+		want  string // empty: no checksum for this asset
+	}{
+		{"darwin amd64", "openhub_darwin_amd64.tar.gz", "c826d79e598b90b029ce430704e46b638fc24cff1cb512f3058bba2fc05a7c09"},
+		{"darwin arm64", "openhub_darwin_arm64.tar.gz", "1f68e1fe441851b2e2451d464bb87972290d80ab2ee84189bd4d399b3d68279e"},
+		{"one space is a separator too", "openhub_linux_amd64.tar.gz", "8b594c9bf8177b67f22729290a45023d5395b3b92f3f659d46f31fb6342c1c31"},
+		{"asset not listed", "openhub_windows_amd64.tar.gz", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := parseChecksums(body, tt.asset)
+			if tt.want == "" {
+				assert.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
 }

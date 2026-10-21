@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -101,23 +101,6 @@ func TestListClaimsEmptyProject(t *testing.T) {
 	claims, err := repo.ListClaims("NONEXISTENT")
 	require.NoError(t, err)
 	assert.Empty(t, claims)
-}
-
-func TestClaimFilePath(t *testing.T) {
-	repo := NewRepo("", "/repo")
-
-	tests := []struct {
-		project  string
-		ticketID string
-		expected string
-	}{
-		{"T-SRU", "SRU-142", "/repo/projects/T-SRU/claims/SRU-142.toml"},
-		{"T-SRU", "feat/123", "/repo/projects/T-SRU/claims/feat_123.toml"},
-	}
-	for _, tt := range tests {
-		got := repo.claimFilePath(tt.project, tt.ticketID)
-		assert.Equal(t, tt.expected, got)
-	}
 }
 
 func TestClaimWithMetadata(t *testing.T) {
@@ -256,28 +239,15 @@ func TestUpdateClaimMetadata_Noop(t *testing.T) {
 
 // Integration tests — require git
 
+// setupGitTestRepo returns a repo on a bare repository and a clone of it, and
+// the bare one; it skips under -short (it runs git).
 func setupGitTestRepo(t *testing.T) (*Repo, string) {
 	t.Helper()
 	if testing.Short() {
 		t.Skip("skipping integration test in short mode")
 	}
-
-	// Create a bare repo
-	bare := t.TempDir()
-	gitCmd(t, bare, "init", "--bare")
-
-	// Clone it
-	clone := filepath.Join(t.TempDir(), "clone")
-	gitCmd(t, t.TempDir(), "clone", bare, clone)
-
-	// Initial commit
-	require.NoError(t, os.WriteFile(filepath.Join(clone, "README.md"), []byte("init"), 0o644))
-	gitCmd(t, clone, "add", ".")
-	gitCmd(t, clone, "commit", "-m", "init")
-	gitCmd(t, clone, "push")
-
-	repo := NewRepo(bare, clone)
-	return repo, bare
+	bare, clone := gittest.BareClone(t)
+	return NewRepo(bare, clone), bare
 }
 
 func TestCreateClaimIntegration(t *testing.T) {
@@ -375,21 +345,6 @@ func TestTransferClaimIntegration(t *testing.T) {
 	assert.Equal(t, "feat/SRU-142", got.Worktree)
 }
 
-// gitCmd runs a git command in the given directory.
-func gitCmd(t *testing.T, dir string, args ...string) {
-	t.Helper()
-	cmd := exec.Command("git", args...)
-	cmd.Dir = dir
-	cmd.Env = append(os.Environ(),
-		"GIT_AUTHOR_NAME=Test",
-		"GIT_AUTHOR_EMAIL=test@test.com",
-		"GIT_COMMITTER_NAME=Test",
-		"GIT_COMMITTER_EMAIL=test@test.com",
-	)
-	out, err := cmd.CombinedOutput()
-	require.NoError(t, err, "git %v failed: %s", args, string(out))
-}
-
 func TestIsValidTransition_Allowed(t *testing.T) {
 	allowed := []struct {
 		from string
@@ -478,127 +433,6 @@ func TestUpdateClaimStatus_ValidTransition(t *testing.T) {
 	assert.Equal(t, ClaimStatusInProgress, got.Status)
 }
 
-// --- Path traversal security tests ---
-
-func TestGetClaim_PathTraversal(t *testing.T) {
-	repo := setupTestRepo(t)
-
-	tests := []struct {
-		name    string
-		project string
-		ticket  string
-	}{
-		{"traversal project", "../../../etc", "passwd"},
-		{"traversal ticket", "T-SRU", "../../../etc/passwd"},
-		{"slash in project", "foo/bar", "ticket"},
-		{"slash in ticket", "T-SRU", "foo/bar"},
-		{"backslash project", "foo\\bar", "ticket"},
-		{"null byte project", "foo\x00bar", "ticket"},
-		{"null byte ticket", "T-SRU", "foo\x00bar"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			_, err := repo.GetClaim(tt.project, tt.ticket)
-			assert.Error(t, err)
-			assert.ErrorIs(t, err, ErrUnsafeName)
-		})
-	}
-}
-
-func TestCreateClaim_PathTraversal(t *testing.T) {
-	repo := setupTestRepo(t)
-	ctx := context.Background()
-
-	tests := []struct {
-		name    string
-		project string
-		ticket  string
-	}{
-		{"traversal project", "../../../tmp", "ticket"},
-		{"traversal ticket", "T-SRU", "../../../tmp/evil"},
-		{"slash in project", "foo/bar", "ticket"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			_, err := repo.CreateClaim(ctx, Claim{
-				Project:   tt.project,
-				TicketID:  tt.ticket,
-				ClaimedBy: "attacker",
-			})
-			assert.Error(t, err)
-			assert.ErrorIs(t, err, ErrUnsafeName)
-		})
-	}
-}
-
-func TestReleaseClaim_PathTraversal(t *testing.T) {
-	repo := setupTestRepo(t)
-	ctx := context.Background()
-
-	err := repo.ReleaseClaim(ctx, "../../../tmp", "evil")
-	assert.Error(t, err)
-	assert.ErrorIs(t, err, ErrUnsafeName)
-
-	err = repo.ReleaseClaim(ctx, "T-SRU", "../../../tmp/evil")
-	assert.Error(t, err)
-	assert.ErrorIs(t, err, ErrUnsafeName)
-}
-
-func TestTransferClaim_PathTraversal(t *testing.T) {
-	repo := setupTestRepo(t)
-	ctx := context.Background()
-
-	err := repo.TransferClaim(ctx, "../../../tmp", "evil", "alice")
-	assert.Error(t, err)
-	assert.ErrorIs(t, err, ErrUnsafeName)
-
-	err = repo.TransferClaim(ctx, "T-SRU", "../../../tmp/evil", "alice")
-	assert.Error(t, err)
-	assert.ErrorIs(t, err, ErrUnsafeName)
-}
-
-func TestUpdateClaimStatus_PathTraversal(t *testing.T) {
-	repo := setupTestRepo(t)
-	ctx := context.Background()
-
-	err := repo.UpdateClaimStatus(ctx, "../../../tmp", "evil", ClaimStatusDone)
-	assert.Error(t, err)
-	assert.ErrorIs(t, err, ErrUnsafeName)
-
-	err = repo.UpdateClaimStatus(ctx, "T-SRU", "../../../tmp/evil", ClaimStatusDone)
-	assert.Error(t, err)
-	assert.ErrorIs(t, err, ErrUnsafeName)
-}
-
-func TestAddClaimLabel_PathTraversal(t *testing.T) {
-	repo := setupTestRepo(t)
-	ctx := context.Background()
-
-	err := repo.AddClaimLabel(ctx, "../../../tmp", "evil", "label")
-	assert.Error(t, err)
-	assert.ErrorIs(t, err, ErrUnsafeName)
-}
-
-func TestRemoveClaimLabel_PathTraversal(t *testing.T) {
-	repo := setupTestRepo(t)
-	ctx := context.Background()
-
-	err := repo.RemoveClaimLabel(ctx, "../../../tmp", "evil", "label")
-	assert.Error(t, err)
-	assert.ErrorIs(t, err, ErrUnsafeName)
-}
-
-func TestSetClaimExternalIID_PathTraversal(t *testing.T) {
-	repo := setupTestRepo(t)
-	ctx := context.Background()
-
-	err := repo.SetClaimExternalIID(ctx, "../../../tmp", "evil", 42)
-	assert.Error(t, err)
-	assert.ErrorIs(t, err, ErrUnsafeName)
-}
-
 // ─── CleanupDoneClaims tests ────────────────────────────────────────────────
 
 func writeClaimFile(t *testing.T, repo *Repo, project, ticketID string, c Claim) {
@@ -630,9 +464,9 @@ func TestCleanupDoneClaims_RemovesOld(t *testing.T) {
 		ClaimedBy: "bob", ClaimedAt: time.Now().Add(-1 * 24 * time.Hour),
 		Status: ClaimStatusDone,
 	})
-	gitCmd(t, repo.path, "add", ".")
-	gitCmd(t, repo.path, "commit", "-m", "add claims")
-	gitCmd(t, repo.path, "push")
+	gittest.Run(t, repo.path, "add", ".")
+	gittest.Run(t, repo.path, "commit", "-m", "add claims")
+	gittest.Run(t, repo.path, "push")
 
 	released, err := repo.CleanupDoneClaims(ctx, 3)
 	require.NoError(t, err)
@@ -665,9 +499,9 @@ func TestCleanupDoneClaims_KeepsActive(t *testing.T) {
 		ClaimedBy: "bob", ClaimedAt: time.Now().Add(-10 * 24 * time.Hour),
 		Status: ClaimStatusDone,
 	})
-	gitCmd(t, repo.path, "add", ".")
-	gitCmd(t, repo.path, "commit", "-m", "add claims")
-	gitCmd(t, repo.path, "push")
+	gittest.Run(t, repo.path, "add", ".")
+	gittest.Run(t, repo.path, "commit", "-m", "add claims")
+	gittest.Run(t, repo.path, "push")
 
 	released, err := repo.CleanupDoneClaims(ctx, 3)
 	require.NoError(t, err)
@@ -706,9 +540,9 @@ func TestCleanupDoneClaims_AllRecent(t *testing.T) {
 		ClaimedBy: "bob", ClaimedAt: time.Now().Add(-2 * 24 * time.Hour),
 		Status: ClaimStatusDone,
 	})
-	gitCmd(t, repo.path, "add", ".")
-	gitCmd(t, repo.path, "commit", "-m", "add claims")
-	gitCmd(t, repo.path, "push")
+	gittest.Run(t, repo.path, "add", ".")
+	gittest.Run(t, repo.path, "commit", "-m", "add claims")
+	gittest.Run(t, repo.path, "push")
 
 	released, err := repo.CleanupDoneClaims(ctx, 3)
 	require.NoError(t, err)

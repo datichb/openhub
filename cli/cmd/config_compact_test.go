@@ -4,11 +4,12 @@ import (
 	"testing"
 
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 )
 
 // N20: cli.compact accepts auto (stored empty), always and never.
 func TestConfigSetCompact(t *testing.T) {
-	useLocale(t, "en")
+	i18ntest.Set(t, "en")
 	f, ok := lookupConfigField("cli.compact")
 	if !ok {
 		t.Fatal("cli.compact: unknown key")

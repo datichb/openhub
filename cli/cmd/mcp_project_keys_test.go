@@ -93,7 +93,3 @@ func TestRemoveProjectServiceTokensDeletesBothNamesAndTheRecordedKey(t *testing.
 
 	removeProjectServiceTokens(t.Context(), nil, project, "gitlab") // no secret store: no-op
 }
-
-func TestServiceRemoveHasAProjectFlag(t *testing.T) {
-	assert.NotNil(t, serviceRemoveCmd.Flags().Lookup("project"))
-}

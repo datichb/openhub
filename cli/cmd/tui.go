@@ -74,7 +74,7 @@ func runTUIWithProject(projectName string) error {
 		_, _ = a.Secrets.Get(context.Background(), "_probe_")
 	}
 
-	builtViews := buildViews(a, notifStore)
+	builtViews := buildViews(a)
 
 	cfg := shell.Config{
 		ProjectName:   a.Config.Name,

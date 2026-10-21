@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 )
@@ -17,136 +19,104 @@ var hubTeam = config.TeamConfig{
 	MemberID:  "alice",
 }
 
-func TestResolveTeamConfig_NilInheritsHub(t *testing.T) {
-	got := config.ResolveTeamConfig(hubTeam, nil)
-	if !got.Enabled || got.MemberID != "alice" || got.StateRepo != hubTeam.StateRepo {
-		t.Fatalf("nil project should inherit hub, got %+v", got)
+func TestResolveTeamConfig(t *testing.T) {
+	custom := func(repo, member, path string) *domain.ProjectTeamConfig {
+		return &domain.ProjectTeamConfig{Mode: domain.ProjectTeamModeCustom, StateRepo: repo, MemberID: member, StatePath: path}
+	}
+	tests := []struct {
+		name        string
+		proj        *domain.ProjectTeamConfig
+		wantEnabled bool
+		wantRepo    string
+		wantMember  string
+		wantPath    string // "" : not checked; "~name": contains name
+	}{
+		{"no project config inherits the hub", nil, true, hubTeam.StateRepo, "alice", hubTeam.StatePath},
+		{"inherit mode mirrors the hub", &domain.ProjectTeamConfig{Mode: domain.ProjectTeamModeInherit}, true, hubTeam.StateRepo, "alice", hubTeam.StatePath},
+		{"disabled mode wins over an enabled hub", &domain.ProjectTeamConfig{Mode: domain.ProjectTeamModeDisabled}, false, "", "", ""},
+		{"custom mode overrides the repo and the member", custom("git@github.com:beta/other-team.git", "bob", ""), true, "git@github.com:beta/other-team.git", "bob", "~other-team"},
+		{"custom mode falls back to the member of the hub", custom("git@github.com:beta/other-team.git", "", ""), true, "git@github.com:beta/other-team.git", "alice", ""},
+		{"custom mode derives the state path from the repo", custom("git@github.com:acme/my-team.git", "", ""), true, "", "", "~my-team"},
+		{"custom mode keeps an explicit state path", custom("git@github.com:acme/my-team.git", "", "/custom/path"), true, "", "", "/custom/path"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := config.ResolveTeamConfig(hubTeam, tt.proj)
+			assert.Equal(t, tt.wantEnabled, got.Enabled, "enabled")
+			if !tt.wantEnabled {
+				return
+			}
+			if tt.wantRepo != "" {
+				assert.Equal(t, tt.wantRepo, got.StateRepo, "state repo")
+			}
+			if tt.wantMember != "" {
+				assert.Equal(t, tt.wantMember, got.MemberID, "member")
+			}
+			if name, ok := strings.CutPrefix(tt.wantPath, "~"); ok {
+				assert.Contains(t, got.StatePath, name, "state path")
+			} else if tt.wantPath != "" {
+				assert.Equal(t, tt.wantPath, got.StatePath, "state path")
+			}
+		})
 	}
 }
 
-func TestResolveTeamConfig_InheritMode(t *testing.T) {
-	proj := &domain.ProjectTeamConfig{Mode: domain.ProjectTeamModeInherit}
-	got := config.ResolveTeamConfig(hubTeam, proj)
-	if !got.Enabled || got.MemberID != "alice" {
-		t.Fatalf("inherit mode should mirror hub, got %+v", got)
-	}
-}
-
-func TestResolveTeamConfig_DisabledMode(t *testing.T) {
-	proj := &domain.ProjectTeamConfig{Mode: domain.ProjectTeamModeDisabled}
-	got := config.ResolveTeamConfig(hubTeam, proj)
-	if got.Enabled {
-		t.Fatal("disabled mode must return Enabled=false")
-	}
-}
-
-func TestResolveTeamConfig_DisabledOverridesHubEnabled(t *testing.T) {
-	hub := hubTeam
-	hub.Enabled = true
-	proj := &domain.ProjectTeamConfig{Mode: domain.ProjectTeamModeDisabled}
-	got := config.ResolveTeamConfig(hub, proj)
-	if got.Enabled {
-		t.Fatal("disabled project must win over enabled hub")
-	}
-}
-
-func TestResolveTeamConfig_CustomOverridesRepo(t *testing.T) {
-	proj := &domain.ProjectTeamConfig{
-		Mode:      domain.ProjectTeamModeCustom,
-		StateRepo: "git@github.com:beta/other-team.git",
-		MemberID:  "bob",
-	}
-	got := config.ResolveTeamConfig(hubTeam, proj)
-	if !got.Enabled {
-		t.Fatal("custom mode must be enabled")
-	}
-	if got.StateRepo != proj.StateRepo {
-		t.Errorf("expected StateRepo %s, got %s", proj.StateRepo, got.StateRepo)
-	}
-	if got.MemberID != "bob" {
-		t.Errorf("expected MemberID bob, got %s", got.MemberID)
-	}
-}
-
-func TestResolveTeamConfig_CustomFallsBackToHubMemberID(t *testing.T) {
-	proj := &domain.ProjectTeamConfig{
-		Mode:      domain.ProjectTeamModeCustom,
-		StateRepo: "git@github.com:beta/other-team.git",
-		// MemberID intentionally empty → should fall back to hub
-	}
-	got := config.ResolveTeamConfig(hubTeam, proj)
-	if got.MemberID != "alice" {
-		t.Errorf("expected hub fallback MemberID alice, got %s", got.MemberID)
-	}
-}
-
-func TestResolveTeamConfig_CustomAutoStatePath(t *testing.T) {
-	proj := &domain.ProjectTeamConfig{
-		Mode:      domain.ProjectTeamModeCustom,
-		StateRepo: "git@github.com:acme/my-team.git",
-		// StatePath empty → auto-derived
-	}
-	got := config.ResolveTeamConfig(hubTeam, proj)
-	if !strings.Contains(got.StatePath, "my-team") {
-		t.Errorf("expected StatePath to contain repo name 'my-team', got %s", got.StatePath)
-	}
-}
-
-func TestResolveTeamConfig_CustomExplicitStatePath(t *testing.T) {
-	proj := &domain.ProjectTeamConfig{
-		Mode:      domain.ProjectTeamModeCustom,
-		StateRepo: "git@github.com:acme/my-team.git",
-		StatePath: "/custom/path",
-	}
-	got := config.ResolveTeamConfig(hubTeam, proj)
-	if got.StatePath != "/custom/path" {
-		t.Errorf("expected explicit StatePath, got %s", got.StatePath)
-	}
-}
-
-func TestTeamStatePath_SCPStyle(t *testing.T) {
-	cases := []struct {
+func TestTeamStatePath(t *testing.T) {
+	tests := []struct {
+		name     string
 		remote   string
 		wantHost string
 		wantName string
 	}{
-		{"git@github.com:acme/team-state.git", "github.com", "team-state"},
-		{"git@gitlab.com:org/sub/my-team.git", "gitlab.com", "my-team"},
-		{"git@host:repo.git", "host", "repo"},
+		{"scp style on github", "git@github.com:acme/team-state.git", "github.com", "team-state"},
+		{"scp style with a group path", "git@gitlab.com:org/sub/my-team.git", "gitlab.com", "my-team"},
+		{"scp style with no group", "git@host:repo.git", "host", "repo"},
+		{"https", "https://github.com/acme/my-team.git", "github.com", "my-team"},
 	}
-	for _, c := range cases {
-		got := config.TeamStatePath(c.remote)
-		if !strings.Contains(got, c.wantHost) {
-			t.Errorf("TeamStatePath(%q): want host %q in path, got %q", c.remote, c.wantHost, got)
-		}
-		if !strings.HasSuffix(got, c.wantName) {
-			t.Errorf("TeamStatePath(%q): want suffix %q, got %q", c.remote, c.wantName, got)
-		}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := config.TeamStatePath(tt.remote)
+			assert.Contains(t, got, "team-states", "the clone is inside the team-states folder")
+			assert.Contains(t, got, tt.wantHost, "the host is part of the path")
+			assert.True(t, strings.HasSuffix(got, tt.wantName), "path %q ends with %q", got, tt.wantName)
+		})
 	}
+
+	assert.NotEqual(t, config.TeamStatePath("git@gitlab.com:acme/state.git"), config.TeamStatePath("git@github.com:other/state.git"),
+		"the same repo name on two hosts never collides")
 }
 
-func TestTeamStatePath_HTTPS(t *testing.T) {
-	got := config.TeamStatePath("https://github.com/acme/my-team.git")
-	if !strings.HasSuffix(got, "my-team") {
-		t.Errorf("expected suffix 'my-team', got %s", got)
+func TestResolveTeamForProject(t *testing.T) {
+	cfg := &config.Config{Teams: []config.TeamConfig{
+		{ID: "acme", Enabled: true, StateRepo: "git@gitlab.com:acme/ts.git", StatePath: "/path/acme", MemberID: "alice"},
+		{ID: "beta", Enabled: true, StateRepo: "git@github.com:beta/ts.git", StatePath: "/path/beta", MemberID: "bob"},
+		{ID: "off", Enabled: false, StateRepo: "git@gitlab.com:off/ts.git", MemberID: "carol"},
+	}}
+	id := func(s string) *string { return &s }
+	tests := []struct {
+		name        string
+		teamID      *string
+		wantEnabled bool
+		wantTeamID  string
+		wantMember  string
+		wantPath    string
+	}{
+		{"no team: a solo project", nil, false, "", "", ""},
+		{"an empty team id is no team", id(""), false, "", "", ""},
+		{"a team of the config", id("beta"), true, "beta", "bob", "/path/beta"},
+		{"an unknown team disables gracefully", id("nonexistent"), false, "", "", ""},
+		{"a disabled team stays disabled but keeps its id", id("off"), false, "off", "", ""},
 	}
-	if !strings.Contains(got, "github.com") {
-		t.Errorf("expected host 'github.com' in path, got %s", got)
-	}
-}
-
-func TestTeamStatePath_IsInsideTeamStatesDir(t *testing.T) {
-	got := config.TeamStatePath("git@github.com:acme/team-state.git")
-	if !strings.Contains(got, "team-states") {
-		t.Errorf("path should be inside team-states dir, got %s", got)
-	}
-}
-
-func TestTeamStatePath_DifferentHostsNeverCollide(t *testing.T) {
-	path1 := config.TeamStatePath("git@gitlab.com:acme/state.git")
-	path2 := config.TeamStatePath("git@github.com:other/state.git")
-	if path1 == path2 {
-		t.Errorf("paths should differ for different hosts: both resolved to %s", path1)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := config.ResolveTeamForProject(cfg, &domain.Project{ID: "proj1", TeamID: tt.teamID})
+			assert.Equal(t, tt.wantEnabled, got.Enabled, "enabled")
+			assert.Equal(t, tt.wantTeamID, got.TeamID, "team id")
+			if tt.wantEnabled {
+				assert.Equal(t, tt.wantMember, got.MemberID, "member")
+				assert.Equal(t, tt.wantPath, got.StatePath, "state path")
+			}
+		})
 	}
 }
 
@@ -170,79 +140,7 @@ func TestHostFromRemote(t *testing.T) {
 	}
 }
 
-// --- Tests for ResolveTeamForProject (new multi-team model) ---
-
-func TestResolveTeamForProject_NilTeamID(t *testing.T) {
-	cfg := &config.Config{
-		Teams: []config.TeamConfig{
-			{ID: "acme", Enabled: true, StateRepo: "git@gitlab.com:acme/ts.git", MemberID: "alice"},
-		},
-	}
-	project := &domain.Project{ID: "proj1", TeamID: nil}
-
-	got := config.ResolveTeamForProject(cfg, project)
-	if got.Enabled {
-		t.Fatal("nil TeamID should mean solo project → disabled")
-	}
-}
-
-func TestResolveTeamForProject_ValidTeamID(t *testing.T) {
-	cfg := &config.Config{
-		Teams: []config.TeamConfig{
-			{ID: "acme", Enabled: true, StateRepo: "git@gitlab.com:acme/ts.git", StatePath: "/path/acme", MemberID: "alice"},
-			{ID: "beta", Enabled: true, StateRepo: "git@github.com:beta/ts.git", StatePath: "/path/beta", MemberID: "bob"},
-		},
-	}
-	teamID := "beta"
-	project := &domain.Project{ID: "proj1", TeamID: &teamID}
-
-	got := config.ResolveTeamForProject(cfg, project)
-	if !got.Enabled {
-		t.Fatal("expected enabled")
-	}
-	if got.TeamID != "beta" {
-		t.Errorf("expected TeamID 'beta', got %q", got.TeamID)
-	}
-	if got.MemberID != "bob" {
-		t.Errorf("expected MemberID 'bob', got %q", got.MemberID)
-	}
-	if got.StatePath != "/path/beta" {
-		t.Errorf("expected StatePath /path/beta, got %q", got.StatePath)
-	}
-}
-
-func TestResolveTeamForProject_UnknownTeamID(t *testing.T) {
-	cfg := &config.Config{
-		Teams: []config.TeamConfig{
-			{ID: "acme", Enabled: true, StateRepo: "git@gitlab.com:acme/ts.git", MemberID: "alice"},
-		},
-	}
-	teamID := "nonexistent"
-	project := &domain.Project{ID: "proj1", TeamID: &teamID}
-
-	got := config.ResolveTeamForProject(cfg, project)
-	if got.Enabled {
-		t.Fatal("unknown TeamID should gracefully disable")
-	}
-}
-
-func TestResolveTeamForProject_DisabledTeam(t *testing.T) {
-	cfg := &config.Config{
-		Teams: []config.TeamConfig{
-			{ID: "acme", Enabled: false, StateRepo: "git@gitlab.com:acme/ts.git", MemberID: "alice"},
-		},
-	}
-	teamID := "acme"
-	project := &domain.Project{ID: "proj1", TeamID: &teamID}
-
-	got := config.ResolveTeamForProject(cfg, project)
-	if got.Enabled {
-		t.Fatal("disabled team should propagate Enabled=false")
-	}
-	if got.TeamID != "acme" {
-		t.Errorf("TeamID should still be set even if disabled, got %q", got.TeamID)
-	}
-}
+// --- Legacy (project-level TeamConfig) ---
 
 func TestResolveTeamForProject_LegacyFallback(t *testing.T) {
 	cfg := &config.Config{
@@ -265,21 +163,6 @@ func TestResolveTeamForProject_LegacyFallback(t *testing.T) {
 	}
 	if got.MemberID != "charlie" {
 		t.Errorf("expected MemberID 'charlie' from legacy hub, got %q", got.MemberID)
-	}
-}
-
-func TestResolveTeamForProject_EmptyTeamID(t *testing.T) {
-	cfg := &config.Config{
-		Teams: []config.TeamConfig{
-			{ID: "acme", Enabled: true, StateRepo: "git@gitlab.com:acme/ts.git", MemberID: "alice"},
-		},
-	}
-	emptyID := ""
-	project := &domain.Project{ID: "proj1", TeamID: &emptyID}
-
-	got := config.ResolveTeamForProject(cfg, project)
-	if got.Enabled {
-		t.Fatal("empty string TeamID should be treated as no team")
 	}
 }
 

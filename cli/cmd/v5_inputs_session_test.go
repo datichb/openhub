@@ -3,7 +3,6 @@ package cmd
 import (
 	"bytes"
 	"context"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -14,6 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
@@ -21,14 +21,9 @@ import (
 // session of that workflow with the output, else the last one of the
 // project.
 func TestSessionOutputSource(t *testing.T) {
-	st, err := sqlite.Open(filepath.Join(t.TempDir(), "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
+	st := sqlitetest.New(t)
 	ctx := context.Background()
-	for _, p := range []string{"p1", "p2"} {
-		_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES (?, ?, ?)`, p, p, "/"+p)
-		require.NoError(t, err)
-	}
+	sqlitetest.Seed(t, st).Project("p1", "/p1").Project("p2", "/p2")
 	sessions := sqlite.NewSessionStore(st)
 	t0 := time.Date(2026, 10, 14, 9, 0, 0, 0, time.UTC)
 	add := func(id, project, wf string, at time.Duration, outputs map[string]any) {
@@ -70,12 +65,9 @@ func TestNextCommand(t *testing.T) {
 // B1: an output of type report reaches the input as the content of the
 // report (the findings of an audit for security-fix), not its id.
 func TestSessionOutputSourceReadsReports(t *testing.T) {
-	st, err := sqlite.Open(filepath.Join(t.TempDir(), "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
+	st := sqlitetest.New(t)
 	ctx := context.Background()
-	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1', 'p1', '/p1')`)
-	require.NoError(t, err)
+	sqlitetest.Seed(t, st).Project("p1", "/p1")
 	sessions := sqlite.NewSessionStore(st)
 	require.NoError(t, sessions.Create(ctx, &domain.Session{ID: "ses_audit", ProjectID: "p1", WorkflowID: "audit", StartedAt: time.Now(),
 		Status: domain.SessionStatusCompleted, State: domain.RunCompleted, Outputs: map[string]any{"findings": "rp-2", "type": "security"}}))
@@ -108,14 +100,9 @@ func TestSessionOutputSourceReadsReports(t *testing.T) {
 // (ids, a period, workflows), the launched workflow's own sessions aside,
 // at most tracesMaxSessions; empty, the parent session or the last one.
 func TestSessionTracesSource(t *testing.T) {
-	st, err := sqlite.Open(filepath.Join(t.TempDir(), "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
+	st := sqlitetest.New(t)
 	ctx := context.Background()
-	for _, p := range []string{"p1", "p2"} {
-		_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES (?, ?, ?)`, p, p, "/"+p)
-		require.NoError(t, err)
-	}
+	sqlitetest.Seed(t, st).Project("p1", "/p1").Project("p2", "/p2")
 	sessions := sqlite.NewSessionStore(st)
 	now := time.Now()
 	add := func(id, project, wf string, ago time.Duration, state domain.RunState) {
@@ -166,12 +153,9 @@ func TestSessionTracesSource(t *testing.T) {
 // security only (from_equals), never the report of another audit; without
 // one the input stays empty and the launch says so.
 func TestSessionOutputSourceFromEquals(t *testing.T) {
-	st, err := sqlite.Open(filepath.Join(t.TempDir(), "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
+	st := sqlitetest.New(t)
 	ctx := context.Background()
-	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1', 'p1', '/p1')`)
-	require.NoError(t, err)
+	sqlitetest.Seed(t, st).Project("p1", "/p1")
 	sessions := sqlite.NewSessionStore(st)
 	t0 := time.Date(2026, 10, 14, 9, 0, 0, 0, time.UTC)
 	add := func(id, typ string, at time.Duration) {

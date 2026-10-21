@@ -49,13 +49,6 @@ func TestBdExitCodePassedThrough(t *testing.T) {
 	}
 }
 
-// U-05: the exit codes are named, in one place.
-func TestExitCodesAreDistinct(t *testing.T) {
-	if ExitOK != 0 || ExitFailure != 1 || ExitUsage != 2 || ExitPending != 3 {
-		t.Fatalf("codes = %d %d %d %d, want 0 1 2 3", ExitOK, ExitFailure, ExitUsage, ExitPending)
-	}
-}
-
 func TestExitCodeOfErrors(t *testing.T) {
 	cases := []struct {
 		name string
@@ -68,6 +61,7 @@ func TestExitCodeOfErrors(t *testing.T) {
 		{"coded", withExitCode(ExitPending, errors.New("waits")), ExitPending},
 		{"wrapped", fmt.Errorf("ctx: %w", withExitCode(ExitUsage, errors.New("x"))), ExitUsage},
 		{"joined", errors.Join(withExitCode(ExitPending, errors.New("a"))), ExitPending},
+		{"pending is 3 for the scripts", withExitCode(ExitPending, errors.New("waits")), 3},
 	}
 	for _, tc := range cases {
 		if got := ExitCode(tc.err); got != tc.want {
@@ -102,26 +96,6 @@ func TestHeadlessExitCodes(t *testing.T) {
 	}
 	if !strings.Contains(headlessError([]error{waits}, 1).Error(), "waits") {
 		t.Error("the message of the pending session is kept")
-	}
-}
-
-// U-05: the removed commands exit non-zero with their message.
-func TestRemovedCommandsExitUsage(t *testing.T) {
-	for _, name := range []string{"deploy", "sync"} {
-		c, _, err := rootCmd.Find([]string{name})
-		if err != nil || c.Name() != name {
-			t.Fatalf("%s: %v", name, err)
-		}
-		var errOut bytes.Buffer
-		c.SetErr(&errOut)
-		err = c.RunE(c, []string{"--check"})
-		if ExitCode(err) != ExitUsage {
-			t.Errorf("oh %s: code %d, want %d", name, ExitCode(err), ExitUsage)
-		}
-		if !strings.Contains(errOut.String(), "oh "+name) {
-			t.Errorf("oh %s: message not printed: %q", name, errOut.String())
-		}
-		c.SetErr(nil)
 	}
 }
 

@@ -17,13 +17,14 @@ import (
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/daemon"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
 // implicitProjectApp has one project, the current directory outside of it.
 func implicitProjectApp(t *testing.T, projects ...domain.Project) (*app.App, *bytes.Buffer) {
 	t.Helper()
-	useLocale(t, "en")
+	i18ntest.Set(t, "en")
 	t.Chdir(t.TempDir())
 	if len(projects) == 0 {
 		projects = []domain.Project{{ID: "web", Name: "web-app", Path: t.TempDir()}}
@@ -140,7 +141,7 @@ func TestRunChecksTheToolBeforeTheProject(t *testing.T) {
 // N12: no credentials for the provider → a translated, actionable error
 // (checked before the daemon is asked for a grant).
 func TestLaunchWithoutCredentials(t *testing.T) {
-	useLocale(t, "en")
+	i18ntest.Set(t, "en")
 	t.Setenv("OH_HOME", t.TempDir())
 	t.Setenv("ANTHROPIC_API_KEY", "")
 	a := &app.App{Config: &config.Config{}, Secrets: &mockSecretStore{secrets: map[string]string{}}}
@@ -159,7 +160,7 @@ func TestLaunchWithoutCredentials(t *testing.T) {
 
 // N12: the launch form shows the CLI message (daemon refusal translated).
 func TestTUILaunchErrorIsTranslated(t *testing.T) {
-	useLocale(t, "en")
+	i18ntest.Set(t, "en")
 	err := tuiLaunchError(errors.Join(errors.New("issuing proxy grant"), &daemon.APIError{Method: "POST", Path: "/grants", Status: 422, Message: "no secret"}))
 	require.Error(t, err)
 	assert.True(t, strings.HasPrefix(err.Error(), "the oh daemon could not prepare the provider credentials"), err.Error())

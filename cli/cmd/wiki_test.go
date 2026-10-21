@@ -13,13 +13,11 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/domain"
-	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 )
 
 func TestWikiCheckCommand(t *testing.T) {
-	prev := i18n.Locale()
-	i18n.SetLocale("fr")
-	t.Cleanup(func() { i18n.SetLocale(prev) })
+	i18ntest.Set(t, "fr")
 	root := t.TempDir()
 	write := func(rel, text string) {
 		p := filepath.Join(root, "docs", "wiki", filepath.FromSlash(rel))
@@ -59,9 +57,7 @@ func TestWikiCheckCommand(t *testing.T) {
 }
 
 func TestWikiPendingHelpers(t *testing.T) {
-	prev := i18n.Locale()
-	i18n.SetLocale("fr")
-	t.Cleanup(func() { i18n.SetLocale(prev) })
+	i18ntest.Set(t, "fr")
 	root := filepath.Join(t.TempDir(), "proj")
 	id, err := wikiProject(context.Background(), filepath.Join(root, "sub"), func(_ context.Context, p string) (string, error) {
 		if p == root {

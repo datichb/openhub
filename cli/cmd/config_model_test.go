@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -11,6 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 )
 
 func TestUnsetHubModelRemovesFamilyAndAgent(t *testing.T) {
@@ -106,4 +108,11 @@ func TestConfigModelProjectLevelValidates(t *testing.T) {
 	_, err = runWorkflowSub(t, configModelAgentCmd, "reviewer", "anthropic/claude-haiku-4-5", "-p", "p1")
 	require.NoError(t, err)
 	assert.Equal(t, "anthropic/claude-haiku-4-5", store.projects[0].ModelOverrides.Agents["reviewer"])
+}
+
+// An unknown project in oh config model says so, in the language of the hub.
+func TestProjectLoadErrorTranslated(t *testing.T) {
+	i18ntest.Set(t, "fr")
+	err := projectLoadError("nope", fmt.Errorf("project nope: %w", domain.ErrNotFound))
+	assert.EqualError(t, err, "projet inconnu : nope (oh project list)")
 }

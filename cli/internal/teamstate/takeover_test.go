@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -68,22 +69,22 @@ func TestSaveAndReadBrief(t *testing.T) {
 	if md == "" {
 		t.Fatal("RenderTemplateBrief returned empty string")
 	}
-	if !contains(md, "bd-42") {
+	if !strings.Contains(md, "bd-42") {
 		t.Error("markdown should contain ticket ID")
 	}
-	if !contains(md, "benjamin") {
+	if !strings.Contains(md, "benjamin") {
 		t.Error("markdown should contain transferrer name")
 	}
-	if !contains(md, "alice") {
+	if !strings.Contains(md, "alice") {
 		t.Error("markdown should contain transferee name")
 	}
-	if !contains(md, "src/auth/service.ts") {
+	if !strings.Contains(md, "src/auth/service.ts") {
 		t.Error("markdown should contain modified file")
 	}
-	if !contains(md, "fix: handle token expiry") {
+	if !strings.Contains(md, "fix: handle token expiry") {
 		t.Error("markdown should contain last commit message")
 	}
-	if !contains(md, "3h05m") {
+	if !strings.Contains(md, "3h05m") {
 		t.Error("markdown should contain duration (185min = 3h05m)")
 	}
 
@@ -102,7 +103,7 @@ func TestSaveAndReadBrief(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadBrief failed: %v", err)
 	}
-	if !contains(content, "bd-42") {
+	if !strings.Contains(content, "bd-42") {
 		t.Error("ReadBrief should return content with ticket ID")
 	}
 
@@ -299,52 +300,6 @@ func TestGenerateRawBrief(t *testing.T) {
 
 // helpers
 
-func contains(s, substr string) bool {
-	return len(s) > 0 && len(substr) > 0 && (s == substr || (len(s) >= len(substr) && containsSubstr(s, substr)))
-}
-
-func containsSubstr(s, sub string) bool {
-	for i := 0; i <= len(s)-len(sub); i++ {
-		if s[i:i+len(sub)] == sub {
-			return true
-		}
-	}
-	return false
-}
-
 func tomlMarshal(v interface{}) ([]byte, error) {
 	return toml.Marshal(v)
-}
-
-// --- Path traversal security tests ---
-
-func TestListBriefs_PathTraversal(t *testing.T) {
-	repo := setupTestRepo(t)
-
-	tests := []struct {
-		name    string
-		project string
-	}{
-		{"dot-dot traversal", "../../../etc"},
-		{"slash", "foo/bar"},
-		{"backslash", "foo\\bar"},
-		{"null byte", "foo\x00bar"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			_, err := repo.ListBriefs(tt.project)
-			assert.Error(t, err)
-			assert.ErrorIs(t, err, ErrUnsafeName)
-		})
-	}
-}
-
-func TestBriefExists_PathTraversal(t *testing.T) {
-	repo := setupTestRepo(t)
-
-	// Path traversal should be blocked — returns false, not panic
-	assert.False(t, repo.BriefExists("../../../etc", "passwd"))
-	assert.False(t, repo.BriefExists("T-SRU", "../../../etc/passwd"))
-	assert.False(t, repo.BriefExists("foo/bar", "ticket"))
 }

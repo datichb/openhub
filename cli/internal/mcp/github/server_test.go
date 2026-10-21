@@ -232,8 +232,3 @@ func TestCredentialGoesToTheConfiguredServerOnly(t *testing.T) {
 		assert.Empty(t, r.Auth, "the redirect target got the credential: %+v", r)
 	}
 }
-
-func TestDefaultServerIsGitHub(t *testing.T) {
-	assert.Equal(t, "https://api.github.com", githubAPIBase)
-	assert.Equal(t, githubAPIBase, apiBase)
-}

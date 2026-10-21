@@ -8,6 +8,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 	remotesvc "github.com/datichb/openhub/cli/internal/services/remote"
 )
 
@@ -24,8 +25,7 @@ func TestRemoteTargetName(t *testing.T) {
 }
 
 func TestPrintRemoteReport(t *testing.T) {
-	i18n.SetLocale("en")
-	t.Cleanup(func() { i18n.SetLocale("fr") })
+	i18ntest.Set(t, "en")
 	rep := &remotesvc.Report{
 		Target: config.RemoteTarget{Name: "acme", URL: "https://gitlab.com", Group: "acme"},
 		Steps: []remotesvc.Step{
@@ -49,6 +49,7 @@ func TestPrintRemoteReport(t *testing.T) {
 
 // Every step has a label and a hint in both languages.
 func TestRemoteStepKeys(t *testing.T) {
+	i18ntest.Restore(t)
 	for _, loc := range []string{"fr", "en"} {
 		i18n.SetLocale(loc)
 		for _, id := range []string{remotesvc.StepAccess, remotesvc.StepGroup, remotesvc.StepProject, remotesvc.StepFeatures,
@@ -66,7 +67,6 @@ func TestRemoteStepKeys(t *testing.T) {
 			}
 		}
 	}
-	i18n.SetLocale("fr")
 }
 
 func TestRemoteTickets(t *testing.T) {

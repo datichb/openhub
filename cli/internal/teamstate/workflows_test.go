@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
@@ -182,17 +183,17 @@ func TestLoadWorkflowLayers_HandEditedFileIsSkipped(t *testing.T) {
 	ctx := context.Background()
 	require.NoError(t, repo.InitStructure(ctx))
 	files := publishLocal(t, repo, TeamScope(), "ticket-hotfix", teamHotfixYAML, "Hotfix {{ .ticket }}")
-	gitCmd(t, repo.Path(), append([]string{"add"}, append(files, ".")...)...)
-	gitCmd(t, repo.Path(), "commit", "-m", "workflow: publish ticket-hotfix v1")
-	gitCmd(t, repo.Path(), "push")
+	gittest.Run(t, repo.Path(), append([]string{"add"}, append(files, ".")...)...)
+	gittest.Run(t, repo.Path(), "commit", "-m", "workflow: publish ticket-hotfix v1")
+	gittest.Run(t, repo.Path(), "push")
 
 	// Another member edits the published file by hand and pushes.
 	other := filepath.Join(t.TempDir(), "other")
-	gitCmd(t, t.TempDir(), "clone", bare, other)
+	gittest.Run(t, t.TempDir(), "clone", bare, other)
 	path := filepath.Join(other, "workflows", "published", "ticket-hotfix.yaml")
 	require.NoError(t, os.WriteFile(path, []byte(teamHotfixYAML+"risk: read\n"), 0o644))
-	gitCmd(t, other, "commit", "-am", "manual edit")
-	gitCmd(t, other, "push")
+	gittest.Run(t, other, "commit", "-am", "manual edit")
+	gittest.Run(t, other, "push")
 
 	require.NoError(t, repo.Pull(ctx))
 	cat := hubCatalog(t)

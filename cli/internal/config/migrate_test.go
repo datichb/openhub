@@ -4,6 +4,9 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestMigrateTeamToTeams_AlreadyMigrated(t *testing.T) {
@@ -89,28 +92,20 @@ func TestMigrateTeamToTeams_IDDerivation(t *testing.T) {
 }
 
 func TestBackupHubToml(t *testing.T) {
-	// Create a temp hub dir for this test
-	tmpDir := t.TempDir()
-	origHubDir := os.Getenv("OH_HOME")
-	os.Setenv("OH_HOME", tmpDir)
-	defer func() {
-		if origHubDir != "" {
-			os.Setenv("OH_HOME", origHubDir)
-		} else {
-			os.Unsetenv("OH_HOME")
-		}
-	}()
+	hub := t.TempDir()
+	t.Setenv("OH_HOME", hub)
+	const content = "[cli]\nlanguage = \"fr\"\n"
 
-	// Write a fake hub.toml
-	hubToml := filepath.Join(tmpDir, "hub.toml")
-	if err := os.WriteFile(hubToml, []byte("[cli]\nlanguage = \"fr\"\n"), 0o600); err != nil {
-		t.Fatal(err)
-	}
+	_, err := BackupHubToml()
+	assert.Error(t, err, "no hub.toml, no backup")
 
-	// We can't easily test BackupHubToml because it uses HubDir() which uses UserHomeDir.
-	// Instead, verify the function at least exists and compiles.
-	// A full integration test would mock HubDir.
-	_ = BackupHubToml
+	require.NoError(t, os.WriteFile(filepath.Join(hub, "hub.toml"), []byte(content), 0o600))
+	backup, err := BackupHubToml()
+	require.NoError(t, err)
+	assert.Equal(t, hub, filepath.Dir(backup), "the backup is next to hub.toml")
+	got, err := os.ReadFile(backup)
+	require.NoError(t, err)
+	assert.Equal(t, content, string(got), "the backup is a copy of hub.toml")
 }
 
 func TestFindTeam(t *testing.T) {

@@ -4,11 +4,11 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
 )
 
 func TestCanLaunchTUI_NonInteractive(t *testing.T) {
@@ -63,29 +63,13 @@ func TestBuildCommands_HasCategories(t *testing.T) {
 }
 
 func TestBuildViews(t *testing.T) {
-	// Create a minimal app for testing
-	a := &app.App{Config: &config.Config{}}
-	allViews := buildViews(a, shell.NewNotificationStore(50))
-	assert.Greater(t, len(allViews), 0, "views should not be empty")
+	allViews := buildViews(&app.App{Config: &config.Config{}})
+	require.GreaterOrEqual(t, len(allViews), 7, "the shell registers at least 7 views")
+	assert.Equal(t, "home", allViews[0].ID(), "the first view is the home")
 
-	// First view should be home
-	assert.Equal(t, "home", allViews[0].ID())
-
-	// Should have multiple views registered
-	assert.GreaterOrEqual(t, len(allViews), 7, "should have at least 7 views")
-}
-
-func TestBuildViews_IncludesNotifications(t *testing.T) {
-	a := &app.App{Config: &config.Config{}}
-	notifStore := shell.NewNotificationStore(50)
-	allViews := buildViews(a, notifStore)
-
-	var found bool
-	for _, v := range allViews {
-		if v.ID() == "notifications" {
-			found = true
-			break
-		}
+	ids := make([]string, len(allViews))
+	for i, v := range allViews {
+		ids[i] = v.ID()
 	}
-	assert.True(t, found, "notifications view must be registered in buildViews")
+	assert.Contains(t, ids, "notifications", "the notifications view is registered")
 }

@@ -4,15 +4,13 @@ import (
 	"bytes"
 	"context"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"testing"
-
-	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/config/configtest"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 )
 
@@ -82,33 +80,11 @@ func setupClaimTestApp(t *testing.T) (*app.App, *teamstate.Repo, *bytes.Buffer) 
 		t.Skip("skipping integration test in short mode")
 	}
 
-	// Create bare + clone
-	bare := t.TempDir()
-	testGitCmd(t, bare, "init", "--bare")
-	clone := filepath.Join(t.TempDir(), "clone")
-	cmd := exec.Command("git", "clone", bare, clone)
-	cmd.Env = gitEnv()
-	out, err := cmd.CombinedOutput()
-	require.NoError(t, err, "clone failed: %s", string(out))
-	testGitCmd(t, clone, "config", "user.email", "test@test.com")
-	testGitCmd(t, clone, "config", "user.name", "Test")
-	require.NoError(t, os.WriteFile(filepath.Join(clone, "README.md"), []byte("init"), 0o644))
-	testGitCmd(t, clone, "add", ".")
-	testGitCmd(t, clone, "commit", "-m", "init")
-	// Detect branch and push
-	branchOut, _ := exec.Command("git", "-C", clone, "branch", "--show-current").Output()
-	branch := "main"
-	if b := string(branchOut); len(b) > 1 {
-		branch = b[:len(b)-1]
-	}
-	testGitCmd(t, clone, "push", "-u", "origin", branch)
+	bare, clone := gittest.BareClone(t)
 
-	// Write members.toml (required for team to be functional)
-	require.NoError(t, os.WriteFile(filepath.Join(clone, "members.toml"),
-		[]byte("[members.testuser]\ndisplay_name = \"Test User\"\nrole = \"dev\"\n"), 0o644))
-	testGitCmd(t, clone, "add", ".")
-	testGitCmd(t, clone, "commit", "-m", "members")
-	testGitCmd(t, clone, "push")
+	// members.toml is required for the team to be functional
+	gittest.Commit(t, clone, "members.toml", "[members.testuser]\ndisplay_name = \"Test User\"\nrole = \"dev\"\n", "members")
+	gittest.Run(t, clone, "push", "-q")
 
 	repo := teamstate.NewRepo(bare, clone)
 
@@ -143,11 +119,7 @@ func setupClaimTestApp(t *testing.T) (*app.App, *teamstate.Repo, *bytes.Buffer) 
 func setupTeamsTestApp(t *testing.T, teams []config.TeamConfig, projects []domain.Project) (*app.App, *bytes.Buffer) {
 	t.Helper()
 
-	// Override HOME so config.Save() writes to a temp dir (not real ~/.oh/)
-	origHome := os.Getenv("HOME")
-	tmpHome := t.TempDir()
-	os.Setenv("HOME", tmpHome)
-	t.Cleanup(func() { os.Setenv("HOME", origHome) })
+	configtest.Home(t) // config.Save() writes to a temp hub
 
 	io, stdout, _ := testIO()
 	cfg := &config.Config{
@@ -163,23 +135,4 @@ func setupTeamsTestApp(t *testing.T, teams []config.TeamConfig, projects []domai
 	application = a
 	t.Cleanup(func() { application = nil })
 	return a, stdout
-}
-
-// testGitCmd runs a git command in the given directory.
-func testGitCmd(t *testing.T, dir string, args ...string) {
-	t.Helper()
-	cmd := exec.Command("git", args...)
-	cmd.Dir = dir
-	cmd.Env = gitEnv()
-	out, err := cmd.CombinedOutput()
-	require.NoError(t, err, "git %v in %s failed: %s", args, dir, string(out))
-}
-
-func gitEnv() []string {
-	return append(os.Environ(),
-		"GIT_AUTHOR_NAME=Test",
-		"GIT_AUTHOR_EMAIL=test@test.com",
-		"GIT_COMMITTER_NAME=Test",
-		"GIT_COMMITTER_EMAIL=test@test.com",
-	)
 }

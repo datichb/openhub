@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/datichb/openhub/cli/internal/domain"
-	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
@@ -20,9 +20,7 @@ func TestSessionOutputsSorted(t *testing.T) {
 }
 
 func TestFanoutDetailLines(t *testing.T) {
-	prev := i18n.Locale()
-	i18n.SetLocale("fr")
-	t.Cleanup(func() { i18n.SetLocale(prev) })
+	i18ntest.Set(t, "fr")
 	parent := &domain.Session{ID: "ses_p", Fanout: &domain.SessionFanout{Role: domain.RoleParent, Status: domain.FanoutRunning,
 		Children: []domain.FanoutChild{{Ticket: "oh-12", State: domain.ChildMerged}, {Ticket: "oh-13", State: domain.ChildRunning}}}}
 	assert.Equal(t, "⑂ Fan-out : 1/2 enfants mergés · en cours", fanoutLine(parent))

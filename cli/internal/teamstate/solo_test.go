@@ -3,40 +3,21 @@ package teamstate
 import (
 	"context"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
-
-func gitIdentity(t *testing.T) {
-	t.Helper()
-	t.Setenv("GIT_AUTHOR_NAME", "Test")
-	t.Setenv("GIT_AUTHOR_EMAIL", "test@test.com")
-	t.Setenv("GIT_COMMITTER_NAME", "Test")
-	t.Setenv("GIT_COMMITTER_EMAIL", "test@test.com")
-}
-
-func gitOut(t *testing.T, dir string, args ...string) string {
-	t.Helper()
-	cmd := exec.Command("git", args...)
-	cmd.Dir = dir
-	out, err := cmd.CombinedOutput()
-	require.NoError(t, err, "git %v: %s", args, out)
-	return strings.TrimSpace(string(out))
-}
 
 func TestInitSolo(t *testing.T) {
 	if testing.Short() {
 		t.Skip("git")
 	}
-	gitIdentity(t)
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "teams", "solo")
 	repo, err := InitSolo(ctx, path, Member{ID: "alice", DisplayName: "Alice", Role: "dev"})
@@ -44,8 +25,8 @@ func TestInitSolo(t *testing.T) {
 
 	assert.True(t, repo.IsCloned())
 	assert.True(t, repo.IsLocalOnly(ctx))
-	assert.Equal(t, "main", gitOut(t, path, "rev-parse", "--abbrev-ref", "HEAD"))
-	assert.Equal(t, "", gitOut(t, path, "status", "--porcelain"), "everything is committed")
+	assert.Equal(t, "main", gittest.Run(t, path, "rev-parse", "--abbrev-ref", "HEAD"))
+	assert.Equal(t, "", gittest.Run(t, path, "status", "--porcelain"), "everything is committed")
 
 	members, err := repo.ListMembers()
 	require.NoError(t, err)
@@ -69,7 +50,7 @@ func TestInitSolo(t *testing.T) {
 		require.NoError(t, err)
 		return repo.commitAndPush(ctx, "workflow: publish quick v1", files...)
 	}))
-	assert.Equal(t, "workflow: publish quick v1", gitOut(t, path, "log", "-1", "--format=%s"))
+	assert.Equal(t, "workflow: publish quick v1", gittest.Run(t, path, "log", "-1", "--format=%s"))
 	cat := workflow.NewMemCatalog()
 	require.Empty(t, repo.LoadWorkflowLayers(cat, ""))
 	assert.Len(t, cat.Refs(), 1)
@@ -86,28 +67,27 @@ func TestPromote(t *testing.T) {
 	if testing.Short() {
 		t.Skip("git")
 	}
-	gitIdentity(t)
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "solo")
 	repo, err := InitSolo(ctx, path, Member{ID: "alice"})
 	require.NoError(t, err)
-	head := gitOut(t, path, "rev-parse", "HEAD")
+	head := gittest.Run(t, path, "rev-parse", "HEAD")
 
 	// A non-empty remote is refused and the space stays solo.
 	busy := t.TempDir()
-	gitCmd(t, busy, "init", "--bare", "-b", "main")
+	gittest.Run(t, busy, "init", "--bare", "-b", "main")
 	tmp := filepath.Join(t.TempDir(), "w")
-	gitCmd(t, t.TempDir(), "clone", busy, tmp)
+	gittest.Run(t, t.TempDir(), "clone", busy, tmp)
 	require.NoError(t, os.WriteFile(filepath.Join(tmp, "x"), []byte("x"), 0o644))
-	gitCmd(t, tmp, "add", ".")
-	gitCmd(t, tmp, "commit", "-m", "x")
-	gitCmd(t, tmp, "push", "origin", "HEAD:main")
+	gittest.Run(t, tmp, "add", ".")
+	gittest.Run(t, tmp, "commit", "-m", "x")
+	gittest.Run(t, tmp, "push", "origin", "HEAD:main")
 	err = repo.Promote(ctx, busy)
 	require.Error(t, err)
 	assert.True(t, repo.IsLocalOnly(ctx))
 
 	bare := t.TempDir()
-	gitCmd(t, bare, "init", "--bare", "-b", "main")
+	gittest.Run(t, bare, "init", "--bare", "-b", "main")
 	require.NoError(t, repo.Promote(ctx, bare))
 	assert.False(t, repo.IsLocalOnly(ctx))
 	assert.Equal(t, bare, repo.Remote())
@@ -115,8 +95,8 @@ func TestPromote(t *testing.T) {
 
 	// Another member clones the promoted team-state: same history.
 	other := filepath.Join(t.TempDir(), "other")
-	gitCmd(t, t.TempDir(), "clone", bare, other)
-	assert.Equal(t, head, gitOut(t, other, "rev-parse", "HEAD"))
+	gittest.Run(t, t.TempDir(), "clone", bare, other)
+	assert.Equal(t, head, gittest.Run(t, other, "rev-parse", "HEAD"))
 	oRepo := NewRepo(bare, other)
 	require.NoError(t, oRepo.CheckPublish("alice"))
 

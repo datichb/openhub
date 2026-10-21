@@ -1,8 +1,6 @@
 package cmd
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/rivo/tview"
@@ -10,8 +8,10 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/config/configtest"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 	providerPkg "github.com/datichb/openhub/cli/internal/provider"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
@@ -39,132 +39,17 @@ func newTestState() *initStepState {
 // buildWelcomeStep
 // ─────────────────────────────────────────────────────────────────────────────
 
-func TestBuildWelcomeStep_Structure(t *testing.T) {
-	s := newTestState()
-	step := buildWelcomeStep(s)
-
-	assert.Equal(t, "welcome", step.ID)
-	assert.True(t, step.Required, "welcome must be Required")
-	assert.True(t, step.SidebarHidden, "welcome must be SidebarHidden")
-	assert.NotNil(t, step.CustomView, "welcome must have CustomView")
-	assert.Nil(t, step.Form, "welcome must not have Form")
-	assert.NotNil(t, step.InfoFields, "welcome must have InfoFields")
-}
-
-func TestBuildWelcomeStep_Renders(t *testing.T) {
-	s := newTestState()
-	step := buildWelcomeStep(s)
-
-	app := tview.NewApplication()
-	container := tview.NewFlex().SetDirection(tview.FlexRow)
-	doneCalled := false
-
-	require.NotPanics(t, func() {
-		step.CustomView(app, container, func() { doneCalled = true })
-	})
-	assert.Greater(t, container.GetItemCount(), 0, "container should have children")
-	assert.False(t, doneCalled, "onDone should not be called during render")
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // buildLangStep
 // ─────────────────────────────────────────────────────────────────────────────
-
-func TestBuildLangStep_Structure(t *testing.T) {
-	s := newTestState()
-	step := buildLangStep(s)
-
-	assert.Equal(t, "lang", step.ID)
-	assert.True(t, step.Required, "lang must be Required")
-	assert.NotNil(t, step.Form, "lang must have Form")
-	assert.NotNil(t, step.OnDone, "lang must have OnDone")
-	assert.NotNil(t, step.InfoFields, "lang must have InfoFields")
-}
-
-func TestBuildLangStep_FormRendering(t *testing.T) {
-	s := newTestState()
-	steps := []views.WizardStep{buildWelcomeStep(s), buildLangStep(s)}
-	*s.Steps = steps
-	s.LangStepIdx = 1
-
-	app := tview.NewApplication()
-	form := steps[1].Form(app, func() {})
-	require.NotNil(t, form)
-	assert.Equal(t, 1, form.GetFormItemCount(), "lang form should have 1 field (DropDown)")
-	assert.Equal(t, 1, form.GetButtonCount(), "lang form should have 1 button")
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // buildProviderStep
 // ─────────────────────────────────────────────────────────────────────────────
 
-func TestBuildProviderStep_Structure(t *testing.T) {
-	s := newTestState()
-	step := buildProviderStep(s)
-
-	assert.Equal(t, "provider", step.ID)
-	assert.NotNil(t, step.CustomView, "provider must have CustomView")
-	assert.NotNil(t, step.SkipIf, "provider must have SkipIf")
-	assert.NotNil(t, step.Validate, "provider must have Validate")
-	assert.NotNil(t, step.OnDone, "provider must have OnDone")
-	assert.NotNil(t, step.InfoFields, "provider must have InfoFields")
-	assert.NotEmpty(t, step.Processing, "provider must have Processing label")
-}
-
-func TestBuildProviderStep_SkipWhenFlagged(t *testing.T) {
-	s := newTestState()
-	step := buildProviderStep(s)
-
-	s.ProviderSkipped = false
-	assert.False(t, step.SkipIf(), "should not skip when flag is false")
-
-	s.ProviderSkipped = true
-	assert.True(t, step.SkipIf(), "should skip when flag is true")
-}
-
-func TestBuildProviderStep_FormRendering(t *testing.T) {
-	s := newTestState()
-	steps := []views.WizardStep{buildProviderStep(s)}
-	*s.Steps = steps
-	s.ProviderStepIdx = 0
-
-	step := steps[0]
-	assert.NotNil(t, step.CustomView, "provider must have CustomView")
-	// CustomView steps manage their own layout — we verify the step builds
-	// without panic by invoking the CustomView callback.
-	app := tview.NewApplication()
-	container := tview.NewFlex().SetDirection(tview.FlexRow)
-	step.CustomView(app, container, func() {})
-	assert.Greater(t, container.GetItemCount(), 0, "container should have items after CustomView renders")
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // buildProjectStep
 // ─────────────────────────────────────────────────────────────────────────────
-
-func TestBuildProjectStep_Structure(t *testing.T) {
-	s := newTestState()
-	step := buildProjectStep(s)
-
-	assert.Equal(t, "project", step.ID)
-	assert.NotNil(t, step.CustomView, "project must have CustomView")
-	assert.NotNil(t, step.SkipIf, "project must have SkipIf")
-	assert.NotNil(t, step.Validate, "project must have Validate")
-	assert.NotNil(t, step.OnDone, "project must have OnDone")
-	assert.NotNil(t, step.InfoFields, "project must have InfoFields")
-	assert.NotEmpty(t, step.Processing, "project must have Processing label")
-}
-
-func TestBuildProjectStep_SkipWhenFlagged(t *testing.T) {
-	s := newTestState()
-	step := buildProjectStep(s)
-
-	s.ProjectSkipped = false
-	assert.False(t, step.SkipIf(), "should not skip when flag is false")
-
-	s.ProjectSkipped = true
-	assert.True(t, step.SkipIf(), "should skip when flag is true")
-}
 
 func TestBuildProjectStep_ValidationEmpty(t *testing.T) {
 	s := newTestState()
@@ -173,17 +58,6 @@ func TestBuildProjectStep_ValidationEmpty(t *testing.T) {
 	s.ProjectName = ""
 	errMsg := step.Validate()
 	assert.NotEmpty(t, errMsg, "should fail validation when name is empty")
-}
-
-func TestBuildProjectStep_FormRendering(t *testing.T) {
-	s := newTestState()
-	step := buildProjectStep(s)
-
-	assert.NotNil(t, step.CustomView, "project must have CustomView")
-	app := tview.NewApplication()
-	container := tview.NewFlex().SetDirection(tview.FlexRow)
-	step.CustomView(app, container, func() {})
-	assert.Greater(t, container.GetItemCount(), 0, "container should have items after CustomView renders")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -222,38 +96,122 @@ func buildTestMCPGitLabStep(s *initStepState) views.WizardStep {
 	})
 }
 
-func TestBuildMCPGitLabStep_Structure(t *testing.T) {
-	s := newTestState()
-	step := buildTestMCPGitLabStep(s)
+// ─────────────────────────────────────────────────────────────────────────────
+// Every step: its shape, its skip flag, its first render
+// ─────────────────────────────────────────────────────────────────────────────
 
-	assert.Equal(t, "mcp_gitlab", step.ID)
-	assert.NotNil(t, step.Form, "gitlab must have Form")
-	assert.NotNil(t, step.SkipIf, "gitlab must have SkipIf")
-	assert.NotNil(t, step.OnDone, "gitlab must have OnDone")
-	assert.NotNil(t, step.InfoFields, "gitlab must have InfoFields")
-}
+func TestInitSteps(t *testing.T) {
+	tests := []struct {
+		name  string
+		build func(s *initStepState) views.WizardStep
+		id    string
+		// form: the step renders a form (min fields, min buttons); else a custom view
+		form        bool
+		minFields   int
+		minButtons  int
+		skipFlag    func(s *initStepState, v bool) // nil: the step has no skip flag
+		prepare     func(s *initStepState, step views.WizardStep)
+		wantSkipIf  bool
+		wantProcess bool // has a Processing label and a Validate
+		extra       func(t *testing.T, s *initStepState, step views.WizardStep)
+	}{
+		{
+			name: "welcome", build: buildWelcomeStep, id: "welcome",
+			extra: func(t *testing.T, s *initStepState, step views.WizardStep) {
+				assert.True(t, step.Required, "welcome must be Required")
+				assert.True(t, step.SidebarHidden, "welcome must be SidebarHidden")
+				assert.Nil(t, step.Form, "welcome must not have Form")
+				assert.Empty(t, s.SetupMode, "the setup mode is chosen when the view renders, not before")
+			},
+		},
+		{
+			name: "lang", build: buildLangStep, id: "lang", form: true, minFields: 1, minButtons: 1,
+			prepare: func(s *initStepState, step views.WizardStep) {
+				*s.Steps = []views.WizardStep{buildWelcomeStep(s), step}
+				s.LangStepIdx = 1
+			},
+			extra: func(t *testing.T, _ *initStepState, step views.WizardStep) {
+				assert.True(t, step.Required, "lang must be Required")
+			},
+		},
+		{
+			name: "provider", build: buildProviderStep, id: "provider", wantSkipIf: true, wantProcess: true,
+			skipFlag: func(s *initStepState, v bool) { s.ProviderSkipped = v },
+			prepare: func(s *initStepState, step views.WizardStep) {
+				*s.Steps = []views.WizardStep{step}
+				s.ProviderStepIdx = 0
+			},
+		},
+		{
+			name: "project", build: buildProjectStep, id: "project", wantSkipIf: true, wantProcess: true,
+			skipFlag: func(s *initStepState, v bool) { s.ProjectSkipped = v },
+		},
+		{
+			name: "mcp gitlab", build: buildTestMCPGitLabStep, id: "mcp_gitlab", form: true, minFields: 2, minButtons: 1, wantSkipIf: true,
+			skipFlag: func(s *initStepState, v bool) { s.MCPSkipped = v },
+		},
+		{
+			name:  "mcp consolidated",
+			build: func(s *initStepState) views.WizardStep { return buildMCPConsolidatedStep(s, *s.AppPtr) },
+			id:    "mcp_consolidated", wantSkipIf: true,
+			skipFlag: func(s *initStepState, v bool) { s.MCPSkipped = v },
+			extra: func(t *testing.T, _ *initStepState, step views.WizardStep) {
+				assert.Equal(t, "MCP", step.Label)
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := newTestState()
+			step := tt.build(s)
 
-func TestBuildMCPGitLabStep_SkipWhenFlagged(t *testing.T) {
-	s := newTestState()
-	step := buildTestMCPGitLabStep(s)
+			assert.Equal(t, tt.id, step.ID, "step id")
+			assert.NotNil(t, step.InfoFields, "InfoFields")
+			if tt.form {
+				assert.NotNil(t, step.Form, "a form step has a Form")
+			} else {
+				assert.NotNil(t, step.CustomView, "a custom step has a CustomView")
+			}
+			if tt.id != "welcome" && tt.id != "lang" {
+				assert.NotNil(t, step.OnDone, "OnDone")
+			}
+			if tt.wantSkipIf {
+				assert.NotNil(t, step.SkipIf, "SkipIf")
+			}
+			if tt.wantProcess {
+				assert.NotNil(t, step.Validate, "Validate")
+				assert.NotEmpty(t, step.Processing, "Processing label")
+			}
+			if tt.extra != nil {
+				tt.extra(t, s, step)
+			}
 
-	s.MCPSkipped = false
-	assert.False(t, step.SkipIf(), "should not skip when flag is false")
+			if tt.skipFlag != nil {
+				tt.skipFlag(s, false)
+				assert.False(t, step.SkipIf(), "not skipped when the flag is false")
+				tt.skipFlag(s, true)
+				assert.True(t, step.SkipIf(), "skipped when the flag is true")
+				tt.skipFlag(s, false)
+			}
 
-	s.MCPSkipped = true
-	assert.True(t, step.SkipIf(), "should skip when flag is true")
-}
-
-func TestBuildMCPGitLabStep_FormRendering(t *testing.T) {
-	s := newTestState()
-	step := buildTestMCPGitLabStep(s)
-
-	app := tview.NewApplication()
-	form := step.Form(app, func() {})
-	require.NotNil(t, form)
-	// password field + write checkbox + hints + submit
-	assert.GreaterOrEqual(t, form.GetFormItemCount(), 2, "gitlab form should have at least 2 fields")
-	assert.GreaterOrEqual(t, form.GetButtonCount(), 1, "gitlab form should have at least 1 button")
+			if tt.prepare != nil {
+				tt.prepare(s, step)
+			}
+			app := tview.NewApplication()
+			if tt.form {
+				form := step.Form(app, func() {})
+				require.NotNil(t, form, "the form renders")
+				assert.GreaterOrEqual(t, form.GetFormItemCount(), tt.minFields, "form fields")
+				assert.GreaterOrEqual(t, form.GetButtonCount(), tt.minButtons, "form buttons")
+				return
+			}
+			container := tview.NewFlex().SetDirection(tview.FlexRow)
+			doneCalled := false
+			require.NotPanics(t, func() { step.CustomView(app, container, func() { doneCalled = true }) })
+			assert.Greater(t, container.GetItemCount(), 0, "the view puts items in the container")
+			assert.False(t, doneCalled, "rendering does not finish the step")
+		})
+	}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -263,11 +221,8 @@ func TestBuildMCPGitLabStep_FormRendering(t *testing.T) {
 // setupConfigDir creates a temp HOME with a minimal hub.toml so config.Update works.
 func setupConfigDir(t *testing.T) {
 	t.Helper()
-	tmpHome := t.TempDir()
-	t.Setenv("HOME", tmpHome)
-	config.Reset()
-	hubDir := filepath.Join(tmpHome, ".oh")
-	require.NoError(t, os.MkdirAll(hubDir, 0o755))
+	configtest.Home(t)
+	i18ntest.Restore(t) // the steps set the language of the messages
 	require.NoError(t, config.Save(&config.Config{}))
 	config.Reset()
 }
@@ -571,6 +526,7 @@ func TestBuildInitOnComplete_NotCompletedNoOp(t *testing.T) {
 }
 
 func TestBuildInitRefreshLabels_UpdatesLabels(t *testing.T) {
+	i18ntest.Restore(t)
 	a := newMockApp(nil, nil)
 	a.Config = &config.Config{}
 	a.Projects = &mockProjectStore{}
@@ -586,31 +542,6 @@ func TestBuildInitRefreshLabels_UpdatesLabels(t *testing.T) {
 // ─────────────────────────────────────────────────────────────────────────────
 // buildMCPConsolidatedStep
 // ─────────────────────────────────────────────────────────────────────────────
-
-func TestBuildMCPConsolidatedStep_Structure(t *testing.T) {
-	s := newTestState()
-	a := *s.AppPtr
-	step := buildMCPConsolidatedStep(s, a)
-
-	assert.Equal(t, "mcp_consolidated", step.ID)
-	assert.Equal(t, "MCP", step.Label)
-	assert.NotNil(t, step.CustomView, "mcp consolidated must have CustomView")
-	assert.NotNil(t, step.SkipIf, "mcp consolidated must have SkipIf")
-	assert.NotNil(t, step.OnDone, "mcp consolidated must have OnDone")
-	assert.NotNil(t, step.InfoFields, "mcp consolidated must have InfoFields")
-}
-
-func TestBuildMCPConsolidatedStep_SkipWhenFlagged(t *testing.T) {
-	s := newTestState()
-	a := *s.AppPtr
-	step := buildMCPConsolidatedStep(s, a)
-
-	s.MCPSkipped = false
-	assert.False(t, step.SkipIf(), "should not skip when flag is false")
-
-	s.MCPSkipped = true
-	assert.True(t, step.SkipIf(), "should skip when flag is true")
-}
 
 func TestBuildMCPConsolidatedStep_OnDone_StoresAllTokens(t *testing.T) {
 	secretsMap := make(map[string]string)
@@ -769,93 +700,3 @@ func TestBuildMCPConsolidatedStep_OnDone_GitLabURLPersisted(t *testing.T) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Express Mode (SetupMode)
 // ─────────────────────────────────────────────────────────────────────────────
-
-func TestExpressMode_SoloSkipsTeam(t *testing.T) {
-	s := newTestState()
-	s.SetupMode = "solo"
-
-	// Build provider step with team-mode skip wrapper (same as init_wizard.go).
-	providerStep := buildProviderStep(s)
-	origSkipIf := providerStep.SkipIf
-	providerStep.SkipIf = func() bool {
-		if s.SetupMode == "team" {
-			return true
-		}
-		if origSkipIf != nil {
-			return origSkipIf()
-		}
-		return false
-	}
-
-	// In solo mode, provider should NOT be skipped.
-	assert.False(t, providerStep.SkipIf(), "provider should not be skipped in solo mode")
-
-	// Simulate team mode skip for team intro.
-	teamState := s.TeamState
-	s.SetupMode = "solo"
-	teamState.Skipped = false
-
-	// The team intro SkipIf sets Skipped=true when solo.
-	teamSkipIf := func() bool {
-		if s.SetupMode == "solo" {
-			teamState.Skipped = true
-			return true
-		}
-		return false
-	}
-
-	assert.True(t, teamSkipIf(), "team intro should be skipped in solo mode")
-	assert.True(t, teamState.Skipped, "teamState.Skipped should be set in solo mode")
-}
-
-func TestExpressMode_TeamSkipsProvider(t *testing.T) {
-	s := newTestState()
-	s.SetupMode = "team"
-
-	providerStep := buildProviderStep(s)
-	origSkipIf := providerStep.SkipIf
-	providerStep.SkipIf = func() bool {
-		if s.SetupMode == "team" {
-			return true
-		}
-		if origSkipIf != nil {
-			return origSkipIf()
-		}
-		return false
-	}
-
-	assert.True(t, providerStep.SkipIf(), "provider should be skipped in team mode")
-}
-
-func TestExpressMode_FullShowsAll(t *testing.T) {
-	s := newTestState()
-	s.SetupMode = "full"
-
-	providerStep := buildProviderStep(s)
-	origSkipIf := providerStep.SkipIf
-	providerStep.SkipIf = func() bool {
-		if s.SetupMode == "team" {
-			return true
-		}
-		if origSkipIf != nil {
-			return origSkipIf()
-		}
-		return false
-	}
-
-	assert.False(t, providerStep.SkipIf(), "provider should not be skipped in full mode")
-
-	teamSkipIf := func() bool {
-		return s.SetupMode == "solo"
-	}
-	assert.False(t, teamSkipIf(), "team should not be skipped in full mode")
-}
-
-func TestExpressMode_DefaultIsSolo(t *testing.T) {
-	s := newTestState()
-	_ = buildWelcomeStep(s)
-
-	// SetupMode is initialized inside the CustomView closure when rendered,
-	// so before rendering it should be empty.
-	assert.Equal(t, "", s.SetupMode, "SetupMode should be empty before CustomView renders")
-}

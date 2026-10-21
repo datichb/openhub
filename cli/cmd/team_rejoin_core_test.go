@@ -2,14 +2,16 @@ package cmd
 
 import (
 	"context"
-	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/config"
-	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/config/configtest"
+	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
 func TestTeamRejoinCore_Success(t *testing.T) {
@@ -19,11 +21,7 @@ func TestTeamRejoinCore_Success(t *testing.T) {
 
 	a, repo, _ := setupClaimTestApp(t)
 
-	// Override HOME for config.Save()
-	origHome := os.Getenv("HOME")
-	tmpHome := t.TempDir()
-	os.Setenv("HOME", tmpHome)
-	t.Cleanup(func() { os.Setenv("HOME", origHome) })
+	configtest.Home(t)
 
 	// Clear teams to simulate a fresh install
 	a.Config.Teams = nil
@@ -52,10 +50,7 @@ func TestTeamRejoinCore_MemberNotFound(t *testing.T) {
 
 	a, repo, _ := setupClaimTestApp(t)
 
-	origHome := os.Getenv("HOME")
-	tmpHome := t.TempDir()
-	os.Setenv("HOME", tmpHome)
-	t.Cleanup(func() { os.Setenv("HOME", origHome) })
+	configtest.Home(t)
 
 	_, err := teamRejoinCore(context.Background(), a, teamRejoinParams{
 		StateRepo: repo.Remote(),
@@ -75,10 +70,7 @@ func TestTeamRejoinCore_UpdatesExistingTeam(t *testing.T) {
 
 	a, repo, _ := setupClaimTestApp(t)
 
-	origHome := os.Getenv("HOME")
-	tmpHome := t.TempDir()
-	os.Setenv("HOME", tmpHome)
-	t.Cleanup(func() { os.Setenv("HOME", origHome) })
+	configtest.Home(t)
 
 	// Pre-populate with an existing team (same repo, different member)
 	a.Config.Teams = []config.TeamConfig{
@@ -124,35 +116,22 @@ func TestRetroTagSessions(t *testing.T) {
 		t.Skip("skipping integration test in short mode")
 	}
 
-	// Open a test SQLite store
-	tmpDB := t.TempDir()
-	s, err := sqlite.Open(tmpDB + "/test.db")
-	require.NoError(t, err)
-	t.Cleanup(func() { s.Close() })
-
-	// Set package-level store
+	s := sqlitetest.New(t)
 	origStore := store
 	store = s
 	t.Cleanup(func() { store = origStore })
 
+	now := time.Now()
+	sqlitetest.Seed(t, s).Project("p1", "/p1").
+		Session(&domain.Session{ID: "s1", ProjectID: "p1", StartedAt: now, Status: domain.SessionStatusCompleted}).
+		Session(&domain.Session{ID: "s2", ProjectID: "p1", StartedAt: now, Status: domain.SessionStatusRunning})
+
 	ctx := context.Background()
-	db := s.DB()
-
-	// Create project + sessions without member_id
-	_, err = db.ExecContext(ctx, `INSERT INTO projects (id, name, path, status) VALUES ('p1', 'P1', '/p1', 'active')`)
-	require.NoError(t, err)
-	_, err = db.ExecContext(ctx, `INSERT INTO sessions (id, project_id, started_at, status) VALUES ('s1', 'p1', datetime('now'), 'completed')`)
-	require.NoError(t, err)
-	_, err = db.ExecContext(ctx, `INSERT INTO sessions (id, project_id, started_at, status) VALUES ('s2', 'p1', datetime('now'), 'running')`)
-	require.NoError(t, err)
-
 	count, err := retroTagSessions(ctx, "alice")
 	require.NoError(t, err)
-	assert.Equal(t, 2, count)
+	assert.Equal(t, 2, count, "both sessions had no member")
 
-	// Verify
 	var memberID string
-	err = db.QueryRowContext(ctx, `SELECT member_id FROM sessions WHERE id = 's1'`).Scan(&memberID)
-	require.NoError(t, err)
+	require.NoError(t, s.DB().QueryRowContext(ctx, `SELECT member_id FROM sessions WHERE id = 's1'`).Scan(&memberID))
 	assert.Equal(t, "alice", memberID)
 }

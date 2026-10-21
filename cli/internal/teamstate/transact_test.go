@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -33,7 +34,6 @@ func counterBuild(calls *int, who ...string) func(context.Context, *Tx) (TxResul
 
 func TestTransact_RebuildsAfterRejectedPush(t *testing.T) {
 	repo, bare := setupGitTestRepo(t)
-	gitIdentity(t)
 	ctx := context.Background()
 	other := NewRepo(bare, filepath.Join(t.TempDir(), "other"))
 	require.NoError(t, other.Clone(ctx))
@@ -51,13 +51,12 @@ func TestTransact_RebuildsAfterRejectedPush(t *testing.T) {
 	data, err := os.ReadFile(filepath.Join(repo.Path(), "counter.txt"))
 	require.NoError(t, err)
 	assert.Equal(t, "2", string(data), "computed from the other member's value")
-	assert.Equal(t, "counter 2", gitOut(t, repo.Path(), "log", "-1", "--format=%s"))
-	assert.Equal(t, "counter 1 by bob", gitOut(t, repo.Path(), "log", "-1", "--skip=1", "--format=%s"))
+	assert.Equal(t, "counter 2", gittest.Run(t, repo.Path(), "log", "-1", "--format=%s"))
+	assert.Equal(t, "counter 1 by bob", gittest.Run(t, repo.Path(), "log", "-1", "--skip=1", "--format=%s"))
 }
 
 func TestTransact_BuildErrorRestoresFiles(t *testing.T) {
 	repo, _ := setupGitTestRepo(t)
-	gitIdentity(t)
 	ctx := context.Background()
 	err := repo.Transact(ctx, func(_ context.Context, tx *Tx) (TxResult, error) {
 		require.NoError(t, tx.WriteFile("README.md", []byte("changed")))
@@ -66,21 +65,20 @@ func TestTransact_BuildErrorRestoresFiles(t *testing.T) {
 	})
 	require.EqualError(t, err, "invalid")
 	data, _ := os.ReadFile(filepath.Join(repo.Path(), "README.md"))
-	assert.Equal(t, "init", string(data))
+	assert.Equal(t, "init\n", string(data))
 	assert.NoFileExists(t, filepath.Join(repo.Path(), "new", "file.txt"))
-	assert.Equal(t, "", gitOut(t, repo.Path(), "status", "--porcelain"))
+	assert.Equal(t, "", gittest.Run(t, repo.Path(), "status", "--porcelain"))
 }
 
 func TestTransact_Offline(t *testing.T) {
 	repo, _ := setupGitTestRepo(t)
-	gitIdentity(t)
 	ctx := context.Background()
-	gitCmd(t, repo.Path(), "remote", "set-url", "origin", "http://127.0.0.1:1/x.git")
+	gittest.Run(t, repo.Path(), "remote", "set-url", "origin", "http://127.0.0.1:1/x.git")
 	var calls int
 	err := repo.Transact(ctx, counterBuild(&calls))
 	assert.ErrorIs(t, err, ErrOffline)
 	assert.Zero(t, calls, "nothing built while offline")
-	assert.Equal(t, "init", gitOut(t, repo.Path(), "log", "-1", "--format=%s"))
+	assert.Equal(t, "init", gittest.Run(t, repo.Path(), "log", "-1", "--format=%s"))
 }
 
 func TestQueue(t *testing.T) {
@@ -92,7 +90,7 @@ func TestQueue(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, ops, 2, "same workflow replaced")
 	assert.Equal(t, "restore", ops[1].Kind)
-	assert.Empty(t, gitOut(t, repo.Path(), "status", "--porcelain"), "the queue is not versioned")
+	assert.Empty(t, gittest.Run(t, repo.Path(), "status", "--porcelain"), "the queue is not versioned")
 	require.NoError(t, repo.Dequeue("team", "a"))
 	require.NoError(t, repo.Dequeue("project:web", "a"))
 	ops, _ = repo.Queue()

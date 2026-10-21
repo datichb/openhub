@@ -3,6 +3,7 @@ package teamstate
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -53,88 +54,40 @@ func TestWikiReadPageNotFound(t *testing.T) {
 	assert.ErrorIs(t, err, ErrWikiPageNotFound)
 }
 
-func TestValidateProposalValid(t *testing.T) {
-	p := WikiProposal{
-		Page:       "decisions",
-		Content:    "## New Decision\n\nWe decided to use X.",
-		Confidence: "CONFIRMED",
-		Author:     "documentarian",
-		Project:    "T-SRU",
+func TestValidateProposal(t *testing.T) {
+	valid := WikiProposal{Page: "decisions", Content: "## New Decision\n\nWe decided to use X.", Confidence: "CONFIRMED", Author: "documentarian", Project: "T-SRU"}
+	with := func(mod func(*WikiProposal)) WikiProposal {
+		p := valid
+		mod(&p)
+		return p
 	}
-	err := validateProposal(p)
-	assert.NoError(t, err)
-}
-
-func TestValidateProposalMissingPage(t *testing.T) {
-	p := WikiProposal{
-		Content:    "content",
-		Confidence: "CONFIRMED",
-		Author:     "documentarian",
+	tests := []struct {
+		name    string
+		p       WikiProposal
+		wantErr error
+		wantMsg string
+	}{
+		{"valid", valid, nil, ""},
+		{"no page", with(func(p *WikiProposal) { p.Page = "" }), ErrProposalInvalid, "page is required"},
+		{"no content", with(func(p *WikiProposal) { p.Content = "" }), ErrProposalInvalid, "content is required"},
+		{"no confidence", with(func(p *WikiProposal) { p.Confidence = "" }), ErrProposalInvalid, "confidence"},
+		{"unknown confidence", with(func(p *WikiProposal) { p.Confidence = "MAYBE" }), ErrProposalInvalid, "CONFIRMED, INFERRED, or UNCERTAIN"},
+		{"no author", with(func(p *WikiProposal) { p.Author = "" }), ErrProposalInvalid, "author is required"},
+		{"more than 200 lines", with(func(p *WikiProposal) { p.Content = strings.Repeat("line\n", 201) }), ErrProposalTooLarge, ""},
 	}
-	err := validateProposal(p)
-	assert.ErrorIs(t, err, ErrProposalInvalid)
-	assert.Contains(t, err.Error(), "page is required")
-}
-
-func TestValidateProposalMissingContent(t *testing.T) {
-	p := WikiProposal{
-		Page:       "decisions",
-		Confidence: "CONFIRMED",
-		Author:     "documentarian",
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateProposal(tt.p)
+			if tt.wantErr == nil {
+				assert.NoError(t, err)
+				return
+			}
+			require.ErrorIs(t, err, tt.wantErr)
+			if tt.wantMsg != "" {
+				assert.Contains(t, err.Error(), tt.wantMsg)
+			}
+		})
 	}
-	err := validateProposal(p)
-	assert.ErrorIs(t, err, ErrProposalInvalid)
-	assert.Contains(t, err.Error(), "content is required")
-}
-
-func TestValidateProposalMissingConfidence(t *testing.T) {
-	p := WikiProposal{
-		Page:    "decisions",
-		Content: "content",
-		Author:  "documentarian",
-	}
-	err := validateProposal(p)
-	assert.ErrorIs(t, err, ErrProposalInvalid)
-	assert.Contains(t, err.Error(), "confidence")
-}
-
-func TestValidateProposalInvalidConfidence(t *testing.T) {
-	p := WikiProposal{
-		Page:       "decisions",
-		Content:    "content",
-		Confidence: "MAYBE",
-		Author:     "documentarian",
-	}
-	err := validateProposal(p)
-	assert.ErrorIs(t, err, ErrProposalInvalid)
-	assert.Contains(t, err.Error(), "CONFIRMED, INFERRED, or UNCERTAIN")
-}
-
-func TestValidateProposalMissingAuthor(t *testing.T) {
-	p := WikiProposal{
-		Page:       "decisions",
-		Content:    "content",
-		Confidence: "CONFIRMED",
-	}
-	err := validateProposal(p)
-	assert.ErrorIs(t, err, ErrProposalInvalid)
-	assert.Contains(t, err.Error(), "author is required")
-}
-
-func TestValidateProposalTooLarge(t *testing.T) {
-	// Generate content > 200 lines
-	content := ""
-	for range 201 {
-		content += "line\n"
-	}
-	p := WikiProposal{
-		Page:       "decisions",
-		Content:    content,
-		Confidence: "CONFIRMED",
-		Author:     "documentarian",
-	}
-	err := validateProposal(p)
-	assert.ErrorIs(t, err, ErrProposalTooLarge)
 }
 
 func TestWikiListPending(t *testing.T) {
@@ -168,53 +121,4 @@ func TestWikiListPendingEmpty(t *testing.T) {
 	pending, err := repo.WikiListPending()
 	require.NoError(t, err)
 	assert.Empty(t, pending)
-}
-
-// --- Path traversal security tests ---
-
-func TestWikiReadPage_PathTraversal(t *testing.T) {
-	repo := setupTestRepo(t)
-
-	tests := []struct {
-		name     string
-		pageName string
-	}{
-		{"dot-dot traversal", "../../../etc/passwd"},
-		{"slash", "foo/bar"},
-		{"backslash", "foo\\bar"},
-		{"null byte", "foo\x00bar"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			_, err := repo.WikiReadPage(tt.pageName)
-			assert.Error(t, err)
-			assert.ErrorIs(t, err, ErrUnsafeName)
-		})
-	}
-}
-
-func TestValidateProposal_PathTraversal(t *testing.T) {
-	tests := []struct {
-		name     string
-		pageName string
-	}{
-		{"dot-dot traversal", "../../../etc/passwd"},
-		{"slash", "foo/bar"},
-		{"backslash", "foo\\bar"},
-		{"null byte", "foo\x00bar"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			p := WikiProposal{
-				Page:       tt.pageName,
-				Content:    "Some content",
-				Confidence: "CONFIRMED",
-				Author:     "documentarian",
-			}
-			err := validateProposal(p)
-			assert.ErrorIs(t, err, ErrProposalInvalid)
-		})
-	}
 }

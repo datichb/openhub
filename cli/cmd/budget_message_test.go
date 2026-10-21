@@ -4,13 +4,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 	"github.com/datichb/openhub/cli/internal/limits"
 )
 
 // A28: `oh budget unset` (or a value of 0/off) says the restriction was
 // removed, not "saved".
 func TestBudgetSavedMessage(t *testing.T) {
-	useLocale(t, "en")
+	i18ntest.Set(t, "en")
 	var l limits.Limits
 	if got := budgetSavedMessage(l, limits.FieldDailyBudget, ""); !strings.Contains(got, "removed from hub.toml") {
 		t.Fatalf("unset hub: %q", got)

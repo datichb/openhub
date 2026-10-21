@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 )
 
 // S-21 (audit v5): the Bedrock region is checked when it is configured.
@@ -26,7 +27,7 @@ func TestCheckBedrockRegion(t *testing.T) {
 // oh init / oh provider setup: the custom region is checked as it is typed
 // (message under the field) and the step refuses an invalid one.
 func TestBedrockRegionCheckedAsTyped(t *testing.T) {
-	useLocale(t, "en")
+	i18ntest.Set(t, "en")
 	assert.Equal(t, i18n.T("cmd.init.wizard_region_required"), bedrockRegionStepProblem(""))
 	assert.Contains(t, bedrockRegionStepProblem("x.evil.com#"), "Invalid AWS region")
 	assert.Empty(t, bedrockRegionStepProblem("xx-new-9"), "unknown region: warning only")

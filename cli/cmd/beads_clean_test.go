@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 )
 
 func beadsImpactProject(t *testing.T) string {
@@ -48,7 +49,7 @@ func doctorFixCmd(args ...string) (*cobra.Command, *bytes.Buffer) {
 // A5 follow-up: oh doctor --fix lists the clean-up, needs --yes without
 // terminal, then takes back out what bd init wrote (the user's text stays).
 func TestDoctorFixBeads(t *testing.T) {
-	useLocale(t, "en")
+	i18ntest.Set(t, "en")
 	dir := beadsImpactProject(t)
 	a := newMockApp(nil, nil)
 	a.Projects = &mockProjectStore{projects: []domain.Project{{ID: "p1", Name: "web", Path: dir, Status: domain.ProjectStatusActive}}}
@@ -86,7 +87,7 @@ func TestDoctorFixBeads(t *testing.T) {
 // N17: registering a project lists what bd init wrote; without a terminal
 // nothing is changed (oh doctor --fix is named).
 func TestPrintBeadsCleanWithoutTerminal(t *testing.T) {
-	useLocale(t, "en")
+	i18ntest.Set(t, "en")
 	dir := beadsImpactProject(t)
 	withTerminal(t, false)
 	asked := withConfirm(t, true)
@@ -110,7 +111,7 @@ func TestPrintBeadsCleanWithoutTerminal(t *testing.T) {
 
 // N17: with a terminal, declined → nothing; accepted → cleaned.
 func TestPrintBeadsCleanConfirmed(t *testing.T) {
-	useLocale(t, "en")
+	i18ntest.Set(t, "en")
 	dir := beadsImpactProject(t)
 	withTerminal(t, true)
 	withConfirm(t, false)
@@ -129,7 +130,7 @@ func TestPrintBeadsCleanConfirmed(t *testing.T) {
 
 // N17: [beads] zero_impact = off → nothing; auto → applied without asking.
 func TestPrintBeadsCleanModes(t *testing.T) {
-	useLocale(t, "en")
+	i18ntest.Set(t, "en")
 	withTerminal(t, true)
 	asked := withConfirm(t, false)
 	a := newMockApp(nil, nil)
@@ -184,7 +185,7 @@ const bdInitSubject = "bd init: initialize beads issue tracking"
 // confirmed in a terminal, or with --yes; never without a terminal nor
 // --yes, never by the automatic mode, never when pushed.
 func TestPrintBeadsCleanCommit(t *testing.T) {
-	useLocale(t, "en")
+	i18ntest.Set(t, "en")
 	a := newMockApp(nil, nil)
 	var out bytes.Buffer
 
@@ -262,7 +263,7 @@ func TestPrintBeadsCleanCommit(t *testing.T) {
 // N17 (finitions): oh doctor --fix undoes the commit of bd init once
 // confirmed in a terminal; without a terminal nothing happens without --yes.
 func TestDoctorFixUndoesCommitOnceConfirmed(t *testing.T) {
-	useLocale(t, "en")
+	i18ntest.Set(t, "en")
 	dir, git := bdInitCommitRepo(t)
 	a := newMockApp(nil, nil)
 	a.Projects = &mockProjectStore{projects: []domain.Project{{ID: "p1", Name: "web", Path: dir, Status: domain.ProjectStatusActive}}}

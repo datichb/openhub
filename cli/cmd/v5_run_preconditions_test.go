@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 	"github.com/datichb/openhub/cli/internal/runsvc"
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
@@ -15,8 +15,7 @@ import (
 // E7 (R8): the git and tool preconditions are read on the project at
 // launch; a failed block names what to fix and refuses the launch.
 func TestPreconditionsGit(t *testing.T) {
-	i18n.SetLocale("fr")
-	t.Cleanup(func() { i18n.SetLocale("en") })
+	i18ntest.Set(t, "fr")
 	doc, diags := workflow.Parse([]byte(`apiVersion: oh/v1
 kind: Workflow
 id: release
