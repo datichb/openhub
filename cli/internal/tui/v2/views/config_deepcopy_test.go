@@ -26,7 +26,7 @@ func fill(v reflect.Value, n *int, depth int) {
 	}
 	*n++
 	switch v.Kind() {
-	case reflect.Ptr:
+	case reflect.Pointer:
 		v.Set(reflect.New(v.Type().Elem()))
 		fill(v.Elem(), n, depth+1)
 	case reflect.Struct:
@@ -78,7 +78,7 @@ func mutate(v reflect.Value, path string, skip map[string]string, depth int) {
 		return
 	}
 	switch v.Kind() {
-	case reflect.Ptr:
+	case reflect.Pointer:
 		if !v.IsNil() {
 			mutate(v.Elem(), path, skip, depth+1)
 		}
