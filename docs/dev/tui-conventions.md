@@ -111,7 +111,7 @@ content.AddItem(l.Primitive(), 0, 1, true)
 
 ## Tests
 
-- **Instantané du rendu** : `screenText(t, l.Primitive(), 80, 18)` puis `assertGolden(t, "<nom>", ...)` (fichiers `views/testdata/<nom>.golden`, régénérés par `go test ./internal/tui/v2/views -run <Test> -update`, diff relu). Exemples : `action_list_test.go`.
+- **Instantané du rendu** : `screenText(t, l.Primitive(), 80, 18)` puis `golden.Assert(t, "<nom>", ...)` (`internal/testutil/golden` ; fichiers `views/testdata/<nom>.golden`, le nom peut avoir des sous-dossiers). `go test ./internal/tui/v2/views -run <Test> -update` ne s'utilise que sur un test nouveau, le diff relu ; un golden existant ne se régénère pas pour faire passer un test. Le flag `-update` est déclaré par `golden` : un paquet de test ne déclare pas le sien. Exemples : `action_list_test.go`, `sessions_checkpoint_*_test.go` (`checkpoint_card/`). Voir [`tui-testing.md`](tui-testing.md).
 - **`TestKeyConvention`** (`keys/convention_test.go`) lit les lignes d'aide (messages français dont la clé contient « hint », formats `fmt.Sprintf` du code TUI) et signale les touches hors convention. Il est strict : tout écart fait échouer le test (plus de liste d'écarts tolérés), la ligne d'aide est à corriger. Une ligne d'aide construite avec `keys.Hint` est conforme par construction.
 - Parité i18n fr/en : `go test ./internal/i18n/...`.
 
