@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 )
 
 // fixFixture is a fan-out ready for its merge checkpoint, its driver
@@ -113,7 +114,7 @@ func TestFixRoundRefused(t *testing.T) {
 			assert.Equal(t, domain.ChildFailed, fo.Fixes[0].State)
 			assert.Contains(t, fo.Fixes[0].Error, tc.want)
 			assert.Equal(t, base, fo.Integration.Head)
-			assert.Equal(t, base, run(t, fo.Integration.Path, "git", "rev-parse", "HEAD"), "back where it was")
+			assert.Equal(t, base, gittest.Run(t, fo.Integration.Path, "rev-parse", "HEAD"), "back where it was")
 			told := f.launcher.toldCopy()
 			assert.Contains(t, told[len(told)-1], "cp-merge")
 		})

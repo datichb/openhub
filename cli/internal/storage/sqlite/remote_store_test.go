@@ -2,7 +2,6 @@ package sqlite
 
 import (
 	"context"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -13,12 +12,9 @@ import (
 )
 
 func TestRemoteStore(t *testing.T) {
-	st, err := Open(filepath.Join(t.TempDir(), "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
+	st := openTestStore(t)
 	ctx := context.Background()
-	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1','p1','/p1')`)
-	require.NoError(t, err)
+	seedProject(t, st, "p1")
 	ss := NewSessionStore(st)
 	require.NoError(t, ss.Create(ctx, &domain.Session{ID: "ses_r", ProjectID: "p1", Status: domain.SessionStatusRunning, Runtime: "remote"}))
 	require.NoError(t, ss.Create(ctx, &domain.Session{ID: "ses_l", ProjectID: "p1", Status: domain.SessionStatusRunning}))

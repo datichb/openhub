@@ -18,18 +18,16 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/services/wiki"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
 // wikiEnv is a daemon with sessions working in a project with a wiki.
 func wikiEnv(t *testing.T) (*Daemon, *wiki.Service, string, string) {
 	t.Helper()
 	dir := t.TempDir()
-	st, err := sqlite.Open(filepath.Join(dir, "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
+	st := sqlitetest.New(t)
 	ctx := context.Background()
-	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1','p1','/p1')`)
-	require.NoError(t, err)
+	sqlitetest.Seed(t, st).Project("p1", "/p1")
 	project := filepath.Join(dir, "proj")
 	page := filepath.Join(project, "docs", "wiki", "technical", "stack.md")
 	require.NoError(t, os.MkdirAll(filepath.Dir(page), 0o755))

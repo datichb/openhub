@@ -17,10 +17,12 @@ import (
 	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/daemon"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 	ohruntime "github.com/datichb/openhub/cli/internal/runtime"
 	"github.com/datichb/openhub/cli/internal/runtime/container"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
 type realSecrets map[string]string
@@ -67,21 +69,13 @@ func realContainerSession(t *testing.T, engine container.EngineKind) {
 	}
 	t.Cleanup(func() { _ = os.RemoveAll(short) })
 
-	st, err := sqlite.Open(filepath.Join(short, "oh.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { st.Close() })
+	st := sqlitetest.New(t)
 	project := filepath.Join(root, "proj")
 	if err := os.MkdirAll(project, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if out, err := exec.Command("git", "init", "-q", project).CombinedOutput(); err != nil {
-		t.Fatalf("%v %s", err, out)
-	}
-	if _, err := st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1', 'p1', ?)`, project); err != nil {
-		t.Fatal(err)
-	}
+	gittest.Run(t, project, "init", "-q")
+	sqlitetest.Seed(t, st).Project("p1", project)
 
 	a := opencodev2.New("", filepath.Join(home, "Library", "Caches", "oh-container-tests"))
 	if _, err := a.Detect(ctx); err != nil {

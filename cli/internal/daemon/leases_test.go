@@ -13,6 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/gateway"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
 // The leases of the tickets an open session claimed are refreshed with the
@@ -20,13 +21,10 @@ import (
 // session is no longer refreshed.
 func TestDaemonRefreshesBeadsLeases(t *testing.T) {
 	ctx := context.Background()
-	st, err := sqlite.Open(filepath.Join(t.TempDir(), "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
+	st := sqlitetest.New(t)
 	project, err := filepath.EvalSymlinks(t.TempDir())
 	require.NoError(t, err)
-	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1','p1',?)`, project)
-	require.NoError(t, err)
+	sqlitetest.Seed(t, st).Project("p1", project)
 	sessions := sqlite.NewSessionStore(st)
 	require.NoError(t, sessions.Create(ctx, &domain.Session{ID: "ses_a", ProjectID: "p1", Status: domain.SessionStatusRunning, GroupKey: "g1", State: domain.RunActive}))
 

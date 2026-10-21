@@ -23,6 +23,7 @@ import (
 	ohruntime "github.com/datichb/openhub/cli/internal/runtime"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
 type fakeSecrets map[string]string
@@ -228,13 +229,10 @@ type rtFixture struct {
 func newRTFixture(t *testing.T) *rtFixture {
 	t.Helper()
 	root := t.TempDir()
-	st, err := sqlite.Open(filepath.Join(root, "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
+	st := sqlitetest.New(t)
 	project := filepath.Join(root, "proj")
 	require.NoError(t, os.MkdirAll(project, 0o755))
-	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1', 'p1', ?)`, project)
-	require.NoError(t, err)
+	sqlitetest.Seed(t, st).Project("p1", project)
 	f := &rtFixture{ad: &rtAdapter{}, rt: &fakeRuntime{prepared: map[string]*ohruntime.Prepared{}}, dc: &fakeDaemon{}, root: root, project: project}
 	f.b = &bundle.Bundle{Dir: filepath.Join(root, "bundles", "h"), Spec: sessionspec.BundleSpec{
 		Hash: "bundlehash000001", Root: filepath.Join(root, "bundles", "h"), EntryAgent: "lead",

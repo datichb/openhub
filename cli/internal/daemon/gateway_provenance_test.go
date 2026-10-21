@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -17,33 +16,25 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/gateway/beadswire"
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
 // Writes carry the actor set by oh (person and agent); a claim binds the
 // ticket to the session and a close to its commit (bd provenance record).
 func TestDaemonBeadsActorAndProvenance(t *testing.T) {
 	p := shortPaths(t)
-	st, err := sqlite.Open(filepath.Join(p.Dir, "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
+	st := sqlitetest.New(t)
 	ctx := context.Background()
 	project, err := filepath.EvalSymlinks(t.TempDir())
 	require.NoError(t, err)
-	git := func(args ...string) {
-		cmd := exec.Command("git", append([]string{"-C", project, "-c", "user.email=a@b", "-c", "commit.gpgsign=false"}, args...)...)
-		out, err := cmd.CombinedOutput()
-		require.NoError(t, err, string(out))
-	}
-	git("init", "-q", "-b", "feat/x")
-	git("config", "user.name", "Ada Lovelace")
-	git("commit", "-q", "--allow-empty", "-m", "work")
-	head, err := exec.Command("git", "-C", project, "rev-parse", "HEAD").Output()
-	require.NoError(t, err)
-	sha := strings.TrimSpace(string(head))
+	gittest.Run(t, project, "init", "-q", "-b", "feat/x")
+	gittest.Run(t, project, "config", "user.name", "Ada Lovelace")
+	gittest.Run(t, project, "-c", "user.email=a@b", "commit", "-q", "--allow-empty", "-m", "work")
+	sha := gittest.Run(t, project, "rev-parse", "HEAD")
 
-	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1','p1',?)`, project)
-	require.NoError(t, err)
+	sqlitetest.Seed(t, st).Project("p1", project)
 	sessions, servers := sqlite.NewSessionStore(st), sqlite.NewServerStore(st)
 	require.NoError(t, servers.Upsert(ctx, &domain.Server{GroupKey: "g1", Adapter: "x", ProjectID: "p1", PID: os.Getpid(), Status: domain.ServerReady}))
 	require.NoError(t, sessions.Create(ctx, &domain.Session{ID: "ses_a", ProjectID: "p1", Status: domain.SessionStatusRunning, GroupKey: "g1",

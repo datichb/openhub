@@ -14,6 +14,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
 // envAdapter records SetSessionEnv calls (other methods are not used).
@@ -32,11 +33,8 @@ func (e *envAdapter) SetSessionEnv(_ context.Context, _ adapters.ServerHandle, i
 
 func TestSessionEnvBuildPersistReapply(t *testing.T) {
 	ctx := context.Background()
-	st, err := sqlite.Open(filepath.Join(t.TempDir(), "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
-	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1','p1','/p1')`)
-	require.NoError(t, err)
+	st := sqlitetest.New(t)
+	sqlitetest.Seed(t, st).Project("p1", "/p1")
 	sessions := sqlite.NewSessionStore(st)
 
 	ad := &envAdapter{}
@@ -83,11 +81,8 @@ func TestSessionEnvBuildPersistReapply(t *testing.T) {
 
 func TestBeadsAllowKeptForResumes(t *testing.T) {
 	ctx := context.Background()
-	st, err := sqlite.Open(filepath.Join(t.TempDir(), "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
-	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1','p1','/p1')`)
-	require.NoError(t, err)
+	st := sqlitetest.New(t)
+	sqlitetest.Seed(t, st).Project("p1", "/p1")
 	sessions := sqlite.NewSessionStore(st)
 	var calls []SessionEnvRequest
 	svc := &Service{Adapter: &envAdapter{}, Sessions: sessions, SessionsDir: t.TempDir(),
@@ -120,10 +115,6 @@ func TestBeadsAllowKeptForResumes(t *testing.T) {
 	assert.Nil(t, allow)
 }
 
-func TestGatewayURL(t *testing.T) {
-	assert.Equal(t, "http://host.docker.internal:4242/oh-gateway", gatewayURL("http://host.docker.internal:4242/amazon-bedrock"))
-}
-
 func TestWithMachineShellEnv(t *testing.T) {
 	t.Setenv("PATH", "/opt/tools/bin:/usr/bin")
 	t.Setenv("AWS_SECRET_ACCESS_KEY", "secret")
@@ -135,14 +126,12 @@ func TestWithMachineShellEnv(t *testing.T) {
 
 	static := map[string]string{"FOO": "bar"}
 	assert.Equal(t, static, withMachineShellEnv(sessionspec.RuntimeContainer, static, []string{"/shims"}), "container: machine PATH is meaningless inside")
-}
 
-// QB1: the fake bd comes first on the PATH of local sessions (kept in the
-// static environment: resumes and subagents get it too).
-func TestWithMachineShellEnvPathFirst(t *testing.T) {
+	// QB1: the fake bd comes first on the PATH of local sessions (kept in the
+	// static environment: resumes and subagents get it too).
 	t.Setenv("PATH", "/usr/bin")
-	env := withMachineShellEnv(sessionspec.RuntimeLocal, nil, []string{"/oh/run/bin"})
-	assert.Equal(t, "/oh/run/bin"+string(os.PathListSeparator)+"/usr/bin", env["PATH"])
+	env = withMachineShellEnv(sessionspec.RuntimeLocal, nil, []string{"/oh/run/bin"})
+	assert.Equal(t, "/oh/run/bin"+string(os.PathListSeparator)+"/usr/bin", env["PATH"], "the shims come first")
 }
 
 // S-28: the shell of a local session gets the same allow-list as the tool

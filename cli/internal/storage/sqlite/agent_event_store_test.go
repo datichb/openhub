@@ -11,135 +11,77 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 )
 
-func TestAgentEventStore_CreateWithMemberID(t *testing.T) {
+// agentEventFixture is a store with a project (proj-1) and a running session
+// (sess-1) to attach events to.
+func agentEventFixture(t *testing.T) (*Store, *AgentEventStore, time.Time) {
+	t.Helper()
 	s := openTestStore(t)
-	ps := NewProjectStore(s)
-	ss := NewSessionStore(s)
-	es := NewAgentEventStore(s)
-	ctx := context.Background()
-
 	now := time.Now().Truncate(time.Second)
-	require.NoError(t, ps.Create(ctx, &domain.Project{
-		ID: "proj-1", Name: "P1", Path: "/p1", Status: domain.ProjectStatusActive,
-		CreatedAt: now, UpdatedAt: now,
-	}))
-	require.NoError(t, ss.Create(ctx, &domain.Session{
+	seedProject(t, s, "proj-1")
+	require.NoError(t, NewSessionStore(s).Create(context.Background(), &domain.Session{
 		ID: "sess-1", ProjectID: "proj-1", StartedAt: now, Status: domain.SessionStatusRunning,
 	}))
-
-	memberID := "alice"
-	event := &domain.AgentEvent{
-		ID:           "evt-1",
-		SessionID:    "sess-1",
-		ProjectID:    "proj-1",
-		AgentName:    "developer",
-		SkillsLoaded: []string{"frontend"},
-		StartedAt:    now,
-		Status:       domain.AgentEventSuccess,
-		MemberID:     &memberID,
-	}
-	require.NoError(t, es.Create(ctx, event))
-
-	events, err := es.ListBySession(ctx, "sess-1")
-	require.NoError(t, err)
-	require.Len(t, events, 1)
-	require.NotNil(t, events[0].MemberID)
-	assert.Equal(t, "alice", *events[0].MemberID)
-	assert.Equal(t, "developer", events[0].AgentName)
+	return s, NewAgentEventStore(s), now
 }
 
-func TestAgentEventStore_CreateWithoutMemberID(t *testing.T) {
-	s := openTestStore(t)
-	ps := NewProjectStore(s)
-	ss := NewSessionStore(s)
-	es := NewAgentEventStore(s)
+func TestAgentEventStore_MemberID(t *testing.T) {
 	ctx := context.Background()
 
-	now := time.Now().Truncate(time.Second)
-	require.NoError(t, ps.Create(ctx, &domain.Project{
-		ID: "proj-1", Name: "P1", Path: "/p1", Status: domain.ProjectStatusActive,
-		CreatedAt: now, UpdatedAt: now,
-	}))
-	require.NoError(t, ss.Create(ctx, &domain.Session{
-		ID: "sess-1", ProjectID: "proj-1", StartedAt: now, Status: domain.SessionStatusRunning,
-	}))
+	t.Run("an event keeps its member", func(t *testing.T) {
+		_, es, now := agentEventFixture(t)
+		memberID := "alice"
+		require.NoError(t, es.Create(ctx, &domain.AgentEvent{
+			ID: "evt-1", SessionID: "sess-1", ProjectID: "proj-1", AgentName: "developer",
+			SkillsLoaded: []string{"frontend"}, StartedAt: now, Status: domain.AgentEventSuccess, MemberID: &memberID,
+		}))
 
-	event := &domain.AgentEvent{
-		ID:           "evt-no-member",
-		SessionID:    "sess-1",
-		ProjectID:    "proj-1",
-		AgentName:    "reviewer",
-		SkillsLoaded: []string{},
-		StartedAt:    now,
-		Status:       domain.AgentEventSuccess,
-	}
-	require.NoError(t, es.Create(ctx, event))
+		events, err := es.ListBySession(ctx, "sess-1")
+		require.NoError(t, err)
+		require.Len(t, events, 1)
+		require.NotNil(t, events[0].MemberID)
+		assert.Equal(t, "alice", *events[0].MemberID)
+		assert.Equal(t, "developer", events[0].AgentName)
+	})
 
-	events, err := es.ListBySession(ctx, "sess-1")
-	require.NoError(t, err)
-	require.Len(t, events, 1)
-	assert.Nil(t, events[0].MemberID, "MemberID should be nil when not set")
-}
+	t.Run("an event without member stays without", func(t *testing.T) {
+		_, es, now := agentEventFixture(t)
+		require.NoError(t, es.Create(ctx, &domain.AgentEvent{
+			ID: "evt-no-member", SessionID: "sess-1", ProjectID: "proj-1", AgentName: "reviewer",
+			SkillsLoaded: []string{}, StartedAt: now, Status: domain.AgentEventSuccess,
+		}))
 
-func TestAgentEventStore_UpdateMemberID(t *testing.T) {
-	s := openTestStore(t)
-	ps := NewProjectStore(s)
-	ss := NewSessionStore(s)
-	es := NewAgentEventStore(s)
-	ctx := context.Background()
+		events, err := es.ListBySession(ctx, "sess-1")
+		require.NoError(t, err)
+		require.Len(t, events, 1)
+		assert.Nil(t, events[0].MemberID, "MemberID should be nil when not set")
+	})
 
-	now := time.Now().Truncate(time.Second)
-	require.NoError(t, ps.Create(ctx, &domain.Project{
-		ID: "proj-1", Name: "P1", Path: "/p1", Status: domain.ProjectStatusActive,
-		CreatedAt: now, UpdatedAt: now,
-	}))
-	require.NoError(t, ss.Create(ctx, &domain.Session{
-		ID: "sess-1", ProjectID: "proj-1", StartedAt: now, Status: domain.SessionStatusRunning,
-	}))
+	t.Run("the member is set by an update", func(t *testing.T) {
+		_, es, now := agentEventFixture(t)
+		event := &domain.AgentEvent{
+			ID: "evt-update", SessionID: "sess-1", ProjectID: "proj-1", AgentName: "developer",
+			SkillsLoaded: []string{}, StartedAt: now, Status: domain.AgentEventSuccess,
+		}
+		require.NoError(t, es.Create(ctx, event))
 
-	// Create without member_id
-	event := &domain.AgentEvent{
-		ID:           "evt-update",
-		SessionID:    "sess-1",
-		ProjectID:    "proj-1",
-		AgentName:    "developer",
-		SkillsLoaded: []string{},
-		StartedAt:    now,
-		Status:       domain.AgentEventSuccess,
-	}
-	require.NoError(t, es.Create(ctx, event))
+		mid := "bob"
+		event.MemberID = &mid
+		completedAt := now.Add(5 * time.Minute)
+		event.CompletedAt = &completedAt
+		require.NoError(t, es.Update(ctx, event))
 
-	// Update with member_id
-	mid := "bob"
-	event.MemberID = &mid
-	completedAt := now.Add(5 * time.Minute)
-	event.CompletedAt = &completedAt
-	require.NoError(t, es.Update(ctx, event))
-
-	// Verify
-	events, err := es.ListBySession(ctx, "sess-1")
-	require.NoError(t, err)
-	require.Len(t, events, 1)
-	require.NotNil(t, events[0].MemberID)
-	assert.Equal(t, "bob", *events[0].MemberID)
-	assert.NotNil(t, events[0].CompletedAt)
+		events, err := es.ListBySession(ctx, "sess-1")
+		require.NoError(t, err)
+		require.Len(t, events, 1)
+		require.NotNil(t, events[0].MemberID)
+		assert.Equal(t, "bob", *events[0].MemberID)
+		assert.NotNil(t, events[0].CompletedAt)
+	})
 }
 
 func TestAgentEventStore_RetroTagMemberID(t *testing.T) {
-	s := openTestStore(t)
-	ps := NewProjectStore(s)
-	ss := NewSessionStore(s)
-	es := NewAgentEventStore(s)
+	s, es, now := agentEventFixture(t)
 	ctx := context.Background()
-
-	now := time.Now().Truncate(time.Second)
-	require.NoError(t, ps.Create(ctx, &domain.Project{
-		ID: "proj-1", Name: "P1", Path: "/p1", Status: domain.ProjectStatusActive,
-		CreatedAt: now, UpdatedAt: now,
-	}))
-	require.NoError(t, ss.Create(ctx, &domain.Session{
-		ID: "sess-1", ProjectID: "proj-1", StartedAt: now, Status: domain.SessionStatusRunning,
-	}))
 
 	// Create two events without member_id
 	for _, id := range []string{"evt-a", "evt-b"} {

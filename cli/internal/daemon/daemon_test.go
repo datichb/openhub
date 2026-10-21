@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -14,6 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/credproxy"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
 type mapSecrets map[string]string
@@ -44,9 +44,7 @@ type env struct {
 func newEnv(t *testing.T) *env {
 	t.Helper()
 	p := shortPaths(t)
-	st, err := sqlite.Open(filepath.Join(p.Dir, "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
+	st := sqlitetest.New(t)
 	return &env{paths: p, store: st, grants: sqlite.NewGrantStore(st), servers: sqlite.NewServerStore(st)}
 }
 

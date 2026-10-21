@@ -2,7 +2,6 @@ package sqlite
 
 import (
 	"context"
-	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -14,9 +13,7 @@ import (
 )
 
 func TestWikiProposalStore(t *testing.T) {
-	st, err := Open(filepath.Join(t.TempDir(), "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
+	st := openTestStore(t)
 	ctx := context.Background()
 	ws := NewWikiProposalStore(st)
 
@@ -93,9 +90,7 @@ func TestWikiProposalStore(t *testing.T) {
 // retention; open ones stay, and so does the last proposal of each project
 // (its number is the next one's base).
 func TestWikiProposalPurge(t *testing.T) {
-	st, err := Open(filepath.Join(t.TempDir(), "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
+	st := openTestStore(t)
 	ctx := context.Background()
 	ws := NewWikiProposalStore(st)
 	old := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)

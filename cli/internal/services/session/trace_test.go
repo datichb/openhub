@@ -18,6 +18,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
 type transcriptTool struct {
@@ -43,12 +44,9 @@ const (
 // A fake session with every kind of source: the JSONL holds all of it,
 // oldest first, and no secret is left.
 func TestTraceIsCompleteAndMasked(t *testing.T) {
-	st, err := sqlite.Open(filepath.Join(t.TempDir(), "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
+	st := sqlitetest.New(t)
 	ctx := context.Background()
-	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1','p1','/p1')`)
-	require.NoError(t, err)
+	sqlitetest.Seed(t, st).Project("p1", "/p1")
 	project := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(project, "go.mod"), []byte("module x\n\ngo 1.22\n"), 0o644))
 
@@ -87,7 +85,7 @@ func TestTraceIsCompleteAndMasked(t *testing.T) {
 	resolved := at(12)
 	require.NoError(t, svc.Decisions.Upsert(ctx, &domain.Decision{ID: "permission:ses_root:p1", SessionID: "ses_root", GroupKey: "g1", Kind: domain.DecisionPermission,
 		ToolRef: "p1", CreatedAt: at(11), Payload: domain.DecisionPayload{Action: "shell", Resources: []string{"curl -H 'Authorization: Bearer abcdef123456' x"}, Data: map[string]any{domain.DataToolSession: "ses_child"}}}))
-	_, err = svc.Decisions.Resolve(ctx, "permission:ses_root:p1", domain.ResolvedByOh, &domain.DecisionResolution{Decision: "reject"}, resolved)
+	_, err := svc.Decisions.Resolve(ctx, "permission:ses_root:p1", domain.ResolvedByOh, &domain.DecisionResolution{Decision: "reject"}, resolved)
 	require.NoError(t, err)
 	require.NoError(t, svc.Decisions.Upsert(ctx, &domain.Decision{ID: "checkpoint:ses_root:cp-2", SessionID: "ses_root", GroupKey: "g1", Kind: domain.DecisionCheckpoint,
 		ToolRef: "cp-2", CreatedAt: at(13), Payload: domain.DecisionPayload{Title: "Commit", Data: map[string]any{checkpoint.DataCheckpoint: "cp-2", checkpoint.DataApprover: []string{"Grace Hopper"}}}}))

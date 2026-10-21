@@ -19,6 +19,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/gateway/beadswire"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
 // TestLocalBeadsGateway (QB1) runs bd from the shell of a local session (no
@@ -63,14 +64,8 @@ func TestLocalBeadsGateway(t *testing.T) {
 		t.Fatalf("bd create on the machine: %v", err)
 	}
 
-	st, err := sqlite.Open(filepath.Join(root, "oh.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { st.Close() })
-	if _, err := st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1', 'p1', ?)`, project); err != nil {
-		t.Fatal(err)
-	}
+	st := sqlitetest.New(t)
+	sqlitetest.Seed(t, st).Project("p1", project)
 	servers, sessions := sqlite.NewServerStore(st), sqlite.NewSessionStore(st)
 	a := opencodev2.New("", filepath.Join(root, "cache"))
 	if _, err := a.Detect(ctx); err != nil {

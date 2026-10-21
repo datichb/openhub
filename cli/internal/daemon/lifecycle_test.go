@@ -16,6 +16,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/filelock"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
 type stopCountingAdapter struct {
@@ -50,12 +51,9 @@ func (e *lcEnv) endedIDs() []string {
 func startLifecycle(t *testing.T, idleSleep time.Duration, group string, sessionIDs ...string) *lcEnv {
 	t.Helper()
 	p := shortPaths(t)
-	st, err := sqlite.Open(filepath.Join(p.Dir, "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
+	st := sqlitetest.New(t)
 	ctx := context.Background()
-	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1','p1','/p1')`)
-	require.NoError(t, err)
+	sqlitetest.Seed(t, st).Project("p1", "/p1")
 	e := &lcEnv{t: t, ctx: ctx, sessions: sqlite.NewSessionStore(st), servers: sqlite.NewServerStore(st), ad: &stopCountingAdapter{fakeAdapter: newFake()},
 		servDir: filepath.Join(p.Dir, "servers")}
 	require.NoError(t, e.servers.Upsert(ctx, &domain.Server{GroupKey: group, Adapter: "fake", ProjectID: "p1", PID: os.Getpid(), Status: domain.ServerReady}))

@@ -40,31 +40,32 @@ func captureLogs(t *testing.T) *lockedBuffer {
 }
 
 // S-29: a refused revocation is logged and tried once more, not dropped.
-func TestRevokeOwnerLogsAndRetries(t *testing.T) {
-	logs := captureLogs(t)
-	dc := &fakeDaemon{failRevokes: 1}
-	revokeOwner(context.Background(), dc, "g1")
-	assert.Equal(t, 2, dc.revokeCalls)
-	assert.Equal(t, []string{"g1"}, dc.revoked)
-	assert.Contains(t, logs.String(), "proxy grants not revoked, trying again")
-	assert.Contains(t, logs.String(), "daemon unreachable")
-}
-
-func TestRevokeOwnerGivesUpAfterOneRetry(t *testing.T) {
-	logs := captureLogs(t)
-	dc := &fakeDaemon{failRevokes: 5}
-	revokeOwner(context.Background(), dc, "g1")
-	assert.Equal(t, 2, dc.revokeCalls, "one retry, no more")
-	assert.Empty(t, dc.revoked)
-	assert.Contains(t, logs.String(), "still not revoked")
-}
-
-func TestRevokeOwnerNoLogOnSuccess(t *testing.T) {
-	logs := captureLogs(t)
-	dc := &fakeDaemon{}
-	revokeOwner(context.Background(), dc, "g1")
-	assert.Equal(t, 1, dc.revokeCalls)
-	assert.Empty(t, logs.String())
+func TestRevokeOwner(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		failRevokes int
+		calls       int
+		revoked     []string
+		logged      []string // empty: nothing is logged
+	}{
+		{"refused once, then revoked", 1, 2, []string{"g1"}, []string{"proxy grants not revoked, trying again", "daemon unreachable"}},
+		{"refused twice: one retry, no more", 5, 2, nil, []string{"still not revoked"}},
+		{"revoked at once: silent", 0, 1, []string{"g1"}, nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			logs := captureLogs(t)
+			dc := &fakeDaemon{failRevokes: tc.failRevokes}
+			revokeOwner(context.Background(), dc, "g1")
+			assert.Equal(t, tc.calls, dc.revokeCalls, "revocation attempts")
+			assert.Equal(t, tc.revoked, dc.revoked, "revoked owners")
+			if len(tc.logged) == 0 {
+				assert.Empty(t, logs.String(), "nothing to log")
+			}
+			for _, msg := range tc.logged {
+				assert.Contains(t, logs.String(), msg)
+			}
+		})
+	}
 }
 
 // The retry does not depend on the caller's context: Ctrl+C cancels it

@@ -2,35 +2,27 @@ package runsvc
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
-
-func git(t *testing.T, dir string, args ...string) {
-	t.Helper()
-	cmd := exec.Command("git", args...)
-	cmd.Dir = dir
-	out, err := cmd.CombinedOutput()
-	require.NoError(t, err, "git %v: %s", args, out)
-}
 
 // The prompt says whether the session already has its own branch, so that
 // the agent does not offer to create one (v5 finalisation, Q3-2).
 func TestLocationWorkBranch(t *testing.T) {
 	project := t.TempDir()
-	git(t, project, "init", "-q", "-b", "main")
-	git(t, project, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "init")
+	gittest.Run(t, project, "init", "-q", "-b", "main")
+	gittest.Run(t, project, "commit", "-q", "--allow-empty", "-m", "init")
 
 	base := Location{Path: project, Kind: LocationBase}
 	assert.Empty(t, base.WorkBranch(project), "base branch: no dedicated branch")
 
-	git(t, project, "checkout", "-q", "-b", "feat/x")
+	gittest.Run(t, project, "checkout", "-q", "-b", "feat/x")
 	assert.Equal(t, "feat/x", base.WorkBranch(project), "the project is on a branch of its own")
 
 	wt := Location{Path: "/elsewhere", Kind: LocationWorktree, Branch: "oh/ticket-bd-1"}

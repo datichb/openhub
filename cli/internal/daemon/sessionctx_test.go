@@ -3,7 +3,6 @@ package daemon
 import (
 	"context"
 	"encoding/json"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -17,6 +16,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionctx"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
 type ctxTool struct {
@@ -52,9 +52,7 @@ func TestCheckpointsContext(t *testing.T) {
 // at each step (spending alone does not rewrite it).
 func TestSyncBudgetOnDecisionAndRaise(t *testing.T) {
 	ctx := context.Background()
-	st, err := sqlite.Open(filepath.Join(t.TempDir(), "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
+	st := sqlitetest.New(t)
 	usage := sqlite.NewUsageStore(st)
 	dir := t.TempDir()
 	require.NoError(t, limits.Save(dir, "ses_r", limits.Resolved{Limits: limits.Limits{SessionBudgetUSD: 1}}))
@@ -110,9 +108,7 @@ func TestInitialCheckpointsMatchTheDaemonState(t *testing.T) {
 // write during the last step makes the agent run one more step).
 func TestStateWritesWaitForTheEndOfTheStep(t *testing.T) {
 	ctx := context.Background()
-	st, err := sqlite.Open(filepath.Join(t.TempDir(), "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
+	st := sqlitetest.New(t)
 	usage := sqlite.NewUsageStore(st)
 	dir := t.TempDir()
 	require.NoError(t, limits.Save(dir, "ses_r", limits.Resolved{Limits: limits.Limits{SessionBudgetUSD: 1}}))

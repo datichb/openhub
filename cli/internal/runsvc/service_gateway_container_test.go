@@ -25,6 +25,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/runtime/container"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 	"github.com/datichb/openhub/cli/internal/testenv"
 )
 
@@ -104,14 +105,8 @@ func realBeadsGateway(t *testing.T, engine container.EngineKind) {
 		t.Fatalf("bd create on the machine: %v", err)
 	}
 
-	st, err := sqlite.Open(filepath.Join(short, "oh.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { st.Close() })
-	if _, err := st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1', 'p1', ?)`, project); err != nil {
-		t.Fatal(err)
-	}
+	st := sqlitetest.New(t)
+	sqlitetest.Seed(t, st).Project("p1", project)
 	servers, sessions := sqlite.NewServerStore(st), sqlite.NewSessionStore(st)
 
 	a := opencodev2.New("", filepath.Join(home, "Library", "Caches", "oh-container-tests"))

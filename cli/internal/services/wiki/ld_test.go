@@ -3,9 +3,7 @@ package wiki
 import (
 	"context"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -13,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 	"github.com/datichb/openhub/cli/internal/i18n"
 )
 
@@ -97,25 +96,6 @@ func TestPageKindAndLayout(t *testing.T) {
 	assert.Equal(t, []string{"misc/notes.md"}, layout)
 	assert.ElementsMatch(t, []string{"technical/conventions.md", "business/index.md"}, untagged,
 		"specs, decisions and postmortems record decisions: no tag needed")
-}
-
-// gitRepo makes root a git repository with everything committed.
-func gitRepo(t *testing.T, root string) func(args ...string) string {
-	t.Helper()
-	run := func(args ...string) string {
-		t.Helper()
-		cmd := exec.Command("git", args...)
-		cmd.Dir = root
-		cmd.Env = append(os.Environ(), "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@x", "GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@x",
-			"GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_SYSTEM=/dev/null")
-		out, err := cmd.CombinedOutput()
-		require.NoError(t, err, "git %v: %s", args, out)
-		return strings.TrimSpace(string(out))
-	}
-	run("init", "-q", "-b", "main")
-	run("add", "-A")
-	run("commit", "-q", "-m", "init")
-	return run
 }
 
 func writeFile(t *testing.T, root, rel, text string) {
@@ -206,11 +186,13 @@ func TestCheckRangeAndSync(t *testing.T) {
 	frLocale(t)
 	ctx := context.Background()
 	root := driftWiki(t)
-	git := gitRepo(t, root)
-	first := git("rev-parse", "HEAD")
-	git("checkout", "-q", "-b", "feature/cart")
+	gittest.Run(t, root, "init", "-q", "-b", "main")
+	gittest.Run(t, root, "add", "-A")
+	gittest.Run(t, root, "commit", "-q", "-m", "init")
+	first := gittest.Run(t, root, "rev-parse", "HEAD")
+	gittest.Run(t, root, "checkout", "-q", "-b", "feature/cart")
 	writeFile(t, root, "src/cart.go", "package x\n\nfunc Total() {}\n")
-	git("commit", "-q", "-am", "feat(cart): total")
+	gittest.Run(t, root, "commit", "-q", "-am", "feat(cart): total")
 
 	rep, err := CheckWith(ctx, root, CheckOptions{Base: "main", Head: "feature/cart"}, nil)
 	require.NoError(t, err)
@@ -242,7 +224,7 @@ func TestCheckRangeAndSync(t *testing.T) {
 	assert.Len(t, rep.Scope.Commits, 1)
 
 	// doc-sync records the commit it synchronized in the index.
-	head := git("rev-parse", "HEAD")
+	head := gittest.Run(t, root, "rev-parse", "HEAD")
 	at := time.Date(2026, 10, 13, 9, 0, 0, 0, time.UTC)
 	ok, err := SetSyncMarker(root, head, at)
 	require.NoError(t, err)
@@ -253,9 +235,9 @@ func TestCheckRangeAndSync(t *testing.T) {
 	assert.Contains(t, index, "updated: 2026-10-13")
 	w, _ := Load(root)
 	assert.Empty(t, issuesOf(w.Check(ctx, nil), IssueFrontmatter)[IssueFrontmatter], "the marker keeps the frontmatter readable")
-	git("commit", "-q", "-am", "docs(wiki): sync")
+	gittest.Run(t, root, "commit", "-q", "-am", "docs(wiki): sync")
 	writeFile(t, root, "src/order.go", "package x\n\nfunc Place() {}\n")
-	git("commit", "-q", "-am", "feat(order): place")
+	gittest.Run(t, root, "commit", "-q", "-am", "feat(order): place")
 	rep, err = CheckWith(ctx, root, CheckOptions{SinceSync: true}, nil)
 	require.NoError(t, err)
 	assert.Equal(t, FromSync, rep.Scope.From)
@@ -274,9 +256,7 @@ func TestCheckRangeAndSync(t *testing.T) {
 
 	// A wiki never committed: nothing to synchronize.
 	fresh := driftWiki(t)
-	gitInit := exec.Command("git", "init", "-q", "-b", "main")
-	gitInit.Dir = fresh
-	require.NoError(t, gitInit.Run())
+	gittest.Run(t, fresh, "init", "-q", "-b", "main")
 	rep, err = CheckWith(ctx, fresh, CheckOptions{SinceSync: true}, nil)
 	require.NoError(t, err)
 	assert.Equal(t, FromNoHistory, rep.Scope.From)
@@ -289,8 +269,10 @@ func TestCommitPassedSync(t *testing.T) {
 	frLocale(t)
 	ctx := context.Background()
 	root := writeWiki(t, map[string]string{"index.md": atlasIndex(""), "technical/stack.md": fm + "# Stack\n\n## Librairies clés\n"})
-	git := gitRepo(t, root)
-	head := git("rev-parse", "HEAD")
+	gittest.Run(t, root, "init", "-q", "-b", "main")
+	gittest.Run(t, root, "add", "-A")
+	gittest.Run(t, root, "commit", "-q", "-m", "init")
+	head := gittest.Run(t, root, "rev-parse", "HEAD")
 	at := time.Date(2026, 10, 13, 9, 0, 0, 0, time.UTC)
 	s := &Service{Store: &memStore{}, Now: func() time.Time { return at }}
 	queued, err := s.Propose(ctx, Filed{ProjectID: "p1", SessionID: "ses_review", Agent: "reviewer",

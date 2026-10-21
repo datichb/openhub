@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -12,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	wf "github.com/datichb/openhub/cli/internal/workflow"
 )
@@ -20,15 +20,6 @@ import (
 type teamEnv struct {
 	bare   string
 	clones map[string]*teamstate.Repo
-}
-
-func git(t *testing.T, dir string, args ...string) string {
-	t.Helper()
-	cmd := exec.Command("git", args...)
-	cmd.Dir = dir
-	out, err := cmd.CombinedOutput()
-	require.NoError(t, err, "git %v: %s", args, out)
-	return strings.TrimSpace(string(out))
 }
 
 func newTeamEnv(t *testing.T, members ...string) *teamEnv {
@@ -40,9 +31,9 @@ func newTeamEnv(t *testing.T, members ...string) *teamEnv {
 		t.Setenv(k, v)
 	}
 	env := &teamEnv{bare: t.TempDir(), clones: map[string]*teamstate.Repo{}}
-	git(t, env.bare, "init", "--bare", "-b", "main")
+	gittest.Run(t, env.bare, "init", "--bare", "-b", "main")
 	seed := filepath.Join(t.TempDir(), "seed")
-	git(t, t.TempDir(), "clone", env.bare, seed)
+	gittest.Run(t, t.TempDir(), "clone", env.bare, seed)
 	var mf strings.Builder
 	for _, m := range members {
 		mf.WriteString("[members." + m + "]\ndisplay_name = \"" + m + "\"\nrole = \"dev\"\n")
@@ -50,12 +41,12 @@ func newTeamEnv(t *testing.T, members ...string) *teamEnv {
 	require.NoError(t, os.WriteFile(filepath.Join(seed, "members.toml"), []byte(mf.String()), 0o644))
 	repo := teamstate.NewRepo(env.bare, seed)
 	require.NoError(t, repo.InitStructure(context.Background()))
-	git(t, seed, "add", ".")
-	git(t, seed, "commit", "-m", "init")
-	git(t, seed, "push", "-u", "origin", "HEAD:main")
+	gittest.Run(t, seed, "add", ".")
+	gittest.Run(t, seed, "commit", "-m", "init")
+	gittest.Run(t, seed, "push", "-u", "origin", "HEAD:main")
 	for _, m := range members {
 		dir := filepath.Join(t.TempDir(), m)
-		git(t, t.TempDir(), "clone", env.bare, dir)
+		gittest.Run(t, t.TempDir(), "clone", env.bare, dir)
 		env.clones[m] = teamstate.NewRepo(env.bare, dir)
 	}
 	return env
@@ -108,7 +99,7 @@ func TestSaveDraft(t *testing.T) {
 	assert.True(t, d.Pushed, d.PushError)
 	assert.Equal(t, "team:ticket-hotfix", d.Ref.String())
 	assert.FileExists(t, filepath.Join(env.clones["alice"].Path(), "workflows", "drafts", "alice", "ticket-hotfix.yaml"))
-	assert.Contains(t, git(t, env.bare, "log", "--format=%s"), "workflow: draft team:ticket-hotfix by alice")
+	assert.Contains(t, gittest.Run(t, env.bare, "log", "--format=%s"), "workflow: draft team:ticket-hotfix by alice")
 
 	// A draft is not part of the published catalogue.
 	list, err := svc.Catalog(ctx, Context{})
@@ -169,7 +160,7 @@ func TestPublishLifecycle(t *testing.T) {
 	events, err := os.ReadFile(filepath.Join(repo.Path(), "projects", teamstate.TeamEventsProject, "events", pub.At.Format("2006-01")+".jsonl"))
 	require.NoError(t, err)
 	assert.Contains(t, string(events), `"event":"workflow.published"`)
-	assert.Contains(t, git(t, env.bare, "log", "-1", "--format=%s"), "workflow: publish team:ticket-hotfix v1 by alice")
+	assert.Contains(t, gittest.Run(t, env.bare, "log", "-1", "--format=%s"), "workflow: publish team:ticket-hotfix v1 by alice")
 
 	// Bob sees it after a sync, valid, at the team layer.
 	bob := env.service(t, "bob")
@@ -266,7 +257,7 @@ func TestPublishRevalidates(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, l.Team)
 	assert.FileExists(t, filepath.Join(repo.Path(), "workflows", "drafts", "alice", "ticket-hotfix.yaml"), "the draft is kept")
-	assert.Equal(t, "", git(t, repo.Path(), "status", "--porcelain"))
+	assert.Equal(t, "", gittest.Run(t, repo.Path(), "status", "--porcelain"))
 }
 
 func TestPublishGovernance(t *testing.T) {
@@ -301,7 +292,7 @@ func TestConcurrentPublications(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 2, pb.Version, "rebuilt on top of v1")
 	assert.False(t, pb.Impact.New)
-	assert.Contains(t, git(t, env.bare, "log", "--format=%s", "-3"), "v2 by bob")
+	assert.Contains(t, gittest.Run(t, env.bare, "log", "--format=%s", "-3"), "v2 by bob")
 
 	require.NoError(t, env.clones["alice"].Pull(ctx))
 	res, err := alice.Resolve(ctx, Context{}, "ticket-hotfix", ResolveOpts{})
@@ -322,7 +313,7 @@ func TestPublishOfflineQueue(t *testing.T) {
 	repo := env.clones["alice"]
 	saveDraft(t, alice, wf.LayerTeam, hotfixDraft)
 
-	git(t, repo.Path(), "remote", "set-url", "origin", "http://127.0.0.1:1/team-state.git")
+	gittest.Run(t, repo.Path(), "remote", "set-url", "origin", "http://127.0.0.1:1/team-state.git")
 	pub, err := alice.Publish(ctx, Context{}, "ticket-hotfix", "offline")
 	require.NoError(t, err)
 	assert.True(t, pub.Queued)
@@ -338,7 +329,7 @@ func TestPublishOfflineQueue(t *testing.T) {
 	assert.Empty(t, pubs)
 	assert.Empty(t, errs)
 
-	git(t, repo.Path(), "remote", "set-url", "origin", env.bare)
+	gittest.Run(t, repo.Path(), "remote", "set-url", "origin", env.bare)
 	pubs, errs = alice.FlushQueue(ctx, Context{})
 	require.Empty(t, errs)
 	require.Len(t, pubs, 1)

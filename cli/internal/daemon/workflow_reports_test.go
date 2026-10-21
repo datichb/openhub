@@ -21,6 +21,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/services/report"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
 type reportEnv struct {
@@ -31,12 +32,9 @@ type reportEnv struct {
 
 func newReportEnv(t *testing.T, dir string) reportEnv {
 	t.Helper()
-	st, err := sqlite.Open(filepath.Join(dir, "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
+	st := sqlitetest.New(t)
 	ctx := context.Background()
-	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1','p1','/p1')`)
-	require.NoError(t, err)
+	sqlitetest.Seed(t, st).Project("p1", "/p1")
 	sessions := sqlite.NewSessionStore(st)
 	bundles := t.TempDir()
 	require.NoError(t, os.MkdirAll(filepath.Join(bundles, "h1"), 0o755))

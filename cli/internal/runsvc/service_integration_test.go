@@ -21,8 +21,10 @@ import (
 	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/daemon"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
 type mapSecrets map[string]string
@@ -56,14 +58,11 @@ func newFixture(t *testing.T, secrets mapSecrets) *fixture {
 	require.NoError(t, err)
 	t.Cleanup(func() { os.RemoveAll(root) })
 
-	st, err := sqlite.Open(filepath.Join(root, "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
+	st := sqlitetest.New(t)
 	project := filepath.Join(root, "proj")
 	require.NoError(t, os.MkdirAll(project, 0o755))
-	require.NoError(t, exec.Command("git", "init", "-q", project).Run())
-	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1', 'p1', ?)`, project)
-	require.NoError(t, err)
+	gittest.Run(t, project, "init", "-q")
+	sqlitetest.Seed(t, st).Project("p1", project)
 
 	a := opencodev2.New("", filepath.Join(root, "cache"))
 	_, err = a.Detect(context.Background())

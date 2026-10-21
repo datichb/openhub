@@ -20,6 +20,7 @@ import (
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
 // R3-remote: a remote session simulated end to end on the services of the
@@ -75,11 +76,8 @@ func (f *cpTool) Refresh(context.Context, string) error { return nil }
 // works in clone.
 func jobCheckpoints(t *testing.T, clone string) (*checkpoint.Service, *verifyExec) {
 	t.Helper()
-	st, err := sqlite.Open(filepath.Join(t.TempDir(), "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
-	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p-api','api','/work')`)
-	require.NoError(t, err)
+	st := sqlitetest.New(t)
+	sqlitetest.Seed(t, st).Project("p-api", "/work")
 	cs := sqlite.NewCheckpointStore(st)
 	svc := &checkpoint.Service{Sessions: sqlite.NewSessionStore(st), States: cs, SessionOutputs: cs, BundlesDir: t.TempDir(),
 		SessionsDir: t.TempDir(), ApprovalWait: 20 * time.Millisecond, VerifyWait: 2 * time.Second, Identity: checkpoint.JobIdentity}

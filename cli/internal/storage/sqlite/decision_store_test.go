@@ -12,7 +12,7 @@ import (
 )
 
 func TestDecisionStoreLifecycle(t *testing.T) {
-	ds := NewDecisionStore(openTemp(t))
+	ds := NewDecisionStore(openTestStore(t))
 	ctx := context.Background()
 	id := domain.DecisionID(domain.DecisionPermission, "ses_a", "per_1")
 	d := &domain.Decision{ID: id, SessionID: "ses_a", GroupKey: "g1", Kind: domain.DecisionPermission, ToolRef: "per_1",

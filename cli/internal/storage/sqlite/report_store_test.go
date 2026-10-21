@@ -2,7 +2,6 @@ package sqlite
 
 import (
 	"context"
-	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -14,12 +13,9 @@ import (
 )
 
 func TestReportStore(t *testing.T) {
-	st, err := Open(filepath.Join(t.TempDir(), "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
+	st := openTestStore(t)
 	ctx := context.Background()
-	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1','p1','/p1')`)
-	require.NoError(t, err)
+	seedProject(t, st, "p1")
 	sessions := NewSessionStore(st)
 	require.NoError(t, sessions.Create(ctx, &domain.Session{ID: "ses_a", ProjectID: "p1", Status: domain.SessionStatusRunning}))
 	rs := NewReportStore(st)

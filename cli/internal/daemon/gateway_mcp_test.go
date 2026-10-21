@@ -3,7 +3,6 @@ package daemon
 import (
 	"context"
 	"encoding/json"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -13,6 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/gateway"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
 func mcpMessage(t *testing.T, raw string) map[string]json.RawMessage {
@@ -33,12 +33,9 @@ func TestCheckMCPFailsClosed(t *testing.T) {
 	adoptTries, adoptRetry = 1, time.Millisecond
 	t.Cleanup(func() { adoptTries, adoptRetry = 5, 600*time.Millisecond })
 
-	st, err := sqlite.Open(filepath.Join(t.TempDir(), "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
+	st := sqlitetest.New(t)
 	ctx := context.Background()
-	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1','p1','/p1')`)
-	require.NoError(t, err)
+	sqlitetest.Seed(t, st).Project("p1", "/p1")
 	sessions := sqlite.NewSessionStore(st)
 	for _, s := range []struct{ id, group string }{{"ses_a", "g1"}, {"ses_b", "g1"}, {"ses_x", "g2"}} {
 		require.NoError(t, sessions.Create(ctx, &domain.Session{ID: s.id, ProjectID: "p1", Status: domain.SessionStatusRunning, GroupKey: s.group, State: domain.RunActive}))

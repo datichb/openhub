@@ -20,26 +20,10 @@ import (
 	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
 func TestMain(m *testing.M) { os.Exit(gittest.Main(m)) }
-
-func run(t *testing.T, dir string, args ...string) string {
-	t.Helper()
-	cmd := exec.Command(args[0], args[1:]...)
-	cmd.Dir = dir
-	cmd.Env = append(os.Environ(), "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@x", "GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@x")
-	out, err := cmd.CombinedOutput()
-	require.NoError(t, err, "%v: %s", args, out)
-	return strings.TrimSpace(string(out))
-}
-
-func commit(t *testing.T, dir, file, content, msg string) {
-	t.Helper()
-	require.NoError(t, os.WriteFile(filepath.Join(dir, file), []byte(content), 0o644))
-	run(t, dir, "git", "add", file)
-	run(t, dir, "git", "commit", "-q", "-m", msg)
-}
 
 // quiet runs a command of a fake session (in a goroutine that may outlive
 // the test: errors are ignored).
@@ -200,16 +184,10 @@ type fixture struct {
 
 func newFixture(t *testing.T, tickets ...string) *fixture {
 	t.Helper()
-	st, err := sqlite.Open(filepath.Join(t.TempDir(), "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
-	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1','p1','/p1')`)
-	require.NoError(t, err)
-	root := t.TempDir()
-	project := filepath.Join(root, "proj")
-	require.NoError(t, os.MkdirAll(project, 0o755))
-	run(t, project, "git", "init", "-q", "-b", "main")
-	commit(t, project, "calc.go", "package calc\n", "init")
+	st := sqlitetest.New(t)
+	sqlitetest.Seed(t, st).Project("p1", "/p1")
+	project := gittest.Repo(t)
+	gittest.Commit(t, project, "calc.go", "package calc\n", "calc")
 	f := &fixture{store: sqlite.NewSessionStore(st), project: project, passed: true, deps: map[string][]string{}, closed: map[string]bool{}}
 	f.wf = &sessionspec.WorkflowRuntime{ID: "implement-spec", Checkpoints: []sessionspec.CheckpointDef{{ID: "cp-plan", Mandatory: true}, {ID: "cp-merge", Mandatory: true}},
 		Fanout: &sessionspec.FanoutDef{Child: "ticket", Merge: "cp-merge", Parallel: 3, Merger: "merge-conflicts", Delegates: []string{"cp-2"}}}
@@ -266,11 +244,11 @@ func TestDriverMergesIndependentChildren(t *testing.T) {
 		assert.True(t, strings.HasPrefix(c.Branch, BranchPrefix))
 	}
 	ig := fo.Integration
-	head := run(t, ig.Path, "git", "rev-parse", "HEAD")
+	head := gittest.Run(t, ig.Path, "rev-parse", "HEAD")
 	assert.Equal(t, head, ig.Head)
 	assert.FileExists(t, filepath.Join(ig.Path, "sub.go"))
 	assert.FileExists(t, filepath.Join(ig.Path, "mul.go"))
-	assert.Equal(t, "2", run(t, ig.Path, "git", "rev-list", "--count", "--merges", ig.Base+"..HEAD"), "one merge commit per child")
+	assert.Equal(t, "2", gittest.Run(t, ig.Path, "rev-list", "--count", "--merges", ig.Base+"..HEAD"), "one merge commit per child")
 	require.Len(t, f.launcher.told, 1, "the parent is told once")
 	assert.Contains(t, f.launcher.told[0], "ev-1")
 	assert.Contains(t, f.launcher.told[0], "cp-merge")
@@ -305,7 +283,7 @@ func TestDriverMergesIndependentChildren(t *testing.T) {
 	assert.Contains(t, msg, "ev-1, ev-2")
 	assert.Equal(t, []string{"ev-1", "ev-2"}, closed)
 	assert.FileExists(t, filepath.Join(f.project, "sub.go"))
-	assert.Equal(t, head, run(t, f.project, "git", "rev-parse", "HEAD"), "fast forward")
+	assert.Equal(t, head, gittest.Run(t, f.project, "rev-parse", "HEAD"), "fast forward")
 	p, _ = f.store.Get(context.Background(), "ses_parent")
 	assert.Equal(t, domain.FanoutMerged, p.Fanout.Status)
 }
@@ -361,7 +339,7 @@ func TestDriverRecordSurvivesStopAfterMerge(t *testing.T) {
 	c, _ := p.Fanout.Child("ev-1")
 	require.NotNil(t, c)
 	assert.Equal(t, domain.ChildMerged, c.State, "the merge of ev-1 is recorded though the driver was stopped")
-	assert.Equal(t, run(t, ig.Path, "git", "rev-parse", "HEAD"), ig.Head, "the recorded head is the one of git")
+	assert.Equal(t, gittest.Run(t, ig.Path, "rev-parse", "HEAD"), ig.Head, "the recorded head is the one of git")
 
 	fo := f.runDriver(t)
 	require.Equal(t, domain.FanoutReady, fo.Status, "the driver started again goes on: %+v", fo.Events)
@@ -373,8 +351,8 @@ func TestDriverRecordSurvivesStopAfterMerge(t *testing.T) {
 		assert.NotEqual(t, domain.FanoutEventTampered, e.Kind, "the integration branch is not seen as modified: %s", e.Message)
 	}
 	ig = fo.Integration
-	assert.Equal(t, run(t, ig.Path, "git", "rev-parse", "HEAD"), ig.Head)
-	assert.Equal(t, "2", run(t, ig.Path, "git", "rev-list", "--count", "--merges", ig.Base+"..HEAD"), "one merge commit per child")
+	assert.Equal(t, gittest.Run(t, ig.Path, "rev-parse", "HEAD"), ig.Head)
+	assert.Equal(t, "2", gittest.Run(t, ig.Path, "rev-list", "--count", "--merges", ig.Base+"..HEAD"), "one merge commit per child")
 	require.Len(t, f.launcher.told, 1, "the parent is told once")
 	logMu.Lock()
 	defer logMu.Unlock()
@@ -459,8 +437,8 @@ func TestDriverStopsOnACriticalRecordItCannotWrite(t *testing.T) {
 				ig := o.stored.Integration
 				c, _ := o.stored.Child("ev-1")
 				assert.NotEqual(t, domain.ChildMerged, c.State, "the child is not recorded as merged")
-				assert.Equal(t, "1", run(t, ig.Path, "git", "rev-list", "--count", "--merges", ig.Base+"..HEAD"), "git did merge the child")
-				assert.NotEqual(t, ig.Head, run(t, ig.Path, "git", "rev-parse", "HEAD"), "the record is the one behind git")
+				assert.Equal(t, "1", gittest.Run(t, ig.Path, "rev-list", "--count", "--merges", ig.Base+"..HEAD"), "git did merge the child")
+				assert.NotEqual(t, ig.Head, gittest.Run(t, ig.Path, "rev-parse", "HEAD"), "the record is the one behind git")
 				notInProgress(t, o)
 			}},
 		{"conflict left unresolved", []string{"ev-1", "ev-2"},
@@ -476,7 +454,7 @@ func TestDriverStopsOnACriticalRecordItCannotWrite(t *testing.T) {
 			},
 			func(t *testing.T, o outcome) {
 				ig := o.stored.Integration
-				assert.Equal(t, ig.Head, run(t, ig.Path, "git", "rev-parse", "HEAD"), "the merge was undone: git and the record agree")
+				assert.Equal(t, ig.Head, gittest.Run(t, ig.Path, "rev-parse", "HEAD"), "the merge was undone: git and the record agree")
 				assert.NotContains(t, readFile(t, filepath.Join(ig.Path, "calc.go")), "<<<<<<<", "no marker left")
 				notInProgress(t, o)
 			}},
@@ -501,7 +479,7 @@ func TestDriverStopsOnACriticalRecordItCannotWrite(t *testing.T) {
 				}
 				require.NotEmpty(t, merger, "the merger was started")
 				assert.Contains(t, o.launcher.stoppedIDs(), merger, "the merger no one follows is stopped")
-				assert.Equal(t, ig.Head, run(t, ig.Path, "git", "rev-parse", "HEAD"), "the merge was undone: git and the record agree")
+				assert.Equal(t, ig.Head, gittest.Run(t, ig.Path, "rev-parse", "HEAD"), "the merge was undone: git and the record agree")
 				notInProgress(t, o)
 			}},
 		{"parent stopped", []string{"ev-1"},
@@ -529,7 +507,7 @@ func TestDriverStopsOnACriticalRecordItCannotWrite(t *testing.T) {
 			func(t *testing.T, o outcome) {
 				ig := o.stored.Integration
 				assert.Len(t, o.f.launcher.started, 1, "only the child was started: no fixer")
-				assert.Equal(t, ig.Head, run(t, ig.Path, "git", "rev-parse", "HEAD"), "the integration branch did not move")
+				assert.Equal(t, ig.Head, gittest.Run(t, ig.Path, "rev-parse", "HEAD"), "the integration branch did not move")
 				x, _ := o.stored.LastFix()
 				assert.Equal(t, domain.ChildPending, x.State, "the round is not recorded as running")
 				notInProgress(t, o)
@@ -549,7 +527,7 @@ func TestDriverStopsOnACriticalRecordItCannotWrite(t *testing.T) {
 				assert.Contains(t, o.launcher.stoppedIDs(), "ses_fixer_2", "the fixer no one follows is stopped")
 				x, _ := o.stored.LastFix()
 				assert.Empty(t, x.Session, "the fixer is not in the record")
-				assert.Equal(t, ig.Head, run(t, ig.Path, "git", "rev-parse", "HEAD"), "the integration branch did not move")
+				assert.Equal(t, ig.Head, gittest.Run(t, ig.Path, "rev-parse", "HEAD"), "the integration branch did not move")
 				notInProgress(t, o)
 			}},
 	} {
@@ -665,7 +643,7 @@ func TestDriverConflictUnresolved(t *testing.T) {
 	c := conflicted(t, fo)
 	assert.Equal(t, domain.ChildConflict, c.State)
 	assert.False(t, MergeInProgress(context.Background(), fo.Integration.Path), "integration left clean")
-	head := run(t, fo.Integration.Path, "git", "rev-parse", "HEAD")
+	head := gittest.Run(t, fo.Integration.Path, "rev-parse", "HEAD")
 	assert.Equal(t, fo.Integration.Head, head)
 	assert.Equal(t, domain.FanoutReady, fo.Status, "the merged children can still be validated")
 
@@ -710,12 +688,36 @@ func TestDriverSkipsClosedTicket(t *testing.T) {
 	assert.Equal(t, "ev-2", f.launcher.started[0].Ticket)
 }
 
-func TestDriverChildWithoutCommit(t *testing.T) {
-	f := newFixture(t, "ev-1")
-	fo := f.runDriver(t)
-	c, _ := fo.Child("ev-1")
-	assert.Equal(t, domain.ChildFailed, c.State)
-	assert.Equal(t, domain.FanoutReady, fo.Status)
+// How a lone child ends when it did not signal its end of work: failed when
+// it has not committed, put aside after the idle timeout, or ended with its
+// session.
+func TestDriverChildOutcome(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		setup func(f *fixture)
+		check func(t *testing.T, fo *domain.SessionFanout)
+	}{
+		{"no commit", func(*fixture) {}, func(t *testing.T, fo *domain.SessionFanout) {
+			c, _ := fo.Child("ev-1")
+			assert.Equal(t, domain.ChildFailed, c.State)
+			assert.Equal(t, domain.FanoutReady, fo.Status)
+		}},
+		{"idle past the timeout", func(f *fixture) { f.driver.IdleTimeout = 50 * time.Millisecond }, func(t *testing.T, fo *domain.SessionFanout) {
+			assert.Equal(t, DoneIdle, doneReason(fo, "ev-1"))
+		}},
+		{"session ended", func(f *fixture) {
+			f.driver.IdleTimeout = time.Hour
+			f.launcher.ended = true
+		}, func(t *testing.T, fo *domain.SessionFanout) {
+			assert.Equal(t, DoneEnded, doneReason(fo, "ev-1"))
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t, "ev-1")
+			tc.setup(f)
+			tc.check(t, f.runDriver(t))
+		})
+	}
 }
 
 // slowStore is a store slow to read the parent: the driver works on a
@@ -931,7 +933,7 @@ func TestDriverChildEndSignal(t *testing.T) {
 				} else {
 					require.Len(t, p.Fanout.Children, 1)
 					c := p.Fanout.Children[0]
-					run(t, c.Path, "git", "-c", "user.name=t", "-c", "user.email=t@x", "commit", "-q", "--allow-empty", "-m", "feat: ev-1")
+					gittest.Run(t, c.Path, "commit", "-q", "--allow-empty", "-m", "feat: ev-1")
 				}
 			}
 			select {
@@ -943,14 +945,6 @@ func TestDriverChildEndSignal(t *testing.T) {
 			}
 		})
 	}
-}
-
-// The guard ends an idle child that never shows its end of work.
-func TestDriverChildIdleGuard(t *testing.T) {
-	f := newFixture(t, "ev-1")
-	f.driver.IdleTimeout = 50 * time.Millisecond
-	fo := f.runDriver(t)
-	assert.Equal(t, DoneIdle, doneReason(fo, "ev-1"))
 }
 
 // driverEnd is how a driver run in a goroutine ended.
@@ -976,13 +970,4 @@ func waitFor(t *testing.T, done <-chan driverEnd, cond func() bool, what string)
 		case <-tick.C:
 		}
 	}
-}
-
-// A session that ends is done whatever its work.
-func TestDriverChildEnded(t *testing.T) {
-	f := newFixture(t, "ev-1")
-	f.driver.IdleTimeout = time.Hour
-	f.launcher.ended = true
-	fo := f.runDriver(t)
-	assert.Equal(t, DoneEnded, doneReason(fo, "ev-1"))
 }

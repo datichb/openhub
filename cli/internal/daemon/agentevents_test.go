@@ -3,7 +3,6 @@ package daemon
 import (
 	"context"
 	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -14,6 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
 // QB2: the daemon records one agent_events row per agent of a session (the
@@ -21,12 +21,9 @@ import (
 // that the per-agent metrics are fed again in v5.
 func TestWatcherRecordsAgentEvents(t *testing.T) {
 	p := shortPaths(t)
-	st, err := sqlite.Open(filepath.Join(p.Dir, "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
+	st := sqlitetest.New(t)
 	ctx := context.Background()
-	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1','p1','/p1')`)
-	require.NoError(t, err)
+	sqlitetest.Seed(t, st).Project("p1", "/p1")
 	sessions, servers, events := sqlite.NewSessionStore(st), sqlite.NewServerStore(st), sqlite.NewAgentEventStore(st)
 	require.NoError(t, servers.Upsert(ctx, &domain.Server{GroupKey: "g1", Adapter: "fake", ProjectID: "p1", PID: os.Getpid(), Status: domain.ServerReady}))
 	require.NoError(t, sessions.Create(ctx, &domain.Session{ID: "ses_r", ProjectID: "p1", Status: domain.SessionStatusRunning,
@@ -61,6 +58,7 @@ func TestWatcherRecordsAgentEvents(t *testing.T) {
 	ch <- adapters.ToolEvent{Kind: adapters.EventExecEnded, SessionID: "ses_r", Outcome: "succeeded"}
 
 	var got []domain.AgentEvent
+	var err error
 	require.Eventually(t, func() bool {
 		got, err = events.ListBySession(ctx, "ses_r")
 		return err == nil && len(got) == 2

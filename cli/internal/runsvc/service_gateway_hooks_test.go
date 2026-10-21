@@ -20,6 +20,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/gateway/beadswire"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
 // TestLocalSessionBeadsHooksAndShell (piste T, T2; no LLM call): a real
@@ -95,14 +96,8 @@ func TestLocalSessionBeadsHooksAndShell(t *testing.T) {
 	sh(project, "git", "commit", "--allow-empty", "-qm", "init")
 	t.Setenv("HOME", home) // read by the session shell (machine variables)
 
-	st, err := sqlite.Open(filepath.Join(root, "oh.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { st.Close() })
-	if _, err := st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1', 'p1', ?)`, project); err != nil {
-		t.Fatal(err)
-	}
+	st := sqlitetest.New(t)
+	sqlitetest.Seed(t, st).Project("p1", project)
 	servers, sessions := sqlite.NewServerStore(st), sqlite.NewSessionStore(st)
 	a := opencodev2.New("", filepath.Join(root, "cache"))
 	if _, err := a.Detect(ctx); err != nil {

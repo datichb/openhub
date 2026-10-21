@@ -6,7 +6,6 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -22,6 +21,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/services/report"
 	"github.com/datichb/openhub/cli/internal/services/wiki"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
 func artifactsZip(t *testing.T, files map[string][]byte) []byte {
@@ -260,14 +260,11 @@ func TestFetchImportsReports(t *testing.T) {
 
 	// The job side: reports filed in the session of the job, then exported
 	// as the runner does.
-	jobDB, err := sqlite.Open(filepath.Join(t.TempDir(), "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { jobDB.Close() })
-	_, err = jobDB.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1','p1','/p1')`)
-	require.NoError(t, err)
+	jobDB := sqlitetest.New(t)
+	sqlitetest.Seed(t, jobDB).Project("p1", "/p1")
 	require.NoError(t, sqlite.NewSessionStore(jobDB).Create(ctx, &domain.Session{ID: e.sessionID, ProjectID: "p1", Status: domain.SessionStatusRunning}))
 	job := &report.Service{Store: sqlite.NewReportStore(jobDB), SessionsDir: t.TempDir()}
-	_, err = job.Add(ctx, e.sessionID, "developer", "ses_child", "Fait", "## Changements par fichier\n- calc.go")
+	_, err := job.Add(ctx, e.sessionID, "developer", "ses_child", "Fait", "## Changements par fichier\n- calc.go")
 	require.NoError(t, err)
 	_, err = job.Add(ctx, e.sessionID, "reviewer", "ses_child2", "Review", "## Verdict\nvalidé")
 	require.NoError(t, err)
@@ -338,9 +335,7 @@ func TestFetchImportsWikiProposals(t *testing.T) {
 
 	// The job side: proposals filed in the session of the job, never
 	// applied there, exported as the runner does.
-	jobDB, err := sqlite.Open(filepath.Join(t.TempDir(), "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { jobDB.Close() })
+	jobDB := sqlitetest.New(t)
 	job := &wiki.Service{Store: sqlite.NewWikiProposalStore(jobDB), SessionsDir: t.TempDir()}
 	for _, c := range []string{"zod pour la validation.", "pino pour les logs."} {
 		_, err := job.Propose(ctx, wiki.Filed{ProjectID: "p-api", SessionID: e.sessionID, ToolSession: "ses_child", Agent: "reviewer",

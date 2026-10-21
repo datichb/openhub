@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sync"
 	"testing"
@@ -18,9 +17,11 @@ import (
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/gateway/beadswire"
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
 func deniesShell(rules []sessionspec.PermissionRule, pattern string) bool {
@@ -32,32 +33,19 @@ func deniesShell(rules []sessionspec.PermissionRule, pattern string) bool {
 	return false
 }
 
-func gitRun(t *testing.T, dir string, args ...string) {
-	t.Helper()
-	cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
-	cmd.Env = append(os.Environ(), "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@t", "GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@t")
-	out, err := cmd.CombinedOutput()
-	require.NoError(t, err, string(out))
-}
-
 // A17, A36, A38 (piste T, T1): before cp-2, commit and closing are refused
 // (session rules, Beads gateway); after it, closing waits for a commit and
 // locks again; a question imitating a checkpoint is answered by oh; the end
 // of the workflow completes the session with its outputs.
 func TestWorkflowLocksAndEnd(t *testing.T) {
 	p := shortPaths(t)
-	st, err := sqlite.Open(filepath.Join(p.Dir, "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
+	st := sqlitetest.New(t)
 	ctx := context.Background()
 	project, err := filepath.EvalSymlinks(t.TempDir())
 	require.NoError(t, err)
-	gitRun(t, project, "init", "-q")
-	require.NoError(t, os.WriteFile(filepath.Join(project, "a.txt"), []byte("a"), 0o644))
-	gitRun(t, project, "add", ".")
-	gitRun(t, project, "commit", "-qm", "init")
-	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1','p1',?)`, project)
-	require.NoError(t, err)
+	gittest.Run(t, project, "init", "-q")
+	gittest.Commit(t, project, "a.txt", "a", "init")
+	sqlitetest.Seed(t, st).Project("p1", project)
 	sessions, servers, decisions := sqlite.NewSessionStore(st), sqlite.NewServerStore(st), sqlite.NewDecisionStore(st)
 	states := sqlite.NewCheckpointStore(st)
 
@@ -188,13 +176,13 @@ func TestWorkflowLocksAndEnd(t *testing.T) {
 	code, out = bdExec("close", "pt-1")
 	assert.Equal(t, http.StatusForbidden, code)
 	assert.Contains(t, out.Error, "commit")
-	gitRun(t, project, "commit", "--allow-empty", "-qm", "chore: empty")
+	gittest.Run(t, project, "commit", "--allow-empty", "-qm", "chore: empty")
 	code, _ = bdExec("close", "pt-1")
 	assert.Equal(t, http.StatusForbidden, code, "S-09: an empty commit does not count")
 	code, out = bdExec("duplicate", "pt-1", "--of", "pt-2")
 	assert.Equal(t, http.StatusForbidden, code, "S-07: duplicate closes too")
 	assert.Contains(t, out.Error, "commit")
-	gitRun(t, project, "commit", "-qam", "feat: b")
+	gittest.Run(t, project, "commit", "-qam", "feat: b")
 	code, out = bdExec("close", "pt-1", "--reason", "Implemented in commit x")
 	require.Equal(t, http.StatusOK, code, out.Error)
 	assert.Equal(t, []string{"pt-1"}, state().Closed)

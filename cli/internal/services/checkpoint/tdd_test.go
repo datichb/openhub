@@ -2,7 +2,6 @@ package checkpoint
 
 import (
 	"context"
-	"os"
 	"os/exec"
 	"strings"
 	"testing"
@@ -12,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
@@ -139,20 +139,12 @@ func TestRedRealGo(t *testing.T) {
 	svc, ctx := newTestService(t)
 	writeBundle(t, svc.BundlesDir, "h_red", redWorkflow(sessionspec.OutsideTestsWarn))
 	dir := t.TempDir()
-	git := func(args ...string) string {
-		t.Helper()
-		cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
-		cmd.Env = append(os.Environ(), "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@t", "GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@t", "GIT_CONFIG_GLOBAL=/dev/null")
-		out, err := cmd.CombinedOutput()
-		require.NoError(t, err, string(out))
-		return strings.TrimSpace(string(out))
-	}
-	git("init", "-q")
+	gittest.Run(t, dir, "init", "-q")
 	writeFile(t, dir, "go.mod", "module calc\n\ngo 1.21\n")
 	writeFile(t, dir, "calc.go", "package calc\n\n// Add is a stub (cp-seams).\nfunc Add(a, b int) int { return 0 }\n")
-	git("add", ".")
-	git("commit", "-qm", "init")
-	start := git("rev-parse", "HEAD")
+	gittest.Run(t, dir, "add", ".")
+	gittest.Run(t, dir, "commit", "-qm", "init")
+	start := gittest.Run(t, dir, "rev-parse", "HEAD")
 	require.NoError(t, svc.Sessions.Create(ctx, &domain.Session{ID: "ses_v", ProjectID: "p1", Status: domain.SessionStatusRunning, GroupKey: "g1",
 		BundleHash: "h_red", Mode: "auto", State: domain.RunActive, LaunchPath: dir, StartRef: start}))
 	svc.VerifyWait = 2 * time.Minute

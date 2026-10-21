@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	wf "github.com/datichb/openhub/cli/internal/workflow"
 )
@@ -173,8 +174,8 @@ func TestBrickAdoption(t *testing.T) {
 	root := env.clones["alice"].Path()
 	writeCatalog(t, root, map[string]string{"agents/team/hotfixer.md": teamAgent, "skills/team/hotfix-protocol.md": teamSkill,
 		"skills/templates/hotfix-report.md": "# Rapport"})
-	git(t, root, "add", ".")
-	git(t, root, "commit", "-m", "bricks by hand")
+	gittest.Run(t, root, "add", ".")
+	gittest.Run(t, root, "commit", "-m", "bricks by hand")
 
 	b, err := svc.Bricks(ctx, Context{})
 	require.NoError(t, err)

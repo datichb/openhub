@@ -16,15 +16,13 @@ import (
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
 func TestCheckpointCardAndResolver(t *testing.T) {
-	st, err := sqlite.Open(filepath.Join(t.TempDir(), "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
+	st := sqlitetest.New(t)
 	ctx := context.Background()
-	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1','p1','/p1')`)
-	require.NoError(t, err)
+	sqlitetest.Seed(t, st).Project("p1", "/p1")
 	bundles := t.TempDir()
 	require.NoError(t, os.MkdirAll(filepath.Join(bundles, "h1"), 0o755))
 	data, _ := json.Marshal(sessionspec.BundleSpec{Hash: "h1", Workflow: &sessionspec.WorkflowRuntime{ID: "ticket",
@@ -43,7 +41,7 @@ func TestCheckpointCardAndResolver(t *testing.T) {
 	refreshed := 0
 	svc.UseCheckpoints(cp, func(context.Context, string) error { refreshed++; return nil })
 	require.NoError(t, svc.Sessions.Create(ctx, &domain.Session{ID: "ses_a", ProjectID: "p1", Status: domain.SessionStatusRunning, GroupKey: "g1", BundleHash: "h1", Mode: "manuel", State: domain.RunWaiting}))
-	_, err = cp.States.UpdateCheckpointState(ctx, "ses_a", func(s *domain.CheckpointState) error {
+	_, err := cp.States.UpdateCheckpointState(ctx, "ses_a", func(s *domain.CheckpointState) error {
 		s.Passed = map[string]time.Time{"cp-1": time.Now()}
 		s.Waiting = "cp-2"
 		s.Timeline = []domain.CheckpointEvent{{Kind: domain.CheckpointPassed, ID: "cp-1"}, {Kind: domain.CheckpointWaiting, ID: "cp-2"}}

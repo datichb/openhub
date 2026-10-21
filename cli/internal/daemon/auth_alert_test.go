@@ -2,7 +2,6 @@ package daemon
 
 import (
 	"context"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -13,6 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
 type datedSecrets struct{ at time.Time }
@@ -29,12 +29,9 @@ func TestAuthRejectedAlert(t *testing.T) {
 	prev := i18n.Locale()
 	i18n.SetLocale("en")
 	t.Cleanup(func() { i18n.SetLocale(prev) })
-	st, err := sqlite.Open(filepath.Join(t.TempDir(), "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
+	st := sqlitetest.New(t)
 	ctx := context.Background()
-	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1','demo','/p1')`)
-	require.NoError(t, err)
+	sqlitetest.Seed(t, st).Project("p1", "/p1")
 	sessions, decisions, servers := sqlite.NewSessionStore(st), sqlite.NewDecisionStore(st), sqlite.NewServerStore(st)
 	require.NoError(t, servers.Upsert(ctx, &domain.Server{GroupKey: "g1", ProjectID: "p1", Status: domain.ServerReady}))
 	for _, s := range []domain.Session{

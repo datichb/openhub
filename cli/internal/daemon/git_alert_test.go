@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
 	"time"
@@ -15,9 +14,11 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/gitutil"
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
 // N5 (v5 critical, finitions): a checkpoint refused because the git
@@ -27,17 +28,13 @@ func TestGitChangedAlert(t *testing.T) {
 	gitutil.SetTrustDir(t.TempDir())
 	t.Cleanup(func() { gitutil.SetTrustDir("") })
 	p := shortPaths(t)
-	st, err := sqlite.Open(filepath.Join(p.Dir, "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
+	st := sqlitetest.New(t)
 	ctx := context.Background()
-	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1','p1','/p1')`)
-	require.NoError(t, err)
+	sqlitetest.Seed(t, st).Project("p1", "/p1")
 	sessions, decisions := sqlite.NewSessionStore(st), sqlite.NewDecisionStore(st)
 
 	repo := t.TempDir()
-	out, err := exec.Command("git", "init", "-q", repo).CombinedOutput()
-	require.NoError(t, err, string(out))
+	gittest.Run(t, repo, "init", "-q")
 	bundles := t.TempDir()
 	require.NoError(t, os.MkdirAll(filepath.Join(bundles, "h1"), 0o755))
 	data, _ := json.Marshal(sessionspec.BundleSpec{Hash: "h1", Workflow: &sessionspec.WorkflowRuntime{ID: "ticket", Checkpoints: []sessionspec.CheckpointDef{
@@ -71,8 +68,7 @@ func TestGitChangedAlert(t *testing.T) {
 		assert.Equal(t, 409, api.Status)
 	}
 
-	out, err = exec.Command("git", "-C", repo, "config", "core.fsmonitor", "touch /tmp/oh-pwned").CombinedOutput()
-	require.NoError(t, err, string(out))
+	gittest.Run(t, repo, "config", "core.fsmonitor", "touch /tmp/oh-pwned")
 	refused()
 	l := open()
 	require.Len(t, l, 1)
@@ -85,7 +81,7 @@ func TestGitChangedAlert(t *testing.T) {
 	refused()
 	assert.Len(t, open(), 1, "the same change is not raised twice")
 
-	_, err = decisions.Resolve(ctx, l[0].ID, domain.ResolvedByOh, nil, time.Now())
+	_, err := decisions.Resolve(ctx, l[0].ID, domain.ResolvedByOh, nil, time.Now())
 	require.NoError(t, err)
 	refused()
 	assert.Empty(t, open(), "dismissed: not raised again for the same change")
