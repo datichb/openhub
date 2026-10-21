@@ -9,6 +9,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/testutil/golden"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
@@ -27,20 +28,15 @@ func TestConfigFieldDetail(t *testing.T) {
 		Get:         func() string { return val },
 		Source:      func() string { return "[team]" },
 	}
-	text := stripTags(configFieldDetail(f, "u", "undo"))
-	for _, want := range []string{"iTerm style", "How sessions open in iTerm2", "session_iterm_style",
-		i18n.T("tui.detail.options"), "Tab", "Split", "[team]", "Enter", i18n.T("tui.hints.edit"), "undo"} {
-		assert.Contains(t, text, want)
-	}
-	assert.NotContains(t, text, i18n.T("tui.detail.locked"))
+	golden.Assert(t, "config_field_detail/select", stripTags(configFieldDetail(f, "u", "undo")))
 
 	f.Locked = func() bool { return true }
-	text = stripTags(configFieldDetail(f))
-	assert.Contains(t, text, i18n.T("tui.detail.locked"))
-	assert.NotContains(t, text, "Enter", "a locked field offers no edit key")
+	locked := stripTags(configFieldDetail(f))
+	golden.Assert(t, "config_field_detail/locked", locked)
+	assert.NotContains(t, locked, "Enter", "a locked field offers no edit key")
 
 	b := configField{Key: "auto_cleanup", Kind: CfgFieldBool, Label: "Cleanup", Get: func() string { return "true" }}
-	assert.Contains(t, stripTags(configFieldDetail(b)), "Space")
+	golden.Assert(t, "config_field_detail/bool", stripTags(configFieldDetail(b)))
 }
 
 // stripTags returns the text of s as displayed (colour tags removed).
@@ -64,6 +60,7 @@ func TestListPageFramesTheList(t *testing.T) {
 
 // The Settings view fills the detail pane with the field under the cursor.
 func TestSettingsViewDetailFollowsSelection(t *testing.T) {
+	frLocale(t)
 	cfg := &config.Config{}
 	v := NewSettingsView(SettingsViewConfig{GetConfig: func() *config.Config { return cfg }})
 	v.live = cfg
@@ -79,41 +76,37 @@ func TestSettingsViewDetailFollowsSelection(t *testing.T) {
 	require.True(t, ok)
 	f, ok := fieldOfItem(v.fields, it)
 	require.True(t, ok)
-	assert.Contains(t, v.page.Detail.GetText(true), f.Label)
+	assert.Contains(t, v.page.Detail.GetText(true), f.Label, "the detail shows the selected field")
 
 	for i, item := range v.list.GetItems() {
 		if g, ok := fieldOfItem(v.fields, item); ok && g.Key == "language" {
 			v.list.SelectIndex(i)
 		}
 	}
-	text := v.page.Detail.GetText(true)
-	assert.Contains(t, text, i18n.T("tui.config.field.language.desc"))
-	assert.Contains(t, text, "Français")
+	golden.Assert(t, "settings_detail_language", v.page.Detail.GetText(true))
 }
 
 // The doctor view lists the checks; the detail shows the selected one.
 func TestDoctorViewDetail(t *testing.T) {
+	frLocale(t)
 	v := NewDoctorView(nil)
 	v.summary, v.list = tview.NewTextView(), widgets.NewSectionedList()
 	v.page = newListPage(v.Title(), v.list)
 	v.list.SetItemChangedFunc(func(_ int, it widgets.SectionItem) { v.showDetail(it) })
 	v.checks = []DoctorCheck{{Name: "git", OK: true, Detail: "git 2.45"}, {Name: "bd", OK: false, Detail: "not installed"}}
 	v.render()
-	assert.Contains(t, v.page.Detail.GetText(true), "git 2.45")
+	golden.Assert(t, "doctor_detail/ok", v.page.Detail.GetText(true))
 	v.list.SelectIndex(1)
-	text := v.page.Detail.GetText(true)
-	assert.Contains(t, text, "not installed")
-	assert.Contains(t, text, i18n.T("tui.detail.failed"))
+	golden.Assert(t, "doctor_detail/failed", v.page.Detail.GetText(true))
 }
 
 // The notifications view shows the full message of the selected entry.
 func TestNotificationsViewDetail(t *testing.T) {
+	frLocale(t)
 	v := NewNotificationsView(NotificationsViewConfig{})
 	v.list = widgets.NewSectionedList()
 	v.page = newListPage(v.Title(), v.list)
 	v.entries, v.loaded = []NotificationEntry{{TimeLabel: "12/10 10:00:00", Level: 1, Message: "push failed: remote rejected"}}, true
 	v.render()
-	text := v.page.Detail.GetText(true)
-	assert.Contains(t, text, "push failed: remote rejected")
-	assert.Contains(t, text, "12/10 10:00:00")
+	golden.Assert(t, "notifications_detail", v.page.Detail.GetText(true))
 }

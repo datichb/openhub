@@ -1,0 +1,15 @@
+Langue
+
+Langue de l'interface (fr / en)
+
+Valeur : non configuré
+Clé : language
+
+Valeurs possibles :  
+    Français
+    English
+
+Touches
+  Enter  éditer
+  u      annuler
+  r      rafraîchir
