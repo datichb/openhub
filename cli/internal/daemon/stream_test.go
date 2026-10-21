@@ -3,7 +3,6 @@ package daemon
 import (
 	"context"
 	"os"
-	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -14,6 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
 type notes struct {
@@ -36,12 +36,9 @@ func (n *notes) list() [][2]string {
 
 func TestStreamFeedSubagentsAndNotifications(t *testing.T) {
 	p := shortPaths(t)
-	st, err := sqlite.Open(filepath.Join(p.Dir, "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
+	st := sqlitetest.New(t)
 	ctx := context.Background()
-	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1','p1','/p1')`)
-	require.NoError(t, err)
+	sqlitetest.Seed(t, st).Project("p1", "/p1")
 	sessions := sqlite.NewSessionStore(st)
 	servers := sqlite.NewServerStore(st)
 	decisions := sqlite.NewDecisionStore(st)

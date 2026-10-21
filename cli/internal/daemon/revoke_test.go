@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -20,6 +19,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/gateway"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
 type syncBuffer struct {
@@ -91,9 +91,7 @@ func (f *flakyGrants) RevokeOwner(ctx context.Context, owner string, at time.Tim
 
 func revokeEnv(t *testing.T) (*sqlite.Store, *sqlite.GrantStore, *sqlite.ServerStore) {
 	t.Helper()
-	st, err := sqlite.Open(filepath.Join(t.TempDir(), "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
+	st := sqlitetest.New(t)
 	return st, sqlite.NewGrantStore(st), sqlite.NewServerStore(st)
 }
 
@@ -227,8 +225,7 @@ func (failingPurge) RevokeOrphans(context.Context, time.Time, time.Time) (int, e
 func TestStartGatewayPurgesEndedSessions(t *testing.T) {
 	st, _, servers := revokeEnv(t)
 	ctx := context.Background()
-	_, err := st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1','p1','/p1')`)
-	require.NoError(t, err)
+	sqlitetest.Seed(t, st).Project("p1", "/p1")
 	sessions := sqlite.NewSessionStore(st)
 	for id, state := range map[string]domain.RunState{"ses_run": domain.RunActive, "ses_stopped": domain.RunStopped, "ses_done": domain.RunCompleted} {
 		require.NoError(t, sessions.Create(ctx, &domain.Session{ID: id, ProjectID: "p1", Status: domain.SessionStatusRunning, GroupKey: "g1", State: state}))

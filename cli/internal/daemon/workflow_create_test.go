@@ -19,6 +19,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
 // N9 (DC8): through the real Beads gateway, `bd create` is refused before
@@ -27,15 +28,12 @@ import (
 // declared with `record: created` (R5).
 func TestWorkflowCreateGuard(t *testing.T) {
 	p := shortPaths(t)
-	st, err := sqlite.Open(filepath.Join(p.Dir, "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
+	st := sqlitetest.New(t)
 	ctx := context.Background()
 	project, err := filepath.EvalSymlinks(t.TempDir())
 	require.NoError(t, err)
 	gitRun(t, project, "init", "-q")
-	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1','p1',?)`, project)
-	require.NoError(t, err)
+	sqlitetest.Seed(t, st).Project("p1", project)
 	sessions, servers, decisions := sqlite.NewSessionStore(st), sqlite.NewServerStore(st), sqlite.NewDecisionStore(st)
 	states := sqlite.NewCheckpointStore(st)
 

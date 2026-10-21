@@ -18,15 +18,14 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/gateway/beadswire"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
 // Writes carry the actor set by oh (person and agent); a claim binds the
 // ticket to the session and a close to its commit (bd provenance record).
 func TestDaemonBeadsActorAndProvenance(t *testing.T) {
 	p := shortPaths(t)
-	st, err := sqlite.Open(filepath.Join(p.Dir, "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
+	st := sqlitetest.New(t)
 	ctx := context.Background()
 	project, err := filepath.EvalSymlinks(t.TempDir())
 	require.NoError(t, err)
@@ -42,8 +41,7 @@ func TestDaemonBeadsActorAndProvenance(t *testing.T) {
 	require.NoError(t, err)
 	sha := strings.TrimSpace(string(head))
 
-	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1','p1',?)`, project)
-	require.NoError(t, err)
+	sqlitetest.Seed(t, st).Project("p1", project)
 	sessions, servers := sqlite.NewSessionStore(st), sqlite.NewServerStore(st)
 	require.NoError(t, servers.Upsert(ctx, &domain.Server{GroupKey: "g1", Adapter: "x", ProjectID: "p1", PID: os.Getpid(), Status: domain.ServerReady}))
 	require.NoError(t, sessions.Create(ctx, &domain.Session{ID: "ses_a", ProjectID: "p1", Status: domain.SessionStatusRunning, GroupKey: "g1",

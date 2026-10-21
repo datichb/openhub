@@ -19,6 +19,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/limits"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
 // F-04: a step that delegates is checked while it runs. The cost of a
@@ -110,12 +111,9 @@ type gateEnv struct {
 
 func newGateEnv(t *testing.T) *gateEnv {
 	t.Helper()
-	st, err := sqlite.Open(filepath.Join(t.TempDir(), "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
+	st := sqlitetest.New(t)
 	ctx := context.Background()
-	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1','p1','/p1')`)
-	require.NoError(t, err)
+	sqlitetest.Seed(t, st).Project("p1", "/p1")
 	e := &gateEnv{t: t, ctx: ctx, usage: sqlite.NewUsageStore(st), decisions: sqlite.NewDecisionStore(st), dir: filepath.Join(t.TempDir(), "sessions"),
 		entered: make(chan struct{}, 8), release: make(chan struct{})}
 	sessions := sqlite.NewSessionStore(st)
@@ -135,6 +133,7 @@ func newGateEnv(t *testing.T) *gateEnv {
 		fmt.Fprint(w, `{"usage":{"input_tokens":10,"output_tokens":10}}`)
 	}))
 	t.Cleanup(up.Close)
+	var err error
 	e.token, err = e.d.proxy.Issue(credproxy.Grant{SessionID: "g1", Provider: credproxy.ProviderAnthropic,
 		Upstream: credproxy.Upstream{BaseURL: up.URL, Auth: credproxy.HeaderAuth{Name: "x-api-key", Value: "k"}}})
 	require.NoError(t, err)

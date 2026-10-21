@@ -19,6 +19,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
 // N1 (v5 critical): the workflow routes of the socket are reserved to the
@@ -26,12 +27,9 @@ import (
 // calls need the capability.
 func TestWorkflowRoutesNeedTheGroupToken(t *testing.T) {
 	p := shortPaths(t)
-	st, err := sqlite.Open(filepath.Join(p.Dir, "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
+	st := sqlitetest.New(t)
 	ctx := context.Background()
-	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1','p1','/p1')`)
-	require.NoError(t, err)
+	sqlitetest.Seed(t, st).Project("p1", "/p1")
 	sessions := sqlite.NewSessionStore(st)
 	bundles := t.TempDir()
 	require.NoError(t, os.MkdirAll(filepath.Join(bundles, "h1"), 0o755))
@@ -61,7 +59,7 @@ func TestWorkflowRoutesNeedTheGroupToken(t *testing.T) {
 	}
 
 	anon := NewClient(p)
-	_, err = anon.WorkflowStatus(ctx, "ses_a")
+	_, err := anon.WorkflowStatus(ctx, "ses_a")
 	assert.Equal(t, http.StatusUnauthorized, status(err), "no token")
 	_, err = anon.WorkflowCheckpoint(ctx, "ses_a", checkpoint.Call{ID: "cp-1"})
 	assert.Equal(t, http.StatusUnauthorized, status(err))

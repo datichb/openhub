@@ -22,6 +22,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/gateway/beadswire"
 	ohruntime "github.com/datichb/openhub/cli/internal/runtime"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
 // fakeWhere starts a fake bd: `bd where --json` names the .beads of its
@@ -30,14 +31,11 @@ const fakeWhere = "#!/bin/sh\n[ \"$1\" = where ] && { printf '{\"path\":\"%s/.be
 
 func TestDaemonBeadsGateway(t *testing.T) {
 	p := shortPaths(t)
-	st, err := sqlite.Open(filepath.Join(p.Dir, "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
+	st := sqlitetest.New(t)
 	ctx := context.Background()
 	project, err := filepath.EvalSymlinks(t.TempDir())
 	require.NoError(t, err)
-	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1','p1',?)`, project)
-	require.NoError(t, err)
+	sqlitetest.Seed(t, st).Project("p1", project)
 	sessions, servers := sqlite.NewSessionStore(st), sqlite.NewServerStore(st)
 	require.NoError(t, servers.Upsert(ctx, &domain.Server{GroupKey: "g1", Adapter: "x", ProjectID: "p1", PID: os.Getpid(), Status: domain.ServerReady}))
 	require.NoError(t, sessions.Create(ctx, &domain.Session{ID: "ses_a", ProjectID: "p1", Status: domain.SessionStatusRunning, GroupKey: "g1", State: domain.RunActive}))
@@ -144,12 +142,9 @@ func (e *envFake) envOf(id string) map[string]string {
 // daemon applies the root one, with a gateway token of their own.
 func TestDaemonSubagentSessionEnvironment(t *testing.T) {
 	p := shortPaths(t)
-	st, err := sqlite.Open(filepath.Join(p.Dir, "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
+	st := sqlitetest.New(t)
 	ctx := context.Background()
-	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1','p1','/p1')`)
-	require.NoError(t, err)
+	sqlitetest.Seed(t, st).Project("p1", "/p1")
 	sessions, servers := sqlite.NewSessionStore(st), sqlite.NewServerStore(st)
 	require.NoError(t, servers.Upsert(ctx, &domain.Server{GroupKey: "g1", Adapter: "fake", ProjectID: "p1", PID: os.Getpid(), Status: domain.ServerReady}))
 	require.NoError(t, sessions.Create(ctx, &domain.Session{ID: "ses_r", ProjectID: "p1", Status: domain.SessionStatusRunning, GroupKey: "g1", State: domain.RunActive}))
@@ -226,14 +221,11 @@ func TestDaemonSubagentSessionEnvironment(t *testing.T) {
 // listeners, authenticated by the group proxy token (P4-T08).
 func TestDaemonMCPGateway(t *testing.T) {
 	p := shortPaths(t)
-	st, err := sqlite.Open(filepath.Join(p.Dir, "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
+	st := sqlitetest.New(t)
 	ctx := context.Background()
 	work, err := filepath.EvalSymlinks(t.TempDir())
 	require.NoError(t, err)
-	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1','p1',?)`, work)
-	require.NoError(t, err)
+	sqlitetest.Seed(t, st).Project("p1", work)
 	sessions, servers := sqlite.NewSessionStore(st), sqlite.NewServerStore(st)
 	for _, g := range []string{"g1", "g2"} {
 		require.NoError(t, servers.Upsert(ctx, &domain.Server{GroupKey: g, Adapter: "x", ProjectID: "p1", PID: os.Getpid(), Status: domain.ServerReady, WorkDir: work}))

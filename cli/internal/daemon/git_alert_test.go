@@ -18,6 +18,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
 // N5 (v5 critical, finitions): a checkpoint refused because the git
@@ -27,12 +28,9 @@ func TestGitChangedAlert(t *testing.T) {
 	gitutil.SetTrustDir(t.TempDir())
 	t.Cleanup(func() { gitutil.SetTrustDir("") })
 	p := shortPaths(t)
-	st, err := sqlite.Open(filepath.Join(p.Dir, "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
+	st := sqlitetest.New(t)
 	ctx := context.Background()
-	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1','p1','/p1')`)
-	require.NoError(t, err)
+	sqlitetest.Seed(t, st).Project("p1", "/p1")
 	sessions, decisions := sqlite.NewSessionStore(st), sqlite.NewDecisionStore(st)
 
 	repo := t.TempDir()

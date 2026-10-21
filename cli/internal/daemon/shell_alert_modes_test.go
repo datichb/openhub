@@ -16,6 +16,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/gateway"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
 // S-15: the daemon checks the shell of a local session as the tool starts it
@@ -24,12 +25,9 @@ func TestShellAlertModes(t *testing.T) {
 	prev := i18n.Locale()
 	i18n.SetLocale("en")
 	t.Cleanup(func() { i18n.SetLocale(prev) })
-	st, err := sqlite.Open(filepath.Join(t.TempDir(), "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
+	st := sqlitetest.New(t)
 	ctx := context.Background()
-	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1','p1','/p1')`)
-	require.NoError(t, err)
+	sqlitetest.Seed(t, st).Project("p1", "/p1")
 	sessions, decisions := sqlite.NewSessionStore(st), sqlite.NewDecisionStore(st)
 
 	root := t.TempDir()

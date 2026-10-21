@@ -18,6 +18,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/limits"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
 // limitAdapter records the interrupts and the prompts sent by the daemon.
@@ -94,12 +95,9 @@ type limitEnv struct {
 func newLimitEnv(t *testing.T, sessionIDs ...string) *limitEnv {
 	t.Helper()
 	p := shortPaths(t)
-	st, err := sqlite.Open(filepath.Join(p.Dir, "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
+	st := sqlitetest.New(t)
 	ctx := context.Background()
-	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1','p1','/p1')`)
-	require.NoError(t, err)
+	sqlitetest.Seed(t, st).Project("p1", "/p1")
 	e := &limitEnv{t: t, ctx: ctx, sessions: sqlite.NewSessionStore(st), servers: sqlite.NewServerStore(st),
 		decisions: sqlite.NewDecisionStore(st), usage: sqlite.NewUsageStore(st),
 		ad: &limitAdapter{fakeAdapter: newFake(), prompts: map[string]string{}}, dir: filepath.Join(p.Dir, "sessions"), paths: p}
@@ -353,9 +351,7 @@ func TestTreeRSS(t *testing.T) {
 // The proxy traffic of a group is persisted and continued by its next grant
 // (daemon restart, server restart).
 func TestProxyUsageLedger(t *testing.T) {
-	st, err := sqlite.Open(filepath.Join(t.TempDir(), "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
+	st := sqlitetest.New(t)
 	ctx := context.Background()
 	us := sqlite.NewUsageStore(st)
 	d := &Daemon{opts: Options{Usage: us}, proxy: credproxy.New()}
@@ -408,9 +404,7 @@ func TestForkBaselineNotCountedTwice(t *testing.T) {
 // The cache tokens counted by the proxy go to the ledger as input tokens
 // (it has no column for them), so that a restart continues the count.
 func TestProxyUsageLedgerCountsCache(t *testing.T) {
-	st, err := sqlite.Open(filepath.Join(t.TempDir(), "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
+	st := sqlitetest.New(t)
 	us := sqlite.NewUsageStore(st)
 	d := &Daemon{opts: Options{Usage: us}, proxy: credproxy.New()}
 	d.onProxyUsage("g1", credproxy.Usage{InputTokens: 10, OutputTokens: 4, CacheReadTokens: 1000, CacheWriteTokens: 200, Estimated: 1})

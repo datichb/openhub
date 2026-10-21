@@ -18,6 +18,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
 // rulesAdapter records replies and session rules.
@@ -65,12 +66,9 @@ func denies(rules []sessionspec.PermissionRule, agent string) bool {
 
 func TestWatcherCheckpoints(t *testing.T) {
 	p := shortPaths(t)
-	st, err := sqlite.Open(filepath.Join(p.Dir, "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
+	st := sqlitetest.New(t)
 	ctx := context.Background()
-	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1','p1','/p1')`)
-	require.NoError(t, err)
+	sqlitetest.Seed(t, st).Project("p1", "/p1")
 	sessions, servers, decisions := sqlite.NewSessionStore(st), sqlite.NewServerStore(st), sqlite.NewDecisionStore(st)
 	states := sqlite.NewCheckpointStore(st)
 
@@ -135,7 +133,7 @@ func TestWatcherCheckpoints(t *testing.T) {
 	// The call runs (MCP server → daemon): cp-1 passed, developer released.
 	fake.set(func() { fake.decisions["ses_a"] = nil })
 	c := NewClient(p)
-	_, err = c.WorkflowCheckpoint(ctx, "ses_a", checkpoint.Call{ID: "cp-1"})
+	_, err := c.WorkflowCheckpoint(ctx, "ses_a", checkpoint.Call{ID: "cp-1"})
 	require.NoError(t, err)
 	assert.False(t, denies(fake.rulesOf("ses_a"), "developer"))
 

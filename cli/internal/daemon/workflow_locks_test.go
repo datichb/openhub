@@ -21,6 +21,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
 func deniesShell(rules []sessionspec.PermissionRule, pattern string) bool {
@@ -46,9 +47,7 @@ func gitRun(t *testing.T, dir string, args ...string) {
 // of the workflow completes the session with its outputs.
 func TestWorkflowLocksAndEnd(t *testing.T) {
 	p := shortPaths(t)
-	st, err := sqlite.Open(filepath.Join(p.Dir, "oh.db"))
-	require.NoError(t, err)
-	t.Cleanup(func() { st.Close() })
+	st := sqlitetest.New(t)
 	ctx := context.Background()
 	project, err := filepath.EvalSymlinks(t.TempDir())
 	require.NoError(t, err)
@@ -56,8 +55,7 @@ func TestWorkflowLocksAndEnd(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(project, "a.txt"), []byte("a"), 0o644))
 	gitRun(t, project, "add", ".")
 	gitRun(t, project, "commit", "-qm", "init")
-	_, err = st.DB().Exec(`INSERT INTO projects (id, name, path) VALUES ('p1','p1',?)`, project)
-	require.NoError(t, err)
+	sqlitetest.Seed(t, st).Project("p1", project)
 	sessions, servers, decisions := sqlite.NewSessionStore(st), sqlite.NewServerStore(st), sqlite.NewDecisionStore(st)
 	states := sqlite.NewCheckpointStore(st)
 
