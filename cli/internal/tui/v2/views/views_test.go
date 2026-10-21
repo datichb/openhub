@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/testutil/golden"
 
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
@@ -451,4 +452,27 @@ func collectHeaders(items []widgets.SectionItem) []string {
 		}
 	}
 	return headers
+}
+
+// The two empty states of the team board: the colours come from the theme,
+// the translations hold only text.
+func TestTeamBoardEmptyStates(t *testing.T) {
+	frLocale(t)
+	tests := []struct {
+		name       string
+		configured bool
+	}{
+		{"no_team", false},
+		{"no_tickets", true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			v := NewTeamBoardView(TeamBoardViewConfig{IsConfigured: func() bool { return tc.configured }})
+			v.Mount(tview.NewFlex().SetDirection(tview.FlexRow), tview.NewApplication())
+			defer v.Unmount()
+			require.NotNil(t, v.emptyTV, "empty state shown")
+			assert.NotContains(t, v.emptyTV.GetText(false), "[yellow]", "no colour name in the text")
+			golden.Assert(t, "team_board_empty_"+tc.name, screenText(t, v.emptyTV, 70, 8))
+		})
+	}
 }
