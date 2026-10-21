@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/datichb/openhub/cli/internal/config/configtest"
 	"github.com/datichb/openhub/cli/internal/domain"
 )
 
@@ -112,7 +113,7 @@ func TestResolveProviderConfigAuthMode(t *testing.T) {
 }
 
 func TestDetectBedrockEnvBearer(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	configtest.Home(t)
 	t.Setenv("AWS_ACCESS_KEY_ID", "")
 	t.Setenv("AWS_SECRET_ACCESS_KEY", "")
 	t.Setenv("AWS_BEARER_TOKEN_BEDROCK", "ABSK-shell")
