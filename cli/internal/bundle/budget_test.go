@@ -46,6 +46,7 @@ const budgetRow = "%-8s %-22s %-28s %8d %8d %4d %4d %6d %4d %6d\n"
 const budgetColumns = 10
 
 func TestBudgetBaseline(t *testing.T) {
+	t.Parallel()
 	_, cat, _ := shippedWorkflows(t)
 	projects := []struct{ name, path string }{{"none", ""}, {"stacks", capProject(t)}, {"instruct", instructProject(t)}}
 

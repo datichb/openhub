@@ -286,6 +286,7 @@ func renderLedger(rules []ledgerRule) string {
 }
 
 func TestRuleLedger(t *testing.T) {
+	t.Parallel()
 	hub := repoHub(t)
 	current := agentLedgers(t)
 	dir := filepath.Join("testdata", "rules")

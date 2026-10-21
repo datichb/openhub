@@ -16,6 +16,7 @@ import (
 // freely; oh refuses it the commit, the tag and the merge request until
 // cp-release, the tag until the release is committed, and the push always.
 func TestShippedReleaseLocks(t *testing.T) {
+	t.Parallel()
 	hub, cat, _ := shippedWorkflows(t)
 	r, diags := workflow.ResolveSpec(cat, workflow.Ref{Layer: workflow.LayerHub, ID: "release"}, nil)
 	require.Empty(t, diags.Errors())

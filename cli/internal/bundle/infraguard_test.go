@@ -13,6 +13,7 @@ import (
 // never changes anything while `apply` is locked, and never prints
 // credentials; global options before the sub-command do not help.
 func TestInfraReadOnly(t *testing.T) {
+	t.Parallel()
 	rules := effectiveRules(t, "operator", "operator")
 	for _, cmd := range []string{
 		"terraform plan", "terraform -chdir=infra validate", "terraform state list", "kubectl get pods -A",
@@ -89,6 +90,7 @@ func TestInfraReadOnly(t *testing.T) {
 // domain): they stay asked (the guard, for agents that run a tool as a
 // whole, does not apply), everything else is refused, changes included.
 func TestAuditorSubagentInfraTools(t *testing.T) {
+	t.Parallel()
 	rules := effectiveRules(t, "auditor", "auditor-subagent")
 	for _, cmd := range []string{
 		"terraform validate", "terraform plan -input=false -detailed-exitcode", "terraform init -backend=false -lockfile=readonly",

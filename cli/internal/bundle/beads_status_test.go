@@ -16,6 +16,7 @@ import (
 // statuses of Beads (bd 1.3: `bd update -s review|cancelled` is refused
 // without a project configuration; review and cancelled are labels).
 func TestShippedContentUsesBuiltinBeadsStatuses(t *testing.T) {
+	t.Parallel()
 	builtin := map[string]bool{"open": true, "in_progress": true, "blocked": true, "deferred": true, "closed": true, "pinned": true, "hooked": true}
 	re := regexp.MustCompile(`bd update [^\n|]*?(?:-s|--status)[ =]([A-Za-z_<>$-]+)`)
 	hub := repoHub(t)

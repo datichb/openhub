@@ -64,6 +64,7 @@ func TestShippedWorkflowContracts(t *testing.T) {
 // (`by:`), with members of the workflow that may call workflow_checkpoint,
 // and the runtime of the bundle carries it.
 func TestCheckpointByMembers(t *testing.T) {
+	t.Parallel()
 	_, cat, _ := shippedWorkflows(t)
 	for _, ref := range cat.Refs() {
 		r, _ := shippedBuild(t, "", ref)

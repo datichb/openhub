@@ -61,6 +61,7 @@ func TestPendingGuardWritesAfter(t *testing.T) {
 // Every shipped workflow: what its session rules refuse at the start, in
 // any mode, is held; the guard stays small enough for the inline config.
 func TestPendingGuardShipped(t *testing.T) {
+	t.Parallel()
 	for _, id := range []string{"ticket", "spec", "implement-spec", "incident", "security-fix", "release", "sweep", "sweep-task", "infra-change", "onboarding", "quick", "debug", "review"} {
 		b := shippedBundle(t, id)
 		wf := b.Spec.Workflow

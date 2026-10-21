@@ -113,6 +113,7 @@ func TestCheckSkillsAnnexes(t *testing.T) {
 }
 
 func TestHubAnnexesResolve(t *testing.T) {
+	t.Parallel()
 	b := agentBuild(t, "orchestrator", "bedrock")
 	found := 0
 	for _, a := range b.Spec.WithBundleRoot(b.Spec.Root).Agents {

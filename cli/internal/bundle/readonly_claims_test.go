@@ -24,6 +24,7 @@ var claimReadOnly = regexp.MustCompile(`(?i)ne modifies? (?:jamais|aucun)|lectur
 // write (its report, the wiki) are listed in testdata/capability_allow.yaml
 // (claims: "<agent>: edit <pattern>"), with the reason.
 func TestReadOnlyClaimsMatchPermissions(t *testing.T) {
+	t.Parallel()
 	hub := repoHub(t)
 	files, err := bricks.FindAgentFiles(hub)
 	require.NoError(t, err)

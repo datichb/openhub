@@ -25,6 +25,7 @@ var (
 // C0.5: an unbalanced code fence turns the rest of a skill into code for the
 // model, and flips the capability lint for everything read after it.
 func TestHubMarkdownFencesBalanced(t *testing.T) {
+	t.Parallel()
 	hub := repoHub(t)
 	for _, dir := range []string{"agents", "skills", "workflows"} {
 		require.NoError(t, filepath.WalkDir(filepath.Join(hub, dir), func(path string, d os.DirEntry, err error) error {
@@ -52,6 +53,7 @@ func TestHubMarkdownFencesBalanced(t *testing.T) {
 // and permission base names that share their prefix): a routing value such
 // as `developer-backend` names an agent that no longer exists.
 func TestNoStaleAgentNames(t *testing.T) {
+	t.Parallel()
 	hub := repoHub(t)
 	known := map[string]bool{}
 	agents, err := bricks.FindAgentFiles(hub)
@@ -90,6 +92,7 @@ func TestNoStaleAgentNames(t *testing.T) {
 
 // C0.4
 func TestSkillLoadInstructionsUseNames(t *testing.T) {
+	t.Parallel()
 	hub := repoHub(t)
 	for _, dir := range []string{"agents", "skills", "workflows"} {
 		require.NoError(t, filepath.WalkDir(filepath.Join(hub, dir), func(path string, d os.DirEntry, err error) error {

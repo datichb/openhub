@@ -59,6 +59,7 @@ checkpoints:
 // developer, with what oh checks; the bundle of another session is the one
 // of a workflow without them.
 func TestMethodBundle(t *testing.T) {
+	t.Parallel()
 	hub, cat, env := shippedWorkflows(t)
 	doc, pd := workflow.Parse([]byte(tddWorkflow), workflow.Source{Layer: workflow.LayerHub, Path: "tdd-test.yaml"})
 	require.False(t, pd.HasErrors(), "%v", pd)

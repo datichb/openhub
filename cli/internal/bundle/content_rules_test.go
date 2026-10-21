@@ -121,6 +121,7 @@ func TestOnboarderWritesOnlyTheWiki(t *testing.T) {
 // .git/* to the agents that write the wiki, and the shipped content never
 // tells them to add a file there: a line that names it forbids it first.
 func TestNoAgentWritesGitInfoExclude(t *testing.T) {
+	t.Parallel()
 	for wf, agents := range map[string][]string{
 		"onboarding":     {"onboarder"},
 		"implement-spec": {"documentarian", "developer"},

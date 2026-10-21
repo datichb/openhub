@@ -51,6 +51,7 @@ func TestShippedTDD(t *testing.T) {
 // using it (no TDD checkpoint), records it (record: input) and passes it on
 // to implement-spec (next:); feature routes to both (aliases).
 func TestShippedSpecPassesMethodOn(t *testing.T) {
+	t.Parallel()
 	_, cat, env := shippedWorkflows(t)
 	r, diags := workflow.Check(cat, workflow.Ref{Layer: workflow.LayerHub, ID: "spec"}, nil, env)
 	require.False(t, diags.HasErrors(), "%v", diags)

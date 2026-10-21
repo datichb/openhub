@@ -95,6 +95,7 @@ func checkpointProtocolViolations(n checkpointNamer, text string) []string {
 }
 
 func TestShippedCheckpointProtocol(t *testing.T) {
+	t.Parallel()
 	_, cat, _ := shippedWorkflows(t)
 	for _, ref := range cat.Refs() {
 		t.Run(ref.ID, func(t *testing.T) {
@@ -168,6 +169,7 @@ func TestStaticGeneratedSkillsAreStubs(t *testing.T) {
 // skills of the deployment era (orchestrator-modes, orchestrator-ticket-
 // routing) were orphans.
 func TestNoOrphanSkills(t *testing.T) {
+	t.Parallel()
 	hub := repoHub(t)
 	index := hubSkillIndex(hub, nil)
 	reached := map[string]bool{}

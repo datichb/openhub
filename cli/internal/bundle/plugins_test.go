@@ -23,6 +23,7 @@ func TestNpmPackageName(t *testing.T) {
 
 // P1-T15: `plugins:` and `code_mode:` of the workflow reach the bundle.
 func TestBuildAppliesWorkflowPluginsAndCodeMode(t *testing.T) {
+	t.Parallel()
 	src := `apiVersion: oh/v1
 kind: Workflow
 id: quick

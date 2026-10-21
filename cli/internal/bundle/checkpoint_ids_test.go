@@ -78,6 +78,7 @@ func stripFrontmatter(text string) string {
 // that run the agent. A line marked `<!-- capability: optional -->` may name
 // a checkpoint of another workflow.
 func TestContentCheckpointIDsExist(t *testing.T) {
+	t.Parallel()
 	hub, cat, _ := shippedWorkflows(t)
 	all := map[string]bool{}
 	byAgent := map[string]map[string]bool{}

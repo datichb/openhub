@@ -16,6 +16,7 @@ import (
 // server; every agent reads and proposes, only the documentarian applies
 // (asked), and the session contract says so.
 func TestWikiMCPInBundle(t *testing.T) {
+	t.Parallel()
 	libre := workflow.Ref{Layer: workflow.LayerHub, ID: "libre"}
 	_, b := shippedBuild(t, sharedInstructionsFixture(t, true), libre)
 	spec := b.Spec
@@ -53,6 +54,7 @@ func TestWikiMCPInBundle(t *testing.T) {
 // remotely gets the wiki MCP server with the same tools and rules as in a
 // local session; the job daemon serves them on its clone.
 func TestWikiMCPInRemoteWorkflows(t *testing.T) {
+	t.Parallel()
 	_, cat, env := shippedWorkflows(t)
 	project := sharedInstructionsFixture(t, true)
 	propose := sessionspec.MCPToolAction(sessionspec.WikiMCPServer, sessionspec.WikiToolPropose)

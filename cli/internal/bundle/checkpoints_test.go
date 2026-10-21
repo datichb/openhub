@@ -65,6 +65,7 @@ func TestSessionRules(t *testing.T) {
 }
 
 func TestBaseCheckpointRulesInBundle(t *testing.T) {
+	t.Parallel()
 	b, err := Build(Request{HubDir: repoHub(t), OutDir: t.TempDir(), Spec: parseSpec(t, checkpointSpec), Provider: "bedrock"})
 	if err != nil {
 		t.Fatal(err)

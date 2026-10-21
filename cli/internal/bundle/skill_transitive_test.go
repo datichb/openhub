@@ -29,6 +29,7 @@ var crossReferences = map[string]string{
 // (L3), and stack skills
 // (shipped when the project uses the stack), are absent on purpose.
 func TestShippedSkillMentionsResolveTransitively(t *testing.T) {
+	t.Parallel()
 	hub, cat, _ := shippedWorkflows(t)
 	index := hubSkillIndex(hub, nil)
 	loader := newSkillLoader(hub, nil)

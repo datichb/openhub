@@ -15,6 +15,7 @@ import (
 // (CP-R3, declared by the hub layer), the developer is not in the bundle.
 // Without the input, the session keeps exactly the checkpoints of before.
 func TestShippedImplementSpecFanout(t *testing.T) {
+	t.Parallel()
 	hub, cat, env := shippedWorkflows(t)
 	ref := workflow.Ref{Layer: workflow.LayerHub, ID: "implement-spec"}
 
@@ -63,6 +64,7 @@ func TestShippedImplementSpecFanout(t *testing.T) {
 // CP-R3: a team layer that patches the shipped implement-spec cannot loosen
 // its fan-out (attempts to get around it on the shipped workflow).
 func TestShippedImplementSpecFanoutTeamLayer(t *testing.T) {
+	t.Parallel()
 	patches := map[string]string{
 		"fanout.delegates":                              "fanout: { delegates: [cp-2, cp-1] }\n",
 		"fanout.merge":                                  "fanout: { merge: cp-final }\n",
@@ -98,6 +100,7 @@ func TestShippedImplementSpecFanoutTeamLayer(t *testing.T) {
 // the input, sweep keeps its sequential version (developer, cp-commit),
 // cp-plan reading the breakdown in both.
 func TestShippedSweepFanout(t *testing.T) {
+	t.Parallel()
 	hub, cat, env := shippedWorkflows(t)
 	ref := workflow.Ref{Layer: workflow.LayerHub, ID: "sweep"}
 

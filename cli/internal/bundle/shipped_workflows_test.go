@@ -90,6 +90,7 @@ var extraSamples = map[string]map[string]map[string]any{
 }
 
 func TestShippedWorkflowPrompts(t *testing.T) {
+	t.Parallel()
 	hub, cat, _ := shippedWorkflows(t)
 	hc, err := hubcat.New(hub)
 	require.NoError(t, err)
@@ -254,6 +255,7 @@ type agentSummary struct {
 }
 
 func TestShippedWorkflowBundles(t *testing.T) {
+	t.Parallel()
 	hub, cat, _ := shippedWorkflows(t)
 	hc, err := hubcat.New(hub)
 	require.NoError(t, err)

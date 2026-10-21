@@ -79,6 +79,7 @@ func instructionsOf(body string) string {
 // its level, are pinned in testdata/golden/instructions/libre/<agent>.md
 // (go test ./internal/bundle -run ProjectInstructions -update).
 func TestProjectInstructionsGolden(t *testing.T) {
+	t.Parallel()
 	hub, _, _ := shippedWorkflows(t)
 	_, b := shippedBuild(t, sharedInstructionsFixture(t, true), workflow.Ref{Layer: workflow.LayerHub, ID: "libre"})
 	files, err := bricks.FindAgentFiles(hub)
@@ -164,6 +165,7 @@ func TestInstructionsRender(t *testing.T) {
 // computed by oh from the pages; the same data renders as the table of the
 // index.
 func TestWikiIndexOf(t *testing.T) {
+	t.Parallel()
 	assert.Nil(t, wikiIndexOf(""), "no project")
 	assert.Nil(t, wikiIndexOf(instructionsFixture(t, false)), "no wiki")
 	w := wikiIndexOf(instructionsFixture(t, true))
@@ -224,6 +226,7 @@ func TestFrontmatterProjectInstructions(t *testing.T) {
 // L7: an agent at the level index may read each file of its index, on its
 // exact path only; an explicit refusal of the agent and the guards win.
 func TestIndexReadRules(t *testing.T) {
+	t.Parallel()
 	hub, cat, env := shippedWorkflows(t)
 	r, diags := workflow.Check(cat, workflow.Ref{Layer: workflow.LayerHub, ID: "libre"}, nil, env)
 	require.False(t, diags.HasErrors(), "%v", diags)

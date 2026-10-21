@@ -29,6 +29,7 @@ func effectiveRules(t *testing.T, entry, agent string) []sessionspec.PermissionR
 // analysis (S2.3 and audit S-12) are refused to every shipped agent, as the
 // tool matches them (simulator of lot 0).
 func TestGlobalGuard(t *testing.T) {
+	t.Parallel()
 	bypasses := []string{
 		// destructive git anywhere in the command
 		"X=1 git checkout app/store.py", "env git checkout app/store.py", "sh -c 'git checkout app/store.py'",
@@ -188,6 +189,7 @@ func TestSessionRulesNeverAllowShell(t *testing.T) {
 // reset`), secrets (`secrets set|delete|get|cleanup`) and the restrictions of the
 // sessions (`budget set|unset|raise`). The reads stay allowed.
 func TestGlobalGuardRefusesOhCommandsThatChangeTrustAndSettings(t *testing.T) {
+	t.Parallel()
 	forms := [][]string{
 		{"mcp", "serve", "jira"},
 		{"mcp", "trust", "jira", "--yes"},

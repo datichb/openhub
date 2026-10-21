@@ -387,6 +387,7 @@ func capProject(t *testing.T) string {
 }
 
 func TestCapabilities(t *testing.T) {
+	t.Parallel()
 	hub, cat, _ := shippedWorkflows(t)
 	project := capProject(t)
 	hc, err := hubcat.New(hub)

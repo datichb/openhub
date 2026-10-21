@@ -24,6 +24,7 @@ var inlinedHeadingRe = regexp.MustCompile("(?m)^> Skill `([a-z0-9_-]+)` : inclus
 // agent to load a skill (rules for the consumer of a handoff…) are left out
 // (L2, invitingText).
 func TestShippedWorkflowSkillMentionsResolve(t *testing.T) {
+	t.Parallel()
 	hub, cat, _ := shippedWorkflows(t)
 	files, err := bricks.FindAgentFiles(hub)
 	require.NoError(t, err)
@@ -135,6 +136,7 @@ var (
 // dev-standards-security-hardening, the orchestrator injected
 // [SKILL:planning/planner-subagent]… for skills merged long ago).
 func TestHubSkillReferencesExist(t *testing.T) {
+	t.Parallel()
 	hub := repoHub(t)
 	generated := map[string]string{"workflow/workflow-map": "", "shared/hub-workflow-reference": ""}
 	index := hubSkillIndex(hub, generated)

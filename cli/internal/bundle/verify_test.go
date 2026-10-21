@@ -42,6 +42,7 @@ func shellOf(t *testing.T, b *Bundle, id string, locks []sessionspec.PermissionR
 // asked in the review of a merge request (risk: read); the other agents get
 // nothing, the guards and the locks still win.
 func TestReviewerVerifyCommands(t *testing.T) {
+	t.Parallel()
 	project := verifyProject(t)
 	build := func(id string) (*Bundle, *workflow.Spec) {
 		r, b := shippedBuild(t, project, workflow.Ref{Layer: workflow.LayerHub, ID: id})
