@@ -1,160 +1,165 @@
 package shell
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
-func TestCommandRegistry_SearchEmpty(t *testing.T) {
-	r := NewCommandRegistry([]Command{
-		{ID: "start", Label: "Start", Category: "Sessions"},
-		{ID: "board", Label: "Board", Category: "Projets"},
-		{ID: "config", Label: "Config", Category: "Configuration"},
-	})
-
-	// Empty query returns all
-	results := r.Search("", views.ModeHub)
-	assert.Equal(t, 3, len(results))
+type searchCase struct {
+	name      string
+	commands  []Command
+	query     string
+	mode      views.Mode
+	wantFirst string // ID of the best match
+	wantCount int    // number of results, 0 = not checked
 }
 
-func TestCommandRegistry_SearchExactID(t *testing.T) {
-	r := NewCommandRegistry([]Command{
-		{ID: "start", Label: "Start", Category: "Sessions"},
-		{ID: "board", Label: "Board", Category: "Projets"},
-	})
-
-	results := r.Search("start", views.ModeHub)
-	assert.Greater(t, len(results), 0)
-	assert.Equal(t, "start", results[0].ID)
-}
-
-func TestCommandRegistry_SearchByAlias(t *testing.T) {
-	r := NewCommandRegistry([]Command{
-		{ID: "start", Label: "Start", Aliases: []string{"session", "code"}, Category: "Sessions"},
-		{ID: "board", Label: "Board", Aliases: []string{"kanban"}, Category: "Projets"},
-	})
-
-	results := r.Search("kanban", views.ModeHub)
-	assert.Greater(t, len(results), 0)
-	assert.Equal(t, "board", results[0].ID)
-
-	results = r.Search("session", views.ModeHub)
-	assert.Greater(t, len(results), 0)
-	assert.Equal(t, "start", results[0].ID)
-}
-
-func TestCommandRegistry_SearchFuzzy(t *testing.T) {
-	r := NewCommandRegistry([]Command{
-		{ID: "audit.security", Label: "Audit Sécurité", Category: "Sessions"},
-		{ID: "audit.performance", Label: "Audit Performance", Category: "Sessions"},
-	})
-
-	results := r.Search("secu", views.ModeHub)
-	assert.Greater(t, len(results), 0)
-	assert.Equal(t, "audit.security", results[0].ID)
-}
-
-func TestCommandRegistry_SearchRespectsEnabled(t *testing.T) {
+func TestCommandRegistrySearch(t *testing.T) {
 	disabled := func() bool { return false }
-	r := NewCommandRegistry([]Command{
-		{ID: "start", Label: "Start", Category: "Sessions"},
-		{ID: "hidden", Label: "Hidden", Category: "System", Enabled: disabled},
-	})
-
-	results := r.Search("", views.ModeHub)
-	assert.Equal(t, 1, len(results))
-	assert.Equal(t, "start", results[0].ID)
-}
-
-func TestCommandRegistry_SearchPrefix(t *testing.T) {
-	r := NewCommandRegistry([]Command{
-		{ID: "start", Label: "Start", Category: "Sessions"},
-		{ID: "start.dev", Label: "Start Dev", Category: "Sessions"},
-		{ID: "status", Label: "Status", Category: "Système"},
-	})
-
-	results := r.Search("sta", views.ModeHub)
-	assert.Greater(t, len(results), 0)
-	// "start" should rank higher than "status" (exact prefix on ID)
-	assert.Equal(t, "start", results[0].ID)
-}
-
-func TestCommandRegistry_SearchCategory(t *testing.T) {
-	r := NewCommandRegistry([]Command{
-		{ID: "deploy", Label: "Deploy", Category: "Projets"},
-		{ID: "status", Label: "Status", Category: "Système"},
-	})
-
-	results := r.Search("projet", views.ModeHub)
-	assert.Greater(t, len(results), 0)
-	assert.Equal(t, "deploy", results[0].ID)
-}
-
-func TestFuzzyMatch(t *testing.T) {
-	assert.True(t, fuzzyMatch("str", "start"))
-	assert.True(t, fuzzyMatch("brd", "board"))
-	assert.False(t, fuzzyMatch("xyz", "board"))
-	assert.True(t, fuzzyMatch("", "anything"))
-	assert.False(t, fuzzyMatch("long", "sh"))
-}
-
-func TestCommand_IsEnabled(t *testing.T) {
-	// nil Enabled = always true
-	cmd := Command{ID: "test"}
-	assert.True(t, cmd.IsEnabled())
-
-	// Explicit false
-	cmd.Enabled = func() bool { return false }
-	assert.False(t, cmd.IsEnabled())
-
-	// Explicit true
-	cmd.Enabled = func() bool { return true }
-	assert.True(t, cmd.IsEnabled())
-}
-
-func TestCommand_IsVisibleInMode(t *testing.T) {
-	// nil Modes = global, visible everywhere
-	cmd := Command{ID: "global"}
-	assert.True(t, cmd.IsVisibleInMode(views.ModeHub))
-	assert.True(t, cmd.IsVisibleInMode(views.ModeTeam))
-	assert.True(t, cmd.IsVisibleInMode(views.ModeProject))
-
-	// Specific modes
-	cmd = Command{ID: "project-only", Modes: []views.Mode{views.ModeProject}}
-	assert.False(t, cmd.IsVisibleInMode(views.ModeHub))
-	assert.False(t, cmd.IsVisibleInMode(views.ModeTeam))
-	assert.True(t, cmd.IsVisibleInMode(views.ModeProject))
-
-	// Multi-mode
-	cmd = Command{ID: "session", Modes: []views.Mode{views.ModeProject, views.ModeTeam}}
-	assert.False(t, cmd.IsVisibleInMode(views.ModeHub))
-	assert.True(t, cmd.IsVisibleInMode(views.ModeTeam))
-	assert.True(t, cmd.IsVisibleInMode(views.ModeProject))
-}
-
-func TestCommandRegistry_SearchRespectsMode(t *testing.T) {
-	r := NewCommandRegistry([]Command{
+	modeCommands := []Command{
 		{ID: "global", Label: "Global"},
 		{ID: "team-only", Label: "Team Only", Modes: []views.Mode{views.ModeTeam}},
 		{ID: "project-only", Label: "Project Only", Modes: []views.Mode{views.ModeProject}},
+	}
+	tests := []searchCase{
+		{
+			name: "empty query returns all",
+			commands: []Command{
+				{ID: "start", Label: "Start", Category: "Sessions"},
+				{ID: "board", Label: "Board", Category: "Projets"},
+				{ID: "config", Label: "Config", Category: "Configuration"},
+			},
+			wantFirst: "start", wantCount: 3,
+		},
+		{
+			name:      "exact ID",
+			commands:  []Command{{ID: "start", Label: "Start", Category: "Sessions"}, {ID: "board", Label: "Board", Category: "Projets"}},
+			query:     "start",
+			wantFirst: "start",
+		},
+		{
+			name: "alias",
+			commands: []Command{
+				{ID: "start", Label: "Start", Aliases: []string{"session", "code"}, Category: "Sessions"},
+				{ID: "board", Label: "Board", Aliases: []string{"kanban"}, Category: "Projets"},
+			},
+			query:     "kanban",
+			wantFirst: "board",
+		},
+		{
+			name: "second alias",
+			commands: []Command{
+				{ID: "start", Label: "Start", Aliases: []string{"session", "code"}, Category: "Sessions"},
+				{ID: "board", Label: "Board", Aliases: []string{"kanban"}, Category: "Projets"},
+			},
+			query:     "session",
+			wantFirst: "start",
+		},
+		{
+			name: "fuzzy",
+			commands: []Command{
+				{ID: "audit.security", Label: "Audit Sécurité", Category: "Sessions"},
+				{ID: "audit.performance", Label: "Audit Performance", Category: "Sessions"},
+			},
+			query:     "secu",
+			wantFirst: "audit.security",
+		},
+		{
+			name: "prefix of the ID ranks first",
+			commands: []Command{
+				{ID: "start", Label: "Start", Category: "Sessions"},
+				{ID: "start.dev", Label: "Start Dev", Category: "Sessions"},
+				{ID: "status", Label: "Status", Category: "Système"},
+			},
+			query:     "sta",
+			wantFirst: "start",
+		},
+		{
+			name: "category",
+			commands: []Command{
+				{ID: "deploy", Label: "Deploy", Category: "Projets"},
+				{ID: "status", Label: "Status", Category: "Système"},
+			},
+			query:     "projet",
+			wantFirst: "deploy",
+		},
+		{
+			name: "disabled commands are skipped",
+			commands: []Command{
+				{ID: "start", Label: "Start", Category: "Sessions"},
+				{ID: "hidden", Label: "Hidden", Category: "System", Enabled: disabled},
+			},
+			wantFirst: "start", wantCount: 1,
+		},
+		{name: "hub mode: only the global commands", commands: modeCommands, mode: views.ModeHub, wantFirst: "global", wantCount: 1},
+		{name: "team mode: global and team commands", commands: modeCommands, mode: views.ModeTeam, wantFirst: "global", wantCount: 2},
+		{name: "project mode: global and project commands", commands: modeCommands, mode: views.ModeProject, wantFirst: "global", wantCount: 2},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			mode := tc.mode
+			if mode == "" {
+				mode = views.ModeHub
+			}
+			results := NewCommandRegistry(tc.commands).Search(tc.query, mode)
+			require.NotEmpty(t, results, "at least one result")
+			assert.Equal(t, tc.wantFirst, results[0].ID, "best match")
+			if tc.wantCount > 0 {
+				assert.Len(t, results, tc.wantCount, "number of results")
+			}
+		})
+	}
+}
+
+func TestFuzzyMatch(t *testing.T) {
+	tests := []struct {
+		query, text string
+		want        bool
+	}{
+		{"str", "start", true},
+		{"brd", "board", true},
+		{"xyz", "board", false},
+		{"", "anything", true},
+		{"long", "sh", false},
+	}
+	for _, tc := range tests {
+		assert.Equal(t, tc.want, fuzzyMatch(tc.query, tc.text), "fuzzyMatch(%q, %q)", tc.query, tc.text)
+	}
+}
+
+func TestCommandVisibility(t *testing.T) {
+	t.Run("enabled", func(t *testing.T) {
+		cmd := Command{ID: "test"}
+		assert.True(t, cmd.IsEnabled(), "nil Enabled is always enabled")
+		cmd.Enabled = func() bool { return false }
+		assert.False(t, cmd.IsEnabled(), "explicit false")
+		cmd.Enabled = func() bool { return true }
+		assert.True(t, cmd.IsEnabled(), "explicit true")
 	})
 
-	// Hub mode: only global
-	results := r.Search("", views.ModeHub)
-	assert.Equal(t, 1, len(results))
-	assert.Equal(t, "global", results[0].ID)
-
-	// Team mode: global + team-only
-	results = r.Search("", views.ModeTeam)
-	assert.Equal(t, 2, len(results))
-
-	// Project mode: global + project-only
-	results = r.Search("", views.ModeProject)
-	assert.Equal(t, 2, len(results))
+	t.Run("modes", func(t *testing.T) {
+		tests := []struct {
+			name  string
+			modes []views.Mode
+			want  map[views.Mode]bool
+		}{
+			{"no mode: global", nil, map[views.Mode]bool{views.ModeHub: true, views.ModeTeam: true, views.ModeProject: true}},
+			{"project only", []views.Mode{views.ModeProject}, map[views.Mode]bool{views.ModeHub: false, views.ModeTeam: false, views.ModeProject: true}},
+			{"project and team", []views.Mode{views.ModeProject, views.ModeTeam}, map[views.Mode]bool{views.ModeHub: false, views.ModeTeam: true, views.ModeProject: true}},
+		}
+		for _, tc := range tests {
+			t.Run(tc.name, func(t *testing.T) {
+				cmd := Command{ID: "cmd", Modes: tc.modes}
+				for mode, want := range tc.want {
+					assert.Equal(t, want, cmd.IsVisibleInMode(mode), "visible in %s", mode)
+				}
+			})
+		}
+	})
 }
 
 func TestCommandRegistryReplaceGroup(t *testing.T) {
@@ -164,7 +169,5 @@ func TestCommandRegistryReplaceGroup(t *testing.T) {
 	for _, c := range r.All() {
 		ids = append(ids, c.ID)
 	}
-	if strings.Join(ids, ",") != "home,run.ticket,run.review" {
-		t.Fatalf("ids = %v", ids)
-	}
+	assert.Equal(t, []string{"home", "run.ticket", "run.review"}, ids, "the group is replaced, the other commands stay")
 }
