@@ -10,61 +10,36 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MapClaimStatusWithConfig tests
-// ─────────────────────────────────────────────────────────────────────────────
-
-func TestMapClaimStatusWithConfig_DirectMatch(t *testing.T) {
-	columns := []BoardColumnDef{
-		{Name: "TODO", Status: "todo", Color: theme.Warning},
-		{Name: "TESTING", Status: "testing", Color: theme.Info},
-		{Name: "DONE", Status: "done", Color: theme.Success},
+func TestMapClaimStatusWithConfig(t *testing.T) {
+	custom := func(first string) []BoardColumnDef {
+		return []BoardColumnDef{
+			{Name: "FIRST", Status: first, Color: theme.Warning},
+			{Name: "DEV", Status: "dev", Color: tcell.GetColor(theme.BlueHex)},
+			{Name: "DONE", Status: "done", Color: theme.Success},
+		}
 	}
-	// A status that matches a column directly should be returned as-is.
-	assert.Equal(t, "testing", MapClaimStatusWithConfig("testing", columns))
-}
-
-func TestMapClaimStatusWithConfig_LegacyPlanned(t *testing.T) {
-	columns := []BoardColumnDef{
-		{Name: "BACKLOG", Status: "backlog", Color: theme.Warning},
-		{Name: "DEV", Status: "dev", Color: tcell.GetColor(theme.BlueHex)},
-		{Name: "DONE", Status: "done", Color: theme.Success},
-	}
-	// "planned" is a legacy status — should map to the first column.
-	assert.Equal(t, "backlog", MapClaimStatusWithConfig(teamstate.ClaimStatusPlanned, columns))
-}
-
-func TestMapClaimStatusWithConfig_Fallback(t *testing.T) {
-	columns := []BoardColumnDef{
-		{Name: "TODO", Status: "todo", Color: theme.Warning},
-		{Name: "DEV", Status: "dev", Color: tcell.GetColor(theme.BlueHex)},
-		{Name: "DONE", Status: "done", Color: theme.Success},
-	}
-	// An unknown status should fall back to the first column.
-	assert.Equal(t, "todo", MapClaimStatusWithConfig("nonexistent_status", columns))
-}
-
-func TestMapClaimStatusWithConfig_DefaultColumns(t *testing.T) {
-	columns := DefaultColumns()
-
-	// Verify backward compatibility: all built-in statuses should match directly.
 	tests := []struct {
-		input    string
-		expected string
+		name    string
+		columns []BoardColumnDef
+		status  string
+		want    string
 	}{
-		{"todo", "todo"},
-		{"in_progress", "in_progress"},
-		{"review", "review"},
-		{"validation", "validation"},
-		{"done", "done"},
-		{"blocked", "blocked"},
+		{"a status that matches a column is kept", append(custom("todo"), BoardColumnDef{Name: "TESTING", Status: "testing"}), "testing", "testing"},
+		{"legacy planned maps to the first column", custom("backlog"), teamstate.ClaimStatusPlanned, "backlog"},
+		{"unknown status falls back to the first column", custom("todo"), "nonexistent_status", "todo"},
+		{"default columns: planned maps to todo", DefaultColumns(), teamstate.ClaimStatusPlanned, "todo"},
 	}
-	for _, tt := range tests {
-		t.Run(tt.input, func(t *testing.T) {
-			assert.Equal(t, tt.expected, MapClaimStatusWithConfig(tt.input, columns))
+	for _, status := range []string{"todo", "in_progress", "review", "validation", "done", "blocked"} {
+		tests = append(tests, struct {
+			name    string
+			columns []BoardColumnDef
+			status  string
+			want    string
+		}{"default columns: " + status + " matches directly", DefaultColumns(), status, status})
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, MapClaimStatusWithConfig(tc.status, tc.columns), "mapped status")
 		})
 	}
-
-	// "planned" should map to the first column ("todo").
-	assert.Equal(t, "todo", MapClaimStatusWithConfig(teamstate.ClaimStatusPlanned, columns))
 }
