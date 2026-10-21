@@ -100,47 +100,43 @@ func TestDetectBaseBranch_ConfiguredOverride(t *testing.T) {
 
 // ── ReadFileLines ─────────────────────────────────────────────────────────────
 
-func TestReadFileLines_Basic(t *testing.T) {
-	dir := t.TempDir()
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "a.go"), []byte("package main\nfunc main() {}\n"), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "b.txt"), []byte("hello\nworld\n"), 0o644))
-
-	lines, err := ReadFileLines(dir, []string{"a.go", "b.txt"})
-	require.NoError(t, err)
-	assert.Equal(t, []string{"package main", "func main() {}", "hello", "world"}, lines)
-}
-
-func TestReadFileLines_SkipBinary(t *testing.T) {
-	dir := t.TempDir()
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "img.png"), []byte{0x89, 0x50, 0x4E, 0x47, 0x00, 0x00}, 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "ok.txt"), []byte("text\n"), 0o644))
-
-	lines, err := ReadFileLines(dir, []string{"img.png", "ok.txt"})
-	require.NoError(t, err)
-	assert.Equal(t, []string{"text"}, lines)
-}
-
-func TestReadFileLines_SkipMissing(t *testing.T) {
-	dir := t.TempDir()
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "exists.txt"), []byte("yes\n"), 0o644))
-
-	lines, err := ReadFileLines(dir, []string{"gone.txt", "exists.txt"})
-	require.NoError(t, err)
-	assert.Equal(t, []string{"yes"}, lines)
-}
-
-func TestReadFileLines_EmptyList(t *testing.T) {
-	lines, err := ReadFileLines(t.TempDir(), nil)
-	require.NoError(t, err)
-	assert.Nil(t, lines)
-}
-
-func TestReadFileLines_TooManyFiles(t *testing.T) {
-	files := make([]string, maxTotalFiles+1)
-	for i := range files {
-		files[i] = "file.txt"
+func TestReadFileLines(t *testing.T) {
+	tooMany := make([]string, maxTotalFiles+1)
+	for i := range tooMany {
+		tooMany[i] = "file.txt"
 	}
-	_, err := ReadFileLines(t.TempDir(), files)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "too many files")
+	tests := []struct {
+		name    string
+		files   map[string][]byte
+		list    []string
+		want    []string
+		wantErr string
+	}{
+		{"files are read in the order of the list", map[string][]byte{"a.go": []byte("package main\nfunc main() {}\n"), "b.txt": []byte("hello\nworld\n")},
+			[]string{"a.go", "b.txt"}, []string{"package main", "func main() {}", "hello", "world"}, ""},
+		{"binary files are skipped", map[string][]byte{"img.png": {0x89, 0x50, 0x4E, 0x47, 0x00, 0x00}, "ok.txt": []byte("text\n")},
+			[]string{"img.png", "ok.txt"}, []string{"text"}, ""},
+		{"missing files are skipped", map[string][]byte{"exists.txt": []byte("yes\n")},
+			[]string{"gone.txt", "exists.txt"}, []string{"yes"}, ""},
+		{"an empty list reads nothing", nil, nil, nil, ""},
+		{"too many files", nil, tooMany, nil, "too many files"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			for name, content := range tt.files {
+				require.NoError(t, os.WriteFile(filepath.Join(dir, name), content, 0o644))
+			}
+
+			lines, err := ReadFileLines(dir, tt.list)
+
+			if tt.wantErr != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, lines)
+		})
+	}
 }

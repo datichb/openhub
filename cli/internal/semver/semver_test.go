@@ -24,25 +24,29 @@ func TestParse(t *testing.T) {
 	}
 }
 
-func TestLessThan(t *testing.T) {
-	assert.True(t, Version{1, 14, 9}.LessThan(Version{1, 15, 0}))
-	assert.False(t, Version{1, 15, 0}.LessThan(Version{1, 15, 0}))
-	assert.False(t, Version{1, 17, 13}.LessThan(Version{1, 15, 0}))
-	assert.True(t, Version{0, 99, 99}.LessThan(Version{1, 0, 0}))
-	assert.True(t, Version{1, 99, 99}.LessThan(Version{2, 0, 0}))
-}
-
-func TestAtLeast(t *testing.T) {
-	assert.True(t, Version{1, 15, 0}.AtLeast(Version{1, 15, 0}))  // equal
-	assert.True(t, Version{1, 17, 0}.AtLeast(Version{1, 15, 0}))  // greater
-	assert.False(t, Version{1, 14, 9}.AtLeast(Version{1, 15, 0})) // less
-}
-
-func TestIsAtLeast(t *testing.T) {
-	assert.True(t, IsAtLeast("0.42.0", "0.42.0"))
-	assert.True(t, IsAtLeast("0.42.1", "0.42.0"))
-	assert.False(t, IsAtLeast("0.41.9", "0.42.0"))
-	assert.True(t, IsAtLeast("1.0.0", "0.42.0"))
+func TestVersionOrder(t *testing.T) {
+	tests := []struct {
+		name, a, b string
+		atLeast    bool // a is at least b
+	}{
+		{"equal", "1.15.0", "1.15.0", true},
+		{"greater minor", "1.17.0", "1.15.0", true},
+		{"greater major", "1.0.0", "0.42.0", true},
+		{"greater patch", "0.42.1", "0.42.0", true},
+		{"greater patch of the same minor", "1.17.13", "1.15.0", true},
+		{"lower patch", "1.14.9", "1.15.0", false},
+		{"lower minor", "0.41.9", "0.42.0", false},
+		{"lower major, high minor", "0.99.99", "1.0.0", false},
+		{"lower major, high patch", "1.99.99", "2.0.0", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a, b := Parse(tt.a), Parse(tt.b)
+			assert.Equal(t, tt.atLeast, a.AtLeast(b), "AtLeast")
+			assert.Equal(t, !tt.atLeast, a.LessThan(b), "LessThan")
+			assert.Equal(t, tt.atLeast, IsAtLeast(tt.a, tt.b), "IsAtLeast")
+		})
+	}
 }
 
 func TestMajorMinor(t *testing.T) {
