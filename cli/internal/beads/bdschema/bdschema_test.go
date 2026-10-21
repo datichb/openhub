@@ -9,6 +9,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/datichb/openhub/cli/internal/beads/bdtest"
 )
 
 func TestEmbeddedHasWhatOhReads(t *testing.T) {
@@ -36,6 +38,8 @@ func TestMissing(t *testing.T) {
 
 // Contract with the installed bd: its record schema still has every field
 // oh reads (a different schema only needs schema_bd.json regenerated).
+//
+// bd schema answers at once (no bd init, no Dolt): the test stays in -short.
 func TestInstalledBdSchema(t *testing.T) {
 	if _, err := exec.LookPath("bd"); err != nil {
 		t.Skip("bd is not installed")
@@ -56,9 +60,7 @@ func TestInstalledBdSchema(t *testing.T) {
 // Contract with the installed bd: `bd show --json` adds the view fields oh
 // reads (parent, revision, dependency_type of the dependencies).
 func TestInstalledBdViewFields(t *testing.T) {
-	if _, err := exec.LookPath("bd"); err != nil {
-		t.Skip("bd is not installed")
-	}
+	bdtest.RequireRealBd(t)
 	dir := t.TempDir()
 	run := func(args ...string) string {
 		cmd := exec.Command(args[0], args[1:]...)

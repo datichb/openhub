@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/datichb/openhub/cli/internal/beads/bdtest"
 	"github.com/datichb/openhub/cli/internal/gateway/beadswire"
 )
 
@@ -23,10 +24,7 @@ import (
 // proofs of the v5 audit (S-07, S-08) run through the gateway and change
 // nothing; the canonical arguments are read by bd as the gateway read them.
 func TestRealBeadsArgsContract(t *testing.T) {
-	bd, err := exec.LookPath("bd")
-	if err != nil {
-		t.Skip("bd is not installed")
-	}
+	bd := bdtest.RequireRealBd(t)
 	root := realDir(t)
 	run := func(dir string, args ...string) string {
 		t.Helper()
@@ -149,9 +147,7 @@ func TestRealBeadsArgsContract(t *testing.T) {
 // command, makes bd refuse the writes (second line behind the allow-list),
 // and every read command of the table still runs with it.
 func TestRealBeadsReadOnlyContract(t *testing.T) {
-	if _, err := exec.LookPath("bd"); err != nil {
-		t.Skip("bd is not installed")
-	}
+	bdtest.RequireRealBd(t)
 	p := realDir(t)
 	run := func(args ...string) (string, error) {
 		cmd := exec.Command("bd", args...)
@@ -190,10 +186,7 @@ func TestRealBeadsReadOnlyContract(t *testing.T) {
 // Contract with the real bd: the provenance oh records is kept once, even
 // recorded twice, and read back by `bd provenance log`.
 func TestRealBeadsProvenance(t *testing.T) {
-	bd, err := exec.LookPath("bd")
-	if err != nil {
-		t.Skip("bd is not installed")
-	}
+	bd := bdtest.RequireRealBd(t)
 	p := realDir(t)
 	require.NoError(t, exec.Command("git", "-C", p, "init", "-q").Run())
 	run := func(args ...string) string {

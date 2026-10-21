@@ -12,14 +12,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/datichb/openhub/cli/internal/beads/bdtest"
 	"github.com/datichb/openhub/cli/internal/gateway"
 )
 
 // The real bd: claim, snapshot (dependencies, children, revisions), unclaim.
 func TestRealBdSnapshot(t *testing.T) {
-	if _, err := exec.LookPath("bd"); err != nil {
-		t.Skip("bd not installed")
-	}
+	bdtest.RequireRealBd(t)
 	ctx := context.Background()
 	dir := t.TempDir()
 	run := func(args ...string) string {
@@ -61,9 +60,7 @@ func TestRealBdSnapshot(t *testing.T) {
 // real bd reads it as the journal meant it, and statuses are read for the
 // closing check.
 func TestRealBdReplaysCanonicalForm(t *testing.T) {
-	if _, err := exec.LookPath("bd"); err != nil {
-		t.Skip("bd not installed")
-	}
+	bdtest.RequireRealBd(t)
 	ctx := context.Background()
 	dir := t.TempDir()
 	run := func(args ...string) string {
