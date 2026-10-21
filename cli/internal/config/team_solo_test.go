@@ -12,6 +12,7 @@ import (
 )
 
 func TestSoloTeam_Validate(t *testing.T) {
+	t.Parallel()
 	solo := config.TeamConfig{ID: "solo", Enabled: true, Solo: true, StatePath: "/x/teams/solo", MemberID: "alice"}
 	require.NoError(t, solo.Validate())
 	noPath := solo
@@ -23,6 +24,7 @@ func TestSoloTeam_Validate(t *testing.T) {
 }
 
 func TestSoloTeam_NeverActive(t *testing.T) {
+	t.Parallel()
 	solo := config.TeamConfig{ID: "solo", Enabled: true, Solo: true, StatePath: "/s", MemberID: "alice"}
 	acme := config.TeamConfig{ID: "acme", Enabled: true, StateRepo: "git@x:a.git", MemberID: "alice"}
 
@@ -41,6 +43,7 @@ func TestSoloTeam_NeverActive(t *testing.T) {
 }
 
 func TestSoloTeam_ResolveForProject(t *testing.T) {
+	t.Parallel()
 	cfg := &config.Config{Teams: []config.TeamConfig{{ID: "solo", Enabled: true, Solo: true, StatePath: "/s", MemberID: "alice"}}}
 	id := "solo"
 	got := config.ResolveTeamForProject(cfg, &domain.Project{ID: "web", TeamID: &id})

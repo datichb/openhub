@@ -20,6 +20,7 @@ var hubTeam = config.TeamConfig{
 }
 
 func TestResolveTeamConfig(t *testing.T) {
+	t.Parallel()
 	custom := func(repo, member, path string) *domain.ProjectTeamConfig {
 		return &domain.ProjectTeamConfig{Mode: domain.ProjectTeamModeCustom, StateRepo: repo, MemberID: member, StatePath: path}
 	}
@@ -62,6 +63,7 @@ func TestResolveTeamConfig(t *testing.T) {
 }
 
 func TestTeamStatePath(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		remote   string
@@ -87,6 +89,7 @@ func TestTeamStatePath(t *testing.T) {
 }
 
 func TestResolveTeamForProject(t *testing.T) {
+	t.Parallel()
 	cfg := &config.Config{Teams: []config.TeamConfig{
 		{ID: "acme", Enabled: true, StateRepo: "git@gitlab.com:acme/ts.git", StatePath: "/path/acme", MemberID: "alice"},
 		{ID: "beta", Enabled: true, StateRepo: "git@github.com:beta/ts.git", StatePath: "/path/beta", MemberID: "bob"},
@@ -121,6 +124,7 @@ func TestResolveTeamForProject(t *testing.T) {
 }
 
 func TestHostFromRemote(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		remote string
 		want   string
@@ -143,6 +147,7 @@ func TestHostFromRemote(t *testing.T) {
 // --- Legacy (project-level TeamConfig) ---
 
 func TestResolveTeamForProject_LegacyFallback(t *testing.T) {
+	t.Parallel()
 	cfg := &config.Config{
 		Team: config.TeamConfig{
 			ID: "legacy", Enabled: true, StateRepo: "git@gitlab.com:old/ts.git",
@@ -169,6 +174,7 @@ func TestResolveTeamForProject_LegacyFallback(t *testing.T) {
 // ─── Legacy TeamConfig migration tests ─────────────────────────────────────
 
 func TestResolveTeamForProject_LegacyInherit(t *testing.T) {
+	t.Parallel()
 	cfg := &config.Config{
 		Teams: []config.TeamConfig{
 			{ID: "acme", Enabled: true, StateRepo: "git@gitlab.com:acme/ts.git", StatePath: "/tmp/ts", MemberID: "alice"},
@@ -196,6 +202,7 @@ func TestResolveTeamForProject_LegacyInherit(t *testing.T) {
 }
 
 func TestResolveTeamForProject_LegacyDisabled(t *testing.T) {
+	t.Parallel()
 	cfg := &config.Config{
 		Teams: []config.TeamConfig{
 			{ID: "acme", Enabled: true, StateRepo: "git@gitlab.com:acme/ts.git", MemberID: "alice"},
@@ -216,6 +223,7 @@ func TestResolveTeamForProject_LegacyDisabled(t *testing.T) {
 }
 
 func TestResolveTeamForProject_LegacyCustom(t *testing.T) {
+	t.Parallel()
 	cfg := &config.Config{
 		Teams: []config.TeamConfig{
 			{ID: "acme", Enabled: true, StateRepo: "git@gitlab.com:acme/ts.git", MemberID: "alice"},

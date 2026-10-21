@@ -36,6 +36,7 @@ func (s *memStore) Set(_ context.Context, k, v string) error {
 }
 
 func TestMCPTokenKeyNames(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, "openhub.mcp.gitlab.token", MCPTokenKey("gitlab"))
 	assert.Equal(t, "openhub.mcp.jira.token", MCPTokenKey("jira"))
 	assert.Equal(t, "openhub.mcp.linear.token", MCPTokenKey("linear"))
@@ -45,6 +46,7 @@ func TestMCPTokenKeyNames(t *testing.T) {
 }
 
 func TestMCPTokenKeyCandidates(t *testing.T) {
+	t.Parallel()
 	hub := []string{"openhub.mcp.gitlab.token", "gitlab-token"}
 	assert.Equal(t, hub, MCPTokenKeyCandidates("gitlab", ""))
 	assert.Equal(t, hub, MCPTokenKeyCandidates("gitlab", "gitlab-token"))
@@ -58,6 +60,7 @@ func TestMCPTokenKeyCandidates(t *testing.T) {
 
 // The setup writes under the current name and the readers find it there.
 func TestStoreMCPTokenThenRead(t *testing.T) {
+	t.Parallel()
 	ctx := t.Context()
 	store := newMemStore(map[string]string{})
 
@@ -86,6 +89,7 @@ func TestStoreMCPTokenThenRead(t *testing.T) {
 // A key found only under the legacy name is read, copied under the current
 // name, and the legacy one is kept.
 func TestReadMCPTokenFallsBackToLegacyAndCopies(t *testing.T) {
+	t.Parallel()
 	ctx := t.Context()
 	store := newMemStore(map[string]string{"gitlab-token": "old"})
 
@@ -102,6 +106,7 @@ func TestReadMCPTokenFallsBackToLegacyAndCopies(t *testing.T) {
 }
 
 func TestReadMCPTokenPrefersTheCurrentName(t *testing.T) {
+	t.Parallel()
 	store := newMemStore(map[string]string{"openhub.mcp.gitlab.token": "new", "gitlab-token": "old"})
 	got, _ := ReadMCPToken(t.Context(), store, "gitlab", "gitlab-token")
 	assert.Equal(t, "new", got)
@@ -109,6 +114,7 @@ func TestReadMCPTokenPrefersTheCurrentName(t *testing.T) {
 }
 
 func TestReadMCPTokenProjectKeyFallback(t *testing.T) {
+	t.Parallel()
 	store := newMemStore(map[string]string{"gitlab-token-p1": "old", "gitlab-token": "hub"})
 	got, _ := ReadMCPToken(t.Context(), store, "gitlab", "openhub.mcp.gitlab.token.p1")
 	assert.Equal(t, "old", got)
@@ -117,6 +123,7 @@ func TestReadMCPTokenProjectKeyFallback(t *testing.T) {
 }
 
 func TestReadMCPTokenAbsentAndErrors(t *testing.T) {
+	t.Parallel()
 	ctx := t.Context()
 	store := newMemStore(map[string]string{})
 	got, err := ReadMCPToken(ctx, store, "gitlab", "openhub.mcp.gitlab.token")

@@ -10,6 +10,7 @@ import (
 )
 
 func TestParseGitRemote(t *testing.T) {
+	t.Parallel()
 	for raw, want := range map[string]config.GitRemote{
 		"https://gitlab.com/acme/dev/api.git":            {"gitlab.com", "acme/dev/api"},
 		"https://GitLab.example.com:8443/acme/api":       {"gitlab.example.com:8443", "acme/api"},
@@ -25,6 +26,7 @@ func TestParseGitRemote(t *testing.T) {
 }
 
 func TestMatchTarget(t *testing.T) {
+	t.Parallel()
 	r := config.RemoteConfig{
 		Targets: []config.RemoteTarget{
 			{Name: "acme", URL: "https://gitlab.com", Group: "acme"},
@@ -50,6 +52,7 @@ func TestMatchTarget(t *testing.T) {
 }
 
 func TestRemoteTargetValidate(t *testing.T) {
+	t.Parallel()
 	ok := config.RemoteTarget{Name: "acme", URL: "https://gitlab.com", Group: "acme"}
 	assert.NoError(t, ok.Validate())
 	assert.Equal(t, "acme/oh-runner", ok.RunnerProjectPath())
