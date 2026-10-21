@@ -184,8 +184,26 @@ jobs:
           cp -r ../workflows internal/hubcontent/hub/workflows
           for a in amd64 arm64; do CGO_ENABLED=0 GOOS=linux GOARCH=$a go build -trimpath -ldflags "-s -w" -o internal/runtime/container/assets/bd-linux-$a ./cmd/oh-bd; done
 
+      # Only the packages that have integration tests: the other ones have no file
+      # in the `integration` tag and run in the "Test and coverage" step of the
+      # main job. The list is computed from the files, so that a new package
+      # with `//go:build integration` tests joins it with no change here. A
+      # constraint that excludes the tag (`!integration || windows`) or that asks
+      # for e2e too (`integration && e2e`, never run in CI) does not count.
       - name: Integration tests (real opencode serve, no model calls)
-        run: go test ./... -race -count=1 -tags integration -timeout "$GO_TEST_TIMEOUT"
+        run: |
+          pkgs=$(grep -rHE --include='*_test.go' '^//go:build ' . |
+            awk -F: '{ f = $1; expr = substr($0, length(f) + 2) }
+              expr ~ /(^|[^!A-Za-z0-9_])integration([^A-Za-z0-9_]|$)/ && expr !~ /e2e/ { print f }' |
+            sed 's#/[^/]*$##' | LC_ALL=C sort -u || true)
+          if [ -z "$pkgs" ]; then
+            echo "::error::no package has integration tests (//go:build integration)"
+            exit 1
+          fi
+          echo "Packages with integration tests:"
+          echo "$pkgs"
+          # $pkgs unquoted on purpose: one argument per package (no space in the paths).
+          go test $pkgs -race -count=1 -tags integration -timeout "$GO_TEST_TIMEOUT"
 
   docs-checks:
     name: Documentation checks

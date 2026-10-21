@@ -68,7 +68,9 @@ GitHub CI (`.github/workflows/ci.yml`) runs, on Linux, macOS and Windows, `go ve
 `govulncheck` and one single `go test -race` run of the suite (40-minute timeout) that also writes the
 coverage profile, whose total is checked against the threshold on Linux and macOS; a separate
 job runs the contract tests (tag `integration`) against a real `opencode serve` of a pinned
-version, without calling any model. The e2e tests (tag `e2e`, real Bedrock model) and the
+version, without calling any model, on the packages that have such tests only (the list is computed
+from the `//go:build integration` test files, so a new package joins it by itself; today
+`internal/adapters/opencodev2`, `internal/gateway`, `internal/runsvc` and `internal/services/remote`). The e2e tests (tag `e2e`, real Bedrock model) and the
 evaluations (`make test-eval`) never run in CI: they are local and manual, and no model key is
 given to the GitHub secrets.
 
