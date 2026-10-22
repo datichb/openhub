@@ -23,21 +23,36 @@ import (
 // moves or a release is validated; never copy the value from a machine that
 // installed the package through the same channel you want to check):
 //
-//  1. read the integrity of the four packages, from the registry:
-//     for t in linux-x64 linux-x64-musl linux-arm64 linux-arm64-musl; do
-//     echo $t $(npm view @opencode/cli-$t@<version> dist.integrity)
-//     done
-//  2. check each value against the tarball itself:
-//     curl -sSL https://registry.npmjs.org/@opencode/cli-<t>/-/cli-<t>-<version>.tgz |
-//     openssl dgst -sha512 -binary | base64
-//     (the value of step 1 is "sha512-" followed by this output);
-//  3. add the version, with its four targets, to pinned_integrity.json
-//     (TestPinnedIntegrityTable checks the format, the targets and that the
-//     version is within the supported range);
-//  4. remove the versions that are no longer supported.
+//  1. run the read-only script, from the root of the repository:
+//     .github/scripts/opencode-pin.sh [--darwin] <version>
+//     For each of the four Linux packages it reads dist.integrity and
+//     dist.tarball from the registry, downloads the tarball, recomputes its
+//     sha512 and fails if it differs from the announced integrity; then it
+//     prints the fragment to paste. --darwin also prints the SHA-256 of the
+//     macOS packages (OPENCODE_SHA256_DARWIN_* of .github/workflows/ci.yml);
+//  2. run it a second time, ideally from another network, and compare the two
+//     fragments: they must be identical. Compare them as well with the
+//     integrity npm gives (npm view @opencode/cli-<t>@<version> dist.integrity);
+//  3. add the fragment to pinned_integrity.json (TestPinnedIntegrityTable
+//     checks the format, the targets and that the version is within the
+//     supported range). Never write the file from a test;
+//  4. if the version becomes the recommended one, set opencode_recommended in
+//     compatibility.json (default and the oh version) and OPENCODE_VERSION and
+//     the two darwin SHA-256 in .github/workflows/ci.yml: TestRecommendedVersionIsPinned
+//     and TestCIVersionIsRecommended check the three agree;
+//  5. remove the versions that are no longer supported.
+//
+// Without the script, the same check by hand, for each target <t>
+// (linux-x64, linux-x64-musl, linux-arm64, linux-arm64-musl):
+//
+//	npm view @opencode/cli-<t>@<version> dist.integrity
+//	curl -sSL https://registry.npmjs.org/@opencode/cli-<t>/-/cli-<t>-<version>.tgz |
+//	  openssl dgst -sha512 -binary | base64
+//
+// (the first value is "sha512-" followed by the output of the second).
 //
 // Do not change the file in the same commit as a bump of the range without
-// having done step 2.
+// having done the check.
 
 //go:embed pinned_integrity.json
 var pinnedIntegrityJSON []byte
