@@ -57,19 +57,7 @@ func New(cfg *config.Config, secrets tracker.SecretGetter, projects ProjectListe
 // Enabled is false when neither applies. A team without ID gets the name of
 // its repository, which is the name its keychain keys use.
 func (s *Service) ResolveTeam(project *domain.Project) config.ResolvedTeamConfig {
-	if project != nil {
-		if tc := config.ResolveTeamForProject(s.Config, project); tc.Enabled {
-			return tc
-		}
-	}
-	hub := s.Config.ActiveTeam()
-	tc := config.ResolvedTeamConfig{
-		Enabled:   hub.Enabled,
-		TeamID:    hub.ID,
-		StateRepo: hub.StateRepo,
-		StatePath: hub.StatePath,
-		MemberID:  hub.MemberID,
-	}
+	tc := s.resolveTeam(project)
 	if tc.TeamID == "" && tc.StateRepo != "" {
 		tc.TeamID = config.RepoNameFromRemote(tc.StateRepo)
 	}
@@ -77,6 +65,22 @@ func (s *Service) ResolveTeam(project *domain.Project) config.ResolvedTeamConfig
 		tc.StatePath = config.DefaultTeamStatePath()
 	}
 	return tc
+}
+
+func (s *Service) resolveTeam(project *domain.Project) config.ResolvedTeamConfig {
+	if project != nil {
+		if tc := config.ResolveTeamForProject(s.Config, project); tc.Enabled {
+			return tc
+		}
+	}
+	hub := s.Config.ActiveTeam()
+	return config.ResolvedTeamConfig{
+		Enabled:   hub.Enabled,
+		TeamID:    hub.ID,
+		StateRepo: hub.StateRepo,
+		StatePath: hub.StatePath,
+		MemberID:  hub.MemberID,
+	}
 }
 
 // TokenSource names where a GitLab token was found.
