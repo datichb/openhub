@@ -108,7 +108,7 @@ func WithTrackerKey(key string) TokenOption {
 //  4. the token of the team teamID
 //  5. the hub MCP token ([mcp.gitlab] token key, then openhub.mcp.gitlab.token)
 //  6. the former tracker key openhub.tracker.gitlab.token
-func (s *Service) GitLabToken(ctx context.Context, teamID string, opts ...TokenOption) (string, TokenSource) {
+func (s *Service) GitLabToken(ctx context.Context, teamID string, opts ...TokenOption) (token string, source TokenSource) {
 	q := s.tokenQuery(teamID)
 	for _, o := range opts {
 		o(&q)
