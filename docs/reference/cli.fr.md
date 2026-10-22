@@ -60,7 +60,7 @@ Une lettre a un seul sens dans toutes les commandes. Les anciennes formes resten
 | `-A` | `--assignee` | `oh start` | |
 | `-b` | `--base` (branche de base) | `oh worktree cleanup` | `oh review -b` (maintenant `--branch`) |
 | `-d` | `--path` (dossier) | `oh project add` | `oh metrics -d` (maintenant `--period`) |
-| `-f` | `--force` | `oh project remove`, `oh teams remove`, `oh worktree remove`, `oh worktree cleanup`, `oh service remove` | |
+| `-f` | `--force` (outrepasser une sécurité) | `oh worktree remove`, `oh worktree cleanup` | `oh project remove -f`, `oh teams remove -f`, `oh service remove -f` (maintenant `--yes`) |
 | `-h` | `--help` | toutes | |
 | `-i` | `--input` (entrée du workflow) | `oh run` | `oh debug -i` (maintenant `--issue`) |
 | `-l` | `--language` | `oh project add`, `oh project configure` | `oh start -l` (maintenant `--label`) |
@@ -77,6 +77,8 @@ Une lettre a un seul sens dans toutes les commandes. Les anciennes formes resten
 | `-y` | `--yes` (sans confirmation) | `oh doctor`, `oh gc`, `oh mcp trust`, `oh migrate deploy-cleanup`, `oh project add`, `oh session delete`, `oh session resolve`, `oh brick publish`, `oh workflow publish\|archive\|restore`, `oh run`, `oh purge`, `oh project remove`, `oh teams remove`, `oh service remove`, `oh worktree cleanup` | |
 
 Une ancienne forme reste acceptée pendant une version : elle fait la même chose que la nouvelle, affiche un avertissement (« L'option -p de oh serve est dépréciée, utilisez --port. ») et disparaît de l'aide. Les formes courtes de `oh start`, `oh audit`, `oh review` et `oh debug` (alias dépréciés de `oh run`) suivent la même règle.
+
+`--force` ne sert plus à sauter une confirmation : c'est `--yes`. Sur `oh purge`, `oh project remove`, `oh teams remove` et `oh service remove`, `--force` (et `-f`) reste accepté pendant une version comme alias déprécié de `--yes` : même effet, avertissement, absent de l'aide. `--force` ne subsiste que là où il outrepasse une sécurité : `oh daemon stop` (arrêter malgré des sessions en cours), `oh remote setup` (remplacer un `.gitlab-ci.yml` écrit à la main), `oh worktree remove` et `oh worktree cleanup` (supprimer aussi les worktrees qui ont des modifications non validées).
 
 **Ouvrir une fenêtre.** Une seule option, `--attach` (`auto`, `iterm`, `terminal`, `tmux`, `browser`, `suspend`, et `none` pour `oh run`), dans `oh run` comme dans `oh session attach`. L'ancien nom `--how` de `oh session attach` reste accepté (avertissement), de même que la valeur `here`, ancien synonyme de `suspend`.
 

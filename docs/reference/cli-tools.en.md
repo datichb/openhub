@@ -193,7 +193,7 @@ oh worktree remove [path]
 
 | Flag | Short | Type | Description |
 |------|-------|------|-------------|
-| `--force` | `-f` | bool | Force the removal |
+| `--force` | `-f` | bool | Force the removal, even if the worktree has uncommitted changes |
 
 **Example:**
 
@@ -215,13 +215,14 @@ oh worktree cleanup [options]
 | Flag | Short | Type | Description |
 |------|-------|------|-------------|
 | `--base` | `-b` | string | Base branch (default: auto-detected) |
-| `--force` | `-f` | bool | Remove without confirmation |
+| `--yes` | `-y` | bool | Remove without confirmation (required without a terminal); worktrees with uncommitted changes are skipped |
+| `--force` | `-f` | bool | Also remove worktrees with uncommitted changes, without confirmation |
 
 **Example:**
 
 ```bash
 oh worktree cleanup
-oh worktree cleanup -b develop --force
+oh worktree cleanup -b develop --yes
 ```
 
 ---

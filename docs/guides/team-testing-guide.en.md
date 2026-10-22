@@ -278,7 +278,7 @@ team-state/
 |--------|-----|-----|
 | **List** | `oh teams list` → table (ID, name, member, repo truncated 40c, status) | `teams` view: interactive list, ✓ green = active |
 | **Add** | `oh teams add --repo <url> --member-id <id> [--id x] [--name y]` | Key `a` → 4-modal wizard (URL, member-id, short ID, name) |
-| **Remove** | `oh teams remove <id> [-f]` (confirmation unless `-f`) | Key `d` → confirmation modal |
+| **Remove** | `oh teams remove <id> [--yes]` (confirmation unless `--yes`) | Key `d` → confirmation modal |
 | **Detach project** | `oh teams detach <project-name>` | — |
 | **Archive** | `oh teams archive <id>` (sets `enabled = false`) | — |
 | **Restore** | `oh teams restore <id>` (sets `enabled = true`) | — |
@@ -293,7 +293,7 @@ team-state/
 | 1 | `oh teams list` | Table with: ID, name, member_id, repo (truncated), status |
 | 2 | `oh teams add` without `--repo` | Error: flag required |
 | 3 | `oh teams add` without `--id` | ID automatically derived from repo name |
-| 4 | `oh teams remove` without `-f` | Asks for interactive confirmation |
+| 4 | `oh teams remove` without `--yes` | Asks for interactive confirmation |
 | 5 | `oh teams remove` with linked projects | All projects detached |
 | 6 | `oh teams archive` | `enabled = false` in hub.toml |
 | 7 | `oh teams restore` | `enabled = true` in hub.toml |

@@ -70,13 +70,13 @@ oh project remove [project-id] [options]
 
 | Flag | Court | Type | Description |
 |------|-------|------|-------------|
-| `--force` | `-f` | bool | Supprimer sans confirmation |
+| `--yes` | `-y` | bool | Supprimer sans confirmation (obligatoire sans terminal). Anciens noms : `--force`, `-f` (dépréciés, même effet, avec un avertissement) |
 
 **Exemple :**
 
 ```bash
 oh project remove mon-projet
-oh project rm -f legacy-app
+oh project rm -y legacy-app
 ```
 
 ---
