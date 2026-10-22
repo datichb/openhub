@@ -2,12 +2,12 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/datichb/openhub/cli/internal/app"
-	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/teamstate"
+	teamsvc "github.com/datichb/openhub/cli/internal/services/team"
 )
 
 // teamInitParams holds the parameters for the core team initialization logic
@@ -24,62 +24,26 @@ type teamInitParams struct {
 
 // teamInitCore performs the git+member+config operations of the team step of
 // the `oh init` wizard (teamInitParams come from its state). It does NOT
-// display any UI — the caller handles presentation.
-// Operations: clone/pull repo → init structure → add/update member → write
-// hub.toml (the team is added, or replaces the entry of the same team; the
-// other teams, solo spaces included, are left as they are).
+// display any UI — the caller handles presentation. The work is done by the
+// team service (Service.Init): clone/pull repo → init structure → add/update
+// member → write hub.toml (the team is added, or replaces the entry of the
+// same team; the other teams, solo spaces included, are left as they are).
 func teamInitCore(ctx context.Context, a *app.App, p teamInitParams) error {
-	statePath := p.StatePath
-	if statePath == "" {
-		statePath = config.DefaultTeamStatePath()
+	err := teamService(a).Init(ctx, teamsvc.InitParams(p))
+	var initErr *teamsvc.InitError
+	if !errors.As(err, &initErr) {
+		return err
 	}
-
-	repo := teamstate.NewRepo(p.StateRepo, statePath)
-
-	// Ensure repo is ready (clone if needed, pull if already cloned)
-	if err := repo.EnsureReady(ctx); err != nil {
-		return fmt.Errorf(i18n.T("cmd.team_init_core.cloning_team_state"), err)
+	switch initErr.Step {
+	case teamsvc.StepClone:
+		return fmt.Errorf(i18n.T("cmd.team_init_core.cloning_team_state"), initErr.Err)
+	case teamsvc.StepStructure:
+		return fmt.Errorf(i18n.T("cmd.team_init_core.init_structure"), initErr.Err)
+	case teamsvc.StepUpdateMember:
+		return fmt.Errorf(i18n.T("cmd.team_init_core.update_member"), initErr.Err)
+	case teamsvc.StepAddMember:
+		return fmt.Errorf(i18n.T("cmd.team_init_core.add_member"), initErr.Err)
+	default:
+		return fmt.Errorf(i18n.T("cmd.team_init_core.writing_hub_toml"), initErr.Err)
 	}
-
-	// Initialize directory structure (idempotent)
-	if err := repo.InitStructure(ctx); err != nil {
-		return fmt.Errorf(i18n.T("cmd.team_init_core.init_structure"), err)
-	}
-
-	// Register or update member
-	member := teamstate.Member{
-		ID:                 p.MemberID,
-		DisplayName:        p.DisplayName,
-		GitLabUsername:     p.GitLabUsername,
-		MattermostUsername: p.MattermostUsername,
-		Role:               p.Role,
-		DefaultMode:        "semi-auto",
-	}
-	if repo.HasMember(p.MemberID) {
-		if err := repo.UpdateMember(ctx, member); err != nil {
-			return fmt.Errorf(i18n.T("cmd.team_init_core.update_member"), err)
-		}
-	} else {
-		if err := repo.AddMember(ctx, member); err != nil {
-			return fmt.Errorf(i18n.T("cmd.team_init_core.add_member"), err)
-		}
-	}
-
-	// Persist team config to hub.toml
-	newTeam := config.TeamConfig{
-		ID:        config.RepoNameFromRemote(p.StateRepo),
-		Enabled:   true,
-		StateRepo: p.StateRepo,
-		StatePath: statePath,
-		MemberID:  p.MemberID,
-	}
-	a.Config.UpsertTeam(newTeam)
-	// Clear legacy field
-	a.Config.Team = config.TeamConfig{}
-
-	if err := config.Save(a.Config); err != nil {
-		return fmt.Errorf(i18n.T("cmd.team_init_core.writing_hub_toml"), err)
-	}
-
-	return nil
 }

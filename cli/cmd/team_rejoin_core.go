@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/url"
-	"os"
 	"strings"
 	"time"
 
@@ -236,37 +235,13 @@ func gitlabBaseURLFromRemote(remote string) string {
 	return ""
 }
 
-// resolveGitLabTokenForIdentity tries to find a GitLab token suitable for
-// identity verification. The priority is:
-//  1. GITLAB_TOKEN environment variable
-//  2. Team-specific keychain key (openhub.team.<teamID>.gitlab.token)
-//  3. MCP GitLab keychain key (openhub.mcp.gitlab.token)
-//  4. Tracker GitLab keychain key (openhub.tracker.gitlab.token)
-//
-// Returns "" if no token is found.
+// resolveGitLabTokenForIdentity finds the GitLab token used to verify an
+// identity: the unique cascade of the team service for the team teamID
+// (GITLAB_TOKEN, the token of the team, the hub MCP token, the former
+// tracker key). Returns "" if no token is found.
 func resolveGitLabTokenForIdentity(ctx context.Context, a *app.App, teamID string) string {
-	// 1. Env var — always takes priority
-	if tok := os.Getenv("GITLAB_TOKEN"); tok != "" {
-		return tok
-	}
-	if a.Secrets == nil {
-		return ""
-	}
-	// 2. Team-specific key
-	if teamID != "" {
-		if tok, err := a.Secrets.Get(ctx, config.TeamGitLabTokenKey(teamID)); err == nil && tok != "" {
-			return tok
-		}
-	}
-	// 3. MCP GitLab key (might be for the same instance)
-	if tok, err := a.Secrets.Get(ctx, config.DefaultGitLabTokenKey); err == nil && tok != "" {
-		return tok
-	}
-	// 4. Tracker GitLab key
-	if tok, err := a.Secrets.Get(ctx, "openhub.tracker.gitlab.token"); err == nil && tok != "" {
-		return tok
-	}
-	return ""
+	tok, _ := teamService(a).GitLabToken(ctx, teamID)
+	return tok
 }
 
 // listTeamMembers clones/pulls the team-state repo and returns the list of members.

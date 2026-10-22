@@ -601,7 +601,9 @@ ticket_patterns = { "T-SRU" = "SRU-(\\d+)" }
 "T-SRU" = "42"              # ID projet hub → ID/path projet GitLab
 ```
 
-> **Note :** Les credentials de connexion (token, URL) sont réutilisés depuis `[mcp.gitlab]` / `[mcp.jira]` dans `hub.toml` — pas de duplication.
+> **Note :** Les credentials de connexion (token, URL) sont réutilisés depuis `[mcp.gitlab]` / `[mcp.jira]` dans `hub.toml` — pas de duplication. Le jeton GitLab est cherché dans un seul ordre pour toutes les commandes (`GITLAB_TOKEN`, `tracker_token_key`, projet, équipe, MCP, ancienne clé du tracker) : voir [`oh team sync-tracker`](../reference/cli-team.fr.md#oh-team-sync-tracker). `oh mr create` (et `oh review --publish`) trouvent aussi le jeton de l'équipe.
+>
+> **`enabled = false` :** une section `[tracker]` du `hub.toml` local avec `enabled = false` coupe la synchronisation dans la commande, les écrans d'équipe (`s`) et la synchronisation automatique. Depuis la v5.0, les écrans la respectent aussi.
 
 ## 9. Gestion du cycle de vie des équipes
 

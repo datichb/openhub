@@ -145,7 +145,7 @@ oh project configure
 
 ### oh mr create
 
-Crée (ou retrouve) la merge request GitLab de la branche courante, vers la branche de base du projet, et assigne si besoin un relecteur de l'équipe. Remplace `oh review --publish`. La review elle-même est un workflow : [`oh run review`](cli-workflows.fr.md#oh-run). Demande l'accès en écriture à GitLab (`oh mcp setup gitlab`) ; la fusion reste une action manuelle.
+Crée (ou retrouve) la merge request GitLab de la branche courante, vers la branche de base du projet, et assigne si besoin un relecteur de l'équipe. Remplace `oh review --publish`. La review elle-même est un workflow : [`oh run review`](cli-workflows.fr.md#oh-run). Demande l'accès en écriture à GitLab (`oh mcp setup gitlab`) ; la fusion reste une action manuelle. Le jeton GitLab est cherché dans le [même ordre que celui du tracker](cli-team.fr.md#oh-team-sync-tracker) : le jeton de l'équipe du projet est donc trouvé aussi.
 
 ```
 oh mr create [-p <projet>] [--reviewer <membre>]

@@ -21,7 +21,9 @@ import (
 	"github.com/datichb/openhub/cli/internal/mcp/mcpregistry"
 	mcpwiki "github.com/datichb/openhub/cli/internal/mcp/wiki"
 	mcpworkflow "github.com/datichb/openhub/cli/internal/mcp/workflow"
+	teamsvc "github.com/datichb/openhub/cli/internal/services/team"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
+	"github.com/datichb/openhub/cli/internal/tracker"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
@@ -786,14 +788,25 @@ func checkProjectToken(ctx context.Context, a *app.App, serviceName string, proj
 		if os.Getenv("FIGMA_TOKEN") != "" {
 			return true
 		}
-	case "gitlab":
-		if os.Getenv("GITLAB_TOKEN") != "" {
-			return true
-		}
 	case "gslides":
 		if os.Getenv("GOOGLE_ACCESS_TOKEN") != "" {
 			return true
 		}
+	}
+
+	// GitLab: the unique cascade, restricted to what the MCP server is given
+	// (the environment variable and the MCP tokens of the project and of the hub).
+	if serviceName == "gitlab" {
+		var opts []teamsvc.TokenOption
+		if project != nil {
+			opts = append(opts, teamsvc.WithProject(project.ID))
+		}
+		_, src := teamService(a).GitLabToken(ctx, "", opts...)
+		switch src {
+		case tracker.TokenSourceEnv, tracker.TokenSourceProject, tracker.TokenSourceMCP:
+			return true
+		}
+		return false
 	}
 
 	if a.Secrets == nil {

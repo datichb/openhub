@@ -861,6 +861,13 @@ func (v *TeamDetailView) testConnection() {
 		// Resolve effective tracker config and build credential source
 		effTracker := tracker.ResolveTrackerConfig(&v.teamCfg.Tracker, v.cfg.GetTrackerLocalConfig())
 		src := tracker.NewCredentialSource(effTracker, v.cfg.GetSecrets())
+		// Same GitLab token cascade as the sync: the team and the MCP key count.
+		if v.cfg.ResolveTeam != nil {
+			src.TeamID = v.cfg.ResolveTeam().TeamID
+		}
+		if hub := v.cfg.GetHubConfig(); hub != nil {
+			src.MCPTokenKey = hub.MCP.Gitlab.Token
+		}
 
 		trackerType := tracker.Type(v.teamCfg.Tracker.Type)
 		cfg, err := tracker.ResolveCredentials(ctx, src, trackerType)

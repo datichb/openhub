@@ -168,3 +168,59 @@ func TestNotCloned(t *testing.T) {
 	err := svc.Add(t.Context(), "p", teamstate.Policy{Type: teamstate.PolicyTypeBoolean, Enforcement: teamstate.EnforcementWarn})
 	assert.ErrorIs(t, err, teamstate.ErrNotCloned)
 }
+
+func TestUpsertAddsReplacesAndKeepsTheOthers(t *testing.T) {
+	svc, repo := newService(t)
+	ctx := t.Context()
+	before := load(t, repo)
+
+	require.NoError(t, svc.Upsert(ctx, map[string]teamstate.Policy{
+		"branch_naming": {Type: teamstate.PolicyTypeRegex, Rule: `^feat/`, Enforcement: teamstate.EnforcementRefuse},
+		"max_wip":       {Type: teamstate.PolicyTypeLimit, Max: 2, Enforcement: teamstate.EnforcementWarn},
+	}))
+	got := load(t, repo)
+	assert.Len(t, got, len(before)+2)
+	assert.Equal(t, `^feat/`, got["branch_naming"].Rule)
+	assert.Equal(t, 2, got["max_wip"].Max)
+	wantMsg := "policies: update"
+	if len(before) == 0 {
+		wantMsg = "policies: init"
+	}
+	assert.Equal(t, wantMsg, lastCommit(t, repo))
+
+	// A second call replaces the same names and keeps the rest in one commit.
+	require.NoError(t, svc.Upsert(ctx, map[string]teamstate.Policy{
+		"branch_naming": {Type: teamstate.PolicyTypeRegex, Rule: `^fix/`, Enforcement: teamstate.EnforcementWarn},
+	}))
+	got = load(t, repo)
+	assert.Len(t, got, len(before)+2)
+	assert.Equal(t, `^fix/`, got["branch_naming"].Rule)
+	assert.Equal(t, 2, got["max_wip"].Max)
+	assert.Equal(t, "policies: update", lastCommit(t, repo))
+}
+
+func TestUpsertInitMessageOnAnEmptyPolicyFile(t *testing.T) {
+	svc, repo := newService(t)
+	ctx := t.Context()
+	require.NoError(t, repo.SavePolicies(ctx, map[string]teamstate.Policy{}))
+	require.NoError(t, repo.CommitAndPush(ctx, "clear", "policies.toml"))
+	require.Empty(t, load(t, repo))
+
+	require.NoError(t, svc.Upsert(ctx, map[string]teamstate.Policy{
+		"review_required": {Type: teamstate.PolicyTypeBoolean, Enabled: true, Enforcement: teamstate.EnforcementRefuse},
+	}))
+	assert.Equal(t, "policies: init", lastCommit(t, repo))
+	assert.Len(t, load(t, repo), 1)
+}
+
+func TestUpsertRejectsAnInvalidPolicyWithoutWriting(t *testing.T) {
+	svc, repo := newService(t)
+	before := lastCommit(t, repo)
+	err := svc.Upsert(t.Context(), map[string]teamstate.Policy{
+		"good": {Type: teamstate.PolicyTypeBoolean, Enforcement: teamstate.EnforcementWarn},
+		"bad":  {Type: "nope", Enforcement: teamstate.EnforcementWarn},
+	})
+	assert.ErrorIs(t, err, ErrBadType)
+	assert.Equal(t, before, lastCommit(t, repo))
+	assert.NotContains(t, load(t, repo), "good")
+}

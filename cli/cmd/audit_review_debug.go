@@ -19,6 +19,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/gitutil"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/notify"
+	teamsvc "github.com/datichb/openhub/cli/internal/services/team"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
@@ -185,7 +186,7 @@ func runReviewPublish(cmd *cobra.Command) error {
 		i18n.Tf("cmd.review.publish.creating", theme.Bold.Render(branch), targetBranch))
 
 	// Resolve GitLab credentials (MCP cascade).
-	glToken := resolveGitLabToken(ctx, a)
+	glToken := resolveGitLabToken(ctx, a, project)
 	if glToken == "" {
 		return errors.New(i18n.Tf("cmd.review.feedback.no_token", theme.Bold.Render("oh mcp setup gitlab")))
 	}
@@ -213,7 +214,7 @@ func runReviewPublish(cmd *cobra.Command) error {
 	// Assign reviewer if requested.
 	reviewerFlag, _ := cmd.Flags().GetString("reviewer")
 	if reviewerFlag != "" {
-		if err := assignReviewer(ctx, a, gl, glProject, mr.IID, reviewerFlag); err != nil {
+		if err := assignReviewer(ctx, a, project, gl, glProject, mr.IID, reviewerFlag); err != nil {
 			fmt.Fprintf(a.IO.Out, "%s %s\n",
 				theme.WarningStyle.Render(theme.IconWarning), i18n.Tf("cmd.review.publish.assign_failed", err))
 		} else {
@@ -234,30 +235,17 @@ func runReviewPublish(cmd *cobra.Command) error {
 	return nil
 }
 
-// resolveGitLabToken resolves a GitLab token from available sources (MCP cascade).
-func resolveGitLabToken(ctx context.Context, a *app.App) string {
-	// 1. Env var
-	if tok := os.Getenv("GITLAB_TOKEN"); tok != "" {
-		return tok
+// resolveGitLabToken resolves the GitLab token of a project with the unique
+// cascade of the team service (GITLAB_TOKEN, the token of the project, the
+// token of its team, the hub MCP token, the former tracker key).
+func resolveGitLabToken(ctx context.Context, a *app.App, project *domain.Project) string {
+	svc := teamService(a)
+	var opts []teamsvc.TokenOption
+	if project != nil {
+		opts = append(opts, teamsvc.WithProject(project.ID))
 	}
-	if a.Secrets == nil {
-		return ""
-	}
-	// 2. MCP configured key
-	tokenKey := a.Config.MCP.Gitlab.Token
-	if tokenKey == "" {
-		tokenKey = config.DefaultGitLabTokenKey
-	}
-	if tok, err := a.Secrets.Get(ctx, tokenKey); err == nil && tok != "" {
-		return tok
-	}
-	// 3. Default key
-	if tokenKey != config.DefaultGitLabTokenKey {
-		if tok, err := a.Secrets.Get(ctx, config.DefaultGitLabTokenKey); err == nil && tok != "" {
-			return tok
-		}
-	}
-	return ""
+	tok, _ := svc.GitLabToken(ctx, svc.ResolveTeam(project).TeamID, opts...)
+	return tok
 }
 
 // resolveGitLabProject resolves the GitLab project path/ID from config.
@@ -266,14 +254,10 @@ func resolveGitLabProject(a *app.App, project *domain.Project) string {
 	if project.TrackerConfig != nil && project.TrackerConfig.TrackerProject != "" {
 		return project.TrackerConfig.TrackerProject
 	}
-	// 2. Team tracker config.
-	teamCfg := a.Config.ActiveTeam()
+	// 2. Tracker config of the team of the project (the hub team when it has none).
+	teamCfg := teamService(a).ResolveTeam(project)
 	if teamCfg.StateRepo != "" {
-		statePath := teamCfg.StatePath
-		if statePath == "" {
-			statePath = config.DefaultTeamStatePath()
-		}
-		repo := teamstate.NewRepo(teamCfg.StateRepo, statePath)
+		repo := teamstate.NewRepo(teamCfg.StateRepo, teamCfg.StatePath)
 		if repo.IsCloned() {
 			if tc, err := repo.LoadConfig(); err == nil && tc.Tracker.TrackerProject != "" {
 				return tc.Tracker.TrackerProject
@@ -284,14 +268,10 @@ func resolveGitLabProject(a *app.App, project *domain.Project) string {
 }
 
 // assignReviewer resolves a team member to a GitLab user and assigns them as reviewer.
-func assignReviewer(ctx context.Context, a *app.App, gl *gitlabapi.Client, glProject string, mrIID int, memberID string) error {
-	// Find the member in team state to get their GitLab username.
-	teamCfg := a.Config.ActiveTeam()
-	statePath := teamCfg.StatePath
-	if statePath == "" {
-		statePath = config.DefaultTeamStatePath()
-	}
-	repo := teamstate.NewRepo(teamCfg.StateRepo, statePath)
+func assignReviewer(ctx context.Context, a *app.App, project *domain.Project, gl *gitlabapi.Client, glProject string, mrIID int, memberID string) error {
+	// Find the member in the team state of the project to get their GitLab username.
+	teamCfg := teamService(a).ResolveTeam(project)
+	repo := teamstate.NewRepo(teamCfg.StateRepo, teamCfg.StatePath)
 	if !repo.IsCloned() {
 		return errors.New(i18n.T("cmd.review.publish.no_team_state"))
 	}

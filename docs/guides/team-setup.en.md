@@ -609,7 +609,9 @@ ticket_patterns = { "T-SRU" = "SRU-(\\d+)" }
 "T-SRU" = "42"              # hub project ID → GitLab project ID/path
 ```
 
-> **Note:** Connection credentials (token, URL) are reused from `[mcp.gitlab]` / `[mcp.jira]` in `hub.toml` — no duplication.
+> **Note:** Connection credentials (token, URL) are reused from `[mcp.gitlab]` / `[mcp.jira]` in `hub.toml` — no duplication. The GitLab token is looked for in a single order for every command (`GITLAB_TOKEN`, `tracker_token_key`, project, team, MCP, former tracker key): see [`oh team sync-tracker`](../reference/cli-team.en.md#oh-team-sync-tracker). `oh mr create` (and `oh review --publish`) find the team token too.
+>
+> **`enabled = false`:** a `[tracker]` section of the local `hub.toml` with `enabled = false` turns the sync off in the command, the team screens (`s`) and the automatic sync. Since v5.0 the screens honor it too.
 
 ## 9. Team Lifecycle Management
 

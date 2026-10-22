@@ -190,6 +190,34 @@ Synchronise les claims avec le tracker externe (GitLab Issues, Jira, Linear) : t
 oh team sync-tracker
 ```
 
+La commande, la touche de synchronisation (`s`) des écrans d'équipe et la synchronisation automatique suivent les mêmes règles (service équipe) :
+
+- **`[tracker] enabled = false`** (dans le `hub.toml` local ou dans la config d'équipe) coupe la synchronisation partout. La commande affiche un avis et sort avec le code 0 ; les écrans refusent avec un message ; la synchronisation automatique ne fait rien. Avant la v5.0, les écrans synchronisaient quand même.
+- Un projet sans équipe utilise l'équipe du hub (équipe par défaut de `hub.toml`) pour son tracker.
+- **Ordre de recherche du jeton GitLab** (le premier trouvé l'emporte ; `GITLAB_TOKEN` toujours en premier) :
+
+  | # | Source | Clé du trousseau |
+  |---|--------|------------------|
+  | 1 | Variable d'environnement | `GITLAB_TOKEN` |
+  | 2 | `tracker_token_key` de la config du tracker | la clé que vous avez réglée |
+  | 3 | Jeton du projet | `openhub.mcp.gitlab.token.<projet>` |
+  | 4 | Jeton de l'équipe | `openhub.team.<équipe>.gitlab.token` |
+  | 5 | Jeton MCP du hub | clé de `[mcp.gitlab] token`, puis `openhub.mcp.gitlab.token` (et son ancien nom `gitlab-token`) |
+  | 6 | Ancienne clé du tracker | `openhub.tracker.gitlab.token` |
+
+  Jira garde son propre ordre (`JIRA_TOKEN`, puis `tracker_token_key`).
+
+  **Ce qui change en v5.0** (rupture : le même ordre s'applique désormais à toutes les commandes) :
+
+  | Commande | Avant | Maintenant |
+  |----------|-------|------------|
+  | `oh team sync-tracker`, écrans d'équipe, synchronisation automatique | `GITLAB_TOKEN`, puis la seule `tracker_token_key` | tout l'ordre ci-dessus : un jeton d'équipe ou MCP est trouvé sans `tracker_token_key` |
+  | `oh mr create` (`oh review --publish`), `oh review feedback` et les entrées du workflow `review-feedback` | `GITLAB_TOKEN`, puis la clé MCP de `hub.toml`, puis `openhub.mcp.gitlab.token` | tout l'ordre ci-dessus : **le jeton de l'équipe (et celui du projet) passe avant le jeton MCP du hub**, et l'équipe du projet est trouvée ; l'ancienne clé du tracker est le dernier recours |
+  | Vérification d'identité de `oh team init` / `rejoin` | `GITLAB_TOKEN`, équipe, `openhub.mcp.gitlab.token`, ancienne clé du tracker | même ordre ; la clé de `[mcp.gitlab] token` et le nom `gitlab-token` sont désormais lus aussi |
+  | `oh mcp enable --project` (jeton présent ?) | `GITLAB_TOKEN`, jeton du projet, jeton du hub | même ordre ; la clé de `[mcp.gitlab] token` est désormais lue. Les jetons d'équipe et de l'ancien tracker ne comptent pas : le serveur MCP ne les reçoit pas |
+
+  Si vous gardez un jeton d'équipe différent de celui du serveur MCP, vérifiez lequel l'emporte pour les commandes ci-dessus.
+
 ---
 
 ### oh team notify test

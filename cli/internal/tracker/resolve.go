@@ -23,6 +23,11 @@ type CredentialSource struct {
 	// Resolved from: project.TrackerURL → hub.Tracker.TrackerURL → team.Tracker.TrackerURL → ""
 	// An empty URL uses the env var fallback (GITLAB_URL / JIRA_URL) or the built-in default.
 	URL string
+	// TeamID and MCPTokenKey feed the GitLab token cascade (see
+	// ResolveGitLabToken): the team whose GitLab token may be used, and the
+	// key set in [mcp.gitlab]. Both are optional.
+	TeamID      string
+	MCPTokenKey string
 	// TokenKey is the keychain key for the tracker token (not the secret itself).
 	// Resolved from: project.TrackerTokenKey → hub.Tracker.TrackerTokenKey → team.Tracker.TrackerTokenKey → derived default.
 	TokenKey string
@@ -49,9 +54,10 @@ func NewCredentialSource(eff EffectiveTrackerConfig, secrets SecretGetter) Crede
 // ResolveCredentials returns a fully-resolved tracker Config for the requested type.
 //
 // Resolution order for the token:
-//  1. Environment variable (GITLAB_TOKEN / JIRA_TOKEN)
-//  2. Keychain: Secrets.Get(ctx, tokenKey)
-//  3. Error — neither source provided a token
+//   - GitLab: the cascade of ResolveGitLabToken (GITLAB_TOKEN, tracker key,
+//     team, MCP, former tracker key)
+//   - Jira: JIRA_TOKEN, then Secrets.Get(ctx, tokenKey)
+//   - Error — no source provided a token
 //
 // Resolution order for the base URL:
 //  1. CredentialSource.URL (from config cascade)
@@ -84,9 +90,14 @@ func resolveGitLab(ctx context.Context, src CredentialSource) (Config, error) {
 	}
 	slog.Debug("tracker.resolve.url", "type", "gitlab", "url", baseURL, "source", source)
 
-	token, err := resolveToken(ctx, "GITLAB_TOKEN", src.TokenKey, src.Secrets, "GitLab")
-	if err != nil {
-		return Config{}, err
+	token, _ := ResolveGitLabToken(ctx, GitLabTokenQuery{
+		TrackerKey: src.TokenKey,
+		TeamID:     src.TeamID,
+		MCPKey:     src.MCPTokenKey,
+		Secrets:    src.Secrets,
+	})
+	if token == "" {
+		return Config{}, missingTokenError(GitLabTokenEnv, src.TokenKey, "GitLab")
 	}
 
 	return Config{
@@ -152,10 +163,14 @@ func resolveToken(ctx context.Context, envVar, tokenKey string, secrets SecretGe
 		}
 	}
 
-	// 3. Nothing found — actionable error message
+	return "", missingTokenError(envVar, tokenKey, displayName)
+}
+
+// missingTokenError is the actionable error returned when no token was found.
+func missingTokenError(envVar, tokenKey, displayName string) error {
 	hint := fmt.Sprintf("exportez %s ou configurez [tracker] tracker_token_key dans hub.toml", envVar)
 	if tokenKey != "" {
 		hint = fmt.Sprintf("exportez %s ou stockez le token via: oh secrets set %s", envVar, tokenKey)
 	}
-	return "", fmt.Errorf("tracker: token %s non disponible — %s", displayName, hint)
+	return fmt.Errorf("tracker: token %s non disponible — %s", displayName, hint)
 }

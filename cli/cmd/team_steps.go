@@ -9,6 +9,7 @@ import (
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
+	policysvc "github.com/datichb/openhub/cli/internal/services/policy"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
@@ -311,26 +312,9 @@ func buildTeamPoliciesStep(s *teamStepState, opts teamStepOpts) views.WizardStep
 			if len(s.SelectedPolicies) == 0 {
 				return nil
 			}
-			policies := buildRecommendedPolicies(s.SelectedPolicies)
-			if s.HasPolicies {
-				existing, err := s.Repo.LoadPolicies("")
-				if err != nil {
-					return fmt.Errorf(i18n.T("cmd.team_steps.loading_existing_policies"), err)
-				}
-				for _, ep := range existing {
-					if _, ok := policies[ep.Name]; !ok {
-						policies[ep.Name] = ep
-					}
-				}
-			}
-			if err := s.Repo.SavePolicies(s.Ctx, policies); err != nil {
-				return err
-			}
-			commitMsg := "team: init policies"
-			if s.HasPolicies {
-				commitMsg = "team: update policies"
-			}
-			return s.Repo.CommitAndPush(s.Ctx, commitMsg, "policies.toml")
+			// The service merges them with the existing policies (the
+			// recommended ones win on a name clash) and commits once.
+			return policysvc.New(s.Repo).Upsert(s.Ctx, buildRecommendedPolicies(s.SelectedPolicies))
 		},
 		InfoFields: func() []views.InfoField {
 			if len(s.SelectedPolicies) == 0 {

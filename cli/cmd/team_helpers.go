@@ -14,7 +14,9 @@ import (
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	teamsvc "github.com/datichb/openhub/cli/internal/services/team"
 	"github.com/datichb/openhub/cli/internal/teamstate"
+	"github.com/datichb/openhub/cli/internal/tracker"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
@@ -183,26 +185,23 @@ func selectedMemberGitLabUsername(state *initWizardTeamState) string {
 	return ""
 }
 
-// gitlabTokenAvailable checks whether a GitLab API token is already
-// gitlabTokenSource returns a human-readable label describing the first
-// available GitLab token source, or "" if no token is resolvable.
-// The teamID is used to check for a team-specific keychain key.
+// gitlabTokenSource returns a human-readable label describing the source of
+// the GitLab token that resolves for the team teamID (the unique cascade of
+// the team service), or "" if no token is resolvable.
 func gitlabTokenSource(ctx context.Context, a *app.App, teamID string) string {
-	if os.Getenv("GITLAB_TOKEN") != "" {
-		return i18n.T("cmd.init.wizard_rejoin_token_source_env")
+	svc := teamsvc.New(&config.Config{}, nil, nil)
+	if a != nil {
+		svc = teamService(a)
 	}
-	if a != nil && a.Secrets != nil {
-		if teamID != "" {
-			if val, err := a.Secrets.Get(ctx, config.TeamGitLabTokenKey(teamID)); err == nil && val != "" {
-				return i18n.Tf("cmd.init.wizard_rejoin_token_source_team", teamID)
-			}
-		}
-		if val, err := a.Secrets.Get(ctx, config.DefaultGitLabTokenKey); err == nil && val != "" {
-			return i18n.T("cmd.init.wizard_rejoin_token_source_mcp")
-		}
-		if val, err := a.Secrets.Get(ctx, "openhub.tracker.gitlab.token"); err == nil && val != "" {
-			return i18n.T("cmd.init.wizard_rejoin_token_source_tracker")
-		}
+	switch _, src := svc.GitLabToken(ctx, teamID); src {
+	case tracker.TokenSourceEnv:
+		return i18n.T("cmd.init.wizard_rejoin_token_source_env")
+	case tracker.TokenSourceTeam:
+		return i18n.Tf("cmd.init.wizard_rejoin_token_source_team", teamID)
+	case tracker.TokenSourceMCP:
+		return i18n.T("cmd.init.wizard_rejoin_token_source_mcp")
+	case tracker.TokenSourceTracker, tracker.TokenSourceTrackerKey, tracker.TokenSourceProject:
+		return i18n.T("cmd.init.wizard_rejoin_token_source_tracker")
 	}
 	return ""
 }

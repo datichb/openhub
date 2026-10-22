@@ -90,7 +90,7 @@ func fetchMRFeedback(ctx context.Context, a *app.App, projectID, ref string) (*m
 	if err != nil {
 		return nil, err
 	}
-	token := resolveGitLabToken(ctx, a)
+	token := resolveGitLabToken(ctx, a, project)
 	if token == "" {
 		return nil, errors.New(i18n.Tf("cmd.review.feedback.no_token", "oh mcp setup gitlab"))
 	}
