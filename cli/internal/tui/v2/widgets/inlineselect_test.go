@@ -1,10 +1,13 @@
 package widgets
 
 import (
+	"strings"
 	"testing"
 
+	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestInlineSelect(t *testing.T) {
@@ -52,4 +55,53 @@ func TestInlineSelect(t *testing.T) {
 		s.Blur()
 		assert.False(t, s.HasFocus(), "blurred after Blur")
 	})
+}
+
+// screenText is what the simulation screen shows, one string per row.
+func screenText(screen tcell.SimulationScreen, w, h int) []string {
+	cells, _, _ := screen.GetContents()
+	rows := make([]string, h)
+	for y := 0; y < h; y++ {
+		var b strings.Builder
+		for x := 0; x < w; x++ {
+			c := cells[y*w+x]
+			if len(c.Runes) == 0 {
+				b.WriteRune(' ')
+				continue
+			}
+			b.WriteRune(c.Runes[0])
+		}
+		rows[y] = strings.TrimRight(b.String(), " ")
+	}
+	return rows
+}
+
+func TestInlineSelect_CompactDescription(t *testing.T) {
+	s := NewInlineSelect("Type", []string{"solo", "team", "full"}, 0, nil)
+	s.SetDescriptions([]string{"alone", "with a team\nof people", "everything"})
+	listed := s.GetFieldHeight()
+	s.SetCompactDescription(true)
+	assert.Equal(t, 1+3+1, s.GetFieldHeight(), "compact: label + options + one description line, whatever the descriptions hold")
+	assert.Less(t, s.GetFieldHeight(), listed, "compact is shorter than the listed descriptions")
+
+	const w, h = 40, 8
+	screen := tcell.NewSimulationScreen("UTF-8")
+	require.NoError(t, screen.Init())
+	screen.SetSize(w, h)
+	s.SetRect(0, 0, w, h)
+
+	s.Focus(func(tview.Primitive) {})
+	s.Draw(screen)
+	screen.Show()
+	rows := screenText(screen, w, h)
+	assert.Contains(t, rows[4], "alone", "the description of the highlighted option shows under the options")
+	assert.NotContains(t, strings.Join(rows, "\n"), "everything", "the other descriptions do not")
+
+	handler := s.InputHandler()
+	handler(tcell.NewEventKey(tcell.KeyDown, 0, tcell.ModNone), func(tview.Primitive) {})
+	s.Draw(screen)
+	screen.Show()
+	rows = screenText(screen, w, h)
+	assert.Contains(t, rows[4], "with a team of people", "the description follows the cursor, newlines folded into one line")
+	assert.Equal(t, 0, s.GetSelectedIndex(), "moving the cursor does not change the selection")
 }
