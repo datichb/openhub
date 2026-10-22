@@ -356,7 +356,7 @@ func TestSessionsViewDelete(t *testing.T) {
 		onLoop(app, func() { n = len(v.rows) })
 		return n > 0
 	}, 2*time.Second, 10*time.Millisecond)
-	assert.Contains(t, v.StatusHints(), "d ")
+	assert.Contains(t, v.HelpKeys(), "d ") // in the help (?), no longer in the essential hints
 	onLoop(app, func() {
 		v.Focus("ses_b")
 		v.render()

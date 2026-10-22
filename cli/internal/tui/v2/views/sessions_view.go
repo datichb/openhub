@@ -105,6 +105,15 @@ func (v *SessionsView) StatusHints() string {
 	return i18n.T("tui.sessions.hints")
 }
 
+// HelpKeys are all the keys of the list, for the help overlay (the hints bar
+// holds the essential ones); a tab or the batch has one line, its own.
+func (v *SessionsView) HelpKeys() string {
+	if v.batch != nil || v.tabs != nil && v.tabs.focused {
+		return v.StatusHints()
+	}
+	return i18n.T("tui.sessions.help_keys")
+}
+
 // PassesShellKeys: the tabs and the batch keep Esc but leave ? (help) and
 // Ctrl+P (palette) to the shell.
 func (v *SessionsView) PassesShellKeys() bool { return true }

@@ -78,6 +78,8 @@ Le shell garde `Échap`, `?`/`F1`, `Ctrl+P`, `Ctrl+T`, `Ctrl+Q` ; il transforme 
 
 Une vue qui garde toutes les touches (`InputCapturing`, pour garder `Échap`) les reçoit d'abord ; sans champ de texte, elle implémente aussi `ShellKeysPassing` (`PassesShellKeys() bool`) : le shell prend alors `?` et `Ctrl+P` qu'elle n'a pas utilisés, et rend le focus au widget de la vue en fermant la palette ou l'aide (onglets et lot de Sessions, sections du Nettoyage). Quand ses touches changent (onglet, lot, section), elle appelle `RefreshHints()` du shell (`HintsRefresher`) pour que la ligne d'aide suive.
 
+La ligne d'aide d'une vue reste courte : au plus 10 entrées ou 120 colonnes (`keys/convention_test.go`, `TestHintLinesAreShort` ; les lignes plus longues d'avant sont figées dans `longHints`, qui ne fait que diminuer). Une vue qui a plus de touches garde les essentielles dans la ligne, avec `? aide`, et implémente `HelpKeysProvider` (`HelpKeys() string`) : l'aide (`?` / `F1`) affiche alors cette liste complète à la place de la ligne d'aide (vue Sessions : `tui.sessions.help_keys`).
+
 ## Le composant `ActionList`
 
 `views.ActionList` (`cli/internal/tui/v2/views/action_list.go`) : liste d'éléments sur une ligne (colonnes alignées, sections facultatives, état), détail sous la liste (`DetailBelow`, défaut) ou à côté (`DetailRight`), actions sur l'élément sélectionné et actions globales, sans limite d'éléments (la liste défile, le pied indique « 2/9 · 2 de plus ↓ »). Il sert aux propositions wiki (fiche, file du projet), à la validation par lot, aux enfants du fan-out, aux briques.

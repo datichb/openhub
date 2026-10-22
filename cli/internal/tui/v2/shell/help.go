@@ -61,7 +61,11 @@ func (s *Shell) showHelpOverlay() {
 
 	// ── Keys of the active view (its hints bar) ───────────────────────────────
 	if cur := s.router.Current(); cur != nil {
-		if hints := cur.StatusHints(); hints != "" {
+		hints := cur.StatusHints()
+		if hp, ok := cur.(views.HelpKeysProvider); ok {
+			hints = hp.HelpKeys()
+		}
+		if hints != "" {
 			fmt.Fprintf(&b, "\n  %s%s : %s%s\n\n  %s\n",
 				accent, i18n.T("tui.keys.help.view_keys"), cur.Title(), reset, hints)
 		}
