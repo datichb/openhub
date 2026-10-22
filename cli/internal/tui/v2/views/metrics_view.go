@@ -31,6 +31,9 @@ type MetricsView struct {
 	mode   string // "usage" or "agents"
 	shell  ShellAccess
 	cfg    MetricsViewConfig
+	ctx    context.Context
+	cancel context.CancelFunc
+	loads  loadSlot
 }
 
 var _ View = (*MetricsView)(nil)
@@ -40,9 +43,12 @@ var _ View = (*MetricsView)(nil)
 type metricsScope struct {
 	label    string
 	projects []ActiveProject // nil = whole hub
+	teamID   string          // set until the projects of the team are listed (resolveScope)
 }
 
-func (v *MetricsView) scope() metricsScope {
+// scopeRef reads the shell (event loop only). The projects of a team are
+// listed later, by resolveScope.
+func (v *MetricsView) scopeRef() metricsScope {
 	if v.shell == nil {
 		return metricsScope{label: i18n.T("tui.metrics.scope_hub")}
 	}
@@ -53,14 +59,33 @@ func (v *MetricsView) scope() metricsScope {
 		}
 	case ModeTeam:
 		if t := v.shell.ActiveTeam(); t != nil {
-			sc := metricsScope{label: i18n.Tf("tui.metrics.scope_team", t.Name), projects: []ActiveProject{}}
-			if v.cfg.TeamProjects != nil {
-				sc.projects = v.cfg.TeamProjects(t.ID)
-			}
-			return sc
+			return metricsScope{label: i18n.Tf("tui.metrics.scope_team", t.Name), projects: []ActiveProject{}, teamID: t.ID}
 		}
 	}
 	return metricsScope{label: i18n.T("tui.metrics.scope_hub")}
+}
+
+// resolveScope lists the projects of a team scope (it may do I/O: off the
+// event loop).
+func (v *MetricsView) resolveScope(sc metricsScope) metricsScope {
+	if sc.teamID != "" && v.cfg.TeamProjects != nil {
+		sc.projects = v.cfg.TeamProjects(sc.teamID)
+	}
+	sc.teamID = ""
+	return sc
+}
+
+func (v *MetricsView) scope() metricsScope { return v.resolveScope(v.scopeRef()) }
+
+// metricsQuery is what a load needs from the view, read on the event loop
+// before the load starts.
+type metricsQuery struct {
+	mode, period string
+	scope        metricsScope
+}
+
+func (v *MetricsView) query() metricsQuery {
+	return metricsQuery{mode: v.mode, period: v.period, scope: v.scopeRef()}
 }
 
 // mergeAgentMetrics sums the metrics of several projects, by agent.
@@ -135,6 +160,11 @@ func (v *MetricsView) StatusHints() string {
 // Mount builds the metrics display with real data.
 func (v *MetricsView) Mount(content *tview.Flex, app *tview.Application) {
 	v.app = app
+	parent := context.Background()
+	if v.shell != nil {
+		parent = v.shell.Context()
+	}
+	v.ctx, v.cancel = context.WithCancel(parent)
 
 	v.tv = tview.NewTextView().
 		SetDynamicColors(true).
@@ -147,20 +177,15 @@ func (v *MetricsView) Mount(content *tview.Flex, app *tview.Application) {
 	v.tv.SetText(fmt.Sprintf("\n  %s%s%s", muted, i18n.T("tui.metrics.loading_full"), theme.TagColor))
 	content.AddItem(v.tv, 0, 1, true)
 
-	// Load metrics data asynchronously (opens database)
-	go func() {
-		text := v.buildRenderText()
-		app.QueueUpdateDraw(func() {
-			if v.tv == nil {
-				return
-			}
-			v.tv.SetText(text)
-		})
-	}()
+	v.reload()
 }
 
 // Unmount cleans up resources.
 func (v *MetricsView) Unmount() {
+	v.loads.Invalidate()
+	if v.cancel != nil {
+		v.cancel()
+	}
 	v.app = nil
 	v.tv = nil
 }
@@ -198,42 +223,49 @@ func (v *MetricsView) asyncRender() {
 	}
 	muted := theme.ColorTag(theme.TextMutedHex)
 	v.tv.SetText(fmt.Sprintf("\n  %s%s%s", muted, i18n.T("tui.metrics.loading"), theme.TagColor))
-	go func() {
-		text := v.buildRenderText()
-		v.app.QueueUpdateDraw(func() {
-			if v.tv == nil || v.app == nil {
-				return
-			}
-			v.tv.SetText(text)
-		})
-	}()
+	v.reload()
 }
 
-// buildRenderText builds the metrics display text. Safe to call from any goroutine.
-func (v *MetricsView) buildRenderText() string {
-	if v.mode == "agents" {
-		return v.buildAgentsText()
+// reload builds the text off the event loop (it opens the database). What it
+// reads of the view (mode, period, scope) is captured here, on the loop.
+func (v *MetricsView) reload() {
+	q := v.query()
+	load(v.app, v.ctx, &v.loads, func(ctx context.Context) (string, error) {
+		return v.buildRenderText(ctx, q), nil
+	}, func(text string, _ error) {
+		if v.tv == nil {
+			return
+		}
+		v.tv.SetText(text)
+	})
+}
+
+// buildRenderText builds the metrics display text. It reads nothing of the
+// view state (q has it): safe to call from any goroutine.
+func (v *MetricsView) buildRenderText(ctx context.Context, q metricsQuery) string {
+	sc := v.resolveScope(q.scope)
+	if q.mode == "agents" {
+		return v.buildAgentsText(ctx, sc)
 	}
-	return v.buildUsageText()
+	return v.buildUsageText(sc, q.period)
 }
 
-func (v *MetricsView) buildAgentsText() string {
+func (v *MetricsView) buildAgentsText(ctx context.Context, sc metricsScope) string {
 	if v.cfg.AgentEvents == nil {
 		return "\n  [::b]" + i18n.T("tui.metrics.agent_telemetry") + theme.TagReset + "\n\n  " +
 			theme.ColorTag(theme.TextSecondaryHex) + i18n.T("tui.metrics.agent_store_unavailable") + theme.TagColor +
 			"\n\n  " + theme.ColorTag(theme.TextSecondaryHex) + i18n.T("tui.metrics.press_tab_usage") + theme.TagColor
 	}
 
-	sc := v.scope()
 	scopeLabel := sc.label
 	var metrics []domain.AgentMetrics
 	var err error
 	if sc.projects == nil {
-		metrics, err = v.cfg.AgentEvents.Metrics(context.Background(), "")
+		metrics, err = v.cfg.AgentEvents.Metrics(ctx, "")
 	} else {
 		lists := make([][]domain.AgentMetrics, 0, len(sc.projects))
 		for _, p := range sc.projects {
-			m, e := v.cfg.AgentEvents.Metrics(context.Background(), p.ID)
+			m, e := v.cfg.AgentEvents.Metrics(ctx, p.ID)
 			if e != nil {
 				err = e
 				break
@@ -287,7 +319,7 @@ func (v *MetricsView) buildAgentsText() string {
 	return sb.String()
 }
 
-func (v *MetricsView) buildUsageText() string {
+func (v *MetricsView) buildUsageText(sc metricsScope, period string) string {
 	if v.cfg.Stats == nil || !v.cfg.Stats.Available() {
 		return fmt.Sprintf(`
   [::b]%s%s
@@ -304,16 +336,15 @@ func (v *MetricsView) buildUsageText() string {
 	}
 
 	// Scope: the whole hub, the projects of the team, or the project.
-	sc := v.scope()
 	scopeLabel := sc.label
 	var stats *platform.AggregateStats
 	var err error
 	if sc.projects == nil {
-		stats, err = v.cfg.Stats.AggregateStats(v.period)
+		stats, err = v.cfg.Stats.AggregateStats(period)
 	} else {
 		stats = &platform.AggregateStats{}
 		for _, p := range sc.projects {
-			s, e := v.cfg.Stats.ProjectStats(p.Path, v.period)
+			s, e := v.cfg.Stats.ProjectStats(p.Path, period)
 			if e != nil {
 				err = e
 				break
@@ -327,7 +358,7 @@ func (v *MetricsView) buildUsageText() string {
 
 	// Period label
 	periodLabel := i18n.T("tui.metrics.period_all")
-	switch v.period {
+	switch period {
 	case "7d":
 		periodLabel = i18n.T("tui.metrics.period_7d")
 	case "30d":
