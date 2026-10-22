@@ -2,6 +2,12 @@ module github.com/datichb/openhub/cli
 
 go 1.26.4
 
+// Version of Go used to build and test oh (the CI and the release read it
+// through setup-go): keep it at the latest patch release of the series, the
+// standard library is compiled into the binary (GO-2026-6809 and the 1.26.9
+// fixes of crypto/tls, net/http and os.Root).
+toolchain go1.26.10
+
 require (
 	github.com/aws/aws-sdk-go-v2 v1.47.1
 	github.com/aws/aws-sdk-go-v2/config v1.33.6

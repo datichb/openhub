@@ -45,7 +45,8 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
-          go-version: "1.26"
+          # The toolchain directive of go.mod: one place for the version of Go.
+          go-version-file: cli/go.mod
           cache-dependency-path: cli/go.sum
 
       - name: Download dependencies
@@ -69,11 +70,6 @@ jobs:
           version: v2.14
           working-directory: cli
           args: --build-tags=integration,e2e,container
-
-      - name: Vulnerability scan
-        run: |
-          go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
-          govulncheck ./...
 
       # Windows: the tests of many packages were written for Unix and fail there
       # (first full run: 24 packages). Until the "windows-tests" batch makes them
@@ -117,6 +113,15 @@ jobs:
       - name: Build
         run: go build -o bin/oh .
 
+      # After the tests, and even when they fail: a vulnerability published in
+      # the standard library or a dependency must not hide the test results.
+      # It still fails the job.
+      - name: Vulnerability scan
+        if: ${{ !cancelled() }}
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
+          govulncheck ./...
+
   # Integration job: the contract tests (build tag `integration`) against a real
   # `opencode serve` of the pinned version, started without any model.
   #
@@ -154,7 +159,8 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
-          go-version: "1.26"
+          # The toolchain directive of go.mod: one place for the version of Go.
+          go-version-file: cli/go.mod
           cache-dependency-path: cli/go.sum
 
       - name: Install opencode V2 (pinned version, checksum verified)
