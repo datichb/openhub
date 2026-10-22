@@ -59,7 +59,8 @@ type SecretReadWriter interface {
 
 // ReadMCPToken reads the token designated by key (see MCPTokenKeyCandidates):
 // the current name, then the legacy one. A value found only under the legacy
-// name is copied under the current name; the legacy key is kept. The copy is
+// name is copied under the current name and announced once (Notice); the
+// legacy key is kept. The copy is
 // best effort: a failure does not hide the value. The error is only set when
 // nothing was found and a keychain read failed.
 func ReadMCPToken(ctx context.Context, store SecretReadWriter, service, key string) (string, error) {
@@ -80,6 +81,7 @@ func ReadMCPToken(ctx context.Context, store SecretReadWriter, service, key stri
 			continue
 		}
 		if i > 0 {
+			notify(Notice{Kind: NoticeLegacyKeychain, Key: k, Replacement: candidates[0]})
 			if err := store.Set(ctx, candidates[0], val); err != nil {
 				slog.Debug("keychain: could not copy the legacy token key", "from", k, "to", candidates[0], "error", err)
 			}

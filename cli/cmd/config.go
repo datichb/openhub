@@ -45,6 +45,7 @@ type configField struct {
 // is still accepted).
 func configKey(key string) string {
 	if k, ok := config.LegacyKeyAliases[key]; ok {
+		config.AnnounceLegacyAlias(key)
 		return k
 	}
 	return key

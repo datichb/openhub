@@ -58,6 +58,7 @@ func New() (*App, error) {
 
 	// Set locale from config
 	i18n.SetLocale(cfg.CLI.Language)
+	config.DeliverNotices() // the warnings read in hub.toml, in that language
 
 	// Stores are initialized lazily by the caller (cmd/root.go) because
 	// some commands (e.g., version, help) don't need database access.

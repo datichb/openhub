@@ -145,3 +145,28 @@ func TestReadMCPTokenAbsentAndErrors(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "old", got)
 }
+
+// A-08: a token read under its former keychain key is announced once.
+func TestReadMCPTokenAnnouncesTheLegacyKey(t *testing.T) {
+	ResetNotices()
+	t.Cleanup(ResetNotices)
+	var got []Notice
+	SetNoticeHandler(func(n Notice) { got = append(got, n) })
+	DeliverNotices()
+
+	store := newMemStore(map[string]string{"gitlab-token": "x"})
+	v, err := ReadMCPToken(t.Context(), store, "gitlab", "")
+	require.NoError(t, err)
+	assert.Equal(t, "x", v)
+	require.Len(t, got, 1)
+	assert.Equal(t, Notice{Kind: NoticeLegacyKeychain, Key: "gitlab-token", Replacement: "openhub.mcp.gitlab.token"}, got[0])
+
+	delete(store.m, "openhub.mcp.gitlab.token")
+	_, _ = ReadMCPToken(t.Context(), store, "gitlab", "")
+	assert.Len(t, got, 1, "once per process")
+
+	// The current name: nothing to announce.
+	store = newMemStore(map[string]string{"openhub.mcp.jira.token": "y"})
+	_, _ = ReadMCPToken(t.Context(), store, "jira", "")
+	assert.Len(t, got, 1)
+}

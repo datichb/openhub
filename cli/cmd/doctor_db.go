@@ -41,8 +41,14 @@ func checkConfig() (string, bool) {
 	return i18n.Tf("cmd.doctor.config_ok", a.Config.CLI.Language), true
 }
 
-// configErrorDetail reads hub.toml again to locate a syntax error.
+// configErrorDetail says what is wrong in a hub.toml that does not load: the
+// line, column and key of the error (config.ConfigError), or, for another
+// error, hub.toml read again to locate a syntax error.
 func configErrorDetail(err error) string {
+	var ce *config.ConfigError
+	if errors.As(err, &ce) {
+		return describeConfigError(ce)
+	}
 	data, rerr := os.ReadFile(config.ConfigPath())
 	if rerr == nil {
 		var m map[string]any
@@ -55,7 +61,8 @@ func configErrorDetail(err error) string {
 	return err.Error()
 }
 
-// configBackups lists the copies of hub.toml that load, most recent first:
+// configBackups lists the copies of hub.toml that load (strictly: a copy with
+// a value of the wrong type is skipped), most recent first:
 // hub.toml.bak-<time> (written before each save) and hub.toml.<time>.bak
 // (former team migration).
 func configBackups() []string {
@@ -79,8 +86,7 @@ func configBackups() []string {
 		if err != nil {
 			continue
 		}
-		var m map[string]any
-		if toml.Unmarshal(data, &m) != nil {
+		if config.Validate(p, data) != nil {
 			continue
 		}
 		es = append(es, entry{p, fi.ModTime()})

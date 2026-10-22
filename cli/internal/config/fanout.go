@@ -5,13 +5,13 @@ package config
 type FanoutConfig struct {
 	// Experimental enables the fan-out on this machine (off by default):
 	// without it, a launch with the fan-out input is refused.
-	Experimental bool `mapstructure:"experimental" toml:"experimental,omitempty"`
+	Experimental bool `toml:"experimental,omitempty"`
 	// Parallel caps the child sessions at the same time (1 to 3; 0 = 1:
 	// one after the other).
-	Parallel int `mapstructure:"parallel" toml:"parallel,omitempty"`
+	Parallel int `toml:"parallel,omitempty"`
 	// BudgetUSD is the global budget of a fan-out, parent and children
 	// together (F-04; 0 = DefaultFanoutBudgetUSD).
-	BudgetUSD float64 `mapstructure:"budget_usd" toml:"budget_usd,omitempty"`
+	BudgetUSD float64 `toml:"budget_usd,omitempty"`
 }
 
 // DefaultFanoutBudgetUSD is the global budget of a fan-out when none is set.

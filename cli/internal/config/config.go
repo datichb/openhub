@@ -11,9 +11,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/datichb/openhub/cli/internal/fsutil"
 	"github.com/datichb/openhub/cli/internal/limits"
 	toml "github.com/pelletier/go-toml/v2"
-	"github.com/spf13/viper"
 )
 
 // ErrExternalModification is returned by Save when the hub.toml file has been
@@ -24,74 +24,74 @@ var ErrExternalModification = errors.New("hub.toml modified externally")
 
 // Config represents the hub configuration.
 type Config struct {
-	Name     string          `mapstructure:"name" toml:"name,omitempty"` // Project/hub display name (shown in TUI title)
-	CLI      CLIConfig       `mapstructure:"cli" toml:"cli"`
-	Deploy   DeployConfig    `mapstructure:"deploy" toml:"deploy,omitempty"`
-	LLM      LLMConfig       `mapstructure:"llm" toml:"llm"`
-	Provider ProviderConfigs `mapstructure:"provider" toml:"provider"`
-	MCP      MCPConfig       `mapstructure:"mcp" toml:"mcp"`
-	Worktree WorktreeConfig  `mapstructure:"worktree" toml:"worktree"`
+	Name     string          `toml:"name,omitempty"` // Project/hub display name (shown in TUI title)
+	CLI      CLIConfig       `toml:"cli"`
+	Deploy   DeployConfig    `toml:"deploy,omitempty"`
+	LLM      LLMConfig       `toml:"llm"`
+	Provider ProviderConfigs `toml:"provider"`
+	MCP      MCPConfig       `toml:"mcp"`
+	Worktree WorktreeConfig  `toml:"worktree"`
 	// Team is the legacy single-team field. Retained for backward-compat reading
 	// of hub.toml files that still use the [team] section. On Load, if Team is
 	// populated and Teams is empty, it is auto-migrated into Teams[0].
 	// New code should use Teams exclusively.
-	Team TeamConfig `mapstructure:"team" toml:"team,omitempty"`
+	Team TeamConfig `toml:"team,omitempty"`
 	// Teams holds the list of teams the user belongs to (ADR-029).
 	// Each project references a team by its ID (Project.TeamID).
-	Teams  []TeamConfig `mapstructure:"teams" toml:"teams,omitempty"`
-	Models ModelsConfig `mapstructure:"models" toml:"models"`
+	Teams  []TeamConfig `toml:"teams,omitempty"`
+	Models ModelsConfig `toml:"models"`
 	// Tracker holds the member's local overrides for the tracker sync feature.
 	// Any field left at its zero value means "inherit from the team-state config".
-	Tracker TrackerLocalConfig `mapstructure:"tracker" toml:"tracker,omitempty"`
+	Tracker TrackerLocalConfig `toml:"tracker,omitempty"`
 	// Websearch holds web search permission settings (Exa AI).
-	Websearch WebsearchConfig `mapstructure:"websearch" toml:"websearch,omitempty"`
+	Websearch WebsearchConfig `toml:"websearch,omitempty"`
 	// Session holds v5 session settings (how sessions are opened, idle sleep).
-	Session SessionConfig `mapstructure:"session" toml:"session,omitempty"`
+	Session SessionConfig `toml:"session,omitempty"`
 	// Execution holds the v5 execution settings (default runtime, container
 	// engine, image cache, pinned tool version, strict isolation).
-	Execution ExecutionConfig `mapstructure:"execution" toml:"execution,omitempty"`
+	Execution ExecutionConfig `toml:"execution,omitempty"`
 	// Remote holds the GitLab CI targets of the remote runtime (v5 phase 5).
-	Remote RemoteConfig `mapstructure:"remote" toml:"remote,omitempty"`
+	Remote RemoteConfig `toml:"remote,omitempty"`
 	// Fanout holds the fan-out settings (R6, experimental, off by default).
-	Fanout FanoutConfig `mapstructure:"fanout" toml:"fanout,omitempty"`
+	Fanout FanoutConfig `toml:"fanout,omitempty"`
 	// Limits holds the optional session restrictions of the hub level (I6,
 	// off by default; cascade in internal/limits).
-	Limits limits.Limits `mapstructure:"limits" toml:"limits,omitempty"`
+	Limits limits.Limits `toml:"limits,omitempty"`
 	// Beads holds the Beads settings of the hub (zero impact clean-up).
-	Beads BeadsConfig `mapstructure:"beads" toml:"beads,omitempty"`
+	Beads BeadsConfig `toml:"beads,omitempty"`
 	// GC holds the clean-up settings (oh gc and the daemon, N16).
-	GC GCConfig `mapstructure:"gc" toml:"gc,omitempty"`
+	GC GCConfig `toml:"gc,omitempty"`
 }
 
 // ExecutionConfig configures where v5 sessions run.
 type ExecutionConfig struct {
 	// Runtime is the preferred runtime (local | container), used when the
 	// workflow allows it and the project sets none ("" = workflow default).
-	Runtime string `mapstructure:"runtime" toml:"runtime,omitempty"`
+	Runtime string `toml:"runtime,omitempty"`
 	// Engine selects the container engine: auto (default) | colima | podman | docker.
-	Engine string `mapstructure:"engine" toml:"engine,omitempty"`
+	Engine string `toml:"engine,omitempty"`
 	// ColimaProfile is the Colima profile used by the colima engine
 	// ("" = $COLIMA_PROFILE, else "default").
-	ColimaProfile string `mapstructure:"colima_profile" toml:"colima_profile,omitempty"`
+	ColimaProfile string `toml:"colima_profile,omitempty"`
 	// KeepImages is the number of container images kept per project and
 	// role (base, dev) — default 2.
-	KeepImages int `mapstructure:"keep_images" toml:"keep_images,omitempty"`
+	KeepImages int `toml:"keep_images,omitempty"`
 	// ToolVersion pins the tool version of the container images: when set
 	// and different from the machine client, container launches are refused
 	// ("" = the machine client version).
-	ToolVersion string `mapstructure:"tool_version" toml:"tool_version,omitempty"`
+	ToolVersion string `toml:"tool_version,omitempty"`
 	// StrictIsolation hides the user tool configuration (XDG_CONFIG_HOME) of
 	// local servers too (containers never see it).
-	StrictIsolation bool `mapstructure:"strict_isolation" toml:"strict_isolation,omitempty"`
+	StrictIsolation bool `toml:"strict_isolation,omitempty"`
 	// ProxyFirstByteTimeoutMinutes is how long the credential proxy waits
 	// for a model provider to start answering before it gives up on the
 	// request (default 5). A stream, once started, has no time limit.
-	ProxyFirstByteTimeoutMinutes int `mapstructure:"proxy_first_byte_timeout_minutes" toml:"proxy_first_byte_timeout_minutes,omitempty"`
+	ProxyFirstByteTimeoutMinutes int `toml:"proxy_first_byte_timeout_minutes,omitempty"`
 	// EnvAllow adds variables of the user's environment to those the tool
 	// server of a local session inherits (and so the shells of the agents).
 	// Only a short base list passes (PATH, HOME, LANG, proxies…): names, or
 	// PREFIX_* patterns. Containers and remote jobs never inherit.
-	EnvAllow []string `mapstructure:"env_allow" toml:"env_allow,omitempty"`
+	EnvAllow []string `toml:"env_allow,omitempty"`
 }
 
 // DefaultKeepImages is the default number of container images kept.
@@ -123,14 +123,14 @@ func (e ExecutionConfig) Images() int {
 type SessionConfig struct {
 	// Attach selects how a session client is opened:
 	// auto (default) | iterm | terminal | tmux | browser | suspend.
-	Attach string `mapstructure:"attach" toml:"attach,omitempty"`
+	Attach string `toml:"attach,omitempty"`
 	// ITermStyle selects tab (default) | split | window when iTerm2 is used.
-	ITermStyle string `mapstructure:"iterm_style" toml:"iterm_style,omitempty"`
+	ITermStyle string `toml:"iterm_style,omitempty"`
 	// IdleSleepMinutes stops an idle tool server after N minutes (default 5).
-	IdleSleepMinutes int `mapstructure:"idle_sleep_minutes" toml:"idle_sleep_minutes,omitempty"`
+	IdleSleepMinutes int `toml:"idle_sleep_minutes,omitempty"`
 	// Notify controls system notifications for sessions (decisions waiting,
 	// end of a turn): "" or "on" (default) | "off".
-	Notify string `mapstructure:"notify" toml:"notify,omitempty"`
+	Notify string `toml:"notify,omitempty"`
 }
 
 // NotifyEnabled reports whether system notifications are on.
@@ -217,9 +217,9 @@ func (c *Config) DefaultTeam() *TeamConfig {
 // ModelsConfig holds the model resolution cascade at the hub level.
 // Corresponds to [models], [models.families], [models.agents] in hub.toml.
 type ModelsConfig struct {
-	Default  string            `mapstructure:"default" toml:"default,omitempty"`   // hub-level global default model
-	Families map[string]string `mapstructure:"families" toml:"families,omitempty"` // family name → model (e.g., "quality" = "claude-opus-4")
-	Agents   map[string]string `mapstructure:"agents" toml:"agents,omitempty"`     // agent-id → model (e.g., "reviewer" = "claude-opus-4")
+	Default  string            `toml:"default,omitempty"`  // hub-level global default model
+	Families map[string]string `toml:"families,omitempty"` // family name → model (e.g., "quality" = "claude-opus-4")
+	Agents   map[string]string `toml:"agents,omitempty"`   // agent-id → model (e.g., "reviewer" = "claude-opus-4")
 }
 
 // TeamConfig holds team collaboration settings.
@@ -231,18 +231,18 @@ type TeamConfig struct {
 	// Used by projects to declare their team affiliation (Project.TeamID).
 	// When migrating from the legacy [team] section, ID is auto-derived from
 	// the StateRepo URL (last path segment, stripped of ".git").
-	ID string `mapstructure:"id" toml:"id"`
+	ID string `toml:"id"`
 	// Name is a human-readable display name (e.g. "Equipe ACME").
 	// Optional — if empty, ID is used for display.
-	Name      string `mapstructure:"name" toml:"name,omitempty"`
-	Enabled   bool   `mapstructure:"enabled" toml:"enabled"`
-	StateRepo string `mapstructure:"state_repo" toml:"state_repo"`           // Git remote URL for the team-state repo
-	StatePath string `mapstructure:"state_path" toml:"state_path,omitempty"` // Local clone path (default: ~/.oh/team-state)
-	MemberID  string `mapstructure:"member_id" toml:"member_id"`             // Current user's member ID
+	Name      string `toml:"name,omitempty"`
+	Enabled   bool   `toml:"enabled"`
+	StateRepo string `toml:"state_repo"`           // Git remote URL for the team-state repo
+	StatePath string `toml:"state_path,omitempty"` // Local clone path (default: ~/.oh/team-state)
+	MemberID  string `toml:"member_id"`            // Current user's member ID
 	// Solo marks a local team-state without remote (v5 phase 2, `oh team
 	// init --solo`): it only holds workflows; team features (board, claims,
 	// notifications) stay off and ActiveTeam ignores it.
-	Solo bool `mapstructure:"solo" toml:"solo,omitempty"`
+	Solo bool `toml:"solo,omitempty"`
 }
 
 // DisplayName returns Name if set, otherwise falls back to ID.
@@ -299,18 +299,18 @@ func ValidateTeams(teams []TeamConfig) error {
 
 // WorktreeConfig holds git worktree management settings.
 type WorktreeConfig struct {
-	AutoCleanup   bool   `mapstructure:"auto_cleanup" toml:"auto_cleanup"`
-	BaseBranch    string `mapstructure:"base_branch" toml:"base_branch,omitempty"`       // empty = auto-detect (main/master)
-	BranchPattern string `mapstructure:"branch_pattern" toml:"branch_pattern,omitempty"` // e.g. "feat/%s"; empty = auto-detect from conventions or heuristic
+	AutoCleanup   bool   `toml:"auto_cleanup"`
+	BaseBranch    string `toml:"base_branch,omitempty"`    // empty = auto-detect (main/master)
+	BranchPattern string `toml:"branch_pattern,omitempty"` // e.g. "feat/%s"; empty = auto-detect from conventions or heuristic
 }
 
 // CLIConfig holds CLI-specific settings.
 type CLIConfig struct {
-	Language  string `mapstructure:"language" toml:"language"`
-	SetupDone bool   `mapstructure:"setup_done" toml:"setup_done,omitempty"`
+	Language  string `toml:"language"`
+	SetupDone bool   `toml:"setup_done,omitempty"`
 	// Compact is the compact layout of the TUI: auto (under 32 rows, the
 	// default), always or never.
-	Compact string `mapstructure:"compact" toml:"compact,omitempty"`
+	Compact string `toml:"compact,omitempty"`
 }
 
 // DeployConfig holds the `[deploy]` section. Only the project instruction
@@ -320,55 +320,55 @@ type DeployConfig struct {
 	// InstructionFiles lists additional project files embedded as
 	// instructions in every agent body of a session bundle.
 	// These are merged with the built-in defaults (ONBOARDING.md, CONVENTIONS.md, .claude/CLAUDE.md).
-	InstructionFiles []string `mapstructure:"instruction_files" toml:"instruction_files,omitempty"`
+	InstructionFiles []string `toml:"instruction_files,omitempty"`
 }
 
 // LLMConfig holds the LLM settings of the hub ([llm]; read from its former
 // section too, legacy_keys.go).
 type LLMConfig struct {
-	DefaultProvider string `mapstructure:"default_provider" toml:"default_provider,omitempty"`
+	DefaultProvider string `toml:"default_provider,omitempty"`
 }
 
 // ProviderConfigs holds per-provider non-secret configuration.
 // Corresponds to [provider.bedrock], [provider.anthropic], etc. in hub.toml.
 type ProviderConfigs struct {
-	Bedrock    ProviderConfig `mapstructure:"bedrock" toml:"bedrock"`
-	Anthropic  ProviderConfig `mapstructure:"anthropic" toml:"anthropic"`
-	OpenRouter ProviderConfig `mapstructure:"openrouter" toml:"openrouter"`
+	Bedrock    ProviderConfig `toml:"bedrock"`
+	Anthropic  ProviderConfig `toml:"anthropic"`
+	OpenRouter ProviderConfig `toml:"openrouter"`
 }
 
 // ProviderConfig holds non-secret configuration for a single provider.
 type ProviderConfig struct {
-	AWSProfile string `mapstructure:"aws_profile" toml:"aws_profile,omitempty"` // AWS profile name (bedrock only)
-	AWSRegion  string `mapstructure:"aws_region" toml:"aws_region,omitempty"`   // AWS region (bedrock only)
-	AuthMode   string `mapstructure:"auth_mode" toml:"auth_mode,omitempty"`     // "bearer" | "profile" | "env" (bedrock only)
+	AWSProfile string `toml:"aws_profile,omitempty"` // AWS profile name (bedrock only)
+	AWSRegion  string `toml:"aws_region,omitempty"`  // AWS region (bedrock only)
+	AuthMode   string `toml:"auth_mode,omitempty"`   // "bearer" | "profile" | "env" (bedrock only)
 }
 
 // MCPConfig holds MCP server configuration.
 type MCPConfig struct {
-	Figma   MCPServerConfig `mapstructure:"figma" toml:"figma"`
-	Gitlab  MCPServerConfig `mapstructure:"gitlab" toml:"gitlab"`
-	Jira    MCPServerConfig `mapstructure:"jira" toml:"jira"`
-	Gslides MCPServerConfig `mapstructure:"gslides" toml:"gslides"`
-	Github  MCPServerConfig `mapstructure:"github" toml:"github"`
-	Linear  MCPServerConfig `mapstructure:"linear" toml:"linear"`
+	Figma   MCPServerConfig `toml:"figma"`
+	Gitlab  MCPServerConfig `toml:"gitlab"`
+	Jira    MCPServerConfig `toml:"jira"`
+	Gslides MCPServerConfig `toml:"gslides"`
+	Github  MCPServerConfig `toml:"github"`
+	Linear  MCPServerConfig `toml:"linear"`
 }
 
 // MCPServerConfig holds individual MCP server settings.
 type MCPServerConfig struct {
-	Enabled      bool   `mapstructure:"enabled" toml:"enabled"`
-	Token        string `mapstructure:"token_key" toml:"token_key,omitempty"` // keychain key name, not the secret itself
-	WriteEnabled bool   `mapstructure:"write_enabled" toml:"write_enabled"`   // opt-in for write operations (e.g. GitLab MR creation)
+	Enabled      bool   `toml:"enabled"`
+	Token        string `toml:"token_key,omitempty"` // keychain key name, not the secret itself
+	WriteEnabled bool   `toml:"write_enabled"`       // opt-in for write operations (e.g. GitLab MR creation)
 	// URL is an optional per-member override for the service base URL.
 	// Useful when the member needs to point to a different instance than
 	// the team recommendation stored in team-state config.toml.
 	// When empty, the team-state shared URL (if any) or the built-in default is used.
-	URL string `mapstructure:"url,omitempty" toml:"url,omitempty"`
+	URL string `toml:"url,omitempty"`
 	// TrustedURL is the URL the member approved for this service when the
 	// team imposes one (`oh mcp trust`, audit v5 S-31). The URL imposed by
 	// the team is used only when it equals this one (mcpresolve). It lives
 	// in the personal hub.toml, never in the team-state.
-	TrustedURL string `mapstructure:"trusted_url,omitempty" toml:"trusted_url,omitempty"`
+	TrustedURL string `toml:"trusted_url,omitempty"`
 }
 
 // TrackerLocalConfig holds the member's personal overrides for tracker sync settings.
@@ -378,35 +378,35 @@ type MCPServerConfig struct {
 type TrackerLocalConfig struct {
 	// Enabled overrides whether tracker sync is active for this member.
 	// nil = inherit team-state. false = disable sync locally (e.g. no network access).
-	Enabled *bool `mapstructure:"enabled" toml:"enabled,omitempty"`
+	Enabled *bool `toml:"enabled,omitempty"`
 	// AutoSync overrides whether sync runs automatically on team view open.
-	AutoSync *bool `mapstructure:"auto_sync" toml:"auto_sync,omitempty"`
+	AutoSync *bool `toml:"auto_sync,omitempty"`
 	// PushLabels overrides whether hub labels are pushed back to the tracker.
 	// nil = inherit team recommendation. The effective value is also gated by
 	// [tracker].write_enabled — push never happens without write permission.
-	PushLabels *bool `mapstructure:"push_labels" toml:"push_labels,omitempty"`
+	PushLabels *bool `toml:"push_labels,omitempty"`
 	// AutoPlanAssigned overrides the auto-plan-from-tracker-assignee behaviour.
-	AutoPlanAssigned *bool `mapstructure:"auto_plan_assigned" toml:"auto_plan_assigned,omitempty"`
+	AutoPlanAssigned *bool `toml:"auto_plan_assigned,omitempty"`
 	// MaxAutoPlanPerMember overrides the per-member auto-plan limit.
-	MaxAutoPlanPerMember *int `mapstructure:"max_auto_plan_per_member" toml:"max_auto_plan_per_member,omitempty"`
+	MaxAutoPlanPerMember *int `toml:"max_auto_plan_per_member,omitempty"`
 	// TrackerURL is the base URL of the tracker instance for this member.
 	// When set, overrides the team-state TrackerURL.
 	// Allows standalone tracker usage without a team or MCP config.
-	TrackerURL string `mapstructure:"tracker_url" toml:"tracker_url,omitempty"`
+	TrackerURL string `toml:"tracker_url,omitempty"`
 	// TrackerTokenKey is the keychain key for the tracker token.
 	// When set, overrides the team-state TrackerTokenKey.
 	// Allows standalone tracker usage without MCP config.
-	TrackerTokenKey string `mapstructure:"tracker_token_key" toml:"tracker_token_key,omitempty"`
+	TrackerTokenKey string `toml:"tracker_token_key,omitempty"`
 	// WriteEnabled controls whether the tracker can perform write operations
 	// (push labels, assign issues). nil = inherit team-state.
 	// Independent of MCP write_enabled — the tracker has its own permission.
-	WriteEnabled *bool `mapstructure:"write_enabled" toml:"write_enabled,omitempty"`
+	WriteEnabled *bool `toml:"write_enabled,omitempty"`
 }
 
 // WebsearchConfig holds web search/fetch permission settings.
 // When Enabled is true, agents receive websearch and webfetch permissions via Exa AI.
 type WebsearchConfig struct {
-	Enabled bool `mapstructure:"enabled" toml:"enabled"`
+	Enabled bool `toml:"enabled"`
 }
 
 var (
@@ -538,42 +538,30 @@ func Load() (*Config, error) {
 		return cfg, cfgErr
 	}
 
-	v := viper.New()
-	v.SetConfigName("hub")
-	v.SetConfigType("toml")
-	v.AddConfigPath(HubDir())
-
-	// Defaults
-	v.SetDefault("name", "OpenHub")
-	v.SetDefault("cli.language", "en")
-	v.SetDefault("worktree.auto_cleanup", true)
-	v.SetDefault("gc.enabled", true)
-	v.SetDefault("worktree.base_branch", "")
-	v.SetDefault("websearch.enabled", false)
-
-	if err := v.ReadInConfig(); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
-			cfgErr = err
-			cfgLoaded = true
-			return cfg, cfgErr
+	path := ConfigPath()
+	data, err := os.ReadFile(path)
+	switch {
+	case err == nil:
+		var notes []Notice
+		cfg, notes, cfgErr = parseHub(path, data)
+		for _, n := range notes {
+			notify(n)
 		}
-		// Config not found is OK — use defaults
+	case os.IsNotExist(err):
+		// No hub.toml is fine: the defaults apply.
+		cfg = defaultConfig()
+	default:
+		cfg, cfgErr = nil, fmt.Errorf("reading hub.toml: %w", err)
 	}
-
-	cfg = &Config{}
-	cfgErr = v.Unmarshal(cfg)
 	if cfgErr == nil {
-		applyLegacyKeys(v, cfg)
-	}
-	// Post-load cleanup: if Teams is populated (either from [[teams]] in file
-	// or from RunMigrationIfNeeded), clear the legacy Team field to ensure
-	// omitempty suppresses it on next Save. Viper may have populated Team
-	// from a residual [team] section in the file.
-	if cfgErr == nil && len(cfg.Teams) > 0 {
-		cfg.Team = TeamConfig{}
-	}
-	// Record mtime for external modification detection.
-	if cfgErr == nil {
+		// Post-load cleanup: if Teams is populated (either from [[teams]] in
+		// the file or from RunMigrationIfNeeded), clear the legacy Team field
+		// to ensure omitempty suppresses it on next Save: the file may still
+		// hold a residual [team] section.
+		if len(cfg.Teams) > 0 {
+			cfg.Team = TeamConfig{}
+		}
+		// Record mtime for external modification detection.
 		recordMtime()
 	}
 	cfgLoaded = true
@@ -592,7 +580,8 @@ func Reset() {
 }
 
 // Save writes cfg to hub.toml using a full TOML marshal (comments not preserved).
-// The write is atomic (tmp file + rename) to prevent corruption on crash.
+// The write is atomic and durable (unique tmp file, fsync, rename, fsync of
+// the directory) to prevent corruption on crash or power loss.
 // After saving, the in-memory cache is invalidated so the next Load re-reads from disk.
 //
 // If the file was modified externally since the last Save/Load by this process,
@@ -623,16 +612,11 @@ func Save(c *Config) error {
 		return fmt.Errorf("creating config dir: %w", err)
 	}
 
-	// Atomic write: write to a temp file in the same directory, then rename.
-	// This prevents a half-written hub.toml on crash or power loss.
+	// Atomic write: a unique temp file in the same directory, synced, then
+	// renamed. This prevents a half-written hub.toml on crash or power loss.
 	backupConfig(path, data)
-	tmpFile := path + ".tmp"
-	if err := os.WriteFile(tmpFile, data, 0o600); err != nil {
-		return fmt.Errorf("writing hub.toml tmp: %w", err)
-	}
-	if err := os.Rename(tmpFile, path); err != nil {
-		os.Remove(tmpFile) // best-effort cleanup
-		return fmt.Errorf("renaming hub.toml tmp: %w", err)
+	if err := fsutil.WriteFileAtomic(path, data, 0o600); err != nil {
+		return fmt.Errorf("writing hub.toml: %w", err)
 	}
 
 	// Record the new mtime after successful write.

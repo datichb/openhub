@@ -43,6 +43,7 @@ func ensureLocale() {
 	}
 	if c, err := config.Load(); err == nil && c != nil && c.CLI.Language != "" {
 		i18n.SetLocale(c.CLI.Language)
+		config.DeliverNotices()
 	}
 }
 
@@ -72,6 +73,9 @@ func localizeError(err error) string {
 		return i18n.Tf("teamstate.lock.busy", busy.Path)
 	case errors.As(err, &startup):
 		return i18n.Tf("cmd.init.level.failed", localizeError(startup.err))
+	}
+	if msg, ok := configLoadError(err); ok {
+		return msg
 	}
 	msg := err.Error()
 	for _, ce := range cobraErrors {

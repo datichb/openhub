@@ -131,7 +131,7 @@ enabled = true
 # models = ["eu.anthropic.claude-*"]
 ```
 
-Supprimés en v5 (ignorés s'ils restent dans le fichier) : `[opencode] version`, `channel`, `auto_update`, `install_dir` (opencode V2 s'installe à part, voir [migration v5](../guides/migration-v5.fr.md)), `[deploy] disable_native_agents` (le monde fermé désactive toujours les agents natifs), `[workflow.overrides]` (migré dans `~/.oh/migrated/`, voir [workflows d'équipe](../guides/team-workflows.fr.md#migration-des-anciennes-surcharges-de-workflow-v5)). L'ancienne section `[team]` est migrée en `[[teams]]` au chargement. Renommées en v5 (anciens noms encore lus, réécrits sous le nouveau nom au prochain enregistrement) : `[opencode] default_provider` → `[llm] default_provider` (`oh config set llm.default_provider` ; l'ancienne clé est acceptée), `[execution] opencode_version` → `[execution] tool_version`.
+Supprimés en v5 (ignorés s'ils restent dans le fichier) : `[opencode] version`, `channel`, `auto_update`, `install_dir` (opencode V2 s'installe à part, voir [migration v5](../guides/migration-v5.fr.md)), `[deploy] disable_native_agents` (le monde fermé désactive toujours les agents natifs), `[workflow.overrides]` (migré dans `~/.oh/migrated/`, voir [workflows d'équipe](../guides/team-workflows.fr.md#migration-des-anciennes-surcharges-de-workflow-v5)). L'ancienne section `[team]` est migrée en `[[teams]]` au chargement. Renommées en v5 (anciens noms encore lus, réécrits sous le nouveau nom au prochain enregistrement) : `[opencode] default_provider` → `[llm] default_provider` (`oh config set llm.default_provider` ; l'ancienne clé est acceptée), `[execution] opencode_version` → `[execution] tool_version`. La lecture d'une ancienne clé est signalée une fois par commande (un avertissement avec le fichier, la ligne et la clé actuelle), `oh doctor` les liste, et **la v6 ne les lira plus** (de même pour les anciens noms de trousseau des jetons MCP, `<service>-token`, que `oh doctor` liste aussi). Toute écriture de `hub.toml` (`oh config set …`, la TUI) les remplace par les clés actuelles. Voir [Lecture stricte de `hub.toml`](#lecture-stricte-de-hubtoml).
 
 ### Sections v5
 
@@ -168,6 +168,42 @@ Supprimés en v5 (ignorés s'ils restent dans le fichier) : `[opencode] version`
 
 Voir [conteneur](../guides/container.fr.md), [exécution distante](../guides/remote-runners.fr.md) et [sessions v5](../guides/sessions-v5.fr.md#restrictions).
 
+### Lecture stricte de `hub.toml`
+
+**Rupture de la v5.0.** Jusqu'en v4, `hub.toml` passait par un lecteur faiblement typé (viper, mapstructure) qui convertissait les valeurs sans rien dire : `"true"` était lu comme un booléen, `"3"` comme un nombre, `"a,b"` comme une liste. La v5.0 le lit avec un décodeur TOML strict : **chaque valeur doit avoir le type de son réglage**. Un `hub.toml` écrit par oh (`oh init`, `oh config set`, la TUI) est toujours valide ; seuls les fichiers modifiés à la main sont concernés.
+
+| Écrit dans `hub.toml` | Jusqu'en v4 | Depuis la v5.0 | À faire |
+|---|---|---|---|
+| `setup_done = "true"`, `enabled = "false"`… (un booléen entre guillemets, ou `"1"`) | lu comme un booléen | **erreur** | écrire `true` / `false` sans guillemets |
+| `setup_done = 1` (un nombre pour un booléen) | lu comme `true` | **erreur** | `true` |
+| `keep_images = "3"`, `runner_project_id = "42"` (un nombre entre guillemets) | lu comme un nombre | **erreur** | `3` sans guillemets |
+| `keep_images = 2.7` (un décimal pour un entier) | tronqué à `2` | **erreur** | un entier |
+| `budget_usd = "12.5"` | lu comme `12.5` | **erreur** | `12.5` |
+| `member_id = 123`, `language = true` (un nombre ou un booléen pour un texte) | converti en texte | **erreur** | `"123"` |
+| `env_allow = "A,B"`, `instruction_files = "X.md"`, `models = "a,b"` (un texte pour une liste) | coupé aux virgules, ou liste d'un élément | **erreur** | `["A", "B"]` |
+| `instruction_files = [1, 2]` (des nombres dans une liste de textes) | convertis en texte | **erreur** | `["1", "2"]` |
+| une date ou une heure là où un texte est attendu | erreur | **erreur** | la mettre entre guillemets |
+| `[team]` (section héritée) | lue, migrée vers `[[teams]]` au démarrage | inchangé, mais ses valeurs sont typées aussi (`enabled = "true"` est une erreur) | |
+| `[CLI]`, `Language = "fr"` (majuscules dans les noms) | lu | inchangé : les noms sont comparés sans tenir compte de la casse | |
+| `budget_usd = 10` (un entier pour un décimal) | lu | inchangé | |
+| `[models.agents] Reviewer = …`, `[models.families] Quality = …` | clé passée en minuscules | inchangé : clé en minuscules | |
+| `[remote.projects] MyProj = …`, `[remote.targets.binaries]` | clés passées en minuscules | clés **gardées telles qu'écrites** | les écrire comme l'identifiant du projet |
+| `"cli.language" = "fr"` (une clé entre guillemets contenant un point) | coupée au point | **avertissement** : clé qu'aucun réglage n'utilise, ignorée | `[cli]` puis `language = "fr"`, ou `cli.language = "fr"` |
+| une clé ou une table qu'aucun réglage n'utilise (faute de frappe, clé d'un oh plus récent) | ignorée sans un mot | **avertissement**, ignorée | la corriger ou la supprimer |
+| `[opencode]` (sauf `default_provider`), `[deploy] disable_native_agents`, `[workflow]` | ignorés | ignorés, sans avertissement (clés historiques) | |
+
+Une erreur arrête oh et nomme le fichier, la ligne, la colonne et la clé de la première valeur fautive :
+
+```
+/home/me/.oh/hub.toml ne se charge pas : ligne 3, colonne 14, clé cli.setup_done : attendu : un booléen, trouvé : une chaîne (écrivez la valeur sans guillemets)
+```
+
+`oh doctor` et `oh doctor --fix` fonctionnent avec un tel fichier : le contrôle affiche le même message, et `--fix` restaure la dernière sauvegarde (`hub.toml.bak-*`) qui se charge. Une clé qu'aucun réglage n'utilise est **seulement un avertissement**, pour qu'un `hub.toml` écrit par un oh plus récent se charge quand même ; `oh doctor` liste ces clés. Elles ne sont pas conservées : la prochaine écriture de `hub.toml` (une réécriture complète, commentaires compris) les supprime.
+
+**Variables d'environnement.** `hub.toml` n'a jamais été lu via l'environnement (ni liaison automatique, ni préfixe) : aucune variable ne règle une clé, avant comme après la v5.0. Les variables que oh lit sont documentées là où elles s'appliquent (`OH_HOME`, `OH_SESSION_ATTACH`, [l'environnement des agents](#lenvironnement-des-agents)…).
+
+**Valeurs par défaut.** Une clé absente garde sa valeur par défaut (`name = "OpenHub"`, `cli.language = "en"`, `worktree.auto_cleanup = true`, `gc.enabled = true`), y compris dans une table présente ; une clé écrite vide (`language = ""`) la remplace.
+
 ---
 
 ## L'environnement des agents
@@ -201,6 +237,51 @@ oh config unset execution.env_allow
 - `oh doctor` liste aussi, par leur nom seulement, les variables de votre environnement qui sont retenues, pour vous aider à décider quoi ajouter.
 - Le réglage s'applique au démarrage d'un serveur (nouveau groupe, redémarrage, reprise d'une session en veille). Un groupe qui tourne garde son environnement.
 - **Conteneurs et jobs distants** n'héritent jamais de votre environnement (ils reçoivent seulement les réglages d'oh) : `env_allow` ne s'y applique pas.
+
+---
+
+## Où se règle quoi
+
+Un réglage peut vivre à plusieurs endroits ; le plus précis l'emporte, sauf ce que l'équipe **impose**. Cette page dit où chercher.
+
+### Les sources
+
+| Source | Qui la règle | Où | Comment |
+|---|---|---|---|
+| **Lancement** | vous, pour un lancement | options et quelques variables | `--provider`, `--attach`, `--runtime`, `OH_SESSION_ATTACH`… (`oh <commande> --help`) |
+| **Workflow** | l'auteur du workflow | `models:`, `limits:` du YAML ([schéma](workflow-schema.fr.md)) | modifier le workflow, `extends` |
+| **Projet** | vous, pour un projet | base `oh.db` (préférences) | `oh project configure`, `oh config model … --project`, `oh budget set … -p` |
+| **Hub** | vous, pour la machine | `~/.oh/hub.toml` (`$OH_HOME`) | `oh config`, `oh budget`, la TUI (Réglages), l'édition du fichier ([lecture stricte](#lecture-stricte-de-hubtoml)) |
+| **Équipe** | l'équipe | `config.toml` du team-state | la TUI (Équipe), `oh team` ([recommandé ou imposé](#configuration-recommandée-ou-imposée-adr-030)) |
+| **Intégré** | oh | le code, les fichiers d'agents (`model:`) | — |
+
+### Le modèle d'un agent
+
+Résolu pour chaque agent à la construction du bundle de session (le premier qui répond l'emporte) :
+
+| Ordre | Niveau | Réglé par |
+|---|---|---|
+| 1-2 | Workflow (`models.agents.<id>`, puis `models.default`) | le workflow |
+| 3-5 | Projet (agent, famille, défaut) | `oh config model … --project <p>` |
+| 6-8 | Hub (agent, famille, défaut) | `oh config model …`, `[models]` de `hub.toml` |
+| 9-11 | Recommandation d'équipe (agent, famille, défaut) | `[models]` du team-state, TUI Équipe › Modèles |
+| 12 | Frontmatter de l'agent | `model:` du fichier de l'agent |
+
+Le workflow n'a pas de niveau famille. Le fournisseur (`--provider`, projet, `[llm] default_provider`, `bedrock`) normalise le nom. Détail, familles et exemples : [résolution des modèles](model-resolution.fr.md). `oh config model show` affiche les niveaux dans l'ordre, avec ce que chacun règle.
+
+### Les restrictions (I6)
+
+Nombre maximal de sessions actives, budgets, mémoire et modèles autorisés (`limits`). Désactivées par défaut ; pour chaque champ, le niveau le plus précis qui le règle l'emporte :
+
+| Ordre | Niveau | Réglé par |
+|---|---|---|
+| 1 | Workflow (`limits:`) — seulement `session_budget_usd` et `models` | le workflow |
+| 2 | Projet (mémoire exclue) | `oh budget set … -p <projet>` |
+| 3 | Hub | `[limits]` de `hub.toml`, `oh budget set …` |
+| 4 | Équipe **recommandée** | `[limits.recommended]` du team-state |
+| plafond | Équipe **imposée** | `[limits.enforced]` du team-state |
+
+Une valeur imposée par l'équipe est un plafond qu'aucun autre niveau ne peut desserrer : le plus petit nombre l'emporte, et la liste de modèles ne garde que les motifs que le plafond couvre (le plafond lui-même s'il n'en reste aucun). Le plafond de mémoire est un réglage de machine (hub et équipe seulement). Le budget du jour et le maximum de sessions comptent toutes les sessions de la machine quand le hub ou l'équipe les règle, et celles du projet quand c'est le projet. `oh budget show` affiche chaque valeur effective avec le niveau d'où elle vient.
 
 ---
 
@@ -580,7 +661,7 @@ quality = "claude-opus-4-20250514"
 reviewer = "claude-opus-4-20250514"
 ```
 
-Recommandations de modèles de l'équipe, éditées dans la TUI (Équipe › Modèles). **Non appliquées au lancement en v5** : la cascade d'une session ne contient pas de niveau équipe (voir [résolution des modèles](model-resolution.fr.md)).
+Recommandations de modèles de l'équipe, éditées dans la TUI (Équipe › Modèles). Appliquées au lancement sous le workflow, le projet et le hub, au-dessus du frontmatter de l'agent (voir [Où se règle quoi](#où-se-règle-quoi) et [résolution des modèles](model-resolution.fr.md)).
 
 ### Section `[governance]`
 

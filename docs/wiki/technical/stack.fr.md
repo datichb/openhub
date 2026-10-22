@@ -19,7 +19,7 @@ Sources de la page — `CONFIRMÉ` · onboarder · 2026-10-06 · cli/go.mod, cli
 | Framework TUI | [tview](https://github.com/rivo/tview) | base tcell |
 | Invites en ligne (hors TUI) | [huh](https://github.com/charmbracelet/huh) | -- |
 | Framework CLI | [Cobra](https://github.com/spf13/cobra) | v1.10+ |
-| Configuration | [Viper](https://github.com/spf13/viper) + TOML | -- |
+| Configuration | [go-toml](https://github.com/pelletier/go-toml) v2 (lecture stricte de `hub.toml`) | -- |
 | Base de données | SQLite (via modernc.org/sqlite) | Go pur, pas de CGO |
 | Secrets | Trousseau système ([go-keyring](https://github.com/zalando/go-keyring)) + fallback AES-256-GCM | -- |
 | Appels système | [golang.org/x/sys](https://pkg.go.dev/golang.org/x/sys) | UID du pair sur le socket du démon, verrous de fichiers (Windows) |

@@ -11,43 +11,43 @@ import (
 type RemoteConfig struct {
 	// Experimental enables the remote runtime on this machine (off by
 	// default in 5.0: never validated on a real runner).
-	Experimental bool `mapstructure:"experimental" toml:"experimental,omitempty"`
+	Experimental bool `toml:"experimental,omitempty"`
 	// Targets are the oh-runner projects, one per GitLab instance and group.
-	Targets []RemoteTarget `mapstructure:"targets" toml:"targets,omitempty"`
+	Targets []RemoteTarget `toml:"targets,omitempty"`
 	// Projects maps an oh project ID to a target name, overriding the
 	// automatic choice (instance and group of the project's git remote).
-	Projects map[string]string `mapstructure:"projects" toml:"projects,omitempty"`
+	Projects map[string]string `toml:"projects,omitempty"`
 }
 
 // RemoteTarget is one oh-runner project. Secrets are referenced by keychain
 // key names, never stored here.
 type RemoteTarget struct {
 	// Name identifies the target (kebab-case, unique).
-	Name string `mapstructure:"name" toml:"name"`
+	Name string `toml:"name"`
 	// URL is the GitLab instance (https://gitlab.com, https://gitlab.example.com).
-	URL string `mapstructure:"url" toml:"url"`
+	URL string `toml:"url"`
 	// Group is the full path of the group whose projects the target serves.
-	Group string `mapstructure:"group" toml:"group"`
+	Group string `toml:"group"`
 	// RunnerProject is the full path of the oh-runner project (default <group>/oh-runner).
-	RunnerProject string `mapstructure:"runner_project" toml:"runner_project,omitempty"`
+	RunnerProject string `toml:"runner_project,omitempty"`
 	// RunnerProjectID is the numeric ID of the oh-runner project (set by setup).
-	RunnerProjectID int64 `mapstructure:"runner_project_id" toml:"runner_project_id,omitempty"`
+	RunnerProjectID int64 `toml:"runner_project_id,omitempty"`
 	// TokenKey is the keychain key of the API token of the member (api scope):
 	// setup, sending packages, triggering, following pipelines, artifacts.
-	TokenKey string `mapstructure:"token_key" toml:"token_key,omitempty"`
+	TokenKey string `toml:"token_key,omitempty"`
 	// TriggerKey is the keychain key of the pipeline trigger token.
-	TriggerKey string `mapstructure:"trigger_key" toml:"trigger_key,omitempty"`
+	TriggerKey string `toml:"trigger_key,omitempty"`
 	// Tag is the runner tag of the oh jobs (default "oh").
-	Tag string `mapstructure:"tag" toml:"tag,omitempty"`
+	Tag string `toml:"tag,omitempty"`
 	// Builder builds the project image on the runner: kaniko (default) | dind.
-	Builder string `mapstructure:"builder" toml:"builder,omitempty"`
+	Builder string `toml:"builder,omitempty"`
 	// Arch is the runner architecture: amd64 (default) | arm64.
-	Arch string `mapstructure:"arch" toml:"arch,omitempty"`
+	Arch string `toml:"arch,omitempty"`
 	// Timeout of the run job (GitLab duration, default 3h).
-	Timeout string `mapstructure:"timeout" toml:"timeout,omitempty"`
+	Timeout string `toml:"timeout,omitempty"`
 	// Binaries maps "<oh version>/<arch>" to the generic package version
 	// (SHA-256) of a development oh binary uploaded by setup.
-	Binaries map[string]string `mapstructure:"binaries" toml:"binaries,omitempty"`
+	Binaries map[string]string `toml:"binaries,omitempty"`
 }
 
 var remoteTargetNameRe = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,62}$`)
