@@ -119,12 +119,12 @@ func TestPurgeStopsOnlyTheRegisteredRunningServers(t *testing.T) {
 	ad := &fakePurgeAdapter{}
 	p := purgeProcesses{
 		servers: fakePurgeServers{list: []domain.Server{
-			purgeServer("g-ready", "opencode", "local", 111, domain.ServerReady),
-			purgeServer("g-starting", "opencode", "", 222, domain.ServerStarting),
-			purgeServer("g-sleeping", "opencode", "local", 333, domain.ServerSleeping),
-			purgeServer("g-stopped", "opencode", "local", 444, domain.ServerStopped),
-			purgeServer("g-remote", "opencode", "remote", 555, domain.ServerReady),
-			purgeServer("g-box", "opencode", "container", 666, domain.ServerReady),
+			purgeServer("g-ready", "tool-a", "local", 111, domain.ServerReady),
+			purgeServer("g-starting", "tool-a", "", 222, domain.ServerStarting),
+			purgeServer("g-sleeping", "tool-a", "local", 333, domain.ServerSleeping),
+			purgeServer("g-stopped", "tool-a", "local", 444, domain.ServerStopped),
+			purgeServer("g-remote", "tool-a", "remote", 555, domain.ServerReady),
+			purgeServer("g-box", "tool-a", "container", 666, domain.ServerReady),
 		}},
 		adapter: func(string) adapters.ToolAdapter { return ad },
 		alive:   func(int) bool { return false },
@@ -151,11 +151,11 @@ func TestPurgeListsWhatItCannotStop(t *testing.T) {
 	ad := &fakePurgeAdapter{}
 	p := purgeProcesses{
 		servers: fakePurgeServers{list: []domain.Server{
-			purgeServer("g-silent", "opencode", "local", 777, domain.ServerReady),
-			purgeServer("g-other", "othertool", "local", 888, domain.ServerReady),
+			purgeServer("g-silent", "tool-a", "local", 777, domain.ServerReady),
+			purgeServer("g-other", "tool-b", "local", 888, domain.ServerReady),
 		}},
 		adapter: func(name string) adapters.ToolAdapter {
-			if name == "opencode" {
+			if name == "tool-a" {
 				return ad
 			}
 			return nil
@@ -166,7 +166,7 @@ func TestPurgeListsWhatItCannotStop(t *testing.T) {
 	assert.Zero(t, rep.serversStopped)
 	assert.Contains(t, out, "pid 777 (group g-silent)")
 	assert.Contains(t, out, "pid 888 (group g-other)")
-	assert.Contains(t, out, "othertool")
+	assert.Contains(t, out, "tool-b")
 
 	_, out = runStop(t, purgeProcesses{})
 	assert.Contains(t, out, "database unreadable")
@@ -212,7 +212,7 @@ func TestPurgeDoesNotTouchForeignProcessesNamedLikeOh(t *testing.T) {
 		}
 	}}
 	p := purgeProcesses{
-		servers: fakePurgeServers{list: []domain.Server{purgeServer("g", "opencode", "local", managed.Process.Pid, domain.ServerReady)}},
+		servers: fakePurgeServers{list: []domain.Server{purgeServer("g", "tool-a", "local", managed.Process.Pid, domain.ServerReady)}},
 		adapter: func(string) adapters.ToolAdapter { return ad },
 		alive:   func(pid int) bool { return pid != managed.Process.Pid && pidAlive(pid) },
 	}

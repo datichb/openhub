@@ -15,6 +15,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/beads"
 	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/daemon"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/storage/keychain"
@@ -374,6 +375,31 @@ func printStepDone(out io.Writer, detail string) {
 
 func printStepSkipped(out io.Writer) {
 	fmt.Fprintf(out, "%s\n", theme.Subtitle.Render(i18n.T("cmd.purge.skipped")))
+}
+
+// defaultPurgeProcesses is the real wiring: the daemon behind the socket of
+// this hub (only if the socket exists), the servers of the database.
+func defaultPurgeProcesses(ctx context.Context) purgeProcesses {
+	p := purgeProcesses{
+		adapter: func(name string) adapters.ToolAdapter {
+			a, _ := toolRegistry.Get(name)
+			return a
+		},
+		alive: pidAlive,
+	}
+	if store != nil {
+		p.servers = sqlite.NewServerStore(store)
+	}
+	paths := daemon.Paths{Dir: ohRunDir()}
+	if _, err := os.Lstat(paths.Socket()); err == nil {
+		capability, _, cerr := daemonCapability(ctx)
+		if cerr != nil {
+			p.daemonErr = cerr
+		} else {
+			p.daemon = daemon.NewClient(paths).WithCapability(capability)
+		}
+	}
+	return p
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

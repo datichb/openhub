@@ -15,7 +15,6 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
-	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 )
 
 // A purge stops what oh itself tracks for this hub, and nothing else: the
@@ -56,31 +55,6 @@ type purgeProcessReport struct {
 }
 
 const purgeDaemonWait = 5 * time.Second
-
-// defaultPurgeProcesses is the real wiring: the daemon behind the socket of
-// this hub (only if the socket exists), the servers of the database.
-func defaultPurgeProcesses(ctx context.Context) purgeProcesses {
-	p := purgeProcesses{
-		adapter: func(name string) adapters.ToolAdapter {
-			a, _ := toolRegistry.Get(name)
-			return a
-		},
-		alive: pidAlive,
-	}
-	if store != nil {
-		p.servers = sqlite.NewServerStore(store)
-	}
-	paths := daemon.Paths{Dir: ohRunDir()}
-	if _, err := os.Lstat(paths.Socket()); err == nil {
-		capability, _, cerr := daemonCapability(ctx)
-		if cerr != nil {
-			p.daemonErr = cerr
-		} else {
-			p.daemon = daemon.NewClient(paths).WithCapability(capability)
-		}
-	}
-	return p
-}
 
 // pidAlive tells whether a process exists (signal 0: nothing is sent).
 func pidAlive(pid int) bool {
