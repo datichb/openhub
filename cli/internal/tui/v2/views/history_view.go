@@ -56,6 +56,7 @@ type HistoryView struct {
 	busy     bool
 	ctx      context.Context
 	cancel   context.CancelFunc
+	loads    loadSlot
 }
 
 var _ View = (*HistoryView)(nil)
@@ -95,6 +96,7 @@ func (v *HistoryView) Mount(content *tview.Flex, app *tview.Application) {
 }
 
 func (v *HistoryView) Unmount() {
+	v.loads.Invalidate()
 	if v.cancel != nil {
 		v.cancel()
 	}
@@ -102,20 +104,16 @@ func (v *HistoryView) Unmount() {
 }
 
 func (v *HistoryView) load() {
-	if v.cfg.Load == nil || v.app == nil {
+	if v.cfg.Load == nil || v.list == nil {
 		return
 	}
-	app, ctx := v.app, v.ctx
-	go func() {
-		vs, err := v.cfg.Load(ctx)
-		app.QueueUpdateDraw(func() {
-			if v.app == nil {
-				return
-			}
-			v.versions, v.err = vs, err
-			v.render()
-		})
-	}()
+	load(v.app, v.ctx, &v.loads, v.cfg.Load, func(vs []HistoryVersion, err error) {
+		if v.list == nil {
+			return
+		}
+		v.versions, v.err = vs, err
+		v.render()
+	})
 }
 
 // SetVersions sets the versions (tests).
