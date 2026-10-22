@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 
+	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/credproxy"
 	"github.com/datichb/openhub/cli/internal/daemon"
 	"github.com/datichb/openhub/cli/internal/i18n"
@@ -37,6 +38,12 @@ func securityDoctorChecks(ctx context.Context) []views.DoctorCheck {
 			detail = i18n.Tf("cmd.doctor.security.socket_open", sock, st.Mode().Perm())
 		}
 		out = append(out, views.DoctorCheck{Name: i18n.T("cmd.doctor.security.socket"), OK: ok, Detail: detail})
+	}
+
+	if lister, ok := preferredAdapter().(adapters.UserPluginLister); ok {
+		if check, ok := userPluginsCheck(lister, strictIsolation()); ok {
+			out = append(out, check)
+		}
 	}
 
 	if store != nil {

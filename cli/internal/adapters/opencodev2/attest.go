@@ -98,7 +98,7 @@ func Attest(ctx context.Context, c *Client, b sessionspec.BundleSpec, location s
 		if strict {
 			return rep, fmt.Errorf("listing plugins: %w", err)
 		}
-		rep.Warnings = append(rep.Warnings, fmt.Sprintf("plugins:unchecked (GET /api/plugin failed: %v)", err))
+		rep.Warnings = append(rep.Warnings, fmt.Sprintf(adapters.WarnPluginsUnchecked+" (GET /api/plugin failed: %v)", err))
 	}
 	allowed := map[string]bool{OhPluginID: true}
 	for _, p := range b.Plugins {
@@ -108,7 +108,7 @@ func Attest(ctx context.Context, c *Client, b sessionspec.BundleSpec, location s
 		if p.Source.Type == "builtin" || allowed[p.ID] {
 			continue
 		}
-		found := fmt.Sprintf("plugin:%s (%s)", p.ID, p.Source.Path)
+		found := fmt.Sprintf(adapters.WarnUserPlugin+"%s (%s)", p.ID, p.Source.Path)
 		if strict {
 			rep.Unexpected = append(rep.Unexpected, found)
 		} else {
