@@ -28,6 +28,13 @@ func needsFirstRunWizard(a *app.App) bool {
 // This function is used by both the TUI shell (via PushView) and the CLI
 // `oh init` command (via RunInlineWizardStandalone).
 func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
+	cfg, _ := buildInitWizardConfig(a)
+	return views.NewInlineWizardView(*cfg)
+}
+
+// buildInitWizardConfig assembles the configuration of the init wizard and
+// the shared state its steps read and write.
+func buildInitWizardConfig(a *app.App) (*views.InlineWizardConfig, *initStepState) {
 	// ── Shared mutable state ─────────────────────────────────────────────
 	appPtr := &a
 	focusBtn := false
@@ -190,7 +197,7 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 	// Team group starts right after provider group (intro + form = 2 steps).
 	teamGroupStart := providerGroupStart + 2
 
-	cfg := views.InlineWizardConfig{
+	cfg := &views.InlineWizardConfig{
 		ID:    "wizard.init",
 		Title: i18n.T("cmd.init.wizard_title"),
 		Steps: steps,
@@ -230,9 +237,9 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 	}
 
 	// RefreshLabels re-evaluates all construction-time i18n labels.
-	cfg.RefreshLabels = buildInitRefreshLabels(&cfg, steps)
+	cfg.RefreshLabels = buildInitRefreshLabels(cfg, steps)
 
-	return views.NewInlineWizardView(cfg)
+	return cfg, s
 }
 
 // buildInitOnComplete creates the OnComplete callback for the init wizard.
