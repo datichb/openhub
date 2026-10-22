@@ -129,7 +129,9 @@ func TestBinarySmoke(t *testing.T) {
 		stderrAbsent []string
 	}{
 		{name: "version", args: []string{"version"}, exit: 0, stdout: []string{"oh ", "commit:", "go:", "os/arch:", "dev"}},
-		{name: "help", args: []string{"--help"}, exit: 0, stdout: []string{"oh", "run [workflow]", "mr create"},
+		{name: "help", args: []string{"--help"}, exit: 0, stdout: []string{"oh", "  run ", "  mr ", "oh help --all"},
+			stdoutAbsent: []string{"oh start", "  audit", "  debug", "mr create"}},
+		{name: "help --all", args: []string{"help", "--all"}, exit: 0, stdout: []string{"oh", "run [workflow]", "mr create"},
 			stdoutAbsent: []string{"oh start", "  audit", "  debug"}},
 		{name: "completion bash", args: []string{"completion", "bash"}, exit: 0, stdout: []string{"bash"}},
 		{name: "completion zsh", args: []string{"completion", "zsh"}, exit: 0, stdout: []string{"compdef"}},
