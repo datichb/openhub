@@ -504,6 +504,11 @@ func shellMatch(pattern, cmd string) bool {
 	return false
 }
 
+// wildcard matches with `*` only, on purpose (not wildcard.Match): an
+// assertion describes a command or a path the agent ran, where a literal `?`
+// is common (URLs, regular expressions, globs) and must not turn into a joker.
+// The patterns of the permission rules, which the tool reads with `?`, go
+// through internal/wildcard.
 func wildcard(pattern, s string) bool {
 	parts := strings.Split(pattern, "*")
 	if len(parts) == 1 {

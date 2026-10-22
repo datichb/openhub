@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/charmbracelet/huh"
 	"github.com/rivo/tview"
 	"github.com/spf13/cobra"
 
@@ -27,6 +26,9 @@ func projectRemoveCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := MustApp()
 			ctx := cmd.Context()
+			if yes, _ := cmd.Flags().GetBool("yes"); yes {
+				force = true // --yes and --force both skip the confirmation
+			}
 
 			var projectID string
 			if len(args) > 0 {
@@ -61,17 +63,8 @@ func projectRemoveCmd() *cobra.Command {
 					return err
 				}
 
-				// Simple inline confirm (single field — stays on huh)
-				var confirm bool
-				confirmForm := theme.NewForm(
-					huh.NewGroup(
-						huh.NewConfirm().
-							Title(i18n.Tf("form.project.confirm_delete", project.Name)).
-							Description(i18n.T("form.project.delete_hint")).
-							Value(&confirm),
-					),
-				)
-				if err := confirmForm.Run(); err != nil {
+				confirm, err := confirmActionWith(cmd, i18n.Tf("form.project.confirm_delete", project.Name), i18n.T("form.project.delete_hint"), false)
+				if err != nil {
 					return err
 				}
 				if !confirm {
@@ -185,5 +178,6 @@ func projectRemoveCmd() *cobra.Command {
 	}
 
 	cmd.Flags().BoolVarP(&force, "force", "f", false, "Supprime sans confirmation")
+	addYesFlag(cmd)
 	return cmd
 }

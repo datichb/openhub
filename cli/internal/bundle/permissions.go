@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/datichb/openhub/cli/internal/sessionspec"
+	"github.com/datichb/openhub/cli/internal/wildcard"
 )
 
 // v1ToNeutral maps hub (former agent format) permission keys to neutral actions.
@@ -167,7 +169,7 @@ func evaluate(set []sessionspec.PermissionRule, resource string) (sessionspec.Ef
 	var eff sessionspec.Effect
 	ok := false
 	for _, r := range set {
-		if wildcardMatch(r.Resource, resource) {
+		if wildcard.Match(r.Resource, resource) {
 			eff, ok = r.Effect, true
 		}
 	}
@@ -184,38 +186,8 @@ func restrictiveness(e sessionspec.Effect) int {
 	return 0
 }
 
-// wildcardMatch matches s against a pattern where '*' matches any sequence and
-// '?' any single character (wildcard semantics of the permission rules).
-func wildcardMatch(pattern, s string) bool {
-	if pattern == "*" || pattern == s {
-		return true
-	}
-	p, i := 0, 0
-	star, mark := -1, 0
-	for i < len(s) {
-		switch {
-		case p < len(pattern) && (pattern[p] == '?' || pattern[p] == s[i]):
-			p++
-			i++
-		case p < len(pattern) && pattern[p] == '*':
-			star, mark = p, i
-			p++
-		case star >= 0:
-			p = star + 1
-			mark++
-			i = mark
-		default:
-			return false
-		}
-	}
-	for p < len(pattern) && pattern[p] == '*' {
-		p++
-	}
-	return p == len(pattern)
-}
-
 func literalLen(p string) int {
-	return len(strings.NewReplacer("*", "", "?", "").Replace(p))
+	return utf8.RuneCountInString(strings.NewReplacer("*", "", "?", "").Replace(p))
 }
 
 func toEffect(v interface{}) (sessionspec.Effect, bool) {

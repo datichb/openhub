@@ -148,14 +148,6 @@ func interactive() bool { return term.IsTerminal(int(os.Stdin.Fd())) }
 // stdinIsTerminal is a variable for the tests.
 var stdinIsTerminal = interactive
 
-// confirm asks a yes/no question (true without a terminal or with --yes).
-func confirm(cmd *cobra.Command, question string) (bool, error) {
-	if yes, _ := cmd.Flags().GetBool("yes"); yes || !interactive() {
-		return true, nil
-	}
-	return launcher.NewCLIUI(cmd.ErrOrStderr()).Confirm(question)
-}
-
 // editorArgv returns the editor command ($VISUAL, $EDITOR, else vi).
 func editorArgv() []string {
 	for _, env := range []string{"VISUAL", "EDITOR"} {

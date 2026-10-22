@@ -18,6 +18,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
+	"github.com/datichb/openhub/cli/internal/wildcard"
 )
 
 // Session trace (E11, P0.4): everything a session did, one event per line
@@ -545,37 +546,20 @@ func verifyPatterns(dir string) []string {
 var chainSep = regexp.MustCompile(`&&|\|\||;|\||\n`)
 
 // matchesAny reports whether a command, or one of its chained parts,
-// matches one of the shell patterns (`*` matches any text).
+// matches one of the shell patterns. The patterns are the verification
+// commands oh also hands to the tool as permission rules, so they follow the
+// tool's wildcards: `*` matches any text, `?` one character.
 func matchesAny(cmd string, patterns []string) bool {
 	parts := append([]string{cmd}, chainSep.Split(cmd, -1)...)
 	for _, part := range parts {
 		part = strings.TrimSpace(part)
 		for _, p := range patterns {
-			if wildcard(p, part) {
+			if wildcard.Match(p, part) {
 				return true
 			}
 		}
 	}
 	return false
-}
-
-func wildcard(pattern, s string) bool {
-	parts := strings.Split(pattern, "*")
-	if len(parts) == 1 {
-		return pattern == s
-	}
-	if !strings.HasPrefix(s, parts[0]) {
-		return false
-	}
-	s = s[len(parts[0]):]
-	for i := 1; i < len(parts)-1; i++ {
-		k := strings.Index(s, parts[i])
-		if k < 0 {
-			return false
-		}
-		s = s[k+len(parts[i]):]
-	}
-	return strings.HasSuffix(s, parts[len(parts)-1])
 }
 
 // ── Secret masking ────────────────────────────────────────────────────────

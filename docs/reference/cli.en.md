@@ -44,7 +44,7 @@ The codes are defined in one place (`cli/cmd/exitcodes.go`). A script can test t
 |------|----------|---------|
 | `0` | `ExitOK` | Success. For `oh doctor`, also when only warnings (⚠) are shown: the optional checks (container engine, `bd`, gateway reach from a container) never fail the command, unless `execution.runtime = container` makes the container mandatory |
 | `1` | `ExitFailure` | Failure: the message is written to standard error. For example: `oh workflow validate` or `oh skill check` finding errors, `oh run --headless` with a failed session or exceeding `--timeout`, `oh doctor` when a mandatory check fails (✗), internal error (panic: oh asks to report the bug) |
-| `2` | `ExitUsage` | Wrong usage: unknown command or option, or removed command (`oh deploy`, `oh sync`: the migration message is shown) |
+| `2` | `ExitUsage` | Wrong usage: unknown command or option, or removed command (`oh deploy`, `oh sync`: the migration message is shown). Also a confirmation asked without a terminal and without `--yes`: the action is refused (`workflow publish\|archive\|restore`, `brick publish`, `purge`, `project remove`, `teams remove`, `service remove`, `worktree cleanup`, `session delete\|resolve`, `migrate deploy-cleanup`, `run --recap`) |
 | `3` | `ExitPending` | Waiting: `oh run --headless` with a session waiting for a decision (checkpoint) that nobody can answer without an interface. The session is left running: `oh session approve <id>` or `oh session answer <id>`. If another session failed, the code is `1` |
 | `bd` code | | `oh beads` passes the exit code of `bd` through |
 
@@ -74,7 +74,7 @@ A letter has one meaning in every command. The former forms stay accepted for on
 | `-t` | `--ticket` | `oh start` | `oh audit -t` (now `--type`) |
 | `-v` | `--verbose` | all | |
 | `-w` | `--workflow` | `oh config model show` | `oh start -w` (now `--worktree`) |
-| `-y` | `--yes` (no confirmation) | `oh doctor`, `oh gc`, `oh mcp trust`, `oh migrate deploy-cleanup`, `oh project add`, `oh session delete`, `oh session resolve`, `oh brick publish`, `oh workflow publish\|archive\|restore` | |
+| `-y` | `--yes` (no confirmation) | `oh doctor`, `oh gc`, `oh mcp trust`, `oh migrate deploy-cleanup`, `oh project add`, `oh session delete`, `oh session resolve`, `oh brick publish`, `oh workflow publish\|archive\|restore`, `oh run`, `oh purge`, `oh project remove`, `oh teams remove`, `oh service remove`, `oh worktree cleanup` | |
 
 A former form stays accepted for one version: it does the same as the new one, prints a warning ("Option -p of oh serve is deprecated, use --port.") and is gone from the help. The short forms of `oh start`, `oh audit`, `oh review` and `oh debug` (deprecated aliases of `oh run`) follow the same rule.
 

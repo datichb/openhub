@@ -9,7 +9,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/adapters"
@@ -140,12 +139,12 @@ func runMigrateCleanup(cmd *cobra.Command, _ []string) error {
 		return nil
 	}
 	if !yes {
-		if !isTerminal() {
-			return errors.New(i18n.T("cmd.migrate.cleanup.needs_yes"))
+		// Own refusal (it also points to --dry-run), same code as confirmAction.
+		if !stdinIsTerminal() {
+			return withExitCode(ExitUsage, errors.New(i18n.T("cmd.migrate.cleanup.needs_yes")))
 		}
-		ok := false
-		form := theme.NewForm(huh.NewGroup(huh.NewConfirm().Title(i18n.Tf("cmd.migrate.cleanup.confirm", len(list))).Value(&ok)))
-		if err := form.Run(); err != nil {
+		ok, err := confirmAction(cmd, i18n.Tf("cmd.migrate.cleanup.confirm", len(list)), false)
+		if err != nil {
 			return err
 		}
 		if !ok {

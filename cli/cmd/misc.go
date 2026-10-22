@@ -83,6 +83,7 @@ var serviceRemoveCmd = &cobra.Command{
 
 func init() {
 	serviceRemoveCmd.Flags().BoolP("force", "f", false, "Skip confirmation")
+	addYesFlag(serviceRemoveCmd)
 	serviceRemoveCmd.Flags().StringP("project", "p", "", i18n.T("cmd.mcp.flags.project"))
 	_ = serviceRemoveCmd.RegisterFlagCompletionFunc("project", completeProjectIDs)
 	serviceSetupCmd.Flags().StringP("project", "p", "", "Configure MCP for a specific project (overrides hub-level)")
@@ -401,10 +402,10 @@ func runServiceRemove(cmd *cobra.Command, args []string) error {
 	// Confirmation prompt
 	force, _ := cmd.Flags().GetBool("force")
 	if !force {
-		var confirm bool
-		_ = theme.NewForm(huh.NewGroup(huh.NewConfirm().
-			Title(i18n.Tf("cmd.service.remove.confirm", serviceName)).
-			Value(&confirm))).Run()
+		confirm, err := confirmAction(cmd, i18n.Tf("cmd.service.remove.confirm", serviceName), false)
+		if err != nil {
+			return err
+		}
 		if !confirm {
 			return nil
 		}
