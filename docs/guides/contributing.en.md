@@ -505,6 +505,8 @@ oh bundle show <workflow> --budget
 ## Creating a release
 
 > Reserved for maintainers with write access to `main`.
+>
+> **The procedure to follow, checked against the workflows, is the [release checklist](../dev/release-checklist.md)** (in French). What follows is a short reminder.
 
 ### Prerequisites
 
