@@ -21,7 +21,7 @@ Accepted by every command.
 
 | Section | File | Key Commands |
 |---------|------|--------------|
-| [Sessions](cli-sessions.en.md) | `cli-sessions.en.md` | [Session management (v5)](cli-sessions.en.md#session-management-v5): `oh session list\|inbox\|attach\|follow\|approve\|answer\|dismiss\|send\|interrupt\|compact\|model\|fork\|results\|trace\|resume\|stop\|delete\|open\|fetch\|resolve`; `oh budget show\|set\|unset\|raise`; `oh history`; `oh beads`; deprecated aliases `oh start`, `oh audit`, `oh review`, `oh debug` |
+| [Sessions](cli-sessions.en.md) | `cli-sessions.en.md` | [Session management (v5)](cli-sessions.en.md#session-management-v5): `oh session list\|inbox\|attach\|follow\|approve\|answer\|dismiss\|send\|interrupt\|compact\|model\|fork\|results\|trace\|resume\|stop\|delete\|open\|fetch\|resolve`; `oh budget show\|set\|unset\|raise\|report`; `oh history`; `oh beads`; deprecated aliases `oh start`, `oh audit`, `oh review`, `oh debug` |
 | [Workflows](cli-workflows.en.md) | `cli-workflows.en.md` | `oh run`; `oh workflow list\|show\|validate\|new\|edit\|diff\|publish\|history\|restore\|archive`; `oh bundle build\|show` |
 | [Bricks](cli-bricks.en.md) | `cli-bricks.en.md` | `oh brick list\|show\|new\|edit\|publish\|history` (team brick catalogue) |
 | [Projects](cli-projects.en.md) | `cli-projects.en.md` | `oh project list\|add\|remove\|rename\|move\|configure`; `oh mr create`; `oh wiki check\|pending\|stats` |
@@ -79,6 +79,10 @@ A letter has one meaning in every command. The former forms stay accepted for on
 A former form stays accepted for one version: it does the same as the new one, prints a warning ("Option -p of oh serve is deprecated, use --port.") and is gone from the help. The short forms of `oh start`, `oh audit`, `oh review` and `oh debug` (deprecated aliases of `oh run`) follow the same rule.
 
 **Opening a window.** One option, `--attach` (`auto`, `iterm`, `terminal`, `tmux`, `browser`, `suspend`, and `none` for `oh run`), in `oh run` as in `oh session attach`. The former name `--how` of `oh session attach` is still accepted (warning), and so is the value `here`, former synonym of `suspend`.
+
+**See without launching.** `oh run --dry-run` prepares the launch (workflow resolved, bundle built, sessions planned), shows the recap, the pauses and the warnings, then stops (« dry-run: nothing was started », exit code 0): no session, no worktree, no ticket claim, no question. See [`oh run`](cli-workflows.en.md#oh-run).
+
+**Cancel a session.** There is no « cancel » command: [`oh session stop`](cli-sessions.en.md#oh-session-stop) stops it and keeps its work, [`oh session delete`](cli-sessions.en.md#oh-session-delete) deletes it (worktree, local branch, files).
 
 ## Symbols and colors
 

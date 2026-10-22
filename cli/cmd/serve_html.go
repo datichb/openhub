@@ -402,7 +402,7 @@ async function loadMembers() {
       html += '<div class="member-card">';
       html += '<div class="name">' + esc(m.DisplayName||m.display_name||m.ID||m.id||'?') + '</div>';
       html += '<div class="role">' + esc(m.Role||m.role||'dev') + '</div>';
-      html += '<div class="mode">' + esc(m.DefaultMode||m.default_mode||'manual') + '</div>';
+      html += '<div class="mode">' + esc(m.DefaultMode||m.default_mode||'manuel') + '</div>';
       html += '</div>';
     }
     html += '</div>';

@@ -157,8 +157,23 @@ func v5ContainerRuntime(a *app.App) *container.Runtime {
 		CacheDir: filepath.Join(ohCacheDir(), "container")})
 }
 
+// usageStore is the usage ledger of the open database (nil without one).
+func usageStore() domain.UsageStore {
+	if store == nil {
+		return nil
+	}
+	return sqlite.NewUsageStore(store)
+}
+
 // newRunService wires the RunService for the current app.
 func newRunService(ctx context.Context, a *app.App) (*runsvc.Service, error) {
+	return newRunServiceFor(ctx, a, false)
+}
+
+// newRunServiceFor is newRunService; planOnly (oh run --dry-run) wires a
+// service that can plan but not start: the files local sessions need (fake bd,
+// shell start-up) are not written.
+func newRunServiceFor(ctx context.Context, a *app.App, planOnly bool) (*runsvc.Service, error) {
 	if store == nil {
 		return nil, errors.New(i18n.T("cmd.v5_runtime.database_not_initialized"))
 	}
@@ -166,13 +181,18 @@ func newRunService(ctx context.Context, a *app.App) (*runsvc.Service, error) {
 		return nil, v2Unsupported(v5Err)
 	}
 	ad := v5Adapter
-	shellPath, err := localShellPath()
-	if err != nil {
-		return nil, err
-	}
-	shellEnv, err := localShellStartup(shellPath)
-	if err != nil {
-		return nil, err
+	var (
+		shellPath []string
+		shellEnv  map[string]string
+		err       error
+	)
+	if !planOnly {
+		if shellPath, err = localShellPath(); err != nil {
+			return nil, err
+		}
+		if shellEnv, err = localShellStartup(shellPath); err != nil {
+			return nil, err
+		}
 	}
 	svc := &runsvc.Service{
 		Adapter:        ad,

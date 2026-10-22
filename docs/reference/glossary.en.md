@@ -90,23 +90,23 @@ A service that exposes external tool capabilities to AI agents via the JSON-RPC 
 
 The oh background process (`oh daemon status|stop`): [credential proxy](#credential-proxy), session supervision, feeds, [decisions](#decision), system notifications and [gateways](#beads--mcp-gateway). On Windows, it runs inside the oh process. See [ADR-047](../architecture/adr/047-session-interaction-daemon.en.md).
 
-### Mode (Agent)
+### Agent type
 
-An agent can operate in two modes:
+The word « mode » is reserved for the [workflow mode](#workflow-mode). An agent is of one of the two following types (`mode:` field of the agent file, unchanged):
 - **Primary**: launched directly by the user via `oh run <workflow>` or the TUI (entry agent of the workflow). Has its own session.
 - **Subagent**: invoked by another agent via the `task` tool. Runs within the parent agent's session.
 
-### Hub Mode
+### Hub view
 
-Default navigation mode in the TUI, displaying all projects and teams. Auto-selected when multiple projects or teams are configured. Allows selecting a project or team to switch to a focused mode. See [TUI usage](../guides/tui-usage.en.md).
+Default view of the TUI, displaying all projects and teams. Auto-selected when multiple projects or teams are configured. Allows selecting a project or team to switch to a focused view. See [TUI usage](../guides/tui-usage.en.md).
 
-### Project Mode
+### Project view
 
-TUI navigation mode focused on an active project. The omnibar shows only project commands (sessions, board, project config) and global commands. Auto-selected when a single project is configured, or activated by selecting the project from the Hub Home (`Esc` goes back to the Hub, `Ctrl+T` enters the team mode). See [TUI usage](../guides/tui-usage.en.md).
+TUI view focused on an active project. The omnibar shows only project commands (sessions, board, project config) and global commands. Auto-selected when a single project is configured, or activated by selecting the project from the Hub Home (`Esc` goes back to the Hub view, `Ctrl+T` enters the Team view). See [TUI usage](../guides/tui-usage.en.md).
 
-### Team Mode
+### Team view
 
-TUI navigation mode focused on an active team. The omnibar shows only team commands (team board, status, policies) and global commands. Auto-selected when a single team is configured, or activated manually via `Ctrl+T` / selection from the Hub Home. See [TUI usage](../guides/tui-usage.en.md).
+TUI view focused on an active team. The omnibar shows only team commands (team board, status, policies) and global commands. Auto-selected when a single team is configured, or activated manually via `Ctrl+T` / selection from the Hub Home. See [TUI usage](../guides/tui-usage.en.md).
 
 ### Onboarder
 
@@ -174,8 +174,8 @@ The interactive terminal dashboard launched by running `oh` without arguments. P
 
 ### Workflow Mode
 
-Set at launch (`--mode`, launch form), it determines the behavior of each [checkpoint](#checkpoint-cp), declared by the workflow for each mode:
-- **Manual** (`manuel`): most checkpoints pause for approval
+The only meaning of « mode » in oh (the other notions have another name: [agent type](#agent-type), Hub / Project / Team view of the TUI, setup type of `oh init`). Set at launch (`--mode`, launch form), it determines the behavior of each [checkpoint](#checkpoint-cp), declared by the workflow for each mode:
+- **Manual** (`manuel`, or `manual` when typed: read as `manuel`): most checkpoints pause for approval
 - **Semi-auto** (default of the shipped workflows): usual checkpoints pass on their own; key decision points (e.g. `cp-plan`, `cp-2`) pause
 - **Auto**: everything except the mandatory decisions — only the mandatory checkpoints (`mandatory`) and those that unlock an action stop (e.g. `cp-plan` plan approval, `cp-2` commit)
 

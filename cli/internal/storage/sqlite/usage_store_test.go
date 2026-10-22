@@ -81,3 +81,53 @@ func TestUsageStoreEstimatedRows(t *testing.T) {
 	only, _ = us.ToolSessionTotal(ctx, est)
 	assert.InDelta(t, 0.1, only.CostUSD, 1e-9, "given back")
 }
+
+// The report joins the ledger with the sessions (outer): a session deleted by
+// gc keeps its dollars, under no workflow; the project comes from the ledger.
+func TestUsageStoreReport(t *testing.T) {
+	st := openTestStore(t)
+	us := NewUsageStore(st)
+	ss := NewSessionStore(st)
+	ctx := context.Background()
+	seedProject(t, st, "p1")
+	seedProject(t, st, "p2")
+	for _, s := range []*domain.Session{
+		{ID: "s1", ProjectID: "p1", WorkflowID: "feature", Status: domain.SessionStatusRunning},
+		{ID: "s2", ProjectID: "p2", WorkflowID: "feature", Status: domain.SessionStatusRunning},
+		{ID: "s3", ProjectID: "p1", Status: domain.SessionStatusRunning}, // before workflows
+	} {
+		require.NoError(t, ss.Create(ctx, s))
+	}
+	add := func(day, id, root, project string, cost float64) {
+		require.NoError(t, us.AddSession(ctx, domain.SessionUsage{Day: day, SessionID: id, RootID: root, ProjectID: project, CostUSD: cost, TokensIn: 10, TokensOut: 1}))
+	}
+	add("2026-10-20", "s1", "", "p1", 1)
+	add("2026-10-21", "sub", "s1", "p1", 0.5)
+	add("2026-10-21", "s2", "", "p2", 3)
+	add("2026-10-21", "s3", "", "p1", 0.25)
+	add("2026-10-21", "gone", "", "p1", 2) // session deleted
+	add("2026-10-01", "old", "", "p2", 9)  // outside the period
+
+	byWorkflow, err := us.UsageReport(ctx, domain.UsageByWorkflow, "2026-10-15")
+	require.NoError(t, err)
+	require.Len(t, byWorkflow, 2)
+	assert.Equal(t, domain.UsageGroup{Key: "feature", Sessions: 2, CostUSD: 4.5, TokensIn: 30, TokensOut: 3}, byWorkflow[0])
+	assert.Equal(t, "", byWorkflow[1].Key, "deleted and older sessions are unknown")
+	assert.Equal(t, 2, byWorkflow[1].Sessions)
+	assert.InDelta(t, 2.25, byWorkflow[1].CostUSD, 1e-9)
+
+	byProject, err := us.UsageReport(ctx, domain.UsageByProject, "2026-10-15")
+	require.NoError(t, err)
+	require.Len(t, byProject, 2)
+	assert.Equal(t, "p1", byProject[0].Key)
+	assert.InDelta(t, 3.75, byProject[0].CostUSD, 1e-9)
+	assert.Equal(t, "p2", byProject[1].Key)
+	assert.InDelta(t, 3, byProject[1].CostUSD, 1e-9)
+
+	all, err := us.UsageReport(ctx, domain.UsageByProject, "")
+	require.NoError(t, err)
+	assert.InDelta(t, 15.75, all[0].CostUSD+all[1].CostUSD, 1e-9, "no period: everything")
+
+	_, err = us.UsageReport(ctx, "model", "")
+	assert.Error(t, err)
+}

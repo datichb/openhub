@@ -21,7 +21,7 @@ Acceptés par toutes les commandes.
 
 | Section | Fichier | Commandes clés |
 |---------|---------|---------------|
-| [Sessions](cli-sessions.fr.md) | `cli-sessions.fr.md` | [Gestion des sessions (v5)](cli-sessions.fr.md#gestion-des-sessions-v5) : `oh session list\|inbox\|attach\|follow\|approve\|answer\|dismiss\|send\|interrupt\|compact\|model\|fork\|results\|trace\|resume\|stop\|delete\|open\|fetch\|resolve` ; `oh budget show\|set\|unset\|raise` ; `oh history` ; `oh beads` ; alias dépréciés `oh start`, `oh audit`, `oh review`, `oh debug` |
+| [Sessions](cli-sessions.fr.md) | `cli-sessions.fr.md` | [Gestion des sessions (v5)](cli-sessions.fr.md#gestion-des-sessions-v5) : `oh session list\|inbox\|attach\|follow\|approve\|answer\|dismiss\|send\|interrupt\|compact\|model\|fork\|results\|trace\|resume\|stop\|delete\|open\|fetch\|resolve` ; `oh budget show\|set\|unset\|raise\|report` ; `oh history` ; `oh beads` ; alias dépréciés `oh start`, `oh audit`, `oh review`, `oh debug` |
 | [Workflows](cli-workflows.fr.md) | `cli-workflows.fr.md` | `oh run` ; `oh workflow list\|show\|validate\|new\|edit\|diff\|publish\|history\|restore\|archive` ; `oh bundle build\|show` |
 | [Briques](cli-bricks.fr.md) | `cli-bricks.fr.md` | `oh brick list\|show\|new\|edit\|publish\|history` (catalogue de briques d'équipe) |
 | [Projets](cli-projects.fr.md) | `cli-projects.fr.md` | `oh project list\|add\|remove\|rename\|move\|configure` ; `oh mr create` ; `oh wiki check\|pending\|stats` |
@@ -79,6 +79,10 @@ Une lettre a un seul sens dans toutes les commandes. Les anciennes formes resten
 Une ancienne forme reste acceptée pendant une version : elle fait la même chose que la nouvelle, affiche un avertissement (« L'option -p de oh serve est dépréciée, utilisez --port. ») et disparaît de l'aide. Les formes courtes de `oh start`, `oh audit`, `oh review` et `oh debug` (alias dépréciés de `oh run`) suivent la même règle.
 
 **Ouvrir une fenêtre.** Une seule option, `--attach` (`auto`, `iterm`, `terminal`, `tmux`, `browser`, `suspend`, et `none` pour `oh run`), dans `oh run` comme dans `oh session attach`. L'ancien nom `--how` de `oh session attach` reste accepté (avertissement), de même que la valeur `here`, ancien synonyme de `suspend`.
+
+**Voir sans lancer.** `oh run --dry-run` prépare le lancement (workflow résolu, paquet construit, sessions planifiées), affiche le récapitulatif, les pauses et les avertissements, puis s'arrête (« dry-run : rien n'a été lancé », code de sortie 0) : aucune session, aucun worktree, aucune réservation de ticket, aucune question. Voir [`oh run`](cli-workflows.fr.md#oh-run).
+
+**Annuler une session.** Il n'y a pas de commande « annuler » : [`oh session stop`](cli-sessions.fr.md#oh-session-stop) l'arrête en gardant son travail, [`oh session delete`](cli-sessions.fr.md#oh-session-delete) la supprime (worktree, branche locale, fichiers).
 
 ## Symboles et couleurs
 

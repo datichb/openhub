@@ -68,6 +68,37 @@ func (us *UsageStore) DayCost(ctx context.Context, day, projectID string) (float
 	return v, err
 }
 
+// UsageReport implements domain.UsageStore. No migration: it joins the
+// ledger (project_id, root_id) with sessions (project_id, workflow_id).
+func (us *UsageStore) UsageReport(ctx context.Context, by domain.UsageBy, since string) ([]domain.UsageGroup, error) {
+	var key string
+	switch by {
+	case domain.UsageByProject:
+		key = `COALESCE(NULLIF(u.project_id, ''), NULLIF(s.project_id, ''), '')`
+	case domain.UsageByWorkflow:
+		key = `COALESCE(NULLIF(s.workflow_id, ''), '')`
+	default:
+		return nil, fmt.Errorf("usage report: unknown axis %q", by)
+	}
+	rows, err := us.db.QueryContext(ctx, `SELECT `+key+` AS k, COUNT(DISTINCT u.root_id), COALESCE(SUM(u.cost_usd), 0),
+		COALESCE(SUM(u.tokens_in), 0), COALESCE(SUM(u.tokens_out), 0)
+		FROM usage_sessions u LEFT JOIN sessions s ON s.id = u.root_id
+		WHERE u.day >= ? GROUP BY k ORDER BY SUM(u.cost_usd) DESC, k`, since)
+	if err != nil {
+		return nil, fmt.Errorf("usage report: %w", err)
+	}
+	defer rows.Close()
+	var out []domain.UsageGroup
+	for rows.Next() {
+		var g domain.UsageGroup
+		if err := rows.Scan(&g.Key, &g.Sessions, &g.CostUSD, &g.TokensIn, &g.TokensOut); err != nil {
+			return nil, err
+		}
+		out = append(out, g)
+	}
+	return out, rows.Err()
+}
+
 // AddProxy implements domain.UsageStore.
 func (us *UsageStore) AddProxy(ctx context.Context, group, day string, u domain.ProxyUsage) error {
 	_, err := us.db.ExecContext(ctx, `INSERT INTO usage_proxy (day, group_key, requests, tokens_in, tokens_out)

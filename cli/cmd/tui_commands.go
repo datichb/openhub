@@ -24,9 +24,9 @@ func buildCommands(a *app.App) []shell.Command {
 	commands := []shell.Command{
 		// ── Sessions ─────────────────────────────────────────────────────
 		{
-			ID:          "coder",
+			ID:          "libre",
 			Label:       i18n.T("tui.start.free"),
-			Aliases:     []string{"session", "code", "free"},
+			Aliases:     []string{"coder", "session", "code", "free"},
 			Description: i18n.T("tui.start.free_desc"),
 			Category:    "Sessions",
 			Priority:    80,
@@ -35,9 +35,9 @@ func buildCommands(a *app.App) []shell.Command {
 			Modes:       modeSession,
 		},
 		{
-			ID:          "coder.agent",
+			ID:          "libre.agent",
 			Label:       i18n.T("tui.launch.agent_cmd"),
-			Aliases:     []string{"libre agent", "free agent", "session agent"},
+			Aliases:     []string{"coder.agent", "coder agent", "libre agent", "free agent", "session agent"},
 			Description: i18n.T("tui.launch.agent_cmd_desc"),
 			Category:    "Sessions",
 			Priority:    78,
@@ -572,13 +572,21 @@ func workflowCommands(list []workflowsvc.Summary, open func(tuiLaunchRequest)) [
 		if desc == "" {
 			desc = s.Label
 		}
-		terms := []string{id}
+		// The « libre » command of the Sessions category owns the terms of the
+		// free session (libre, coder, free…): a term has a single meaning.
+		own := id != freeWorkflow
+		terms := []string{}
+		if own {
+			terms = append(terms, id)
+		}
 		for _, al := range s.Aliases {
 			if ids[al.ID] {
 				continue // a workflow of that id wins (alias_shadowed)
 			}
 			if al.With == "" {
-				terms = append(terms, al.ID)
+				if own {
+					terms = append(terms, al.ID)
+				}
 				continue
 			}
 			alias, with := al.ID, al.With

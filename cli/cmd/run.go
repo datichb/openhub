@@ -50,6 +50,7 @@ func addRunFlags(c *cobra.Command) {
 	f.StringP("provider", "P", "", "Fournisseur LLM")
 	f.String("parent", "", "Session précédente (enchaînement)")
 	f.Bool("one-session", false, "Tous les tickets dans une seule session (au lieu d'une session par ticket)")
+	f.Bool("dry-run", false, i18n.T("cmd.run.dry_run.flag"))
 	f.Bool("headless", false, "Sans interface : attendre la fin du tour, afficher la réponse, arrêter la session")
 	f.String("output", "", "Avec --headless : écrire la réponse dans ce fichier (défaut : sortie standard)")
 	f.Duration("timeout", 30*time.Minute, "Avec --headless : durée maximale d'attente (0 = aucune)")
@@ -82,10 +83,46 @@ func runWorkflowCmd(cmd *cobra.Command, args []string) error {
 		}
 	}
 	recap, _ := cmd.Flags().GetBool("recap")
-	if headless, _ := cmd.Flags().GetBool("headless"); headless {
+	headless, _ := cmd.Flags().GetBool("headless")
+	if dry, _ := cmd.Flags().GetBool("dry-run"); dry {
+		return runWorkflowDryRun(cmd, opts, headless)
+	}
+	if headless {
 		return runWorkflowHeadlessCLI(cmd, opts)
 	}
 	return runWorkflowCLI(cmd, opts, recap)
+}
+
+// runWorkflowDryRun runs `oh run --dry-run`: the launch is prepared (workflow
+// resolved, bundle compiled, sessions planned) and shown (recap with the
+// pauses, warnings), then nothing is started. Nothing is asked either: no
+// choice about existing sessions, no suggested workflow, no import of the
+// Bedrock key. With --headless it also tells whether the launch could run
+// without interface.
+func runWorkflowDryRun(cmd *cobra.Command, opts runOptions, headless bool) error {
+	a := MustApp()
+	out := cmd.OutOrStdout()
+	opts.DryRun = true
+	if headless {
+		if opts.Runtime == string(sessionspec.RuntimeRemote) {
+			return errors.New(i18n.T("cmd.remote.send.headless"))
+		}
+		opts.Attach = string(sessionspec.AttachNone)
+	}
+	opts.Progress = func(line string) { fmt.Fprintln(out, theme.Subtitle.Render("  "+line)) }
+	fmt.Fprintf(out, "%s %s\n", theme.SuccessStyle.Render(theme.IconArrow), i18n.Tf("cmd.run.preparing", opts.Workflow))
+	p, err := prepareWorkflowRun(cmd.Context(), a, opts, cmd.ErrOrStderr())
+	if err != nil {
+		return err
+	}
+	if headless {
+		if err := headlessCheck(p); err != nil {
+			return err
+		}
+	}
+	printRunRecap(out, p)
+	fmt.Fprintf(out, "%s %s\n", theme.Subtitle.Render(theme.IconArrow), i18n.T("cmd.run.dry_run.done"))
+	return nil
 }
 
 // runWorkflowHeadlessCLI runs `oh run --headless`: the answer of each session

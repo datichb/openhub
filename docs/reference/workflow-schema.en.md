@@ -161,7 +161,7 @@ limits:
 | `entry.agent` | text | agent id of the catalogue, primary | `conductor` | replaces the `entry` block |
 | `entry.selectable` | boolean | `true`, `false` | `false` | to be written with `entry.agent` |
 | `modes.default` | text | a mode of `modes.allowed` | first allowed mode | replaces |
-| `modes.allowed` | list | `manuel`, `semi-auto`, `auto`, or custom modes | `[manuel, semi-auto, auto]` | hardens (subset of the parent; an empty list means every mode) |
+| `modes.allowed` | list | `manuel` (`manual` is read as `manuel`), `semi-auto`, `auto`, or custom modes | `[manuel, semi-auto, auto]` | hardens (subset of the parent; an empty list means every mode) |
 | `circuit_breaker.max_consecutive_subagents` | integer ≥ 0 | N delegations in a row without interaction | `0` (breaker disabled) | hardens (lower value; `0` does not replace an active breaker) |
 
 ### `entry`

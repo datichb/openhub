@@ -201,3 +201,18 @@ func TestComputeInputsOfRetro(t *testing.T) {
 	assert.Equal(t, "rejouée", values["trace"])
 	assert.Empty(t, calls)
 }
+
+// U-04: « free » is an alias of libre, and a document can still extend
+// hub:libre (libre is a workflow; only retired ids give extends_alias).
+func TestFreeIsAnAliasOfLibre(t *testing.T) {
+	svc := shippedService(t)
+	ctx := context.Background()
+	target, ok := svc.ResolveAlias(ctx, Context{}, "free", nil)
+	require.True(t, ok)
+	assert.Equal(t, "libre", target)
+	res, err := svc.Resolve(ctx, Context{}, "free", ResolveOpts{})
+	require.NoError(t, err)
+	assert.Equal(t, "libre", res.Spec.ID)
+	_, ok = svc.ResolveAlias(ctx, Context{}, "libre", nil)
+	assert.False(t, ok, "libre is a workflow, not an alias")
+}
