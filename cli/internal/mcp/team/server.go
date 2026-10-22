@@ -710,6 +710,31 @@ func handleTeamTakeoverBrief(ctx context.Context, params json.RawMessage) (*prot
 
 // ── Review verdict handler ──────────────────────────────────────────────────
 
+// applyVerdictStatus moves the claim to the status a verdict leads to. An
+// approval of a claim still in progress goes through review before done:
+// in_progress → done is not an allowed transition. A claim already at the
+// target is left as it is. On a board without a review column, the approval
+// is applied directly, as the tracker sync does.
+func applyVerdictStatus(ctx context.Context, repo *teamstate.Repo, project, ticketID, target string) error {
+	claim, err := repo.GetClaim(project, ticketID)
+	if err != nil {
+		return err
+	}
+	if claim.Status == target {
+		return nil
+	}
+	if target == teamstate.ClaimStatusDone && claim.Status == teamstate.ClaimStatusInProgress {
+		err := repo.UpdateClaimStatus(ctx, project, ticketID, teamstate.ClaimStatusReview)
+		if errors.Is(err, teamstate.ErrInvalidStatus) {
+			return repo.UpdateClaimStatusFromTracker(ctx, project, ticketID, target)
+		}
+		if err != nil {
+			return err
+		}
+	}
+	return repo.UpdateClaimStatus(ctx, project, ticketID, target)
+}
+
 func handleTeamReviewVerdict(ctx context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
 	var args struct {
 		Project         string  `json:"project"`
@@ -749,9 +774,11 @@ func handleTeamReviewVerdict(ctx context.Context, params json.RawMessage) (*prot
 		targetStatus = teamstate.ClaimStatusInProgress
 	}
 
-	// ── 2. Transition claim status (best-effort) ──
-	statusMsg := ""
-	if err := repo.UpdateClaimStatus(ctx, args.Project, args.TicketID, targetStatus); err != nil {
+	// ── 2. Transition claim status ──
+	// A failed transition is reported: the verdict is neither recorded nor
+	// labelled over a claim left in the wrong column. Re-sending the verdict
+	// after a partial failure is safe (a claim already at the target is kept).
+	if err := applyVerdictStatus(ctx, repo, args.Project, args.TicketID, targetStatus); err != nil {
 		if errors.Is(err, teamstate.ErrClaimNotFound) {
 			return &protocol.ToolResult{
 				Content: []protocol.ContentBlock{{
@@ -761,12 +788,16 @@ func handleTeamReviewVerdict(ctx context.Context, params json.RawMessage) (*prot
 				IsError: true,
 			}, nil
 		}
-		// Non-fatal: log but continue (claim may already be in the target status).
 		slog.Warn("teamstate.verdict.status_failed", "ticket", args.TicketID, "target", targetStatus, "error", err)
-		statusMsg = fmt.Sprintf(" (status transition skipped: %s)", err)
-	} else {
-		statusMsg = fmt.Sprintf(" Claim status → %s.", targetStatus)
+		return &protocol.ToolResult{
+			Content: []protocol.ContentBlock{{
+				Type: "text",
+				Text: fmt.Sprintf("Verdict '%s' not recorded for %s/%s: claim status transition to %q failed: %s", args.Verdict, args.Project, args.TicketID, targetStatus, err),
+			}},
+			IsError: true,
+		}, nil
 	}
+	statusMsg := fmt.Sprintf(" Claim status → %s.", targetStatus)
 
 	// ── 3. Add agent-reviewed label on approval ──
 	if args.Verdict == "approved" {
