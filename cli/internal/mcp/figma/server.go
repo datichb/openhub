@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/httplog"
@@ -60,6 +61,23 @@ func Serve() error {
 	return server.Serve()
 }
 
+// fileKeyRe is the shape of a Figma file key. Dots and slashes are refused:
+// url.PathEscape leaves ".." as it is, which would climb one segment of the
+// API path (/v1/files/../styles).
+var fileKeyRe = regexp.MustCompile(`^[A-Za-z0-9_-]{1,128}$`)
+
+// filePath is the API path of a file, "/v1/files/<key>" followed by sub.
+func filePath(key string, sub ...string) (string, error) {
+	if !fileKeyRe.MatchString(key) {
+		return "", fmt.Errorf("invalid file key %q", key)
+	}
+	p := "/v1/files/" + url.PathEscape(key)
+	for _, s := range sub {
+		p += "/" + s
+	}
+	return p, nil
+}
+
 func handleGetFile(_ context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
 	var args struct {
 		FileKey string `json:"file_key"`
@@ -67,7 +85,11 @@ func handleGetFile(_ context.Context, params json.RawMessage) (*protocol.ToolRes
 	if err := json.Unmarshal(params, &args); err != nil {
 		return nil, fmt.Errorf("invalid params: %w", err)
 	}
-	data, err := figmaAPI(fmt.Sprintf("/v1/files/%s", url.PathEscape(args.FileKey)))
+	path, err := filePath(args.FileKey)
+	if err != nil {
+		return nil, err
+	}
+	data, err := figmaAPI(path)
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +106,11 @@ func handleGetNode(_ context.Context, params json.RawMessage) (*protocol.ToolRes
 	if err := json.Unmarshal(params, &args); err != nil {
 		return nil, fmt.Errorf("invalid params: %w", err)
 	}
-	data, err := figmaAPI(fmt.Sprintf("/v1/files/%s/nodes?ids=%s", url.PathEscape(args.FileKey), url.QueryEscape(args.NodeID)))
+	path, err := filePath(args.FileKey, "nodes")
+	if err != nil {
+		return nil, err
+	}
+	data, err := figmaAPI(path + "?ids=" + url.QueryEscape(args.NodeID))
 	if err != nil {
 		return nil, err
 	}
@@ -100,7 +126,11 @@ func handleGetStyles(_ context.Context, params json.RawMessage) (*protocol.ToolR
 	if err := json.Unmarshal(params, &args); err != nil {
 		return nil, fmt.Errorf("invalid params: %w", err)
 	}
-	data, err := figmaAPI(fmt.Sprintf("/v1/files/%s/styles", url.PathEscape(args.FileKey)))
+	path, err := filePath(args.FileKey, "styles")
+	if err != nil {
+		return nil, err
+	}
+	data, err := figmaAPI(path)
 	if err != nil {
 		return nil, err
 	}
