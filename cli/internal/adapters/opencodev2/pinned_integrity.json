@@ -6,6 +6,12 @@
       "linux-x64-musl": "sha512-XTE1lmYUF8Ako1zEfPpgmGm1YkJX7MOueOsj3z7t7/3YKWynEBQHogPhYsHUwLR7dcZ1Yib2vC8ZId8RJV2Hww==",
       "linux-arm64": "sha512-JLHDgEPmThZjbQEIwZNBdwLddvxYFIssDaDbDb/nF7aw4D5xt9xGUa1o6nF1IW1Ck+px8kV465W2AuThKRU3sg==",
       "linux-arm64-musl": "sha512-MwvrzBwRinbyoIVNLZpgPR0M4JQWA0/5YIV8U4tZx6X2dvoCGEulPt9Nn3vu4UgjT6I25jhyhkOdL5lPz1993A=="
+    },
+    "2.0.25": {
+      "linux-x64": "sha512-GlqAQ1w5K+MHJ32oVl7Yxg5pE+NyZS2cjpuzGbk4LAmhDrqHbv9JVhwLCLKoPMASdWnHkzpj0W5hs8avYW4NVA==",
+      "linux-x64-musl": "sha512-eBYYVmISubepUb3QCmF4Viznxv3kXgFFtGYV8SxbVb4XICFei1f+ZwxrFQBlmy2lhTj0ZutV5Y3hoEZKX+SRKg==",
+      "linux-arm64": "sha512-7dSVZxTQR2HGPJfqDkq3ADxHhoXjS1FXxFLYj29nWllut7GjfdGi4AQQlfjQeFeqmO3r0FvQh3okdCYBL5SUSw==",
+      "linux-arm64-musl": "sha512-tsss/Frknm3PFYf7K2eP/mv7yTII6CKNGTRFa4hz5SHFryh/egrh/uSJfPZsB591+ayU+Z6W4EdG8is2OIcgjQ=="
     }
   }
 }
