@@ -190,6 +190,34 @@ Synchronizes the claims with the external tracker (GitLab Issues, Jira, Linear):
 oh team sync-tracker
 ```
 
+The command, the sync key of the team screens (`s`) and the automatic sync follow the same rules (team service):
+
+- **`[tracker] enabled = false`** (in the local `hub.toml` or in the team config) turns the sync off everywhere. The command prints a notice and exits 0; the screens refuse with a message; the automatic sync does nothing. Before v5.0 the screens synchronized anyway.
+- A project without team uses the hub team (default team of `hub.toml`) for its tracker.
+- **GitLab token search order** (first hit wins; `GITLAB_TOKEN` always first):
+
+  | # | Source | Keychain key |
+  |---|--------|--------------|
+  | 1 | Environment variable | `GITLAB_TOKEN` |
+  | 2 | `tracker_token_key` of the tracker config | the key you set |
+  | 3 | Token of the project | `openhub.mcp.gitlab.token.<project>` |
+  | 4 | Token of the team | `openhub.team.<team>.gitlab.token` |
+  | 5 | Hub MCP token | key of `[mcp.gitlab] token`, then `openhub.mcp.gitlab.token` (and its former name `gitlab-token`) |
+  | 6 | Former tracker key | `openhub.tracker.gitlab.token` |
+
+  Jira keeps its own order (`JIRA_TOKEN`, then `tracker_token_key`).
+
+  **What changes in v5.0** (breaking: the same order now applies to every command):
+
+  | Command | Before | Now |
+  |---------|--------|-----|
+  | `oh team sync-tracker`, team screens, automatic sync | `GITLAB_TOKEN`, then the `tracker_token_key` only | the whole order above: a team or MCP token is now found without `tracker_token_key` |
+  | `oh mr create` (`oh review --publish`), `oh review feedback` and the inputs of the `review-feedback` workflow | `GITLAB_TOKEN`, then the MCP key of `hub.toml`, then `openhub.mcp.gitlab.token` | the whole order above: **the team token (and the project token) now comes before the hub MCP token**, and the team of the project is found; the former tracker key is the last resort |
+  | Identity check of `oh team init` / `rejoin` | `GITLAB_TOKEN`, team, `openhub.mcp.gitlab.token`, former tracker key | same order; the key of `[mcp.gitlab] token` and the `gitlab-token` name are now read too |
+  | `oh mcp enable --project` (token present?) | `GITLAB_TOKEN`, project token, hub token | same order; the key of `[mcp.gitlab] token` is now read. Team and former tracker tokens do not count: the MCP server is not given them |
+
+  If you keep a different token for the team than for the MCP server, check which one wins for the commands above.
+
 ---
 
 ### oh team notify test
