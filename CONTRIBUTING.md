@@ -17,4 +17,4 @@ make test          # all tests with -race
 make lint          # golangci-lint
 ```
 
-See the full guides for agent/skill contributions, conventions, and release process.
+See the full guides for agent/skill contributions and conventions. Maintainers cutting a release of oh itself follow [docs/dev/release-checklist.md](docs/dev/release-checklist.md) (French).

@@ -506,6 +506,8 @@ oh bundle show <workflow> --budget
 ## Créer une release
 
 > Réservé aux mainteneurs disposant d'un accès en écriture sur `main`.
+>
+> **La procédure à suivre, vérifiée contre les workflows, est la [checklist de release](../dev/release-checklist.md).** Ce qui suit en est un rappel court.
 
 ### Prérequis
 

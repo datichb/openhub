@@ -1,6 +1,6 @@
 # Performance Optimizations
 
-> **Historical (v5).** Optimisations of the Bash-era `oh deploy`; `oh deploy` is removed in v5 (the session bundle is built at launch). For the current architecture, see [Architecture overview](../architecture/overview.en.md) and ADRs 038 to 048 (`docs/architecture/adr/`). The rest of this page is kept for history.
+> **Historical (v5).** Optimisations of the Bash-era `oh deploy`; `oh deploy` is removed in v5 (the session bundle is built at launch). For the current architecture, see [Architecture overview](../architecture/overview.en.md) and ADRs 038 onwards (`docs/architecture/adr/`). The rest of this page is kept for history.
 
 > Documentation des optimisations de performance implémentées dans openhub
 

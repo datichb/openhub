@@ -1,6 +1,6 @@
 # Fiabilisation agents & skills — Suivi d'avancement
 
-> **Historique (v5).** Suivi d'un chantier sur les agents et skills antérieur à la v5 (22 agents à l'époque, 20 aujourd'hui) ; l'enchaînement des agents est désormais déclaré par les workflows. Pour l'architecture actuelle, voir [Vue d'ensemble de l'architecture](../architecture/overview.fr.md) et les ADR 038 à 048 (`docs/architecture/adr/`). La suite de cette page est conservée pour l'historique.
+> **Historique (v5).** Suivi d'un chantier sur les agents et skills antérieur à la v5 (22 agents à l'époque, 20 aujourd'hui) ; l'enchaînement des agents est désormais déclaré par les workflows. Pour l'architecture actuelle, voir [Vue d'ensemble de l'architecture](../architecture/overview.fr.md) et les ADR 038 et suivants (`docs/architecture/adr/`). La suite de cette page est conservée pour l'historique.
 
 ## Contexte
 
