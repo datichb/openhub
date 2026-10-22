@@ -19,7 +19,7 @@ Sources of the page — `CONFIRMÉ` · onboarder · 2026-10-06 · cli/go.mod, cl
 | TUI framework | [tview](https://github.com/rivo/tview) | tcell-based |
 | Inline prompts (outside the TUI) | [huh](https://github.com/charmbracelet/huh) | -- |
 | CLI framework | [Cobra](https://github.com/spf13/cobra) | v1.10+ |
-| Configuration | [Viper](https://github.com/spf13/viper) + TOML | -- |
+| Configuration | [go-toml](https://github.com/pelletier/go-toml) v2 (strict reading of `hub.toml`) | -- |
 | Database | SQLite (via modernc.org/sqlite) | Pure Go, no CGO |
 | Secrets | OS Keychain ([go-keyring](https://github.com/zalando/go-keyring)) + AES-256-GCM fallback | -- |
 | System calls | [golang.org/x/sys](https://pkg.go.dev/golang.org/x/sys) | Daemon socket peer UID, file locks (Windows) |

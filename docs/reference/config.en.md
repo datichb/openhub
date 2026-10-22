@@ -131,7 +131,7 @@ enabled = true
 # models = ["eu.anthropic.claude-*"]
 ```
 
-Removed in v5 (ignored if still in the file): `[opencode] version`, `channel`, `auto_update`, `install_dir` (opencode V2 is installed separately, see [v5 migration](../guides/migration-v5.en.md)), `[deploy] disable_native_agents` (the closed world always disables native agents), `[workflow.overrides]` (migrated to `~/.oh/migrated/`, see [team workflows](../guides/team-workflows.en.md#migration-of-the-former-workflow-overrides-v5)). The former `[team]` section is migrated to `[[teams]]` on load. Renamed in v5 (former names still read, written under the new name at the next save): `[opencode] default_provider` → `[llm] default_provider` (`oh config set llm.default_provider`; the former key is accepted), `[execution] opencode_version` → `[execution] tool_version`.
+Removed in v5 (ignored if still in the file): `[opencode] version`, `channel`, `auto_update`, `install_dir` (opencode V2 is installed separately, see [v5 migration](../guides/migration-v5.en.md)), `[deploy] disable_native_agents` (the closed world always disables native agents), `[workflow.overrides]` (migrated to `~/.oh/migrated/`, see [team workflows](../guides/team-workflows.en.md#migration-of-the-former-workflow-overrides-v5)). The former `[team]` section is migrated to `[[teams]]` on load. Renamed in v5 (former names still read, written under the new name at the next save): `[opencode] default_provider` → `[llm] default_provider` (`oh config set llm.default_provider`; the former key is accepted), `[execution] opencode_version` → `[execution] tool_version`. Reading a former key is announced once per command (a warning with the file, the line and the current key), `oh doctor` lists them, and **v6 stops reading them** (same for the former keychain names of the MCP tokens, `<service>-token`, which `oh doctor` also lists). Any write of `hub.toml` (`oh config set …`, the TUI) replaces them with the current keys. See [Strict reading of `hub.toml`](#strict-reading-of-hubtoml).
 
 ### v5 sections
 
@@ -168,6 +168,42 @@ Removed in v5 (ignored if still in the file): `[opencode] version`, `channel`, `
 
 See [container](../guides/container.en.md), [remote runners](../guides/remote-runners.en.md) and [v5 sessions](../guides/sessions-v5.en.md#restrictions).
 
+### Strict reading of `hub.toml`
+
+**Breaking change of v5.0.** Until v4, `hub.toml` went through a weakly typed reader (viper, mapstructure) that converted values silently: `"true"` was read as a boolean, `"3"` as a number, `"a,b"` as a list. v5.0 reads it with a strict TOML decoder: **each value must have the type of its setting**. A `hub.toml` written by oh (`oh init`, `oh config set`, the TUI) is always valid; only the files edited by hand are concerned.
+
+| Written in `hub.toml` | Until v4 | From v5.0 | To do |
+|---|---|---|---|
+| `setup_done = "true"`, `enabled = "false"`… (a boolean in quotes, also `"1"`) | read as a boolean | **error** | write `true` / `false` without quotes |
+| `setup_done = 1` (a number for a boolean) | read as `true` | **error** | `true` |
+| `keep_images = "3"`, `runner_project_id = "42"` (a number in quotes) | read as a number | **error** | `3` without quotes |
+| `keep_images = 2.7` (a decimal for an integer) | truncated to `2` | **error** | an integer |
+| `budget_usd = "12.5"` | read as `12.5` | **error** | `12.5` |
+| `member_id = 123`, `language = true` (a number or a boolean for a text) | converted to text | **error** | `"123"` |
+| `env_allow = "A,B"`, `instruction_files = "X.md"`, `models = "a,b"` (a text for a list) | cut at the commas, or a list of one | **error** | `["A", "B"]` |
+| `instruction_files = [1, 2]` (numbers in a list of texts) | converted to text | **error** | `["1", "2"]` |
+| a date or a time where a text is expected | error | **error** | quote it |
+| `[team]` (legacy section) | read, migrated to `[[teams]]` at startup | unchanged, but its values are typed too (`enabled = "true"` is an error) | |
+| `[CLI]`, `Language = "fr"` (capitals in the names) | read | unchanged: names are matched without regard to case | |
+| `budget_usd = 10` (an integer for a decimal) | read | unchanged | |
+| `[models.agents] Reviewer = …`, `[models.families] Quality = …` | key lowercased | unchanged: key lowercased | |
+| `[remote.projects] MyProj = …`, `[remote.targets.binaries]` | keys lowercased | keys **kept as written** | write them as the project ID is |
+| `"cli.language" = "fr"` (a quoted key holding a dot) | split at the dot | **warning**: a key no setting uses, ignored | `[cli]` then `language = "fr"`, or `cli.language = "fr"` |
+| a key or a table no setting uses (typo, key of a newer oh) | ignored without a word | **warning**, ignored | fix it or remove it |
+| `[opencode]` (except `default_provider`), `[deploy] disable_native_agents`, `[workflow]` | ignored | ignored, without a warning (historical keys) | |
+
+An error stops oh and names the file, the line, the column and the key of the first value at fault:
+
+```
+/home/me/.oh/hub.toml does not load: line 3, column 14, key cli.setup_done: expected a boolean, found a string (write the value without quotes)
+```
+
+`oh doctor` and `oh doctor --fix` work with such a file: the check shows the same message, and `--fix` restores the latest backup (`hub.toml.bak-*`) that loads. A key no setting uses is **only a warning**, so that a `hub.toml` written by a newer oh still loads; `oh doctor` lists those keys. They are not kept: the next write of `hub.toml` (a full rewrite, comments included) drops them.
+
+**Environment variables.** `hub.toml` was never read through the environment (no automatic binding, no prefix): no variable sets a key, before or after v5.0. The variables oh reads are documented where they apply (`OH_HOME`, `OH_SESSION_ATTACH`, [the environment of the agents](#the-environment-of-the-agents)…).
+
+**Defaults.** A key left out keeps its default (`name = "OpenHub"`, `cli.language = "en"`, `worktree.auto_cleanup = true`, `gc.enabled = true`), also inside a table that is present; a key written empty (`language = ""`) overrides it.
+
 ---
 
 ## The environment of the agents
@@ -201,6 +237,51 @@ oh config unset execution.env_allow
 - `oh doctor` also lists, by name only, the variables of your environment that are held back, to help you decide what to add.
 - The setting applies when a server starts (new group, restart, resume of a sleeping session). A running group keeps its environment.
 - **Containers and remote jobs** never inherit your environment (they get oh's settings only): `env_allow` does not apply there.
+
+---
+
+## Where each setting is set
+
+A setting can live in several places; the most specific wins, except what the team **enforces**. This page says where to look.
+
+### The sources
+
+| Source | Who sets it | Where | How |
+|---|---|---|---|
+| **Launch** | you, for one launch | flags and a few variables | `--provider`, `--attach`, `--runtime`, `OH_SESSION_ATTACH`… (`oh <command> --help`) |
+| **Workflow** | the workflow author | `models:`, `limits:` of the YAML ([schema](workflow-schema.en.md)) | edit the workflow, `extends` |
+| **Project** | you, for one project | database `oh.db` (preferences) | `oh project configure`, `oh config model … --project`, `oh budget set … -p` |
+| **Hub** | you, for the machine | `~/.oh/hub.toml` (`$OH_HOME`) | `oh config`, `oh budget`, the TUI (Settings), editing the file ([strict reading](#strict-reading-of-hubtoml)) |
+| **Team** | the team | `config.toml` of the team-state | the TUI (Team), `oh team` ([recommended or enforced](#recommended-or-enforced-configuration-adr-030)) |
+| **Built in** | oh | the code, the agent files (`model:`) | — |
+
+### The model of an agent
+
+Resolved for each agent when the session bundle is built (first match wins):
+
+| Order | Level | Set by |
+|---|---|---|
+| 1-2 | Workflow (`models.agents.<id>`, then `models.default`) | the workflow |
+| 3-5 | Project (agent, family, default) | `oh config model … --project <p>` |
+| 6-8 | Hub (agent, family, default) | `oh config model …`, `[models]` of `hub.toml` |
+| 9-11 | Team recommendation (agent, family, default) | `[models]` of the team-state, TUI Team › Models |
+| 12 | Frontmatter of the agent | `model:` of the agent file |
+
+The workflow has no family level. The provider (`--provider`, project, `[llm] default_provider`, `bedrock`) normalizes the name. Detail, families and examples: [model resolution](model-resolution.en.md). `oh config model show` prints the levels in order, with what each one sets.
+
+### The restrictions (I6)
+
+Maximum of working sessions, budgets, memory and allowed models (`limits`). Off by default; for each field the most specific level that sets it wins:
+
+| Order | Level | Set by |
+|---|---|---|
+| 1 | Workflow (`limits:`) — only `session_budget_usd` and `models` | the workflow |
+| 2 | Project (memory excluded) | `oh budget set … -p <project>` |
+| 3 | Hub | `[limits]` of `hub.toml`, `oh budget set …` |
+| 4 | Team **recommended** | `[limits.recommended]` of the team-state |
+| ceiling | Team **enforced** | `[limits.enforced]` of the team-state |
+
+A value enforced by the team is a ceiling that no other level can loosen: a smaller number wins, and the model list keeps only the patterns the ceiling covers (the ceiling itself when none is). The memory cap is a machine setting (hub and team only). The daily budget and the maximum of sessions count all the sessions of the machine when the hub or the team sets them, and those of the project when the project does. `oh budget show` prints each effective value with the level it comes from.
 
 ---
 
@@ -580,7 +661,7 @@ quality = "claude-opus-4-20250514"
 reviewer = "claude-opus-4-20250514"
 ```
 
-Team model recommendations, edited in the TUI (Team › Models). **Not applied at launch in v5**: the cascade of a session has no team level (see [model resolution](model-resolution.en.md)).
+Team model recommendations, edited in the TUI (Team › Models). Applied at launch below the workflow, the project and the hub, above the agent frontmatter (see [Where each setting is set](#where-each-setting-is-set) and [model resolution](model-resolution.en.md)).
 
 ### `[governance]` section
 
