@@ -309,11 +309,15 @@ func TestDailyBudget(t *testing.T) {
 func TestQueuedSessionsStartWhenASlotFrees(t *testing.T) {
 	e := newLimitEnv(t, "ses_busy")
 	ctx := e.ctx
-	busy, _ := e.sessions.Get(ctx, "ses_busy")
-	busy.State = domain.RunActive
-	require.NoError(t, e.sessions.Update(ctx, busy))
 	e.ad.set(func() { e.ad.active["ses_busy"] = true })
 	e.events <- adapters.ToolEvent{Kind: adapters.EventExecStarted, SessionID: "ses_busy"}
+	// The slot is taken once the watcher recorded the session as working (an
+	// earlier event of the setup could otherwise write it back as idle after
+	// a state set here, and free the slot).
+	require.Eventually(t, func() bool {
+		s, err := e.sessions.Get(ctx, "ses_busy")
+		return err == nil && s.State == domain.RunActive
+	}, 5*time.Second, 10*time.Millisecond, "the busy session is working")
 	now := time.Now()
 	for i, q := range []struct {
 		id  string
