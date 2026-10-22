@@ -739,25 +739,11 @@ func ensureTeamRepoForProject(ctx context.Context, a *app.App, project *domain.P
 	return repo, nil
 }
 
-// writeTeamConfig updates hub.toml with team settings using the new [[teams]] format.
-// It updates the in-memory Config.Teams and persists via config.Save().
+// writeTeamConfig updates hub.toml with team settings using the new [[teams]]
+// format (Service.SaveTeam): it updates the in-memory Config.Teams and
+// persists via config.Save().
 func writeTeamConfig(stateRepo, statePath, memberID string) error {
-	a := MustApp()
-	id := config.RepoNameFromRemote(stateRepo)
-
-	newTeam := config.TeamConfig{
-		ID:        id,
-		Enabled:   true,
-		StateRepo: stateRepo,
-		StatePath: statePath,
-		MemberID:  memberID,
-	}
-
-	a.Config.UpsertTeam(newTeam)
-	// Clear legacy field
-	a.Config.Team = config.TeamConfig{}
-
-	return config.Save(a.Config)
+	return teamService(MustApp()).SaveTeam(stateRepo, statePath, memberID)
 }
 
 func eventIcon(eventType string) string {
