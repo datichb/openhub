@@ -3730,6 +3730,7 @@
   "tui.team.sync.projects_header": "Projets:",
   "tui.team.sync.result_title": "Résultat sync tracker",
   "tui.team.sync.team_not_configured": "équipe non configurée",
+  "tui.team.sync.tracker_disabled": "sync du tracker désactivée (enabled = false dans [tracker]) — retirez cette ligne de hub.toml pour la réactiver",
   "tui.team.sync.tracker_not_configured": "tracker non configuré — utilisez « T » (découvrir le tracker) dans la configuration de l'équipe",
   "tui.team.sync.warnings_header": "Warnings:",
   "tui.teamboard.claim_failed": "Claim échoué: ",

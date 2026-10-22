@@ -12,9 +12,9 @@ import (
 	toml "github.com/pelletier/go-toml/v2"
 
 	"github.com/datichb/openhub/cli/internal/app"
-	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/safego"
+	teamsvc "github.com/datichb/openhub/cli/internal/services/team"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tracker"
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
@@ -61,78 +61,12 @@ func actionSyncTracker() {
 }
 
 // runSyncTrackerForTUI executes the tracker sync and returns a result for display.
+// The rules (team, enabled = false, credentials) are those of the team
+// service, like the command line; only the messages differ.
 func runSyncTrackerForTUI(a *app.App, ctx context.Context) (*views.SyncTrackerResult, error) {
-	// Resolve team config
-	tc := resolvedTeamConfig(a, nil)
-	if !tc.Enabled {
-		return nil, errors.New(i18n.T("tui.team.sync.team_not_configured"))
-	}
-
-	repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
-	if !repo.IsCloned() {
-		return nil, errors.New(i18n.T("tui.team.sync.not_cloned"))
-	}
-
-	// Load team config
-	teamCfg, err := repo.LoadConfig()
+	syncResult, err := teamService(a).SyncTracker(ctx, teamsvc.SyncOptions{Pull: true})
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", i18n.T("tui.team.sync.config_load_error"), err)
-	}
-	if teamCfg.Tracker.Type == "" {
-		return nil, errors.New(i18n.T("tui.team.sync.tracker_not_configured"))
-	}
-
-	// Merge shared team-state config with local hub.toml overrides.
-	effTracker := tracker.ResolveTrackerConfig(
-		&teamCfg.Tracker,
-		a.Config.Tracker,
-	)
-
-	// Build credential source
-	credSrc := buildCredentialSource(a, effTracker)
-	trackerType := tracker.Type(effTracker.Type)
-
-	creds, err := tracker.ResolveCredentials(ctx, credSrc, trackerType)
-	if err != nil {
-		return nil, &views.TrackerCredentialsError{Msg: i18n.Tf("tui.team.sync.credentials_missing", teamCfg.Tracker.Type), Err: err}
-	}
-
-	t, err := tracker.New(creds)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", i18n.T("tui.team.discovery.tracker_init_error"), err)
-	}
-
-	// Build the Projects map from hub projects (same as CLI sync-tracker and resolveTrackerEngine).
-	projects, ticketPatterns := resolveTrackerProjects(ctx, a, effTracker)
-	if len(projects) == 0 {
-		return nil, errors.New(i18n.T("tui.team.sync.no_projects"))
-	}
-
-	engineCfg := teamstate.TrackerConfig{
-		Type:                 effTracker.Type,
-		Enabled:              effTracker.Enabled,
-		AutoSync:             effTracker.AutoSync,
-		SyncIntervalMinutes:  effTracker.SyncIntervalMinutes,
-		AutoPlanAssigned:     effTracker.AutoPlanAssigned,
-		MaxAutoPlanPerMember: effTracker.MaxAutoPlanPerMember,
-		AutoPlanUnassigned:   effTracker.AutoPlanUnassigned,
-		UnassignedLabels:     effTracker.UnassignedLabels,
-		MaxUnassignedIssues:  effTracker.MaxUnassignedIssues,
-		PushLabels:           effTracker.PushLabels,
-		TicketPatterns:       ticketPatterns, //nolint:staticcheck // legacy tracker fields still read by the sync engine (backward compatibility)
-		Projects:             projects,       //nolint:staticcheck // legacy tracker fields still read by the sync engine (backward compatibility)
-		StatusMapping:        effTracker.StatusMapping,
-		LabelStatusMapping:   effTracker.LabelStatusMapping,
-	}
-	engine := tracker.NewEngine(t, repo, engineCfg, config.HubDir())
-
-	// Pull before sync
-	_ = repo.Pull(ctx)
-
-	// Run sync
-	syncResult, err := engine.Run(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("sync: %w", err)
+		return nil, syncTrackerTUIError(err)
 	}
 
 	// Convert to view-friendly result
@@ -152,6 +86,35 @@ func runSyncTrackerForTUI(a *app.App, ctx context.Context) (*views.SyncTrackerRe
 	}
 
 	return result, nil
+}
+
+// syncTrackerTUIError translates the typed errors of the team service into
+// the messages of the screen.
+func syncTrackerTUIError(err error) error {
+	var (
+		cfgErr  *teamsvc.ConfigError
+		credErr *teamsvc.CredentialsError
+		initErr *teamsvc.TrackerInitError
+	)
+	switch {
+	case errors.Is(err, teamsvc.ErrTeamNotConfigured):
+		return errors.New(i18n.T("tui.team.sync.team_not_configured"))
+	case errors.Is(err, teamsvc.ErrNotCloned):
+		return errors.New(i18n.T("tui.team.sync.not_cloned"))
+	case errors.As(err, &cfgErr):
+		return fmt.Errorf("%s: %w", i18n.T("tui.team.sync.config_load_error"), cfgErr.Err)
+	case errors.Is(err, teamsvc.ErrTrackerNotConfigured):
+		return errors.New(i18n.T("tui.team.sync.tracker_not_configured"))
+	case errors.Is(err, teamsvc.ErrTrackerDisabled):
+		return errors.New(i18n.T("tui.team.sync.tracker_disabled"))
+	case errors.As(err, &credErr):
+		return &views.TrackerCredentialsError{Msg: i18n.Tf("tui.team.sync.credentials_missing", credErr.TrackerType), Err: credErr.Err}
+	case errors.As(err, &initErr):
+		return fmt.Errorf("%s: %w", i18n.T("tui.team.discovery.tracker_init_error"), initErr.Err)
+	case errors.Is(err, teamsvc.ErrNoProjects):
+		return errors.New(i18n.T("tui.team.sync.no_projects"))
+	}
+	return fmt.Errorf("sync: %w", err)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -288,11 +251,10 @@ func actionTrackerDiscovery() {
 			if token != "" {
 				cfg.Token = token
 			} else {
-				credSrc := tracker.CredentialSource{
+				credSrc := teamService(a).CredentialSource(tracker.CredentialSource{
 					URL:      teamCfg.Tracker.TrackerURL,
 					TokenKey: teamCfg.Tracker.TrackerTokenKey,
-					Secrets:  a.Secrets,
-				}
+				}, nil)
 				resolved, err := tracker.ResolveCredentials(ctx, credSrc, tracker.Type(trackerType))
 				if err != nil {
 					return fmt.Errorf("%s: %w", i18n.T("tui.team.discovery.credentials_error"), err)
@@ -351,11 +313,10 @@ func actionTrackerDiscovery() {
 			if token != "" {
 				cfg.Token = token
 			} else {
-				credSrc := tracker.CredentialSource{
+				credSrc := teamService(a).CredentialSource(tracker.CredentialSource{
 					URL:      teamCfg.Tracker.TrackerURL,
 					TokenKey: teamCfg.Tracker.TrackerTokenKey,
-					Secrets:  a.Secrets,
-				}
+				}, nil)
 				resolved, err := tracker.ResolveCredentials(ctx, credSrc, tracker.Type(trackerType))
 				if err != nil {
 					return fmt.Errorf("credentials: %w", err)

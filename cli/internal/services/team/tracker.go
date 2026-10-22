@@ -3,7 +3,6 @@ package team
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 
 	"github.com/datichb/openhub/cli/internal/config"
@@ -26,9 +25,15 @@ var (
 	ErrTrackerDisabled = errors.New("team: the tracker is disabled (enabled = false)")
 	// ErrNoProjects: no hub project is linked to a tracker project.
 	ErrNoProjects = errors.New("team: no hub project is linked to a tracker project")
-	// ErrTrackerInit: the tracker client could not be built.
-	ErrTrackerInit = errors.New("team: cannot initialize the tracker")
 )
+
+// TrackerInitError is a failure to build the tracker client.
+type TrackerInitError struct{ Err error }
+
+func (e *TrackerInitError) Error() string {
+	return "team: cannot initialize the tracker: " + e.Err.Error()
+}
+func (e *TrackerInitError) Unwrap() error { return e.Err }
 
 // ConfigError is a failure to read the config.toml of the team-state.
 type ConfigError struct{ Err error }
@@ -59,7 +64,7 @@ type built struct {
 // TrackerEngine builds the tracker engine of the team of project (nil: the
 // hub team). It fails with ErrTeamNotConfigured, ErrNotCloned,
 // *ConfigError, ErrTrackerNotConfigured, ErrTrackerDisabled,
-// *CredentialsError or ErrTrackerInit. An engine without any linked
+// *CredentialsError or *TrackerInitError. An engine without any linked
 // project is still returned: it serves ticket details and assignments.
 func (s *Service) TrackerEngine(ctx context.Context, project *domain.Project) (*tracker.Engine, error) {
 	b, err := s.build(ctx, project)
@@ -134,16 +139,13 @@ func (s *Service) build(ctx context.Context, project *domain.Project) (*built, e
 	}
 
 	trackerType := tracker.Type(eff.Type)
-	src := tracker.NewCredentialSource(eff, s.Secrets)
-	src.TeamID = tc.TeamID
-	src.MCPTokenKey = s.Config.MCP.Gitlab.Token
-	creds, err := tracker.ResolveCredentials(ctx, src, trackerType)
+	creds, err := tracker.ResolveCredentials(ctx, s.CredentialSource(tracker.NewCredentialSource(eff, nil), project), trackerType)
 	if err != nil {
 		return nil, &CredentialsError{TrackerType: eff.Type, EnvVar: envVar(trackerType), Err: err}
 	}
 	t, err := tracker.New(creds)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrTrackerInit, err)
+		return nil, &TrackerInitError{Err: err}
 	}
 
 	projects, patterns := s.trackerProjects(ctx, eff)
@@ -159,6 +161,16 @@ func (s *Service) build(ctx context.Context, project *domain.Project) (*built, e
 		trackerType: eff.Type,
 		projects:    projects,
 	}, nil
+}
+
+// CredentialSource completes src with what the services know: the keychain,
+// the team of project (nil: the hub team) and the key of [mcp.gitlab], so
+// that the tracker finds its GitLab token with the unified cascade.
+func (s *Service) CredentialSource(src tracker.CredentialSource, project *domain.Project) tracker.CredentialSource {
+	src.Secrets = s.Secrets
+	src.TeamID = s.ResolveTeam(project).TeamID
+	src.MCPTokenKey = s.Config.MCP.Gitlab.Token
+	return src
 }
 
 // envVar is the environment variable that holds the token of a tracker.

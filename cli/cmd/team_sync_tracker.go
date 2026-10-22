@@ -10,10 +10,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/teamstate"
-	"github.com/datichb/openhub/cli/internal/tracker"
+	teamsvc "github.com/datichb/openhub/cli/internal/services/team"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -31,112 +30,11 @@ func runSyncTracker(cmd *cobra.Command, _ []string) error {
 	a := MustApp()
 	ctx := cmd.Context()
 
-	// Resolve team config.
-	tc := a.Config.ActiveTeam()
-	if !tc.Enabled {
-		return errors.New(i18n.Tf("cmd.team.sync_tracker.not_configured", theme.Bold.Render("oh team init")))
-	}
-
-	repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
-	if !repo.IsCloned() {
-		return errors.New(i18n.Tf("cmd.team.sync_tracker.not_cloned", theme.Bold.Render("oh team init")))
-	}
-
-	teamCfg, err := repo.LoadConfig()
+	result, err := teamService(a).SyncTracker(ctx, teamsvc.SyncOptions{
+		OnRun: func(trackerType string) func() { return startSyncSpinner(a, trackerType) },
+	})
 	if err != nil {
-		return fmt.Errorf("%s: %w", i18n.T("cmd.team.sync_tracker.config_read_error"), err)
-	}
-
-	if teamCfg.Tracker.Type == "" {
-		fmt.Fprintf(a.IO.Out, "%s %s\n",
-			theme.WarningStyle.Render(theme.IconWarning),
-			i18n.Tf("cmd.team.sync_tracker.tracker_not_configured",
-				theme.Bold.Render("[tracker]\ntype = \"gitlab\""),
-				theme.Bold.Render("oh team config")))
-		return nil
-	}
-
-	// Merge shared team-state config with local hub.toml overrides.
-	effTracker := tracker.ResolveTrackerConfig(
-		&teamCfg.Tracker,
-		a.Config.Tracker,
-	)
-
-	if !effTracker.Enabled {
-		fmt.Fprintf(a.IO.Out, "%s %s\n",
-			theme.WarningStyle.Render(theme.IconWarning),
-			i18n.Tf("cmd.team.sync_tracker.disabled_locally",
-				theme.Bold.Render("[tracker]\nenabled = false")))
-		return nil
-	}
-
-	trackerType := tracker.Type(effTracker.Type)
-	trackerCfg, err := tracker.ResolveCredentials(ctx, buildCredentialSource(a, effTracker), trackerType)
-	if err != nil {
-		return fmt.Errorf("%w\n  %s",
-			err, i18n.Tf("cmd.team.sync_tracker.credential_hint", envVarForTracker(trackerType), effTracker.Type))
-	}
-
-	t, err := tracker.New(trackerCfg)
-	if err != nil {
-		return fmt.Errorf("%s: %w", i18n.T("cmd.team.sync_tracker.init_error"), err)
-	}
-
-	// Build the Projects map for the engine from hub projects.
-	projects, ticketPatterns := resolveTrackerProjects(ctx, a, effTracker)
-
-	if len(projects) == 0 {
-		fmt.Fprint(a.IO.ErrOut, i18n.Tf("cmd.team_sync_tracker.no_project_configured_for_the_tracker", theme.WarningStyle.Render(theme.IconWarning)))
-		fmt.Fprintf(a.IO.ErrOut, "  Vérifiez:\n")
-		fmt.Fprint(a.IO.ErrOut, i18n.T("cmd.team_sync_tracker.tracker_project_is_set_in_the"))
-		fmt.Fprint(a.IO.ErrOut, i18n.T("cmd.team_sync_tracker.or_a_hub_project_overrides_tracker"))
-		return nil
-	}
-
-	slog.Debug("tracker.sync_cmd.config", "type", effTracker.Type, "projects", len(projects), "autoplan", effTracker.AutoPlanAssigned, "push_labels", effTracker.PushLabels)
-
-	engineCfg := teamstate.TrackerConfig{
-		Type:                 effTracker.Type,
-		Enabled:              effTracker.Enabled,
-		AutoSync:             effTracker.AutoSync,
-		SyncIntervalMinutes:  effTracker.SyncIntervalMinutes,
-		AutoPlanAssigned:     effTracker.AutoPlanAssigned,
-		MaxAutoPlanPerMember: effTracker.MaxAutoPlanPerMember,
-		AutoPlanUnassigned:   effTracker.AutoPlanUnassigned,
-		UnassignedLabels:     effTracker.UnassignedLabels,
-		MaxUnassignedIssues:  effTracker.MaxUnassignedIssues,
-		PushLabels:           effTracker.PushLabels,
-		TicketPatterns:       ticketPatterns, //nolint:staticcheck // legacy tracker fields still read by the sync engine (backward compatibility)
-		Projects:             projects,       //nolint:staticcheck // legacy tracker fields still read by the sync engine (backward compatibility)
-		StatusMapping:        effTracker.StatusMapping,
-		LabelStatusMapping:   effTracker.LabelStatusMapping,
-	}
-	engine := tracker.NewEngine(t, repo, engineCfg, config.HubDir())
-
-	// Spinner feedback during sync (disabled in verbose mode to avoid log interference)
-	spinDone := make(chan struct{})
-	showSpinner := !slog.Default().Enabled(context.Background(), slog.LevelDebug)
-	if showSpinner {
-		go func() {
-			frames := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
-			msg := i18n.Tf("cmd.team.sync_tracker.running", teamCfg.Tracker.Type)
-			for i := 0; ; i++ {
-				select {
-				case <-spinDone:
-					fmt.Fprintf(a.IO.ErrOut, "\r%s\r", strings.Repeat(" ", len(msg)+4))
-					return
-				default:
-					fmt.Fprintf(a.IO.ErrOut, "\r%s %s", frames[i%len(frames)], msg)
-					time.Sleep(80 * time.Millisecond)
-				}
-			}
-		}()
-	}
-
-	result, err := engine.Run(ctx)
-	close(spinDone)
-	if err != nil {
-		return fmt.Errorf("%s: %w", i18n.T("cmd.team.sync_tracker.failed"), err)
+		return syncTrackerError(a, err)
 	}
 
 	out := a.IO.Out
@@ -200,13 +98,76 @@ func runSyncTracker(cmd *cobra.Command, _ []string) error {
 	return nil
 }
 
-// envVarForTracker returns the environment variable name for a tracker token.
-func envVarForTracker(t tracker.Type) string {
-	switch t {
-	case tracker.TypeGitLab:
-		return "GITLAB_TOKEN"
-	case tracker.TypeJira:
-		return "JIRA_TOKEN"
+// syncTrackerError translates the typed errors of the team service into the
+// messages of the command line. The cases that are not failures (nothing to
+// sync, tracker disabled in hub.toml) print a notice and return nil.
+func syncTrackerError(a *app.App, err error) error {
+	var (
+		cfgErr  *teamsvc.ConfigError
+		credErr *teamsvc.CredentialsError
+		initErr *teamsvc.TrackerInitError
+	)
+	switch {
+	case errors.Is(err, teamsvc.ErrTeamNotConfigured):
+		return errors.New(i18n.Tf("cmd.team.sync_tracker.not_configured", theme.Bold.Render("oh team init")))
+	case errors.Is(err, teamsvc.ErrNotCloned):
+		return errors.New(i18n.Tf("cmd.team.sync_tracker.not_cloned", theme.Bold.Render("oh team init")))
+	case errors.As(err, &cfgErr):
+		return fmt.Errorf("%s: %w", i18n.T("cmd.team.sync_tracker.config_read_error"), cfgErr.Err)
+	case errors.Is(err, teamsvc.ErrTrackerNotConfigured):
+		fmt.Fprintf(a.IO.Out, "%s %s\n",
+			theme.WarningStyle.Render(theme.IconWarning),
+			i18n.Tf("cmd.team.sync_tracker.tracker_not_configured",
+				theme.Bold.Render("[tracker]\ntype = \"gitlab\""),
+				theme.Bold.Render("oh team config")))
+		return nil
+	case errors.Is(err, teamsvc.ErrTrackerDisabled):
+		fmt.Fprintf(a.IO.Out, "%s %s\n",
+			theme.WarningStyle.Render(theme.IconWarning),
+			i18n.Tf("cmd.team.sync_tracker.disabled_locally",
+				theme.Bold.Render("[tracker]\nenabled = false")))
+		return nil
+	case errors.As(err, &credErr):
+		return fmt.Errorf("%w\n  %s",
+			credErr.Err, i18n.Tf("cmd.team.sync_tracker.credential_hint", credErr.EnvVar, credErr.TrackerType))
+	case errors.As(err, &initErr):
+		return fmt.Errorf("%s: %w", i18n.T("cmd.team.sync_tracker.init_error"), initErr.Err)
+	case errors.Is(err, teamsvc.ErrNoProjects):
+		fmt.Fprint(a.IO.ErrOut, i18n.Tf("cmd.team_sync_tracker.no_project_configured_for_the_tracker", theme.WarningStyle.Render(theme.IconWarning)))
+		fmt.Fprintf(a.IO.ErrOut, "  Vérifiez:\n")
+		fmt.Fprint(a.IO.ErrOut, i18n.T("cmd.team_sync_tracker.tracker_project_is_set_in_the"))
+		fmt.Fprint(a.IO.ErrOut, i18n.T("cmd.team_sync_tracker.or_a_hub_project_overrides_tracker"))
+		return nil
 	}
-	return "TOKEN"
+	return fmt.Errorf("%s: %w", i18n.T("cmd.team.sync_tracker.failed"), err)
+}
+
+// startSyncSpinner shows a spinner on stderr during the sync (not in verbose
+// mode, where it would mix with the logs) and returns the function that
+// stops it and erases the line.
+func startSyncSpinner(a *app.App, trackerType string) func() {
+	if slog.Default().Enabled(context.Background(), slog.LevelDebug) {
+		return nil
+	}
+	stop := make(chan struct{})
+	stopped := make(chan struct{})
+	go func() {
+		defer close(stopped)
+		frames := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+		msg := i18n.Tf("cmd.team.sync_tracker.running", trackerType)
+		for i := 0; ; i++ {
+			select {
+			case <-stop:
+				fmt.Fprintf(a.IO.ErrOut, "\r%s\r", strings.Repeat(" ", len(msg)+4))
+				return
+			default:
+				fmt.Fprintf(a.IO.ErrOut, "\r%s %s", frames[i%len(frames)], msg)
+				time.Sleep(80 * time.Millisecond)
+			}
+		}
+	}()
+	return func() {
+		close(stop)
+		<-stopped
+	}
 }
