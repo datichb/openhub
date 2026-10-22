@@ -46,12 +46,20 @@ jobs:
       - name: Install Cosign
         uses: sigstore/cosign-installer@ba7bc0a3fef59531c69a25acd34668d6d3fe6f22 # v4.1.0
 
+      - name: Extract the release notes from CHANGELOG.md
+        # Fails when the section of the tag is missing. Written in
+        # RUNNER_TEMP: goreleaser --clean empties dist/.
+        working-directory: .
+        env:
+          TAG: ${{ github.ref_name }}
+        run: .github/scripts/release-notes.sh "$TAG" > "$RUNNER_TEMP/notes.md"
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
         with:
           distribution: goreleaser
           version: "~> v2"
-          args: release --clean
+          args: release --clean --release-notes=${{ runner.temp }}/notes.md
           workdir: cli
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -6,6 +6,8 @@ release:
   github:
     owner: datichb
     name: openhub
+  # v5.0.0-rc.N is flagged pre-release: never "latest".
+  prerelease: auto
 
 before:
   hooks:
@@ -63,6 +65,8 @@ brews:
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
     directory: Formula
+    # A pre-release tag (v5.0.0-rc.N) does not update the Homebrew formula.
+    skip_upload: auto
     homepage: "https://github.com/datichb/openhub"
     description: "OpenHub CLI — orchestrateur pour opencode"
     license: "MIT"
