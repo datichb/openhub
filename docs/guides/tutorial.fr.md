@@ -78,29 +78,31 @@ cd ~/workspace/my-app
 oh init
 ```
 
-L'assistant s'ouvre dans le terminal. Sur la page « Bienvenue », choisissez **Développeur solo** (vous pourrez passer en équipe plus tard), puis « Commencer ».
+L'assistant s'ouvre dans le terminal. Sur la page « Accueil », gardez **Développeur solo** (vous pourrez passer en équipe plus tard), puis « Commencer ».
 
 ```
 ◆ OpenHub — Assistant de configuration
 
- Langue ── Provider ── Équipe ── Projet ── Intégrations
+ Langue de l'interface
+   ◉ Français
+   ○ English
 
- Comment souhaitez-vous configurer ?
- ▸ Développeur solo  ~2 min
-   Membre d'équipe  ~5 min
-   Configuration complète  ~5-8 min
+ Type d'installation
+   ◉ Développeur solo
+       Fournisseur IA et projet, sans équipe.
+   ○ Membre d'équipe
+   ○ Configuration complète
 ```
 
-Puis, étape par étape :
+Trois écrans, en tout :
 
-| Étape | Ce que vous saisissez |
+| Écran | Ce que vous saisissez |
 |-------|-----------------------|
-| **Langue** | Français |
+| **Accueil** | Français, Développeur solo |
 | **Fournisseur IA** | `anthropic`, puis la clé API (rangée dans le trousseau) |
-| **Premier projet** | nom `my-app`, chemin `~/workspace/my-app` (proposé depuis le dossier courant) |
-| **Intégrations MCP** | GitLab si vous avez un jeton, sinon « Ignorer » |
+| **Premier projet** | nom `my-app`, chemin `~/workspace/my-app` (préremplis depuis le dossier courant) ; « Ignorer » si vous ne voulez pas de projet maintenant |
 
-En parcours solo, l'étape **Équipe** est sautée : oh crée un espace de workflows solo pour le projet. `Ctrl+S` valide une étape, `Ctrl+B` revient en arrière. Un écran de résumé termine l'assistant.
+En parcours solo, l'écran **Équipe** n'apparaît pas : oh crée un espace de workflows solo pour le projet. Les intégrations MCP ne sont plus dans l'assistant : le récapitulatif suggère `oh mcp setup` (jetons GitLab, Figma…). `Ctrl+S` valide un écran, `Ctrl+B` revient en arrière. Un écran de résumé termine l'assistant.
 
 Vérifier ensuite :
 

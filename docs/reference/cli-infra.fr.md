@@ -12,7 +12,7 @@ Initialise oh pour la première fois. Assistant interactif, sans flag.
 oh init
 ```
 
-Configure : langue de l'interface, fournisseur IA et identifiants, premier projet (facultatif), équipe à rejoindre ou à créer (facultatif) et intégrations MCP (Figma, GitLab, Google Slides, facultatif). Sans équipe, les workflows du projet vivent dans un espace solo. La version d'opencode se vérifie avec `oh doctor`.
+Trois écrans en parcours solo : accueil (langue et type d'installation : solo, équipe ou complet), fournisseur IA et identifiants, premier projet (facultatif, prérempli avec le dossier courant). Pour les types « équipe » et « complet », un écran d'équipe (à rejoindre ou à créer) s'ajoute. Sans équipe, les workflows du projet vivent dans un espace solo. Les intégrations MCP (Figma, GitLab, Jira, Google Slides) se configurent ensuite avec `oh mcp setup`. La version d'opencode se vérifie avec `oh doctor`.
 
 **Exemple :**
 
