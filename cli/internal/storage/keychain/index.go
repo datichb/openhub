@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"sort"
 	"sync"
+
+	"github.com/datichb/openhub/cli/internal/fsutil"
 )
 
 // secretsIndex persists the list of known keychain key names to disk so that
@@ -59,13 +61,7 @@ func (idx *secretsIndex) save() {
 	}
 	dir := filepath.Dir(idx.path)
 	_ = os.MkdirAll(dir, 0o755)
-	tmpFile := idx.path + ".tmp"
-	if err := os.WriteFile(tmpFile, data, 0o600); err != nil {
-		return
-	}
-	if err := os.Rename(tmpFile, idx.path); err != nil {
-		os.Remove(tmpFile)
-	}
+	_ = fsutil.WriteFileAtomic(idx.path, data, 0o600)
 }
 
 func (idx *secretsIndex) add(key, scope string) {

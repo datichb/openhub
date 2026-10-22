@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/fsutil"
 )
 
 // ServerStore implements domain.ServerStore.
@@ -65,19 +66,7 @@ func (ss *ServerStore) storePassword(group, pw string) (string, error) {
 		return "", err
 	}
 	_ = os.Chmod(ss.dir, 0o700)
-	tmp, err := os.CreateTemp(ss.dir, ".pw-*")
-	if err != nil {
-		return "", err
-	}
-	defer os.Remove(tmp.Name())
-	if _, err := tmp.WriteString(pw); err != nil {
-		tmp.Close()
-		return "", err
-	}
-	if err := tmp.Close(); err != nil {
-		return "", err
-	}
-	if err := os.Rename(tmp.Name(), ss.passwordFile(group)); err != nil {
+	if err := fsutil.WriteFileAtomic(ss.passwordFile(group), []byte(pw), 0o600); err != nil {
 		return "", err
 	}
 	return passwordHash(pw), nil
