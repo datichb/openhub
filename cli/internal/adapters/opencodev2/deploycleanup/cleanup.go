@@ -23,6 +23,8 @@ import (
 	"strings"
 
 	"github.com/pmezard/go-difflib/difflib"
+
+	"github.com/datichb/openhub/cli/internal/fsutil"
 )
 
 // Files of the former deployment, relative to the project.
@@ -358,10 +360,7 @@ func (p *Plan) Apply() error {
 			errs = append(errs, err)
 		}
 	case p.after != nil:
-		tmp := cfg + ".tmp"
-		if err := os.WriteFile(tmp, p.after, 0o644); err != nil {
-			errs = append(errs, err)
-		} else if err := os.Rename(tmp, cfg); err != nil {
+		if err := fsutil.WriteFileAtomic(cfg, p.after, 0o644); err != nil {
 			errs = append(errs, err)
 		}
 	}
