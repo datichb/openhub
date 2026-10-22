@@ -7,8 +7,12 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 )
 
@@ -163,5 +167,176 @@ func TestDeprecatedBoolAlias(t *testing.T) {
 func TestAttachHereIsDeprecated(t *testing.T) {
 	if got := i18n.Tf("cmd.deprecated_option.value", "here", "--attach", "suspend"); !strings.Contains(got, "suspend") {
 		t.Errorf("message = %q", got)
+	}
+}
+
+// forceAsYes lists the commands whose --force only skipped the confirmation
+// (X9): it is now a deprecated alias of --yes, with -f where it had one.
+var forceAsYes = []struct {
+	path     []string
+	shortcut bool
+}{
+	{[]string{"purge"}, false},
+	{[]string{"project", "remove"}, true},
+	{[]string{"service", "remove"}, true},
+	{[]string{"teams", "remove"}, true},
+}
+
+// forceKept lists the --force that override a safety: they stay as they are.
+var forceKept = []struct {
+	path     []string
+	shortcut string
+}{
+	{[]string{"daemon", "stop"}, ""},
+	{[]string{"remote", "setup"}, ""},
+	{[]string{"worktree", "remove"}, "f"},
+	{[]string{"worktree", "cleanup"}, "f"},
+}
+
+// X9: --force (and -f) set --yes and warn, in the language of the hub; --yes
+// itself does not warn.
+func TestForceIsADeprecatedAliasOfYes(t *testing.T) {
+	defer i18n.SetLocale("en")
+	saved := application
+	application = &app.App{}
+	defer func() { application = saved }()
+	for _, lang := range []string{"en", "fr"} {
+		i18n.SetLocale(lang)
+		for _, tc := range forceAsYes {
+			c, _, err := rootCmd.Find(tc.path)
+			require.NoError(t, err)
+			require.NotEqual(t, rootCmd, c, tc.path)
+			yes := c.Flags().Lookup("yes")
+			require.NotNil(t, yes, tc.path)
+			olds := []string{"--force"}
+			if tc.shortcut {
+				olds = append(olds, "-f")
+			}
+			for _, old := range olds {
+				var errOut bytes.Buffer
+				c.SetErr(&errOut)
+				require.NoError(t, c.ParseFlags([]string{old}), "%v %s", tc.path, old)
+				got, _ := c.Flags().GetBool("yes")
+				assert.True(t, got && c.Flags().Changed("yes"), "%v %s sets --yes", tc.path, old)
+				warn := errOut.String()
+				assert.Contains(t, warn, old, "%s %v", lang, tc.path)
+				assert.Contains(t, warn, "--yes", "%s %v", lang, tc.path)
+				assert.Contains(t, warn, c.CommandPath(), "%s %v", lang, tc.path)
+				if lang == "fr" {
+					assert.Contains(t, warn, "dépréciée", "%v %s", tc.path, old)
+				}
+				_ = yes.Value.Set("false")
+				yes.Changed = false
+			}
+			var errOut bytes.Buffer
+			c.SetErr(&errOut)
+			require.NoError(t, c.ParseFlags([]string{"--yes"}))
+			assert.Empty(t, errOut.String(), "--yes does not warn: %v", tc.path)
+			_ = yes.Value.Set("false")
+			yes.Changed = false
+			c.SetErr(nil)
+		}
+	}
+}
+
+// X9: the aliases are out of the help and of the completion; --yes is shown.
+func TestForceAliasesAreHiddenFromTheHelp(t *testing.T) {
+	for _, tc := range forceAsYes {
+		c, _, err := rootCmd.Find(tc.path)
+		require.NoError(t, err)
+		f := c.Flags().Lookup("force")
+		require.NotNil(t, f, tc.path)
+		assert.True(t, f.Hidden, "--force of %v must be hidden", tc.path)
+		usage := c.LocalFlags().FlagUsages()
+		assert.NotContains(t, usage, "--force", tc.path)
+		assert.NotContains(t, usage, "-f,", tc.path)
+		assert.Contains(t, usage, "--yes", tc.path)
+		if tc.shortcut {
+			sh := c.Flags().ShorthandLookup("f")
+			require.NotNil(t, sh, tc.path)
+			assert.True(t, sh.Hidden, "-f of %v must be hidden", tc.path)
+		}
+	}
+}
+
+// X9: the --force that override a safety are untouched: visible, and still
+// not an alias of --yes.
+func TestForceThatOverridesASafetyIsKept(t *testing.T) {
+	for _, tc := range forceKept {
+		c, _, err := rootCmd.Find(tc.path)
+		require.NoError(t, err)
+		f := c.Flags().Lookup("force")
+		require.NotNil(t, f, tc.path)
+		assert.False(t, f.Hidden, "--force of %v stays in the help", tc.path)
+		assert.Equal(t, tc.shortcut, f.Shorthand, tc.path)
+		_, isAlias := f.Value.(*deprecatedAlias)
+		assert.False(t, isAlias, tc.path)
+		assert.Contains(t, c.LocalFlags().FlagUsages(), "--force", tc.path)
+
+		var errOut bytes.Buffer
+		c.SetErr(&errOut)
+		require.NoError(t, c.ParseFlags([]string{"--force"}))
+		assert.Empty(t, errOut.String(), "no warning for %v --force", tc.path)
+		if y := c.Flags().Lookup("yes"); y != nil {
+			assert.False(t, y.Changed, "--force of %v does not set --yes", tc.path)
+		}
+		_ = f.Value.Set("false")
+		f.Changed = false
+		c.SetErr(nil)
+	}
+}
+
+// X9: without a terminal --force has the effect of --yes on teams remove and
+// service remove (it used to skip the question), and warns.
+func TestForceHasTheEffectOfYesWithoutTerminal(t *testing.T) {
+	t.Setenv("OH_HOME", t.TempDir())
+	t.Setenv("HOME", t.TempDir())
+	terminalIs(t, false)
+	stubConfirmForm(t)
+	newApp := func(t *testing.T) {
+		t.Helper()
+		io, _, _ := testIO()
+		application = &app.App{
+			Config:   &config.Config{Teams: []config.TeamConfig{{ID: "acme"}}},
+			Projects: &mockProjectStore{projects: []domain.Project{}},
+			IO:       io,
+		}
+		t.Cleanup(func() { application = nil })
+	}
+	for _, tc := range []struct {
+		name string
+		cmd  func() *cobra.Command
+		args []string
+	}{
+		{"teams remove", func() *cobra.Command { return teamsRemoveCmd }, []string{"acme"}},
+		{"service remove", func() *cobra.Command { return serviceRemoveCmd }, []string{"gitlab"}},
+	} {
+		for _, flag := range []string{"--force", "-f", "--yes"} {
+			t.Run(tc.name+" "+flag, func(t *testing.T) {
+				newApp(t)
+				c := tc.cmd()
+				reset := func() {
+					for _, n := range []string{"yes", "force"} {
+						_ = c.Flags().Lookup(n).Value.Set("false")
+						c.Flags().Lookup(n).Changed = false
+					}
+				}
+				reset()
+				t.Cleanup(reset)
+				out, err := runSub(t, c, append([]string{flag}, tc.args...)...)
+				require.NoError(t, err, out)
+				if flag != "--yes" {
+					assert.Contains(t, out, "--yes", "the alias warns")
+				}
+			})
+		}
+		t.Run(tc.name+" without option", func(t *testing.T) {
+			newApp(t)
+			c := tc.cmd()
+			_ = c.Flags().Lookup("yes").Value.Set("false")
+			_, err := runSub(t, c, tc.args...)
+			require.Error(t, err)
+			assert.Equal(t, ExitUsage, ExitCode(err))
+		})
 	}
 }

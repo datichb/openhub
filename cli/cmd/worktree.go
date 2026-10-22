@@ -320,7 +320,7 @@ pour la détection.`,
 	}
 
 	cmd.Flags().StringVarP(&baseBranch, "base", "b", "", "Branche de base pour la détection (défaut: auto-detect)")
-	cmd.Flags().BoolVarP(&force, "force", "f", false, "Skip confirmation")
+	cmd.Flags().BoolVarP(&force, "force", "f", false, "Also remove worktrees with uncommitted changes (asks no confirmation)")
 	addYesFlag(cmd)
 	return cmd
 }
