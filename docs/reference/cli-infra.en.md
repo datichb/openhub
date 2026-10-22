@@ -196,6 +196,8 @@ oh gc --older-than 7d
 
 Checks the SQLite database `~/.oh/oh.db` **without migrating it** and without needing a working configuration or database: integrity (`PRAGMA integrity_check`), schema version and the version this oh knows, pending migrations, last failed migration, backups taken before the migrations (`~/.oh/backups/`). On corruption, the database files (with `-wal` and `-shm`) are copied to `oh.db.corrupt-<date>`, then the options are listed: restore a backup taken before a migration, restore an export, and only as a last resort start from an empty database.
 
+Going back after a migration means restoring the backup made just before it (`oh repair --restore`); oh never rolls back the schema of a user's database itself.
+
 ```
 oh repair [--check-only] [--auto] [--migrate] [--restore <file>]
 ```
