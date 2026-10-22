@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/httplog"
@@ -48,6 +49,26 @@ func Serve() error {
 	return server.Serve()
 }
 
+// Identifiers are refused unless they have the shape Google gives them:
+// url.PathEscape leaves ".." as it is, which would climb one segment of the
+// API path (/v1/presentations/../x). An object id (a slide) may also hold ":".
+var (
+	presentationIDRe = regexp.MustCompile(`^[A-Za-z0-9_-]{1,128}$`)
+	slideIDRe        = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9_:-]{0,127}$`)
+)
+
+// presentationPath is the API path of a presentation, followed by sub.
+func presentationPath(id string, sub ...string) (string, error) {
+	if !presentationIDRe.MatchString(id) {
+		return "", fmt.Errorf("invalid presentation id %q", id)
+	}
+	p := "/v1/presentations/" + url.PathEscape(id)
+	for _, s := range sub {
+		p += "/" + s
+	}
+	return p, nil
+}
+
 func handleGetPresentation(_ context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
 	var args struct {
 		PresentationID string `json:"presentation_id"`
@@ -55,7 +76,11 @@ func handleGetPresentation(_ context.Context, params json.RawMessage) (*protocol
 	if err := json.Unmarshal(params, &args); err != nil {
 		return nil, err
 	}
-	data, err := slidesAPI(fmt.Sprintf("/v1/presentations/%s", url.PathEscape(args.PresentationID)))
+	path, err := presentationPath(args.PresentationID)
+	if err != nil {
+		return nil, err
+	}
+	data, err := slidesAPI(path)
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +97,14 @@ func handleGetSlide(_ context.Context, params json.RawMessage) (*protocol.ToolRe
 	if err := json.Unmarshal(params, &args); err != nil {
 		return nil, err
 	}
-	data, err := slidesAPI(fmt.Sprintf("/v1/presentations/%s/pages/%s", url.PathEscape(args.PresentationID), url.PathEscape(args.SlideID)))
+	if !slideIDRe.MatchString(args.SlideID) {
+		return nil, fmt.Errorf("invalid slide id %q", args.SlideID)
+	}
+	path, err := presentationPath(args.PresentationID, "pages", url.PathEscape(args.SlideID))
+	if err != nil {
+		return nil, err
+	}
+	data, err := slidesAPI(path)
 	if err != nil {
 		return nil, err
 	}
