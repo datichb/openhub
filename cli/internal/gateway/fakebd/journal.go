@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/datichb/openhub/cli/internal/fsutil"
 	"github.com/datichb/openhub/cli/internal/gateway/bdargs"
 	"github.com/datichb/openhub/cli/internal/gateway/beadswire"
 	"github.com/datichb/openhub/cli/internal/remote"
@@ -157,11 +158,7 @@ func (j journalBackend) save(s *remote.Snapshot) error {
 	if err != nil {
 		return err
 	}
-	tmp := j.snapshot + ".tmp"
-	if err := os.WriteFile(tmp, data, 0o600); err != nil {
-		return err
-	}
-	return os.Rename(tmp, j.snapshot)
+	return fsutil.WriteFileAtomic(j.snapshot, data, 0o600)
 }
 
 // issue is a decoded snapshot record (all fields kept).

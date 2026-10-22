@@ -2,6 +2,7 @@ package shell
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/datichb/openhub/cli/internal/fsutil"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
@@ -178,7 +180,7 @@ func ReadLastN(path string, n int) ([]views.NotificationEntry, error) {
 }
 
 // RotateFile truncates the JSONL file to keep at most maxLines entries and
-// removes entries older than maxAge. The rewrite is atomic (tmp file + rename).
+// removes entries older than maxAge. The rewrite is atomic (tmp file + rename, no fsync).
 // No-op if the file does not exist.
 func RotateFile(path string, maxLines int, maxAge time.Duration) error {
 	f, err := os.Open(path)
@@ -216,26 +218,15 @@ func RotateFile(path string, maxLines int, maxAge time.Duration) error {
 		lines = lines[len(lines)-maxLines:]
 	}
 
-	// Atomic rewrite: write to a temp file then rename
-	tmp := path + ".tmp"
-	out, err := os.OpenFile(tmp, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
-	if err != nil {
-		return fmt.Errorf("notifications: rotate create tmp: %w", err)
-	}
-	w := bufio.NewWriter(out)
+	// Atomic rewrite, without fsync: the history of toasts is not worth a
+	// flush to disk at each rotation.
+	var buf bytes.Buffer
 	for _, line := range lines {
-		_, _ = fmt.Fprintln(w, line)
+		buf.WriteString(line)
+		buf.WriteByte('\n')
 	}
-	if err := w.Flush(); err != nil {
-		out.Close()
-		os.Remove(tmp)
-		return fmt.Errorf("notifications: rotate flush: %w", err)
-	}
-	out.Close()
-
-	if err := os.Rename(tmp, path); err != nil {
-		os.Remove(tmp)
-		return fmt.Errorf("notifications: rotate rename: %w", err)
+	if err := fsutil.WriteFileAtomicNoSync(path, buf.Bytes(), 0o644); err != nil {
+		return fmt.Errorf("notifications: rotate write: %w", err)
 	}
 	return nil
 }
