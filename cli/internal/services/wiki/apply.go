@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 	"unicode"
+
+	"github.com/datichb/openhub/cli/internal/fsutil"
 )
 
 // Application of a proposal to a page (doc-wiki-protocol, incremental
@@ -261,24 +263,7 @@ func writePage(root, rel, text string) error {
 	if err := mkdirNoLink(root, path.Dir(rel)); err != nil {
 		return err
 	}
-	tmp, err := os.CreateTemp(filepath.Dir(file), ".oh-wiki-*")
-	if err != nil {
-		return err
-	}
-	name := tmp.Name()
-	defer func() { _ = os.Remove(name) }()
-	if _, err := tmp.WriteString(text); err != nil {
-		_ = tmp.Close()
-		return err
-	}
-	if err := tmp.Chmod(0o644); err != nil {
-		_ = tmp.Close()
-		return err
-	}
-	if err := tmp.Close(); err != nil {
-		return err
-	}
-	return os.Rename(name, file)
+	return fsutil.WriteFileAtomic(file, []byte(text), 0o644)
 }
 
 // mkdirNoLink creates the folders of a page under docs/wiki/, refusing a
