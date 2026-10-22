@@ -15,6 +15,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/beads"
 	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/daemon"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/storage/keychain"
@@ -102,7 +103,7 @@ func runPurge(cmd *cobra.Command, args []string) error {
 	// ── Step 4: Kill processes ──
 	step++
 	printStep(out, step, totalSteps, i18n.T("cmd.purge.section.processes"))
-	killPurgeProcesses(out)
+	stopPurgeProcesses(ctx, out, defaultPurgeProcesses(ctx))
 
 	// ── Step 5: Delete keychain secrets ──
 	if len(inv.secrets) > 0 {
@@ -360,11 +361,11 @@ func printPurgeInventory(out *os.File, inv purgeInventory, dryRun bool) {
 	fmt.Fprintf(out, "\n")
 }
 
-func printStep(out *os.File, current, total int, label string) {
+func printStep(out io.Writer, current, total int, label string) {
 	fmt.Fprintf(out, "  [%d/%d] %s... ", current, total, label)
 }
 
-func printStepDone(out *os.File, detail string) {
+func printStepDone(out io.Writer, detail string) {
 	if detail != "" {
 		fmt.Fprintf(out, "%s (%s)\n", theme.SuccessStyle.Render(theme.IconSuccess), detail)
 	} else {
@@ -372,29 +373,38 @@ func printStepDone(out *os.File, detail string) {
 	}
 }
 
-func printStepSkipped(out *os.File) {
+func printStepSkipped(out io.Writer) {
 	fmt.Fprintf(out, "%s\n", theme.Subtitle.Render(i18n.T("cmd.purge.skipped")))
+}
+
+// defaultPurgeProcesses is the real wiring: the daemon behind the socket of
+// this hub (only if the socket exists), the servers of the database.
+func defaultPurgeProcesses(ctx context.Context) purgeProcesses {
+	p := purgeProcesses{
+		adapter: func(name string) adapters.ToolAdapter {
+			a, _ := toolRegistry.Get(name)
+			return a
+		},
+		alive: pidAlive,
+	}
+	if store != nil {
+		p.servers = sqlite.NewServerStore(store)
+	}
+	paths := daemon.Paths{Dir: ohRunDir()}
+	if _, err := os.Lstat(paths.Socket()); err == nil {
+		capability, _, cerr := daemonCapability(ctx)
+		if cerr != nil {
+			p.daemonErr = cerr
+		} else {
+			p.daemon = daemon.NewClient(paths).WithCapability(capability)
+		}
+	}
+	return p
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Execution steps
 // ─────────────────────────────────────────────────────────────────────────────
-
-func killPurgeProcesses(out *os.File) {
-	killed := 0
-	for _, pattern := range []string{"oh serve", "oh mcp"} {
-		// Use pkill with -f (full command line match)
-		cmd := exec.Command("pkill", "-f", pattern)
-		if err := cmd.Run(); err == nil {
-			killed++
-		}
-	}
-	if killed > 0 {
-		printStepDone(out, fmt.Sprintf("%d", killed))
-	} else {
-		printStepDone(out, i18n.T("cmd.purge.none_detected"))
-	}
-}
 
 func deletePurgeSecrets(ctx context.Context, out *os.File, secrets []keychain.SecretEntry) {
 	deleted := 0
