@@ -23,6 +23,22 @@ func TestLoad_Defaults(t *testing.T) {
 	assert.Empty(t, cfg.LLM.DefaultProvider)
 }
 
+// A hub.toml in the working directory (a cloned repository) is never read:
+// only the one of the hub directory counts.
+func TestLoad_IgnoresHubTomlOfWorkingDirectory(t *testing.T) {
+	configtest.Home(t) // no hub.toml in the hub directory
+
+	cwd := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(cwd, "hub.toml"),
+		[]byte("name = \"Injected\"\n[cli]\nlanguage = \"fr\"\n"), 0o600))
+	t.Chdir(cwd)
+
+	cfg, err := config.Load()
+	require.NoError(t, err)
+	assert.Equal(t, "OpenHub", cfg.Name)
+	assert.Equal(t, "en", cfg.CLI.Language)
+}
+
 // TestSaveAndLoad_Roundtrip verifies that saving a Config and reloading it
 // produces the same values. This catches tag mismatches between mapstructure
 // (used by Load/Viper) and toml (used by Save/go-toml).

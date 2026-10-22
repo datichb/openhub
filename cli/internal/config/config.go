@@ -542,7 +542,6 @@ func Load() (*Config, error) {
 	v.SetConfigName("hub")
 	v.SetConfigType("toml")
 	v.AddConfigPath(HubDir())
-	v.AddConfigPath(".")
 
 	// Defaults
 	v.SetDefault("name", "OpenHub")
