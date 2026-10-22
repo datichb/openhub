@@ -36,6 +36,7 @@ func loadHub(t *testing.T, content string) (*config.Config, []config.Notice, err
 	writeHub(t, content)
 	var notes []config.Notice
 	config.SetNoticeHandler(func(n config.Notice) { notes = append(notes, n) })
+	config.DeliverNotices()
 	cfg, err := config.Load()
 	return cfg, notes, err
 }
@@ -335,6 +336,7 @@ func TestInspect(t *testing.T) {
 	writeHub(t, "[cli]\nfuture = 1\n")
 	var announced []config.Notice
 	config.SetNoticeHandler(func(n config.Notice) { announced = append(announced, n) })
+	config.DeliverNotices()
 	notes, err = config.Inspect()
 	require.NoError(t, err)
 	require.Len(t, notes, 1)
@@ -347,16 +349,35 @@ func TestInspect(t *testing.T) {
 	require.ErrorAs(t, err, &ce)
 }
 
-func TestNoticesAreHeldUntilAHandlerIsSet(t *testing.T) {
+func TestNoticesAreHeldUntilDelivered(t *testing.T) {
 	configtest.Home(t)
 	writeHub(t, "[cli]\nfuture = 1\n")
+	var got []config.Notice
+	config.SetNoticeHandler(func(n config.Notice) { got = append(got, n) })
+	_, err := config.Load()
+	require.NoError(t, err)
+	assert.Empty(t, got, "held: the language of the hub is not known yet")
+
+	config.DeliverNotices()
+	require.Len(t, got, 1)
+	assert.Equal(t, "cli.future", got[0].Key)
+
+	config.Reset()
+	_, err = config.Load()
+	require.NoError(t, err)
+	assert.Len(t, got, 1, "once per process")
+}
+
+func TestNoticesWithoutAHandlerAreKept(t *testing.T) {
+	configtest.Home(t)
+	writeHub(t, "[cli]\nfuture = 1\n")
+	config.DeliverNotices()
 	_, err := config.Load()
 	require.NoError(t, err)
 
 	var got []config.Notice
 	config.SetNoticeHandler(func(n config.Notice) { got = append(got, n) })
-	require.Len(t, got, 1, "delivered when the handler is set")
-	assert.Equal(t, "cli.future", got[0].Key)
+	require.Len(t, got, 1, "delivered when the handler arrives")
 }
 
 // Every setting of hub.toml is named by its toml tag: the library matches
@@ -366,7 +387,7 @@ func TestEveryFieldHasATomlName(t *testing.T) {
 	seen := map[reflect.Type]bool{}
 	var walk func(path string, rt reflect.Type)
 	walk = func(path string, rt reflect.Type) {
-		for rt.Kind() == reflect.Ptr || rt.Kind() == reflect.Slice || rt.Kind() == reflect.Map {
+		for rt.Kind() == reflect.Pointer || rt.Kind() == reflect.Slice || rt.Kind() == reflect.Map {
 			rt = rt.Elem()
 		}
 		if rt.Kind() != reflect.Struct || seen[rt] {

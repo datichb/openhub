@@ -57,6 +57,7 @@ var rootCmd = &cobra.Command{
 			logLevel = slog.LevelDebug
 		}
 		logFormat, _ := cmd.Flags().GetString("log-format")
+		logJSON = logFormat == "json"
 		switch logFormat {
 		case "json":
 			slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: logLevel})))

@@ -56,33 +56,49 @@ func (n Notice) String() string {
 
 var notices struct {
 	sync.Mutex
-	seen    map[string]bool
-	pending []Notice
-	handler func(Notice)
+	seen       map[string]bool
+	pending    []Notice
+	handler    func(Notice)
+	delivering bool
 }
 
 // SetNoticeHandler sets the function that receives the notices, each one a
-// single time per process (the same key read again is not repeated); the
-// notices raised before are delivered now. A nil handler holds them back.
-// The handler runs where the notice is raised, possibly under the lock of
-// Load: it must not call Load.
+// single time per process (the same key read again is not repeated). The
+// handler runs where the notice is raised, possibly under the lock of Load:
+// it must not call Load. Nothing reaches it before DeliverNotices.
 func SetNoticeHandler(h func(Notice)) {
 	notices.Lock()
 	notices.handler = h
-	pending := notices.pending
-	if h != nil {
-		notices.pending = nil
-	}
 	notices.Unlock()
-	if h == nil {
+	flushNotices()
+}
+
+// DeliverNotices starts the delivery: the notices raised until now (by Load,
+// before the language of the hub is known) go to the handler, and the next
+// ones go as they are raised. Called once the language is set.
+func DeliverNotices() {
+	notices.Lock()
+	notices.delivering = true
+	notices.Unlock()
+	flushNotices()
+}
+
+func flushNotices() {
+	notices.Lock()
+	if !notices.delivering || notices.handler == nil {
+		notices.Unlock()
 		return
 	}
+	h, pending := notices.handler, notices.pending
+	notices.pending = nil
+	notices.Unlock()
 	for _, n := range pending {
 		h(n)
 	}
 }
 
-// notify records a notice and hands it to the handler, once per process.
+// notify records a notice, once per process, and hands it to the handler
+// when the delivery has started.
 func notify(n Notice) {
 	notices.Lock()
 	if notices.seen == nil {
@@ -94,20 +110,22 @@ func notify(n Notice) {
 	}
 	notices.seen[n.id()] = true
 	h := notices.handler
-	if h == nil {
+	if !notices.delivering || h == nil {
 		notices.pending = append(notices.pending, n)
+		notices.Unlock()
+		return
 	}
 	notices.Unlock()
-	if h != nil {
-		h(n)
-	}
+	h(n)
 }
 
-// ResetNotices forgets the notices already raised (tests).
+// ResetNotices forgets the notices already raised, the handler and the
+// delivery (tests).
 func ResetNotices() {
 	notices.Lock()
 	defer notices.Unlock()
 	notices.seen = nil
 	notices.pending = nil
 	notices.handler = nil
+	notices.delivering = false
 }

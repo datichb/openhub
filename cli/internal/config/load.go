@@ -209,6 +209,14 @@ func unknownKeys(path string, missing *toml.StrictMissingError) []Notice {
 	return out
 }
 
+// Validate reports whether data would load as the hub.toml at path (the
+// errors of Load, none for unknown keys): oh doctor --fix only restores a
+// backup that loads.
+func Validate(path string, data []byte) error {
+	_, _, err := parseHub(path, data)
+	return err
+}
+
 // Inspect reads hub.toml again, without touching the cache or the notices
 // handler, and returns what Load would raise: the former keys still read and
 // the keys ignored (oh doctor). A missing file has none; a file that does
@@ -306,7 +314,7 @@ func foundKind(tomlType string) string {
 
 // kindOf is the kind of value a Go type holds.
 func kindOf(t reflect.Type) string {
-	for t.Kind() == reflect.Ptr {
+	for t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
 	switch t.Kind() {
@@ -339,7 +347,7 @@ func typeOfKey(key string) (reflect.Type, bool) {
 		ok := true
 		for _, seg := range strings.Split(key, ".") {
 			seg = strings.Trim(seg, `"'`)
-			for t.Kind() == reflect.Ptr || (t.Kind() == reflect.Slice && t.Elem().Kind() == reflect.Struct) {
+			for t.Kind() == reflect.Pointer || (t.Kind() == reflect.Slice && t.Elem().Kind() == reflect.Struct) {
 				t = t.Elem()
 			}
 			switch t.Kind() {
@@ -453,7 +461,7 @@ func tomlNameOf(goField string) string {
 	seen := map[reflect.Type]bool{}
 	var walk func(t reflect.Type)
 	walk = func(t reflect.Type) {
-		for t.Kind() == reflect.Ptr || t.Kind() == reflect.Slice || t.Kind() == reflect.Map {
+		for t.Kind() == reflect.Pointer || t.Kind() == reflect.Slice || t.Kind() == reflect.Map {
 			t = t.Elem()
 		}
 		if t.Kind() != reflect.Struct || seen[t] {
@@ -509,10 +517,9 @@ func keyAt(data []byte, line int) string {
 // the header [a] for "a.b", or of "a.b = …" at the top level; a bare name
 // matches its last part under any header, when only one line has it. 0, 0
 // when it is not found.
-func findKey(data []byte, dotted string) (int, int) {
+func findKey(data []byte, dotted string) (line, col int) {
 	lines := strings.Split(string(data), "\n")
 	want := strings.ToLower(dotted)
-	line, col := 0, 0
 	for i, l := range lines {
 		m := keyLine.FindStringSubmatchIndex(l)
 		if m == nil {

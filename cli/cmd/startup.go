@@ -211,6 +211,7 @@ func initDegraded() {
 		cfg.CLI.Language = "en"
 	} else {
 		i18n.SetLocale(cfg.CLI.Language)
+		config.DeliverNotices()
 	}
 	a := &app.App{Config: cfg, IO: app.DefaultIOStreams()}
 	a.WithSecretStore(newLazySecrets(resolveSecretStore))

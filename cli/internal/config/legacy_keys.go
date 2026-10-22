@@ -73,3 +73,20 @@ func applyLegacyKeys(l legacyFile, c *Config) []string {
 	}
 	return found
 }
+
+// AnnounceLegacyAlias announces a former key typed on the command line
+// (`oh config get|set|unset`), once per process.
+func AnnounceLegacyAlias(key string) {
+	if repl, ok := legacyReplacement[key]; ok {
+		notify(Notice{Kind: NoticeLegacyKey, Key: key, Replacement: repl})
+	}
+}
+
+// LegacyKeys maps each former key of hub.toml to the current one.
+func LegacyKeys() map[string]string {
+	out := make(map[string]string, len(legacyReplacement))
+	for k, v := range legacyReplacement {
+		out[k] = v
+	}
+	return out
+}
