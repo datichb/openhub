@@ -25,6 +25,7 @@ type BoardTicket struct {
 	Priority    string
 	Type        string
 	ExternalRef string // external tracker reference (e.g. "gitlab-693") — ADR-032
+	Labels      []string
 }
 
 // BoardConfig configures the board view.

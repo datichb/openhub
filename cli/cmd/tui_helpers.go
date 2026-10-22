@@ -170,6 +170,12 @@ func fetchBoardTicketsForPath(projectPath string) []views.BoardTicket {
 		slog.Warn("board: failed to list beads tickets", "path", projectPath, "error", err)
 		return nil
 	}
+	return tuiBoardTickets(raw)
+}
+
+// tuiBoardTickets maps Beads tickets to the Board TUI ones: epics are left
+// out, the status is the board column.
+func tuiBoardTickets(raw []beads.Ticket) []views.BoardTicket {
 	out := make([]views.BoardTicket, 0, len(raw))
 	for _, t := range raw {
 		// Epics are containers, not actionable items — exclude from the board.
@@ -179,18 +185,14 @@ func fetchBoardTicketsForPath(projectPath string) []views.BoardTicket {
 		out = append(out, views.BoardTicket{
 			ID:          t.ID,
 			Title:       t.Title,
-			Status:      boardNormalizeStatus(t.Status),
+			Status:      beads.BoardColumn(t.Status, t.Labels),
 			Priority:    t.Priority,
 			Type:        t.Type,
 			ExternalRef: beads.ExternalRefForTicket(t),
+			Labels:      t.Labels,
 		})
 	}
 	return out
-}
-
-// boardNormalizeStatus maps beads status values to the board column statuses.
-func boardNormalizeStatus(s string) string {
-	return normalizeStatus(s)
 }
 
 // resolveActiveProjectPath returns the path of the active project.
