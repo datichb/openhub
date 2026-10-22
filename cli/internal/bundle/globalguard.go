@@ -71,6 +71,17 @@ func ohCommandPatterns(words ...string) []string {
 // `budget show`) stay allowed; `config language` and `config websearch` are
 // refused whole, their reading form included (the pattern cannot tell them
 // apart).
+//
+// Also refused: what publishes, widens the permissions of the team or deletes
+// data and projects, none of which a prompt-injected agent should do for the
+// user (`--yes` skips the confirmation without a terminal, so the guard is the
+// only barrier): the publication of a workflow of the team, of its archive and
+// of its restore (`workflow publish|archive|restore`: a published version can
+// widen the permissions of everyone), the publication of a brick (`brick
+// publish`), the total deletion of the hub (`purge`), the removal of a project
+// (`project remove`, aliases `rm` and `p`) and of a team (`teams remove`).
+// Reads (`workflow list|show|diff|history`, `brick list|show|history`,
+// `project list`, `teams list`) stay allowed.
 var ohControlDeny = func() []string {
 	out := ohCommandPatterns("mcp", "serve")
 	for _, words := range [][]string{
@@ -82,6 +93,10 @@ var ohControlDeny = func() []string {
 		{"mcp", "enable"}, {"mcp", "disable"}, {"mcp", "reset"},
 		{"config", "language"}, {"config", "websearch"},
 		{"budget", "set"}, {"budget", "unset"}, {"budget", "raise"},
+		{"workflow", "publish"}, {"workflow", "archive"}, {"workflow", "restore"},
+		{"brick", "publish"}, {"purge"},
+		{"project", "remove"}, {"project", "rm"}, {"p", "remove"}, {"p", "rm"},
+		{"teams", "remove"},
 	} {
 		out = append(out, ohCommandPatterns(words...)...)
 	}

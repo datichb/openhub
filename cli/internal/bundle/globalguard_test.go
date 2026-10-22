@@ -215,6 +215,16 @@ func TestGlobalGuardRefusesOhCommandsThatChangeTrustAndSettings(t *testing.T) {
 		{"budget", "set", "max_budget_usd", "100"},
 		{"budget", "unset", "max_budget_usd"},
 		{"budget", "raise", "ses_a", "50"},
+		{"workflow", "publish", "feature", "-m", "x", "--yes"},
+		{"workflow", "archive", "team:feature", "--yes"},
+		{"workflow", "restore", "team:feature", "3", "--yes"},
+		{"brick", "publish", "agent:developer", "-m", "x", "--yes"},
+		{"purge", "--yes"},
+		{"project", "remove", "my-project", "--yes"},
+		{"project", "rm", "my-project", "--yes"},
+		{"p", "remove", "my-project", "--yes"},
+		{"p", "rm", "my-project"},
+		{"teams", "remove", "acme", "--yes"},
 	}
 	rules := GlobalShellGuard("")
 	for _, f := range forms {
@@ -249,6 +259,9 @@ func TestGlobalGuardRefusesOhCommandsThatChangeTrustAndSettings(t *testing.T) {
 		"oh doctor", "oh version", "oh session list", "oh project list",
 		"oh secrets list", "oh --no-tui secrets list", "/usr/local/bin/oh budget show", "oh budget show --project p",
 		"oh mcp status gitlab", "oh session list --all",
+		"oh workflow list", "oh workflow show feature", "oh workflow diff feature", "oh workflow history feature", "oh workflow validate feature", "oh workflow edit feature",
+		"oh workflow new feature", "oh brick list", "oh brick show agent:developer", "oh brick history developer", "oh brick edit developer",
+		"oh project ls", "oh p list", "oh project add /tmp/x", "oh teams list", "oh teams detach p", "oh --no-tui workflow list", "/usr/local/bin/oh brick list",
 	} {
 		assert.NotEqual(t, sessionspec.EffectDeny, ShellEffect(rules, cmd), cmd)
 	}
@@ -260,7 +273,9 @@ func TestShippedAgentsRefuseTrustAndConfigCommands(t *testing.T) {
 		rules := effectiveRules(t, ag[0], ag[1])
 		for _, cmd := range []string{"oh mcp trust jira --yes", "env oh config set mcp.jira.url https://x", "/usr/local/bin/oh service setup", "oh mcp untrust jira",
 			"oh secrets set k", "oh secrets delete k", "oh secrets get k", "oh secrets cleanup", "oh mcp enable gitlab", "oh mcp disable gitlab", "oh mcp reset gitlab",
-			"oh config language en", "oh config websearch disable", "oh budget set max_budget_usd 1", "oh budget raise ses_a"} {
+			"oh config language en", "oh config websearch disable", "oh budget set max_budget_usd 1", "oh budget raise ses_a",
+			"oh workflow publish feature -m x --yes", "oh workflow archive team:feature", "oh workflow restore team:feature 2", "oh brick publish agent:x -m y",
+			"oh purge --yes", "oh project remove p --yes", "oh p rm p", "oh teams remove acme --yes"} {
 			assert.Equal(t, sessionspec.EffectDeny, ShellEffect(rules, cmd), "%s: %s", ag[1], cmd)
 		}
 	}
