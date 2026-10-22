@@ -7,7 +7,7 @@ Le hub utilise une **architecture hybride** avec deux chemins de livraison (Buck
 
 Sources de vérité :
 
-- le dossier `skills/` du hub (189 fichiers : 178 skills et 11 annexes dans `skills/templates/`) ;
+- le dossier `skills/` du hub (191 fichiers : 180 skills et 11 annexes dans `skills/templates/`) ;
 - le frontmatter des agents (`agents/**/*.md`) : `skills:` = Bucket A (inliné), `native_skills:` = Bucket B (à la demande).
 
 Depuis la v5, rien n'est plus déployé dans le projet : les skills arrivent dans la session par le **paquet de session**, construit à chaque lancement depuis le workflow (voir ci-dessous).
@@ -137,7 +137,7 @@ Tous les agents du hub ont `permission: skill: allow`, directement ou par leur `
 
 ## Inventaire des skills (source de vérité)
 
-**178 skills** dans 14 dossiers (137 skills de domaine + 41 skills de stack), plus **11 annexes** dans `skills/templates/`.
+**180 skills** dans 14 dossiers (139 skills de domaine + 41 skills de stack), plus **11 annexes** dans `skills/templates/`.
 
 Lecture des tableaux : la colonne **Agents** donne le bucket et les agents d'après leur frontmatter (`A` = `skills:`, `B` = `native_skills:`). `—` = aucun agent ne la référence : la skill n'est dans un paquet que si un workflow l'ajoute par `skills.extra`.
 
@@ -194,7 +194,7 @@ Les deux dernières ne sont dans aucun frontmatter d'agent : `elicitation-techni
 | `team-coordination` | B (`mcp: team`) : orchestrator-dev | Coordination d'équipe (claims, conflits, passage de relais) |
 | `takeover-context-protocol` | B (`mcp: team`) : orchestrator, orchestrator-dev | Utiliser un brief de reprise sur un ticket transféré par un autre membre |
 
-### `planning/` — 23 skills
+### `planning/` — 24 skills
 
 | Skill | Agents | Contenu |
 |-------|--------|---------|
@@ -205,6 +205,7 @@ Les deux dernières ne sont dans aucun frontmatter d'agent : `elicitation-techni
 | `planner-phase-0` | B : planner | Phase 0 (prérequis) et 0.5 (complexity scoring : 4 critères × 4 pts, tiers Small/Medium/Large/Enterprise) |
 | `planner-phase-1` | B : planner | Phase 1 (exploration) et 1.5 (délégation design) |
 | `grilling` | B : planner | Interroger la demande avant les questions : la confronter au code et aux règles (quantificateurs, acteurs, visibilité, cycle de vie, invariants), une question par décision, priorisée |
+| `triage` | B : planner (nommée par le prompt de `triage`) | Trier un lot de tickets ou de constats : priorité justifiée, doublon prouvé, étiquettes du projet, ticket trop gros découpé, chaque changement présenté avant d'écrire |
 | `planner-phase-2` | B : planner | Phase 2 — questions complémentaires ([FACT] / [DÉCISION], batch ou frontier) |
 | `planner-phase-2-5` | B : planner | Phase 2.5 (complexité Large ou Enterprise, Medium sur demande) — compréhension partagée, décision map Enterprise |
 | `planner-phase-3-4` | B : planner | Phase 3 (plan hiérarchique) et 4 (cas particuliers) |
@@ -278,7 +279,7 @@ Les **41 skills de stack** de `developer/stacks/` sont décrites dans [Skills de
 
 Les 9 checklists de domaine sont chargées à la demande par `auditor-subagent`, qui les nomme dans sa table des domaines : elles sont livrées dans chaque paquet dont il est membre (`audit`). L'entrée `type` d'`audit` propose exactement ces domaines (test `TestAuditTypeEnumMatchesDomainSkills`).
 
-### `quality/` — 8 skills
+### `quality/` — 9 skills
 
 | Skill | Agents | Contenu |
 |-------|--------|---------|
@@ -290,6 +291,7 @@ Les 9 checklists de domaine sont chargées à la demande par `auditor-subagent`,
 | `debugger-phase-2-3` | B : debugger | Phase 2 (questions) et 3 (diagnostic en 4 étapes) |
 | `debugger-phase-4-5` | B : debugger | Phase 4 (cas particuliers) et 5 (rapport + ticket) |
 | `postmortem` | B : debugger (nommée par le prompt d'`incident`) | Postmortem sans blâme : chronologie sourcée, impact et délai de détection chiffrés, déclencheur et cause, actions vérifiables (R9-a) |
+| `retro` | B : debugger (nommée par le prompt de `retro`) | Rétrospective de sessions d'agents à partir de leurs traces : faits sourcés, regroupement par cause, coût des relances, actions vérifiables dans une trace suivante, sans blâme |
 
 ### `release/` — 2 skills
 

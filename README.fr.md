@@ -10,7 +10,7 @@ Hub central pour lancer des sessions de développement assistées par IA sur vos
 
 ## Ce que fait oh v5
 
-- **Workflows déclaratifs.** Chaque cas d'usage (spec, ticket, review, audit, incident, release…) est un workflow YAML (`apiVersion: oh/v1`) : agent d'entrée, agents membres et leur ordre, checkpoints par mode (`manuel`, `semi-auto`, `auto`), entrées, sorties, ressources, niveau de risque et restrictions. Le hub en livre 22 ; une équipe ou un projet peut les étendre dans son dépôt team-state.
+- **Workflows déclaratifs.** Chaque cas d'usage (spec, ticket, review, audit, incident, release…) est un workflow YAML (`apiVersion: oh/v1`) : agent d'entrée, agents membres et leur ordre, checkpoints par mode (`manuel`, `semi-auto`, `auto`), entrées, sorties, ressources, niveau de risque et restrictions. Le hub en livre 24 ; une équipe ou un projet peut les étendre dans son dépôt team-state.
 - **Vérifié par oh.** Les actions irréversibles (commit, fermeture ou création de tickets, tag, application d'infrastructure) restent refusées aux agents tant que le checkpoint qui les ouvre n'est pas passé ; avant, oh lance lui-même les tests de la stack, vérifie une spec ou un découpage, et relève lui-même les sorties de la session.
 - **Workflows composés.** Une session se termine sur la suite que propose oh, sans la lancer : `spec` → `implement-spec`, `audit` → `security-fix`, `spike` ou `incident` → `spec`. `feature` est l'enchaînement `spec` puis `implement-spec`.
 - **Wiki documentaire vivant.** Les agents lisent le wiki du projet (`docs/wiki/`) et y proposent leurs découvertes ; vous acceptez ou refusez chaque proposition au checkpoint de commit, oh applique les acceptées.
@@ -282,8 +282,8 @@ Index complet : [docs/README.md](docs/README.md).
 
 ## Migration
 
-- **Depuis oh v4** (opencode V1, `oh deploy`) : [Migrer vers oh v5](docs/guides/migration-v5.fr.md). Restes des anciens déploiements : `oh migrate deploy-cleanup`.
-- **Depuis la CLI bash `oc`** : [Guide de migration](MIGRATION.md) (équivalence des commandes, hub.json → hub.toml).
+- **Depuis oh v4** (opencode V1, `oh deploy`) : [Migrer vers oh v5](docs/guides/migration-v5.fr.md) (et les actions classées par thème dans [MIGRATION.md](MIGRATION.md)). Restes des anciens déploiements : `oh migrate deploy-cleanup`.
+- **Depuis la CLI bash `oc`** : [Guide de migration](MIGRATION.md) (historique, oh v2 : équivalence des commandes, hub.json → hub.toml).
 
 ---
 

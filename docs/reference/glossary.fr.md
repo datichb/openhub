@@ -183,7 +183,7 @@ Un workflow peut restreindre les modes (`modes.allowed`). Voir [schéma `oh/v1`]
 
 ### Workflow
 
-La description declarative d'un cas d'usage (YAML `apiVersion: oh/v1`) : agent d'entrée, agents, checkpoints, entrées, ressources, environnements et limites. 21 workflows livrés par le hub (`ticket`, `quick`, `spec`, `implement-spec`, `infra-change`, `onboarding`, `review`, `review-feedback`, `audit`, `debug`, `incident`, `security-fix`, `spike`, `release`, `benchmark`, `sweep`, `doc-sync`, `skill-refresh`, `brief-enrich`, `merge-conflicts`, `libre` ; `feature` et `cadrage` sont des alias de `spec`), extensibles par l'équipe et le projet (`extends`, la sécurité ne pouvant que se durcir). Lancé par `oh run <workflow>`. Voir [Workflows livrés](workflows.fr.md) et [schéma `oh/v1`](workflow-schema.fr.md).
+La description declarative d'un cas d'usage (YAML `apiVersion: oh/v1`) : agent d'entrée, agents, checkpoints, entrées, ressources, environnements et limites. 24 workflows livrés par le hub (`ticket`, `quick`, `spec`, `implement-spec`, `infra-change`, `onboarding`, `review`, `review-feedback`, `audit`, `debug`, `incident`, `security-fix`, `spike`, `release`, `benchmark`, `sweep`, `doc-sync`, `skill-refresh`, `brief-enrich`, `merge-conflicts`, `libre`, `retro`, `triage`, `sweep-task` ; `feature` et `cadrage` sont des alias de `spec`), extensibles par l'équipe et le projet (`extends`, la sécurité ne pouvant que se durcir). Lancé par `oh run <workflow>`. Voir [Workflows livrés](workflows.fr.md) et [schéma `oh/v1`](workflow-schema.fr.md).
 
 ### Worktree
 

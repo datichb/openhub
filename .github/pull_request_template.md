@@ -17,7 +17,7 @@
 ### Code quality
 - [ ] `make test` passes (or `make test-unit` at minimum)
 - [ ] `make lint` produces no warnings
-- [ ] `oh deploy && oh deploy --check` passes (if agents/skills changed)
+- [ ] `oh workflow validate --all` and `oh skill check --hub .` pass (if workflows, agents or skills changed)
 
 ### Documentation (if user-facing change)
 - [ ] Documentation updated or created (guide, reference, or CLI docs)
