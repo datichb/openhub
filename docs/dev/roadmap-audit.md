@@ -1,6 +1,6 @@
 # Plan d'Action — Audit Technique OpenHub
 
-> **Historique (v5).** Plan d'action de l'audit technique de juillet 2026 (avant la v5). Pour l'architecture actuelle, voir [Vue d'ensemble de l'architecture](../architecture/overview.fr.md) et les ADR 038 à 048 (`docs/architecture/adr/`). La suite de cette page est conservée pour l'historique.
+> **Historique (v5).** Plan d'action de l'audit technique de juillet 2026 (avant la v5). Pour l'architecture actuelle, voir [Vue d'ensemble de l'architecture](../architecture/overview.fr.md) et les ADR 038 et suivants (`docs/architecture/adr/`). La suite de cette page est conservée pour l'historique.
 
 > **Date** : 2026-07-22
 > **Source** : Audit complet (architecture, sécurité, qualité de code, DevOps, écosystème agent/skill)
