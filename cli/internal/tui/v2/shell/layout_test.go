@@ -14,21 +14,25 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
-// screenText returns the simulation screen as lines of text.
+// screenText returns the simulation screen as lines of text. The cells are
+// read on the event loop: the screen is drawn there, a read from the test
+// goroutine races with a draw.
 func (s *simShell) screenText() string {
-	cells, w, h := s.sim.GetContents()
 	var b strings.Builder
-	for y := 0; y < h; y++ {
-		for x := 0; x < w; x++ {
-			c := cells[y*w+x]
-			if len(c.Runes) > 0 {
-				b.WriteRune(c.Runes[0])
-			} else {
-				b.WriteByte(' ')
+	s.loop(func() {
+		cells, w, h := s.sim.GetContents()
+		for y := 0; y < h; y++ {
+			for x := 0; x < w; x++ {
+				c := cells[y*w+x]
+				if len(c.Runes) > 0 {
+					b.WriteRune(c.Runes[0])
+				} else {
+					b.WriteByte(' ')
+				}
 			}
+			b.WriteByte('\n')
 		}
-		b.WriteByte('\n')
-	}
+	})
 	return b.String()
 }
 

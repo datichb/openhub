@@ -461,7 +461,12 @@ func TestInlineFormValidateAsTyped(t *testing.T) {
 		s.key(tcell.KeyRune, r, tcell.ModNone)
 	}
 	screen := func() string {
-		cells, w, h := s.sim.GetContents()
+		var cells []tcell.SimCell
+		var w, h int
+		s.loop(func() { // copied on the loop that draws the screen
+			c, cw, ch := s.sim.GetContents()
+			cells, w, h = append([]tcell.SimCell(nil), c...), cw, ch
+		})
 		var b strings.Builder
 		for y := 0; y < h; y++ {
 			for x := 0; x < w; x++ {
