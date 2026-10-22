@@ -700,6 +700,7 @@
   "cmd.doctor.tracking.orphans": "%d open ticket(s) named in a commit (work done, ticket not closed): %s — check with bd orphans --details, then close them",
   "cmd.doctor.tracking.stale": "%d ticket(s) in progress not updated for %d days (session ended or claim forgotten): %s — resume the session, or release them with bd unclaim <id>",
   "cmd.doctor.tracking.epics": "%d epic(s) whose children are all closed: %s — close them with bd epic close-eligible",
+  "cmd.inputs.github.mr_gitlab_only": "Merge request inputs (mr.*, review-feedback workflow) only read GitLab MRs: this project's remote is on GitHub (%s). Run the workflow without these inputs, or on a GitLab project.",
   "cmd.init.already_initialized": "Warning: the hub is already initialized.",
   "cmd.init.confirm_reinit": "Re-running will reset your configuration. Continue? [y/N]",
   "cmd.init.git_not_found": "git not found — team features, branch detection and git excludes will be unavailable.",
