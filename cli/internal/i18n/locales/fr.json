@@ -5994,5 +5994,9 @@
   "cmd.provider_view.aws_profile": "Profil AWS",
   "cmd.button.next": "Suivant",
   "cmd.button.delete": "Supprimer",
-  "cmd.button.create": "Créer"
+  "cmd.button.create": "Créer",
+  "cmd.team.beta.warning": "Le mode équipe est en bêta : une réservation est libérée à l'arrêt de sa session (même avec une revue en attente), n'expire jamais, et une libération perdue hors ligne reste en place. oh team release libère une réservation oubliée. Limites connues : docs/guides/team-setup.fr.md",
+  "cmd.team.beta.doctor.name": "Équipe · mode bêta",
+  "cmd.team.beta.doctor.detail": "le mode équipe est en bêta (limites connues : docs/guides/team-setup.fr.md) ; oh team release libère une réservation oubliée",
+  "tui.team.beta.line": "Bêta · les réservations sont libérées à l'arrêt d'une session et n'expirent jamais — voir le guide team-setup"
 }

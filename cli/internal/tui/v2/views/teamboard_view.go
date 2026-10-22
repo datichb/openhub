@@ -195,8 +195,9 @@ func (v *TeamBoardView) Mount(content *tview.Flex, app *tview.Application) {
 	v.buildProjectTabs(v.cfg.Tickets)
 	v.renderTabBar()
 
-	// Board layout: tabBar (1 line) + columns
+	// Board layout: beta line (1 line) + tabBar (1 line) + columns
 	v.boardLayout = tview.NewFlex().SetDirection(tview.FlexRow)
+	v.boardLayout.AddItem(newTeamBetaLine(), 1, 0, false)
 	v.boardLayout.AddItem(v.tabBar, 1, 0, false)
 	v.boardLayout.AddItem(v.columnFlex, 0, 1, true)
 

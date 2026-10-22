@@ -226,6 +226,9 @@ func startTicketClaims(a *app.App, project *domain.Project) func(ctx context.Con
 				notes = append(notes, n)
 			}
 		}
+		if len(notes) > 0 && takeTeamBetaNotice() {
+			notes = append(notes, i18n.T("cmd.team.beta.warning"))
+		}
 		return notes
 	}
 }

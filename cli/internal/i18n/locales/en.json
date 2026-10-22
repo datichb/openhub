@@ -5994,5 +5994,9 @@
   "cmd.provider_view.aws_profile": "AWS Profile",
   "cmd.button.next": "Next",
   "cmd.button.delete": "Delete",
-  "cmd.button.create": "Create"
+  "cmd.button.create": "Create",
+  "cmd.team.beta.warning": "Team mode is in beta: a claim is released when its session stops (even with a review pending), never expires, and a release lost offline stays in place. oh team release frees a forgotten claim. Known limits: docs/guides/team-setup.en.md",
+  "cmd.team.beta.doctor.name": "Team · beta mode",
+  "cmd.team.beta.doctor.detail": "team mode is in beta (known limits: docs/guides/team-setup.en.md); oh team release frees a forgotten claim",
+  "tui.team.beta.line": "Beta · claims are released when a session stops and never expire — see the team-setup guide"
 }
