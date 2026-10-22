@@ -225,21 +225,21 @@ oh repair --restore ~/.oh/backups/oh.db.v41-20261009T101500.000000000Z.bak
 Suppression totale du hub et de ses données. Inventorie les artefacts (secrets du trousseau, restes des anciens déploiements dans les projets (`.opencode/`), dossier du hub, données OpenCode, binaire) puis les supprime après confirmation.
 
 ```
-oh purge [--dry-run] [--force] [--keep-binary] [--include-tool-data]
+oh purge [--dry-run] [--yes] [--keep-binary] [--include-tool-data]
 ```
 
 | Flag | Type | Description |
 |------|------|-------------|
 | `--dry-run` | bool | Afficher ce qui serait supprimé sans rien supprimer |
-| `--force` | bool | Supprimer sans confirmation |
+| `--yes` | `-y` | bool | Supprimer sans confirmation et sans proposer de sauvegarde (obligatoire sans terminal). Ancien nom : `--force` (déprécié, même effet, avec un avertissement) |
 | `--keep-binary` | bool | Conserver le binaire `oh` |
 | `--include-tool-data` | bool | Supprimer aussi les données globales de l'outil des sessions (pour opencode : `~/.local/share/opencode/`, `~/.config/opencode/`). Ancien nom : `--include-opencode` |
 
 ```bash
 oh purge --dry-run
-oh purge --force
+oh purge --yes
 oh purge --keep-binary
-oh purge --include-tool-data --force
+oh purge --include-tool-data --yes
 ```
 
 ---

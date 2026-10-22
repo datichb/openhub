@@ -248,7 +248,7 @@ oh migrate deploy-cleanup                    # supprimer .opencode/agents, .open
 **Worktrees orphelins**
 ```bash
 oh worktree cleanup        # Supprimer les worktrees fusionnés (mode sans risque)
-oh worktree cleanup -f     # Forcer la suppression de tous les worktrees fusionnés
+oh worktree cleanup -f     # Supprimer aussi les worktrees fusionnés qui ont des modifications non validées
 oh worktree list           # Lister tous les worktrees actifs
 ```
 

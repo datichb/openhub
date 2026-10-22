@@ -78,8 +78,8 @@ func init() {
 	teamsAddCmd.Flags().String("id", "", i18n.T("cmd.teams.add.flags.id"))
 	teamsAddCmd.Flags().String("name", "", i18n.T("cmd.teams.add.flags.name"))
 
-	teamsRemoveCmd.Flags().BoolP("force", "f", false, i18n.T("cmd.teams.remove.flags.force"))
 	addYesFlag(teamsRemoveCmd)
+	deprecateForceAsYes(teamsRemoveCmd, true)
 }
 
 func runTeamsList(cmd *cobra.Command, _ []string) error {
@@ -236,16 +236,12 @@ func runTeamsRemove(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Confirmation prompt unless --force
-	force, _ := cmd.Flags().GetBool("force")
-	if !force {
-		confirm, err := confirmAction(cmd, i18n.Tf("cmd.teams.remove.confirm", teamID), false)
-		if err != nil {
-			return err
-		}
-		if !confirm {
-			return nil
-		}
+	confirm, err := confirmAction(cmd, i18n.Tf("cmd.teams.remove.confirm", teamID), false)
+	if err != nil {
+		return err
+	}
+	if !confirm {
+		return nil
 	}
 
 	// Remove from config

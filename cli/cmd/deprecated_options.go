@@ -72,6 +72,18 @@ func deprecateFlag(c *cobra.Command, name, target string) *deprecatedAlias {
 	return addDeprecatedAlias(c, name, "", target)
 }
 
+// deprecateForceAsYes keeps --force (and -f when the command had it) as a
+// hidden alias of --yes (X9, v5.0): on the commands that confirm an action,
+// --force only meant « skip the confirmation ». --force stays where it means
+// « override a safety » (daemon stop, remote setup, worktree remove). The
+// command must already have --yes (addYesFlag).
+func deprecateForceAsYes(c *cobra.Command, withShorthand bool) {
+	deprecateFlag(c, "force", "yes")
+	if withShorthand {
+		deprecateShorthand(c, "f", "yes")
+	}
+}
+
 // silenceCobraDeprecation stops cobra from printing its own English sentence
 // (« Command "x" is deprecated, … ») for the deprecated command about to
 // run: the command warns in the language of the hub, with the exact

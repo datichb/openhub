@@ -248,7 +248,7 @@ oh migrate deploy-cleanup                    # remove .opencode/agents, .opencod
 **Orphan worktrees**
 ```bash
 oh worktree cleanup        # Remove merged worktrees (safe mode)
-oh worktree cleanup -f     # Force remove all merged worktrees
+oh worktree cleanup -f     # Also remove merged worktrees that have uncommitted changes
 oh worktree list           # List all active worktrees
 ```
 

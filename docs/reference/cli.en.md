@@ -60,7 +60,7 @@ A letter has one meaning in every command. The former forms stay accepted for on
 | `-A` | `--assignee` | `oh start` | |
 | `-b` | `--base` (base branch) | `oh worktree cleanup` | `oh review -b` (now `--branch`) |
 | `-d` | `--path` (folder) | `oh project add` | `oh metrics -d` (now `--period`) |
-| `-f` | `--force` | `oh project remove`, `oh teams remove`, `oh worktree remove`, `oh worktree cleanup`, `oh service remove` | |
+| `-f` | `--force` (override a safety) | `oh worktree remove`, `oh worktree cleanup` | `oh project remove -f`, `oh teams remove -f`, `oh service remove -f` (now `--yes`) |
 | `-h` | `--help` | all | |
 | `-i` | `--input` (workflow input) | `oh run` | `oh debug -i` (now `--issue`) |
 | `-l` | `--language` | `oh project add`, `oh project configure` | `oh start -l` (now `--label`) |
@@ -77,6 +77,8 @@ A letter has one meaning in every command. The former forms stay accepted for on
 | `-y` | `--yes` (no confirmation) | `oh doctor`, `oh gc`, `oh mcp trust`, `oh migrate deploy-cleanup`, `oh project add`, `oh session delete`, `oh session resolve`, `oh brick publish`, `oh workflow publish\|archive\|restore`, `oh run`, `oh purge`, `oh project remove`, `oh teams remove`, `oh service remove`, `oh worktree cleanup` | |
 
 A former form stays accepted for one version: it does the same as the new one, prints a warning ("Option -p of oh serve is deprecated, use --port.") and is gone from the help. The short forms of `oh start`, `oh audit`, `oh review` and `oh debug` (deprecated aliases of `oh run`) follow the same rule.
+
+`--force` no longer skips a confirmation: that is `--yes`. On `oh purge`, `oh project remove`, `oh teams remove` and `oh service remove`, `--force` (and `-f`) is still accepted for one version as a deprecated alias of `--yes`: same effect, with a warning, gone from the help. `--force` stays only where it overrides a safety: `oh daemon stop` (stop even though sessions are running), `oh remote setup` (replace a hand-written `.gitlab-ci.yml`), `oh worktree remove` and `oh worktree cleanup` (also remove worktrees with uncommitted changes).
 
 **Opening a window.** One option, `--attach` (`auto`, `iterm`, `terminal`, `tmux`, `browser`, `suspend`, and `none` for `oh run`), in `oh run` as in `oh session attach`. The former name `--how` of `oh session attach` is still accepted (warning), and so is the value `here`, former synonym of `suspend`.
 

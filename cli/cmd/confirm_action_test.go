@@ -282,15 +282,15 @@ func TestProjectRemoveConfirmation(t *testing.T) {
 	})
 }
 
-// purge: --yes and --force skip every question (no backup is offered);
+// purge: --yes (and its deprecated alias --force) skip every question (no backup is offered);
 // without a terminal the purge is refused at the first question; with a
 // terminal the backup is asked first, then the final confirmation.
 func TestPurgeConfirmation(t *testing.T) {
 	newPurge := func(t *testing.T, args ...string) *cobra.Command {
 		t.Helper()
 		c := &cobra.Command{Use: "purge"}
-		c.Flags().Bool("force", false, "")
 		addYesFlag(c)
+		deprecateForceAsYes(c, false)
 		require.NoError(t, c.ParseFlags(args))
 		return c
 	}

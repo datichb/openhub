@@ -257,12 +257,12 @@ oh teams add --repo git@github.com:org/team-state.git --member-id alice
 Supprimer une équipe du hub ; les projets rattachés deviennent des projets sans équipe.
 
 ```
-oh teams remove [team-id] [-f]
+oh teams remove [team-id] [--yes]
 ```
 
 | Flag | Court | Type | Description |
 |------|-------|------|-------------|
-| `--force` | `-f` | bool | Supprimer sans confirmation |
+| `--yes` | `-y` | bool | Supprimer sans confirmation (obligatoire sans terminal). Anciens noms : `--force`, `-f` (dépréciés, même effet, avec un avertissement) |
 
 ### oh teams detach
 

@@ -15,8 +15,6 @@ import (
 )
 
 func projectRemoveCmd() *cobra.Command {
-	var force bool
-
 	cmd := &cobra.Command{
 		Use:     "remove [id]",
 		Aliases: []string{"rm"},
@@ -26,17 +24,15 @@ func projectRemoveCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := MustApp()
 			ctx := cmd.Context()
-			if yes, _ := cmd.Flags().GetBool("yes"); yes {
-				force = true // --yes and --force both skip the confirmation
-			}
+			yes, _ := cmd.Flags().GetBool("yes")
 
 			var projectID string
 			if len(args) > 0 {
 				projectID = args[0]
 			}
 
-			// ── Non-interactive path: arg provided + force ──
-			if projectID != "" && force {
+			// ── Non-interactive path: arg provided + --yes ──
+			if projectID != "" && yes {
 				project, err := a.Projects.Get(ctx, projectID)
 				if err != nil {
 					if errors.Is(err, domain.ErrNotFound) {
@@ -53,8 +49,8 @@ func projectRemoveCmd() *cobra.Command {
 				return nil
 			}
 
-			// ── Non-interactive with confirm (arg provided, no force) ──
-			if projectID != "" && !force {
+			// ── Non-interactive with confirm (arg provided, no --yes) ──
+			if projectID != "" && !yes {
 				project, err := a.Projects.Get(ctx, projectID)
 				if err != nil {
 					if errors.Is(err, domain.ErrNotFound) {
@@ -125,7 +121,7 @@ func projectRemoveCmd() *cobra.Command {
 				},
 				{
 					Label: "Confirm",
-					Skip:  force, // skip if --force
+					Skip:  yes, // skip if --yes
 					Form: func(_ *tview.Application, onDone func()) *tview.Form {
 						form := tview.NewForm()
 						form.AddCheckbox(
@@ -177,7 +173,7 @@ func projectRemoveCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().BoolVarP(&force, "force", "f", false, "Supprime sans confirmation")
 	addYesFlag(cmd)
+	deprecateForceAsYes(cmd, true)
 	return cmd
 }

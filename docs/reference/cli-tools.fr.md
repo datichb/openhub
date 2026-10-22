@@ -193,7 +193,7 @@ oh worktree remove [path]
 
 | Flag | Court | Type | Description |
 |------|-------|------|-------------|
-| `--force` | `-f` | bool | Forcer la suppression |
+| `--force` | `-f` | bool | Forcer la suppression, même si le worktree a des modifications non validées |
 
 **Exemple :**
 
@@ -215,13 +215,14 @@ oh worktree cleanup [options]
 | Flag | Court | Type | Description |
 |------|-------|------|-------------|
 | `--base` | `-b` | string | Branche de base (défaut : detection automatique) |
-| `--force` | `-f` | bool | Supprimer sans confirmation |
+| `--yes` | `-y` | bool | Supprimer sans confirmation (obligatoire sans terminal) ; les worktrees avec des modifications non validées sont ignorés |
+| `--force` | `-f` | bool | Supprimer aussi les worktrees avec des modifications non validées, sans confirmation |
 
 **Exemple :**
 
 ```bash
 oh worktree cleanup
-oh worktree cleanup -b develop --force
+oh worktree cleanup -b develop --yes
 ```
 
 ---

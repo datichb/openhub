@@ -250,7 +250,7 @@ oh mcp ls --json
 
 ### oh service (déprécié)
 
-`oh service`, `oh service setup` et `oh service remove` existent encore mais sont deprecies et masques de l'aide : utilisez `oh mcp status`, `oh mcp setup` et `oh mcp disable`. `oh service remove --project <projet>` supprime le jeton d'un projet (nom actuel et ancien nom de clé, jamais le jeton du hub) et oublie la clé enregistrée dans le projet.
+`oh service`, `oh service setup` et `oh service remove` existent encore mais sont deprecies et masques de l'aide : utilisez `oh mcp status`, `oh mcp setup` et `oh mcp disable`. `oh service remove --project <projet>` supprime le jeton d'un projet (nom actuel et ancien nom de clé, jamais le jeton du hub) et oublie la clé enregistrée dans le projet. `oh service remove` demande confirmation : `--yes` (`-y`) la saute (obligatoire sans terminal) ; `--force` et `-f` sont d'anciens noms dépréciés de `--yes`.
 
 ---
 
