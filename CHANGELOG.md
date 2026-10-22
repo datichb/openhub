@@ -9,6 +9,41 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Fixed — Bugs trouvés en simplifiant la suite de tests (lot modernisation tests)
+
+- **Boards d'équipe** : les étiquettes, les badges et les assignés des tickets s'affichent de nouveau. Écrits entre crochets, ils étaient pris pour des balises de couleur et disparaissaient. Les titres des tickets sont aussi échappés sur les boards de projet.
+- **`oh init`** : l'enregistrement d'une équipe n'écrase plus la première équipe de `hub.toml` (`Config.UpsertTeam`).
+- **Fan-out** :
+  - un arrêt juste après une fusion ne fait plus échouer à tort le fan-out ;
+  - les écritures du suivi ne sont plus avalées pendant un tour de correction ;
+  - une session enfant dont le lancement n'a pas pu être enregistré est arrêtée au lieu de rester orpheline.
+- **Réglages de la TUI** : une modification n'atteint plus la configuration avant l'enregistrement. La copie de travail partageait encore `execution.env_allow`, `limits.models`, `board.columns` et `enforced.models` avec l'original.
+- **Formulaire de lancement** : l'origine affichée est échappée avant d'être affichée.
+- **Couleurs** : les vues d'activité, de statut et de politiques, ainsi que les états vides du board d'équipe, prennent leurs couleurs dans le thème (et respectent donc `NO_COLOR`).
+
+### Changed — Suite de tests plus courte et plus rapide (lot modernisation tests)
+
+- **CI** :
+  - un seul passage de tests par système, avec `-race` et la couverture (il y en avait deux) ;
+  - le job d'intégration ne lance plus que les paquets qui ont des tests `integration` ;
+  - les nouveaux paquets d'outils de test sont classés pour Windows (testés ou exclus avec leur cause).
+- **Outils de test communs**, décrits dans le guide de contribution :
+  - `sqlitetest` (base de test et données de départ) ;
+  - `gittest` (dépôts et commits) ;
+  - `configtest` (dossier personnel isolé) ;
+  - `testutil/golden` (fichiers de référence, option `-update`) ;
+  - `i18ntest` (langue restaurée après chaque test) ;
+  - `bdtest` (tests du vrai `bd`).
+- **Suite simplifiée** :
+  - environ 460 tests de premier niveau en moins (2 963 → 2 505), par suppression des tests sans valeur et fusion en tables ;
+  - fixtures recopiées remplacées par les outils communs ;
+  - attentes fixes (`time.Sleep`) remplacées par des attentes d'événements ;
+  - tests indépendants exécutés en parallèle.
+- **Durées** (macOS, mêmes conditions) : suite `-short` 261 s → 107 s (−59 %), suite complète `-race` 974 s → 384 s (−61 %). `make test-durations` mesure la durée par paquet et par test.
+- **Couverture** : aucune baisse dans la suite complète. En `-short`, `internal/beads` passe de 65,7 % à 56,9 %, parce que les tests qui lancent le vrai `bd` ne tournent plus dans ce mode. Le paquet reste à 65,8 % dans la suite complète, celle de la CI.
+- **Tests instables corrigés** : `TestParallelScheduling` (evalrun), `TestWatchdog` (testenv), ordre de démarrage des enfants du fan-out, langue des messages qui fuyait d'un test à l'autre.
+- **Nettoyage** : le paquet inutilisé `internal/task` et la fonction `PadLines` (jamais appelée) sont retirés. Les troncatures de texte de la TUI coupent en caractères et non plus en octets.
+
 ### Fixed — CI : derniers échecs (lot ci-fix-2)
 
 - **Fan-out, correctif** : le pilote n'écrit plus rien après avoir prévenu la parente. Un tour de correction pouvait sinon être perdu, et un troisième tour était alors accepté au-delà de la limite de deux (`TestRequestFixGuards`).
