@@ -163,7 +163,7 @@ func TestLinuxBinaryUnpinnedVersionRefusedUnderStrictIsolation(t *testing.T) {
 }
 
 // With no table given, the one embedded in oh is used: a registry that
-// announces something else than the pinned 2.0.20 is refused.
+// announces something else than the pinned integrity is refused.
 func TestLinuxBinaryUsesTheEmbeddedPins(t *testing.T) {
 	reg, _, downloads := pinRegistry(t, "backdoored ELF")
 	tool := &LinuxTool{Ver: "2.0.20", CacheDir: t.TempDir(), Registry: reg}
@@ -175,7 +175,7 @@ func TestLinuxBinaryUsesTheEmbeddedPins(t *testing.T) {
 func TestPinnedIntegrityTable(t *testing.T) {
 	pins, err := PinnedIntegrity()
 	require.NoError(t, err)
-	require.Contains(t, pins, "2.0.20", "the version checked with this oh")
+	require.Contains(t, pins, RecommendedVersion(), "the version checked with this oh")
 	for ver, targets := range pins {
 		assert.NoError(t, CheckVersion("", ver), "%s is outside the supported opencode range: unpin it", ver)
 		for _, target := range []string{"linux-x64", "linux-x64-musl", "linux-arm64", "linux-arm64-musl"} {
@@ -195,6 +195,24 @@ func TestPinnedIntegrityTable(t *testing.T) {
 				assert.True(t, ok, "%s %s", ver, target)
 			}
 		}
+	}
+}
+
+// The recommended version (the one of the CI) is inside the supported range
+// and pinned for the four Linux targets: a bump of one without the other
+// would let oh download an unchecked package.
+func TestRecommendedVersionIsPinned(t *testing.T) {
+	rec := RecommendedVersion()
+	require.NotEmpty(t, rec, "opencode_recommended is missing from compatibility.json")
+	assert.NoError(t, CheckVersion("", rec), "the recommended version is outside the supported range")
+	assert.Equal(t, rec, SupportedRange("5.0.1").OpencodeRecommended, "the oh 5.0 entry and the default must agree")
+
+	pins, err := PinnedIntegrity()
+	require.NoError(t, err)
+	for _, target := range []string{"linux-x64", "linux-x64-musl", "linux-arm64", "linux-arm64-musl"} {
+		integrity, ok := pins.lookup(rec, target)
+		require.True(t, ok, "%s %s is not pinned", rec, target)
+		assert.NoError(t, checkIntegrity(integrity), "%s %s", rec, target)
 	}
 }
 

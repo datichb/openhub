@@ -19,7 +19,10 @@ var compatibilityJSON []byte
 type CompatRange struct {
 	OpencodeMin string `json:"opencode_min"`
 	OpencodeMax string `json:"opencode_max"`
-	Notes       string `json:"notes,omitempty"`
+	// OpencodeRecommended is the release oh is validated against: the one
+	// pinned (pinned_integrity.json) and installed by the CI.
+	OpencodeRecommended string `json:"opencode_recommended,omitempty"`
+	Notes               string `json:"notes,omitempty"`
 }
 
 type compatMatrix struct {
@@ -51,6 +54,12 @@ func SupportedRange(ohVersion string) CompatRange {
 		return r
 	}
 	return m.Default
+}
+
+// RecommendedVersion returns the opencode release this oh version is validated
+// against (the default range's: "dev" or an unknown version).
+func RecommendedVersion() string {
+	return SupportedRange("").OpencodeRecommended
 }
 
 // CheckVersion returns an *UnsupportedError when version is outside the

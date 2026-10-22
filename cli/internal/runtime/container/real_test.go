@@ -46,7 +46,7 @@ func realTool(t *testing.T) *opencodev2.LinuxTool {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return &opencodev2.LinuxTool{Ver: "2.0.20", CacheDir: filepath.Join(cache, "oh-container-tests")}
+	return &opencodev2.LinuxTool{Ver: opencodev2.RecommendedVersion(), CacheDir: filepath.Join(cache, "oh-container-tests")}
 }
 
 // TestRealImage builds a glibc and a musl project image with the real
@@ -90,7 +90,7 @@ func TestRealImage(t *testing.T) {
 					_, _ = ExecRunner{}.Run(context.Background(), e.CLI, e.Command("rmi", img.Ref, img.BaseRef)[1:]...)
 				})
 				out, err := ExecRunner{}.Run(context.Background(), e.CLI, e.Command("run", "--rm", img.Ref, "opencode", "--version")[1:]...)
-				if err != nil || !strings.Contains(string(out), "2.0.20") {
+				if err != nil || !strings.Contains(string(out), opencodev2.RecommendedVersion()) {
 					t.Fatalf("opencode --version: %s %v", out, err)
 				}
 				_, err = ExecRunner{}.Run(context.Background(), e.CLI, e.Command("run", "--rm", img.Ref, "bd", "show", "x")[1:]...)
