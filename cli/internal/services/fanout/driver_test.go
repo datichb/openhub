@@ -66,6 +66,11 @@ type fakeLauncher struct {
 	fixMerge bool
 	// onTell runs when the parent is told (nil = nothing), out of the lock.
 	onTell func()
+	// wg and quit: every fake session is over before the test removes its
+	// folders (Windows refuses to remove a repository a git process still
+	// writes in); quit stops the sessions still waiting for their peers.
+	wg   sync.WaitGroup
+	quit chan struct{}
 }
 
 func (l *fakeLauncher) Start(ctx context.Context, req LaunchRequest) (string, error) {
@@ -100,17 +105,25 @@ func (l *fakeLauncher) Start(ctx context.Context, req LaunchRequest) (string, er
 	l.mu.Unlock()
 	require.NoError(l.t, l.store.Create(ctx, &domain.Session{ID: id, ProjectID: "p1", Status: domain.SessionStatusRunning, State: domain.RunActive,
 		LaunchPath: req.Dir, Cost: cost, Fanout: req.Record, ParentSessionID: req.Parent.ID}))
+	l.wg.Add(1)
 	go func() {
+		defer l.wg.Done()
 		if (l.together > 0 || len(l.togetherTickets) > 0) && req.Record.Role == domain.RoleChild {
 			select {
 			case <-all:
+			case <-l.quit:
+				return
 			case <-time.After(runGuard):
 			}
 		}
 		if l.onWork != nil {
 			l.onWork(req)
 		}
-		time.Sleep(l.hold)
+		select {
+		case <-time.After(l.hold):
+		case <-l.quit:
+			return
+		}
 		switch req.Record.Role {
 		case domain.RoleChild:
 			if w, ok := l.work[req.Ticket]; ok {
@@ -205,7 +218,8 @@ func newFixture(t *testing.T, tickets ...string) *fixture {
 	f := &fixture{store: sqlite.NewSessionStore(st), project: project, passed: true, deps: map[string][]string{}, closed: map[string]bool{}}
 	f.wf = &sessionspec.WorkflowRuntime{ID: "implement-spec", Checkpoints: []sessionspec.CheckpointDef{{ID: "cp-plan", Mandatory: true}, {ID: "cp-merge", Mandatory: true}},
 		Fanout: &sessionspec.FanoutDef{Child: "ticket", Merge: "cp-merge", Parallel: 3, Merger: "merge-conflicts", Delegates: []string{"cp-2"}}}
-	f.launcher = &fakeLauncher{t: t, store: f.store, work: map[string][2]string{}}
+	f.launcher = &fakeLauncher{t: t, store: f.store, work: map[string][2]string{}, quit: make(chan struct{})}
+	t.Cleanup(func() { close(f.launcher.quit); f.launcher.wg.Wait() })
 	f.driver = &Driver{Sessions: f.store, Launcher: f.launcher, Poll: 20 * time.Millisecond, IdleTimeout: 400 * time.Millisecond,
 		Workflow: func(context.Context, string) (*sessionspec.WorkflowRuntime, domain.CheckpointState, error) {
 			st := domain.CheckpointState{}

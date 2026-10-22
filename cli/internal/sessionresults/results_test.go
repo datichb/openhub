@@ -137,7 +137,7 @@ func TestIdentifiersThatAreNotAFolderNameAreRefused(t *testing.T) {
 	// Results of something else, next to the sessions folder.
 	require.NoError(t, SaveSummary(root, Summary{SessionID: "other", Agent: "secret"}, "patch"))
 
-	for _, id := range []string{"", ".", "..", "../other", "../../x", "a/b", "a/../b", "/abs", `a\b`, `..\elsewhere`, "ses_a\x00"} {
+	for _, id := range []string{"", ".", "..", "../other", "../../x", "a/b", "a/../b", "/abs", `a\b`, `..\elsewhere`, "ses_a\x00", "a..", "...", "ses_a.", "ses_a "} {
 		_, _, err := Load(sessions, id)
 		require.ErrorIs(t, err, ErrInvalidID, "Load %q", id)
 		assert.NotErrorIs(t, err, ErrNoSnapshot, "Load %q", id)
@@ -158,7 +158,7 @@ func TestIdentifiersThatAreNotAFolderNameAreRefused(t *testing.T) {
 // Names that merely look unusual are still simple names.
 func TestUnusualButSimpleIdentifiersAreAccepted(t *testing.T) {
 	dir := t.TempDir()
-	for _, id := range []string{"ses_a", "ses-b.c", "..a", "a..", "...", "é"} {
+	for _, id := range []string{"ses_a", "ses-b.c", "..a", "a..b", "é"} {
 		r := result()
 		r.SessionID = id
 		require.NoError(t, Save(dir, r, at), id)
