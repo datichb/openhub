@@ -349,6 +349,7 @@ Restrictions des sessions, **désactivées par défaut** : sessions actives max,
 | `show` | `oh budget show [-p <projet>] [--json]` | Restrictions effectives avec leur origine, et dépenses du jour. `-p` : projet (défaut : celui du dossier courant) |
 | `set` | `oh budget set <restriction> <valeur> [-p <projet>]` | Règle une restriction du hub (`hub.toml [limits]`) ou, avec `-p`, d'un projet |
 | `unset` | `oh budget unset <restriction> [-p <projet>]` | Retire une restriction du hub ou d'un projet |
+| `report` | `oh budget report [--by project\|workflow] [--since <durée>] [--json]` | Dépenses (USD, jetons) par projet ou par workflow depuis une durée (`7d`, `12h` ; défaut `30d`, `0` = depuis toujours ; la période compte en jours). Lit le registre d'usage joint aux sessions : une session supprimée (`oh session delete`, `oh gc`) garde ses dépenses, sous « inconnu » pour le workflow (le projet vient du registre) ; une session d'avant les workflows aussi |
 | `raise` | `oh budget raise <session\|décision> [montant]` | Répond à une décision $ : ajoute le montant donné en USD au budget atteint, de la session ou du jour (défaut : le budget configuré une fois de plus) ; la session reprend dès que le budget couvre sa dépense : son état n'est plus « en attente » et une étape interrompue pendant la décision est relancée par une consigne de reprise d'oh |
 
 | Restriction | Valeur | Note |
@@ -368,6 +369,7 @@ oh budget set max_active_sessions 2 -p mon-app
 oh budget set models amazon-bedrock/eu.anthropic.claude-sonnet-4-5,amazon-bedrock/eu.anthropic.claude-haiku-4-5
 oh budget unset daily_budget_usd
 oh budget raise 7f3a 3
+oh budget report --by workflow --since 7d
 ```
 
 ---

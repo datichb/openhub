@@ -157,6 +157,14 @@ func v5ContainerRuntime(a *app.App) *container.Runtime {
 		CacheDir: filepath.Join(ohCacheDir(), "container")})
 }
 
+// usageStore is the usage ledger of the open database (nil without one).
+func usageStore() domain.UsageStore {
+	if store == nil {
+		return nil
+	}
+	return sqlite.NewUsageStore(store)
+}
+
 // newRunService wires the RunService for the current app.
 func newRunService(ctx context.Context, a *app.App) (*runsvc.Service, error) {
 	if store == nil {
