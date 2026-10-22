@@ -7,5 +7,5 @@ type BeadsConfig struct {
 	// (default: the changes are listed, then applied after a confirmation),
 	// auto (applied, untracked settings files of other tools left alone) or
 	// off. The commit of `bd init` is only undone with an explicit --yes.
-	ZeroImpact string `mapstructure:"zero_impact" toml:"zero_impact,omitempty"`
+	ZeroImpact string `toml:"zero_impact,omitempty"`
 }

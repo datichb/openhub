@@ -40,8 +40,8 @@ func TestLoad_IgnoresHubTomlOfWorkingDirectory(t *testing.T) {
 }
 
 // TestSaveAndLoad_Roundtrip verifies that saving a Config and reloading it
-// produces the same values. This catches tag mismatches between mapstructure
-// (used by Load/Viper) and toml (used by Save/go-toml).
+// produces the same values. This catches a field Save writes under a name
+// Load does not read back.
 func TestSaveAndLoad_Roundtrip(t *testing.T) {
 	tmpDir := configtest.Home(t)
 

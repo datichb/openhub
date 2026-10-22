@@ -25,11 +25,11 @@ import (
 
 // Limits is one level of restrictions (zero values = not set).
 type Limits struct {
-	MaxActiveSessions int      `mapstructure:"max_active_sessions" toml:"max_active_sessions,omitempty" json:"max_active_sessions,omitempty"`
-	SessionBudgetUSD  float64  `mapstructure:"session_budget_usd" toml:"session_budget_usd,omitempty" json:"session_budget_usd,omitempty"`
-	DailyBudgetUSD    float64  `mapstructure:"daily_budget_usd" toml:"daily_budget_usd,omitempty" json:"daily_budget_usd,omitempty"`
-	MemoryMB          int      `mapstructure:"memory_mb" toml:"memory_mb,omitempty" json:"memory_mb,omitempty"`
-	Models            []string `mapstructure:"models" toml:"models,omitempty" json:"models,omitempty"`
+	MaxActiveSessions int      `toml:"max_active_sessions,omitempty" json:"max_active_sessions,omitempty"`
+	SessionBudgetUSD  float64  `toml:"session_budget_usd,omitempty" json:"session_budget_usd,omitempty"`
+	DailyBudgetUSD    float64  `toml:"daily_budget_usd,omitempty" json:"daily_budget_usd,omitempty"`
+	MemoryMB          int      `toml:"memory_mb,omitempty" json:"memory_mb,omitempty"`
+	Models            []string `toml:"models,omitempty" json:"models,omitempty"`
 }
 
 // IsZero reports whether no restriction is set.
