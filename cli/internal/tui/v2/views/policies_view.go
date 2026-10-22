@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/gdamore/tcell/v2"
@@ -14,6 +12,8 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/gitutil"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/safego"
+	"github.com/datichb/openhub/cli/internal/services/policy"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
@@ -30,9 +30,26 @@ type policyTemplate struct {
 	Patterns    string // comma-separated
 	Scope       string
 	Max         string
+	Unit        string // kept as is when a policy is edited
 	Enforcement string
 	Message     string
 	Enabled     bool
+}
+
+// PolicyService is what the view needs to change the policies. Its calls
+// pull and push (network): the view runs them off the event loop.
+type PolicyService interface {
+	Add(ctx context.Context, name string, p teamstate.Policy) error
+	Update(ctx context.Context, name string, p teamstate.Policy) error
+	SetEnforcement(ctx context.Context, name string, e teamstate.PolicyEnforcement) error
+	Remove(ctx context.Context, name string) error
+}
+
+// PolicyServiceFunc builds the service of a team-state repository.
+type PolicyServiceFunc func(repo teamstate.TeamStateWriter) PolicyService
+
+func defaultPolicyService(repo teamstate.TeamStateWriter) PolicyService {
+	return policy.New(repo)
 }
 
 // builtinPolicyTemplates returns the list of available policy templates.
@@ -123,6 +140,7 @@ type PoliciesView struct {
 	page        *widgets.ListDetailPage
 	shell       ShellAccess
 	policies    []teamstate.Policy
+	newService  PolicyServiceFunc
 
 	// actionIndices maps SectionedList item indices to action callbacks.
 	actionIndices map[int]func()
@@ -135,7 +153,15 @@ var _ CommandProvider = (*PoliciesView)(nil)
 
 // NewPoliciesView creates a new policies view.
 func NewPoliciesView(resolveTeam ResolveTeamFunc, appCtx *app.App) *PoliciesView {
-	return &PoliciesView{resolveTeam: resolveTeam, appCtx: appCtx}
+	return &PoliciesView{resolveTeam: resolveTeam, appCtx: appCtx, newService: defaultPolicyService}
+}
+
+// SetPolicyService replaces the factory of the service that edits the
+// policies (tests, alternative backends).
+func (v *PoliciesView) SetPolicyService(f PolicyServiceFunc) {
+	if f != nil {
+		v.newService = f
+	}
 }
 
 // SetShell provides the shell reference for modal interactions.
@@ -539,25 +565,6 @@ func (v *PoliciesView) setEnforcement(policyIdx int, enforcement teamstate.Polic
 		return
 	}
 
-	pMap, err := v.loadPoliciesMap(repo)
-	if err != nil {
-		if v.shell != nil {
-			v.shell.ShowToastMsg(errorText(err), false)
-		}
-		return
-	}
-
-	updated := pMap[p.Name]
-	updated.Enforcement = enforcement
-	pMap[p.Name] = updated
-
-	if err := repo.SavePolicies(context.Background(), pMap); err != nil {
-		if v.shell != nil {
-			v.shell.ShowToastMsg(errorText(err), false)
-		}
-		return
-	}
-
 	var statusLabel string
 	switch enforcement {
 	case teamstate.EnforcementDisabled:
@@ -567,10 +574,42 @@ func (v *PoliciesView) setEnforcement(policyIdx int, enforcement teamstate.Polic
 	case teamstate.EnforcementRefuse:
 		statusLabel = i18n.T("tui.policies.status_refuse")
 	}
+	v.mutate(repo, func(ctx context.Context, svc PolicyService) error {
+		return svc.SetEnforcement(ctx, p.Name, enforcement)
+	}, i18n.Tf("tui.policies.status_changed", p.Name, statusLabel))
+}
+
+// mutate runs op on the policy service off the event loop (it pulls and
+// pushes the team-state), then, on the loop, shows the error or the success
+// toast and reloads the list. Without a running application (tests) it runs
+// inline.
+func (v *PoliciesView) mutate(repo teamstate.TeamStateWriter, op func(ctx context.Context, svc PolicyService) error, success string) {
+	svc := v.newService(repo)
+	ctx := context.Background()
 	if v.shell != nil {
-		v.shell.ShowToastMsg(i18n.Tf("tui.policies.status_changed", p.Name, statusLabel), true)
+		ctx = v.shell.Context()
 	}
-	v.refresh()
+	tvApp := v.app
+	done := func(err error) {
+		if v.shell != nil {
+			if err != nil {
+				v.shell.ShowToastMsg(errorText(err), false)
+			} else {
+				v.shell.ShowToastMsg(success, true)
+			}
+		}
+		if err == nil && v.app == tvApp {
+			v.refresh()
+		}
+	}
+	if tvApp == nil {
+		done(op(ctx, svc))
+		return
+	}
+	safego.Go(func() {
+		err := op(ctx, svc)
+		tvApp.QueueUpdateDraw(func() { done(err) })
+	})
 }
 
 // ── Edit policy ──────────────────────────────────────────────────────────────
@@ -610,6 +649,7 @@ func (v *PoliciesView) editPolicy(policyIdx int) {
 		Patterns:    strings.Join(p.Patterns, ", "),
 		Scope:       p.Scope,
 		Max:         "",
+		Unit:        p.Unit,
 		Enforcement: string(p.Enforcement),
 		Message:     p.Message,
 		Enabled:     p.Enabled,
@@ -649,33 +689,10 @@ func (v *PoliciesView) removePolicy(policyIdx int) {
 	}
 
 	v.shell.Confirm(i18n.Tf("tui.policies.confirm_delete", p.Name), i18n.T("tui.policies.delete_detail"), true, func() {
-		pMap, err := v.loadPoliciesMap(repo)
-		if err != nil {
-			v.shell.ShowToastMsg(errorText(err), false)
-			return
-		}
-		delete(pMap, p.Name)
-		if err := repo.SavePolicies(context.Background(), pMap); err != nil {
-			v.shell.ShowToastMsg(errorText(err), false)
-			return
-		}
-		v.shell.ShowToastMsg(i18n.Tf("tui.policies.deleted", p.Name), true)
-		v.refresh()
+		v.mutate(repo, func(ctx context.Context, svc PolicyService) error {
+			return svc.Remove(ctx, p.Name)
+		}, i18n.Tf("tui.policies.deleted", p.Name))
 	})
-}
-
-// ── Helper ───────────────────────────────────────────────────────────────────
-
-func (v *PoliciesView) loadPoliciesMap(repo teamstate.TeamStateWriter) (map[string]teamstate.Policy, error) {
-	policies, err := repo.LoadPolicies("")
-	if err != nil {
-		return nil, err
-	}
-	m := make(map[string]teamstate.Policy, len(policies))
-	for _, p := range policies {
-		m[p.Name] = p
-	}
-	return m, nil
 }
 
 // ── Check policies ───────────────────────────────────────────────────────────
@@ -844,8 +861,8 @@ func (v *PoliciesView) addPolicy() {
 // ── Policy form (create + edit) ──────────────────────────────────────────────
 
 // showPolicyForm displays the policy creation/edit form.
-// If editName is non-empty, this is an edit: load-modify-save via SavePolicies.
-// If editName is empty, this is a creation: append to policies.toml.
+// If editName is non-empty, this is an edit (Update); otherwise a creation
+// (Add). Both go through the policy service, off the event loop.
 func (v *PoliciesView) showPolicyForm(repo teamstate.TeamStateWriter, tpl *policyTemplate, editName string) {
 	defaultName := ""
 	defaultType := "regex"
@@ -920,26 +937,46 @@ func (v *PoliciesView) showPolicyForm(repo teamstate.TeamStateWriter, tpl *polic
 
 			var patterns []string
 			maxVal := 0
+			scope := ""
+			unit := ""
+			if tpl != nil {
+				scope, unit = tpl.Scope, tpl.Unit
+			}
 
 			switch pType {
 			case "forbidden_pattern":
 				patterns = splitTags(values["patterns"])
+				scope = values["scope"]
 			case "limit":
 				if _, err := fmt.Sscanf(values["max"], "%d", &maxVal); err != nil {
 					maxVal = 3
 				}
 			}
 
+			p := teamstate.Policy{
+				Type:        teamstate.PolicyType(pType),
+				Target:      target,
+				Patterns:    patterns,
+				Scope:       scope,
+				Unit:        unit,
+				Max:         maxVal,
+				Enabled:     pType == "boolean",
+				Enforcement: teamstate.PolicyEnforcement(enforcement),
+				Message:     message,
+			}
+			if pType == "regex" {
+				p.Rule = values["rule"]
+			}
+
 			if editName != "" {
-				// Edit mode: load → modify → save
-				v.savePolicyEdit(repo, editName, name, pType, target, enforcement, message,
-					values["rule"], patterns, values["scope"], maxVal,
-					tpl != nil && tpl.Enabled)
+				p.Name = name
+				v.mutate(repo, func(ctx context.Context, svc PolicyService) error {
+					return svc.Update(ctx, editName, p)
+				}, i18n.Tf("tui.policies.updated", name))
 			} else {
-				// Create mode: append to file
-				v.writePolicyToml(repo, name, pType, target, enforcement, message,
-					values["rule"], patterns, values["scope"], maxVal,
-					tpl != nil && tpl.Type == "boolean" && tpl.Enabled)
+				v.mutate(repo, func(ctx context.Context, svc PolicyService) error {
+					return svc.Add(ctx, name, p)
+				}, i18n.Tf("tui.policies.added", name))
 			}
 		},
 		OnCancel: nil,
@@ -969,108 +1006,6 @@ var policyScopeOptions = []SelectOption{
 	{Label: "diff_only", Value: "diff_only"},
 	{Label: "modified_files", Value: "modified_files"},
 	{Label: "all_files", Value: "all_files"},
-}
-
-// savePolicyEdit replaces an existing policy via load-modify-save.
-func (v *PoliciesView) savePolicyEdit(repo teamstate.TeamStateWriter, oldName, newName, pType, target, enforcement, message, rule string, patterns []string, scope string, maxVal int, enabledBool bool) {
-	pMap, err := v.loadPoliciesMap(repo)
-	if err != nil {
-		if v.shell != nil {
-			v.shell.ShowToastMsg(errorText(err), false)
-		}
-		return
-	}
-
-	// Remove old entry (handles rename)
-	delete(pMap, oldName)
-
-	// Build new policy
-	p := teamstate.Policy{
-		Type:        teamstate.PolicyType(pType),
-		Target:      target,
-		Rule:        rule,
-		Patterns:    patterns,
-		Scope:       scope,
-		Enforcement: teamstate.PolicyEnforcement(enforcement),
-		Message:     message,
-	}
-	if maxVal > 0 {
-		p.Max = maxVal
-	}
-	if pType == "boolean" || enabledBool {
-		p.Enabled = true
-	}
-
-	pMap[newName] = p
-
-	if err := repo.SavePolicies(context.Background(), pMap); err != nil {
-		if v.shell != nil {
-			v.shell.ShowToastMsg(errorText(err), false)
-		}
-		return
-	}
-
-	if v.shell != nil {
-		v.shell.ShowToastMsg(i18n.Tf("tui.policies.updated", newName), true)
-	}
-	v.refresh()
-}
-
-func (v *PoliciesView) writePolicyToml(repo teamstate.TeamStateWriter, name, pType, target, enforcement, message, rule string, patterns []string, scope string, maxVal int, enabledBool bool) {
-	var sb strings.Builder
-	fmt.Fprintf(&sb, "\n[policies.%s]\n", name)
-	fmt.Fprintf(&sb, "type = %q\n", pType)
-	if target != "" {
-		fmt.Fprintf(&sb, "target = %q\n", target)
-	}
-	if rule != "" {
-		fmt.Fprintf(&sb, "rule = %q\n", rule)
-	}
-	if len(patterns) > 0 {
-		fmt.Fprintf(&sb, "patterns = [%s]\n", quoteSlice(patterns))
-	}
-	if scope != "" {
-		fmt.Fprintf(&sb, "scope = %q\n", scope)
-	}
-	if maxVal > 0 {
-		fmt.Fprintf(&sb, "max = %d\n", maxVal)
-	}
-	if pType == "boolean" || enabledBool {
-		sb.WriteString("enabled = true\n")
-	}
-	fmt.Fprintf(&sb, "enforcement = %q\n", enforcement)
-	if message != "" {
-		fmt.Fprintf(&sb, "message = %q\n", message)
-	}
-
-	policiesPath := filepath.Join(repo.Path(), "policies.toml")
-	f, err := os.OpenFile(policiesPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
-	if err != nil {
-		if v.shell != nil {
-			v.shell.ShowToastMsg(errorText(err), false)
-		}
-		return
-	}
-	_, err = f.WriteString(sb.String())
-	f.Close()
-	if err != nil {
-		if v.shell != nil {
-			v.shell.ShowToastMsg(i18n.T("tui.policies.write_error")+": "+err.Error(), false)
-		}
-		return
-	}
-
-	if err := repo.CommitAndPush(context.Background(), fmt.Sprintf("policies: add %s", name), "policies.toml"); err != nil {
-		if v.shell != nil {
-			v.shell.ShowToastMsg(i18n.T("tui.policies.commit_error")+": "+err.Error(), false)
-		}
-		return
-	}
-
-	if v.shell != nil {
-		v.shell.ShowToastMsg(i18n.Tf("tui.policies.added", name), true)
-	}
-	v.refresh()
 }
 
 // ContextCommands implements CommandProvider.

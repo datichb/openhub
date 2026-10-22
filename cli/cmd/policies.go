@@ -4,8 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/rivo/tview"
@@ -13,6 +11,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/gitutil"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	policysvc "github.com/datichb/openhub/cli/internal/services/policy"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
@@ -387,58 +386,37 @@ func runPoliciesAdd(cmd *cobra.Command, args []string) error {
 		return wizResult.Err
 	}
 
-	// Build the TOML block to append
-	var block strings.Builder
-	fmt.Fprintf(&block, "\n[policies.%s]\n", name)
-	fmt.Fprintf(&block, "type = %q\n", policyType)
-
+	if policyType == "" {
+		policyType = policyTypes[0]
+	}
+	if enforcement == "" {
+		enforcement = enforcements[0]
+	}
+	pol := teamstate.Policy{
+		Type:        teamstate.PolicyType(policyType),
+		Enforcement: teamstate.PolicyEnforcement(enforcement),
+		Message:     message,
+	}
 	switch policyType {
 	case "regex":
-		fmt.Fprintf(&block, "rule = %q\n", rule)
+		pol.Rule = rule
 	case "forbidden_pattern":
-		parts := strings.Split(patterns, ",")
-		trimmed := make([]string, 0, len(parts))
-		for _, p := range parts {
+		for _, p := range strings.Split(patterns, ",") {
 			if t := strings.TrimSpace(p); t != "" {
-				trimmed = append(trimmed, fmt.Sprintf("%q", t))
+				pol.Patterns = append(pol.Patterns, t)
 			}
 		}
-		fmt.Fprintf(&block, "patterns = [%s]\n", strings.Join(trimmed, ", "))
-		if scope != "" {
-			fmt.Fprintf(&block, "scope = %q\n", scope)
-		}
+		pol.Scope = scope
 	case "limit":
-		fmt.Fprintf(&block, "max = %d\n", maxVal)
+		pol.Max = maxVal
 	case "boolean":
-		block.WriteString("enabled = true\n")
+		pol.Enabled = true
 	}
 
-	fmt.Fprintf(&block, "enforcement = %q\n", enforcement)
-	if message != "" {
-		fmt.Fprintf(&block, "message = %q\n", message)
-	}
-
-	// Append to policies.toml
-	policiesPath := filepath.Join(repo.Path(), "policies.toml")
-	f, err := openOrCreatePoliciesFile(policiesPath)
-	if err != nil {
-		return fmt.Errorf(i18n.T("cmd.policies.opening_policies_toml"), err)
-	}
-	if _, err := f.WriteString(block.String()); err != nil {
-		f.Close()
-		return fmt.Errorf(i18n.T("cmd.policies.writing_policy"), err)
-	}
-	f.Close()
-
-	// Commit and push
-	if err := repo.CommitAndPush(ctx, fmt.Sprintf("policies: add %s", name), "policies.toml"); err != nil {
-		return fmt.Errorf(i18n.T("cmd.policies.committing_policy"), err)
+	if err := policysvc.New(repo).Add(ctx, name, pol); err != nil {
+		return fmt.Errorf(i18n.T("cmd.policies.saving_policy"), err)
 	}
 
 	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.policies.policy_added", theme.SuccessStyle.Render(theme.IconSuccess), name))
 	return nil
-}
-
-func openOrCreatePoliciesFile(path string) (*os.File, error) {
-	return os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 }

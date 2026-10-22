@@ -493,11 +493,3 @@ func splitTags(s string) []string {
 	}
 	return tags
 }
-
-func quoteSlice(items []string) string {
-	quoted := make([]string, len(items))
-	for i, item := range items {
-		quoted[i] = fmt.Sprintf("%q", item)
-	}
-	return strings.Join(quoted, ", ")
-}
