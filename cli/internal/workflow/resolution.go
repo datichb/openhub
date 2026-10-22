@@ -253,6 +253,7 @@ func (r *Resolved) applySession(opts *SessionOptions) Diagnostics {
 	}
 	s := r.Spec
 	if opts.Mode != "" {
+		opts.Mode = CanonicalMode(opts.Mode)
 		if !containsStr(s.AllowedModes(), opts.Mode) {
 			add(errDiag("session_mode_not_allowed", "session.mode", opts.Mode, strings.Join(s.AllowedModes(), ", ")))
 		} else {

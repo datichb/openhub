@@ -236,7 +236,7 @@ CLI equivalent: `oh session approve --batch [--checkpoint …]`.
 ### Launching with an alias or an agent of `libre`
 
 - Type an alias in the palette: `secu` (security-fix), `perf` (benchmark), `dbg` (debug), `feedback` or `retours` (review-feedback), `cadrage` (spec). `feature` offers two lines: `run spec` and "run feature → implement-spec (with tickets)". The aliases come from the `aliases:` of the workflows and are valid for `oh run` too.
-- Free session with an agent: "Free session with an agent…" command (`coder.agent`), or the **Entry agent** field of the form of `libre`: the chosen agent starts the session (`oh run libre --agent debugger`).
+- Free session with an agent: "Free session with an agent…" command (`libre.agent`, former name `coder.agent`), or the **Entry agent** field of the form of `libre`: the chosen agent starts the session (`oh run libre --agent debugger`).
 
 ### Cleaning up
 
@@ -350,7 +350,7 @@ Fuzzy matching on names and aliases:
 |---------|-------------|
 | `run <workflow>` | launch form of a catalogue workflow; its `aliases:` too: `cadrage`, `feature` → `spec` (`feature` with tickets → `implement-spec`), `secu` → `security-fix`, `perf` → `benchmark`, `dbg` → `debug`, `feedback`, `retours` → `review-feedback` |
 | `run <workflow> ⟨bd-42⟩` | from a board: workflow on the selected ticket |
-| `coder`, `coder.agent` | Free session (`libre` workflow); "Free session with an agent…" chooses the entry agent first — Project and Team modes |
+| `libre`, `libre.agent` (former names `coder`, `coder.agent`, still accepted) | Free session (`libre` workflow); "Free session with an agent…" chooses the entry agent first — Project and Team modes |
 | `sessions` | Sessions view (aliases `parallel`, `inbox`) |
 | `workflows` | workflow catalogue (aliases `catalogue`, `wf`) |
 | `bricks` | brick catalogue |

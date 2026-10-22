@@ -135,6 +135,7 @@ func Parse(data []byte, src Source) (*Document, Diagnostics) {
 		diags = append(diags, d)
 	}
 
+	diags = append(diags, doc.canonicalModes()...)
 	s := doc.Spec
 	switch {
 	case !doc.Has("apiVersion"):

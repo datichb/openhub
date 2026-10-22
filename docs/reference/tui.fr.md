@@ -123,8 +123,8 @@ La colonne Commande donne l'identifiant ; on peut taper le libellé ou un alias.
 |----------|-------|------|-------------|
 | `run.<workflow>` | l'id du workflow et ses `aliases:` : `cadrage`, `feature` (→ `spec`), `secu` (→ `security-fix`), `perf` (→ `benchmark`), `dbg` (→ `debug`), `feedback`, `retours` (→ `review-feedback`) | — | Fiche de lancement du workflow (une commande par workflow du catalogue) |
 | `run.feature.implement-spec` | « run feature → implement-spec (avec tickets) » | — | Fiche d'`implement-spec` sous l'alias `feature` avec des tickets |
-| `coder` | session, code, free | Projet/Équipe | Fiche de `libre` (agent par défaut `orchestrator`) |
-| `coder.agent` | libre agent, free agent, session agent | Projet/Équipe | « Session libre avec un agent… » : choisir l'agent d'entrée, puis la fiche |
+| `libre` | coder, session, code, free | Projet/Équipe | Fiche de `libre` (agent par défaut `orchestrator`) |
+| `libre.agent` | coder.agent, libre agent, free agent, session agent | Projet/Équipe | « Session libre avec un agent… » : choisir l'agent d'entrée, puis la fiche |
 | `sessions` | parallel, par, multi, inbox, à traiter, decisions | — | Vue Sessions |
 | `workflows` | catalogue, catalog, wf, workflow | — | Catalogue des workflows |
 | `bricks` | briques, agents, skills, catalogue des briques | — | Briques (agents et skills) |

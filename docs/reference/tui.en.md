@@ -123,8 +123,8 @@ The Command column gives the id; the label or an alias can be typed too. Each te
 |---------|---------|------|-------------|
 | `run.<workflow>` | the id of the workflow and its `aliases:`: `cadrage`, `feature` (→ `spec`), `secu` (→ `security-fix`), `perf` (→ `benchmark`), `dbg` (→ `debug`), `feedback`, `retours` (→ `review-feedback`) | — | Launch form of the workflow (one command per workflow of the catalogue) |
 | `run.feature.implement-spec` | « run feature → implement-spec (with tickets) » | — | Form of `implement-spec` under the alias `feature` with tickets |
-| `coder` | session, code, free | Project/Team | Form of `libre` (default agent `orchestrator`) |
-| `coder.agent` | libre agent, free agent, session agent | Project/Team | « Free session with an agent… »: choose the entry agent, then the form |
+| `libre` | coder, session, code, free | Project/Team | Form of `libre` (default agent `orchestrator`) |
+| `libre.agent` | coder.agent, libre agent, free agent, session agent | Project/Team | « Free session with an agent… »: choose the entry agent, then the form |
 | `sessions` | parallel, par, multi, inbox, à traiter, decisions | — | Sessions view |
 | `workflows` | catalogue, catalog, wf, workflow | — | Workflow catalogue |
 | `bricks` | briques, agents, skills, catalogue des briques | — | Bricks (agents and skills) |

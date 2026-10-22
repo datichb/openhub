@@ -161,7 +161,7 @@ limits:
 | `entry.agent` | texte | id d'agent du catalogue, primaire | `conductor` | remplace le bloc `entry` |
 | `entry.selectable` | booléen | `true`, `false` | `false` | à écrire avec `entry.agent` |
 | `modes.default` | texte | un mode de `modes.allowed` | premier mode autorisé | remplace |
-| `modes.allowed` | liste | `manuel`, `semi-auto`, `auto`, ou modes propres | `[manuel, semi-auto, auto]` | durcit (sous-ensemble du parent ; une liste vide vaut tous les modes) |
+| `modes.allowed` | liste | `manuel` (`manual` est lu comme `manuel`), `semi-auto`, `auto`, ou modes propres | `[manuel, semi-auto, auto]` | durcit (sous-ensemble du parent ; une liste vide vaut tous les modes) |
 | `circuit_breaker.max_consecutive_subagents` | entier ≥ 0 | N délégations de suite sans interaction | `0` (coupe-circuit désactivé) | durcit (valeur plus basse ; `0` ne remplace pas un coupe-circuit actif) |
 
 ### `entry`

@@ -236,7 +236,7 @@ Sur une ligne « À récupérer » : compte rendu (artefacts, import de la sessi
 ### Lancer avec un alias ou un agent de `libre`
 
 - Tapez un alias dans la palette : `secu` (security-fix), `perf` (benchmark), `dbg` (debug), `feedback` ou `retours` (review-feedback), `cadrage` (spec). `feature` propose deux lignes : `run spec` et « run feature → implement-spec (avec tickets) ». Les alias viennent des `aliases:` des workflows et valent aussi pour `oh run`.
-- Session libre avec un agent : commande « Session libre avec un agent… » (`coder.agent`), ou le champ **Agent d'entrée** de la fiche de `libre` : l'agent choisi démarre la session (`oh run libre --agent debugger`).
+- Session libre avec un agent : commande « Session libre avec un agent… » (`libre.agent`, ancien nom `coder.agent`), ou le champ **Agent d'entrée** de la fiche de `libre` : l'agent choisi démarre la session (`oh run libre --agent debugger`).
 
 ### Nettoyer
 
@@ -350,7 +350,7 @@ Fuzzy matching sur les noms et les alias :
 |----------|-------------|
 | `run <workflow>` | fiche de lancement d'un workflow du catalogue ; ses `aliases:` aussi : `cadrage`, `feature` → `spec` (`feature` avec tickets → `implement-spec`), `secu` → `security-fix`, `perf` → `benchmark`, `dbg` → `debug`, `feedback`, `retours` → `review-feedback` |
 | `run <workflow> ⟨bd-42⟩` | depuis un board : workflow sur le ticket sélectionné |
-| `coder`, `coder.agent` | Session libre (workflow `libre`) ; « Session libre avec un agent… » choisit d'abord l'agent d'entrée — modes Projet et Équipe |
+| `libre`, `libre.agent` (anciens noms `coder`, `coder.agent`, toujours acceptés) | Session libre (workflow `libre`) ; « Session libre avec un agent… » choisit d'abord l'agent d'entrée — modes Projet et Équipe |
 | `sessions` | vue Sessions (alias `parallel`, `inbox`) |
 | `workflows` | catalogue des workflows (alias `catalogue`, `wf`) |
 | `bricks` | catalogue des briques |

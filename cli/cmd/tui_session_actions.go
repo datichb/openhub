@@ -14,7 +14,7 @@ const freeWorkflow = "libre"
 
 // actionFreeSession opens the launch form of the `libre` workflow (free
 // session; the form offers the entry agents of the workflow, its default
-// one first: `oh run libre --agent <id>`). Used by the "coder" omnibar
+// one first: `oh run libre --agent <id>`). Used by the "libre" omnibar
 // command and the « Démarrer » fallback.
 func actionFreeSession() {
 	openFreeSession("")

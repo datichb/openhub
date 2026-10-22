@@ -21,7 +21,7 @@ type Member struct {
 	// Empty = fallback to GitLabUsername.
 	TrackerUsername string `toml:"tracker_username,omitempty"`
 	Role            string `toml:"role"`         // lead | dev | reviewer
-	DefaultMode     string `toml:"default_mode"` // manual | semi-auto | auto
+	DefaultMode     string `toml:"default_mode"` // manuel (or manual) | semi-auto | auto
 }
 
 // membersFile is the TOML structure of members.toml.

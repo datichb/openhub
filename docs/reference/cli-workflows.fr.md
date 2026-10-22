@@ -19,7 +19,7 @@ oh run [workflow] [-i clé=valeur]… [--tickets a,b] [--one-session] [--mode <m
 | `--message` | `-m` | string | | Demande : raccourci de `-i request=…`, si le workflow a une entrée `request` |
 | `--tickets` | | liste (virgules) | | Tickets Beads (une session par ticket si le workflow le permet) |
 | `--one-session` | | bool | `false` | Tous les tickets dans une seule session |
-| `--mode` | | string | mode par défaut du workflow | `manuel`, `semi-auto` ou `auto` |
+| `--mode` | | string | mode par défaut du workflow | `manuel`, `semi-auto` ou `auto` (`manual` est lu comme `manuel`, aussi dans `modes:` et les clés `mode:` des checkpoints d'un workflow) |
 | `--runtime` | | string | voir ci-dessous | `local`, `container` ou `remote` |
 | `--location` | | string | `base` | `base`, `new` (nouveau worktree) ou chemin d'un worktree existant |
 | `--allow-dirty` | | bool | `false` | Lancer quand même une session qui écrit dans un dossier modifié |

@@ -29,7 +29,7 @@ func TestBuildCommands(t *testing.T) {
 		ids[cmd.ID] = true
 	}
 
-	assert.True(t, ids["coder"], "should have coder command (replaces start/quick)")
+	assert.True(t, ids["libre"], "should have libre command (replaces start/quick; coder is its alias)")
 	assert.True(t, ids["settings"], "should have settings command")
 	assert.True(t, ids["doctor"], "should have doctor command")
 	assert.True(t, ids["quit"], "should have quit command")

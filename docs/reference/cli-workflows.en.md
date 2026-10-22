@@ -19,7 +19,7 @@ oh run [workflow] [-i key=value]… [--tickets a,b] [--one-session] [--mode <mod
 | `--message` | `-m` | string | | Request: short for `-i request=…`, when the workflow has a `request` input |
 | `--tickets` | | list (commas) | | Beads tickets (one session per ticket when the workflow allows it) |
 | `--one-session` | | bool | `false` | Every ticket in a single session |
-| `--mode` | | string | workflow default mode | `manuel`, `semi-auto` or `auto` |
+| `--mode` | | string | workflow default mode | `manuel`, `semi-auto` or `auto` (`manual` is read as `manuel`, also in `modes:` and in the `mode:` keys of the checkpoints of a workflow) |
 | `--runtime` | | string | see below | `local`, `container` or `remote` |
 | `--location` | | string | `base` | `base`, `new` (new worktree) or the path of an existing worktree |
 | `--allow-dirty` | | bool | `false` | Launch a writing session in a directory with uncommitted changes anyway |
