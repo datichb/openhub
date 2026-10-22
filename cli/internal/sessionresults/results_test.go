@@ -126,3 +126,44 @@ func TestSnapshotFilesAreOwnerOnly(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, os.FileMode(0o700), fi.Mode().Perm())
 }
+
+// An id that is not a simple name never leaves <sessions>/<id>: Load, which
+// gets ids typed on the command line, and the saves refuse it and touch
+// nothing outside the sessions folder.
+func TestIdentifiersThatAreNotAFolderNameAreRefused(t *testing.T) {
+	root := t.TempDir()
+	sessions := filepath.Join(root, "sessions")
+	require.NoError(t, os.MkdirAll(sessions, 0o700))
+	// Results of something else, next to the sessions folder.
+	require.NoError(t, SaveSummary(root, Summary{SessionID: "other", Agent: "secret"}, "patch"))
+
+	for _, id := range []string{"", ".", "..", "../other", "../../x", "a/b", "a/../b", "/abs", `a\b`, `..\elsewhere`, "ses_a\x00"} {
+		_, _, err := Load(sessions, id)
+		require.ErrorIs(t, err, ErrInvalidID, "Load %q", id)
+		assert.NotErrorIs(t, err, ErrNoSnapshot, "Load %q", id)
+
+		r := result()
+		r.SessionID = id
+		if id != "" {
+			require.ErrorIs(t, Save(sessions, r, at), ErrInvalidID, "Save %q", id)
+			require.ErrorIs(t, SaveSummary(sessions, Summary{SessionID: id}, ""), ErrInvalidID, "SaveSummary %q", id)
+		}
+	}
+	entries, err := os.ReadDir(sessions)
+	require.NoError(t, err)
+	assert.Empty(t, entries, "nothing was written in the sessions folder")
+	assert.NoFileExists(t, filepath.Join(root, "results", "summary.json"))
+}
+
+// Names that merely look unusual are still simple names.
+func TestUnusualButSimpleIdentifiersAreAccepted(t *testing.T) {
+	dir := t.TempDir()
+	for _, id := range []string{"ses_a", "ses-b.c", "..a", "a..", "...", "é"} {
+		r := result()
+		r.SessionID = id
+		require.NoError(t, Save(dir, r, at), id)
+		sum, _, err := Load(dir, id)
+		require.NoError(t, err, id)
+		assert.Equal(t, id, sum.SessionID)
+	}
+}

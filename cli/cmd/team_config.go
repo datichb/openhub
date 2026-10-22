@@ -13,6 +13,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/fsutil"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/mcpresolve"
 	"github.com/datichb/openhub/cli/internal/teamstate"
@@ -936,13 +937,8 @@ func writeLocal(configPath, keyPath, value string) error {
 	if err != nil {
 		return fmt.Errorf(i18n.T("cmd.team_config.marshaling_toml"), err)
 	}
-	tmpFile := configPath + ".tmp"
-	if err := os.WriteFile(tmpFile, out, 0o600); err != nil {
-		return fmt.Errorf("writing %s: %w", tmpFile, err)
-	}
-	if err := os.Rename(tmpFile, configPath); err != nil {
-		os.Remove(tmpFile)
-		return fmt.Errorf("renaming %s: %w", tmpFile, err)
+	if err := fsutil.WriteFileAtomic(configPath, out, 0o600); err != nil {
+		return fmt.Errorf("writing %s: %w", configPath, err)
 	}
 	fmt.Printf("  %s mis à jour: %s = %s\n", configPath, keyPath, value)
 	return nil

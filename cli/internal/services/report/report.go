@@ -25,6 +25,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/fsutil"
 )
 
 // Limits of the reports.
@@ -243,22 +244,7 @@ func (s *Service) write(sessionID string, seq int, body string) error {
 		return err
 	}
 	_ = os.Chmod(dir, 0o700)
-	tmp, err := os.CreateTemp(dir, ".rp-*")
-	if err != nil {
-		return err
-	}
-	name := tmp.Name()
-	_, werr := tmp.WriteString(body)
-	cerr := tmp.Close()
-	if err := errors.Join(werr, cerr, os.Chmod(name, 0o600)); err != nil {
-		os.Remove(name)
-		return err
-	}
-	if err := os.Rename(name, s.path(sessionID, seq)); err != nil {
-		os.Remove(name)
-		return err
-	}
-	return nil
+	return fsutil.WriteFileAtomic(s.path(sessionID, seq), []byte(body), 0o600)
 }
 
 // List returns the reports of a session, oldest first.

@@ -122,21 +122,50 @@ func textOf(res *protocol.ToolResult, err error) (string, error) {
 	return res.Content[0].Text, nil
 }
 
-// An identifier cannot leave its path segment: a slash or a query separator
-// in a file key is escaped, so the request stays on /v1/files/<one segment>.
-func TestIdentifiersStayInTheirPathSegment(t *testing.T) {
-	ctx := context.Background()
+// A node id cannot add a parameter to the query.
+func TestNodeIDStaysInItsParameter(t *testing.T) {
 	f := newFakeFigma(t, nil)
-	_, err := handleGetFile(ctx, params(t, map[string]any{"file_key": "a/b?x=1#y"}))
-	require.NoError(t, err)
-	_, err = handleGetNode(ctx, params(t, map[string]any{"file_key": "k", "node_id": "1:2&ids=3"}))
+	_, err := handleGetNode(context.Background(), params(t, map[string]any{"file_key": "k", "node_id": "1:2&ids=3"}))
 	require.NoError(t, err)
 
 	reqs := f.requests()
-	require.Len(t, reqs, 2)
-	assert.Equal(t, "/v1/files/a%2Fb%3Fx=1%23y", reqs[0].Path)
-	assert.Empty(t, reqs[0].RawQuery)
-	assert.Equal(t, "ids=1%3A2%26ids%3D3", reqs[1].RawQuery, "a node id cannot add a parameter")
+	require.Len(t, reqs, 1)
+	assert.Equal(t, "ids=1%3A2%26ids%3D3", reqs[0].RawQuery)
+}
+
+// A file key that is not a key reaches no resource: ".." would climb one
+// segment of the path (url.PathEscape leaves it as it is), a slash or a
+// query separator would leave the segment. No request is sent.
+func TestTrappedFileKeysSendNoRequest(t *testing.T) {
+	ctx := context.Background()
+	trapped := []string{
+		"", ".", "..", "...", "../styles", "a/b", "a/../b", "a?x=1", "a#y", "a%2F..", "%2e%2e", "a b", " a", "a\n",
+		"a\\b", "a.b", "a\x00", "é", "a:b", "http://evil.example/x", strings.Repeat("a", 129),
+	}
+	tools := map[string]func(json.RawMessage) error{
+		"get_file":   func(a json.RawMessage) error { _, err := handleGetFile(ctx, a); return err },
+		"get_node":   func(a json.RawMessage) error { _, err := handleGetNode(ctx, a); return err },
+		"get_styles": func(a json.RawMessage) error { _, err := handleGetStyles(ctx, a); return err },
+	}
+	f := newFakeFigma(t, nil)
+	for _, key := range trapped {
+		for name, call := range tools {
+			err := call(params(t, map[string]any{"file_key": key, "node_id": "1:2"}))
+			require.Error(t, err, "%s %q", name, key)
+			assert.Contains(t, err.Error(), "invalid file key", "%s %q", name, key)
+		}
+	}
+	assert.Empty(t, f.requests(), "no request reached Figma")
+}
+
+// The keys Figma gives (letters, digits, "-" and "_") go through.
+func TestValidFileKeysAreAccepted(t *testing.T) {
+	f := newFakeFigma(t, nil)
+	for _, key := range []string{"k", "AbC123", "a-b_c", "0", strings.Repeat("a", 128)} {
+		_, err := handleGetFile(context.Background(), params(t, map[string]any{"file_key": key}))
+		require.NoError(t, err, "%q", key)
+	}
+	assert.Len(t, f.requests(), 5)
 }
 
 // Without a token no request leaves; an unreadable argument is refused.

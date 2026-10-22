@@ -58,10 +58,26 @@ func FromResult(r adapters.SessionResult, at time.Time) Summary {
 
 func dir(sessionsDir, id string) string { return filepath.Join(sessionsDir, id, "results") }
 
+// ErrInvalidID is returned for a session id that is not a simple folder name.
+var ErrInvalidID = errors.New("invalid session id")
+
+// checkID refuses an id that would leave <sessionsDir>/<id>: empty, "." or
+// "..", or holding a path separator or a NUL byte. Load gets ids typed on the
+// command line.
+func checkID(id string) error {
+	if id == "" || id == "." || id == ".." || strings.ContainsAny(id, "/\\\x00") {
+		return fmt.Errorf("%w: %q", ErrInvalidID, id)
+	}
+	return nil
+}
+
 // Save writes summary.json and diff.patch (owner-only).
 func Save(sessionsDir string, r adapters.SessionResult, at time.Time) error {
 	if sessionsDir == "" || r.SessionID == "" {
 		return errors.New("sessionresults: sessions dir and session id are required")
+	}
+	if err := checkID(r.SessionID); err != nil {
+		return err
 	}
 	return SaveSummary(sessionsDir, FromResult(r, at), Patch(r.Changes))
 }
@@ -70,6 +86,9 @@ func Save(sessionsDir string, r adapters.SessionResult, at time.Time) error {
 func SaveSummary(sessionsDir string, sum Summary, patch string) error {
 	if sessionsDir == "" || sum.SessionID == "" {
 		return errors.New("sessionresults: sessions dir and session id are required")
+	}
+	if err := checkID(sum.SessionID); err != nil {
+		return err
 	}
 	d := dir(sessionsDir, sum.SessionID)
 	if err := os.MkdirAll(d, 0o700); err != nil {
@@ -108,6 +127,9 @@ func Load(sessionsDir, id string) (Summary, string, error) {
 	var s Summary
 	if sessionsDir == "" {
 		return s, "", ErrNoSnapshot
+	}
+	if err := checkID(id); err != nil {
+		return s, "", err
 	}
 	data, err := os.ReadFile(filepath.Join(dir(sessionsDir, id), "summary.json"))
 	if errors.Is(err, os.ErrNotExist) {

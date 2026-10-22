@@ -118,15 +118,42 @@ func textOf(res *protocol.ToolResult, err error) (string, error) {
 	return res.Content[0].Text, nil
 }
 
-// An identifier cannot leave its path segment.
-func TestIdentifiersStayInTheirPathSegment(t *testing.T) {
+// A slide id keeps to its path segment: the ":" object ids may hold is legal.
+func TestSlideIDWithColonIsAccepted(t *testing.T) {
 	f := newFakeSlides(t, nil)
-	_, err := handleGetSlide(context.Background(), params(t, map[string]any{"presentation_id": "a/b", "slide_id": "x?y#z"}))
+	_, err := handleGetSlide(context.Background(), params(t, map[string]any{"presentation_id": "p", "slide_id": "SLIDES_API1:2-3"}))
 	require.NoError(t, err)
 	reqs := f.requests()
 	require.Len(t, reqs, 1)
-	assert.Equal(t, "/v1/presentations/a%2Fb/pages/x%3Fy%23z", reqs[0].Path)
+	assert.Equal(t, "/v1/presentations/p/pages/SLIDES_API1:2-3", reqs[0].Path)
 	assert.Empty(t, reqs[0].RawQuery)
+}
+
+// An identifier that is not one reaches no resource: ".." would climb one
+// segment of the path (url.PathEscape leaves it as it is), a slash or a query
+// separator would leave the segment. No request is sent.
+func TestTrappedIdentifiersSendNoRequest(t *testing.T) {
+	ctx := context.Background()
+	trapped := []string{
+		"", ".", "..", "...", "../x", "a/b", "a/../b", "a?x=1", "a#y", "a%2F..", "%2e%2e", "a b", " a", "a\n",
+		"a\\b", "a.b", "a\x00", "é", "http://evil.example/x", strings.Repeat("a", 129),
+	}
+	f := newFakeSlides(t, nil)
+	for _, id := range trapped {
+		_, err := handleGetPresentation(ctx, params(t, map[string]any{"presentation_id": id}))
+		require.Error(t, err, "get_presentation %q", id)
+		assert.Contains(t, err.Error(), "invalid presentation id", "%q", id)
+
+		_, err = handleGetSlide(ctx, params(t, map[string]any{"presentation_id": id, "slide_id": "g1"}))
+		require.Error(t, err, "get_slide presentation %q", id)
+		assert.Contains(t, err.Error(), "invalid presentation id", "%q", id)
+	}
+	for _, id := range append([]string{":a"}, trapped...) {
+		_, err := handleGetSlide(ctx, params(t, map[string]any{"presentation_id": "p", "slide_id": id}))
+		require.Error(t, err, "get_slide slide %q", id)
+		assert.Contains(t, err.Error(), "invalid slide id", "%q", id)
+	}
+	assert.Empty(t, f.requests(), "no request reached Google Slides")
 }
 
 // Without a token no request leaves; an unreadable argument is refused.

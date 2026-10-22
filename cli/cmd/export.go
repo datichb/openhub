@@ -19,6 +19,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/fsutil"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 )
@@ -292,9 +293,7 @@ func runImport(cmd *cobra.Command, args []string) error {
 		if !ok {
 			continue
 		}
-		// Atomic write via temp file
-		tmp := dest + ".import-tmp"
-		if err := os.WriteFile(tmp, data, 0o600); err != nil {
+		if err := fsutil.WriteFileAtomic(dest, data, 0o600); err != nil {
 			return fmt.Errorf("écriture %s: %w", name, err)
 		}
 		if name == "oh.db" {
@@ -302,10 +301,6 @@ func runImport(cmd *cobra.Command, args []string) error {
 			// restored one.
 			_ = os.Remove(dest + "-wal")
 			_ = os.Remove(dest + "-shm")
-		}
-		if err := os.Rename(tmp, dest); err != nil {
-			os.Remove(tmp)
-			return fmt.Errorf("finalisation %s: %w", name, err)
 		}
 		fmt.Fprintf(a.IO.Out, "  Restauré: %s\n", name)
 	}

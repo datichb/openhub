@@ -32,6 +32,7 @@ import (
 	"golang.org/x/crypto/argon2"
 
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/fsutil"
 )
 
 const (
@@ -253,37 +254,14 @@ func (s *Store) save() error {
 	buf = append(buf, nonce...)
 	buf = append(buf, ciphertext...)
 
-	// Atomic write: write to temp file then rename
+	// Atomic write (temp file, fsync, rename)
 	dir := filepath.Dir(s.path)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return fmt.Errorf("filecrypt: creating directory: %w", err)
 	}
 
-	tmp, err := os.CreateTemp(dir, ".secrets-*.tmp")
-	if err != nil {
-		return fmt.Errorf("filecrypt: creating temp file: %w", err)
-	}
-	tmpName := tmp.Name()
-
-	if _, err := tmp.Write(buf); err != nil {
-		tmp.Close()
-		os.Remove(tmpName)
-		return fmt.Errorf("filecrypt: writing temp file: %w", err)
-	}
-	if err := tmp.Close(); err != nil {
-		os.Remove(tmpName)
-		return fmt.Errorf("filecrypt: closing temp file: %w", err)
-	}
-
-	// Restrictive permissions before rename
-	if err := os.Chmod(tmpName, 0o600); err != nil {
-		os.Remove(tmpName)
-		return fmt.Errorf("filecrypt: setting permissions: %w", err)
-	}
-
-	if err := os.Rename(tmpName, s.path); err != nil {
-		os.Remove(tmpName)
-		return fmt.Errorf("filecrypt: renaming temp file: %w", err)
+	if err := fsutil.WriteFileAtomic(s.path, buf, 0o600); err != nil {
+		return fmt.Errorf("filecrypt: writing secrets: %w", err)
 	}
 
 	return nil

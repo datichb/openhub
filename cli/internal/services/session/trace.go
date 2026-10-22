@@ -16,6 +16,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/bricks"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/fsutil"
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/wildcard"
@@ -318,10 +319,7 @@ func (s *Service) saveTranscript(sessionID string, entries []adapters.Transcript
 	if err != nil {
 		return
 	}
-	tmp := filepath.Join(dir, transcriptFile+".tmp")
-	if os.WriteFile(tmp, data, 0o600) == nil {
-		_ = os.Rename(tmp, filepath.Join(dir, transcriptFile))
-	}
+	_ = fsutil.WriteFileAtomic(filepath.Join(dir, transcriptFile), data, 0o600)
 }
 
 // fillDecisionAgents names the agent of the decisions that do not tell it:

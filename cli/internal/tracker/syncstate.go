@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/datichb/openhub/cli/internal/fsutil"
 )
 
 // SyncState persists the last-sync timestamp and known ticket IDs locally so that
@@ -71,12 +73,10 @@ func (s *SyncState) Save(stateDir string) error {
 		return fmt.Errorf("marshaling sync state: %w", err)
 	}
 	path := filepath.Join(stateDir, "sync-state.json")
-	// Write to temp then rename for atomicity.
-	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, data, 0o600); err != nil {
+	if err := fsutil.WriteFileAtomic(path, data, 0o600); err != nil {
 		return fmt.Errorf("writing sync state: %w", err)
 	}
-	return os.Rename(tmp, path)
+	return nil
 }
 
 // LastSync returns the last sync time for (type, projectID), or zero time if unknown.
