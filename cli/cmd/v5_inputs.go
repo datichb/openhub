@@ -61,7 +61,7 @@ func githubRemote(ctx context.Context, dir string) string {
 		return ""
 	}
 	gr, err := config.ParseGitRemote(string(out))
-	if err != nil || !(gr.Host == "github.com" || strings.HasPrefix(gr.Host, "github.")) {
+	if err != nil || (gr.Host != "github.com" && !strings.HasPrefix(gr.Host, "github.")) {
 		return ""
 	}
 	return gr.Host + "/" + gr.Path
