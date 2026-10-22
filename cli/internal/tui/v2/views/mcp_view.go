@@ -75,7 +75,7 @@ type MCPView struct {
 	services []MCPService
 
 	commands []ContextCommand
-	mountGen uint64
+	loads    loadSlot
 }
 
 var _ View = (*MCPView)(nil)
@@ -105,8 +105,6 @@ func (v *MCPView) StatusHints() string {
 // Mount builds the MCP management interface.
 func (v *MCPView) Mount(content *tview.Flex, tvApp *tview.Application) {
 	v.app = tvApp
-	v.mountGen++
-	gen := v.mountGen
 
 	// Show loading placeholder immediately
 	loading := tview.NewTextView().
@@ -117,35 +115,31 @@ func (v *MCPView) Mount(content *tview.Flex, tvApp *tview.Application) {
 	loading.SetText(fmt.Sprintf("\n  %s%s%s", muted, i18n.T("tui.mcp.loading"), theme.TagColor))
 	content.AddItem(loading, 0, 1, true)
 
-	// Load data and build UI asynchronously
-	go func() {
-		tvApp.QueueUpdateDraw(func() {
-			if v.app == nil || v.mountGen != gen {
-				return
+	// Read the services off the event loop (keychain, team config), then
+	// build the widgets on it.
+	v.reloadServices(func() {
+		v.list = widgets.NewSectionedList()
+		v.list.SetApp(tvApp)
+		v.page = newListPage(v.Title(), v.list)
+		v.list.SetItemChangedFunc(func(_ int, it widgets.SectionItem) {
+			if i, ok := it.Reference.(int); ok {
+				v.showDetail(i)
 			}
-			v.loadServices()
-
-			v.list = widgets.NewSectionedList()
-			v.list.SetApp(tvApp)
-			v.page = newListPage(v.Title(), v.list)
-			v.list.SetItemChangedFunc(func(_ int, it widgets.SectionItem) {
-				if i, ok := it.Reference.(int); ok {
-					v.showDetail(i)
-				}
-			})
-
-			v.populateList()
-			v.buildCommands()
-
-			v.page.Mount(content)
-			tvApp.SetFocus(v.list)
 		})
-	}()
+
+		v.populateList()
+		v.buildCommands()
+
+		v.page.Mount(content)
+		if tvApp != nil {
+			tvApp.SetFocus(v.list)
+		}
+	})
 }
 
 // Unmount cleans up resources.
 func (v *MCPView) Unmount() {
-	v.mountGen++ // invalidate in-flight async goroutine
+	v.loads.Invalidate() // drop the load in flight
 	v.app = nil
 	v.list = nil
 	v.page = nil
@@ -158,11 +152,15 @@ func (v *MCPView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		if v.list == nil {
 			return nil
 		}
-		v.loadServices()
-		v.populateList()
-		if v.shell != nil {
-			v.shell.ShowToastMsg(i18n.T("tui.mcp.refreshed"), true)
-		}
+		v.reloadServices(func() {
+			if v.list == nil {
+				return
+			}
+			v.populateList()
+			if v.shell != nil {
+				v.shell.ShowToastMsg(i18n.T("tui.mcp.refreshed"), true)
+			}
+		})
 		return nil
 	}
 	if trustKey.Matches(event) {
@@ -525,21 +523,55 @@ func (v *MCPView) setMCPEnabled(cfg *config.Config, name string, enabled bool) {
 // Data loading
 // ─────────────────────────────────────────────────────────────────────────────
 
-func (v *MCPView) loadServices() {
+// mcpSnapshot is what loadServices reads of the live config; it is taken on
+// the event loop, which is the one that writes the config.
+type mcpSnapshot struct {
+	figma, gitlab, gslides, jira, gitlabWrite bool
+}
+
+func (v *MCPView) snapshotServices() mcpSnapshot {
+	if v.cfg.GetConfig == nil {
+		return mcpSnapshot{}
+	}
 	cfg := v.cfg.GetConfig()
-	v.services = []MCPService{
-		{Name: "figma", Enabled: cfg.MCP.Figma.Enabled, HasToken: v.checkToken("figma"), WriteEnabled: false},
-		{Name: "gitlab", Enabled: cfg.MCP.Gitlab.Enabled, HasToken: v.checkToken("gitlab"), WriteEnabled: cfg.MCP.Gitlab.WriteEnabled},
-		{Name: "gslides", Enabled: cfg.MCP.Gslides.Enabled, HasToken: v.checkToken("gslides"), WriteEnabled: false},
-		{Name: "jira", Enabled: cfg.MCP.Jira.Enabled, HasToken: v.checkToken("jira"), WriteEnabled: false},
+	return mcpSnapshot{
+		figma: cfg.MCP.Figma.Enabled, gitlab: cfg.MCP.Gitlab.Enabled, gslides: cfg.MCP.Gslides.Enabled,
+		jira: cfg.MCP.Jira.Enabled, gitlabWrite: cfg.MCP.Gitlab.WriteEnabled,
+	}
+}
+
+// readServices lists the services: it reads the keychain and the team
+// configuration, so it runs off the event loop.
+func (v *MCPView) readServices(snap mcpSnapshot) []MCPService {
+	services := []MCPService{
+		{Name: "figma", Enabled: snap.figma, HasToken: v.checkToken("figma"), WriteEnabled: false},
+		{Name: "gitlab", Enabled: snap.gitlab, HasToken: v.checkToken("gitlab"), WriteEnabled: snap.gitlabWrite},
+		{Name: "gslides", Enabled: snap.gslides, HasToken: v.checkToken("gslides"), WriteEnabled: false},
+		{Name: "jira", Enabled: snap.jira, HasToken: v.checkToken("jira"), WriteEnabled: false},
 		{Name: "team", Enabled: true, HasToken: true, WriteEnabled: false},
 	}
 	if v.cfg.EnforcedURLs != nil {
 		enforced := v.cfg.EnforcedURLs()
-		for i := range v.services {
-			v.services[i].Enforced = enforced[v.services[i].Name]
+		for i := range services {
+			services[i].Enforced = enforced[services[i].Name]
 		}
 	}
+	return services
+}
+
+// loadServices reads the services in place (event loop; tests).
+func (v *MCPView) loadServices() { v.services = v.readServices(v.snapshotServices()) }
+
+// reloadServices reads the services off the event loop, then calls then on it.
+// The latest request wins; Unmount drops the one in flight.
+func (v *MCPView) reloadServices(then func()) {
+	snap := v.snapshotServices()
+	load(v.app, context.Background(), &v.loads, func(context.Context) ([]MCPService, error) {
+		return v.readServices(snap), nil
+	}, func(services []MCPService, _ error) {
+		v.services = services
+		then()
+	})
 }
 
 func (v *MCPView) checkToken(serviceName string) bool {

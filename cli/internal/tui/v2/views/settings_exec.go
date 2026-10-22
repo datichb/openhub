@@ -133,10 +133,8 @@ func (v *SettingsView) execSettingsFields() []configField {
 			Get:         func() string { return ex().ToolVersion },
 			Set:         func(val string) { ex().ToolVersion = strings.TrimSpace(val) },
 			Source: func() string {
-				client := ""
-				if v.cfg.ToolVersion != nil {
-					client = v.cfg.ToolVersion()
-				}
+				tool := v.toolInfo()
+				client := tool.client
 				pinned := strings.TrimPrefix(ex().ToolVersion, "v")
 				switch {
 				case client == "":
@@ -144,7 +142,7 @@ func (v *SettingsView) execSettingsFields() []configField {
 				case pinned == "":
 					return i18n.Tf("tui.settings.exec.tool.auto", client)
 				case pinned != strings.TrimPrefix(client, "v"):
-					return i18n.Tf("tui.settings.exec.tool.mismatch", ToolName(), pinned, client)
+					return i18n.Tf("tui.settings.exec.tool.mismatch", tool.name, pinned, client)
 				}
 				return ""
 			}},

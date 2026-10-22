@@ -76,6 +76,9 @@ type DoctorView struct {
 	fixing  bool
 	ctx     context.Context
 	cancel  context.CancelFunc
+	// loads numbers the checks (mount, recheck); fixes the repairs. Both are
+	// invalidated by Unmount.
+	loads, fixes loadSlot
 }
 
 var _ View = (*DoctorView)(nil)
@@ -119,6 +122,7 @@ func (v *DoctorView) Mount(content *tview.Flex, tvApp *tview.Application) {
 		parent = v.shell.Context()
 	}
 	v.ctx, v.cancel = context.WithCancel(parent)
+	v.fixing = false
 
 	v.summary = tview.NewTextView().SetDynamicColors(true)
 	v.summary.SetBackgroundColor(theme.BgPanel)
@@ -138,21 +142,27 @@ func (v *DoctorView) Mount(content *tview.Flex, tvApp *tview.Application) {
 	v.loading = i18n.T("tui.doctor.loading")
 	v.render()
 
-	// Run checks asynchronously (they invoke subprocesses)
-	go func() {
-		checks := v.collectChecks()
-		tvApp.QueueUpdateDraw(func() {
-			if v.list == nil {
-				return
-			}
-			v.checks, v.loading = checks, ""
-			v.render()
-		})
-	}()
+	v.reload()
+}
+
+// reload runs the checks off the event loop (they invoke subprocesses); the
+// latest request wins.
+func (v *DoctorView) reload() {
+	load(v.app, v.ctx, &v.loads, func(context.Context) ([]DoctorCheck, error) {
+		return v.collectChecks(), nil
+	}, func(checks []DoctorCheck, _ error) {
+		if v.list == nil {
+			return
+		}
+		v.checks, v.loading = checks, ""
+		v.render()
+	})
 }
 
 // Unmount cleans up resources.
 func (v *DoctorView) Unmount() {
+	v.loads.Invalidate()
+	v.fixes.Invalidate()
 	if v.cancel != nil {
 		v.cancel()
 	}
@@ -177,24 +187,15 @@ func (v *DoctorView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	return event
 }
 
-// recheck runs the checks again off the event loop.
+// recheck runs the checks again off the event loop (not while a repair runs:
+// it checks again itself).
 func (v *DoctorView) recheck() {
-	if v.list == nil || v.app == nil {
+	if v.list == nil || v.app == nil || v.fixing {
 		return
 	}
 	v.loading = i18n.T("tui.doctor.rechecking")
 	v.render()
-	tv := v.app
-	go func() {
-		checks := v.collectChecks()
-		tv.QueueUpdateDraw(func() {
-			if v.list == nil || v.app == nil {
-				return
-			}
-			v.checks, v.loading = checks, ""
-			v.render()
-		})
-	}()
+	v.reload()
 }
 
 // selected is the check under the cursor.
@@ -232,29 +233,25 @@ func (v *DoctorView) fixSelected() {
 		return
 	}
 	v.fixing = true
-	tv, ctx, fix := v.app, v.ctx, c.Fix
-	go func() {
-		plan := ""
-		var err error
-		if fix.Plan != nil {
-			plan, err = fix.Plan(ctx)
+	type planned struct{ plan string }
+	load(v.app, v.ctx, &v.fixes, func(ctx context.Context) (planned, error) {
+		if c.Fix.Plan == nil {
+			return planned{}, nil
 		}
-		if ctx.Err() != nil {
+		plan, err := c.Fix.Plan(ctx)
+		return planned{plan}, err
+	}, func(p planned, err error) {
+		v.fixing = false
+		if err != nil {
+			v.toast(err.Error(), false)
 			return
 		}
-		tv.QueueUpdateDraw(func() {
-			v.fixing = false
-			if err != nil {
-				v.toast(err.Error(), false)
-				return
-			}
-			detail := strings.TrimSpace(plan)
-			if detail != "" {
-				detail += "\n\n"
-			}
-			v.shell.Confirm(i18n.Tf("tui.doctor.fix_title", c.Name), detail+i18n.T("tui.doctor.fix_confirm"), true, func() { v.applyFix(c, fix) })
-		})
-	}()
+		detail := strings.TrimSpace(p.plan)
+		if detail != "" {
+			detail += "\n\n"
+		}
+		v.shell.Confirm(i18n.Tf("tui.doctor.fix_title", c.Name), detail+i18n.T("tui.doctor.fix_confirm"), true, func() { v.applyFix(c, c.Fix) })
+	})
 }
 
 func (v *DoctorView) applyFix(c DoctorCheck, fix *DoctorFix) {
@@ -264,31 +261,30 @@ func (v *DoctorView) applyFix(c DoctorCheck, fix *DoctorFix) {
 	v.fixing = true
 	v.loading = i18n.Tf("tui.doctor.fixing", c.Name)
 	v.render()
-	tv, ctx := v.app, v.ctx
-	go func() {
+	type fixed struct {
+		report string
+		checks []DoctorCheck
+	}
+	load(v.app, v.ctx, &v.fixes, func(ctx context.Context) (fixed, error) {
 		report, err := fix.Apply(ctx)
-		checks := v.collectChecks()
-		if ctx.Err() != nil {
+		return fixed{report, v.collectChecks()}, err
+	}, func(f fixed, err error) {
+		v.fixing = false
+		if v.list == nil {
 			return
 		}
-		tv.QueueUpdateDraw(func() {
-			v.fixing = false
-			if v.list == nil {
-				return
-			}
-			v.checks, v.loading = checks, ""
-			v.render()
-			if err != nil {
-				v.toast(err.Error(), false)
-				return
-			}
-			if report = strings.TrimSpace(report); report != "" && v.shell != nil {
-				v.shell.ShowScrollableModal(i18n.Tf("tui.doctor.fixed_title", c.Name), tview.Escape(report), nil)
-				return
-			}
-			v.toast(i18n.Tf("tui.doctor.fixed", c.Name), true)
-		})
-	}()
+		v.checks, v.loading = f.checks, ""
+		v.render()
+		if err != nil {
+			v.toast(err.Error(), false)
+			return
+		}
+		if report := strings.TrimSpace(f.report); report != "" && v.shell != nil {
+			v.shell.ShowScrollableModal(i18n.Tf("tui.doctor.fixed_title", c.Name), tview.Escape(report), nil)
+			return
+		}
+		v.toast(i18n.Tf("tui.doctor.fixed", c.Name), true)
+	})
 }
 
 func (v *DoctorView) toast(msg string, ok bool) {

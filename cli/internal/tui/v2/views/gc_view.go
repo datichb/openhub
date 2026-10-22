@@ -77,6 +77,9 @@ type GCView struct {
 	result  *gc.Report
 	ctx     context.Context
 	cancel  context.CancelFunc
+	// loads numbers the plans and the removals: a result is applied only
+	// while it is the latest request.
+	loads loadSlot
 }
 
 var _ View = (*GCView)(nil)
@@ -119,6 +122,7 @@ func (v *GCView) Mount(content *tview.Flex, app *tview.Application) {
 		parent = v.shell.Context()
 	}
 	v.ctx, v.cancel = context.WithCancel(parent)
+	v.running = false
 	v.build()
 	content.Clear()
 	content.AddItem(v.root, 0, 1, true)
@@ -169,6 +173,7 @@ func (v *GCView) renderBar() {
 }
 
 func (v *GCView) Unmount() {
+	v.loads.Invalidate()
 	if v.cancel != nil {
 		v.cancel()
 	}
@@ -233,14 +238,7 @@ func (v *GCView) reload() {
 	}
 	v.loaded = false
 	v.renderHeader()
-	app, ctx := v.app, v.ctx
-	go func() {
-		plan, err := v.cfg.Plan(ctx)
-		if ctx.Err() != nil {
-			return
-		}
-		app.QueueUpdateDraw(func() { v.showPlan(plan, err) })
-	}()
+	load(v.app, v.ctx, &v.loads, v.cfg.Plan, func(plan gc.Report, err error) { v.showPlan(plan, err) })
 }
 
 // showPlan shows a plan (event loop).
@@ -260,13 +258,8 @@ func (v *GCView) run(only gc.Report) {
 	}
 	v.running = true
 	v.renderHeader()
-	app, ctx := v.app, v.ctx
-	go func() {
-		done, err := v.cfg.Run(ctx, only)
-		if ctx.Err() != nil {
-			return
-		}
-		app.QueueUpdateDraw(func() {
+	load(v.app, v.ctx, &v.loads, func(ctx context.Context) (gc.Report, error) { return v.cfg.Run(ctx, only) },
+		func(done gc.Report, err error) {
 			v.running = false
 			if err != nil {
 				v.result = &gc.Report{Errors: []string{err.Error()}}
@@ -281,7 +274,6 @@ func (v *GCView) run(only gc.Report) {
 			}
 			v.reload()
 		})
-	}()
 }
 
 // only is the plan of one element.

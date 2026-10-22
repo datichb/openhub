@@ -38,12 +38,19 @@ type SettingsViewConfig struct {
 
 // SettingsView displays and edits hub.toml using the unified configField system.
 type SettingsView struct {
-	app      *tview.Application
-	list     *widgets.SectionedList
-	page     *widgets.ListDetailPage
-	shell    ShellAccess
-	cfg      SettingsViewConfig
-	mountGen uint64
+	app    *tview.Application
+	list   *widgets.SectionedList
+	page   *widgets.ListDetailPage
+	shell  ShellAccess
+	cfg    SettingsViewConfig
+	loads  loadSlot
+	ctx    context.Context
+	cancel context.CancelFunc
+
+	// tool is what the « tool version » field shows of the tool client, read
+	// off the event loop at mount (toolRead).
+	tool     settingsTool
+	toolRead bool
 
 	// live config being edited (pointer to in-memory config, auto-saved on mutation)
 	live *config.Config
@@ -83,8 +90,15 @@ func (v *SettingsView) StatusHints() string {
 // Mount builds and displays the view.
 func (v *SettingsView) Mount(content *tview.Flex, app *tview.Application) {
 	v.app = app
-	v.mountGen++
-	gen := v.mountGen
+	if v.cancel != nil {
+		v.cancel()
+	}
+	parent := context.Background()
+	if v.shell != nil {
+		parent = v.shell.Context()
+	}
+	v.ctx, v.cancel = context.WithCancel(parent)
+	v.toolRead = false
 	v.undoStack.Clear()
 	v.live = v.cfg.GetConfig() // synchronous: always available for save()
 
@@ -102,35 +116,64 @@ func (v *SettingsView) Mount(content *tview.Flex, app *tview.Application) {
 	loading.SetText(fmt.Sprintf("\n  %s%s%s", muted, i18n.T("tui.settings.loading"), theme.TagColor))
 	content.AddItem(loading, 0, 1, true)
 
-	// Build list asynchronously (CheckSecret may do I/O)
-	go func() {
-		app.QueueUpdateDraw(func() {
-			if v.app == nil || v.mountGen != gen {
-				return
-			}
+	// Read what needs the tool client off the event loop, then build the
+	// widgets on it.
+	load(app, v.ctx, &v.loads, func(context.Context) (settingsTool, error) {
+		return v.readTool(), nil
+	}, func(t settingsTool, _ error) {
+		v.tool, v.toolRead = t, true
 
-			v.list = widgets.NewSectionedList()
-			v.list.SetApp(app)
-			v.page = newListPage(v.Title(), v.list)
+		v.list = widgets.NewSectionedList()
+		v.list.SetApp(app)
+		v.page = newListPage(v.Title(), v.list)
 
-			v.list.SetItemSelectedFunc(func(index int, item widgets.SectionItem) {
-				v.onItemSelected(index, item)
-			})
-			v.list.SetItemChangedFunc(func(_ int, item widgets.SectionItem) {
-				showFieldItemDetail(v.page, v.fields, item, settingsExtraKeys()...)
-			})
-
-			v.buildFields()
-			v.renderFields()
-
-			v.page.Mount(content)
-			app.SetFocus(v.list)
+		v.list.SetItemSelectedFunc(func(index int, item widgets.SectionItem) {
+			v.onItemSelected(index, item)
 		})
-	}()
+		v.list.SetItemChangedFunc(func(_ int, item widgets.SectionItem) {
+			showFieldItemDetail(v.page, v.fields, item, settingsExtraKeys()...)
+		})
+
+		v.buildFields()
+		v.renderFields()
+
+		v.page.Mount(content)
+		if app != nil {
+			app.SetFocus(v.list)
+		}
+	})
+}
+
+// settingsTool is the tool client as the « tool version » field shows it.
+type settingsTool struct{ client, name string }
+
+// readTool asks the tool client for its version and name (the first call may
+// probe the binary): off the event loop.
+func (v *SettingsView) readTool() settingsTool {
+	var t settingsTool
+	if v.cfg.ToolVersion != nil {
+		t.client = v.cfg.ToolVersion()
+	}
+	if t.client != "" {
+		t.name = ToolName()
+	}
+	return t
+}
+
+// toolInfo is the tool client read at mount; before it (tests) it is read
+// in place.
+func (v *SettingsView) toolInfo() settingsTool {
+	if v.toolRead {
+		return v.tool
+	}
+	return v.readTool()
 }
 
 func (v *SettingsView) Unmount() {
-	v.mountGen++ // invalidate in-flight async goroutine
+	v.loads.Invalidate() // drop the load in flight
+	if v.cancel != nil {
+		v.cancel()
+	}
 	// Flush any pending auto-save
 	if v.autoSaver != nil {
 		v.autoSaver.Flush()
