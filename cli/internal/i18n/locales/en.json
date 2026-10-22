@@ -639,6 +639,7 @@
   "cmd.doctor.no_mcp_enabled": "no MCP service enabled",
   "cmd.doctor.no_provider": "no provider configured (oh init or oh provider setup)",
   "cmd.doctor.not_found": "not found in PATH",
+  "cmd.doctor.pin.unpinned": "version %s is not pinned in oh (pinned: %s): container images download it with an integrity taken from the registry alone, and execution.strict_isolation refuses it. Recommended: %s",
   "cmd.doctor.optional_missing": "not found (optional — %s)",
   "cmd.doctor.short": "Check system health and dependencies",
   "cmd.doctor.some_failed": "Some checks failed.",

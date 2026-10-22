@@ -639,6 +639,7 @@
   "cmd.doctor.no_mcp_enabled": "aucun service MCP activé",
   "cmd.doctor.no_provider": "aucun provider configuré (oh init ou oh provider setup)",
   "cmd.doctor.not_found": "non trouvé dans PATH",
+  "cmd.doctor.pin.unpinned": "la version %s n'est pas épinglée dans oh (épinglées : %s) : les images de conteneur la téléchargent avec une empreinte issue du seul registre, et execution.strict_isolation la refuse. Recommandée : %s",
   "cmd.doctor.optional_missing": "non trouvé (optionnel — %s)",
   "cmd.doctor.short": "Vérifie l'état du système et les dépendances",
   "cmd.doctor.some_failed": "Certaines vérifications ont échoué.",
