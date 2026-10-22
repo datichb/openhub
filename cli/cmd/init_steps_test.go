@@ -9,8 +9,6 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/config/configtest"
-	"github.com/datichb/openhub/cli/internal/domain"
-	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 	providerPkg "github.com/datichb/openhub/cli/internal/provider"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
@@ -22,7 +20,6 @@ func newTestState() *initStepState {
 	a.Config = &config.Config{}
 	a.Projects = &mockProjectStore{}
 	appPtr := &a
-	focusBtn := false
 	var steps []views.WizardStep
 
 	return &initStepState{
@@ -30,7 +27,6 @@ func newTestState() *initStepState {
 		ProviderOptions: []string{"bedrock", "anthropic", "openrouter", "github-copilot"},
 		TeamState:       &initWizardTeamState{},
 		AppPtr:          appPtr,
-		FocusBtn:        &focusBtn,
 		Steps:           &steps,
 	}
 }
@@ -40,7 +36,7 @@ func newTestState() *initStepState {
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ─────────────────────────────────────────────────────────────────────────────
-// buildLangStep
+// buildLangStep (now the welcome screen)
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -58,42 +54,6 @@ func TestBuildProjectStep_ValidationEmpty(t *testing.T) {
 	s.ProjectName = ""
 	errMsg := step.Validate()
 	assert.NotEmpty(t, errMsg, "should fail validation when name is empty")
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// MCP GitLab step (via buildMCPTokenStep with checkbox opts)
-// ─────────────────────────────────────────────────────────────────────────────
-
-// buildTestMCPGitLabStep creates the GitLab MCP step the same way init_wizard.go does.
-func buildTestMCPGitLabStep(s *initStepState) views.WizardStep {
-	return buildMCPTokenStep(mcpTokenStepOpts{
-		ID:              "mcp_gitlab",
-		LabelI18nKey:    "cmd.init.wizard_step_mcp_gitlab",
-		DisplayName:     "GitLab",
-		TokenKey:        config.DefaultGitLabTokenKey,
-		HintI18nKey:     "cmd.init.mcp_hint_gitlab",
-		TokenVar:        &s.GitlabToken,
-		SkipIf:          func() bool { return s.MCPSkipped },
-		SecretsFunc:     func() domain.SecretStore { return (*s.AppPtr).Secrets },
-		CheckboxLabel:   i18n.T("cmd.init.mcp_gitlab_write_short"),
-		CheckboxDescKey: "cmd.init.mcp_gitlab_write_desc",
-		CheckboxVar:     &s.GitlabWrite,
-		AfterStore: func() error {
-			return config.Update(func(c *config.Config) error {
-				c.MCP.Gitlab.Enabled = true
-				if s.GitlabWrite {
-					c.MCP.Gitlab.WriteEnabled = true
-				}
-				return nil
-			})
-		},
-		ExtraInfoFields: func() []views.InfoField {
-			if s.GitlabToken != "" && s.GitlabWrite {
-				return []views.InfoField{{Label: "Write", Value: i18n.T("cmd.init.wizard_mcp_enabled")}}
-			}
-			return nil
-		},
-	})
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -119,19 +79,9 @@ func TestInitSteps(t *testing.T) {
 			name: "welcome", build: buildWelcomeStep, id: "welcome",
 			extra: func(t *testing.T, s *initStepState, step views.WizardStep) {
 				assert.True(t, step.Required, "welcome must be Required")
-				assert.True(t, step.SidebarHidden, "welcome must be SidebarHidden")
+				assert.False(t, step.SidebarHidden, "welcome shows the language and the setup type in the sidebar")
 				assert.Nil(t, step.Form, "welcome must not have Form")
 				assert.Empty(t, s.SetupMode, "the setup mode is chosen when the view renders, not before")
-			},
-		},
-		{
-			name: "lang", build: buildLangStep, id: "lang", form: true, minFields: 1, minButtons: 1,
-			prepare: func(s *initStepState, step views.WizardStep) {
-				*s.Steps = []views.WizardStep{buildWelcomeStep(s), step}
-				s.LangStepIdx = 1
-			},
-			extra: func(t *testing.T, _ *initStepState, step views.WizardStep) {
-				assert.True(t, step.Required, "lang must be Required")
 			},
 		},
 		{
@@ -139,25 +89,11 @@ func TestInitSteps(t *testing.T) {
 			skipFlag: func(s *initStepState, v bool) { s.ProviderSkipped = v },
 			prepare: func(s *initStepState, step views.WizardStep) {
 				*s.Steps = []views.WizardStep{step}
-				s.ProviderStepIdx = 0
 			},
 		},
 		{
 			name: "project", build: buildProjectStep, id: "project", wantSkipIf: true, wantProcess: true,
 			skipFlag: func(s *initStepState, v bool) { s.ProjectSkipped = v },
-		},
-		{
-			name: "mcp gitlab", build: buildTestMCPGitLabStep, id: "mcp_gitlab", form: true, minFields: 2, minButtons: 1, wantSkipIf: true,
-			skipFlag: func(s *initStepState, v bool) { s.MCPSkipped = v },
-		},
-		{
-			name:  "mcp consolidated",
-			build: func(s *initStepState) views.WizardStep { return buildMCPConsolidatedStep(s, *s.AppPtr) },
-			id:    "mcp_consolidated", wantSkipIf: true,
-			skipFlag: func(s *initStepState, v bool) { s.MCPSkipped = v },
-			extra: func(t *testing.T, _ *initStepState, step views.WizardStep) {
-				assert.Equal(t, "MCP", step.Label)
-			},
 		},
 	}
 	for _, tt := range tests {
@@ -172,9 +108,7 @@ func TestInitSteps(t *testing.T) {
 			} else {
 				assert.NotNil(t, step.CustomView, "a custom step has a CustomView")
 			}
-			if tt.id != "welcome" && tt.id != "lang" {
-				assert.NotNil(t, step.OnDone, "OnDone")
-			}
+			assert.NotNil(t, step.OnDone, "OnDone")
 			if tt.wantSkipIf {
 				assert.NotNil(t, step.SkipIf, "SkipIf")
 			}
@@ -227,11 +161,11 @@ func setupConfigDir(t *testing.T) {
 	config.Reset()
 }
 
-func TestBuildLangStep_OnDone_PersistsLanguage(t *testing.T) {
+func TestBuildWelcomeStep_OnDone_PersistsLanguage(t *testing.T) {
 	setupConfigDir(t)
 	s := newTestState()
 	s.SelectedLang = "fr"
-	step := buildLangStep(s)
+	step := buildWelcomeStep(s)
 
 	err := step.OnDone()
 	require.NoError(t, err)
@@ -436,55 +370,6 @@ func TestBuildProjectStep_Validate_AllBranches(t *testing.T) {
 	}
 }
 
-func TestBuildMCPGitLabStep_OnDone_StoresAndEnables(t *testing.T) {
-	setupConfigDir(t)
-	sc := &mockSecretStore{secrets: make(map[string]string)}
-	a := newMockApp(nil, nil)
-	a.Secrets = sc
-	a.Config = &config.Config{}
-	appPtr := &a
-
-	s := &initStepState{
-		GitlabToken:     "glpat-xxx",
-		GitlabWrite:     true,
-		ProviderOptions: []string{"bedrock"},
-		TeamState:       &initWizardTeamState{},
-		AppPtr:          appPtr,
-	}
-
-	step := buildTestMCPGitLabStep(s)
-	err := step.OnDone()
-	require.NoError(t, err)
-
-	assert.Equal(t, "glpat-xxx", sc.secrets[config.DefaultGitLabTokenKey])
-
-	config.Reset()
-	cfg, err := config.Load()
-	require.NoError(t, err)
-	assert.True(t, cfg.MCP.Gitlab.Enabled)
-	assert.True(t, cfg.MCP.Gitlab.WriteEnabled)
-}
-
-func TestBuildMCPGitLabStep_OnDone_EmptyNoOp(t *testing.T) {
-	sc := &mockSecretStore{secrets: make(map[string]string)}
-	a := newMockApp(nil, nil)
-	a.Secrets = sc
-	a.Config = &config.Config{}
-	appPtr := &a
-
-	s := &initStepState{
-		GitlabToken:     "",
-		ProviderOptions: []string{"bedrock"},
-		TeamState:       &initWizardTeamState{},
-		AppPtr:          appPtr,
-	}
-
-	step := buildTestMCPGitLabStep(s)
-	err := step.OnDone()
-	require.NoError(t, err)
-	assert.Empty(t, sc.secrets, "no secret should be stored when token is empty")
-}
-
 func TestBuildInitOnComplete_SetupDone(t *testing.T) {
 	setupConfigDir(t)
 	a := newMockApp(nil, nil)
@@ -538,165 +423,3 @@ func TestBuildInitRefreshLabels_UpdatesLabels(t *testing.T) {
 	// verify the wizard builds without error and has the expected ID.
 	assert.Equal(t, "wizard.init", wiz.ID())
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// buildMCPConsolidatedStep
-// ─────────────────────────────────────────────────────────────────────────────
-
-func TestBuildMCPConsolidatedStep_OnDone_StoresAllTokens(t *testing.T) {
-	secretsMap := make(map[string]string)
-	a := newMockApp(secretsMap, nil)
-	a.Projects = &mockProjectStore{}
-	appPtr := &a
-	s := &initStepState{
-		ProviderOptions: []string{"bedrock"},
-		TeamState:       &initWizardTeamState{},
-		AppPtr:          appPtr,
-		FocusBtn:        new(bool),
-		Steps:           new([]views.WizardStep),
-	}
-
-	setupConfigDir(t)
-
-	s.FigmaToken = "figma-tok"
-	s.GitlabToken = "gitlab-tok"
-	s.JiraToken = "jira-tok"
-	s.JiraURL = "https://jira.test.com"
-	s.GslidesToken = "gslides-tok"
-
-	step := buildMCPConsolidatedStep(s, a)
-	err := step.OnDone()
-	require.NoError(t, err)
-
-	assert.Equal(t, "figma-tok", secretsMap[config.DefaultFigmaTokenKey])
-	assert.Equal(t, "gitlab-tok", secretsMap[config.DefaultGitLabTokenKey])
-	assert.Equal(t, "jira-tok", secretsMap[config.DefaultJiraTokenKey])
-	assert.Equal(t, "gslides-tok", secretsMap[config.DefaultGslidesTokenKey])
-
-	// Verify Jira is enabled because URL was provided.
-	config.Reset()
-	cfg, err := config.Load()
-	require.NoError(t, err)
-	assert.True(t, cfg.MCP.Jira.Enabled, "Jira should be enabled when URL is provided")
-	assert.Equal(t, "https://jira.test.com", cfg.MCP.Jira.URL)
-}
-
-func TestBuildMCPConsolidatedStep_OnDone_EmptyNoOp(t *testing.T) {
-	secretsMap := make(map[string]string)
-	a := newMockApp(secretsMap, nil)
-	a.Projects = &mockProjectStore{}
-	appPtr := &a
-	s := &initStepState{
-		ProviderOptions: []string{"bedrock"},
-		TeamState:       &initWizardTeamState{},
-		AppPtr:          appPtr,
-		FocusBtn:        new(bool),
-		Steps:           new([]views.WizardStep),
-	}
-
-	step := buildMCPConsolidatedStep(s, a)
-	err := step.OnDone()
-	require.NoError(t, err)
-
-	assert.Empty(t, secretsMap, "no tokens should be stored when all empty")
-}
-
-func TestBuildMCPConsolidatedStep_InfoFields(t *testing.T) {
-	s := newTestState()
-	a := *s.AppPtr
-	step := buildMCPConsolidatedStep(s, a)
-
-	// All empty → all skipped
-	fields := step.InfoFields()
-	require.Len(t, fields, 4, "should have 4 entries (Figma, GitLab, Jira, GSlides)")
-	for _, f := range fields {
-		assert.Contains(t, f.Value, i18n.T("cmd.init.wizard_mcp_skipped"), "empty token should show skipped for %s", f.Label)
-	}
-
-	// Set tokens → configured (Jira without URL → warning)
-	s.FigmaToken = "tok"
-	s.GitlabToken = "tok"
-	s.GitlabWrite = true
-	s.JiraToken = "tok"
-	fields = step.InfoFields()
-	require.GreaterOrEqual(t, len(fields), 5, "should have 5+ entries including Write and Jira warning")
-
-	// Jira with token but no URL shows warning
-	var jiraField views.InfoField
-	for _, f := range fields {
-		if f.Label == "Jira" {
-			jiraField = f
-			break
-		}
-	}
-	assert.Contains(t, jiraField.Value, i18n.T("cmd.init.wizard_mcp_token_saved_url_required"),
-		"Jira with token but no URL should show warning")
-}
-
-func TestBuildMCPConsolidatedStep_OnDone_JiraTokenWithoutURL(t *testing.T) {
-	secretsMap := make(map[string]string)
-	a := newMockApp(secretsMap, nil)
-	a.Projects = &mockProjectStore{}
-	appPtr := &a
-	s := &initStepState{
-		ProviderOptions: []string{"bedrock"},
-		TeamState:       &initWizardTeamState{},
-		AppPtr:          appPtr,
-		FocusBtn:        new(bool),
-		Steps:           new([]views.WizardStep),
-	}
-
-	setupConfigDir(t)
-
-	s.JiraToken = "jira-tok"
-	s.JiraURL = "" // no URL → token stored but service NOT enabled
-
-	step := buildMCPConsolidatedStep(s, a)
-	err := step.OnDone()
-	require.NoError(t, err)
-
-	// Token is always stored in keychain.
-	assert.Equal(t, "jira-tok", secretsMap[config.DefaultJiraTokenKey])
-
-	// Jira must NOT be enabled without URL.
-	config.Reset()
-	cfg, err := config.Load()
-	require.NoError(t, err)
-	assert.False(t, cfg.MCP.Jira.Enabled, "Jira should NOT be enabled without URL")
-	assert.Empty(t, cfg.MCP.Jira.URL, "Jira URL should remain empty")
-}
-
-func TestBuildMCPConsolidatedStep_OnDone_GitLabURLPersisted(t *testing.T) {
-	secretsMap := make(map[string]string)
-	a := newMockApp(secretsMap, nil)
-	a.Projects = &mockProjectStore{}
-	appPtr := &a
-	s := &initStepState{
-		ProviderOptions: []string{"bedrock"},
-		TeamState:       &initWizardTeamState{},
-		AppPtr:          appPtr,
-		FocusBtn:        new(bool),
-		Steps:           new([]views.WizardStep),
-	}
-
-	setupConfigDir(t)
-
-	s.GitlabToken = "gl-tok"
-	s.GitlabURL = "https://gitlab.corp.com"
-
-	step := buildMCPConsolidatedStep(s, a)
-	err := step.OnDone()
-	require.NoError(t, err)
-
-	assert.Equal(t, "gl-tok", secretsMap[config.DefaultGitLabTokenKey])
-
-	config.Reset()
-	cfg, err := config.Load()
-	require.NoError(t, err)
-	assert.True(t, cfg.MCP.Gitlab.Enabled, "GitLab should be enabled")
-	assert.Equal(t, "https://gitlab.corp.com", cfg.MCP.Gitlab.URL, "GitLab URL should be persisted")
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Express Mode (SetupMode)
-// ─────────────────────────────────────────────────────────────────────────────

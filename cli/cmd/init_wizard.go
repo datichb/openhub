@@ -22,8 +22,8 @@ func needsFirstRunWizard(a *app.App) bool {
 }
 
 // buildFirstRunInlineWizard creates an InlineWizardView for the first-run setup.
-// It assembles steps from individual builders in init_steps.go and shared
-// builders in team_helpers.go / mcp_steps.go.
+// It assembles steps from individual builders in init_steps.go and the team
+// builders in team_helpers.go.
 //
 // This function is used by both the TUI shell (via PushView) and the CLI
 // `oh init` command (via RunInlineWizardStandalone).
@@ -37,14 +37,12 @@ func buildFirstRunInlineWizard(a *app.App) *views.InlineWizardView {
 func buildInitWizardConfig(a *app.App) (*views.InlineWizardConfig, *initStepState) {
 	// ── Shared mutable state ─────────────────────────────────────────────
 	appPtr := &a
-	focusBtn := false
 	teamState := &initWizardTeamState{Ctx: context.Background()}
 
 	s := &initStepState{
 		ProviderOptions: []string{"bedrock", "anthropic", "openrouter", "github-copilot"},
 		TeamState:       teamState,
 		AppPtr:          appPtr,
-		FocusBtn:        &focusBtn,
 	}
 
 	// ── Pre-fill from existing config (re-init scenario) ────────────────
@@ -117,28 +115,23 @@ func buildInitWizardConfig(a *app.App) (*views.InlineWizardConfig, *initStepStat
 	}
 	i18n.SetLocale(s.SelectedLang)
 
+	// The setup type is preselected here (not only when the welcome screen
+	// draws) so the sidebar already shows the right groups.
+	s.SetupMode = s.defaultSetupMode()
+
 	// ── Assemble steps ───────────────────────────────────────────────────
+	// Screens: (1) welcome — language and setup type, (2) provider,
+	// (3) project; between 2 and 3 the team group, for the "team" and "full"
+	// setup types only. MCP integrations are not part of the wizard: the
+	// summary suggests `oh mcp setup`.
 	var steps []views.WizardStep
 	s.Steps = &steps
 
-	// Group: Langue (welcome + lang)
-	steps = append(steps,
-		buildWelcomeStep(s),
-		buildLangStep(s),
-	)
+	// Group: Welcome (language + setup type)
+	steps = append(steps, buildWelcomeStep(s))
 
-	// Group: Provider (single hybrid step with embedded intro)
+	// Group: Provider (intro as header + form).
 	// In "team" mode, provider is inherited from team config → skip.
-	// Group: Provider (intro + form)
-	providerIntro := buildProviderIntroStep(s)
-	providerIntro.SkipIf = func() bool {
-		if s.SetupMode == "team" {
-			return true
-		}
-		return s.ProviderSkipped
-	}
-	steps = append(steps, providerIntro)
-
 	providerStep := buildProviderStep(s)
 	origProviderSkipIf := providerStep.SkipIf
 	providerStep.SkipIf = func() bool {
@@ -152,8 +145,8 @@ func buildInitWizardConfig(a *app.App) (*views.InlineWizardConfig, *initStepStat
 	}
 	steps = append(steps, providerStep)
 
-	// Group: Equipe (intro + init steps + rejoin steps)
-	// In "solo" mode, the entire team group is skipped.
+	// Group: Team (intro + init steps + rejoin steps), "team" and "full"
+	// setup types only. In "solo" mode the whole group is skipped.
 	teamModeIntro := buildTeamModeIntroStep(teamState)
 	teamModeIntro.SkipIf = func() bool {
 		if s.SetupMode == "solo" {
@@ -163,52 +156,44 @@ func buildInitWizardConfig(a *app.App) (*views.InlineWizardConfig, *initStepStat
 		}
 		return false
 	}
-	// When the team intro is skipped (solo mode), its Required flag would
-	// block the skip. Override to non-required when solo.
-	origRequired := teamModeIntro.Required
-	_ = origRequired // keep the default for full/team modes
+	// The intro is Required (no skipping with Esc) but must not block the
+	// automatic skip of the solo setup type.
 	teamModeIntro.Required = false
 	steps = append(steps, teamModeIntro)
 	steps = append(steps, buildInitWizardTeamSteps(appPtr, teamState)...)
 	steps = append(steps, buildInitWizardRejoinSteps(appPtr, teamState)...)
 
-	// Group: Projet (intro + form)
-	projectGroupStart := len(steps)
-	steps = append(steps, buildProjectIntroStep(s))
+	// Group: Project (optional, filled from the current folder)
 	steps = append(steps, buildProjectStep(s))
 
-	// Group: MCP (intro + consolidated form with checkboxes + tokens)
-	mcpGroupStart := len(steps)
-	steps = append(steps, buildMCPIntroStep(s))
-	steps = append(steps, buildMCPConsolidatedStep(s, a))
-
-	// ── Resolve step indices ─────────────────────────────────────────────
-	s.LangStepIdx = 1 // lang is always at index 1 (after welcome)
-	for i, step := range steps {
-		if step.ID == "provider" {
-			s.ProviderStepIdx = i
-			break
+	// ── Groups: each starts at the step it is named after ────────────────
+	groupStarts := []struct {
+		labelKey string
+		stepID   string
+		hidden   func() bool
+	}{
+		{"cmd.init.wizard_group_welcome", "welcome", nil},
+		{"cmd.init.wizard_group_provider", "provider", func() bool { return s.SetupMode == "team" }},
+		{"cmd.init.wizard_group_team", "team_mode", func() bool { return s.SetupMode == "solo" }},
+		{"cmd.init.wizard_group_project", "project", nil},
+	}
+	groups := make([]views.StepGroup, len(groupStarts))
+	groupLabelKeys := make([]string, len(groupStarts))
+	for i, g := range groupStarts {
+		groups[i] = views.StepGroup{
+			Label:    i18n.T(g.labelKey),
+			StartIdx: bedrockStepIndex(&steps, g.stepID),
+			Hidden:   g.hidden,
 		}
+		groupLabelKeys[i] = g.labelKey
 	}
 
 	// ── Build config ─────────────────────────────────────────────────────
-	// Provider group starts right after lang (welcome=0, lang=1, provider_intro=2, provider=3).
-	providerGroupStart := 2
-	// Team group starts right after provider group (intro + form = 2 steps).
-	teamGroupStart := providerGroupStart + 2
-
 	cfg := &views.InlineWizardConfig{
-		ID:    "wizard.init",
-		Title: i18n.T("cmd.init.wizard_title"),
-		Steps: steps,
-		Groups: []views.StepGroup{
-			{Label: i18n.T("cmd.init.wizard_group_lang"), StartIdx: 0},
-			{Label: i18n.T("cmd.init.wizard_group_provider"), StartIdx: providerGroupStart},
-			{Label: i18n.T("cmd.init.wizard_group_team"), StartIdx: teamGroupStart},
-			{Label: i18n.T("cmd.init.wizard_group_project"), StartIdx: projectGroupStart},
-			{Label: i18n.T("cmd.init.wizard_group_mcp"), StartIdx: mcpGroupStart},
-		},
-		FocusButtonAfterRender: &focusBtn,
+		ID:     "wizard.init",
+		Title:  i18n.T("cmd.init.wizard_title"),
+		Steps:  steps,
+		Groups: groups,
 		SummaryTargetViewFunc: func() string {
 			if s.ProjectCreated {
 				return "project.mode"
@@ -233,11 +218,12 @@ func buildInitWizardConfig(a *app.App) (*views.InlineWizardConfig, *initStepStat
 				shell.NavigateTo("home")
 			}
 		},
-		OnComplete: buildInitOnComplete(s),
+		SummaryNote: func() string { return i18n.T("cmd.init.wizard_summary_mcp") },
+		OnComplete:  buildInitOnComplete(s),
 	}
 
 	// RefreshLabels re-evaluates all construction-time i18n labels.
-	cfg.RefreshLabels = buildInitRefreshLabels(cfg, steps)
+	cfg.RefreshLabels = buildInitRefreshLabels(cfg, steps, groupLabelKeys)
 
 	return cfg, s
 }
@@ -302,16 +288,15 @@ func buildInitOnComplete(s *initStepState) func(bool, error) {
 }
 
 // buildInitRefreshLabels creates the RefreshLabels callback for live locale switching.
-func buildInitRefreshLabels(cfg *views.InlineWizardConfig, steps []views.WizardStep) func() {
+// groupLabelKeys are the i18n keys of the group labels, in the order of cfg.Groups.
+func buildInitRefreshLabels(cfg *views.InlineWizardConfig, steps []views.WizardStep, groupLabelKeys []string) func() {
 	return func() {
 		cfg.Title = i18n.T("cmd.init.wizard_title")
 
 		// Group labels
-		cfg.Groups[0].Label = i18n.T("cmd.init.wizard_group_lang")
-		cfg.Groups[1].Label = i18n.T("cmd.init.wizard_group_provider")
-		cfg.Groups[2].Label = i18n.T("cmd.init.wizard_group_team")
-		cfg.Groups[3].Label = i18n.T("cmd.init.wizard_group_project")
-		cfg.Groups[4].Label = i18n.T("cmd.init.wizard_group_mcp")
+		for i, key := range groupLabelKeys {
+			cfg.Groups[i].Label = i18n.T(key)
+		}
 
 		// Step labels — resolved by ID (no fragile positional indices)
 		refresh := func(id, labelKey string) {
@@ -327,7 +312,6 @@ func buildInitRefreshLabels(cfg *views.InlineWizardConfig, steps []views.WizardS
 		}
 
 		refresh("welcome", "cmd.init.wizard_step_welcome")
-		refresh("lang", "cmd.init.wizard_step_lang")
 		refreshP("provider", "cmd.init.wizard_step_provider_label", "cmd.init.wizard_processing_credentials")
 		refresh("team_mode", "cmd.init.wizard_step_team")
 
@@ -344,8 +328,5 @@ func buildInitRefreshLabels(cfg *views.InlineWizardConfig, steps []views.WizardS
 
 		// Project steps
 		refreshP("project", "cmd.init.wizard_step_project", "cmd.init.wizard_processing_project")
-
-		// MCP steps
-		refresh("mcp_consolidated", "cmd.init.wizard_step_mcp")
 	}
 }

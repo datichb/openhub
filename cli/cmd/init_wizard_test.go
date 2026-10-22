@@ -11,7 +11,9 @@ import (
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/config/configtest"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
+	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
 // findButtonForm scans a Flex container for the last *tview.Form child
@@ -32,14 +34,11 @@ func findButtonForm(container *tview.Flex) *tview.Form {
 // Builds the wizard with a mock app and verifies the overall shape:
 //   - ID is "wizard.init"
 //   - The wizard mounts without panicking (validates step/group integrity)
-//   - Steps 0, 2 are intro/welcome (SidebarHidden, Required, CustomView)
-//   - Step 4 is the team mode intro (tri-choice: init/rejoin/skip)
 //
-// Note: InlineWizardView.cfg is unexported, so we cannot directly inspect
-// step count or group StartIdx from outside package views. The canonical
-// config values (19 steps, 5 groups) are asserted here via the only
-// accessible surface: ID(), Title(), and a successful Mount/Unmount
-// cycle which validates the internal coherence of steps ↔ groups.
+// The shape of the steps and of the groups is checked on the configuration
+// (TestInitWizard_Groups, TestInitWizard_ScreenCount); here the view itself
+// is built: ID(), Title(), and a successful Mount/Unmount cycle which
+// validates the internal coherence of steps ↔ groups.
 // ---------------------------------------------------------------------------
 
 func TestBuildFirstRunInlineWizard_Structure(t *testing.T) {
@@ -55,7 +54,7 @@ func TestBuildFirstRunInlineWizard_Structure(t *testing.T) {
 	assert.Equal(t, "wizard.init", wiz.ID())
 	assert.NotEmpty(t, wiz.Title())
 
-	// Mount/Unmount cycle — exercises all 19 steps + 5 groups without panicking.
+	// Mount/Unmount cycle — exercises all the steps and groups without panicking.
 	tvApp := tview.NewApplication()
 	content := tview.NewFlex().SetDirection(tview.FlexRow)
 
@@ -73,14 +72,9 @@ func TestBuildFirstRunInlineWizard_Structure(t *testing.T) {
 // ---------------------------------------------------------------------------
 // TestBuildFirstRunInlineWizard_ProviderSkip
 //
-// When the provider intro is skipped, the Provider form step should be
-// skippable (its SkipIf returns true). We verify this indirectly:
-// building the wizard is enough to wire the closures; the SkipIf on
-// the provider form step captures the providerSkipped bool that the
-// intro step's onSkip callback sets to true.
-//
-// Since the steps slice is internal, we validate that the wizard builds
-// and mounts successfully with an empty config (provider not configured).
+// The provider step is skipped when the user skips it, or when the setup
+// type is "team" (the provider comes from the team). Here the wizard is built
+// and mounted with an empty config (provider not configured).
 // ---------------------------------------------------------------------------
 
 func TestBuildFirstRunInlineWizard_ProviderSkip(t *testing.T) {
@@ -108,155 +102,52 @@ func TestBuildFirstRunInlineWizard_ProviderSkip(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// TestBuildIntroStep_Layout
-//
-// buildIntroStep returns a views.WizardStep with exported fields — we can
-// inspect them directly from the cmd package.
+// The optional screens (provider, project) have a Submit and a Skip button;
+// Skip asks for a second click.
 // ---------------------------------------------------------------------------
 
-func TestBuildIntroStep_Layout(t *testing.T) {
-	badge := "TestBadge"
-	step := buildIntroStep(
-		badge,
-		"My Title",
-		"My description",
-		"List title",
-		"item1\nitem2",
-		"You will need:\n• Item A\n• Item B",
-		"A note",
-		func() {}, // onContinue
-		func() {}, // onSkip
-	)
+func TestInitWizard_OptionalScreensSkip(t *testing.T) {
+	i18ntest.Restore(t)
+	for _, tc := range []struct {
+		name    string
+		build   func(s *initStepState) views.WizardStep
+		skipped func(s *initStepState) bool
+	}{
+		{"provider", buildProviderStep, func(s *initStepState) bool { return s.ProviderSkipped }},
+		{"project", buildProjectStep, func(s *initStepState) bool { return s.ProjectSkipped }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s := newTestState()
+			step := tc.build(s)
+			*s.Steps = []views.WizardStep{step}
 
-	// ── Exported field assertions ──
-	assert.Equal(t, badge, step.Label)
-	assert.True(t, step.Required, "intro steps must be Required")
-	assert.True(t, step.SidebarHidden, "intro steps must be SidebarHidden")
-	require.NotNil(t, step.CustomView, "intro step must have a CustomView")
+			tvApp := tview.NewApplication()
+			container := tview.NewFlex().SetDirection(tview.FlexRow)
+			doneCalled := false
+			step.CustomView(tvApp, container, func() { doneCalled = true })
 
-	// ── Invoke CustomView and inspect the container ──
-	tvApp := tview.NewApplication()
-	container := tview.NewFlex().SetDirection(tview.FlexRow)
-	doneCalled := false
-	onDone := func() { doneCalled = true }
+			buttonForm := findButtonForm(container)
+			require.NotNil(t, buttonForm)
+			require.Equal(t, 2, buttonForm.GetButtonCount(), "Submit + Skip")
+			tvApp.SetFocus(buttonForm)
+			handler := buttonForm.InputHandler()
+			setFocus := func(p tview.Primitive) {}
+			handler(tcell.NewEventKey(tcell.KeyTab, 0, tcell.ModNone), setFocus)
 
-	step.CustomView(tvApp, container, onDone)
+			enter := tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone)
+			handler(enter, setFocus)
+			assert.False(t, tc.skipped(s), "the first click asks for a confirmation")
+			assert.False(t, doneCalled)
+			handler(enter, setFocus)
+			assert.True(t, tc.skipped(s), "the second click skips the screen")
+			assert.True(t, doneCalled)
 
-	// Verify the container has children (layout-agnostic — don't check exact count).
-	assert.Greater(t, container.GetItemCount(), 0,
-		"CustomView should add children to the container")
-
-	// onDone should not have been called yet (no button pressed)
-	assert.False(t, doneCalled, "onDone should not fire without user interaction")
-}
-
-// ---------------------------------------------------------------------------
-// TestBuildIntroStep_ContinueCallback
-//
-// Builds an intro step with an onContinue callback, programmatically
-// activates the Continue button, and verifies the callback fires.
-// ---------------------------------------------------------------------------
-
-func TestBuildIntroStep_ContinueCallback(t *testing.T) {
-	continueCalled := false
-	doneCalled := false
-
-	step := buildIntroStep(
-		"Continue",
-		"Title",
-		"Desc",
-		"", "", "", "", // no list, no prereqs, no note
-		func() { continueCalled = true },
-		func() { t.Error("onSkip should not be called") },
-	)
-
-	tvApp := tview.NewApplication()
-	container := tview.NewFlex().SetDirection(tview.FlexRow)
-	onDone := func() { doneCalled = true }
-
-	step.CustomView(tvApp, container, onDone)
-
-	// Find the button form (layout-agnostic).
-	buttonForm := findButtonForm(container)
-	require.NotNil(t, buttonForm, "container should contain a button form")
-	require.Greater(t, buttonForm.GetButtonCount(), 0, "button form must have at least one button")
-
-	// Verify the Continue button exists.
-	btn := buttonForm.GetButton(0)
-	require.NotNil(t, btn, "Continue button should exist")
-	assert.NotEmpty(t, btn.GetLabel())
-
-	// Activate the Continue button by focusing the form and sending Enter.
-	// tview focuses the first button when the form has no form items.
-	tvApp.SetFocus(buttonForm)
-
-	handler := buttonForm.InputHandler()
-	require.NotNil(t, handler)
-
-	enterEvent := tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone)
-	handler(enterEvent, func(p tview.Primitive) {})
-
-	assert.True(t, continueCalled, "onContinue should have been called via Continue button")
-	assert.True(t, doneCalled, "onDone should have been called after Continue")
-}
-
-// ---------------------------------------------------------------------------
-// TestBuildIntroStep_SkipCallback
-//
-// Builds an intro step with onSkip, activates the Skip button, and
-// verifies the callback fires.
-// ---------------------------------------------------------------------------
-
-func TestBuildIntroStep_SkipCallback(t *testing.T) {
-	skipCalled := false
-	doneCalled := false
-
-	step := buildIntroStep(
-		"Skippable",
-		"Title",
-		"Desc",
-		"", "", "", "",
-		func() { /* onContinue — not tested here */ },
-		func() { skipCalled = true },
-	)
-
-	tvApp := tview.NewApplication()
-	container := tview.NewFlex().SetDirection(tview.FlexRow)
-	onDone := func() { doneCalled = true }
-
-	step.CustomView(tvApp, container, onDone)
-
-	// Find the button form (layout-agnostic).
-	buttonForm := findButtonForm(container)
-	require.NotNil(t, buttonForm, "container should contain a button form")
-
-	// With onSkip provided, the form should have 2 buttons:
-	// [0] = Continue, [1] = Skip.
-	require.Equal(t, 2, buttonForm.GetButtonCount(),
-		"button form should have Continue + Skip buttons")
-
-	// Focus the Skip button (index 1).
-	// In tview, Tab cycles between buttons. We focus the form, then Tab
-	// to move to the second button, then Enter to activate it.
-	tvApp.SetFocus(buttonForm)
-
-	handler := buttonForm.InputHandler()
-	require.NotNil(t, handler)
-	setFocus := func(p tview.Primitive) {}
-
-	// Tab to move from Continue → Skip
-	tabEvent := tcell.NewEventKey(tcell.KeyTab, 0, tcell.ModNone)
-	handler(tabEvent, setFocus)
-
-	// First Enter: triggers confirmation (button label changes)
-	enterEvent := tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone)
-	handler(enterEvent, setFocus)
-	assert.False(t, skipCalled, "onSkip should NOT fire on first click (confirmation pending)")
-
-	// Second Enter: confirms skip
-	handler(enterEvent, setFocus)
-	assert.True(t, skipCalled, "onSkip should have been called via Skip button after confirmation")
-	assert.True(t, doneCalled, "onDone should have been called after Skip")
+			fields := step.InfoFields()
+			require.Len(t, fields, 1)
+			assert.Contains(t, fields[0].Value, i18n.T("cmd.init.wizard_not_configured"),
+				"a skipped screen is recapped as not configured")
+		})
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -409,7 +300,7 @@ func TestBuildTeamModeIntroStep_SkipCallback(t *testing.T) {
 // P2.5: Verifies the wizard can be built and mounted with various
 // pre-existing configurations without panicking. Since the steps are
 // internal to the views package, we cannot programmatically advance
-// through all 19 steps from cmd. Instead we verify that different
+// through all the steps from cmd. Instead we verify that different
 // configurations produce a valid wizard that mounts cleanly.
 // ---------------------------------------------------------------------------
 
