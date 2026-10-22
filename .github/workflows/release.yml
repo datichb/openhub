@@ -31,7 +31,8 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
-          go-version: "1.26"
+          # The toolchain directive of go.mod: one place for the version of Go.
+          go-version-file: cli/go.mod
           cache-dependency-path: cli/go.sum
 
       - name: Download dependencies
@@ -42,6 +43,12 @@ jobs:
 
       - name: Test
         run: go test ./...
+
+      # No release built with a vulnerable standard library or dependency.
+      - name: Vulnerability scan
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
+          govulncheck ./...
 
       - name: Install Cosign
         uses: sigstore/cosign-installer@ba7bc0a3fef59531c69a25acd34668d6d3fe6f22 # v4.1.0
