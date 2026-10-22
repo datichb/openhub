@@ -7,7 +7,7 @@ The hub uses a **hybrid architecture** with two delivery paths (Bucket A inlined
 
 Sources of truth:
 
-- the hub `skills/` folder (189 files: 178 skills and 11 annexes in `skills/templates/`);
+- the hub `skills/` folder (191 files: 180 skills and 11 annexes in `skills/templates/`);
 - the agent frontmatter (`agents/**/*.md`): `skills:` = Bucket A (inlined), `native_skills:` = Bucket B (on demand).
 
 Since v5, nothing is deployed into the project any more: skills reach the session through the **session bundle**, built at each launch from the workflow (see below).
@@ -137,7 +137,7 @@ All hub agents have `permission: skill: allow`, either directly or through their
 
 ## Skill inventory (source of truth)
 
-**178 skills** across 14 folders (137 domain skills + 41 stack skills), plus **11 annexes** in `skills/templates/`.
+**180 skills** across 14 folders (139 domain skills + 41 stack skills), plus **11 annexes** in `skills/templates/`.
 
 How to read the tables: the **Agents** column gives the bucket and the agents from their frontmatter (`A` = `skills:`, `B` = `native_skills:`). `—` = no agent references it: the skill is only in a bundle if a workflow adds it through `skills.extra`.
 
@@ -194,7 +194,7 @@ The last two are in no agent frontmatter: `elicitation-techniques` reaches the b
 | `team-coordination` | B (`mcp: team`): orchestrator-dev | Team coordination (claims, conflicts, handover) |
 | `takeover-context-protocol` | B (`mcp: team`): orchestrator, orchestrator-dev | Using a takeover brief on a ticket handed over by another member |
 
-### `planning/` — 23 skills
+### `planning/` — 24 skills
 
 | Skill | Agents | Content |
 |-------|--------|---------|
@@ -205,6 +205,7 @@ The last two are in no agent frontmatter: `elicitation-techniques` reaches the b
 | `planner-phase-0` | B: planner | Phase 0 (prerequisites) and 0.5 (complexity scoring: 4 criteria × 4 pts, Small/Medium/Large/Enterprise tiers) |
 | `planner-phase-1` | B: planner | Phase 1 (exploration) and 1.5 (design delegation) |
 | `grilling` | B: planner | Question the request before asking: confront it with the code and the project rules (quantifiers, actors, visibility, life cycle, invariants), one prioritized question per decision |
+| `triage` | B: planner (named by the `triage` prompt) | Triage a batch of tickets or findings: justified priority, proven duplicate, project labels, oversized ticket split, every change shown before anything is written |
 | `planner-phase-2` | B: planner | Phase 2 — complementary questions ([FACT] / [DECISION], batch or frontier) |
 | `planner-phase-2-5` | B: planner | Phase 2.5 (Large or Enterprise complexity, Medium on request) — shared understanding, Enterprise decision map |
 | `planner-phase-3-4` | B: planner | Phase 3 (hierarchical plan) and 4 (edge cases) |
@@ -278,7 +279,7 @@ The **41 stack skills** in `developer/stacks/` are described in [Stack skills](#
 
 The 9 domain checklists are loaded on demand by `auditor-subagent`, which names them in its domain table: they ship in every bundle where it is a member (`audit`). The `type` input of `audit` offers exactly these domains (test `TestAuditTypeEnumMatchesDomainSkills`).
 
-### `quality/` — 8 skills
+### `quality/` — 9 skills
 
 | Skill | Agents | Content |
 |-------|--------|---------|
@@ -290,6 +291,7 @@ The 9 domain checklists are loaded on demand by `auditor-subagent`, which names 
 | `debugger-phase-2-3` | B: debugger | Phase 2 (questions) and 3 (4-step diagnosis) |
 | `debugger-phase-4-5` | B: debugger | Phase 4 (edge cases) and 5 (report + ticket) |
 | `postmortem` | B: debugger (named by the `incident` prompt) | Blameless postmortem: sourced timeline, quantified impact and detection delay, trigger and cause, verifiable actions (R9-a) |
+| `retro` | B: debugger (named by the `retro` prompt) | Retrospective of agent sessions from their traces: sourced facts, grouping by cause, cost of retries, actions checkable in a later trace, blameless |
 
 ### `release/` — 2 skills
 

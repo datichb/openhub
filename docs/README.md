@@ -98,7 +98,7 @@ In v5, plugins are declared per workflow (`plugins:`) and delivered in the sessi
 |-------|-------------|
 | [Migrating to v5](guides/migration-v5.en.md) | From oh v4 (opencode V1, `oh deploy`) to oh v5 |
 | [Designer Fusion Migration](guides/migration-designer-fusion.en.md) | **Historical (v5)**: ux-designer/ui-designer merged into designer (before v5) |
-| [Migration from `oc`](../MIGRATION.md) | From the former bash CLI |
+| [Migrating from oh 4.x and from `oc`](../MIGRATION.md) | From oh 4.x to 5.0 (actions by theme, in French); historical: from the former bash CLI |
 
 ---
 
@@ -116,7 +116,7 @@ In v5, plugins are declared per workflow (`plugins:`) and delivered in the sessi
 | [CLI — MCP](reference/cli-mcp.en.md) | `oh mcp *` (`oh plugin` removed in v5) |
 | [CLI — Team](reference/cli-team.en.md) | `oh team *` (incl. `init --solo`, `promote`), `oh teams *`, `oh conventions`, `oh patterns`, `oh policies`, `oh takeover-brief` |
 | [CLI — Tools](reference/cli-tools.en.md) | `oh skill *`, `oh worktree *`, `oh secrets *`, `oh metrics` |
-| [Shipped Workflows](reference/workflows.en.md) | The 14 `oh/v1` workflows shipped by the hub: entry agents, inputs, checkpoints, prompt templates |
+| [Shipped Workflows](reference/workflows.en.md) | The 24 `oh/v1` workflows shipped by the hub: entry agents, inputs, checkpoints, prompt templates |
 | [Workflow Schema](reference/workflow-schema.en.md) | `apiVersion: oh/v1` schema: fields, validation, layers, `extends`, `enforce` |
 | [Checkpoints](reference/checkpoints.en.md) | Modes and planned pauses, pause budget, verification run by oh, evidence, fix rounds, conditions, unlock windows |
 | [Configuration](reference/config.en.md) | hub.toml, project settings, team config |

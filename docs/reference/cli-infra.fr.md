@@ -233,7 +233,7 @@ oh purge [--dry-run] [--yes] [--keep-binary] [--include-tool-data]
 | `--dry-run` | bool | Afficher ce qui serait supprimé sans rien supprimer |
 | `--yes` | `-y` | bool | Supprimer sans confirmation et sans proposer de sauvegarde (obligatoire sans terminal). Ancien nom : `--force` (déprécié, même effet, avec un avertissement) |
 | `--keep-binary` | bool | Conserver le binaire `oh` |
-| `--include-tool-data` | bool | Supprimer aussi les données globales de l'outil des sessions (pour opencode : `~/.local/share/opencode/`, `~/.config/opencode/`). Ancien nom : `--include-opencode` |
+| `--include-tool-data` | bool | Supprimer aussi les données globales de l'outil des sessions (pour opencode : `~/.local/share/opencode/`, `~/.config/opencode/`). Ancien nom `--include-opencode` : supprimé sans alias (« unknown flag », code 2) |
 
 ```bash
 oh purge --dry-run

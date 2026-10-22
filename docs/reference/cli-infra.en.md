@@ -233,7 +233,7 @@ oh purge [--dry-run] [--yes] [--keep-binary] [--include-tool-data]
 | `--dry-run` | bool | Show what would be deleted without deleting anything |
 | `--yes` | `-y` | bool | Delete without confirmation and without offering a backup (required without a terminal). Former name: `--force` (deprecated, same effect, with a warning) |
 | `--keep-binary` | bool | Keep the `oh` binary |
-| `--include-tool-data` | bool | Also delete the global data of the session tool (for opencode: `~/.local/share/opencode/`, `~/.config/opencode/`). Former name: `--include-opencode` |
+| `--include-tool-data` | bool | Also delete the global data of the session tool (for opencode: `~/.local/share/opencode/`, `~/.config/opencode/`). Former name `--include-opencode`: removed without an alias ("unknown flag", exit code 2) |
 
 ```bash
 oh purge --dry-run

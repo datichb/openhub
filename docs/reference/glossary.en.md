@@ -183,7 +183,7 @@ A workflow may restrict the modes (`modes.allowed`). See [`oh/v1` schema](workfl
 
 ### Workflow
 
-The declarative description of a use case (YAML `apiVersion: oh/v1`): entry agent, agents, checkpoints, inputs, resources, environments and limits. 21 workflows shipped by the hub (`ticket`, `quick`, `spec`, `implement-spec`, `infra-change`, `onboarding`, `review`, `review-feedback`, `audit`, `debug`, `incident`, `security-fix`, `spike`, `release`, `benchmark`, `sweep`, `doc-sync`, `skill-refresh`, `brief-enrich`, `merge-conflicts`, `libre`; `feature` and `cadrage` are aliases of `spec`), extensible by the team and the project (`extends`, security may only be hardened). Launched with `oh run <workflow>`. See [Shipped workflows](workflows.en.md) and [`oh/v1` schema](workflow-schema.en.md).
+The declarative description of a use case (YAML `apiVersion: oh/v1`): entry agent, agents, checkpoints, inputs, resources, environments and limits. 24 workflows shipped by the hub (`ticket`, `quick`, `spec`, `implement-spec`, `infra-change`, `onboarding`, `review`, `review-feedback`, `audit`, `debug`, `incident`, `security-fix`, `spike`, `release`, `benchmark`, `sweep`, `doc-sync`, `skill-refresh`, `brief-enrich`, `merge-conflicts`, `libre`, `retro`, `triage`, `sweep-task`; `feature` and `cadrage` are aliases of `spec`), extensible by the team and the project (`extends`, security may only be hardened). Launched with `oh run <workflow>`. See [Shipped workflows](workflows.en.md) and [`oh/v1` schema](workflow-schema.en.md).
 
 ### Worktree
 
