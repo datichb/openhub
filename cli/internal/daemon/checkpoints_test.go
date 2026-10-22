@@ -154,8 +154,12 @@ func TestWatcherCheckpoints(t *testing.T) {
 	fake.set(func() { fake.decisions["ses_a"] = nil })
 	ch <- adapters.ToolEvent{Kind: adapters.EventDecisionReplied, SessionID: "ses_a"}
 	require.Eventually(t, func() bool { return len(open()) == 0 }, 3*time.Second, 20*time.Millisecond)
-	s, _ = states.GetCheckpointState(ctx, "ses_a")
-	assert.Empty(t, s.Waiting)
+	// The decision and the checkpoint state are two writes: the state may
+	// follow the decision by a moment.
+	require.Eventually(t, func() bool {
+		s, err := states.GetCheckpointState(ctx, "ses_a")
+		return err == nil && s.Waiting == ""
+	}, 3*time.Second, 20*time.Millisecond, "the checkpoint no longer waits")
 
 	// Circuit breaker: 3 delegations without the user → ✗ decision, delegation held.
 	for i := 0; i < 3; i++ {
