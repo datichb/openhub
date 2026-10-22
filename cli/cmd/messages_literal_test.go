@@ -63,7 +63,6 @@ var literalExceptions = map[string]string{
 	"patterns: add %s":                      "git commit message",
 	"patterns: validate %s":                 "git commit message",
 	"patterns: remove %s":                   "git commit message",
-	"policies: add %s":                      "git commit message",
 	"team: update member %s":                "git commit message",
 	"team: add member %s":                   "git commit message",
 	"takeover: enriched brief for %s/%s":    "git commit message",
