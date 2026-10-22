@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"sort"
 	"sync"
 
 	"github.com/datichb/openhub/cli/internal/adapters"
@@ -31,6 +32,21 @@ func newToolRegistry() *adapters.Registry {
 func strictIsolation() bool {
 	c, err := config.Load()
 	return err == nil && c != nil && c.Execution.StrictIsolation
+}
+
+// toolPins returns the versions of the tool whose package integrity is pinned
+// in oh, sorted, and the recommended version (S-38). nil, "" when the table
+// cannot be read.
+func toolPins() (pinned []string, recommended string) {
+	pins, err := opencodev2.PinnedIntegrity()
+	if err != nil {
+		return nil, ""
+	}
+	for v := range pins {
+		pinned = append(pinned, v)
+	}
+	sort.Strings(pinned)
+	return pinned, opencodev2.RecommendedVersion()
 }
 
 // detectTool returns the first installed and supported tool (D3: oh v5 runs

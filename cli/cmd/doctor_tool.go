@@ -3,11 +3,10 @@ package cmd
 import (
 	"context"
 	"errors"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/datichb/openhub/cli/internal/adapters"
-	"github.com/datichb/openhub/cli/internal/adapters/opencodev2"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
@@ -39,18 +38,13 @@ func toolCheck(ctx context.Context) views.DoctorCheck {
 // them with an integrity that comes from the registry alone, and
 // execution.strict_isolation refuses them. "" when the version is pinned.
 func unpinnedToolWarning(version string) string {
-	pins, err := opencodev2.PinnedIntegrity()
-	if err != nil || len(pins) == 0 {
+	pinned, recommended := toolPins()
+	if len(pinned) == 0 {
 		return ""
 	}
 	version = strings.TrimPrefix(version, "v")
-	if _, ok := pins[version]; ok {
+	if slices.Contains(pinned, version) {
 		return ""
 	}
-	pinned := make([]string, 0, len(pins))
-	for v := range pins {
-		pinned = append(pinned, v)
-	}
-	sort.Strings(pinned)
-	return i18n.Tf("cmd.doctor.pin.unpinned", version, strings.Join(pinned, ", "), opencodev2.RecommendedVersion())
+	return i18n.Tf("cmd.doctor.pin.unpinned", version, strings.Join(pinned, ", "), recommended)
 }
