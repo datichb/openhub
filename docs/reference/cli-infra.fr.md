@@ -196,6 +196,8 @@ oh gc --older-than 7d
 
 Vérifie la base SQLite `~/.oh/oh.db` **sans la migrer** et sans avoir besoin d'une configuration ou d'une base qui fonctionnent : intégrité (`PRAGMA integrity_check`), version du schéma et version connue d'oh, migrations en attente, dernière migration en échec, sauvegardes faites avant les migrations (`~/.oh/backups/`). En cas de corruption, les fichiers de la base (avec `-wal` et `-shm`) sont copiés en `oh.db.corrupt-<date>`, puis les options sont proposées : restaurer une sauvegarde d'avant migration, restaurer un export, et seulement en dernier recours repartir d'une base vide.
 
+Revenir en arrière après une migration = restaurer la sauvegarde faite juste avant (`oh repair --restore`) ; oh ne défait jamais lui-même le schéma d'une base utilisateur.
+
 ```
 oh repair [--check-only] [--auto] [--migrate] [--restore <fichier>]
 ```

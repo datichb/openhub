@@ -159,8 +159,8 @@ const sequentialMigrations = 31
 type migration struct {
 	version      int
 	up           string
-	down         string // empty means irreversible
-	irreversible bool
+	down         string // rollback; empty only with irreversible
+	irreversible bool   // the data cannot be rebuilt: MigrateDown stops here
 }
 
 // appliedVersions returns the recorded migration versions.
@@ -228,7 +228,14 @@ func (s *Store) MigrateDown(targetVersion int) error {
 }
 
 // schemaMigrations is the ordered list of all schema migrations.
-// down is empty for irreversible operations (column drops on old SQLite, etc.).
+//
+// Every migration has a down (the exact inverse of its up, in reverse order;
+// an index on a column is dropped before the column) or is marked
+// irreversible: TestEveryMigrationIsReversibleOrMarked and
+// TestMigrationsRoundTrip enforce it. A down drops what its migration added
+// (the data of those columns is lost) and does not undo data changes (v36,
+// v42). The downs are for tests and development: oh never rolls back a
+// user's database, it restores a backup (oh repair --restore).
 var schemaMigrations = []migration{
 	{
 		version: 1,
@@ -284,34 +291,29 @@ var schemaMigrations = []migration{
 		down:    `DROP INDEX IF EXISTS idx_sessions_status`,
 	},
 	{
-		version:      7,
-		up:           `ALTER TABLE projects ADD COLUMN provider TEXT NOT NULL DEFAULT ''`,
-		down:         `ALTER TABLE projects DROP COLUMN provider`,
-		irreversible: false,
+		version: 7,
+		up:      `ALTER TABLE projects ADD COLUMN provider TEXT NOT NULL DEFAULT ''`,
+		down:    `ALTER TABLE projects DROP COLUMN provider`,
 	},
 	{
-		version:      8,
-		up:           `ALTER TABLE projects ADD COLUMN model TEXT NOT NULL DEFAULT ''`,
-		down:         `ALTER TABLE projects DROP COLUMN model`,
-		irreversible: false,
+		version: 8,
+		up:      `ALTER TABLE projects ADD COLUMN model TEXT NOT NULL DEFAULT ''`,
+		down:    `ALTER TABLE projects DROP COLUMN model`,
 	},
 	{
-		version:      9,
-		up:           `ALTER TABLE projects ADD COLUMN model_overrides TEXT NOT NULL DEFAULT ''`,
-		down:         `ALTER TABLE projects DROP COLUMN model_overrides`,
-		irreversible: false,
+		version: 9,
+		up:      `ALTER TABLE projects ADD COLUMN model_overrides TEXT NOT NULL DEFAULT ''`,
+		down:    `ALTER TABLE projects DROP COLUMN model_overrides`,
 	},
 	{
-		version:      10,
-		up:           `ALTER TABLE projects ADD COLUMN mcp_config TEXT NOT NULL DEFAULT ''`,
-		down:         `ALTER TABLE projects DROP COLUMN mcp_config`,
-		irreversible: false,
+		version: 10,
+		up:      `ALTER TABLE projects ADD COLUMN mcp_config TEXT NOT NULL DEFAULT ''`,
+		down:    `ALTER TABLE projects DROP COLUMN mcp_config`,
 	},
 	{
-		version:      11,
-		up:           `ALTER TABLE projects ADD COLUMN provider_config TEXT NOT NULL DEFAULT ''`,
-		down:         `ALTER TABLE projects DROP COLUMN provider_config`,
-		irreversible: false,
+		version: 11,
+		up:      `ALTER TABLE projects ADD COLUMN provider_config TEXT NOT NULL DEFAULT ''`,
+		down:    `ALTER TABLE projects DROP COLUMN provider_config`,
 	},
 	{
 		version: 12,
@@ -352,46 +354,39 @@ var schemaMigrations = []migration{
 		down:    `DROP INDEX IF EXISTS idx_agent_events_project`,
 	},
 	{
-		version:      17,
-		up:           `ALTER TABLE projects ADD COLUMN team_config TEXT NOT NULL DEFAULT ''`,
-		down:         `ALTER TABLE projects DROP COLUMN team_config`,
-		irreversible: false,
+		version: 17,
+		up:      `ALTER TABLE projects ADD COLUMN team_config TEXT NOT NULL DEFAULT ''`,
+		down:    `ALTER TABLE projects DROP COLUMN team_config`,
 	},
 	{
-		version:      18,
-		up:           `ALTER TABLE projects ADD COLUMN tracker_config TEXT NOT NULL DEFAULT ''`,
-		down:         `ALTER TABLE projects DROP COLUMN tracker_config`,
-		irreversible: false,
+		version: 18,
+		up:      `ALTER TABLE projects ADD COLUMN tracker_config TEXT NOT NULL DEFAULT ''`,
+		down:    `ALTER TABLE projects DROP COLUMN tracker_config`,
 	},
 	{
-		version:      19,
-		up:           `ALTER TABLE sessions ADD COLUMN launch_path TEXT NOT NULL DEFAULT ''`,
-		down:         `ALTER TABLE sessions DROP COLUMN launch_path`,
-		irreversible: false,
+		version: 19,
+		up:      `ALTER TABLE sessions ADD COLUMN launch_path TEXT NOT NULL DEFAULT ''`,
+		down:    `ALTER TABLE sessions DROP COLUMN launch_path`,
 	},
 	{
-		version:      20,
-		up:           `ALTER TABLE projects ADD COLUMN team_id TEXT DEFAULT NULL`,
-		down:         `ALTER TABLE projects DROP COLUMN team_id`,
-		irreversible: false,
+		version: 20,
+		up:      `ALTER TABLE projects ADD COLUMN team_id TEXT DEFAULT NULL`,
+		down:    `ALTER TABLE projects DROP COLUMN team_id`,
 	},
 	{
-		version:      21,
-		up:           `ALTER TABLE projects ADD COLUMN workflow_config TEXT NOT NULL DEFAULT ''`,
-		down:         `ALTER TABLE projects DROP COLUMN workflow_config`,
-		irreversible: false,
+		version: 21,
+		up:      `ALTER TABLE projects ADD COLUMN workflow_config TEXT NOT NULL DEFAULT ''`,
+		down:    `ALTER TABLE projects DROP COLUMN workflow_config`,
 	},
 	{
-		version:      22,
-		up:           `ALTER TABLE sessions ADD COLUMN member_id TEXT DEFAULT NULL`,
-		down:         `ALTER TABLE sessions DROP COLUMN member_id`,
-		irreversible: false,
+		version: 22,
+		up:      `ALTER TABLE sessions ADD COLUMN member_id TEXT DEFAULT NULL`,
+		down:    `ALTER TABLE sessions DROP COLUMN member_id`,
 	},
 	{
-		version:      23,
-		up:           `ALTER TABLE agent_events ADD COLUMN member_id TEXT DEFAULT NULL`,
-		down:         `ALTER TABLE agent_events DROP COLUMN member_id`,
-		irreversible: false,
+		version: 23,
+		up:      `ALTER TABLE agent_events ADD COLUMN member_id TEXT DEFAULT NULL`,
+		down:    `ALTER TABLE agent_events DROP COLUMN member_id`,
 	},
 	{
 		version: 24,
@@ -401,24 +396,31 @@ ALTER TABLE sessions ADD COLUMN tokens_cache_read INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE sessions ADD COLUMN platform TEXT NOT NULL DEFAULT 'unknown';
 ALTER TABLE sessions ADD COLUMN external_session_id TEXT DEFAULT NULL;
 ALTER TABLE sessions ADD COLUMN slug TEXT DEFAULT NULL`,
-		irreversible: false,
+		down: `ALTER TABLE sessions DROP COLUMN slug;
+ALTER TABLE sessions DROP COLUMN external_session_id;
+ALTER TABLE sessions DROP COLUMN platform;
+ALTER TABLE sessions DROP COLUMN tokens_cache_read;
+ALTER TABLE sessions DROP COLUMN tokens_reasoning;
+ALTER TABLE sessions DROP COLUMN cost`,
 	},
 	{
-		version:      25,
-		up:           `ALTER TABLE sessions ADD COLUMN pid INTEGER NOT NULL DEFAULT 0`,
-		irreversible: false,
+		version: 25,
+		up:      `ALTER TABLE sessions ADD COLUMN pid INTEGER NOT NULL DEFAULT 0`,
+		down:    `ALTER TABLE sessions DROP COLUMN pid`,
 	},
 	{
-		version:      26,
-		up:           `ALTER TABLE sessions ADD COLUMN title TEXT DEFAULT NULL`,
-		irreversible: false,
+		version: 26,
+		up:      `ALTER TABLE sessions ADD COLUMN title TEXT DEFAULT NULL`,
+		down:    `ALTER TABLE sessions DROP COLUMN title`,
 	},
 	{
 		version: 27,
 		up: `ALTER TABLE sessions ADD COLUMN type TEXT NOT NULL DEFAULT 'interactive';
 ALTER TABLE sessions ADD COLUMN label TEXT DEFAULT NULL;
 ALTER TABLE sessions ADD COLUMN correlation_id TEXT DEFAULT NULL`,
-		irreversible: false,
+		down: `ALTER TABLE sessions DROP COLUMN correlation_id;
+ALTER TABLE sessions DROP COLUMN label;
+ALTER TABLE sessions DROP COLUMN type`,
 	},
 	{
 		version: 28,
@@ -452,7 +454,14 @@ ALTER TABLE sessions ADD COLUMN runtime TEXT NOT NULL DEFAULT '';
 ALTER TABLE sessions ADD COLUMN mode TEXT NOT NULL DEFAULT '';
 ALTER TABLE sessions ADD COLUMN state TEXT NOT NULL DEFAULT '';
 CREATE INDEX IF NOT EXISTS idx_sessions_group ON sessions(group_key)`,
-		irreversible: false,
+		down: `DROP INDEX IF EXISTS idx_sessions_group;
+ALTER TABLE sessions DROP COLUMN state;
+ALTER TABLE sessions DROP COLUMN mode;
+ALTER TABLE sessions DROP COLUMN runtime;
+ALTER TABLE sessions DROP COLUMN group_key;
+ALTER TABLE sessions DROP COLUMN bundle_hash;
+ALTER TABLE sessions DROP COLUMN entry_agent;
+ALTER TABLE sessions DROP COLUMN workflow_id`,
 	},
 	{
 		version: 30,
@@ -471,9 +480,9 @@ CREATE INDEX IF NOT EXISTS idx_proxy_grants_owner ON proxy_grants(owner)`,
 		down: `DROP TABLE IF EXISTS proxy_grants`,
 	},
 	{
-		version:      31,
-		up:           `ALTER TABLE sessions ADD COLUMN state_changed_at DATETIME DEFAULT NULL`,
-		irreversible: false,
+		version: 31,
+		up:      `ALTER TABLE sessions ADD COLUMN state_changed_at DATETIME DEFAULT NULL`,
+		down:    `ALTER TABLE sessions DROP COLUMN state_changed_at`,
 	},
 	{
 		// v5 phase 1 (P1-T21): pinned workflows and UI settings. scope =
@@ -518,7 +527,12 @@ ALTER TABLE sessions ADD COLUMN workflow_risk TEXT NOT NULL DEFAULT '';
 ALTER TABLE sessions ADD COLUMN location TEXT NOT NULL DEFAULT '';
 ALTER TABLE sessions ADD COLUMN outputs TEXT NOT NULL DEFAULT '{}';
 ALTER TABLE sessions ADD COLUMN parent_session_id TEXT NOT NULL DEFAULT ''`,
-		irreversible: false,
+		down: `ALTER TABLE sessions DROP COLUMN parent_session_id;
+ALTER TABLE sessions DROP COLUMN outputs;
+ALTER TABLE sessions DROP COLUMN location;
+ALTER TABLE sessions DROP COLUMN workflow_risk;
+ALTER TABLE sessions DROP COLUMN workflow_version;
+ALTER TABLE sessions DROP COLUMN workflow_layer`,
 	},
 	{
 		// v5 phase 3 (P3-T03): workflow state of a session (checkpoints

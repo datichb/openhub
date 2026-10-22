@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -37,6 +38,10 @@ var toolWord = regexp.MustCompile(`(?i)opencode`)
 // 00-INDEX): only the adapter disables them.
 var nativeAgents = []string{"build", "plan", "general", "explore"}
 
+// contractTags are the build tags of the contract tests run against a real
+// tool server.
+var contractTags = []string{"integration", "e2e", "container"}
+
 // allowed reports whether a file of the module may name a tool: the adapters
 // themselves, the composition root, the legacy configuration keys read for
 // compatibility, and the contract tests run against a real tool server
@@ -48,17 +53,64 @@ func allowed(rel string, tags string) bool {
 	case rel == "cmd/v5_adapters.go", rel == "internal/config/legacy_keys.go", rel == "internal/config/legacy_keys_test.go":
 		return true
 	case strings.HasSuffix(rel, "_test.go") && tags != "":
-		expr, err := constraint.Parse("//go:build " + tags)
-		if err != nil {
-			return false
-		}
-		for _, tag := range []string{"integration", "e2e", "container"} {
-			if strings.Contains(expr.String(), tag) {
-				return true
-			}
-		}
+		return contractOnly(tags)
 	}
 	return false
+}
+
+// contractOnly reports whether a //go:build expression is compiled only with
+// one of the contract tags: no combination of tags (OS,
+// architecture…) compiles the file without any of them, and at least one
+// compiles it with some of them (integration && e2e needs both). A tag merely named in the expression (!integration)
+// does not exempt the file.
+func contractOnly(tags string) bool {
+	expr, err := constraint.Parse("//go:build " + tags)
+	if err != nil {
+		return false
+	}
+	var tagNames []string
+	seen := map[string]bool{}
+	var walk func(constraint.Expr)
+	walk = func(e constraint.Expr) {
+		switch x := e.(type) {
+		case *constraint.TagExpr:
+			if !seen[x.Tag] {
+				seen[x.Tag] = true
+				tagNames = append(tagNames, x.Tag)
+			}
+		case *constraint.NotExpr:
+			walk(x.X)
+		case *constraint.AndExpr:
+			walk(x.X)
+			walk(x.Y)
+		case *constraint.OrExpr:
+			walk(x.X)
+			walk(x.Y)
+		}
+	}
+	walk(expr)
+	if len(tagNames) > 12 {
+		return false
+	}
+	withContract := false
+	for mask := 0; mask < 1<<len(tagNames); mask++ {
+		contractOn := false
+		on := map[string]bool{}
+		for i, tag := range tagNames {
+			if mask&(1<<i) != 0 {
+				on[tag] = true
+				contractOn = contractOn || slices.Contains(contractTags, tag)
+			}
+		}
+		if !expr.Eval(func(tag string) bool { return on[tag] }) {
+			continue
+		}
+		if !contractOn {
+			return false
+		}
+		withContract = true
+	}
+	return withContract
 }
 
 func moduleRoot(t *testing.T) string {
@@ -233,5 +285,40 @@ func TestDependencyGraph(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+// TestAllowedByBuildConstraint: a test file is exempt only when the
+// expression compiles it with a contract tag and never without.
+func TestAllowedByBuildConstraint(t *testing.T) {
+	for _, tc := range []struct {
+		tags string
+		want bool
+	}{
+		{"integration", true},
+		{"e2e", true},
+		{"container", true},
+		{"integration && linux", true},
+		{"integration && e2e", true},
+		{"e2e || container", true},
+		{"linux && (integration || e2e)", true},
+		{"!integration", false},
+		{"!e2e && !container", false},
+		{"linux", false},
+		{"linux || integration", false},
+		{"integration || !linux", false},
+		{"!linux && integration", true},
+		{"ignore", false},
+		{"integration &&", false},
+	} {
+		if got := allowed("internal/x/x_test.go", tc.tags); got != tc.want {
+			t.Errorf("//go:build %s: exempt = %v, want %v", tc.tags, got, tc.want)
+		}
+	}
+	if allowed("internal/x/x.go", "integration") {
+		t.Error("a file that is not a test is never exempt")
+	}
+	if allowed("internal/x/x_test.go", "") {
+		t.Error("a test without build tag is never exempt")
 	}
 }
