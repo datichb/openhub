@@ -13,8 +13,12 @@ import (
 
 func (s *simShell) screen() string {
 	var b strings.Builder
-	s.loop(func() {})
-	cells, w, _ := s.sim.GetContents()
+	var cells []tcell.SimCell
+	var w int
+	s.loop(func() { // copied on the loop that draws the screen
+		c, cw, _ := s.sim.GetContents()
+		cells, w = append([]tcell.SimCell(nil), c...), cw
+	})
 	for i, c := range cells {
 		if len(c.Runes) > 0 {
 			b.WriteRune(c.Runes[0])
