@@ -2,6 +2,8 @@
 
 # Référence CLI — Équipe
 
+> **Bêta (v5.0).** Le mode équipe est publié en bêta : il fonctionne, mais quelques limites sont connues (réservation libérée à l'arrêt de la session, pas d'expiration, libération qui peut se perdre). Lisez les [limites connues](../guides/team-setup.fr.md#limites-connues) avant de vous y fier.
+
 Les fonctions d'équipe reposent sur un dépôt git **team-state** partage (claims, événements, wiki, policies, patterns, workflows d'équipe). Voir [Workflows d'équipe](../guides/team-workflows.fr.md) pour les workflows et l'[ADR-040](../architecture/adr/040-workflows-team-state-governance.fr.md).
 
 ## Collaboration (oh team)
@@ -324,3 +326,16 @@ oh takeover-brief show <ticket-id>    # voir le contexte de reprise
 oh takeover-brief list                # lister les briefs
 oh takeover-brief enrich <ticket-id>  # alias deprecie : lance `oh run brief-enrich --headless` avec le brief et enregistre le resultat
 ```
+
+## Limites connues
+
+Le mode équipe est en bêta en v5.0. Ces limites sont connues ; la correction complète est prévue pour la v5.1.
+
+- **Une réservation est libérée à l'arrêt de sa session**, même si une revue (checkpoint `cp-2`) est encore en attente : le ticket redevient disponible pour les autres membres avant la fin de la revue. Si le ticket est clos dans Beads, la réservation est terminée au lieu d'être libérée.
+- **Pas d'expiration.** Une réservation reste jusqu'à ce que quelqu'un la libère. Après `takeover.stale_days` jours d'inactivité (3 par défaut, section `[takeover]` du `config.toml` du team-state), oh propose seulement un brief de reprise : reprendre le ticket reste manuel (`oh team claim transfer`).
+- **Une libération peut se perdre.** Elle s'exécute en arrière-plan à la fin de la session : si la machine est hors ligne, ou si le démon s'arrête avant le push, la réservation reste en place.
+- **Réservation oubliée :** `oh team release <ticket-id> -p <projet>` la libère à la main.
+- **`oh doctor` signale les réservations orphelines** (ticket clos, ou toutes les sessions qui l'ont traité terminées), avec la commande à lancer.
+- **La colonne REVIEW suit le label `ready-for-review`.** Dans `oh board` et dans le Board TUI, un ticket Beads `in_progress` qui porte ce label est en REVIEW (Beads n'a pas de statut `review`). Le board d'équipe affiche le statut `review` des réservations.
+
+oh avertit une fois par processus sur stderr (commandes d'équipe, première réservation prise par un lancement), et `oh doctor` liste le mode bêta comme un avertissement qui ne change pas son code de sortie.
