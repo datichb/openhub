@@ -18,6 +18,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/datichb/openhub/cli/internal/fsutil"
 	"github.com/datichb/openhub/cli/internal/gateway/beadswire"
 )
 
@@ -57,7 +58,7 @@ type Store struct {
 	mu     sync.Mutex
 	byHash map[string]Grant
 	hooks  map[string]hookTicket // one-time hook tokens (memory only)
-	// writeFile saves the grants (os.WriteFile; replaced in tests).
+	// writeFile saves the grants (fsutil.WriteFileAtomic; replaced in tests).
 	writeFile func(name string, data []byte, perm os.FileMode) error
 }
 
@@ -293,15 +294,11 @@ func (s *Store) saveLocked() error {
 	if err := os.MkdirAll(filepath.Dir(s.path), 0o700); err != nil {
 		return err
 	}
-	tmp := s.path + ".tmp"
 	write := s.writeFile
 	if write == nil {
-		write = os.WriteFile
+		write = fsutil.WriteFileAtomic
 	}
-	if err := write(tmp, data, 0o600); err != nil {
-		return err
-	}
-	return os.Rename(tmp, s.path)
+	return write(s.path, data, 0o600)
 }
 
 // setBase remembers the Beads workspace resolved for the grants of a

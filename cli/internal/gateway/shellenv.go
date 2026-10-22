@@ -10,6 +10,8 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/datichb/openhub/cli/internal/fsutil"
 )
 
 // Shell start-up of local sessions (A16): the user's own start-up files
@@ -167,22 +169,7 @@ func writeIfChanged(path, content string) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return err
 	}
-	tmp, err := os.CreateTemp(filepath.Dir(path), ".oh-*")
-	if err != nil {
-		return err
-	}
-	defer os.Remove(tmp.Name())
-	if _, err := tmp.WriteString(content); err != nil {
-		tmp.Close()
-		return err
-	}
-	if err := tmp.Close(); err != nil {
-		return err
-	}
-	if err := os.Chmod(tmp.Name(), 0o600); err != nil {
-		return err
-	}
-	return os.Rename(tmp.Name(), path)
+	return fsutil.WriteFileAtomic(path, []byte(content), 0o600)
 }
 
 // ErrShellBD tells that the shell of a session does not find the fake bd first.
