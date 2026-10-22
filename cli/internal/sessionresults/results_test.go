@@ -137,7 +137,7 @@ func TestIdentifiersThatAreNotAFolderNameAreRefused(t *testing.T) {
 	// Results of something else, next to the sessions folder.
 	require.NoError(t, SaveSummary(root, Summary{SessionID: "other", Agent: "secret"}, "patch"))
 
-	for _, id := range []string{"", ".", "..", "../other", "../../x", "a/b", "a/../b", "/abs", `a\b`, `..\other`, "ses_a\x00"} {
+	for _, id := range []string{"", ".", "..", "../other", "../../x", "a/b", "a/../b", "/abs", `a\b`, `..\elsewhere`, "ses_a\x00"} {
 		_, _, err := Load(sessions, id)
 		require.ErrorIs(t, err, ErrInvalidID, "Load %q", id)
 		assert.NotErrorIs(t, err, ErrNoSnapshot, "Load %q", id)
