@@ -180,7 +180,8 @@ Décrites pour un utilisateur de la **4.2.0**, dans leur état final. Marche à 
 - **TUI** : une réponse obsolète n'est plus appliquée (Historique, Métriques, Doctor, Nettoyage) ; Réglages et MCP ne gèlent plus l'interface au montage ; fiche de décision fermée quand la décision est réglée ailleurs ; course de données sur la configuration dans la vue MCP ; fenêtres de sessions qui se multipliaient.
 - **Configuration et CLI** : `oh config model unset family|agent`, `oh import --merge`, `oh mcp setup <service>`, GitHub et Linear (`[mcp.github]`, `[mcp.linear]`), `oh <commande> --help` qui affichait l'aide générale, `oh mcp setup` sans terminal (message clair), `review-feedback` sur un projet GitHub (message explicite au lieu d'une erreur de jeton), `oh init` qui écrasait la première équipe.
 - **Fan-out et wiki** : arrêt juste après une fusion, enfant orphelin, enfant fusionné deux fois, `oh wiki check --fix` sur les god nodes.
-- **Publication** : `release.yml` ne partait jamais sur un tag (déclencheur filtré sur la branche `main`) .
+- **Publication** : `release.yml` ne partait jamais sur un tag (déclencheur filtré sur la branche `main`) ; les liens relatifs du CHANGELOG sont réécrits en URL absolues vers le tag dans les notes de la release GitHub.
+- **`oh purge`** n'arrête plus que les processus de son propre hub (le démon par sa socket, les serveurs d'outil enregistrés dans la base, après vérification de leurs identifiants) : il ne lance plus `pkill -f "oh serve"` ni `pkill -f "oh mcp"`, qui pouvaient tuer des processus d'autres hubs ou sans rapport avec oh. Ce qu'oh ne suit pas (`oh serve`, serveurs MCP lancés à la main, conteneurs) est listé « à arrêter à la main ».
 
 ### Security
 
