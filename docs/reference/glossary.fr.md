@@ -90,23 +90,23 @@ Un service qui expose des outils externes aux agents IA via le protocole JSON-RP
 
 Règle de v5 : une session ne voit que les agents et skills de son [paquet](#paquet-de-session) ; les agents natifs d'opencode et la configuration personnelle sont masqués. Vérifié à chaque démarrage (`Attest`) ; en cas d'échec, la session ne démarre pas. Voir [ADR-041](../architecture/adr/041-closed-world-isolation.fr.md).
 
-### Mode (Agent)
+### Type d'agent
 
-Un agent peut fonctionner selon deux modes :
+Le mot « mode » est réservé au [mode de workflow](#mode-de-workflow). Un agent est d'un des deux types suivants (champ `mode:` du fichier de l'agent, inchangé) :
 - **Primary (principal)** : lancé directement par l'utilisateur via `oh run <workflow>` ou le TUI (agent d'entrée du workflow). Possède sa propre session.
 - **Subagent (sous-agent)** : invoqué par un autre agent via l'outil `task`. S'exécute dans la session de l'agent parent.
 
-### Mode Équipe
+### Vue Équipe
 
-Mode de navigation du TUI focalisé sur une équipe active. L'omnibar affiche uniquement les commandes équipe (team board, status, policies) et les commandes globales. Active automatiquement si une seule équipe est configurée, ou manuellement via `Ctrl+T` / sélection depuis le Hub Home. Voir [Usage TUI](../guides/tui-usage.fr.md).
+Vue du TUI focalisée sur une équipe active. L'omnibar affiche uniquement les commandes équipe (team board, status, policies) et les commandes globales. Active automatiquement si une seule équipe est configurée, ou manuellement via `Ctrl+T` / sélection depuis le Hub Home. Voir [Usage TUI](../guides/tui-usage.fr.md).
 
-### Mode Hub
+### Vue Hub
 
-Mode de navigation par défaut du TUI, affichant tous les projets et équipes. Active automatiquement si plusieurs projets ou équipes sont configurés. Permet de sélectionner un projet ou une équipe pour basculer en mode focalisé. Voir [Usage TUI](../guides/tui-usage.fr.md).
+Vue par défaut du TUI, affichant tous les projets et équipes. Active automatiquement si plusieurs projets ou équipes sont configurés. Permet de sélectionner un projet ou une équipe pour basculer dans une vue focalisée. Voir [Usage TUI](../guides/tui-usage.fr.md).
 
-### Mode Projet
+### Vue Projet
 
-Mode de navigation du TUI focalisé sur un projet actif. L'omnibar affiche uniquement les commandes projet (sessions, board, config projet) et les commandes globales. Active automatiquement si un seul projet est configuré, ou en choisissant le projet depuis le Hub Home (`Esc` revient au Hub, `Ctrl+T` passe en mode équipe). Voir [Usage TUI](../guides/tui-usage.fr.md).
+Vue du TUI focalisée sur un projet actif. L'omnibar affiche uniquement les commandes projet (sessions, board, config projet) et les commandes globales. Active automatiquement si un seul projet est configuré, ou en choisissant le projet depuis le Hub Home (`Esc` revient à la vue Hub, `Ctrl+T` passe à la vue Équipe). Voir [Usage TUI](../guides/tui-usage.fr.md).
 
 ### Onboarder
 
@@ -174,8 +174,8 @@ Le tableau de bord terminal interactif lancé en exécutant `oh` sans arguments.
 
 ### Mode de Workflow
 
-Fixé au lancement (`--mode`, fiche de lancement), il détermine le comportement de chaque [checkpoint](#checkpoint-cp), déclaré par le workflow pour chaque mode :
-- **Manuel** : la plupart des checkpoints s'arrêtent pour validation
+Le seul sens de « mode » dans oh (les autres notions ont un autre nom : [type d'agent](#type-dagent), vue Hub / Projet / Équipe du TUI, type d'installation de `oh init`). Fixé au lancement (`--mode`, fiche de lancement), il détermine le comportement de chaque [checkpoint](#checkpoint-cp), déclaré par le workflow pour chaque mode :
+- **Manuel** (`manuel`, ou `manual` à la saisie : lu comme `manuel`) : la plupart des checkpoints s'arrêtent pour validation
 - **Semi-auto** (défaut des workflows livrés) : les checkpoints courants passent seuls ; les points de décision clés (ex. `cp-plan`, `cp-2`) s'arrêtent
 - **Auto** : tout sauf les décisions obligatoires — seuls s'arrêtent les checkpoints obligatoires (`mandatory`) et ceux qui déverrouillent une action (ex. `cp-plan` validation du plan, `cp-2` commit)
 

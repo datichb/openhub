@@ -3,7 +3,7 @@ Implements tickets
 Origine : hub
 Type : agent
 Famille : developer
-Mode : subagent
+Type d'agent : subagent
 Skills : developer/dev-standards
 Workflows : quick, ticket
 Coût estimé : ~1200 tokens

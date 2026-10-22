@@ -38,8 +38,8 @@ The mode bar shows the sessions badge **`● N ◐ M`** (N sessions working, M d
 | `Ctrl+P` | Command palette |
 | `/` | Filter the list of the view; when the view does not filter: palette |
 | `?` / `F1` | Help: global keys, convention, keys of the active view, legend, commands |
-| `Esc` | Closes the toasts first; else goes back (previous view); at the root of a Project or Team mode: back to the Hub |
-| `Ctrl+T` | Team mode (choice when there are several teams); from the Team mode: back to the Hub |
+| `Esc` | Closes the toasts first; else goes back (previous view); at the root of a Project or Team view: back to the Hub view |
+| `Ctrl+T` | Team view (choice when there are several teams); from the Team view: back to the Hub view |
 | `Ctrl+Q` / `Ctrl+C` | Quit (when sessions work: finish the step then sleep, background, or stop) |
 | `Enter` | Action of the selected list, button or field; palette only when nothing uses it |
 
@@ -115,11 +115,11 @@ At the bottom of the screen. At rest, it shows the hints line of the view (or of
 
 ## Palette commands
 
-The Command column gives the id; the label or an alias can be typed too. Each term has one meaning. « Project »: in the Project mode only; « Team »: in the Team mode only; else everywhere.
+The Command column gives the id; the label or an alias can be typed too. Each term has one meaning. « Project »: in the Project view only; « Team »: in the Team view only; else everywhere. The word « mode » is reserved for the workflow mode: the three home screens are called « Hub / Project / Team view ».
 
 ### Workflows and sessions
 
-| Command | Aliases | Mode | Description |
+| Command | Aliases | View | Description |
 |---------|---------|------|-------------|
 | `run.<workflow>` | the id of the workflow and its `aliases:`: `cadrage`, `feature` (→ `spec`), `secu` (→ `security-fix`), `perf` (→ `benchmark`), `dbg` (→ `debug`), `feedback`, `retours` (→ `review-feedback`) | — | Launch form of the workflow (one command per workflow of the catalogue) |
 | `run.feature.implement-spec` | « run feature → implement-spec (with tickets) » | — | Form of `implement-spec` under the alias `feature` with tickets |
@@ -134,7 +134,7 @@ The aliases come from the YAML of the workflows (`aliases:`, see the [workflows 
 
 ### Projects and configuration
 
-| Command | Aliases | Mode | Description |
+| Command | Aliases | View | Description |
 |---------|---------|------|-------------|
 | `board` | kanban, tasks, project board | Project | Beads board of the project |
 | `project-wiki` | wiki, wiki projet, project wiki, doc metrics | Project | Wiki of the project: queue of proposals and metrics |
@@ -153,7 +153,7 @@ The aliases come from the YAML of the workflows (`aliases:`, see the [workflows 
 | `cleanup` | nettoyage, gc, oh gc, deploy-cleanup, migrate, garbage, espace disque, disk | **Cleanup** view (former deployments and data of oh) |
 | `history.export`, `history.import` | export history, import history | Export / import of the session history |
 | `help` | ?, aide, shortcuts | Help |
-| `home`, `project.mode`, `hub.mode`, `quit` | accueil · projet, focus · hub, retour · exit, q | Home, Project mode, Hub mode, quit |
+| `home`, `project.mode`, `hub.mode`, `quit` | accueil · projet, focus · hub, retour · exit, q | Home, Project view, Hub view, quit |
 
 ### Team
 
@@ -260,7 +260,7 @@ Generated from the YAML of the workflow (« Launch · <workflow> », or « Launc
 
 ### Wiki of the project
 
-Command `project-wiki` (Project mode). At the top, the summarised metrics (pages, coverage of the domains, share of CONFIRMÉ / INCERTAIN, last sync); below, the queue of the proposals outside a checkpoint: **Pending**, **Accepted, applied at the next commit**, **Stale** (replaced line gone: nothing is applied).
+Command `project-wiki` (Project view). At the top, the summarised metrics (pages, coverage of the domains, share of CONFIRMÉ / INCERTAIN, last sync); below, the queue of the proposals outside a checkpoint: **Pending**, **Accepted, applied at the next commit**, **Stale** (replaced line gone: nothing is applied).
 
 | Key | Action |
 |-----|--------|
@@ -271,7 +271,7 @@ Command `project-wiki` (Project mode). At the top, the summarised metrics (pages
 
 ### Team proposals (team-state)
 
-Command `team.wiki` (Team mode): wiki proposals of the team-state, then pages. `{` / `}` sections, `Enter` see (buttons Accept, Refuse confirmed, Close), `y` accept, `n` refuse (confirmed), `r` refresh.
+Command `team.wiki` (Team view): wiki proposals of the team-state, then pages. `{` / `}` sections, `Enter` see (buttons Accept, Refuse confirmed, Close), `y` accept, `n` refuse (confirmed), `r` refresh.
 
 ### Bricks
 
@@ -334,7 +334,7 @@ Command `doctor`. `f` fix the selected check (like `oh doctor --fix`, with a pre
 
 | View | Keys |
 |------|------|
-| Projects | `Enter` configure, `n` add, `e` rename, `m` move, `d` delete (confirmed), `p` Project mode, `b` initialise Beads |
+| Projects | `Enter` configure, `n` add, `e` rename, `m` move, `d` delete (confirmed), `p` Project view, `b` initialise Beads |
 | Worktrees | `Enter` / `o` open in a terminal, `n` create, `d` delete, `p` prune the references, `M` delete the merged worktrees (never those of a session not stopped); confirmed |
 | Settings, Project config | `{` / `}` sections, `Space` toggle, `Enter` modify, `u` undo, `r` reload (confirmed when changes are unsaved) |
 | Models (hub, project, team) | `Enter` modify, `n` create, `d` delete (confirmed), `u` undo, `w` save (team) |

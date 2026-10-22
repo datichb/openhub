@@ -38,8 +38,8 @@ La barre de mode affiche le badge des sessions **`● N ◐ M`** (N sessions qui
 | `Ctrl+P` | Palette de commandes |
 | `/` | Filtrer la liste de la vue ; si la vue ne filtre pas : palette |
 | `?` / `F1` | Aide : touches globales, convention, touches de la vue active, légende, commandes |
-| `Échap` | Ferme d'abord les toasts ; sinon revient (vue précédente) ; à la racine d'un mode Projet ou Équipe : retour au Hub |
-| `Ctrl+T` | Mode Équipe (choix si plusieurs équipes) ; depuis le mode Équipe : retour au Hub |
+| `Échap` | Ferme d'abord les toasts ; sinon revient (vue précédente) ; à la racine d'une vue Projet ou Équipe : retour à la vue Hub |
+| `Ctrl+T` | Vue Équipe (choix si plusieurs équipes) ; depuis la vue Équipe : retour à la vue Hub |
 | `Ctrl+Q` / `Ctrl+C` | Quitter (si des sessions travaillent : finir l'étape puis veille, arrière-plan ou arrêter) |
 | `Entrée` | Action de la liste, du bouton ou du champ sélectionné ; palette seulement si rien ne l'utilise |
 
@@ -115,11 +115,11 @@ En bas de l'écran. Au repos, elle affiche la ligne d'aide de la vue (ou de l'on
 
 ## Commandes de la palette
 
-La colonne Commande donne l'identifiant ; on peut taper le libellé ou un alias. Chaque terme n'a qu'un sens. « Projet » : seulement en mode Projet ; « Équipe » : seulement en mode Équipe ; sinon partout.
+La colonne Commande donne l'identifiant ; on peut taper le libellé ou un alias. Chaque terme n'a qu'un sens. « Projet » : seulement dans la vue Projet ; « Équipe » : seulement dans la vue Équipe ; sinon partout. Le mot « mode » est réservé au mode de workflow : les trois écrans d'accueil se disent « vue Hub / Projet / Équipe ».
 
 ### Workflows et sessions
 
-| Commande | Alias | Mode | Description |
+| Commande | Alias | Vue | Description |
 |----------|-------|------|-------------|
 | `run.<workflow>` | l'id du workflow et ses `aliases:` : `cadrage`, `feature` (→ `spec`), `secu` (→ `security-fix`), `perf` (→ `benchmark`), `dbg` (→ `debug`), `feedback`, `retours` (→ `review-feedback`) | — | Fiche de lancement du workflow (une commande par workflow du catalogue) |
 | `run.feature.implement-spec` | « run feature → implement-spec (avec tickets) » | — | Fiche d'`implement-spec` sous l'alias `feature` avec des tickets |
@@ -134,7 +134,7 @@ Les alias viennent des YAML des workflows (`aliases:`, voir la [référence des 
 
 ### Projets et configuration
 
-| Commande | Alias | Mode | Description |
+| Commande | Alias | Vue | Description |
 |----------|-------|------|-------------|
 | `board` | kanban, tasks, project board | Projet | Board Beads du projet |
 | `project-wiki` | wiki, wiki projet, project wiki, doc metrics | Projet | Wiki du projet : file des propositions et métriques |
@@ -153,7 +153,7 @@ Les alias viennent des YAML des workflows (`aliases:`, voir la [référence des 
 | `cleanup` | nettoyage, gc, oh gc, deploy-cleanup, migrate, garbage, espace disque, disk | Vue **Nettoyage** (anciens déploiements et données d'oh) |
 | `history.export`, `history.import` | export history, import history | Export / import de l'historique des sessions |
 | `help` | ?, aide, shortcuts | Aide |
-| `home`, `project.mode`, `hub.mode`, `quit` | accueil · projet, focus · hub, retour · exit, q | Accueil, mode Projet, mode Hub, quitter |
+| `home`, `project.mode`, `hub.mode`, `quit` | accueil · projet, focus · hub, retour · exit, q | Accueil, vue Projet, vue Hub, quitter |
 
 ### Équipe
 
@@ -260,7 +260,7 @@ Générée depuis le YAML du workflow (« Lancer · <workflow> », ou « Lancer 
 
 ### Wiki du projet
 
-Commande `project-wiki` (mode Projet). En tête, les métriques résumées (pages, couverture des domaines, part de CONFIRMÉ / INCERTAIN, dernière synchronisation) ; dessous, la file des propositions hors checkpoint : **En attente**, **Acceptées, à appliquer au prochain commit**, **Périmées** (ligne remplacée disparue : rien n'est appliqué).
+Commande `project-wiki` (vue Projet). En tête, les métriques résumées (pages, couverture des domaines, part de CONFIRMÉ / INCERTAIN, dernière synchronisation) ; dessous, la file des propositions hors checkpoint : **En attente**, **Acceptées, à appliquer au prochain commit**, **Périmées** (ligne remplacée disparue : rien n'est appliqué).
 
 | Touche | Action |
 |--------|--------|
@@ -271,7 +271,7 @@ Commande `project-wiki` (mode Projet). En tête, les métriques résumées (page
 
 ### Propositions d'équipe (team-state)
 
-Commande `team.wiki` (mode Équipe) : propositions de wiki du team-state, puis pages. `{` / `}` sections, `Entrée` voir (boutons Accepter, Refuser confirmé, Fermer), `y` accepter, `n` refuser (confirmé), `r` rafraîchir.
+Commande `team.wiki` (vue Équipe) : propositions de wiki du team-state, puis pages. `{` / `}` sections, `Entrée` voir (boutons Accepter, Refuser confirmé, Fermer), `y` accepter, `n` refuser (confirmé), `r` rafraîchir.
 
 ### Briques
 
@@ -334,7 +334,7 @@ Commande `doctor`. `f` corriger le contrôle sélectionné (comme `oh doctor --f
 
 | Vue | Touches |
 |-----|---------|
-| Projets | `Entrée` configurer, `n` ajouter, `e` renommer, `m` déplacer, `d` supprimer (confirmé), `p` mode Projet, `b` initialiser Beads |
+| Projets | `Entrée` configurer, `n` ajouter, `e` renommer, `m` déplacer, `d` supprimer (confirmé), `p` vue Projet, `b` initialiser Beads |
 | Worktrees | `Entrée` / `o` ouvrir dans un terminal, `n` créer, `d` supprimer, `p` nettoyer les références (prune), `M` supprimer les worktrees fusionnés (jamais ceux d'une session non arrêtée) ; confirmés |
 | Réglages, Config projet | `{` / `}` sections, `Espace` basculer, `Entrée` modifier, `u` annuler, `r` recharger (confirmé s'il reste des modifications) |
 | Modèles (hub, projet, équipe) | `Entrée` modifier, `n` créer, `d` supprimer (confirmé), `u` annuler, `w` enregistrer (équipe) |
