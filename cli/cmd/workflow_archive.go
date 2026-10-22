@@ -29,7 +29,7 @@ func runWorkflowArchive(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	if ok, err := confirm(cmd, i18n.Tf("cmd.workflow.archive.confirm", args[0])); err != nil || !ok {
+	if ok, err := confirmAction(cmd, i18n.Tf("cmd.workflow.archive.confirm", args[0]), false); err != nil || !ok {
 		return err
 	}
 	message, _ := cmd.Flags().GetString("message")

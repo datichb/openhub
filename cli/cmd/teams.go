@@ -6,12 +6,10 @@ import (
 	"fmt"
 	"text/tabwriter"
 
-	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/tui/components/floating"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -81,6 +79,7 @@ func init() {
 	teamsAddCmd.Flags().String("name", "", i18n.T("cmd.teams.add.flags.name"))
 
 	teamsRemoveCmd.Flags().BoolP("force", "f", false, i18n.T("cmd.teams.remove.flags.force"))
+	addYesFlag(teamsRemoveCmd)
 }
 
 func runTeamsList(cmd *cobra.Command, _ []string) error {
@@ -240,13 +239,10 @@ func runTeamsRemove(cmd *cobra.Command, args []string) error {
 	// Confirmation prompt unless --force
 	force, _ := cmd.Flags().GetBool("force")
 	if !force {
-		var confirm bool
-		_ = floating.Run(floating.Config{
-			Title: i18n.T("cmd.teams.remove.short"),
-			Form: theme.NewForm(huh.NewGroup(huh.NewConfirm().
-				Title(i18n.Tf("cmd.teams.remove.confirm", teamID)).
-				Value(&confirm))),
-		})
+		confirm, err := confirmAction(cmd, i18n.Tf("cmd.teams.remove.confirm", teamID), false)
+		if err != nil {
+			return err
+		}
 		if !confirm {
 			return nil
 		}

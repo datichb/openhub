@@ -3,12 +3,12 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 
-	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/adapters"
@@ -32,6 +32,7 @@ func init() {
 	rootCmd.AddCommand(withInitLevel(purgeCmd, levelDegraded))
 	purgeCmd.Flags().Bool("dry-run", false, i18n.T("cmd.purge.flags.dry_run"))
 	purgeCmd.Flags().Bool("force", false, i18n.T("cmd.purge.flags.force"))
+	addYesFlag(purgeCmd)
 	purgeCmd.Flags().Bool("keep-binary", false, i18n.T("cmd.purge.flags.keep_binary"))
 	purgeCmd.Flags().Bool("include-tool-data", false, i18n.T("cmd.purge.flags.include-tool-data"))
 }
@@ -72,7 +73,6 @@ func toolDataLocator() adapters.DataLocator {
 
 func runPurge(cmd *cobra.Command, args []string) error {
 	dryRun, _ := cmd.Flags().GetBool("dry-run")
-	force, _ := cmd.Flags().GetBool("force")
 	keepBinary, _ := cmd.Flags().GetBool("keep-binary")
 	includeToolData, _ := cmd.Flags().GetBool("include-tool-data")
 
@@ -90,39 +90,8 @@ func runPurge(cmd *cobra.Command, args []string) error {
 	}
 
 	// ── Step 3: Confirmation ──
-	if !force {
-		// Offer backup first
-		var wantBackup bool
-		_ = theme.NewForm(huh.NewGroup(huh.NewConfirm().
-			Title(i18n.T("cmd.purge.confirm_backup")).
-			Affirmative("Yes").
-			Negative("No").
-			Value(&wantBackup))).Run()
-
-		if wantBackup {
-			fmt.Fprintf(out, "\n")
-			if err := runExport(cmd, nil); err != nil {
-				fmt.Fprintf(out, "  %s %s: %v\n",
-					theme.ErrorStyle.Render(theme.IconError),
-					i18n.T("cmd.purge.backup_failed"), err)
-			} else {
-				fmt.Fprintf(out, "\n")
-			}
-		}
-
-		// Final confirmation
-		var confirm bool
-		_ = theme.NewForm(huh.NewGroup(huh.NewConfirm().
-			Title(i18n.T("cmd.purge.confirm_final")).
-			Description(i18n.T("cmd.purge.confirm_warning")).
-			Affirmative("Yes").
-			Negative("No").
-			Value(&confirm))).Run()
-
-		if !confirm {
-			fmt.Fprintf(out, "\n%s\n", theme.Subtitle.Render(i18n.T("cmd.purge.cancelled")))
-			return nil
-		}
+	if ok, err := confirmPurge(cmd, out); err != nil || !ok {
+		return err
 	}
 
 	fmt.Fprintf(out, "\n")
@@ -174,6 +143,39 @@ func runPurge(cmd *cobra.Command, args []string) error {
 		i18n.T("cmd.purge.done"))
 
 	return nil
+}
+
+// confirmPurge asks the two questions of a purge: a backup first, then the
+// final confirmation. --force and --yes skip both (no backup is offered: the
+// caller asked for no question). Without a terminal and without them, the
+// purge is refused at the first question (confirmAction, ExitUsage).
+func confirmPurge(cmd *cobra.Command, out io.Writer) (bool, error) {
+	force, _ := cmd.Flags().GetBool("force")
+	if yes, _ := cmd.Flags().GetBool("yes"); force || yes {
+		return true, nil
+	}
+	wantBackup, err := confirmAction(cmd, i18n.T("cmd.purge.confirm_backup"), false)
+	if err != nil {
+		return false, err
+	}
+	if wantBackup {
+		fmt.Fprintf(out, "\n")
+		if err := runExport(cmd, nil); err != nil {
+			fmt.Fprintf(out, "  %s %s: %v\n",
+				theme.ErrorStyle.Render(theme.IconError),
+				i18n.T("cmd.purge.backup_failed"), err)
+		} else {
+			fmt.Fprintf(out, "\n")
+		}
+	}
+	confirm, err := confirmActionWith(cmd, i18n.T("cmd.purge.confirm_final"), i18n.T("cmd.purge.confirm_warning"), false)
+	if err != nil {
+		return false, err
+	}
+	if !confirm {
+		fmt.Fprintf(out, "\n%s\n", theme.Subtitle.Render(i18n.T("cmd.purge.cancelled")))
+	}
+	return confirm, nil
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

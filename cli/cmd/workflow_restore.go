@@ -35,7 +35,7 @@ func runWorkflowRestore(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	if ok, err := confirm(cmd, i18n.Tf("cmd.workflow.restore.confirm", args[0], version)); err != nil || !ok {
+	if ok, err := confirmAction(cmd, i18n.Tf("cmd.workflow.restore.confirm", args[0], version), false); err != nil || !ok {
 		return err
 	}
 	p, err := newWorkflowService(ctxOf(cmd)).Restore(ctxOf(cmd), c, args[0], version)

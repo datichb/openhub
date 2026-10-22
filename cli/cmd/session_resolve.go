@@ -123,8 +123,7 @@ func runSessionResolve(cmd *cobra.Command, args []string) error {
 	if dry, _ := f.GetBool("dry-run"); dry {
 		return nil
 	}
-	yes, _ := f.GetBool("yes")
-	tty := interactive()
+	tty := stdinIsTerminal()
 	// Conflicts without a choice: ask (terminal), else refuse.
 	for i, c := range plan.Conflicts {
 		if c.Resolution.Valid() {
@@ -144,19 +143,13 @@ func runSessionResolve(cmd *cobra.Command, args []string) error {
 		res[c.Ticket] = remotesvc.Resolution(choice)
 		plan.Conflicts[i].Resolution = remotesvc.Resolution(choice)
 	}
-	if !yes {
-		if !tty {
-			return errors.New(i18n.T("cmd.session.resolve.confirm_needed"))
-		}
-		ok := false
-		form := theme.NewForm(huh.NewGroup(huh.NewConfirm().Title(i18n.Tf("cmd.session.resolve.confirm", plan.Pending())).Value(&ok)))
-		if err := form.Run(); err != nil {
-			return err
-		}
-		if !ok {
-			fmt.Fprintln(out, i18n.T("cmd.run.cancelled"))
-			return nil
-		}
+	ok, err := confirmAction(cmd, i18n.Tf("cmd.session.resolve.confirm", plan.Pending()), false)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		fmt.Fprintln(out, i18n.T("cmd.run.cancelled"))
+		return nil
 	}
 	plan, err = svc.ApplyReplay(ctx, id, res)
 	if err != nil {

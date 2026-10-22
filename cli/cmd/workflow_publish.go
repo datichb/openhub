@@ -58,7 +58,7 @@ func runWorkflowPublish(cmd *cobra.Command, args []string) error {
 	printDiagnostics(out, preview.Diagnostics)
 	printImpact(out, preview.Impact)
 	if len(preview.Impact.Widenings()) > 0 {
-		ok, err := confirm(cmd, i18n.Tf("cmd.workflow.publish.confirm_widen", len(preview.Impact.Widenings())))
+		ok, err := confirmAction(cmd, i18n.Tf("cmd.workflow.publish.confirm_widen", len(preview.Impact.Widenings())), false)
 		if err != nil || !ok {
 			return err
 		}

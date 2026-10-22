@@ -166,11 +166,13 @@ func confirmDelete(ctx context.Context, out io.Writer, svc *runsvc.Service, id, 
 		return false, false, err
 	}
 	printDeletePlan(out, plan, discardBase)
-	if err := theme.NewForm(huh.NewGroup(huh.NewConfirm().Title(i18n.Tf("cmd.session.delete.confirm", id)).Value(&ok))).Run(); err != nil || !ok {
+	// confirmPrompt, not confirmAction: --yes of the command never answers
+	// for the loss of the changes of the project directory.
+	if ok, err = confirmPrompt(i18n.Tf("cmd.session.delete.confirm", id), "", false); err != nil || !ok {
 		return false, false, err
 	}
 	if plan.InBase && len(plan.ChangedFiles) > 0 && !discardBase {
-		if err := theme.NewForm(huh.NewGroup(huh.NewConfirm().Title(i18n.Tf("cmd.session.delete.confirm_discard", len(plan.ChangedFiles))).Value(&discardBase))).Run(); err != nil {
+		if discardBase, err = confirmPrompt(i18n.Tf("cmd.session.delete.confirm_discard", len(plan.ChangedFiles)), "", false); err != nil {
 			return false, false, err
 		}
 	}
@@ -320,9 +322,5 @@ func resolveExistingChoice(ctx context.Context, out io.Writer, p *preparedRun, i
 // transfer failed (the session is unchanged).
 func askTransferFallback(out io.Writer, te *runsvc.TransferError) (bool, error) {
 	fmt.Fprintf(out, "%s %s\n", theme.WarningStyle.Render(theme.IconWarning), i18n.Tf("cmd.run.existing.transfer_failed", te.SessionID, te.Err.Error()))
-	ok := true
-	if err := theme.NewForm(huh.NewGroup(huh.NewConfirm().Title(i18n.T("cmd.run.existing.transfer_fallback")).Value(&ok))).Run(); err != nil {
-		return false, err
-	}
-	return ok, nil
+	return confirmPrompt(i18n.T("cmd.run.existing.transfer_fallback"), "", true)
 }

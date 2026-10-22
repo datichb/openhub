@@ -44,7 +44,7 @@ Les codes sont définis en un seul endroit (`cli/cmd/exitcodes.go`). Un script p
 |------|-----------|---------------|
 | `0` | `ExitOK` | Succès. Pour `oh doctor`, aussi quand seuls des avertissements (⚠) sont affichés : les contrôles optionnels (moteur de conteneurs, `bd`, accès aux passerelles depuis un conteneur) n'échouent jamais la commande, sauf si `execution.runtime = container` rend le conteneur obligatoire |
 | `1` | `ExitFailure` | Échec : le message est écrit sur la sortie d'erreur. Par exemple : `oh workflow validate` ou `oh skill check` qui trouvent des erreurs, `oh run --headless` dont une session échoue ou dépasse `--timeout`, `oh doctor` quand un contrôle obligatoire échoue (✗), erreur interne (panic : oh invite à signaler le bogue) |
-| `2` | `ExitUsage` | Mauvais usage : commande ou option inconnue, ou commande supprimée (`oh deploy`, `oh sync` : le message de migration est affiché) |
+| `2` | `ExitUsage` | Mauvais usage : commande ou option inconnue, ou commande supprimée (`oh deploy`, `oh sync` : le message de migration est affiché). Aussi une confirmation demandée sans terminal et sans `--yes` : l'action est refusée (`workflow publish\|archive\|restore`, `brick publish`, `purge`, `project remove`, `teams remove`, `service remove`, `worktree cleanup`, `session delete\|resolve`, `migrate deploy-cleanup`, `run --recap`) |
 | `3` | `ExitPending` | En attente : `oh run --headless` dont une session attend une décision (checkpoint) et que personne ne peut prendre sans interface. La session reste en cours : `oh session approve <id>` ou `oh session answer <id>`. Si une autre session a échoué, le code est `1` |
 | code de `bd` | | `oh beads` transmet le code de sortie de `bd` |
 
@@ -74,7 +74,7 @@ Une lettre a un seul sens dans toutes les commandes. Les anciennes formes resten
 | `-t` | `--ticket` | `oh start` | `oh audit -t` (maintenant `--type`) |
 | `-v` | `--verbose` | toutes | |
 | `-w` | `--workflow` | `oh config model show` | `oh start -w` (maintenant `--worktree`) |
-| `-y` | `--yes` (sans confirmation) | `oh doctor`, `oh gc`, `oh mcp trust`, `oh migrate deploy-cleanup`, `oh project add`, `oh session delete`, `oh session resolve`, `oh brick publish`, `oh workflow publish\|archive\|restore` | |
+| `-y` | `--yes` (sans confirmation) | `oh doctor`, `oh gc`, `oh mcp trust`, `oh migrate deploy-cleanup`, `oh project add`, `oh session delete`, `oh session resolve`, `oh brick publish`, `oh workflow publish\|archive\|restore`, `oh run`, `oh purge`, `oh project remove`, `oh teams remove`, `oh service remove`, `oh worktree cleanup` | |
 
 Une ancienne forme reste acceptée pendant une version : elle fait la même chose que la nouvelle, affiche un avertissement (« L'option -p de oh serve est dépréciée, utilisez --port. ») et disparaît de l'aide. Les formes courtes de `oh start`, `oh audit`, `oh review` et `oh debug` (alias dépréciés de `oh run`) suivent la même règle.
 

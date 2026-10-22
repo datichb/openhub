@@ -40,13 +40,14 @@ func runSessionDelete(cmd *cobra.Command, args []string) error {
 	yes, _ := cmd.Flags().GetBool("yes")
 	discard, _ := cmd.Flags().GetBool("discard-base-changes")
 	if !yes {
-		if !isTerminal() {
+		if !stdinIsTerminal() {
 			plan, err := svc.PlanDelete(ctx, id, runsvc.DeleteOptions{ProjectPath: projectPath, DiscardBaseChanges: discard})
 			if err != nil {
 				return err
 			}
 			printDeletePlan(out, plan, discard)
-			return errors.New(i18n.T("cmd.session.delete.needs_yes"))
+			// Own refusal (the plan is shown first), same code as confirmAction.
+			return withExitCode(ExitUsage, errors.New(i18n.T("cmd.session.delete.needs_yes")))
 		}
 		var ok bool
 		if discard, ok, err = confirmDelete(ctx, out, svc, id, projectPath, discard); err != nil || !ok {

@@ -269,10 +269,10 @@ pour la détection.`,
 					for _, branch := range mergedBranches {
 						fmt.Fprintf(a.IO.Out, "    %s %s\n", theme.Subtitle.Render("·"), branch)
 					}
-					var confirm bool
-					_ = theme.NewForm(huh.NewGroup(huh.NewConfirm().
-						Title(i18n.Tf("cmd.worktree.cleanup.confirm", len(mergedBranches))).
-						Value(&confirm))).Run()
+					confirm, err := confirmAction(cmd, i18n.Tf("cmd.worktree.cleanup.confirm", len(mergedBranches)), false)
+					if err != nil {
+						return err
+					}
 					if !confirm {
 						return nil
 					}
@@ -321,5 +321,6 @@ pour la détection.`,
 
 	cmd.Flags().StringVarP(&baseBranch, "base", "b", "", "Branche de base pour la détection (défaut: auto-detect)")
 	cmd.Flags().BoolVarP(&force, "force", "f", false, "Skip confirmation")
+	addYesFlag(cmd)
 	return cmd
 }

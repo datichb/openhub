@@ -45,6 +45,7 @@ func addRunFlags(c *cobra.Command) {
 	f.String("attach", "", "Ouverture : auto, iterm, terminal, tmux, browser, suspend, none")
 	f.Bool("draft", false, "Utiliser mon brouillon du workflow (local uniquement, sans assouplir la sécurité publiée)")
 	f.Bool("recap", false, "Afficher le récapitulatif et demander confirmation avant le lancement")
+	f.BoolP("yes", "y", false, i18n.T("cmd.confirm.flags.yes"))
 	f.StringP("project", "p", "", "Projet (détecté depuis le dossier courant)")
 	f.StringP("provider", "P", "", "Fournisseur LLM")
 	f.String("parent", "", "Session précédente (enchaînement)")
@@ -215,9 +216,8 @@ func runWorkflowCLI(cmd *cobra.Command, opts runOptions, recap bool) error {
 	}
 	if recap {
 		printRunRecap(out, p)
-		ok := true
-		form := theme.NewForm(huh.NewGroup(huh.NewConfirm().Title(i18n.T("cmd.run.confirm")).Value(&ok)))
-		if err := form.Run(); err != nil {
+		ok, err := confirmAction(cmd, i18n.T("cmd.run.confirm"), true)
+		if err != nil {
 			return err
 		}
 		if !ok {

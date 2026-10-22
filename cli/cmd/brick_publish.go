@@ -43,7 +43,7 @@ func runBrickPublish(cmd *cobra.Command, args []string) error {
 		if len(args) != 0 {
 			return errors.New(i18n.T("cmd.brick.publish.adopt_no_id"))
 		}
-		if ok, err := confirm(cmd, i18n.T("cmd.brick.publish.confirm_adopt")); err != nil || !ok {
+		if ok, err := confirmAction(cmd, i18n.T("cmd.brick.publish.confirm_adopt"), false); err != nil || !ok {
 			return err
 		}
 		p, err := svc.AdoptBricks(ctxOf(cmd), c, message)
@@ -69,7 +69,7 @@ func runBrickPublish(cmd *cobra.Command, args []string) error {
 		return errors.New(i18n.Tf("cmd.brick.invalid", preview.Ref.String(), len(preview.Diagnostics.Errors())))
 	}
 	if preview.Shadows != "" {
-		ok, err := confirm(cmd, i18n.Tf("cmd.brick.publish.confirm_shadow", preview.Ref.String(), preview.Shadows))
+		ok, err := confirmAction(cmd, i18n.Tf("cmd.brick.publish.confirm_shadow", preview.Ref.String(), preview.Shadows), false)
 		if err != nil || !ok {
 			return err
 		}
