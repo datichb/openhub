@@ -101,6 +101,11 @@ func TestMetricsViewKeysReloadWithTheirPeriod(t *testing.T) {
 	require.Eventually(t, func() bool { return len(stats.seen()) == 3 }, 2*time.Second, 10*time.Millisecond)
 	close(stats.release)
 	time.Sleep(50 * time.Millisecond)
-	assert.Equal(t, []string{"all", "7d", "30d"}, stats.seen())
+	seen := stats.seen()
+	require.Len(t, seen, 3)
+	assert.Equal(t, "all", seen[0], "the mount loads first")
+	// The two reloads run concurrently: their order of arrival is free, the
+	// periods are those of the keys.
+	assert.ElementsMatch(t, []string{"7d", "30d"}, seen[1:])
 	assert.Contains(t, metricsText(app, v), "222", "the last request is shown, not the first answer")
 }
