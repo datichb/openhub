@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/datichb/openhub/cli/internal/fsutil"
 	"github.com/datichb/openhub/cli/internal/limits"
 	toml "github.com/pelletier/go-toml/v2"
 )
@@ -579,7 +580,8 @@ func Reset() {
 }
 
 // Save writes cfg to hub.toml using a full TOML marshal (comments not preserved).
-// The write is atomic (tmp file + rename) to prevent corruption on crash.
+// The write is atomic and durable (unique tmp file, fsync, rename, fsync of
+// the directory) to prevent corruption on crash or power loss.
 // After saving, the in-memory cache is invalidated so the next Load re-reads from disk.
 //
 // If the file was modified externally since the last Save/Load by this process,
@@ -610,16 +612,11 @@ func Save(c *Config) error {
 		return fmt.Errorf("creating config dir: %w", err)
 	}
 
-	// Atomic write: write to a temp file in the same directory, then rename.
-	// This prevents a half-written hub.toml on crash or power loss.
+	// Atomic write: a unique temp file in the same directory, synced, then
+	// renamed. This prevents a half-written hub.toml on crash or power loss.
 	backupConfig(path, data)
-	tmpFile := path + ".tmp"
-	if err := os.WriteFile(tmpFile, data, 0o600); err != nil {
-		return fmt.Errorf("writing hub.toml tmp: %w", err)
-	}
-	if err := os.Rename(tmpFile, path); err != nil {
-		os.Remove(tmpFile) // best-effort cleanup
-		return fmt.Errorf("renaming hub.toml tmp: %w", err)
+	if err := fsutil.WriteFileAtomic(path, data, 0o600); err != nil {
+		return fmt.Errorf("writing hub.toml: %w", err)
 	}
 
 	// Record the new mtime after successful write.

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -410,4 +411,12 @@ func TestSavedFileIsReadStrictly(t *testing.T) {
 	assert.True(t, *got.Tracker.Enabled)
 	assert.Equal(t, 3, *got.Tracker.MaxAutoPlanPerMember)
 	assert.Equal(t, map[string]string{"P1": "t"}, got.Remote.Projects)
+
+	entries, err := os.ReadDir(config.HubDir())
+	require.NoError(t, err)
+	for _, e := range entries {
+		assert.False(t, strings.HasSuffix(e.Name(), ".tmp"), "no temporary file left: %s", e.Name())
+	}
+	_, err = os.Stat(filepath.Join(config.HubDir(), "hub.toml.tmp"))
+	assert.True(t, os.IsNotExist(err), "the fixed temporary name is not used any more")
 }
