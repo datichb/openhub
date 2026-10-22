@@ -77,8 +77,11 @@ func Isolate() (finish func(code int) int) {
 	}
 	home := filepath.Join(dir, "home")
 	env := map[string]string{
-		marker:            dir,
-		"HOME":            home,
+		marker: dir,
+		"HOME": home,
+		// Windows: os.UserHomeDir reads USERPROFILE, not HOME (the hub would
+		// otherwise be the real ~/.oh of the runner).
+		"USERPROFILE":     home,
 		"XDG_CONFIG_HOME": filepath.Join(home, ".config"),
 		"XDG_DATA_HOME":   filepath.Join(home, ".local", "share"),
 		"XDG_CACHE_HOME":  filepath.Join(home, ".cache"),

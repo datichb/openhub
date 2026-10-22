@@ -62,10 +62,11 @@ func dir(sessionsDir, id string) string { return filepath.Join(sessionsDir, id, 
 var ErrInvalidID = errors.New("invalid session id")
 
 // checkID refuses an id that would leave <sessionsDir>/<id>: empty, "." or
-// "..", or holding a path separator or a NUL byte. Load gets ids typed on the
-// command line.
+// "..", holding a path separator or a NUL byte, or ending with a dot or a
+// space (Windows drops them: "a.." is the folder "a", "..." the parent). Load
+// gets ids typed on the command line.
 func checkID(id string) error {
-	if id == "" || id == "." || id == ".." || strings.ContainsAny(id, "/\\\x00") {
+	if id == "" || id == "." || id == ".." || strings.ContainsAny(id, "/\\\x00") || strings.HasSuffix(id, ".") || strings.HasSuffix(id, " ") {
 		return fmt.Errorf("%w: %q", ErrInvalidID, id)
 	}
 	return nil
