@@ -80,6 +80,10 @@ type InlineWizardConfig struct {
 	// to project mode). The shell is passed so the callback can call
 	// SetProjectMode, SetMode, or NavigateTo as needed.
 	SummaryOnAction func(shell ShellAccess)
+
+	// SummaryNote, when set, returns text (tview tags allowed) shown under the
+	// recap on the summary screen, e.g. a suggested next command. Empty = none.
+	SummaryNote func() string
 }
 
 // InlineWizardView is a multi-step wizard that runs inside the TUI shell
@@ -1292,6 +1296,9 @@ func (w *InlineWizardView) renderGroupedSidebar() {
 	}
 
 	for gi, g := range w.cfg.Groups {
+		if g.Hidden != nil && g.Hidden() {
+			continue
+		}
 		endIdx := len(w.cfg.Steps)
 		if gi+1 < len(w.cfg.Groups) {
 			endIdx = w.cfg.Groups[gi+1].StartIdx
@@ -1551,6 +1558,14 @@ func (w *InlineWizardView) renderSummaryScreen() {
 		}
 		fmt.Fprintf(&b, "  %s%s %s[-]\n",
 			widgets.ColorTag(theme.FgMuted), theme.IconSkipped, step.Label)
+	}
+
+	if w.cfg.SummaryNote != nil {
+		if note := w.cfg.SummaryNote(); note != "" {
+			for _, line := range strings.Split(note, "\n") {
+				fmt.Fprintf(&b, "  %s%s[-]\n", widgets.ColorTag(theme.FgSecondary), line)
+			}
+		}
 	}
 
 	summary.SetText(b.String())

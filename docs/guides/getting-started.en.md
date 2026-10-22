@@ -80,21 +80,21 @@ opencode V1 is no longer supported: oh refuses to launch a session, with a clear
 oh init
 ```
 
-The wizard opens in the terminal. The first page ("Welcome") offers three paths:
+The wizard opens in the terminal. The solo path takes **three screens**:
 
-| Path | What it asks |
-|------|--------------|
-| **Solo developer** | AI provider, first project, MCP integrations; team features are skipped and a **solo** workflow space is created for the project |
-| **Team member** | create or join a team; the AI provider comes from the team configuration |
-| **Full setup** | every step, one by one |
+1. **Welcome** -- the interface language (French or English) and the **setup type**, on the same page. The description of the selected type stays visible, even on a small terminal.
+2. **AI provider** -- Bedrock, Anthropic, OpenRouter or GitHub Copilot, then the key (stored in the system keychain). oh preselects the provider it detects (environment variables, AWS credentials, `gh`). "Skip" passes the screen.
+3. **First project** (optional) -- name and path, prefilled with the current directory (the git repository name when there is a remote, else the folder name). "Skip" passes the screen.
 
-The steps, in order:
+| Setup type | Screens | What changes |
+|------------|---------|--------------|
+| **Solo developer** (default) | welcome, provider, project | team features are skipped and a **solo** workflow space is created for the project |
+| **Team member** | welcome, team, project | the AI provider comes from the team configuration |
+| **Full setup** | welcome, provider, team, project | everything, in order (the default when a team is already configured) |
 
-1. **Language** -- interface language (French or English). The only required step.
-2. **Provider** -- Bedrock, Anthropic, OpenRouter or GitHub Copilot, then the key (stored in the system keychain).
-3. **Team** -- the space that holds your workflows: "Create a new team", "Rejoin an existing team" (team-state repository) or "Solo space (local workflows)". If the team has a tracker, the wizard offers to configure it.
-4. **First project** -- name and path (the current directory is suggested), attachment to the team.
-5. **MCP Integrations** -- GitLab, Figma, Google Slides… with their token. All optional: `oh mcp setup` later.
+The **Team** screen only exists for the "team" and "full" types: "Create a new team", "Rejoin an existing team" (team-state repository) or "Solo space (local workflows)". If the team has a tracker, the wizard offers to configure it, and the project can be attached to the team.
+
+MCP integrations (GitLab, Figma, Jira, Google Slides…) are no longer part of the wizard: the final summary suggests `oh mcp setup`.
 
 The hub content (agents, skills, workflows) is extracted to `~/.oh/hub/`. At the end, check the installation:
 

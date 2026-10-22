@@ -30,6 +30,7 @@ type InlineSelect struct {
 	finishedFunc func(key tcell.Key)
 	hasFocus     bool
 	disabled     bool
+	compactDesc  bool // when true, only the description of the highlighted option shows, on one line under the options
 	centered     bool // when true, the entire block (label + options + descriptions) is horizontally centered
 	contentWidth int  // when > 0 and centered, the block width is max(intrinsic, contentWidth)
 
@@ -71,6 +72,14 @@ func (s *InlineSelect) SetDescriptions(descriptions []string) *InlineSelect {
 	return s
 }
 
+// SetCompactDescription keeps the descriptions out of the option list: only the
+// description of the highlighted option shows, on a single line under the
+// options (newlines are folded). Use it when there is no room for the full list.
+func (s *InlineSelect) SetCompactDescription(compact bool) *InlineSelect {
+	s.compactDesc = compact
+	return s
+}
+
 // SetCentered enables horizontal centering of the entire block (label, options,
 // descriptions) within the available width. When false (default), content is
 // drawn from the left edge with a small indent.
@@ -91,6 +100,20 @@ func (s *InlineSelect) SetContentWidth(w int) *InlineSelect {
 // hasDescriptions returns true when descriptions are configured.
 func (s *InlineSelect) hasDescriptions() bool {
 	return len(s.descriptions) > 0 && len(s.descriptions) >= len(s.options)
+}
+
+// listsDescriptions returns true when every option is followed by its description.
+func (s *InlineSelect) listsDescriptions() bool {
+	return s.hasDescriptions() && !s.compactDesc
+}
+
+// cursorDescription is the one-line description of the highlighted option
+// (compact mode); empty when there is none.
+func (s *InlineSelect) cursorDescription() string {
+	if !s.compactDesc || !s.hasDescriptions() || s.cursor < 0 || s.cursor >= len(s.descriptions) {
+		return ""
+	}
+	return strings.Join(strings.Fields(s.descriptions[s.cursor]), " ")
 }
 
 // GetLabel returns the item's label.
@@ -126,7 +149,10 @@ func (s *InlineSelect) GetFieldHeight() int {
 	if s.label != "" {
 		labelH = 1
 	}
-	if !s.hasDescriptions() {
+	if s.compactDesc && s.hasDescriptions() {
+		return n + labelH + 1
+	}
+	if !s.listsDescriptions() {
 		return n + labelH
 	}
 	total := 0
@@ -243,7 +269,7 @@ func (s *InlineSelect) Draw(screen tcell.Screen) {
 		y++
 	}
 
-	hasDesc := s.hasDescriptions()
+	hasDesc := s.listsDescriptions()
 	row := 0
 
 	// ── Draw options ──
@@ -332,6 +358,23 @@ func (s *InlineSelect) Draw(screen tcell.Screen) {
 			}
 		}
 	}
+
+	// ── Compact mode: the highlighted option's description, one line ──
+	if desc := s.cursorDescription(); desc != "" {
+		descStyle := tcell.StyleDefault.Background(s.fieldBg).Foreground(theme.FgMuted)
+		col := x + padLeft + 4
+		for _, ch := range desc {
+			if col >= rightEdge {
+				break
+			}
+			screen.SetContent(col, y+row, ch, nil, descStyle)
+			col++
+		}
+		for col < rightEdge {
+			screen.SetContent(col, y+row, ' ', nil, descStyle)
+			col++
+		}
+	}
 }
 
 // InputHandler returns the handler for this primitive.
@@ -412,7 +455,7 @@ func (s *InlineSelect) MouseHandler() func(action tview.MouseAction, event *tcel
 
 			// Map pixel row to option index.
 			var optIdx int
-			if s.hasDescriptions() {
+			if s.listsDescriptions() {
 				// With descriptions: each option occupies 3 rows (opt+desc+blank),
 				// except the last which occupies 2 (opt+desc).
 				linesPerOpt := 3

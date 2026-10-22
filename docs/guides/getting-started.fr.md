@@ -80,21 +80,21 @@ opencode V1 n'est plus pris en charge : oh refuse de lancer une session avec un 
 oh init
 ```
 
-L'assistant s'ouvre dans le terminal. La première page (« Bienvenue ») propose trois parcours :
+L'assistant s'ouvre dans le terminal. Le parcours solo tient en **trois écrans** :
 
-| Parcours | Ce qui est demandé |
-|----------|--------------------|
-| **Développeur solo** | fournisseur IA, premier projet, intégrations MCP ; les fonctions d'équipe sont ignorées et un espace de workflows **solo** est créé pour le projet |
-| **Membre d'équipe** | créer ou rejoindre une équipe ; le fournisseur IA vient de la configuration de l'équipe |
-| **Configuration complète** | toutes les étapes une par une |
+1. **Accueil** -- la langue de l'interface (français ou anglais) et le **type d'installation**, sur la même page. La description du type sélectionné reste visible, même sur un petit terminal.
+2. **Fournisseur IA** -- Bedrock, Anthropic, OpenRouter ou GitHub Copilot, puis la clé (rangée dans le trousseau système). oh préselectionne le fournisseur détecté (variables d'environnement, identifiants AWS, `gh`). « Ignorer » passe l'écran.
+3. **Premier projet** (facultatif) -- nom et chemin, préremplis avec le dossier courant (le nom du dépôt git s'il y a un remote, sinon le nom du dossier). « Ignorer » passe l'écran.
 
-Les étapes, dans l'ordre :
+| Type d'installation | Écrans | Ce qui change |
+|---------------------|--------|---------------|
+| **Développeur solo** (par défaut) | accueil, fournisseur, projet | les fonctions d'équipe sont ignorées et un espace de workflows **solo** est créé pour le projet |
+| **Membre d'équipe** | accueil, équipe, projet | le fournisseur IA vient de la configuration de l'équipe |
+| **Configuration complète** | accueil, fournisseur, équipe, projet | tout, dans l'ordre (par défaut si une équipe est déjà configurée) |
 
-1. **Langue** -- langue de l'interface (français ou anglais). Seule étape obligatoire.
-2. **Fournisseur IA** -- Bedrock, Anthropic, OpenRouter ou GitHub Copilot, puis la clé (rangée dans le trousseau système).
-3. **Équipe** -- l'espace qui porte vos workflows : « Créer une nouvelle équipe », « Rejoindre une équipe existante » (dépôt team-state) ou « Espace solo (workflows locaux) ». Si l'équipe a un tracker, l'assistant propose de le configurer.
-4. **Premier projet** -- nom et chemin (le dossier courant est proposé), rattachement à l'équipe.
-5. **Intégrations MCP** -- GitLab, Figma, Google Slides… avec leur jeton. Tout est facultatif : `oh mcp setup` plus tard.
+L'écran **Équipe** n'existe que pour les types « équipe » et « complète » : « Créer une nouvelle équipe », « Rejoindre une équipe existante » (dépôt team-state) ou « Espace solo (workflows locaux) ». Si l'équipe a un tracker, l'assistant propose de le configurer, et le projet peut être rattaché à l'équipe.
+
+Les intégrations MCP (GitLab, Figma, Jira, Google Slides…) ne font plus partie de l'assistant : le récapitulatif final suggère `oh mcp setup`.
 
 Le contenu du hub (agents, skills, workflows) est extrait dans `~/.oh/hub/`. À la fin, vérifiez l'installation :
 

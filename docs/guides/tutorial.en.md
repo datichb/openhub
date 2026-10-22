@@ -78,29 +78,31 @@ cd ~/workspace/my-app
 oh init
 ```
 
-The wizard opens in the terminal. On the "Welcome" page, choose **Solo developer** (you can switch to a team later), then "Get started".
+The wizard opens in the terminal. On the "Welcome" page, keep **Solo developer** (you can switch to a team later), then "Get started".
 
 ```
 ◆ OpenHub — Setup Wizard
 
- Language ── Provider ── Team ── Project ── Integrations
+ Interface language
+   ○ Français
+   ◉ English
 
- How would you like to set up?
- ▸ Solo developer  ~2 min
-   Team member  ~5 min
-   Full setup  ~5-8 min
+ Setup type
+   ◉ Solo developer
+       AI provider and project, no team.
+   ○ Team member
+   ○ Full setup
 ```
 
-Then, step by step:
+Three screens in all:
 
-| Step | What you enter |
-|------|----------------|
-| **Language** | English |
-| **Provider** | `anthropic`, then the API key (stored in the keychain) |
-| **First project** | name `my-app`, path `~/workspace/my-app` (suggested from the current directory) |
-| **MCP Integrations** | GitLab if you have a token, otherwise "Skip" |
+| Screen | What you enter |
+|--------|----------------|
+| **Welcome** | English, Solo developer |
+| **AI provider** | `anthropic`, then the API key (stored in the keychain) |
+| **First project** | name `my-app`, path `~/workspace/my-app` (prefilled from the current directory); "Skip" if you do not want a project now |
 
-On the solo path, the **Team** step is skipped: oh creates a solo workflow space for the project. `Ctrl+S` submits a step, `Ctrl+B` goes back. A summary screen ends the wizard.
+On the solo path, the **Team** screen does not appear: oh creates a solo workflow space for the project. MCP integrations are no longer in the wizard: the summary suggests `oh mcp setup` (GitLab, Figma tokens…). `Ctrl+S` submits a screen, `Ctrl+B` goes back. A summary screen ends the wizard.
 
 Then check:
 

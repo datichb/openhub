@@ -117,6 +117,9 @@ type StepGroup struct {
 	Label string
 	// StartIdx is the 0-based index of the first step in this group.
 	StartIdx int
+	// Hidden, when non-nil and true, leaves the group out of the sidebar
+	// (e.g. the team group of a solo setup). It is evaluated on every render.
+	Hidden func() bool
 }
 
 // WizardConfig configures the wizard.

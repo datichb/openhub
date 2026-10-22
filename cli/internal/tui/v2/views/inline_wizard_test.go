@@ -1252,3 +1252,45 @@ func TestInlineWizardView_QuitAndBack(t *testing.T) {
 		}
 	})
 }
+
+// A group can be hidden from the sidebar; the summary can end with a note.
+func TestInlineWizardView_HiddenGroupAndSummaryNote(t *testing.T) {
+	hidden := true
+	step := func(label string) WizardStep {
+		return WizardStep{
+			Label: label,
+			Form: func(_ *tview.Application, onDone func()) *tview.Form {
+				form := tview.NewForm()
+				form.AddButton("Next", func() { onDone() })
+				return form
+			},
+		}
+	}
+	v := NewInlineWizardView(InlineWizardConfig{
+		ID:    "wizard.groups",
+		Title: "Groups",
+		Steps: []WizardStep{step("One"), step("Two")},
+		Groups: []StepGroup{
+			{Label: "GroupOne", StartIdx: 0},
+			{Label: "GroupTwo", StartIdx: 1, Hidden: func() bool { return hidden }},
+		},
+		SummaryNote: func() string { return "next: oh mcp setup" },
+	})
+	v.Mount(tview.NewFlex().SetDirection(tview.FlexRow), tview.NewApplication())
+
+	sidebar := v.infoPanel.GetText(true)
+	assert.Contains(t, sidebar, "GroupOne")
+	assert.NotContains(t, sidebar, "GroupTwo", "a hidden group is left out of the sidebar")
+
+	hidden = false
+	v.renderInfoPanel()
+	assert.Contains(t, v.infoPanel.GetText(true), "GroupTwo", "the group shows once it is no longer hidden")
+
+	v.advanceAfterDone(v.cfg.Steps[0])
+	v.doRenderStep(v.currentStep)
+	v.advanceAfterDone(v.cfg.Steps[1])
+	require.True(t, v.completed)
+	summary, ok := v.stepContentInner.GetItem(0).(*tview.TextView)
+	require.True(t, ok)
+	assert.Contains(t, summary.GetText(true), "next: oh mcp setup", "the summary ends with the note")
+}

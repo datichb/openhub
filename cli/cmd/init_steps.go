@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/google/uuid"
@@ -33,15 +34,16 @@ import (
 // closure pattern (pointer capture), but the state is explicit and testable.
 
 type initStepState struct {
-	// ── Setup mode (selected on welcome screen) ──
-	// "solo"  = skip team group entirely
+	// ── Setup type (selected on the welcome screen) ──
+	// "solo"  = skip team group entirely (default)
 	// "team"  = skip provider (inherited from team config)
-	// "full"  = show all steps (default)
+	// "full"  = show all steps
 	SetupMode string
 
 	// ── Language ──
 	SelectedLang string
 	LangIdx      int
+	LangChanged  bool // the welcome screen was redrawn for a new language
 
 	// ── Provider ──
 	SelectedProvider string
@@ -65,25 +67,10 @@ type initStepState struct {
 	ProjectChoice   string          // "keep" or "reconfigure" (only when ExistingProject != nil)
 	ExistingProject *domain.Project // non-nil if a project was found at CWD
 
-	// ── MCP ──
-	FigmaToken   string
-	GitlabToken  string
-	GitlabURL    string
-	GitlabWrite  bool
-	GslidesToken string
-	JiraToken    string
-	JiraURL      string
-	MCPSkipped   bool
-
 	// ── Shared refs ──
 	TeamState *initWizardTeamState
 	AppPtr    **app.App           // double pointer: team/deploy steps reload the app
-	FocusBtn  *bool               // pointer shared with InlineWizardConfig.FocusButtonAfterRender
 	Steps     *[]views.WizardStep // pointer to the assembled steps slice (for Rerender lookup)
-
-	// ── Step index caches (resolved after assembly) ──
-	LangStepIdx     int
-	ProviderStepIdx int
 
 	// ── Provider options (immutable after init) ──
 	ProviderOptions []string
@@ -112,209 +99,225 @@ func infoSuccess(v string) string { return theme.ColorTag(theme.SuccessHex) + v 
 func infoMuted(v string) string   { return theme.ColorTag(theme.TextMutedHex) + v + theme.TagReset }
 func infoWarning(v string) string { return theme.ColorTag(theme.WarningHex) + v + theme.TagReset }
 
-// buildWelcomeStep creates the welcome/splash screen step.
+// Heights (rows available to a wizard page) from which the welcome screen
+// shows more: the banner, then every setup type with its description. Below
+// that, the description of the highlighted setup type still shows, on one line.
+const (
+	welcomeBannerMinHeight = 38
+	welcomeDescMinHeight   = 30
+)
+
+var welcomeBanner = []string{
+	"██████╗ ██████╗ ███████╗███╗   ██╗██╗  ██╗██╗   ██╗██████╗",
+	"██╔═══██╗██╔══██╗██╔════╝████╗  ██║██║  ██║██║   ██║██╔══██╗",
+	"██║   ██║██████╔╝█████╗  ██╔██╗ ██║███████║██║   ██║██████╔╝",
+	"██║   ██║██╔═══╝ ██╔══╝  ██║╚██╗██║██╔══██║██║   ██║██╔══██╗",
+	"╚██████╔╝██║     ███████╗██║ ╚████║██║  ██║╚██████╔╝██████╔╝",
+	" ╚═════╝ ╚═╝     ╚══════╝╚═╝  ╚═══╝╚═╝  ╚═╝ ╚═════╝ ╚═════╝",
+}
+
+// welcomeBannerFits reports whether the banner fits the width of the page
+// (it would wrap into noise otherwise); true when the width is unknown.
+func welcomeBannerFits() bool {
+	innerW := views.StepContentInnerWidth()
+	if innerW == 0 {
+		return true
+	}
+	banner := 0
+	for _, line := range welcomeBanner {
+		banner = max(banner, views.MaxVisibleWidth(line))
+	}
+	return innerW >= banner+4 // the intro keeps 2 cells of padding on each side
+}
+
+// initLangCodes and initLangLabels are the languages of the welcome screen
+// (same order).
+var (
+	initLangCodes  = []string{"fr", "en"}
+	initLangLabels = []string{"Français", "English"}
+)
+
+// initSetupModes are the setup types, in the order of the welcome screen.
+var initSetupModes = []string{"solo", "team", "full"}
+
+// availableWizardHeight is the number of rows a wizard page can use:
+// the terminal minus the omnibar (5), the border (1) and the hints (1).
+// It is a variable so tests can pretend a small terminal.
+var availableWizardHeight = func() int {
+	_, termH, _ := term.GetSize(int(os.Stdout.Fd()))
+	if termH <= 0 {
+		termH = 50
+	}
+	return termH - 7
+}
+
+// defaultSetupMode is the setup type preselected on the welcome screen: solo,
+// or the complete one when a team is already configured (a re-init must not
+// skip it silently).
+func (s *initStepState) defaultSetupMode() string {
+	if s.TeamState != nil && s.TeamState.ExistingTeam != nil {
+		return "full"
+	}
+	return "solo"
+}
+
+// setupModeLabel is the name of a setup type in the current language.
+func setupModeLabel(mode string) string {
+	if !slices.Contains(initSetupModes, mode) {
+		return ""
+	}
+	return i18n.T("cmd.init.wizard_mode_" + mode)
+}
+
+// rerenderStep draws the step of that ID again (a language change, a
+// dropdown that changes the fields). It never runs inside the tview handler
+// that asks for it: the update is queued.
+func rerenderStep(tvApp *tview.Application, s *initStepState, id string) {
+	if s.Steps == nil {
+		return
+	}
+	step := views.StepByID(*s.Steps, id)
+	if step == nil || step.Rerender == nil {
+		return
+	}
+	rerender := step.Rerender
+	go func() { tvApp.QueueUpdateDraw(rerender) }()
+}
+
+// wizardIntroText is the header of a wizard page: a title, a description and
+// an optional note, centered by the page.
+func wizardIntroText(title, desc, note string) string {
+	accent := theme.ColorTag(theme.ActiveMode.AccentHex)
+	secondary := theme.ColorTag(theme.TextSecondaryHex)
+	muted := theme.ColorTag(theme.TextMutedHex)
+	reset := theme.TagColor
+
+	var b strings.Builder
+	b.WriteString("\n")
+	fmt.Fprintf(&b, "%s%s%s\n\n", accent, title, reset)
+	for _, line := range strings.Split(desc, "\n") {
+		fmt.Fprintf(&b, "%s%s%s\n", secondary, line, reset)
+	}
+	if note != "" {
+		for _, line := range strings.Split(note, "\n") {
+			fmt.Fprintf(&b, "%s%s%s\n", muted, line, reset)
+		}
+	}
+	return b.String()
+}
+
+// welcomeIntroText is the header of the welcome screen: the banner when the
+// terminal is tall enough, else a title line, then what OpenHub is.
+func welcomeIntroText(banner bool) string {
+	accent := theme.ColorTag(theme.ActiveMode.AccentHex)
+	secondary := theme.ColorTag(theme.TextSecondaryHex)
+	reset := theme.TagColor
+
+	var b strings.Builder
+	if banner {
+		for _, line := range welcomeBanner {
+			fmt.Fprintf(&b, "%s%s%s\n", accent, line, reset)
+		}
+		fmt.Fprintf(&b, "\n%s%s%s\n\n", accent, i18n.T("cmd.init.wizard_welcome_title"), reset)
+	} else {
+		fmt.Fprintf(&b, "%s%s%s\n\n", accent, i18n.T("cmd.init.wizard_welcome_title_compact"), reset)
+	}
+	fmt.Fprintf(&b, "%s%s%s\n", secondary, i18n.T("cmd.init.wizard_welcome_desc"), reset)
+	return b.String()
+}
+
+// buildWelcomeStep creates the first screen: the language and the setup type
+// on the same page. Changing the language redraws the page in that language.
 func buildWelcomeStep(s *initStepState) views.WizardStep {
 	return views.WizardStep{
-		ID:            "welcome",
-		Label:         i18n.T("cmd.init.wizard_step_welcome"),
-		Required:      true,
-		SidebarHidden: true,
+		ID:       "welcome",
+		Label:    i18n.T("cmd.init.wizard_step_welcome"),
+		Required: true,
 		CustomView: func(tvApp *tview.Application, container *tview.Flex, onDone func()) {
-			accent := theme.ColorTag(theme.ActiveMode.AccentHex)
-			secondary := theme.ColorTag(theme.TextSecondaryHex)
-			muted := theme.ColorTag(theme.TextMutedHex)
-			reset := theme.TagColor
+			availH := availableWizardHeight()
+			intro := welcomeIntroText(availH >= welcomeBannerMinHeight && welcomeBannerFits())
+			blockWidth := views.MaxVisibleWidth(intro)
 
-			// Detect terminal height for adaptive text (full vs compact).
-			_, termH, _ := term.GetSize(int(os.Stdout.Fd()))
-			if termH <= 0 {
-				termH = 50
-			}
-			availH := termH - 7
-
-			// Build welcome text — full (with ASCII art) or compact (title only).
-			var tvText string
-			if availH >= 35 {
-				// Full layout: ASCII art banner
-				tvText = fmt.Sprintf(`%s██████╗ ██████╗ ███████╗███╗   ██╗██╗  ██╗██╗   ██╗██████╗%s
-%s██╔═══██╗██╔══██╗██╔════╝████╗  ██║██║  ██║██║   ██║██╔══██╗%s
-%s██║   ██║██████╔╝█████╗  ██╔██╗ ██║███████║██║   ██║██████╔╝%s
-%s██║   ██║██╔═══╝ ██╔══╝  ██║╚██╗██║██╔══██║██║   ██║██╔══██╗%s
-%s╚██████╔╝██║     ███████╗██║ ╚████║██║  ██║╚██████╔╝██████╔╝%s
-%s ╚═════╝ ╚═╝     ╚══════╝╚═╝  ╚═══╝╚═╝  ╚═╝ ╚═════╝ ╚═════╝%s
-
-%s`+i18n.T("cmd.init.wizard_welcome_title")+`%s
-
-%s`+i18n.T("cmd.init.wizard_welcome_desc")+`%s
-
-%s`+i18n.T("cmd.init.wizard_welcome_detail")+`%s
-
-%s1.%s `+i18n.T("cmd.init.wizard_step_lang_desc")+`
-%s2.%s `+i18n.T("cmd.init.wizard_step_provider_desc")+`
-%s3.%s `+i18n.T("cmd.init.wizard_step_team_desc_welcome")+`
-%s4.%s `+i18n.T("cmd.init.wizard_step_project_desc")+`
-%s5.%s `+i18n.T("cmd.init.wizard_step_mcp_desc")+`
-
-%s`+i18n.T("cmd.init.wizard_checklist_title")+`%s
-%s☐%s `+i18n.T("cmd.init.wizard_checklist_provider")+`
-%s☐%s `+i18n.T("cmd.init.wizard_checklist_team")+`
-%s☐%s `+i18n.T("cmd.init.wizard_checklist_mcp")+`
-`,
-					accent, reset, accent, reset, accent, reset,
-					accent, reset, accent, reset, accent, reset,
-					accent, reset,
-					secondary, reset,
-					muted, reset,
-					accent, reset, accent, reset,
-					accent, reset, accent, reset,
-					accent, reset,
-					secondary, reset,
-					accent, reset,
-					accent, reset,
-					accent, reset,
-				)
-			} else {
-				// Compact layout: no ASCII art, title line only
-				tvText = fmt.Sprintf(`%s`+i18n.T("cmd.init.wizard_welcome_title_compact")+`%s
-
-%s`+i18n.T("cmd.init.wizard_welcome_desc")+`%s
-
-%s`+i18n.T("cmd.init.wizard_welcome_detail")+`%s
-
-%s1.%s `+i18n.T("cmd.init.wizard_step_lang_desc")+`
-%s2.%s `+i18n.T("cmd.init.wizard_step_provider_desc")+`
-%s3.%s `+i18n.T("cmd.init.wizard_step_team_desc_welcome")+`
-%s4.%s `+i18n.T("cmd.init.wizard_step_project_desc")+`
-%s5.%s `+i18n.T("cmd.init.wizard_step_mcp_desc")+`
-
-%s`+i18n.T("cmd.init.wizard_checklist_title")+`%s
-%s☐%s `+i18n.T("cmd.init.wizard_checklist_provider")+`
-%s☐%s `+i18n.T("cmd.init.wizard_checklist_team")+`
-%s☐%s `+i18n.T("cmd.init.wizard_checklist_mcp")+`
-`,
-					accent, reset,
-					secondary, reset,
-					muted, reset,
-					accent, reset, accent, reset,
-					accent, reset, accent, reset,
-					accent, reset,
-					secondary, reset,
-					accent, reset,
-					accent, reset,
-					accent, reset,
-				)
-			}
-
-			// Compute the width of the longest visible line for the mode selector.
-			maxTextWidth := views.MaxVisibleWidth(tvText)
-
-			// ── Setup mode selector ──
-			modeOptions := []string{
-				i18n.T("cmd.init.wizard_mode_solo"),
-				i18n.T("cmd.init.wizard_mode_team"),
-				i18n.T("cmd.init.wizard_mode_full"),
-			}
-			modeKeys := []string{"solo", "team", "full"}
-			defaultMode := 2 // "full" by default — all steps visible
-			switch s.SetupMode {
-			case "solo":
-				defaultMode = 0
-			case "team":
-				defaultMode = 1
-			}
 			if s.SetupMode == "" {
-				s.SetupMode = "full"
+				s.SetupMode = s.defaultSetupMode()
 			}
 
+			langSelect := widgets.NewInlineSelect(
+				i18n.T("cmd.init.wizard_lang_select"),
+				initLangLabels,
+				s.LangIdx,
+				func(_ string, idx int) {
+					if idx < 0 || idx >= len(initLangCodes) || s.LangIdx == idx {
+						return
+					}
+					s.LangIdx = idx
+					s.SelectedLang = initLangCodes[idx]
+					i18n.SetLocale(s.SelectedLang)
+					s.LangChanged = true
+					rerenderStep(tvApp, s, "welcome")
+				},
+			)
+			langSelect.SetCentered(true).SetContentWidth(blockWidth)
+
+			modeOptions := make([]string, len(initSetupModes))
+			modeDescs := make([]string, len(initSetupModes))
+			defaultMode := 0
+			for i, mode := range initSetupModes {
+				modeOptions[i] = setupModeLabel(mode)
+				modeDescs[i] = i18n.T("cmd.init.wizard_mode_" + mode + "_desc")
+				if mode == s.SetupMode {
+					defaultMode = i
+				}
+			}
 			modeSelect := widgets.NewInlineSelect(
-				i18n.T("cmd.init.wizard_mode_label"),
+				i18n.T("cmd.init.wizard_section_mode"),
 				modeOptions,
 				defaultMode,
 				func(_ string, idx int) {
-					if idx >= 0 && idx < len(modeKeys) {
-						s.SetupMode = modeKeys[idx]
+					if idx >= 0 && idx < len(initSetupModes) {
+						s.SetupMode = initSetupModes[idx]
 					}
 				},
 			)
-			modeSelect.SetCentered(true).SetContentWidth(maxTextWidth)
+			modeSelect.SetCentered(true).SetContentWidth(blockWidth)
+			// The description of the setup type is always visible: for each
+			// option when there is room, else on one line under the selector.
+			modeSelect.SetDescriptions(modeDescs)
+			modeSelect.SetCompactDescription(availH < welcomeDescMinHeight)
 
-			// Show descriptions only when there's enough vertical space.
-			if availH >= 30 {
-				modeSelect.SetDescriptions([]string{
-					i18n.T("cmd.init.wizard_mode_solo_desc"),
-					i18n.T("cmd.init.wizard_mode_team_desc"),
-					i18n.T("cmd.init.wizard_mode_full_desc"),
-				})
+			form := tview.NewForm()
+			form.SetBackgroundColor(theme.BgPanel)
+			form.SetLabelColor(theme.FgPrimary)
+			form.SetFieldBackgroundColor(theme.BgPanel)
+			form.SetFieldTextColor(theme.FgPrimary)
+			form.SetBorder(false)
+			form.AddFormItem(langSelect)
+			form.AddFormItem(modeSelect)
+			if s.LangChanged {
+				// The page was redrawn for a new language: stay on the form,
+				// on the next field.
+				s.LangChanged = false
+				form.SetFocus(1)
 			}
-
-			modeForm := tview.NewForm()
-			modeForm.SetBackgroundColor(theme.BgPanel)
-			modeForm.SetLabelColor(theme.FgPrimary)
-			modeForm.SetFieldBackgroundColor(theme.BgPanel)
-			modeForm.SetFieldTextColor(theme.FgPrimary)
-			modeForm.SetBorder(false)
-			modeForm.AddFormItem(modeSelect)
 
 			buttonForm := views.NewStyledButtonForm()
 			buttonForm.AddButton("  "+i18n.T("cmd.init.wizard_welcome_start")+"  ", onDone)
 
 			views.BuildWizardPage(tvApp, container, views.WizardPageLayout{
-				Intro:        tvText,
-				SectionTitle: i18n.T("cmd.init.wizard_section_mode"),
-				Content:      modeForm,
-				Buttons:      buttonForm,
-				FocusTarget:  modeForm,
+				Intro:       intro,
+				Content:     form,
+				Buttons:     buttonForm,
+				FocusTarget: form,
 			})
 			views.SetupCrossSectionNav(views.CrossSectionNavConfig{
-				App:            tvApp,
-				Content:        modeForm,
-				Buttons:        buttonForm,
-				IsContentAtEnd: func() bool { return true },
+				App:     tvApp,
+				Content: form,
+				Buttons: buttonForm,
+				IsContentAtEnd: func() bool {
+					idx, _ := form.GetFocusedItemIndex()
+					return idx >= form.GetFormItemCount()-1
+				},
 			})
-		},
-		InfoFields: func() []views.InfoField {
-			return []views.InfoField{{Label: "Status", Value: i18n.T("cmd.init.wizard_started")}}
-		},
-	}
-}
-
-// buildLangStep creates the language selection step with live locale switching.
-func buildLangStep(s *initStepState) views.WizardStep {
-	return views.WizardStep{
-		ID:       "lang",
-		Label:    i18n.T("cmd.init.wizard_step_lang"),
-		Required: true,
-		Form: func(tvApp *tview.Application, onDone func()) *tview.Form {
-			langOptions := []string{"Français", "English"}
-
-			rerenderLang := func() {
-				if fn := (*s.Steps)[s.LangStepIdx].Rerender; fn != nil {
-					go func() { tvApp.QueueUpdateDraw(func() { fn() }) }()
-				}
-			}
-
-			form := tview.NewForm()
-			langMounted := false
-			form.AddDropDown(i18n.T("cmd.init.wizard_lang_select"), langOptions, s.LangIdx, func(_ string, idx int) {
-				if s.LangIdx == idx {
-					return
-				}
-				s.LangIdx = idx
-				if idx == 1 {
-					s.SelectedLang = "en"
-				} else {
-					s.SelectedLang = "fr"
-				}
-				i18n.SetLocale(s.SelectedLang)
-
-				if langMounted {
-					*s.FocusBtn = true
-					rerenderLang()
-				}
-			})
-			form.AddButton(i18n.T("wizard.hint.submit"), onDone)
-			langMounted = true
-			return form
 		},
 		OnDone: func() error {
 			i18n.SetLocale(s.SelectedLang)
@@ -324,30 +327,16 @@ func buildLangStep(s *initStepState) views.WizardStep {
 			})
 		},
 		InfoFields: func() []views.InfoField {
-			label := "Français"
+			lang := initLangLabels[0]
 			if s.SelectedLang == "en" {
-				label = "English"
+				lang = initLangLabels[1]
 			}
-			return []views.InfoField{{Label: i18n.T("cmd.init.wizard_step_lang"), Value: label}}
+			return []views.InfoField{
+				{Label: i18n.T("cmd.init.wizard_step_lang"), Value: lang},
+				{Label: i18n.T("cmd.init.wizard_section_mode"), Value: setupModeLabel(s.SetupMode)},
+			}
 		},
 	}
-}
-
-// buildProviderIntroStep creates the intro page for the Provider group.
-func buildProviderIntroStep(s *initStepState) views.WizardStep {
-	step := buildIntroStep(
-		i18n.T("cmd.init.wizard_step_provider_label"),
-		"cmd.init.wizard_intro_provider_title",
-		"cmd.init.wizard_intro_provider_desc",
-		"cmd.init.wizard_intro_provider_list",
-		"cmd.init.wizard_provider_list_items",
-		"cmd.init.wizard_provider_prereq",
-		"",                                  // no note
-		nil,                                 // onContinue
-		func() { s.ProviderSkipped = true }, // onSkip
-	)
-	step.SkipIf = func() bool { return s.ProviderSkipped }
-	return step
 }
 
 // buildProviderStep creates the single dynamic provider + credentials step.
@@ -431,11 +420,7 @@ func buildProviderStep(s *initStepState) views.WizardStep {
 				}
 			}
 
-			rerenderSafe := func() {
-				if fn := (*s.Steps)[s.ProviderStepIdx].Rerender; fn != nil {
-					go func() { tvApp.QueueUpdateDraw(func() { fn() }) }()
-				}
-			}
+			rerenderSafe := func() { rerenderStep(tvApp, s, "provider") }
 
 			reset := theme.TagColor
 
@@ -554,7 +539,9 @@ func buildProviderStep(s *initStepState) views.WizardStep {
 			styleWizardForm(form)
 
 			views.BuildWizardPage(tvApp, container, views.WizardPageLayout{
-				Badge:           i18n.T("cmd.init.wizard_step_provider_label"),
+				Intro: wizardIntroText(
+					i18n.T("cmd.init.wizard_intro_provider_title"),
+					i18n.T("cmd.init.wizard_intro_provider_desc"), ""),
 				Content:         form,
 				ContentMaxWidth: views.ComputeFormMaxWidth(form),
 				Buttons:         buttonForm,
@@ -618,6 +605,12 @@ func buildProviderStep(s *initStepState) views.WizardStep {
 		},
 		InfoFields: func() []views.InfoField {
 			a := *s.AppPtr
+			if s.ProviderSkipped {
+				return []views.InfoField{{
+					Label: i18n.T("cmd.init.wizard_step_provider_label"),
+					Value: infoMuted(i18n.T("cmd.init.wizard_not_configured")),
+				}}
+			}
 			fields := []views.InfoField{{Label: "Provider", Value: s.SelectedProvider}}
 			if s.SelectedProvider == "bedrock" {
 				fields = append(fields, views.InfoField{Label: "Auth", Value: s.AuthMode})
@@ -643,77 +636,65 @@ func buildProviderStep(s *initStepState) views.WizardStep {
 	}
 }
 
-// buildProjectIntroStep creates the intro page for the Project group.
-// It uses a custom CustomView because the content is dynamic: when an existing
-// project is detected at the current working directory, additional information
-// is shown in the intro text.
-func buildProjectIntroStep(s *initStepState) views.WizardStep {
-	return views.WizardStep{
-		Label:         i18n.T("cmd.init.wizard_step_project"),
-		Required:      true,
-		SidebarHidden: true,
-		SkipIf:        func() bool { return s.ProjectSkipped },
-		CustomView: func(tvApp *tview.Application, container *tview.Flex, onDone func()) {
-			accent := theme.ColorTag(theme.ActiveMode.AccentHex)
-			secondary := theme.ColorTag(theme.TextSecondaryHex)
-			muted := theme.ColorTag(theme.TextMutedHex)
-			infoColor := theme.ColorTag(theme.InfoHex)
-			reset := theme.TagColor
-
-			var b strings.Builder
-			b.WriteString("\n")
-			fmt.Fprintf(&b, "%s%s%s\n\n", accent, i18n.T("cmd.init.wizard_intro_project_title"), reset)
-			for _, line := range strings.Split(i18n.T("cmd.init.wizard_intro_project_desc"), "\n") {
-				fmt.Fprintf(&b, "%s%s%s\n", secondary, line, reset)
-			}
-			note := i18n.T("cmd.init.wizard_intro_project_optional")
-			if note != "" {
-				fmt.Fprintf(&b, "%s%s%s\n", muted, note, reset)
-			}
-
-			// ── Existing project recap ──
-			if s.ExistingProject != nil {
-				b.WriteString("\n")
-				fmt.Fprintf(&b, "%s%s %s%s\n", infoColor, theme.IconInfo,
-					i18n.T("cmd.init.wizard_project_existing"), reset)
-				fmt.Fprintf(&b, "%s  %s%s\n", muted,
-					i18n.Tf("cmd.init.wizard_project_existing_info", s.ExistingProject.Name, s.ExistingProject.Path), reset)
-				if s.ExistingProject.TeamID != nil && *s.ExistingProject.TeamID != "" {
-					fmt.Fprintf(&b, "%s  %s%s\n", muted,
-						i18n.Tf("cmd.init.wizard_project_existing_team", *s.ExistingProject.TeamID), reset)
-				}
-			}
-
-			buttonForm := views.NewStyledButtonForm()
-			buttonForm.AddButton("  "+i18n.T("wizard.intro.continue")+"  ", onDone)
-			skipConfirmed := false
-			buttonForm.AddButton("  "+i18n.T("wizard.intro.skip")+"  ", func() {
-				if !skipConfirmed {
-					skipConfirmed = true
-					if btn := buttonForm.GetButton(1); btn != nil {
-						btn.SetLabel("  " + i18n.T("wizard.intro.skip_confirm") + "  ")
-					}
-					return
-				}
-				s.ProjectSkipped = true
-				onDone()
-			})
-
-			views.BuildWizardPage(tvApp, container, views.WizardPageLayout{
-				Badge:       i18n.T("cmd.init.wizard_step_project"),
-				Intro:       b.String(),
-				Buttons:     buttonForm,
-				FocusTarget: buttonForm,
-			})
-			views.SetupCrossSectionNav(views.CrossSectionNavConfig{
-				App:     tvApp,
-				Buttons: buttonForm,
-			})
-		},
+// prefillProjectFromCwd fills the name and the path of the first project from
+// the current folder: the path is the folder, the name is the repository name
+// of its git remote, else the folder name. What the user (or an existing
+// project) already set is kept. It returns where the name comes from
+// ("git remote", the current folder, or "" when nothing was filled).
+func prefillProjectFromCwd(s *initStepState) string {
+	if s.ProjectPath == "" {
+		if cwd, err := os.Getwd(); err == nil {
+			s.ProjectPath = cwd
+		}
 	}
+	if s.ProjectName != "" {
+		return ""
+	}
+	if out, err := exec.Command("git", "remote", "get-url", "origin").Output(); err == nil {
+		if remote := strings.TrimSpace(string(out)); remote != "" {
+			if name := config.RepoNameFromRemote(remote); name != "" {
+				s.ProjectName = name
+				return "git remote"
+			}
+		}
+	}
+	if base := filepath.Base(s.ProjectPath); s.ProjectPath != "" && base != "." && base != string(filepath.Separator) {
+		s.ProjectName = base
+		return i18n.T("cmd.init.wizard_detected_cwd")
+	}
+	return ""
 }
 
-// buildProjectStep creates the first project creation step.
+// projectIntroText is the header of the project page: what the project is,
+// that it is optional, and the project already found in the current folder.
+func projectIntroText(s *initStepState) string {
+	text := wizardIntroText(
+		i18n.T("cmd.init.wizard_intro_project_title"),
+		i18n.T("cmd.init.wizard_intro_project_desc"),
+		i18n.T("cmd.init.wizard_intro_project_optional"),
+	)
+	if s.ExistingProject == nil {
+		return text
+	}
+	infoColor := theme.ColorTag(theme.InfoHex)
+	muted := theme.ColorTag(theme.TextMutedHex)
+	reset := theme.TagColor
+
+	var b strings.Builder
+	b.WriteString(text)
+	b.WriteString("\n")
+	fmt.Fprintf(&b, "%s%s %s%s\n", infoColor, theme.IconInfo, i18n.T("cmd.init.wizard_project_existing"), reset)
+	fmt.Fprintf(&b, "%s  %s%s\n", muted,
+		i18n.Tf("cmd.init.wizard_project_existing_info", s.ExistingProject.Name, s.ExistingProject.Path), reset)
+	if s.ExistingProject.TeamID != nil && *s.ExistingProject.TeamID != "" {
+		fmt.Fprintf(&b, "%s  %s%s\n", muted,
+			i18n.Tf("cmd.init.wizard_project_existing_team", *s.ExistingProject.TeamID), reset)
+	}
+	return b.String()
+}
+
+// buildProjectStep creates the first project creation step: an optional page
+// whose fields are filled from the current folder.
 func buildProjectStep(s *initStepState) views.WizardStep {
 	return views.WizardStep{
 		ID:    "project",
@@ -763,20 +744,7 @@ func buildProjectStep(s *initStepState) views.WizardStep {
 			reset := theme.TagColor
 			infoColor := theme.ColorTag(theme.InfoHex)
 
-			// ── Auto-detection: pre-fill project name from git remote ──
-			detectedProject := ""
-			if s.ProjectName == "" {
-				if out, err := exec.Command("git", "remote", "get-url", "origin").Output(); err == nil {
-					remote := strings.TrimSpace(string(out))
-					if remote != "" {
-						s.ProjectName = config.RepoNameFromRemote(remote)
-						detectedProject = "git remote"
-					}
-				}
-			}
-			if s.ProjectPath == "" {
-				s.ProjectPath = "."
-			}
+			detectedProject := prefillProjectFromCwd(s)
 
 			// ── Form rebuilt dynamically based on existing project + choice ──
 			form := tview.NewForm()
@@ -893,7 +861,7 @@ func buildProjectStep(s *initStepState) views.WizardStep {
 			styleWizardForm(form)
 
 			pageResult := views.BuildWizardPage(tvApp, container, views.WizardPageLayout{
-				Badge:           i18n.T("cmd.init.wizard_step_project"),
+				Intro:           projectIntroText(s),
 				Content:         form,
 				ContentMaxWidth: views.ComputeFormMaxWidth(form),
 				Buttons:         buttonForm,
@@ -969,6 +937,12 @@ func buildProjectStep(s *initStepState) views.WizardStep {
 			return nil
 		},
 		InfoFields: func() []views.InfoField {
+			if s.ProjectSkipped {
+				return []views.InfoField{{
+					Label: i18n.T("cmd.init.wizard_step_project"),
+					Value: infoMuted(i18n.T("cmd.init.wizard_not_configured")),
+				}}
+			}
 			var status string
 			if s.ExistingProject != nil && s.ProjectChoice == "keep" {
 				status = infoSuccess(i18n.T("cmd.init.wizard_project_kept"))
@@ -985,389 +959,5 @@ func buildProjectStep(s *initStepState) views.WizardStep {
 			return fields
 		},
 		Processing: i18n.T("cmd.init.wizard_processing_project"),
-	}
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// MCP Intro + Consolidated Step
-// ─────────────────────────────────────────────────────────────────────────────
-
-// buildMCPIntroStep creates the intro page for the MCP group.
-func buildMCPIntroStep(s *initStepState) views.WizardStep {
-	step := buildIntroStep(
-		"MCP",
-		"cmd.init.wizard_intro_mcp_title",
-		"cmd.init.wizard_intro_mcp_desc",
-		"cmd.init.wizard_intro_mcp_list",
-		"cmd.init.wizard_mcp_list_items",
-		"cmd.init.wizard_mcp_prereq",
-		"",                             // no note
-		nil,                            // onContinue
-		func() { s.MCPSkipped = true }, // onSkip
-	)
-	step.SkipIf = func() bool { return s.MCPSkipped }
-	return step
-}
-
-// buildMCPConsolidatedStep returns a single WizardStep that replaces the MCP
-// intro page and the 3 individual token steps (Figma, GitLab, Google Slides).
-// Each integration has a checkbox to enable/disable it and a password field
-// that appears only when the checkbox is checked.
-func buildMCPConsolidatedStep(s *initStepState, a *app.App) views.WizardStep {
-	type mcpEntry struct {
-		name           string
-		tokenVar       *string
-		tokenKey       string
-		hintKey        string
-		urlVar         *string // nil = no URL field shown
-		urlPlaceholder string  // placeholder text inside the URL input
-		urlHintKey     string  // i18n key for hint below URL field
-		urlRequired    bool    // when true, service is not enabled without a URL
-		checkboxVar    *bool
-		checkboxLabel  string
-		checkboxDesc   string
-		afterStore     func() error
-	}
-
-	entries := []mcpEntry{
-		{
-			name: "Figma", tokenVar: &s.FigmaToken,
-			tokenKey: config.DefaultFigmaTokenKey, hintKey: "cmd.init.mcp_hint_figma",
-			afterStore: func() error {
-				return config.Update(func(c *config.Config) error { c.MCP.Figma.Enabled = true; return nil })
-			},
-		},
-		{
-			name: "GitLab", tokenVar: &s.GitlabToken,
-			tokenKey: config.DefaultGitLabTokenKey, hintKey: "cmd.init.mcp_hint_gitlab",
-			urlVar: &s.GitlabURL, urlPlaceholder: "https://gitlab.com",
-			urlHintKey:  "cmd.init.mcp_url_hint_gitlab",
-			checkboxVar: &s.GitlabWrite, checkboxLabel: i18n.T("cmd.init.mcp_gitlab_write_short"),
-			checkboxDesc: "cmd.init.mcp_gitlab_write_desc",
-			afterStore: func() error {
-				return config.Update(func(c *config.Config) error {
-					c.MCP.Gitlab.Enabled = true
-					if s.GitlabURL != "" {
-						c.MCP.Gitlab.URL = s.GitlabURL
-					}
-					if s.GitlabWrite {
-						c.MCP.Gitlab.WriteEnabled = true
-					}
-					return nil
-				})
-			},
-		},
-		{
-			name: "Jira", tokenVar: &s.JiraToken,
-			tokenKey: config.DefaultJiraTokenKey, hintKey: "cmd.init.mcp_hint_jira",
-			urlVar: &s.JiraURL, urlPlaceholder: "https://mycompany.atlassian.net",
-			urlHintKey: "cmd.init.mcp_url_hint_jira", urlRequired: true,
-			afterStore: func() error {
-				return config.Update(func(c *config.Config) error {
-					// Option D: only enable Jira when URL is provided.
-					// The token is always stored in the keychain (handled by the
-					// OnDone loop), but without a URL the MCP server cannot start.
-					if s.JiraURL != "" {
-						c.MCP.Jira.Enabled = true
-						c.MCP.Jira.URL = s.JiraURL
-					}
-					return nil
-				})
-			},
-		},
-		{
-			name: "Google Slides", tokenVar: &s.GslidesToken,
-			tokenKey: config.DefaultGslidesTokenKey, hintKey: "cmd.init.mcp_hint_gslides",
-			afterStore: func() error {
-				return config.Update(func(c *config.Config) error { c.MCP.Gslides.Enabled = true; return nil })
-			},
-		},
-	}
-
-	return views.WizardStep{
-		ID: "mcp_consolidated", Label: "MCP",
-		SkipIf: func() bool { return s.MCPSkipped },
-		CustomView: func(tvApp *tview.Application, container *tview.Flex, onDone func()) {
-			// Build the form with checkbox + token per integration.
-			form := tview.NewForm()
-
-			enabled := make([]bool, len(entries))
-			for i := range entries {
-				enabled[i] = true
-			}
-
-			// rebuildForm reconstructs the form after a checkbox toggle.
-			// focusEntry is the index of the entry whose checkbox was toggled
-			// (-1 on the initial build). After rebuild, focus is restored to
-			// that checkbox so keyboard navigation keeps working.
-			var onFormRebuilt func()
-			var rebuildForm func(focusEntry int)
-			rebuildForm = func(focusEntry int) {
-				form.Clear(true)
-				targetFormIdx := 0
-				for idx := range entries {
-					ci := idx
-					e := entries[idx]
-					if ci == focusEntry {
-						targetFormIdx = form.GetFormItemCount()
-					}
-					form.AddCheckbox(e.name, enabled[ci], func(checked bool) {
-						enabled[ci] = checked
-						go func() { tvApp.QueueUpdateDraw(func() { rebuildForm(ci) }) }()
-					})
-					if !enabled[ci] {
-						continue
-					}
-					hasKeychainToken := false
-					if a.Secrets != nil && *e.tokenVar == "" {
-						if existing, err := a.Secrets.Get(context.Background(), e.tokenKey); err == nil && existing != "" {
-							hasKeychainToken = true
-						}
-					}
-					if hasKeychainToken {
-						form.AddTextView("", i18n.T("cmd.init.wizard_keychain_hint"), 60, 1, true, false)
-					}
-					form.AddPasswordField(
-						i18n.Tf("cmd.init.mcp_token_prompt", e.name), *e.tokenVar, 0, '*',
-						func(t string) { *entries[ci].tokenVar = t },
-					)
-					if e.hintKey != "" {
-						form.AddTextView("", i18n.T(e.hintKey), 60, 2, true, false)
-					}
-					if e.urlVar != nil {
-						urlIdx := ci
-						form.AddInputField(
-							i18n.Tf("cmd.init.mcp_url_prompt", e.name), *e.urlVar, 0,
-							nil, func(t string) { *entries[urlIdx].urlVar = t },
-						)
-						// Set placeholder on the just-added InputField.
-						if e.urlPlaceholder != "" {
-							if inp, ok := form.GetFormItem(form.GetFormItemCount() - 1).(*tview.InputField); ok {
-								inp.SetPlaceholder(e.urlPlaceholder)
-								inp.SetPlaceholderTextColor(theme.FgMuted)
-							}
-						}
-						if e.urlHintKey != "" {
-							form.AddTextView("", i18n.T(e.urlHintKey), 60, 2, true, false)
-						}
-					}
-					if e.checkboxVar != nil {
-						if e.checkboxDesc != "" {
-							form.AddTextView("", i18n.T(e.checkboxDesc), 60, 2, true, false)
-						}
-						cbVar := e.checkboxVar
-						form.AddCheckbox(e.checkboxLabel, *cbVar, func(checked bool) { *cbVar = checked })
-					}
-				}
-				views.FixFormDropDownStyles(form)
-				form.SetFocus(targetFormIdx)
-				views.FixFormLabelFocus(form)
-				tvApp.SetFocus(form)
-				if onFormRebuilt != nil {
-					onFormRebuilt()
-				}
-			}
-			rebuildForm(-1)
-
-			// Button bar with Continue + Skip (double-click confirm).
-			buttonForm := views.NewStyledButtonForm()
-			buttonForm.AddButton("  "+i18n.T("wizard.hint.submit")+"  ", func() {
-				s.MCPSkipped = false
-				onDone()
-			})
-			skipConfirmed := false
-			buttonForm.AddButton("  "+i18n.T("wizard.intro.skip")+"  ", func() {
-				if !skipConfirmed {
-					skipConfirmed = true
-					if btn := buttonForm.GetButton(1); btn != nil {
-						btn.SetLabel("  " + i18n.T("wizard.intro.skip_confirm") + "  ")
-					}
-					return
-				}
-				s.MCPSkipped = true
-				s.FigmaToken = ""
-				s.GitlabToken = ""
-				s.GitlabURL = ""
-				s.JiraToken = ""
-				s.JiraURL = ""
-				s.GslidesToken = ""
-				onDone()
-			})
-
-			styleWizardForm(form)
-
-			pageResult := views.BuildWizardPage(tvApp, container, views.WizardPageLayout{
-				Badge:           "MCP",
-				Content:         form,
-				ContentMaxWidth: views.ComputeFormMaxWidth(form),
-				Buttons:         buttonForm,
-				FocusTarget:     form,
-			})
-			onFormRebuilt = func() {
-				if pageResult.ResizeContent != nil {
-					pageResult.ResizeContent(form)
-				}
-			}
-			views.SetupFormNavigation(form)
-			views.SetupCrossSectionNav(views.CrossSectionNavConfig{
-				App:     tvApp,
-				Content: form,
-				Buttons: buttonForm,
-			})
-		},
-		OnDone: func() error {
-			for _, entry := range entries {
-				if *entry.tokenVar == "" {
-					continue
-				}
-				if a.Secrets != nil {
-					if err := a.Secrets.Set(context.Background(), entry.tokenKey, *entry.tokenVar); err != nil {
-						return fmt.Errorf("keychain %s: %w", entry.name, err)
-					}
-				}
-				if entry.afterStore != nil {
-					if err := entry.afterStore(); err != nil {
-						return err
-					}
-				}
-			}
-			return nil
-		},
-		InfoFields: func() []views.InfoField {
-			var fields []views.InfoField
-			for _, entry := range entries {
-				switch {
-				case *entry.tokenVar == "":
-					fields = append(fields, views.InfoField{Label: entry.name, Value: infoMuted(i18n.T("cmd.init.wizard_mcp_skipped"))})
-				case entry.urlRequired && entry.urlVar != nil && *entry.urlVar == "":
-					// Token saved but URL required to activate (option D for Jira).
-					fields = append(fields, views.InfoField{Label: entry.name, Value: infoWarning(i18n.T("cmd.init.wizard_mcp_token_saved_url_required"))})
-				default:
-					fields = append(fields, views.InfoField{Label: entry.name, Value: infoSuccess(i18n.T("cmd.init.wizard_mcp_configured"))})
-				}
-			}
-			if s.GitlabToken != "" && s.GitlabWrite {
-				fields = append(fields, views.InfoField{Label: "Write", Value: infoSuccess(i18n.T("cmd.init.wizard_mcp_enabled"))})
-			}
-			return fields
-		},
-	}
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// buildIntroStep — group introduction page
-// ─────────────────────────────────────────────────────────────────────────────
-
-// buildIntroStep creates a CustomView step that serves as a group introduction.
-// Parameters are i18n KEYS (not resolved values) so the content is freshly
-// translated each time the step is rendered — essential for live locale switching.
-// When onSkip is non-nil, a "Skip" button is added alongside "Continue".
-// When onContinue is non-nil, it is called when "Continue" is clicked
-// (use to reset a skip flag when the user goes back and re-enters a group).
-func buildIntroStep(badge, titleKey, descKey, listTitleKey, listItemsKey, prereqsKey, noteKey string, onContinue, onSkip func()) views.WizardStep {
-	return views.WizardStep{
-		Label:         badge,
-		Required:      true,
-		SidebarHidden: true,
-		CustomView: func(tvApp *tview.Application, container *tview.Flex, onDone func()) {
-			accent := theme.ColorTag(theme.ActiveMode.AccentHex)
-			secondary := theme.ColorTag(theme.TextSecondaryHex)
-			muted := theme.ColorTag(theme.TextMutedHex)
-			warning := theme.ColorTag(theme.WarningHex)
-			reset := theme.TagColor
-
-			title := i18n.T(titleKey)
-			desc := i18n.T(descKey)
-			listTitle := ""
-			listItems := ""
-			if listTitleKey != "" {
-				listTitle = i18n.T(listTitleKey)
-			}
-			if listItemsKey != "" {
-				listItems = i18n.T(listItemsKey)
-			}
-			prereqs := ""
-			if prereqsKey != "" {
-				prereqs = i18n.T(prereqsKey)
-			}
-			note := ""
-			if noteKey != "" {
-				note = i18n.T(noteKey)
-			}
-
-			var b strings.Builder
-			b.WriteString("\n")
-
-			fmt.Fprintf(&b, "%s%s%s\n\n", accent, title, reset)
-
-			for _, line := range strings.Split(desc, "\n") {
-				fmt.Fprintf(&b, "%s%s%s\n", secondary, line, reset)
-			}
-			b.WriteString("\n")
-
-			if listTitle != "" && listItems != "" {
-				fmt.Fprintf(&b, "%s%s%s\n", muted, listTitle, reset)
-				fmt.Fprintf(&b, "%s%s%s\n", accent, listItems, reset)
-				b.WriteString("\n")
-			}
-
-			if prereqs != "" {
-				fmt.Fprintf(&b, "%s┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄%s\n\n", muted, reset)
-				for _, line := range strings.Split(prereqs, "\n") {
-					if strings.HasPrefix(line, "• ") {
-						fmt.Fprintf(&b, "%s•%s %s%s%s\n", warning, reset, secondary, line[len("• "):], reset)
-					} else {
-						fmt.Fprintf(&b, "%s%s %s%s\n", warning, theme.IconWarning, line, reset)
-					}
-				}
-				b.WriteString("\n")
-			}
-
-			if note != "" {
-				for _, line := range strings.Split(note, "\n") {
-					fmt.Fprintf(&b, "%s%s%s\n", muted, line, reset)
-				}
-				b.WriteString("\n")
-			}
-
-			tv := tview.NewTextView().
-				SetDynamicColors(true).
-				SetTextAlign(tview.AlignCenter)
-			tv.SetBackgroundColor(theme.BgPanel)
-			tv.SetText(b.String())
-
-			buttonForm := views.NewStyledButtonForm()
-			buttonForm.AddButton("  "+i18n.T("wizard.intro.continue")+"  ", func() {
-				if onContinue != nil {
-					onContinue()
-				}
-				onDone()
-			})
-			if onSkip != nil {
-				skipConfirmed := false
-				buttonForm.AddButton("  "+i18n.T("wizard.intro.skip")+"  ", func() {
-					if !skipConfirmed {
-						skipConfirmed = true
-						if btn := buttonForm.GetButton(1); btn != nil {
-							btn.SetLabel("  " + i18n.T("wizard.intro.skip_confirm") + "  ")
-						}
-						return
-					}
-					onSkip()
-					onDone()
-				})
-			}
-
-			views.BuildWizardPage(tvApp, container, views.WizardPageLayout{
-				Badge:       badge,
-				Intro:       b.String(),
-				Buttons:     buttonForm,
-				FocusTarget: buttonForm,
-			})
-			views.SetupCrossSectionNav(views.CrossSectionNavConfig{
-				App:     tvApp,
-				Buttons: buttonForm,
-			})
-		},
 	}
 }
