@@ -279,6 +279,8 @@ oh board
 oh board --watch
 ```
 
+Un ticket `in_progress` qui porte le label `ready-for-review` est affiché dans la colonne REVIEW (Beads n'a pas de statut `review`). Même règle dans le Board TUI.
+
 `oh optimize` (analyse d'usage et suggestions) et `oh yield` (rapport sessions ↔ commits) existent encore mais sont masques de l'aide, sans flag.
 
 ---

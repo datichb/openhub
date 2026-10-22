@@ -40,8 +40,9 @@ var teamCmd = &cobra.Command{
 var teamRepo *teamstate.Repo
 
 // teamPreRunE resolves the team-state repo for all team subcommands.
-// It skips resolution if the command is `team init` or `team rejoin` (repo doesn't exist yet).
+// It warns once that the team mode is a beta, then skips resolution if the command is `team init` or `team rejoin` (repo doesn't exist yet).
 func teamPreRunE(cmd *cobra.Command, _ []string) error {
+	printTeamBetaWarning(cmd.ErrOrStderr())
 	// Skip for commands that don't need an existing repo (promote works on
 	// a solo team-state, which is never the active team).
 	if cmd.Name() == "init" || cmd.Name() == "rejoin" || cmd.Name() == "promote" {

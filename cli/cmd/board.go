@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -41,16 +40,7 @@ func runBoard(cmd *cobra.Command, args []string) error {
 
 	watch, _ := cmd.Flags().GetBool("watch")
 
-	v2Tickets := make([]views.BoardTicket, len(tickets))
-	for i, t := range tickets {
-		v2Tickets[i] = views.BoardTicket{
-			ID:       t.ID,
-			Title:    t.Title,
-			Status:   t.Status,
-			Priority: t.Priority,
-			Type:     t.Type,
-		}
-	}
+	v2Tickets := boardViewTickets(tickets)
 	cfg := views.BoardConfig{
 		Layout: layout.Config{
 			ProjectName: a.Config.Name,
@@ -61,18 +51,7 @@ func runBoard(cmd *cobra.Command, args []string) error {
 	}
 	if watch {
 		cfg.RefreshFunc = func() []views.BoardTicket {
-			raw := fetchTickets()
-			out := make([]views.BoardTicket, len(raw))
-			for i, t := range raw {
-				out[i] = views.BoardTicket{
-					ID:       t.ID,
-					Title:    t.Title,
-					Status:   t.Status,
-					Priority: t.Priority,
-					Type:     t.Type,
-				}
-			}
-			return out
+			return boardViewTickets(fetchTickets())
 		}
 	}
 	return views.RunBoard(cfg)
@@ -85,6 +64,23 @@ type boardTicket struct {
 	Status   string
 	Priority string
 	Type     string
+	Labels   []string
+}
+
+// boardViewTickets converts the CLI board tickets to the board view ones.
+func boardViewTickets(raw []boardTicket) []views.BoardTicket {
+	out := make([]views.BoardTicket, len(raw))
+	for i, t := range raw {
+		out[i] = views.BoardTicket{
+			ID:       t.ID,
+			Title:    t.Title,
+			Status:   t.Status,
+			Priority: t.Priority,
+			Type:     t.Type,
+			Labels:   t.Labels,
+		}
+	}
+	return out
 }
 
 // fetchTickets attempts to get tickets from the beads system via beads.ListCWD.
@@ -97,35 +93,23 @@ func fetchTickets() []boardTicket {
 	if err != nil || len(raw) == 0 {
 		return nil
 	}
+	return boardTickets(raw)
+}
+
+// boardTickets maps Beads tickets to the CLI board ones, the status being
+// the board column (an in-progress ticket labelled ready-for-review is in
+// REVIEW).
+func boardTickets(raw []beads.Ticket) []boardTicket {
 	tickets := make([]boardTicket, len(raw))
 	for i, r := range raw {
 		tickets[i] = boardTicket{
 			ID:       r.ID,
 			Title:    r.Title,
-			Status:   normalizeStatus(r.Status),
+			Status:   beads.BoardColumn(r.Status, r.Labels),
 			Priority: r.Priority,
 			Type:     r.Type,
+			Labels:   r.Labels,
 		}
 	}
 	return tickets
-}
-
-func normalizeStatus(s string) string {
-	s = strings.ToLower(s)
-	switch s {
-	case "todo", "to_do", "backlog", "open", "planned":
-		return "todo"
-	case "in_progress", "in-progress", "doing", "wip":
-		return "in_progress"
-	case "review", "in_review", "in-review":
-		return "review"
-	case "validation", "testing", "qa", "pre-release":
-		return "validation"
-	case "done", "completed", "closed", "cancelled":
-		return "done"
-	case "blocked", "stuck":
-		return "blocked"
-	default:
-		return "todo"
-	}
 }

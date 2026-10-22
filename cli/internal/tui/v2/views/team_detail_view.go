@@ -135,7 +135,11 @@ func (v *TeamDetailView) Mount(content *tview.Flex, app *tview.Application) {
 
 	v.list = widgets.NewSectionedList()
 	v.list.SetApp(app)
-	v.page = newListPage(v.Title(), v.list)
+	v.page = widgets.NewListDetailPage(v.Title(), i18n.T("tui.catalog.detail"))
+	if !v.solo() {
+		v.page.AddHeader(newTeamBetaLine(), 1)
+	}
+	v.page.SetMain(v.list)
 
 	v.list.SetItemSelectedFunc(func(_ int, item widgets.SectionItem) {
 		v.editSelected()

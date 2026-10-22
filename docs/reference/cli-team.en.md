@@ -2,6 +2,8 @@
 
 # CLI Reference — Team
 
+> **Beta (v5.0).** The team mode is published as a beta: it works, but a few limits are known (a claim released when its session stops, no expiry, a release that can be lost). Read the [known limits](../guides/team-setup.en.md#known-limits) before relying on it.
+
 Team features rely on a shared **team-state** git repository (claims, events, wiki, policies, patterns, team workflows). See [Team workflows](../guides/team-workflows.en.md) for workflows and [ADR-040](../architecture/adr/040-workflows-team-state-governance.en.md).
 
 ## Collaboration (oh team)
@@ -324,3 +326,16 @@ oh takeover-brief show <ticket-id>    # show the takeover context
 oh takeover-brief list                # list the briefs
 oh takeover-brief enrich <ticket-id>  # deprecated alias: runs `oh run brief-enrich --headless` with the brief and saves the result
 ```
+
+## Known limits
+
+The team mode is a beta in v5.0. These limits are known; the complete fix is planned for v5.1.
+
+- **A claim is released when its session stops**, even if a review (checkpoint `cp-2`) is still pending: the ticket becomes available to the other members again before the review is done. If the ticket is closed in Beads, the claim is completed instead of released.
+- **No expiry.** A claim stays until someone releases it. After `takeover.stale_days` days of inactivity (3 by default, `[takeover]` section of the team-state `config.toml`), oh only offers a takeover brief: taking the ticket over stays manual (`oh team claim transfer`).
+- **A release can be lost.** It runs in the background when the session ends: if the machine is offline, or if the daemon stops before the push, the claim stays in place.
+- **Forgotten claim:** `oh team release <ticket-id> -p <project>` frees it by hand.
+- **`oh doctor` reports orphan claims** (ticket closed, or every session that worked on it ended) with the command to run.
+- **The REVIEW column follows the `ready-for-review` label.** In `oh board` and in the Board TUI, an `in_progress` Beads ticket carrying this label is in REVIEW (Beads has no `review` status). The team board shows the `review` status of the claims.
+
+oh warns once per process on stderr (team commands, first claim taken by a launch), and `oh doctor` lists the beta mode as a warning that does not change its exit code.
