@@ -33,9 +33,11 @@ func newTrustView(t *testing.T, enforced map[string]*MCPEnforcedURL) (*MCPView, 
 	cfg := &config.Config{}
 	saves := 0
 	v := NewMCPView(nil, MCPViewConfig{
-		GetConfig:    func() *config.Config { return cfg },
-		SaveConfig:   func(*config.Config) error { saves++; return nil },
-		EnforcedURLs: func() map[string]*MCPEnforcedURL { return enforced },
+		GetConfig:  func() *config.Config { return cfg },
+		SaveConfig: func(*config.Config) error { saves++; return nil },
+		EnforcedURLs: func() func() map[string]*MCPEnforcedURL {
+			return func() map[string]*MCPEnforcedURL { return enforced }
+		},
 	})
 	sh := &trustShell{}
 	v.SetShell(sh)

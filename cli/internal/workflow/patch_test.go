@@ -113,11 +113,12 @@ func TestPatch_HardenOnlyTable(t *testing.T) {
 	}
 }
 
-// S-20: a team or project layer that widens a workflow, by adding an agent or
-// skills to `skills.extra`, gets a warning: refusing would break the agents of
-// the team catalogue (a documented use), so the addition is accepted and
-// reported. Removing skills stays allowed and silent; the hub layer adds
-// freely.
+// S-20: a team layer that widens a workflow, by adding an agent or skills to
+// `skills.extra`, gets a warning: refusing would break the agents of the team
+// catalogue (a documented use), so the addition is accepted and reported. A
+// project layer (repository content) is refused (see
+// TestPatch_ProjectLayerWideningIsRefused). Removing skills stays allowed and
+// silent; the hub layer adds freely.
 func TestPatch_LayerWideningIsWarned(t *testing.T) {
 	t.Parallel()
 	hub := hubLayered + "skills: { extra: [a/one, a/two] }\n"
@@ -162,12 +163,6 @@ func TestPatch_LayerWideningIsWarned(t *testing.T) {
 		}
 		if _, ok := r.Spec.Agents.Get("security-bot"); !ok {
 			t.Fatal("the agent is added anyway")
-		}
-	})
-	t.Run("agent added by a project layer", func(t *testing.T) {
-		_, diags := resolve("project", "agents:\n  security-bot: { role: workflow }\n")
-		if w := warnings(diags, "patch_agent_added"); len(w) != 1 || diags.HasErrors() {
-			t.Fatalf("diags = %v", diagList(diags))
 		}
 	})
 	t.Run("agent added with writes: warning and loosening", func(t *testing.T) {
@@ -227,6 +222,95 @@ func TestPatch_LayerWideningIsWarned(t *testing.T) {
 			t.Fatalf("diags = %v", diagList(diags))
 		}
 	})
+}
+
+// S-20: a project layer is repository content, which anyone may edit: it may
+// not add an agent nor skills (an error, the parent value is kept), whereas it
+// may keep or remove what the parent lists.
+func TestPatch_ProjectLayerWideningIsRefused(t *testing.T) {
+	t.Parallel()
+	hub := hubLayered + "skills: { extra: [a/one, a/two] }\n"
+	resolve := func(patch string) (*Resolved, Diagnostics) {
+		return ResolveSpec(catalogOf(t, map[string]string{
+			"hub:layered":     hub,
+			"team:layered":    "apiVersion: oh/v1\nkind: Workflow\nid: layered\nextends: hub:layered\n",
+			"project:layered": "apiVersion: oh/v1\nkind: Workflow\nid: layered\nextends: team:layered\n" + patch,
+		}), Ref{LayerProject, "layered"}, nil)
+	}
+
+	t.Run("agent added", func(t *testing.T) {
+		r, diags := resolve("agents:\n  security-bot: { role: workflow, after: cp-1 }\n")
+		if got := diags.Codes(); !reflect.DeepEqual(got, []string{"patch_agent_refused"}) {
+			t.Fatalf("diags = %v", diagList(diags))
+		}
+		d := diags[0]
+		if d.Severity != SeverityError || d.Path != "agents.security-bot" || !strings.Contains(d.Message, "security-bot") || !strings.Contains(d.Message, "team:layered") || d.Hint == "" {
+			t.Fatalf("diag = %+v", d)
+		}
+		if _, ok := r.Spec.Agents.Get("security-bot"); ok {
+			t.Fatal("the agent must not be added")
+		}
+	})
+	t.Run("agent added with writes: refused, no extra loosening", func(t *testing.T) {
+		_, diags := resolve("agents:\n  security-bot: { role: workflow, writes: [docs/**] }\n")
+		if got := diags.Codes(); !reflect.DeepEqual(got, []string{"patch_agent_refused"}) {
+			t.Fatalf("diags = %v", diagList(diags))
+		}
+	})
+	t.Run("existing agent changed: silent", func(t *testing.T) {
+		if _, diags := resolve("agents:\n  developer: { after: cp-2 }\n"); len(diags) != 0 {
+			t.Fatalf("diags = %v", diagList(diags))
+		}
+	})
+	t.Run("skills added", func(t *testing.T) {
+		r, diags := resolve("skills: { extra: [a/one, a/two, shared/x] }\n")
+		if got := diags.Codes(); !reflect.DeepEqual(got, []string{"patch_skills_extra_refused"}) {
+			t.Fatalf("diags = %v", diagList(diags))
+		}
+		if d := diags[0]; d.Severity != SeverityError || d.Path != "skills.extra" || !strings.Contains(d.Message, "shared/x") || strings.Contains(d.Message, "a/one") {
+			t.Fatalf("diag = %+v", d)
+		}
+		if !reflect.DeepEqual(r.Spec.Skills.Extra, []string{"a/one", "a/two"}) {
+			t.Fatalf("extra = %v, want the parent list", r.Spec.Skills.Extra)
+		}
+	})
+	t.Run("skills removed or kept: silent", func(t *testing.T) {
+		for name, patch := range map[string]string{
+			"removed":  "skills: { extra: [a/one] }\n",
+			"emptied":  "skills: { extra: [] }\n",
+			"restated": "skills: { extra: [a/two, a/one] }\n",
+		} {
+			r, diags := resolve(patch)
+			if len(diags) != 0 {
+				t.Errorf("%s: diags = %v", name, diagList(diags))
+			}
+			if name == "removed" && !reflect.DeepEqual(r.Spec.Skills.Extra, []string{"a/one"}) {
+				t.Errorf("removed: extra = %v", r.Spec.Skills.Extra)
+			}
+		}
+	})
+}
+
+// S-20: an agent added by a team layer must still respect `risk:` of the
+// resolved workflow: with the agent catalogue, a writing agent added to a
+// read-only workflow is an error.
+func TestPatch_TeamAddedAgentRespectsRisk(t *testing.T) {
+	t.Parallel()
+	hub := "apiVersion: oh/v1\nkind: Workflow\nid: ro\nrisk: read\nbeads: { allow: [show] }\nentry: { agent: auditor }\n"
+	cat := catalogOf(t, map[string]string{
+		"hub:ro":  hub,
+		"team:ro": "apiVersion: oh/v1\nkind: Workflow\nid: ro\nextends: hub:ro\nagents:\n  developer: { role: independent }\n  reviewer: { role: independent }\n",
+	})
+	_, diags := Check(cat, Ref{LayerTeam, "ro"}, nil, Env{Agents: testAgents})
+	var codes []string
+	for _, d := range diags {
+		if d.Code == "read_agent_writes" {
+			codes = append(codes, d.Path)
+		}
+	}
+	if !reflect.DeepEqual(codes, []string{"agents.developer"}) {
+		t.Fatalf("read_agent_writes at %v, diags = %v", codes, diagList(diags))
+	}
 }
 
 // Changes a layer may make: a list narrows a parent that has none (every MCP

@@ -225,6 +225,8 @@ func TestGlobalGuardRefusesOhCommandsThatChangeTrustAndSettings(t *testing.T) {
 		{"p", "remove", "my-project", "--yes"},
 		{"p", "rm", "my-project"},
 		{"teams", "remove", "acme", "--yes"},
+		{"teams", "archive", "acme", "--yes"},
+		{"teams", "restore", "acme", "--yes"},
 	}
 	rules := GlobalShellGuard("")
 	for _, f := range forms {
@@ -275,7 +277,7 @@ func TestShippedAgentsRefuseTrustAndConfigCommands(t *testing.T) {
 			"oh secrets set k", "oh secrets delete k", "oh secrets get k", "oh secrets cleanup", "oh mcp enable gitlab", "oh mcp disable gitlab", "oh mcp reset gitlab",
 			"oh config language en", "oh config websearch disable", "oh budget set max_budget_usd 1", "oh budget raise ses_a",
 			"oh workflow publish feature -m x --yes", "oh workflow archive team:feature", "oh workflow restore team:feature 2", "oh brick publish agent:x -m y",
-			"oh purge --yes", "oh project remove p --yes", "oh p rm p", "oh teams remove acme --yes"} {
+			"oh purge --yes", "oh project remove p --yes", "oh p rm p", "oh teams remove acme --yes", "oh teams archive acme --yes", "oh teams restore acme"} {
 			assert.Equal(t, sessionspec.EffectDeny, ShellEffect(rules, cmd), "%s: %s", ag[1], cmd)
 		}
 	}

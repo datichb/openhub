@@ -79,7 +79,8 @@ func ohCommandPatterns(words ...string) []string {
 // of its restore (`workflow publish|archive|restore`: a published version can
 // widen the permissions of everyone), the publication of a brick (`brick
 // publish`), the total deletion of the hub (`purge`), the removal of a project
-// (`project remove`, aliases `rm` and `p`) and of a team (`teams remove`).
+// (`project remove`, aliases `rm` and `p`) and of a team (`teams remove`, with
+// its archive and its restore: `teams archive|restore`).
 // Reads (`workflow list|show|diff|history`, `brick list|show|history`,
 // `project list`, `teams list`) stay allowed.
 var ohControlDeny = func() []string {
@@ -96,7 +97,7 @@ var ohControlDeny = func() []string {
 		{"workflow", "publish"}, {"workflow", "archive"}, {"workflow", "restore"},
 		{"brick", "publish"}, {"purge"},
 		{"project", "remove"}, {"project", "rm"}, {"p", "remove"}, {"p", "rm"},
-		{"teams", "remove"},
+		{"teams", "remove"}, {"teams", "archive"}, {"teams", "restore"},
 	} {
 		out = append(out, ohCommandPatterns(words...)...)
 	}

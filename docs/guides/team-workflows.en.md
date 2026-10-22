@@ -16,7 +16,7 @@ A workflow is resolved from the most general layer to the most specific one:
 | `team` | `team-state/workflows/published/<id>.yaml` |
 | `project` | `team-state/projects/<project>/workflows/published/<id>.yaml` |
 
-A workflow with the same id as a workflow of a lower layer **must extend it** (`extends`), otherwise it is refused. Security fields may only be hardened. A layer that **adds** an agent or skills (`skills.extra`) to a hub workflow widens the workflow: the addition is accepted with a warning (`patch_agent_added`, `patch_skills_extra_added`) and shown in the impact summary of the publication; removing skills stays allowed.
+A workflow with the same id as a workflow of a lower layer **must extend it** (`extends`), otherwise it is refused. Security fields may only be hardened. A team layer that **adds** an agent or skills (`skills.extra`) to a hub workflow widens the workflow: the addition is accepted with a warning (`patch_agent_added`, `patch_skills_extra_added`) and shown in the impact summary of the publication; the project layer, whose content comes from the repository, may add neither an agent nor skills (errors `patch_agent_refused`, `patch_skills_extra_refused`, the addition is ignored); removing skills stays allowed. An added agent must respect the `risk:` of the workflow (for example, an agent that writes is refused in a read-only workflow).
 
 ## Layout
 
@@ -119,7 +119,7 @@ The life cycle of a team or project workflow goes through the WorkflowService (C
 3. **Publication**: team-state pull → **revalidation** of the draft against the up-to-date state → version + 1 → previous version copied to `history/<id>/` (document, template and lock entry) → published file and `workflows.lock` → commit + push. If another member published in the meantime, everything is **redone** on top of their publication (new revalidation, next version). The draft is consumed; a `workflow.published` event is added.
 4. **Offline**: the publication is **queued** (in the clone, not versioned) and replayed later with the same cycle; the draft is kept. The replay is **automatic at each team-state synchronization in the TUI** (the result is notified); from the CLI: `oh workflow publish --retry` (no replay when the CLI starts).
 
-An agent cannot publish for you: the global shell guard refuses `oh workflow publish`, `archive` and `restore` (and `oh brick publish`, `oh purge`, `oh project remove`, `oh teams remove`), `--yes` included, since a published version can widen the permissions of the whole team. Reads (`list`, `show`, `diff`, `history`) stay allowed. Run these commands yourself, from your terminal.
+An agent cannot publish for you: the global shell guard refuses `oh workflow publish`, `archive` and `restore` (and `oh brick publish`, `oh purge`, `oh project remove`, `oh teams remove`, `archive` and `restore`), `--yes` included, since a published version can widen the permissions of the whole team. Reads (`list`, `show`, `diff`, `history`) stay allowed. Run these commands yourself, from your terminal.
 
 ### Impact summary
 

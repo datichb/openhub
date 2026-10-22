@@ -585,7 +585,7 @@ func (p *preparedRun) start(ctx context.Context, a *app.App, ui launcher.LaunchU
 	}
 	for _, res := range results {
 		for _, w := range res.Report.Warnings {
-			ui.Notify(i18n.Tf("cmd.v5.isolation_warning", w), launcher.LevelWarning)
+			ui.Notify(isolationWarningText(w), launcher.LevelWarning)
 		}
 	}
 	if err != nil {

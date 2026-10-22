@@ -97,6 +97,22 @@ type VisibilityReport struct {
 	Level      sessionspec.IsolationLevel
 }
 
+// Prefixes of the VisibilityReport.Warnings about plugins that the bundle does
+// not bring (S-11): "plugin:<id> (<source>)" for a plugin loaded from the
+// user's own tool configuration, and "plugins:unchecked (<reason>)" when the
+// plugin list could not be read.
+const (
+	WarnUserPlugin       = "plugin:"
+	WarnPluginsUnchecked = "plugins:unchecked"
+)
+
+// UserPluginLister is implemented by adapters whose tool loads plugins from
+// the user's own configuration: it lists them without a running server (for
+// `oh doctor`). A container never sees them.
+type UserPluginLister interface {
+	UserPlugins() ([]string, error)
+}
+
 // OK reports whether the closed world invariant holds.
 func (r VisibilityReport) OK() bool { return len(r.Unexpected) == 0 }
 

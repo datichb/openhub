@@ -3,6 +3,8 @@ package cmd
 import (
 	"context"
 	"errors"
+	"os/exec"
+	"strings"
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
@@ -15,7 +17,10 @@ import (
 // InputSources) on this machine: the merge requests of the project forge
 // (GitLab today) and the team space of the project.
 func inputSources(a *app.App, note func(string)) map[string]workflowsvc.InputSource {
-	out := gitlabInputSources(a)
+	out := map[string]workflowsvc.InputSource{}
+	for k, fn := range gitlabInputSources(a) {
+		out[k] = gitlabOnly(fn, func(ctx context.Context, projectID string) string { return githubRemoteOf(ctx, a, projectID) })
+	}
 	for k, fn := range sessionInputSources(a, note) {
 		out[k] = fn
 	}
@@ -23,6 +28,43 @@ func inputSources(a *app.App, note func(string)) map[string]workflowsvc.InputSou
 		return ticketBrief(ctx, a, c.ProjectID, ticketID)
 	}
 	return out
+}
+
+// gitlabOnly makes a source of merge request inputs (GitLab) fail with a clear
+// message on a project whose forge is GitHub (F-07), instead of a token or
+// project error: remoteOf returns the GitHub remote of the project, "" when
+// it is not one.
+func gitlabOnly(fn workflowsvc.InputSource, remoteOf func(ctx context.Context, projectID string) string) workflowsvc.InputSource {
+	return func(ctx context.Context, c workflowsvc.Context, ref string) (string, error) {
+		if remote := remoteOf(ctx, c.ProjectID); remote != "" {
+			return "", errors.New(i18n.Tf("cmd.inputs.github.mr_gitlab_only", remote))
+		}
+		return fn(ctx, c, ref)
+	}
+}
+
+// githubRemoteOf returns the origin remote of a project (host/path) when it
+// is on GitHub; "" otherwise or when it cannot be read.
+func githubRemoteOf(ctx context.Context, a *app.App, projectID string) string {
+	p, err := a.Projects.Get(ctx, projectID)
+	if err != nil || p == nil {
+		return ""
+	}
+	return githubRemote(ctx, p.Path)
+}
+
+// githubRemote returns "host/path" when the origin remote of the repository at
+// dir is on GitHub (github.com or a GitHub Enterprise host).
+func githubRemote(ctx context.Context, dir string) string {
+	out, err := exec.CommandContext(ctx, "git", "-C", dir, "remote", "get-url", "origin").Output()
+	if err != nil {
+		return ""
+	}
+	gr, err := config.ParseGitRemote(string(out))
+	if err != nil || (gr.Host != "github.com" && !strings.HasPrefix(gr.Host, "github.")) {
+		return ""
+	}
+	return gr.Host + "/" + gr.Path
 }
 
 // ticketBrief reads the takeover brief of a ticket (the enriched one first)

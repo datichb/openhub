@@ -16,7 +16,7 @@ Un workflow est résolu de la couche la plus générale à la plus spécifique :
 | `team` | `team-state/workflows/published/<id>.yaml` |
 | `project` | `team-state/projects/<projet>/workflows/published/<id>.yaml` |
 
-Un workflow d'une couche qui porte le même identifiant qu'un workflow d'une couche inférieure **doit l'étendre** (`extends`), sinon il est refusé. Les champs de sécurité ne peuvent que se durcir. Une couche qui **ajoute** un agent ou des skills (`skills.extra`) à un workflow du hub élargit le workflow : l'ajout est accepté avec un avertissement (`patch_agent_added`, `patch_skills_extra_added`) et signalé dans le résumé d'impact de la publication ; retirer des skills reste permis.
+Un workflow d'une couche qui porte le même identifiant qu'un workflow d'une couche inférieure **doit l'étendre** (`extends`), sinon il est refusé. Les champs de sécurité ne peuvent que se durcir. Une couche d'équipe qui **ajoute** un agent ou des skills (`skills.extra`) à un workflow du hub élargit le workflow : l'ajout est accepté avec un avertissement (`patch_agent_added`, `patch_skills_extra_added`) et signalé dans le résumé d'impact de la publication ; la couche de projet, dont le contenu vient du dépôt, ne peut ni ajouter d'agent ni ajouter de skills (erreurs `patch_agent_refused`, `patch_skills_extra_refused`, l'ajout est ignoré) ; retirer des skills reste permis. Un agent ajouté doit respecter le `risk:` du workflow (par exemple, un agent qui écrit est refusé dans un workflow en lecture seule).
 
 ## Arborescence
 
@@ -119,7 +119,7 @@ Le cycle de vie d'un workflow d'équipe ou de projet passe par le WorkflowServic
 3. **Publication** : pull du team-state → **revalidation** du brouillon contre l'état à jour → version + 1 → version précédente copiée dans `history/<id>/` (document, gabarit et entrée du lock) → fichier publié et `workflows.lock` → commit + push. Si un autre membre a publié entre-temps, tout est **refait** au-dessus de sa publication (nouvelle revalidation, version suivante). Le brouillon est consommé ; un événement `workflow.published` est ajouté.
 4. **Hors ligne** : la publication est mise en **file d'attente** (dans le clone, non versionnée) et rejouée plus tard avec le même cycle ; le brouillon est conservé. Le rejeu est **automatique à chaque synchronisation du team-state dans la TUI** (notification du résultat) ; en CLI : `oh workflow publish --retry` (pas de rejeu au démarrage de la CLI).
 
-Un agent ne peut pas publier à votre place : le garde global du shell refuse `oh workflow publish`, `archive` et `restore` (ainsi que `oh brick publish`, `oh purge`, `oh project remove`, `oh teams remove`), `--yes` compris, car une version publiée peut élargir les permissions de toute l'équipe. Les lectures (`list`, `show`, `diff`, `history`) restent permises. Lancez ces commandes vous-même, depuis votre terminal.
+Un agent ne peut pas publier à votre place : le garde global du shell refuse `oh workflow publish`, `archive` et `restore` (ainsi que `oh brick publish`, `oh purge`, `oh project remove`, `oh teams remove`, `archive` et `restore`), `--yes` compris, car une version publiée peut élargir les permissions de toute l'équipe. Les lectures (`list`, `show`, `diff`, `history`) restent permises. Lancez ces commandes vous-même, depuis votre terminal.
 
 ### Résumé d'impact
 
