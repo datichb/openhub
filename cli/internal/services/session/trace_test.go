@@ -197,8 +197,8 @@ func TestWildcard(t *testing.T) {
 	assert.True(t, matchesAny("make test-unit", []string{"make test*"}))
 	assert.True(t, matchesAny("cd /p && go test -v", []string{"go test*"}))
 	assert.False(t, matchesAny("go run .", []string{"go test*", "go vet*"}))
-	assert.True(t, wildcard("a*b*c", "axxbyyc"))
-	assert.False(t, wildcard("a*b*c", "axxbyy"))
+	assert.True(t, matchesAny("make test-é", []string{"make test-?"}), "? is one character, accented or not")
+	assert.True(t, matchesAny("go test", []string{"go t?st"}))
 }
 
 func TestTraceUnknownSession(t *testing.T) {

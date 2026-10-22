@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/safego"
+	"github.com/datichb/openhub/cli/internal/wildcard"
 )
 
 // Auth applies the real credential to an upstream request.
@@ -818,34 +819,9 @@ func modelAllowed(patterns []string, model string) bool {
 		return true
 	}
 	for _, p := range patterns {
-		if wildcard(p, model) {
+		if wildcard.Match(p, model) {
 			return true
 		}
 	}
 	return false
-}
-
-func wildcard(pattern, s string) bool {
-	p, v := []rune(pattern), []rune(s)
-	pi, si, star, mark := 0, 0, -1, 0
-	for si < len(v) {
-		switch {
-		case pi < len(p) && (p[pi] == '?' || p[pi] == v[si]):
-			pi++
-			si++
-		case pi < len(p) && p[pi] == '*':
-			star, mark = pi, si
-			pi++
-		case star >= 0:
-			pi = star + 1
-			mark++
-			si = mark
-		default:
-			return false
-		}
-	}
-	for pi < len(p) && p[pi] == '*' {
-		pi++
-	}
-	return pi == len(p)
 }

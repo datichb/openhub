@@ -19,6 +19,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/datichb/openhub/cli/internal/wildcard"
 )
 
 // Limits is one level of restrictions (zero values = not set).
@@ -163,7 +165,7 @@ func CoveredModels(list, ceiling []string) []string {
 	var out []string
 	for _, p := range list {
 		for _, c := range ceiling {
-			if Match(c, p) {
+			if wildcard.Match(c, p) {
 				out = append(out, p)
 				break
 			}
@@ -179,37 +181,11 @@ func ModelAllowed(patterns []string, model string) bool {
 		return true
 	}
 	for _, p := range patterns {
-		if Match(p, model) {
+		if wildcard.Match(p, model) {
 			return true
 		}
 	}
 	return false
-}
-
-// Match is a whole-value wildcard match ('*' any run, '?' one character).
-func Match(pattern, s string) bool {
-	p, v := []rune(pattern), []rune(s)
-	pi, si, star, mark := 0, 0, -1, 0
-	for si < len(v) {
-		switch {
-		case pi < len(p) && (p[pi] == '?' || p[pi] == v[si]):
-			pi++
-			si++
-		case pi < len(p) && p[pi] == '*':
-			star, mark = pi, si
-			pi++
-		case star >= 0:
-			pi = star + 1
-			mark++
-			si = mark
-		default:
-			return false
-		}
-	}
-	for pi < len(p) && p[pi] == '*' {
-		pi++
-	}
-	return pi == len(p)
 }
 
 // Scope of the daily budget and of the maximum of working sessions.
