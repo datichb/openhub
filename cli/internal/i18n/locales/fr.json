@@ -5875,7 +5875,6 @@
   "cmd.team_rejoin_core.retro_tagging_sessions": "marquage rétroactif des sessions : %w",
   "cmd.team_rejoin_core.retro_tagging_agent_events": "marquage rétroactif des événements d'agent : %w",
   "cmd.team_solo.writing_hub_toml": "écriture de hub.toml : %w",
-  "cmd.team_steps.loading_existing_policies": "chargement des policies existantes : %w",
   "cmd.team_sync_tracker.no_project_configured_for_the_tracker": "\n  %s Aucun projet configuré pour le tracker sync.\n",
   "cmd.team_sync_tracker.tracker_project_is_set_in_the": "  · tracker_project est défini dans la config team (Team Detail > Tracker)\n",
   "cmd.team_sync_tracker.or_a_hub_project_overrides_tracker": "  · Ou un projet hub a un override tracker_project (Project Config > Tracker)\n\n",

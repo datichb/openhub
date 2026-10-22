@@ -113,9 +113,39 @@ func (s *Service) Remove(ctx context.Context, name string) error {
 	})
 }
 
+// Upsert adds every policy of policies, or replaces the one with the same
+// name, and keeps the others, in one transaction (ErrBadType and
+// ErrBadEnforced when one is invalid, nothing is written then). The commit is
+// "policies: init" when the team-state had no policy, "policies: update"
+// otherwise.
+func (s *Service) Upsert(ctx context.Context, policies map[string]teamstate.Policy) error {
+	for name, p := range policies {
+		if err := validate(name, p); err != nil {
+			return err
+		}
+	}
+	return s.editMsg(ctx, func(m map[string]teamstate.Policy) (string, error) {
+		msg := "policies: update"
+		if len(m) == 0 {
+			msg = "policies: init"
+		}
+		for name, p := range policies {
+			m[name] = p
+		}
+		return msg, nil
+	})
+}
+
 // edit runs change on the policies as read inside the transaction (a
 // rejected push runs it again on the new remote state).
 func (s *Service) edit(ctx context.Context, msg string, change func(map[string]teamstate.Policy) error) error {
+	return s.editMsg(ctx, func(m map[string]teamstate.Policy) (string, error) {
+		return msg, change(m)
+	})
+}
+
+// editMsg is edit with a commit message that change returns.
+func (s *Service) editMsg(ctx context.Context, change func(map[string]teamstate.Policy) (string, error)) error {
 	return s.Store.Transact(ctx, func(ctx context.Context, _ *teamstate.Tx) (teamstate.TxResult, error) {
 		list, err := s.Store.LoadPolicies("")
 		if err != nil {
@@ -127,7 +157,8 @@ func (s *Service) edit(ctx context.Context, msg string, change func(map[string]t
 			p.Name = ""
 			m[name] = p
 		}
-		if err := change(m); err != nil {
+		msg, err := change(m)
+		if err != nil {
 			return teamstate.TxResult{}, err
 		}
 		if err := s.Store.SavePolicies(ctx, m); err != nil {
