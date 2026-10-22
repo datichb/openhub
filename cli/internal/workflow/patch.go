@@ -118,10 +118,16 @@ func (p *patcher) apply() {
 			// S-20: skills the parent does not list are added to what the
 			// agents can load; removing some stays allowed. Reported like an
 			// added agent (see agents).
-			if extra := missingFrom(s.Skills.Extra, d.Skills.Extra); len(extra) > 0 && !p.widens() {
+			extra := missingFrom(s.Skills.Extra, d.Skills.Extra)
+			switch {
+			case len(extra) > 0 && p.fromProject():
+				p.report(errDiag("patch_skills_extra_refused", "skills.extra", strings.Join(extra, ","), p.parent))
+			case len(extra) > 0 && !p.widens():
 				p.report(warnDiag("patch_skills_extra_added", "skills.extra", strings.Join(extra, ","), p.parent))
+				d.Skills.Extra = s.Skills.Extra
+			default:
+				d.Skills.Extra = s.Skills.Extra
 			}
-			d.Skills.Extra = s.Skills.Extra
 		}
 		if p.has("skills.deny") {
 			p.skillsDeny()
@@ -293,6 +299,14 @@ func (p *patcher) agents() {
 			continue
 		}
 		if !exists {
+			if p.fromProject() {
+				// S-20: a project layer is content of the repository, which
+				// anyone may edit: it may not widen the workflow with an
+				// agent (the agent is left out). Only a team layer, written by
+				// the team, may add one.
+				p.report(errDiag("patch_agent_refused", base, k, p.parent))
+				continue
+			}
 			if len(v.Writes) > 0 {
 				// R4: a layer may not open documentation paths to an agent
 				// it adds.
@@ -300,10 +314,10 @@ func (p *patcher) agents() {
 				v.Writes, v.WritesAfter = nil, ""
 			}
 			if !p.widens() {
-				// S-20: a team or project layer widens the workflow by adding
-				// an agent. Refusing it would break the agents of the team
-				// catalogue, a documented use: it is reported (and shown as a
-				// new agent in the impact summary of a publication).
+				// S-20: a team layer widens the workflow by adding an agent.
+				// Refusing it would break the agents of the team catalogue, a
+				// documented use: it is reported (and shown as a new agent in
+				// the impact summary of a publication).
 				p.report(warnDiag("patch_agent_added", base, k, p.parent))
 			}
 			p.dst.Agents.Set(k, v)
@@ -612,6 +626,10 @@ func (p *patcher) circuitBreaker() {
 // parent list (N24, S-18): a plugin runs code, an MCP server reaches the
 // forges with the user's tokens.
 func (p *patcher) widens() bool { return p.doc.Source.Layer == LayerHub }
+
+// fromProject reports whether the patch comes from a project layer, whose
+// content is not reviewed like the team's: it may not add agents or skills.
+func (p *patcher) fromProject() bool { return p.doc.Source.Layer == LayerProject }
 
 func (p *patcher) plugins() {
 	if !p.has("plugins") {

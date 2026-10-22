@@ -16,7 +16,7 @@ A workflow is resolved from the most general layer to the most specific one:
 | `team` | `team-state/workflows/published/<id>.yaml` |
 | `project` | `team-state/projects/<project>/workflows/published/<id>.yaml` |
 
-A workflow with the same id as a workflow of a lower layer **must extend it** (`extends`), otherwise it is refused. Security fields may only be hardened. A layer that **adds** an agent or skills (`skills.extra`) to a hub workflow widens the workflow: the addition is accepted with a warning (`patch_agent_added`, `patch_skills_extra_added`) and shown in the impact summary of the publication; removing skills stays allowed.
+A workflow with the same id as a workflow of a lower layer **must extend it** (`extends`), otherwise it is refused. Security fields may only be hardened. A team layer that **adds** an agent or skills (`skills.extra`) to a hub workflow widens the workflow: the addition is accepted with a warning (`patch_agent_added`, `patch_skills_extra_added`) and shown in the impact summary of the publication; the project layer, whose content comes from the repository, may add neither an agent nor skills (errors `patch_agent_refused`, `patch_skills_extra_refused`, the addition is ignored); removing skills stays allowed. An added agent must respect the `risk:` of the workflow (for example, an agent that writes is refused in a read-only workflow).
 
 ## Layout
 

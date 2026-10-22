@@ -16,7 +16,7 @@ Un workflow est résolu de la couche la plus générale à la plus spécifique :
 | `team` | `team-state/workflows/published/<id>.yaml` |
 | `project` | `team-state/projects/<projet>/workflows/published/<id>.yaml` |
 
-Un workflow d'une couche qui porte le même identifiant qu'un workflow d'une couche inférieure **doit l'étendre** (`extends`), sinon il est refusé. Les champs de sécurité ne peuvent que se durcir. Une couche qui **ajoute** un agent ou des skills (`skills.extra`) à un workflow du hub élargit le workflow : l'ajout est accepté avec un avertissement (`patch_agent_added`, `patch_skills_extra_added`) et signalé dans le résumé d'impact de la publication ; retirer des skills reste permis.
+Un workflow d'une couche qui porte le même identifiant qu'un workflow d'une couche inférieure **doit l'étendre** (`extends`), sinon il est refusé. Les champs de sécurité ne peuvent que se durcir. Une couche d'équipe qui **ajoute** un agent ou des skills (`skills.extra`) à un workflow du hub élargit le workflow : l'ajout est accepté avec un avertissement (`patch_agent_added`, `patch_skills_extra_added`) et signalé dans le résumé d'impact de la publication ; la couche de projet, dont le contenu vient du dépôt, ne peut ni ajouter d'agent ni ajouter de skills (erreurs `patch_agent_refused`, `patch_skills_extra_refused`, l'ajout est ignoré) ; retirer des skills reste permis. Un agent ajouté doit respecter le `risk:` du workflow (par exemple, un agent qui écrit est refusé dans un workflow en lecture seule).
 
 ## Arborescence
 
