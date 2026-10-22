@@ -119,7 +119,7 @@ Le cycle de vie d'un workflow d'équipe ou de projet passe par le WorkflowServic
 3. **Publication** : pull du team-state → **revalidation** du brouillon contre l'état à jour → version + 1 → version précédente copiée dans `history/<id>/` (document, gabarit et entrée du lock) → fichier publié et `workflows.lock` → commit + push. Si un autre membre a publié entre-temps, tout est **refait** au-dessus de sa publication (nouvelle revalidation, version suivante). Le brouillon est consommé ; un événement `workflow.published` est ajouté.
 4. **Hors ligne** : la publication est mise en **file d'attente** (dans le clone, non versionnée) et rejouée plus tard avec le même cycle ; le brouillon est conservé. Le rejeu est **automatique à chaque synchronisation du team-state dans la TUI** (notification du résultat) ; en CLI : `oh workflow publish --retry` (pas de rejeu au démarrage de la CLI).
 
-Un agent ne peut pas publier à votre place : le garde global du shell refuse `oh workflow publish`, `archive` et `restore` (ainsi que `oh brick publish`, `oh purge`, `oh project remove`, `oh teams remove`), `--yes` compris, car une version publiée peut élargir les permissions de toute l'équipe. Les lectures (`list`, `show`, `diff`, `history`) restent permises. Lancez ces commandes vous-même, depuis votre terminal.
+Un agent ne peut pas publier à votre place : le garde global du shell refuse `oh workflow publish`, `archive` et `restore` (ainsi que `oh brick publish`, `oh purge`, `oh project remove`, `oh teams remove`, `archive` et `restore`), `--yes` compris, car une version publiée peut élargir les permissions de toute l'équipe. Les lectures (`list`, `show`, `diff`, `history`) restent permises. Lancez ces commandes vous-même, depuis votre terminal.
 
 ### Résumé d'impact
 

@@ -119,7 +119,7 @@ The life cycle of a team or project workflow goes through the WorkflowService (C
 3. **Publication**: team-state pull → **revalidation** of the draft against the up-to-date state → version + 1 → previous version copied to `history/<id>/` (document, template and lock entry) → published file and `workflows.lock` → commit + push. If another member published in the meantime, everything is **redone** on top of their publication (new revalidation, next version). The draft is consumed; a `workflow.published` event is added.
 4. **Offline**: the publication is **queued** (in the clone, not versioned) and replayed later with the same cycle; the draft is kept. The replay is **automatic at each team-state synchronization in the TUI** (the result is notified); from the CLI: `oh workflow publish --retry` (no replay when the CLI starts).
 
-An agent cannot publish for you: the global shell guard refuses `oh workflow publish`, `archive` and `restore` (and `oh brick publish`, `oh purge`, `oh project remove`, `oh teams remove`), `--yes` included, since a published version can widen the permissions of the whole team. Reads (`list`, `show`, `diff`, `history`) stay allowed. Run these commands yourself, from your terminal.
+An agent cannot publish for you: the global shell guard refuses `oh workflow publish`, `archive` and `restore` (and `oh brick publish`, `oh purge`, `oh project remove`, `oh teams remove`, `archive` and `restore`), `--yes` included, since a published version can widen the permissions of the whole team. Reads (`list`, `show`, `diff`, `history`) stay allowed. Run these commands yourself, from your terminal.
 
 ### Impact summary
 

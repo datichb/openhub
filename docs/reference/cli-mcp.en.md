@@ -138,7 +138,7 @@ oh mcp trust jira
 oh mcp trust jira --yes
 ```
 
-An agent cannot run this command: the global shell guard refuses `oh mcp trust` and `oh mcp untrust` (and the other commands that change trust or personal settings, including `oh secrets set|delete`, `oh mcp enable|disable|reset`, `oh config language|websearch`, `oh budget set|unset|raise`, and the commands that publish or delete: `oh workflow publish|archive|restore`, `oh brick publish`, `oh purge`, `oh project remove` and `oh teams remove`: see [SECURITY](../../SECURITY.md)). Run it yourself, outside a session.
+An agent cannot run this command: the global shell guard refuses `oh mcp trust` and `oh mcp untrust` (and the other commands that change trust or personal settings, including `oh secrets set|delete`, `oh mcp enable|disable|reset`, `oh config language|websearch`, `oh budget set|unset|raise`, and the commands that publish or delete: `oh workflow publish|archive|restore`, `oh brick publish`, `oh purge`, `oh project remove` and `oh teams remove|archive|restore`: see [SECURITY](../../SECURITY.md)). Run it yourself, outside a session.
 
 A remote job resolves nothing: it receives the URL already resolved on your machine, so a URL you did not approve never reaches it.
 
