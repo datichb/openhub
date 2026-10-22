@@ -11,6 +11,7 @@ This page covers **v5 session management** (`oh session …`), **restrictions** 
 - **Referring to a session**: its full id or a **unique prefix** (with or without `ses_`); `oh session list` shows them.
 - **Referring to a decision** (`approve`, `answer`, `dismiss`, `oh budget raise`): the decision id (`oh session inbox`) or the session id; when the session has several pending decisions of the expected kind, oh refuses and lists them.
 - **Decision kinds**: ⏸ checkpoint, ? question, ! permission, $ budget, ✗ error, ⊘ circuit breaker. The **first answer wins** (oh, opencode interface, browser, CLI); a late answer tells who already decided.
+- **Cancel a session**: `oh session delete <session>` (it is stopped, then its worktree, local branch and files are deleted, after confirmation). `oh session stop` stops without deleting anything: the session and its work stay. To see a launch without starting it: `oh run --dry-run`.
 - Live follow-up, notifications and decisions go through the `ohd` daemon ([`oh daemon`](cli-infra.en.md#oh-daemon)).
 
 | Command | Purpose |
@@ -31,7 +32,7 @@ This page covers **v5 session management** (`oh session …`), **restrictions** 
 | [`oh session results`](#oh-session-results) | Changed files, branch, cost, MR description, diff |
 | [`oh session report`](#oh-session-report) | Reports filed by the agents (`workflow_report`) |
 | [`oh session resume`](#oh-session-resume) | Resume a sleeping session without interface |
-| [`oh session stop`](#oh-session-stop) | Stop a session |
+| [`oh session stop`](#oh-session-stop) | Stop a session (deletes nothing; to cancel it: `oh session delete`) |
 | [`oh session delete`](#oh-session-delete) | Delete a session for good (worktree, local branch, files) |
 | [`oh session open`](#oh-session-open) | Open a session in the browser |
 | [`oh session fetch`](#oh-session-fetch) | Fetch a finished remote session |

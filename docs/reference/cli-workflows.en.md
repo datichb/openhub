@@ -8,7 +8,7 @@ Declarative workflows (`apiVersion: oh/v1`) describe a use case: entry agent, ag
 
 ```
 oh run [workflow] [-i key=value]… [--tickets a,b] [--one-session] [--mode <mode>] [--runtime local|container|remote]
-                  [--location base|new|<worktree>] [--allow-dirty | --stash] [--attach <opening>] [--recap] [--draft] [-a <agent>]
+                  [--location base|new|<worktree>] [--allow-dirty | --stash] [--attach <opening>] [--recap] [--dry-run] [--draft] [-a <agent>]
                   [--headless [--output <file>] [--timeout <duration>]] [--parent <session>] [-p <project>] [-P <provider>]
                   [--on-existing resume|transfer|keep|delete|parallel [--discard-base-changes]]
 ```
@@ -26,6 +26,7 @@ oh run [workflow] [-i key=value]… [--tickets a,b] [--one-session] [--mode <mod
 | `--stash` | | bool | `false` | Stash (`git stash`) the uncommitted changes of the directory before the launch |
 | `--attach` | | string | Settings preference | Opening: `auto`, `iterm`, `terminal`, `tmux`, `browser`, `suspend`, `none` |
 | `--recap` | | bool | `false` | Recap and confirmation before the launch |
+| `--dry-run` | | bool | `false` | Prepare the launch and show it without starting anything (see below) |
 | `--draft` | | bool | `false` | Run your draft of the workflow (local only) |
 | `--agent` | `-a` | string | | Entry agent (workflows with a selectable entry, e.g. `libre`) |
 | `--headless` | | bool | `false` | Without interface: wait for the end of the turn, print the answer, stop the session |
@@ -49,6 +50,7 @@ Launches a workflow: layer resolution and validation, session bundle, session pl
 - **Default workflow**: without argument, `oh run` launches the project default workflow (Project config › Execution).
 - **Runtime** (`--runtime`): `local`, `container` or `remote` (must be in `runtime.allowed`; refused with the reason when the container engine is unavailable or the remote target is not set up; `remote` is **experimental** and refused without `oh config set remote.experimental true`); without `--runtime`, the project default runtime, then the Settings one, then the workflow one, when allowed. See [Container](../guides/container.en.md) and [Remote execution](../guides/remote-runners.en.md) (`oh remote setup`, then `oh session fetch` / `oh session resolve` on return).
 - **Recap** (`--recap`): agents, first-turn budget, MCP, Code Mode, allowed Beads commands, checkpoints in the session mode (pause, auto, skipped, conditional; mandatory ones marked), isolation, sessions and locations (with the choice applied to an existing session), existing sessions of the tickets, warnings (uncommitted changes, automatic or already existing worktree, worktree shared with another writing session, ticket worked on in a worktree while this session takes the project directory, pending decisions on the ticket, in the project and in total), then confirmation.
+- **See without launching** (`--dry-run`): prepares the launch like a real one (resolution, validation, session bundle, session plan, prompt), shows the recap, the planned pauses and the warnings, then the line « dry-run: nothing was started »; exit code 0 when the preparation succeeds, a preparation error (invalid workflow, blocking precondition, missing credentials…) exits as for a real launch. It has **no effect** on the project or the team: no session, no worktree (the planned one is shown), no ticket claim, no shell file for local sessions, no question (no choice about an existing session, no suggested workflow, no import of the Bedrock key of the environment: missing credentials are an error). **The only write**: the session bundle, in `~/.oh/bundles/<hash>`, addressed by its content (same for the same launch, reused by the real launch) and cleaned by `oh gc` when no session uses it. Refused for remote execution (`--runtime remote`): the target and the pipeline are only checked when it is sent. With `--headless`, it also tells whether the launch could run without interface (a waiting checkpoint → refused).
 - **Single session** (`--one-session`): every ticket in the same session, instead of one session per ticket.
 - **MCP**: without an `mcp:` field in the workflow, the session gets the project MCP servers; with `mcp:` (even empty), only the listed ones (a listed server missing from the project is reported).
 - **Preconditions**: a blocking precondition refuses the launch; a suggestion (e.g. no wiki → `onboarding`) offers to run the suggested workflow first. With `resume: true`, the initial launch is remembered and offered again when that session ends ("Chain with…" in the TUI).

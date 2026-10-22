@@ -11,6 +11,7 @@ Cette page couvre la **gestion des sessions v5** (`oh session …`), les **restr
 - **Désigner une session** : son identifiant complet ou un **préfixe unique** (avec ou sans `ses_`) ; `oh session list` les affiche.
 - **Désigner une décision** (`approve`, `answer`, `dismiss`, `oh budget raise`) : l'identifiant de la décision (`oh session inbox`) ou celui de la session ; si la session a plusieurs décisions en attente du type visé, oh refuse et les liste.
 - **Types de décisions** : ⏸ checkpoint, ? question, ! permission, $ budget, ✗ erreur, ⊘ coupe-circuit. La **première réponse gagne** (oh, interface d'opencode, navigateur, CLI) ; une réponse arrivée trop tard affiche qui a déjà décidé.
+- **Annuler une session** : `oh session delete <session>` (elle est arrêtée, puis son worktree, sa branche locale et ses fichiers sont supprimés, après confirmation). `oh session stop` arrête sans rien supprimer : la session et son travail restent. Pour voir un lancement sans le démarrer : `oh run --dry-run`.
 - Le suivi en direct, les notifications et les décisions passent par le démon `ohd` ([`oh daemon`](cli-infra.fr.md#oh-daemon)).
 
 | Commande | Rôle |
@@ -31,7 +32,7 @@ Cette page couvre la **gestion des sessions v5** (`oh session …`), les **restr
 | [`oh session results`](#oh-session-results) | Fichiers modifiés, branche, coût, description de MR, diff |
 | [`oh session report`](#oh-session-report) | Rapports déposés par les agents (`workflow_report`) |
 | [`oh session resume`](#oh-session-resume) | Reprendre une session en veille sans interface |
-| [`oh session stop`](#oh-session-stop) | Arrêter une session |
+| [`oh session stop`](#oh-session-stop) | Arrêter une session (sans rien supprimer ; pour l'annuler : `oh session delete`) |
 | [`oh session delete`](#oh-session-delete) | Supprimer définitivement une session (worktree, branche locale, fichiers) |
 | [`oh session open`](#oh-session-open) | Ouvrir une session dans le navigateur |
 | [`oh session fetch`](#oh-session-fetch) | Récupérer une session distante terminée |

@@ -80,6 +80,10 @@ A former form stays accepted for one version: it does the same as the new one, p
 
 **Opening a window.** One option, `--attach` (`auto`, `iterm`, `terminal`, `tmux`, `browser`, `suspend`, and `none` for `oh run`), in `oh run` as in `oh session attach`. The former name `--how` of `oh session attach` is still accepted (warning), and so is the value `here`, former synonym of `suspend`.
 
+**See without launching.** `oh run --dry-run` prepares the launch (workflow resolved, bundle built, sessions planned), shows the recap, the pauses and the warnings, then stops (« dry-run: nothing was started », exit code 0): no session, no worktree, no ticket claim, no question. See [`oh run`](cli-workflows.en.md#oh-run).
+
+**Cancel a session.** There is no « cancel » command: [`oh session stop`](cli-sessions.en.md#oh-session-stop) stops it and keeps its work, [`oh session delete`](cli-sessions.en.md#oh-session-delete) deletes it (worktree, local branch, files).
+
 ## Symbols and colors
 
 A symbol stands for one thing, in the CLI (`oh session list`, `oh session inbox`) as in the TUI (Sessions view, mode bar badge, landing sections). Both read the same table (`cli/internal/glyph`).

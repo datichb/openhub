@@ -82,6 +82,12 @@ type runOptions struct {
 	// DiscardBaseChanges lets OnExistingDelete discard the uncommitted
 	// changes of a session that worked in the project directory.
 	DiscardBaseChanges bool
+	// DryRun prepares the launch to show it (oh run --dry-run) without any
+	// effect on the project or the team: no ticket claim, no remote
+	// preparation, no shell files of local sessions. The one thing written
+	// is the session bundle, content-addressed in ~/.oh/bundles (shared by
+	// every launch of the same content, removed by `oh gc` when unused).
+	DryRun bool
 }
 
 // preparedRun is a launch ready to start: its plan can be shown (recap).
@@ -119,6 +125,9 @@ func prepareWorkflowRun(ctx context.Context, a *app.App, opts runOptions, errOut
 	if err != nil {
 		return nil, err
 	}
+	if opts.DryRun && sessionspec.RuntimeKind(res.Runtime) == sessionspec.RuntimeRemote {
+		return nil, errors.New(i18n.T("cmd.run.dry_run.remote"))
+	}
 	if res.Fanout {
 		// R6: experimental, local, one parent session for every ticket.
 		if err := checkFanoutLaunch(a, sessionspec.RuntimeKind(res.Runtime), perSession); err != nil {
@@ -133,11 +142,13 @@ func prepareWorkflowRun(ctx context.Context, a *app.App, opts runOptions, errOut
 		}
 	}
 
-	svc, err := newRunService(ctx, a)
+	svc, err := newRunServiceFor(ctx, a, opts.DryRun)
 	if err != nil {
 		return nil, err
 	}
-	svc.OnTicketsStarted = startTicketClaims(a, opts.Project)
+	if !opts.DryRun {
+		svc.OnTicketsStarted = startTicketClaims(a, opts.Project)
+	}
 	kind := sessionspec.RuntimeKind(res.Runtime)
 	var rp *remotePrep
 	if kind == sessionspec.RuntimeRemote {
@@ -572,6 +583,9 @@ func warningText(w runsvc.Warning) string {
 // start runs the prepared launch and opens the sessions (attach
 // preference). Single-session browser / suspend attaches are handled here.
 func (p *preparedRun) start(ctx context.Context, a *app.App, ui launcher.LaunchUI) ([]*runsvc.StartResult, error) {
+	if p.opts.DryRun {
+		return nil, errors.New(i18n.T("cmd.run.dry_run.no_start"))
+	}
 	if p.remote != nil {
 		return p.sendRemote(ctx, a, ui)
 	}
