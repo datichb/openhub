@@ -43,9 +43,11 @@ type MCPViewConfig struct {
 	GetConfig func() *config.Config
 	// SaveConfig persists the modified config to hub.toml (unified mutation path).
 	SaveConfig func(c *config.Config) error
-	// EnforcedURLs returns, by service, the URL the team imposes when it is
-	// not used (empty: none, or no team). Optional.
-	EnforcedURLs func() map[string]*MCPEnforcedURL
+	// EnforcedURLs prepares, by service, the URL the team imposes when it is
+	// not used (empty: none, or no team). Called on the event loop, which owns
+	// the config it reads; the function it returns runs off the loop (it may
+	// read the disk) and must not touch what the loop writes. Optional.
+	EnforcedURLs func() func() map[string]*MCPEnforcedURL
 	// HostInfo describes the addresses a URL resolves to, and whether one is
 	// private, loopback or link-local. It may block: the view calls it off
 	// the event loop. Optional.
@@ -527,17 +529,23 @@ func (v *MCPView) setMCPEnabled(cfg *config.Config, name string, enabled bool) {
 // the event loop, which is the one that writes the config.
 type mcpSnapshot struct {
 	figma, gitlab, gslides, jira, gitlabWrite bool
+	// enforced reads the URLs imposed by the team (nil: none), on a snapshot.
+	enforced func() map[string]*MCPEnforcedURL
 }
 
 func (v *MCPView) snapshotServices() mcpSnapshot {
-	if v.cfg.GetConfig == nil {
-		return mcpSnapshot{}
+	var snap mcpSnapshot
+	if v.cfg.GetConfig != nil {
+		cfg := v.cfg.GetConfig()
+		snap = mcpSnapshot{
+			figma: cfg.MCP.Figma.Enabled, gitlab: cfg.MCP.Gitlab.Enabled, gslides: cfg.MCP.Gslides.Enabled,
+			jira: cfg.MCP.Jira.Enabled, gitlabWrite: cfg.MCP.Gitlab.WriteEnabled,
+		}
 	}
-	cfg := v.cfg.GetConfig()
-	return mcpSnapshot{
-		figma: cfg.MCP.Figma.Enabled, gitlab: cfg.MCP.Gitlab.Enabled, gslides: cfg.MCP.Gslides.Enabled,
-		jira: cfg.MCP.Jira.Enabled, gitlabWrite: cfg.MCP.Gitlab.WriteEnabled,
+	if v.cfg.EnforcedURLs != nil {
+		snap.enforced = v.cfg.EnforcedURLs()
 	}
+	return snap
 }
 
 // readServices lists the services: it reads the keychain and the team
@@ -550,8 +558,8 @@ func (v *MCPView) readServices(snap mcpSnapshot) []MCPService {
 		{Name: "jira", Enabled: snap.jira, HasToken: v.checkToken("jira"), WriteEnabled: false},
 		{Name: "team", Enabled: true, HasToken: true, WriteEnabled: false},
 	}
-	if v.cfg.EnforcedURLs != nil {
-		enforced := v.cfg.EnforcedURLs()
+	if snap.enforced != nil {
+		enforced := snap.enforced()
 		for i := range services {
 			services[i].Enforced = enforced[services[i].Name]
 		}

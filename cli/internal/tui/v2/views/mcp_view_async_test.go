@@ -69,13 +69,16 @@ func TestMCPViewStaleServicesAfterRemountAreIgnored(t *testing.T) {
 	cfg := &config.Config{}
 	v := NewMCPView(nil, MCPViewConfig{
 		GetConfig: func() *config.Config { return cfg },
-		EnforcedURLs: func() map[string]*MCPEnforcedURL {
-			if calls.Add(1) == 1 {
-				close(started)
-				<-release
-				return map[string]*MCPEnforcedURL{"jira": {Warning: "old"}}
+		EnforcedURLs: func() func() map[string]*MCPEnforcedURL {
+			first := calls.Add(1) == 1
+			return func() map[string]*MCPEnforcedURL {
+				if first {
+					close(started)
+					<-release
+					return map[string]*MCPEnforcedURL{"jira": {Warning: "old"}}
+				}
+				return map[string]*MCPEnforcedURL{"gitlab": {Warning: "new"}}
 			}
-			return map[string]*MCPEnforcedURL{"gitlab": {Warning: "new"}}
 		},
 	})
 	v.SetShell(&mockShell{})
@@ -105,5 +108,46 @@ func TestMCPViewStaleServicesAfterRemountAreIgnored(t *testing.T) {
 			}
 		}
 		assert.Equal(t, 1, first.GetItemCount(), "the old content keeps its placeholder only")
+	})
+}
+
+// The enforced URLs are prepared on the event loop, which owns the config,
+// and read off it on that snapshot only: a config saved while the team-state
+// is being read does not reach the reader (run with -race).
+func TestMCPViewEnforcedURLsReadOnASnapshot(t *testing.T) {
+	cfg := &config.Config{Name: "before"}
+	reading, release := make(chan struct{}), make(chan struct{})
+	v := NewMCPView(nil, MCPViewConfig{
+		GetConfig: func() *config.Config { return cfg },
+		EnforcedURLs: func() func() map[string]*MCPEnforcedURL {
+			name := cfg.Name // on the loop
+			return func() map[string]*MCPEnforcedURL {
+				close(reading)
+				<-release
+				return map[string]*MCPEnforcedURL{"jira": {Warning: name}}
+			}
+		},
+	})
+	v.SetShell(&mockShell{})
+	content := tview.NewFlex()
+	app := runApp(t, content)
+
+	onLoop(app, func() { v.Mount(content, app) })
+	<-reading
+	onLoop(app, func() { cfg.Name = "after" }) // the loop saves meanwhile
+	close(release)
+
+	require.Eventually(t, func() bool {
+		var ok bool
+		onLoop(app, func() { ok = v.list != nil })
+		return ok
+	}, 2*time.Second, 10*time.Millisecond)
+	onLoop(app, func() {
+		for _, s := range v.services {
+			if s.Name == "jira" {
+				require.NotNil(t, s.Enforced)
+				assert.Equal(t, "before", s.Enforced.Warning)
+			}
+		}
 	})
 }

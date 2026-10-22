@@ -463,7 +463,7 @@ func buildViews(a *app.App) []views.View {
 		}),
 		views.NewMCPView(a, views.MCPViewConfig{
 			GetConfig:    func() *config.Config { return a.Config },
-			EnforcedURLs: func() map[string]*views.MCPEnforcedURL { return tuiEnforcedURLs(a) },
+			EnforcedURLs: func() func() map[string]*views.MCPEnforcedURL { return tuiEnforcedURLs(a) },
 			HostInfo:     tuiHostInfo,
 			SaveConfig: func(c *config.Config) error {
 				if err := config.Save(c); err != nil {

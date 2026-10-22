@@ -336,19 +336,35 @@ func enforcedURLNotices(cfg *config.Config, shared map[string]teamstate.SharedMC
 	return out
 }
 
-// tuiEnforcedURLs is the data of the warning and of the T action of the MCP
-// view of the TUI, for the team of the active project.
-func tuiEnforcedURLs(a *app.App) map[string]*views.MCPEnforcedURL {
+// tuiEnforcedURLs prepares the data of the warning and of the T action of the
+// MCP view of the TUI, for the team of the active project. It reads what the
+// event loop owns (the config, which the loop replaces when it saves; the
+// active project) and must be called on the loop; the function it returns reads
+// the team-state from disk and may run anywhere, on that snapshot only.
+func tuiEnforcedURLs(a *app.App) func() map[string]*views.MCPEnforcedURL {
 	project, _ := resolveActiveProject(a)
-	out := map[string]*views.MCPEnforcedURL{}
-	for _, n := range enforcedURLNotices(a.Config, sharedMCPForTeam(resolvedTeamConfig(a, project))) {
-		e := &views.MCPEnforcedURL{Warning: n.Message()}
-		if n.Reason != mcpresolve.PendingInvalid {
-			e.URL, _ = mcpresolve.NormalizeURL(n.URL)
+	team := resolvedTeamConfig(a, project)
+	local := make(map[string]config.MCPServerConfig, len(mcpPinServices))
+	for _, name := range mcpPinServices {
+		if s := a.Config.MCPServer(name); s != nil {
+			local[name] = *s
 		}
-		out[n.Service] = e
 	}
-	return out
+	return func() map[string]*views.MCPEnforcedURL {
+		cfg := &config.Config{}
+		for name, s := range local {
+			*cfg.MCPServer(name) = s
+		}
+		out := map[string]*views.MCPEnforcedURL{}
+		for _, n := range enforcedURLNotices(cfg, sharedMCPForTeam(team)) {
+			e := &views.MCPEnforcedURL{Warning: n.Message()}
+			if n.Reason != mcpresolve.PendingInvalid {
+				e.URL, _ = mcpresolve.NormalizeURL(n.URL)
+			}
+			out[n.Service] = e
+		}
+		return out
+	}
 }
 
 // tuiHostInfo describes where the host of a URL resolves (it may block).

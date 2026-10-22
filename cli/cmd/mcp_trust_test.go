@@ -18,6 +18,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/mcpresolve"
 	"github.com/datichb/openhub/cli/internal/teamstate"
+	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
 func urlEnforced(url string) *teamstate.SharedMCPConfig {
@@ -278,4 +279,40 @@ func TestEnforcedURLIsNotInTheServerEnvironmentUntilPinned(t *testing.T) {
 
 	cfg.MCP.Jira.TrustedURL = "https://evil.example.com/"
 	assert.Equal(t, "https://evil.example.com", jira()["JIRA_URL"], "approved by the member")
+}
+
+// The MCP view reads the enforced URLs off the event loop while the loop
+// replaces the config when it saves: the reader only works on the snapshot
+// taken on the loop (run with -race).
+func TestTUIEnforcedURLsReadsASnapshot(t *testing.T) {
+	statePath := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(statePath, ".git"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(statePath, "config.toml"),
+		[]byte("[mcp.jira]\nurl = \"https://jira.example.com\"\nurl_enforced = true\n"), 0o644))
+
+	a := &app.App{Config: &config.Config{}}
+	a.Config.Team = config.TeamConfig{Enabled: true, StateRepo: "git@example.com:team/state.git", StatePath: statePath}
+	a.Config.MCP.Jira.TrustedURL = "https://other.example.com"
+
+	read := tuiEnforcedURLs(a) // on the loop
+
+	done := make(chan struct{})
+	go func() {
+		// The loop saves the config meanwhile: *a.Config = *newCfg.
+		defer close(done)
+		for i := 0; i < 200; i++ {
+			next := config.Config{}
+			next.MCP.Jira.TrustedURL = "https://jira.example.com"
+			*a.Config = next
+		}
+	}()
+	var got map[string]*views.MCPEnforcedURL
+	for i := 0; i < 50; i++ {
+		got = read()
+	}
+	<-done
+
+	require.Contains(t, got, "jira")
+	assert.Contains(t, got["jira"].Warning, "https://other.example.com", "the pin of the snapshot, not the one saved after")
+	assert.Equal(t, "https://jira.example.com", got["jira"].URL)
 }
