@@ -57,7 +57,7 @@ func TestAliasesAreMarkedDeprecated(t *testing.T) {
 // section order), the replacement of the publication is in.
 func TestDeprecatedCommandsAreOutOfTheMainHelp(t *testing.T) {
 	listed := map[string]bool{}
-	for _, sec := range buildHelpSections(rootCmd) {
+	for _, sec := range buildHelpSections(rootCmd, true) {
 		for _, c := range sec.Commands {
 			name, _, _ := strings.Cut(c.Name, " ")
 			listed[name] = true

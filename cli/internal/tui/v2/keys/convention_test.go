@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/stretchr/testify/require"
 )
@@ -202,7 +203,7 @@ func hintLines(t *testing.T, fr map[string]string) []hintLine {
 	t.Helper()
 	var out []hintLine
 	for k, v := range fr {
-		if strings.HasPrefix(k, "tui.") && (strings.Contains(strings.ToLower(k), "hint") || strings.HasPrefix(k, "tui.keys.launch_recap")) {
+		if strings.HasPrefix(k, "tui.") && (strings.Contains(strings.ToLower(k), "hint") || strings.HasPrefix(k, "tui.keys.launch_recap") || k == helpKeysKey) {
 			out = append(out, hintLine{source: "fr.json " + k, text: v})
 		}
 	}
@@ -312,6 +313,72 @@ func applyFormat(format string, args []string) string {
 		i++
 		return args[i-1]
 	})
+}
+
+// helpKeysKey is the full list of the keys of the Sessions view, shown in the
+// help overlay (?) while the hints bar holds the essential ones (U-07). It
+// follows the key convention, but is not a hints bar line.
+const helpKeysKey = "tui.sessions.help_keys"
+
+// Limits of a hints line (U-07): the bar of the Sessions view held 21 keys
+// and ran past any terminal width; the other keys are in the help (?).
+const (
+	maxHintEntries = 10
+	maxHintColumns = 120
+)
+
+// longHints are the lines of other views that already ran past the limits
+// when the test was written (the Sessions view is fixed). The list only
+// shrinks: a new long line fails, and so does an entry that is now short
+// (remove it).
+var longHints = map[string]bool{
+	"fr.json tui.editor.hints.graph": true,
+	"fr.json tui.catalog.edit.hints": true,
+}
+
+// TestHintLinesAreShort: every hints line of the views (messages whose key
+// holds « hint », and the Sprintf formats of the TUI code) has at most
+// maxHintEntries entries, or fits in maxHintColumns columns.
+func TestHintLinesAreShort(t *testing.T) {
+	fr := frMessages(t)
+	seen := map[string]bool{}
+	for _, line := range hintLines(t, fr) {
+		if strings.Contains(line.source, helpKeysKey) {
+			continue
+		}
+		if strings.Contains(line.text, unresolved) {
+			continue // a part is only known at runtime
+		}
+		entries := len(strings.Split(line.text, " · "))
+		columns := utf8.RuneCountInString(line.text)
+		tooLong := entries > maxHintEntries && columns > maxHintColumns
+		if tooLong {
+			seen[line.source] = true
+		}
+		if tooLong && !longHints[line.source] {
+			t.Errorf("%s: %d entries and %d columns (at most %d entries or %d columns; the other keys go to the help overlay):\n\t%q",
+				line.source, entries, columns, maxHintEntries, maxHintColumns, line.text)
+		}
+	}
+	for source := range longHints {
+		if !seen[source] {
+			t.Errorf("%s is short now (or gone): remove it from longHints", source)
+		}
+	}
+}
+
+func TestSessionsHintsAreEssential(t *testing.T) {
+	fr := frMessages(t)
+	hints := fr["tui.sessions.hints"]
+	if n := len(strings.Split(hints, " · ")); n > maxHintEntries {
+		t.Errorf("tui.sessions.hints has %d entries (at most %d): %q", n, maxHintEntries, hints)
+	}
+	if !strings.HasSuffix(hints, "? aide") {
+		t.Errorf("tui.sessions.hints must end with « ? aide »: %q", hints)
+	}
+	if n := len(strings.Split(fr[helpKeysKey], " · ")); n < 15 {
+		t.Errorf("%s lost keys (%d entries): the help overlay lists them all", helpKeysKey, n)
+	}
 }
 
 func TestCheckHintLine(t *testing.T) {

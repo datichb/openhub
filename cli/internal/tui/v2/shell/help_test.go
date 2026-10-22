@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
 func (s *simShell) screen() string {
@@ -60,4 +61,28 @@ func TestOfferKeysNotice(t *testing.T) {
 	s.loop(func() { shown = s.OfferKeysNotice(func() { seen++ }) })
 	assert.True(t, shown)
 	assert.Equal(t, 1, seen)
+}
+
+// helpKeysView shows only its essential keys in the hints bar.
+type helpKeysView struct{ keyView }
+
+func (v *helpKeysView) StatusHints() string { return "Entrée ouvrir · ? aide" }
+func (v *helpKeysView) HelpKeys() string    { return "Entrée ouvrir · Z zoomer · ? aide" }
+
+// U-07: the help (?) lists all the keys of a view that has a short hints bar.
+func TestHelpListsAllTheKeysOfAView(t *testing.T) {
+	prev := i18n.Locale()
+	i18n.SetLocale("fr")
+	t.Cleanup(func() { i18n.SetLocale(prev) })
+
+	home := &helpKeysView{keyView{id: "home", focusList: true}}
+	s := runSimShell(t, 120, 40, Config{ProjectName: "test", Views: []views.View{home}, HomeViewID: home.id})
+	s.loop(func() { s.NavigateHome(home.id, views.ModeHub) })
+	s.key(tcell.KeyRune, '?', tcell.ModNone)
+	for range 4 {
+		s.key(tcell.KeyPgDn, 0, tcell.ModNone) // the keys of the view are below the convention
+	}
+	screen := s.screen()
+	assert.Contains(t, screen, "Z zoomer")
+	assert.NotContains(t, screen, "Entrée ouvrir · ? aide")
 }

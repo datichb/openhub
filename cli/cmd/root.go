@@ -40,6 +40,9 @@ var rootCmd = &cobra.Command{
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if all, _ := cmd.Flags().GetBool("all"); all {
+			return cmd.Help()
+		}
 		if canLaunchTUI() {
 			projectName, _ := cmd.Flags().GetString("project")
 			return runTUIWithProject(projectName)

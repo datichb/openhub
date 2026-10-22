@@ -56,7 +56,7 @@ func TestEveryHelpIsTranslated(t *testing.T) {
 // session, budget, daemon, remote, bundle build…), each in a section.
 func TestHelpSectionsCoverEveryCommand(t *testing.T) {
 	listed := map[string]bool{}
-	for _, sec := range buildHelpSections(rootCmd) {
+	for _, sec := range buildHelpSections(rootCmd, true) {
 		if sec.Title == i18n.T("help.section.other") {
 			for _, c := range sec.Commands {
 				t.Errorf("%s has no help section (helpSectionOrder)", c.Name)
@@ -101,6 +101,83 @@ func TestHelpSectionsCoverEveryCommand(t *testing.T) {
 		if !listed[want] {
 			t.Errorf("oh --help misses %s", want)
 		}
+	}
+}
+
+// U-01: oh --help is one line per top-level command, the advanced ones
+// apart, about 60 lines (it ran to 570); --all keeps the complete display.
+func TestHelpOverviewIsCompact(t *testing.T) {
+	defer func() { i18n.SetLocale("en"); localizeCommands(rootCmd) }()
+	for _, lang := range []string{"fr", "en"} {
+		i18n.SetLocale(lang)
+		localizeCommands(rootCmd)
+
+		compact := buildHelpContent(rootCmd, false)
+		if n := strings.Count(compact, "\n"); n > 70 {
+			t.Errorf("%s: oh --help has %d lines (want ~60, at most 70)", lang, n)
+		}
+		if strings.Contains(compact, "\n      --") {
+			t.Errorf("%s: the overview lists the options of a command:\n%s", lang, compact)
+		}
+		sections := buildHelpSections(rootCmd, false)
+		top := map[string]bool{}
+		for _, sec := range sections {
+			for _, c := range sec.Commands {
+				if strings.Contains(c.Name, " ") || len(c.Flags) > 0 {
+					t.Errorf("%s: %q is not a top-level command line", lang, c.Name)
+				}
+				if top[c.Name] {
+					t.Errorf("%s: %s is listed twice", lang, c.Name)
+				}
+				top[c.Name] = true
+			}
+		}
+		for _, c := range rootCmd.Commands() {
+			if helpVisible(c) && !top[c.Name()] {
+				t.Errorf("%s: top-level command %s is missing from the overview", lang, c.Name())
+			}
+		}
+		last := sections[len(sections)-1]
+		if last.Title != i18n.T("help.section.advanced") {
+			t.Errorf("%s: the last section is %q, want the advanced one", lang, last.Title)
+		}
+		var adv []string
+		for _, c := range last.Commands {
+			adv = append(adv, c.Name)
+		}
+		if got, want := strings.Join(adv, " "), "bundle fanout migrate takeover-brief completion"; got != want {
+			t.Errorf("%s: advanced commands = %q, want %q", lang, got, want)
+		}
+		if !strings.Contains(compact, "oh help --all") {
+			t.Errorf("%s: the overview does not point to oh help --all", lang)
+		}
+
+		full := buildHelpContent(rootCmd, true)
+		for _, want := range []string{"session list", "bundle build", "--yes", "migrate deploy-cleanup"} {
+			if !strings.Contains(full, want) {
+				t.Errorf("%s: oh help --all misses %q", lang, want)
+			}
+		}
+		if strings.Contains(full, i18n.T("help.section.advanced")) {
+			t.Errorf("%s: --all has an advanced section: it keeps the complete display by section", lang)
+		}
+		if strings.Count(full, "\n") < 300 {
+			t.Errorf("%s: oh help --all has %d lines: not the complete display", lang, strings.Count(full, "\n"))
+		}
+	}
+}
+
+// U-01: `oh help --all` and `oh --help --all` show the complete overview,
+// `oh help <command>` and `oh <command> --help` are unchanged.
+func TestHelpAllOption(t *testing.T) {
+	defer func() { i18n.SetLocale("en"); localizeCommands(rootCmd) }()
+	i18n.SetLocale("en")
+	localizeCommands(rootCmd)
+	if newHelpCommand().Flags().Lookup("all") == nil {
+		t.Fatal("oh help has no --all")
+	}
+	if rootCmd.Flags().Lookup("all") == nil {
+		t.Fatal("oh has no --all (oh --help --all)")
 	}
 }
 

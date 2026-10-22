@@ -227,6 +227,8 @@ oh team wiki review [id]           # reviser une proposition (interactif sans id
 
 Un utilisateur peut appartenir à plusieurs équipes ; chaque projet est rattaché à 0 ou 1 équipe.
 
+`oh teams` gère les équipes de cette machine (lister, ajouter, retirer, détacher un projet, archiver, restaurer) ; `oh team` (au singulier) agit sur l'équipe active (statut, board, activité, config, synchronisation du tracker). Les deux commandes n'ont aucune sous-commande en commun : `oh teams` n'est donc pas un alias de `oh team`.
+
 ### oh teams list
 
 Lister les équipes configurées.

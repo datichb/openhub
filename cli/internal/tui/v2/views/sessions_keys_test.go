@@ -2,6 +2,7 @@ package views
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -58,4 +59,20 @@ func TestSessionsOwnKeysAttachSendInterrupt(t *testing.T) {
 	})
 	require.Eventually(t, func() bool { return len(be.got()) == 3 }, 3*time.Second, 10*time.Millisecond)
 	assert.ElementsMatch(t, []string{"attach ses_spec01 []", "send ses_spec01 relis les tests", "interrupt ses_spec01"}, be.got())
+}
+
+// U-07: the hints bar of the list holds the essential keys; the help (?)
+// lists all of them. A tab or the batch has its own line in both.
+func TestSessionsHintsAreEssentialAndHelpListsAll(t *testing.T) {
+	frLocale(t)
+	v := NewSessionsView(SessionsViewConfig{Backend: &fakeSessions{}})
+	hints := v.StatusHints()
+	assert.LessOrEqual(t, len(strings.Split(hints, " · ")), 10)
+	assert.True(t, strings.HasSuffix(hints, "? aide"), hints)
+	all := v.HelpKeys()
+	for _, k := range []string{"A ouvrir avec", "t suivre", "i interr.", "M modèle", "e enchaîner", "B lot", "d supprimer", "R reprendre", "o MR", "w navigateur", "$ relever", "x classer"} {
+		assert.Contains(t, all, k)
+		assert.NotContains(t, hints, k, "%s belongs to the help, not to the bar", k)
+	}
+	assert.Contains(t, all, "Entrée décider/suivre")
 }

@@ -287,7 +287,7 @@ If `oh` is not working:
 ```bash
 oh doctor          # Full health check
 oh repair          # Database repair
-oh --help          # Command reference
+oh --help          # Command overview (oh help --all: every detail)
 ```
 
 For unresolved issues: [GitHub Issues](https://github.com/datichb/openhub/issues)

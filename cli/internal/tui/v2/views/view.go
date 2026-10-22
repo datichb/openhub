@@ -127,6 +127,13 @@ type LegendProvider interface {
 	Legend() string
 }
 
+// HelpKeysProvider is an optional interface for views whose hints bar shows
+// only the essential keys (U-07): the help overlay (? / F1) lists all of
+// them, in place of the hints bar.
+type HelpKeysProvider interface {
+	HelpKeys() string
+}
+
 // SelectOption represents a selectable option with a friendly label and a stored value.
 type SelectOption struct {
 	Label string // Friendly display (e.g. "Français")
