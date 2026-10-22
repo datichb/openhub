@@ -2,7 +2,7 @@
 
 # Référence CLI
 
-`oh` sans commande ouvre la TUI (dans un terminal interactif ; sinon l'aide). `oh -p <projet>` ouvre la TUI directement sur ce projet. `oh help` (ou `oh --help`) affiche la vue d'ensemble des commandes (toutes les commandes visibles, par section, avec leurs options ; construite à partir des commandes elles-mêmes) ; `oh <commande> --help` détaille une commande (flags, exemples). Toute l'aide suit la langue de l'interface (`oh config language`).
+`oh` sans commande ouvre la TUI (dans un terminal interactif ; sinon l'aide). `oh -p <projet>` ouvre la TUI directement sur ce projet. `oh help` (ou `oh --help`) affiche la vue d'ensemble des commandes : une ligne par commande de premier niveau, par section, les commandes avancées (`bundle`, `fanout`, `migrate`, `takeover-brief`, `completion`) à part (une soixantaine de lignes ; construite à partir des commandes elles-mêmes). `oh help --all` (ou `oh --help --all`) affiche la liste complète : toutes les sous-commandes visibles avec leurs options. `oh <commande> --help` (ou `oh help <commande>`) détaille une commande (flags, exemples). Toute l'aide suit la langue de l'interface (`oh config language`).
 
 ## Flags globaux
 

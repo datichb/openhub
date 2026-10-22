@@ -227,6 +227,8 @@ oh team wiki review [id]           # review a proposal (interactive without id)
 
 A user can belong to several teams; each project is linked to 0 or 1 team.
 
+`oh teams` manages the teams of this machine (list, add, remove, detach a project, archive, restore); `oh team` (singular) acts on the active team (status, board, activity, config, tracker sync). The two commands share no subcommand, so `oh teams` is not an alias of `oh team`.
+
 ### oh teams list
 
 List the configured teams.

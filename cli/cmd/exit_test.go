@@ -155,7 +155,7 @@ func TestNoColorHelpHasNoEscapeSequence(t *testing.T) {
 
 	t.Setenv("NO_COLOR", "")
 	theme.ApplyNoColor()
-	if !strings.Contains(buildHelpContent(rootCmd), "\x1b[") {
+	if !strings.Contains(buildHelpContent(rootCmd, false), "\x1b[") {
 		t.Fatal("control: the help is colored without NO_COLOR")
 	}
 	var out bytes.Buffer
@@ -166,7 +166,7 @@ func TestNoColorHelpHasNoEscapeSequence(t *testing.T) {
 
 	t.Setenv("NO_COLOR", "1")
 	theme.ApplyNoColor()
-	if help := buildHelpContent(rootCmd); strings.Contains(help, "\x1b[") {
+	if help := buildHelpContent(rootCmd, false); strings.Contains(help, "\x1b[") {
 		t.Errorf("the help has an escape sequence with NO_COLOR=1")
 	}
 	out.Reset()
