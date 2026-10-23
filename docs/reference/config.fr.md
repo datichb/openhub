@@ -414,6 +414,7 @@ member_id = "alice.dupont"
 | `enabled` | bool | Non | Activer / désactiver cette équipe |
 | `state_repo` | string | Oui (sauf solo) | URL Git du dépôt team-state |
 | `state_path` | string | Non | Chemin du clone local (déduit de `state_repo`) |
+| `gitlab_url` | string | Non | GitLab réel du dépôt d'équipe quand `state_repo` passe par un alias SSH (`git@mon-alias:…`) : l'alias est un nom de `~/.ssh/config`, pas un serveur. Le jeton de l'équipe est alors valable pour ce GitLab. Propre à la machine, vide = l'hôte de `state_repo`. Se règle dans `oh init`, `oh team rejoin --gitlab-url`, `oh teams add --gitlab-url`, `oh team config` (local) et la vue `team-detail` |
 | `member_id` | string | Oui | Votre identité dans `members.toml` |
 | `solo` | bool | Non | Espace solo (voir ci-dessous) |
 
@@ -558,11 +559,17 @@ Ce fichier est versionné dans le dépôt team-state — **pas** dans `hub.toml`
 ```toml
 [claim]
 done_retention_days = 7
+lease_hours = 24
+heartbeat_minutes = 60
 ```
 
 | Champ | Type | Défaut | Description |
 |-------|------|--------|-------------|
 | `done_retention_days` | int | `7` | Jours pendant lesquels un claim reste `done` avant d'être purgé (`CleanupDoneClaims`) |
+| `lease_hours` | int | `24` | Durée du bail d'un claim sans activité, de 1 à 168 heures |
+| `heartbeat_minutes` | int | `60` | Période du renouvellement automatique du bail ; `0` = désactivé, sinon de 5 à 1440 et au plus la moitié du bail |
+
+`lease_hours` et `heartbeat_minutes` se règlent dans la vue `team-detail` (Collaboration), qui refuse une combinaison invalide (`ClaimConfig.Validate`).
 
 ### Section `[tracker]`
 
@@ -593,7 +600,7 @@ write_enabled = false        # écritures tracker (labels, assignation)
 | `enabled` | bool | `false` | Activer l'intégration |
 | `type` | string | — | `"gitlab"` ou `"jira"` (`type_enforced` pour l'imposer) |
 | `tracker_url` | string | vide | Instance du tracker, indépendante du MCP |
-| `tracker_token_key` | string | `openhub.tracker.<type>.token` | Clé du token dans le trousseau (sinon jeton de l'équipe ou du MCP, pour leur serveur) |
+| `tracker_token_key` | string | vide | Clé du token dans le trousseau, déclarée par l'utilisateur : rien n'est rempli à sa place. Sans clé, GitLab lit `openhub.tracker.gitlab.token` pour le serveur du tracker (puis le jeton de l'équipe ou du MCP, pour leur serveur) ; Jira ne lit que la clé déclarée. Se règle dans `oh init`, `oh team rejoin`, `oh team config` et `team-detail` |
 | `tracker_token_url` | string | vide | Serveur pour lequel le jeton de `tracker_token_key` (et l'ancienne clé du tracker) est valable, ex. `https://gitlab.example.com`. Sans lui, la clé est valable pour le tracker (voir [le serveur de chaque jeton](#le-serveur-de-chaque-jeton-gitlab)) |
 | `tracker_project` | string | vide | Projet du tracker par défaut (surchargeable par projet) |
 | `ticket_pattern` | string | vide | Regex à **un groupe de capture** extrayant l'IID |
@@ -625,7 +632,7 @@ Un jeton GitLab n'est envoyé qu'au serveur pour lequel il a été émis. Quand 
 | Variable d'environnement | `GITLAB_TOKEN` | **à déclarer** : `OH_GITLAB_URL`, sinon `GITLAB_URL` | `export OH_GITLAB_URL=https://gitlab.example.com` |
 | `tracker_token_key` et ancienne clé du tracker | la clé réglée, `openhub.tracker.gitlab.token` | `tracker_token_url` s'il est déclaré ; sinon (**implicite**) le tracker : le `tracker_url` du niveau qui règle la clé, à défaut le `tracker_url` effectif (puis `GITLAB_URL`, puis gitlab.com) | `[tracker] tracker_token_url` de `hub.toml` ou de la config d'équipe ; `oh config set tracker.tracker_token_url <url>` |
 | Jeton du projet, jeton MCP du hub | `openhub.mcp.gitlab.token.<projet>`, clé de `[mcp.gitlab] token_key`, `openhub.mcp.gitlab.token` | l'URL du MCP GitLab (projet, `[mcp.gitlab] url`, sinon URL recommandée par l'équipe) ; sans URL (**implicite**) `https://gitlab.com`, l'adresse que le serveur MCP GitLab utilise alors | `oh config set mcp.gitlab.url <url>` |
-| Jeton de l'équipe | `openhub.team.<équipe>.gitlab.token` | l'hôte du dépôt d'équipe (`state_repo`) | rien à déclarer |
+| Jeton de l'équipe | `openhub.team.<équipe>.gitlab.token` | `gitlab_url` de l'équipe s'il est déclaré (dépôt joint par un alias SSH) ; sinon l'hôte du dépôt d'équipe (`state_repo`) | `[[teams]] gitlab_url` de `hub.toml` ; rien à déclarer quand `state_repo` porte le vrai hôte |
 
 **Règle.** Une source dont le serveur n'est ni déclaré ni implicite n'est jamais utilisée : seul `GITLAB_TOKEN` seul est strict (il faut `OH_GITLAB_URL` ou `GITLAB_URL`). Un serveur déclaré l'emporte sur l'implicite. Le serveur implicite de la clé du tracker ne sert que le tracker : une clé réglée à côté d'un `tracker_url` ne répond pas pour un autre serveur (ni pour le GitLab du MCP). Le serveur est comparé sans tenir compte de la casse, du schéma (`https://h`, `http://h` et `h` sont le même serveur), d'un port par défaut (`80`, `443`), d'un `/` final, du chemin ni de l'utilisateur ; un port non standard compte (`h:8443` ≠ `h`). Pour un dépôt `ssh://` ou `git@hôte:chemin`, seul l'hôte compte (le port est celui de git, pas celui de l'API). Deux GitLab de même hôte qui ne diffèrent que par un préfixe de chemin sont donc le même serveur.
 

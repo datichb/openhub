@@ -54,18 +54,23 @@ En cas d'échec (dépôt absent, non vide, accès refusé), l'espace reste solo.
 Rejoint une équipe existante après une réinstallation du hub : clone le dépôt team-state, vérifie l'identité via GitLab et restaure la configuration. Ne pas lancer pendant que la TUI effectue des opérations d'équipe sur le même clone (le verrou ne protège pas contre un autre processus).
 
 ```
-oh team rejoin [--repo <url>] [--member-id <id>] [--no-retro-tag]
+oh team rejoin [--repo <url>] [--member-id <id>] [--gitlab-url <url>] [--no-retro-tag]
 ```
 
 | Flag | Type | Description |
 |------|------|-------------|
 | `--repo` | string | URL du dépôt git team-state |
 | `--member-id` | string | Identifiant membre (interactif si omis) |
+| `--gitlab-url` | string | GitLab réel du dépôt quand son adresse est un alias SSH (`git@mon-alias:…`) ; enregistré dans `hub.toml` (`gitlab_url`) et utilisé pour la vérification d'identité |
 | `--no-retro-tag` | bool | Ne pas rattacher les sessions existantes à votre identité |
+
+Les assistants `oh init` (groupe équipe) et `oh team rejoin` (TUI) demandent le GitLab du dépôt (facultatif) et, si vous gardez le tracker de l'équipe sans qu'aucun jeton ne serve le serveur de ce tracker, où se trouve votre jeton : clé du trousseau, serveur et jeton. La clé et le serveur sont écrits dans `[tracker]` de `hub.toml` (`tracker_token_key`, `tracker_token_url`) quand la configuration en vigueur ne les donne pas déjà ; la clé par défaut de GitLab (`openhub.tracker.gitlab.token`) n'a pas besoin d'être déclarée, celle de Jira si.
 
 ### oh team config
 
 Assistant de configuration des services MCP partagés (GitLab, Jira…) et de la synchronisation du tracker, au niveau équipe et/ou local. `oh team config status` affiche la configuration effective (résolution équipe + local).
+
+Pour *Tracker sync*, l'assistant demande où se trouve le jeton du tracker : la clé du trousseau (`tracker_token_key`) et, pour GitLab, le serveur pour lequel elle est valable (`tracker_token_url`, vide = le serveur du tracker). **Il ne remplit plus la clé de lui-même** : une clé laissée vide reste vide, et l'assistant dit ce qui est lu alors (GitLab : `openhub.tracker.gitlab.token` pour le serveur du tracker ; Jira : rien). Au niveau local, la déclaration personnelle remplace celle de l'équipe (clé et serveur ensemble ; `-` pour effacer), et, si le dépôt d'équipe est joint par un alias SSH, le GitLab réel du dépôt (`gitlab_url`).
 
 ```bash
 oh team config
@@ -205,7 +210,7 @@ La commande, la touche de synchronisation (`s`) des écrans d'équipe et la sync
   | 5 | Jeton MCP du hub | clé de `[mcp.gitlab] token`, puis `openhub.mcp.gitlab.token` (et son ancien nom `gitlab-token`) |
   | 6 | Ancienne clé du tracker | `openhub.tracker.gitlab.token` |
 
-  **Chaque source est rattachée à un serveur et ne répond que pour lui** (v5.1) : le jeton du dépôt d'équipe n'est jamais envoyé à un tracker qui est sur un autre GitLab. Le serveur de la variable d'environnement est `OH_GITLAB_URL` (sinon `GITLAB_URL`) : sans l'une des deux, `GITLAB_TOKEN` n'est utilisé nulle part. Celui de `tracker_token_key` et de l'ancienne clé du tracker est `tracker_token_url`, sinon (implicite) le tracker ; celui des jetons MCP est `[mcp.gitlab] url`, sinon (implicite) `https://gitlab.com` ; celui du jeton d'équipe est l'hôte du `state_repo`. Sans jeton pour le serveur appelé, la commande s'arrête en nommant le serveur, les sources lues et la commande qui déclare la clé ; voir [le serveur de chaque jeton GitLab](config.fr.md#le-serveur-de-chaque-jeton-gitlab). Un refus du serveur (HTTP 401 / 403) nomme la source, la clé et le serveur. `oh team config status` lit le même ordre (clé et serveur de `hub.toml` compris) et affiche `token_key` et `token_url`.
+  **Chaque source est rattachée à un serveur et ne répond que pour lui** (v5.1) : le jeton du dépôt d'équipe n'est jamais envoyé à un tracker qui est sur un autre GitLab. Le serveur de la variable d'environnement est `OH_GITLAB_URL` (sinon `GITLAB_URL`) : sans l'une des deux, `GITLAB_TOKEN` n'est utilisé nulle part. Celui de `tracker_token_key` et de l'ancienne clé du tracker est `tracker_token_url`, sinon (implicite) le tracker ; celui des jetons MCP est `[mcp.gitlab] url`, sinon (implicite) `https://gitlab.com` ; celui du jeton d'équipe est le `gitlab_url` de l'équipe s'il est déclaré (dépôt joint par un alias SSH), sinon l'hôte du `state_repo`. Sans jeton pour le serveur appelé, la commande s'arrête en nommant le serveur, les sources lues et la commande qui déclare la clé ; voir [le serveur de chaque jeton GitLab](config.fr.md#le-serveur-de-chaque-jeton-gitlab). Un refus du serveur (HTTP 401 / 403) nomme la source, la clé et le serveur. `oh team config status` lit le même ordre (clé et serveur de `hub.toml` compris) et affiche `token_key` et `token_url`.
 
   Jira garde son propre ordre (`JIRA_TOKEN`, puis `tracker_token_key`).
 
@@ -281,6 +286,7 @@ oh teams add --repo git@github.com:org/team-state.git --member-id alice
 | `--member-id` | string | Votre identifiant membre dans l'équipe |
 | `--id` | string | Identifiant local de l'équipe (dérive du dépôt si omis) |
 | `--name` | string | Nom d'affichage (optionnel) |
+| `--gitlab-url` | string | GitLab réel du dépôt quand son adresse est un alias SSH (optionnel) |
 
 ### oh teams remove
 
