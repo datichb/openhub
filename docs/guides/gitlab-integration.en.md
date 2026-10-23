@@ -225,6 +225,24 @@ The `gitlab_get_mr_approvals` tool requires GitLab **Premium** or **Ultimate**. 
 
 ---
 
+## Giving a GitLab ticket to a session
+
+A GitLab issue or merge request can be named in the request of a workflow (`oh run spec -m "specify #623"`, `oh run quick`, the launch form) or in a review:
+
+| Written | Read as | Tool the session uses |
+|---------|---------|-----------------------|
+| `#623` | issue 623 of the project of the tracker | `gitlab_get_issue` |
+| `!70` | merge request 70 | `gitlab_get_mr` |
+| `https://gitlab.example.com/group/app/-/issues/623` | the issue (the URL names its project) | `gitlab_get_issue` |
+| `https://gitlab.example.com/group/app/-/merge_requests/70` | the merge request | `gitlab_get_mr` |
+| `proj-a1b`, `bd-12` | a Beads ticket | `bd show` |
+
+`#<iid>` and `!<iid>` are GitLab references where the team tracker is GitLab (`type = "gitlab"` in the team `config.toml`) or, without a tracker, where the `origin` remote of the project is a GitLab (a host named `gitlab…` or the server of `[mcp.gitlab]`). Anywhere else they are left alone. A bare number (`623`) is ambiguous (issue or merge request) and is not read as a reference. The GitLab project is `tracker_project` (project setting, then team), else the path of the `origin` remote.
+
+oh lists the tickets it found at the end of the prompt, with the tool and the arguments to use. If the session has no GitLab MCP server (it is not enabled for the project, or the workflow selects other servers with `mcp:`), the launch warns and the prompt tells the session it cannot read the ticket: enable the server with `oh mcp enable gitlab` and launch again. A ticket that cannot be read (404, token refused) is reported by the session (« Ticket … non lu »), never skipped silently.
+
+---
+
 ## Current Limitations
 
 - Pagination is manual — a list tool returns one page (20 by default, 100 at most) and tells the total and the next page

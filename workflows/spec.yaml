@@ -18,8 +18,8 @@ inputs:
     type: text
     label: { fr: Demande, en: Request }
     help:
-      fr: La feature à spécifier en langage naturel (ou l'identifiant d'un ticket ou d'une MR GitLab) ; sans demande, la session la demande au début
-      en: The feature to specify in natural language (or the id of a GitLab issue or merge request); without one, the session asks for it first
+      fr: "La feature à spécifier en langage naturel, ou un ticket Beads (proj-a1b), un ticket GitLab (#12 ou son URL) ou une MR GitLab (!7 ou son URL) que la session lit ; sans demande, la session la demande au début"
+      en: "The feature to specify in natural language, or a Beads ticket (proj-a1b), a GitLab issue (#12 or its URL) or a GitLab merge request (!7 or its URL) that the session reads; without one, the session asks for it first"
     max_length: 8000
   # B1: a wiki page the request comes from (the decision of a spike, a
   # postmortem), given by their next:.

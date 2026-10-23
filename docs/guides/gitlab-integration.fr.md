@@ -225,6 +225,24 @@ L'outil `gitlab_get_mr_approvals` nécessite GitLab **Premium** ou **Ultimate**.
 
 ---
 
+## Donner un ticket GitLab à une session
+
+Une issue ou une merge request GitLab peut être nommée dans la demande d'un workflow (`oh run spec -m "spécifie #623"`, `oh run quick`, le formulaire de lancement) ou dans une review :
+
+| Écrit | Lu comme | Outil utilisé par la session |
+|-------|----------|------------------------------|
+| `#623` | l'issue 623 du projet du tracker | `gitlab_get_issue` |
+| `!70` | la merge request 70 | `gitlab_get_mr` |
+| `https://gitlab.example.com/groupe/app/-/issues/623` | l'issue (l'URL nomme son projet) | `gitlab_get_issue` |
+| `https://gitlab.example.com/groupe/app/-/merge_requests/70` | la merge request | `gitlab_get_mr` |
+| `proj-a1b`, `bd-12` | un ticket Beads | `bd show` |
+
+`#<iid>` et `!<iid>` sont des références GitLab là où le tracker de l'équipe est GitLab (`type = "gitlab"` dans le `config.toml` de l'équipe) ou, sans tracker, là où le remote `origin` du projet est un GitLab (un hôte nommé `gitlab…` ou le serveur de `[mcp.gitlab]`). Ailleurs, ils sont laissés tels quels. Un nombre seul (`623`) est ambigu (issue ou merge request) et n'est pas lu comme une référence. Le projet GitLab est `tracker_project` (réglage du projet, puis de l'équipe), sinon le chemin du remote `origin`.
+
+oh liste les tickets trouvés à la fin du prompt, avec l'outil et les arguments à employer. Si la session n'a pas de serveur MCP GitLab (non activé pour le projet, ou workflow qui sélectionne d'autres serveurs avec `mcp:`), le lancement avertit et le prompt dit à la session qu'elle ne peut pas lire le ticket : activez le serveur avec `oh mcp enable gitlab` et relancez. Un ticket illisible (404, jeton refusé) est signalé par la session (« Ticket … non lu »), jamais ignoré en silence.
+
+---
+
 ## Limitations actuelles
 
 - Pagination manuelle — un outil de liste retourne une page (20 par défaut, 100 au plus) et indique le total et la page suivante
