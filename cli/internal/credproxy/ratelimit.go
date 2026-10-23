@@ -6,6 +6,8 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+
+	"github.com/datichb/openhub/cli/internal/textfmt"
 )
 
 // Rate limits of the provider (HTTP 429): the tool retries on its own, but
@@ -50,7 +52,7 @@ func (p *Proxy) checkRateLimit(g *grantState, provider, model string, resp *http
 	for _, h := range rateLimitHeaders {
 		if v := strings.TrimSpace(resp.Header.Get(h[1])); v != "" && !seen[h[0]] {
 			seen[h[0]] = true
-			attrs = append(attrs, h[0], clipLog(v, 80))
+			attrs = append(attrs, h[0], textfmt.Clip(v, 81))
 		}
 	}
 	if msg := UpstreamErrorMessage(head); msg != "" {
@@ -61,11 +63,4 @@ func (p *Proxy) checkRateLimit(g *grantState, provider, model string, resp *http
 		return
 	}
 	slog.Warn("credproxy: upstream rate limit", attrs...)
-}
-
-func clipLog(s string, n int) string {
-	if r := []rune(s); len(r) > n {
-		return string(r[:n]) + "…"
-	}
-	return s
 }
