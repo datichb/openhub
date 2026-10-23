@@ -38,7 +38,11 @@ func TestSymbolTable(t *testing.T) {
 }
 
 // U-09: a symbol means one thing (✔ finished and stopped, ⏸ waiting and
-// checkpoint, ✗ three meanings were the ambiguities).
+// checkpoint, ✗ three meanings were the ambiguities). Since v5.1 the table of
+// meanings is part of it: a run state or a decision kind may take a symbol of
+// that table only for its own meaning (TestStatesShareOnlyTheirMeaning), so
+// ⊗ (a run that stopped on a failure) is not ✗ (a one-off error), ◌ (asleep)
+// is not – (a skipped step), and ● (running) is not ✔ (finished).
 func TestNoSymbolStandsForTwoThings(t *testing.T) {
 	seen := map[string]string{}
 	add := func(g, what string) {
@@ -52,6 +56,19 @@ func TestNoSymbolStandsForTwoThings(t *testing.T) {
 	}
 	for _, e := range Kinds {
 		add(e.Glyph, "decision "+string(e.Kind))
+	}
+	for _, p := range [][2]string{
+		{ForState(domain.RunFailed), Failure}, {ForState(domain.RunSleeping), Absent},
+		{ForState(domain.RunActive), Success}, {ForState(domain.RunCompleted), Active},
+		{ForKind(domain.DecisionPermission), Warning}, {Selected, Inactive},
+		{SelectedMulti, UnselectedMulti}, {SelectedMulti, Selected},
+	} {
+		if p[0] == p[1] {
+			t.Errorf("%q stands for two things", p[0])
+		}
+	}
+	if ForState(domain.RunFailed) != "⊗" || ForState(domain.RunSleeping) != "◌" {
+		t.Error("⊗ is the run that stopped on a failure and ◌ the sleeping run")
 	}
 }
 
@@ -70,6 +87,7 @@ func TestMeaningTable(t *testing.T) {
 	want := map[string]string{
 		"success": "✔", "failure": "✗", "inactive": "○", "absent": "–", "warning": "⚠", "active": "●",
 		"current": "◆", "modified": "✎", "default": "★", "cursor": "▸", "selected": "◉",
+		"selected-multi": "☑", "unselected-multi": "☐",
 	}
 	if len(Symbols) != len(want) {
 		t.Fatalf("%d symbols in the table, %d expected", len(Symbols), len(want))

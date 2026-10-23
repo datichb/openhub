@@ -1012,9 +1012,9 @@ func (s *Shell) showSubMultiSelect(title string, options []views.SelectOption, s
 	renderItems := func() {
 		list.Clear()
 		for i, opt := range options {
-			prefix := "☐ "
+			prefix := theme.SymUnselectedMulti + " "
 			if checked[i] {
-				prefix = "☑ "
+				prefix = theme.SymSelectedMulti + " "
 			}
 			list.AddItem(prefix+opt.Label, "", 0, nil)
 		}
@@ -1867,9 +1867,9 @@ func (s *Shell) showInlineMultiSelect(title string, options []views.SelectOption
 	renderItems := func() {
 		list.Clear()
 		for i, opt := range options {
-			prefix := "☐ "
+			prefix := theme.SymUnselectedMulti + " "
 			if checked[i] {
-				prefix = "☑ "
+				prefix = theme.SymSelectedMulti + " "
 			}
 			list.AddItem(prefix+opt.Label, "", 0, nil)
 		}

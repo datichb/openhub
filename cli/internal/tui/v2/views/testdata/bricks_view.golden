@@ -1,11 +1,11 @@
 ┌ Catalogue des briques ───────────────────────────────────────────────┐┌ skill:acme/review-protocol ──────────────────┐
 │   id                       origine               v  état             ││ Origine : équipe (remplace hub:review/       │
 │ Agents (2)                                                           ││ review-protocol)                             │
-│   developer                hub                   —  ✓                ││ Fichier : catalog/skills/acme/review-        │
-│   my-agent                 équipe                1  !                ││ protocol.md                                  │
+│   developer                hub                   —  ✔                ││ Fichier : catalog/skills/acme/review-        │
+│   my-agent                 équipe                1  ⚠                ││ protocol.md                                  │
 │ Skills (3)                                                           ││ Version : v3 · publiée par Grace le          │
-│   developer/dev-standards  hub                   —  ✓                ││ 12/10/2026                                   │
-│ ▸ review/review-protocol   équipe ⟳ hub          3  ✓                ││ Type : skill                                 │
+│   developer/dev-standards  hub                   —  ✔                ││ 12/10/2026                                   │
+│ ▸ review/review-protocol   équipe ⟳ hub          3  ✔                ││ Type : skill                                 │
 │   legacy-helper            équipe (non scellée)  —  ✗                ││ Nom : review-protocol                        │
 │                                                                      ││ Chargé par : reviewer                        │
 │                                                                      ││ Workflows : review                           │

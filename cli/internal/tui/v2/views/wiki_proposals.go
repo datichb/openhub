@@ -110,7 +110,7 @@ func newWikiList(cfg wikiListOpts) *wikiList {
 		Empty:  i18n.T("tui.wikilist.empty"),
 		StateLabels: map[ItemState]string{
 			ItemPending:   "? " + i18n.T("tui.wikilist.state.pending"),
-			ItemAccepted:  "✓ " + i18n.T("tui.wikilist.state.accepted"),
+			ItemAccepted:  theme.SymSuccess + " " + i18n.T("tui.wikilist.state.accepted"),
 			ItemRefused:   "✗ " + i18n.T("tui.wikilist.state.refused"),
 			wikiItemStale: "⚠ " + i18n.T("tui.wikilist.state.stale"),
 		},
@@ -290,7 +290,7 @@ func (w *wikiList) item(p WikiProposalView, section string) ActionItem {
 	it.Cells = []string{p.ID, p.Page, wikiKind(p), p.Tag}
 	it.State = wikiItemState(p.Status)
 	if p.Edited && p.Status == wikiStatusAccepted {
-		it.StateText = "✓ " + i18n.T("tui.wikilist.state.edited")
+		it.StateText = theme.SymSuccess + " " + i18n.T("tui.wikilist.state.edited")
 	}
 	return it
 }

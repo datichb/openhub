@@ -97,7 +97,7 @@ func (v *TeamsView) showDetail(it widgets.SectionItem) {
 		v.page.SetDetail(d.String())
 		return
 	}
-	status := theme.ColorTag(theme.SuccessHex) + "✓ " + theme.TagColor + i18n.T("tui.teams.status_active")
+	status := theme.ColorTag(theme.SuccessHex) + theme.SymSuccess + " " + theme.TagColor + i18n.T("tui.teams.status_active")
 	if !team.Enabled {
 		status = theme.ColorTag(theme.TextMutedHex) + i18n.T("tui.teams.status_inactive") + theme.TagColor
 	}
@@ -227,7 +227,7 @@ func (v *TeamsView) rebuild() {
 		})
 
 		for _, t := range v.cfg.Teams {
-			status := fmt.Sprintf("%s %s", theme.ColorTag(theme.SuccessHex)+"✓"+theme.TagColor, i18n.T("tui.teams.status_active"))
+			status := fmt.Sprintf("%s %s", theme.ColorTag(theme.SuccessHex)+theme.SymSuccess+theme.TagColor, i18n.T("tui.teams.status_active"))
 			if !t.Enabled {
 				status = i18n.T("tui.teams.status_inactive")
 			}

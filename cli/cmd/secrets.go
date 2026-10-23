@@ -233,7 +233,7 @@ func runSecretsList(cmd *cobra.Command, _ []string) error {
 			}
 			present := theme.ErrorStyle.Render("✗")
 			if e.Present {
-				present = theme.SuccessStyle.Render("✓")
+				present = theme.SuccessStyle.Render(theme.IconSuccess)
 			}
 			fmt.Fprintf(a.IO.Out, "  %-30s %-20s %s\n", e.Key, scope, present)
 		}
@@ -255,7 +255,7 @@ func runSecretsList(cmd *cobra.Command, _ []string) error {
 		fmt.Fprintf(a.IO.Out, "  %s\n", strings.Repeat("─", 60))
 		for _, k := range keys {
 			fmt.Fprintf(a.IO.Out, "  %-30s %-20s %s\n",
-				k, "global", theme.SuccessStyle.Render("✓"))
+				k, "global", theme.SuccessStyle.Render(theme.IconSuccess))
 		}
 		fmt.Fprintln(a.IO.Out)
 	}

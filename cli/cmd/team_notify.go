@@ -91,7 +91,7 @@ func runTeamNotifyTest(cmd *cobra.Command, args []string) error {
 	if notifyType == "" {
 		notifyType = "webhook"
 	}
-	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.team_notify.notification_sent_via", theme.SuccessStyle.Render("✓"), notifyType))
+	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.team_notify.notification_sent_via", theme.SuccessStyle.Render(theme.IconSuccess), notifyType))
 
 	return nil
 }

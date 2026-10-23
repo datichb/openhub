@@ -295,7 +295,7 @@ func (v *PatternsView) showItemDetail(idx int) {
 func (v *PatternsView) buildPatternItem(p teamstate.Pattern) widgets.SectionItem {
 	icon := fmt.Sprintf("%s○%s", theme.ColorTag(theme.TextMutedHex), theme.TagColor)
 	if p.Validated {
-		icon = fmt.Sprintf("%s✓%s", theme.ColorTag(theme.SuccessHex), theme.TagColor)
+		icon = fmt.Sprintf("%s%s%s", theme.ColorTag(theme.SuccessHex), theme.SymSuccess, theme.TagColor)
 	}
 
 	// Build metadata: complexity + tags

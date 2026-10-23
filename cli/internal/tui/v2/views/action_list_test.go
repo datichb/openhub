@@ -233,7 +233,7 @@ func TestActionListUpdates(t *testing.T) {
 
 	require.True(t, l.SetState("wp-4", ItemAccepted))
 	assert.Equal(t, ItemAccepted, l.Items()[3].State)
-	assert.Contains(t, screenText(t, l.Primitive(), 80, 12), "✓ accepté")
+	assert.Contains(t, screenText(t, l.Primitive(), 80, 12), "✔ accepté")
 	assert.False(t, l.SetState("wp-99", ItemAccepted))
 	assert.False(t, l.Select("wp-99"))
 	assert.Contains(t, changed, "wp-3")

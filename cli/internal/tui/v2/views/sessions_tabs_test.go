@@ -13,6 +13,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/testutil/golden"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
 // tabSessions is a backend with the tabs of the detail: `next:` steps,
@@ -263,9 +264,9 @@ func TestSessionsDetailTabs(t *testing.T) {
 	_, body, actions := sh.modal()
 	assert.Contains(t, body, "oh/fanout/8f2a/oh-12")
 	require.Len(t, actions, 3)
-	assert.Contains(t, actions[0].Label, "[ []")
+	assert.Contains(t, actions[0].Label, theme.SymUnselectedMulti)
 	onLoop(actions[0].Callback) // tick --discard
-	require.Eventually(t, func() bool { _, _, a := sh.modal(); return strings.Contains(a[0].Label, "[x[]") }, 3*time.Second, 10*time.Millisecond)
+	require.Eventually(t, func() bool { _, _, a := sh.modal(); return strings.Contains(a[0].Label, theme.SymSelectedMulti) }, 3*time.Second, 10*time.Millisecond)
 	_, body, actions = sh.modal()
 	assert.Contains(t, body, "9c1e2d3", "what --discard deletes is shown")
 	assert.Contains(t, body, "running")

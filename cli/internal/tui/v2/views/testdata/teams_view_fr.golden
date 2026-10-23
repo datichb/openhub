@@ -1,6 +1,6 @@
 == list
 Équipes | 
-core  Core | @alice · git@example.com:core/state.git · [#a6e3a1]✓[-] active
+core  Core | @alice · git@example.com:core/state.git · [#a6e3a1]✔[-] active
 solo  solo | @bob · espace solo (local) · inactive
 == commands
 Ajouter une équipe | Référencer un dépôt d'équipe existant | Équipes

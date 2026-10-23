@@ -83,7 +83,7 @@ func (d BatchDecision) Failed() bool {
 func (d BatchDecision) verifyCell() string {
 	switch d.Verify {
 	case verifyPass:
-		return "✓ " + i18n.T("tui.batch.verify_ok")
+		return theme.SymSuccess + " " + i18n.T("tui.batch.verify_ok")
 	case verifyFail, verifyUnavailable:
 		return "✗ " + i18n.T("tui.batch.verify_failed")
 	case verifyRunning:
@@ -163,7 +163,7 @@ func newBatchPane(v *SessionsView, b SessionBatcher, scope, parent string, items
 			i18n.T("tui.batch.col.verify")},
 		StateHeader: i18n.T("tui.batch.col.choice"),
 		StateLabels: map[ItemState]string{
-			ItemAccepted:   "✓ " + i18n.T("tui.batch.choice.approve"),
+			ItemAccepted:   theme.SymSuccess + " " + i18n.T("tui.batch.choice.approve"),
 			ItemRefused:    "✗ " + i18n.T("tui.batch.choice.reject"),
 			batchKeepState: "· " + i18n.T("tui.batch.choice.keep"),
 		},

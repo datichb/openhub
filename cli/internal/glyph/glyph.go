@@ -6,8 +6,13 @@
 // A symbol never stands for two things: the states use geometric shapes, the
 // decision kinds use signs (⏸ ? ! $ ✗ ⊘), and a test checks that no symbol is
 // shared between the two tables. The symbols that have the same meaning
-// everywhere (✔ ✗ ○ – ⚠ ● ◆ ✎ ★ ▸ ◉) are in symbols.go; the tables use them
+// everywhere (✔ ✗ ○ – ⚠ ● ◆ ✎ ★ ▸ ◉ ☑ ☐) are in symbols.go; the tables use them
 // when a state or a kind is one of those meanings.
+//
+// Two failures, two symbols: ✗ is a one-off error (the decision kind
+// DecisionError, an invalid input), ⊗ is a session that stopped on a failure
+// (RunFailed). A finished step or session is ✔, a skipped step is –, and ◌ is
+// kept for a sleeping session (RunSleeping).
 package glyph
 
 import "github.com/datichb/openhub/cli/internal/domain"
@@ -25,9 +30,9 @@ var States = []State{
 	{domain.RunActive, Active},
 	{domain.RunWaiting, "◐"}, // waits for a decision of the user
 	{domain.RunIdle, Inactive},
-	{domain.RunSleeping, "◌"},
+	{domain.RunSleeping, "◌"}, // asleep until its wake-up time; not a skipped step (Absent)
 	{domain.RunCompleted, Success},
-	{domain.RunFailed, "⊗"},
+	{domain.RunFailed, "⊗"}, // stopped on a failure; a one-off error is Failure (DecisionError)
 	{domain.RunStopped, "■"},
 }
 

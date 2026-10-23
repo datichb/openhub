@@ -785,7 +785,7 @@ func (v *PoliciesView) checkPolicies() {
 		var icon string
 		switch {
 		case r.Passed:
-			icon = tagged(theme.SuccessHex, "✓")
+			icon = tagged(theme.SuccessHex, theme.SymSuccess)
 			passed++
 		case r.Enforcement == teamstate.EnforcementRefuse:
 			icon = tagged(theme.ErrorHex, "✗")

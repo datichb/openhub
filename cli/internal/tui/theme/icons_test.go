@@ -13,6 +13,7 @@ func TestSymbolsAreTheGlyphTable(t *testing.T) {
 		"success": SymSuccess, "failure": SymFailure, "inactive": SymInactive, "absent": SymAbsent,
 		"warning": SymWarning, "active": SymLive, "current": SymCurrent, "modified": SymModified,
 		"default": SymDefault, "cursor": SymCursor, "selected": SymSelected,
+		"selected-multi": SymSelectedMulti, "unselected-multi": SymUnselectedMulti,
 	}
 	if len(theme) != len(glyph.Symbols) {
 		t.Fatalf("%d symbols in the theme, %d in glyph", len(theme), len(glyph.Symbols))
@@ -24,15 +25,14 @@ func TestSymbolsAreTheGlyphTable(t *testing.T) {
 	}
 }
 
-// The screens show the same symbols as before the table: moving the Icon*
-// onto it changed nothing. An Icon* that does not follow the table (see the
-// divergences in icons.go) is listed here with the value it has today; the
-// day a screen group moves it onto the table, this test is updated with it.
+// The Icon* all follow the table of meanings; this test freezes their values.
+// Changing one is a decision of the product (v5.1: ✔ for success and for a
+// finished step, ⚠ for a warning, – for a skipped step).
 func TestIconsKeepTheirSymbols(t *testing.T) {
 	tests := []struct{ name, got, want string }{
-		{"IconActive", IconActive, "◆"}, {"IconDone", IconDone, "●"}, {"IconPending", IconPending, "○"},
-		{"IconSkipped", IconSkipped, "◌"}, {"IconSuccess", IconSuccess, "✓"}, {"IconError", IconError, "✗"},
-		{"IconWarning", IconWarning, "!"}, {"IconInfo", IconInfo, "ℹ"}, {"IconArrow", IconArrow, "▸"},
+		{"IconActive", IconActive, "◆"}, {"IconDone", IconDone, "✔"}, {"IconPending", IconPending, "○"},
+		{"IconSkipped", IconSkipped, "–"}, {"IconSuccess", IconSuccess, "✔"}, {"IconError", IconError, "✗"},
+		{"IconWarning", IconWarning, "⚠"}, {"IconInfo", IconInfo, "ℹ"}, {"IconArrow", IconArrow, "▸"},
 		{"IconCollapsed", IconCollapsed, "▾"}, {"IconDot", IconDot, "·"}, {"IconConnector", IconConnector, "───"},
 		{"IconGutter", IconGutter, "▎"}, {"IconStepActive", IconStepActive, "◆"}, {"IconSepBold", IconSepBold, "━"},
 		{"IconSepNormal", IconSepNormal, "─"}, {"IconSepConn", IconSepConn, "┃"}, {"IconDraft", IconDraft, "✎"},

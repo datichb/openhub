@@ -18,6 +18,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/bricks"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/gitutil"
+	"github.com/datichb/openhub/cli/internal/glyph"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
@@ -580,9 +581,9 @@ func excerpt(out []byte) string {
 func VerifySummary(r domain.CheckpointVerify) string {
 	var cmds []string
 	for _, c := range r.Commands {
-		mark := "✓"
+		mark := glyph.Success
 		if c.Exit != 0 || c.TimedOut {
-			mark = fmt.Sprintf("✗ (%d)", c.Exit)
+			mark = fmt.Sprintf("%s (%d)", glyph.Failure, c.Exit)
 		}
 		cmds = append(cmds, c.Cmd+" "+mark)
 	}

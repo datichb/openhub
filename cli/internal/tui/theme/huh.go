@@ -24,8 +24,9 @@ func AurumTheme() *huh.Theme {
 	t.Focused.Option = t.Focused.Option.Foreground(LipTextSecondary)
 	t.Focused.MultiSelectSelector = t.Focused.MultiSelectSelector.Foreground(LipAction)
 	t.Focused.SelectedOption = t.Focused.SelectedOption.Foreground(LipSuccess)
-	t.Focused.SelectedPrefix = lipgloss.NewStyle().Foreground(LipSuccess).SetString(IconSuccess + " ")
-	t.Focused.UnselectedPrefix = lipgloss.NewStyle().Foreground(LipTextMuted).SetString(IconPending + " ")
+	// huh only uses the prefixes in a multiple choice: checkboxes.
+	t.Focused.SelectedPrefix = lipgloss.NewStyle().Foreground(LipSuccess).SetString(SymSelectedMulti + " ")
+	t.Focused.UnselectedPrefix = lipgloss.NewStyle().Foreground(LipTextMuted).SetString(SymUnselectedMulti + " ")
 	t.Focused.UnselectedOption = t.Focused.UnselectedOption.Foreground(LipTextSecondary)
 	t.Focused.FocusedButton = t.Focused.FocusedButton.Foreground(LipAction).Background(LipSurfaceElem).Bold(true)
 	t.Focused.BlurredButton = t.Focused.BlurredButton.Foreground(LipTextMuted)

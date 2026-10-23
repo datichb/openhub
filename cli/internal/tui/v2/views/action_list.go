@@ -483,7 +483,7 @@ func (l *ActionList) stateText(it ActionItem) string {
 	case ItemPending:
 		return "? " + i18n.T("tui.actionlist.state.pending")
 	case ItemAccepted:
-		return "✓ " + i18n.T("tui.actionlist.state.accepted")
+		return theme.SymSuccess + " " + i18n.T("tui.actionlist.state.accepted")
 	case ItemRefused:
 		return "✗ " + i18n.T("tui.actionlist.state.refused")
 	}

@@ -362,7 +362,7 @@ func (v *ProviderView) cachedSecretDisplay(key string) string {
 	if v.secretCache != nil {
 		if entry, ok := v.secretCache[key]; ok {
 			if entry.present {
-				return "✓ " + entry.masked
+				return theme.SymSuccess + " " + entry.masked
 			}
 			return "✗ " + i18n.T("tui.provider.not_configured")
 		}
@@ -371,7 +371,7 @@ func (v *ProviderView) cachedSecretDisplay(key string) string {
 	ctx := context.Background()
 	present, masked := v.vcfg.CheckSecret(ctx, key)
 	if present {
-		return "✓ " + masked
+		return theme.SymSuccess + " " + masked
 	}
 	return "✗ " + i18n.T("tui.provider.not_configured")
 }
@@ -411,7 +411,7 @@ func (v *ProviderView) renderList() {
 			result := v.cachedDetection(name)
 			var statusStr string
 			if result.Available {
-				statusStr = fmt.Sprintf("%s✓%s %s", theme.ColorTag(theme.SuccessHex), theme.TagColor, result.Source)
+				statusStr = fmt.Sprintf("%s%s%s %s", theme.ColorTag(theme.SuccessHex), theme.SymSuccess, theme.TagColor, result.Source)
 			} else {
 				statusStr = fmt.Sprintf("%s✗%s %s", theme.ColorTag(theme.ErrorHex), theme.TagColor, i18n.T("tui.provider.not_detected"))
 			}
@@ -507,7 +507,7 @@ func (v *ProviderView) showCurrentDetail() {
 		d.para(provider.Description(provider.Name(name)))
 		res := v.cachedDetection(name)
 		if res.Available {
-			d.field(i18n.T("tui.detail.provider.detected"), theme.ColorTag(theme.SuccessHex)+"✓ "+tview.Escape(res.Source)+theme.TagReset)
+			d.field(i18n.T("tui.detail.provider.detected"), theme.ColorTag(theme.SuccessHex)+theme.SymSuccess+" "+tview.Escape(res.Source)+theme.TagReset)
 		} else {
 			d.field(i18n.T("tui.detail.provider.detected"), theme.ColorTag(theme.ErrorHex)+"✗ "+i18n.T("tui.provider.not_detected")+theme.TagReset)
 		}

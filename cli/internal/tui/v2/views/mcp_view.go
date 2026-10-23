@@ -230,7 +230,7 @@ func (v *MCPView) showDetail(i int) {
 	svc := v.services[i]
 	onOff := func(b bool) string {
 		if b {
-			return theme.ColorTag(theme.SuccessHex) + "✓ " + i18n.T("tui.config.enabled") + theme.TagReset
+			return theme.ColorTag(theme.SuccessHex) + theme.SymSuccess + " " + i18n.T("tui.config.enabled") + theme.TagReset
 		}
 		return theme.ColorTag(theme.TextMutedHex) + "✗ " + i18n.T("tui.config.disabled") + theme.TagReset
 	}
@@ -246,7 +246,7 @@ func (v *MCPView) showDetail(i int) {
 	case svc.Name == "team":
 		d.field(i18n.T("tui.detail.mcp.token"), i18n.T("tui.mcp.no_token"))
 	case svc.HasToken:
-		d.field(i18n.T("tui.detail.mcp.token"), theme.ColorTag(theme.SuccessHex)+"✓ "+i18n.T("tui.config.configured")+theme.TagReset)
+		d.field(i18n.T("tui.detail.mcp.token"), theme.ColorTag(theme.SuccessHex)+theme.SymSuccess+" "+i18n.T("tui.config.configured")+theme.TagReset)
 	default:
 		d.field(i18n.T("tui.detail.mcp.token"), theme.ColorTag(theme.ErrorHex)+"✗ "+i18n.T("tui.mcp.token_missing")+theme.TagReset)
 	}
@@ -273,7 +273,7 @@ func (v *MCPView) showDetail(i int) {
 func (v *MCPView) hubItemText(svc MCPService) string {
 	var statusIcon, statusColor string
 	if svc.Enabled {
-		statusIcon = "✓"
+		statusIcon = theme.SymSuccess
 		statusColor = theme.SuccessHex
 	} else {
 		statusIcon = "✗"
@@ -292,7 +292,7 @@ func (v *MCPView) hubItemSubtext(svc MCPService) string {
 	case svc.Name == "team":
 		parts = append(parts, fmt.Sprintf("%s(%s)%s", theme.ColorTag(theme.TextMutedHex), i18n.T("tui.mcp.no_token"), theme.TagColor))
 	case svc.HasToken:
-		parts = append(parts, fmt.Sprintf("%s%s ✓%s", theme.ColorTag(theme.SuccessHex), i18n.T("tui.hints.token"), theme.TagColor))
+		parts = append(parts, fmt.Sprintf("%s%s %s%s", theme.ColorTag(theme.SuccessHex), i18n.T("tui.hints.token"), theme.SymSuccess, theme.TagColor))
 	default:
 		parts = append(parts, fmt.Sprintf("%s%s !%s", theme.ColorTag(theme.ErrorHex), i18n.T("tui.mcp.token_missing"), theme.TagColor))
 	}
@@ -300,7 +300,7 @@ func (v *MCPView) hubItemSubtext(svc MCPService) string {
 	// Write mode (gitlab only)
 	if svc.Name == "gitlab" {
 		if svc.WriteEnabled {
-			parts = append(parts, fmt.Sprintf("%s%s ✓%s", theme.ColorTag(theme.SuccessHex), i18n.T("tui.hints.write"), theme.TagColor))
+			parts = append(parts, fmt.Sprintf("%s%s %s%s", theme.ColorTag(theme.SuccessHex), i18n.T("tui.hints.write"), theme.SymSuccess, theme.TagColor))
 		} else {
 			parts = append(parts, fmt.Sprintf("%s%s ✗%s", theme.ColorTag(theme.TextMutedHex), i18n.T("tui.hints.write"), theme.TagColor))
 		}
@@ -604,7 +604,7 @@ func (v *MCPView) buildCommands() {
 		svc := svc
 		var desc string
 		if svc.Enabled {
-			desc = "✓ → " + i18n.T("tui.mcp.cmd_disable")
+			desc = theme.SymSuccess + " → " + i18n.T("tui.mcp.cmd_disable")
 		} else {
 			desc = "✗ → " + i18n.T("tui.mcp.cmd_enable")
 		}
