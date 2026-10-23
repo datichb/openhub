@@ -67,19 +67,13 @@ func TestDoctorViewFix(t *testing.T) {
 	assert.Equal(t, int32(2), runs.Load(), "checked again")
 }
 
-// A check without a repair says so; DoctorFixFor gives the repairs of the
-// command layer.
+// A check without a repair says so; the repairs come with the results (the
+// registry of the command layer attaches them).
 func TestDoctorViewNoFixAndFixFor(t *testing.T) {
-	prev := DoctorFixFor
-	t.Cleanup(func() { DoctorFixFor = prev })
-	DoctorFixFor = func(c DoctorCheck) *DoctorFix {
-		if c.Name == "orphans" {
-			return &DoctorFix{Open: func() {}}
-		}
-		return nil
-	}
 	v := NewDoctorView(nil)
-	v.run = func() []DoctorCheck { return []DoctorCheck{{Name: "git", OK: true}, {Name: "orphans", Detail: "2"}} }
+	v.run = func() []DoctorCheck {
+		return []DoctorCheck{{Name: "git", OK: true}, {Name: "orphans", Detail: "2", Fix: &DoctorFix{Open: func() {}}}}
+	}
 	checks := v.collectChecks()
 	assert.Nil(t, checks[0].Fix)
 	require.NotNil(t, checks[1].Fix)

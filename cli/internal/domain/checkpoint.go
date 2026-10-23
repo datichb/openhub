@@ -182,3 +182,10 @@ type CheckpointStore interface {
 type SessionOutputStore interface {
 	SetSessionOutput(ctx context.Context, sessionID, key string, value any) error
 }
+
+// CheckpointStorage is the database side of the checkpoints: their state and
+// the typed outputs recorded next to it (one store serves both).
+type CheckpointStorage interface {
+	CheckpointStore
+	SessionOutputStore
+}

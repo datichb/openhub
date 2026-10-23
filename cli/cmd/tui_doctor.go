@@ -8,10 +8,9 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/spf13/cobra"
-
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/services/doctor"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
@@ -22,7 +21,6 @@ import (
 // open their section of the clean-up view. The offline mode is oh doctor --offline.
 
 func init() {
-	views.DoctorFixFor = doctorFixFor
 	views.DoctorOffline = &views.DoctorOfflineSwitch{
 		On: func() bool { return doctorOffline() },
 		Set: func(on bool) {
@@ -35,30 +33,48 @@ func init() {
 	}
 }
 
-// doctorFixFor is the repair of a check of the registry (nil: none).
-func doctorFixFor(c views.DoctorCheck) *views.DoctorFix {
-	switch {
-	case c.Name == i18n.T("cmd.gc.doctor.name") && c.Warn:
-		return &views.DoctorFix{Open: actionCleanup}
-	case c.Name == i18n.T("cmd.migrate.cleanup.doctor_name") && !c.OK:
-		return &views.DoctorFix{Open: actionCleanupDeploy}
-	case c.OK:
+// The repairs of the registry (Check.Fix): each one is planned, confirmed in
+// the view, then applied as `oh doctor --fix --yes` does, its output as the
+// report; the clean-up results open their section of the clean-up view.
+
+// configFix restores the latest backup of a hub.toml that does not load.
+func configFix(r doctor.Result) *doctor.Fix {
+	if r.OK {
 		return nil
-	case c.Name == i18n.T("cmd.doctor.check.config"):
-		backup := latestConfigBackup()
-		if backup == "" {
-			return nil
-		}
-		return &views.DoctorFix{
-			Plan: func(context.Context) (string, error) {
-				return i18n.Tf("cmd.doctor.db.config_restore_plan", backup, config.ConfigPath()), nil
-			},
-			Apply: doctorFixRun(fixConfig),
-		}
-	case c.Name == i18n.T("cmd.doctor.check.beads"):
-		return &views.DoctorFix{Plan: planBeadsFix, Apply: doctorFixRun(func(cmd *cobra.Command) error { return runDoctorFix(cmd, MustApp()) })}
-	case c.Name == i18n.Tf("cmd.doctor.orphans.name", toolName()):
-		return &views.DoctorFix{Plan: planOrphansFix, Apply: doctorFixRun(fixOrphanServers)}
+	}
+	backup := latestConfigBackup()
+	if backup == "" {
+		return nil
+	}
+	return &doctor.Fix{
+		Plan: func(context.Context) (string, error) {
+			return i18n.Tf("cmd.doctor.db.config_restore_plan", backup, config.ConfigPath()), nil
+		},
+		Apply: doctorFixRun(func(_ context.Context, w io.Writer) error { return repairConfig(w, alwaysConfirm) }),
+	}
+}
+
+// beadsFix applies the zero-impact clean-up of the Beads projects.
+func beadsFix(r doctor.Result) *doctor.Fix {
+	if r.OK {
+		return nil
+	}
+	return &doctor.Fix{Plan: planBeadsFix, Apply: doctorFixRun(func(ctx context.Context, w io.Writer) error {
+		return repairBeads(ctx, w, MustApp(), true, false, alwaysConfirm)
+	})}
+}
+
+// runtimeFix is the repair of the results gathered by the runtime check.
+func runtimeFix(r doctor.Result) *doctor.Fix {
+	switch {
+	case r.ID == doctorIDGC && r.Warn:
+		return &doctor.Fix{Open: actionCleanup}
+	case r.ID == doctorIDDeployCleanup && !r.OK:
+		return &doctor.Fix{Open: actionCleanupDeploy}
+	case r.ID == doctorIDOrphans && !r.OK:
+		return &doctor.Fix{Plan: planOrphansFix, Apply: doctorFixRun(func(ctx context.Context, w io.Writer) error {
+			return stopOrphanServers(ctx, w, alwaysConfirm)
+		})}
 	}
 	return nil
 }
@@ -92,24 +108,14 @@ func planOrphansFix(ctx context.Context) (string, error) {
 	return strings.Join(lines, "\n"), nil
 }
 
-// doctorFixRun runs a repair of oh doctor --fix as with --yes (the view
-// confirmed it), its output as the report.
-func doctorFixRun(fix func(cmd *cobra.Command) error) func(ctx context.Context) (string, error) {
+// doctorFixRun runs a repair of oh doctor --fix (the view confirmed it), its
+// output as the report.
+func doctorFixRun(fix func(ctx context.Context, w io.Writer) error) func(ctx context.Context) (string, error) {
 	return func(ctx context.Context) (string, error) {
 		var out bytes.Buffer
-		err := fix(doctorFixCommand(ctx, &out))
+		err := fix(ctx, &out)
 		return stripANSI(out.String()), err
 	}
-}
-
-func doctorFixCommand(ctx context.Context, w io.Writer) *cobra.Command {
-	c := &cobra.Command{Use: "doctor"}
-	c.Flags().BoolP("yes", "y", false, "")
-	_ = c.Flags().Set("yes", "true")
-	c.SetOut(w)
-	c.SetErr(w)
-	c.SetContext(ctx)
-	return c
 }
 
 var ansiRe = regexp.MustCompile(`\x1b\[[0-9;?]*[A-Za-z]`)

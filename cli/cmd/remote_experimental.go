@@ -6,9 +6,9 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/services/doctor"
 	"github.com/datichb/openhub/cli/internal/services/launch"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
-	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
 // The remote runtime is experimental in 5.0 (DC22): it has never been
@@ -50,16 +50,16 @@ func remoteRecapWarnings(p *launch.Prepared) []string {
 
 // remoteExperimentalDoctorCheck reports the state of the remote mode: nothing
 // when it is off and no target is configured, else a warning.
-func remoteExperimentalDoctorCheck(a *app.App) []views.DoctorCheck {
+func remoteExperimentalDoctorCheck(a *app.App) []doctor.Result {
 	if a == nil || a.Config == nil {
 		return nil
 	}
 	name := i18n.T("cmd.remote.experimental.doctor.name")
 	switch {
 	case remoteExperimental(a):
-		return []views.DoctorCheck{{Name: name, OK: true, Warn: true, Detail: i18n.T("cmd.remote.experimental.doctor.enabled")}}
+		return []doctor.Result{{Name: name, OK: true, Warn: true, Detail: i18n.T("cmd.remote.experimental.doctor.enabled")}}
 	case len(a.Config.Remote.Targets) > 0:
-		return []views.DoctorCheck{{Name: name, OK: true, Warn: true, Detail: i18n.T("cmd.remote.experimental.doctor.disabled")}}
+		return []doctor.Result{{Name: name, OK: true, Warn: true, Detail: i18n.T("cmd.remote.experimental.doctor.disabled")}}
 	}
 	return nil
 }

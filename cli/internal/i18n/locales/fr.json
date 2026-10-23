@@ -2061,6 +2061,7 @@
   "cmd.history.flags.team": "Afficher l'historique d'équipe (depuis le team-state)",
   "cmd.history.export.flags.output": "Chemin du fichier de sortie (défaut: oh-history-<date>.json)",
   "cmd.history.import.flags.member_id": "Forcer un member_id pour les sessions importées",
+  "cmd.history.export.flags.member_id": "member_id écrit dans le fichier (défaut : membre de l'équipe active)",
   "cmd.teams.short": "Équipes de cette machine — lister, ajouter, retirer, archiver",
   "cmd.teams.long": "Commandes pour gérer les équipes auxquelles vous appartenez : lister, ajouter, retirer, détacher un projet, archiver, restaurer. Un utilisateur peut appartenir à plusieurs équipes. Chaque projet est rattaché à 0 ou 1 équipe. Ne pas confondre avec « oh team » (au singulier), qui agit sur l'équipe active : statut, board, activité, config, synchronisation du tracker.",
   "cmd.teams.list.short": "Lister les équipes configurées",

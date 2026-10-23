@@ -8,12 +8,12 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/tui/v2/views"
+	"github.com/datichb/openhub/cli/internal/services/doctor"
 )
 
 // toolCheck reports whether the installed tool is a supported release (the
 // V1 of the tool is no longer supported in oh v5, P3-T30).
-func toolCheck(ctx context.Context) views.DoctorCheck {
+func toolCheck(ctx context.Context) doctor.Result {
 	err := requireV2(ctx)
 	name := i18n.Tf("cmd.v1.unsupported.doctor_name", toolName())
 	if err != nil {
@@ -22,9 +22,9 @@ func toolCheck(ctx context.Context) views.DoctorCheck {
 		if errors.As(v5Err, &ue) {
 			detail = i18n.Tf("cmd.v1.unsupported.version", toolName(), ue.Found, ue.Min)
 		}
-		return views.DoctorCheck{Name: name, OK: false, Detail: detail + " " + i18n.Tf("cmd.v1.unsupported.hint", toolName())}
+		return doctor.Result{Name: name, OK: false, Detail: detail + " " + i18n.Tf("cmd.v1.unsupported.hint", toolName())}
 	}
-	check := views.DoctorCheck{Name: name, OK: true,
+	check := doctor.Result{Name: name, OK: true,
 		Detail: i18n.Tf("cmd.v1.unsupported.doctor_ok", toolName(), v5Tool.Version, v5Adapter.Name(), v5Tool.MinVersion)}
 	if warning := unpinnedToolWarning(v5Tool.Version); warning != "" {
 		check.Warn = true

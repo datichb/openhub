@@ -8,9 +8,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/config/configtest"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
@@ -117,9 +119,9 @@ func TestRetroTagSessions(t *testing.T) {
 	}
 
 	s := sqlitetest.New(t)
-	origStore := store
-	store = s
-	t.Cleanup(func() { store = origStore })
+	origApp := application
+	application = &app.App{Sessions: sqlite.NewSessionStore(s)}
+	t.Cleanup(func() { application = origApp })
 
 	now := time.Now()
 	sqlitetest.Seed(t, s).Project("p1", "/p1").
@@ -134,4 +136,18 @@ func TestRetroTagSessions(t *testing.T) {
 	var memberID string
 	require.NoError(t, s.DB().QueryRowContext(ctx, `SELECT member_id FROM sessions WHERE id = 's1'`).Scan(&memberID))
 	assert.Equal(t, "alice", memberID)
+}
+
+// A degraded startup has no session store: the retro-tagging says so.
+func TestRetroTagSessionsWithoutDatabase(t *testing.T) {
+	origApp := application
+	t.Cleanup(func() { application = origApp })
+
+	application = &app.App{}
+	_, err := retroTagSessions(context.Background(), "alice")
+	require.Error(t, err, "no session store")
+
+	application = nil
+	_, err = retroTagSessions(context.Background(), "alice")
+	require.Error(t, err, "no application")
 }

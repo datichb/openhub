@@ -7,8 +7,8 @@ import (
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/services/doctor"
 	"github.com/datichb/openhub/cli/internal/teamstate"
-	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
 // Doctor › MCP URLs imposed by the team (audit v5, S-31): a URL the team
@@ -17,7 +17,7 @@ import (
 
 func init() { registerDoctorCheck(mcpURLDoctorChecks) }
 
-func mcpURLDoctorChecks(ctx context.Context) []views.DoctorCheck {
+func mcpURLDoctorChecks(ctx context.Context) []doctor.Result {
 	a := TryApp()
 	if a == nil {
 		return nil
@@ -35,8 +35,8 @@ func mcpURLDoctorChecks(ctx context.Context) []views.DoctorCheck {
 
 // mcpURLChecks returns one warning per URL imposed and not used, over the
 // teams of the hub and of its projects (one warning per team and service).
-func mcpURLChecks(cfg *config.Config, teams []config.ResolvedTeamConfig, load func(config.ResolvedTeamConfig) map[string]teamstate.SharedMCPConfig) []views.DoctorCheck {
-	var out []views.DoctorCheck
+func mcpURLChecks(cfg *config.Config, teams []config.ResolvedTeamConfig, load func(config.ResolvedTeamConfig) map[string]teamstate.SharedMCPConfig) []doctor.Result {
+	var out []doctor.Result
 	var seen []string
 	for _, tc := range teams {
 		if slices.Contains(seen, tc.TeamID) {
@@ -44,7 +44,7 @@ func mcpURLChecks(cfg *config.Config, teams []config.ResolvedTeamConfig, load fu
 		}
 		seen = append(seen, tc.TeamID)
 		for _, n := range enforcedURLNotices(cfg, load(tc)) {
-			out = append(out, views.DoctorCheck{
+			out = append(out, doctor.Result{
 				Name: i18n.Tf("cmd.doctor.mcp_url.name", n.Service), OK: true, Warn: true, Detail: n.Message(),
 			})
 		}

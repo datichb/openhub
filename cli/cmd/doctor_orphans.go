@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"time"
@@ -14,9 +15,9 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/gc"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/services/doctor"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
-	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
 // Doctor › orphan tool servers (N18): servers started by oh (or by its
@@ -66,18 +67,18 @@ func findOrphanServers(ctx context.Context) ([]orphanServer, adapters.ServerProc
 	return gc.ClassifyOrphans(procs, config.HubDir(), os.TempDir(), liveServerPIDs(ctx), fileExists, gc.RecentlyWritten), l, nil
 }
 
-func orphanServersCheck(ctx context.Context) []views.DoctorCheck {
+func orphanServersCheck(ctx context.Context) []doctor.Result {
 	name := i18n.Tf("cmd.doctor.orphans.name", toolName())
 	orphans, l, err := findOrphanServers(ctx)
 	switch {
 	case l == nil:
 		return nil
 	case err != nil:
-		return []views.DoctorCheck{{Name: name, OK: true, Warn: true, Detail: i18n.Tf("cmd.doctor.orphans.unknown", err)}}
+		return []doctor.Result{{ID: doctorIDOrphans, Name: name, OK: true, Warn: true, Detail: i18n.Tf("cmd.doctor.orphans.unknown", err)}}
 	case len(orphans) == 0:
-		return []views.DoctorCheck{{Name: name, OK: true, Detail: i18n.T("cmd.doctor.orphans.none")}}
+		return []doctor.Result{{ID: doctorIDOrphans, Name: name, OK: true, Detail: i18n.T("cmd.doctor.orphans.none")}}
 	}
-	return []views.DoctorCheck{{Name: name, Detail: i18n.Tf("cmd.doctor.orphans.found", len(orphans), describeOrphans(orphans, 3))}}
+	return []doctor.Result{{ID: doctorIDOrphans, Name: name, Detail: i18n.Tf("cmd.doctor.orphans.found", len(orphans), describeOrphans(orphans, 3))}}
 }
 
 func describeOrphans(orphans []orphanServer, limit int) string {
@@ -99,17 +100,20 @@ func describeOrphans(orphans []orphanServer, limit int) string {
 // fixOrphanServers stops the orphan servers (oh doctor --fix), after a
 // confirmation (--yes without a terminal).
 func fixOrphanServers(cmd *cobra.Command) error {
-	ctx := cmd.Context()
+	return stopOrphanServers(cmd.Context(), cmd.OutOrStdout(), cmdConfirm(cmd))
+}
+
+// stopOrphanServers is fixOrphanServers for any caller.
+func stopOrphanServers(ctx context.Context, w io.Writer, confirm confirmFunc) error {
 	orphans, l, err := findOrphanServers(ctx)
 	if err != nil || len(orphans) == 0 {
 		return nil //nolint:nilerr // listing failed: the check reports it
 	}
-	w := cmd.OutOrStdout()
 	fmt.Fprintln(w, theme.Bold.Render(i18n.Tf("cmd.doctor.orphans.plan", toolName())))
 	for _, o := range orphans {
 		fmt.Fprintf(w, "  %s\n", describeOrphans([]orphanServer{o}, 1))
 	}
-	ok, err := confirmAction(cmd, i18n.T("cmd.doctor.orphans.confirm"), false)
+	ok, err := confirm(i18n.T("cmd.doctor.orphans.confirm"))
 	if err != nil {
 		return err
 	}

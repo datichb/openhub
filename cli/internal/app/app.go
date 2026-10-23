@@ -24,6 +24,19 @@ type App struct {
 	// Preferences and WorkflowUsage back the PreferenceService (prefsvc).
 	Preferences   domain.PreferenceStore
 	WorkflowUsage domain.WorkflowUsageReader
+	// The other stores of the database. On a degraded startup (database not
+	// open, schema to migrate) they are nil, like Projects and Sessions:
+	// a caller checks before it uses one.
+	Decisions     domain.DecisionStore
+	Usage         domain.UsageStore
+	Servers       domain.ServerStore
+	Grants        domain.GrantStore
+	Remotes       domain.RemoteStore
+	Checkpoints   domain.CheckpointStorage
+	Reports       domain.ReportStore
+	WikiProposals domain.WikiProposalStore
+	History       domain.HistoryStore
+	Fanout        domain.FanoutStore
 	// ToolVersion returns the version of the session tool, or
 	// why it cannot be used (missing, unsupported release).
 	ToolVersion func() (string, error)
@@ -96,6 +109,61 @@ func (a *App) WithSecretStore(s domain.SecretStore) *App {
 func (a *App) WithPreferences(s domain.PreferenceStore, usage domain.WorkflowUsageReader) *App {
 	a.Preferences = s
 	a.WorkflowUsage = usage
+	return a
+}
+
+// WithDecisions sets the store of the pending decisions.
+func (a *App) WithDecisions(s domain.DecisionStore) *App {
+	a.Decisions = s
+	return a
+}
+
+// WithUsage sets the usage ledger.
+func (a *App) WithUsage(s domain.UsageStore) *App {
+	a.Usage = s
+	return a
+}
+
+// WithServers sets the stores of the tool servers and of their proxy grants.
+func (a *App) WithServers(servers domain.ServerStore, grants domain.GrantStore) *App {
+	a.Servers = servers
+	a.Grants = grants
+	return a
+}
+
+// WithRemotes sets the store of the remote references.
+func (a *App) WithRemotes(s domain.RemoteStore) *App {
+	a.Remotes = s
+	return a
+}
+
+// WithCheckpoints sets the checkpoint store (state and session outputs).
+func (a *App) WithCheckpoints(s domain.CheckpointStorage) *App {
+	a.Checkpoints = s
+	return a
+}
+
+// WithReports sets the report store.
+func (a *App) WithReports(s domain.ReportStore) *App {
+	a.Reports = s
+	return a
+}
+
+// WithWikiProposals sets the store of the wiki proposals.
+func (a *App) WithWikiProposals(s domain.WikiProposalStore) *App {
+	a.WikiProposals = s
+	return a
+}
+
+// WithHistory sets the store that counts and deletes the history past its retention.
+func (a *App) WithHistory(s domain.HistoryStore) *App {
+	a.History = s
+	return a
+}
+
+// WithFanout sets the store of the fan-out (sessions and fan-out record).
+func (a *App) WithFanout(s domain.FanoutStore) *App {
+	a.Fanout = s
 	return a
 }
 

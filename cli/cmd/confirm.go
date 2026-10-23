@@ -24,6 +24,19 @@ func confirmAction(cmd *cobra.Command, question string, defaultYes bool) (bool, 
 	return confirmActionWith(cmd, question, "", defaultYes)
 }
 
+// confirmFunc asks a yes/no question (default no) for the code that does not
+// know whether it runs under a command (the repairs of oh doctor, also run
+// from the TUI, where the view has confirmed them).
+type confirmFunc func(question string) (bool, error)
+
+// cmdConfirm asks through confirmAction: --yes, or a terminal.
+func cmdConfirm(cmd *cobra.Command) confirmFunc {
+	return func(question string) (bool, error) { return confirmAction(cmd, question, false) }
+}
+
+// alwaysConfirm is the answer of a repair the view has already confirmed.
+func alwaysConfirm(string) (bool, error) { return true, nil }
+
 // confirmActionWith is confirmAction with a description under the question.
 func confirmActionWith(cmd *cobra.Command, question, description string, defaultYes bool) (bool, error) {
 	if yes, _ := cmd.Flags().GetBool("yes"); yes {

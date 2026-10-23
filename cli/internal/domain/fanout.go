@@ -253,3 +253,10 @@ func (f *SessionFanout) HasChild(session string) bool {
 type SessionFanoutStore interface {
 	SetSessionFanout(ctx context.Context, id string, f *SessionFanout) error
 }
+
+// FanoutStore is what the fan-out reads and writes of the sessions: the
+// sessions and the fan-out record that only oh writes.
+type FanoutStore interface {
+	SessionStore
+	SessionFanoutStore
+}

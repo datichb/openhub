@@ -11,7 +11,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/gateway/bdargs"
 	"github.com/datichb/openhub/cli/internal/runtime/container"
-	"github.com/datichb/openhub/cli/internal/tui/v2/views"
+	"github.com/datichb/openhub/cli/internal/services/doctor"
 )
 
 func TestEngineDetail(t *testing.T) {
@@ -21,8 +21,8 @@ func TestEngineDetail(t *testing.T) {
 }
 
 func TestGatewayReachCheck(t *testing.T) {
-	check := func(key string, ok bool, detail string) views.DoctorCheck {
-		return views.DoctorCheck{Name: key, OK: ok, Detail: detail}
+	check := func(key string, ok bool, detail string) doctor.Result {
+		return doctor.Result{Name: key, OK: ok, Detail: detail}
 	}
 	assert.True(t, gatewayReachCheck(check, "beads", "u", http.StatusMethodNotAllowed, "busybox", false).OK)
 	assert.True(t, gatewayReachCheck(check, "mcp", "u", http.StatusUnauthorized, "busybox", false).OK)

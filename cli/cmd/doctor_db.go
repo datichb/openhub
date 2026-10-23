@@ -15,9 +15,9 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/services/doctor"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
-	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
 // Checks of the configuration and of the database that work when either is
@@ -108,11 +108,16 @@ func latestConfigBackup() string {
 // fixConfig restores the latest valid backup of a hub.toml that does not
 // load (oh doctor --fix), after confirmation; the broken file is kept.
 func fixConfig(cmd *cobra.Command) error {
+	return repairConfig(cmd.OutOrStdout(), cmdConfirm(cmd))
+}
+
+// repairConfig is fixConfig for any caller: it writes its report to w and asks
+// its question through confirm.
+func repairConfig(w io.Writer, confirm confirmFunc) error {
 	r := startupReport
 	if r == nil || r.ConfigErr == nil {
 		return nil
 	}
-	w := cmd.OutOrStdout()
 	backup := latestConfigBackup()
 	if backup == "" {
 		fmt.Fprintln(w, i18n.T("cmd.doctor.db.config_no_backup"))
@@ -120,7 +125,7 @@ func fixConfig(cmd *cobra.Command) error {
 		return nil
 	}
 	fmt.Fprintln(w, theme.Bold.Render(i18n.Tf("cmd.doctor.db.config_restore_plan", backup, config.ConfigPath())))
-	ok, err := confirmAction(cmd, i18n.T("cmd.doctor.db.config_restore_confirm"), false)
+	ok, err := confirm(i18n.T("cmd.doctor.db.config_restore_confirm"))
 	if err != nil {
 		return err
 	}
@@ -162,26 +167,26 @@ func restoreConfig(backup string) (string, error) {
 // checkDatabase opens the database without migrating it: schema version
 // against this oh, pending and unknown migrations, the last failed
 // migration, a quick integrity check and the size of the WAL.
-func checkDatabase() views.DoctorCheck {
+func checkDatabase() doctor.Result {
 	path := sqlite.DBPath()
 	if _, err := os.Stat(path); os.IsNotExist(err) {
-		return views.DoctorCheck{OK: true, Detail: i18n.T("cmd.doctor.db.missing")}
+		return doctor.Result{OK: true, Detail: i18n.T("cmd.doctor.db.missing")}
 	}
 	if r := startupReport; r != nil && r.DBErr != nil {
-		return views.DoctorCheck{Detail: i18n.Tf("cmd.doctor.db.unreadable", r.DBErr)}
+		return doctor.Result{Detail: i18n.Tf("cmd.doctor.db.unreadable", r.DBErr)}
 	}
 	s := store
 	if s == nil {
 		raw, err := sqlite.OpenRaw(path)
 		if err != nil {
-			return views.DoctorCheck{Detail: i18n.Tf("cmd.doctor.db.unreadable", err)}
+			return doctor.Result{Detail: i18n.Tf("cmd.doctor.db.unreadable", err)}
 		}
 		defer raw.Close()
 		s = raw
 	}
 	st, err := dbStatus(s)
 	if err != nil {
-		return views.DoctorCheck{Detail: i18n.Tf("cmd.doctor.db.unreadable", err)}
+		return doctor.Result{Detail: i18n.Tf("cmd.doctor.db.unreadable", err)}
 	}
 	return st.result()
 }
@@ -207,31 +212,19 @@ func dbStatus(s *sqlite.Store) (dbState, error) {
 	}
 	st.newer, _ = s.UnknownMigrations()
 	st.lastErr = sqlite.LastMigrationError(s.Path())
-	st.integrity = quickCheck(s)
+	st.integrity = s.QuickCheck()
 	if fi, err := os.Stat(s.Path() + "-wal"); err == nil {
 		st.wal = fi.Size()
 	}
 	if len(st.pending) == 0 && st.integrity == nil {
-		var n int
-		if s.DB().QueryRowContext(context.Background(), `SELECT COUNT(*) FROM projects`).Scan(&n) == nil {
+		if n, err := s.CountProjects(context.Background()); err == nil {
 			st.projects = n
 		}
 	}
 	return st, nil
 }
 
-func quickCheck(s *sqlite.Store) error {
-	var res string
-	if err := s.DB().QueryRow(`PRAGMA quick_check`).Scan(&res); err != nil {
-		return err
-	}
-	if res != "ok" {
-		return errors.New(res)
-	}
-	return nil
-}
-
-func (st dbState) result() views.DoctorCheck {
+func (st dbState) result() doctor.Result {
 	schema := i18n.Tf("cmd.doctor.db.schema", st.version, st.known)
 	wal := ""
 	if st.wal > 0 {
@@ -239,19 +232,19 @@ func (st dbState) result() views.DoctorCheck {
 	}
 	switch {
 	case st.integrity != nil:
-		return views.DoctorCheck{Detail: i18n.Tf("cmd.doctor.db.corrupt", st.integrity)}
+		return doctor.Result{Detail: i18n.Tf("cmd.doctor.db.corrupt", st.integrity)}
 	case len(st.newer) > 0:
-		return views.DoctorCheck{Detail: i18n.Tf("cmd.doctor.db.newer", joinInts(st.newer), st.known)}
+		return doctor.Result{Detail: i18n.Tf("cmd.doctor.db.newer", joinInts(st.newer), st.known)}
 	case st.lastErr != "" && len(st.pending) > 0:
-		return views.DoctorCheck{Detail: i18n.Tf("cmd.doctor.db.migration_failed", st.lastErr, joinInts(st.pending))}
+		return doctor.Result{Detail: i18n.Tf("cmd.doctor.db.migration_failed", st.lastErr, joinInts(st.pending))}
 	case len(st.pending) > 0:
-		return views.DoctorCheck{OK: true, Warn: true, Detail: schema + " · " + i18n.Tf("cmd.doctor.db.pending", joinInts(st.pending)) + wal}
+		return doctor.Result{OK: true, Warn: true, Detail: schema + " · " + i18n.Tf("cmd.doctor.db.pending", joinInts(st.pending)) + wal}
 	}
 	detail := schema + wal
 	if st.projects >= 0 {
 		detail = i18n.Tf("cmd.doctor.db_ok", st.projects) + " · " + detail
 	}
-	return views.DoctorCheck{OK: true, Detail: detail}
+	return doctor.Result{OK: true, Detail: detail}
 }
 
 // printStartupHints is printed above the checks of a degraded startup that

@@ -253,10 +253,20 @@ func readSchemaReport(s *sqlite.Store, r *StartupReport) {
 // wireStores connects the stores of the database to the application.
 func wireStores(a *app.App, s *sqlite.Store) {
 	a.WithProjectStore(sqlite.NewProjectStore(s))
-	a.WithSessionStore(sqlite.NewSessionStore(s))
+	sessions := sqlite.NewSessionStore(s)
+	a.WithSessionStore(sessions)
 	a.WithAgentEventStore(sqlite.NewAgentEventStore(s))
 	prefs := sqlite.NewPreferenceStore(s)
 	a.WithPreferences(prefs, prefs)
+	a.WithDecisions(sqlite.NewDecisionStore(s))
+	a.WithUsage(sqlite.NewUsageStore(s))
+	a.WithServers(sqlite.NewServerStore(s), sqlite.NewGrantStore(s))
+	a.WithRemotes(sqlite.NewRemoteStore(s))
+	a.WithCheckpoints(sqlite.NewCheckpointStore(s))
+	a.WithReports(sqlite.NewReportStore(s))
+	a.WithWikiProposals(sqlite.NewWikiProposalStore(s))
+	a.WithHistory(sqlite.NewHistoryStore(s))
+	a.WithFanout(sessions)
 	a.WithStats(sessionstats.New(a.Sessions, a.Projects))
 	a.WithToolVersion(func() (string, error) {
 		if err := requireV2(context.Background()); err != nil {

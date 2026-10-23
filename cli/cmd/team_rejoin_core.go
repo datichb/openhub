@@ -11,6 +11,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tracker"
@@ -273,22 +274,19 @@ func listTeamMembers(ctx context.Context, stateRepo, statePath string) (*teamsta
 // retroTagSessions updates existing sessions and agent_events that have no member_id
 // with the given member ID. Returns the number of sessions updated.
 func retroTagSessions(ctx context.Context, memberID string) (int, error) {
-	if store == nil {
+	var tagger domain.MemberTagger
+	if application != nil {
+		tagger, _ = application.Sessions.(domain.MemberTagger)
+	}
+	if tagger == nil {
 		return 0, errors.New(i18n.T("cmd.team_rejoin_core.database_not_initialized"))
 	}
-	db := store.DB()
-
-	// Update sessions
-	result, err := db.ExecContext(ctx, `UPDATE sessions SET member_id = ? WHERE member_id IS NULL`, memberID)
+	n, err := tagger.TagUnownedMember(ctx, memberID)
+	if errors.Is(err, domain.ErrTagAgentEvents) {
+		return n, fmt.Errorf(i18n.T("cmd.team_rejoin_core.retro_tagging_agent_events"), err)
+	}
 	if err != nil {
 		return 0, fmt.Errorf(i18n.T("cmd.team_rejoin_core.retro_tagging_sessions"), err)
 	}
-	sessionsUpdated, _ := result.RowsAffected()
-
-	// Update agent_events
-	if _, err := db.ExecContext(ctx, `UPDATE agent_events SET member_id = ? WHERE member_id IS NULL`, memberID); err != nil {
-		return int(sessionsUpdated), fmt.Errorf(i18n.T("cmd.team_rejoin_core.retro_tagging_agent_events"), err)
-	}
-
-	return int(sessionsUpdated), nil
+	return n, nil
 }

@@ -383,7 +383,7 @@ History of the sessions recorded by oh (`--team`: finished sessions of your memb
 
 ```
 oh history [--limit 20] [--team]
-oh history export [--output <file>]
+oh history export [--output <file>] [--member-id <id>]
 oh history import <file> [--member-id <id>]
 ```
 
@@ -392,6 +392,7 @@ oh history import <file> [--member-id <id>]
 | `--limit` | int | `20` | Maximum number of entries |
 | `--team` | bool | `false` | Team history (team-state) |
 | `export --output` | string | `oh-history-<date>.json` | Export file (JSON) |
+| `export --member-id` | string | member of the active team | `member_id` written in the file |
 | `import --member-id` | string | | Replaces the `member_id` of the imported sessions |
 
 ---

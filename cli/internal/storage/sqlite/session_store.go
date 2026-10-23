@@ -212,6 +212,24 @@ func (ss *SessionStore) Delete(ctx context.Context, id string) error {
 
 var _ domain.SessionDeleter = (*SessionStore)(nil)
 
+// TagUnownedMember gives memberID to the sessions and agent events that have
+// no member (team rejoin: what was done alone is attributed to the member).
+// Returns the number of sessions tagged; when the agent events fail the
+// error wraps domain.ErrTagAgentEvents and the count is the one of the sessions.
+func (ss *SessionStore) TagUnownedMember(ctx context.Context, memberID string) (int, error) {
+	res, err := ss.db.ExecContext(ctx, `UPDATE sessions SET member_id = ? WHERE member_id IS NULL`, memberID)
+	if err != nil {
+		return 0, fmt.Errorf("tagging sessions: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if _, err := ss.db.ExecContext(ctx, `UPDATE agent_events SET member_id = ? WHERE member_id IS NULL`, memberID); err != nil {
+		return int(n), fmt.Errorf("%w: %w", domain.ErrTagAgentEvents, err)
+	}
+	return int(n), nil
+}
+
+var _ domain.MemberTagger = (*SessionStore)(nil)
+
 func (ss *SessionStore) ListRunning(ctx context.Context, projectID string) ([]domain.Session, error) {
 	query := `SELECT ` + sessionColumns + ` FROM sessions WHERE status = 'running'`
 	var args []interface{}

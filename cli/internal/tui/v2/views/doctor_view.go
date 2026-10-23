@@ -10,47 +10,20 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/services/doctor"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
-// DoctorCheck represents a single health check result. Warn marks a passed
-// check that deserves attention (newer oh release…).
-type DoctorCheck struct {
-	Name   string
-	Detail string
-	OK     bool
-	Warn   bool
-	// Optional marks a check of something oh can do without (container
-	// engine, bd…): when it fails it is reported as a warning and does not
-	// change the exit code of oh doctor (U-05). See Normalized.
-	Optional bool
-	// Fix repairs what the check found (oh doctor --fix); nil: nothing to
-	// repair from the TUI.
-	Fix *DoctorFix
-}
+// DoctorCheck is the result of a health check (services/doctor owns it; the
+// alias lasts while the callers migrate).
+type DoctorCheck = doctor.Result
 
-// Normalized turns the failure of an optional check into a warning.
-func (c DoctorCheck) Normalized() DoctorCheck {
-	if c.Optional && !c.OK {
-		c.OK, c.Warn = true, true
-	}
-	return c
-}
-
-// DoctorFix is the repair of a check (key f « corriger »): Plan describes
-// it for the confirmation, then Apply repairs (both off the event loop);
-// or Open shows the view that repairs it (event loop).
-type DoctorFix struct {
-	Plan  func(ctx context.Context) (string, error)
-	Apply func(ctx context.Context) (string, error)
-	Open  func()
-}
-
-// DoctorFixFor gives the repair of a check (set by the command layer; nil
-// or a nil result: none).
-var DoctorFixFor func(DoctorCheck) *DoctorFix
+// DoctorFix is the repair of a check (key f « corriger »): Plan describes it
+// for the confirmation, then Apply repairs (both off the event loop); or Open
+// shows the view that repairs it (event loop).
+type DoctorFix = doctor.Fix
 
 // DoctorOfflineSwitch is the offline mode of the checks (oh doctor
 // --offline): no network call (published version, provider key).
@@ -299,17 +272,11 @@ func (v *DoctorView) collectChecks() []DoctorCheck {
 	if v.run == nil {
 		return nil
 	}
-	checks := v.run()
-	for i := range checks {
-		if checks[i].Fix == nil && DoctorFixFor != nil {
-			checks[i].Fix = DoctorFixFor(checks[i])
-		}
-	}
-	return checks
+	return v.run()
 }
 
-// DoctorChecks runs the checks of `oh doctor` (set by the command layer): the
-// view shows exactly the same checks as the CLI.
+// DoctorChecks runs the registry of `oh doctor` (set by the command layer): the
+// view shows exactly the same checks as the CLI, with their repairs attached.
 var DoctorChecks func() []DoctorCheck
 
 func (v *DoctorView) render() {

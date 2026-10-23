@@ -8,20 +8,20 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/services/doctor"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/teamstate"
-	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
 // brickCatalogChecks reports, for every configured team-state with team
 // bricks, the invalid bricks, the bricks refused by the integrity check and
 // a catalogue never sealed (ADR-054).
-func brickCatalogChecks() []views.DoctorCheck {
+func brickCatalogChecks() []doctor.Result {
 	a := TryApp()
 	if a == nil || a.Config == nil {
 		return nil
 	}
-	var out []views.DoctorCheck
+	var out []doctor.Result
 	for _, t := range a.Config.Teams {
 		if !t.Enabled {
 			continue
@@ -43,11 +43,11 @@ func brickCatalogChecks() []views.DoctorCheck {
 
 // brickCatalogCheck checks the team catalogue of repo; ok is false when it
 // has no brick (no check shown).
-func brickCatalogCheck(name string, repo *teamstate.Repo, hubDir string) (views.DoctorCheck, bool) {
+func brickCatalogCheck(name string, repo *teamstate.Repo, hubDir string) (doctor.Result, bool) {
 	svc := &workflowsvc.Service{HubDir: hubDir, TeamState: func(context.Context, workflowsvc.Context) (*workflowsvc.TeamState, error) {
 		return &workflowsvc.TeamState{Repo: repo}, nil
 	}}
-	check := views.DoctorCheck{Name: i18n.Tf("cmd.doctor.bricks.name", name), OK: true}
+	check := doctor.Result{Name: i18n.Tf("cmd.doctor.bricks.name", name), OK: true}
 	b, probs, err := svc.CheckTeamBricks(context.Background(), workflowsvc.Context{})
 	if err != nil {
 		check.OK, check.Detail = false, err.Error()

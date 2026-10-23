@@ -186,11 +186,16 @@ func printCleanActions(w io.Writer, r beads.CleanReport) {
 // runDoctorFix plans the clean-up of every Beads project of the hub, asks
 // for a confirmation (--yes without terminal) and applies it.
 func runDoctorFix(cmd *cobra.Command, a *app.App) error {
-	w := cmd.OutOrStdout()
 	yes, _ := cmd.Flags().GetBool("yes")
 	// The commit of bd init is listed (and undone) when the plan is applied
 	// with --yes or confirmed in a terminal.
-	plans, err := beadsFixPlans(cmd.Context(), a, yes || stdinIsTerminal())
+	return repairBeads(cmd.Context(), cmd.OutOrStdout(), a, yes || stdinIsTerminal(), !yes, cmdConfirm(cmd))
+}
+
+// repairBeads is runDoctorFix for any caller: undoCommit lists and undoes the
+// commit of bd init, hints prints the hints of the commits that are kept.
+func repairBeads(ctx context.Context, w io.Writer, a *app.App, undoCommit, hints bool, confirm confirmFunc) error {
+	plans, err := beadsFixPlans(ctx, a, undoCommit)
 	if err != nil {
 		return err
 	}
@@ -204,10 +209,10 @@ func runDoctorFix(cmd *cobra.Command, a *app.App) error {
 		fmt.Fprintf(w, "  %s (%s)\n", p.project.Name, p.project.Path)
 		printCleanActions(w, p.report)
 	}
-	if !yes {
+	if hints {
 		printCleanHints(w, beads.CleanReport{Actions: commitKept(plans)})
 	}
-	ok, err := confirmAction(cmd, i18n.T("cmd.doctor.fix.confirm"), false)
+	ok, err := confirm(i18n.T("cmd.doctor.fix.confirm"))
 	if err != nil {
 		return err
 	}

@@ -119,7 +119,7 @@ func TestDoctorViewUsesDoctorRegistry(t *testing.T) {
 	i18ntest.Set(t, "en")
 	var names []string
 	for _, c := range doctorRegistry() {
-		names = append(names, c.name)
+		names = append(names, c.Name)
 	}
 	for _, want := range []string{"oh version", "Provider credentials", "API keys (keychain)", "Beads zero-impact (hooks and gitignore)", "v5 runtime"} {
 		assert.Contains(t, names, want)

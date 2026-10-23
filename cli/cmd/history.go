@@ -2,18 +2,17 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 	"text/tabwriter"
 	"time"
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
-	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
@@ -47,14 +46,41 @@ func init() {
 	historyCmd.Flags().Int("limit", 20, "Maximum number of entries")
 
 	historyExportCmd.Flags().String("output", "", i18n.T("cmd.history.export.flags.output"))
+	historyExportCmd.Flags().String("member-id", "", i18n.T("cmd.history.export.flags.member_id"))
 	historyImportCmd.Flags().String("member-id", "", i18n.T("cmd.history.import.flags.member_id"))
 }
 
-// historyExportData is the JSON structure for history export.
-type historyExportData struct {
-	ExportedAt time.Time        `json:"exported_at"`
-	MemberID   string           `json:"member_id,omitempty"`
-	Sessions   []domain.Session `json:"sessions"`
+// activeMemberID is the member of the active team ("" without a team).
+func activeMemberID(a *app.App) string {
+	if activeTeam := a.Config.ActiveTeam(); activeTeam.Enabled {
+		return activeTeam.MemberID
+	}
+	return ""
+}
+
+// historyError words the failure of an export or an import for the command
+// line.
+func historyError(err error) error {
+	var he *sessionsvc.HistoryError
+	if !errors.As(err, &he) {
+		return err
+	}
+	key := ""
+	switch he.Stage {
+	case sessionsvc.HistoryList:
+		key = "cmd.history.listing_sessions"
+	case sessionsvc.HistoryEncode:
+		key = "cmd.history.encoding_export"
+	case sessionsvc.HistoryWrite:
+		key = "cmd.history.writing_export"
+	case sessionsvc.HistoryRead:
+		key = "cmd.history.reading_import_file"
+	case sessionsvc.HistoryParse:
+		key = "cmd.history.parsing_import_file"
+	default:
+		return err
+	}
+	return fmt.Errorf(i18n.T(key), he.Err)
 }
 
 func runHistory(cmd *cobra.Command, _ []string) error {
@@ -152,84 +178,36 @@ func runHistoryTeam(ctx context.Context, limit int) error {
 
 func runHistoryExport(cmd *cobra.Command, _ []string) error {
 	a := MustApp()
-	ctx := cmd.Context()
 	output, _ := cmd.Flags().GetString("output")
-
-	sessions, err := a.Sessions.List(ctx, "")
-	if err != nil {
-		return fmt.Errorf(i18n.T("cmd.history.listing_sessions"), err)
+	memberID, _ := cmd.Flags().GetString("member-id")
+	if memberID == "" {
+		memberID = activeMemberID(a)
 	}
-
-	memberID := ""
-	if activeTeam := a.Config.ActiveTeam(); activeTeam.Enabled {
-		memberID = activeTeam.MemberID
-	}
-
-	data := historyExportData{
-		ExportedAt: time.Now().UTC(),
-		MemberID:   memberID,
-		Sessions:   sessions,
-	}
-
-	encoded, err := json.MarshalIndent(data, "", "  ")
-	if err != nil {
-		return fmt.Errorf(i18n.T("cmd.history.encoding_export"), err)
-	}
-
 	if output == "" {
 		output = fmt.Sprintf("oh-history-%s.json", time.Now().Format("20060102-150405"))
 	}
 
-	if err := os.WriteFile(output, encoded, 0o644); err != nil {
-		return fmt.Errorf(i18n.T("cmd.history.writing_export"), err)
+	n, err := sessionsvc.ExportHistory(cmd.Context(), a.Sessions, output, sessionsvc.ExportOptions{MemberID: memberID})
+	if err != nil {
+		return historyError(err)
 	}
 
-	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.history.exported_sessions_to", theme.SuccessStyle.Render(theme.IconSuccess), len(sessions), output))
+	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.history.exported_sessions_to", theme.SuccessStyle.Render(theme.IconSuccess), n, output))
 	return nil
 }
 
 func runHistoryImport(cmd *cobra.Command, args []string) error {
 	a := MustApp()
-	ctx := cmd.Context()
 	memberIDOverride, _ := cmd.Flags().GetString("member-id")
 
-	raw, err := os.ReadFile(args[0])
+	res, err := sessionsvc.ImportHistoryFile(cmd.Context(), a.Sessions, args[0], sessionsvc.ImportOptions{
+		MemberID: memberIDOverride, DefaultMemberID: activeMemberID(a),
+	})
 	if err != nil {
-		return fmt.Errorf(i18n.T("cmd.history.reading_import_file"), err)
-	}
-
-	var data historyExportData
-	if err := json.Unmarshal(raw, &data); err != nil {
-		return fmt.Errorf(i18n.T("cmd.history.parsing_import_file"), err)
-	}
-
-	// Determine member_id: override > export data > current config
-	memberID := memberIDOverride
-	if memberID == "" {
-		memberID = data.MemberID
-	}
-	if memberID == "" {
-		if activeTeam := a.Config.ActiveTeam(); activeTeam.Enabled {
-			memberID = activeTeam.MemberID
-		}
-	}
-
-	imported := 0
-	for _, s := range data.Sessions {
-		if memberID != "" {
-			s.MemberID = &memberID
-		}
-		// Try to get existing session — skip if it exists
-		if _, err := a.Sessions.Get(ctx, s.ID); err == nil {
-			continue // already exists
-		}
-		if err := a.Sessions.Create(ctx, &s); err != nil {
-			continue // skip on error
-		}
-		imported++
+		return historyError(err)
 	}
 
 	fmt.Fprintf(a.IO.Out, "%s Imported %d sessions (skipped %d existing)\n",
-		theme.SuccessStyle.Render(theme.IconSuccess), imported, len(data.Sessions)-imported)
+		theme.SuccessStyle.Render(theme.IconSuccess), res.Imported, res.Skipped)
 	return nil
 }

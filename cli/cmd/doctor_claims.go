@@ -9,8 +9,8 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/services/doctor"
 	"github.com/datichb/openhub/cli/internal/teamstate"
-	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
 // Doctor › team claims (v5 corrections, A31): the claims of the active
@@ -59,7 +59,7 @@ func orphanClaims(projectID, member string, claims []teamstate.Claim, terminal [
 	return out
 }
 
-func claimsDoctorChecks(ctx context.Context) []views.DoctorCheck {
+func claimsDoctorChecks(ctx context.Context) []doctor.Result {
 	a := TryApp()
 	if a == nil || a.Projects == nil || a.Sessions == nil {
 		return nil
@@ -93,30 +93,30 @@ func claimsDoctorChecks(ctx context.Context) []views.DoctorCheck {
 	if !teamed {
 		return nil
 	}
-	return []views.DoctorCheck{claimsCheck(orphans)}
+	return []doctor.Result{claimsCheck(orphans)}
 }
 
-func claimsCheck(orphans []orphanClaim) views.DoctorCheck {
+func claimsCheck(orphans []orphanClaim) doctor.Result {
 	name := i18n.T("cmd.doctor.claims.name")
 	if len(orphans) == 0 {
-		return views.DoctorCheck{Name: name, OK: true, Detail: i18n.T("cmd.doctor.claims.ok")}
+		return doctor.Result{Name: name, OK: true, Detail: i18n.T("cmd.doctor.claims.ok")}
 	}
 	parts := make([]string, len(orphans))
 	for i, o := range orphans {
 		parts[i] = fmt.Sprintf("%s/%s (%s)", o.Project, o.Ticket, i18n.T("cmd.doctor.claims."+o.Reason))
 	}
 	first := orphans[0]
-	return views.DoctorCheck{Name: name, OK: false,
+	return doctor.Result{Name: name, OK: false,
 		Detail: i18n.Tf("cmd.doctor.claims.orphans", strings.Join(parts, ", "), first.Ticket, first.Project)}
 }
 
 // teamBetaDoctorCheck reports the beta state of the team mode: a warning
 // (it never fails the doctor) when a team is enabled, nothing otherwise.
-func teamBetaDoctorCheck(a *app.App, projects []domain.Project) []views.DoctorCheck {
+func teamBetaDoctorCheck(a *app.App, projects []domain.Project) []doctor.Result {
 	if !teamModeUsed(a, projects) {
 		return nil
 	}
-	return []views.DoctorCheck{{
+	return []doctor.Result{{
 		Name:   i18n.T("cmd.team.beta.doctor.name"),
 		OK:     true,
 		Warn:   true,
@@ -142,7 +142,7 @@ func teamModeUsed(a *app.App, projects []domain.Project) bool {
 }
 
 // teamBetaDoctorChecks is the registered doctor check of the beta state.
-func teamBetaDoctorChecks(ctx context.Context) []views.DoctorCheck {
+func teamBetaDoctorChecks(ctx context.Context) []doctor.Result {
 	a := TryApp()
 	if a == nil || a.Config == nil {
 		return nil

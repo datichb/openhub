@@ -8,7 +8,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/envfilter"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/tui/v2/views"
+	"github.com/datichb/openhub/cli/internal/services/doctor"
 )
 
 // Doctor › agent environment (audit v5, S-28): the tool server of a local
@@ -84,16 +84,16 @@ func shortNames(names []string) string {
 	return strings.Join(names[:maxEnvNamesShown], ", ") + i18n.Tf("cmd.doctor.env_allow.more", len(names)-maxEnvNamesShown)
 }
 
-func envAllowDoctorChecks(context.Context) []views.DoctorCheck {
+func envAllowDoctorChecks(context.Context) []doctor.Result {
 	var extra []string
 	if a := TryApp(); a != nil {
 		extra = a.Config.Execution.EnvAllow
 	}
 	f := analyzeEnvAllow(extra, os.Environ())
 	name := i18n.T("cmd.doctor.env_allow")
-	out := []views.DoctorCheck{{Name: name, OK: true, Detail: i18n.Tf("cmd.doctor.env_allow.base", len(extra))}}
+	out := []doctor.Result{{Name: name, OK: true, Detail: i18n.Tf("cmd.doctor.env_allow.base", len(extra))}}
 	warn := func(key string, names []string) {
-		out = append(out, views.DoctorCheck{Name: name, OK: true, Warn: true, Detail: i18n.Tf(key, shortNames(names))})
+		out = append(out, doctor.Result{Name: name, OK: true, Warn: true, Detail: i18n.Tf(key, shortNames(names))})
 	}
 	if len(f.Invalid) > 0 {
 		warn("cmd.doctor.env_allow.invalid", f.Invalid)
@@ -108,7 +108,7 @@ func envAllowDoctorChecks(context.Context) []views.DoctorCheck {
 		warn("cmd.doctor.env_allow.managed", f.Managed)
 	}
 	if len(f.Held) > 0 {
-		out = append(out, views.DoctorCheck{Name: name, OK: true,
+		out = append(out, doctor.Result{Name: name, OK: true,
 			Detail: i18n.Tf("cmd.doctor.env_allow.held", len(f.Held), shortNames(f.Held))})
 	}
 	return out

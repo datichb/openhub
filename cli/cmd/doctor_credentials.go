@@ -13,7 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/provider"
-	"github.com/datichb/openhub/cli/internal/tui/v2/views"
+	"github.com/datichb/openhub/cli/internal/services/doctor"
 )
 
 // credentialReport is the credential a launch of a project would use,
@@ -118,10 +118,10 @@ func resolveCredentialReport(ctx context.Context, a *app.App, project *domain.Pr
 // started from the current directory: project (explicit key, project key) →
 // team → hub → AWS profile or default chain for Bedrock (A2), then asks the
 // provider whether it accepts a stored Bedrock API key.
-func checkProviderCredentials() views.DoctorCheck {
+func checkProviderCredentials() doctor.Result {
 	a := TryApp()
 	if a == nil || a.Config == nil {
-		return views.DoctorCheck{Detail: i18n.T("cmd.doctor.app_unavailable")}
+		return doctor.Result{Detail: i18n.T("cmd.doctor.app_unavailable")}
 	}
 	ctx := context.Background()
 	var project *domain.Project
@@ -145,9 +145,9 @@ const bedrockProbeTimeout = 5 * time.Second
 // providerCredentialCheck is the doctor result of the credential of a
 // launch of project: where it comes from, when a stored key was saved, and
 // whether Bedrock accepts it (skipped offline).
-func providerCredentialCheck(ctx context.Context, a *app.App, project *domain.Project) views.DoctorCheck {
+func providerCredentialCheck(ctx context.Context, a *app.App, project *domain.Project) doctor.Result {
 	r := resolveCredentialReport(ctx, a, project, "")
-	res := views.DoctorCheck{OK: r.ok, Detail: r.detail, Warn: r.ok && (r.envBearerUnused || r.envBearerDiffers)}
+	res := doctor.Result{OK: r.ok, Detail: r.detail, Warn: r.ok && (r.envBearerUnused || r.envBearerDiffers)}
 	if !r.ok {
 		return res
 	}
