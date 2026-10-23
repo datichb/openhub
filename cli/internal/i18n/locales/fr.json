@@ -6045,11 +6045,12 @@
   "fmt.clock": "15:04",
   "fmt.clocksec": "15:04:05",
   "fmt.cost": "%.2f $",
+  "fmt.cost_floor": "<0.01 $",
   "fmt.cost_precise": "%.4f $",
   "fmt.bytes.b": "%d o",
-  "fmt.bytes.kib": "%.1f Ko",
-  "fmt.bytes.mib": "%.1f Mo",
-  "fmt.bytes.gib": "%.1f Go",
+  "fmt.bytes.kib": "%.1f Kio",
+  "fmt.bytes.mib": "%.1f Mio",
+  "fmt.bytes.gib": "%.1f Gio",
   "fmt.on": "activé",
   "fmt.off": "désactivé"
 }
