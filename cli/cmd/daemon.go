@@ -37,6 +37,7 @@ var daemonRunCmd = &cobra.Command{
 			return err
 		}
 		err = daemon.Run(ctx, daemonOptions(ctx, a, capability))
+		waitClaimFlushes()
 		if errors.Is(err, daemon.ErrAlreadyRunning) {
 			fmt.Fprintln(cmd.ErrOrStderr(), i18n.T("cmd.daemon.already_running"))
 			return nil

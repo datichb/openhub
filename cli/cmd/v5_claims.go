@@ -409,6 +409,18 @@ func (t *taskTracker) wait(limit time.Duration) bool {
 	}
 }
 
+// claimFlushShutdownWait is how long a daemon that stops waits for the flushes
+// of the claims queue started by the sessions that have just ended.
+var claimFlushShutdownWait = 10 * time.Second
+
+// waitClaimFlushes waits, for a bounded time, for the background flushes of
+// the end of the sessions; the operations they leave stay in the queue.
+func waitClaimFlushes() {
+	if !claimFlushes.wait(claimFlushShutdownWait) {
+		slog.Warn("team claims queue: a flush is still running, its operations stay in the queue", "wait", claimFlushShutdownWait)
+	}
+}
+
 // sessionClaimsEnd ends the team claims of an ended session. The decisions
 // are queued then the queue is flushed: for a bounded time and while the
 // person waits (async=false: the CLI says what stays in the queue), or in the

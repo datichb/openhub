@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -89,4 +90,38 @@ func TestTaskTrackerSurvivesAPanic(t *testing.T) {
 	tr := &taskTracker{spawn: safego.Go}
 	tr.run(func() { panic("boom") })
 	assert.True(t, tr.wait(5*time.Second))
+}
+
+// Windows: the daemon lives in the oh process; when oh quits, stopInProcessDaemon
+// gives the flush of a session that has just ended the time to finish, within
+// a bound.
+func TestStopInProcessDaemonWaitsForTheClaimFlushes(t *testing.T) {
+	var wg sync.WaitGroup
+	tr := &taskTracker{spawn: func(fn func()) { wg.Add(1); go func() { defer wg.Done(); fn() }() }}
+	swapClaimFlushes(t, tr)
+	prev := claimFlushShutdownWait
+	claimFlushShutdownWait = 5 * time.Second
+	t.Cleanup(func() { claimFlushShutdownWait = prev })
+
+	var finished atomic.Bool
+	tr.run(func() { time.Sleep(150 * time.Millisecond); finished.Store(true) })
+
+	done := make(chan error, 1)
+	done <- nil
+	inProcess.mu.Lock()
+	inProcess.cancel, inProcess.done = func() {}, done
+	inProcess.mu.Unlock()
+	stopInProcessDaemon()
+	assert.True(t, finished.Load(), "the flush had the time to finish")
+	assert.False(t, inProcessDaemonRunning())
+
+	// A flush that does not finish does not hold oh for longer than the bound.
+	claimFlushShutdownWait = 100 * time.Millisecond
+	stuck := make(chan struct{})
+	tr.run(func() { <-stuck })
+	start := time.Now()
+	waitClaimFlushes()
+	assert.Less(t, time.Since(start), 3*time.Second)
+	close(stuck)
+	wg.Wait()
 }
