@@ -124,11 +124,19 @@ func RemoteTickets(values map[string]any, ticketInput string) []string {
 // TeamClaims adapts the project team-state to remotesvc.TeamClaims.
 type TeamClaims struct{ Repo *teamstate.Repo }
 
+// Claim reserves the ticket for the remote session carried by ctx
+// (teamstate.WithClaimSession, set by remotesvc.Service.Send): a new claim
+// carries the session, and a claim the member already holds is handed to it
+// (AdoptClaim, kept in the queue when the team repository cannot be reached).
 func (t TeamClaims) Claim(ctx context.Context, project, ticket, member string) (bool, error) {
-	existing, err := t.Repo.CreateClaim(ctx, teamstate.Claim{TicketID: ticket, Project: project, ClaimedBy: member})
+	session := teamstate.ClaimSessionOf(ctx)
+	existing, err := t.Repo.CreateClaim(ctx, teamstate.Claim{TicketID: ticket, Project: project, ClaimedBy: member, Session: session})
 	if errors.Is(err, teamstate.ErrClaimExists) && existing != nil {
 		if existing.ClaimedBy != member {
 			return false, fmt.Errorf("%w (%s)", remotesvc.ErrTicketTaken, existing.ClaimedBy)
+		}
+		if _, _, err := t.Repo.AdoptClaimDurable(ctx, project, ticket, member, session); err != nil {
+			slog.Warn("remote: team claim not tied to the session", "ticket", ticket, "session", session, "error", err)
 		}
 		return false, nil
 	}

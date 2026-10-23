@@ -503,14 +503,16 @@ oh team claim transfer SRU-142 --to alice
 # → Takeover brief generated. oh takeover-brief show SRU-142
 ```
 
-If a ticket has been inactive for several days (configurable via `stale_days`
-in `config.toml`), the hub detects it as "stale" and proposes generating a
-brief when reclaiming:
+If the claim of another member has expired (its lease is past, see
+`lease_hours`; without a lease, `stale_days` days of inactivity in
+`config.toml`), `oh team claim` offers to take it over: after the confirmation
+(`--yes` without a terminal), a takeover brief is generated and the claim comes
+to you with a new lease:
 
 ```bash
 oh team claim SRU-142
-# → SRU-142 is assigned to benjamin for 5 days with no activity.
-# → Generate a takeover brief and transfer? [Y/n]
+# → SRU-142 is claimed by benjamin, but its lease expired on 22/10 14:30.
+# → Take over myproject/SRU-142 from benjamin?  Yes / No
 ```
 
 ### View and enrich briefs
@@ -708,8 +710,8 @@ git push
 The team mode is a beta in v5.0. These limits are known; the complete fix is planned for v5.1.
 
 - **A claim is released when its session stops**, even if a review (checkpoint `cp-2`) is still pending: the ticket becomes available to the other members again before the review is done. If the ticket is closed in Beads, the claim is completed instead of released.
-- **No expiry.** A claim stays until someone releases it. After `takeover.stale_days` days of inactivity (3 by default, `[takeover]` section of the team-state `config.toml`), oh only offers a takeover brief: taking the ticket over stays manual (`oh team claim transfer`).
-- **A release can be lost.** It runs in the background when the session ends: if the machine is offline, or if the daemon stops before the push, the claim stays in place.
+- **Lease.** A claim being worked on has a lease (`lease_hours`, 24 h by default) that the daemon renews (`heartbeat_minutes`) while an open session works on the ticket. Once the lease is past, another member can take the claim over with `oh team claim <ticket>` (common confirmation, `--yes` without a terminal): a takeover brief is generated and the claim comes to them with a new lease. A claim without a lease (created before v5.1) is judged on `takeover.stale_days` days of inactivity (3 by default, `[takeover]` section of the team-state `config.toml`). A claim taken by hand, without a session, is not renewed by the daemon: `oh team claim <ticket>` renews its lease.
+- **Offline, the end of a session waits for the network.** What the end of a session decides (release, complete, label `session-ended`) is written at once to a local queue (`.git/oh-claims-queue.json` of the team-state clone), then applied in one commit as soon as the team repository answers: at each beat of the daemon, by its `claims-queue` task (also when it starts), or at the end of a session. A session that starts offline on a ticket you already claimed takes the claim over when the network is back, ahead of what the previous session had queued (which is cancelled).
 - **Forgotten claim:** `oh team release <ticket-id> -p <project>` frees it by hand.
 - **`oh doctor` reports orphan claims** (ticket closed, or every session that worked on it ended) with the command to run.
 - **The REVIEW column follows the `ready-for-review` label.** In `oh board` and in the Board TUI, an `in_progress` Beads ticket carrying this label is in REVIEW (Beads has no `review` status). The team board shows the `review` status of the claims.

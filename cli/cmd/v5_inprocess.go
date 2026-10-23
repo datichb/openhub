@@ -69,6 +69,10 @@ func stopInProcessDaemon() {
 	case <-time.After(45 * time.Second):
 		slog.Warn("in-process oh daemon did not stop in time")
 	}
+	// The daemon dies with oh: the flush of the claims queue started by a
+	// session that has just ended gets a few seconds to finish (what it does
+	// not finish stays in the queue for the next daemon).
+	waitClaimFlushes()
 }
 
 // inProcessDaemonRunning reports whether this process hosts the daemon.

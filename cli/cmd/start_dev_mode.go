@@ -250,6 +250,17 @@ func startTicketClaim(ctx context.Context, repo *teamstate.Repo, projectID, memb
 	switch {
 	case err == nil:
 		return i18n.Tf("cmd.run.claim.taken", projectID, ticketID)
+	case errors.Is(err, teamstate.ErrOffline), errors.Is(err, teamstate.ErrBusy):
+		// The team-state cannot be reached: a claim the member already holds
+		// (read in the clone) is handed to the session when the network is
+		// back, ahead of what the previous session had queued for it.
+		if session == "" {
+			return ""
+		}
+		if queued, qerr := repo.QueueAdoptClaim(projectID, ticketID, member, session); qerr == nil && queued {
+			return i18n.Tf("cmd.claims.start.adopt_queued", projectID, ticketID)
+		}
+		return ""
 	case errors.Is(err, teamstate.ErrClaimExists) && existing != nil:
 		if existing.ClaimedBy != member {
 			return i18n.Tf("cmd.run.claim.other", ticketID, existing.ClaimedBy)
@@ -260,8 +271,12 @@ func startTicketClaim(ctx context.Context, repo *teamstate.Repo, projectID, memb
 				note = i18n.Tf("cmd.run.claim.started", projectID, ticketID, existing.Status, workStatus)
 			}
 		}
-		if _, err := repo.AdoptClaim(ctx, projectID, ticketID, member, session); err != nil {
+		_, queued, err := repo.AdoptClaimDurable(ctx, projectID, ticketID, member, session)
+		if err != nil {
 			slog.Warn("team claim not tied to the session", "ticket", ticketID, "session", session, "error", err)
+		}
+		if queued && note == "" {
+			note = i18n.Tf("cmd.claims.start.adopt_queued", projectID, ticketID)
 		}
 		return note
 	}

@@ -495,14 +495,16 @@ oh team claim transfer SRU-142 --to alice
 # → Brief de reprise généré. oh takeover-brief show SRU-142
 ```
 
-Si un ticket est inactif depuis plusieurs jours (configurable via `stale_days`
-dans `config.toml`), le hub détecte le ticket comme "stale" et propose de
-générer un brief lors du reclaim :
+Si la réservation d'un autre membre a expiré (son bail est dépassé, voir
+`lease_hours` ; sans bail, `stale_days` jours d'inactivité dans `config.toml`),
+`oh team claim` propose de la reprendre : après confirmation (`--yes` sans
+terminal), un brief de reprise est généré et la réservation vous revient avec
+un nouveau bail :
 
 ```bash
 oh team claim SRU-142
-# → SRU-142 est assigné à benjamin depuis 5 jours sans activité.
-# → Générer un brief de reprise et transférer ? [Y/n]
+# → SRU-142 est réservé par benjamin, mais son bail a expiré le 22/10 14:30.
+# → Reprendre myproject/SRU-142 à benjamin ?  Oui / Non
 ```
 
 ### Consulter et enrichir les briefs
@@ -700,8 +702,8 @@ git push
 Le mode équipe est en bêta en v5.0. Ces limites sont connues ; la correction complète est prévue pour la v5.1.
 
 - **Une réservation est libérée à l'arrêt de sa session**, même si une revue (checkpoint `cp-2`) est encore en attente : le ticket redevient disponible pour les autres membres avant la fin de la revue. Si le ticket est clos dans Beads, la réservation est terminée au lieu d'être libérée.
-- **Pas d'expiration.** Une réservation reste jusqu'à ce que quelqu'un la libère. Après `takeover.stale_days` jours d'inactivité (3 par défaut, section `[takeover]` du `config.toml` du team-state), oh propose seulement un brief de reprise : reprendre le ticket reste manuel (`oh team claim transfer`).
-- **Une libération peut se perdre.** Elle s'exécute en arrière-plan à la fin de la session : si la machine est hors ligne, ou si le démon s'arrête avant le push, la réservation reste en place.
+- **Bail.** Une réservation en cours de travail a un bail (`lease_hours`, 24 h par défaut), que le démon renouvelle (`heartbeat_minutes`) tant qu'une session ouverte travaille sur le ticket. Quand le bail est dépassé, un autre membre peut la reprendre avec `oh team claim <ticket>` (confirmation commune, `--yes` sans terminal) : un brief de reprise est généré et la réservation lui revient avec un nouveau bail. Une réservation sans bail (créée avant la v5.1) est jugée sur `takeover.stale_days` jours d'inactivité (3 par défaut, section `[takeover]` du `config.toml` du team-state). Une réservation prise à la main, sans session, n'est pas renouvelée par le démon : `oh team claim <ticket>` renouvelle son bail.
+- **Hors ligne, la fin d'une session attend le réseau.** Ce que la fin d'une session décide (libérer, terminer, marquer `session-ended`) est écrit tout de suite dans une file locale (`.git/oh-claims-queue.json` du clone du team-state), puis appliqué en un commit dès que le dépôt d'équipe répond : à chaque battement du démon, par sa tâche `claims-queue` (aussi au démarrage), ou à la fin d'une session. Une session qui démarre hors ligne sur un ticket que vous aviez déjà réservé reprend la réservation au retour du réseau, avant ce que la session précédente avait mis en file (qui est annulé).
 - **Réservation oubliée :** `oh team release <ticket-id> -p <projet>` la libère à la main.
 - **`oh doctor` signale les réservations orphelines** (ticket clos, ou toutes les sessions qui l'ont traité terminées), avec la commande à lancer.
 - **La colonne REVIEW suit le label `ready-for-review`.** Dans `oh board` et dans le Board TUI, un ticket Beads `in_progress` qui porte ce label est en REVIEW (Beads n'a pas de statut `review`). Le board d'équipe affiche le statut `review` des réservations.

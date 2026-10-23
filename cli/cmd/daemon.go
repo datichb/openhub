@@ -36,6 +36,7 @@ var daemonRunCmd = &cobra.Command{
 			return err
 		}
 		err = daemon.Run(ctx, daemonOptions(ctx, a, capability))
+		waitClaimFlushes()
 		if errors.Is(err, daemon.ErrAlreadyRunning) {
 			fmt.Fprintln(cmd.ErrOrStderr(), i18n.T("cmd.daemon.already_running"))
 			return nil
@@ -107,7 +108,7 @@ func init() {
 // background: Windows).
 func daemonOptions(ctx context.Context, a *app.App, capability string) daemon.Options {
 	wk := newWikiServiceFor(a)
-	return daemon.Options{
+	opts := daemon.Options{
 		Capability:  capability,
 		Paths:       daemon.Paths{Dir: ohRunDir()},
 		Version:     buildinfo.Version,
@@ -155,4 +156,6 @@ func daemonOptions(ctx context.Context, a *app.App, capability string) daemon.Op
 		},
 		Adapter: detectedAdapters(ctx),
 	}
+	claimsDaemonOptions(ctx, a, &opts)
+	return opts
 }
