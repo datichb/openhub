@@ -77,6 +77,7 @@ func doctorRegistry() []doctor.Check {
 		doctor.OptionalBinary("bd", "bd", "bd (beads)", "brew install datichb/tap/bd"),
 		{ID: "version", Name: i18n.T("cmd.doctor.check.version"), Run: one(checkOhUpdate)},
 		{ID: "config", Name: i18n.T("cmd.doctor.check.config"), Run: single(checkConfig), Fix: configFix},
+		{ID: "setup", Name: i18n.T("cmd.doctor.check.setup"), Run: setupDoctorChecks},
 		{ID: "credentials", Name: i18n.T("cmd.doctor.check.credentials"), Run: one(checkProviderCredentials)},
 		{ID: "database", Name: i18n.T("cmd.doctor.check.database"), Run: one(checkDatabase)},
 		{ID: "api_keys", Name: i18n.T("cmd.doctor.check.api_keys"), Run: single(checkAPIKeys)},
