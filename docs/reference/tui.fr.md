@@ -254,7 +254,7 @@ Générée depuis le YAML du workflow (« Lancer · <workflow> », ou « Lancer 
 | `Alt+←` / `PgUp` / `Ctrl+B`, `Alt+→` / `PgDn` | Étape précédente, suivante |
 | `Échap` | Fermer |
 
-**Session existante** (une session du même workflow travaille déjà sur le ticket) : le récap compare les deux ; un choix lance aussitôt : `R` reprendre, `T` transférer (local ↔ conteneur, modèle), `k` remplacer en gardant le travail, `d` supprimer et relancer (confirmé), `p` en parallèle.
+**Session existante** (une session du même workflow travaille déjà sur le ticket) : le récap compare les deux ; un choix lance aussitôt : `R` reprendre, `T` transférer (local ↔ conteneur, modèle), `K` remplacer en gardant le travail, `d` supprimer et relancer (confirmé), `p` en parallèle.
 
 **Sélecteur de tickets** (« Choisir… ») : `/` rechercher, `f` filtre de libellé, `e` épopée, `Espace` cocher (plusieurs tickets), `Entrée` choisir, `Échap` annuler.
 

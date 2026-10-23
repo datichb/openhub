@@ -10,6 +10,8 @@ import (
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/safego"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
@@ -53,10 +55,12 @@ type HistoryView struct {
 	page     *widgets.ListDetailPage
 	versions []HistoryVersion
 	err      error
+	loaded   bool
 	busy     bool
 	ctx      context.Context
 	cancel   context.CancelFunc
 	loads    loadSlot
+	diffs    loadSlot // the reads of a diff
 }
 
 var _ View = (*HistoryView)(nil)
@@ -111,14 +115,14 @@ func (v *HistoryView) load() {
 		if v.list == nil {
 			return
 		}
-		v.versions, v.err = vs, err
+		v.versions, v.err, v.loaded = vs, err, true
 		v.render()
 	})
 }
 
 // SetVersions sets the versions (tests).
 func (v *HistoryView) SetVersions(vs []HistoryVersion) {
-	v.versions = vs
+	v.versions, v.loaded = vs, true
 	v.render()
 }
 
@@ -159,18 +163,21 @@ func (v *HistoryView) render() {
 	}
 	var items []widgets.SectionItem
 	for _, h := range v.versions {
-		main := tview.Escape(fmt.Sprintf("v%-3d %-10s %s  %s", h.Version, h.By, h.At.Local().Format("02/01 15:04"), h.Message))
+		main := tview.Escape(fmt.Sprintf("v%-3d %-10s %s  %s", h.Version, h.By, textfmt.ShortDateTime(h.At), h.Message))
 		if h.Current {
-			main += "  [" + theme.SuccessHex + "](" + i18n.T("tui.history.current") + ")[-]"
+			main += "  " + theme.Paint(theme.SuccessHex, "("+i18n.T("tui.history.current")+")")
 		}
 		items = append(items, widgets.SectionItem{MainText: main, Reference: h.Version})
 	}
 	if len(items) == 0 {
-		msg := i18n.T("tui.history.empty")
-		if v.err != nil {
-			msg = v.err.Error()
+		state := stateText(stateEmpty, i18n.T("tui.history.empty"))
+		switch {
+		case v.err != nil:
+			state = stateText(stateError, v.err.Error())
+		case !v.loaded:
+			state = stateText(stateLoading, "")
 		}
-		items = append(items, widgets.SectionItem{MainText: tview.Escape(msg), IsHeader: true})
+		items = append(items, widgets.SectionItem{MainText: state, IsHeader: true})
 	}
 	v.list.SetItems(items)
 	_, it, _ := v.list.CurrentItem()
@@ -196,13 +203,13 @@ func (v *HistoryView) showDetail(it widgets.SectionItem) {
 	var d detailText
 	title := fmt.Sprintf("v%d", h.Version)
 	if h.Current {
-		title += "  [" + theme.SuccessHex + "](" + i18n.T("tui.history.current") + ")[-]"
+		title += "  " + theme.Paint(theme.SuccessHex, "("+i18n.T("tui.history.current")+")")
 	}
 	d.title(title)
 	d.para(tview.Escape(h.Message))
 	d.field(i18n.T("tui.detail.author"), tview.Escape(h.By))
 	if !h.At.IsZero() {
-		d.field(i18n.T("tui.detail.date"), h.At.Local().Format("02/01/2006 15:04"))
+		d.field(i18n.T("tui.detail.date"), textfmt.DateTime(h.At))
 	}
 	if h.Current {
 		d.gap().muted(i18n.T("tui.detail.history.current"))
@@ -219,24 +226,23 @@ func (v *HistoryView) showDiff(n int) {
 	if v.cfg.Diff == nil || v.shell == nil || v.app == nil {
 		return
 	}
-	app, ctx, sh := v.app, v.ctx, v.shell
-	go func() {
-		diff, err := v.cfg.Diff(ctx, n)
-		app.QueueUpdateDraw(func() {
-			body := ColorDiff(diff)
-			switch {
-			case err != nil:
-				body = "[" + theme.ErrorHex + "]" + tview.Escape(err.Error()) + "[-]"
-			case strings.TrimSpace(diff) == "":
-				body = i18n.T("tui.history.same")
-			}
-			actions := []ModalAction{{Label: i18n.T("tui.catalog.edit.close"), Callback: func() {}}}
-			if v.cfg.Restore != nil && !v.isCurrent(n) {
-				actions = append([]ModalAction{{Label: i18n.T("tui.history.restore"), Callback: func() { v.askRestore(n) }}}, actions...)
-			}
-			sh.ShowScrollableModal(i18n.Tf("tui.history.diff_title", v.cfg.Ref, n), body, actions)
-		})
-	}()
+	sh, diffFn := v.shell, v.cfg.Diff
+	load(v.app, v.ctx, &v.diffs, func(ctx context.Context) (string, error) {
+		return diffFn(ctx, n)
+	}, func(diff string, err error) {
+		body := ColorDiff(diff)
+		switch {
+		case err != nil:
+			body = stateText(stateError, err.Error())
+		case strings.TrimSpace(diff) == "":
+			body = stateText(stateEmpty, i18n.T("tui.history.same"))
+		}
+		actions := []ModalAction{{Label: i18n.T("tui.catalog.edit.close"), Callback: func() {}}}
+		if v.cfg.Restore != nil && !v.isCurrent(n) {
+			actions = append([]ModalAction{{Label: i18n.T("tui.history.restore"), Callback: func() { v.askRestore(n) }}}, actions...)
+		}
+		sh.ShowScrollableModal(i18n.Tf("tui.history.diff_title", v.cfg.Ref, n), body, actions)
+	})
 }
 
 func (v *HistoryView) isCurrent(n int) bool {
@@ -295,5 +301,5 @@ func (v *HistoryView) restore(n int) {
 		run()
 		return
 	}
-	go run()
+	safego.Go(run) // an action, not a read: its result is applied even if the view was left
 }

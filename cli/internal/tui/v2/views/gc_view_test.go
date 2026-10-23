@@ -2,7 +2,6 @@ package views
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"sync"
 	"testing"
@@ -16,6 +15,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/gc"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/testutil/golden"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 )
 
 func gcTestPlan() gc.Report {
@@ -29,12 +29,12 @@ func gcTestPlan() gc.Report {
 	}, History: gc.History{Sessions: 4, AgentEvents: 120, Decisions: 6}}
 }
 
-func gcBytes(n int64) string { return fmt.Sprintf("%.1f MB", float64(n)/(1<<20)) }
+func gcBytes(n int64) string { return textfmt.Bytes(n) }
 
 // The oh gc view: the elements by category, sizes, the preview line.
 func TestGCViewGolden(t *testing.T) {
 	frLocale(t)
-	v := NewGCView(GCViewConfig{Bytes: gcBytes, Retention: i18n.Tf("tui.gc.retention", 30, 90, 365)})
+	v := NewGCView(GCViewConfig{Retention: i18n.Tf("tui.gc.retention", 30, 90, 365)})
 	v.build()
 	v.showPlan(gcTestPlan(), nil)
 	assert.Equal(t, "gc", v.ID())
@@ -55,7 +55,7 @@ func (r *gcRecorder) all() []gc.Report {
 func mountGC(t *testing.T) (*GCView, *deleteShell, *gcRecorder, *tview.Application) {
 	t.Helper()
 	rec := &gcRecorder{}
-	v := NewGCView(GCViewConfig{Bytes: gcBytes,
+	v := NewGCView(GCViewConfig{
 		Plan: func(context.Context) (gc.Report, error) { return gcTestPlan(), nil },
 		Run: func(_ context.Context, only gc.Report) (gc.Report, error) {
 			rec.mu.Lock()
@@ -156,7 +156,7 @@ func (r *deployRecorder) count() int {
 func TestCleanupViewSections(t *testing.T) {
 	frLocale(t)
 	rec := &deployRecorder{left: 1}
-	v := NewGCView(GCViewConfig{Bytes: gcBytes,
+	v := NewGCView(GCViewConfig{
 		Plan:    func(context.Context) (gc.Report, error) { return gcTestPlan(), nil },
 		Deploy:  rec.config(),
 		Section: CleanupDeploy})

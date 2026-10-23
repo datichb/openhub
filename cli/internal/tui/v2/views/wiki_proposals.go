@@ -2,7 +2,6 @@ package views
 
 import (
 	"context"
-	"fmt"
 	"path"
 	"strings"
 	"time"
@@ -10,6 +9,8 @@ import (
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/safego"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 )
@@ -93,26 +94,33 @@ type wikiList struct {
 	list  *ActionList
 	app   *tview.Application
 	ctx   context.Context
-	gen   uint64
+	gen   uint64   // the mount: the results of a previous mount are dropped
+	loads loadSlot // the reads of the proposals: only the latest is applied
 	props []WikiProposalView
 	err   error
 	query string
+	// loaded: the proposals were read (or given) at least once.
+	loaded bool
 }
 
 func newWikiList(cfg wikiListOpts) *wikiList {
 	w := &wikiList{cfg: cfg}
 	open := func(it ActionItem) bool { p, ok := w.prop(it.ID); return ok && p.open() }
 	pending := func(it ActionItem) bool { p, ok := w.prop(it.ID); return ok && p.Status == wikiStatusPending }
+	empty := i18n.T("tui.wikilist.empty")
+	if cfg.Load != nil {
+		empty = i18n.T("tui.state.loading") // until the first read
+	}
 	lc := ActionListConfig{
 		Title:  cfg.Title,
 		Layout: cfg.Layout,
 		Shell:  cfg.Shell,
-		Empty:  i18n.T("tui.wikilist.empty"),
+		Empty:  empty,
 		StateLabels: map[ItemState]string{
 			ItemPending:   "? " + i18n.T("tui.wikilist.state.pending"),
 			ItemAccepted:  theme.SymSuccess + " " + i18n.T("tui.wikilist.state.accepted"),
-			ItemRefused:   "✗ " + i18n.T("tui.wikilist.state.refused"),
-			wikiItemStale: "⚠ " + i18n.T("tui.wikilist.state.stale"),
+			ItemRefused:   theme.SymFailure + " " + i18n.T("tui.wikilist.state.refused"),
+			wikiItemStale: theme.SymWarning + " " + i18n.T("tui.wikilist.state.stale"),
 		},
 		Actions: []ItemAction{
 			{Key: keys.Accept, Label: i18n.T("tui.wikilist.accept"), Applies: pending,
@@ -146,6 +154,7 @@ func (w *wikiList) mount(app *tview.Application, ctx context.Context) {
 // unmount drops the pending loads and decisions.
 func (w *wikiList) unmount() {
 	w.gen++
+	w.loads.Invalidate()
 	w.app = nil
 }
 
@@ -163,7 +172,7 @@ func (w *wikiList) prop(id string) (WikiProposalView, bool) {
 
 // set replaces the proposals.
 func (w *wikiList) set(props []WikiProposalView, err error) {
-	w.props, w.err = props, err
+	w.props, w.err, w.loaded = props, err, true
 	w.render()
 }
 
@@ -200,11 +209,14 @@ func (w *wikiList) render() {
 	}
 	w.list.SetTitle(title)
 	if w.err != nil {
-		w.list.SetEmpty(i18n.Tf("tui.wikilist.error", w.err.Error()))
+		w.list.SetEmpty(i18n.Tf("tui.state.error", w.err.Error()))
 		w.list.SetItems(nil)
 		return
 	}
 	w.list.SetEmpty(i18n.T("tui.wikilist.empty"))
+	if !w.loaded && w.cfg.Load != nil {
+		w.list.SetEmpty(i18n.T("tui.state.loading"))
+	}
 	var shown []WikiProposalView
 	for _, p := range w.props {
 		if w.matches(p) {
@@ -284,7 +296,7 @@ func wikiItemState(status string) ItemState {
 func (w *wikiList) item(p WikiProposalView, section string) ActionItem {
 	it := ActionItem{ID: p.ID, Section: section, DetailTitle: wikiDetailTitle(p), Detail: w.detail(p)}
 	if w.cfg.Queue {
-		it.Cells = []string{p.ID, p.Page, wikiKind(p), p.Tag, shortAge(w.now(), p.Created)}
+		it.Cells = []string{p.ID, p.Page, wikiKind(p), p.Tag, textfmt.AgeAt(w.now(), p.Created)}
 		return it
 	}
 	it.Cells = []string{p.ID, p.Page, wikiKind(p), p.Tag}
@@ -315,7 +327,7 @@ func (w *wikiList) detail(p WikiProposalView) string {
 			head = append(head, p.SessionID)
 		}
 		if !p.Created.IsZero() {
-			head = append(head, i18n.Tf("tui.wikilist.ago", shortAge(w.now(), p.Created)))
+			head = append(head, textfmt.AgoAt(w.now(), p.Created))
 		}
 		head = append(head, p.Tag)
 		if line := joinNonEmpty(head, " · "); line != "" {
@@ -323,11 +335,11 @@ func (w *wikiList) detail(p WikiProposalView) string {
 		}
 	}
 	if p.Replaces != "" {
-		fmt.Fprintf(&b, "%s%s%s\n", theme.ColorTag(theme.ErrorHex), tview.Escape("− "+p.Replaces), theme.TagColor)
-		fmt.Fprintf(&b, "%s%s%s\n", theme.ColorTag(theme.SuccessHex), tview.Escape("+ "+p.Content), theme.TagColor)
+		b.WriteString(theme.Paint(theme.ErrorHex, tview.Escape("− "+p.Replaces)) + "\n")
+		b.WriteString(theme.Paint(theme.SuccessHex, tview.Escape("+ "+p.Content)) + "\n")
 	} else {
 		for _, l := range strings.Split(p.Content, "\n") {
-			fmt.Fprintf(&b, "%s%s%s\n", theme.ColorTag(theme.SuccessHex), tview.Escape("+ "+l), theme.TagColor)
+			b.WriteString(theme.Paint(theme.SuccessHex, tview.Escape("+ "+l)) + "\n")
 		}
 	}
 	var origin []string
@@ -347,9 +359,9 @@ func (w *wikiList) detail(p WikiProposalView) string {
 	}
 	switch {
 	case p.Status == wikiStatusStale:
-		fmt.Fprintf(&b, "%s%s%s\n", theme.ColorTag(theme.WarningHex), tview.Escape(i18n.T("tui.wikilist.stale")), theme.TagColor)
+		b.WriteString(theme.Paint(theme.WarningHex, tview.Escape(i18n.T("tui.wikilist.stale"))) + "\n")
 	case p.Error != "":
-		fmt.Fprintf(&b, "%s%s%s\n", theme.ColorTag(theme.ErrorHex), tview.Escape(i18n.Tf("tui.wikilist.apply_error", p.Error)), theme.TagColor)
+		b.WriteString(theme.Paint(theme.ErrorHex, tview.Escape(i18n.Tf("tui.wikilist.apply_error", p.Error))) + "\n")
 	}
 	return b.String()
 }
@@ -364,21 +376,6 @@ func joinNonEmpty(parts []string, sep string) string {
 	return strings.Join(out, sep)
 }
 
-// shortAge is « 3 min », « 3 h », « 2 j » ("" for an unknown date).
-func shortAge(now, t time.Time) string {
-	if t.IsZero() {
-		return ""
-	}
-	d := now.Sub(t)
-	switch {
-	case d < time.Hour:
-		return i18n.Tf("tui.wikilist.age.min", max(int(d.Minutes()), 0))
-	case d < 24*time.Hour:
-		return i18n.Tf("tui.wikilist.age.hours", int(d.Hours()))
-	}
-	return i18n.Tf("tui.wikilist.age.days", int(d.Hours()/24))
-}
-
 func (w *wikiList) refuseTitle(id string) string {
 	p, _ := w.prop(id)
 	return i18n.Tf("tui.wikilist.refuse_title", id, path.Base(p.Page))
@@ -391,18 +388,12 @@ func (w *wikiList) reload() {
 	if w.cfg.Load == nil || w.app == nil {
 		return
 	}
-	w.gen++
-	gen, app, ctx := w.gen, w.app, w.context()
-	load := w.cfg.Load
-	go func() {
-		props, err := load(ctx)
-		app.QueueUpdateDraw(func() {
-			if w.gen != gen {
-				return
-			}
-			w.set(props, err)
-		})
-	}()
+	load(w.app, w.context(), &w.loads, w.cfg.Load, func(props []WikiProposalView, err error) {
+		if w.app == nil {
+			return
+		}
+		w.set(props, err)
+	})
 }
 
 func (w *wikiList) context() context.Context {
@@ -428,7 +419,7 @@ func (w *wikiList) record(list []wikiDecision) {
 		return
 	}
 	gen, app, ctx, decide := w.gen, w.app, w.context(), w.cfg.Decide
-	go func() {
+	safego.Go(func() { // an action, not a read: it is not dropped by a newer read of the list
 		var done []wikiDecision
 		var err error
 		for _, d := range list {
@@ -451,7 +442,7 @@ func (w *wikiList) record(list []wikiDecision) {
 				w.reload()
 			}
 		})
-	}()
+	})
 }
 
 func wikiRecordedText(done []wikiDecision) string {

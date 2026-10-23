@@ -14,6 +14,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/testutil/golden"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 )
 
 func TestRenderProjectWiki(t *testing.T) {
@@ -187,6 +188,6 @@ func TestProjectWikiSummary(t *testing.T) {
 	assert.Contains(t, s, "Pages 3 · jamais synchronisé")
 	assert.Contains(t, renderProjectWikiSummary(ProjectWikiMetrics{NoWiki: true}, nil), "onboarding")
 	assert.Contains(t, renderProjectWikiSummary(ProjectWikiMetrics{}, errors.New("boom")), "boom")
-	assert.Equal(t, "3 min", shortAge(time.Unix(600, 0), time.Unix(420, 0)))
-	assert.Equal(t, "", shortAge(time.Now(), time.Time{}))
+	assert.Equal(t, "3 min", textfmt.AgeAt(time.Unix(600, 0), time.Unix(420, 0)))
+	assert.Equal(t, "", textfmt.AgeAt(time.Now(), time.Time{}))
 }

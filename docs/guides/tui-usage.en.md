@@ -113,7 +113,7 @@ A launch always starts from the recap: a first `Ctrl+S` shows it, a second one l
 |-----|--------|--------|
 | `R` | Resume | open the existing session again, no new session |
 | `T` | Resume locally / in a container / with these settings | transfer the session and its conversation to the chosen runtime and model; on failure ("Transfer failed"), the session is unchanged and oh offers "Replace" |
-| `k` | Replace (keep the work) | stop the session; the new one continues in the same directory and branch, with a handoff brief |
+| `K` | Replace (keep the work) | stop the session; the new one continues in the same directory and branch, with a handoff brief |
 | `d` | Delete and relaunch | delete the session and its work (confirmation: what will be deleted and lost, then, when it worked in the project directory, keep or discard its changes), then launch again |
 | `p` | Launch in parallel | new session beside it, in another worktree |
 

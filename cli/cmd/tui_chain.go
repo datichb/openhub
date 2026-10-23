@@ -10,6 +10,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
@@ -172,6 +173,6 @@ func (t *tuiSessions) sessionEnded(ctx context.Context, s domain.Session) {
 		label = *s.Title
 	}
 	sh.App().QueueUpdateDraw(func() {
-		sh.ShowToast(i18n.Tf("tui.launch.session_done", label, s.Cost, next), shell.ToastSuccess)
+		sh.ShowToast(i18n.Tf("tui.launch.session_done", label, textfmt.Cost(s.Cost), next), shell.ToastSuccess)
 	})
 }

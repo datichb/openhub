@@ -58,7 +58,7 @@ Une session d'un **autre workflow** est signalée pour information : la nouvelle
 |---|---|---|---|
 | Reprendre | `R` | `resume` | pas de nouvelle session : la session existante est rouverte (réveillée si elle dort) |
 | Reprendre ailleurs | `T` | `transfer` | la session et sa conversation passent à l'environnement (local ↔ conteneur) et au modèle choisis ; en cas d'échec elle reste inchangée et oh propose « Remplacer » |
-| Remplacer (garder le travail) | `k` | `keep` | la session est arrêtée ; la nouvelle travaille dans le même dossier et la même branche et reçoit un **brief de passation** (objectif, résultats, décisions prises, commits, fichiers modifiés) |
+| Remplacer (garder le travail) | `K` | `keep` | la session est arrêtée ; la nouvelle travaille dans le même dossier et la même branche et reçoit un **brief de passation** (objectif, résultats, décisions prises, commits, fichiers modifiés) |
 | Supprimer et relancer | `d` | `delete` | la session et son travail sont supprimés (confirmation, voir `oh session delete`), puis le lancement part à neuf |
 | En parallèle | `p` | `parallel` | la nouvelle session démarre à côté, dans un autre worktree (les deux peuvent entrer en conflit) |
 

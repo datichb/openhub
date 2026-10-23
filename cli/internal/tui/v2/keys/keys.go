@@ -359,6 +359,7 @@ func Changes() []Change {
 		change("sessions", "", "B", "batch"),
 		change("existing", "r", Resume.Keys(), "resume"),
 		change("existing", "t", "T", "transfer"),
+		change("existing", "k", "K", "keep"),
 		change("wiki", "a", Accept.Keys(), "accept"),
 		change("wiki", "x", Refuse.Keys(), "refuse"),
 		change("workflows", "D", Compare.Keys(), "compare"),

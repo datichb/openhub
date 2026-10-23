@@ -2,13 +2,13 @@ package views
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 )
@@ -90,6 +90,15 @@ var (
 	attachKey    = keys.Own("sessions.attach", 'a', "tui.sessions.key.attach")
 	sendKey      = keys.Own("sessions.send", 'm', "tui.sessions.key.send")
 	interruptKey = keys.Own("sessions.interrupt", 'i', "tui.sessions.key.interrupt")
+	projectsKey  = keys.Own("sessions.projects", 'f', "tui.sessions.key.projects")
+	followKey    = keys.Own("sessions.follow", 't', "tui.sessions.key.follow")
+	budgetKey    = keys.Own("sessions.budget", '$', "tui.sessions.key.budget")
+	attachHowKey = keys.Own("sessions.attach_how", 'A', "tui.sessions.key.attach_how")
+	modelKey     = keys.Own("sessions.model", 'M', "tui.sessions.key.model")
+	stopKey      = keys.Own("sessions.stop", 's', "tui.sessions.key.stop")
+	mrKey        = keys.Own("sessions.mr", 'o', "tui.sessions.key.mr")
+	chainKey     = keys.Own("sessions.chain", 'e', "tui.sessions.key.chain")
+	browserKey   = keys.Own("sessions.browser", 'w', "tui.sessions.key.browser")
 )
 
 type fanoutPane struct {
@@ -100,6 +109,7 @@ type fanoutPane struct {
 	foot   *tview.TextView
 	view   *FanoutView
 	parent string
+	loads  loadSlot
 }
 
 func newFanoutPane(v *SessionsView) *fanoutPane {
@@ -150,13 +160,18 @@ func (v *SessionsView) loadFanout(id string) {
 		p.list.SetItems(nil)
 		return
 	}
-	var fv FanoutView
-	v.async(func(ctx context.Context) (string, error) {
-		var err error
-		fv, err = fb.Fanout(ctx, id)
-		return "", err
-	}, func(string) {
+	if v.app == nil {
+		return
+	}
+	load(v.app, v.ctx, &p.loads, func(ctx context.Context) (FanoutView, error) {
+		return fb.Fanout(ctx, id)
+	}, func(fv FanoutView, err error) {
 		if v.tabs == nil || v.tabs.session != id {
+			return
+		}
+		if err != nil {
+			p.list.SetEmpty(i18n.Tf("tui.state.error", err.Error()))
+			p.list.SetItems(nil)
 			return
 		}
 		p.set(fv)
@@ -183,21 +198,21 @@ func fanoutStatus(s string) string {
 func fanoutHead(fv FanoutView) string {
 	parts := []string{}
 	if fv.Experimental {
-		parts = append(parts, theme.ColorTag(theme.WarningHex)+i18n.T("tui.sessions.fanout.experimental")+theme.TagColor)
+		parts = append(parts, theme.Paint(theme.WarningHex, i18n.T("tui.sessions.fanout.experimental")))
 	}
 	parts = append(parts, tview.Escape(fanoutStatus(fv.Status)))
 	if fv.Parallel > 0 {
 		parts = append(parts, i18n.Tf("tui.sessions.fanout.parallel", fv.Parallel))
 	}
 	if fv.Driver {
-		parts = append(parts, theme.ColorTag(theme.SuccessHex)+i18n.T("tui.sessions.fanout.driver_on")+theme.TagColor)
+		parts = append(parts, theme.Paint(theme.SuccessHex, i18n.T("tui.sessions.fanout.driver_on")))
 	} else {
 		parts = append(parts, muted(i18n.T("tui.sessions.fanout.driver_off")))
 	}
 	if fv.BudgetUSD > 0 {
-		parts = append(parts, i18n.Tf("tui.sessions.fanout.budget", fv.SpentUSD, fv.BudgetUSD)+" "+budgetBar(fv.SpentUSD, fv.BudgetUSD, 8))
+		parts = append(parts, i18n.Tf("tui.sessions.fanout.budget", textfmt.Cost(fv.SpentUSD), textfmt.Cost(fv.BudgetUSD))+" "+budgetBar(fv.SpentUSD, fv.BudgetUSD, 8))
 	} else if fv.SpentUSD > 0 {
-		parts = append(parts, fmt.Sprintf("$%.2f", fv.SpentUSD))
+		parts = append(parts, textfmt.Cost(fv.SpentUSD))
 	}
 	return strings.Join(parts, muted(" · ")) + "\n" + muted(tview.Escape(i18n.Tf("tui.sessions.fanout.parent", fv.Parent)))
 }
@@ -213,7 +228,7 @@ func budgetBar(spent, budget float64, width int) string {
 	if spent >= budget*0.8 {
 		color = theme.WarningHex
 	}
-	return theme.ColorTag(color) + strings.Repeat("▓", n) + theme.TagColor + muted(strings.Repeat("░", width-n))
+	return theme.Paint(color, strings.Repeat("▓", n)) + muted(strings.Repeat("░", width-n))
 }
 
 // fanoutFoot is the last lines: fix rounds, last refusal, integration.
@@ -221,7 +236,7 @@ func fanoutFoot(fv FanoutView) string {
 	var lines []string
 	fix := i18n.Tf("tui.sessions.fanout.fix_rounds", fv.FixRounds, fv.FixMax)
 	if fv.LastRefusal != "" {
-		fix += muted(" · ") + tview.Escape(i18n.Tf("tui.sessions.fanout.last_refusal", clipText(fv.LastRefusal, 60)))
+		fix += muted(" · ") + tview.Escape(i18n.Tf("tui.sessions.fanout.last_refusal", textfmt.Clip(fv.LastRefusal, 60)))
 	}
 	lines = append(lines, fix)
 	switch {
@@ -244,11 +259,11 @@ func childState(s string) (string, ItemState) {
 	case "merged":
 		return theme.SymSuccess + " " + label, ItemAccepted
 	case "running":
-		return "● " + label, ItemNone
+		return theme.SymLive + " " + label, ItemNone
 	case "pending":
 		return "… " + label, ItemNone
 	case "conflict", "failed", "budget":
-		return "✗ " + label, ItemRefused
+		return theme.SymFailure + " " + label, ItemRefused
 	}
 	return s, ItemNone
 }
@@ -259,7 +274,7 @@ func fanoutItems(fv FanoutView) []ActionItem {
 		state, st := childState(c.State)
 		cost := "—"
 		if c.CostUSD > 0 {
-			cost = fmt.Sprintf("$%.2f", c.CostUSD)
+			cost = textfmt.Cost(c.CostUSD)
 		}
 		session := "—"
 		if c.Session != "" {
@@ -401,7 +416,7 @@ func cleanPreview(c FanoutCleanView, discard bool) string {
 		if len(list) == 0 {
 			return
 		}
-		fmt.Fprintf(&b, "%s%s%s\n", theme.ColorTag(color), label, theme.TagColor)
+		b.WriteString(theme.Paint(color, label) + "\n")
 		for _, s := range list {
 			b.WriteString("  " + tview.Escape(s) + "\n")
 		}

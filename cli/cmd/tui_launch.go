@@ -23,6 +23,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/services/launch"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 	"github.com/datichb/openhub/cli/internal/workflow"
@@ -135,7 +136,7 @@ func launchFormConfig(ctx context.Context, a *app.App, project *domain.Project, 
 		origin += " v" + strconv.Itoa(sp.Version)
 	}
 	if req.Draft {
-		origin = "✎ " + i18n.T("tui.catalog.edit.draft") + " · " + origin
+		origin = theme.SymModified + " " + i18n.T("tui.catalog.edit.draft") + " · " + origin
 	}
 	cfg := &views.LaunchFormConfig{
 		WorkflowID: sp.ID, Origin: origin + " · " + project.Name, Spec: sp, Lang: i18n.Locale(),

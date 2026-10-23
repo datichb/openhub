@@ -10,6 +10,7 @@ import (
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 )
@@ -91,7 +92,7 @@ type BricksView struct {
 	rows   []BrickRow
 	err    error
 	loaded bool
-	gen    uint64
+	loads  loadSlot // the reads of the bricks: only the latest is applied
 	query  string
 	kind   string // "" = all, agent, skill
 }
@@ -109,7 +110,7 @@ func (v *BricksView) Title() string { return i18n.T("tui.bricks.title") }
 
 // StatusHints returns the keys of the view and the commands that write.
 func (v *BricksView) StatusHints() string {
-	return keys.Hints(keys.Navigate.Hint(), keys.Filter.Hint(), "f "+i18n.T("tui.bricks.kind_filter"),
+	return keys.Hints(keys.Navigate.Hint(), keys.Filter.Hint(), kindKey.Hint(),
 		keys.Open.HintAs(i18n.T("tui.bricks.open_label")), keys.Refresh.Hint(), keys.Back.Hint()) +
 		"   " + i18n.T("tui.bricks.write_note")
 }
@@ -142,26 +143,21 @@ func (v *BricksView) reload() {
 	if v.cfg.Load == nil || v.app == nil {
 		return
 	}
-	v.gen++
-	gen, app := v.gen, v.app
 	ctx := context.Background()
 	if v.shell != nil {
 		ctx = v.shell.Context()
 	}
-	go func() {
-		rows, err := v.cfg.Load(ctx)
-		app.QueueUpdateDraw(func() {
-			if v.app == nil || v.gen != gen {
-				return
-			}
-			v.rows, v.err, v.loaded = rows, err, true
-			v.render()
-		})
-	}()
+	load(v.app, ctx, &v.loads, v.cfg.Load, func(rows []BrickRow, err error) {
+		if v.app == nil {
+			return
+		}
+		v.rows, v.err, v.loaded = rows, err, true
+		v.render()
+	})
 }
 
 func (v *BricksView) Unmount() {
-	v.gen++
+	v.loads.Invalidate()
 	v.app, v.list = nil, nil
 }
 
@@ -187,7 +183,7 @@ func (v *BricksView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	case keys.Refresh.Matches(event):
 		v.reload()
 		return nil
-	case event.Key() == tcell.KeyRune && event.Rune() == 'f' && event.Modifiers()&(tcell.ModCtrl|tcell.ModAlt) == 0:
+	case kindKey.Matches(event):
 		switch v.kind {
 		case "":
 			v.kind = "agent"
@@ -232,7 +228,7 @@ func (v *BricksView) render() {
 	v.list.SetTitle(title)
 	switch {
 	case v.err != nil:
-		v.list.SetEmpty(v.err.Error())
+		v.list.SetEmpty(i18n.Tf("tui.state.error", v.err.Error()))
 	case v.loaded:
 		v.list.SetEmpty(i18n.T("tui.bricks.empty"))
 	default:
@@ -262,7 +258,7 @@ func (v *BricksView) render() {
 func brickState(r BrickRow) (state ItemState, text string) {
 	switch {
 	case r.errors() > 0:
-		return ItemRefused, "✗"
+		return ItemRefused, theme.SymFailure
 	case len(r.Problems) > 0:
 		return ItemPending, theme.SymWarning
 	}
@@ -294,15 +290,14 @@ func brickVersion(r BrickRow) string {
 
 // brickDetail renders the detail pane of a brick (tview tags, escaped).
 func brickDetail(r BrickRow) string {
-	label, reset := theme.ColorTag(theme.TextSecondaryHex), theme.TagColor
 	var b strings.Builder
 	line := func(name, value string) {
 		if value != "" {
-			fmt.Fprintf(&b, "%s%s%s %s\n", label, name, reset, value)
+			fmt.Fprintf(&b, "%s %s\n", theme.Paint(theme.TextSecondaryHex, name), value)
 		}
 	}
 	if r.Label != "" {
-		fmt.Fprintf(&b, "[::b]%s[::-]\n", tview.Escape(r.Label))
+		fmt.Fprintf(&b, "%s%s%s\n", theme.StyleTag(theme.AttrBold), tview.Escape(r.Label), theme.TagAttrs)
 	}
 	if r.Description != "" {
 		fmt.Fprintf(&b, "%s\n", tview.Escape(r.Description))
@@ -329,13 +324,13 @@ func brickDetail(r BrickRow) string {
 	line(i18n.T("tui.bricks.field.workflows"), tview.Escape(workflows))
 	line(i18n.T("tui.bricks.field.cost"), i18n.Tf("tui.bricks.tokens", r.Tokens))
 	if len(r.Problems) > 0 {
-		fmt.Fprintf(&b, "\n%s%s%s\n", label, i18n.Tf("tui.bricks.field.problems", len(r.Problems)), reset)
+		fmt.Fprintf(&b, "\n%s\n", theme.Paint(theme.TextSecondaryHex, i18n.Tf("tui.bricks.field.problems", len(r.Problems))))
 		for _, p := range r.Problems {
 			icon, color := theme.SymWarning, theme.WarningHex
 			if p.Error {
-				icon, color = "✗", theme.ErrorHex
+				icon, color = theme.SymFailure, theme.ErrorHex
 			}
-			fmt.Fprintf(&b, "%s%s%s %s\n", theme.ColorTag(color), icon, reset, tview.Escape(p.Message))
+			fmt.Fprintf(&b, "%s %s\n", theme.Paint(color, icon), tview.Escape(p.Message))
 		}
 	}
 	b.WriteString("\n" + muted(tview.Escape(brickWriteText(r))) + "\n")
@@ -368,7 +363,7 @@ func brickVersionText(r BrickRow) string {
 	v := fmt.Sprintf("v%d", r.Version)
 	switch {
 	case r.PublishedBy != "" && !r.PublishedAt.IsZero():
-		v += " · " + i18n.Tf("tui.bricks.published_by_on", r.PublishedBy, r.PublishedAt.Local().Format("02/01/2006"))
+		v += " · " + i18n.Tf("tui.bricks.published_by_on", r.PublishedBy, textfmt.Date(r.PublishedAt))
 	case r.PublishedBy != "":
 		v += " · " + i18n.Tf("tui.bricks.published_by", r.PublishedBy)
 	}
@@ -404,10 +399,5 @@ func (v *BricksView) openWorkflows(it ActionItem) {
 	v.shell.ShowSelectModal(i18n.Tf("tui.bricks.open_workflow", r.ID), opts, "", v.cfg.OpenWorkflow)
 }
 
-func truncateRunes(s string, n int) string {
-	rs := []rune(s)
-	if len(rs) <= n {
-		return s
-	}
-	return string(rs[:n-1]) + "…"
-}
+// kindKey cycles the kinds shown: every brick, the agents, the skills.
+var kindKey = keys.Own("bricks.kind", 'f', "tui.bricks.kind_filter")

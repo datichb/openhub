@@ -11,6 +11,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/services/doctor"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
@@ -283,12 +284,11 @@ func (v *DoctorView) render() {
 	if v.list == nil {
 		return
 	}
-	muted := theme.ColorTag(theme.TextMutedHex)
 	if v.loading != "" {
 		if v.summary != nil {
-			v.summary.SetText(muted + v.loading + theme.TagColor)
+			v.summary.SetText(stateText(stateLoading, v.loading))
 		}
-		v.list.SetItems([]widgets.SectionItem{{MainText: muted + v.loading + theme.TagColor, IsHeader: true}})
+		v.list.SetItems([]widgets.SectionItem{{MainText: stateText(stateLoading, v.loading), IsHeader: true}})
 		v.showDetail(widgets.SectionItem{})
 		return
 	}
@@ -301,24 +301,23 @@ func (v *DoctorView) render() {
 		}
 		name := doctorIcon(c) + "  " + tview.Escape(c.Name)
 		if c.Fix != nil {
-			name += "  " + theme.ColorTag(theme.TextMutedHex) + "[" + doctorFixKey.Keys() + "[] " + doctorFixKey.Label() + theme.TagColor
+			name += "  " + muted(bracketed(doctorFixKey.Keys())+" "+doctorFixKey.Label())
 		}
 		items = append(items, widgets.SectionItem{
 			MainText:      name,
-			SecondaryText: theme.ColorTag(theme.TextSecondaryHex) + tview.Escape(firstLine(c.Detail)) + theme.TagColor,
+			SecondaryText: theme.Paint(theme.TextSecondaryHex, tview.Escape(textfmt.FirstLine(c.Detail))),
 			Reference:     i,
 		})
 	}
 
 	if v.summary != nil {
-		line := fmt.Sprintf("[::b]%s[::-]  %s%s%s",
-			i18n.T("tui.doctor.check_title"),
-			theme.ColorTag(theme.TextPrimaryHex), i18n.Tf("tui.doctor.summary", passed, len(v.checks)), theme.TagColor)
+		line := fmt.Sprintf("%s%s%s  %s", theme.StyleTag(theme.AttrBold), i18n.T("tui.doctor.check_title"), theme.TagAttrs,
+			theme.Paint(theme.TextPrimaryHex, i18n.Tf("tui.doctor.summary", passed, len(v.checks))))
 		if DoctorOffline != nil && DoctorOffline.On() {
-			line += "  " + theme.ColorTag(theme.WarningHex) + i18n.T("tui.doctor.offline_on") + theme.TagColor
+			line += "  " + theme.Paint(theme.WarningHex, i18n.T("tui.doctor.offline_on"))
 		}
 		if passed == len(v.checks) {
-			line += fmt.Sprintf("  %s%s %s%s", theme.ColorTag(theme.SuccessHex), theme.IconSuccess, i18n.T("tui.doctor.all_passed"), theme.TagColor)
+			line += "  " + theme.Paint(theme.SuccessHex, theme.SymSuccess+" "+i18n.T("tui.doctor.all_passed"))
 		}
 		v.summary.SetText(line)
 	}
@@ -331,11 +330,11 @@ func (v *DoctorView) render() {
 func doctorIcon(c DoctorCheck) string {
 	switch {
 	case !c.OK:
-		return theme.ColorTag(theme.ErrorHex) + theme.IconError + theme.TagColor
+		return theme.Paint(theme.ErrorHex, theme.SymFailure)
 	case c.Warn:
-		return theme.ColorTag(theme.WarningHex) + theme.IconWarning + theme.TagColor
+		return theme.Paint(theme.WarningHex, theme.SymWarning)
 	default:
-		return theme.ColorTag(theme.SuccessHex) + theme.IconSuccess + theme.TagColor
+		return theme.Paint(theme.SuccessHex, theme.SymSuccess)
 	}
 }
 
@@ -367,11 +366,4 @@ func (v *DoctorView) showDetail(it widgets.SectionItem) {
 		d.keys("r", i18n.T("tui.hints.recheck"))
 	}
 	v.page.SetDetail(d.String())
-}
-
-// firstLine is the summary of a detail in the list (the pane shows the whole
-// detail): a failure that lists sources and commands spans several lines.
-func firstLine(s string) string {
-	first, _, _ := strings.Cut(s, "\n")
-	return first
 }

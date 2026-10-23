@@ -16,6 +16,7 @@ import (
 	remotesvc "github.com/datichb/openhub/cli/internal/services/remote"
 	"github.com/datichb/openhub/cli/internal/sysnotify"
 	"github.com/datichb/openhub/cli/internal/termtext"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/worktree"
 )
@@ -111,7 +112,7 @@ func runSessionFetch(cmd *cobra.Command, args []string) error {
 	}
 	s := res.Summary
 	ok := theme.SuccessStyle.Render(theme.IconSuccess)
-	fmt.Fprintf(out, "%s %s\n", ok, i18n.Tf("cmd.session.fetch.summary", i18n.T("cmd.session.fetch.outcome."+s.Outcome), s.Cost, len(res.Journal)))
+	fmt.Fprintf(out, "%s %s\n", ok, i18n.Tf("cmd.session.fetch.summary", i18n.T("cmd.session.fetch.outcome."+s.Outcome), textfmt.Cost(s.Cost), len(res.Journal)))
 	if s.Error != "" {
 		fmt.Fprintf(out, "%s %s\n", theme.WarningStyle.Render(theme.IconWarning), termtext.Clean(s.Error))
 	}

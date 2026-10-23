@@ -12,6 +12,8 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	remotesvc "github.com/datichb/openhub/cli/internal/services/remote"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/textfmt"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
@@ -96,15 +98,15 @@ func (t *tuiSessions) FetchRemote(ctx context.Context, id string) (views.RemoteF
 		return views.RemoteFetchReport{}, err
 	}
 	s := res.Summary
-	lines := []string{"✔ " + i18n.Tf("cmd.session.fetch.summary", i18n.T("cmd.session.fetch.outcome."+s.Outcome), s.Cost, len(res.Journal))}
+	lines := []string{theme.SymSuccess + " " + i18n.Tf("cmd.session.fetch.summary", i18n.T("cmd.session.fetch.outcome."+s.Outcome), textfmt.Cost(s.Cost), len(res.Journal))}
 	if s.Error != "" {
-		lines = append(lines, "⚠ "+s.Error)
+		lines = append(lines, theme.SymWarning+" "+s.Error)
 	}
 	if s.MRURL != "" {
-		lines = append(lines, "✔ "+i18n.Tf("cmd.session.fetch.mr", s.MRURL))
+		lines = append(lines, theme.SymSuccess+" "+i18n.Tf("cmd.session.fetch.mr", s.MRURL))
 	}
 	if res.Imported {
-		lines = append(lines, "✔ "+i18n.Tf("tui.remote.imported", res.Location))
+		lines = append(lines, theme.SymSuccess+" "+i18n.Tf("tui.remote.imported", res.Location))
 	}
 	if s.Deferred != nil {
 		lines = append(lines, "⏸ "+i18n.Tf("cmd.session.fetch.deferred", s.Deferred.ID, firstNonEmpty(s.Deferred.Label, s.Deferred.ID)))
@@ -118,9 +120,9 @@ func (t *tuiSessions) FetchRemote(ctx context.Context, id string) (views.RemoteF
 func toReplayView(p *remotesvc.ReplayPlan) *views.ReplayView {
 	out := &views.ReplayView{Pending: p.Pending()}
 	for _, it := range p.Items {
-		icon := map[string]string{remotesvc.ItemApplied: "✔", remotesvc.ItemRefused: "✗", remotesvc.ItemFailed: "✗", remotesvc.ItemSkipped: "◌"}[it.State]
+		icon := map[string]string{remotesvc.ItemApplied: theme.SymSuccess, remotesvc.ItemRefused: theme.SymFailure, remotesvc.ItemFailed: theme.SymFailure, remotesvc.ItemSkipped: theme.SymAbsent}[it.State]
 		if icon == "" {
-			icon = "○"
+			icon = theme.SymInactive
 		}
 		line := fmt.Sprintf("%s bd %s — %s", icon, strings.Join(it.Argv, " "), i18n.T("cmd.session.resolve.state."+it.State))
 		if it.Reason != "" {

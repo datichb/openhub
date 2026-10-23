@@ -12,7 +12,9 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/platform"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 )
 
 // MetricsViewConfig holds dependencies for the metrics view.
@@ -154,8 +156,15 @@ func (v *MetricsView) Title() string { return i18n.T("tui.metrics.title") }
 
 // StatusHints returns keybinding hints.
 func (v *MetricsView) StatusHints() string {
-	return fmt.Sprintf("7 %s · 3 %s · 0 %s · Tab %s · Esc %s", i18n.T("tui.hints.week"), i18n.T("tui.hints.month"), i18n.T("tui.hints.all"), i18n.T("tui.hints.usage_agents"), i18n.T("tui.hints.back"))
+	return keys.Hints(weekKey.Hint(), monthKey.Hint(), allKey.Hint(), "Tab "+i18n.T("tui.hints.usage_agents"), keys.Back.HintAs(i18n.T("tui.hints.back")))
 }
+
+// The periods of the metrics: 7 (week), 3 (month), 0 (all).
+var (
+	weekKey  = keys.Own("metrics.week", '7', "tui.hints.week")
+	monthKey = keys.Own("metrics.month", '3', "tui.hints.month")
+	allKey   = keys.Own("metrics.all", '0', "tui.hints.all")
+)
 
 // Mount builds the metrics display with real data.
 func (v *MetricsView) Mount(content *tview.Flex, app *tview.Application) {
@@ -172,9 +181,7 @@ func (v *MetricsView) Mount(content *tview.Flex, app *tview.Application) {
 	v.tv.SetBackgroundColor(theme.BgPanel)
 	v.tv.SetBorderPadding(1, 0, 2, 2)
 
-	// Show loading placeholder immediately
-	muted := theme.ColorTag(theme.TextMutedHex)
-	v.tv.SetText(fmt.Sprintf("\n  %s%s%s", muted, i18n.T("tui.metrics.loading_full"), theme.TagColor))
+	setState(v.tv, stateLoading, i18n.T("tui.metrics.loading_full"))
 	content.AddItem(v.tv, 0, 1, true)
 
 	v.reload()
@@ -201,15 +208,15 @@ func (v *MetricsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		}
 		v.asyncRender()
 		return nil
-	case event.Rune() == '7':
+	case weekKey.Matches(event):
 		v.period = "7d"
 		v.asyncRender()
 		return nil
-	case event.Rune() == '3':
+	case monthKey.Matches(event):
 		v.period = "30d"
 		v.asyncRender()
 		return nil
-	case event.Rune() == '0':
+	case allKey.Matches(event):
 		v.period = "all"
 		v.asyncRender()
 		return nil
@@ -221,8 +228,7 @@ func (v *MetricsView) asyncRender() {
 	if v.tv == nil {
 		return
 	}
-	muted := theme.ColorTag(theme.TextMutedHex)
-	v.tv.SetText(fmt.Sprintf("\n  %s%s%s", muted, i18n.T("tui.metrics.loading"), theme.TagColor))
+	setState(v.tv, stateLoading, i18n.T("tui.metrics.loading"))
 	v.reload()
 }
 
@@ -252,9 +258,9 @@ func (v *MetricsView) buildRenderText(ctx context.Context, q metricsQuery) strin
 
 func (v *MetricsView) buildAgentsText(ctx context.Context, sc metricsScope) string {
 	if v.cfg.AgentEvents == nil {
-		return "\n  [::b]" + i18n.T("tui.metrics.agent_telemetry") + theme.TagReset + "\n\n  " +
-			theme.ColorTag(theme.TextSecondaryHex) + i18n.T("tui.metrics.agent_store_unavailable") + theme.TagColor +
-			"\n\n  " + theme.ColorTag(theme.TextSecondaryHex) + i18n.T("tui.metrics.press_tab_usage") + theme.TagColor
+		return "\n  " + theme.StyleTag(theme.AttrBold) + i18n.T("tui.metrics.agent_telemetry") + theme.TagAttrs + "\n\n  " +
+			theme.Paint(theme.TextSecondaryHex, i18n.T("tui.metrics.agent_store_unavailable")) +
+			"\n\n  " + theme.Paint(theme.TextSecondaryHex, i18n.T("tui.metrics.press_tab_usage"))
 	}
 
 	scopeLabel := sc.label
@@ -275,63 +281,45 @@ func (v *MetricsView) buildAgentsText(ctx context.Context, sc metricsScope) stri
 		metrics = mergeAgentMetrics(lists...)
 	}
 	if err != nil {
-		return fmt.Sprintf("  %s", i18n.Tf("tui.metrics.error", err.Error()))
+		return "  " + stateText(stateError, err.Error())
 	}
 
 	var sb strings.Builder
 	title := i18n.Tf("tui.metrics.agent_telemetry_scoped", scopeLabel)
-	fmt.Fprintf(&sb, "\n  [::b]%s%s\n\n", title, theme.TagReset)
+	fmt.Fprintf(&sb, "\n  %s%s%s\n\n", theme.StyleTag(theme.AttrBold), title, theme.TagAttrs)
 
 	if len(metrics) == 0 {
-		fmt.Fprintf(&sb, "  %s%s%s\n",
-			theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.metrics.no_agent_data"), theme.TagColor)
+		sb.WriteString("  " + stateText(stateEmpty, i18n.T("tui.metrics.no_agent_data")) + "\n")
 	} else {
 		// Table header
-		fmt.Fprintf(&sb, "  %s%-18s %6s %6s %8s %10s %10s %8s%s\n",
-			theme.ColorTag(theme.TextSecondaryHex),
-			i18n.T("tui.metrics.col_agent"), i18n.T("tui.metrics.col_runs"), i18n.T("tui.metrics.col_success"), i18n.T("tui.metrics.col_duration"), i18n.T("tui.metrics.col_tokens_in"), i18n.T("tui.metrics.col_tokens_out"), i18n.T("tui.metrics.col_cost"),
-			theme.TagColor)
-		fmt.Fprintf(&sb, "  %s%s%s\n",
-			theme.ColorTag(theme.TextSecondaryHex),
-			strings.Repeat("─", 76),
-			theme.TagColor)
+		fmt.Fprintf(&sb, "  %s\n", theme.Paint(theme.TextSecondaryHex, fmt.Sprintf("%-18s %6s %6s %8s %10s %10s %8s",
+			i18n.T("tui.metrics.col_agent"), i18n.T("tui.metrics.col_runs"), i18n.T("tui.metrics.col_success"), i18n.T("tui.metrics.col_duration"), i18n.T("tui.metrics.col_tokens_in"), i18n.T("tui.metrics.col_tokens_out"), i18n.T("tui.metrics.col_cost"))))
+		fmt.Fprintf(&sb, "  %s\n", theme.Paint(theme.TextSecondaryHex, strings.Repeat("─", 76)))
 
 		for _, m := range metrics {
-			name := m.AgentName
-			if len(name) > 18 {
-				name = name[:15] + "..."
-			}
-			fmt.Fprintf(&sb, "  %-18s %6d %5.0f%% %6.1fs %10s %10s   $%.2f\n",
-				name,
+			fmt.Fprintf(&sb, "  %-18s %6d %5.0f%% %6.1fs %10s %10s %8s\n",
+				textfmt.Clip(m.AgentName, 18),
 				m.TotalRuns,
 				m.SuccessRate,
 				m.AvgDurationSec,
-				formatTokens(m.TotalTokensIn),
-				formatTokens(m.TotalTokensOut),
-				m.TotalCostUSD,
+				textfmt.Tokens(m.TotalTokensIn),
+				textfmt.Tokens(m.TotalTokensOut),
+				textfmt.Cost(m.TotalCostUSD),
 			)
 		}
 	}
 
-	fmt.Fprintf(&sb, "\n  %s%s%s\n",
-		theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.metrics.agent_footer"), theme.TagColor)
+	fmt.Fprintf(&sb, "\n  %s\n", theme.Paint(theme.TextSecondaryHex, i18n.T("tui.metrics.agent_footer")))
 
 	return sb.String()
 }
 
 func (v *MetricsView) buildUsageText(sc metricsScope, period string) string {
 	if v.cfg.Stats == nil || !v.cfg.Stats.Available() {
-		return fmt.Sprintf(`
-  [::b]%s%s
-
-  %s%s%s
-
-  %s%s%s
-`,
-			i18n.T("tui.metrics.title"),
-			theme.TagReset,
-			theme.ColorTag(theme.ErrorHex), i18n.T("tui.metrics.db_unavailable"), theme.TagColor,
-			theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.metrics.db_hint"), theme.TagColor,
+		return fmt.Sprintf("\n  %s%s%s\n\n  %s\n\n  %s\n",
+			theme.StyleTag(theme.AttrBold), i18n.T("tui.metrics.title"), theme.TagAttrs,
+			theme.Paint(theme.ErrorHex, theme.SymFailure+" "+i18n.T("tui.metrics.db_unavailable")),
+			theme.Paint(theme.TextSecondaryHex, i18n.T("tui.metrics.db_hint")),
 		)
 	}
 
@@ -353,7 +341,7 @@ func (v *MetricsView) buildUsageText(sc metricsScope, period string) string {
 		}
 	}
 	if err != nil {
-		return fmt.Sprintf("  %s", i18n.Tf("tui.metrics.error", err.Error()))
+		return "  " + stateText(stateError, err.Error())
 	}
 
 	// Period label
@@ -367,69 +355,50 @@ func (v *MetricsView) buildUsageText(sc metricsScope, period string) string {
 
 	var sb strings.Builder
 	title := i18n.Tf("tui.metrics.title_scoped_period", scopeLabel, periodLabel)
-	fmt.Fprintf(&sb, "\n  [::b]%s%s\n\n", title, theme.TagReset)
+	fmt.Fprintf(&sb, "\n  %s%s%s\n\n", theme.StyleTag(theme.AttrBold), title, theme.TagAttrs)
 
 	// Main stats
-	fmt.Fprintf(&sb, "  %s%-18s%s %d\n",
-		theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.metrics.label_sessions"), theme.TagColor, stats.TotalSessions)
-	fmt.Fprintf(&sb, "  %s%-18s%s %s\n",
-		theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.metrics.label_tokens_in"), theme.TagColor, formatTokens(stats.TotalTokensIn))
-	fmt.Fprintf(&sb, "  %s%-18s%s %s\n",
-		theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.metrics.label_tokens_out"), theme.TagColor, formatTokens(stats.TotalTokensOut))
+	fmt.Fprintf(&sb, "  %s %d\n", secondaryLabel(i18n.T("tui.metrics.label_sessions")), stats.TotalSessions)
+	fmt.Fprintf(&sb, "  %s %s\n", secondaryLabel(i18n.T("tui.metrics.label_tokens_in")), textfmt.Tokens(stats.TotalTokensIn))
+	fmt.Fprintf(&sb, "  %s %s\n", secondaryLabel(i18n.T("tui.metrics.label_tokens_out")), textfmt.Tokens(stats.TotalTokensOut))
 
 	if stats.TotalTokensIn > 0 {
 		cacheRatio := float64(stats.CacheReadTokens) / float64(stats.TotalTokensIn) * 100
-		fmt.Fprintf(&sb, "  %s%-18s%s %.0f%%\n",
-			theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.metrics.label_cache_ratio"), theme.TagColor, cacheRatio)
+		fmt.Fprintf(&sb, "  %s %.0f%%\n", secondaryLabel(i18n.T("tui.metrics.label_cache_ratio")), cacheRatio)
 	}
 
 	if stats.TotalCost > 0 {
-		fmt.Fprintf(&sb, "  %s%-18s%s $%.2f\n",
-			theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.metrics.label_estimated_cost"), theme.TagColor, stats.TotalCost)
+		fmt.Fprintf(&sb, "  %s %s\n", secondaryLabel(i18n.T("tui.metrics.label_estimated_cost")), textfmt.Cost(stats.TotalCost))
 	}
 
-	fmt.Fprintf(&sb, "\n  %s%s%s\n",
-		theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.metrics.usage_footer"), theme.TagColor)
+	fmt.Fprintf(&sb, "\n  %s\n", theme.Paint(theme.TextSecondaryHex, i18n.T("tui.metrics.usage_footer")))
 
 	// Optimization suggestions
-	fmt.Fprintf(&sb, "\n  [::b]%s%s\n\n", i18n.T("tui.metrics.suggestions_title"), theme.TagReset)
+	fmt.Fprintf(&sb, "\n  %s%s%s\n\n", theme.StyleTag(theme.AttrBold), i18n.T("tui.metrics.suggestions_title"), theme.TagAttrs)
 
+	bullet := theme.Paint(theme.ActiveMode.PrimaryHex, "•")
 	hasSuggestions := false
 	if stats.TotalTokensIn > 100_000 {
-		fmt.Fprintf(&sb, "  %s•%s %s\n",
-			theme.ColorTag(theme.ActiveMode.PrimaryHex), theme.TagColor, i18n.Tf("tui.metrics.suggest_high_tokens_in", formatTokens(stats.TotalTokensIn)))
+		fmt.Fprintf(&sb, "  %s %s\n", bullet, i18n.Tf("tui.metrics.suggest_high_tokens_in", textfmt.Tokens(stats.TotalTokensIn)))
 		hasSuggestions = true
 	}
 	if stats.TotalSessions > 10 && stats.TotalTokensOut > 0 {
 		avgOut := stats.TotalTokensOut / int64(stats.TotalSessions)
 		if avgOut > 5000 {
-			fmt.Fprintf(&sb, "  %s•%s %s\n",
-				theme.ColorTag(theme.ActiveMode.PrimaryHex), theme.TagColor, i18n.Tf("tui.metrics.suggest_high_avg_out", formatTokens(avgOut)))
+			fmt.Fprintf(&sb, "  %s %s\n", bullet, i18n.Tf("tui.metrics.suggest_high_avg_out", textfmt.Tokens(avgOut)))
 			hasSuggestions = true
 		}
 	}
 	if stats.TotalTokensIn > 0 {
 		cacheRatio := float64(stats.CacheReadTokens) / float64(stats.TotalTokensIn) * 100
 		if cacheRatio < 30 {
-			fmt.Fprintf(&sb, "  %s•%s %s\n",
-				theme.ColorTag(theme.ActiveMode.PrimaryHex), theme.TagColor, i18n.Tf("tui.metrics.suggest_low_cache", fmt.Sprintf("%.0f%%", cacheRatio)))
+			fmt.Fprintf(&sb, "  %s %s\n", bullet, i18n.Tf("tui.metrics.suggest_low_cache", fmt.Sprintf("%.0f%%", cacheRatio)))
 			hasSuggestions = true
 		}
 	}
 	if !hasSuggestions {
-		fmt.Fprintf(&sb, "  %s%s%s\n",
-			"[green]", i18n.T("tui.metrics.no_suggestions"), "[-]")
+		fmt.Fprintf(&sb, "  %s\n", theme.Paint(theme.SuccessHex, i18n.T("tui.metrics.no_suggestions")))
 	}
 
 	return sb.String()
-}
-
-func formatTokens(n int64) string {
-	if n >= 1_000_000 {
-		return fmt.Sprintf("%.1fM", float64(n)/1_000_000)
-	}
-	if n >= 1_000 {
-		return fmt.Sprintf("%.0fK", float64(n)/1_000)
-	}
-	return fmt.Sprintf("%d", n)
 }

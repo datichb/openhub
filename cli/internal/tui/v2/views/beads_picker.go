@@ -12,7 +12,9 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/beads"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
@@ -101,6 +103,7 @@ type BeadsPicker struct {
 	details   map[string]*beads.TicketDetail
 	detailErr map[string]error
 	pending   map[string]bool
+	loads     loadSlot // the reads of the tickets
 }
 
 // NewBeadsPicker builds the picker. app may be nil (tests): loading is then
@@ -176,18 +179,10 @@ func (p *BeadsPicker) Load() {
 	}
 	p.loading = true
 	p.refresh()
-	if p.app == nil {
-		ts, err := p.cfg.Source.Tickets(p.ctx)
-		p.setTickets(ts, err)
-		return
-	}
-	go func() {
-		ts, err := p.cfg.Source.Tickets(p.ctx)
-		if p.ctx.Err() != nil {
-			return
-		}
-		p.app.QueueUpdateDraw(func() { p.setTickets(ts, err) })
-	}()
+	source := p.cfg.Source
+	load(p.app, p.ctx, &p.loads, func(ctx context.Context) ([]beads.Ticket, error) {
+		return source.Tickets(ctx)
+	}, p.setTickets)
 }
 
 // SetTickets replaces the tickets (already loaded by the caller).
@@ -288,51 +283,44 @@ func (p *BeadsPicker) leaveSearch() {
 }
 
 func (p *BeadsPicker) handleListKey(ev *tcell.EventKey) {
-	switch ev.Key() {
-	case tcell.KeyUp:
+	switch {
+	case keys.Up.Matches(ev):
 		p.moveCursor(-1)
-	case tcell.KeyDown:
+	case keys.Down.Matches(ev):
 		p.moveCursor(1)
-	case tcell.KeyPgUp:
+	case ev.Key() == tcell.KeyPgUp:
 		p.moveCursor(-10)
-	case tcell.KeyPgDn:
+	case ev.Key() == tcell.KeyPgDn:
 		p.moveCursor(10)
-	case tcell.KeyHome:
+	case ev.Key() == tcell.KeyHome:
 		p.m.moveToEdge(false)
 		p.refresh()
-	case tcell.KeyEnd:
+	case ev.Key() == tcell.KeyEnd:
 		p.m.moveToEdge(true)
 		p.refresh()
-	case tcell.KeyEnter:
+	case keys.Open.Matches(ev):
 		if ids := p.m.result(p.cfg.Multi); len(ids) > 0 && p.cfg.OnDone != nil {
 			p.cfg.OnDone(ids)
 		}
-	case tcell.KeyEscape:
+	case keys.Back.Matches(ev):
 		if p.cfg.OnCancel != nil {
 			p.cfg.OnCancel()
 		}
-	case tcell.KeyRune:
-		switch ev.Rune() {
-		case '/':
-			p.searching = true
-			p.search.Focus(nil)
-			p.refresh()
-		case ' ':
-			if p.cfg.Multi {
-				p.m.toggle()
-				p.moveCursor(1)
-			}
-		case 'j':
+	case keys.Filter.Matches(ev):
+		p.searching = true
+		p.search.Focus(nil)
+		p.refresh()
+	case ev.Key() == tcell.KeyRune && ev.Rune() == ' ': // the space bar ticks a ticket
+		if p.cfg.Multi {
+			p.m.toggle()
 			p.moveCursor(1)
-		case 'k':
-			p.moveCursor(-1)
-		case 'f':
-			p.m.cycleLabel()
-			p.refresh()
-		case 'e':
-			p.m.cycleEpic()
-			p.refresh()
 		}
+	case pickerLabelKey.Matches(ev):
+		p.m.cycleLabel()
+		p.refresh()
+	case pickerEpicKey.Matches(ev):
+		p.m.cycleEpic()
+		p.refresh()
 	}
 }
 
@@ -349,15 +337,15 @@ func (p *BeadsPicker) refresh() {
 		label = i18n.T("tui.picker.beads.filter_all")
 	}
 	epic := p.epicLabel(p.m.epicFilter())
-	p.filters.SetText(fmt.Sprintf("[%s]%s[-] %s ▾  [%s]%s[-] %s ▾ ",
-		theme.TextMutedHex, i18n.T("tui.picker.beads.filter"), tview.Escape(label),
-		theme.TextMutedHex, i18n.T("tui.picker.beads.epic"), tview.Escape(epic)))
+	p.filters.SetText(fmt.Sprintf("%s %s ▾  %s %s ▾ ",
+		muted(i18n.T("tui.picker.beads.filter")), tview.Escape(label),
+		muted(i18n.T("tui.picker.beads.epic")), tview.Escape(epic)))
 
 	hints := p.StatusHints()
 	if p.cfg.Multi {
 		hints = i18n.Tf("tui.picker.beads.selected_count", len(p.m.selected)) + " · " + hints
 	}
-	p.footer.SetText(fmt.Sprintf("[%s]%s[-]", theme.TextMutedHex, hints))
+	p.footer.SetText(muted(hints))
 	p.refreshPreview()
 }
 
@@ -380,13 +368,13 @@ func (p *BeadsPicker) refreshPreview() {
 		p.preview.SetText("")
 		return
 	}
-	head := fmt.Sprintf("[::b]%s[::-] · %s", tview.Escape(t.ID), tview.Escape(t.Title))
+	head := fmt.Sprintf("%s%s%s · %s", theme.StyleTag(theme.AttrBold), tview.Escape(t.ID), theme.TagAttrs, tview.Escape(t.Title))
 	d, ok := p.details[t.ID]
 	switch {
 	case p.detailErr[t.ID] != nil:
-		p.preview.SetText(head + "\n" + fmt.Sprintf("[%s]%s[-]", theme.ErrorHex, tview.Escape(i18n.Tf("tui.picker.beads.preview_error", p.detailErr[t.ID]))))
+		p.preview.SetText(head + "\n" + stateText(stateError, p.detailErr[t.ID].Error()))
 	case !ok:
-		p.preview.SetText(head + "\n" + fmt.Sprintf("[%s]%s[-]", theme.TextMutedHex, i18n.T("tui.picker.beads.preview_loading")))
+		p.preview.SetText(head + "\n" + stateText(stateLoading, ""))
 		p.requestDetail(t.ID)
 	default:
 		text := head
@@ -394,7 +382,7 @@ func (p *BeadsPicker) refreshPreview() {
 			text += " — " + i18n.Tf("tui.picker.beads.preview_criteria", n)
 		}
 		if len(d.Missing) > 0 {
-			text += "\n" + fmt.Sprintf("[%s]⚠ %s[-]", theme.WarningHex, tview.Escape(i18n.Tf("tui.picker.beads.preview_missing", strings.Join(d.Missing, ", "))))
+			text += "\n" + theme.Paint(theme.WarningHex, theme.SymWarning+" "+tview.Escape(i18n.Tf("tui.picker.beads.preview_missing", strings.Join(d.Missing, ", "))))
 		}
 		if desc := strings.TrimSpace(d.Description); desc != "" {
 			text += "\n" + tview.Escape(desc)
@@ -420,18 +408,11 @@ func (p *BeadsPicker) requestDetail(id string) {
 			p.refreshPreview()
 		}
 	}
-	if p.app == nil {
-		d, err := p.cfg.Source.Detail(p.ctx, id)
-		store(d, err)
-		return
-	}
-	go func() {
-		d, err := p.cfg.Source.Detail(p.ctx, id)
-		if p.ctx.Err() != nil {
-			return
-		}
-		p.app.QueueUpdateDraw(func() { store(d, err) })
-	}()
+	source := p.cfg.Source
+	// One read per ticket: each has its slot, none drops another.
+	load(p.app, p.ctx, &loadSlot{}, func(ctx context.Context) (*beads.TicketDetail, error) {
+		return source.Detail(ctx, id)
+	}, store)
 }
 
 // acceptanceCount counts the acceptance criteria (list items, or 1 for a
@@ -463,13 +444,13 @@ func (l *beadsList) Draw(screen tcell.Screen) {
 	p := l.p
 	switch {
 	case p.loading:
-		tview.Print(screen, i18n.T("tui.picker.beads.loading"), x+1, y, w-1, tview.AlignLeft, theme.FgMuted)
+		tview.Print(screen, stateText(stateLoading, i18n.T("tui.picker.beads.loading")), x+1, y, w-1, tview.AlignLeft, theme.FgMuted)
 		return
 	case p.loadErr != nil:
-		tview.Print(screen, tview.Escape(i18n.Tf("tui.picker.beads.load_error", p.loadErr)), x+1, y, w-1, tview.AlignLeft, theme.Error)
+		tview.Print(screen, stateText(stateError, p.loadErr.Error()), x+1, y, w-1, tview.AlignLeft, theme.Error)
 		return
 	case p.m.ticketCount() == 0:
-		tview.Print(screen, i18n.T("tui.picker.beads.empty"), x+1, y, w-1, tview.AlignLeft, theme.FgMuted)
+		tview.Print(screen, stateText(stateEmpty, i18n.T("tui.picker.beads.empty")), x+1, y, w-1, tview.AlignLeft, theme.FgMuted)
 		return
 	}
 	rows := p.m.rows
@@ -512,28 +493,28 @@ func (l *beadsList) format(r beadsPickerRow, idW, statusW, titleW int) string {
 		if r.epicID != "" {
 			label = i18n.Tf("tui.picker.beads.group_epic", r.epicID, p.m.epics[r.epicID].Title)
 		}
-		return fmt.Sprintf(" [%s]─ %s[-]", theme.TextSecondaryHex, tview.Escape(label))
+		return " " + theme.Paint(theme.TextSecondaryHex, "─ "+tview.Escape(label))
 	}
 	t := r.ticket
 	marker := "  "
 	if p.m.cursor >= 0 && p.m.rows[p.m.cursor].ticket == t {
-		marker = "[" + theme.AccentHex + "]" + theme.IconArrow + "[-] "
+		marker = theme.Paint(theme.AccentHex, theme.IconArrow) + " "
 	}
 	if p.cfg.Multi {
 		box := theme.SymUnselectedMulti
 		if p.m.isSelected(t.ID) {
-			box = "[" + theme.SuccessHex + "]" + theme.SymSelectedMulti + "[-]"
+			box = theme.Paint(theme.SuccessHex, theme.SymSelectedMulti)
 		}
 		marker += box + " "
 	}
-	title := runewidth.FillRight(runewidth.Truncate(t.Title, titleW, "…"), titleW)
+	title := runewidth.FillRight(textfmt.ClipWidth(t.Title, titleW), titleW)
 	claim := ""
 	if who := l.claimedBy(t.ID); who != "" {
-		claim = "  [" + theme.WarningHex + "]" + theme.SymWarning + " " + tview.Escape(i18n.Tf("tui.picker.beads.claimed", who)) + "[-]"
+		claim = "  " + theme.Paint(theme.WarningHex, theme.SymWarning+" "+tview.Escape(i18n.Tf("tui.picker.beads.claimed", who)))
 	}
-	return fmt.Sprintf(" %s%s  %s  %-3s %s%s  [%s]%s[-]", marker,
+	return fmt.Sprintf(" %s%s  %s  %-3s %s%s  %s", marker,
 		tview.Escape(runewidth.FillRight(t.ID, idW)), tview.Escape(title), tview.Escape(t.Priority),
-		tview.Escape(runewidth.FillRight(t.Status, statusW)), claim, theme.TextMutedHex, tview.Escape(strings.Join(t.Labels, " ")))
+		tview.Escape(runewidth.FillRight(t.Status, statusW)), claim, muted(tview.Escape(strings.Join(t.Labels, " "))))
 }
 
 func (l *beadsList) claimedBy(id string) string {
@@ -544,3 +525,9 @@ func (l *beadsList) claimedBy(id string) string {
 }
 
 var _ InputCapturing = (*BeadsPicker)(nil)
+
+// The picker's own keys: f cycles the label filter, e the epic filter.
+var (
+	pickerLabelKey = keys.Own("picker.label", 'f', "tui.picker.beads.key.label")
+	pickerEpicKey  = keys.Own("picker.epic", 'e', "tui.picker.beads.key.epic")
+)

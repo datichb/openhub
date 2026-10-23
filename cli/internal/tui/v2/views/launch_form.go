@@ -10,7 +10,9 @@ import (
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
@@ -128,11 +130,13 @@ type LaunchFormView struct {
 	picker  *BeadsPicker
 	recapTV *tview.TextView
 
-	step      int
-	inputs    inputNotes
-	recap     *LaunchRecap
-	recapErr  error
-	recapGen  int
+	step       int
+	inputs     inputNotes
+	recap      *LaunchRecap
+	recapErr   error
+	recapLoads loadSlot
+	// planLoads numbers the reads of the deletion plan of an existing session.
+	planLoads loadSlot
 	launching bool
 	launchErr error
 	// recheck: the provider settings were opened from the recap; the recap
@@ -248,7 +252,7 @@ func (v *LaunchFormView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		}
 		return nil
 	case tcell.KeyRune:
-		if v.dirtyKey(event.Rune()) || v.existingKey(event.Rune()) {
+		if v.dirtyKey(event) || v.existingKey(event) {
 			return nil
 		}
 	case tcell.KeyEscape:
@@ -279,7 +283,7 @@ func (v *LaunchFormView) render() {
 	v.picker, v.form, v.recapTV, v.rt.tv = nil, nil, nil, nil
 	v.body.Clear()
 	v.header.SetText(v.headerText())
-	v.hints.SetText("[" + theme.TextMutedHex + "]" + v.StatusHints())
+	v.hints.SetText(muted(v.StatusHints()))
 	switch v.step {
 	case launchStepInputs:
 		v.renderInputs()
@@ -294,21 +298,21 @@ func (v *LaunchFormView) headerText() string {
 	steps := []string{i18n.T("tui.launch.step_inputs"), i18n.T("tui.launch.step_options"), i18n.T("tui.launch.step_recap")}
 	var parts []string
 	for i, s := range steps {
-		mark := "○"
+		mark := theme.IconPending
 		if i == v.step {
-			mark = "●"
+			mark = theme.IconStepActive
 		} else if i < v.step {
-			mark = "✔"
+			mark = theme.IconDone
 		}
 		parts = append(parts, mark+" "+s)
 	}
 	origin := ""
 	if v.cfg.Origin != "" {
-		origin = "   [" + theme.TextMutedHex + "]" + tview.Escape(v.cfg.Origin) + "[-]"
+		origin = "   " + muted(tview.Escape(v.cfg.Origin))
 	}
 	desc := ""
 	if d := v.cfg.Spec.Description.Text(v.m.lang); d != "" {
-		desc = "\n [" + theme.TextMutedHex + "]" + tview.Escape(d) + "[-]"
+		desc = "\n " + muted(tview.Escape(d))
 	}
 	return " " + strings.Join(parts, " ─── ") + origin + desc
 }
@@ -342,7 +346,7 @@ func (v *LaunchFormView) renderInputs() {
 	v.inputs.reset(f)
 	if len(m.agents) > 0 {
 		f.AddDropDown(i18n.T("tui.launch.agent"), m.agents, indexOf(m.agents, m.agent), func(opt string, _ int) { m.agent = opt })
-		v.inputs.add(f, "", "["+theme.TextMutedHex+"]"+i18n.T("tui.launch.agent_help")+"[-]")
+		v.inputs.add(f, "", muted(i18n.T("tui.launch.agent_help")))
 	}
 	for _, k := range m.spec.Inputs.Keys() {
 		k := k
@@ -414,7 +418,7 @@ func (v *LaunchFormView) renderOptions() {
 	for i, r := range v.cfg.Runtimes {
 		label := r.Label
 		if !r.Available {
-			label += "  ✗ " + r.Reason
+			label += "  " + theme.SymFailure + " " + r.Reason
 		}
 		rts = append(rts, label)
 		if r.Kind == m.runtime {
@@ -450,7 +454,7 @@ func (v *LaunchFormView) renderOptions() {
 		f.AddCheckbox(i18n.T("tui.launch.one_session"), m.oneSession, func(c bool) { m.oneSession = c; v.render() })
 	}
 	if line := m.sessionsLine(); line != "" {
-		v.body.AddItem(tview.NewTextView().SetDynamicColors(true).SetText("  ["+theme.TextMutedHex+"]"+line), 1, 0, false)
+		v.body.AddItem(tview.NewTextView().SetDynamicColors(true).SetText("  "+muted(line)), 1, 0, false)
 	}
 	f.AddButton(i18n.T("tui.launch.back"), v.back)
 	f.AddButton(i18n.T("tui.launch.next"), v.next)
@@ -518,29 +522,28 @@ func (v *LaunchFormView) renderRecap() {
 // recapText renders the recap step.
 func (v *LaunchFormView) recapText() string {
 	var b strings.Builder
-	muted := "[" + theme.TextMutedHex + "]"
 	switch {
 	case v.launching:
-		b.WriteString("⠋ " + i18n.T("tui.launch.launching") + "\n")
+		b.WriteString(stateText(stateLoading, "⠋ "+i18n.T("tui.launch.launching")) + "\n")
 		b.WriteString(v.progressText())
 	case v.recap == nil && v.recapErr == nil:
-		b.WriteString("⠋ " + i18n.T("tui.launch.preparing") + "\n")
+		b.WriteString(stateText(stateLoading, "⠋ "+i18n.T("tui.launch.preparing")) + "\n")
 	}
 	if v.recapErr != nil {
-		b.WriteString("[" + theme.ErrorHex + "]✗ " + tview.Escape(v.recapErr.Error()) + "[-]\n")
+		b.WriteString(stateText(stateError, v.recapErr.Error()) + "\n")
 	}
 	if v.launchErr != nil {
-		b.WriteString("[" + theme.ErrorHex + "]✗ " + tview.Escape(v.launchErr.Error()) + "[-]\n")
+		b.WriteString(theme.Paint(theme.ErrorHex, theme.SymFailure+" "+tview.Escape(v.launchErr.Error())) + "\n")
 	}
 	if v.needsProvider() {
-		b.WriteString(muted + i18n.T("tui.launch.configure_provider_hint") + "[-]\n")
+		b.WriteString(muted(i18n.T("tui.launch.configure_provider_hint")) + "\n")
 	}
 	if v.recap != nil {
 		for _, r := range v.recap.Rows {
-			fmt.Fprintf(&b, "%s%-14s[-] %s\n", muted, tview.Escape(r.Label), tview.Escape(r.Value))
+			fmt.Fprintf(&b, "%s %s\n", muted(fmt.Sprintf("%-14s", tview.Escape(r.Label))), tview.Escape(r.Value))
 		}
 		for _, w := range v.recap.Warnings {
-			b.WriteString("[" + theme.WarningHex + "]⚠ " + tview.Escape(w) + "[-]\n")
+			b.WriteString(theme.Paint(theme.WarningHex, theme.SymWarning+" "+tview.Escape(w)) + "\n")
 		}
 		if v.recap.Dirty {
 			b.WriteString(v.dirtyChoicesText() + "\n")
@@ -569,13 +572,12 @@ func (v *LaunchFormView) configureProvider() {
 
 // launchDirtyChoices are the keys of the dirty directory choices.
 var launchDirtyChoices = []struct {
-	key   rune
+	key   keys.Action
 	value string
-	label string
 }{
-	{'w', LaunchDirtyWorktree, "tui.launch.dirty.worktree"},
-	{'s', LaunchDirtyStash, "tui.launch.dirty.stash"},
-	{'b', LaunchDirtyAllow, "tui.launch.dirty.allow"},
+	{keys.Own("launch.dirty_worktree", 'w', "tui.launch.dirty.worktree"), LaunchDirtyWorktree},
+	{keys.Own("launch.dirty_stash", 's', "tui.launch.dirty.stash"), LaunchDirtyStash},
+	{keys.Own("launch.dirty_allow", 'b', "tui.launch.dirty.allow"), LaunchDirtyAllow},
 }
 
 // dirtyChoicesText renders the choices for a directory with uncommitted
@@ -583,23 +585,23 @@ var launchDirtyChoices = []struct {
 func (v *LaunchFormView) dirtyChoicesText() string {
 	parts := make([]string, len(launchDirtyChoices))
 	for i, c := range launchDirtyChoices {
-		mark := "( )"
+		mark := theme.SymUnselected
 		if v.m.dirty == c.value {
-			mark = "(●)"
+			mark = theme.SymSelected
 		}
-		parts[i] = fmt.Sprintf("[%c] %s %s", c.key, mark, i18n.T(c.label))
+		parts[i] = fmt.Sprintf("%s %s %s", bracketed(c.key.Keys()), mark, tview.Escape(c.key.Label()))
 	}
-	return "[" + theme.WarningHex + "]⚠ " + i18n.T("tui.launch.dirty.title") + "[-]  " + tview.Escape(strings.Join(parts, "   "))
+	return theme.Paint(theme.WarningHex, theme.SymWarning+" "+i18n.T("tui.launch.dirty.title")) + "  " + strings.Join(parts, "   ")
 }
 
 // dirtyKey applies a dirty directory choice on the recap step; it reports
 // whether the key was used.
-func (v *LaunchFormView) dirtyKey(r rune) bool {
+func (v *LaunchFormView) dirtyKey(event *tcell.EventKey) bool {
 	if v.step != launchStepRecap || v.launching || v.recap == nil || !v.recap.Dirty {
 		return false
 	}
 	for _, c := range launchDirtyChoices {
-		if c.key == r {
+		if c.key.Matches(event) {
 			if v.m.dirty != c.value {
 				v.m.dirty = c.value
 				v.loadRecap()
@@ -618,27 +620,22 @@ func (v *LaunchFormView) loadRecap() {
 		v.recap = &LaunchRecap{}
 		return
 	}
-	v.recapGen++
-	gen, app, ctx, choices := v.recapGen, v.app, v.ctx, v.m.choices()
-	go func() {
-		r, err := v.cfg.Recap(ctx, choices)
-		if app == nil || ctx.Err() != nil {
+	if v.app == nil {
+		return
+	}
+	choices := v.m.choices()
+	load(v.app, v.ctx, &v.recapLoads, func(ctx context.Context) (*LaunchRecap, error) {
+		return v.cfg.Recap(ctx, choices)
+	}, func(r *LaunchRecap, err error) {
+		v.recap, v.recapErr = r, err
+		if v.step == launchStepRecap && ((r != nil && (len(r.Suggestions) > 0 || len(r.Existing) > 0)) || v.needsProvider()) {
+			v.render() // suggestion, provider or existing session buttons
 			return
 		}
-		app.QueueUpdateDraw(func() {
-			if v.recapGen != gen {
-				return
-			}
-			v.recap, v.recapErr = r, err
-			if v.step == launchStepRecap && ((r != nil && (len(r.Suggestions) > 0 || len(r.Existing) > 0)) || v.needsProvider()) {
-				v.render() // suggestion, provider or existing session buttons
-				return
-			}
-			if v.recapTV != nil {
-				v.recapTV.SetText(v.recapText())
-			}
-		})
-	}()
+		if v.recapTV != nil {
+			v.recapTV.SetText(v.recapText())
+		}
+	})
 }
 
 // ── navigation ─────────────────────────────────────────────────────────────
@@ -722,7 +719,7 @@ func (v *LaunchFormView) launchWith(fn func(ctx context.Context, c LaunchChoices
 	}
 	app, ctx, choices := v.app, v.ctx, v.m.choices()
 	v.listenProgress()
-	go func() {
+	safego.Go(func() { // an action, not a read: a launch result is applied even if the form was left
 		err := fn(ctx, choices)
 		if app == nil {
 			return
@@ -751,7 +748,7 @@ func (v *LaunchFormView) launchWith(fn func(ctx context.Context, c LaunchChoices
 				v.recapTV.SetText(v.recapText())
 			}
 		})
-	}()
+	})
 }
 
 func (v *LaunchFormView) close() {
@@ -777,7 +774,7 @@ func (v *LaunchFormView) openPicker(in workflow.Input) {
 	v.form = nil
 	v.picker = NewBeadsPicker(v.ctx, v.app, cfg)
 	v.body.AddItem(v.picker, 0, 1, true)
-	v.hints.SetText("[" + theme.TextMutedHex + "]" + v.picker.StatusHints())
+	v.hints.SetText(muted(v.picker.StatusHints()))
 	if v.app != nil {
 		v.app.SetFocus(v.picker)
 	}

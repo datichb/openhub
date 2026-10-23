@@ -1,13 +1,24 @@
 package views
 
 import (
+	"fmt"
+
+	"github.com/rivo/tview"
+
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
-// tagged colours s with a theme colour (hex), then resets the foreground.
+// tagged colours s with a theme colour (hex), then resets the foreground
+// (theme.Paint: nothing under NO_COLOR).
 func tagged(hex, s string) string {
-	return theme.ColorTag(hex) + s + theme.TagColor
+	return theme.Paint(hex, s)
+}
+
+// bracketed is s between square brackets as plain text: « [Détail] », « [f] ».
+// The brackets are escaped so that tview does not take them for a tag.
+func bracketed(s string) string {
+	return tview.Escape(fmt.Sprintf("%c%s%c", '[', s, ']'))
 }
 
 // errorText is the toast of a failed operation (« Erreur : … »).

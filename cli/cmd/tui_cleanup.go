@@ -74,13 +74,13 @@ func cleanupText(list []projectCleanup) string {
 	var b strings.Builder
 	b.WriteString(i18n.T("tui.cleanup.intro") + "\n\n")
 	for _, pc := range list {
-		b.WriteString("[::b]" + tview.Escape(pc.Name) + "[::-]  " + theme.ColorTag(theme.TextMutedHex) + tview.Escape(pc.Project.Path) + theme.TagColor + "\n")
+		b.WriteString(theme.StyleTag(theme.AttrBold) + tview.Escape(pc.Name) + theme.TagAttrs + "  " + theme.Paint(theme.TextMutedHex, tview.Escape(pc.Project.Path)) + "\n")
 		for _, l := range cleanupLines(pc.Plan) {
 			b.WriteString("  " + tview.Escape(l) + "\n")
 		}
 		b.WriteString("\n")
 	}
-	b.WriteString(theme.ColorTag(theme.TextMutedHex) + i18n.Tf("tui.cleanup.kept_note", cleanupConfigFile(list)) + theme.TagColor)
+	b.WriteString(theme.Paint(theme.TextMutedHex, i18n.Tf("tui.cleanup.kept_note", cleanupConfigFile(list))))
 	return b.String()
 }
 
@@ -100,22 +100,18 @@ func showCleanupDiff(a *app.App, sh *shell.Shell, list []projectCleanup) {
 func cleanupDiffText(list []projectCleanup) string {
 	var b strings.Builder
 	for _, pc := range list {
-		b.WriteString("[::b]" + tview.Escape(pc.Name) + "[::-]\n")
+		b.WriteString(theme.StyleTag(theme.AttrBold) + tview.Escape(pc.Name) + theme.TagAttrs + "\n")
 		d := pc.Plan.Diff()
 		if d == "" {
 			d = i18n.Tf("tui.cleanup.no_diff", pc.Plan.ConfigFile) + "\n"
 		}
 		for _, line := range strings.SplitAfter(d, "\n") {
-			color := ""
 			switch {
 			case strings.HasPrefix(line, "-") && !strings.HasPrefix(line, "---"):
-				color = theme.ColorTag(theme.ErrorHex)
+				b.WriteString(theme.Paint(theme.ErrorHex, tview.Escape(line)))
 			case strings.HasPrefix(line, "+") && !strings.HasPrefix(line, "+++"):
-				color = theme.ColorTag(theme.SuccessHex)
-			}
-			if color != "" {
-				b.WriteString(color + tview.Escape(line) + theme.TagColor)
-			} else {
+				b.WriteString(theme.Paint(theme.SuccessHex, tview.Escape(line)))
+			default:
 				b.WriteString(tview.Escape(line))
 			}
 		}

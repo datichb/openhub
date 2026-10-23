@@ -254,7 +254,7 @@ Generated from the YAML of the workflow (« Launch · <workflow> », or « Launc
 | `Alt+←` / `PgUp` / `Ctrl+B`, `Alt+→` / `PgDn` | Previous, next step |
 | `Esc` | Close |
 
-**Existing session** (a session of the same workflow already works on the ticket): the recap compares both; a choice launches at once: `R` resume, `T` transfer (local ↔ container, model), `k` replace keeping the work, `d` delete and relaunch (confirmed), `p` in parallel.
+**Existing session** (a session of the same workflow already works on the ticket): the recap compares both; a choice launches at once: `R` resume, `T` transfer (local ↔ container, model), `K` replace keeping the work, `d` delete and relaunch (confirmed), `p` in parallel.
 
 **Ticket picker** (« Choose… »): `/` search, `f` label filter, `e` epic, `Space` tick (several tickets), `Enter` choose, `Esc` cancel.
 

@@ -1,14 +1,18 @@
 package views
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
 
+	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 )
 
 // Launch on a ticket already worked on (runsvc.RunPlan.Existing): the recap
@@ -35,16 +39,16 @@ func TransferFailedError(msg string) error { return transferFailedError{msg: msg
 
 // existingChoice is a choice offered for the existing session.
 type existingChoice struct {
-	key   rune
+	key   keys.Action
 	value string
 }
 
 var existingChoices = []existingChoice{
-	{'R', LaunchExistingResume},
-	{'T', LaunchExistingTransfer},
-	{'k', LaunchExistingKeep},
-	{'d', LaunchExistingDelete},
-	{'p', LaunchExistingParallel},
+	{keys.Resume, LaunchExistingResume},
+	{keys.Own("launch.transfer", 'T', "tui.launch.existing.key.transfer"), LaunchExistingTransfer},
+	{keys.Own("launch.keep", 'K', "tui.launch.existing.choice.keep"), LaunchExistingKeep},
+	{keys.Delete, LaunchExistingDelete},
+	{keys.Own("launch.parallel", 'p', "tui.launch.existing.choice.parallel"), LaunchExistingParallel},
 }
 
 // runtimeName is the label of a runtime, with its icon.
@@ -96,14 +100,14 @@ func (v *LaunchFormView) existingText() string {
 		b.WriteString("\n" + existingBlock(e))
 	}
 	if e, ok := v.recap.existingTarget(); ok {
-		var keys []string
+		var labels []string
 		for _, c := range existingChoices {
 			if e.Allows(c.value) {
-				keys = append(keys, fmt.Sprintf("[%c] %s", c.key, existingChoiceLabel(e, c.value)))
+				labels = append(labels, fmt.Sprintf("%s %s", bracketed(c.key.Keys()), tview.Escape(existingChoiceLabel(e, c.value))))
 			}
 		}
-		if len(keys) > 0 {
-			b.WriteString("[" + theme.TextMutedHex + "]" + tview.Escape(strings.Join(keys, " · ")) + "[-]\n")
+		if len(labels) > 0 {
+			b.WriteString(muted(strings.Join(labels, " · ")) + "\n")
 		}
 	}
 	return b.String()
@@ -120,19 +124,18 @@ func existingBlock(e LaunchExisting) string {
 	var b strings.Builder
 	shared := strings.Join(e.Shared, ", ")
 	if e.SameWorkflow {
-		b.WriteString("[" + theme.WarningHex + "]⚠ " + tview.Escape(i18n.Tf("tui.launch.existing.same", e.ID, shared)) + "[-]\n")
+		b.WriteString(theme.Paint(theme.WarningHex, theme.SymWarning+" "+tview.Escape(i18n.Tf("tui.launch.existing.same", e.ID, shared))) + "\n")
 	} else {
-		b.WriteString("[" + theme.InfoHex + "]" + theme.IconInfo + " " + tview.Escape(i18n.Tf("tui.launch.existing.other", e.ID, e.Workflow, shared)) + "[-]\n")
+		b.WriteString(theme.Paint(theme.InfoHex, theme.IconInfo+" "+tview.Escape(i18n.Tf("tui.launch.existing.other", e.ID, e.Workflow, shared))) + "\n")
 	}
-	muted := "[" + theme.TextMutedHex + "]"
-	fmt.Fprintf(&b, "  %s%s %s %s[-]\n", muted, pad("", existingLabelWidth), pad(i18n.T("tui.launch.existing.col.existing"), existingColWidth), i18n.T("tui.launch.existing.col.new"))
+	fmt.Fprintf(&b, "  %s\n", muted(pad("", existingLabelWidth)+" "+pad(i18n.T("tui.launch.existing.col.existing"), existingColWidth)+" "+i18n.T("tui.launch.existing.col.new")))
 	row := func(label, existing, planned string, differs bool) {
 		mark := " "
 		if differs {
-			mark = "[" + theme.WarningHex + "]⚠[-]"
+			mark = theme.Paint(theme.WarningHex, theme.SymWarning)
 		}
-		fmt.Fprintf(&b, "%s %s%s[-] %s %s\n", mark, muted, pad(label, existingLabelWidth),
-			tview.Escape(pad(clipText(dashIfEmpty(existing), existingColWidth), existingColWidth)), tview.Escape(dashIfEmpty(planned)))
+		fmt.Fprintf(&b, "%s %s %s %s\n", mark, muted(pad(label, existingLabelWidth)),
+			tview.Escape(pad(textfmt.Clip(dashIfEmpty(existing), existingColWidth), existingColWidth)), tview.Escape(dashIfEmpty(planned)))
 	}
 	state := e.StateLabel
 	if state == "" {
@@ -149,11 +152,11 @@ func existingBlock(e LaunchExisting) string {
 	row(i18n.T("tui.launch.existing.row.model"), e.Model, e.PlannedModel, e.Differs(LaunchDiffModel, "provider"))
 	row(i18n.T("tui.launch.existing.row.location"), withBranch(e.Path, e.Branch), withBranch(e.PlannedPath, e.PlannedBranch),
 		e.Differs(LaunchDiffLocation, LaunchDiffBranch))
-	work := i18n.Tf("tui.launch.existing.work_nogit", e.Cost)
+	work := i18n.Tf("tui.launch.existing.work_nogit", textfmt.Cost(e.Cost))
 	if e.WorkKnown {
-		work = i18n.Tf("tui.launch.existing.work", e.CommitsUnpushed, e.ChangedFiles, e.Cost)
+		work = i18n.Tf("tui.launch.existing.work", e.CommitsUnpushed, e.ChangedFiles, textfmt.Cost(e.Cost))
 	}
-	fmt.Fprintf(&b, "  %s%s[-] %s\n", muted, pad(i18n.T("tui.launch.existing.row.work"), existingLabelWidth), tview.Escape(work))
+	fmt.Fprintf(&b, "  %s %s\n", muted(pad(i18n.T("tui.launch.existing.row.work"), existingLabelWidth)), tview.Escape(work))
 	return b.String()
 }
 
@@ -166,21 +169,9 @@ func withVersion(id string, v int) string {
 
 func withBranch(path, branch string) string {
 	if branch == "" {
-		return clipLeft(path, existingColWidth)
+		return textfmt.ClipLeft(path, existingColWidth)
 	}
-	return clipLeft(path, existingColWidth-len([]rune(branch))-3) + " (" + branch + ")"
-}
-
-// clipLeft keeps the end of s (paths).
-func clipLeft(s string, n int) string {
-	r := []rune(s)
-	if n < 8 {
-		n = 8
-	}
-	if len(r) <= n {
-		return s
-	}
-	return "…" + string(r[len(r)-n+1:])
+	return textfmt.ClipLeft(path, max(existingColWidth-len([]rune(branch))-3, 8)) + " (" + branch + ")"
 }
 
 func dashIfEmpty(s string) string {
@@ -200,7 +191,7 @@ func pad(s string, w int) string {
 
 // existingKey applies a choice key on the recap; it reports whether the
 // key was used.
-func (v *LaunchFormView) existingKey(r rune) bool {
+func (v *LaunchFormView) existingKey(event *tcell.EventKey) bool {
 	if v.step != launchStepRecap || v.launching || v.recap == nil {
 		return false
 	}
@@ -209,7 +200,7 @@ func (v *LaunchFormView) existingKey(r rune) bool {
 		return false
 	}
 	for _, c := range existingChoices {
-		if c.key == r {
+		if c.key.Matches(event) {
 			if e.Allows(c.value) {
 				v.chooseExisting(c.value)
 			}
@@ -241,20 +232,19 @@ func (v *LaunchFormView) chooseExisting(choice string) {
 		v.shell.Confirm(title, i18n.T("tui.delete.irreversible"), true, func() { v.launchExisting(LaunchExistingDelete, false) })
 		return
 	}
-	app, ctx, id := v.app, v.ctx, e.ID
-	go func() {
-		s, err := v.cfg.PlanDelete(ctx, id)
-		if app == nil || ctx.Err() != nil {
+	if v.app == nil {
+		return
+	}
+	id := e.ID
+	load(v.app, v.ctx, &v.planLoads, func(ctx context.Context) (DeleteSummary, error) {
+		return v.cfg.PlanDelete(ctx, id)
+	}, func(s DeleteSummary, err error) {
+		if err != nil {
+			v.shell.ShowToastMsg(err.Error(), false)
 			return
 		}
-		app.QueueUpdateDraw(func() {
-			if err != nil {
-				v.shell.ShowToastMsg(err.Error(), false)
-				return
-			}
-			confirmSessionDelete(v.shell, title, s, func(discard bool) { v.launchExisting(LaunchExistingDelete, discard) })
-		})
-	}()
+		confirmSessionDelete(v.shell, title, s, func(discard bool) { v.launchExisting(LaunchExistingDelete, discard) })
+	})
 }
 
 func (v *LaunchFormView) launchExisting(choice string, discard bool) {
@@ -291,7 +281,7 @@ func (v *LaunchFormView) offerKeep(err error) {
 func confirmSessionDelete(sh ShellAccess, title string, s DeleteSummary, onYes func(discardBase bool)) {
 	detail := strings.Join(s.Items, "\n")
 	if s.Losses {
-		detail += "\n\n" + "⚠ " + i18n.T("tui.delete.losses")
+		detail += "\n\n" + theme.SymWarning + " " + i18n.T("tui.delete.losses")
 	}
 	if strings.TrimSpace(detail) == "" {
 		detail = i18n.T("tui.delete.irreversible")

@@ -69,7 +69,7 @@ type ProjectWikiView struct {
 	tv      *tview.TextView
 	shell   ShellAccess
 	cfg     ProjectWikiViewConfig
-	gen     uint64
+	loads   loadSlot // the reads of the metrics: only the latest is applied
 	wiki    *wikiList
 	name    string
 	path    string
@@ -100,7 +100,7 @@ func (v *ProjectWikiView) StatusHints() string {
 	if v.wiki != nil {
 		parts = append(parts, v.wiki.hints(), keys.Filter.Hint())
 	}
-	return keys.Hints(append(parts, i18n.T("tui.project_wiki.metrics_hint"), keys.Refresh.Hint(), keys.Back.Hint())...)
+	return keys.Hints(append(parts, metricsKey.Hint(), keys.Refresh.Hint(), keys.Back.Hint())...)
 }
 
 // Mount builds the view and loads the metrics and the queue in the
@@ -154,14 +154,13 @@ func (v *ProjectWikiView) refresh() {
 	if v.tv == nil {
 		return
 	}
-	v.gen++
-	gen := v.gen
 	name, path := v.name, v.path
 	if path == "" || v.cfg.Metrics == nil {
-		v.tv.SetText("  " + muted(i18n.T("tui.project.no_active")))
+		v.loads.Invalidate()
+		v.tv.SetText("  " + stateText(stateEmpty, i18n.T("tui.project.no_active")))
 		return
 	}
-	v.tv.SetText("  " + muted(i18n.T("tui.project_wiki.loading")))
+	v.tv.SetText("  " + stateText(stateLoading, i18n.T("tui.project_wiki.loading")))
 	if v.wiki != nil {
 		v.wiki.reload()
 	}
@@ -169,33 +168,29 @@ func (v *ProjectWikiView) refresh() {
 	if v.shell != nil {
 		ctx = v.shell.Context()
 	}
-	app, full := v.app, v.wiki == nil
-	go func() {
-		m, err := v.cfg.Metrics(ctx, path)
-		if app == nil {
+	full, metrics := v.wiki == nil, v.cfg.Metrics
+	load(v.app, ctx, &v.loads, func(ctx context.Context) (ProjectWikiMetrics, error) {
+		return metrics(ctx, path)
+	}, func(m ProjectWikiMetrics, err error) {
+		if v.tv == nil {
 			return
 		}
-		app.QueueUpdateDraw(func() {
-			if v.tv == nil || v.gen != gen {
-				return
-			}
-			v.metrics, v.merr, v.loaded = m, err, true
-			if full {
-				v.tv.SetText(renderProjectWiki(name, m, err))
-				return
-			}
-			v.tv.SetText(renderProjectWikiSummary(m, err))
-		})
-	}()
+		v.metrics, v.merr, v.loaded = m, err, true
+		if full {
+			v.tv.SetText(renderProjectWiki(name, m, err))
+			return
+		}
+		v.tv.SetText(renderProjectWikiSummary(m, err))
+	})
 }
 
 // renderProjectWikiSummary is the line of the metrics above the queue.
 func renderProjectWikiSummary(m ProjectWikiMetrics, err error) string {
 	switch {
 	case err != nil:
-		return "  " + tview.Escape(i18n.Tf("tui.project_wiki.error", err.Error()))
+		return "  " + stateText(stateError, err.Error())
 	case m.NoWiki:
-		return "  " + muted(i18n.T("tui.project_wiki.no_wiki"))
+		return "  " + stateText(stateEmpty, i18n.T("tui.project_wiki.no_wiki"))
 	}
 	parts := []string{i18n.Tf("tui.project_wiki.summary.pages", m.Pages)}
 	if m.Domains > 0 {
@@ -216,19 +211,17 @@ func renderProjectWikiSummary(m ProjectWikiMetrics, err error) string {
 // renderProjectWiki renders the metrics of the wiki of a project.
 func renderProjectWiki(project string, m ProjectWikiMetrics, err error) string {
 	var b strings.Builder
-	accent := theme.ColorTag(theme.ActiveMode.PrimaryHex)
-	c := theme.TagColor
-	fmt.Fprintf(&b, "\n  [::b]%s%s\n\n", tview.Escape(i18n.Tf("tui.project_wiki.heading", project)), theme.TagReset)
+	fmt.Fprintf(&b, "\n  %s%s%s\n\n", theme.StyleTag(theme.AttrBold), tview.Escape(i18n.Tf("tui.project_wiki.heading", project)), theme.TagAttrs)
 	switch {
 	case err != nil:
-		fmt.Fprintf(&b, "  %s\n", tview.Escape(i18n.Tf("tui.project_wiki.error", err.Error())))
+		fmt.Fprintf(&b, "  %s\n", stateText(stateError, err.Error()))
 		return b.String()
 	case m.NoWiki:
-		fmt.Fprintf(&b, "  %s\n", muted(i18n.T("tui.project_wiki.no_wiki")))
+		fmt.Fprintf(&b, "  %s\n", stateText(stateEmpty, i18n.T("tui.project_wiki.no_wiki")))
 		return b.String()
 	}
 	row := func(label, value string) {
-		fmt.Fprintf(&b, "  %s%-28s%s %s\n", accent, label, c, value)
+		fmt.Fprintf(&b, "  %s %s\n", theme.Paint(theme.ActiveMode.PrimaryHex, fmt.Sprintf("%-28s", label)), value)
 	}
 	row(i18n.T("tui.project_wiki.pages"), i18n.Tf("tui.project_wiki.pages_value", m.Pages, m.Specs, m.Decisions, m.Postmortems))
 	if m.Domains == 0 {
@@ -300,7 +293,7 @@ func wikiShortRef(c string) string {
 
 // Unmount stops the pending loads.
 func (v *ProjectWikiView) Unmount() {
-	v.gen++
+	v.loads.Invalidate()
 	if v.wiki != nil {
 		v.wiki.unmount()
 	}
@@ -314,7 +307,7 @@ func (v *ProjectWikiView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	case keys.Refresh.Matches(event):
 		v.refresh()
 		return nil
-	case event.Key() == tcell.KeyRune && event.Rune() == 'm' && event.Modifiers()&(tcell.ModCtrl|tcell.ModAlt) == 0:
+	case metricsKey.Matches(event):
 		v.showMetrics()
 		return nil
 	case v.wiki != nil && keys.Filter.Matches(event):
@@ -328,6 +321,9 @@ func (v *ProjectWikiView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	}
 	return event
 }
+
+// metricsKey shows every metric of the wiki.
+var metricsKey = keys.Own("project_wiki.metrics", 'm', "tui.project_wiki.key.metrics")
 
 // showMetrics shows every metric of the wiki (m).
 func (v *ProjectWikiView) showMetrics() {
