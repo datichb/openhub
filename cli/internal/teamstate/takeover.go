@@ -115,7 +115,7 @@ func (r *Repo) GenerateRawBrief(ctx context.Context, project, ticketID, from, to
 	if reason == "stale" {
 		claim, _ := r.GetClaim(project, ticketID)
 		if claim != nil {
-			lastActive := claim.LastActivity
+			lastActive := claim.LastActivity.Time()
 			if lastActive.IsZero() {
 				lastActive = claim.ClaimedAt
 			}

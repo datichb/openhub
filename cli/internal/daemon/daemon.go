@@ -130,6 +130,15 @@ type Options struct {
 	// restored (clean-up: oh gc). Unlike Periodic, they never keep the
 	// daemon awake.
 	Tasks []Task
+	// OnClaimsHeartbeat is the signal of life of the team claims (renew the
+	// leases of the claims of the open sessions, empty the queue of claim
+	// operations). It is called once the grants are restored, then every
+	// ClaimsHeartbeatEvery, until the daemon stops; an error is logged, never
+	// fatal. Nil or a zero ClaimsHeartbeatEvery (HeartbeatInterval of the
+	// team: 0 = off) = no heartbeat. Like a Task, it never keeps the daemon
+	// awake.
+	OnClaimsHeartbeat    func(ctx context.Context) error
+	ClaimsHeartbeatEvery time.Duration
 }
 
 // Task is a periodic background job of the daemon.
@@ -316,6 +325,9 @@ func Run(ctx context.Context, opts Options) error {
 	}
 	d.superviseLoop(ctx, "log rotation", d.runLogRotation)
 	d.superviseLoop(ctx, "leases", d.runLeases)
+	if opts.OnClaimsHeartbeat != nil && opts.ClaimsHeartbeatEvery > 0 {
+		d.superviseLoop(ctx, "claims heartbeat", d.runClaimsHeartbeat)
+	}
 	for _, t := range opts.Tasks {
 		d.superviseLoop(ctx, "task "+t.Name, func(ctx context.Context) { d.runTask(ctx, t) })
 	}

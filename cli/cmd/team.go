@@ -578,7 +578,7 @@ func runTeamStatus(cmd *cobra.Command, args []string) error {
 		for i, c := range memberClaims {
 			since := c.ClaimedAt
 			if !c.LastActivity.IsZero() {
-				since = c.LastActivity
+				since = c.LastActivity.Time()
 			}
 			sinceStr := formatDuration(time.Since(since).Truncate(time.Minute))
 

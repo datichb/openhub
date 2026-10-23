@@ -86,13 +86,19 @@ const (
 
 // Claim represents a ticket reservation by a team member.
 type Claim struct {
-	TicketID     string    `toml:"-"` // derived from filename
-	Project      string    `toml:"-"` // derived from directory
-	ClaimedBy    string    `toml:"claimed_by"`
-	ClaimedAt    time.Time `toml:"claimed_at"`
-	Worktree     string    `toml:"worktree,omitempty"`      // associated branch
-	Status       string    `toml:"status"`                  // see ClaimStatus* constants
-	LastActivity time.Time `toml:"last_activity,omitempty"` // last session/commit activity
+	TicketID  string    `toml:"-"` // derived from filename
+	Project   string    `toml:"-"` // derived from directory
+	ClaimedBy string    `toml:"claimed_by"`
+	ClaimedAt time.Time `toml:"claimed_at"`
+	Worktree  string    `toml:"worktree,omitempty"` // associated branch
+	Status    string    `toml:"status"`             // see ClaimStatus* constants
+	// LastActivity is the last activity on the claim (status change, label,
+	// takeover); empty on a claim that never had one, which IsStale then
+	// judges from claimed_at. An Instant, not a time.Time: go-toml omits a
+	// time.Time with omitempty even when it is set, so it was never written.
+	// On disk it is a native TOML date-time (marshalClaim), which an oh v5.0
+	// reads into its time.Time.
+	LastActivity Instant `toml:"last_activity,omitempty"`
 	// LeaseUntil is the end of the lease of the claim: the claim is expired
 	// once it is past, unless the owner renewed it (TouchClaims). Empty in
 	// the claims written before the lease existed (see Claim.IsExpired).
@@ -274,7 +280,7 @@ func (r *Repo) CreateClaim(ctx context.Context, c Claim) (*Claim, error) {
 			r.stampLease(&c, c.Session, time.Now().UTC())
 		}
 
-		data, err := toml.Marshal(&c)
+		data, err := marshalClaim(&c)
 		if err != nil {
 			return fmt.Errorf("marshaling claim: %w", err)
 		}
@@ -341,7 +347,7 @@ func (r *Repo) CreateClaimLocal(c Claim) (relPath string, err error) {
 		r.stampLease(&c, c.Session, time.Now().UTC())
 	}
 
-	data, err := toml.Marshal(&c)
+	data, err := marshalClaim(&c)
 	if err != nil {
 		return "", fmt.Errorf("marshaling claim: %w", err)
 	}
@@ -397,9 +403,11 @@ func (r *Repo) TransferClaim(ctx context.Context, project, ticketID, newOwner st
 		previousOwner := c.ClaimedBy
 		c.ClaimedBy = newOwner
 		c.Session = "" // the session of the previous owner
-		r.stampLease(c, claimSession(ctx), time.Now().UTC())
+		now := time.Now().UTC()
+		c.LastActivity = InstantOf(now) // a takeover is not stale on arrival
+		r.stampLease(c, claimSession(ctx), now)
 
-		data, marshalErr := toml.Marshal(c)
+		data, marshalErr := marshalClaim(c)
 		if marshalErr != nil {
 			return fmt.Errorf("marshaling claim: %w", marshalErr)
 		}
@@ -443,10 +451,11 @@ func (r *Repo) ClaimPoolTicket(ctx context.Context, project, ticketID, memberID,
 		} else {
 			c.Status = ClaimStatusInProgress
 		}
-		c.LastActivity = time.Now().UTC()
-		r.stampLease(c, claimSession(ctx), c.LastActivity)
+		now := time.Now().UTC()
+		c.LastActivity = InstantOf(now)
+		r.stampLease(c, claimSession(ctx), now)
 
-		data, marshalErr := toml.Marshal(c)
+		data, marshalErr := marshalClaim(c)
 		if marshalErr != nil {
 			return fmt.Errorf("marshaling claim: %w", marshalErr)
 		}
@@ -488,9 +497,9 @@ func (r *Repo) UpdateClaimStatus(ctx context.Context, project, ticketID, newStat
 		}
 
 		c.Status = newStatus
-		c.LastActivity = time.Now().UTC()
+		c.LastActivity = InstantOf(time.Now())
 
-		data, err := toml.Marshal(c)
+		data, err := marshalClaim(c)
 		if err != nil {
 			return fmt.Errorf("marshaling claim: %w", err)
 		}
@@ -530,9 +539,9 @@ func (r *Repo) AddClaimLabel(ctx context.Context, project, ticketID, label strin
 		}
 
 		c.Labels = append(c.Labels, label)
-		c.LastActivity = time.Now().UTC()
+		c.LastActivity = InstantOf(time.Now())
 
-		data, err := toml.Marshal(c)
+		data, err := marshalClaim(c)
 		if err != nil {
 			return fmt.Errorf("marshaling claim: %w", err)
 		}
@@ -577,9 +586,9 @@ func (r *Repo) RemoveClaimLabel(ctx context.Context, project, ticketID, label st
 		}
 
 		c.Labels = filtered
-		c.LastActivity = time.Now().UTC()
+		c.LastActivity = InstantOf(time.Now())
 
-		data, err := toml.Marshal(c)
+		data, err := marshalClaim(c)
 		if err != nil {
 			return fmt.Errorf("marshaling claim: %w", err)
 		}
@@ -624,9 +633,9 @@ func (r *Repo) UpdateClaimStatusFromTracker(ctx context.Context, project, ticket
 		}
 
 		c.Status = newStatus
-		c.LastActivity = time.Now().UTC()
+		c.LastActivity = InstantOf(time.Now())
 
-		data, err := toml.Marshal(c)
+		data, err := marshalClaim(c)
 		if err != nil {
 			return fmt.Errorf("marshaling claim: %w", err)
 		}
@@ -680,7 +689,7 @@ func (r *Repo) UpdateClaimMetadata(ctx context.Context, project, ticketID, title
 			return nil
 		}
 
-		data, err := toml.Marshal(c)
+		data, err := marshalClaim(c)
 		if err != nil {
 			return fmt.Errorf("marshaling claim: %w", err)
 		}
@@ -718,7 +727,7 @@ func (r *Repo) SetClaimExternalIID(ctx context.Context, project, ticketID string
 
 		c.ExternalIID = iid
 
-		data, err := toml.Marshal(c)
+		data, err := marshalClaim(c)
 		if err != nil {
 			return fmt.Errorf("marshaling claim: %w", err)
 		}
@@ -765,7 +774,7 @@ func (r *Repo) CleanupDoneClaims(ctx context.Context, retentionDays int, termina
 			if !termSet[c.Status] {
 				continue
 			}
-			activity := c.LastActivity
+			activity := c.LastActivity.Time()
 			if activity.IsZero() {
 				activity = c.ClaimedAt
 			}
@@ -890,9 +899,9 @@ func (r *Repo) updateClaimFieldsLocal(project, ticketID string, fn func(c *Claim
 		return "", err
 	}
 
-	c.LastActivity = time.Now().UTC()
+	c.LastActivity = InstantOf(time.Now())
 
-	data, err := toml.Marshal(c)
+	data, err := marshalClaim(c)
 	if err != nil {
 		return "", fmt.Errorf("marshaling claim: %w", err)
 	}
