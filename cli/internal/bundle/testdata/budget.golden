@@ -65,11 +65,11 @@ instruct security-fix           developer                       11892     5544  
 instruct security-fix           TOTAL                           23663    10959   19   30   1084   30   1084
 instruct skill-refresh          documentarian                    4268     2640    4    9    289    9    289
 instruct skill-refresh          TOTAL                            4268     2640    4    9    289    9    289
-instruct spec                   conductor                        3871     2653    5    0      0    0      0
+instruct spec                   conductor                        3881     2663    5    0      0    0      0
 instruct spec                   designer                         4569     2427    6   12    411   12    411
 instruct spec                   pathfinder                       5845     3832    7    4    160    4    160
 instruct spec                   planner                          6081     3439    7   13    442   13    442
-instruct spec                   TOTAL                           20366    12351   25   24    823   24    823
+instruct spec                   TOTAL                           20376    12361   25   24    823   24    823
 instruct spike                  developer                       11891     5544    8   17    621   17    621
 instruct spike                  pathfinder                       5274     3202    6    4    160    4    160
 instruct spike                  TOTAL                           17165     8746   14   19    714   19    714
@@ -142,11 +142,11 @@ none     security-fix           developer                        7413     5071  
 none     security-fix           TOTAL                           14588     9945   17   33   1188   33   1188
 none     skill-refresh          documentarian                    3853     2640    4    9    289    9    289
 none     skill-refresh          TOTAL                            3853     2640    4    9    289    9    289
-none     spec                   conductor                        3778     2653    5    0      0    0      0
+none     spec                   conductor                        3788     2663    5    0      0    0      0
 none     spec                   designer                         4171     2427    6   12    411   12    411
 none     spec                   pathfinder                       4977     3358    6    4    160    4    160
 none     spec                   planner                          5683     3439    7   13    442   13    442
-none     spec                   TOTAL                           18609    11877   24   24    823   24    823
+none     spec                   TOTAL                           18619    11887   24   24    823   24    823
 none     spike                  developer                        7412     5071    7   20    725   20    725
 none     spike                  pathfinder                       4406     2728    5    4    160    4    160
 none     spike                  TOTAL                           11818     7799   12   22    818   22    818
@@ -219,11 +219,11 @@ stacks   security-fix           developer                        7413     5071  
 stacks   security-fix           TOTAL                           14588     9945   17   40   1435   40   1435
 stacks   skill-refresh          documentarian                    3853     2640    4    9    289    9    289
 stacks   skill-refresh          TOTAL                            3853     2640    4    9    289    9    289
-stacks   spec                   conductor                        3778     2653    5    0      0    0      0
+stacks   spec                   conductor                        3788     2663    5    0      0    0      0
 stacks   spec                   designer                         4171     2427    6   12    411   12    411
 stacks   spec                   pathfinder                       4977     3358    6    4    160    4    160
 stacks   spec                   planner                          5683     3439    7   13    442   13    442
-stacks   spec                   TOTAL                           18609    11877   24   24    823   24    823
+stacks   spec                   TOTAL                           18619    11887   24   24    823   24    823
 stacks   spike                  developer                        7412     5071    7   27    972   27    972
 stacks   spike                  pathfinder                       4406     2728    5    4    160    4    160
 stacks   spike                  TOTAL                           11818     7799   12   29   1065   29   1065
@@ -248,8 +248,8 @@ orchestrator-protocol                      3219 orchestrator
 pathfinder-protocol                        1917 pathfinder
 doc-protocol                               1878 documentarian
 planner-workflow                           1713 planner
+workflow-map                               1378 conductor
 dev-standards-simplicity                   1375 developer
-workflow-map                               1368 conductor
 dev-standards-universal                    1343 developer
 audit-protocol-light                       1122 auditor,auditor-subagent
 orchestrator-dev-protocol                  1097 orchestrator-dev

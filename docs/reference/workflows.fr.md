@@ -145,12 +145,12 @@ Session de développement directe avec l'agent `developer`, sans planification. 
 
 ## `spec`
 
-Comprend une demande, écrit sa spec dans le wiki et la découpe en tickets Beads, sans l'implémenter (`risk: plan`). Le `conductor` relance le `planner` à chaque étape ; le planner reste en lecture seule, sauf sa spec et sa ligne dans l'index du wiki : `agents.planner.writes: ["docs/wiki/specs/**", "docs/wiki/index.md"]` ([`writes`](workflow-schema.fr.md#writes-chemins-de-documentation)).
+Comprend une demande, écrit sa spec dans `docs/wiki/` (documentation versionnée du dépôt, pas le wiki GitLab) et la découpe en tickets Beads, sans l'implémenter (`risk: plan`). Le `conductor` relance le `planner` à chaque étape ; le planner reste en lecture seule, sauf sa spec et sa ligne dans l'index du wiki : `agents.planner.writes: ["docs/wiki/specs/**", "docs/wiki/index.md"]` ([`writes`](workflow-schema.fr.md#writes-chemins-de-documentation)).
 
 | Entrée | Type | Obligatoire | Rôle |
 |---|---|---|---|
 | `request` | `text` (8 000 caractères max) | non | La feature à spécifier, ou un ticket Beads, un ticket GitLab (`#12`, URL) ou une MR (`!7`, URL) que le `planner` lit ; sans elle (ni `source`), le `conductor` la demande à l'utilisateur avec `question` avant toute étape |
-| `source` | `path` | non | Page du wiki à l'origine de la demande (décision d'un `spike`, postmortem d'un `incident`), donnée par leur `next:` ; le planner la lit à l'entretien |
+| `source` | `path` | non | Page de `docs/wiki/` à l'origine de la demande (décision d'un `spike`, postmortem d'un `incident`), donnée par leur `next:` ; le planner la lit à l'entretien |
 | `method` | `enum` (`standard`, `tdd`) | non (`standard`) | Méthode de l'implémentation proposée ensuite : `spec` ne s'en sert pas, oh la relève et la passe à `implement-spec` |
 
 | Checkpoint | manuel | semi-auto | auto |

@@ -4,8 +4,8 @@ id: spec
 category: frame
 label: { fr: Spécification, en: Specification }
 description:
-  fr: Comprendre une demande, écrire sa spec dans le wiki (glossaire, critères et points de test) et la découper en tickets Beads, sans l'implémenter
-  en: Understand a request, write its spec in the wiki (glossary, criteria and test points) and slice it into Beads tickets, without implementing it
+  fr: Comprendre une demande, écrire sa spec (glossaire, critères et points de test) dans docs/wiki/ (documentation versionnée du dépôt) et la découper en tickets Beads, sans l'implémenter
+  en: Understand a request, write its spec (glossary, criteria and test points) in docs/wiki/ (versioned repository documentation) and slice it into Beads tickets, without implementing it
 risk: plan
 # R5: `oh run cadrage` launches spec (cadrage.yaml removed).
 # feature-migration: `oh run feature` launches spec, `oh run feature
@@ -27,8 +27,8 @@ inputs:
     type: path
     label: { fr: Document d'origine, en: Source document }
     help:
-      fr: Page du wiki à l'origine de la demande (décision d'un spike, postmortem d'un incident), lue par le planner (facultatif)
-      en: Wiki page the request comes from (the decision of a spike, the postmortem of an incident), read by the planner (optional)
+      fr: Page de docs/wiki/ (documentation versionnée du dépôt) à l'origine de la demande, par exemple la décision d'un spike ou le postmortem d'un incident ; lue par le planner (facultatif)
+      en: Page of docs/wiki/ (versioned repository documentation) the request comes from, for example the decision of a spike or the postmortem of an incident; read by the planner (optional)
   # feature-migration: not used by spec itself; recorded by oh and passed on
   # to implement-spec by `next:` (oh run feature -i method=tdd).
   method:

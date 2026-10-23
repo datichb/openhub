@@ -29,8 +29,8 @@ inputs:
     from: session.output(spec.spec)
     label: { fr: Spec, en: Spec }
     help:
-      fr: Spec des tickets dans le wiki (facultatif ; par défaut, celle de la dernière session spec du projet)
-      en: Spec of the tickets in the wiki (optional; by default, the one of the last spec session of the project)
+      fr: Spec des tickets dans docs/wiki/ (documentation versionnée du dépôt) ; facultatif, par défaut celle de la dernière session spec du projet
+      en: Spec of the tickets in docs/wiki/ (versioned repository documentation); optional, by default the one of the last spec session of the project
   method:
     type: enum
     values: [standard, tdd]
