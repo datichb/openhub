@@ -96,8 +96,10 @@ oh run <workflow>
 | Tool | Description | Utilisé par |
 |------|-------------|-------------|
 | `gitlab_get_project` | Métadonnées du projet (nom, branche par défaut, visibilité, namespace) | Onboarder |
-| `gitlab_list_issues` | Liste des issues avec filtres (état, labels, recherche) | Planner, Pathfinder, Onboarder |
-| `gitlab_list_mrs` | Liste des merge requests avec filtres (état, labels, branche source/cible) | Planner, Pathfinder, Onboarder |
+| `gitlab_get_issue` | Lecture d'une issue par son IID (`#623`) : description, labels, assignés, jalon, liens, premiers commentaires | Tout agent qui lit un ticket (reviewer, planner, pathfinder) |
+| `gitlab_list_issues` | Liste des issues, une page à la fois, avec filtres (IID, recherche, assigné, labels, état) | Planner, Pathfinder, Onboarder |
+| `gitlab_get_mr` | Lecture d'une merge request par son IID (`!12`) : branches, statut, issues fermées | Reviewer, Pathfinder |
+| `gitlab_list_mrs` | Liste des merge requests, une page à la fois, avec filtres (IID, recherche, branche source, état) | Planner, Pathfinder, Onboarder |
 | `gitlab_list_mr_discussions` | Liste des discussions en fil sur une merge request | Pathfinder |
 | `gitlab_get_mr_approvals` | État des approbations, approbateurs requis et règles pour une MR | Pathfinder |
 | `gitlab_create_mr` | Créer une merge request (mode écriture) | Orchestrator-dev (mode feedback) |
@@ -225,9 +227,9 @@ L'outil `gitlab_get_mr_approvals` nécessite GitLab **Premium** ou **Ultimate**.
 
 ## Limitations actuelles
 
-- Pas de pagination automatique — les outils de liste retournent jusqu'à 100 résultats par appel
+- Pagination manuelle — un outil de liste retourne une page (20 par défaut, 100 au plus) et indique le total et la page suivante
 - Pas de retry sur HTTP 429 (rate limiting) — reculer manuellement en cas de dépassement de limites
-- Pas d'outils dédiés pour la liste des labels ou milestones — utiliser les filtres de `gitlab_list_issues` ou les métadonnées du projet
+- Pas d'outils dédiés pour la liste des labels ou milestones — utiliser les filtres de `gitlab_list_issues`, `gitlab_get_issue` ou les métadonnées du projet
 
 ---
 

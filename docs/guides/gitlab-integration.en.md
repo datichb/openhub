@@ -96,8 +96,10 @@ oh run <workflow>
 | Tool | Description | Used by |
 |------|-------------|---------|
 | `gitlab_get_project` | Project metadata (name, default branch, visibility, namespace) | Onboarder |
-| `gitlab_list_issues` | List issues with filters (state, labels, search) | Planner, Pathfinder, Onboarder |
-| `gitlab_list_mrs` | List merge requests with filters (state, labels, source/target branch) | Planner, Pathfinder, Onboarder |
+| `gitlab_get_issue` | Read one issue by its IID (`#623`): description, labels, assignees, milestone, links, first comments | Every agent that reads a ticket (reviewer, planner, pathfinder) |
+| `gitlab_list_issues` | List issues, one page at a time, with filters (IIDs, search, assignee, labels, state) | Planner, Pathfinder, Onboarder |
+| `gitlab_get_mr` | Read one merge request by its IID (`!12`): branches, status, closed issues | Reviewer, Pathfinder |
+| `gitlab_list_mrs` | List merge requests, one page at a time, with filters (IIDs, search, source branch, state) | Planner, Pathfinder, Onboarder |
 | `gitlab_list_mr_discussions` | List threaded discussions on a merge request | Pathfinder |
 | `gitlab_get_mr_approvals` | Approval state, required approvers, and approval rules for a MR | Pathfinder |
 | `gitlab_create_mr` | Create a merge request (write mode) | Orchestrator-dev (feedback mode) |
@@ -225,9 +227,9 @@ The `gitlab_get_mr_approvals` tool requires GitLab **Premium** or **Ultimate**. 
 
 ## Current Limitations
 
-- No automatic pagination — list tools return up to 100 results per call
+- Pagination is manual — a list tool returns one page (20 by default, 100 at most) and tells the total and the next page
 - No retry on HTTP 429 (rate limiting) — back off manually if hitting limits
-- No dedicated tools for labels or milestones listing — use `gitlab_list_issues` filters or the project metadata
+- No dedicated tools for labels or milestones listing — use `gitlab_list_issues` filters, `gitlab_get_issue` or the project metadata
 
 ---
 
