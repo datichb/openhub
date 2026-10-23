@@ -12,6 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	remotesvc "github.com/datichb/openhub/cli/internal/services/remote"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
@@ -97,7 +98,7 @@ func (t *tuiSessions) FetchRemote(ctx context.Context, id string) (views.RemoteF
 		return views.RemoteFetchReport{}, err
 	}
 	s := res.Summary
-	lines := []string{theme.SymSuccess + " " + i18n.Tf("cmd.session.fetch.summary", i18n.T("cmd.session.fetch.outcome."+s.Outcome), s.Cost, len(res.Journal))}
+	lines := []string{theme.SymSuccess + " " + i18n.Tf("cmd.session.fetch.summary", i18n.T("cmd.session.fetch.outcome."+s.Outcome), textfmt.Cost(s.Cost), len(res.Journal))}
 	if s.Error != "" {
 		lines = append(lines, theme.SymWarning+" "+s.Error)
 	}

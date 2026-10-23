@@ -5085,7 +5085,7 @@
   "cmd.session.fetch.not_finished": "the pipeline of this session is still running: try again once it is \"To fetch\" (oh session list)",
   "cmd.session.fetch.not_remote": "this session did not run remotely",
   "cmd.session.fetch.no_artifacts": "no artifacts: the oh-run job did not run or its artifacts expired (7 days)",
-  "cmd.session.fetch.summary": "Session %s · $%.2f · Beads journal: %d write(s)",
+  "cmd.session.fetch.summary": "Session %s · %s · Beads journal: %d write(s)",
   "cmd.session.fetch.outcome.completed": "completed",
   "cmd.session.fetch.outcome.deferred": "stopped at a deferred checkpoint (MR ready)",
   "cmd.session.fetch.outcome.question": "stopped on a question",

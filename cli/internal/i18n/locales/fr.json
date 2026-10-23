@@ -5085,7 +5085,7 @@
   "cmd.session.fetch.not_finished": "le pipeline de cette session tourne encore : réessayez quand elle est « À récupérer » (oh session list)",
   "cmd.session.fetch.not_remote": "cette session n'a pas tourné en distant",
   "cmd.session.fetch.no_artifacts": "aucun artefact : le job oh-run n'a pas tourné ou ses artefacts ont expiré (7 jours)",
-  "cmd.session.fetch.summary": "Session %s · $%.2f · journal Beads : %d écriture(s)",
+  "cmd.session.fetch.summary": "Session %s · %s · journal Beads : %d écriture(s)",
   "cmd.session.fetch.outcome.completed": "terminée",
   "cmd.session.fetch.outcome.deferred": "arrêtée à un checkpoint différé (MR prête)",
   "cmd.session.fetch.outcome.question": "arrêtée sur une question",
