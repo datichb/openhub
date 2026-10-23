@@ -20,6 +20,7 @@ import (
 	"time"
 
 	ohruntime "github.com/datichb/openhub/cli/internal/runtime"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 )
 
 // EngineKind identifies a container engine.
@@ -185,14 +186,9 @@ func (r ExecRunner) Run(ctx context.Context, name string, args ...string) ([]byt
 		if msg == "" {
 			msg = strings.TrimSpace(stdout.String())
 		}
-		return stdout.Bytes(), fmt.Errorf("%s %s: %w: %s", name, strings.Join(args, " "), err, firstLine(msg))
+		return stdout.Bytes(), fmt.Errorf("%s %s: %w: %s", name, strings.Join(args, " "), err, textfmt.FirstLine(msg))
 	}
 	return stdout.Bytes(), nil
-}
-
-func firstLine(s string) string {
-	s, _, _ = strings.Cut(strings.TrimSpace(s), "\n")
-	return s
 }
 
 // Engine is a detected, reachable container engine.
@@ -414,7 +410,7 @@ func (d Detector) colimaStatus(ctx context.Context, profile string) (colimaStatu
 	}
 	i := bytes.IndexByte(out, '{')
 	if i < 0 {
-		return st, fmt.Errorf("colima status: unexpected output %q", firstLine(string(out)))
+		return st, fmt.Errorf("colima status: unexpected output %q", textfmt.FirstLine(string(out)))
 	}
 	if err := json.NewDecoder(bytes.NewReader(out[i:])).Decode(&st); err != nil {
 		return st, fmt.Errorf("colima status: %w", err)
