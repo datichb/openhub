@@ -86,6 +86,10 @@ type TeamStateWriter interface {
 	RemoveClaimLabel(ctx context.Context, project, ticketID, label string) error
 	SetClaimExternalIID(ctx context.Context, project, ticketID string, iid int) error
 	CleanupDoneClaims(ctx context.Context, retentionDays int, terminalStatuses ...string) ([]Claim, error)
+	// TouchClaims renews the lease of the claims of the member or of the
+	// session in a single commit; none is made when every lease is still
+	// long. It returns the claims it renewed.
+	TouchClaims(ctx context.Context, refs []ClaimRef, member, session string, now time.Time) ([]ClaimRef, error)
 
 	// Members
 	AddMember(ctx context.Context, m Member) error

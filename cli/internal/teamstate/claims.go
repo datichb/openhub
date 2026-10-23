@@ -93,6 +93,15 @@ type Claim struct {
 	Worktree     string    `toml:"worktree,omitempty"`      // associated branch
 	Status       string    `toml:"status"`                  // see ClaimStatus* constants
 	LastActivity time.Time `toml:"last_activity,omitempty"` // last session/commit activity
+	// LeaseUntil is the end of the lease of the claim: the claim is expired
+	// once it is past, unless the owner renewed it (TouchClaims). Empty in
+	// the claims written before the lease existed (see Claim.IsExpired).
+	// An Instant, not a time.Time: go-toml omits a time.Time with omitempty
+	// even when it is set.
+	LeaseUntil Instant `toml:"lease_until,omitempty"`
+	// Session is the ID of the session that works on the ticket. Empty when
+	// the creator did not know it (CLI claim, old claim).
+	Session string `toml:"session,omitempty"`
 	// Title is the issue title from the external tracker.
 	// Populated and updated by the tracker sync engine.
 	Title string `toml:"title,omitempty"`
@@ -261,6 +270,9 @@ func (r *Repo) CreateClaim(ctx context.Context, c Claim) (*Claim, error) {
 		if len(r.boardStatuses) > 0 && !IsValidBoardStatus(c.Status, r.boardStatuses) {
 			return fmt.Errorf("creating claim: %w: %q", ErrInvalidStatus, c.Status)
 		}
+		if c.LeaseUntil == "" {
+			r.stampLease(&c, c.Session, time.Now().UTC())
+		}
 
 		data, err := toml.Marshal(&c)
 		if err != nil {
@@ -325,6 +337,9 @@ func (r *Repo) CreateClaimLocal(c Claim) (relPath string, err error) {
 	if len(r.boardStatuses) > 0 && !IsValidBoardStatus(c.Status, r.boardStatuses) {
 		return "", fmt.Errorf("creating claim: %w: %q", ErrInvalidStatus, c.Status)
 	}
+	if c.LeaseUntil == "" {
+		r.stampLease(&c, c.Session, time.Now().UTC())
+	}
 
 	data, err := toml.Marshal(&c)
 	if err != nil {
@@ -381,6 +396,8 @@ func (r *Repo) TransferClaim(ctx context.Context, project, ticketID, newOwner st
 
 		previousOwner := c.ClaimedBy
 		c.ClaimedBy = newOwner
+		c.Session = "" // the session of the previous owner
+		r.stampLease(c, claimSession(ctx), time.Now().UTC())
 
 		data, marshalErr := toml.Marshal(c)
 		if marshalErr != nil {
@@ -427,6 +444,7 @@ func (r *Repo) ClaimPoolTicket(ctx context.Context, project, ticketID, memberID,
 			c.Status = ClaimStatusInProgress
 		}
 		c.LastActivity = time.Now().UTC()
+		r.stampLease(c, claimSession(ctx), c.LastActivity)
 
 		data, marshalErr := toml.Marshal(c)
 		if marshalErr != nil {
