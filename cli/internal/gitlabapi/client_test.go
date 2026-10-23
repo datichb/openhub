@@ -3,6 +3,7 @@ package gitlabapi
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -296,4 +297,20 @@ func TestAuthError(t *testing.T) {
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "authentication failed")
+}
+
+// The caller names the token that was refused: the client returns its error.
+func TestAuthErrorBuiltByTheCaller(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+	}))
+	defer ts.Close()
+
+	c := NewClient(ts.URL, "bad-token").WithAuthError(func(status int) error {
+		return fmt.Errorf("refused with %d", status)
+	})
+
+	_, err := c.FindMRByBranch(context.Background(), testProjectID, "feat/a")
+
+	require.ErrorContains(t, err, "refused with 403")
 }

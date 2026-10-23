@@ -28,6 +28,9 @@ type Client struct {
 	baseURL string
 	token   string
 	client  *http.Client
+	// authError, when set, builds the error returned for an HTTP 401 or 403
+	// (it knows where the token comes from; this package does not).
+	authError func(status int) error
 }
 
 // NewClient creates a new GitLab API client.
@@ -48,6 +51,14 @@ func NewClient(baseURL, token string) *Client {
 		token:   token,
 		client:  httplog.Wrap(&http.Client{Timeout: 30 * time.Second}, "gitlabapi"),
 	}
+}
+
+// WithAuthError sets the error returned when the server refuses the token
+// (HTTP 401 or 403): the caller knows the source and the key of the token and
+// can name them. It returns c.
+func (c *Client) WithAuthError(f func(status int) error) *Client {
+	c.authError = f
+	return c
 }
 
 // MRInfo holds the result of creating or finding a merge request.
@@ -168,6 +179,9 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body []byte
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+		if c.authError != nil {
+			return nil, c.authError(resp.StatusCode)
+		}
 		return nil, fmt.Errorf("authentication failed (HTTP %d) — check your GitLab token has 'api' scope", resp.StatusCode)
 	}
 	if resp.StatusCode >= 400 {

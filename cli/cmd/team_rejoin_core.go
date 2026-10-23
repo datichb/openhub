@@ -13,6 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	teamsvc "github.com/datichb/openhub/cli/internal/services/team"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tracker"
 )
@@ -177,11 +178,12 @@ func validateGitLabIdentity(ctx context.Context, a *app.App, repo *teamstate.Rep
 
 	// Resolve the token: env → team-specific key → MCP key → tracker key
 	teamID := config.RepoNameFromRemote(repo.Remote())
-	token := resolveGitLabTokenForIdentity(ctx, a, teamID)
-	if token == "" {
-		slog.Warn("GitLab identity validation skipped: no token available",
+	res := gitlabTeamToken(ctx, a, teamID, repo.Remote())
+	if !res.Found() {
+		slog.Warn("GitLab identity validation skipped: no token available for the server",
 			"member", member.ID,
 			"gitlab_username", member.GitLabUsername,
+			"error", tracker.NewMissingTokenError(res, tracker.PurposeTeam, teamID),
 		)
 		return nil
 	}
@@ -190,7 +192,8 @@ func validateGitLabIdentity(ctx context.Context, a *app.App, repo *teamstate.Rep
 	cfg := tracker.Config{
 		Type:    tracker.TypeGitLab,
 		BaseURL: baseURL,
-		Token:   token,
+		Token:   res.Token,
+		Origin:  res.Origin(),
 	}
 	t, err := tracker.New(cfg)
 	if err != nil {
@@ -216,7 +219,7 @@ func validateGitLabIdentity(ctx context.Context, a *app.App, repo *teamstate.Rep
 }
 
 // gitlabBaseURLFromRemote extracts the base URL (scheme + host) from a git
-// remote URL. Supports HTTPS and SCP-style (git@host:path) formats.
+// remote URL. Supports HTTPS, ssh:// and SCP-style (git@host:path) formats.
 // Returns "" if the URL cannot be parsed.
 func gitlabBaseURLFromRemote(remote string) string {
 	// SCP-style: git@gitlab.octo.tools:org/repo.git → https://gitlab.octo.tools
@@ -232,18 +235,26 @@ func gitlabBaseURLFromRemote(remote string) string {
 	}
 	// HTTP(S) URL: https://gitlab.octo.tools/org/repo.git → https://gitlab.octo.tools
 	if u, err := url.Parse(remote); err == nil && u.Host != "" {
+		if u.Scheme == "ssh" || u.Scheme == "git" {
+			// the port of an ssh remote is the one of the git service, not of the API
+			return "https://" + u.Hostname()
+		}
 		return u.Scheme + "://" + u.Host
 	}
 	return ""
 }
 
-// resolveGitLabTokenForIdentity finds the GitLab token used to verify an
-// identity: the unique cascade of the team service for the team teamID
-// (GITLAB_TOKEN, the token of the team, the hub MCP token, the former
-// tracker key). Returns "" if no token is found.
-func resolveGitLabTokenForIdentity(ctx context.Context, a *app.App, teamID string) string {
-	tok, _ := teamService(a).GitLabToken(ctx, teamID)
-	return tok
+// gitlabTeamToken finds the GitLab token that serves the GitLab of the
+// team-state repository repo of the team teamID: the unique cascade of the
+// team service for that server (GITLAB_TOKEN declared for it, the token of the
+// team, the hub MCP token or the former tracker key declared for it). The
+// result holds no token when none serves that server.
+func gitlabTeamToken(ctx context.Context, a *app.App, teamID, repo string) teamsvc.GitLabTokenResult {
+	svc := teamsvc.New(&config.Config{}, nil, nil)
+	if a != nil {
+		svc = teamService(a)
+	}
+	return svc.GitLabToken(ctx, teamID, gitlabBaseURLFromRemote(repo), teamsvc.WithTeamRepo(repo))
 }
 
 // listTeamMembers clones/pulls the team-state repo and returns the list of members.

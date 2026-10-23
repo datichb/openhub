@@ -66,14 +66,14 @@ oh config set <key> <value>
 | Worktrees | `worktree.auto_cleanup`, `worktree.base_branch`, `worktree.branch_pattern` |
 | Models | `models.default` |
 | Web search | `websearch.enabled` |
-| Tracker | `tracker.enabled`, `tracker.auto_sync`, `tracker.push_labels`, `tracker.auto_plan_assigned`, `tracker.max_auto_plan_per_member`, `tracker.tracker_url`, `tracker.tracker_token_key`, `tracker.write_enabled` |
+| Tracker | `tracker.enabled`, `tracker.auto_sync`, `tracker.push_labels`, `tracker.auto_plan_assigned`, `tracker.max_auto_plan_per_member`, `tracker.tracker_url`, `tracker.tracker_token_key`, `tracker.tracker_token_url`, `tracker.write_enabled` |
 | Sessions | `session.attach` (`auto`, `iterm`, `terminal`, `tmux`, `browser`, `suspend`), `session.iterm_style` (`tab`, `split`, `window`), `session.idle_sleep_minutes` (1 to 1440), `session.notify` (`on`, `off`) |
 | Execution | `execution.runtime` (`local`, `container`), `execution.engine` (`auto`, `colima`, `podman`, `docker`), `execution.keep_images` (1 to 20), `execution.tool_version` (e.g. `2.0.20`), `execution.strict_isolation`, `execution.env_allow` (names or `PREFIX_*` separated by commas, see [the environment of the agents](config.en.md#the-environment-of-the-agents)), `execution.proxy_first_byte_timeout_minutes` (1 to 240) |
 | Restrictions | `limits.max_active_sessions`, `limits.session_budget_usd`, `limits.daily_budget_usd`, `limits.memory_mb`, `limits.models` (comma-separated patterns); `0` or `off` removes the restriction (like `oh budget set`) |
 | Fan-out | `fanout.experimental` (experimental fan-out, `false` by default), `fanout.parallel` (1 to 3), `fanout.budget_usd` (global budget, dollars) |
 | Remote | `remote.experimental` (experimental remote mode, `false` by default), `remote.projects.<project-id>` (name of an existing target), `remote.targets.<target>.tag`, `.builder` (`kaniko`, `dind`), `.arch` (`amd64`, `arm64`), `.timeout` (GitLab duration: `3h`, `1h 30m`); targets are created with `oh remote setup` |
 
-Default values (`auto`, `on`) are stored empty. `[[teams]]` is set with `oh team …`.
+Default values (`auto`, `on`) are stored empty. `[[teams]]` is set with `oh team …`. `tracker.tracker_token_url` (a URL) is the server of `tracker.tracker_token_key`; empty, the key is valid for the tracker. `mcp.gitlab.url` is the server of the MCP tokens; empty, `https://gitlab.com` (see [the server of each GitLab token](config.en.md#the-server-of-each-gitlab-token)).
 
 **Example:**
 

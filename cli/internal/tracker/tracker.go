@@ -191,6 +191,9 @@ type Config struct {
 	BaseURL      string // e.g. "https://gitlab.example.com"
 	Token        string // personal access token or API token
 	WriteEnabled bool   // allows AddLabels / RemoveLabels
+	// Origin says where Token comes from; the errors of authentication name
+	// its source, its key and the server (zero: unknown).
+	Origin TokenOrigin
 }
 
 // ErrWriteDisabled is returned by AddLabels/RemoveLabels when WriteEnabled is false.

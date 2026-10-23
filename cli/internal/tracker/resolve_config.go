@@ -30,6 +30,14 @@ type EffectiveTrackerConfig struct {
 	// TrackerTokenKey is the resolved keychain key for the tracker token.
 	// Resolution: project.TrackerTokenKey → hub.Tracker.TrackerTokenKey → shared.TrackerTokenKey → derived default
 	TrackerTokenKey string
+	// TrackerTokenURL is the server TrackerTokenKey is declared for. It comes
+	// from the same level as the key (a key set in hub.toml does not inherit
+	// the server declared next to the team key).
+	TrackerTokenURL string
+	// TrackerTokenLevelURL is the tracker_url set at the level of the key (the
+	// config that sets TrackerTokenKey): the server the key implies when
+	// TrackerTokenURL is not declared. See TokenServer.
+	TrackerTokenLevelURL string
 	// TicketPattern is the resolved regex for extracting the tracker IID.
 	// Resolution: project.TicketPattern → shared.TicketPattern → ""
 	TicketPattern string
@@ -118,6 +126,7 @@ func ResolveTrackerConfig(
 //	project.TrackerProject → shared.TrackerProject → shared.Projects[projectID] → ""
 //	project.TrackerURL → local.TrackerURL → shared.TrackerURL → ""
 //	project.TrackerTokenKey → local.TrackerTokenKey → shared.TrackerTokenKey → ""
+//	(the server of the key, TrackerTokenURL, is taken at the level of the key)
 //	project.TicketPattern → shared.TicketPattern → shared.TicketPatterns[projectID] → ""
 func ResolveFullTrackerConfig(
 	shared *teamstate.TrackerConfig,
@@ -133,6 +142,8 @@ func ResolveFullTrackerConfig(
 		eff.TrackerProject = shared.TrackerProject
 		eff.TrackerURL = shared.TrackerURL
 		eff.TrackerTokenKey = shared.TrackerTokenKey
+		eff.TrackerTokenURL = shared.TrackerTokenURL
+		eff.TrackerTokenLevelURL = shared.TrackerURL
 		eff.TicketPattern = shared.TicketPattern
 		eff.SyncIntervalMinutes = shared.SyncIntervalMinutes
 		eff.StatusMapping = shared.StatusMapping
@@ -148,6 +159,8 @@ func ResolveFullTrackerConfig(
 	}
 	if local.TrackerTokenKey != "" {
 		eff.TrackerTokenKey = local.TrackerTokenKey
+		eff.TrackerTokenURL = local.TrackerTokenURL
+		eff.TrackerTokenLevelURL = local.TrackerURL
 	}
 
 	// Per-project overrides (most specific wins)
@@ -160,6 +173,8 @@ func ResolveFullTrackerConfig(
 		}
 		if projectCfg.TrackerTokenKey != "" {
 			eff.TrackerTokenKey = projectCfg.TrackerTokenKey
+			eff.TrackerTokenURL = projectCfg.TrackerTokenURL
+			eff.TrackerTokenLevelURL = projectCfg.TrackerURL
 		}
 		if projectCfg.TicketPattern != "" {
 			eff.TicketPattern = projectCfg.TicketPattern
@@ -241,4 +256,18 @@ func ResolveFullTrackerConfig(
 	}
 
 	return eff
+}
+
+// TokenServer returns the server of the tracker key (tracker_token_key and
+// the former tracker key): the one declared by tracker_token_url; else, as
+// these keys only serve the tracker, the tracker_url of the level of the key;
+// else the tracker's own (implicit is then true). Jira has no such rule.
+func (eff EffectiveTrackerConfig) TokenServer() (server string, implicit bool) {
+	switch {
+	case eff.TrackerTokenURL != "":
+		return eff.TrackerTokenURL, false
+	case eff.TrackerTokenLevelURL != "":
+		return eff.TrackerTokenLevelURL, true
+	}
+	return GitLabBaseURL(eff.TrackerURL), true
 }

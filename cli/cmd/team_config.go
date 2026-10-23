@@ -154,14 +154,24 @@ func configureGitLab(ctx context.Context, a *app.App, repo *teamstate.Repo, team
 	if configLocal {
 		fmt.Fprint(out, i18n.Tf("cmd.team_config.local_configuration", theme.Bold.Render("→")))
 
-		// Test de connexion avec les credentials actuels
-		src := trackerCredentials(a, teamCfg)
+		// Test de connexion avec les credentials actuels du GitLab du MCP
+		src := mcpGitLabCredentials(a, teamCfg)
 		if err := testAndDisplayConnection(ctx, out, src, tracker.TypeGitLab); err != nil {
 			if askYN(out, i18n.T("cmd.team_config.set_up_a_new_gitlab_token"), true) {
 				tokenKey := askInput(out, i18n.T("cmd.team_config.key_name_in_the_keychain_e"), a.Config.MCP.Gitlab.Token)
 				fmt.Fprint(out, i18n.Tf("cmd.team_config.to_store_the_token", theme.Bold.Render("oh secrets set "+tokenKey)))
 				writeLocalLog(config.ConfigPath(), "mcp.gitlab.token_key", tokenKey)
 				writeLocalLog(config.ConfigPath(), "mcp.gitlab.enabled", "true")
+				// The token is only used for the server declared for the GitLab MCP.
+				mcpURL := askInput(out, i18n.T("cmd.team_config.gitlab_server_of_the_key"), src.URL)
+				if tracker.ServerOf(mcpURL) != "" {
+					if err := updateHubConfig(a, func(c *config.Config) error {
+						c.MCP.Gitlab.URL = mcpURL
+						return nil
+					}); err != nil {
+						fmt.Fprintf(os.Stderr, "  warning: %v\n", err)
+					}
+				}
 			}
 		}
 
@@ -674,6 +684,19 @@ func printTrackerStatus(out interface{ Write([]byte) (int, error) },
 	autoPlanSrc := sourceLabel(local.AutoPlanAssigned != nil, "local", "équipe")
 	fmt.Fprintf(out, "%sauto_plan:     %s  %s\n", indent, fmtBool(eff.AutoPlanAssigned), autoPlanSrc)
 
+	// token: the key and the server it is declared for, as the cascade reads them
+	tokenSrc := sourceLabel(local.TrackerTokenKey != "", "local", "équipe")
+	tokenKey := eff.TrackerTokenKey
+	if tokenKey == "" {
+		tokenKey = i18n.T("cmd.team_config.status_token_not_set")
+	}
+	tokenURL := eff.TrackerTokenURL
+	if tokenURL == "" {
+		tokenURL = i18n.T("cmd.team_config.status_token_not_declared")
+	}
+	fmt.Fprintf(out, "%stoken_key:     %s  %s\n", indent, tokenKey, tokenSrc)
+	fmt.Fprintf(out, "%stoken_url:     %s  %s\n", indent, tokenURL, tokenSrc)
+
 	// Mappings
 	if len(teamCfg.Tracker.Projects) > 0 { //nolint:staticcheck // backward compat: deprecated field
 		fmt.Fprintf(out, "%smappings:\n", indent)
@@ -685,14 +708,26 @@ func printTrackerStatus(out interface{ Write([]byte) (int, error) },
 }
 
 // trackerCredentials is the credential source of the tracker of the team
-// config: besides the keychain it knows the hub team and the key of
-// [mcp.gitlab], so that the GitLab token is found with the unified cascade
-// (the team step included) like everywhere else.
+// config: the effective tracker config (the team config merged with the
+// overrides of hub.toml, tracker_token_key and its server included) completed
+// with the hub team, the servers of its sources and the key of [mcp.gitlab],
+// so that the GitLab token is found with the unified cascade like everywhere
+// else, and only for the server of the tracker.
 func trackerCredentials(a *app.App, teamCfg *teamstate.TeamConfig) tracker.CredentialSource {
-	return teamService(a).CredentialSource(tracker.CredentialSource{
-		URL:      teamCfg.Tracker.TrackerURL,
-		TokenKey: teamCfg.Tracker.TrackerTokenKey,
-	}, nil)
+	return buildCredentialSource(a, tracker.ResolveTrackerConfig(&teamCfg.Tracker, a.Config.Tracker))
+}
+
+// mcpGitLabCredentials is the credential source for the GitLab of the MCP
+// (url of the team recommendation or of hub.toml): the token the MCP server
+// would be given.
+func mcpGitLabCredentials(a *app.App, teamCfg *teamstate.TeamConfig) tracker.CredentialSource {
+	svc := teamService(a)
+	var shared *teamstate.SharedMCPConfig
+	if s, ok := teamCfg.MCP["gitlab"]; ok {
+		shared = &s
+	}
+	url := tracker.MCPGitLabURL(a.Config.MCP.Gitlab, shared, nil, svc.ResolveTeam(nil).TeamID)
+	return svc.CredentialSource(tracker.CredentialSource{URL: url}, nil)
 }
 
 // testAndDisplayConnection builds a tracker, tests the connection, and prints

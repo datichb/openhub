@@ -172,7 +172,7 @@ func actionTeamRejoin() {
 		},
 		Form: func(_ *tview.Application, onDone func()) *tview.Form {
 			teamID := config.RepoNameFromRemote(stateRepo)
-			source := gitlabTokenSource(ctx, a, teamID)
+			source := gitlabTokenSource(ctx, a, teamID, stateRepo)
 
 			options := []string{i18n.T("cmd.init.wizard_select_placeholder")}
 			optionKeys := []string{"placeholder"}

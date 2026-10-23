@@ -13,6 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	teamsvc "github.com/datichb/openhub/cli/internal/services/team"
+	"github.com/datichb/openhub/cli/internal/tracker"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -127,6 +128,9 @@ func syncTrackerError(a *app.App, err error) error {
 			i18n.Tf("cmd.team.sync_tracker.disabled_locally",
 				theme.Bold.Render("[tracker]\nenabled = false")))
 		return nil
+	case errors.As(err, &credErr) && tracker.IsMissingToken(credErr.Err):
+		// the error names the server, the sources read and what to declare
+		return credErr.Err
 	case errors.As(err, &credErr):
 		return fmt.Errorf("%w\n  %s",
 			credErr.Err, i18n.Tf("cmd.team.sync_tracker.credential_hint", credErr.EnvVar, credErr.TrackerType))

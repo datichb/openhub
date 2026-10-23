@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -48,17 +47,16 @@ func runReviewFeedback(cmd *cobra.Command, args []string) error {
 	}
 
 	// ── 2. Resolve GitLab credentials ──
-	glToken := resolveGitLabToken(ctx, a, project)
-	if glToken == "" {
-		return fmt.Errorf("%s", i18n.Tf("cmd.review.feedback.no_token", theme.Bold.Render("oh mcp setup gitlab")))
+	access, err := resolveGitLabAccess(ctx, a, project)
+	if err != nil {
+		return err
 	}
-	glURL := resolveGitLabURL(a)
 	glProject := resolveGitLabProject(a, project)
 	if glProject == "" {
 		return fmt.Errorf("%s", i18n.Tf("cmd.review.feedback.no_project", theme.Bold.Render("tracker_project")))
 	}
 
-	gl := gitlabapi.NewClient(glURL, glToken)
+	gl := access.Client()
 
 	// ── 3. Resolve MR from ref ──
 	mr, branch, err := resolveMRFromRef(ctx, gl, glProject, project.Path, ref)
@@ -106,17 +104,6 @@ func runReviewFeedback(cmd *cobra.Command, args []string) error {
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
-
-// resolveGitLabURL extracts the GitLab URL from config, with env fallback.
-func resolveGitLabURL(a *app.App) string {
-	if u := a.Config.MCP.Gitlab.URL; u != "" {
-		return u
-	}
-	if u := os.Getenv("GITLAB_URL"); u != "" {
-		return u
-	}
-	return "https://gitlab.com"
-}
 
 // resolveMRFromRef resolves a merge request from a ticket ref or branch name.
 // Tries: ref as branch directly → ticket pattern → current branch fallback.

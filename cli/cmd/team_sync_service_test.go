@@ -15,6 +15,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/config/configtest"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/teamstate"
+	"github.com/datichb/openhub/cli/internal/tracker"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
@@ -25,6 +26,7 @@ func hubWithTracker(t *testing.T, localTracker config.TrackerLocalConfig) (*app.
 	t.Helper()
 	configtest.Home(t)
 	t.Setenv("GITLAB_TOKEN", "glpat-test")
+	t.Setenv("OH_GITLAB_URL", "http://127.0.0.1:1") // the server GITLAB_TOKEN is valid for
 	t.Setenv("GITLAB_URL", "")
 
 	statePath := filepath.Join(t.TempDir(), "state")
@@ -111,5 +113,13 @@ func TestSyncTrackerTUICredentialsErrorIsTyped(t *testing.T) {
 	_, err := runSyncTrackerForTUI(a, t.Context())
 	var credErr *views.TrackerCredentialsError
 	require.ErrorAs(t, err, &credErr)
-	assert.Equal(t, i18n.Tf("tui.team.sync.credentials_missing", "gitlab"), credErr.Msg)
+	assert.Equal(t, i18n.Tf("tui.team.sync.token_missing_server", "127.0.0.1:1"), credErr.Msg, "the screen names the server")
+	assert.True(t, tracker.IsMissingToken(credErr.Err), "the detail (sources, declaration) is kept for the modal")
+
+	// the command line prints the whole detail, without the former generic hint
+	err = runSyncTracker(teamSyncTrackerCmd, nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "127.0.0.1:1")
+	assert.Contains(t, err.Error(), "GITLAB_TOKEN")
+	assert.Contains(t, err.Error(), "oh config set tracker.tracker_token_url")
 }

@@ -77,40 +77,79 @@ func TestResolveTeam(t *testing.T) {
 
 func TestGitLabTokenUsesTheConfigAndTheOptions(t *testing.T) {
 	t.Setenv(tracker.GitLabTokenEnv, "")
+	t.Setenv("GITLAB_URL", "")
+	t.Setenv(tracker.GitLabServerEnv, "")
 	cfg := hubConfig()
+	cfg.Teams[1].StateRepo = "git@gitlab.core.example:acme/core.git"
+	cfg.Teams[2].StateRepo = "ssh://git@gitlab.ops.example:2222/acme/ops.git"
 	cfg.MCP.Gitlab.Token = "my.gitlab.key"
+	cfg.MCP.Gitlab.URL = "https://gitlab.mcp.example/"
 	secrets := fakeSecrets{
 		"my.gitlab.key":                          "from-configured-mcp-key",
 		config.TeamGitLabTokenKey("core"):        "from-core",
+		config.TeamGitLabTokenKey("ops"):         "from-ops",
 		config.MCPProjectTokenKey("gitlab", "p"): "from-project",
 		"tracker.key":                            "from-tracker-key",
 	}
 	svc := New(cfg, secrets, nil)
 	ctx := t.Context()
+	project := &domain.Project{ID: "p"}
 
-	tok, src := svc.GitLabToken(ctx, "core")
-	assert.Equal(t, "from-core", tok)
-	assert.Equal(t, tracker.TokenSourceTeam, src)
+	// The server called picks the source: every token goes to its own server only.
+	res := svc.GitLabToken(ctx, "core", "https://GITLAB.core.example:443")
+	assert.Equal(t, "from-core", res.Token, "host compared without case, scheme or default port")
+	assert.Equal(t, tracker.TokenSourceTeam, res.Source)
+	assert.Equal(t, config.TeamGitLabTokenKey("core"), res.Key)
 
-	tok, src = svc.GitLabToken(ctx, "ops")
-	assert.Equal(t, "from-configured-mcp-key", tok, "the key of [mcp.gitlab] is read")
-	assert.Equal(t, tracker.TokenSourceMCP, src)
+	res = svc.GitLabToken(ctx, "ops", "https://gitlab.ops.example")
+	assert.Equal(t, "from-ops", res.Token, "the ssh port of the remote is not the port of the API")
 
-	tok, src = svc.GitLabToken(ctx, "core", WithProject("p"))
-	assert.Equal(t, "from-project", tok)
-	assert.Equal(t, tracker.TokenSourceProject, src)
+	res = svc.GitLabToken(ctx, "core", "https://gitlab.mcp.example")
+	assert.Equal(t, "from-configured-mcp-key", res.Token, "the key of [mcp.gitlab] is read, for the url of [mcp.gitlab]")
+	assert.Equal(t, tracker.TokenSourceMCP, res.Source)
 
-	tok, src = svc.GitLabToken(ctx, "core", WithProject("p"), WithTrackerKey("tracker.key"))
-	assert.Equal(t, "from-tracker-key", tok)
-	assert.Equal(t, tracker.TokenSourceTrackerKey, src)
+	res = svc.GitLabToken(ctx, "core", "https://gitlab.mcp.example", WithProject(project))
+	assert.Equal(t, "from-project", res.Token)
+	assert.Equal(t, tracker.TokenSourceProject, res.Source)
+
+	res = svc.GitLabToken(ctx, "core", "https://gitlab.other.example", WithProject(project))
+	assert.Empty(t, res.Token, "no source is declared for this server")
+	assert.Len(t, res.Looks, 6)
+
+	res = svc.GitLabToken(ctx, "core", "https://forge.example", WithTrackerToken("tracker.key", "https://forge.example", false))
+	assert.Equal(t, "from-tracker-key", res.Token)
+	assert.Equal(t, tracker.TokenSourceTrackerKey, res.Source)
+
+	res = svc.GitLabToken(ctx, "core", "https://forge.example", WithTrackerToken("tracker.key", "", false))
+	assert.Empty(t, res.Token, "a tracker key with no server at all is never sent")
+	require.NotEmpty(t, res.Looks)
+	assert.Equal(t, tracker.OutcomeNoServer, res.Looks[1].Outcome)
+
+	res = svc.GitLabToken(ctx, "core", "https://gitlab.other.example", WithAnyServer())
+	assert.NotEmpty(t, res.Token, "AnyServer only asks whether a token exists")
 
 	t.Setenv(tracker.GitLabTokenEnv, "from-env")
-	tok, src = svc.GitLabToken(ctx, "core", WithProject("p"), WithTrackerKey("tracker.key"))
-	assert.Equal(t, "from-env", tok)
-	assert.Equal(t, tracker.TokenSourceEnv, src)
+	res = svc.GitLabToken(ctx, "core", "https://gitlab.core.example")
+	assert.Equal(t, "from-core", res.Token, "GITLAB_TOKEN without a declared server is not used")
+	t.Setenv(tracker.GitLabServerEnv, "gitlab.core.example")
+	res = svc.GitLabToken(ctx, "core", "https://gitlab.core.example")
+	assert.Equal(t, "from-env", res.Token)
+	assert.Equal(t, tracker.TokenSourceEnv, res.Source)
+	res = svc.GitLabToken(ctx, "core", "https://forge.example")
+	assert.Empty(t, res.Token, "the token of the environment is for gitlab.core.example only")
 
-	_, src = New(cfg, nil, nil).GitLabToken(ctx, "core")
-	assert.Equal(t, tracker.TokenSourceEnv, src, "without keychain only the environment is read")
+	res = New(cfg, nil, nil).GitLabToken(ctx, "core", "https://gitlab.core.example")
+	assert.Equal(t, tracker.TokenSourceEnv, res.Source, "without keychain only the environment is read")
+}
+
+func TestGitLabTokenOfATeamNotYetInHubToml(t *testing.T) {
+	t.Setenv(tracker.GitLabTokenEnv, "")
+	t.Setenv(tracker.GitLabServerEnv, "")
+	svc := New(&config.Config{}, fakeSecrets{config.TeamGitLabTokenKey("new"): "tok"}, nil)
+
+	assert.Empty(t, svc.GitLabToken(t.Context(), "new", "https://gitlab.new.example").Token, "the repository of the team is unknown")
+	res := svc.GitLabToken(t.Context(), "new", "https://gitlab.new.example", WithTeamRepo("git@gitlab.new.example:acme/new.git"))
+	assert.Equal(t, "tok", res.Token)
 }
 
 // ── Tracker engine ───────────────────────────────────────────────────────────
@@ -151,7 +190,7 @@ func newTrackerEnv(t *testing.T, trackerTOML string) *trackerEnv {
 	}
 	return &trackerEnv{
 		cfg: &config.Config{Teams: []config.TeamConfig{
-			{ID: "core", Enabled: true, StateRepo: "git@h:acme/core.git", StatePath: statePath, MemberID: "alice"},
+			{ID: "core", Enabled: true, StateRepo: srv.URL + "/acme/core.git", StatePath: statePath, MemberID: "alice"},
 		}},
 		repo: repo, server: srv, requests: n,
 	}
@@ -164,7 +203,16 @@ func (e *trackerEnv) service(projects ProjectLister, secrets tracker.SecretGette
 }
 
 func (e *trackerEnv) trackerTOML(extra string) string {
-	return "type = \"gitlab\"\nenabled = true\ntracker_url = \"" + e.server.URL + "\"\ntracker_project = \"acme/app\"\n" + extra
+	return e.trackerTOMLAt(e.server.URL, extra)
+}
+
+func (e *trackerEnv) trackerTOMLAt(url, extra string) string {
+	return "type = \"gitlab\"\nenabled = true\ntracker_url = \"" + url + "\"\ntracker_project = \"acme/app\"\n" + extra
+}
+
+func (e *trackerEnv) writeTrackerAt(t *testing.T, url string) {
+	t.Helper()
+	require.NoError(t, os.WriteFile(filepath.Join(e.repo.Path(), "config.toml"), []byte("[tracker]\n"+e.trackerTOMLAt(url, "")), 0o644))
 }
 
 func linkedProjects() fakeProjects { return fakeProjects{{ID: "p1", Name: "app"}} }

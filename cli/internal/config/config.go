@@ -405,10 +405,31 @@ type TrackerLocalConfig struct {
 	// When set, overrides the team-state TrackerTokenKey.
 	// Allows standalone tracker usage without MCP config.
 	TrackerTokenKey string `toml:"tracker_token_key,omitempty"`
+	// TrackerTokenURL is the server the token under TrackerTokenKey is valid
+	// for (e.g. https://gitlab.example.com). A GitLab token is only used for
+	// the server it is declared for; a key without it is never sent to a
+	// server. It is the server of the key set here: it is not inherited by a
+	// key of another level.
+	TrackerTokenURL string `toml:"tracker_token_url,omitempty"`
 	// WriteEnabled controls whether the tracker can perform write operations
 	// (push labels, assign issues). nil = inherit team-state.
 	// Independent of MCP write_enabled — the tracker has its own permission.
 	WriteEnabled *bool `toml:"write_enabled,omitempty"`
+}
+
+// TokenDecl returns the key of the tracker token and the server it is
+// declared for ("" when none): the pair that is read and written together.
+func (t TrackerLocalConfig) TokenDecl() (key, server string) {
+	return t.TrackerTokenKey, t.TrackerTokenURL
+}
+
+// SetTokenDecl sets the key of the tracker token and the server it is valid
+// for. An empty key clears both: a server without a key means nothing.
+func (t *TrackerLocalConfig) SetTokenDecl(key, server string) {
+	if key == "" {
+		server = ""
+	}
+	t.TrackerTokenKey, t.TrackerTokenURL = key, server
 }
 
 // WebsearchConfig holds web search/fetch permission settings.

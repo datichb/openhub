@@ -117,7 +117,13 @@ func TestGitLab_FetchIssue(t *testing.T) {
 		},
 		{
 			name: "invalid token", iid: 1, status: http.StatusUnauthorized,
-			check: func(t *testing.T, _ *tracker.IssueState, err error) { assert.Equal(t, tracker.ErrTokenInvalid, err) },
+			check: func(t *testing.T, _ *tracker.IssueState, err error) {
+				assert.ErrorIs(t, err, tracker.ErrTokenInvalid)
+				var rejected *tracker.TokenRejectedError
+				require.ErrorAs(t, err, &rejected)
+				assert.Equal(t, http.StatusUnauthorized, rejected.Status)
+				assert.NotEmpty(t, rejected.Origin.Server, "the error names the server")
+			},
 		},
 		{
 			name: "rate limited", iid: 1, status: http.StatusTooManyRequests, headers: map[string]string{"Retry-After": "30"},

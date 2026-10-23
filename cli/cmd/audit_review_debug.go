@@ -20,7 +20,6 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/notify"
 	"github.com/datichb/openhub/cli/internal/services/launch"
-	teamsvc "github.com/datichb/openhub/cli/internal/services/team"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
@@ -187,11 +186,10 @@ func runReviewPublish(cmd *cobra.Command) error {
 		i18n.Tf("cmd.review.publish.creating", theme.Bold.Render(branch), targetBranch))
 
 	// Resolve GitLab credentials (MCP cascade).
-	glToken := resolveGitLabToken(ctx, a, project)
-	if glToken == "" {
-		return errors.New(i18n.Tf("cmd.review.feedback.no_token", theme.Bold.Render("oh mcp setup gitlab")))
+	access, err := resolveGitLabAccess(ctx, a, project)
+	if err != nil {
+		return err
 	}
-	glURL := resolveGitLabURL(a)
 
 	// Resolve GitLab project path (tracker config).
 	glProject := resolveGitLabProject(a, project)
@@ -200,7 +198,7 @@ func runReviewPublish(cmd *cobra.Command) error {
 	}
 
 	// Create GitLab API client.
-	gl := gitlabapi.NewClient(glURL, glToken)
+	gl := access.Client()
 
 	// Create or find existing MR.
 	mr, err := gl.CreateMR(ctx, glProject, branch, targetBranch, title, "")
@@ -234,19 +232,6 @@ func runReviewPublish(cmd *cobra.Command) error {
 		theme.WarningStyle.Render(theme.IconWarning), i18n.T("cmd.review.publish.manual_merge"))
 
 	return nil
-}
-
-// resolveGitLabToken resolves the GitLab token of a project with the unique
-// cascade of the team service (GITLAB_TOKEN, the token of the project, the
-// token of its team, the hub MCP token, the former tracker key).
-func resolveGitLabToken(ctx context.Context, a *app.App, project *domain.Project) string {
-	svc := teamService(a)
-	var opts []teamsvc.TokenOption
-	if project != nil {
-		opts = append(opts, teamsvc.WithProject(project.ID))
-	}
-	tok, _ := svc.GitLabToken(ctx, svc.ResolveTeam(project).TeamID, opts...)
-	return tok
 }
 
 // resolveGitLabProject resolves the GitLab project path/ID from config.

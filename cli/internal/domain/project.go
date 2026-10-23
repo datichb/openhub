@@ -129,6 +129,9 @@ type ProjectTrackerConfig struct {
 	TrackerURL string `json:"tracker_url,omitempty"`
 	// TrackerTokenKey overrides the tracker token keychain key for this project.
 	TrackerTokenKey string `json:"tracker_token_key,omitempty"`
+	// TrackerTokenURL is the server TrackerTokenKey is valid for (see
+	// config.TrackerLocalConfig.TrackerTokenURL).
+	TrackerTokenURL string `json:"tracker_token_url,omitempty"`
 	// TicketPattern overrides the team-state TicketPattern regex for this project.
 	TicketPattern string `json:"ticket_pattern,omitempty"`
 	// WriteEnabled overrides the tracker write permission for this project.

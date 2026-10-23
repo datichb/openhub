@@ -108,7 +108,12 @@ func syncTrackerTUIError(err error) error {
 	case errors.Is(err, teamsvc.ErrTrackerDisabled):
 		return errors.New(i18n.T("tui.team.sync.tracker_disabled"))
 	case errors.As(err, &credErr):
-		return &views.TrackerCredentialsError{Msg: i18n.Tf("tui.team.sync.credentials_missing", credErr.TrackerType), Err: credErr.Err}
+		msg := i18n.Tf("tui.team.sync.credentials_missing", credErr.TrackerType)
+		var missing *tracker.MissingTokenError
+		if errors.As(credErr.Err, &missing) {
+			msg = i18n.Tf("tui.team.sync.token_missing_server", tracker.ServerOf(missing.Server))
+		}
+		return &views.TrackerCredentialsError{Msg: msg, Err: credErr.Err}
 	case errors.As(err, &initErr):
 		return fmt.Errorf("%s: %w", i18n.T("tui.team.discovery.tracker_init_error"), initErr.Err)
 	case errors.Is(err, teamsvc.ErrNoProjects):
@@ -251,10 +256,7 @@ func actionTrackerDiscovery() {
 			if token != "" {
 				cfg.Token = token
 			} else {
-				credSrc := teamService(a).CredentialSource(tracker.CredentialSource{
-					URL:      teamCfg.Tracker.TrackerURL,
-					TokenKey: teamCfg.Tracker.TrackerTokenKey,
-				}, nil)
+				credSrc := trackerCredentials(a, teamCfg)
 				resolved, err := tracker.ResolveCredentials(ctx, credSrc, tracker.Type(trackerType))
 				if err != nil {
 					return fmt.Errorf("%s: %w", i18n.T("tui.team.discovery.credentials_error"), err)
@@ -313,10 +315,7 @@ func actionTrackerDiscovery() {
 			if token != "" {
 				cfg.Token = token
 			} else {
-				credSrc := teamService(a).CredentialSource(tracker.CredentialSource{
-					URL:      teamCfg.Tracker.TrackerURL,
-					TokenKey: teamCfg.Tracker.TrackerTokenKey,
-				}, nil)
+				credSrc := trackerCredentials(a, teamCfg)
 				resolved, err := tracker.ResolveCredentials(ctx, credSrc, tracker.Type(trackerType))
 				if err != nil {
 					return fmt.Errorf("credentials: %w", err)

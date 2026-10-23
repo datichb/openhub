@@ -21,6 +21,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tracker"
 )
 
@@ -86,40 +87,188 @@ func (s *Service) resolveTeam(project *domain.Project) config.ResolvedTeamConfig
 // TokenSource names where a GitLab token was found.
 type TokenSource = tracker.TokenSource
 
+// GitLabTokenResult is the answer of the GitLab token cascade: the token, its
+// source, its key and the sources that were read.
+type GitLabTokenResult = tracker.GitLabTokenResult
+
 // TokenOption narrows the GitLab token cascade.
-type TokenOption func(*tracker.GitLabTokenQuery)
+type TokenOption func(*tokenRequest)
 
-// WithProject adds the MCP token private to a hub project to the cascade.
-func WithProject(projectID string) TokenOption {
-	return func(q *tracker.GitLabTokenQuery) { q.ProjectID = projectID }
+type tokenRequest struct {
+	q       tracker.GitLabTokenQuery
+	project *domain.Project
+	// teamRepo replaces the team-state repository of the team (team not
+	// registered yet in hub.toml, as during oh team rejoin).
+	teamRepo string
 }
 
-// WithTrackerKey adds the key set by tracker_token_key to the cascade.
-func WithTrackerKey(key string) TokenOption {
-	return func(q *tracker.GitLabTokenQuery) { q.TrackerKey = key }
-}
-
-// GitLabToken returns the GitLab token to use and where it comes from, empty
-// when there is none. It is the only cascade (tracker.ResolveGitLabToken):
-//
-//  1. GITLAB_TOKEN
-//  2. tracker_token_key (WithTrackerKey)
-//  3. the token of the project (WithProject)
-//  4. the token of the team teamID
-//  5. the hub MCP token ([mcp.gitlab] token key, then openhub.mcp.gitlab.token)
-//  6. the former tracker key openhub.tracker.gitlab.token
-func (s *Service) GitLabToken(ctx context.Context, teamID string, opts ...TokenOption) (token string, source TokenSource) {
-	q := s.tokenQuery(teamID)
-	for _, o := range opts {
-		o(&q)
+// WithProject adds the MCP token private to a hub project to the cascade; the
+// URL of the GitLab MCP is that of the project.
+func WithProject(project *domain.Project) TokenOption {
+	return func(r *tokenRequest) {
+		r.project = project
+		if project != nil {
+			r.q.ProjectID = project.ID
+		}
 	}
-	return tracker.ResolveGitLabToken(ctx, q)
 }
 
-func (s *Service) tokenQuery(teamID string) tracker.GitLabTokenQuery {
-	q := tracker.GitLabTokenQuery{TeamID: teamID, Secrets: s.Secrets}
+// WithTrackerToken adds the key set by tracker_token_key to the cascade, with
+// its server as TrackerTokenDecl gives it (declared, or implicit: the
+// tracker's own). The former tracker key shares that server.
+func WithTrackerToken(key, server string, implicit bool) TokenOption {
+	return func(r *tokenRequest) {
+		r.q.TrackerKey, r.q.TrackerServer, r.q.TrackerImplicit = key, server, implicit
+	}
+}
+
+// WithTeamRepo gives the team-state repository of the team when the team is
+// not (yet) in hub.toml: its host is the server of the token of the team.
+func WithTeamRepo(remote string) TokenOption {
+	return func(r *tokenRequest) { r.teamRepo = remote }
+}
+
+// WithAnyServer lifts the rule that a token is returned only for the server
+// called. It only serves to know whether the MCP server can be given a token.
+func WithAnyServer() TokenOption {
+	return func(r *tokenRequest) { r.q.AnyServer = true }
+}
+
+// GitLabToken returns the GitLab token to use for the server (the URL about to
+// be called) and where it comes from; the token is empty when no source can
+// serve this server. It is the only cascade (tracker.ResolveGitLabToken):
+//
+//  1. GITLAB_TOKEN, for the server OH_GITLAB_URL (else GITLAB_URL)
+//  2. tracker_token_key (WithTrackerToken), for tracker_token_url, else for the tracker
+//  3. the token of the project (WithProject), for the URL of the GitLab MCP
+//  4. the token of the team teamID, for the host of its team-state repository
+//  5. the hub MCP token ([mcp.gitlab] token key, then openhub.mcp.gitlab.token),
+//     for the URL of the GitLab MCP ([mcp.gitlab] url, project, or team), else gitlab.com
+//  6. the former tracker key openhub.tracker.gitlab.token, for tracker_token_url, else for the tracker
+//
+// A source whose server is not the one called, or is not declared, is skipped;
+// result.Looks tells why, and tracker.NewMissingTokenError turns it into the
+// error to show.
+func (s *Service) GitLabToken(ctx context.Context, teamID, server string, opts ...TokenOption) GitLabTokenResult {
+	r := tokenRequest{q: tracker.GitLabTokenQuery{TeamID: teamID, Server: server, Secrets: s.Secrets}}
+	for _, o := range opts {
+		o(&r)
+	}
+	s.completeQuery(&r)
+	return tracker.ResolveGitLabToken(ctx, r.q)
+}
+
+// completeQuery fills the servers of the sources that come from the hub
+// configuration and the team-state.
+func (s *Service) completeQuery(r *tokenRequest) {
+	q := &r.q
 	if s.Config != nil {
 		q.MCPKey = s.Config.MCP.Gitlab.Token
 	}
-	return q
+	repo, statePath := s.teamRepoOf(q.TeamID, r.project)
+	if r.teamRepo != "" {
+		repo = r.teamRepo
+	}
+	q.TeamServer = tracker.ServerOf(repo)
+	if s.Config != nil {
+		q.MCPServer, q.MCPImplicit = tracker.MCPServerOf(
+			tracker.MCPGitLabURL(s.Config.MCP.Gitlab, sharedGitLabMCP(statePath), r.project, q.TeamID))
+	}
+}
+
+// teamRepoOf returns the team-state repository and clone path of a team: the
+// team of the project, else the team of hub.toml with this ID, else the one
+// whose repository has this name.
+func (s *Service) teamRepoOf(teamID string, project *domain.Project) (remote, statePath string) {
+	if s.Config == nil || teamID == "" {
+		return "", ""
+	}
+	if tc := s.ResolveTeam(project); tc.TeamID == teamID {
+		return tc.StateRepo, tc.StatePath
+	}
+	t := s.Config.FindTeam(teamID)
+	if t == nil {
+		for _, c := range append(append([]config.TeamConfig{}, s.Config.Teams...), s.Config.Team) {
+			if c.StateRepo != "" && config.RepoNameFromRemote(c.StateRepo) == teamID {
+				t = &c
+				break
+			}
+		}
+	}
+	if t == nil {
+		return "", ""
+	}
+	if t.StatePath == "" {
+		return t.StateRepo, config.DefaultTeamStatePath()
+	}
+	return t.StateRepo, t.StatePath
+}
+
+// sharedGitLabMCP reads the [mcp.gitlab] recommendation of the team-state
+// cloned under statePath (nil when it is not cloned or has none).
+func sharedGitLabMCP(statePath string) *teamstate.SharedMCPConfig {
+	cfg := loadTeamConfig(statePath)
+	if cfg == nil {
+		return nil
+	}
+	if shared, ok := cfg.MCP["gitlab"]; ok {
+		return &shared
+	}
+	return nil
+}
+
+// GitLabMCPURL is the URL of the GitLab the MCP server of project talks to:
+// the server of the MCP tokens ("" when no url is set for it).
+func (s *Service) GitLabMCPURL(project *domain.Project) string {
+	tc := s.ResolveTeam(project)
+	_, statePath := s.teamRepoOf(tc.TeamID, project)
+	return tracker.MCPGitLabURL(s.Config.MCP.Gitlab, sharedGitLabMCP(statePath), project, tc.TeamID)
+}
+
+// TrackerTokenDecl is the key of the tracker token (tracker_token_key) and its
+// server as the tracker reads them: the project, then hub.toml, then the team
+// config. The server is the one declared (tracker_token_url, set at the level
+// of the key); without it, implicit is true and the server is the tracker's
+// (tracker_url of the level of the key, else the effective one). The key is
+// empty when none is set; the server is still the one the former tracker key
+// is valid for. To edit the declaration, use
+// config.TrackerLocalConfig.SetTokenDecl.
+func (s *Service) TrackerTokenDecl(project *domain.Project) (key, server string, implicit bool) {
+	tc := s.ResolveTeam(project)
+	var shared *teamstate.TrackerConfig
+	if tc.Enabled {
+		if cfg := loadTeamConfig(tc.StatePath); cfg != nil {
+			shared = &cfg.Tracker
+		}
+	}
+	var pc *domain.ProjectTrackerConfig
+	if project != nil {
+		pc = project.TrackerConfig
+	}
+	eff := tracker.ResolveFullTrackerConfig(shared, s.Config.Tracker, pc)
+	server, implicit = eff.TokenServer()
+	return eff.TrackerTokenKey, server, implicit
+}
+
+// loadTeamConfig reads the config.toml of the team-state cloned under
+// statePath (nil when it is not cloned or unreadable).
+func loadTeamConfig(statePath string) *teamstate.TeamConfig {
+	if statePath == "" {
+		return nil
+	}
+	repo := teamstate.NewRepo("", statePath)
+	if !repo.IsCloned() {
+		return nil
+	}
+	cfg, err := repo.LoadConfig()
+	if err != nil {
+		return nil
+	}
+	return cfg
+}
+
+// TeamRepoServer is the server of the team-state repository of the team of
+// project (its host): where the token of the team is valid. Empty without team.
+func (s *Service) TeamRepoServer(project *domain.Project) string {
+	return tracker.ServerOf(s.ResolveTeam(project).StateRepo)
 }
