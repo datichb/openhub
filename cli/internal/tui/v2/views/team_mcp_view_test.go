@@ -1,11 +1,16 @@
 package views
 
 import (
+	"context"
+	"errors"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/testutil/golden"
@@ -52,4 +57,136 @@ func TestTeamMCPViewShowsTheFirstSectionTitle(t *testing.T) {
 	})
 	assert.Contains(t, screen, title, "back on the first field, screen:\n%s", screen)
 	golden.Assert(t, "team_mcp_view_back_on_top", screen)
+}
+
+// selectTeamMCPService puts the cursor on the first field of the section of svc.
+func selectTeamMCPService(t *testing.T, v *TeamMCPView, svc string) {
+	t.Helper()
+	for i, f := range v.fields {
+		if f.Section == svc && f.Key != "" {
+			v.list.SelectIndex(i)
+			return
+		}
+	}
+	t.Fatalf("no field for %s", svc)
+}
+
+// fakeTest records the services t was pressed on and what each run does.
+type fakeTest struct {
+	mu       sync.Mutex
+	prepared []string
+	runs     int
+	run      func(ctx context.Context) (string, error)
+}
+
+func (f *fakeTest) prepare(svc string) func(context.Context) (string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.prepared = append(f.prepared, svc)
+	if f.run == nil {
+		return nil
+	}
+	return func(ctx context.Context) (string, error) {
+		f.mu.Lock()
+		f.runs++
+		f.mu.Unlock()
+		return f.run(ctx)
+	}
+}
+
+func (f *fakeTest) counts() ([]string, int) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]string(nil), f.prepared...), f.runs
+}
+
+func pressT(t *testing.T, app *tview.Application, v *TeamMCPView, svc string) {
+	t.Helper()
+	onLoop(app, func() {
+		selectTeamMCPService(t, v, svc)
+		v.HandleKey(runeKey('t'))
+	})
+}
+
+func lastToast(sh *viewShell) string {
+	sh.mu.Lock()
+	defer sh.mu.Unlock()
+	if len(sh.toasts) == 0 {
+		return ""
+	}
+	return sh.toasts[len(sh.toasts)-1]
+}
+
+// Bug 8: t calls the server of the selected service (it used to check that a
+// token was present and say "testing" without any call) and shows the result.
+func TestTeamMCPViewTestCallsTheServer(t *testing.T) {
+	frLocale(t)
+	ft := &fakeTest{run: func(context.Context) (string, error) { return "connecté en tant que alice", nil }}
+	v, sh, _, app := mountTeamMCP(t, TeamMCPViewConfig{TestMCP: ft.prepare})
+
+	pressT(t, app, v, "jira")
+
+	require.Eventually(t, func() bool { return len(lastToast(sh)) > 0 && lastToast(sh) != "Test connexion jira..." }, 3*time.Second, 5*time.Millisecond)
+	prepared, runs := ft.counts()
+	assert.Equal(t, []string{"jira"}, prepared)
+	assert.Equal(t, 1, runs, "one call to the server")
+	assert.Contains(t, lastToast(sh), "jira")
+	assert.Contains(t, lastToast(sh), "connecté en tant que alice")
+}
+
+// The error says everything the server side knows (server, source, key): it is
+// shown whole, in a modal, not cut in a toast.
+func TestTeamMCPViewTestShowsThePreciseError(t *testing.T) {
+	frLocale(t)
+	msg := "le serveur gitlab.example.com a refusé le jeton (HTTP 401) — source : jeton MCP (clé my.key).\nRemplace-le : oh secrets set my.key"
+	ft := &fakeTest{run: func(context.Context) (string, error) { return "", errors.New(msg) }}
+	v, sh, _, app := mountTeamMCP(t, TeamMCPViewConfig{TestMCP: ft.prepare})
+
+	pressT(t, app, v, "gitlab")
+
+	waitFor(t, app, func() bool { return sh.modalBody != "" }) // written on the loop
+	assert.Contains(t, sh.modalTitle, "gitlab")
+	assert.Contains(t, sh.modalBody, "gitlab.example.com")
+	assert.Contains(t, sh.modalBody, "my.key")
+	assert.Contains(t, sh.modalBody, "oh secrets set my.key")
+}
+
+// The call leaves the event loop: while it waits for the server the view
+// answers, and the result is applied once the server has answered.
+func TestTeamMCPViewTestDoesNotBlockTheLoop(t *testing.T) {
+	frLocale(t)
+	release := make(chan struct{})
+	ft := &fakeTest{run: func(context.Context) (string, error) { <-release; return "ok", nil }}
+	v, sh, _, app := mountTeamMCP(t, TeamMCPViewConfig{TestMCP: ft.prepare})
+
+	pressT(t, app, v, "gitlab")
+	onLoop(app, func() {}) // the loop is free although the call is pending
+	assert.Equal(t, "Test connexion gitlab...", lastToast(sh))
+
+	close(release)
+	require.Eventually(t, func() bool { return lastToast(sh) != "Test connexion gitlab..." }, 3*time.Second, 5*time.Millisecond)
+	assert.Contains(t, lastToast(sh), "ok")
+}
+
+// A service without a connection test says so; unsaved changes are not tested
+// (the test reads the saved configuration).
+func TestTeamMCPViewTestUnavailableAndUnsaved(t *testing.T) {
+	frLocale(t)
+	ft := &fakeTest{}
+	v, sh, _, app := mountTeamMCP(t, TeamMCPViewConfig{TestMCP: ft.prepare})
+
+	pressT(t, app, v, "figma")
+	prepared, runs := ft.counts()
+	assert.Equal(t, []string{"figma"}, prepared)
+	assert.Zero(t, runs)
+	assert.Contains(t, lastToast(sh), "figma")
+	assert.Contains(t, lastToast(sh), "Aucun test")
+
+	ft.run = func(context.Context) (string, error) { return "ok", nil }
+	onLoop(app, func() { v.dirtyLocal = true })
+	pressT(t, app, v, "gitlab")
+	prepared, runs = ft.counts()
+	assert.Equal(t, []string{"figma"}, prepared, "nothing prepared with unsaved changes")
+	assert.Zero(t, runs)
+	assert.Contains(t, lastToast(sh), "w")
 }

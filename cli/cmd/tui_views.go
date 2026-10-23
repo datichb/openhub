@@ -588,6 +588,7 @@ func buildViews(a *app.App) []views.View {
 				}
 				return a.Secrets.Set(ctx, key, value)
 			},
+			TestMCP: func(service string) func(context.Context) (string, error) { return prepareMCPTest(a, service) },
 		}),
 		views.NewTeamModelsView(views.TeamModelsViewConfig{
 			ResolveTeam: makeResolveTeamFunc(a),

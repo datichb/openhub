@@ -314,3 +314,31 @@ func TestAuthErrorBuiltByTheCaller(t *testing.T) {
 
 	require.ErrorContains(t, err, "refused with 403")
 }
+
+// CurrentUser asks /api/v4/user who the token belongs to.
+func TestCurrentUser(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/api/v4/user", r.URL.Path)
+		assert.Equal(t, "good-token", r.Header.Get("PRIVATE-TOKEN"))
+		_, _ = w.Write([]byte(`{"id":7,"username":"alice","name":"Alice"}`))
+	}))
+	defer ts.Close()
+
+	got, err := NewClient(ts.URL, "good-token").CurrentUser(context.Background())
+
+	require.NoError(t, err)
+	assert.Equal(t, "alice", got)
+}
+
+func TestCurrentUser_Refused(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	defer ts.Close()
+
+	_, err := NewClient(ts.URL, "bad-token").WithAuthError(func(status int) error {
+		return fmt.Errorf("refused with %d", status)
+	}).CurrentUser(context.Background())
+
+	require.ErrorContains(t, err, "refused with 401")
+}
