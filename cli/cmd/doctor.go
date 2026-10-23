@@ -78,6 +78,8 @@ func doctorRegistry() []doctor.Check {
 		{ID: "version", Name: i18n.T("cmd.doctor.check.version"), Run: one(checkOhUpdate)},
 		{ID: "config", Name: i18n.T("cmd.doctor.check.config"), Run: single(checkConfig), Fix: configFix},
 		{ID: "setup", Name: i18n.T("cmd.doctor.check.setup"), Run: setupDoctorChecks},
+		{ID: doctorIDTrackerTokens, Name: i18n.T("cmd.doctor.check.tracker_tokens"), Run: trackerTokensChecks},
+		{ID: doctorIDTrackerConnection, Name: i18n.T("cmd.doctor.check.tracker_connection"), Run: trackerConnectionChecks},
 		{ID: "credentials", Name: i18n.T("cmd.doctor.check.credentials"), Run: one(checkProviderCredentials)},
 		{ID: "database", Name: i18n.T("cmd.doctor.check.database"), Run: one(checkDatabase)},
 		{ID: "api_keys", Name: i18n.T("cmd.doctor.check.api_keys"), Run: single(checkAPIKeys)},
