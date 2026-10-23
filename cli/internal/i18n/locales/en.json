@@ -2061,6 +2061,7 @@
   "cmd.history.flags.team": "Show team history (from team-state)",
   "cmd.history.export.flags.output": "Output file path (default: oh-history-<date>.json)",
   "cmd.history.import.flags.member_id": "Override member_id for imported sessions",
+  "cmd.history.export.flags.member_id": "Member ID written in the file (default: member of the active team)",
   "cmd.teams.short": "Teams of this machine — list, add, remove, archive",
   "cmd.teams.long": "Commands to manage the teams you belong to: list, add, remove, detach a project, archive, restore. A user can belong to multiple teams. Each project is linked to 0 or 1 team. Not to be confused with \"oh team\" (singular), which acts on the active team: status, board, activity, config, tracker sync.",
   "cmd.teams.list.short": "List configured teams",

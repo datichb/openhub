@@ -2,13 +2,13 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
+	"errors"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/safego"
+	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
 )
@@ -28,49 +28,41 @@ func actionHistoryExport() {
 		}
 
 		safego.Go(func() {
-			ctx := context.Background()
-
-			sessions, err := a.Sessions.List(ctx, "")
+			n, err := sessionsvc.ExportHistory(context.Background(), a.Sessions, outputPath, sessionsvc.ExportOptions{MemberID: activeMemberID(a)})
 			if err != nil {
 				tuiShell.App().QueueUpdateDraw(func() {
-					tuiShell.ShowToast(i18n.T("tui.history.error_prefix")+err.Error(), shell.ToastError)
-				})
-				return
-			}
-
-			memberID := ""
-			if activeTeam := a.Config.ActiveTeam(); activeTeam.Enabled {
-				memberID = activeTeam.MemberID
-			}
-
-			data := historyExportData{
-				ExportedAt: time.Now().UTC(),
-				MemberID:   memberID,
-				Sessions:   sessions,
-			}
-
-			encoded, err := json.MarshalIndent(data, "", "  ")
-			if err != nil {
-				tuiShell.App().QueueUpdateDraw(func() {
-					tuiShell.ShowToast(i18n.T("tui.history.encoding_error")+err.Error(), shell.ToastError)
-				})
-				return
-			}
-
-			if err := os.WriteFile(outputPath, encoded, 0o644); err != nil {
-				tuiShell.App().QueueUpdateDraw(func() {
-					tuiShell.ShowToast(i18n.T("tui.history.write_error")+err.Error(), shell.ToastError)
+					tuiShell.ShowToast(historyToastPrefix(err)+err.Error(), shell.ToastError)
 				})
 				return
 			}
 
 			msg := fmt.Sprintf("%s %s",
-				theme.IconSuccess, i18n.Tf("tui.history.sessions_exported", len(sessions), outputPath))
+				theme.IconSuccess, i18n.Tf("tui.history.sessions_exported", n, outputPath))
 			tuiShell.App().QueueUpdateDraw(func() {
 				tuiShell.ShowToast(msg, shell.ToastSuccess)
 			})
 		})
 	})
+}
+
+// historyToastPrefix is the beginning of the error toast of an export or an
+// import, by the step that failed.
+func historyToastPrefix(err error) string {
+	var he *sessionsvc.HistoryError
+	if !errors.As(err, &he) {
+		return i18n.T("tui.history.error_prefix")
+	}
+	switch he.Stage {
+	case sessionsvc.HistoryEncode:
+		return i18n.T("tui.history.encoding_error")
+	case sessionsvc.HistoryWrite:
+		return i18n.T("tui.history.write_error")
+	case sessionsvc.HistoryRead:
+		return i18n.T("tui.history.read_error")
+	case sessionsvc.HistoryParse:
+		return i18n.T("tui.history.invalid_file")
+	}
+	return i18n.T("tui.history.error_prefix")
 }
 
 // actionHistoryImport imports session history from a JSON file via the TUI.
@@ -86,48 +78,16 @@ func actionHistoryImport() {
 		}
 
 		safego.Go(func() {
-			ctx := context.Background()
-
-			raw, err := os.ReadFile(filePath)
+			res, err := sessionsvc.ImportHistoryFile(context.Background(), a.Sessions, filePath, sessionsvc.ImportOptions{DefaultMemberID: activeMemberID(a)})
 			if err != nil {
 				tuiShell.App().QueueUpdateDraw(func() {
-					tuiShell.ShowToast(i18n.T("tui.history.read_error")+err.Error(), shell.ToastError)
+					tuiShell.ShowToast(historyToastPrefix(err)+err.Error(), shell.ToastError)
 				})
 				return
-			}
-
-			var data historyExportData
-			if err := json.Unmarshal(raw, &data); err != nil {
-				tuiShell.App().QueueUpdateDraw(func() {
-					tuiShell.ShowToast(i18n.T("tui.history.invalid_file")+err.Error(), shell.ToastError)
-				})
-				return
-			}
-
-			// Resolve member_id: export data → current config
-			memberID := data.MemberID
-			if memberID == "" {
-				if activeTeam := a.Config.ActiveTeam(); activeTeam.Enabled {
-					memberID = activeTeam.MemberID
-				}
-			}
-
-			imported := 0
-			for _, s := range data.Sessions {
-				if memberID != "" {
-					s.MemberID = &memberID
-				}
-				if _, err := a.Sessions.Get(ctx, s.ID); err == nil {
-					continue // already exists
-				}
-				if err := a.Sessions.Create(ctx, &s); err != nil {
-					continue
-				}
-				imported++
 			}
 
 			msg := fmt.Sprintf("%s %s",
-				theme.IconSuccess, i18n.Tf("tui.history.sessions_imported", imported, len(data.Sessions)-imported))
+				theme.IconSuccess, i18n.Tf("tui.history.sessions_imported", res.Imported, res.Skipped))
 			tuiShell.App().QueueUpdateDraw(func() {
 				tuiShell.ShowToast(msg, shell.ToastSuccess)
 			})
