@@ -515,54 +515,8 @@ oh bundle show <workflow> --budget
 - [GoReleaser](https://goreleaser.com/) installé (`brew install goreleaser`)
 - Accès push au dépôt distant
 
-### Préparation du CHANGELOG
+### Ce qu'il faut savoir avant de suivre la checklist
 
-Avant de lancer la release, rédiger le contenu sous `## [Unreleased]` dans `CHANGELOG.md`.
-
-Les entrées à inclure pour la prochaine release couvrent notamment :
-- Board team kanban (5 colonnes, actions c/x/t/s wirées, labels visuels `[AI]`)
-- Cycle de vie des claims (5 statuses : `planned`, `in_progress`, `review`, `blocked`, `done`)
-- `oh team claim --planned` et transition automatique `planned → in_progress` via `oh start --dev` (aujourd'hui alias déprécié de `oh run ticket`)
-- Sync tracker externe (`oh team sync-tracker`, package `cli/internal/tracker/`, GitLab + Jira)
-- Label `agent-reviewed` auto-appliqué sur `review.ready`
-- Pull async sur toutes les vues team
-
-```markdown
-## [Unreleased]
-
-### Ajouté
-- ...
-
-### Modifié
-- ...
-
-### Corrigé
-- ...
-```
-
-### Lancer la release
-
-```bash
-# Depuis le répertoire cli/
-cd cli
-
-# Prévisualiser sans publier (snapshot)
-goreleaser release --snapshot --clean
-
-# Créer la release (déclenchée par un push de tag)
-git tag -a v1.2.0 -m "Release v1.2.0"
-git push && git push --tags
-```
-
-GoReleaser est configuré via `.goreleaser.yml` dans le répertoire `cli/` et gère :
-1. La cross-compilation du binaire `oh`
-2. La génération du changelog depuis les commits
-3. La création de la release GitHub avec les artefacts
-
-### Convention des tags
-
-Les tags suivent le format `vX.Y.Z` (annoté) :
-
-```bash
-git tag -a v1.2.0 -m "Release v1.2.0"
-```
+- **CHANGELOG** : il est à jour avant tout tag. `CHANGELOG.md` doit avoir une section `## [X.Y.Z] — AAAA-MM-JJ` (date du jour du tag) et `## [Unreleased]` doit être vide ; `release.yml` extrait les notes de cette section et échoue si elle manque. Voir l'étape 1 de la [checklist](../dev/release-checklist.md).
+- **Tag** : au format `vX.Y.Z` (annoté), poussé **par un humain** (étape 5 de la [checklist](../dev/release-checklist.md)). La publication, la signature Cosign de `checksums.txt` et la mise à jour de Homebrew sont faites par le workflow `release.yml` ; ne rien publier à la main.
+- **Prévisualisation** : `goreleaser release --snapshot --clean` depuis `cli/` construit les artefacts sans rien publier.
