@@ -328,7 +328,7 @@ Command `doctor`. `f` fix the selected check (like `oh doctor --fix`, with a pre
 | View | Keys |
 |------|------|
 | Project board | `h` / `l` columns, `Enter` detail, `a` actions (launch a workflow on the ticket), `L` link to the tracker, `i` initialise Beads |
-| Team board | `h` / `l` columns, `[` / `]` projects, `Enter` detail, `a` actions, `/` filter (menu: text, assignee, label), `c` claim, `L` release (confirmed), `t` transfer, `s` status |
+| Team board | `h` / `l` columns, `[` / `]` projects, `Enter` detail, `a` actions (workflows taking a ticket; on a GitLab issue, also the workflows taking a free request, with `#<iid>`), `/` filter (menu: text, assignee, label), `c` claim, `L` release (confirmed), `t` transfer, `s` status |
 
 ### Other views
 

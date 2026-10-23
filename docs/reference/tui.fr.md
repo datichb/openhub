@@ -328,7 +328,7 @@ Commande `doctor`. `f` corriger le contrôle sélectionné (comme `oh doctor --f
 | Vue | Touches |
 |-----|---------|
 | Board du projet | `h` / `l` colonnes, `Entrée` détail, `a` actions (lancer un workflow sur le ticket), `L` lier au tracker, `i` initialiser Beads |
-| Board d'équipe | `h` / `l` colonnes, `[` / `]` projets, `Entrée` détail, `a` actions, `/` filtrer (menu : texte, assigné, libellé), `c` prendre, `L` libérer (confirmé), `t` transférer, `s` statut |
+| Board d'équipe | `h` / `l` colonnes, `[` / `]` projets, `Entrée` détail, `a` actions (workflows à ticket ; sur une issue GitLab, aussi les workflows à demande libre avec `#<iid>`), `/` filtrer (menu : texte, assigné, libellé), `c` prendre, `L` libérer (confirmé), `t` transférer, `s` statut |
 
 ### Autres vues
 

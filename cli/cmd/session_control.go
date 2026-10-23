@@ -29,7 +29,10 @@ func sessionService(cmd *cobra.Command) (*sessionsvc.Service, error) {
 func decisionError(err error) error {
 	var re *sessionsvc.ResolvedError
 	var several *sessionsvc.ErrSeveralDecisions
+	var ended *sessionsvc.EndedError
 	switch {
+	case errors.As(err, &ended):
+		return errors.New(endedMessage(ended))
 	case errors.As(err, &re):
 		by := re.By
 		if by == "" {
@@ -55,6 +58,18 @@ func decisionError(err error) error {
 		return errors.New(i18n.T("cmd.session.ref_not_found"))
 	}
 	return err
+}
+
+// endedMessage tells that a session is over: for a message, whether it was
+// refused (the session was over) or may be lost (it ended during the send).
+func endedMessage(e *sessionsvc.EndedError) string {
+	switch {
+	case e.During:
+		return i18n.Tf("cmd.session.ended_send.during", e.SessionID)
+	case e.Send:
+		return i18n.Tf("cmd.session.ended_send."+string(e.State), e.SessionID)
+	}
+	return i18n.Tf("cmd.session.ended", e.SessionID, e.State)
 }
 
 var sessionInboxCmd = &cobra.Command{
@@ -238,7 +253,7 @@ var sessionSendCmd = &cobra.Command{
 		}
 		synthetic, _ := cmd.Flags().GetBool("synthetic")
 		queue, _ := cmd.Flags().GetBool("queue")
-		o := sessionsvc.SendOptions{Synthetic: synthetic}
+		o := sessionsvc.SendOptions{Synthetic: synthetic, ReportEnd: true}
 		if queue {
 			o.Delivery = adapters.DeliveryQueue
 		}

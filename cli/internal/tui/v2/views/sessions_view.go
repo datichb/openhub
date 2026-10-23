@@ -599,6 +599,11 @@ func (v *SessionsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		}
 		return nil
 	case sendKey.Matches(event):
+		if r != nil && r.Finished {
+			// Nothing reads it: do not let the user type a message for nobody.
+			v.toast(i18n.T("tui.sessions.send_ended"), false)
+			return nil
+		}
 		if r != nil && v.shell != nil {
 			id := r.ID
 			v.shell.ShowInputModal(i18n.T("tui.sessions.send_title"), "", func(text string) {

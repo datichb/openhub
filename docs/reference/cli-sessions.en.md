@@ -171,7 +171,7 @@ Dismisses an alert: ✗ error, ✗ circuit breaker (resets the delegation counte
 oh session send <session> "instruction…" [--queue] [--synthetic]
 ```
 
-Sends a short instruction, taken into account at the next step. The words after the id are joined.
+Sends a short instruction, taken into account at the next step. The words after the id are joined. The tool admits the instruction without promising it will be read: a session that is over (`completed`, `failed`, `stopped`) refuses it (« the instruction will not be delivered », exit code 1; to go on, `oh session attach`), and a session that ends while the instruction is sent is reported (« may not have been taken into account », `oh session trace`). The Sessions view (`m`) refuses the same way on a session that is over.
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|

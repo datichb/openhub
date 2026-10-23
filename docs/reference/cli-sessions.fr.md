@@ -171,7 +171,7 @@ Classe une alerte : ✗ erreur, ✗ coupe-circuit (remet le compteur de déléga
 oh session send <session> "consigne…" [--queue] [--synthetic]
 ```
 
-Envoie une consigne courte, prise en compte à la prochaine étape. Les mots après l'identifiant sont joints.
+Envoie une consigne courte, prise en compte à la prochaine étape. Les mots après l'identifiant sont joints. L'outil admet la consigne sans garantir qu'elle sera lue : une session terminée (`completed`, `failed`, `stopped`) la refuse (« la consigne ne sera pas remise », code 1 ; pour continuer, `oh session attach`), et une session qui se termine pendant l'envoi est signalée (« la consigne n'a peut-être pas été prise en compte », `oh session trace`). La vue Sessions (`m`) refuse de même sur une session terminée.
 
 | Flag | Type | Défaut | Description |
 |------|------|--------|-------------|

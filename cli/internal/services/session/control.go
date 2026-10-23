@@ -22,7 +22,37 @@ type SendOptions struct {
 	// Delivery: steer (next step boundary, default of the tool) or queue
 	// (after the running loop).
 	Delivery adapters.Delivery
+	// ReportEnd is set by the callers that speak for a user (TUI, CLI): the
+	// tool only admits the message, so when the session turns out to be over
+	// as the send returns, Send says it (EndedError.During) instead of
+	// letting the user believe the message was taken.
+	ReportEnd bool
 }
+
+// EndedError is returned for a session that is over: the tool server may
+// still run, but nothing it is told will be taken into account.
+type EndedError struct {
+	SessionID string
+	State     domain.RunState
+	// Send: the operation was a message to the session.
+	Send bool
+	// During: the session was open when the message was sent and over right
+	// after: the tool admitted the message, which may never be read.
+	During bool
+}
+
+func (e *EndedError) Error() string {
+	if e.During {
+		return fmt.Sprintf("session %s ended while the message was sent (%s): it may not have been taken into account", e.SessionID, e.State)
+	}
+	return fmt.Sprintf("session %s is %s", e.SessionID, e.State)
+}
+
+// Is makes errors.Is(err, ErrSessionEnded) true.
+func (e *EndedError) Is(target error) bool { return target == ErrSessionEnded }
+
+// ErrSessionEnded matches an *EndedError.
+var ErrSessionEnded = errors.New("the session is over")
 
 // Send sends an instruction to a session.
 func (s *Service) Send(ctx context.Context, sessionID, text string, o SendOptions) error {
@@ -34,7 +64,18 @@ func (s *Service) Send(ctx context.Context, sessionID, text string, o SendOption
 	if o.Synthetic {
 		kind = adapters.ControlSynthetic
 	}
-	return s.control(ctx, sessionID, adapters.ControlOp{Kind: kind, Text: text, Delivery: o.Delivery})
+	err := s.control(ctx, sessionID, adapters.ControlOp{Kind: kind, Text: text, Delivery: o.Delivery})
+	var ended *EndedError
+	if errors.As(err, &ended) {
+		ended.Send = true
+	}
+	if err != nil || !o.ReportEnd || s.Sessions == nil {
+		return err
+	}
+	if sess, gerr := s.Sessions.Get(ctx, sessionID); gerr == nil && isTerminal(sess.State) {
+		return &EndedError{SessionID: sessionID, State: sess.State, Send: true, During: true}
+	}
+	return nil
 }
 
 // Interrupt stops the running agent loop of a session (the session stays open).
@@ -89,7 +130,7 @@ func (s *Service) handle(ctx context.Context, sessionID string) (adapters.Server
 		return adapters.ServerHandle{}, fmt.Errorf("session %s was not started by the v5 launcher", sessionID)
 	}
 	if isTerminal(sess.State) {
-		return adapters.ServerHandle{}, fmt.Errorf("session %s is %s", sessionID, sess.State)
+		return adapters.ServerHandle{}, &EndedError{SessionID: sessionID, State: sess.State}
 	}
 	srv, err := s.Servers.Get(ctx, sess.GroupKey)
 	if err != nil || srv.Status != domain.ServerReady || (s.Alive != nil && !s.Alive(srv.PID)) {

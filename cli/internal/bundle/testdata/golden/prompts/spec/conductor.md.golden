@@ -152,7 +152,7 @@ Après chaque retour : agent, statut, résumé, identifiant du rapport, question
 
 # Carte du workflow `spec`
 
-Comprendre une demande, écrire sa spec dans le wiki (glossaire, critères et points de test) et la découper en tickets Beads, sans l'implémenter
+Comprendre une demande, écrire sa spec (glossaire, critères et points de test) dans docs/wiki/ (documentation versionnée du dépôt) et la découper en tickets Beads, sans l'implémenter
 
 - Agent d'entrée : `conductor`
 - Risque : `plan` : aucune modification de fichier hors des chemins de documentation ci-dessous ; écritures Beads limitées aux commandes autorisées
