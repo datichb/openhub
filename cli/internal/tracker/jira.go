@@ -469,7 +469,7 @@ func (c *jiraClient) do(ctx context.Context, method, path string, body io.Reader
 
 	switch resp.StatusCode {
 	case http.StatusUnauthorized, http.StatusForbidden:
-		return nil, ErrTokenInvalid
+		return nil, c.cfg.rejected(resp.StatusCode)
 	case http.StatusNotFound:
 		return nil, ErrIssueNotFound
 	case http.StatusTooManyRequests:

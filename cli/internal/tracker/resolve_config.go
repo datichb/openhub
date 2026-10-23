@@ -30,6 +30,10 @@ type EffectiveTrackerConfig struct {
 	// TrackerTokenKey is the resolved keychain key for the tracker token.
 	// Resolution: project.TrackerTokenKey → hub.Tracker.TrackerTokenKey → shared.TrackerTokenKey → derived default
 	TrackerTokenKey string
+	// TrackerTokenURL is the server TrackerTokenKey is declared for. It comes
+	// from the same level as the key (a key set in hub.toml does not inherit
+	// the server declared next to the team key).
+	TrackerTokenURL string
 	// TicketPattern is the resolved regex for extracting the tracker IID.
 	// Resolution: project.TicketPattern → shared.TicketPattern → ""
 	TicketPattern string
@@ -118,6 +122,7 @@ func ResolveTrackerConfig(
 //	project.TrackerProject → shared.TrackerProject → shared.Projects[projectID] → ""
 //	project.TrackerURL → local.TrackerURL → shared.TrackerURL → ""
 //	project.TrackerTokenKey → local.TrackerTokenKey → shared.TrackerTokenKey → ""
+//	(the server of the key, TrackerTokenURL, is taken at the level of the key)
 //	project.TicketPattern → shared.TicketPattern → shared.TicketPatterns[projectID] → ""
 func ResolveFullTrackerConfig(
 	shared *teamstate.TrackerConfig,
@@ -133,6 +138,7 @@ func ResolveFullTrackerConfig(
 		eff.TrackerProject = shared.TrackerProject
 		eff.TrackerURL = shared.TrackerURL
 		eff.TrackerTokenKey = shared.TrackerTokenKey
+		eff.TrackerTokenURL = shared.TrackerTokenURL
 		eff.TicketPattern = shared.TicketPattern
 		eff.SyncIntervalMinutes = shared.SyncIntervalMinutes
 		eff.StatusMapping = shared.StatusMapping
@@ -148,6 +154,7 @@ func ResolveFullTrackerConfig(
 	}
 	if local.TrackerTokenKey != "" {
 		eff.TrackerTokenKey = local.TrackerTokenKey
+		eff.TrackerTokenURL = local.TrackerTokenURL
 	}
 
 	// Per-project overrides (most specific wins)
@@ -160,6 +167,7 @@ func ResolveFullTrackerConfig(
 		}
 		if projectCfg.TrackerTokenKey != "" {
 			eff.TrackerTokenKey = projectCfg.TrackerTokenKey
+			eff.TrackerTokenURL = projectCfg.TrackerTokenURL
 		}
 		if projectCfg.TicketPattern != "" {
 			eff.TicketPattern = projectCfg.TicketPattern

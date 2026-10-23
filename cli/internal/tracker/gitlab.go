@@ -337,7 +337,7 @@ func (c *gitLabClient) doWithHeaders(ctx context.Context, method, path string, b
 
 	switch resp.StatusCode {
 	case http.StatusUnauthorized, http.StatusForbidden:
-		return nil, nil, ErrTokenInvalid
+		return nil, nil, c.cfg.rejected(resp.StatusCode)
 	case http.StatusNotFound:
 		return nil, nil, ErrIssueNotFound
 	case http.StatusTooManyRequests:

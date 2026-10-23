@@ -741,8 +741,12 @@ func (v *TeamDetailView) syncTracker() {
 			if err != nil {
 				var credErr *TrackerCredentialsError
 				if errors.As(err, &credErr) {
-					v.shell.ShowScrollableModal(i18n.T("tui.team.detail.token_missing_title"),
-						i18n.T("tui.team.detail.token_missing_body"),
+					body := i18n.T("tui.team.detail.token_missing_body")
+					if credErr.Err != nil {
+						// the server, the sources read and how to declare the key
+						body = credErr.Err.Error() + "\n\n" + body
+					}
+					v.shell.ShowScrollableModal(i18n.T("tui.team.detail.token_missing_title"), body,
 						[]ModalAction{
 							{Label: i18n.T("tui.team.detail.token_configure"), Callback: func() {
 								v.promptTokenSetup()
@@ -874,12 +878,22 @@ func (v *TeamDetailView) testConnection() {
 		// Resolve effective tracker config and build credential source
 		effTracker := tracker.ResolveTrackerConfig(&v.teamCfg.Tracker, v.cfg.GetTrackerLocalConfig())
 		src := tracker.NewCredentialSource(effTracker, v.cfg.GetSecrets())
-		// Same GitLab token cascade as the sync: the team and the MCP key count.
+		// Same GitLab token cascade as the sync: the team and the MCP key count,
+		// each for its own server.
+		teamID := ""
 		if v.cfg.ResolveTeam != nil {
-			src.TeamID = v.cfg.ResolveTeam().TeamID
+			tc := v.cfg.ResolveTeam()
+			teamID = tc.TeamID
+			src.TeamID = tc.TeamID
+			src.TeamServer = tracker.ServerOf(tc.StateRepo)
 		}
 		if hub := v.cfg.GetHubConfig(); hub != nil {
 			src.MCPTokenKey = hub.MCP.Gitlab.Token
+			var shared *teamstate.SharedMCPConfig
+			if s, ok := v.teamCfg.MCP["gitlab"]; ok {
+				shared = &s
+			}
+			src.MCPServer = tracker.MCPGitLabURL(hub.MCP.Gitlab, shared, nil, teamID)
 		}
 
 		trackerType := tracker.Type(v.teamCfg.Tracker.Type)

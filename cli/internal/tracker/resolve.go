@@ -25,12 +25,20 @@ type CredentialSource struct {
 	URL string
 	// TeamID and MCPTokenKey feed the GitLab token cascade (see
 	// ResolveGitLabToken): the team whose GitLab token may be used, and the
-	// key set in [mcp.gitlab]. Both are optional.
+	// key set in [mcp.gitlab]. Both are optional. TeamServer and MCPServer
+	// are the servers those tokens were issued for (the team-state
+	// repository, the url of the GitLab MCP): a token is only used when its
+	// server is the one called.
 	TeamID      string
+	TeamServer  string
 	MCPTokenKey string
+	MCPServer   string
 	// TokenKey is the keychain key for the tracker token (not the secret itself).
 	// Resolved from: project.TrackerTokenKey → hub.Tracker.TrackerTokenKey → team.Tracker.TrackerTokenKey → derived default.
 	TokenKey string
+	// TokenURL is the server TokenKey is declared for (tracker_token_url,
+	// resolved like TokenKey); the former tracker key uses it too.
+	TokenURL string
 	// WriteEnabled controls whether write operations (push labels, assign issues) are allowed.
 	WriteEnabled bool
 
@@ -46,6 +54,7 @@ func NewCredentialSource(eff EffectiveTrackerConfig, secrets SecretGetter) Crede
 	return CredentialSource{
 		URL:          eff.TrackerURL,
 		TokenKey:     eff.TrackerTokenKey,
+		TokenURL:     eff.TrackerTokenURL,
 		WriteEnabled: eff.WriteEnabled,
 		Secrets:      secrets,
 	}
@@ -55,7 +64,8 @@ func NewCredentialSource(eff EffectiveTrackerConfig, secrets SecretGetter) Crede
 //
 // Resolution order for the token:
 //   - GitLab: the cascade of ResolveGitLabToken (GITLAB_TOKEN, tracker key,
-//     team, MCP, former tracker key)
+//     team, MCP, former tracker key), each source for its own server only;
+//     without a token for src.URL the error is a *MissingTokenError
 //   - Jira: JIRA_TOKEN, then Secrets.Get(ctx, tokenKey)
 //   - Error — no source provided a token
 //
@@ -90,21 +100,26 @@ func resolveGitLab(ctx context.Context, src CredentialSource) (Config, error) {
 	}
 	slog.Debug("tracker.resolve.url", "type", "gitlab", "url", baseURL, "source", source)
 
-	token, _ := ResolveGitLabToken(ctx, GitLabTokenQuery{
-		TrackerKey: src.TokenKey,
-		TeamID:     src.TeamID,
-		MCPKey:     src.MCPTokenKey,
-		Secrets:    src.Secrets,
+	res := ResolveGitLabToken(ctx, GitLabTokenQuery{
+		Server:        baseURL,
+		TrackerKey:    src.TokenKey,
+		TrackerServer: src.TokenURL,
+		TeamID:        src.TeamID,
+		TeamServer:    src.TeamServer,
+		MCPKey:        src.MCPTokenKey,
+		MCPServer:     src.MCPServer,
+		Secrets:       src.Secrets,
 	})
-	if token == "" {
-		return Config{}, missingTokenError(GitLabTokenEnv, src.TokenKey, "GitLab")
+	if !res.Found() {
+		return Config{}, NewMissingTokenError(res, PurposeTracker, "")
 	}
 
 	return Config{
 		Type:         TypeGitLab,
 		BaseURL:      baseURL,
-		Token:        token,
+		Token:        res.Token,
 		WriteEnabled: src.WriteEnabled,
+		Origin:       res.Origin(),
 	}, nil
 }
 
@@ -128,27 +143,29 @@ func resolveJira(ctx context.Context, src CredentialSource) (Config, error) {
 	}
 	slog.Debug("tracker.resolve.url", "type", "jira", "url", baseURL, "source", source)
 
-	token, err := resolveToken(ctx, "JIRA_TOKEN", src.TokenKey, src.Secrets, "Jira")
+	token, origin, err := resolveToken(ctx, "JIRA_TOKEN", src.TokenKey, src.Secrets, "Jira")
 	if err != nil {
 		return Config{}, err
 	}
+	origin.Server = baseURL
 
 	return Config{
 		Type:         TypeJira,
 		BaseURL:      baseURL,
 		Token:        token,
 		WriteEnabled: src.WriteEnabled,
+		Origin:       origin,
 	}, nil
 }
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
 
 // resolveToken resolves a token from an env var, then from a keychain key.
-func resolveToken(ctx context.Context, envVar, tokenKey string, secrets SecretGetter, displayName string) (string, error) {
+func resolveToken(ctx context.Context, envVar, tokenKey string, secrets SecretGetter, displayName string) (string, TokenOrigin, error) {
 	// 1. Env var — always takes priority (CI, shell export, tests)
 	if tok := os.Getenv(envVar); tok != "" {
 		slog.Debug("tracker.resolve.token", "type", displayName, "source", "env")
-		return tok, nil
+		return tok, TokenOrigin{Source: TokenSourceEnv, Key: envVar}, nil
 	}
 
 	// 2. Keychain key
@@ -156,14 +173,14 @@ func resolveToken(ctx context.Context, envVar, tokenKey string, secrets SecretGe
 		tok, err := secrets.Get(ctx, tokenKey)
 		if err == nil && tok != "" {
 			slog.Debug("tracker.resolve.token", "type", displayName, "source", "keychain", "key", tokenKey)
-			return tok, nil
+			return tok, TokenOrigin{Source: TokenSourceTrackerKey, Key: tokenKey}, nil
 		}
 		if err != nil {
 			slog.Debug("tracker.resolve.token.miss", "type", displayName, "key", tokenKey, "error", err)
 		}
 	}
 
-	return "", missingTokenError(envVar, tokenKey, displayName)
+	return "", TokenOrigin{}, missingTokenError(envVar, tokenKey, displayName)
 }
 
 // missingTokenError is the actionable error returned when no token was found.

@@ -14,6 +14,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/tracker"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -314,6 +315,17 @@ var configFieldMap = map[string]configField{
 	"tracker.tracker_token_key": {
 		Set:   func(c *config.Config, v string) error { c.Tracker.TrackerTokenKey = v; return nil },
 		Unset: func(c *config.Config) { c.Tracker.TrackerTokenKey = "" },
+	},
+	// The server the key above is valid for: a GitLab token is only sent to it.
+	"tracker.tracker_token_url": {
+		Set: func(c *config.Config, v string) error {
+			if tracker.ValidateServer(v) != nil {
+				return errors.New(i18n.Tf("cmd.config.invalid_value", v, "tracker.tracker_token_url", "https://gitlab.example.com"))
+			}
+			c.Tracker.TrackerTokenURL = v
+			return nil
+		},
+		Unset: func(c *config.Config) { c.Tracker.TrackerTokenURL = "" },
 	},
 	"tracker.write_enabled": {
 		Set: func(c *config.Config, v string) error {

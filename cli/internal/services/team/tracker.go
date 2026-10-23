@@ -111,7 +111,17 @@ func (s *Service) SyncTracker(ctx context.Context, opts SyncOptions) (*tracker.S
 	return b.engine.Run(ctx)
 }
 
-func (s *Service) build(ctx context.Context, project *domain.Project) (*built, error) {
+// trackerSetup is what the tracker of the team of project is built from: the
+// team-state, its config and the effective tracker config (team-state merged
+// with hub.toml).
+type trackerSetup struct {
+	repo *teamstate.Repo
+	eff  tracker.EffectiveTrackerConfig
+}
+
+// loadTracker reads the tracker config of the team of project. It fails like
+// TrackerEngine does, up to ErrTrackerDisabled.
+func (s *Service) loadTracker(project *domain.Project) (*trackerSetup, error) {
 	tc := s.ResolveTeam(project)
 	if !tc.Enabled {
 		return nil, ErrTeamNotConfigured
@@ -137,11 +147,40 @@ func (s *Service) build(ctx context.Context, project *domain.Project) (*built, e
 	if !eff.Enabled {
 		return nil, ErrTrackerDisabled
 	}
+	return &trackerSetup{repo: repo, eff: eff}, nil
+}
 
+// TrackerCredentials resolves the connection config of the tracker of the
+// team of project (URL, token and where the token comes from), without
+// building the engine. It fails like TrackerEngine up to *CredentialsError,
+// whose error names the server and the sources read when no token serves the
+// tracker.
+func (s *Service) TrackerCredentials(ctx context.Context, project *domain.Project) (tracker.Config, error) {
+	set, err := s.loadTracker(project)
+	if err != nil {
+		return tracker.Config{}, err
+	}
+	return s.credentials(ctx, set.eff, project)
+}
+
+func (s *Service) credentials(ctx context.Context, eff tracker.EffectiveTrackerConfig, project *domain.Project) (tracker.Config, error) {
 	trackerType := tracker.Type(eff.Type)
 	creds, err := tracker.ResolveCredentials(ctx, s.CredentialSource(tracker.NewCredentialSource(eff, nil), project), trackerType)
 	if err != nil {
-		return nil, &CredentialsError{TrackerType: eff.Type, EnvVar: envVar(trackerType), Err: err}
+		return tracker.Config{}, &CredentialsError{TrackerType: eff.Type, EnvVar: envVar(trackerType), Err: err}
+	}
+	return creds, nil
+}
+
+func (s *Service) build(ctx context.Context, project *domain.Project) (*built, error) {
+	set, err := s.loadTracker(project)
+	if err != nil {
+		return nil, err
+	}
+	repo, eff := set.repo, set.eff
+	creds, err := s.credentials(ctx, eff, project)
+	if err != nil {
+		return nil, err
 	}
 	t, err := tracker.New(creds)
 	if err != nil {
@@ -164,12 +203,18 @@ func (s *Service) build(ctx context.Context, project *domain.Project) (*built, e
 }
 
 // CredentialSource completes src with what the services know: the keychain,
-// the team of project (nil: the hub team) and the key of [mcp.gitlab], so
-// that the tracker finds its GitLab token with the unified cascade.
+// the team of project (nil: the hub team) with the server of its team-state
+// repository, and the key and url of [mcp.gitlab], so that the tracker finds
+// its GitLab token with the unified cascade, which only answers for the
+// server of the tracker.
 func (s *Service) CredentialSource(src tracker.CredentialSource, project *domain.Project) tracker.CredentialSource {
 	src.Secrets = s.Secrets
-	src.TeamID = s.ResolveTeam(project).TeamID
-	src.MCPTokenKey = s.Config.MCP.Gitlab.Token
+	r := tokenRequest{project: project, q: tracker.GitLabTokenQuery{TeamID: s.ResolveTeam(project).TeamID}}
+	s.completeQuery(&r)
+	src.TeamID = r.q.TeamID
+	src.TeamServer = r.q.TeamServer
+	src.MCPTokenKey = r.q.MCPKey
+	src.MCPServer = r.q.MCPServer
 	return src
 }
 

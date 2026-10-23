@@ -1014,7 +1014,7 @@ func runTeamRejoin(cmd *cobra.Command, _ []string) error {
 	}
 	if selectedMember != nil && selectedMember.GitLabUsername != "" {
 		teamID := config.RepoNameFromRemote(repoURL)
-		source := gitlabTokenSource(ctx, a, teamID)
+		source := gitlabTokenSource(ctx, a, teamID, repoURL)
 
 		fmt.Fprintln(a.IO.Out)
 		if source != "" {

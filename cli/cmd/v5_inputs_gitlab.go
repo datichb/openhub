@@ -90,15 +90,15 @@ func fetchMRFeedback(ctx context.Context, a *app.App, projectID, ref string) (*m
 	if err != nil {
 		return nil, err
 	}
-	token := resolveGitLabToken(ctx, a, project)
-	if token == "" {
-		return nil, errors.New(i18n.Tf("cmd.review.feedback.no_token", "oh mcp setup gitlab"))
+	access, err := resolveGitLabAccess(ctx, a, project)
+	if err != nil {
+		return nil, err
 	}
 	glProject := resolveGitLabProject(a, project)
 	if glProject == "" {
 		return nil, errors.New(i18n.Tf("cmd.review.feedback.no_project", "tracker_project"))
 	}
-	gl := gitlabapi.NewClient(resolveGitLabURL(a), token)
+	gl := access.Client()
 	var (
 		mr     *gitlabapi.MRInfo
 		branch string

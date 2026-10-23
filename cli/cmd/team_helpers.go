@@ -14,7 +14,6 @@ import (
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	teamsvc "github.com/datichb/openhub/cli/internal/services/team"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tracker"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
@@ -186,14 +185,11 @@ func selectedMemberGitLabUsername(state *initWizardTeamState) string {
 }
 
 // gitlabTokenSource returns a human-readable label describing the source of
-// the GitLab token that resolves for the team teamID (the unique cascade of
-// the team service), or "" if no token is resolvable.
-func gitlabTokenSource(ctx context.Context, a *app.App, teamID string) string {
-	svc := teamsvc.New(&config.Config{}, nil, nil)
-	if a != nil {
-		svc = teamService(a)
-	}
-	switch _, src := svc.GitLabToken(ctx, teamID); src {
+// the GitLab token that resolves for the team teamID on the server of its
+// team-state repository repo (the unique cascade of the team service), or ""
+// if no token serves that server.
+func gitlabTokenSource(ctx context.Context, a *app.App, teamID, repo string) string {
+	switch gitlabTeamToken(ctx, a, teamID, repo).Source {
 	case tracker.TokenSourceEnv:
 		return i18n.T("cmd.init.wizard_rejoin_token_source_env")
 	case tracker.TokenSourceTeam:
@@ -848,7 +844,7 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 		},
 		Form: func(_ *tview.Application, onDone func()) *tview.Form {
 			teamID := config.RepoNameFromRemote(state.Repo)
-			source := gitlabTokenSource(state.Ctx, *a, teamID)
+			source := gitlabTokenSource(state.Ctx, *a, teamID, state.Repo)
 
 			// Build dropdown options: placeholder + [reuse if available] + new + skip
 			options := []string{i18n.T("cmd.init.wizard_select_placeholder")}

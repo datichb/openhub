@@ -458,6 +458,11 @@ type TrackerConfig struct {
 	// When empty, defaults to "openhub.tracker.<type>.token".
 	// Falls back to the MCP service token if the tracker-specific token is not found.
 	TrackerTokenKey string `toml:"tracker_token_key,omitempty"`
+	// TrackerTokenURL is the server the token under TrackerTokenKey is valid
+	// for (a URL such as https://gitlab.example.com). A GitLab token is only
+	// used for the server it is declared for; without this declaration the
+	// key is never sent to a server.
+	TrackerTokenURL string `toml:"tracker_token_url,omitempty"`
 	// AutoSync triggers a sync automatically when team views are opened.
 	AutoSync bool `toml:"auto_sync"`
 	// SyncIntervalMinutes is the polling interval when the board is open.

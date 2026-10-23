@@ -797,12 +797,8 @@ func checkProjectToken(ctx context.Context, a *app.App, serviceName string, proj
 	// GitLab: the unique cascade, restricted to what the MCP server is given
 	// (the environment variable and the MCP tokens of the project and of the hub).
 	if serviceName == "gitlab" {
-		var opts []teamsvc.TokenOption
-		if project != nil {
-			opts = append(opts, teamsvc.WithProject(project.ID))
-		}
-		_, src := teamService(a).GitLabToken(ctx, "", opts...)
-		switch src {
+		res := teamService(a).GitLabToken(ctx, "", "", teamsvc.WithProject(project), teamsvc.WithAnyServer())
+		switch res.Source {
 		case tracker.TokenSourceEnv, tracker.TokenSourceProject, tracker.TokenSourceMCP:
 			return true
 		}
