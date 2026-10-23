@@ -124,7 +124,7 @@ oh mcp trust <service> [options]
 
 La commande affiche l'URL (normalisée), les adresses vers lesquelles son hôte se résout (une adresse privée, de bouclage ou locale au lien est signalée), demande une confirmation (`o`/`oui`/`y`/`yes`), puis épingle l'URL dans votre `hub.toml` (`[mcp.<service>] trusted_url`, jamais dans le team-state). L'URL imposée n'est utilisée que si elle est égale à l'URL épinglée une fois normalisée (schéma et hôte en minuscules, sans slash final, port par défaut retiré). Une équipe qui change son URL plus tard attend de nouveau votre approbation.
 
-Seul `https` est accepté (`http` pour `localhost`, `127.0.0.1` et `::1`), sans identifiants, requête ni fragment dans l'URL : une telle URL est refusée et ne peut pas être épinglée. Un hôte privé (Jira sur site) est accepté une fois approuvé. Services : `figma`, `gitlab`, `gslides`, `jira`.
+Seul `https` est accepté (`http` pour `localhost`, `127.0.0.1` et `::1`), sans identifiants, requête ni fragment dans l'URL : une telle URL est refusée et ne peut pas être épinglée. Un hôte privé (Jira sur site) est accepté une fois approuvé. Services : `gitlab`, `gslides`, `jira` (Figma n'a pas d'URL : son serveur appelle toujours `api.figma.com`).
 
 | Flag | Court | Type | Description |
 |------|-------|------|-------------|

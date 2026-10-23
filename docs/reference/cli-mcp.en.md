@@ -124,7 +124,7 @@ oh mcp trust <service> [options]
 
 The command shows the URL (normalized), the addresses its host resolves to (a private, loopback or link-local address is flagged), asks for a confirmation (`o`/`oui`/`y`/`yes`), then pins the URL in your `hub.toml` (`[mcp.<service>] trusted_url`, never in the team-state). The imposed URL is used only if it equals the pinned one once normalized (scheme and host in lower case, no trailing slash, default port removed). A team that changes its URL later waits again for your approval.
 
-Only `https` is accepted (`http` for `localhost`, `127.0.0.1` and `::1`), with no credentials, query or fragment in the URL: such a URL is refused and cannot be pinned. A private host (on-premise Jira) is accepted once approved. Services: `figma`, `gitlab`, `gslides`, `jira`.
+Only `https` is accepted (`http` for `localhost`, `127.0.0.1` and `::1`), with no credentials, query or fragment in the URL: such a URL is refused and cannot be pinned. A private host (on-premise Jira) is accepted once approved. Services: `gitlab`, `gslides`, `jira` (Figma has no URL: its server always calls `api.figma.com`).
 
 | Flag | Short | Type | Description |
 |------|-------|------|-------------|
