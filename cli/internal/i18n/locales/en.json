@@ -2299,7 +2299,6 @@
   "cmd.claims.own_renewed": "%s/%s is already yours, its lease had expired: renewed until %s.",
   "cmd.claim.brief_generated": "Takeover brief generated.",
   "cmd.claim.transferred_from_to": "%s/%s transferred from %s to %s",
-  "cmd.claim.transferred_no_brief": "%s/%s transferred (without brief).",
   "cmd.claim.already_taken": "%s/%s is already taken by %s (since %s)",
   "cmd.claim.transfer_hint": "  Use %s to transfer if needed.",
   "cmd.claim.success": "%s/%s claimed for %s",

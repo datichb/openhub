@@ -157,7 +157,7 @@ oh team board [--watch]
 
 ### oh team claim
 
-Claims a ticket in the team-state to tell the team you are working on it. When the ticket is already taken, a warning is shown (non-blocking). When the ticket has been inactive for several days, oh offers to generate a takeover brief before claiming it.
+Claims a ticket in the team-state to tell the team you are working on it. When the ticket is already taken, a warning is shown (non-blocking). When the claim of another member has expired (its lease is past; without a lease, inactive for `takeover.stale_days` days), you can take it over: after the confirmation, a takeover brief is generated and the claim comes to you with a new lease. When the expired claim is yours, its lease is renewed.
 
 ```
 oh team claim <ticket-id> [options]
@@ -168,11 +168,13 @@ oh team claim <ticket-id> [options]
 | `--planned` | | bool | Create the claim in `planned` status (TODO column) instead of `in_progress` |
 | `--project` | `-p` | string | Project (detected from the current folder if omitted) |
 | `--worktree` | | string | Name of the associated branch or worktree |
+| `--yes` | `-y` | bool | Confirms the takeover of an expired claim without asking (required without a terminal: exit code 2 otherwise) |
 
 **Example:**
 
 ```bash
 oh team claim TICKET-123
+oh team claim TICKET-123 --yes   # take over an expired claim without a question
 oh team claim TICKET-123 --planned
 oh team claim TICKET-123 --worktree feat/ticket-123
 ```
@@ -397,8 +399,8 @@ oh takeover-brief enrich <ticket-id>  # deprecated alias: runs `oh run brief-enr
 The team mode is a beta in v5.0. These limits are known; the complete fix is planned for v5.1.
 
 - **A claim is released when its session stops**, even if a review (checkpoint `cp-2`) is still pending: the ticket becomes available to the other members again before the review is done. If the ticket is closed in Beads, the claim is completed instead of released.
-- **No expiry.** A claim stays until someone releases it. After `takeover.stale_days` days of inactivity (3 by default, `[takeover]` section of the team-state `config.toml`), oh only offers a takeover brief: taking the ticket over stays manual (`oh team claim transfer`).
-- **A release can be lost.** It runs in the background when the session ends: if the machine is offline, or if the daemon stops before the push, the claim stays in place.
+- **Lease.** A claim being worked on has a lease (`lease_hours`, 24 h by default) that the daemon renews (`heartbeat_minutes`) while an open session works on the ticket. Once the lease is past, another member can take the claim over with `oh team claim <ticket>` (common confirmation, `--yes` without a terminal): a takeover brief is generated and the claim comes to them with a new lease. A claim without a lease (created before v5.1) is judged on `takeover.stale_days` days of inactivity (3 by default, `[takeover]` section of the team-state `config.toml`). A claim taken by hand, without a session, is not renewed by the daemon: `oh team claim <ticket>` renews its lease.
+- **Offline, the end of a session waits for the network.** What the end of a session decides (release, complete, label `session-ended`) is written at once to a local queue (`.git/oh-claims-queue.json` of the team-state clone), then applied in one commit as soon as the team repository answers: at each beat of the daemon, by its `claims-queue` task (also when it starts), or at the end of a session. A session that starts offline on a ticket you already claimed takes the claim over when the network is back, ahead of what the previous session had queued (which is cancelled).
 - **Forgotten claim:** `oh team release <ticket-id> -p <project>` frees it by hand.
 - **`oh doctor` reports orphan claims** (ticket closed, or every session that worked on it ended) with the command to run. Claims taken under the former ID of a project created again are reported too, and `oh doctor --fix` attaches them to the local project (see [`oh doctor`](cli-infra.en.md#oh-doctor)).
 - **The REVIEW column follows the `ready-for-review` label.** In `oh board` and in the Board TUI, an `in_progress` Beads ticket carrying this label is in REVIEW (Beads has no `review` status). The team board shows the `review` status of the claims.

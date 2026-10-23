@@ -157,7 +157,7 @@ oh team board [--watch]
 
 ### oh team claim
 
-Réclame un ticket dans le team-state pour signaler à l'équipe que vous travaillez dessus. Si le ticket est déjà pris, un avertissement s'affiche (non bloquant). Si le ticket est inactif depuis plusieurs jours, oh propose de générer un brief de reprise avant de le réclamer.
+Réclame un ticket dans le team-state pour signaler à l'équipe que vous travaillez dessus. Si le ticket est déjà pris, un avertissement s'affiche (non bloquant). Si la réservation d'un autre membre a expiré (son bail est dépassé ; sans bail, inactive depuis `takeover.stale_days` jours), vous pouvez la reprendre : après confirmation, un brief de reprise est généré et la réservation vous revient avec un nouveau bail. Si l'expirée est la vôtre, son bail est renouvelé.
 
 ```
 oh team claim <ticket-id> [options]
@@ -168,11 +168,13 @@ oh team claim <ticket-id> [options]
 | `--planned` | | bool | Crée le claim en statut `planned` (colonne TODO) au lieu de `in_progress` |
 | `--project` | `-p` | string | Projet (détecté depuis le dossier courant si omis) |
 | `--worktree` | | string | Nom de la branche ou du worktree associé |
+| `--yes` | `-y` | bool | Confirme la reprise d'une réservation expirée sans poser la question (obligatoire sans terminal : code de sortie 2 sinon) |
 
 **Exemple :**
 
 ```bash
 oh team claim TICKET-123
+oh team claim TICKET-123 --yes   # reprendre une réservation expirée sans question
 oh team claim TICKET-123 --planned
 oh team claim TICKET-123 --worktree feat/ticket-123
 ```
@@ -397,8 +399,8 @@ oh takeover-brief enrich <ticket-id>  # alias deprecie : lance `oh run brief-enr
 Le mode équipe est en bêta en v5.0. Ces limites sont connues ; la correction complète est prévue pour la v5.1.
 
 - **Une réservation est libérée à l'arrêt de sa session**, même si une revue (checkpoint `cp-2`) est encore en attente : le ticket redevient disponible pour les autres membres avant la fin de la revue. Si le ticket est clos dans Beads, la réservation est terminée au lieu d'être libérée.
-- **Pas d'expiration.** Une réservation reste jusqu'à ce que quelqu'un la libère. Après `takeover.stale_days` jours d'inactivité (3 par défaut, section `[takeover]` du `config.toml` du team-state), oh propose seulement un brief de reprise : reprendre le ticket reste manuel (`oh team claim transfer`).
-- **Une libération peut se perdre.** Elle s'exécute en arrière-plan à la fin de la session : si la machine est hors ligne, ou si le démon s'arrête avant le push, la réservation reste en place.
+- **Bail.** Une réservation en cours de travail a un bail (`lease_hours`, 24 h par défaut), que le démon renouvelle (`heartbeat_minutes`) tant qu'une session ouverte travaille sur le ticket. Quand le bail est dépassé, un autre membre peut la reprendre avec `oh team claim <ticket>` (confirmation commune, `--yes` sans terminal) : un brief de reprise est généré et la réservation lui revient avec un nouveau bail. Une réservation sans bail (créée avant la v5.1) est jugée sur `takeover.stale_days` jours d'inactivité (3 par défaut, section `[takeover]` du `config.toml` du team-state). Une réservation prise à la main, sans session, n'est pas renouvelée par le démon : `oh team claim <ticket>` renouvelle son bail.
+- **Hors ligne, la fin d'une session attend le réseau.** Ce que la fin d'une session décide (libérer, terminer, marquer `session-ended`) est écrit tout de suite dans une file locale (`.git/oh-claims-queue.json` du clone du team-state), puis appliqué en un commit dès que le dépôt d'équipe répond : à chaque battement du démon, par sa tâche `claims-queue` (aussi au démarrage), ou à la fin d'une session. Une session qui démarre hors ligne sur un ticket que vous aviez déjà réservé reprend la réservation au retour du réseau, avant ce que la session précédente avait mis en file (qui est annulé).
 - **Réservation oubliée :** `oh team release <ticket-id> -p <projet>` la libère à la main.
 - **`oh doctor` signale les réservations orphelines** (ticket clos, ou toutes les sessions qui l'ont traité terminées), avec la commande à lancer. Les réservations prises sous l'ancien ID d'un projet recréé sont signalées aussi, et `oh doctor --fix` les rattache au projet local (voir [`oh doctor`](cli-infra.fr.md#oh-doctor)).
 - **La colonne REVIEW suit le label `ready-for-review`.** Dans `oh board` et dans le Board TUI, un ticket Beads `in_progress` qui porte ce label est en REVIEW (Beads n'a pas de statut `review`). Le board d'équipe affiche le statut `review` des réservations.

@@ -2299,7 +2299,6 @@
   "cmd.claims.own_renewed": "%s/%s est déjà à toi, son bail avait expiré : renouvelé jusqu'au %s.",
   "cmd.claim.brief_generated": "Brief de reprise généré.",
   "cmd.claim.transferred_from_to": "%s/%s transféré de %s à %s",
-  "cmd.claim.transferred_no_brief": "%s/%s transféré (sans brief).",
   "cmd.claim.already_taken": "%s/%s est déjà pris par %s (depuis %s)",
   "cmd.claim.transfer_hint": "  Utilise %s pour transférer si nécessaire.",
   "cmd.claim.success": "%s/%s réservé pour %s",
