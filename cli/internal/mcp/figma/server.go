@@ -143,13 +143,18 @@ var httpClient = httplog.Wrap(&http.Client{Timeout: 30 * time.Second}, "mcp.figm
 
 const maxResponseSize = 50 << 20 // 50 MB
 
+// apiBase is the address of the Figma API. It is not configurable: a URL
+// recorded for Figma in hub.toml, in a project or in the team config is
+// ignored.
+const apiBase = "https://api.figma.com"
+
 func figmaAPI(path string) ([]byte, error) {
 	token := os.Getenv("FIGMA_TOKEN")
 	if token == "" {
 		return nil, fmt.Errorf("FIGMA_TOKEN environment variable not set")
 	}
 
-	req, err := http.NewRequest("GET", "https://api.figma.com"+path, http.NoBody)
+	req, err := http.NewRequest("GET", apiBase+path, http.NoBody)
 	if err != nil {
 		return nil, err
 	}

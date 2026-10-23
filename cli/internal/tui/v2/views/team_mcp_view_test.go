@@ -190,3 +190,50 @@ func TestTeamMCPViewTestUnavailableAndUnsaved(t *testing.T) {
 	assert.Zero(t, runs)
 	assert.Contains(t, lastToast(sh), "w")
 }
+
+// Bug 10: the Figma server always calls api.figma.com, so the view offers no
+// URL for Figma (neither the one of the team, nor the imposed one, nor the
+// personal one); the other services keep theirs.
+func TestTeamMCPViewOffersNoURLForFigma(t *testing.T) {
+	frLocale(t)
+	v, _, _, app := mountTeamMCP(t, TeamMCPViewConfig{})
+
+	urlKeys := map[string][]string{}
+	onLoop(app, func() {
+		for _, f := range v.fields {
+			if f.Key == "url" || f.Key == "url_enforced" {
+				urlKeys[f.Section] = append(urlKeys[f.Section], f.Key)
+			}
+		}
+	})
+
+	assert.Empty(t, urlKeys["figma"])
+	assert.Empty(t, urlKeys["figma.perso"])
+	assert.Equal(t, []string{"url", "url_enforced"}, urlKeys["gitlab"])
+	assert.Equal(t, []string{"url"}, urlKeys["gitlab.perso"])
+	assert.Equal(t, []string{"url", "url_enforced"}, urlKeys["jira"])
+	assert.Equal(t, []string{"url"}, urlKeys["jira.perso"])
+}
+
+// A URL recorded for Figma in hub.toml or in the team config is neither shown
+// nor rewritten by a save.
+func TestTeamMCPViewSaveKeepsARecordedFigmaURL(t *testing.T) {
+	frLocale(t)
+	shared := seedHome(t)
+	require.NoError(t, config.Update(func(c *config.Config) error { c.MCP.Figma.URL = "https://recorded.example"; return nil }))
+	host := hubHost{shared}
+	v, _, _, app := mountTeamMCP(t, TeamMCPViewConfig{
+		GetMCPConfig:    func() config.MCPConfig { return shared.MCP },
+		UpdateHubConfig: host.update,
+	})
+	onLoop(app, func() {
+		v.localMCP.Figma.Enabled = true
+		v.dirtyLocal = true
+		v.save()
+	})
+
+	got, err := config.Read()
+	require.NoError(t, err)
+	assert.True(t, got.MCP.Figma.Enabled)
+	assert.Equal(t, "https://recorded.example", got.MCP.Figma.URL)
+}

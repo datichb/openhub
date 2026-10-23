@@ -13,6 +13,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/mcpresolve"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
@@ -348,30 +349,32 @@ func (v *TeamMCPView) buildFields() {
 				v.dirtyTeam = true
 			},
 		})
-		v.fields = append(v.fields, configField{
-			Key: "url", Kind: CfgFieldString, Label: i18n.T("tui.config.field.mcp_url.label"),
-			Description: i18n.T("tui.config.field.mcp_url.desc"), Scope: ScopeTeamShared, Section: svc,
-			Placeholder: i18n.T("tui.config.field.mcp_url.placeholder"),
-			Get:         func() string { return v.teamCfg.MCP[svc].URL },
-			Set: func(val string) {
-				s := v.teamCfg.MCP[svc]
-				s.URL = val
-				v.teamCfg.MCP[svc] = s
-				v.dirtyTeam = true
-			},
-		})
-		v.fields = append(v.fields, configField{
-			Key: "url_enforced", Kind: CfgFieldBool, Label: i18n.T("tui.config.field.mcp_url_enforced.label"),
-			Description: i18n.T("tui.config.field.mcp_url_enforced.desc"), Scope: ScopeTeamShared, Section: svc,
-			Get: func() string { return mcpBoolPtrToStr(v.teamCfg.MCP[svc].URLEnforced) },
-			Set: func(val string) {
-				s := v.teamCfg.MCP[svc]
-				b := val == "true"
-				s.URLEnforced = &b
-				v.teamCfg.MCP[svc] = s
-				v.dirtyTeam = true
-			},
-		})
+		if mcpresolve.ServiceHasURL(svc) {
+			v.fields = append(v.fields, configField{
+				Key: "url", Kind: CfgFieldString, Label: i18n.T("tui.config.field.mcp_url.label"),
+				Description: i18n.T("tui.config.field.mcp_url.desc"), Scope: ScopeTeamShared, Section: svc,
+				Placeholder: i18n.T("tui.config.field.mcp_url.placeholder"),
+				Get:         func() string { return v.teamCfg.MCP[svc].URL },
+				Set: func(val string) {
+					s := v.teamCfg.MCP[svc]
+					s.URL = val
+					v.teamCfg.MCP[svc] = s
+					v.dirtyTeam = true
+				},
+			})
+			v.fields = append(v.fields, configField{
+				Key: "url_enforced", Kind: CfgFieldBool, Label: i18n.T("tui.config.field.mcp_url_enforced.label"),
+				Description: i18n.T("tui.config.field.mcp_url_enforced.desc"), Scope: ScopeTeamShared, Section: svc,
+				Get: func() string { return mcpBoolPtrToStr(v.teamCfg.MCP[svc].URLEnforced) },
+				Set: func(val string) {
+					s := v.teamCfg.MCP[svc]
+					b := val == "true"
+					s.URLEnforced = &b
+					v.teamCfg.MCP[svc] = s
+					v.dirtyTeam = true
+				},
+			})
+		}
 		v.fields = append(v.fields, configField{
 			Key: "write_recommended", Kind: CfgFieldBool, Label: i18n.T("tui.config.field.mcp_write_recommended.label"),
 			Description: i18n.T("tui.config.field.mcp_write_recommended.desc"), Scope: ScopeTeamShared, Section: svc,
@@ -393,13 +396,15 @@ func (v *TeamMCPView) buildFields() {
 			Get:    v.getMCPLocalEnabled(svc),
 			Set:    v.setMCPLocalEnabled(svc),
 		})
-		v.fields = append(v.fields, configField{
-			Key: "url", Kind: CfgFieldString, Label: i18n.T("tui.config.field.mcp_url.label"),
-			Description: i18n.T("tui.config.field.mcp_url.desc"), Scope: ScopeTeamLocal, Section: svc + ".perso",
-			Locked: func() bool { return v.teamCfg.MCP[svc].IsURLEnforced() },
-			Get:    v.getMCPLocalURL(svc),
-			Set:    v.setMCPLocalURL(svc),
-		})
+		if mcpresolve.ServiceHasURL(svc) {
+			v.fields = append(v.fields, configField{
+				Key: "url", Kind: CfgFieldString, Label: i18n.T("tui.config.field.mcp_url.label"),
+				Description: i18n.T("tui.config.field.mcp_url.desc"), Scope: ScopeTeamLocal, Section: svc + ".perso",
+				Locked: func() bool { return v.teamCfg.MCP[svc].IsURLEnforced() },
+				Get:    v.getMCPLocalURL(svc),
+				Set:    v.setMCPLocalURL(svc),
+			})
+		}
 		v.fields = append(v.fields, configField{
 			Key: "token", Kind: CfgFieldPassword, Label: i18n.T("tui.config.field.mcp_token.label"),
 			Description: i18n.T("tui.config.field.mcp_token.desc"), Scope: ScopeTeamLocal, Section: svc + ".perso",

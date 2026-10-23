@@ -48,6 +48,11 @@ type EffectiveConfig struct {
 	LocalOverridesEnabled bool
 }
 
+// ServiceHasURL reports whether the server of an MCP service takes a URL. The
+// Figma server always calls api.figma.com: a URL recorded for it (hub.toml,
+// project, team) is ignored, never offered and never reported.
+func ServiceHasURL(service string) bool { return service != "figma" }
+
 // Resolve merges a team-state MCP recommendation with a local hub.toml
 // MCP server config for a single service (e.g. "gitlab", "figma").
 //

@@ -6024,7 +6024,6 @@
   "cmd.team_config.key_name_in_the_keychain_e_2": "Key name in the keychain (e.g. jira-token)",
   "cmd.team_config.enable_write_enabled_label_push": "Enable write_enabled (label push)?",
   "cmd.team_config.does_the_team_use_figma": "Does the team use Figma?",
-  "cmd.team_config.figma_url_leave_empty_for_api": "Figma URL (leave empty for api.figma.com)",
   "cmd.team_config.key_name_in_the_keychain_e_3": "Key name in the keychain (e.g. figma-token)",
   "cmd.team_config.tracker_type": "Tracker type",
   "cmd.team_config.instance_url_e_g_https_gitlab": "Instance URL (e.g. https://gitlab.example.com)",
