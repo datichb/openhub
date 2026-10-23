@@ -248,7 +248,9 @@ func (s *Service) Send(ctx context.Context, req SendRequest) (*SendResult, error
 	// Reservation (P5-T05), then the snapshot, which records the claimed
 	// state of the tickets.
 	sid := s.newSessionID()
-	undo, err := s.reserve(ctx, req)
+	// The claims taken for the session carry its ID (the end of the session
+	// applies to the claim it worked on).
+	undo, err := s.reserve(teamstate.WithClaimSession(ctx, sid), req)
 	if err != nil {
 		return nil, err
 	}

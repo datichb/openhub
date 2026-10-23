@@ -132,6 +132,9 @@ func runClaim(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	// Taken by hand: no session works on the ticket, so the claim carries
+	// none (the session that starts on it takes it, AdoptClaim). Its lease
+	// lasts lease_hours; claiming the ticket again renews it.
 	claim := teamstate.Claim{
 		TicketID:  ticketID,
 		Project:   project,

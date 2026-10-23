@@ -141,11 +141,13 @@ func (b *fakeBeads) Unclaim(_ context.Context, _, id string) error {
 
 type fakeTeam struct {
 	claims   map[string]string
+	sessions map[string]string // the session the claim was told about
 	released []string
 	remote   map[string]teamstate.ClaimRemote
 }
 
-func (f *fakeTeam) Claim(_ context.Context, _, tk, member string) (bool, error) {
+func (f *fakeTeam) Claim(ctx context.Context, _, tk, member string) (bool, error) {
+	f.sessions[tk] = teamstate.ClaimSessionOf(ctx)
 	if who, ok := f.claims[tk]; ok {
 		if who != member {
 			return false, ErrTicketTaken
@@ -208,7 +210,7 @@ func newSendEnv(t *testing.T) *sendEnv {
 		"bd-7":  {"id": "bd-7", "status": "closed", "revision": "r7"},
 		"bd-43": {"id": "bd-43", "status": "open", "updated_at": "2026-10-06T10:00:00Z"},
 	}, kids: map[string][]string{"bd-42": {"bd-43"}}}
-	team := &fakeTeam{claims: map[string]string{}, remote: map[string]teamstate.ClaimRemote{}}
+	team := &fakeTeam{claims: map[string]string{}, sessions: map[string]string{}, remote: map[string]teamstate.ClaimRemote{}}
 	svc.Sessions, svc.Remote = sqlite.NewSessionStore(st), sqlite.NewRemoteStore(st)
 	svc.Git, svc.Beads, svc.ToolVersion = g, bd, "2.0.20"
 	svc.NewSessionID = func() string { return "ses_remote1" }
@@ -293,6 +295,7 @@ func TestSend(t *testing.T) {
 	// Reservation and records.
 	assert.Equal(t, []string{"bd-42"}, e.beads.claimed)
 	assert.Equal(t, "alice", e.team.claims["bd-42"])
+	assert.Equal(t, "ses_remote1", e.team.sessions["bd-42"], "the claim is taken for the remote session")
 	assert.Equal(t, teamstate.RemoteSent, e.team.remote["bd-42"].Status)
 	assert.Equal(t, pl.ID, e.team.remote["bd-42"].Pipeline)
 	sess, err := sqlite.NewSessionStore(e.store).Get(ctx, "ses_remote1")

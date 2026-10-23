@@ -64,6 +64,10 @@ func claimSession(ctx context.Context) string {
 	return s
 }
 
+// ClaimSessionOf is the session ctx carries (WithClaimSession), "" when it
+// carries none: a caller that creates a claim itself records it.
+func ClaimSessionOf(ctx context.Context) string { return claimSession(ctx) }
+
 // ClaimRef designates a claim: a ticket ID is only unique within its project.
 type ClaimRef struct {
 	Project  string

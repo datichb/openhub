@@ -189,6 +189,12 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 				ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 				defer cancel()
 
+				// The claim is taken from the board by hand: no session works on
+				// it yet, so it carries none. The session that starts on the
+				// ticket takes it (startTicketClaim, AdoptClaim) and from then on
+				// the daemon renews its lease; until then it lasts lease_hours
+				// and oh team claim renews it.
+				//
 				// Try creating a new claim first.
 				_, err := repo.CreateClaim(ctx, teamstate.Claim{
 					TicketID:  ticketID,
