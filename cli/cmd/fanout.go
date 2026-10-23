@@ -332,7 +332,13 @@ func (l *fanoutLauncher) Start(ctx context.Context, req fanout.LaunchRequest) (s
 		opts.Mode = "" // the mode of its workflow (auto: nobody to answer)
 	}
 	opts.Progress = launchProgress(nil, l.log)
-	p, err := launch.Prepare(ctx, launchDeps(l.a), opts)
+	// The driver runs for the whole fan-out: each child works with hub.toml as
+	// it is now, and the log says when it is not the one the driver read.
+	a, changes := freshLaunchApp(l.a)
+	for _, line := range changes {
+		opts.Progress(launch.Event{Kind: launch.EventNotice, Text: line})
+	}
+	p, err := launch.Prepare(ctx, launchDeps(a), opts)
 	if err != nil {
 		return "", err
 	}

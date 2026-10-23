@@ -116,6 +116,7 @@ func editorBundlePreview(ctx context.Context, c workflowsvc.Context, res *workfl
 	if a == nil || a.Config == nil {
 		return nil, ""
 	}
+	a, _ = freshLaunchApp(a) // the preview shows the models hub.toml has now
 	project, _ := projectByID(ctx, c.ProjectID)
 	prov := a.Config.LLM.DefaultProvider
 	if project != nil {

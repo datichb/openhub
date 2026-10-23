@@ -20,8 +20,11 @@ import (
 
 // launchDeps wires services/launch to the app: the stores and the
 // configuration of a, and the parts of the launch that stay in cmd (the
-// RunService, the bundle, the daemon, the fan-out driver…).
+// RunService, the bundle, the daemon, the fan-out driver…). It works on
+// hub.toml as it is now (freshLaunchApp): a process that has run for a while
+// does not launch with the settings it read at start.
 func launchDeps(a *app.App) launch.Deps {
+	a, _ = freshLaunchApp(a)
 	return launch.Deps{
 		Config:       a.Config,
 		Secrets:      a.Secrets,

@@ -79,6 +79,7 @@ func resumeV5Session(ctx context.Context, a *app.App, svc *runsvc.Service, sessi
 	if err != nil {
 		return err
 	}
+	a, _ = freshLaunchApp(a) // provider, region and limits as hub.toml has them now
 	req := v5Request(a, project, sess.Provider)
 	return svc.ResumeSession(ctx, sessionID, req)
 }

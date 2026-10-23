@@ -7,11 +7,14 @@ import (
 	"log/slog"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/beads"
+	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/daemon"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
@@ -168,6 +171,8 @@ func launchFormConfig(ctx context.Context, a *app.App, project *domain.Project, 
 			return nil, tuiLaunchError(err)
 		}
 		rows, warns := launchRecap(p)
+		warns = append(runs.allChanges(), warns...) // hub.toml changed since the TUI read it
+		runs.markShown()
 		out := &views.LaunchRecap{Warnings: warns, Dirty: planDirty(p.Plan), Existing: tuiExisting(p.Plan), NeedsChoice: p.Plan.NeedsChoice}
 		for _, s := range p.Suggestions {
 			label := i18n.Tf("cmd.run.precondition_first", s.Workflow)
@@ -188,7 +193,8 @@ func launchFormConfig(ctx context.Context, a *app.App, project *domain.Project, 
 		if err != nil {
 			return tuiLaunchError(err)
 		}
-		runs.reset() // a plan starts once
+		announceConfigChanges(runs) // changed since the recap that was on screen
+		runs.reset()                // a plan starts once
 		// Image build output, shown by the form while launching.
 		p.Plan.Request.Base.Progress = cfg.Progress.Line
 		results, err := startRun(ctx, a, p, tuiLaunchUI())
@@ -221,6 +227,7 @@ func launchFormConfig(ctx context.Context, a *app.App, project *domain.Project, 
 		if err != nil {
 			return err
 		}
+		announceConfigChanges(runs)
 		for _, s := range p.Suggestions {
 			if s.Workflow == workflowID {
 				_, err = runSuggestedFirst(ctx, a, opts(c), s, tuiLaunchUI())
@@ -252,11 +259,33 @@ type tuiRunCache struct {
 	mu   sync.Mutex
 	opts launch.Options
 	p    *launch.Prepared
+	// snap is the configuration the prepared launch was built with: the cache
+	// is dropped when hub.toml changes after it.
+	snap    config.Config
+	hasSnap bool
+	// changes are the launch settings that changed since the form opened (the
+	// recap keeps showing them); shown counts those the user has seen.
+	changes []string
+	shown   int
+}
+
+// announceConfigChanges tells, as a notification, the launch settings that
+// changed after the last recap the user saw.
+func announceConfigChanges(c *tuiRunCache) {
+	if news := c.unshown(); len(news) > 0 && tuiShell != nil {
+		c.markShown()
+		tuiLaunchUI().Notify(strings.Join(news, "\n"), launcher.LevelWarning)
+	}
 }
 
 func (c *tuiRunCache) get(ctx context.Context, a *app.App, opts launch.Options) (*launch.Prepared, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	if c.p != nil {
+		if changed, _ := c.snap.ChangedOnDisk(); changed {
+			c.p = nil // the bundle was built with settings that are not the file's any more
+		}
+	}
 	if c.p != nil && reflect.DeepEqual(withoutExistingChoice(c.opts), withoutExistingChoice(opts)) {
 		if c.opts.OnExisting != opts.OnExisting || c.opts.DiscardBaseChanges != opts.DiscardBaseChanges {
 			// Another choice for the existing session: planned again, no
@@ -269,11 +298,22 @@ func (c *tuiRunCache) get(ctx context.Context, a *app.App, opts launch.Options) 
 		}
 		return c.p, nil
 	}
-	p, err := launch.Prepare(ctx, launchDeps(a), opts)
+	fa, err := launchAppNow(a)
+	var baseline *config.Config
+	if c.hasSnap {
+		baseline = &c.snap
+	}
+	changes := launchChangeLines(a, fa, err, baseline)
+	p, err := launch.Prepare(ctx, launchDeps(fa), opts)
 	if err != nil {
 		return nil, err
 	}
-	c.opts, c.p = opts, p
+	for _, line := range changes {
+		if !slices.Contains(c.changes, line) {
+			c.changes = append(c.changes, line)
+		}
+	}
+	c.opts, c.p, c.snap, c.hasSnap = opts, p, *fa.Config, true
 	return p, nil
 }
 
@@ -308,6 +348,26 @@ func tuiExisting(plan *runsvc.RunPlan) []views.LaunchExisting {
 		out = append(out, x)
 	}
 	return out
+}
+
+// allChanges are the launch settings that changed since the form opened.
+func (c *tuiRunCache) allChanges() []string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return slices.Clone(c.changes)
+}
+
+// unshown are the changes the recap has not shown yet.
+func (c *tuiRunCache) unshown() []string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return slices.Clone(c.changes[c.shown:])
+}
+
+func (c *tuiRunCache) markShown() {
+	c.mu.Lock()
+	c.shown = len(c.changes)
+	c.mu.Unlock()
 }
 
 func (c *tuiRunCache) reset() {

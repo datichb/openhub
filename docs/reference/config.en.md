@@ -12,6 +12,8 @@ oh v5 configuration files: `hub.toml` (your machine), the project database (`oh.
 **Created by:** `oh init`  
 **View path:** `oh config path`
 
+**Changed while oh runs.** A TUI (or the daemon, or a fan-out driver) reads `hub.toml` once when it starts. You can change the file from another terminal (`oh config model default …`, an editor): **every launch reads it again** before it builds its bundle (models, provider, region, limits, execution, MCP servers, teams), so the session uses what the file says now, not what the TUI read at start. If a launch setting changed, the recap of the launch form says which one (`models.default: anthropic/claude-sonnet-4-6 → anthropic/claude-sonnet-5-5`); a `hub.toml` that cannot be read any more is announced too, and the launch keeps the settings read at start. The other screens of the TUI show the file as it was read at start (or as the TUI itself changed it): reopen the TUI to see the changes made elsewhere.
+
 ### Complete TOML Structure
 
 ```toml
