@@ -194,8 +194,14 @@ func (s *Service) build(ctx context.Context, project *domain.Project) (*built, e
 	if hubDir == "" {
 		hubDir = config.HubDir()
 	}
+	engine := tracker.NewEngine(t, repo, engineConfig(eff, projects, patterns), hubDir)
+	tc := s.ResolveTeam(project)
+	engine.SetIdentity(tracker.Identity{
+		TeamID: tc.TeamID, MemberID: tc.MemberID,
+		CrossServer: crossServer(trackerBaseURL(eff), s.TeamRepoServer(project)),
+	})
 	return &built{
-		engine:      tracker.NewEngine(t, repo, engineConfig(eff, projects, patterns), hubDir),
+		engine:      engine,
 		repo:        repo,
 		trackerType: eff.Type,
 		projects:    projects,

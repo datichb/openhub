@@ -323,6 +323,7 @@ func buildInitRefreshLabels(cfg *views.InlineWizardConfig, steps []views.WizardS
 		refresh("team_cred_mode", "cmd.init.wizard_step_team_cred_mode")
 		refresh("team_creds", "cmd.init.wizard_step_team_creds")
 		refresh("rejoin_member", "cmd.init.wizard_step_rejoin_member")
+		refresh("rejoin_tracker_username", "tui.team.rejoin.tracker_step")
 		refreshP("rejoin_validate", "cmd.init.wizard_step_rejoin_validate", "cmd.init.wizard_processing_rejoin_validate")
 
 		// Project steps

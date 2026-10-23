@@ -54,7 +54,7 @@ On failure (missing or non-empty repository, access denied), the space stays sol
 Rejoins an existing team after reinstalling the hub: clones the team-state repository, verifies the identity through GitLab and restores the configuration. Do not run it while the TUI performs team operations on the same clone (the lock does not protect against another process).
 
 ```
-oh team rejoin [--repo <url>] [--member-id <id>] [--gitlab-url <url>] [--no-retro-tag]
+oh team rejoin [--repo <url>] [--member-id <id>] [--gitlab-url <url>] [--tracker-username <name>] [--no-retro-tag]
 ```
 
 | Flag | Type | Description |
@@ -62,9 +62,34 @@ oh team rejoin [--repo <url>] [--member-id <id>] [--gitlab-url <url>] [--no-retr
 | `--repo` | string | Team-state git repository URL |
 | `--member-id` | string | Member id (interactive if omitted) |
 | `--gitlab-url` | string | Real GitLab of the repository when its address is an SSH alias (`git@my-alias:…`); saved in `hub.toml` (`gitlab_url`) and used for the identity check |
+| `--tracker-username` | string | Your user name on the tracker, written to your member profile in the team repository (empty = unchanged). Without the option, the command asks for it when the team tracker is on another server than the team repository and your profile has no name (Enter = leave empty) |
 | `--no-retro-tag` | bool | Do not link existing sessions to your identity |
 
+A name written with a leading `@` is saved without it (`@benjamin.datiche` → `benjamin.datiche`). If the write fails (offline), the rejoin succeeds anyway and the command to run again is shown: `oh team profile --tracker-username <name>`. The HTTPS step of the wizards (repository token) is skipped when the cloned repository answers `git ls-remote` without a token.
+
 The `oh init` (team group) and `oh team rejoin` (TUI) wizards ask for the GitLab of the repository (optional) and, if you keep the team's tracker while no token serves that tracker's server, where your token is: keychain key, server and token. The key and the server are written to `[tracker]` of `hub.toml` (`tracker_token_key`, `tracker_token_url`) when the configuration in force does not already give them; the default GitLab key (`openhub.tracker.gitlab.token`) needs no declaration, the Jira one does.
+
+### oh team profile
+
+Shows or changes **your member profile** in the team repository (`members.toml`): display name, GitLab, Mattermost and tracker user names. Without options, it shows the profile; with an option, it changes it in **a single commit** (pushed) and leaves the other fields alone.
+
+```
+oh team profile [--team <id>] [--display-name <name>] [--gitlab-username <name>] [--mattermost-username <name>] [--tracker-username <name>]
+```
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--team` | string | Team (identifier); defaults to the hub team |
+| `--display-name` | string | Display name (cannot be empty) |
+| `--gitlab-username` | string | User name on the GitLab of the team repository (identity check at rejoin) |
+| `--mattermost-username` | string | Mattermost user name (mentions of the notifications) |
+| `--tracker-username` | string | User name on the tracker (GitLab or Jira) |
+
+An option given **empty** clears the field (`--tracker-username ""`); a leading `@` is removed from GitLab and tracker names. `tracker_username` is required when the tracker is on another server than the team repository: without it the sync (`oh team sync-tracker`) attributes no tracker issue to the member (empty, the GitLab name is used). `oh doctor` checks it ("Tracker name" and "Identity on the tracker" checks). The role and the identifier of the member are not changed here (`oh team rejoin`). In the TUI, the `team-detail` view has the same profile ("My member profile" section).
+
+```bash
+oh team profile --tracker-username benjamin.datiche
+```
 
 ### oh team config
 
@@ -196,6 +221,8 @@ oh team sync-tracker
 ```
 
 The command, the sync key of the team screens (`s`) and the automatic sync follow the same rules (team service):
+
+- **Attribution by name.** Issues are attributed to the members by `tracker_username`, else `gitlab_username`. When issues seen by the sync (issues of your claims, `auto_plan_unassigned` pool) are assigned to names that belong to no member, and your profile has no `tracker_username` (or no name at all, on a tracker on the same server as the repository), the summary adds a warning that lists these names (five at most) and gives the command: `oh team profile --team <team> --tracker-username <name>`. With `auto_plan_assigned` alone, the sync only queries the known names and does not see the others: `oh doctor` ("Identity on the tracker" check) covers that case.
 
 - **`[tracker] enabled = false`** (in the local `hub.toml` or in the team config) turns the sync off everywhere. The command prints a notice and exits 0; the screens refuse with a message; the automatic sync does nothing. Before v5.0 the screens synchronized anyway.
 - A project without team uses the hub team (default team of `hub.toml`) for its tracker.

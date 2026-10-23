@@ -50,7 +50,12 @@ Un formulaire demande l'URL du repo team-state puis :
 3. Détecte les clones dupliqués pour éviter les états divergents
 
 Si le repo est en HTTPS, une étape supplémentaire propose de configurer les credentials
-(token, ou skip si déjà configuré).
+(token, ou skip si déjà configuré). Elle n'est **proposée que si le dépôt ne répond pas sans
+token** : une fois le dépôt cloné, `oh` lance `git ls-remote` sans aucune invite ; si git lit
+le dépôt avec ce qu'il a déjà (assistant d'identifiants, `netrc`, dépôt public), l'étape est
+sautée, comme pour une URL SSH. Sur l'option par défaut « Fournir un token », un champ vide
+est refusé avec un message qui dit quoi faire (saisir le token, ou choisir « Déjà configuré »
+ou « Accès public »).
 
 ### Phase 2 — Configuration (wizard interactif)
 
@@ -71,8 +76,22 @@ Le wizard détecte automatiquement l'état du repo et adapte le comportement :
 | Nom d'affichage | Comment ton nom apparaît dans les notifications | `Benjamin` |
 | Username GitLab | Pour l'intégration GitLab | `bdatiche` |
 | Username Mattermost | Pour les mentions dans les notifications | `benjamin.datiche` |
-| Username tracker | Pour l'association des tickets du tracker externe | `benjamin` |
+| Username tracker | Ton nom sur le tracker (`tracker_username`). **Indispensable quand le tracker est sur un autre serveur que le dépôt d'équipe** (voir ci-dessous) | `benjamin.datiche` |
 | Rôle | Ton rôle dans l'équipe | `lead`, `dev`, ou `reviewer` |
+
+#### Ton nom sur le tracker (`tracker_username`)
+
+La synchro du tracker attribue les issues aux membres **par nom d'utilisateur** : le `tracker_username` de la fiche du membre, à défaut son `gitlab_username`. Quand le tracker est sur un autre GitLab (ou Jira) que le dépôt d'équipe, ton nom n'y est pas forcément le même (`benjamin.datiche` d'un côté, `benjamin.datiche1` de l'autre) : sans `tracker_username`, aucune issue du tracker ne t'est attribuée. Il s'écrit dans ta fiche du dépôt d'équipe (`members.toml`, un commit) et se règle à ces endroits :
+
+| Où | Comment |
+|----|---------|
+| `oh team init` → étape Identité | champ « Username tracker » (CLI et TUI) |
+| `oh team rejoin` | option `--tracker-username <nom>`, ou la question posée quand le tracker de l'équipe est sur un autre serveur que le dépôt et que ta fiche n'a pas de nom |
+| Assistant `oh init` (groupe équipe, « rejoindre ») et TUI `team rejoin` | étape « Nom sur le tracker », mêmes conditions |
+| `oh team profile` | `oh team profile --tracker-username <nom>` ; sans option, affiche ta fiche ; une option donnée vide efface le champ |
+| TUI, vue `team-detail` | section « Ma fiche de membre » : nom affiché, noms GitLab, Mattermost et tracker, enregistrés tout de suite (un commit), sans passer par `w` |
+
+`oh doctor` le contrôle : ✗ si le tracker est sur un autre serveur que le dépôt d'équipe et que ton `tracker_username` est vide ; ⚠ (en ligne) si le nom que le tracker renvoie pour ton jeton ne correspond à aucun membre. La synchro (`oh team sync-tracker`) le dit aussi dans son résumé quand des issues sont assignées à des noms inconnus de l'équipe et que ta fiche n'a pas de `tracker_username`. Voir [`oh doctor`](../reference/cli-infra.fr.md#oh-doctor).
 
 #### Policies recommandées (étape Policies)
 
@@ -373,6 +392,7 @@ La commande tire les états des issues depuis le tracker et met à jour les stat
 - Issue réouverte → claim repassé en `in_progress`
 - Les labels sont mirrorés
 - Avec `auto_plan_assigned = true`, des claims `planned` sont créés automatiquement pour les issues assignées
+- Si des issues sont assignées à des noms qui ne sont ceux d'aucun membre alors que votre fiche n'a pas de `tracker_username`, le résumé de la synchro l'avertit et donne la commande (`oh team profile --tracker-username <nom>`)
 
 ### Gestion du wiki
 
@@ -397,7 +417,7 @@ team-state/
 ├── config.toml           # Config notifications + takeover + [governance]
 ├── workflows.lock        # Intégrité des workflows publiés
 ├── workflows/            # Workflows v5 (voir team-workflows.fr.md)
-├── catalog/              # Briques d'équipe (agents, skills)
+├── catalog/              # Briques d'équipe (agents, skills), commité avec la structure
 ├── policies.toml         # Règles d'équipe (enforcement configurable)
 ├── projects/
 │   └── T-SRU/
@@ -416,6 +436,8 @@ team-state/
 │   └── patterns.md       # Patterns récurrents
 └── reports/
 ```
+
+`oh team init` crée les dossiers de cette structure (chacun avec un `.gitkeep`) et les **commite** en un commit « team: init structure », poussé comme les autres écritures de l'équipe ; `catalog/` (le catalogue partagé des briques d'équipe) en fait partie et n'est donc pas laissé non suivi dans votre clone. Rien n'est commité quand tout est déjà suivi, et un commit impossible (hors ligne) est repris à la commande suivante.
 
 Le guide [Workflows d'équipe](team-workflows.fr.md) détaille `workflows/`, `workflows.lock` et la gouvernance (`[governance]` de `config.toml`).
 

@@ -19,6 +19,7 @@ type teamInitParams struct {
 	DisplayName        string
 	GitLabUsername     string
 	MattermostUsername string
+	TrackerUsername    string // name of the member on the tracker (empty = keep)
 	Role               string
 	GitLabURL          string // GitLab of the repository when its remote is an SSH alias
 }

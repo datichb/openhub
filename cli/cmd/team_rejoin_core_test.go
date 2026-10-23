@@ -14,6 +14,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
+	"github.com/datichb/openhub/cli/internal/teamstate"
 )
 
 func TestTeamRejoinCore_Success(t *testing.T) {
@@ -150,4 +151,34 @@ func TestRetroTagSessionsWithoutDatabase(t *testing.T) {
 	application = nil
 	_, err = retroTagSessions(context.Background(), "alice")
 	require.Error(t, err, "no application")
+}
+
+// Bug 12: rejoining did not offer the name of the member on the tracker.
+func TestTeamRejoinCore_WritesTheTrackerUsernameOfTheMember(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+	a, repo, _ := setupClaimTestApp(t)
+	configtest.Home(t)
+	a.Config.Teams = nil
+	name := "@benjamin.datiche"
+
+	result, err := teamRejoinCore(context.Background(), a, teamRejoinParams{
+		StateRepo: repo.Remote(), StatePath: repo.Path(), MemberID: "testuser", TrackerUsername: &name,
+	})
+	require.NoError(t, err)
+	require.NoError(t, result.ProfileErr)
+	assert.Equal(t, "benjamin.datiche", result.Member.TrackerUsername)
+
+	m, err := teamstate.NewRepo(repo.Remote(), repo.Path()).GetMember("testuser")
+	require.NoError(t, err)
+	assert.Equal(t, "benjamin.datiche", m.TrackerUsername)
+	assert.Equal(t, "Test User", m.DisplayName, "the rest of the profile is kept")
+
+	// not given: the profile is not touched
+	result, err = teamRejoinCore(context.Background(), a, teamRejoinParams{
+		StateRepo: repo.Remote(), StatePath: repo.Path(), MemberID: "testuser",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "benjamin.datiche", result.Member.TrackerUsername)
 }

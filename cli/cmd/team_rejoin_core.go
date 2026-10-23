@@ -27,6 +27,9 @@ type teamRejoinParams struct {
 	// through an SSH alias (empty = the host of the remote, or the one already
 	// declared for this repository in hub.toml).
 	GitLabURL string
+	// TrackerUsername is the name of the member on the tracker, written to its
+	// profile in the team-state (nil = not touched, empty = cleared).
+	TrackerUsername *string
 }
 
 // teamRejoinResult holds the output of a successful rejoin operation.
@@ -38,6 +41,9 @@ type teamRejoinResult struct {
 	SessionCount     int                    // number of local sessions retro-tagged
 	StaleData        bool                   // true when pull failed and local (possibly outdated) content was used
 	IdentityMismatch *identityMismatchError // non-nil when GitLab identity verification detected a mismatch
+	// ProfileErr is why the tracker name could not be written to the profile
+	// (offline…): the rejoin itself succeeded.
+	ProfileErr error
 }
 
 // identityMismatchError is returned by validateGitLabIdentity when the
@@ -87,6 +93,19 @@ func teamRejoinCore(ctx context.Context, a *app.App, p teamRejoinParams) (*teamR
 	member, err := repo.GetMember(p.MemberID)
 	if err != nil {
 		return nil, fmt.Errorf(i18n.T("cmd.team_rejoin_core.member_not_found_in_team_state"), p.MemberID)
+	}
+
+	// The name of the member on the tracker, in its profile (one commit). The
+	// rejoin does not fail on it: the profile can be changed later
+	// (oh team profile).
+	var profileErr error
+	if p.TrackerUsername != nil {
+		patch := teamsvc.ProfilePatch{TrackerUsername: p.TrackerUsername}
+		if profileErr = repo.PatchMember(ctx, p.MemberID, patch.Apply); profileErr == nil {
+			if fresh, err := repo.GetMember(p.MemberID); err == nil {
+				member = fresh
+			}
+		}
 	}
 
 	// Validate identity via GitLab token (if available)
@@ -147,6 +166,7 @@ func teamRejoinCore(ctx context.Context, a *app.App, p teamRejoinParams) (*teamR
 		EventCount:       eventCount,
 		StaleData:        staleData,
 		IdentityMismatch: identityMismatch,
+		ProfileErr:       profileErr,
 	}, nil
 }
 

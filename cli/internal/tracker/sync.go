@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"log/slog"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 )
 
@@ -49,6 +51,20 @@ type SyncWarning struct {
 	Message   string
 }
 
+// String is the warning with its place (project/ticket) when it has one.
+func (w SyncWarning) String() string {
+	var place []string
+	for _, p := range []string{w.ProjectID, w.TicketID} {
+		if p != "" {
+			place = append(place, p)
+		}
+	}
+	if len(place) == 0 {
+		return w.Message
+	}
+	return strings.Join(place, "/") + ": " + w.Message
+}
+
 // SyncError is an error scoped to one project or ticket that did not abort the run.
 type SyncError struct {
 	ProjectID string
@@ -77,7 +93,29 @@ type Engine struct {
 	stateDir string
 	// consecutiveTokenErrors tracks auth failures to mute auto-sync after 3.
 	consecutiveTokenErrors int
+	// identity is who runs the sync (see SetIdentity); unknown holds, for the
+	// run in progress, the tracker names assigned to issues that match no
+	// member (lower case → name as the tracker writes it).
+	identity Identity
+	unknown  map[string]string
 }
+
+// Identity says who runs the sync, to warn when their tracker name is missing.
+type Identity struct {
+	// TeamID is the team of the sync (for the command given in the warning).
+	TeamID string
+	// MemberID is the member of hub.toml for this team.
+	MemberID string
+	// CrossServer: the tracker is not on the server of the team-state
+	// repository, so the GitLab name of the member is not their name there.
+	CrossServer bool
+}
+
+// SetIdentity tells the engine who runs the sync. When issues of the tracker
+// are assigned to names that match no member and that member has no
+// tracker_username (or none at all, on the same server), the result of the run
+// carries a warning that says how to set it.
+func (e *Engine) SetIdentity(id Identity) { e.identity = id }
 
 // NewEngine creates a sync engine.
 // stateDir is the local directory for sync-state.json (~/.oh/).
@@ -189,6 +227,12 @@ func (e *Engine) reconcileAll(ctx context.Context, result *SyncResult) (fatal, a
 		}
 	}
 	slog.Debug("tracker.sync.members", "count", len(members))
+	e.unknown = map[string]string{}
+	defer func() {
+		if w := e.unknownAssigneesWarning(members); w != nil {
+			result.Warnings = append(result.Warnings, *w)
+		}
+	}()
 
 	trackerType := Type(e.cfg.Type)
 
@@ -222,6 +266,64 @@ func (e *Engine) reconcileAll(ctx context.Context, result *SyncResult) (fatal, a
 	// Reset token error counter on a successful run.
 	e.consecutiveTokenErrors = 0
 	return nil, nil
+}
+
+// noteUnknownAssignees remembers the assignees of an issue that match no
+// member.
+func (e *Engine) noteUnknownAssignees(assignees []string, memberByName map[string]teamstate.Member) {
+	if e.unknown == nil {
+		return
+	}
+	for _, name := range assignees {
+		key := strings.ToLower(strings.TrimSpace(name))
+		if _, ok := memberByName[key]; key != "" && !ok {
+			if _, seen := e.unknown[key]; !seen {
+				e.unknown[key] = strings.TrimSpace(name)
+			}
+		}
+	}
+}
+
+// maxUnknownNamesShown bounds the names listed in the warning.
+const maxUnknownNamesShown = 5
+
+// unknownAssigneesWarning is the warning of the run when issues are assigned to
+// names that belong to no member while the member who runs the sync has no
+// tracker_username: their issues may be among them. nil when there is nothing
+// to say or the engine does not know who runs it.
+func (e *Engine) unknownAssigneesWarning(members []teamstate.Member) *SyncWarning {
+	if len(e.unknown) == 0 || e.identity.MemberID == "" {
+		return nil
+	}
+	var me *teamstate.Member
+	for i := range members {
+		if members[i].ID == e.identity.MemberID {
+			me = &members[i]
+		}
+	}
+	if me == nil || me.TrackerUsername != "" || (!e.identity.CrossServer && me.GitLabUsername != "") {
+		return nil
+	}
+	names := make([]string, 0, len(e.unknown))
+	for _, n := range e.unknown {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	shown := strings.Join(names[:min(len(names), maxUnknownNamesShown)], ", ")
+	if len(names) > maxUnknownNamesShown {
+		shown += ", …"
+	}
+	return &SyncWarning{Message: i18n.Tf("tracker.sync.unknown_assignees",
+		len(names), shown, me.ID, firstNonEmptyStr(e.identity.TeamID, "<team>"))}
+}
+
+func firstNonEmptyStr(values ...string) string {
+	for _, v := range values {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
 }
 
 // cleanupDone releases the done claims past their retention (board terminal
@@ -433,6 +535,7 @@ func (e *Engine) reconcileProject(
 				pr.ClaimsUpdated++ // counted as a warning-producing update
 			}
 		}
+		e.noteUnknownAssignees(issue.Assignees, memberByGitLab)
 
 		// ── Push direction: claims → tracker ─────────────────────────────────
 		if e.cfg.PushLabels {
@@ -742,6 +845,7 @@ func (e *Engine) autopoolUnassigned(
 		// Resolve ClaimedBy: if the issue is assigned to a known team member,
 		// create the claim as theirs; otherwise create a pool claim.
 		claimedBy := ""
+		e.noteUnknownAssignees(issue.Assignees, memberByGitLab)
 		if len(issue.Assignees) > 0 {
 			assignee := strings.ToLower(issue.Assignees[0])
 			if m, ok := memberByGitLab[assignee]; ok {

@@ -34,7 +34,7 @@ func TestDoctorFixOpensTheCleanupSection(t *testing.T) {
 func TestDoctorRegistryIDsAndFixes(t *testing.T) {
 	reg, err := doctor.NewRegistry(doctorRegistry()...)
 	require.NoError(t, err, "identifiers are unique and every check runs")
-	for _, id := range []string{"os", "go", "git", "bd", "config", "setup", "tracker_tokens", "tracker_connection", "database", "beads", "runtime"} {
+	for _, id := range []string{"os", "go", "git", "bd", "config", "setup", "tracker_tokens", "tracker_connection", "tracker_username", "tracker_identity", "database", "beads", "runtime"} {
 		_, ok := reg.Get(id)
 		assert.True(t, ok, id)
 	}

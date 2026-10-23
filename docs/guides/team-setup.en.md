@@ -50,7 +50,12 @@ A form asks for the team-state repo URL, then:
 3. Detects duplicate clones to prevent diverged state
 
 If the repo is HTTPS, an extra step offers to configure credentials
-(token, or skip if already configured).
+(token, or skip if already configured). It is **only offered when the repository does not
+answer without a token**: once the repository is cloned, `oh` runs `git ls-remote` with every
+prompt disabled; if git reads the repository with what it already has (credential helper,
+`netrc`, a public repository), the step is skipped, as for an SSH URL. On the default choice
+"Provide a token", an empty field is refused with a message that says what to do (type the
+token, or pick "Already configured" or "Public access").
 
 ### Phase 2 — Configuration (interactive wizard)
 
@@ -71,8 +76,22 @@ The wizard automatically detects the repository state and adapts behavior:
 | Display name | How your name appears in notifications | `Benjamin` |
 | GitLab username | For GitLab integration | `bdatiche` |
 | Mattermost username | For mentions in notifications | `benjamin.datiche` |
-| Tracker username | For external tracker issue assignment | `benjamin` |
+| Tracker username | Your name on the tracker (`tracker_username`). **Required when the tracker is on another server than the team repository** (see below) | `benjamin.datiche` |
 | Role | Your team role | `lead`, `dev`, or `reviewer` |
+
+#### Your name on the tracker (`tracker_username`)
+
+The tracker sync attributes the issues to the members **by user name**: the `tracker_username` of the member's profile, else its `gitlab_username`. When the tracker is on another GitLab (or Jira) than the team repository, your name there is not necessarily the same (`benjamin.datiche` on one, `benjamin.datiche1` on the other): without `tracker_username`, no tracker issue is attributed to you. It is written to your profile in the team repository (`members.toml`, one commit) and set in these places:
+
+| Where | How |
+|-------|-----|
+| `oh team init` → Identity step | "Tracker username" field (CLI and TUI) |
+| `oh team rejoin` | the `--tracker-username <name>` option, or the question asked when the team tracker is on another server than the repository and your profile has no name |
+| `oh init` wizard (team group, "rejoin") and TUI `team rejoin` | "Tracker name" step, same conditions |
+| `oh team profile` | `oh team profile --tracker-username <name>`; without options, shows your profile; an option given empty clears the field |
+| TUI, `team-detail` view | "My member profile" section: display name, GitLab, Mattermost and tracker names, saved at once (one commit), without `w` |
+
+`oh doctor` checks it: ✗ when the tracker is on another server than the team repository and your `tracker_username` is empty; ⚠ (online) when the name the tracker returns for your token matches no member. The sync (`oh team sync-tracker`) also says so in its summary when issues are assigned to names unknown to the team and your profile has no `tracker_username`. See [`oh doctor`](../reference/cli-infra.en.md#oh-doctor).
 
 #### Recommended policies (Policies step)
 
@@ -381,6 +400,7 @@ Pulls issue states from the tracker and updates claim statuses:
 - Reopened issue → claim transitioned back to `in_progress`
 - Labels are mirrored
 - With `auto_plan_assigned = true`, `planned` claims are auto-created for assigned issues
+- If issues are assigned to names that belong to no member while your profile has no `tracker_username`, the sync summary warns you and gives the command (`oh team profile --tracker-username <name>`)
 
 ### Wiki management
 
@@ -405,7 +425,7 @@ team-state/
 ├── config.toml           # Notification + takeover config + [governance]
 ├── workflows.lock        # Integrity of the published workflows
 ├── workflows/            # v5 workflows (see team-workflows.en.md)
-├── catalog/              # Team bricks (agents, skills)
+├── catalog/              # Team bricks (agents, skills), committed with the structure
 ├── policies.toml         # Team rules (configurable enforcement)
 ├── projects/
 │   └── T-SRU/
@@ -424,6 +444,8 @@ team-state/
 │   └── patterns.md       # Recurring patterns
 └── reports/
 ```
+
+`oh team init` creates the folders of this structure (each with a `.gitkeep`) and **commits** them in one "team: init structure" commit, pushed like the other writes of the team; `catalog/` (the shared catalogue of team bricks) is part of it and is therefore not left untracked in your clone. Nothing is committed when everything is already tracked, and a commit that cannot be made (offline) is retried by the next command.
 
 The [Team workflows](team-workflows.en.md) guide covers `workflows/`, `workflows.lock` and governance (`[governance]` in `config.toml`).
 

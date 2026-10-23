@@ -108,3 +108,26 @@ func authErrorMessage(remote string) string {
 		remote,
 	)
 }
+
+// remoteProbeTimeout bounds RemoteAccessible.
+const remoteProbeTimeout = 10 * time.Second
+
+// RemoteAccessible reports whether remote answers a read with what git
+// already has (credential helper, SSH agent, netrc, a public repository):
+// `git ls-remote` with every prompt disabled. It is how the HTTPS steps of the
+// wizards know that no token has to be asked.
+func RemoteAccessible(ctx context.Context, remote string) bool {
+	if strings.TrimSpace(remote) == "" {
+		return false
+	}
+	pctx, cancel := context.WithTimeout(ctx, remoteProbeTimeout)
+	defer cancel()
+	cmd := exec.CommandContext(pctx, "git", "ls-remote", "--", remote, "HEAD")
+	cmd.Env = append(os.Environ(),
+		"GIT_TERMINAL_PROMPT=0",
+		"GIT_SSH_COMMAND=ssh -o BatchMode=yes -o ConnectTimeout=5",
+		"GIT_HTTP_LOW_SPEED_LIMIT=1000",
+		"GIT_HTTP_LOW_SPEED_TIME=8",
+	)
+	return cmd.Run() == nil
+}

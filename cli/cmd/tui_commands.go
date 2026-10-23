@@ -333,7 +333,7 @@ func buildCommands(a *app.App) []shell.Command {
 			shell.Command{
 				ID:          "team-detail",
 				Label:       i18n.T("tui.team.detail"),
-				Aliases:     []string{"tracker", "sync", "team detail"},
+				Aliases:     []string{"tracker", "sync", "team detail", "profile", "profil"},
 				Description: i18n.T("tui.team.detail.desc"),
 				Category:    i18n.T("tui.category.configuration"),
 				Priority:    48,

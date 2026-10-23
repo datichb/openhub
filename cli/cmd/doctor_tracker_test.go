@@ -323,3 +323,96 @@ func TestDoctorConnectionTellsAWrongURLFromAServerError(t *testing.T) {
 		srv.Close()
 	}
 }
+
+// setTrackerUsername writes the tracker name of the member alice of the team
+// of the test hub.
+func setTrackerUsername(t *testing.T, a *app.App, name string) {
+	t.Helper()
+	repo := teamstate.NewRepo("", a.Config.Teams[0].StatePath)
+	require.NoError(t, repo.PatchMember(t.Context(), "alice", func(m *teamstate.Member) error {
+		m.TrackerUsername = name
+		return nil
+	}))
+}
+
+// Bug 12: a tracker on another server than the team repository, a member
+// without tracker_username: no issue was attributed to them and oh doctor was green.
+func TestDoctorTrackerUsernameFailsWhenTheTrackerIsOnAnotherServer(t *testing.T) {
+	tr := newFakeTracker(t, "glpat-ok")
+	a := doctorTrackerHub(t, tr.URL, "git@gitlab.octo.example:acme/core.git", nil)
+
+	r := requireOneResult(t, "tracker_username")
+	assert.False(t, r.OK, "a failure")
+	assert.False(t, r.Warn)
+	assert.Contains(t, r.Detail, "tracker_username")
+	assert.Contains(t, r.Detail, serverOf(tr.Server), "the server of the tracker")
+	assert.Contains(t, r.Detail, "gitlab.octo.example", "the server of the team repository")
+	assert.Contains(t, r.Detail, "oh team profile --team core --tracker-username", "the command")
+	assert.Zero(t, tr.hits.Load(), "no network")
+
+	setTrackerUsername(t, a, "benjamin.datiche")
+	r = requireOneResult(t, "tracker_username")
+	assert.True(t, r.OK, r.Detail)
+	assert.Contains(t, r.Detail, "benjamin.datiche")
+}
+
+// On the same server the GitLab name of the member is their tracker name: nothing to say.
+func TestDoctorTrackerUsernameSaysNothingOnTheSameServer(t *testing.T) {
+	tr := newFakeTracker(t, "glpat-ok")
+	doctorTrackerHub(t, tr.URL, tr.URL+"/acme/core.git", nil)
+	assert.Empty(t, doctorCheckResults(t, "tracker_username"))
+}
+
+// Bug 12, online: the tracker knows the user as a name that is no member.
+func TestDoctorIdentityWarnsWhenTheTrackerNameMatchesNoMember(t *testing.T) {
+	tr := newFakeTracker(t, "glpat-ok") // GET /user → alice
+	a := doctorTrackerHub(t, tr.URL, "git@gitlab.octo.example:acme/core.git", nil)
+	t.Setenv("GITLAB_TOKEN", "glpat-ok")
+	t.Setenv("OH_GITLAB_URL", tr.URL)
+
+	r := requireOneResult(t, "tracker_identity")
+	assert.True(t, r.OK, "a warning, not a failure")
+	assert.True(t, r.Warn)
+	assert.Contains(t, r.Detail, "alice", "the name the tracker knows")
+	assert.Contains(t, r.Detail, "oh team profile --team core --tracker-username alice", "the command")
+
+	setTrackerUsername(t, a, "Alice")
+	r = requireOneResult(t, "tracker_identity")
+	assert.True(t, r.OK)
+	assert.False(t, r.Warn, r.Detail)
+	assert.Contains(t, r.Detail, "alice")
+}
+
+func TestDoctorIdentityOfflineAndUnreachableMakeNoNoise(t *testing.T) {
+	tr := newFakeTracker(t, "glpat-ok")
+	doctorTrackerHub(t, tr.URL, "git@gitlab.octo.example:acme/core.git", nil)
+	t.Setenv("GITLAB_TOKEN", "glpat-ok")
+	t.Setenv("OH_GITLAB_URL", tr.URL)
+
+	t.Setenv("OH_DOCTOR_OFFLINE", "1")
+	r := requireOneResult(t, "tracker_identity")
+	assert.True(t, r.OK)
+	assert.False(t, r.Warn)
+	assert.Contains(t, r.Detail, "offline")
+	assert.Zero(t, tr.hits.Load(), "--offline: no network call")
+
+	t.Setenv("OH_DOCTOR_OFFLINE", "")
+	tr.Close()
+	assert.Empty(t, doctorCheckResults(t, "tracker_identity"), "a tracker that does not answer is the business of tracker_connection")
+}
+
+func TestDoctorIdentityIsBoundedInTime(t *testing.T) {
+	block := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { <-block }))
+	t.Cleanup(func() { close(block); srv.Close() })
+	doctorTrackerHub(t, srv.URL, "git@gitlab.octo.example:acme/core.git", nil)
+	t.Setenv("GITLAB_TOKEN", "glpat-ok")
+	t.Setenv("OH_GITLAB_URL", srv.URL)
+	prev := doctorConnectionTimeout
+	doctorConnectionTimeout = 100 * time.Millisecond
+	t.Cleanup(func() { doctorConnectionTimeout = prev })
+
+	start := time.Now()
+	assert.Empty(t, doctorCheckResults(t, "tracker_identity"))
+	assert.Less(t, time.Since(start), 3*time.Second)
+}

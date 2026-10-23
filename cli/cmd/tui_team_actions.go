@@ -35,6 +35,7 @@ func actionTeamInit() {
 	ctx := tuiShell.Context()
 
 	// ── Shared state (captured by step closures) ────────────────────
+	credState := &httpsCredState{Username: "oauth2", AuthChoice: "provide"}
 	var (
 		stateRepo string
 		statePath = config.DefaultTeamStatePath()
@@ -67,7 +68,8 @@ func actionTeamInit() {
 		repo = teamstate.NewRepo(stateRepo, statePath)
 		if repo.IsCloned() {
 			_ = repo.Pull(ctx)
-			_ = repo.InitStructure(ctx)
+			_ = repo.EnsureStructure(ctx)
+			credState.Probe(ctx, stateRepo)
 			hasConfig = repo.HasConfig()
 			hasPolicies = repo.HasPolicies()
 			existingCfg, _ = repo.LoadConfig()
@@ -126,9 +128,10 @@ func actionTeamInit() {
 					return fmt.Errorf(i18n.T("cmd.tui_team_actions.cloning_team_state"), err)
 				}
 			}
-			if err := repo.InitStructure(ctx); err != nil {
+			if err := repo.EnsureStructure(ctx); err != nil {
 				return fmt.Errorf(i18n.T("cmd.tui_team_actions.init_structure"), err)
 			}
+			credState.Probe(ctx, stateRepo)
 			// Pre-fill for subsequent steps
 			hasConfig = repo.HasConfig()
 			hasPolicies = repo.HasPolicies()
@@ -157,7 +160,6 @@ func actionTeamInit() {
 	}
 
 	// ── Step 0b: HTTPS Credentials ──────────────────────────────────
-	credState := &httpsCredState{Username: "oauth2", AuthChoice: "provide"}
 	credStep := buildHTTPSCredStep(ctx, &stateRepo, credState, nil, a.Secrets)
 
 	// ── Build shared team step state ────────────────────────────────

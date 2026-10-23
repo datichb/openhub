@@ -54,7 +54,7 @@ En cas d'échec (dépôt absent, non vide, accès refusé), l'espace reste solo.
 Rejoint une équipe existante après une réinstallation du hub : clone le dépôt team-state, vérifie l'identité via GitLab et restaure la configuration. Ne pas lancer pendant que la TUI effectue des opérations d'équipe sur le même clone (le verrou ne protège pas contre un autre processus).
 
 ```
-oh team rejoin [--repo <url>] [--member-id <id>] [--gitlab-url <url>] [--no-retro-tag]
+oh team rejoin [--repo <url>] [--member-id <id>] [--gitlab-url <url>] [--tracker-username <nom>] [--no-retro-tag]
 ```
 
 | Flag | Type | Description |
@@ -62,9 +62,34 @@ oh team rejoin [--repo <url>] [--member-id <id>] [--gitlab-url <url>] [--no-retr
 | `--repo` | string | URL du dépôt git team-state |
 | `--member-id` | string | Identifiant membre (interactif si omis) |
 | `--gitlab-url` | string | GitLab réel du dépôt quand son adresse est un alias SSH (`git@mon-alias:…`) ; enregistré dans `hub.toml` (`gitlab_url`) et utilisé pour la vérification d'identité |
+| `--tracker-username` | string | Votre nom d'utilisateur sur le tracker, écrit dans votre fiche de membre du dépôt d'équipe (vide = inchangé). Sans l'option, la commande le demande quand le tracker de l'équipe est sur un autre serveur que le dépôt d'équipe et que votre fiche n'a pas de nom (Entrée = laisser vide) |
 | `--no-retro-tag` | bool | Ne pas rattacher les sessions existantes à votre identité |
 
+Un nom écrit avec un `@` initial est enregistré sans (`@benjamin.datiche` → `benjamin.datiche`). Si l'écriture échoue (hors ligne), le rejoin réussit quand même et la commande à relancer est affichée : `oh team profile --tracker-username <nom>`. L'étape HTTPS des assistants (jeton du dépôt) est sautée quand le dépôt cloné répond à `git ls-remote` sans jeton.
+
 Les assistants `oh init` (groupe équipe) et `oh team rejoin` (TUI) demandent le GitLab du dépôt (facultatif) et, si vous gardez le tracker de l'équipe sans qu'aucun jeton ne serve le serveur de ce tracker, où se trouve votre jeton : clé du trousseau, serveur et jeton. La clé et le serveur sont écrits dans `[tracker]` de `hub.toml` (`tracker_token_key`, `tracker_token_url`) quand la configuration en vigueur ne les donne pas déjà ; la clé par défaut de GitLab (`openhub.tracker.gitlab.token`) n'a pas besoin d'être déclarée, celle de Jira si.
+
+### oh team profile
+
+Affiche ou modifie **votre fiche de membre** dans le dépôt d'équipe (`members.toml`) : nom affiché, noms d'utilisateur GitLab, Mattermost et tracker. Sans option, affiche la fiche ; avec une option, la modifie en **un seul commit** (poussé) et ne touche pas aux autres champs.
+
+```
+oh team profile [--team <id>] [--display-name <nom>] [--gitlab-username <nom>] [--mattermost-username <nom>] [--tracker-username <nom>]
+```
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--team` | string | Équipe (identifiant) ; par défaut l'équipe du hub |
+| `--display-name` | string | Nom affiché (ne peut pas être vide) |
+| `--gitlab-username` | string | Nom d'utilisateur sur le GitLab du dépôt d'équipe (vérification d'identité au rejoin) |
+| `--mattermost-username` | string | Nom d'utilisateur Mattermost (mentions des notifications) |
+| `--tracker-username` | string | Nom d'utilisateur sur le tracker (GitLab ou Jira) |
+
+Une option donnée **vide** efface le champ (`--tracker-username ""`) ; un `@` initial est retiré des noms GitLab et tracker. `tracker_username` est indispensable quand le tracker est sur un autre serveur que le dépôt d'équipe : sans lui, la synchro (`oh team sync-tracker`) n'attribue aucune issue du tracker au membre (vide, le nom GitLab est utilisé). `oh doctor` le contrôle (contrôles « Nom sur le tracker » et « Identité sur le tracker »). Le rôle et l'identifiant du membre ne se changent pas ici (`oh team rejoin`). Dans la TUI, la vue `team-detail` a la même fiche (section « Ma fiche de membre »).
+
+```bash
+oh team profile --tracker-username benjamin.datiche
+```
 
 ### oh team config
 
@@ -196,6 +221,8 @@ oh team sync-tracker
 ```
 
 La commande, la touche de synchronisation (`s`) des écrans d'équipe et la synchronisation automatique suivent les mêmes règles (service équipe) :
+
+- **Attribution par nom.** Les issues sont attribuées aux membres par `tracker_username`, à défaut `gitlab_username`. Quand des issues vues par la synchro (issues de vos réservations, réserve `auto_plan_unassigned`) sont assignées à des noms qui ne sont ceux d'aucun membre, et que votre fiche n'a pas de `tracker_username` (ou aucun nom, sur un tracker du même serveur que le dépôt), le résumé ajoute un avertissement qui liste ces noms (cinq au plus) et donne la commande : `oh team profile --team <équipe> --tracker-username <nom>`. Avec `auto_plan_assigned` seul, la synchro n'interroge que les noms connus et ne voit pas les autres : `oh doctor` (contrôle « Identité sur le tracker ») couvre ce cas.
 
 - **`[tracker] enabled = false`** (dans le `hub.toml` local ou dans la config d'équipe) coupe la synchronisation partout. La commande affiche un avis et sort avec le code 0 ; les écrans refusent avec un message ; la synchronisation automatique ne fait rien. Avant la v5.0, les écrans synchronisaient quand même.
 - Un projet sans équipe utilise l'équipe du hub (équipe par défaut de `hub.toml`) pour son tracker.
