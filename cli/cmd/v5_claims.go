@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/app"
@@ -245,6 +246,9 @@ func claimKeptNote(ticket string, o claimEndOutcome) string {
 	return ""
 }
 
+// ticketFactsOf reads the tickets of a project (a variable for the tests).
+var ticketFactsOf = ticketFactsFromBeads
+
 // ticketFactsFromBeads reads a ticket in the Beads database of a project.
 func ticketFactsFromBeads(projectPath string) ticketLookup {
 	return func(id string) (ticketFacts, error) {
@@ -345,11 +349,73 @@ func teamClaimsRepo(a *app.App, proj *domain.Project) (*teamstate.Repo, string, 
 	return repo, tc.MemberID, true
 }
 
+// claimFlushes tracks the background flushes of the queue started when a
+// session ends in the daemon, so that the daemon of the oh process (Windows),
+// which stops with it, can wait for them for a bounded time
+// (stopInProcessDaemon). What a flush leaves undone stays in the durable
+// queue: the heartbeat and the claims-queue task of the next daemon finish it.
+var claimFlushes = &taskTracker{spawn: safego.Go}
+
+// taskTracker runs functions in goroutines (spawn) and counts those that have
+// not returned.
+type taskTracker struct {
+	spawn func(func())
+	mu    sync.Mutex
+	n     int
+	idle  chan struct{} // closed when n falls to 0, while someone waits
+}
+
+// run starts fn; wait sees it until it returns.
+func (t *taskTracker) run(fn func()) {
+	t.mu.Lock()
+	t.n++
+	t.mu.Unlock()
+	t.spawn(func() {
+		defer t.done()
+		fn()
+	})
+}
+
+func (t *taskTracker) done() {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.n--
+	if t.n == 0 && t.idle != nil {
+		close(t.idle)
+		t.idle = nil
+	}
+}
+
+// wait blocks until no function is running, at most limit; it reports
+// whether none is left.
+func (t *taskTracker) wait(limit time.Duration) bool {
+	t.mu.Lock()
+	if t.n == 0 {
+		t.mu.Unlock()
+		return true
+	}
+	if t.idle == nil {
+		t.idle = make(chan struct{})
+	}
+	idle := t.idle
+	t.mu.Unlock()
+	timer := time.NewTimer(limit)
+	defer timer.Stop()
+	select {
+	case <-idle:
+		return true
+	case <-timer.C:
+		return false
+	}
+}
+
 // sessionClaimsEnd ends the team claims of an ended session. The decisions
 // are queued then the queue is flushed: for a bounded time and while the
 // person waits (async=false: the CLI says what stays in the queue), or in the
 // background for the daemon (async), which must not wait for git and has no
-// terminal.
+// terminal. In both cases the decisions are queued before the function
+// returns (a local file): a background task that dies, or a daemon that stops
+// before it ran, loses nothing, the flush of the next beat applies the queue.
 func sessionClaimsEnd(ctx context.Context, a *app.App, proj *domain.Project, s domain.Session, async bool) {
 	if len(s.Tickets) == 0 {
 		return
@@ -360,16 +426,17 @@ func sessionClaimsEnd(ctx context.Context, a *app.App, proj *domain.Project, s d
 	}
 	in := sessionClaimsInput{
 		Project: s.ProjectID, Member: member, Session: s.ID, Tickets: s.Tickets,
-		Ticket: ticketFactsFromBeads(proj.Path), State: sessionEndStateOf(a, s),
+		Ticket: ticketFactsOf(proj.Path), State: sessionEndStateOf(a, s),
 	}
 	if !async {
 		reportClaimsEnd(a, endSessionClaims(ctx, repo, in, claimEndLockWait, claimEndFlushLimit))
 		return
 	}
-	safego.Go(func() {
+	endTicketClaims(ctx, repo, in)
+	claimFlushes.run(func() {
 		bctx, cancel := context.WithTimeout(context.Background(), claimEndBackgroundLimit+time.Minute)
 		defer cancel()
-		endSessionClaims(bctx, repo, in, teamstate.BackgroundLockWait, claimEndBackgroundLimit)
+		flushClaimQueue(bctx, repo, teamstate.BackgroundLockWait, claimEndBackgroundLimit)
 	})
 }
 

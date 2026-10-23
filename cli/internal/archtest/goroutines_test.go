@@ -21,12 +21,13 @@ import (
 // directory names the files that start with it.
 //
 // cmd/ is guarded where it runs the daemon: cmd/runner.go (the daemon of a
-// remote job) and cmd/daemon*.go (ohd). The rest of cmd/ is left out on
-// purpose: about forty `go` statements, almost all of them the tview
-// interface pushing a redraw (`go func() { app.QueueUpdateDraw(...) }()`) or
-// a spinner, in the process of a user who is looking at it. The few that
-// are not (cmd/serve.go: a shutdown wait; cmd/v5_claims.go: the end of the
-// ticket claims; cmd/v5_launch.go: the heartbeat of an attach;
+// remote job), cmd/daemon*.go (ohd) and cmd/v5_claims.go (the end of the
+// ticket claims of a session, run by the hook of the daemon). The rest of
+// cmd/ is left out on purpose: about forty `go` statements, almost all of
+// them the tview interface pushing a redraw
+// (`go func() { app.QueueUpdateDraw(...) }()`) or a spinner, in the process
+// of a user who is looking at it. The few that are not (cmd/serve.go: a
+// shutdown wait; cmd/v5_launch.go: the heartbeat of an attach;
 // cmd/eval_fanout.go: the fan-out driver of an evaluation) are not exempted
 // by a list: they are outside the guard, and move into it, with a safego.Go,
 // when they are touched.
@@ -37,6 +38,7 @@ var guardedDirs = []string{
 	"internal/gateway/",
 	"cmd/runner.go",
 	"cmd/daemon",
+	"cmd/v5_claims.go",
 }
 
 // bareGoStatements returns the position of every go statement of a Go
