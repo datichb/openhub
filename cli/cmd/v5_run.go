@@ -142,6 +142,8 @@ func launchRecap(p *launch.Prepared) (rows [][2]string, warnings []string) {
 	for _, s := range p.Plan.Sessions {
 		loc := s.Location.Path
 		switch {
+		case s.Location.Temp:
+			loc += " (" + i18n.Tf("cmd.run.recap.temp_worktree", s.Location.Branch) + ")"
 		case s.Location.Create:
 			loc += " (" + i18n.Tf("cmd.run.recap.new_worktree", s.Location.Branch) + ")"
 		case s.Location.Kind == runsvc.LocationBase:

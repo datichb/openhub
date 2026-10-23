@@ -21,6 +21,22 @@ type fakeGit struct {
 	dirty   map[string]bool
 	created []string
 	stashed []string
+	// targets are the branches a read-only session can review; detached the
+	// temporary worktrees created (path, reference).
+	targets  map[string]worktree.ReadTarget
+	detached [][2]string
+}
+
+func (g *fakeGit) ReadTarget(_, branch string) (worktree.ReadTarget, error) {
+	if t, ok := g.targets[branch]; ok {
+		return t, nil
+	}
+	return worktree.ReadTarget{}, worktree.ErrBranchNotFound
+}
+
+func (g *fakeGit) CreateDetachedWorktree(_, path, ref string) error {
+	g.detached = append(g.detached, [2]string{path, ref})
+	return os.MkdirAll(path, 0o755)
 }
 
 func (g *fakeGit) Stash(p, _ string) (string, error) {

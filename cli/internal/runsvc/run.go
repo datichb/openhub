@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -15,6 +16,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/filelock"
 	ohruntime "github.com/datichb/openhub/cli/internal/runtime"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
+	"github.com/datichb/openhub/cli/internal/worktree"
 )
 
 // Workflow launches (03 §2.4): Plan computes what a launch will do (fiche de
@@ -50,6 +52,12 @@ const (
 	WarnDirty          = "dirty"           // uncommitted changes where a writer starts (allowed)
 	WarnDirtyWorktree  = "dirty_worktree"  // uncommitted changes: the writer works in a worktree
 	WarnDirtyStash     = "dirty_stash"     // uncommitted changes: stashed when the session starts
+	// WarnReviewWorktree: a read-only session reviews a branch other than
+	// the current one in a temporary worktree of it (args: branch, path).
+	WarnReviewWorktree = "review_worktree"
+	// WarnReadOtherBranch: the worktree chosen with --location is not on the
+	// branch the session reviews (args: reviewed branch, path, its branch).
+	WarnReadOtherBranch = "read_other_branch"
 	// WarnPending: decisions already waiting (args: on the tickets of the
 	// launch, in the project, in total).
 	WarnPending = "pending"
@@ -76,6 +84,10 @@ type PlannedInput struct {
 	Label string
 	// Tickets are the Beads tickets the session works on (ticket input).
 	Tickets []string
+	// ReadBranch is the branch a read-only session reviews (the `branch`
+	// input of review): when it is not the one checked out in the project,
+	// the session works in a temporary worktree of it.
+	ReadBranch string
 }
 
 // RunRequest describes a workflow launch.
@@ -153,8 +165,9 @@ func (s *Service) Plan(ctx context.Context, req RunRequest) (*RunPlan, error) {
 		inputs = []PlannedInput{{Title: req.Base.Title}}
 	}
 	branches := make([]string, len(inputs))
+	reads := make([]string, len(inputs))
 	for i, in := range inputs {
-		branches[i] = in.Branch
+		branches[i], reads[i] = in.Branch, in.ReadBranch
 	}
 	writes := RiskWrites(req.Workflow.Risk)
 	existing, projectSessions := s.findExisting(ctx, req.Base.ProjectID, inputs)
@@ -166,7 +179,7 @@ func (s *Service) Plan(ctx context.Context, req RunRequest) (*RunPlan, error) {
 	if err != nil {
 		return nil, err
 	}
-	locs, warns, err := s.planLocations(ctx, req.Base.ProjectID, req.ProjectPath, req.Location, writes, branches, req.Dirty, lo)
+	locs, warns, err := s.planLocations(ctx, req.Base.ProjectID, req.ProjectPath, req.Location, writes, branches, reads, req.Dirty, lo)
 	if err != nil {
 		return nil, err
 	}
@@ -341,7 +354,14 @@ func (s *Service) Start(ctx context.Context, plan *RunPlan) ([]*StartResult, err
 			}
 		}
 		created := false
-		if ps.Location.Create {
+		switch {
+		case ps.Location.Create && ps.Location.Temp:
+			// Not a worktree of the session's own: no branch for oh gc to clean.
+			if err := s.createDetachedWorktree(req.ProjectPath, ps.Location.Path, ps.Location.Ref); err != nil {
+				return out, fmt.Errorf("worktree %s: %w", ps.Location.Branch, err)
+			}
+			ps.Location.Create = false
+		case ps.Location.Create:
 			p, err := s.createWorktree(req.ProjectPath, ps.Location.Branch)
 			if err != nil {
 				return out, fmt.Errorf("worktree %s: %w", ps.Location.Branch, err)
@@ -381,6 +401,11 @@ func (s *Service) Start(ctx context.Context, plan *RunPlan) ([]*StartResult, err
 			}
 		}
 		res, err := s.StartSession(ctx, sr)
+		if err != nil && ps.Location.Temp {
+			if rerr := worktree.RemoveDetached(ps.Location.Path); rerr != nil {
+				slog.Warn("runsvc: temporary worktree not removed", "path", ps.Location.Path, "error", rerr)
+			}
+		}
 		if res != nil && res.SessionID != "" {
 			res.Stashed = stashed
 			res.Deleted = deleted

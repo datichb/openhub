@@ -62,6 +62,10 @@ type PromptContext struct {
 	Tracker        string
 	TrackerProject string
 	GitLabMCP      bool
+	// ReviewRef is the branch a read-only session reads in a temporary
+	// worktree (detached): the branch, or <remote>/<branch> when only the
+	// remote has it. Empty when the session works in the project.
+	ReviewRef string
 }
 
 func (c PromptContext) values() map[string]any {
@@ -81,6 +85,7 @@ func (c PromptContext) values() map[string]any {
 		"tracker":         c.Tracker,
 		"tracker_project": c.TrackerProject,
 		"gitlab_mcp":      c.GitLabMCP,
+		"review_ref":      c.ReviewRef,
 	}
 }
 
