@@ -16,7 +16,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/gateway/bdargs"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/runtime/container"
-	"github.com/datichb/openhub/cli/internal/tui/v2/views"
+	"github.com/datichb/openhub/cli/internal/services/doctor"
 )
 
 // Doctor › gateways (P4-T12): bd on the machine, daemon recent enough, and
@@ -34,7 +34,7 @@ const (
 // gatewayDoctorChecks runs the gateway checks. bd is optional, and so is
 // the container side (reach of the routes) unless the container runtime is
 // required: their failures are warnings (U-05).
-func gatewayDoctorChecks(ctx context.Context) []views.DoctorCheck {
+func gatewayDoctorChecks(ctx context.Context) []doctor.Result {
 	out := gatewayChecks(ctx)
 	optional := map[string]bool{}
 	for _, key := range []string{"bd", "shell_bd"} {
@@ -51,11 +51,11 @@ func gatewayDoctorChecks(ctx context.Context) []views.DoctorCheck {
 	return out
 }
 
-func gatewayChecks(ctx context.Context) []views.DoctorCheck {
-	check := func(key string, ok bool, detail string) views.DoctorCheck {
-		return views.DoctorCheck{Name: i18n.T("cmd.doctor.gateway." + key), OK: ok, Detail: detail}
+func gatewayChecks(ctx context.Context) []doctor.Result {
+	check := func(key string, ok bool, detail string) doctor.Result {
+		return doctor.Result{Name: i18n.T("cmd.doctor.gateway." + key), OK: ok, Detail: detail}
 	}
-	var out []views.DoctorCheck
+	var out []doctor.Result
 	if p, err := exec.LookPath("bd"); err == nil {
 		out = append(out, check("bd", true, p), bdVersionCheck(ctx, p), bdSchemaCheck(ctx, p))
 	} else {
@@ -114,7 +114,7 @@ func gatewayChecks(ctx context.Context) []views.DoctorCheck {
 }
 
 // gatewayReachCheck turns the HTTP status of a probe into a check.
-func gatewayReachCheck(check func(string, bool, string) views.DoctorCheck, key, url string, code int, image string, linux bool) views.DoctorCheck {
+func gatewayReachCheck(check func(string, bool, string) doctor.Result, key, url string, code int, image string, linux bool) doctor.Result {
 	switch {
 	case code == 0 && linux:
 		return check(key, false, i18n.Tf("cmd.doctor.gateway.unreachable_linux", url))
@@ -129,7 +129,7 @@ func gatewayReachCheck(check func(string, bool, string) views.DoctorCheck, key, 
 // bdVersionCheck warns when the installed bd is not the version the
 // argument table of the Beads gateway was generated from (bdargs): an
 // option of another version is refused by the gateway.
-func bdVersionCheck(ctx context.Context, bin string) views.DoctorCheck {
+func bdVersionCheck(ctx context.Context, bin string) doctor.Result {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	out, err := exec.CommandContext(ctx, bin, "version").Output()
@@ -140,22 +140,22 @@ func bdVersionCheck(ctx context.Context, bin string) views.DoctorCheck {
 }
 
 // bdVersionResult turns the output of `bd version` into the check.
-func bdVersionResult(out string, err error) views.DoctorCheck {
+func bdVersionResult(out string, err error) doctor.Result {
 	name := i18n.T("cmd.doctor.gateway.bd_version")
 	expected, same := bdargs.SameVersion(out)
 	switch {
 	case err != nil:
-		return views.DoctorCheck{Name: name, OK: true, Warn: true, Detail: i18n.Tf("cmd.doctor.gateway.bd_version_unknown", err.Error(), expected)}
+		return doctor.Result{Name: name, OK: true, Warn: true, Detail: i18n.Tf("cmd.doctor.gateway.bd_version_unknown", err.Error(), expected)}
 	case same:
-		return views.DoctorCheck{Name: name, OK: true, Detail: expected}
+		return doctor.Result{Name: name, OK: true, Detail: expected}
 	}
-	return views.DoctorCheck{Name: name, OK: true, Warn: true,
+	return doctor.Result{Name: name, OK: true, Warn: true,
 		Detail: i18n.Tf("cmd.doctor.gateway.bd_version_other", orNone(bdargs.VersionNumber(out)), expected)}
 }
 
 // bdSchemaCheck warns when the record schema of the installed bd (bd
 // schema) lacks a field oh reads from its JSON output (bdschema).
-func bdSchemaCheck(ctx context.Context, bin string) views.DoctorCheck {
+func bdSchemaCheck(ctx context.Context, bin string) doctor.Result {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, bin, "schema")
@@ -165,21 +165,21 @@ func bdSchemaCheck(ctx context.Context, bin string) views.DoctorCheck {
 }
 
 // bdSchemaResult turns the output of `bd schema` into the check.
-func bdSchemaResult(out []byte, err error) views.DoctorCheck {
+func bdSchemaResult(out []byte, err error) doctor.Result {
 	name := i18n.T("cmd.doctor.gateway.bd_schema")
 	var s *bdschema.Schema
 	if err == nil {
 		s, err = bdschema.Parse(out)
 	}
 	if err != nil {
-		return views.DoctorCheck{Name: name, OK: true, Warn: true, Detail: i18n.Tf("cmd.doctor.gateway.bd_schema_unknown", err.Error())}
+		return doctor.Result{Name: name, OK: true, Warn: true, Detail: i18n.Tf("cmd.doctor.gateway.bd_schema_unknown", err.Error())}
 	}
 	if missing := bdschema.Missing(s); len(missing) > 0 {
 		expected, _ := bdargs.SameVersion("")
-		return views.DoctorCheck{Name: name, OK: true, Warn: true,
+		return doctor.Result{Name: name, OK: true, Warn: true,
 			Detail: i18n.Tf("cmd.doctor.gateway.bd_schema_missing", strings.Join(missing, ", "), expected)}
 	}
-	return views.DoctorCheck{Name: name, OK: true, Detail: i18n.Tf("cmd.doctor.gateway.bd_schema_ok", s.Version)}
+	return doctor.Result{Name: name, OK: true, Detail: i18n.Tf("cmd.doctor.gateway.bd_schema_ok", s.Version)}
 }
 
 func orNone(s string) string {

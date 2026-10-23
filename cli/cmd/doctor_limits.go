@@ -7,13 +7,13 @@ import (
 	"github.com/datichb/openhub/cli/internal/daemon"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/limits"
-	"github.com/datichb/openhub/cli/internal/tui/v2/views"
+	"github.com/datichb/openhub/cli/internal/services/doctor"
 )
 
 // limitsDoctorChecks reports the hub session restrictions (I6) and the
 // memory the session servers use, with an estimate per server for sizing
 // the memory cap.
-func limitsDoctorChecks(ctx context.Context) []views.DoctorCheck {
+func limitsDoctorChecks(ctx context.Context) []doctor.Result {
 	var set []string
 	hub := TryApp()
 	var l limits.Limits
@@ -29,7 +29,7 @@ func limitsDoctorChecks(ctx context.Context) []views.DoctorCheck {
 	if len(set) > 0 {
 		detail = strings.Join(set, " · ")
 	}
-	out := []views.DoctorCheck{{Name: i18n.T("cmd.budget.doctor.name"), OK: true, Detail: detail}}
+	out := []doctor.Result{{Name: i18n.T("cmd.budget.doctor.name"), OK: true, Detail: detail}}
 
 	h, err := daemon.NewClient(daemon.Paths{Dir: ohRunDir()}).Health(ctx)
 	if err != nil || h.Servers == 0 {
@@ -44,5 +44,5 @@ func limitsDoctorChecks(ctx context.Context) []views.DoctorCheck {
 			mem += " · " + i18n.T("cmd.budget.doctor.memory_over")
 		}
 	}
-	return append(out, views.DoctorCheck{Name: i18n.T("cmd.budget.doctor.memory_name"), OK: ok, Detail: mem})
+	return append(out, doctor.Result{Name: i18n.T("cmd.budget.doctor.memory_name"), OK: ok, Detail: mem})
 }

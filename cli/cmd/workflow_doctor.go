@@ -8,21 +8,21 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/services/doctor"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/teamstate"
-	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 	"github.com/datichb/openhub/cli/internal/workflow"
 	"github.com/datichb/openhub/cli/internal/workflow/hubcat"
 )
 
 // workflowIntegrityChecks reports, for every configured team-state, the
 // published workflows skipped by the integrity check (workflows.lock).
-func workflowIntegrityChecks() []views.DoctorCheck {
+func workflowIntegrityChecks() []doctor.Result {
 	a := TryApp()
 	if a == nil {
 		return nil
 	}
-	var out []views.DoctorCheck
+	var out []doctor.Result
 	for _, t := range a.Config.Teams {
 		if !t.Enabled {
 			continue
@@ -49,7 +49,7 @@ func workflowIntegrityChecks() []views.DoctorCheck {
 // retiredExtendsCheck reports the published team and project workflows
 // that extend a hub workflow retired as an alias (hub:feature, hub:cadrage:
 // feature-migration); ok is false when there is none (no check shown).
-func retiredExtendsCheck(name string, repo *teamstate.Repo, hubWorkflows string) (views.DoctorCheck, bool) {
+func retiredExtendsCheck(name string, repo *teamstate.Repo, hubWorkflows string) (doctor.Result, bool) {
 	hub := workflow.NewMemCatalog()
 	_ = hub.LoadDir(hubWorkflows, workflow.LayerHub)
 	scopes := []teamstate.WorkflowScope{teamstate.TeamScope()}
@@ -76,9 +76,9 @@ func retiredExtendsCheck(name string, repo *teamstate.Repo, hubWorkflows string)
 		}
 	}
 	if len(found) == 0 {
-		return views.DoctorCheck{}, false
+		return doctor.Result{}, false
 	}
-	return views.DoctorCheck{Name: i18n.Tf("teamstate.workflow.doctor.retired_name", name), OK: false,
+	return doctor.Result{Name: i18n.Tf("teamstate.workflow.doctor.retired_name", name), OK: false,
 		Detail: i18n.Tf("teamstate.workflow.doctor.retired", strings.Join(found, " · "))}, true
 }
 
@@ -86,7 +86,7 @@ func retiredExtendsCheck(name string, repo *teamstate.Repo, hubWorkflows string)
 // change a checkpoint the children of a hub fan-out pass (fanout: never:
 // cp-commit of sweep, cp-2 of implement-spec): the change does not reach a
 // fan-out session (sweep-fanout); ok is false when there is none.
-func fanoutNeverCheck(name string, repo *teamstate.Repo, hubWorkflows string) (views.DoctorCheck, bool) {
+func fanoutNeverCheck(name string, repo *teamstate.Repo, hubWorkflows string) (doctor.Result, bool) {
 	hub := workflow.NewMemCatalog()
 	_ = hub.LoadDir(hubWorkflows, workflow.LayerHub)
 	scopes := []teamstate.WorkflowScope{teamstate.TeamScope()}
@@ -101,9 +101,9 @@ func fanoutNeverCheck(name string, repo *teamstate.Repo, hubWorkflows string) (v
 		found = append(found, fanoutNeverFindings(hub, sc.String(), cat)...)
 	}
 	if len(found) == 0 {
-		return views.DoctorCheck{}, false
+		return doctor.Result{}, false
 	}
-	return views.DoctorCheck{Name: i18n.Tf("teamstate.workflow.doctor.fanout_never_name", name), OK: false,
+	return doctor.Result{Name: i18n.Tf("teamstate.workflow.doctor.fanout_never_name", name), OK: false,
 		Detail: i18n.Tf("teamstate.workflow.doctor.fanout_never", strings.Join(found, " · "))}, true
 }
 
@@ -136,7 +136,7 @@ func fanoutNeverFindings(hub *workflow.MemCatalog, scope string, cat *workflow.M
 
 // workflowIntegrityCheck loads every scope of repo and summarizes the
 // integrity warnings.
-func workflowIntegrityCheck(name string, repo *teamstate.Repo) views.DoctorCheck {
+func workflowIntegrityCheck(name string, repo *teamstate.Repo) doctor.Result {
 	scopes := []teamstate.WorkflowScope{teamstate.TeamScope()}
 	projects, _ := repo.WorkflowProjects()
 	for _, p := range projects {
@@ -159,7 +159,7 @@ func workflowIntegrityCheck(name string, repo *teamstate.Repo) views.DoctorCheck
 			skipped = append(skipped, filepath.Base(d.Source))
 		}
 	}
-	check := views.DoctorCheck{Name: i18n.Tf("teamstate.workflow.doctor.name", name), OK: len(skipped) == 0}
+	check := doctor.Result{Name: i18n.Tf("teamstate.workflow.doctor.name", name), OK: len(skipped) == 0}
 	if check.OK {
 		check.Detail = i18n.Tf("teamstate.workflow.doctor.ok", len(cat.Refs()))
 	} else {

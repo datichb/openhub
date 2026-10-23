@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"os/exec"
@@ -13,19 +14,24 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/services/doctor"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
-	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
+
+// check is a registry entry named after its identifier.
+func check(id string, run func(context.Context) []doctor.Result) doctor.Check {
+	return doctor.Check{ID: id, Name: id, Run: run}
+}
 
 // QB1: oh doctor exits non-zero when a check fails (it always exited 0).
 func TestDoctorExitCode(t *testing.T) {
-	ok := check{"ok", single(func() (string, bool) { return "fine", true })}
-	bad := check{"bad", single(func() (string, bool) { return "broken", false })}
+	ok := check("ok", single(func() (string, bool) { return "fine", true }))
+	bad := check("bad", single(func() (string, bool) { return "broken", false }))
 	var out bytes.Buffer
-	if err := runDoctorChecks(&out, []check{ok, ok}); err != nil || ExitCode(err) != 0 {
+	if err := runDoctorChecks(&out, []doctor.Check{ok, ok}); err != nil || ExitCode(err) != 0 {
 		t.Fatalf("all passed: err = %v", err)
 	}
-	err := runDoctorChecks(&out, []check{ok, bad})
+	err := runDoctorChecks(&out, []doctor.Check{ok, bad})
 	if ExitCode(err) != 1 {
 		t.Fatalf("failed check: err = %v, code %d", err, ExitCode(err))
 	}
@@ -102,19 +108,19 @@ func TestHeadlessExitCodes(t *testing.T) {
 // U-05: an optional check that fails is a warning and keeps the exit code
 // at 0; a mandatory one gives 1.
 func TestDoctorOptionalChecksAreWarnings(t *testing.T) {
-	optional := check{"docker", func() []views.DoctorCheck {
-		return []views.DoctorCheck{{Detail: "engine stopped", Optional: true}}
-	}}
-	mandatory := check{"git", single(func() (string, bool) { return "missing", false })}
+	optional := check("docker", func(context.Context) []doctor.Result {
+		return []doctor.Result{{Detail: "engine stopped", Optional: true}}
+	})
+	mandatory := check("git", single(func() (string, bool) { return "missing", false }))
 	var out bytes.Buffer
-	if err := runDoctorChecks(&out, []check{optional}); ExitCode(err) != ExitOK {
+	if err := runDoctorChecks(&out, []doctor.Check{optional}); ExitCode(err) != ExitOK {
 		t.Fatalf("optional failure: code %d, out %s", ExitCode(err), out.String())
 	}
 	if !strings.Contains(out.String(), theme.IconWarning) {
 		t.Errorf("an optional failure shows as a warning: %q", out.String())
 	}
 	out.Reset()
-	if err := runDoctorChecks(&out, []check{optional, mandatory}); ExitCode(err) != ExitFailure {
+	if err := runDoctorChecks(&out, []doctor.Check{optional, mandatory}); ExitCode(err) != ExitFailure {
 		t.Fatalf("mandatory failure: code %d", ExitCode(err))
 	}
 }
@@ -159,7 +165,7 @@ func TestNoColorHelpHasNoEscapeSequence(t *testing.T) {
 		t.Fatal("control: the help is colored without NO_COLOR")
 	}
 	var out bytes.Buffer
-	_ = runDoctorChecks(&out, []check{{"x", single(func() (string, bool) { return "fine", true })}})
+	_ = runDoctorChecks(&out, []doctor.Check{check("x", single(func() (string, bool) { return "fine", true }))})
 	if !strings.Contains(out.String(), "\x1b[") {
 		t.Fatalf("control: oh doctor is colored without NO_COLOR: %q", out.String())
 	}
@@ -170,7 +176,7 @@ func TestNoColorHelpHasNoEscapeSequence(t *testing.T) {
 		t.Errorf("the help has an escape sequence with NO_COLOR=1")
 	}
 	out.Reset()
-	_ = runDoctorChecks(&out, []check{{"x", single(func() (string, bool) { return "fine", true })}})
+	_ = runDoctorChecks(&out, []doctor.Check{check("x", single(func() (string, bool) { return "fine", true }))})
 	if strings.Contains(out.String(), "\x1b[") {
 		t.Errorf("oh doctor has an escape sequence with NO_COLOR=1: %q", out.String())
 	}

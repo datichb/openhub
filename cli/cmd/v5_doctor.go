@@ -10,6 +10,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/daemon"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/semver"
+	"github.com/datichb/openhub/cli/internal/services/doctor"
 	"github.com/datichb/openhub/cli/internal/termlaunch"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
@@ -19,10 +20,10 @@ func init() {
 }
 
 // v5DoctorChecks reports the v5 runtime health (shared by `oh doctor` and the TUI).
-func v5DoctorChecks() []views.DoctorCheck {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+func v5DoctorChecks(parent context.Context) []doctor.Result {
+	ctx, cancel := context.WithTimeout(parent, 5*time.Second)
 	defer cancel()
-	var out []views.DoctorCheck
+	var out []doctor.Result
 
 	out = append(out, toolCheck(ctx))
 
@@ -45,9 +46,9 @@ func v5DoctorChecks() []views.DoctorCheck {
 		if !ok {
 			detail += " · " + i18n.Tf("cmd.doctor.v5.daemon_pending", h.PendingGrants)
 		}
-		out = append(out, views.DoctorCheck{Name: i18n.T("cmd.doctor.v5.daemon"), OK: ok, Detail: detail})
+		out = append(out, doctor.Result{Name: i18n.T("cmd.doctor.v5.daemon"), OK: ok, Detail: detail})
 	} else {
-		out = append(out, views.DoctorCheck{Name: i18n.T("cmd.doctor.v5.daemon"), OK: true, Detail: i18n.T("cmd.doctor.v5.daemon_off")})
+		out = append(out, doctor.Result{Name: i18n.T("cmd.doctor.v5.daemon"), OK: true, Detail: i18n.T("cmd.doctor.v5.daemon_off")})
 	}
 
 	out = append(out, securityDoctorChecks(ctx)...)
@@ -56,7 +57,7 @@ func v5DoctorChecks() []views.DoctorCheck {
 
 	// Informational until containers (phase 4) need --relative-paths.
 	_, gitDetail := gitRelativeWorktrees()
-	out = append(out, views.DoctorCheck{Name: i18n.T("cmd.doctor.v5.git"), OK: true, Detail: gitDetail})
+	out = append(out, doctor.Result{Name: i18n.T("cmd.doctor.v5.git"), OK: true, Detail: gitDetail})
 
 	pref := termlaunch.PrefAuto
 	if app := TryApp(); app != nil && app.Config.Session.Attach != "" {
@@ -67,12 +68,12 @@ func v5DoctorChecks() []views.DoctorCheck {
 		methods = append(methods, string(m))
 	}
 	if len(methods) == 0 {
-		out = append(out, views.DoctorCheck{Name: i18n.T("cmd.doctor.v5.terminal"), OK: false, Detail: i18n.T("cmd.doctor.v5.terminal_none")})
+		out = append(out, doctor.Result{Name: i18n.T("cmd.doctor.v5.terminal"), OK: false, Detail: i18n.T("cmd.doctor.v5.terminal_none")})
 	} else {
-		out = append(out, views.DoctorCheck{Name: i18n.T("cmd.doctor.v5.terminal"), OK: true, Detail: strings.Join(methods, " → ")})
+		out = append(out, doctor.Result{Name: i18n.T("cmd.doctor.v5.terminal"), OK: true, Detail: strings.Join(methods, " → ")})
 	}
 	for _, fn := range doctorChecks {
-		cctx, cancel := context.WithTimeout(context.Background(), doctorCheckTimeout)
+		cctx, cancel := context.WithTimeout(parent, doctorCheckTimeout)
 		out = append(out, fn(cctx)...)
 		cancel()
 	}
@@ -81,14 +82,14 @@ func v5DoctorChecks() []views.DoctorCheck {
 
 // doctorChecks are the v5 checks registered by their own file (one check per
 // file: container, gateways…), run after the checks above with a supported tool.
-var doctorChecks []func(ctx context.Context) []views.DoctorCheck
+var doctorChecks []func(ctx context.Context) []doctor.Result
 
 // doctorCheckTimeout bounds each registered check (short containers, first
 // pull of the probe image).
 const doctorCheckTimeout = 90 * time.Second
 
 // registerDoctorCheck adds a v5 check (called from init).
-func registerDoctorCheck(fn func(ctx context.Context) []views.DoctorCheck) {
+func registerDoctorCheck(fn func(ctx context.Context) []doctor.Result) {
 	doctorChecks = append(doctorChecks, fn)
 }
 

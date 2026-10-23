@@ -8,20 +8,20 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/tui/v2/views"
+	"github.com/datichb/openhub/cli/internal/services/doctor"
 )
 
 // legacySkillsCheck warns about the packages left in ~/.oh/skills by the
 // former community registry, disconnected in v5 (ADR-051): they are neither
 // shipped in the session bundles nor checked any more. Nothing is deleted.
-func legacySkillsCheck() views.DoctorCheck {
+func legacySkillsCheck() doctor.Result {
 	name := i18n.T("cmd.doctor.legacy_skills.name")
 	dir := filepath.Join(config.HubDir(), "skills")
 	names := legacySkillPackages(dir)
 	if len(names) == 0 {
-		return views.DoctorCheck{Name: name, OK: true, Detail: i18n.T("cmd.doctor.legacy_skills.none")}
+		return doctor.Result{Name: name, OK: true, Detail: i18n.T("cmd.doctor.legacy_skills.none")}
 	}
-	return views.DoctorCheck{Name: name, OK: true, Warn: true,
+	return doctor.Result{Name: name, OK: true, Warn: true,
 		Detail: i18n.Tf("cmd.doctor.legacy_skills.found", len(names), dir, strings.Join(names, ", "))}
 }
 

@@ -6,13 +6,13 @@ import (
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/services/doctor"
 	remotesvc "github.com/datichb/openhub/cli/internal/services/remote"
-	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
 // remoteDoctorChecks reports each remote target (oh-runner project, pipeline,
 // trigger, variables, runners). Nothing when no target is configured.
-func remoteDoctorChecks() []views.DoctorCheck {
+func remoteDoctorChecks() []doctor.Result {
 	a := TryApp()
 	out := remoteExperimentalDoctorCheck(a)
 	if a == nil || len(a.Config.Remote.Targets) == 0 {
@@ -33,7 +33,7 @@ func remoteDoctorChecks() []views.DoctorCheck {
 		if len(problems) > 0 {
 			detail = strings.Join(problems, " · ")
 		}
-		out = append(out, views.DoctorCheck{Name: i18n.Tf("cmd.remote.doctor.name", t.Name), OK: rep.OK(), Detail: detail})
+		out = append(out, doctor.Result{Name: i18n.Tf("cmd.remote.doctor.name", t.Name), OK: rep.OK(), Detail: detail})
 	}
 	return out
 }

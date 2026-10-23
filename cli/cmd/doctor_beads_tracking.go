@@ -7,7 +7,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/beads"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/tui/v2/views"
+	"github.com/datichb/openhub/cli/internal/services/doctor"
 )
 
 // staleDays: a ticket in progress not updated for this many days was
@@ -18,7 +18,7 @@ const staleDays = 3
 // follow-up: open tickets named in commits (bd orphans), tickets in
 // progress left for days (bd stale), epics whose children are all closed
 // (bd epic status). Warnings only: oh changes nothing.
-func beadsTrackingChecks() []views.DoctorCheck {
+func beadsTrackingChecks() []doctor.Result {
 	a := TryApp()
 	if a == nil || a.Projects == nil {
 		return nil
@@ -27,7 +27,7 @@ func beadsTrackingChecks() []views.DoctorCheck {
 	if err != nil {
 		return nil
 	}
-	var out []views.DoctorCheck
+	var out []doctor.Result
 	checked := 0
 	for _, p := range projects {
 		if p.Path == "" || !beads.IsInitialized(p.Path) {
@@ -40,7 +40,7 @@ func beadsTrackingChecks() []views.DoctorCheck {
 		out = append(out, beadsTrackingResult(p.Name, orphans, stale, epics, firstErr(oerr, serr, eerr))...)
 	}
 	if len(out) == 0 && checked > 0 {
-		out = append(out, views.DoctorCheck{OK: true, Detail: i18n.Tf("cmd.doctor.tracking.ok", checked)})
+		out = append(out, doctor.Result{OK: true, Detail: i18n.Tf("cmd.doctor.tracking.ok", checked)})
 	}
 	return out
 }
@@ -55,10 +55,10 @@ func firstErr(errs ...error) error {
 }
 
 // beadsTrackingResult turns the follow-up of one project into checks.
-func beadsTrackingResult(project string, orphans []beads.Orphan, stale []beads.Ticket, epics []beads.EpicProgress, err error) []views.DoctorCheck {
-	var out []views.DoctorCheck
+func beadsTrackingResult(project string, orphans []beads.Orphan, stale []beads.Ticket, epics []beads.EpicProgress, err error) []doctor.Result {
+	var out []doctor.Result
 	warn := func(key string, args ...any) {
-		out = append(out, views.DoctorCheck{Name: i18n.Tf("cmd.doctor.tracking.name", project), OK: true, Warn: true, Detail: i18n.Tf(key, args...)})
+		out = append(out, doctor.Result{Name: i18n.Tf("cmd.doctor.tracking.name", project), OK: true, Warn: true, Detail: i18n.Tf(key, args...)})
 	}
 	if err != nil {
 		warn("cmd.doctor.tracking.failed", err.Error())

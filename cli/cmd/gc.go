@@ -22,9 +22,9 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/gc"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/services/doctor"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
-	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 	"github.com/datichb/openhub/cli/internal/worktree"
 )
 
@@ -356,14 +356,14 @@ func daemonGC(a *app.App) func(ctx context.Context) {
 // Doctor › clean-up: what the last pass did, or what can be reclaimed.
 func init() { registerDoctorCheck(gcDoctorCheck) }
 
-func gcDoctorCheck(context.Context) []views.DoctorCheck {
+func gcDoctorCheck(context.Context) []doctor.Result {
 	name := i18n.T("cmd.gc.doctor.name")
 	last, ok := readGCLast()
 	switch {
 	case !ok:
-		return []views.DoctorCheck{{Name: name, OK: true, Detail: i18n.T("cmd.gc.doctor.never")}}
+		return []doctor.Result{{ID: doctorIDGC, Name: name, OK: true, Detail: i18n.T("cmd.gc.doctor.never")}}
 	case last.DryRun && (last.Items > 0 || last.Rows > 0):
-		return []views.DoctorCheck{{Name: name, OK: true, Warn: true, Detail: i18n.Tf("cmd.gc.doctor.reclaimable", formatBytes(last.Bytes), last.Items, last.Rows)}}
+		return []doctor.Result{{ID: doctorIDGC, Name: name, OK: true, Warn: true, Detail: i18n.Tf("cmd.gc.doctor.reclaimable", formatBytes(last.Bytes), last.Items, last.Rows)}}
 	}
-	return []views.DoctorCheck{{Name: name, OK: true, Detail: i18n.Tf("cmd.gc.doctor.last", last.At.Local().Format("2006-01-02 15:04"), formatBytes(last.Bytes), last.Items)}}
+	return []doctor.Result{{ID: doctorIDGC, Name: name, OK: true, Detail: i18n.Tf("cmd.gc.doctor.last", last.At.Local().Format("2006-01-02 15:04"), formatBytes(last.Bytes), last.Items)}}
 }

@@ -8,26 +8,26 @@ import (
 	"github.com/datichb/openhub/cli/internal/credproxy"
 	"github.com/datichb/openhub/cli/internal/daemon"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/services/doctor"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
-	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
 // securityDoctorChecks reports the local mode protections of the oh daemon
 // (M12): where the issuing capability is kept, the daemon socket, and proxy
 // tokens and server passwords left in clear by an older oh.
-func securityDoctorChecks(ctx context.Context) []views.DoctorCheck {
-	var out []views.DoctorCheck
+func securityDoctorChecks(ctx context.Context) []doctor.Result {
+	var out []doctor.Result
 	name := i18n.T("cmd.doctor.security.capability")
 	// Read only: Doctor never creates the capability (first launch does).
 	switch src, found, err := daemon.PeekCapability(ctx, capabilityStore(), daemon.Paths{Dir: ohRunDir()}); {
 	case err != nil:
-		out = append(out, views.DoctorCheck{Name: name, OK: false, Detail: i18n.Tf("cmd.doctor.security.capability_error", err)})
+		out = append(out, doctor.Result{Name: name, OK: false, Detail: i18n.Tf("cmd.doctor.security.capability_error", err)})
 	case !found:
-		out = append(out, views.DoctorCheck{Name: name, OK: true, Detail: i18n.T("cmd.doctor.security.capability_none")})
+		out = append(out, doctor.Result{Name: name, OK: true, Detail: i18n.T("cmd.doctor.security.capability_none")})
 	case src == daemon.CapabilityFile:
-		out = append(out, views.DoctorCheck{Name: name, OK: true, Detail: i18n.Tf("cmd.doctor.security.capability_file", daemon.Paths{Dir: ohRunDir()}.CapabilityFile())})
+		out = append(out, doctor.Result{Name: name, OK: true, Detail: i18n.Tf("cmd.doctor.security.capability_file", daemon.Paths{Dir: ohRunDir()}.CapabilityFile())})
 	default:
-		out = append(out, views.DoctorCheck{Name: name, OK: true, Detail: i18n.T("cmd.doctor.security.capability_keychain")})
+		out = append(out, doctor.Result{Name: name, OK: true, Detail: i18n.T("cmd.doctor.security.capability_keychain")})
 	}
 
 	sock := daemon.Paths{Dir: ohRunDir()}.Socket()
@@ -37,7 +37,7 @@ func securityDoctorChecks(ctx context.Context) []views.DoctorCheck {
 		if !ok {
 			detail = i18n.Tf("cmd.doctor.security.socket_open", sock, st.Mode().Perm())
 		}
-		out = append(out, views.DoctorCheck{Name: i18n.T("cmd.doctor.security.socket"), OK: ok, Detail: detail})
+		out = append(out, doctor.Result{Name: i18n.T("cmd.doctor.security.socket"), OK: ok, Detail: detail})
 	}
 
 	if lister, ok := preferredAdapter().(adapters.UserPluginLister); ok {
@@ -56,16 +56,16 @@ func securityDoctorChecks(ctx context.Context) []views.DoctorCheck {
 			}
 		}
 		if n == 0 {
-			out = append(out, views.DoctorCheck{Name: i18n.T("cmd.doctor.security.tokens"), OK: true, Detail: i18n.T("cmd.doctor.security.tokens_hashed")})
+			out = append(out, doctor.Result{Name: i18n.T("cmd.doctor.security.tokens"), OK: true, Detail: i18n.T("cmd.doctor.security.tokens_hashed")})
 		} else {
-			out = append(out, views.DoctorCheck{Name: i18n.T("cmd.doctor.security.tokens"), OK: false, Detail: i18n.Tf("cmd.doctor.security.tokens_clear", n)})
+			out = append(out, doctor.Result{Name: i18n.T("cmd.doctor.security.tokens"), OK: false, Detail: i18n.Tf("cmd.doctor.security.tokens_clear", n)})
 		}
 		// N26: server passwords out of oh.db (moved by the daemon).
 		if k, err := sqlite.NewServerStore(store).CountClearPasswords(ctx); err == nil {
 			if k == 0 {
-				out = append(out, views.DoctorCheck{Name: i18n.T("cmd.doctor.security.passwords"), OK: true, Detail: i18n.T("cmd.doctor.security.passwords_ok")})
+				out = append(out, doctor.Result{Name: i18n.T("cmd.doctor.security.passwords"), OK: true, Detail: i18n.T("cmd.doctor.security.passwords_ok")})
 			} else {
-				out = append(out, views.DoctorCheck{Name: i18n.T("cmd.doctor.security.passwords"), OK: false, Detail: i18n.Tf("cmd.doctor.security.passwords_clear", k)})
+				out = append(out, doctor.Result{Name: i18n.T("cmd.doctor.security.passwords"), OK: false, Detail: i18n.Tf("cmd.doctor.security.passwords_clear", k)})
 			}
 		}
 	}

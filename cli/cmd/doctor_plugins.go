@@ -5,21 +5,21 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/tui/v2/views"
+	"github.com/datichb/openhub/cli/internal/services/doctor"
 )
 
 // userPluginsCheck reports the plugins of the user's own tool configuration
 // (S-11): outside strict isolation they run in the local sessions, next to the
 // bundle's. A warning, not an error: the default does not change.
-func userPluginsCheck(lister adapters.UserPluginLister, strict bool) (views.DoctorCheck, bool) {
+func userPluginsCheck(lister adapters.UserPluginLister, strict bool) (doctor.Result, bool) {
 	if lister == nil {
-		return views.DoctorCheck{}, false
+		return doctor.Result{}, false
 	}
 	plugins, err := lister.UserPlugins()
 	if err != nil || len(plugins) == 0 {
-		return views.DoctorCheck{}, false
+		return doctor.Result{}, false
 	}
-	check := views.DoctorCheck{Name: i18n.Tf("cmd.doctor.plugins.name", toolName()), OK: true}
+	check := doctor.Result{Name: i18n.Tf("cmd.doctor.plugins.name", toolName()), OK: true}
 	list := strings.Join(plugins, ", ")
 	if strict {
 		check.Detail = i18n.Tf("cmd.doctor.plugins.hidden", len(plugins), list)

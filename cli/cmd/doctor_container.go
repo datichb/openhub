@@ -9,8 +9,8 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/runtime/container"
+	"github.com/datichb/openhub/cli/internal/services/doctor"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
-	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 	"github.com/datichb/openhub/cli/internal/worktree"
 )
 
@@ -32,7 +32,7 @@ func containerRequired(a *app.App) bool {
 
 // containerDoctorChecks runs the container checks; their failures are
 // warnings unless the container runtime is required.
-func containerDoctorChecks(ctx context.Context) []views.DoctorCheck {
+func containerDoctorChecks(ctx context.Context) []doctor.Result {
 	out := containerChecks(ctx)
 	optional := !containerRequired(TryApp())
 	for i := range out {
@@ -41,23 +41,23 @@ func containerDoctorChecks(ctx context.Context) []views.DoctorCheck {
 	return out
 }
 
-func containerChecks(ctx context.Context) []views.DoctorCheck {
+func containerChecks(ctx context.Context) []doctor.Result {
 	a := TryApp()
 	rt := v5ContainerRuntime(a)
 	e, av := rt.Engine(ctx)
-	check := func(key string, ok bool, detail string) views.DoctorCheck {
-		return views.DoctorCheck{Name: i18n.T("tui.doctor.container." + key), OK: ok, Detail: detail}
+	check := func(key string, ok bool, detail string) doctor.Result {
+		return doctor.Result{Name: i18n.T("tui.doctor.container." + key), OK: ok, Detail: detail}
 	}
 	if !av.OK {
 		// Unavailable engine (none, stopped, unreachable, Windows…): a failure
 		// only when the container runtime is required (see containerDoctorChecks).
-		return []views.DoctorCheck{check("engine", false, av.Message())}
+		return []doctor.Result{check("engine", false, av.Message())}
 	}
 	engine := strings.TrimSpace(string(e.Kind) + " " + e.Version)
 	if len(e.Details) > 0 {
 		engine += " (" + strings.Join(e.Details, ", ") + ")"
 	}
-	out := []views.DoctorCheck{check("engine", true, engine)}
+	out := []doctor.Result{check("engine", true, engine)}
 
 	client := v5ToolVersion()
 	if pinned := executionConfig(a).ToolVersion; client != "" && !pinnedVersionOK(pinned, client) {
@@ -106,15 +106,15 @@ func containerChecks(ctx context.Context) []views.DoctorCheck {
 }
 
 // imageDoctorChecks runs the tool in the latest project images.
-func imageDoctorChecks(ctx context.Context, rt *container.Runtime, e container.Engine, client string, check func(string, bool, string) views.DoctorCheck) []views.DoctorCheck {
+func imageDoctorChecks(ctx context.Context, rt *container.Runtime, e container.Engine, client string, check func(string, bool, string) doctor.Result) []doctor.Result {
 	images, err := rt.ProjectImages(ctx, e)
 	if err != nil {
-		return []views.DoctorCheck{check("images", false, i18n.Tf("tui.doctor.container.probe_failed", err.Error()))}
+		return []doctor.Result{check("images", false, i18n.Tf("tui.doctor.container.probe_failed", err.Error()))}
 	}
 	if len(images) == 0 {
-		return []views.DoctorCheck{check("images", true, i18n.T("tui.doctor.container.no_image"))}
+		return []doctor.Result{check("images", true, i18n.T("tui.doctor.container.no_image"))}
 	}
-	var out []views.DoctorCheck
+	var out []doctor.Result
 	for i, img := range images {
 		if i == doctorProjectImages {
 			break
@@ -123,17 +123,17 @@ func imageDoctorChecks(ctx context.Context, rt *container.Runtime, e container.E
 		name := i18n.Tf("tui.doctor.container.image", img.ProjectID)
 		switch {
 		case len(tc.MissingLibs) > 0:
-			out = append(out, views.DoctorCheck{Name: name, Detail: i18n.Tf("tui.doctor.container.musl_libs", strings.Join(tc.MissingLibs, ", "))})
+			out = append(out, doctor.Result{Name: name, Detail: i18n.Tf("tui.doctor.container.musl_libs", strings.Join(tc.MissingLibs, ", "))})
 		case tc.Version == "":
 			detail := img.Ref
 			if tc.Err != nil {
 				detail += " : " + tc.Err.Error()
 			}
-			out = append(out, views.DoctorCheck{Name: name, Detail: i18n.Tf("tui.doctor.container.tool_failed", toolName(), detail)})
+			out = append(out, doctor.Result{Name: name, Detail: i18n.Tf("tui.doctor.container.tool_failed", toolName(), detail)})
 		case client != "" && tc.Version != strings.TrimPrefix(client, "v"):
-			out = append(out, views.DoctorCheck{Name: name, OK: true, Detail: i18n.Tf("tui.doctor.container.tool_outdated", toolName(), tc.Version, client)})
+			out = append(out, doctor.Result{Name: name, OK: true, Detail: i18n.Tf("tui.doctor.container.tool_outdated", toolName(), tc.Version, client)})
 		default:
-			out = append(out, views.DoctorCheck{Name: name, OK: true, Detail: i18n.Tf("tui.doctor.container.tool_ok", toolName(), tc.Version, img.Ref)})
+			out = append(out, doctor.Result{Name: name, OK: true, Detail: i18n.Tf("tui.doctor.container.tool_ok", toolName(), tc.Version, img.Ref)})
 		}
 	}
 	return out

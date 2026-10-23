@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
-	"runtime"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -16,9 +14,9 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/selfupdate"
+	"github.com/datichb/openhub/cli/internal/services/doctor"
 	"github.com/datichb/openhub/cli/internal/tui/progress"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
-	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
 var doctorCmd = &cobra.Command{
@@ -41,64 +39,61 @@ var doctorOffline = func() bool {
 	return v != "" && v != "0" && v != "false"
 }
 
-// check is one entry of the doctor registry: the label shown while it runs
-// and the function that returns its result(s). A result without a name takes
-// the label of its check.
-type check struct {
-	name string
-	run  func() []views.DoctorCheck
-}
+// Identifiers of the results that have a repair (their check is the runtime
+// one, which gathers the registered checks).
+const (
+	doctorIDGC            = "gc"
+	doctorIDDeployCleanup = "deploy-cleanup"
+	doctorIDOrphans       = "orphans"
+)
 
 // single adapts a check that returns a detail and a pass/fail flag.
-func single(fn func() (string, bool)) func() []views.DoctorCheck {
-	return func() []views.DoctorCheck {
+func single(fn func() (string, bool)) func(context.Context) []doctor.Result {
+	return func(context.Context) []doctor.Result {
 		detail, ok := fn()
-		return []views.DoctorCheck{{Detail: detail, OK: ok}}
+		return []doctor.Result{{Detail: detail, OK: ok}}
 	}
 }
 
 // one adapts a check that returns a full result (warnings).
-func one(fn func() views.DoctorCheck) func() []views.DoctorCheck {
-	return func() []views.DoctorCheck { return []views.DoctorCheck{fn()} }
+func one(fn func() doctor.Result) func(context.Context) []doctor.Result {
+	return func(context.Context) []doctor.Result { return []doctor.Result{fn()} }
+}
+
+// many adapts a check that returns several results.
+func many(fn func() []doctor.Result) func(context.Context) []doctor.Result {
+	return func(context.Context) []doctor.Result { return fn() }
 }
 
 // doctorRegistry lists every check of oh doctor, in display order. It is the
-// single source of `oh doctor` and of the TUI Doctor view (A40).
-func doctorRegistry() []check {
-	return []check{
-		{i18n.T("cmd.doctor.check.os"), single(checkOS)},
-		{i18n.T("cmd.doctor.check.go"), single(checkGoRuntime)},
-		{"git", single(checkBinary("git"))},
-		{"bd (beads)", single(checkOptionalBinary("bd", "brew install datichb/tap/bd"))},
-		{i18n.T("cmd.doctor.check.version"), one(checkOhUpdate)},
-		{i18n.T("cmd.doctor.check.config"), single(checkConfig)},
-		{i18n.T("cmd.doctor.check.credentials"), one(checkProviderCredentials)},
-		{i18n.T("cmd.doctor.check.database"), one(checkDatabase)},
-		{i18n.T("cmd.doctor.check.api_keys"), single(checkAPIKeys)},
-		{i18n.T("cmd.doctor.check.beads"), checkBeadsSanity},
-		{i18n.T("cmd.doctor.check.beads_tracking"), beadsTrackingChecks},
-		{i18n.T("cmd.doctor.check.runtime"), v5DoctorChecks},
+// single source of `oh doctor` and of the TUI Doctor view (A40). The checks
+// of the machine (os, go, git, bd) live in services/doctor; the others still
+// read the state of cmd (configuration, database, keychain, projects).
+func doctorRegistry() []doctor.Check {
+	return []doctor.Check{
+		doctor.OS(),
+		doctor.GoRuntime(),
+		doctor.Binary("git", "git"),
+		doctor.OptionalBinary("bd", "bd", "bd (beads)", "brew install datichb/tap/bd"),
+		{ID: "version", Name: i18n.T("cmd.doctor.check.version"), Run: one(checkOhUpdate)},
+		{ID: "config", Name: i18n.T("cmd.doctor.check.config"), Run: single(checkConfig), Fix: configFix},
+		{ID: "credentials", Name: i18n.T("cmd.doctor.check.credentials"), Run: one(checkProviderCredentials)},
+		{ID: "database", Name: i18n.T("cmd.doctor.check.database"), Run: one(checkDatabase)},
+		{ID: "api_keys", Name: i18n.T("cmd.doctor.check.api_keys"), Run: single(checkAPIKeys)},
+		{ID: "beads", Name: i18n.T("cmd.doctor.check.beads"), Run: many(checkBeadsSanity), Fix: beadsFix},
+		{ID: "beads_tracking", Name: i18n.T("cmd.doctor.check.beads_tracking"), Run: many(beadsTrackingChecks)},
+		{ID: "runtime", Name: i18n.T("cmd.doctor.check.runtime"), Run: v5DoctorChecks, Fix: runtimeFix},
 	}
 }
 
-// collectDoctorChecks runs the whole registry (TUI Doctor view).
-func collectDoctorChecks() []views.DoctorCheck {
-	var out []views.DoctorCheck
-	for _, c := range doctorRegistry() {
-		out = append(out, c.results()...)
+// collectDoctorChecks runs the whole registry (TUI Doctor view), the repairs
+// attached to the results.
+func collectDoctorChecks() []doctor.Result {
+	reg, err := doctor.NewRegistry(doctorRegistry()...)
+	if err != nil {
+		panic(err) // a duplicated identifier: caught by TestDoctorRegistryIDs
 	}
-	return out
-}
-
-func (c check) results() []views.DoctorCheck {
-	res := c.run()
-	for i := range res {
-		if res[i].Name == "" {
-			res[i].Name = c.name
-		}
-		res[i] = res[i].Normalized()
-	}
-	return res
+	return reg.Run(context.Background())
 }
 
 func runDoctor(cmd *cobra.Command, args []string) error {
@@ -127,12 +122,12 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 // runDoctorChecks prints each check; a failed mandatory check makes oh exit
 // with ExitFailure. Warnings, including the failures of optional checks
 // (container engine, bd…), are reported as passed checks (U-05).
-func runDoctorChecks(w io.Writer, checks []check) error {
+func runDoctorChecks(w io.Writer, checks []doctor.Check) error {
 	allPassed := true
 	for _, c := range checks {
-		s := progress.NewSpinner(c.name)
+		s := progress.NewSpinner(c.Name)
 		s.Start()
-		res := c.results()
+		res := c.Results(context.Background())
 		s.Stop()
 
 		for _, r := range res {
@@ -158,63 +153,6 @@ func runDoctorChecks(w io.Writer, checks []check) error {
 	return nil
 }
 
-func checkOS() (string, bool) {
-	return fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH), true
-}
-
-func checkGoRuntime() (string, bool) {
-	return runtime.Version(), true
-}
-
-func checkBinary(name string) func() (string, bool) {
-	return func() (string, bool) {
-		path, err := exec.LookPath(name)
-		if err != nil {
-			return i18n.T("cmd.doctor.not_found"), false
-		}
-		// Try to get version
-		out, err := exec.Command(path, "--version").Output()
-		if err != nil {
-			return path, true
-		}
-		// First line only
-		version := string(out)
-		if i := indexOf(version, '\n'); i > 0 {
-			version = version[:i]
-		}
-		return version, true
-	}
-}
-
-func indexOf(s string, c byte) int {
-	for i := range s {
-		if s[i] == c {
-			return i
-		}
-	}
-	return -1
-}
-
-// checkOptionalBinary returns a check for a binary that is recommended but not required.
-// If not found, it returns true (pass) with an install hint, since it's optional.
-func checkOptionalBinary(name, installHint string) func() (string, bool) {
-	return func() (string, bool) {
-		path, err := exec.LookPath(name)
-		if err != nil {
-			return i18n.Tf("cmd.doctor.optional_missing", installHint), true
-		}
-		out, err := exec.Command(path, "--version").Output()
-		if err != nil {
-			return path, true
-		}
-		version := string(out)
-		if i := indexOf(version, '\n'); i > 0 {
-			version = version[:i]
-		}
-		return version, true
-	}
-}
-
 // checkAPIKeys validates that configured MCP tokens are accessible.
 // Reports per-service status so the user knows exactly which token is found,
 // where it was found (env / keychain), and which is missing.
@@ -228,32 +166,32 @@ func checkAPIKeys() (string, bool) {
 
 // checkOhUpdate compares the running oh with the latest published release:
 // a newer release is a warning (the check passes), never an older one (A1).
-func checkOhUpdate() views.DoctorCheck {
+func checkOhUpdate() doctor.Result {
 	current := buildinfo.Version
 	if compareOhVersion(current, "0.0.0") == versionUnknown {
-		return views.DoctorCheck{OK: true, Detail: i18n.Tf("cmd.doctor.version.dev", current)}
+		return doctor.Result{OK: true, Detail: i18n.Tf("cmd.doctor.version.dev", current)}
 	}
 	if doctorOffline() {
-		return views.DoctorCheck{OK: true, Detail: i18n.Tf("cmd.doctor.version.offline", current)}
+		return doctor.Result{OK: true, Detail: i18n.Tf("cmd.doctor.version.offline", current)}
 	}
 	release, err := selfupdate.LatestRelease()
 	if err != nil {
 		// Network failure is non-fatal — don't block doctor
-		return views.DoctorCheck{OK: true, Warn: true, Detail: i18n.Tf("cmd.doctor.version.unreachable", current, err)}
+		return doctor.Result{OK: true, Warn: true, Detail: i18n.Tf("cmd.doctor.version.unreachable", current, err)}
 	}
 	return ohUpdateResult(current, release.Version())
 }
 
-func ohUpdateResult(current, latest string) views.DoctorCheck {
+func ohUpdateResult(current, latest string) doctor.Result {
 	switch compareOhVersion(current, latest) {
 	case versionSame:
-		return views.DoctorCheck{OK: true, Detail: i18n.Tf("cmd.doctor.version.up_to_date", current)}
+		return doctor.Result{OK: true, Detail: i18n.Tf("cmd.doctor.version.up_to_date", current)}
 	case versionAhead:
-		return views.DoctorCheck{OK: true, Detail: i18n.Tf("cmd.doctor.version.ahead", current, latest)}
+		return doctor.Result{OK: true, Detail: i18n.Tf("cmd.doctor.version.ahead", current, latest)}
 	case versionAvailable:
-		return views.DoctorCheck{OK: true, Warn: true, Detail: i18n.Tf("cmd.doctor.version.available", current, latest)}
+		return doctor.Result{OK: true, Warn: true, Detail: i18n.Tf("cmd.doctor.version.available", current, latest)}
 	default:
-		return views.DoctorCheck{OK: true, Detail: i18n.Tf("cmd.doctor.version.dev", current)}
+		return doctor.Result{OK: true, Detail: i18n.Tf("cmd.doctor.version.dev", current)}
 	}
 }
 
@@ -262,25 +200,25 @@ func ohUpdateResult(current, latest string) views.DoctorCheck {
 // should have been prevented. Projects without .beads/ are silently skipped
 // (pass). A project sharing .beads/ through git whose .gitignore does not
 // cover /.beads.gate.lock is a warning: the entry is for the team to add.
-func checkBeadsSanity() []views.DoctorCheck {
+func checkBeadsSanity() []doctor.Result {
 	a := TryApp()
 	if a == nil || a.Projects == nil {
-		return []views.DoctorCheck{{OK: true, Detail: i18n.T("cmd.doctor.beads.no_project")}}
+		return []doctor.Result{{OK: true, Detail: i18n.T("cmd.doctor.beads.no_project")}}
 	}
 
 	ctx := context.Background()
 	projects, err := a.Projects.List(ctx, "")
 	if err != nil {
-		return []views.DoctorCheck{{OK: true, Detail: i18n.T("cmd.doctor.beads.list_failed")}}
+		return []doctor.Result{{OK: true, Detail: i18n.T("cmd.doctor.beads.list_failed")}}
 	}
 	return beadsSanityResults(projects)
 }
 
 // beadsSanityResults checks the Beads projects among projects.
-func beadsSanityResults(projects []domain.Project) []views.DoctorCheck {
+func beadsSanityResults(projects []domain.Project) []doctor.Result {
 	var totalIssues, checkedCount int
 	var details []string
-	var warnings []views.DoctorCheck
+	var warnings []doctor.Result
 
 	for _, p := range projects {
 		if p.Path == "" || !beads.IsInitialized(p.Path) {
@@ -293,11 +231,11 @@ func beadsSanityResults(projects []domain.Project) []views.DoctorCheck {
 			details = append(details, fmt.Sprintf("[%s] %s: %s", p.Name, issue.Kind, issue.Detail))
 		}
 		if beads.SharedGateLockUnignored(p.Path) {
-			warnings = append(warnings, views.DoctorCheck{OK: true, Warn: true, Detail: i18n.Tf("cmd.doctor.beads.shared_gate_lock", p.Name)})
+			warnings = append(warnings, doctor.Result{OK: true, Warn: true, Detail: i18n.Tf("cmd.doctor.beads.shared_gate_lock", p.Name)})
 		}
 	}
 
-	var res views.DoctorCheck
+	var res doctor.Result
 	switch {
 	case totalIssues > 0:
 		summary := i18n.Tf("cmd.doctor.beads.issues", totalIssues)
@@ -306,11 +244,11 @@ func beadsSanityResults(projects []domain.Project) []views.DoctorCheck {
 		} else {
 			summary += ": " + strings.Join(details[:3], "; ") + " " + i18n.Tf("cmd.doctor.beads.more", len(details)-3)
 		}
-		res = views.DoctorCheck{Detail: summary + " — " + i18n.T("cmd.doctor.beads.fix_hint")}
+		res = doctor.Result{Detail: summary + " — " + i18n.T("cmd.doctor.beads.fix_hint")}
 	case checkedCount == 0:
-		res = views.DoctorCheck{OK: true, Detail: i18n.T("cmd.doctor.beads.none")}
+		res = doctor.Result{OK: true, Detail: i18n.T("cmd.doctor.beads.none")}
 	default:
-		res = views.DoctorCheck{OK: true, Detail: i18n.Tf("cmd.doctor.beads.ok", checkedCount)}
+		res = doctor.Result{OK: true, Detail: i18n.Tf("cmd.doctor.beads.ok", checkedCount)}
 	}
-	return append([]views.DoctorCheck{res}, warnings...)
+	return append([]doctor.Result{res}, warnings...)
 }
