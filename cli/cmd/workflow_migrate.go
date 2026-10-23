@@ -226,7 +226,7 @@ func migrateHubWorkflowConfig(a *app.App, m *workflowMigration, known legacyTarg
 		m.notice("hub", dir)
 	}
 	// Saving the configuration drops the section (no such field any more).
-	if err := config.Save(a.Config); err != nil {
+	if err := updateHubConfig(a, func(*config.Config) error { return nil }); err != nil {
 		m.Errors = append(m.Errors, fmt.Errorf(i18n.T("cmd.workflow_migrate.writing_hub_toml"), err))
 	}
 }

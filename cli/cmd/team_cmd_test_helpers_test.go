@@ -160,6 +160,9 @@ func setupTeamsTestApp(t *testing.T, teams []config.TeamConfig, projects []domai
 		Teams: teams,
 	}
 
+	// The commands change hub.toml as it is on disk: the teams are in it.
+	require.NoError(t, config.Save(cfg))
+
 	a := &app.App{
 		Config:   cfg,
 		Projects: &mockProjectStore{projects: projects},

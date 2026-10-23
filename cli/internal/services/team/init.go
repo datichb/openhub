@@ -84,13 +84,21 @@ func (s *Service) Init(ctx context.Context, p InitParams) error {
 // SaveTeam writes the team of stateRepo in hub.toml (enabled, its ID is the
 // name of the repository) and clears the legacy [team] section.
 func (s *Service) SaveTeam(stateRepo, statePath, memberID string) error {
-	s.Config.UpsertTeam(config.TeamConfig{
+	team := config.TeamConfig{
 		ID:        config.RepoNameFromRemote(stateRepo),
 		Enabled:   true,
 		StateRepo: stateRepo,
 		StatePath: statePath,
 		MemberID:  memberID,
+	}
+	fresh, err := config.UpdateAndGet(func(c *config.Config) error {
+		c.UpsertTeam(team)
+		c.Team = config.TeamConfig{}
+		return nil
 	})
-	s.Config.Team = config.TeamConfig{}
-	return config.Save(s.Config)
+	if err != nil {
+		return err
+	}
+	*s.Config = *fresh
+	return nil
 }

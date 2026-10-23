@@ -169,12 +169,19 @@ func runTeamsAdd(cmd *cobra.Command, _ []string) error {
 		id = config.RepoNameFromRemote(repo)
 	}
 
-	// Check for duplicates
-	if existing := a.Config.FindTeam(id); existing != nil {
-		return errors.New(i18n.Tf("cmd.teams.add.duplicate_id", id, existing.StateRepo))
+	// Check for duplicates, on the loaded config and again on the file at the
+	// time of the write
+	checkDuplicate := func(c *config.Config) error {
+		if existing := c.FindTeam(id); existing != nil {
+			return errors.New(i18n.Tf("cmd.teams.add.duplicate_id", id, existing.StateRepo))
+		}
+		if existing := c.FindTeamByRepo(repo); existing != nil {
+			return errors.New(i18n.Tf("cmd.teams.add.duplicate_repo", existing.ID))
+		}
+		return nil
 	}
-	if existing := a.Config.FindTeamByRepo(repo); existing != nil {
-		return errors.New(i18n.Tf("cmd.teams.add.duplicate_repo", existing.ID))
+	if err := checkDuplicate(a.Config); err != nil {
+		return err
 	}
 
 	// Build the new team entry
@@ -187,9 +194,13 @@ func runTeamsAdd(cmd *cobra.Command, _ []string) error {
 		MemberID:  memberID,
 	}
 
-	a.Config.Teams = append(a.Config.Teams, newTeam)
-
-	if err := config.Save(a.Config); err != nil {
+	if err := updateHubConfig(a, func(c *config.Config) error {
+		if err := checkDuplicate(c); err != nil {
+			return err
+		}
+		c.Teams = append(c.Teams, newTeam)
+		return nil
+	}); err != nil {
 		return fmt.Errorf("%s: %w", i18n.T("cmd.teams.save_error"), err)
 	}
 
@@ -245,15 +256,16 @@ func runTeamsRemove(cmd *cobra.Command, args []string) error {
 	}
 
 	// Remove from config
-	newTeams := make([]config.TeamConfig, 0, len(a.Config.Teams)-1)
-	for _, t := range a.Config.Teams {
-		if t.ID != teamID {
-			newTeams = append(newTeams, t)
+	if err := updateHubConfig(a, func(c *config.Config) error {
+		newTeams := make([]config.TeamConfig, 0, len(c.Teams))
+		for _, t := range c.Teams {
+			if t.ID != teamID {
+				newTeams = append(newTeams, t)
+			}
 		}
-	}
-	a.Config.Teams = newTeams
-
-	if err := config.Save(a.Config); err != nil {
+		c.Teams = newTeams
+		return nil
+	}); err != nil {
 		return fmt.Errorf("%s: %w", i18n.T("cmd.teams.save_error"), err)
 	}
 
@@ -334,14 +346,15 @@ func runTeamsArchive(_ *cobra.Command, args []string) error {
 	}
 
 	// Set enabled = false
-	for i := range a.Config.Teams {
-		if a.Config.Teams[i].ID == teamID {
-			a.Config.Teams[i].Enabled = false
-			break
+	if err := updateHubConfig(a, func(c *config.Config) error {
+		for i := range c.Teams {
+			if c.Teams[i].ID == teamID {
+				c.Teams[i].Enabled = false
+				break
+			}
 		}
-	}
-
-	if err := config.Save(a.Config); err != nil {
+		return nil
+	}); err != nil {
 		return fmt.Errorf("%s: %w", i18n.T("cmd.teams.save_error"), err)
 	}
 
@@ -372,14 +385,15 @@ func runTeamsRestore(_ *cobra.Command, args []string) error {
 	}
 
 	// Set enabled = true
-	for i := range a.Config.Teams {
-		if a.Config.Teams[i].ID == teamID {
-			a.Config.Teams[i].Enabled = true
-			break
+	if err := updateHubConfig(a, func(c *config.Config) error {
+		for i := range c.Teams {
+			if c.Teams[i].ID == teamID {
+				c.Teams[i].Enabled = true
+				break
+			}
 		}
-	}
-
-	if err := config.Save(a.Config); err != nil {
+		return nil
+	}); err != nil {
 		return fmt.Errorf("%s: %w", i18n.T("cmd.teams.save_error"), err)
 	}
 
