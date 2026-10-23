@@ -1,5 +1,5 @@
 ⚠ No active project: bundle built without the project MCP servers and models
-Agents (N)  ▶ orchestrator-dev (primary) · developer (subagent) · reviewer (primary)
+Agents (N)  ▶ orchestrator-dev (primary) · developer (subagent) · reviewer (all)
 On-demand skills  N · ~N tokens
 First turn  ~N tokens (entry agent N · skill catalogue N)
 Delegation depth  N · N permission rule(s)
