@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -18,8 +17,10 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/provider"
 	"github.com/datichb/openhub/cli/internal/runsvc"
+	"github.com/datichb/openhub/cli/internal/services/launch"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
 // oh bundle build|show: the session bundle of a workflow (replaces oh deploy
@@ -125,15 +126,7 @@ func buildBundleFor(cmd *cobra.Command, id string) (*bundle.Bundle, error) {
 
 // workflowError explains a resolution failure (findings printed to w).
 func workflowError(w io.Writer, id string, err error) error {
-	if errors.Is(err, workflowsvc.ErrUnknownWorkflow) {
-		return errors.New(i18n.Tf("cmd.workflow.show.unknown", id))
-	}
-	var invalid *workflowsvc.InvalidError
-	if errors.As(err, &invalid) {
-		printDiagnostics(w, invalid.Diagnostics)
-		return errors.New(i18n.Tf("cmd.workflow.show.invalid", len(invalid.Diagnostics.Errors())))
-	}
-	return err
+	return launch.ExplainResolveError(id, err, func(ds workflow.Diagnostics) { printDiagnostics(w, ds) })
 }
 
 // bundleProject returns the -p project, else the project of the current

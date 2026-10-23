@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/adapters"
+	"github.com/datichb/openhub/cli/internal/services/launch"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 )
 
@@ -93,7 +94,7 @@ func TestLaunchInputsOnTestWorkflows(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	in := launchInputs(feature.Spec, runOptions{Text: "ajoute un export", LooseInputs: map[string]string{"branch": "feat/x", "refresh": "true"}})
+	in := launch.LaunchInputs(feature.Spec, runOptions{Text: "ajoute un export", LooseInputs: map[string]string{"branch": "feat/x", "refresh": "true"}})
 	if len(in) != 1 || in["request"] != "ajoute un export" {
 		t.Fatalf("feature inputs = %v", in)
 	}
@@ -101,7 +102,7 @@ func TestLaunchInputsOnTestWorkflows(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	in = launchInputs(ticket.Spec, runOptions{Inputs: map[string]string{"branch": "explicit"}, Text: "ignored",
+	in = launch.LaunchInputs(ticket.Spec, runOptions{Inputs: map[string]string{"branch": "explicit"}, Text: "ignored",
 		LooseInputs: map[string]string{"branch": "loose"}})
 	if len(in) != 1 || in["branch"] != "explicit" {
 		t.Fatalf("ticket inputs = %v", in)
@@ -140,22 +141,22 @@ func TestLaunchTicketsExpandsEpics(t *testing.T) {
 
 	opts := runOptions{Workflow: "ticket", Tickets: []string{"pt-c3b"}}
 	in := map[string]any{}
-	input, per, err := launchTickets(ticket.Spec, &opts, in, src)
+	input, per, err := launch.LaunchTickets(ticket.Spec, &opts, in, src)
 	if err != nil || input != "ticket" || strings.Join(per, ",") != "pt-c3b.1,pt-c3b.2" || in["ticket"] != "pt-c3b.1" {
 		t.Fatalf("per session: %q %v %v %v", input, per, in, err)
 	}
-	if len(opts.epics) != 1 || opts.epics[0].Epic != "pt-c3b" {
-		t.Fatalf("epics = %+v", opts.epics)
+	if len(opts.Epics) != 1 || opts.Epics[0].Epic != "pt-c3b" {
+		t.Fatalf("epics = %+v", opts.Epics)
 	}
 
 	opts = runOptions{Workflow: "ticket", Tickets: []string{"pt-c3b"}, OneSession: true}
 	in = map[string]any{}
-	if _, per, err = launchTickets(ticket.Spec, &opts, in, src); err != nil || per != nil || in["ticket"] != "pt-c3b.1,pt-c3b.2" {
+	if _, per, err = launch.LaunchTickets(ticket.Spec, &opts, in, src); err != nil || per != nil || in["ticket"] != "pt-c3b.1,pt-c3b.2" {
 		t.Fatalf("one session: %v %v %v", per, in, err)
 	}
 
 	opts = runOptions{Workflow: "ticket", Tickets: []string{"pt-empty"}}
-	if _, _, err = launchTickets(ticket.Spec, &opts, map[string]any{}, src); err == nil || !strings.Contains(err.Error(), "pt-empty") {
+	if _, _, err = launch.LaunchTickets(ticket.Spec, &opts, map[string]any{}, src); err == nil || !strings.Contains(err.Error(), "pt-empty") {
 		t.Fatalf("empty epic: %v", err)
 	}
 }

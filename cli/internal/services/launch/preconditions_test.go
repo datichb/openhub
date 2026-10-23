@@ -1,4 +1,4 @@
-package cmd
+package launch
 
 import (
 	"os"
@@ -164,5 +164,38 @@ preconditions:
 	existing := []runsvc.PlannedSession{{Location: runsvc.Location{Path: dir, Kind: runsvc.LocationWorktree}}}
 	if check(existing, false) == nil {
 		t.Fatal("an existing worktree is read as it is")
+	}
+}
+
+func TestPreconditionWarnings(t *testing.T) {
+	doc, diags := workflow.Parse([]byte(`apiVersion: oh/v1
+kind: Workflow
+id: feature
+preconditions:
+  context:
+    label: Contexte projet
+    check: { path_exists: [docs/wiki] }
+    on_fail: suggest
+    suggest: { workflow: onboarding, resume: true }
+  config:
+    check: { path_exists: [oh.toml] }
+    on_fail: block
+`), workflow.Source{Layer: workflow.LayerHub})
+	if diags.HasErrors() {
+		t.Fatal(diags)
+	}
+	dir := t.TempDir()
+	if _, _, err := preconditionWarnings(doc.Spec, dir); err == nil {
+		t.Fatal("failed block precondition must refuse the launch")
+	}
+	if err := os.WriteFile(filepath.Join(dir, "oh.toml"), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	warns, sugg, err := preconditionWarnings(doc.Spec, dir)
+	if err != nil || len(warns) != 1 || warns[0].Code != "precondition" || warns[0].Args[1] != "onboarding" {
+		t.Fatalf("warns = %+v (%v)", warns, err)
+	}
+	if len(sugg) != 1 || sugg[0].Workflow != "onboarding" || !sugg[0].Resume || sugg[0].Label != "Contexte projet" {
+		t.Fatalf("suggestions = %+v", sugg)
 	}
 }

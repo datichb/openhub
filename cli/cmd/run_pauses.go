@@ -44,10 +44,10 @@ func recapPauses(wf *sessionspec.WorkflowRuntime, mode string) string {
 
 // printRunPauses prints the pauses planned for the launch (oh run).
 func printRunPauses(w io.Writer, p *preparedRun) {
-	if p.bundle == nil || p.bundle.Spec.Workflow == nil {
+	if p.Bundle == nil || p.Bundle.Spec.Workflow == nil {
 		return
 	}
-	if text := recapPauses(p.bundle.Spec.Workflow, p.resolution.Mode); text != "" {
+	if text := recapPauses(p.Bundle.Spec.Workflow, p.Resolution.Mode); text != "" {
 		fmt.Fprintf(w, "  %s %s\n", theme.Subtitle.Render(i18n.T("cmd.run.recap.pauses")), text)
 	}
 }

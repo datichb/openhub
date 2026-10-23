@@ -41,7 +41,7 @@ func startEvalFanout(ctx context.Context, a *app.App, parent string, spec evalPa
 		return f
 	}
 	d, err := newFanoutDriver(ctx, a, sess, log, func(p *preparedRun) {
-		p.plan.Request.Base.MaxTokens = evalMaxTokens(spec.Model, spec.BudgetUSD)
+		p.Plan.Request.Base.MaxTokens = evalMaxTokens(spec.Model, spec.BudgetUSD)
 	})
 	if err != nil {
 		f.err = err

@@ -1,13 +1,13 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
 	"io"
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/services/launch"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 	"github.com/datichb/openhub/cli/internal/workflow"
@@ -21,13 +21,11 @@ import (
 
 // remoteExperimental reports whether the remote mode is enabled.
 func remoteExperimental(a *app.App) bool {
-	return a != nil && a.Config != nil && a.Config.Remote.Experimental
+	return a != nil && launch.RemoteExperimental(a.Config)
 }
 
 // errRemoteDisabled is the translated refusal of a remote entry point.
-func errRemoteDisabled() error {
-	return errors.New(i18n.T("cmd.remote.experimental.disabled"))
-}
+func errRemoteDisabled() error { return launch.ErrRemoteDisabled() }
 
 // requireRemoteExperimental refuses when the remote mode is not enabled.
 func requireRemoteExperimental(a *app.App) error {
@@ -46,7 +44,7 @@ func printRemoteExperimentalWarning(w io.Writer) {
 // remoteRecapWarnings is the permanent warning of a remote launch in the
 // recap (oh run --recap, TUI launch form).
 func remoteRecapWarnings(p *preparedRun) []string {
-	if p == nil || p.remote == nil {
+	if p == nil || p.Remote == nil {
 		return nil
 	}
 	return []string{i18n.T("cmd.remote.experimental.warning")}
@@ -57,16 +55,7 @@ func remoteRecapWarnings(p *preparedRun) []string {
 // default while it is disabled, unless the workflow allows nothing else (the
 // launch is then refused with the experimental message).
 func pickLaunchRuntime(a *app.App, sp *workflow.Spec, project *domain.Project) workflow.Runtime {
-	rt := sp.PickRuntime(runtimePrefs(a, project)...)
-	if rt != workflow.RuntimeRemote || remoteExperimental(a) {
-		return rt
-	}
-	for _, r := range sp.AllowedRuntimes() {
-		if r != workflow.RuntimeRemote {
-			return r
-		}
-	}
-	return rt
+	return launch.PickRuntime(a.Config, sp, project)
 }
 
 // remoteExperimentalDoctorCheck reports the state of the remote mode: nothing

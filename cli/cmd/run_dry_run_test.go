@@ -137,9 +137,9 @@ func TestRunDryRunPreparedRunCannotStart(t *testing.T) {
 	a, p := dryRunHub(t)
 	prep, err := prepareWorkflowRun(context.Background(), a, runOptions{Workflow: "libre", Project: p, Inputs: map[string]string{}, DryRun: true}, &bytes.Buffer{})
 	require.NoError(t, err)
-	assert.Nil(t, prep.svc.OnTicketsStarted, "no ticket claim")
-	assert.Nil(t, prep.svc.LocalShellEnv)
-	_, err = prep.start(context.Background(), a, nil)
+	assert.Nil(t, prep.Svc.OnTicketsStarted, "no ticket claim")
+	assert.Nil(t, prep.Svc.LocalShellEnv)
+	_, err = startRun(context.Background(), a, prep, nil)
 	assert.ErrorContains(t, err, "never starts a session")
 }
 

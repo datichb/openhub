@@ -17,6 +17,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/launcher"
 	"github.com/datichb/openhub/cli/internal/runsvc"
+	"github.com/datichb/openhub/cli/internal/services/launch"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
@@ -167,8 +168,8 @@ func launchFormConfig(ctx context.Context, a *app.App, project *domain.Project, 
 			return nil, tuiLaunchError(err)
 		}
 		rows, warns := launchRecap(p)
-		out := &views.LaunchRecap{Warnings: warns, Dirty: planDirty(p.plan), Existing: tuiExisting(p.plan), NeedsChoice: p.plan.NeedsChoice}
-		for _, s := range p.suggestions {
+		out := &views.LaunchRecap{Warnings: warns, Dirty: planDirty(p.Plan), Existing: tuiExisting(p.Plan), NeedsChoice: p.Plan.NeedsChoice}
+		for _, s := range p.Suggestions {
 			label := i18n.Tf("cmd.run.precondition_first", s.Workflow)
 			if s.Resume {
 				label = i18n.Tf("cmd.run.precondition_first_resume", s.Workflow, sp.ID)
@@ -189,8 +190,8 @@ func launchFormConfig(ctx context.Context, a *app.App, project *domain.Project, 
 		}
 		runs.reset() // a plan starts once
 		// Image build output, shown by the form while launching.
-		p.plan.Request.Base.Progress = cfg.Progress.Line
-		results, err := p.start(ctx, a, tuiLaunchUI())
+		p.Plan.Request.Base.Progress = cfg.Progress.Line
+		results, err := startRun(ctx, a, p, tuiLaunchUI())
 		if tuiStartWiring != nil {
 			tuiStartWiring.invalidate() // recents
 		}
@@ -220,7 +221,7 @@ func launchFormConfig(ctx context.Context, a *app.App, project *domain.Project, 
 		if err != nil {
 			return err
 		}
-		for _, s := range p.suggestions {
+		for _, s := range p.Suggestions {
 			if s.Workflow == workflowID {
 				_, err = runSuggestedFirst(ctx, a, opts(c), s, tuiLaunchUI())
 				if tuiStartWiring != nil {
@@ -260,7 +261,7 @@ func (c *tuiRunCache) get(ctx context.Context, a *app.App, opts runOptions) (*pr
 		if c.opts.OnExisting != opts.OnExisting || c.opts.DiscardBaseChanges != opts.DiscardBaseChanges {
 			// Another choice for the existing session: planned again, no
 			// new resolution or bundle build.
-			if err := c.p.replan(ctx, opts.OnExisting, opts.DiscardBaseChanges); err != nil {
+			if err := launch.Replan(ctx, c.p, opts.OnExisting, opts.DiscardBaseChanges); err != nil {
 				c.p = nil
 				return nil, err
 			}

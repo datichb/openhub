@@ -1,8 +1,6 @@
 package cmd
 
 import (
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -41,59 +39,6 @@ func TestRunOptionsFromFlags(t *testing.T) {
 	}
 	if _, err := runOptionsFromFlags(runFlagsCmd(t, "-i", "novalue"), "ticket"); err == nil {
 		t.Fatal("input without '=' accepted")
-	}
-}
-
-func TestSessionBranch(t *testing.T) {
-	doc, diags := workflow.Parse([]byte("apiVersion: oh/v1\nkind: Workflow\nid: ticket\ninputs:\n  branch: { type: branch }\n"),
-		workflow.Source{Layer: workflow.LayerHub})
-	if diags.HasErrors() {
-		t.Fatal(diags)
-	}
-	if got := sessionBranch(doc.Spec, map[string]any{"branch": "feat/bd-1"}, "bd-1", "x"); got != "feat/bd-1" {
-		t.Fatalf("branch input: %q", got)
-	}
-	if got := sessionBranch(doc.Spec, map[string]any{}, "bd-1", ""); got != "oh/ticket-bd-1" {
-		t.Fatalf("fallback: %q", got)
-	}
-	if got := sessionBranch(doc.Spec, map[string]any{}, "bd-1", "feat/w"); got != "feat/w" {
-		t.Fatalf("explicit fallback: %q", got)
-	}
-	if got := sessionBranch(doc.Spec, nil, "", ""); !strings.HasPrefix(got, "oh/ticket-2") {
-		t.Fatalf("timestamp fallback: %q", got)
-	}
-}
-
-func TestPreconditionWarnings(t *testing.T) {
-	doc, diags := workflow.Parse([]byte(`apiVersion: oh/v1
-kind: Workflow
-id: feature
-preconditions:
-  context:
-    label: Contexte projet
-    check: { path_exists: [docs/wiki] }
-    on_fail: suggest
-    suggest: { workflow: onboarding, resume: true }
-  config:
-    check: { path_exists: [oh.toml] }
-    on_fail: block
-`), workflow.Source{Layer: workflow.LayerHub})
-	if diags.HasErrors() {
-		t.Fatal(diags)
-	}
-	dir := t.TempDir()
-	if _, _, err := preconditionWarnings(doc.Spec, dir); err == nil {
-		t.Fatal("failed block precondition must refuse the launch")
-	}
-	if err := os.WriteFile(filepath.Join(dir, "oh.toml"), nil, 0o600); err != nil {
-		t.Fatal(err)
-	}
-	warns, sugg, err := preconditionWarnings(doc.Spec, dir)
-	if err != nil || len(warns) != 1 || warns[0].Code != "precondition" || warns[0].Args[1] != "onboarding" {
-		t.Fatalf("warns = %+v (%v)", warns, err)
-	}
-	if len(sugg) != 1 || sugg[0].Workflow != "onboarding" || !sugg[0].Resume || sugg[0].Label != "Contexte projet" {
-		t.Fatalf("suggestions = %+v", sugg)
 	}
 }
 
@@ -137,11 +82,11 @@ func TestRunRecapRows(t *testing.T) {
 		{ID: "cp-2", Behaviors: map[string]string{"semi-auto": "skip"}, Mandatory: true},
 	}
 	p := &preparedRun{
-		opts:       runOptions{epics: []workflowsvc.EpicExpansion{{Epic: "pt-c3b", Children: []string{"pt-c3b.1", "pt-c3b.2"}}}},
-		project:    &domain.Project{Name: "p"},
-		resolution: &workflowsvc.Resolution{Resolved: &workflow.Resolved{Spec: &workflow.Spec{ID: "ticket"}, Mode: "semi-auto"}},
-		bundle:     &bundle.Bundle{Spec: sessionspec.BundleSpec{CodeMode: true, Workflow: &sessionspec.WorkflowRuntime{ID: "ticket", Checkpoints: cps}}},
-		plan: &runsvc.RunPlan{Request: runsvc.RunRequest{Base: runsvc.StartRequest{BeadsAllow: []string{"show", "close"}}},
+		Opts:       runOptions{Epics: []workflowsvc.EpicExpansion{{Epic: "pt-c3b", Children: []string{"pt-c3b.1", "pt-c3b.2"}}}},
+		Project:    &domain.Project{Name: "p"},
+		Resolution: &workflowsvc.Resolution{Resolved: &workflow.Resolved{Spec: &workflow.Spec{ID: "ticket"}, Mode: "semi-auto"}},
+		Bundle:     &bundle.Bundle{Spec: sessionspec.BundleSpec{CodeMode: true, Workflow: &sessionspec.WorkflowRuntime{ID: "ticket", Checkpoints: cps}}},
+		Plan: &runsvc.RunPlan{Request: runsvc.RunRequest{Base: runsvc.StartRequest{BeadsAllow: []string{"show", "close"}}},
 			Sessions: []runsvc.PlannedSession{{Location: runsvc.Location{Path: "/p", Kind: runsvc.LocationBase}}},
 			Warnings: []runsvc.Warning{{Code: runsvc.WarnDirtyWorktree, Args: []any{"/p", "/p-x"}}}},
 	}
@@ -161,13 +106,13 @@ func TestRunRecapRows(t *testing.T) {
 			t.Errorf("%s = %q, want %q", k, got[k], v)
 		}
 	}
-	if len(warns) != 1 || !strings.Contains(warns[0], "/p-x") || !planDirty(p.plan) {
+	if len(warns) != 1 || !strings.Contains(warns[0], "/p-x") || !planDirty(p.Plan) {
 		t.Fatalf("warnings = %v", warns)
 	}
 	if recapBeads(nil) != i18n.T("cmd.run.recap.beads_default") || recapBeads([]string{}) != i18n.T("cmd.run.recap.beads_none") {
 		t.Fatal("beads defaults")
 	}
-	p.bundle.Spec.Workflow.Checkpoints = nil
+	p.Bundle.Spec.Workflow.Checkpoints = nil
 	rows, _ = runRecap(p)
 	for _, r := range rows {
 		if r[0] == i18n.T("cmd.run.recap.checkpoints") {

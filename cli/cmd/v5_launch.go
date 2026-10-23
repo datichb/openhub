@@ -92,10 +92,6 @@ func attachPreference(a *app.App) string {
 	return string(sessionspec.AttachAuto)
 }
 
-func sessionTitle(p *domain.Project, entry string) string {
-	return p.Name + " · " + entry
-}
-
 // runAttachInline runs the tool client in the current terminal (TUI suspended).
 func runAttachInline(ctx context.Context, a *app.App, svc *runsvc.Service, ui launcher.LaunchUI, sessionID string) error {
 	run := func() error { return runAttachChild(ctx, a, svc, sessionID) }

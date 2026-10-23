@@ -12,6 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
+	"github.com/datichb/openhub/cli/internal/services/launch"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
@@ -82,7 +83,7 @@ func TestRemoteEntryPointsRefusedWithoutFlag(t *testing.T) {
 	cmd.SetOut(&bytes.Buffer{})
 	cmd.SetErr(&bytes.Buffer{})
 
-	_, err := prepareRemote(ctx, a, &domain.Project{ID: "p1", Name: "p1"}, nil)
+	_, err := launch.PrepareRemote(ctx, launchDeps(a), &domain.Project{ID: "p1", Name: "p1"}, nil)
 	assertRemoteDisabled(t, "oh run --runtime remote", err)
 	setup := remoteSetupCmd()
 	setup.SetContext(ctx)
@@ -149,7 +150,7 @@ func TestRemoteExperimentalWarnings(t *testing.T) {
 // The recap of a remote launch carries the warning.
 func TestRunRecapWarnsRemote(t *testing.T) {
 	i18ntest.Set(t, "en")
-	if !strings.Contains(strings.Join(remoteRecapWarnings(&preparedRun{remote: &remotePrep{}}), "\n"), "Experimental remote mode") {
+	if !strings.Contains(strings.Join(remoteRecapWarnings(&preparedRun{Remote: &launch.RemotePrep{}}), "\n"), "Experimental remote mode") {
 		t.Fatal("remote recap without the experimental warning")
 	}
 	if len(remoteRecapWarnings(&preparedRun{})) != 0 {

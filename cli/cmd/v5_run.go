@@ -2,565 +2,43 @@ package cmd
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/datichb/openhub/cli/internal/app"
-	"github.com/datichb/openhub/cli/internal/beads"
 	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/launcher"
-	"github.com/datichb/openhub/cli/internal/provider"
 	"github.com/datichb/openhub/cli/internal/runsvc"
-	"github.com/datichb/openhub/cli/internal/services/checkpoint"
-	remotesvc "github.com/datichb/openhub/cli/internal/services/remote"
-	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
+	"github.com/datichb/openhub/cli/internal/services/launch"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
-	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
-// Workflow launches (oh run, aliases, TUI launch form): resolve the
-// workflow, compile its bundle, plan the sessions (locations, warnings),
-// render their prompts, then start them through the RunService.
+// Workflow launches (oh run, aliases, TUI launch form): the resolution, the
+// bundle, the plan of the sessions and their start are the services/launch
+// package; what stays here is what the command line shows (recap, warnings),
+// the opening of the client and the wiring of the service to the app.
 
 // requestInput is the input -m fills (oh run -m).
-const requestInput = "request"
+const requestInput = launch.RequestInput
 
 // runOptions are the choices of a workflow launch.
-type runOptions struct {
-	Workflow string
-	Project  *domain.Project
-	Provider string // --provider ("" = project / hub default)
-	Inputs   map[string]string
-	// Tickets starts one session per ticket when the ticket input accepts
-	// several (picker.multi), else fills a beads-ids input.
-	Tickets         []string
-	Mode            string
-	Runtime         string
-	Location        string // base | new | <worktree path>
-	Attach          string // "" = configured preference
-	ParentSessionID string
-	// LooseInputs are kept only when the workflow declares them (aliases of
-	// the former commands map their flags this way).
-	LooseInputs map[string]string
-	// Message is true when Inputs[request] comes from -m: the resolved
-	// workflow must declare a request input.
-	Message bool
-	// Text goes to the first free text input (text, else string) that is
-	// not set otherwise (former --prompt, --issue…).
-	Text string
-	// Branch names the worktree branch when the workflow has no branch input.
-	Branch string
-	// OneSession gives every ticket to a single session (the workflow
-	// handles several tickets) instead of one session per ticket.
-	OneSession bool
-	// Agent replaces the entry agent of a workflow whose entry is selectable
-	// (`libre`, former `oh start --agent`).
-	Agent string
-	// Draft resolves the workflow with the member's drafts (local only, may
-	// not loosen the published version).
-	Draft bool
-	// Dirty is what a writing session does in a directory with uncommitted
-	// changes: a new worktree (default), --allow-dirty or --stash.
-	Dirty runsvc.DirtyPolicy
-	// epics are the epics of Tickets replaced by their open children (set
-	// by the launch).
-	epics []workflowsvc.EpicExpansion
-	// Progress receives preparation output (container image build).
-	Progress func(line string)
-	// OnExisting is what is done with an open session already working on a
-	// ticket of the launch (--on-existing; "" = ask, or refused for the
-	// same workflow).
-	OnExisting runsvc.OnExisting
-	// DiscardBaseChanges lets OnExistingDelete discard the uncommitted
-	// changes of a session that worked in the project directory.
-	DiscardBaseChanges bool
-	// DryRun prepares the launch to show it (oh run --dry-run) without any
-	// effect on the project or the team: no ticket claim, no remote
-	// preparation, no shell files of local sessions. The one thing written
-	// is the session bundle, content-addressed in ~/.oh/bundles (shared by
-	// every launch of the same content, removed by `oh gc` when unused).
-	DryRun bool
-}
+type runOptions = launch.Options
 
 // preparedRun is a launch ready to start: its plan can be shown (recap).
-type preparedRun struct {
-	opts       runOptions
-	project    *domain.Project
-	resolution *workflowsvc.Resolution
-	bundle     *bundle.Bundle
-	svc        *runsvc.Service
-	plan       *runsvc.RunPlan
-	// suggestions are the failed `suggest` preconditions (run another
-	// workflow first).
-	suggestions []preconditionSuggestion
-	// remote is set for a remote launch (sessions sent to GitLab CI).
-	remote *remotePrep
+type preparedRun = launch.Prepared
 
-	// What planning again needs (replan: another choice for the existing
-	// sessions): the resolution and prompt values of each session.
-	sessions    []*workflowsvc.Resolution
-	values      []map[string]any
-	ticketInput string
-	preconds    []runsvc.Warning
-	missingMCP  []string
-}
-
-// prepareWorkflowRun resolves, compiles and plans a launch.
+// prepareWorkflowRun resolves, compiles and plans a launch. What the
+// preparation tells goes to opts.Progress, else to errOut.
 func prepareWorkflowRun(ctx context.Context, a *app.App, opts runOptions, errOut io.Writer) (*preparedRun, error) {
-	if err := requireV2(ctx); err != nil {
-		return nil, err
+	if opts.Progress == nil {
+		opts.Progress = launchProgress(nil, errOut)
 	}
-	if opts.Project == nil {
-		return nil, errors.New(i18n.T("cmd.run.no_project"))
-	}
-	res, ticketInput, perSession, err := resolveLaunch(ctx, a, &opts, errOut)
-	if err != nil {
-		return nil, err
-	}
-	if opts.DryRun && sessionspec.RuntimeKind(res.Runtime) == sessionspec.RuntimeRemote {
-		return nil, errors.New(i18n.T("cmd.run.dry_run.remote"))
-	}
-	if res.Fanout {
-		// R6: experimental, local, one parent session for every ticket.
-		if err := checkFanoutLaunch(a, sessionspec.RuntimeKind(res.Runtime), perSession); err != nil {
-			return nil, err
-		}
-	}
-	// Credentials checked before anything is built or asked of the daemon
-	// (N12). A remote session gets its own from the runner.
-	if sessionspec.RuntimeKind(res.Runtime) != sessionspec.RuntimeRemote {
-		if err := launchCredentials(ctx, a, opts.Project, opts.Provider); err != nil {
-			return nil, err
-		}
-	}
-
-	svc, err := newRunServiceFor(ctx, a, opts.DryRun)
-	if err != nil {
-		return nil, err
-	}
-	if !opts.DryRun {
-		svc.OnTicketsStarted = startTicketClaims(a, opts.Project)
-	}
-	kind := sessionspec.RuntimeKind(res.Runtime)
-	var rp *remotePrep
-	if kind == sessionspec.RuntimeRemote {
-		if rp, err = prepareRemote(ctx, a, opts.Project, res); err != nil {
-			return nil, err
-		}
-	} else if av, err := svc.RuntimeAvailability(ctx, kind); err != nil || !av.OK {
-		reason := av.Message()
-		if err != nil {
-			reason = err.Error()
-		}
-		return nil, errors.New(i18n.Tf("cmd.run.runtime_unavailable", string(kind), reason))
-	}
-
-	prov := provider.ResolveProvider(opts.Provider, opts.Project.Provider, a.Config.LLM.DefaultProvider)
-	b, missingMCP, err := buildWorkflowBundle(a, opts.Project, res, prov)
-	if err != nil {
-		return nil, fmt.Errorf(i18n.T("cmd.v5_run.building_session_bundle"), err)
-	}
-
-	base := v5Request(a, opts.Project, opts.Provider)
-	base.Bundle, base.Mode, base.Runtime, base.Progress = b, res.Mode, kind, opts.Progress
-	base.Title = sessionTitle(opts.Project, res.Spec.ID)
-	base.Limits = sessionLimits(ctx, a, opts.Project, res.Spec)
-	if res.Spec.Beads != nil {
-		base.BeadsAllow = append([]string{}, res.Spec.Beads.Allow...) // non-nil: declared
-	}
-	// p6-debts: a file scope given at launch (sweep-task by hand) is checked
-	// now, as oh checks the tasks of a breakdown.
-	if id := res.Spec.ScopeInput(); id != "" {
-		if raw, _ := res.Inputs[id].(string); strings.TrimSpace(raw) != "" {
-			dir := opts.Project.Path
-			if l := runsvc.ParseLocation(opts.Location); l.Kind == runsvc.LocationWorktree {
-				dir = l.Path
-			}
-			if _, problems := checkpoint.CheckScope(ctx, dir, id, raw); len(problems) > 0 {
-				return nil, errors.New(i18n.Tf("cmd.run.scope_refused", id, "- "+strings.Join(problems, "\n- ")))
-			}
-		}
-	}
-	// The inputs passed on by `next:` (the method of spec), recorded now.
-	base.Outputs = res.Spec.RecordedInputs(res.Inputs)
-	if res.Fanout {
-		base.Fanout = fanoutParentRecord(a)
-		// The inputs the workflow gives to the children (fanout.inputs:
-		// method, instructions), when the session got them.
-		base.Fanout.ChildInputs = res.Spec.ChildInputs(res.Inputs)
-	}
-	if kind == sessionspec.RuntimeContainer {
-		if id := gitIdentityEnv(opts.Project.Path); len(id) > 0 {
-			base.SessionEnv = id // commits from the container shell
-		}
-	}
-	if opts.Attach != "" {
-		base.Attach = sessionspec.AttachPref(opts.Attach)
-	}
-	req := runsvc.RunRequest{
-		Base: base, ProjectPath: opts.Project.Path, Location: runsvc.ParseLocation(opts.Location),
-		Workflow:        runsvc.WorkflowRef{ID: res.Spec.ID, Layer: string(res.Ref.Layer), Version: res.Spec.Version, Risk: string(res.Spec.Risk)},
-		ParentSessionID: opts.ParentSessionID, Dirty: opts.Dirty,
-		OnExisting: opts.OnExisting, DiscardBaseChanges: opts.DiscardBaseChanges,
-	}
-	if kind == sessionspec.RuntimeRemote {
-		req.Dirty = runsvc.DirtyAllow // the job clones the project
-	}
-	if req.Workflow.Risk == "" {
-		req.Workflow.Risk = string(workflow.RiskWrite)
-	}
-	// One resolution per session: the ticket input changes the defaults
-	// (branch) and the prompt.
-	sessions := []*workflowsvc.Resolution{res}
-	labels := []string{""}
-	if len(perSession) > 0 {
-		sessions, labels = nil, nil
-		for _, t := range perSession {
-			in := map[string]any{}
-			for k, v := range res.Inputs {
-				in[k] = v
-			}
-			in[ticketInput] = t
-			sessions = append(sessions, res.WithInputs(in))
-			labels = append(labels, t)
-		}
-	}
-	values := make([]map[string]any, len(sessions))
-	for i, r := range sessions {
-		v, err := r.Values(workflowsvc.PromptContext{Project: opts.Project.Name, Lang: i18n.Locale()})
-		if err != nil {
-			return nil, err
-		}
-		values[i] = v
-		label := labels[i]
-		if label == "" && ticketInput != "" {
-			if t, ok := v[ticketInput].(string); ok {
-				label = t
-			}
-		}
-		title := base.Title
-		if label != "" {
-			title += " · " + label
-		}
-		req.Sessions = append(req.Sessions, runsvc.PlannedInput{Label: label, Title: title, Branch: sessionBranch(res.Spec, v, label, opts.Branch),
-			Tickets: remoteTickets(v, ticketInput)})
-	}
-	p := &preparedRun{opts: opts, project: opts.Project, resolution: res, bundle: b, svc: svc, remote: rp,
-		sessions: sessions, values: values, ticketInput: ticketInput, missingMCP: missingMCP}
-	if err := p.planRun(ctx, req); err != nil {
-		return nil, err
-	}
-	return p, nil
-}
-
-// replan plans the launch again with another choice for the open sessions
-// of its tickets (no new resolution or bundle build).
-func (p *preparedRun) replan(ctx context.Context, choice runsvc.OnExisting, discardBase bool) error {
-	req := p.plan.Request
-	req.OnExisting, req.DiscardBaseChanges = choice, discardBase
-	p.opts.OnExisting, p.opts.DiscardBaseChanges = choice, discardBase
-	return p.planRun(ctx, req)
-}
-
-// planRun plans the sessions of the launch and renders their prompts.
-func (p *preparedRun) planRun(ctx context.Context, req runsvc.RunRequest) error {
-	opts, rp := p.opts, p.remote
-	plan, err := p.svc.Plan(ctx, req)
-	if err != nil {
-		return runPlanError(err)
-	}
-	// p6-debts: the preconditions are read where the session works (its
-	// worktree with --location new), not in the project directory.
-	fsys, probe := preconditionTarget(opts.Project.Path, plan.Sessions, rp != nil)
-	if p.preconds, p.suggestions, err = preconditionWarningsIn(p.resolution.Spec, fsys, probe); err != nil {
-		return err
-	}
-	plan.Warnings = append(append([]runsvc.Warning{}, p.preconds...), plan.Warnings...)
-	for _, m := range p.missingMCP {
-		plan.Warnings = append(plan.Warnings, runsvc.Warning{Code: "mcp_missing", Args: []any{m}})
-	}
-	if rp != nil {
-		// Remote: the job clones the project; no local location, warning or
-		// existing session to continue.
-		plan.Warnings = p.preconds
-		plan.Existing, plan.NeedsChoice = nil, false
-		rp.tickets, rp.inputs = nil, nil
-		for i := range plan.Sessions {
-			plan.Sessions[i].Existing, plan.Sessions[i].Action = "", ""
-			rp.tickets = append(rp.tickets, remoteTickets(p.values[i], p.ticketInput))
-			rp.inputs = append(rp.inputs, p.sessions[i].Inputs)
-		}
-	}
-	memories := ""
-	if beads.IsInitialized(opts.Project.Path) {
-		if m, err := beads.Memories(opts.Project.Path); err == nil {
-			memories = m
-		}
-	}
-	for i := range plan.Sessions {
-		loc := plan.Sessions[i].Location.Path
-		branch := plan.Sessions[i].Location.WorkBranch(opts.Project.Path)
-		if rp != nil {
-			loc = remotesvc.WorkDir(opts.Project.Name)
-		}
-		prompt, err := p.sessions[i].RenderPrompt(workflowsvc.PromptContext{Project: opts.Project.Name,
-			Location: loc, Branch: branch, Lang: i18n.Locale(), Memories: memories})
-		if err != nil {
-			return err
-		}
-		plan.Sessions[i].Prompt = prompt
-	}
-	p.plan = plan
-	return nil
-}
-
-// resolveLaunch resolves the workflow of a launch with its inputs: the
-// ticket input and the ticket of each session (multi-tickets).
-func resolveLaunch(ctx context.Context, a *app.App, opts *runOptions, errOut io.Writer) (res *workflowsvc.Resolution, ticketInput string, perSession []string, err error) {
-	wsvc := newWorkflowService(ctx)
-	resolve := wsvc.Resolve
-	if opts.Draft {
-		resolve = wsvc.ResolveDraft
-	}
-	// R5: an alias (`aliases:`) launches its target; `with` routes it by
-	// the inputs given (feature --tickets → implement-spec).
-	asked := opts.Workflow
-	if target, ok := wsvc.ResolveAlias(ctx, workflowsvc.Context{ProjectID: opts.Project.ID}, opts.Workflow, func(input string) bool {
-		return strings.TrimSpace(opts.Inputs[input]) != "" || (len(opts.Tickets) > 0 && aliasTicketInput(ctx, wsvc, opts.Project.ID, opts.Workflow, input))
-	}); ok {
-		fmt.Fprintln(errOut, "  "+i18n.Tf("cmd.run.alias", opts.Workflow, target))
-		opts.Workflow = target
-	}
-	// Resolve once to learn the inputs (ticket input), then with the inputs.
-	// No session options here: they would check the required inputs, not
-	// known yet (every workflow with a required input was refused).
-	probe, err := resolve(ctx, workflowsvc.Context{ProjectID: opts.Project.ID}, opts.Workflow, workflowsvc.ResolveOpts{})
-	if err != nil {
-		return nil, "", nil, workflowError(errOut, opts.Workflow, err)
-	}
-	if _, declared := probe.Spec.Inputs.Get(requestInput); opts.Message && !declared {
-		return nil, "", nil, messageWithoutRequest(asked, probe.Spec)
-	}
-	inputs := launchInputs(probe.Spec, *opts)
-	if opts.Runtime == "" {
-		opts.Runtime = string(pickLaunchRuntime(a, probe.Spec, opts.Project))
-	}
-	ticketInput, perSession, err = launchTickets(probe.Spec, opts, inputs, beadsTicketSource(opts.Project))
-	if err != nil {
-		return nil, "", nil, err
-	}
-	// Inputs computed by oh (`from:`, e.g. the discussions of a merge
-	// request) when they are not given.
-	wsvc.InputSources = inputSources(a, noteTo(errOut))
-	if err := wsvc.ComputeInputs(ctx, workflowsvc.Context{ProjectID: opts.Project.ID, FromSession: opts.ParentSessionID}, probe.Spec, inputs); err != nil {
-		return nil, "", nil, err
-	}
-	res, err = resolve(ctx, workflowsvc.Context{ProjectID: opts.Project.ID}, opts.Workflow, workflowsvc.ResolveOpts{
-		Session: &workflow.SessionOptions{Mode: opts.Mode, Runtime: workflow.Runtime(opts.Runtime), Inputs: inputs, EntryAgent: opts.Agent}})
-	if err != nil {
-		return nil, "", nil, workflowError(errOut, opts.Workflow, err)
-	}
-
-	return res, ticketInput, perSession, nil
-}
-
-// aliasTicketInput reports whether input is the ticket input of a target
-// of alias id (--tickets fills it).
-func aliasTicketInput(ctx context.Context, wsvc *workflowsvc.Service, projectID, id, input string) bool {
-	for _, target := range wsvc.AliasTargetIDs(ctx, workflowsvc.Context{ProjectID: projectID}, id) {
-		res, _ := wsvc.Resolve(ctx, workflowsvc.Context{ProjectID: projectID}, target, workflowsvc.ResolveOpts{})
-		if res == nil {
-			continue
-		}
-		if k, _ := workflowsvc.TicketInput(res.Spec); k == input {
-			return true
-		}
-	}
-	return false
-}
-
-// launchTickets puts the tickets of a launch in the ticket input: one
-// session per ticket (perSession) when the input allows several sessions
-// (an epic then stands for its open children, A24), else a list or a single
-// ticket. opts.Tickets and opts.epics receive the expanded tickets.
-func launchTickets(sp *workflow.Spec, opts *runOptions, inputs map[string]any, src workflowsvc.TicketSource) (ticketInput string, perSession []string, err error) {
-	ticketInput, multi := workflowsvc.TicketInput(sp)
-	if len(opts.Tickets) == 0 {
-		return ticketInput, nil, nil
-	}
-	if multi {
-		if opts.Tickets, opts.epics, err = workflowsvc.ExpandEpics(src, opts.Tickets); err != nil {
-			var empty *workflowsvc.EmptyEpicError
-			if errors.As(err, &empty) {
-				return "", nil, errors.New(i18n.Tf("cmd.run.empty_epic", empty.Epic))
-			}
-			return "", nil, err
-		}
-	}
-	in, _ := sp.Inputs.Get(ticketInput)
-	switch {
-	case ticketInput == "":
-		return "", nil, errors.New(i18n.Tf("cmd.run.no_ticket_input", opts.Workflow))
-	case multi && opts.OneSession:
-		inputs[ticketInput] = strings.Join(opts.Tickets, ",")
-	case multi:
-		perSession = opts.Tickets
-		inputs[ticketInput] = opts.Tickets[0]
-	case in.Type == workflow.InputBeadsIDs:
-		inputs[ticketInput] = strings.Join(opts.Tickets, ",")
-	case len(opts.Tickets) > 1:
-		return "", nil, errors.New(i18n.Tf("cmd.run.single_ticket", opts.Workflow))
-	default:
-		inputs[ticketInput] = opts.Tickets[0]
-	}
-	return ticketInput, perSession, nil
-}
-
-// preconditionWarnings evaluates the workflow preconditions on the project
-// directory: a failed `block` refuses the launch, a failed `suggest` is a
-// warning naming the workflow to run first.
-func preconditionWarnings(sp *workflow.Spec, dir string) ([]runsvc.Warning, []preconditionSuggestion, error) {
-	return preconditionWarningsIn(sp, os.DirFS(dir), preconditionProbe(dir))
-}
-
-func preconditionWarningsIn(sp *workflow.Spec, fsys fs.FS, probe workflow.PreconditionProbe) ([]runsvc.Warning, []preconditionSuggestion, error) {
-	var (
-		out         []runsvc.Warning
-		suggestions []preconditionSuggestion
-	)
-	for _, r := range workflow.FailedPreconditions(workflow.EvaluatePreconditionsWith(sp, fsys, probe)) {
-		label := r.Label.Text(i18n.Locale())
-		if label == "" {
-			label = r.ID
-		}
-		if d := preconditionDetail(r.Failure); d != "" {
-			label += " — " + d
-		}
-		switch {
-		case r.Block:
-			return nil, nil, errors.New(i18n.Tf("cmd.run.precondition_block", label))
-		case r.Suggest != "":
-			out = append(out, runsvc.Warning{Code: "precondition", Args: []any{label, r.Suggest}})
-			suggestions = append(suggestions, preconditionSuggestion{Label: label, Workflow: r.Suggest, Resume: r.Resume})
-		default:
-			out = append(out, runsvc.Warning{Code: "precondition_failed", Args: []any{label}})
-		}
-	}
-	return out, suggestions, nil
-}
-
-// launchInputs merges the explicit inputs, the alias inputs declared by the
-// workflow and the free text (first text input not set otherwise).
-func launchInputs(sp *workflow.Spec, opts runOptions) map[string]any {
-	inputs := map[string]any{}
-	for k, v := range opts.Inputs {
-		inputs[k] = v
-	}
-	for k, v := range opts.LooseInputs {
-		if _, declared := sp.Inputs.Get(k); declared && v != "" {
-			if _, set := inputs[k]; !set {
-				inputs[k] = v
-			}
-		}
-	}
-	if opts.Text != "" {
-		if k := textInput(sp); k != "" {
-			if _, set := inputs[k]; !set {
-				inputs[k] = opts.Text
-			}
-		}
-	}
-	return inputs
-}
-
-// sessionBranch is the branch of a session worktree: the workflow `branch`
-// input, else oh/<workflow>-<ticket|time>.
-func sessionBranch(sp *workflow.Spec, values map[string]any, label, fallback string) string {
-	if k := workflowsvc.FirstInput(sp, workflow.InputBranch); k != "" {
-		if b, ok := values[k].(string); ok && b != "" {
-			return b
-		}
-	}
-	if fallback != "" {
-		return fallback
-	}
-	suffix := label
-	if suffix == "" {
-		suffix = time.Now().Format("20060102-150405")
-	}
-	return "oh/" + sp.ID + "-" + suffix
-}
-
-// messageWithoutRequest refuses -m for a workflow (alias resolved) that has
-// no request input, naming the inputs it has.
-func messageWithoutRequest(asked string, sp *workflow.Spec) error {
-	name := sp.ID
-	if asked != "" && asked != sp.ID {
-		name = asked + " → " + sp.ID
-	}
-	inputs := strings.Join(sp.Inputs.Keys(), ", ")
-	if inputs == "" {
-		return errors.New(i18n.Tf("cmd.run.message_no_request_none", name))
-	}
-	return errors.New(i18n.Tf("cmd.run.message_no_request", name, inputs))
-}
-
-// textInput is the input receiving free text: the first `text` input, else
-// the first `string` one.
-func textInput(sp *workflow.Spec) string {
-	if k := workflowsvc.FirstInput(sp, workflow.InputText); k != "" {
-		return k
-	}
-	return workflowsvc.FirstInput(sp, workflow.InputString)
-}
-
-func runPlanError(err error) error {
-	switch {
-	case errors.Is(err, runsvc.ErrNotGitRepo):
-		return errors.New(i18n.T("cmd.run.not_git"))
-	case errors.Is(err, runsvc.ErrNoBranch):
-		return errors.New(i18n.T("cmd.run.no_branch"))
-	}
-	return err
-}
-
-// beadsTicketSource reads the tickets of a project from Beads (nil when the
-// project has no Beads database).
-func beadsTicketSource(project *domain.Project) workflowsvc.TicketSource {
-	if project == nil || beads.Available() != nil || !beads.IsInitialized(project.Path) {
-		return nil
-	}
-	return beadsTickets(project.Path)
-}
-
-type beadsTickets string
-
-func (b beadsTickets) IsEpic(id string) (bool, error) {
-	d, err := beads.Show(string(b), id)
-	if err != nil {
-		return false, err
-	}
-	return d.Type == "epic", nil
-}
-
-func (b beadsTickets) OpenChildren(epic string) ([]string, error) {
-	children, err := beads.DevPickableChildren(string(b), epic)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]string, len(children))
-	for i, c := range children {
-		out[i] = c.ID
-	}
-	return out, nil
+	return launch.Prepare(ctx, launchDeps(a), opts)
 }
 
 // planDirty reports whether a writing session of the plan starts in a
@@ -580,69 +58,21 @@ func warningText(w runsvc.Warning) string {
 	return i18n.Tf("cmd.run.warn."+w.Code, w.Args...)
 }
 
-// start runs the prepared launch and opens the sessions (attach
+// startRun runs the prepared launch and opens the sessions (attach
 // preference). Single-session browser / suspend attaches are handled here.
-func (p *preparedRun) start(ctx context.Context, a *app.App, ui launcher.LaunchUI) ([]*runsvc.StartResult, error) {
-	if p.opts.DryRun {
-		return nil, errors.New(i18n.T("cmd.run.dry_run.no_start"))
-	}
-	if p.remote != nil {
-		return p.sendRemote(ctx, a, ui)
-	}
-	results, err := p.svc.Start(ctx, p.plan)
-	if errors.Is(err, runsvc.ErrLaunchInProgress) {
-		return results, errors.New(i18n.T("cmd.run.in_progress"))
-	}
-	var choice *runsvc.ExistingChoiceError
-	if errors.As(err, &choice) {
-		return results, errors.New(existingChoiceMessage(choice.Existing))
-	}
-	for _, res := range results {
-		for _, w := range res.Report.Warnings {
-			ui.Notify(isolationWarningText(w), launcher.LevelWarning)
-		}
-	}
-	if err != nil {
-		return results, budgetError(err)
-	}
-	if p.plan.Request.Base.Fanout != nil {
-		// R6: the driver of the fan-out runs whatever the client does.
-		for _, res := range results {
-			if log, err := spawnFanoutDriver(res.SessionID); err != nil {
-				ui.Notify(i18n.Tf("cmd.fanout.spawn_failed", res.SessionID, err), launcher.LevelWarning)
-			} else {
-				ui.Notify(i18n.Tf("cmd.fanout.spawned", res.SessionID, log), launcher.LevelInfo)
-			}
-		}
-	}
-	attach := p.plan.Request.Base.Attach
-	for i, res := range results {
-		if aerr := afterStart(ctx, a, p.svc, ui, attach, res, i == 0); aerr != nil {
-			return results, aerr
-		}
-	}
-	return results, nil
+func startRun(ctx context.Context, a *app.App, p *preparedRun, ui launcher.LaunchUI) ([]*runsvc.StartResult, error) {
+	return launch.Start(ctx, p, launch.StartOptions{
+		Progress: uiProgress(ui),
+		Attach: func(ctx context.Context, svc *runsvc.Service, attach sessionspec.AttachPref, res *runsvc.StartResult, first bool) error {
+			return afterStart(ctx, a, svc, ui, attach, res, first)
+		},
+	})
 }
 
 // afterStart opens the client of a started session when the RunService did
 // not (browser, suspension, no terminal). Only the first session of a run
 // may take over the current terminal.
 func afterStart(ctx context.Context, a *app.App, svc *runsvc.Service, ui launcher.LaunchUI, attach sessionspec.AttachPref, res *runsvc.StartResult, first bool) error {
-	if res.Stashed != "" {
-		ui.Notify(i18n.Tf("cmd.run.stashed", res.Stashed), launcher.LevelInfo)
-	}
-	if d := res.Deleted; d != nil {
-		ui.Notify(deleteReportText(d), launcher.LevelInfo)
-	}
-	if res.Replaced != "" {
-		ui.Notify(i18n.Tf("cmd.run.existing.replaced", res.Replaced, res.SessionID), launcher.LevelInfo)
-	}
-	for _, n := range res.Notes {
-		ui.Notify(n, launcher.LevelInfo)
-	}
-	if res.Queued {
-		ui.Notify(i18n.Tf("cmd.budget.queued", res.SessionID, res.Ahead), launcher.LevelInfo)
-	}
 	if first && inProcessDaemonRunning() {
 		// Windows: the proxy lives in this process; leaving oh puts the
 		// session to sleep.
@@ -686,9 +116,9 @@ func afterStart(ctx context.Context, a *app.App, svc *runsvc.Service, ui launche
 // --recap, TUI launch form).
 func runRecap(p *preparedRun) (rows [][2]string, warnings []string) {
 	rows, warnings = launchRecap(p)
-	rows = append(rows, existingRecapRows(p.plan)...)
-	if p.plan.NeedsChoice {
-		warnings = append(warnings, existingChoiceMessage(p.plan.Existing))
+	rows = append(rows, existingRecapRows(p.Plan)...)
+	if p.Plan.NeedsChoice {
+		warnings = append(warnings, launch.ExistingChoiceMessage(p.Plan.Existing))
 	}
 	return rows, warnings
 }
@@ -696,10 +126,10 @@ func runRecap(p *preparedRun) (rows [][2]string, warnings []string) {
 // launchRecap is the recap without the existing sessions of the tickets
 // (the TUI shows them as a comparison block).
 func launchRecap(p *preparedRun) (rows [][2]string, warnings []string) {
-	r := bundle.Show(p.bundle)
+	r := bundle.Show(p.Bundle)
 	add := func(label, value string) { rows = append(rows, [2]string{label, value}) }
-	add(i18n.T("cmd.run.recap.mode"), p.resolution.Mode)
-	add(i18n.T("cmd.run.recap.runtime"), string(p.resolution.Runtime))
+	add(i18n.T("cmd.run.recap.mode"), p.Resolution.Mode)
+	add(i18n.T("cmd.run.recap.runtime"), string(p.Resolution.Runtime))
 	agents := make([]string, len(r.Agents))
 	for i, ag := range r.Agents {
 		agents[i] = ag.ID
@@ -713,21 +143,21 @@ func launchRecap(p *preparedRun) (rows [][2]string, warnings []string) {
 		add("MCP", strings.Join(r.MCP, ", "))
 	}
 	add(i18n.T("cmd.run.recap.code_mode"), onOff(r.CodeMode))
-	add(i18n.T("cmd.run.recap.beads"), recapBeads(p.plan.Request.Base.BeadsAllow))
-	if p.bundle.Spec.Workflow != nil && len(p.bundle.Spec.Workflow.Checkpoints) > 0 {
-		add(i18n.T("cmd.run.recap.checkpoints"), recapCheckpoints(p.bundle.Spec.Workflow.Checkpoints, p.resolution.Mode))
-		add(i18n.T("cmd.run.recap.pauses"), recapPauses(p.bundle.Spec.Workflow, p.resolution.Mode))
+	add(i18n.T("cmd.run.recap.beads"), recapBeads(p.Plan.Request.Base.BeadsAllow))
+	if p.Bundle.Spec.Workflow != nil && len(p.Bundle.Spec.Workflow.Checkpoints) > 0 {
+		add(i18n.T("cmd.run.recap.checkpoints"), recapCheckpoints(p.Bundle.Spec.Workflow.Checkpoints, p.Resolution.Mode))
+		add(i18n.T("cmd.run.recap.pauses"), recapPauses(p.Bundle.Spec.Workflow, p.Resolution.Mode))
 	}
 	isolation := string(r.Isolation)
 	if r.StrictIsolation {
 		isolation += " · strict"
 	}
 	add(i18n.T("cmd.bundle.show.isolation"), isolation)
-	for _, e := range p.opts.epics {
+	for _, e := range p.Opts.Epics {
 		add(i18n.T("cmd.run.recap.epic"), e.Epic+" → "+strings.Join(e.Children, " · "))
 	}
-	add(i18n.T("cmd.run.recap.sessions"), i18n.Tf("cmd.run.recap.sessions_value", len(p.plan.Sessions), p.plan.Worktrees()))
-	for _, s := range p.plan.Sessions {
+	add(i18n.T("cmd.run.recap.sessions"), i18n.Tf("cmd.run.recap.sessions_value", len(p.Plan.Sessions), p.Plan.Worktrees()))
+	for _, s := range p.Plan.Sessions {
 		loc := s.Location.Path
 		switch {
 		case s.Location.Create:
@@ -745,7 +175,7 @@ func launchRecap(p *preparedRun) (rows [][2]string, warnings []string) {
 		add("  "+label, loc)
 	}
 	warnings = append(warnings, remoteRecapWarnings(p)...)
-	for _, w := range p.plan.Warnings {
+	for _, w := range p.Plan.Warnings {
 		warnings = append(warnings, warningText(w))
 	}
 	return rows, warnings
@@ -779,7 +209,7 @@ func recapCheckpoints(cps []sessionspec.CheckpointDef, mode string) string {
 
 // printRunRecap prints what a launch will do (oh run --recap).
 func printRunRecap(w io.Writer, p *preparedRun) {
-	fmt.Fprintln(w, theme.Title.Render(i18n.Tf("cmd.run.recap.title", p.resolution.Spec.ID, p.resolution.Ref.String(), p.project.Name)))
+	fmt.Fprintln(w, theme.Title.Render(i18n.Tf("cmd.run.recap.title", p.Resolution.Spec.ID, p.Resolution.Ref.String(), p.Project.Name)))
 	rows, warns := runRecap(p)
 	for _, r := range rows {
 		fmt.Fprintf(w, "  %-14s %s\n", r[0], r[1])

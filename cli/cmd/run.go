@@ -14,6 +14,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/launcher"
 	"github.com/datichb/openhub/cli/internal/runsvc"
+	"github.com/datichb/openhub/cli/internal/services/launch"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
@@ -109,7 +110,7 @@ func runWorkflowDryRun(cmd *cobra.Command, opts runOptions, headless bool) error
 		}
 		opts.Attach = string(sessionspec.AttachNone)
 	}
-	opts.Progress = func(line string) { fmt.Fprintln(out, theme.Subtitle.Render("  "+line)) }
+	opts.Progress = launchProgress(out, cmd.ErrOrStderr())
 	fmt.Fprintf(out, "%s %s\n", theme.SuccessStyle.Render(theme.IconArrow), i18n.Tf("cmd.run.preparing", opts.Workflow))
 	p, err := prepareWorkflowRun(cmd.Context(), a, opts, cmd.ErrOrStderr())
 	if err != nil {
@@ -135,13 +136,13 @@ func runWorkflowHeadlessCLI(cmd *cobra.Command, opts runOptions) error {
 		return errors.New(i18n.T("cmd.remote.send.headless"))
 	}
 	opts.Attach = string(sessionspec.AttachNone)
-	opts.Progress = func(line string) { fmt.Fprintln(errOut, theme.Subtitle.Render("  "+line)) }
+	opts.Progress = launchProgress(errOut, errOut)
 	fmt.Fprintf(errOut, "%s %s\n", theme.SuccessStyle.Render(theme.IconArrow), i18n.Tf("cmd.run.preparing", opts.Workflow))
 	p, err := prepareWorkflowRun(ctx, a, opts, errOut)
 	if err != nil {
 		return err
 	}
-	printRunWarnings(errOut, p.plan.Warnings)
+	printRunWarnings(errOut, p.Plan.Warnings)
 	timeout, _ := cmd.Flags().GetDuration("timeout")
 	results, err := runHeadless(ctx, a, p, launcher.NewCLIUI(errOut), timeout)
 	output, _ := cmd.Flags().GetString("output")
@@ -153,8 +154,8 @@ func runWorkflowHeadlessCLI(cmd *cobra.Command, opts runOptions) error {
 		path := output
 		if len(results) > 1 {
 			path = fmt.Sprintf("%s.%d", output, i+1)
-			if i < len(p.plan.Sessions) && p.plan.Sessions[i].Label != "" {
-				path = output + "." + p.plan.Sessions[i].Label
+			if i < len(p.Plan.Sessions) && p.Plan.Sessions[i].Label != "" {
+				path = output + "." + p.Plan.Sessions[i].Label
 			}
 		}
 		if werr := os.WriteFile(path, []byte(r.Text), 0o600); werr != nil {
@@ -230,7 +231,7 @@ func runWorkflowCLI(cmd *cobra.Command, opts runOptions, recap bool) error {
 	a := MustApp()
 	ctx := cmd.Context()
 	out := cmd.OutOrStdout()
-	opts.Progress = func(line string) { fmt.Fprintln(out, theme.Subtitle.Render("  "+line)) }
+	opts.Progress = launchProgress(out, cmd.ErrOrStderr())
 	fmt.Fprintf(out, "%s %s\n", theme.SuccessStyle.Render(theme.IconArrow), i18n.Tf("cmd.run.preparing", opts.Workflow))
 	p, err := prepareWorkflowRun(ctx, a, opts, cmd.ErrOrStderr())
 	if err != nil && offerBedrockEnvImport(ctx, a, opts.Project, opts.Provider, err, cmd.ErrOrStderr()) {
@@ -239,7 +240,7 @@ func runWorkflowCLI(cmd *cobra.Command, opts runOptions, recap bool) error {
 	if err != nil {
 		return err
 	}
-	if len(p.suggestions) > 0 && isTerminal() {
+	if len(p.Suggestions) > 0 && isTerminal() {
 		handled, err := askPreconditionChoice(cmd, a, opts, p)
 		if handled || err != nil {
 			return err
@@ -263,9 +264,9 @@ func runWorkflowCLI(cmd *cobra.Command, opts runOptions, recap bool) error {
 		}
 	} else {
 		printRunPauses(out, p)
-		printRunWarnings(out, p.plan.Warnings)
+		printRunWarnings(out, p.Plan.Warnings)
 	}
-	_, err = p.start(ctx, a, launcher.NewCLIUI(out))
+	_, err = startRun(ctx, a, p, launcher.NewCLIUI(out))
 	var te *runsvc.TransferError
 	if errors.As(err, &te) {
 		if !isTerminal() {
@@ -275,10 +276,10 @@ func runWorkflowCLI(cmd *cobra.Command, opts runOptions, recap bool) error {
 		if aerr != nil || !ok {
 			return errors.Join(err, aerr)
 		}
-		if err := p.replan(ctx, runsvc.OnExistingKeep, false); err != nil {
+		if err := launch.Replan(ctx, p, runsvc.OnExistingKeep, false); err != nil {
 			return err
 		}
-		_, err = p.start(ctx, a, launcher.NewCLIUI(out))
+		_, err = startRun(ctx, a, p, launcher.NewCLIUI(out))
 	}
 	return err
 }
@@ -287,7 +288,7 @@ func runWorkflowCLI(cmd *cobra.Command, opts runOptions, recap bool) error {
 // `suggest` precondition). handled is true when the original launch must not
 // start now (suggested workflow started, or cancelled).
 func askPreconditionChoice(cmd *cobra.Command, a *app.App, opts runOptions, p *preparedRun) (bool, error) {
-	s := p.suggestions[0]
+	s := p.Suggestions[0]
 	out := cmd.OutOrStdout()
 	fmt.Fprintf(out, "%s %s\n", theme.WarningStyle.Render(theme.IconWarning), i18n.Tf("cmd.run.warn.precondition", s.Label, s.Workflow))
 	choice := "first"

@@ -1,4 +1,4 @@
-package cmd
+package launch
 
 import (
 	"context"
@@ -162,4 +162,37 @@ func preconditionDetail(f *workflow.PreconditionFailure) string {
 		return i18n.Tf("cmd.run.precondition.tools", strings.Join(f.Missing, ", "))
 	}
 	return ""
+}
+
+// preconditionWarnings evaluates the workflow preconditions on the project
+// directory: a failed `block` refuses the launch, a failed `suggest` is a
+// warning naming the workflow to run first.
+func preconditionWarnings(sp *workflow.Spec, dir string) ([]runsvc.Warning, []Suggestion, error) {
+	return preconditionWarningsIn(sp, os.DirFS(dir), preconditionProbe(dir))
+}
+
+func preconditionWarningsIn(sp *workflow.Spec, fsys fs.FS, probe workflow.PreconditionProbe) ([]runsvc.Warning, []Suggestion, error) {
+	var (
+		out         []runsvc.Warning
+		suggestions []Suggestion
+	)
+	for _, r := range workflow.FailedPreconditions(workflow.EvaluatePreconditionsWith(sp, fsys, probe)) {
+		label := r.Label.Text(i18n.Locale())
+		if label == "" {
+			label = r.ID
+		}
+		if d := preconditionDetail(r.Failure); d != "" {
+			label += " — " + d
+		}
+		switch {
+		case r.Block:
+			return nil, nil, errors.New(i18n.Tf("cmd.run.precondition_block", label))
+		case r.Suggest != "":
+			out = append(out, runsvc.Warning{Code: "precondition", Args: []any{label, r.Suggest}})
+			suggestions = append(suggestions, Suggestion{Label: label, Workflow: r.Suggest, Resume: r.Resume})
+		default:
+			out = append(out, runsvc.Warning{Code: "precondition_failed", Args: []any{label}})
+		}
+	}
+	return out, suggestions, nil
 }

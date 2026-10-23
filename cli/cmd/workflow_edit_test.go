@@ -2,7 +2,9 @@ package cmd
 
 import (
 	"bytes"
+	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -18,6 +20,8 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/services/launch"
+	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
@@ -323,4 +327,11 @@ func TestPrepareRunMessage(t *testing.T) {
 		assert.Contains(t, err.Error(), c.name, c.id)
 		assert.Contains(t, err.Error(), "-i", c.id)
 	}
+}
+
+// resolveLaunch resolves the workflow of a launch the way oh run does, what
+// it tells going to errOut.
+func resolveLaunch(ctx context.Context, a *app.App, opts *runOptions, errOut io.Writer) (*workflowsvc.Resolution, string, []string, error) {
+	opts.Progress = launchProgress(nil, errOut)
+	return launch.ResolveLaunch(ctx, launchDeps(a), opts)
 }

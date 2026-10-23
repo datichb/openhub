@@ -856,26 +856,26 @@ func runEvalSession(ctx context.Context, cmd *cobra.Command, spec evalPassSpec, 
 	if err != nil {
 		return fmt.Errorf(i18n.T("cmd.eval.preparing_the_launch"), err)
 	}
-	p.plan.Request.Base.Attach, p.plan.Request.Base.Headless = sessionspec.AttachNone, true
+	p.Plan.Request.Base.Attach, p.Plan.Request.Base.Headless = sessionspec.AttachNone, true
 	// Hard cap at the credential proxy (input-equivalent tokens, cache
 	// included), on top of the session budget (cost, checked at each
 	// request) and of the cost watched below.
-	p.plan.Request.Base.MaxTokens = evalMaxTokens(spec.Model, spec.BudgetUSD)
-	results, err := p.svc.Start(ctx, p.plan)
+	p.Plan.Request.Base.MaxTokens = evalMaxTokens(spec.Model, spec.BudgetUSD)
+	results, err := p.Svc.Start(ctx, p.Plan)
 	if err != nil || len(results) == 0 {
 		return fmt.Errorf(i18n.T("cmd.eval.starting_the_session"), err)
 	}
 	sid := results[0].SessionID
 	res.SessionID = sid
 	fmt.Fprintln(errOut, "eval pass: session", sid)
-	defer stopEvalPass(p.svc, sid)
+	defer stopEvalPass(p.Svc, sid)
 
 	ssvc, err := newSessionService(ctx, a)
 	if err != nil {
 		return err
 	}
 	var fan *evalFanout
-	if p.plan.Request.Base.Fanout != nil {
+	if p.Plan.Request.Base.Fanout != nil {
 		fan = startEvalFanout(ctx, a, sid, spec, errOut)
 		defer fan.stop()
 	}

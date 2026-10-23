@@ -11,6 +11,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/launcher"
 	"github.com/datichb/openhub/cli/internal/prefsvc"
 	"github.com/datichb/openhub/cli/internal/runsvc"
+	"github.com/datichb/openhub/cli/internal/services/launch"
 )
 
 // Preconditions of a launch with a suggested workflow (`suggest`, piste E):
@@ -19,11 +20,7 @@ import (
 // again when it ends (« Enchaîner avec… », end-of-session toast).
 
 // preconditionSuggestion is a failed `suggest` precondition of a launch.
-type preconditionSuggestion struct {
-	Label    string
-	Workflow string
-	Resume   bool
-}
+type preconditionSuggestion = launch.Suggestion
 
 // resumeIntent is a launch to propose again after a session (stored in the
 // preferences of the project, key resumeKey(session)).
@@ -43,12 +40,12 @@ func resumeKey(sessionID string) string { return "resume:" + sessionID }
 // launch for the sessions it started.
 func runSuggestedFirst(ctx context.Context, a *app.App, orig runOptions, s preconditionSuggestion, ui launcher.LaunchUI) ([]*runsvc.StartResult, error) {
 	first := runOptions{Workflow: s.Workflow, Project: orig.Project, Provider: orig.Provider, Runtime: orig.Runtime,
-		Location: orig.Location, Attach: orig.Attach, Progress: orig.Progress}
+		Location: orig.Location, Attach: orig.Attach, Progress: buildLines(orig.Progress)}
 	p, err := prepareWorkflowRun(ctx, a, first, io.Discard)
 	if err != nil {
 		return nil, err
 	}
-	results, err := p.start(ctx, a, ui)
+	results, err := startRun(ctx, a, p, ui)
 	if err != nil || !s.Resume {
 		return results, err
 	}

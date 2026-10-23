@@ -3,16 +3,17 @@ package cmd
 import (
 	"context"
 	"errors"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync/atomic"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/runsvc"
 	ohruntime "github.com/datichb/openhub/cli/internal/runtime"
 	"github.com/datichb/openhub/cli/internal/runtime/container"
+	"github.com/datichb/openhub/cli/internal/services/launch"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
@@ -41,14 +42,13 @@ func applyProjectExec(req *runsvc.StartRequest, p *domain.Project) {
 }
 
 // runtimePrefs are the preferred runtimes of a launch without --runtime,
-// most specific first: the project default, then the Settings one. The
-// workflow keeps the last word (`runtime.allowed`, then `runtime.default`).
+// most specific first (see launch.RuntimePrefs).
 func runtimePrefs(a *app.App, p *domain.Project) []string {
-	prefs := []string{projectExec(p).DefaultRuntime}
-	if a != nil && a.Config != nil {
-		prefs = append(prefs, a.Config.Execution.Runtime)
+	var cfg *config.Config
+	if a != nil {
+		cfg = a.Config
 	}
-	return prefs
+	return launch.RuntimePrefs(cfg, p)
 }
 
 // pinRuntime refuses container launches when the pinned tool version
@@ -133,26 +133,4 @@ func (r pinnedRuntime) Estimate(ctx context.Context, g ohruntime.Group) (ohrunti
 		return e.Estimate(ctx, g)
 	}
 	return ohruntime.PrepareEstimate{}, errors.New(r.unavailable().Message())
-}
-
-// gitIdentityEnv is the git identity of the machine for the shell of a
-// container session: the container HOME is a project volume (the user git
-// config is not there), so commits would fail without it. Read from the
-// project (its local config, then the global one); empty when unset.
-func gitIdentityEnv(dir string) map[string]string {
-	get := func(key string) string {
-		out, err := exec.Command("git", "-C", dir, "config", "--get", key).Output()
-		if err != nil {
-			return ""
-		}
-		return strings.TrimSpace(string(out))
-	}
-	env := map[string]string{}
-	if name := get("user.name"); name != "" {
-		env["GIT_AUTHOR_NAME"], env["GIT_COMMITTER_NAME"] = name, name
-	}
-	if email := get("user.email"); email != "" {
-		env["GIT_AUTHOR_EMAIL"], env["GIT_COMMITTER_EMAIL"] = email, email
-	}
-	return env
 }

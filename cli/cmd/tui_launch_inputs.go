@@ -10,6 +10,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/gitutil"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/services/launch"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/workflow"
 	"github.com/datichb/openhub/cli/internal/worktree"
@@ -31,7 +32,7 @@ func tuiLaunchAlias(ctx context.Context, wsvc *workflowsvc.Service, projectID st
 		return req.AliasTarget, req.WorkflowID
 	}
 	target, ok := wsvc.ResolveAlias(ctx, workflowsvc.Context{ProjectID: projectID}, req.WorkflowID, func(input string) bool {
-		return strings.TrimSpace(req.Prefill[input]) != "" || (len(req.Tickets) > 0 && aliasTicketInput(ctx, wsvc, projectID, req.WorkflowID, input))
+		return strings.TrimSpace(req.Prefill[input]) != "" || (len(req.Tickets) > 0 && launch.AliasTicketInput(ctx, wsvc, projectID, req.WorkflowID, input))
 	})
 	if !ok {
 		return req.WorkflowID, ""

@@ -13,6 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/runsvc"
+	"github.com/datichb/openhub/cli/internal/services/launch"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
@@ -20,16 +21,6 @@ import (
 // Launch on a ticket already worked on (runsvc.RunPlan.Existing): the CLI
 // shows the existing sessions next to the planned one and asks what to do
 // (--on-existing otherwise). The TUI recap uses the same plan fields.
-
-// existingChoiceMessage explains a launch refused for want of a choice.
-func existingChoiceMessage(existing []runsvc.ExistingSession) string {
-	for _, e := range existing {
-		if e.SameWorkflow {
-			return i18n.Tf("cmd.run.existing.need_choice", e.ID, e.WorkflowID, strings.Join(e.Shared, ", "))
-		}
-	}
-	return runsvc.ErrNeedsChoice.Error()
-}
 
 // existingRecapRows are the recap rows of the existing sessions (oh run
 // --recap, TUI launch form).
@@ -127,7 +118,7 @@ func existingTarget(plan *runsvc.RunPlan) (runsvc.ExistingSession, bool) {
 // askExistingChoice asks what to do with the existing sessions of a
 // launch; ok is false when the user cancelled.
 func askExistingChoice(ctx context.Context, out io.Writer, p *preparedRun) (choice runsvc.OnExisting, discardBase, ok bool, err error) {
-	e, found := existingTarget(p.plan)
+	e, found := existingTarget(p.Plan)
 	if !found {
 		return runsvc.OnExistingParallel, false, true, nil
 	}
@@ -151,7 +142,7 @@ func askExistingChoice(ctx context.Context, out io.Writer, p *preparedRun) (choi
 	}
 	choice = runsvc.OnExisting(v)
 	if choice == runsvc.OnExistingDelete {
-		discardBase, ok, err = confirmDelete(ctx, out, p.svc, e.ID, p.project.Path, false)
+		discardBase, ok, err = confirmDelete(ctx, out, p.Svc, e.ID, p.Project.Path, false)
 		return choice, discardBase, ok, err
 	}
 	return choice, false, true, nil
@@ -259,25 +250,7 @@ func sessionProjectPath(ctx context.Context, a *app.App, svc *runsvc.Service, id
 }
 
 // deleteReportText summarizes a deletion.
-func deleteReportText(d *runsvc.DeleteReport) string {
-	parts := []string{i18n.Tf("cmd.session.delete.done", d.SessionID)}
-	if d.WorktreeRemoved != "" {
-		parts = append(parts, i18n.Tf("cmd.session.delete.worktree", d.WorktreeRemoved))
-	}
-	if d.BranchDeleted != "" {
-		parts = append(parts, i18n.Tf("cmd.session.delete.branch", d.BranchDeleted))
-	}
-	if d.RemoteBranch {
-		parts = append(parts, i18n.Tf("cmd.session.delete.remote_branch", d.BranchDeleted))
-	}
-	if d.BaseChangesKept {
-		parts = append(parts, i18n.T("cmd.session.delete.base_kept"))
-	}
-	for _, e := range d.Errors {
-		parts = append(parts, i18n.Tf("cmd.session.delete.not_done", e))
-	}
-	return strings.Join(parts, " · ")
-}
+func deleteReportText(d *runsvc.DeleteReport) string { return launch.DeleteReportText(d) }
 
 // resolveExistingChoice settles the existing sessions of a CLI launch: with
 // a terminal and no --on-existing, the comparison is shown and a choice
@@ -285,37 +258,37 @@ func deleteReportText(d *runsvc.DeleteReport) string {
 // workflow needs --on-existing (another one: parallel, with a warning).
 // It returns false when the user cancelled.
 func resolveExistingChoice(ctx context.Context, out io.Writer, p *preparedRun, interactive bool) (bool, error) {
-	if len(p.plan.Existing) == 0 {
+	if len(p.Plan.Existing) == 0 {
 		return true, nil
 	}
-	if p.opts.OnExisting != runsvc.OnExistingUnset {
-		if p.opts.OnExisting == runsvc.OnExistingDelete && interactive {
-			e, found := existingTarget(p.plan)
+	if p.Opts.OnExisting != runsvc.OnExistingUnset {
+		if p.Opts.OnExisting == runsvc.OnExistingDelete && interactive {
+			e, found := existingTarget(p.Plan)
 			if !found {
 				return true, nil
 			}
-			discard, ok, err := confirmDelete(ctx, out, p.svc, e.ID, p.project.Path, p.opts.DiscardBaseChanges)
+			discard, ok, err := confirmDelete(ctx, out, p.Svc, e.ID, p.Project.Path, p.Opts.DiscardBaseChanges)
 			if err != nil || !ok {
 				return false, err
 			}
-			if discard != p.opts.DiscardBaseChanges {
-				return true, p.replan(ctx, runsvc.OnExistingDelete, discard)
+			if discard != p.Opts.DiscardBaseChanges {
+				return true, launch.Replan(ctx, p, runsvc.OnExistingDelete, discard)
 			}
 		}
 		return true, nil
 	}
 	if !interactive {
-		if p.plan.NeedsChoice {
-			return false, errors.New(existingChoiceMessage(p.plan.Existing))
+		if p.Plan.NeedsChoice {
+			return false, errors.New(launch.ExistingChoiceMessage(p.Plan.Existing))
 		}
 		return true, nil
 	}
-	printExistingTable(out, p.plan)
+	printExistingTable(out, p.Plan)
 	choice, discard, ok, err := askExistingChoice(ctx, out, p)
 	if err != nil || !ok {
 		return false, err
 	}
-	return true, p.replan(ctx, choice, discard)
+	return true, launch.Replan(ctx, p, choice, discard)
 }
 
 // askTransferFallback offers to keep the work in a new session when a
