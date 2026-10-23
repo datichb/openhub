@@ -10,7 +10,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/google/uuid"
 	"github.com/rivo/tview"
 	"golang.org/x/term"
 
@@ -915,7 +914,7 @@ func buildProjectStep(s *initStepState) views.WizardStep {
 
 			// "reconfigure" or new project — upsert logic.
 			p := &domain.Project{
-				ID:       uuid.New().String()[:8],
+				ID:       generateProjectID(s.ProjectName),
 				Name:     s.ProjectName,
 				Path:     s.ProjectPath,
 				Status:   domain.ProjectStatusActive,

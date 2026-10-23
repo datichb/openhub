@@ -365,7 +365,7 @@ The team mode is a beta in v5.0. These limits are known; the complete fix is pla
 - **No expiry.** A claim stays until someone releases it. After `takeover.stale_days` days of inactivity (3 by default, `[takeover]` section of the team-state `config.toml`), oh only offers a takeover brief: taking the ticket over stays manual (`oh team claim transfer`).
 - **A release can be lost.** It runs in the background when the session ends: if the machine is offline, or if the daemon stops before the push, the claim stays in place.
 - **Forgotten claim:** `oh team release <ticket-id> -p <project>` frees it by hand.
-- **`oh doctor` reports orphan claims** (ticket closed, or every session that worked on it ended) with the command to run.
+- **`oh doctor` reports orphan claims** (ticket closed, or every session that worked on it ended) with the command to run. Claims taken under the former ID of a project created again are reported too, and `oh doctor --fix` attaches them to the local project (see [`oh doctor`](cli-infra.en.md#oh-doctor)).
 - **The REVIEW column follows the `ready-for-review` label.** In `oh board` and in the Board TUI, an `in_progress` Beads ticket carrying this label is in REVIEW (Beads has no `review` status). The team board shows the `review` status of the claims.
 
 oh warns once per process on stderr (team commands, first claim taken by a launch), and `oh doctor` lists the beta mode as a warning that does not change its exit code.

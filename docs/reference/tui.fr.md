@@ -300,7 +300,7 @@ La palette ouvre « Données d'oh » ; Doctor ouvre la section de son contrôle.
 
 ### Doctor
 
-Commande `doctor`. `f` corriger le contrôle sélectionné (comme `oh doctor --fix`, avec un aperçu et une confirmation : configuration restaurée depuis une sauvegarde, Beads, serveurs orphelins ; ouvre la section du Nettoyage sur ses contrôles), `o` hors ligne (aucun appel réseau, comme `--offline`), `r` revérifier.
+Commande `doctor`. `f` corriger le contrôle sélectionné (comme `oh doctor --fix`, avec un aperçu et une confirmation : configuration restaurée depuis une sauvegarde, Beads, réservations rattachées au projet recréé, serveurs orphelins ; ouvre la section du Nettoyage sur ses contrôles), `o` hors ligne (aucun appel réseau, comme `--offline`), `r` revérifier.
 
 ### Workflows, éditeur, historique
 

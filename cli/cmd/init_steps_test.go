@@ -423,3 +423,26 @@ func TestBuildInitRefreshLabels_UpdatesLabels(t *testing.T) {
 	// verify the wizard builds without error and has the expected ID.
 	assert.Equal(t, "wizard.init", wiz.ID())
 }
+
+// Bug 7 (K4a): the project the init wizard creates gets the ID the CLI gives
+// (<slug>-<uuid8>), not a bare uuid8: one generator for both.
+func TestBuildProjectStep_OnDone_ProjectIDIsTheCLIOne(t *testing.T) {
+	store := &mockProjectStore{}
+	a := newMockApp(nil, nil)
+	a.Config = &config.Config{}
+	a.Projects = store
+
+	s := &initStepState{
+		ProjectName:     "T SRU",
+		ProjectPath:     t.TempDir(),
+		ProviderOptions: []string{"bedrock"},
+		TeamState:       &initWizardTeamState{},
+		AppPtr:          &a,
+	}
+	require.NoError(t, buildProjectStep(s).OnDone())
+
+	require.Len(t, store.projects, 1)
+	id := store.projects[0].ID
+	assert.Regexp(t, `^t-sru-[0-9a-f]{8}$`, id)
+	assert.Regexp(t, `^t-sru-[0-9a-f]{8}$`, generateProjectID("T SRU"), "the CLI gives the same shape")
+}
