@@ -514,54 +514,8 @@ oh bundle show <workflow> --budget
 - [GoReleaser](https://goreleaser.com/) installed (`brew install goreleaser`)
 - Push access to the remote repository
 
-### Preparing the CHANGELOG
+### What to know before following the checklist
 
-Before releasing, write the release content under `## [Unreleased]` in `CHANGELOG.md`.
-
-Items ready for the next release include:
-- Team kanban board (5 columns, wired c/x/t/s actions, visual labels `[AI]`)
-- Claim lifecycle (5 statuses: `planned`, `in_progress`, `review`, `blocked`, `done`)
-- `oh team claim --planned` and automatic `planned → in_progress` transition via `oh start --dev` (now a deprecated alias of `oh run ticket`)
-- External tracker sync (`oh team sync-tracker`, `cli/internal/tracker/` package, GitLab + Jira)
-- `agent-reviewed` label auto-applied on `review.ready`
-- Async pull on all team views
-
-```markdown
-## [Unreleased]
-
-### Added
-- ...
-
-### Changed
-- ...
-
-### Fixed
-- ...
-```
-
-### Running the release
-
-```bash
-# From the cli/ directory
-cd cli
-
-# Preview without publishing (snapshot)
-goreleaser release --snapshot --clean
-
-# Create the release (triggered by a tag push)
-git tag -a v1.2.0 -m "Release v1.2.0"
-git push && git push --tags
-```
-
-GoReleaser is configured via `.goreleaser.yml` in the `cli/` directory and handles:
-1. Cross-compilation of the `oh` binary
-2. Changelog generation from commits
-3. GitHub release creation with artifacts
-
-### Tag convention
-
-Tags follow the `vX.Y.Z` format (annotated):
-
-```bash
-git tag -a v1.2.0 -m "Release v1.2.0"
-```
+- **CHANGELOG**: it is up to date before any tag. `CHANGELOG.md` must have a `## [X.Y.Z] — YYYY-MM-DD` section (the date of the tag) and `## [Unreleased]` must be empty; `release.yml` extracts the notes from that section and fails if it is missing. See step 1 of the [checklist](../dev/release-checklist.md).
+- **Tag**: in the `vX.Y.Z` format (annotated), pushed **by a human** (step 5 of the [checklist](../dev/release-checklist.md)). Publication, Cosign signature of `checksums.txt` and the Homebrew update are done by the `release.yml` workflow; never publish by hand.
+- **Preview**: `goreleaser release --snapshot --clean` from `cli/` builds the artifacts without publishing anything.

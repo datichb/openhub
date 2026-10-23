@@ -3,7 +3,7 @@
 > **Date** : 2026-10-08 (vérifications dynamiques le 2026-10-09)
 > **Périmètre** : évolution v5 (`e1455c36..c3b36496`, ~213 commits, 1 352 fichiers, +132k/−42k lignes) et état global du projet après la v5.
 > **Axes** : sécurité, design, ergonomie, fonctionnel, architecture et qualité, opportunités.
-> **Statut** (mis à jour le 2026-10-22) : plan **réalisé pour P0** (sauf le tag v5, à poser : voir D-01 et la [checklist de release](release-checklist.md)) et, à des restes près, **pour P1** (le lot K n'a traité que F-01 ; F-02 et F-03 sont une **bêta assumée** du mode équipe) ; P2 en grande partie traité le 22/10. Les lots F0 (registre de skills communautaires, ADR-051), N1 à N27 (« points critiques des audits v5 », 2026-10-09, `CHANGELOG.md` [Unreleased]), la consolidation C0 à C3 (2026-10-12) les lots du 20/10 (v5-fix-bugs, v5-fix-sec, v5-fix-l, v5-fix-m, v5-fix-h2, v5-fix-ei, keychain-mcp, tech-leftovers), avec la modernisation qui les précède (fan-out, TUI, catalogue de briques), et les lots de la release du 22/10 (« v5.0 » : V1-A à V1-C, V2-A, V2-B, V2-D, X1 à X9, V3-A et V3-B pour la documentation, V4 pour la checklist et ce bilan), ont traité une grande partie des constats. Chaque tableau de la section 4 porte une colonne **Statut** : ✅ FIXED, 🟡 PARTIAL, ❌ OPEN, ❔ non vérifié, avec la preuve (lot, commit ou code). Bilan des 83 constats : **63 FIXED, 18 PARTIAL, 2 OPEN, 0 non vérifié** (22/10 matin : 52, 19, 12 ; 20/10 : 50, 21, 12 — l'annonce « 50, 20, 13 » était une erreur de comptage ; 12/10 : 34, 11, 37, 1 ; détail en section 4.10). Tous les constats de sécurité sont traités ou partiellement traités (les restes PARTIAL sont des limites assumées, écrites dans `SECURITY.md`). Un constat OPEN dont le fichier cité n'a pas changé depuis l'audit (`c3b36496`) est marqué « inchangé ».
+> **Statut** (mis à jour le 2026-10-23) : plan **réalisé pour P0** (le tag `v5.0.0` a été posé le 22/10 : voir D-01 et la [checklist de release](release-checklist.md)) et, à des restes près, **pour P1** (le lot K n'a traité que F-01 ; F-02 et F-03 sont une **bêta assumée** du mode équipe) ; P2 en grande partie traité le 22/10. Les lots F0 (registre de skills communautaires, ADR-051), N1 à N27 (« points critiques des audits v5 », 2026-10-09, `CHANGELOG.md` [Unreleased]), la consolidation C0 à C3 (2026-10-12) les lots du 20/10 (v5-fix-bugs, v5-fix-sec, v5-fix-l, v5-fix-m, v5-fix-h2, v5-fix-ei, keychain-mcp, tech-leftovers), avec la modernisation qui les précède (fan-out, TUI, catalogue de briques), et les lots de la release du 22/10 (« v5.0 » : V1-A à V1-C, V2-A, V2-B, V2-D, X1 à X9, V3-A et V3-B pour la documentation, V4 pour la checklist et ce bilan), ont traité une grande partie des constats. Chaque tableau de la section 4 porte une colonne **Statut** : ✅ FIXED, 🟡 PARTIAL, ❌ OPEN, ❔ non vérifié, avec la preuve (lot, commit ou code). Bilan des 83 constats : **64 FIXED, 17 PARTIAL, 2 OPEN, 0 non vérifié** (22/10 soir : 63, 18, 2 ; 22/10 matin : 52, 19, 12 ; 20/10 : 50, 21, 12 — l'annonce « 50, 20, 13 » était une erreur de comptage ; 12/10 : 34, 11, 37, 1 ; détail en section 4.10). Tous les constats de sécurité sont traités ou partiellement traités (les restes PARTIAL sont des limites assumées, écrites dans `SECURITY.md`). Un constat OPEN dont le fichier cité n'a pas changé depuis l'audit (`c3b36496`) est marqué « inchangé ».
 
 ---
 
@@ -198,12 +198,12 @@ Sévérités : 🔴 élevée · 🟠 moyenne · 🟡 faible · ⚪ info.
 
 | ID | Constat | Où | Statut |
 |----|---------|----|--------|
-| D-01 | Pas de tag v5, CHANGELOG entièrement `[Unreleased]` et contradictoire par endroits | `CHANGELOG.md:10-277` | 🟡 PARTIAL — **tag à poser** : `CHANGELOG.md` a sa section `## [5.0.0] — 2026-10-22` (v5.0 V3-A, détail des lots archivé dans [changelog-v5-lots.md](changelog-v5-lots.md)), `MIGRATION.md` et les guides de migration sont à jour (V3-B), la [checklist de release](release-checklist.md) existe ; dernier tag : `v4.2.0`. Passe en FIXED quand `v5.0.0` est poussé par un humain et que la release est vérifiée |
+| D-01 | Pas de tag v5, CHANGELOG entièrement `[Unreleased]` et contradictoire par endroits | `CHANGELOG.md:10-277` | ✅ FIXED — le tag `v5.0.0` a été posé le 22/10/2026 (`26a111d9`). `CHANGELOG.md` a sa section `## [5.0.0] — 2026-10-22` (v5.0 V3-A, détail des lots archivé dans [changelog-v5-lots.md](changelog-v5-lots.md)), `MIGRATION.md` et les guides de migration sont à jour (V3-B), la [checklist de release](release-checklist.md) existe |
 | D-02 | Chemin du package `deploycleanup/` faux dans le README, l'overview, le wiki et l'ADR-043 | `README*.md:214`, `docs/architecture/overview.*:263` | ✅ FIXED — consolidation C2 : README, overview et wiki pointent `internal/adapters/opencodev2/deploycleanup/` (ADR-043 laissé tel quel, historique) |
 | D-03 | Nombre d'ADR faux (48) dans plusieurs docs de `docs/dev/` | `docs/dev/*.md:3` | ✅ FIXED — vérifié le 22/10 : les 12 pages historiques de `docs/dev/` qui portaient « ADR 038 à 048 » (« ADRs 038 to 048 ») disent maintenant « ADR 038 et suivants » (« ADRs 038 onwards »), les ADR allant jusqu'à 055 |
 | D-04 | Mode distant marqué « non validé » dans la doc, mais rien dans la CLI | `SECURITY*.md:156`, `remote-runners.*:7` | ✅ FIXED — N21 (mode distant expérimental, désactivé par défaut, avertissement dans la CLI) |
 
-### 4.10 Bilan des statuts (2026-10-22)
+### 4.10 Bilan des statuts (2026-10-23)
 
 | Axe | ✅ FIXED | 🟡 PARTIAL | ❌ OPEN | ❔ non vérifié | Total |
 |-----|---------|-----------|--------|---------------|-------|
@@ -211,12 +211,12 @@ Sévérités : 🔴 élevée · 🟠 moyenne · 🟡 faible · ⚪ info.
 | Fonctionnel (F) | 10 | 4 | 2 | 0 | 16 |
 | Design et ergonomie (U) | 9 | 3 | 0 | 0 | 12 |
 | Architecture et qualité (A) | 5 | 4 | 0 | 0 | 9 |
-| Documentation et release (D) | 3 | 1 | 0 | 0 | 4 |
-| **Total** | **63** | **18** | **2** | **0** | **83** |
+| Documentation et release (D) | 4 | 0 | 0 | 0 | 4 |
+| **Total** | **64** | **17** | **2** | **0** | **83** |
 
-Passent à FIXED le 22/10 : S-38, F-12, U-01, U-07, U-09, U-10, A-03, A-04 (clos par justification), A-07, A-09, D-03 ; F-02 passe de OPEN à PARTIAL ; A-05 et A-08 passent de OPEN à PARTIAL ; U-04 et U-12 de OPEN à PARTIAL ; D-01 de OPEN à PARTIAL (tag à poser). Restent OPEN : F-03 (bêta assumée) et F-11.
+Passent à FIXED le 22/10 : S-38, F-12, U-01, U-07, U-09, U-10, A-03, A-04 (clos par justification), A-07, A-09, D-03 ; F-02 passe de OPEN à PARTIAL ; A-05 et A-08 passent de OPEN à PARTIAL ; U-04 et U-12 de OPEN à PARTIAL ; D-01 de OPEN à PARTIAL, puis à FIXED une fois le tag `v5.0.0` posé (22/10, comptage du 23/10). Restent OPEN : F-03 (bêta assumée) et F-11.
 
-Lots du plan (section 5) : F0 fait ; P0 fait — R (N21), G (N22), B (N23), W (N24), P (N25), D (N3 pour `SECURITY.md`, N26), Rel (N27) — sauf le tag v5 (D-01) ; P1 fait, avec des restes — M (v5-fix-m : S-31, S-32 ; S-13 et A-09 partiels), C (N5, N25, v5-fix-h2, tech-leftovers : S-25, S-28, S-33, S-35), H (N14, v5-fix-h2, tech-leftovers : S-29, S-40, A-02 ; A-04 partiel), L (v5-fix-l : F-04, S-27), E (N19, v5-fix-ei : U-02, U-03, U-05, U-08 ; U-06, U-07 et U-09 partiels), T (N6, N11, consolidation C0 à C2, v5-fix-bugs : F-09, F-10, F-05 ; A-03 partiel), I (v5-fix-ei : U-11), K (N17 seulement : F-01 ; F-02 et F-03 ouverts). Le lot v5-fix-sec traite S-34, S-36 et S-37, et une partie de S-11, S-20, S-38 et S-39 ; v5-fix-bugs traite F-14 et F-15, et une partie de F-12 et F-13. Le lot test-isolation et le lot keychain-mcp (clés de projet de F-14, `skills.deny` de S-20) n'ajoutent pas d'autre constat. Le lot tech-leftovers (20/10, soir) clôt S-28 et A-02 et fait avancer S-38 (empreinte épinglée pour la seule 2.0.20, reste partiel). Les lots ci-fix, ci-fix-2 et « modernisation tests » (CI, outils de test communs, correctifs : étiquettes des boards d'équipe, `Config.UpsertTeam`, écritures du fan-out, copie profonde des réglages de la TUI) ne changent aucun statut hors A-06 (précisé). Les lots v5.0 du 22/10 sont détaillés dans « Lots du 22/10 (v5.0) » plus bas.
+Lots du plan (section 5) : F0 fait ; P0 fait — R (N21), G (N22), B (N23), W (N24), P (N25), D (N3 pour `SECURITY.md`, N26), Rel (N27), tag `v5.0.0` posé le 22/10 (D-01) ; P1 fait, avec des restes — M (v5-fix-m : S-31, S-32 ; S-13 et A-09 partiels), C (N5, N25, v5-fix-h2, tech-leftovers : S-25, S-28, S-33, S-35), H (N14, v5-fix-h2, tech-leftovers : S-29, S-40, A-02 ; A-04 partiel), L (v5-fix-l : F-04, S-27), E (N19, v5-fix-ei : U-02, U-03, U-05, U-08 ; U-06, U-07 et U-09 partiels), T (N6, N11, consolidation C0 à C2, v5-fix-bugs : F-09, F-10, F-05 ; A-03 partiel), I (v5-fix-ei : U-11), K (N17 seulement : F-01 ; F-02 et F-03 ouverts). Le lot v5-fix-sec traite S-34, S-36 et S-37, et une partie de S-11, S-20, S-38 et S-39 ; v5-fix-bugs traite F-14 et F-15, et une partie de F-12 et F-13. Le lot test-isolation et le lot keychain-mcp (clés de projet de F-14, `skills.deny` de S-20) n'ajoutent pas d'autre constat. Le lot tech-leftovers (20/10, soir) clôt S-28 et A-02 et fait avancer S-38 (empreinte épinglée pour la seule 2.0.20, reste partiel). Les lots ci-fix, ci-fix-2 et « modernisation tests » (CI, outils de test communs, correctifs : étiquettes des boards d'équipe, `Config.UpsertTeam`, écritures du fan-out, copie profonde des réglages de la TUI) ne changent aucun statut hors A-06 (précisé). Les lots v5.0 du 22/10 sont détaillés dans « Lots du 22/10 (v5.0) » plus bas.
 
 ### 4.11 Nouveaux constats de la relecture (2026-10-21)
 
@@ -270,7 +270,7 @@ Chaque lot se fait sur une branche `feat/v5-fix-<lot>`, avec un test de non-rég
 
 > Mise à jour du 22/10 : une grande partie de cette feuille de route a été faite pour la v5.0 (retrait de `viper`, règles de couches dans `archtest`, `oh run --dry-run`, annulation et coût par projet et par workflow, accueil en 3 écrans, aide en une page, service équipe). L'état de chaque constat est dans les tableaux de la section 4 et dans « Lots du 22/10 (v5.0) ».
 
-- **Architecture** : service équipe/tracker et découpage de `cmd/` ; une seule bibliothèque TUI ; retrait de `viper`, `go-figure`, `go-difflib` ; règles de couches dans `archtest` ; e2e et conteneur planifiés en CI, réduire les exclusions de la CI Windows (A-01, A-05, A-06).
+- **Architecture** : service équipe/tracker et découpage de `cmd/` ; une seule bibliothèque TUI ; retrait de `viper`, `go-figure`, `go-difflib` ; règles de couches dans `archtest` ; réduire les exclusions de la CI Windows (A-01, A-05, A-06). Décision du 22/10 : pas d'e2e ni d'évals en CI.
 - **Simplification** : un seul coordinateur (`conductor`), `feature` composé de `cadrage` et `ticket`, fragments de checkpoints partagés ; identifiants anglais avec alias français ; une seule vue de suivi ; accueil en 3 étapes (U-01, U-04, U-10, U-12, F-08, F-11).
 - **Fonctions** : nettoyage des paquets, sessions et worktrees ; `oh run --dry-run` ; annulation d'une session ; coût par projet et par workflow ; relecture dans `review-feedback` ; worktree par sous-tâche dans `sweep` ; verrous de commit pour les workflows qui écrivent ; GitHub au niveau de GitLab ou retrait (F-05 à F-07, F-13).
 - **Briques** : refonte décrite dans l'ADR-051 (commande `oh brick`, import vérifié vers le catalogue d'équipe, éditeur et choix d'agent dans la TUI, identifiants vérifiés dans `config model`) (F-15).
@@ -290,7 +290,7 @@ Chaque lot se fait sur une branche `feat/v5-fix-<lot>`, avec un test de non-rég
   - modernisation tests (21/10) : A-06 en partie (CI en un passage, job d'intégration limité, sleeps du démon remplacés).
   - Les lots de modernisation antérieurs (fan-out, `feature-migration`, `tui-keys` à `tui-docs`, `brick-catalog`) font avancer F-08, F-15, U-06, U-07 et A-01.
 - **Reste en P2 ou au backlog (état du 20/10 ; voir « Lots du 22/10 (v5.0) » pour l'état actuel)** :
-  - release et docs : D-01 (tag v5) et D-03 ;
+  - release et docs : D-01 (tag v5) et D-03 (état du 20/10 ; D-01 est FIXED depuis le tag `v5.0.0` du 22/10) ;
   - fonctionnel : F-02, F-03, F-07, F-08, F-11 ;
   - ergonomie : U-01, U-04, U-06, U-10, U-12 ;
   - architecture : A-01, A-03, A-05 à A-08 ;
@@ -316,10 +316,9 @@ Lots de la release v5.0 (22/10/2026). Détail de chaque lot dans `CHANGELOG.md` 
   - X7 : A-01 en partie (`internal/services/team`).
   - X8 : U-09 et U-10 (`oh init` en 3 écrans).
   - X9 : `--force` devient un alias déprécié de `--yes` quand il sert à sauter une confirmation, hors constats.
-  - V3-A, V3-B et V4 (documentation) : D-01 en partie (`[5.0.0]` coupée, tag à poser), D-03, A-04 (clos par justification), [checklist de release](release-checklist.md), `SECURITY*.md` (limites assumées S-11, S-12, S-13, S-15, S-20, S-39), `MIGRATION.md`.
+  - V3-A, V3-B et V4 (documentation) : D-01 en partie (`[5.0.0]` coupée ; passé en FIXED avec le tag `v5.0.0`), D-03, A-04 (clos par justification), [checklist de release](release-checklist.md), `SECURITY*.md` (limites assumées S-11, S-12, S-13, S-15, S-20, S-39), `MIGRATION.md`.
 - **Décision du 22/10** : `brews` de GoReleaser, déprécié au profit de `homebrew_casks`, est **gardé pour la 5.0** ; `goreleaser check` signale donc seulement cette dépréciation (voir la checklist).
 - **Reste en P2 ou au backlog** :
-  - release : D-01 (poser `v5.0.0` et vérifier la release) ;
   - fonctionnel : F-02 (trois modèles de statut) et F-03 (bêta assumée, correction en 5.1), F-07 et F-13 (GitHub à moitié branché), F-08, F-11 ;
   - ergonomie : U-04 (identifiants canoniques `manuel`, `libre`, `cadrage`), U-06 (`layout.Build` dans `board`, `teamboard`, `dashboard`, `wizard`), U-12 (guides pas tous repris) ;
   - architecture : A-01 (fonctions de 500 à 740 lignes, 44 fichiers de `cmd/` qui importent `teamstate`, 20 fichiers qui ouvrent `storage/sqlite`), A-05 (tview + huh, go-figure, go-difflib : assumés), A-06 (`cmd/integration_test.go` sans tag, exclusions Windows), A-08 (deux cascades non unifiées) ;
