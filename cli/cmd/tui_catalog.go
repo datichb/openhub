@@ -9,6 +9,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/prefsvc"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 	"github.com/datichb/openhub/cli/internal/workflow"
@@ -137,13 +138,13 @@ func catalogEntry(s workflowsvc.Summary, pinned bool) views.CatalogEntry {
 	return e
 }
 
-// diagLines renders diagnostics as « ✗ path: message » lines.
+// diagLines renders diagnostics as « ✗ path: message » lines (⚠ for a warning).
 func diagLines(ds workflow.Diagnostics) []string {
 	var out []string
 	for _, d := range ds {
-		icon := "⚠"
+		icon := theme.SymWarning
 		if d.Severity == workflow.SeverityError {
-			icon = "✗"
+			icon = theme.SymFailure
 		}
 		line := icon + " "
 		if d.Path != "" {

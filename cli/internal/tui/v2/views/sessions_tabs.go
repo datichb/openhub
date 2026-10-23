@@ -2,6 +2,7 @@ package views
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"strings"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 )
@@ -64,6 +66,11 @@ type sessionTabs struct {
 	cur     sessionTab
 	focused bool   // the keys go to the tab
 	session string // session shown by the tab
+
+	// traceLoads, reportsLoads and bodyLoads number the reads of the tabs
+	// (the fan-out has its own in fanoutPane): the answer of an older one
+	// is dropped.
+	traceLoads, reportsLoads, bodyLoads loadSlot
 }
 
 func newSessionTabs(v *SessionsView) *sessionTabs {
@@ -107,7 +114,8 @@ func (t *sessionTabs) renderBar(r *SessionRow) {
 	var parts []string
 	for _, tab := range availableTabs(r) {
 		if tab == t.cur {
-			parts = append(parts, theme.ColorTag(theme.ActiveMode.PrimaryHex)+tview.Escape("["+tab.label()+"]")+theme.TagColor)
+			// The active tab is between brackets, which are text and not a tag.
+			parts = append(parts, theme.Paint(theme.ActiveMode.PrimaryHex, tview.Escape(fmt.Sprintf("%c%s%c", '[', tab.label(), ']'))))
 			continue
 		}
 		parts = append(parts, " "+muted(tab.label())+" ")
@@ -249,14 +257,18 @@ func (v *SessionsView) loadTrace(id string) {
 		v.tabs.trace.SetEmpty(i18n.T("tui.sessions.trace.unavailable"))
 		return
 	}
-	v.tabs.trace.SetEmpty(i18n.T("tui.sessions.trace.loading"))
-	var text string
-	v.async(func(ctx context.Context) (string, error) {
-		var err error
-		text, err = tr.SessionTrace(ctx, id)
-		return "", err
-	}, func(string) {
+	if v.app == nil {
+		return
+	}
+	v.tabs.trace.SetState(stateLoading, i18n.T("tui.sessions.trace.loading"))
+	load(v.app, v.ctx, &v.tabs.traceLoads, func(ctx context.Context) (string, error) {
+		return tr.SessionTrace(ctx, id)
+	}, func(text string, err error) {
 		if v.tabs == nil || v.tabs.session != id {
+			return
+		}
+		if err != nil {
+			v.tabs.trace.SetState(stateError, err.Error())
 			return
 		}
 		v.tabs.trace.SetEmpty(i18n.T("tui.sessions.trace.empty"))
@@ -314,14 +326,10 @@ func reportItems(list []CheckpointReport) []ActionItem {
 	}
 	for i := len(list) - 1; i >= 0; i-- { // the last one first
 		r := list[i]
-		at := ""
-		if !r.At.IsZero() {
-			at = r.At.Local().Format("15:04")
-		}
-		cells := []string{r.ID, firstText(r.Agent, "?"), at, reportSize(r.Bytes), clipText(r.Title, 40)}
+		cells := []string{r.ID, firstText(r.Agent, "?"), textfmt.Clock(r.At), textfmt.Bytes(int64(r.Bytes)), textfmt.Clip(r.Title, 40)}
 		title := r.ID + " · " + firstText(r.Agent, "?")
 		if withChild { // the child that filed it, after the id
-			cells = slices.Insert(cells, 1, clipText(r.Child, 14))
+			cells = slices.Insert(cells, 1, textfmt.Clip(r.Child, 14))
 			if r.Child != "" {
 				title = r.Child + " · " + title
 			}
@@ -329,13 +337,6 @@ func reportItems(list []CheckpointReport) []ActionItem {
 		items = append(items, ActionItem{ID: r.key(), Cells: cells, DetailTitle: title, Ref: r})
 	}
 	return items
-}
-
-func reportSize(n int) string {
-	if n >= 1024 {
-		return i18n.Tf("tui.checkpoint.report_kib", float64(n)/1024)
-	}
-	return i18n.Tf("tui.checkpoint.report_bytes", n)
 }
 
 func (v *SessionsView) loadReports(id string) {
@@ -346,13 +347,18 @@ func (v *SessionsView) loadReports(id string) {
 		p.list.SetItems(nil)
 		return
 	}
-	var list []CheckpointReport
-	v.async(func(ctx context.Context) (string, error) {
-		var err error
-		list, err = rl.SessionReports(ctx, id)
-		return "", err
-	}, func(string) {
+	if v.app == nil {
+		return
+	}
+	load(v.app, v.ctx, &v.tabs.reportsLoads, func(ctx context.Context) ([]CheckpointReport, error) {
+		return rl.SessionReports(ctx, id)
+	}, func(list []CheckpointReport, err error) {
 		if v.tabs == nil || v.tabs.session != id {
+			return
+		}
+		if err != nil {
+			p.list.SetEmpty(i18n.Tf("tui.state.error", err.Error()))
+			p.list.SetItems(nil)
 			return
 		}
 		p.list.SetEmpty(i18n.T("tui.sessions.reports.none"))
@@ -376,14 +382,19 @@ func (p *reportsPane) show(it ActionItem) {
 		return
 	}
 	sessionID = r.owner(sessionID)
-	p.reader.SetEmpty(i18n.T("tui.sessions.reports.loading"))
+	if p.v.app == nil {
+		return
+	}
+	p.reader.SetState(stateLoading, i18n.T("tui.sessions.reports.loading"))
 	p.reader.SetText("")
-	var body string
-	p.v.async(func(ctx context.Context) (string, error) {
-		var err error
-		_, body, err = rd.CheckpointReport(ctx, sessionID, r.ID)
-		return "", err
-	}, func(string) {
+	load(p.v.app, p.v.ctx, &p.v.tabs.bodyLoads, func(ctx context.Context) (string, error) {
+		_, body, err := rd.CheckpointReport(ctx, sessionID, r.ID)
+		return body, err
+	}, func(body string, err error) {
+		if err != nil {
+			p.reader.SetState(stateError, err.Error())
+			return
+		}
 		p.bodies[r.key()] = body
 		if cur, ok := p.list.Current(); ok && cur.ID == r.key() {
 			p.reader.SetText(body)

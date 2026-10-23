@@ -5,6 +5,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/glyph"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
 // Sessions section of the landings (P3-T19, 10 §1–§3): a short summary read
@@ -54,7 +55,7 @@ func sessionsSection(cfg SessionsSectionConfig, scope SessionsScope, headerKey s
 	if len(sum.Lines) == 0 {
 		label = i18n.T("tui.sessions.none_open")
 	}
-	items = append(items, sessionsSectionItem{Icon: "▸", Label: label, Desc: i18n.T("tui.sessions.all_desc"), Action: open("")})
+	items = append(items, sessionsSectionItem{Icon: theme.SymCursor, Label: label, Desc: i18n.T("tui.sessions.all_desc"), Action: open("")})
 	return header, items, true
 }
 

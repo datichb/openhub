@@ -8,6 +8,7 @@ import (
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -132,7 +133,7 @@ func existingBlock(e LaunchExisting) string {
 			mark = "[" + theme.WarningHex + "]⚠[-]"
 		}
 		fmt.Fprintf(&b, "%s %s%s[-] %s %s\n", mark, muted, pad(label, existingLabelWidth),
-			tview.Escape(pad(clipText(dashIfEmpty(existing), existingColWidth), existingColWidth)), tview.Escape(dashIfEmpty(planned)))
+			tview.Escape(pad(textfmt.Clip(dashIfEmpty(existing), existingColWidth), existingColWidth)), tview.Escape(dashIfEmpty(planned)))
 	}
 	state := e.StateLabel
 	if state == "" {

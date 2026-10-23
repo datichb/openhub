@@ -13,6 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/runsvc"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
@@ -185,7 +186,7 @@ func quitFields(ctx context.Context, a *app.App, plan runsvc.QuitPlan) []views.F
 			}
 			names[s.ProjectID] = name
 		}
-		label := "● " + firstNonEmpty(s.WorkflowID, s.EntryAgent)
+		label := theme.SymLive + " " + firstNonEmpty(s.WorkflowID, s.EntryAgent)
 		if name != "" {
 			label += " · " + name
 		}

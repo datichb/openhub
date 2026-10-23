@@ -10,6 +10,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/glyph"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 )
@@ -85,7 +86,7 @@ func (d BatchDecision) verifyCell() string {
 	case verifyPass:
 		return theme.SymSuccess + " " + i18n.T("tui.batch.verify_ok")
 	case verifyFail, verifyUnavailable:
-		return "✗ " + i18n.T("tui.batch.verify_failed")
+		return theme.SymFailure + " " + i18n.T("tui.batch.verify_failed")
 	case verifyRunning:
 		return "… " + i18n.T("tui.batch.verify_running")
 	}
@@ -164,7 +165,7 @@ func newBatchPane(v *SessionsView, b SessionBatcher, scope, parent string, items
 		StateHeader: i18n.T("tui.batch.col.choice"),
 		StateLabels: map[ItemState]string{
 			ItemAccepted:   theme.SymSuccess + " " + i18n.T("tui.batch.choice.approve"),
-			ItemRefused:    "✗ " + i18n.T("tui.batch.choice.reject"),
+			ItemRefused:    theme.SymFailure + " " + i18n.T("tui.batch.choice.reject"),
 			batchKeepState: "· " + i18n.T("tui.batch.choice.keep"),
 		},
 		Empty: i18n.T("tui.batch.filter_empty"),
@@ -262,24 +263,24 @@ func (p *batchPane) item(d BatchDecision) ActionItem {
 	}
 	verify := d.verifyCell()
 	if d.ApproverMismatch {
-		verify += "  ⚠ " + i18n.T("tui.batch.out_of_approver")
+		verify += "  " + theme.SymWarning + " " + i18n.T("tui.batch.out_of_approver")
 	}
 	var detail strings.Builder
 	detail.WriteString(tview.Escape(firstText(d.Summary, "—")) + "\n")
 	fmt.Fprintf(&detail, "%s\n", tview.Escape(i18n.Tf("tui.batch.verify", firstText(d.Verify, "—"))))
 	if d.Failed() {
-		fmt.Fprintf(&detail, "%s%s%s\n", theme.ColorTag(theme.ErrorHex), i18n.T("tui.batch.failed_hint"), theme.TagColor)
+		detail.WriteString(theme.Paint(theme.ErrorHex, i18n.T("tui.batch.failed_hint")) + "\n")
 	}
 	if d.Approver != "" {
 		detail.WriteString(tview.Escape(i18n.Tf("tui.checkpoint.approver", d.Approver)) + "\n")
 	}
 	if d.ApproverMismatch {
-		fmt.Fprintf(&detail, "%s%s%s\n", theme.ColorTag(theme.WarningHex), tview.Escape(i18n.Tf("tui.batch.approver_mismatch", d.Approver)), theme.TagColor)
+		detail.WriteString(theme.Paint(theme.WarningHex, tview.Escape(i18n.Tf("tui.batch.approver_mismatch", d.Approver))) + "\n")
 	}
 	if c.Message != "" {
 		detail.WriteString(tview.Escape(i18n.Tf("tui.batch.refusal", c.Message)) + "\n")
 	}
-	return ActionItem{ID: d.ID, Cells: []string{clipText(who, 28), firstText(d.Checkpoint, "—"), clipText(firstText(d.Summary, "—"), 36), verify},
+	return ActionItem{ID: d.ID, Cells: []string{textfmt.Clip(who, 28), firstText(d.Checkpoint, "—"), textfmt.Clip(firstText(d.Summary, "—"), 36), verify},
 		State: state, DetailTitle: firstText(d.Checkpoint, d.ID) + " · " + shortSessionID(d.SessionID), Detail: detail.String(), Ref: d}
 }
 
@@ -385,7 +386,7 @@ func (p *batchPane) confirm() {
 		n[c.Action]++
 		line := i18n.T("tui.batch.action." + c.Action)
 		if c.Message != "" {
-			line += " — « " + clipText(c.Message, 60) + " »"
+			line += " — « " + textfmt.Clip(c.Message, 60) + " »"
 		}
 		detail.WriteString(i18n.Tf("tui.batch.line", p.v.batchLabel(items[i]), line) + "\n")
 	}
@@ -448,7 +449,7 @@ func (v *SessionsView) batchLabel(d BatchDecision) string {
 		who = sessionLabel(*r) + " " + who
 	}
 	verify := firstText(d.Verify, "—")
-	line := clipText(fmt.Sprintf("%s · %s · %s · %s", firstText(d.Checkpoint, d.ID), who, firstText(d.Summary, "—"),
+	line := textfmt.Clip(fmt.Sprintf("%s · %s · %s · %s", firstText(d.Checkpoint, d.ID), who, firstText(d.Summary, "—"),
 		i18n.Tf("tui.batch.verify", verify)), 90)
 	if d.ApproverMismatch {
 		// Never clipped away: the warning of the item (CP-R9).
@@ -473,7 +474,7 @@ func (v *SessionsView) showBatchResult(res []BatchResult) {
 		case r.Action == BatchReject:
 			color = theme.WarningHex
 		}
-		fmt.Fprintf(&body, "%s %s%s%s\n", tview.Escape(v.batchLabel(r.BatchDecision)), theme.ColorTag(color), tview.Escape(state), theme.TagColor)
+		fmt.Fprintf(&body, "%s %s\n", tview.Escape(v.batchLabel(r.BatchDecision)), theme.Paint(color, tview.Escape(state)))
 	}
 	title := i18n.Tf("tui.batch.done", len(res)-failed, len(res))
 	v.shell.ShowScrollableModal(title, body.String(), nil)

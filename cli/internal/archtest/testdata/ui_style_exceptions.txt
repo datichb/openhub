@@ -10,17 +10,13 @@
 # kinds: tag-color, tag-style, color-literal, widgets-tag, symbol (see the test)
 # The lot A12 removes widgets.ColorTag, and with it the widgets-tag lines.
 #
-symbol cmd/tui_catalog.go 2
-tag-style cmd/tui_cleanup.go 2
 symbol cmd/tui_editor.go 2
 symbol cmd/tui_launch.go 1
-symbol cmd/tui_remote.go 8
 symbol cmd/tui_team_columns.go 5
 tag-color cmd/tui_team_columns.go 12
 tag-style cmd/tui_team_columns.go 2
 widgets-tag cmd/tui_team_columns.go 1
 symbol cmd/tui_team_tracker.go 2
-symbol cmd/tui_v5_lifecycle.go 1
 symbol cmd/tui_views.go 1
 symbol internal/tui/theme/button.go 1
 symbol internal/tui/v2/layout/layout.go 1
@@ -72,10 +68,6 @@ symbol internal/tui/v2/views/publish_view.go 6
 tag-color internal/tui/v2/views/publish_view.go 13
 tag-style internal/tui/v2/views/publish_view.go 3
 symbol internal/tui/v2/views/secrets_view.go 2
-symbol internal/tui/v2/views/sessions_batch.go 3
-symbol internal/tui/v2/views/sessions_fanout.go 2
-symbol internal/tui/v2/views/sessions_section.go 1
-tag-color internal/tui/v2/views/sessions_tabs.go 1
 symbol internal/tui/v2/views/settings_exec.go 1
 symbol internal/tui/v2/views/settings_view.go 1
 symbol internal/tui/v2/views/start_section.go 4

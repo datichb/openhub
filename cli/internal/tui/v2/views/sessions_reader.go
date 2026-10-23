@@ -25,6 +25,7 @@ type textReader struct {
 	hits  []int // matching line indexes
 	cur   int   // index in hits (-1: none)
 	empty string
+	state stateKind // what empty says: loading, nothing to show, or the failure
 	// ask prompts for the search (ShowInputModal; tests replace it).
 	ask func(title, current string, done func(string))
 }
@@ -54,9 +55,13 @@ func (r *textReader) SetText(raw string) {
 	r.text.ScrollToBeginning()
 }
 
-// SetEmpty is the text shown without lines (loading, nothing to read).
-func (r *textReader) SetEmpty(msg string) {
-	r.empty = msg
+// SetEmpty is the text shown without lines when there is nothing to read.
+func (r *textReader) SetEmpty(msg string) { r.SetState(stateEmpty, msg) }
+
+// SetState is the text shown without lines: loading, nothing to read, or the
+// reason the text could not be read (stateText).
+func (r *textReader) SetState(kind stateKind, msg string) {
+	r.state, r.empty = kind, msg
 	r.render()
 }
 
@@ -131,7 +136,11 @@ func (r *textReader) render() {
 		r.head.SetText(tview.Escape("/"+r.query) + "  " + muted(i18n.Tf("tui.sessions.reader.matches", r.cur+1, len(r.hits))))
 	}
 	if len(r.lines) == 0 {
-		r.text.SetText(muted(tview.Escape(r.empty)))
+		if r.empty == "" && r.state != stateError {
+			r.text.SetText("")
+			return
+		}
+		r.text.SetText(stateText(r.state, r.empty))
 		return
 	}
 	hit := map[int]int{}
@@ -167,7 +176,7 @@ func markQuery(line, q string) string {
 			return b.String()
 		}
 		b.WriteString(tview.Escape(line[:i]))
-		b.WriteString(theme.ColorTag(theme.WarningHex) + tview.Escape(line[i:i+len(lq)]) + theme.TagColor)
+		b.WriteString(theme.Paint(theme.WarningHex, tview.Escape(line[i:i+len(lq)])))
 		line, low = line[i+len(lq):], low[i+len(lq):]
 	}
 }

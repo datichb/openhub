@@ -11,6 +11,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/gc"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 )
@@ -344,7 +345,7 @@ func (v *GCView) items() []ActionItem {
 				size = "—"
 			}
 			out = append(out, ActionItem{ID: string(it.Kind) + ":" + it.ID + ":" + it.Path, Section: section,
-				Cells: []string{clipText(what, 28), size, clipLeft(it.Path, 44)}, DetailTitle: kindLabel(k), Detail: v.itemDetail(it), Ref: it})
+				Cells: []string{textfmt.Clip(what, 28), size, clipLeft(it.Path, 44)}, DetailTitle: kindLabel(k), Detail: v.itemDetail(it), Ref: it})
 		}
 	}
 	if h := v.plan.History; h.Total() > 0 {

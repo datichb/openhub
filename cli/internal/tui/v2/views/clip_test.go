@@ -4,10 +4,12 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/datichb/openhub/cli/internal/textfmt"
 )
 
 // Texts are cut in characters, never in the middle of one, and never panic
-// whatever the limit.
+// whatever the limit (the views that still cut by hand agree with textfmt.Clip).
 func TestClipping(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -27,7 +29,7 @@ func TestClipping(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.want, clipText(tc.in, tc.limit), "clipText")
+			assert.Equal(t, tc.want, textfmt.Clip(tc.in, tc.limit), "textfmt.Clip")
 			assert.Equal(t, tc.want, truncateString(tc.in, tc.limit), "truncateString")
 		})
 	}

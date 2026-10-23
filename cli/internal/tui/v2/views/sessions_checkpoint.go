@@ -10,6 +10,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/glyph"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -134,7 +135,7 @@ func checkpointTitle(r *SessionRow, d *SessionDecision, c CheckpointCardView) st
 func checkpointBody(c CheckpointCardView) string {
 	var b strings.Builder
 	section := func(title string) {
-		fmt.Fprintf(&b, "%s─ %s%s\n", theme.ColorTag(theme.TextMutedHex), title, theme.TagColor)
+		b.WriteString(muted("─ "+title) + "\n")
 	}
 	if c.Summary != "" {
 		b.WriteString(tview.Escape(c.Summary) + "\n\n")
@@ -153,8 +154,8 @@ func checkpointBody(c CheckpointCardView) string {
 				fmt.Fprintf(&b, "  %s\n", muted(i18n.Tf("tui.checkpoint.more_files", len(c.Files)-i)))
 				break
 			}
-			fmt.Fprintf(&b, "  %s %s  %s+%d%s %s−%d%s\n", firstText(f.Status, "M")[:1], tview.Escape(f.File),
-				theme.ColorTag(theme.SuccessHex), f.Additions, theme.TagColor, theme.ColorTag(theme.ErrorHex), f.Deletions, theme.TagColor)
+			fmt.Fprintf(&b, "  %s %s  %s %s\n", firstText(f.Status, "M")[:1], tview.Escape(f.File),
+				theme.Paint(theme.SuccessHex, fmt.Sprintf("+%d", f.Additions)), theme.Paint(theme.ErrorHex, fmt.Sprintf("−%d", f.Deletions)))
 		}
 	}
 	b.WriteString("\n")
@@ -163,7 +164,7 @@ func checkpointBody(c CheckpointCardView) string {
 		b.WriteString("  " + muted(i18n.T("tui.checkpoint.no_messages")) + "\n")
 	}
 	for _, m := range c.Messages {
-		b.WriteString("  " + tview.Escape(clipText(m, 300)) + "\n")
+		b.WriteString("  " + tview.Escape(textfmt.Clip(m, 300)) + "\n")
 	}
 	if c.Timeline != "" {
 		b.WriteString("\n")
@@ -182,8 +183,7 @@ func writeCheckpointApprover(b *strings.Builder, a CheckpointApproverView) {
 	fmt.Fprintf(b, "%s\n", tview.Escape(i18n.Tf("tui.checkpoint.approver", a.Expected)))
 	switch {
 	case a.Mismatch:
-		fmt.Fprintf(b, "%s%s%s\n", theme.ColorTag(theme.WarningHex),
-			tview.Escape(i18n.Tf("tui.checkpoint.approver_mismatch", firstText(a.Identity, "?"))), theme.TagColor)
+		b.WriteString(theme.Paint(theme.WarningHex, tview.Escape(i18n.Tf("tui.checkpoint.approver_mismatch", firstText(a.Identity, "?")))) + "\n")
 	case a.Identity != "":
 		b.WriteString(muted(tview.Escape(i18n.Tf("tui.checkpoint.approver_you", a.Identity))) + "\n")
 	}
@@ -315,7 +315,7 @@ func approverHint(a CheckpointApproverView) string {
 	line := tview.Escape(i18n.Tf("tui.checkpoint.approver", a.Expected))
 	switch {
 	case a.Mismatch:
-		line += "\n  " + theme.ColorTag(theme.WarningHex) + tview.Escape(i18n.Tf("tui.checkpoint.approver_mismatch", firstText(a.Identity, "?"))) + theme.TagColor
+		line += "\n  " + theme.Paint(theme.WarningHex, tview.Escape(i18n.Tf("tui.checkpoint.approver_mismatch", firstText(a.Identity, "?"))))
 	case a.Identity != "":
 		line += "\n  " + muted(tview.Escape(i18n.Tf("tui.checkpoint.approver_you", a.Identity)))
 	}

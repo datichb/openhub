@@ -1,12 +1,12 @@
 package views
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -77,8 +77,7 @@ func writeCheckpointVerify(b *strings.Builder, v CheckpointVerifyView, section f
 		return
 	}
 	if v.Unresolved != "" {
-		fmt.Fprintf(b, "%s%s %s%s\n\n", theme.ColorTag(theme.WarningHex), theme.IconWarning,
-			tview.Escape(i18n.Tf("tui.checkpoint.unresolved", v.Unresolved)), theme.TagColor)
+		b.WriteString(theme.Paint(theme.WarningHex, theme.IconWarning+" "+tview.Escape(i18n.Tf("tui.checkpoint.unresolved", v.Unresolved))) + "\n\n")
 	}
 	if v.Status != "" {
 		section(i18n.T("tui.checkpoint.verify.title"))
@@ -91,22 +90,22 @@ func writeCheckpointVerify(b *strings.Builder, v CheckpointVerifyView, section f
 		case verifyRunning, verifyNone:
 			color, icon = theme.TextMutedHex, "…"
 		}
-		fmt.Fprintf(b, "  %s%s %s%s\n", theme.ColorTag(color), icon, tview.Escape(v.Summary), theme.TagColor)
+		b.WriteString("  " + theme.Paint(color, icon+" "+tview.Escape(v.Summary)) + "\n")
 		if v.Excerpt != "" && v.Status == verifyFail {
 			lines := strings.Split(v.Excerpt, "\n")
 			if len(lines) > checkpointExcerptLines {
 				lines = lines[len(lines)-checkpointExcerptLines:]
 			}
 			for _, l := range lines {
-				b.WriteString("    " + muted(tview.Escape(clipText(l, 200))) + "\n")
+				b.WriteString("    " + muted(tview.Escape(textfmt.Clip(l, 200))) + "\n")
 			}
 		}
 		switch {
 		case v.Failed() && v.NoOverride:
-			b.WriteString("  " + theme.ColorTag(theme.WarningHex) + i18n.T("tui.checkpoint.verify.blocked") + theme.TagColor + "\n")
+			b.WriteString("  " + theme.Paint(theme.WarningHex, i18n.T("tui.checkpoint.verify.blocked")) + "\n")
 			b.WriteString("  " + muted(i18n.T("tui.checkpoint.verify.no_override_hint")) + "\n")
 		case v.Failed():
-			b.WriteString("  " + theme.ColorTag(theme.WarningHex) + i18n.T("tui.checkpoint.verify.blocked") + theme.TagColor + "\n")
+			b.WriteString("  " + theme.Paint(theme.WarningHex, i18n.T("tui.checkpoint.verify.blocked")) + "\n")
 			b.WriteString("  " + muted(i18n.T("tui.checkpoint.verify.override_hint")) + "\n")
 		}
 	}
@@ -118,8 +117,7 @@ func writeCheckpointVerify(b *strings.Builder, v CheckpointVerifyView, section f
 		if !v.RemoteOK {
 			color, icon = theme.WarningHex, theme.IconWarning
 		}
-		fmt.Fprintf(b, "  %s%s %s%s\n", theme.ColorTag(color), icon,
-			tview.Escape(i18n.Tf("tui.checkpoint.verify.remote", v.Remote)), theme.TagColor)
+		b.WriteString("  " + theme.Paint(color, icon+" "+tview.Escape(i18n.Tf("tui.checkpoint.verify.remote", v.Remote))) + "\n")
 	}
 	if v.Status != "" || v.Remote != "" {
 		b.WriteString("\n")
@@ -129,14 +127,11 @@ func writeCheckpointVerify(b *strings.Builder, v CheckpointVerifyView, section f
 		for _, e := range v.Evidence {
 			switch {
 			case e.Contradicted:
-				fmt.Fprintf(b, "  %s%s %s%s\n", theme.ColorTag(theme.ErrorHex), theme.IconWarning,
-					tview.Escape(i18n.Tf("tui.checkpoint.evidence.contradicted", e.Cmd, e.Exit)), theme.TagColor)
+				b.WriteString("  " + theme.Paint(theme.ErrorHex, theme.IconWarning+" "+tview.Escape(i18n.Tf("tui.checkpoint.evidence.contradicted", e.Cmd, e.Exit))) + "\n")
 			case e.Observed:
-				fmt.Fprintf(b, "  %s%s %s%s\n", theme.ColorTag(theme.SuccessHex), theme.IconSuccess,
-					tview.Escape(i18n.Tf("tui.checkpoint.evidence.observed", e.Cmd, e.Exit)), theme.TagColor)
+				b.WriteString("  " + theme.Paint(theme.SuccessHex, theme.IconSuccess+" "+tview.Escape(i18n.Tf("tui.checkpoint.evidence.observed", e.Cmd, e.Exit))) + "\n")
 			default:
-				fmt.Fprintf(b, "  %s%s %s%s\n", theme.ColorTag(theme.WarningHex), theme.IconWarning,
-					tview.Escape(i18n.Tf("tui.checkpoint.evidence.unobserved", e.Cmd, e.Exit)), theme.TagColor)
+				b.WriteString("  " + theme.Paint(theme.WarningHex, theme.IconWarning+" "+tview.Escape(i18n.Tf("tui.checkpoint.evidence.unobserved", e.Cmd, e.Exit))) + "\n")
 			}
 		}
 		b.WriteString("\n")

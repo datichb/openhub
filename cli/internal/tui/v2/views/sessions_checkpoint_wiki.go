@@ -9,7 +9,6 @@ import (
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 )
 
@@ -56,7 +55,7 @@ func writeCheckpointWiki(b *strings.Builder, list []CheckpointWikiProposal) {
 	if len(list) == 0 {
 		return
 	}
-	fmt.Fprintf(b, "%s─ %s%s\n", theme.ColorTag(theme.TextMutedHex), i18n.Tf("tui.checkpoint.wiki", len(list)), theme.TagColor)
+	b.WriteString(muted("─ "+i18n.Tf("tui.checkpoint.wiki", len(list))) + "\n")
 	accepted := 0
 	for _, p := range list {
 		page := p.Page

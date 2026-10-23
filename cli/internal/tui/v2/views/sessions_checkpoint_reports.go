@@ -9,7 +9,7 @@ import (
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 )
 
 // Reports on the checkpoint card (modernisation L4, workflow_report): the
@@ -58,23 +58,20 @@ func writeCheckpointReports(b *strings.Builder, reports []CheckpointReport) {
 	if len(reports) == 0 {
 		return
 	}
-	fmt.Fprintf(b, "%s─ %s%s\n", theme.ColorTag(theme.TextMutedHex), i18n.T("tui.checkpoint.reports"), theme.TagColor)
+	b.WriteString(muted("─ "+i18n.T("tui.checkpoint.reports")) + "\n")
 	for _, r := range reports {
-		line := fmt.Sprintf("%s · %s · %s", r.ID, firstText(r.Agent, "?"), clipText(r.Title, 80))
+		line := fmt.Sprintf("%s · %s · %s", r.ID, firstText(r.Agent, "?"), textfmt.Clip(r.Title, 80))
 		fmt.Fprintf(b, "  %s  %s\n", tview.Escape(line), muted(tview.Escape(reportMeta(r))))
 	}
 	b.WriteString("\n")
 }
 
 func reportMeta(r CheckpointReport) string {
-	size := i18n.Tf("tui.checkpoint.report_bytes", r.Bytes)
-	if r.Bytes >= 1024 {
-		size = i18n.Tf("tui.checkpoint.report_kib", float64(r.Bytes)/1024)
-	}
+	size := textfmt.Bytes(int64(r.Bytes))
 	if r.At.IsZero() {
 		return size
 	}
-	return size + " · " + r.At.Local().Format("15:04")
+	return size + " · " + textfmt.Clock(r.At)
 }
 
 // reportActions are the reader actions of the card (one per report, the

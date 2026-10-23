@@ -1,8 +1,8 @@
 ╔ Détail · implement-spec ⑂ ═══════════════════════════════════════════════════════════════════════╗
 ║  Détail   Trace  [Rapports]  Fan-out                                                             ║
 ║ ╔ Rapports ══════════════════════════╗/ rechercher · n/N suivant/précédent · g/G début/fin       ║
-║ ║ ▸ rp-7  reviewer   10:28  4.1 Ko … ║## Résumé                                                  ║
-║ ║   rp-5  developer  10:09  2.1 Ko … ║Deux constats bloquants sur le rafraîchissement du jeton.  ║
+║ ║ ▸ rp-7  reviewer   10:28  4.1 Kio… ║## Résumé                                                  ║
+║ ║   rp-5  developer  10:09  2.1 Kio… ║Deux constats bloquants sur le rafraîchissement du jeton.  ║
 ║ ║ 1/2                                ║                                                           ║
 ║ ╚════════════════════════════════════╝                                                           ║
 ║ Entrée lire · / rechercher · n/N suivant/précédent · Tab onglet · Échap retour                   ║

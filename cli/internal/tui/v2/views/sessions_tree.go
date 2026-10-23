@@ -4,7 +4,6 @@ import (
 	"sort"
 	"time"
 
-	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
@@ -119,7 +118,7 @@ func groupItems(r SessionRow, kids []SessionRow, inbox bool) []widgets.SectionIt
 		}
 		for _, d := range sortedDecisions(k.Decisions) {
 			di := decisionItem(d)
-			di.MainText = "  " + theme.ColorTag(theme.TextMutedHex) + pipe + theme.TagColor + "  " + di.MainText
+			di.MainText = "  " + muted(pipe) + "  " + di.MainText
 			di.SecondaryText = "    " + di.SecondaryText
 			items = append(items, di)
 		}
