@@ -589,9 +589,9 @@ func (v *LaunchFormView) dirtyChoicesText() string {
 		if v.m.dirty == c.value {
 			mark = theme.SymSelected
 		}
-		parts[i] = fmt.Sprintf("[%s] %s %s", c.key.Keys(), mark, c.key.Label())
+		parts[i] = fmt.Sprintf("%s %s %s", bracketed(c.key.Keys()), mark, tview.Escape(c.key.Label()))
 	}
-	return theme.Paint(theme.WarningHex, theme.SymWarning+" "+i18n.T("tui.launch.dirty.title")) + "  " + tview.Escape(strings.Join(parts, "   "))
+	return theme.Paint(theme.WarningHex, theme.SymWarning+" "+i18n.T("tui.launch.dirty.title")) + "  " + strings.Join(parts, "   ")
 }
 
 // dirtyKey applies a dirty directory choice on the recap step; it reports

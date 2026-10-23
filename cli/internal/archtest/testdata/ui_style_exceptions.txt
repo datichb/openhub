@@ -35,8 +35,6 @@ symbol internal/tui/v2/views/inline_form.go 2
 tag-color internal/tui/v2/views/inline_form.go 2
 tag-style internal/tui/v2/views/inline_wizard.go 1
 widgets-tag internal/tui/v2/views/inline_wizard.go 31
-tag-color internal/tui/v2/views/launch_form.go 1
-tag-color internal/tui/v2/views/launch_form_existing.go 1
 symbol internal/tui/v2/views/list_page.go 2
 tag-style internal/tui/v2/views/list_page.go 1
 symbol internal/tui/v2/views/mcp_view.go 8

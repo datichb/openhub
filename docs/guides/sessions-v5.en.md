@@ -58,7 +58,7 @@ A session of **another workflow** is reported for information: the new one start
 |---|---|---|---|
 | Resume | `R` | `resume` | no new session: the existing session is opened again (woken up when asleep) |
 | Resume elsewhere | `T` | `transfer` | the session and its conversation move to the chosen runtime (local ↔ container) and model; on failure it stays unchanged and oh offers "Replace" |
-| Replace (keep the work) | `k` | `keep` | the session is stopped; the new one works in the same directory and branch and gets a **handoff brief** (objective, results, decisions taken, commits, changed files) |
+| Replace (keep the work) | `K` | `keep` | the session is stopped; the new one works in the same directory and branch and gets a **handoff brief** (objective, results, decisions taken, commits, changed files) |
 | Delete and relaunch | `d` | `delete` | the session and its work are deleted (confirmation, see `oh session delete`), then the launch starts afresh |
 | In parallel | `p` | `parallel` | the new session starts beside it, in another worktree (the two may conflict) |
 

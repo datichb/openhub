@@ -103,11 +103,11 @@ func (v *LaunchFormView) existingText() string {
 		var labels []string
 		for _, c := range existingChoices {
 			if e.Allows(c.value) {
-				labels = append(labels, fmt.Sprintf("[%s] %s", c.key.Keys(), existingChoiceLabel(e, c.value)))
+				labels = append(labels, fmt.Sprintf("%s %s", bracketed(c.key.Keys()), tview.Escape(existingChoiceLabel(e, c.value))))
 			}
 		}
 		if len(labels) > 0 {
-			b.WriteString(muted(tview.Escape(strings.Join(labels, " · "))) + "\n")
+			b.WriteString(muted(strings.Join(labels, " · ")) + "\n")
 		}
 	}
 	return b.String()
