@@ -17,6 +17,7 @@ import (
 	"time"
 
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 )
 
 // Pass outcomes.
@@ -351,17 +352,12 @@ func PrepareClone(ctx context.Context, c *Case, dest string) (string, error) {
 		if _, err := run(ctx, dest, gitEnv(), "sh", "-c", s); err != nil {
 			return "", err
 		}
-		if err := commit("setup: " + firstLine(s)); err != nil {
+		if err := commit("setup: " + textfmt.FirstLine(s)); err != nil {
 			return "", err
 		}
 	}
 	head, err := git(ctx, dest, "rev-parse", "HEAD")
 	return strings.TrimSpace(head), err
-}
-
-func firstLine(s string) string {
-	s, _, _ = strings.Cut(strings.TrimSpace(s), "\n")
-	return s
 }
 
 // bdTimeout bounds one bd command of the setup (bd init starts Dolt).

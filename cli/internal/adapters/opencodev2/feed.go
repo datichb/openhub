@@ -3,11 +3,11 @@ package opencodev2
 import (
 	"encoding/json"
 	"strings"
-	"unicode/utf8"
 
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 )
 
 // Live feed decoding (P3-T10): opencode V2 events → tool-agnostic feed items.
@@ -66,7 +66,7 @@ func (f *feedDecoder) decode(e Event) (item *domain.FeedItem, parentID string) {
 		if strings.TrimSpace(d.Text) == "" {
 			return nil, ""
 		}
-		it.Kind, it.Text = domain.FeedText, clip(strings.TrimSpace(d.Text), feedTextMax)
+		it.Kind, it.Text = domain.FeedText, textfmt.Clip(strings.TrimSpace(d.Text), feedTextMax)
 	case "session.tool.input.started":
 		if d.ID != "" && d.Name != "" {
 			f.tools[d.ID] = d.Name
@@ -75,10 +75,10 @@ func (f *feedDecoder) decode(e Event) (item *domain.FeedItem, parentID string) {
 	case "session.tool.called":
 		name := f.tools[d.ID]
 		if name == toolSubagent {
-			it.Kind, it.Agent, it.Title = domain.FeedDelegate, inputField(d.Input, "agent"), clip(inputField(d.Input, "description"), feedTitleMax)
+			it.Kind, it.Agent, it.Title = domain.FeedDelegate, inputField(d.Input, "agent"), textfmt.Clip(inputField(d.Input, "description"), feedTitleMax)
 			return it, ""
 		}
-		it.Kind, it.Tool, it.Title = domain.FeedTool, displayTool(name), clip(toolTitle(d.Input), feedTitleMax)
+		it.Kind, it.Tool, it.Title = domain.FeedTool, displayTool(name), textfmt.Clip(toolTitle(d.Input), feedTitleMax)
 	case "session.tool.success", "session.tool.failed", "session.tool.error":
 		name := f.tools[d.ID]
 		delete(f.tools, d.ID)
@@ -139,14 +139,6 @@ func oneLine(s string) string {
 		s = s[:i] + " …"
 	}
 	return s
-}
-
-func clip(s string, n int) string {
-	if utf8.RuneCountInString(s) <= n {
-		return s
-	}
-	r := []rune(s)
-	return string(r[:n-1]) + "…"
 }
 
 // callOf returns the tool call carried by a tool event (nil otherwise). It

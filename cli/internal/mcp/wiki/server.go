@@ -39,6 +39,7 @@ import (
 	mcpworkflow "github.com/datichb/openhub/cli/internal/mcp/workflow"
 	wikisvc "github.com/datichb/openhub/cli/internal/services/wiki"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 )
 
 // Backend is the oh daemon as seen from the MCP server.
@@ -265,7 +266,7 @@ func (h handlers) propose(ctx context.Context, params json.RawMessage) (*protoco
 		// A warning, not a refusal: the agent may have a new reason.
 		reason := i18n.T("cmd.mcp.wiki.refused_before_noreason")
 		if r.Reason != "" {
-			reason = i18n.Tf("cmd.mcp.wiki.refused_reason", clip(r.Reason, 200))
+			reason = i18n.Tf("cmd.mcp.wiki.refused_reason", textfmt.ClipLine(r.Reason, 200))
 		}
 		msg += "\n" + i18n.Tf("cmd.mcp.wiki.refused_before", r.ID, reason)
 	}
@@ -445,24 +446,15 @@ func proposalLine(p api.WikiProposal) string {
 	if p.Section != "" {
 		page += " § " + p.Section
 	}
-	text := "« " + clip(p.Content, 100) + " »"
+	text := "« " + textfmt.ClipLine(p.Content, 100) + " »"
 	if p.Replaces != "" {
-		text = "« " + clip(p.Replaces, 60) + " » → « " + clip(p.Content, 60) + " »"
+		text = "« " + textfmt.ClipLine(p.Replaces, 60) + " » → « " + textfmt.ClipLine(p.Content, 60) + " »"
 	}
 	line := fmt.Sprintf("- %s · %s · %s · %s · %s · %s", p.ID, p.Status, firstText(p.Agent, "?"), page, p.Tag, text)
 	if p.Reason != "" {
-		line += " · " + i18n.Tf("cmd.mcp.wiki.refused_reason", clip(p.Reason, 200))
+		line += " · " + i18n.Tf("cmd.mcp.wiki.refused_reason", textfmt.ClipLine(p.Reason, 200))
 	}
 	return line
-}
-
-// clip returns the first line of s, bounded to n runes.
-func clip(s string, n int) string {
-	first, _, _ := strings.Cut(s, "\n")
-	if r := []rune(first); len(r) > n {
-		first = string(r[:n-1]) + "…"
-	}
-	return first
 }
 
 func firstText(ss ...string) string {

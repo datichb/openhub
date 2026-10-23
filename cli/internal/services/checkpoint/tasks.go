@@ -14,6 +14,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 )
 
 // Breakdown read by oh (sweep-fanout): a checkpoint with `tasks:` is called
@@ -131,7 +132,7 @@ func (s *Service) checkTasks(ctx context.Context, sess *domain.Session, c sessio
 	for i, t := range tasks {
 		at := t.ID
 		if t.Title != "" {
-			at += " (" + clipRunes(t.Title, 60) + ")"
+			at += " (" + textfmt.Clip(t.Title, 61) + ")" // 60 runes, then « … »
 		}
 		switch {
 		case t.Title == "":
@@ -186,13 +187,6 @@ func (s *Service) checkTasks(ctx context.Context, sess *domain.Session, c sessio
 		return nil, problems
 	}
 	return tasks, nil
-}
-
-func clipRunes(s string, n int) string {
-	if utf8.RuneCountInString(s) <= n {
-		return s
-	}
-	return string([]rune(s)[:n]) + "…"
 }
 
 // scopeEntry cleans an entry of a file scope: relative, inside the

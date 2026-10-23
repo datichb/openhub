@@ -10,6 +10,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 )
 
 // Event shapes recorded on opencode 2.0.20 (shell call + subagent delegation).
@@ -55,7 +56,7 @@ func TestFeedDecoder(t *testing.T) {
 	assert.Equal(t, 0.25, decode(ev("session.usage.updated", `{"sessionID":"ses_r","cost":0.25}`)).Cost)
 	assert.Equal(t, domain.FeedDecision, decode(ev("permission.asked", `{"sessionID":"ses_r"}`)).Kind)
 	assert.Nil(t, decode(ev("vcs.branch.updated", `{}`)))
-	assert.Len(t, []rune(clip(string(make([]rune, 500)), 10)), 10)
+	assert.Len(t, []rune(textfmt.Clip(string(make([]rune, 500)), 10)), 10)
 }
 
 func TestFeedToolCalls(t *testing.T) {
