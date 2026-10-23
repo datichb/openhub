@@ -11,6 +11,8 @@ import (
 	"text/template"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/datichb/openhub/cli/internal/gitlabapi"
 )
 
 // reBeadsID is the accepted shape of a Beads ticket id (bd-12, proj-a1b.3).
@@ -52,6 +54,28 @@ type PromptContext struct {
 	// Memories are the persistent memories of the project's Beads (bd
 	// remember), given inside data tags: they are not instructions.
 	Memories string
+	// Tracker is the tracker of the tickets of the project ("gitlab",
+	// "jira"), "" when oh does not know one (Beads only); TrackerProject is
+	// its project (the GitLab path or ID). GitLabMCP tells whether the
+	// session has the GitLab MCP server: without it a GitLab ticket cannot
+	// be read, and the prompt says so. GitLabRefs are the GitLab issues and
+	// merge requests the inputs name (#12, !7, URLs).
+	Tracker        string
+	TrackerProject string
+	GitLabMCP      bool
+	GitLabRefs     []GitLabRef
+}
+
+// GitLabRef is a GitLab issue or merge request named by an input, as the
+// prompts show it (.oh.gitlab_refs): Text as written, Kind "issue" or "mr",
+// the IID, the project it belongs to ("" when unknown) and the MCP tool that
+// reads it.
+type GitLabRef struct {
+	Text    string
+	Kind    string
+	IID     int
+	Project string
+	Tool    string
 }
 
 func (c PromptContext) values() map[string]any {
@@ -59,15 +83,23 @@ func (c PromptContext) values() map[string]any {
 	if strings.TrimSpace(c.Memories) != "" {
 		memories = DelimitData("memories", c.Memories)
 	}
+	refs := make([]any, 0, len(c.GitLabRefs))
+	for _, r := range c.GitLabRefs {
+		refs = append(refs, map[string]any{"text": r.Text, "kind": r.Kind, "iid": r.IID, "project": r.Project, "tool": r.Tool})
+	}
 	return map[string]any{
-		"memories": memories,
-		"project":  c.Project,
-		"location": c.Location,
-		"branch":   c.Branch,
-		"mode":     c.Mode,
-		"runtime":  c.Runtime,
-		"lang":     c.Lang,
-		"workflow": c.Workflow,
+		"memories":        memories,
+		"project":         c.Project,
+		"location":        c.Location,
+		"branch":          c.Branch,
+		"mode":            c.Mode,
+		"runtime":         c.Runtime,
+		"lang":            c.Lang,
+		"workflow":        c.Workflow,
+		"tracker":         c.Tracker,
+		"tracker_project": c.TrackerProject,
+		"gitlab_mcp":      c.GitLabMCP,
+		"gitlab_refs":     refs,
 	}
 }
 
@@ -266,6 +298,9 @@ func typedInput(name string, in Input, v any) (any, error) {
 		ids := listOf(v)
 		for _, id := range ids {
 			if !reBeadsID.MatchString(id) {
+				if ref, ok := gitlabapi.ParseRef(id); ok {
+					return nil, fmt.Errorf("input %q: %q is a GitLab %s, not a Beads id (Beads ids look like proj-a1b): name it in the request of a workflow that takes one (spec, quick), the session reads it with the GitLab MCP server", name, id, map[gitlabapi.RefKind]string{gitlabapi.RefIssue: "issue", gitlabapi.RefMR: "merge request"}[ref.Kind])
+				}
 				return nil, fmt.Errorf("input %q: invalid Beads id %q", name, id)
 			}
 		}

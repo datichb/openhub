@@ -22,11 +22,22 @@ type PromptContext struct {
 	Branch   string // dedicated work branch, "" on the base branch
 	Lang     string
 	Memories string // persistent memories of the project's Beads
+	// Tracker, TrackerProject, GitLabMCP and GitLabRefs: where the tickets
+	// of the project live and what the session can read of them (see
+	// workflow.PromptContext).
+	Tracker        string
+	TrackerProject string
+	GitLabMCP      bool
+	GitLabRefs     []GitLabRef
 }
+
+// GitLabRef is a GitLab issue or merge request named by an input.
+type GitLabRef = wf.GitLabRef
 
 func (r *Resolution) promptContext(pc PromptContext) wf.PromptContext {
 	return wf.PromptContext{Project: pc.Project, Location: pc.Location, Branch: pc.Branch, Mode: r.Mode,
-		Runtime: string(r.Runtime), Lang: pc.Lang, Workflow: r.Spec.ID, Memories: pc.Memories}
+		Runtime: string(r.Runtime), Lang: pc.Lang, Workflow: r.Spec.ID, Memories: pc.Memories,
+		Tracker: pc.Tracker, TrackerProject: pc.TrackerProject, GitLabMCP: pc.GitLabMCP, GitLabRefs: pc.GitLabRefs}
 }
 
 // Values returns the effective inputs (session values, else defaults, typed;

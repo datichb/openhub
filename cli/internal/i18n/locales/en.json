@@ -358,6 +358,8 @@
   "cmd.run.warn.dirty_worktree": "Uncommitted changes in %s: the session works in a new worktree %s, your changes stay untouched (--stash or --allow-dirty for another choice)",
   "cmd.run.warn.dirty_stash": "Uncommitted changes in %s: stashed (git stash) at launch",
   "cmd.run.warn.mcp_missing": "The workflow asks for the MCP server \"%s\", missing or disabled in this project",
+  "cmd.run.warn.gitlab_mcp_off": "The ticket \"%s\" is a GitLab ticket, but the GitLab MCP server is not enabled for this session: the agents will not be able to read it (oh mcp enable gitlab, then launch again)",
+  "cmd.run.warn.gitlab_mcp_off_tracker": "The team tracker is GitLab, but the GitLab MCP server is not enabled for this session: the agents will not be able to read the GitLab tickets they are given (oh mcp enable gitlab, then launch again)",
   "cmd.run.warn.pending": "Decisions waiting: %d on this ticket, %d in the project, %d in total (oh session inbox)",
   "cmd.run.warn.precondition": "Precondition not met: %s — run \"oh run %s\" first",
   "cmd.run.warn.precondition_failed": "Precondition not met: %s",

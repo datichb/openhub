@@ -29,6 +29,9 @@ func launchDeps(a *app.App) launch.Deps {
 		RequireTool:  requireV2,
 		Workflows:    newWorkflowService,
 		InputSources: func(note func(string)) map[string]workflowsvc.InputSource { return inputSources(a, note) },
+		Tracker: func(ctx context.Context, project *domain.Project) launch.TrackerInfo {
+			return launchTracker(ctx, a, project)
+		},
 		Credentials: func(ctx context.Context, project *domain.Project, providerFlag string) error {
 			return launchCredentials(ctx, a, project, providerFlag)
 		},
