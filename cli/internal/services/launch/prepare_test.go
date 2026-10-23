@@ -20,6 +20,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/runsvc"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
+	"github.com/datichb/openhub/cli/internal/worktree"
 )
 
 // The workflows of the tests: a writer with a ticket input (and an alias), a
@@ -75,6 +76,7 @@ prompt:
 agents:
   developer: { role: workflow, mode: primary }
 `,
+	"look.yaml": lookWorkflow,
 	"broken.yaml": `apiVersion: oh/v1
 kind: Workflow
 id: broken
@@ -88,6 +90,10 @@ func (g fakeGit) IsRepo(string) bool                         { return true }
 func (g fakeGit) IsDirty(string) bool                        { return g.dirty }
 func (g fakeGit) CreateWorktree(p, b string) (string, error) { return filepath.Join(p, "..", b), nil }
 func (g fakeGit) Stash(string, string) (string, error)       { return "abc1234", nil }
+func (g fakeGit) ReadTarget(_, b string) (worktree.ReadTarget, error) {
+	return worktree.ReadTarget{Ref: "refs/heads/" + b, Current: true}, nil
+}
+func (g fakeGit) CreateDetachedWorktree(string, string, string) error { return nil }
 
 // fakes records what the launch asked of its dependencies.
 type fakes struct {

@@ -31,6 +31,9 @@ type PromptContext struct {
 	TrackerProject string
 	GitLabMCP      bool
 	GitLabRefs     []GitLabRef
+	// ReviewRef: the branch read in a temporary worktree (see
+	// workflow.PromptContext).
+	ReviewRef string
 }
 
 // GitLabRef is a GitLab issue or merge request named by an input, with the
@@ -46,7 +49,7 @@ type GitLabRef struct {
 func (r *Resolution) promptContext(pc PromptContext) wf.PromptContext {
 	return wf.PromptContext{Project: pc.Project, Location: pc.Location, Branch: pc.Branch, Mode: r.Mode,
 		Runtime: string(r.Runtime), Lang: pc.Lang, Workflow: r.Spec.ID, Memories: pc.Memories,
-		Tracker: pc.Tracker, TrackerProject: pc.TrackerProject, GitLabMCP: pc.GitLabMCP}
+		Tracker: pc.Tracker, TrackerProject: pc.TrackerProject, GitLabMCP: pc.GitLabMCP, ReviewRef: pc.ReviewRef}
 }
 
 // Values returns the effective inputs (session values, else defaults, typed;

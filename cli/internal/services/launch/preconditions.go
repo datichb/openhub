@@ -38,7 +38,10 @@ func preconditionTarget(project string, sessions []runsvc.PlannedSession, remote
 		return os.DirFS(loc.Path), preconditionProbe(loc.Path)
 	}
 	ref := "HEAD"
-	if branchExists(project, loc.Branch) {
+	switch {
+	case loc.Temp:
+		ref = loc.Ref // the branch under review, local or only on a remote
+	case branchExists(project, loc.Branch):
 		ref = "refs/heads/" + loc.Branch
 	}
 	probe := preconditionProbe(project)

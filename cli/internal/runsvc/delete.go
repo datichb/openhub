@@ -189,6 +189,8 @@ func (s *Service) DeleteSession(ctx context.Context, sessionID string, opts Dele
 	switch {
 	case plan.Worktree != "" && len(plan.SharedWith) > 0:
 		rep.WorktreeKept = plan.Worktree
+	case plan.Worktree != "" && !dirExists(plan.Worktree):
+		rep.WorktreeRemoved = plan.Worktree // a temporary worktree, removed with the stop of its session
 	case plan.Worktree != "":
 		main := opts.ProjectPath
 		if main == "" {

@@ -28,6 +28,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/storage/keychain"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 	"github.com/datichb/openhub/cli/internal/teamstate"
+	"github.com/datichb/openhub/cli/internal/worktree"
 )
 
 // v5 runtime wiring: tool adapter, oh daemon, RunService.
@@ -36,6 +37,10 @@ func ohRunDir() string      { return filepath.Join(config.HubDir(), "run") }
 func ohServersDir() string  { return filepath.Join(config.HubDir(), "servers") }
 func ohSessionsDir() string { return filepath.Join(config.HubDir(), "sessions") }
 func ohCacheDir() string    { return filepath.Join(config.HubDir(), "cache") }
+
+// ohWorktreesDir holds the temporary worktrees of the sessions that review
+// a branch other than the current one.
+func ohWorktreesDir() string { return worktree.TempRoot(config.HubDir()) }
 
 // ensureDaemon returns a client to ohd, starting it when needed. The client
 // holds the issuing capability (token routes, M12).
@@ -74,6 +79,15 @@ func capabilityStore() daemon.CapabilityStore {
 // write (short-lived CLI commands).
 func sessionEndHook(a *app.App, async bool) func(context.Context, domain.Session) {
 	return func(ctx context.Context, s domain.Session) {
+		if s.State == domain.RunStopped {
+			// The session is over for good (stopped by the user, or by the
+			// daemon when its server stopped): its temporary worktree goes.
+			var sessions domain.SessionStore
+			if a != nil {
+				sessions = a.Sessions
+			}
+			runsvc.ReleaseTempWorktree(ctx, ohWorktreesDir(), sessions, s)
+		}
 		if a == nil || a.Projects == nil || s.ProjectID == "" {
 			return
 		}
@@ -203,6 +217,7 @@ func newRunServiceFor(ctx context.Context, a *app.App, planOnly bool) (*runsvc.S
 		ServersDir:     ohServersDir(),
 		BundlesDir:     ohBundlesDir(),
 		SessionsDir:    ohSessionsDir(),
+		WorktreesDir:   ohWorktreesDir(),
 		Decisions:      sqlite.NewDecisionStore(store),
 		Usage:          sqlite.NewUsageStore(store),
 		OnSessionEnd:   sessionEndHook(a, false),

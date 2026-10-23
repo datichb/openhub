@@ -279,7 +279,7 @@ Reprend une session en veille (redémarre son serveur, même paquet) sans ouvrir
 oh session stop <session>
 ```
 
-Arrête la session, et son serveur si plus aucune autre session du groupe ne l'utilise.
+Arrête la session, et son serveur si plus aucune autre session du groupe ne l'utilise. Le worktree temporaire d'une [review d'une autre branche](workflows.fr.md#review) est supprimé (la branche relue n'est pas touchée) ; tout autre worktree reste.
 
 ### oh session delete
 
@@ -287,7 +287,7 @@ Arrête la session, et son serveur si plus aucune autre session du groupe ne l'u
 oh session delete <session> [--yes] [--discard-base-changes]
 ```
 
-Supprime définitivement une session, après la liste de ce qui part : la session est arrêtée (réservations d'équipe libérées), son worktree séparé supprimé (gardé, avec sa branche, si une autre session ouverte y travaille) et sa branche locale supprimée, puis son enregistrement, ses décisions, son dossier `~/.oh/sessions/<id>` et, si aucune autre session n'utilise son groupe de serveurs, les données de l'outil du groupe. Les commits poussés nulle part et les fichiers non commités perdus sont listés avant la confirmation. **Jamais touchés** : la branche distante, le registre d'usage (dépenses). Une session qui travaillait dans le dossier du projet y laisse ses modifications non commitées, sauf `--discard-base-changes` (seconde question dans un terminal). Aussi proposé au lancement (`oh run --on-existing=delete`) et dans la vue Sessions de la TUI (`D`).
+Supprime définitivement une session, après la liste de ce qui part : la session est arrêtée (réservations d'équipe libérées), son worktree séparé supprimé (gardé, avec sa branche, si une autre session ouverte y travaille) et sa branche locale supprimée (le worktree temporaire d'une [review d'une autre branche](workflows.fr.md#review) part avec l'arrêt de la session, la branche relue n'est jamais supprimée), puis son enregistrement, ses décisions, son dossier `~/.oh/sessions/<id>` et, si aucune autre session n'utilise son groupe de serveurs, les données de l'outil du groupe. Les commits poussés nulle part et les fichiers non commités perdus sont listés avant la confirmation. **Jamais touchés** : la branche distante, le registre d'usage (dépenses). Une session qui travaillait dans le dossier du projet y laisse ses modifications non commitées, sauf `--discard-base-changes` (seconde question dans un terminal). Aussi proposé au lancement (`oh run --on-existing=delete`) et dans la vue Sessions de la TUI (`D`).
 
 | Flag | Court | Type | Défaut | Description |
 |------|-------|------|--------|-------------|

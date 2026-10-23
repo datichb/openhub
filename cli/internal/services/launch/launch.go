@@ -31,6 +31,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/workflow"
+	"github.com/datichb/openhub/cli/internal/worktree"
 )
 
 // RequestInput is the input -m fills (oh run -m).
@@ -367,7 +368,12 @@ func Prepare(ctx context.Context, d Deps, opts Options) (*Prepared, error) {
 			title += " · " + label
 		}
 		req.Sessions = append(req.Sessions, runsvc.PlannedInput{Label: label, Title: title, Branch: SessionBranch(res.Spec, v, label, opts.Branch, d.now()),
-			Tickets: RemoteTickets(v, ticketInput)})
+			Tickets: RemoteTickets(v, ticketInput), ReadBranch: ReadBranch(res.Spec, v)})
+	}
+	if rp != nil {
+		if err := checkRemoteReview(opts.Project.Path, req.Sessions); err != nil {
+			return nil, err
+		}
 	}
 	p := &Prepared{Opts: opts, Project: opts.Project, Resolution: res, Bundle: b, Svc: svc, Remote: rp, deps: d,
 		sessions: sessions, values: values, ticketInput: ticketInput, missingMCP: missingMCP,
@@ -432,8 +438,12 @@ func (p *Prepared) planRun(ctx context.Context, req runsvc.RunRequest) error {
 		if rp != nil {
 			loc = remotesvc.WorkDir(opts.Project.Name)
 		}
+		reviewRef := ""
+		if l := plan.Sessions[i].Location; l.Temp {
+			reviewRef = worktree.ReadTarget{Ref: l.Ref}.Name()
+		}
 		prompt, err := p.sessions[i].RenderPrompt(workflowsvc.PromptContext{Project: opts.Project.Name,
-			Location: loc, Branch: branch, Lang: i18n.Locale(), Memories: memories,
+			Location: loc, Branch: branch, Lang: i18n.Locale(), Memories: memories, ReviewRef: reviewRef,
 			Tracker: p.tracker.Type, TrackerProject: p.tracker.Project, GitLabMCP: hasMCP(p.Bundle, gitlabMCPServer),
 			GitLabRefs: p.gitlabRefs[i]})
 		if err != nil {
@@ -446,7 +456,10 @@ func (p *Prepared) planRun(ctx context.Context, req runsvc.RunRequest) error {
 }
 
 func runPlanError(err error) error {
+	var rb *runsvc.ReadBranchError
 	switch {
+	case errors.As(err, &rb):
+		return errors.New(i18n.Tf("cmd.run.review_branch_missing", rb.Branch))
 	case errors.Is(err, runsvc.ErrNotGitRepo):
 		return errors.New(i18n.T("cmd.run.not_git"))
 	case errors.Is(err, runsvc.ErrNoBranch):
@@ -475,4 +488,38 @@ func SessionBranch(sp *workflow.Spec, values map[string]any, label, fallback str
 		suffix = now.Format("20060102-150405")
 	}
 	return "oh/" + sp.ID + "-" + suffix
+}
+
+// ReadBranch is the branch a read-only workflow reviews: its `branch` input.
+// Empty for a workflow that may write (it works on a branch of its own, see
+// SessionBranch), or without a branch given.
+func ReadBranch(sp *workflow.Spec, values map[string]any) string {
+	if runsvc.RiskWrites(string(sp.Risk)) {
+		return ""
+	}
+	if k := workflowsvc.FirstInput(sp, workflow.InputBranch); k != "" {
+		b, _ := values[k].(string)
+		return b
+	}
+	return ""
+}
+
+// checkRemoteReview refuses the remote review of a branch other than the
+// current one: the job clones the project at the commit of the current
+// branch, so it would read the wrong files (a temporary worktree is a local
+// notion).
+func checkRemoteReview(projectPath string, sessions []runsvc.PlannedInput) error {
+	for _, in := range sessions {
+		if in.ReadBranch == "" {
+			continue
+		}
+		t, err := worktree.ResolveReadTarget(projectPath, in.ReadBranch)
+		if err != nil {
+			return runPlanError(&runsvc.ReadBranchError{Branch: in.ReadBranch})
+		}
+		if !t.Current {
+			return errors.New(i18n.Tf("cmd.run.review_remote_other_branch", in.ReadBranch))
+		}
+	}
+	return nil
 }

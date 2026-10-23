@@ -15,6 +15,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/filelock"
 	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
+	"github.com/datichb/openhub/cli/internal/worktree"
 )
 
 type fakeStore struct {
@@ -320,6 +321,68 @@ func TestWorktrees(t *testing.T) {
 	assert.NotContains(t, branches, "feat/merged", "merged branch deleted")
 	assert.Contains(t, branches, "feat/clean", "a fresh branch is not merged: kept")
 	assert.Contains(t, branches, "feat/pushed", "pushed but not merged: kept")
+}
+
+// The temporary worktrees of the reviews (<hub>/worktrees) go once no open
+// session works in them: the one of a stopped or failed session, and the
+// one of a session that no longer exists. A young one, and the one of a
+// session that can still be resumed, stay.
+func TestTemporaryWorktrees(t *testing.T) {
+	if testing.Short() {
+		t.Skip("git")
+	}
+	f := newFixture(t)
+	repo := gittest.Repo(t)
+	gittest.Run(t, repo, "switch", "-q", "-c", "feat/x")
+	gittest.Commit(t, repo, "x.txt", "x\n", "x")
+	gittest.Run(t, repo, "switch", "-q", "main")
+
+	root := worktree.TempRoot(f.root)
+	old := now.Add(-2 * time.Hour)
+	add := func(name string, age time.Time) string {
+		p := filepath.Join(root, "p1", name)
+		require.NoError(t, worktree.AddDetached(repo, p, "refs/heads/feat/x"))
+		require.NoError(t, os.Chtimes(p, age, age))
+		return p
+	}
+	session := func(id, path string, state domain.RunState) {
+		f.store.sessions = append(f.store.sessions, domain.Session{ID: id, ProjectID: "p1", State: state, EndedAt: &old, LaunchPath: path})
+	}
+	stopped, failed, orphan := add("stopped", old), add("failed", old), add("orphan", old)
+	sleeping, young := add("sleeping", old), add("young", now)
+	session("s-stopped", stopped, domain.RunStopped)
+	session("s-failed", failed, domain.RunFailed)
+	session("s-sleeping", sleeping, domain.RunSleeping)
+	session("s-young", young, domain.RunStopped)
+	// A user's worktree and a stray file are not oh's to remove.
+	userWT := filepath.Join(f.root, "user-wt")
+	gittest.Run(t, repo, "worktree", "add", "-q", "--detach", userWT, "feat/x")
+	require.NoError(t, os.WriteFile(filepath.Join(root, "stray"), []byte("x"), 0o644))
+
+	o := opts()
+	o.AutoWorktrees = false // the user's [worktree] auto_cleanup is about their own worktrees
+	plan, err := Plan(context.Background(), f.env, o)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"failed", "orphan", "stopped"}, ids(plan, KindWorktrees))
+	for _, it := range plan.ByKind()[KindWorktrees] {
+		assert.Equal(t, ReasonTemp, it.Reason)
+		assert.Equal(t, ResolvedPath(repo), ResolvedPath(it.Repo), it.ID)
+	}
+	assert.DirExists(t, stopped, "a plan removes nothing")
+
+	_, err = Run(context.Background(), f.env, o, nil)
+	require.NoError(t, err)
+	for _, gone := range []string{stopped, failed, orphan} {
+		assert.NoDirExists(t, gone)
+	}
+	for _, kept := range []string{sleeping, young, userWT} {
+		assert.DirExists(t, kept)
+	}
+	assert.FileExists(t, filepath.Join(root, "stray"))
+	listed := gittest.Run(t, repo, "worktree", "list", "--porcelain")
+	assert.NotContains(t, listed, "stopped")
+	assert.Contains(t, listed, "sleeping")
+	assert.True(t, worktree.BranchExists(repo, "feat/x"), "the reviewed branch is never touched")
 }
 
 // SCR: the scratch folders of a session go with it, also when its results

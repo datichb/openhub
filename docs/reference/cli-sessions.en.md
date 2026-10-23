@@ -279,7 +279,7 @@ Resumes a sleeping session (restarts its server, same bundle) without opening an
 oh session stop <session>
 ```
 
-Stops the session, and its server when no other session of the group uses it.
+Stops the session, and its server when no other session of the group uses it. The temporary worktree of a [review of another branch](workflows.en.md#review) is removed (the reviewed branch is not touched); any other worktree stays.
 
 ### oh session delete
 
@@ -287,7 +287,7 @@ Stops the session, and its server when no other session of the group uses it.
 oh session delete <session> [--yes] [--discard-base-changes]
 ```
 
-Deletes a session for good, after listing what goes: the session is stopped (team claims released), its separate worktree removed (kept, with its branch, when another open session works in it) and its local branch deleted, then its record, its decisions, its folder `~/.oh/sessions/<id>` and, when no other session uses its server group, the tool data of the group. The commits pushed nowhere and the uncommitted files that are lost are listed before the confirmation. **Never touched**: the remote branch, the usage ledger (spending). A session that worked in the project directory keeps its uncommitted changes there, unless `--discard-base-changes` (second question in a terminal). Also offered at launch (`oh run --on-existing=delete`) and in the TUI Sessions view (`D`).
+Deletes a session for good, after listing what goes: the session is stopped (team claims released), its separate worktree removed (kept, with its branch, when another open session works in it) and its local branch deleted (the temporary worktree of a [review of another branch](workflows.en.md#review) goes with the stop of the session; the reviewed branch is never deleted), then its record, its decisions, its folder `~/.oh/sessions/<id>` and, when no other session uses its server group, the tool data of the group. The commits pushed nowhere and the uncommitted files that are lost are listed before the confirmation. **Never touched**: the remote branch, the usage ledger (spending). A session that worked in the project directory keeps its uncommitted changes there, unless `--discard-base-changes` (second question in a terminal). Also offered at launch (`oh run --on-existing=delete`) and in the TUI Sessions view (`D`).
 
 | Flag | Short | Type | Default | Description |
 |------|-------|------|---------|-------------|

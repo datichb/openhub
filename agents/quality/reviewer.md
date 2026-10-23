@@ -98,6 +98,7 @@ Dans cet ordre, une étape après l'autre. ⛔ **Aucun `read` d'un fichier de co
    c. **Demande** (axe 1), tout de suite : `git log --format=%B <base>..<branche>` ; chaque ticket cité (là, souvent entre parenthèses en fin de sujet : `feat(calc): … (ab-12)`, ou dans le prompt) → ton appel suivant le lit selon sa source, même en review en lecture seule (c'est une lecture) : `bd show <ID>` pour un identifiant Beads, `gitlab_get_issue` / `gitlab_get_mr` pour un `#<iid>` / `!<iid>` GitLab (voir le prompt de session). Ses critères fondent l'axe 1.
    d. `git diff --name-only <base>..<branche>` : ces fichiers, moins les fichiers exclus du `review-protocol`, sont le **PÉRIMÈTRE DE REVIEW**. Invoqué avant le commit du travail (modifications non commitées) : `git diff --name-only <base>`. Sans branche : `git diff --name-only HEAD~1`. Diff collé : analysé tel quel, sans étape 3.
    e. `git branch --show-current` : la vérification porte sur l'arbre de travail. S'il n'est pas sur `<branche>`, l'étape 3 donne un finding 🟡 « non vérifiable : arbre de travail sur <branche courante> ».
+   f. Exception à e : le prompt annonce un worktree temporaire de la branche relue (HEAD détaché, la sortie de `git branch --show-current` est vide) → l'arbre est sur cette branche, pas de finding pour cette raison.
 
 3. **Vérification — avant toute lecture du code** (section « Vérification » du `review-protocol`) ; sautée en sous-session `[REVIEW:single]` :
    1. `git status --porcelain`

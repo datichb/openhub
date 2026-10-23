@@ -100,6 +100,9 @@ type Service struct {
 	Executable   string // oh binary used to attach (default os.Executable)
 	// Runtimes are the non-local execution environments (container…).
 	Runtimes map[sessionspec.RuntimeKind]ohruntime.Runtime
+	// WorktreesDir holds the temporary worktrees of the sessions that review
+	// another branch (default <ServersDir>/../worktrees).
+	WorktreesDir string
 	// LaunchLocksDir holds the launch locks (default <ServersDir>/../run/launch).
 	LaunchLocksDir string
 	// Git replaces the git operations of the launcher (tests).
@@ -1008,6 +1011,7 @@ func (s *Service) StopSession(ctx context.Context, sessionID string) error {
 	if s.OnSessionEnd != nil && !ended {
 		s.OnSessionEnd(ctx, *sess)
 	}
+	s.releaseTempWorktree(ctx, *sess)
 	return nil
 }
 

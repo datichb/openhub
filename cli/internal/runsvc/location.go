@@ -57,6 +57,11 @@ type Location struct {
 	// Stash means the uncommitted changes of the directory are stashed when
 	// the session starts (DirtyStash).
 	Stash bool `json:"stash,omitempty"`
+	// Temp means a temporary worktree of the branch a read-only session
+	// reads (Branch), detached on Ref: created when the session starts,
+	// removed when it ends.
+	Temp bool   `json:"temp,omitempty"`
+	Ref  string `json:"ref,omitempty"`
 }
 
 // DirtyPolicy is what a writing session does when its directory has
@@ -93,6 +98,9 @@ func RiskWrites(risk string) bool { return risk != "read" && risk != "plan" }
 // one. "" on the base branch, a detached HEAD or outside git: the agent may
 // then offer to create a branch.
 func (l Location) WorkBranch(projectPath string) string {
+	if l.Temp {
+		return "" // detached: the session works on no branch
+	}
 	if l.Kind == LocationWorktree {
 		return l.Branch
 	}
@@ -160,7 +168,9 @@ type locOptions struct {
 // tells whether the workflow may modify files (O10 applies to writers);
 // branches gives the branch of each session's worktree, if one is needed;
 // dirty tells what a writer does in a directory with uncommitted changes.
-func (s *Service) planLocations(ctx context.Context, projectID, projectPath string, choice LocationChoice, writes bool, branches []string, dirty DirtyPolicy, lo locOptions) ([]Location, []Warning, error) {
+// reads gives, by session, the branch a read-only session reviews (""
+// = none): see readLocation.
+func (s *Service) planLocations(ctx context.Context, projectID, projectPath string, choice LocationChoice, writes bool, branches, reads []string, dirty DirtyPolicy, lo locOptions) ([]Location, []Warning, error) {
 	projectPath = filepath.Clean(projectPath)
 	busy := map[string]string{}
 	if writes {
@@ -218,7 +228,16 @@ func (s *Service) planLocations(ctx context.Context, projectID, projectPath stri
 			loc Location
 			err error
 		)
+		read := ""
+		if i < len(reads) && !writes && isGit {
+			read = reads[i]
+		}
 		switch {
+		case read != "" && choice.Kind != LocationWorktree:
+			var w *Warning
+			if loc, w, err = s.readLocation(projectID, projectPath, read); w != nil {
+				warns = append(warns, *w)
+			}
 		case choice.Kind == LocationNew:
 			loc, err = newWorktree(i, false)
 			if err == nil && writes {
@@ -236,6 +255,9 @@ func (s *Service) planLocations(ctx context.Context, projectID, projectPath stri
 			loc = Location{Path: filepath.Clean(choice.Path), Kind: LocationWorktree}
 			if b, berr := worktree.CurrentBranch(loc.Path); berr == nil {
 				loc.Branch = b
+			}
+			if read != "" && loc.Branch != read {
+				warns = append(warns, Warning{Code: WarnReadOtherBranch, Args: []any{read, loc.Path, loc.Branch}})
 			}
 		default:
 			loc = Location{Path: projectPath, Kind: LocationBase}
@@ -312,6 +334,20 @@ func (s *Service) createWorktree(projectPath, branch string) (string, error) {
 	return worktree.ResolveOrCreate(projectPath, branch)
 }
 
+func (s *Service) readTarget(projectPath, branch string) (worktree.ReadTarget, error) {
+	if s.Git != nil {
+		return s.Git.ReadTarget(projectPath, branch)
+	}
+	return worktree.ResolveReadTarget(projectPath, branch)
+}
+
+func (s *Service) createDetachedWorktree(projectPath, path, ref string) error {
+	if s.Git != nil {
+		return s.Git.CreateDetachedWorktree(projectPath, path, ref)
+	}
+	return worktree.AddDetached(projectPath, path, ref)
+}
+
 func (s *Service) stash(path, message string) (string, error) {
 	if s.Git != nil {
 		return s.Git.Stash(path, message)
@@ -324,6 +360,11 @@ type Git interface {
 	IsRepo(path string) bool
 	IsDirty(path string) bool
 	CreateWorktree(projectPath, branch string) (string, error)
+	// ReadTarget finds the branch a read-only session reviews
+	// (worktree.ResolveReadTarget); CreateDetachedWorktree checks a
+	// reference out in a new worktree at path, on a detached HEAD.
+	ReadTarget(projectPath, branch string) (worktree.ReadTarget, error)
+	CreateDetachedWorktree(projectPath, path, ref string) error
 	// Stash puts the uncommitted changes (untracked files included) aside
 	// and returns the commit of the stash entry.
 	Stash(path, message string) (string, error)

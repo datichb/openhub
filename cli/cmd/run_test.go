@@ -9,6 +9,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 	"github.com/datichb/openhub/cli/internal/runsvc"
 	"github.com/datichb/openhub/cli/internal/services/launch"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
@@ -119,6 +120,37 @@ func TestRunRecapRows(t *testing.T) {
 		if r[0] == i18n.T("cmd.run.recap.checkpoints") {
 			t.Fatal("no checkpoint row without checkpoints")
 		}
+	}
+}
+
+// Bug 16: the recap of a review of another branch says it runs in a
+// temporary worktree of that branch, and where.
+func TestRunRecapTemporaryWorktreeOfAReview(t *testing.T) {
+	i18ntest.Set(t, "en")
+	wt := "/hub/worktrees/p1/feat-x-ab12cd34"
+	p := &launch.Prepared{
+		Project:    &domain.Project{Name: "p"},
+		Resolution: &workflowsvc.Resolution{Resolved: &workflow.Resolved{Spec: &workflow.Spec{ID: "review"}, Mode: "semi-auto"}},
+		Bundle:     &bundle.Bundle{},
+		Plan: &runsvc.RunPlan{
+			Sessions: []runsvc.PlannedSession{{Location: runsvc.Location{Path: wt, Kind: runsvc.LocationWorktree, Branch: "feat/x", Create: true, Temp: true, Ref: "refs/heads/feat/x"}}},
+			Warnings: []runsvc.Warning{{Code: runsvc.WarnReviewWorktree, Args: []any{"feat/x", wt}}}},
+	}
+	rows, warns := runRecap(p)
+	found := false
+	for _, r := range rows {
+		if r[1] == wt+" (temporary worktree of feat/x)" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("rows = %v", rows)
+	}
+	if len(warns) != 1 || !strings.Contains(warns[0], "temporary worktree of feat/x: "+wt) {
+		t.Fatalf("warnings = %v", warns)
+	}
+	if planDirty(p.Plan) {
+		t.Fatal("a review worktree is not a dirty directory")
 	}
 }
 

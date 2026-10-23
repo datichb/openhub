@@ -13,6 +13,9 @@
 //   - a server group is removed with its group lock held, its server dead;
 //   - a worktree is removed only when oh created it, clean, unlocked, with
 //     no commit that exists nowhere else; its branch only when merged;
+//   - the temporary worktree of a review (<hub>/worktrees, detached, no
+//     branch of its own) goes as soon as no open session works in it: the
+//     session that owned it was killed, or its stop could not remove it;
 //   - the worktrees and branches oh/fanout/… of a fan-out go once its merge
 //     checkpoint passed or its parent was stopped, by the clean-up of the
 //     fan-out (services/fanout, Clean): never a branch whose commits are
@@ -33,6 +36,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/filelock"
+	"github.com/datichb/openhub/cli/internal/worktree"
 )
 
 // Kind is a category of what oh gc removes.
@@ -59,6 +63,9 @@ var ErrBusy = errors.New("another oh gc is running")
 
 // tempAge is the age of a temporary build folder left by a killed process.
 const tempAge = time.Hour
+
+// ReasonTemp is the reason of a temporary worktree of a review (Item.Reason).
+const ReasonTemp = "temp"
 
 // Item is one thing to remove.
 type Item struct {
@@ -227,6 +234,9 @@ type usage struct {
 	liveBundles  map[string]bool // used by a session not stopped, or recently
 	liveGroups   map[string]bool
 	liveWorkdirs map[string]bool
+	// openWorkdirs are the directories of the sessions that can still be
+	// resumed (neither stopped nor failed).
+	openWorkdirs map[string]bool
 	servers      map[string]domain.Server
 	livePIDs     map[int]bool
 }
@@ -242,9 +252,12 @@ func (e *Env) collectUsage(ctx context.Context, opts Options) (*usage, error) {
 	}
 	now := e.now()
 	u := &usage{sessions: map[string]domain.Session{}, liveBundles: map[string]bool{}, liveGroups: map[string]bool{},
-		liveWorkdirs: map[string]bool{}, servers: map[string]domain.Server{}, livePIDs: map[int]bool{}}
+		liveWorkdirs: map[string]bool{}, openWorkdirs: map[string]bool{}, servers: map[string]domain.Server{}, livePIDs: map[int]bool{}}
 	for _, s := range sessions {
 		u.sessions[s.ID] = s
+		if s.LaunchPath != "" && s.State != domain.RunStopped && s.State != domain.RunFailed && s.State != "" {
+			u.openWorkdirs[filepath.Clean(s.LaunchPath)] = true
+		}
 		hold := s.State != domain.RunStopped || now.Sub(endedAt(s)) < opts.SessionAge
 		if !hold {
 			continue
@@ -304,6 +317,9 @@ func Plan(ctx context.Context, env *Env, opts Options) (Report, error) {
 	}
 	if opts.wants(KindWorktrees) && opts.AutoWorktrees {
 		add(env.planWorktrees(ctx, u, opts), nil)
+	}
+	if opts.wants(KindWorktrees) {
+		add(env.planTempWorktrees(u), nil)
 	}
 	if opts.wants(KindFanout) && env.Fanout != nil {
 		add(env.planFanout(ctx, u), nil)
@@ -513,6 +529,38 @@ func (e *Env) planWorktrees(ctx context.Context, u *usage, opts Options) []Item 
 	return out
 }
 
+// planTempWorktrees lists the temporary worktrees of the reviews that no
+// open session works in (the stop of a session removes its own: these are
+// the ones of a session that was killed). A young one is left for the next
+// pass: its session may not be recorded yet.
+func (e *Env) planTempWorktrees(u *usage) []Item {
+	root := worktree.TempRoot(e.HubDir)
+	projects, err := os.ReadDir(root)
+	if err != nil {
+		return nil
+	}
+	now := e.now()
+	var out []Item
+	for _, pr := range projects {
+		if !pr.IsDir() {
+			continue
+		}
+		entries, err := os.ReadDir(filepath.Join(root, pr.Name()))
+		if err != nil {
+			continue
+		}
+		for _, ent := range entries {
+			path := filepath.Join(root, pr.Name(), ent.Name())
+			info, err := ent.Info()
+			if err != nil || !ent.IsDir() || u.openWorkdirs[path] || now.Sub(info.ModTime()) < tempAge {
+				continue
+			}
+			out = append(out, Item{Kind: KindWorktrees, ID: ent.Name(), Path: path, Repo: worktree.RepoOf(path), Bytes: dirSize(path), Reason: ReasonTemp})
+		}
+	}
+	return out
+}
+
 // planFanout lists the fan-outs with something left to clean up: merged,
 // or whose parent was stopped.
 func (e *Env) planFanout(ctx context.Context, u *usage) []Item {
@@ -645,6 +693,14 @@ func (e *Env) apply(ctx context.Context, it Item) error {
 	case KindServers:
 		return e.removeServer(ctx, it)
 	case KindWorktrees:
+		if it.Reason == ReasonTemp {
+			if !worktree.IsTemp(worktree.TempRoot(e.HubDir), it.Path) {
+				return fmt.Errorf("%s is not a temporary worktree", it.Path)
+			}
+			err := worktree.RemoveDetached(it.Path)
+			_ = os.Remove(filepath.Dir(it.Path)) // the project folder, once empty
+			return err
+		}
 		return e.git().Remove(ctx, it.Repo, it.Path, it.ID, e.baseBranch(it.Repo))
 	case KindOrphans:
 		return e.Processes.StopServerProcess(ctx, it.PID)
