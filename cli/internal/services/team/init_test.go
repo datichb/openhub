@@ -67,6 +67,9 @@ func TestInitClonesRegistersTheMemberAndWritesHubToml(t *testing.T) {
 	assert.Equal(t, "Dave", m.DisplayName)
 	assert.Equal(t, "dave.g", m.GitLabUsername)
 	assert.Equal(t, "semi-auto", m.DefaultMode)
+	assert.Empty(t, gittest.Run(t, statePath, "status", "--porcelain", "--untracked-files=all"),
+		"A5: the layout (catalog/ included) is committed, nothing is left untracked in the clone")
+	assert.Contains(t, gittest.Run(t, bare, "ls-tree", "-r", "--name-only", "main"), "catalog/agents/.gitkeep")
 
 	teams := reload(t)
 	assert.True(t, teams["solo"].Solo)

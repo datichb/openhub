@@ -59,7 +59,7 @@ func (s *Service) Init(ctx context.Context, p InitParams) error {
 	if err := repo.EnsureReady(ctx); err != nil {
 		return &InitError{Step: StepClone, Err: err}
 	}
-	if err := repo.InitStructure(ctx); err != nil {
+	if err := repo.EnsureStructure(ctx); err != nil {
 		return &InitError{Step: StepStructure, Err: err}
 	}
 

@@ -162,7 +162,7 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 				return fmt.Errorf(i18n.T("cmd.team.cloning_team_state"), err)
 			}
 		}
-		if err := repo.InitStructure(ctx); err != nil {
+		if err := repo.EnsureStructure(ctx); err != nil {
 			return fmt.Errorf(i18n.T("cmd.team.initializing_structure"), err)
 		}
 	}
@@ -300,7 +300,7 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 					return fmt.Errorf(i18n.T("cmd.team.cloning_team_state"), err)
 				}
 			}
-			if err := repo.InitStructure(ctx); err != nil {
+			if err := repo.EnsureStructure(ctx); err != nil {
 				return fmt.Errorf(i18n.T("cmd.team.initializing_structure"), err)
 			}
 

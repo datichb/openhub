@@ -324,22 +324,26 @@ func (r *Repo) localOnly(ctx context.Context) bool {
 	return err == nil && strings.TrimSpace(out) == ""
 }
 
+// structureDirs are the folders of the layout of a team-state (each one holds
+// a .gitkeep so that git tracks it empty). catalog/ is the catalogue of team
+// bricks (ADR-054), shared like the rest.
+var structureDirs = []string{
+	"projects",
+	"wiki",
+	"wiki/.pending",
+	"reports",
+	"workflows/published",
+	"workflows/drafts",
+	"workflows/prompts",
+	"workflows/history",
+	"catalog/agents",
+	"catalog/skills",
+}
+
 // InitStructure creates the base directory structure in the repo if missing.
 // This is called after clone to ensure the expected layout exists.
 func (r *Repo) InitStructure(ctx context.Context) error {
-	dirs := []string{
-		"projects",
-		"wiki",
-		"wiki/.pending",
-		"reports",
-		"workflows/published",
-		"workflows/drafts",
-		"workflows/prompts",
-		"workflows/history",
-		"catalog/agents",
-		"catalog/skills",
-	}
-	for _, d := range dirs {
+	for _, d := range structureDirs {
 		full := filepath.Join(r.path, d)
 		if err := os.MkdirAll(full, 0o755); err != nil {
 			return fmt.Errorf("creating %s: %w", d, err)
@@ -353,6 +357,55 @@ func (r *Repo) InitStructure(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+// EnsureStructure is InitStructure followed by the commit of the .gitkeep
+// files that git does not track yet (one commit "team: init structure", pushed
+// with the other writes of the team-state): the folders of the layout, the
+// catalogue of bricks catalog/ (ADR-054) included, are part of what the team
+// shares and must not stay untracked in the clone (A5). It does nothing more
+// when everything is tracked. A repository that is not a clone only gets the
+// folders; a commit that cannot be made (offline, lock busy) is logged and
+// left for the next call, the layout being on disk anyway.
+func (r *Repo) EnsureStructure(ctx context.Context) error {
+	if err := r.InitStructure(ctx); err != nil {
+		return err
+	}
+	if !r.IsCloned() {
+		return nil
+	}
+	missing := r.untrackedKeeps(ctx)
+	if len(missing) == 0 {
+		return nil
+	}
+	if err := r.CommitAndPush(ctx, "team: init structure", missing...); err != nil {
+		slog.Warn("teamstate.structure.commit_failed", "error", err)
+	}
+	return nil
+}
+
+// untrackedKeeps lists the .gitkeep files of the layout that git does not
+// track (paths relative to the repository).
+func (r *Repo) untrackedKeeps(ctx context.Context) []string {
+	var keeps []string
+	for _, d := range structureDirs {
+		keeps = append(keeps, filepath.ToSlash(filepath.Join(d, ".gitkeep")))
+	}
+	out, err := r.git(ctx, r.path, append([]string{"ls-files", "-z", "--"}, keeps...)...)
+	if err != nil {
+		return nil
+	}
+	tracked := map[string]bool{}
+	for _, f := range strings.Split(out, "\x00") {
+		tracked[f] = true
+	}
+	var missing []string
+	for _, k := range keeps {
+		if !tracked[k] {
+			missing = append(missing, k)
+		}
+	}
+	return missing
 }
 
 // HasConfig returns true if config.toml exists in the team-state repo.

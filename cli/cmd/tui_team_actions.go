@@ -68,7 +68,7 @@ func actionTeamInit() {
 		repo = teamstate.NewRepo(stateRepo, statePath)
 		if repo.IsCloned() {
 			_ = repo.Pull(ctx)
-			_ = repo.InitStructure(ctx)
+			_ = repo.EnsureStructure(ctx)
 			credState.Probe(ctx, stateRepo)
 			hasConfig = repo.HasConfig()
 			hasPolicies = repo.HasPolicies()
@@ -128,7 +128,7 @@ func actionTeamInit() {
 					return fmt.Errorf(i18n.T("cmd.tui_team_actions.cloning_team_state"), err)
 				}
 			}
-			if err := repo.InitStructure(ctx); err != nil {
+			if err := repo.EnsureStructure(ctx); err != nil {
 				return fmt.Errorf(i18n.T("cmd.tui_team_actions.init_structure"), err)
 			}
 			credState.Probe(ctx, stateRepo)
