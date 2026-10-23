@@ -138,11 +138,16 @@ func repairConfig(w io.Writer, confirm confirmFunc) error {
 		return err
 	}
 	fmt.Fprintf(w, "%s %s\n\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.doctor.db.config_restored", backup, kept))
-	config.Reset()
-	if c, err := config.Load(); err == nil {
+	// The file was replaced from outside: read it, and update in place the
+	// Config the views hold. A restored file that still does not load leaves
+	// the error in place.
+	if fresh, rerr := config.Read(); rerr == nil {
 		r.ConfigErr = nil
-		if a := TryApp(); a != nil {
-			a.Config = c
+		config.Reset() // the cache may hold the error of the former file
+		if a := TryApp(); a != nil && a.Config != nil {
+			shareConfig(a, fresh)
+		} else if a != nil {
+			a.Config = fresh
 		}
 	}
 	return nil
