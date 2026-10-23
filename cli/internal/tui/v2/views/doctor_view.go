@@ -305,7 +305,7 @@ func (v *DoctorView) render() {
 		}
 		items = append(items, widgets.SectionItem{
 			MainText:      name,
-			SecondaryText: theme.ColorTag(theme.TextSecondaryHex) + tview.Escape(c.Detail) + theme.TagColor,
+			SecondaryText: theme.ColorTag(theme.TextSecondaryHex) + tview.Escape(firstLine(c.Detail)) + theme.TagColor,
 			Reference:     i,
 		})
 	}
@@ -367,4 +367,11 @@ func (v *DoctorView) showDetail(it widgets.SectionItem) {
 		d.keys("r", i18n.T("tui.hints.recheck"))
 	}
 	v.page.SetDetail(d.String())
+}
+
+// firstLine is the summary of a detail in the list (the pane shows the whole
+// detail): a failure that lists sources and commands spans several lines.
+func firstLine(s string) string {
+	first, _, _ := strings.Cut(s, "\n")
+	return first
 }
