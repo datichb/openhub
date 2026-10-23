@@ -63,16 +63,22 @@ func newClaimsBeater(a *app.App) *claimsBeater {
 // teams lists the team-state clones of the active projects, one entry per
 // clone and member.
 func (b *claimsBeater) teams(ctx context.Context) []*claimsTeam {
-	if b.a == nil || b.a.Projects == nil {
+	return claimTeams(ctx, b.a, b.config())
+}
+
+// claimTeams lists the team-state clones of the active projects of a under
+// the hub configuration cfg, one entry per clone and member.
+func claimTeams(ctx context.Context, a *app.App, cfg *config.Config) []*claimsTeam {
+	if a == nil || a.Projects == nil {
 		return nil
 	}
-	projects, err := b.a.Projects.List(ctx, domain.ProjectStatusActive)
+	projects, err := a.Projects.List(ctx, domain.ProjectStatusActive)
 	if err != nil {
-		slog.Debug("ohd: claims heartbeat: projects unreadable", "error", err)
+		slog.Debug("team claims: projects unreadable", "error", err)
 		return nil
 	}
-	fresh := *b.a // the hub configuration is the only thing that changes
-	fresh.Config = b.config()
+	fresh := *a // the hub configuration is the only thing that changes
+	fresh.Config = cfg
 	var out []*claimsTeam
 	byClone := map[string]*claimsTeam{}
 	for i := range projects {

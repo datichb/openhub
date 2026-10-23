@@ -69,6 +69,8 @@ func runtimeFix(r doctor.Result) *doctor.Fix {
 	switch {
 	case r.ID == doctorIDClaimsProject:
 		return claimsProjectFix(r)
+	case r.ID == doctorIDClaimsQueue:
+		return claimsQueueFix(r)
 	case r.ID == doctorIDGC && r.Warn:
 		return &doctor.Fix{Open: actionCleanup}
 	case r.ID == doctorIDDeployCleanup && !r.OK:

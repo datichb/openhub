@@ -97,6 +97,16 @@ func claimStale(claim *Claim, staleDays int, now time.Time) bool {
 	return now.Sub(lastActive) > time.Duration(staleDays)*24*time.Hour
 }
 
+// HasLease reports whether the claim carries a lease under cfg (nil: the
+// defaults): it has an owner and work started on it. A pool claim, a planned
+// or initial-column claim and a finished one have none, so they never expire.
+func (c *Claim) HasLease(cfg *TeamConfig) bool {
+	if cfg == nil {
+		cfg = &TeamConfig{}
+	}
+	return leaseApplies(c, cfg)
+}
+
 // leaseApplies reports whether a claim carries a lease: it needs an owner
 // and work started on it (a pool claim, a planned or initial-column claim
 // and a finished one are not worked on, so nobody renews them).
