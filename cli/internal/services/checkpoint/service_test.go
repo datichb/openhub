@@ -14,6 +14,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
@@ -85,6 +86,30 @@ func TestReached(t *testing.T) {
 	_, err = svc.Reached(ctx, "ses_a", Call{ID: "cp-9"})
 	assert.ErrorIs(t, err, ErrUnknownCP)
 	assert.ErrorContains(t, err, "cp-1, cp-2", "known checkpoints listed for the agent")
+}
+
+// Bug 15: a workflow without checkpoint (review) answers that it has none,
+// not "unknown checkpoint "cp-1" ()"; an unknown id lists the valid ones.
+func TestReachedWithoutCheckpoint(t *testing.T) {
+	svc, ctx := newTestService(t)
+	writeBundle(t, svc.BundlesDir, "h_nocp", &sessionspec.WorkflowRuntime{ID: "review"})
+	require.NoError(t, svc.Sessions.Create(ctx, &domain.Session{ID: "ses_nocp", ProjectID: "p1", Status: domain.SessionStatusRunning, GroupKey: "g1", BundleHash: "h_nocp", Mode: "manuel", State: domain.RunActive}))
+
+	i18n.SetLocale("fr")
+	_, err := svc.Reached(ctx, "ses_nocp", Call{ID: "cp-1"})
+	assert.ErrorIs(t, err, ErrNoCheckpoint)
+	assert.NotErrorIs(t, err, ErrUnknownCP)
+	assert.NotContains(t, err.Error(), "()")
+	assert.Contains(t, err.Error(), "pas de point de contrôle")
+
+	i18n.SetLocale("en")
+	_, err = svc.Reached(ctx, "ses_nocp", Call{ID: "cp-1"})
+	assert.ErrorContains(t, err, "has no checkpoint")
+
+	_, err = svc.Reached(ctx, "ses_a", Call{ID: "cp-9"})
+	assert.ErrorIs(t, err, ErrUnknownCP)
+	assert.ErrorContains(t, err, "cp-9")
+	assert.ErrorContains(t, err, "cp-1, cp-2")
 }
 
 func TestDeclareOutputs(t *testing.T) {

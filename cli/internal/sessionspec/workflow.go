@@ -72,9 +72,23 @@ func ParseMCPToolAction(action string) (server, tool string, ok bool) {
 // removes it).
 const EnvGroupToken = "OH_GROUP_TOKEN"
 
+// EnvNoCheckpoints, set in the environment of the workflow MCP server of a
+// workflow without checkpoint, keeps it from offering workflow_checkpoint.
+const EnvNoCheckpoints = "OH_WORKFLOW_NO_CHECKPOINTS"
+
 // WorkflowMCPDef is the declaration of the workflow MCP server.
 func WorkflowMCPDef() MCPServerDef {
 	return MCPServerDef{Name: WorkflowMCPServer, Type: "local", Command: []string{OhBinVar, "mcp", "serve", WorkflowMCPServer}}
+}
+
+// WorkflowMCPDefFor is the declaration of the workflow MCP server of wf: a
+// workflow without checkpoint does not offer workflow_checkpoint.
+func WorkflowMCPDefFor(wf *WorkflowRuntime) MCPServerDef {
+	def := WorkflowMCPDef()
+	if wf != nil && len(wf.Checkpoints) == 0 {
+		def.Environment = map[string]string{EnvNoCheckpoints: "1"}
+	}
+	return def
 }
 
 // Checkpoint behaviors (copied from the oh/v1 schema).

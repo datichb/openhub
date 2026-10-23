@@ -104,7 +104,7 @@ func (d *Daemon) workflowErr(w http.ResponseWriter, err error) {
 		writeErr(w, http.StatusConflict, err.Error())
 	case errors.Is(err, domain.ErrNotFound), errors.Is(err, checkpoint.ErrNoWorkflow):
 		writeErr(w, http.StatusNotFound, err.Error())
-	case errors.Is(err, checkpoint.ErrUnknownCP):
+	case errors.Is(err, checkpoint.ErrUnknownCP), errors.Is(err, checkpoint.ErrNoCheckpoint):
 		writeErr(w, http.StatusUnprocessableEntity, err.Error())
 	default:
 		writeErr(w, http.StatusInternalServerError, err.Error())

@@ -14,6 +14,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/daemon"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
+	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
 type fakeBackend struct {
@@ -52,12 +53,12 @@ type rpcResult struct {
 }
 
 // call runs one tools/call (or tools/list) through the stdio transport.
-func call(t *testing.T, b Backend, method, params string) rpcResult {
+func call(t *testing.T, b Backend, method, params string, opts ...Option) rpcResult {
 	t.Helper()
 	in := `{"jsonrpc":"2.0","id":1,"method":"` + method + `","params":` + params + "}\n"
 	pr, pw := io.Pipe()
 	go func() {
-		_ = New(b).ServeIO(context.Background(), strings.NewReader(in), pw)
+		_ = New(b, opts...).ServeIO(context.Background(), strings.NewReader(in), pw)
 		_ = pw.Close()
 	}()
 	line, err := bufio.NewReader(pr).ReadBytes('\n')
@@ -76,6 +77,27 @@ func TestToolsList(t *testing.T) {
 		names = append(names, tl.Name)
 	}
 	assert.ElementsMatch(t, []string{"status", "checkpoint", "outputs", "report", "report_get", "reports"}, names)
+}
+
+// Bug 15: a workflow without checkpoint does not offer workflow_checkpoint
+// (the agent invented cp-1).
+func TestToolsListWithoutCheckpoints(t *testing.T) {
+	out := call(t, &fakeBackend{}, "tools/list", `{}`, WithoutCheckpoints())
+	names := []string{}
+	for _, tl := range out.Result.Tools {
+		names = append(names, tl.Name)
+	}
+	assert.ElementsMatch(t, []string{"status", "outputs", "report", "report_get", "reports"}, names)
+}
+
+func TestOptionsFromEnv(t *testing.T) {
+	assert.Empty(t, optionsFromEnv(func(string) string { return "" }))
+	assert.Len(t, optionsFromEnv(func(k string) string {
+		if k == sessionspec.EnvNoCheckpoints {
+			return "1"
+		}
+		return ""
+	}), 1)
 }
 
 func TestCheckpointCall(t *testing.T) {

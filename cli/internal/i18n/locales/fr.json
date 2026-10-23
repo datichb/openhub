@@ -5343,6 +5343,8 @@
   "cmd.daemon.status.short": "Affiche l'état du démon oh",
   "cmd.daemon.stop.short": "Arrête le démon oh (refusé si des sessions tournent, sauf --force)",
   "cmd.daemon.stop.flags.force": "Arrêter même si des sessions tournent",
+  "cmd.daemon.workflow.no_checkpoint": "Le point de contrôle %q n'existe pas : ce workflow n'a pas de point de contrôle. N'appelle pas workflow_checkpoint ; poursuis ta tâche.",
+  "cmd.daemon.workflow.unknown_checkpoint": "Point de contrôle %q inconnu. Points de contrôle valides : %s.",
   "cmd.daemon.workflow.by_other_agent": "Le checkpoint %s est passé par %s alors que le workflow le confie à %s : vérifie que c'est bien ton checkpoint (contrat de session).",
   "cmd.daemon.workflow.not_approved": "Le checkpoint %s attend la validation de l'utilisateur : il n'est pas passé. Appelez workflow_checkpoint et attendez sa réponse ; ne cherchez pas à le passer autrement.",
   "cmd.daemon.workflow.verify_failed": "Le checkpoint %s « %s » n'est pas passé : la vérification lancée par oh a échoué (%s). Rien n'est déverrouillé. Corrige le travail, puis rappelle workflow_checkpoint pour ce checkpoint.",

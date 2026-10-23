@@ -5343,6 +5343,8 @@
   "cmd.daemon.status.short": "Shows the state of the oh daemon",
   "cmd.daemon.stop.short": "Stops the oh daemon (refused while sessions run, unless --force)",
   "cmd.daemon.stop.flags.force": "Stop even if sessions are running",
+  "cmd.daemon.workflow.no_checkpoint": "Checkpoint %q does not exist: this workflow has no checkpoint. Do not call workflow_checkpoint; carry on with your task.",
+  "cmd.daemon.workflow.unknown_checkpoint": "Unknown checkpoint %q. Valid checkpoints: %s.",
   "cmd.daemon.workflow.by_other_agent": "Checkpoint %s was passed by %s while the workflow gives it to %s: check that it is your checkpoint (session contract).",
   "cmd.daemon.workflow.not_approved": "Checkpoint %s waits for the user's validation: it is not passed. Call workflow_checkpoint and wait for the answer; do not try to pass it another way.",
   "cmd.daemon.workflow.verify_failed": "Checkpoint %s “%s” is not passed: the verification run by oh failed (%s). Nothing is unlocked. Fix the work, then call workflow_checkpoint again for this checkpoint.",

@@ -52,11 +52,34 @@ type Backend interface {
 // workflow routes without it).
 func Serve() error {
 	c := client.NewClient(api.DefaultPaths()).WithGroupToken(os.Getenv(sessionspec.EnvGroupToken))
-	return New(c).Serve()
+	return New(c, optionsFromEnv(os.Getenv)...).Serve()
+}
+
+// Option changes the tools the server offers.
+type Option func(*options)
+
+type options struct{ noCheckpoints bool }
+
+// WithoutCheckpoints removes workflow_checkpoint: the workflow of the
+// session has no checkpoint, and an agent that is offered the tool invents
+// one.
+func WithoutCheckpoints() Option { return func(o *options) { o.noCheckpoints = true } }
+
+// optionsFromEnv reads the options the bundle writes in the environment of
+// the server (sessionspec.WorkflowMCPDefFor).
+func optionsFromEnv(getenv func(string) string) []Option {
+	if getenv(sessionspec.EnvNoCheckpoints) != "" {
+		return []Option{WithoutCheckpoints()}
+	}
+	return nil
 }
 
 // New returns the MCP server backed by b.
-func New(b Backend) *protocol.Server {
+func New(b Backend, opts ...Option) *protocol.Server {
+	var o options
+	for _, opt := range opts {
+		opt(&o)
+	}
 	s := protocol.NewServer("oh-workflow", "1.0.0")
 	h := handlers{b: b}
 	s.RegisterTool(protocol.Tool{
@@ -64,21 +87,9 @@ func New(b Backend) *protocol.Server {
 		Description: i18n.T("cmd.mcp.workflow.status_desc"),
 		InputSchema: map[string]any{"type": "object", "properties": map[string]any{}},
 	}, h.status)
-	s.RegisterTool(protocol.Tool{
-		Name:        sessionspec.WorkflowToolCheckpoint,
-		Description: i18n.T("cmd.mcp.workflow.checkpoint_desc"),
-		InputSchema: map[string]any{
-			"type": "object",
-			"properties": map[string]any{
-				"id":       map[string]any{"type": "string", "description": i18n.T("cmd.mcp.workflow.checkpoint_id")},
-				"summary":  map[string]any{"type": "string", "description": i18n.T("cmd.mcp.workflow.checkpoint_summary")},
-				"evidence": evidenceSchema(),
-				"reports":  map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": i18n.T("cmd.mcp.workflow.checkpoint_reports")},
-				"tasks":    tasksSchema(),
-			},
-			"required": []string{"id", "summary"},
-		},
-	}, h.checkpoint)
+	if !o.noCheckpoints {
+		s.RegisterTool(checkpointTool(), h.checkpoint)
+	}
 	s.RegisterTool(protocol.Tool{
 		Name:        sessionspec.WorkflowToolOutputs,
 		Description: i18n.T("cmd.mcp.workflow.outputs_desc"),
@@ -94,6 +105,24 @@ func New(b Backend) *protocol.Server {
 	}, h.outputs)
 	registerReports(s, h)
 	return s
+}
+
+func checkpointTool() protocol.Tool {
+	return protocol.Tool{
+		Name:        sessionspec.WorkflowToolCheckpoint,
+		Description: i18n.T("cmd.mcp.workflow.checkpoint_desc"),
+		InputSchema: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"id":       map[string]any{"type": "string", "description": i18n.T("cmd.mcp.workflow.checkpoint_id")},
+				"summary":  map[string]any{"type": "string", "description": i18n.T("cmd.mcp.workflow.checkpoint_summary")},
+				"evidence": evidenceSchema(),
+				"reports":  map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": i18n.T("cmd.mcp.workflow.checkpoint_reports")},
+				"tasks":    tasksSchema(),
+			},
+			"required": []string{"id", "summary"},
+		},
+	}
 }
 
 // tasksSchema is the breakdown of a checkpoint that records it
