@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/runsvc"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 )
 
@@ -180,6 +181,29 @@ func TestRunClaimTransfer_Success(t *testing.T) {
 	_ = fmt.Sprintf("briefs: %d", len(entries)) // brief generation is best-effort
 }
 
+const claimsProject = "myproject"
+
+func claimsCreate(t *testing.T, repo *teamstate.Repo, ticket, member, session string) {
+	t.Helper()
+	_, err := repo.CreateClaim(context.Background(), teamstate.Claim{
+		TicketID: ticket, Project: claimsProject, ClaimedBy: member, Status: teamstate.ClaimStatusInProgress, Session: session,
+	})
+	require.NoError(t, err)
+}
+
+func claimsOnDisk(t *testing.T, repo *teamstate.Repo, ticket string) *teamstate.Claim {
+	t.Helper()
+	c, err := repo.GetClaim(claimsProject, ticket)
+	require.NoError(t, err)
+	return c
+}
+
+func claimsGone(t *testing.T, repo *teamstate.Repo, ticket string) {
+	t.Helper()
+	_, err := repo.GetClaim(claimsProject, ticket)
+	assert.ErrorIs(t, err, teamstate.ErrClaimNotFound, ticket)
+}
+
 // QB2: a session started on tickets (any workflow, not only the --dev alias)
 // claims each ticket for the member, or moves its planned claim to the work
 // status; a ticket claimed by someone else is reported.
@@ -210,41 +234,32 @@ func TestStartTicketClaim(t *testing.T) {
 	assert.Equal(t, teamstate.ClaimStatusPlanned, c.Status, "someone else's claim is left as is")
 }
 
-// A31: at the end of a session, the claim of a closed ticket is completed
-// (terminal status) and the claim of a ticket still open is released; the
-// claims of other members and unknown tickets are left as they are.
-func TestEndTicketClaims(t *testing.T) {
+// A session that starts takes the claim of its ticket: new, or already held.
+func TestStartTicketClaimRecordsTheSession(t *testing.T) {
 	_, repo, _ := setupClaimTestApp(t)
-	ctx := context.Background()
-	for _, c := range []teamstate.Claim{
-		{TicketID: "pt-cb8", Project: "myproject", ClaimedBy: "testuser", Status: teamstate.ClaimStatusInProgress},
-		{TicketID: "pt-vau", Project: "myproject", ClaimedBy: "testuser", Status: teamstate.ClaimStatusInProgress},
-		{TicketID: "pt-bob", Project: "myproject", ClaimedBy: "bob", Status: teamstate.ClaimStatusInProgress},
-		{TicketID: "pt-gone", Project: "myproject", ClaimedBy: "testuser", Status: teamstate.ClaimStatusInProgress},
-	} {
-		_, err := repo.CreateClaim(ctx, c)
-		require.NoError(t, err)
-	}
-	closed := func(id string) (bool, error) {
-		switch id {
-		case "pt-cb8", "pt-bob":
-			return true, nil
-		case "pt-gone":
-			return false, fmt.Errorf("unknown ticket")
-		}
-		return false, nil
-	}
-	got := endTicketClaims(ctx, repo, "myproject", "testuser", []string{"pt-cb8", "pt-vau", "pt-bob", "pt-gone"}, closed)
-	assert.Equal(t, map[string]claimEnd{"pt-cb8": claimDone, "pt-vau": claimReleased}, got)
-	c, err := repo.GetClaim("myproject", "pt-cb8")
+	ctx := runsvc.WithStartedSession(context.Background(), "ses_9")
+
+	startTicketClaim(ctx, repo, claimsProject, "testuser", "NEW-1")
+	assert.Equal(t, "ses_9", claimsOnDisk(t, repo, "NEW-1").Session)
+
+	claimsCreate(t, repo, "OLD-2", "testuser", "ses_old")
+	require.NoError(t, repo.AddClaimLabel(context.Background(), claimsProject, "OLD-2", teamstate.LabelSessionEnded))
+	startTicketClaim(ctx, repo, claimsProject, "testuser", "OLD-2")
+	c := claimsOnDisk(t, repo, "OLD-2")
+	assert.Equal(t, "ses_9", c.Session)
+	assert.Empty(t, c.Labels, "the session-ended label of the previous session is gone")
+
+	_, err := repo.CreateClaim(context.Background(), teamstate.Claim{TicketID: "PLAN-3", Project: claimsProject, ClaimedBy: "testuser", Status: teamstate.ClaimStatusPlanned})
 	require.NoError(t, err)
-	assert.Equal(t, teamstate.ClaimStatusDone, c.Status)
-	_, err = repo.GetClaim("myproject", "pt-vau")
-	assert.ErrorIs(t, err, teamstate.ErrClaimNotFound)
-	c, _ = repo.GetClaim("myproject", "pt-bob")
-	assert.Equal(t, teamstate.ClaimStatusInProgress, c.Status, "someone else's claim")
-	c, _ = repo.GetClaim("myproject", "pt-gone")
-	assert.Equal(t, teamstate.ClaimStatusInProgress, c.Status, "unknown ticket: left for the Doctor")
+	startTicketClaim(ctx, repo, claimsProject, "testuser", "PLAN-3")
+	c = claimsOnDisk(t, repo, "PLAN-3")
+	assert.Equal(t, teamstate.ClaimStatusInProgress, c.Status)
+	assert.Equal(t, "ses_9", c.Session)
+	assert.False(t, c.LeaseUntil.IsZero(), "the claim has a lease once work started")
+
+	claimsCreate(t, repo, "BOB-4", "bob", "ses_bob")
+	startTicketClaim(ctx, repo, claimsProject, "testuser", "BOB-4")
+	assert.Equal(t, "ses_bob", claimsOnDisk(t, repo, "BOB-4").Session, "someone else's claim is not taken")
 }
 
 // A31: the Doctor reports the claims of the member left behind (ticket

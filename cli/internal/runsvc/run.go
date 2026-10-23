@@ -393,7 +393,7 @@ func (s *Service) Start(ctx context.Context, plan *RunPlan) ([]*StartResult, err
 			return out, err
 		}
 		if s.OnTicketsStarted != nil && len(ps.Tickets) > 0 && res != nil {
-			res.Notes = append(res.Notes, s.OnTicketsStarted(ctx, req.Base.ProjectID, ps.Tickets)...)
+			res.Notes = append(res.Notes, s.OnTicketsStarted(WithStartedSession(ctx, res.SessionID), req.Base.ProjectID, ps.Tickets)...)
 		}
 	}
 	return out, nil

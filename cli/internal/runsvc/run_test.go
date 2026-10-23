@@ -273,8 +273,10 @@ func TestStartCallsTheTicketsHook(t *testing.T) {
 	f, _ := runFixture(t)
 	ctx := context.Background()
 	var got [][]string
-	f.svc.OnTicketsStarted = func(_ context.Context, projectID string, tickets []string) []string {
+	var sessions []string
+	f.svc.OnTicketsStarted = func(ctx context.Context, projectID string, tickets []string) []string {
 		got = append(got, tickets)
+		sessions = append(sessions, StartedSession(ctx))
 		return []string{"claimed " + tickets[0]}
 	}
 	plan, err := f.svc.Plan(ctx, f.run("write", LocationChoice{Kind: LocationBase},
@@ -285,6 +287,8 @@ func TestStartCallsTheTicketsHook(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, [][]string{{"bd-1"}, {"bd-2"}}, got)
 	assert.Equal(t, []string{"claimed bd-2"}, res[1].Notes)
+	assert.Equal(t, []string{res[0].SessionID, res[1].SessionID}, sessions, "the hook knows the session it claims for")
+	assert.NotEmpty(t, sessions[0])
 }
 
 // A18: --stash puts the changes aside before the session starts and returns
