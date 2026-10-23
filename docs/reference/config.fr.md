@@ -80,6 +80,8 @@ instruction_files = []             # fichiers du projet ajoutés aux instruction
 [tracker]                          # surcharges locales de la sync tracker de l'équipe
 # enabled = false                  # décommenter pour désactiver la sync localement
 # push_labels = false              # décommenter pour désactiver le push de labels
+# tracker_token_key = "mon.jeton"  # clé du jeton du tracker dans le trousseau
+# tracker_token_url = "https://gitlab.example.com"  # serveur de cette clé (obligatoire pour qu'elle serve)
 
 [websearch]
 enabled = false                    # WebSearch / WebFetch (Exa AI) pour les agents
@@ -591,7 +593,8 @@ write_enabled = false        # écritures tracker (labels, assignation)
 | `enabled` | bool | `false` | Activer l'intégration |
 | `type` | string | — | `"gitlab"` ou `"jira"` (`type_enforced` pour l'imposer) |
 | `tracker_url` | string | vide | Instance du tracker, indépendante du MCP |
-| `tracker_token_key` | string | `openhub.tracker.<type>.token` | Clé du token dans le trousseau (sinon token du MCP) |
+| `tracker_token_key` | string | `openhub.tracker.<type>.token` | Clé du token dans le trousseau (sinon jeton de l'équipe ou du MCP, pour leur serveur) |
+| `tracker_token_url` | string | vide | Serveur pour lequel le jeton de `tracker_token_key` (et l'ancienne clé du tracker) est valable, ex. `https://gitlab.example.com`. Sans lui, la clé n'est jamais envoyée à un serveur (voir [le serveur de chaque jeton](#le-serveur-de-chaque-jeton-gitlab)) |
 | `tracker_project` | string | vide | Projet du tracker par défaut (surchargeable par projet) |
 | `ticket_pattern` | string | vide | Regex à **un groupe de capture** extrayant l'IID |
 | `auto_sync` | bool | `false` | Synchroniser à l'ouverture des vues d'équipe |
@@ -611,7 +614,25 @@ write_enabled = false        # écritures tracker (labels, assignation)
 
 - Jira : les issues fermées sont détectées via `statusCategory.key == "done"`.
 - Statuts de claim valides : `planned`, `in_progress`, `review`, `validation`, `blocked`, `done`.
-- `hub.toml` `[tracker]` permet à un membre de désactiver localement `enabled`, `auto_sync`, `push_labels`, `auto_plan_assigned`, etc.
+- `hub.toml` `[tracker]` permet à un membre de désactiver localement `enabled`, `auto_sync`, `push_labels`, `auto_plan_assigned`, etc., et de régler sa propre clé de jeton (`tracker_token_key` + `tracker_token_url`, qui passent ensemble).
+
+### Le serveur de chaque jeton GitLab
+
+Un jeton GitLab n'est envoyé qu'au serveur pour lequel il a été émis. Quand le dépôt d'équipe et le tracker sont sur deux GitLab différents, le jeton de l'un n'est jamais présenté à l'autre. Chaque source de jeton est donc rattachée à un serveur, et l'ordre de recherche (voir [`oh team sync-tracker`](cli-team.fr.md#oh-team-sync-tracker)) ne retient une source que si son serveur est celui qu'on appelle :
+
+| Source | Clé | Serveur de la source | Où le déclarer |
+|--------|-----|----------------------|----------------|
+| Variable d'environnement | `GITLAB_TOKEN` | `OH_GITLAB_URL`, sinon `GITLAB_URL` | `export OH_GITLAB_URL=https://gitlab.example.com` |
+| `tracker_token_key` | la clé réglée | `tracker_token_url` du même niveau que la clé | `[tracker] tracker_token_url` de `hub.toml` ou de la config d'équipe ; `oh config set tracker.tracker_token_url <url>` |
+| Ancienne clé du tracker | `openhub.tracker.gitlab.token` | `tracker_token_url` | idem |
+| Jeton du projet, jeton MCP du hub | `openhub.mcp.gitlab.token.<projet>`, clé de `[mcp.gitlab] token_key`, `openhub.mcp.gitlab.token` | l'URL du MCP GitLab (projet, `[mcp.gitlab] url`, sinon l'URL recommandée par l'équipe) | `oh config set mcp.gitlab.url <url>` |
+| Jeton de l'équipe | `openhub.team.<équipe>.gitlab.token` | l'hôte du dépôt d'équipe (`state_repo`) | rien à déclarer |
+
+**Règle (stricte).** Une source dont le serveur n'est pas déclaré n'est jamais utilisée. Le serveur est comparé sans tenir compte de la casse, du schéma (`https://h`, `http://h` et `h` sont le même serveur), d'un port par défaut (`80`, `443`), d'un `/` final, du chemin ni de l'utilisateur ; un port non standard compte (`h:8443` ≠ `h`). Pour un dépôt `ssh://` ou `git@hôte:chemin`, seul l'hôte compte (le port est celui de git, pas celui de l'API). Deux GitLab de même hôte qui ne diffèrent que par un préfixe de chemin sont donc le même serveur.
+
+`tracker_token_url` se règle avec la clé (`tracker_token_key`) : un `tracker_token_key` de `hub.toml` n'hérite pas du serveur déclaré à côté de celui de l'équipe. Sans jeton pour le serveur appelé, la commande s'arrête avec le serveur, les sources lues (clé, vide / déclaré pour un autre serveur / serveur non déclaré), la façon de déclarer la clé et la commande à lancer ; une erreur d'authentification (HTTP 401 ou 403) dit la source du jeton, sa clé et le serveur.
+
+> **Migration (v5.1).** Une configuration qui marchait parce qu'un jeton sans serveur était envoyé au bon serveur « par chance » doit maintenant le déclarer : `oh config set tracker.tracker_token_url https://…` pour la clé du tracker, `oh config set mcp.gitlab.url https://…` pour le jeton MCP, `export OH_GITLAB_URL=https://…` (ou `GITLAB_URL`) pour `GITLAB_TOKEN`. L'assistant `oh team config` déclare lui-même le serveur de la clé du tracker.
 
 ### Section `[board]`
 
@@ -833,6 +854,7 @@ Le `opencode.json` du projet n'est plus généré (`oh deploy` supprimé en v5).
 | `ANTHROPIC_API_KEY`, `OPENROUTER_API_KEY` | Détection des identifiants Anthropic et OpenRouter |
 | `FIGMA_TOKEN` | Token API Figma (serveur MCP) |
 | `GITLAB_TOKEN`, `GITLAB_URL`, `GITLAB_WRITE_ENABLED` | Serveur MCP GitLab (URL par défaut : `https://gitlab.com`) |
+| `OH_GITLAB_URL` | Serveur pour lequel `GITLAB_TOKEN` est valable, quand oh choisit un jeton GitLab (sinon `GITLAB_URL`). Sans l'une des deux, `GITLAB_TOKEN` n'est envoyé à aucun serveur |
 | `GOOGLE_ACCESS_TOKEN` | Token OAuth Google (serveur MCP) |
 | `GITHUB_TOKEN` (alias `GH_TOKEN`), `GITHUB_WRITE_ENABLED` | Serveur MCP GitHub |
 | `JIRA_URL`, `JIRA_TOKEN` (ou `JIRA_USER` + `JIRA_API_TOKEN`), `JIRA_WRITE_ENABLED` | Serveur MCP Jira |

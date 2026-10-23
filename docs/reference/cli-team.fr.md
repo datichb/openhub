@@ -205,6 +205,8 @@ La commande, la touche de synchronisation (`s`) des écrans d'équipe et la sync
   | 5 | Jeton MCP du hub | clé de `[mcp.gitlab] token`, puis `openhub.mcp.gitlab.token` (et son ancien nom `gitlab-token`) |
   | 6 | Ancienne clé du tracker | `openhub.tracker.gitlab.token` |
 
+  **Chaque source est rattachée à un serveur et ne répond que pour lui** (v5.1) : le jeton du dépôt d'équipe n'est jamais envoyé à un tracker qui est sur un autre GitLab. Le serveur de la variable d'environnement est `OH_GITLAB_URL` (sinon `GITLAB_URL`), celui de `tracker_token_key` et de l'ancienne clé du tracker est `tracker_token_url`, celui des jetons MCP est `[mcp.gitlab] url`, celui du jeton d'équipe est l'hôte du `state_repo`. Une source dont le serveur n'est pas déclaré n'est pas utilisée. Sans jeton pour le serveur appelé, la commande s'arrête en nommant le serveur, les sources lues et la commande qui déclare la clé ; voir [le serveur de chaque jeton GitLab](config.fr.md#le-serveur-de-chaque-jeton-gitlab). Un refus du serveur (HTTP 401 / 403) nomme la source, la clé et le serveur. `oh team config status` lit le même ordre (clé et serveur de `hub.toml` compris) et affiche `token_key` et `token_url`.
+
   Jira garde son propre ordre (`JIRA_TOKEN`, puis `tracker_token_key`).
 
   **Ce qui change en v5.0** (rupture : le même ordre s'applique désormais à toutes les commandes) :
