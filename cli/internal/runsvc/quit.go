@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/datichb/openhub/cli/internal/daemon"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
 	"github.com/datichb/openhub/cli/internal/domain"
 )
 
@@ -34,7 +34,7 @@ type QuitPlan struct {
 
 // policySetter is the daemon call used to apply a quit policy.
 type policySetter interface {
-	SetPolicy(ctx context.Context, group string, p daemon.QuitPolicy) error
+	SetPolicy(ctx context.Context, group string, p api.QuitPolicy) error
 }
 
 // QuitPlan lists the open sessions whose servers are awake.
@@ -93,9 +93,9 @@ func (s *Service) ApplyQuit(ctx context.Context, plan QuitPlan, choices map[stri
 		}
 	}
 	for _, g := range plan.Groups {
-		p := daemon.PolicySleepWhenIdle
+		p := api.PolicySleepWhenIdle
 		if background[g] {
-			p = daemon.PolicyBackground
+			p = api.PolicyBackground
 		}
 		if err := ps.SetPolicy(ctx, g, p); err != nil {
 			errs = append(errs, err)

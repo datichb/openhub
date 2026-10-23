@@ -5,7 +5,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/datichb/openhub/cli/internal/daemon"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
 	"github.com/datichb/openhub/cli/internal/domain"
 )
 
@@ -13,8 +13,8 @@ import (
 // publishes feed items and session changes; the CLI and the TUI read them
 // here. The service never talks to the tool event stream itself.
 
-// LiveStream opens the daemon stream (daemon.Client.Stream).
-type LiveStream func(ctx context.Context, sessionID string) (<-chan daemon.StreamEvent, error)
+// LiveStream opens the daemon stream (client.Client.Stream).
+type LiveStream func(ctx context.Context, sessionID string) (<-chan api.StreamEvent, error)
 
 // ErrNoLive means the live stream is unavailable (oh daemon not running).
 var ErrNoLive = errors.New("live follow-up unavailable (oh daemon not running)")
@@ -30,7 +30,7 @@ func (s *Service) Follow(ctx context.Context, sessionID string) (<-chan domain.F
 	}
 	evs, err := s.Live(ctx, sessionID)
 	if err != nil {
-		if errors.Is(err, daemon.ErrNotRunning) {
+		if errors.Is(err, api.ErrNotRunning) {
 			return nil, ErrNoLive
 		}
 		return nil, err

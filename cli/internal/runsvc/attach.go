@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/adapters"
-	"github.com/datichb/openhub/cli/internal/daemon"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
 	"github.com/datichb/openhub/cli/internal/termlaunch"
 )
 
@@ -43,7 +43,7 @@ func (s *Service) Attach(ctx context.Context, sessionID, dir string, pref termla
 // attachedClientLister is the part of the daemon client that lists the
 // clients attached to a session.
 type attachedClientLister interface {
-	AttachedClients(ctx context.Context, sessionID string) ([]daemon.AttachedClient, error)
+	AttachedClients(ctx context.Context, sessionID string) ([]api.AttachedClient, error)
 }
 
 // focusWindow is termlaunch.Focus (variable for the tests).

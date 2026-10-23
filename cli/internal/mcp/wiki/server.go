@@ -32,7 +32,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/datichb/openhub/cli/internal/daemon"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
+	"github.com/datichb/openhub/cli/internal/daemon/client"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/mcp/protocol"
 	mcpworkflow "github.com/datichb/openhub/cli/internal/mcp/workflow"
@@ -42,10 +43,10 @@ import (
 
 // Backend is the oh daemon as seen from the MCP server.
 type Backend interface {
-	WikiIndex(ctx context.Context, toolSession string) (daemon.WikiIndex, error)
-	WikiPage(ctx context.Context, toolSession, page, section string) (daemon.WikiPage, error)
-	WikiPropose(ctx context.Context, req daemon.WikiProposeRequest) (daemon.WikiProposal, error)
-	WikiPending(ctx context.Context, toolSession string, sessionOnly bool) ([]daemon.WikiProposal, error)
+	WikiIndex(ctx context.Context, toolSession string) (api.WikiIndex, error)
+	WikiPage(ctx context.Context, toolSession, page, section string) (api.WikiPage, error)
+	WikiPropose(ctx context.Context, req api.WikiProposeRequest) (api.WikiProposal, error)
+	WikiPending(ctx context.Context, toolSession string, sessionOnly bool) ([]api.WikiProposal, error)
 	WikiApply(ctx context.Context, toolSession string, ids []string) ([]wikisvc.Result, error)
 	WikiCheck(ctx context.Context, toolSession string, opts wikisvc.CheckOptions) (wikisvc.CheckReport, error)
 }
@@ -56,13 +57,13 @@ type Backend interface {
 // without it, or a daemon too old to have the route, lists the pending
 // proposals only.
 type RefusedBackend interface {
-	WikiRefused(ctx context.Context, toolSession string, sessionOnly bool) ([]daemon.WikiProposal, error)
+	WikiRefused(ctx context.Context, toolSession string, sessionOnly bool) ([]api.WikiProposal, error)
 }
 
 // Serve runs the server on stdio against the oh daemon, with the token of
 // the server group found in its environment.
 func Serve() error {
-	c := daemon.NewClient(daemon.DefaultPaths()).WithGroupToken(os.Getenv(sessionspec.EnvGroupToken))
+	c := client.NewClient(api.DefaultPaths()).WithGroupToken(os.Getenv(sessionspec.EnvGroupToken))
 	return New(c).Serve()
 }
 
@@ -140,20 +141,20 @@ func session(ctx context.Context) (string, error) {
 // notRecorded reports that the daemon cannot serve the wiki (stopped, wiki
 // turned off, a daemon without the route, a session unknown to oh).
 func notRecorded(err error) bool {
-	if errors.Is(err, daemon.ErrNotRunning) {
+	if errors.Is(err, api.ErrNotRunning) {
 		return true
 	}
-	var api *daemon.APIError
-	return errors.As(err, &api) && (api.Status == http.StatusServiceUnavailable || api.Status == http.StatusNotFound && strings.HasPrefix(api.Message, "404 "))
+	var ae *api.APIError
+	return errors.As(err, &ae) && (ae.Status == http.StatusServiceUnavailable || ae.Status == http.StatusNotFound && strings.HasPrefix(ae.Message, "404 "))
 }
 
 func unavailable(err error) error {
 	if notRecorded(err) {
 		return errors.New(i18n.T("cmd.mcp.wiki.unavailable"))
 	}
-	var api *daemon.APIError
-	if errors.As(err, &api) && api.Message != "" {
-		return errors.New(api.Message)
+	var ae *api.APIError
+	if errors.As(err, &ae) && ae.Message != "" {
+		return errors.New(ae.Message)
 	}
 	return err
 }
@@ -243,14 +244,14 @@ func (h handlers) propose(ctx context.Context, params json.RawMessage) (*protoco
 	if err != nil {
 		return nil, err
 	}
-	p, err := h.b.WikiPropose(ctx, daemon.WikiProposeRequest{ToolSession: id, Page: in.Page, Section: in.Section, Content: in.Content, Tag: in.Tag, Source: in.Source,
+	p, err := h.b.WikiPropose(ctx, api.WikiProposeRequest{ToolSession: id, Page: in.Page, Section: in.Section, Content: in.Content, Tag: in.Tag, Source: in.Source,
 		Replaces: in.Replaces})
 	if notRecorded(err) {
 		return text(i18n.T("cmd.mcp.wiki.not_recorded")), nil
 	}
-	var api *daemon.APIError
-	if errors.As(err, &api) && (api.Status == http.StatusUnprocessableEntity || api.Status == http.StatusInsufficientStorage || api.Status == http.StatusRequestEntityTooLarge) {
-		return nil, errors.New(i18n.Tf("cmd.mcp.wiki.refused", api.Message))
+	var ae *api.APIError
+	if errors.As(err, &ae) && (ae.Status == http.StatusUnprocessableEntity || ae.Status == http.StatusInsufficientStorage || ae.Status == http.StatusRequestEntityTooLarge) {
+		return nil, errors.New(i18n.Tf("cmd.mcp.wiki.refused", ae.Message))
 	}
 	if err != nil {
 		return nil, unavailable(err)
@@ -439,7 +440,7 @@ func short(c string) string {
 // written by an agent: its first line only, bounded); a replacement shows
 // the line it replaces, then the new one; the reason of a refusal, when
 // there is one, ends the line.
-func proposalLine(p daemon.WikiProposal) string {
+func proposalLine(p api.WikiProposal) string {
 	page := p.Page
 	if p.Section != "" {
 		page += " § " + p.Section
