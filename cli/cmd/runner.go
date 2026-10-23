@@ -36,7 +36,6 @@ import (
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
 	"github.com/datichb/openhub/cli/internal/services/wiki"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
-	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 )
 
 // `oh runner` is the CI side of the remote runtime (lot 5.B): it only runs
@@ -155,21 +154,21 @@ func runRunnerJob(cmd *cobra.Command, _ []string) error {
 	// the proposals are never applied in the job (no CommitPassed,
 	// wiki_apply refused): they go back to the machine in wiki.json and
 	// the user validates them there (p3-remote-wiki).
-	wk := newWikiService()
+	wk := newWikiServiceFor(a)
 	secrets := runner.CISecrets{LLMKey: job.Secrets.LLMKey}
 	paths := daemon.Paths{Dir: ohRunDir()}
 	dctx, stopDaemon := context.WithCancel(context.WithoutCancel(ctx))
 	daemonDone := runJobDaemon(dctx, func(ctx context.Context) error {
 		return daemon.Run(ctx, daemon.Options{
 			Paths: paths, Version: buildinfo.Version,
-			Grants: sqlite.NewGrantStore(store), Servers: sqlite.NewServerStore(store),
+			Grants: a.Grants, Servers: a.Servers,
 			GatewayView: func(context.Context, string) (gateway.View, error) {
 				return gateway.View{Locations: []string{m.WorkDir}}, nil
 			},
 			BeadsBinary: bd, MCPCommand: gatewayMCPCommand(ohBundlesDir()),
-			Sessions: a.Sessions, Decisions: sqlite.NewDecisionStore(store),
+			Sessions: a.Sessions, Decisions: a.Decisions,
 			SessionsDir: ohSessionsDir(), ServersDir: ohServersDir(),
-			Checkpoints: checkpoints, Reports: newReportService(), Wiki: wk, WikiNoApply: true, Secrets: secrets,
+			Checkpoints: checkpoints, Reports: newReportService(a), Wiki: wk, WikiNoApply: true, Secrets: secrets,
 			IdleAfter: 24 * time.Hour, IdleSleep: 24 * time.Hour,
 			Adapter: func(name string) adapters.ToolAdapter {
 				if name == ad.Name() {
@@ -192,9 +191,9 @@ func runRunnerJob(cmd *cobra.Command, _ []string) error {
 	}
 
 	rs := &runsvc.Service{
-		Adapter: ad, AdapterVer: info.Version, Servers: sqlite.NewServerStore(store), Sessions: a.Sessions, Secrets: secrets,
+		Adapter: ad, AdapterVer: info.Version, Servers: a.Servers, Sessions: a.Sessions, Secrets: secrets,
 		ServersDir: ohServersDir(), BundlesDir: ohBundlesDir(), SessionsDir: ohSessionsDir(),
-		Decisions: sqlite.NewDecisionStore(store),
+		Decisions: a.Decisions,
 		Runtimes: map[sessionspec.RuntimeKind]ohruntime.Runtime{
 			sessionspec.RuntimeRemote: &runner.JobRuntime{User: user, Home: serverHome, Root: home},
 		},
@@ -202,8 +201,8 @@ func runRunnerJob(cmd *cobra.Command, _ []string) error {
 		Daemon:       func(context.Context) (runsvc.DaemonClient, error) { return dc, nil },
 		RefreshRules: dc.WorkflowRefresh,
 	}
-	ss := &sessionsvc.Service{Sessions: a.Sessions, Projects: a.Projects, Decisions: sqlite.NewDecisionStore(store),
-		Servers: sqlite.NewServerStore(store), BundlesDir: ohBundlesDir(), SessionsDir: ohSessionsDir(), Adapter: ad,
+	ss := &sessionsvc.Service{Sessions: a.Sessions, Projects: a.Projects, Decisions: a.Decisions,
+		Servers: a.Servers, BundlesDir: ohBundlesDir(), SessionsDir: ohSessionsDir(), Adapter: ad,
 		Alive: func(int) bool { return true }}
 	ss.UseCheckpoints(checkpoints, dc.WorkflowRefresh)
 
@@ -212,8 +211,8 @@ func runRunnerJob(cmd *cobra.Command, _ []string) error {
 		Git:        runner.Git{Token: job.Secrets.ProjectToken, Secrets: job.Secrets, Scratch: filepath.Join(private, "git"), Agent: user},
 		Quiesce:    func(context.Context) error { return runner.KillUser(user) },
 		Session:    &jobSession{a: a, rs: rs, ss: ss, ad: ad, region: job.Region},
-		Responder:  runner.NewResponder(sqlite.NewDecisionStore(store), ss.Decide, m),
-		Reports:    runnerReports(newReportService()),
+		Responder:  runner.NewResponder(a.Decisions, ss.Decide, m),
+		Reports:    runnerReports(newReportService(a)),
 		Wiki:       runnerWiki(wk, m.Project.OhID),
 		WaitVerify: checkpoints.WaitVerify,
 		Verifications: func(ctx context.Context, sid string) ([]remote.SummaryVerification, error) {

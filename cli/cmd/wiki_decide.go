@@ -141,7 +141,7 @@ func runWikiDecide(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	return wikiDecide(ctx, newWikiService(), projectID, args, d, cmd.OutOrStdout())
+	return wikiDecide(ctx, newWikiServiceFor(a), projectID, args, d, cmd.OutOrStdout())
 }
 
 // wikiDecide records the decision on each proposal; it goes on after an
