@@ -16,10 +16,13 @@ import (
 	toml "github.com/pelletier/go-toml/v2"
 )
 
-// ErrExternalModification is returned by Save when the hub.toml file has been
-// modified externally (e.g. by a CLI command or another TUI instance) since the
-// last save or load performed by this process. Callers should reload from disk
-// before retrying.
+// ErrExternalModification is returned by Save when hub.toml changed on disk
+// since the Config being saved was read from it (by a CLI command, another TUI
+// instance or another part of this process). The protection follows the
+// Config that is saved, not the process: a copy read before the change is
+// refused even if hub.toml was read again since. Callers should not retry the
+// same copy: they change only their own fields with Update, which re-reads
+// hub.toml under the lock.
 var ErrExternalModification = errors.New("hub.toml modified externally")
 
 // Config represents the hub configuration.
@@ -61,6 +64,11 @@ type Config struct {
 	Beads BeadsConfig `toml:"beads,omitempty"`
 	// GC holds the clean-up settings (oh gc and the daemon, N16).
 	GC GCConfig `toml:"gc,omitempty"`
+
+	// src is the state of hub.toml this Config was read from (or last saved
+	// to): Save compares it with the file to refuse a stale copy. It is copied
+	// along with the struct, never written to the file.
+	src fileStamp
 }
 
 // ExecutionConfig configures where v5 sessions run.
@@ -414,10 +422,45 @@ var (
 	cfgLoaded bool
 	cfgErr    error
 	cfgMu     sync.Mutex
-	// lastSaveMtime tracks the mtime of hub.toml after the last Save or Load
-	// by this process. Used to detect external modifications before auto-save.
-	lastSaveMtime time.Time
 )
+
+// fileStamp is the state of hub.toml at the moment a Config was read from it
+// or saved to it. The zero value means the Config does not come from the file
+// (built by hand): nothing to compare it with.
+type fileStamp struct {
+	known  bool // the Config has a provenance
+	exists bool // hub.toml existed then
+	mtime  time.Time
+	size   int64
+}
+
+func statStamp() fileStamp {
+	st := fileStamp{known: true}
+	if info, err := os.Stat(ConfigPath()); err == nil {
+		st.exists, st.mtime, st.size = true, info.ModTime(), info.Size()
+	}
+	return st
+}
+
+// changedSince reports whether hub.toml is no longer in the state st describes.
+// A file removed since is not a modification: the next save recreates it.
+func (st fileStamp) changedSince() (bool, error) {
+	if !st.known {
+		return false, nil
+	}
+	info, err := os.Stat(ConfigPath())
+	switch {
+	case err == nil:
+		if !st.exists {
+			return true, nil
+		}
+		return !info.ModTime().Equal(st.mtime) || info.Size() != st.size, nil
+	case os.IsNotExist(err):
+		return false, nil
+	default:
+		return false, fmt.Errorf("stat hub.toml: %w", err)
+	}
+}
 
 // Default keychain key names for MCP service tokens (ADR-030 convention).
 // Pattern: openhub.mcp.<service>.token
@@ -527,9 +570,46 @@ func (c *Config) ActiveTeam() TeamConfig {
 	return TeamConfig{}
 }
 
+// readDisk reads hub.toml and returns a new Config stamped with the state of
+// the file it was read from. The stamp is taken before the read: a file
+// replaced in between makes the Config look older than it is, which Save then
+// refuses (never the opposite). Must be called under cfgMu.
+func readDisk() (*Config, error) {
+	path := ConfigPath()
+	stamp := statStamp()
+	data, err := os.ReadFile(path)
+	var c *Config
+	switch {
+	case err == nil:
+		var notes []Notice
+		c, notes, err = parseHub(path, data)
+		for _, n := range notes {
+			notify(n)
+		}
+	case os.IsNotExist(err):
+		// No hub.toml is fine: the defaults apply.
+		c, err = defaultConfig(), nil
+	default:
+		return nil, fmt.Errorf("reading hub.toml: %w", err)
+	}
+	if err != nil {
+		return nil, err
+	}
+	// Post-load cleanup: if Teams is populated (either from [[teams]] in
+	// the file or from RunMigrationIfNeeded), clear the legacy Team field
+	// to ensure omitempty suppresses it on next Save: the file may still
+	// hold a residual [team] section.
+	if len(c.Teams) > 0 {
+		c.Team = TeamConfig{}
+	}
+	c.src = stamp
+	return c, nil
+}
+
 // Load reads the hub.toml configuration. It is safe to call from any goroutine.
 // The first call reads from disk; subsequent calls return the cached result
-// until Reset or Save invalidates it.
+// until Reset or Save invalidates it. The cached Config is shared: code that
+// changes hub.toml uses Update, not a Load, a change and a Save.
 func Load() (*Config, error) {
 	cfgMu.Lock()
 	defer cfgMu.Unlock()
@@ -537,56 +617,61 @@ func Load() (*Config, error) {
 	if cfgLoaded {
 		return cfg, cfgErr
 	}
-
-	path := ConfigPath()
-	data, err := os.ReadFile(path)
-	switch {
-	case err == nil:
-		var notes []Notice
-		cfg, notes, cfgErr = parseHub(path, data)
-		for _, n := range notes {
-			notify(n)
-		}
-	case os.IsNotExist(err):
-		// No hub.toml is fine: the defaults apply.
-		cfg = defaultConfig()
-	default:
-		cfg, cfgErr = nil, fmt.Errorf("reading hub.toml: %w", err)
-	}
-	if cfgErr == nil {
-		// Post-load cleanup: if Teams is populated (either from [[teams]] in
-		// the file or from RunMigrationIfNeeded), clear the legacy Team field
-		// to ensure omitempty suppresses it on next Save: the file may still
-		// hold a residual [team] section.
-		if len(cfg.Teams) > 0 {
-			cfg.Team = TeamConfig{}
-		}
-		// Record mtime for external modification detection.
-		recordMtime()
-	}
+	cfg, cfgErr = readDisk()
 	cfgLoaded = true
 	return cfg, cfgErr
 }
 
-// Reset clears the cached config so the next Load re-reads from disk.
-// Safe to call concurrently with Load — both are serialized by cfgMu.
+// Read reads hub.toml again and returns it as a new Config, leaving the cache
+// alone: the Config others share is not replaced, nobody sees a different
+// pointer. Use it to look at the file as it is now (refresh a view, check
+// what another process wrote); to change the file, use Update.
+func Read() (*Config, error) {
+	cfgMu.Lock()
+	defer cfgMu.Unlock()
+	return readDisk()
+}
+
+// Reset drops the cached config so the next Load re-reads from disk. It does
+// not weaken the protection of Save, which belongs to each Config (see
+// ErrExternalModification). Tests use it to start from the file; code that
+// only wants to read the file again calls Read. Safe to call concurrently
+// with Load: both are serialized by cfgMu.
 func Reset() {
 	cfgMu.Lock()
 	defer cfgMu.Unlock()
 	cfgLoaded = false
 	cfg = nil
 	cfgErr = nil
-	lastSaveMtime = time.Time{}
 }
 
-// Save writes cfg to hub.toml using a full TOML marshal (comments not preserved).
-// The write is atomic and durable (unique tmp file, fsync, rename, fsync of
-// the directory) to prevent corruption on crash or power loss.
-// After saving, the in-memory cache is invalidated so the next Load re-reads from disk.
+// Save writes c to hub.toml with a full TOML marshal (comments not preserved).
+// It is for complete writes that are legitimate on their own: the first
+// hub.toml, a migration of the whole file. To change some settings, use
+// Update, which only changes what its function changes, on the file as it is.
 //
-// If the file was modified externally since the last Save/Load by this process,
-// ErrExternalModification is returned. The caller should reload before retrying.
+// The write is atomic and durable (unique tmp file, fsync, rename, fsync of
+// the directory) to prevent corruption on crash or power loss. After saving,
+// the in-memory cache is invalidated so the next Load re-reads from disk.
+//
+// If hub.toml changed since c was read from it, ErrExternalModification is
+// returned and nothing is written. A Config built by hand is not compared.
 func Save(c *Config) error {
+	cfgMu.Lock()
+	defer cfgMu.Unlock()
+	if err := saveLocked(c); err != nil {
+		return err
+	}
+	// Invalidate the cache so the next Load() reflects the new state.
+	cfgLoaded = false
+	cfg = nil
+	cfgErr = nil
+	return nil
+}
+
+// saveLocked validates and writes c, then stamps it with the file it wrote.
+// Must be called under cfgMu.
+func saveLocked(c *Config) error {
 	// Validate teams before persisting
 	if len(c.Teams) > 0 {
 		if err := ValidateTeams(c.Teams); err != nil {
@@ -594,12 +679,12 @@ func Save(c *Config) error {
 		}
 	}
 
-	cfgMu.Lock()
-	defer cfgMu.Unlock()
-
-	// Check for external modifications before writing.
-	if err := checkExternalModification(); err != nil {
+	changed, err := c.src.changedSince()
+	if err != nil {
 		return err
+	}
+	if changed {
+		return ErrExternalModification
 	}
 
 	data, err := toml.Marshal(c)
@@ -618,32 +703,58 @@ func Save(c *Config) error {
 	if err := fsutil.WriteFileAtomic(path, data, 0o600); err != nil {
 		return fmt.Errorf("writing hub.toml: %w", err)
 	}
-
-	// Record the new mtime after successful write.
-	recordMtime()
-
-	// Invalidate the cache so the next Load() reflects the new state.
-	cfgLoaded = false
-	cfg = nil
-	cfgErr = nil
+	c.src = statStamp()
 	return nil
 }
 
-// Update loads the current configuration, applies fn to mutate it, and saves the
-// result atomically. This is the recommended way to modify hub.toml for simple
-// mutations — it ensures the Load-Mutate-Save cycle is performed correctly.
+// updateAttempts bounds the re-reads of Update when another process writes
+// hub.toml between its read and its write.
+const updateAttempts = 5
+
+// Update changes hub.toml: under the lock it reads the file as it is on disk
+// (never a copy kept by the caller or the cache), applies fn to that Config and
+// writes it atomically. fn changes only the settings of its caller, so what
+// the others wrote in the meantime is kept. If another process writes the
+// file between the read and the write, Update reads again and calls fn again:
+// fn must only depend on the Config it receives.
 //
-// For complex flows that need to inspect the config before deciding what to change,
-// use Load() + direct mutation + Save() manually.
+// The Config shared through Load, when it is loaded, receives the result in
+// place: whoever holds it sees the new values.
 func Update(fn func(*Config) error) error {
-	c, err := Load()
-	if err != nil {
-		return fmt.Errorf("loading config: %w", err)
+	_, err := UpdateAndGet(fn)
+	return err
+}
+
+// UpdateAndGet is Update, and returns the Config that was written (a new
+// value, which the caller may copy into the Config it shares).
+func UpdateAndGet(fn func(*Config) error) (*Config, error) {
+	cfgMu.Lock()
+	defer cfgMu.Unlock()
+
+	var lastErr error
+	for range updateAttempts {
+		c, err := readDisk()
+		if err != nil {
+			return nil, fmt.Errorf("loading config: %w", err)
+		}
+		if err := fn(c); err != nil {
+			return nil, err
+		}
+		if err := saveLocked(c); err != nil {
+			if errors.Is(err, ErrExternalModification) {
+				lastErr = err
+				continue
+			}
+			return nil, err
+		}
+		if cfgLoaded && cfg != nil && cfgErr == nil {
+			*cfg = *c
+		} else {
+			cfgLoaded, cfg, cfgErr = false, nil, nil
+		}
+		return c, nil
 	}
-	if err := fn(c); err != nil {
-		return err
-	}
-	return Save(c)
+	return nil, lastErr
 }
 
 // ToMap serializes the config to a flat dotted-key map suitable for display
@@ -679,33 +790,5 @@ func flattenMap(prefix string, src, dst map[string]interface{}) {
 		default:
 			dst[key] = val
 		}
-	}
-}
-
-// checkExternalModification detects whether hub.toml was modified by another
-// process since we last read or wrote it. Must be called under cfgMu.
-func checkExternalModification() error {
-	if lastSaveMtime.IsZero() {
-		return nil // first save, nothing to compare against
-	}
-	path := ConfigPath()
-	info, err := os.Stat(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil // file deleted externally — we'll recreate it
-		}
-		return fmt.Errorf("stat hub.toml: %w", err)
-	}
-	if info.ModTime().After(lastSaveMtime.Add(time.Millisecond)) {
-		return ErrExternalModification
-	}
-	return nil
-}
-
-// recordMtime records the current mtime of hub.toml. Must be called under cfgMu.
-func recordMtime() {
-	path := ConfigPath()
-	if info, err := os.Stat(path); err == nil {
-		lastSaveMtime = info.ModTime()
 	}
 }

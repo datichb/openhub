@@ -98,7 +98,11 @@ func RunMigrationIfNeeded(c *Config) (migrated bool, backupPath string, err erro
 		backupPath = ""
 	}
 
-	if err := Save(c); err != nil {
+	// The migration is applied to hub.toml as it is now, not written from c.
+	if err := Update(func(d *Config) error {
+		MigrateTeamToTeams(d)
+		return nil
+	}); err != nil {
 		return false, backupPath, fmt.Errorf("saving migrated config: %w", err)
 	}
 
