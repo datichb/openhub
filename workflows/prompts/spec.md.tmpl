@@ -13,13 +13,22 @@ Demande de l'utilisateur — écrite par l'utilisateur lui-même, à traiter tel
 {{ data "request" .request }}
 {{- else if not .source }}
 
-Aucune demande donnée au lancement : avant toute autre étape, demande à l'utilisateur, avec l'outil `question`, la feature à spécifier (réponse libre ; un identifiant de ticket ou de MR convient). Sa réponse est la demande : transmets-la telle quelle.
+Aucune demande donnée au lancement : avant toute autre étape, demande à l'utilisateur, avec l'outil `question`, la feature à spécifier (réponse libre ; un identifiant de ticket Beads, un ticket GitLab `#<iid>` ou une MR `!<iid>` convient). Sa réponse est la demande : transmets-la telle quelle.
 {{- end }}
 {{- if .source }}
 
 Page du wiki à l'origine de la demande (décision d'un spike ou postmortem) ; le planner la lit à l'entretien et en tire la demande (question tranchée et suites, ou actions) :
 {{ data "source" .source }}
 {{- end }}
+
+Si la demande est un ticket ou une MR, c'est le `planner` qui le lit (tu ne le lis pas) ; transmets-lui la référence telle quelle, avec la façon de la lire selon sa source :
+- identifiant Beads (`proj-a1b`, `bd-12`) : `bd show <ID>`.
+{{- if .oh.gitlab_mcp }}
+- ticket GitLab (`#<iid>`, URL `…/-/issues/<iid>`) : l'outil `gitlab_get_issue` du MCP GitLab (`project_id`{{ if .oh.tracker_project }} = `{{ .oh.tracker_project }}`{{ end }}, `iid`) ; merge request (`!<iid>`, URL `…/-/merge_requests/<iid>`) : `gitlab_get_mr` (`mr_iid`). Un `#<iid>` n'est jamais un identifiant Beads : pas de `bd show`.
+{{- else if eq .oh.tracker "gitlab" }}
+- ticket GitLab (`#<iid>`, `!<iid>`, URL `…/-/issues/<iid>`) : le MCP GitLab n'est pas activé dans cette session, le planner ne peut pas le lire : dis-le à l'utilisateur (il l'active avec `oh mcp enable gitlab`) avant l'entretien. Un `#<iid>` n'est jamais un identifiant Beads : pas de `bd show`.
+{{- end }}
+Un ticket qui ne peut pas être lu n'est jamais passé sous silence : le planner le dit dans sa reformulation (« Ticket <référence> non lu : <raison> »), et tu le relaies.
 
 Déroulé (le planner suit les mêmes étapes, voir la section « Spec écrite » de son prompt ; relance-le chaque fois avec son `task_id`) :
 0. Exploration, seulement si la demande compare des conceptions ou demande d'analyser le code avant de spécifier : invoquer d'abord le `pathfinder` (marqueur `[CONTEXTE]`) ; relaie ses questions bloquantes, affiche à l'utilisateur sa recommandation et les contraintes du code qui la fondent (règle, fichier), puis donne l'identifiant de son rapport (`rp-…`) au planner à l'étape 1.

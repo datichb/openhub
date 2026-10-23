@@ -25,7 +25,11 @@ Lancer Phase 1.2bis si **au moins un** de ces critères :
 
 > **Protocole d'intégration tracker :** voir skill `shared/tracker-integration-protocol` pour le workflow, la table d'impact, et la gestion d'erreurs.
 >
-> Paramètres pour cet adapter : `{platform}` = GitLab, `{platform_emoji}` = 🦊, `{tool_read_issue}` = gitlab_list_issues, `{tool_list_issues}` = gitlab_list_issues.
+> Paramètres pour cet adapter : `{platform}` = GitLab, `{platform_emoji}` = 🦊, `{tool_read_issue}` = gitlab_get_issue, `{tool_list_issues}` = gitlab_list_issues.
+
+#### Étape 1 : Lire le ticket source
+
+Un ticket `#<iid>` ou une URL `…/-/issues/<iid>` se lit avec `gitlab_get_issue` (arguments : `project_id`, `iid`) : titre, description, labels, assignés, jalon, tickets et MR liés, premiers commentaires. Une MR `!<iid>` : `gitlab_get_mr` (`project_id`, `mr_iid`). Ne cherche pas un IID dans `gitlab_list_issues` (une page, sans lecture de la description) : s'il faut retrouver un ticket, filtre avec `iids`, `search` ou `assignee_username`. Un `#<iid>` n'est pas un identifiant Beads. Ticket illisible (404, jeton refusé, outil absent) : dis-le dans la reformulation (« Ticket <référence> non lu : <raison> »).
 
 #### Étape 2 : Comprendre le contexte projet (si première utilisation)
 

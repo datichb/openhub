@@ -41,7 +41,7 @@ Activer si **au moins un** de ces critères :
 |--------|-------------|
 | Token invalide / expiré | Afficher : `⚠️ Token {platform} invalide — vérifier la configuration` |
 | Ressource non trouvée (404) | Mentionner dans le rapport, continuer sans le contexte tracker |
-| Pas de credentials configurés | Skipper silencieusement, continuer sans enrichissement tracker |
+| Pas de credentials configurés | Continuer sans enrichissement tracker, en le disant dans le rapport (« Ticket <référence> non lu : jeton absent ») |
 
 ## Format de sortie — section enrichissement
 
