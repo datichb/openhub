@@ -7,8 +7,6 @@ import (
 	"os"
 	"strings"
 	"time"
-
-	toml "github.com/pelletier/go-toml/v2"
 )
 
 // Lease of a claim: lease_until in the claim file, set when the claim is
@@ -169,7 +167,7 @@ func (r *Repo) TouchClaims(ctx context.Context, refs []ClaimRef, member, session
 			if c.Session == "" {
 				c.Session = session
 			}
-			data, err := toml.Marshal(c)
+			data, err := marshalClaim(c)
 			if err != nil {
 				return fmt.Errorf("marshaling claim: %w", err)
 			}

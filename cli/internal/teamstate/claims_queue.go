@@ -13,8 +13,6 @@ import (
 	"slices"
 	"time"
 
-	toml "github.com/pelletier/go-toml/v2"
-
 	"github.com/datichb/openhub/cli/internal/filelock"
 	"github.com/datichb/openhub/cli/internal/fsutil"
 )
@@ -374,7 +372,7 @@ func (r *Repo) applyClaimOp(tx *Tx, cfg *TeamConfig, op *ClaimOp) (ok, changed b
 	rel := r.claimRelPath(op.Project, op.TicketID)
 
 	write := func() (bool, bool, string) {
-		data, err := toml.Marshal(c)
+		data, err := marshalClaim(c)
 		if err != nil {
 			return false, false, "marshaling claim: " + err.Error()
 		}

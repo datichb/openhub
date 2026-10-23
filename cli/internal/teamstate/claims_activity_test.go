@@ -15,9 +15,13 @@ import (
 func TestLastActivityIsWrittenAndReadBack(t *testing.T) {
 	t.Parallel()
 	at := time.Date(2026, 7, 8, 14, 30, 0, 0, time.UTC)
-	data, err := toml.Marshal(&Claim{ClaimedBy: "benjamin", ClaimedAt: at, Status: ClaimStatusInProgress, LastActivity: InstantOf(at.Add(time.Hour))})
+	data, err := marshalClaim(&Claim{ClaimedBy: "benjamin", ClaimedAt: at, Status: ClaimStatusInProgress, LastActivity: InstantOf(at.Add(time.Hour))})
 	require.NoError(t, err)
-	assert.Contains(t, string(data), "last_activity = '2026-07-08T15:30:00Z'")
+	assert.Equal(t, `claimed_by = 'benjamin'
+claimed_at = 2026-07-08T14:30:00Z
+status = 'in_progress'
+last_activity = 2026-07-08T15:30:00Z
+`, string(data), "a native date-time, not a string")
 
 	var got Claim
 	require.NoError(t, toml.Unmarshal(data, &got))
@@ -30,7 +34,7 @@ func TestClaimWithoutLastActivityIsRewrittenIdentically(t *testing.T) {
 	var c Claim
 	require.NoError(t, toml.Unmarshal([]byte(old), &c))
 	assert.True(t, c.LastActivity.IsZero())
-	data, err := toml.Marshal(&c)
+	data, err := marshalClaim(&c)
 	require.NoError(t, err)
 	assert.Equal(t, old, string(data))
 }
@@ -54,6 +58,87 @@ func TestLastActivityReadsAnUnquotedDatetime(t *testing.T) {
 	}
 }
 
+func TestLastActivityReadsAQuotedString(t *testing.T) {
+	t.Parallel()
+	var c Claim
+	require.NoError(t, toml.Unmarshal([]byte("claimed_by = 'b'\nlast_activity = '2026-07-08T14:30:00Z'\n"), &c))
+	assert.Equal(t, time.Date(2026, 7, 8, 14, 30, 0, 0, time.UTC), c.LastActivity.Time())
+	data, err := marshalClaim(&c)
+	require.NoError(t, err)
+	assert.Contains(t, string(data), "last_activity = 2026-07-08T14:30:00Z\n", "rewritten as a date-time")
+}
+
+func TestUnreadableLastActivityIsNotWritten(t *testing.T) {
+	t.Parallel()
+	data, err := marshalClaim(&Claim{ClaimedBy: "b", LastActivity: "yesterday"})
+	require.NoError(t, err)
+	assert.NotContains(t, string(data), "last_activity")
+}
+
+// claimV50 is the Claim of oh v5.0: a time.Time last_activity, no lease and
+// no session. A claim written by this version is read by it unchanged.
+type claimV50 struct {
+	ClaimedBy     string       `toml:"claimed_by"`
+	ClaimedAt     time.Time    `toml:"claimed_at"`
+	Worktree      string       `toml:"worktree,omitempty"`
+	Status        string       `toml:"status"`
+	LastActivity  time.Time    `toml:"last_activity,omitempty"`
+	Title         string       `toml:"title,omitempty"`
+	Description   string       `toml:"description,omitempty"`
+	TrackerStatus string       `toml:"tracker_status,omitempty"`
+	Labels        []string     `toml:"labels,omitempty"`
+	ExternalIID   int          `toml:"external_iid,omitempty"`
+	MRURL         string       `toml:"mr_url,omitempty"`
+	Remote        *ClaimRemote `toml:"remote,omitempty"`
+}
+
+func TestClaimWrittenNowIsReadByV50(t *testing.T) {
+	t.Parallel()
+	at := time.Date(2026, 7, 8, 14, 30, 0, 0, time.UTC)
+	data, err := marshalClaim(&Claim{
+		ClaimedBy: "benjamin", ClaimedAt: at, Status: ClaimStatusReview,
+		LastActivity: InstantOf(at.Add(time.Hour)), LeaseUntil: InstantOf(at.Add(24 * time.Hour)), Session: "ses_1",
+		Title: "t", Labels: []string{"x"}, Remote: &ClaimRemote{Session: "r", Status: "sent", UpdatedAt: at},
+	})
+	require.NoError(t, err)
+
+	var old claimV50
+	require.NoError(t, toml.Unmarshal(data, &old), string(data))
+	assert.Equal(t, at.Add(time.Hour), old.LastActivity)
+	assert.Equal(t, "benjamin", old.ClaimedBy)
+	assert.Equal(t, ClaimStatusReview, old.Status)
+	assert.Equal(t, []string{"x"}, old.Labels)
+	require.NotNil(t, old.Remote)
+
+	// Without activity the key is absent: nothing for v5.0 to choke on.
+	data, err = marshalClaim(&Claim{ClaimedBy: "b", ClaimedAt: at, Status: ClaimStatusReview, LeaseUntil: InstantOf(at)})
+	require.NoError(t, err)
+	var none claimV50
+	assert.NoError(t, toml.Unmarshal(data, &none))
+	assert.True(t, none.LastActivity.IsZero())
+}
+
+func TestEveryWritingOperationWritesANativeLastActivity(t *testing.T) {
+	t.Parallel()
+	repo, _ := setupGitTestRepo(t)
+	ctx := context.Background()
+	_, err := repo.CreateClaim(ctx, Claim{TicketID: "SRU-1", Project: "T-SRU", ClaimedBy: "benjamin", Session: "ses_1"})
+	require.NoError(t, err)
+	require.NoError(t, repo.AddClaimLabel(ctx, "T-SRU", "SRU-1", "x"))
+	require.NoError(t, repo.EnqueueClaimOp(ClaimOp{Kind: ClaimOpStatus, Project: "T-SRU", TicketID: "SRU-1", ClaimedBy: "benjamin", Session: "ses_1", Status: ClaimStatusReview}))
+	_, _, err = repo.FlushClaimQueue(ctx)
+	require.NoError(t, err)
+	_, err = repo.TouchClaims(ctx, []ClaimRef{{Project: "T-SRU", TicketID: "SRU-1"}}, "benjamin", "ses_1", time.Now().Add(20*time.Hour))
+	require.NoError(t, err)
+
+	raw, err := os.ReadFile(repo.claimFilePath("T-SRU", "SRU-1"))
+	require.NoError(t, err)
+	assert.Regexp(t, `(?m)^last_activity = \d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$`, string(raw))
+	var old claimV50
+	require.NoError(t, toml.Unmarshal(raw, &old), string(raw))
+	assert.WithinDuration(t, time.Now(), old.LastActivity, time.Minute)
+}
+
 func TestIsStaleUsesLastActivityFromTheFile(t *testing.T) {
 	t.Parallel()
 	repo, _ := setupGitTestRepo(t)
@@ -75,7 +160,7 @@ func TestIsStaleUsesLastActivityFromTheFile(t *testing.T) {
 
 	raw, err := os.ReadFile(repo.claimFilePath("T-SRU", "SRU-1"))
 	require.NoError(t, err)
-	assert.True(t, strings.Contains(string(raw), "last_activity = '"), string(raw))
+	assert.True(t, strings.Contains(string(raw), "last_activity = 20"), string(raw))
 }
 
 func TestLastActivityIsSetByTheWritingOperations(t *testing.T) {
