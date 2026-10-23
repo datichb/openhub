@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -364,4 +365,125 @@ func TestDefaultBoardConfig(t *testing.T) {
 		assert.Equal(t, expectedRoles[i], col.Role, "column %d role", i)
 		assert.NotEmpty(t, col.Name, "column %d should have a display name", i)
 	}
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ClaimConfig lease settings
+// ─────────────────────────────────────────────────────────────────────────────
+
+func TestClaimConfigDefaults(t *testing.T) {
+	t.Parallel()
+	repo := setupTestRepo(t)
+
+	t.Run("no config.toml", func(t *testing.T) {
+		cfg, err := repo.LoadConfig()
+		require.NoError(t, err)
+		assert.Equal(t, 24, cfg.Claim.LeaseHours)
+		assert.Equal(t, 60, cfg.Claim.HeartbeatMinutes)
+	})
+
+	load := func(t *testing.T, content string) ClaimConfig {
+		t.Helper()
+		r := setupTestRepo(t)
+		require.NoError(t, os.WriteFile(filepath.Join(r.path, "config.toml"), []byte(content), 0o644))
+		cfg, err := r.LoadConfig()
+		require.NoError(t, err)
+		return cfg.Claim
+	}
+
+	t.Run("claim table without the new keys", func(t *testing.T) {
+		got := load(t, "[claim]\ndone_retention_days = 10\n")
+		assert.Equal(t, 10, got.DoneRetentionDays)
+		assert.Equal(t, 24, got.LeaseHours)
+		assert.Equal(t, 60, got.HeartbeatMinutes)
+	})
+	t.Run("explicit values", func(t *testing.T) {
+		got := load(t, "[claim]\nlease_hours = 48\nheartbeat_minutes = 30\n")
+		assert.Equal(t, 48, got.LeaseHours)
+		assert.Equal(t, 30, got.HeartbeatMinutes)
+	})
+	t.Run("a heartbeat of 0 disables it", func(t *testing.T) {
+		got := load(t, "[claim]\nheartbeat_minutes = 0\n")
+		assert.Equal(t, 0, got.HeartbeatMinutes)
+		assert.Equal(t, time.Duration(0), got.HeartbeatInterval())
+	})
+	t.Run("out of bounds values are brought back", func(t *testing.T) {
+		assert.Equal(t, MaxLeaseHours, load(t, "[claim]\nlease_hours = 100000\n").LeaseHours)
+		assert.Equal(t, 24, load(t, "[claim]\nlease_hours = -3\n").LeaseHours)
+		assert.Equal(t, MinHeartbeatMinutes, load(t, "[claim]\nheartbeat_minutes = 1\n").HeartbeatMinutes)
+		assert.Equal(t, MaxHeartbeatMinutes, load(t, "[claim]\nlease_hours = 168\nheartbeat_minutes = 99999\n").HeartbeatMinutes)
+		assert.Equal(t, 0, load(t, "[claim]\nheartbeat_minutes = -5\n").HeartbeatMinutes)
+	})
+	t.Run("the heartbeat is at most half the lease", func(t *testing.T) {
+		got := load(t, "[claim]\nlease_hours = 2\nheartbeat_minutes = 90\n")
+		assert.Equal(t, 60, got.HeartbeatMinutes)
+		got = load(t, "[claim]\nlease_hours = 1\n") // default heartbeat of 60 minutes
+		assert.Equal(t, 30, got.HeartbeatMinutes)
+	})
+}
+
+func TestClaimConfigDurations(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, 24*time.Hour, ClaimConfig{}.LeaseDuration(), "unset: default")
+	assert.Equal(t, 6*time.Hour, ClaimConfig{LeaseHours: 6}.LeaseDuration())
+	assert.Equal(t, 45*time.Minute, ClaimConfig{HeartbeatMinutes: 45}.HeartbeatInterval())
+}
+
+func TestClaimConfigValidate(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name    string
+		cfg     ClaimConfig
+		wantErr string
+	}{
+		{"zero value", ClaimConfig{}, ""},
+		{"defaults", ClaimConfig{LeaseHours: 24, HeartbeatMinutes: 60}, ""},
+		{"heartbeat disabled", ClaimConfig{LeaseHours: 24}, ""},
+		{"lease min", ClaimConfig{LeaseHours: 1, HeartbeatMinutes: 30}, ""},
+		{"lease max", ClaimConfig{LeaseHours: 168, HeartbeatMinutes: 1440}, ""},
+		{"lease negative", ClaimConfig{LeaseHours: -1}, "lease_hours"},
+		{"lease too long", ClaimConfig{LeaseHours: 169}, "lease_hours"},
+		{"heartbeat too short", ClaimConfig{LeaseHours: 24, HeartbeatMinutes: 4}, "heartbeat_minutes"},
+		{"heartbeat negative", ClaimConfig{HeartbeatMinutes: -1}, "heartbeat_minutes"},
+		{"heartbeat too long", ClaimConfig{LeaseHours: 168, HeartbeatMinutes: 1441}, "heartbeat_minutes"},
+		{"heartbeat over half the lease", ClaimConfig{LeaseHours: 2, HeartbeatMinutes: 61}, "half the lease"},
+		{"heartbeat over half the default lease", ClaimConfig{HeartbeatMinutes: 1000}, "half the lease"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			err := tt.cfg.Validate()
+			if tt.wantErr == "" {
+				assert.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.wantErr)
+		})
+	}
+}
+
+func TestSaveConfigRefusesInvalidClaimSettings(t *testing.T) {
+	t.Parallel()
+	repo, _ := setupGitTestRepo(t)
+	err := repo.SaveConfig(context.Background(), &TeamConfig{Claim: ClaimConfig{LeaseHours: 9999}})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "lease_hours")
+	assert.NoFileExists(t, filepath.Join(repo.path, "config.toml"))
+
+	ok := &TeamConfig{Claim: ClaimConfig{LeaseHours: 12, HeartbeatMinutes: 20}}
+	require.NoError(t, repo.SaveConfig(context.Background(), ok))
+	loaded, err := repo.LoadConfig()
+	require.NoError(t, err)
+	assert.Equal(t, ok.Claim.LeaseHours, loaded.Claim.LeaseHours)
+	assert.Equal(t, ok.Claim.HeartbeatMinutes, loaded.Claim.HeartbeatMinutes)
+}
+
+func TestSavedHeartbeatOfZeroStaysDisabled(t *testing.T) {
+	t.Parallel()
+	repo, _ := setupGitTestRepo(t)
+	require.NoError(t, repo.SaveConfig(context.Background(), &TeamConfig{Claim: ClaimConfig{LeaseHours: 24}}))
+	loaded, err := repo.LoadConfig()
+	require.NoError(t, err)
+	assert.Equal(t, 0, loaded.Claim.HeartbeatMinutes)
 }

@@ -3,9 +3,11 @@ package teamstate
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/datichb/openhub/cli/internal/limits"
 	toml "github.com/pelletier/go-toml/v2"
@@ -355,6 +357,85 @@ type ClaimConfig struct {
 	// before being automatically cleaned up by CleanupDoneClaims.
 	// Default: 7.
 	DoneRetentionDays int `toml:"done_retention_days"`
+	// LeaseHours is the duration of the lease of a claim, in hours: the claim
+	// is expired once its lease_until is past, unless its owner renewed it.
+	// Default: 24. Bounds: MinLeaseHours..MaxLeaseHours; 0 = default.
+	LeaseHours int `toml:"lease_hours"`
+	// HeartbeatMinutes is the period of the heartbeat that renews the leases
+	// of the open sessions, in minutes. Default: 60. 0 = no heartbeat.
+	// Otherwise MinHeartbeatMinutes..MaxHeartbeatMinutes and at most half the
+	// lease (a renewal only happens when less than half of the lease is left).
+	HeartbeatMinutes int `toml:"heartbeat_minutes"`
+}
+
+// Bounds and defaults of the lease settings of ClaimConfig.
+const (
+	DefaultLeaseHours       = 24
+	MinLeaseHours           = 1
+	MaxLeaseHours           = 168 // one week
+	DefaultHeartbeatMinutes = 60
+	MinHeartbeatMinutes     = 5
+	MaxHeartbeatMinutes     = 1440 // one day
+)
+
+// LeaseDuration is the duration of a lease: LeaseHours, or the default when
+// it is not set (a TeamConfig that did not go through LoadConfig).
+func (c ClaimConfig) LeaseDuration() time.Duration {
+	if c.LeaseHours <= 0 {
+		return DefaultLeaseHours * time.Hour
+	}
+	return time.Duration(c.LeaseHours) * time.Hour
+}
+
+// HeartbeatInterval is the period of the heartbeat; 0 when it is disabled.
+func (c ClaimConfig) HeartbeatInterval() time.Duration {
+	if c.HeartbeatMinutes <= 0 {
+		return 0
+	}
+	return time.Duration(c.HeartbeatMinutes) * time.Minute
+}
+
+// Validate checks the lease settings. A zero LeaseHours is valid (the default
+// applies), as is a zero HeartbeatMinutes (no heartbeat).
+func (c ClaimConfig) Validate() error {
+	if c.LeaseHours != 0 && (c.LeaseHours < MinLeaseHours || c.LeaseHours > MaxLeaseHours) {
+		return fmt.Errorf("claim: lease_hours must be between %d and %d, got %d", MinLeaseHours, MaxLeaseHours, c.LeaseHours)
+	}
+	if c.HeartbeatMinutes == 0 {
+		return nil
+	}
+	if c.HeartbeatMinutes < MinHeartbeatMinutes || c.HeartbeatMinutes > MaxHeartbeatMinutes {
+		return fmt.Errorf("claim: heartbeat_minutes must be 0 (disabled) or between %d and %d, got %d",
+			MinHeartbeatMinutes, MaxHeartbeatMinutes, c.HeartbeatMinutes)
+	}
+	if limit := int(c.LeaseDuration() / time.Minute / 2); c.HeartbeatMinutes > limit {
+		return fmt.Errorf("claim: heartbeat_minutes (%d) must not exceed half the lease (%d minutes)", c.HeartbeatMinutes, limit)
+	}
+	return nil
+}
+
+// normalize brings the lease settings read from config.toml back into their
+// bounds (a bad value must not make the team mode unusable): an unset
+// lease_hours takes the default, the others are clamped, with a warning.
+func (c *ClaimConfig) normalize() {
+	switch {
+	case c.LeaseHours <= 0:
+		c.LeaseHours = DefaultLeaseHours
+	case c.LeaseHours < MinLeaseHours:
+		c.LeaseHours = MinLeaseHours
+	case c.LeaseHours > MaxLeaseHours:
+		slog.Warn("teamstate.config.lease_hours_clamped", "value", c.LeaseHours, "max", MaxLeaseHours)
+		c.LeaseHours = MaxLeaseHours
+	}
+	if c.HeartbeatMinutes <= 0 {
+		c.HeartbeatMinutes = 0
+		return
+	}
+	hb := min(max(c.HeartbeatMinutes, MinHeartbeatMinutes), MaxHeartbeatMinutes, c.LeaseHours*60/2)
+	if hb != c.HeartbeatMinutes {
+		slog.Warn("teamstate.config.heartbeat_minutes_clamped", "value", c.HeartbeatMinutes, "used", hb)
+		c.HeartbeatMinutes = hb
+	}
 }
 
 // TrackerConfig holds settings for the external tracker sync (GitLab / Jira).
@@ -474,14 +555,17 @@ func (r *Repo) loadConfig() (*TeamConfig, error) {
 					Enabled: false,
 					BotName: "OpenHub",
 				},
+				Claim: ClaimConfig{LeaseHours: DefaultLeaseHours, HeartbeatMinutes: DefaultHeartbeatMinutes},
 			}, nil
 		}
 		return nil, fmt.Errorf("reading config.toml: %w", err)
 	}
-	var cfg TeamConfig
+	// An absent heartbeat_minutes is the default; a present 0 disables it.
+	cfg := TeamConfig{Claim: ClaimConfig{HeartbeatMinutes: DefaultHeartbeatMinutes}}
 	if err := toml.Unmarshal(data, &cfg); err != nil {
 		return nil, fmt.Errorf("parsing config.toml: %w", err)
 	}
+	cfg.Claim.normalize()
 	if cfg.Notification.BotName == "" {
 		cfg.Notification.BotName = "OpenHub"
 	}
@@ -523,6 +607,9 @@ func (r *Repo) loadConfig() (*TeamConfig, error) {
 
 // SaveConfig writes config.toml to the team-state repo.
 func (r *Repo) SaveConfig(ctx context.Context, cfg *TeamConfig) error {
+	if err := cfg.Claim.Validate(); err != nil {
+		return err
+	}
 	return r.withWriteLock(ctx, func(ctx context.Context) error {
 		data, err := toml.Marshal(cfg)
 		if err != nil {
