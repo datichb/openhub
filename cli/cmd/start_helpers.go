@@ -12,7 +12,6 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/launcher"
 	"github.com/datichb/openhub/cli/internal/provider"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
@@ -30,10 +29,11 @@ const (
 	projectWrite
 )
 
-// cliConfirm asks a yes/no question on the terminal
-// (replaced in tests).
-var cliConfirm = func(w io.Writer, msg string) (bool, error) {
-	return launcher.NewCLIUI(w).Confirm(msg)
+// cliConfirm asks a yes/no question on the terminal, in the common form of
+// the confirmations (replaced in tests). The caller has checked that there
+// is a terminal; the answer is no by default.
+var cliConfirm = func(_ io.Writer, msg string) (bool, error) {
+	return confirmPrompt(msg, "", false)
 }
 
 // projectPick lets the user choose among several projects (replaced in tests).
