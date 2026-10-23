@@ -1,4 +1,7 @@
-package daemon
+// Package client is the Go client of the ohd daemon: it talks to its Unix
+// socket (see daemon/api for the types and the routes). It never imports the
+// daemon.
+package client
 
 import (
 	"bytes"
@@ -16,6 +19,7 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/datichb/openhub/cli/internal/daemon/api"
 	"github.com/datichb/openhub/cli/internal/filelock"
 	"github.com/datichb/openhub/cli/internal/logrotate"
 	"github.com/datichb/openhub/cli/internal/peercheck"
@@ -24,7 +28,7 @@ import (
 
 // Client talks to ohd over its Unix socket.
 type Client struct {
-	paths      Paths
+	paths      api.Paths
 	http       *http.Client
 	stream     *http.Client // no timeout (live stream)
 	capability string       // issuing capability (privileged routes)
@@ -48,7 +52,7 @@ func (c *Client) WithCapability(capability string) *Client {
 }
 
 // NewClient returns a client for the daemon at paths.
-func NewClient(paths Paths) *Client {
+func NewClient(paths api.Paths) *Client {
 	tr := &http.Transport{
 		// The socket is checked before anything is sent (S-28): if the
 		// daemon is stopped, any process of the user could create it.
@@ -59,18 +63,25 @@ func NewClient(paths Paths) *Client {
 	return &Client{paths: paths, http: &http.Client{Transport: tr, Timeout: 30 * time.Second}, stream: &http.Client{Transport: tr}}
 }
 
-// ErrNotRunning is returned when the daemon socket does not answer.
-var ErrNotRunning = errors.New("ohd is not running")
-
 // notRunningOr maps the error of a request: a refused socket is an
 // UntrustedSocketError, a connection that fails is ErrNotRunning.
 func notRunningOr(err error) error {
-	if err = clientError(err); errors.Is(err, ErrUntrustedSocket) {
+	if err = clientError(err); errors.Is(err, api.ErrUntrustedSocket) {
 		return err
 	}
 	var opErr *net.OpError
 	if errors.As(err, &opErr) {
-		return ErrNotRunning
+		return api.ErrNotRunning
+	}
+	return err
+}
+
+// clientError turns the refusal of peercheck, wrapped by the HTTP transport,
+// into an UntrustedSocketError; other errors are returned as they are.
+func clientError(err error) error {
+	var pe *peercheck.Error
+	if errors.As(err, &pe) {
+		return &api.UntrustedSocketError{Kind: pe.Kind, Path: pe.Path, Detail: pe.Detail}
 	}
 	return err
 }
@@ -84,7 +95,7 @@ func (c *Client) do(ctx context.Context, method, path string, body, out any) err
 		}
 		rdr = bytes.NewReader(buf)
 	}
-	req, err := http.NewRequestWithContext(ctx, method, "http://ohd"+apiPrefix+path, rdr)
+	req, err := http.NewRequestWithContext(ctx, method, "http://ohd"+api.Prefix+path, rdr)
 	if err != nil {
 		return err
 	}
@@ -92,7 +103,7 @@ func (c *Client) do(ctx context.Context, method, path string, body, out any) err
 		req.Header.Set("Content-Type", "application/json")
 	}
 	if c.capability != "" {
-		req.Header.Set(CapabilityHeader, c.capability)
+		req.Header.Set(api.CapabilityHeader, c.capability)
 	}
 	if c.token != "" {
 		req.Header.Set("Authorization", "Bearer "+c.token)
@@ -111,7 +122,7 @@ func (c *Client) do(ctx context.Context, method, path string, body, out any) err
 		if e.Error == "" {
 			e.Error = resp.Status
 		}
-		return &APIError{Method: method, Path: path, Status: resp.StatusCode, Message: e.Error}
+		return &api.APIError{Method: method, Path: path, Status: resp.StatusCode, Message: e.Error}
 	}
 	if out != nil && len(data) > 0 {
 		return json.Unmarshal(data, out)
@@ -119,72 +130,61 @@ func (c *Client) do(ctx context.Context, method, path string, body, out any) err
 	return nil
 }
 
-// APIError is an error answer of the daemon.
-type APIError struct {
-	Method, Path string
-	Status       int
-	Message      string
-}
-
-func (e *APIError) Error() string {
-	return fmt.Sprintf("ohd %s %s: %d %s", e.Method, e.Path, e.Status, e.Message)
-}
-
 // Health returns the daemon status.
-func (c *Client) Health(ctx context.Context) (Health, error) {
-	var h Health
-	err := c.do(ctx, http.MethodGet, "/health", nil, &h)
+func (c *Client) Health(ctx context.Context) (api.Health, error) {
+	var h api.Health
+	err := c.do(ctx, http.MethodGet, api.RouteHealth, nil, &h)
 	return h, err
 }
 
 // IssueGrant creates a proxy grant and returns the token and provider base URL.
-func (c *Client) IssueGrant(ctx context.Context, req GrantRequest) (GrantResponse, error) {
-	var out GrantResponse
-	err := c.do(ctx, http.MethodPost, "/grants", req, &out)
+func (c *Client) IssueGrant(ctx context.Context, req api.GrantRequest) (api.GrantResponse, error) {
+	var out api.GrantResponse
+	err := c.do(ctx, http.MethodPost, api.RouteGrants, req, &out)
 	return out, err
 }
 
 // PendingGrants lists restored grants waiting for their secret.
-func (c *Client) PendingGrants(ctx context.Context) ([]PendingGrant, error) {
-	var out []PendingGrant
-	err := c.do(ctx, http.MethodGet, "/grants/pending", nil, &out)
+func (c *Client) PendingGrants(ctx context.Context) ([]api.PendingGrant, error) {
+	var out []api.PendingGrant
+	err := c.do(ctx, http.MethodGet, api.RouteGrantsPending, nil, &out)
 	return out, err
 }
 
 // ProvideSecret supplies the secret of a pending grant.
 func (c *Client) ProvideSecret(ctx context.Context, token, secret string) error {
-	return c.do(ctx, http.MethodPost, "/grants/secret", SecretRequest{Token: token, Secret: secret}, nil)
+	return c.do(ctx, http.MethodPost, api.RouteGrantsSecret, api.SecretRequest{Token: token, Secret: secret}, nil)
 }
 
 // RevokeOwner revokes every grant of a server group.
 func (c *Client) RevokeOwner(ctx context.Context, owner string) error {
-	return c.do(ctx, http.MethodDelete, "/owners/"+url.PathEscape(owner)+"/grants", nil, nil)
+	return c.do(ctx, http.MethodDelete, api.Route(api.RouteOwnerGrants, "owner", owner), nil, nil)
 }
 
 // Usage returns the proxy usage of a token.
-func (c *Client) Usage(ctx context.Context, token string) (UsageResponse, error) {
-	var out UsageResponse
-	err := c.do(ctx, http.MethodGet, "/usage?token="+url.QueryEscape(token), nil, &out)
+func (c *Client) Usage(ctx context.Context, token string) (api.UsageResponse, error) {
+	var out api.UsageResponse
+	err := c.do(ctx, http.MethodGet, api.RouteUsage+"?token="+url.QueryEscape(token), nil, &out)
 	return out, err
 }
 
 // ProxyListen makes the proxy also listen on host and returns its base URL there.
 func (c *Client) ProxyListen(ctx context.Context, host string) (string, error) {
-	var out ListenResponse
-	err := c.do(ctx, http.MethodPost, "/proxy/listeners", ListenRequest{Host: host}, &out)
+	var out api.ListenResponse
+	err := c.do(ctx, http.MethodPost, api.RouteProxyListeners, api.ListenRequest{Host: host}, &out)
 	return out.URL, err
 }
 
 // IssueGatewayGrant returns a gateway token for a session (Beads gateway).
-func (c *Client) IssueGatewayGrant(ctx context.Context, req GatewayGrantRequest) (GatewayGrantResponse, error) {
-	var out GatewayGrantResponse
-	err := c.do(ctx, http.MethodPost, "/gateway/grants", req, &out)
+func (c *Client) IssueGatewayGrant(ctx context.Context, req api.GatewayGrantRequest) (api.GatewayGrantResponse, error) {
+	var out api.GatewayGrantResponse
+	err := c.do(ctx, http.MethodPost, api.RouteGatewayGrants, req, &out)
 	return out, err
 }
 
 // Touch records activity of a server group.
 func (c *Client) Touch(ctx context.Context, group string) error {
-	return c.do(ctx, http.MethodPost, "/servers/"+url.PathEscape(group)+"/touch", nil, nil)
+	return c.do(ctx, http.MethodPost, api.Route(api.RouteServerTouch, "group", group), nil, nil)
 }
 
 // Shutdown asks the daemon to stop (refused while sessions run, unless force).
@@ -193,29 +193,29 @@ func (c *Client) Shutdown(ctx context.Context, force bool) error {
 	if force {
 		q = "?force=true"
 	}
-	return c.do(ctx, http.MethodPost, "/shutdown"+q, nil, nil)
+	return c.do(ctx, http.MethodPost, api.RouteShutdown+q, nil, nil)
 }
 
 // Heartbeat declares a live client (attached session or open oh UI).
-func (c *Client) Heartbeat(ctx context.Context, req HeartbeatRequest) error {
-	return c.do(ctx, http.MethodPost, "/clients/heartbeat", req, nil)
+func (c *Client) Heartbeat(ctx context.Context, req api.HeartbeatRequest) error {
+	return c.do(ctx, http.MethodPost, api.RouteClientHeartbeat, req, nil)
 }
 
 // ClientGone removes a client.
 func (c *Client) ClientGone(ctx context.Context, id string) error {
-	return c.do(ctx, http.MethodDelete, "/clients/"+url.PathEscape(id), nil, nil)
+	return c.do(ctx, http.MethodDelete, api.Route(api.RouteClient, "id", id), nil, nil)
 }
 
 // SetPolicy sets the quit policy of a server group.
-func (c *Client) SetPolicy(ctx context.Context, group string, p QuitPolicy) error {
-	return c.do(ctx, http.MethodPost, "/groups/"+url.PathEscape(group)+"/policy", PolicyRequest{Policy: p}, nil)
+func (c *Client) SetPolicy(ctx context.Context, group string, p api.QuitPolicy) error {
+	return c.do(ctx, http.MethodPost, api.Route(api.RouteGroupPolicy, "group", group), api.PolicyRequest{Policy: p}, nil)
 }
 
 // Stream subscribes to the live stream of the daemon: session changes, plus
 // the feed of one session when sessionID is set (its recent backlog first).
 // The channel is closed when the stream ends (ctx cancelled, daemon gone).
-func (c *Client) Stream(ctx context.Context, sessionID string) (<-chan StreamEvent, error) {
-	path := "http://ohd" + apiPrefix + "/stream"
+func (c *Client) Stream(ctx context.Context, sessionID string) (<-chan api.StreamEvent, error) {
+	path := "http://ohd" + api.Prefix + api.RouteStream
 	if sessionID != "" {
 		path += "?session=" + url.QueryEscape(sessionID)
 	}
@@ -231,13 +231,13 @@ func (c *Client) Stream(ctx context.Context, sessionID string) (<-chan StreamEve
 		resp.Body.Close()
 		return nil, fmt.Errorf("ohd stream: %s", resp.Status)
 	}
-	out := make(chan StreamEvent, 64)
+	out := make(chan api.StreamEvent, 64)
 	safego.Go(func() {
 		defer close(out)
 		defer resp.Body.Close()
 		dec := json.NewDecoder(resp.Body)
 		for {
-			var ev StreamEvent
+			var ev api.StreamEvent
 			if err := dec.Decode(&ev); err != nil {
 				return
 			}
@@ -256,7 +256,7 @@ func (c *Client) Stream(ctx context.Context, sessionID string) (<-chan StreamEve
 
 // KeepAlive sends heartbeats for a client until ctx is cancelled, then
 // removes it. Errors are ignored (the daemon may restart).
-func (c *Client) KeepAlive(ctx context.Context, req HeartbeatRequest, every time.Duration) {
+func (c *Client) KeepAlive(ctx context.Context, req api.HeartbeatRequest, every time.Duration) {
 	if every <= 0 {
 		every = 30 * time.Second
 	}
@@ -306,14 +306,14 @@ func InProcessMode() bool {
 
 // Ensure returns a client to a running daemon, spawning one if needed.
 // A daemon of another version is replaced only when it has no live server.
-func Ensure(ctx context.Context, paths Paths, opts EnsureOptions) (*Client, Health, error) {
+func Ensure(ctx context.Context, paths api.Paths, opts EnsureOptions) (*Client, api.Health, error) {
 	c := NewClient(paths).WithCapability(opts.Capability)
 	if InProcessMode() {
 		return ensureInProcess(ctx, c, opts)
 	}
 	h, err := c.Health(ctx)
-	if errors.Is(err, ErrUntrustedSocket) {
-		return nil, Health{}, err // a daemon spawned now would not be reached either
+	if errors.Is(err, api.ErrUntrustedSocket) {
+		return nil, api.Health{}, err // a daemon spawned now would not be reached either
 	}
 	if err == nil {
 		if opts.Version == "" || h.Version == opts.Version {
@@ -328,13 +328,13 @@ func Ensure(ctx context.Context, paths Paths, opts EnsureOptions) (*Client, Heal
 	}
 
 	if err := os.MkdirAll(paths.Dir, 0o700); err != nil {
-		return nil, Health{}, err
+		return nil, api.Health{}, err
 	}
 	lctx, lcancel := context.WithTimeout(ctx, spawnLockWait)
 	unlock, err := filelock.LockContext(lctx, paths.SpawnLock())
 	lcancel()
 	if err != nil {
-		return nil, Health{}, err
+		return nil, api.Health{}, err
 	}
 	defer unlock()
 	if h, err := c.Health(ctx); err == nil { // spawned by a concurrent client
@@ -344,7 +344,7 @@ func Ensure(ctx context.Context, paths Paths, opts EnsureOptions) (*Client, Heal
 	exe := opts.Executable
 	if exe == "" {
 		if exe, err = os.Executable(); err != nil {
-			return nil, Health{}, err
+			return nil, api.Health{}, err
 		}
 	}
 	args := opts.Args
@@ -364,7 +364,7 @@ func Ensure(ctx context.Context, paths Paths, opts EnsureOptions) (*Client, Heal
 	}
 	logf, err := os.OpenFile(paths.Log(), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
 	if err != nil {
-		return nil, Health{}, err
+		return nil, api.Health{}, err
 	}
 	defer logf.Close()
 	cmd := exec.Command(exe, args...)
@@ -372,9 +372,9 @@ func Ensure(ctx context.Context, paths Paths, opts EnsureOptions) (*Client, Heal
 	if opts.Env != nil {
 		cmd.Env = opts.Env
 	}
-	setDetached(cmd)
+	SetDetached(cmd)
 	if err := cmd.Start(); err != nil {
-		return nil, Health{}, fmt.Errorf("starting ohd: %w", err)
+		return nil, api.Health{}, fmt.Errorf("starting ohd: %w", err)
 	}
 	safego.Go(func() { _ = cmd.Wait() })
 
@@ -388,29 +388,29 @@ func Ensure(ctx context.Context, paths Paths, opts EnsureOptions) (*Client, Heal
 		if err == nil {
 			return c, h, nil
 		}
-		if errors.Is(err, ErrUntrustedSocket) {
-			return nil, Health{}, err
+		if errors.Is(err, api.ErrUntrustedSocket) {
+			return nil, api.Health{}, err
 		}
 		select {
 		case <-ctx.Done():
-			return nil, Health{}, ctx.Err()
+			return nil, api.Health{}, ctx.Err()
 		case <-time.After(100 * time.Millisecond):
 		}
 	}
-	return nil, Health{}, fmt.Errorf("ohd did not start within %s (see %s)", timeout, paths.Log())
+	return nil, api.Health{}, fmt.Errorf("ohd did not start within %s (see %s)", timeout, paths.Log())
 }
 
 // ensureInProcess returns a client to the daemon of an oh process (another
 // one may already host it), starting it inside this process otherwise.
-func ensureInProcess(ctx context.Context, c *Client, opts EnsureOptions) (*Client, Health, error) {
+func ensureInProcess(ctx context.Context, c *Client, opts EnsureOptions) (*Client, api.Health, error) {
 	if h, err := c.Health(ctx); err == nil {
 		return c, h, nil
 	}
 	if opts.InProcess == nil {
-		return nil, Health{}, ErrUnsupported
+		return nil, api.Health{}, api.ErrUnsupported
 	}
 	if err := opts.InProcess(); err != nil {
-		return nil, Health{}, err
+		return nil, api.Health{}, err
 	}
 	timeout := opts.Timeout
 	if timeout == 0 {
@@ -423,11 +423,11 @@ func ensureInProcess(ctx context.Context, c *Client, opts EnsureOptions) (*Clien
 		}
 		select {
 		case <-ctx.Done():
-			return nil, Health{}, ctx.Err()
+			return nil, api.Health{}, ctx.Err()
 		case <-time.After(50 * time.Millisecond):
 		}
 	}
-	return nil, Health{}, fmt.Errorf("the in-process oh daemon did not start within %s", timeout)
+	return nil, api.Health{}, fmt.Errorf("the in-process oh daemon did not start within %s", timeout)
 }
 
 // spawnLockWait bounds the wait for a concurrent client spawning the daemon.
@@ -447,5 +447,5 @@ func waitGone(ctx context.Context, c *Client, timeout time.Duration) {
 // (budget, error) was answered: the session state, its budget and an
 // interrupted step are brought up to date.
 func (c *Client) SessionDecided(ctx context.Context, sessionID string) error {
-	return c.do(ctx, http.MethodPost, "/sessions/"+url.PathEscape(sessionID)+"/decided", nil, nil)
+	return c.do(ctx, http.MethodPost, api.Route(api.RouteSessionDecided, "id", sessionID), nil, nil)
 }

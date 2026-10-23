@@ -7,7 +7,6 @@ import (
 	"net"
 	"net/url"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -23,12 +22,6 @@ import (
 // reach their provider: they are put to sleep right away (resumable: the
 // resume starts a new server with the current URL), and the sessions that
 // were working get an error decision.
-
-// ProxyURLPath is the file recording the proxy URL a group's server was
-// started with (~/.oh/servers/<group>/proxy_url), as seen by the server.
-func ProxyURLPath(serversDir, group string) string {
-	return filepath.Join(serversDir, group, "proxy_url")
-}
 
 // proxyPortRetry is how long a restarted daemon retries the previous proxy
 // port (released by a daemon that just stopped).

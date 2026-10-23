@@ -1,11 +1,30 @@
-package daemon
+package api
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/peercheck"
 )
+
+// ErrNotRunning is returned when the daemon socket does not answer.
+var ErrNotRunning = errors.New("ohd is not running")
+
+// ErrUnsupported: no daemon can be started (in-process mode without an
+// in-process starter).
+var ErrUnsupported = errors.New("ohd cannot be started here")
+
+// APIError is an error answer of the daemon.
+type APIError struct {
+	Method, Path string
+	Status       int
+	Message      string
+}
+
+func (e *APIError) Error() string {
+	return fmt.Sprintf("ohd %s %s: %d %s", e.Method, e.Path, e.Status, e.Message)
+}
 
 // ErrUntrustedSocket is returned by the client when the daemon socket (or
 // its folder) does not belong to the user, or when the process listening is
@@ -43,13 +62,3 @@ func (e *UntrustedSocketError) Error() string {
 
 // Is makes errors.Is(err, ErrUntrustedSocket) true.
 func (e *UntrustedSocketError) Is(target error) bool { return target == ErrUntrustedSocket }
-
-// clientError turns the refusal of peercheck, wrapped by the HTTP transport,
-// into an UntrustedSocketError; other errors are returned as they are.
-func clientError(err error) error {
-	var pe *peercheck.Error
-	if errors.As(err, &pe) {
-		return &UntrustedSocketError{Kind: pe.Kind, Path: pe.Path, Detail: pe.Detail}
-	}
-	return err
-}

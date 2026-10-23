@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"net/url"
 	"strings"
 
 	"github.com/datichb/openhub/cli/internal/adapters"
@@ -22,18 +21,6 @@ import (
 // tool for each location. The MCP server identifies the calling tool session
 // (a subagent runs in a child session); the daemon files it under the oh
 // session that delegated it.
-
-// WorkflowCheckpointRequest is the body of POST /v1/workflow/checkpoint.
-type WorkflowCheckpointRequest struct {
-	ToolSession string `json:"tool_session"`
-	checkpoint.Call
-}
-
-// WorkflowOutputRequest is the body of POST /v1/workflow/outputs.
-type WorkflowOutputRequest struct {
-	ToolSession string `json:"tool_session"`
-	checkpoint.Output
-}
 
 // rootSession returns the oh session a tool session belongs to (itself, or
 // the root of a subagent session).
@@ -179,11 +166,6 @@ func (d *Daemon) handleWorkflowCheckpoint(w http.ResponseWriter, r *http.Request
 	writeJSON(w, http.StatusOK, res)
 }
 
-// WorkflowRulesRequest is the body of POST /v1/workflow/rules.
-type WorkflowRulesRequest struct {
-	SessionID string `json:"session_id"`
-}
-
 // handleWorkflowRules re-applies the session rules of an oh session (its
 // workflow state changed in another process: circuit breaker dismissed).
 func (d *Daemon) handleWorkflowRules(w http.ResponseWriter, r *http.Request) {
@@ -215,11 +197,6 @@ func (d *Daemon) adoptAll(ctx context.Context, root string) {
 	}
 }
 
-// WorkflowRefresh asks the daemon to re-apply the session rules of a session.
-func (c *Client) WorkflowRefresh(ctx context.Context, sessionID string) error {
-	return c.do(ctx, http.MethodPost, "/workflow/rules", WorkflowRulesRequest{SessionID: sessionID}, nil)
-}
-
 func (d *Daemon) handleWorkflowOutputs(w http.ResponseWriter, r *http.Request) {
 	if d.opts.Checkpoints == nil {
 		writeErr(w, http.StatusServiceUnavailable, "checkpoints are not available")
@@ -243,46 +220,6 @@ func (d *Daemon) handleWorkflowOutputs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
-}
-
-// WorkflowStatus returns the workflow status of the oh session a tool session belongs to.
-func (c *Client) WorkflowStatus(ctx context.Context, toolSession string) (checkpoint.Status, error) {
-	var out checkpoint.Status
-	err := c.do(ctx, http.MethodGet, "/workflow/status?tool_session="+url.QueryEscape(toolSession), nil, &out)
-	return out, err
-}
-
-// WorkflowCheckpoint records a workflow_checkpoint call the tool let run.
-func (c *Client) WorkflowCheckpoint(ctx context.Context, toolSession string, call checkpoint.Call) (checkpoint.Result, error) {
-	var out checkpoint.Result
-	err := c.do(ctx, http.MethodPost, "/workflow/checkpoint", WorkflowCheckpointRequest{ToolSession: toolSession, Call: call}, &out)
-	return out, err
-}
-
-// WorkflowOutput records an output declared by workflow_outputs.
-func (c *Client) WorkflowOutput(ctx context.Context, toolSession string, o checkpoint.Output) error {
-	return c.do(ctx, http.MethodPost, "/workflow/outputs", WorkflowOutputRequest{ToolSession: toolSession, Output: o}, nil)
-}
-
-// HookPermissionRequest is sent by the oh plugin before a permission is
-// asked (POST /oh/v1/hooks/permission on the proxy listeners).
-type HookPermissionRequest struct {
-	SessionID string         `json:"sessionID"`
-	Agent     string         `json:"agent,omitempty"`
-	Action    string         `json:"action"`
-	Resources []string       `json:"resources,omitempty"`
-	CallID    string         `json:"callID,omitempty"`
-	Input     map[string]any `json:"input,omitempty"`
-	// Pending marks a request the plugin holds until oh confirms the
-	// session rules (bundle.PendingGuard): oh answers it from the session
-	// rules of the oh session, a refusal when it cannot.
-	Pending bool `json:"pending,omitempty"`
-}
-
-// HookPermissionResponse: effect "" keeps the rendered decision.
-type HookPermissionResponse struct {
-	Effect  string `json:"effect,omitempty"`
-	Message string `json:"message,omitempty"`
 }
 
 // hooksHandler serves the plugin hooks (P3-T05). The proxy has checked the

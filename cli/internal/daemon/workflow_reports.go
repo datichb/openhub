@@ -6,7 +6,6 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
-	"net/url"
 	"strings"
 
 	"github.com/datichb/openhub/cli/internal/domain"
@@ -23,22 +22,6 @@ import (
 // reportRequestMax bounds the body of POST /v1/workflow/report (the report
 // itself is bounded by the ReportService, after cleaning).
 const reportRequestMax = 1 << 20
-
-// WorkflowReportRequest is the body of POST /v1/workflow/report.
-type WorkflowReportRequest struct {
-	ToolSession string `json:"tool_session"`
-	Title       string `json:"title,omitempty"`
-	Body        string `json:"body"`
-}
-
-// WorkflowReport is a stored report, with its body when one is asked.
-type WorkflowReport struct {
-	ID string `json:"id"`
-	domain.Report
-	// Body is the report, or the section asked (report_get).
-	Body    string `json:"body,omitempty"`
-	Section string `json:"section,omitempty"`
-}
 
 func reportView(r domain.Report) WorkflowReport { return WorkflowReport{ID: r.ID(), Report: r} }
 
@@ -183,31 +166,6 @@ func (d *Daemon) handleWorkflowReportGet(w http.ResponseWriter, r *http.Request)
 		out.Body, out.Section = part, sec
 	}
 	writeJSON(w, http.StatusOK, out)
-}
-
-// WorkflowReport stores a report filed by workflow_report.
-func (c *Client) WorkflowReport(ctx context.Context, toolSession, title, body string) (WorkflowReport, error) {
-	var out WorkflowReport
-	err := c.do(ctx, http.MethodPost, "/workflow/report", WorkflowReportRequest{ToolSession: toolSession, Title: title, Body: body}, &out)
-	return out, err
-}
-
-// WorkflowReports lists the reports of the oh session of a tool session.
-func (c *Client) WorkflowReports(ctx context.Context, toolSession string) ([]WorkflowReport, error) {
-	var out []WorkflowReport
-	err := c.do(ctx, http.MethodGet, "/workflow/reports?tool_session="+url.QueryEscape(toolSession), nil, &out)
-	return out, err
-}
-
-// WorkflowReportGet returns a report (or one of its sections).
-func (c *Client) WorkflowReportGet(ctx context.Context, toolSession, id, section string) (WorkflowReport, error) {
-	q := url.Values{"tool_session": {toolSession}, "id": {id}}
-	if section != "" {
-		q.Set("section", section)
-	}
-	var out WorkflowReport
-	err := c.do(ctx, http.MethodGet, "/workflow/report?"+q.Encode(), nil, &out)
-	return out, err
 }
 
 // reported records a stored report in the checkpoint timeline of its session.

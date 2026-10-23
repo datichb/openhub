@@ -26,9 +26,6 @@ import (
 // CapabilityKey is the secret store key of the issuing capability.
 const CapabilityKey = "openhub.daemon.capability"
 
-// CapabilityHeader carries the capability on privileged requests.
-const CapabilityHeader = "X-Oh-Capability"
-
 // CapabilitySource tells where the capability is kept.
 type CapabilitySource string
 
@@ -43,10 +40,7 @@ type CapabilityStore interface {
 	Set(ctx context.Context, key, value string) error
 }
 
-// CapabilityFile is the fallback file of the capability.
-func (p Paths) CapabilityFile() string { return filepath.Join(p.Dir, "capability") }
-
-func (p Paths) capabilityLock() string { return filepath.Join(p.Dir, "capability.lock") }
+func capabilityLock(p Paths) string { return filepath.Join(p.Dir, "capability.lock") }
 
 // LoadCapability returns the issuing capability, creating it on first use:
 // in store when it is usable, otherwise in the fallback file (0600). The
@@ -58,7 +52,7 @@ func LoadCapability(ctx context.Context, store CapabilityStore, paths Paths) (st
 	}
 	lctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
-	unlock, err := filelock.LockContext(lctx, paths.capabilityLock())
+	unlock, err := filelock.LockContext(lctx, capabilityLock(paths))
 	if err != nil {
 		return "", "", err
 	}

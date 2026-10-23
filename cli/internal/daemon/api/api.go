@@ -1,4 +1,7 @@
-package daemon
+// Package api holds what the ohd daemon and its clients share: the types of
+// the transport (bodies and answers of the routes), the routes, the sentinel
+// errors and the runtime paths. It never imports the daemon.
+package api
 
 import (
 	"time"
@@ -6,8 +9,8 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 )
 
-// API version prefix.
-const apiPrefix = "/v1"
+// Prefix is the version prefix of every route.
+const Prefix = "/v1"
 
 // Health is returned by GET /v1/health.
 type Health struct {
