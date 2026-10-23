@@ -186,7 +186,7 @@ Injected into every session started from a workflow; stateless, it passes each c
 | Tool | Parameters | Role |
 |------|------------|------|
 | `workflow_status` | — | Workflow state: mode, checkpoints, next checkpoint, locked agents and operations, outputs |
-| `workflow_checkpoint` | `id`, `summary`, `reports` (optional) | Passes a checkpoint (waits for the validation when it pauses in the mode); `reports` cites reports `rp-…` |
+| `workflow_checkpoint` | `id`, `summary`, `reports` (optional) | Passes a checkpoint (waits for the validation when it pauses in the mode); `reports` cites reports `rp-…`. Not offered in a workflow without checkpoint (`review`, `audit`…); an unknown `id` is answered with the valid ids |
 | `workflow_outputs` | `type`, `value`, `id` | Declares a typed output |
 | `workflow_report` | `title`, `body` | Files the whole report of the agent; oh answers with its id `rp-<n>` |
 | `workflow_report_get` | `id`, `section` (optional) | Reads a report, whole or one section (Markdown heading) |

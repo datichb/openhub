@@ -142,9 +142,9 @@ func TestValidate_Rules(t *testing.T) {
 		{"role required", "risk: write\nagents:\n  developer: { after: x }\n", "field_required", "agents.developer.role", SeverityError},
 		{"role enum", "risk: write\nagents:\n  developer: { role: boss }\n", "enum_invalid", "agents.developer.role", SeverityError},
 		{"mode enum", "risk: write\nagents:\n  developer: { role: workflow, mode: main }\n", "enum_invalid", "agents.developer.mode", SeverityError},
-		// a primary agent cannot be launched through task: calls to one written primary is refused
-		{"calls primary agent", "risk: write\nentry: { agent: orchestrator-dev }\nagents:\n  orchestrator-dev: { role: workflow, calls: [developer] }\n  developer: { role: workflow, mode: primary }\n", "calls_target_primary", "agents.developer.mode", SeverityError},
-		{"self call primary agent", "risk: write\nentry: { agent: auditor }\nagents:\n  auditor: { role: workflow, mode: primary, calls: [auditor] }\n", "calls_target_primary", "agents.auditor.mode", SeverityError},
+		// a primary agent cannot be launched through task: a delegation to one written primary is shipped as all, with a warning
+		{"calls primary agent", "risk: write\nentry: { agent: orchestrator-dev }\nagents:\n  orchestrator-dev: { role: workflow, calls: [developer] }\n  developer: { role: workflow, mode: primary }\n", "calls_target_primary", "agents.developer.mode", SeverityWarning},
+		{"self call primary agent", "risk: write\nentry: { agent: auditor }\nagents:\n  auditor: { role: workflow, mode: primary, calls: [auditor] }\n", "calls_target_primary", "agents.auditor.mode", SeverityWarning},
 		{"after unknown", "risk: write\nagents:\n  developer: { role: workflow, after: cp-9 }\n", "after_unknown", "agents.developer.after", SeverityError},
 		{"after self", "risk: write\nagents:\n  developer: { role: workflow, after: developer }\n", "after_unknown", "agents.developer.after", SeverityError},
 		{"after cycle", "risk: write\nagents:\n  developer: { role: workflow, after: reviewer }\n  reviewer: { role: workflow, after: developer }\n", "after_cycle", "agents.developer.after", SeverityError},

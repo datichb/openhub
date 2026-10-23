@@ -98,9 +98,9 @@ agents:
 	assert.Equal(t, "all", modes["documentarian"])
 }
 
-// What the workflow writes wins: `mode: primary` on a called agent stays
-// (oh workflow validate reports it).
-func TestExplicitPrimaryOnCalledAgentIsKept(t *testing.T) {
+// `mode: primary` written on a called agent is shipped as all too (oh
+// workflow validate warns); the other written modes are kept.
+func TestExplicitPrimaryOnCalledAgentIsAll(t *testing.T) {
 	t.Parallel()
 	modes := modesOf(t, `apiVersion: oh/v1
 kind: Workflow
@@ -111,7 +111,7 @@ agents:
   orchestrator: { role: workflow, calls: [planner] }
   planner: { role: workflow, mode: primary }
 `)
-	assert.Equal(t, "primary", modes["planner"])
+	assert.Equal(t, "all", modes["planner"])
 }
 
 // A delegation derived from the task permission of the agent counts as well:

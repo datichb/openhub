@@ -159,22 +159,23 @@ func IsCalled(id string, graph map[string][]string) bool {
 	return false
 }
 
-// ResolveMode returns the mode an agent of the workflow is shipped with.
-// What the workflow writes (`agents.<id>.mode`) wins; otherwise base is the
-// mode of the agent itself (its frontmatter, primary when empty). A primary
-// agent that graph lets another member (or itself) launch becomes "all": the
-// tool refuses to launch a primary agent through task.
+// ResolveMode returns the mode an agent of the workflow is shipped with:
+// `agents.<id>.mode` when the workflow writes one, else base (the mode of
+// the agent itself, its frontmatter; primary when empty). A primary agent,
+// written or not, that graph lets another member (or itself) launch becomes
+// "all": the tool refuses to launch a primary agent through task.
 func (s *Spec) ResolveMode(id string, base AgentMode, graph map[string][]string) AgentMode {
+	mode := base
 	if ref, ok := s.Agents.Get(id); ok && ref.Mode != "" {
-		return ref.Mode
+		mode = ref.Mode
 	}
-	if base == "" {
-		base = ModePrimary
+	if mode == "" {
+		mode = ModePrimary
 	}
-	if base == ModePrimary && IsCalled(id, graph) {
+	if mode == ModePrimary && IsCalled(id, graph) {
 		return ModeAll
 	}
-	return base
+	return mode
 }
 
 // Reachable returns the members reachable from entry (entry included).

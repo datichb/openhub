@@ -519,17 +519,17 @@ func (v *validator) agents() {
 	}
 }
 
-// calledPrimary reports a delegation to an agent that the workflow declares
-// `mode: primary`: the tool refuses to launch a primary agent through task.
-// A primary agent of the catalogue that is called is not reported: the bundle
-// ships it as `all`.
+// calledPrimary warns about a delegation to an agent that the workflow writes
+// `mode: primary`: the tool refuses to launch a primary agent through task,
+// so the bundle ships it as `all`. A primary agent of the catalogue that is
+// called is not reported: it is shipped as `all` just the same.
 func (v *validator) calledPrimary(graph map[string][]string) {
 	reported := map[string]bool{}
 	for _, caller := range v.s.Members() {
 		for _, target := range graph[caller] {
 			if ref, ok := v.s.Agents.Get(target); ok && ref.Mode == ModePrimary && !reported[target] {
 				reported[target] = true
-				v.err("calls_target_primary", "agents."+target+".mode", target, caller)
+				v.warn("calls_target_primary", "agents."+target+".mode", target, caller)
 			}
 		}
 	}

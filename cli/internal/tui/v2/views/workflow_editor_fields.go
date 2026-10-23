@@ -662,7 +662,7 @@ func (v *WorkflowEditorView) editAgent(sp *workflow.Spec, id string) {
 			{Key: "role", Label: t("tui.editor.field.role"), Type: FieldSelect, Default: initial["role"],
 				Options: descOpts("tui.editor.opt.role.", "workflow", "independent", "disabled")},
 			{Key: "mode", Label: t("tui.editor.field.agent_mode"), Type: FieldSelect, Default: initial["mode"],
-				Options: descOpts("tui.editor.opt.agent_mode.", "", "primary", "subagent")},
+				Options: descOpts("tui.editor.opt.agent_mode.", "", "primary", "subagent", "all")},
 			{Key: "after", Label: t("tui.editor.field.after"), Type: FieldSelect, Default: initial["after"], Options: opts(after...),
 				Hint: t("tui.editor.help.after")},
 			{Key: "calls", Label: t("tui.editor.field.calls"), Type: FieldMultiSelect, DefaultMulti: a.Calls, Options: calls,
