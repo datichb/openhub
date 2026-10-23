@@ -483,7 +483,7 @@ func (v *WorkflowEditorView) render() {
 			label += " " + theme.Paint(theme.ErrorHex, fmt.Sprintf("%s%d", theme.SymFailure, v.check.Errors()))
 		}
 		if i == v.section {
-			label = theme.ColorTag(theme.ActiveMode.AccentHex) + theme.StyleTag(theme.AttrBold) + bracketed(" "+label+" ") + theme.TagColor + theme.TagAttrs
+			label = theme.StyleTag(theme.AttrBold) + theme.Paint(theme.ActiveMode.AccentHex, bracketed(" "+label+" ")) + theme.TagAttrs
 		}
 		tabs = append(tabs, label)
 	}
@@ -840,7 +840,7 @@ func (v *WorkflowEditorView) renderPreview() {
 	summary := tview.NewTextView().SetDynamicColors(true).SetWrap(true).SetScrollable(true)
 	summary.SetBackgroundColor(theme.BgPanel)
 	var b strings.Builder
-	b.WriteString(theme.ColorTag(theme.ActiveMode.PrimaryHex) + theme.StyleTag(theme.AttrBold) + tview.Escape(i18n.T("tui.editor.preview.bundle")) + theme.TagColor + theme.TagAttrs + "\n")
+	b.WriteString(theme.StyleTag(theme.AttrBold) + theme.Paint(theme.ActiveMode.PrimaryHex, tview.Escape(i18n.T("tui.editor.preview.bundle"))) + theme.TagAttrs + "\n")
 	switch {
 	case v.check == nil:
 		b.WriteString(stateText(stateLoading, i18n.T("tui.editor.checking")))

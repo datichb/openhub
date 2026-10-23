@@ -12,6 +12,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/beads"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/workflow"
@@ -506,7 +507,7 @@ func (l *beadsList) format(r beadsPickerRow, idW, statusW, titleW int) string {
 		}
 		marker += box + " "
 	}
-	title := runewidth.FillRight(runewidth.Truncate(t.Title, titleW, "…"), titleW)
+	title := runewidth.FillRight(textfmt.ClipWidth(t.Title, titleW), titleW)
 	claim := ""
 	if who := l.claimedBy(t.ID); who != "" {
 		claim = "  " + theme.Paint(theme.WarningHex, theme.SymWarning+" "+tview.Escape(i18n.Tf("tui.picker.beads.claimed", who)))

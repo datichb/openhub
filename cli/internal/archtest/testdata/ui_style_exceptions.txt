@@ -28,8 +28,6 @@ tag-style internal/tui/v2/views/banner.go 4
 color-literal internal/tui/v2/views/board.go 5
 widgets-tag internal/tui/v2/views/board.go 1
 widgets-tag internal/tui/v2/views/board_view.go 1
-symbol internal/tui/v2/views/bricks_view.go 2
-tag-style internal/tui/v2/views/bricks_view.go 1
 symbol internal/tui/v2/views/config_field.go 4
 widgets-tag internal/tui/v2/views/dashboard.go 7
 tag-style internal/tui/v2/views/help_view.go 1
@@ -45,7 +43,6 @@ symbol internal/tui/v2/views/mcp_view.go 8
 symbol internal/tui/v2/views/patterns_view.go 1
 symbol internal/tui/v2/views/policies_view.go 8
 tag-color internal/tui/v2/views/project_mode_view.go 1
-tag-style internal/tui/v2/views/project_wiki_view.go 1
 tag-style internal/tui/v2/views/projects_view.go 1
 symbol internal/tui/v2/views/provider_view.go 7
 symbol internal/tui/v2/views/secrets_view.go 2
@@ -60,7 +57,6 @@ tag-style internal/tui/v2/views/teamboard_view.go 4
 widgets-tag internal/tui/v2/views/teamboard_view.go 1
 symbol internal/tui/v2/views/teamstatus_view.go 1
 tag-style internal/tui/v2/views/teamstatus_view.go 4
-symbol internal/tui/v2/views/wiki_proposals.go 2
 symbol internal/tui/v2/views/wiki_view.go 2
 tag-color internal/tui/v2/views/wiki_view.go 2
 widgets-tag internal/tui/v2/views/wizard.go 9

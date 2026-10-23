@@ -4,7 +4,7 @@
 │   developer                hub                   —  ✔                ││ Fichier : catalog/skills/acme/review-        │
 │   my-agent                 équipe                1  ⚠                ││ protocol.md                                  │
 │ Skills (3)                                                           ││ Version : v3 · publiée par Grace le          │
-│   developer/dev-standards  hub                   —  ✔                ││ 12/10/2026                                   │
+│   developer/dev-standards  hub                   —  ✔                ││ 2026-10-12                                   │
 │ ▸ review/review-protocol   équipe ⟳ hub          3  ✔                ││ Type : skill                                 │
 │   legacy-helper            équipe (non scellée)  —  ✗                ││ Nom : review-protocol                        │
 │                                                                      ││ Chargé par : reviewer                        │

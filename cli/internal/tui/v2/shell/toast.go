@@ -7,6 +7,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
+	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -83,10 +84,7 @@ func (s *Shell) showToast(msg string, level ToastLevel, duration time.Duration) 
 	// NOTE: this modifies the local variable msg but does NOT affect the
 	// already-persisted full message above.
 	maxLen := toastMaxLen(level)
-	runes := []rune(msg)
-	if len(runes) > maxLen {
-		msg = string(runes[:maxLen-3]) + "..."
-	}
+	msg = textfmt.Clip(msg, maxLen)
 
 	// renderToast performs all tview widget mutations. MUST run on the event
 	// loop — either called inline (from a handler / QueueUpdateDraw callback)

@@ -10,6 +10,7 @@ import (
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
@@ -718,7 +719,7 @@ func (v *LaunchFormView) launchWith(fn func(ctx context.Context, c LaunchChoices
 	}
 	app, ctx, choices := v.app, v.ctx, v.m.choices()
 	v.listenProgress()
-	go func() {
+	safego.Go(func() { // an action, not a read: a launch result is applied even if the form was left
 		err := fn(ctx, choices)
 		if app == nil {
 			return
@@ -747,7 +748,7 @@ func (v *LaunchFormView) launchWith(fn func(ctx context.Context, c LaunchChoices
 				v.recapTV.SetText(v.recapText())
 			}
 		})
-	}()
+	})
 }
 
 func (v *LaunchFormView) close() {

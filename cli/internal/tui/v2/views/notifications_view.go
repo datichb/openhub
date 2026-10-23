@@ -1,6 +1,7 @@
 package views
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -8,7 +9,9 @@ import (
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
@@ -51,6 +54,10 @@ type NotificationsView struct {
 	app     *tview.Application
 	entries []NotificationEntry
 	loaded  bool
+	loadErr error
+	loads   loadSlot // the reads of the file: only the latest is applied
+	ctx     context.Context
+	cancel  context.CancelFunc
 }
 
 var _ View = (*NotificationsView)(nil)
@@ -69,10 +76,7 @@ func (v *NotificationsView) Title() string { return i18n.T("tui.notifications.ti
 
 // StatusHints returns keybinding hints.
 func (v *NotificationsView) StatusHints() string {
-	return fmt.Sprintf("j/k %s · Ctrl+P %s",
-		i18n.T("tui.hints.nav"),
-		i18n.T("tui.hints.commands"),
-	)
+	return keys.Hints(keys.Navigate.HintAs(i18n.T("tui.hints.nav")), "Ctrl+P "+i18n.T("tui.hints.commands"))
 }
 
 // Mount builds and populates the notifications display.
@@ -80,7 +84,8 @@ func (v *NotificationsView) StatusHints() string {
 // the TUI event loop.
 func (v *NotificationsView) Mount(content *tview.Flex, app *tview.Application) {
 	v.app = app
-	v.loaded = false
+	v.loaded, v.loadErr = false, nil
+	v.ctx, v.cancel = context.WithCancel(context.Background())
 	v.list = widgets.NewSectionedList()
 	v.list.SetApp(app)
 	v.list.SetItemChangedFunc(func(_ int, it widgets.SectionItem) { v.showDetail(it) })
@@ -91,32 +96,30 @@ func (v *NotificationsView) Mount(content *tview.Flex, app *tview.Application) {
 		app.SetFocus(v.list)
 	}
 
-	// Load entries from the persistent file asynchronously.
-	// QueueUpdateDraw is called from a goroutine (not from a handler), so no deadlock.
-	go func() {
-		entries := v.loadEntries()
-		app.QueueUpdateDraw(func() {
-			if v.list == nil {
-				return // view was unmounted before the goroutine finished
-			}
-			v.entries, v.loaded = entries, true
-			v.render()
-		})
-	}()
+	// Load entries from the persistent file off the event loop.
+	load(app, v.ctx, &v.loads, v.loadEntries, func(entries []NotificationEntry, err error) {
+		if v.list == nil {
+			return // view was unmounted before the read finished
+		}
+		v.entries, v.loaded, v.loadErr = entries, true, err
+		v.render()
+	})
 }
 
 // loadEntries fetches entries from the persistent file (most recent 50).
-// Falls back to an empty slice on any error.
-func (v *NotificationsView) loadEntries() []NotificationEntry {
+func (v *NotificationsView) loadEntries(context.Context) ([]NotificationEntry, error) {
 	if v.cfg.ReadLastN == nil || v.cfg.FilePath == "" {
-		return nil
+		return nil, nil
 	}
-	entries, _ := v.cfg.ReadLastN(v.cfg.FilePath, 50)
-	return entries
+	return v.cfg.ReadLastN(v.cfg.FilePath, 50)
 }
 
 // Unmount cleans up resources.
 func (v *NotificationsView) Unmount() {
+	v.loads.Invalidate()
+	if v.cancel != nil {
+		v.cancel()
+	}
 	v.list, v.page = nil, nil
 	v.app = nil
 }
@@ -133,23 +136,24 @@ func (v *NotificationsView) render() {
 	if v.list == nil {
 		return
 	}
-	muted := theme.ColorTag(theme.TextMutedHex)
 	items := make([]widgets.SectionItem, 0, len(v.entries))
 	for i, e := range v.entries {
-		icon, colorTag := notificationStyle(e.Level)
+		icon, color := notificationStyle(e.Level)
 		msg := strings.ReplaceAll(e.Message, "\n", " ")
 		items = append(items, widgets.SectionItem{
-			MainText: fmt.Sprintf("%s%s%s  %s%s%s  %s",
-				muted, e.TimeLabel, theme.TagColor, colorTag, icon, theme.TagColor, truncateRunes(msg, 120)),
+			MainText:  fmt.Sprintf("%s  %s  %s", muted(e.TimeLabel), theme.Paint(color, icon), textfmt.Clip(msg, 120)),
 			Reference: i,
 		})
 	}
 	if len(items) == 0 {
-		msg := i18n.T("tui.notifications.loading")
-		if v.loaded {
-			msg = i18n.T("tui.notifications.empty")
+		state := stateText(stateLoading, i18n.T("tui.notifications.loading"))
+		switch {
+		case v.loadErr != nil:
+			state = stateText(stateError, v.loadErr.Error())
+		case v.loaded:
+			state = stateText(stateEmpty, i18n.T("tui.notifications.empty"))
 		}
-		items = append(items, widgets.SectionItem{MainText: muted + msg + theme.TagColor, IsHeader: true})
+		items = append(items, widgets.SectionItem{MainText: state, IsHeader: true})
 	}
 	v.list.SetItems(items)
 	_, it, _ := v.list.CurrentItem()
@@ -167,9 +171,9 @@ func (v *NotificationsView) showDetail(it widgets.SectionItem) {
 		return
 	}
 	e := v.entries[i]
-	icon, colorTag := notificationStyle(e.Level)
+	icon, color := notificationStyle(e.Level)
 	var d detailText
-	d.title(colorTag + icon + theme.TagColor + " " + notificationLevelLabel(e.Level))
+	d.title(theme.Paint(color, icon) + " " + notificationLevelLabel(e.Level))
 	d.field(i18n.T("tui.detail.date"), e.TimeLabel)
 	d.gap().para(e.Message)
 	v.page.SetDetail(d.String())
@@ -189,17 +193,17 @@ func notificationLevelLabel(level int) string {
 	}
 }
 
-// notificationStyle returns the icon and tview color tag for a level integer.
+// notificationStyle returns the icon and the color (hex) for a level integer.
 // Level mirrors shell.ToastLevel: 0=Success, 1=Error, 2=Warning, 3=Info.
-func notificationStyle(level int) (icon, colorTag string) {
+func notificationStyle(level int) (icon, hex string) {
 	switch level {
 	case 0:
-		return theme.IconSuccess, theme.ColorTag(theme.SuccessHex)
+		return theme.IconSuccess, theme.SuccessHex
 	case 1:
-		return theme.IconError, theme.ColorTag(theme.ErrorHex)
+		return theme.IconError, theme.ErrorHex
 	case 2:
-		return theme.IconWarning, theme.ColorTag(theme.WarningHex)
+		return theme.IconWarning, theme.WarningHex
 	default:
-		return theme.IconArrow, theme.ColorTag(theme.ActiveMode.PrimaryHex)
+		return theme.IconArrow, theme.ActiveMode.PrimaryHex
 	}
 }

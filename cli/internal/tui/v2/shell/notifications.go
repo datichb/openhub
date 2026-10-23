@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/fsutil"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
@@ -83,7 +84,7 @@ func (ns *NotificationStore) Entries() []views.NotificationEntry {
 	out := make([]views.NotificationEntry, len(all))
 	for i, n := range all {
 		out[i] = views.NotificationEntry{
-			TimeLabel: n.Time.Format("15:04:05"),
+			TimeLabel: textfmt.ClockSec(n.Time),
 			Level:     int(n.Level),
 			Message:   n.Message,
 		}
@@ -171,7 +172,7 @@ func ReadLastN(path string, n int) ([]views.NotificationEntry, error) {
 	out := make([]views.NotificationEntry, len(lines))
 	for i, pn := range lines {
 		out[len(lines)-1-i] = views.NotificationEntry{
-			TimeLabel: pn.Time.Local().Format("02/01 15:04:05"),
+			TimeLabel: textfmt.ShortDateTime(pn.Time),
 			Level:     pn.Level,
 			Message:   pn.Message,
 		}
