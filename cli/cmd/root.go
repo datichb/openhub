@@ -179,7 +179,7 @@ func initApp() error {
 
 	// Auto-migrate legacy ProjectTeamConfig → TeamID (ADR-029).
 	if activeTeam := a.Config.ActiveTeam(); activeTeam.ID != "" {
-		if n, mErr := config.MigrateProjectTeamToTeamID(s.DB(), activeTeam.ID); mErr != nil {
+		if n, mErr := sqlite.NewProjectStore(s).MigrateTeamConfigToTeamID(context.Background(), activeTeam.ID); mErr != nil {
 			slog.Warn("project team_id migration failed", "error", mErr)
 		} else if n > 0 {
 			slog.Info("migrated project team_config to team_id", "count", n)

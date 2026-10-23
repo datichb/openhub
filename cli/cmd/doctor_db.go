@@ -207,28 +207,16 @@ func dbStatus(s *sqlite.Store) (dbState, error) {
 	}
 	st.newer, _ = s.UnknownMigrations()
 	st.lastErr = sqlite.LastMigrationError(s.Path())
-	st.integrity = quickCheck(s)
+	st.integrity = s.QuickCheck()
 	if fi, err := os.Stat(s.Path() + "-wal"); err == nil {
 		st.wal = fi.Size()
 	}
 	if len(st.pending) == 0 && st.integrity == nil {
-		var n int
-		if s.DB().QueryRowContext(context.Background(), `SELECT COUNT(*) FROM projects`).Scan(&n) == nil {
+		if n, err := s.CountProjects(context.Background()); err == nil {
 			st.projects = n
 		}
 	}
 	return st, nil
-}
-
-func quickCheck(s *sqlite.Store) error {
-	var res string
-	if err := s.DB().QueryRow(`PRAGMA quick_check`).Scan(&res); err != nil {
-		return err
-	}
-	if res != "ok" {
-		return errors.New(res)
-	}
-	return nil
 }
 
 func (st dbState) result() views.DoctorCheck {

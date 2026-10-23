@@ -2,7 +2,9 @@
 package sqlite
 
 import (
+	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -149,6 +151,27 @@ func (s *Store) IntegrityCheck() error {
 		}
 	}
 	return rows.Err()
+}
+
+// QuickCheck runs PRAGMA quick_check (lighter than IntegrityCheck: it skips the
+// consistency of the indexes with the tables) and returns nil if the
+// database is healthy, an error carrying what SQLite reports otherwise.
+func (s *Store) QuickCheck() error {
+	var res string
+	if err := s.db.QueryRow(`PRAGMA quick_check`).Scan(&res); err != nil {
+		return err
+	}
+	if res != "ok" {
+		return errors.New(res)
+	}
+	return nil
+}
+
+// CountProjects counts the rows of the projects table.
+func (s *Store) CountProjects(ctx context.Context) (int, error) {
+	var n int
+	err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM projects`).Scan(&n)
+	return n, err
 }
 
 // sequentialMigrations is the last migration of the strictly ordered era;

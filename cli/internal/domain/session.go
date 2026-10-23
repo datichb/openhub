@@ -2,6 +2,7 @@ package domain
 
 import (
 	"context"
+	"errors"
 	"time"
 )
 
@@ -118,6 +119,19 @@ type SessionStore interface {
 	// ListRunning returns sessions with status "running" for a project.
 	ListRunning(ctx context.Context, projectID string) ([]Session, error)
 }
+
+// MemberTagger is implemented by the session stores able to attribute the
+// sessions and agent events without a member to one (`oh team rejoin`).
+type MemberTagger interface {
+	// TagUnownedMember returns the number of sessions tagged. When only the
+	// agent events fail, the error wraps ErrTagAgentEvents and the count is
+	// the one of the sessions.
+	TagUnownedMember(ctx context.Context, memberID string) (int, error)
+}
+
+// ErrTagAgentEvents is wrapped by the error of MemberTagger when the agent
+// events could not be tagged (the sessions were).
+var ErrTagAgentEvents = errors.New("tagging agent events")
 
 // SessionDeleter is implemented by the session stores able to delete a
 // session for good, with its decisions and events (`oh session delete`).

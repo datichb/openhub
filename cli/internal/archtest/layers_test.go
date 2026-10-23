@@ -78,12 +78,9 @@ var layerRules = []layerRule{
 	},
 	{
 		name:      "the configuration does not open a database",
-		advice:    "internal/config reads and writes files only; what touches SQLite belongs to internal/storage/sqlite (or a migration command in cmd)",
+		advice:    "internal/config reads and writes files only; what touches SQLite belongs to internal/storage/sqlite",
 		from:      under("internal/config"),
 		forbidden: importsOf("database/sql"),
-		exceptions: map[string]string{
-			"internal/config/migrate.go -> database/sql": "MigrateProjectTeamToTeamID updates projects.team_id through a *sql.DB passed by cmd",
-		},
 	},
 	{
 		name:      "the launcher does not import the TUI",
