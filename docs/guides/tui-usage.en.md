@@ -407,7 +407,7 @@ A summary screen ends the wizard: `Enter` opens the detail view, `Esc` goes back
 
 ## Tips
 
-- **Launch without leaving the board**: `a` on a ticket lists the workflows that take a ticket; the form opens at the Options step, ticket prefilled.
+- **Launch without leaving the board**: `a` on a ticket lists the workflows that take a ticket; the form opens at the Options step, ticket prefilled. On the card of a GitLab issue of the team board (GitLab tracker), `a` also lists, after them, the workflows that take a free request (`spec`, `quick`, `libre`…): the form opens at the Inputs step, with `#<iid>` (for example `#623`) as the request, to complete if needed.
 - **Decide fast**: `y` on a "To handle" line approves a permission or a checkpoint without opening the card (the card opens when the verification failed).
 - **Several projects**: `f` in the Sessions view switches between the active project and every project.
 - **Contextual help**: `?` lists the shortcuts of the current view.

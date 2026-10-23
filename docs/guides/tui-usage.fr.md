@@ -407,7 +407,7 @@ Un écran de résumé termine l'assistant : `Entree` ouvre la vue de détail, `E
 
 ## Astuces
 
-- **Lancer sans quitter le board** : `a` sur un ticket liste les workflows qui prennent un ticket ; la fiche s'ouvre à l'étape Options, ticket prérempli.
+- **Lancer sans quitter le board** : `a` sur un ticket liste les workflows qui prennent un ticket ; la fiche s'ouvre à l'étape Options, ticket prérempli. Sur la carte d'une issue GitLab du board d'équipe (tracker GitLab), `a` propose aussi, à la suite, les workflows qui prennent une demande libre (`spec`, `quick`, `libre`…) : la fiche s'ouvre à l'étape Entrées, avec `#<iid>` (par exemple `#623`) comme demande, à compléter si besoin.
 - **Décider vite** : `y` sur une ligne de « À traiter » valide une permission ou un checkpoint sans ouvrir la fiche (la fiche s'ouvre si la vérification a échoué).
 - **Plusieurs projets** : `f` dans la vue Sessions bascule entre le projet actif et tous les projets.
 - **Aide contextuelle** : `?` liste les raccourcis de la vue active.

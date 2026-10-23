@@ -13,6 +13,7 @@ import (
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
+	wf "github.com/datichb/openhub/cli/internal/workflow"
 )
 
 // TUI wiring of the « Démarrer » section (P1-T20): a cache of the entries
@@ -224,6 +225,32 @@ func (t *tuiStart) workflowIDs() []string {
 // ticketWorkflows returns the workflows taking a Beads ticket, the project
 // default then pinned ones first (board quick actions; event loop safe: cached catalogue).
 func (t *tuiStart) ticketWorkflows(scope views.StartScope) []views.TicketWorkflow {
+	return t.workflowsWhere(scope, func(s workflowsvc.Summary) bool { return s.TicketInput != "" })
+}
+
+// requestWorkflows returns the workflows that take a free request (an input
+// named « request ») and no Beads ticket: spec (cadrage), quick, libre…
+// These are the ones a GitLab issue card of the board can launch, with the
+// issue as the request (#<iid>).
+func (t *tuiStart) requestWorkflows(scope views.StartScope) []views.TicketWorkflow {
+	return t.workflowsWhere(scope, func(s workflowsvc.Summary) bool { return s.TicketInput == "" && hasRequestInput(s) })
+}
+
+// hasRequestInput reports whether the workflow has a free-text « request »
+// input, the main input of the workflows that take a demand.
+func hasRequestInput(s workflowsvc.Summary) bool {
+	for _, in := range s.Inputs {
+		if in.ID == boardRequestInput && (in.Type == wf.InputText || in.Type == wf.InputString) {
+			return true
+		}
+	}
+	return false
+}
+
+// boardRequestInput is the input a GitLab issue card fills (« #<iid> »).
+const boardRequestInput = "request"
+
+func (t *tuiStart) workflowsWhere(scope views.StartScope, pick func(workflowsvc.Summary) bool) []views.TicketWorkflow {
 	t.mu.Lock()
 	catalog := t.catalog
 	e := t.entries[scope]
@@ -237,7 +264,7 @@ func (t *tuiStart) ticketWorkflows(scope views.StartScope) []views.TicketWorkflo
 	}
 	var first, rest []views.TicketWorkflow
 	for _, s := range catalog {
-		if s.TicketInput == "" {
+		if !pick(s) {
 			continue
 		}
 		w := views.TicketWorkflow{ID: s.ID, Label: summaryDesc(s), Risk: string(s.Risk), Pinned: pinned[s.ID]}
