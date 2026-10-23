@@ -23,7 +23,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/credproxy"
-	"github.com/datichb/openhub/cli/internal/daemon"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/filelock"
 	"github.com/datichb/openhub/cli/internal/hostnet"
@@ -39,14 +39,14 @@ import (
 
 // DaemonClient is the subset of the ohd client used by the service.
 type DaemonClient interface {
-	IssueGrant(ctx context.Context, req daemon.GrantRequest) (daemon.GrantResponse, error)
+	IssueGrant(ctx context.Context, req api.GrantRequest) (api.GrantResponse, error)
 	RevokeOwner(ctx context.Context, owner string) error
-	Usage(ctx context.Context, token string) (daemon.UsageResponse, error)
+	Usage(ctx context.Context, token string) (api.UsageResponse, error)
 	Touch(ctx context.Context, group string) error
 	// ProxyListen makes the proxy also listen on host (containers on Linux).
 	ProxyListen(ctx context.Context, host string) (string, error)
 	// Health reports the daemon state (memory used by the tool servers).
-	Health(ctx context.Context) (daemon.Health, error)
+	Health(ctx context.Context) (api.Health, error)
 }
 
 // containerTooler is implemented by adapters able to install their tool in
@@ -393,11 +393,11 @@ type joined struct {
 const groupLockWait = 15 * time.Minute
 
 // lockGroup takes the lock of a server group (shared with the daemon,
-// daemon.GroupLockPath), until ctx is done or groupLockWait expires.
+// api.GroupLockPath), until ctx is done or groupLockWait expires.
 func (s *Service) lockGroup(ctx context.Context, gk string) (func(), error) {
 	lctx, cancel := context.WithTimeout(ctx, groupLockWait)
 	defer cancel()
-	return filelock.LockContext(lctx, daemon.GroupLockPath(s.ServersDir, gk))
+	return filelock.LockContext(lctx, api.GroupLockPath(s.ServersDir, gk))
 }
 
 // maxSlots bounds the sibling container groups of one configuration.
@@ -651,7 +651,7 @@ func (s *Service) startServer(ctx context.Context, dc DaemonClient, req StartReq
 		}
 	}
 	ocProvider := ToolProviderID(s.Adapter, req.Provider)
-	grant, err := dc.IssueGrant(ctx, daemon.GrantRequest{
+	grant, err := dc.IssueGrant(ctx, api.GrantRequest{
 		Owner: gk, Provider: ocProvider, Region: region, Source: cred.Source, Secret: cred.Secret,
 		AllowedModels: req.AllowedModels, MaxTokens: req.MaxTokens,
 	})

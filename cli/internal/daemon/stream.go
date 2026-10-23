@@ -21,13 +21,6 @@ const (
 	streamPingEv = 15 * time.Second
 )
 
-// StreamEvent is one line of GET /v1/stream (exactly one field is set; an
-// empty object is a keep-alive).
-type StreamEvent struct {
-	Feed   *domain.FeedItem      `json:"feed,omitempty"`
-	Change *domain.SessionChange `json:"change,omitempty"`
-}
-
 type subscriber struct {
 	session string
 	ch      chan StreamEvent

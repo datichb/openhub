@@ -28,7 +28,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/datichb/openhub/cli/internal/daemon"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
+	"github.com/datichb/openhub/cli/internal/daemon/client"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/mcp/protocol"
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
@@ -41,16 +42,16 @@ type Backend interface {
 	WorkflowStatus(ctx context.Context, toolSession string) (checkpoint.Status, error)
 	WorkflowCheckpoint(ctx context.Context, toolSession string, call checkpoint.Call) (checkpoint.Result, error)
 	WorkflowOutput(ctx context.Context, toolSession string, o checkpoint.Output) error
-	WorkflowReport(ctx context.Context, toolSession, title, body string) (daemon.WorkflowReport, error)
-	WorkflowReports(ctx context.Context, toolSession string) ([]daemon.WorkflowReport, error)
-	WorkflowReportGet(ctx context.Context, toolSession, id, section string) (daemon.WorkflowReport, error)
+	WorkflowReport(ctx context.Context, toolSession, title, body string) (api.WorkflowReport, error)
+	WorkflowReports(ctx context.Context, toolSession string) ([]api.WorkflowReport, error)
+	WorkflowReportGet(ctx context.Context, toolSession, id, section string) (api.WorkflowReport, error)
 }
 
 // Serve runs the server on stdio against the oh daemon, with the token of
 // the server group found in its environment (the daemon refuses the
 // workflow routes without it).
 func Serve() error {
-	c := daemon.NewClient(daemon.DefaultPaths()).WithGroupToken(os.Getenv(sessionspec.EnvGroupToken))
+	c := client.NewClient(api.DefaultPaths()).WithGroupToken(os.Getenv(sessionspec.EnvGroupToken))
 	return New(c).Serve()
 }
 
@@ -168,7 +169,7 @@ func (h handlers) checkpoint(ctx context.Context, params json.RawMessage) (*prot
 		return nil, err
 	}
 	res, err := h.b.WorkflowCheckpoint(ctx, id, call)
-	if errors.Is(err, daemon.ErrNotRunning) {
+	if errors.Is(err, api.ErrNotRunning) {
 		// The tool already let the call run (validated, or not paused in
 		// this mode): only the bookkeeping is lost.
 		return text(i18n.Tf("cmd.mcp.workflow.checkpoint_untracked", call.ID)), nil
@@ -268,12 +269,12 @@ func (h handlers) outputs(ctx context.Context, params json.RawMessage) (*protoco
 }
 
 func unavailable(err error) error {
-	if errors.Is(err, daemon.ErrNotRunning) {
+	if errors.Is(err, api.ErrNotRunning) {
 		return errors.New(i18n.T("cmd.mcp.workflow.unavailable"))
 	}
-	var api *daemon.APIError
-	if errors.As(err, &api) && api.Message != "" {
-		return errors.New(api.Message)
+	var ae *api.APIError
+	if errors.As(err, &ae) && ae.Message != "" {
+		return errors.New(ae.Message)
 	}
 	return err
 }

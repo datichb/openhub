@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 
+	"github.com/datichb/openhub/cli/internal/daemon/api"
 	"github.com/datichb/openhub/cli/internal/gateway"
 	"github.com/datichb/openhub/cli/internal/gateway/beadswire"
 	"github.com/datichb/openhub/cli/internal/procinfo"
@@ -21,7 +22,7 @@ import (
 // socket connection) is run by git from the hook of the session location.
 
 // hookTokenRoute is beadswire.HookTokenPath.
-const hookTokenRoute = apiPrefix + "/gateway/hook-token"
+const hookTokenRoute = apiPrefix + api.RouteHookToken
 
 // procRead reads a process (replaced by tests).
 var procRead = procinfo.Get

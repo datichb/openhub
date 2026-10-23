@@ -1,11 +1,6 @@
-// Package daemon implements ohd, the per-user oh background process. It
-// outlives the oh CLI/TUI so that agentic sessions keep running when oh is
-// closed (I1/I7): it hosts the LLM credential proxy and supervises the tool
-// servers registered by oh clients. Clients talk to it over a Unix socket.
-package daemon
+package api
 
 import (
-	"errors"
 	"path/filepath"
 
 	"github.com/datichb/openhub/cli/internal/config"
@@ -37,6 +32,9 @@ func (p Paths) Log() string { return filepath.Join(p.Dir, "ohd.log") }
 // SpawnLock serializes daemon spawns between concurrent oh clients.
 func (p Paths) SpawnLock() string { return filepath.Join(p.Dir, "spawn.lock") }
 
+// CapabilityFile is the fallback file of the issuing capability.
+func (p Paths) CapabilityFile() string { return filepath.Join(p.Dir, "capability") }
+
 // GroupLockPath is the lock file of a server group under the servers
 // directory (~/.oh/servers/<group>/lock). oh clients hold it while they start,
 // restart or resume the group's server; the daemon takes it before putting
@@ -45,6 +43,8 @@ func GroupLockPath(serversDir, group string) string {
 	return filepath.Join(serversDir, group, "lock")
 }
 
-// ErrUnsupported: no daemon can be started (in-process mode without an
-// in-process starter).
-var ErrUnsupported = errors.New("ohd cannot be started here")
+// ProxyURLPath is the file recording the proxy URL a group's server was
+// started with (~/.oh/servers/<group>/proxy_url), as seen by the server.
+func ProxyURLPath(serversDir, group string) string {
+	return filepath.Join(serversDir, group, "proxy_url")
+}

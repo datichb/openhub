@@ -1,13 +1,10 @@
 package daemon
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
-	"net/url"
 	"strings"
-	"time"
 
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
@@ -26,68 +23,6 @@ import (
 // wikiRequestMax bounds the body of the wiki POST routes (a proposal is
 // bounded by the WikiService, after cleaning).
 const wikiRequestMax = 64 << 10
-
-// WikiProposeRequest is the body of POST /v1/wiki/propose.
-type WikiProposeRequest struct {
-	ToolSession string `json:"tool_session"`
-	Page        string `json:"page"`
-	Section     string `json:"section,omitempty"`
-	Content     string `json:"content"`
-	Tag         string `json:"tag"`
-	Source      string `json:"source,omitempty"`
-	// Replaces is the line of the page the content replaces (p5-fixes).
-	Replaces string `json:"replaces,omitempty"`
-}
-
-// WikiApplyRequest is the body of POST /v1/wiki/apply.
-type WikiApplyRequest struct {
-	ToolSession string   `json:"tool_session"`
-	IDs         []string `json:"ids"`
-}
-
-// WikiProposal is a stored proposal.
-type WikiProposal struct {
-	ID string `json:"id"`
-	domain.WikiProposal
-	// PreviouslyRefused is set on the answer of a proposal that repeats one
-	// the user refused (same page, same text): the agent is warned, the
-	// proposal is queued all the same.
-	PreviouslyRefused *WikiRefusal `json:"previously_refused,omitempty"`
-}
-
-// WikiRefusal is a refused proposal that a new one repeats.
-type WikiRefusal struct {
-	ID     string     `json:"id"`
-	Reason string     `json:"reason,omitempty"`
-	At     *time.Time `json:"at,omitempty"`
-}
-
-// WikiPageInfo is a page of the index.
-type WikiPageInfo struct {
-	Path       string `json:"path"`
-	Title      string `json:"title,omitempty"`
-	Updated    string `json:"updated,omitempty"`
-	Confidence string `json:"confidence,omitempty"`
-}
-
-// WikiIndex answers GET /v1/wiki/index.
-type WikiIndex struct {
-	Title    string         `json:"title,omitempty"`
-	Sections []string       `json:"sections,omitempty"`
-	Pages    []WikiPageInfo `json:"pages"`
-	GodNodes []wiki.GodNode `json:"god_nodes,omitempty"`
-	Pending  int            `json:"pending"`
-	NoIndex  bool           `json:"no_index,omitempty"`
-	Skipped  []string       `json:"skipped,omitempty"`
-	Session  []WikiProposal `json:"session_proposals,omitempty"`
-}
-
-// WikiPage answers GET /v1/wiki/page.
-type WikiPage struct {
-	Page    string `json:"page"`
-	Section string `json:"section,omitempty"`
-	Text    string `json:"text"`
-}
 
 func wikiView(p domain.WikiProposal) WikiProposal { return WikiProposal{ID: p.ID(), WikiProposal: p} }
 
@@ -293,80 +228,4 @@ func (d *Daemon) handleWikiCheck(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, rep)
-}
-
-// WikiIndex returns the index of the wiki of the session of a tool session.
-func (c *Client) WikiIndex(ctx context.Context, toolSession string) (WikiIndex, error) {
-	var out WikiIndex
-	err := c.do(ctx, http.MethodGet, "/wiki/index?tool_session="+url.QueryEscape(toolSession), nil, &out)
-	return out, err
-}
-
-// WikiPage reads a page of the wiki (or one of its sections).
-func (c *Client) WikiPage(ctx context.Context, toolSession, page, section string) (WikiPage, error) {
-	q := url.Values{"tool_session": {toolSession}, "page": {page}}
-	if section != "" {
-		q.Set("section", section)
-	}
-	var out WikiPage
-	err := c.do(ctx, http.MethodGet, "/wiki/page?"+q.Encode(), nil, &out)
-	return out, err
-}
-
-// WikiPropose queues a proposal.
-func (c *Client) WikiPropose(ctx context.Context, req WikiProposeRequest) (WikiProposal, error) {
-	var out WikiProposal
-	err := c.do(ctx, http.MethodPost, "/wiki/propose", req, &out)
-	return out, err
-}
-
-// WikiPending lists the open proposals of the project (or of the session).
-func (c *Client) WikiPending(ctx context.Context, toolSession string, sessionOnly bool) ([]WikiProposal, error) {
-	q := url.Values{"tool_session": {toolSession}}
-	if sessionOnly {
-		q.Set("scope", "session")
-	}
-	var out []WikiProposal
-	err := c.do(ctx, http.MethodGet, "/wiki/pending?"+q.Encode(), nil, &out)
-	return out, err
-}
-
-// WikiRefused lists the recent refusals of the project (or of the session),
-// with the reason the user gave. A daemon without the route answers 404.
-func (c *Client) WikiRefused(ctx context.Context, toolSession string, sessionOnly bool) ([]WikiProposal, error) {
-	q := url.Values{"tool_session": {toolSession}}
-	if sessionOnly {
-		q.Set("scope", "session")
-	}
-	var out []WikiProposal
-	err := c.do(ctx, http.MethodGet, "/wiki/refused?"+q.Encode(), nil, &out)
-	return out, err
-}
-
-// WikiApply applies proposals (documentarian only).
-func (c *Client) WikiApply(ctx context.Context, toolSession string, ids []string) ([]wiki.Result, error) {
-	var out []wiki.Result
-	err := c.do(ctx, http.MethodPost, "/wiki/apply", WikiApplyRequest{ToolSession: toolSession, IDs: ids}, &out)
-	return out, err
-}
-
-// WikiCheck checks the wiki of the session, restricted to a change when
-// opts restricts it (LD-H, LD-D).
-func (c *Client) WikiCheck(ctx context.Context, toolSession string, opts wiki.CheckOptions) (wiki.CheckReport, error) {
-	q := url.Values{"tool_session": {toolSession}}
-	for _, p := range opts.Paths {
-		q.Add("path", p)
-	}
-	if opts.Base != "" {
-		q.Set("base", opts.Base)
-	}
-	if opts.Head != "" {
-		q.Set("head", opts.Head)
-	}
-	if opts.SinceSync {
-		q.Set("since_sync", "1")
-	}
-	var out wiki.CheckReport
-	err := c.do(ctx, http.MethodGet, "/wiki/check?"+q.Encode(), nil, &out)
-	return out, err
 }

@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"syscall"
 
 	"golang.org/x/sys/windows"
@@ -34,10 +33,6 @@ func lockFile(path string) (func(), error) {
 		_ = windows.UnlockFileEx(h, 0, 1, 0, ol)
 		f.Close()
 	}, nil
-}
-
-func setDetached(cmd *exec.Cmd) {
-	cmd.SysProcAttr = &syscall.SysProcAttr{CreationFlags: 0x00000200}
 }
 
 func processAlive(pid int) bool {

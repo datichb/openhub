@@ -12,7 +12,7 @@ import (
 	"strings"
 
 	"github.com/datichb/openhub/cli/internal/adapters"
-	"github.com/datichb/openhub/cli/internal/daemon"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/envfilter"
 	"github.com/datichb/openhub/cli/internal/gateway/beadswire"
@@ -273,12 +273,12 @@ func (s *Service) saveGatewayURL(gk, proxyURL string) error {
 
 // saveProxyURL records the proxy URL a group's server is started with (as
 // seen by the server): the daemon puts the group to sleep when it no longer
-// listens on that port (daemon.ProxyURLPath).
+// listens on that port (api.ProxyURLPath).
 func (s *Service) saveProxyURL(gk, proxyURL string) error {
 	if s.ServersDir == "" {
 		return nil
 	}
-	p := daemon.ProxyURLPath(s.ServersDir, gk)
+	p := api.ProxyURLPath(s.ServersDir, gk)
 	if err := os.MkdirAll(filepath.Dir(p), 0o700); err != nil {
 		return err
 	}

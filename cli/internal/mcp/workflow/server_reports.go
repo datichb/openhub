@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/datichb/openhub/cli/internal/daemon"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/mcp/protocol"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
@@ -53,11 +53,11 @@ func registerReports(s *protocol.Server, h handlers) {
 // turned off, a daemon without the route): the agent falls back on its
 // whole report.
 func notRecorded(err error) bool {
-	if errors.Is(err, daemon.ErrNotRunning) {
+	if errors.Is(err, api.ErrNotRunning) {
 		return true
 	}
-	var api *daemon.APIError
-	return errors.As(err, &api) && (api.Status == http.StatusServiceUnavailable || api.Status == http.StatusNotFound && strings.HasPrefix(api.Message, "404 "))
+	var ae *api.APIError
+	return errors.As(err, &ae) && (ae.Status == http.StatusServiceUnavailable || ae.Status == http.StatusNotFound && strings.HasPrefix(ae.Message, "404 "))
 }
 
 func (h handlers) report(ctx context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
@@ -74,13 +74,13 @@ func (h handlers) report(ctx context.Context, params json.RawMessage) (*protocol
 		return nil, err
 	}
 	rp, err := h.b.WorkflowReport(ctx, id, in.Title, in.Body)
-	var unknown *daemon.APIError
+	var unknown *api.APIError
 	if notRecorded(err) || errors.As(err, &unknown) && unknown.Status == http.StatusNotFound { // session unknown to oh
 		return text(i18n.T("cmd.mcp.workflow.report_not_recorded")), nil
 	}
-	var api *daemon.APIError
-	if errors.As(err, &api) && (api.Status == http.StatusUnprocessableEntity || api.Status == http.StatusInsufficientStorage || api.Status == http.StatusRequestEntityTooLarge) {
-		return nil, errors.New(i18n.Tf("cmd.mcp.workflow.report_refused", api.Message))
+	var ae *api.APIError
+	if errors.As(err, &ae) && (ae.Status == http.StatusUnprocessableEntity || ae.Status == http.StatusInsufficientStorage || ae.Status == http.StatusRequestEntityTooLarge) {
+		return nil, errors.New(i18n.Tf("cmd.mcp.workflow.report_refused", ae.Message))
 	}
 	if err != nil {
 		return nil, unavailable(err)

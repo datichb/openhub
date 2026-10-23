@@ -1,22 +1,10 @@
 package daemon
 
 import (
-	"context"
 	"net/http"
-	"net/url"
 	"sort"
 	"time"
-
-	"github.com/datichb/openhub/cli/internal/termlaunch"
 )
-
-// AttachedClient is an interactive client attached to a session (GET
-// /v1/clients?session=<id>).
-type AttachedClient struct {
-	ClientID  string               `json:"client_id"`
-	SessionID string               `json:"session_id"`
-	Where     *termlaunch.Location `json:"where,omitempty"`
-}
 
 func (d *Daemon) handleClients(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, d.attachedClients(r.URL.Query().Get("session")))
@@ -49,11 +37,4 @@ func (d *Daemon) attachedClients(sessionID string) []AttachedClient {
 		out = append(out, it.c)
 	}
 	return out
-}
-
-// AttachedClients lists the interactive clients attached to a session.
-func (c *Client) AttachedClients(ctx context.Context, sessionID string) ([]AttachedClient, error) {
-	var out []AttachedClient
-	err := c.do(ctx, http.MethodGet, "/clients?session="+url.QueryEscape(sessionID), nil, &out)
-	return out, err
 }

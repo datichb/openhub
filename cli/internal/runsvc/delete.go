@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/datichb/openhub/cli/internal/daemon"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/filelock"
 	"github.com/datichb/openhub/cli/internal/worktree"
@@ -253,7 +253,7 @@ func (s *Service) removeGroupData(ctx context.Context, dir string) error {
 	if err != nil {
 		return err
 	}
-	lock := filepath.Clean(daemon.GroupLockPath(s.ServersDir, gk))
+	lock := filepath.Clean(api.GroupLockPath(s.ServersDir, gk))
 	for _, e := range entries {
 		p := filepath.Join(dir, e.Name())
 		if filepath.Clean(p) == lock {

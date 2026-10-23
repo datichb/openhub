@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"syscall"
 )
 
@@ -30,7 +29,5 @@ func lockFile(path string) (func(), error) {
 		f.Close()
 	}, nil
 }
-
-func setDetached(cmd *exec.Cmd) { cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true} }
 
 func processAlive(pid int) bool { return syscall.Kill(pid, 0) != syscall.ESRCH }
