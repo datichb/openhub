@@ -13,6 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/teamstate"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -48,6 +49,7 @@ func init() {
 	claimCmd.Flags().StringP("project", "p", "", i18n.T("cmd.claim.flags.project"))
 	claimCmd.Flags().String("worktree", "", i18n.T("cmd.claim.flags.worktree"))
 	claimCmd.Flags().Bool("planned", false, i18n.T("cmd.claim.flags.planned"))
+	addYesFlag(claimCmd)
 
 	releaseCmd.Flags().StringP("project", "p", "", i18n.T("cmd.claim.flags.project"))
 
@@ -140,90 +142,8 @@ func runClaim(cmd *cobra.Command, args []string) error {
 	}
 
 	existing, err := repo.CreateClaim(ctx, claim)
-	if err == teamstate.ErrClaimExists {
-		// Check if stale
-		teamCfg, _ := repo.LoadConfig()
-		staleDays := 3
-		if teamCfg != nil && teamCfg.Takeover.StaleDays > 0 {
-			staleDays = teamCfg.Takeover.StaleDays
-		}
-
-		if existing != nil && repo.IsStale(existing, staleDays) {
-			daysSince := int(time.Since(existing.ClaimedAt).Hours() / 24)
-			if !existing.LastActivity.IsZero() {
-				daysSince = int(time.Since(existing.LastActivity.Time()).Hours() / 24)
-			}
-
-			fmt.Fprintf(a.IO.Out, "%s %s\n",
-				theme.WarningStyle.Render(theme.IconWarning),
-				i18n.Tf("cmd.claim.stale_warning",
-					project, ticketID,
-					theme.Bold.Render(existing.ClaimedBy),
-					daysSince))
-
-			// Propose generating a takeover brief
-			fmt.Fprintf(a.IO.Out, "%s", i18n.T("cmd.claim.stale_confirm"))
-			var response string
-			_, _ = fmt.Scanln(&response)
-			if confirmed(response, true) {
-				previousOwner := existing.ClaimedBy
-				// Generate brief
-				brief, briefErr := repo.GenerateRawBrief(ctx, project, ticketID, previousOwner, memberID, "stale")
-				if briefErr == nil {
-					if err := repo.SaveBrief(ctx, brief); err != nil {
-						slog.Warn("brief saved locally but sync failed", "ticket", ticketID, "error", err)
-					}
-					fmt.Fprintf(a.IO.Out, "%s %s\n",
-						theme.SuccessStyle.Render(theme.IconSuccess),
-						i18n.T("cmd.claim.brief_generated"))
-				}
-				// Transfer the claim
-				if err := repo.TransferClaim(ctx, project, ticketID, memberID); err != nil {
-					slog.Warn("claim transfer saved locally but sync failed", "ticket", ticketID, "error", err)
-					fmt.Fprintf(a.IO.Out, "%s %s\n",
-						theme.WarningStyle.Render(theme.IconWarning),
-						i18n.T("cmd.claim.sync_pending"))
-				}
-				fmt.Fprintf(a.IO.Out, "%s %s\n",
-					theme.SuccessStyle.Render(theme.IconSuccess),
-					i18n.Tf("cmd.claim.transferred_from_to",
-						project, ticketID, previousOwner, memberID))
-				return nil
-			}
-			// User declined brief but still wants to claim — do transfer
-			if err := repo.TransferClaim(ctx, project, ticketID, memberID); err != nil {
-				slog.Warn("claim transfer saved locally but sync failed", "ticket", ticketID, "error", err)
-				fmt.Fprintf(a.IO.Out, "%s %s\n",
-					theme.WarningStyle.Render(theme.IconWarning),
-					i18n.T("cmd.claim.sync_pending"))
-			}
-			fmt.Fprintf(a.IO.Out, "%s %s\n",
-				theme.SuccessStyle.Render(theme.IconSuccess),
-				i18n.Tf("cmd.claim.transferred_no_brief", project, ticketID))
-			return nil
-		}
-
-		// Not stale — standard warning
-		fmt.Fprintf(a.IO.Out, "%s %s\n",
-			theme.WarningStyle.Render(theme.IconWarning),
-			i18n.Tf("cmd.claim.already_taken",
-				project, ticketID,
-				theme.Bold.Render(existing.ClaimedBy),
-				existing.ClaimedAt.Local().Format("02/01 15:04")))
-		fmt.Fprintf(a.IO.Out, "%s\n",
-			i18n.Tf("cmd.claim.transfer_hint",
-				theme.Bold.Render("oh claim transfer "+ticketID+" --to "+memberID)))
-
-		// Emit conflict event (best-effort).
-		_ = repo.AppendEvent(ctx, teamstate.Event{
-			Actor:   memberID,
-			Type:    teamstate.EventClaimConflict,
-			Project: project,
-			Ticket:  ticketID,
-			Data:    map[string]interface{}{"current_owner": existing.ClaimedBy},
-		})
-
-		return nil
+	if errors.Is(err, teamstate.ErrClaimExists) {
+		return claimExists(cmd, a, repo, existing, project, ticketID, memberID)
 	}
 	if err != nil {
 		return fmt.Errorf(i18n.T("cmd.claim.creating_claim"), err)
@@ -241,6 +161,110 @@ func runClaim(cmd *cobra.Command, args []string) error {
 		Ticket:  ticketID,
 	})
 
+	return nil
+}
+
+// claimExists answers a ticket that is already claimed. A claim of another
+// member that has expired (its lease is past, or, without lease, it has been
+// inactive longer than stale_days) can be taken over after the common
+// confirmation (--yes without a terminal): a takeover brief is generated, the
+// claim comes with a new lease. The member's own expired claim is renewed
+// (lease only). Any other claim is reported and left as it is.
+//
+// The claim is taken by hand, no session works on it: it carries none (the
+// first session that starts on the ticket takes it, AdoptClaim).
+func claimExists(cmd *cobra.Command, a *app.App, repo *teamstate.Repo, existing *teamstate.Claim, project, ticketID, memberID string) error {
+	ctx := cmd.Context()
+	if existing == nil {
+		return nil
+	}
+	teamCfg, _ := repo.LoadConfig()
+	now := time.Now()
+	expired := existing.IsExpired(now, teamCfg)
+
+	if expired && existing.ClaimedBy == memberID {
+		touched, err := repo.TouchClaims(ctx, []teamstate.ClaimRef{{Project: project, TicketID: ticketID}}, memberID, "", now)
+		if err != nil {
+			return fmt.Errorf(i18n.T("cmd.claim.creating_claim"), err)
+		}
+		if len(touched) > 0 {
+			if c, err := repo.GetClaim(project, ticketID); err == nil {
+				fmt.Fprintf(a.IO.Out, "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess),
+					i18n.Tf("cmd.claims.own_renewed", project, ticketID, textfmt.DateTime(c.LeaseUntil.Time())))
+				return nil
+			}
+		}
+	}
+
+	if expired && existing.ClaimedBy != "" && existing.ClaimedBy != memberID {
+		return takeOverExpiredClaim(cmd, a, repo, existing, project, ticketID, memberID)
+	}
+
+	// Not expired — standard warning
+	fmt.Fprintf(a.IO.Out, "%s %s\n",
+		theme.WarningStyle.Render(theme.IconWarning),
+		i18n.Tf("cmd.claim.already_taken",
+			project, ticketID,
+			theme.Bold.Render(existing.ClaimedBy),
+			existing.ClaimedAt.Local().Format("02/01 15:04")))
+	fmt.Fprintf(a.IO.Out, "%s\n",
+		i18n.Tf("cmd.claim.transfer_hint",
+			theme.Bold.Render("oh claim transfer "+ticketID+" --to "+memberID)))
+
+	// Emit conflict event (best-effort).
+	_ = repo.AppendEvent(ctx, teamstate.Event{
+		Actor:   memberID,
+		Type:    teamstate.EventClaimConflict,
+		Project: project,
+		Ticket:  ticketID,
+		Data:    map[string]interface{}{"current_owner": existing.ClaimedBy},
+	})
+	return nil
+}
+
+// takeOverExpiredClaim says why the claim of another member can be taken over,
+// asks for the confirmation, then generates the takeover brief and moves the
+// claim to the member.
+func takeOverExpiredClaim(cmd *cobra.Command, a *app.App, repo *teamstate.Repo, existing *teamstate.Claim, project, ticketID, memberID string) error {
+	ctx := cmd.Context()
+	previousOwner := existing.ClaimedBy
+	reason := "stale"
+	if !existing.LeaseUntil.IsZero() {
+		reason = "expired"
+		fmt.Fprintf(a.IO.Out, "%s %s\n", theme.WarningStyle.Render(theme.IconWarning),
+			i18n.Tf("cmd.claims.expired.lease", project, ticketID, theme.Bold.Render(previousOwner), textfmt.DateTime(existing.LeaseUntil.Time())))
+	} else {
+		since := existing.ClaimedAt
+		if !existing.LastActivity.IsZero() {
+			since = existing.LastActivity.Time()
+		}
+		fmt.Fprintf(a.IO.Out, "%s %s\n", theme.WarningStyle.Render(theme.IconWarning),
+			i18n.Tf("cmd.claim.stale_warning", project, ticketID, theme.Bold.Render(previousOwner), int(time.Since(since).Hours()/24)))
+	}
+	ok, err := confirmActionWith(cmd,
+		i18n.Tf("cmd.claims.expired.question", project, ticketID, previousOwner),
+		i18n.T("cmd.claims.expired.description"), true)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		fmt.Fprintf(a.IO.Out, "%s\n", i18n.Tf("cmd.claims.expired.declined", previousOwner))
+		return nil
+	}
+
+	brief, briefErr := repo.GenerateRawBrief(ctx, project, ticketID, previousOwner, memberID, reason)
+	if briefErr == nil {
+		if err := repo.SaveBrief(ctx, brief); err != nil {
+			slog.Warn("brief not saved", "ticket", ticketID, "error", err)
+		} else {
+			fmt.Fprintf(a.IO.Out, "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.T("cmd.claim.brief_generated"))
+		}
+	}
+	if err := repo.TransferClaim(ctx, project, ticketID, memberID); err != nil {
+		return fmt.Errorf(i18n.T("cmd.claim.transferring_claim"), err)
+	}
+	fmt.Fprintf(a.IO.Out, "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess),
+		i18n.Tf("cmd.claim.transferred_from_to", project, ticketID, previousOwner, memberID))
 	return nil
 }
 

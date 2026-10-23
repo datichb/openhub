@@ -24,8 +24,9 @@ import (
 //   - claims_expired: the open claims of the active member whose lease is
 //     past (or, without lease, that have been inactive longer than stale_days)
 //     or that carry the session-ended label. Another member may take such a
-//     claim over (oh team claim). A warning with the command to release them;
-//     starting a session on the ticket renews the lease.
+//     claim over (oh team claim). A warning with the commands to keep the claim
+//     (oh team claim renews the lease of one's own claim; so does starting a
+//     session on the ticket) or to release it.
 //   - claims_queue: operations on the claims waiting in the durable queue of a
 //     team clone for longer than the daemon takes to empty it (the remote was
 //     out of reach, or oh stopped before the flush ended). A warning;
@@ -92,7 +93,7 @@ func expiredClaimsResult(list []expiredClaim) doctor.Result {
 		parts[i] = fmt.Sprintf("%s/%s (%s)", c.Project, c.Ticket, i18n.T("cmd.doctor.claims_expired.reason."+c.Reason))
 	}
 	return doctor.Result{ID: doctorIDClaimsExpired, Name: name, OK: true, Warn: true,
-		Detail: i18n.Tf("cmd.doctor.claims_expired.found", strings.Join(parts, ", "), list[0].Ticket, list[0].Project)}
+		Detail: i18n.Tf("cmd.doctor.claims_expired.found", strings.Join(parts, ", "), list[0].Ticket, list[0].Project, list[0].Ticket, list[0].Project)}
 }
 
 // claimQueueState is the queue of a team clone.

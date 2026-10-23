@@ -50,6 +50,7 @@ func TestExpiredClaimsResult(t *testing.T) {
 	assert.Contains(t, r.Detail, "p1/T-1 (bail dépassé)")
 	assert.Contains(t, r.Detail, "p1/T-2 (session terminée)")
 	assert.Contains(t, r.Detail, "oh team release T-1 -p p1", "the command")
+	assert.Contains(t, r.Detail, "oh team claim T-1 -p p1")
 }
 
 func TestClaimQueueResult(t *testing.T) {
