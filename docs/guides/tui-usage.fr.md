@@ -367,7 +367,7 @@ Fuzzy matching sur les noms et les alias :
 | `board`, `board init` | board Beads du projet, initialisation |
 | `project-config` | configuration du projet (dont Exécution) |
 | `settings`, `models`, `provider`, `mcp`, `secrets` | réglages, modèles, fournisseur (région Bedrock vérifiée dès la saisie, message sous le champ), serveurs MCP, secrets |
-| `teams`, `team-detail` | équipes, détail de l'équipe (`T` découvrir le tracker, `K` clé du fournisseur pour l'équipe ; espace solo : « Passer en équipe ») |
+| `teams`, `team-detail` | équipes, détail de l'équipe (`T` découvrir le tracker, `K` clé du fournisseur pour l'équipe ; espace solo : « Passer en équipe »). Le champ « Jeton du tracker » affiche la clé et le serveur déclarés (« non configuré » sinon, « implicite : serveur du tracker » sans serveur déclaré) et demande clé, serveur puis jeton ; il écrit `tracker_token_key` et `tracker_token_url` dans `hub.toml` et range le jeton sous cette clé, sans activer `mcp.gitlab`. Les champs « Clé du jeton » et « Serveur du jeton » (équipe) règlent la recommandation partagée ; « Serveur GitLab de l'équipe » déclare le GitLab d'un dépôt joint par un alias SSH ; la section Collaboration règle `lease_hours` et `heartbeat_minutes` |
 | `init` | relancer l'assistant de configuration |
 
 ### Équipe (avec un dépôt team-state)

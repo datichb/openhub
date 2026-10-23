@@ -339,15 +339,7 @@ func (v *TeamDetailView) buildFields() {
 		Get:         func() string { return v.teamCfg.Tracker.TrackerURL },
 		Set:         func(val string) { v.teamCfg.Tracker.TrackerURL = val; v.dirtyTeam = true },
 	})
-	v.fields = append(v.fields, configField{
-		Key: "tracker_token", Kind: CfgFieldPassword, Label: i18n.T("tui.config.field.tracker_token.label"),
-		Description: i18n.T("tui.config.field.tracker_token.desc"), Scope: ScopeTeamLocal,
-		Get: func() string { return v.resolveTrackerTokenKey() },
-		Set: func(val string) {
-			v.teamCfg.Tracker.TrackerTokenKey = val
-			v.dirtyTeam = true
-		},
-	})
+	v.fields = append(v.fields, v.tokenFields()...)
 	v.fields = append(v.fields, configField{
 		Key: "tracker_project", Kind: CfgFieldString, Label: i18n.T("tui.config.field.tracker_project.label"),
 		Description: i18n.T("tui.config.field.tracker_project.desc"), Scope: ScopeTeamShared,
@@ -479,6 +471,8 @@ func (v *TeamDetailView) buildFields() {
 		},
 	})
 
+	v.fields = append(v.fields, v.claimFields()...)
+
 	// ── Surcharges locales ───────────────────────────────────────────────
 	v.fields = append(v.fields, configField{Kind: CfgFieldSectionHeader, Label: i18n.T("tui.config.section.local_overrides")})
 	v.fields = append(v.fields, configField{
@@ -604,6 +598,17 @@ func (v *TeamDetailView) editSelected() {
 		return
 	}
 
+	// The token of the tracker: key, server and token in turn
+	if f.Key == fieldTrackerToken {
+		v.promptTokenSetup()
+		return
+	}
+	// Written to hub.toml at once, outside the save/undo of the other fields
+	if f.Key == fieldTeamGitLabURL {
+		editConfigField(v.shell, f, v.renderFields)
+		return
+	}
+
 	// Special handling for password fields (token setup flow)
 	if f.Kind == CfgFieldPassword {
 		v.promptTokenSetup()
@@ -650,6 +655,9 @@ func (v *TeamDetailView) undo() {
 	}
 	v.localMCP = prev.localMCP
 	v.localTrk = prev.localTrk
+	// the key of the tracker is written to hub.toml as soon as it is set: an
+	// older snapshot must not bring back the declaration it replaced
+	v.localTrk.SetTokenDecl(v.baseTrk.TokenDecl())
 	v.dirtyTeam = v.undoStack.Len() > 0
 	v.dirtyLocal = v.undoStack.Len() > 0
 	v.buildFields()
@@ -770,92 +778,6 @@ func (v *TeamDetailView) syncTracker() {
 	}()
 }
 
-func (v *TeamDetailView) promptTokenSetup() {
-	if v.shell == nil || v.teamCfg == nil {
-		return
-	}
-	trackerType := v.teamCfg.Tracker.Type
-	if trackerType == "" {
-		trackerType = "gitlab"
-	}
-
-	tokenKey := trackerType + "-token"
-	hubCfg := v.cfg.GetHubConfig()
-	if hubCfg != nil {
-		switch trackerType {
-		case "gitlab":
-			if hubCfg.MCP.Gitlab.Token != "" {
-				tokenKey = hubCfg.MCP.Gitlab.Token
-			}
-		case "jira":
-			if hubCfg.MCP.Jira.Token != "" {
-				tokenKey = hubCfg.MCP.Jira.Token
-			}
-		}
-	}
-
-	v.shell.ShowPasswordModal(i18n.Tf("tui.team.detail.token_prompt", trackerType, tokenKey), func(value string) {
-		if value == "" {
-			return
-		}
-		if v.cfg.UpdateHubConfig != nil {
-			if err := v.cfg.UpdateHubConfig(func(c *config.Config) error {
-				switch trackerType {
-				case "gitlab":
-					c.MCP.Gitlab.Enabled = true
-					if c.MCP.Gitlab.Token == "" {
-						c.MCP.Gitlab.Token = tokenKey
-					}
-				case "jira":
-					c.MCP.Jira.Enabled = true
-					if c.MCP.Jira.Token == "" {
-						c.MCP.Jira.Token = tokenKey
-					}
-				}
-				return nil
-			}); err != nil {
-				if v.shell != nil {
-					v.shell.ShowToastMsg(errorText(err), false)
-				}
-			}
-		}
-
-		if secrets := v.cfg.GetSecrets(); secrets != nil {
-			ctx := context.Background()
-			if setter, ok := secrets.(interface {
-				Set(ctx context.Context, key, value string) error
-			}); ok {
-				if err := setter.Set(ctx, tokenKey, value); err != nil {
-					if v.shell != nil {
-						v.shell.ShowToastMsg(i18n.Tf("tui.team.detail.token_save_error", err.Error()), false)
-					}
-					return
-				}
-			}
-		}
-
-		v.shell.ShowToastMsg(i18n.T("tui.team.detail.token_saved"), true)
-		v.loadData()
-		v.buildFields()
-		v.renderFields()
-	})
-}
-
-// resolveTrackerTokenKey returns the keychain key for the tracker token.
-// Uses TrackerTokenKey if set, otherwise derives from "openhub.tracker.<type>.token".
-func (v *TeamDetailView) resolveTrackerTokenKey() string {
-	if v.teamCfg == nil {
-		return ""
-	}
-	if v.teamCfg.Tracker.TrackerTokenKey != "" {
-		return v.teamCfg.Tracker.TrackerTokenKey
-	}
-	if v.teamCfg.Tracker.Type != "" {
-		return "openhub.tracker." + v.teamCfg.Tracker.Type + ".token"
-	}
-	return ""
-}
-
 func (v *TeamDetailView) testConnection() {
 	if v.shell == nil || v.app == nil {
 		return
@@ -885,7 +807,7 @@ func (v *TeamDetailView) testConnection() {
 			tc := v.cfg.ResolveTeam()
 			teamID = tc.TeamID
 			src.TeamID = tc.TeamID
-			src.TeamServer = tracker.ServerOf(tc.StateRepo)
+			src.TeamServer = tracker.ServerOf(firstNonEmpty(tc.GitLabURL, tc.StateRepo))
 		}
 		if hub := v.cfg.GetHubConfig(); hub != nil {
 			src.MCPTokenKey = hub.MCP.Gitlab.Token

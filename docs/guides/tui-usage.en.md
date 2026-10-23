@@ -367,7 +367,7 @@ Fuzzy matching on names and aliases:
 | `project-config` | project configuration (including Execution) |
 | `worktrees` | git worktrees of the project (`n` create, `d` remove, `o` open in a terminal, `p` prune the references, `M` remove the merged worktrees, never one used by a session; confirmed) |
 | `settings`, `models`, `provider`, `mcp`, `secrets` | settings, models, provider (Bedrock region checked as it is typed, message under the field), MCP servers, secrets |
-| `teams`, `team-detail` | teams, team detail (`T` discover the tracker, `K` provider key for the team; solo space: "Switch to a team") |
+| `teams`, `team-detail` | teams, team detail (`T` discover the tracker, `K` provider key for the team; solo space: "Switch to a team"). The "Tracker token" field shows the key and server declared ("not configured" otherwise, "implicit: the tracker's server" with no declared server) and asks key, server then token; it writes `tracker_token_key` and `tracker_token_url` to `hub.toml` and keeps the token under that key, without turning `mcp.gitlab` on. The "Token key" and "Token server" (team) fields set the shared recommendation; "Team GitLab server" declares the GitLab of a repository reached through an SSH alias; the Collaboration section sets `lease_hours` and `heartbeat_minutes` |
 | `init` | run the setup wizard again |
 
 ### Team (with a team-state repository)

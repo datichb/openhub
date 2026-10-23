@@ -80,6 +80,7 @@ func (s *Service) resolveTeam(project *domain.Project) config.ResolvedTeamConfig
 		TeamID:    hub.ID,
 		StateRepo: hub.StateRepo,
 		StatePath: hub.StatePath,
+		GitLabURL: hub.GitLabURL,
 		MemberID:  hub.MemberID,
 	}
 }
@@ -100,6 +101,9 @@ type tokenRequest struct {
 	// teamRepo replaces the team-state repository of the team (team not
 	// registered yet in hub.toml, as during oh team rejoin).
 	teamRepo string
+	// teamServer is the GitLab server of the team-state repository, for a team
+	// not registered yet (see WithTeamServer).
+	teamServer string
 }
 
 // WithProject adds the MCP token private to a hub project to the cascade; the
@@ -128,6 +132,14 @@ func WithTeamRepo(remote string) TokenOption {
 	return func(r *tokenRequest) { r.teamRepo = remote }
 }
 
+// WithTeamServer gives the GitLab server of the team-state repository for a
+// team that is not (yet) in hub.toml, when the repository goes through an SSH
+// alias: it takes the place of gitlab_url, which hub.toml holds for a team that
+// is registered.
+func WithTeamServer(server string) TokenOption {
+	return func(r *tokenRequest) { r.teamServer = server }
+}
+
 // WithAnyServer lifts the rule that a token is returned only for the server
 // called. It only serves to know whether the MCP server can be given a token.
 func WithAnyServer() TokenOption {
@@ -141,7 +153,9 @@ func WithAnyServer() TokenOption {
 //  1. GITLAB_TOKEN, for the server OH_GITLAB_URL (else GITLAB_URL)
 //  2. tracker_token_key (WithTrackerToken), for tracker_token_url, else for the tracker
 //  3. the token of the project (WithProject), for the URL of the GitLab MCP
-//  4. the token of the team teamID, for the host of its team-state repository
+//  4. the token of the team teamID, for the GitLab server of its team-state
+//     repository (gitlab_url of the team when the remote is an SSH alias, else
+//     the host of the remote)
 //  5. the hub MCP token ([mcp.gitlab] token key, then openhub.mcp.gitlab.token),
 //     for the URL of the GitLab MCP ([mcp.gitlab] url, project, or team), else gitlab.com
 //  6. the former tracker key openhub.tracker.gitlab.token, for tracker_token_url, else for the tracker
@@ -165,26 +179,46 @@ func (s *Service) completeQuery(r *tokenRequest) {
 	if s.Config != nil {
 		q.MCPKey = s.Config.MCP.Gitlab.Token
 	}
-	repo, statePath := s.teamRepoOf(q.TeamID, r.project)
+	repo, statePath, declared := s.teamRepoOf(q.TeamID, r.project)
 	if r.teamRepo != "" {
 		repo = r.teamRepo
 	}
-	q.TeamServer = tracker.ServerOf(repo)
+	q.TeamServer = teamGitLabServer(repo, firstNonEmpty(r.teamServer, declared))
 	if s.Config != nil {
 		q.MCPServer, q.MCPImplicit = tracker.MCPServerOf(
 			tracker.MCPGitLabURL(s.Config.MCP.Gitlab, sharedGitLabMCP(statePath), r.project, q.TeamID))
 	}
 }
 
-// teamRepoOf returns the team-state repository and clone path of a team: the
-// team of the project, else the team of hub.toml with this ID, else the one
-// whose repository has this name.
-func (s *Service) teamRepoOf(teamID string, project *domain.Project) (remote, statePath string) {
+// teamGitLabServer is the server where the token of a team is valid: the
+// GitLab declared for the team (gitlab_url) when there is one, else the host of
+// its team-state repository.
+func teamGitLabServer(repo, declared string) string {
+	if s := tracker.ServerOf(declared); s != "" {
+		return s
+	}
+	return tracker.ServerOf(repo)
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+// teamRepoOf returns the team-state repository, the clone path and the GitLab
+// server declared (gitlab_url, "" when none) of a team: the team of the
+// project, else the team of hub.toml with this ID, else the one whose
+// repository has this name.
+func (s *Service) teamRepoOf(teamID string, project *domain.Project) (remote, statePath, gitlabURL string) {
 	if s.Config == nil || teamID == "" {
-		return "", ""
+		return "", "", ""
 	}
 	if tc := s.ResolveTeam(project); tc.TeamID == teamID {
-		return tc.StateRepo, tc.StatePath
+		return tc.StateRepo, tc.StatePath, tc.GitLabURL
 	}
 	t := s.Config.FindTeam(teamID)
 	if t == nil {
@@ -196,12 +230,12 @@ func (s *Service) teamRepoOf(teamID string, project *domain.Project) (remote, st
 		}
 	}
 	if t == nil {
-		return "", ""
+		return "", "", ""
 	}
 	if t.StatePath == "" {
-		return t.StateRepo, config.DefaultTeamStatePath()
+		return t.StateRepo, config.DefaultTeamStatePath(), t.GitLabURL
 	}
-	return t.StateRepo, t.StatePath
+	return t.StateRepo, t.StatePath, t.GitLabURL
 }
 
 // sharedGitLabMCP reads the [mcp.gitlab] recommendation of the team-state
@@ -221,7 +255,7 @@ func sharedGitLabMCP(statePath string) *teamstate.SharedMCPConfig {
 // the server of the MCP tokens ("" when no url is set for it).
 func (s *Service) GitLabMCPURL(project *domain.Project) string {
 	tc := s.ResolveTeam(project)
-	_, statePath := s.teamRepoOf(tc.TeamID, project)
+	_, statePath, _ := s.teamRepoOf(tc.TeamID, project)
 	return tracker.MCPGitLabURL(s.Config.MCP.Gitlab, sharedGitLabMCP(statePath), project, tc.TeamID)
 }
 
@@ -268,7 +302,9 @@ func loadTeamConfig(statePath string) *teamstate.TeamConfig {
 }
 
 // TeamRepoServer is the server of the team-state repository of the team of
-// project (its host): where the token of the team is valid. Empty without team.
+// project (the GitLab declared for the team, else the host of the remote):
+// where the token of the team is valid. Empty without team.
 func (s *Service) TeamRepoServer(project *domain.Project) string {
-	return tracker.ServerOf(s.ResolveTeam(project).StateRepo)
+	tc := s.ResolveTeam(project)
+	return teamGitLabServer(tc.StateRepo, tc.GitLabURL)
 }

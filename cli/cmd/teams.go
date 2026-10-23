@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
@@ -77,6 +78,7 @@ func init() {
 	teamsAddCmd.Flags().String("member-id", "", i18n.T("cmd.teams.add.flags.member_id"))
 	teamsAddCmd.Flags().String("id", "", i18n.T("cmd.teams.add.flags.id"))
 	teamsAddCmd.Flags().String("name", "", i18n.T("cmd.teams.add.flags.name"))
+	teamsAddCmd.Flags().String("gitlab-url", "", i18n.T("cmd.team.rejoin.flags.gitlab_url"))
 
 	addYesFlag(teamsRemoveCmd)
 	deprecateForceAsYes(teamsRemoveCmd, true)
@@ -156,6 +158,11 @@ func runTeamsAdd(cmd *cobra.Command, _ []string) error {
 	memberID, _ := cmd.Flags().GetString("member-id")
 	id, _ := cmd.Flags().GetString("id")
 	name, _ := cmd.Flags().GetString("name")
+	gitlabURL, _ := cmd.Flags().GetString("gitlab-url")
+	gitlabURL = strings.TrimSpace(gitlabURL)
+	if msg := teamGitLabURLProblem(gitlabURL); msg != "" {
+		return errors.New(msg)
+	}
 
 	if repo == "" {
 		return errors.New(i18n.T("cmd.teams.add.repo_required"))
@@ -192,6 +199,7 @@ func runTeamsAdd(cmd *cobra.Command, _ []string) error {
 		StateRepo: repo,
 		StatePath: config.TeamStatePath(repo),
 		MemberID:  memberID,
+		GitLabURL: gitlabURL,
 	}
 
 	if err := updateHubConfig(a, func(c *config.Config) error {

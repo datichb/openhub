@@ -38,6 +38,10 @@ type InitParams struct {
 	GitLabUsername     string
 	MattermostUsername string
 	Role               string
+	// GitLabURL is the GitLab that hosts StateRepo when the remote goes
+	// through an SSH alias (empty = the host of the remote, or the one already
+	// declared for the same repository).
+	GitLabURL string
 }
 
 // Init joins a team: clones (or pulls) the team-state, creates its structure
@@ -75,21 +79,24 @@ func (s *Service) Init(ctx context.Context, p InitParams) error {
 		return &InitError{Step: StepAddMember, Err: err}
 	}
 
-	if err := s.SaveTeam(p.StateRepo, statePath, p.MemberID); err != nil {
+	if err := s.SaveTeam(p.StateRepo, statePath, p.MemberID, p.GitLabURL); err != nil {
 		return &InitError{Step: StepWriteConfig, Err: err}
 	}
 	return nil
 }
 
 // SaveTeam writes the team of stateRepo in hub.toml (enabled, its ID is the
-// name of the repository) and clears the legacy [team] section.
-func (s *Service) SaveTeam(stateRepo, statePath, memberID string) error {
+// name of the repository) and clears the legacy [team] section. gitlabURL is
+// the GitLab of the repository when its remote is an SSH alias; empty keeps
+// the one already declared for the same repository.
+func (s *Service) SaveTeam(stateRepo, statePath, memberID, gitlabURL string) error {
 	team := config.TeamConfig{
 		ID:        config.RepoNameFromRemote(stateRepo),
 		Enabled:   true,
 		StateRepo: stateRepo,
 		StatePath: statePath,
 		MemberID:  memberID,
+		GitLabURL: gitlabURL,
 	}
 	fresh, err := config.UpdateAndGet(func(c *config.Config) error {
 		c.UpsertTeam(team)

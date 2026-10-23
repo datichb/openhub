@@ -293,12 +293,11 @@ func configureTrackerSync(ctx context.Context, a *app.App, repo *teamstate.Repo,
 		trackerURL := askInput(out, i18n.T("cmd.team_config.instance_url_e_g_https_gitlab"), defaultURL)
 		teamCfg.Tracker.TrackerURL = trackerURL
 
-		// Tracker token — determine the keychain key
-		trackerTokenKey := teamCfg.Tracker.TrackerTokenKey
-		if trackerTokenKey == "" {
-			trackerTokenKey = "openhub.tracker." + teamCfg.Tracker.Type + ".token"
-		}
-		teamCfg.Tracker.TrackerTokenKey = trackerTokenKey
+		// Tracker token — where it is (key and server), said by the user:
+		// nothing is filled in on their behalf.
+		ask := func(prompt, def string) string { return askInput(out, prompt, def) }
+		teamCfg.Tracker.TrackerTokenKey, teamCfg.Tracker.TrackerTokenURL = askTrackerTokenDecl(
+			out, ask, declTeam, teamCfg.Tracker.Type, teamCfg.Tracker.TrackerTokenKey, teamCfg.Tracker.TrackerTokenURL)
 
 		// Check if token exists, prompt if not
 		src := trackerCredentials(a, teamCfg)
@@ -308,10 +307,20 @@ func configureTrackerSync(ctx context.Context, a *app.App, repo *teamstate.Repo,
 			if askYN(out, i18n.T("cmd.team_config.set_up_a_token_for_this"), true) {
 				token := askInput(out, "Token d'accès "+teamCfg.Tracker.Type, "")
 				if token != "" {
-					if err := a.Secrets.Set(ctx, trackerTokenKey, token); err != nil {
+					tokenKey := teamCfg.Tracker.TrackerTokenKey
+					if tokenKey == "" {
+						// No key declared: the default key is where GitLab reads it for
+						// the tracker's server; Jira only reads a declared key.
+						tokenKey = tracker.DefaultTokenKey(teamCfg.Tracker.Type)
+						if trackerType == tracker.TypeJira {
+							teamCfg.Tracker.TrackerTokenKey = tokenKey
+							fmt.Fprint(out, i18n.Tf("cmd.init.wizard_tracker_decl_key_declared", tokenKey))
+						}
+					}
+					if err := a.Secrets.Set(ctx, tokenKey, token); err != nil {
 						fmt.Fprint(out, i18n.Tf("cmd.team_config.token_storage_error", theme.WarningStyle.Render(theme.IconWarning), err))
 					} else {
-						fmt.Fprint(out, i18n.Tf("cmd.team_config.token_stored_in_the_keychain", theme.SuccessStyle.Render(theme.IconSuccess), trackerTokenKey))
+						fmt.Fprint(out, i18n.Tf("cmd.team_config.token_stored_in_the_keychain", theme.SuccessStyle.Render(theme.IconSuccess), tokenKey))
 						// Re-test connection
 						src = trackerCredentials(a, teamCfg)
 						fmt.Fprint(out, i18n.T("cmd.team_config.testing_the_connection_again"))
@@ -491,6 +500,29 @@ func configureTrackerSync(ctx context.Context, a *app.App, repo *teamstate.Repo,
 				writeLocalLog(config.ConfigPath(), "tracker.push_labels", "true")
 			} else {
 				writeLocalLog(config.ConfigPath(), "tracker.push_labels", "false")
+			}
+		}
+
+		// the personal declaration of the token (key and server together)
+		curKey, curServer := a.Config.Tracker.TokenDecl()
+		key, server := askTrackerTokenDecl(out, func(prompt, def string) string { return askInput(out, prompt, def) },
+			declLocal, teamCfg.Tracker.Type, curKey, curServer)
+		if key != curKey || server != curServer {
+			if err := updateHubConfig(a, func(c *config.Config) error {
+				c.Tracker.SetTokenDecl(key, server)
+				return nil
+			}); err != nil {
+				fmt.Fprintf(os.Stderr, "  warning: %v\n", err)
+			}
+		}
+
+		// the real GitLab of the team repository, when its remote is an SSH alias
+		if tc := a.Config.ActiveTeam(); tc.StateRepo != "" && !teamstate.IsHTTPS(tc.StateRepo) {
+			url := askTeamGitLabURL(out, func(prompt, def string) string { return askInput(out, prompt, def) }, tc.GitLabURL)
+			if url != tc.GitLabURL {
+				if err := setTeamGitLabURL(a, tc.ID, url); err != nil {
+					fmt.Fprintf(os.Stderr, "  warning: %v\n", err)
+				}
 			}
 		}
 

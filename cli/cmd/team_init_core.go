@@ -20,6 +20,7 @@ type teamInitParams struct {
 	GitLabUsername     string
 	MattermostUsername string
 	Role               string
+	GitLabURL          string // GitLab of the repository when its remote is an SSH alias
 }
 
 // teamInitCore performs the git+member+config operations of the team step of

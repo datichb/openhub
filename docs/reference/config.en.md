@@ -414,6 +414,7 @@ member_id = "alice.dupont"
 | `enabled` | bool | No | Enable / disable this team |
 | `state_repo` | string | Yes (except solo) | Git URL of the team-state repo |
 | `state_path` | string | No | Local clone path (derived from `state_repo`) |
+| `gitlab_url` | string | No | Real GitLab of the team repository when `state_repo` goes through an SSH alias (`git@my-alias:…`): the alias is a name of `~/.ssh/config`, not a server. The token of the team is then valid for that GitLab. Specific to the machine, empty = the host of `state_repo`. Set in `oh init`, `oh team rejoin --gitlab-url`, `oh teams add --gitlab-url`, `oh team config` (local) and the `team-detail` view |
 | `member_id` | string | Yes | Your identity in `members.toml` |
 | `solo` | bool | No | Solo space (see below) |
 
@@ -558,11 +559,17 @@ This file is versioned in the team-state repository — **not** in `hub.toml`.
 ```toml
 [claim]
 done_retention_days = 7
+lease_hours = 24
+heartbeat_minutes = 60
 ```
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `done_retention_days` | int | `7` | Days a claim stays `done` before being purged (`CleanupDoneClaims`) |
+| `lease_hours` | int | `24` | Lease of a claim without activity, from 1 to 168 hours |
+| `heartbeat_minutes` | int | `60` | Period of the automatic renewal of the lease; `0` = off, otherwise 5 to 1440 and at most half the lease |
+
+`lease_hours` and `heartbeat_minutes` are set in the `team-detail` view (Collaboration), which refuses an invalid combination (`ClaimConfig.Validate`).
 
 ### `[tracker]` section
 
@@ -593,7 +600,7 @@ write_enabled = false        # tracker writes (labels, assignment)
 | `enabled` | bool | `false` | Enable the integration |
 | `type` | string | — | `"gitlab"` or `"jira"` (`type_enforced` to enforce it) |
 | `tracker_url` | string | empty | Tracker instance, independent from the MCP |
-| `tracker_token_key` | string | `openhub.tracker.<type>.token` | Keychain key of the token (otherwise the token of the team or of the MCP, for their own server) |
+| `tracker_token_key` | string | empty | Keychain key of the token, declared by the user: nothing is filled in for them. Without a key, GitLab reads `openhub.tracker.gitlab.token` for the tracker's server (then the token of the team or of the MCP, for their own server); Jira only reads the declared key. Set in `oh init`, `oh team rejoin`, `oh team config` and `team-detail` |
 | `tracker_token_url` | string | empty | Server the token of `tracker_token_key` (and of the former tracker key) is valid for, e.g. `https://gitlab.example.com`. Without it the key is valid for the tracker (see [the server of each token](#the-server-of-each-gitlab-token)) |
 | `tracker_project` | string | empty | Default tracker project (overridable per project) |
 | `ticket_pattern` | string | empty | Regex with **one capture group** extracting the IID |
@@ -625,7 +632,7 @@ A GitLab token is only sent to the server it was issued for. When the team repos
 | Environment variable | `GITLAB_TOKEN` | **must be declared**: `OH_GITLAB_URL`, otherwise `GITLAB_URL` | `export OH_GITLAB_URL=https://gitlab.example.com` |
 | `tracker_token_key` and former tracker key | the key you set, `openhub.tracker.gitlab.token` | `tracker_token_url` when declared; otherwise (**implicit**) the tracker: the `tracker_url` of the level that sets the key, else the effective `tracker_url` (then `GITLAB_URL`, then gitlab.com) | `[tracker] tracker_token_url` of `hub.toml` or of the team config; `oh config set tracker.tracker_token_url <url>` |
 | Project token, hub MCP token | `openhub.mcp.gitlab.token.<project>`, key of `[mcp.gitlab] token_key`, `openhub.mcp.gitlab.token` | the URL of the GitLab MCP (project, `[mcp.gitlab] url`, otherwise the URL recommended by the team); with no URL (**implicit**) `https://gitlab.com`, where the GitLab MCP server goes then | `oh config set mcp.gitlab.url <url>` |
-| Team token | `openhub.team.<team>.gitlab.token` | the host of the team repository (`state_repo`) | nothing to declare |
+| Team token | `openhub.team.<team>.gitlab.token` | `gitlab_url` of the team when declared (repository reached through an SSH alias); otherwise the host of the team repository (`state_repo`) | `[[teams]] gitlab_url` of `hub.toml`; nothing to declare when `state_repo` holds the real host |
 
 **Rule.** A source whose server is neither declared nor implicit is never used: only a lone `GITLAB_TOKEN` is strict (it needs `OH_GITLAB_URL` or `GITLAB_URL`). A declared server beats the implicit one. The implicit server of the tracker key only serves the tracker: a key set next to a `tracker_url` does not answer for another server (nor for the GitLab of the MCP). Servers are compared ignoring case, scheme (`https://h`, `http://h` and `h` are the same server), a default port (`80`, `443`), a trailing `/`, the path and the user; a non-standard port counts (`h:8443` ≠ `h`). For an `ssh://` or `git@host:path` repository only the host counts (the port is git's, not the API's). Two GitLab instances on one host that differ only by a path prefix are therefore the same server.
 

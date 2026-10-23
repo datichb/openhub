@@ -34,13 +34,13 @@ func TestSaveTeamAddsOrReplacesWithoutTouchingTheOthers(t *testing.T) {
 	require.NoError(t, config.Save(cfg))
 	svc := New(cfg, nil, nil)
 
-	require.NoError(t, svc.SaveTeam("git@gitlab.com:beta/beta.git", "/beta", "bob"))
+	require.NoError(t, svc.SaveTeam("git@gitlab.com:beta/beta.git", "/beta", "bob", ""))
 	teams := reload(t)
 	require.Len(t, teams, 3)
 	assert.True(t, teams["solo"].Solo)
 	assert.Equal(t, config.TeamConfig{ID: "beta", Enabled: true, StateRepo: "git@gitlab.com:beta/beta.git", StatePath: "/beta", MemberID: "bob"}, teams["beta"])
 
-	require.NoError(t, svc.SaveTeam("git@gitlab.com:acme/acme.git", "/acme-new", "carol"))
+	require.NoError(t, svc.SaveTeam("git@gitlab.com:acme/acme.git", "/acme-new", "carol", ""))
 	teams = reload(t)
 	require.Len(t, teams, 3, "the team of the same repo is replaced, not duplicated")
 	assert.Equal(t, "Acme", teams["acme"].Name)
@@ -94,4 +94,18 @@ func TestInitFailureNamesTheStep(t *testing.T) {
 	require.ErrorAs(t, err, &ie)
 	assert.Equal(t, StepClone, ie.Step)
 	assert.Empty(t, cfg.Teams, "hub.toml is not touched when the clone fails")
+}
+
+// The GitLab of an aliased repository is written with the team, and kept when
+// the same repository is joined again without it.
+func TestSaveTeamKeepsTheGitLabOfTheRepository(t *testing.T) {
+	configtest.Home(t)
+	cfg := &config.Config{}
+	svc := New(cfg, nil, nil)
+
+	require.NoError(t, svc.SaveTeam("git@mon-alias:acme/core.git", "/core", "alice", "https://gitlab.corp.example"))
+	assert.Equal(t, "https://gitlab.corp.example", cfg.FindTeam("core").GitLabURL)
+
+	require.NoError(t, svc.SaveTeam("git@mon-alias:acme/core.git", "/core", "alice", ""))
+	assert.Equal(t, "https://gitlab.corp.example", cfg.FindTeam("core").GitLabURL)
 }

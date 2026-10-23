@@ -54,18 +54,23 @@ On failure (missing or non-empty repository, access denied), the space stays sol
 Rejoins an existing team after reinstalling the hub: clones the team-state repository, verifies the identity through GitLab and restores the configuration. Do not run it while the TUI performs team operations on the same clone (the lock does not protect against another process).
 
 ```
-oh team rejoin [--repo <url>] [--member-id <id>] [--no-retro-tag]
+oh team rejoin [--repo <url>] [--member-id <id>] [--gitlab-url <url>] [--no-retro-tag]
 ```
 
 | Flag | Type | Description |
 |------|------|-------------|
 | `--repo` | string | Team-state git repository URL |
 | `--member-id` | string | Member id (interactive if omitted) |
+| `--gitlab-url` | string | Real GitLab of the repository when its address is an SSH alias (`git@my-alias:…`); saved in `hub.toml` (`gitlab_url`) and used for the identity check |
 | `--no-retro-tag` | bool | Do not link existing sessions to your identity |
+
+The `oh init` (team group) and `oh team rejoin` (TUI) wizards ask for the GitLab of the repository (optional) and, if you keep the team's tracker while no token serves that tracker's server, where your token is: keychain key, server and token. The key and the server are written to `[tracker]` of `hub.toml` (`tracker_token_key`, `tracker_token_url`) when the configuration in force does not already give them; the default GitLab key (`openhub.tracker.gitlab.token`) needs no declaration, the Jira one does.
 
 ### oh team config
 
 Wizard configuring the shared MCP services (GitLab, Jira…) and the tracker sync, at team and/or local level. `oh team config status` shows the effective configuration (team + local resolution).
+
+For *Tracker sync*, the wizard asks where the tracker token is: the keychain key (`tracker_token_key`) and, for GitLab, the server it is valid for (`tracker_token_url`, empty = the tracker's server). **It no longer fills in the key by itself**: a key left empty stays empty, and the wizard says what is read then (GitLab: `openhub.tracker.gitlab.token` for the tracker's server; Jira: nothing). At local level the personal declaration replaces the team's (key and server together; `-` clears), and, if the team repository is reached through an SSH alias, the real GitLab of the repository (`gitlab_url`).
 
 ```bash
 oh team config
@@ -205,7 +210,7 @@ The command, the sync key of the team screens (`s`) and the automatic sync follo
   | 5 | Hub MCP token | key of `[mcp.gitlab] token`, then `openhub.mcp.gitlab.token` (and its former name `gitlab-token`) |
   | 6 | Former tracker key | `openhub.tracker.gitlab.token` |
 
-  **Every source is tied to a server and only answers for it** (v5.1): the token of the team repository is never sent to a tracker that is on another GitLab. The server of the environment variable is `OH_GITLAB_URL` (otherwise `GITLAB_URL`): with neither, `GITLAB_TOKEN` is used nowhere. That of `tracker_token_key` and of the former tracker key is `tracker_token_url`, otherwise (implicit) the tracker; that of the MCP tokens is `[mcp.gitlab] url`, otherwise (implicit) `https://gitlab.com`; that of the team token is the host of `state_repo`. With no token for the server being called, the command stops naming the server, the sources read and the command that declares the key; see [the server of each GitLab token](config.en.md#the-server-of-each-gitlab-token). A refusal by the server (HTTP 401 / 403) names the source, the key and the server. `oh team config status` reads the same order (key and server of `hub.toml` included) and prints `token_key` and `token_url`.
+  **Every source is tied to a server and only answers for it** (v5.1): the token of the team repository is never sent to a tracker that is on another GitLab. The server of the environment variable is `OH_GITLAB_URL` (otherwise `GITLAB_URL`): with neither, `GITLAB_TOKEN` is used nowhere. That of `tracker_token_key` and of the former tracker key is `tracker_token_url`, otherwise (implicit) the tracker; that of the MCP tokens is `[mcp.gitlab] url`, otherwise (implicit) `https://gitlab.com`; that of the team token is the `gitlab_url` of the team when declared (repository reached through an SSH alias), otherwise the host of `state_repo`. With no token for the server being called, the command stops naming the server, the sources read and the command that declares the key; see [the server of each GitLab token](config.en.md#the-server-of-each-gitlab-token). A refusal by the server (HTTP 401 / 403) names the source, the key and the server. `oh team config status` reads the same order (key and server of `hub.toml` included) and prints `token_key` and `token_url`.
 
   Jira keeps its own order (`JIRA_TOKEN`, then `tracker_token_key`).
 
@@ -281,6 +286,7 @@ oh teams add --repo git@github.com:org/team-state.git --member-id alice
 | `--member-id` | string | Your member id in the team |
 | `--id` | string | Local team id (derived from the repository if omitted) |
 | `--name` | string | Display name (optional) |
+| `--gitlab-url` | string | Real GitLab of the repository when its address is an SSH alias (optional) |
 
 ### oh teams remove
 

@@ -23,6 +23,10 @@ type teamRejoinParams struct {
 	StateRepo string // Git remote URL of the team-state repo
 	StatePath string // local clone path (empty = use default)
 	MemberID  string // ID of the existing member to rejoin as
+	// GitLabURL is the GitLab that hosts the repository when its remote goes
+	// through an SSH alias (empty = the host of the remote, or the one already
+	// declared for this repository in hub.toml).
+	GitLabURL string
 }
 
 // teamRejoinResult holds the output of a successful rejoin operation.
@@ -87,7 +91,7 @@ func teamRejoinCore(ctx context.Context, a *app.App, p teamRejoinParams) (*teamR
 
 	// Validate identity via GitLab token (if available)
 	var identityMismatch *identityMismatchError
-	if err := validateGitLabIdentity(ctx, a, repo, member); err != nil {
+	if err := validateGitLabIdentityAt(ctx, a, repo, member, firstNonEmpty(p.GitLabURL, registeredGitLabURL(a, p.StateRepo))); err != nil {
 		if errors.As(err, &identityMismatch) {
 			// Identity mismatch — store for caller to handle interactively.
 			// Don't block the rejoin; the caller will show a step for the user
@@ -111,21 +115,13 @@ func teamRejoinCore(ctx context.Context, a *app.App, p teamRejoinParams) (*teamR
 		StateRepo: p.StateRepo,
 		StatePath: statePath,
 		MemberID:  p.MemberID,
+		GitLabURL: p.GitLabURL,
 	}
 
-	// Check if this team already exists in the config (update it) or add new
+	// Check if this team already exists in the config (update it, its declared
+	// GitLab kept for the same repository) or add new
 	if err := updateHubConfig(a, func(c *config.Config) error {
-		found := false
-		for i, t := range c.Teams {
-			if t.StateRepo == p.StateRepo || t.ID == teamID {
-				c.Teams[i] = newTeam
-				found = true
-				break
-			}
-		}
-		if !found {
-			c.Teams = append(c.Teams, newTeam)
-		}
+		c.UpsertTeam(newTeam)
 		// Clear legacy field
 		c.Team = config.TeamConfig{}
 		return nil
@@ -160,6 +156,13 @@ func teamRejoinCore(ctx context.Context, a *app.App, p teamRejoinParams) (*teamR
 // (not the tracker instance, which may be different).
 // Returns nil if validation succeeds or if no GitLab token is available (with warning).
 func validateGitLabIdentity(ctx context.Context, a *app.App, repo *teamstate.Repo, member *teamstate.Member) error {
+	return validateGitLabIdentityAt(ctx, a, repo, member, registeredGitLabURL(a, repo.Remote()))
+}
+
+// validateGitLabIdentityAt is validateGitLabIdentity for a repository whose
+// remote is an SSH alias: gitlabURL is the GitLab it really is on (empty = the
+// host of the remote).
+func validateGitLabIdentityAt(ctx context.Context, a *app.App, repo *teamstate.Repo, member *teamstate.Member, gitlabURL string) error {
 	if member.GitLabUsername == "" {
 		// Member has no GitLab username configured — skip validation
 		return nil
@@ -167,7 +170,7 @@ func validateGitLabIdentity(ctx context.Context, a *app.App, repo *teamstate.Rep
 
 	// Resolve the GitLab base URL from the team-state repo remote.
 	// The member's gitlab_username belongs to this instance, not the tracker.
-	baseURL := gitlabBaseURLFromRemote(repo.Remote())
+	baseURL := gitlabCalledURL(repo.Remote(), gitlabURL)
 	if baseURL == "" {
 		slog.Warn("GitLab identity validation skipped: cannot determine GitLab URL from repo remote",
 			"member", member.ID,
@@ -178,7 +181,7 @@ func validateGitLabIdentity(ctx context.Context, a *app.App, repo *teamstate.Rep
 
 	// Resolve the token: env → team-specific key → MCP key → tracker key
 	teamID := config.RepoNameFromRemote(repo.Remote())
-	res := gitlabTeamToken(ctx, a, teamID, repo.Remote())
+	res := gitlabTeamTokenAt(ctx, a, teamID, repo.Remote(), gitlabURL)
 	if !res.Found() {
 		slog.Warn("GitLab identity validation skipped: no token available for the server",
 			"member", member.ID,
@@ -244,17 +247,53 @@ func gitlabBaseURLFromRemote(remote string) string {
 	return ""
 }
 
+// gitlabCalledURL is the GitLab that hosts a team-state repository: the one
+// the member declared when the remote goes through an SSH alias, else the host
+// of the remote.
+func gitlabCalledURL(remote, declared string) string {
+	if d := strings.TrimSpace(declared); d != "" && tracker.ServerOf(d) != "" {
+		if !strings.Contains(d, "://") {
+			d = "https://" + d
+		}
+		return strings.TrimRight(d, "/")
+	}
+	return gitlabBaseURLFromRemote(remote)
+}
+
+// registeredGitLabURL is the GitLab declared in hub.toml for the team whose
+// team-state repository is repo ("" when none).
+func registeredGitLabURL(a *app.App, repo string) string {
+	if a == nil || a.Config == nil || repo == "" {
+		return ""
+	}
+	if t := a.Config.FindTeamByRepo(repo); t != nil {
+		return t.GitLabURL
+	}
+	if a.Config.Team.StateRepo == repo {
+		return a.Config.Team.GitLabURL
+	}
+	return ""
+}
+
 // gitlabTeamToken finds the GitLab token that serves the GitLab of the
 // team-state repository repo of the team teamID: the unique cascade of the
 // team service for that server (GITLAB_TOKEN declared for it, the token of the
 // team, the hub MCP token or the former tracker key declared for it). The
 // result holds no token when none serves that server.
 func gitlabTeamToken(ctx context.Context, a *app.App, teamID, repo string) teamsvc.GitLabTokenResult {
+	return gitlabTeamTokenAt(ctx, a, teamID, repo, registeredGitLabURL(a, repo))
+}
+
+// gitlabTeamTokenAt is gitlabTeamToken for a team that is not in hub.toml yet
+// (oh team rejoin): gitlabURL is the GitLab the repository really is on when
+// its remote is an SSH alias.
+func gitlabTeamTokenAt(ctx context.Context, a *app.App, teamID, repo, gitlabURL string) teamsvc.GitLabTokenResult {
 	svc := teamsvc.New(&config.Config{}, nil, nil)
 	if a != nil {
 		svc = teamService(a)
 	}
-	return svc.GitLabToken(ctx, teamID, gitlabBaseURLFromRemote(repo), teamsvc.WithTeamRepo(repo))
+	return svc.GitLabToken(ctx, teamID, gitlabCalledURL(repo, gitlabURL),
+		teamsvc.WithTeamRepo(repo), teamsvc.WithTeamServer(gitlabURL))
 }
 
 // listTeamMembers clones/pulls the team-state repo and returns the list of members.

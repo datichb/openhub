@@ -71,7 +71,7 @@ func makeResolveTeamFunc(a *app.App) views.ResolveTeamFunc {
 		if tuiShell != nil && tuiShell.Mode() == views.ModeTeam && tuiShell.ActiveTeam() != nil {
 			if t := a.Config.FindTeam(tuiShell.ActiveTeam().ID); t != nil {
 				return views.TeamResolution{Enabled: t.Enabled && !t.Solo, StateRepo: t.StateRepo, StatePath: t.StatePath, MemberID: t.MemberID,
-					Solo: t.Solo, TeamID: t.ID}
+					GitLabURL: t.GitLabURL, Solo: t.Solo, TeamID: t.ID}
 			}
 		}
 		project, _ := resolveActiveProject(a)
@@ -80,6 +80,7 @@ func makeResolveTeamFunc(a *app.App) views.ResolveTeamFunc {
 			Enabled:   tc.Enabled,
 			StateRepo: tc.StateRepo,
 			StatePath: tc.StatePath,
+			GitLabURL: tc.GitLabURL,
 			MemberID:  tc.MemberID,
 			Solo:      tc.Solo,
 			TeamID:    tc.TeamID,

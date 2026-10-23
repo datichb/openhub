@@ -106,6 +106,6 @@ func TestBuildInitWizardTeamSteps_FormRendering(t *testing.T) {
 	tvApp := tview.NewApplication()
 	form := steps[0].Form(tvApp, func() {})
 	require.NotNil(t, form)
-	assert.Equal(t, 3, form.GetFormItemCount(), "form should have 3 fields: Repo, MemberID, DisplayName")
+	assert.Equal(t, 5, form.GetFormItemCount(), "form should have 5 items: Repo, MemberID, DisplayName, the GitLab of an aliased repo and its hint")
 	assert.Equal(t, 1, form.GetButtonCount(), "form should have 1 submit button")
 }
