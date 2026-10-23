@@ -29,6 +29,12 @@ import (
 //
 // Keys reach the list through its table (InputCapture); a view that owns
 // the keys of its screen may also forward them with HandleKey.
+//
+// With ActionListConfig.Filter the list is filterable: / asks words, the list
+// keeps the elements that hold all of them (the query is shown in the title),
+// Esc clears the filter before it leaves the view. The elements stay in the
+// list (Items, Len); the ones shown are Visible, and the global actions apply
+// to those.
 type ActionList struct {
 	cfg     ActionListConfig
 	root    *tview.Flex
@@ -37,11 +43,14 @@ type ActionList struct {
 	footer  *tview.TextView
 	detail  *tview.TextView
 
+	title   string
+	query   string // words of the filter (cfg.Filter), trimmed
 	items   []ActionItem
 	rowItem []int    // table row → item index (-1: header, section, empty)
 	rows    []string // row texts without the selection marker
 	widths  []int
 	marked  int // row with the marker (-1: none)
+	shown   int // elements shown (the filter hides the others)
 }
 
 // ItemState is the state of an element. The list knows the usual ones
@@ -111,6 +120,17 @@ type GlobalAction struct {
 	Run     func(items []ActionItem)
 }
 
+// ActionListFilter makes an ActionList filterable.
+type ActionListFilter struct {
+	// Prompt is the title of the input that asks the words (default: the
+	// common text, tui.state.filter_prompt).
+	Prompt string
+	// Match tells whether an element passes the query (the words typed, as
+	// they are). Default: every word is found, whatever the case, in the ID,
+	// the section, the cells or the label of the state of the element.
+	Match func(it ActionItem, query string) bool
+}
+
 // ActionListLayout places the detail pane.
 type ActionListLayout int
 
@@ -137,13 +157,16 @@ type ActionListConfig struct {
 	// StateLabels replace the labels of states (plain text, e.g. feminine
 	// forms « acceptée »), or name the states of the view.
 	StateLabels map[ItemState]string
-	// Empty is the text shown without elements.
+	// Empty is the text shown without elements (default: the common text,
+	// tui.state.empty).
 	Empty string
 	// OnOpen runs on Enter (optional); OpenLabel is its hint label.
 	OnOpen    func(ActionItem)
 	OpenLabel string
 	// OnChange runs when the selection moves (optional).
 	OnChange func(ActionItem)
+	// Filter makes the list filterable with / (keys.Filter). Optional.
+	Filter *ActionListFilter
 
 	// Shell provides the confirmation, the instruction prompt and the
 	// toasts; Confirm, AskReason and Toast override them (an overlay that
@@ -151,7 +174,9 @@ type ActionListConfig struct {
 	Shell     ShellAccess
 	Confirm   func(title, detail string, danger bool, onYes func())
 	AskReason func(title string, onDone func(reason string))
-	Toast     func(msg string, ok bool)
+	// AskQuery overrides the input of the filter (current is the query now).
+	AskQuery func(title, current string, onDone func(query string))
+	Toast    func(msg string, ok bool)
 }
 
 // Validate reports a configuration that breaks the key convention: two
@@ -211,7 +236,7 @@ func (t *actionTable) Draw(screen tcell.Screen) {
 
 // NewActionList builds the list (empty: SetItems fills it).
 func NewActionList(cfg ActionListConfig) *ActionList {
-	l := &ActionList{cfg: cfg, marked: -1}
+	l := &ActionList{cfg: cfg, marked: -1, title: cfg.Title}
 	l.table = &actionTable{Table: tview.NewTable()}
 	l.table.SetSelectable(true, false).
 		SetSelectedStyle(tcell.StyleDefault.Background(theme.BgElement).Foreground(theme.FgPrimary)).
@@ -256,12 +281,80 @@ func (l *ActionList) Primitive() tview.Primitive { return l.root }
 // Focusable is the primitive to focus (the table).
 func (l *ActionList) Focusable() tview.Primitive { return l.table }
 
-// SetTitle sets the title of the list frame.
+// SetTitle sets the title of the list frame (the filter, when there is one,
+// is added to it).
 func (l *ActionList) SetTitle(title string) {
+	l.title = title
+	l.showTitle()
+}
+
+func (l *ActionList) showTitle() {
+	title := l.title
+	if l.query != "" {
+		title += " · /" + tview.Escape(l.query)
+	}
 	if title != "" {
 		title = " " + title + " "
 	}
 	l.listBox.SetTitle(title)
+}
+
+// SetQuery sets the words of the filter ("" shows every element); it does
+// nothing on a list without Filter. The selected element stays selected when
+// it passes.
+func (l *ActionList) SetQuery(q string) {
+	q = strings.TrimSpace(q)
+	if l.cfg.Filter == nil || q == l.query {
+		return
+	}
+	keep := l.currentID()
+	l.query = q
+	l.showTitle()
+	l.render(keep)
+}
+
+// Query is the words of the filter.
+func (l *ActionList) Query() string { return l.query }
+
+// passes tells whether an element is shown with the filter.
+func (l *ActionList) passes(it ActionItem) bool {
+	if l.query == "" || l.cfg.Filter == nil {
+		return true
+	}
+	if l.cfg.Filter.Match != nil {
+		return l.cfg.Filter.Match(it, l.query)
+	}
+	hay := strings.ToLower(strings.Join(append(append([]string{it.ID, it.Section}, it.Cells...), l.stateText(it)), " "))
+	for _, w := range strings.Fields(strings.ToLower(l.query)) {
+		if !strings.Contains(hay, w) {
+			return false
+		}
+	}
+	return true
+}
+
+// Visible returns the elements shown (all of them without a filter).
+func (l *ActionList) Visible() []ActionItem {
+	out := make([]ActionItem, 0, len(l.items))
+	for _, it := range l.items {
+		if l.passes(it) {
+			out = append(out, it)
+		}
+	}
+	return out
+}
+
+func (l *ActionList) askQuery() {
+	title := l.cfg.Filter.Prompt
+	if title == "" {
+		title = i18n.T("tui.state.filter_prompt")
+	}
+	switch {
+	case l.cfg.AskQuery != nil:
+		l.cfg.AskQuery(title, l.query, l.SetQuery)
+	case l.cfg.Shell != nil:
+		l.cfg.Shell.ShowInputModal(title, l.query, l.SetQuery)
+	}
 }
 
 // SetEmpty sets the text shown without elements (loading, error, none),
@@ -284,10 +377,10 @@ func (l *ActionList) SetItems(items []ActionItem) {
 	l.render(keep)
 }
 
-// Items returns the elements.
+// Items returns the elements, those the filter hides included.
 func (l *ActionList) Items() []ActionItem { return append([]ActionItem(nil), l.items...) }
 
-// Len is the number of elements.
+// Len is the number of elements, those the filter hides included.
 func (l *ActionList) Len() int { return len(l.items) }
 
 // Update changes an element in place (e.g. its state once the service
@@ -345,6 +438,9 @@ func (l *ActionList) Hints() string {
 	for _, g := range l.cfg.Global {
 		parts = append(parts, hintOf(g.Key, g.Label))
 	}
+	if l.cfg.Filter != nil {
+		parts = append(parts, keys.Filter.Hint())
+	}
 	if l.cfg.OnOpen != nil {
 		parts = append(parts, hintOf(keys.Open, l.cfg.OpenLabel))
 	}
@@ -361,6 +457,16 @@ func hintOf(a keys.Action, label string) string {
 // HandleKey runs the action of the key on the selected element; other keys
 // (moves) are returned.
 func (l *ActionList) HandleKey(ev *tcell.EventKey) *tcell.EventKey {
+	if l.cfg.Filter != nil {
+		switch {
+		case keys.Filter.Matches(ev):
+			l.askQuery()
+			return nil
+		case keys.Back.Matches(ev) && l.query != "":
+			l.SetQuery("") // the first Esc clears the filter, the next leaves
+			return nil
+		}
+	}
 	for _, a := range l.cfg.Actions {
 		if !a.Key.Matches(ev) {
 			continue
@@ -424,7 +530,7 @@ func (l *ActionList) runItem(a ItemAction, it ActionItem) {
 }
 
 func (l *ActionList) runGlobal(g GlobalAction) {
-	items := l.Items()
+	items := l.Visible()
 	if g.Confirm == nil {
 		g.Run(items)
 		return
@@ -576,14 +682,32 @@ func (l *ActionList) render(keepID string) {
 		fixed = 1
 	}
 	t.SetFixed(fixed, 0)
-	if len(l.items) == 0 {
-		add("  "+tview.Escape(l.cfg.Empty), -1, false, theme.TextMutedHex)
+	shown := 0
+	for _, it := range l.items {
+		if l.passes(it) {
+			shown++
+		}
+	}
+	if shown == 0 {
+		empty := l.cfg.Empty
+		if len(l.items) > 0 {
+			empty = i18n.Tf("tui.state.filter_none", l.query) // the filter hides them all
+		}
+		if empty == "" {
+			empty = i18n.T("tui.state.empty")
+		}
+		add("  "+tview.Escape(empty), -1, false, theme.TextMutedHex)
 		l.detail.SetTitle("")
 		l.detail.SetText("")
+		l.shown = 0
 		return
 	}
+	l.shown = shown
 	section := ""
 	for i, it := range l.items {
+		if !l.passes(it) {
+			continue
+		}
 		if it.Section != "" && it.Section != section {
 			add(theme.ColorTag(theme.ActiveMode.PrimaryHex)+tview.Escape(it.Section)+theme.TagColor, -1, false, "")
 		}
@@ -649,7 +773,7 @@ func (l *ActionList) selectionChanged(row int) {
 // updateFooter shows the position of the selection and how many elements
 // are below the visible rows.
 func (l *ActionList) updateFooter() {
-	if len(l.items) == 0 {
+	if l.shown == 0 {
 		l.footer.SetText("")
 		return
 	}
@@ -660,7 +784,7 @@ func (l *ActionList) updateFooter() {
 			pos++
 		}
 	}
-	text := i18n.Tf("tui.actionlist.position", pos, len(l.items))
+	text := i18n.Tf("tui.actionlist.position", pos, l.shown)
 	_, _, _, h := l.table.GetInnerRect()
 	offset, _ := l.table.GetOffset()
 	fixed := 0

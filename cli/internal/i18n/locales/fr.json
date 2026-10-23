@@ -1780,6 +1780,8 @@
   "tui.state.loading": "Chargement…",
   "tui.state.empty": "Rien à afficher.",
   "tui.state.error": "Impossible de charger : %s",
+  "tui.state.filter_prompt": "Filtrer (mots séparés par des espaces, vide pour tout afficher)",
+  "tui.state.filter_none": "Aucun élément ne correspond à « %s »",
   "tui.wizard.quit.title": "Quitter l'assistant ?",
   "tui.wizard.quit.quit": "Quitter",
   "tui.wizard.quit.skip": "Passer l'étape",

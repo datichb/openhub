@@ -1780,6 +1780,8 @@
   "tui.state.loading": "Loading…",
   "tui.state.empty": "Nothing to show.",
   "tui.state.error": "Could not load: %s",
+  "tui.state.filter_prompt": "Filter (words separated by spaces, empty to show everything)",
+  "tui.state.filter_none": "No element matches « %s »",
   "tui.wizard.quit.title": "Quit the wizard?",
   "tui.wizard.quit.quit": "Quit",
   "tui.wizard.quit.skip": "Skip the step",
