@@ -108,7 +108,7 @@ func init() {
 // background: Windows).
 func daemonOptions(ctx context.Context, a *app.App, capability string) daemon.Options {
 	wk := newWikiService()
-	return daemon.Options{
+	opts := daemon.Options{
 		Capability:  capability,
 		Paths:       daemon.Paths{Dir: ohRunDir()},
 		Version:     buildinfo.Version,
@@ -156,4 +156,6 @@ func daemonOptions(ctx context.Context, a *app.App, capability string) daemon.Op
 		},
 		Adapter: detectedAdapters(ctx),
 	}
+	claimsDaemonOptions(ctx, a, &opts)
+	return opts
 }
