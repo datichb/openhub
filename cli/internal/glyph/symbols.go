@@ -10,7 +10,10 @@ package glyph
 const (
 	// Success is a thing that worked, passed or is valid (green).
 	Success = "✔"
-	// Failure is a thing that failed or is invalid (red).
+	// Failure is a thing that failed or is invalid (red): a one-off error, a
+	// refused input, a decision of the error kind (DecisionError). A session
+	// that stopped on a failure is not Failure but the state glyph ⊗
+	// (RunFailed): ✗ is an event, ⊗ is how a run ended.
 	Failure = "✗"
 	// Inactive is a thing that is off or at rest: a disabled option, an idle
 	// session (grey). An empty or absent value is Absent, not Inactive.
@@ -34,9 +37,13 @@ const (
 	// Cursor is the row under the cursor of a list, and the start of a
 	// choice or an action (never a state).
 	Cursor = "▸"
-	// Selected is an element picked in a choice, single (radio, paired with
-	// Inactive for the others) or multiple.
+	// Selected is the element picked in a single choice (radio): the others
+	// are Inactive. A multiple choice uses SelectedMulti and UnselectedMulti.
 	Selected = "◉"
+	// SelectedMulti is an element ticked in a multiple choice (checkbox).
+	SelectedMulti = "☑"
+	// UnselectedMulti is an element not ticked in a multiple choice.
+	UnselectedMulti = "☐"
 )
 
 // Symbol is one row of the table of meanings.
@@ -59,4 +66,6 @@ var Symbols = []Symbol{
 	{"default", Default},
 	{"cursor", Cursor},
 	{"selected", Selected},
+	{"selected-multi", SelectedMulti},
+	{"unselected-multi", UnselectedMulti},
 }

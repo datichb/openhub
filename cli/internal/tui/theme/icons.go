@@ -14,7 +14,11 @@ import "github.com/datichb/openhub/cli/internal/glyph"
 //
 // A symbol stands for one thing. Where an Icon* below still has another
 // value for the same meaning, it says so (the screens are moved to the table
-// group by group; none of them is changed by this file).
+// group by group).
+//
+// Two failures: SymFailure ✗ is a one-off error (a refused input, a failed
+// check, glyph.Kinds DecisionError); a session that stopped on a failure is
+// ⊗ (glyph.ForState(domain.RunFailed)). The table of states is in glyph.
 
 const (
 	// SymSuccess: it worked, it passed, it is valid (green).
@@ -42,9 +46,16 @@ const (
 	// SymCursor: the row under the cursor of a list, the start of a choice or
 	// of an action. Never a state.
 	SymCursor = glyph.Cursor
-	// SymSelected: an element picked in a choice, single (radio, the others
-	// being SymInactive) or multiple.
+	// SymSelected: the element picked in a single choice (radio); the others
+	// are SymUnselected.
 	SymSelected = glyph.Selected
+	// SymUnselected: an element not picked in a single choice (radio). It is
+	// the symbol of SymInactive: ○ is the same "not on" in a choice.
+	SymUnselected = glyph.Inactive
+	// SymSelectedMulti and SymUnselectedMulti: an element ticked / not ticked
+	// in a multiple choice (checkbox).
+	SymSelectedMulti   = glyph.SelectedMulti
+	SymUnselectedMulti = glyph.UnselectedMulti
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -54,21 +65,21 @@ const (
 const (
 	// IconActive marks the currently active view/item (SymCurrent).
 	IconActive = SymCurrent
-	// IconDone marks a completed step. It differs from the table: ● is
-	// SymLive (running), a completed thing is SymSuccess.
-	IconDone = "●"
+	// IconDone marks a completed step (SymSuccess). ● is SymLive: running
+	// now, never completed.
+	IconDone = SymSuccess
 	// IconPending marks a future/pending step (SymInactive).
 	IconPending = SymInactive
-	// IconSkipped marks a skipped step.
-	IconSkipped = "◌"
-	// IconSuccess is a checkmark for success feedback. It differs from the
-	// table: the symbol of success is ✔ (SymSuccess), this one is ✓.
-	IconSuccess = "✓"
+	// IconSkipped marks a skipped step (SymAbsent). ◌ is a sleeping session.
+	IconSkipped = SymAbsent
+	// IconSuccess is a checkmark for success feedback (SymSuccess).
+	IconSuccess = SymSuccess
 	// IconError is a cross for error feedback (SymFailure).
 	IconError = SymFailure
-	// IconWarning is an exclamation for warnings. It differs from the table:
-	// the symbol of a warning is ⚠ (SymWarning), this one is !.
-	IconWarning = "!"
+	// IconWarning marks a warning (SymWarning). ⚠ has an ambiguous width in
+	// East Asian terminals: measure a column with runewidth or
+	// textfmt.ClipWidth, never len.
+	IconWarning = SymWarning
 	// IconInfo is an info indicator.
 	IconInfo = "ℹ"
 	// IconArrow is a pointer/expanded indicator (SymCursor).

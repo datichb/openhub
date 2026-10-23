@@ -305,7 +305,7 @@ Sections (`Tab` / `Shift+Tab`): **General**, **Graph**, **Inputs & prompt**, **R
 
 ## Brick catalogue
 
-`bricks` command (aliases `briques`, `agents`, `skills`). Read-only list of the agents and skills: origin (`hub`, `team`, `team ⟳ hub` when a team brick replaces the one of the hub, `(not sealed)`), version, state (`✓`, `!` problem, `✗`); the detail gives the publication (author, date), the agents and workflows using it, the cost, the problems and the `oh brick` commands to write it.
+`bricks` command (aliases `briques`, `agents`, `skills`). Read-only list of the agents and skills: origin (`hub`, `team`, `team ⟳ hub` when a team brick replaces the one of the hub, `(not sealed)`), version, state (`✔`, `⚠` problem, `✗`); the detail gives the publication (author, date), the agents and workflows using it, the cost, the problems and the `oh brick` commands to write it.
 
 | Key | Action |
 |-----|--------|

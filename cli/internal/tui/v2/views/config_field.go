@@ -160,7 +160,7 @@ func formatFieldValue(f configField, val string) string {
 	case CfgFieldBool:
 		switch val {
 		case "true":
-			return fmt.Sprintf("%s✓ %s%s", theme.ColorTag(theme.SuccessHex), i18n.T("tui.config.enabled"), reset)
+			return fmt.Sprintf("%s%s %s%s", theme.ColorTag(theme.SuccessHex), theme.SymSuccess, i18n.T("tui.config.enabled"), reset)
 		case "false":
 			return fmt.Sprintf("%s✗ %s%s", theme.ColorTag(theme.ErrorHex), i18n.T("tui.config.disabled"), reset)
 		default:
@@ -170,7 +170,7 @@ func formatFieldValue(f configField, val string) string {
 	case CfgFieldTriBool:
 		switch val {
 		case "true":
-			return fmt.Sprintf("%s✓ %s%s", theme.ColorTag(theme.SuccessHex), i18n.T("tui.config.enabled"), reset)
+			return fmt.Sprintf("%s%s %s%s", theme.ColorTag(theme.SuccessHex), theme.SymSuccess, i18n.T("tui.config.enabled"), reset)
 		case "false":
 			return fmt.Sprintf("%s✗ %s%s", theme.ColorTag(theme.ErrorHex), i18n.T("tui.config.disabled"), reset)
 		default:
@@ -186,7 +186,7 @@ func formatFieldValue(f configField, val string) string {
 
 	case CfgFieldPassword:
 		if val != "" {
-			return fmt.Sprintf("%s✓ %s%s", theme.ColorTag(theme.SuccessHex), i18n.T("tui.config.configured"), reset)
+			return fmt.Sprintf("%s%s %s%s", theme.ColorTag(theme.SuccessHex), theme.SymSuccess, i18n.T("tui.config.configured"), reset)
 		}
 		return fmt.Sprintf("%s✗ %s%s", theme.ColorTag(theme.ErrorHex), i18n.T("tui.config.not_configured"), reset)
 
@@ -407,7 +407,7 @@ func validateAllFields(fields []configField) []string {
 func triStateOptions() []SelectOption {
 	return []SelectOption{
 		{Label: "↩ " + i18n.T("tui.config.not_configured"), Value: ""},
-		{Label: "✓ " + i18n.T("tui.config.enabled"), Value: "true"},
+		{Label: theme.SymSuccess + " " + i18n.T("tui.config.enabled"), Value: "true"},
 		{Label: "✗ " + i18n.T("tui.config.disabled"), Value: "false"},
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/rivo/tview"
 	"github.com/stretchr/testify/assert"
@@ -41,7 +42,7 @@ func newTrustView(t *testing.T, enforced map[string]*MCPEnforcedURL) (*MCPView, 
 	})
 	sh := &trustShell{}
 	v.SetShell(sh)
-	v.app = tview.NewApplication()
+	v.app = runApp(t, tview.NewFlex()) // the services are read off the loop and applied on it
 	v.list = widgets.NewSectionedList()
 	v.loadServices()
 	v.populateList()
@@ -93,12 +94,19 @@ func TestMCPViewPinsTheURLOfTheTeamAfterConfirmation(t *testing.T) {
 	assert.Empty(t, cfg.MCP.Jira.TrustedURL, "nothing is pinned before the answer")
 	assert.Zero(t, *saves)
 
+	app := v.app
 	sh.onYes()
 	assert.Equal(t, "https://jira.corp.example.com", cfg.MCP.Jira.TrustedURL)
 	assert.Equal(t, 1, *saves)
 	assert.Empty(t, cfg.MCP.Gitlab.TrustedURL)
-	require.NotEmpty(t, sh.toasts)
-	assert.Contains(t, sh.toasts[len(sh.toasts)-1], "https://jira.corp.example.com")
+	// The services are read again off the loop; the toast comes with them.
+	require.Eventually(t, func() bool {
+		var done bool
+		onLoop(app, func() {
+			done = len(sh.toasts) > 0 && strings.Contains(sh.toasts[len(sh.toasts)-1], "https://jira.corp.example.com")
+		})
+		return done
+	}, 2*time.Second, 10*time.Millisecond)
 }
 
 func TestMCPViewTrustWithNothingToTrust(t *testing.T) {
@@ -156,17 +164,29 @@ func TestMCPViewStoresTheTokenUnderTheCurrentKeyName(t *testing.T) {
 	})
 	sh := &passwordShell{token: "s3cret"}
 	v.SetShell(sh)
-	v.app = tview.NewApplication()
+	v.app = runApp(t, tview.NewFlex())
 	v.list = widgets.NewSectionedList()
 	v.loadServices()
 	v.populateList()
 	v.buildCommands()
 
 	selectService(t, v, "gitlab")
-	v.promptTokenCurrent()
+	v.promptTokenCurrent() // the keychain is written off the loop
+	require.Eventually(t, func() bool {
+		var done bool
+		onLoop(v.app, func() { done = len(sh.toasts) > 0 })
+		return done
+	}, 2*time.Second, 10*time.Millisecond)
 
 	assert.Equal(t, map[string]string{"openhub.mcp.gitlab.token": "s3cret"}, store.m)
 	assert.True(t, v.checkToken("gitlab"))
+	onLoop(v.app, func() {
+		for _, s := range v.services {
+			if s.Name == "gitlab" {
+				assert.True(t, s.HasToken, "the list shows the token once it is stored")
+			}
+		}
+	})
 
 	store.m = map[string]string{"jira-token": "legacy"}
 	assert.True(t, v.checkToken("jira"), "legacy name read as a fallback")

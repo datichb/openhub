@@ -14,8 +14,8 @@ import (
 // Section « Anciens déploiements » of the clean-up view: what the former
 // per-project deployments left in the projects (`oh migrate
 // deploy-cleanup`), what is kept, the diff of the configuration (c) and
-// the clean-up (d, confirmed). The projects are scanned off the event
-// loop.
+// the clean-up (d, confirmed). The projects are scanned, and cleaned, off
+// the event loop (load).
 
 // DeployCleanupPlan is what the clean-up of the former deployments would do.
 type DeployCleanupPlan struct {
@@ -45,6 +45,9 @@ type deployPane struct {
 	err     error
 	loaded  bool
 	running bool
+	// loads numbers the scans and the clean-up: a result is applied only
+	// while it is the latest and the view is mounted.
+	loads loadSlot
 }
 
 func newDeployPane(v *GCView) *deployPane {
@@ -95,13 +98,7 @@ func (p *deployPane) scan() {
 	}
 	p.loaded = false
 	p.render()
-	go func() {
-		plan, err := cfg.Scan(ctx)
-		if ctx.Err() != nil {
-			return
-		}
-		app.QueueUpdateDraw(func() { p.show(plan, err) })
-	}()
+	load(app, ctx, &p.loads, cfg.Scan, p.show)
 }
 
 // show shows a scan (event loop).
@@ -116,13 +113,13 @@ func (p *deployPane) show(plan DeployCleanupPlan, err error) {
 func (p *deployPane) render() {
 	switch {
 	case p.running:
-		p.text.SetText("⠋ " + i18n.T("tui.cleanup.running"))
+		p.text.SetText(stateText(stateLoading, "⠋ "+i18n.T("tui.cleanup.running")))
 	case !p.loaded:
-		p.text.SetText("⠋ " + i18n.T("tui.cleanup.scanning"))
+		p.text.SetText(stateText(stateLoading, "⠋ "+i18n.T("tui.cleanup.scanning")))
 	case p.err != nil:
-		p.text.SetText("[" + theme.ErrorHex + "]✗ " + tview.Escape(p.err.Error()) + "[-]")
+		p.text.SetText(stateText(stateError, p.err.Error()))
 	case p.plan.Projects == 0:
-		p.text.SetText("[" + theme.SuccessHex + "]✔ " + i18n.T("cmd.migrate.cleanup.none") + "[-]")
+		p.text.SetText(tagged(theme.SuccessHex, theme.SymSuccess+" "+tview.Escape(i18n.T("cmd.migrate.cleanup.none"))))
 	default:
 		p.text.SetText(p.plan.Text)
 	}
@@ -145,19 +142,23 @@ func (p *deployPane) apply() {
 	}
 	p.running = true
 	p.render()
-	go func() {
+	type cleaned struct {
+		msg string
+		ok  bool
+	}
+	load(app, ctx, &p.loads, func(ctx context.Context) (cleaned, error) {
 		msg, ok := cfg.Apply(ctx)
-		if ctx.Err() != nil {
-			return
+		return cleaned{msg, ok}, nil
+	}, func(r cleaned, err error) {
+		p.running = false
+		if err != nil {
+			r = cleaned{errorText(err), false}
 		}
-		app.QueueUpdateDraw(func() {
-			p.running = false
-			if p.v.shell != nil {
-				p.v.shell.ShowToastMsg(msg, ok)
-			}
-			p.scan()
-		})
-	}()
+		if p.v.shell != nil {
+			p.v.shell.ShowToastMsg(r.msg, r.ok)
+		}
+		p.scan()
+	})
 }
 
 func (p *deployPane) showDiff() {

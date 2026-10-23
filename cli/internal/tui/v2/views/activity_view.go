@@ -188,7 +188,7 @@ func eventIcon(eventType string) string {
 	case teamstate.EventReviewReady:
 		return tagged(theme.ModeTeamHex, "◆")
 	case teamstate.EventSessionComplete:
-		return tagged(theme.SuccessHex, "✓")
+		return tagged(theme.SuccessHex, theme.SymSuccess)
 	case teamstate.EventAuditFinding:
 		return tagged(theme.ErrorHex, "!")
 	case teamstate.EventClaimConflict:
@@ -196,7 +196,7 @@ func eventIcon(eventType string) string {
 	case teamstate.EventWikiProposal:
 		return tagged(theme.InfoHex, "📝")
 	case teamstate.EventWikiAccepted:
-		return tagged(theme.SuccessHex, "✓")
+		return tagged(theme.SuccessHex, theme.SymSuccess)
 	case teamstate.EventWikiRejected:
 		return tagged(theme.ErrorHex, "✗")
 	case teamstate.EventWorkflowPublished, teamstate.EventWorkflowRestored:

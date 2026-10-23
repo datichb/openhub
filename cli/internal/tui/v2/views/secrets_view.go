@@ -52,7 +52,7 @@ type secretEntry struct {
 	Present  bool
 	Masked   string // "****abcd" or ""
 	Source   string // where referenced (e.g. "mcp.gitlab")
-	Fallback string // "(fallback: global ✓)" or "(masque le global)" or ""
+	Fallback string // "(fallback: global ✔)" or "(masque le global)" or ""
 }
 
 // SecretsView displays and manages secrets (tokens, API keys) with global and
@@ -160,7 +160,7 @@ func (v *SecretsView) showDetail(item widgets.SectionItem) {
 	}
 	d.field(i18n.T("tui.detail.scope"), scope)
 	if e.Present {
-		d.field(i18n.T("tui.detail.value"), theme.ColorTag(theme.SuccessHex)+"✓ "+theme.TagReset+tview.Escape(e.Masked))
+		d.field(i18n.T("tui.detail.value"), theme.ColorTag(theme.SuccessHex)+theme.SymSuccess+" "+theme.TagReset+tview.Escape(e.Masked))
 	} else {
 		d.field(i18n.T("tui.detail.value"), theme.ColorTag(theme.ErrorHex)+"✗ "+i18n.T("tui.secrets.absent")+theme.TagReset)
 	}
@@ -379,7 +379,7 @@ func (v *SecretsView) entryToItem(e secretEntry, entryIdx int) widgets.SectionIt
 	// Status
 	status := fmt.Sprintf("%s✗ %s%s", theme.ColorTag(theme.ErrorHex), i18n.T("tui.secrets.absent"), theme.TagColor)
 	if e.Present {
-		status = fmt.Sprintf("%s✓%s %s", theme.ColorTag(theme.SuccessHex), theme.TagColor, e.Masked)
+		status = fmt.Sprintf("%s%s%s %s", theme.ColorTag(theme.SuccessHex), theme.SymSuccess, theme.TagColor, e.Masked)
 	}
 
 	fallback := ""

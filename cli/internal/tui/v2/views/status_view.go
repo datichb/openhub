@@ -187,7 +187,7 @@ func (v *StatusView) checkConventions() {
 			re, err := regexp.Compile(branchPattern)
 			if err == nil {
 				if re.MatchString(branch) {
-					text += "  " + tagged(theme.SuccessHex, "✓") + " " + i18n.Tf("tui.status.branch_compliant", branch) + "\n"
+					text += "  " + tagged(theme.SuccessHex, theme.SymSuccess) + " " + i18n.Tf("tui.status.branch_compliant", branch) + "\n"
 				} else {
 					text += "  " + tagged(theme.WarningHex, "⚠") + " " + i18n.Tf("tui.status.branch_non_compliant", branch, branchPattern) + "\n"
 					issues++
@@ -213,7 +213,7 @@ func (v *StatusView) checkConventions() {
 				}
 			}
 			if nonConform == 0 {
-				text += fmt.Sprintf("  %s %s\n", tagged(theme.SuccessHex, "✓"), i18n.Tf("tui.status.commits_compliant", len(commits)))
+				text += fmt.Sprintf("  %s %s\n", tagged(theme.SuccessHex, theme.SymSuccess), i18n.Tf("tui.status.commits_compliant", len(commits)))
 			} else {
 				text += fmt.Sprintf("  %s %s\n", tagged(theme.WarningHex, "⚠"), i18n.Tf("tui.status.commits_non_compliant", nonConform, len(commits)))
 				issues++
@@ -226,7 +226,7 @@ func (v *StatusView) checkConventions() {
 	// 3. Summary
 	text += "\n"
 	if issues == 0 {
-		text += "  " + tagged(theme.SuccessHex, "✓") + " " + i18n.T("tui.status.all_compliant")
+		text += "  " + tagged(theme.SuccessHex, theme.SymSuccess) + " " + i18n.T("tui.status.all_compliant")
 	} else {
 		text += fmt.Sprintf("  %s %s", tagged(theme.WarningHex, "⚠"), i18n.Tf("tui.status.warnings_count", issues))
 	}

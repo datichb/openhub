@@ -114,7 +114,7 @@ func TestVerifyPasses(t *testing.T) {
 	res, err := svc.Reached(ctx, "ses_v", Call{ID: "cp-2"})
 	require.NoError(t, err)
 	assert.Equal(t, []string{"commit", "close"}, res.Unlocked)
-	assert.Contains(t, res.Verify, "make check ✓")
+	assert.Contains(t, res.Verify, "make check ✔")
 	assert.Equal(t, 1, ex.count(), "the result of the same state of the work is reused")
 	st, _ := svc.State(ctx, "ses_v")
 	assert.Contains(t, st.Unlocks, sessionspec.UnlockCommit)

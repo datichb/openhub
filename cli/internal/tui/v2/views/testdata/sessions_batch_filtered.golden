@@ -1,6 +1,6 @@
 ╔ Valider en lot · fan-out parent · filtre : cp-seams · 2 ═══════════════════════════════════════════════════╗
 ║   session    checkpoint  résumé              vérification                 choix                            ║
-║ ▸ c1 ticket  cp-seams    points d'injection  ✓ vérif ok  ⚠ hors valideur  ✗ refuser                        ║
+║ ▸ c1 ticket  cp-seams    points d'injection  ✔ vérif ok  ⚠ hors valideur  ✗ refuser                        ║
 ║   c2 ticket  cp-seams    tests prévus        ✗ vérif → ouvrir la fiche    · laisser                        ║
 ║                                                                                                            ║
 ║ 1/2                                                                                                        ║

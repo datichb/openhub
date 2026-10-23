@@ -174,6 +174,9 @@ func (v *GCView) renderBar() {
 
 func (v *GCView) Unmount() {
 	v.loads.Invalidate()
+	if v.deploy != nil {
+		v.deploy.loads.Invalidate()
+	}
 	if v.cancel != nil {
 		v.cancel()
 	}

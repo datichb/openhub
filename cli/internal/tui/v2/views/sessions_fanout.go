@@ -242,7 +242,7 @@ func childState(s string) (string, ItemState) {
 	label := i18n.T("tui.sessions.fanout.child." + s)
 	switch s {
 	case "merged":
-		return "✓ " + label, ItemAccepted
+		return theme.SymSuccess + " " + label, ItemAccepted
 	case "running":
 		return "● " + label, ItemNone
 	case "pending":
@@ -360,12 +360,12 @@ func (p *fanoutPane) previewClean(fb SessionFanouter, parent string, discard boo
 		plan, err = fb.CleanFanout(ctx, parent, discard, true)
 		return "", err
 	}, func(string) {
-		box := "[ ]"
+		box := theme.SymUnselectedMulti
 		if discard {
-			box = "[x]"
+			box = theme.SymSelectedMulti
 		}
 		actions := []ModalAction{
-			{Label: tview.Escape(box) + " " + i18n.T("tui.sessions.fanout.discard"), Callback: func() { p.previewClean(fb, parent, !discard) }},
+			{Label: box + " " + i18n.T("tui.sessions.fanout.discard"), Callback: func() { p.previewClean(fb, parent, !discard) }},
 			{Label: i18n.T("tui.sessions.fanout.clean_do"), Danger: true, Separator: true, Callback: func() {
 				if plan.Empty() {
 					p.v.toast(i18n.T("tui.sessions.fanout.clean_nothing"), false)

@@ -6,6 +6,6 @@ Workflows : aucun workflow
 Coût estimé : ~300 tokens
 
 Problèmes (1) :
-! description > 200 caractères
+⚠ description > 200 caractères
 
 Écriture hors de la TUI : oh brick edit agent:my-agent · oh brick publish agent:my-agent

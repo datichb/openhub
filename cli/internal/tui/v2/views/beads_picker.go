@@ -520,16 +520,16 @@ func (l *beadsList) format(r beadsPickerRow, idW, statusW, titleW int) string {
 		marker = "[" + theme.AccentHex + "]" + theme.IconArrow + "[-] "
 	}
 	if p.cfg.Multi {
-		box := "○"
+		box := theme.SymUnselectedMulti
 		if p.m.isSelected(t.ID) {
-			box = "[" + theme.SuccessHex + "]●[-]"
+			box = "[" + theme.SuccessHex + "]" + theme.SymSelectedMulti + "[-]"
 		}
 		marker += box + " "
 	}
 	title := runewidth.FillRight(runewidth.Truncate(t.Title, titleW, "…"), titleW)
 	claim := ""
 	if who := l.claimedBy(t.ID); who != "" {
-		claim = "  [" + theme.WarningHex + "]⚠ " + tview.Escape(i18n.Tf("tui.picker.beads.claimed", who)) + "[-]"
+		claim = "  [" + theme.WarningHex + "]" + theme.SymWarning + " " + tview.Escape(i18n.Tf("tui.picker.beads.claimed", who)) + "[-]"
 	}
 	return fmt.Sprintf(" %s%s  %s  %-3s %s%s  [%s]%s[-]", marker,
 		tview.Escape(runewidth.FillRight(t.ID, idW)), tview.Escape(title), tview.Escape(t.Priority),

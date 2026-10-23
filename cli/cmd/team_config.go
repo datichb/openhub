@@ -575,7 +575,7 @@ func runTeamConfigStatus(cmd *cobra.Command, _ []string) error {
 							theme.ErrorStyle.Render("✗"), hubID, trackerID, err)
 					} else {
 						fmt.Fprintf(out, "  %s %s → %s (%s)\n",
-							theme.SuccessStyle.Render("✓"), hubID, trackerID, projectName)
+							theme.SuccessStyle.Render(theme.IconSuccess), hubID, trackerID, projectName)
 					}
 				}
 			}
@@ -714,7 +714,7 @@ func testAndDisplayConnection(ctx context.Context, out interface{ Write([]byte) 
 			theme.ErrorStyle.Render("✗"), trackerType, cfg.BaseURL, err)
 		return err
 	}
-	fmt.Fprint(out, i18n.Tf("cmd.team_config.connected_to_as", theme.SuccessStyle.Render("✓"), cfg.BaseURL, username))
+	fmt.Fprint(out, i18n.Tf("cmd.team_config.connected_to_as", theme.SuccessStyle.Render(theme.IconSuccess), cfg.BaseURL, username))
 	return nil
 }
 
@@ -984,7 +984,7 @@ func askSelect(out interface{ Write([]byte) (int, error) }, prompt string, optio
 
 func fmtBool(b bool) string {
 	if b {
-		return theme.SuccessStyle.Render("✓")
+		return theme.SuccessStyle.Render(theme.IconSuccess)
 	}
 	return theme.Subtitle.Render("✗")
 }

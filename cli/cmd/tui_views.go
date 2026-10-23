@@ -629,8 +629,14 @@ func buildViews(a *app.App) []views.View {
 				// working on a detached copy that could go stale.
 				return a.Config
 			},
+			ReadConfig: func() (*config.Config, error) {
+				// Read hub.toml again without touching a.Config: the view
+				// copies it in on the event loop, which owns a.Config.
+				config.Reset()
+				return config.Load()
+			},
 			ReloadConfig: func() *config.Config {
-				// Reload from disk (for undo/refresh operations).
+				// Reload from disk after an external modification.
 				config.Reset()
 				newCfg, err := config.Load()
 				if err == nil && newCfg != nil {

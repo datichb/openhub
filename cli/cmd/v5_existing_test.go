@@ -13,6 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/runsvc"
 	"github.com/datichb/openhub/cli/internal/services/launch"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
@@ -87,7 +88,7 @@ func TestPrintExistingTableMarksDiffs(t *testing.T) {
 	printExistingTable(&b, existingRun().Plan)
 	out := b.String()
 	for _, l := range strings.Split(out, "\n") {
-		if strings.Contains(l, i18n.T("cmd.run.existing.field.runtime")) && !strings.Contains(l, "!") {
+		if strings.Contains(l, i18n.T("cmd.run.existing.field.runtime")) && !strings.Contains(l, theme.IconWarning) {
 			t.Fatalf("runtime differs: %q", l)
 		}
 	}

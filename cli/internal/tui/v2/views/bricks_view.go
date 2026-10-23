@@ -258,15 +258,15 @@ func (v *BricksView) render() {
 	v.list.SetItems(items)
 }
 
-// brickState is ✓ (no finding), ! (warnings) or ✗ (errors).
+// brickState is ✔ (no finding), ⚠ (warnings) or ✗ (errors).
 func brickState(r BrickRow) (state ItemState, text string) {
 	switch {
 	case r.errors() > 0:
 		return ItemRefused, "✗"
 	case len(r.Problems) > 0:
-		return ItemPending, "!"
+		return ItemPending, theme.SymWarning
 	}
-	return ItemAccepted, "✓"
+	return ItemAccepted, theme.SymSuccess
 }
 
 // brickOriginCell is « hub », « équipe », « équipe ⟳ hub » (replaces a hub
@@ -331,7 +331,7 @@ func brickDetail(r BrickRow) string {
 	if len(r.Problems) > 0 {
 		fmt.Fprintf(&b, "\n%s%s%s\n", label, i18n.Tf("tui.bricks.field.problems", len(r.Problems)), reset)
 		for _, p := range r.Problems {
-			icon, color := "!", theme.WarningHex
+			icon, color := theme.SymWarning, theme.WarningHex
 			if p.Error {
 				icon, color = "✗", theme.ErrorHex
 			}

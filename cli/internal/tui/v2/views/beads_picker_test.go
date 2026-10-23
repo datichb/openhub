@@ -280,7 +280,7 @@ func TestBeadsPickerKeysMultiAndFilters(t *testing.T) {
 	out := drawPicker(t, p)
 	assert.Contains(t, out, "Choisir des tickets")
 	assert.Contains(t, out, "2 sélectionné(s)")
-	assert.Contains(t, out, "● bd-42")
+	assert.Contains(t, out, "☑ bd-42")
 
 	press(p, "e") // epic E-12
 	assert.Contains(t, drawPicker(t, p), "épopée : E-12 · Exports ▾")

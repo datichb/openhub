@@ -305,7 +305,7 @@ Sections (`Tab` / `Shift+Tab`) : **Général**, **Graphe**, **Entrées & prompt*
 
 ## Catalogue des briques
 
-Commande `bricks` (alias `briques`, `agents`, `skills`). Liste en lecture seule des agents et des skills : origine (`hub`, `équipe`, `équipe ⟳ hub` quand une brique d'équipe remplace celle du hub, `(non scellée)`), version, état (`✓`, `!` problème, `✗`) ; le détail donne la publication (auteur, date), les agents et workflows qui l'utilisent, le coût, les problèmes et les commandes `oh brick` pour l'écrire.
+Commande `bricks` (alias `briques`, `agents`, `skills`). Liste en lecture seule des agents et des skills : origine (`hub`, `équipe`, `équipe ⟳ hub` quand une brique d'équipe remplace celle du hub, `(non scellée)`), version, état (`✔`, `⚠` problème, `✗`) ; le détail donne la publication (auteur, date), les agents et workflows qui l'utilisent, le coût, les problèmes et les commandes `oh brick` pour l'écrire.
 
 | Touche | Action |
 |--------|--------|

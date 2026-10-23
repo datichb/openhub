@@ -239,9 +239,9 @@ rebuild on a level change and keep the selected item.
 
 | Type | Border | Icon | Example |
 |------|--------|------|---------|
-| Success | Green | ✓ | `✓ Projet ajouté` |
+| Success | Green | ✔ | `✔ Projet ajouté` |
 | Error | Red | ✗ | `✗ Échec du deploy` |
-| Warning | Yellow | ! | `! opencode non trouvé` |
+| Warning | Yellow | ⚠ | `⚠ opencode non trouvé` |
 | Info | Blue | ▸ | `▸ Sync en cours...` |
 
 ### Behavior
@@ -288,8 +288,8 @@ When a command needs user input, the content zone shows an inline form:
 | Constant | Char | Usage |
 |----------|------|-------|
 | `IconActive` | `◆` | Logo, omnibar label |
-| `IconSuccess` | `✓` | Toast success |
+| `IconSuccess` | `✔` | Toast success |
 | `IconError` | `✗` | Toast error |
-| `IconWarning` | `!` | Toast warning |
+| `IconWarning` | `⚠` | Toast warning |
 | `IconArrow` | `▸` | Toast info |
 | `IconDot` | `·` | Separator in hints |
