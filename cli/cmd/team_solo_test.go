@@ -35,7 +35,9 @@ func setupSoloTestApp(t *testing.T, teams ...config.TeamConfig) (*app.App, *byte
 	}
 	config.Reset()
 	t.Cleanup(config.Reset)
-	require.NoError(t, os.WriteFile(config.ConfigPath(), []byte(""), 0o644))
+	// The commands change hub.toml as it is on disk: the teams the test starts
+	// with must be in the file, not only in the Config of the app.
+	require.NoError(t, config.Save(&config.Config{Teams: teams}))
 	io, stdout, _ := testIO()
 	a := &app.App{
 		Config:   &config.Config{Teams: teams},
