@@ -81,6 +81,8 @@ func NewSectionedList() *SectionedList {
 // Draw draws the list, then a subtle scroll indicator (inside the inner
 // rect) when items overflow the visible area.
 func (sl *SectionedList) Draw(screen tcell.Screen) {
+	_, _, _, height := sl.GetInnerRect()
+	sl.keepTitlesVisible(height)
 	sl.List.Draw(screen)
 	x, y, width, height := sl.GetInnerRect()
 	if width <= 0 || height <= 0 {
@@ -94,6 +96,31 @@ func (sl *SectionedList) Draw(screen tcell.Screen) {
 	if sl.GetCurrentItem() > 0 {
 		screen.SetContent(x+width-1, y, '▲', nil, markerStyle)
 	}
+}
+
+// keepTitlesVisible scrolls back up to the titles (and spacers) right above the
+// cursor: tview only scrolls to put the cursor on the first row, which hides
+// the title of a section when the cursor comes back to its first field, or
+// after a first draw in a rect too small for the cursor. The scroll is left
+// alone when the titles and the cursor do not fit in height rows.
+func (sl *SectionedList) keepTitlesVisible(height int) {
+	cur := sl.GetCurrentItem()
+	offset, horizontal := sl.GetOffset()
+	if height <= 0 || offset == 0 || cur <= 0 || cur >= len(sl.listToItem) {
+		return
+	}
+	start := cur
+	for start > 0 {
+		idx := sl.listToItem[start-1]
+		if idx >= 0 && !sl.items[idx].IsHeader {
+			break
+		}
+		start--
+	}
+	if start >= offset || 2*(cur-start) >= height-1 {
+		return
+	}
+	sl.SetOffset(start, horizontal)
 }
 
 // scrollMarkerReserve is the number of right-hand cells kept free of text for
