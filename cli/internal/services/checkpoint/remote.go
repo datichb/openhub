@@ -10,6 +10,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/remote"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/termtext"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 )
 
 // Verifications in a remote session (R3-remote): the job runs them where
@@ -115,7 +116,7 @@ func cleanRemoteVerify(r domain.CheckpointVerify) (domain.CheckpointVerify, bool
 		return domain.CheckpointVerify{}, false
 	}
 	out := domain.CheckpointVerify{Status: r.Status, Started: r.Started, Finished: r.Finished,
-		Reason: clip(termtext.Clean(r.Reason), remoteFieldMax)}
+		Reason: textfmt.ClipBytes(termtext.Clean(r.Reason), remoteFieldMax)}
 	if r.Expect == sessionspec.VerifyPass || r.Expect == sessionspec.VerifyFail {
 		out.Expect = r.Expect
 	}
@@ -130,17 +131,10 @@ func cleanRemoteVerify(r domain.CheckpointVerify) (domain.CheckpointVerify, bool
 		if i >= remoteCommandsMax {
 			break
 		}
-		out.Commands = append(out.Commands, domain.VerifyCommandResult{Kind: clip(termtext.Clean(c.Kind), 32),
-			Cmd: clip(termtext.Clean(c.Cmd), remoteFieldMax), Exit: c.Exit, TimedOut: c.TimedOut, Millis: c.Millis})
+		out.Commands = append(out.Commands, domain.VerifyCommandResult{Kind: textfmt.ClipBytes(termtext.Clean(c.Kind), 32),
+			Cmd: textfmt.ClipBytes(termtext.Clean(c.Cmd), remoteFieldMax), Exit: c.Exit, TimedOut: c.TimedOut, Millis: c.Millis})
 	}
 	return out, true
-}
-
-func clip(s string, n int) string {
-	if len(s) <= n {
-		return s
-	}
-	return strings.ToValidUTF8(s[:n], "") + "…"
 }
 
 // SummaryVerifications converts verifications for summary.json.

@@ -11,6 +11,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 )
 
 // Fan-out (R6, E3, CP-R3), the daemon side:
@@ -245,17 +246,9 @@ func (s *Service) fanoutFix(ctx context.Context, sessionID, id, instruction stri
 			for _, c := range r.Commands {
 				lines = append(lines, fmt.Sprintf("$ %s → %d", c.Cmd, c.Exit))
 			}
-			lines = append(lines, r.Reason, clipEnd(r.Excerpt, 2000))
+			lines = append(lines, r.Reason, textfmt.ClipBytesLeft(r.Excerpt, 2000))
 			failure = strings.TrimSpace(strings.Join(lines, "\n"))
 		}
 	}
 	return s.RequestFix(ctx, sess, wf, instruction, failure)
-}
-
-// clipEnd keeps the end of s (the end of an output says why it failed).
-func clipEnd(s string, n int) string {
-	if len(s) <= n {
-		return s
-	}
-	return "…" + strings.ToValidUTF8(s[len(s)-n:], "")
 }
