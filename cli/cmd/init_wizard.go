@@ -243,7 +243,7 @@ func buildInitOnComplete(s *initStepState) func(bool, error) {
 
 		// ── Detect branch pattern heuristic ─────────────────────────
 		if pattern := detectBranchPatternHeuristic("."); pattern != "" {
-			_ = config.Update(func(c *config.Config) error {
+			_ = updateHubConfig(*s.AppPtr, func(c *config.Config) error {
 				if c.Worktree.BranchPattern == "" {
 					c.Worktree.BranchPattern = pattern
 				}
@@ -253,7 +253,7 @@ func buildInitOnComplete(s *initStepState) func(bool, error) {
 
 		// ── Mark setup as done ──────────────────────────────────────
 		for attempt := 0; attempt < 2; attempt++ {
-			if err := config.Update(func(c *config.Config) error {
+			if err := updateHubConfig(*s.AppPtr, func(c *config.Config) error {
 				c.CLI.SetupDone = true
 				return nil
 			}); err == nil {
@@ -262,15 +262,14 @@ func buildInitOnComplete(s *initStepState) func(bool, error) {
 				slog.Error("failed to persist setup_done flag after retry — wizard may re-launch", "error", err)
 			} else {
 				slog.Warn("retrying setup_done persistence", "error", err)
-				config.Reset()
 			}
 		}
 
-		config.Reset()
-		if newApp, reloadErr := ReloadApp(); reloadErr != nil {
-			slog.Warn("ReloadApp failed in init completion", "err", reloadErr)
-		} else {
-			*s.AppPtr = newApp
+		// The Config the views hold takes what the wizard wrote (setup_done,
+		// provider, region, branch_pattern…): the App they captured is not
+		// replaced, so none of them keeps or saves an older copy.
+		if reloadErr := refreshSharedConfig(*s.AppPtr); reloadErr != nil {
+			slog.Warn("config refresh failed in init completion", "err", reloadErr)
 		}
 
 		// Launch the Tracker Discovery Wizard if requested.

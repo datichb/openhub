@@ -83,7 +83,6 @@ func runInit(cmd *cobra.Command, args []string) error {
 		if saveErr := config.Save(&config.Config{}); saveErr != nil {
 			return fmt.Errorf(i18n.T("cmd.init.writing_initial_config"), saveErr)
 		}
-		config.Reset()
 		if err := initApp(); err != nil {
 			return fmt.Errorf(i18n.T("cmd.init.initializing_app"), err)
 		}

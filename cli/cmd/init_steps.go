@@ -321,7 +321,7 @@ func buildWelcomeStep(s *initStepState) views.WizardStep {
 		},
 		OnDone: func() error {
 			i18n.SetLocale(s.SelectedLang)
-			return config.Update(func(c *config.Config) error {
+			return updateHubConfig(*s.AppPtr, func(c *config.Config) error {
 				c.CLI.Language = s.SelectedLang
 				return nil
 			})
@@ -589,7 +589,7 @@ func buildProviderStep(s *initStepState) views.WizardStep {
 				}
 			}
 
-			return config.Update(func(c *config.Config) error {
+			return updateHubConfig(*s.AppPtr, func(c *config.Config) error {
 				c.LLM.DefaultProvider = s.SelectedProvider
 				if s.SelectedProvider == "bedrock" {
 					c.Provider.Bedrock.AuthMode = s.AuthMode
