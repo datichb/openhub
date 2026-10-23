@@ -216,8 +216,8 @@ func mountedMCP(t *testing.T, store *lockableSecrets, token string) (v *MCPView,
 	cfg := &config.Config{}
 	saves = new(atomic.Int32)
 	v = NewMCPView(&app.App{Secrets: store}, MCPViewConfig{
-		GetConfig:  func() *config.Config { return cfg },
-		SaveConfig: func(*config.Config) error { saves.Add(1); return nil },
+		GetConfig:    func() *config.Config { return cfg },
+		UpdateConfig: func(fn func(*config.Config) error) error { saves.Add(1); return fn(cfg) },
 	})
 	sh = &passwordShell{token: token}
 	v.SetShell(sh)

@@ -413,7 +413,7 @@ func buildViews(a *app.App) []views.View {
 					})
 				}()
 			},
-			OnSave: config.Save,
+			OnUpdate: func(fn func(*config.Config) error) error { return updateHubConfig(a, fn) },
 			OnNavigate: func(viewID string) {
 				if tuiShell != nil {
 					tuiShell.NavigateTo(viewID)
@@ -422,18 +422,8 @@ func buildViews(a *app.App) []views.View {
 		}),
 		newModelsView(a),
 		views.NewProviderView(a, views.ProviderViewConfig{
-			GetConfig: func() *config.Config { return a.Config },
-			SaveConfig: func(c *config.Config) error {
-				if err := config.Save(c); err != nil {
-					return err
-				}
-				config.Reset()
-				newCfg, err := config.Load()
-				if err == nil && newCfg != nil {
-					*a.Config = *newCfg
-				}
-				return nil
-			},
+			GetConfig:    func() *config.Config { return a.Config },
+			UpdateConfig: func(fn func(*config.Config) error) error { return updateHubConfig(a, fn) },
 			CheckSecret: func(ctx context.Context, key string) (bool, string) {
 				if a.Secrets == nil {
 					return false, ""
@@ -465,17 +455,7 @@ func buildViews(a *app.App) []views.View {
 			GetConfig:    func() *config.Config { return a.Config },
 			EnforcedURLs: func() func() map[string]*views.MCPEnforcedURL { return tuiEnforcedURLs(a) },
 			HostInfo:     tuiHostInfo,
-			SaveConfig: func(c *config.Config) error {
-				if err := config.Save(c); err != nil {
-					return err
-				}
-				config.Reset()
-				newCfg, err := config.Load()
-				if err == nil && newCfg != nil {
-					*a.Config = *newCfg
-				}
-				return nil
-			},
+			UpdateConfig: func(fn func(*config.Config) error) error { return updateHubConfig(a, fn) },
 		}),
 		views.NewHelpView(),
 		views.NewNotificationsView(views.NotificationsViewConfig{
@@ -526,6 +506,7 @@ func buildViews(a *app.App) []views.View {
 			GetHubConfig: func() *config.Config {
 				return a.Config
 			},
+			UpdateHubConfig: func(fn func(*config.Config) error) error { return updateHubConfig(a, fn) },
 			ListProjects: func(ctx context.Context) []views.ProjectInfo {
 				projects, err := a.Projects.List(ctx, "")
 				if err != nil {
@@ -586,7 +567,7 @@ func buildViews(a *app.App) []views.View {
 				repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
 				return repo.SaveConfig(ctx, cfg)
 			},
-			GetHubConfig: func() *config.Config { return a.Config },
+			UpdateHubConfig: func(fn func(*config.Config) error) error { return updateHubConfig(a, fn) },
 			CheckSecret: func(ctx context.Context, key string) (bool, string) {
 				if a.Secrets == nil {
 					return false, ""
@@ -629,33 +610,15 @@ func buildViews(a *app.App) []views.View {
 				// working on a detached copy that could go stale.
 				return a.Config
 			},
-			ReadConfig: func() (*config.Config, error) {
-				// Read hub.toml again without touching a.Config: the view
-				// copies it in on the event loop, which owns a.Config.
-				config.Reset()
-				return config.Load()
-			},
+			// Read hub.toml again without touching a.Config: the view copies it
+			// in on the event loop, which owns a.Config.
+			ReadConfig: config.Read,
 			ReloadConfig: func() *config.Config {
 				// Reload from disk after an external modification.
-				config.Reset()
-				newCfg, err := config.Load()
-				if err == nil && newCfg != nil {
-					*a.Config = *newCfg
-				}
+				_ = refreshSharedConfig(a)
 				return a.Config
 			},
-			SaveConfig: func(c *config.Config) error {
-				if err := config.Save(c); err != nil {
-					return err
-				}
-				// Reload to pick up any side-effects of TOML serialization
-				config.Reset()
-				newCfg, err := config.Load()
-				if err == nil && newCfg != nil {
-					*a.Config = *newCfg
-				}
-				return nil
-			},
+			UpdateConfig: func(fn func(*config.Config) error) error { return updateHubConfig(a, fn) },
 			CheckSecret: func(ctx context.Context, key string) (bool, string) {
 				if a.Secrets == nil {
 					return false, ""

@@ -53,8 +53,12 @@ type TeamDetailViewConfig struct {
 	SaveLocalTracker      func(key, value string) error
 	GetSecrets            func() tracker.SecretGetter
 	GetHubConfig          func() *config.Config
-	ListProjects          func(ctx context.Context) []ProjectInfo
-	SyncTracker           func(ctx context.Context) (*SyncTrackerResult, error)
+	// UpdateHubConfig changes hub.toml: fn receives the file as it is on disk
+	// and changes only the settings the view edited (the host then brings the
+	// shared config up to date). The view never saves a whole config.
+	UpdateHubConfig func(fn func(*config.Config) error) error
+	ListProjects    func(ctx context.Context) []ProjectInfo
+	SyncTracker     func(ctx context.Context) (*SyncTrackerResult, error)
 	// CheckSecret tests whether a keychain key has a value stored.
 	// Returns (present, maskedValue) — masked shows last 4 chars like "****7a3f".
 	CheckSecret func(ctx context.Context, key string) (present bool, masked string)
@@ -88,6 +92,8 @@ type TeamDetailView struct {
 	teamCfg    *teamstate.TeamConfig
 	localMCP   config.MCPConfig
 	localTrk   config.TrackerLocalConfig
+	baseMCP    config.MCPConfig          // localMCP as loaded or last saved
+	baseTrk    config.TrackerLocalConfig // localTrk as loaded or last saved
 	fields     []configField
 	dirtyTeam  bool
 	dirtyLocal bool
@@ -262,6 +268,7 @@ func (v *TeamDetailView) reload() {
 func (v *TeamDetailView) loadData() {
 	v.localMCP = v.cfg.GetMCPConfig()
 	v.localTrk = v.cfg.GetTrackerLocalConfig()
+	v.baseMCP, v.baseTrk = v.localMCP, v.localTrk
 
 	tc := v.cfg.ResolveTeam()
 	if tc.hasState() {
@@ -673,14 +680,18 @@ func (v *TeamDetailView) save() {
 	}
 
 	if v.dirtyLocal {
-		hubCfg := v.cfg.GetHubConfig()
-		if hubCfg != nil {
-			hubCfg.MCP = v.localMCP
-			hubCfg.Tracker = v.localTrk
-			if err := config.Save(hubCfg); err != nil {
+		if v.cfg.UpdateHubConfig != nil {
+			patchMCP := config.Patch(v.baseMCP, v.localMCP)
+			patchTrk := config.Patch(v.baseTrk, v.localTrk)
+			if err := v.cfg.UpdateHubConfig(func(c *config.Config) error {
+				patchMCP(&c.MCP)
+				patchTrk(&c.Tracker)
+				return nil
+			}); err != nil {
 				v.shell.ShowToastMsg(i18n.Tf("tui.team.detail.save_local_error", err.Error()), false)
 				return
 			}
+			v.baseMCP, v.baseTrk = v.localMCP, v.localTrk
 		}
 		saved = append(saved, i18n.T("tui.team.detail.saved_local"))
 		v.dirtyLocal = false
@@ -783,20 +794,22 @@ func (v *TeamDetailView) promptTokenSetup() {
 		if value == "" {
 			return
 		}
-		if hubCfg != nil {
-			switch trackerType {
-			case "gitlab":
-				hubCfg.MCP.Gitlab.Enabled = true
-				if hubCfg.MCP.Gitlab.Token == "" {
-					hubCfg.MCP.Gitlab.Token = tokenKey
+		if v.cfg.UpdateHubConfig != nil {
+			if err := v.cfg.UpdateHubConfig(func(c *config.Config) error {
+				switch trackerType {
+				case "gitlab":
+					c.MCP.Gitlab.Enabled = true
+					if c.MCP.Gitlab.Token == "" {
+						c.MCP.Gitlab.Token = tokenKey
+					}
+				case "jira":
+					c.MCP.Jira.Enabled = true
+					if c.MCP.Jira.Token == "" {
+						c.MCP.Jira.Token = tokenKey
+					}
 				}
-			case "jira":
-				hubCfg.MCP.Jira.Enabled = true
-				if hubCfg.MCP.Jira.Token == "" {
-					hubCfg.MCP.Jira.Token = tokenKey
-				}
-			}
-			if err := config.Save(hubCfg); err != nil {
+				return nil
+			}); err != nil {
 				if v.shell != nil {
 					v.shell.ShowToastMsg(errorText(err), false)
 				}
