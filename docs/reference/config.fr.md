@@ -12,6 +12,8 @@ Fichiers de configuration d'oh v5 : `hub.toml` (votre machine), la base des proj
 **Créé par :** `oh init`  
 **Afficher le chemin :** `oh config path`
 
+**Modifié pendant que oh tourne.** Une TUI (ou le démon, ou un pilote de fan-out) lit `hub.toml` une fois au démarrage. Vous pouvez modifier le fichier depuis un autre terminal (`oh config model default …`, un éditeur) : **chaque lancement le relit** avant de construire son paquet (modèles, fournisseur, région, limites, exécution, serveurs MCP, équipes), si bien que la session utilise ce que dit le fichier maintenant, pas ce que la TUI a lu au démarrage. Si un réglage du lancement a changé, le récapitulatif du formulaire de lancement dit lequel (`models.default : anthropic/claude-sonnet-4-6 → anthropic/claude-sonnet-5-5`) ; un `hub.toml` devenu illisible est signalé aussi, et le lancement garde les réglages lus au démarrage. Les autres écrans de la TUI montrent le fichier tel qu'il a été lu au démarrage (ou tel que la TUI l'a modifié elle-même) : rouvrez la TUI pour voir les changements faits ailleurs.
+
 ### Structure TOML complète
 
 ```toml

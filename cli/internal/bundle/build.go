@@ -560,7 +560,7 @@ func (req Request) agentPermissions(fm *bricks.AgentFrontmatter, instructions pr
 
 // fallbackModel is the session model when neither the entry agent nor the
 // overrides set one.
-const fallbackModel = "claude-sonnet-4-6"
+const fallbackModel = bricks.FallbackModel
 
 func findAgent(agents []sessionspec.AgentDef, id string) *sessionspec.AgentDef {
 	for i := range agents {

@@ -50,8 +50,10 @@ func TestModelsViewAddOverrideValidatesIdentifiers(t *testing.T) {
 	assert.False(t, invalid)
 
 	model := formFieldByKey(t, sh.form, "model")
-	_, invalid = model.Validate("claude-haiku")
+	_, invalid = model.Validate("claude haiku")
 	assert.True(t, invalid)
+	_, invalid = model.Validate("claude-haiku-4-5")
+	assert.False(t, invalid, "a short name is accepted like in the frontmatter")
 	_, invalid = model.Validate("anthropic/claude-haiku-4-5")
 	assert.False(t, invalid)
 
@@ -64,7 +66,7 @@ func TestModelsViewAddOverrideValidatesIdentifiers(t *testing.T) {
 
 	// Submitting past the field checks still writes nothing.
 	sh.form.OnSubmit(map[string]string{"scope": "agent", "agent_id": "nope", "model": "anthropic/claude-haiku-4-5"}, nil)
-	sh.form.OnSubmit(map[string]string{"scope": "agent", "agent_id": "reviewer", "model": "haiku"}, nil)
+	sh.form.OnSubmit(map[string]string{"scope": "agent", "agent_id": "reviewer", "model": "claude haiku"}, nil)
 	config.Reset()
 	cfg, err := config.Load()
 	require.NoError(t, err)
@@ -91,13 +93,13 @@ func TestModelsViewEditRefusesBadModel(t *testing.T) {
 	v.editEntry(0)
 	require.NotNil(t, sh.input)
 
-	sh.input("sonnet")
+	sh.input("claude sonnet")
 	config.Reset()
 	cfg, err := config.Load()
 	require.NoError(t, err)
 	assert.Equal(t, "anthropic/claude-sonnet-4-5", cfg.Models.Default, "unchanged")
 	require.NotEmpty(t, sh.toasts)
-	assert.Contains(t, sh.toasts[len(sh.toasts)-1], "sonnet")
+	assert.Contains(t, sh.toasts[len(sh.toasts)-1], "claude sonnet")
 
 	sh.input("anthropic/claude-opus-4-1")
 	config.Reset()
