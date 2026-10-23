@@ -892,7 +892,7 @@ func runEvalSession(ctx context.Context, cmd *cobra.Command, spec evalPassSpec, 
 		res.CostUSD, res.TokensIn, res.TokensOut = sess.Cost, sess.TokensIn, sess.TokensOut
 	}
 	fan.collect(tctx, ssvc, res, spec.OutDir, token)
-	tr, err := ssvc.Trace(tctx, sid, sessionsvc.TraceOptions{Usage: sqlite.NewUsageStore(store), Secrets: []string{token}})
+	tr, err := ssvc.Trace(tctx, sid, sessionsvc.TraceOptions{Usage: a.Usage, Secrets: []string{token}})
 	if err != nil {
 		return fmt.Errorf("trace: %w", err)
 	}

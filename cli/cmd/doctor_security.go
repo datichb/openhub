@@ -46,6 +46,9 @@ func securityDoctorChecks(ctx context.Context) []doctor.Result {
 		}
 	}
 
+	// CountLegacyTokens and CountClearPasswords are not in domain.GrantStore /
+	// domain.ServerStore (they only serve this check): they stay on the
+	// concrete stores of the open database.
 	if store != nil {
 		n := 0
 		for _, c := range []interface {

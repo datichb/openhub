@@ -13,7 +13,6 @@ import (
 	"github.com/datichb/openhub/cli/internal/evalrun"
 	"github.com/datichb/openhub/cli/internal/services/launch"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
-	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 )
 
 // Fan-out in an evaluation pass (R6): the driver runs in the pass process
@@ -124,7 +123,7 @@ func (f *evalFanout) collect(ctx context.Context, ssvc *sessionsvc.Service, res 
 		res.CostUSD += s.Cost
 		res.TokensIn += s.TokensIn
 		res.TokensOut += s.TokensOut
-		tr, err := ssvc.Trace(ctx, id, sessionsvc.TraceOptions{Usage: sqlite.NewUsageStore(store), Secrets: []string{token}})
+		tr, err := ssvc.Trace(ctx, id, sessionsvc.TraceOptions{Usage: f.a.Usage, Secrets: []string{token}})
 		if err != nil {
 			continue
 		}
