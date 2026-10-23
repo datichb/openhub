@@ -2276,6 +2276,7 @@
   "cmd.claims.end.kept.checkpoint_waiting": "Claim d'équipe %s gardé : le point de contrôle %s attend une décision (label session-ended).",
   "cmd.claims.end.kept.checkpoint_deferred": "Claim d'équipe %s gardé : le point de contrôle %s a été reporté et la session a laissé du travail (label session-ended).",
   "cmd.claims.end.kept.checkpoint_unknown": "Claim d'équipe %s gardé : les points de contrôle de la session n'ont pas pu être lus (label session-ended).",
+  "cmd.claims.start.adopt_queued": "Claim d'équipe %s/%s : le dépôt d'équipe est injoignable, la session le reprendra au retour du réseau (avant les opérations de la session précédente).",
   "cmd.claim.stale_confirm": "  Générer un brief de reprise et transférer ? [O/n] ",
   "cmd.claim.brief_generated": "Brief de reprise généré.",
   "cmd.claim.transferred_from_to": "%s/%s transféré de %s à %s",

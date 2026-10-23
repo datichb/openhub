@@ -41,20 +41,13 @@ func (r *Repo) AdoptClaim(ctx context.Context, project, ticketID, member, sessio
 		if c.ClaimedBy != member {
 			return nil
 		}
-		marked := slices.Contains(c.Labels, LabelSessionEnded)
-		if c.Session == session && !marked {
-			return nil
-		}
 		now := time.Now().UTC()
-		c.Labels = slices.DeleteFunc(c.Labels, func(l string) bool { return l == LabelSessionEnded })
-		c.LastActivity = InstantOf(now)
 		cfg, cfgErr := r.loadConfig()
 		if cfgErr != nil {
 			cfg = &TeamConfig{}
 		}
-		c.Session = session
-		if leaseApplies(c, cfg) {
-			c.LeaseUntil = leaseEnd(now, cfg)
+		if !adoptInto(c, cfg, session, now) {
+			return nil
 		}
 		data, err := marshalClaim(c)
 		if err != nil {
@@ -71,4 +64,22 @@ func (r *Repo) AdoptClaim(ctx context.Context, project, ticketID, member, sessio
 		return false, err
 	}
 	return adopted, nil
+}
+
+// adoptInto ties the claim c to session: the session-ended label goes, the
+// activity is bumped and the lease starts again from now. It reports false,
+// and changes nothing, when the claim already carries the session and has no
+// session-ended label to remove.
+func adoptInto(c *Claim, cfg *TeamConfig, session string, now time.Time) bool {
+	marked := slices.Contains(c.Labels, LabelSessionEnded)
+	if c.Session == session && !marked {
+		return false
+	}
+	c.Labels = slices.DeleteFunc(c.Labels, func(l string) bool { return l == LabelSessionEnded })
+	c.LastActivity = InstantOf(now)
+	c.Session = session
+	if leaseApplies(c, cfg) {
+		c.LeaseUntil = leaseEnd(now, cfg)
+	}
+	return true
 }

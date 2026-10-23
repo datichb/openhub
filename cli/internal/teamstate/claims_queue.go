@@ -41,6 +41,12 @@ const (
 	ClaimOpLabel = "label"
 	// ClaimOpTouch renews the lease of the claim, from the time it was queued.
 	ClaimOpTouch = "touch"
+	// ClaimOpAdopt ties the claim to a session that started on a ticket the
+	// member already holds (AdoptClaim), when the remote could not be
+	// reached. Session is the session that takes the claim, not a
+	// condition. Queuing it cancels the queued operations of the other
+	// sessions on the claim (see EnqueueClaimOp).
+	ClaimOpAdopt = "adopt"
 )
 
 const (
@@ -68,6 +74,7 @@ type ClaimOp struct {
 	ClaimedBy string `json:"claimed_by"`
 	// Session, when set, is the session that must still work on the claim.
 	// A claim without session does not match an operation that has one.
+	// For a ClaimOpAdopt it is the session that takes the claim (required).
 	Session string `json:"session,omitempty"`
 	// Status is the new status of a ClaimOpStatus.
 	Status string `json:"status,omitempty"`
@@ -191,6 +198,10 @@ func (r *Repo) writeClaimQueue(ops []ClaimOp) error {
 func (op *ClaimOp) validate() error {
 	switch op.Kind {
 	case ClaimOpRelease, ClaimOpTouch:
+	case ClaimOpAdopt:
+		if op.Session == "" {
+			return fmt.Errorf("%w: adopt operation without session", ErrInvalidClaimOp)
+		}
 	case ClaimOpStatus:
 		if op.Status == "" {
 			return fmt.Errorf("%w: status operation without status", ErrInvalidClaimOp)
@@ -214,6 +225,11 @@ func (op *ClaimOp) validate() error {
 	return nil
 }
 
+// sameClaim is true for two operations on the same claim of the same owner.
+func (op *ClaimOp) sameClaim(o *ClaimOp) bool {
+	return op.Project == o.Project && op.TicketID == o.TicketID && op.ClaimedBy == o.ClaimedBy
+}
+
 // sameTarget is true for two operations of the same kind on the same claim
 // of the same owner and session.
 func (op *ClaimOp) sameTarget(o *ClaimOp) bool {
@@ -226,6 +242,13 @@ func (op *ClaimOp) sameTarget(o *ClaimOp) bool {
 // identical to a queued one is not added twice. It does not wait for git
 // and works offline. An unreadable queue file is set aside (logged) and a
 // new queue is started, so that the operation is not refused.
+//
+// A claim that a session is going to take over (ClaimOpAdopt) is no longer
+// the business of the other sessions: queuing the adoption cancels the
+// queued operations of every other session on the claim (they were decided
+// for a claim the new session now works on, and replayed they would release
+// it), and an operation of another session queued after an adoption is not
+// added. Both are logged.
 func (r *Repo) EnqueueClaimOp(op ClaimOp) error {
 	if err := op.validate(); err != nil {
 		return err
@@ -249,6 +272,11 @@ func (r *Repo) EnqueueClaimOp(op ClaimOp) error {
 	kept := ops[:0:0]
 	for _, o := range ops {
 		switch {
+		case op.Kind == ClaimOpAdopt && op.sameClaim(&o) && o.Session != op.Session:
+			slog.Info("teamstate.claims_queue.superseded", "op", o.Kind, "project", o.Project, "ticket", o.TicketID, "session", o.Session, "adopted_by", op.Session)
+		case op.Kind != ClaimOpAdopt && o.Kind == ClaimOpAdopt && op.sameClaim(&o) && o.Session != op.Session:
+			slog.Info("teamstate.claims_queue.not_queued", "op", op.Kind, "project", op.Project, "ticket", op.TicketID, "session", op.Session, "adopted_by", o.Session)
+			return nil
 		case op.Kind == ClaimOpTouch && op.sameTarget(&o):
 			// replaced by the new one
 		case op.sameTarget(&o) && op.Status == o.Status && op.Label == o.Label && op.AnyTransition == o.AnyTransition:
@@ -366,7 +394,7 @@ func (r *Repo) applyClaimOp(tx *Tx, cfg *TeamConfig, op *ClaimOp) (ok, changed b
 	if c.ClaimedBy != op.ClaimedBy {
 		return false, false, fmt.Sprintf("claim now owned by %q", c.ClaimedBy)
 	}
-	if op.Session != "" && c.Session != op.Session {
+	if op.Kind != ClaimOpAdopt && op.Session != "" && c.Session != op.Session {
 		return false, false, fmt.Sprintf("claim now on session %q", c.Session)
 	}
 	rel := r.claimRelPath(op.Project, op.TicketID)
@@ -414,6 +442,13 @@ func (r *Repo) applyClaimOp(tx *Tx, cfg *TeamConfig, op *ClaimOp) (ok, changed b
 		}
 		c.Labels = append(c.Labels, op.Label)
 		c.LastActivity = InstantOf(time.Now())
+		return write()
+
+	case ClaimOpAdopt:
+		if !adoptInto(c, cfg, op.Session, time.Now().UTC()) {
+			return true, false, ""
+		}
+		slog.Info("teamstate.claim.adopt", "project", op.Project, "ticket", op.TicketID, "member", op.ClaimedBy, "session", op.Session, "queued", true)
 		return write()
 
 	case ClaimOpTouch:
@@ -497,4 +532,102 @@ func (r *Repo) queueTouches(refs []ClaimRef, member, session string, now time.Ti
 		n++
 	}
 	return n
+}
+
+// QueuedAdoption is the session a queued adoption is going to give the claim
+// to ("" and false when none is queued).
+func (r *Repo) QueuedAdoption(project, ticketID, member string) (string, bool) {
+	ops, err := r.ClaimQueue()
+	if err != nil {
+		return "", false
+	}
+	probe := ClaimOp{Project: project, TicketID: ticketID, ClaimedBy: member}
+	session, ok := "", false
+	for i := range ops {
+		if ops[i].Kind == ClaimOpAdopt && ops[i].sameClaim(&probe) {
+			session, ok = ops[i].Session, true
+		}
+	}
+	return session, ok
+}
+
+// QueueAdoptClaim queues the adoption of the claim the member holds by a
+// session (AdoptClaim for a remote that cannot be reached), after checking
+// in the clone that the claim exists and is the member's. queued is false,
+// without error, when the claim is somebody else's; a claim that is not in
+// the clone gives ErrClaimNotFound.
+func (r *Repo) QueueAdoptClaim(project, ticketID, member, session string) (queued bool, err error) {
+	if member == "" || session == "" {
+		return false, nil
+	}
+	if _, err := SafeName(project); err != nil {
+		return false, fmt.Errorf("invalid project name: %w", err)
+	}
+	if _, err := SafeName(ticketID); err != nil {
+		return false, fmt.Errorf("invalid ticket ID: %w", err)
+	}
+	r.mu.RLock()
+	c, err := r.getClaim(project, ticketID)
+	r.mu.RUnlock()
+	if err != nil {
+		return false, err
+	}
+	if c.ClaimedBy != member {
+		return false, nil
+	}
+	op := ClaimOp{Kind: ClaimOpAdopt, Project: project, TicketID: ticketID, ClaimedBy: member, Session: session}
+	if err := r.EnqueueClaimOp(op); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// AdoptClaimDurable is AdoptClaim that does not lose the adoption when the
+// remote cannot be reached or the clone stays busy: the adoption is queued
+// (ClaimOpAdopt) and applied by the next FlushClaimQueue, before anything
+// the previous session of the claim had queued (that is cancelled). queued
+// tells that it was. Online, the operations the other sessions of the claim
+// had queued are cancelled as well, since the claim is now on this session.
+func (r *Repo) AdoptClaimDurable(ctx context.Context, project, ticketID, member, session string) (adopted, queued bool, err error) {
+	adopted, err = r.AdoptClaim(ctx, project, ticketID, member, session)
+	switch {
+	case err == nil:
+		r.supersedeClaimOps(project, ticketID, member, session)
+		return adopted, false, nil
+	case errors.Is(err, ErrOffline), errors.Is(err, ErrBusy), errors.Is(err, context.DeadlineExceeded):
+		queued, qerr := r.QueueAdoptClaim(project, ticketID, member, session)
+		if qerr != nil {
+			return false, false, errors.Join(err, qerr)
+		}
+		return false, queued, nil
+	}
+	return false, false, err
+}
+
+// supersedeClaimOps removes the queued operations of the sessions other than
+// session on the claim of member. The queue is left alone when none matches.
+func (r *Repo) supersedeClaimOps(project, ticketID, member, session string) {
+	probe := ClaimOp{Project: project, TicketID: ticketID, ClaimedBy: member}
+	unlock, err := r.lockClaimQueue(context.Background())
+	if err != nil {
+		return
+	}
+	defer unlock()
+	ops, err := r.readClaimQueue(false)
+	if err != nil || len(ops) == 0 {
+		return
+	}
+	kept := slices.DeleteFunc(slices.Clone(ops), func(o ClaimOp) bool {
+		drop := o.sameClaim(&probe) && o.Session != session
+		if drop {
+			slog.Info("teamstate.claims_queue.superseded", "op", o.Kind, "project", o.Project, "ticket", o.TicketID, "session", o.Session, "adopted_by", session)
+		}
+		return drop
+	})
+	if len(kept) == len(ops) {
+		return
+	}
+	if err := r.writeClaimQueue(kept); err != nil {
+		slog.Warn("teamstate.claims_queue.supersede_failed", "project", project, "ticket", ticketID, "error", err)
+	}
 }

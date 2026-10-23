@@ -128,8 +128,14 @@ func endTicketClaims(ctx context.Context, repo *teamstate.Repo, in sessionClaims
 		if err != nil || c.ClaimedBy != in.Member {
 			continue // no claim, or someone else's
 		}
-		if in.Session != "" && c.Session != "" && c.Session != in.Session {
-			slog.Info("team claim left to its session", "ticket", t, "session", in.Session, "claim_session", c.Session)
+		// A session that took the claim over while the remote was out of
+		// reach (a queued adoption) is the one the claim belongs to.
+		owner := c.Session
+		if queued, ok := repo.QueuedAdoption(in.Project, t, in.Member); ok {
+			owner = queued
+		}
+		if in.Session != "" && owner != "" && owner != in.Session {
+			slog.Info("team claim left to its session", "ticket", t, "session", in.Session, "claim_session", owner)
 			continue
 		}
 		tk, err := in.Ticket(t)
