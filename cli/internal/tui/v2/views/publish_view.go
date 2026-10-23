@@ -9,6 +9,7 @@ import (
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
@@ -78,6 +79,7 @@ type PublishView struct {
 	publishing bool
 	ctx        context.Context
 	cancel     context.CancelFunc
+	loads      loadSlot // the read of the preview
 }
 
 var (
@@ -142,17 +144,13 @@ func (v *PublishView) load() {
 	if v.cfg.Load == nil || v.app == nil {
 		return
 	}
-	app, ctx := v.app, v.ctx
-	go func() {
-		p, err := v.cfg.Load(ctx)
-		app.QueueUpdateDraw(func() {
-			if v.app == nil {
-				return
-			}
-			v.preview, v.err = p, err
-			v.render()
-		})
-	}()
+	load(v.app, v.ctx, &v.loads, v.cfg.Load, func(p *PublishPreview, err error) {
+		if v.app == nil {
+			return
+		}
+		v.preview, v.err = p, err
+		v.render()
+	})
 }
 
 // SetPreview sets the preview (tests).
@@ -252,7 +250,7 @@ func (v *PublishView) publish() {
 		run()
 		return
 	}
-	go run()
+	safego.Go(run) // an action, not a read: its result is applied even if the view was left
 }
 
 func (v *PublishView) render() {
@@ -264,7 +262,7 @@ func (v *PublishView) render() {
 	if v.publishing {
 		hint = "⠋ " + i18n.T("tui.publish.publishing")
 	}
-	v.hints.SetText(" [" + theme.TextMutedHex + "]" + hint + "[-]")
+	v.hints.SetText(" " + muted(hint))
 }
 
 // PublishText renders a publication preview (also used for `D`).
@@ -272,9 +270,9 @@ func PublishText(p *PublishPreview, err error) string {
 	var b strings.Builder
 	if p == nil {
 		if err != nil {
-			fmt.Fprintf(&b, "[%s]✗ %s[-]\n", theme.ErrorHex, tview.Escape(err.Error()))
+			b.WriteString(stateText(stateError, err.Error()) + "\n")
 		} else {
-			b.WriteString(i18n.T("tui.publish.loading") + "\n")
+			b.WriteString(stateText(stateLoading, i18n.T("tui.publish.loading")) + "\n")
 		}
 		return b.String()
 	}
@@ -282,45 +280,45 @@ func PublishText(p *PublishPreview, err error) string {
 	if p.Current > 0 {
 		from = fmt.Sprintf("v%d", p.Current)
 	}
-	fmt.Fprintf(&b, "[::b]%s[::-]  %s → v%d\n", tview.Escape(p.Ref), from, p.Next)
+	fmt.Fprintf(&b, "%s%s%s  %s → v%d\n", theme.StyleTag(theme.AttrBold), tview.Escape(p.Ref), theme.TagAttrs, from, p.Next)
 	if p.Governance != "" {
-		fmt.Fprintf(&b, "[%s]%s[-]\n", theme.TextMutedHex, tview.Escape(p.Governance))
+		b.WriteString(muted(tview.Escape(p.Governance)) + "\n")
 	}
 	if p.Queued {
-		fmt.Fprintf(&b, "[%s]⏳ %s[-]\n", theme.WarningHex, i18n.T("tui.publish.already_queued"))
+		b.WriteString(theme.Paint(theme.WarningHex, theme.IconQueued+" "+i18n.T("tui.publish.already_queued")) + "\n")
 	}
 	b.WriteString("\n")
 	if p.Valid {
-		fmt.Fprintf(&b, "[%s]✔ %s[-]\n", theme.SuccessHex, i18n.T("tui.publish.valid"))
+		b.WriteString(theme.Paint(theme.SuccessHex, theme.SymSuccess+" "+i18n.T("tui.publish.valid")) + "\n")
 	} else {
-		fmt.Fprintf(&b, "[%s]✗ %s[-]\n", theme.ErrorHex, i18n.T("tui.publish.invalid"))
+		b.WriteString(theme.Paint(theme.ErrorHex, theme.SymFailure+" "+i18n.T("tui.publish.invalid")) + "\n")
 	}
 	for _, f := range p.Findings {
 		fmt.Fprintf(&b, "  %s\n", tview.Escape(f))
 	}
 	if err != nil {
-		fmt.Fprintf(&b, "[%s]✗ %s[-]\n", theme.ErrorHex, tview.Escape(err.Error()))
+		b.WriteString(theme.Paint(theme.ErrorHex, theme.SymFailure+" "+tview.Escape(err.Error())) + "\n")
 	}
 
-	fmt.Fprintf(&b, "\n[::b]─ %s[::-]\n", i18n.T("tui.publish.impact"))
+	fmt.Fprintf(&b, "\n%s─ %s%s\n", theme.StyleTag(theme.AttrBold), i18n.T("tui.publish.impact"), theme.TagAttrs)
 	switch {
 	case p.New:
 		fmt.Fprintf(&b, "  %s\n", i18n.T("tui.publish.impact_new"))
 	case len(p.Impact) == 0:
-		fmt.Fprintf(&b, "  [%s]✔[-] %s\n", theme.SuccessHex, i18n.T("tui.publish.impact_none"))
+		fmt.Fprintf(&b, "  %s %s\n", theme.Paint(theme.SuccessHex, theme.SymSuccess), i18n.T("tui.publish.impact_none"))
 	}
 	for _, it := range p.Impact {
 		if it.Widen {
-			fmt.Fprintf(&b, "  [%s]⚠[-] %s\n", theme.WarningHex, tview.Escape(it.Text))
+			fmt.Fprintf(&b, "  %s %s\n", theme.Paint(theme.WarningHex, theme.SymWarning), tview.Escape(it.Text))
 		} else {
 			fmt.Fprintf(&b, "  · %s\n", tview.Escape(it.Text))
 		}
 	}
 	if len(p.NewBricks) > 0 {
-		fmt.Fprintf(&b, "  [%s]+ %s[-] %s\n", theme.InfoHex, i18n.T("tui.catalog.edit.new_brick"), tview.Escape(strings.Join(p.NewBricks, ", ")))
+		fmt.Fprintf(&b, "  %s %s\n", theme.Paint(theme.InfoHex, theme.IconNewBrick+" "+i18n.T("tui.catalog.edit.new_brick")), tview.Escape(strings.Join(p.NewBricks, ", ")))
 	}
 
-	fmt.Fprintf(&b, "\n[::b]─ %s[::-]\n", i18n.T("tui.publish.diff"))
+	fmt.Fprintf(&b, "\n%s─ %s%s\n", theme.StyleTag(theme.AttrBold), i18n.T("tui.publish.diff"), theme.TagAttrs)
 	if strings.TrimSpace(p.Diff) == "" {
 		fmt.Fprintf(&b, "  %s\n", i18n.T("tui.publish.diff_none"))
 	} else {
@@ -336,11 +334,11 @@ func ColorDiff(diff string) string {
 		esc := tview.Escape(line)
 		switch {
 		case strings.HasPrefix(line, "+++"), strings.HasPrefix(line, "---"), strings.HasPrefix(line, "@@"):
-			fmt.Fprintf(&b, "[%s]%s[-]\n", theme.TextMutedHex, esc)
+			b.WriteString(muted(esc) + "\n")
 		case strings.HasPrefix(line, "+"):
-			fmt.Fprintf(&b, "[%s]%s[-]\n", theme.SuccessHex, esc)
+			b.WriteString(theme.Paint(theme.SuccessHex, esc) + "\n")
 		case strings.HasPrefix(line, "-"):
-			fmt.Fprintf(&b, "[%s]%s[-]\n", theme.ErrorHex, esc)
+			b.WriteString(theme.Paint(theme.ErrorHex, esc) + "\n")
 		default:
 			b.WriteString(esc + "\n")
 		}

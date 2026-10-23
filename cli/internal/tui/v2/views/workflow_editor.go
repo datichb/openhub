@@ -11,6 +11,7 @@ import (
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
@@ -147,7 +148,7 @@ type WorkflowEditorView struct {
 
 	check    *EditorCheck
 	checkErr error
-	checkGen uint64
+	checks   loadSlot // the checks of the text: only the latest is applied
 	checking bool
 	saving   bool
 	timer    *time.Timer
@@ -217,7 +218,7 @@ func (v *WorkflowEditorView) Unmount() {
 	if v.timer != nil {
 		v.timer.Stop()
 	}
-	v.checkGen++
+	v.checks.Invalidate()
 	v.app, v.root, v.page, v.tabs, v.body, v.status, v.list, v.graph, v.detail = nil, nil, nil, nil, nil, nil, nil, nil, nil
 }
 
@@ -228,28 +229,19 @@ func (v *WorkflowEditorView) recheck(delay time.Duration) {
 	if v.cfg.Check == nil {
 		return
 	}
-	v.checkGen++
-	gen := v.checkGen
+	v.checks.Invalidate() // an older check no longer applies
 	yaml, prompt := v.m.cur.yaml, v.m.cur.prompt
 	app, ctx := v.app, v.ctx
 	v.checking = true
 	run := func() {
-		chk, err := v.cfg.Check(ctx, yaml, prompt)
-		apply := func() {
-			if v.checkGen != gen {
-				return
-			}
-			v.check, v.checkErr, v.checking = chk, err, false
-			v.render()
-		}
-		if app == nil {
-			apply()
+		if ctx != nil && ctx.Err() != nil {
 			return
 		}
-		app.QueueUpdateDraw(func() {
-			if v.app != nil {
-				apply()
-			}
+		load(app, ctx, &v.checks, func(ctx context.Context) (*EditorCheck, error) {
+			return v.cfg.Check(ctx, yaml, prompt)
+		}, func(chk *EditorCheck, err error) {
+			v.check, v.checkErr, v.checking = chk, err, false
+			v.render()
 		})
 	}
 	if v.timer != nil {
@@ -259,12 +251,12 @@ func (v *WorkflowEditorView) recheck(delay time.Duration) {
 		run()
 		return
 	}
-	v.timer = time.AfterFunc(delay, run)
+	v.timer = time.AfterFunc(delay, func() { app.QueueUpdate(run) }) // checked on the loop, read off it
 }
 
 // SetCheck sets the check result (tests).
 func (v *WorkflowEditorView) SetCheck(c *EditorCheck) {
-	v.checkGen++
+	v.checks.Invalidate()
 	v.check, v.checking = c, false
 	v.render()
 }
@@ -313,40 +305,40 @@ func (v *WorkflowEditorView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	default:
 		return event
 	}
-	switch event.Rune() {
-	case 'u':
+	switch {
+	case undoKey.Matches(event):
 		if v.m.undoOnce() {
 			v.changed()
 		}
 		return nil
-	case 'U':
+	case redoKey.Matches(event):
 		if v.m.redoOnce() {
 			v.changed()
 		}
 		return nil
-	case rawYAMLKey.Rune():
+	case rawYAMLKey.Matches(event):
 		v.editRaw(0)
 		return nil
-	case 'w':
+	case saveKey.Matches(event):
 		v.save()
 		return nil
-	case keys.Delete.Rune():
+	case keys.Delete.Matches(event):
 		v.removeCurrent()
 		return nil
-	case 'a':
+	case addKey.Matches(event):
 		v.add()
 		return nil
-	case 'c':
+	case checkpointKey.Matches(event):
 		if v.section == edGraph {
 			v.addCheckpoint()
 			return nil
 		}
-	case 'm':
+	case modeKey.Matches(event):
 		if v.section == edGraph {
 			v.cycleMode()
 			return nil
 		}
-	case 'P':
+	case promptKey.Matches(event):
 		v.editPrompt()
 		return nil
 	}
@@ -434,7 +426,7 @@ func (v *WorkflowEditorView) saveThen(then func()) {
 		run()
 		return
 	}
-	go run()
+	safego.Go(run) // an action, not a read: its result is applied even if the view was left
 }
 
 // ── external editor ────────────────────────────────────────────────────────
@@ -488,10 +480,11 @@ func (v *WorkflowEditorView) render() {
 	for i, k := range editorSectionKeys {
 		label := i18n.T(k)
 		if i == edPreview && v.check != nil && v.check.Errors() > 0 {
-			label += fmt.Sprintf(" [%s]✗%d[-]", theme.ErrorHex, v.check.Errors())
+			label += " " + theme.Paint(theme.ErrorHex, fmt.Sprintf("%s%d", theme.SymFailure, v.check.Errors()))
 		}
 		if i == v.section {
-			label = "[" + theme.ActiveMode.AccentHex + "::b][ " + label + " ][-::-]"
+			// The brackets around the active section are text, not a tag.
+			label = theme.ColorTag(theme.ActiveMode.AccentHex) + theme.StyleTag(theme.AttrBold) + tview.Escape(fmt.Sprintf("%c %s %c", '[', label, ']')) + theme.TagColor + theme.TagAttrs
 		}
 		tabs = append(tabs, label)
 	}
@@ -503,9 +496,9 @@ func (v *WorkflowEditorView) render() {
 func (v *WorkflowEditorView) statusLine() string {
 	var parts []string
 	if v.m.dirty() {
-		parts = append(parts, "["+theme.WarningHex+"]✎ "+i18n.T("tui.editor.modified")+"[-]")
+		parts = append(parts, theme.Paint(theme.WarningHex, theme.SymModified+" "+i18n.T("tui.editor.modified")))
 	} else {
-		parts = append(parts, "["+theme.TextMutedHex+"]"+i18n.T("tui.editor.saved")+"[-]")
+		parts = append(parts, muted(i18n.T("tui.editor.saved")))
 	}
 	switch {
 	case v.saving:
@@ -513,13 +506,13 @@ func (v *WorkflowEditorView) statusLine() string {
 	case v.checking && v.check == nil:
 		parts = append(parts, "⠋ "+i18n.T("tui.editor.checking"))
 	case v.checkErr != nil:
-		parts = append(parts, "["+theme.ErrorHex+"]✗ "+tview.Escape(v.checkErr.Error())+"[-]")
+		parts = append(parts, theme.Paint(theme.ErrorHex, theme.SymFailure+" "+tview.Escape(v.checkErr.Error())))
 	case v.check != nil && v.check.Errors() > 0:
-		parts = append(parts, "["+theme.ErrorHex+"]✗ "+i18n.Tf("tui.catalog.edit.errors", v.check.Errors())+"[-]")
+		parts = append(parts, theme.Paint(theme.ErrorHex, theme.SymFailure+" "+i18n.Tf("tui.catalog.edit.errors", v.check.Errors())))
 	case v.check != nil:
-		parts = append(parts, "["+theme.SuccessHex+"]✔ "+i18n.T("tui.catalog.valid")+"[-]")
+		parts = append(parts, theme.Paint(theme.SuccessHex, theme.SymSuccess+" "+i18n.T("tui.catalog.valid")))
 	}
-	parts = append(parts, "["+theme.TextMutedHex+"]"+i18n.T("tui.editor.keys")+"[-]")
+	parts = append(parts, muted(i18n.T("tui.editor.keys")))
 	return strings.Join(parts, " · ")
 }
 
@@ -696,7 +689,7 @@ func (v *WorkflowEditorView) renderGraph(prev string) {
 	v.graph.SetEmptyText(i18n.T("tui.editor.graph.empty"))
 	mode := tview.NewTextView().SetDynamicColors(true)
 	mode.SetBackgroundColor(theme.BgPanel)
-	mode.SetText("[" + theme.TextMutedHex + "]" + tview.Escape(i18n.Tf("tui.editor.graph.mode", v.graphMode())) + "[-]")
+	mode.SetText(muted(tview.Escape(i18n.Tf("tui.editor.graph.mode", v.graphMode()))))
 	if prev != "" {
 		v.graph.Select(prev)
 	} else if v.focusPath != "" {
@@ -727,21 +720,20 @@ func (v *WorkflowEditorView) showGraphDetail() {
 		return
 	}
 	var b strings.Builder
-	muted := "[" + theme.TextMutedHex + "]"
 	row := func(k, val, path string) {
 		if val == "" {
 			val = "—"
 		}
 		o := v.originLabel(path)
 		if o != "" {
-			o = " " + muted + "← " + tview.Escape(o) + "[-]"
+			o = " " + muted("← "+tview.Escape(o))
 		}
-		fmt.Fprintf(&b, "%s%-11s[-] %s%s\n", muted, k, tview.Escape(val), o)
+		fmt.Fprintf(&b, "%s %s%s\n", muted(fmt.Sprintf("%-11s", k)), tview.Escape(val), o)
 	}
 	switch sel.Type {
 	case widgets.ElementCheckpoint:
 		cp, _ := sp.Checkpoints.Get(sel.ID)
-		v.detail.SetTitle(" ◆ " + sel.ID + " ")
+		v.detail.SetTitle(" " + theme.SymCurrent + " " + sel.ID + " ")
 		p := "checkpoints." + sel.ID
 		row(i18n.T("tui.editor.field.label"), cp.Label.Text(v.cfg.Lang), p+".label")
 		for _, m := range sp.AllowedModes() {
@@ -764,7 +756,7 @@ func (v *WorkflowEditorView) showGraphDetail() {
 		v.detail.SetTitle(" " + sel.ID + " ")
 		p := "agents." + sel.ID
 		if !declared {
-			fmt.Fprintf(&b, "%s%s[-]\n", muted, i18n.T("tui.editor.graph.implicit_entry"))
+			b.WriteString(muted(i18n.T("tui.editor.graph.implicit_entry")) + "\n")
 		}
 		row(i18n.T("tui.editor.field.role"), string(a.Role), p+".role")
 		row(i18n.T("tui.editor.field.agent_mode"), string(a.Mode), p+".mode")
@@ -781,8 +773,8 @@ func (v *WorkflowEditorView) showGraphDetail() {
 		v.detail.SetTitle(" → ")
 		b.WriteString(i18n.T("tui.editor.graph.edge_add"))
 	}
-	b.WriteString("\n" + muted + i18n.T("tui.editor.graph.help") + "[-]")
-	b.WriteString("\n\n" + muted + i18n.T("tui.editor.graph.edge_help") + "[-]")
+	b.WriteString("\n" + muted(i18n.T("tui.editor.graph.help")))
+	b.WriteString("\n\n" + muted(i18n.T("tui.editor.graph.edge_help")))
 	v.detail.SetText(b.String())
 }
 
@@ -799,7 +791,6 @@ func (v *WorkflowEditorView) delegation(sp *workflow.Spec) (map[string][]string,
 // workflow agent the entry cannot reach.
 func (v *WorkflowEditorView) writeDelegation(b *strings.Builder, sp *workflow.Spec, id string, a workflow.AgentRef) {
 	graph, complete := v.delegation(sp)
-	muted := "[" + theme.TextMutedHex + "]"
 	var callers []string
 	for _, m := range sp.Members() {
 		if m != id && slices.Contains(graph[m], id) {
@@ -814,12 +805,12 @@ func (v *WorkflowEditorView) writeDelegation(b *strings.Builder, sp *workflow.Sp
 	}
 	to := tview.Escape(list(graph[id]))
 	if a.Calls == nil && len(graph[id]) > 0 {
-		to += " " + muted + i18n.T("tui.editor.graph.derived") + "[-]"
+		to += " " + muted(i18n.T("tui.editor.graph.derived"))
 	}
-	fmt.Fprintf(b, "\n%s%-11s[-] %s\n", muted, i18n.T("tui.editor.graph.delegates_to"), to)
-	fmt.Fprintf(b, "%s%-11s[-] %s\n", muted, i18n.T("tui.editor.graph.called_by"), tview.Escape(list(callers)))
+	fmt.Fprintf(b, "\n%s %s\n", muted(fmt.Sprintf("%-11s", i18n.T("tui.editor.graph.delegates_to"))), to)
+	fmt.Fprintf(b, "%s %s\n", muted(fmt.Sprintf("%-11s", i18n.T("tui.editor.graph.called_by"))), tview.Escape(list(callers)))
 	if complete && a.Role != workflow.RoleIndependent && a.Role != workflow.RoleDisabled && !workflow.Reachable(sp.EntryAgent(), graph)[id] {
-		fmt.Fprintf(b, "[%s]%s %s[-]\n", theme.WarningHex, theme.IconWarn, i18n.T("tui.editor.graph.unreachable"))
+		b.WriteString(theme.Paint(theme.WarningHex, theme.IconWarn+" "+i18n.T("tui.editor.graph.unreachable")) + "\n")
 	}
 }
 
@@ -850,12 +841,12 @@ func (v *WorkflowEditorView) renderPreview() {
 	summary := tview.NewTextView().SetDynamicColors(true).SetWrap(true).SetScrollable(true)
 	summary.SetBackgroundColor(theme.BgPanel)
 	var b strings.Builder
-	fmt.Fprintf(&b, "[%s::b]%s[-::-]\n", theme.ActiveMode.PrimaryHex, tview.Escape(i18n.T("tui.editor.preview.bundle")))
+	b.WriteString(theme.ColorTag(theme.ActiveMode.PrimaryHex) + theme.StyleTag(theme.AttrBold) + tview.Escape(i18n.T("tui.editor.preview.bundle")) + theme.TagColor + theme.TagAttrs + "\n")
 	switch {
 	case v.check == nil:
-		b.WriteString(i18n.T("tui.editor.checking"))
+		b.WriteString(stateText(stateLoading, i18n.T("tui.editor.checking")))
 	case v.check.BundleErr != "":
-		fmt.Fprintf(&b, "[%s]✗ %s[-]\n", theme.ErrorHex, tview.Escape(v.check.BundleErr))
+		b.WriteString(theme.Paint(theme.ErrorHex, theme.SymFailure+" "+tview.Escape(v.check.BundleErr)) + "\n")
 	case len(v.check.Bundle) == 0:
 		b.WriteString(i18n.T("tui.editor.preview.no_bundle"))
 	}
@@ -869,9 +860,9 @@ func (v *WorkflowEditorView) renderPreview() {
 	items := []widgets.SectionItem{{MainText: i18n.T("tui.editor.preview.diagnostics"), IsHeader: true}}
 	if v.check != nil {
 		for _, d := range v.check.Diagnostics {
-			icon := "[" + theme.WarningHex + "]⚠[-]"
+			icon := theme.Paint(theme.WarningHex, theme.SymWarning)
 			if d.Error {
-				icon = "[" + theme.ErrorHex + "]✗[-]"
+				icon = theme.Paint(theme.ErrorHex, theme.SymFailure)
 			}
 			main := icon + " " + tview.Escape(d.Message)
 			sec := d.Path
@@ -882,7 +873,7 @@ func (v *WorkflowEditorView) renderPreview() {
 		}
 	}
 	if len(items) == 1 {
-		items = append(items, widgets.SectionItem{MainText: "[" + theme.SuccessHex + "]✔[-] " + i18n.T("tui.editor.preview.no_diagnostics"), IsHeader: true})
+		items = append(items, widgets.SectionItem{MainText: theme.Paint(theme.SuccessHex, theme.SymSuccess) + " " + i18n.T("tui.editor.preview.no_diagnostics"), IsHeader: true})
 	}
 	v.list.SetItems(items)
 	v.list.SetItemChangedFunc(func(_ int, it widgets.SectionItem) { v.showDiagDetail(it.Reference) })
@@ -985,7 +976,7 @@ func (v *WorkflowEditorView) fieldMain(f *edField, doc *workflow.Document) strin
 	}
 	mark := "  "
 	if written {
-		mark = "[" + theme.WarningHex + "]✎[-] "
+		mark = theme.Paint(theme.WarningHex, theme.SymModified) + " "
 	}
 	return fmt.Sprintf("%s%-24s %s", mark, tview.Escape(f.label), tview.Escape(val))
 }
@@ -1021,14 +1012,14 @@ func (v *WorkflowEditorView) showDiagDetail(ref any) {
 		icon, color = theme.IconInvalid, theme.ErrorHex
 	}
 	var b strings.Builder
-	fmt.Fprintf(&b, "[%s]%s[-] %s\n", color, icon, tview.Escape(d.Message))
+	b.WriteString(theme.Paint(color, icon) + " " + tview.Escape(d.Message) + "\n")
 	if d.Path != "" {
-		fmt.Fprintf(&b, "\n[%s]%s[-]\n", theme.TextMutedHex, tview.Escape(d.Path))
+		b.WriteString("\n" + muted(tview.Escape(d.Path)) + "\n")
 	}
 	if d.Hint != "" {
 		fmt.Fprintf(&b, "\n%s\n", tview.Escape(d.Hint))
 	}
-	b.WriteString("\n[" + theme.TextMutedHex + "]" + i18n.T("tui.editor.preview.jump_help") + "[-]")
+	b.WriteString("\n" + muted(i18n.T("tui.editor.preview.jump_help")))
 	v.detail.SetText(b.String())
 }
 
@@ -1052,21 +1043,21 @@ func (v *WorkflowEditorView) showFieldDetail(ref any) {
 		b.WriteString(tview.Escape(f.help) + "\n\n")
 	}
 	if len(f.path) > 0 {
-		fmt.Fprintf(&b, "[%s]%s[-]\n", theme.TextMutedHex, strings.Join(f.path, "."))
+		b.WriteString(muted(strings.Join(f.path, ".")) + "\n")
 	}
 	if f.lock != "" && v.check.locked(f.lock) {
 		fmt.Fprintf(&b, "\n🔒 %s\n", i18n.Tf("tui.editor.locked_detail", f.lock))
 	}
-	b.WriteString("\n[" + theme.TextMutedHex + "]" + i18n.T("tui.editor.field_help") + "[-]")
+	b.WriteString("\n" + muted(i18n.T("tui.editor.field_help")))
 	v.detail.SetText(b.String())
 }
 
 func (v *WorkflowEditorView) promptPreviewText() string {
 	switch {
 	case v.check == nil:
-		return i18n.T("tui.editor.checking")
+		return stateText(stateLoading, i18n.T("tui.editor.checking"))
 	case v.check.PromptErr != "":
-		return "[" + theme.ErrorHex + "]✗ " + tview.Escape(v.check.PromptErr) + "[-]"
+		return theme.Paint(theme.ErrorHex, theme.SymFailure+" "+tview.Escape(v.check.PromptErr))
 	case v.check.Prompt == "":
 		return i18n.T("tui.editor.inputs.no_prompt")
 	}
@@ -1095,7 +1086,16 @@ func (v *WorkflowEditorView) activate(ref any) {
 
 // rawYAMLKey opens the raw YAML in $EDITOR (Y; y is accept in the key
 // convention).
-var rawYAMLKey = keys.Own("editor.raw_yaml", 'Y', "tui.editor.raw_yaml")
+var (
+	rawYAMLKey    = keys.Own("editor.raw_yaml", 'Y', "tui.editor.raw_yaml")
+	undoKey       = keys.Own("editor.undo", 'u', "tui.editor.key.undo")
+	redoKey       = keys.Own("editor.redo", 'U', "tui.editor.key.redo")
+	saveKey       = keys.Own("editor.save", 'w', "tui.editor.key.save")
+	addKey        = keys.Own("editor.add", 'a', "tui.editor.key.add")
+	checkpointKey = keys.Own("editor.checkpoint", 'c', "tui.editor.key.checkpoint")
+	modeKey       = keys.Own("editor.mode", 'm', "tui.editor.key.mode")
+	promptKey     = keys.Own("editor.prompt", 'P', "tui.editor.key.prompt")
+)
 
 // removeCurrent removes the selected element (d / Delete) after a
 // confirmation: a field written in this document goes back to the

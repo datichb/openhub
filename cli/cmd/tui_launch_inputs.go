@@ -12,6 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/services/launch"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/workflow"
 	"github.com/datichb/openhub/cli/internal/worktree"
 )
@@ -88,7 +89,7 @@ func tuiFromPreview(a *app.App, project *domain.Project, parent string, sp *work
 			if err != nil {
 				return i18n.Tf("tui.launch.input.from_none", in.From)
 			}
-			return i18n.Tf("tui.launch.input.from_value", in.From, s.ID, clipText(outputText(s.Outputs[f.Output]), fromPreviewMax))
+			return i18n.Tf("tui.launch.input.from_value", in.From, s.ID, textfmt.Clip(outputText(s.Outputs[f.Output]), fromPreviewMax))
 		case workflow.SourceSessionTraces:
 			if v := strings.TrimSpace(values[f.Input]); v != "" {
 				return i18n.Tf("tui.launch.input.from_traces", in.From, v)
@@ -101,15 +102,6 @@ func tuiFromPreview(a *app.App, project *domain.Project, parent string, sp *work
 		}
 		return i18n.Tf("tui.launch.input.from_session", in.From, s.ID)
 	}
-}
-
-// clipText cuts s to n characters.
-func clipText(s string, n int) string {
-	r := []rune(s)
-	if len(r) <= n {
-		return s
-	}
-	return string(r[:n-1]) + "…"
 }
 
 // tuiCheckInput checks a path (relative to the project) or a branch (local

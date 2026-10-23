@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
@@ -474,7 +475,7 @@ func (v *WorkflowEditorView) inputFields() []*edField {
 				}
 				return ""
 			}), "prompt", "template"),
-		&edField{label: "✎ " + t("tui.editor.inputs.edit_prompt"), help: t("tui.editor.inputs.edit_prompt_help"), action: v.editPrompt},
+		&edField{label: theme.SymModified + " " + t("tui.editor.inputs.edit_prompt"), help: t("tui.editor.inputs.edit_prompt_help"), action: v.editPrompt},
 	)
 	return out
 }

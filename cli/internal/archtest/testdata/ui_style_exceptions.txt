@@ -11,7 +11,6 @@
 # The lot A12 removes widgets.ColorTag, and with it the widgets-tag lines.
 #
 symbol cmd/tui_editor.go 2
-symbol cmd/tui_launch.go 1
 symbol cmd/tui_team_columns.go 5
 tag-color cmd/tui_team_columns.go 12
 tag-style cmd/tui_team_columns.go 2
@@ -56,9 +55,6 @@ tag-color internal/tui/v2/views/project_mode_view.go 1
 tag-style internal/tui/v2/views/project_wiki_view.go 1
 tag-style internal/tui/v2/views/projects_view.go 1
 symbol internal/tui/v2/views/provider_view.go 7
-symbol internal/tui/v2/views/publish_view.go 6
-tag-color internal/tui/v2/views/publish_view.go 13
-tag-style internal/tui/v2/views/publish_view.go 3
 symbol internal/tui/v2/views/secrets_view.go 2
 symbol internal/tui/v2/views/settings_exec.go 1
 symbol internal/tui/v2/views/settings_view.go 1
@@ -77,12 +73,6 @@ symbol internal/tui/v2/views/wiki_proposals.go 2
 symbol internal/tui/v2/views/wiki_view.go 2
 tag-color internal/tui/v2/views/wiki_view.go 2
 widgets-tag internal/tui/v2/views/wizard.go 9
-symbol internal/tui/v2/views/workflow_editor.go 12
-tag-color internal/tui/v2/views/workflow_editor.go 24
-tag-style internal/tui/v2/views/workflow_editor.go 1
-symbol internal/tui/v2/views/workflow_editor_fields.go 1
-tag-color internal/tui/v2/views/workflows_view.go 15
-tag-style internal/tui/v2/views/workflows_view.go 1
 tag-color internal/tui/v2/views/worktree_view.go 1
 tag-color internal/tui/v2/widgets/button.go 2
 symbol internal/tui/v2/widgets/inlineselect.go 2
