@@ -95,6 +95,20 @@ var layerRules = []layerRule{
 		},
 	},
 	{
+		name:       "the daemon client and its API do not import the daemon",
+		advice:     "daemon/api (types, routes, errors, paths) and daemon/client are below daemon: a type both sides need goes into daemon/api",
+		from:       under("internal/daemon/client", "internal/daemon/api"),
+		forbidden:  func(imp string) bool { return imp == module+"/internal/daemon" },
+		transitive: true,
+	},
+	{
+		name:       "runsvc, services and mcp reach the daemon through daemon/client and daemon/api",
+		advice:     "import internal/daemon/client (Client, Ensure) and internal/daemon/api (types, errors, paths), not internal/daemon, which is the server; cmd is the one place that starts it",
+		from:       under("internal/runsvc", "internal/services", "internal/mcp"),
+		forbidden:  func(imp string) bool { return imp == module+"/internal/daemon" },
+		transitive: true,
+	},
+	{
 		name:   "cmd opens the database only from its composition root",
 		advice: "a command receives the store (or the service built on it) from the app context set up by cmd/root.go, cmd/startup.go and cmd/v5_runtime.go; do not import internal/storage/sqlite in a new file of cmd",
 		from: func(rel string) bool {
