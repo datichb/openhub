@@ -4,6 +4,11 @@ import (
 	"strings"
 )
 
+// FallbackModel is the short name of the model oh gives a session when no
+// level of the cascade sets one. It is also the example the messages about
+// model names give: there is no other list of current models.
+const FallbackModel = "claude-sonnet-4-6"
+
 // ModelOverrides holds per-agent and per-family model overrides at a single cascade level.
 // Used for hub-level (from hub.toml), project-level (from DB), and team-level (from team-state) overrides.
 type ModelOverrides struct {

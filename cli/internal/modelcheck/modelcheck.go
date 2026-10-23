@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/datichb/openhub/cli/internal/bricks"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
@@ -70,12 +71,18 @@ func (c Catalog) CheckFamily(name string) error {
 	return withSuggestions(i18n.Tf("modelcheck.unknown_family", name, strings.Join(families, ", ")), name, families)
 }
 
-// CheckModel refuses a model that is not written provider/model[#variant].
+// CheckModel refuses a model name that the session bundle cannot use: empty,
+// with a space, with an empty provider, name or variant. It follows the rule
+// of the bundle and of the agent frontmatter: a short name
+// (claude-sonnet-5-5) or provider/model, each with an optional #variant. The
+// bundle converts either one for the provider of the session.
 func CheckModel(model string) error {
 	ref := sessionspec.ParseModelRef(model)
-	if ref.Provider == "" || ref.Model == "" || strings.ContainsAny(model, " \t\r\n") ||
+	slash := strings.Contains(model, "/")
+	if ref.Model == "" || (slash && ref.Provider == "") || strings.ContainsAny(model, " \t\r\n") ||
 		(strings.Contains(model, "#") && ref.Variant == "") {
-		return errors.New(i18n.Tf("modelcheck.bad_model", model))
+		return errors.New(i18n.Tf("modelcheck.bad_model", model, bricks.FallbackModel,
+			bricks.NormalizeModelForProvider(bricks.FallbackModel, "bedrock")))
 	}
 	return nil
 }

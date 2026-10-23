@@ -74,9 +74,9 @@ func TestConfigModelRejectsUnknownIdentifiers(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "quality")
 
-	_, err = runWorkflowSub(t, configModelAgentCmd, "reviewer", "claude-haiku")
-	require.Error(t, err, "a model without provider is refused")
-	_, err = runWorkflowSub(t, configModelDefaultCmd, "claude-haiku")
+	_, err = runWorkflowSub(t, configModelAgentCmd, "reviewer", "anthropic/")
+	require.Error(t, err, "a model without a name is refused")
+	_, err = runWorkflowSub(t, configModelDefaultCmd, "claude haiku")
 	require.Error(t, err)
 
 	c, err := config.Load()
@@ -96,6 +96,30 @@ func TestConfigModelRejectsUnknownIdentifiers(t *testing.T) {
 	assert.Equal(t, model, c.Models.Agents["reviewer"])
 	assert.Equal(t, model, c.Models.Families["quality"])
 	assert.Equal(t, model, c.Models.Default)
+}
+
+// The short names of the frontmatter (claude-sonnet-5-5) are accepted at every
+// level, like anthropic/claude-sonnet-5-5: the session bundle converts both
+// for the provider.
+func TestConfigModelAcceptsShortNames(t *testing.T) {
+	store := modelCLI(t)
+	const short = "claude-sonnet-5-5"
+
+	_, err := runWorkflowSub(t, configModelDefaultCmd, short)
+	require.NoError(t, err)
+	_, err = runWorkflowSub(t, configModelFamilyCmd, "quality", short)
+	require.NoError(t, err)
+	_, err = runWorkflowSub(t, configModelAgentCmd, "reviewer", short+"#high")
+	require.NoError(t, err)
+	_, err = runWorkflowSub(t, configModelDefaultCmd, short, "-p", "p1")
+	require.NoError(t, err)
+
+	c, err := config.Load()
+	require.NoError(t, err)
+	assert.Equal(t, short, c.Models.Default)
+	assert.Equal(t, short, c.Models.Families["quality"])
+	assert.Equal(t, short+"#high", c.Models.Agents["reviewer"])
+	assert.Equal(t, short, store.projects[0].Model)
 }
 
 func TestConfigModelProjectLevelValidates(t *testing.T) {
