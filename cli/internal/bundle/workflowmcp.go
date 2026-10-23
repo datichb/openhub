@@ -21,7 +21,7 @@ func applyWorkflowRuntime(spec *sessionspec.BundleSpec, s *workflow.Spec) {
 			return
 		}
 	}
-	spec.MCP = append(append([]sessionspec.MCPServerDef(nil), spec.MCP...), sessionspec.WorkflowMCPDef())
+	spec.MCP = append(append([]sessionspec.MCPServerDef(nil), spec.MCP...), sessionspec.WorkflowMCPDefFor(spec.Workflow))
 }
 
 // WorkflowRuntime extracts from a resolved workflow what a running session

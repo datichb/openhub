@@ -3,7 +3,7 @@
   "agents": [
     {
       "id": "reviewer",
-      "mode": "primary",
+      "mode": "all",
       "model": "/claude-opus-4-6",
       "permissions": [
         "shell * deny",

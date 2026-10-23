@@ -146,14 +146,14 @@ func callersOf(graph map[string][]string) map[string][]string {
 	return out
 }
 
-// applyWorkflowModes applies `agents.<id>.mode` of the workflow.
-func applyWorkflowModes(agents []sessionspec.AgentDef, spec *workflow.Spec) {
+// applyWorkflowModes applies `agents.<id>.mode` of the workflow, and makes
+// "all" every primary agent that graph lets a member launch (itself
+// included): the tool refuses to launch a primary agent through task.
+func applyWorkflowModes(agents []sessionspec.AgentDef, spec *workflow.Spec, graph map[string][]string) {
 	if spec == nil {
 		return
 	}
 	for i := range agents {
-		if ref, ok := spec.Agents.Get(agents[i].ID); ok && ref.Mode != "" {
-			agents[i].Mode = string(ref.Mode)
-		}
+		agents[i].Mode = string(spec.ResolveMode(agents[i].ID, workflow.AgentMode(agents[i].Mode), graph))
 	}
 }

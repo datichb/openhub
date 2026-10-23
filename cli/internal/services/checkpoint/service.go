@@ -102,7 +102,29 @@ type Service struct {
 var (
 	ErrNoWorkflow = errors.New("this session was not started from a workflow")
 	ErrUnknownCP  = errors.New("unknown checkpoint")
+	// ErrNoCheckpoint: the workflow has no checkpoint at all (review).
+	ErrNoCheckpoint = errors.New("this workflow has no checkpoint")
 )
+
+// cpError carries the message shown to the agent (localised) with the error
+// it stands for.
+type cpError struct {
+	msg  string
+	kind error
+}
+
+func (e *cpError) Error() string { return e.msg }
+func (e *cpError) Unwrap() error { return e.kind }
+
+// unknownCheckpoint is the error of a workflow_checkpoint call that names a
+// checkpoint the workflow does not have: it says so when the workflow has
+// none, and lists the valid ids otherwise.
+func unknownCheckpoint(wf *sessionspec.WorkflowRuntime, id string) error {
+	if len(wf.Checkpoints) == 0 {
+		return &cpError{msg: i18n.Tf("cmd.daemon.workflow.no_checkpoint", id), kind: ErrNoCheckpoint}
+	}
+	return &cpError{msg: i18n.Tf("cmd.daemon.workflow.unknown_checkpoint", id, strings.Join(checkpointIDs(wf), ", ")), kind: ErrUnknownCP}
+}
 
 // Checkpoint states in Status.
 const (
@@ -290,7 +312,7 @@ func (s *Service) Reached(ctx context.Context, sessionID string, call Call) (Res
 	}
 	c, ok := wf.Checkpoint(call.ID)
 	if !ok {
-		return Result{}, fmt.Errorf("%w %q (%s)", ErrUnknownCP, call.ID, strings.Join(checkpointIDs(wf), ", "))
+		return Result{}, unknownCheckpoint(wf, call.ID)
 	}
 	res := Result{ID: c.ID, Label: c.LabelFor(i18n.Locale()), Behavior: c.Behavior(sess.Mode)}
 	res.Warning = byWarning(sess.ID, c, call.Agent)

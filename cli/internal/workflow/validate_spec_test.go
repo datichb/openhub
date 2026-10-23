@@ -142,6 +142,9 @@ func TestValidate_Rules(t *testing.T) {
 		{"role required", "risk: write\nagents:\n  developer: { after: x }\n", "field_required", "agents.developer.role", SeverityError},
 		{"role enum", "risk: write\nagents:\n  developer: { role: boss }\n", "enum_invalid", "agents.developer.role", SeverityError},
 		{"mode enum", "risk: write\nagents:\n  developer: { role: workflow, mode: main }\n", "enum_invalid", "agents.developer.mode", SeverityError},
+		// a primary agent cannot be launched through task: a delegation to one written primary is shipped as all, with a warning
+		{"calls primary agent", "risk: write\nentry: { agent: orchestrator-dev }\nagents:\n  orchestrator-dev: { role: workflow, calls: [developer] }\n  developer: { role: workflow, mode: primary }\n", "calls_target_primary", "agents.developer.mode", SeverityWarning},
+		{"self call primary agent", "risk: write\nentry: { agent: auditor }\nagents:\n  auditor: { role: workflow, mode: primary, calls: [auditor] }\n", "calls_target_primary", "agents.auditor.mode", SeverityWarning},
 		{"after unknown", "risk: write\nagents:\n  developer: { role: workflow, after: cp-9 }\n", "after_unknown", "agents.developer.after", SeverityError},
 		{"after self", "risk: write\nagents:\n  developer: { role: workflow, after: developer }\n", "after_unknown", "agents.developer.after", SeverityError},
 		{"after cycle", "risk: write\nagents:\n  developer: { role: workflow, after: reviewer }\n  reviewer: { role: workflow, after: developer }\n", "after_cycle", "agents.developer.after", SeverityError},
@@ -228,6 +231,26 @@ func TestValidate_Rules(t *testing.T) {
 				return
 			}
 			assertDiag(t, checkYAML(t, doc, testEnv()), c.code, c.path, c.sev)
+		})
+	}
+}
+
+// A primary agent of the catalogue that a workflow agent calls is shipped as
+// "all" by the bundle: nothing to report; `mode: all` is accepted when written.
+func TestValidate_CalledPrimaryAgentIsAll(t *testing.T) {
+	t.Parallel()
+	for name, body := range map[string]string{
+		"self call":         "risk: read\nbeads: { allow: [show] }\nentry: { agent: auditor }\nagents:\n  auditor: { role: workflow, calls: [auditor] }\n",
+		"cross call":        "risk: write\nentry: { agent: conductor }\nagents:\n  conductor: { role: workflow, calls: [orchestrator-dev] }\n  orchestrator-dev: { role: workflow }\n",
+		"written all":       "risk: write\nentry: { agent: conductor }\nagents:\n  conductor: { role: workflow, calls: [orchestrator-dev] }\n  orchestrator-dev: { role: workflow, mode: all }\n",
+		"all self call":     "risk: read\nbeads: { allow: [show] }\nentry: { agent: auditor }\nagents:\n  auditor: { role: workflow, mode: all, calls: [auditor] }\n",
+		"written subagent":  "risk: write\nentry: { agent: conductor }\nagents:\n  conductor: { role: workflow, calls: [orchestrator-dev] }\n  orchestrator-dev: { role: workflow, mode: subagent }\n",
+		"primary not asked": "risk: write\nentry: { agent: conductor }\nagents:\n  conductor: { role: workflow, mode: primary, calls: [] }\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			if diags := checkYAML(t, vHeader+body, testEnv()); len(diags) != 0 {
+				t.Fatalf("diagnostics:\n%s", diagList(diags))
+			}
 		})
 	}
 }

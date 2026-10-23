@@ -15,7 +15,7 @@ En v5, ce n'est plus l'agent qui décide de l'enchaînement : c'est le **workflo
 
 - **Agents membres** : la carte `agents:` du workflow liste les agents de la session, avec leur rôle
   (`workflow` dans la chaîne, `independent` disponible à la demande, `disabled` retiré) et, au besoin,
-  un `mode` (`primary` / `subagent`) qui remplace celui du frontmatter.
+  un `mode` (`primary` / `subagent` / `all`) qui remplace celui du frontmatter.
 - **Ordre** : `after:` verrouille un agent jusqu'au passage d'un checkpoint (ou jusqu'à ce qu'un autre agent ait tourné).
   Tant que le verrou n'est pas levé, oh refuse la délégation vers cet agent ([ADR-042](./adr/042-checkpoints-headless-decisions.fr.md)).
 - **Délégations** : `calls:` fixe qui peut lancer qui. Sans `calls:`, le graphe vient de la permission `task`
@@ -163,8 +163,11 @@ Le champ `mode:` contrôle comment un agent est exposé dans OpenCode :
 |------|----------|
 | `primary` | Visible dans le Tab picker de la session — présent dans `agents/` du paquet de session |
 | `subagent` | Invocable par d'autres agents du paquet, invisible dans le Tab picker. Présent dans `agents/` du paquet de session avec une description orientée délégation. |
+| `all` | Les deux : visible dans le Tab picker et lançable par `task`. Dans le workflow uniquement (pas dans le frontmatter d'un agent). |
 
-Le mode effectif suit une priorité : **workflow** (`agents.<id>.mode`) > **frontmatter agent** > **`primary`** (défaut).
+OpenCode refuse de lancer un agent `primary` par `task` (« Agent X cannot run as a subagent »). Le paquet livre donc en `all` tout agent `primary` qu'un agent du workflow peut lancer, lui-même compris (`calls: [reviewer]` dans `review` : sessions `reviewer` parallèles des modes combinés), que la délégation soit écrite dans `calls` ou déduite de la permission `task` (`documentarian`, `primary` dans son frontmatter, lancé par le `developer` dans `ticket` et `implement-spec`). Un agent que personne n'appelle, et ceux en `subagent` ou `all`, gardent leur mode. Un `mode: primary` écrit dans le workflow sur un agent appelé est livré en `all` lui aussi : `oh workflow validate` le signale par un avertissement.
+
+Le mode effectif suit une priorité : **workflow** (`agents.<id>.mode`) > **frontmatter agent** (`all` s'il est appelé, voir ci-dessus) > **`primary`** (défaut).
 Exemple : dans `spec`, `pathfinder`, `planner` et `designer` sont en `subagent` ; dans `implement-spec`, `reviewer` aussi ; dans `quick` et `sweep-task`, `developer` passe en `primary`.
 L'agent d'entrée doit être `primary`.
 

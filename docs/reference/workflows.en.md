@@ -296,7 +296,7 @@ Read-only review of a branch or of recent changes. Allowed Beads command: `show`
 | `branch` | `branch` | no | Branch to review (empty: recent changes) |
 | `base` | `branch` (default: `main`) | no | Base branch |
 
-The combined modes (`standard+adversarial`, `all`) launch parallel `reviewer` sessions: the workflow declares the self-delegation `reviewer: { calls: [reviewer] }`. A self-delegation is only kept when written in `calls` (never derived from permissions); it counts as one depth level.
+The combined modes (`standard+adversarial`, `all`) launch parallel `reviewer` sessions: the workflow declares the self-delegation `reviewer: { calls: [reviewer] }`. A self-delegation is only kept when written in `calls` (never derived from permissions); it counts as one depth level. The tool refuses to launch a `primary` agent through `task`: the bundle therefore ships the `reviewer` with `mode: all` (see [Primary / Subagent modes](../architecture/agents.en.md#primary--subagent-modes)).
 
 The reviewer runs the build and tests of the branch once, before the parallel sessions: in this `risk: read` workflow (often someone else's merge request, whose tests run its code), each command is asked to the user; refused or impossible to run, it is reported as a 🟡 "not verifiable" finding. Nothing is installed.
 

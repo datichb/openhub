@@ -186,7 +186,7 @@ Injecté dans chaque session lancée depuis un workflow ; sans état, il transme
 | Outil | Paramètres | Rôle |
 |-------|------------|------|
 | `workflow_status` | — | État du workflow : mode, checkpoints, prochain checkpoint, agents et opérations verrouillés, sorties |
-| `workflow_checkpoint` | `id`, `summary`, `reports` (facultatif) | Passe un checkpoint (attend la validation quand il est en pause dans le mode) ; `reports` cite des rapports `rp-…` |
+| `workflow_checkpoint` | `id`, `summary`, `reports` (facultatif) | Passe un checkpoint (attend la validation quand il est en pause dans le mode) ; `reports` cite des rapports `rp-…`. Non proposé dans un workflow sans checkpoint (`review`, `audit`…) ; un `id` inconnu reçoit la liste des identifiants valides |
 | `workflow_outputs` | `type`, `value`, `id` | Déclare une sortie typée |
 | `workflow_report` | `title`, `body` | Dépose le rapport complet de l'agent ; oh répond par son identifiant `rp-<n>` |
 | `workflow_report_get` | `id`, `section` (facultatif) | Lit un rapport, en entier ou une section (titre Markdown) |

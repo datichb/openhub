@@ -149,6 +149,35 @@ func MaxDepth(entry string, graph map[string][]string) int {
 	return 1
 }
 
+// IsCalled reports whether a member of graph may launch id (itself included).
+func IsCalled(id string, graph map[string][]string) bool {
+	for _, targets := range graph {
+		if containsStr(targets, id) {
+			return true
+		}
+	}
+	return false
+}
+
+// ResolveMode returns the mode an agent of the workflow is shipped with:
+// `agents.<id>.mode` when the workflow writes one, else base (the mode of
+// the agent itself, its frontmatter; primary when empty). A primary agent,
+// written or not, that graph lets another member (or itself) launch becomes
+// "all": the tool refuses to launch a primary agent through task.
+func (s *Spec) ResolveMode(id string, base AgentMode, graph map[string][]string) AgentMode {
+	mode := base
+	if ref, ok := s.Agents.Get(id); ok && ref.Mode != "" {
+		mode = ref.Mode
+	}
+	if mode == "" {
+		mode = ModePrimary
+	}
+	if mode == ModePrimary && IsCalled(id, graph) {
+		return ModeAll
+	}
+	return mode
+}
+
 // Reachable returns the members reachable from entry (entry included).
 func Reachable(entry string, graph map[string][]string) map[string]bool {
 	seen := map[string]bool{entry: true}

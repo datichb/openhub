@@ -117,7 +117,7 @@ Validates a file or a catalogue workflow: strict parsing, `extends` resolution, 
 | `--team` | string | | Team or solo space, without a project |
 | `--json` | bool | `false` | JSON output |
 
-The team and project layers loaded are those of the project of `--project` or of the current folder (else the active team, or the only solo space); a bare id means the most specific layer holding it. An unpublished workflow (`team:<id>`, `project:<id>`) is looked up in **your draft**, flagged "(your draft, not published)". A team or project workflow without prompt (nor `extends`) gives a warning: the session would start without any initial instruction; published files changed outside a publication are skipped with a warning. Brick references are checked against the catalogue **merged** with the team bricks (`catalog/`), as at launch.
+The team and project layers loaded are those of the project of `--project` or of the current folder (else the active team, or the only solo space); a bare id means the most specific layer holding it. An unpublished workflow (`team:<id>`, `project:<id>`) is looked up in **your draft**, flagged "(your draft, not published)". A team or project workflow without prompt (nor `extends`) gives a warning: the session would start without any initial instruction; published files changed outside a publication are skipped with a warning. Brick references are checked against the catalogue **merged** with the team bricks (`catalog/`), as at launch. A delegation (`calls`, or derived from the permissions) to an agent that the workflow writes `mode: primary` is a warning: the tool cannot launch a primary agent as a subagent, so the bundle ships it as `all` (write `all` to say so, or `subagent`).
 
 ## Editing team and project workflows
 

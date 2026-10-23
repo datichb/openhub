@@ -296,7 +296,7 @@ Review en lecture seule d'une branche ou des modifications récentes. Commande B
 | `branch` | `branch` | non | Branche à reviewer (vide : modifications récentes) |
 | `base` | `branch` (défaut : `main`) | non | Branche de base |
 
-Les modes combinés (`standard+adversarial`, `all`) lancent des sessions `reviewer` en parallèle : le workflow déclare l'auto-délégation `reviewer: { calls: [reviewer] }`. Une auto-délégation n'est retenue que si elle est écrite dans `calls` (jamais déduite des permissions) ; elle compte pour un niveau de profondeur.
+Les modes combinés (`standard+adversarial`, `all`) lancent des sessions `reviewer` en parallèle : le workflow déclare l'auto-délégation `reviewer: { calls: [reviewer] }`. Une auto-délégation n'est retenue que si elle est écrite dans `calls` (jamais déduite des permissions) ; elle compte pour un niveau de profondeur. L'outil refuse de lancer un agent `primary` par `task` : le paquet livre donc le `reviewer` en `mode: all` (voir [Modes primary / subagent](../architecture/agents.fr.md#modes-primary--subagent)).
 
 Le reviewer lance une fois le build et les tests de la branche, avant les sessions parallèles : dans ce workflow `risk: read` (souvent la merge request d'un tiers, dont les tests exécutent le code), chaque commande est demandée à l'utilisateur ; refusée ou impossible à lancer, elle est signalée en finding 🟡 « non vérifiable ». Rien n'est installé.
 

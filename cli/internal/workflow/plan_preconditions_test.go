@@ -107,7 +107,7 @@ func TestEvaluatePreconditions(t *testing.T) {
 
 func TestExplicitSelfDelegation(t *testing.T) {
 	t.Parallel()
-	doc := vHeader + "risk: read\nbeads: { allow: [show] }\nentry: { agent: reviewer }\nagents:\n  reviewer: { role: workflow, mode: primary, calls: [reviewer, documentarian] }\n  documentarian: { role: independent }\n"
+	doc := vHeader + "risk: read\nbeads: { allow: [show] }\nentry: { agent: reviewer }\nagents:\n  reviewer: { role: workflow, calls: [reviewer, documentarian] }\n  documentarian: { role: independent }\n"
 	diags := checkYAML(t, doc, Env{Agents: fakeAgents{"reviewer": {Mode: ModePrimary}, "documentarian": {Mode: ModeSubagent}}})
 	if len(diags) != 0 {
 		t.Fatalf("self-delegation is not a cycle: %v", diags)

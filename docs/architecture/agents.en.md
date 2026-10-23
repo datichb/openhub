@@ -15,7 +15,7 @@ In v5, the agent no longer decides the chain: the session **workflow** does
 
 - **Member agents**: the workflow `agents:` map lists the session agents, with their role
   (`workflow` in the chain, `independent` available on demand, `disabled` removed) and, if needed,
-  a `mode` (`primary` / `subagent`) that replaces the frontmatter one.
+  a `mode` (`primary` / `subagent` / `all`) that replaces the frontmatter one.
 - **Order**: `after:` locks an agent until a checkpoint is passed (or until another agent has run).
   While the lock holds, oh refuses delegation to that agent ([ADR-042](./adr/042-checkpoints-headless-decisions.en.md)).
 - **Delegations**: `calls:` sets who may launch whom. Without `calls:`, the graph comes from the frontmatter `task`
@@ -163,8 +163,11 @@ The `mode:` field controls how an agent is exposed in OpenCode:
 |------|----------|
 | `primary` | Visible in the session Tab picker — present in the session bundle `agents/` |
 | `subagent` | Invocable by other agents of the bundle, hidden in the Tab picker. Present in the session bundle `agents/` with a delegation-oriented description. |
+| `all` | Both: visible in the Tab picker and launchable through `task`. Workflow only (not in the agent frontmatter). |
 
-The effective mode follows a priority: **workflow** (`agents.<id>.mode`) > **agent frontmatter** > **`primary`** (default).
+OpenCode refuses to launch a `primary` agent through `task` (« Agent X cannot run as a subagent »). The bundle therefore ships as `all` every agent that is `primary` and that an agent of the workflow may launch, itself included (`calls: [reviewer]` in `review`: parallel `reviewer` sessions of the combined modes), whether the delegation is written in `calls` or derived from the `task` permission (`documentarian`, `primary` in its frontmatter, launched by the `developer` in `ticket` and `implement-spec`). An agent that nobody calls, and the `subagent` and `all` ones, keep their mode. A `mode: primary` written in the workflow on an agent that is called is shipped as `all` too: `oh workflow validate` warns about it.
+
+The effective mode follows a priority: **workflow** (`agents.<id>.mode`) > **agent frontmatter** (`all` if called, see above) > **`primary`** (default).
 Example: in `spec`, `pathfinder`, `planner` and `designer` are `subagent`; in `implement-spec`, so is `reviewer`; in `quick` and `sweep-task`, `developer` becomes `primary`.
 The entry agent must be `primary`.
 

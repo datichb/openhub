@@ -13,7 +13,7 @@ Agent d'entrée : `orchestrator-dev`. Seuls les agents ci-dessous existent dans 
 |---|---|---|---|---|
 | `orchestrator-dev` | workflow (entrée) | primary | — | `documentarian`, `reviewer` |
 | `reviewer` | workflow | subagent | — | — |
-| `documentarian` | independent | primary | — | — |
+| `documentarian` | independent | all | — | — |
 
 Règles de délégation :
 - Tu ne lances (outil `task`) que les agents de la colonne « Peut déléguer à » de ta ligne. Tout autre appel est refusé par l'outil.
