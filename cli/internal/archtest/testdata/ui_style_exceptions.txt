@@ -1,0 +1,108 @@
+# Shortcuts accepted by TestUIStyleGuard (internal/archtest/ui_style_test.go).
+#
+# One line per file and per kind: "<kind> <file> <count>". The list only
+# shrinks: a new shortcut fails the test, and so does a count that went down
+# (or a file with none left) until its line is updated here or removed. Never
+# raise a count to make the test pass: take the color from the theme
+# (theme.Paint, ColorTag, ColorTagOf, BgTag, StyleTag) and the symbol from its
+# table of meanings (theme.Sym*).
+#
+# kinds: tag-color, tag-style, color-literal, widgets-tag, symbol (see the test)
+# The lot A12 removes widgets.ColorTag, and with it the widgets-tag lines.
+#
+symbol cmd/tui_catalog.go 2
+tag-style cmd/tui_cleanup.go 2
+symbol cmd/tui_editor.go 2
+symbol cmd/tui_launch.go 1
+symbol cmd/tui_remote.go 8
+symbol cmd/tui_team_columns.go 5
+tag-color cmd/tui_team_columns.go 12
+tag-style cmd/tui_team_columns.go 2
+widgets-tag cmd/tui_team_columns.go 1
+symbol cmd/tui_team_tracker.go 2
+symbol cmd/tui_v5_lifecycle.go 1
+symbol cmd/tui_views.go 1
+symbol internal/tui/theme/button.go 1
+symbol internal/tui/v2/layout/layout.go 1
+tag-style internal/tui/v2/layout/layout.go 1
+widgets-tag internal/tui/v2/layout/layout.go 1
+symbol internal/tui/v2/shell/shell.go 2
+symbol internal/tui/v2/views/action_list.go 3
+symbol internal/tui/v2/views/activity_view.go 10
+tag-style internal/tui/v2/views/banner.go 4
+symbol internal/tui/v2/views/beads_picker.go 4
+tag-color internal/tui/v2/views/beads_picker.go 10
+tag-style internal/tui/v2/views/beads_picker.go 1
+color-literal internal/tui/v2/views/board.go 5
+widgets-tag internal/tui/v2/views/board.go 1
+widgets-tag internal/tui/v2/views/board_view.go 1
+symbol internal/tui/v2/views/bricks_view.go 3
+tag-style internal/tui/v2/views/bricks_view.go 1
+symbol internal/tui/v2/views/cleanup_deploy.go 2
+tag-color internal/tui/v2/views/cleanup_deploy.go 2
+symbol internal/tui/v2/views/config_field.go 8
+widgets-tag internal/tui/v2/views/dashboard.go 7
+tag-style internal/tui/v2/views/doctor_view.go 1
+symbol internal/tui/v2/views/gc_view.go 4
+tag-color internal/tui/v2/views/gc_view.go 7
+tag-style internal/tui/v2/views/gc_view.go 1
+tag-style internal/tui/v2/views/help_view.go 1
+tag-color internal/tui/v2/views/history_view.go 3
+symbol internal/tui/v2/views/inline_form.go 2
+tag-color internal/tui/v2/views/inline_form.go 2
+tag-style internal/tui/v2/views/inline_wizard.go 1
+widgets-tag internal/tui/v2/views/inline_wizard.go 31
+symbol internal/tui/v2/views/launch_form.go 9
+tag-color internal/tui/v2/views/launch_form.go 11
+symbol internal/tui/v2/views/launch_form_existing.go 3
+tag-color internal/tui/v2/views/launch_form_existing.go 5
+symbol internal/tui/v2/views/launch_form_inputs.go 2
+tag-color internal/tui/v2/views/launch_form_inputs.go 5
+tag-color internal/tui/v2/views/launch_form_runtime.go 2
+symbol internal/tui/v2/views/list_page.go 2
+tag-style internal/tui/v2/views/list_page.go 1
+symbol internal/tui/v2/views/mcp_view.go 14
+tag-color internal/tui/v2/views/metrics_view.go 1
+tag-style internal/tui/v2/views/metrics_view.go 5
+symbol internal/tui/v2/views/patterns_view.go 2
+symbol internal/tui/v2/views/policies_view.go 9
+tag-color internal/tui/v2/views/project_mode_view.go 1
+tag-style internal/tui/v2/views/project_wiki_view.go 1
+tag-style internal/tui/v2/views/projects_view.go 1
+symbol internal/tui/v2/views/provider_view.go 11
+symbol internal/tui/v2/views/publish_view.go 6
+tag-color internal/tui/v2/views/publish_view.go 13
+tag-style internal/tui/v2/views/publish_view.go 3
+symbol internal/tui/v2/views/secrets_view.go 4
+symbol internal/tui/v2/views/sessions_batch.go 5
+symbol internal/tui/v2/views/sessions_fanout.go 3
+symbol internal/tui/v2/views/sessions_section.go 1
+tag-color internal/tui/v2/views/sessions_tabs.go 1
+symbol internal/tui/v2/views/settings_exec.go 1
+symbol internal/tui/v2/views/settings_view.go 1
+symbol internal/tui/v2/views/start_section.go 4
+symbol internal/tui/v2/views/status_view.go 6
+tag-style internal/tui/v2/views/status_view.go 1
+symbol internal/tui/v2/views/team_detail_view.go 2
+tag-color internal/tui/v2/views/team_mode_view.go 1
+symbol internal/tui/v2/views/team_models_view.go 1
+widgets-tag internal/tui/v2/views/teamboard.go 1
+tag-color internal/tui/v2/views/teamboard_view.go 6
+tag-style internal/tui/v2/views/teamboard_view.go 4
+widgets-tag internal/tui/v2/views/teamboard_view.go 1
+symbol internal/tui/v2/views/teams_view.go 2
+symbol internal/tui/v2/views/teamstatus_view.go 1
+tag-style internal/tui/v2/views/teamstatus_view.go 4
+symbol internal/tui/v2/views/wiki_proposals.go 4
+symbol internal/tui/v2/views/wiki_view.go 2
+tag-color internal/tui/v2/views/wiki_view.go 2
+widgets-tag internal/tui/v2/views/wizard.go 9
+symbol internal/tui/v2/views/workflow_editor.go 12
+tag-color internal/tui/v2/views/workflow_editor.go 24
+tag-style internal/tui/v2/views/workflow_editor.go 1
+symbol internal/tui/v2/views/workflow_editor_fields.go 1
+tag-color internal/tui/v2/views/workflows_view.go 15
+tag-style internal/tui/v2/views/workflows_view.go 1
+tag-color internal/tui/v2/views/worktree_view.go 1
+tag-color internal/tui/v2/widgets/button.go 2
+symbol internal/tui/v2/widgets/inlineselect.go 2
