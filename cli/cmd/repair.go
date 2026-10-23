@@ -14,7 +14,6 @@ import (
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/daemon"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/launcher"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 )
 
@@ -31,6 +30,7 @@ func init() {
 	repairCmd.Flags().Bool("auto", false, "Mode non-interactif (pour scripts)")
 	repairCmd.Flags().Bool("check-only", false, "Vérifier uniquement, sans réparer")
 	repairCmd.Flags().Bool("migrate", false, "Appliquer les migrations en attente, après une sauvegarde")
+	addYesFlag(repairCmd)
 	repairCmd.Flags().String("restore", "", "Restaurer la base depuis une sauvegarde (fichier .bak)")
 }
 
@@ -143,10 +143,7 @@ func repairRestore(cmd *cobra.Command, backup, dbPath string, auto bool) error {
 	}
 	fmt.Fprintln(w, i18n.Tf("cmd.repair.restore_plan", backup, dbPath))
 	if !auto {
-		if !stdinIsTerminal() {
-			return errors.New(i18n.T("cmd.repair.needs_auto"))
-		}
-		ok, err := launcher.NewCLIUI(cmd.ErrOrStderr()).Confirm(i18n.T("cmd.repair.restore_confirm"))
+		ok, err := confirmAction(cmd, i18n.T("cmd.repair.restore_confirm"), false)
 		if err != nil {
 			return err
 		}

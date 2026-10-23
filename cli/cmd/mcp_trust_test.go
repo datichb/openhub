@@ -10,12 +10,15 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/charmbracelet/huh"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 	"github.com/datichb/openhub/cli/internal/mcpresolve"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
@@ -95,59 +98,89 @@ func TestPlanTrust(t *testing.T) {
 	assert.True(t, p.Sensitive(), "loopback is flagged too")
 }
 
+// trustTestCmd is oh mcp trust with its flags parsed, writing to out.
+func trustTestCmd(t *testing.T, out *bytes.Buffer, args ...string) *cobra.Command {
+	t.Helper()
+	cmd := mcpTrustCmd()
+	require.NoError(t, cmd.ParseFlags(args))
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetContext(context.Background())
+	return cmd
+}
+
 func TestTrustURLConfirmsThenPins(t *testing.T) {
 	isolatedHub(t)
+	i18ntest.Set(t, "en")
 	fakeDNS(t, map[string][]string{"jira.corp.example.com": {"10.1.2.3"}})
-	ctx := context.Background()
 	shared := urlEnforced("https://Jira.Corp.example.com/")
+	terminalIs(t, true)
 
 	// Refused answer: nothing is pinned.
+	fa := stubConfirmForm(t, false)
 	var out bytes.Buffer
-	require.NoError(t, trustURL(ctx, strings.NewReader("non\n"), &out, "jira", shared, config.MCPServerConfig{}, false, true))
+	require.NoError(t, trustURL(trustTestCmd(t, &out), "jira", shared, config.MCPServerConfig{}))
 	assert.Empty(t, pinned(t, "jira"))
+	assert.Equal(t, []bool{false}, fa.initial, "the answer is no by default")
+	assert.Contains(t, fa.questions[0], "token to https://jira.corp.example.com")
 	assert.Contains(t, out.String(), "https://jira.corp.example.com")
 	assert.Contains(t, out.String(), "10.1.2.3", "the resolution is shown")
 	assert.Contains(t, out.String(), "⚠", "a private address is flagged")
+	assert.Contains(t, out.String(), "not pinned")
 
-	// Empty answer = no.
-	require.NoError(t, trustURL(ctx, strings.NewReader("\n"), &out, "jira", shared, config.MCPServerConfig{}, false, true))
+	// Ctrl+C is a no.
+	stubConfirmForm(t, huh.ErrUserAborted)
+	require.NoError(t, trustURL(trustTestCmd(t, &out), "jira", shared, config.MCPServerConfig{}))
 	assert.Empty(t, pinned(t, "jira"))
 
-	// Without a terminal and without --yes: refused, never pinned.
-	err := trustURL(ctx, strings.NewReader("oui\n"), &out, "jira", shared, config.MCPServerConfig{}, false, false)
-	assert.ErrorContains(t, err, "--yes")
-	assert.Empty(t, pinned(t, "jira"))
-
-	// The accepted answers.
-	for i, answer := range []string{"o", "oui", "y", "yes", "YES", " Oui "} {
-		require.NoError(t, config.Update(func(c *config.Config) error { c.MCP.Jira.TrustedURL = ""; return nil }), i)
-		require.NoError(t, trustURL(ctx, strings.NewReader(answer+"\n"), &out, "jira", shared, config.MCPServerConfig{}, false, true), answer)
-		assert.Equal(t, "https://jira.corp.example.com", pinned(t, "jira"), answer)
-	}
+	// Accepted in the form.
+	stubConfirmForm(t, true)
+	require.NoError(t, trustURL(trustTestCmd(t, &out), "jira", shared, config.MCPServerConfig{}))
+	assert.Equal(t, "https://jira.corp.example.com", pinned(t, "jira"))
 
 	// Already pinned: nothing to confirm.
+	stubConfirmForm(t) // any question fails the test
 	out.Reset()
-	require.NoError(t, trustURL(ctx, strings.NewReader(""), &out, "jira", shared, config.MCPServerConfig{TrustedURL: "https://jira.corp.example.com/"}, false, false))
+	require.NoError(t, trustURL(trustTestCmd(t, &out), "jira", shared, config.MCPServerConfig{TrustedURL: "https://jira.corp.example.com/"}))
 	assert.Contains(t, out.String(), "jira")
+}
+
+// Without a terminal and without --yes: refused with ExitUsage, never pinned.
+func TestTrustURLWithoutTerminalNeedsYes(t *testing.T) {
+	isolatedHub(t)
+	i18ntest.Set(t, "en")
+	fakeDNS(t, map[string][]string{"gitlab.example.com": {"93.184.216.34"}})
+	terminalIs(t, false)
+	stubConfirmForm(t)
+	var out bytes.Buffer
+	err := trustURL(trustTestCmd(t, &out), "gitlab", urlEnforced("https://gitlab.example.com"), config.MCPServerConfig{})
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "--yes")
+	assert.Equal(t, ExitUsage, ExitCode(err))
+	assert.Empty(t, pinned(t, "gitlab"))
+
+	require.NoError(t, trustURL(trustTestCmd(t, &out, "--yes"), "gitlab", urlEnforced("https://gitlab.example.com"), config.MCPServerConfig{}))
+	assert.Equal(t, "https://gitlab.example.com", pinned(t, "gitlab"))
 }
 
 func TestTrustURLYesAndOtherServices(t *testing.T) {
 	isolatedHub(t)
 	fakeDNS(t, map[string][]string{"gitlab.example.com": {"93.184.216.34"}})
-	ctx := context.Background()
+	terminalIs(t, false)
+	stubConfirmForm(t)
 	var out bytes.Buffer
-	require.NoError(t, trustURL(ctx, strings.NewReader(""), &out, "gitlab", urlEnforced("https://gitlab.example.com"), config.MCPServerConfig{}, true, false))
+	require.NoError(t, trustURL(trustTestCmd(t, &out, "-y"), "gitlab", urlEnforced("https://gitlab.example.com"), config.MCPServerConfig{}))
 	assert.Equal(t, "https://gitlab.example.com", pinned(t, "gitlab"))
 	assert.Empty(t, pinned(t, "jira"), "pinned for the service only")
 	assert.NotContains(t, out.String(), "⚠")
 
 	// The pin is replaced by another approval.
-	require.NoError(t, trustURL(ctx, strings.NewReader(""), &out, "gitlab", urlEnforced("https://gitlab2.example.com"), config.MCPServerConfig{TrustedURL: "https://gitlab.example.com"}, true, false))
+	require.NoError(t, trustURL(trustTestCmd(t, &out, "--yes"), "gitlab", urlEnforced("https://gitlab2.example.com"), config.MCPServerConfig{TrustedURL: "https://gitlab.example.com"}))
 	assert.Equal(t, "https://gitlab2.example.com", pinned(t, "gitlab"))
 	assert.Contains(t, out.String(), "https://gitlab.example.com")
 
 	// What the team writes is refused even with --yes.
-	err := trustURL(ctx, strings.NewReader(""), &out, "gitlab", urlEnforced("http://gitlab3.example.com"), config.MCPServerConfig{}, true, false)
+	err := trustURL(trustTestCmd(t, &out, "--yes"), "gitlab", urlEnforced("http://gitlab3.example.com"), config.MCPServerConfig{})
 	require.Error(t, err)
 	assert.Equal(t, "https://gitlab2.example.com", pinned(t, "gitlab"))
 }

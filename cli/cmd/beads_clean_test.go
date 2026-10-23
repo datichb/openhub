@@ -58,8 +58,8 @@ func TestDoctorFixBeads(t *testing.T) {
 	stdinIsTerminal = func() bool { return false }
 
 	cmd, out := doctorFixCmd()
-	if err := runDoctorFix(cmd, a); err == nil || !strings.Contains(err.Error(), "--yes") {
-		t.Fatalf("without terminal nor --yes: %v", err)
+	if err := runDoctorFix(cmd, a); err == nil || !strings.Contains(err.Error(), "--yes") || ExitCode(err) != ExitUsage {
+		t.Fatalf("without terminal nor --yes: %v (code %d)", err, ExitCode(err))
 	}
 	if !strings.Contains(out.String(), "CLAUDE.md") || !strings.Contains(out.String(), ".cursor/hooks.json") {
 		t.Fatalf("plan:\n%s", out.String())
@@ -279,15 +279,15 @@ func TestDoctorFixUndoesCommitOnceConfirmed(t *testing.T) {
 
 	withTerminal(t, false)
 	cmd, _ := doctorFixCmd()
-	if err := runDoctorFix(cmd, a); err == nil {
-		t.Fatal("without terminal nor --yes: applied")
+	if err := runDoctorFix(cmd, a); err == nil || ExitCode(err) != ExitUsage {
+		t.Fatalf("without terminal nor --yes: applied (%v)", err)
 	}
 	if git(dir, "log", "-1", "--format=%s") != bdInitSubject {
 		t.Fatal("commit undone without terminal nor --yes")
 	}
 
 	withTerminal(t, true)
-	withConfirm(t, false)
+	stubConfirmForm(t, false)
 	cmd, _ = doctorFixCmd()
 	if err := runDoctorFix(cmd, a); err != nil {
 		t.Fatal(err)
@@ -296,12 +296,12 @@ func TestDoctorFixUndoesCommitOnceConfirmed(t *testing.T) {
 		t.Fatal("commit undone although declined")
 	}
 
-	asked := withConfirm(t, true)
+	asked := stubConfirmForm(t, true)
 	cmd, out := doctorFixCmd()
 	if err := runDoctorFix(cmd, a); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out.String(), "undone if not pushed") || *asked != 1 {
+	if !strings.Contains(out.String(), "undone if not pushed") || len(asked.questions) != 1 {
 		t.Fatalf("the undo was not listed before the confirmation:\n%s", out.String())
 	}
 	if got := git(dir, "log", "-1", "--format=%s"); got != "init" {

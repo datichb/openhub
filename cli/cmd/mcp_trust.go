@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -210,13 +209,6 @@ func printTrustProposal(out io.Writer, p *trustProposal) {
 	}
 }
 
-// askYes asks a question and reads the answer (o/oui/y/yes).
-func askYes(in io.Reader, out io.Writer, question string) bool {
-	fmt.Fprintf(out, "\n%s ", question)
-	line, _ := bufio.NewReader(in).ReadString('\n')
-	return confirmed(line, false)
-}
-
 func runMCPTrust(cmd *cobra.Command, args []string) error {
 	service, err := pinService(args[0])
 	if err != nil {
@@ -231,14 +223,14 @@ func runMCPTrust(cmd *cobra.Command, args []string) error {
 	if s, ok := sharedMCPForTeam(tc)[service]; ok {
 		shared = &s
 	}
-	yes, _ := cmd.Flags().GetBool("yes")
-	return trustURL(cmd.Context(), cmd.InOrStdin(), cmd.OutOrStdout(), service, shared, *a.Config.MCPServer(service), yes, stdinIsTerminal())
+	return trustURL(cmd, service, shared, *a.Config.MCPServer(service))
 }
 
 // trustURL shows the URL the team imposes on a service, asks for a
-// confirmation (a terminal, or yes) and pins the URL.
-func trustURL(ctx context.Context, in io.Reader, out io.Writer, service string, shared *teamstate.SharedMCPConfig, cur config.MCPServerConfig, yes, terminal bool) error {
-	p, err := planTrust(ctx, service, shared, cur)
+// confirmation (--yes, or a terminal) and pins the URL.
+func trustURL(cmd *cobra.Command, service string, shared *teamstate.SharedMCPConfig, cur config.MCPServerConfig) error {
+	out := cmd.OutOrStdout()
+	p, err := planTrust(cmd.Context(), service, shared, cur)
 	if err != nil {
 		return err
 	}
@@ -247,14 +239,14 @@ func trustURL(ctx context.Context, in io.Reader, out io.Writer, service string, 
 		fmt.Fprintf(out, "\n%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.mcp.trust.already", p.Service, p.Pinned))
 		return nil
 	}
-	if !yes {
-		if !terminal {
-			return errors.New(i18n.T("cmd.mcp.trust.no_terminal"))
-		}
-		if !askYes(in, out, i18n.Tf("cmd.mcp.trust.confirm", p.Service, p.URL)) {
-			fmt.Fprintf(out, "%s\n", i18n.T("cmd.mcp.trust.cancelled"))
-			return nil
-		}
+	fmt.Fprintln(out)
+	ok, err := confirmAction(cmd, i18n.Tf("cmd.mcp.trust.confirm", p.Service, p.URL), false)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		fmt.Fprintf(out, "%s\n", i18n.T("cmd.mcp.trust.cancelled"))
+		return nil
 	}
 	if err := pinMCPURL(p.Service, p.URL); err != nil {
 		return err

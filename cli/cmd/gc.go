@@ -180,7 +180,6 @@ func runGC(cmd *cobra.Command, _ []string) error {
 	w := cmd.OutOrStdout()
 	f := cmd.Flags()
 	dry, _ := f.GetBool("dry-run")
-	yes, _ := f.GetBool("yes")
 	asJSON, _ := f.GetBool("json")
 	onlyRaw, _ := f.GetStringSlice("only")
 	olderRaw, _ := f.GetString("older-than")
@@ -214,18 +213,13 @@ func runGC(cmd *cobra.Command, _ []string) error {
 		fmt.Fprintln(w, i18n.T("cmd.gc.dry_run"))
 		return nil
 	}
-	if !yes {
-		if !stdinIsTerminal() {
-			return errors.New(i18n.T("cmd.gc.needs_yes"))
-		}
-		ok, err := cliConfirm(cmd.ErrOrStderr(), i18n.T("cmd.gc.confirm"))
-		if err != nil {
-			return err
-		}
-		if !ok {
-			fmt.Fprintln(w, i18n.T("cmd.gc.cancelled"))
-			return nil
-		}
+	ok, err := confirmAction(cmd, i18n.T("cmd.gc.confirm"), false)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		fmt.Fprintln(w, i18n.T("cmd.gc.cancelled"))
+		return nil
 	}
 	done, err := gc.Run(ctx, env, opts, &plan)
 	if errors.Is(err, gc.ErrBusy) {

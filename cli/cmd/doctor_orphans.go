@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -110,18 +109,13 @@ func fixOrphanServers(cmd *cobra.Command) error {
 	for _, o := range orphans {
 		fmt.Fprintf(w, "  %s\n", describeOrphans([]orphanServer{o}, 1))
 	}
-	if yes, _ := cmd.Flags().GetBool("yes"); !yes {
-		if !stdinIsTerminal() {
-			return errors.New(i18n.T("cmd.doctor.fix.needs_yes"))
-		}
-		ok, err := cliConfirm(cmd.ErrOrStderr(), i18n.T("cmd.doctor.orphans.confirm"))
-		if err != nil {
-			return err
-		}
-		if !ok {
-			fmt.Fprintln(w, i18n.T("cmd.doctor.fix.cancelled"))
-			return nil
-		}
+	ok, err := confirmAction(cmd, i18n.T("cmd.doctor.orphans.confirm"), false)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		fmt.Fprintln(w, i18n.T("cmd.doctor.fix.cancelled"))
+		return nil
 	}
 	stopped := 0
 	for _, o := range orphans {
