@@ -171,7 +171,7 @@ func TestIsStale(t *testing.T) {
 	for i, tc := range tests {
 		claim := &Claim{
 			ClaimedAt:    now, // if LastActivity is zero, use ClaimedAt
-			LastActivity: tc.lastActivity,
+			LastActivity: InstantOf(tc.lastActivity),
 		}
 		result := repo.IsStale(claim, tc.staleDays)
 		if result != tc.expected {

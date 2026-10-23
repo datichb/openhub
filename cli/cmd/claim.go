@@ -151,7 +151,7 @@ func runClaim(cmd *cobra.Command, args []string) error {
 		if existing != nil && repo.IsStale(existing, staleDays) {
 			daysSince := int(time.Since(existing.ClaimedAt).Hours() / 24)
 			if !existing.LastActivity.IsZero() {
-				daysSince = int(time.Since(existing.LastActivity).Hours() / 24)
+				daysSince = int(time.Since(existing.LastActivity.Time()).Hours() / 24)
 			}
 
 			fmt.Fprintf(a.IO.Out, "%s %s\n",

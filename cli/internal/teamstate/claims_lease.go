@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strings"
 	"time"
 
 	toml "github.com/pelletier/go-toml/v2"
@@ -37,6 +38,18 @@ func (i Instant) Time() time.Time {
 		return time.Time{}
 	}
 	return t
+}
+
+// IsZero reports whether the Instant has no usable date.
+func (i Instant) IsZero() bool { return i.Time().IsZero() }
+
+// UnmarshalText reads the value of a claim file. It also takes a TOML
+// datetime written without quotes (last_activity = 2026-07-08T14:30:00Z, as a
+// hand edit or another tool writes it), which go-toml would otherwise refuse
+// to put in a string type. The text is kept as it is: Time judges it.
+func (i *Instant) UnmarshalText(text []byte) error {
+	*i = Instant(strings.TrimSpace(string(text)))
+	return nil
 }
 
 type claimSessionKey struct{}
@@ -79,7 +92,7 @@ func claimStale(claim *Claim, staleDays int, now time.Time) bool {
 	if staleDays <= 0 {
 		staleDays = 3
 	}
-	lastActive := claim.LastActivity
+	lastActive := claim.LastActivity.Time()
 	if lastActive.IsZero() {
 		lastActive = claim.ClaimedAt
 	}

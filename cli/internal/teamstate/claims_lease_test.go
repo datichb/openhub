@@ -75,13 +75,13 @@ func TestClaimIsExpired(t *testing.T) {
 		{"lease in the future", Claim{LeaseUntil: InstantOf(now.Add(time.Minute))}, cfg, false},
 		{"lease past", Claim{LeaseUntil: InstantOf(now.Add(-time.Second))}, cfg, true},
 		{"lease ending now", Claim{LeaseUntil: InstantOf(now)}, cfg, false},
-		{"the lease wins over a stale activity", Claim{LeaseUntil: InstantOf(now.Add(time.Hour)), LastActivity: now.Add(-30 * 24 * time.Hour)}, cfg, false},
-		{"the lease wins over a recent activity", Claim{LeaseUntil: InstantOf(now.Add(-time.Hour)), LastActivity: now}, cfg, true},
-		{"no lease, recent activity", Claim{LastActivity: now.Add(-24 * time.Hour)}, cfg, false},
-		{"no lease, stale activity", Claim{LastActivity: now.Add(-3 * 24 * time.Hour)}, cfg, true},
+		{"the lease wins over a stale activity", Claim{LeaseUntil: InstantOf(now.Add(time.Hour)), LastActivity: InstantOf(now.Add(-30 * 24 * time.Hour))}, cfg, false},
+		{"the lease wins over a recent activity", Claim{LeaseUntil: InstantOf(now.Add(-time.Hour)), LastActivity: InstantOf(now)}, cfg, true},
+		{"no lease, recent activity", Claim{LastActivity: InstantOf(now.Add(-24 * time.Hour))}, cfg, false},
+		{"no lease, stale activity", Claim{LastActivity: InstantOf(now.Add(-3 * 24 * time.Hour))}, cfg, true},
 		{"no lease, claimed_at when no activity", Claim{ClaimedAt: now.Add(-3 * 24 * time.Hour)}, cfg, true},
-		{"no lease, default stale days without config", Claim{LastActivity: now.Add(-2 * 24 * time.Hour)}, nil, false},
-		{"no lease, default stale days exceeded", Claim{LastActivity: now.Add(-4 * 24 * time.Hour)}, nil, true},
+		{"no lease, default stale days without config", Claim{LastActivity: InstantOf(now.Add(-2 * 24 * time.Hour))}, nil, false},
+		{"no lease, default stale days exceeded", Claim{LastActivity: InstantOf(now.Add(-4 * 24 * time.Hour))}, nil, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -95,7 +95,7 @@ func TestClaimIsExpiredFallbackIsIsStale(t *testing.T) {
 	t.Parallel()
 	repo := setupTestRepo(t)
 	for _, ago := range []time.Duration{time.Hour, 2 * 24 * time.Hour, 4 * 24 * time.Hour, 10 * 24 * time.Hour} {
-		c := Claim{LastActivity: time.Now().Add(-ago)}
+		c := Claim{LastActivity: InstantOf(time.Now().Add(-ago))}
 		cfg := &TeamConfig{Takeover: TakeoverConfig{StaleDays: 3}}
 		assert.Equal(t, repo.IsStale(&c, 3), c.IsExpired(time.Now(), cfg), ago.String())
 	}
@@ -256,6 +256,6 @@ func TestInstant(t *testing.T) {
 func TestMalformedLeaseIsJudgedLikeNoLease(t *testing.T) {
 	t.Parallel()
 	now := time.Date(2026, 7, 10, 12, 0, 0, 0, time.UTC)
-	c := Claim{LeaseUntil: "tomorrow", LastActivity: now.Add(-10 * 24 * time.Hour)}
+	c := Claim{LeaseUntil: "tomorrow", LastActivity: InstantOf(now.Add(-10 * 24 * time.Hour))}
 	assert.True(t, c.IsExpired(now, nil))
 }

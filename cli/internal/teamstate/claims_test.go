@@ -462,7 +462,7 @@ func writeClaimFile(t *testing.T, repo *Repo, project, ticketID string, c Claim)
 	data := fmt.Sprintf("claimed_by = %q\nclaimed_at = %s\nstatus = %q\n",
 		c.ClaimedBy, c.ClaimedAt.Format(time.RFC3339), c.Status)
 	if !c.LastActivity.IsZero() {
-		data += fmt.Sprintf("last_activity = %s\n", c.LastActivity.Format(time.RFC3339))
+		data += fmt.Sprintf("last_activity = %s\n", c.LastActivity.Time().Format(time.RFC3339))
 	}
 	require.NoError(t, os.WriteFile(filepath.Join(dir, ticketID+".toml"), []byte(data), 0o644))
 }
