@@ -32,8 +32,10 @@ type TeamMCPViewConfig struct {
 	SaveTeamConfig func(ctx context.Context, cfg *teamstate.TeamConfig) error
 	// SaveLocalMCP persists a local hub.toml MCP override key/value.
 	SaveLocalMCP func(key, value string) error
-	// GetHubConfig returns the live hub config pointer for local save.
-	GetHubConfig func() *config.Config
+	// UpdateHubConfig changes hub.toml: fn receives the file as it is on disk
+	// and changes only the settings the view edited (the host then brings the
+	// shared config up to date). The view never keeps nor saves a whole config.
+	UpdateHubConfig func(fn func(*config.Config) error) error
 	// CheckSecret tests whether a keychain key has a stored value.
 	// Returns (true, masked) if present, (false, "") if absent.
 	CheckSecret func(ctx context.Context, key string) (present bool, masked string)
@@ -57,6 +59,7 @@ type TeamMCPView struct {
 
 	teamCfg    *teamstate.TeamConfig
 	localMCP   config.MCPConfig
+	baseMCP    config.MCPConfig // localMCP as loaded or last saved: the save writes the difference
 	fields     []configField
 	dirtyTeam  bool
 	dirtyLocal bool
@@ -274,6 +277,7 @@ func (v *TeamMCPView) ContextCommands() []ContextCommand {
 
 func (v *TeamMCPView) loadData() {
 	v.localMCP = v.cfg.GetMCPConfig()
+	v.baseMCP = v.localMCP
 
 	tc := v.cfg.ResolveTeam()
 	if tc.Enabled {
@@ -598,13 +602,16 @@ func (v *TeamMCPView) save() {
 	}
 
 	if v.dirtyLocal {
-		hubCfg := v.cfg.GetHubConfig()
-		if hubCfg != nil {
-			hubCfg.MCP = v.localMCP
-			if err := config.Save(hubCfg); err != nil {
+		if v.cfg.UpdateHubConfig != nil {
+			patch := config.Patch(v.baseMCP, v.localMCP)
+			if err := v.cfg.UpdateHubConfig(func(c *config.Config) error {
+				patch(&c.MCP)
+				return nil
+			}); err != nil {
 				v.shell.ShowToastMsg(i18n.T("tui.team_mcp.save_error_local")+err.Error(), false)
 				return
 			}
+			v.baseMCP = v.localMCP
 		}
 		saved = append(saved, i18n.T("tui.team_mcp.scope_local"))
 		v.dirtyLocal = false

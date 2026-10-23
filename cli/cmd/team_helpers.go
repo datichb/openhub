@@ -409,7 +409,7 @@ func buildTrackerSetupSteps(a **app.App, state *initWizardTeamState) []views.Wiz
 // that sets state.Skipped. Both steps use SkipIf → state.Skipped.
 //
 // After successful completion, state.Configured is true and the app should be
-// reloaded (config.Reset + ReloadApp) so subsequent steps can see the team.
+// refreshed (refreshSharedConfig) so subsequent steps can see the team.
 func buildInitWizardTeamSteps(a **app.App, state *initWizardTeamState) []views.WizardStep {
 	steps := []views.WizardStep{
 		// ── Team form: repo + identity ──
@@ -477,12 +477,9 @@ func buildInitWizardTeamSteps(a **app.App, state *initWizardTeamState) []views.W
 				state.Configured = true
 				state.TeamID = config.RepoNameFromRemote(state.Repo)
 
-				// Reload app so subsequent steps see the team
-				config.Reset()
-				if newApp, reloadErr := ReloadApp(); reloadErr != nil {
-					slog.Warn("ReloadApp failed after team connect", "err", reloadErr)
-				} else {
-					*a = newApp
+				// Bring the shared config up to date so subsequent steps see the team
+				if reloadErr := refreshSharedConfig(*a); reloadErr != nil {
+					slog.Warn("config refresh failed after team connect", "err", reloadErr)
 				}
 				return nil
 			},
@@ -941,12 +938,9 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 				slog.Info("retro-tagged sessions", "count", tagged)
 			}
 
-			// Reload app so subsequent steps see the team
-			config.Reset()
-			if newApp, reloadErr := ReloadApp(); reloadErr != nil {
-				slog.Warn("ReloadApp failed after team rejoin", "err", reloadErr)
-			} else {
-				*a = newApp
+			// Bring the shared config up to date so subsequent steps see the team
+			if reloadErr := refreshSharedConfig(*a); reloadErr != nil {
+				slog.Warn("config refresh failed after team rejoin", "err", reloadErr)
 			}
 			return nil
 		},

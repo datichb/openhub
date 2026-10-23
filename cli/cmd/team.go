@@ -740,8 +740,8 @@ func ensureTeamRepoForProject(ctx context.Context, a *app.App, project *domain.P
 }
 
 // writeTeamConfig updates hub.toml with team settings using the new [[teams]]
-// format (Service.SaveTeam): it updates the in-memory Config.Teams and
-// persists via config.Save().
+// format (Service.SaveTeam): it changes the team on hub.toml as it is with
+// config.Update, then brings the in-memory Config up to date.
 func writeTeamConfig(stateRepo, statePath, memberID string) error {
 	return teamService(MustApp()).SaveTeam(stateRepo, statePath, memberID)
 }

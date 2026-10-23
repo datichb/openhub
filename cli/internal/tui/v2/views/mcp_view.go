@@ -41,8 +41,10 @@ type MCPEnforcedURL struct {
 type MCPViewConfig struct {
 	// GetConfig returns the live hub config pointer.
 	GetConfig func() *config.Config
-	// SaveConfig persists the modified config to hub.toml (unified mutation path).
-	SaveConfig func(c *config.Config) error
+	// UpdateConfig changes hub.toml (unified mutation path): fn receives the
+	// file as it is on disk and changes only the settings of the action; the
+	// host then brings the live config up to date with the result.
+	UpdateConfig func(fn func(*config.Config) error) error
 	// EnforcedURLs prepares, by service, the URL the team imposes when it is
 	// not used (empty: none, or no team). Called on the event loop, which owns
 	// the config it reads; the function it returns runs off the loop (it may
@@ -316,7 +318,7 @@ func (v *MCPView) hubItemSubtext(svc MCPService) string {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Hub-level actions — unified mutation via config.Save()
+// Hub-level actions — unified mutation via UpdateConfig (config.Update)
 // ─────────────────────────────────────────────────────────────────────────────
 
 func (v *MCPView) currentServiceIndex() int {
@@ -342,10 +344,12 @@ func (v *MCPView) toggleHubCurrent() {
 	svc := &v.services[idx]
 	svc.Enabled = !svc.Enabled
 
-	// Mutate live config and save
-	cfg := v.cfg.GetConfig()
-	v.setMCPEnabled(cfg, svc.Name, svc.Enabled)
-	if err := v.cfg.SaveConfig(cfg); err != nil {
+	// Change the file; the live config follows
+	name, enabled := svc.Name, svc.Enabled
+	if err := v.cfg.UpdateConfig(func(c *config.Config) error {
+		v.setMCPEnabled(c, name, enabled)
+		return nil
+	}); err != nil {
 		if v.shell != nil {
 			v.shell.ShowToastMsg(i18n.T("tui.mcp.save_error")+": "+err.Error(), false)
 		}
@@ -426,9 +430,11 @@ func (v *MCPView) toggleWriteCurrent() {
 	}
 	svc.WriteEnabled = !svc.WriteEnabled
 
-	cfg := v.cfg.GetConfig()
-	cfg.MCP.Gitlab.WriteEnabled = svc.WriteEnabled
-	if err := v.cfg.SaveConfig(cfg); err != nil {
+	writeEnabled := svc.WriteEnabled
+	if err := v.cfg.UpdateConfig(func(c *config.Config) error {
+		c.MCP.Gitlab.WriteEnabled = writeEnabled
+		return nil
+	}); err != nil {
 		if v.shell != nil {
 			v.shell.ShowToastMsg(i18n.T("tui.mcp.save_error")+": "+err.Error(), false)
 		}
@@ -497,13 +503,15 @@ func (v *MCPView) confirmTrust(name, url string, hostLines []string, sensitive b
 
 // pinURL stores the approved URL in the personal config.
 func (v *MCPView) pinURL(name, url string) {
-	cfg := v.cfg.GetConfig()
-	s := cfg.MCPServer(name)
-	if s == nil {
+	if v.cfg.GetConfig().MCPServer(name) == nil {
 		return
 	}
-	s.TrustedURL = url
-	if err := v.cfg.SaveConfig(cfg); err != nil {
+	if err := v.cfg.UpdateConfig(func(c *config.Config) error {
+		if s := c.MCPServer(name); s != nil {
+			s.TrustedURL = url
+		}
+		return nil
+	}); err != nil {
 		if v.shell != nil {
 			v.shell.ShowToastMsg(i18n.T("tui.mcp.save_error")+": "+err.Error(), false)
 		}
@@ -535,9 +543,10 @@ func (v *MCPView) toggleService(name string, enable bool) {
 			continue
 		}
 		v.services[i].Enabled = enable
-		cfg := v.cfg.GetConfig()
-		v.setMCPEnabled(cfg, name, enable)
-		if err := v.cfg.SaveConfig(cfg); err != nil {
+		if err := v.cfg.UpdateConfig(func(c *config.Config) error {
+			v.setMCPEnabled(c, name, enable)
+			return nil
+		}); err != nil {
 			if v.shell != nil {
 				v.shell.ShowToastMsg(errorText(err), false)
 			}

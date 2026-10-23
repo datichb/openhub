@@ -29,8 +29,10 @@ type SettingsViewConfig struct {
 	// copies the result into the live config on it. Without it, refresh calls
 	// ReloadConfig on the loop. Optional.
 	ReadConfig func() (*config.Config, error)
-	// SaveConfig persists the modified config to hub.toml.
-	SaveConfig func(c *config.Config) error
+	// UpdateConfig changes hub.toml: fn receives the file as it is on disk and
+	// changes only the settings the view edited; the host then brings the live
+	// config up to date with the result.
+	UpdateConfig func(fn func(*config.Config) error) error
 	// CheckSecret tests whether a keychain key has a value stored.
 	// Returns ("", nil) if absent, (masked, nil) if present.
 	CheckSecret func(ctx context.Context, key string) (present bool, masked string)
@@ -64,8 +66,21 @@ type SettingsView struct {
 	live *config.Config
 
 	fields    []configField
-	undoStack *widgets.UndoStack[config.Config]
+	undoStack *widgets.UndoStack[settingsUndo]
 	autoSaver *AutoSaver
+
+	// pending holds what the edits changed since the last save, setting by
+	// setting. A save applies pending to the file as it is, never the whole
+	// live config.
+	pending []func(*config.Config)
+}
+
+// settingsUndo is one entry of the undo stack: the live config before an edit
+// and the change that gives back the settings the edit changed (and only
+// them: an undo does not touch what hub.toml gained since).
+type settingsUndo struct {
+	before config.Config
+	revert func(*config.Config)
 }
 
 var _ View = (*SettingsView)(nil)
@@ -75,7 +90,7 @@ var _ CommandProvider = (*SettingsView)(nil)
 func NewSettingsView(cfg SettingsViewConfig) *SettingsView {
 	return &SettingsView{
 		cfg:       cfg,
-		undoStack: widgets.NewUndoStack[config.Config](10),
+		undoStack: widgets.NewUndoStack[settingsUndo](10),
 	}
 }
 
@@ -109,6 +124,7 @@ func (v *SettingsView) Mount(content *tview.Flex, app *tview.Application) {
 	v.toolRead = false
 	v.reading = false
 	v.undoStack.Clear()
+	v.pending = nil
 	v.live = v.cfg.GetConfig() // synchronous: always available for save()
 
 	// Initialize auto-saver (500ms debounce for local hub.toml)
@@ -238,7 +254,10 @@ func (v *SettingsView) undo() {
 		}
 		return
 	}
-	*v.live = prev
+	if prev.revert != nil {
+		v.pending = append(v.pending, prev.revert)
+	}
+	*v.live = prev.before
 	// Cancel any pending auto-save, then save the restored state
 	if v.autoSaver != nil {
 		v.autoSaver.Cancel()
@@ -261,6 +280,7 @@ func (v *SettingsView) refresh() {
 	if v.autoSaver != nil {
 		v.autoSaver.Cancel()
 	}
+	v.pending = nil
 	if v.cfg.ReadConfig == nil {
 		if v.cfg.ReloadConfig != nil {
 			v.live = v.cfg.ReloadConfig()
@@ -700,11 +720,19 @@ func (v *SettingsView) editTokenKey(f *configField) {
 }
 
 func (v *SettingsView) pushUndo() {
-	snapshot := deepCopyConfig(v.live)
-	v.undoStack.Push(snapshot)
+	v.undoStack.Push(settingsUndo{before: deepCopyConfig(v.live)})
 }
 
 func (v *SettingsView) scheduleAutoSave() {
+	// The edit just made is the difference between the entry pushed before it
+	// and the live config.
+	if top, ok := v.undoStack.Pop(); ok && v.live != nil {
+		v.pending = append(v.pending, config.Patch(top.before, *v.live))
+		top.revert = config.Patch(*v.live, top.before)
+		v.undoStack.Push(top)
+	} else if ok {
+		v.undoStack.Push(top)
+	}
 	if v.autoSaver != nil {
 		v.autoSaver.Schedule()
 	}
@@ -728,10 +756,19 @@ func (v *SettingsView) doSave() {
 		return
 	}
 
-	if err := v.cfg.SaveConfig(v.live); err != nil {
+	pending := v.pending
+	v.pending = nil
+	if err := v.cfg.UpdateConfig(func(c *config.Config) error {
+		for _, apply := range pending {
+			apply(c)
+		}
+		return nil
+	}); err != nil {
+		v.pending = append(pending, v.pending...)
 		if v.shell != nil {
 			if errors.Is(err, config.ErrExternalModification) {
-				// Reload from disk and notify user
+				// hub.toml kept changing under the write: reload and notify user
+				v.pending = nil
 				if v.cfg.ReloadConfig != nil {
 					v.live = v.cfg.ReloadConfig()
 				}

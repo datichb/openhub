@@ -34,8 +34,8 @@ func newTrustView(t *testing.T, enforced map[string]*MCPEnforcedURL) (*MCPView, 
 	cfg := &config.Config{}
 	saves := 0
 	v := NewMCPView(nil, MCPViewConfig{
-		GetConfig:  func() *config.Config { return cfg },
-		SaveConfig: func(*config.Config) error { saves++; return nil },
+		GetConfig:    func() *config.Config { return cfg },
+		UpdateConfig: func(fn func(*config.Config) error) error { saves++; return fn(cfg) },
 		EnforcedURLs: func() func() map[string]*MCPEnforcedURL {
 			return func() map[string]*MCPEnforcedURL { return enforced }
 		},
@@ -159,8 +159,8 @@ func TestMCPViewStoresTheTokenUnderTheCurrentKeyName(t *testing.T) {
 	store := &memSecrets{m: map[string]string{}}
 	cfg := &config.Config{}
 	v := NewMCPView(&app.App{Secrets: store}, MCPViewConfig{
-		GetConfig:  func() *config.Config { return cfg },
-		SaveConfig: func(*config.Config) error { return nil },
+		GetConfig:    func() *config.Config { return cfg },
+		UpdateConfig: func(fn func(*config.Config) error) error { return fn(cfg) },
 	})
 	sh := &passwordShell{token: "s3cret"}
 	v.SetShell(sh)

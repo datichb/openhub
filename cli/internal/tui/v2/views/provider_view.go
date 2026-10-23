@@ -20,8 +20,10 @@ import (
 type ProviderViewConfig struct {
 	// GetConfig returns the live hub config pointer.
 	GetConfig func() *config.Config
-	// SaveConfig persists the modified config to hub.toml (unified mutation path).
-	SaveConfig func(c *config.Config) error
+	// UpdateConfig changes hub.toml (unified mutation path): fn receives the
+	// file as it is on disk and changes only the settings of the action; the
+	// host then brings the live config up to date with the result.
+	UpdateConfig func(fn func(*config.Config) error) error
 	// CheckSecret tests whether a keychain key has a value stored.
 	CheckSecret func(ctx context.Context, key string) (present bool, masked string)
 	// SetSecret stores a new secret value in the keychain.
@@ -819,13 +821,20 @@ func (v *ProviderView) setupProvider() {
 
 func (v *ProviderView) setupBedrock() {
 	v.shell.ShowSelectModal(i18n.T("tui.provider.bedrock_auth_mode"), bedrockAuthModeOptions(), "", func(authMode string) {
-		cfg := v.vcfg.GetConfig()
-		cfg.Provider.Bedrock.AuthMode = authMode
-
-		// saveBedrock persists the bedrock config and refreshes the view.
-		saveBedrock := func(cfg *config.Config, toastKey string) {
-			cfg.LLM.DefaultProvider = "bedrock"
-			if err := v.vcfg.SaveConfig(cfg); err != nil {
+		// saveBedrock persists the bedrock settings the form collected (an
+		// empty profile or region leaves the stored one) and refreshes the view.
+		saveBedrock := func(profile, region, toastKey string) {
+			if err := v.vcfg.UpdateConfig(func(c *config.Config) error {
+				c.Provider.Bedrock.AuthMode = authMode
+				if profile != "" {
+					c.Provider.Bedrock.AWSProfile = profile
+				}
+				if region != "" {
+					c.Provider.Bedrock.AWSRegion = region
+				}
+				c.LLM.DefaultProvider = "bedrock"
+				return nil
+			}); err != nil {
 				v.shell.ShowToastMsg(errorText(err), false)
 			}
 			v.buildLines()
@@ -885,16 +894,12 @@ func (v *ProviderView) setupBedrock() {
 								{Label: "Region", Key: "region", Type: FieldText, Required: true, Validate: provider.RegionProblem},
 							},
 							OnSubmit: func(vals map[string]string, _ map[string][]string) {
-								cfg.Provider.Bedrock.AWSRegion = vals["region"]
-								saveBedrock(cfg, "tui.provider.bedrock_configured_bearer")
+								saveBedrock("", vals["region"], "tui.provider.bedrock_configured_bearer")
 							},
 						})
 						return
 					}
-					if region != "" {
-						cfg.Provider.Bedrock.AWSRegion = region
-					}
-					saveBedrock(cfg, "tui.provider.bedrock_configured_bearer")
+					saveBedrock("", region, "tui.provider.bedrock_configured_bearer")
 				},
 			})
 		case "profile":
@@ -905,9 +910,7 @@ func (v *ProviderView) setupBedrock() {
 					{Label: i18n.T("cmd.provider_view.aws_region"), Key: "region", Type: FieldSelect, Options: regionOptions(), Required: true},
 				},
 				OnSubmit: func(values map[string]string, _ map[string][]string) {
-					if profile := values["profile"]; profile != "" {
-						cfg.Provider.Bedrock.AWSProfile = profile
-					}
+					profile := values["profile"]
 					region := values["region"]
 					if region == "custom" {
 						// Open a second form for custom region input.
@@ -917,26 +920,16 @@ func (v *ProviderView) setupBedrock() {
 								{Label: "Region", Key: "region", Type: FieldText, Required: true, Validate: provider.RegionProblem},
 							},
 							OnSubmit: func(vals map[string]string, _ map[string][]string) {
-								cfg.Provider.Bedrock.AWSRegion = vals["region"]
-								saveBedrock(cfg, "tui.provider.bedrock_configured_profile")
+								saveBedrock(profile, vals["region"], "tui.provider.bedrock_configured_profile")
 							},
 						})
 						return
 					}
-					if region != "" {
-						cfg.Provider.Bedrock.AWSRegion = region
-					}
-					saveBedrock(cfg, "tui.provider.bedrock_configured_profile")
+					saveBedrock(profile, region, "tui.provider.bedrock_configured_profile")
 				},
 			})
 		case "env":
-			cfg.LLM.DefaultProvider = "bedrock"
-			if err := v.vcfg.SaveConfig(cfg); err != nil {
-				v.shell.ShowToastMsg(errorText(err), false)
-			}
-			v.buildLines()
-			v.renderList()
-			v.shell.ShowToastMsg(i18n.T("tui.provider.bedrock_configured_env"), true)
+			saveBedrock("", "", "tui.provider.bedrock_configured_env")
 		}
 	})
 }
@@ -952,9 +945,10 @@ func (v *ProviderView) setupAPIKey(name provider.Name, title string) {
 				v.shell.ShowToastMsg(errorText(err), false)
 			}
 		}
-		cfg := v.vcfg.GetConfig()
-		cfg.LLM.DefaultProvider = string(name)
-		if err := v.vcfg.SaveConfig(cfg); err != nil {
+		if err := v.vcfg.UpdateConfig(func(c *config.Config) error {
+			c.LLM.DefaultProvider = string(name)
+			return nil
+		}); err != nil {
 			v.shell.ShowToastMsg(errorText(err), false)
 		}
 		v.buildLines()

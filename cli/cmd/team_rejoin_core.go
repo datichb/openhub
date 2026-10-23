@@ -113,21 +113,22 @@ func teamRejoinCore(ctx context.Context, a *app.App, p teamRejoinParams) (*teamR
 	}
 
 	// Check if this team already exists in the config (update it) or add new
-	found := false
-	for i, t := range a.Config.Teams {
-		if t.StateRepo == p.StateRepo || t.ID == teamID {
-			a.Config.Teams[i] = newTeam
-			found = true
-			break
+	if err := updateHubConfig(a, func(c *config.Config) error {
+		found := false
+		for i, t := range c.Teams {
+			if t.StateRepo == p.StateRepo || t.ID == teamID {
+				c.Teams[i] = newTeam
+				found = true
+				break
+			}
 		}
-	}
-	if !found {
-		a.Config.Teams = append(a.Config.Teams, newTeam)
-	}
-	// Clear legacy field
-	a.Config.Team = config.TeamConfig{}
-
-	if err := config.Save(a.Config); err != nil {
+		if !found {
+			c.Teams = append(c.Teams, newTeam)
+		}
+		// Clear legacy field
+		c.Team = config.TeamConfig{}
+		return nil
+	}); err != nil {
 		return nil, fmt.Errorf(i18n.T("cmd.team_rejoin_core.writing_hub_toml"), err)
 	}
 

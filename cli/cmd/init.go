@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -74,20 +75,9 @@ func runInit(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(i18n.T("cmd.init.creating_config_directory"), err)
 	}
 
-	config.Reset()
-	var a *app.App
-	if err := initApp(); err == nil {
-		a = MustApp()
-	} else {
-		// First run: create a minimal hub.toml so initApp can succeed.
-		if saveErr := config.Save(&config.Config{}); saveErr != nil {
-			return fmt.Errorf(i18n.T("cmd.init.writing_initial_config"), saveErr)
-		}
-		config.Reset()
-		if err := initApp(); err != nil {
-			return fmt.Errorf(i18n.T("cmd.init.initializing_app"), err)
-		}
-		a = MustApp()
+	a, err := startInitApp()
+	if err != nil {
+		return err
 	}
 
 	// ── Build and run the wizard ─────────────────────────────────────────────
@@ -98,6 +88,31 @@ func runInit(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 	return result.Err
+}
+
+// startInitApp returns the app the wizard runs on. Only when there is no
+// hub.toml yet does it create a minimal one so that initApp can succeed. An
+// existing hub.toml, valid or not, is never rewritten from an empty config:
+// initApp failing on it means the user must repair it first (oh doctor --fix
+// restores the latest valid backup and keeps the broken file as
+// hub.toml.broken-<timestamp>), and the file stays exactly as it was.
+func startInitApp() (*app.App, error) {
+	config.Reset()
+	initErr := initApp()
+	if initErr == nil {
+		return MustApp(), nil
+	}
+	if _, statErr := os.Stat(config.ConfigPath()); !os.IsNotExist(statErr) {
+		return nil, errors.New(i18n.Tf("cmd.config.init_keeps_existing", config.ConfigPath(), initErr))
+	}
+	// First run: create a minimal hub.toml so initApp can succeed.
+	if saveErr := config.Save(&config.Config{}); saveErr != nil {
+		return nil, fmt.Errorf(i18n.T("cmd.init.writing_initial_config"), saveErr)
+	}
+	if err := initApp(); err != nil {
+		return nil, fmt.Errorf(i18n.T("cmd.init.initializing_app"), err)
+	}
+	return MustApp(), nil
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

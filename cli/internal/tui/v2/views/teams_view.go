@@ -2,6 +2,8 @@ package views
 
 import (
 	"fmt"
+	"reflect"
+	"slices"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -23,17 +25,20 @@ type TeamsView struct {
 	shell      ShellAccess
 	cfg        *config.Config
 	onSync     func(teamID string)
-	onSave     func(cfg *config.Config) error
+	onUpdate   func(fn func(*config.Config) error) error
 	onNavigate func(viewID string)
 	undoStack  *widgets.UndoStack[[]config.TeamConfig]
 }
 
 // TeamsViewDeps holds the dependencies for constructing a TeamsView.
 type TeamsViewDeps struct {
-	Config     *config.Config
-	OnSync     func(teamID string)            // Called when user requests team-state sync
-	OnSave     func(cfg *config.Config) error // Called to persist config changes
-	OnNavigate func(viewID string)            // Called to navigate to another view
+	Config *config.Config
+	OnSync func(teamID string) // Called when user requests team-state sync
+	// OnUpdate changes hub.toml: fn receives the file as it is on disk and
+	// changes only the teams of the action; the host then brings the shared
+	// config up to date with the result.
+	OnUpdate   func(fn func(*config.Config) error) error
+	OnNavigate func(viewID string) // Called to navigate to another view
 }
 
 var _ View = (*TeamsView)(nil)
@@ -44,7 +49,7 @@ func NewTeamsView(deps TeamsViewDeps) *TeamsView {
 		list:       widgets.NewSectionedList(),
 		cfg:        deps.Config,
 		onSync:     deps.OnSync,
-		onSave:     deps.OnSave,
+		onUpdate:   deps.OnUpdate,
 		onNavigate: deps.OnNavigate,
 		undoStack:  widgets.NewUndoStack[[]config.TeamConfig](10),
 	}
@@ -288,9 +293,10 @@ func (v *TeamsView) handleAdd() {
 				StateRepo: repo,
 				MemberID:  memberID,
 			}
+			prevTeams := copyTeams(v.cfg.Teams)
 			v.cfg.Teams = append(v.cfg.Teams, newTeam)
-			if v.onSave != nil {
-				if err := v.onSave(v.cfg); err != nil {
+			if v.onUpdate != nil {
+				if err := v.onUpdate(teamsPatch(prevTeams, v.cfg.Teams)); err != nil {
 					// Rollback in-memory state.
 					if prev, ok := v.undoStack.Pop(); ok {
 						v.cfg.Teams = prev
@@ -333,11 +339,12 @@ func (v *TeamsView) handleDelete() {
 				newTeams = append(newTeams, t)
 			}
 		}
+		prevTeams := v.cfg.Teams
 		v.cfg.Teams = newTeams
 
 		// Auto-save
-		if v.onSave != nil {
-			if err := v.onSave(v.cfg); err != nil {
+		if v.onUpdate != nil {
+			if err := v.onUpdate(teamsPatch(prevTeams, newTeams)); err != nil {
 				// Rollback in-memory state.
 				if prev, ok := v.undoStack.Pop(); ok {
 					v.cfg.Teams = prev
@@ -378,8 +385,8 @@ func (v *TeamsView) handleUndo() {
 	}
 	current := copyTeams(v.cfg.Teams)
 	v.cfg.Teams = prev
-	if v.onSave != nil {
-		if err := v.onSave(v.cfg); err != nil {
+	if v.onUpdate != nil {
+		if err := v.onUpdate(teamsPatch(current, prev)); err != nil {
 			// Restore pre-undo state and re-push the snapshot.
 			v.cfg.Teams = current
 			v.undoStack.Push(prev)
@@ -419,4 +426,34 @@ func teamRepoLabel(t config.TeamConfig) string {
 		return i18n.T("tui.solo.teams_label")
 	}
 	return truncateString(t.StateRepo, 40)
+}
+
+// teamsPatch changes a list of teams from before to after on the list that
+// hub.toml holds now: the teams that are gone are removed, the ones that are
+// new or changed take their new value, the others stay as they are.
+func teamsPatch(before, after []config.TeamConfig) func(*config.Config) error {
+	return func(c *config.Config) error {
+		kept := make(map[string]bool, len(after))
+		for _, t := range after {
+			kept[t.ID] = true
+		}
+		old := make(map[string]config.TeamConfig, len(before))
+		for _, t := range before {
+			old[t.ID] = t
+			if !kept[t.ID] {
+				c.Teams = slices.DeleteFunc(c.Teams, func(x config.TeamConfig) bool { return x.ID == t.ID })
+			}
+		}
+		for _, t := range after {
+			if prev, had := old[t.ID]; had && reflect.DeepEqual(prev, t) {
+				continue
+			}
+			if i := slices.IndexFunc(c.Teams, func(x config.TeamConfig) bool { return x.ID == t.ID }); i >= 0 {
+				c.Teams[i] = t
+			} else {
+				c.Teams = append(c.Teams, t)
+			}
+		}
+		return nil
+	}
 }

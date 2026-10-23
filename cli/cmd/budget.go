@@ -172,12 +172,15 @@ func runBudgetSet(cmd *cobra.Command, field, value string) error {
 	ctx, a := cmd.Context(), MustApp()
 	flag, _ := cmd.Flags().GetString("project")
 	if flag == "" {
-		l := a.Config.Limits
-		if err := l.Set(field, value); err != nil {
-			return err
-		}
-		a.Config.Limits = l
-		if err := config.Save(a.Config); err != nil {
+		var l limits.Limits
+		if err := updateHubConfig(a, func(c *config.Config) error {
+			l = c.Limits
+			if err := l.Set(field, value); err != nil {
+				return err
+			}
+			c.Limits = l
+			return nil
+		}); err != nil {
 			return err
 		}
 		fmt.Fprintln(cmd.OutOrStdout(), budgetSavedMessage(l, field, ""))

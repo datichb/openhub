@@ -115,8 +115,13 @@ func initSoloTeam(ctx context.Context, a *app.App, p soloTeamParams) (*soloTeamR
 	if err != nil {
 		return nil, err
 	}
-	a.Config.Teams = append(a.Config.Teams, team)
-	if err := config.Save(a.Config); err != nil {
+	if err := updateHubConfig(a, func(c *config.Config) error {
+		if c.FindTeam(team.ID) != nil {
+			return fmt.Errorf("%s", i18n.Tf("cmd.team.solo.exists", team.ID))
+		}
+		c.Teams = append(c.Teams, team)
+		return nil
+	}); err != nil {
 		return nil, fmt.Errorf(i18n.T("cmd.team_solo.writing_hub_toml"), err)
 	}
 	if project != nil {

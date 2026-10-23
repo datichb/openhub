@@ -152,6 +152,7 @@
   "cmd.config.unknown_key": "unknown config key: %s (oh config list --keys shows the settable keys)",
   "cmd.config.load_failed": "reading the configuration (hub.toml)",
   "cmd.config.save_failed": "writing the configuration (hub.toml)",
+  "cmd.config.init_keeps_existing": "oh init cannot start with the existing %s and did not touch it: %v\nRun oh doctor to see what is wrong. oh doctor --fix restores the latest valid backup of hub.toml and keeps the broken file next to it as hub.toml.broken-<timestamp>. Then run oh init again.",
   "cmd.config.websearch_invalid_action": "invalid action %q: enable, disable or status",
   "cmd.config.invalid_value": "invalid value %q for %s (expected: %s)",
   "cmd.config.invalid_bool": "invalid boolean value %q (true or false)",

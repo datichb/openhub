@@ -67,7 +67,13 @@ func promoteSoloTeam(ctx context.Context, a *app.App, teamID, remote string) (*c
 	}
 	team.Solo = false
 	team.StateRepo = remote
-	if err := config.Save(a.Config); err != nil {
+	if err := updateHubConfig(a, func(c *config.Config) error {
+		if t := c.FindTeam(team.ID); t != nil {
+			t.Solo = false
+			t.StateRepo = remote
+		}
+		return nil
+	}); err != nil {
 		return nil, fmt.Errorf(i18n.T("cmd.team_promote.writing_hub_toml"), err)
 	}
 	return team, nil

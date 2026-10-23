@@ -488,7 +488,6 @@ func TestTeamMCPViewRefreshAsksWhenDirty(t *testing.T) {
 		ResolveTeam:    func() TeamResolution { return tc },
 		GetMCPConfig:   func() config.MCPConfig { loads.Add(1); return config.MCPConfig{} },
 		SaveTeamConfig: func(_ context.Context, c *teamstate.TeamConfig) error { saved = c; return nil },
-		GetHubConfig:   func() *config.Config { return &config.Config{} },
 	})
 	sh := &viewShell{}
 	v.SetShell(sh)
