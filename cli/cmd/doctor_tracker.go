@@ -20,8 +20,9 @@ import (
 // checks, over the team of the hub and the team of each active project:
 //
 //   - tracker_tokens: a GitLab token is declared for the server of the tracker
-//     and for the server of the team-state repository (the cascade of
-//     tracker.ResolveGitLabToken, which only answers for the server called);
+//     (a failure) and for the server of the team-state repository (a warning:
+//     the token only verifies the identity at oh team rejoin), by the cascade of
+//     tracker.ResolveGitLabToken, which only answers for the server called;
 //     without one, the message of the cascade says the server, the sources read
 //     and the commands to declare it. No network.
 //   - tracker_connection: the connection test of oh team config (GitLab
@@ -150,7 +151,10 @@ func trackerTokensChecks(ctx context.Context) []doctor.Result {
 		if res.Found() {
 			r.OK, r.Detail = true, res.Origin().DescribeWithServer()
 		} else {
-			r.Detail = tracker.NewMissingTokenError(res, tracker.PurposeTeam, tc.TeamID).Error()
+			// A warning: without it oh team rejoin only skips the identity check.
+			r.OK, r.Warn = true, true
+			r.Detail = tracker.NewMissingTokenError(res, tracker.PurposeTeam, tc.TeamID).Error() +
+				"\n" + i18n.T("cmd.doctor.tokens.team.purpose")
 		}
 		out = append(out, r)
 	}

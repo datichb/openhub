@@ -705,6 +705,7 @@
   "cmd.doctor.check.tracker_connection": "Tracker connection",
   "cmd.doctor.tokens.tracker.name": "GitLab token of the tracker (%s)",
   "cmd.doctor.tokens.team.name": "GitLab token of the team repository (%s)",
+  "cmd.doctor.tokens.team.purpose": "This token is used to verify your GitLab identity when you join the team (oh team rejoin); without it, that check is skipped.",
   "cmd.doctor.tokens.other_tracker": "%s tracker (%s): the token is checked by the connection",
   "cmd.doctor.tracker_conn.name": "Tracker connection (%s)",
   "cmd.doctor.tracker_conn.ok": "connected to %s as %s",

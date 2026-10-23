@@ -116,6 +116,7 @@ func TestDoctorTokensFlagsATokenDeclaredForAnotherServer(t *testing.T) {
 	assert.Contains(t, trk.Detail, "oh config set tracker.tracker_token_url", "tells the command")
 	team := byName["GitLab token of the team repository (core)"]
 	assert.True(t, team.OK, "the team token serves gitlab.octo.example: %s", team.Detail)
+	assert.False(t, team.Warn)
 	assert.Zero(t, tr.hits.Load(), "the tokens check makes no request")
 }
 
@@ -145,9 +146,12 @@ func TestDoctorTokensFlagsAMissingTeamRepositoryToken(t *testing.T) {
 	res := doctorCheckResults(t, "tracker_tokens")
 	require.Len(t, res, 2)
 	assert.True(t, res[0].OK, res[0].Detail)
-	assert.False(t, res[1].OK)
+	assert.True(t, res[1].OK, "a warning, as in oh team rejoin: not a failure")
+	assert.True(t, res[1].Warn)
 	assert.Contains(t, res[1].Detail, "gitlab.octo.example")
+	assert.Contains(t, res[1].Detail, "Sources read", "the message of the cascade")
 	assert.Contains(t, res[1].Detail, config.TeamGitLabTokenKey("core"), "the key to store")
+	assert.Contains(t, res[1].Detail, "verify your GitLab identity", "what the token is for")
 }
 
 func TestDoctorTokensSkipsATeamRepositoryThatIsNotGitLab(t *testing.T) {

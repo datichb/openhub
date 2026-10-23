@@ -705,6 +705,7 @@
   "cmd.doctor.check.tracker_connection": "Connexion au tracker",
   "cmd.doctor.tokens.tracker.name": "Jeton GitLab du tracker (%s)",
   "cmd.doctor.tokens.team.name": "Jeton GitLab du dépôt d'équipe (%s)",
+  "cmd.doctor.tokens.team.purpose": "Ce jeton sert à vérifier votre identité GitLab quand vous rejoignez l'équipe (oh team rejoin) ; sans lui, cette vérification est sautée.",
   "cmd.doctor.tokens.other_tracker": "tracker %s (%s) : le jeton est vérifié par la connexion",
   "cmd.doctor.tracker_conn.name": "Connexion au tracker (%s)",
   "cmd.doctor.tracker_conn.ok": "connecté à %s en tant que %s",
