@@ -48,8 +48,10 @@ func TestPromptNamesTheGitLabTicketOfTheRequest(t *testing.T) {
 
 	prompt := p.Plan.Sessions[0].Prompt
 	assert.Contains(t, prompt, "tracker=gitlab project=group/app mcp=true")
-	assert.Contains(t, prompt, "ref #623 -> gitlab_get_issue project=group/app iid=623")
-	assert.Contains(t, prompt, "ref !70 -> gitlab_get_mr project=group/app iid=70")
+	assert.Contains(t, prompt, workflowsvc.GitLabRefsTitle)
+	assert.Contains(t, prompt, "- `#623` : outil `gitlab_get_issue` (`project_id` = `group/app`, `iid` = 623)")
+	assert.Contains(t, prompt, "- `!70` : outil `gitlab_get_mr` (`project_id` = `group/app`, `mr_iid` = 70)")
+	assert.NotContains(t, prompt, "n'est pas activé", "the session has the MCP")
 	assert.NotContains(t, warningCodes(p), "gitlab_mcp_off")
 }
 
@@ -58,7 +60,7 @@ func TestGitLabURLsNameTheirOwnProject(t *testing.T) {
 	p, err := Prepare(t.Context(), d, Options{Workflow: "ask", Project: f.project,
 		Inputs: map[string]string{"request": "voir https://gitlab.example.com/other/lib/-/issues/9"}})
 	require.NoError(t, err)
-	assert.Contains(t, p.Plan.Sessions[0].Prompt, "ref https://gitlab.example.com/other/lib/-/issues/9 -> gitlab_get_issue project=other/lib iid=9")
+	assert.Contains(t, p.Plan.Sessions[0].Prompt, "- `https://gitlab.example.com/other/lib/-/issues/9` : outil `gitlab_get_issue` (`project_id` = `other/lib`, `iid` = 9)")
 }
 
 // The ticket is GitLab but the session has no GitLab MCP: say it at launch.
@@ -70,6 +72,7 @@ func TestLaunchWarnsWhenAGitLabTicketCannotBeRead(t *testing.T) {
 
 	assert.Contains(t, p.Plan.Warnings, runsvc.Warning{Code: "gitlab_mcp_off", Args: []any{"#623"}})
 	assert.Contains(t, p.Plan.Sessions[0].Prompt, "mcp=false")
+	assert.Contains(t, p.Plan.Sessions[0].Prompt, "Le MCP GitLab n'est pas activé dans cette session", "the session is told it cannot read #623")
 }
 
 // Without a ticket in the request, the tracker alone warns only a workflow
@@ -93,8 +96,8 @@ func TestShortReferencesNeedAGitLabTracker(t *testing.T) {
 	require.NoError(t, err)
 
 	prompt := p.Plan.Sessions[0].Prompt
-	assert.NotContains(t, prompt, "ref #623", "#623 is GitLab's syntax only where the tracker is GitLab")
-	assert.Contains(t, prompt, "ref https://gitlab.example.com/g/a/-/issues/4 -> gitlab_get_issue", "an issue URL says what it is")
+	assert.NotContains(t, prompt, "`#623`", "#623 is GitLab's syntax only where the tracker is GitLab")
+	assert.Contains(t, prompt, "- `https://gitlab.example.com/g/a/-/issues/4` : outil `gitlab_get_issue`", "an issue URL says what it is")
 	assert.Contains(t, prompt, "tracker= ")
 }
 
@@ -103,7 +106,7 @@ func TestBeadsIDsAreNotGitLabReferences(t *testing.T) {
 	p, err := Prepare(t.Context(), d, Options{Workflow: "ask", Project: f.project,
 		Inputs: map[string]string{"request": "reprends bd-12 et proj-a1b.3"}})
 	require.NoError(t, err)
-	assert.NotContains(t, p.Plan.Sessions[0].Prompt, "ref ")
+	assert.NotContains(t, p.Plan.Sessions[0].Prompt, workflowsvc.GitLabRefsTitle)
 }
 
 func TestNoTrackerHookMeansNoGitLabContext(t *testing.T) {
@@ -111,5 +114,5 @@ func TestNoTrackerHookMeansNoGitLabContext(t *testing.T) {
 	p, err := Prepare(t.Context(), d, Options{Workflow: "ask", Project: f.project, Inputs: map[string]string{"request": "#623"}})
 	require.NoError(t, err)
 	assert.Contains(t, p.Plan.Sessions[0].Prompt, "tracker= ")
-	assert.NotContains(t, p.Plan.Sessions[0].Prompt, "ref ")
+	assert.NotContains(t, p.Plan.Sessions[0].Prompt, workflowsvc.GitLabRefsTitle)
 }

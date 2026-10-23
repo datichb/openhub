@@ -72,9 +72,6 @@ inputs:
 prompt:
   text: |
     tracker={{ .oh.tracker }} project={{ .oh.tracker_project }} mcp={{ .oh.gitlab_mcp }}
-    {{- range .oh.gitlab_refs }}
-    ref {{ .text }} -> {{ .tool }} project={{ .project }} iid={{ .iid }}
-    {{- end }}
 agents:
   developer: { role: workflow, mode: primary }
 `,

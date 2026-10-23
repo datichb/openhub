@@ -58,34 +58,16 @@ type PromptContext struct {
 	// "jira"), "" when oh does not know one (Beads only); TrackerProject is
 	// its project (the GitLab path or ID). GitLabMCP tells whether the
 	// session has the GitLab MCP server: without it a GitLab ticket cannot
-	// be read, and the prompt says so. GitLabRefs are the GitLab issues and
-	// merge requests the inputs name (#12, !7, URLs).
+	// be read, and the prompt says so.
 	Tracker        string
 	TrackerProject string
 	GitLabMCP      bool
-	GitLabRefs     []GitLabRef
-}
-
-// GitLabRef is a GitLab issue or merge request named by an input, as the
-// prompts show it (.oh.gitlab_refs): Text as written, Kind "issue" or "mr",
-// the IID, the project it belongs to ("" when unknown) and the MCP tool that
-// reads it.
-type GitLabRef struct {
-	Text    string
-	Kind    string
-	IID     int
-	Project string
-	Tool    string
 }
 
 func (c PromptContext) values() map[string]any {
 	memories := ""
 	if strings.TrimSpace(c.Memories) != "" {
 		memories = DelimitData("memories", c.Memories)
-	}
-	refs := make([]any, 0, len(c.GitLabRefs))
-	for _, r := range c.GitLabRefs {
-		refs = append(refs, map[string]any{"text": r.Text, "kind": r.Kind, "iid": r.IID, "project": r.Project, "tool": r.Tool})
 	}
 	return map[string]any{
 		"memories":        memories,
@@ -99,7 +81,6 @@ func (c PromptContext) values() map[string]any {
 		"tracker":         c.Tracker,
 		"tracker_project": c.TrackerProject,
 		"gitlab_mcp":      c.GitLabMCP,
-		"gitlab_refs":     refs,
 	}
 }
 
