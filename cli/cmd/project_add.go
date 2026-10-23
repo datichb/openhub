@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/rivo/tview"
 	"github.com/spf13/cobra"
 
@@ -416,26 +415,9 @@ func doCreateProjectMinimal(ctx context.Context, a *app.App, name, absPath, lang
 
 // ── Helpers ──
 
-func generateProjectID(name string) string {
-	slug := strings.ToLower(strings.TrimSpace(name))
-	slug = strings.ReplaceAll(slug, " ", "-")
-	var clean strings.Builder
-	for _, r := range slug {
-		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' {
-			clean.WriteRune(r)
-		}
-	}
-	slug = strings.Trim(clean.String(), "-")
-	if slug == "" {
-		slug = "project"
-	}
-	if len(slug) > 32 {
-		slug = slug[:32]
-	}
-	slug = strings.TrimRight(slug, "-")
-	short := uuid.New().String()[:8]
-	return slug + "-" + short
-}
+// generateProjectID is domain.NewProjectID, the only generator of project
+// IDs (the init wizard and the screens of the TUI use it too).
+func generateProjectID(name string) string { return domain.NewProjectID(name) }
 
 // expandPath resolves ~ to the user's home directory.
 // Go's filepath.Abs does not handle ~ expansion.
