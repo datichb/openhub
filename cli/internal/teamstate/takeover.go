@@ -313,14 +313,7 @@ func (r *Repo) BriefExists(project, ticketID string) bool {
 
 // IsStale returns true if a claim has been inactive for longer than staleDays.
 func (r *Repo) IsStale(claim *Claim, staleDays int) bool {
-	if staleDays <= 0 {
-		staleDays = 3
-	}
-	lastActive := claim.LastActivity
-	if lastActive.IsZero() {
-		lastActive = claim.ClaimedAt
-	}
-	return time.Since(lastActive) > time.Duration(staleDays)*24*time.Hour
+	return claimStale(claim, staleDays, time.Now())
 }
 
 func formatEventSummary(e Event) string {
