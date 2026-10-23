@@ -25,7 +25,6 @@ import (
 	"github.com/datichb/openhub/cli/internal/services/launch"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
-	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 )
 
 // Fan-out (R6, E3, experimental, `[fanout] experimental = true`): a
@@ -165,7 +164,7 @@ func runFanoutClean(cmd *cobra.Command, args []string) error {
 	f := cmd.Flags()
 	dry, _ := f.GetBool("dry-run")
 	discard, _ := f.GetBool("discard")
-	res, err := fanout.Clean(ctx, sqlite.NewSessionStore(store), sess, fanout.CleanOptions{DryRun: dry, Discard: discard})
+	res, err := fanout.Clean(ctx, MustApp().Fanout, sess, fanout.CleanOptions{DryRun: dry, Discard: discard})
 	if err != nil {
 		return err
 	}
@@ -194,7 +193,7 @@ func runFanoutClean(cmd *cobra.Command, args []string) error {
 }
 
 // fanoutCleaner is the clean-up of the fan-outs for oh gc.
-type fanoutCleaner struct{ store *sqlite.SessionStore }
+type fanoutCleaner struct{ store domain.FanoutStore }
 
 func (c fanoutCleaner) Plan(ctx context.Context, s domain.Session) (what string, worktrees []string) {
 	res, err := fanout.Clean(ctx, c.store, &s, fanout.CleanOptions{DryRun: true})
@@ -216,7 +215,7 @@ func (c fanoutCleaner) Clean(ctx context.Context, id string) error {
 // cleanFanoutOnEnd cleans up the fan-out of a parent stopped for good (or
 // merged), unless a session of it still runs: its driver does it then.
 func cleanFanoutOnEnd(ctx context.Context, a *app.App, s domain.Session) {
-	if store == nil || !fanout.Cleanable(&s) {
+	if store == nil || a.Fanout == nil || !fanout.Cleanable(&s) {
 		return
 	}
 	for _, id := range fanoutChildren(ctx, a, s.ID) {
@@ -224,7 +223,7 @@ func cleanFanoutOnEnd(ctx context.Context, a *app.App, s domain.Session) {
 			return
 		}
 	}
-	if _, err := fanout.Clean(ctx, sqlite.NewSessionStore(store), &s, fanout.CleanOptions{}); err != nil {
+	if _, err := fanout.Clean(ctx, a.Fanout, &s, fanout.CleanOptions{}); err != nil {
 		slog.Warn("fan-out: clean-up at the end of the parent", "session", s.ID, "error", err)
 	}
 }
@@ -443,7 +442,7 @@ func newFanoutDriver(ctx context.Context, a *app.App, sess *domain.Session, log 
 	cps := newCheckpointService(a)
 	l := &fanoutLauncher{a: a, project: project, ssvc: ssvc, rsvc: rsvc, log: log, adjust: adjust}
 	return &fanout.Driver{
-		Sessions: sqlite.NewSessionStore(store),
+		Sessions: a.Fanout,
 		Launcher: l,
 		Parallel: a.Config.Fanout.EffectiveParallel(),
 		Workflow: func(ctx context.Context, id string) (*sessionspec.WorkflowRuntime, domain.CheckpointState, error) {
