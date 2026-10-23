@@ -402,7 +402,7 @@ func (t *tuiSessions) Send(ctx context.Context, sessionID, text string) error {
 	if err != nil {
 		return err
 	}
-	return decisionError(svc.Send(ctx, sessionID, text, sessionsvc.SendOptions{}))
+	return decisionError(svc.Send(ctx, sessionID, text, sessionsvc.SendOptions{ReportEnd: true}))
 }
 
 func (t *tuiSessions) Interrupt(ctx context.Context, sessionID string) error {

@@ -25,8 +25,10 @@ type fakeTool struct {
 	mu       sync.Mutex
 	replies  []adapters.DecisionReply
 	controls []adapters.ControlOp
-	replyErr error
-	result   adapters.SessionResult
+	// onControl runs while a control is applied (a session that ends during the send).
+	onControl func()
+	replyErr  error
+	result    adapters.SessionResult
 }
 
 func (f *fakeTool) Capabilities() adapters.Capabilities {
@@ -44,6 +46,9 @@ func (f *fakeTool) Control(_ context.Context, _ adapters.ServerHandle, _ string,
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.controls = append(f.controls, op)
+	if f.onControl != nil {
+		f.onControl()
+	}
 	return nil
 }
 

@@ -76,3 +76,31 @@ func TestSessionsHintsAreEssentialAndHelpListsAll(t *testing.T) {
 	}
 	assert.Contains(t, all, "Entrée décider/suivre")
 }
+
+// A6: an instruction to a session that is over is not asked for: nothing
+// reads it. The view says so instead of opening the input and, after the
+// text is typed, failing (or worse, saying « Consigne envoyée »).
+func TestSessionsSendToAnEndedSessionIsRefused(t *testing.T) {
+	frLocale(t)
+	be := &actionSessions{fakeSessions: fakeSessions{rows: fanoutRows()}}
+	sh := &dialogShell{}
+	sh.answer("relis les tests")
+	v := NewSessionsView(SessionsViewConfig{Backend: be})
+	v.SetShell(sh)
+	onLoop := harness(t, v, be.rows)
+
+	onLoop(func() { v.selectKey("s:ses_91aa01"); v.onSelectionChanged() })
+	onLoop(func() { assert.Nil(t, v.HandleKey(key('m'))) })
+	sh.cmu.Lock()
+	toasts := append([]string(nil), sh.toasts...)
+	sh.cmu.Unlock()
+	assert.Equal(t, []string{"La session est terminée : la consigne ne serait pas remise. Pour continuer, ouvre-la (a)."}, toasts)
+	assert.Empty(t, sh.inputs, "no input is offered for a session that is over")
+	assert.Empty(t, be.got())
+
+	// An open session still takes it.
+	onLoop(func() { v.selectKey("s:ses_91ab01"); v.onSelectionChanged() })
+	onLoop(func() { assert.Nil(t, v.HandleKey(key('m'))) })
+	require.Eventually(t, func() bool { return len(be.got()) == 1 }, 3*time.Second, 10*time.Millisecond)
+	assert.Equal(t, []string{"send ses_91ab01 relis les tests"}, be.got())
+}
