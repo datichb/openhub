@@ -3013,6 +3013,8 @@
   "cmd.team.init.recap.policies": "Policies",
   "cmd.team.init.validate.repo_required": "Repository URL is required",
   "cmd.team.init.validate.member_id_required": "Member ID is required",
+  "cmd.team.init.validate.token_required": "No token entered: fill in the field, or pick « Already configured (skip) » or « Public access » in the authentication mode.",
+  "cmd.init.wizard_team_cred_token_required": "No token entered: fill in the field, or go back to the previous step and pick « Skip » or « Public repository ».",
   "board.claimable": "[claimable]",
   "cmd.export.flag.overwrite": "Overwrite existing data without confirmation",
   "cmd.export.snapshot_failed": "Consistent copy of the database impossible (%v): archiving the file as is, recent writes still in the WAL may be missing.",

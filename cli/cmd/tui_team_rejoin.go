@@ -46,6 +46,7 @@ func actionTeamRejoin() {
 		identityMismatch *identityMismatchError
 		mismatchPAT      string
 		mismatchChoice   string
+		rejoinCredState  = &httpsCredState{Username: "oauth2", AuthChoice: "provide"}
 	)
 
 	// ── Step 0: Repository URL ──────────────────────────────────────
@@ -82,6 +83,7 @@ func actionTeamRejoin() {
 			if len(members) == 0 {
 				return errors.New(i18n.T("tui.team.rejoin.no_members"))
 			}
+			rejoinCredState.Probe(ctx, stateRepo)
 			return nil
 		},
 		Processing: i18n.T("cmd.team.init.processing_repo"),
@@ -91,7 +93,6 @@ func actionTeamRejoin() {
 	}
 
 	// ── Step 0b: HTTPS Credentials (conditional) ────────────────────
-	rejoinCredState := &httpsCredState{Username: "oauth2", AuthChoice: "provide"}
 	httpsCredStep := buildHTTPSCredStep(ctx, &stateRepo, rejoinCredState, nil, a.Secrets)
 
 	// ── Step 1: Member selection ────────────────────────────────────
@@ -165,7 +166,8 @@ func actionTeamRejoin() {
 					break
 				}
 			}
-			return glUser == "" || teamstate.IsHTTPS(stateRepo)
+			// the HTTPS step stores the token, unless it was skipped
+			return glUser == "" || (teamstate.IsHTTPS(stateRepo) && !rejoinCredState.Open)
 		},
 		Validate: func() string {
 			if tokenChoiceIdx == 0 {

@@ -3013,6 +3013,8 @@
   "cmd.team.init.recap.policies": "Policies",
   "cmd.team.init.validate.repo_required": "L'URL du repo est requise",
   "cmd.team.init.validate.member_id_required": "L'identifiant membre est requis",
+  "cmd.team.init.validate.token_required": "Aucun token saisi : renseignez le champ, ou choisissez « Déjà configuré (passer) » ou « Accès public » dans le mode d'authentification.",
+  "cmd.init.wizard_team_cred_token_required": "Aucun jeton saisi : renseignez le champ, ou revenez à l'étape précédente pour choisir « Ignorer » ou « Dépôt public ».",
   "board.claimable": "[disponible]",
   "cmd.export.flag.overwrite": "Écraser les données existantes sans confirmation",
   "cmd.export.snapshot_failed": "Copie cohérente de la base impossible (%v) : archivage du fichier tel quel, les écritures récentes encore dans le WAL peuvent manquer.",
