@@ -77,7 +77,12 @@ type MCPView struct {
 	services []MCPService
 
 	commands []ContextCommand
-	loads    loadSlot
+	// loads numbers the reads of the services, stores the writes of a token:
+	// a result is applied only while it is the latest of its slot and the
+	// view is still mounted. hosts numbers the look-ups of a host.
+	loads  loadSlot
+	stores loadSlot
+	hosts  loadSlot
 }
 
 var _ View = (*MCPView)(nil)
@@ -109,12 +114,7 @@ func (v *MCPView) Mount(content *tview.Flex, tvApp *tview.Application) {
 	v.app = tvApp
 
 	// Show loading placeholder immediately
-	loading := tview.NewTextView().
-		SetDynamicColors(true).
-		SetTextAlign(tview.AlignLeft)
-	loading.SetBackgroundColor(theme.BgPanel)
-	muted := theme.ColorTag(theme.TextMutedHex)
-	loading.SetText(fmt.Sprintf("\n  %s%s%s", muted, i18n.T("tui.mcp.loading"), theme.TagColor))
+	loading := stateView(stateLoading, i18n.T("tui.mcp.loading"))
 	content.AddItem(loading, 0, 1, true)
 
 	// Read the services off the event loop (keychain, team config), then
@@ -136,12 +136,14 @@ func (v *MCPView) Mount(content *tview.Flex, tvApp *tview.Application) {
 		if tvApp != nil {
 			tvApp.SetFocus(v.list)
 		}
-	})
+	}, func(err error) { setState(loading, stateError, err.Error()) })
 }
 
 // Unmount cleans up resources.
 func (v *MCPView) Unmount() {
-	v.loads.Invalidate() // drop the load in flight
+	v.loads.Invalidate() // drop the loads in flight
+	v.stores.Invalidate()
+	v.hosts.Invalidate()
 	v.app = nil
 	v.list = nil
 	v.page = nil
@@ -162,7 +164,7 @@ func (v *MCPView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 			if v.shell != nil {
 				v.shell.ShowToastMsg(i18n.T("tui.mcp.refreshed"), true)
 			}
-		})
+		}, v.failed)
 		return nil
 	}
 	if trustKey.Matches(event) {
@@ -377,16 +379,37 @@ func (v *MCPView) promptTokenCurrent() {
 	if v.shell != nil {
 		v.shell.ShowPasswordModal(i18n.Tf("tui.mcp.token_title", svc.Name), func(token string) {
 			if token != "" && v.appCtx != nil && v.appCtx.Secrets != nil {
-				if _, err := config.StoreMCPToken(context.Background(), v.appCtx.Secrets, svc.Name, "", token); err != nil {
-					v.shell.ShowToastMsg(errorText(err), false)
-				}
-				v.services[idx].HasToken = true
-				v.populateList()
-				v.buildCommands()
-				v.shell.ShowToastMsg(i18n.Tf("tui.mcp.token_saved", svc.Name), true)
+				v.storeToken(svc.Name, token)
 			}
 		})
 	}
+}
+
+// storeToken writes the token in the keychain, which may block (a locked
+// keychain waits for the user), off the event loop; the list shows it once
+// it is stored.
+func (v *MCPView) storeToken(name, token string) {
+	secrets := v.appCtx.Secrets
+	load(v.app, context.Background(), &v.stores, func(ctx context.Context) (struct{}, error) {
+		_, err := config.StoreMCPToken(ctx, secrets, name, "", token)
+		return struct{}{}, err
+	}, func(_ struct{}, err error) {
+		if v.shell == nil {
+			return
+		}
+		if err != nil {
+			v.shell.ShowToastMsg(errorText(err), false)
+			return
+		}
+		for i := range v.services {
+			if v.services[i].Name == name {
+				v.services[i].HasToken = true
+			}
+		}
+		v.populateList()
+		v.buildCommands()
+		v.shell.ShowToastMsg(i18n.Tf("tui.mcp.token_saved", name), true)
+	})
 }
 
 func (v *MCPView) toggleWriteCurrent() {
@@ -441,20 +464,26 @@ func (v *MCPView) trustCurrent() {
 		v.shell.ShowToastMsg(svc.Enforced.Warning, false)
 		return
 	}
-	url, tvApp := svc.Enforced.URL, v.app
-	go func() {
-		var lines []string
-		sensitive := false
+	url := svc.Enforced.URL
+	type host struct {
+		lines     []string
+		sensitive bool
+	}
+	load(v.app, context.Background(), &v.hosts, func(context.Context) (host, error) {
+		var h host
 		if v.cfg.HostInfo != nil {
-			lines, sensitive = v.cfg.HostInfo(url)
+			h.lines, h.sensitive = v.cfg.HostInfo(url)
 		}
-		tvApp.QueueUpdateDraw(func() {
-			if v.app != tvApp || v.shell == nil {
-				return // the view was left meanwhile
-			}
-			v.confirmTrust(svc.Name, url, lines, sensitive)
-		})
-	}()
+		return h, nil
+	}, func(h host, err error) {
+		if err != nil {
+			v.failed(err)
+			return
+		}
+		if v.shell != nil {
+			v.confirmTrust(svc.Name, url, h.lines, h.sensitive)
+		}
+	})
 }
 
 func (v *MCPView) confirmTrust(name, url string, hostLines []string, sensitive bool) {
@@ -480,11 +509,23 @@ func (v *MCPView) pinURL(name, url string) {
 		}
 		return
 	}
-	v.loadServices()
-	v.populateList()
-	v.buildCommands()
+	if v.list == nil {
+		return // left meanwhile: the next mount reads the services
+	}
+	// The services are read again (keychain, team config) off the event loop.
+	v.reloadServices(func() {
+		v.populateList()
+		v.buildCommands()
+		if v.shell != nil {
+			v.shell.ShowToastMsg(i18n.Tf("tui.mcp.trust_done", name, url), true)
+		}
+	}, v.failed)
+}
+
+// failed tells that the services could not be read.
+func (v *MCPView) failed(err error) {
 	if v.shell != nil {
-		v.shell.ShowToastMsg(i18n.Tf("tui.mcp.trust_done", name, url), true)
+		v.shell.ShowToastMsg(errorText(err), false)
 	}
 }
 
@@ -567,16 +608,24 @@ func (v *MCPView) readServices(snap mcpSnapshot) []MCPService {
 	return services
 }
 
-// loadServices reads the services in place (event loop; tests).
+// loadServices reads the services in place, on the calling goroutine (tests
+// only: the view reads them with reloadServices).
 func (v *MCPView) loadServices() { v.services = v.readServices(v.snapshotServices()) }
 
-// reloadServices reads the services off the event loop, then calls then on it.
-// The latest request wins; Unmount drops the one in flight.
-func (v *MCPView) reloadServices(then func()) {
+// reloadServices reads the services off the event loop, then calls then on
+// it (fail, with the error, when the read failed). The latest request wins;
+// Unmount drops the one in flight.
+func (v *MCPView) reloadServices(then func(), fail func(error)) {
 	snap := v.snapshotServices()
 	load(v.app, context.Background(), &v.loads, func(context.Context) ([]MCPService, error) {
 		return v.readServices(snap), nil
-	}, func(services []MCPService, _ error) {
+	}, func(services []MCPService, err error) {
+		if err != nil {
+			if fail != nil {
+				fail(err)
+			}
+			return
+		}
 		v.services = services
 		then()
 	})

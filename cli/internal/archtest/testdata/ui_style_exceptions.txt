@@ -38,8 +38,6 @@ widgets-tag internal/tui/v2/views/board.go 1
 widgets-tag internal/tui/v2/views/board_view.go 1
 symbol internal/tui/v2/views/bricks_view.go 2
 tag-style internal/tui/v2/views/bricks_view.go 1
-symbol internal/tui/v2/views/cleanup_deploy.go 2
-tag-color internal/tui/v2/views/cleanup_deploy.go 2
 symbol internal/tui/v2/views/config_field.go 4
 widgets-tag internal/tui/v2/views/dashboard.go 7
 tag-style internal/tui/v2/views/doctor_view.go 1

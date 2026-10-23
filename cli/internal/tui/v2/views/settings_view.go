@@ -13,7 +13,6 @@ import (
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/provider"
-	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
@@ -21,9 +20,15 @@ import (
 type SettingsViewConfig struct {
 	// GetConfig returns the live hub config (not a copy).
 	GetConfig func() *config.Config
-	// ReloadConfig reloads the config from disk (for undo/refresh).
-	// Returns the refreshed live config pointer.
+	// ReloadConfig reloads the config from disk (after an external
+	// modification), on the event loop. Returns the refreshed live config
+	// pointer.
 	ReloadConfig func() *config.Config
+	// ReadConfig reads hub.toml from disk without touching the live config
+	// (r refresh). It may block: the view calls it off the event loop, then
+	// copies the result into the live config on it. Without it, refresh calls
+	// ReloadConfig on the loop. Optional.
+	ReadConfig func() (*config.Config, error)
 	// SaveConfig persists the modified config to hub.toml.
 	SaveConfig func(c *config.Config) error
 	// CheckSecret tests whether a keychain key has a value stored.
@@ -51,6 +56,9 @@ type SettingsView struct {
 	// off the event loop at mount (toolRead).
 	tool     settingsTool
 	toolRead bool
+	// reading is true while a refresh reads hub.toml: the fields cannot be
+	// edited, the result would replace the edit.
+	reading bool
 
 	// live config being edited (pointer to in-memory config, auto-saved on mutation)
 	live *config.Config
@@ -99,6 +107,7 @@ func (v *SettingsView) Mount(content *tview.Flex, app *tview.Application) {
 	}
 	v.ctx, v.cancel = context.WithCancel(parent)
 	v.toolRead = false
+	v.reading = false
 	v.undoStack.Clear()
 	v.live = v.cfg.GetConfig() // synchronous: always available for save()
 
@@ -108,19 +117,18 @@ func (v *SettingsView) Mount(content *tview.Flex, app *tview.Application) {
 	})
 
 	// Show loading placeholder immediately
-	loading := tview.NewTextView().
-		SetDynamicColors(true).
-		SetTextAlign(tview.AlignLeft)
-	loading.SetBackgroundColor(theme.BgPanel)
-	muted := theme.ColorTag(theme.TextMutedHex)
-	loading.SetText(fmt.Sprintf("\n  %s%s%s", muted, i18n.T("tui.settings.loading"), theme.TagColor))
+	loading := stateView(stateLoading, i18n.T("tui.settings.loading"))
 	content.AddItem(loading, 0, 1, true)
 
 	// Read what needs the tool client off the event loop, then build the
 	// widgets on it.
 	load(app, v.ctx, &v.loads, func(context.Context) (settingsTool, error) {
 		return v.readTool(), nil
-	}, func(t settingsTool, _ error) {
+	}, func(t settingsTool, err error) {
+		if err != nil {
+			setState(loading, stateError, err.Error())
+			return
+		}
 		v.tool, v.toolRead = t, true
 
 		v.list = widgets.NewSectionedList()
@@ -171,6 +179,7 @@ func (v *SettingsView) toolInfo() settingsTool {
 
 func (v *SettingsView) Unmount() {
 	v.loads.Invalidate() // drop the load in flight
+	v.reading = false
 	if v.cancel != nil {
 		v.cancel()
 	}
@@ -219,6 +228,9 @@ func (v *SettingsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 }
 
 func (v *SettingsView) undo() {
+	if v.reading {
+		return
+	}
 	prev, ok := v.undoStack.Pop()
 	if !ok {
 		if v.shell != nil {
@@ -238,14 +250,49 @@ func (v *SettingsView) undo() {
 	}
 }
 
+// refresh reads hub.toml again, dropping the pending auto-save, the undo
+// stack and what was edited. The file is read off the event loop (ReadConfig);
+// the fields are rebuilt on it. The latest request wins; Unmount drops the
+// one in flight.
 func (v *SettingsView) refresh() {
-	if v.cfg.ReloadConfig != nil {
-		v.live = v.cfg.ReloadConfig()
+	if v.reading {
+		return
 	}
-	v.undoStack.Clear()
 	if v.autoSaver != nil {
 		v.autoSaver.Cancel()
 	}
+	if v.cfg.ReadConfig == nil {
+		if v.cfg.ReloadConfig != nil {
+			v.live = v.cfg.ReloadConfig()
+		}
+		v.reloaded()
+		return
+	}
+	v.reading = true
+	load(v.app, v.ctx, &v.loads, func(context.Context) (*config.Config, error) {
+		return v.cfg.ReadConfig()
+	}, func(fresh *config.Config, err error) {
+		v.reading = false
+		if err != nil {
+			if v.shell != nil {
+				v.shell.ShowToastMsg(errorText(err), false)
+			}
+			return
+		}
+		switch {
+		case fresh == nil: // nothing to read: the config stays
+		case v.live == nil:
+			v.live = fresh
+		default:
+			*v.live = *fresh
+		}
+		v.reloaded()
+	})
+}
+
+// reloaded shows the config that was just read.
+func (v *SettingsView) reloaded() {
+	v.undoStack.Clear()
 	v.renderFields()
 	if v.shell != nil {
 		v.shell.ShowToastMsg(i18n.T("tui.config.reloaded"), true)
@@ -559,6 +606,9 @@ func (v *SettingsView) renderFields() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 func (v *SettingsView) onItemSelected(_ int, item widgets.SectionItem) {
+	if v.reading {
+		return
+	}
 	ref, ok := item.Reference.(int)
 	if !ok || ref < 0 || ref >= len(v.fields) {
 		return
@@ -585,7 +635,7 @@ func (v *SettingsView) onItemSelected(_ int, item widgets.SectionItem) {
 }
 
 func (v *SettingsView) onToggleSelected() {
-	if v.list == nil {
+	if v.list == nil || v.reading {
 		return
 	}
 	_, item, ok := v.list.CurrentItem()
