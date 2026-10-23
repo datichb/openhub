@@ -113,7 +113,7 @@ func Date(t time.Time) string { return layout(t, "fmt.date") }
 func DateTime(t time.Time) string { return layout(t, "fmt.datetime") }
 
 // ShortDateTime is the day and the minute of t without the year, for a list
-// of recent items (« 23/10 14:05 »).
+// of recent items (« 10-23 14:05 »; « 23/10 14:05 » in French).
 func ShortDateTime(t time.Time) string { return layout(t, "fmt.shortdatetime") }
 
 // Clock is the hour and the minute of t in local time (« 14:05 »).
@@ -132,14 +132,21 @@ func layout(t time.Time, key string) string {
 // ── Costs, sizes, counts ─────────────────────────────────────────────────────
 
 // Cost is an amount in dollars to the cent (« $0.12 »; « 0.12 $ » in French).
-func Cost(usd float64) string { return i18n.Tf("fmt.cost", usd) }
+// An amount above zero and under a cent reads « <$0.01 » (« <0.01 $ ») rather
+// than « $0.00 », which would say that nothing was spent; zero stays « $0.00 ».
+func Cost(usd float64) string {
+	if usd > 0 && usd < 0.01 {
+		return i18n.T("fmt.cost_floor")
+	}
+	return i18n.Tf("fmt.cost", usd)
+}
 
 // CostPrecise is Cost to four decimals, for a trace where one call costs a
 // fraction of a cent (« $0.0123 »).
 func CostPrecise(usd float64) string { return i18n.Tf("fmt.cost_precise", usd) }
 
 // Bytes is a size in powers of 1024: « 820 B », « 2.1 KiB », « 1.5 MiB »,
-// « 3.0 GiB » (« 820 o », « 2.1 Ko », « 1.5 Mo », « 3.0 Go » in French).
+// « 3.0 GiB » (« 820 o », « 2.1 Kio », « 1.5 Mio », « 3.0 Gio » in French).
 func Bytes(n int64) string {
 	const kib = 1024
 	switch {

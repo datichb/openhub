@@ -64,3 +64,49 @@ func TestBadgeUsesStateGlyphs(t *testing.T) {
 		t.Error("Checkpoint is the glyph of the checkpoint decision")
 	}
 }
+
+// The table of meanings: the symbols agreed on for the whole product.
+func TestMeaningTable(t *testing.T) {
+	want := map[string]string{
+		"success": "✔", "failure": "✗", "inactive": "○", "absent": "–", "warning": "⚠", "active": "●",
+		"current": "◆", "modified": "✎", "default": "★", "cursor": "▸", "selected": "◉",
+	}
+	if len(Symbols) != len(want) {
+		t.Fatalf("%d symbols in the table, %d expected", len(Symbols), len(want))
+	}
+	seen := map[string]string{}
+	for _, s := range Symbols {
+		if want[s.Name] != s.Glyph {
+			t.Errorf("symbol %s: %q, want %q", s.Name, s.Glyph, want[s.Name])
+		}
+		if prev, ok := seen[s.Glyph]; ok {
+			t.Errorf("%q stands for %s and %s", s.Glyph, prev, s.Name)
+		}
+		seen[s.Glyph] = s.Name
+	}
+}
+
+// A state or a kind shares a symbol with the table of meanings only when it
+// is that meaning: a finished run is a success, a failed decision a failure,
+// a live run is active, an idle one is inactive. Nothing else (a state may
+// not take ◆ or ⚠ for itself).
+func TestStatesShareOnlyTheirMeaning(t *testing.T) {
+	shared := map[string]string{}
+	for _, s := range Symbols {
+		shared[s.Glyph] = s.Name
+	}
+	allowed := map[string]string{
+		string(domain.RunActive): "active", string(domain.RunIdle): "inactive",
+		string(domain.RunCompleted): "success", string(domain.DecisionError): "failure",
+	}
+	for _, e := range States {
+		if name, ok := shared[e.Glyph]; ok && allowed[string(e.State)] != name {
+			t.Errorf("state %s uses %q, the symbol of %q", e.State, e.Glyph, name)
+		}
+	}
+	for _, e := range Kinds {
+		if name, ok := shared[e.Glyph]; ok && allowed[string(e.Kind)] != name {
+			t.Errorf("decision %s uses %q, the symbol of %q", e.Kind, e.Glyph, name)
+		}
+	}
+}

@@ -1,28 +1,78 @@
 package theme
 
+import "github.com/datichb/openhub/cli/internal/glyph"
+
 // ─────────────────────────────────────────────────────────────────────────────
-// Canonical icon constants (deduplicated, single source of truth)
+// Table of meanings — the symbols that mean the same thing on every screen
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// The values come from internal/glyph (the table shared with the CLI and the
+// sessions): the theme names them, glyph owns them. A screen writes
+// theme.SymSuccess, never "✔". The colors go with the meaning (✔ green, ✗ red,
+// ⚠ yellow, ○ and – grey) and come from the theme: Success, Error, Warning,
+// FgMuted.
+//
+// A symbol stands for one thing. Where an Icon* below still has another
+// value for the same meaning, it says so (the screens are moved to the table
+// group by group; none of them is changed by this file).
+
+const (
+	// SymSuccess: it worked, it passed, it is valid (green).
+	SymSuccess = glyph.Success
+	// SymFailure: it failed, it is invalid (red).
+	SymFailure = glyph.Failure
+	// SymInactive: off or at rest — a disabled option, an idle session, a
+	// step not started (grey). A missing value is SymAbsent.
+	SymInactive = glyph.Inactive
+	// SymAbsent: the value is not there — not configured, not set (grey).
+	SymAbsent = glyph.Absent
+	// SymWarning: it works but needs attention (yellow).
+	SymWarning = glyph.Warning
+	// SymLive: running right now, and nothing else — a live session. A
+	// completed step is SymSuccess.
+	SymLive = glyph.Active
+	// SymCurrent: the element the user is in or that is in use — current
+	// view, current step, current team.
+	SymCurrent = glyph.Current
+	// SymModified: changed and not saved or published — a draft, a local edit.
+	SymModified = glyph.Modified
+	// SymDefault: what is chosen when nothing is — the default provider or
+	// workflow, a pinned entry.
+	SymDefault = glyph.Default
+	// SymCursor: the row under the cursor of a list, the start of a choice or
+	// of an action. Never a state.
+	SymCursor = glyph.Cursor
+	// SymSelected: an element picked in a choice, single (radio, the others
+	// being SymInactive) or multiple.
+	SymSelected = glyph.Selected
+)
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Icons (deduplicated, single source of truth for the screens)
 // ─────────────────────────────────────────────────────────────────────────────
 
 const (
-	// IconActive marks the currently active view/item.
-	IconActive = "◆"
-	// IconDone marks a completed step.
+	// IconActive marks the currently active view/item (SymCurrent).
+	IconActive = SymCurrent
+	// IconDone marks a completed step. It differs from the table: ● is
+	// SymLive (running), a completed thing is SymSuccess.
 	IconDone = "●"
-	// IconPending marks a future/pending step.
-	IconPending = "○"
+	// IconPending marks a future/pending step (SymInactive).
+	IconPending = SymInactive
 	// IconSkipped marks a skipped step.
 	IconSkipped = "◌"
-	// IconSuccess is a checkmark for success feedback.
+	// IconSuccess is a checkmark for success feedback. It differs from the
+	// table: the symbol of success is ✔ (SymSuccess), this one is ✓.
 	IconSuccess = "✓"
-	// IconError is a cross for error feedback.
-	IconError = "✗"
-	// IconWarning is an exclamation for warnings.
+	// IconError is a cross for error feedback (SymFailure).
+	IconError = SymFailure
+	// IconWarning is an exclamation for warnings. It differs from the table:
+	// the symbol of a warning is ⚠ (SymWarning), this one is !.
 	IconWarning = "!"
 	// IconInfo is an info indicator.
 	IconInfo = "ℹ"
-	// IconArrow is a pointer/expanded indicator.
-	IconArrow = "▸"
+	// IconArrow is a pointer/expanded indicator (SymCursor).
+	IconArrow = SymCursor
 	// IconCollapsed is a collapsed category indicator.
 	IconCollapsed = "▾"
 	// IconDot is a bullet for menu items.
@@ -32,7 +82,7 @@ const (
 	// IconGutter is the active item left gutter.
 	IconGutter = "▎"
 	// IconStepActive marks the active step in a wizard.
-	IconStepActive = "◆"
+	IconStepActive = SymCurrent
 	// IconSepBold is a bold separator.
 	IconSepBold = "━"
 	// IconSepNormal is a normal separator.
@@ -45,20 +95,20 @@ const (
 const (
 	// IconDraft marks a draft (leading) or a published workflow that has a
 	// draft (trailing).
-	IconDraft = "✎"
+	IconDraft = SymModified
 	// IconPinned marks a pinned workflow.
-	IconPinned = "★"
+	IconPinned = SymDefault
 	// IconRuntimeLocal, IconRuntimeContainer and IconRuntimeRemote are the
 	// runtimes (local, container, remote).
 	IconRuntimeLocal     = "⌂"
 	IconRuntimeContainer = "▣"
 	IconRuntimeRemote    = "☁"
 	// IconValid marks a valid workflow.
-	IconValid = "✔"
+	IconValid = SymSuccess
 	// IconInvalid marks a workflow with errors.
-	IconInvalid = "✗"
+	IconInvalid = SymFailure
 	// IconWarn marks validation or integrity warnings.
-	IconWarn = "⚠"
+	IconWarn = SymWarning
 	// IconQueued marks an operation waiting for the network.
 	IconQueued = "⏳"
 	// IconNewBrick marks a draft that introduces a team brick.

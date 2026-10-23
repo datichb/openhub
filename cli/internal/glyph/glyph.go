@@ -5,7 +5,9 @@
 //
 // A symbol never stands for two things: the states use geometric shapes, the
 // decision kinds use signs (⏸ ? ! $ ✗ ⊘), and a test checks that no symbol is
-// shared between the two tables.
+// shared between the two tables. The symbols that have the same meaning
+// everywhere (✔ ✗ ○ – ⚠ ● ◆ ✎ ★ ▸ ◉) are in symbols.go; the tables use them
+// when a state or a kind is one of those meanings.
 package glyph
 
 import "github.com/datichb/openhub/cli/internal/domain"
@@ -20,11 +22,11 @@ type State struct {
 var States = []State{
 	{domain.RunPreparing, "◓"},
 	{domain.RunQueued, "…"},
-	{domain.RunActive, "●"},
+	{domain.RunActive, Active},
 	{domain.RunWaiting, "◐"}, // waits for a decision of the user
-	{domain.RunIdle, "○"},
+	{domain.RunIdle, Inactive},
 	{domain.RunSleeping, "◌"},
-	{domain.RunCompleted, "✔"},
+	{domain.RunCompleted, Success},
 	{domain.RunFailed, "⊗"},
 	{domain.RunStopped, "■"},
 }
@@ -41,7 +43,7 @@ var Kinds = []Kind{
 	{domain.DecisionQuestion, "?"},
 	{domain.DecisionPermission, "!"},
 	{domain.DecisionBudget, "$"},
-	{domain.DecisionError, "✗"},
+	{domain.DecisionError, Failure},
 	{domain.DecisionCircuit, "⊘"},
 }
 
@@ -56,7 +58,7 @@ const (
 	// BadgeRunning and BadgeWaiting are the two counters of the sessions
 	// badge (« ● 2  ◐ 1 »): live sessions, and sessions that wait for a
 	// decision. They are the glyphs of the active and waiting states.
-	BadgeRunning = "●"
+	BadgeRunning = Active
 	BadgeWaiting = "◐"
 )
 

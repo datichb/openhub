@@ -97,12 +97,13 @@ func TestDates(t *testing.T) {
 	inZone(t)
 	// 2026-10-23 22:30:09 UTC is already the 24th at 00:30:09 in paris.
 	at := time.Date(2026, 10, 23, 22, 30, 9, 0, time.UTC)
+	shortDateTime := map[string]string{"en": "10-24 00:30", "fr": "24/10 00:30"}
 	for _, lang := range []string{"en", "fr"} {
 		t.Run(lang, func(t *testing.T) {
 			i18ntest.Set(t, lang)
 			assert.Equal(t, "2026-10-24", Date(at))
 			assert.Equal(t, "2026-10-24 00:30", DateTime(at))
-			assert.Equal(t, "24/10 00:30", ShortDateTime(at))
+			assert.Equal(t, shortDateTime[lang], ShortDateTime(at))
 			assert.Equal(t, "00:30", Clock(at))
 			assert.Equal(t, "00:30:09", ClockSec(at))
 			assert.Equal(t, "2026-10-24", Date(at.In(time.UTC)), "the zone of the value does not matter")
@@ -127,6 +128,32 @@ func TestCost(t *testing.T) {
 	assert.Equal(t, "0.0123 $", CostPrecise(0.01234))
 }
 
+// A cost above zero and under a cent shows a floor, not « $0.00 »; zero and
+// a cent are shown as is, and CostPrecise keeps its four decimals.
+func TestCostFloor(t *testing.T) {
+	tests := []struct {
+		usd    float64
+		en, fr string
+	}{
+		{0, "$0.00", "0.00 $"},
+		{0.000001, "<$0.01", "<0.01 $"},
+		{0.004, "<$0.01", "<0.01 $"},
+		{0.006, "<$0.01", "<0.01 $"},
+		{0.0099, "<$0.01", "<0.01 $"},
+		{0.01, "$0.01", "0.01 $"},
+		{0.0149, "$0.01", "0.01 $"},
+		{-0.5, "$-0.50", "-0.50 $"},
+	}
+	for _, tt := range tests {
+		i18ntest.Set(t, "en")
+		assert.Equal(t, tt.en, Cost(tt.usd), "en %v", tt.usd)
+		i18ntest.Set(t, "fr")
+		assert.Equal(t, tt.fr, Cost(tt.usd), "fr %v", tt.usd)
+	}
+	i18ntest.Set(t, "en")
+	assert.Equal(t, "$0.0040", CostPrecise(0.004), "CostPrecise has no floor")
+}
+
 func TestBytes(t *testing.T) {
 	tests := []struct {
 		n      int64
@@ -136,11 +163,11 @@ func TestBytes(t *testing.T) {
 		{0, "0 B", "0 o"},
 		{820, "820 B", "820 o"},
 		{1023, "1023 B", "1023 o"},
-		{1024, "1.0 KiB", "1.0 Ko"},
-		{2150, "2.1 KiB", "2.1 Ko"},
-		{1<<20 - 1, "1024.0 KiB", "1024.0 Ko"},
-		{3 << 19, "1.5 MiB", "1.5 Mo"},
-		{3 << 30, "3.0 GiB", "3.0 Go"},
+		{1024, "1.0 KiB", "1.0 Kio"},
+		{2150, "2.1 KiB", "2.1 Kio"},
+		{1<<20 - 1, "1024.0 KiB", "1024.0 Kio"},
+		{3 << 19, "1.5 MiB", "1.5 Mio"},
+		{3 << 30, "3.0 GiB", "3.0 Gio"},
 	}
 	for _, tt := range tests {
 		i18ntest.Set(t, "en")
