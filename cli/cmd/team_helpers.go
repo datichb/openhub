@@ -44,6 +44,7 @@ func resolvedTeamConfig(a *app.App, project *domain.Project) config.ResolvedTeam
 		TeamID:    hub.ID,
 		StateRepo: hub.StateRepo,
 		StatePath: hub.StatePath,
+		GitLabURL: hub.GitLabURL,
 		MemberID:  hub.MemberID,
 	}
 }

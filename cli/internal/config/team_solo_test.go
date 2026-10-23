@@ -113,3 +113,18 @@ func TestUpsertTeam_NeverOverwritesAnotherTeam(t *testing.T) {
 	require.NoError(t, err, "loading the hub")
 	check(t, loaded, "after reload")
 }
+
+// gitlab_url (the real GitLab of an aliased team-state repository) is read
+// back, resolved, and kept when the team is registered again without it.
+func TestTeamGitLabURL(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.UpsertTeam(config.TeamConfig{ID: "core", Enabled: true, StateRepo: "git@alias:acme/core.git", MemberID: "alice", GitLabURL: "https://gitlab.corp.example"})
+	assert.Equal(t, "https://gitlab.corp.example", cfg.ActiveTeam().GitLabURL)
+	assert.Equal(t, "https://gitlab.corp.example", config.ResolveTeamConfig(cfg.ActiveTeam(), nil).GitLabURL)
+
+	cfg.UpsertTeam(config.TeamConfig{ID: "core", Enabled: true, StateRepo: "git@alias:acme/core.git", MemberID: "alice"})
+	assert.Equal(t, "https://gitlab.corp.example", cfg.FindTeam("core").GitLabURL, "the same repository keeps its declared GitLab")
+
+	cfg.UpsertTeam(config.TeamConfig{ID: "core", Enabled: true, StateRepo: "git@other:acme/core.git", MemberID: "alice"})
+	assert.Empty(t, cfg.FindTeam("core").GitLabURL, "another repository: the old declaration no longer applies")
+}

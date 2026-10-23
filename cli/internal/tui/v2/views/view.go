@@ -22,6 +22,10 @@ type TeamResolution struct {
 	StateRepo string
 	// StatePath is the local filesystem path of the team-state clone.
 	StatePath string
+	// GitLabURL is the GitLab server of the team-state repository declared by
+	// the member when StateRepo goes through an SSH alias (empty = the host of
+	// StateRepo).
+	GitLabURL string
 	// MemberID is the current user's member identifier in the team-state.
 	MemberID string
 	// Solo: a solo space (local team-state, team features off; P2-T16).

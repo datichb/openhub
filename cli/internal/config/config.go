@@ -166,7 +166,7 @@ func (c *Config) FindTeamByRepo(repo string) *TeamConfig {
 
 // UpsertTeam saves t in Teams without touching any other entry: it replaces
 // the entry with the same ID or, when t has a StateRepo, the same StateRepo
-// (keeping its Name if t has none), and appends t otherwise.
+// (keeping its Name and its GitLabURL if t has none), and appends t otherwise.
 func (c *Config) UpsertTeam(t TeamConfig) {
 	for i := range c.Teams {
 		cur := c.Teams[i]
@@ -175,6 +175,9 @@ func (c *Config) UpsertTeam(t TeamConfig) {
 		}
 		if t.Name == "" {
 			t.Name = cur.Name
+		}
+		if t.GitLabURL == "" && t.StateRepo == cur.StateRepo {
+			t.GitLabURL = cur.GitLabURL
 		}
 		c.Teams[i] = t
 		return
@@ -247,6 +250,13 @@ type TeamConfig struct {
 	StateRepo string `toml:"state_repo"`           // Git remote URL for the team-state repo
 	StatePath string `toml:"state_path,omitempty"` // Local clone path (default: ~/.oh/team-state)
 	MemberID  string `toml:"member_id"`            // Current user's member ID
+	// GitLabURL is the GitLab server that hosts the team-state repository,
+	// declared by the member when state_repo reaches it through an SSH alias
+	// (git@mon-alias:acme/team.git): the alias is a name of ~/.ssh/config, not
+	// the server, so the token of the team would otherwise be attached to
+	// "mon-alias" and never match a GitLab URL. Personal (the alias is local to
+	// the machine): it lives in hub.toml. Empty = the host of state_repo.
+	GitLabURL string `toml:"gitlab_url,omitempty"`
 	// Solo marks a local team-state without remote (v5 phase 2, `oh team
 	// init --solo`): it only holds workflows; team features (board, claims,
 	// notifications) stay off and ActiveTeam ignores it.

@@ -21,6 +21,10 @@ type ResolvedTeamConfig struct {
 	StateRepo string
 	// StatePath is the local filesystem path to the team-state clone.
 	StatePath string
+	// GitLabURL is the GitLab server of the team-state repository when
+	// StateRepo goes through an SSH alias (TeamConfig.GitLabURL); empty = the
+	// host of StateRepo.
+	GitLabURL string
 	// MemberID is the current user's member identifier in the team-state repo.
 	MemberID string
 	// Solo marks a solo team-state (workflows only). Enabled is then false so
@@ -49,6 +53,7 @@ func ResolveTeamForProject(cfg *Config, project *domain.Project) ResolvedTeamCon
 			TeamID:    team.ID,
 			StateRepo: team.StateRepo,
 			StatePath: team.StatePath,
+			GitLabURL: team.GitLabURL,
 			MemberID:  team.MemberID,
 			Solo:      team.Solo && team.Enabled,
 		}
@@ -79,6 +84,7 @@ func ResolveTeamConfig(hub TeamConfig, project *domain.ProjectTeamConfig) Resolv
 			TeamID:    hub.ID,
 			StateRepo: hub.StateRepo,
 			StatePath: hub.StatePath,
+			GitLabURL: hub.GitLabURL,
 			MemberID:  hub.MemberID,
 		}
 	}
