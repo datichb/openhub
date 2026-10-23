@@ -295,3 +295,27 @@ func TestRunDoctorChecksIndentsAMultiLineDetail(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, out.String(), "Token — no token\n      Sources read:\n        - GITLAB_TOKEN")
 }
+
+// 404 means the URL is not a tracker (failure); a server error is not the
+// configuration's fault (warning).
+func TestDoctorConnectionTellsAWrongURLFromAServerError(t *testing.T) {
+	for _, tc := range []struct {
+		status   int
+		ok, warn bool
+		contains string
+	}{
+		{http.StatusNotFound, false, false, "tracker_url"},
+		{http.StatusBadGateway, true, true, "502"},
+	} {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(tc.status) }))
+		doctorTrackerHub(t, srv.URL, "git@gitlab.octo.example:acme/core.git", nil)
+		t.Setenv("GITLAB_TOKEN", "glpat-ok")
+		t.Setenv("OH_GITLAB_URL", srv.URL)
+
+		r := requireOneResult(t, "tracker_connection")
+		assert.Equal(t, tc.ok, r.OK, "HTTP %d", tc.status)
+		assert.Equal(t, tc.warn, r.Warn, "HTTP %d", tc.status)
+		assert.Contains(t, r.Detail, tc.contains)
+		srv.Close()
+	}
+}
