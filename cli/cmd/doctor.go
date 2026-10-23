@@ -145,7 +145,7 @@ func runDoctorChecks(w io.Writer, checks []doctor.Check) error {
 			case r.Warn:
 				icon = theme.WarningStyle.Render(theme.IconWarning)
 			}
-			fmt.Fprintf(w, "  %s %s — %s\n", icon, r.Name, r.Detail)
+			fmt.Fprintf(w, "  %s %s — %s\n", icon, r.Name, strings.ReplaceAll(r.Detail, "\n", "\n      "))
 		}
 	}
 

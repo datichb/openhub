@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
 	"net/http"
 	"net/http/httptest"
@@ -281,4 +282,16 @@ func TestDoctorViewLoadsTheRegistryWithTheTrackerChecks(t *testing.T) {
 	}
 	assert.Contains(t, ids, doctorIDTrackerTokens)
 	assert.Contains(t, ids, doctorIDTrackerConnection)
+}
+
+// A detail that lists sources and commands is printed on indented lines.
+func TestRunDoctorChecksIndentsAMultiLineDetail(t *testing.T) {
+	var out bytes.Buffer
+	err := runDoctorChecks(&out, []doctor.Check{{
+		ID: "x", Name: "X", Run: func(context.Context) []doctor.Result {
+			return []doctor.Result{{Name: "Token", Detail: "no token\nSources read:\n  - GITLAB_TOKEN"}}
+		},
+	}})
+	require.Error(t, err)
+	assert.Contains(t, out.String(), "Token — no token\n      Sources read:\n        - GITLAB_TOKEN")
 }

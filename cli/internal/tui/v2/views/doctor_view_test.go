@@ -105,3 +105,24 @@ func TestDoctorViewOffline(t *testing.T) {
 	v.render()
 	assert.Contains(t, v.summary.GetText(true), i18n.T("tui.doctor.offline_on"))
 }
+
+// A detail that lists sources and commands spans several lines: the list
+// keeps the first, the detail pane all of them.
+func TestDoctorViewListKeepsTheFirstLineOfADetail(t *testing.T) {
+	detail := "no GitLab token for the server forge\nSources read:\n  - GITLAB_TOKEN : unset"
+	v := NewDoctorView(nil)
+	v.run = func() []DoctorCheck { return []DoctorCheck{{Name: "Token", Detail: detail}} }
+	content := tview.NewFlex()
+	app := runApp(t, content)
+	onLoop(app, func() { v.Mount(content, app) })
+	require.Eventually(t, func() bool {
+		var n int
+		onLoop(app, func() { n = len(v.checks) })
+		return n == 1
+	}, 2*time.Second, 10*time.Millisecond)
+	onLoop(app, func() {
+		_, it, _ := v.list.CurrentItem()
+		assert.Contains(t, it.SecondaryText, "no GitLab token for the server forge")
+		assert.NotContains(t, it.SecondaryText, "Sources read")
+	})
+}
