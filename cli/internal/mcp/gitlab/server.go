@@ -22,81 +22,23 @@ const EnvWriteEnabled = "GITLAB_WRITE_ENABLED"
 
 // Serve starts the GitLab MCP server.
 func Serve() error {
-	server := protocol.NewServer("gitlab-mcp", "2.0.0")
+	return newServer().Serve()
+}
+
+// newServer builds the server with its tools.
+func newServer() *protocol.Server {
+	server := protocol.NewServer("gitlab-mcp", "2.1.0")
 	server.AcceptLegacyNames("gitlab_")
 
 	// Read-only tools (always registered)
-	server.RegisterTool(protocol.Tool{
-		Name:        "get_project",
-		Description: "Get a GitLab project by ID or path",
-		InputSchema: map[string]interface{}{
-			"type": "object",
-			"properties": map[string]interface{}{
-				"project_id": map[string]interface{}{"type": "string", "description": "Project ID or URL-encoded path"},
-			},
-			"required": []string{"project_id"},
-		},
-	}, handleGetProject)
-
-	server.RegisterTool(protocol.Tool{
-		Name:        "list_issues",
-		Description: "List issues for a project",
-		InputSchema: map[string]interface{}{
-			"type": "object",
-			"properties": map[string]interface{}{
-				"project_id": map[string]interface{}{"type": "string", "description": "Project ID"},
-				"state":      map[string]interface{}{"type": "string", "description": "Filter by state (opened, closed, all)"},
-			},
-			"required": []string{"project_id"},
-		},
-	}, handleListIssues)
-
-	server.RegisterTool(protocol.Tool{
-		Name:        "list_mrs",
-		Description: "List merge requests for a project",
-		InputSchema: map[string]interface{}{
-			"type": "object",
-			"properties": map[string]interface{}{
-				"project_id": map[string]interface{}{"type": "string", "description": "Project ID"},
-				"state":      map[string]interface{}{"type": "string", "description": "Filter by state (opened, merged, closed, all)"},
-			},
-			"required": []string{"project_id"},
-		},
-	}, handleListMRs)
-
-	server.RegisterTool(protocol.Tool{
-		Name:        "list_mr_discussions",
-		Description: "List discussion threads on a merge request. Returns inline code comments and general discussions with author, body, resolved status, and file position. System notes are excluded.",
-		InputSchema: map[string]interface{}{
-			"type": "object",
-			"properties": map[string]interface{}{
-				"project_id":      map[string]interface{}{"type": "string", "description": "Project ID or URL-encoded path"},
-				"mr_iid":          map[string]interface{}{"type": "integer", "description": "Merge request IID (internal ID)"},
-				"unresolved_only": map[string]interface{}{"type": "boolean", "description": "Return only unresolved discussions (default: true)"},
-			},
-			"required": []string{"project_id", "mr_iid"},
-		},
-	}, handleListMRDiscussions)
-
-	server.RegisterTool(protocol.Tool{
-		Name:        "get_mr_approvals",
-		Description: "Get approval status for a merge request. Returns who approved, how many approvals are required, and how many remain. Note: requires GitLab Premium or Ultimate — returns an explicit message on GitLab Free.",
-		InputSchema: map[string]interface{}{
-			"type": "object",
-			"properties": map[string]interface{}{
-				"project_id": map[string]interface{}{"type": "string", "description": "Project ID or URL-encoded path"},
-				"mr_iid":     map[string]interface{}{"type": "integer", "description": "Merge request IID (internal ID)"},
-			},
-			"required": []string{"project_id", "mr_iid"},
-		},
-	}, handleGetMRApprovals)
+	registerReadTools(server)
 
 	// Write tools (registered only if GITLAB_WRITE_ENABLED=true)
 	if isWriteEnabled() {
 		registerWriteTools(server)
 	}
 
-	return server.Serve()
+	return server
 }
 
 // isWriteEnabled checks if write operations are enabled via environment variable.
@@ -115,53 +57,7 @@ func handleGetProject(_ context.Context, params json.RawMessage) (*protocol.Tool
 	if err != nil {
 		return nil, err
 	}
-	return &protocol.ToolResult{
-		Content: []protocol.ContentBlock{{Type: "text", Text: string(data)}},
-	}, nil
-}
-
-func handleListIssues(_ context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
-	var args struct {
-		ProjectID string `json:"project_id"`
-		State     string `json:"state"`
-	}
-	if err := json.Unmarshal(params, &args); err != nil {
-		return nil, err
-	}
-	path := fmt.Sprintf("/api/v4/projects/%s/issues", url.PathEscape(args.ProjectID))
-	if args.State != "" {
-		params := url.Values{"state": {args.State}}
-		path += "?" + params.Encode()
-	}
-	data, err := gitlabAPI(path)
-	if err != nil {
-		return nil, err
-	}
-	return &protocol.ToolResult{
-		Content: []protocol.ContentBlock{{Type: "text", Text: string(data)}},
-	}, nil
-}
-
-func handleListMRs(_ context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
-	var args struct {
-		ProjectID string `json:"project_id"`
-		State     string `json:"state"`
-	}
-	if err := json.Unmarshal(params, &args); err != nil {
-		return nil, err
-	}
-	path := fmt.Sprintf("/api/v4/projects/%s/merge_requests", url.PathEscape(args.ProjectID))
-	if args.State != "" {
-		params := url.Values{"state": {args.State}}
-		path += "?" + params.Encode()
-	}
-	data, err := gitlabAPI(path)
-	if err != nil {
-		return nil, err
-	}
-	return &protocol.ToolResult{
-		Content: []protocol.ContentBlock{{Type: "text", Text: string(data)}},
-	}, nil
+	return toolText(string(data)), nil
 }
 
 var httpClient = httplog.Wrap(&http.Client{Timeout: 30 * time.Second}, "mcp.gitlab")
@@ -178,20 +74,31 @@ func gitlabAPIWrite(method, path string, body io.Reader) ([]byte, error) {
 	return gitlabRequest(method, path, body)
 }
 
+// gitlabGet performs a GET request and also returns the response headers
+// (pagination: X-Total, X-Next-Page…).
+func gitlabGet(path string) ([]byte, http.Header, error) {
+	return gitlabRoundTrip("GET", path, nil)
+}
+
 // gitlabRequest performs an HTTP request to the GitLab API.
 func gitlabRequest(method, path string, body io.Reader) ([]byte, error) {
+	data, _, err := gitlabRoundTrip(method, path, body)
+	return data, err
+}
+
+func gitlabRoundTrip(method, path string, body io.Reader) ([]byte, http.Header, error) {
 	token := os.Getenv("GITLAB_TOKEN")
 	baseURL := os.Getenv("GITLAB_URL")
 	if baseURL == "" {
 		baseURL = "https://gitlab.com"
 	}
 	if token == "" {
-		return nil, fmt.Errorf("GITLAB_TOKEN environment variable not set")
+		return nil, nil, fmt.Errorf("GITLAB_TOKEN environment variable not set")
 	}
 
 	// Validate GITLAB_URL: must be https and not point to private networks
 	if err := validateGitLabURL(baseURL); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if body == nil {
@@ -200,7 +107,7 @@ func gitlabRequest(method, path string, body io.Reader) ([]byte, error) {
 
 	req, err := http.NewRequest(method, baseURL+path, body)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	req.Header.Set("PRIVATE-TOKEN", token)
 	if method == "POST" || method == "PUT" {
@@ -209,18 +116,18 @@ func gitlabRequest(method, path string, body io.Reader) ([]byte, error) {
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("GitLab API request failed: %w", err)
+		return nil, nil, fmt.Errorf("GitLab API request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	respBody, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseSize))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("GitLab API error %d: %s", resp.StatusCode, string(respBody))
+		return nil, nil, fmt.Errorf("GitLab API error %d: %s", resp.StatusCode, string(respBody))
 	}
-	return respBody, nil
+	return respBody, resp.Header, nil
 }
 
 // skipURLValidation is a package-level hook for tests only.
