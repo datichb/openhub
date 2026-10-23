@@ -78,7 +78,8 @@ type Service struct {
 	// OnTicketsStarted is called when a session of a run started on Beads
 	// tickets (any workflow with a ticket input): the team claims are taken
 	// or move to their work status (planned → in progress, QB2). It returns
-	// notes for the user (StartResult.Notes). Nil = nothing.
+	// notes for the user (StartResult.Notes). Nil = nothing. The context
+	// carries the session (StartedSession).
 	OnTicketsStarted func(ctx context.Context, projectID string, tickets []string) []string
 	// LocalShellPath lists directories put first on the PATH of local
 	// session shells: the fake bd, so that Beads goes through the gateway

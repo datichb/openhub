@@ -15,6 +15,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/prompt"
+	"github.com/datichb/openhub/cli/internal/runsvc"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
@@ -235,14 +236,17 @@ func startTicketClaims(a *app.App, project *domain.Project) func(ctx context.Con
 
 // startTicketClaim claims a ticket for member, or moves its claim from the
 // initial / planned status to the work status; it returns a note ("" when
-// nothing changed).
+// nothing changed). The session that starts (runsvc.StartedSession, when the
+// caller knows it) is recorded on the claim, new or already held, so that the
+// end of the session applies to the claim it worked on.
 func startTicketClaim(ctx context.Context, repo *teamstate.Repo, projectID, member, ticketID string) string {
 	var boardCfg teamstate.BoardConfig
 	if cfg, err := repo.LoadConfig(); err == nil && cfg != nil {
 		boardCfg = cfg.Board
 	}
+	session := runsvc.StartedSession(ctx)
 	workStatus := boardCfg.DefaultWorkStatus()
-	existing, err := repo.CreateClaim(ctx, teamstate.Claim{TicketID: ticketID, Project: projectID, ClaimedBy: member, Status: workStatus})
+	existing, err := repo.CreateClaim(ctx, teamstate.Claim{TicketID: ticketID, Project: projectID, ClaimedBy: member, Status: workStatus, Session: session})
 	switch {
 	case err == nil:
 		return i18n.Tf("cmd.run.claim.taken", projectID, ticketID)
@@ -250,11 +254,16 @@ func startTicketClaim(ctx context.Context, repo *teamstate.Repo, projectID, memb
 		if existing.ClaimedBy != member {
 			return i18n.Tf("cmd.run.claim.other", ticketID, existing.ClaimedBy)
 		}
+		note := ""
 		if existing.Status == boardCfg.InitialStatus() || existing.Status == teamstate.ClaimStatusPlanned {
 			if err := repo.UpdateClaimStatus(ctx, projectID, ticketID, workStatus); err == nil {
-				return i18n.Tf("cmd.run.claim.started", projectID, ticketID, existing.Status, workStatus)
+				note = i18n.Tf("cmd.run.claim.started", projectID, ticketID, existing.Status, workStatus)
 			}
 		}
+		if _, err := repo.AdoptClaim(ctx, projectID, ticketID, member, session); err != nil {
+			slog.Warn("team claim not tied to the session", "ticket", ticketID, "session", session, "error", err)
+		}
+		return note
 	}
 	return ""
 }
