@@ -71,20 +71,20 @@ func (sb *StepBar) render() {
 		switch s.Status {
 		case StepDone:
 			icon = theme.IconDone
-			color = colorTag(theme.Success)
+			color = theme.ColorTagOf(theme.Success)
 		case StepActive:
 			icon = theme.IconActive
-			color = colorTag(theme.ActiveMode.Primary)
+			color = theme.ColorTagOf(theme.ActiveMode.Primary)
 		case StepSkipped:
 			icon = theme.IconSkipped
-			color = colorTag(theme.FgMuted)
+			color = theme.ColorTagOf(theme.FgMuted)
 		default: // StepPending
 			icon = theme.IconPending
-			color = colorTag(theme.FgMuted)
+			color = theme.ColorTagOf(theme.FgMuted)
 		}
 		parts = append(parts, fmt.Sprintf("%s%s %s[-]", color, icon, s.Label))
 	}
-	connector := fmt.Sprintf(" %s%s[-] ", colorTag(theme.FgMuted), theme.IconConnector)
+	connector := fmt.Sprintf(" %s%s[-] ", theme.ColorTagOf(theme.FgMuted), theme.IconConnector)
 	sb.SetText(strings.Join(parts, connector))
 }
 
@@ -103,30 +103,24 @@ func NewStatusBar(hints string) *StatusBar {
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignCenter)
 	tv.SetBackgroundColor(theme.BgPanel)
-	tv.SetText(fmt.Sprintf("%s%s[-]", colorTag(theme.FgSecondary), hints))
+	tv.SetText(fmt.Sprintf("%s%s[-]", theme.ColorTagOf(theme.FgSecondary), hints))
 
 	return &StatusBar{TextView: tv}
 }
 
 // SetHints replaces the hint text.
 func (sb *StatusBar) SetHints(hints string) {
-	sb.SetText(fmt.Sprintf("%s%s[-]", colorTag(theme.FgSecondary), hints))
+	sb.SetText(fmt.Sprintf("%s%s[-]", theme.ColorTagOf(theme.FgSecondary), hints))
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-// colorTag converts a tcell.Color to a tview color tag string like "[#rrggbb]".
-func colorTag(c tcell.Color) string {
-	if theme.NoColor() {
-		return ""
-	}
-	r, g, b := c.RGB()
-	return fmt.Sprintf("[#%02x%02x%02x]", r, g, b)
-}
-
-// ColorTag is the exported version of colorTag for use in views.
+// ColorTag converts a tcell.Color to a tview color tag like "[#rrggbb]".
+// It is theme.ColorTagOf, kept for the views that still call it; new code
+// uses the theme (ColorTagOf, Paint) and this function goes away with the
+// last of them (v5.1, A12).
 func ColorTag(c tcell.Color) string {
-	return colorTag(c)
+	return theme.ColorTagOf(c)
 }

@@ -68,3 +68,34 @@ func TestNoColorEmptiesTheTUIColorTags(t *testing.T) {
 		t.Errorf("ColorTag with NO_COLOR = %q", got)
 	}
 }
+
+// U-09: every tag builder of the theme follows NO_COLOR, and gives its
+// colors back without it.
+func TestNoColorEmptiesEveryTagBuilder(t *testing.T) {
+	builders := map[string]func() string{
+		"ColorTag":    func() string { return ColorTag(AccentHex) },
+		"ColorTagOf":  func() string { return ColorTagOf(FgMuted) },
+		"BgTag":       func() string { return BgTag(BgElementHex) },
+		"BgTag tcell": func() string { return BgTag(BgElement) },
+		"StyleTag":    func() string { return StyleTag(AttrBold) },
+	}
+	t.Setenv("NO_COLOR", "")
+	for name, f := range builders {
+		if f() == "" {
+			t.Errorf("control: %s is empty without NO_COLOR", name)
+		}
+	}
+	if got := Paint(SuccessHex, "ok"); got == "ok" {
+		t.Errorf("control: Paint does not color without NO_COLOR: %q", got)
+	}
+
+	t.Setenv("NO_COLOR", "1")
+	for name, f := range builders {
+		if got := f(); got != "" {
+			t.Errorf("%s with NO_COLOR = %q", name, got)
+		}
+	}
+	if got := Paint(SuccessHex, "ok"); got != "ok" {
+		t.Errorf("Paint with NO_COLOR = %q, want the text alone", got)
+	}
+}
