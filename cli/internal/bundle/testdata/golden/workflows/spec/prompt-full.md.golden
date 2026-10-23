@@ -9,6 +9,10 @@ Exemple de valeur pour request
 Page du wiki à l'origine de la demande (décision d'un spike ou postmortem) ; le planner la lit à l'entretien et en tire la demande (question tranchée et suites, ou actions) :
 src/exemple
 
+Si la demande est un ticket ou une MR, c'est le `planner` qui le lit (tu ne le lis pas) ; transmets-lui la référence telle quelle, avec la façon de la lire selon sa source :
+- identifiant Beads (`proj-a1b`, `bd-12`) : `bd show <ID>`.
+Un ticket qui ne peut pas être lu n'est jamais passé sous silence : le planner le dit dans sa reformulation (« Ticket <référence> non lu : <raison> »), et tu le relaies.
+
 Déroulé (le planner suit les mêmes étapes, voir la section « Spec écrite » de son prompt ; relance-le chaque fois avec son `task_id`) :
 0. Exploration, seulement si la demande compare des conceptions ou demande d'analyser le code avant de spécifier : invoquer d'abord le `pathfinder` (marqueur `[CONTEXTE]`) ; relaie ses questions bloquantes, affiche à l'utilisateur sa recommandation et les contraintes du code qui la fondent (règle, fichier), puis donne l'identifiant de son rapport (`rp-…`) au planner à l'étape 1.
 1. Entretien : invoquer le `planner` avec la demande (et la page d'origine, s'il y en a une) et « Étape : entretien ». Relaie chacune de ses questions bloquantes à l'utilisateur, telle quelle (une question par décision), puis relance-le avec les réponses.

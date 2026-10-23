@@ -123,6 +123,10 @@ type Prepared struct {
 	ticketInput string
 	preconds    []runsvc.Warning
 	missingMCP  []string
+	// tracker is the tracker of the project; gitlabRefs the GitLab tickets
+	// named by the inputs of each session.
+	tracker    TrackerInfo
+	gitlabRefs [][]workflowsvc.GitLabRef
 }
 
 // Deps are what the launch needs from the rest of oh. Config, Secrets and
@@ -143,6 +147,9 @@ type Deps struct {
 	InputSources func(note func(string)) map[string]workflowsvc.InputSource
 	// Tickets reads the tickets of a project (nil: from Beads).
 	Tickets func(project *domain.Project) workflowsvc.TicketSource
+	// Tracker says where the tickets of a project live (nil: unknown, so
+	// #<iid> is not read as a GitLab issue).
+	Tracker func(ctx context.Context, project *domain.Project) TrackerInfo
 	// Credentials refuses a launch whose provider has no credentials (nil: none).
 	Credentials func(ctx context.Context, project *domain.Project, providerFlag string) error
 	// NewRunService wires the RunService; planOnly (dry run) is a service
@@ -363,7 +370,11 @@ func Prepare(ctx context.Context, d Deps, opts Options) (*Prepared, error) {
 			Tickets: RemoteTickets(v, ticketInput)})
 	}
 	p := &Prepared{Opts: opts, Project: opts.Project, Resolution: res, Bundle: b, Svc: svc, Remote: rp, deps: d,
-		sessions: sessions, values: values, ticketInput: ticketInput, missingMCP: missingMCP}
+		sessions: sessions, values: values, ticketInput: ticketInput, missingMCP: missingMCP,
+		tracker: d.trackerOf(ctx, opts.Project)}
+	for _, r := range sessions {
+		p.gitlabRefs = append(p.gitlabRefs, GitLabRefs(res.Spec, r.Inputs, p.tracker))
+	}
 	if err := p.planRun(ctx, req); err != nil {
 		return nil, err
 	}
@@ -396,6 +407,7 @@ func (p *Prepared) planRun(ctx context.Context, req runsvc.RunRequest) error {
 	for _, m := range p.missingMCP {
 		plan.Warnings = append(plan.Warnings, runsvc.Warning{Code: "mcp_missing", Args: []any{m}})
 	}
+	plan.Warnings = append(plan.Warnings, p.gitlabMCPWarnings()...)
 	if rp != nil {
 		// Remote: the job clones the project; no local location, warning or
 		// existing session to continue.
@@ -421,7 +433,9 @@ func (p *Prepared) planRun(ctx context.Context, req runsvc.RunRequest) error {
 			loc = remotesvc.WorkDir(opts.Project.Name)
 		}
 		prompt, err := p.sessions[i].RenderPrompt(workflowsvc.PromptContext{Project: opts.Project.Name,
-			Location: loc, Branch: branch, Lang: i18n.Locale(), Memories: memories})
+			Location: loc, Branch: branch, Lang: i18n.Locale(), Memories: memories,
+			Tracker: p.tracker.Type, TrackerProject: p.tracker.Project, GitLabMCP: hasMCP(p.Bundle, gitlabMCPServer),
+			GitLabRefs: p.gitlabRefs[i]})
 		if err != nil {
 			return err
 		}

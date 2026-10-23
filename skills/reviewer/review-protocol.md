@@ -95,7 +95,7 @@ Un finding **≤ 2/5** ne peut PAS être 🔴 Critique ni 🟠 Majeur (→ 🟡 
 
 Chacun sa section du rapport ; un finding va dans l'axe de sa cause, jamais dans les deux.
 
-**Axe 1 — Conformité à la demande** (ticket, spec, PR). Ticket cité dans le prompt, la branche ou un commit → `bd show <ID>`, toujours :
+**Axe 1 — Conformité à la demande** (ticket, spec, PR). Ticket cité dans le prompt, la branche ou un commit → lu toujours, selon sa source : `bd show <ID>` (identifiant Beads) ou `gitlab_get_issue` / `gitlab_get_mr` (`#<iid>`, `!<iid>`, URL GitLab ; jamais `bd show` pour eux) :
 - **Manque** : par critère ou exigence, le `fichier:ligne` qui l'implémente ; absent → 🟠 ; partiel → 🟡 ; à côté (autre nom, type ou erreur que demandé) → 🟠 ; ambigu → question (💡, ≤ 2/5).
 - **Dépasse** : ajout non demandé (fonction, option, fichier, refactoring) → 🟡, 🟠 s'il change un comportement existant.
 - Sans demande accessible : « conformité non vérifiable : <raison> ».
@@ -127,7 +127,7 @@ Avant un finding « qualité du code », « convention » ou « pattern » :
 
 ## Contexte Beads
 
-Ticket fourni ou mentionné → `bd show <ID>` avant les deux axes (lecture seule) : fonctionnalité attendue, critères d'acceptance (tous implémentés et testés ?), notes techniques. `bd show` lancé et en échec (jamais supposé sans l'avoir lancé) → « Ticket Beads non accessible — review sans contexte ticket » dans `### Périmètre et contexte`, sans tableau de couverture ; ticket sans critères → pas de tableau, et 💡 « Le ticket ne définit pas de critères d'acceptance — impossible de vérifier la conformité spec ».
+Ticket fourni ou mentionné → lu avant les deux axes (lecture seule) : Beads → `bd show <ID>` ; GitLab (`#<iid>`, `!<iid>`, URL `…/-/issues/<iid>`) → `gitlab_get_issue` (`project_id`, `iid`) ou `gitlab_get_mr` (`mr_iid`), le prompt de session donne le projet. Fonctionnalité attendue, critères d'acceptance (tous implémentés et testés ?), notes techniques. Lecture lancée et en échec, ou outil absent de la session (jamais supposé sans l'avoir tenté) → « Ticket <référence> non lu : <raison> — review sans contexte ticket » dans `### Périmètre et contexte`, sans tableau de couverture ; ticket sans critères → pas de tableau, et 💡 « Le ticket ne définit pas de critères d'acceptance — impossible de vérifier la conformité spec ».
 
 ## Mode « Audit complet »
 

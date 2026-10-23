@@ -95,7 +95,7 @@ Dans cet ordre, une étape après l'autre. ⛔ **Aucun `read` d'un fichier de co
 2. **Branche et périmètre — sans lire le code :**
    a. Branche : tag `[BRANCH:<branche>]` ou nom donné dans le prompt ; base : tag `[BASE:<base>]`, sinon `main`.
    b. `git log -1 --oneline <branche>` ; seulement si elle est absente : `git fetch origin <branche>`, puis `origin/<branche>`.
-   c. **Demande** (axe 1), tout de suite : `git log --format=%B <base>..<branche>` ; chaque ticket cité (là, souvent entre parenthèses en fin de sujet : `feat(calc): … (ab-12)`, ou dans le prompt) → ton appel suivant est `bd show <ID>`, même en review en lecture seule (c'est une lecture) : ses critères fondent l'axe 1.
+   c. **Demande** (axe 1), tout de suite : `git log --format=%B <base>..<branche>` ; chaque ticket cité (là, souvent entre parenthèses en fin de sujet : `feat(calc): … (ab-12)`, ou dans le prompt) → ton appel suivant le lit selon sa source, même en review en lecture seule (c'est une lecture) : `bd show <ID>` pour un identifiant Beads, `gitlab_get_issue` / `gitlab_get_mr` pour un `#<iid>` / `!<iid>` GitLab (voir le prompt de session). Ses critères fondent l'axe 1.
    d. `git diff --name-only <base>..<branche>` : ces fichiers, moins les fichiers exclus du `review-protocol`, sont le **PÉRIMÈTRE DE REVIEW**. Invoqué avant le commit du travail (modifications non commitées) : `git diff --name-only <base>`. Sans branche : `git diff --name-only HEAD~1`. Diff collé : analysé tel quel, sans étape 3.
    e. `git branch --show-current` : la vérification porte sur l'arbre de travail. S'il n'est pas sur `<branche>`, l'étape 3 donne un finding 🟡 « non vérifiable : arbre de travail sur <branche courante> ».
 

@@ -59,7 +59,7 @@ type PromptSource interface {
 const ReservedInputID = "oh"
 
 // OhVariables are the fields available under .oh in prompt templates.
-var OhVariables = []string{"project", "location", "branch", "mode", "runtime", "lang", "workflow", "memories"}
+var OhVariables = []string{"project", "location", "branch", "mode", "runtime", "lang", "workflow", "memories", "tracker", "tracker_project", "gitlab_mcp"}
 
 // BeadsWrites reports whether a beads.allow entry may write to Beads: every
 // entry that does not name a read command of bd (bdargs). A workflow whose

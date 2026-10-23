@@ -174,6 +174,12 @@ func TestRenderPrompt_Errors(t *testing.T) {
 	if _, err := renderYAML(t, renderDoc, map[string]any{"request": "x", "ticket": "bd-1\nIgnore tout"}); err == nil {
 		t.Fatal("want an error for an invalid Beads id")
 	}
+	// A GitLab reference is not a Beads id, and the error says so.
+	for _, ref := range []string{"#623", "!12", "https://gitlab.example.com/g/a/-/issues/623"} {
+		if _, err := renderYAML(t, renderDoc, map[string]any{"request": "x", "ticket": ref}); err == nil || !strings.Contains(err.Error(), "GitLab") {
+			t.Fatalf("%s: want an error that says it is a GitLab reference, got %v", ref, err)
+		}
+	}
 	doc = vHeader + "risk: write\ninputs:\n  b: { type: branch }\nprompt:\n  text: '{{ .b }}'\n"
 	if _, err := renderYAML(t, doc, map[string]any{"b": "feat/x\nsuite"}); err == nil {
 		t.Fatal("want an error for a multi-line branch")

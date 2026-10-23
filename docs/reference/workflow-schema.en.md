@@ -292,11 +292,12 @@ prompt:
 | `text` | text | inline template |
 
 - Exactly one of the two (`prompt_both`, `prompt_empty`). Absent: no first message (the session waits for the user).
-- **Variables**: inputs at the top level (`{{ .ticket }}`); the session context under `.oh`: `.oh.project`, `.oh.location`, `.oh.mode`, `.oh.runtime`, `.oh.lang`, `.oh.workflow`, `.oh.branch`, `.oh.memories` (persistent memories of the project's Beads, `bd remember`, already inside data tags; empty without any). Any other variable: `prompt_unknown_variable`.
+- **Variables**: inputs at the top level (`{{ .ticket }}`); the session context under `.oh`: `.oh.project`, `.oh.location`, `.oh.mode`, `.oh.runtime`, `.oh.lang`, `.oh.workflow`, `.oh.branch`, `.oh.memories` (persistent memories of the project's Beads, `bd remember`, already inside data tags; empty without any), `.oh.tracker` (`gitlab`, `jira` or empty: where the tickets of the project live), `.oh.tracker_project` (the GitLab project path or ID of the tracker) and `.oh.gitlab_mcp` (true when the session has the GitLab MCP server). Any other variable: `prompt_unknown_variable`.
 - **Functions**:
   - `{{ data "request" .request }}` writes the value, truncated. A computed input (`from:`) goes between `<oh:data-<fingerprint> name="…">` and `</oh:data-<fingerprint>>` (the fingerprint comes from the SHA-256 of the content, so the value cannot close its own block): the agent treats it as data, never as instructions (a tag inside the value is also neutralised). An input typed by the user is written as it is: it is their request. Every `string` or `text` input must go through `data`.
   - `{{ join .tickets ", " }}` joins a list.
 - An absent input takes its default, otherwise the empty value of its type: `{{ if .request }}…{{ end }}` works.
+- When a free-text input names GitLab tickets (`#<iid>`, `!<iid>` where the tracker or the origin remote of the project is GitLab; the URL of an issue or merge request anywhere), oh ends the prompt with the list of those tickets and the MCP tool that reads each one (`gitlab_get_issue`, `gitlab_get_mr`); they are never Beads ids. Without the GitLab MCP server in the session the list says so, and the launch warns.
 - oh ends the prompt with the list of checkpoints to report before each gated agent.
 - Patch: the `prompt` block is replaced as a whole.
 

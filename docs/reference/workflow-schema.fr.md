@@ -292,11 +292,12 @@ prompt:
 | `text` | texte | gabarit en ligne |
 
 - Exactement un des deux (`prompt_both`, `prompt_empty`). Absent : pas de premier message (la session attend l'utilisateur).
-- **Variables** : les entrées au premier niveau (`{{ .ticket }}`) ; le contexte de session sous `.oh` : `.oh.project`, `.oh.location`, `.oh.mode`, `.oh.runtime`, `.oh.lang`, `.oh.workflow`, `.oh.branch`, `.oh.memories` (mémoires persistantes du Beads du projet, `bd remember`, déjà entre balises de données ; vide sans mémoire). Toute autre variable : `prompt_unknown_variable`.
+- **Variables** : les entrées au premier niveau (`{{ .ticket }}`) ; le contexte de session sous `.oh` : `.oh.project`, `.oh.location`, `.oh.mode`, `.oh.runtime`, `.oh.lang`, `.oh.workflow`, `.oh.branch`, `.oh.memories` (mémoires persistantes du Beads du projet, `bd remember`, déjà entre balises de données ; vide sans mémoire), `.oh.tracker` (`gitlab`, `jira` ou vide : où vivent les tickets du projet), `.oh.tracker_project` (chemin ou ID du projet GitLab du tracker) et `.oh.gitlab_mcp` (vrai quand la session a le serveur MCP GitLab). Toute autre variable : `prompt_unknown_variable`.
 - **Fonctions** :
   - `{{ data "request" .request }}` écrit la valeur, tronquée. Une entrée calculée (`from:`) est placée entre `<oh:data-<empreinte> name="…">` et `</oh:data-<empreinte>>` (l'empreinte vient du SHA-256 du contenu, donc la valeur ne peut pas fermer son bloc) : l'agent la traite comme une donnée, jamais comme une consigne (une balise contenue dans la valeur est en plus neutralisée). Une entrée saisie par l'utilisateur est écrite telle quelle : c'est sa demande. Toute entrée `string` ou `text` doit passer par `data`.
   - `{{ join .tickets ", " }}` joint une liste.
 - Une entrée absente vaut son défaut, sinon la valeur vide de son type : `{{ if .request }}…{{ end }}` fonctionne.
+- Quand une entrée en texte libre nomme des tickets GitLab (`#<iid>`, `!<iid>` là où le tracker ou le remote `origin` du projet est GitLab ; l'URL d'une issue ou d'une merge request, partout), oh termine le prompt par la liste de ces tickets et de l'outil MCP qui lit chacun (`gitlab_get_issue`, `gitlab_get_mr`) ; ce ne sont jamais des identifiants Beads. Sans le serveur MCP GitLab dans la session, la liste le dit et le lancement avertit.
 - oh termine le prompt par la liste des checkpoints à signaler avant chaque agent verrouillé.
 - Patch : le bloc `prompt` est remplacé en bloc.
 

@@ -25,7 +25,14 @@ Session rapide, sans `orchestrator-dev` : tu travailles directement avec l'utili
   Schéma, migration de base ou requêtes SQL touchés : ajoute `dev-standards-database`, quel que soit le domaine.
 - Reste dans le périmètre demandé ; pour une correction triviale, applique `developer/quick-fix`.
 - Si la demande s'avère importante (plusieurs tickets, décisions d'architecture), propose plutôt le workflow `feature`.
-- Si un ticket Beads est cité, lis-le avec `bd show` avant de commencer.
+- Si un ticket est cité, lis-le avant de commencer, selon sa source :
+  - identifiant Beads (`proj-a1b`, `bd-12`) : `bd show <ID>`.
+{{- if .oh.gitlab_mcp }}
+  - ticket GitLab (`#<iid>`, URL `…/-/issues/<iid>`) : l'outil `gitlab_get_issue` du MCP GitLab (`project_id`{{ if .oh.tracker_project }} = `{{ .oh.tracker_project }}`{{ end }}, `iid`) ; merge request (`!<iid>`, URL `…/-/merge_requests/<iid>`) : `gitlab_get_mr` (`mr_iid`). Un `#<iid>` n'est jamais un identifiant Beads : pas de `bd show`.
+{{- else if eq .oh.tracker "gitlab" }}
+  - ticket GitLab (`#<iid>`, `!<iid>`, URL `…/-/issues/<iid>`) : le MCP GitLab n'est pas activé dans cette session, tu ne peux pas le lire (l'utilisateur l'active avec `oh mcp enable gitlab`). Un `#<iid>` n'est jamais un identifiant Beads : pas de `bd show`.
+{{- end }}
+  - un ticket que tu ne peux pas lire n'est jamais passé sous silence : dis « Ticket <référence> non lu : <raison> » à l'utilisateur avant de continuer.
 - Commit : quand les changements sont prêts (vérifications du projet lancées : skill `verification-before-completion`), termine par `workflow_checkpoint` (`id: "cp-commit"`, `summary` : fichiers modifiés, tests, message de commit proposé). Commite seulement après la validation (`git add` des fichiers concernés, puis `git commit`) ; avant, oh refuse tout `git commit`. Si un ticket Beads est traité, ferme-le ensuite (`bd close <id> --reason "…"`) : oh refuse la fermeture avant le checkpoint et sans commit. Le push revient à l'utilisateur.
 {{- if .request }}
 

@@ -340,3 +340,28 @@ func TestSyncTrackerProjectOverrideAndTeamOfTheProject(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, res)
 }
+
+func TestTrackerOf(t *testing.T) {
+	t.Run("the team tracker", func(t *testing.T) {
+		e := newTrackerEnv(t, "type = \"gitlab\"\ntracker_project = \"acme/app\"\n")
+		got := e.service(nil, nil).TrackerOf(&domain.Project{ID: "p1"})
+		assert.Equal(t, TrackerKind{Type: "gitlab", Project: "acme/app"}, got)
+	})
+	t.Run("the project overrides the tracker project", func(t *testing.T) {
+		e := newTrackerEnv(t, "type = \"gitlab\"\ntracker_project = \"acme/app\"\n")
+		p := &domain.Project{ID: "p1", TrackerConfig: &domain.ProjectTrackerConfig{TrackerProject: "acme/other"}}
+		assert.Equal(t, TrackerKind{Type: "gitlab", Project: "acme/other"}, e.service(nil, nil).TrackerOf(p))
+	})
+	t.Run("a tracker whose sync is off is still the tracker", func(t *testing.T) {
+		e := newTrackerEnv(t, "type = \"gitlab\"\nenabled = false\ntracker_project = \"acme/app\"\n")
+		assert.Equal(t, "gitlab", e.service(nil, nil).TrackerOf(&domain.Project{ID: "p1"}).Type)
+	})
+	t.Run("Jira", func(t *testing.T) {
+		e := newTrackerEnv(t, "type = \"jira\"\ntracker_project = \"SRU\"\n")
+		assert.Equal(t, TrackerKind{Type: "jira", Project: "SRU"}, e.service(nil, nil).TrackerOf(&domain.Project{ID: "p1"}))
+	})
+	t.Run("no team, no tracker", func(t *testing.T) {
+		assert.Equal(t, TrackerKind{}, New(&config.Config{}, nil, nil).TrackerOf(&domain.Project{ID: "p1"}))
+		assert.Equal(t, TrackerKind{}, New(&config.Config{}, nil, nil).TrackerOf(nil))
+	})
+}

@@ -361,6 +361,8 @@
   "cmd.run.warn.dirty_worktree": "Modifications non commitées dans %s : la session travaille dans un nouveau worktree %s, vos modifications restent intactes (--stash ou --allow-dirty pour un autre choix)",
   "cmd.run.warn.dirty_stash": "Modifications non commitées dans %s : mises de côté (git stash) au lancement",
   "cmd.run.warn.mcp_missing": "Le workflow demande le serveur MCP « %s », absent ou désactivé dans ce projet",
+  "cmd.run.warn.gitlab_mcp_off": "Le ticket « %s » est un ticket GitLab, mais le MCP GitLab n'est pas activé pour cette session : les agents ne pourront pas le lire (oh mcp enable gitlab, puis relancez)",
+  "cmd.run.warn.gitlab_mcp_off_tracker": "Le tracker de l'équipe est GitLab, mais le MCP GitLab n'est pas activé pour cette session : les agents ne pourront pas lire les tickets GitLab cités (oh mcp enable gitlab, puis relancez)",
   "cmd.run.warn.pending": "Décisions en attente : %d sur ce ticket, %d dans le projet, %d au total (oh session inbox)",
   "cmd.run.warn.precondition": "Précondition non satisfaite : %s — lancez d'abord « oh run %s »",
   "cmd.run.warn.precondition_failed": "Précondition non satisfaite : %s",

@@ -148,4 +148,4 @@ Ajouter cette section si labels structurés détectés :
 
 > **Protocole d'intégration tracker :** voir skill `shared/tracker-integration-protocol` pour la gestion d'erreurs commune.
 >
-> Paramètres pour cet adapter : `{platform}` = GitLab, `{platform_emoji}` = 🦊, `{tool_read_issue}` = gitlab_list_issues, `{tool_list_issues}` = gitlab_list_issues.
+> Paramètres pour cet adapter : `{platform}` = GitLab, `{platform_emoji}` = 🦊, `{tool_read_issue}` = gitlab_get_issue, `{tool_list_issues}` = gitlab_list_issues.

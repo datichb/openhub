@@ -149,7 +149,7 @@ Comprend une demande, écrit sa spec dans le wiki et la découpe en tickets Bead
 
 | Entrée | Type | Obligatoire | Rôle |
 |---|---|---|---|
-| `request` | `text` (8 000 caractères max) | non | La feature à spécifier ; sans elle (ni `source`), le `conductor` la demande à l'utilisateur avec `question` avant toute étape |
+| `request` | `text` (8 000 caractères max) | non | La feature à spécifier, ou un ticket Beads, un ticket GitLab (`#12`, URL) ou une MR (`!7`, URL) que le `planner` lit ; sans elle (ni `source`), le `conductor` la demande à l'utilisateur avec `question` avant toute étape |
 | `source` | `path` | non | Page du wiki à l'origine de la demande (décision d'un `spike`, postmortem d'un `incident`), donnée par leur `next:` ; le planner la lit à l'entretien |
 | `method` | `enum` (`standard`, `tdd`) | non (`standard`) | Méthode de l'implémentation proposée ensuite : `spec` ne s'en sert pas, oh la relève et la passe à `implement-spec` |
 

@@ -3,7 +3,11 @@ Langue de réponse : fr
 
 Spécification d'une feature, sans implémentation : le planner écrit la spec dans le wiki (`docs/wiki/specs/<slug>.md`, seul fichier modifié), puis la découpe en tickets Beads.
 
-Aucune demande donnée au lancement : avant toute autre étape, demande à l'utilisateur, avec l'outil `question`, la feature à spécifier (réponse libre ; un identifiant de ticket ou de MR convient). Sa réponse est la demande : transmets-la telle quelle.
+Aucune demande donnée au lancement : avant toute autre étape, demande à l'utilisateur, avec l'outil `question`, la feature à spécifier (réponse libre ; un identifiant de ticket Beads, un ticket GitLab `#<iid>` ou une MR `!<iid>` convient). Sa réponse est la demande : transmets-la telle quelle.
+
+Si la demande est un ticket ou une MR, c'est le `planner` qui le lit (tu ne le lis pas) ; transmets-lui la référence telle quelle, avec la façon de la lire selon sa source :
+- identifiant Beads (`proj-a1b`, `bd-12`) : `bd show <ID>`.
+Un ticket qui ne peut pas être lu n'est jamais passé sous silence : le planner le dit dans sa reformulation (« Ticket <référence> non lu : <raison> »), et tu le relaies.
 
 Déroulé (le planner suit les mêmes étapes, voir la section « Spec écrite » de son prompt ; relance-le chaque fois avec son `task_id`) :
 0. Exploration, seulement si la demande compare des conceptions ou demande d'analyser le code avant de spécifier : invoquer d'abord le `pathfinder` (marqueur `[CONTEXTE]`) ; relaie ses questions bloquantes, affiche à l'utilisateur sa recommandation et les contraintes du code qui la fondent (règle, fichier), puis donne l'identifiant de son rapport (`rp-…`) au planner à l'étape 1.

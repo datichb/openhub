@@ -62,6 +62,19 @@ agents:
   developer: { role: workflow, mode: primary }
 runtime: { default: remote, allowed: [remote] }
 `,
+	"ask.yaml": `apiVersion: oh/v1
+kind: Workflow
+id: ask
+risk: write
+entry: { agent: developer }
+inputs:
+  request: { type: text }
+prompt:
+  text: |
+    tracker={{ .oh.tracker }} project={{ .oh.tracker_project }} mcp={{ .oh.gitlab_mcp }}
+agents:
+  developer: { role: workflow, mode: primary }
+`,
 	"broken.yaml": `apiVersion: oh/v1
 kind: Workflow
 id: broken

@@ -375,3 +375,47 @@ func TestShippedWorkflowPromptsCarryMemories(t *testing.T) {
 		assert.Contains(t, out, block, "%s: project memories missing from the prompt", ref.ID)
 	}
 }
+
+// Bug 17: the review prompt only knew `bd show` to read a ticket, even with
+// a GitLab tracker (« Ticket 708 : non accessible »). The prompts that read
+// a ticket say how, by the source of the ticket.
+func TestTicketReadingPromptsFollowTheSourceOfTheTicket(t *testing.T) {
+	hub, cat, _ := shippedWorkflows(t)
+	hc, err := hubcat.New(hub)
+	require.NoError(t, err)
+	render := func(id string, inputs map[string]any, pc workflow.PromptContext) string {
+		r, diags := workflow.ResolveSpec(cat, workflow.Ref{Layer: workflow.LayerHub, ID: id}, &workflow.SessionOptions{Inputs: inputs})
+		require.False(t, diags.HasErrors(), "%v", diags)
+		pc.Project, pc.Mode, pc.Lang, pc.Workflow = "demo", "semi-auto", "fr", id
+		out, err := workflow.RenderPrompt(r, hc, pc)
+		require.NoError(t, err)
+		return out
+	}
+	gitlab := workflow.PromptContext{Tracker: "gitlab", TrackerProject: "group/app", GitLabMCP: true}
+	gitlabNoMCP := workflow.PromptContext{Tracker: "gitlab", TrackerProject: "group/app"}
+	beads := workflow.PromptContext{}
+
+	for id, in := range map[string]map[string]any{"review": nil, "spec": {"request": "Exemple"}, "quick": {"request": "Exemple"}} {
+		t.Run(id+"/gitlab", func(t *testing.T) {
+			out := render(id, in, gitlab)
+			assert.Contains(t, out, "gitlab_get_issue", "a GitLab issue is read with the MCP tool")
+			assert.Contains(t, out, "gitlab_get_mr")
+			assert.Contains(t, out, "`group/app`", "the project of the tracker is given")
+			assert.Contains(t, out, "bd show", "a Beads id is still read with bd")
+			assert.Contains(t, out, "non lu", "a ticket that cannot be read is said, not skipped")
+		})
+		t.Run(id+"/gitlab without the MCP", func(t *testing.T) {
+			out := render(id, in, gitlabNoMCP)
+			assert.NotContains(t, out, "gitlab_get_issue")
+			assert.Contains(t, out, "oh mcp enable gitlab", "the way out is given")
+			assert.Contains(t, out, "bd show")
+			assert.Contains(t, out, "non lu")
+		})
+		t.Run(id+"/beads only", func(t *testing.T) {
+			out := render(id, in, beads)
+			assert.Contains(t, out, "bd show")
+			assert.NotContains(t, out, "gitlab_get_issue", "a project without GitLab is not told about it")
+			assert.Contains(t, out, "non lu")
+		})
+	}
+}

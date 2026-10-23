@@ -149,7 +149,7 @@ Understands a request, writes its spec in the wiki and slices it into Beads tick
 
 | Input | Type | Required | Purpose |
 |---|---|---|---|
-| `request` | `text` (8,000 characters max) | no | The feature to specify; without it (nor `source`), the `conductor` asks the user with `question` before any step |
+| `request` | `text` (8,000 characters max) | no | The feature to specify, or a Beads ticket, a GitLab issue (`#12`, URL) or merge request (`!7`, URL) that the `planner` reads; without it (nor `source`), the `conductor` asks the user with `question` before any step |
 | `source` | `path` | no | Wiki page the request comes from (the decision of a `spike`, the postmortem of an `incident`), given by their `next:`; the planner reads it at the interview |
 | `method` | `enum` (`standard`, `tdd`) | no (`standard`) | Method of the implementation proposed next: `spec` does not use it, oh records it and passes it to `implement-spec` |
 

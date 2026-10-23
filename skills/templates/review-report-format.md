@@ -29,7 +29,7 @@
 --- BLOC 1 : CORRECTIONS (workflow orchestrator → developer), en deux axes ---
 
 ### Axe 1 — Conformité à la demande
-**Demande :** <ticket <ID> (`bd show`) | spec | description de la PR | conformité non vérifiable : <raison>>
+**Demande :** <ticket <ID> (`bd show`) | ticket GitLab <#iid> (`gitlab_get_issue`) | spec | description de la PR | conformité non vérifiable : <raison>>
 
 | Critère | Implémenté | Testé | Fichier(s) |
 |---------|-----------|-------|------------|

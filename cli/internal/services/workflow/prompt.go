@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"fmt"
 	"strings"
 
 	wf "github.com/datichb/openhub/cli/internal/workflow"
@@ -22,11 +23,30 @@ type PromptContext struct {
 	Branch   string // dedicated work branch, "" on the base branch
 	Lang     string
 	Memories string // persistent memories of the project's Beads
+	// Tracker, TrackerProject and GitLabMCP: where the tickets of the project
+	// live and whether the session can read them (see workflow.PromptContext).
+	// GitLabRefs are the GitLab tickets the inputs name: RenderPrompt lists
+	// them at the end of the prompt, whatever the template.
+	Tracker        string
+	TrackerProject string
+	GitLabMCP      bool
+	GitLabRefs     []GitLabRef
+}
+
+// GitLabRef is a GitLab issue or merge request named by an input, with the
+// MCP tool that reads it (see GitLabRefsTitle).
+type GitLabRef struct {
+	Text    string // as written (#623, !12, a URL)
+	Kind    string // "issue" or "mr"
+	IID     int
+	Project string // "" when unknown
+	Tool    string // gitlab_get_issue, gitlab_get_mr
 }
 
 func (r *Resolution) promptContext(pc PromptContext) wf.PromptContext {
 	return wf.PromptContext{Project: pc.Project, Location: pc.Location, Branch: pc.Branch, Mode: r.Mode,
-		Runtime: string(r.Runtime), Lang: pc.Lang, Workflow: r.Spec.ID, Memories: pc.Memories}
+		Runtime: string(r.Runtime), Lang: pc.Lang, Workflow: r.Spec.ID, Memories: pc.Memories,
+		Tracker: pc.Tracker, TrackerProject: pc.TrackerProject, GitLabMCP: pc.GitLabMCP}
 }
 
 // Values returns the effective inputs (session values, else defaults, typed;
@@ -64,10 +84,42 @@ func (r *Resolution) RenderPrompt(pc PromptContext) (string, error) {
 	if !strings.Contains(out, ModeLinePrefix) {
 		out = ModeLinePrefix + r.Mode + "\n\n" + out
 	}
+	if refs := gitlabRefsReminder(pc); refs != "" {
+		out = strings.TrimRight(out, "\n") + "\n\n" + refs + "\n"
+	}
 	if g := r.gateReminder(); g != "" {
 		out = strings.TrimRight(out, "\n") + "\n\n" + g + "\n"
 	}
 	return out, nil
+}
+
+// GitLabRefsTitle starts the list of the GitLab tickets that oh found in the
+// inputs of the launch.
+const GitLabRefsTitle = "Tickets GitLab relevés par oh dans la demande (des tickets GitLab, pas des identifiants Beads : pas de `bd show`) :"
+
+// gitlabRefsReminder tells the session which GitLab tickets the launch names
+// and how to read each one; without the GitLab MCP server it tells that they
+// cannot be read, so that the session says so instead of looking in Beads.
+func gitlabRefsReminder(pc PromptContext) string {
+	if len(pc.GitLabRefs) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString(GitLabRefsTitle)
+	for _, r := range pc.GitLabRefs {
+		project, iid := "`project_id` = celui du projet GitLab de l'équipe (demande-le à l'utilisateur s'il est inconnu)", "`iid`"
+		if r.Project != "" {
+			project = "`project_id` = `" + r.Project + "`"
+		}
+		if r.Kind == "mr" {
+			iid = "`mr_iid`"
+		}
+		fmt.Fprintf(&b, "\n- `%s` : outil `%s` (%s, %s = %d)", r.Text, r.Tool, project, iid, r.IID)
+	}
+	if !pc.GitLabMCP {
+		b.WriteString("\nLe MCP GitLab n'est pas activé dans cette session : tu ne peux pas lire ces tickets. Dis-le à l'utilisateur (il l'active avec `oh mcp enable gitlab`) plutôt que de les chercher avec `bd`.")
+	}
+	return b.String()
 }
 
 // gateReminder tells the entry agent which checkpoints it must report with
