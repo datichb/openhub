@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/datichb/openhub/cli/internal/domain"
 )
 
 // HistoryStore counts and deletes the history past its retention (oh gc,
@@ -21,10 +23,9 @@ func NewHistoryStore(s *Store) *HistoryStore { return &HistoryStore{db: s.DB()} 
 const historyBatch = 500
 
 // HistoryRows counts rows per table.
-type HistoryRows struct {
-	Sessions, AgentEvents, Decisions, UsageSessions, UsageProxy, BudgetExtra int
-	WikiProposals                                                            int
-}
+type HistoryRows = domain.HistoryRows
+
+var _ domain.HistoryStore = (*HistoryStore)(nil)
 
 // oldIDs returns the ids of a table whose time column is before cutoff
 // (dates are compared in Go: the column holds the driver's text format).

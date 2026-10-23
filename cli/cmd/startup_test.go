@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"os"
 	"strings"
 	"testing"
 
@@ -9,7 +10,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
 // N13: the startup level of each command (annotations, inherited).
@@ -115,4 +119,58 @@ func TestLazySecrets(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Empty(t, v)
 	assert.ErrorIs(t, none.Set(context.Background(), "k", "v"), errNoSecretStore)
+}
+
+// storesOf lists the database stores of the application by name.
+func storesOf(a *app.App) map[string]any {
+	return map[string]any{
+		"Projects": a.Projects, "Sessions": a.Sessions, "AgentEvents": a.AgentEvents, "Preferences": a.Preferences,
+		"WorkflowUsage": a.WorkflowUsage, "Decisions": a.Decisions, "Usage": a.Usage, "Servers": a.Servers,
+		"Grants": a.Grants, "Remotes": a.Remotes, "Checkpoints": a.Checkpoints, "Reports": a.Reports,
+		"WikiProposals": a.WikiProposals, "History": a.History, "Fanout": a.Fanout,
+	}
+}
+
+// wireStores fills every store of the container; a degraded startup without
+// database leaves them all nil.
+func TestWireStoresFillsEveryStore(t *testing.T) {
+	a := &app.App{}
+	for name, s := range storesOf(a) {
+		assert.Nil(t, s, "%s is nil before the stores are wired", name)
+	}
+	wireStores(a, sqlitetest.New(t))
+	for name, s := range storesOf(a) {
+		assert.NotNil(t, s, "%s is wired", name)
+	}
+	assert.NotNil(t, a.Stats, "the stats provider is wired")
+}
+
+// Degraded startup: the database may be missing or unreadable, the stores
+// stay nil and the container is still usable by oh doctor and oh repair.
+func TestInitDegradedLeavesStoresNil(t *testing.T) {
+	cases := map[string]func(t *testing.T){
+		"no database": func(*testing.T) {},
+		"unreadable database": func(t *testing.T) {
+			require.NoError(t, os.WriteFile(sqlite.DBPath(), []byte("not a sqlite database, long enough to be read as a header"), 0o600))
+		},
+	}
+	for name, prepare := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Setenv("OH_HOME", t.TempDir())
+			oldApp, oldStore, oldReport := application, store, startupReport
+			t.Cleanup(func() { application, store, startupReport = oldApp, oldStore, oldReport })
+			store = nil
+			prepare(t)
+
+			initDegraded()
+
+			require.NotNil(t, application, "the container exists")
+			assert.NotNil(t, application.Config, "with a configuration")
+			assert.NotNil(t, application.IO, "with its streams")
+			assert.NotNil(t, application.Secrets, "with the secret store")
+			for name, s := range storesOf(application) {
+				assert.Nil(t, s, "%s stays nil without a usable database", name)
+			}
+		})
+	}
 }
