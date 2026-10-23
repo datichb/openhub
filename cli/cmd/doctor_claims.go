@@ -93,10 +93,35 @@ func claimsDoctorChecks(ctx context.Context) []doctor.Result {
 	if !teamed {
 		return nil
 	}
-	return []doctor.Result{claimsCheck(orphans)}
+	found, ambiguous := findClaimsRehomes(ctx, a)
+	return []doctor.Result{claimsReport(orphans, found, ambiguous)}
 }
 
-func claimsCheck(orphans []orphanClaim) doctor.Result {
+func claimsCheck(orphans []orphanClaim) doctor.Result { return claimsReport(orphans, nil, nil) }
+
+// claimsReport is the result of the claims check: the orphan claims of the
+// member and the claims under an ID no project has any more. Neither leaves
+// the check green.
+func claimsReport(orphans []orphanClaim, found []claimsRehome, ambiguous []claimsAmbiguity) doctor.Result {
+	res := orphanClaimsResult(orphans)
+	detail, repairable := claimsProjectDetail(found, ambiguous)
+	if detail == "" {
+		return res
+	}
+	res.ID = doctorIDClaimsUnknown
+	if repairable {
+		res.ID = doctorIDClaimsProject
+	}
+	if res.OK {
+		res.Detail = detail
+	} else {
+		res.Detail += " — " + detail
+	}
+	res.OK = false
+	return res
+}
+
+func orphanClaimsResult(orphans []orphanClaim) doctor.Result {
 	name := i18n.T("cmd.doctor.claims.name")
 	if len(orphans) == 0 {
 		return doctor.Result{Name: name, OK: true, Detail: i18n.T("cmd.doctor.claims.ok")}

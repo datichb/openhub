@@ -365,7 +365,7 @@ Le mode équipe est en bêta en v5.0. Ces limites sont connues ; la correction c
 - **Pas d'expiration.** Une réservation reste jusqu'à ce que quelqu'un la libère. Après `takeover.stale_days` jours d'inactivité (3 par défaut, section `[takeover]` du `config.toml` du team-state), oh propose seulement un brief de reprise : reprendre le ticket reste manuel (`oh team claim transfer`).
 - **Une libération peut se perdre.** Elle s'exécute en arrière-plan à la fin de la session : si la machine est hors ligne, ou si le démon s'arrête avant le push, la réservation reste en place.
 - **Réservation oubliée :** `oh team release <ticket-id> -p <projet>` la libère à la main.
-- **`oh doctor` signale les réservations orphelines** (ticket clos, ou toutes les sessions qui l'ont traité terminées), avec la commande à lancer.
+- **`oh doctor` signale les réservations orphelines** (ticket clos, ou toutes les sessions qui l'ont traité terminées), avec la commande à lancer. Les réservations prises sous l'ancien ID d'un projet recréé sont signalées aussi, et `oh doctor --fix` les rattache au projet local (voir [`oh doctor`](cli-infra.fr.md#oh-doctor)).
 - **La colonne REVIEW suit le label `ready-for-review`.** Dans `oh board` et dans le Board TUI, un ticket Beads `in_progress` qui porte ce label est en REVIEW (Beads n'a pas de statut `review`). Le board d'équipe affiche le statut `review` des réservations.
 
 oh avertit une fois par processus sur stderr (commandes d'équipe, première réservation prise par un lancement), et `oh doctor` liste le mode bêta comme un avertissement qui ne change pas son code de sortie.

@@ -300,7 +300,7 @@ The palette opens « Data of oh »; Doctor opens the section of its check. The �
 
 ### Doctor
 
-Command `doctor`. `f` fix the selected check (like `oh doctor --fix`, with a preview and a confirmation: configuration restored from a backup, Beads, orphan servers; opens the section of the Cleanup on its checks), `o` offline (no network call, like `--offline`), `r` check again.
+Command `doctor`. `f` fix the selected check (like `oh doctor --fix`, with a preview and a confirmation: configuration restored from a backup, Beads, claims attached to the project created again, orphan servers; opens the section of the Cleanup on its checks), `o` offline (no network call, like `--offline`), `r` check again.
 
 ### Workflows, editor, history
 

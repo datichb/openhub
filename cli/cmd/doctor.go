@@ -113,6 +113,9 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 		if err := runDoctorFix(cmd, a); err != nil {
 			return err
 		}
+		if err := fixClaimsProject(cmd); err != nil {
+			return err
+		}
 		if err := fixOrphanServers(cmd); err != nil {
 			return err
 		}
