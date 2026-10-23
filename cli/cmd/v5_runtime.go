@@ -39,7 +39,7 @@ func ohCacheDir() string    { return filepath.Join(config.HubDir(), "cache") }
 
 // ensureDaemon returns a client to ohd, starting it when needed. The client
 // holds the issuing capability (token routes, M12).
-func ensureDaemon(ctx context.Context) (*daemon.Client, daemon.Health, error) {
+func ensureDaemon(ctx context.Context) (cl *daemon.Client, health daemon.Health, err error) {
 	capability, _, err := daemonCapability(ctx)
 	if err != nil {
 		return nil, daemon.Health{}, err
