@@ -77,7 +77,7 @@ func runSyncTracker(cmd *cobra.Command, _ []string) error {
 		fmt.Fprintf(out, "  %s %s\n", theme.WarningStyle.Render(theme.IconWarning),
 			i18n.T("cmd.team.sync_tracker.warnings"))
 		for _, w := range result.Warnings {
-			fmt.Fprintf(out, "    %s/%s: %s\n", w.ProjectID, w.TicketID, w.Message)
+			fmt.Fprintf(out, "    %s\n", w.String())
 		}
 	}
 

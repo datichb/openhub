@@ -31,10 +31,27 @@ import (
 //     or does not know the API (404) is a failure that names the server, the
 //     source and the key; a network error is a warning.
 
+// Two more checks look at who the member is on the tracker (bug 12): the sync
+// attributes the issues of the tracker to the members by name, and a tracker on
+// another server than the team-state repository does not know the GitLab name
+// of the member.
+//
+//   - tracker_username: when the tracker is not on the server of the team-state
+//     repository, the tracker_username of the current member must be set (a
+//     failure otherwise: none of their issues is attributed to them). No
+//     network.
+//   - tracker_identity: the name the tracker returns for the token (GitLab
+//     /api/v4/user, Jira /myself) must be the name of a member (tracker_username,
+//     else gitlab_username); a warning otherwise, with the command. Online,
+//     skipped with --offline, bounded in time like tracker_connection; a tracker
+//     that does not answer is the business of tracker_connection.
+
 // Identifiers of the tracker checks.
 const (
 	doctorIDTrackerTokens     = "tracker_tokens"
 	doctorIDTrackerConnection = "tracker_connection"
+	doctorIDTrackerUsername   = "tracker_username"
+	doctorIDTrackerIdentity   = "tracker_identity"
 )
 
 // doctorConnectionTimeout bounds the connection test of each tracker.
@@ -228,4 +245,79 @@ func trackerConnectionResult(ctx context.Context, p trackerProbe) doctor.Result 
 		r.Detail = i18n.Tf("cmd.doctor.tracker_conn.unreachable", server, err)
 	}
 	return r
+}
+
+// trackerUsernameChecks fails when the tracker is not on the server of the
+// team-state repository and the current member has no tracker_username.
+func trackerUsernameChecks(ctx context.Context) []doctor.Result {
+	a := TryApp()
+	if a == nil || a.Config == nil {
+		return nil
+	}
+	svc := teamService(a)
+	var out []doctor.Result
+	for _, p := range trackerProbes(ctx, a) {
+		ti, err := svc.TrackerIdentity(p.project)
+		if err != nil || ti.Member == nil || !ti.CrossServer {
+			continue // on the same server, the GitLab name of the member is their tracker name
+		}
+		r := doctor.Result{Name: i18n.Tf("cmd.doctor.tracker_username.name", p.label)}
+		if ti.Member.TrackerUsername == "" {
+			r.Detail = i18n.Tf("cmd.doctor.tracker_username.empty", ti.MemberID,
+				tracker.ServerOf(ti.TrackerURL), tracker.ServerOf(ti.TeamServer), ti.TeamID)
+		} else {
+			r.OK, r.Detail = true, i18n.Tf("cmd.doctor.tracker_username.ok", ti.MemberID, ti.Member.TrackerUsername)
+		}
+		out = append(out, r)
+	}
+	return out
+}
+
+// trackerIdentityChecks compares the name the tracker knows the token's owner
+// by with the names of the members.
+func trackerIdentityChecks(ctx context.Context) []doctor.Result {
+	a := TryApp()
+	if a == nil || a.Config == nil {
+		return nil
+	}
+	var probes []trackerProbe
+	for _, p := range trackerProbes(ctx, a) {
+		if p.err == nil {
+			probes = append(probes, p)
+		}
+	}
+	if len(probes) == 0 {
+		return nil
+	}
+	if doctorOffline() {
+		return []doctor.Result{{OK: true, Detail: i18n.T("cmd.doctor.tracker_identity.offline")}}
+	}
+	svc := teamService(a)
+	var out []doctor.Result
+	for _, p := range probes {
+		ti, err := svc.TrackerIdentity(p.project)
+		if err != nil {
+			continue
+		}
+		t, err := tracker.New(p.creds)
+		if err != nil {
+			continue
+		}
+		cctx, cancel := context.WithTimeout(ctx, doctorConnectionTimeout)
+		username, err := t.TestConnection(cctx)
+		cancel()
+		if err != nil || username == "" {
+			continue // tracker_connection reports it
+		}
+		r := doctor.Result{Name: i18n.Tf("cmd.doctor.tracker_identity.name", p.label), OK: true}
+		server := tracker.ServerOf(p.creds.BaseURL)
+		if ti.HasName(username) {
+			r.Detail = i18n.Tf("cmd.doctor.tracker_identity.ok", server, username)
+		} else {
+			r.Warn = true
+			r.Detail = i18n.Tf("cmd.doctor.tracker_identity.unknown", server, username, ti.TeamID)
+		}
+		out = append(out, r)
+	}
+	return out
 }

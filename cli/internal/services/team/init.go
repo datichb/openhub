@@ -37,7 +37,10 @@ type InitParams struct {
 	DisplayName        string
 	GitLabUsername     string
 	MattermostUsername string
-	Role               string
+	// TrackerUsername is the name of the member on the tracker (empty = keep
+	// the one of the member, if any).
+	TrackerUsername string
+	Role            string
 	// GitLabURL is the GitLab that hosts StateRepo when the remote goes
 	// through an SSH alias (empty = the host of the remote, or the one already
 	// declared for the same repository).
@@ -68,10 +71,14 @@ func (s *Service) Init(ctx context.Context, p InitParams) error {
 		DisplayName:        p.DisplayName,
 		GitLabUsername:     p.GitLabUsername,
 		MattermostUsername: p.MattermostUsername,
+		TrackerUsername:    CleanUsername(p.TrackerUsername),
 		Role:               p.Role,
 		DefaultMode:        "semi-auto",
 	}
 	if repo.HasMember(p.MemberID) {
+		if prev, err := repo.GetMember(p.MemberID); err == nil && member.TrackerUsername == "" {
+			member.TrackerUsername = prev.TrackerUsername
+		}
 		if err := repo.UpdateMember(ctx, member); err != nil {
 			return &InitError{Step: StepUpdateMember, Err: err}
 		}

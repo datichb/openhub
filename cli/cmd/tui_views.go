@@ -553,6 +553,20 @@ func buildViews(a *app.App) []views.View {
 				return a.Secrets.Set(ctx, key, value)
 			},
 			OnDiscoverTracker: actionTrackerDiscovery,
+			GetMember: func() *teamstate.Member {
+				m, err := teamService(a).Profile(makeResolveTeamFunc(a)().TeamID)
+				if err != nil {
+					return nil
+				}
+				return m
+			},
+			SaveMemberField: func(ctx context.Context, field, value string) error {
+				_, err := teamService(a).UpdateProfile(ctx, makeResolveTeamFunc(a)().TeamID, profilePatchForField(field, value))
+				if err != nil {
+					return profileError(err)
+				}
+				return nil
+			},
 		}),
 		// Team sub-pages
 		views.NewTeamMCPView(views.TeamMCPViewConfig{

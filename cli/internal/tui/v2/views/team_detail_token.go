@@ -294,3 +294,109 @@ func (v *TeamDetailView) storeSecret(key, value string) error {
 	}
 	return errors.New(i18n.T("tui.views.keychain_unavailable"))
 }
+
+// The fields of the profile of the member (Member* are the keys given to
+// TeamDetailViewConfig.SaveMemberField).
+const (
+	MemberFieldDisplayName        = "display_name"
+	MemberFieldGitLabUsername     = "gitlab_username"
+	MemberFieldMattermostUsername = "mattermost_username"
+	MemberFieldTrackerUsername    = "tracker_username"
+)
+
+// memberKeyPrefix distinguishes the keys of the profile fields from the
+// others of the view.
+const memberKeyPrefix = "member_"
+
+func isMemberField(key string) bool { return strings.HasPrefix(key, memberKeyPrefix) }
+
+// memberFields are the fields of the profile of the current member: shared
+// with the team (members.toml of the team-state), written at once (one commit,
+// like a setting of hub.toml), outside the save/undo of the team config that
+// « w » publishes. The section is shown for a member of a team.
+func (v *TeamDetailView) memberFields() []configField {
+	if v.cfg.GetMember == nil || v.cfg.SaveMemberField == nil || v.cfg.ResolveTeam == nil || v.cfg.ResolveTeam().MemberID == "" {
+		return nil
+	}
+	field := func(key, labelKey, descKey string, get func(*teamstate.Member) string, rule *FieldValidator) configField {
+		return configField{
+			Key: memberKeyPrefix + key, Kind: CfgFieldString, Label: i18n.T(labelKey),
+			Description: i18n.T(descKey), Scope: ScopeTeamShared, Validator: rule,
+			Get: func() string { return get(&v.member) },
+			Set: func(val string) { v.saveMemberField(key, val) },
+		}
+	}
+	optional := &FieldValidator{AllowEmpty: true}
+	return []configField{
+		{Kind: CfgFieldSectionHeader, Label: i18n.T("tui.team.detail.member.section")},
+		{
+			Key: memberKeyPrefix + "id", Kind: CfgFieldReadonly, Label: i18n.T("tui.team.detail.member.id.label"),
+			Description: i18n.T("tui.team.detail.member.id.desc"), Scope: ScopeTeamShared,
+			Get: func() string {
+				return firstNonEmpty(v.member.ID, v.cfg.ResolveTeam().MemberID) + roleSuffix(v.member.Role)
+			},
+		},
+		field(MemberFieldDisplayName, "tui.team.detail.member.name.label", "tui.team.detail.member.name.desc",
+			func(m *teamstate.Member) string { return m.DisplayName },
+			&FieldValidator{Check: func(val string) error {
+				if strings.TrimSpace(val) == "" {
+					return errors.New(i18n.T("tui.team.detail.member.name_required"))
+				}
+				return nil
+			}}),
+		field(MemberFieldGitLabUsername, "tui.team.detail.member.gitlab.label", "tui.team.detail.member.gitlab.desc",
+			func(m *teamstate.Member) string { return m.GitLabUsername }, optional),
+		field(MemberFieldMattermostUsername, "tui.team.detail.member.mattermost.label", "tui.team.detail.member.mattermost.desc",
+			func(m *teamstate.Member) string { return m.MattermostUsername }, optional),
+		field(MemberFieldTrackerUsername, "tui.team.detail.member.tracker.label", "tui.team.detail.member.tracker.desc",
+			func(m *teamstate.Member) string { return m.TrackerUsername }, optional),
+	}
+}
+
+func roleSuffix(role string) string {
+	if role == "" {
+		return ""
+	}
+	return " (" + role + ")"
+}
+
+// saveMemberField writes one field of the profile to the team-state (a push:
+// off the event loop when the view is mounted) and shows the profile as it
+// then is; a failure is said and the profile is left as it was.
+func (v *TeamDetailView) saveMemberField(field, value string) {
+	if v.shell == nil || v.cfg.SaveMemberField == nil {
+		return
+	}
+	done := func(err error) {
+		if v.shell == nil {
+			return
+		}
+		if err != nil {
+			v.shell.ShowToastMsg(i18n.Tf("tui.team.detail.member.save_error", err.Error()), false)
+			return
+		}
+		v.loadMember()
+		v.renderFields()
+		v.shell.ShowToastMsg(i18n.Tf("tui.team.detail.member.saved", field, strings.TrimSpace(value)), true)
+	}
+	if v.app == nil {
+		done(v.cfg.SaveMemberField(context.Background(), field, value))
+		return
+	}
+	app, ctx := v.app, v.shell.Context()
+	v.shell.ShowToastMsg(i18n.T("tui.team.detail.member.saving"), true)
+	go func() {
+		err := v.cfg.SaveMemberField(ctx, field, value)
+		app.QueueUpdateDraw(func() { done(err) })
+	}()
+}
+
+// loadMember reads the profile again (after a save).
+func (v *TeamDetailView) loadMember() {
+	if v.cfg.GetMember == nil {
+		return
+	}
+	if m := v.cfg.GetMember(); m != nil {
+		v.member = *m
+	}
+}

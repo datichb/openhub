@@ -161,6 +161,33 @@ func (r *Repo) UpdateMember(ctx context.Context, m Member) error {
 	})
 }
 
+// PatchMember changes one member in a transaction: fn receives the member as
+// it is on top of the remote and changes the fields it wants to, the rest of
+// the record is kept as it is. One commit ("members: update <id>"), none when
+// fn changed nothing. Returns ErrMemberNotFound if the ID does not exist; an
+// error of fn commits nothing.
+func (r *Repo) PatchMember(ctx context.Context, id string, fn func(*Member) error) error {
+	return r.withWriteLock(ctx, func(ctx context.Context) error {
+		mf, err := r.readMembersFile()
+		if err != nil {
+			return err
+		}
+		m, exists := mf.Members[id]
+		if !exists {
+			return ErrMemberNotFound
+		}
+		m.ID = id
+		if err := fn(&m); err != nil {
+			return err
+		}
+		mf.Members[id] = m
+		if err := r.writeMembersFile(mf); err != nil {
+			return err
+		}
+		return r.commitAndPush(ctx, fmt.Sprintf("members: update %s", id), "members.toml")
+	})
+}
+
 // membersFilePath returns the absolute path to members.toml.
 func (r *Repo) membersFilePath() string {
 	return filepath.Join(r.path, "members.toml")

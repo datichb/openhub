@@ -47,6 +47,8 @@ func actionTeamRejoin() {
 		mismatchPAT      string
 		mismatchChoice   string
 		rejoinCredState  = &httpsCredState{Username: "oauth2", AuthChoice: "provide"}
+		trackerWanted    bool   // the tracker is on another server than the team repository
+		trackerName      string // typed in the tracker name step
 	)
 
 	// ── Step 0: Repository URL ──────────────────────────────────────
@@ -75,11 +77,15 @@ func actionTeamRejoin() {
 		},
 		OnDone: func() error {
 			statePath = config.TeamStatePath(stateRepo)
-			var err error
-			_, members, _, err = listTeamMembers(ctx, stateRepo, statePath)
+			var (
+				handle *teamstate.Repo
+				err    error
+			)
+			handle, members, _, err = listTeamMembers(ctx, stateRepo, statePath)
 			if err != nil {
 				return err
 			}
+			trackerWanted = trackerUsernameWanted(handle, stateRepo, gitlabURL)
 			if len(members) == 0 {
 				return errors.New(i18n.T("tui.team.rejoin.no_members"))
 			}
@@ -150,6 +156,29 @@ func actionTeamRejoin() {
 				}
 			}
 			return []views.InfoField{{Label: i18n.T("tui.team.rejoin.member_label"), Value: memberID}}
+		},
+	}
+
+	// ── Step 1a: name of the member on the tracker (conditional) ───
+	// Asked when the tracker is on another server than the team repository
+	// and the profile has none: without it no issue of the tracker is
+	// attributed to the member.
+	trackerNameStep := views.WizardStep{
+		ID:    "rejoin_tracker_username",
+		Label: i18n.T("tui.team.rejoin.tracker_step"),
+		SkipIf: func() bool {
+			return !trackerWanted || memberTrackerUsername(members, memberID) != ""
+		},
+		Form: func(_ *tview.Application, onDone func()) *tview.Form {
+			form := tview.NewForm()
+			form.AddTextView("", i18n.T("cmd.team.rejoin.tracker_hint"), 60, 3, true, false)
+			form.AddInputField(i18n.T("tui.team.rejoin.tracker_label"), trackerName, 0, nil,
+				func(text string) { trackerName = strings.TrimSpace(text) })
+			form.AddButton(i18n.T("wizard.hint.submit"), func() { onDone() })
+			return form
+		},
+		InfoFields: func() []views.InfoField {
+			return []views.InfoField{{Label: i18n.T("tui.team.rejoin.tracker_step"), Value: firstNonEmpty(trackerName, i18n.T("tui.team.rejoin.tracker_none"))}}
 		},
 	}
 
@@ -244,14 +273,23 @@ func actionTeamRejoin() {
 		Label:      i18n.T("cmd.team.rejoin.validating"),
 		Processing: i18n.T("cmd.team.rejoin.validating"),
 		OnDone: func() error {
-			result, err := teamRejoinCore(ctx, a, teamRejoinParams{
+			params := teamRejoinParams{
 				StateRepo: stateRepo,
 				StatePath: statePath,
 				MemberID:  memberID,
 				GitLabURL: gitlabURL,
-			})
+			}
+			if !trackerNameStep.SkipIf() && trackerName != "" {
+				params.TrackerUsername = &trackerName
+			}
+			result, err := teamRejoinCore(ctx, a, params)
 			if err != nil {
 				return err
+			}
+			if result.ProfileErr != nil && tuiShell != nil {
+				tuiShell.App().QueueUpdateDraw(func() {
+					tuiShell.ShowToast(i18n.Tf("cmd.team.rejoin.tracker_failed", result.ProfileErr), shell.ToastError)
+				})
 			}
 
 			// Store identity mismatch for the next conditional step.
@@ -490,6 +528,7 @@ func actionTeamRejoin() {
 		repoStep,
 		httpsCredStep,
 		memberStep,
+		trackerNameStep,
 		gitlabTokenStep,
 		validateStep,
 		identityMismatchStep,
@@ -516,4 +555,15 @@ func actionTeamRejoin() {
 	})
 
 	tuiShell.PushView(wizard)
+}
+
+// memberTrackerUsername is the tracker name of member id in members ("" when
+// it has none or is not there).
+func memberTrackerUsername(members []teamstate.Member, id string) string {
+	for _, m := range members {
+		if m.ID == id {
+			return m.TrackerUsername
+		}
+	}
+	return ""
 }

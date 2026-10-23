@@ -874,6 +874,7 @@ func mergeOrphanMember(ctx context.Context, out interface{ Write([]byte) (int, e
 	merged.DisplayName = resolveField(out, "display_name", target.DisplayName, orphan.DisplayName)
 	merged.GitLabUsername = resolveField(out, "gitlab_username", target.GitLabUsername, orphan.GitLabUsername)
 	merged.MattermostUsername = resolveField(out, "mattermost_username", target.MattermostUsername, orphan.MattermostUsername)
+	merged.TrackerUsername = resolveField(out, "tracker_username", target.TrackerUsername, orphan.TrackerUsername)
 	merged.Role = resolveField(out, "role", target.Role, orphan.Role)
 
 	// Preview
@@ -881,6 +882,7 @@ func mergeOrphanMember(ctx context.Context, out interface{ Write([]byte) (int, e
 	fmt.Fprintf(out, "    display_name:        %s\n", merged.DisplayName)
 	fmt.Fprintf(out, "    gitlab_username:     %s\n", merged.GitLabUsername)
 	fmt.Fprintf(out, "    mattermost_username: %s\n", merged.MattermostUsername)
+	fmt.Fprintf(out, "    tracker_username:    %s\n", merged.TrackerUsername)
 	fmt.Fprintf(out, "    role:                %s\n", merged.Role)
 
 	if !askYN(out, i18n.T("cmd.team_config.confirm_the_merge"), true) {

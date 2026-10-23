@@ -87,6 +87,32 @@ func TestInitClonesRegistersTheMemberAndWritesHubToml(t *testing.T) {
 	assert.Len(t, reload(t), 2)
 }
 
+// Bug 12: joining again (oh init → team) replaced the whole member and lost its
+// tracker_username.
+func TestInitKeepsTheTrackerUsernameOfAMember(t *testing.T) {
+	configtest.Home(t)
+	bare, _ := gittest.BareClone(t)
+	cfg := &config.Config{}
+	require.NoError(t, config.Save(cfg))
+	statePath := filepath.Join(t.TempDir(), "state")
+	svc := New(cfg, nil, nil)
+	params := InitParams{StateRepo: bare, StatePath: statePath, MemberID: "ben", DisplayName: "Ben", GitLabUsername: "ben1", Role: "dev",
+		TrackerUsername: "@ben"}
+	require.NoError(t, svc.Init(t.Context(), params))
+	repo := teamstate.NewRepo(bare, statePath)
+	m, err := repo.GetMember("ben")
+	require.NoError(t, err)
+	assert.Equal(t, "ben", m.TrackerUsername, "set at the first join, without the @")
+
+	params.TrackerUsername = ""
+	params.DisplayName = "Benjamin"
+	require.NoError(t, svc.Init(t.Context(), params))
+	m, err = repo.GetMember("ben")
+	require.NoError(t, err)
+	assert.Equal(t, "Benjamin", m.DisplayName)
+	assert.Equal(t, "ben", m.TrackerUsername, "joining again without a value keeps it")
+}
+
 func TestInitFailureNamesTheStep(t *testing.T) {
 	configtest.Home(t)
 	cfg := &config.Config{}

@@ -67,6 +67,13 @@ type TeamDetailViewConfig struct {
 	// TeamProviderKey returns the keychain key of the team-level LLM
 	// credential for a provider ("" when no team is active). Used by 'k'.
 	TeamProviderKey func(provider string) string
+	// GetMember returns the profile of the current member in the team-state
+	// (nil when there is none). With SaveMemberField it shows the section
+	// « Ma fiche de membre ».
+	GetMember func() *teamstate.Member
+	// SaveMemberField writes one field of the profile of the current member
+	// (a Member* key) to the team-state, in one commit.
+	SaveMemberField func(ctx context.Context, field, value string) error
 	// OnDiscoverTracker launches the tracker discovery wizard.
 	// Called when the user presses T in the team detail view.
 	OnDiscoverTracker func()
@@ -90,6 +97,7 @@ type TeamDetailView struct {
 	cfg   TeamDetailViewConfig
 
 	teamCfg    *teamstate.TeamConfig
+	member     teamstate.Member // the profile of the current member, as read or last saved
 	localMCP   config.MCPConfig
 	localTrk   config.TrackerLocalConfig
 	baseMCP    config.MCPConfig          // localMCP as loaded or last saved
@@ -280,6 +288,12 @@ func (v *TeamDetailView) loadData() {
 			}
 		}
 	}
+	v.member = teamstate.Member{}
+	if v.cfg.GetMember != nil {
+		if m := v.cfg.GetMember(); m != nil {
+			v.member = *m
+		}
+	}
 	// Ensure non-nil teamCfg for editing
 	if v.teamCfg == nil {
 		v.teamCfg = &teamstate.TeamConfig{}
@@ -311,6 +325,8 @@ func (v *TeamDetailView) buildFields() {
 		v.appendLinks()
 		return
 	}
+
+	v.fields = append(v.fields, v.memberFields()...)
 
 	// ── Tracker ──────────────────────────────────────────────────────────
 	v.fields = append(v.fields, configField{Kind: CfgFieldSectionHeader, Label: i18n.T("tui.config.section.tracker")})
@@ -603,8 +619,9 @@ func (v *TeamDetailView) editSelected() {
 		v.promptTokenSetup()
 		return
 	}
-	// Written to hub.toml at once, outside the save/undo of the other fields
-	if f.Key == fieldTeamGitLabURL {
+	// Written to hub.toml (or to the profile in the team-state) at once,
+	// outside the save/undo of the other fields
+	if f.Key == fieldTeamGitLabURL || isMemberField(f.Key) {
 		editConfigField(v.shell, f, v.renderFields)
 		return
 	}

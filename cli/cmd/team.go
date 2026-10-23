@@ -40,12 +40,13 @@ var teamCmd = &cobra.Command{
 var teamRepo *teamstate.Repo
 
 // teamPreRunE resolves the team-state repo for all team subcommands.
-// It warns once that the team mode is a beta, then skips resolution if the command is `team init` or `team rejoin` (repo doesn't exist yet).
+// It warns once that the team mode is a beta, then skips resolution if the command is `team init`, `team rejoin` (repo doesn't exist yet) or
+// `team profile` (the team service checks the clone of the team it is asked for).
 func teamPreRunE(cmd *cobra.Command, _ []string) error {
 	printTeamBetaWarning(cmd.ErrOrStderr())
 	// Skip for commands that don't need an existing repo (promote works on
 	// a solo team-state, which is never the active team).
-	if cmd.Name() == "init" || cmd.Name() == "rejoin" || cmd.Name() == "promote" {
+	if cmd.Name() == "init" || cmd.Name() == "rejoin" || cmd.Name() == "promote" || cmd.Name() == "profile" {
 		return nil
 	}
 	a := MustApp()
@@ -102,10 +103,15 @@ func init() {
 
 	teamStatusCmd.Flags().Bool("detail", false, i18n.T("cmd.team.status.flags.detail"))
 
-	teamRejoinCmd.Flags().String("repo", "", i18n.T("cmd.team.rejoin.flags.repo"))
-	teamRejoinCmd.Flags().String("member-id", "", i18n.T("cmd.team.rejoin.flags.member_id"))
-	teamRejoinCmd.Flags().Bool("no-retro-tag", false, i18n.T("cmd.team.rejoin.flags.no_retro_tag"))
-	teamRejoinCmd.Flags().String("gitlab-url", "", i18n.T("cmd.team.rejoin.flags.gitlab_url"))
+	addTeamRejoinFlags(teamRejoinCmd)
+}
+
+func addTeamRejoinFlags(c *cobra.Command) {
+	c.Flags().String("repo", "", i18n.T("cmd.team.rejoin.flags.repo"))
+	c.Flags().String("member-id", "", i18n.T("cmd.team.rejoin.flags.member_id"))
+	c.Flags().Bool("no-retro-tag", false, i18n.T("cmd.team.rejoin.flags.no_retro_tag"))
+	c.Flags().String("gitlab-url", "", i18n.T("cmd.team.rejoin.flags.gitlab_url"))
+	c.Flags().String("tracker-username", "", i18n.T("cmd.team.rejoin.flags.tracker_username"))
 }
 
 func runTeamInit(cmd *cobra.Command, args []string) error {
@@ -966,7 +972,7 @@ func runTeamRejoin(cmd *cobra.Command, _ []string) error {
 
 	// ── Step 2: Clone/pull and list members ──
 	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.team.cloning_team_state_2", theme.WarningStyle.Render(theme.IconDot)))
-	_, members, _, err := listTeamMembers(ctx, repoURL, "")
+	teamRepoHandle, members, _, err := listTeamMembers(ctx, repoURL, "")
 	if err != nil {
 		return err
 	}
@@ -1009,7 +1015,6 @@ func runTeamRejoin(cmd *cobra.Command, _ []string) error {
 		}
 	}
 
-	// ── Step 3b: GitLab token prompt (conditional) ──
 	var selectedMember *teamstate.Member
 	for i := range members {
 		if members[i].ID == memberID {
@@ -1017,6 +1022,26 @@ func runTeamRejoin(cmd *cobra.Command, _ []string) error {
 			break
 		}
 	}
+
+	// ── Step 3a: the name of the member on the tracker ──
+	// Given by --tracker-username, else asked when the tracker is on another
+	// server than the team repository and the profile has none yet.
+	var trackerName *string
+	if cmd.Flags().Changed("tracker-username") {
+		v, _ := cmd.Flags().GetString("tracker-username")
+		trackerName = &v
+	} else if selectedMember != nil && selectedMember.TrackerUsername == "" &&
+		trackerUsernameWanted(teamRepoHandle, repoURL, gitlabURL) {
+		fmt.Fprintf(a.IO.Out, "\n  %s %s\n", theme.InfoStyle.Render(theme.IconInfo), i18n.T("cmd.team.rejoin.tracker_hint"))
+		fmt.Fprintf(a.IO.Out, "  %s", i18n.T("cmd.team.rejoin.tracker_prompt"))
+		var name string
+		_, _ = fmt.Fscanln(a.IO.In, &name)
+		if name != "" {
+			trackerName = &name
+		}
+	}
+
+	// ── Step 3b: GitLab token prompt (conditional) ──
 	if selectedMember != nil && selectedMember.GitLabUsername != "" {
 		teamID := config.RepoNameFromRemote(repoURL)
 		source := gitlabTokenSourceAt(ctx, a, teamID, repoURL, gitlabURL)
@@ -1081,12 +1106,21 @@ func runTeamRejoin(cmd *cobra.Command, _ []string) error {
 	// ── Step 4: Validate GitLab identity + write config ──
 	fmt.Fprintf(a.IO.Out, "\n  %s %s\n", theme.WarningStyle.Render(theme.IconDot), i18n.T("cmd.team.rejoin.validating"))
 	result, err := teamRejoinCore(ctx, a, teamRejoinParams{
-		StateRepo: repoURL,
-		MemberID:  memberID,
-		GitLabURL: gitlabURL,
+		StateRepo:       repoURL,
+		MemberID:        memberID,
+		GitLabURL:       gitlabURL,
+		TrackerUsername: trackerName,
 	})
 	if err != nil {
 		return err
+	}
+	switch {
+	case result.ProfileErr != nil:
+		fmt.Fprintf(a.IO.Out, "  %s %s\n", theme.WarningStyle.Render(theme.IconWarning),
+			i18n.Tf("cmd.team.rejoin.tracker_failed", result.ProfileErr))
+	case trackerName != nil && result.Member.TrackerUsername != "":
+		fmt.Fprintf(a.IO.Out, "  %s %s\n", theme.SuccessStyle.Render(theme.IconSuccess),
+			i18n.Tf("cmd.team.rejoin.tracker_saved", result.Member.TrackerUsername))
 	}
 
 	// ── Step 4b: Handle identity mismatch (bot token or wrong user) ──

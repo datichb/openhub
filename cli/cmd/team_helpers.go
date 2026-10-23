@@ -169,6 +169,10 @@ type initWizardTeamState struct {
 	NewMemberDisplayName string             // display name for new member being added
 	NewMemberGitLab      string             // gitlab username for new member being added
 	NewMemberRole        string             // role for new member being added
+	// Name of the member on the tracker, asked when the tracker is on another
+	// server than the team repository (TrackerWanted).
+	TrackerWanted   bool
+	TrackerUsername string
 	// HTTPS credential state (shared by init and rejoin)
 	CredUsername   string // HTTPS username (default "oauth2")
 	CredToken      string // HTTPS token/password
@@ -625,6 +629,7 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 				}
 				state.Members = members
 				state.TeamRepo = repo
+				state.TrackerWanted = trackerUsernameWanted(repo, state.Repo, state.GitLabURL)
 				state.ProbeRepo(state.Ctx)
 				return nil
 			},
@@ -797,6 +802,30 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 		},
 	})
 
+	// ── Rejoin step 4a': name of the member on the tracker (conditional) ──
+	// Asked when the tracker is on another server than the team repository and
+	// the profile of the member (existing, or just created above) has none.
+	steps = append(steps, views.WizardStep{
+		ID:    "rejoin_tracker_username",
+		Label: i18n.T("tui.team.rejoin.tracker_step"),
+		SkipIf: func() bool {
+			return state.Skipped || state.Mode != "rejoin" || !state.TrackerWanted ||
+				memberTrackerUsername(state.Members, state.MemberID) != ""
+		},
+		Form: func(_ *tview.Application, onDone func()) *tview.Form {
+			form := tview.NewForm()
+			form.AddTextView("", i18n.T("cmd.team.rejoin.tracker_hint"), 60, 3, true, false)
+			form.AddInputField(i18n.T("tui.team.rejoin.tracker_label"), state.TrackerUsername, 0, nil,
+				func(t string) { state.TrackerUsername = strings.TrimSpace(t) })
+			form.AddButton(i18n.T("wizard.hint.submit"), func() { onDone() })
+			return form
+		},
+		InfoFields: func() []views.InfoField {
+			return []views.InfoField{{Label: i18n.T("tui.team.rejoin.tracker_step"),
+				Value: firstNonEmpty(state.TrackerUsername, i18n.T("tui.team.rejoin.tracker_none"))}}
+		},
+	})
+
 	// ── Rejoin step 4b: GitLab token for SSH repos (conditional) ──
 	// When the repo uses HTTPS, the token was already stored in the keychain
 	// by buildInitWizardHTTPSCredSteps. This step only appears for SSH repos
@@ -889,13 +918,21 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 			return state.Skipped || state.Mode != "rejoin"
 		},
 		OnDone: func() error {
-			result, err := teamRejoinCore(state.Ctx, *a, teamRejoinParams{
+			params := teamRejoinParams{
 				StateRepo: state.Repo,
 				MemberID:  state.MemberID,
 				GitLabURL: state.GitLabURL,
-			})
+			}
+			if state.TrackerWanted && state.TrackerUsername != "" &&
+				memberTrackerUsername(state.Members, state.MemberID) == "" {
+				params.TrackerUsername = &state.TrackerUsername
+			}
+			result, err := teamRejoinCore(state.Ctx, *a, params)
 			if err != nil {
 				return err
+			}
+			if result.ProfileErr != nil {
+				slog.Warn("rejoin: tracker name not written to the profile", "error", result.ProfileErr)
 			}
 
 			// Store identity mismatch for the next conditional step.
