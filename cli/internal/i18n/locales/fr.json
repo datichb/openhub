@@ -152,6 +152,7 @@
   "cmd.config.unknown_key": "clé de configuration inconnue : %s (oh config list --keys affiche les clés modifiables)",
   "cmd.config.load_failed": "lecture de la configuration (hub.toml)",
   "cmd.config.save_failed": "écriture de la configuration (hub.toml)",
+  "cmd.config.init_keeps_existing": "oh init ne peut pas démarrer avec le fichier existant %s et ne l'a pas modifié : %v\nLancez oh doctor pour voir ce qui ne va pas. oh doctor --fix restaure la dernière sauvegarde valide de hub.toml et garde le fichier cassé à côté sous le nom hub.toml.broken-<horodatage>. Relancez ensuite oh init.",
   "cmd.config.websearch_invalid_action": "action %q invalide : enable, disable ou status",
   "cmd.config.invalid_value": "valeur %q invalide pour %s (attendu : %s)",
   "cmd.config.invalid_bool": "valeur booléenne invalide %q (true ou false)",
