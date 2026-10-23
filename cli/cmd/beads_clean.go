@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -205,24 +204,19 @@ func runDoctorFix(cmd *cobra.Command, a *app.App) error {
 		fmt.Fprintf(w, "  %s (%s)\n", p.project.Name, p.project.Path)
 		printCleanActions(w, p.report)
 	}
-	undo := yes
 	if !yes {
 		printCleanHints(w, beads.CleanReport{Actions: commitKept(plans)})
-		if !stdinIsTerminal() {
-			return errors.New(i18n.T("cmd.doctor.fix.needs_yes"))
-		}
-		ok, err := cliConfirm(cmd.ErrOrStderr(), i18n.T("cmd.doctor.fix.confirm"))
-		if err != nil {
-			return err
-		}
-		if !ok {
-			fmt.Fprintln(w, i18n.T("cmd.doctor.fix.cancelled"))
-			return nil
-		}
-		undo = true
+	}
+	ok, err := confirmAction(cmd, i18n.T("cmd.doctor.fix.confirm"), false)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		fmt.Fprintln(w, i18n.T("cmd.doctor.fix.cancelled"))
+		return nil
 	}
 	for _, p := range plans {
-		if _, err := beads.FixImpact(p.project.Path, false, undo); err != nil {
+		if _, err := beads.FixImpact(p.project.Path, false, true); err != nil {
 			return fmt.Errorf("%s: %w", p.project.Name, err)
 		}
 	}

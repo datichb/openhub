@@ -44,7 +44,7 @@ var wordRe = regexp.MustCompile(`^[A-Za-zÀ-ÿ]{3,}$`)
 var literalSinkFields = map[string]bool{"Label": true, "Title": true, "Desc": true, "Description": true, "Placeholder": true, "Hint": true, "Help": true}
 
 // literalSinkFuncs are the prompt helpers of the CLI.
-var literalSinkFuncs = map[string]bool{"askInput": true, "askYN": true, "askSelect": true, "askYes": true}
+var literalSinkFuncs = map[string]bool{"askInput": true, "askYN": true, "askSelect": true}
 
 // literalExceptions are the prose literals that stay in the code, with the
 // reason. They are exact literals (any file of the guard).

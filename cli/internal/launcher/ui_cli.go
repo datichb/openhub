@@ -26,8 +26,8 @@ func (c *CLILaunchUI) Confirm(title string) (bool, error) {
 		huh.NewGroup(
 			huh.NewConfirm().
 				Title(title).
-				Affirmative("Launch").
-				Negative("Cancel").
+				Affirmative(i18n.T("cmd.confirm.yes")).
+				Negative(i18n.T("cmd.confirm.no")).
 				Value(&confirm),
 		),
 	).Run()

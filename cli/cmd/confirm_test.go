@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"bytes"
 	"os"
 	"strings"
 	"testing"
@@ -38,18 +37,6 @@ func TestYesNoHint(t *testing.T) {
 			assert.Equal(t, tc.yes, yesNoHint(true), "the default is yes")
 			assert.Equal(t, tc.no, yesNoHint(false), "the default is no")
 		})
-	}
-}
-
-// askYes (oh mcp trust) goes through the same reader.
-func TestPromptsAcceptEveryYes(t *testing.T) {
-	for _, answer := range []string{"o", "oui", "y", "yes", "OUI", "Yes"} {
-		if !askYes(strings.NewReader(answer+"\n"), &bytes.Buffer{}, "ok ?") {
-			t.Errorf("askYes(%q) = false", answer)
-		}
-	}
-	if askYes(strings.NewReader("non\n"), &bytes.Buffer{}, "ok ?") || askYes(strings.NewReader("\n"), &bytes.Buffer{}, "ok ?") {
-		t.Error("askYes: no, and empty = no")
 	}
 }
 

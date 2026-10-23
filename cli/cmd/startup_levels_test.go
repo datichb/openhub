@@ -117,12 +117,19 @@ func TestFailedMigrationDoctorAndRepair(t *testing.T) {
 
 	backups, _ := filepath.Glob(filepath.Join(home, "backups", "oh.db.v*-*.bak"))
 	require.NotEmpty(t, backups)
+	before, err := os.ReadFile(db)
+	require.NoError(t, err)
 	_, errOut, code = runOhHome(t, home, "repair", "--restore", backups[0])
-	assert.NotEqual(t, 0, code, "no terminal: --auto required")
-	assert.Contains(t, errOut, "--auto")
-	out, _, code = runOhHome(t, home, "repair", "--restore", backups[0], "--auto")
+	assert.Equal(t, 2, code, "no terminal: --yes required (ExitUsage)")
+	assert.Contains(t, errOut, "--yes")
+	after, err := os.ReadFile(db)
+	require.NoError(t, err)
+	assert.Equal(t, before, after, "refused: the database is left as it was")
+	out, _, code = runOhHome(t, home, "repair", "--restore", backups[0], "--yes")
 	assert.Equal(t, 0, code, out)
 	assert.Contains(t, out, "Database restored")
+	out, _, code = runOhHome(t, home, "repair", "--restore", backups[0], "--auto")
+	assert.Equal(t, 0, code, "--auto still confirms a restoration: %s", out)
 }
 
 // N13: a corrupt database does not stop oh repair (no MustApp) nor doctor.

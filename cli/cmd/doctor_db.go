@@ -15,7 +15,6 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/launcher"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
@@ -121,19 +120,13 @@ func fixConfig(cmd *cobra.Command) error {
 		return nil
 	}
 	fmt.Fprintln(w, theme.Bold.Render(i18n.Tf("cmd.doctor.db.config_restore_plan", backup, config.ConfigPath())))
-	yes, _ := cmd.Flags().GetBool("yes")
-	if !yes {
-		if !stdinIsTerminal() {
-			return errors.New(i18n.T("cmd.doctor.fix.needs_yes"))
-		}
-		ok, err := launcher.NewCLIUI(cmd.ErrOrStderr()).Confirm(i18n.T("cmd.doctor.db.config_restore_confirm"))
-		if err != nil {
-			return err
-		}
-		if !ok {
-			fmt.Fprintln(w, i18n.T("cmd.doctor.fix.cancelled"))
-			return nil
-		}
+	ok, err := confirmAction(cmd, i18n.T("cmd.doctor.db.config_restore_confirm"), false)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		fmt.Fprintln(w, i18n.T("cmd.doctor.fix.cancelled"))
+		return nil
 	}
 	kept, err := restoreConfig(backup)
 	if err != nil {

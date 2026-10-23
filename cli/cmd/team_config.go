@@ -155,11 +155,7 @@ func configureGitLab(ctx context.Context, a *app.App, repo *teamstate.Repo, team
 		fmt.Fprint(out, i18n.Tf("cmd.team_config.local_configuration", theme.Bold.Render("→")))
 
 		// Test de connexion avec les credentials actuels
-		src := tracker.CredentialSource{
-			URL:      teamCfg.Tracker.TrackerURL,
-			TokenKey: teamCfg.Tracker.TrackerTokenKey,
-			Secrets:  a.Secrets,
-		}
+		src := trackerCredentials(a, teamCfg)
 		if err := testAndDisplayConnection(ctx, out, src, tracker.TypeGitLab); err != nil {
 			if askYN(out, i18n.T("cmd.team_config.set_up_a_new_gitlab_token"), true) {
 				tokenKey := askInput(out, i18n.T("cmd.team_config.key_name_in_the_keychain_e"), a.Config.MCP.Gitlab.Token)
@@ -207,11 +203,7 @@ func configureJira(ctx context.Context, a *app.App, repo *teamstate.Repo, teamCf
 
 	if configLocal {
 		fmt.Fprint(out, i18n.Tf("cmd.team_config.local_configuration", theme.Bold.Render("→")))
-		src := tracker.CredentialSource{
-			URL:      teamCfg.Tracker.TrackerURL,
-			TokenKey: teamCfg.Tracker.TrackerTokenKey,
-			Secrets:  a.Secrets,
-		}
+		src := trackerCredentials(a, teamCfg)
 		if err := testAndDisplayConnection(ctx, out, src, tracker.TypeJira); err != nil {
 			if askYN(out, i18n.T("cmd.team_config.set_up_a_new_jira_token"), true) {
 				tokenKey := askInput(out, i18n.T("cmd.team_config.key_name_in_the_keychain_e_2"), a.Config.MCP.Jira.Token)
@@ -300,11 +292,7 @@ func configureTrackerSync(ctx context.Context, a *app.App, repo *teamstate.Repo,
 		teamCfg.Tracker.TrackerTokenKey = trackerTokenKey
 
 		// Check if token exists, prompt if not
-		src := tracker.CredentialSource{
-			URL:      teamCfg.Tracker.TrackerURL,
-			TokenKey: teamCfg.Tracker.TrackerTokenKey,
-			Secrets:  a.Secrets,
-		}
+		src := trackerCredentials(a, teamCfg)
 		trackerType := tracker.Type(teamCfg.Tracker.Type)
 		fmt.Fprint(out, i18n.T("cmd.team_config.testing_the_connection"))
 		if err := testAndDisplayConnection(ctx, out, src, trackerType); err != nil {
@@ -316,11 +304,7 @@ func configureTrackerSync(ctx context.Context, a *app.App, repo *teamstate.Repo,
 					} else {
 						fmt.Fprint(out, i18n.Tf("cmd.team_config.token_stored_in_the_keychain", theme.SuccessStyle.Render(theme.IconSuccess), trackerTokenKey))
 						// Re-test connection
-						src = tracker.CredentialSource{
-							URL:      teamCfg.Tracker.TrackerURL,
-							TokenKey: teamCfg.Tracker.TrackerTokenKey,
-							Secrets:  a.Secrets,
-						}
+						src = trackerCredentials(a, teamCfg)
 						fmt.Fprint(out, i18n.T("cmd.team_config.testing_the_connection_again"))
 						_ = testAndDisplayConnection(ctx, out, src, trackerType)
 					}
@@ -357,11 +341,7 @@ func configureTrackerSync(ctx context.Context, a *app.App, repo *teamstate.Repo,
 				fmt.Fprint(out, i18n.Tf("cmd.team_config.project_discovery", theme.Bold.Render("→")))
 
 				// Build tracker client for discovery.
-				src := tracker.CredentialSource{
-					URL:      teamCfg.Tracker.TrackerURL,
-					TokenKey: teamCfg.Tracker.TrackerTokenKey,
-					Secrets:  a.Secrets,
-				}
+				src := trackerCredentials(a, teamCfg)
 				trackerType := tracker.Type(teamCfg.Tracker.Type)
 				creds, credErr := tracker.ResolveCredentials(ctx, src, trackerType)
 				if credErr != nil {
@@ -702,6 +682,17 @@ func printTrackerStatus(out interface{ Write([]byte) (int, error) },
 			fmt.Fprintf(out, "%s  %s → %s  (pattern: %s)\n", indent, hubID, trackerID, pattern)
 		}
 	}
+}
+
+// trackerCredentials is the credential source of the tracker of the team
+// config: besides the keychain it knows the hub team and the key of
+// [mcp.gitlab], so that the GitLab token is found with the unified cascade
+// (the team step included) like everywhere else.
+func trackerCredentials(a *app.App, teamCfg *teamstate.TeamConfig) tracker.CredentialSource {
+	return teamService(a).CredentialSource(tracker.CredentialSource{
+		URL:      teamCfg.Tracker.TrackerURL,
+		TokenKey: teamCfg.Tracker.TrackerTokenKey,
+	}, nil)
 }
 
 // testAndDisplayConnection builds a tracker, tests the connection, and prints

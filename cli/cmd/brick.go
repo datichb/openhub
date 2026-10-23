@@ -10,7 +10,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/launcher"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
@@ -103,7 +102,7 @@ func saveBrickEdit(cmd *cobra.Command, svc *workflowsvc.Service, c workflowsvc.C
 			return d, err
 		}
 		printDiagnostics(cmd.ErrOrStderr(), invalid.Diagnostics)
-		again, cerr := launcher.NewCLIUI(cmd.ErrOrStderr()).Confirm(i18n.T("teamstate.workflow.cli.edit_again"))
+		again, cerr := confirmPrompt(i18n.T("teamstate.workflow.cli.edit_again"), "", false)
 		if cerr != nil || !again {
 			fmt.Fprintln(cmd.ErrOrStderr(), theme.Subtitle.Render(i18n.Tf("teamstate.workflow.cli.kept", path)))
 			return nil, err
