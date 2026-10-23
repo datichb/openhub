@@ -11,6 +11,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/evalrun"
+	"github.com/datichb/openhub/cli/internal/services/launch"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 )
@@ -40,8 +41,8 @@ func startEvalFanout(ctx context.Context, a *app.App, parent string, spec evalPa
 		close(f.done)
 		return f
 	}
-	d, err := newFanoutDriver(ctx, a, sess, log, func(p *preparedRun) {
-		p.plan.Request.Base.MaxTokens = evalMaxTokens(spec.Model, spec.BudgetUSD)
+	d, err := newFanoutDriver(ctx, a, sess, log, func(p *launch.Prepared) {
+		p.Plan.Request.Base.MaxTokens = evalMaxTokens(spec.Model, spec.BudgetUSD)
 	})
 	if err != nil {
 		f.err = err

@@ -9,6 +9,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/services/launch"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -73,7 +74,7 @@ func startAliasFor(cmd *cobra.Command) (al workflowAlias) {
 	providerFlag, _ := f.GetString("provider")
 	agent, _ := f.GetString("agent")
 
-	al = workflowAlias{Recap: recap, Opts: runOptions{Provider: providerFlag, LooseInputs: map[string]string{}}}
+	al = workflowAlias{Recap: recap, Opts: launch.Options{Provider: providerFlag, LooseInputs: map[string]string{}}}
 	if f.Changed("worktree") {
 		wt, _ := f.GetString("worktree")
 		al.Opts.Location, al.Opts.Branch = "new", wt

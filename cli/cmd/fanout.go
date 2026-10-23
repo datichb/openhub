@@ -22,6 +22,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/runsvc"
 	"github.com/datichb/openhub/cli/internal/services/fanout"
+	"github.com/datichb/openhub/cli/internal/services/launch"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
@@ -66,29 +67,7 @@ func init() {
 
 // fanoutEnabled reports whether the fan-out is enabled on this machine.
 func fanoutEnabled(a *app.App) bool {
-	return a != nil && a.Config != nil && a.Config.Fanout.Experimental
-}
-
-// fanoutParentRecord is the fan-out record of a parent at launch.
-func fanoutParentRecord(a *app.App) *domain.SessionFanout {
-	return &domain.SessionFanout{Role: domain.RoleParent, Experimental: true, Status: domain.FanoutWaiting,
-		Parallel: a.Config.Fanout.EffectiveParallel(), BudgetUSD: a.Config.Fanout.EffectiveBudget()}
-}
-
-// checkFanoutLaunch refuses a fan-out launch the configuration or the
-// runtime does not allow: local or container (fanout-container), never
-// remote (backlog: the children, the merges by oh and the verification on
-// the integration branch run on the machine of the parent).
-func checkFanoutLaunch(a *app.App, runtime sessionspec.RuntimeKind, perSession []string) error {
-	switch {
-	case !fanoutEnabled(a):
-		return errors.New(i18n.T("cmd.fanout.disabled"))
-	case runtime == sessionspec.RuntimeRemote:
-		return errors.New(i18n.Tf("cmd.fanout.remote_refused", string(runtime)))
-	case len(perSession) > 0:
-		return errors.New(i18n.T("cmd.fanout.one_session"))
-	}
-	return nil
+	return a != nil && launch.FanoutEnabled(a.Config)
 }
 
 func runFanoutDrive(cmd *cobra.Command, args []string) error {
@@ -335,7 +314,7 @@ type fanoutLauncher struct {
 	rsvc    *runsvc.Service
 	log     io.Writer
 	// adjust changes a launch before it starts (evaluation: token cap).
-	adjust func(*preparedRun)
+	adjust func(*launch.Prepared)
 }
 
 func (l *fanoutLauncher) Start(ctx context.Context, req fanout.LaunchRequest) (string, error) {
@@ -343,7 +322,7 @@ func (l *fanoutLauncher) Start(ctx context.Context, req fanout.LaunchRequest) (s
 	if err != nil {
 		return "", err
 	}
-	opts := runOptions{Workflow: req.Workflow, Project: l.project, Mode: req.Parent.Mode, Location: req.Dir,
+	opts := launch.Options{Workflow: req.Workflow, Project: l.project, Mode: req.Parent.Mode, Location: req.Dir,
 		Attach: string(sessionspec.AttachNone), ParentSessionID: req.Parent.ID, Dirty: runsvc.DirtyAllow, OneSession: true,
 		OnExisting: runsvc.OnExistingParallel, LooseInputs: req.Inputs, Runtime: string(rt)}
 	if req.Record.Role == domain.RoleChild && req.Ticket != "" && req.Task == nil {
@@ -352,11 +331,12 @@ func (l *fanoutLauncher) Start(ctx context.Context, req fanout.LaunchRequest) (s
 	if req.Record.Role == domain.RoleMerger {
 		opts.Mode = "" // the mode of its workflow (auto: nobody to answer)
 	}
-	p, err := prepareWorkflowRun(ctx, l.a, opts, l.log)
+	opts.Progress = launchProgress(nil, l.log)
+	p, err := launch.Prepare(ctx, launchDeps(l.a), opts)
 	if err != nil {
 		return "", err
 	}
-	base := &p.plan.Request.Base
+	base := &p.Plan.Request.Base
 	base.Attach, base.Headless, base.Fanout = sessionspec.AttachNone, true, req.Record
 	note := ""
 	switch req.Record.Role {
@@ -370,8 +350,8 @@ func (l *fanoutLauncher) Start(ctx context.Context, req fanout.LaunchRequest) (s
 	}
 	if note != "" {
 		// What changes for a child or a fixer, told by oh after its prompt.
-		for i := range p.plan.Sessions {
-			p.plan.Sessions[i].Prompt += "\n\n" + note
+		for i := range p.Plan.Sessions {
+			p.Plan.Sessions[i].Prompt += "\n\n" + note
 		}
 	}
 	if req.BudgetUSD > 0 && (base.Limits.SessionBudgetUSD == 0 || base.Limits.SessionBudgetUSD > req.BudgetUSD) {
@@ -380,7 +360,7 @@ func (l *fanoutLauncher) Start(ctx context.Context, req fanout.LaunchRequest) (s
 	if l.adjust != nil {
 		l.adjust(p)
 	}
-	results, err := p.svc.Start(ctx, p.plan)
+	results, err := p.Svc.Start(ctx, p.Plan)
 	if err != nil {
 		return "", err
 	}
@@ -441,7 +421,7 @@ func (l *fanoutLauncher) Tell(ctx context.Context, id, text string) error {
 }
 
 // newFanoutDriver wires the driver of the fan-out of sess.
-func newFanoutDriver(ctx context.Context, a *app.App, sess *domain.Session, log io.Writer, adjust func(*preparedRun)) (*fanout.Driver, error) {
+func newFanoutDriver(ctx context.Context, a *app.App, sess *domain.Session, log io.Writer, adjust func(*launch.Prepared)) (*fanout.Driver, error) {
 	project, err := a.Projects.Get(ctx, sess.ProjectID)
 	if err != nil {
 		return nil, err

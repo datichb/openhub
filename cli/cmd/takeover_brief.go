@@ -16,6 +16,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/launcher"
+	"github.com/datichb/openhub/cli/internal/services/launch"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
@@ -244,8 +245,9 @@ func enrichBrief(cmd *cobra.Command, a *app.App, p *domain.Project, ticketID str
 // returns the enriched brief (CLI and TUI); the workflow reads the brief
 // itself (input `brief`, from: ticket.brief).
 func runBriefEnrich(ctx context.Context, a *app.App, p *domain.Project, ticketID string, errOut io.Writer) (string, error) {
-	opts := runOptions{Workflow: "brief-enrich", Project: p, Inputs: map[string]string{"ticket": ticketID}}
-	run, err := prepareWorkflowRun(ctx, a, opts, errOut)
+	opts := launch.Options{Workflow: "brief-enrich", Project: p, Inputs: map[string]string{"ticket": ticketID}}
+	opts.Progress = launchProgress(nil, errOut)
+	run, err := launch.Prepare(ctx, launchDeps(a), opts)
 	if err != nil {
 		return "", err
 	}

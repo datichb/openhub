@@ -10,6 +10,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/services/launch"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 )
 
@@ -61,14 +62,14 @@ func TestHeadlessCheck(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := headlessCheck(&preparedRun{resolution: brief}); err != nil {
+	if err := headlessCheck(&launch.Prepared{Resolution: brief}); err != nil {
 		t.Fatalf("brief-enrich runs without interface: %v", err)
 	}
 	ticket, err := svc.Resolve(ctx, workflowsvc.Context{}, "ticket", workflowsvc.ResolveOpts{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := headlessCheck(&preparedRun{resolution: ticket}); err == nil || !strings.Contains(err.Error(), "cp-2") {
+	if err := headlessCheck(&launch.Prepared{Resolution: ticket}); err == nil || !strings.Contains(err.Error(), "cp-2") {
 		t.Fatalf("ticket waits at cp-2: %v", err)
 	}
 }

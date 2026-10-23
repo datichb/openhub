@@ -17,6 +17,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/launcher"
 	"github.com/datichb/openhub/cli/internal/runsvc"
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
+	"github.com/datichb/openhub/cli/internal/services/launch"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
 	"github.com/datichb/openhub/cli/internal/termlaunch"
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
@@ -459,7 +460,7 @@ func (t *tuiSessions) DeleteSession(ctx context.Context, sessionID string, disca
 	if err != nil {
 		return "", err
 	}
-	return deleteReportText(rep), nil
+	return launch.DeleteReportText(rep), nil
 }
 
 // Attach opens the session client off the event loop: a new terminal tab or

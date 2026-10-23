@@ -6,6 +6,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/services/launch"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
@@ -22,7 +23,7 @@ func remoteLaunchRuntime(ctx context.Context, a *app.App, project *domain.Projec
 		lr.Reason = i18n.T("tui.remote.launch.no_target")
 		return lr
 	}
-	t, err := remoteTargetFor(a, project)
+	t, err := launch.RemoteTargetFor(a.Config, project)
 	if err != nil {
 		lr.Reason = i18n.T("tui.remote.launch.no_target")
 		return lr

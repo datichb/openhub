@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"io"
 	"log/slog"
 	"strings"
 
@@ -11,19 +10,13 @@ import (
 	"github.com/datichb/openhub/cli/internal/launcher"
 	"github.com/datichb/openhub/cli/internal/prefsvc"
 	"github.com/datichb/openhub/cli/internal/runsvc"
+	"github.com/datichb/openhub/cli/internal/services/launch"
 )
 
 // Preconditions of a launch with a suggested workflow (`suggest`, piste E):
 // the user may run the suggested workflow first; with `resume: true` the
 // original launch is remembered for the session that runs first and offered
 // again when it ends (« Enchaîner avec… », end-of-session toast).
-
-// preconditionSuggestion is a failed `suggest` precondition of a launch.
-type preconditionSuggestion struct {
-	Label    string
-	Workflow string
-	Resume   bool
-}
 
 // resumeIntent is a launch to propose again after a session (stored in the
 // preferences of the project, key resumeKey(session)).
@@ -41,14 +34,14 @@ func resumeKey(sessionID string) string { return "resume:" + sessionID }
 // runSuggestedFirst starts the suggested workflow of a launch (same project,
 // runtime, location and opening) and, when s.Resume, remembers the original
 // launch for the sessions it started.
-func runSuggestedFirst(ctx context.Context, a *app.App, orig runOptions, s preconditionSuggestion, ui launcher.LaunchUI) ([]*runsvc.StartResult, error) {
-	first := runOptions{Workflow: s.Workflow, Project: orig.Project, Provider: orig.Provider, Runtime: orig.Runtime,
-		Location: orig.Location, Attach: orig.Attach, Progress: orig.Progress}
-	p, err := prepareWorkflowRun(ctx, a, first, io.Discard)
+func runSuggestedFirst(ctx context.Context, a *app.App, orig launch.Options, s launch.Suggestion, ui launcher.LaunchUI) ([]*runsvc.StartResult, error) {
+	first := launch.Options{Workflow: s.Workflow, Project: orig.Project, Provider: orig.Provider, Runtime: orig.Runtime,
+		Location: orig.Location, Attach: orig.Attach, Progress: buildLines(orig.Progress)}
+	p, err := launch.Prepare(ctx, launchDeps(a), first)
 	if err != nil {
 		return nil, err
 	}
-	results, err := p.start(ctx, a, ui)
+	results, err := startRun(ctx, a, p, ui)
 	if err != nil || !s.Resume {
 		return results, err
 	}

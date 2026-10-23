@@ -10,6 +10,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/launcher"
 	"github.com/datichb/openhub/cli/internal/runsvc"
+	"github.com/datichb/openhub/cli/internal/services/launch"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
@@ -21,8 +22,8 @@ import (
 
 // errHeadlessCheckpoints refuses a headless launch whose workflow may wait
 // for the user.
-func headlessCheck(p *preparedRun) error {
-	return headlessCheckpointsError(p.resolution.Spec, p.resolution.Mode)
+func headlessCheck(p *launch.Prepared) error {
+	return headlessCheckpointsError(p.Resolution.Spec, p.Resolution.Mode)
 }
 
 // headlessCheckpointsError explains why a workflow cannot run headless in a
@@ -47,12 +48,12 @@ func headlessCheckpointsError(spec *workflow.Spec, mode string) error {
 
 // runHeadless starts a prepared launch without client and awaits every
 // session (timeout 0 = none).
-func runHeadless(ctx context.Context, a *app.App, p *preparedRun, ui launcher.LaunchUI, timeout time.Duration) ([]*runsvc.HeadlessResult, error) {
+func runHeadless(ctx context.Context, a *app.App, p *launch.Prepared, ui launcher.LaunchUI, timeout time.Duration) ([]*runsvc.HeadlessResult, error) {
 	if err := headlessCheck(p); err != nil {
 		return nil, err
 	}
-	p.plan.Request.Base.Attach, p.plan.Request.Base.Headless = sessionspec.AttachNone, true
-	started, err := p.start(ctx, a, ui)
+	p.Plan.Request.Base.Attach, p.Plan.Request.Base.Headless = sessionspec.AttachNone, true
+	started, err := startRun(ctx, a, p, ui)
 	if err != nil {
 		return nil, err
 	}
@@ -68,7 +69,7 @@ func runHeadless(ctx context.Context, a *app.App, p *preparedRun, ui launcher.La
 		pending int
 	)
 	for _, s := range started {
-		r, err := p.svc.AwaitTurn(wctx, s.SessionID)
+		r, err := p.Svc.AwaitTurn(wctx, s.SessionID)
 		switch {
 		case errors.Is(err, runsvc.ErrDecisionPending):
 			errs = append(errs, errors.New(i18n.Tf("cmd.run.headless_decision", s.SessionID)))
@@ -79,7 +80,7 @@ func runHeadless(ctx context.Context, a *app.App, p *preparedRun, ui launcher.La
 		default:
 			out = append(out, r)
 		}
-		if serr := p.svc.StopSession(context.Background(), s.SessionID); serr != nil {
+		if serr := p.Svc.StopSession(context.Background(), s.SessionID); serr != nil {
 			errs = append(errs, serr)
 		}
 	}

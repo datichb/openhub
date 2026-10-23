@@ -20,6 +20,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/hubcontent"
 	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
+	"github.com/datichb/openhub/cli/internal/services/launch"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 )
 
@@ -135,11 +136,11 @@ func TestRunDryRunStartsNothing(t *testing.T) {
 // The prepared launch carries no claim hook and refuses to start.
 func TestRunDryRunPreparedRunCannotStart(t *testing.T) {
 	a, p := dryRunHub(t)
-	prep, err := prepareWorkflowRun(context.Background(), a, runOptions{Workflow: "libre", Project: p, Inputs: map[string]string{}, DryRun: true}, &bytes.Buffer{})
+	prep, err := launch.Prepare(context.Background(), launchDeps(a), launch.Options{Workflow: "libre", Project: p, Inputs: map[string]string{}, DryRun: true})
 	require.NoError(t, err)
-	assert.Nil(t, prep.svc.OnTicketsStarted, "no ticket claim")
-	assert.Nil(t, prep.svc.LocalShellEnv)
-	_, err = prep.start(context.Background(), a, nil)
+	assert.Nil(t, prep.Svc.OnTicketsStarted, "no ticket claim")
+	assert.Nil(t, prep.Svc.LocalShellEnv)
+	_, err = startRun(context.Background(), a, prep, nil)
 	assert.ErrorContains(t, err, "never starts a session")
 }
 

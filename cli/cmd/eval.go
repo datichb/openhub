@@ -29,6 +29,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/runsvc"
 	checkpointsvc "github.com/datichb/openhub/cli/internal/services/checkpoint"
+	"github.com/datichb/openhub/cli/internal/services/launch"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
@@ -850,32 +851,33 @@ func runEvalSession(ctx context.Context, cmd *cobra.Command, spec evalPassSpec, 
 		// R6: the fan-out of the pass, its global budget the one of the pass.
 		a.Config.Fanout = config.FanoutConfig{Experimental: true, Parallel: spec.Fanout.Parallel, BudgetUSD: spec.BudgetUSD}
 	}
-	opts := runOptions{Workflow: spec.Workflow, Project: project, Inputs: spec.Inputs, Mode: spec.Mode, Text: spec.Text, Tickets: spec.Tickets,
+	opts := launch.Options{Workflow: spec.Workflow, Project: project, Inputs: spec.Inputs, Mode: spec.Mode, Text: spec.Text, Tickets: spec.Tickets,
 		Attach: string(sessionspec.AttachNone), Location: "base", Dirty: runsvc.DirtyAllow, OneSession: true}
-	p, err := prepareWorkflowRun(ctx, a, opts, errOut)
+	opts.Progress = launchProgress(nil, errOut)
+	p, err := launch.Prepare(ctx, launchDeps(a), opts)
 	if err != nil {
 		return fmt.Errorf(i18n.T("cmd.eval.preparing_the_launch"), err)
 	}
-	p.plan.Request.Base.Attach, p.plan.Request.Base.Headless = sessionspec.AttachNone, true
+	p.Plan.Request.Base.Attach, p.Plan.Request.Base.Headless = sessionspec.AttachNone, true
 	// Hard cap at the credential proxy (input-equivalent tokens, cache
 	// included), on top of the session budget (cost, checked at each
 	// request) and of the cost watched below.
-	p.plan.Request.Base.MaxTokens = evalMaxTokens(spec.Model, spec.BudgetUSD)
-	results, err := p.svc.Start(ctx, p.plan)
+	p.Plan.Request.Base.MaxTokens = evalMaxTokens(spec.Model, spec.BudgetUSD)
+	results, err := p.Svc.Start(ctx, p.Plan)
 	if err != nil || len(results) == 0 {
 		return fmt.Errorf(i18n.T("cmd.eval.starting_the_session"), err)
 	}
 	sid := results[0].SessionID
 	res.SessionID = sid
 	fmt.Fprintln(errOut, "eval pass: session", sid)
-	defer stopEvalPass(p.svc, sid)
+	defer stopEvalPass(p.Svc, sid)
 
 	ssvc, err := newSessionService(ctx, a)
 	if err != nil {
 		return err
 	}
 	var fan *evalFanout
-	if p.plan.Request.Base.Fanout != nil {
+	if p.Plan.Request.Base.Fanout != nil {
 		fan = startEvalFanout(ctx, a, sid, spec, errOut)
 		defer fan.stop()
 	}

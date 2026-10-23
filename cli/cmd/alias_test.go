@@ -10,17 +10,18 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/adapters"
+	"github.com/datichb/openhub/cli/internal/services/launch"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 )
 
 func TestAliasReplacement(t *testing.T) {
-	al := workflowAlias{Workflow: "ticket", Opts: runOptions{Tickets: []string{"bd-1", "bd-2"},
+	al := workflowAlias{Workflow: "ticket", Opts: launch.Options{Tickets: []string{"bd-1", "bd-2"},
 		LooseInputs: map[string]string{"mode": "", "branch": "feat/x", "issue": "it's broken"}, Location: "new"}}
 	want := `oh run ticket --tickets bd-1,bd-2 -i branch=feat/x -i issue='it'\''s broken' --location new`
 	if got := aliasReplacement(al); got != want {
 		t.Fatalf("got  %s\nwant %s", got, want)
 	}
-	if got := aliasReplacement(workflowAlias{Workflow: "feature", Opts: runOptions{Text: "Export CSV"}}); got != "oh run feature -m 'Export CSV'" {
+	if got := aliasReplacement(workflowAlias{Workflow: "feature", Opts: launch.Options{Text: "Export CSV"}}); got != "oh run feature -m 'Export CSV'" {
 		t.Fatalf("aliasReplacement with a request = %q", got)
 	}
 	if got := aliasReplacement(workflowAlias{Workflow: "feature"}); got != "oh run feature" {
@@ -93,7 +94,7 @@ func TestLaunchInputsOnTestWorkflows(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	in := launchInputs(feature.Spec, runOptions{Text: "ajoute un export", LooseInputs: map[string]string{"branch": "feat/x", "refresh": "true"}})
+	in := launch.LaunchInputs(feature.Spec, launch.Options{Text: "ajoute un export", LooseInputs: map[string]string{"branch": "feat/x", "refresh": "true"}})
 	if len(in) != 1 || in["request"] != "ajoute un export" {
 		t.Fatalf("feature inputs = %v", in)
 	}
@@ -101,7 +102,7 @@ func TestLaunchInputsOnTestWorkflows(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	in = launchInputs(ticket.Spec, runOptions{Inputs: map[string]string{"branch": "explicit"}, Text: "ignored",
+	in = launch.LaunchInputs(ticket.Spec, launch.Options{Inputs: map[string]string{"branch": "explicit"}, Text: "ignored",
 		LooseInputs: map[string]string{"branch": "loose"}})
 	if len(in) != 1 || in["branch"] != "explicit" {
 		t.Fatalf("ticket inputs = %v", in)
@@ -138,24 +139,24 @@ func TestLaunchTicketsExpandsEpics(t *testing.T) {
 	}
 	src := epicSource{"pt-c3b": {"pt-c3b.1", "pt-c3b.2"}, "pt-empty": nil}
 
-	opts := runOptions{Workflow: "ticket", Tickets: []string{"pt-c3b"}}
+	opts := launch.Options{Workflow: "ticket", Tickets: []string{"pt-c3b"}}
 	in := map[string]any{}
-	input, per, err := launchTickets(ticket.Spec, &opts, in, src)
+	input, per, err := launch.LaunchTickets(ticket.Spec, &opts, in, src)
 	if err != nil || input != "ticket" || strings.Join(per, ",") != "pt-c3b.1,pt-c3b.2" || in["ticket"] != "pt-c3b.1" {
 		t.Fatalf("per session: %q %v %v %v", input, per, in, err)
 	}
-	if len(opts.epics) != 1 || opts.epics[0].Epic != "pt-c3b" {
-		t.Fatalf("epics = %+v", opts.epics)
+	if len(opts.Epics) != 1 || opts.Epics[0].Epic != "pt-c3b" {
+		t.Fatalf("epics = %+v", opts.Epics)
 	}
 
-	opts = runOptions{Workflow: "ticket", Tickets: []string{"pt-c3b"}, OneSession: true}
+	opts = launch.Options{Workflow: "ticket", Tickets: []string{"pt-c3b"}, OneSession: true}
 	in = map[string]any{}
-	if _, per, err = launchTickets(ticket.Spec, &opts, in, src); err != nil || per != nil || in["ticket"] != "pt-c3b.1,pt-c3b.2" {
+	if _, per, err = launch.LaunchTickets(ticket.Spec, &opts, in, src); err != nil || per != nil || in["ticket"] != "pt-c3b.1,pt-c3b.2" {
 		t.Fatalf("one session: %v %v %v", per, in, err)
 	}
 
-	opts = runOptions{Workflow: "ticket", Tickets: []string{"pt-empty"}}
-	if _, _, err = launchTickets(ticket.Spec, &opts, map[string]any{}, src); err == nil || !strings.Contains(err.Error(), "pt-empty") {
+	opts = launch.Options{Workflow: "ticket", Tickets: []string{"pt-empty"}}
+	if _, _, err = launch.LaunchTickets(ticket.Spec, &opts, map[string]any{}, src); err == nil || !strings.Contains(err.Error(), "pt-empty") {
 		t.Fatalf("empty epic: %v", err)
 	}
 }

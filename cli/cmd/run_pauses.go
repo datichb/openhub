@@ -7,6 +7,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/services/launch"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/workflow"
@@ -43,11 +44,11 @@ func recapPauses(wf *sessionspec.WorkflowRuntime, mode string) string {
 }
 
 // printRunPauses prints the pauses planned for the launch (oh run).
-func printRunPauses(w io.Writer, p *preparedRun) {
-	if p.bundle == nil || p.bundle.Spec.Workflow == nil {
+func printRunPauses(w io.Writer, p *launch.Prepared) {
+	if p.Bundle == nil || p.Bundle.Spec.Workflow == nil {
 		return
 	}
-	if text := recapPauses(p.bundle.Spec.Workflow, p.resolution.Mode); text != "" {
+	if text := recapPauses(p.Bundle.Spec.Workflow, p.Resolution.Mode); text != "" {
 		fmt.Fprintf(w, "  %s %s\n", theme.Subtitle.Render(i18n.T("cmd.run.recap.pauses")), text)
 	}
 }

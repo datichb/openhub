@@ -19,6 +19,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/limits"
+	"github.com/datichb/openhub/cli/internal/services/launch"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 )
@@ -110,7 +111,7 @@ func runBudgetShow(cmd *cobra.Command, _ []string) error {
 	var r limits.Resolved
 	rep := budgetReport{}
 	if project != nil {
-		r = sessionLimits(ctx, a, project, nil)
+		r = launch.SessionLimits(ctx, a.Config, a.Preferences, project, nil)
 		rep.ProjectID = project.ID
 	} else {
 		r = limits.Resolve(limits.Input{Hub: a.Config.Limits})
@@ -186,7 +187,7 @@ func runBudgetSet(cmd *cobra.Command, field, value string) error {
 	if err != nil {
 		return err
 	}
-	l := projectLimits(ctx, a, project.ID)
+	l := launch.ProjectLimits(ctx, a.Preferences, project.ID)
 	if err := l.Set(field, value); err != nil {
 		return err
 	}

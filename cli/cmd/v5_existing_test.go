@@ -11,6 +11,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/runsvc"
+	"github.com/datichb/openhub/cli/internal/services/launch"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 	"github.com/datichb/openhub/cli/internal/workflow"
@@ -32,15 +33,15 @@ func TestRunOptionsOnExistingFlags(t *testing.T) {
 	}
 }
 
-func existingRun() *preparedRun {
+func existingRun() *launch.Prepared {
 	e := runsvc.ExistingSession{ID: "ses_old", State: domain.RunIdle, WorkflowID: "ticket", Runtime: "container", LaunchPath: "/p-bd-1",
 		Shared: []string{"bd-1"}, SameWorkflow: true, Diffs: []runsvc.FieldDiff{{Field: runsvc.DiffRuntime, Existing: "container", Planned: "local"}},
 		Actions: []runsvc.OnExisting{runsvc.OnExistingResume, runsvc.OnExistingParallel}}
-	return &preparedRun{
-		project:    &domain.Project{Name: "p", Path: "/p"},
-		resolution: &workflowsvc.Resolution{Resolved: &workflow.Resolved{Spec: &workflow.Spec{ID: "ticket"}, Mode: "auto"}},
-		bundle:     &bundle.Bundle{},
-		plan: &runsvc.RunPlan{Request: runsvc.RunRequest{Workflow: runsvc.WorkflowRef{ID: "ticket"}},
+	return &launch.Prepared{
+		Project:    &domain.Project{Name: "p", Path: "/p"},
+		Resolution: &workflowsvc.Resolution{Resolved: &workflow.Resolved{Spec: &workflow.Spec{ID: "ticket"}, Mode: "auto"}},
+		Bundle:     &bundle.Bundle{},
+		Plan: &runsvc.RunPlan{Request: runsvc.RunRequest{Workflow: runsvc.WorkflowRef{ID: "ticket"}},
 			Sessions: []runsvc.PlannedSession{{PlannedInput: runsvc.PlannedInput{Label: "bd-1"}, Location: runsvc.Location{Path: "/p", Kind: runsvc.LocationBase}, Existing: "ses_old"}},
 			Existing: []runsvc.ExistingSession{e}, NeedsChoice: true},
 	}
@@ -69,13 +70,13 @@ func TestExistingChoiceWithoutTerminal(t *testing.T) {
 	}
 
 	// Another workflow: informational only.
-	p.plan.NeedsChoice = false
-	p.plan.Existing[0].SameWorkflow = false
+	p.Plan.NeedsChoice = false
+	p.Plan.Existing[0].SameWorkflow = false
 	if ok, err := resolveExistingChoice(context.Background(), &strings.Builder{}, p, false); !ok || err != nil {
 		t.Fatalf("ok=%v err=%v", ok, err)
 	}
 	// A choice given by flag goes through.
-	p.plan.NeedsChoice, p.opts.OnExisting = true, runsvc.OnExistingResume
+	p.Plan.NeedsChoice, p.Opts.OnExisting = true, runsvc.OnExistingResume
 	if ok, err := resolveExistingChoice(context.Background(), &strings.Builder{}, p, false); !ok || err != nil {
 		t.Fatalf("ok=%v err=%v", ok, err)
 	}
@@ -83,7 +84,7 @@ func TestExistingChoiceWithoutTerminal(t *testing.T) {
 
 func TestPrintExistingTableMarksDiffs(t *testing.T) {
 	var b strings.Builder
-	printExistingTable(&b, existingRun().plan)
+	printExistingTable(&b, existingRun().Plan)
 	out := b.String()
 	for _, l := range strings.Split(out, "\n") {
 		if strings.Contains(l, i18n.T("cmd.run.existing.field.runtime")) && !strings.Contains(l, "!") {
@@ -96,7 +97,7 @@ func TestPrintExistingTableMarksDiffs(t *testing.T) {
 }
 
 func TestDeleteReportText(t *testing.T) {
-	s := deleteReportText(&runsvc.DeleteReport{SessionID: "ses_x", WorktreeRemoved: "/w", BranchDeleted: "feat/x", RemoteBranch: true, Errors: []string{"branch: boom"}})
+	s := launch.DeleteReportText(&runsvc.DeleteReport{SessionID: "ses_x", WorktreeRemoved: "/w", BranchDeleted: "feat/x", RemoteBranch: true, Errors: []string{"branch: boom"}})
 	for _, want := range []string{"ses_x", "/w", "feat/x", "boom"} {
 		if !strings.Contains(s, want) {
 			t.Fatalf("%q lacks %q", s, want)
@@ -119,7 +120,7 @@ func TestTUIExistingBlock(t *testing.T) {
 			t.Fatalf("CLI hint in the TUI recap: %v", warns)
 		}
 	}
-	got := tuiExisting(p.plan)
+	got := tuiExisting(p.Plan)
 	if len(got) != 1 {
 		t.Fatalf("existing = %+v", got)
 	}
@@ -167,7 +168,7 @@ func TestDeleteSummary(t *testing.T) {
 // Another choice for the existing session plans the cached launch again
 // (no new preparation).
 func TestTUIRunCacheReplansChoice(t *testing.T) {
-	base := runOptions{Workflow: "ticket", Tickets: []string{"bd-1"}}
+	base := launch.Options{Workflow: "ticket", Tickets: []string{"bd-1"}}
 	a, b := base, base
 	b.OnExisting, b.DiscardBaseChanges = runsvc.OnExistingDelete, true
 	if !reflect.DeepEqual(withoutExistingChoice(a), withoutExistingChoice(b)) {
