@@ -206,12 +206,12 @@ func TestUntrust(t *testing.T) {
 }
 
 func TestPinServiceAndRegistration(t *testing.T) {
-	for _, s := range []string{"jira", "Gitlab", " figma", "GSLIDES"} {
+	for _, s := range []string{"jira", "Gitlab", "GSLIDES"} {
 		got, err := pinService(s)
 		require.NoError(t, err, s)
 		assert.Equal(t, strings.ToLower(strings.TrimSpace(s)), got)
 	}
-	for _, s := range []string{"team", "github", "linear", "workflow", ""} {
+	for _, s := range []string{"team", "github", "linear", "workflow", "figma", ""} {
 		_, err := pinService(s)
 		assert.Error(t, err, s)
 	}
@@ -239,12 +239,12 @@ func TestEnforcedURLNotices(t *testing.T) {
 	shared := map[string]teamstate.SharedMCPConfig{
 		"gitlab":  *urlEnforced("https://gitlab.example.com/"),
 		"jira":    *urlEnforced("https://jira.example.com"),
-		"figma":   *urlEnforced("http://figma.example.com"),
-		"gslides": {URL: "https://slides.example.com"}, // a recommendation
+		"figma":   *urlEnforced("http://figma.example.com"), // the server ignores it: no notice
+		"gslides": *urlEnforced("http://slides.example.com"),
 	}
 	notices := enforcedURLNotices(cfg, shared)
 	require.Len(t, notices, 2)
-	assert.Equal(t, "figma", notices[0].Service)
+	assert.Equal(t, "gslides", notices[0].Service)
 	assert.Equal(t, mcpresolve.PendingInvalid, notices[0].Reason)
 	assert.Equal(t, "jira", notices[1].Service)
 	assert.Equal(t, mcpresolve.PendingPinnedOther, notices[1].Reason)

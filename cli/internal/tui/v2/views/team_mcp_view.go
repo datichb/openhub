@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/mcpresolve"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
@@ -41,6 +43,13 @@ type TeamMCPViewConfig struct {
 	CheckSecret func(ctx context.Context, key string) (present bool, masked string)
 	// SetSecret stores a token value in the system keychain.
 	SetSecret func(ctx context.Context, key, value string) error
+	// TestMCP prepares the connection test of an MCP service. It runs on the
+	// event loop and takes what it needs from the shared configuration; the
+	// function it returns makes the calls to the server (off the loop) and
+	// returns what the server answered, or an error that names the server,
+	// the source and the key of the token. It returns nil for a service with
+	// no connection test.
+	TestMCP func(service string) func(ctx context.Context) (string, error)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -56,6 +65,7 @@ type TeamMCPView struct {
 	shell    ShellAccess
 	cfg      TeamMCPViewConfig
 	mountGen uint64
+	tests    loadSlot // connection tests: only the latest one is shown
 
 	teamCfg    *teamstate.TeamConfig
 	localMCP   config.MCPConfig
@@ -170,6 +180,7 @@ func (v *TeamMCPView) Mount(content *tview.Flex, app *tview.Application) {
 
 func (v *TeamMCPView) Unmount() {
 	v.mountGen++ // invalidate in-flight async goroutine
+	v.tests.Invalidate()
 	if (v.dirtyTeam || v.dirtyLocal) && v.shell != nil {
 		v.shell.ShowToastMsg(i18n.T("tui.settings.unsaved"), false)
 	}
@@ -338,30 +349,32 @@ func (v *TeamMCPView) buildFields() {
 				v.dirtyTeam = true
 			},
 		})
-		v.fields = append(v.fields, configField{
-			Key: "url", Kind: CfgFieldString, Label: i18n.T("tui.config.field.mcp_url.label"),
-			Description: i18n.T("tui.config.field.mcp_url.desc"), Scope: ScopeTeamShared, Section: svc,
-			Placeholder: i18n.T("tui.config.field.mcp_url.placeholder"),
-			Get:         func() string { return v.teamCfg.MCP[svc].URL },
-			Set: func(val string) {
-				s := v.teamCfg.MCP[svc]
-				s.URL = val
-				v.teamCfg.MCP[svc] = s
-				v.dirtyTeam = true
-			},
-		})
-		v.fields = append(v.fields, configField{
-			Key: "url_enforced", Kind: CfgFieldBool, Label: i18n.T("tui.config.field.mcp_url_enforced.label"),
-			Description: i18n.T("tui.config.field.mcp_url_enforced.desc"), Scope: ScopeTeamShared, Section: svc,
-			Get: func() string { return mcpBoolPtrToStr(v.teamCfg.MCP[svc].URLEnforced) },
-			Set: func(val string) {
-				s := v.teamCfg.MCP[svc]
-				b := val == "true"
-				s.URLEnforced = &b
-				v.teamCfg.MCP[svc] = s
-				v.dirtyTeam = true
-			},
-		})
+		if mcpresolve.ServiceHasURL(svc) {
+			v.fields = append(v.fields, configField{
+				Key: "url", Kind: CfgFieldString, Label: i18n.T("tui.config.field.mcp_url.label"),
+				Description: i18n.T("tui.config.field.mcp_url.desc"), Scope: ScopeTeamShared, Section: svc,
+				Placeholder: i18n.T("tui.config.field.mcp_url.placeholder"),
+				Get:         func() string { return v.teamCfg.MCP[svc].URL },
+				Set: func(val string) {
+					s := v.teamCfg.MCP[svc]
+					s.URL = val
+					v.teamCfg.MCP[svc] = s
+					v.dirtyTeam = true
+				},
+			})
+			v.fields = append(v.fields, configField{
+				Key: "url_enforced", Kind: CfgFieldBool, Label: i18n.T("tui.config.field.mcp_url_enforced.label"),
+				Description: i18n.T("tui.config.field.mcp_url_enforced.desc"), Scope: ScopeTeamShared, Section: svc,
+				Get: func() string { return mcpBoolPtrToStr(v.teamCfg.MCP[svc].URLEnforced) },
+				Set: func(val string) {
+					s := v.teamCfg.MCP[svc]
+					b := val == "true"
+					s.URLEnforced = &b
+					v.teamCfg.MCP[svc] = s
+					v.dirtyTeam = true
+				},
+			})
+		}
 		v.fields = append(v.fields, configField{
 			Key: "write_recommended", Kind: CfgFieldBool, Label: i18n.T("tui.config.field.mcp_write_recommended.label"),
 			Description: i18n.T("tui.config.field.mcp_write_recommended.desc"), Scope: ScopeTeamShared, Section: svc,
@@ -383,13 +396,15 @@ func (v *TeamMCPView) buildFields() {
 			Get:    v.getMCPLocalEnabled(svc),
 			Set:    v.setMCPLocalEnabled(svc),
 		})
-		v.fields = append(v.fields, configField{
-			Key: "url", Kind: CfgFieldString, Label: i18n.T("tui.config.field.mcp_url.label"),
-			Description: i18n.T("tui.config.field.mcp_url.desc"), Scope: ScopeTeamLocal, Section: svc + ".perso",
-			Locked: func() bool { return v.teamCfg.MCP[svc].IsURLEnforced() },
-			Get:    v.getMCPLocalURL(svc),
-			Set:    v.setMCPLocalURL(svc),
-		})
+		if mcpresolve.ServiceHasURL(svc) {
+			v.fields = append(v.fields, configField{
+				Key: "url", Kind: CfgFieldString, Label: i18n.T("tui.config.field.mcp_url.label"),
+				Description: i18n.T("tui.config.field.mcp_url.desc"), Scope: ScopeTeamLocal, Section: svc + ".perso",
+				Locked: func() bool { return v.teamCfg.MCP[svc].IsURLEnforced() },
+				Get:    v.getMCPLocalURL(svc),
+				Set:    v.setMCPLocalURL(svc),
+			})
+		}
 		v.fields = append(v.fields, configField{
 			Key: "token", Kind: CfgFieldPassword, Label: i18n.T("tui.config.field.mcp_token.label"),
 			Description: i18n.T("tui.config.field.mcp_token.desc"), Scope: ScopeTeamLocal, Section: svc + ".perso",
@@ -536,15 +551,38 @@ func (v *TeamMCPView) testConnection() {
 		return
 	}
 
-	// Check that we have a token configured
-	token := v.getMCPLocalToken(svc)()
-	if token == "" {
-		v.shell.ShowToastMsg(i18n.Tf("tui.team_mcp.token_missing", svc), false)
+	// The test reads the saved configuration: unsaved changes would be
+	// tested under the wrong name.
+	if v.dirtyTeam || v.dirtyLocal {
+		v.shell.ShowToastMsg(i18n.Tf("tui.team_mcp.test_unsaved", svc), false)
+		return
+	}
+	var run func(ctx context.Context) (string, error)
+	if v.cfg.TestMCP != nil {
+		run = v.cfg.TestMCP(svc)
+	}
+	if run == nil {
+		v.shell.ShowToastMsg(i18n.Tf("tui.team_mcp.test_unavailable", svc), false)
 		return
 	}
 
 	v.shell.ShowToastMsg(i18n.Tf("tui.team_mcp.testing", svc), true)
+	sh := v.shell
+	load(v.app, sh.Context(), &v.tests, func(ctx context.Context) (string, error) {
+		ctx, cancel := context.WithTimeout(ctx, mcpTestTimeout)
+		defer cancel()
+		return run(ctx)
+	}, func(detail string, err error) {
+		if err != nil {
+			sh.ShowScrollableModal(i18n.Tf("tui.team_mcp.test_failed_title", svc), tview.Escape(err.Error()), nil)
+			return
+		}
+		sh.ShowToastMsg(i18n.Tf("tui.team_mcp.test_ok", svc, detail), true)
+	})
 }
+
+// mcpTestTimeout bounds the connection test of a service.
+const mcpTestTimeout = 20 * time.Second
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Undo

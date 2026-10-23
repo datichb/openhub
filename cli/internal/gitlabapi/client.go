@@ -143,6 +143,22 @@ func (c *Client) ResolveUserID(ctx context.Context, username string) (int, error
 	return users[0].ID, nil
 }
 
+// CurrentUser returns the username the token belongs to (GET /api/v4/user): the
+// lightest call that proves the server accepts the token.
+func (c *Client) CurrentUser(ctx context.Context) (string, error) {
+	data, err := c.get(ctx, "/api/v4/user")
+	if err != nil {
+		return "", err
+	}
+	var u struct {
+		Username string `json:"username"`
+	}
+	if err := json.Unmarshal(data, &u); err != nil {
+		return "", fmt.Errorf("parsing user response: %w", err)
+	}
+	return u.Username, nil
+}
+
 // --- HTTP helpers ---
 
 func (c *Client) get(ctx context.Context, path string) ([]byte, error) {

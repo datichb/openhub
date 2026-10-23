@@ -243,9 +243,8 @@ func configureFigma(ctx context.Context, a *app.App, repo *teamstate.Repo, teamC
 		shared := teamCfg.MCP["figma"]
 		enabledRec := askYN(out, i18n.T("cmd.team_config.does_the_team_use_figma"), shared.Enabled == nil || *shared.Enabled)
 		shared.Enabled = &enabledRec
-		// URL optionnelle pour Figma (self-hosted)
-		url := askInput(out, i18n.T("cmd.team_config.figma_url_leave_empty_for_api"), shared.URL)
-		shared.URL = url
+		// No URL: the Figma server always calls api.figma.com. A URL already
+		// recorded is left as it is and ignored.
 		teamCfg.MCP["figma"] = shared
 
 		if err := repo.SaveConfig(ctx, teamCfg); err != nil {
@@ -622,21 +621,23 @@ func printMCPStatus(out interface{ Write([]byte) (int, error) },
 	}
 	fmt.Fprintf(out, "  enabled:       %s%s\n", enabledStr, insight)
 
-	// URL
-	urlSource := "défaut"
-	urlVal := eff.URL
-	if urlVal == "" {
-		urlVal = "(défaut SaaS)"
-	}
-	if local.URL != "" {
-		urlSource = "local"
-	} else if shared != nil && shared.URL != "" && eff.EnforcedURLPending == "" {
-		urlSource = "équipe"
-	}
-	fmt.Fprintf(out, "  url:           %s  %s\n", urlVal, theme.Subtitle.Render("("+urlSource+")"))
-	if eff.EnforcedURLPending != "" {
-		n := enforcedURLNotice{Service: name, URL: eff.EnforcedURLPending, Pinned: local.TrustedURL, Reason: eff.EnforcedURLReason}
-		fmt.Fprintf(out, "  %s %s\n", theme.WarningStyle.Render(theme.IconWarning), n.Message())
+	// URL (none for a service whose server has a fixed address)
+	if mcpresolve.ServiceHasURL(name) {
+		urlSource := "défaut"
+		urlVal := eff.URL
+		if urlVal == "" {
+			urlVal = "(défaut SaaS)"
+		}
+		if local.URL != "" {
+			urlSource = "local"
+		} else if shared != nil && shared.URL != "" && eff.EnforcedURLPending == "" {
+			urlSource = "équipe"
+		}
+		fmt.Fprintf(out, "  url:           %s  %s\n", urlVal, theme.Subtitle.Render("("+urlSource+")"))
+		if eff.EnforcedURLPending != "" {
+			n := enforcedURLNotice{Service: name, URL: eff.EnforcedURLPending, Pinned: local.TrustedURL, Reason: eff.EnforcedURLReason}
+			fmt.Fprintf(out, "  %s %s\n", theme.WarningStyle.Render(theme.IconWarning), n.Message())
+		}
 	}
 
 	// Token

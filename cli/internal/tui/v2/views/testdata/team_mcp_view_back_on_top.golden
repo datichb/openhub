@@ -1,0 +1,40 @@
+╔ Services MCP ════════════════════════════════════════════════════════════════════╗┌ Détail ──────────────────────────────────────────────┐
+║   ── MCP Gitlab ──                                                             ▲ ║│ Activé                                               │
+║                                                                                  ║│                                                      │
+║                                                                                  ║│ Active ce service MCP                                │
+║                                                                                  ║│                                                      │
+║   ──     Équipe (partagé) ──                                                     ║│ Valeur : non configuré                               │
+║                                                                                  ║│ Clé : gitlab · enabled                               │
+║   Activé                       non configuré                                     ║│                                                      │
+║     Active ce service MCP                                                        ║│ Touches                                              │
+║   Imposé                       non configuré                                     ║│   Space  basculer                                    │
+║     L'équipe impose ce réglage (non modifiable par les membres)                  ║│   Enter  éditer                                      │
+║   URL de l'instance            non configuré                                     ║│   t      test                                        │
+║     URL de l'instance auto-hébergée                                              ║│   w      sauvegarder                                 │
+║   URL imposée                  non configuré                                     ║│   u      annuler                                     │
+║     L'équipe impose l'URL de l'instance                                          ║│   r      rafraîchir                                  │
+║   Écriture recommandée         ✗ désactivé                                       ║│                                                      │
+║     L'équipe recommande d'activer l'accès en écriture                            ║│                                                      │
+║                                                                                  ║│                                                      │
+║                                                                                  ║│                                                      │
+║   ──     Personnel ──                                                            ║│                                                      │
+║                                                                                  ║│                                                      │
+║   Activé                       ✗ désactivé                                       ║│                                                      │
+║     Active ce service MCP                                                        ║│                                                      │
+║   URL de l'instance            non configuré                                     ║│                                                      │
+║     URL de l'instance auto-hébergée                                              ║│                                                      │
+║   Jeton d'accès                ✗ non configuré                                   ║│                                                      │
+║     Clé du trousseau pour le jeton d'authentification                            ║│                                                      │
+║   Accès en écriture            ✗ désactivé                                       ║│                                                      │
+║     Autorise MCP à créer/modifier des ressources                                 ║│                                                      │
+║                                                                                  ║│                                                      │
+║                                                                                  ║│                                                      │
+║   ── MCP Jira ──                                                                 ║│                                                      │
+║                                                                                  ║│                                                      │
+║                                                                                  ║│                                                      │
+║                                                                                  ║│                                                      │
+║   ──     Équipe (partagé) ──                                                     ║│                                                      │
+║                                                                                  ║│                                                      │
+║   Activé                       non configuré                                     ║│                                                      │
+║     Active ce service MCP                                                      ▼ ║│                                                      │
+╚══════════════════════════════════════════════════════════════════════════════════╝└──────────────────────────────────────────────────────┘

@@ -15,6 +15,8 @@ enabled = true
 token_key = "openhub.mcp.figma.token"
 ```
 
+The server always calls the official API (`https://api.figma.com`): there is no URL setting for Figma. A `url` already recorded for `figma` in `hub.toml`, in a project or in the team config is ignored, without error or warning.
+
 ## Tools
 
 | Tool | Description | Parameters |
