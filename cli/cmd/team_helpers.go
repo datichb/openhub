@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"os"
 	"strings"
 
 	"github.com/rivo/tview"
@@ -138,6 +137,7 @@ type initWizardTeamState struct {
 	Skipped     bool   // user chose not to configure team
 	Mode        string // "init", "rejoin", or "keep" (empty = not chosen yet)
 	Repo        string // team-state repo URL
+	GitLabURL   string // GitLab of the repo when its remote is an SSH alias (optional)
 	MemberID    string // member identifier
 	DisplayName string // optional display name
 	Configured  bool   // true after successful teamInitCore or teamRejoinCore
@@ -190,7 +190,13 @@ func selectedMemberGitLabUsername(state *initWizardTeamState) string {
 // team-state repository repo (the unique cascade of the team service), or ""
 // if no token serves that server.
 func gitlabTokenSource(ctx context.Context, a *app.App, teamID, repo string) string {
-	switch gitlabTeamToken(ctx, a, teamID, repo).Source {
+	return gitlabTokenSourceAt(ctx, a, teamID, repo, registeredGitLabURL(a, repo))
+}
+
+// gitlabTokenSourceAt is gitlabTokenSource for a team not in hub.toml yet,
+// with the GitLab its repository is on when the remote is an SSH alias.
+func gitlabTokenSourceAt(ctx context.Context, a *app.App, teamID, repo, gitlabURL string) string {
+	switch gitlabTeamTokenAt(ctx, a, teamID, repo, gitlabURL).Source {
 	case tracker.TokenSourceEnv:
 		return i18n.T("cmd.init.wizard_rejoin_token_source_env")
 	case tracker.TokenSourceTeam:
@@ -310,88 +316,24 @@ func buildTrackerSetupSteps(a **app.App, state *initWizardTeamState) []views.Wiz
 			},
 		},
 		// ── Step 2: Tracker token (conditional) ──
-		// Shown only when user chose "keep" and no token is available.
-		{
-			ID:    "tracker_token",
-			Label: i18n.Tf("cmd.init.wizard_tracker_token_label", ""),
-			SkipIf: func() bool {
-				if state.Skipped || !state.Configured || state.TrackerChoice != "keep" {
-					return true
+		// Shown when the user kept the tracker and no token serves its server:
+		// where the token is (key, server) and the token itself.
+		buildTrackerTokenStep(trackerTokenStep{
+			ID:        "tracker_token",
+			Label:     i18n.Tf("cmd.init.wizard_tracker_token_label", ""),
+			InfoLabel: i18n.T("cmd.init.wizard_team_info_tracker"),
+			App:       func() *app.App { return *a },
+			Ctx: func() context.Context {
+				if state.Ctx == nil {
+					return context.Background()
 				}
-				// Check if a token already exists.
-				statePath := config.TeamStatePath(state.Repo)
-				repo := teamstate.NewRepo(state.Repo, statePath)
-				teamCfg, err := repo.LoadConfig()
-				if err != nil || teamCfg.Tracker.Type == "" {
-					return true
-				}
-				tokenKey := teamCfg.Tracker.TrackerTokenKey
-				if tokenKey == "" {
-					tokenKey = "openhub.tracker." + teamCfg.Tracker.Type + ".token"
-				}
-				// Check env fallback
-				envKey := "GITLAB_TOKEN"
-				if teamCfg.Tracker.Type == "jira" {
-					envKey = "JIRA_TOKEN"
-				}
-				if os.Getenv(envKey) != "" {
-					return true
-				}
-				// Check keychain
-				if *a != nil && (*a).Secrets != nil {
-					if val, e := (*a).Secrets.Get(state.Ctx, tokenKey); e == nil && val != "" {
-						return true
-					}
-				}
-				return false
+				return state.Ctx
 			},
-			Form: func(_ *tview.Application, onDone func()) *tview.Form {
-				form := tview.NewForm()
-				// Resolve tracker type for display.
-				trackerType := ""
-				statePath := config.TeamStatePath(state.Repo)
-				repo := teamstate.NewRepo(state.Repo, statePath)
-				if teamCfg, err := repo.LoadConfig(); err == nil {
-					trackerType = teamCfg.Tracker.Type
-				}
-				form.AddTextView("",
-					i18n.Tf("cmd.init.wizard_tracker_token_missing", strings.ToUpper(trackerType)),
-					60, 2, true, false)
-				form.AddPasswordField(
-					i18n.Tf("cmd.init.wizard_tracker_token_label", strings.ToUpper(trackerType)),
-					"", 0, '*',
-					func(t string) { state.TrackerToken = t },
-				)
-				form.AddButton(i18n.T("wizard.hint.submit"), func() { onDone() })
-				return form
+			Repo: func() string { return state.Repo },
+			Keep: func() bool {
+				return !state.Skipped && state.Configured && state.TrackerChoice == "keep"
 			},
-			OnDone: func() error {
-				if state.TrackerToken != "" && *a != nil && (*a).Secrets != nil {
-					statePath := config.TeamStatePath(state.Repo)
-					repo := teamstate.NewRepo(state.Repo, statePath)
-					if teamCfg, err := repo.LoadConfig(); err == nil && teamCfg.Tracker.Type != "" {
-						tokenKey := teamCfg.Tracker.TrackerTokenKey
-						if tokenKey == "" {
-							tokenKey = "openhub.tracker." + teamCfg.Tracker.Type + ".token"
-						}
-						if err := (*a).Secrets.Set(state.Ctx, tokenKey, state.TrackerToken); err != nil {
-							return fmt.Errorf(i18n.T("cmd.team_helpers.storing_tracker_token"), err)
-						}
-					}
-				}
-				return nil
-			},
-			InfoFields: func() []views.InfoField {
-				if state.TrackerToken != "" {
-					return []views.InfoField{
-						{Label: i18n.T("cmd.init.wizard_team_info_tracker"), Value: i18n.T("cmd.init.wizard_tracker_token_stored")},
-					}
-				}
-				return []views.InfoField{
-					{Label: i18n.T("cmd.init.wizard_team_info_tracker"), Value: i18n.T("cmd.init.wizard_team_skipped")},
-				}
-			},
-		},
+		}),
 	}
 }
 
@@ -423,7 +365,7 @@ func buildInitWizardTeamSteps(a **app.App, state *initWizardTeamState) []views.W
 				if state.MemberID == "" {
 					return i18n.T("cmd.init.wizard_team_member_required")
 				}
-				return ""
+				return teamGitLabURLProblem(state.GitLabURL)
 			},
 			Form: func(_ *tview.Application, onDone func()) *tview.Form {
 				form := tview.NewForm()
@@ -439,6 +381,11 @@ func buildInitWizardTeamSteps(a **app.App, state *initWizardTeamState) []views.W
 					i18n.T("cmd.init.wizard_team_display_name"), state.DisplayName, 0, nil,
 					func(t string) { state.DisplayName = t },
 				)
+				form.AddInputField(
+					i18n.T("cmd.init.wizard_team_gitlab_url"), state.GitLabURL, 0, nil,
+					func(t string) { state.GitLabURL = strings.TrimSpace(t) },
+				)
+				form.AddTextView("", i18n.T("cmd.init.wizard_team_gitlab_hint_short"), 60, 2, true, false)
 				form.AddButton(i18n.T("wizard.hint.submit"), func() { onDone() })
 				return form
 			},
@@ -467,6 +414,7 @@ func buildInitWizardTeamSteps(a **app.App, state *initWizardTeamState) []views.W
 					MemberID:    state.MemberID,
 					DisplayName: displayName,
 					Role:        "dev",
+					GitLabURL:   state.GitLabURL,
 				})
 				if err != nil {
 					return err
@@ -630,7 +578,7 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 				if strings.TrimSpace(state.Repo) == "" {
 					return i18n.T("cmd.init.wizard_team_repo_required")
 				}
-				return ""
+				return teamGitLabURLProblem(state.GitLabURL)
 			},
 			Form: func(_ *tview.Application, onDone func()) *tview.Form {
 				form := tview.NewForm()
@@ -638,6 +586,11 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 					i18n.T("cmd.init.wizard_team_repo"), state.Repo, 0, nil,
 					func(t string) { state.Repo = t },
 				)
+				form.AddInputField(
+					i18n.T("cmd.init.wizard_team_gitlab_url"), state.GitLabURL, 0, nil,
+					func(t string) { state.GitLabURL = strings.TrimSpace(t) },
+				)
+				form.AddTextView("", i18n.T("cmd.init.wizard_team_gitlab_hint_short"), 60, 2, true, false)
 				form.AddButton(i18n.T("wizard.hint.submit"), func() { onDone() })
 				return form
 			},
@@ -845,7 +798,7 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 		},
 		Form: func(_ *tview.Application, onDone func()) *tview.Form {
 			teamID := config.RepoNameFromRemote(state.Repo)
-			source := gitlabTokenSource(state.Ctx, *a, teamID, state.Repo)
+			source := gitlabTokenSourceAt(state.Ctx, *a, teamID, state.Repo, state.GitLabURL)
 
 			// Build dropdown options: placeholder + [reuse if available] + new + skip
 			options := []string{i18n.T("cmd.init.wizard_select_placeholder")}
@@ -917,6 +870,7 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 			result, err := teamRejoinCore(state.Ctx, *a, teamRejoinParams{
 				StateRepo: state.Repo,
 				MemberID:  state.MemberID,
+				GitLabURL: state.GitLabURL,
 			})
 			if err != nil {
 				return err

@@ -105,6 +105,7 @@ func init() {
 	teamRejoinCmd.Flags().String("repo", "", i18n.T("cmd.team.rejoin.flags.repo"))
 	teamRejoinCmd.Flags().String("member-id", "", i18n.T("cmd.team.rejoin.flags.member_id"))
 	teamRejoinCmd.Flags().Bool("no-retro-tag", false, i18n.T("cmd.team.rejoin.flags.no_retro_tag"))
+	teamRejoinCmd.Flags().String("gitlab-url", "", i18n.T("cmd.team.rejoin.flags.gitlab_url"))
 }
 
 func runTeamInit(cmd *cobra.Command, args []string) error {
@@ -743,7 +744,7 @@ func ensureTeamRepoForProject(ctx context.Context, a *app.App, project *domain.P
 // format (Service.SaveTeam): it changes the team on hub.toml as it is with
 // config.Update, then brings the in-memory Config up to date.
 func writeTeamConfig(stateRepo, statePath, memberID string) error {
-	return teamService(MustApp()).SaveTeam(stateRepo, statePath, memberID)
+	return teamService(MustApp()).SaveTeam(stateRepo, statePath, memberID, "")
 }
 
 func eventIcon(eventType string) string {
@@ -949,6 +950,10 @@ func runTeamRejoin(cmd *cobra.Command, _ []string) error {
 	repoURL, _ := cmd.Flags().GetString("repo")
 	memberID, _ := cmd.Flags().GetString("member-id")
 	noRetroTag, _ := cmd.Flags().GetBool("no-retro-tag")
+	gitlabURL, _ := cmd.Flags().GetString("gitlab-url")
+	if msg := teamGitLabURLProblem(gitlabURL); msg != "" {
+		return errors.New(msg)
+	}
 
 	// ── Step 1: Repo URL ──
 	if repoURL == "" {
@@ -1014,7 +1019,7 @@ func runTeamRejoin(cmd *cobra.Command, _ []string) error {
 	}
 	if selectedMember != nil && selectedMember.GitLabUsername != "" {
 		teamID := config.RepoNameFromRemote(repoURL)
-		source := gitlabTokenSource(ctx, a, teamID, repoURL)
+		source := gitlabTokenSourceAt(ctx, a, teamID, repoURL, gitlabURL)
 
 		fmt.Fprintln(a.IO.Out)
 		if source != "" {
@@ -1078,6 +1083,7 @@ func runTeamRejoin(cmd *cobra.Command, _ []string) error {
 	result, err := teamRejoinCore(ctx, a, teamRejoinParams{
 		StateRepo: repoURL,
 		MemberID:  memberID,
+		GitLabURL: gitlabURL,
 	})
 	if err != nil {
 		return err

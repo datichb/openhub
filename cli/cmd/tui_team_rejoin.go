@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
 	"github.com/rivo/tview"
 
+	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/safego"
@@ -35,6 +35,7 @@ func actionTeamRejoin() {
 	// ── Shared state (captured by step closures) ────────────────────
 	var (
 		stateRepo        string
+		gitlabURL        string // GitLab of the repository when its remote is an SSH alias
 		statePath        string
 		members          []teamstate.Member
 		memberID         string
@@ -55,7 +56,7 @@ func actionTeamRejoin() {
 			if strings.TrimSpace(stateRepo) == "" {
 				return i18n.T("cmd.team.init.validate.repo_required")
 			}
-			return ""
+			return teamGitLabURLProblem(gitlabURL)
 		},
 		Form: func(_ *tview.Application, onDone func()) *tview.Form {
 			form := tview.NewForm()
@@ -63,6 +64,11 @@ func actionTeamRejoin() {
 				i18n.T("cmd.team.init.repo_url_title"),
 				stateRepo, 0, nil,
 				func(text string) { stateRepo = text })
+			form.AddInputField(
+				i18n.T("cmd.init.wizard_team_gitlab_url"),
+				gitlabURL, 0, nil,
+				func(text string) { gitlabURL = strings.TrimSpace(text) })
+			form.AddTextView("", i18n.T("cmd.init.wizard_team_gitlab_hint_short"), 60, 2, true, false)
 			form.AddButton(i18n.T("tui.team.rejoin.next"), func() { onDone() })
 			return form
 		},
@@ -172,7 +178,7 @@ func actionTeamRejoin() {
 		},
 		Form: func(_ *tview.Application, onDone func()) *tview.Form {
 			teamID := config.RepoNameFromRemote(stateRepo)
-			source := gitlabTokenSource(ctx, a, teamID, stateRepo)
+			source := gitlabTokenSourceAt(ctx, a, teamID, stateRepo, gitlabURL)
 
 			options := []string{i18n.T("cmd.init.wizard_select_placeholder")}
 			optionKeys := []string{"placeholder"}
@@ -240,6 +246,7 @@ func actionTeamRejoin() {
 				StateRepo: stateRepo,
 				StatePath: statePath,
 				MemberID:  memberID,
+				GitLabURL: gitlabURL,
 			})
 			if err != nil {
 				return err
@@ -380,7 +387,6 @@ func actionTeamRejoin() {
 	// ── Step 3: Tracker setup (conditional) ─────────────────────────
 	var launchDiscoveryAfterRejoin bool
 	var tuiTrackerChoice string
-	var tuiTrackerToken string
 	trackerStepRejoin := views.WizardStep{
 		ID:    "rejoin_tracker_setup",
 		Label: i18n.T("cmd.init.wizard_step_tracker_setup"),
@@ -466,93 +472,17 @@ func actionTeamRejoin() {
 		},
 	}
 
-	// ── Step 3b: Tracker token (conditional on "keep" + missing token) ──
-	trackerTokenStepRejoin := views.WizardStep{
-		ID:    "rejoin_tracker_token",
-		Label: i18n.Tf("cmd.init.wizard_tracker_token_label", ""),
-		SkipIf: func() bool {
-			if stateRepo == "" || tuiTrackerChoice != "keep" {
-				return true
-			}
-			sp := statePath
-			if sp == "" {
-				sp = config.TeamStatePath(stateRepo)
-			}
-			repo := teamstate.NewRepo(stateRepo, sp)
-			teamCfg, err := repo.LoadConfig()
-			if err != nil || teamCfg.Tracker.Type == "" {
-				return true
-			}
-			tokenKey := teamCfg.Tracker.TrackerTokenKey
-			if tokenKey == "" {
-				tokenKey = "openhub.tracker." + teamCfg.Tracker.Type + ".token"
-			}
-			envKey := "GITLAB_TOKEN"
-			if teamCfg.Tracker.Type == "jira" {
-				envKey = "JIRA_TOKEN"
-			}
-			if os.Getenv(envKey) != "" {
-				return true
-			}
-			if a.Secrets != nil {
-				if val, e := a.Secrets.Get(ctx, tokenKey); e == nil && val != "" {
-					return true
-				}
-			}
-			return false
-		},
-		Form: func(_ *tview.Application, onDone func()) *tview.Form {
-			form := tview.NewForm()
-			trackerType := ""
-			sp := statePath
-			if sp == "" {
-				sp = config.TeamStatePath(stateRepo)
-			}
-			repo := teamstate.NewRepo(stateRepo, sp)
-			if teamCfg, err := repo.LoadConfig(); err == nil {
-				trackerType = teamCfg.Tracker.Type
-			}
-			form.AddTextView("",
-				i18n.Tf("cmd.init.wizard_tracker_token_missing", strings.ToUpper(trackerType)),
-				60, 2, true, false)
-			form.AddPasswordField(
-				i18n.Tf("cmd.init.wizard_tracker_token_label", strings.ToUpper(trackerType)),
-				"", 0, '*',
-				func(t string) { tuiTrackerToken = t },
-			)
-			form.AddButton(i18n.T("wizard.hint.submit"), func() { onDone() })
-			return form
-		},
-		OnDone: func() error {
-			if tuiTrackerToken != "" && a.Secrets != nil {
-				sp := statePath
-				if sp == "" {
-					sp = config.TeamStatePath(stateRepo)
-				}
-				repo := teamstate.NewRepo(stateRepo, sp)
-				if teamCfg, err := repo.LoadConfig(); err == nil && teamCfg.Tracker.Type != "" {
-					tokenKey := teamCfg.Tracker.TrackerTokenKey
-					if tokenKey == "" {
-						tokenKey = "openhub.tracker." + teamCfg.Tracker.Type + ".token"
-					}
-					if err := a.Secrets.Set(ctx, tokenKey, tuiTrackerToken); err != nil {
-						return fmt.Errorf(i18n.T("cmd.tui_team_rejoin.storing_tracker_token"), err)
-					}
-				}
-			}
-			return nil
-		},
-		InfoFields: func() []views.InfoField {
-			if tuiTrackerToken != "" {
-				return []views.InfoField{
-					{Label: i18n.T("cmd.tui_team_rejoin.tracker_token"), Value: i18n.T("cmd.init.wizard_tracker_token_stored")},
-				}
-			}
-			return []views.InfoField{
-				{Label: i18n.T("cmd.tui_team_rejoin.tracker_token"), Value: i18n.T("cmd.init.wizard_team_skipped")},
-			}
-		},
-	}
+	// ── Step 3b: Tracker token (conditional on "keep" + no token for the server) ──
+	trackerTokenStepRejoin := buildTrackerTokenStep(trackerTokenStep{
+		ID:        "rejoin_tracker_token",
+		Label:     i18n.Tf("cmd.init.wizard_tracker_token_label", ""),
+		InfoLabel: i18n.T("cmd.tui_team_rejoin.tracker_token"),
+		App:       func() *app.App { return a },
+		Ctx:       func() context.Context { return ctx },
+		Repo:      func() string { return stateRepo },
+		StatePath: func() string { return statePath },
+		Keep:      func() bool { return stateRepo != "" && tuiTrackerChoice == "keep" },
+	})
 
 	steps = []views.WizardStep{
 		repoStep,
