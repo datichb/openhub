@@ -475,7 +475,7 @@ func (v *validator) agents() {
 			v.enum(base+".role", string(a.Role), a.Role.Valid(), "workflow", "independent", "disabled")
 		}
 		if a.Mode != "" {
-			v.enum(base+".mode", string(a.Mode), a.Mode.Valid(), "primary", "subagent")
+			v.enum(base+".mode", string(a.Mode), a.Mode.Valid(), "primary", "subagent", "all")
 		}
 		if v.env.Agents != nil {
 			if _, ok := v.env.Agents.Agent(k); !ok {
@@ -507,6 +507,7 @@ func (v *validator) agents() {
 	if cycle := findCycle(members, graph); cycle != nil {
 		v.err("graph_cycle", v.callsPath(cycle[0]), strings.Join(cycle, " → "))
 	}
+	v.calledPrimary(graph)
 	if !graphKnown(s, v.env.Agents) {
 		return
 	}
@@ -514,6 +515,22 @@ func (v *validator) agents() {
 	for _, k := range s.Agents.Keys() {
 		if a, _ := s.Agents.Get(k); a.Role == RoleWorkflow && !reach[k] {
 			v.err("agent_unreachable", "agents."+k, k, s.EntryAgent())
+		}
+	}
+}
+
+// calledPrimary reports a delegation to an agent that the workflow declares
+// `mode: primary`: the tool refuses to launch a primary agent through task.
+// A primary agent of the catalogue that is called is not reported: the bundle
+// ships it as `all`.
+func (v *validator) calledPrimary(graph map[string][]string) {
+	reported := map[string]bool{}
+	for _, caller := range v.s.Members() {
+		for _, target := range graph[caller] {
+			if ref, ok := v.s.Agents.Get(target); ok && ref.Mode == ModePrimary && !reported[target] {
+				reported[target] = true
+				v.err("calls_target_primary", "agents."+target+".mode", target, caller)
+			}
 		}
 	}
 }

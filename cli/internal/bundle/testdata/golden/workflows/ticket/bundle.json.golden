@@ -1157,7 +1157,7 @@
     },
     {
       "id": "documentarian",
-      "mode": "primary",
+      "mode": "all",
       "model": "/claude-sonnet-4-6",
       "permissions": [
         "shell * deny",

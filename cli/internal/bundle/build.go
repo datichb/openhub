@@ -405,8 +405,8 @@ func Build(req Request) (*Bundle, error) {
 	}
 	spec.Skills = skills
 
-	applyWorkflowModes(spec.Agents, req.Spec)
 	spec.SubagentGraph = bundleGraph(graph, selected)
+	applyWorkflowModes(spec.Agents, req.Spec, spec.SubagentGraph)
 	spec.MaxDepth = workflow.MaxDepth(req.EntryAgent, spec.SubagentGraph)
 	if def := findAgent(spec.Agents, req.EntryAgent); def != nil && def.Model != nil {
 		m := *def.Model

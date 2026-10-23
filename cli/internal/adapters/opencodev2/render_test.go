@@ -323,3 +323,25 @@ func TestBundleReadOnlyForAgents(t *testing.T) {
 	assert.Equal(t, sessionspec.EffectDeny, bundle.ToolEffect(rules, sessionspec.ActionEdit, "/oh/bundles/h/agents/a.md"))
 	assert.Equal(t, sessionspec.EffectAllow, bundle.ToolEffect(rules, sessionspec.ActionEdit, "src/a.go"))
 }
+
+// opencode 2.x reads `mode` as subagent | primary | all (Config.Agent) and
+// only refuses to launch a `primary` agent through task: `all` (a primary
+// agent that a workflow agent may call, reviewer → reviewer) is rendered as
+// written.
+func TestRenderAgentModeAll(t *testing.T) {
+	b := sampleBundle()
+	b.Agents = append(b.Agents, sessionspec.AgentDef{ID: "reviewer-all", Description: "Reviews", Mode: "all", Body: "You are reviewer."})
+	cfg, err := BuildConfig(b, sampleProvider(), DefaultNatives)
+	require.NoError(t, err)
+	raw, err := json.Marshal(cfg)
+	require.NoError(t, err)
+	var c struct {
+		Agents map[string]struct {
+			Mode string `json:"mode"`
+		} `json:"agents"`
+	}
+	require.NoError(t, json.Unmarshal(raw, &c))
+	assert.Equal(t, "all", c.Agents["reviewer-all"].Mode)
+	assert.Equal(t, "primary", c.Agents["orchestrator-dev"].Mode)
+	assert.Equal(t, "subagent", c.Agents["developer"].Mode)
+}

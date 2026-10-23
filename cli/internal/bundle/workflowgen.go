@@ -261,15 +261,14 @@ func buildMapData(spec *workflow.Spec, graph map[string][]string, modeOf func(st
 	for _, id := range spec.Members() {
 		ref, listed := spec.Agents.Get(id)
 		row := agentRow{ID: id, Role: workflow.RoleWorkflow, Entry: id == d.Entry, Calls: graph[id]}
+		var base workflow.AgentMode
+		if modeOf != nil {
+			base = modeOf(id)
+		}
 		if listed {
-			row.Role, row.After, row.Mode = ref.Role, ref.After, ref.Mode
+			row.Role, row.After = ref.Role, ref.After
 		}
-		if row.Mode == "" && modeOf != nil {
-			row.Mode = modeOf(id)
-		}
-		if row.Mode == "" {
-			row.Mode = workflow.ModePrimary
-		}
+		row.Mode = spec.ResolveMode(id, base, graph)
 		d.Agents = append(d.Agents, row)
 	}
 	for _, id := range spec.Checkpoints.Keys() {

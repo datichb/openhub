@@ -35,6 +35,10 @@ type AgentMode string
 const (
 	ModePrimary  AgentMode = "primary"  // user can invoke directly
 	ModeSubagent AgentMode = "subagent" // invocable only via task
+	// ModeAll can be invoked directly and launched through task. A primary
+	// agent that a workflow agent may call (itself included) is shipped as
+	// "all": the tool refuses to launch a primary agent as a subagent.
+	ModeAll AgentMode = "all"
 )
 
 // OverrideAction describes what an override does to a checkpoint.
