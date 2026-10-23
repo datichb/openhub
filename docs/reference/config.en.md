@@ -80,7 +80,7 @@ instruction_files = []             # project files added to the agent instructio
 [tracker]                          # local overrides of the team tracker sync
 # enabled = false                  # uncomment to disable sync locally
 # tracker_token_key = "my.token"   # keychain key of the tracker token
-# tracker_token_url = "https://gitlab.example.com"  # server of that key (required for it to be used)
+# tracker_token_url = "https://gitlab.example.com"  # server of that key (default: the tracker)
 # push_labels = false              # uncomment to disable label push
 
 [websearch]
@@ -594,7 +594,7 @@ write_enabled = false        # tracker writes (labels, assignment)
 | `type` | string | — | `"gitlab"` or `"jira"` (`type_enforced` to enforce it) |
 | `tracker_url` | string | empty | Tracker instance, independent from the MCP |
 | `tracker_token_key` | string | `openhub.tracker.<type>.token` | Keychain key of the token (otherwise the token of the team or of the MCP, for their own server) |
-| `tracker_token_url` | string | empty | Server the token of `tracker_token_key` (and of the former tracker key) is valid for, e.g. `https://gitlab.example.com`. Without it the key is never sent to any server (see [the server of each token](#the-server-of-each-gitlab-token)) |
+| `tracker_token_url` | string | empty | Server the token of `tracker_token_key` (and of the former tracker key) is valid for, e.g. `https://gitlab.example.com`. Without it the key is valid for the tracker (see [the server of each token](#the-server-of-each-gitlab-token)) |
 | `tracker_project` | string | empty | Default tracker project (overridable per project) |
 | `ticket_pattern` | string | empty | Regex with **one capture group** extracting the IID |
 | `auto_sync` | bool | `false` | Sync when opening team views |
@@ -620,19 +620,18 @@ write_enabled = false        # tracker writes (labels, assignment)
 
 A GitLab token is only sent to the server it was issued for. When the team repository and the tracker are on two different GitLab instances, the token of one is never shown to the other. Every token source is therefore tied to a server, and the lookup order (see [`oh team sync-tracker`](cli-team.en.md#oh-team-sync-tracker)) only keeps a source whose server is the one being called:
 
-| Source | Key | Server of the source | Where to declare it |
-|--------|-----|----------------------|---------------------|
-| Environment variable | `GITLAB_TOKEN` | `OH_GITLAB_URL`, otherwise `GITLAB_URL` | `export OH_GITLAB_URL=https://gitlab.example.com` |
-| `tracker_token_key` | the key you set | `tracker_token_url` at the same level as the key | `[tracker] tracker_token_url` of `hub.toml` or of the team config; `oh config set tracker.tracker_token_url <url>` |
-| Former tracker key | `openhub.tracker.gitlab.token` | `tracker_token_url` | same |
-| Project token, hub MCP token | `openhub.mcp.gitlab.token.<project>`, key of `[mcp.gitlab] token_key`, `openhub.mcp.gitlab.token` | the URL of the GitLab MCP (project, `[mcp.gitlab] url`, otherwise the URL recommended by the team) | `oh config set mcp.gitlab.url <url>` |
+| Source | Key | Server of the source | To change it |
+|--------|-----|----------------------|--------------|
+| Environment variable | `GITLAB_TOKEN` | **must be declared**: `OH_GITLAB_URL`, otherwise `GITLAB_URL` | `export OH_GITLAB_URL=https://gitlab.example.com` |
+| `tracker_token_key` and former tracker key | the key you set, `openhub.tracker.gitlab.token` | `tracker_token_url` when declared; otherwise (**implicit**) the tracker: the `tracker_url` of the level that sets the key, else the effective `tracker_url` (then `GITLAB_URL`, then gitlab.com) | `[tracker] tracker_token_url` of `hub.toml` or of the team config; `oh config set tracker.tracker_token_url <url>` |
+| Project token, hub MCP token | `openhub.mcp.gitlab.token.<project>`, key of `[mcp.gitlab] token_key`, `openhub.mcp.gitlab.token` | the URL of the GitLab MCP (project, `[mcp.gitlab] url`, otherwise the URL recommended by the team); with no URL (**implicit**) `https://gitlab.com`, where the GitLab MCP server goes then | `oh config set mcp.gitlab.url <url>` |
 | Team token | `openhub.team.<team>.gitlab.token` | the host of the team repository (`state_repo`) | nothing to declare |
 
-**Rule (strict).** A source whose server is not declared is never used. Servers are compared ignoring case, scheme (`https://h`, `http://h` and `h` are the same server), a default port (`80`, `443`), a trailing `/`, the path and the user; a non-standard port counts (`h:8443` ≠ `h`). For an `ssh://` or `git@host:path` repository only the host counts (the port is git's, not the API's). Two GitLab instances on one host that differ only by a path prefix are therefore the same server.
+**Rule.** A source whose server is neither declared nor implicit is never used: only a lone `GITLAB_TOKEN` is strict (it needs `OH_GITLAB_URL` or `GITLAB_URL`). A declared server beats the implicit one. The implicit server of the tracker key only serves the tracker: a key set next to a `tracker_url` does not answer for another server (nor for the GitLab of the MCP). Servers are compared ignoring case, scheme (`https://h`, `http://h` and `h` are the same server), a default port (`80`, `443`), a trailing `/`, the path and the user; a non-standard port counts (`h:8443` ≠ `h`). For an `ssh://` or `git@host:path` repository only the host counts (the port is git's, not the API's). Two GitLab instances on one host that differ only by a path prefix are therefore the same server.
 
-`tracker_token_url` is set together with the key (`tracker_token_key`): a `tracker_token_key` in `hub.toml` does not inherit the server declared next to the team's one. With no token for the server being called, the command stops with the server, the sources read (key, empty / declared for another server / server not declared), how to declare the key and the command to run; an authentication error (HTTP 401 or 403) names the source of the token, its key and the server.
+`tracker_token_url` is set together with the key (`tracker_token_key`): a `tracker_token_key` in `hub.toml` does not inherit the server declared next to the team's one. With no token for the server being called, the command stops with the server, the sources read (key, empty / for another server / server not declared, flagged "implicit" when the server is the tracker's or gitlab.com), how to declare the key and the command to run; an authentication error (HTTP 401 or 403) names the source of the token, its key and the server.
 
-> **Migration (v5.1).** A setup that worked because a token with no server happened to be sent to the right server must now declare it: `oh config set tracker.tracker_token_url https://…` for the tracker key, `oh config set mcp.gitlab.url https://…` for the MCP token, `export OH_GITLAB_URL=https://…` (or `GITLAB_URL`) for `GITLAB_TOKEN`. The `oh team config` assistant declares the server of the tracker key itself.
+> **Migration (v5.1).** Only a lone `GITLAB_TOKEN` needs a declaration: add `export OH_GITLAB_URL=https://…` (or `GITLAB_URL`). Tracker keys and MCP tokens keep working for their implicit server; declare `tracker_token_url` or `mcp.gitlab.url` only if their server is another one.
 
 ### `[board]` section
 

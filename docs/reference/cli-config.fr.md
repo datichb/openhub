@@ -73,7 +73,7 @@ oh config set <key> <value>
 | Fan-out | `fanout.experimental` (fan-out expérimental, `false` par défaut), `fanout.parallel` (1 à 3), `fanout.budget_usd` (budget global, dollars) |
 | Distant | `remote.experimental` (mode distant expérimental, `false` par défaut), `remote.projects.<id-projet>` (nom d'une cible existante), `remote.targets.<cible>.tag`, `.builder` (`kaniko`, `dind`), `.arch` (`amd64`, `arm64`), `.timeout` (durée GitLab : `3h`, `1h 30m`) ; les cibles se créent avec `oh remote setup` |
 
-Les valeurs par défaut (`auto`, `on`) sont enregistrées vides. `[[teams]]` se règle avec `oh team …`.
+Les valeurs par défaut (`auto`, `on`) sont enregistrées vides. `[[teams]]` se règle avec `oh team …`. `tracker.tracker_token_url` (une URL) est le serveur de `tracker.tracker_token_key` ; vide, la clé est valable pour le tracker. `mcp.gitlab.url` est le serveur des jetons MCP ; vide, `https://gitlab.com` (voir [le serveur de chaque jeton GitLab](config.fr.md#le-serveur-de-chaque-jeton-gitlab)).
 
 **Exemple :**
 
