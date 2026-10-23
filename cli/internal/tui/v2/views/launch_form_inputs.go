@@ -1,6 +1,7 @@
 package views
 
 import (
+	"context"
 	"strings"
 	"sync"
 	"time"
@@ -26,8 +27,11 @@ const inputCheckDelay = 300 * time.Millisecond
 type inputNotes struct {
 	notes map[string]*formNote
 	// previews are the values computed by oh (FromPreview), loaded once.
-	previews  map[string]string
-	previewed bool
+	previews     map[string]string
+	previewed    bool
+	previewLoads loadSlot
+	// checkLoads number the reads of CheckInput, per input.
+	checkLoads map[string]*loadSlot
 	// checks are the results of CheckInput, per input; gen the last check
 	// asked per input.
 	checks map[string]*inputCheck
@@ -47,6 +51,17 @@ func (n *inputNotes) nextGen(k string) (current func() bool) {
 		defer n.mu.Unlock()
 		return n.gen[k] == g
 	}
+}
+
+// checkSlot is the slot of the reads of input k (event loop only).
+func (n *inputNotes) checkSlot(k string) *loadSlot {
+	if n.checkLoads == nil {
+		n.checkLoads = map[string]*loadSlot{}
+	}
+	if n.checkLoads[k] == nil {
+		n.checkLoads[k] = &loadSlot{}
+	}
+	return n.checkLoads[k]
 }
 
 type inputCheck struct{ value, warning string }
@@ -100,9 +115,9 @@ func (v *LaunchFormView) noteText(k string) string {
 	in, _ := m.spec.Inputs.Get(k)
 	var lines []string
 	if e := m.typeError(k); e != "" {
-		lines = append(lines, "["+theme.ErrorHex+"]✗ "+tview.Escape(e)+"[-]")
+		lines = append(lines, theme.Paint(theme.ErrorHex, theme.SymFailure+" "+tview.Escape(e)))
 	} else if c := v.inputs.checks[k]; c != nil && c.warning != "" && c.value == strings.TrimSpace(m.values[k]) {
-		lines = append(lines, "["+theme.WarningHex+"]⚠ "+tview.Escape(c.warning)+"[-]")
+		lines = append(lines, theme.Paint(theme.WarningHex, theme.SymWarning+" "+tview.Escape(c.warning)))
 	}
 	if in.From != "" && !m.given(k) {
 		what, ok := v.inputs.previews[k]
@@ -112,10 +127,10 @@ func (v *LaunchFormView) noteText(k string) string {
 				what += " …"
 			}
 		}
-		lines = append(lines, "["+theme.InfoHex+"]⚙ "+tview.Escape(i18n.Tf("tui.launch.input.from", what))+"[-]")
+		lines = append(lines, theme.Paint(theme.InfoHex, "⚙ "+tview.Escape(i18n.Tf("tui.launch.input.from", what))))
 	}
 	if note := v.cfg.InputNotes[k]; note != "" {
-		lines = append(lines, "["+theme.WarningHex+"]"+tview.Escape(note)+"[-]")
+		lines = append(lines, theme.Paint(theme.WarningHex, tview.Escape(note)))
 	}
 	help := in.Help.Text(m.lang)
 	if in.Type == workflow.InputEnum && len(in.Values) > 1 {
@@ -127,7 +142,7 @@ func (v *LaunchFormView) noteText(k string) string {
 		}
 	}
 	if help != "" {
-		lines = append(lines, "["+theme.TextMutedHex+"]"+tview.Escape(help)+"[-]")
+		lines = append(lines, muted(tview.Escape(help)))
 	}
 	return strings.Join(lines, "\n")
 }
@@ -163,28 +178,30 @@ func (v *LaunchFormView) loadFromPreviews() {
 		return
 	}
 	v.inputs.previewed = true
-	app, ctx := v.app, v.ctx
 	values := make(map[string]string, len(v.m.values))
 	for k, val := range v.m.values {
 		values[k] = val
 	}
-	go func() {
+	load(v.app, v.ctx, &v.inputs.previewLoads, func(ctx context.Context) (map[string]string, error) {
 		out := map[string]string{}
 		for _, k := range ks {
-			if ctx.Err() != nil {
-				return
+			if err := ctx.Err(); err != nil {
+				return nil, err
 			}
 			out[k] = v.cfg.FromPreview(ctx, k, values)
 		}
-		app.QueueUpdateDraw(func() {
-			for k, text := range out {
-				if text != "" {
-					v.inputs.previews[k] = text
-				}
-				v.refreshNote(k)
+		return out, nil
+	}, func(out map[string]string, err error) {
+		if err != nil {
+			return
+		}
+		for k, text := range out {
+			if text != "" {
+				v.inputs.previews[k] = text
 			}
-		})
-	}()
+			v.refreshNote(k)
+		}
+	})
 }
 
 // checkInput checks the path or branch of input k off the event loop, once
@@ -197,24 +214,29 @@ func (v *LaunchFormView) checkInput(k string) {
 	value := strings.TrimSpace(v.m.values[k])
 	current, app, ctx := v.inputs.nextGen(k), v.app, v.ctx
 	if value == "" {
+		v.inputs.checkSlot(k).Invalidate()
 		v.inputs.checks[k] = &inputCheck{}
 		v.refreshNote(k)
 		return
 	}
+	slot := v.inputs.checkSlot(k)
 	time.AfterFunc(inputCheckDelay, func() {
 		if ctx.Err() != nil || !current() {
 			return
 		}
-		w := v.cfg.CheckInput(ctx, in, value)
-		if ctx.Err() != nil {
-			return
-		}
-		app.QueueUpdateDraw(func() {
+		app.QueueUpdate(func() { // the typing paused: read the input, on the loop
 			if !current() {
 				return
 			}
-			v.inputs.checks[k] = &inputCheck{value: value, warning: w}
-			v.refreshNote(k)
+			load(app, ctx, slot, func(ctx context.Context) (string, error) {
+				return v.cfg.CheckInput(ctx, in, value), nil
+			}, func(w string, _ error) {
+				if !current() {
+					return
+				}
+				v.inputs.checks[k] = &inputCheck{value: value, warning: w}
+				v.refreshNote(k)
+			})
 		})
 	})
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
 // « Démarrer » section of the landings (P1-T20, 10 §1–§3): pinned workflows,
@@ -104,13 +105,13 @@ func startSection(cfg StartSectionConfig, scope StartScope, collapsed bool, pick
 	}
 	header = i18n.T("tui.start.section")
 	if e.Default != nil {
-		items = append(items, entry("◆", *e.Default, i18n.T("tui.pc.exec.workflow.badge")+" · "+describe(*e.Default)))
+		items = append(items, entry(theme.SymCurrent, *e.Default, i18n.T("tui.pc.exec.workflow.badge")+" · "+describe(*e.Default)))
 	}
 	for _, en := range e.Pinned {
-		items = append(items, entry("★", en, describe(en)))
+		items = append(items, entry(theme.SymDefault, en, describe(en)))
 	}
 	for _, en := range e.Suggestions {
-		items = append(items, entry("▸", en, describe(en)))
+		items = append(items, entry(theme.SymCursor, en, describe(en)))
 	}
 	if len(e.Recents) > 0 {
 		items = append(items, startItem{Icon: "·", Label: i18n.T("tui.start.recents")})
@@ -125,7 +126,7 @@ func startSection(cfg StartSectionConfig, scope StartScope, collapsed bool, pick
 	if collapsed {
 		for _, c := range e.Categories {
 			c := c
-			items = append(items, startItem{Icon: "▸", Label: fmt.Sprintf("%s (%d)", c.Label, len(c.Entries)),
+			items = append(items, startItem{Icon: theme.SymCursor, Label: fmt.Sprintf("%s (%d)", c.Label, len(c.Entries)),
 				Desc: i18n.T("tui.start.category_desc"), Action: func() {
 					if pick == nil {
 						return

@@ -113,7 +113,7 @@ On lance toujours depuis le récap : un premier `Ctrl+S` l'affiche, un second la
 |--------|--------|-------|
 | `R` | Reprendre | rouvrir la session existante, pas de nouvelle session |
 | `T` | Reprendre en local / en conteneur / avec ces réglages | transférer la session et sa conversation vers l'exécution et le modèle choisis ; en cas d'échec (« Transfert impossible »), la session est inchangée et oh propose « Remplacer » |
-| `k` | Remplacer (garder le travail) | arrêter la session ; la nouvelle continue dans le même dossier et la même branche, avec un brief de passation |
+| `K` | Remplacer (garder le travail) | arrêter la session ; la nouvelle continue dans le même dossier et la même branche, avec un brief de passation |
 | `d` | Supprimer et relancer | supprimer la session et son travail (confirmation : ce qui sera supprimé et perdu, puis, si elle travaillait dans le dossier du projet, garder ou supprimer ses modifications), puis relancer |
 | `p` | Lancer en parallèle | nouvelle session à côté, dans un autre worktree |
 

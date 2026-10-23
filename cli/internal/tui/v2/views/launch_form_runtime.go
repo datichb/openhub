@@ -50,7 +50,7 @@ func (p *LaunchProgress) attach(sink func(string)) {
 // runtimeState is the status line state of the form.
 type runtimeState struct {
 	tv    *tview.TextView
-	gen   int
+	loads loadSlot
 	cache map[string]string // by runtime kind
 	lines []string          // preparation output while launching
 }
@@ -87,27 +87,25 @@ func (v *LaunchFormView) loadRuntimeStatus() {
 		return
 	}
 	v.rt.tv.SetText(runtimeStatusText("⠋ " + i18n.T("tui.launch.runtime.checking")))
-	v.rt.gen++
-	gen, app, ctx, choices := v.rt.gen, v.app, v.ctx, v.m.choices()
-	go func() {
-		text := v.cfg.RuntimeStatus(ctx, choices)
-		if app == nil || ctx.Err() != nil {
-			return
+	if v.app == nil {
+		return
+	}
+	choices := v.m.choices()
+	load(v.app, v.ctx, &v.rt.loads, func(ctx context.Context) (string, error) {
+		return v.cfg.RuntimeStatus(ctx, choices), nil
+	}, func(text string, _ error) {
+		v.rt.cache[kind] = text
+		if v.rt.tv != nil && v.m.runtime == kind {
+			v.rt.tv.SetText(runtimeStatusText(text))
 		}
-		app.QueueUpdateDraw(func() {
-			v.rt.cache[kind] = text
-			if v.rt.gen == gen && v.rt.tv != nil && v.m.runtime == kind {
-				v.rt.tv.SetText(runtimeStatusText(text))
-			}
-		})
-	}()
+	})
 }
 
 func runtimeStatusText(s string) string {
 	if s == "" {
 		return ""
 	}
-	return "  [" + theme.TextMutedHex + "]" + tview.Escape(s) + "[-]"
+	return "  " + muted(tview.Escape(s))
 }
 
 // listenProgress shows the preparation output while launching.
@@ -136,7 +134,7 @@ func (v *LaunchFormView) stopProgress() { v.cfg.Progress.attach(nil) }
 func (v *LaunchFormView) progressText() string {
 	out := ""
 	for _, l := range v.rt.lines {
-		out += "  [" + theme.TextMutedHex + "]" + tview.Escape(l) + "[-]\n"
+		out += "  " + muted(tview.Escape(l)) + "\n"
 	}
 	return out
 }

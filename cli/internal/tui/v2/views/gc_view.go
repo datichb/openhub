@@ -345,7 +345,7 @@ func (v *GCView) items() []ActionItem {
 				size = "—"
 			}
 			out = append(out, ActionItem{ID: string(it.Kind) + ":" + it.ID + ":" + it.Path, Section: section,
-				Cells: []string{textfmt.Clip(what, 28), size, clipLeft(it.Path, 44)}, DetailTitle: kindLabel(k), Detail: v.itemDetail(it), Ref: it})
+				Cells: []string{textfmt.Clip(what, 28), size, textfmt.ClipLeft(it.Path, 44)}, DetailTitle: kindLabel(k), Detail: v.itemDetail(it), Ref: it})
 		}
 	}
 	if h := v.plan.History; h.Total() > 0 {

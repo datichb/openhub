@@ -13,6 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/runsvc"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
@@ -72,7 +73,7 @@ func showAbsenceRecap(ctx context.Context, a *app.App, sh *shell.Shell) {
 		if err != nil || r.Empty() {
 			return
 		}
-		msg := i18n.Tf("tui.sessions.recap", r.Changed, r.Waiting, r.Sleeping, r.Finished, r.Cost)
+		msg := i18n.Tf("tui.sessions.recap", r.Changed, r.Waiting, r.Sleeping, r.Finished, textfmt.Cost(r.Cost))
 		if r.NewDecisions > 0 {
 			msg += " · " + i18n.Tf("tui.sessions.recap_decisions", r.NewDecisions, r.OpenDecisions)
 		}

@@ -6,7 +6,7 @@ Les touches sont maintenant les mêmes dans toutes les vues :
 
 Changé :
   Sessions                   D→d supprimer · c→R reprendre · g→R récupérer · B valider en lot
-  Session existante (récap)  r→R reprendre · t→T transférer
+  Session existante (récap)  r→R reprendre · t→T transférer · k→K remplacer en gardant le travail
   Propositions wiki          a→y accepter · x→n refuser
   Workflows                  D→c comparer · x→d supprimer un brouillon
   Historique                 r→R restaurer

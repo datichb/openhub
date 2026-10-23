@@ -221,7 +221,7 @@ func TestBeadsPickerRendersGroupsClaimsAndPreview(t *testing.T) {
 	assert.Equal(t, []string{"bd-42"}, src.shown, "preview loaded for the current ticket only")
 
 	press(p, tcell.KeyDown)
-	assert.Contains(t, drawPicker(t, p), "aperçu indisponible", "missing detail reported in the preview")
+	assert.Contains(t, drawPicker(t, p), "Impossible de charger : ", "missing detail reported in the preview")
 }
 
 func TestBeadsPickerPreviewLint(t *testing.T) {
@@ -295,7 +295,7 @@ func TestBeadsPickerStates(t *testing.T) {
 	withFrench(t)
 	p := NewBeadsPicker(context.Background(), nil, BeadsPickerConfig{Source: &fakeBeads{err: errors.New("bd absent")}})
 	p.Load()
-	assert.Contains(t, drawPicker(t, p), "Impossible de lire les tickets : bd absent")
+	assert.Contains(t, drawPicker(t, p), "Impossible de charger : bd absent")
 
 	p = NewBeadsPicker(context.Background(), nil, BeadsPickerConfig{Source: &fakeBeads{}})
 	p.Load()

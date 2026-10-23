@@ -26,9 +26,6 @@ symbol internal/tui/v2/shell/shell.go 2
 symbol internal/tui/v2/views/action_list.go 2
 symbol internal/tui/v2/views/activity_view.go 8
 tag-style internal/tui/v2/views/banner.go 4
-symbol internal/tui/v2/views/beads_picker.go 1
-tag-color internal/tui/v2/views/beads_picker.go 10
-tag-style internal/tui/v2/views/beads_picker.go 1
 color-literal internal/tui/v2/views/board.go 5
 widgets-tag internal/tui/v2/views/board.go 1
 widgets-tag internal/tui/v2/views/board_view.go 1
@@ -46,13 +43,8 @@ symbol internal/tui/v2/views/inline_form.go 2
 tag-color internal/tui/v2/views/inline_form.go 2
 tag-style internal/tui/v2/views/inline_wizard.go 1
 widgets-tag internal/tui/v2/views/inline_wizard.go 31
-symbol internal/tui/v2/views/launch_form.go 9
-tag-color internal/tui/v2/views/launch_form.go 11
-symbol internal/tui/v2/views/launch_form_existing.go 3
-tag-color internal/tui/v2/views/launch_form_existing.go 5
-symbol internal/tui/v2/views/launch_form_inputs.go 2
-tag-color internal/tui/v2/views/launch_form_inputs.go 5
-tag-color internal/tui/v2/views/launch_form_runtime.go 2
+tag-color internal/tui/v2/views/launch_form.go 1
+tag-color internal/tui/v2/views/launch_form_existing.go 1
 symbol internal/tui/v2/views/list_page.go 2
 tag-style internal/tui/v2/views/list_page.go 1
 symbol internal/tui/v2/views/mcp_view.go 8
@@ -70,7 +62,6 @@ tag-style internal/tui/v2/views/publish_view.go 3
 symbol internal/tui/v2/views/secrets_view.go 2
 symbol internal/tui/v2/views/settings_exec.go 1
 symbol internal/tui/v2/views/settings_view.go 1
-symbol internal/tui/v2/views/start_section.go 4
 symbol internal/tui/v2/views/status_view.go 3
 tag-style internal/tui/v2/views/status_view.go 1
 symbol internal/tui/v2/views/team_detail_view.go 2

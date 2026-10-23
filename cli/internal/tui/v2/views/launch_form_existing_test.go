@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
@@ -169,7 +170,7 @@ func TestLaunchFormExistingSameWorkflow(t *testing.T) {
 	assert.Contains(t, lineOf(i18n.T("tui.launch.existing.row.state")), i18n.Tf("tui.sessions.waiting_decisions", 2))
 	assert.Contains(t, lineOf(i18n.T("tui.launch.existing.row.workflow")), "ticket v3")
 	assert.Contains(t, lineOf(i18n.T("tui.launch.existing.row.location")), "feat/bd-1")
-	assert.Contains(t, lineOf(i18n.T("tui.launch.existing.row.work")), i18n.Tf("tui.launch.existing.work", 4, 1, 1.5))
+	assert.Contains(t, lineOf(i18n.T("tui.launch.existing.row.work")), i18n.Tf("tui.launch.existing.work", 4, 1, textfmt.Cost(1.5)))
 
 	assert.Equal(t, []string{i18n.T("tui.launch.back"), i18n.T("tui.launch.existing.choice.resume"),
 		i18n.T("tui.launch.existing.choice.transfer_local"), i18n.T("tui.launch.existing.choice.keep"),
@@ -212,14 +213,14 @@ func TestLaunchFormExistingOnlyAllowedChoices(t *testing.T) {
 	f.assertNoLaunch(t)
 }
 
-// R / T / k / p launch at once with the choice (R: the resume key of the
+// R / T / K / p launch at once with the choice (R: the resume key of the
 // convention; r stays refresh, t is no longer a choice).
 func TestLaunchFormExistingKeys(t *testing.T) {
 	f := newExistingForm(t, true, sameWorkflowExisting())
 	f.key('r')
 	f.key('t')
 	f.assertNoLaunch(t, "r and t launch nothing")
-	for key, want := range map[rune]string{'R': LaunchExistingResume, 'T': LaunchExistingTransfer, 'k': LaunchExistingKeep, 'p': LaunchExistingParallel} {
+	for key, want := range map[rune]string{'R': LaunchExistingResume, 'T': LaunchExistingTransfer, 'K': LaunchExistingKeep, 'p': LaunchExistingParallel} {
 		t.Run(want, func(t *testing.T) {
 			f := newExistingForm(t, true, sameWorkflowExisting())
 			f.key(key)

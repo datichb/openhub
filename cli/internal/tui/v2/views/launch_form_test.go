@@ -205,14 +205,14 @@ func TestLaunchFormDirtyChoices(t *testing.T) {
 		return txt
 	}
 	require.Eventually(t, func() bool {
-		return strings.Contains(recapText(), "[w] (●) "+i18n.T("tui.launch.dirty.worktree"))
+		return strings.Contains(recapText(), "[w] ◉ "+i18n.T("tui.launch.dirty.worktree"))
 	}, 2*time.Second, 10*time.Millisecond)
 	assert.Contains(t, recapText(), "cp-2 ⏸ pause (obligatoire)")
-	assert.Contains(t, recapText(), "[s] ( ) "+i18n.T("tui.launch.dirty.stash"))
+	assert.Contains(t, recapText(), "[s] ○ "+i18n.T("tui.launch.dirty.stash"))
 
 	onLoop(app, func() { v.HandleKey(tcell.NewEventKey(tcell.KeyRune, 's', tcell.ModNone)) })
 	require.Eventually(t, func() bool {
-		return strings.Contains(recapText(), "[s] (●) "+i18n.T("tui.launch.dirty.stash"))
+		return strings.Contains(recapText(), "[s] ◉ "+i18n.T("tui.launch.dirty.stash"))
 	}, 2*time.Second, 10*time.Millisecond)
 	onLoop(app, func() { v.HandleKey(tcell.NewEventKey(tcell.KeyCtrlS, 0, tcell.ModNone)) })
 	require.Eventually(t, func() bool {
