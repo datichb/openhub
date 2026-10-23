@@ -12,7 +12,6 @@ import (
 	ohruntime "github.com/datichb/openhub/cli/internal/runtime"
 	remotesvc "github.com/datichb/openhub/cli/internal/services/remote"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
-	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 )
 
 // Daemon hooks for work that is not a local server (lot R6).
@@ -40,10 +39,10 @@ func daemonTeardown(a *app.App) func(ctx context.Context, srv domain.Server) {
 // the Beads leases of their tickets. Busy while a remote session runs.
 func daemonRemoteTracking(a *app.App) func(ctx context.Context) bool {
 	return func(ctx context.Context) bool {
-		if store == nil {
+		rs := a.Remotes
+		if rs == nil {
 			return false
 		}
-		rs := sqlite.NewRemoteStore(store)
 		if !anyPendingRemote(ctx, rs) {
 			return false
 		}

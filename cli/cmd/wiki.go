@@ -210,7 +210,7 @@ func runWikiPending(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	svc := newWikiService()
+	svc := newWikiServiceFor(a)
 	session, _ := cmd.Flags().GetString("session")
 	if session != "" {
 		ss, err := newSessionService(ctx, a)

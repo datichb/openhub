@@ -15,7 +15,6 @@ import (
 	"github.com/datichb/openhub/cli/internal/buildinfo"
 	"github.com/datichb/openhub/cli/internal/daemon"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 	"github.com/datichb/openhub/cli/internal/sysnotify"
 )
 
@@ -107,24 +106,24 @@ func init() {
 // daemon run`, or inside the oh process when the daemon cannot run in the
 // background: Windows).
 func daemonOptions(ctx context.Context, a *app.App, capability string) daemon.Options {
-	wk := newWikiService()
+	wk := newWikiServiceFor(a)
 	return daemon.Options{
 		Capability:  capability,
 		Paths:       daemon.Paths{Dir: ohRunDir()},
 		Version:     buildinfo.Version,
-		Grants:      sqlite.NewGrantStore(store),
-		Servers:     sqlite.NewServerStore(store),
-		GatewayView: gatewayView(sqlite.NewServerStore(store)),
+		Grants:      a.Grants,
+		Servers:     a.Servers,
+		GatewayView: gatewayView(a.Servers),
 		BeadsBinary: realBeadsBinary(),
 		MCPCommand:  gatewayMCPCommand(ohBundlesDir()),
 		Sessions:    a.Sessions,
-		Decisions:   sqlite.NewDecisionStore(store),
-		Usage:       sqlite.NewUsageStore(store),
-		AgentEvents: sqlite.NewAgentEventStore(store),
+		Decisions:   a.Decisions,
+		Usage:       a.Usage,
+		AgentEvents: a.AgentEvents,
 		SessionsDir: ohSessionsDir(),
 		ServersDir:  ohServersDir(),
 		Checkpoints: daemonCheckpoints(a, wk),
-		Reports:     daemonReports(),
+		Reports:     daemonReports(a),
 		Wiki:        wk,
 		Notify:      daemonNotifier(a),
 		ProjectName: func(ctx context.Context, id string) string {

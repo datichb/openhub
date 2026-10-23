@@ -16,7 +16,6 @@ import (
 	"github.com/datichb/openhub/cli/internal/gc"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/services/doctor"
-	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -38,10 +37,10 @@ func serverLister() adapters.ServerProcessLister {
 // liveServerPIDs are the servers this hub runs (starting or ready); nil
 // when the database cannot tell.
 func liveServerPIDs(ctx context.Context) map[int]bool {
-	if store == nil {
+	if application == nil || application.Servers == nil {
 		return nil
 	}
-	servers, err := sqlite.NewServerStore(store).List(ctx)
+	servers, err := application.Servers.List(ctx)
 	if err != nil {
 		return nil
 	}

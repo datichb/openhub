@@ -26,7 +26,6 @@ import (
 	"github.com/datichb/openhub/cli/internal/services/wiki"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/storage/keychain"
-	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/worktree"
 )
@@ -171,14 +170,6 @@ func v5ContainerRuntime(a *app.App) *container.Runtime {
 		CacheDir: filepath.Join(ohCacheDir(), "container")})
 }
 
-// usageStore is the usage ledger of the open database (nil without one).
-func usageStore() domain.UsageStore {
-	if store == nil {
-		return nil
-	}
-	return sqlite.NewUsageStore(store)
-}
-
 // newRunService wires the RunService for the current app.
 func newRunService(ctx context.Context, a *app.App) (*runsvc.Service, error) {
 	return newRunServiceFor(ctx, a, false)
@@ -211,15 +202,15 @@ func newRunServiceFor(ctx context.Context, a *app.App, planOnly bool) (*runsvc.S
 	svc := &runsvc.Service{
 		Adapter:        ad,
 		AdapterVer:     v5Tool.Version,
-		Servers:        sqlite.NewServerStore(store),
+		Servers:        a.Servers,
 		Sessions:       a.Sessions,
 		Secrets:        a.Secrets,
 		ServersDir:     ohServersDir(),
 		BundlesDir:     ohBundlesDir(),
 		SessionsDir:    ohSessionsDir(),
 		WorktreesDir:   ohWorktreesDir(),
-		Decisions:      sqlite.NewDecisionStore(store),
-		Usage:          sqlite.NewUsageStore(store),
+		Decisions:      a.Decisions,
+		Usage:          a.Usage,
 		OnSessionEnd:   sessionEndHook(a, false),
 		Runtimes:       v5Runtimes(a),
 		LocalShellPath: shellPath,
@@ -262,12 +253,12 @@ func newSessionService(ctx context.Context, a *app.App) (*sessionsvc.Service, er
 	svc := &sessionsvc.Service{
 		Sessions:    a.Sessions,
 		Projects:    a.Projects,
-		Decisions:   sqlite.NewDecisionStore(store),
-		Servers:     sqlite.NewServerStore(store),
+		Decisions:   a.Decisions,
+		Servers:     a.Servers,
 		BundlesDir:  ohBundlesDir(),
 		SessionsDir: ohSessionsDir(),
-		Reports:     newReportService(),
-		Wiki:        newWikiService(),
+		Reports:     newReportService(a),
+		Wiki:        newWikiServiceFor(a),
 		Alive:       filelock.ProcessAlive,
 		Live:        dc.Stream,
 	}
@@ -283,7 +274,7 @@ func newSessionService(ctx context.Context, a *app.App) (*sessionsvc.Service, er
 		return dc.WithCapability(capability).WorkflowRefresh(ctx, id)
 	})
 	svc.OhDecided = dc.SessionDecided
-	svc.Resolvers[domain.DecisionBudget] = sessionsvc.BudgetResolver(sqlite.NewUsageStore(store), func(ctx context.Context, id string) error {
+	svc.Resolvers[domain.DecisionBudget] = sessionsvc.BudgetResolver(a.Usage, func(ctx context.Context, id string) error {
 		rs, err := newRunService(ctx, a)
 		if err != nil {
 			return err
@@ -296,16 +287,24 @@ func newSessionService(ctx context.Context, a *app.App) (*sessionsvc.Service, er
 // newCheckpointService wires the CheckpointService (workflow state of the
 // sessions; the daemon feeds it, the CLI and the TUI answer its decisions).
 func newCheckpointService(a *app.App) *checkpoint.Service {
-	cs := sqlite.NewCheckpointStore(store)
+	cs := a.Checkpoints
 	return &checkpoint.Service{Sessions: a.Sessions, States: cs, SessionOutputs: cs, BundlesDir: ohBundlesDir(), SessionsDir: ohSessionsDir(),
 		ContainerExec: containerVerify(a)}
 }
 
 // newWikiService wires the WikiService (proposals of the wiki MCP server,
 // LD-J).
-func newWikiService() *wiki.Service {
-	return &wiki.Service{Store: sqlite.NewWikiProposalStore(store), SessionsDir: ohSessionsDir()}
+func newWikiServiceFor(a *app.App) *wiki.Service {
+	svc := &wiki.Service{SessionsDir: ohSessionsDir()}
+	if a != nil {
+		svc.Store = a.WikiProposals
+	}
+	return svc
 }
+
+// newWikiService is newWikiServiceFor on the shared app, for the callers that
+// do not hold one (cmd/tui_wiki.go: C8b passes its app, then this goes).
+func newWikiService() *wiki.Service { return newWikiServiceFor(application) }
 
 // daemonCheckpoints is the CheckpointService of the daemon: at the commit
 // checkpoint, oh applies the wiki proposals accepted on the card (LD-J).
@@ -314,7 +313,7 @@ func daemonCheckpoints(a *app.App, wk *wiki.Service) *checkpoint.Service {
 	cp.CommitPassed = wk.CommitPassed
 	// R6: at the merge checkpoint of a fan-out, oh merges the integration
 	// branch and closes the tickets merged.
-	in := &fanout.Integrator{Sessions: sqlite.NewSessionStore(store), Record: func(ctx context.Context, id string, tickets []string) {
+	in := &fanout.Integrator{Sessions: a.Fanout, Record: func(ctx context.Context, id string, tickets []string) {
 		if _, err := cp.Record(ctx, id, checkpoint.RecordClosed, tickets...); err != nil {
 			slog.Warn("fan-out: closed tickets not recorded", "session", id, "error", err)
 		}
@@ -323,7 +322,7 @@ func daemonCheckpoints(a *app.App, wk *wiki.Service) *checkpoint.Service {
 	// R6: the merge checkpoint refused with an instruction, a fix round on
 	// the integration branch (run by the driver).
 	cp.RequestFix = func(ctx context.Context, sess *domain.Session, wf *sessionspec.WorkflowRuntime, instruction, failure string) string {
-		round, rounds, err := fanout.RequestFix(ctx, sqlite.NewSessionStore(store), sess, wf, instruction, failure)
+		round, rounds, err := fanout.RequestFix(ctx, a.Fanout, sess, wf, instruction, failure)
 		switch {
 		case err == nil:
 			return i18n.Tf("cmd.fanout.fix_requested", round, rounds)
@@ -343,16 +342,20 @@ func daemonCheckpoints(a *app.App, wk *wiki.Service) *checkpoint.Service {
 const envWorkflowReports = "OH_WORKFLOW_REPORTS"
 
 // newReportService wires the ReportService (reports of workflow_report).
-func newReportService() *report.Service {
-	return &report.Service{Store: sqlite.NewReportStore(store), SessionsDir: ohSessionsDir()}
+func newReportService(a *app.App) *report.Service {
+	svc := &report.Service{SessionsDir: ohSessionsDir()}
+	if a != nil {
+		svc.Store = a.Reports
+	}
+	return svc
 }
 
 // daemonReports is the ReportService of the daemon (nil when turned off).
-func daemonReports() *report.Service {
+func daemonReports(a *app.App) *report.Service {
 	if strings.EqualFold(os.Getenv(envWorkflowReports), "off") {
 		return nil
 	}
-	return newReportService()
+	return newReportService(a)
 }
 
 // ensureDaemonForLiveServers starts the oh daemon when a tool server runs

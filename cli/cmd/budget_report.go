@@ -64,7 +64,7 @@ func runBudgetReport(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return err
 	}
-	us := usageStore()
+	us := a.Usage
 	if us == nil {
 		return errors.New(i18n.T("cmd.v5_runtime.database_not_initialized"))
 	}

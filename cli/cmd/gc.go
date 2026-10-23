@@ -23,7 +23,6 @@ import (
 	"github.com/datichb/openhub/cli/internal/gc"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/services/doctor"
-	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/worktree"
 )
@@ -57,9 +56,9 @@ func addGCFlags(c *cobra.Command) {
 // gcStore is the database side of the clean-up.
 type gcStore struct {
 	sessions domain.SessionStore
-	servers  *sqlite.ServerStore
-	grants   *sqlite.GrantStore
-	history  *sqlite.HistoryStore
+	servers  domain.ServerStore
+	grants   domain.GrantStore
+	history  domain.HistoryStore
 }
 
 func (s gcStore) Sessions(ctx context.Context) ([]domain.Session, error) {
@@ -75,7 +74,7 @@ func (s gcStore) DeleteServer(ctx context.Context, gk string) error {
 	return s.servers.Delete(ctx, gk)
 }
 
-func historyOf(r sqlite.HistoryRows) gc.History {
+func historyOf(r domain.HistoryRows) gc.History {
 	return gc.History{Sessions: r.Sessions, AgentEvents: r.AgentEvents, Decisions: r.Decisions,
 		UsageSessions: r.UsageSessions, UsageProxy: r.UsageProxy, BudgetExtra: r.BudgetExtra, WikiProposals: r.WikiProposals}
 }
@@ -92,12 +91,12 @@ func (s gcStore) DeleteHistory(ctx context.Context, c gc.Cutoffs) (gc.History, e
 
 // gcEnv is the clean-up of this hub.
 func gcEnv(a *app.App) (*gc.Env, error) {
-	if store == nil || a == nil || a.Sessions == nil {
+	if store == nil || a == nil || a.Sessions == nil || a.Servers == nil || a.Grants == nil || a.History == nil || a.Fanout == nil {
 		return nil, errors.New(i18n.T("cmd.gc.no_database"))
 	}
 	env := &gc.Env{
 		HubDir: config.HubDir(), BundlesDir: ohBundlesDir(), ServersDir: ohServersDir(), SessionsDir: ohSessionsDir(), RunDir: ohRunDir(),
-		Store: gcStore{sessions: a.Sessions, servers: sqlite.NewServerStore(store), grants: sqlite.NewGrantStore(store), history: sqlite.NewHistoryStore(store)},
+		Store: gcStore{sessions: a.Sessions, servers: a.Servers, grants: a.Grants, history: a.History},
 		ProjectPath: func(ctx context.Context, id string) string {
 			if a.Projects == nil {
 				return ""
@@ -118,7 +117,7 @@ func gcEnv(a *app.App) (*gc.Env, error) {
 	if l := serverLister(); l != nil {
 		env.Processes = l
 	}
-	env.Fanout = fanoutCleaner{store: sqlite.NewSessionStore(store)}
+	env.Fanout = fanoutCleaner{store: a.Fanout}
 	return env, nil
 }
 

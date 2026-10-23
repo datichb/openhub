@@ -37,8 +37,8 @@ func init() {
 func newRemoteReturnService(ctx context.Context, a *app.App) *remotesvc.Service {
 	svc := newRemoteSendService(a)
 	svc.SessionsDir, svc.BundlesDir = ohSessionsDir(), ohBundlesDir()
-	svc.Reports = newReportService()
-	svc.Wiki = newWikiService()
+	svc.Reports = newReportService(a)
+	svc.Wiki = newWikiServiceFor(a)
 	svc.Verifications = func(ctx context.Context, sid string, list []remote.SummaryVerification) (int, error) {
 		return newCheckpointService(a).ImportRemoteVerify(ctx, sid, checkpoint.FromSummary(list))
 	}

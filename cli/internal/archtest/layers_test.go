@@ -113,8 +113,7 @@ var layerRules = []layerRule{
 		},
 		forbidden: importsOf(module + "/internal/storage/sqlite"),
 		exceptions: cmdStorageExceptions(
-			"budget.go", "daemon.go", "daemon_remote.go", "doctor_orphans.go", "doctor_security.go", "eval.go",
-			"eval_fanout.go", "export.go", "fanout.go", "gc.go", "purge.go", "runner.go", "session_trace.go",
+			"budget.go", "export.go", "purge.go", "session_trace.go",
 			"tui_remote.go", "tui_sessions_tabs.go", "v5_inputs_traces.go", "v5_remote.go",
 		),
 	},
@@ -122,7 +121,8 @@ var layerRules = []layerRule{
 
 // cmdStorageExceptions are the files of cmd that build their own stores today.
 // repair.go, doctor_db.go and errors_i18n.go open or describe the database on
-// purpose, without migrating it (OpenRaw, DBPath, MigrationError).
+// purpose, without migrating it (OpenRaw, DBPath, MigrationError); doctor_security.go
+// and eval.go keep the raw stores on purpose (see below).
 func cmdStorageExceptions(files ...string) map[string]string {
 	out := map[string]string{}
 	for _, f := range files {
@@ -131,6 +131,8 @@ func cmdStorageExceptions(files ...string) map[string]string {
 	for _, f := range []string{"repair.go", "doctor_db.go", "errors_i18n.go"} {
 		out["cmd/"+f+" -> "+module+"/internal/storage/sqlite"] = "opens or describes the database without migrating it (OpenRaw, DBPath, MigrationError)"
 	}
+	out["cmd/doctor_security.go -> "+module+"/internal/storage/sqlite"] = "CountLegacyTokens and CountClearPasswords are not in the domain store interfaces (raw stores)"
+	out["cmd/eval.go -> "+module+"/internal/storage/sqlite"] = "opens the oh.db of an evaluation pass (another home than the app's) to kill the servers it left"
 	return out
 }
 
