@@ -35,9 +35,9 @@ func (g gitlabAccess) Client() *gitlabapi.Client {
 func resolveGitLabAccess(ctx context.Context, a *app.App, project *domain.Project) (gitlabAccess, error) {
 	svc := teamService(a)
 	server := resolveGitLabURL(a, project)
-	key, keyServer := svc.TrackerTokenDecl(project)
+	key, keyServer, implicit := svc.TrackerTokenDecl(project)
 	res := svc.GitLabToken(ctx, svc.ResolveTeam(project).TeamID, server,
-		teamsvc.WithProject(project), teamsvc.WithTrackerToken(key, keyServer))
+		teamsvc.WithProject(project), teamsvc.WithTrackerToken(key, keyServer, implicit))
 	if !res.Found() {
 		return gitlabAccess{URL: server, Token: res}, tracker.NewMissingTokenError(res, tracker.PurposeMergeRequest, "")
 	}

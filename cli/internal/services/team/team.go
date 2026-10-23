@@ -114,10 +114,12 @@ func WithProject(project *domain.Project) TokenOption {
 }
 
 // WithTrackerToken adds the key set by tracker_token_key to the cascade, with
-// the server declared for it (tracker_token_url, "" when none). The former
-// tracker key shares that server.
-func WithTrackerToken(key, server string) TokenOption {
-	return func(r *tokenRequest) { r.q.TrackerKey, r.q.TrackerServer = key, server }
+// its server as TrackerTokenDecl gives it (declared, or implicit: the
+// tracker's own). The former tracker key shares that server.
+func WithTrackerToken(key, server string, implicit bool) TokenOption {
+	return func(r *tokenRequest) {
+		r.q.TrackerKey, r.q.TrackerServer, r.q.TrackerImplicit = key, server, implicit
+	}
 }
 
 // WithTeamRepo gives the team-state repository of the team when the team is
@@ -137,12 +139,12 @@ func WithAnyServer() TokenOption {
 // serve this server. It is the only cascade (tracker.ResolveGitLabToken):
 //
 //  1. GITLAB_TOKEN, for the server OH_GITLAB_URL (else GITLAB_URL)
-//  2. tracker_token_key (WithTrackerToken), for tracker_token_url
+//  2. tracker_token_key (WithTrackerToken), for tracker_token_url, else for the tracker
 //  3. the token of the project (WithProject), for the URL of the GitLab MCP
 //  4. the token of the team teamID, for the host of its team-state repository
 //  5. the hub MCP token ([mcp.gitlab] token key, then openhub.mcp.gitlab.token),
-//     for the URL of the GitLab MCP ([mcp.gitlab] url, project, or team)
-//  6. the former tracker key openhub.tracker.gitlab.token, for tracker_token_url
+//     for the URL of the GitLab MCP ([mcp.gitlab] url, project, or team), else gitlab.com
+//  6. the former tracker key openhub.tracker.gitlab.token, for tracker_token_url, else for the tracker
 //
 // A source whose server is not the one called, or is not declared, is skipped;
 // result.Looks tells why, and tracker.NewMissingTokenError turns it into the
@@ -169,9 +171,9 @@ func (s *Service) completeQuery(r *tokenRequest) {
 	}
 	q.TeamServer = tracker.ServerOf(repo)
 	if s.Config != nil {
-		q.MCPServer = tracker.MCPGitLabURL(s.Config.MCP.Gitlab, sharedGitLabMCP(statePath), r.project, q.TeamID)
+		q.MCPServer, q.MCPImplicit = tracker.MCPServerOf(
+			tracker.MCPGitLabURL(s.Config.MCP.Gitlab, sharedGitLabMCP(statePath), r.project, q.TeamID))
 	}
-	q.ProjectServer = q.MCPServer
 }
 
 // teamRepoOf returns the team-state repository and clone path of a team: the
@@ -223,12 +225,15 @@ func (s *Service) GitLabMCPURL(project *domain.Project) string {
 	return tracker.MCPGitLabURL(s.Config.MCP.Gitlab, sharedGitLabMCP(statePath), project, tc.TeamID)
 }
 
-// TrackerTokenDecl is the key of the tracker token (tracker_token_key) and the
-// server declared for it (tracker_token_url) as the tracker reads them: the
-// project, then hub.toml, then the team config, the server being the one set
-// at the level of the key. Both are empty when no key is set. It is the pair
-// to show, and to edit with config.TrackerLocalConfig.SetTokenDecl.
-func (s *Service) TrackerTokenDecl(project *domain.Project) (key, server string) {
+// TrackerTokenDecl is the key of the tracker token (tracker_token_key) and its
+// server as the tracker reads them: the project, then hub.toml, then the team
+// config. The server is the one declared (tracker_token_url, set at the level
+// of the key); without it, implicit is true and the server is the tracker's
+// (tracker_url of the level of the key, else the effective one). The key is
+// empty when none is set; the server is still the one the former tracker key
+// is valid for. To edit the declaration, use
+// config.TrackerLocalConfig.SetTokenDecl.
+func (s *Service) TrackerTokenDecl(project *domain.Project) (key, server string, implicit bool) {
 	tc := s.ResolveTeam(project)
 	var shared *teamstate.TrackerConfig
 	if tc.Enabled {
@@ -241,7 +246,8 @@ func (s *Service) TrackerTokenDecl(project *domain.Project) (key, server string)
 		pc = project.TrackerConfig
 	}
 	eff := tracker.ResolveFullTrackerConfig(shared, s.Config.Tracker, pc)
-	return eff.TrackerTokenKey, eff.TrackerTokenURL
+	server, implicit = eff.TokenServer()
+	return eff.TrackerTokenKey, server, implicit
 }
 
 // loadTeamConfig reads the config.toml of the team-state cloned under

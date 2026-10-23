@@ -33,7 +33,7 @@ const forge = "https://gitlab.forge.example"
 // everyServer declares the server `forge` for every source that needs one.
 func everyServer(q GitLabTokenQuery) GitLabTokenQuery {
 	q.Server = forge
-	q.TrackerServer, q.ProjectServer, q.TeamServer, q.MCPServer = forge, forge, forge, forge
+	q.TrackerServer, q.TeamServer, q.MCPServer = forge, forge, forge
 	return q
 }
 
@@ -125,8 +125,8 @@ func TestResolveGitLabTokenOnlyAnswersForItsServer(t *testing.T) {
 	}
 	base := GitLabTokenQuery{
 		TrackerKey: "tracker.key", TrackerServer: forge,
-		ProjectID: "p1", ProjectServer: octo,
-		TeamID: "core", TeamServer: octo,
+		ProjectID: "p1",
+		TeamID:    "core", TeamServer: octo,
 		MCPServer: octo,
 		Secrets:   secrets,
 	}

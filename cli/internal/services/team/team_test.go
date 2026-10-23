@@ -116,12 +116,12 @@ func TestGitLabTokenUsesTheConfigAndTheOptions(t *testing.T) {
 	assert.Empty(t, res.Token, "no source is declared for this server")
 	assert.Len(t, res.Looks, 6)
 
-	res = svc.GitLabToken(ctx, "core", "https://forge.example", WithTrackerToken("tracker.key", "https://forge.example"))
+	res = svc.GitLabToken(ctx, "core", "https://forge.example", WithTrackerToken("tracker.key", "https://forge.example", false))
 	assert.Equal(t, "from-tracker-key", res.Token)
 	assert.Equal(t, tracker.TokenSourceTrackerKey, res.Source)
 
-	res = svc.GitLabToken(ctx, "core", "https://forge.example", WithTrackerToken("tracker.key", ""))
-	assert.Empty(t, res.Token, "a tracker key without a declared server is never sent")
+	res = svc.GitLabToken(ctx, "core", "https://forge.example", WithTrackerToken("tracker.key", "", false))
+	assert.Empty(t, res.Token, "a tracker key with no server at all is never sent")
 	require.NotEmpty(t, res.Looks)
 	assert.Equal(t, tracker.OutcomeNoServer, res.Looks[1].Outcome)
 

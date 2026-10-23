@@ -81,16 +81,38 @@ func (e *MissingTokenError) Error() string {
 }
 
 func (e *MissingTokenError) outcome(l TokenLook) string {
-	switch l.Outcome {
-	case OutcomeOtherServer:
+	note := ""
+	if l.Implicit {
+		note = implicitNote(l)
+	}
+	if l.Outcome == OutcomeOtherServer {
+		if l.Implicit {
+			return i18n.Tf("tracker.token.outcome.other_server_implicit", note, displayServer(e.Server))
+		}
 		return i18n.Tf("tracker.token.outcome.other_server", displayServer(l.Server), displayServer(e.Server))
-	case OutcomeNoServer:
-		return i18n.T("tracker.token.outcome.no_server")
 	}
-	if l.Source == TokenSourceEnv {
-		return i18n.T("tracker.token.outcome.unset")
+	var text string
+	switch {
+	case l.Outcome == OutcomeNoServer:
+		text = i18n.T("tracker.token.outcome.no_server")
+	case l.Source == TokenSourceEnv:
+		text = i18n.T("tracker.token.outcome.unset")
+	default:
+		text = i18n.T("tracker.token.outcome.empty")
 	}
-	return i18n.T("tracker.token.outcome.empty")
+	if note != "" {
+		return i18n.Tf("tracker.token.outcome.with_implicit", text, note)
+	}
+	return text
+}
+
+// implicitNote says that the server of a source was not declared but implied.
+func implicitNote(l TokenLook) string {
+	switch l.Source {
+	case TokenSourceTrackerKey, TokenSourceTracker:
+		return i18n.Tf("tracker.token.implicit.tracker", displayServer(l.Server))
+	}
+	return i18n.Tf("tracker.token.implicit.mcp", displayServer(l.Server))
 }
 
 // IsMissingToken reports whether err is a MissingTokenError.

@@ -107,22 +107,31 @@ func TestTrackerTokenKeyDeclaredForItsServerIsUsed(t *testing.T) {
 
 	_, err := connect()
 	require.Error(t, err)
-	assert.True(t, tracker.IsMissingToken(err), "no key is declared for the tracker: the token of the team is not used")
+	assert.True(t, tracker.IsMissingToken(err), "no key is set for the tracker: the token of the team is not used")
 
 	cfg.Tracker.SetTokenDecl("forge.token", "")
-	_, err = connect()
-	assert.True(t, tracker.IsMissingToken(err), "a key without its server is not used either")
+	user, err := connect()
+	require.NoError(t, err, "a key without a declared server serves the tracker it is set for")
+	assert.Equal(t, "alice", user)
+	assert.NotContains(t, forge.tokens(), "token-octo")
 
 	cfg.Tracker.SetTokenDecl("forge.token", forge.URL)
-	user, err := connect()
+	user, err = connect()
 	require.NoError(t, err)
 	assert.Equal(t, "alice", user)
 	assert.NotContains(t, forge.tokens(), "token-octo")
 	assert.Empty(t, octo.tokens())
 
-	key, server := svc.TrackerTokenDecl(nil)
+	key, server, implicit := svc.TrackerTokenDecl(nil)
 	assert.Equal(t, "forge.token", key)
 	assert.Equal(t, forge.URL, server)
+	assert.False(t, implicit)
+
+	cfg.Tracker.SetTokenDecl("forge.token", "")
+	cfg.Tracker.TrackerURL = forge.URL
+	_, server, implicit = svc.TrackerTokenDecl(nil)
+	assert.Equal(t, forge.URL, server, "no declared server: the tracker's own")
+	assert.True(t, implicit)
 }
 
 // A token the server refuses is named with its source, its key and the server
@@ -161,4 +170,24 @@ func TestServersOfTheTokenSources(t *testing.T) {
 	assert.Empty(t, svc.GitLabMCPURL(nil), "no url set for the GitLab MCP: its tokens have no declared server")
 	cfg.MCP.Gitlab.URL = "https://gitlab.mcp.example"
 	assert.Equal(t, "https://gitlab.mcp.example", svc.GitLabMCPURL(nil))
+}
+
+// With no url set for the GitLab MCP its tokens are valid for gitlab.com, where
+// the MCP server goes; an explicit url takes over.
+func TestMCPTokenWithoutURLServesGitLabDotCom(t *testing.T) {
+	t.Setenv(tracker.GitLabTokenEnv, "")
+	t.Setenv(tracker.GitLabServerEnv, "")
+	cfg := hubConfig()
+	svc := New(cfg, fakeSecrets{config.DefaultGitLabTokenKey: "mcp"}, nil)
+
+	res := svc.GitLabToken(t.Context(), "core", "https://gitlab.com/")
+	assert.Equal(t, "mcp", res.Token)
+	assert.Equal(t, tracker.TokenSourceMCP, res.Source)
+	assert.True(t, res.Looks[len(res.Looks)-1].Implicit, "the server of the source is reported as implicit")
+
+	assert.Empty(t, svc.GitLabToken(t.Context(), "core", "https://gitlab.forge.example").Token)
+
+	cfg.MCP.Gitlab.URL = "https://gitlab.forge.example"
+	assert.Equal(t, "mcp", svc.GitLabToken(t.Context(), "core", "https://gitlab.forge.example").Token)
+	assert.Empty(t, svc.GitLabToken(t.Context(), "core", "https://gitlab.com").Token, "explicit url: the implicit default no longer applies")
 }

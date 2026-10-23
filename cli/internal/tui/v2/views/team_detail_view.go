@@ -893,7 +893,7 @@ func (v *TeamDetailView) testConnection() {
 			if s, ok := v.teamCfg.MCP["gitlab"]; ok {
 				shared = &s
 			}
-			src.MCPServer = tracker.MCPGitLabURL(hub.MCP.Gitlab, shared, nil, teamID)
+			src.MCPServer, src.MCPImplicit = tracker.MCPServerOf(tracker.MCPGitLabURL(hub.MCP.Gitlab, shared, nil, teamID))
 		}
 
 		trackerType := tracker.Type(v.teamCfg.Tracker.Type)

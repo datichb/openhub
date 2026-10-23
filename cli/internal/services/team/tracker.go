@@ -214,7 +214,7 @@ func (s *Service) CredentialSource(src tracker.CredentialSource, project *domain
 	src.TeamID = r.q.TeamID
 	src.TeamServer = r.q.TeamServer
 	src.MCPTokenKey = r.q.MCPKey
-	src.MCPServer = r.q.MCPServer
+	src.MCPServer, src.MCPImplicit = r.q.MCPServer, r.q.MCPImplicit
 	return src
 }
 

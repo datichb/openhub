@@ -17,6 +17,10 @@ const GitLabTokenEnv = "GITLAB_TOKEN"
 // already read) plays that role.
 const GitLabServerEnv = "OH_GITLAB_URL"
 
+// DefaultMCPGitLabServer is the server the GitLab MCP server talks to when no
+// url is set for it (internal/mcp/gitlab): the implicit server of the MCP tokens.
+const DefaultMCPGitLabServer = "https://gitlab.com"
+
 // DefaultTrackerGitLabTokenKey is the keychain key the tracker used before the
 // token cascade was unified; it stays the last place looked at.
 const DefaultTrackerGitLabTokenKey = "openhub.tracker.gitlab.token"
@@ -56,9 +60,13 @@ type TokenLook struct {
 	Source TokenSource
 	// Key is the keychain key, or the name of the environment variable.
 	Key string
-	// Server is the server the key is declared for ("" when it is not).
-	Server  string
-	Outcome TokenOutcome
+	// Server is the server the key is declared for ("" when it is not). When
+	// Implicit is true it was not declared: it is the one the source implies
+	// (the tracker for the key of the tracker, gitlab.com for the MCP tokens
+	// when the MCP has no url).
+	Server   string
+	Implicit bool
+	Outcome  TokenOutcome
 }
 
 // TokenOrigin says which token a request is authenticated with: enough to
@@ -83,23 +91,26 @@ type GitLabTokenQuery struct {
 	AnyServer bool
 
 	// TrackerKey is the keychain key set by tracker_token_key; TrackerServer
-	// the server declared for it (tracker_token_url). The former tracker key
-	// uses the same declaration.
-	TrackerKey    string
-	TrackerServer string
-	// ProjectID is the hub project whose own MCP token is looked for;
-	// ProjectServer the server of that project's GitLab MCP.
-	ProjectID     string
-	ProjectServer string
+	// the server of that key and of the former tracker key: the one declared
+	// by tracker_token_url or, TrackerImplicit being true, the tracker's own
+	// (these keys only serve the tracker).
+	TrackerKey      string
+	TrackerServer   string
+	TrackerImplicit bool
+	// ProjectID is the hub project whose own MCP token is looked for; it is
+	// valid for the server of the GitLab MCP (MCPServer).
+	ProjectID string
 	// TeamID is the team whose GitLab token is looked for; TeamServer the
 	// server of its team-state repository, where that token was issued.
 	TeamID     string
 	TeamServer string
 	// MCPKey is the key set in [mcp.gitlab] (token), if any; MCPServer the
 	// server of the GitLab MCP (its url, from the project, the hub or the
-	// team recommendation).
-	MCPKey    string
-	MCPServer string
+	// team recommendation; DefaultMCPGitLabServer with MCPImplicit true when
+	// none is set, which is where the MCP server goes then).
+	MCPKey      string
+	MCPServer   string
+	MCPImplicit bool
 	// Secrets is the keychain; nil leaves only the environment variable.
 	Secrets SecretGetter
 }
@@ -160,8 +171,8 @@ func EnvServer() string {
 func ResolveGitLabToken(ctx context.Context, q GitLabTokenQuery) GitLabTokenResult {
 	res := GitLabTokenResult{Called: q.Server}
 	// try examines one source: it reports whether the token is the answer.
-	try := func(src TokenSource, key, server string, read func() string) bool {
-		look := TokenLook{Source: src, Key: key, Server: server}
+	try := func(src TokenSource, key, server string, implicit bool, read func() string) bool {
+		look := TokenLook{Source: src, Key: key, Server: server, Implicit: implicit && server != ""}
 		defer func() { res.Looks = append(res.Looks, look) }()
 		matches := q.AnyServer || SameServer(server, q.Server)
 		if server != "" && !matches {
@@ -183,37 +194,37 @@ func ResolveGitLabToken(ctx context.Context, q GitLabTokenQuery) GitLabTokenResu
 		return false
 	}
 
-	if try(TokenSourceEnv, GitLabTokenEnv, EnvServer(), func() string { return os.Getenv(GitLabTokenEnv) }) {
+	if try(TokenSourceEnv, GitLabTokenEnv, EnvServer(), false, func() string { return os.Getenv(GitLabTokenEnv) }) {
 		return res
 	}
 	if q.Secrets == nil {
 		return res
 	}
 	if q.TrackerKey != "" &&
-		try(TokenSourceTrackerKey, q.TrackerKey, q.TrackerServer, func() string { return getSecret(ctx, q.Secrets, q.TrackerKey) }) {
+		try(TokenSourceTrackerKey, q.TrackerKey, q.TrackerServer, q.TrackerImplicit, func() string { return getSecret(ctx, q.Secrets, q.TrackerKey) }) {
 		return res
 	}
 	if q.ProjectID != "" {
 		key := config.MCPProjectTokenKey("gitlab", q.ProjectID)
-		if try(TokenSourceProject, key, q.ProjectServer, func() string { return readMCPGitLab(ctx, q.Secrets, key) }) {
+		if try(TokenSourceProject, key, q.MCPServer, q.MCPImplicit, func() string { return readMCPGitLab(ctx, q.Secrets, key) }) {
 			return res
 		}
 	}
 	if q.TeamID != "" {
 		key := config.TeamGitLabTokenKey(q.TeamID)
-		if try(TokenSourceTeam, key, q.TeamServer, func() string { return getSecret(ctx, q.Secrets, key) }) {
+		if try(TokenSourceTeam, key, q.TeamServer, false, func() string { return getSecret(ctx, q.Secrets, key) }) {
 			return res
 		}
 	}
 	if q.MCPKey != "" && q.MCPKey != config.DefaultGitLabTokenKey &&
-		try(TokenSourceMCP, q.MCPKey, q.MCPServer, func() string { return readMCPGitLab(ctx, q.Secrets, q.MCPKey) }) {
+		try(TokenSourceMCP, q.MCPKey, q.MCPServer, q.MCPImplicit, func() string { return readMCPGitLab(ctx, q.Secrets, q.MCPKey) }) {
 		return res
 	}
-	if try(TokenSourceMCP, config.DefaultGitLabTokenKey, q.MCPServer, func() string { return readMCPGitLab(ctx, q.Secrets, "") }) {
+	if try(TokenSourceMCP, config.DefaultGitLabTokenKey, q.MCPServer, q.MCPImplicit, func() string { return readMCPGitLab(ctx, q.Secrets, "") }) {
 		return res
 	}
 	if q.TrackerKey != DefaultTrackerGitLabTokenKey { // already read by step 2
-		try(TokenSourceTracker, DefaultTrackerGitLabTokenKey, q.TrackerServer, func() string { return getSecret(ctx, q.Secrets, DefaultTrackerGitLabTokenKey) })
+		try(TokenSourceTracker, DefaultTrackerGitLabTokenKey, q.TrackerServer, q.TrackerImplicit, func() string { return getSecret(ctx, q.Secrets, DefaultTrackerGitLabTokenKey) })
 	}
 	return res
 }

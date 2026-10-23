@@ -70,8 +70,17 @@ func TestTrackerCredentialsDoNotSendTheTeamTokenToAnotherServer(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "token-forge", creds.Token)
 
-	// a key without a declared server is not used
+	// a key without a declared server serves the tracker it is set for
 	a.Config.Tracker.SetTokenDecl("forge.token", "")
+	creds, err = tracker.ResolveCredentials(context.Background(), trackerCredentials(a, teamCfg), tracker.TypeGitLab)
+	require.NoError(t, err)
+	assert.Equal(t, "token-forge", creds.Token)
+
+	// ... but not another one: the key of the team was set next to the tracker_url of the team,
+	// which hub.toml overrides
+	a.Config.Tracker.SetTokenDecl("", "")
+	teamCfg.Tracker.TrackerTokenKey = "forge.token"
+	a.Config.Tracker.TrackerURL = "https://gitlab.other.example"
 	_, err = tracker.ResolveCredentials(context.Background(), trackerCredentials(a, teamCfg), tracker.TypeGitLab)
 	require.ErrorAs(t, err, &missing)
 	assert.Contains(t, err.Error(), "forge.token")

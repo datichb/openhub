@@ -33,12 +33,17 @@ type CredentialSource struct {
 	TeamServer  string
 	MCPTokenKey string
 	MCPServer   string
+	// MCPImplicit: MCPServer is the default of the MCP (no url is set).
+	MCPImplicit bool
 	// TokenKey is the keychain key for the tracker token (not the secret itself).
 	// Resolved from: project.TrackerTokenKey → hub.Tracker.TrackerTokenKey → team.Tracker.TrackerTokenKey → derived default.
 	TokenKey string
 	// TokenURL is the server TokenKey is declared for (tracker_token_url,
 	// resolved like TokenKey); the former tracker key uses it too.
 	TokenURL string
+	// TokenLevelURL is the tracker_url of the level that sets TokenKey: the
+	// implicit server of the key when TokenURL is empty (else the URL called).
+	TokenLevelURL string
 	// WriteEnabled controls whether write operations (push labels, assign issues) are allowed.
 	WriteEnabled bool
 
@@ -52,11 +57,12 @@ type CredentialSource struct {
 // field-by-field construction at call sites.
 func NewCredentialSource(eff EffectiveTrackerConfig, secrets SecretGetter) CredentialSource {
 	return CredentialSource{
-		URL:          eff.TrackerURL,
-		TokenKey:     eff.TrackerTokenKey,
-		TokenURL:     eff.TrackerTokenURL,
-		WriteEnabled: eff.WriteEnabled,
-		Secrets:      secrets,
+		URL:           eff.TrackerURL,
+		TokenKey:      eff.TrackerTokenKey,
+		TokenURL:      eff.TrackerTokenURL,
+		TokenLevelURL: eff.TrackerTokenLevelURL,
+		WriteEnabled:  eff.WriteEnabled,
+		Secrets:       secrets,
 	}
 }
 
@@ -88,27 +94,30 @@ func ResolveCredentials(ctx context.Context, src CredentialSource, t Type) (Conf
 // ── GitLab ────────────────────────────────────────────────────────────────────
 
 func resolveGitLab(ctx context.Context, src CredentialSource) (Config, error) {
-	// Base URL priority: config → env var → default
-	baseURL := "https://gitlab.com"
-	source := "default"
-	if src.URL != "" {
-		baseURL = src.URL
-		source = "config"
-	} else if u := os.Getenv("GITLAB_URL"); u != "" {
-		baseURL = u
-		source = "env"
+	baseURL := GitLabBaseURL(src.URL)
+	slog.Debug("tracker.resolve.url", "type", "gitlab", "url", baseURL)
+
+	// The key of the tracker only serves the tracker: without a declared
+	// server it is valid for the tracker of its level, else for this one.
+	trackerServer, implicit := src.TokenURL, false
+	if trackerServer == "" {
+		trackerServer, implicit = baseURL, true
+		if src.TokenLevelURL != "" {
+			trackerServer = src.TokenLevelURL
+		}
 	}
-	slog.Debug("tracker.resolve.url", "type", "gitlab", "url", baseURL, "source", source)
 
 	res := ResolveGitLabToken(ctx, GitLabTokenQuery{
-		Server:        baseURL,
-		TrackerKey:    src.TokenKey,
-		TrackerServer: src.TokenURL,
-		TeamID:        src.TeamID,
-		TeamServer:    src.TeamServer,
-		MCPKey:        src.MCPTokenKey,
-		MCPServer:     src.MCPServer,
-		Secrets:       src.Secrets,
+		Server:          baseURL,
+		TrackerKey:      src.TokenKey,
+		TrackerServer:   trackerServer,
+		TrackerImplicit: implicit,
+		TeamID:          src.TeamID,
+		TeamServer:      src.TeamServer,
+		MCPKey:          src.MCPTokenKey,
+		MCPServer:       src.MCPServer,
+		MCPImplicit:     src.MCPImplicit,
+		Secrets:         src.Secrets,
 	})
 	if !res.Found() {
 		return Config{}, NewMissingTokenError(res, PurposeTracker, "")
@@ -121,6 +130,18 @@ func resolveGitLab(ctx context.Context, src CredentialSource) (Config, error) {
 		WriteEnabled: src.WriteEnabled,
 		Origin:       res.Origin(),
 	}, nil
+}
+
+// GitLabBaseURL is the URL of the GitLab a tracker calls: the one configured,
+// else GITLAB_URL, else https://gitlab.com.
+func GitLabBaseURL(configured string) string {
+	if configured != "" {
+		return configured
+	}
+	if u := os.Getenv("GITLAB_URL"); u != "" {
+		return u
+	}
+	return "https://gitlab.com"
 }
 
 // ── Jira ──────────────────────────────────────────────────────────────────────

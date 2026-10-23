@@ -226,3 +226,43 @@ func TestGitLabAccessClientNamesTheRefusedToken(t *testing.T) {
 	assert.Contains(t, err.Error(), "oh secrets set my.key")
 	assert.ErrorIs(t, err, tracker.ErrTokenInvalid)
 }
+
+// Servers that a source implies: the MCP tokens serve gitlab.com when the MCP has
+// no url; the key of the tracker serves the tracker only.
+func TestResolveGitLabAccessImplicitServers(t *testing.T) {
+	t.Setenv("GITLAB_TOKEN", "")
+	t.Setenv("OH_GITLAB_URL", "")
+	t.Setenv("GITLAB_URL", "")
+
+	t.Run("MCP token without url: gitlab.com", func(t *testing.T) {
+		a := gitlabHub(map[string]string{"openhub.mcp.gitlab.token": "mcp"})
+		access, err := resolveGitLabAccess(t.Context(), a, nil)
+		require.NoError(t, err)
+		assert.Equal(t, "mcp", access.Token.Token)
+		assert.Equal(t, "https://gitlab.com", access.URL)
+	})
+	t.Run("MCP token without url: not sent to GITLAB_URL", func(t *testing.T) {
+		t.Setenv("GITLAB_URL", "https://gitlab.forge.example")
+		a := gitlabHub(map[string]string{"openhub.mcp.gitlab.token": "mcp"})
+		_, err := resolveGitLabAccess(t.Context(), a, nil)
+		require.True(t, tracker.IsMissingToken(err))
+	})
+	t.Run("key of the tracker on the same server", func(t *testing.T) {
+		a := gitlabHub(map[string]string{"forge.token": "trk"})
+		a.Config.MCP.Gitlab.URL = "https://gitlab.forge.example"
+		a.Config.Tracker.TrackerTokenKey = "forge.token"
+		a.Config.Tracker.TrackerURL = "https://gitlab.forge.example/"
+		access, err := resolveGitLabAccess(t.Context(), a, nil)
+		require.NoError(t, err)
+		assert.Equal(t, "trk", access.Token.Token)
+	})
+	t.Run("key of the tracker, tracker on another server: refused", func(t *testing.T) {
+		a := gitlabHub(map[string]string{"forge.token": "trk"})
+		a.Config.MCP.Gitlab.URL = "https://gitlab.other.example"
+		a.Config.Tracker.TrackerTokenKey = "forge.token"
+		a.Config.Tracker.TrackerURL = "https://gitlab.forge.example"
+		_, err := resolveGitLabAccess(t.Context(), a, nil)
+		require.True(t, tracker.IsMissingToken(err))
+		assert.Contains(t, err.Error(), "forge.token")
+	})
+}

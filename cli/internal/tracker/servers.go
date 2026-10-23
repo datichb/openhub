@@ -22,3 +22,13 @@ func MCPGitLabURL(hub config.MCPServerConfig, shared *teamstate.SharedMCPConfig,
 	}
 	return mcpresolve.ResolveFull(shared, hub, ps, teamID).URL
 }
+
+// MCPServerOf is the server of the MCP tokens given the url of the GitLab MCP:
+// that url, else gitlab.com (where the MCP server goes with no url), in which
+// case implicit is true.
+func MCPServerOf(url string) (server string, implicit bool) {
+	if url != "" {
+		return url, false
+	}
+	return DefaultMCPGitLabServer, true
+}

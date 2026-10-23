@@ -165,7 +165,12 @@ func configureGitLab(ctx context.Context, a *app.App, repo *teamstate.Repo, team
 				// The token is only used for the server declared for the GitLab MCP.
 				mcpURL := askInput(out, i18n.T("cmd.team_config.gitlab_server_of_the_key"), src.URL)
 				if tracker.ServerOf(mcpURL) != "" {
-					writeLocalLog(config.ConfigPath(), "mcp.gitlab.url", mcpURL)
+					if err := updateHubConfig(a, func(c *config.Config) error {
+						c.MCP.Gitlab.URL = mcpURL
+						return nil
+					}); err != nil {
+						fmt.Fprintf(os.Stderr, "  warning: %v\n", err)
+					}
 				}
 			}
 		}
@@ -286,7 +291,6 @@ func configureTrackerSync(ctx context.Context, a *app.App, repo *teamstate.Repo,
 				defaultURL = a.Config.MCP.Jira.URL
 			}
 		}
-		previousURL := teamCfg.Tracker.TrackerURL
 		trackerURL := askInput(out, i18n.T("cmd.team_config.instance_url_e_g_https_gitlab"), defaultURL)
 		teamCfg.Tracker.TrackerURL = trackerURL
 
@@ -296,15 +300,6 @@ func configureTrackerSync(ctx context.Context, a *app.App, repo *teamstate.Repo,
 			trackerTokenKey = "openhub.tracker." + teamCfg.Tracker.Type + ".token"
 		}
 		teamCfg.Tracker.TrackerTokenKey = trackerTokenKey
-		// A GitLab token is only sent to the server it is declared for: the
-		// key of the tracker is declared for the tracker URL (and follows it
-		// when the URL changes).
-		if teamCfg.Tracker.Type == "gitlab" && (teamCfg.Tracker.TrackerTokenURL == "" || teamCfg.Tracker.TrackerTokenURL == previousURL) {
-			teamCfg.Tracker.TrackerTokenURL = trackerURL
-			if trackerURL == "" {
-				teamCfg.Tracker.TrackerTokenURL = "https://gitlab.com"
-			}
-		}
 
 		// Check if token exists, prompt if not
 		src := trackerCredentials(a, teamCfg)
