@@ -2,7 +2,6 @@ package views
 
 import (
 	"context"
-	"fmt"
 	"slices"
 	"strings"
 
@@ -114,8 +113,7 @@ func (t *sessionTabs) renderBar(r *SessionRow) {
 	var parts []string
 	for _, tab := range availableTabs(r) {
 		if tab == t.cur {
-			// The active tab is between brackets, which are text and not a tag.
-			parts = append(parts, theme.Paint(theme.ActiveMode.PrimaryHex, tview.Escape(fmt.Sprintf("%c%s%c", '[', tab.label(), ']'))))
+			parts = append(parts, theme.Paint(theme.ActiveMode.PrimaryHex, bracketed(tab.label())))
 			continue
 		}
 		parts = append(parts, " "+muted(tab.label())+" ")

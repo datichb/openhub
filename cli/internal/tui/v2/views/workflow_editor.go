@@ -483,8 +483,7 @@ func (v *WorkflowEditorView) render() {
 			label += " " + theme.Paint(theme.ErrorHex, fmt.Sprintf("%s%d", theme.SymFailure, v.check.Errors()))
 		}
 		if i == v.section {
-			// The brackets around the active section are text, not a tag.
-			label = theme.ColorTag(theme.ActiveMode.AccentHex) + theme.StyleTag(theme.AttrBold) + tview.Escape(fmt.Sprintf("%c %s %c", '[', label, ']')) + theme.TagColor + theme.TagAttrs
+			label = theme.ColorTag(theme.ActiveMode.AccentHex) + theme.StyleTag(theme.AttrBold) + bracketed(" "+label+" ") + theme.TagColor + theme.TagAttrs
 		}
 		tabs = append(tabs, label)
 	}

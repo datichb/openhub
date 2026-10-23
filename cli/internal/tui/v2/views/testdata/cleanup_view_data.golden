@@ -1,23 +1,23 @@
   Anciens déploiements  [Données d'oh]                                                              
- Nettoyage proposé : 23.0 MB récupérables  aperçu : rien n'est supprimé sans confirmation           
+ Nettoyage proposé : 23.0 Mio récupérables  aperçu : rien n'est supprimé sans confirmation          
                                                                                                     
                                                                                                     
 ╔ Données d'oh (oh gc) ════════════════════════════════════════════════════════════════════════════╗
-║   Élément          Taille   Emplacement                                                          ║
-║ Paquets de session inutilisés · 2 · 3.0 MB                                                       ║
-║ ▸ 3f2a1c9e         2.0 MB   /home/me/.oh/bundles/3f2a1c9e                                        ║
-║   77b0d1aa         1.0 MB   /home/me/.oh/bundles/77b0d1aa                                        ║
-║ Dossiers de sessions arrêtées · 1 · 5.0 MB                                                       ║
-║   ses_41c0         5.0 MB   /home/me/.oh/sessions/ses_41c0                                       ║
-║ Worktrees créés par oh (propres, poussés) · 1 · 12.0 MB                                          ║
-║   oh/ticket/bd-12  12.0 MB  /work/demo-wt/bd-12                                                  ║
-║ Restes de fan-outs (worktrees et branches oh/fanout/…) · 1 · 3.0 MB                              ║
+║   Élément          Taille    Emplacement                                                         ║
+║ Paquets de session inutilisés · 2 · 3.0 Mio                                                      ║
+║ ▸ 3f2a1c9e         2.0 Mio   /home/me/.oh/bundles/3f2a1c9e                                       ║
+║   77b0d1aa         1.0 Mio   /home/me/.oh/bundles/77b0d1aa                                       ║
+║ Dossiers de sessions arrêtées · 1 · 5.0 Mio                                                      ║
+║   ses_41c0         5.0 Mio   /home/me/.oh/sessions/ses_41c0                                      ║
+║ Worktrees créés par oh (propres, poussés) · 1 · 12.0 Mio                                         ║
+║   oh/ticket/bd-12  12.0 Mio  /work/demo-wt/bd-12                                                 ║
+║ Restes de fan-outs (worktrees et branches oh/fanout/…) · 1 · 3.0 Mio                             ║
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 ┌ Paquets de session inutilisés ───────────────────────────────────────────────────────────────────┐
 │ Id           3f2a1c9e                                                                            │
 │ Chemin       /home/me/.oh/bundles/3f2a1c9e                                                       │
-│ Taille       2.0 MB                                                                              │
+│ Taille       2.0 Mio                                                                             │
 │ Raison       unused                                                                              │
 │                                                                                                  │
 │                                                                                                  │

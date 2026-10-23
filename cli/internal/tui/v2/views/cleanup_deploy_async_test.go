@@ -18,7 +18,7 @@ import (
 // deployments.
 func mountedDeploy(t *testing.T, cfg *DeployCleanupConfig) (v *GCView, loop *tview.Application, sh *trustShell) {
 	t.Helper()
-	v = NewGCView(GCViewConfig{Bytes: gcBytes, Deploy: cfg, Section: CleanupDeploy,
+	v = NewGCView(GCViewConfig{Deploy: cfg, Section: CleanupDeploy,
 		Plan: func(context.Context) (gc.Report, error) { return gcTestPlan(), nil }})
 	sh = &trustShell{}
 	v.SetShell(sh)

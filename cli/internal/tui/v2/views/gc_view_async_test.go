@@ -38,7 +38,7 @@ func gcPlanItems(app *tview.Application, v *GCView) (n int, loaded bool) {
 // even when the first one answers after it.
 func TestGCViewStalePlanIsIgnored(t *testing.T) {
 	plan, started, release := slowFirstPlan()
-	v := NewGCView(GCViewConfig{Bytes: gcBytes, Plan: plan})
+	v := NewGCView(GCViewConfig{Plan: plan})
 	v.SetShell(&deleteShell{})
 	content := tview.NewFlex()
 	app := runApp(t, content)
@@ -57,7 +57,7 @@ func TestGCViewStalePlanIsIgnored(t *testing.T) {
 // The plan of a previous mount does not reach the new one.
 func TestGCViewPlanAfterRemountIsIgnored(t *testing.T) {
 	plan, started, release := slowFirstPlan()
-	v := NewGCView(GCViewConfig{Bytes: gcBytes, Plan: plan})
+	v := NewGCView(GCViewConfig{Plan: plan})
 	v.SetShell(&deleteShell{})
 	app := runApp(t, tview.NewFlex())
 	onLoop(app, func() { v.Mount(tview.NewFlex(), app) })
@@ -77,7 +77,7 @@ func TestGCViewPlanAfterRemountIsIgnored(t *testing.T) {
 func TestGCViewRemovalSupersedesThePendingPlan(t *testing.T) {
 	plan, started, release := slowFirstPlan()
 	ran := make(chan struct{})
-	v := NewGCView(GCViewConfig{Bytes: gcBytes, Plan: plan,
+	v := NewGCView(GCViewConfig{Plan: plan,
 		Run: func(_ context.Context, only gc.Report) (gc.Report, error) {
 			close(ran)
 			return gc.Report{Items: only.Items, Applied: true}, nil

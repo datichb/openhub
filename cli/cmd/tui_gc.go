@@ -38,7 +38,6 @@ func openCleanup(section views.CleanupSection) {
 func gcViewConfig(a *app.App) views.GCViewConfig {
 	opts := gcOptions(a, nil, 0)
 	return views.GCViewConfig{
-		Bytes: formatBytes,
 		Retention: i18n.Tf("tui.gc.retention", int(opts.SessionAge.Hours()/24), int(opts.HistoryAge.Hours()/24),
 			int(opts.UsageAge.Hours()/24)),
 		Plan: func(ctx context.Context) (gc.Report, error) {

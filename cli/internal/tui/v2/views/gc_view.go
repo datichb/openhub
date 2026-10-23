@@ -35,8 +35,6 @@ type GCViewConfig struct {
 	// Run removes the elements of only that are still planned (off the
 	// event loop).
 	Run func(ctx context.Context, only gc.Report) (gc.Report, error)
-	// Bytes formats a size (« 1.2 MB »).
-	Bytes func(int64) string
 	// Retention describes the retentions applied (« sessions arrêtées
 	// gardées 30 j… », optional).
 	Retention string
@@ -90,9 +88,6 @@ const gcHistoryID = "history"
 
 // NewGCView builds the view.
 func NewGCView(cfg GCViewConfig) *GCView {
-	if cfg.Bytes == nil {
-		cfg.Bytes = func(n int64) string { return fmt.Sprintf("%d B", n) }
-	}
 	return &GCView{cfg: cfg}
 }
 
@@ -165,7 +160,7 @@ func (v *GCView) renderBar() {
 	for _, s := range []CleanupSection{CleanupDeploy, CleanupData} {
 		label := i18n.T(map[CleanupSection]string{CleanupData: "tui.cleanup.section.data", CleanupDeploy: "tui.cleanup.section.deploy"}[s])
 		if s == v.section {
-			parts = append(parts, theme.ColorTag(theme.ActiveMode.PrimaryHex)+tview.Escape("["+label+"]")+theme.TagColor)
+			parts = append(parts, theme.Paint(theme.ActiveMode.PrimaryHex, bracketed(label)))
 		} else {
 			parts = append(parts, " "+muted(label)+" ")
 		}
@@ -307,7 +302,7 @@ func (v *GCView) confirmAll() (title, detail string) {
 	if h := v.plan.History; h.Total() > 0 {
 		lines = append(lines, "• "+i18n.Tf("tui.gc.history_rows", h.Total()))
 	}
-	return i18n.Tf("tui.gc.confirm_all", v.cfg.Bytes(v.plan.Bytes())), strings.Join(lines, "\n") + "\n\n" + i18n.T("tui.gc.irreversible")
+	return i18n.Tf("tui.gc.confirm_all", textfmt.Bytes(v.plan.Bytes())), strings.Join(lines, "\n") + "\n\n" + i18n.T("tui.gc.irreversible")
 }
 
 // kindLabel is the name of a category.
@@ -321,7 +316,7 @@ func (v *GCView) sectionTitle(k gc.Kind, items []gc.Item) string {
 	if k == gc.KindOrphans {
 		return i18n.Tf("tui.gc.section_count", kindLabel(k), len(items))
 	}
-	return i18n.Tf("tui.gc.section", kindLabel(k), len(items), v.cfg.Bytes(size))
+	return i18n.Tf("tui.gc.section", kindLabel(k), len(items), textfmt.Bytes(size))
 }
 
 // items are the elements of the plan, by category, the biggest first.
@@ -340,7 +335,7 @@ func (v *GCView) items() []ActionItem {
 			if what == "" {
 				what = it.Path
 			}
-			size := v.cfg.Bytes(it.Bytes)
+			size := textfmt.Bytes(it.Bytes)
 			if k == gc.KindOrphans {
 				size = "—"
 			}
@@ -359,28 +354,27 @@ func (v *GCView) items() []ActionItem {
 }
 
 func (v *GCView) itemDetail(it gc.Item) string {
-	muted := "[" + theme.TextMutedHex + "]"
 	var b strings.Builder
 	row := func(label, value string) {
 		if value != "" {
-			fmt.Fprintf(&b, "%s%s[-] %s\n", muted, pad(label, 12), tview.Escape(value))
+			fmt.Fprintf(&b, "%s %s\n", muted(pad(label, 12)), tview.Escape(value))
 		}
 	}
 	row(i18n.T("tui.gc.detail.id"), it.ID)
 	row(i18n.T("tui.gc.detail.path"), it.Path)
 	row(i18n.T("tui.gc.detail.repo"), it.Repo)
 	if it.Kind != gc.KindOrphans {
-		row(i18n.T("tui.gc.col.size"), v.cfg.Bytes(it.Bytes))
+		row(i18n.T("tui.gc.col.size"), textfmt.Bytes(it.Bytes))
 	}
 	row(i18n.T("tui.gc.detail.reason"), it.Reason)
 	if it.KeepResults {
-		b.WriteString(muted + tview.Escape(i18n.T("tui.gc.detail.keep_results")) + "[-]\n")
+		b.WriteString(muted(tview.Escape(i18n.T("tui.gc.detail.keep_results"))) + "\n")
 	}
 	return b.String()
 }
 
 func (v *GCView) resultLine(r gc.Report) string {
-	return i18n.Tf("tui.gc.done", len(r.Items), v.cfg.Bytes(r.Bytes()), r.History.Total())
+	return i18n.Tf("tui.gc.done", len(r.Items), textfmt.Bytes(r.Bytes()), r.History.Total())
 }
 
 // renderHeader writes the state of the plan and the last result.
@@ -388,29 +382,28 @@ func (v *GCView) renderHeader() {
 	if v.header == nil {
 		return
 	}
-	muted := "[" + theme.TextMutedHex + "]"
 	var lines []string
 	switch {
 	case v.running:
-		lines = append(lines, "⠋ "+i18n.T("tui.gc.running"))
+		lines = append(lines, stateText(stateLoading, "⠋ "+i18n.T("tui.gc.running")))
 	case !v.loaded:
-		lines = append(lines, "⠋ "+i18n.T("tui.gc.planning"))
+		lines = append(lines, stateText(stateLoading, "⠋ "+i18n.T("tui.gc.planning")))
 	case v.planErr != nil:
-		lines = append(lines, "["+theme.ErrorHex+"]✗ "+tview.Escape(v.planErr.Error())+"[-]")
+		lines = append(lines, stateText(stateError, v.planErr.Error()))
 	case v.plan.Empty():
-		lines = append(lines, "["+theme.SuccessHex+"]✔ "+i18n.T("tui.gc.nothing")+"[-]")
+		lines = append(lines, theme.Paint(theme.SuccessHex, theme.SymSuccess+" "+i18n.T("tui.gc.nothing")))
 	default:
-		lines = append(lines, "[::b]"+i18n.Tf("tui.gc.plan", v.cfg.Bytes(v.plan.Bytes()))+"[::-]  "+muted+i18n.T("tui.gc.preview")+"[-]")
+		lines = append(lines, theme.StyleTag(theme.AttrBold)+i18n.Tf("tui.gc.plan", textfmt.Bytes(v.plan.Bytes()))+theme.TagAttrs+"  "+muted(i18n.T("tui.gc.preview")))
 	}
 	if r := v.result; r != nil {
 		if len(r.Items) > 0 || r.History.Total() > 0 || len(r.Errors) == 0 {
-			lines = append(lines, "["+theme.SuccessHex+"]✔ "+tview.Escape(v.resultLine(*r))+"[-]")
+			lines = append(lines, theme.Paint(theme.SuccessHex, theme.SymSuccess+" "+tview.Escape(v.resultLine(*r))))
 		}
 		for _, e := range r.Errors {
-			lines = append(lines, "["+theme.WarningHex+"]⚠ "+tview.Escape(e)+"[-]")
+			lines = append(lines, theme.Paint(theme.WarningHex, theme.SymWarning+" "+tview.Escape(e)))
 		}
 	} else if v.cfg.Retention != "" {
-		lines = append(lines, muted+tview.Escape(v.cfg.Retention)+"[-]")
+		lines = append(lines, muted(tview.Escape(v.cfg.Retention)))
 	}
 	v.header.SetText(strings.Join(lines, "\n"))
 }

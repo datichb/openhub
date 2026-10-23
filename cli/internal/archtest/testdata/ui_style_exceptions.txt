@@ -32,12 +32,7 @@ symbol internal/tui/v2/views/bricks_view.go 2
 tag-style internal/tui/v2/views/bricks_view.go 1
 symbol internal/tui/v2/views/config_field.go 4
 widgets-tag internal/tui/v2/views/dashboard.go 7
-tag-style internal/tui/v2/views/doctor_view.go 1
-symbol internal/tui/v2/views/gc_view.go 4
-tag-color internal/tui/v2/views/gc_view.go 7
-tag-style internal/tui/v2/views/gc_view.go 1
 tag-style internal/tui/v2/views/help_view.go 1
-tag-color internal/tui/v2/views/history_view.go 3
 symbol internal/tui/v2/views/inline_form.go 2
 tag-color internal/tui/v2/views/inline_form.go 2
 tag-style internal/tui/v2/views/inline_wizard.go 1
@@ -47,8 +42,6 @@ tag-color internal/tui/v2/views/launch_form_existing.go 1
 symbol internal/tui/v2/views/list_page.go 2
 tag-style internal/tui/v2/views/list_page.go 1
 symbol internal/tui/v2/views/mcp_view.go 8
-tag-color internal/tui/v2/views/metrics_view.go 1
-tag-style internal/tui/v2/views/metrics_view.go 5
 symbol internal/tui/v2/views/patterns_view.go 1
 symbol internal/tui/v2/views/policies_view.go 8
 tag-color internal/tui/v2/views/project_mode_view.go 1
@@ -58,8 +51,6 @@ symbol internal/tui/v2/views/provider_view.go 7
 symbol internal/tui/v2/views/secrets_view.go 2
 symbol internal/tui/v2/views/settings_exec.go 1
 symbol internal/tui/v2/views/settings_view.go 1
-symbol internal/tui/v2/views/status_view.go 3
-tag-style internal/tui/v2/views/status_view.go 1
 symbol internal/tui/v2/views/team_detail_view.go 2
 tag-color internal/tui/v2/views/team_mode_view.go 1
 symbol internal/tui/v2/views/team_models_view.go 1
