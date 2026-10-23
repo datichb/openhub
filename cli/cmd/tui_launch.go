@@ -27,7 +27,7 @@ import (
 )
 
 // TUI wiring of the launch form (P1-T22): the form is generated from the
-// resolved workflow; its recap and launch go through prepareWorkflowRun and
+// resolved workflow; its recap and launch go through launch.Prepare and
 // the RunService (cmd/v5_run.go). No launch logic here.
 
 // tuiLaunchRequest opens a launch form.
@@ -145,7 +145,7 @@ func launchFormConfig(ctx context.Context, a *app.App, project *domain.Project, 
 		InputNotes: tuiInputNotes(a, sp),
 	}
 	if cfg.DefaultRuntime == "" {
-		cfg.DefaultRuntime = string(pickLaunchRuntime(a, sp, project))
+		cfg.DefaultRuntime = string(launch.PickRuntime(a.Config, sp, project))
 	}
 	cfg.RuntimeStatus, cfg.Progress = tuiRuntimeStatus(a, project), &views.LaunchProgress{}
 	cfg.ConfigureProvider = func() {
@@ -157,8 +157,8 @@ func launchFormConfig(ctx context.Context, a *app.App, project *domain.Project, 
 		cfg.Beads = views.NewBeadsSource(project.Path)
 	}
 	runs := &tuiRunCache{}
-	opts := func(c views.LaunchChoices) runOptions {
-		return runOptions{Workflow: sp.ID, Project: project, Agent: c.Agent, Inputs: c.Inputs, Tickets: c.Tickets, Mode: c.Mode,
+	opts := func(c views.LaunchChoices) launch.Options {
+		return launch.Options{Workflow: sp.ID, Project: project, Agent: c.Agent, Inputs: c.Inputs, Tickets: c.Tickets, Mode: c.Mode,
 			Runtime: c.Runtime, Location: c.Location, Attach: c.Attach, ParentSessionID: req.Parent, OneSession: c.OneSession, Draft: req.Draft,
 			Dirty: runsvc.DirtyPolicy(c.Dirty), OnExisting: runsvc.OnExisting(c.OnExisting), DiscardBaseChanges: c.DiscardBaseChanges}
 	}
@@ -250,11 +250,11 @@ func preferLocation(opts []views.SelectOption, loc string) []views.SelectOption 
 // choices: no second bundle build).
 type tuiRunCache struct {
 	mu   sync.Mutex
-	opts runOptions
-	p    *preparedRun
+	opts launch.Options
+	p    *launch.Prepared
 }
 
-func (c *tuiRunCache) get(ctx context.Context, a *app.App, opts runOptions) (*preparedRun, error) {
+func (c *tuiRunCache) get(ctx context.Context, a *app.App, opts launch.Options) (*launch.Prepared, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.p != nil && reflect.DeepEqual(withoutExistingChoice(c.opts), withoutExistingChoice(opts)) {
@@ -269,7 +269,7 @@ func (c *tuiRunCache) get(ctx context.Context, a *app.App, opts runOptions) (*pr
 		}
 		return c.p, nil
 	}
-	p, err := prepareWorkflowRun(ctx, a, opts, io.Discard)
+	p, err := launch.Prepare(ctx, launchDeps(a), opts)
 	if err != nil {
 		return nil, err
 	}
@@ -277,7 +277,7 @@ func (c *tuiRunCache) get(ctx context.Context, a *app.App, opts runOptions) (*pr
 	return p, nil
 }
 
-func withoutExistingChoice(o runOptions) runOptions {
+func withoutExistingChoice(o launch.Options) launch.Options {
 	o.OnExisting, o.DiscardBaseChanges = runsvc.OnExistingUnset, false
 	return o
 }

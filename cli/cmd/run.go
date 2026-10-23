@@ -100,7 +100,7 @@ func runWorkflowCmd(cmd *cobra.Command, args []string) error {
 // choice about existing sessions, no suggested workflow, no import of the
 // Bedrock key. With --headless it also tells whether the launch could run
 // without interface.
-func runWorkflowDryRun(cmd *cobra.Command, opts runOptions, headless bool) error {
+func runWorkflowDryRun(cmd *cobra.Command, opts launch.Options, headless bool) error {
 	a := MustApp()
 	out := cmd.OutOrStdout()
 	opts.DryRun = true
@@ -112,7 +112,7 @@ func runWorkflowDryRun(cmd *cobra.Command, opts runOptions, headless bool) error
 	}
 	opts.Progress = launchProgress(out, cmd.ErrOrStderr())
 	fmt.Fprintf(out, "%s %s\n", theme.SuccessStyle.Render(theme.IconArrow), i18n.Tf("cmd.run.preparing", opts.Workflow))
-	p, err := prepareWorkflowRun(cmd.Context(), a, opts, cmd.ErrOrStderr())
+	p, err := launch.Prepare(cmd.Context(), launchDeps(a), opts)
 	if err != nil {
 		return err
 	}
@@ -128,7 +128,7 @@ func runWorkflowDryRun(cmd *cobra.Command, opts runOptions, headless bool) error
 
 // runWorkflowHeadlessCLI runs `oh run --headless`: the answer of each session
 // goes to stdout or to --output (one file per session: <output>.<label>).
-func runWorkflowHeadlessCLI(cmd *cobra.Command, opts runOptions) error {
+func runWorkflowHeadlessCLI(cmd *cobra.Command, opts launch.Options) error {
 	a := MustApp()
 	ctx := cmd.Context()
 	errOut := cmd.ErrOrStderr()
@@ -138,7 +138,7 @@ func runWorkflowHeadlessCLI(cmd *cobra.Command, opts runOptions) error {
 	opts.Attach = string(sessionspec.AttachNone)
 	opts.Progress = launchProgress(errOut, errOut)
 	fmt.Fprintf(errOut, "%s %s\n", theme.SuccessStyle.Render(theme.IconArrow), i18n.Tf("cmd.run.preparing", opts.Workflow))
-	p, err := prepareWorkflowRun(ctx, a, opts, errOut)
+	p, err := launch.Prepare(ctx, launchDeps(a), opts)
 	if err != nil {
 		return err
 	}
@@ -167,8 +167,8 @@ func runWorkflowHeadlessCLI(cmd *cobra.Command, opts runOptions) error {
 }
 
 // runOptionsFromFlags reads the launch flags shared by oh run and its aliases.
-func runOptionsFromFlags(cmd *cobra.Command, workflowID string) (runOptions, error) {
-	opts := runOptions{Workflow: workflowID, Inputs: map[string]string{}}
+func runOptionsFromFlags(cmd *cobra.Command, workflowID string) (launch.Options, error) {
+	opts := launch.Options{Workflow: workflowID, Inputs: map[string]string{}}
 	f := cmd.Flags()
 	raw, _ := f.GetStringArray("input")
 	for _, kv := range raw {
@@ -180,13 +180,13 @@ func runOptionsFromFlags(cmd *cobra.Command, workflowID string) (runOptions, err
 	}
 	if f.Changed("message") {
 		msg, _ := f.GetString("message")
-		if _, set := opts.Inputs[requestInput]; set {
+		if _, set := opts.Inputs[launch.RequestInput]; set {
 			return opts, errors.New(i18n.T("cmd.run.message_and_request"))
 		}
 		if strings.TrimSpace(msg) == "" {
 			return opts, errors.New(i18n.T("cmd.run.message_empty"))
 		}
-		opts.Inputs[requestInput] = msg
+		opts.Inputs[launch.RequestInput] = msg
 		opts.Message = true
 	}
 	opts.Mode, _ = f.GetString("mode")
@@ -227,15 +227,15 @@ func runOptionsFromFlags(cmd *cobra.Command, workflowID string) (runOptions, err
 }
 
 // runWorkflowCLI prepares, optionally confirms, and starts a launch.
-func runWorkflowCLI(cmd *cobra.Command, opts runOptions, recap bool) error {
+func runWorkflowCLI(cmd *cobra.Command, opts launch.Options, recap bool) error {
 	a := MustApp()
 	ctx := cmd.Context()
 	out := cmd.OutOrStdout()
 	opts.Progress = launchProgress(out, cmd.ErrOrStderr())
 	fmt.Fprintf(out, "%s %s\n", theme.SuccessStyle.Render(theme.IconArrow), i18n.Tf("cmd.run.preparing", opts.Workflow))
-	p, err := prepareWorkflowRun(ctx, a, opts, cmd.ErrOrStderr())
+	p, err := launch.Prepare(ctx, launchDeps(a), opts)
 	if err != nil && offerBedrockEnvImport(ctx, a, opts.Project, opts.Provider, err, cmd.ErrOrStderr()) {
-		p, err = prepareWorkflowRun(ctx, a, opts, cmd.ErrOrStderr())
+		p, err = launch.Prepare(ctx, launchDeps(a), opts)
 	}
 	if err != nil {
 		return err
@@ -287,7 +287,7 @@ func runWorkflowCLI(cmd *cobra.Command, opts runOptions, recap bool) error {
 // askPreconditionChoice offers to run the suggested workflow first (failed
 // `suggest` precondition). handled is true when the original launch must not
 // start now (suggested workflow started, or cancelled).
-func askPreconditionChoice(cmd *cobra.Command, a *app.App, opts runOptions, p *preparedRun) (bool, error) {
+func askPreconditionChoice(cmd *cobra.Command, a *app.App, opts launch.Options, p *launch.Prepared) (bool, error) {
 	s := p.Suggestions[0]
 	out := cmd.OutOrStdout()
 	fmt.Fprintf(out, "%s %s\n", theme.WarningStyle.Render(theme.IconWarning), i18n.Tf("cmd.run.warn.precondition", s.Label, s.Workflow))

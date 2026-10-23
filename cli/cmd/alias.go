@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/services/launch"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
@@ -29,7 +30,7 @@ func warnDeprecatedAlias(w io.Writer, old, replacement string) {
 type workflowAlias struct {
 	Old      string // former command line, e.g. "oh audit --type security"
 	Workflow string
-	Opts     runOptions
+	Opts     launch.Options
 	Recap    bool
 }
 

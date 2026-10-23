@@ -14,6 +14,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/runsvc"
 	ohruntime "github.com/datichb/openhub/cli/internal/runtime"
+	"github.com/datichb/openhub/cli/internal/services/launch"
 )
 
 func TestApplyProjectExec(t *testing.T) {
@@ -37,8 +38,8 @@ func TestApplyProjectExec(t *testing.T) {
 }
 
 func TestRuntimePrefs(t *testing.T) {
-	assert.Equal(t, []string{""}, runtimePrefs(nil, &domain.Project{}))
-	assert.Equal(t, []string{"container"}, runtimePrefs(nil, &domain.Project{ExecConfig: &domain.ProjectExecConfig{DefaultRuntime: "container"}}))
+	assert.Equal(t, []string{""}, launch.RuntimePrefs(nil, &domain.Project{}))
+	assert.Equal(t, []string{"container"}, launch.RuntimePrefs(nil, &domain.Project{ExecConfig: &domain.ProjectExecConfig{DefaultRuntime: "container"}}))
 }
 
 func TestProjectExecHints(t *testing.T) {
@@ -81,6 +82,6 @@ func TestPinRuntime(t *testing.T) {
 
 func TestRuntimePrefsWithSettings(t *testing.T) {
 	a := &app.App{Config: &config.Config{Execution: config.ExecutionConfig{Runtime: "container"}}}
-	assert.Equal(t, []string{"", "container"}, runtimePrefs(a, &domain.Project{}))
-	assert.Equal(t, []string{"local", "container"}, runtimePrefs(a, &domain.Project{ExecConfig: &domain.ProjectExecConfig{DefaultRuntime: "local"}}))
+	assert.Equal(t, []string{"", "container"}, launch.RuntimePrefs(a.Config, &domain.Project{}))
+	assert.Equal(t, []string{"local", "container"}, launch.RuntimePrefs(a.Config, &domain.Project{ExecConfig: &domain.ProjectExecConfig{DefaultRuntime: "local"}}))
 }

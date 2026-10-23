@@ -7,13 +7,10 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"github.com/datichb/openhub/cli/internal/app"
-	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/runsvc"
 	ohruntime "github.com/datichb/openhub/cli/internal/runtime"
 	"github.com/datichb/openhub/cli/internal/runtime/container"
-	"github.com/datichb/openhub/cli/internal/services/launch"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
@@ -39,16 +36,6 @@ func applyProjectExec(req *runsvc.StartRequest, p *domain.Project) {
 	ex := projectExec(p)
 	req.ProjectDir = p.Path
 	req.Dockerfile, req.BuildArgs, req.Volumes = ex.Dockerfile, ex.BuildArgs, ex.Volumes
-}
-
-// runtimePrefs are the preferred runtimes of a launch without --runtime,
-// most specific first (see launch.RuntimePrefs).
-func runtimePrefs(a *app.App, p *domain.Project) []string {
-	var cfg *config.Config
-	if a != nil {
-		cfg = a.Config
-	}
-	return launch.RuntimePrefs(cfg, p)
 }
 
 // pinRuntime refuses container launches when the pinned tool version

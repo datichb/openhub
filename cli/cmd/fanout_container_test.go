@@ -9,6 +9,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/services/launch"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
@@ -17,14 +18,14 @@ import (
 func TestFanoutLaunchRuntimes(t *testing.T) {
 	a := &app.App{Config: &config.Config{Fanout: config.FanoutConfig{Experimental: true}}}
 	for _, rt := range []sessionspec.RuntimeKind{"", sessionspec.RuntimeLocal, sessionspec.RuntimeContainer} {
-		assert.NoError(t, checkFanoutLaunch(a, rt, nil), "runtime %q", rt)
+		assert.NoError(t, launch.CheckFanoutLaunch(a.Config, rt, nil), "runtime %q", rt)
 	}
-	err := checkFanoutLaunch(a, sessionspec.RuntimeRemote, nil)
+	err := launch.CheckFanoutLaunch(a.Config, sessionspec.RuntimeRemote, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "remote")
 
 	off := &app.App{Config: &config.Config{}}
-	assert.Error(t, checkFanoutLaunch(off, sessionspec.RuntimeContainer, nil), "still experimental")
+	assert.Error(t, launch.CheckFanoutLaunch(off.Config, sessionspec.RuntimeContainer, nil), "still experimental")
 }
 
 func TestFanoutSessionsRuntimeOfTheParent(t *testing.T) {

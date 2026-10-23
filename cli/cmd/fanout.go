@@ -70,12 +70,6 @@ func fanoutEnabled(a *app.App) bool {
 	return a != nil && launch.FanoutEnabled(a.Config)
 }
 
-// checkFanoutLaunch refuses a fan-out launch the configuration or the
-// runtime does not allow (see launch.CheckFanoutLaunch).
-func checkFanoutLaunch(a *app.App, runtime sessionspec.RuntimeKind, perSession []string) error {
-	return launch.CheckFanoutLaunch(a.Config, runtime, perSession)
-}
-
 func runFanoutDrive(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	a := MustApp()
@@ -320,7 +314,7 @@ type fanoutLauncher struct {
 	rsvc    *runsvc.Service
 	log     io.Writer
 	// adjust changes a launch before it starts (evaluation: token cap).
-	adjust func(*preparedRun)
+	adjust func(*launch.Prepared)
 }
 
 func (l *fanoutLauncher) Start(ctx context.Context, req fanout.LaunchRequest) (string, error) {
@@ -328,7 +322,7 @@ func (l *fanoutLauncher) Start(ctx context.Context, req fanout.LaunchRequest) (s
 	if err != nil {
 		return "", err
 	}
-	opts := runOptions{Workflow: req.Workflow, Project: l.project, Mode: req.Parent.Mode, Location: req.Dir,
+	opts := launch.Options{Workflow: req.Workflow, Project: l.project, Mode: req.Parent.Mode, Location: req.Dir,
 		Attach: string(sessionspec.AttachNone), ParentSessionID: req.Parent.ID, Dirty: runsvc.DirtyAllow, OneSession: true,
 		OnExisting: runsvc.OnExistingParallel, LooseInputs: req.Inputs, Runtime: string(rt)}
 	if req.Record.Role == domain.RoleChild && req.Ticket != "" && req.Task == nil {
@@ -337,7 +331,8 @@ func (l *fanoutLauncher) Start(ctx context.Context, req fanout.LaunchRequest) (s
 	if req.Record.Role == domain.RoleMerger {
 		opts.Mode = "" // the mode of its workflow (auto: nobody to answer)
 	}
-	p, err := prepareWorkflowRun(ctx, l.a, opts, l.log)
+	opts.Progress = launchProgress(nil, l.log)
+	p, err := launch.Prepare(ctx, launchDeps(l.a), opts)
 	if err != nil {
 		return "", err
 	}
@@ -426,7 +421,7 @@ func (l *fanoutLauncher) Tell(ctx context.Context, id, text string) error {
 }
 
 // newFanoutDriver wires the driver of the fan-out of sess.
-func newFanoutDriver(ctx context.Context, a *app.App, sess *domain.Session, log io.Writer, adjust func(*preparedRun)) (*fanout.Driver, error) {
+func newFanoutDriver(ctx context.Context, a *app.App, sess *domain.Session, log io.Writer, adjust func(*launch.Prepared)) (*fanout.Driver, error) {
 	project, err := a.Projects.Get(ctx, sess.ProjectID)
 	if err != nil {
 		return nil, err

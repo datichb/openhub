@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/services/launch"
 )
 
 // deprecatedCommands are the deprecated aliases of oh run and the command
@@ -123,9 +124,9 @@ func TestAliasWarningNamesTheReplacement(t *testing.T) {
 		al   workflowAlias
 		want string
 	}{
-		{workflowAlias{Old: "oh audit", Workflow: "audit", Opts: runOptions{LooseInputs: map[string]string{"type": "security"}}}, "oh run audit -i type=security"},
-		{workflowAlias{Old: "oh review feedback", Workflow: "review-feedback", Opts: runOptions{LooseInputs: map[string]string{"mr": "https://x/mr/1"}}}, "oh run review-feedback -i mr="},
-		{workflowAlias{Old: "oh debug", Workflow: "debug", Opts: runOptions{LooseInputs: map[string]string{"issue": "boom"}}}, "oh run debug -i issue=boom"},
+		{workflowAlias{Old: "oh audit", Workflow: "audit", Opts: launch.Options{LooseInputs: map[string]string{"type": "security"}}}, "oh run audit -i type=security"},
+		{workflowAlias{Old: "oh review feedback", Workflow: "review-feedback", Opts: launch.Options{LooseInputs: map[string]string{"mr": "https://x/mr/1"}}}, "oh run review-feedback -i mr="},
+		{workflowAlias{Old: "oh debug", Workflow: "debug", Opts: launch.Options{LooseInputs: map[string]string{"issue": "boom"}}}, "oh run debug -i issue=boom"},
 	}
 	for _, lang := range []string{"en", "fr"} {
 		i18n.SetLocale(lang)

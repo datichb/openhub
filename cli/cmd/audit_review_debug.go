@@ -19,6 +19,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/gitutil"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/notify"
+	"github.com/datichb/openhub/cli/internal/services/launch"
 	teamsvc "github.com/datichb/openhub/cli/internal/services/team"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/teamstate"
@@ -41,7 +42,7 @@ func agentCommandAlias(cmd *cobra.Command, old, workflowID string, inputs map[st
 		return err
 	}
 	return runAlias(cmd, workflowAlias{Old: old, Workflow: workflowID,
-		Opts: runOptions{Project: project, LooseInputs: inputs, Text: text}})
+		Opts: launch.Options{Project: project, LooseInputs: inputs, Text: text}})
 }
 
 // workflowInputValues returns the choices of the enum input of a workflow,

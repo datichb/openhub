@@ -112,14 +112,14 @@ func TestPickLaunchRuntimeSkipsDisabledRemote(t *testing.T) {
 		Allowed: []workflow.Runtime{workflow.RuntimeRemote, workflow.RuntimeLocal}}}
 	off := &app.App{Config: &config.Config{}}
 	on := &app.App{Config: &config.Config{Remote: config.RemoteConfig{Experimental: true}}}
-	if got := pickLaunchRuntime(off, sp, nil); got != workflow.RuntimeLocal {
+	if got := launch.PickRuntime(off.Config, sp, nil); got != workflow.RuntimeLocal {
 		t.Fatalf("disabled: %s", got)
 	}
-	if got := pickLaunchRuntime(on, sp, nil); got != workflow.RuntimeRemote {
+	if got := launch.PickRuntime(on.Config, sp, nil); got != workflow.RuntimeRemote {
 		t.Fatalf("enabled: %s", got)
 	}
 	only := &workflow.Spec{Runtime: &workflow.RuntimeSpec{Default: workflow.RuntimeRemote, Allowed: []workflow.Runtime{workflow.RuntimeRemote}}}
-	if got := pickLaunchRuntime(off, only, nil); got != workflow.RuntimeRemote {
+	if got := launch.PickRuntime(off.Config, only, nil); got != workflow.RuntimeRemote {
 		t.Fatalf("remote only: %s (refused later with the experimental message)", got)
 	}
 }
@@ -150,10 +150,10 @@ func TestRemoteExperimentalWarnings(t *testing.T) {
 // The recap of a remote launch carries the warning.
 func TestRunRecapWarnsRemote(t *testing.T) {
 	i18ntest.Set(t, "en")
-	if !strings.Contains(strings.Join(remoteRecapWarnings(&preparedRun{Remote: &launch.RemotePrep{}}), "\n"), "Experimental remote mode") {
+	if !strings.Contains(strings.Join(remoteRecapWarnings(&launch.Prepared{Remote: &launch.RemotePrep{}}), "\n"), "Experimental remote mode") {
 		t.Fatal("remote recap without the experimental warning")
 	}
-	if len(remoteRecapWarnings(&preparedRun{})) != 0 {
+	if len(remoteRecapWarnings(&launch.Prepared{})) != 0 {
 		t.Fatal("local recap with the remote warning")
 	}
 }

@@ -5,12 +5,10 @@ import (
 	"io"
 
 	"github.com/datichb/openhub/cli/internal/app"
-	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/services/launch"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
-	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
 // The remote runtime is experimental in 5.0 (DC22): it has never been
@@ -43,19 +41,11 @@ func printRemoteExperimentalWarning(w io.Writer) {
 
 // remoteRecapWarnings is the permanent warning of a remote launch in the
 // recap (oh run --recap, TUI launch form).
-func remoteRecapWarnings(p *preparedRun) []string {
+func remoteRecapWarnings(p *launch.Prepared) []string {
 	if p == nil || p.Remote == nil {
 		return nil
 	}
 	return []string{i18n.T("cmd.remote.experimental.warning")}
-}
-
-// pickLaunchRuntime chooses the runtime of a launch from the preferences
-// (project, Settings) and the workflow; the remote runtime is not chosen by
-// default while it is disabled, unless the workflow allows nothing else (the
-// launch is then refused with the experimental message).
-func pickLaunchRuntime(a *app.App, sp *workflow.Spec, project *domain.Project) workflow.Runtime {
-	return launch.PickRuntime(a.Config, sp, project)
 }
 
 // remoteExperimentalDoctorCheck reports the state of the remote mode: nothing

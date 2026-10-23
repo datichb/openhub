@@ -274,7 +274,7 @@ func TestWorkflowNewFileWithOwnTemplate(t *testing.T) {
 func TestPrepareRunRequiredTicketInput(t *testing.T) {
 	setupWorkflowCLI(t, "alice")
 	var errOut bytes.Buffer
-	opts := runOptions{Workflow: "ticket", Tickets: []string{"bd-1", "bd-2"}, Project: &domain.Project{ID: "p1", Name: "p", Path: t.TempDir()}}
+	opts := launch.Options{Workflow: "ticket", Tickets: []string{"bd-1", "bd-2"}, Project: &domain.Project{ID: "p1", Name: "p", Path: t.TempDir()}}
 	res, input, perSession, err := resolveLaunch(t.Context(), application, &opts, &errOut)
 	require.NoError(t, err, errOut.String())
 	assert.Equal(t, "ticket", input)
@@ -289,7 +289,7 @@ func TestPrepareRunFeatureWithoutRequest(t *testing.T) {
 	t.Setenv(workflowsDirEnv, filepath.Join(repoRoot(t), "workflows")) // the shipped workflows
 	for _, id := range []string{"feature", "spec", "cadrage"} {
 		var errOut bytes.Buffer
-		opts := runOptions{Workflow: id, Project: &domain.Project{ID: "p1", Name: "p", Path: t.TempDir()}}
+		opts := launch.Options{Workflow: id, Project: &domain.Project{ID: "p1", Name: "p", Path: t.TempDir()}}
 		res, _, _, err := resolveLaunch(t.Context(), application, &opts, &errOut)
 		require.NoError(t, err, "%s: %s", id, errOut.String())
 		assert.Equal(t, "spec", res.Spec.ID, id)
@@ -305,7 +305,7 @@ func TestPrepareRunMessage(t *testing.T) {
 	t.Setenv(workflowsDirEnv, filepath.Join(repoRoot(t), "workflows")) // the shipped workflows
 	for _, id := range []string{"feature", "cadrage", "spec"} {
 		var errOut bytes.Buffer
-		opts := runOptions{Workflow: id, Inputs: map[string]string{"request": "Export CSV"}, Message: true,
+		opts := launch.Options{Workflow: id, Inputs: map[string]string{"request": "Export CSV"}, Message: true,
 			Project: &domain.Project{ID: "p1", Name: "p", Path: t.TempDir()}}
 		res, _, _, err := resolveLaunch(t.Context(), application, &opts, &errOut)
 		require.NoError(t, err, "%s: %s", id, errOut.String())
@@ -317,7 +317,7 @@ func TestPrepareRunMessage(t *testing.T) {
 		{"feature", "feature → implement-spec"}, // with tickets
 	} {
 		var errOut bytes.Buffer
-		opts := runOptions{Workflow: c.id, Inputs: map[string]string{"request": "x"}, Message: true,
+		opts := launch.Options{Workflow: c.id, Inputs: map[string]string{"request": "x"}, Message: true,
 			Project: &domain.Project{ID: "p1", Name: "p", Path: t.TempDir()}}
 		if c.id == "feature" {
 			opts.Tickets = []string{"bd-1"}
@@ -331,7 +331,7 @@ func TestPrepareRunMessage(t *testing.T) {
 
 // resolveLaunch resolves the workflow of a launch the way oh run does, what
 // it tells going to errOut.
-func resolveLaunch(ctx context.Context, a *app.App, opts *runOptions, errOut io.Writer) (*workflowsvc.Resolution, string, []string, error) {
+func resolveLaunch(ctx context.Context, a *app.App, opts *launch.Options, errOut io.Writer) (*workflowsvc.Resolution, string, []string, error) {
 	opts.Progress = launchProgress(nil, errOut)
 	return launch.ResolveLaunch(ctx, launchDeps(a), opts)
 }

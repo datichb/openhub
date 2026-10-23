@@ -11,6 +11,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/gitlabapi"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/services/launch"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -101,7 +102,7 @@ func runReviewFeedback(cmd *cobra.Command, args []string) error {
 	// The workflow computes its branch, target branch and feedback from the
 	// merge request (`from:`), as for `oh run review-feedback -i mr=<url>`.
 	return runAlias(cmd, workflowAlias{Old: "oh review feedback", Workflow: "review-feedback",
-		Opts: runOptions{Project: project, LooseInputs: map[string]string{"mr": mr.WebURL}}})
+		Opts: launch.Options{Project: project, LooseInputs: map[string]string{"mr": mr.WebURL}}})
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────

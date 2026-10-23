@@ -11,6 +11,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/runsvc"
+	"github.com/datichb/openhub/cli/internal/services/launch"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 	"github.com/datichb/openhub/cli/internal/workflow"
@@ -32,11 +33,11 @@ func TestRunOptionsOnExistingFlags(t *testing.T) {
 	}
 }
 
-func existingRun() *preparedRun {
+func existingRun() *launch.Prepared {
 	e := runsvc.ExistingSession{ID: "ses_old", State: domain.RunIdle, WorkflowID: "ticket", Runtime: "container", LaunchPath: "/p-bd-1",
 		Shared: []string{"bd-1"}, SameWorkflow: true, Diffs: []runsvc.FieldDiff{{Field: runsvc.DiffRuntime, Existing: "container", Planned: "local"}},
 		Actions: []runsvc.OnExisting{runsvc.OnExistingResume, runsvc.OnExistingParallel}}
-	return &preparedRun{
+	return &launch.Prepared{
 		Project:    &domain.Project{Name: "p", Path: "/p"},
 		Resolution: &workflowsvc.Resolution{Resolved: &workflow.Resolved{Spec: &workflow.Spec{ID: "ticket"}, Mode: "auto"}},
 		Bundle:     &bundle.Bundle{},
@@ -96,7 +97,7 @@ func TestPrintExistingTableMarksDiffs(t *testing.T) {
 }
 
 func TestDeleteReportText(t *testing.T) {
-	s := deleteReportText(&runsvc.DeleteReport{SessionID: "ses_x", WorktreeRemoved: "/w", BranchDeleted: "feat/x", RemoteBranch: true, Errors: []string{"branch: boom"}})
+	s := launch.DeleteReportText(&runsvc.DeleteReport{SessionID: "ses_x", WorktreeRemoved: "/w", BranchDeleted: "feat/x", RemoteBranch: true, Errors: []string{"branch: boom"}})
 	for _, want := range []string{"ses_x", "/w", "feat/x", "boom"} {
 		if !strings.Contains(s, want) {
 			t.Fatalf("%q lacks %q", s, want)
@@ -167,7 +168,7 @@ func TestDeleteSummary(t *testing.T) {
 // Another choice for the existing session plans the cached launch again
 // (no new preparation).
 func TestTUIRunCacheReplansChoice(t *testing.T) {
-	base := runOptions{Workflow: "ticket", Tickets: []string{"bd-1"}}
+	base := launch.Options{Workflow: "ticket", Tickets: []string{"bd-1"}}
 	a, b := base, base
 	b.OnExisting, b.DiscardBaseChanges = runsvc.OnExistingDelete, true
 	if !reflect.DeepEqual(withoutExistingChoice(a), withoutExistingChoice(b)) {

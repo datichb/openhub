@@ -29,6 +29,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/runsvc"
 	checkpointsvc "github.com/datichb/openhub/cli/internal/services/checkpoint"
+	"github.com/datichb/openhub/cli/internal/services/launch"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
@@ -850,9 +851,10 @@ func runEvalSession(ctx context.Context, cmd *cobra.Command, spec evalPassSpec, 
 		// R6: the fan-out of the pass, its global budget the one of the pass.
 		a.Config.Fanout = config.FanoutConfig{Experimental: true, Parallel: spec.Fanout.Parallel, BudgetUSD: spec.BudgetUSD}
 	}
-	opts := runOptions{Workflow: spec.Workflow, Project: project, Inputs: spec.Inputs, Mode: spec.Mode, Text: spec.Text, Tickets: spec.Tickets,
+	opts := launch.Options{Workflow: spec.Workflow, Project: project, Inputs: spec.Inputs, Mode: spec.Mode, Text: spec.Text, Tickets: spec.Tickets,
 		Attach: string(sessionspec.AttachNone), Location: "base", Dirty: runsvc.DirtyAllow, OneSession: true}
-	p, err := prepareWorkflowRun(ctx, a, opts, errOut)
+	opts.Progress = launchProgress(nil, errOut)
+	p, err := launch.Prepare(ctx, launchDeps(a), opts)
 	if err != nil {
 		return fmt.Errorf(i18n.T("cmd.eval.preparing_the_launch"), err)
 	}

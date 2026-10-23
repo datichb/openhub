@@ -117,7 +117,7 @@ func existingTarget(plan *runsvc.RunPlan) (runsvc.ExistingSession, bool) {
 
 // askExistingChoice asks what to do with the existing sessions of a
 // launch; ok is false when the user cancelled.
-func askExistingChoice(ctx context.Context, out io.Writer, p *preparedRun) (choice runsvc.OnExisting, discardBase, ok bool, err error) {
+func askExistingChoice(ctx context.Context, out io.Writer, p *launch.Prepared) (choice runsvc.OnExisting, discardBase, ok bool, err error) {
 	e, found := existingTarget(p.Plan)
 	if !found {
 		return runsvc.OnExistingParallel, false, true, nil
@@ -249,15 +249,12 @@ func sessionProjectPath(ctx context.Context, a *app.App, svc *runsvc.Service, id
 	return ""
 }
 
-// deleteReportText summarizes a deletion.
-func deleteReportText(d *runsvc.DeleteReport) string { return launch.DeleteReportText(d) }
-
 // resolveExistingChoice settles the existing sessions of a CLI launch: with
 // a terminal and no --on-existing, the comparison is shown and a choice
 // asked (the plan is made again with it); without a terminal, the same
 // workflow needs --on-existing (another one: parallel, with a warning).
 // It returns false when the user cancelled.
-func resolveExistingChoice(ctx context.Context, out io.Writer, p *preparedRun, interactive bool) (bool, error) {
+func resolveExistingChoice(ctx context.Context, out io.Writer, p *launch.Prepared, interactive bool) (bool, error) {
 	if len(p.Plan.Existing) == 0 {
 		return true, nil
 	}

@@ -10,6 +10,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/runsvc"
+	"github.com/datichb/openhub/cli/internal/services/launch"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/workflow"
@@ -81,8 +82,8 @@ func TestRunRecapRows(t *testing.T) {
 		{ID: "cp-1", Behaviors: map[string]string{"semi-auto": "auto"}},
 		{ID: "cp-2", Behaviors: map[string]string{"semi-auto": "skip"}, Mandatory: true},
 	}
-	p := &preparedRun{
-		Opts:       runOptions{Epics: []workflowsvc.EpicExpansion{{Epic: "pt-c3b", Children: []string{"pt-c3b.1", "pt-c3b.2"}}}},
+	p := &launch.Prepared{
+		Opts:       launch.Options{Epics: []workflowsvc.EpicExpansion{{Epic: "pt-c3b", Children: []string{"pt-c3b.1", "pt-c3b.2"}}}},
 		Project:    &domain.Project{Name: "p"},
 		Resolution: &workflowsvc.Resolution{Resolved: &workflow.Resolved{Spec: &workflow.Spec{ID: "ticket"}, Mode: "semi-auto"}},
 		Bundle:     &bundle.Bundle{Spec: sessionspec.BundleSpec{CodeMode: true, Workflow: &sessionspec.WorkflowRuntime{ID: "ticket", Checkpoints: cps}}},

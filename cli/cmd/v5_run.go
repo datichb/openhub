@@ -23,24 +23,6 @@ import (
 // package; what stays here is what the command line shows (recap, warnings),
 // the opening of the client and the wiring of the service to the app.
 
-// requestInput is the input -m fills (oh run -m).
-const requestInput = launch.RequestInput
-
-// runOptions are the choices of a workflow launch.
-type runOptions = launch.Options
-
-// preparedRun is a launch ready to start: its plan can be shown (recap).
-type preparedRun = launch.Prepared
-
-// prepareWorkflowRun resolves, compiles and plans a launch. What the
-// preparation tells goes to opts.Progress, else to errOut.
-func prepareWorkflowRun(ctx context.Context, a *app.App, opts runOptions, errOut io.Writer) (*preparedRun, error) {
-	if opts.Progress == nil {
-		opts.Progress = launchProgress(nil, errOut)
-	}
-	return launch.Prepare(ctx, launchDeps(a), opts)
-}
-
 // planDirty reports whether a writing session of the plan starts in a
 // directory with uncommitted changes (whatever the choice made about it).
 func planDirty(plan *runsvc.RunPlan) bool {
@@ -60,7 +42,7 @@ func warningText(w runsvc.Warning) string {
 
 // startRun runs the prepared launch and opens the sessions (attach
 // preference). Single-session browser / suspend attaches are handled here.
-func startRun(ctx context.Context, a *app.App, p *preparedRun, ui launcher.LaunchUI) ([]*runsvc.StartResult, error) {
+func startRun(ctx context.Context, a *app.App, p *launch.Prepared, ui launcher.LaunchUI) ([]*runsvc.StartResult, error) {
 	return launch.Start(ctx, p, launch.StartOptions{
 		Progress: uiProgress(ui),
 		Attach: func(ctx context.Context, svc *runsvc.Service, attach sessionspec.AttachPref, res *runsvc.StartResult, first bool) error {
@@ -114,7 +96,7 @@ func afterStart(ctx context.Context, a *app.App, svc *runsvc.Service, ui launche
 
 // runRecap is what a launch will do: labelled rows and warnings (oh run
 // --recap, TUI launch form).
-func runRecap(p *preparedRun) (rows [][2]string, warnings []string) {
+func runRecap(p *launch.Prepared) (rows [][2]string, warnings []string) {
 	rows, warnings = launchRecap(p)
 	rows = append(rows, existingRecapRows(p.Plan)...)
 	if p.Plan.NeedsChoice {
@@ -125,7 +107,7 @@ func runRecap(p *preparedRun) (rows [][2]string, warnings []string) {
 
 // launchRecap is the recap without the existing sessions of the tickets
 // (the TUI shows them as a comparison block).
-func launchRecap(p *preparedRun) (rows [][2]string, warnings []string) {
+func launchRecap(p *launch.Prepared) (rows [][2]string, warnings []string) {
 	r := bundle.Show(p.Bundle)
 	add := func(label, value string) { rows = append(rows, [2]string{label, value}) }
 	add(i18n.T("cmd.run.recap.mode"), p.Resolution.Mode)
@@ -208,7 +190,7 @@ func recapCheckpoints(cps []sessionspec.CheckpointDef, mode string) string {
 }
 
 // printRunRecap prints what a launch will do (oh run --recap).
-func printRunRecap(w io.Writer, p *preparedRun) {
+func printRunRecap(w io.Writer, p *launch.Prepared) {
 	fmt.Fprintln(w, theme.Title.Render(i18n.Tf("cmd.run.recap.title", p.Resolution.Spec.ID, p.Resolution.Ref.String(), p.Project.Name)))
 	rows, warns := runRecap(p)
 	for _, r := range rows {

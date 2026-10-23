@@ -27,6 +27,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/launcher"
 	"github.com/datichb/openhub/cli/internal/provider"
 	"github.com/datichb/openhub/cli/internal/runsvc"
+	"github.com/datichb/openhub/cli/internal/services/launch"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/teamstate"
@@ -57,7 +58,7 @@ func v5Request(a *app.App, project *domain.Project, providerFlag string) runsvc.
 	applyProjectExec(&req, project)
 	req.IsolateUserConfig = a.Config.Execution.StrictIsolation
 	req.EnvAllow = a.Config.Execution.EnvAllow
-	req.Limits = sessionLimits(context.Background(), a, project, nil)
+	req.Limits = launch.SessionLimits(context.Background(), a.Config, a.Preferences, project, nil)
 	if tc := config.ResolveTeamForProject(a.Config, project); tc.Enabled {
 		req.TeamID = tc.TeamID
 		if tc.MemberID != "" {
