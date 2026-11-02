@@ -69,7 +69,7 @@ source.
 
 ### Navigation entre modes
 
-- `Ctrl+T` : basculer en mode Équipe (ou choisir la team si plusieurs)
+- `Ctrl+T` : mode suivant du cycle Hub → Projet → Équipe → Hub, en sautant ce qui n'est pas configuré (choix du projet ou de l'équipe s'il y en a plusieurs ; amendé en 5.1, il n'allait qu'entre le Hub et l'Équipe)
 - `Ctrl+P` : omnibar (filtrée par mode)
 - Home : retour au mode Hub
 

@@ -6,7 +6,7 @@ Guide des vues de la TUI (lots `tui-keys` à `tui-docs`). La convention de touch
 
 | Contexte | Touches |
 |----------|---------|
-| Partout | `↑↓`/`jk` déplacer, `g`/`G` premier/dernier, `/` filtrer, `r` rafraîchir, `?` aide, `Entrée` ouvrir, `Échap` revenir |
+| Partout | `↑↓`/`jk` déplacer, `g`/`G` premier/dernier, `/` filtrer, `r` rafraîchir, `?` aide, `Entrée` ouvrir, `Échap` revenir, `Ctrl+S` enregistrer (`keys.Save`) |
 | Liste | `n` créer, `e` éditer, `d` supprimer (toujours confirmé), `x` archiver/classer (jamais destructif), `R` reprendre/restaurer, `c` comparer (diff) |
 | Décision | `y` valider/accepter, `n` refuser (consigne, confirmé), `e` modifier, `s` laisser en attente, `A` tout accepter |
 | Lecteur | `/` rechercher, `n`/`N` résultat suivant/précédent |
@@ -17,7 +17,9 @@ Règles :
 - elle ne donne **jamais** un autre sens à `g G / r ? d x R y n` (touches strictes), ni une autre touche à une action de la convention (`a ajouter` → `n créer`, `r restaurer` → `R`, `D diff` → `c`) ;
 - `e`, `s`, `A` et `c` peuvent porter une action propre à la vue quand le contexte n'a pas l'action de la convention (`e enchaîner` dans Sessions) ;
 - `d` passe toujours par une confirmation (`ShellAccess.Confirm`, `danger`) ; `x` ne détruit rien (ce qui est classé se restaure avec `R`) ;
-- `n` refuser demande une consigne : la consigne validée vaut confirmation.
+- `n` refuser demande une consigne : la consigne validée vaut confirmation ;
+- `w` n'a qu'un sens (ouvrir dans le navigateur, Sessions) : enregistrer est `Ctrl+S` (`keys.Save`). Les pages Hub et Projet enregistrent seules après `views.SaveDelay` (500 ms) et le disent dans le titre (`saveBadge`) ; les pages d'équipe publient dans le team-state sur `Ctrl+S` et disent « non publié — Ctrl+S » jusque-là ;
+- `Ctrl+T` fait le tour Hub → Projet → Équipe → Hub (`Shell.cycleMode`), en sautant ce qui n'est pas configuré ; il est annoncé dans `keys.Changes()`.
 
 ## Le paquet `keys`
 

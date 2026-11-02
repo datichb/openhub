@@ -66,7 +66,7 @@ source tracker ticket.
 
 ### Navigation between modes
 
-- `Ctrl+T`: switch to Team mode (or choose the team if there are several)
+- `Ctrl+T`: next mode of the cycle Hub → Project → Team → Hub, skipping what is not configured (choose the project or the team when there are several; amended in 5.1, it only went between the Hub and the Team)
 - `Ctrl+P`: omnibar (filtered by mode)
 - Home: return to Hub mode
 

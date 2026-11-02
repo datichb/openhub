@@ -821,7 +821,7 @@ Legend:
 │  Push labels: [inherit]                                          │
 │                                                                  │
 ├──────────────────────────────────────────────────────────────────┤
-│  [w]save  [s]sync-tracker  [t]test  [a]add  [d]del  [u]undo      │
+│  [Ctrl+S]save  [s]sync  [t]test  [a]add  [d]del  [u]undo         │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
@@ -832,7 +832,7 @@ Legend:
 | `j`/`k` | Navigate between fields (skip headers/spacers) |
 | `Space` | Toggle bool / cycle tri-state (inherit→yes→no→inherit) |
 | `Enter` | Edit field (input/select/password modal) |
-| `w` | Save (2 passes: team commit+push + local hub.toml) |
+| `Ctrl+S` | Save (2 passes: team commit+push + local hub.toml); the title says `✎ not published — Ctrl+S` until then, `✔ saved` after |
 | `s` | Sync tracker (async pull from external tracker) |
 | `t` | Test tracker connection (displays username if OK) |
 | `a` | Add dynamic entry (mappings, families, agents) |
@@ -856,7 +856,7 @@ Legend:
 |---|-----|-----|
 | **Access** | `oh team config` (interactive wizard) | `Enter` on a team → `team.detail` view |
 | **View status** | `oh team config status` | Integrated in the view |
-| **Save** | Automatic at end of wizard | Key `w` (explicit, git push) for team views. Auto-save for hub/project views. |
+| **Save** | Automatic at end of wizard | `Ctrl+S` (explicit, git push) for team views, with the indicator « not published — Ctrl+S » / « saved » in the title. Auto-save after one delay (500 ms) for hub/project views, with the indicator « saving… » / « saved ». |
 | **Granularity** | Full wizard | Field by field |
 
 ### Test points
@@ -866,7 +866,7 @@ Legend:
 | 1 | Enforced fields | Non-editable, grayed out with "(enforced)" |
 | 2 | Masked token | Displays `●●●●` + ✓/✗ indicator |
 | 3 | Tri-state cycle | inherit → yes → no → inherit correctly |
-| 4 | `w` save | 2 passes: team (commit+push) + local (hub.toml) |
+| 4 | `Ctrl+S` save (`w` does nothing) | 2 passes: team (commit+push) + local (hub.toml); the title goes from « not published — Ctrl+S » to « saved » |
 | 5 | Quit without saving | Warning toast displayed |
 | 6 | `s` sync tracker | Summary modal (created/updated/pushed) |
 | 7 | `t` test connection | Username displayed if success, error otherwise |
@@ -1621,7 +1621,7 @@ HTTP timeout: 10 seconds for all clients.
 | `j`/`k` | Navigate |
 | `Space` | Toggle |
 | `Enter` | Edit |
-| `w` | Save |
+| `Ctrl+S` | Save |
 | `s` | Sync tracker |
 | `t` | Test connection |
 | `a` | Add dynamic |

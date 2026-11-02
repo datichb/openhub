@@ -821,7 +821,7 @@ Légende:
 │  Push labels: [hériter]                                          │
 │                                                                  │
 ├──────────────────────────────────────────────────────────────────┤
-│  [w]save  [s]sync-tracker  [t]test  [a]add  [d]del  [u]undo      │
+│  [Ctrl+S]save  [s]sync  [t]test  [a]add  [d]del  [u]undo         │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
@@ -832,7 +832,7 @@ Légende:
 | `j`/`k` | Naviguer entre champs (skip headers/spacers) |
 | `Space` | Toggle bool / cycle tri-state (hériter→oui→non→hériter) |
 | `Enter` | Éditer champ (modal input/select/password) |
-| `w` | Sauvegarder (2 passes: team commit+push + local hub.toml) |
+| `Ctrl+S` | Enregistrer (2 passes: team commit+push + local hub.toml) ; le titre dit `✎ non publié — Ctrl+S` jusque-là, `✔ enregistré` après |
 | `s` | Sync tracker (async pull depuis tracker externe) |
 | `t` | Tester connexion tracker (affiche username si OK) |
 | `a` | Ajouter entrée dynamique (mappings, families, agents) |
@@ -856,7 +856,7 @@ Légende:
 |---|-----|-----|
 | **Accéder** | `oh team config` (wizard interactif) | `Enter` sur une team → vue `team.detail` |
 | **Voir statut** | `oh team config status` | Intégré dans la vue |
-| **Sauvegarder** | Automatique en fin de wizard | Touche `w` (explicite, git push) pour vues team. Auto-save pour vues hub/projet. |
+| **Sauvegarder** | Automatique en fin de wizard | `Ctrl+S` (explicite, git push) pour les vues d'équipe, avec l'indicateur « non publié — Ctrl+S » / « enregistré » dans le titre. Enregistrement automatique après un seul délai (500 ms) pour les vues hub/projet, avec l'indicateur « enregistrement… » / « enregistré ». |
 | **Granularité** | Wizard complet | Champ par champ |
 
 ### Points de test
@@ -866,7 +866,7 @@ Légende:
 | 1 | Champs enforced | Non éditables, grisés avec "(enforced)" |
 | 2 | Token masqué | Affiche `●●●●` + indicateur ✓/✗ |
 | 3 | Tri-state cycle | hériter → oui → non → hériter correctement |
-| 4 | `w` save | 2 passes: team (commit+push) + local (hub.toml) |
+| 4 | `Ctrl+S` enregistrer (`w` ne fait rien) | 2 passes: team (commit+push) + local (hub.toml) ; le titre passe de « non publié — Ctrl+S » à « enregistré » |
 | 5 | Quitter sans sauver | Warning toast affiché |
 | 6 | `s` sync tracker | Modal résumé (created/updated/pushed) |
 | 7 | `t` test connexion | Username affiché si succès, erreur sinon |
@@ -1621,7 +1621,7 @@ Timeout HTTP: 10 secondes pour tous les clients.
 | `j`/`k` | Naviguer |
 | `Space` | Toggle |
 | `Enter` | Éditer |
-| `w` | Sauvegarder |
+| `Ctrl+S` | Enregistrer |
 | `s` | Sync tracker |
 | `t` | Test connexion |
 | `a` | Ajouter dynamique |

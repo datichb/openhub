@@ -283,6 +283,8 @@ oh team wiki read <page>           # read a page
 oh team wiki review [id]           # review a proposal (interactive without id)
 ```
 
+Refusing a proposal (`r`) asks for a **reason** (required: an empty one cancels the refusal). The proposal is removed from the team-state; the reason is kept in the subject of the commit (`wiki: rejected proposal <id>: <reason>`) and in the data of the `wiki.rejected` event, which `oh team activity`, the Activity view and the notification show.
+
 ---
 
 ## Team Management (oh teams)

@@ -283,6 +283,8 @@ oh team wiki read <page>           # lire une page
 oh team wiki review [id]           # reviser une proposition (interactif sans id)
 ```
 
+Refuser une proposition (`r`) demande un **motif** (obligatoire : un motif vide annule le refus). La proposition est retirée du team-state ; le motif est gardé dans le sujet du commit (`wiki: rejected proposal <id>: <motif>`) et dans les données de l'événement `wiki.rejected`, que `oh team activity`, la vue Activité et la notification affichent.
+
 ---
 
 ## Gestion d'équipes (oh teams)

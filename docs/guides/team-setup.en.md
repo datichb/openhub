@@ -87,7 +87,7 @@ The tracker sync attributes the issues to the members **by user name**: the `tra
 | `oh team rejoin` | the `--tracker-username <name>` option, or the question asked when the team tracker is on another server than the repository and your profile has no name |
 | `oh init` wizard (team group, "rejoin") and TUI `team rejoin` | "Tracker name" step, same conditions |
 | `oh team profile` | `oh team profile --tracker-username <name>`; without options, shows your profile; an option given empty clears the field |
-| TUI, `team-detail` view | "My member profile" section: display name, GitLab, Mattermost and tracker names, saved at once (one commit), without `w` |
+| TUI, `team-detail` view | "My member profile" section: display name, GitLab, Mattermost and tracker names, saved at once (one commit), without `Ctrl+S` |
 
 `oh doctor` checks it: ✗ when the tracker is on another server than the team repository and your `tracker_username` is empty; ⚠ (online) when the name the tracker returns for your token matches no member. The sync (`oh team sync-tracker`) also says so in its summary when issues are assigned to names unknown to the team and your profile has no `tracker_username`. See [`oh doctor`](../reference/cli-infra.en.md#oh-doctor).
 
@@ -406,7 +406,7 @@ Pulls issue states from the tracker and updates claim statuses:
 ### Wiki management
 
 ```bash
-# Review pending wiki proposals (from AI agents)
+# Review pending wiki proposals (from AI agents); refusing one asks for a reason
 oh team wiki review
 
 # List wiki pages

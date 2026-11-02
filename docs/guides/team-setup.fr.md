@@ -87,7 +87,7 @@ La synchro du tracker attribue les issues aux membres **par nom d'utilisateur** 
 | `oh team rejoin` | option `--tracker-username <nom>`, ou la question posée quand le tracker de l'équipe est sur un autre serveur que le dépôt et que ta fiche n'a pas de nom |
 | Assistant `oh init` (groupe équipe, « rejoindre ») et TUI `team rejoin` | étape « Nom sur le tracker », mêmes conditions |
 | `oh team profile` | `oh team profile --tracker-username <nom>` ; sans option, affiche ta fiche ; une option donnée vide efface le champ |
-| TUI, vue `team-detail` | section « Ma fiche de membre » : nom affiché, noms GitLab, Mattermost et tracker, enregistrés tout de suite (un commit), sans passer par `w` |
+| TUI, vue `team-detail` | section « Ma fiche de membre » : nom affiché, noms GitLab, Mattermost et tracker, enregistrés tout de suite (un commit), sans passer par `Ctrl+S` |
 
 `oh doctor` le contrôle : ✗ si le tracker est sur un autre serveur que le dépôt d'équipe et que ton `tracker_username` est vide ; ⚠ (en ligne) si le nom que le tracker renvoie pour ton jeton ne correspond à aucun membre. La synchro (`oh team sync-tracker`) le dit aussi dans son résumé quand des issues sont assignées à des noms inconnus de l'équipe et que ta fiche n'a pas de `tracker_username`. Voir [`oh doctor`](../reference/cli-infra.fr.md#oh-doctor).
 

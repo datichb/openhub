@@ -112,6 +112,23 @@ Un symbole désigne une seule chose, dans la CLI (`oh session list`, `oh session
 | `✗` | erreur | l'agent a rencontré une erreur à traiter |
 | `⊘` | coupe-circuit | trop d'appels de sous-agents sans vous : la délégation est refusée jusqu'à ce que vous l'acquittiez |
 
+
+**Événement d'équipe** (`oh team activity`, vues Activité et Statut d'équipe : `cli/internal/glyph`, `Events`)
+
+| Symbole | Événements |
+|---------|------------|
+| `●` | `claim.taken` |
+| `○` | `claim.released`, `workflow.archived` |
+| `→` | `claim.transferred` |
+| `✗` | `claim.conflict`, `review.rejected`, `wiki.rejected` |
+| `✔` | `session.complete`, `review.approved`, `wiki.accepted`, `workflow.published` |
+| `◐` | `review.ready` (attend une personne) |
+| `⚠` | `audit.finding` |
+| `✎` | `wiki.proposal` |
+| `↺` | `workflow.restored` |
+
+La phrase après l'acteur est la même dans la CLI et la TUI (`Event.Describe`).
+
 Le badge de la barre de mode, `● N  ◐ M`, compte les sessions vivantes (`●`) et les décisions en attente (`◐`). Ailleurs, `✓` marque un retour de commande réussi, `✗` un retour en erreur, `⚠` ou `!` un avertissement.
 
 **Couleurs.** `NO_COLOR` (toute valeur non vide, voir [no-color.org](https://no-color.org)) supprime les couleurs de la CLI (aide, tableaux, formulaires, journaux) et de la TUI ; les symboles ci-dessus suffisent à lire l'état. Sans `NO_COLOR`, le terminal décide (sortie redirigée = sans couleur). Il n'y a pas d'option `--no-color`.
