@@ -91,7 +91,7 @@ func PrepareRemote(ctx context.Context, d Deps, project *domain.Project, res *wo
 	}
 	rp := &RemotePrep{Target: *t}
 	for _, c := range cps {
-		rp.Checkpoints = append(rp.Checkpoints, remote.ManifestCheckpoint{ID: c.ID, Label: c.Label, Policy: string(c.Policy), Mandatory: c.Mandatory})
+		rp.Checkpoints = append(rp.Checkpoints, remote.ManifestCheckpoint{ID: c.ID, Label: c.Label, Policy: string(c.Policy), Mandatory: c.Mandatory, Unlocks: c.Unlocks})
 	}
 	return rp, nil
 }

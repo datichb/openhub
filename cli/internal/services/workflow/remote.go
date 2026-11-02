@@ -30,6 +30,7 @@ type RemoteCheckpoint struct {
 	Label     string          `json:"label,omitempty"`
 	Policy    wf.RemotePolicy `json:"policy"` // auto | defer
 	Mandatory bool            `json:"mandatory,omitempty"`
+	Unlocks   []string        `json:"unlocks,omitempty"` // operations the checkpoint unlocks (commit, close…)
 }
 
 // RemotePlan checks that the resolution can run remotely (P5-T04): `remote`
@@ -50,7 +51,11 @@ func (r *Resolution) RemotePlan(lang string) ([]RemoteCheckpoint, error) {
 		if pol == wf.RemoteForbid {
 			return nil, &RemoteForbiddenError{Checkpoint: id}
 		}
-		out = append(out, RemoteCheckpoint{ID: id, Label: cp.Label.Text(lang), Policy: pol, Mandatory: cp.IsMandatory()})
+		rc := RemoteCheckpoint{ID: id, Label: cp.Label.Text(lang), Policy: pol, Mandatory: cp.IsMandatory()}
+		for _, op := range cp.Unlocks {
+			rc.Unlocks = append(rc.Unlocks, string(op))
+		}
+		out = append(out, rc)
 	}
 	return out, nil
 }

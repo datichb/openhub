@@ -133,6 +133,9 @@ func Run(ctx context.Context, in Input) (*remote.Summary, error) {
 		// machine already; checked again before the clone).
 		return finish(fmt.Errorf("workflow %s is risk: publish: it never runs remotely", m.Workflow.ID))
 	}
+	if err := checkAnnouncedLocks(m, in.Fetched.Bundle); err != nil {
+		return finish(err)
+	}
 	progress("running", "clone", "")
 
 	// T09: clone of the target project.
