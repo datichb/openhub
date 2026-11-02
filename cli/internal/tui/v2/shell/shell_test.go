@@ -118,6 +118,28 @@ func TestShell_SessionsBadge(t *testing.T) {
 	assert.NotContains(t, s.omnibar.modeBar.GetText(true), "●")
 }
 
+// infoView is a view whose mode bar text changes after the mount (data read
+// off the event loop): RefreshModeBar draws the bar again from the view.
+type infoView struct {
+	testView
+	right string
+}
+
+func (v *infoView) ModeInfo() views.ModeBarInfo {
+	return views.ModeBarInfo{Label: "alpha", Right: v.right}
+}
+
+func TestShell_RefreshModeBar(t *testing.T) {
+	v := &infoView{testView: testView{id: "home", title: "Home"}}
+	s := New(Config{ProjectName: "test", Views: []views.View{v}, HomeViewID: "home"})
+	s.NavigateHome("home", views.ModeHub)
+	assert.NotContains(t, s.omnibar.modeBar.GetText(true), "3 members")
+
+	v.right = "3 members"
+	s.RefreshModeBar()
+	assert.Contains(t, s.omnibar.modeBar.GetText(true), "3 members")
+}
+
 func TestShell_RequestQuitGoesThroughBeforeQuit(t *testing.T) {
 	homeView := &testView{id: "home", title: "Home"}
 	calls := 0
