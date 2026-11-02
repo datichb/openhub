@@ -308,11 +308,44 @@ func Serve() error {
 // The TTL ensures freshness while preventing redundant network I/O during
 // bursts of tool calls within an agent session.
 var (
-	cachedRepo     *teamstate.Repo
+	cachedRepo     store
 	cachedRepoMu   sync.Mutex
 	cachedRepoTime time.Time
 	repoTTL        = 30 * time.Second
 )
+
+// store is what the handlers need from the team-state repository: the
+// interfaces of the sub-domains they read and write, nothing more
+// (*teamstate.Repo implements them all).
+type store interface {
+	teamstate.RepoInfo
+	teamstate.RepoSync
+	teamstate.MemberReader
+	teamstate.ClaimReader
+	teamstate.ClaimWriter
+	teamstate.ClaimLabeler
+	teamstate.ClaimTrackerSync
+	teamstate.EventReader
+	teamstate.EventWriter
+	teamstate.ConfigReader
+	teamstate.PolicyReader
+	teamstate.WikiReader
+	teamstate.WikiWriter
+	teamstate.PatternReader
+	teamstate.PatternWriter
+	teamstate.BriefReader
+}
+
+// verdictStore is what the verdict of a review needs to move the claim.
+type verdictStore interface {
+	teamstate.ClaimReader
+	teamstate.ClaimWriter
+	teamstate.ClaimTrackerSync
+}
+
+// openStore opens the clone of the team-state repository (a test replaces it
+// to serve a fake).
+var openStore = func(remote, path string) store { return teamstate.NewRepo(remote, path) }
 
 // resetRepoCache invalidates the cached repo. Used by tests that change cwd.
 func resetRepoCache() {
@@ -324,7 +357,7 @@ func resetRepoCache() {
 
 // If neither source enables team features, an error is returned so callers can
 // surface a clear message to the agent.
-func getRepo() (*teamstate.Repo, error) {
+func getRepo() (store, error) {
 	cachedRepoMu.Lock()
 	defer cachedRepoMu.Unlock()
 
@@ -345,7 +378,7 @@ func getRepo() (*teamstate.Repo, error) {
 		statePath = config.DefaultTeamStatePath()
 	}
 
-	repo := teamstate.NewRepo(teamCfg.StateRepo, statePath)
+	repo := openStore(teamCfg.StateRepo, statePath)
 	if !repo.IsCloned() {
 		return nil, fmt.Errorf("team-state repo not cloned at %s", statePath)
 	}
@@ -715,7 +748,7 @@ func handleTeamTakeoverBrief(ctx context.Context, params json.RawMessage) (*prot
 // in_progress → done is not an allowed transition. A claim already at the
 // target is left as it is. On a board without a review column, the approval
 // is applied directly, as the tracker sync does.
-func applyVerdictStatus(ctx context.Context, repo *teamstate.Repo, project, ticketID, target string) error {
+func applyVerdictStatus(ctx context.Context, repo verdictStore, project, ticketID, target string) error {
 	claim, err := repo.GetClaim(project, ticketID)
 	if err != nil {
 		return err
