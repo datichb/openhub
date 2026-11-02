@@ -129,6 +129,11 @@ type Snapshot struct {
 	Revisions map[string]string          `json:"revisions"`
 	// Children lists the child ids of each issue (bd children).
 	Children map[string][]string `json:"children,omitempty"`
+	// Statuses are the statuses of the project's Beads configuration
+	// (built-in and custom, `bd statuses`) when the session was sent; the
+	// bd of a remote session refuses any other one. Empty: not known (not
+	// checked).
+	Statuses []string `json:"statuses,omitempty"`
 }
 
 // SummarySchema is the version of summary.json.

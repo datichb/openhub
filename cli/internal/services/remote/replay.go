@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
+	"github.com/datichb/openhub/cli/internal/beads"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/gateway"
 	"github.com/datichb/openhub/cli/internal/gateway/bdargs"
@@ -327,6 +329,9 @@ func (s *Service) planReplay(ctx context.Context, sid string) (*ReplayPlan, []be
 		if h.version() == snap.Revisions[t] {
 			continue
 		}
+		if labelsCommute(snap.Issues[t], cur, journal, touched[t]) {
+			continue
+		}
 		c := conflictOf(t, snap.Issues[t], cur, journal, touched[t])
 		c.Resolution = st.Resolutions[t]
 		plan.Conflicts = append(plan.Conflicts, c)
@@ -523,20 +528,195 @@ func conflictOf(t string, snapRaw, curRaw json.RawMessage, journal []beadswire.J
 			c.Fields = append(c.Fields, FieldChange{Field: k, Snapshot: snapV, Local: curV, Remote: after[k]})
 		}
 	}
+	snapL, curL := labelsOf(snapRaw), labelsOf(curRaw)
+	if remoteL := applyLabelSteps(snapL, labelStepsOfEntries(journal, in)); !sameLabels(remoteL, snapL) {
+		c.Fields = append(c.Fields, FieldChange{Field: "labels", Snapshot: joinLabels(snapL), Local: joinLabels(curL), Remote: joinLabels(remoteL)})
+	}
 	return c
 }
 
-// notesOnly reduces an entry to its notes and comments (MergeNotes), nil
-// when it has none.
+// labelStep is an addition or a removal of labels recorded by the session.
+type labelStep struct {
+	add    bool
+	labels []string
+}
+
+// labelStepsOf reads what an entry does to labels (`label add|remove`,
+// `update --add-label|--remove-label`, in the order bd applies them: adds
+// then removals); only is true when it does nothing else to the ticket.
+func labelStepsOf(c bdargs.Cmd) (steps []labelStep, only bool) {
+	split := func(values []string) []string {
+		var out []string
+		for _, v := range values {
+			for _, l := range strings.Split(v, ",") {
+				if l = strings.TrimSpace(l); l != "" {
+					out = append(out, l)
+				}
+			}
+		}
+		return out
+	}
+	switch c.Key() {
+	case "label add", "label remove":
+		if len(c.Args) < 2 {
+			return nil, false
+		}
+		return []labelStep{{add: c.Key() == "label add", labels: split(c.Args[len(c.Args)-1:])}}, true
+	case "update":
+		only = true
+		for _, f := range c.Flags {
+			switch f.Name {
+			case "add-label", "remove-label", "json", "quiet", "verbose", "actor":
+			default:
+				only = false
+			}
+		}
+		added, removed := split(c.Values("add-label")), split(c.Values("remove-label"))
+		if len(added) > 0 {
+			steps = append(steps, labelStep{add: true, labels: added})
+		}
+		if len(removed) > 0 {
+			steps = append(steps, labelStep{labels: removed})
+		}
+		for _, l := range added {
+			if slices.Contains(removed, l) {
+				only = false // the order of bd is not relied upon
+			}
+		}
+		return steps, only && len(steps) > 0
+	}
+	return nil, false
+}
+
+// labelStepsOfEntries are the label changes of the entries seqs, in order.
+func labelStepsOfEntries(journal []beadswire.JournalEntry, in map[int]bool) []labelStep {
+	var steps []labelStep
+	for _, e := range journal {
+		if !in[e.Seq] {
+			continue
+		}
+		if c, why := parseEntry(e.Argv); why == "" {
+			s, _ := labelStepsOf(c)
+			steps = append(steps, s...)
+		}
+	}
+	return steps
+}
+
+func labelsOf(raw json.RawMessage) []string {
+	var m struct {
+		Labels []string `json:"labels"`
+	}
+	_ = json.Unmarshal(raw, &m)
+	return m.Labels
+}
+
+func joinLabels(l []string) string {
+	l = slices.Clone(l)
+	sort.Strings(l)
+	return strings.Join(slices.Compact(l), ",")
+}
+
+func sameLabels(a, b []string) bool { return joinLabels(a) == joinLabels(b) }
+
+func applyLabelSteps(from []string, steps []labelStep) []string {
+	set := map[string]bool{}
+	for _, l := range from {
+		set[l] = true
+	}
+	for _, st := range steps {
+		for _, l := range st.labels {
+			if st.add {
+				set[l] = true
+			} else {
+				delete(set, l)
+			}
+		}
+	}
+	out := make([]string, 0, len(set))
+	for l := range set {
+		out = append(out, l)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// labelsCommute reports that the session only changed labels of the ticket
+// (entries seqs) and that replaying them on the machine's version of the
+// ticket gives what merging both sides gives: labels are sets, so the
+// changes of the session and the ones made on the machine since the
+// snapshot meet without a conflict, unless the replay would undo a local
+// decision (add again a label removed on the machine, remove one added
+// there).
+func labelsCommute(snapRaw, curRaw json.RawMessage, journal []beadswire.JournalEntry, seqs []int) bool {
+	in := map[int]bool{}
+	for _, s := range seqs {
+		in[s] = true
+	}
+	n := 0
+	for _, e := range journal {
+		if !in[e.Seq] {
+			continue
+		}
+		c, why := parseEntry(e.Argv)
+		if why != "" {
+			continue
+		}
+		if _, only := labelStepsOf(c); !only {
+			return false
+		}
+		n++
+	}
+	if n == 0 {
+		return false
+	}
+	steps := labelStepsOfEntries(journal, in)
+	snapL, curL := labelsOf(snapRaw), labelsOf(curRaw)
+	replayed := applyLabelSteps(curL, steps)
+	remoteL := applyLabelSteps(snapL, steps)
+	merged := map[string]bool{}
+	for _, l := range curL {
+		merged[l] = true
+	}
+	for _, l := range remoteL {
+		if !slices.Contains(snapL, l) {
+			merged[l] = true
+		}
+	}
+	for _, l := range snapL {
+		if !slices.Contains(remoteL, l) {
+			delete(merged, l)
+		}
+	}
+	want := make([]string, 0, len(merged))
+	for l := range merged {
+		want = append(want, l)
+	}
+	return sameLabels(replayed, want)
+}
+
+// notesOnly reduces an entry to its notes and comments (MergeNotes), and to
+// the ready-for-review label it adds or removes: the review of a ticket is
+// that label on an in-progress ticket, so a conflict on the status must not
+// lose it. nil when nothing is left.
 func notesOnly(c bdargs.Cmd) *bdargs.Cmd {
 	switch c.Key() {
 	case "note", "comment", "comments add":
 		return &c
+	case "label add", "label remove":
+		if len(c.Args) >= 2 && isReviewLabel(c.Args[len(c.Args)-1]) {
+			return &c
+		}
 	case "update":
 		out := bdargs.Cmd{Path: c.Path, Args: c.Args}
 		for _, f := range c.Flags {
-			if f.Name == "notes" || f.Name == "append-notes" {
+			switch f.Name {
+			case "notes", "append-notes":
 				out.Flags = append(out.Flags, f)
+			case "add-label", "remove-label":
+				if kept := reviewLabels(f.Value); kept != "" {
+					out.Flags = append(out.Flags, bdargs.Flag{Name: f.Name, Value: kept, Explicit: true})
+				}
 			}
 		}
 		if len(out.Flags) > 0 && len(out.Args) > 0 {
@@ -544,6 +724,21 @@ func notesOnly(c bdargs.Cmd) *bdargs.Cmd {
 		}
 	}
 	return nil
+}
+
+func isReviewLabel(l string) bool {
+	return strings.EqualFold(strings.TrimSpace(l), beads.LabelReadyForReview)
+}
+
+// reviewLabels keeps the ready-for-review label of a comma separated list.
+func reviewLabels(list string) string {
+	var kept []string
+	for _, l := range strings.Split(list, ",") {
+		if isReviewLabel(l) {
+			kept = append(kept, strings.TrimSpace(l))
+		}
+	}
+	return strings.Join(kept, ",")
 }
 
 // ApplyReplay applies the pending entries (after the user's confirmation),
