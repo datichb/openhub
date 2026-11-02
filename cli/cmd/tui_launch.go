@@ -283,6 +283,15 @@ func announceConfigChanges(c *tuiRunCache) {
 func (c *tuiRunCache) get(ctx context.Context, a *app.App, opts launch.Options) (*launch.Prepared, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	// The project is read again when its settings changed since the form
+	// opened (a prepared launch of another state of the project is not kept:
+	// the options differ).
+	if fresh, changed := freshProject(ctx, a, opts.Project); changed {
+		opts.Project = fresh
+		if line := i18n.Tf("cmd.run.project_changed", fresh.Name); !slices.Contains(c.changes, line) {
+			c.changes = append(c.changes, line)
+		}
+	}
 	if c.p != nil {
 		if changed, _ := c.snap.ChangedOnDisk(); changed {
 			c.p = nil // the bundle was built with settings that are not the file's any more
