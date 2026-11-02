@@ -7,17 +7,54 @@
 package hubcontent
 
 import (
+	"crypto/sha256"
 	"embed"
+	"encoding/hex"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync"
 
 	"github.com/datichb/openhub/cli/internal/buildinfo"
 )
 
 //go:embed all:hub/agents all:hub/skills all:hub/permissions all:hub/workflows
 var embedded embed.FS
+
+// marker is what the .version file of an extracted hub holds. A release is
+// told by its version; a development build (version "dev") or a build of a
+// modified tree ("-dirty") keeps the same version while its content changes,
+// so the marker adds a fingerprint of the embedded content.
+func marker() string {
+	v := buildinfo.Version
+	if v == "dev" || strings.HasSuffix(v, "-dirty") {
+		return v + "+" + embeddedFingerprint()
+	}
+	return v
+}
+
+var embeddedFingerprint = sync.OnceValue(func() string { return fingerprint(embedded) })
+
+// fingerprint is a short digest of the files of the hub/ tree of fsys (names
+// and content, without the .gitkeep placeholders).
+func fingerprint(fsys fs.FS) string {
+	h := sha256.New()
+	_ = fs.WalkDir(fsys, "hub", func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || d.Name() == ".gitkeep" {
+			return nil
+		}
+		data, rerr := fs.ReadFile(fsys, path)
+		if rerr != nil {
+			return nil
+		}
+		fmt.Fprintf(h, "%s\x00%d\x00", path, len(data))
+		h.Write(data)
+		return nil
+	})
+	return hex.EncodeToString(h.Sum(nil))[:12]
+}
 
 // HubContentDir returns the path where hub content is extracted (~/.oh/hub/).
 func HubContentDir() string {
@@ -35,22 +72,23 @@ func IsInstalled() bool {
 	return err == nil
 }
 
-// NeedsExtract returns true if the hub content needs to be extracted
-// (not present or version mismatch with current binary).
+// NeedsExtract returns true if the hub content needs to be extracted (not
+// present, or a version mismatch with the current binary; for a development
+// or modified build, a mismatch of the embedded content too).
 func NeedsExtract() bool {
 	versionFile := filepath.Join(HubContentDir(), ".version")
 	data, err := os.ReadFile(versionFile)
 	if err != nil {
 		return true
 	}
-	return string(data) != buildinfo.Version
+	return string(data) != marker()
 }
 
 // Extract writes the embedded hub content to destDir.
 // Idempotent — skips if already at current version.
 func Extract(destDir string) error {
 	versionFile := filepath.Join(destDir, ".version")
-	if data, err := os.ReadFile(versionFile); err == nil && string(data) == buildinfo.Version {
+	if data, err := os.ReadFile(versionFile); err == nil && string(data) == marker() {
 		return nil // already up to date
 	}
 
@@ -96,7 +134,7 @@ func Extract(destDir string) error {
 	}
 
 	// Write version marker
-	return os.WriteFile(versionFile, []byte(buildinfo.Version), 0o644)
+	return os.WriteFile(versionFile, []byte(marker()), 0o644)
 }
 
 // Install copies a prepared hub (agents/, skills/, permissions/, workflows/
@@ -120,5 +158,5 @@ func Install(srcDir, destDir string) error {
 			return fmt.Errorf("installing hub content: %w", err)
 		}
 	}
-	return os.WriteFile(filepath.Join(destDir, ".version"), []byte(buildinfo.Version), 0o644)
+	return os.WriteFile(filepath.Join(destDir, ".version"), []byte(marker()), 0o644)
 }
