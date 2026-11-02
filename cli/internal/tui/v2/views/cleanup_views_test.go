@@ -499,11 +499,14 @@ func TestTeamMCPViewRefreshAsksWhenDirty(t *testing.T) {
 
 	// Clean: r reloads without asking. The reload ends later, on the loop,
 	// and clears the dirty flags: a change made before it would be dropped.
+	// GetMCPConfig is read on the loop when the reload starts; its end is the
+	// team config read off the loop and set on it (a new value).
 	loaded := loads.Load()
-	onLoop(app, func() { v.HandleKey(runeKey('r')) })
+	var before *teamstate.TeamConfig
+	onLoop(app, func() { before = v.teamCfg; v.HandleKey(runeKey('r')) })
 	assert.Zero(t, sh.confirmCount())
 	require.Eventually(t, func() bool { return loads.Load() > loaded }, 5*time.Second, 5*time.Millisecond, "reloaded")
-	onLoop(app, func() {}) // the end of the reload, on the loop
+	waitFor(t, app, func() bool { return v.teamCfg != before })
 
 	onLoop(app, func() {
 		selectSection(t, v.list, i18n.T("tui.config.field.mcp_enabled.label"))
