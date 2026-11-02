@@ -59,8 +59,9 @@ Trois règles gouvernent tout le reste :
 ## 2. Push et CI verte
 
 - [ ] Pousser `main` (ou la branche de release fusionnée). Le workflow `CI — Go CLI` (`ci.yml`) tourne sur `push` vers `main` et `develop`.
-- [ ] Les trois systèmes du job `Go CLI` sont verts : `ubuntu-latest`, `macos-latest`, `windows-latest` (vet, golangci-lint v2.14, govulncheck, tests `-race` avec couverture ≥ 60 % hors Windows, build). Sous Windows, seuls les paquets de `.github/windows-test-packages.txt` sont testés ; 27 paquets sont exclus (`.github/windows-test-packages-excluded.txt`, avec leur cause) : l'annoncer comme « Windows moins vérifié », ne pas le présenter comme « multiplateforme ».
-- [ ] Le job `Go CLI integration (opencode V2, no LLM)` est vert (macOS, avec l'opencode épinglé de `ci.yml`, sans modèle).
+- [ ] Les trois systèmes du job `Go CLI` sont verts : `ubuntu-latest`, `macos-latest`, `windows-latest` (vet, golangci-lint v2.14, govulncheck, tests `-race` avec couverture ≥ 60 % hors Windows, build). Sous Windows, seuls les paquets de `.github/windows-test-packages.txt` sont testés ; 20 paquets sont exclus (`.github/windows-test-packages-excluded.txt`, avec leur cause ; `windows-packages.sh check` fait échouer le job si un paquet n'est classé dans aucune des deux listes) : l'annoncer comme « Windows moins vérifié », ne pas le présenter comme « multiplateforme ».
+- [ ] Le job `Go CLI integration (opencode V2, no LLM)` est vert (macOS, avec l'opencode épinglé de `ci.yml`, sans modèle). Il lance aussi les tests `TestBinary*` de `./cmd` (construction et exécution du binaire `oh`).
+- [ ] Le job `Mermaid diagrams render` est vert (`TestMermaidRenders` avec `mmdc` épinglé ; un test sauté fait échouer le job). Dans le job `Go CLI` sous Linux, `bd` est installé à la version épinglée de `ci.yml` (somme SHA-256 contrôlée) : les tests du vrai `bd` y tournent. La version de `bd` de `ci.yml` doit rester celle de la table des options (`internal/gateway/bdargs`).
 - [ ] Le commit à taguer est **le commit vert** : `git rev-parse HEAD` égale le commit du run.
 - [ ] Le secret de dépôt `HOMEBREW_TAP_TOKEN` existe (Settings → Secrets) : GoReleaser s'en sert pour pousser la formule dans `datichb/homebrew-tap`. `GITHUB_TOKEN` est fourni par GitHub ; la signature utilise `id-token: write`.
 
