@@ -29,6 +29,21 @@ type AggregateStats struct {
 	ReasoningTokens int64
 }
 
+// cacheSavingsFactor is the share of the cost of an input token that a token
+// read from the cache saves. Cache reads cost about 90% less than fresh input
+// tokens on most providers; the estimate is conservative.
+const cacheSavingsFactor = 0.75
+
+// CacheSavings estimates the cost saved by the cache reads, and the share of
+// the gross cost it stands for (in percent). It is 0 without input tokens.
+func (s AggregateStats) CacheSavings() (saved, percent float64) {
+	if s.TotalTokensIn == 0 {
+		return 0, 0
+	}
+	ratio := float64(s.CacheReadTokens) / float64(s.TotalTokensIn)
+	return ratio * s.TotalCost * cacheSavingsFactor, ratio * 100 * cacheSavingsFactor
+}
+
 // DayCost represents aggregated cost for a single calendar day.
 type DayCost struct {
 	Day  string // "2026-08-20" (local time, ISO 8601 date)

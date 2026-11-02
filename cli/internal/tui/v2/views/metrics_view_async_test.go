@@ -109,3 +109,41 @@ func TestMetricsViewKeysReloadWithTheirPeriod(t *testing.T) {
 	assert.ElementsMatch(t, []string{"7d", "30d"}, seen[1:])
 	assert.Contains(t, metricsText(app, v), "222", "the last request is shown, not the first answer")
 }
+
+// staticStats answers the same totals for every period and project.
+type staticStats struct {
+	platform.StatsProvider
+	stats platform.AggregateStats
+}
+
+func (s staticStats) Available() bool { return true }
+func (s staticStats) AggregateStats(string) (*platform.AggregateStats, error) {
+	st := s.stats
+	return &st, nil
+}
+
+// The usage text carries what `oh dashboard` and `oh metrics` showed: the
+// sessions of the day, the active projects (hub scope only), the savings of
+// the cache and the share of reasoning.
+func TestMetricsUsageTextCoversDashboardAndMetrics(t *testing.T) {
+	frLocale(t)
+	v := NewMetricsView(MetricsViewConfig{Stats: staticStats{stats: platform.AggregateStats{
+		TotalSessions: 12, TodaySessions: 3, ActiveProjects: 4,
+		TotalTokensIn: 1_000_000, TotalTokensOut: 200_000, CacheReadTokens: 500_000, ReasoningTokens: 50_000,
+		TotalCost: 10,
+	}}})
+
+	hub := v.buildUsageText(metricsScope{label: "hub"}, "all")
+	assert.Contains(t, hub, "Aujourd'hui")
+	assert.Contains(t, hub, "Projets actifs")
+	assert.Contains(t, hub, "Économies cache")
+	assert.Contains(t, hub, "~3.75 $", "10 × 50% of the input read from the cache × 0.75")
+	assert.Contains(t, hub, "Raisonnement :")
+	assert.Contains(t, hub, "25%")
+
+	project := v.buildUsageText(metricsScope{label: "p", projects: []ActiveProject{}}, "all")
+	assert.NotContains(t, project, "Projets actifs", "the active projects are a hub figure")
+
+	week := v.buildUsageText(metricsScope{label: "hub"}, "7d")
+	assert.NotContains(t, week, "Aujourd'hui", "today is shown with all periods only")
+}

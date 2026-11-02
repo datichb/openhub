@@ -359,6 +359,12 @@ func (v *MetricsView) buildUsageText(sc metricsScope, period string) string {
 
 	// Main stats
 	fmt.Fprintf(&sb, "  %s %d\n", secondaryLabel(i18n.T("tui.metrics.label_sessions")), stats.TotalSessions)
+	if period == "all" {
+		fmt.Fprintf(&sb, "  %s %d\n", secondaryLabel(i18n.T("tui.metrics.label_today")), stats.TodaySessions)
+	}
+	if sc.projects == nil {
+		fmt.Fprintf(&sb, "  %s %d\n", secondaryLabel(i18n.T("tui.metrics.label_active_projects")), stats.ActiveProjects)
+	}
 	fmt.Fprintf(&sb, "  %s %s\n", secondaryLabel(i18n.T("tui.metrics.label_tokens_in")), textfmt.Tokens(stats.TotalTokensIn))
 	fmt.Fprintf(&sb, "  %s %s\n", secondaryLabel(i18n.T("tui.metrics.label_tokens_out")), textfmt.Tokens(stats.TotalTokensOut))
 
@@ -369,6 +375,14 @@ func (v *MetricsView) buildUsageText(sc metricsScope, period string) string {
 
 	if stats.TotalCost > 0 {
 		fmt.Fprintf(&sb, "  %s %s\n", secondaryLabel(i18n.T("tui.metrics.label_estimated_cost")), textfmt.Cost(stats.TotalCost))
+	}
+	if saved, percent := stats.CacheSavings(); saved > 0.01 {
+		fmt.Fprintf(&sb, "  %s %s\n", secondaryLabel(i18n.T("tui.metrics.label_cache_savings")),
+			i18n.Tf("tui.metrics.cache_savings_value", textfmt.Cost(saved), percent))
+	}
+	if stats.ReasoningTokens > 0 && stats.TotalTokensOut > 0 {
+		fmt.Fprintf(&sb, "  %s %.0f%%\n", secondaryLabel(i18n.T("tui.metrics.label_reasoning_ratio")),
+			float64(stats.ReasoningTokens)/float64(stats.TotalTokensOut)*100)
 	}
 
 	fmt.Fprintf(&sb, "\n  %s\n", theme.Paint(theme.TextSecondaryHex, i18n.T("tui.metrics.usage_footer")))
