@@ -10,7 +10,7 @@ Une session oh peut tourner sur un **runner GitLab CI** au lieu de votre machine
 > oh config set remote.experimental true
 > ```
 >
-> Sans ce réglage, `oh remote setup`, `oh run --runtime remote`, l'option ☁ de la fiche de lancement, `oh session fetch` et `oh session resolve` refusent avec le message « mode distant expérimental, non validé : oh config set remote.experimental true ». Une fois activée, un avertissement reste affiché dans le récapitulatif du lancement, dans `oh remote status` et dans `oh doctor`. Réservez-la aux essais, avec des projets et des jetons de test : les protections du job (étapes git finales, construction de l'image, rejeu du journal Beads) sont en place et testées, mais le drapeau ne sera levé qu'après une recette sur un vrai runner.
+> Vous pouvez aussi l'activer dans les réglages (Réglages › Distant), qui affichent le même avertissement. Sans ce réglage, `oh remote setup`, `oh run --runtime remote`, l'option ☁ de la fiche de lancement, `oh session fetch` et `oh session resolve` refusent avec le message « mode distant expérimental, non validé : oh config set remote.experimental true ». Une fois activée, un avertissement reste affiché dans le récapitulatif du lancement, dans `oh remote status` et dans `oh doctor`. Réservez-la aux essais, avec des projets et des jetons de test : les protections du job (étapes git finales, construction de l'image, rejeu du journal Beads) sont en place et testées, mais le drapeau ne sera levé qu'après une recette sur un vrai runner.
 
 > **v5.0 :** l'exécution distante est couverte par les tests (répondeur, contrat machine ↔ job, rejeu du journal, essai local complet de `oh runner run`), mais n'a pas encore été validée sur un vrai runner. Les serveurs MCP qui lisent un jeton dans le trousseau de la machine (gitlab, jira, figma…) ne sont pas disponibles dans le job (`workflow` et `wiki` le sont), et les build args de la config Exécution ne sont pas transmis à l'image distante.
 
@@ -198,7 +198,7 @@ Puis, pour chaque session :
 
 Si le déclenchement échoue, les réservations faites par oh sont annulées. `--headless` ne s'applique pas au distant.
 
-Politique des checkpoints dans le job (jamais d'approbation aveugle) : `remote: auto` est validé par le répondeur de politique d'oh ; `remote: defer` arrête proprement la session quand la MR est prête, la suite se fait en local après récupération. Un checkpoint vérifié (`verify:`) n'est jamais passé sans sa vérification : elle tourne dans le job (section 6, « Vérification des checkpoints »).
+Politique des checkpoints dans le job (jamais d'approbation aveugle) : `remote: auto` est validé par le répondeur de politique d'oh ; `remote: defer` arrête proprement la session quand la MR est prête, la suite se fait en local après récupération. Un checkpoint vérifié (`verify:`) n'est jamais passé sans sa vérification : elle tourne dans le job (section 6, « Vérification des checkpoints »). Les opérations qu'un checkpoint déverrouille (`unlocks:`, par ex. le commit et la fermeture des tickets) sont verrouillées dans le job comme sur votre machine, jusqu'à ce que le checkpoint soit passé : le manifeste de la session les liste pour chaque checkpoint et le job refuse de démarrer si son paquet ne les verrouille pas pareil (un manifeste écrit par un oh plus ancien, sans cette liste, est lu comme avant).
 
 ## 6. Dans le job : `oh runner`
 
