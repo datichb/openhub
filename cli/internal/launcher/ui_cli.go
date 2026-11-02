@@ -10,7 +10,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
-// CLILaunchUI implements LaunchUI for direct terminal usage (oh start, oh audit, etc.).
+// CLILaunchUI implements LaunchUI for direct terminal usage (oh run).
 type CLILaunchUI struct {
 	Out io.Writer
 }

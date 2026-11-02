@@ -613,7 +613,7 @@ func workflowCommands(list []workflowsvc.Summary, open func(tuiLaunchRequest)) [
 	return append(cmds, routes...)
 }
 
-// actionReviewPublish runs `oh review --publish` on the active project with
+// actionReviewPublish runs `oh mr create` on the active project with
 // the TUI suspended (questions and output in the terminal).
 func actionReviewPublish() {
 	if tuiShell == nil {

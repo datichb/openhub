@@ -128,7 +128,7 @@ type Claim struct {
 	// to avoid re-parsing on every sync cycle.
 	ExternalIID int `toml:"external_iid,omitempty"`
 	// MRURL is the web URL of the merge request created for this claim.
-	// Set by PublishReviewBatch (oh review --publish); read by oh review feedback
+	// Set by PublishReviewBatch (oh mr create); read by the review inputs
 	// and TUI board detail for context. Empty for claims without an MR.
 	MRURL string `toml:"mr_url,omitempty"`
 	// Remote is the remote session working on the ticket (v5 phase 5),

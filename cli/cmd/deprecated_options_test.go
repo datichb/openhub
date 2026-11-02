@@ -79,12 +79,6 @@ func TestDeprecatedShorthandsAreAcceptedWithWarning(t *testing.T) {
 		{[]string{"serve"}, "-p", "port", "9191", "--port"},
 		{[]string{"project", "configure"}, "-m", "model", "some-model", "--model"},
 		{[]string{"metrics"}, "-d", "period", "7d", "--period"},
-		{[]string{"audit"}, "-t", "type", "quality", "--type"},
-		{[]string{"review"}, "-m", "mode", "full", "--mode"},
-		{[]string{"review"}, "-b", "branch", "feat/x", "--branch"},
-		{[]string{"debug"}, "-i", "issue", "it breaks", "--issue"},
-		{[]string{"start"}, "-w", "worktree", "feat/y", "--worktree"},
-		{[]string{"start"}, "-l", "label", "bug", "--label"},
 		{[]string{"session", "attach"}, "--how", "attach", "tmux", "--attach"},
 	}
 	for _, lang := range []string{"en", "fr"} {
@@ -178,7 +172,6 @@ var forceAsYes = []struct {
 }{
 	{[]string{"purge"}, false},
 	{[]string{"project", "remove"}, true},
-	{[]string{"service", "remove"}, true},
 	{[]string{"teams", "remove"}, true},
 }
 
@@ -309,7 +302,6 @@ func TestForceHasTheEffectOfYesWithoutTerminal(t *testing.T) {
 		args []string
 	}{
 		{"teams remove", func() *cobra.Command { return teamsRemoveCmd }, []string{"acme"}},
-		{"service remove", func() *cobra.Command { return serviceRemoveCmd }, []string{"gitlab"}},
 	} {
 		for _, flag := range []string{"--force", "-f", "--yes"} {
 			t.Run(tc.name+" "+flag, func(t *testing.T) {

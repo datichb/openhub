@@ -35,7 +35,7 @@ import (
 // keep (rules in claimEvidence):
 //
 //   - remote: a claim of the ID carries the web URL of its merge request
-//     (mr_url, set by oh review --publish), and its host and repository path
+//     (mr_url, set by oh mr create), and its host and repository path
 //     are those of the origin remote of the local project;
 //   - name: the ID was made by domain.NewProjectID (<slug>-<uuid8>) and its
 //     slug is the slug of the name of the local project. Refused when an

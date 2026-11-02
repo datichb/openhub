@@ -77,8 +77,6 @@ var literalExceptions = map[string]string{
 	"takeover: enriched brief for %s/%s":    "git commit message",
 	"tracker: discovery config for %s (%s)": "git commit message",
 	"# Takeover Brief (enrichi): %s\n\n%s":  "document committed to the team-state",
-	"[ai-delegated]%s %s — %s":              "ticket title written to the tracker",
-	"Travaille sur le ticket %s. Utilise `bd prime` pour le contexte et `bd ready` pour les tâches disponibles.": "prompt for the agent",
 	// Protocols and markup.
 	"event: ping\ndata: {\"status\":\"connected\"}\n\n": "server-sent event",
 	// Output of the eval harness, read by developers (make test-eval).

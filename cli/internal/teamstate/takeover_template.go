@@ -118,9 +118,7 @@ func RenderTemplateBrief(brief *TakeoverBrief) string {
 
 	// Footer
 	b.WriteString("---\n")
-	b.WriteString("*Brief genere automatiquement par template. Utiliser `oh takeover-brief enrich ")
-	b.WriteString(brief.Meta.TicketID)
-	b.WriteString("` pour une version enrichie par IA.*\n")
+	b.WriteString("*Brief genere automatiquement par template. Touche `e` de la vue Reprise de l'interface (oh) pour une version enrichie par IA.*\n")
 
 	return b.String()
 }

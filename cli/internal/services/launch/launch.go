@@ -66,7 +66,7 @@ type Options struct {
 	// handles several tickets) instead of one session per ticket.
 	OneSession bool
 	// Agent replaces the entry agent of a workflow whose entry is selectable
-	// (`libre`, former `oh start --agent`).
+	// (`libre`).
 	Agent string
 	// Draft resolves the workflow with the member's drafts (local only, may
 	// not loosen the published version).

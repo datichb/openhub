@@ -28,7 +28,7 @@ func gitlabHub(secrets map[string]string) *app.App {
 
 func teamOf(id string) *string { return &id }
 
-// oh review publish / oh mr create / oh review feedback find the GitLab token
+// oh mr create and the review inputs of the workflows find the GitLab token
 // of the team of the project for the GitLab they call, with the same cascade
 // as the tracker.
 func TestResolveGitLabAccessFollowsTheUniqueCascade(t *testing.T) {
@@ -205,7 +205,7 @@ func TestConfigSetTrackerTokenURL(t *testing.T) {
 }
 
 // A token that the GitLab refuses is named with its source, its key and the
-// server by oh mr create and oh review feedback (the same client).
+// server by oh mr create and the review inputs (the same client).
 func TestGitLabAccessClientNamesTheRefusedToken(t *testing.T) {
 	t.Setenv("GITLAB_TOKEN", "")
 	t.Setenv("OH_GITLAB_URL", "")

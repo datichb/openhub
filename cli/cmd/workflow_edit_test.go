@@ -282,7 +282,7 @@ func TestPrepareRunRequiredTicketInput(t *testing.T) {
 	assert.Equal(t, "bd-1", res.Inputs["ticket"])
 }
 
-// B1: `oh run feature` (and `oh start`) without a request launches spec,
+// B1: `oh run feature` without a request launches spec,
 // which asks for it at the start of the session: no missing-input error.
 func TestPrepareRunFeatureWithoutRequest(t *testing.T) {
 	setupWorkflowCLI(t, "alice")

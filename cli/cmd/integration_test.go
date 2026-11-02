@@ -147,11 +147,15 @@ func TestBinarySmoke(t *testing.T) {
 		{name: "mcp unknown service", args: []string{"mcp", "enable", "invalid-service"}, exit: nonZero, stderr: []string{"unknown service"}},
 		{name: "mcp list", args: []string{"mcp", "list"}, exit: 0, stdout: []string{"figma", "gitlab"}},
 		{name: "mcp list as JSON", args: []string{"mcp", "list", "--json"}, exit: 0, stdout: []string{`"name"`, `"figma"`}},
-		// A deprecated command runs (here it stops at the missing GitLab write
-		// access) after a warning that names its replacement, in the language
-		// of the hub; cobra prints no English sentence of its own (U-02).
-		{name: "deprecated command", args: []string{"review", "--publish"}, exit: 1, stderr: []string{"oh mr create"}, stderrAbsent: []string{"is deprecated"}},
-		{name: "its replacement does not warn", args: []string{"mr", "create"}, exit: 1, stderrAbsent: []string{"oh mr create"}},
+		// A command removed in 5.1 names its replacement, in the language of
+		// the hub, and fails with the usage code, whatever its former options.
+		{name: "removed in 5.1: review", args: []string{"review", "--publish"}, exit: 2, stderr: []string{"oh review", "5.1", "oh mr create"}},
+		{name: "removed in 5.1: start", args: []string{"start", "-a", "dev", "-w", "feat/x"}, exit: 2, stderr: []string{"oh start", "oh run libre"}},
+		{name: "removed in 5.1: service setup", args: []string{"service", "setup"}, exit: 2, stderr: []string{"oh service setup", "oh mcp setup"}},
+		{name: "removed in 5.1: takeover-brief enrich", args: []string{"takeover-brief", "enrich", "bd-1"}, exit: 2, stderr: []string{"oh takeover-brief enrich", "oh run brief-enrich"}},
+		{name: "removed option: purge --force", args: []string{"purge", "--force"}, exit: 2, stderr: []string{"--force"}},
+		{name: "removed option: repair --auto", args: []string{"repair", "--auto"}, exit: 2, stderr: []string{"--auto"}},
+		{name: "mr create does not warn", args: []string{"mr", "create"}, exit: 1, stderrAbsent: []string{"removed"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
