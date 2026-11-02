@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
 	"time"
 
@@ -500,32 +501,38 @@ func (c *Client) Diff(ctx context.Context, sessionID string) ([]FileDiff, error)
 	return out.Data, err
 }
 
-// AssistantText returns the concatenated text produced by the assistant in a session.
+// AssistantText returns the text produced by the assistant in a session, in
+// the order it was written: the messages by creation time then id (the order
+// the server lists them in is not relied on), the parts of a message in the
+// order of the message. The pieces are separated by a blank line; tool calls
+// and empty parts are left out.
 func (c *Client) AssistantText(ctx context.Context, sessionID string) (string, error) {
-	var out struct {
-		Data []struct {
-			Type    string `json:"type"`
-			Content []struct {
-				Type string `json:"type"`
-				Text string `json:"text"`
-			} `json:"content"`
-		} `json:"data"`
-	}
-	if err := c.do(ctx, http.MethodGet, sessionPath(sessionID, "message"), nil, nil, &out); err != nil {
+	raw, err := c.Messages(ctx, sessionID)
+	if err != nil {
 		return "", err
 	}
-	var b strings.Builder
-	for _, m := range out.Data {
-		if m.Type != "assistant" {
-			continue
+	var msgs []wireMessage
+	for _, r := range raw {
+		var m wireMessage
+		if json.Unmarshal(r, &m) == nil && m.Type == "assistant" {
+			msgs = append(msgs, m)
 		}
+	}
+	sort.SliceStable(msgs, func(i, j int) bool {
+		if msgs[i].Time.Created != msgs[j].Time.Created {
+			return msgs[i].Time.Created < msgs[j].Time.Created
+		}
+		return msgs[i].ID < msgs[j].ID
+	})
+	var pieces []string
+	for _, m := range msgs {
 		for _, p := range m.Content {
-			if p.Type == "text" {
-				b.WriteString(p.Text)
+			if t := strings.Trim(p.Text, "\r\n"); p.Type == "text" && strings.TrimSpace(t) != "" {
+				pieces = append(pieces, t)
 			}
 		}
 	}
-	return b.String(), nil
+	return strings.Join(pieces, "\n\n"), nil
 }
 
 // Pair returns a one-time browser/app connection code.
