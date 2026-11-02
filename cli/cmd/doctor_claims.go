@@ -6,7 +6,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/services/doctor"
@@ -19,7 +18,6 @@ import (
 
 func init() {
 	registerDoctorCheck(claimsDoctorChecks)
-	registerDoctorCheck(teamBetaDoctorChecks)
 }
 
 // orphanClaim is a claim of the member that nothing holds any more.
@@ -133,48 +131,4 @@ func orphanClaimsResult(orphans []orphanClaim) doctor.Result {
 	first := orphans[0]
 	return doctor.Result{Name: name, OK: false,
 		Detail: i18n.Tf("cmd.doctor.claims.orphans", strings.Join(parts, ", "), first.Ticket, first.Project)}
-}
-
-// teamBetaDoctorCheck reports the beta state of the team mode: a warning
-// (it never fails the doctor) when a team is enabled, nothing otherwise.
-func teamBetaDoctorCheck(a *app.App, projects []domain.Project) []doctor.Result {
-	if !teamModeUsed(a, projects) {
-		return nil
-	}
-	return []doctor.Result{{
-		Name:   i18n.T("cmd.team.beta.doctor.name"),
-		OK:     true,
-		Warn:   true,
-		Detail: i18n.T("cmd.team.beta.doctor.detail"),
-	}}
-}
-
-// teamModeUsed reports whether the hub team or the team of a project is
-// enabled (not a solo space).
-func teamModeUsed(a *app.App, projects []domain.Project) bool {
-	if a == nil || a.Config == nil {
-		return false
-	}
-	if t := a.Config.ActiveTeam(); t.Enabled && !t.Solo {
-		return true
-	}
-	for i := range projects {
-		if resolvedTeamConfig(a, &projects[i]).Enabled {
-			return true
-		}
-	}
-	return false
-}
-
-// teamBetaDoctorChecks is the registered doctor check of the beta state.
-func teamBetaDoctorChecks(ctx context.Context) []doctor.Result {
-	a := TryApp()
-	if a == nil || a.Config == nil {
-		return nil
-	}
-	var projects []domain.Project
-	if a.Projects != nil {
-		projects, _ = a.Projects.List(ctx, domain.ProjectStatusActive)
-	}
-	return teamBetaDoctorCheck(a, projects)
 }
