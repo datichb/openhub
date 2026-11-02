@@ -13,16 +13,36 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
-// buildCommands constructs the flat command registry for the omnibar.
-func buildCommands(a *app.App) []shell.Command {
-	// Mode shortcuts for readability (ADR-032 Phase 3)
-	modeSession := []views.Mode{views.ModeProject, views.ModeTeam} // sessions need a project, available from team via selection
-	modeProject := []views.Mode{views.ModeProject}                 // project-scoped only
-	modeTeam := []views.Mode{views.ModeTeam}                       // team-scoped only
-	// nil = global (visible in all modes)
+// The modes in which a command shows (ADR-032 Phase 3); no mode = global.
+var (
+	// modeSession: sessions need a project, available from team via selection.
+	modeSession = []views.Mode{views.ModeProject, views.ModeTeam}
+	// modeProject: project-scoped only.
+	modeProject = []views.Mode{views.ModeProject}
+	// modeTeam: team-scoped only.
+	modeTeam = []views.Mode{views.ModeTeam}
+)
 
-	commands := []shell.Command{
-		// ── Sessions ─────────────────────────────────────────────────────
+// buildCommands constructs the flat command registry for the omnibar: the
+// fixed groups, then those that depend on a project or a team, then the
+// commands that are always there.
+func buildCommands(a *app.App) []shell.Command {
+	commands := sessionCommands()
+	commands = append(commands, hubCommands()...)
+	commands = append(commands, systemCommands()...)
+	commands = append(commands, navigationCommands()...)
+	commands = append(commands, projectCommands(a)...)
+	commands = append(commands, teamCommands(a)...)
+	commands = append(commands, alwaysVisibleCommands()...)
+	if a.Config.MCP.Gitlab.WriteEnabled {
+		commands = append(commands, reviewPublishCommand())
+	}
+	return append(commands, hubSetupCommands()...)
+}
+
+// sessionCommands are the sessions, the catalogue and the cleanup.
+func sessionCommands() []shell.Command {
+	return []shell.Command{
 		{
 			ID:          "libre",
 			Label:       i18n.T("tui.start.free"),
@@ -80,8 +100,12 @@ func buildCommands(a *app.App) []shell.Command {
 			Priority:    75,
 			ViewID:      "workflows",
 		},
+	}
+}
 
-		// ── Projets ──────────────────────────────────────────────────────
+// hubCommands are the projects and the configuration of the hub.
+func hubCommands() []shell.Command {
+	return []shell.Command{
 		{
 			ID:          "projects",
 			Label:       i18n.T("tui.cmd.projects"),
@@ -92,7 +116,6 @@ func buildCommands(a *app.App) []shell.Command {
 			ViewID:      "projects.list",
 		},
 
-		// ── Configuration ────────────────────────────────────────────────
 		{
 			ID:          "teams",
 			Label:       i18n.T("tui.teams"),
@@ -129,9 +152,7 @@ func buildCommands(a *app.App) []shell.Command {
 			Priority:    50,
 			ViewID:      "mcp",
 		},
-		// team-detail moved into hasTeam block (ADR-032)
 
-		// ── Système ──────────────────────────────────────────────────────
 		{
 			ID:          "settings",
 			Label:       i18n.T("tui.cmd.settings"),
@@ -141,7 +162,6 @@ func buildCommands(a *app.App) []shell.Command {
 			Priority:    90,
 			ViewID:      "settings",
 		},
-		// project-config moved into hasProject block (ADR-032)
 		{
 			ID:          "secrets",
 			Label:       i18n.T("tui.cmd.secrets"),
@@ -151,6 +171,12 @@ func buildCommands(a *app.App) []shell.Command {
 			Priority:    45,
 			ViewID:      "secrets",
 		},
+	}
+}
+
+// systemCommands are the views of the system and the history import/export.
+func systemCommands() []shell.Command {
+	return []shell.Command{
 		{
 			ID:          "status",
 			Label:       i18n.T("tui.cmd.status"),
@@ -214,8 +240,12 @@ func buildCommands(a *app.App) []shell.Command {
 			Priority:    35,
 			Action:      actionHistoryImport,
 		},
+	}
+}
 
-		// ── Navigation ───────────────────────────────────────────────────
+// navigationCommands move between the modes and quit.
+func navigationCommands() []shell.Command {
+	return []shell.Command{
 		{
 			ID:          "home",
 			Label:       i18n.T("tui.cmd.home"),
@@ -272,158 +302,181 @@ func buildCommands(a *app.App) []shell.Command {
 			},
 		},
 	}
+}
 
-	// ── Project commands — only registered when at least one project exists (ADR-032) ──
-	hasProject := false
-	if a.Projects != nil {
-		projects, _ := a.Projects.List(context.Background(), domain.ProjectStatusActive)
-		hasProject = len(projects) > 0
+// projectCommands are the commands of a project, only registered when at
+// least one project exists (ADR-032).
+func projectCommands(a *app.App) []shell.Command {
+	if a.Projects == nil {
+		return nil
 	}
-	if hasProject {
-		commands = append(commands,
-			shell.Command{
-				ID:          "board",
-				Label:       i18n.T("tui.cmd.project_board"),
-				Aliases:     []string{"kanban", "tasks", "project board"},
-				Description: i18n.T("tui.cmd.board.desc"),
-				Category:    i18n.T("tui.category.projects"),
-				Priority:    100,
-				ViewID:      "board",
-				Modes:       modeProject,
-			},
-			shell.Command{
-				ID:          "board.init",
-				Label:       i18n.T("tui.cmd.board_init"),
-				Aliases:     []string{"beads init", "init board", "init tickets"},
-				Description: i18n.T("tui.cmd.board_init.desc"),
-				Category:    i18n.T("tui.category.projects"),
-				Priority:    30,
-				Action: func() {
-					initBeadsForActiveProject(a)
-				},
-				Modes: modeProject,
-			},
-			shell.Command{
-				ID:          "project-wiki",
-				Label:       i18n.T("tui.cmd.project_wiki"),
-				Aliases:     []string{"wiki", "wiki projet", "project wiki", "doc metrics"},
-				Description: i18n.T("tui.cmd.project_wiki.desc"),
-				Category:    i18n.T("tui.category.projects"),
-				Priority:    40,
-				ViewID:      "project.wiki",
-				Modes:       modeProject,
-			},
-			shell.Command{
-				ID:          "project-config",
-				Label:       i18n.T("tui.cmd.project_config"),
-				Aliases:     []string{"config projet", "project config", "projet config"},
-				Description: i18n.T("tui.cmd.project_config.desc"),
-				Category:    i18n.T("tui.category.configuration"),
-				Priority:    46,
-				ViewID:      "project.config",
-				Modes:       modeProject,
-			},
-		)
+	projects, _ := a.Projects.List(context.Background(), domain.ProjectStatusActive)
+	if len(projects) == 0 {
+		return nil
 	}
+	return []shell.Command{
+		{
+			ID:          "board",
+			Label:       i18n.T("tui.cmd.project_board"),
+			Aliases:     []string{"kanban", "tasks", "project board"},
+			Description: i18n.T("tui.cmd.board.desc"),
+			Category:    i18n.T("tui.category.projects"),
+			Priority:    100,
+			ViewID:      "board",
+			Modes:       modeProject,
+		},
+		{
+			ID:          "board.init",
+			Label:       i18n.T("tui.cmd.board_init"),
+			Aliases:     []string{"beads init", "init board", "init tickets"},
+			Description: i18n.T("tui.cmd.board_init.desc"),
+			Category:    i18n.T("tui.category.projects"),
+			Priority:    30,
+			Action: func() {
+				initBeadsForActiveProject(a)
+			},
+			Modes: modeProject,
+		},
+		{
+			ID:          "project-wiki",
+			Label:       i18n.T("tui.cmd.project_wiki"),
+			Aliases:     []string{"wiki", "wiki projet", "project wiki", "doc metrics"},
+			Description: i18n.T("tui.cmd.project_wiki.desc"),
+			Category:    i18n.T("tui.category.projects"),
+			Priority:    40,
+			ViewID:      "project.wiki",
+			Modes:       modeProject,
+		},
+		{
+			ID:          "project-config",
+			Label:       i18n.T("tui.cmd.project_config"),
+			Aliases:     []string{"config projet", "project config", "projet config"},
+			Description: i18n.T("tui.cmd.project_config.desc"),
+			Category:    i18n.T("tui.category.configuration"),
+			Priority:    46,
+			ViewID:      "project.config",
+			Modes:       modeProject,
+		},
+	}
+}
 
-	// ── Team commands — only registered when a team is configured (ADR-032) ──
-	hasTeam := a.Config.ActiveTeam().StateRepo != ""
-	if hasTeam {
-		commands = append(commands,
-			shell.Command{
-				ID:          "team-detail",
-				Label:       i18n.T("tui.team.detail"),
-				Aliases:     []string{"tracker", "sync", "team detail", "profile", "profil"},
-				Description: i18n.T("tui.team.detail.desc"),
-				Category:    i18n.T("tui.category.configuration"),
-				Priority:    48,
-				ViewID:      "team.detail",
-				Modes:       modeTeam,
-			},
-			shell.Command{
-				ID:          "team.discover",
-				Label:       i18n.T("cmd.discovery.omnibar_label"),
-				Aliases:     []string{"tracker discovery", "discover", "configurer tracker", "discovery"},
-				Description: i18n.T("cmd.discovery.omnibar_desc"),
-				Category:    i18n.T("tui.category.configuration"),
-				Priority:    47,
-				Action:      actionTrackerDiscovery,
-				Modes:       modeTeam,
-			},
-			shell.Command{
-				ID:          "team.board",
-				Label:       i18n.T("tui.team.board"),
-				Aliases:     []string{"team board", "team kanban", "equipe board"},
-				Description: i18n.T("tui.team.board.desc"),
-				Category:    i18n.T("tui.category.team"),
-				Priority:    70,
-				ViewID:      "team.board",
-				Modes:       modeTeam,
-			},
-			shell.Command{
-				ID:          "team.status",
-				Label:       i18n.T("tui.team.status"),
-				Aliases:     []string{"team stat", "status team"},
-				Description: i18n.T("tui.team.status.desc"),
-				Category:    i18n.T("tui.category.team"),
-				Priority:    70,
-				ViewID:      "team.status",
-				Modes:       modeTeam,
-			},
-			shell.Command{
-				ID:          "team.activity",
-				Label:       i18n.T("tui.team.activity"),
-				Aliases:     []string{"activite", "feed", "activity"}, //nolint:misspell // French search alias
-				Description: i18n.T("tui.team.activity.desc"),
-				Category:    i18n.T("tui.category.team"),
-				Priority:    65,
-				ViewID:      "team.activity",
-				Modes:       modeTeam,
-			},
-			shell.Command{
-				ID:          "team.briefs",
-				Label:       i18n.T("tui.team.briefs"),
-				Aliases:     []string{"takeover", "briefs", "reprises"},
-				Description: i18n.T("tui.team.briefs.desc"),
-				Category:    i18n.T("tui.category.team"),
-				Priority:    60,
-				ViewID:      "team.briefs",
-				Modes:       modeTeam,
-			},
-			shell.Command{
-				ID:          "team.patterns",
-				Label:       i18n.T("tui.team.patterns"),
-				Aliases:     []string{"pat", "patterns"},
-				Description: i18n.T("tui.team.patterns.desc"),
-				Category:    i18n.T("tui.category.team"),
-				Priority:    50,
-				ViewID:      "team.patterns",
-				Modes:       modeTeam,
-			},
-			shell.Command{
-				ID:          "team.policies",
-				Label:       i18n.T("tui.team.policies"),
-				Aliases:     []string{"pol", "rules", "policies"},
-				Description: i18n.T("tui.team.policies.desc"),
-				Category:    i18n.T("tui.category.team"),
-				Priority:    50,
-				ViewID:      "team.policies",
-				Modes:       modeTeam,
-			},
-			shell.Command{
-				ID:          "team.wiki",
-				Label:       i18n.T("tui.teamwiki.title"),
-				Aliases:     []string{"wiki", "proposals", "pending", "team-state"},
-				Description: i18n.T("tui.teamwiki.cmd_desc"),
-				Category:    i18n.T("tui.category.team"),
-				Priority:    55,
-				ViewID:      "team.wiki",
-				Modes:       modeTeam,
-			},
-		)
+// teamCommands are the commands of the team, only registered when a team is
+// configured (ADR-032).
+func teamCommands(a *app.App) []shell.Command {
+	if a.Config.ActiveTeam().StateRepo == "" {
+		return nil
+	}
+	commands := teamConfigCommands()
+	commands = append(commands, teamPageCommands()...)
+	return append(commands, teamActionCommands()...)
+}
 
-		// Sync tracker (team-only action)
-		commands = append(commands, shell.Command{
+// teamConfigCommands are the configuration of the team and its tracker.
+func teamConfigCommands() []shell.Command {
+	return []shell.Command{
+		{
+			ID:          "team-detail",
+			Label:       i18n.T("tui.team.detail"),
+			Aliases:     []string{"tracker", "sync", "team detail", "profile", "profil"},
+			Description: i18n.T("tui.team.detail.desc"),
+			Category:    i18n.T("tui.category.configuration"),
+			Priority:    48,
+			ViewID:      "team.detail",
+			Modes:       modeTeam,
+		},
+		{
+			ID:          "team.discover",
+			Label:       i18n.T("cmd.discovery.omnibar_label"),
+			Aliases:     []string{"tracker discovery", "discover", "configurer tracker", "discovery"},
+			Description: i18n.T("cmd.discovery.omnibar_desc"),
+			Category:    i18n.T("tui.category.configuration"),
+			Priority:    47,
+			Action:      actionTrackerDiscovery,
+			Modes:       modeTeam,
+		},
+	}
+}
+
+// teamPageCommands open the views of the team.
+func teamPageCommands() []shell.Command {
+	return []shell.Command{
+		{
+			ID:          "team.board",
+			Label:       i18n.T("tui.team.board"),
+			Aliases:     []string{"team board", "team kanban", "equipe board"},
+			Description: i18n.T("tui.team.board.desc"),
+			Category:    i18n.T("tui.category.team"),
+			Priority:    70,
+			ViewID:      "team.board",
+			Modes:       modeTeam,
+		},
+		{
+			ID:          "team.status",
+			Label:       i18n.T("tui.team.status"),
+			Aliases:     []string{"team stat", "status team"},
+			Description: i18n.T("tui.team.status.desc"),
+			Category:    i18n.T("tui.category.team"),
+			Priority:    70,
+			ViewID:      "team.status",
+			Modes:       modeTeam,
+		},
+		{
+			ID:          "team.activity",
+			Label:       i18n.T("tui.team.activity"),
+			Aliases:     []string{"activite", "feed", "activity"}, //nolint:misspell // French search alias
+			Description: i18n.T("tui.team.activity.desc"),
+			Category:    i18n.T("tui.category.team"),
+			Priority:    65,
+			ViewID:      "team.activity",
+			Modes:       modeTeam,
+		},
+		{
+			ID:          "team.briefs",
+			Label:       i18n.T("tui.team.briefs"),
+			Aliases:     []string{"takeover", "briefs", "reprises"},
+			Description: i18n.T("tui.team.briefs.desc"),
+			Category:    i18n.T("tui.category.team"),
+			Priority:    60,
+			ViewID:      "team.briefs",
+			Modes:       modeTeam,
+		},
+		{
+			ID:          "team.patterns",
+			Label:       i18n.T("tui.team.patterns"),
+			Aliases:     []string{"pat", "patterns"},
+			Description: i18n.T("tui.team.patterns.desc"),
+			Category:    i18n.T("tui.category.team"),
+			Priority:    50,
+			ViewID:      "team.patterns",
+			Modes:       modeTeam,
+		},
+		{
+			ID:          "team.policies",
+			Label:       i18n.T("tui.team.policies"),
+			Aliases:     []string{"pol", "rules", "policies"},
+			Description: i18n.T("tui.team.policies.desc"),
+			Category:    i18n.T("tui.category.team"),
+			Priority:    50,
+			ViewID:      "team.policies",
+			Modes:       modeTeam,
+		},
+		{
+			ID:          "team.wiki",
+			Label:       i18n.T("tui.teamwiki.title"),
+			Aliases:     []string{"wiki", "proposals", "pending", "team-state"},
+			Description: i18n.T("tui.teamwiki.cmd_desc"),
+			Category:    i18n.T("tui.category.team"),
+			Priority:    55,
+			ViewID:      "team.wiki",
+			Modes:       modeTeam,
+		},
+	}
+}
+
+// teamActionCommands are the actions of the team: sync, configure, history.
+func teamActionCommands() []shell.Command {
+	return []shell.Command{
+		{
 			ID:          "team.sync",
 			Label:       i18n.T("tui.cmd.sync_tracker"),
 			Aliases:     []string{"sync tracker", "sync-tracker", "synchroniser tracker"},
@@ -432,10 +485,8 @@ func buildCommands(a *app.App) []shell.Command {
 			Priority:    60,
 			Action:      actionSyncTracker,
 			Modes:       modeTeam,
-		})
-
-		// team.configure — only useful with a team configured (ADR-032)
-		commands = append(commands, shell.Command{
+		},
+		{
 			ID:          "team.configure",
 			Label:       i18n.T("tui.team.configure"),
 			Aliases:     []string{"team config", "team projet", "configurer equipe"},
@@ -444,9 +495,8 @@ func buildCommands(a *app.App) []shell.Command {
 			Priority:    50,
 			Action:      actionTeamConfigure,
 			Modes:       modeTeam,
-		})
-
-		commands = append(commands, shell.Command{
+		},
+		{
 			ID:          "history.team",
 			Label:       i18n.T("tui.cmd.history_team"),
 			Aliases:     []string{"team history", "team sessions", "historique equipe"},
@@ -455,86 +505,90 @@ func buildCommands(a *app.App) []shell.Command {
 			Priority:    55,
 			ViewID:      "team.activity",
 			Modes:       modeTeam,
-		})
-	} // end hasTeam
-
-	// ── Team init — always visible (needed to create a team) ─────────
-	commands = append(commands, shell.Command{
-		ID:          "team.init",
-		Label:       i18n.T("tui.team.init"),
-		Aliases:     []string{"team init", "initialiser"},
-		Description: i18n.T("tui.team.init.desc"),
-		Category:    i18n.T("tui.category.team"),
-		Priority:    40,
-		Action:      actionTeamInit,
-	})
-
-	// ── Team rejoin — always visible (for reinstall recovery) ────────
-	commands = append(commands, shell.Command{
-		ID:          "team.rejoin",
-		Label:       i18n.T("tui.team.rejoin"),
-		Aliases:     []string{"team rejoin", "rejoindre", "rejoin"},
-		Description: i18n.T("tui.team.rejoin.desc"),
-		Category:    i18n.T("tui.category.team"),
-		Priority:    41,
-		Action:      actionTeamRejoin,
-	})
-
-	// ── Worktrees — always visible (git feature, not team-specific) ──
-	commands = append(commands, shell.Command{
-		ID:          "worktrees",
-		Label:       i18n.T("tui.cmd.worktrees"),
-		Aliases:     []string{"wt", "git worktree"},
-		Description: i18n.T("tui.cmd.worktrees.desc"),
-		Category:    i18n.T("tui.category.git"),
-		Priority:    100,
-		ViewID:      "worktrees",
-	})
-
-	if a.Config.MCP.Gitlab.WriteEnabled {
-		// review --publish: merge request through the GitLab API (no LLM),
-		// in the suspended terminal.
-		commands = append(commands, shell.Command{
-			ID:          "review.publish",
-			Label:       i18n.T("tui.cmd.review_publish"),
-			Aliases:     []string{"publish", "mr"},
-			Description: i18n.T("tui.cmd.review_publish.desc"),
-			Category:    i18n.T("tui.category.workflows"),
-			Action:      actionReviewPublish,
-			RunsDirect:  true,
-			Modes:       modeSession,
-		})
-	}
-
-	// ── Hub init — always visible (reconfigure hub) ─────────────────
-	commands = append(commands, shell.Command{
-		ID:          "init",
-		Label:       i18n.T("tui.cmd.init"),
-		Aliases:     []string{"init", "setup", "reconfigure", "configurer"},
-		Description: i18n.T("tui.cmd.init.desc"),
-		Category:    i18n.T("tui.category.hub"),
-		Priority:    30,
-		Action: func() {
-			if tuiShell == nil {
-				return
-			}
-			wizard := buildFirstRunInlineWizard(MustApp())
-			tuiShell.PushView(wizard)
 		},
-	})
+	}
+}
 
-	// ── Project add — always visible ────────────────────────────────
-	commands = append(commands, shell.Command{
-		ID:          "project.add",
-		Label:       i18n.T("tui.cmd.project_add"),
-		Aliases:     []string{"project add", "add project", "nouveau projet"},
-		Description: i18n.T("tui.cmd.project_add.desc"),
-		Category:    i18n.T("tui.category.projects"),
-		Priority:    45,
-		Action:      actionProjectAdd,
-	})
+// alwaysVisibleCommands are there with or without a team: creating one,
+// rejoining one after a reinstall, and the worktrees (a git feature, not
+// team-specific).
+func alwaysVisibleCommands() []shell.Command {
+	return []shell.Command{
+		{
+			ID:          "team.init",
+			Label:       i18n.T("tui.team.init"),
+			Aliases:     []string{"team init", "initialiser"},
+			Description: i18n.T("tui.team.init.desc"),
+			Category:    i18n.T("tui.category.team"),
+			Priority:    40,
+			Action:      actionTeamInit,
+		},
+		{
+			ID:          "team.rejoin",
+			Label:       i18n.T("tui.team.rejoin"),
+			Aliases:     []string{"team rejoin", "rejoindre", "rejoin"},
+			Description: i18n.T("tui.team.rejoin.desc"),
+			Category:    i18n.T("tui.category.team"),
+			Priority:    41,
+			Action:      actionTeamRejoin,
+		},
+		{
+			ID:          "worktrees",
+			Label:       i18n.T("tui.cmd.worktrees"),
+			Aliases:     []string{"wt", "git worktree"},
+			Description: i18n.T("tui.cmd.worktrees.desc"),
+			Category:    i18n.T("tui.category.git"),
+			Priority:    100,
+			ViewID:      "worktrees",
+		},
+	}
+}
 
-	return commands
+// reviewPublishCommand is review --publish: merge request through the GitLab
+// API (no LLM), in the suspended terminal. Registered when the GitLab write
+// mode is on.
+func reviewPublishCommand() shell.Command {
+	return shell.Command{
+		ID:          "review.publish",
+		Label:       i18n.T("tui.cmd.review_publish"),
+		Aliases:     []string{"publish", "mr"},
+		Description: i18n.T("tui.cmd.review_publish.desc"),
+		Category:    i18n.T("tui.category.workflows"),
+		Action:      actionReviewPublish,
+		RunsDirect:  true,
+		Modes:       modeSession,
+	}
+}
+
+// hubSetupCommands are the hub init (reconfigure the hub) and the project
+// add, always visible.
+func hubSetupCommands() []shell.Command {
+	return []shell.Command{
+		{
+			ID:          "init",
+			Label:       i18n.T("tui.cmd.init"),
+			Aliases:     []string{"init", "setup", "reconfigure", "configurer"},
+			Description: i18n.T("tui.cmd.init.desc"),
+			Category:    i18n.T("tui.category.hub"),
+			Priority:    30,
+			Action: func() {
+				if tuiShell == nil {
+					return
+				}
+				wizard := buildFirstRunInlineWizard(MustApp())
+				tuiShell.PushView(wizard)
+			},
+		},
+		{
+			ID:          "project.add",
+			Label:       i18n.T("tui.cmd.project_add"),
+			Aliases:     []string{"project add", "add project", "nouveau projet"},
+			Description: i18n.T("tui.cmd.project_add.desc"),
+			Category:    i18n.T("tui.category.projects"),
+			Priority:    45,
+			Action:      actionProjectAdd,
+		},
+	}
 }
 
 // workflowCommandPrefix prefixes the generated `run <workflow>` commands.
