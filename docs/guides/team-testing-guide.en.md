@@ -2,8 +2,6 @@
 
 # Exhaustive Testing Guide — Team Feature (`oh`)
 
-> **Beta (v5.0).** The team mode is published as a beta: it works, but a few limits are known (a claim released when its session stops, no expiry, a release that can be lost). Read the [known limits](team-setup.en.md#known-limits) before relying on it.
-
 > Complete guide for thoroughly testing the Team feature of OpenHub.
 > CLI / TUI comparison for each action, architecture diagrams, state machines, and end-to-end scenarios.
 
@@ -33,7 +31,7 @@
 - [18. Credentials and Security](#18-credentials--security)
 - [19. Git Concurrency](#19-git-concurrency-withwritelock)
 - [20. End-to-end Scenarios](#20-end-to-end-scenarios)
-- [Known limits](#known-limits)
+- [Lease and end of session](#lease-and-end-of-session)
 
 ---
 
@@ -1631,15 +1629,23 @@ HTTP timeout: 10 seconds for all clients.
 | `u` | Undo |
 | `r` | Refresh |
 
-## Known limits
+## Lease and end of session
 
-The team mode is a beta in v5.0. These limits are known; the complete fix is planned for v5.1.
+What the team mode guarantees about a claim, and how to check it on a test team-state. The full contract is in [Team Setup](team-setup.en.md#lease-and-end-of-session) and [Status model](team-setup.en.md#status-model); the settings are in [CLI Reference — Team](../reference/cli-team.en.md#lease-and-end-of-session).
 
-- **A claim is released when its session stops**, even if a review (checkpoint `cp-2`) is still pending: the ticket becomes available to the other members again before the review is done. If the ticket is closed in Beads, the claim is completed instead of released.
-- **Lease.** A claim being worked on has a lease (`lease_hours`, 24 h by default) that the daemon renews (`heartbeat_minutes`) while an open session works on the ticket. Once the lease is past, another member can take the claim over with `oh team claim <ticket>` (common confirmation, `--yes` without a terminal): a takeover brief is generated and the claim comes to them with a new lease. A claim without a lease (created before v5.1) is judged on `takeover.stale_days` days of inactivity (3 by default, `[takeover]` section of the team-state `config.toml`). A claim taken by hand, without a session, is not renewed by the daemon: `oh team claim <ticket>` renews its lease.
-- **Offline, the end of a session waits for the network.** What the end of a session decides (release, complete, label `session-ended`) is written at once to a local queue (`.git/oh-claims-queue.json` of the team-state clone), then applied in one commit as soon as the team repository answers: at each beat of the daemon, by its `claims-queue` task (also when it starts), or at the end of a session. A session that starts offline on a ticket you already claimed takes the claim over when the network is back, ahead of what the previous session had queued (which is cancelled).
-- **Forgotten claim:** `oh team release <ticket-id> -p <project>` frees it by hand.
-- **`oh doctor` reports orphan claims** (ticket closed, or every session that worked on it ended) with the command to run.
-- **The REVIEW column follows the `ready-for-review` label.** In `oh board` and in the Board TUI, an `in_progress` Beads ticket carrying this label is in REVIEW (Beads has no `review` status). The team board shows the `review` status of the claims.
-
-oh warns once per process on stderr (team commands, first claim taken by a launch), and `oh doctor` lists the beta mode as a warning that does not change its exit code.
+| To check | How | Expected result |
+|---|---|---|
+| The lease of a session | start a session on a claimed ticket, read `lease_until` in the claim file of the team-state | `lease_until` = now + `lease_hours` (24 h by default), the session is recorded on the claim |
+| The signal of life | leave the daemon running for more than half of the lease with an open session | a `lease: … renews …` commit; none while the lease is long |
+| The ceilings | put the session to sleep for more than `sleeping_renewal_days` days (or launch a remote session more than `remote_renewal_days` days ago) | the lease is no longer renewed, `oh doctor` reports the claim (`claims_expired`) |
+| The lease of a claim taken by hand | `oh team claim <ticket>` | `lease_until` = now + `lease_hours_manual` (72 h); running `oh team claim <ticket>` again renews it without a question |
+| The takeover | `oh team claim <ticket>` by another member on an expired claim | common confirmation (`--yes` without a terminal, otherwise exit code 2), takeover brief, the claim changes owner with a new lease |
+| A pending review | end the session of a ticket with the `ready-for-review` label (or the claim in `review`) | the claim **is kept**, not released |
+| `cp-2` put off | end the session after putting off the commit, with work left | the claim is kept with the `session-ended` label; `oh doctor` reports it |
+| Nothing pending | end the session of a ticket with no review and no checkpoint waiting | the claim is released |
+| Ticket closed | close the ticket in Beads then end the session | the claim moves to the terminal status |
+| Offline | cut the access to the team repository, end the session | the decisions stay in `.git/oh-claims-queue.json` (oh says so); when the network is back, a beat of the daemon (or `oh doctor --fix`) applies them in one commit |
+| Expiry on sync | `release_expired_on_sync = true`, an expired claim | the sync releases it (`release: N expired claim(s)`), unless it is in review |
+| Forgotten claim | `oh team release <ticket-id> -p <project>` | the claim is released |
+| Configured statuses (remote session) | in a remote job, `bd update <ID> --status review` with no configured `review` status | refused at once (exit code 1), nothing is journalled; the `ready-for-review` label goes through |
+| REVIEW | `in_progress` ticket + `ready-for-review` label | placed in REVIEW in `oh board` and the TUI Board; the team board shows the `review` status of the claim |

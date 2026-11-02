@@ -2,8 +2,6 @@
 
 # Team Setup Guide
 
-> **Beta (v5.0).** The team mode is published as a beta: it works, but a few limits are known (a claim released when its session stops, no expiry, a release that can be lost). Read the [known limits](#known-limits) before relying on it.
-
 ## Prerequisites
 
 - `oh` CLI installed and configured (`oh init` completed)
@@ -322,10 +320,10 @@ the omnibar).
 
 ### Claims — Ticket reservation
 
-Claims follow a 5-status lifecycle:
+Claims follow a 6-status lifecycle:
 
 ```
-oh team claim --planned → planned → (ticket started) → in_progress → review → done
+oh team claim --planned → planned → (ticket started) → in_progress → review → (validation) → done
                                                               ↘ blocked
 ```
 
@@ -334,6 +332,7 @@ oh team claim --planned → planned → (ticket started) → in_progress → rev
 | `planned` | TODO | Reserved but not yet started |
 | `in_progress` | IN PROGRESS | Actively being worked on (default when claiming) |
 | `review` | REVIEW | Awaiting review |
+| `validation` | VALIDATION | Review passed, being validated (test, QA, pre-production) |
 | `blocked` | BLOCKED | Blocked |
 | `done` | DONE | Completed (kept until retention period expires) |
 
@@ -353,6 +352,8 @@ oh team release SRU-142
 # Transfer to another member
 oh team claim transfer SRU-142 --to alice
 ```
+
+The table of the statuses, what puts a ticket in REVIEW, the lease of a claim and what becomes of the claim when a session ends are described at the end of this guide: [Status model](#status-model) and [Lease and end of session](#lease-and-end-of-session).
 
 > **Note:** Starting a session on a ticket already claimed as `planned` with `oh start --dev` (deprecated alias of `oh run ticket`) automatically transitions it to `in_progress`. Otherwise, change the status from the team board.
 
@@ -705,17 +706,72 @@ git push
 4. For Slack/Discord/Teams: test the webhook URL with `curl -X POST -d '{"text":"test"}' <webhook_url>`
 5. Check `oh team status` works (confirms repo access)
 
-## Known limits
+## Status model
 
-The team mode is a beta in v5.0. These limits are known; the complete fix is planned for v5.1.
+A ticket exists in two places: in **Beads** (or the tracker), which `oh board` and the TUI Board read, and in a **claim** of the team-state, which the team board reads. Each has its own statuses; this table (default columns) says how they match.
 
-- **A claim is released when its session stops**, even if a review (checkpoint `cp-2`) is still pending: the ticket becomes available to the other members again before the review is done. If the ticket is closed in Beads, the claim is completed instead of released.
-- **Lease.** A claim being worked on has a lease (`lease_hours`, 24 h by default) that the daemon renews (`heartbeat_minutes`) while an open session works on the ticket. The renewal has a ceiling: a session asleep for more than `sleeping_renewal_days` (3) days and a remote session launched more than `remote_renewal_days` (7) days ago stop renewing; their claims then expire normally. Once the lease is past, another member can take the claim over with `oh team claim <ticket>` (common confirmation, `--yes` without a terminal): a takeover brief is generated and the claim comes to them with a new lease. A claim without a lease (created before v5.1) is judged on `takeover.stale_days` days of inactivity (3 by default, `[takeover]` section of the team-state `config.toml`). A claim taken by hand, without a session (`oh team claim`, the team board), has a longer lease (`lease_hours_manual`, 72 h by default) that nothing renews on its own: `oh team claim <ticket>` on your own claim renews it, expired or not, without confirmation. `oh doctor` (`claims_expired`) gives the command. Teams can ask the tracker synchronization to release the expired claims (`release_expired_on_sync`, off by default; a claim in review is kept). All these settings are in the `[claim]` section of the team-state `config.toml` and in `team-detail`.
-- **A claim released on purpose stays released.** The tracker synchronization does not take a claim released by its owner (`oh team release`, end of a session, board, retention of the done claims) for a claim lost by accident and no longer recreates it. An issue assigned to a member that was released comes back as a `planned` claim only if it is updated on the tracker afterwards.
-- **Issues left off the board.** `max_auto_plan_per_member` (5 by default) bounds the claims a sync creates for a member, per run (it is not a standing cap: the next sync starts again, and the issues held come in first). The issues already in progress come first and are always let in, outside the limit. What the limit leaves off is counted: the sync result and the team board say `N issue(s) outside the board, limit reached`.
-- **Offline, the end of a session waits for the network.** What the end of a session decides (release, complete, label `session-ended`) is written at once to a local queue (`.git/oh-claims-queue.json` of the team-state clone), then applied in one commit as soon as the team repository answers: at each beat of the daemon, by its `claims-queue` task (also when it starts), or at the end of a session. A session that starts offline on a ticket you already claimed takes the claim over when the network is back, ahead of what the previous session had queued (which is cancelled).
-- **Forgotten claim:** `oh team release <ticket-id> -p <project>` frees it by hand.
-- **`oh doctor` reports orphan claims** (ticket closed, or every session that worked on it ended) with the command to run.
-- **The REVIEW column follows the `ready-for-review` label.** In `oh board` and in the Board TUI, an `in_progress` Beads ticket carrying this label is in REVIEW (Beads has no `review` status). The team board shows the `review` status of the claims.
+| Column | Beads ticket | Claim (team-state) |
+|---|---|---|
+| TODO | `open` | `planned` |
+| IN PROGRESS | `in_progress` | `in_progress` |
+| **REVIEW** | **`in_progress` + label `ready-for-review`** | **`review`** |
+| VALIDATION | custom status (`validation`, `testing`, `qa`, `pre-release`) | `validation` |
+| BLOCKED | `blocked` | `blocked` |
+| DONE | `closed` | `done` |
 
-oh warns once per process on stderr (team commands, first claim taken by a launch), and `oh doctor` lists the beta mode as a warning that does not change its exit code.
+The contract:
+
+- **In Beads, REVIEW is a label, not a status.** Beads 1.3 has no `review` status (unless the project declares one with `bd config set status.custom`). An agent that has finished adds the label (`bd update <ID> --add-label ready-for-review`) and leaves the status at `in_progress`; the review removes the label to send the ticket back to development, or closes the ticket. `oh board` and the TUI Board put an `in_progress` ticket carrying this label in REVIEW.
+- **On the claim side, REVIEW is the `review` status.** It is set when a review is published (`oh mr create`, `oh review --publish`), from the team board, or by the MCP review verdict (approved: `review` then `done`; rejected: back to `in_progress`). The team board shows this status.
+- **The two are not copied into each other.** Adding the label in Beads does not change the status of the claim, and moving the claim to `review` does not add the label.
+- **A single equivalence, at the end of a session**: for `teamstate.DecideClaimEnd`, the `ready-for-review` (or `review`) label, on the ticket or on the claim, is worth the `review` status of the claim. Either way the claim outlives the session (see below).
+- **A remote session does not write a status the project does not know.** The fake `bd` of the job refuses at once, with the error message of `bd` (exit code 1, before any write), a `bd update` or `bd create` whose `--status` is not in the Beads configuration of the project (the statuses are in the snapshot sent to the job; the case must match exactly). A remote agent that writes `--status review` with no configured `review` status is therefore stopped, instead of failing at replay; it must use the label.
+
+## Lease and end of session
+
+A claim being worked on has a **lease**: a deadline (`lease_until` in the claim file) after which it is *expired*. Only a claim with an owner and work started has a lease: a pool claim (no owner), a `planned` one, one in the initial column or a finished one has none, and neither `oh doctor` nor the synchronization ever judges it expired.
+
+**Settings** (`[claim]` section of the team-state `config.toml`, editable in `team-detail`):
+
+| Key | Default | Bounds | Role |
+|---|---|---|---|
+| `lease_hours` | 24 | 1 to 168 | duration of the lease of a claim worked on by a session |
+| `heartbeat_minutes` | 60 | 0 (off) or 5 to 1440, at most half the lease | period of the signal of life of the daemon that renews the leases |
+| `sleeping_renewal_days` | 3 | 1 to 90 | a session asleep for longer no longer renews |
+| `remote_renewal_days` | 7 | 1 to 90 | a remote session launched longer ago no longer renews |
+| `lease_hours_manual` | 72 | `lease_hours` to 720 | duration of the lease of a claim taken by hand |
+| `release_expired_on_sync` | `false` | | the tracker synchronization releases the expired claims |
+
+**Session lease.** When a session starts on a ticket, the claim gets the session and a lease of `lease_hours`; if you already held the claim (taken by hand, or kept by a previous session), the session takes it over and the lease starts again from now. The daemon (`ohd`, or the `oh` process on Windows) sends a signal of life every `heartbeat_minutes`: it renews the lease of the claims of the open sessions (neither completed, failed nor stopped; a sleeping session is open) when less than half of the lease is left, in one commit per team repository (none while the leases are long). With `heartbeat_minutes = 0` there is no renewal: the leases are then only extended by a session that takes the claim over or by `oh team claim`.
+
+**Renewal ceilings.** So that a claim does not outlive for ever a session nobody comes back to, the signal of life stops: for a sleeping session, `sleeping_renewal_days` days after it was put to sleep; for a remote session, `remote_renewal_days` days after it was launched. The lease is no longer extended, the claim expires normally and `oh doctor` reports it.
+
+**Claim taken by hand.** A claim without a session (`oh team claim`, the team board, the tracker plan) has a lease of `lease_hours_manual` that nothing renews on its own. `oh team claim <ticket>` on your own claim renews it, expired or not, without confirmation (`lease_hours_manual` when no session is attached to the claim, `lease_hours` otherwise). Starting a session on the ticket replaces this lease with the one of the session.
+
+**Expiry and takeover.** A claim is expired when its lease is past; a claim that should have a lease but has none (written before v5.1) is expired when it has been inactive for more than `takeover.stale_days` days (3 by default, `[takeover]` section of the same file). For a takeover, `oh team claim` applies this inactivity rule to any claim without a lease. An expired claim is not deleted by itself:
+
+- `oh doctor` (`claims_expired`, a warning that does not change the exit code) lists your expired claims and those the end of a session labelled `session-ended`, with the command to keep them (`oh team claim <ticket>`) or release them (`oh team release <ticket> -p <project>`);
+- another member can take it over with `oh team claim <ticket>`: after the common confirmation (`--yes` without a terminal, otherwise refused, exit code 2), a takeover brief is generated and the claim comes to them with a new lease;
+- if the team turns on `release_expired_on_sync`, the tracker synchronization releases the expired claims (one `release: N expired claim(s)` commit). A claim in review (`review` status or `review` / `ready-for-review` label) is kept.
+
+**End of a session.** When a session ends, `teamstate.DecideClaimEnd` decides, for each claim of its tickets (those of another member or of another session are left as they are), with the first rule that applies:
+
+| Case | Decision |
+|---|---|
+| the claim is already finished | kept (the retention of the finished claims cleans it up) |
+| the ticket is closed | the claim moves to the terminal status |
+| the ticket or the claim is in review (label `review` or `ready-for-review`, or `review` status) | **kept** |
+| a checkpoint waits for a decision | kept, label `session-ended` |
+| the commit checkpoint (`cp-2`) was put off while the session left work (or that cannot be told) | kept, label `session-ended` |
+| the state of the checkpoints cannot be read | kept, label `session-ended` |
+| otherwise | released |
+
+A kept claim is no longer renewed by the session that ended: it expires when its lease ends if nobody takes it up again (`oh team claim <ticket>` renews it; so does a new session on the ticket, which also removes the `session-ended` label). A claim in review is never released by the synchronization, but it expires like the others: another member could take it over, and `oh doctor` reports it.
+
+**Durable queue.** What the end of a session decides (release, complete, label `session-ended`) and the lease renewals that could not be pushed are first written to a local queue, `.git/oh-claims-queue.json` of the team-state clone (never committed). Each operation carries its conditions: the claim must still belong to the same member and the same session, otherwise it is dropped and logged. The queue is applied in one commit (one pull, one push) as soon as the team repository answers: at the end of the session (a wait bounded to 15 s, 10 s of which for the lock of the clone; the daemon waits up to 2 min), at each beat of the daemon, and by the `claims-queue` task of the daemon (when it starts, then every 15 minutes). Offline, or if the repository stays busy, nothing is lost: the operations stay in the queue and oh says so at the end of the session. A session that starts offline on a ticket you already held takes the claim over when the network is back; what the previous session had queued on that claim is cancelled. `oh doctor` (`claims_queue`) warns when operations have been waiting for more than 15 minutes, or when the file cannot be read (it is then set aside, not deleted); `oh doctor --fix` applies the queue after a confirmation.
+
+**A claim released on purpose stays released.** The tracker synchronization does not take a claim released by its owner (`oh team release`, end of a session, board, retention of the done claims) for a claim lost by accident and no longer recreates it. An issue assigned to a member that was released comes back as a `planned` claim only if it is updated on the tracker afterwards.
+
+**Issues left off the board.** `max_auto_plan_per_member` (5 by default) bounds the claims a sync creates for a member, per run (it is not a standing cap: the next sync starts again, and the issues held come in first). The issues already in progress come first and are always let in, outside the limit. What the limit leaves off is counted: the sync result and the team board say `N issue(s) outside the board, limit reached`.
+
+**Other reports.** `oh doctor` also reports orphan claims (ticket closed, or every session that worked on it ended) with the command to run; claims taken under the former ID of a recreated project are attached to the local project by `oh doctor --fix` (see [`oh doctor`](../reference/cli-infra.en.md#oh-doctor)). A forgotten claim is freed by hand: `oh team release <ticket-id> -p <project>`.
