@@ -30,6 +30,22 @@ var columnEditorRoles = []string{
 	teamstate.ColumnRoleBlocked,
 }
 
+// columnEditorUI is what the column editor asks of the shell: an input box and
+// a toast.
+type columnEditorUI interface {
+	ShowInputModal(title, currentValue string, onConfirm func(newValue string))
+	ShowToast(msg string, level shell.ToastLevel)
+}
+
+// columnUI is the shell of the TUI, nil outside of it; a variable so that the
+// tests give their own.
+var columnUI = func() columnEditorUI {
+	if tuiShell == nil {
+		return nil
+	}
+	return tuiShell
+}
+
 // buildColumnEditorStep creates a WizardStep with an interactive column editor.
 // The editor allows adding, removing, renaming, reordering, and cycling roles
 // on board columns. When labelMappings/statusMappings are non-nil, the editor
@@ -353,8 +369,8 @@ func buildColumnEditorStep(
 						return nil
 
 					case event.Rune() == 'a':
-						if tuiShell != nil {
-							tuiShell.ShowInputModal(i18n.T("tui.team.columns.label_name_prompt"), "", func(name string) {
+						if columnUI() != nil {
+							columnUI().ShowInputModal(i18n.T("tui.team.columns.label_name_prompt"), "", func(name string) {
 								if name == "" {
 									return
 								}
@@ -366,8 +382,8 @@ func buildColumnEditorStep(
 									(*labelMappings)[name] = editingMappingsFor
 								}
 								renderMappings()
-								if tuiShell != nil {
-									tuiShell.ShowToast(i18n.Tf("tui.team.columns.label_added", name, editingMappingsFor), shell.ToastSuccess)
+								if columnUI() != nil {
+									columnUI().ShowToast(i18n.Tf("tui.team.columns.label_added", name, editingMappingsFor), shell.ToastSuccess)
 								}
 							})
 						}
@@ -375,8 +391,8 @@ func buildColumnEditorStep(
 
 					case event.Key() == tcell.KeyEnter:
 						ref := resolveMappingItem()
-						if ref != nil && tuiShell != nil {
-							tuiShell.ShowInputModal(i18n.T("tui.team.columns.rename_prompt"), ref.key, func(newName string) {
+						if ref != nil && columnUI() != nil {
+							columnUI().ShowInputModal(i18n.T("tui.team.columns.rename_prompt"), ref.key, func(newName string) {
 								if newName == "" || newName == ref.key {
 									return
 								}
@@ -402,8 +418,8 @@ func buildColumnEditorStep(
 								delete(*statusMappings, ref.key)
 							}
 							renderMappings()
-							if tuiShell != nil {
-								tuiShell.ShowToast(i18n.Tf("tui.team.columns.mapping_deleted", ref.key), shell.ToastSuccess)
+							if columnUI() != nil {
+								columnUI().ShowToast(i18n.Tf("tui.team.columns.mapping_deleted", ref.key), shell.ToastSuccess)
 							}
 						}
 						return nil
@@ -439,8 +455,8 @@ func buildColumnEditorStep(
 						cols[idx], cols[idx-1] = cols[idx-1], cols[idx]
 						renderColumns()
 						list.SetCurrentItem(idx)
-						if tuiShell != nil {
-							tuiShell.ShowToast(i18n.T("tui.team.columns.moved_up"), shell.ToastSuccess)
+						if columnUI() != nil {
+							columnUI().ShowToast(i18n.T("tui.team.columns.moved_up"), shell.ToastSuccess)
 						}
 					}
 					return nil
@@ -450,15 +466,15 @@ func buildColumnEditorStep(
 						cols[idx], cols[idx+1] = cols[idx+1], cols[idx]
 						renderColumns()
 						list.SetCurrentItem(idx + 2)
-						if tuiShell != nil {
-							tuiShell.ShowToast(i18n.T("tui.team.columns.moved_down"), shell.ToastSuccess)
+						if columnUI() != nil {
+							columnUI().ShowToast(i18n.T("tui.team.columns.moved_down"), shell.ToastSuccess)
 						}
 					}
 					return nil
 
 				case event.Rune() == 'a':
-					if tuiShell != nil {
-						tuiShell.ShowInputModal(i18n.T("cmd.discovery.field.column_name"), "", func(name string) {
+					if columnUI() != nil {
+						columnUI().ShowInputModal(i18n.T("cmd.discovery.field.column_name"), "", func(name string) {
 							if name == "" {
 								return
 							}
@@ -479,14 +495,14 @@ func buildColumnEditorStep(
 							*columns = updated
 							renderColumns()
 							list.SetCurrentItem(pos + 1)
-							tuiShell.ShowToast(i18n.Tf("tui.team.columns.column_added", newCol.Name), shell.ToastSuccess)
+							columnUI().ShowToast(i18n.Tf("tui.team.columns.column_added", newCol.Name), shell.ToastSuccess)
 						})
 					}
 					return nil
 
 				case event.Key() == tcell.KeyEnter:
-					if isOnColumn && tuiShell != nil {
-						tuiShell.ShowInputModal(i18n.T("cmd.discovery.field.column_rename"), cols[idx].Name, func(name string) {
+					if isOnColumn && columnUI() != nil {
+						columnUI().ShowInputModal(i18n.T("cmd.discovery.field.column_rename"), cols[idx].Name, func(name string) {
 							if name != "" {
 								(*columns)[idx].Name = strings.TrimSpace(name)
 								renderColumns()
@@ -500,8 +516,8 @@ func buildColumnEditorStep(
 						return nil
 					}
 					if n <= 2 {
-						if tuiShell != nil {
-							tuiShell.ShowToast(i18n.T("cmd.discovery.validate.min_columns"), shell.ToastError)
+						if columnUI() != nil {
+							columnUI().ShowToast(i18n.T("cmd.discovery.validate.min_columns"), shell.ToastError)
 						}
 						return nil
 					}
@@ -531,8 +547,8 @@ func buildColumnEditorStep(
 					if cleaned > 0 {
 						msg += i18n.Tf("tui.team.columns.mappings_cleaned", cleaned)
 					}
-					if tuiShell != nil {
-						tuiShell.ShowToast(msg, shell.ToastSuccess)
+					if columnUI() != nil {
+						columnUI().ShowToast(msg, shell.ToastSuccess)
 					}
 					return nil
 
@@ -563,8 +579,8 @@ func buildColumnEditorStep(
 
 				case event.Key() == tcell.KeyCtrlS:
 					if len(*columns) < 2 {
-						if tuiShell != nil {
-							tuiShell.ShowToast(i18n.T("cmd.discovery.validate.min_columns"), shell.ToastError)
+						if columnUI() != nil {
+							columnUI().ShowToast(i18n.T("cmd.discovery.validate.min_columns"), shell.ToastError)
 						}
 						return nil
 					}
@@ -576,8 +592,8 @@ func buildColumnEditorStep(
 						}
 					}
 					if !hasTerminal {
-						if tuiShell != nil {
-							tuiShell.ShowToast(i18n.T("cmd.discovery.validate.need_terminal"), shell.ToastError)
+						if columnUI() != nil {
+							columnUI().ShowToast(i18n.T("cmd.discovery.validate.need_terminal"), shell.ToastError)
 						}
 						return nil
 					}
