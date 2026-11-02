@@ -287,13 +287,13 @@ Le pathfinder est configuré dans `~/.oh/hub.toml` :
       "planning": "claude-opus-4"
     },
     "agents": {
-      "pathfinder": "claude-sonnet-4-6"
+      "pathfinder": "claude-sonnet-5-5"
     }
   }
 }
 ```
 
-**Le pathfinder utilise Claude Sonnet 4.6 pour :**
+**Le pathfinder utilise Claude Sonnet 5.5 pour :**
 - Rapidité d'exécution (2-5 min)
 - Extended + Adaptive thinking
 - Context window 1M tokens

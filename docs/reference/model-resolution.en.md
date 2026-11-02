@@ -47,7 +47,7 @@ Resolution is performed for each agent of the session bundle. First match wins (
 ### Workflow level (decision O9)
 
 - The `models:` block of an `oh/v1` workflow comes **before** any project and hub configuration. It has no families.
-- Full identifiers (`amazon-bedrock/eu.anthropic.claude-sonnet-4-6`, `#variant` suffix) are accepted: the Bedrock regional prefix is removed, then added back by the adapter for the session region; the variant is kept.
+- Full identifiers (`amazon-bedrock/eu.anthropic.claude-sonnet-5-5`, `#variant` suffix) are accepted: the Bedrock regional prefix is removed, then added back by the adapter for the session region; the variant is kept.
 - A patch (`extends`) replaces `models.default` and merges `models.agents` per agent.
 
 ### Team models
@@ -76,7 +76,7 @@ I6 restrictions may limit the models of a session (patterns with `*`, e.g. `eu.a
 
 - levels: hub (`[limits] models`, `oh budget set models …`), team (`[limits.recommended]` or `[limits.enforced]`), project (`oh budget set models … -p <project>`), workflow (`limits.models`);
 - the most specific list wins (workflow > project > hub > team recommendation); a list **enforced** by the team is a ceiling: only the patterns it covers are kept;
-- the list does not change the model picked by the cascade: it is applied by the **credential proxy**, which refuses calls to any other model (id sent to the provider, e.g. `eu.anthropic.claude-sonnet-4-6`).
+- the list does not change the model picked by the cascade: it is applied by the **credential proxy**, which refuses calls to any other model (id sent to the provider, e.g. `eu.anthropic.claude-sonnet-5-5`).
 
 A session whose agents resolve to a model outside the list **does not start**: the launch (interactive or `--headless`) fails before anything is created, with a message naming the agent and the model. So pick cascade models that match the list. See `oh budget show` and [ADR-044](../architecture/adr/044-credential-proxy-session-limits.en.md).
 
@@ -95,7 +95,7 @@ default = "claude-sonnet-4-5"
 
 [models.families]
 quality = "claude-opus-4"
-planning = "claude-sonnet-4-6"
+planning = "claude-sonnet-5-5"
 
 [models.agents]
 reviewer = "claude-opus-4"
@@ -126,7 +126,7 @@ oh config model agent reviewer claude-opus-4
 
 # --- Project-level ---
 oh config model default claude-opus-4 --project my-app
-oh config model family planning claude-sonnet-4-6 --project my-app
+oh config model family planning claude-sonnet-5-5 --project my-app
 oh config model agent reviewer claude-opus-4 --project my-app
 
 # --- View configuration ---
@@ -166,7 +166,7 @@ Agents can declare a model via the `model:` field of their frontmatter:
 ```yaml
 ---
 id: orchestrator
-model: claude-sonnet-4-6
+model: claude-sonnet-5-5
 ---
 ```
 
@@ -176,10 +176,10 @@ This field is **level 9** of the cascade: it only applies when no level above de
 
 | Agent | Floor |
 |-------|-------|
-| `conductor`, `orchestrator`, `orchestrator-dev`, `planner`, `pathfinder`, `onboarder` | `claude-sonnet-4-6` |
-| `auditor`, `auditor-subagent`, `designer`, `debugger`, `documentarian`, `operator` | `claude-sonnet-4-6` |
+| `conductor`, `orchestrator`, `orchestrator-dev`, `planner`, `pathfinder`, `onboarder` | `claude-sonnet-5-5` |
+| `auditor`, `auditor-subagent`, `designer`, `debugger`, `documentarian`, `operator` | `claude-sonnet-5-5` |
 | `reviewer`, `benchmarker` | `claude-opus-4-6` |
-| `brief-enricher` | `anthropic/claude-sonnet-4-5` |
+| `brief-enricher` | `claude-sonnet-5-5` |
 
 The `developer*` agents declare none: without configuration, the session gets the default model of oh, `claude-sonnet-5-5` (converted for the provider of the session, e.g. `amazon-bedrock/anthropic.claude-sonnet-5-5` with Bedrock). The recap of a launch (`oh run --recap`, launch form of the TUI) names the model the session uses (the one of the entry agent), and on a second row the other models of the agents of the bundle when they differ.
 
@@ -193,7 +193,7 @@ At each launch, each agent of the session bundle gets a block in the rendered op
 {
   "agent": {
     "orchestrator": {
-      "model": "amazon-bedrock/anthropic.claude-sonnet-4-6-20250715-v1:0",
+      "model": "amazon-bedrock/anthropic.claude-sonnet-5-5",
       "permission": {
         "question": "allow",
         "bash": "deny",
