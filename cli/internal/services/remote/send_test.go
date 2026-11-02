@@ -206,7 +206,7 @@ func newSendEnv(t *testing.T) *sendEnv {
 	g := &fakeGit{remote: "ssh://git@127.0.0.1/acme/dev/api.git", branch: "main",
 		head: "c1", fetched: "c2", ancestor: true, files: map[string]string{}}
 	bd := &fakeBeads{issues: map[string]map[string]any{
-		"bd-42": {"id": "bd-42", "status": "open", "revision": "r1", "dependencies": []map[string]any{{"id": "bd-7", "dependency_type": "blocks"}}},
+		"bd-42": {"id": "bd-42", "status": "open", "revision": "r1", "labels": []string{"wip"}, "dependencies": []map[string]any{{"id": "bd-7", "dependency_type": "blocks"}}},
 		"bd-7":  {"id": "bd-7", "status": "closed", "revision": "r7"},
 		"bd-43": {"id": "bd-43", "status": "open", "updated_at": "2026-10-06T10:00:00Z"},
 	}, kids: map[string][]string{"bd-42": {"bd-43"}}}

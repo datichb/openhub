@@ -57,10 +57,15 @@ type returnEnv struct {
 
 func newReturnEnv(t *testing.T, summary remote.Summary, journal []byte) *returnEnv {
 	t.Helper()
+	return newReturnEnvAllow(t, []string{"show", "update", "create", "dep add", "note"}, summary, journal)
+}
+
+func newReturnEnvAllow(t *testing.T, allow []string, summary remote.Summary, journal []byte) *returnEnv {
+	t.Helper()
 	e := &returnEnv{sendEnv: newSendEnv(t)}
 	e.svc.SessionsDir = t.TempDir()
 	e.svc.Human = func(context.Context, string) string { return "Ada" }
-	e.req.BeadsAllow = []string{"show", "update", "create", "dep add", "note"}
+	e.req.BeadsAllow = allow
 	e.svc.Target = func(name string) (*config.RemoteTarget, bool) {
 		if name == e.target.Name {
 			tg := e.target
