@@ -92,14 +92,14 @@ func (v *TeamModeView) Title() string {
 // StatusHints returns keybinding hints.
 func (v *TeamModeView) StatusHints() string {
 	if v.team == nil {
-		return fmt.Sprintf("%s · Ctrl+T %s", i18n.T("tui.tm.no_team"), i18n.T("tui.hints.hub_mode"))
+		return fmt.Sprintf("%s · Ctrl+T %s", i18n.T("tui.tm.no_team"), i18n.T("tui.hints.next_view"))
 	}
 	return keys.Hints(
 		v.team.Name,
 		keys.Navigate.HintAs(i18n.T("tui.hints.navigate")),
 		keys.Open.HintAs(i18n.T("tui.hints.open")),
 		"Ctrl+P "+i18n.T("tui.hints.commands"),
-		"Ctrl+T "+i18n.T("tui.hints.hub_mode"),
+		"Ctrl+T "+i18n.T("tui.hints.next_view"),
 	)
 }
 
@@ -207,7 +207,7 @@ func (v *TeamModeView) Mount(content *tview.Flex, app *tview.Application) {
 		})
 	}
 
-	footer := newHomeFooter(footerTeam)
+	footer := newHomeFooter()
 
 	// ── Split items for dual-column: left = Sessions+Board, right = Config+Nav ──
 	leftItems, rightItems := v.splitItems()

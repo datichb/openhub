@@ -29,24 +29,11 @@ func columnsHint() string {
 	return colPrevKey.Keys() + "/" + colNextKey.Keys() + " " + i18n.T("tui.hints.columns")
 }
 
-// homeFooterMode is the landing a footer is drawn for.
-type homeFooterMode int
-
-const (
-	footerHub homeFooterMode = iota
-	footerProject
-	footerTeam
-)
-
 // homeShortcutsFooter is the footer of the three landings (Hub, Project,
-// Team): the same four shortcuts in the same order, Ctrl+T leading to the
-// team view from the hub and the project, and back to the hub from the team
-// (A33).
-func homeShortcutsFooter(mode homeFooterMode) string {
-	ctrlT := i18n.T("tui.home.shortcut.team_mode")
-	if mode == footerTeam {
-		ctrlT = i18n.T("tui.home.shortcut.hub_mode")
-	}
+// Team): the same four shortcuts in the same order, Ctrl+T leading to the next
+// view of the cycle Hub → Project → Team → Hub (A33, BL-24).
+func homeShortcutsFooter() string {
+	ctrlT := i18n.T("tui.home.shortcut.next_view")
 	entry := func(key, label string) string {
 		return theme.Paint(theme.ActiveMode.PrimaryHex, key) + " " + theme.Paint(theme.TextMutedHex, label)
 	}
@@ -59,13 +46,13 @@ func homeShortcutsFooter(mode homeFooterMode) string {
 }
 
 // newHomeFooter is the text view of the footer of a landing.
-func newHomeFooter(mode homeFooterMode) *tview.TextView {
+func newHomeFooter() *tview.TextView {
 	footer := tview.NewTextView().
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignCenter).
 		SetScrollable(false)
 	footer.SetBackgroundColor(theme.BgPanel)
-	footer.SetText(homeShortcutsFooter(mode))
+	footer.SetText(homeShortcutsFooter())
 	return footer
 }
 

@@ -128,7 +128,7 @@ func (v *HomeView) Mount(content *tview.Flex, app *tview.Application) {
 	header.AddItem(logo, bh+1, 0, false) // banner + leading \n
 	header.AddItem(info, 0, 1, false)
 
-	footer := newHomeFooter(footerHub)
+	footer := newHomeFooter()
 
 	onSelect := func(_ int, item widgets.SectionItem) {
 		if ref, ok := item.Reference.(int); ok {

@@ -56,6 +56,7 @@ import (
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/router"
@@ -79,6 +80,13 @@ type Config struct {
 	// Used by Ctrl+T to switch to team mode (ADR-032 Phase 3).
 	// If nil, Ctrl+T falls back to navigating to the teams list view.
 	TeamsProvider func() []views.SelectOption
+	// ProjectsProvider returns the active projects (ID in Value, name in
+	// Label), and ProjectResolver completes the one that is chosen (path,
+	// branch). Ctrl+T enters the project mode through them (BL-24); both are
+	// called off the event loop. Without ProjectsProvider, Ctrl+T skips the
+	// project mode.
+	ProjectsProvider func() []views.SelectOption
+	ProjectResolver  func(id string) *views.ActiveProject
 	// BeforeQuit, when set, is called on Ctrl+Q/Ctrl+C instead of quitting
 	// right away (e.g. to ask what to do with running sessions). It must call
 	// quit to stop the TUI. A second Ctrl+Q while it is pending forces the quit.
@@ -114,6 +122,9 @@ type Shell struct {
 	activeProject *views.ActiveProject
 	// activeTeam is non-nil when team mode is active (ADR-032 Phase 3).
 	activeTeam *views.ActiveTeam
+	// lastProject is the project the user was in last: Ctrl+T from the hub
+	// goes back to it.
+	lastProject string
 	// activeMode is the current navigation mode (ADR-032 Phase 3).
 	activeMode views.Mode
 
@@ -1208,6 +1219,7 @@ func (s *Shell) SetSessionsBadge(badge string, alert bool) {
 func (s *Shell) SetProjectMode(project *views.ActiveProject) {
 	s.activeProject = project
 	if project != nil {
+		s.lastProject = project.ID
 		s.activeMode = views.ModeProject
 		theme.SetActiveMode(string(views.ModeProject))
 		s.router.NavigateTo("project.mode")
@@ -1220,6 +1232,9 @@ func (s *Shell) SetProjectMode(project *views.ActiveProject) {
 // Use this to pre-set the project before NavigateHome is called.
 func (s *Shell) SetActiveProject(project *views.ActiveProject) {
 	s.activeProject = project
+	if project != nil {
+		s.lastProject = project.ID
+	}
 }
 
 // ActiveProject returns the currently active project, or nil if in hub mode.
@@ -1441,7 +1456,7 @@ func (s *Shell) globalKeyHandler(event *tcell.EventKey) *tcell.EventKey {
 		s.omnibar.Activate()
 		return nil
 	case tcell.KeyCtrlT:
-		s.toggleTeamMode()
+		s.cycleMode()
 		return nil
 	case tcell.KeyF1:
 		s.showHelpOverlay()
@@ -1549,14 +1564,93 @@ func (s *Shell) focusReturn() tview.Primitive {
 	return s.content
 }
 
-// toggleTeamMode is Ctrl+T (ADR-032 Phase 3): from team mode, back to the
-// hub; from the hub or a project, into team mode (selector when several
-// teams are configured).
-func (s *Shell) toggleTeamMode() {
-	if s.activeMode == views.ModeTeam {
+// cycleMode is Ctrl+T: Hub → Project → Team → Hub, skipping the modes that
+// are not configured (BL-24; before 5.1 it only went between the hub and the
+// team). From the hub, the project is the one the user left (or the only one,
+// or one to choose); from the project, the team (selector when several teams
+// are configured); from the team, back to the hub. With no project the hub
+// goes straight to the team, with no team the project goes back to the hub,
+// with neither a toast says so.
+func (s *Shell) cycleMode() {
+	switch s.activeMode {
+	case views.ModeTeam:
 		s.SetMode(views.ModeHub)
+	case views.ModeProject:
+		if s.teamsConfigured() {
+			s.enterTeamMode()
+			return
+		}
+		s.SetMode(views.ModeHub)
+	default:
+		s.enterProjectMode(func() {
+			if s.teamsConfigured() {
+				s.enterTeamMode()
+				return
+			}
+			s.ShowToast(i18n.T("tui.no_mode_configured"), ToastWarning)
+		})
+	}
+}
+
+// teamsConfigured reports whether Ctrl+T can enter a team: a team is
+// configured, or the shell has no list of them and falls back on the teams
+// view.
+func (s *Shell) teamsConfigured() bool {
+	return s.cfg.TeamsProvider == nil || len(s.cfg.TeamsProvider()) > 0
+}
+
+// enterProjectMode enters the project mode: the project the user left when it
+// is still there, the only project, or the one chosen in a selector. The
+// projects are read off the event loop. none runs when there is no project.
+func (s *Shell) enterProjectMode(none func()) {
+	if s.cfg.ProjectsProvider == nil {
+		none()
 		return
 	}
+	last := s.lastProject
+	safego.Go(func() {
+		opts := s.cfg.ProjectsProvider()
+		s.app.QueueUpdateDraw(func() {
+			for _, o := range opts {
+				if last != "" && o.Value == last {
+					s.enterProject(o.Value)
+					return
+				}
+			}
+			switch len(opts) {
+			case 0:
+				none()
+			case 1:
+				s.enterProject(opts[0].Value)
+			default:
+				s.ShowSelectModal(i18n.T("tui.select_project"), opts, "", s.enterProject)
+			}
+		})
+	})
+}
+
+// enterProject makes the project active and enters the project mode. The
+// project is completed (path, branch) off the event loop.
+func (s *Shell) enterProject(id string) {
+	safego.Go(func() {
+		var p *views.ActiveProject
+		if s.cfg.ProjectResolver != nil {
+			p = s.cfg.ProjectResolver(id)
+		}
+		s.app.QueueUpdateDraw(func() {
+			if p == nil {
+				s.ShowToast(i18n.T("tui.project_not_found"), ToastWarning)
+				return
+			}
+			s.SetActiveProject(p)
+			s.SetMode(views.ModeProject)
+		})
+	})
+}
+
+// enterTeamMode enters the team mode (ADR-032 Phase 3): the only team, or the
+// one chosen in a selector.
+func (s *Shell) enterTeamMode() {
 	if s.cfg.TeamsProvider == nil {
 		// No TeamsProvider — fallback to the teams list view.
 		s.activeMode = views.ModeTeam

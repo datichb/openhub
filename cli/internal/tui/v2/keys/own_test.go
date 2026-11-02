@@ -63,3 +63,17 @@ func TestWHasOneMeaning(t *testing.T) {
 		"tui.keys.change.view.launch":   "t",
 	}, moved, "every former use of w is declared in keys.Changes")
 }
+
+// Ctrl+T changed meaning in 5.1 (the cycle Hub → Project → Team → Hub, it
+// only went between the hub and the team): the notice of the new keys says so.
+func TestCtrlTCycleIsDeclared(t *testing.T) {
+	var found bool
+	for _, c := range keys.Changes() {
+		if c.To == "Ctrl+T" {
+			found = true
+			assert.Empty(t, c.From, "a key the notice presents as new")
+			assert.Equal(t, "tui.keys.change.view.modes", c.ViewKey())
+		}
+	}
+	assert.True(t, found)
+}

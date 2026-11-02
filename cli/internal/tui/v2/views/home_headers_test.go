@@ -7,7 +7,6 @@ import (
 	"github.com/rivo/tview"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
 )
 
 // The landings against the mock-ups of 10-tui.md (A32, B7).

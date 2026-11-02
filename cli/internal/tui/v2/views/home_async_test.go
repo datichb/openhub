@@ -7,7 +7,6 @@ import (
 
 	"github.com/rivo/tview"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // The landings read their data in load(): the mount returns at once with the
@@ -143,14 +142,9 @@ func contains(list []string, s string) bool {
 
 func TestHomeShortcutsFooter(t *testing.T) {
 	frLocale(t)
-	hub, team := homeShortcutsFooter(footerHub), homeShortcutsFooter(footerTeam)
-	assert.Equal(t, hub, homeShortcutsFooter(footerProject), "the hub and the project share their footer")
-	for _, f := range []string{hub, team} {
-		for _, k := range []string{"Ctrl+P", "?", "Ctrl+T", "Ctrl+Q"} {
-			assert.Contains(t, f, k)
-		}
+	hub := homeShortcutsFooter()
+	for _, k := range []string{"Ctrl+P", "?", "Ctrl+T", "Ctrl+Q"} {
+		assert.Contains(t, hub, k)
 	}
-	assert.Contains(t, hub, "vue équipe")
-	assert.Contains(t, team, "vue hub")
-	require.NotEqual(t, hub, team)
+	assert.Contains(t, tview.NewTextView().SetDynamicColors(true).SetText(hub).GetText(true), "Ctrl+T vue suivante", "Hub → Projet → Équipe → Hub")
 }

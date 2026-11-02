@@ -98,16 +98,16 @@ func (v *ProjectModeView) Title() string {
 // StatusHints returns keybinding hints for the omnibar (passive mode).
 func (v *ProjectModeView) StatusHints() string {
 	if v.project == nil {
-		return keys.Hints(i18n.T("tui.pm.no_project"), keys.Back.HintAs(i18n.T("tui.hints.hub_mode")), "Ctrl+T "+i18n.T("tui.hints.team_mode"))
+		return keys.Hints(i18n.T("tui.pm.no_project"), keys.Back.HintAs(i18n.T("tui.hints.hub_mode")), "Ctrl+T "+i18n.T("tui.hints.next_view"))
 	}
-	// Ctrl+T enters the team mode; Esc goes back to the hub (A33).
+	// Ctrl+T goes to the next view of the cycle; Esc goes back to the hub (A33).
 	return keys.Hints(
 		v.project.Name,
 		keys.Navigate.HintAs(i18n.T("tui.hints.navigate")),
 		keys.Open.HintAs(i18n.T("tui.hints.open")),
 		"Ctrl+P "+i18n.T("tui.hints.commands"),
 		keys.Back.HintAs(i18n.T("tui.hints.hub_mode")),
-		"Ctrl+T "+i18n.T("tui.hints.team_mode"),
+		"Ctrl+T "+i18n.T("tui.hints.next_view"),
 	)
 }
 
@@ -171,7 +171,7 @@ func (v *ProjectModeView) Mount(content *tview.Flex, app *tview.Application) {
 
 	_, bh := renderBanner(v.project.Name, 100, theme.ActiveMode.AccentHex)
 
-	footer := newHomeFooter(footerProject)
+	footer := newHomeFooter()
 
 	// ── Split items for dual-column: left = Sessions+Projet, right = Config+Team+Hub ──
 	leftItems, rightItems := v.splitItems()

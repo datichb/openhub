@@ -94,6 +94,22 @@ func runTUIWithProject(projectName string) error {
 			}
 			return out
 		},
+		// Ctrl+T enters the project mode (BL-24): both run off the event loop.
+		ProjectsProvider: func() []views.SelectOption {
+			projects, _ := a.Projects.List(context.Background(), domain.ProjectStatusActive)
+			out := make([]views.SelectOption, 0, len(projects))
+			for _, p := range projects {
+				out = append(out, views.SelectOption{Label: p.Name, Value: p.ID})
+			}
+			return out
+		},
+		ProjectResolver: func(id string) *views.ActiveProject {
+			p, err := a.Projects.Get(context.Background(), id)
+			if err != nil || p == nil {
+				return nil
+			}
+			return &views.ActiveProject{ID: p.ID, Name: p.Name, Path: p.Path, Branch: resolveGitBranch(p.Path)}
+		},
 	}
 
 	views.ToolName = toolName
