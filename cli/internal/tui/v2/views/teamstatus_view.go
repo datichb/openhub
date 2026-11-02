@@ -238,8 +238,8 @@ func (v *TeamStatusView) render(tc TeamResolution, d *teamStatusData) {
 		fmt.Fprintf(&sb, "  %s\n", stateText(stateEmpty, i18n.T("tui.teamstatus.no_recent_activity")))
 	} else {
 		for _, e := range d.events {
-			fmt.Fprintf(&sb, "  %s %s %s\n",
-				secondary(fmt.Sprintf("%-12s", textfmt.AgoOrDate(e.Timestamp))),
+			fmt.Fprintf(&sb, "  %s %s %s %s\n",
+				secondary(fmt.Sprintf("%-12s", textfmt.AgoOrDate(e.Timestamp))), eventIcon(e.Type),
 				tview.Escape(e.Actor), tview.Escape(formatEventDescription(e)))
 		}
 	}

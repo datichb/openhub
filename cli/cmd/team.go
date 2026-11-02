@@ -19,6 +19,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/glyph"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/textfmt"
@@ -708,10 +709,8 @@ func runTeamActivity(cmd *cobra.Command, args []string) error {
 
 	for _, e := range events {
 		ts := textfmt.Clock(e.Timestamp)
-		icon := eventIcon(e.Type)
-		desc := formatEvent(e)
 		fmt.Fprintf(a.IO.Out, "  %s %s %s %s\n",
-			theme.Subtitle.Render(ts), icon, theme.Bold.Render(e.Actor), desc)
+			theme.Subtitle.Render(ts), eventSymbol(e), theme.Bold.Render(e.Actor), e.Describe())
 	}
 
 	if totalCount > limit {
@@ -755,62 +754,19 @@ func writeTeamConfig(stateRepo, statePath, memberID string) error {
 	return teamService(MustApp()).SaveTeam(stateRepo, statePath, memberID, "")
 }
 
-func eventIcon(eventType string) string {
-	switch eventType {
-	case teamstate.EventSessionComplete:
-		return theme.SuccessStyle.Render(theme.IconSuccess)
-	case teamstate.EventReviewReady:
-		return theme.SuccessStyle.Render(theme.IconInfo)
-	case teamstate.EventAuditFinding:
-		return theme.WarningStyle.Render(theme.IconWarning)
-	case teamstate.EventClaimTaken:
-		return theme.Subtitle.Render(theme.IconArrow)
-	case teamstate.EventClaimConflict:
-		return theme.ErrorStyle.Render(theme.IconWarning)
-	case teamstate.EventClaimTransferred:
-		return theme.Subtitle.Render(theme.IconArrow)
-	case teamstate.EventClaimReleased:
-		return theme.Subtitle.Render(theme.IconDot)
-	case teamstate.EventWikiProposal:
-		return theme.SuccessStyle.Render(theme.IconInfo)
-	case teamstate.EventWikiAccepted:
-		return theme.SuccessStyle.Render(theme.IconSuccess)
-	case teamstate.EventWikiRejected:
-		return theme.ErrorStyle.Render(theme.IconWarning)
-	default:
-		return theme.Subtitle.Render(theme.IconDot)
+// eventSymbol is the symbol of an event (glyph.Events, shared with the TUI),
+// painted with the style of its tone.
+func eventSymbol(e teamstate.Event) string {
+	g := e.Glyph()
+	switch g.Tone {
+	case glyph.ToneSuccess:
+		return theme.SuccessStyle.Render(g.Glyph)
+	case glyph.ToneError:
+		return theme.ErrorStyle.Render(g.Glyph)
+	case glyph.ToneWarning:
+		return theme.WarningStyle.Render(g.Glyph)
 	}
-}
-
-func formatEvent(e teamstate.Event) string {
-	switch e.Type {
-	case teamstate.EventSessionComplete:
-		ticket := e.Ticket
-		if ticket == "" {
-			ticket = "session"
-		}
-		return i18n.Tf("cmd.team.event.session_complete", e.Project, ticket)
-	case teamstate.EventReviewReady:
-		return i18n.Tf("cmd.team.event.review_ready", e.Project, e.Ticket)
-	case teamstate.EventAuditFinding:
-		return i18n.Tf("cmd.team.event.audit_finding", e.Project, e.Ticket)
-	case teamstate.EventClaimTaken:
-		return i18n.Tf("cmd.team.event.claim_taken", e.Project, e.Ticket)
-	case teamstate.EventClaimConflict:
-		return i18n.Tf("cmd.team.event.claim_conflict", e.Project, e.Ticket)
-	case teamstate.EventClaimTransferred:
-		return i18n.Tf("cmd.team.event.claim_transferred", e.Project, e.Ticket)
-	case teamstate.EventClaimReleased:
-		return i18n.Tf("cmd.team.event.claim_released", e.Project, e.Ticket)
-	case teamstate.EventWikiProposal:
-		return i18n.T("cmd.team.event.wiki_proposal")
-	case teamstate.EventWikiAccepted:
-		return i18n.T("cmd.team.event.wiki_accepted")
-	case teamstate.EventWikiRejected:
-		return i18n.T("cmd.team.event.wiki_rejected")
-	default:
-		return e.Type
-	}
+	return theme.Subtitle.Render(g.Glyph)
 }
 
 // ── Duplicate clone detection ─────────────────────────────────────────────────

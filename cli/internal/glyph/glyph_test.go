@@ -128,3 +128,58 @@ func TestStatesShareOnlyTheirMeaning(t *testing.T) {
 		}
 	}
 }
+
+// The events of a team: one row per type, a symbol of the table of meanings
+// only for its own meaning (success ✔, failure ✗, inactive ○, warning ⚠,
+// active ●, modified ✎), no symbol shared with a run state or a decision kind
+// except the ones that mean the same thing.
+func TestEventsTable(t *testing.T) {
+	want := map[string]string{
+		"claim.taken": "●", "claim.released": "○", "claim.transferred": "→", "claim.conflict": "✗",
+		"session.complete": "✔", "review.ready": "◐", "review.approved": "✔", "review.rejected": "✗",
+		"audit.finding": "⚠", "wiki.proposal": "✎", "wiki.accepted": "✔", "wiki.rejected": "✗",
+		"workflow.published": "✔", "workflow.restored": "↺", "workflow.archived": "○",
+	}
+	if len(Events) != len(want) {
+		t.Fatalf("%d events in the table, %d expected", len(Events), len(want))
+	}
+	seen := map[string]bool{}
+	for _, e := range Events {
+		if seen[e.Type] {
+			t.Errorf("event %s listed twice", e.Type)
+		}
+		seen[e.Type] = true
+		if want[e.Type] != e.Glyph {
+			t.Errorf("event %s: %q, want %q", e.Type, e.Glyph, want[e.Type])
+		}
+		if e.Tone == "" {
+			t.Errorf("event %s has no tone", e.Type)
+		}
+		if got := ForEvent(e.Type); got != e {
+			t.Errorf("ForEvent(%s) = %v", e.Type, got)
+		}
+	}
+
+	// Only ◐ is shared with a state, and it means the same: a person must decide.
+	states := map[string]string{}
+	for _, s := range States {
+		states[s.Glyph] = string(s.State)
+	}
+	for _, e := range Events {
+		if st, ok := states[e.Glyph]; ok && e.Glyph != Active && e.Glyph != Inactive && e.Glyph != Success && e.Glyph != BadgeWaiting {
+			t.Errorf("event %s uses %q, the glyph of the run state %s", e.Type, e.Glyph, st)
+		}
+	}
+	for _, k := range Kinds {
+		for _, e := range Events {
+			if e.Glyph == k.Glyph && e.Glyph != Failure {
+				t.Errorf("event %s uses %q, the glyph of the decision %s", e.Type, e.Glyph, k.Kind)
+			}
+		}
+	}
+	// An event that is not in the table keeps its type and gets a neutral dot.
+	u := ForEvent("nope.nothing")
+	if u.Glyph != UnknownEvent || u.Type != "nope.nothing" || u.Tone != ToneMuted {
+		t.Errorf("unknown event: %v", u)
+	}
+}
