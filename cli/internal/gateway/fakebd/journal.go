@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -118,7 +119,29 @@ func (j journalBackend) Exec(req beadswire.ExecRequest) (beadswire.ExecResponse,
 	if v, ok := p.flags["--readonly"]; ok && v != "false" && v != "0" {
 		return fail(fmt.Sprintf("Error: operation '%s' is not allowed in read-only mode", p.cmd)), nil
 	}
+	if msg := unconfiguredStatus(snap, req.Argv); msg != "" {
+		return fail(msg), nil
+	}
 	return j.write(snap, p, req)
+}
+
+// unconfiguredStatus says why a write sets a status absent from the Beads
+// configuration of the project (the statuses of the snapshot), in the words
+// of bd; "" when it does not, or when the statuses are not known.
+func unconfiguredStatus(s *remote.Snapshot, argv []string) string {
+	if len(s.Statuses) == 0 {
+		return ""
+	}
+	c, err := bdargs.Parse(argv)
+	if err != nil || (c.Key() != "update" && c.Key() != "create") {
+		return ""
+	}
+	st, ok := c.Value("status")
+	if !ok || st == "" || slices.Contains(s.Statuses, st) {
+		return ""
+	}
+	return fmt.Sprintf("Error: invalid status %q (configured: %s; or configure custom statuses on the machine with 'bd config set status.custom')",
+		st, strings.Join(s.Statuses, ", "))
 }
 
 func has(argv []string, names ...string) bool {

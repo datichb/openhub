@@ -168,11 +168,45 @@ func (h issueHead) version() string {
 	return h.UpdatedAt
 }
 
+// bdBuiltinStatuses are the statuses bd always knows (bd 1.3), taken when
+// `bd statuses` only lists the custom ones.
+var bdBuiltinStatuses = []string{"open", "in_progress", "blocked", "deferred", "closed", "pinned", "hooked"}
+
+// configuredStatuses reads the output of `bd statuses --json`: the built-in
+// and custom statuses of the project; nil when it cannot be read.
+func configuredStatuses(out []byte) []string {
+	var st struct {
+		BuiltIn []struct {
+			Name string `json:"name"`
+		} `json:"built_in_statuses"`
+		Custom []struct {
+			Name string `json:"name"`
+		} `json:"custom_statuses"`
+	}
+	if json.Unmarshal(out, &st) != nil || (len(st.BuiltIn) == 0 && len(st.Custom) == 0) {
+		return nil
+	}
+	var names []string
+	for _, s := range st.BuiltIn {
+		names = append(names, s.Name)
+	}
+	if len(names) == 0 {
+		names = append(names, bdBuiltinStatuses...)
+	}
+	for _, s := range st.Custom {
+		names = append(names, s.Name)
+	}
+	return names
+}
+
 // TakeSnapshot reads the tickets, their dependencies and their children
 // (P5-T06).
 func TakeSnapshot(ctx context.Context, b Beads, dir string, tickets []string, now time.Time) (*remote.Snapshot, error) {
 	snap := &remote.Snapshot{Schema: remote.SnapshotSchema, TakenAt: now.UTC(), Requested: append([]string{}, tickets...),
 		Issues: map[string]json.RawMessage{}, Revisions: map[string]string{}, Children: map[string][]string{}}
+	if out, err := b.Exec(ctx, dir, []string{"statuses", "--json"}, nil); err == nil {
+		snap.Statuses = configuredStatuses(out)
+	}
 	if len(tickets) == 0 {
 		return snap, nil
 	}

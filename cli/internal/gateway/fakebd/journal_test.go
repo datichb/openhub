@@ -146,3 +146,75 @@ func TestJournalNeedsPaths(t *testing.T) {
 	assert.Equal(t, 0, code)
 	assert.Contains(t, out, "snapshot")
 }
+
+// withStatuses records the statuses of the project's Beads configuration in
+// the snapshot, as the machine does when it sends the session.
+func withStatuses(t *testing.T, e map[string]string, statuses ...string) {
+	t.Helper()
+	data, err := os.ReadFile(e[beadswire.EnvSnapshot])
+	require.NoError(t, err)
+	var snap remote.Snapshot
+	require.NoError(t, json.Unmarshal(data, &snap))
+	snap.Statuses = statuses
+	data, err = json.Marshal(snap)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(e[beadswire.EnvSnapshot], data, 0o600))
+}
+
+// bd refuses a status that is not in the configuration of the project
+// (built-in or custom): the fake does the same, right away, instead of
+// recording an entry that fails when the journal is replayed.
+func TestJournalRefusesUnconfiguredStatus(t *testing.T) {
+	e, j := journalEnv(t)
+	withStatuses(t, e, "open", "in_progress", "blocked", "deferred", "closed", "shipped")
+	before, err := os.ReadFile(e[beadswire.EnvSnapshot])
+	require.NoError(t, err)
+
+	for _, argv := range [][]string{
+		{"update", "bd-42", "--status", "review"},
+		{"update", "bd-42", "--status=review"},
+		{"update", "bd-42", "-s", "review"},
+		{"update", "bd-42", "-sreview"},
+		{"update", "bd-42", "--status", "REVIEW"}, // bd compares exactly
+		{"update", "--status", "review", "--", "bd-42"},
+		{"--json", "update", "bd-42", "--status", "review", "--notes", "done"},
+		{"create", "Follow-up", "--status", "review"},
+	} {
+		code, out, errOut := bd(t, e, "", argv...)
+		assert.Equal(t, 1, code, "%v", argv)
+		assert.Empty(t, out, "%v", argv)
+		assert.Contains(t, errOut, `invalid status "`, "%v", argv)
+		assert.Contains(t, errOut, "open, in_progress, blocked, deferred, closed, shipped", "the configured statuses are listed: %v", argv)
+		assert.Contains(t, errOut, "status.custom", "%v", argv)
+	}
+	assert.Empty(t, readJournal(t, j), "a refused write is not recorded")
+	after, err := os.ReadFile(e[beadswire.EnvSnapshot])
+	require.NoError(t, err)
+	assert.JSONEq(t, string(before), string(after), "nor applied to the snapshot copy")
+
+	for _, argv := range [][]string{
+		{"update", "bd-42", "--status", "shipped"},
+		{"update", "bd-42", "-sblocked"},
+		{"update", "bd-42", "--status=in_progress", "--add-label", "ready-for-review"},
+		{"create", "Follow-up", "--status", "open"},
+		{"update", "bd-42", "--notes", "no status: nothing to check"},
+		{"close", "bd-44"},
+	} {
+		code, _, errOut := bd(t, e, "", argv...)
+		assert.Equal(t, 0, code, "%v: %s", argv, errOut)
+	}
+	assert.Len(t, readJournal(t, j), 6)
+
+	// Reads filter on a status without being refused (bd list --status x).
+	code, _, _ := bd(t, e, "", "list", "--status", "review")
+	assert.Equal(t, 0, code)
+}
+
+// A snapshot without the statuses (sent by an older oh) cannot be checked:
+// nothing is refused, as before.
+func TestJournalWithoutStatusesChecksNothing(t *testing.T) {
+	e, j := journalEnv(t)
+	code, _, errOut := bd(t, e, "", "update", "bd-42", "--status", "review")
+	assert.Equal(t, 0, code, errOut)
+	assert.Len(t, readJournal(t, j), 1)
+}

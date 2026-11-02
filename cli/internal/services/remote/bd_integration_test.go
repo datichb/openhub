@@ -44,6 +44,7 @@ func TestRealBdSnapshot(t *testing.T) {
 	assert.Contains(t, snap.Issues, child, "child")
 	assert.Equal(t, []string{child}, snap.Children[parent])
 	assert.NotEmpty(t, snap.Revisions[parent])
+	assert.Equal(t, bdBuiltinStatuses, snap.Statuses, "statuses of the configuration, for the bd of the job")
 	h, err := headOf(snap.Issues[parent])
 	require.NoError(t, err)
 	assert.Equal(t, "in_progress", h.Status)
