@@ -10,6 +10,6 @@ L'architecture actuelle se lit ici :
 | Agents, contrat de session, instructions par niveau, catalogue de skills par agent | [Agents](../architecture/agents.fr.md), [Skills](../architecture/skills.fr.md), [Délégation inter-agents](../architecture/task-delegation.fr.md) |
 | Workflows livrés, schéma `oh/v1`, checkpoints et vérification par oh | [Workflows livrés](../reference/workflows.fr.md), [Schéma](../reference/workflow-schema.fr.md), [Checkpoints](../reference/checkpoints.fr.md) |
 | Packages du CLI et conventions de code (commandes, services, stockage, i18n, tests) | [Contribuer — Vue d'ensemble du code](../guides/contributing.fr.md#vue-densemble-du-code) ([en](../guides/contributing.en.md#code-overview)) |
-| Décisions d'architecture (v5 : ADR 038 à 053) | [`docs/architecture/adr/`](../architecture/adr/) |
+| Décisions d'architecture (v5 : ADR 038 à 060) | [`docs/architecture/adr/`](../architecture/adr/) |
 | Shell, vues et widgets de la TUI (tview) | [TUI Architecture](tui-architecture.md), [TUI Testing](tui-testing.md) |
 | Indépendance vis-à-vis de l'outil agentique (règle vérifiée par les tests) | `cli/internal/archtest/` |

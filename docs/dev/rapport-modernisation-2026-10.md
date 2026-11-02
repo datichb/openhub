@@ -1,5 +1,7 @@
 # Rapport : oh aujourd'hui → oh cible
 
+> **Historique (instantané du 12/10/2026).** Rapport d'analyse et de décisions écrit avant les lots de la modernisation et de la v5.1 ; les chiffres, les noms de skills et les listes d'agents ou de workflows sont ceux de ce jour et ont changé depuis. Pour l'état actuel, voir [Vue d'ensemble de l'architecture](../architecture/overview.fr.md) et les ADR (`docs/architecture/adr/`), dont [ADR-055](../architecture/adr/055-checkpoint-approver.fr.md) et [ADR-059](../architecture/adr/059-return-envelope-and-workflow-report.fr.md), qui s'y réfèrent. Le fichier n'est pas déplacé : des pages de référence le citent.
+
 > **Statut : décisions arrêtées le 12 octobre 2026** (section 12). Le plan détaillé d'exécution est dans `~/.opencode/plan/oh-modernisation-plan.md`.
 >
 > Compilation de l'audit initial, des vagues de consolidation C0 à C4, des deux analyses d'allègement, de l'analyse d'enrichissement et de l'analyse Beads. État au 12 octobre 2026 (`main` après la consolidation).
