@@ -15,6 +15,8 @@ enabled = true
 token_key = "openhub.mcp.gslides.token"
 ```
 
+Le serveur appelle toujours l'API officielle (`https://slides.googleapis.com`) : Google Slides n'a pas de réglage d'URL. Une `url` déjà enregistrée pour `gslides` dans `hub.toml`, dans un projet ou dans la config d'équipe est ignorée, sans erreur ni avertissement.
+
 ## Outils
 
 | Outil | Description | Paramètres |
