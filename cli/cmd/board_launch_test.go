@@ -129,14 +129,16 @@ func TestTeamBoardWithoutTerminal(t *testing.T) {
 	})
 }
 
-// `oh dashboard` needs a terminal.
+// `oh dashboard` warns that it is deprecated, then needs a terminal.
 func TestDashboardWithoutTerminal(t *testing.T) {
 	withoutTerminal(t, &config.Config{})
-	c, _, _ := launchCommand(t, dashboardCmd)
+	c, _, errOut := launchCommand(t, dashboardCmd)
 	err := runDashboard(c, nil)
 	require.Error(t, err)
 	assert.Equal(t, ExitUsage, ExitCode(err))
 	assert.Contains(t, localizeError(err), "Metrics view")
+	assert.Contains(t, errOut.String(), "oh dashboard")
+	assert.Contains(t, errOut.String(), "removed in v6")
 }
 
 // The options of the commands: --watch is kept for the scripts, out of the help.

@@ -34,6 +34,10 @@ type tuiLaunch struct {
 	// View is a view opened on top of the home view of the mode
 	// (`oh board`, `oh team board`, `oh dashboard`); Esc goes back to it.
 	View string
+	// Notice is a warning shown as a toast once the shell is up (the
+	// terminal is then on the alternate screen: the message printed before
+	// is only seen at exit).
+	Notice string
 }
 
 // runTUIWithProject launches the TUI, optionally activating project mode
@@ -192,6 +196,9 @@ func runTUI(l tuiLaunch) error {
 	safego.Go(func() {
 		time.Sleep(500 * time.Millisecond)
 		showAbsenceRecap(context.Background(), a, tuiShell) // reads off the event loop
+		if l.Notice != "" {
+			tuiShell.ShowToast(l.Notice, shell.ToastWarning)
+		}
 		offerKeysNoticeInTUI(context.Background(), a, tuiShell, firstRun)
 		offerCleanupInTUI(context.Background(), a, tuiShell)
 	})

@@ -102,6 +102,7 @@ func Execute() error {
 		// which the code does not hold: they come from the locale.
 		localizeHelp(rootCmd)
 	}
+	defer silenceCobraDeprecation(rootCmd, os.Args[1:])()
 	if err := rootCmd.Execute(); err != nil {
 		err = usageError(err)
 		var exit *ExitError

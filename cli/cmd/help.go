@@ -62,7 +62,7 @@ var helpSectionOrder = []struct {
 	{"help.section.project", []string{"project", "worktree", "mr", "board", "wiki"}},
 	{"help.section.mcp", []string{"mcp"}},
 	{"help.section.config", []string{"config", "provider", "secrets"}},
-	{"help.section.analytics", []string{"status", "metrics", "dashboard", "serve", "history"}},
+	{"help.section.analytics", []string{"status", "serve", "history"}},
 	{"help.section.team", []string{"team", "teams", "conventions", "beads", "policies", "patterns"}},
 	{"help.section.infra", []string{"init", "doctor", "repair", "gc", "export", "import", "purge", "upgrade", "migrate", "daemon", "remote", "version", "completion"}},
 }
