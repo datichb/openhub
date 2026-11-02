@@ -20,25 +20,25 @@ import (
 // `go` statement is refused in non-test files. An entry that is not a
 // directory names the files that start with it.
 //
-// cmd/ is guarded where it runs the daemon: cmd/runner.go (the daemon of a
-// remote job), cmd/daemon*.go (ohd) and cmd/v5_claims.go (the end of the
-// ticket claims of a session, run by the hook of the daemon). The rest of
-// cmd/ is left out on purpose: about forty `go` statements, almost all of
-// them the tview interface pushing a redraw
-// (`go func() { app.QueueUpdateDraw(...) }()`) or a spinner, in the process
-// of a user who is looking at it. The few that are not (cmd/serve.go: a
-// shutdown wait; cmd/v5_launch.go: the heartbeat of an attach;
-// cmd/eval_fanout.go: the fan-out driver of an evaluation) are not exempted
-// by a list: they are outside the guard, and move into it, with a safego.Go,
-// when they are touched.
+// cmd/ is guarded as a whole since v5.1 (A7): the daemon of a remote job
+// (cmd/runner.go), ohd (cmd/daemon*.go), the end of the claims (cmd/v5_claims.go)
+// and also the tview interface of the TUI (`safego.Go(func() {
+// app.QueueUpdateDraw(...) })`, spinners, watchers), the web server, the
+// heartbeat of an attach and the fan-out driver of an evaluation. A timer
+// is safego.AfterFunc.
 var guardedDirs = []string{
 	"internal/daemon/",
 	"internal/credproxy/",
 	"internal/runsvc/",
 	"internal/gateway/",
-	"cmd/runner.go",
-	"cmd/daemon",
-	"cmd/v5_claims.go",
+	"cmd/",
+}
+
+// unguardedFiles are the files of a guarded directory that still hold a bare
+// go statement, with the reason. The list only shrinks: a file that has none
+// left must be removed from it (TestUnguardedFilesStillNeedIt).
+var unguardedFiles = map[string]string{
+	"cmd/provider.go": "the steps of the Bedrock assistant, which the inline wizard replaces (A8)",
 }
 
 // bareGoStatements returns the position of every go statement of a Go
@@ -75,6 +75,9 @@ func TestNoBareGoInCriticalPackages(t *testing.T) {
 		if strings.HasSuffix(f.rel, "_test.go") {
 			continue
 		}
+		if _, ok := unguardedFiles[f.rel]; ok {
+			continue
+		}
 		for _, dir := range guardedDirs {
 			if !strings.HasPrefix(f.rel, dir) {
 				continue
@@ -88,6 +91,28 @@ func TestNoBareGoInCriticalPackages(t *testing.T) {
 	for _, dir := range guardedDirs {
 		if scanned[dir] == 0 {
 			t.Errorf("no Go file found under %s: the guard no longer checks anything, update guardedDirs", dir)
+		}
+	}
+}
+
+// An unguarded file must still hold a go statement: when the last one goes,
+// the file joins the guard.
+func TestUnguardedFilesStillNeedIt(t *testing.T) {
+	fset := token.NewFileSet()
+	seen := map[string]bool{}
+	for _, f := range goFiles(t) {
+		reason, ok := unguardedFiles[f.rel]
+		if !ok {
+			continue
+		}
+		seen[f.rel] = true
+		if len(bareGoStatements(t, fset, f.path)) == 0 {
+			t.Errorf("%s has no bare go statement left (%s): remove it from unguardedFiles", f.rel, reason)
+		}
+	}
+	for rel := range unguardedFiles {
+		if !seen[rel] {
+			t.Errorf("%s is not a Go file of the module: remove it from unguardedFiles", rel)
 		}
 	}
 }

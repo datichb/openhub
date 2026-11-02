@@ -12,6 +12,7 @@ import (
 	"golang.org/x/term"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/glyph"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/storage/keychain"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
@@ -231,7 +232,7 @@ func runSecretsList(cmd *cobra.Command, _ []string) error {
 			if scope == "" {
 				scope = "global"
 			}
-			present := theme.ErrorStyle.Render("✗")
+			present := theme.ErrorStyle.Render(glyph.Failure)
 			if e.Present {
 				present = theme.SuccessStyle.Render(theme.IconSuccess)
 			}

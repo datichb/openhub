@@ -230,19 +230,22 @@ func (v *TeamDetailView) setTeamGitLabURL(val string) {
 	}
 	val = strings.TrimSpace(val)
 	id := v.cfg.ResolveTeam().TeamID
-	err := v.cfg.UpdateHubConfig(func(c *config.Config) error {
-		t := c.FindTeam(id)
-		if t == nil {
-			return errors.New(i18n.Tf("tui.team.detail.team_not_in_hub", id))
+	persist(v.app, func(context.Context) error {
+		return v.cfg.UpdateHubConfig(func(c *config.Config) error {
+			t := c.FindTeam(id)
+			if t == nil {
+				return errors.New(i18n.Tf("tui.team.detail.team_not_in_hub", id))
+			}
+			t.GitLabURL = val
+			return nil
+		})
+	}, func(err error) {
+		if err != nil {
+			v.shell.ShowToastMsg(i18n.Tf("tui.team.detail.save_local_error", err.Error()), false)
+			return
 		}
-		t.GitLabURL = val
-		return nil
+		v.shell.ShowToastMsg(i18n.Tf("tui.team.detail.saved", i18n.T("tui.team.detail.saved_local")), true)
 	})
-	if err != nil {
-		v.shell.ShowToastMsg(i18n.Tf("tui.team.detail.save_local_error", err.Error()), false)
-		return
-	}
-	v.shell.ShowToastMsg(i18n.Tf("tui.team.detail.saved", i18n.T("tui.team.detail.saved_local")), true)
 }
 
 // promptTokenSetup asks where the token of the tracker is — its key in the
@@ -290,39 +293,54 @@ func (v *TeamDetailView) promptToken(eff tracker.EffectiveTrackerConfig, key, se
 // say so (tracker.EffectiveTrackerConfig.NeedsTokenDecl). The token goes first:
 // a key is not declared for a token the keychain refused.
 func (v *TeamDetailView) applyTokenDecl(eff tracker.EffectiveTrackerConfig, key, server, token string) {
-	if token != "" {
-		if err := v.storeSecret(key, token); err != nil {
-			v.shell.ShowToastMsg(i18n.Tf("tui.team.detail.token_save_error", err.Error()), false)
+	needsDecl := eff.NeedsTokenDecl(key, server) && v.cfg.UpdateHubConfig != nil
+	if eff.NeedsTokenDecl(key, server) && v.cfg.UpdateHubConfig == nil && token == "" {
+		return
+	}
+	var tokenErr, declErr error
+	// The keychain and hub.toml are written off the event loop.
+	persist(v.app, func(context.Context) error {
+		if token != "" {
+			tokenErr = v.storeSecret(key, token)
+			if tokenErr != nil {
+				return tokenErr
+			}
+		}
+		if needsDecl {
+			declErr = v.cfg.UpdateHubConfig(func(c *config.Config) error {
+				c.Tracker.SetTokenDecl(key, server)
+				return nil
+			})
+		}
+		return declErr
+	}, func(error) {
+		if v.shell == nil {
 			return
 		}
-	}
-	declared := false
-	if eff.NeedsTokenDecl(key, server) {
-		if v.cfg.UpdateHubConfig == nil {
+		if tokenErr != nil {
+			v.shell.ShowToastMsg(i18n.Tf("tui.team.detail.token_save_error", tokenErr.Error()), false)
 			return
 		}
-		if err := v.cfg.UpdateHubConfig(func(c *config.Config) error {
-			c.Tracker.SetTokenDecl(key, server)
-			return nil
-		}); err != nil {
-			v.shell.ShowToastMsg(i18n.Tf("tui.team.detail.save_local_error", err.Error()), false)
+		if declErr != nil {
+			v.shell.ShowToastMsg(i18n.Tf("tui.team.detail.save_local_error", declErr.Error()), false)
 			return
 		}
-		// what hub.toml now holds is the base of the next save, not an edit
-		v.localTrk.SetTokenDecl(key, server)
-		v.baseTrk.SetTokenDecl(key, server)
-		declared = true
-	}
-	switch {
-	case token != "":
-		v.shell.ShowToastMsg(i18n.T("tui.team.detail.token_saved"), true)
-	case declared:
-		v.shell.ShowToastMsg(i18n.Tf("tui.team.detail.token_declared", key), true)
-	default:
-		v.shell.ShowToastMsg(i18n.T("tui.team.detail.nothing_to_save"), false)
-	}
-	v.buildFields()
-	v.renderFields()
+		if needsDecl {
+			// what hub.toml now holds is the base of the next save, not an edit
+			v.localTrk.SetTokenDecl(key, server)
+			v.baseTrk.SetTokenDecl(key, server)
+		}
+		switch {
+		case token != "":
+			v.shell.ShowToastMsg(i18n.T("tui.team.detail.token_saved"), true)
+		case needsDecl:
+			v.shell.ShowToastMsg(i18n.Tf("tui.team.detail.token_declared", key), true)
+		default:
+			v.shell.ShowToastMsg(i18n.T("tui.team.detail.nothing_to_save"), false)
+		}
+		v.buildFields()
+		v.renderFields()
+	})
 }
 
 // storeSecret writes a secret to the keychain.

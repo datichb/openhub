@@ -23,8 +23,10 @@ import (
 type TeamModelsViewConfig struct {
 	// ResolveTeam returns the effective team configuration for the active project.
 	ResolveTeam ResolveTeamFunc
-	// SaveTeamConfig persists the team config to the team-state repo (commit+push).
-	SaveTeamConfig func(ctx context.Context, cfg *teamstate.TeamConfig) error
+	// SaveTeamConfig is called on the event loop and gives the function that
+	// persists the team config to the team-state repo (commit+push), which the
+	// view runs off the loop. Nil: nothing to save with.
+	SaveTeamConfig func() TeamConfigWriter
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -52,9 +54,12 @@ type TeamModelsView struct {
 	cfg   TeamModelsViewConfig
 	loads loadSlot // the reads of the team config: only the latest is applied
 
-	teamCfg   *teamstate.TeamConfig
-	dirty     bool
-	undoStack *widgets.UndoStack[teamstate.TeamModelsConfig]
+	teamCfg *teamstate.TeamConfig
+	dirty   bool
+	// saving is true while a save runs off the event loop; saveAgain, that an
+	// edit asked for another one meanwhile.
+	saving, saveAgain bool
+	undoStack         *widgets.UndoStack[teamstate.TeamModelsConfig]
 }
 
 var _ View = (*TeamModelsView)(nil)
@@ -455,19 +460,43 @@ func (v *TeamModelsView) save() {
 	if v.shell == nil || v.teamCfg == nil {
 		return
 	}
-	ctx := context.Background()
 	if v.cfg.SaveTeamConfig == nil {
 		v.shell.ShowToastMsg(i18n.T("tui.team_models.no_save_func"), false)
 		return
 	}
-	if err := v.cfg.SaveTeamConfig(ctx, v.teamCfg); err != nil {
-		v.shell.ShowToastMsg(i18n.T("tui.team_models.save_error")+err.Error(), false)
+	if v.saving {
+		v.saveAgain = true
 		return
 	}
-	v.dirty = false
-	v.undoStack.Clear()
-	v.renderList()
-	v.shell.ShowToastMsg(i18n.T("tui.config.saved_team"), true)
+	// The writer is taken on the event loop (it reads the app), the copy of
+	// the config too (the user keeps editing); the commit and the push run off it.
+	write := v.cfg.SaveTeamConfig()
+	if write == nil {
+		v.shell.ShowToastMsg(i18n.T("tui.team_models.no_save_func"), false)
+		return
+	}
+	cfg := deepCopyTeamConfig(v.teamCfg)
+	edits := v.undoStack.Len()
+	v.dirty = false // an edit made during the write sets it again
+	v.saving = true
+	persist(v.app, func(ctx context.Context) error { return write(ctx, &cfg) }, func(err error) {
+		v.saving = false
+		again := v.saveAgain
+		v.saveAgain = false
+		if err != nil {
+			v.dirty = true
+			v.shell.ShowToastMsg(i18n.T("tui.team_models.save_error")+err.Error(), false)
+			return
+		}
+		if v.undoStack.Len() == edits {
+			v.undoStack.Clear()
+		}
+		v.renderList()
+		v.shell.ShowToastMsg(i18n.T("tui.config.saved_team"), true)
+		if again {
+			v.save()
+		}
+	})
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

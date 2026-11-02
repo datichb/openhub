@@ -8,7 +8,6 @@ import (
 	"os/signal"
 	"strings"
 	"text/tabwriter"
-	"time"
 
 	"github.com/spf13/cobra"
 
@@ -16,6 +15,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 )
 
 // v5 session control from the CLI (P3-T15): inbox, decisions, instructions,
@@ -106,18 +106,10 @@ var sessionInboxCmd = &cobra.Command{
 			if it.Session != nil {
 				agent = it.Session.EntryAgent
 			}
-			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n", sessionsvc.KindIcon(d.Kind), d.ID, agent, sessionsvc.DecisionSummary(d), since(d.CreatedAt))
+			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n", sessionsvc.KindIcon(d.Kind), d.ID, agent, sessionsvc.DecisionSummary(d), textfmt.Ago(d.CreatedAt))
 		}
 		return tw.Flush()
 	},
-}
-
-func since(t time.Time) string {
-	d := time.Since(t).Round(time.Minute)
-	if d < time.Minute {
-		return i18n.T("cmd.session.just_now")
-	}
-	return i18n.Tf("cmd.session.ago", d.String())
 }
 
 var sessionApproveCmd = &cobra.Command{
@@ -414,12 +406,12 @@ var sessionFollowCmd = &cobra.Command{
 			if line == "" {
 				continue
 			}
-			fmt.Fprintf(out, "%s  %s\n", it.Time.Local().Format("15:04:05"), line)
+			fmt.Fprintf(out, "%s  %s\n", textfmt.ClockSec(it.Time), line)
 		}
 		if ctx.Err() == nil {
 			fmt.Fprintln(out, i18n.T("cmd.session.follow_ended"))
 		}
-		fmt.Fprintf(out, "$%.3f\n", cost)
+		fmt.Fprintln(out, textfmt.Cost(cost))
 		return nil
 	},
 }

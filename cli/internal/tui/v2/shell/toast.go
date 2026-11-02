@@ -7,6 +7,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
+	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
@@ -73,12 +74,12 @@ func (s *Shell) showToast(msg string, level ToastLevel, duration time.Duration) 
 	// 1. In-memory store (current session, 50 entries max) — synchronous, safe.
 	s.notifications.Add(level, msg)
 	// 2. Persistent JSONL file — asynchronous.
-	//    Pass msg as an explicit goroutine argument to capture its current VALUE,
-	//    not the closure variable. Without this, the goroutine may read msg after
-	//    it has been reassigned below to the display-truncated version.
-	go func(fullMsg string) {
+	//    The goroutine gets its own copy of msg: it must not read the variable
+	//    after it has been reassigned below to the display-truncated version.
+	fullMsg := msg
+	safego.Go(func() {
 		_ = AppendToFile(NotificationsFilePath(), level, fullMsg)
-	}(msg)
+	})
 
 	// Truncate for display only — errors/warnings get more room.
 	// NOTE: this modifies the local variable msg but does NOT affect the
@@ -152,11 +153,11 @@ func (s *Shell) showToast(msg string, level ToastLevel, duration time.Duration) 
 	// (which would deadlock on the unbuffered done-channel). When showToast
 	// is called from a handler, the goroutine adds a negligible scheduling
 	// delay but avoids the need to know caller context.
-	go func() {
+	safego.Go(func() {
 		s.app.QueueUpdateDraw(func() {
 			renderToast()
 		})
-	}()
+	})
 }
 
 // dismissToast removes a toast by page name and updates tracking state.

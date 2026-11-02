@@ -28,9 +28,16 @@ const (
 // in « Impossible de charger : … »; the texts that come from outside are
 // escaped.
 func stateText(kind stateKind, msg string) string {
+	text, hex := statePlain(kind, msg)
+	return tagged(hex, tview.Escape(text))
+}
+
+// statePlain is the text of stateText without tags (not escaped) and its
+// color, for a table cell that takes both apart.
+func statePlain(kind stateKind, msg string) (text, hex string) {
 	switch kind {
 	case stateError:
-		return tagged(theme.ErrorHex, theme.SymFailure+" "+tview.Escape(i18n.Tf("tui.state.error", msg)))
+		return theme.SymFailure + " " + i18n.Tf("tui.state.error", msg), theme.ErrorHex
 	case stateEmpty:
 		if msg == "" {
 			msg = i18n.T("tui.state.empty")
@@ -40,7 +47,7 @@ func stateText(kind stateKind, msg string) string {
 			msg = i18n.T("tui.state.loading")
 		}
 	}
-	return muted(tview.Escape(msg))
+	return msg, theme.TextMutedHex
 }
 
 // stateView is a text view that holds stateText, indented as the first lines

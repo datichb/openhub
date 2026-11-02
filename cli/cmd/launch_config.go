@@ -1,10 +1,12 @@
 package cmd
 
 import (
+	"context"
 	"log/slog"
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 )
 
@@ -50,6 +52,26 @@ func launchAppNow(a *app.App) (*app.App, error) {
 	fa.Config = fresh
 	runOnLoop(func() { shareConfig(a, fresh) })
 	return &fa, nil
+}
+
+// freshProject is the project as the store holds it now when it was changed
+// since p was read (oh project configure in another terminal, a view of the
+// TUI): the launch of a form that has been open for a while must not use the
+// models, the MCP servers or the default workflow it had read. Same test as
+// hub.toml's ChangedOnDisk, on the date of the last update. If the store
+// cannot be read, or the project is gone, it is p.
+func freshProject(ctx context.Context, a *app.App, p *domain.Project) (fresh *domain.Project, changed bool) {
+	if a == nil || a.Projects == nil || p == nil || p.ID == "" {
+		return p, false
+	}
+	cur, err := a.Projects.Get(ctx, p.ID)
+	if err != nil || cur == nil {
+		return p, false
+	}
+	if cur.UpdatedAt.Equal(p.UpdatedAt) {
+		return p, false
+	}
+	return cur, true
 }
 
 // freshLaunchApp is launchAppNow and the lines that tell the recap what

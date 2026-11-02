@@ -7,6 +7,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
@@ -33,7 +34,7 @@ func tuiAttachProjectSolo(project *domain.Project) {
 	if a == nil || sh == nil {
 		return
 	}
-	go func() {
+	safego.Go(func() {
 		sp, err := attachProjectSolo(sh.Context(), a, project)
 		sh.App().QueueUpdateDraw(func() {
 			if err != nil {
@@ -42,7 +43,7 @@ func tuiAttachProjectSolo(project *domain.Project) {
 			}
 			sh.ShowToast(i18n.Tf("tui.solo.project.done", project.Name, sp.Team.ID), shell.ToastSuccess)
 		})
-	}()
+	})
 }
 
 // tuiCreateSoloSpace asks for the solo space (id, member, project to
@@ -72,7 +73,7 @@ func tuiCreateSoloSpace(then func()) {
 			if project != nil && vals["attach"] == "yes" {
 				p.ProjectRef = project.ID
 			}
-			go func() {
+			safego.Go(func() {
 				res, err := initSoloTeam(sh.Context(), a, p)
 				sh.App().QueueUpdateDraw(func() {
 					if err != nil {
@@ -88,7 +89,7 @@ func tuiCreateSoloSpace(then func()) {
 						then()
 					}
 				})
-			}()
+			})
 		},
 	})
 }
@@ -101,7 +102,7 @@ func tuiPromoteSolo(teamID, remote string) {
 		return
 	}
 	sh.ShowToast(i18n.T("tui.solo.promoting"), shell.ToastInfo)
-	go func() {
+	safego.Go(func() {
 		team, err := promoteSoloTeam(sh.Context(), a, teamID, remote)
 		sh.App().QueueUpdateDraw(func() {
 			if err != nil {
@@ -113,5 +114,5 @@ func tuiPromoteSolo(teamID, remote string) {
 			})
 			sh.RemountIf("team.detail")
 		})
-	}()
+	})
 }

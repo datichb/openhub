@@ -5,12 +5,12 @@ import (
 	"io"
 	"os"
 	"strings"
-	"unicode/utf8"
 
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 )
 
 // `oh session trace` (E11, P0.4): the whole history of a session, one event
@@ -81,11 +81,11 @@ func printTrace(w io.Writer, tr *sessionsvc.Trace) {
 		if e.InSubagent && who == "" {
 			who = "↳"
 		}
-		fmt.Fprintf(w, "%s  %-10s %-14s %s\n", e.Time.Local().Format("15:04:05"), e.Kind, clipRunes(who, 14), traceLine(e))
+		fmt.Fprintf(w, "%s  %-10s %-14s %s\n", textfmt.ClockSec(e.Time), e.Kind, textfmt.Clip(who, 14), traceLine(e))
 	}
 	if n := len(tr.Events); n > 0 {
 		d := tr.Events[n-1].Data
-		fmt.Fprintln(w, i18n.Tf("cmd.session.trace.total", d["cost_usd"], d["tokens_in"], d["tokens_out"], d["tool_calls"], d["subagent_calls"], d["decisions"], d["denied"]))
+		fmt.Fprintln(w, i18n.Tf("cmd.session.trace.total", textfmt.CostPrecise(traceCost(d["cost_usd"])), d["tokens_in"], d["tokens_out"], d["tool_calls"], d["subagent_calls"], d["decisions"], d["denied"]))
 	}
 }
 
@@ -127,13 +127,13 @@ func traceLine(e sessionsvc.TraceEvent) string {
 			s += "  " + i18n.Tf("cmd.session.trace.approver_mismatch", strings.Join(e.Approver, ", "))
 		}
 	case sessionsvc.TraceUsage:
-		s = fmt.Sprintf("$%.4f  %d → %d", e.Cost, e.TokensIn, e.TokensOut)
+		s = fmt.Sprintf("%s  %d → %d", textfmt.CostPrecise(e.Cost), e.TokensIn, e.TokensOut)
 	case sessionsvc.TraceEnd:
 		s = e.Outcome
 	case sessionsvc.TraceOutput:
 		s = fmt.Sprintf("%s = %v", e.Title, e.Data["value"])
 	}
-	return clipRunes(s, 160)
+	return textfmt.Clip(s, 160)
 }
 
 func toolArg(in map[string]any) string {
@@ -153,10 +153,13 @@ func oneLineText(s string) string {
 	return s
 }
 
-func clipRunes(s string, n int) string {
-	if utf8.RuneCountInString(s) <= n {
-		return s
+// traceCost reads the cost of a trace summary, a number once decoded.
+func traceCost(v any) float64 {
+	switch n := v.(type) {
+	case float64:
+		return n
+	case int:
+		return float64(n)
 	}
-	r := []rune(s)
-	return string(r[:n-1]) + "…"
+	return 0
 }

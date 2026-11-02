@@ -542,14 +542,14 @@ func actionTeamRejoin() {
 		Steps: steps,
 		OnComplete: func(completed bool, err error) {
 			if completed && err == nil && launchDiscoveryAfterRejoin {
-				go func() {
+				safego.Go(func() {
 					time.Sleep(200 * time.Millisecond)
 					if tuiShell != nil {
 						tuiShell.App().QueueUpdateDraw(func() {
 							actionTrackerDiscovery()
 						})
 					}
-				}()
+				})
 			}
 		},
 	})

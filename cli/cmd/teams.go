@@ -11,6 +11,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -111,7 +112,7 @@ func runTeamsList(cmd *cobra.Command, _ []string) error {
 			status = theme.Subtitle.Render(i18n.T("cmd.teams.list.status_inactive"))
 		}
 		name := t.DisplayName()
-		repo := truncateStr(t.StateRepo, 50)
+		repo := textfmt.Clip(t.StateRepo, 50)
 		if t.Solo {
 			repo = i18n.T("cmd.team.solo.list_repo")
 		}
@@ -292,14 +293,6 @@ func runTeamsRemove(cmd *cobra.Command, args []string) error {
 		i18n.Tf("cmd.teams.remove.success", theme.Bold.Render(teamID)))
 
 	return nil
-}
-
-// truncateStr truncates a string to maxLen, adding "..." if truncated.
-func truncateStr(s string, maxLen int) string {
-	if len(s) <= maxLen {
-		return s
-	}
-	return s[:maxLen-3] + "..."
 }
 
 // runTeamsDetach detaches a single project from its team.

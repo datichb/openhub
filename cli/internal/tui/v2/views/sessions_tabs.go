@@ -294,7 +294,6 @@ func newReportsPane(v *SessionsView) *reportsPane {
 	p.list = NewActionList(ActionListConfig{
 		Title:     i18n.T("tui.sessions.reports.title"),
 		Layout:    DetailNone,
-		Empty:     i18n.T("tui.sessions.reports.loading"),
 		OnChange:  p.show,
 		OnOpen:    func(ActionItem) { p.read(true) },
 		OpenLabel: i18n.T("tui.sessions.reports.read"),
@@ -309,7 +308,7 @@ func newReportsPane(v *SessionsView) *reportsPane {
 func (p *reportsPane) reset() {
 	p.bodies = map[string]string{}
 	p.reading = false
-	p.list.SetEmpty(i18n.T("tui.sessions.reports.loading"))
+	p.list.SetEmpty(stateLoading, i18n.T("tui.sessions.reports.loading"))
 	p.list.SetItems(nil)
 	p.reader.SetEmpty("")
 	p.reader.SetText("")
@@ -341,7 +340,7 @@ func (v *SessionsView) loadReports(id string) {
 	p := v.tabs.reports
 	rl, ok := v.cfg.Backend.(SessionReportLister)
 	if !ok {
-		p.list.SetEmpty(i18n.T("tui.sessions.reports.unavailable"))
+		p.list.SetEmpty(stateEmpty, i18n.T("tui.sessions.reports.unavailable"))
 		p.list.SetItems(nil)
 		return
 	}
@@ -355,11 +354,11 @@ func (v *SessionsView) loadReports(id string) {
 			return
 		}
 		if err != nil {
-			p.list.SetEmpty(i18n.Tf("tui.state.error", err.Error()))
+			p.list.SetEmpty(stateError, err.Error())
 			p.list.SetItems(nil)
 			return
 		}
-		p.list.SetEmpty(i18n.T("tui.sessions.reports.none"))
+		p.list.SetEmpty(stateEmpty, i18n.T("tui.sessions.reports.none"))
 		p.list.SetItems(reportItems(list))
 	})
 }

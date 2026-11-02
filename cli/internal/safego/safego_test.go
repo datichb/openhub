@@ -121,3 +121,29 @@ func (b *syncBuffer) String() string {
 	defer b.mu.Unlock()
 	return b.buf.String()
 }
+
+func TestAfterFunc_RunsAndRecoversAPanic(t *testing.T) {
+	done := make(chan struct{})
+	AfterFunc(time.Millisecond, func() {
+		defer close(done)
+		panic("test panic")
+	})
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("function did not run")
+	}
+}
+
+func TestAfterFunc_StopCancelsTheCall(t *testing.T) {
+	ran := make(chan struct{}, 1)
+	timer := AfterFunc(time.Hour, func() { ran <- struct{}{} })
+	if !timer.Stop() {
+		t.Fatal("the timer had already fired")
+	}
+	select {
+	case <-ran:
+		t.Fatal("a stopped timer ran")
+	case <-time.After(20 * time.Millisecond):
+	}
+}

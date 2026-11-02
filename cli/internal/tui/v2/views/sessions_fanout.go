@@ -124,7 +124,6 @@ func newFanoutPane(v *SessionsView) *fanoutPane {
 			i18n.T("tui.sessions.fanout.col.branch"), i18n.T("tui.sessions.fanout.col.cost"), i18n.T("tui.sessions.fanout.col.end")},
 		StateHeader: i18n.T("tui.sessions.fanout.col.state"),
 		Layout:      DetailNone,
-		Empty:       i18n.T("tui.sessions.fanout.loading"),
 		OnOpen:      p.openChild,
 		OpenLabel:   i18n.T("tui.sessions.fanout.open"),
 	})
@@ -140,7 +139,7 @@ func (p *fanoutPane) reset() {
 	p.view, p.parent = nil, ""
 	p.head.SetText("")
 	p.foot.SetText("")
-	p.list.SetEmpty(i18n.T("tui.sessions.fanout.loading"))
+	p.list.SetEmpty(stateLoading, i18n.T("tui.sessions.fanout.loading"))
 	p.list.SetItems(nil)
 }
 
@@ -156,7 +155,7 @@ func (v *SessionsView) loadFanout(id string) {
 	p := v.tabs.fanout
 	fb, ok := v.cfg.Backend.(SessionFanouter)
 	if !ok {
-		p.list.SetEmpty(i18n.T("tui.sessions.fanout.unavailable"))
+		p.list.SetEmpty(stateEmpty, i18n.T("tui.sessions.fanout.unavailable"))
 		p.list.SetItems(nil)
 		return
 	}
@@ -170,7 +169,7 @@ func (v *SessionsView) loadFanout(id string) {
 			return
 		}
 		if err != nil {
-			p.list.SetEmpty(i18n.Tf("tui.state.error", err.Error()))
+			p.list.SetEmpty(stateError, err.Error())
 			p.list.SetItems(nil)
 			return
 		}
@@ -183,7 +182,7 @@ func (p *fanoutPane) set(fv FanoutView) {
 	p.view, p.parent = &fv, fv.Parent
 	p.head.SetText(fanoutHead(fv))
 	p.foot.SetText(fanoutFoot(fv))
-	p.list.SetEmpty(i18n.T("tui.sessions.fanout.no_child"))
+	p.list.SetEmpty(stateEmpty, i18n.T("tui.sessions.fanout.no_child"))
 	p.list.SetItems(fanoutItems(fv))
 }
 

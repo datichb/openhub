@@ -14,6 +14,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/glyph"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/mcpresolve"
 	"github.com/datichb/openhub/cli/internal/teamstate"
@@ -187,7 +188,7 @@ func hostLines(addrs []net.IP, dnsErr error) []string {
 	for _, ip := range addrs {
 		line := ip.String()
 		if kind := mcpresolve.AddrKind(ip); kind != "" {
-			line += "  ⚠ " + i18n.T("cmd.mcp.trust.kind."+kind)
+			line += "  " + glyph.Warning + " " + i18n.T("cmd.mcp.trust.kind."+kind)
 		}
 		out = append(out, line)
 	}

@@ -12,6 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/platform"
 	"github.com/datichb/openhub/cli/internal/teamstate"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 )
 
 // ── API Handlers ─────────────────────────────────────────────────────────────
@@ -261,7 +262,7 @@ func costSparklineSVG(costs []platform.DayCost) string {
 	fmt.Fprintf(&sb, `<polyline fill="rgba(99,102,241,0.1)" stroke="none" points="%s"/>`, fillPoints)
 
 	// Total label
-	fmt.Fprintf(&sb, `<text x="%d" y="12" font-family="monospace" font-size="10" fill="#888">$%.2f total</text>`, width-padX, total)
+	fmt.Fprintf(&sb, `<text x="%d" y="12" font-family="monospace" font-size="10" fill="#888">%s total</text>`, width-padX, textfmt.Cost(total))
 
 	sb.WriteString(`</svg>`)
 	return sb.String()
@@ -327,7 +328,7 @@ func handlePlatformSessions(a *app.App) http.HandlerFunc {
 				Cost:      s.Cost,
 				TokensIn:  s.TokensInput,
 				TokensOut: s.TokensOutput,
-				CreatedAt: s.TimeCreated.Format("2006-01-02 15:04"),
+				CreatedAt: textfmt.DateTime(s.TimeCreated),
 			})
 		}
 

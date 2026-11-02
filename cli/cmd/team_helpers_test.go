@@ -3,11 +3,13 @@ package cmd
 import (
 	"testing"
 
+	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/teamstate"
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -108,4 +110,51 @@ func TestBuildInitWizardTeamSteps_FormRendering(t *testing.T) {
 	require.NotNil(t, form)
 	assert.Equal(t, 5, form.GetFormItemCount(), "form should have 5 items: Repo, MemberID, DisplayName, the GitLab of an aliased repo and its hint")
 	assert.Equal(t, 1, form.GetButtonCount(), "form should have 1 submit button")
+}
+
+// The member step of the rejoin wizard lists « add a new member » then the
+// members; / filters them and Enter picks (FilterableList is gone).
+func TestMemberPickerFiltersAndPicks(t *testing.T) {
+	state := &initWizardTeamState{Members: []teamstate.Member{
+		{ID: "alice", DisplayName: "Alice", Role: "dev"},
+		{ID: "bob", DisplayName: "Bob", Role: "lead", GitLabUsername: "bobl"},
+	}}
+	tvApp := tview.NewApplication()
+	container := tview.NewFlex()
+	done := 0
+	showMemberPicker(tvApp, container, state, func() { done++ })
+	box, ok := container.GetItem(0).(*tview.Flex)
+	require.True(t, ok)
+	press := func(ev *tcell.EventKey) {
+		h := container.InputHandler()
+		require.NotNil(t, h)
+		h(ev, func(p tview.Primitive) { tvApp.SetFocus(p) })
+	}
+
+	press(tcell.NewEventKey(tcell.KeyDown, 0, 0))
+	press(tcell.NewEventKey(tcell.KeyDown, 0, 0))
+	press(tcell.NewEventKey(tcell.KeyEnter, 0, 0))
+	assert.Equal(t, 1, done)
+	assert.Equal(t, "bob", state.MemberID)
+	assert.False(t, state.AddingNewMember)
+
+	// / opens the input under the list; words keep the matching members.
+	press(tcell.NewEventKey(tcell.KeyRune, '/', 0))
+	require.Equal(t, 2, box.GetItemCount(), "the filter input is shown under the list")
+	input, ok := box.GetItem(1).(*tview.InputField)
+	require.True(t, ok)
+	input.SetText("ali")
+	input.InputHandler()(tcell.NewEventKey(tcell.KeyEnter, 0, 0), func(p tview.Primitive) { tvApp.SetFocus(p) })
+	assert.Equal(t, 1, box.GetItemCount(), "Enter closes the input")
+	press(tcell.NewEventKey(tcell.KeyEnter, 0, 0))
+	assert.Equal(t, 2, done)
+	assert.Equal(t, "alice", state.MemberID)
+
+	// The first element adds a member.
+	state.MemberID = ""
+	container.Clear()
+	showMemberPicker(tvApp, container, state, func() { done++ })
+	press(tcell.NewEventKey(tcell.KeyEnter, 0, 0))
+	assert.True(t, state.AddingNewMember)
+	assert.Equal(t, "", state.MemberID)
 }

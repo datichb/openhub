@@ -16,6 +16,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/launcher"
 	"github.com/datichb/openhub/cli/internal/runsvc"
+	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 	"github.com/datichb/openhub/cli/internal/services/launch"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
@@ -87,7 +88,7 @@ func (t *tuiSessions) open(sessionID string) {
 
 // start runs the change subscriber until ctx ends: cache, badge, toasts.
 func (t *tuiSessions) start(ctx context.Context) {
-	go func() {
+	safego.Go(func() {
 		if !v5Available(ctx) {
 			return
 		}
@@ -110,10 +111,10 @@ func (t *tuiSessions) start(ctx context.Context) {
 				if timer != nil {
 					timer.Stop()
 				}
-				timer = time.AfterFunc(300*time.Millisecond, func() { t.refresh(ctx) })
+				timer = safego.AfterFunc(300*time.Millisecond, func() { t.refresh(ctx) })
 			}
 		}
-	}()
+	})
 }
 
 // refresh reloads the cache and pushes the badge, toasts and change signals.
@@ -161,7 +162,7 @@ func (t *tuiSessions) refresh(ctx context.Context) {
 	t.mu.Unlock()
 
 	for _, s := range ended {
-		go t.sessionEnded(ctx, s)
+		safego.Go(func() { t.sessionEnded(ctx, s) })
 	}
 	sh := tuiShell
 	if sh == nil {
@@ -328,12 +329,12 @@ func (t *tuiSessions) Changes(ctx context.Context) <-chan struct{} {
 	t.mu.Lock()
 	t.watchers[ch] = struct{}{}
 	t.mu.Unlock()
-	go func() {
+	safego.Go(func() {
 		<-ctx.Done()
 		t.mu.Lock()
 		delete(t.watchers, ch)
 		t.mu.Unlock()
-	}()
+	})
 	return ch
 }
 
@@ -350,7 +351,7 @@ func (t *tuiSessions) Follow(ctx context.Context, sessionID string) (<-chan view
 		return nil, err
 	}
 	out := make(chan views.SessionFeedLine, 64)
-	go func() {
+	safego.Go(func() {
 		defer close(out)
 		for it := range feed {
 			line := views.SessionFeedLine{Time: it.Time, Text: sessionsvc.FeedLine(it)}
@@ -363,7 +364,7 @@ func (t *tuiSessions) Follow(ctx context.Context, sessionID string) (<-chan view
 				return
 			}
 		}
-	}()
+	})
 	return out, nil
 }
 
@@ -471,7 +472,7 @@ func (t *tuiSessions) Attach(sessionID, how string) {
 		return
 	}
 	toast := func(msg string, ok bool) { sh.App().QueueUpdateDraw(func() { sh.ShowToastMsg(msg, ok) }) }
-	go func() {
+	safego.Go(func() {
 		ctx := context.Background()
 		rs, err := newRunService(ctx, t.a)
 		if err != nil {
@@ -526,7 +527,7 @@ func (t *tuiSessions) Attach(sessionID, how string) {
 		if err != nil {
 			toast(err.Error(), false)
 		}
-	}()
+	})
 }
 
 // attachedMessage tells where a session was opened, or that the window of

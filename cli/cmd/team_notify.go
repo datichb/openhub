@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/glyph"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/notify"
 	"github.com/datichb/openhub/cli/internal/teamstate"
@@ -81,7 +82,7 @@ func runTeamNotifyTest(cmd *cobra.Command, args []string) error {
 
 	d := notify.NewDispatcher(teamCfg)
 	if err := d.Dispatch(ctx, event); err != nil {
-		fmt.Fprint(a.IO.ErrOut, i18n.Tf("cmd.team_notify.error", theme.ErrorStyle.Render("✗"), err))
+		fmt.Fprint(a.IO.ErrOut, i18n.Tf("cmd.team_notify.error", theme.ErrorStyle.Render(glyph.Failure), err))
 		return err
 	}
 

@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/glyph"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
@@ -109,7 +110,7 @@ func printWorkflowRow(tw io.Writer, s workflowsvc.Summary) {
 	}
 	var marks []string
 	if s.Draft {
-		marks = append(marks, "✎")
+		marks = append(marks, glyph.Modified)
 		if !s.Valid {
 			marks = append(marks, i18n.Tf("cmd.workflow.list.errors", s.Errors))
 		}

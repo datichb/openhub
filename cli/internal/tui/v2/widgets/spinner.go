@@ -7,6 +7,7 @@ import (
 
 	"github.com/rivo/tview"
 
+	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -60,7 +61,7 @@ func (s *Spinner) Start(app *tview.Application) {
 	s.stopOnce = sync.Once{}
 	s.mu.Unlock()
 
-	go func() {
+	safego.Go(func() {
 		ticker := time.NewTicker(80 * time.Millisecond)
 		defer ticker.Stop()
 		for {
@@ -78,7 +79,7 @@ func (s *Spinner) Start(app *tview.Application) {
 				})
 			}
 		}
-	}()
+	})
 }
 
 // Stop halts the spinner animation. Safe to call multiple times (no panic).

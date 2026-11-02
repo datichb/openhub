@@ -209,13 +209,13 @@ func (w *wikiList) render() {
 	}
 	w.list.SetTitle(title)
 	if w.err != nil {
-		w.list.SetEmpty(i18n.Tf("tui.state.error", w.err.Error()))
+		w.list.SetEmpty(stateError, w.err.Error())
 		w.list.SetItems(nil)
 		return
 	}
-	w.list.SetEmpty(i18n.T("tui.wikilist.empty"))
+	w.list.SetEmpty(stateEmpty, i18n.T("tui.wikilist.empty"))
 	if !w.loaded && w.cfg.Load != nil {
-		w.list.SetEmpty(i18n.T("tui.state.loading"))
+		w.list.SetEmpty(stateLoading, "")
 	}
 	var shown []WikiProposalView
 	for _, p := range w.props {

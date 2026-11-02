@@ -142,14 +142,6 @@ func TestCountPurgeSteps(t *testing.T) {
 	}
 }
 
-func TestFormatBytes(t *testing.T) {
-	for in, want := range map[int64]string{
-		0: "0 B", 1023: "1023 B", 1024: "1.0 KB", 1536: "1.5 KB", 5 << 20: "5.0 MB", 3 << 30: "3.0 GB",
-	} {
-		assert.Equal(t, want, formatBytes(in), "%d", in)
-	}
-}
-
 // purgeFixture is a home with a hub holding a database with one project, and
 // the leftovers a purge looks for: the files of a former deployment and the
 // Dolt database of Beads in the project, and the folders of the tool (named

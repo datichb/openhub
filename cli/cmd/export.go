@@ -22,6 +22,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/fsutil"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 )
 
 // backupManifest describes the contents of an export archive.
@@ -305,7 +306,7 @@ func runImport(cmd *cobra.Command, args []string) error {
 		fmt.Fprint(a.IO.Out, i18n.Tf("cmd.export.restored", name))
 	}
 
-	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.export.import_complete_backup_of_restored", manifest.CreatedAt.Format("2006-01-02 15:04")))
+	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.export.import_complete_backup_of_restored", textfmt.DateTime(manifest.CreatedAt)))
 	fmt.Fprint(a.IO.Out, i18n.T("cmd.export.run_oh_doctor_to_validate_the"))
 	return nil
 }

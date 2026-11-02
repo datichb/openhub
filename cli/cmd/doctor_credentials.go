@@ -14,6 +14,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/provider"
 	"github.com/datichb/openhub/cli/internal/services/doctor"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 )
 
 // credentialReport is the credential a launch of a project would use,
@@ -153,7 +154,7 @@ func providerCredentialCheck(ctx context.Context, a *app.App, project *domain.Pr
 	}
 	if key := r.cred.Source.KeychainKey; key != "" && a.Secrets != nil {
 		if t, ok := provider.SecretModifiedAt(ctx, a.Secrets, key); ok {
-			res.Detail += i18n.Tf("cmd.doctor.credentials.stored_at", t.Local().Format("2006-01-02 15:04"))
+			res.Detail += i18n.Tf("cmd.doctor.credentials.stored_at", textfmt.DateTime(t))
 		}
 	}
 	if r.name != provider.Bedrock || r.cred.Source.Kind != domain.CredentialBearer || r.cred.Secret == "" {

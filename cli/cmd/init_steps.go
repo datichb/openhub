@@ -18,6 +18,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	providerPkg "github.com/datichb/openhub/cli/internal/provider"
+	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
@@ -180,7 +181,7 @@ func rerenderStep(tvApp *tview.Application, s *initStepState, id string) {
 		return
 	}
 	rerender := step.Rerender
-	go func() { tvApp.QueueUpdateDraw(rerender) }()
+	safego.Go(func() { tvApp.QueueUpdateDraw(rerender) })
 }
 
 // wizardIntroText is the header of a wizard page: a title, a description and
@@ -820,7 +821,7 @@ func buildProjectStep(s *initStepState) views.WizardStep {
 							s.ProjectChoice = ""
 						}
 						if choiceMounted {
-							go func() { tvApp.QueueUpdateDraw(func() { rebuildForm(0) }) }()
+							safego.Go(func() { tvApp.QueueUpdateDraw(func() { rebuildForm(0) }) })
 						}
 					})
 					choiceMounted = true

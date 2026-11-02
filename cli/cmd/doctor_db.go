@@ -17,6 +17,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/services/doctor"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -233,7 +234,7 @@ func (st dbState) result() doctor.Result {
 	schema := i18n.Tf("cmd.doctor.db.schema", st.version, st.known)
 	wal := ""
 	if st.wal > 0 {
-		wal = " · " + i18n.Tf("cmd.doctor.db.wal", formatBytes(st.wal))
+		wal = " · " + i18n.Tf("cmd.doctor.db.wal", textfmt.Bytes(st.wal))
 	}
 	switch {
 	case st.integrity != nil:

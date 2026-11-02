@@ -13,6 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/hubcontent"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
@@ -274,14 +275,14 @@ func buildInitOnComplete(s *initStepState) func(bool, error) {
 
 		// Launch the Tracker Discovery Wizard if requested.
 		if s.TeamState.LaunchTrackerDiscovery {
-			go func() {
+			safego.Go(func() {
 				time.Sleep(200 * time.Millisecond)
 				if tuiShell != nil {
 					tuiShell.App().QueueUpdateDraw(func() {
 						actionTrackerDiscovery()
 					})
 				}
-			}()
+			})
 		}
 	}
 }

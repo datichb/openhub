@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+
+	"github.com/datichb/openhub/cli/internal/safego"
 )
 
 // TUILogHandler implements slog.Handler by routing log records to the TUI
@@ -59,8 +61,10 @@ func (h *TUILogHandler) Handle(_ context.Context, r slog.Record) error {
 	// The goroutine blocks independently; the event loop processes it on the next cycle.
 	if r.Level >= slog.LevelWarn && h.shell != nil && h.shell.IsRunning() {
 		toastMsg := msg
-		go h.shell.App().QueueUpdateDraw(func() {
-			h.shell.ShowToast(toastMsg, level)
+		safego.Go(func() {
+			h.shell.App().QueueUpdateDraw(func() {
+				h.shell.ShowToast(toastMsg, level)
+			})
 		})
 	}
 

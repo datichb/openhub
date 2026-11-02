@@ -100,3 +100,31 @@ func everyOnLoop(app *tview.Application, rate time.Duration, done <-chan struct{
 		}
 	})
 }
+
+// persist runs a write (work) off the event loop and gives its result to
+// done on it. A write is an action, not a read: unlike load it is neither
+// dropped when a newer one starts nor by an Unmount, since the user asked for
+// it, and its context is not the one of the shell, which ends with the
+// application (the write must finish). done runs even if the view was
+// unmounted meanwhile and checks it before drawing. A panic in work is
+// recovered (logged) and given to done as an error. With a nil app (tests
+// without an event loop) work and done run inline.
+func persist(app *tview.Application, work func(context.Context) error, done func(error)) {
+	run := func() (err error) {
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Error("recovered panic in view write", "panic", r, "stack", string(debug.Stack()))
+				err = fmt.Errorf("panic: %v", r)
+			}
+		}()
+		return work(context.Background())
+	}
+	if app == nil {
+		done(run())
+		return
+	}
+	safego.Go(func() {
+		err := run()
+		app.QueueUpdateDraw(func() { done(err) })
+	})
+}

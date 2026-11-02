@@ -1146,17 +1146,6 @@ func TestFixFormLabelFocus(t *testing.T) {
 	}, "nil form")
 }
 
-func TestIsLastFocusableFormItem_Export(t *testing.T) {
-	t.Parallel()
-	form := tview.NewForm()
-	form.AddInputField("A", "", 0, nil, nil)
-	form.AddInputField("B", "", 0, nil, nil)
-
-	assert.False(t, IsLastFocusableFormItem(form, 0), "first item is not last")
-	assert.True(t, IsLastFocusableFormItem(form, 1), "second item is last")
-	assert.False(t, IsLastFocusableFormItem(nil, 0), "nil form returns false")
-}
-
 // quitButtons returns the labels of the « quit the wizard? » prompt.
 func quitButtons(t *testing.T, v *InlineWizardView) []string {
 	t.Helper()

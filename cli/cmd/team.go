@@ -21,6 +21,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/teamstate"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tui/components/summary"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
@@ -596,7 +597,7 @@ func runTeamStatus(cmd *cobra.Command, args []string) error {
 			if !c.LastActivity.IsZero() {
 				since = c.LastActivity.Time()
 			}
-			sinceStr := formatDuration(time.Since(since).Truncate(time.Minute))
+			sinceStr := textfmt.Duration(time.Since(since))
 
 			memberCol := m.DisplayName
 			roleCol := m.Role
@@ -714,7 +715,7 @@ func runTeamActivity(cmd *cobra.Command, args []string) error {
 	}
 
 	for _, e := range events {
-		ts := e.Timestamp.Local().Format("15:04")
+		ts := textfmt.Clock(e.Timestamp)
 		icon := eventIcon(e.Type)
 		desc := formatEvent(e)
 		fmt.Fprintf(a.IO.Out, "  %s %s %s %s\n",
@@ -818,18 +819,6 @@ func formatEvent(e teamstate.Event) string {
 	default:
 		return e.Type
 	}
-}
-
-func formatDuration(d time.Duration) string {
-	if d < time.Hour {
-		return fmt.Sprintf("%dm", int(d.Minutes()))
-	}
-	h := int(d.Hours())
-	m := int(d.Minutes()) % 60
-	if m == 0 {
-		return fmt.Sprintf("%dh", h)
-	}
-	return fmt.Sprintf("%dh%dm", h, m)
 }
 
 // ── Duplicate clone detection ─────────────────────────────────────────────────

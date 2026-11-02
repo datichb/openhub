@@ -11,7 +11,9 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/provider"
+	"github.com/datichb/openhub/cli/internal/safego"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
@@ -29,7 +31,7 @@ func openWorkflowEditor(c workflowsvc.Context, layer workflow.Layer, t *workflow
 	ref := t.Ref
 	ref.Layer = layer
 	var agents, workflows []string
-	go func() {
+	safego.Go(func() {
 		ctx := sh.Context()
 		svc := newWorkflowService(ctx)
 		agents, _ = svc.AgentIDs(ctx, c)
@@ -63,7 +65,7 @@ func openWorkflowEditor(c workflowsvc.Context, layer workflow.Layer, t *workflow
 				OnSaved: func(*views.EditorSaved) { refreshCatalog() },
 			}))
 		})
-	}()
+	})
 }
 
 // editorCheck checks the edited text and builds the bundle preview.
@@ -133,7 +135,7 @@ func editorBundlePreview(ctx context.Context, c workflowsvc.Context, res *workfl
 	}
 	r := bundle.Show(b)
 	if project == nil {
-		lines = append(lines, "⚠ "+i18n.T("tui.editor.preview.no_project"))
+		lines = append(lines, theme.SymWarning+" "+i18n.T("tui.editor.preview.no_project"))
 	}
 	var agents []string
 	for _, ag := range r.Agents {
@@ -158,7 +160,7 @@ func editorBundlePreview(ctx context.Context, c workflowsvc.Context, res *workfl
 		if project == nil {
 			lines = append(lines, "  · "+i18n.Tf("tui.editor.preview.mcp_project", m))
 		} else {
-			lines = append(lines, "  ⚠ "+i18n.Tf("tui.editor.preview.mcp_missing", m))
+			lines = append(lines, "  "+theme.SymWarning+" "+i18n.Tf("tui.editor.preview.mcp_missing", m))
 		}
 	}
 	if len(r.Plugins) > 0 {

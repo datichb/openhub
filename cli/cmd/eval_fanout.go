@@ -11,6 +11,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/evalrun"
+	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/services/launch"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
 )
@@ -49,7 +50,7 @@ func startEvalFanout(ctx context.Context, a *app.App, parent string, spec evalPa
 		return f
 	}
 	d.Poll = 3 * time.Second
-	go func() {
+	safego.Go(func() {
 		defer close(f.done)
 		if err := d.Run(dctx, parent); err != nil {
 			f.mu.Lock()
@@ -57,7 +58,7 @@ func startEvalFanout(ctx context.Context, a *app.App, parent string, spec evalPa
 			f.mu.Unlock()
 			fmt.Fprintln(log, "eval pass: fan-out:", err)
 		}
-	}()
+	})
 	return f
 }
 

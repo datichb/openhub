@@ -19,12 +19,14 @@ import (
 	"github.com/datichb/openhub/cli/internal/daemon"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/filelock"
+	"github.com/datichb/openhub/cli/internal/glyph"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/runsvc"
 	"github.com/datichb/openhub/cli/internal/services/fanout"
 	"github.com/datichb/openhub/cli/internal/services/launch"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 )
 
 // Fan-out (R6, E3, experimental, `[fanout] experimental = true`): a
@@ -181,7 +183,7 @@ func runFanoutClean(cmd *cobra.Command, args []string) error {
 		fmt.Fprintln(w, "  - "+b)
 	}
 	for _, d := range res.Discarded {
-		fmt.Fprintln(w, "  ✗ "+i18n.Tf("cmd.fanout.clean.discarded", d))
+		fmt.Fprintln(w, "  "+glyph.Failure+" "+i18n.Tf("cmd.fanout.clean.discarded", d))
 	}
 	for _, k := range res.Kept {
 		fmt.Fprintln(w, "  = "+k)
@@ -259,7 +261,7 @@ func printFanout(w io.Writer, id string, f *domain.SessionFanout) {
 	if n := len(f.Events); n > 0 {
 		fmt.Fprintln(w, i18n.T("cmd.fanout.status.events"))
 		for _, e := range f.Events[max(0, n-15):] {
-			fmt.Fprintf(w, "  %s  %-11s %s %s %s\n", e.At.Local().Format("15:04:05"), e.Kind, e.Ticket, e.Session, e.Message)
+			fmt.Fprintf(w, "  %s  %-11s %s %s %s\n", textfmt.ClockSec(e.At), e.Kind, e.Ticket, e.Session, e.Message)
 		}
 	}
 }
@@ -454,7 +456,7 @@ func newFanoutDriver(ctx context.Context, a *app.App, sess *domain.Session, log 
 			return wf, st, err
 		},
 		Log: func(format string, args ...any) {
-			fmt.Fprintf(log, time.Now().Format("15:04:05 ")+format+"\n", args...)
+			fmt.Fprintln(log, textfmt.ClockSec(time.Now())+" "+fmt.Sprintf(format, args...))
 		},
 	}, nil
 }

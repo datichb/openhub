@@ -14,6 +14,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/fsutil"
+	"github.com/datichb/openhub/cli/internal/glyph"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/mcpresolve"
 	"github.com/datichb/openhub/cli/internal/teamstate"
@@ -117,7 +118,7 @@ func runTeamConfigWizard(cmd *cobra.Command, _ []string) error {
 func configureGitLab(ctx context.Context, a *app.App, repo *teamstate.Repo, teamCfg *teamstate.TeamConfig, configTeam, configLocal bool) error {
 	out := a.IO.Out
 
-	fmt.Fprint(out, i18n.Tf("cmd.team_config.gitlab_configuration", theme.Title.Render("●")))
+	fmt.Fprint(out, i18n.Tf("cmd.team_config.gitlab_configuration", theme.Title.Render(glyph.Current)))
 
 	// ── Config d'équipe ────────────────────────────────────────────────────────
 	if configTeam {
@@ -188,7 +189,7 @@ func configureGitLab(ctx context.Context, a *app.App, repo *teamstate.Repo, team
 func configureJira(ctx context.Context, a *app.App, repo *teamstate.Repo, teamCfg *teamstate.TeamConfig, configTeam, configLocal bool) error {
 	out := a.IO.Out
 
-	fmt.Fprint(out, i18n.Tf("cmd.team_config.jira_configuration", theme.Title.Render("●")))
+	fmt.Fprint(out, i18n.Tf("cmd.team_config.jira_configuration", theme.Title.Render(glyph.Current)))
 
 	if configTeam {
 		fmt.Fprint(out, i18n.Tf("cmd.team_config.team_configuration", theme.Bold.Render("→")))
@@ -233,7 +234,7 @@ func configureJira(ctx context.Context, a *app.App, repo *teamstate.Repo, teamCf
 func configureFigma(ctx context.Context, a *app.App, repo *teamstate.Repo, teamCfg *teamstate.TeamConfig, configTeam, configLocal bool) error {
 	out := a.IO.Out
 
-	fmt.Fprint(out, i18n.Tf("cmd.team_config.figma_configuration", theme.Title.Render("●")))
+	fmt.Fprint(out, i18n.Tf("cmd.team_config.figma_configuration", theme.Title.Render(glyph.Current)))
 
 	if configTeam {
 		fmt.Fprint(out, i18n.Tf("cmd.team_config.team_configuration", theme.Bold.Render("→")))
@@ -270,7 +271,7 @@ func configureFigma(ctx context.Context, a *app.App, repo *teamstate.Repo, teamC
 func configureTrackerSync(ctx context.Context, a *app.App, repo *teamstate.Repo, teamCfg *teamstate.TeamConfig, configTeam, configLocal bool) error {
 	out := a.IO.Out
 
-	fmt.Fprint(out, i18n.Tf("cmd.team_config.tracker_sync_configuration", theme.Title.Render("●")))
+	fmt.Fprint(out, i18n.Tf("cmd.team_config.tracker_sync_configuration", theme.Title.Render(glyph.Current)))
 
 	if configTeam {
 		fmt.Fprint(out, i18n.Tf("cmd.team_config.team_configuration", theme.Bold.Render("→")))
@@ -588,7 +589,7 @@ func runTeamConfigStatus(cmd *cobra.Command, _ []string) error {
 	fmt.Fprintf(out, "\n%s\n", theme.Bold.Render("Tracker Sync"))
 
 	if teamCfg == nil || teamCfg.Tracker.Type == "" {
-		fmt.Fprint(out, i18n.Tf("cmd.team_config.not_configured", theme.Subtitle.Render("○")))
+		fmt.Fprint(out, i18n.Tf("cmd.team_config.not_configured", theme.Subtitle.Render(glyph.Absent)))
 		fmt.Fprint(out, i18n.Tf("cmd.team_config.run_to_configure", theme.Bold.Render("oh team config")))
 		return nil
 	}
@@ -613,7 +614,7 @@ func runTeamConfigStatus(cmd *cobra.Command, _ []string) error {
 					projectName, err := t.TestProject(ctx, trackerID)
 					if err != nil {
 						fmt.Fprintf(out, "  %s %s → %s: %v\n",
-							theme.ErrorStyle.Render("✗"), hubID, trackerID, err)
+							theme.ErrorStyle.Render(glyph.Failure), hubID, trackerID, err)
 					} else {
 						fmt.Fprintf(out, "  %s %s → %s (%s)\n",
 							theme.SuccessStyle.Render(theme.IconSuccess), hubID, trackerID, projectName)
@@ -768,18 +769,18 @@ func mcpGitLabCredentials(a *app.App, teamCfg *teamstate.TeamConfig) tracker.Cre
 func testAndDisplayConnection(ctx context.Context, out interface{ Write([]byte) (int, error) }, src tracker.CredentialSource, trackerType tracker.Type) error {
 	cfg, err := tracker.ResolveCredentials(ctx, src, trackerType)
 	if err != nil {
-		fmt.Fprint(out, i18n.Tf("cmd.team_config.credentials_not_available", theme.ErrorStyle.Render("✗"), trackerType, err))
+		fmt.Fprint(out, i18n.Tf("cmd.team_config.credentials_not_available", theme.ErrorStyle.Render(glyph.Failure), trackerType, err))
 		return err
 	}
 	t, err := tracker.New(cfg)
 	if err != nil {
-		fmt.Fprint(out, i18n.Tf("cmd.team_config.initialization_failed", theme.ErrorStyle.Render("✗"), trackerType, err))
+		fmt.Fprint(out, i18n.Tf("cmd.team_config.initialization_failed", theme.ErrorStyle.Render(glyph.Failure), trackerType, err))
 		return err
 	}
 	username, err := t.TestConnection(ctx)
 	if err != nil {
 		fmt.Fprintf(out, "  %s %s (%s): %v\n",
-			theme.ErrorStyle.Render("✗"), trackerType, cfg.BaseURL, err)
+			theme.ErrorStyle.Render(glyph.Failure), trackerType, cfg.BaseURL, err)
 		return err
 	}
 	fmt.Fprint(out, i18n.Tf("cmd.team_config.connected_to_as", theme.SuccessStyle.Render(theme.IconSuccess), cfg.BaseURL, username))
@@ -828,7 +829,7 @@ func checkAndCleanOrphanMembers(ctx context.Context, a *app.App, out interface{ 
 		switch choice {
 		case 0: // Supprimer
 			if err := repo.RemoveMember(ctx, orphan.ID); err != nil {
-				fmt.Fprint(out, i18n.Tf("cmd.team_config.orphan_error", theme.ErrorStyle.Render("✗"), err))
+				fmt.Fprint(out, i18n.Tf("cmd.team_config.orphan_error", theme.ErrorStyle.Render(glyph.Failure), err))
 				continue
 			}
 			fmt.Fprint(out, i18n.Tf("cmd.team_config.member_removed", theme.SuccessStyle.Render(theme.IconSuccess), orphan.ID))
@@ -1056,7 +1057,7 @@ func fmtBool(b bool) string {
 	if b {
 		return theme.SuccessStyle.Render(theme.IconSuccess)
 	}
-	return theme.Subtitle.Render("✗")
+	return theme.Subtitle.Render(glyph.Inactive)
 }
 
 func sourceLabel(isLocal bool, localLabel, teamLabel string) string {

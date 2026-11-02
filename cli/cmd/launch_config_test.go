@@ -194,3 +194,51 @@ func TestRunCacheDropsPreparedLaunchWhenHubTomlChanges(t *testing.T) {
 	assert.Empty(t, c.unshown())
 	assert.Len(t, c.allChanges(), 1, "the recap keeps showing it")
 }
+
+// A form that has been open for a while launches with the settings of the
+// project as the store holds them now (oh project configure in another
+// terminal), and says so.
+func TestLaunchFormRereadsTheProjectChangedMeanwhile(t *testing.T) {
+	a, p := runningTUI(t) // the form read the project now: p
+	runs := &tuiRunCache{}
+	opts := launch.Options{Workflow: "libre", Project: p, Inputs: map[string]string{}, DryRun: true}
+
+	first, err := runs.get(context.Background(), a, opts)
+	require.NoError(t, err)
+	assert.Contains(t, entryModel(t, first), "claude-sonnet-4-5", "the model of hub.toml")
+	assert.Empty(t, runs.allChanges())
+
+	other, err := a.Projects.Get(context.Background(), p.ID)
+	require.NoError(t, err)
+	other.Model = modelLater
+	require.NoError(t, a.Projects.Update(context.Background(), other))
+
+	// the form still holds p, the stale project
+	second, err := runs.get(context.Background(), a, opts)
+	require.NoError(t, err)
+	assert.Contains(t, entryModel(t, second), "claude-sonnet-5-5", "the model the project has now")
+	changes := runs.allChanges()
+	require.Len(t, changes, 1)
+	assert.Contains(t, changes[0], p.Name)
+
+	// asked again with the same stale project: the same prepared launch, said once
+	third, err := runs.get(context.Background(), a, opts)
+	require.NoError(t, err)
+	assert.Same(t, second, third)
+	assert.Len(t, runs.allChanges(), 1)
+}
+
+func TestFreshProjectKeepsWhatItCannotRead(t *testing.T) {
+	a, p := runningTUI(t)
+	same, changed := freshProject(context.Background(), a, p)
+	assert.False(t, changed)
+	assert.Same(t, p, same)
+	gone := *p
+	gone.ID = "nope"
+	got, changed := freshProject(context.Background(), a, &gone)
+	assert.False(t, changed, "a project the store does not know is kept")
+	assert.Same(t, &gone, got)
+	got, changed = freshProject(context.Background(), nil, p)
+	assert.False(t, changed)
+	assert.Same(t, p, got)
+}

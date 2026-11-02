@@ -48,7 +48,7 @@ func TestBricksViewLoadStatesAndRemount(t *testing.T) {
 	empty := func() (txt string) {
 		onLoop(loop, func() {
 			if v.list != nil {
-				txt = v.list.cfg.Empty
+				txt, _ = v.list.emptyText()
 			}
 		})
 		return
@@ -145,7 +145,7 @@ func TestProjectWikiQueueLoadStatesAndRemount(t *testing.T) {
 	empty := func() (txt string) {
 		onLoop(loop, func() {
 			if v.wiki != nil {
-				txt = v.wiki.list.cfg.Empty
+				txt, _ = v.wiki.list.emptyText()
 			}
 		})
 		return

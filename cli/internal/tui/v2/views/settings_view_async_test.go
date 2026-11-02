@@ -2,6 +2,7 @@ package views
 
 import (
 	"errors"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -209,4 +210,56 @@ func TestSettingsViewRefreshFallsBackOnReloadConfig(t *testing.T) {
 	onLoop(loop, func() { v.HandleKey(key('r')) })
 	assert.Equal(t, int32(1), reloaded.Load())
 	assert.Len(t, settingsToasts(loop, sh), 1)
+}
+
+// Settings writes hub.toml off the event loop, one save at a time and in
+// order: edits made while a save runs wait for it, and come back on the
+// shared config once the file has been taken in place.
+func TestSettingsSavesOffTheLoopOneAtATime(t *testing.T) {
+	release := make(chan struct{})
+	started := make(chan int, 4)
+	var mu sync.Mutex
+	var saved []string
+	update := func(fn func(*config.Config) error) error {
+		started <- len(saved)
+		<-release
+		c := &config.Config{}
+		if err := fn(c); err != nil {
+			return err
+		}
+		mu.Lock()
+		saved = append(saved, c.LLM.DefaultProvider)
+		mu.Unlock()
+		return nil
+	}
+	live := &config.Config{}
+	v := NewSettingsView(SettingsViewConfig{GetConfig: func() *config.Config { return live }, UpdateConfig: update})
+	sh := &askShell{}
+	v.SetShell(sh)
+	app := runApp(t, tview.NewBox())
+	set := func(name string) func(*config.Config) {
+		return func(c *config.Config) { c.LLM.DefaultProvider = name }
+	}
+	onLoop(app, func() {
+		v.app, v.live = app, live
+		v.pending = []func(*config.Config){set("first")}
+		v.doSave() // returns at once: the write waits for release
+		assert.True(t, v.saving)
+		// an edit made during the save: it waits, and a second save is asked
+		live.LLM.DefaultProvider = "second"
+		v.pending = append(v.pending, set("second"))
+		v.doSave()
+		assert.True(t, v.saveAgain)
+	})
+	<-started // the first write is under way, the second is not
+	assert.Empty(t, started)
+
+	release <- struct{}{}
+	<-started // the second write starts after the first ended
+	release <- struct{}{}
+	waitFor(t, app, func() bool { return !v.saving && !v.saveAgain })
+
+	mu.Lock()
+	defer mu.Unlock()
+	require.Equal(t, []string{"first", "second"}, saved, "each save carries its own edits, in order")
 }

@@ -10,7 +10,9 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/prefsvc"
+	"github.com/datichb/openhub/cli/internal/safego"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 	wf "github.com/datichb/openhub/cli/internal/workflow"
@@ -60,7 +62,7 @@ func (t *tuiStart) get(scope views.StartScope) views.StartEntries {
 	stale := !ok || time.Since(t.loaded[scope]) > tuiStartTTL
 	if stale && !t.loading[scope] {
 		t.loading[scope] = true
-		go t.load(scope)
+		safego.Go(func() { t.load(scope) })
 	}
 	t.mu.Unlock()
 	return e
@@ -138,7 +140,7 @@ func (t *tuiStart) compute(ctx context.Context, scope views.StartScope) (views.S
 	}
 	for _, r := range start.Recent {
 		e := entry(r.WorkflowID)
-		e.Ago = agoLabel(time.Since(r.LastUsed))
+		e.Ago = textfmt.Ago(r.LastUsed)
 		out.Recents = append(out.Recents, e)
 	}
 	for _, id := range start.Suggested {
@@ -160,7 +162,7 @@ func (t *tuiStart) togglePin(scope views.StartScope, e views.StartEntry) {
 	if pinScope == "" {
 		pinScope = prefsvc.Context{ProjectID: scope.ProjectID, TeamID: scope.TeamID}.Scopes()[0]
 	}
-	go func() {
+	safego.Go(func() {
 		pinned, err := t.prefs.TogglePin(context.Background(), pinScope, e.ID)
 		msg, ok := prefsvc.PinMessage(e.ID, pinScope, pinned), true
 		if err != nil {
@@ -177,7 +179,7 @@ func (t *tuiStart) togglePin(scope views.StartScope, e views.StartEntry) {
 			})
 		}
 		t.load(scope)
-	}()
+	})
 }
 
 // summaryDesc is the short description of a workflow.
@@ -198,17 +200,6 @@ func summaryOrigin(s workflowsvc.Summary) string {
 		o += " v" + strconv.Itoa(s.Version)
 	}
 	return o
-}
-
-func agoLabel(d time.Duration) string {
-	switch {
-	case d < time.Hour:
-		return i18n.Tf("tui.start.ago_minutes", max(int(d.Minutes()), 1))
-	case d < 48*time.Hour:
-		return i18n.Tf("tui.start.ago_hours", int(d.Hours()))
-	default:
-		return i18n.Tf("tui.start.ago_days", int(d.Hours()/24))
-	}
 }
 
 // tuiStartWiring is the « Démarrer » wiring of the running TUI.

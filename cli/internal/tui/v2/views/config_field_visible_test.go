@@ -3,6 +3,7 @@ package views
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/rivo/tview"
 	"github.com/stretchr/testify/assert"
@@ -101,10 +102,11 @@ func TestSettingsTrackerTokenServer(t *testing.T) {
 	v.pushUndo()
 	f.Set("https://gitlab.forge.example")
 	v.scheduleAutoSave()
-	v.doSave()
-	got, err := config.Read()
-	require.NoError(t, err)
-	assert.Equal(t, "https://gitlab.forge.example", got.Tracker.TrackerTokenURL)
+	v.doSave() // the write runs off the event loop
+	require.Eventually(t, func() bool {
+		got, err := config.Read()
+		return err == nil && got.Tracker.TrackerTokenURL == "https://gitlab.forge.example"
+	}, 5*time.Second, 10*time.Millisecond)
 }
 
 // The server of the key is a GitLab rule: nothing is drawn for it when the

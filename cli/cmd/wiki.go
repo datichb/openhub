@@ -16,6 +16,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	mcpwiki "github.com/datichb/openhub/cli/internal/mcp/wiki"
 	"github.com/datichb/openhub/cli/internal/services/wiki"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 )
 
 // `oh wiki` (modernisation LD-J): the wiki of the project (docs/wiki/) as
@@ -285,25 +286,16 @@ func printWikiProposals(w io.Writer, list []domain.WikiProposal) {
 		if p.Section != "" {
 			page += " § " + p.Section
 		}
-		first := clipLine(p.Content, 60)
+		first := textfmt.ClipLine(p.Content, 60)
 		if p.Replaces != "" {
 			// p5-fixes: a replacement, before → after.
-			first = "« " + clipLine(p.Replaces, 28) + " » → « " + clipLine(p.Content, 28) + " »"
+			first = "« " + textfmt.ClipLine(p.Replaces, 28) + " » → « " + textfmt.ClipLine(p.Content, 28) + " »"
 		}
 		row := fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s\t%s", p.ID(), p.Status, firstNonEmpty(p.Agent, "?"), p.SessionID, page, p.Tag, first)
 		if reasons {
-			row += "\t" + clipLine(p.Reason, 60)
+			row += "\t" + textfmt.ClipLine(p.Reason, 60)
 		}
 		fmt.Fprintln(tw, row)
 	}
 	_ = tw.Flush()
-}
-
-// clipLine returns the first line of s, bounded to n runes.
-func clipLine(s string, n int) string {
-	first, _, _ := strings.Cut(s, "\n")
-	if r := []rune(first); len(r) > n {
-		first = string(r[:n-1]) + "…"
-	}
-	return first
 }

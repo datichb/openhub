@@ -5,6 +5,7 @@ import (
 	"github.com/mattn/go-runewidth"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
@@ -36,7 +37,7 @@ func (s *Shell) beforeDraw(screen tcell.Screen) bool {
 	level := views.LevelFor(w, h, s.compactPref())
 	if int32(level) != s.wantLevel.Load() {
 		s.wantLevel.Store(int32(level))
-		go s.app.QueueUpdateDraw(func() { s.applyLevel(views.LayoutLevel(s.wantLevel.Load())) })
+		safego.Go(func() { s.app.QueueUpdateDraw(func() { s.applyLevel(views.LayoutLevel(s.wantLevel.Load())) }) })
 	}
 	s.tooSmall.Store(level == views.LevelTooSmall)
 	if level == views.LevelTooSmall && !s.hasOverlay() {

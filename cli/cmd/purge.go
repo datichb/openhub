@@ -19,6 +19,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/daemon/client"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/storage/keychain"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -317,7 +318,7 @@ func printPurgeInventory(out *os.File, inv purgeInventory, dryRun bool) {
 	// Section: Hub directory
 	fmt.Fprintf(out, "\n  %s\n", theme.Bold.Render(i18n.T("cmd.purge.section.hub")))
 	if dirExists(inv.hubDir) {
-		size := dirSizeHuman(inv.hubDir)
+		size := textfmt.Bytes(dirSize(inv.hubDir))
 		fmt.Fprintf(out, "      %s %s/ (%s)\n",
 			theme.ErrorStyle.Render(theme.IconError), inv.hubDir, size)
 	} else {
@@ -331,7 +332,7 @@ func printPurgeInventory(out *os.File, inv purgeInventory, dryRun bool) {
 		for _, d := range inv.toolDataDirs {
 			if dirExists(d) {
 				fmt.Fprintf(out, "      %s %s/ (%s)\n",
-					theme.ErrorStyle.Render(theme.IconError), d, dirSizeHuman(d))
+					theme.ErrorStyle.Render(theme.IconError), d, textfmt.Bytes(dirSize(d)))
 				printed = true
 			}
 		}
@@ -531,7 +532,7 @@ func dirExists(path string) bool {
 	return err == nil && fi.IsDir()
 }
 
-func dirSizeHuman(path string) string {
+func dirSize(path string) int64 {
 	var size int64
 	_ = filepath.Walk(path, func(_ string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -542,23 +543,5 @@ func dirSizeHuman(path string) string {
 		}
 		return nil
 	})
-	return formatBytes(size)
-}
-
-func formatBytes(b int64) string {
-	const (
-		kb = 1024
-		mb = kb * 1024
-		gb = mb * 1024
-	)
-	switch {
-	case b >= gb:
-		return fmt.Sprintf("%.1f GB", float64(b)/float64(gb))
-	case b >= mb:
-		return fmt.Sprintf("%.1f MB", float64(b)/float64(mb))
-	case b >= kb:
-		return fmt.Sprintf("%.1f KB", float64(b)/float64(kb))
-	default:
-		return fmt.Sprintf("%d B", b)
-	}
+	return size
 }

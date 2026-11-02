@@ -330,7 +330,7 @@ func (v *WikiView) buildProposalItem(p teamstate.WikiProposal) widgets.SectionIt
 	return widgets.SectionItem{
 		MainText: fmt.Sprintf("  %s %s %s %s",
 			icon, bracketed(p.ID), tview.Escape(p.Page),
-			theme.Paint(theme.TextMutedHex, tview.Escape(p.Author)+" · "+tview.Escape(timeAgo(p.CreatedAt)))),
+			theme.Paint(theme.TextMutedHex, tview.Escape(p.Author)+" · "+tview.Escape(textfmt.AgoOrDate(p.CreatedAt)))),
 	}
 }
 

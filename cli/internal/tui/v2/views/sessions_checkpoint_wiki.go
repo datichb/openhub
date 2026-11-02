@@ -9,6 +9,7 @@ import (
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 )
 
@@ -184,10 +185,12 @@ func (cw *CheckpointWikiView) Unmount() {
 	v, dec, row := cw.sessions, cw.dec, cw.row
 	// After the pop (Sessions mounted again); QueueUpdate waits for the
 	// loop: never called on it.
-	go app.QueueUpdateDraw(func() {
-		if v.app != nil { // Sessions is shown again: back to its card
-			v.openCheckpoint(row, &dec)
-		}
+	safego.Go(func() {
+		app.QueueUpdateDraw(func() {
+			if v.app != nil { // Sessions is shown again: back to its card
+				v.openCheckpoint(row, &dec)
+			}
+		})
 	})
 }
 
@@ -208,22 +211,24 @@ func (cw *CheckpointWikiView) decideCheckpoint() {
 	if app == nil {
 		return
 	}
-	go app.QueueUpdateDraw(func() {
-		if v.app == nil {
-			return
-		}
-		cb, ok := v.cfg.Backend.(CheckpointBackend)
-		if !ok {
-			v.checkpointForm(row, &dec, CheckpointApproverView{}, checkpointApprove)
-			return
-		}
-		var card CheckpointCardView
-		v.async(func(ctx context.Context) (string, error) {
-			var err error
-			card, err = cb.CheckpointCard(ctx, dec.ID)
-			return "", err
-		}, func(string) {
-			v.checkpointForm(row, &dec, card.Approver, checkpointDefaultChoice(card.Verify), checkpointExtraChoices(card.Verify)...)
+	safego.Go(func() {
+		app.QueueUpdateDraw(func() {
+			if v.app == nil {
+				return
+			}
+			cb, ok := v.cfg.Backend.(CheckpointBackend)
+			if !ok {
+				v.checkpointForm(row, &dec, CheckpointApproverView{}, checkpointApprove)
+				return
+			}
+			var card CheckpointCardView
+			v.async(func(ctx context.Context) (string, error) {
+				var err error
+				card, err = cb.CheckpointCard(ctx, dec.ID)
+				return "", err
+			}, func(string) {
+				v.checkpointForm(row, &dec, card.Approver, checkpointDefaultChoice(card.Verify), checkpointExtraChoices(card.Verify)...)
+			})
 		})
 	})
 }

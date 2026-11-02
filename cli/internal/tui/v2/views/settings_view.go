@@ -78,6 +78,9 @@ type SettingsView struct {
 	fields    []configField
 	undoStack *widgets.UndoStack[settingsUndo]
 	autoSaver *AutoSaver
+	// saving is true while a save runs off the event loop; saveAgain, that
+	// edits asked for another one meanwhile (saves go one at a time, in order).
+	saving, saveAgain bool
 
 	// pending holds what the edits changed since the last save, setting by
 	// setting. A save applies pending to the file as it is, never the whole
@@ -736,13 +739,14 @@ func (v *SettingsView) editTokenKey(f *configField) {
 					if value == "" {
 						return
 					}
-					ctx := context.Background()
-					if err := v.cfg.SetSecret(ctx, keyName, value); err != nil {
-						v.shell.ShowToastMsg(errorText(err), false)
-						return
-					}
-					v.shell.ShowToastMsg(i18n.T("tui.settings.secret_updated"), true)
-					v.renderFields()
+					persist(v.app, func(ctx context.Context) error { return v.cfg.SetSecret(ctx, keyName, value) }, func(err error) {
+						if err != nil {
+							v.shell.ShowToastMsg(errorText(err), false)
+							return
+						}
+						v.shell.ShowToastMsg(i18n.T("tui.settings.secret_updated"), true)
+						v.renderFields()
+					})
 				})
 			}
 		})
@@ -785,14 +789,32 @@ func (v *SettingsView) doSave() {
 		return
 	}
 
+	if v.saving {
+		v.saveAgain = true // what was edited since waits in pending: the save in flight starts the next one
+		return
+	}
 	pending := v.pending
 	v.pending = nil
-	if err := v.cfg.UpdateConfig(func(c *config.Config) error {
-		for _, apply := range pending {
-			apply(c)
-		}
-		return nil
-	}); err != nil {
+	v.saving = true
+	// The write (the lock, the file, the commit of the hub) runs off the event
+	// loop; the closures of pending only hold values.
+	persist(v.app, func(context.Context) error {
+		return v.cfg.UpdateConfig(func(c *config.Config) error {
+			for _, apply := range pending {
+				apply(c)
+			}
+			return nil
+		})
+	}, func(err error) { v.saved(pending, err) })
+}
+
+// saved is the end of a save, on the event loop: the toast, the failure, and
+// the next save when edits came during this one.
+func (v *SettingsView) saved(pending []func(*config.Config), err error) {
+	v.saving = false
+	again := v.saveAgain
+	v.saveAgain = false
+	if err != nil {
 		v.pending = append(pending, v.pending...)
 		if v.shell != nil {
 			if errors.Is(err, config.ErrExternalModification) {
@@ -811,8 +833,18 @@ func (v *SettingsView) doSave() {
 		return
 	}
 
+	// The shared config took the file in place: the edits made while the
+	// write ran (in pending) were not in it, give them back.
+	if v.live != nil {
+		for _, apply := range v.pending {
+			apply(v.live)
+		}
+	}
 	if v.shell != nil {
 		v.shell.ShowToastMsg(i18n.T("tui.config.autosaved"), true)
+	}
+	if again {
+		v.doSave()
 	}
 }
 

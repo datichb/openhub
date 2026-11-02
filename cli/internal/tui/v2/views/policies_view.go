@@ -276,15 +276,6 @@ func (v *PoliciesView) newRepo() teamstate.TeamStateWriter {
 	return teamstate.NewRepo(tc.StateRepo, tc.StatePath)
 }
 
-// getRepo is newRepo for the actions, which need the clone to be there.
-func (v *PoliciesView) getRepo() teamstate.TeamStateWriter {
-	repo := v.newRepo()
-	if repo == nil || !repo.IsCloned() {
-		return nil
-	}
-	return repo
-}
-
 // refresh pulls the team-state, then reads the policies off the event loop.
 func (v *PoliciesView) refresh() {
 	v.policies = nil
@@ -598,7 +589,7 @@ func (v *PoliciesView) setEnforcement(policyIdx int, enforcement teamstate.Polic
 	}
 	p := v.policies[policyIdx]
 
-	repo := v.getRepo()
+	repo := v.newRepo()
 	if repo == nil {
 		return
 	}
@@ -617,8 +608,8 @@ func (v *PoliciesView) setEnforcement(policyIdx int, enforcement teamstate.Polic
 	}, i18n.Tf("tui.policies.status_changed", p.Name, statusLabel))
 }
 
-// mutate runs op on the policy service off the event loop (it pulls and
-// pushes the team-state), then, on the loop, shows the error or the success
+// mutate runs op on the policy service off the event loop (it checks that the
+// clone is there, pulls and pushes the team-state), then, on the loop, shows the error or the success
 // toast and reloads the list. Without a running application (tests) it runs
 // inline.
 func (v *PoliciesView) mutate(repo teamstate.TeamStateWriter, op func(ctx context.Context, svc PolicyService) error, success string) {
@@ -628,6 +619,12 @@ func (v *PoliciesView) mutate(repo teamstate.TeamStateWriter, op func(ctx contex
 		ctx = v.shell.Context()
 	}
 	tvApp := v.app
+	run := func() error {
+		if !repo.IsCloned() { // a stat of the disk: here, off the event loop
+			return errors.New(i18n.T("tui.policies.team_not_configured"))
+		}
+		return op(ctx, svc)
+	}
 	done := func(err error) {
 		if v.shell != nil {
 			if err != nil {
@@ -641,11 +638,11 @@ func (v *PoliciesView) mutate(repo teamstate.TeamStateWriter, op func(ctx contex
 		}
 	}
 	if tvApp == nil {
-		done(op(ctx, svc))
+		done(run())
 		return
 	}
 	safego.Go(func() {
-		err := op(ctx, svc)
+		err := run()
 		tvApp.QueueUpdateDraw(func() { done(err) })
 	})
 }
@@ -671,7 +668,7 @@ func (v *PoliciesView) editPolicy(policyIdx int) {
 	if v.shell == nil || policyIdx < 0 || policyIdx >= len(v.policies) {
 		return
 	}
-	repo := v.getRepo()
+	repo := v.newRepo()
 	if repo == nil {
 		return
 	}
@@ -721,7 +718,7 @@ func (v *PoliciesView) removePolicy(policyIdx int) {
 		return
 	}
 	p := v.policies[policyIdx]
-	repo := v.getRepo()
+	repo := v.newRepo()
 	if repo == nil {
 		return
 	}
@@ -866,7 +863,7 @@ func (v *PoliciesView) addFromTemplate() {
 	if v.shell == nil {
 		return
 	}
-	repo := v.getRepo()
+	repo := v.newRepo()
 	if repo == nil {
 		v.shell.ShowToastMsg(i18n.T("tui.policies.team_not_configured"), false)
 		return
@@ -901,7 +898,7 @@ func (v *PoliciesView) addPolicy() {
 	if v.shell == nil {
 		return
 	}
-	repo := v.getRepo()
+	repo := v.newRepo()
 	if repo == nil {
 		v.shell.ShowToastMsg(i18n.T("tui.policies.team_not_configured"), false)
 		return

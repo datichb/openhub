@@ -10,6 +10,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/notify"
 	"github.com/datichb/openhub/cli/internal/teamstate"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -94,7 +95,7 @@ func runTeamWikiList(cmd *cobra.Command, _ []string) error {
 				pr.Page,
 				pr.Author,
 				pr.Confidence,
-				pr.CreatedAt.Local().Format("2006-01-02"))
+				textfmt.Date(pr.CreatedAt))
 		}
 	}
 	fmt.Fprintln(a.IO.Out)
@@ -159,7 +160,7 @@ func runTeamWikiReview(cmd *cobra.Command, args []string) error {
 				pr.Page,
 				pr.Author,
 				pr.Confidence,
-				pr.CreatedAt.Local().Format("2006-01-02"))
+				textfmt.Date(pr.CreatedAt))
 		}
 		fmt.Fprintf(a.IO.Out, "\n  %s %s\n\n",
 			theme.Subtitle.Render(theme.IconInfo),
@@ -196,7 +197,7 @@ func runTeamWikiReview(cmd *cobra.Command, args []string) error {
 	fmt.Fprintf(a.IO.Out, "  %s %s\n", theme.Bold.Render(i18n.T("cmd.team.wiki.label_author")), proposal.Author)
 	fmt.Fprintf(a.IO.Out, "  %s %s\n", theme.Bold.Render(i18n.T("cmd.team.wiki.label_project")), proposal.Project)
 	fmt.Fprintf(a.IO.Out, "  %s %s\n", theme.Bold.Render(i18n.T("cmd.team.wiki.label_confidence")), proposal.Confidence)
-	fmt.Fprintf(a.IO.Out, "  %s %s\n", theme.Bold.Render(i18n.T("cmd.team.wiki.label_date")), proposal.CreatedAt.Local().Format("2006-01-02 15:04"))
+	fmt.Fprintf(a.IO.Out, "  %s %s\n", theme.Bold.Render(i18n.T("cmd.team.wiki.label_date")), textfmt.DateTime(proposal.CreatedAt))
 	fmt.Fprintln(a.IO.Out)
 	fmt.Fprintln(a.IO.Out, theme.Subtitle.Render(i18n.T("cmd.team.wiki.content_header")))
 	fmt.Fprintln(a.IO.Out)

@@ -68,6 +68,15 @@ func AgoAt(now, t time.Time) string {
 	return i18n.Tf("fmt.ago.days", int(d.Hours()/24))
 }
 
+// AgoOrDate is Ago for a recent time and the date (Date) from a week on: a
+// list of events reads « 3 min ago » today and « 2026-10-23 » last month.
+func AgoOrDate(t time.Time) string {
+	if !t.IsZero() && Now().Sub(t) >= 7*24*time.Hour {
+		return Date(t)
+	}
+	return Ago(t)
+}
+
 // Age is the compact form of Ago, for a column: « 3 min », « 5 h », « 2 d »
 // ("" for the zero time, « 0 min » under a minute or in the future).
 func Age(t time.Time) string { return AgeAt(Now(), t) }

@@ -9,6 +9,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
@@ -25,7 +26,7 @@ func offerCleanupInTUI(ctx context.Context, a *app.App, sh *shell.Shell) {
 	if sh == nil || cleanupOffered(ctx, a) {
 		return
 	}
-	go func() {
+	safego.Go(func() {
 		list, err := scanDeployLeftovers(ctx, a, "")
 		if err != nil {
 			return
@@ -34,7 +35,7 @@ func offerCleanupInTUI(ctx context.Context, a *app.App, sh *shell.Shell) {
 		if len(list) > 0 {
 			sh.App().QueueUpdateDraw(func() { showCleanupScreen(a, sh, list) })
 		}
-	}()
+	})
 }
 
 // deployCleanupConfig is the section « Anciens déploiements » of the
@@ -131,10 +132,10 @@ func cleanupConfigFile(list []projectCleanup) string {
 }
 
 func applyCleanupInTUI(sh *shell.Shell, list []projectCleanup) {
-	go func() {
+	safego.Go(func() {
 		msg, ok := applyCleanup(list)
 		sh.App().QueueUpdateDraw(func() { sh.ShowToastMsg(msg, ok) })
-	}()
+	})
 }
 
 // applyCleanup cleans the projects: the message of the result and whether

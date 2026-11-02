@@ -7,17 +7,18 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tracker"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
-	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -660,46 +661,7 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 		},
 		Required: true,
 		CustomView: func(tvApp *tview.Application, container *tview.Flex, onDone func()) {
-			// Build filterable items: "add new" action + existing members.
-			items := []widgets.FilterItem{
-				{
-					MainText:  i18n.T("cmd.init.wizard_rejoin_add_member"),
-					Reference: "__add_new__",
-				},
-			}
-			for _, m := range state.Members {
-				label := fmt.Sprintf("%s (%s)", m.DisplayName, m.ID)
-				secondary := ""
-				if m.GitLabUsername != "" {
-					secondary = i18n.Tf("cmd.init.wizard_rejoin_member_gitlab", m.GitLabUsername)
-				}
-				if m.Role != "" {
-					if secondary != "" {
-						secondary += " — "
-					}
-					secondary += m.Role
-				}
-				items = append(items, widgets.FilterItem{
-					MainText:      label,
-					SecondaryText: secondary,
-					Reference:     m.ID,
-				})
-			}
-
-			fl := widgets.NewFilterableList(items, func(item widgets.FilterItem) {
-				if item.Reference == "__add_new__" {
-					state.AddingNewMember = true
-					state.MemberID = ""
-				} else if id, ok := item.Reference.(string); ok {
-					state.MemberID = id
-					state.AddingNewMember = false
-				}
-				onDone()
-			})
-			fl.SetApp(tvApp)
-
-			container.AddItem(fl, 0, 1, true)
-			tvApp.SetFocus(fl)
+			showMemberPicker(tvApp, container, state, onDone)
 		},
 		InfoFields: func() []views.InfoField {
 			if state.MemberID == "" && !state.AddingNewMember {
@@ -1080,6 +1042,78 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 	return steps
 }
 
+// addNewMemberID is the ID of the first element of the member list: the choice
+// that adds the member to the team instead of picking an existing one.
+const addNewMemberID = "__add_new__"
+
+// showMemberPicker puts the filterable list of the members of the team in the
+// step: « add a new member » first, then each member with the account on the
+// tracker and the role. / asks the words of the filter, Enter picks.
+func showMemberPicker(tvApp *tview.Application, container *tview.Flex, state *initWizardTeamState, onDone func()) {
+	items := []views.ActionItem{{ID: addNewMemberID, Cells: []string{i18n.T("cmd.init.wizard_rejoin_add_member")}}}
+	for _, m := range state.Members {
+		secondary := ""
+		if m.GitLabUsername != "" {
+			secondary = i18n.Tf("cmd.init.wizard_rejoin_member_gitlab", m.GitLabUsername)
+		}
+		if m.Role != "" {
+			if secondary != "" {
+				secondary += " — "
+			}
+			secondary += m.Role
+		}
+		items = append(items, views.ActionItem{ID: m.ID, Cells: []string{fmt.Sprintf("%s (%s)", m.DisplayName, m.ID), secondary}})
+	}
+
+	box := tview.NewFlex().SetDirection(tview.FlexRow)
+	var list *views.ActionList
+	list = views.NewActionList(views.ActionListConfig{
+		Layout:    views.DetailNone,
+		OpenLabel: i18n.T("wizard.hint.submit"),
+		OnOpen: func(it views.ActionItem) {
+			state.AddingNewMember = it.ID == addNewMemberID
+			state.MemberID = ""
+			if !state.AddingNewMember {
+				state.MemberID = it.ID
+			}
+			onDone()
+		},
+		Filter: &views.ActionListFilter{},
+		AskQuery: func(title, current string, done func(string)) {
+			askInlineQuery(tvApp, box, list.Focusable(), title, current, done)
+		},
+	})
+	list.SetItems(items)
+	box.AddItem(list.Primitive(), 0, 1, true)
+	container.AddItem(box, 0, 1, true)
+	tvApp.SetFocus(list.Focusable())
+}
+
+// askInlineQuery asks a line of text in an input under the list of a wizard
+// step (there is no shell to show a window): Enter validates, Esc closes it.
+func askInlineQuery(tvApp *tview.Application, box *tview.Flex, back tview.Primitive, title, current string, done func(string)) {
+	input := tview.NewInputField().
+		SetLabel(" " + title + " ").
+		SetLabelColor(theme.ActiveMode.Secondary).
+		SetFieldBackgroundColor(theme.BgElement).
+		SetFieldTextColor(theme.FgPrimary).
+		SetText(current)
+	input.SetBackgroundColor(theme.BgElement)
+	input.SetDoneFunc(func(key tcell.Key) {
+		if key != tcell.KeyEnter && key != tcell.KeyEscape {
+			return
+		}
+		text := input.GetText()
+		box.RemoveItem(input)
+		tvApp.SetFocus(back)
+		if key == tcell.KeyEnter {
+			done(text)
+		}
+	})
+	box.AddItem(input, 1, 0, true)
+	tvApp.SetFocus(input)
+}
+
 // buildTeamModeIntroStep creates a CustomView step that serves as the team
 // group gateway in the hub init wizard. It presents three choices:
 //   - Create a new team (sets state.Mode = "init")
@@ -1182,7 +1216,7 @@ func buildTeamModeIntroStep(state *initWizardTeamState) views.WizardStep {
 						state.TeamChoice = ""
 					}
 					if choiceMounted {
-						go func() { tvApp.QueueUpdateDraw(func() { rebuildButtons() }) }()
+						safego.Go(func() { tvApp.QueueUpdateDraw(func() { rebuildButtons() }) })
 					}
 				})
 				choiceMounted = true

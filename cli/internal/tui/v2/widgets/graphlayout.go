@@ -3,6 +3,7 @@ package widgets
 import (
 	"sort"
 
+	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
@@ -230,8 +231,8 @@ func ComputeModelLayout(m GraphModel) *GraphLayout {
 		if hasStart && i == 0 {
 			typ = ElementStart
 		}
-		layout.Nodes = append(layout.Nodes, NodeLayout{ID: cp.ID, Label: truncate(cp.Label, nodeWidth-2),
-			Line2: cp.Behavior, Line3: truncate(cp.Extra, nodeWidth-2), X: x, Y: 1, W: nodeWidth, H: cpH,
+		layout.Nodes = append(layout.Nodes, NodeLayout{ID: cp.ID, Label: textfmt.Clip(cp.Label, nodeWidth-2),
+			Line2: cp.Behavior, Line3: textfmt.Clip(cp.Extra, nodeWidth-2), X: x, Y: 1, W: nodeWidth, H: cpH,
 			Type: typ, Locked: cp.Locked})
 		layout.Elements = append(layout.Elements, GraphElement{Type: typ, ID: cp.ID, X: x, Y: 1, W: nodeWidth, H: cpH})
 		cpPositions[cp.ID] = Point{X: x + nodeWidth/2, Y: 1 + cpH}
@@ -304,7 +305,7 @@ func ComputeModelLayout(m GraphModel) *GraphLayout {
 			if !stack {
 				ax, ay = startX+i*(agentNodeWidth+2), agentY
 			}
-			layout.Nodes = append(layout.Nodes, NodeLayout{ID: a.ID, Label: truncate(a.ID, agentNodeWidth-2), Line2: a.Line2,
+			layout.Nodes = append(layout.Nodes, NodeLayout{ID: a.ID, Label: textfmt.Clip(a.ID, agentNodeWidth-2), Line2: a.Line2,
 				X: ax, Y: ay, W: agentNodeWidth, H: agH, Type: ElementAgent, Locked: a.Locked})
 			layout.Elements = append(layout.Elements, GraphElement{Type: ElementAgent, ID: a.ID, X: ax, Y: ay, W: agentNodeWidth, H: agH})
 		}
@@ -319,7 +320,7 @@ func ComputeModelLayout(m GraphModel) *GraphLayout {
 		if !a.Independent {
 			continue
 		}
-		layout.Nodes = append(layout.Nodes, NodeLayout{ID: a.ID, Label: truncate(a.ID, agentNodeWidth-2), Line2: a.Line2,
+		layout.Nodes = append(layout.Nodes, NodeLayout{ID: a.ID, Label: textfmt.Clip(a.ID, agentNodeWidth-2), Line2: a.Line2,
 			X: indepX, Y: indepY + 1, W: agentNodeWidth, H: agH, Type: ElementIndependentAgent, Locked: a.Locked})
 		layout.Elements = append(layout.Elements, GraphElement{Type: ElementIndependentAgent, ID: a.ID,
 			X: indepX, Y: indepY + 1, W: agentNodeWidth, H: agH})
@@ -329,19 +330,4 @@ func ComputeModelLayout(m GraphModel) *GraphLayout {
 	layout.TotalW = max(x, indepX)
 	layout.TotalH = indepY + agH + 3
 	return layout
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-func truncate(s string, maxLen int) string {
-	runes := []rune(s)
-	if len(runes) <= maxLen {
-		return s
-	}
-	if maxLen <= 1 {
-		return "…"
-	}
-	return string(runes[:maxLen-1]) + "…"
 }

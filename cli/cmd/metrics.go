@@ -9,6 +9,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/platform"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -70,16 +71,16 @@ func runMetrics(cmd *cobra.Command, args []string) error {
 		fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.metrics.today", stats.TodaySessions))
 	}
 	fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.metrics.active_projects", stats.ActiveProjects))
-	fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.metrics.total_cost", stats.TotalCost))
+	fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.metrics.total_cost", textfmt.Cost(stats.TotalCost)))
 	fmt.Fprintln(a.IO.Out)
 
 	// --- Token breakdown ---
 	fmt.Fprintln(a.IO.Out, theme.Subtitle.Render("  "+i18n.T("cmd.metrics.tokens")))
 	fmt.Fprintln(a.IO.Out)
-	fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.metrics.tokens_in", formatTokenCount(stats.TotalTokensIn)))
-	fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.metrics.tokens_out", formatTokenCount(stats.TotalTokensOut)))
-	fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.metrics.tokens_reasoning", formatTokenCount(stats.ReasoningTokens)))
-	fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.metrics.tokens_cache", formatTokenCount(stats.CacheReadTokens)))
+	fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.metrics.tokens_in", textfmt.Tokens(stats.TotalTokensIn)))
+	fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.metrics.tokens_out", textfmt.Tokens(stats.TotalTokensOut)))
+	fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.metrics.tokens_reasoning", textfmt.Tokens(stats.ReasoningTokens)))
+	fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.metrics.tokens_cache", textfmt.Tokens(stats.CacheReadTokens)))
 	fmt.Fprintln(a.IO.Out)
 
 	// --- AI Savings ---
@@ -110,12 +111,12 @@ func runMetrics(cmd *cobra.Command, args []string) error {
 			ratio := float64(pStats.CacheReadTokens) / float64(pStats.TotalTokensIn) * 100
 			cacheRatio = fmt.Sprintf("%.0f%%", ratio)
 		}
-		fmt.Fprintf(w, "  %s\t%d\t%s\t%s\t%s\t$%.2f\n",
+		fmt.Fprintf(w, "  %s\t%d\t%s\t%s\t%s\t%s\n",
 			p.Name, pStats.TotalSessions,
-			formatTokenCount(pStats.TotalTokensIn),
-			formatTokenCount(pStats.TotalTokensOut),
+			textfmt.Tokens(pStats.TotalTokensIn),
+			textfmt.Tokens(pStats.TotalTokensOut),
 			cacheRatio,
-			pStats.TotalCost)
+			textfmt.Cost(pStats.TotalCost))
 	}
 	w.Flush()
 
@@ -133,10 +134,10 @@ func runMetrics(cmd *cobra.Command, args []string) error {
 				if m.AvgDurationSec > 0 {
 					dur = fmt.Sprintf("%.0fs", m.AvgDurationSec)
 				}
-				fmt.Fprintf(wa, "  %s\t%d\t%.0f%%\t%s\t%s\t$%.2f\n",
+				fmt.Fprintf(wa, "  %s\t%d\t%.0f%%\t%s\t%s\t%s\n",
 					m.AgentName, m.TotalRuns, m.SuccessRate, dur,
-					formatTokenCount(m.TotalTokensIn+m.TotalTokensOut),
-					m.TotalCostUSD)
+					textfmt.Tokens(m.TotalTokensIn+m.TotalTokensOut),
+					textfmt.Cost(m.TotalCostUSD))
 			}
 			wa.Flush()
 		}
@@ -163,11 +164,11 @@ func displayAISavings(a *app.App, stats *platform.AggregateStats) {
 
 	fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.metrics.cache_ratio", cacheRatio))
 	fmt.Fprintf(a.IO.Out, "  %s\n",
-		i18n.Tf("cmd.metrics.cache_tokens", formatTokenCount(stats.CacheReadTokens), formatTokenCount(stats.TotalTokensIn)))
+		i18n.Tf("cmd.metrics.cache_tokens", textfmt.Tokens(stats.CacheReadTokens), textfmt.Tokens(stats.TotalTokensIn)))
 
 	if estimatedSavings > 0.01 {
 		fmt.Fprintf(a.IO.Out, "  %s\n",
-			i18n.Tf("cmd.metrics.estimated_savings", estimatedSavings, cacheRatio*cacheSavingsFactor))
+			i18n.Tf("cmd.metrics.estimated_savings", textfmt.Cost(estimatedSavings), cacheRatio*cacheSavingsFactor))
 	}
 
 	// Reasoning efficiency
@@ -175,14 +176,4 @@ func displayAISavings(a *app.App, stats *platform.AggregateStats) {
 		reasoningRatio := float64(stats.ReasoningTokens) / float64(stats.TotalTokensOut) * 100
 		fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.metrics.reasoning_ratio", reasoningRatio))
 	}
-}
-
-func formatTokenCount(n int64) string {
-	if n >= 1_000_000 {
-		return fmt.Sprintf("%.1fM", float64(n)/1_000_000)
-	}
-	if n >= 1_000 {
-		return fmt.Sprintf("%.1fK", float64(n)/1_000)
-	}
-	return fmt.Sprintf("%d", n)
 }

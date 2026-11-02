@@ -2,12 +2,12 @@ package cmd
 
 import (
 	"fmt"
-	"strconv"
 
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
@@ -66,7 +66,7 @@ func runDashboard(cmd *cobra.Command, args []string) error {
 			{Label: i18n.T("tui.dashboard.projects"), Value: i18n.Tf("tui.dashboard.projects_value", len(projects), active)},
 			{Label: i18n.T("tui.dashboard.top_project"), Value: topProject},
 			{Label: i18n.T("tui.dashboard.sessions"), Value: i18n.Tf("tui.dashboard.sessions_value", totalSessions, todaySessions)},
-			{Label: i18n.T("tui.dashboard.tokens_used_label"), Value: formatTokens(tokensUsed)},
+			{Label: i18n.T("tui.dashboard.tokens_used_label"), Value: textfmt.Tokens(tokensUsed)},
 		},
 		TokenUsage: []views.TokenBar{
 			{Label: i18n.T("tui.dashboard.today_label"), Current: todaySessions, Max: 50},
@@ -75,14 +75,4 @@ func runDashboard(cmd *cobra.Command, args []string) error {
 	}
 
 	return views.RunDashboard(cfg)
-}
-
-func formatTokens(n int64) string {
-	if n >= 1_000_000 {
-		return fmt.Sprintf("%.1fM", float64(n)/1_000_000)
-	}
-	if n >= 1_000 {
-		return fmt.Sprintf("%.1fK", float64(n)/1_000)
-	}
-	return strconv.FormatInt(n, 10)
 }
