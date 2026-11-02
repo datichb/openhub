@@ -1,12 +1,12 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
@@ -39,9 +39,7 @@ func runWorkflowHistory(cmd *cobra.Command, args []string) error {
 	}
 	out := cmd.OutOrStdout()
 	if asJSON, _ := cmd.Flags().GetBool("json"); asJSON {
-		enc := json.NewEncoder(out)
-		enc.SetIndent("", "  ")
-		return enc.Encode(versions)
+		return cliout.JSON(out, versions)
 	}
 	fmt.Fprintln(out, theme.Bold.Render(versions[0].Ref.String()))
 	w := tabwriter.NewWriter(out, 0, 4, 2, ' ', 0)

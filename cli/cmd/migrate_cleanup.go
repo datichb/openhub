@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -14,6 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/bricks"
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/prefsvc"
@@ -120,12 +120,10 @@ func runMigrateCleanup(cmd *cobra.Command, _ []string) error {
 	}
 	markCleanupOffered(ctx, a)
 	if asJSON {
-		enc := json.NewEncoder(out)
-		enc.SetIndent("", "  ")
 		if list == nil {
 			list = []projectCleanup{}
 		}
-		return enc.Encode(list)
+		return cliout.JSON(out, list)
 	}
 	if len(list) == 0 {
 		fmt.Fprintf(out, "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.T("cmd.migrate.cleanup.none"))

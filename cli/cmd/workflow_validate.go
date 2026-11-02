@@ -2,13 +2,13 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
@@ -77,9 +77,7 @@ func runWorkflowValidate(hubDir, target string, layer workflow.Layer, all bool, 
 func printWorkflowValidate(w io.Writer, r *workflowValidateReport, asJSON bool) error {
 	errs, warns := r.Counts()
 	if asJSON {
-		enc := json.NewEncoder(w)
-		enc.SetIndent("", "  ")
-		if err := enc.Encode(r); err != nil {
+		if err := cliout.JSON(w, r); err != nil {
 			return err
 		}
 	} else {

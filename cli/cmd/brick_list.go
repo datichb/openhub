@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -10,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/glyph"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
@@ -46,9 +46,7 @@ func brickListCmd() *cobra.Command {
 			}
 			filterBricks(ws, kind)
 			if asJSON, _ := cmd.Flags().GetBool("json"); asJSON {
-				enc := json.NewEncoder(cmd.OutOrStdout())
-				enc.SetIndent("", "  ")
-				return enc.Encode(ws)
+				return cliout.JSON(cmd.OutOrStdout(), ws)
 			}
 			origin, _ := cmd.Flags().GetBool("origin")
 			return printBrickList(cmd.OutOrStdout(), ws, origin)

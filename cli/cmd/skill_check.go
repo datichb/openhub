@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -9,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/bundle"
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
@@ -60,7 +60,7 @@ func skillCheckCmd() *cobra.Command {
 				if problems == nil {
 					problems = []bundle.SkillProblem{}
 				}
-				if err := json.NewEncoder(a.IO.Out).Encode(problems); err != nil {
+				if err := cliout.JSONCompact(a.IO.Out, problems); err != nil {
 					return err
 				}
 			} else {

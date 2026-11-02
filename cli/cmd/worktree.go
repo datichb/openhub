@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"text/tabwriter"
@@ -9,6 +8,7 @@ import (
 	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/components/floating"
 	"github.com/datichb/openhub/cli/internal/tui/progress"
@@ -56,7 +56,7 @@ func worktreeListCmd() *cobra.Command {
 				for i, e := range entries {
 					out[i] = wtJSON{Branch: e.Branch, Path: e.Path, Head: e.Head, IsBare: e.IsBare}
 				}
-				return json.NewEncoder(os.Stdout).Encode(out)
+				return cliout.JSONCompact(os.Stdout, out)
 			}
 
 			if len(entries) == 0 {

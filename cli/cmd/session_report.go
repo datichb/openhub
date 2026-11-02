@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -10,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/services/report"
@@ -56,7 +56,7 @@ func runSessionReport(cmd *cobra.Command, args []string) error {
 			return reportError(args[1], err)
 		}
 		if asJSON {
-			return writeIndentedJSON(out, sessionReportJSON{ID: r.ID(), Report: r, Body: body})
+			return cliout.JSON(out, sessionReportJSON{ID: r.ID(), Report: r, Body: body})
 		}
 		fmt.Fprintln(out, i18n.Tf("cmd.session.report.header", r.ID(), firstNonEmpty(r.Agent, "?"), r.Title, textfmt.DateTime(r.CreatedAt)))
 		fmt.Fprintln(out)
@@ -72,7 +72,7 @@ func runSessionReport(cmd *cobra.Command, args []string) error {
 		for _, r := range list {
 			rows = append(rows, sessionReportJSON{ID: r.ID(), Report: r})
 		}
-		return writeIndentedJSON(out, rows)
+		return cliout.JSON(out, rows)
 	}
 	printSessionReports(out, sess.ID, list)
 	return nil
@@ -103,10 +103,4 @@ func reportError(id string, err error) error {
 		return errors.New(i18n.Tf("cmd.session.report.altered", id))
 	}
 	return err
-}
-
-func writeIndentedJSON(w io.Writer, v any) error {
-	enc := json.NewEncoder(w)
-	enc.SetIndent("", "  ")
-	return enc.Encode(v)
 }

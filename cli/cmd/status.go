@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
@@ -78,7 +78,7 @@ func runStatus(cmd *cobra.Command, args []string) error {
 			CurrentProject: currentProject,
 			Cwd:            cwd,
 		}
-		return json.NewEncoder(os.Stdout).Encode(out)
+		return cliout.JSONCompact(os.Stdout, out)
 	}
 
 	fmt.Fprintln(a.IO.Out, theme.Title.Render("  oh status  "))

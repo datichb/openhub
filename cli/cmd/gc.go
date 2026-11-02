@@ -17,6 +17,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/daemon/api"
 	"github.com/datichb/openhub/cli/internal/domain"
@@ -201,7 +202,7 @@ func runGC(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 	if asJSON && (dry || plan.Empty()) {
-		return json.NewEncoder(w).Encode(plan)
+		return cliout.JSONCompact(w, plan)
 	}
 	if !asJSON {
 		printGCPlan(w, plan)
@@ -230,7 +231,7 @@ func runGC(cmd *cobra.Command, _ []string) error {
 	}
 	writeGCLast(gcLast{At: time.Now(), Bytes: done.Bytes(), Items: len(done.Items), Rows: done.History.Total(), Armed: true})
 	if asJSON {
-		return json.NewEncoder(w).Encode(done)
+		return cliout.JSONCompact(w, done)
 	}
 	fmt.Fprintf(w, "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.gc.done", len(done.Items), textfmt.Bytes(done.Bytes()), done.History.Total()))
 	for _, e := range done.Errors {

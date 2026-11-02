@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -15,6 +14,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/runsvc"
@@ -147,12 +147,6 @@ func toDecisionJSON(d domain.Decision) decisionJSON {
 	return decisionJSON{ID: d.ID, SessionID: d.SessionID, Kind: string(d.Kind), Summary: sessionsvc.DecisionSummary(d), Payload: d.Payload, CreatedAt: d.CreatedAt}
 }
 
-func printJSON(cmd *cobra.Command, v any) error {
-	enc := json.NewEncoder(cmd.OutOrStdout())
-	enc.SetIndent("", "  ")
-	return enc.Encode(v)
-}
-
 var sessionListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "Liste les sessions v5 (en cours, en attente, en veille ; --all pour les terminées)",
@@ -184,7 +178,7 @@ var sessionListCmd = &cobra.Command{
 				}
 				out = append(out, j)
 			}
-			return printJSON(cmd, out)
+			return cliout.JSON(cmd.OutOrStdout(), out)
 		}
 		tw := tabwriter.NewWriter(cmd.OutOrStdout(), 2, 4, 2, ' ', 0)
 		fmt.Fprintln(tw, i18n.T("cmd.session.list_header"))

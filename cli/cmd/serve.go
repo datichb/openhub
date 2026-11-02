@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net"
@@ -11,6 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
@@ -199,7 +199,7 @@ func setCORS(w http.ResponseWriter) {
 func writeJSON(w http.ResponseWriter, v interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	setCORS(w)
-	_ = json.NewEncoder(w).Encode(v)
+	_ = cliout.JSONCompact(w, v)
 }
 
 func writeError(w http.ResponseWriter, err error, code int) {
@@ -212,6 +212,6 @@ func writeError(w http.ResponseWriter, err error, code int) {
 	if code < 500 {
 		msg = err.Error()
 	}
-	_ = json.NewEncoder(w).Encode(map[string]string{"error": msg})
+	_ = cliout.JSONCompact(w, map[string]string{"error": msg})
 	slog.Warn("HTTP error", "code", code, "error", err.Error())
 }

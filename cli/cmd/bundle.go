@@ -13,6 +13,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/bundle"
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/provider"
@@ -53,7 +54,7 @@ func bundleBuildCmd() *cobra.Command {
 				return err
 			}
 			if asJSON, _ := cmd.Flags().GetBool("json"); asJSON {
-				return printJSON(cmd, map[string]string{"hash": b.Spec.Hash, "dir": b.Dir})
+				return cliout.JSON(cmd.OutOrStdout(), map[string]string{"hash": b.Spec.Hash, "dir": b.Dir})
 			}
 			fmt.Fprintf(cmd.OutOrStdout(), "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess),
 				i18n.Tf("cmd.bundle.build.done", args[0], shortHash(b.Spec.Hash), b.Dir))
@@ -78,7 +79,7 @@ func bundleShowCmd() *cobra.Command {
 			}
 			r := bundle.Show(b)
 			if asJSON, _ := cmd.Flags().GetBool("json"); asJSON {
-				return printJSON(cmd, r)
+				return cliout.JSON(cmd.OutOrStdout(), r)
 			}
 			budget, _ := cmd.Flags().GetBool("budget")
 			printBundleReport(cmd.OutOrStdout(), args[0], r, budget)

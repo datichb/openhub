@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -11,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
@@ -94,9 +94,7 @@ func printWorkflowShowJSON(w io.Writer, res *workflowsvc.Resolution) error {
 	if out.Diagnostics == nil {
 		out.Diagnostics = workflow.Diagnostics{}
 	}
-	enc := json.NewEncoder(w)
-	enc.SetIndent("", "  ")
-	return enc.Encode(out)
+	return cliout.JSON(w, out)
 }
 
 func printWorkflowShow(w io.Writer, res *workflowsvc.Resolution, withOrigin bool) {

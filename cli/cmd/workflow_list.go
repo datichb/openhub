@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"strings"
@@ -9,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/glyph"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
@@ -50,9 +50,7 @@ func workflowListCmd() *cobra.Command {
 func printWorkflowList(w io.Writer, ws *workflowsvc.Workspace, asJSON bool) error {
 	if asJSON {
 		list := append(append([]workflowsvc.Summary{}, ws.Workflows...), ws.Drafts...)
-		enc := json.NewEncoder(w)
-		enc.SetIndent("", "  ")
-		return enc.Encode(list)
+		return cliout.JSON(w, list)
 	}
 	if len(ws.Workflows) == 0 && len(ws.Drafts) == 0 {
 		fmt.Fprintln(w, i18n.T("cmd.workflow.list.empty"))

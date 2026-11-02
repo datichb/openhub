@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -15,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
@@ -733,7 +733,7 @@ func mcpListCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			servers := mcpServerList()
 			if jsonOut, _ := cmd.Flags().GetBool("json"); jsonOut {
-				return json.NewEncoder(cmd.OutOrStdout()).Encode(servers)
+				return cliout.JSONCompact(cmd.OutOrStdout(), servers)
 			}
 			w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
 			fmt.Fprintln(w, i18n.T("cmd.mcp.list.header"))

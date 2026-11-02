@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -16,6 +15,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/bricks"
 	"github.com/datichb/openhub/cli/internal/bundle"
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
@@ -205,7 +205,7 @@ func configModelShowCmd() *cobra.Command {
 				for _, l := range levels {
 					out[l.ID] = l.JSON()
 				}
-				return json.NewEncoder(a.IO.Out).Encode(out)
+				return cliout.JSONCompact(a.IO.Out, out)
 			}
 			printModelCascade(a.IO.Out, levels)
 			return nil

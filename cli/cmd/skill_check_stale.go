@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"sort"
@@ -9,6 +8,7 @@ import (
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/bundle"
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
@@ -40,9 +40,7 @@ func runSkillStale(out io.Writer, hubDir string, today time.Time, opts staleOpti
 		return err
 	}
 	if asJSON {
-		enc := json.NewEncoder(out)
-		enc.SetIndent("", "  ")
-		if err := enc.Encode(rep); err != nil {
+		if err := cliout.JSON(out, rep); err != nil {
 			return err
 		}
 	} else {

@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -10,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
@@ -79,9 +79,7 @@ func runWorkflowDiff(cmd *cobra.Command, args []string) error {
 		if preview != nil {
 			res["impact"], res["next_version"], res["diagnostics"] = preview.Impact, preview.NextVersion, preview.Diagnostics
 		}
-		enc := json.NewEncoder(out)
-		enc.SetIndent("", "  ")
-		return enc.Encode(res)
+		return cliout.JSON(out, res)
 	}
 	printDiff(out, yamlDiff)
 	if promptDiff != "" {

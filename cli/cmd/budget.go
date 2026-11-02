@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -14,6 +13,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/daemon/api"
 	"github.com/datichb/openhub/cli/internal/daemon/client"
@@ -136,9 +136,7 @@ func runBudgetShow(cmd *cobra.Command, _ []string) error {
 		rep.MemoryMB = h.MemoryMB
 	}
 	if asJSON, _ := cmd.Flags().GetBool("json"); asJSON {
-		enc := json.NewEncoder(cmd.OutOrStdout())
-		enc.SetIndent("", "  ")
-		return enc.Encode(rep)
+		return cliout.JSON(cmd.OutOrStdout(), rep)
 	}
 	out := cmd.OutOrStdout()
 	if r.IsZero() {

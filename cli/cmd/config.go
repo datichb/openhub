@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -12,6 +11,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tracker"
@@ -445,7 +445,7 @@ func configListCmd() *cobra.Command {
 			if all, _ := cmd.Flags().GetBool("all"); all {
 				rows := configListAll(cfg)
 				if jsonOut {
-					return json.NewEncoder(os.Stdout).Encode(rows)
+					return cliout.JSONCompact(os.Stdout, rows)
 				}
 				w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 				fmt.Fprintln(w, i18n.T("cmd.config.list.header_all"))
@@ -464,7 +464,7 @@ func configListCmd() *cobra.Command {
 			if onlyKeys, _ := cmd.Flags().GetBool("keys"); onlyKeys {
 				keys := append(configFieldKeys(), configKeyPatterns...)
 				if jsonOut {
-					return json.NewEncoder(os.Stdout).Encode(keys)
+					return cliout.JSONCompact(os.Stdout, keys)
 				}
 				for _, k := range keys {
 					fmt.Fprintln(os.Stdout, k)
@@ -479,7 +479,7 @@ func configListCmd() *cobra.Command {
 			sort.Strings(keys)
 
 			if jsonOut {
-				return json.NewEncoder(os.Stdout).Encode(m)
+				return cliout.JSONCompact(os.Stdout, m)
 			}
 
 			if len(keys) == 0 {

@@ -16,6 +16,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/daemon"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/filelock"
@@ -138,7 +139,7 @@ func runFanoutStatus(cmd *cobra.Command, args []string) error {
 		return errors.New(i18n.Tf("cmd.fanout.none", sess.ID))
 	}
 	if asJSON, _ := cmd.Flags().GetBool("json"); asJSON {
-		return printJSON(cmd, f)
+		return cliout.JSON(cmd.OutOrStdout(), f)
 	}
 	printFanout(cmd.OutOrStdout(), sess.ID, f)
 	return nil
@@ -171,7 +172,7 @@ func runFanoutClean(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	if asJSON, _ := f.GetBool("json"); asJSON {
-		return printJSON(cmd, res)
+		return cliout.JSON(cmd.OutOrStdout(), res)
 	}
 	w := cmd.OutOrStdout()
 	key := "cmd.fanout.clean.done"

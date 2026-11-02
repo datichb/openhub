@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/adapters"
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
@@ -92,7 +93,7 @@ var sessionInboxCmd = &cobra.Command{
 			for _, it := range items {
 				out = append(out, toDecisionJSON(it.Decision))
 			}
-			return printJSON(cmd, out)
+			return cliout.JSON(cmd.OutOrStdout(), out)
 		}
 		if len(items) == 0 {
 			fmt.Fprintln(cmd.OutOrStdout(), i18n.T("cmd.session.inbox_empty"))
@@ -435,7 +436,7 @@ var sessionResultsCmd = &cobra.Command{
 		}
 		out := cmd.OutOrStdout()
 		if asJSON, _ := cmd.Flags().GetBool("json"); asJSON {
-			return printJSON(cmd, map[string]any{"results": r.Summary, "live": r.Live})
+			return cliout.JSON(cmd.OutOrStdout(), map[string]any{"results": r.Summary, "live": r.Live})
 		}
 		if mr, _ := cmd.Flags().GetBool("mr"); mr {
 			fmt.Fprint(out, sessionsvc.MRDescription(r))
