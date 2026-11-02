@@ -177,5 +177,14 @@ func (v *SettingsView) execSettingsFields() []configField {
 				return strconv.Itoa(ex().ProxyFirstByteTimeoutMinutes)
 			},
 			Set: func(val string) { ex().ProxyFirstByteTimeoutMinutes, _ = strconv.Atoi(val) }},
+		{Key: "exec_container_memory", Kind: CfgFieldString, Label: i18n.T("tui.settings.exec.memory.label"),
+			Description: i18n.T("tui.settings.exec.memory.desc"), Placeholder: "4g",
+			Validator: &FieldValidator{Check: func(val string) error { _, err := config.ParseContainerMemory(val); return err }},
+			Get:       func() string { return ex().ContainerMemory },
+			Set: func(val string) {
+				if m, err := config.ParseContainerMemory(val); err == nil { // an invalid size is refused by the validator
+					ex().ContainerMemory = m
+				}
+			}},
 	}
 }

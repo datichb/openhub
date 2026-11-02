@@ -154,7 +154,7 @@ func TestSettingsExecSectionOrder(t *testing.T) {
 			keys = append(keys, f.Key)
 		}
 	}
-	assert.Equal(t, []string{"exec_runtime", "exec_engine", "exec_keep_images", "exec_tool_version", "exec_strict_isolation", "exec_env_allow", "exec_proxy_first_byte"}, keys)
+	assert.Equal(t, []string{"exec_runtime", "exec_engine", "exec_keep_images", "exec_tool_version", "exec_strict_isolation", "exec_env_allow", "exec_proxy_first_byte", "exec_container_memory"}, keys)
 }
 
 func useEnglish(t *testing.T) {

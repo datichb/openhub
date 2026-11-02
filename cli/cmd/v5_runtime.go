@@ -168,7 +168,11 @@ func v5ContainerRuntime(a *app.App) *container.Runtime {
 	if profile == "" {
 		profile = os.Getenv("COLIMA_PROFILE")
 	}
-	return container.New(container.Options{Engine: engine, ColimaProfile: profile, KeepImages: ex.Images(),
+	memory, err := config.ParseContainerMemory(ex.ContainerMemory)
+	if err != nil {
+		memory = ex.ContainerMemory // refused with the reason when a container is prepared
+	}
+	return container.New(container.Options{Engine: engine, ColimaProfile: profile, KeepImages: ex.Images(), Memory: memory,
 		CacheDir: filepath.Join(ohCacheDir(), "container")})
 }
 

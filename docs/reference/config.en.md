@@ -100,6 +100,7 @@ engine = "auto"                    # auto | colima | podman | docker
 keep_images = 2                    # images kept per project and role
 tool_version = ""                  # tool (opencode) version of the images; empty = the machine's
 strict_isolation = false           # also hide the personal opencode config locally
+container_memory = ""              # memory limit of the containers (512m to 1024g); empty = none
 env_allow = []                     # variables of your environment passed to the agents besides the base list: names or PREFIX_*
 proxy_first_byte_timeout_minutes = 5  # wait of the credential proxy for a provider to start answering
 
@@ -150,6 +151,7 @@ Removed in v5 (ignored if still in the file): `[opencode] version`, `channel`, `
 | | `keep_images` | `2` | Images kept per project and role (base, dev) |
 | | `tool_version` | empty | opencode version of the images; when it differs from the machine client, container launches are refused |
 | | `strict_isolation` | `false` | Also hides the personal opencode configuration (`XDG_CONFIG_HOME`) from local servers; `Attest` then refuses any plugin the bundle does not bring, and any plugin the bundle declares that the server does not run (without it: a warning only); also refuses an opencode Linux package (container images) whose version has no integrity pinned in oh (without it: a warning) |
+| | `container_memory` | empty (no limit) | Memory limit of a container (`--memory`, docker and podman): a whole number followed by `m` or `g`, from `512m` to `1024g` (`4g`). Empty = no limit: the VM of the engine bounds the memory, and a container that exceeds a limit is killed with **all the sessions of its group**, so oh sets none by default. Applies to the containers started afterwards. Editable in Settings › Execution (same rule as `oh config set`). |
 | | `env_allow` | `[]` | Variables of your environment that reach the tool server and the shells of the agents of local sessions, **besides a base list**: names (`SSH_AUTH_SOCK`) or `PREFIX_*` patterns (`MYCO_*`). Applies when a server starts (a running group keeps its environment until it sleeps). Containers and remote jobs never inherit your environment. See [The environment of the agents](#the-environment-of-the-agents) Editable in Settings › Execution (same rule as `oh config set`). |
 | | `proxy_first_byte_timeout_minutes` | `5` | How long the credential proxy waits for a model provider to start answering (headers) before it gives up with a 504. A stream that has started has no time limit. Raise it for very slow models or non-streamed requests that generate a lot Editable in Settings › Execution (same rule as `oh config set`). |
 | `[fanout]` | `experimental` | `false` | Enables the fan-out, **experimental** (R6): without it, `oh run implement-spec -i fanout=true` is refused and the daemon delegates no checkpoint of a child ([guide](../guides/fan-out.en.md)) |
