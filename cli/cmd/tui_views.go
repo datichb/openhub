@@ -358,9 +358,16 @@ func buildViews(a *app.App) []views.View {
 						active++
 					}
 				}
+				// The sessions of the other members, read from the claims.
+				var others []views.TeamMemberSession
+				if claims, err := repo.ListClaims(""); err == nil {
+					cfg, _ := repo.LoadConfig()
+					others = views.OtherMemberSessions(claims, members, cfg, tr.MemberID, time.Now())
+				}
 				return views.TeamModeStats{
 					MemberCount: len(members),
 					ActiveCount: active,
+					Others:      others,
 				}
 			},
 			OnSyncTracker: func() {
