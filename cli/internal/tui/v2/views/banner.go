@@ -48,12 +48,13 @@ func asciiName(name string) (string, bool) {
 func renderBanner(name string, maxWidth int, colorHex string) (banner string, lineCount int) {
 	color := theme.ColorTag(colorHex)
 	reset := theme.TagColor
+	plain := func() (string, int) { return fmt.Sprintf("%s[::b]%s[::-]%s", color, name, reset), 1 }
 
 	// The font draws ASCII only (« É » would come out as « ? »): the accents
 	// are dropped, and a name that stays non-ASCII is shown as a plain line.
 	art, ok := asciiName(name)
 	if !ok {
-		return fmt.Sprintf("%s[::b]%s[::-]%s", color, name, reset), 1
+		return plain()
 	}
 	fig := figure.NewFigure(art, bannerFont, false)
 	lines := fig.Slicify()
@@ -62,7 +63,7 @@ func renderBanner(name string, maxWidth int, colorHex string) (banner string, li
 	trimmed := trimEmptyLines(lines)
 
 	if len(trimmed) == 0 {
-		return fmt.Sprintf("%s[::b]%s[::-]%s", color, name, reset), 1
+		return plain()
 	}
 
 	// Check width — find the longest line
@@ -75,7 +76,7 @@ func renderBanner(name string, maxWidth int, colorHex string) (banner string, li
 
 	// Fallback: if too wide, return simple bold text
 	if maxLine > maxWidth {
-		return fmt.Sprintf("%s[::b]%s[::-]%s", color, name, reset), 1
+		return plain()
 	}
 
 	// Color each line with left margin and bold
