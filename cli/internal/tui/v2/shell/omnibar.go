@@ -52,7 +52,16 @@ func NewOmnibar(s *Shell, registry *CommandRegistry) *Omnibar {
 		shell:    s,
 		registry: registry,
 	}
+	o.buildHints()
+	o.buildInput()
+	o.buildSuggestions()
+	o.buildModeBar()
+	o.assemble()
+	return o
+}
 
+// buildHints builds the hints line (passive mode).
+func (o *Omnibar) buildHints() {
 	// Hints view (passive mode)
 	o.hints = tview.NewTextView().
 		SetDynamicColors(true).
@@ -60,6 +69,21 @@ func NewOmnibar(s *Shell, registry *CommandRegistry) *Omnibar {
 	o.hints.SetBackgroundColor(theme.BgElement)
 	o.hints.SetBorderPadding(1, 0, 2, 2)
 
+	// Click-to-activate: a left click on the passive hint bar activates the omnibar.
+	// Return MouseConsumed so tview marks the event as consumed and triggers a
+	// redraw — without this the omnibar switches internally but the screen is
+	// not refreshed, leaving the user with no visual feedback.
+	o.hints.SetMouseCapture(func(action tview.MouseAction, event *tcell.EventMouse) (tview.MouseAction, *tcell.EventMouse) {
+		if action == tview.MouseLeftClick && !o.active {
+			o.Activate()
+			return tview.MouseConsumed, nil
+		}
+		return action, event
+	})
+}
+
+// buildInput builds the input field (active mode).
+func (o *Omnibar) buildInput() {
 	// Input field (active mode)
 	o.input = tview.NewInputField().
 		SetLabel(fmt.Sprintf(" %s%s%s ", theme.ColorTag(theme.ActionHex), theme.IconActive, theme.TagColor)).
@@ -77,7 +101,11 @@ func NewOmnibar(s *Shell, registry *CommandRegistry) *Omnibar {
 
 	// Wire input key handling
 	o.input.SetInputCapture(o.handleInputKey)
+}
 
+// buildSuggestions builds the list of suggestions, shown as an overlay when
+// the omnibar is active.
+func (o *Omnibar) buildSuggestions() {
 	// Suggestions list (displayed as floating overlay when omnibar is active)
 	o.suggestions = tview.NewList().
 		ShowSecondaryText(false).
@@ -94,34 +122,7 @@ func NewOmnibar(s *Shell, registry *CommandRegistry) *Omnibar {
 	// (e.g. after a toast AddPage/RemovePage steals focus from the input
 	// field), ensure Enter/Escape/arrow keys still behave correctly instead
 	// of being silently swallowed by tview's default List handler.
-	o.suggestions.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case tcell.KeyEnter:
-			o.executeCurrent()
-			return nil
-		case tcell.KeyEscape:
-			o.Deactivate()
-			return nil
-		case tcell.KeyDown, tcell.KeyTab:
-			current := o.suggestions.GetCurrentItem()
-			if current < len(o.visible)-1 {
-				o.suggestions.SetCurrentItem(current + 1)
-			}
-			return nil
-		case tcell.KeyUp, tcell.KeyBacktab:
-			current := o.suggestions.GetCurrentItem()
-			if current > 0 {
-				o.suggestions.SetCurrentItem(current - 1)
-			}
-			return nil
-		case tcell.KeyRune:
-			// Forward printable runes back to the input field so the user
-			// can keep typing even if focus drifted to the suggestions list.
-			o.shell.app.SetFocus(o.input)
-			return event
-		}
-		return event
-	})
+	o.suggestions.SetInputCapture(o.suggestionsKey)
 
 	// Click on a suggestion = execute it immediately (standard list UX).
 	//
@@ -132,27 +133,57 @@ func NewOmnibar(s *Shell, registry *CommandRegistry) *Omnibar {
 	// Also guard with InRect: the suggestions-overlay page receives ALL mouse
 	// clicks when visible (Pages dispatches back-to-front without coord check),
 	// so we must ignore clicks outside our bounds.
-	o.suggestions.SetMouseCapture(func(action tview.MouseAction, event *tcell.EventMouse) (tview.MouseAction, *tcell.EventMouse) {
-		if action == tview.MouseLeftClick {
-			x, y := event.Position()
-			sx, sy, sw, sh := o.suggestions.GetRect()
-			if x < sx || x >= sx+sw || y < sy || y >= sy+sh {
-				// Click is outside the suggestions list — do not intercept.
-				return action, event
-			}
-			// Execute directly on the event loop (no QueueUpdateDraw).
-			o.executeCurrent()
-			return tview.MouseConsumed, nil
+	o.suggestions.SetMouseCapture(o.suggestionsMouse)
+}
+
+// suggestionsKey is the key handler of the suggestions list.
+func (o *Omnibar) suggestionsKey(event *tcell.EventKey) *tcell.EventKey {
+	switch event.Key() {
+	case tcell.KeyEnter:
+		o.executeCurrent()
+		return nil
+	case tcell.KeyEscape:
+		o.Deactivate()
+		return nil
+	case tcell.KeyDown, tcell.KeyTab:
+		current := o.suggestions.GetCurrentItem()
+		if current < len(o.visible)-1 {
+			o.suggestions.SetCurrentItem(current + 1)
 		}
-		return action, event
-	})
+		return nil
+	case tcell.KeyUp, tcell.KeyBacktab:
+		current := o.suggestions.GetCurrentItem()
+		if current > 0 {
+			o.suggestions.SetCurrentItem(current - 1)
+		}
+		return nil
+	case tcell.KeyRune:
+		// Forward printable runes back to the input field so the user
+		// can keep typing even if focus drifted to the suggestions list.
+		o.shell.app.SetFocus(o.input)
+		return event
+	}
+	return event
+}
 
-	// Container: pages switching between hints and input.
-	o.container = tview.NewPages()
-	o.container.SetBackgroundColor(theme.BgElement)
-	o.container.AddPage("hints", o.hints, true, true)
-	o.container.AddPage("input", o.input, true, false)
+// suggestionsMouse executes the suggestion that is clicked.
+func (o *Omnibar) suggestionsMouse(action tview.MouseAction, event *tcell.EventMouse) (tview.MouseAction, *tcell.EventMouse) {
+	if action == tview.MouseLeftClick {
+		x, y := event.Position()
+		sx, sy, sw, sh := o.suggestions.GetRect()
+		if x < sx || x >= sx+sw || y < sy || y >= sy+sh {
+			// Click is outside the suggestions list — do not intercept.
+			return action, event
+		}
+		// Execute directly on the event loop (no QueueUpdateDraw).
+		o.executeCurrent()
+		return tview.MouseConsumed, nil
+	}
+	return action, event
+}
 
+// buildModeBar builds the mode bar and the separator above it.
+func (o *Omnibar) buildModeBar() {
 	// Mode bar: single-line bar below the omnibar showing mode + context info.
 	o.modeBar = tview.NewTextView().
 		SetDynamicColors(true).
@@ -172,6 +203,15 @@ func NewOmnibar(s *Shell, registry *CommandRegistry) *Omnibar {
 		}
 		return x, y, width, height
 	})
+}
+
+// assemble stacks the hints/input, the separator and the mode bar.
+func (o *Omnibar) assemble() {
+	// Container: pages switching between hints and input.
+	o.container = tview.NewPages()
+	o.container.SetBackgroundColor(theme.BgElement)
+	o.container.AddPage("hints", o.hints, true, true)
+	o.container.AddPage("input", o.input, true, false)
 
 	// Right pane: vertical stack of container + separator + mode bar.
 	rightPane := tview.NewFlex().SetDirection(tview.FlexRow)
@@ -186,20 +226,6 @@ func NewOmnibar(s *Shell, registry *CommandRegistry) *Omnibar {
 	o.wrapper.SetBorderPadding(1, 1, 2, 2)
 	o.wrapper.AddItem(rightPane, 0, 1, true)
 	o.rightPane = rightPane
-
-	// Click-to-activate: a left click on the passive hint bar activates the omnibar.
-	// Return MouseConsumed so tview marks the event as consumed and triggers a
-	// redraw — without this the omnibar switches internally but the screen is
-	// not refreshed, leaving the user with no visual feedback.
-	o.hints.SetMouseCapture(func(action tview.MouseAction, event *tcell.EventMouse) (tview.MouseAction, *tcell.EventMouse) {
-		if action == tview.MouseLeftClick && !o.active {
-			o.Activate()
-			return tview.MouseConsumed, nil
-		}
-		return action, event
-	})
-
-	return o
 }
 
 // Omnibar heights (rows): full = wrapper padding (2) + hints/input (3) +
@@ -329,30 +355,6 @@ func (o *Omnibar) Activate() {
 	})
 	o.container.SwitchToPage("input")
 	o.updateSuggestions("")
-	o.shell.showSuggestionsInLayout()
-	o.shell.app.SetFocus(o.input)
-}
-
-// ActivateWithRune activates and pre-fills with the given character.
-func (o *Omnibar) ActivateWithRune(r rune) {
-	if o.active {
-		return
-	}
-	// Block activation when the current view captures all input (e.g. inline wizard).
-	if o.shell.capturesKeys() {
-		return
-	}
-	o.focusBack = o.shell.focusReturn()
-	o.active = true
-	// Suppress ChangedFunc during SetText to avoid a redundant
-	// updateSuggestions call — we call it explicitly right after.
-	o.input.SetChangedFunc(nil)
-	o.input.SetText(string(r))
-	o.input.SetChangedFunc(func(text string) {
-		o.updateSuggestions(text)
-	})
-	o.container.SwitchToPage("input")
-	o.updateSuggestions(string(r))
 	o.shell.showSuggestionsInLayout()
 	o.shell.app.SetFocus(o.input)
 }

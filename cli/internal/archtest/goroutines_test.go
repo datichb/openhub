@@ -26,12 +26,17 @@ import (
 // app.QueueUpdateDraw(...) })`, spinners, watchers), the web server, the
 // heartbeat of an attach and the fan-out driver of an evaluation. A timer
 // is safego.AfterFunc.
+//
+// internal/tui/v2/shell joins in v5.1 (A10): the click handlers of the
+// lists, the copy toast of the selection, the dismissal timer of the toasts
+// and the rotation of the notifications file ran in bare goroutines.
 var guardedDirs = []string{
 	"internal/daemon/",
 	"internal/credproxy/",
 	"internal/runsvc/",
 	"internal/gateway/",
 	"cmd/",
+	"internal/tui/v2/shell/",
 }
 
 // unguardedFiles are the files of a guarded directory that still hold a bare

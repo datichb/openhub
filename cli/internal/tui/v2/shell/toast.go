@@ -141,7 +141,7 @@ func (s *Shell) showToast(msg string, level ToastLevel, duration time.Duration) 
 		s.restoreFocusAfterToast(prev)
 
 		// Auto-dismiss after duration
-		time.AfterFunc(duration, func() {
+		safego.AfterFunc(duration, func() {
 			s.app.QueueUpdateDraw(func() {
 				s.dismissToast(pageName)
 			})
@@ -227,5 +227,19 @@ func toastStyle(level ToastLevel) (string, tcell.Color) {
 		return theme.IconArrow, theme.Accent
 	default:
 		return theme.IconDot, theme.Accent
+	}
+}
+
+// ShowToast displays a temporary notification message with level-appropriate duration.
+func (s *Shell) ShowToast(msg string, level ToastLevel) {
+	s.showToast(msg, level, ToastDurationForLevel(level))
+}
+
+// ShowToastMsg displays a toast with auto-level (success=true → green, false → red).
+func (s *Shell) ShowToastMsg(msg string, success bool) {
+	if success {
+		s.showToast(msg, ToastSuccess, ToastDurationForLevel(ToastSuccess))
+	} else {
+		s.showToast(msg, ToastError, ToastDurationForLevel(ToastError))
 	}
 }
