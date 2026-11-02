@@ -24,6 +24,30 @@ type SyncState struct {
 	// if a ticket is in KnownTickets but absent from ListClaims, it was
 	// accidentally deleted or corrupted and needs recovery.
 	KnownTickets map[string][]KnownTicket `json:"known_tickets,omitempty"`
+	// AutoPlanHeld maps hubProjectID to the issues assigned to members that the
+	// auto-plan left off the board at its last run because a member had
+	// reached max_auto_plan_per_member. The next run offers them again; the
+	// board reads the count to say so.
+	AutoPlanHeld map[string]HeldSet `json:"autoplan_held,omitempty"`
+	// AutoPlanScanned maps "trackerType/projectID" to the time of the first
+	// complete scan of the assigned issues of the project. Before it, the
+	// auto-plan does not filter on the update time: an issue assigned long ago
+	// and not touched since was never seen by the runs that did.
+	AutoPlanScanned map[string]time.Time `json:"autoplan_scanned,omitempty"`
+}
+
+// HeldSet is what the auto-plan held back for one hub project.
+type HeldSet struct {
+	// Limit is max_auto_plan_per_member of the run.
+	Limit  int         `json:"limit"`
+	Issues []HeldIssue `json:"issues"`
+}
+
+// HeldIssue is an assigned issue the auto-plan left off the board.
+type HeldIssue struct {
+	TicketID    string `json:"ticket_id"`
+	ExternalIID int    `json:"external_iid"`
+	MemberID    string `json:"member_id"`
 }
 
 // KnownTicket records the essential identifiers of a claimed ticket for orphan detection.
@@ -59,6 +83,12 @@ func LoadSyncState(stateDir string) (*SyncState, error) {
 	}
 	if s.KnownTickets == nil {
 		s.KnownTickets = make(map[string][]KnownTicket)
+	}
+	if s.AutoPlanHeld == nil {
+		s.AutoPlanHeld = make(map[string]HeldSet)
+	}
+	if s.AutoPlanScanned == nil {
+		s.AutoPlanScanned = make(map[string]time.Time)
 	}
 	return &s, nil
 }
@@ -117,4 +147,49 @@ func (s *SyncState) ForgetKnownTicket(hubProjectID, ticketID string) {
 	if len(kept) != len(known) {
 		s.KnownTickets[hubProjectID] = kept
 	}
+}
+
+// SetAutoPlanHeld records the issues the auto-plan left off the board for a
+// hub project (none: the entry is removed).
+func (s *SyncState) SetAutoPlanHeld(hubProjectID string, limit int, issues []HeldIssue) {
+	if len(issues) == 0 {
+		delete(s.AutoPlanHeld, hubProjectID)
+		return
+	}
+	if s.AutoPlanHeld == nil {
+		s.AutoPlanHeld = make(map[string]HeldSet)
+	}
+	s.AutoPlanHeld[hubProjectID] = HeldSet{Limit: limit, Issues: issues}
+}
+
+// AutoPlanScan reports whether the assigned issues of (type, projectID) were
+// scanned in full; MarkAutoPlanScanned records it.
+func (s *SyncState) AutoPlanScan(t Type, projectID string) bool {
+	return !s.AutoPlanScanned[syncStateKey(t, projectID)].IsZero()
+}
+
+// MarkAutoPlanScanned records the first complete scan of (type, projectID).
+func (s *SyncState) MarkAutoPlanScanned(t Type, projectID string, at time.Time) {
+	if s.AutoPlanScanned == nil {
+		s.AutoPlanScanned = make(map[string]time.Time)
+	}
+	if k := syncStateKey(t, projectID); s.AutoPlanScanned[k].IsZero() {
+		s.AutoPlanScanned[k] = at
+	}
+}
+
+// AutoPlanHeldFor sums what the auto-plan held back for the given hub
+// projects, with the largest limit among them (0 when nothing is held). The
+// board reads it from the sync state of the machine.
+func AutoPlanHeldFor(stateDir string, hubProjectIDs []string) (held, limit int) {
+	state, err := LoadSyncState(stateDir)
+	if err != nil {
+		return 0, 0
+	}
+	for _, id := range hubProjectIDs {
+		set := state.AutoPlanHeld[id]
+		held += len(set.Issues)
+		limit = max(limit, set.Limit)
+	}
+	return held, limit
 }

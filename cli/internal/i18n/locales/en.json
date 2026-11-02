@@ -6275,5 +6275,7 @@
   "fmt.bytes.gib": "%.1f GiB",
   "fmt.on": "enabled",
   "fmt.off": "disabled",
-  "tracker.sync.expired_released": "expired claim of %s released (team setting release_expired_on_sync)"
+  "tracker.sync.expired_released": "expired claim of %s released (team setting release_expired_on_sync)",
+  "tracker.sync.autoplan_held": "%d issue(s) outside the board, limit reached (max_auto_plan_per_member = %d): %s. Issues already in progress come first; raise the limit with oh team config or in team-detail.",
+  "tracker.sync.held_notice": "%d issue(s) outside the board, limit reached (max_auto_plan_per_member = %d)"
 }

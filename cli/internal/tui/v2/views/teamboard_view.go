@@ -64,6 +64,10 @@ type TeamBoardViewConfig struct {
 	// QuickActions provides callbacks for launching agent sessions from the board.
 	// If nil, the 'a' key quick-action feature is disabled.
 	QuickActions *BoardQuickActions
+	// Notice returns a line to show above the columns (the auto-plan limit
+	// left issues off the board). It is called on the event loop: it returns
+	// what the caller computed in RefreshFunc. May be nil.
+	Notice func() string
 }
 
 // BoardActions provides callbacks for ticket actions on the board.
@@ -606,11 +610,18 @@ func (v *TeamBoardView) buildProjectTabs(tickets []TeamTicket) {
 
 // renderTabBar renders the project tabs in the tab bar widget.
 func (v *TeamBoardView) renderTabBar() {
-	if v.tabBar == nil || len(v.projectTabs) <= 2 {
-		// Hide tab bar when only 1 project (or none) — no need to filter
-		if v.tabBar != nil {
-			v.tabBar.SetText("")
+	if v.tabBar == nil {
+		return
+	}
+	notice := ""
+	if v.cfg.Notice != nil {
+		if n := v.cfg.Notice(); n != "" {
+			notice = " " + theme.ColorTag(theme.WarningHex) + theme.IconWarning + " " + tview.Escape(n) + theme.TagColor
 		}
+	}
+	if len(v.projectTabs) <= 2 {
+		// Hide the tabs when only 1 project (or none) — no need to filter
+		v.tabBar.SetText(notice)
 		return
 	}
 
@@ -630,6 +641,7 @@ func (v *TeamBoardView) renderTabBar() {
 		}
 		sb.WriteString("  ")
 	}
+	sb.WriteString(notice)
 	v.tabBar.SetText(sb.String())
 }
 
