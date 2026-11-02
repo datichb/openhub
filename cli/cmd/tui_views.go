@@ -3,24 +3,15 @@ package cmd
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 	"os/exec"
-	"strconv"
 	"strings"
-	"time"
 
 	"github.com/datichb/openhub/cli/internal/app"
-	"github.com/datichb/openhub/cli/internal/beads"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/mcpresolve"
-	"github.com/datichb/openhub/cli/internal/provider"
-	"github.com/datichb/openhub/cli/internal/safego"
-	"github.com/datichb/openhub/cli/internal/storage/keychain"
 	"github.com/datichb/openhub/cli/internal/teamstate"
-	"github.com/datichb/openhub/cli/internal/tracker"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
@@ -94,289 +85,23 @@ func loadProjectItems(store domain.ProjectStore) []views.ProjectItem {
 	return items
 }
 
-// buildViews constructs all registered views for the shell.
+// buildViews constructs all registered views for the shell, in the order the
+// shell registers them: the home, the boards, the modes, the lists of the hub,
+// then the team pages and the configuration views.
 func buildViews(a *app.App) []views.View {
-	projectItems := loadProjectItems(a.Projects)
 	tuiSess = newTUISessions(a)
 	sessionsSection := tuiSess.sectionConfig()
 	tuiStartWiring = newTUIStart(a)
 	startSection := tuiStartWiring.sectionConfig()
 
-	projectsView := views.NewProjectsView(views.ProjectsViewConfig{
-		Projects:         projectItems,
-		KnownMCPServices: []string{"figma", "gitlab", "gslides"},
-		RefreshFunc: func() []views.ProjectItem {
-			return loadProjectItems(a.Projects)
-		},
-	})
-	if a.Projects != nil {
-		projectsView.SetOnAdd(func(name, path string) {
-			p := &domain.Project{
-				ID:     generateProjectID(name),
-				Name:   name,
-				Path:   path,
-				Status: domain.ProjectStatusActive,
-			}
-			if tuiShell != nil && tuiShell.Mode() == views.ModeTeam && tuiShell.ActiveTeam() != nil {
-				teamID := tuiShell.ActiveTeam().ID
-				p.TeamID = &teamID
-			}
-			if _, _, err := upsertProject(context.Background(), a.Projects, p); err != nil {
-				slog.Warn("failed to create/update project", "error", err)
-				if tuiShell != nil {
-					tuiShell.ShowToastMsg(i18n.Tf("tui.projects.save_failed", err.Error()), false)
-				}
-			} else {
-				offerBeadsClean(a, p.Path)
-			}
-		})
-		projectsView.SetOnRemove(func(id string) {
-			if err := a.Projects.Delete(context.Background(), id); err != nil {
-				slog.Warn("failed to remove project", "error", err)
-				if tuiShell != nil {
-					tuiShell.ShowToastMsg(i18n.Tf("tui.projects.delete_failed", err.Error()), false)
-				}
-			}
-		})
-		projectsView.SetOnConfigure(func(id string, cfg views.ProjectConfigUpdate) {
-			ctx := context.Background()
-			project, err := a.Projects.Get(ctx, id)
-			if err != nil {
-				slog.Warn("failed to get project for configure", "id", id, "error", err)
-				return
-			}
-			project.Language = cfg.Language
-			project.Provider = cfg.Provider
-			project.Model = cfg.Model
-			project.UpdatedAt = time.Now()
-
-			// Persist per-project MCP overrides
-			if len(cfg.MCPOverrides) > 0 {
-				services := make([]domain.ProjectMCPService, 0, len(cfg.MCPOverrides))
-				for svcName, state := range cfg.MCPOverrides {
-					svc := domain.ProjectMCPService{Name: svcName}
-					switch state {
-					case "enabled":
-						t := true
-						svc.Enabled = &t
-					case "disabled":
-						f := false
-						svc.Enabled = &f
-						// "inherit" → nil (omit, let hub config win)
-					}
-					services = append(services, svc)
-				}
-				project.MCPConfig = &domain.ProjectMCPConfig{Services: services}
-			} else {
-				project.MCPConfig = nil
-			}
-
-			if err := a.Projects.Update(ctx, project); err != nil {
-				slog.Warn("failed to update project config", "id", id, "error", err)
-				if tuiShell != nil {
-					tuiShell.ShowToastMsg(i18n.Tf("tui.projects.config_save_failed", err.Error()), false)
-				}
-			}
-		})
-		projectsView.SetOnRename(func(id, newName string) {
-			ctx := context.Background()
-			project, err := a.Projects.Get(ctx, id)
-			if err != nil {
-				slog.Warn("failed to get project for rename", "id", id, "error", err)
-				return
-			}
-			project.Name = newName
-			project.UpdatedAt = time.Now()
-			if err := a.Projects.Update(ctx, project); err != nil {
-				slog.Warn("failed to rename project", "id", id, "error", err)
-				if tuiShell != nil {
-					tuiShell.ShowToastMsg(i18n.Tf("tui.projects.rename_failed", err.Error()), false)
-				}
-			}
-		})
-		projectsView.SetOnMove(func(id, newPath string) {
-			ctx := context.Background()
-			project, err := a.Projects.Get(ctx, id)
-			if err != nil {
-				slog.Warn("failed to get project for move", "id", id, "error", err)
-				return
-			}
-			project.Path = newPath
-			project.UpdatedAt = time.Now()
-			if err := a.Projects.Update(ctx, project); err != nil {
-				slog.Warn("failed to move project", "id", id, "error", err)
-				if tuiShell != nil {
-					tuiShell.ShowToastMsg(i18n.Tf("tui.projects.move_failed", err.Error()), false)
-				}
-			}
-		})
-		// Enter project mode from the projects list view
-		projectsView.SetOnEnterProject(func(p *views.ActiveProject) {
-			if tuiShell != nil {
-				tuiShell.SetProjectMode(p)
-			}
-		})
-		projectsView.SetOnInitBeads(func(id, name, path string) {
-			initBeadsForProject(a, id, name, path)
-		})
-	}
-
-	// ── Project mode view ────────────────────────────────────────────────────
-	projectModeView := views.NewProjectModeView(views.ProjectModeConfig{
-		Sessions: sessionsSection,
-		Start:    startSection,
-		OnNavigate: func(viewID string) {
-			if tuiShell != nil {
-				tuiShell.NavigateTo(viewID)
-			}
-		},
-		OnExitProjectMode: func() {
-			if tuiShell != nil {
-				tuiShell.SetProjectMode(nil)
-			}
-		},
-		ToolLine: tuiToolLine,
-		Runtimes: tuiProjectRuntimes(a),
-	})
+	projectsView := buildProjectsView(a)
+	projectModeView := buildProjectModeView(a, sessionsSection, startSection)
 
 	allViews := []views.View{
-		views.NewHomeView(views.HomeViewConfig{
-			Sessions: sessionsSection,
-			HasProject: func() bool {
-				projects, _ := a.Projects.List(context.Background(), domain.ProjectStatusActive)
-				return len(projects) > 0
-			},
-			ListTeams: func() []views.TeamEntry {
-				teams := a.Config.Teams
-				entries := make([]views.TeamEntry, 0, len(teams))
-				for _, t := range teams {
-					if !t.Enabled || t.StateRepo == "" {
-						continue
-					}
-					entry := views.TeamEntry{ID: t.ID, Name: t.DisplayName()}
-					repo := teamstate.NewRepo(t.StateRepo, t.StatePath)
-					if repo.IsCloned() {
-						members, _ := repo.ListMembers()
-						entry.MemberCount = len(members)
-						tickets := views.FetchTeamTickets(repo, nil)
-						for _, tk := range tickets {
-							if tk.Status == "in_progress" || tk.Status == "review" || tk.Status == "validation" {
-								entry.ActiveCount++
-							}
-						}
-					}
-					entries = append(entries, entry)
-				}
-				return entries
-			},
-			ListProjects: func() []views.ProjectEntry {
-				projects, _ := a.Projects.List(context.Background(), domain.ProjectStatusActive)
-				entries := make([]views.ProjectEntry, 0, len(projects))
-				for _, p := range projects {
-					entry := views.ProjectEntry{ID: p.ID, Name: p.Name, Path: p.Path}
-					entries = append(entries, entry)
-				}
-				return entries
-			},
-			OnSelectTeam: func(teamID, teamName string) {
-				if tuiShell != nil {
-					tuiShell.SetActiveTeam(&views.ActiveTeam{ID: teamID, Name: teamName})
-					tuiShell.SetMode(views.ModeTeam)
-				}
-			},
-			OnSelectProject: func(projectID, projectName, projectPath string) {
-				if tuiShell != nil {
-					branch := resolveGitBranch(projectPath)
-					tuiShell.SetActiveProject(&views.ActiveProject{ID: projectID, Name: projectName, Path: projectPath, Branch: branch})
-					tuiShell.SetMode(views.ModeProject)
-				}
-			},
-			OnAddProject: func() {
-				actionProjectAdd()
-			},
-			Start:    startSection,
-			ToolLine: tuiToolLine,
-		}),
-		views.NewBoardView(views.BoardViewConfig{
-			Tickets: fetchBoardTicketsForPath(resolveActiveProjectPath(a)),
-			RefreshFunc: func() []views.BoardTicket {
-				return fetchBoardTicketsForPath(resolveActiveProjectPath(a))
-			},
-			RefreshRate: 5 * time.Second,
-			ProjectPath: func() string {
-				return resolveActiveProjectPath(a)
-			},
-			CheckInitialized: func() bool {
-				path := resolveActiveProjectPath(a)
-				if path == "" {
-					return true
-				}
-				if err := beads.Available(); err != nil {
-					return true
-				}
-				return beads.IsInitialized(path)
-			},
-			OnInitBeads: func() { initBeadsForActiveProject(a) },
-			OnLinkTracker: func(ticketID, externalRef string) error {
-				path := resolveActiveProjectPath(a)
-				if path == "" {
-					return errors.New(i18n.T("tui.views.no_active_project"))
-				}
-				return beads.LinkToTracker(path, ticketID, externalRef)
-			},
-			QuickActions: buildBoardQuickActions(a),
-		}),
+		buildHomeView(a, sessionsSection, startSection),
+		buildBoardView(a),
 		views.NewTeamBoardView(buildTeamBoardViewConfig(a)),
-		views.NewTeamModeView(views.TeamModeConfig{
-			Sessions: sessionsSection,
-			OnNavigate: func(viewID string) {
-				if tuiShell != nil {
-					tuiShell.NavigateTo(viewID)
-				}
-			},
-			Start: startSection,
-			OnExitTeamMode: func() {
-				if tuiShell != nil {
-					tuiShell.SetMode(views.ModeHub)
-				}
-			},
-			TeamStats: func() views.TeamModeStats {
-				resolveTeam := makeResolveTeamFunc(a)
-				tr := resolveTeam()
-				if !tr.Enabled {
-					return views.TeamModeStats{}
-				}
-				repo := teamstate.NewRepo(tr.StateRepo, tr.StatePath)
-				if !repo.IsCloned() {
-					return views.TeamModeStats{}
-				}
-				members, _ := repo.ListMembers()
-				tickets := views.FetchTeamTickets(repo, nil)
-				active := 0
-				for _, t := range tickets {
-					if t.Status == "in_progress" || t.Status == "review" || t.Status == "validation" {
-						active++
-					}
-				}
-				// The sessions of the other members, read from the claims.
-				var others []views.TeamMemberSession
-				if claims, err := repo.ListClaims(""); err == nil {
-					cfg, _ := repo.LoadConfig()
-					others = views.OtherMemberSessions(claims, members, cfg, tr.MemberID, time.Now())
-				}
-				return views.TeamModeStats{
-					MemberCount: len(members),
-					ActiveCount: active,
-					Others:      others,
-				}
-			},
-			OnSyncTracker: func() {
-				actionSyncTracker()
-			},
-			OnBoardConfig: func() {
-				actionBoardColumnConfig()
-			},
-		}),
+		buildTeamModeView(a, sessionsSection, startSection),
 		tuiSess.view,
 		newWorkflowCatalogView(tuiStartWiring),
 		projectsView,
@@ -393,414 +118,39 @@ func buildViews(a *app.App) []views.View {
 			TeamProjects: func(teamID string) []views.ActiveProject { return teamProjects(a, teamID) },
 		}),
 		views.NewDoctorView(a),
-		views.NewTeamsView(views.TeamsViewDeps{
-			Config: a.Config,
-			OnSync: func(teamID string) {
-				tc := a.Config.FindTeam(teamID)
-				if tc == nil || !tc.Enabled {
-					return
-				}
-				repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
-				if tuiShell != nil {
-					tuiShell.ShowToast(i18n.Tf("tui.views.sync_in_progress", tc.DisplayName()), shell.ToastInfo)
-				}
-				safego.Go(func() {
-					ctx := tuiShell.Context()
-					err := repo.Pull(ctx)
-					if err == nil || teamstate.IsPullWarning(err) {
-						views.AfterTeamSync(ctx, repo.Path())
-					}
-					select {
-					case <-ctx.Done():
-						return
-					default:
-					}
-					tuiShell.App().QueueUpdateDraw(func() {
-						if err != nil && !teamstate.IsPullWarning(err) {
-							tuiShell.ShowToast(i18n.T("tui.views.sync_failed")+err.Error(), shell.ToastError)
-						} else {
-							tuiShell.ShowToast(i18n.Tf("tui.views.sync_done", tc.DisplayName()), shell.ToastSuccess)
-						}
-					})
-				})
-			},
-			OnUpdate: func(fn func(*config.Config) error) error { return updateHubConfig(a, fn) },
-			OnNavigate: func(viewID string) {
-				if tuiShell != nil {
-					tuiShell.NavigateTo(viewID)
-				}
-			},
-		}),
+		buildTeamsView(a),
 		newModelsView(a),
-		views.NewProviderView(a, views.ProviderViewConfig{
-			GetConfig:    func() *config.Config { return a.Config },
-			UpdateConfig: func(fn func(*config.Config) error) error { return updateHubConfig(a, fn) },
-			CheckSecret: func(ctx context.Context, key string) (bool, string) {
-				if a.Secrets == nil {
-					return false, ""
-				}
-				val, err := a.Secrets.Get(ctx, key)
-				if err != nil || val == "" {
-					return false, ""
-				}
-				masked := "****"
-				if len(val) > 4 {
-					masked = "****" + val[len(val)-4:]
-				}
-				return true, masked
-			},
-			SetSecret: func(ctx context.Context, key, value string) error {
-				if a.Secrets == nil {
-					return errors.New(i18n.T("tui.views.keychain_unavailable"))
-				}
-				return a.Secrets.Set(ctx, key, value)
-			},
-			DeleteSecret: func(ctx context.Context, key string) error {
-				if a.Secrets == nil {
-					return errors.New(i18n.T("tui.views.keychain_unavailable"))
-				}
-				return a.Secrets.Delete(ctx, key)
-			},
-		}),
-		views.NewMCPView(a, views.MCPViewConfig{
-			GetConfig:    func() *config.Config { return a.Config },
-			EnforcedURLs: func() func() map[string]*views.MCPEnforcedURL { return tuiEnforcedURLs(a) },
-			HostInfo:     tuiHostInfo,
-			UpdateConfig: func(fn func(*config.Config) error) error { return updateHubConfig(a, fn) },
-		}),
+		buildProviderView(a),
+		buildMCPView(a),
 		views.NewHelpView(),
 		views.NewNotificationsView(views.NotificationsViewConfig{
 			FilePath:  shell.NotificationsFilePath(),
 			ReadLastN: shell.ReadLastN,
 		}),
 	}
+	return append(allViews, buildTeamAndConfigViews(a)...)
+}
 
-	// Inject team resolution into project mode view (must be after projectModeView is created).
-	projectModeView.SetResolveTeam(makeResolveTeamFunc(a))
-
-	// Team views — always registered; views handle "not configured" gracefully.
-	takeoverView := views.NewTakeoverView(makeResolveTeamFunc(a))
-	takeoverView.SetOnEnrich(func(project, ticketID string) error {
-		return runTakeoverEnrich(a, project, ticketID)
-	})
-	allViews = append(allViews,
+// buildTeamAndConfigViews are the team pages (always registered, they handle
+// « not configured » themselves) and the views of the configuration of the
+// hub, the team and the project.
+func buildTeamAndConfigViews(a *app.App) []views.View {
+	return []views.View{
 		views.NewPatternsView(makeResolveTeamFunc(a)),
 		views.NewPoliciesView(makeResolveTeamFunc(a), a),
 		views.NewWikiView(makeResolveTeamFunc(a)),
-		takeoverView,
-		views.NewTeamDetailView(views.TeamDetailViewConfig{
-			GetMCPConfig: func() config.MCPConfig {
-				return a.Config.MCP
-			},
-			GetTrackerLocalConfig: func() config.TrackerLocalConfig {
-				return a.Config.Tracker
-			},
-			ResolveTeam:      makeResolveTeamFunc(a),
-			PromoteSolo:      tuiPromoteSolo,
-			SaveTeamConfig:   func() views.TeamConfigWriter { return teamConfigWriter(a) },
-			SaveLocalMCP:     func(key, value string) error { return nil },
-			SaveLocalTracker: func(key, value string) error { return nil },
-			GetSecrets: func() tracker.SecretGetter {
-				return a.Secrets
-			},
-			GetHubConfig: func() *config.Config {
-				return a.Config
-			},
-			UpdateHubConfig: func(fn func(*config.Config) error) error { return updateHubConfigOffLoop(a, fn) },
-			ListProjects: func(ctx context.Context) []views.ProjectInfo {
-				projects, err := a.Projects.List(ctx, "")
-				if err != nil {
-					return nil
-				}
-				result := make([]views.ProjectInfo, len(projects))
-				for i, p := range projects {
-					result[i] = views.ProjectInfo{ID: p.ID, Name: p.Name}
-				}
-				return result
-			},
-			SyncTracker: func(ctx context.Context) (*views.SyncTrackerResult, error) {
-				return runSyncTrackerForTUI(a, ctx)
-			},
-			CheckSecret: func(ctx context.Context, key string) (bool, string) {
-				if a.Secrets == nil {
-					return false, ""
-				}
-				val, err := a.Secrets.Get(ctx, key)
-				if err != nil || val == "" {
-					return false, ""
-				}
-				masked := "****"
-				if len(val) > 4 {
-					masked = "****" + val[len(val)-4:]
-				}
-				return true, masked
-			},
-			TeamProviderKey: func(prov string) string {
-				teamID := ""
-				if tuiShell != nil && tuiShell.ActiveTeam() != nil {
-					teamID = tuiShell.ActiveTeam().ID
-				} else if p, err := resolveActiveProject(a); err == nil {
-					if tc := resolvedTeamConfig(a, p); tc.Enabled {
-						teamID = tc.TeamID
-					}
-				}
-				return provider.TeamKeychainKey(provider.Name(prov), teamID)
-			},
-			SetSecret: func(ctx context.Context, key, value string) error {
-				if a.Secrets == nil {
-					return errors.New(i18n.T("tui.views.keychain_unavailable"))
-				}
-				return a.Secrets.Set(ctx, key, value)
-			},
-			OnDiscoverTracker: actionTrackerDiscovery,
-			GetMember: func(teamID string) *teamstate.Member {
-				m, err := teamService(a).Profile(teamID)
-				if err != nil {
-					return nil
-				}
-				return m
-			},
-			SaveMemberField: func(ctx context.Context, teamID, field, value string) error {
-				_, err := teamService(a).UpdateProfile(ctx, teamID, profilePatchForField(field, value))
-				if err != nil {
-					return profileError(err)
-				}
-				return nil
-			},
-		}),
-		// Team sub-pages
-		views.NewTeamMCPView(views.TeamMCPViewConfig{
-			ResolveTeam:     makeResolveTeamFunc(a),
-			GetMCPConfig:    func() config.MCPConfig { return a.Config.MCP },
-			SaveTeamConfig:  func() views.TeamConfigWriter { return teamConfigWriter(a) },
-			UpdateHubConfig: func(fn func(*config.Config) error) error { return updateHubConfigOffLoop(a, fn) },
-			CheckSecret: func(ctx context.Context, key string) (bool, string) {
-				if a.Secrets == nil {
-					return false, ""
-				}
-				val, err := a.Secrets.Get(ctx, key)
-				if err != nil || val == "" {
-					return false, ""
-				}
-				masked := "****"
-				if len(val) > 4 {
-					masked = "****" + val[len(val)-4:]
-				}
-				return true, masked
-			},
-			SetSecret: func(ctx context.Context, key, value string) error {
-				if a.Secrets == nil {
-					return errors.New(i18n.T("tui.views.keychain_unavailable"))
-				}
-				return a.Secrets.Set(ctx, key, value)
-			},
-			TestMCP: func(service string) func(context.Context) (string, error) { return prepareMCPTest(a, service) },
-		}),
-		views.NewTeamModelsView(views.TeamModelsViewConfig{
-			ResolveTeam:    makeResolveTeamFunc(a),
-			SaveTeamConfig: func() views.TeamConfigWriter { return teamConfigWriter(a) },
-		}),
-		// Hub config view
-		views.NewSettingsView(views.SettingsViewConfig{
-			ToolVersion: v5ToolVersion,
-			TrackerType: teamTrackerType,
-			GetConfig: func() *config.Config {
-				// Return the live config directly — no copy.
-				// The SettingsView uses undo (reload from disk) instead of
-				// working on a detached copy that could go stale.
-				return a.Config
-			},
-			// Read hub.toml again without touching a.Config: the view copies it
-			// in on the event loop, which owns a.Config.
-			ReadConfig: config.Read,
-			ReloadConfig: func() *config.Config {
-				// Reload from disk after an external modification.
-				_ = refreshSharedConfig(a)
-				return a.Config
-			},
-			UpdateConfig: func(fn func(*config.Config) error) error { return updateHubConfigOffLoop(a, fn) },
-			CheckSecret: func(ctx context.Context, key string) (bool, string) {
-				if a.Secrets == nil {
-					return false, ""
-				}
-				val, err := a.Secrets.Get(ctx, key)
-				if err != nil || val == "" {
-					return false, ""
-				}
-				masked := "****"
-				if len(val) > 4 {
-					masked = "****" + val[len(val)-4:]
-				}
-				return true, masked
-			},
-			SetSecret: func(ctx context.Context, key, value string) error {
-				if a.Secrets == nil {
-					return errors.New(i18n.T("tui.views.keychain_unavailable"))
-				}
-				return a.Secrets.Set(ctx, key, value)
-			},
-		}),
-		// Project config view
-		views.NewProjectConfigView(views.ProjectConfigViewConfig{
-			GetProject: func() *domain.Project {
-				p, _ := resolveActiveProject(a)
-				if p == nil {
-					return nil
-				}
-				cp := *p // copy
-				return &cp
-			},
-			SaveProject: func(ctx context.Context, p *domain.Project) error {
-				return a.Projects.Update(ctx, p)
-			},
-			ExecHints:   projectExecHints,
-			WorkflowIDs: tuiWorkflowIDs,
-		}),
-		// Project sub-pages
-		views.NewProjectMCPView(views.ProjectMCPViewConfig{
-			GetProject: func() *domain.Project {
-				p, _ := resolveActiveProject(a)
-				if p == nil {
-					return nil
-				}
-				cp := *p
-				return &cp
-			},
-			SaveProject: func(ctx context.Context, p *domain.Project) error {
-				return a.Projects.Update(ctx, p)
-			},
-			ResolveMCPSource: func(service, field string) (effective string, source string, locked bool) {
-				project, _ := resolveActiveProject(a)
-				tc := resolvedTeamConfig(a, project)
-
-				// Load team shared MCP config
-				var shared *teamstate.SharedMCPConfig
-				var teamID string
-				if tc.Enabled && tc.StatePath != "" {
-					teamID = tc.TeamID
-					repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
-					if repo.IsCloned() {
-						teamCfg, _ := repo.LoadConfig()
-						if teamCfg != nil {
-							if s, ok := teamCfg.MCP[service]; ok {
-								shared = &s
-							}
-						}
-					}
-				}
-
-				// Hub MCP config for this service
-				hub := hubMCPServerConfig(a.Config, service)
-
-				// Project MCP service
-				var projectSvc *domain.ProjectMCPService
-				if project != nil && project.MCPConfig != nil {
-					for i, svc := range project.MCPConfig.Services {
-						if svc.Name == service {
-							projectSvc = &project.MCPConfig.Services[i]
-							break
-						}
-					}
-				}
-
-				eff := mcpresolve.ResolveFull(shared, hub, projectSvc, teamID)
-
-				switch field {
-				case "enabled":
-					src := ""
-					if eff.EnabledEnforced {
-						src = fmt.Sprintf("[%s: enforced]", teamID)
-					}
-					return strconv.FormatBool(eff.Enabled), src, eff.EnabledEnforced
-				case "url":
-					src := ""
-					switch {
-					case eff.URLEnforced:
-						src = fmt.Sprintf("[%s: enforced]", teamID)
-					case eff.EnforcedURLPending != "":
-						src = i18n.Tf("tui.config.url_pending", teamID, service)
-					}
-					return eff.URL, src, eff.URLEnforced
-				default:
-					return "", "", false
-				}
-			},
-		}),
+		buildTakeoverView(a),
+		buildTeamDetailView(a),
+		buildTeamMCPView(a),
+		buildTeamModelsView(a),
+		buildSettingsView(a),
+		buildProjectConfigView(a),
+		buildProjectMCPView(a),
 		newBricksView(a),
 		newProjectWikiView(a),
-		views.NewProjectModelsView(views.ProjectModelsViewConfig{
-			GetProject: func() *domain.Project {
-				p, _ := resolveActiveProject(a)
-				if p == nil {
-					return nil
-				}
-				cp := *p
-				return &cp
-			},
-			SaveProject: func(ctx context.Context, p *domain.Project) error {
-				return a.Projects.Update(ctx, p)
-			},
-		}),
-		// Secrets view
-		views.NewSecretsView(views.SecretsViewConfig{
-			GetStore: func() *keychain.Store {
-				if a.Secrets == nil {
-					return nil
-				}
-				if ks, ok := a.Secrets.(*keychain.Store); ok {
-					return ks
-				}
-				return nil
-			},
-			GetExpectedKeys: func() []views.ExpectedSecret {
-				var expected []views.ExpectedSecret
-				// Global keys from hub.toml MCP config.
-				if a.Config.MCP.Gitlab.Token != "" {
-					expected = append(expected, views.ExpectedSecret{
-						Key: a.Config.MCP.Gitlab.Token, Source: "mcp.gitlab", Scope: "global"})
-				}
-				if a.Config.MCP.Jira.Token != "" {
-					expected = append(expected, views.ExpectedSecret{
-						Key: a.Config.MCP.Jira.Token, Source: "mcp.jira", Scope: "global"})
-				}
-				if a.Config.MCP.Figma.Token != "" {
-					expected = append(expected, views.ExpectedSecret{
-						Key: a.Config.MCP.Figma.Token, Source: "mcp.figma", Scope: "global"})
-				}
-				if a.Config.MCP.Gslides.Token != "" {
-					expected = append(expected, views.ExpectedSecret{
-						Key: a.Config.MCP.Gslides.Token, Source: "mcp.gslides", Scope: "global"})
-				}
-				// Project-level keys.
-				if p, _ := resolveActiveProject(a); p != nil && p.MCPConfig != nil {
-					for _, svc := range p.MCPConfig.Services {
-						if svc.TokenKey != "" {
-							expected = append(expected, views.ExpectedSecret{
-								Key:    svc.TokenKey,
-								Source: fmt.Sprintf("projet %s → mcp.%s", p.Name, svc.Name),
-								Scope:  p.ID,
-							})
-						}
-					}
-				}
-				return expected
-			},
-			GetActiveProjectID: func() string {
-				if p, _ := resolveActiveProject(a); p != nil {
-					return p.ID
-				}
-				return ""
-			},
-			GetActiveProjectName: func() string {
-				if p, _ := resolveActiveProject(a); p != nil {
-					return p.Name
-				}
-				return ""
-			},
-		}),
-	)
-
-	return allViews
+		buildProjectModelsView(a),
+		buildSecretsView(a),
+	}
 }
 
 // hubMCPServerConfig maps a service name to the corresponding hub MCPServerConfig.
@@ -863,4 +213,53 @@ func teamTrackerType(team config.TeamConfig) string {
 		return ""
 	}
 	return cfg.Tracker.Type
+}
+
+// secretChecker tells whether a secret is stored, and shows its last four
+// characters; the views that edit a token share it.
+func secretChecker(a *app.App) func(ctx context.Context, key string) (bool, string) {
+	return func(ctx context.Context, key string) (bool, string) {
+		if a.Secrets == nil {
+			return false, ""
+		}
+		val, err := a.Secrets.Get(ctx, key)
+		if err != nil || val == "" {
+			return false, ""
+		}
+		masked := "****"
+		if len(val) > 4 {
+			masked = "****" + val[len(val)-4:]
+		}
+		return true, masked
+	}
+}
+
+// secretSetter stores a secret in the keychain of the app.
+func secretSetter(a *app.App) func(ctx context.Context, key, value string) error {
+	return func(ctx context.Context, key, value string) error {
+		if a.Secrets == nil {
+			return errors.New(i18n.T("tui.views.keychain_unavailable"))
+		}
+		return a.Secrets.Set(ctx, key, value)
+	}
+}
+
+// activeProjectCopy gives a copy of the active project (nil without one), so
+// that a view edits it without touching the store.
+func activeProjectCopy(a *app.App) func() *domain.Project {
+	return func() *domain.Project {
+		p, _ := resolveActiveProject(a)
+		if p == nil {
+			return nil
+		}
+		cp := *p
+		return &cp
+	}
+}
+
+// saveProject writes a project to the store.
+func saveProject(a *app.App) func(ctx context.Context, p *domain.Project) error {
+	return func(ctx context.Context, p *domain.Project) error {
+		return a.Projects.Update(ctx, p)
+	}
 }

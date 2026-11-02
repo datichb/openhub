@@ -28,81 +28,123 @@ func actionTeamRejoin() {
 	if tuiShell == nil {
 		return
 	}
+	tuiShell.PushView(views.NewInlineWizardView(buildRejoinWizard(tuiShell.Context(), MustApp())))
+}
 
-	a := MustApp()
-	ctx := tuiShell.Context()
+// rejoinWizard is the state the steps of the rejoin share.
+type rejoinWizard struct {
+	ctx context.Context
+	a   *app.App
 
-	// ── Shared state (captured by step closures) ────────────────────
-	var (
-		stateRepo        string
-		gitlabURL        string // GitLab of the repository when its remote is an SSH alias
-		statePath        string
-		members          []teamstate.Member
-		memberID         string
-		gitlabToken      string
-		tokenChoice      string // "reuse", "new", or "skip"
-		tokenChoiceIdx   int    // current dropdown index (0 = placeholder)
-		steps            []views.WizardStep
-		identityMismatch *identityMismatchError
-		mismatchPAT      string
-		mismatchChoice   string
-		rejoinCredState  = &httpsCredState{Username: "oauth2", AuthChoice: "provide"}
-		trackerWanted    bool   // the tracker is on another server than the team repository
-		trackerName      string // typed in the tracker name step
-	)
+	stateRepo        string
+	gitlabURL        string // GitLab of the repository when its remote is an SSH alias
+	statePath        string
+	members          []teamstate.Member
+	memberID         string
+	gitlabToken      string
+	tokenChoice      string // "reuse", "new", or "skip"
+	tokenChoiceIdx   int    // current dropdown index (0 = placeholder)
+	identityMismatch *identityMismatchError
+	mismatchPAT      string
+	mismatchChoice   string
+	cred             *httpsCredState
+	trackerWanted    bool   // the tracker is on another server than the team repository
+	trackerName      string // typed in the tracker name step
 
-	// ── Step 0: Repository URL ──────────────────────────────────────
-	repoStep := views.WizardStep{
+	launchDiscovery bool   // « configure now » was chosen for the tracker
+	trackerChoice   string // "keep", "reconfigure", "later" or ""
+}
+
+// buildRejoinWizard is the wizard of the rejoin: its steps and what it does
+// when it ends.
+func buildRejoinWizard(ctx context.Context, a *app.App) views.InlineWizardConfig {
+	w := &rejoinWizard{ctx: ctx, a: a, cred: &httpsCredState{Username: "oauth2", AuthChoice: "provide"}}
+	return views.InlineWizardConfig{
+		ID:    "wizard.team.rejoin",
+		Title: i18n.T("tui.team.rejoin"),
+		Steps: []views.WizardStep{
+			w.repoStep(),
+			buildHTTPSCredStep(ctx, &w.stateRepo, w.cred, nil, a.Secrets),
+			w.memberStep(),
+			w.trackerNameStep(),
+			w.gitlabTokenStep(),
+			w.validateStep(),
+			w.identityMismatchStep(),
+			w.trackerSetupStep(),
+			w.trackerTokenStep(),
+		},
+		OnComplete: w.onComplete,
+	}
+}
+
+// onComplete launches the tracker discovery when « configure now » was chosen.
+func (w *rejoinWizard) onComplete(completed bool, err error) {
+	if completed && err == nil && w.launchDiscovery {
+		safego.Go(func() {
+			time.Sleep(200 * time.Millisecond)
+			if tuiShell != nil {
+				tuiShell.App().QueueUpdateDraw(func() {
+					actionTrackerDiscovery()
+				})
+			}
+		})
+	}
+}
+
+// repoStep asks for the repository of the team-state (and the GitLab of an
+// SSH alias), then clones it and lists its members.
+func (w *rejoinWizard) repoStep() views.WizardStep {
+	ctx := w.ctx
+	return views.WizardStep{
 		Label:    i18n.T("cmd.team.init.step_repo"),
 		Required: true,
 		Validate: func() string {
-			if strings.TrimSpace(stateRepo) == "" {
+			if strings.TrimSpace(w.stateRepo) == "" {
 				return i18n.T("cmd.team.init.validate.repo_required")
 			}
-			return teamGitLabURLProblem(gitlabURL)
+			return teamGitLabURLProblem(w.gitlabURL)
 		},
 		Form: func(_ *tview.Application, onDone func()) *tview.Form {
 			form := tview.NewForm()
 			form.AddInputField(
 				i18n.T("cmd.team.init.repo_url_title"),
-				stateRepo, 0, nil,
-				func(text string) { stateRepo = text })
+				w.stateRepo, 0, nil,
+				func(text string) { w.stateRepo = text })
 			form.AddInputField(
 				i18n.T("cmd.init.wizard_team_gitlab_url"),
-				gitlabURL, 0, nil,
-				func(text string) { gitlabURL = strings.TrimSpace(text) })
+				w.gitlabURL, 0, nil,
+				func(text string) { w.gitlabURL = strings.TrimSpace(text) })
 			form.AddTextView("", i18n.T("cmd.init.wizard_team_gitlab_hint_short"), 60, 2, true, false)
 			form.AddButton(i18n.T("tui.team.rejoin.next"), func() { onDone() })
 			return form
 		},
 		OnDone: func() error {
-			statePath = config.TeamStatePath(stateRepo)
+			w.statePath = config.TeamStatePath(w.stateRepo)
 			var (
 				handle *teamstate.Repo
 				err    error
 			)
-			handle, members, _, err = listTeamMembers(ctx, stateRepo, statePath)
+			handle, w.members, _, err = listTeamMembers(ctx, w.stateRepo, w.statePath)
 			if err != nil {
 				return err
 			}
-			trackerWanted = trackerUsernameWanted(handle, stateRepo, gitlabURL)
-			if len(members) == 0 {
+			w.trackerWanted = trackerUsernameWanted(handle, w.stateRepo, w.gitlabURL)
+			if len(w.members) == 0 {
 				return errors.New(i18n.T("tui.team.rejoin.no_members"))
 			}
-			rejoinCredState.Probe(ctx, stateRepo)
+			w.cred.Probe(ctx, w.stateRepo)
 			return nil
 		},
 		Processing: i18n.T("cmd.team.init.processing_repo"),
 		InfoFields: func() []views.InfoField {
-			return []views.InfoField{{Label: "Repo", Value: stateRepo}}
+			return []views.InfoField{{Label: "Repo", Value: w.stateRepo}}
 		},
 	}
+}
 
-	// ── Step 0b: HTTPS Credentials (conditional) ────────────────────
-	httpsCredStep := buildHTTPSCredStep(ctx, &stateRepo, rejoinCredState, nil, a.Secrets)
-
-	// ── Step 1: Member selection ────────────────────────────────────
-	memberStep := views.WizardStep{
+// memberStep picks the member to reconnect as.
+func (w *rejoinWizard) memberStep() views.WizardStep {
+	return views.WizardStep{
 		Label:    i18n.T("cmd.team.rejoin.select_member"),
 		Required: true,
 		CustomView: func(tvApp *tview.Application, container *tview.Flex, onDone func()) {
@@ -114,7 +156,7 @@ func actionTeamRejoin() {
 				MainText: i18n.T("tui.team.rejoin.members_header"),
 				IsHeader: true,
 			})
-			for _, m := range members {
+			for _, m := range w.members {
 				label := fmt.Sprintf("%s (%s)", m.DisplayName, m.ID)
 				secondary := ""
 				if m.GitLabUsername != "" {
@@ -136,7 +178,7 @@ func actionTeamRejoin() {
 
 			list.SetItemSelectedFunc(func(_ int, item widgets.SectionItem) {
 				if id, ok := item.Reference.(string); ok {
-					memberID = id
+					w.memberID = id
 				}
 				onDone()
 			})
@@ -145,116 +187,82 @@ func actionTeamRejoin() {
 			tvApp.SetFocus(list)
 		},
 		InfoFields: func() []views.InfoField {
-			if memberID == "" {
+			if w.memberID == "" {
 				return nil
 			}
-			for _, m := range members {
-				if m.ID == memberID {
+			for _, m := range w.members {
+				if m.ID == w.memberID {
 					return []views.InfoField{
 						{Label: i18n.T("tui.team.rejoin.member_label"), Value: fmt.Sprintf("%s (%s)", m.DisplayName, m.ID)},
 					}
 				}
 			}
-			return []views.InfoField{{Label: i18n.T("tui.team.rejoin.member_label"), Value: memberID}}
+			return []views.InfoField{{Label: i18n.T("tui.team.rejoin.member_label"), Value: w.memberID}}
 		},
 	}
+}
 
-	// ── Step 1a: name of the member on the tracker (conditional) ───
-	// Asked when the tracker is on another server than the team repository
-	// and the profile has none: without it no issue of the tracker is
-	// attributed to the member.
-	trackerNameStep := views.WizardStep{
+// trackerNameStep asks the name of the member on the tracker. It is asked
+// when the tracker is on another server than the team repository and the
+// profile has none: without it no issue of the tracker is attributed to the
+// member.
+func (w *rejoinWizard) trackerNameStep() views.WizardStep {
+	return views.WizardStep{
 		ID:    "rejoin_tracker_username",
 		Label: i18n.T("tui.team.rejoin.tracker_step"),
 		SkipIf: func() bool {
-			return !trackerWanted || memberTrackerUsername(members, memberID) != ""
+			return !w.trackerWanted || memberTrackerUsername(w.members, w.memberID) != ""
 		},
 		Form: func(_ *tview.Application, onDone func()) *tview.Form {
 			form := tview.NewForm()
 			form.AddTextView("", i18n.T("cmd.team.rejoin.tracker_hint"), 60, 3, true, false)
-			form.AddInputField(i18n.T("tui.team.rejoin.tracker_label"), trackerName, 0, nil,
-				func(text string) { trackerName = strings.TrimSpace(text) })
+			form.AddInputField(i18n.T("tui.team.rejoin.tracker_label"), w.trackerName, 0, nil,
+				func(text string) { w.trackerName = strings.TrimSpace(text) })
 			form.AddButton(i18n.T("wizard.hint.submit"), func() { onDone() })
 			return form
 		},
 		InfoFields: func() []views.InfoField {
-			return []views.InfoField{{Label: i18n.T("tui.team.rejoin.tracker_step"), Value: firstNonEmpty(trackerName, i18n.T("tui.team.rejoin.tracker_none"))}}
+			return []views.InfoField{{Label: i18n.T("tui.team.rejoin.tracker_step"), Value: firstNonEmpty(w.trackerName, i18n.T("tui.team.rejoin.tracker_none"))}}
 		},
 	}
+}
 
-	// ── Step 1b: GitLab token for SSH repos (conditional) ──────────
-	// When HTTPS, the token is already stored by httpsCredStep.
-	gitlabTokenStep := views.WizardStep{
+// skipTrackerName tells whether the tracker name step is left out.
+func (w *rejoinWizard) skipTrackerName() bool {
+	return !w.trackerWanted || memberTrackerUsername(w.members, w.memberID) != ""
+}
+
+// gitlabTokenStep asks what to do with the GitLab token of an SSH repository
+// (with HTTPS the credentials step already stored it).
+func (w *rejoinWizard) gitlabTokenStep() views.WizardStep {
+	return views.WizardStep{
 		ID:    "rejoin_gitlab_token",
 		Label: i18n.T("cmd.init.wizard_step_rejoin_gitlab_token"),
 		SkipIf: func() bool {
 			glUser := ""
-			for _, m := range members {
-				if m.ID == memberID {
+			for _, m := range w.members {
+				if m.ID == w.memberID {
 					glUser = m.GitLabUsername
 					break
 				}
 			}
 			// the HTTPS step stores the token, unless it was skipped
-			return glUser == "" || (teamstate.IsHTTPS(stateRepo) && !rejoinCredState.Open)
+			return glUser == "" || (teamstate.IsHTTPS(w.stateRepo) && !w.cred.Open)
 		},
 		Validate: func() string {
-			if tokenChoiceIdx == 0 {
+			if w.tokenChoiceIdx == 0 {
 				return i18n.T("cmd.init.wizard_rejoin_token_choice_required")
 			}
-			if tokenChoice == "new" && strings.TrimSpace(gitlabToken) == "" {
+			if w.tokenChoice == "new" && strings.TrimSpace(w.gitlabToken) == "" {
 				return i18n.T("cmd.init.wizard_rejoin_token_new_required")
 			}
 			return ""
 		},
-		Form: func(_ *tview.Application, onDone func()) *tview.Form {
-			teamID := config.RepoNameFromRemote(stateRepo)
-			source := gitlabTokenSourceAt(ctx, a, teamID, stateRepo, gitlabURL)
-
-			options := []string{i18n.T("cmd.init.wizard_select_placeholder")}
-			optionKeys := []string{"placeholder"}
-			if source != "" {
-				options = append(options, i18n.Tf("cmd.init.wizard_rejoin_token_reuse", source))
-				optionKeys = append(optionKeys, "reuse")
-			}
-			options = append(options, i18n.T("cmd.init.wizard_rejoin_token_new"))
-			optionKeys = append(optionKeys, "new")
-			options = append(options, i18n.T("cmd.init.wizard_rejoin_token_skip"))
-			optionKeys = append(optionKeys, "skip")
-
-			form := tview.NewForm()
-			form.AddDropDown(
-				i18n.T("cmd.init.wizard_rejoin_token_choice"),
-				options, tokenChoiceIdx,
-				func(_ string, idx int) {
-					if tokenChoiceIdx == idx {
-						return
-					}
-					if idx >= 0 && idx < len(optionKeys) {
-						tokenChoice = optionKeys[idx]
-					}
-					tokenChoiceIdx = idx
-				},
-			)
-			form.AddTextView("", i18n.T("cmd.init.wizard_rejoin_token_new_hint"), 60, 2, true, false)
-			form.AddPasswordField(
-				i18n.T("cmd.init.wizard_rejoin_gitlab_token_label"),
-				gitlabToken, 0, '*',
-				func(t string) { gitlabToken = t },
-			)
-			form.AddButton(i18n.T("wizard.hint.submit"), func() { onDone() })
-			return form
-		},
-		OnDone: func() error {
-			if tokenChoice == "new" && gitlabToken != "" && a.Secrets != nil {
-				teamID := config.RepoNameFromRemote(stateRepo)
-				return a.Secrets.Set(ctx, config.TeamGitLabTokenKey(teamID), gitlabToken)
-			}
-			return nil
-		},
+		Form:   w.tokenForm,
+		OnDone: w.storeToken,
 		InfoFields: func() []views.InfoField {
 			var status string
-			switch tokenChoice {
+			switch w.tokenChoice {
 			case "reuse":
 				status = i18n.T("cmd.init.wizard_rejoin_token_reuse_short")
 			case "new":
@@ -267,20 +275,23 @@ func actionTeamRejoin() {
 			}
 		},
 	}
+}
 
-	// ── Step 2: GitLab identity validation + config write ───────────
-	validateStep := views.WizardStep{
+// validateStep rejoins the team as the member and checks the GitLab identity.
+func (w *rejoinWizard) validateStep() views.WizardStep {
+	a, ctx := w.a, w.ctx
+	return views.WizardStep{
 		Label:      i18n.T("cmd.team.rejoin.validating"),
 		Processing: i18n.T("cmd.team.rejoin.validating"),
 		OnDone: func() error {
 			params := teamRejoinParams{
-				StateRepo: stateRepo,
-				StatePath: statePath,
-				MemberID:  memberID,
-				GitLabURL: gitlabURL,
+				StateRepo: w.stateRepo,
+				StatePath: w.statePath,
+				MemberID:  w.memberID,
+				GitLabURL: w.gitlabURL,
 			}
-			if !trackerNameStep.SkipIf() && trackerName != "" {
-				params.TrackerUsername = &trackerName
+			if !w.skipTrackerName() && w.trackerName != "" {
+				params.TrackerUsername = &w.trackerName
 			}
 			result, err := teamRejoinCore(ctx, a, params)
 			if err != nil {
@@ -293,12 +304,12 @@ func actionTeamRejoin() {
 			}
 
 			// Store identity mismatch for the next conditional step.
-			identityMismatch = result.IdentityMismatch
+			w.identityMismatch = result.IdentityMismatch
 
 			// Retro-tag sessions in background
 			safego.Go(func() {
 				bgCtx := context.Background()
-				count, err := retroTagSessions(bgCtx, memberID)
+				count, err := retroTagSessions(bgCtx, w.memberID)
 				if err == nil && count > 0 && tuiShell != nil {
 					tuiShell.App().QueueUpdateDraw(func() {
 						tuiShell.ShowToast(
@@ -327,234 +338,270 @@ func actionTeamRejoin() {
 			}
 		},
 	}
+}
 
-	// ── Step 2b: Identity mismatch recovery (conditional) ──────────
-	identityMismatchStep := views.WizardStep{
+// identityMismatchStep recovers from an identity that is not the one of the member.
+func (w *rejoinWizard) identityMismatchStep() views.WizardStep {
+	return views.WizardStep{
 		ID:    "rejoin_identity_mismatch",
 		Label: i18n.T("cmd.init.wizard_step_identity_mismatch"),
 		SkipIf: func() bool {
-			return identityMismatch == nil
+			return w.identityMismatch == nil
 		},
 		Validate: func() string {
-			if mismatchChoice == "" {
+			if w.mismatchChoice == "" {
 				return i18n.T("cmd.init.wizard_rejoin_token_choice_required")
 			}
-			if mismatchChoice == "verify" && strings.TrimSpace(mismatchPAT) == "" {
+			if w.mismatchChoice == "verify" && strings.TrimSpace(w.mismatchPAT) == "" {
 				return i18n.T("cmd.init.wizard_rejoin_token_new_required")
 			}
 			return ""
 		},
-		Form: func(_ *tview.Application, onDone func()) *tview.Form {
-			form := tview.NewForm()
-
-			var msg string
-			if identityMismatch.IsBot {
-				msg = i18n.Tf("cmd.init.wizard_identity_bot_detected", identityMismatch.AuthenticatedAs)
-			} else {
-				msg = i18n.Tf("cmd.init.wizard_identity_user_mismatch",
-					identityMismatch.AuthenticatedAs,
-					identityMismatch.MemberID,
-					identityMismatch.ExpectedUser,
-				)
-			}
-			form.AddTextView("", msg, 60, 3, true, false)
-
-			options := []string{
-				i18n.T("cmd.init.wizard_select_placeholder"),
-				i18n.T("cmd.init.wizard_identity_verify"),
-				i18n.T("cmd.init.wizard_identity_skip"),
-			}
-			form.AddDropDown(
-				i18n.T("cmd.init.wizard_step_identity_mismatch"),
-				options, 0,
-				func(_ string, idx int) {
-					switch idx {
-					case 1:
-						mismatchChoice = "verify"
-					case 2:
-						mismatchChoice = "skip"
-					default:
-						mismatchChoice = ""
-					}
-				},
-			)
-
-			form.AddTextView("", i18n.T("cmd.init.wizard_identity_pat_hint"), 60, 2, true, false)
-			form.AddPasswordField(
-				i18n.T("cmd.init.wizard_rejoin_gitlab_token_label"),
-				mismatchPAT, 0, '*',
-				func(t string) { mismatchPAT = t },
-			)
-
-			form.AddButton(i18n.T("wizard.hint.submit"), func() { onDone() })
-			return form
-		},
-		OnDone: func() error {
-			if mismatchChoice == "skip" {
-				identityMismatch = nil
-				return nil
-			}
-			// "verify" — store the PAT and re-validate
-			if mismatchPAT != "" && a.Secrets != nil {
-				teamID := config.RepoNameFromRemote(stateRepo)
-				if err := a.Secrets.Set(ctx, config.TeamGitLabTokenKey(teamID), mismatchPAT); err != nil {
-					return fmt.Errorf(i18n.T("cmd.tui_team_rejoin.storing_token"), err)
-				}
-			}
-			sp := statePath
-			if sp == "" {
-				sp = config.TeamStatePath(stateRepo)
-			}
-			repo := teamstate.NewRepo(stateRepo, sp)
-			member, err := repo.GetMember(memberID)
-			if err != nil {
-				return fmt.Errorf(i18n.T("cmd.tui_team_rejoin.member_lookup"), err)
-			}
-			if err := validateGitLabIdentity(ctx, a, repo, member); err != nil {
-				return fmt.Errorf(i18n.T("cmd.tui_team_rejoin.identity_verification"), err)
-			}
-			identityMismatch = nil
-			return nil
-		},
+		Form:   w.mismatchForm,
+		OnDone: w.recoverIdentity,
 		InfoFields: func() []views.InfoField {
-			if mismatchChoice == "skip" {
+			if w.mismatchChoice == "skip" {
 				return []views.InfoField{{Label: i18n.T("tui.team.wizard.identity"), Value: i18n.T("cmd.init.wizard_identity_skip")}}
 			}
 			return []views.InfoField{{Label: i18n.T("tui.team.wizard.identity"), Value: i18n.T("tui.team.wizard.identity_verified")}}
 		},
 	}
+}
 
-	// ── Step 3: Tracker setup (conditional) ─────────────────────────
-	var launchDiscoveryAfterRejoin bool
-	var tuiTrackerChoice string
-	trackerStepRejoin := views.WizardStep{
+// trackerSetupStep offers to keep, reconfigure or leave the tracker of the team.
+func (w *rejoinWizard) trackerSetupStep() views.WizardStep {
+	return views.WizardStep{
 		ID:    "rejoin_tracker_setup",
 		Label: i18n.T("cmd.init.wizard_step_tracker_setup"),
 		SkipIf: func() bool {
-			return stateRepo == ""
+			return w.stateRepo == ""
 		},
-		Form: func(_ *tview.Application, onDone func()) *tview.Form {
-			form := tview.NewForm()
-
-			sp := statePath
-			if sp == "" {
-				sp = config.TeamStatePath(stateRepo)
-			}
-			repo := teamstate.NewRepo(stateRepo, sp)
-			trackerConfigured := false
-			if teamCfg, err := repo.LoadConfig(); err == nil && teamCfg.Tracker.Type != "" {
-				trackerConfigured = true
-				hint := i18n.T("cmd.init.wizard_tracker_configured") + "\n" +
-					i18n.Tf("cmd.init.wizard_tracker_info",
-						teamCfg.Tracker.Type,
-						teamCfg.Tracker.TrackerURL,
-						teamCfg.Tracker.TrackerProject,
-					)
-				form.AddTextView("", hint, 60, 3, true, false)
-			} else {
-				form.AddTextView("", i18n.T("cmd.init.wizard_tracker_not_configured"), 60, 2, true, false)
-			}
-
-			options := []string{i18n.T("cmd.init.wizard_select_placeholder")}
-			if trackerConfigured {
-				options = append(options,
-					i18n.T("cmd.init.wizard_tracker_keep_existing"),
-					i18n.T("cmd.init.wizard_tracker_configure_now"),
-					i18n.T("cmd.init.wizard_tracker_configure_later"),
-				)
-				form.AddDropDown(i18n.T("cmd.init.wizard_step_tracker_setup"), options, 0, func(_ string, idx int) {
-					switch idx {
-					case 1:
-						tuiTrackerChoice = "keep"
-						launchDiscoveryAfterRejoin = false
-					case 2:
-						tuiTrackerChoice = "reconfigure"
-						launchDiscoveryAfterRejoin = true
-					case 3:
-						tuiTrackerChoice = "later"
-						launchDiscoveryAfterRejoin = false
-					default:
-						tuiTrackerChoice = ""
-						launchDiscoveryAfterRejoin = false
-					}
-				})
-			} else {
-				options = append(options,
-					i18n.T("cmd.init.wizard_tracker_configure_now"),
-					i18n.T("cmd.init.wizard_tracker_configure_later"),
-				)
-				form.AddDropDown(i18n.T("cmd.init.wizard_step_tracker_setup"), options, 0, func(_ string, idx int) {
-					switch idx {
-					case 1:
-						tuiTrackerChoice = "reconfigure"
-						launchDiscoveryAfterRejoin = true
-					case 2:
-						tuiTrackerChoice = "later"
-						launchDiscoveryAfterRejoin = false
-					default:
-						tuiTrackerChoice = ""
-						launchDiscoveryAfterRejoin = false
-					}
-				})
-			}
-			form.AddButton(i18n.T("wizard.hint.submit"), func() { onDone() })
-			return form
-		},
+		Form:   w.trackerSetupForm,
 		OnDone: func() error { return nil },
 		InfoFields: func() []views.InfoField {
 			val := i18n.T("cmd.init.wizard_tracker_configure_later")
-			if launchDiscoveryAfterRejoin {
+			if w.launchDiscovery {
 				val = i18n.T("cmd.init.wizard_tracker_configure_now")
-			} else if tuiTrackerChoice == "keep" {
+			} else if w.trackerChoice == "keep" {
 				val = i18n.T("cmd.init.wizard_tracker_keep_existing")
 			}
 			return []views.InfoField{{Label: "Tracker", Value: val}}
 		},
 	}
+}
 
-	// ── Step 3b: Tracker token (conditional on "keep" + no token for the server) ──
-	trackerTokenStepRejoin := buildTrackerTokenStep(trackerTokenStep{
+// trackerTokenStep asks the tracker token when the tracker is kept and no
+// token is known for its server.
+func (w *rejoinWizard) trackerTokenStep() views.WizardStep {
+	return buildTrackerTokenStep(trackerTokenStep{
 		ID:        "rejoin_tracker_token",
 		Label:     i18n.Tf("cmd.init.wizard_tracker_token_label", ""),
 		InfoLabel: i18n.T("cmd.tui_team_rejoin.tracker_token"),
-		App:       func() *app.App { return a },
-		Ctx:       func() context.Context { return ctx },
-		Repo:      func() string { return stateRepo },
-		StatePath: func() string { return statePath },
-		Keep:      func() bool { return stateRepo != "" && tuiTrackerChoice == "keep" },
+		App:       func() *app.App { return w.a },
+		Ctx:       func() context.Context { return w.ctx },
+		Repo:      func() string { return w.stateRepo },
+		StatePath: func() string { return w.statePath },
+		Keep:      func() bool { return w.stateRepo != "" && w.trackerChoice == "keep" },
 	})
+}
 
-	steps = []views.WizardStep{
-		repoStep,
-		httpsCredStep,
-		memberStep,
-		trackerNameStep,
-		gitlabTokenStep,
-		validateStep,
-		identityMismatchStep,
-		trackerStepRejoin,
-		trackerTokenStepRejoin,
+// tokenForm asks what to do with the GitLab token: reuse the one that is
+// known, give a new one, or leave it.
+func (w *rejoinWizard) tokenForm(_ *tview.Application, onDone func()) *tview.Form {
+	a, ctx := w.a, w.ctx
+	teamID := config.RepoNameFromRemote(w.stateRepo)
+	source := gitlabTokenSourceAt(ctx, a, teamID, w.stateRepo, w.gitlabURL)
+
+	options := []string{i18n.T("cmd.init.wizard_select_placeholder")}
+	optionKeys := []string{"placeholder"}
+	if source != "" {
+		options = append(options, i18n.Tf("cmd.init.wizard_rejoin_token_reuse", source))
+		optionKeys = append(optionKeys, "reuse")
 	}
+	options = append(options, i18n.T("cmd.init.wizard_rejoin_token_new"))
+	optionKeys = append(optionKeys, "new")
+	options = append(options, i18n.T("cmd.init.wizard_rejoin_token_skip"))
+	optionKeys = append(optionKeys, "skip")
 
-	wizard := views.NewInlineWizardView(views.InlineWizardConfig{
-		ID:    "wizard.team.rejoin",
-		Title: i18n.T("tui.team.rejoin"),
-		Steps: steps,
-		OnComplete: func(completed bool, err error) {
-			if completed && err == nil && launchDiscoveryAfterRejoin {
-				safego.Go(func() {
-					time.Sleep(200 * time.Millisecond)
-					if tuiShell != nil {
-						tuiShell.App().QueueUpdateDraw(func() {
-							actionTrackerDiscovery()
-						})
-					}
-				})
+	form := tview.NewForm()
+	form.AddDropDown(
+		i18n.T("cmd.init.wizard_rejoin_token_choice"),
+		options, w.tokenChoiceIdx,
+		func(_ string, idx int) {
+			if w.tokenChoiceIdx == idx {
+				return
+			}
+			if idx >= 0 && idx < len(optionKeys) {
+				w.tokenChoice = optionKeys[idx]
+			}
+			w.tokenChoiceIdx = idx
+		},
+	)
+	form.AddTextView("", i18n.T("cmd.init.wizard_rejoin_token_new_hint"), 60, 2, true, false)
+	form.AddPasswordField(
+		i18n.T("cmd.init.wizard_rejoin_gitlab_token_label"),
+		w.gitlabToken, 0, '*',
+		func(t string) { w.gitlabToken = t },
+	)
+	form.AddButton(i18n.T("wizard.hint.submit"), func() { onDone() })
+	return form
+}
+
+// storeToken puts the new GitLab token of the team in the keychain.
+func (w *rejoinWizard) storeToken() error {
+	a, ctx := w.a, w.ctx
+	if w.tokenChoice == "new" && w.gitlabToken != "" && a.Secrets != nil {
+		teamID := config.RepoNameFromRemote(w.stateRepo)
+		return a.Secrets.Set(ctx, config.TeamGitLabTokenKey(teamID), w.gitlabToken)
+	}
+	return nil
+}
+
+// mismatchForm explains the identity that does not match and asks to verify
+// it with a token or to skip.
+func (w *rejoinWizard) mismatchForm(_ *tview.Application, onDone func()) *tview.Form {
+	form := tview.NewForm()
+
+	var msg string
+	if w.identityMismatch.IsBot {
+		msg = i18n.Tf("cmd.init.wizard_identity_bot_detected", w.identityMismatch.AuthenticatedAs)
+	} else {
+		msg = i18n.Tf("cmd.init.wizard_identity_user_mismatch",
+			w.identityMismatch.AuthenticatedAs,
+			w.identityMismatch.MemberID,
+			w.identityMismatch.ExpectedUser,
+		)
+	}
+	form.AddTextView("", msg, 60, 3, true, false)
+
+	options := []string{
+		i18n.T("cmd.init.wizard_select_placeholder"),
+		i18n.T("cmd.init.wizard_identity_verify"),
+		i18n.T("cmd.init.wizard_identity_skip"),
+	}
+	form.AddDropDown(
+		i18n.T("cmd.init.wizard_step_identity_mismatch"),
+		options, 0,
+		func(_ string, idx int) {
+			switch idx {
+			case 1:
+				w.mismatchChoice = "verify"
+			case 2:
+				w.mismatchChoice = "skip"
+			default:
+				w.mismatchChoice = ""
 			}
 		},
-	})
+	)
 
-	tuiShell.PushView(wizard)
+	form.AddTextView("", i18n.T("cmd.init.wizard_identity_pat_hint"), 60, 2, true, false)
+	form.AddPasswordField(
+		i18n.T("cmd.init.wizard_rejoin_gitlab_token_label"),
+		w.mismatchPAT, 0, '*',
+		func(t string) { w.mismatchPAT = t },
+	)
+
+	form.AddButton(i18n.T("wizard.hint.submit"), func() { onDone() })
+	return form
+}
+
+// recoverIdentity stores the token given and verifies the identity again, unless the user skipped.
+func (w *rejoinWizard) recoverIdentity() error {
+	a, ctx := w.a, w.ctx
+	if w.mismatchChoice == "skip" {
+		w.identityMismatch = nil
+		return nil
+	}
+	// "verify" — store the PAT and re-validate
+	if w.mismatchPAT != "" && a.Secrets != nil {
+		teamID := config.RepoNameFromRemote(w.stateRepo)
+		if err := a.Secrets.Set(ctx, config.TeamGitLabTokenKey(teamID), w.mismatchPAT); err != nil {
+			return fmt.Errorf(i18n.T("cmd.tui_team_rejoin.storing_token"), err)
+		}
+	}
+	sp := w.statePath
+	if sp == "" {
+		sp = config.TeamStatePath(w.stateRepo)
+	}
+	repo := teamstate.NewRepo(w.stateRepo, sp)
+	member, err := repo.GetMember(w.memberID)
+	if err != nil {
+		return fmt.Errorf(i18n.T("cmd.tui_team_rejoin.member_lookup"), err)
+	}
+	if err := validateGitLabIdentity(ctx, a, repo, member); err != nil {
+		return fmt.Errorf(i18n.T("cmd.tui_team_rejoin.identity_verification"), err)
+	}
+	w.identityMismatch = nil
+	return nil
+}
+
+// trackerSetupForm shows the tracker of the team-state and asks what to do with it.
+func (w *rejoinWizard) trackerSetupForm(_ *tview.Application, onDone func()) *tview.Form {
+	form := tview.NewForm()
+
+	sp := w.statePath
+	if sp == "" {
+		sp = config.TeamStatePath(w.stateRepo)
+	}
+	repo := teamstate.NewRepo(w.stateRepo, sp)
+	trackerConfigured := false
+	if teamCfg, err := repo.LoadConfig(); err == nil && teamCfg.Tracker.Type != "" {
+		trackerConfigured = true
+		hint := i18n.T("cmd.init.wizard_tracker_configured") + "\n" +
+			i18n.Tf("cmd.init.wizard_tracker_info",
+				teamCfg.Tracker.Type,
+				teamCfg.Tracker.TrackerURL,
+				teamCfg.Tracker.TrackerProject,
+			)
+		form.AddTextView("", hint, 60, 3, true, false)
+	} else {
+		form.AddTextView("", i18n.T("cmd.init.wizard_tracker_not_configured"), 60, 2, true, false)
+	}
+
+	options := []string{i18n.T("cmd.init.wizard_select_placeholder")}
+	if trackerConfigured {
+		options = append(options,
+			i18n.T("cmd.init.wizard_tracker_keep_existing"),
+			i18n.T("cmd.init.wizard_tracker_configure_now"),
+			i18n.T("cmd.init.wizard_tracker_configure_later"),
+		)
+		form.AddDropDown(i18n.T("cmd.init.wizard_step_tracker_setup"), options, 0, func(_ string, idx int) {
+			switch idx {
+			case 1:
+				w.trackerChoice = "keep"
+				w.launchDiscovery = false
+			case 2:
+				w.trackerChoice = "reconfigure"
+				w.launchDiscovery = true
+			case 3:
+				w.trackerChoice = "later"
+				w.launchDiscovery = false
+			default:
+				w.trackerChoice = ""
+				w.launchDiscovery = false
+			}
+		})
+	} else {
+		options = append(options,
+			i18n.T("cmd.init.wizard_tracker_configure_now"),
+			i18n.T("cmd.init.wizard_tracker_configure_later"),
+		)
+		form.AddDropDown(i18n.T("cmd.init.wizard_step_tracker_setup"), options, 0, func(_ string, idx int) {
+			switch idx {
+			case 1:
+				w.trackerChoice = "reconfigure"
+				w.launchDiscovery = true
+			case 2:
+				w.trackerChoice = "later"
+				w.launchDiscovery = false
+			default:
+				w.trackerChoice = ""
+				w.launchDiscovery = false
+			}
+		})
+	}
+	form.AddButton(i18n.T("wizard.hint.submit"), func() { onDone() })
+	return form
 }
 
 // memberTrackerUsername is the tracker name of member id in members ("" when

@@ -1,0 +1,224 @@
+package views
+
+import (
+	"fmt"
+	"strings"
+
+	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
+)
+
+// Info panel of the inline wizard: the sidebar of the grouped layout and the
+// recap below the step of the classic one.
+
+func (w *InlineWizardView) renderInfoPanel() {
+	if w.infoPanel == nil {
+		return
+	}
+
+	if len(w.cfg.Groups) > 0 {
+		w.renderGroupedSidebar()
+	} else {
+		w.renderClassicInfoPanel()
+	}
+}
+
+// sidebarTags are the color tags of the sidebar.
+type sidebarTags struct {
+	accent, success, muted, secondary, primary string
+}
+
+const sidebarReset = "[-]"
+
+func newSidebarTags() sidebarTags {
+	return sidebarTags{
+		accent:    theme.ColorTagOf(theme.ActiveMode.Primary),
+		success:   theme.ColorTagOf(theme.Success),
+		muted:     theme.ColorTagOf(theme.FgMuted),
+		secondary: theme.ColorTagOf(theme.FgSecondary),
+		primary:   theme.ColorTagOf(theme.FgPrimary),
+	}
+}
+
+// sidebarSubStep is a step listed under its group in the sidebar.
+type sidebarSubStep struct {
+	idx    int
+	label  string
+	status widgets.StepStatus
+}
+
+// renderGroupedSidebar renders the right-side info sidebar (grouped mode)
+// with a detailed tree-style recap including individual sub-steps.
+func (w *InlineWizardView) renderGroupedSidebar() {
+	var b strings.Builder
+	tags := newSidebarTags()
+
+	fmt.Fprintf(&b, " %s%s %s%s\n", tags.accent, theme.IconActive, i18n.T("wizard.sidebar.title"), sidebarReset)
+	fmt.Fprintf(&b, " %s─────────────────%s\n\n", tags.muted, sidebarReset)
+
+	// Build a map of step index → accumulated info (using stored stepIdx)
+	infoByStep := make(map[int][]InfoField)
+	for _, si := range w.infoAccum {
+		infoByStep[si.stepIdx] = si.fields
+	}
+
+	for gi, g := range w.cfg.Groups {
+		if g.Hidden != nil && g.Hidden() {
+			continue
+		}
+		endIdx := len(w.cfg.Steps)
+		if gi+1 < len(w.cfg.Groups) {
+			endIdx = w.cfg.Groups[gi+1].StartIdx
+		}
+
+		writeSidebarGroupHeader(&b, tags, g.Label, w.groupStatus(g.StartIdx, endIdx))
+		for _, ss := range w.sidebarSubSteps(g.StartIdx, endIdx) {
+			writeSidebarSubStep(&b, tags, ss, infoByStep[ss.idx])
+		}
+		b.WriteString("\n")
+	}
+
+	w.infoPanel.SetText(b.String())
+}
+
+// groupStatus is the status of the group of steps [start, end).
+func (w *InlineWizardView) groupStatus(start, end int) widgets.StepStatus {
+	groupStatus := widgets.StepPending
+	allDone := true
+	for si := start; si < end; si++ {
+		switch w.stepStates[si].Status {
+		case widgets.StepActive:
+			groupStatus = widgets.StepActive
+			allDone = false
+		case widgets.StepPending:
+			allDone = false
+		}
+	}
+	if allDone && groupStatus != widgets.StepActive {
+		groupStatus = widgets.StepDone
+	}
+	return groupStatus
+}
+
+// sidebarSubSteps are the steps [start, end) the sidebar lists: not hidden,
+// not skipped, and not dynamically skipped ahead (e.g. Deploy without project).
+func (w *InlineWizardView) sidebarSubSteps(start, end int) []sidebarSubStep {
+	var subs []sidebarSubStep
+	for si := start; si < end; si++ {
+		step := w.cfg.Steps[si]
+		if step.SidebarHidden {
+			continue
+		}
+		if step.Skip {
+			continue
+		}
+		if w.stepStates[si].Status == widgets.StepPending && step.SkipIf != nil && step.SkipIf() {
+			continue
+		}
+		subs = append(subs, sidebarSubStep{idx: si, label: step.Label, status: w.stepStates[si].Status})
+	}
+	return subs
+}
+
+func writeSidebarGroupHeader(b *strings.Builder, t sidebarTags, label string, status widgets.StepStatus) {
+	switch status {
+	case widgets.StepDone:
+		fmt.Fprintf(b, " %s%s%s %s%s%s\n", t.success, theme.IconDone, sidebarReset, t.primary, label, sidebarReset)
+	case widgets.StepActive:
+		fmt.Fprintf(b, " %s%s%s %s%s%s\n", t.accent, theme.IconActive, sidebarReset, t.primary, label, sidebarReset)
+	default:
+		fmt.Fprintf(b, " %s%s %s%s\n", t.muted, theme.IconPending, label, sidebarReset)
+	}
+}
+
+func writeSidebarSubStep(b *strings.Builder, t sidebarTags, ss sidebarSubStep, fields []InfoField) {
+	switch ss.status {
+	case widgets.StepDone:
+		// Show InfoFields with tree connectors
+		if len(fields) == 0 {
+			fmt.Fprintf(b, "   %s%s%s %s%s%s\n", t.success, theme.IconDone, sidebarReset, t.secondary, ss.label, sidebarReset)
+			return
+		}
+		for fi, f := range fields {
+			if f.Value == "" {
+				continue
+			}
+			connector := "├"
+			if fi == len(fields)-1 {
+				connector = "└"
+			}
+			fmt.Fprintf(b, "   %s%s %s:%s %s\n", t.muted, connector, f.Label, sidebarReset, f.Value)
+		}
+
+	case widgets.StepActive:
+		// ◆ Label ........ en cours
+		dots := " "
+		labelLen := len([]rune(ss.label))
+		// Fill dots to ~24 chars total (label + dots + " en cours")
+		if remaining := 20 - labelLen; remaining > 2 {
+			dots = " " + strings.Repeat(".", remaining) + " "
+		}
+		fmt.Fprintf(b, "   %s%s %s%s%s%s%s\n",
+			t.accent, theme.IconActive, ss.label, t.muted, dots, i18n.T("wizard.sidebar.in_progress"), sidebarReset)
+
+	case widgets.StepSkipped:
+		fmt.Fprintf(b, "   %s%s %s%s\n", t.muted, theme.IconSkipped, ss.label, sidebarReset)
+
+	default: // Pending
+		fmt.Fprintf(b, "   %s%s %s%s\n", t.muted, theme.IconPending, ss.label, sidebarReset)
+	}
+}
+
+// renderClassicInfoPanel renders the bottom info panel (classic mode).
+func (w *InlineWizardView) renderClassicInfoPanel() {
+	var b strings.Builder
+
+	// Completed steps with their info fields
+	for _, si := range w.infoAccum {
+		fmt.Fprintf(&b, "  %s%s[-] %s%s[-]\n",
+			theme.ColorTagOf(theme.Success), theme.IconDone,
+			theme.ColorTagOf(theme.FgPrimary), si.label)
+		for _, f := range si.fields {
+			if f.Value != "" {
+				fmt.Fprintf(&b, "    %s%s:[-] %s\n",
+					theme.ColorTagOf(theme.FgSecondary), f.Label, f.Value)
+			}
+		}
+		b.WriteString("\n")
+	}
+
+	// Current and remaining steps
+	for i := w.currentStep; i < len(w.cfg.Steps); i++ {
+		if w.cfg.Steps[i].Skip || w.stepStates[i].Status == widgets.StepDone {
+			continue
+		}
+		if w.stepStates[i].Status == widgets.StepSkipped {
+			fmt.Fprintf(&b, "  %s%s %s (skipped)[-]\n",
+				theme.ColorTagOf(theme.FgMuted), theme.IconSkipped, w.cfg.Steps[i].Label)
+			continue
+		}
+		icon := theme.IconPending
+		color := theme.ColorTagOf(theme.FgMuted)
+		if i == w.currentStep {
+			icon = theme.IconActive
+			color = theme.ColorTagOf(theme.ActiveMode.Primary)
+		}
+		fmt.Fprintf(&b, "  %s%s %s[-]\n", color, icon, w.cfg.Steps[i].Label)
+	}
+
+	text := b.String()
+	w.infoPanel.SetText(text)
+
+	// Resize info panel: count lines, show only if non-empty
+	lines := strings.Count(text, "\n")
+	if lines > 0 {
+		// Cap at 12 lines to leave room for the step content
+		if lines > 12 {
+			lines = 12
+		}
+		w.updateInfoPanelSize(lines)
+	} else {
+		w.updateInfoPanelSize(0)
+	}
+}

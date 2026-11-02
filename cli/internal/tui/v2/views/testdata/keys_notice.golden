@@ -16,6 +16,7 @@ Changé :
   Board d'équipe             f→/ filtrer · x→L libérer
   Worktrees                  a→n créer · x→M nettoyer les fusionnés
   Détail d'équipe            y→T découvrir le tracker · w→Ctrl+S enregistrer
+  Colonnes du board          a→n ajouter une colonne · r→o changer le rôle · e renommer
   Activité d'équipe          w→s semaine
   MCP                        w→m écriture
   Fiche de lancement         w→t worktree (dossier modifié)
