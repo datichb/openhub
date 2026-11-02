@@ -48,6 +48,26 @@ func TestCheckModel(t *testing.T) {
 // The error gives an example taken from the default model of oh (not an old
 // literal) and says that anthropic/… is converted for the provider of the
 // session.
+// A short name carries a version number: "sonnet" or "claude-sonnet" would
+// pin a model nobody can name, and each provider would convert it differently.
+// A full provider/model reference is taken as written.
+func TestCheckModelShortNameNeedsAVersion(t *testing.T) {
+	for _, bad := range []string{"sonnet", "claude-sonnet", "claude-sonnet#high", "opus", "claude-opus-latest"} {
+		err := CheckModel(bad)
+		require.Error(t, err, bad)
+		msg := err.Error()
+		assert.Contains(t, msg, `"`+bad+`"`, bad)
+		assert.Contains(t, msg, bricks.FallbackModel, "the message gives the expected form: "+bad)
+		assert.Contains(t, msg, "version", bad)
+	}
+	for _, ok := range []string{"claude-sonnet-5-5", "claude-opus-4", "claude-haiku-4-5#low", "gpt-5",
+		"anthropic/claude-sonnet", "amazon-bedrock/eu.anthropic.claude-sonnet", "anthropic/sonnet#high"} {
+		assert.NoError(t, CheckModel(ok), ok)
+	}
+	// The digit of the variant is not a version.
+	assert.Error(t, CheckModel("claude-sonnet#v2"))
+}
+
 func TestCheckModelErrorExplainsTheForms(t *testing.T) {
 	err := CheckModel("claude sonnet")
 	require.Error(t, err)

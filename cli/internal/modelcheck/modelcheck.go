@@ -75,7 +75,10 @@ func (c Catalog) CheckFamily(name string) error {
 // with a space, with an empty provider, name or variant. It follows the rule
 // of the bundle and of the agent frontmatter: a short name
 // (claude-sonnet-5-5) or provider/model, each with an optional #variant. The
-// bundle converts either one for the provider of the session.
+// bundle converts either one for the provider of the session. A short name
+// must carry a version number (claude-sonnet alone is refused): the model it
+// would name changes from one provider to the other, and from one day to the
+// next. A provider/model reference is taken as written.
 func CheckModel(model string) error {
 	ref := sessionspec.ParseModelRef(model)
 	slash := strings.Contains(model, "/")
@@ -83,6 +86,9 @@ func CheckModel(model string) error {
 		(strings.Contains(model, "#") && ref.Variant == "") {
 		return errors.New(i18n.Tf("modelcheck.bad_model", model, bricks.FallbackModel,
 			bricks.NormalizeModelForProvider(bricks.FallbackModel, "bedrock")))
+	}
+	if !slash && !strings.ContainsAny(ref.Model, "0123456789") {
+		return errors.New(i18n.Tf("modelcheck.no_version", model, bricks.FallbackModel))
 	}
 	return nil
 }

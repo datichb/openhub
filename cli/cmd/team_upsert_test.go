@@ -82,9 +82,11 @@ func TestTeamConfigIsUpserted(t *testing.T) {
 		a := hubWithSoloAndTeam(t, bare)
 		statePath := filepath.Join(t.TempDir(), "state")
 
-		require.NoError(t, teamInitCore(context.Background(), a, teamInitParams{
+		warn, err := teamInitCore(context.Background(), a, teamInitParams{
 			StateRepo: bare, StatePath: statePath, MemberID: "dave", DisplayName: "Dave", Role: "dev",
-		}))
+		})
+		require.NoError(t, err)
+		assert.Empty(t, warn)
 
 		teams := reloadTeams(t)
 		assert.True(t, teams["solo"].Solo, "the solo space is untouched")

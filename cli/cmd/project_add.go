@@ -14,6 +14,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/beads"
+	"github.com/datichb/openhub/cli/internal/bricks"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	providerPkg "github.com/datichb/openhub/cli/internal/provider"
@@ -240,7 +241,7 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 			},
 			OnDone: func() error {
 				if model == "" {
-					model = "claude-sonnet-4-5"
+					model = bricks.FallbackModel
 				}
 				// Store API key in keychain if provided
 				if apiKey != "" && a.Secrets != nil {

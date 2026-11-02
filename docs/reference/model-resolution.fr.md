@@ -181,7 +181,7 @@ Ce champ est le **niveau 9** de la cascade : il ne s'applique que si aucun nivea
 | `reviewer`, `benchmarker` | `claude-opus-4-6` |
 | `brief-enricher` | `anthropic/claude-sonnet-4-5` |
 
-Les agents `developer*` n'en déclarent pas : sans configuration, opencode utilise son modèle par défaut.
+Les agents `developer*` n'en déclarent pas : sans configuration, la session reçoit le modèle par défaut d'oh, `claude-sonnet-5-5` (converti pour le fournisseur de la session, par exemple `amazon-bedrock/anthropic.claude-sonnet-5-5` avec Bedrock). Le récapitulatif d'un lancement (`oh run --recap`, formulaire de lancement de la TUI) nomme le modèle que la session utilise (celui de l'agent d'entrée) et, sur une seconde ligne, les autres modèles des agents du paquet quand ils diffèrent.
 
 ---
 

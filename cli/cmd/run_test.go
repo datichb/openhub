@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/spf13/cobra"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/domain"
@@ -173,4 +175,63 @@ func TestRunOptionsMessage(t *testing.T) {
 	if opts, _ := runOptionsFromFlags(runFlagsCmd(t, "-i", "request=b"), "feature"); opts.Message {
 		t.Fatal("-i request= taken for -m")
 	}
+}
+
+// The recap names the model the session really uses (the entry agent's, else
+// the bundle default) on one row, and the other agents that run another model
+// on a second one: two rows at most.
+func TestRunRecapModelRows(t *testing.T) {
+	sonnet := &sessionspec.ModelRef{Provider: "amazon-bedrock", Model: "anthropic.claude-sonnet-5-5"}
+	opus := &sessionspec.ModelRef{Provider: "amazon-bedrock", Model: "anthropic.claude-opus-4-6-v1", Variant: "high"}
+	haiku := &sessionspec.ModelRef{Provider: "amazon-bedrock", Model: "anthropic.claude-haiku-4-5-20251001-v1:0"}
+	build := func(entry string, def *sessionspec.ModelRef, agents ...sessionspec.AgentDef) *launch.Prepared {
+		return &launch.Prepared{
+			Project:    &domain.Project{Name: "p"},
+			Resolution: &workflowsvc.Resolution{Resolved: &workflow.Resolved{Spec: &workflow.Spec{ID: "ticket"}, Mode: "semi-auto"}},
+			Bundle:     &bundle.Bundle{Spec: sessionspec.BundleSpec{EntryAgent: entry, DefaultModel: def, Agents: agents}},
+			Plan:       &runsvc.RunPlan{Sessions: []runsvc.PlannedSession{{Location: runsvc.Location{Path: "/p", Kind: runsvc.LocationBase}}}},
+		}
+	}
+	modelRows := func(p *launch.Prepared) (rows [][2]string) {
+		all, _ := runRecap(p)
+		for i, r := range all {
+			if r[0] == i18n.T("cmd.run.recap.model") {
+				rows = append(rows, r)
+				if i+1 < len(all) && all[i+1][0] == i18n.T("cmd.run.recap.model_others") {
+					rows = append(rows, all[i+1])
+				}
+			}
+		}
+		return rows
+	}
+
+	// One model for everyone: one row, the model of the entry agent.
+	rows := modelRows(build("orchestrator", sonnet,
+		sessionspec.AgentDef{ID: "orchestrator", Model: sonnet}, sessionspec.AgentDef{ID: "developer"}))
+	require.Len(t, rows, 1)
+	assert.Equal(t, "amazon-bedrock/anthropic.claude-sonnet-5-5", rows[0][1])
+
+	// The entry agent without a model gets the bundle default.
+	rows = modelRows(build("developer", sonnet, sessionspec.AgentDef{ID: "developer"}))
+	require.Len(t, rows, 1)
+	assert.Equal(t, "amazon-bedrock/anthropic.claude-sonnet-5-5", rows[0][1])
+
+	// Other models: a second row, grouped by model.
+	rows = modelRows(build("orchestrator", sonnet,
+		sessionspec.AgentDef{ID: "orchestrator", Model: sonnet}, sessionspec.AgentDef{ID: "reviewer", Model: opus},
+		sessionspec.AgentDef{ID: "benchmarker", Model: opus}, sessionspec.AgentDef{ID: "developer"}))
+	require.Len(t, rows, 2)
+	assert.Equal(t, "amazon-bedrock/anthropic.claude-sonnet-5-5", rows[0][1])
+	assert.Equal(t, "amazon-bedrock/anthropic.claude-opus-4-6-v1#high (reviewer, benchmarker)", rows[1][1])
+
+	// A third model does not add a third row.
+	rows = modelRows(build("orchestrator", sonnet,
+		sessionspec.AgentDef{ID: "orchestrator", Model: sonnet}, sessionspec.AgentDef{ID: "reviewer", Model: opus},
+		sessionspec.AgentDef{ID: "doc", Model: haiku}))
+	require.Len(t, rows, 2)
+	assert.Contains(t, rows[1][1], "(reviewer)")
+	assert.Contains(t, rows[1][1], "(doc)")
+
+	// No model known (bundle without a default): no row.
+	assert.Empty(t, modelRows(build("orchestrator", nil, sessionspec.AgentDef{ID: "orchestrator"})))
 }

@@ -14,6 +14,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/beads"
+	"github.com/datichb/openhub/cli/internal/bricks"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
@@ -188,7 +189,7 @@ func buildProjectAddInlineWizard(a *app.App) *views.InlineWizardView {
 			},
 			OnDone: func() error {
 				if model == "" {
-					model = "claude-sonnet-4-5"
+					model = bricks.FallbackModel
 				}
 				if apiKey != "" && a.Secrets != nil {
 					keyName := providerVal + "-token-project"

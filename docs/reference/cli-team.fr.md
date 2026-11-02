@@ -10,7 +10,7 @@ Les fonctions d'équipe reposent sur un dépôt git **team-state** partage (clai
 
 ### oh team init
 
-Assistant interactif de configuration de l'équipe, en 4 étapes adaptatives : configuration globale (reprise, sessions), identité (inscription dans l'équipe), notifications Mattermost (optionnel), policies d'équipe (conventions automatisées). Le dépôt team-state doit exister au préalable sur GitLab ou GitHub ; s'il est déjà configuré, seules les étapes utiles sont proposées.
+Assistant interactif de configuration de l'équipe, en 4 étapes adaptatives : configuration globale (reprise, sessions), identité (inscription dans l'équipe), notifications Mattermost (optionnel), policies d'équipe (conventions automatisées). Le dépôt team-state doit exister au préalable sur GitLab ou GitHub ; s'il est déjà configuré, seules les étapes utiles sont proposées. L'assistant crée les dossiers du dépôt (`projects/`, `wiki/`, `catalog/`…) et les commite (« team: init structure »). Si ce commit échoue (hors ligne, refus du dépôt distant), l'inscription continue et l'assistant le dit (ligne d'avertissement, puis dans l'étape du dépôt) : les dossiers existent en local et sont commités à la prochaine exécution de `oh team init`.
 
 ```
 oh team init [--solo [--id <id>] [--name <nom>] [--member-id <id>] [--project <projet>]]

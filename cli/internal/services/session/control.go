@@ -25,7 +25,10 @@ type SendOptions struct {
 	// ReportEnd is set by the callers that speak for a user (TUI, CLI): the
 	// tool only admits the message, so when the session turns out to be over
 	// as the send returns, Send says it (EndedError.During) instead of
-	// letting the user believe the message was taken.
+	// letting the user believe the message was taken. Such a caller is also
+	// told that a session that has not started yet (queued, preparing) takes
+	// no message (NotStartedError), instead of a message the tool would keep
+	// for a first prompt that has not been sent.
 	ReportEnd bool
 }
 
@@ -54,11 +57,33 @@ func (e *EndedError) Is(target error) bool { return target == ErrSessionEnded }
 // ErrSessionEnded matches an *EndedError.
 var ErrSessionEnded = errors.New("the session is over")
 
+// NotStartedError is returned to a user who writes to a session that has not
+// started yet: queued for a free slot, or still preparing.
+type NotStartedError struct {
+	SessionID string
+	State     domain.RunState
+}
+
+func (e *NotStartedError) Error() string {
+	return fmt.Sprintf("session %s has not started yet (%s): the message was not sent", e.SessionID, e.State)
+}
+
+// Is makes errors.Is(err, ErrSessionNotStarted) true.
+func (e *NotStartedError) Is(target error) bool { return target == ErrSessionNotStarted }
+
+// ErrSessionNotStarted matches a *NotStartedError.
+var ErrSessionNotStarted = errors.New("the session has not started yet")
+
 // Send sends an instruction to a session.
 func (s *Service) Send(ctx context.Context, sessionID, text string, o SendOptions) error {
 	text = strings.TrimSpace(text)
 	if text == "" {
 		return errors.New("empty instruction")
+	}
+	if o.ReportEnd && s.Sessions != nil {
+		if sess, err := s.Sessions.Get(ctx, sessionID); err == nil && notStarted(sess.State) {
+			return &NotStartedError{SessionID: sessionID, State: sess.State}
+		}
 	}
 	kind := adapters.ControlPrompt
 	if o.Synthetic {

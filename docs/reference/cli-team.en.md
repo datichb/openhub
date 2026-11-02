@@ -10,7 +10,7 @@ Team features rely on a shared **team-state** git repository (claims, events, wi
 
 ### oh team init
 
-Interactive wizard configuring the team, in 4 adaptive steps: global config (takeover, sessions), identity (team registration), Mattermost notifications (optional), team policies (automated conventions). The team-state repository must exist beforehand on GitLab or GitHub; when it is already configured, only the relevant steps are offered.
+Interactive wizard configuring the team, in 4 adaptive steps: global config (takeover, sessions), identity (team registration), Mattermost notifications (optional), team policies (automated conventions). The team-state repository must exist beforehand on GitLab or GitHub; when it is already configured, only the relevant steps are offered. The wizard creates the folders of the repository (`projects/`, `wiki/`, `catalog/`…) and commits them (« team: init structure »). If that commit fails (offline, remote refusal), the join goes on and the wizard says so (warning line, then in the repository step): the folders exist locally and are committed the next time `oh team init` runs.
 
 ```
 oh team init [--solo [--id <id>] [--name <name>] [--member-id <id>] [--project <project>]]

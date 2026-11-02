@@ -146,6 +146,7 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 	var stateRepo string
 	var statePath string
 	var repo *teamstate.Repo
+	var structureWarning string // the commit of the structure of the team-state failed
 
 	// Determine local path
 	statePath = a.Config.ActiveTeam().StatePath
@@ -168,8 +169,13 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 				return fmt.Errorf(i18n.T("cmd.team.cloning_team_state"), err)
 			}
 		}
-		if err := repo.EnsureStructure(ctx); err != nil {
+		warn, err := ensureTeamStructure(ctx, repo)
+		if err != nil {
 			return fmt.Errorf(i18n.T("cmd.team.initializing_structure"), err)
+		}
+		if warn != "" {
+			structureWarning = warn
+			fmt.Fprintln(a.IO.ErrOut, theme.WarningStyle.Render(theme.IconWarning)+" "+warn)
 		}
 	}
 
@@ -306,9 +312,11 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 					return fmt.Errorf(i18n.T("cmd.team.cloning_team_state"), err)
 				}
 			}
-			if err := repo.EnsureStructure(ctx); err != nil {
+			warn, err := ensureTeamStructure(ctx, repo)
+			if err != nil {
 				return fmt.Errorf(i18n.T("cmd.team.initializing_structure"), err)
 			}
+			structureWarning = warn
 
 			// Now that repo is available, pre-fill state for subsequent steps
 			hasConfig = repo.HasConfig()
@@ -334,9 +342,11 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 			return nil
 		},
 		InfoFields: func() []views.InfoField {
-			return []views.InfoField{
-				{Label: "Repo", Value: stateRepo},
+			fields := []views.InfoField{{Label: "Repo", Value: stateRepo}}
+			if structureWarning != "" {
+				fields = append(fields, views.InfoField{Label: theme.IconWarning + " " + i18n.T("cmd.team.init.structure_label"), Value: structureWarning})
 			}
+			return fields
 		},
 	}
 

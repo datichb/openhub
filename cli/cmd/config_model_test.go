@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/bricks"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
@@ -120,6 +121,35 @@ func TestConfigModelAcceptsShortNames(t *testing.T) {
 	assert.Equal(t, short, c.Models.Families["quality"])
 	assert.Equal(t, short+"#high", c.Models.Agents["reviewer"])
 	assert.Equal(t, short, store.projects[0].Model)
+}
+
+// A short name without a version number (sonnet, claude-sonnet) is refused at
+// every level, hub and project, with the form that is expected; nothing is
+// written. A full provider/model reference stays accepted.
+func TestConfigModelShortNameNeedsAVersion(t *testing.T) {
+	store := modelCLI(t)
+
+	for _, bad := range []string{"sonnet", "claude-sonnet", "claude-sonnet#high"} {
+		_, err := runWorkflowSub(t, configModelDefaultCmd, bad)
+		require.Error(t, err, bad)
+		assert.Contains(t, err.Error(), bricks.FallbackModel, "the error gives the expected form")
+		_, err = runWorkflowSub(t, configModelFamilyCmd, "quality", bad)
+		require.Error(t, err, bad)
+		_, err = runWorkflowSub(t, configModelAgentCmd, "reviewer", bad, "-p", "p1")
+		require.Error(t, err, bad)
+	}
+	_, err := runWorkflowSub(t, configModelDefaultCmd, "claude-sonnet", "-p", "p1")
+	require.Error(t, err)
+
+	c, err := config.Load()
+	require.NoError(t, err)
+	assert.Empty(t, c.Models.Default)
+	assert.Empty(t, c.Models.Families)
+	assert.Empty(t, store.projects[0].Model)
+	assert.Nil(t, store.projects[0].ModelOverrides)
+
+	_, err = runWorkflowSub(t, configModelDefaultCmd, "anthropic/claude-sonnet")
+	require.NoError(t, err, "a full reference is taken as written")
 }
 
 func TestConfigModelProjectLevelValidates(t *testing.T) {

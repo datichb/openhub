@@ -112,6 +112,9 @@ func launchRecap(p *launch.Prepared) (rows [][2]string, warnings []string) {
 	add := func(label, value string) { rows = append(rows, [2]string{label, value}) }
 	add(i18n.T("cmd.run.recap.mode"), p.Resolution.Mode)
 	add(i18n.T("cmd.run.recap.runtime"), string(p.Resolution.Runtime))
+	for _, row := range recapModelRows(r) {
+		add(row[0], row[1])
+	}
 	agents := make([]string, len(r.Agents))
 	for i, ag := range r.Agents {
 		agents[i] = ag.ID

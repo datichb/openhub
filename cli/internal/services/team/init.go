@@ -47,12 +47,22 @@ type InitParams struct {
 	GitLabURL string
 }
 
+// InitResult is what Init reports besides success.
+type InitResult struct {
+	// StructureWarning is a *teamstate.StructureWarning when the folders of
+	// the team-state exist but their commit ("team: init structure") failed
+	// (offline, remote refusal): the join went on, the next one commits them.
+	StructureWarning error
+}
+
 // Init joins a team: clones (or pulls) the team-state, creates its structure
 // (idempotent), adds the member or updates it, then writes the team in
 // hub.toml (added, or replacing the entry of the same team; the other teams,
 // solo spaces included, are left as they are). It displays nothing; failures
-// are *InitError.
-func (s *Service) Init(ctx context.Context, p InitParams) error {
+// are *InitError. What does not fail the join but deserves a word is in the
+// result.
+func (s *Service) Init(ctx context.Context, p InitParams) (InitResult, error) {
+	var res InitResult
 	statePath := p.StatePath
 	if statePath == "" {
 		statePath = config.DefaultTeamStatePath()
@@ -60,10 +70,13 @@ func (s *Service) Init(ctx context.Context, p InitParams) error {
 	repo := teamstate.NewRepo(p.StateRepo, statePath)
 
 	if err := repo.EnsureReady(ctx); err != nil {
-		return &InitError{Step: StepClone, Err: err}
+		return res, &InitError{Step: StepClone, Err: err}
 	}
 	if err := repo.EnsureStructure(ctx); err != nil {
-		return &InitError{Step: StepStructure, Err: err}
+		if !teamstate.IsStructureWarning(err) {
+			return res, &InitError{Step: StepStructure, Err: err}
+		}
+		res.StructureWarning = err // the folders exist; the commit is retried at the next join
 	}
 
 	member := teamstate.Member{
@@ -80,16 +93,16 @@ func (s *Service) Init(ctx context.Context, p InitParams) error {
 			member.TrackerUsername = prev.TrackerUsername
 		}
 		if err := repo.UpdateMember(ctx, member); err != nil {
-			return &InitError{Step: StepUpdateMember, Err: err}
+			return res, &InitError{Step: StepUpdateMember, Err: err}
 		}
 	} else if err := repo.AddMember(ctx, member); err != nil {
-		return &InitError{Step: StepAddMember, Err: err}
+		return res, &InitError{Step: StepAddMember, Err: err}
 	}
 
 	if err := s.SaveTeam(p.StateRepo, statePath, p.MemberID, p.GitLabURL); err != nil {
-		return &InitError{Step: StepWriteConfig, Err: err}
+		return res, &InitError{Step: StepWriteConfig, Err: err}
 	}
-	return nil
+	return res, nil
 }
 
 // SaveTeam writes the team of stateRepo in hub.toml (enabled, its ID is the

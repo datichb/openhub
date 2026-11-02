@@ -7,7 +7,7 @@ import (
 // FallbackModel is the short name of the model oh gives a session when no
 // level of the cascade sets one. It is also the example the messages about
 // model names give: there is no other list of current models.
-const FallbackModel = "claude-sonnet-4-6"
+const FallbackModel = "claude-sonnet-5-5"
 
 // ModelOverrides holds per-agent and per-family model overrides at a single cascade level.
 // Used for hub-level (from hub.toml), project-level (from DB), and team-level (from team-state) overrides.
@@ -271,7 +271,7 @@ func isAllDigits(s string) bool {
 
 // bedrockModelVersions maps short model names to their bedrock version identifiers.
 // Only models with irregular bedrock IDs (date suffixes, version suffixes) need explicit entries.
-// Models with clean naming (e.g., claude-opus-4-7, claude-sonnet-5) are handled by the
+// Models with clean naming (e.g., claude-opus-4-7, claude-sonnet-5-5) are handled by the
 // fallback in formatBedrockModel: "amazon-bedrock/anthropic.<shortname>".
 var bedrockModelVersions = map[string]string{
 	// Current generation — irregular bedrock IDs requiring explicit mapping
@@ -299,6 +299,7 @@ var githubCopilotModelNames = map[string]string{
 	"claude-opus-4-6":   "claude-opus-4.6",
 	"claude-sonnet-4-5": "claude-sonnet-4.5",
 	"claude-sonnet-4-6": "claude-sonnet-4.6",
+	"claude-sonnet-5-5": "claude-sonnet-5.5",
 }
 
 // formatGithubCopilotModel converts a short model name to the github-copilot format.

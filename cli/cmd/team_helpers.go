@@ -153,7 +153,10 @@ type initWizardTeamState struct {
 	MemberID    string // member identifier
 	DisplayName string // optional display name
 	Configured  bool   // true after successful teamInitCore or teamRejoinCore
-	TeamID      string // derived team ID (after init or rejoin)
+	// StructureWarning tells that the commit of the structure of the
+	// team-state failed (teamInitCore); the join went on.
+	StructureWarning string
+	TeamID           string // derived team ID (after init or rejoin)
 	// Existing team detection (re-init)
 	ExistingTeam *config.TeamConfig // non-nil if a team is already configured
 	TeamChoice   string             // "keep", "reconfigure", "skip" (only when ExistingTeam != nil)
@@ -432,7 +435,7 @@ func buildInitWizardTeamSteps(a **app.App, state *initWizardTeamState) []views.W
 				if displayName == "" {
 					displayName = state.MemberID
 				}
-				err := teamInitCore(state.Ctx, *a, teamInitParams{
+				warn, err := teamInitCore(state.Ctx, *a, teamInitParams{
 					StateRepo:   state.Repo,
 					MemberID:    state.MemberID,
 					DisplayName: displayName,
@@ -442,6 +445,7 @@ func buildInitWizardTeamSteps(a **app.App, state *initWizardTeamState) []views.W
 				if err != nil {
 					return err
 				}
+				state.StructureWarning = warn
 				state.Configured = true
 				state.TeamID = config.RepoNameFromRemote(state.Repo)
 
@@ -453,9 +457,13 @@ func buildInitWizardTeamSteps(a **app.App, state *initWizardTeamState) []views.W
 			},
 			InfoFields: func() []views.InfoField {
 				if state.Configured {
-					return []views.InfoField{
+					fields := []views.InfoField{
 						{Label: i18n.T("cmd.init.wizard_team_status_label"), Value: i18n.T("cmd.init.wizard_team_connected")},
 					}
+					if state.StructureWarning != "" {
+						fields = append(fields, views.InfoField{Label: theme.IconWarning + " " + i18n.T("cmd.team.init.structure_label"), Value: state.StructureWarning})
+					}
+					return fields
 				}
 				return []views.InfoField{
 					{Label: i18n.T("cmd.init.wizard_team_status_label"), Value: i18n.T("cmd.init.wizard_team_skipped")},

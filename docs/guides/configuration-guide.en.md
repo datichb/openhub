@@ -156,7 +156,7 @@ oh project configure --provider bedrock
 
 ```bash
 # Set the default model for all agents
-oh config model default anthropic/claude-sonnet-4-6
+oh config model default anthropic/claude-sonnet-5-5
 
 # Set a model for a specific agent family
 oh config model family planning anthropic/claude-opus-4-6
@@ -172,7 +172,7 @@ In `hub.toml`:
 
 ```toml
 [models]
-default = "claude-sonnet-4-6"
+default = "claude-sonnet-5-5"
 
 [models.families]
 planning = "claude-opus-4-6"

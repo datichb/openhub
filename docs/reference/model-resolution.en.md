@@ -181,7 +181,7 @@ This field is **level 9** of the cascade: it only applies when no level above de
 | `reviewer`, `benchmarker` | `claude-opus-4-6` |
 | `brief-enricher` | `anthropic/claude-sonnet-4-5` |
 
-The `developer*` agents declare none: without configuration, opencode uses its default model.
+The `developer*` agents declare none: without configuration, the session gets the default model of oh, `claude-sonnet-5-5` (converted for the provider of the session, e.g. `amazon-bedrock/anthropic.claude-sonnet-5-5` with Bedrock). The recap of a launch (`oh run --recap`, launch form of the TUI) names the model the session uses (the one of the entry agent), and on a second row the other models of the agents of the bundle when they differ.
 
 ---
 

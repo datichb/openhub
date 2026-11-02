@@ -41,3 +41,27 @@ func TestSessionEndedMessages(t *testing.T) {
 		assert.EqualError(t, decisionError(&sessionsvc.EndedError{SessionID: "ses_a", State: domain.RunStopped}), want["other"], lang)
 	}
 }
+
+// M1: a message to a session that has not started yet (queued, preparing) is
+// refused with a clear message in the language of the user, and oh session
+// send ends with a non-zero code.
+func TestSessionNotStartedMessage(t *testing.T) {
+	defer i18n.SetLocale("en")
+	for lang, want := range map[string]map[string]string{
+		"fr": {
+			"queued":    "La session ses_a n'a pas encore démarré : elle attend un créneau libre (file d'attente). La consigne n'a pas été envoyée ; réessaie quand elle sera active (oh session list).",
+			"preparing": "La session ses_a n'a pas encore démarré : elle est en préparation. La consigne n'a pas été envoyée ; réessaie quand elle sera active (oh session list).",
+		},
+		"en": {
+			"queued":    "Session ses_a has not started yet: it waits for a free slot (queued). The instruction was not sent; try again when it is running (oh session list).",
+			"preparing": "Session ses_a has not started yet: it is being prepared. The instruction was not sent; try again when it is running (oh session list).",
+		},
+	} {
+		i18n.SetLocale(lang)
+		for _, st := range []domain.RunState{domain.RunQueued, domain.RunPreparing} {
+			err := decisionError(fmt.Errorf("wrapped: %w", &sessionsvc.NotStartedError{SessionID: "ses_a", State: st}))
+			assert.EqualError(t, err, want[string(st)], lang+" "+string(st))
+			assert.NotEqual(t, ExitOK, ExitCode(err), "oh session send fails")
+		}
+	}
+}
