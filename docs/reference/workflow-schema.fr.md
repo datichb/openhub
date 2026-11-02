@@ -318,7 +318,7 @@ La clé est l'id d'un agent du catalogue de briques (hub + équipe), en kebab-ca
 | Champ | Type | Valeurs | Absent | Rôle |
 |---|---|---|---|---|
 | `role` | texte | `workflow`, `independent`, `disabled` | obligatoire | `workflow` : dans l'enchaînement, doit être atteignable depuis l'entrée (`agent_unreachable`) ; `independent` : disponible à la demande, hors enchaînement ; `disabled` : retiré (patch) |
-| `mode` | texte | `primary`, `subagent` | mode de l'agent dans le catalogue | `primary` : l'utilisateur peut le choisir ; `subagent` : appelé seulement par délégation |
+| `mode` | texte | `primary`, `subagent`, `all` | mode de l'agent dans le catalogue | `primary` : l'utilisateur peut le choisir ; `subagent` : appelé seulement par délégation ; `all` : les deux. Un agent `primary` qu'un agent du workflow peut lancer (lui-même compris) est livré en `all` : opencode refuse de lancer un agent `primary` par `task` ([ADR-058](../architecture/adr/058-primary-agent-called-is-all.fr.md)) |
 | `after` | texte | id de checkpoint ou d'agent | aucun verrou | l'agent ne peut être appelé qu'après ce checkpoint ou cet agent (`after_unknown`, `after_cycle`) |
 | `calls` | liste | ids d'agents du workflow | permission `task` de l'agent, restreinte au workflow | délégations permises (`calls_unknown`, `graph_cycle`) |
 | `scratch` | table | `{ readers: [<agent>…] }` | pas de brouillons | dossier de brouillons de session de l'agent (voir [ci-dessous](#scratch-brouillons-de-session)) |
@@ -740,6 +740,7 @@ Un diagnostic a une gravité (erreur ou avertissement), un code, le chemin du ch
 | `enforced_field`, `enforce_unknown_field` | champ verrouillé par un parent ; valeur d'`enforce` inconnue |
 | `entry_not_primary`, `entry_role`, `entry_disabled`, `agent_unknown`, `agent_unreachable` | agent d'entrée ou membre invalide |
 | `after_unknown`, `after_cycle`, `calls_unknown`, `graph_cycle` | verrous `after` et délégations |
+| `calls_target_primary` | un agent écrit `mode: primary` est appelé : il est livré en `all` (avertissement) |
 | `scratch_reader_unknown`, `scratch_reader_owner` | lecteur de brouillons absent du workflow, ou propriétaire lui-même |
 | `writes_after_unknown`, `writes_after_without_writes`, `checkpoint_after_unknown`, `checkpoint_after_order`, `order_method_after` | ordre des écritures et des checkpoints (r5-fixes) |
 | `writes_path_invalid`, `writes_read_only` | chemin d'écriture hors de `docs/` ou avec un joker autre que `/**` ; `writes` dans un workflow `risk: read` |
