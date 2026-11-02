@@ -1869,13 +1869,3 @@ func FixFormDropDownStyles(form *tview.Form) { fixFormDropDownStyles(form) }
 
 // FixFormLabelFocus is the exported wrapper for fixFormLabelFocus.
 func FixFormLabelFocus(form *tview.Form) { fixFormLabelFocus(form) }
-
-// IsLastFocusableFormItem is the exported wrapper for isLastFocusableFormItem.
-func IsLastFocusableFormItem(form *tview.Form, itemIdx int) bool {
-	return isLastFocusableFormItem(form, itemIdx)
-}
-
-// RemapArrowToTab is the exported wrapper for remapArrowToTab.
-func RemapArrowToTab(form *tview.Form, event *tcell.EventKey) *tcell.EventKey {
-	return remapArrowToTab(form, event)
-}
