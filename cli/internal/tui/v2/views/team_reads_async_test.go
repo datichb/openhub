@@ -128,13 +128,13 @@ func TestTeamStatusViewWithoutClone(t *testing.T) {
 	assert.Contains(t, screenText(t, content, 100, 14), "non cloné")
 }
 
-func TestTimeAgoFallsBackToTheDateAfterAWeek(t *testing.T) {
+func TestTeamEventAgeFallsBackToTheDateAfterAWeek(t *testing.T) {
 	frLocale(t)
 	now := time.Date(2026, 11, 2, 12, 0, 0, 0, time.UTC)
 	defer textfmt.SetNow(func() time.Time { return now })()
-	assert.Equal(t, "", timeAgo(time.Time{}))
-	assert.Equal(t, "il y a 3 min", timeAgo(now.Add(-3*time.Minute)))
-	assert.Contains(t, timeAgo(now.AddDate(0, 0, -10)), "2026")
+	assert.Equal(t, "", textfmt.AgoOrDate(time.Time{}))
+	assert.Equal(t, "il y a 3 min", textfmt.AgoOrDate(now.Add(-3*time.Minute)))
+	assert.Contains(t, textfmt.AgoOrDate(now.AddDate(0, 0, -10)), "2026")
 }
 
 func TestTakeoverViewLoadAndRemount(t *testing.T) {

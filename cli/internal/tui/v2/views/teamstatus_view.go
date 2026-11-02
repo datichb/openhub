@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -240,18 +239,10 @@ func (v *TeamStatusView) render(tc TeamResolution, d *teamStatusData) {
 	} else {
 		for _, e := range d.events {
 			fmt.Fprintf(&sb, "  %s %s %s\n",
-				secondary(fmt.Sprintf("%-12s", timeAgo(e.Timestamp))),
+				secondary(fmt.Sprintf("%-12s", textfmt.AgoOrDate(e.Timestamp))),
 				tview.Escape(e.Actor), tview.Escape(formatEventDescription(e)))
 		}
 	}
 
 	v.tv.SetText(sb.String())
-}
-
-// timeAgo is how long ago t was (« 3 min ago »), the date from a week on.
-func timeAgo(t time.Time) string {
-	if !t.IsZero() && textfmt.Now().Sub(t) >= 7*24*time.Hour {
-		return textfmt.Date(t)
-	}
-	return textfmt.Ago(t)
 }

@@ -61,6 +61,16 @@ func TestAgoAndAge(t *testing.T) {
 	}
 }
 
+func TestAgoOrDate(t *testing.T) {
+	t.Cleanup(SetNow(func() time.Time { return fixed }))
+	i18ntest.Set(t, "en")
+	assert.Equal(t, "", AgoOrDate(time.Time{}))
+	assert.Equal(t, "3 min ago", AgoOrDate(fixed.Add(-3*time.Minute)))
+	assert.Equal(t, "6 d ago", AgoOrDate(fixed.Add(-6*24*time.Hour)))
+	assert.Equal(t, Date(fixed.Add(-7*24*time.Hour)), AgoOrDate(fixed.Add(-7*24*time.Hour)))
+	assert.Equal(t, Date(fixed.Add(-30*24*time.Hour)), AgoOrDate(fixed.Add(-30*24*time.Hour)))
+}
+
 func TestSetNowRestores(t *testing.T) {
 	before := Now()
 	restore := SetNow(func() time.Time { return fixed })
