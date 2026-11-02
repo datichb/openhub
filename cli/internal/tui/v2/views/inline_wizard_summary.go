@@ -62,10 +62,23 @@ func (w *InlineWizardView) renderSummaryScreen() {
 	// Build summary content
 	w.stepContentInner.Clear()
 
-	// ── Recap text ──
 	summary := tview.NewTextView().SetDynamicColors(true)
 	summary.SetBackgroundColor(theme.BgPanel)
+	summary.SetText(w.summaryText())
+	w.stepContentInner.AddItem(summary, 0, 1, false)
 
+	w.addSummaryButton()
+
+	// Update hints
+	w.hintsBar.SetHints("enter " + i18n.T("wizard.hint.submit") + " · ctrl+b " + i18n.T("wizard.hint.back"))
+
+	// Update info panel to show final state
+	w.renderInfoPanel()
+}
+
+// summaryText is the recap: what each step left, the steps skipped, and the
+// note of the wizard.
+func (w *InlineWizardView) summaryText() string {
 	var b strings.Builder
 	b.WriteString("\n")
 
@@ -74,19 +87,7 @@ func (w *InlineWizardView) renderSummaryScreen() {
 			theme.ColorTagOf(theme.Success), theme.IconDone,
 			theme.ColorTagOf(theme.FgPrimary), si.label)
 		for _, f := range si.fields {
-			if f.Value != "" {
-				if strings.Contains(f.Value, "\n") {
-					// Multi-line value: label on its own line, content indented below.
-					fmt.Fprintf(&b, "      %s%s:[-]\n",
-						theme.ColorTagOf(theme.FgSecondary), f.Label)
-					for _, line := range strings.Split(f.Value, "\n") {
-						fmt.Fprintf(&b, "        %s\n", line)
-					}
-				} else {
-					fmt.Fprintf(&b, "      %s%s:[-] %s\n",
-						theme.ColorTagOf(theme.FgSecondary), f.Label, f.Value)
-				}
-			}
+			writeSummaryField(&b, f)
 		}
 		b.WriteString("\n")
 	}
@@ -111,11 +112,30 @@ func (w *InlineWizardView) renderSummaryScreen() {
 			}
 		}
 	}
+	return b.String()
+}
 
-	summary.SetText(b.String())
-	w.stepContentInner.AddItem(summary, 0, 1, false)
+// writeSummaryField writes one field of the recap; a multi-line value has its
+// label on its own line and its content indented below.
+func writeSummaryField(b *strings.Builder, f InfoField) {
+	if f.Value == "" {
+		return
+	}
+	if strings.Contains(f.Value, "\n") {
+		fmt.Fprintf(b, "      %s%s:[-]\n",
+			theme.ColorTagOf(theme.FgSecondary), f.Label)
+		for _, line := range strings.Split(f.Value, "\n") {
+			fmt.Fprintf(b, "        %s\n", line)
+		}
+		return
+	}
+	fmt.Fprintf(b, "      %s%s:[-] %s\n",
+		theme.ColorTagOf(theme.FgSecondary), f.Label, f.Value)
+}
 
-	// ── Action button ──
+// addSummaryButton adds the action button of the summary: the target view of
+// the wizard, or back.
+func (w *InlineWizardView) addSummaryButton() {
 	targetView, targetLabel := w.summaryTarget()
 	buttonLabel := targetLabel
 	if buttonLabel == "" {
@@ -137,12 +157,6 @@ func (w *InlineWizardView) renderSummaryScreen() {
 
 	w.stepContentInner.AddItem(summaryForm, 3, 0, true)
 	w.app.SetFocus(summaryForm)
-
-	// Update hints
-	w.hintsBar.SetHints("enter " + i18n.T("wizard.hint.submit") + " · ctrl+b " + i18n.T("wizard.hint.back"))
-
-	// Update info panel to show final state
-	w.renderInfoPanel()
 }
 
 func (w *InlineWizardView) handleSummaryKey(event *tcell.EventKey) *tcell.EventKey {

@@ -28,6 +28,16 @@ func (w *InlineWizardView) mountClassicLayout(content *tview.Flex) {
 	content.AddItem(w.mainFlex, 0, 1, true)
 }
 
+// fillBackground paints BgPanel over a rect.
+func fillBackground(screen tcell.Screen, x, y, width, height int) {
+	bg := tcell.StyleDefault.Background(theme.BgPanel)
+	for row := y; row < y+height; row++ {
+		for col := x; col < x+width; col++ {
+			screen.SetContent(col, row, ' ', nil, bg)
+		}
+	}
+}
+
 // mountGroupedLayout builds the full-screen layout with a right-side info
 // sidebar. The step bar and step header are omitted (the sidebar provides
 // the progression view).
@@ -39,10 +49,30 @@ func (w *InlineWizardView) mountGroupedLayout(content *tview.Flex) {
 	// Info sidebar: padding
 	w.infoPanel.SetBorderPadding(1, 1, 1, 1)
 
-	// ── Centered content wrapper (flexbox-style) ──
-	// All wizard pages get the same width via proportional spacers,
-	// like CSS `max-width` + `margin: auto`. Pages fill stepContentInner
-	// without knowing their width — the wrapper decides.
+	w.centerStepContent()
+	leftCol := w.newLeftColumn()
+
+	// bodyRow: leftCol (left, 3/4) + separator (1 col) + sidebar (right, 1/4)
+	w.bodyRow = tview.NewFlex().SetDirection(tview.FlexColumn)
+	w.bodyRow.SetBackgroundColor(theme.BgPanel)
+	w.bodyRow.
+		AddItem(leftCol, 0, 3, true).
+		AddItem(newSidebarSeparator(), 1, 0, false).
+		AddItem(w.infoPanel, 0, 1, false)
+
+	// Full-screen layout
+	w.mainFlex = tview.NewFlex().SetDirection(tview.FlexRow)
+	w.mainFlex.SetBackgroundColor(theme.BgPanel)
+	w.mainFlex.AddItem(w.bodyRow, 0, 1, true)
+
+	content.AddItem(w.mainFlex, 0, 1, true)
+}
+
+// centerStepContent puts the content of the steps in a centered wrapper
+// (flexbox-style): all wizard pages get the same width via proportional
+// spacers, like CSS `max-width` + `margin: auto`. Pages fill stepContentInner
+// without knowing their width — the wrapper decides.
+func (w *InlineWizardView) centerStepContent() {
 	bg := theme.BgPanel
 	w.stepContentInner = tview.NewFlex().SetDirection(tview.FlexRow)
 	w.stepContentInner.SetBackgroundColor(bg)
@@ -53,9 +83,11 @@ func (w *InlineWizardView) mountGroupedLayout(content *tview.Flex) {
 		AddItem(w.stepContentInner, 0, 5, true).                     // content (5/7 of width)
 		AddItem(tview.NewBox().SetBackgroundColor(bg), 0, 1, false)  // right spacer
 	w.stepContent.AddItem(centeredWrapper, 0, 1, true)
+}
 
-	// leftCol wraps stepContent + hintsBar so that hints are centered
-	// relative to the content area, not the full width including the sidebar.
+// newLeftColumn wraps stepContent + hintsBar so that hints are centered
+// relative to the content area, not the full width including the sidebar.
+func (w *InlineWizardView) newLeftColumn() *tview.Flex {
 	leftCol := tview.NewFlex().SetDirection(tview.FlexRow)
 	leftCol.SetBackgroundColor(theme.BgPanel)
 	leftCol.SetBorderPadding(0, 0, 2, 1)
@@ -64,12 +96,7 @@ func (w *InlineWizardView) mountGroupedLayout(content *tview.Flex) {
 	// would never be repainted — stale pixels bleed through as a visible
 	// vertical strip.
 	leftCol.SetDrawFunc(func(screen tcell.Screen, x, y, width, height int) (int, int, int, int) {
-		bg := tcell.StyleDefault.Background(theme.BgPanel)
-		for row := y; row < y+height; row++ {
-			for col := x; col < x+width; col++ {
-				screen.SetContent(col, row, ' ', nil, bg)
-			}
-		}
+		fillBackground(screen, x, y, width, height)
 		// Return inner rect matching SetBorderPadding(0, 0, 2, 1).
 		innerW := width - 2 - 1
 		if innerW < 0 {
@@ -80,8 +107,12 @@ func (w *InlineWizardView) mountGroupedLayout(content *tview.Flex) {
 	leftCol.AddItem(w.stepContent, 0, 1, true)
 	leftCol.AddItem(w.hintsBar.TextView, 1, 0, false)
 	w.hintsHost = leftCol
+	return leftCol
+}
 
-	// Vertical separator (│) between left column and sidebar
+// newSidebarSeparator is the vertical separator (│) between the left column
+// and the sidebar.
+func newSidebarSeparator() *tview.Box {
 	sep := tview.NewBox()
 	sep.SetBackgroundColor(theme.BgPanel)
 	sep.SetDrawFunc(func(screen tcell.Screen, x, y, width, height int) (int, int, int, int) {
@@ -91,21 +122,7 @@ func (w *InlineWizardView) mountGroupedLayout(content *tview.Flex) {
 		}
 		return x + 1, y, width - 1, height
 	})
-
-	// bodyRow: leftCol (left, 3/4) + separator (1 col) + sidebar (right, 1/4)
-	w.bodyRow = tview.NewFlex().SetDirection(tview.FlexColumn)
-	w.bodyRow.SetBackgroundColor(theme.BgPanel)
-	w.bodyRow.
-		AddItem(leftCol, 0, 3, true).
-		AddItem(sep, 1, 0, false).
-		AddItem(w.infoPanel, 0, 1, false)
-
-	// Full-screen layout
-	w.mainFlex = tview.NewFlex().SetDirection(tview.FlexRow)
-	w.mainFlex.SetBackgroundColor(theme.BgPanel)
-	w.mainFlex.AddItem(w.bodyRow, 0, 1, true)
-
-	content.AddItem(w.mainFlex, 0, 1, true)
+	return sep
 }
 
 // buildGroupStates computes the step bar states from the per-step states,

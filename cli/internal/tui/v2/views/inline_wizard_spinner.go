@@ -50,12 +50,7 @@ func (w *InlineWizardView) runWithSpinner(step WizardStep, afterDone func()) {
 		}
 		spinnerShown = true
 		w.stepContent.SetInputCapture(prevCapture)
-		w.stepContentInner.Clear()
-		w.stepContentInner.AddItem(w.spinner.TextView, 3, 0, false)
-		bgFill := tview.NewBox()
-		bgFill.SetBackgroundColor(theme.BgPanel)
-		w.stepContentInner.AddItem(bgFill, 0, 1, false)
-		w.spinner.Start(w.app)
+		w.showSpinnerContent()
 	}
 
 	// Delayed spinner: only show after 1s if OnDone hasn't finished yet.
@@ -88,37 +83,50 @@ func (w *InlineWizardView) runWithSpinner(step WizardStep, afterDone func()) {
 			w.stepContent.SetInputCapture(prevCapture)
 
 			if err != nil {
-				w.wizardErr = err
-				// Show error in the step content but do NOT mark as completed.
-				// The user can press Ctrl+B to go back and fix the issue,
-				// or Enter to retry the current step.
-				w.stepContentInner.Clear()
-				errView := tview.NewTextView().SetDynamicColors(true)
-				errView.SetBackgroundColor(theme.BgPanel)
-				errView.SetText(fmt.Sprintf("  %s%s %s[-]\n\n  %s%s[-]\n\n  %sCtrl+B[-] %s  •  %sEnter[-] %s",
-					theme.ColorTagOf(theme.Error), theme.IconError,
-					i18n.T("wizard.error"),
-					theme.ColorTagOf(theme.FgSecondary), err.Error(),
-					theme.ColorTagOf(theme.ActiveMode.Primary), i18n.T("wizard.error.back"),
-					theme.ColorTagOf(theme.ActiveMode.Primary), i18n.T("wizard.error.retry")))
-				errView.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-					switch {
-					case event.Key() == tcell.KeyCtrlB:
-						w.goBack()
-						return nil
-					case event.Key() == tcell.KeyEnter:
-						// Retry: re-render the current step
-						w.wizardErr = nil
-						w.renderStep(w.currentStep)
-						return nil
-					}
-					return event
-				})
-				w.stepContentInner.AddItem(errView, 0, 1, true)
-				w.app.SetFocus(errView)
+				w.showStepError(err)
 				return
 			}
 			afterDone()
 		})
 	})
+}
+
+func (w *InlineWizardView) showSpinnerContent() {
+	w.stepContentInner.Clear()
+	w.stepContentInner.AddItem(w.spinner.TextView, 3, 0, false)
+	bgFill := tview.NewBox()
+	bgFill.SetBackgroundColor(theme.BgPanel)
+	w.stepContentInner.AddItem(bgFill, 0, 1, false)
+	w.spinner.Start(w.app)
+}
+
+// showStepError shows the error of an OnDone in the step content but does NOT
+// mark the step as completed. The user can press Ctrl+B to go back and fix the
+// issue, or Enter to retry the current step.
+func (w *InlineWizardView) showStepError(err error) {
+	w.wizardErr = err
+	w.stepContentInner.Clear()
+	errView := tview.NewTextView().SetDynamicColors(true)
+	errView.SetBackgroundColor(theme.BgPanel)
+	errView.SetText(fmt.Sprintf("  %s%s %s[-]\n\n  %s%s[-]\n\n  %sCtrl+B[-] %s  •  %sEnter[-] %s",
+		theme.ColorTagOf(theme.Error), theme.IconError,
+		i18n.T("wizard.error"),
+		theme.ColorTagOf(theme.FgSecondary), err.Error(),
+		theme.ColorTagOf(theme.ActiveMode.Primary), i18n.T("wizard.error.back"),
+		theme.ColorTagOf(theme.ActiveMode.Primary), i18n.T("wizard.error.retry")))
+	errView.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch {
+		case event.Key() == tcell.KeyCtrlB:
+			w.goBack()
+			return nil
+		case event.Key() == tcell.KeyEnter:
+			// Retry: re-render the current step
+			w.wizardErr = nil
+			w.renderStep(w.currentStep)
+			return nil
+		}
+		return event
+	})
+	w.stepContentInner.AddItem(errView, 0, 1, true)
+	w.app.SetFocus(errView)
 }

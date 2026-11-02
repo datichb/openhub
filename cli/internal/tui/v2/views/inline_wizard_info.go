@@ -24,20 +24,38 @@ func (w *InlineWizardView) renderInfoPanel() {
 	}
 }
 
+// sidebarTags are the color tags of the sidebar.
+type sidebarTags struct {
+	accent, success, muted, secondary, primary string
+}
+
+const sidebarReset = "[-]"
+
+func newSidebarTags() sidebarTags {
+	return sidebarTags{
+		accent:    theme.ColorTagOf(theme.ActiveMode.Primary),
+		success:   theme.ColorTagOf(theme.Success),
+		muted:     theme.ColorTagOf(theme.FgMuted),
+		secondary: theme.ColorTagOf(theme.FgSecondary),
+		primary:   theme.ColorTagOf(theme.FgPrimary),
+	}
+}
+
+// sidebarSubStep is a step listed under its group in the sidebar.
+type sidebarSubStep struct {
+	idx    int
+	label  string
+	status widgets.StepStatus
+}
+
 // renderGroupedSidebar renders the right-side info sidebar (grouped mode)
 // with a detailed tree-style recap including individual sub-steps.
 func (w *InlineWizardView) renderGroupedSidebar() {
 	var b strings.Builder
+	tags := newSidebarTags()
 
-	accent := theme.ColorTagOf(theme.ActiveMode.Primary)
-	success := theme.ColorTagOf(theme.Success)
-	muted := theme.ColorTagOf(theme.FgMuted)
-	secondary := theme.ColorTagOf(theme.FgSecondary)
-	primary := theme.ColorTagOf(theme.FgPrimary)
-	reset := "[-]"
-
-	fmt.Fprintf(&b, " %s%s %s%s\n", accent, theme.IconActive, i18n.T("wizard.sidebar.title"), reset)
-	fmt.Fprintf(&b, " %s─────────────────%s\n\n", muted, reset)
+	fmt.Fprintf(&b, " %s%s %s%s\n", tags.accent, theme.IconActive, i18n.T("wizard.sidebar.title"), sidebarReset)
+	fmt.Fprintf(&b, " %s─────────────────%s\n\n", tags.muted, sidebarReset)
 
 	// Build a map of step index → accumulated info (using stored stepIdx)
 	infoByStep := make(map[int][]InfoField)
@@ -54,98 +72,102 @@ func (w *InlineWizardView) renderGroupedSidebar() {
 			endIdx = w.cfg.Groups[gi+1].StartIdx
 		}
 
-		// Determine group status
-		groupStatus := widgets.StepPending
-		allDone := true
-		for si := g.StartIdx; si < endIdx; si++ {
-			switch w.stepStates[si].Status {
-			case widgets.StepActive:
-				groupStatus = widgets.StepActive
-				allDone = false
-			case widgets.StepPending:
-				allDone = false
-			}
+		writeSidebarGroupHeader(&b, tags, g.Label, w.groupStatus(g.StartIdx, endIdx))
+		for _, ss := range w.sidebarSubSteps(g.StartIdx, endIdx) {
+			writeSidebarSubStep(&b, tags, ss, infoByStep[ss.idx])
 		}
-		if allDone && groupStatus != widgets.StepActive {
-			groupStatus = widgets.StepDone
-		}
-
-		// ── Group header ──
-		switch groupStatus {
-		case widgets.StepDone:
-			fmt.Fprintf(&b, " %s%s%s %s%s%s\n", success, theme.IconDone, reset, primary, g.Label, reset)
-		case widgets.StepActive:
-			fmt.Fprintf(&b, " %s%s%s %s%s%s\n", accent, theme.IconActive, reset, primary, g.Label, reset)
-		default:
-			fmt.Fprintf(&b, " %s%s %s%s\n", muted, theme.IconPending, g.Label, reset)
-		}
-
-		// ── Sub-steps within this group ──
-		// Collect visible sub-steps (skip SidebarHidden and dynamically skipped)
-		type subStep struct {
-			idx    int
-			label  string
-			status widgets.StepStatus
-		}
-		var subs []subStep
-		for si := g.StartIdx; si < endIdx; si++ {
-			step := w.cfg.Steps[si]
-			if step.SidebarHidden {
-				continue
-			}
-			if step.Skip {
-				continue
-			}
-			// Don't show dynamically-skipped future steps (e.g. Deploy without project)
-			if w.stepStates[si].Status == widgets.StepPending && step.SkipIf != nil && step.SkipIf() {
-				continue
-			}
-			subs = append(subs, subStep{idx: si, label: step.Label, status: w.stepStates[si].Status})
-		}
-
-		for _, ss := range subs {
-			switch ss.status {
-			case widgets.StepDone:
-				// Show InfoFields with tree connectors
-				fields := infoByStep[ss.idx]
-				if len(fields) == 0 {
-					fmt.Fprintf(&b, "   %s%s%s %s%s%s\n", success, theme.IconDone, reset, secondary, ss.label, reset)
-					continue
-				}
-				for fi, f := range fields {
-					if f.Value == "" {
-						continue
-					}
-					connector := "├"
-					if fi == len(fields)-1 {
-						connector = "└"
-					}
-					fmt.Fprintf(&b, "   %s%s %s:%s %s\n", muted, connector, f.Label, reset, f.Value)
-				}
-
-			case widgets.StepActive:
-				// ◆ Label ........ en cours
-				dots := " "
-				labelLen := len([]rune(ss.label))
-				// Fill dots to ~24 chars total (label + dots + " en cours")
-				if remaining := 20 - labelLen; remaining > 2 {
-					dots = " " + strings.Repeat(".", remaining) + " "
-				}
-				fmt.Fprintf(&b, "   %s%s %s%s%s%s%s\n",
-					accent, theme.IconActive, ss.label, muted, dots, i18n.T("wizard.sidebar.in_progress"), reset)
-
-			case widgets.StepSkipped:
-				fmt.Fprintf(&b, "   %s%s %s%s\n", muted, theme.IconSkipped, ss.label, reset)
-
-			default: // Pending
-				fmt.Fprintf(&b, "   %s%s %s%s\n", muted, theme.IconPending, ss.label, reset)
-			}
-		}
-
 		b.WriteString("\n")
 	}
 
 	w.infoPanel.SetText(b.String())
+}
+
+// groupStatus is the status of the group of steps [start, end).
+func (w *InlineWizardView) groupStatus(start, end int) widgets.StepStatus {
+	groupStatus := widgets.StepPending
+	allDone := true
+	for si := start; si < end; si++ {
+		switch w.stepStates[si].Status {
+		case widgets.StepActive:
+			groupStatus = widgets.StepActive
+			allDone = false
+		case widgets.StepPending:
+			allDone = false
+		}
+	}
+	if allDone && groupStatus != widgets.StepActive {
+		groupStatus = widgets.StepDone
+	}
+	return groupStatus
+}
+
+// sidebarSubSteps are the steps [start, end) the sidebar lists: not hidden,
+// not skipped, and not dynamically skipped ahead (e.g. Deploy without project).
+func (w *InlineWizardView) sidebarSubSteps(start, end int) []sidebarSubStep {
+	var subs []sidebarSubStep
+	for si := start; si < end; si++ {
+		step := w.cfg.Steps[si]
+		if step.SidebarHidden {
+			continue
+		}
+		if step.Skip {
+			continue
+		}
+		if w.stepStates[si].Status == widgets.StepPending && step.SkipIf != nil && step.SkipIf() {
+			continue
+		}
+		subs = append(subs, sidebarSubStep{idx: si, label: step.Label, status: w.stepStates[si].Status})
+	}
+	return subs
+}
+
+func writeSidebarGroupHeader(b *strings.Builder, t sidebarTags, label string, status widgets.StepStatus) {
+	switch status {
+	case widgets.StepDone:
+		fmt.Fprintf(b, " %s%s%s %s%s%s\n", t.success, theme.IconDone, sidebarReset, t.primary, label, sidebarReset)
+	case widgets.StepActive:
+		fmt.Fprintf(b, " %s%s%s %s%s%s\n", t.accent, theme.IconActive, sidebarReset, t.primary, label, sidebarReset)
+	default:
+		fmt.Fprintf(b, " %s%s %s%s\n", t.muted, theme.IconPending, label, sidebarReset)
+	}
+}
+
+func writeSidebarSubStep(b *strings.Builder, t sidebarTags, ss sidebarSubStep, fields []InfoField) {
+	switch ss.status {
+	case widgets.StepDone:
+		// Show InfoFields with tree connectors
+		if len(fields) == 0 {
+			fmt.Fprintf(b, "   %s%s%s %s%s%s\n", t.success, theme.IconDone, sidebarReset, t.secondary, ss.label, sidebarReset)
+			return
+		}
+		for fi, f := range fields {
+			if f.Value == "" {
+				continue
+			}
+			connector := "├"
+			if fi == len(fields)-1 {
+				connector = "└"
+			}
+			fmt.Fprintf(b, "   %s%s %s:%s %s\n", t.muted, connector, f.Label, sidebarReset, f.Value)
+		}
+
+	case widgets.StepActive:
+		// ◆ Label ........ en cours
+		dots := " "
+		labelLen := len([]rune(ss.label))
+		// Fill dots to ~24 chars total (label + dots + " en cours")
+		if remaining := 20 - labelLen; remaining > 2 {
+			dots = " " + strings.Repeat(".", remaining) + " "
+		}
+		fmt.Fprintf(b, "   %s%s %s%s%s%s%s\n",
+			t.accent, theme.IconActive, ss.label, t.muted, dots, i18n.T("wizard.sidebar.in_progress"), sidebarReset)
+
+	case widgets.StepSkipped:
+		fmt.Fprintf(b, "   %s%s %s%s\n", t.muted, theme.IconSkipped, ss.label, sidebarReset)
+
+	default: // Pending
+		fmt.Fprintf(b, "   %s%s %s%s\n", t.muted, theme.IconPending, ss.label, sidebarReset)
+	}
 }
 
 // renderClassicInfoPanel renders the bottom info panel (classic mode).

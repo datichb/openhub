@@ -253,13 +253,38 @@ func (w *InlineWizardView) Mount(content *tview.Flex, app *tview.Application) {
 	w.wizardErr = nil
 	w.quitBar, w.quitBack, w.form, w.processing = nil, nil, nil, false
 
-	if len(w.cfg.Steps) == 0 {
+	if !w.initStepStates() {
 		w.completed = true
 		w.fireComplete()
 		return
 	}
+	w.newSharedWidgets()
 
-	// ── Initialize step states ──
+	// ── Layout: grouped (centered + sidebar) or classic (full-width) ──
+	w.paintContentBackground(content)
+	if len(w.cfg.Groups) > 0 {
+		w.mountGroupedLayout(content)
+	} else {
+		w.mountClassicLayout(content)
+	}
+
+	// ── Wire forward declaration and render first step ──
+	w.doRenderStep = w.renderStep
+	w.renderInfoPanel()
+	w.renderStep(w.currentStep)
+
+	// Hide the shell omnibar — the wizard has its own hints bar.
+	if w.shell != nil {
+		w.shell.SetOmnibarVisible(false)
+	}
+}
+
+// initStepStates sets the state of every step and activates the first one that
+// is not skipped. It reports false when there is no step to run.
+func (w *InlineWizardView) initStepStates() bool {
+	if len(w.cfg.Steps) == 0 {
+		return false
+	}
 	w.stepStates = make([]widgets.Step, len(w.cfg.Steps))
 	for i, s := range w.cfg.Steps {
 		if s.Skip {
@@ -279,14 +304,11 @@ func (w *InlineWizardView) Mount(content *tview.Flex, app *tview.Application) {
 			break
 		}
 	}
-	if w.currentStep == -1 {
-		w.completed = true
-		w.fireComplete()
-		return
-	}
+	return w.currentStep != -1
+}
 
-	// ── Build shared widgets ──
-
+// newSharedWidgets builds the widgets both layouts use.
+func (w *InlineWizardView) newSharedWidgets() {
 	// Step header ("◆ 2/5 — Label")
 	w.stepHeader = tview.NewTextView().SetDynamicColors(true)
 	w.stepHeader.SetBackgroundColor(theme.BgPanel)
@@ -301,12 +323,7 @@ func (w *InlineWizardView) Mount(content *tview.Flex, app *tview.Application) {
 	// initial omnibar render produce visible artifacts. This DrawFunc paints
 	// BgPanel over the full rect before children draw, eliminating the issue.
 	w.stepContent.SetDrawFunc(func(screen tcell.Screen, x, y, width, height int) (int, int, int, int) {
-		bg := tcell.StyleDefault.Background(theme.BgPanel)
-		for row := y; row < y+height; row++ {
-			for col := x; col < x+width; col++ {
-				screen.SetContent(col, row, ' ', nil, bg)
-			}
-		}
+		fillBackground(screen, x, y, width, height)
 		return x, y, width, height
 	})
 	// Default: inner = outer (classic mode). Grouped mode overrides this
@@ -323,20 +340,16 @@ func (w *InlineWizardView) Mount(content *tview.Flex, app *tview.Application) {
 	// Spinner (reused across steps)
 	w.spinner = widgets.NewSpinner(i18n.T("wizard.processing"))
 	w.spinner.SetBackgroundColor(theme.BgPanel)
+}
 
-	// ── Layout: grouped (centered + sidebar) or classic (full-width) ──
-	// Force-clear the shell content container's full rect including its
-	// padding (top=1, left=2, right=2). The container is a Flex with
-	// dontClear=true, so its padding areas are never repainted by default.
-	// The router clears any previous DrawFunc before Mount, so this one
-	// is installed fresh and only lives while the wizard is mounted.
+// paintContentBackground force-clears the shell content container's full rect
+// including its padding (top=1, left=2, right=2). The container is a Flex with
+// dontClear=true, so its padding areas are never repainted by default.
+// The router clears any previous DrawFunc before Mount, so this one
+// is installed fresh and only lives while the wizard is mounted.
+func (w *InlineWizardView) paintContentBackground(content *tview.Flex) {
 	content.SetDrawFunc(func(screen tcell.Screen, x, y, width, height int) (int, int, int, int) {
-		bg := tcell.StyleDefault.Background(theme.BgPanel)
-		for row := y; row < y+height; row++ {
-			for col := x; col < x+width; col++ {
-				screen.SetContent(col, row, ' ', nil, bg)
-			}
-		}
+		fillBackground(screen, x, y, width, height)
 		// Return inner rect matching the shell's SetBorderPadding(1, 0, 2, 2).
 		innerW := width - 2 - 2
 		if innerW < 0 {
@@ -348,22 +361,6 @@ func (w *InlineWizardView) Mount(content *tview.Flex, app *tview.Application) {
 		}
 		return x + 2, y + 1, innerW, innerH
 	})
-
-	if len(w.cfg.Groups) > 0 {
-		w.mountGroupedLayout(content)
-	} else {
-		w.mountClassicLayout(content)
-	}
-
-	// ── Wire forward declaration and render first step ──
-	w.doRenderStep = w.renderStep
-	w.renderInfoPanel()
-	w.renderStep(w.currentStep)
-
-	// Hide the shell omnibar — the wizard has its own hints bar.
-	if w.shell != nil {
-		w.shell.SetOmnibarVisible(false)
-	}
 }
 
 func (w *InlineWizardView) Unmount() {
