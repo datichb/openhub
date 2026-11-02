@@ -103,3 +103,18 @@ func (s *SyncState) SetKnownTickets(hubProjectID string, tickets []KnownTicket) 
 	}
 	s.KnownTickets[hubProjectID] = tickets
 }
+
+// ForgetKnownTicket takes a ticket out of the known tickets of a hub project:
+// its claim was released on purpose, so its absence is not a loss.
+func (s *SyncState) ForgetKnownTicket(hubProjectID, ticketID string) {
+	known := s.KnownTickets[hubProjectID]
+	kept := known[:0:0]
+	for _, kt := range known {
+		if kt.TicketID != ticketID {
+			kept = append(kept, kt)
+		}
+	}
+	if len(kept) != len(known) {
+		s.KnownTickets[hubProjectID] = kept
+	}
+}

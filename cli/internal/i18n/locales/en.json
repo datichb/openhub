@@ -6274,5 +6274,6 @@
   "fmt.bytes.mib": "%.1f MiB",
   "fmt.bytes.gib": "%.1f GiB",
   "fmt.on": "enabled",
-  "fmt.off": "disabled"
+  "fmt.off": "disabled",
+  "tracker.sync.expired_released": "expired claim of %s released (team setting release_expired_on_sync)"
 }

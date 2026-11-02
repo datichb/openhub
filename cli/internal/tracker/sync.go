@@ -27,6 +27,7 @@ type SyncResult struct {
 	ClaimsCreated  int
 	ClaimsUpdated  int
 	ClaimsReleased int // done claims cleaned up by retention policy
+	ClaimsExpired  int // expired claims released (team setting release_expired_on_sync)
 	LabelsPushed   int
 	Warnings       []SyncWarning
 	Errors         []SyncError
@@ -180,8 +181,13 @@ func (e *Engine) Run(ctx context.Context) (*SyncResult, error) {
 			return teamstate.TxResult{}, abort
 		}
 		e.cleanupDone(ctx, result)
-		return teamstate.TxResult{Message: fmt.Sprintf("sync: %d created, %d updated, %d labels pushed, %d released",
-			result.ClaimsCreated, result.ClaimsUpdated, result.LabelsPushed, result.ClaimsReleased)}, nil
+		e.releaseExpired(ctx, result)
+		msg := fmt.Sprintf("sync: %d created, %d updated, %d labels pushed, %d released",
+			result.ClaimsCreated, result.ClaimsUpdated, result.LabelsPushed, result.ClaimsReleased)
+		if result.ClaimsExpired > 0 {
+			msg += fmt.Sprintf(", %d expired", result.ClaimsExpired)
+		}
+		return teamstate.TxResult{Message: msg}, nil
 	})
 	if abort != nil {
 		return nil, abort
@@ -347,6 +353,56 @@ func (e *Engine) cleanupDone(ctx context.Context, result *SyncResult) {
 	} else if len(released) > 0 {
 		slog.Info("tracker.sync.cleanup", "released", len(released), "retention_days", retDays)
 		result.ClaimsReleased = len(released)
+		e.forgetKnown(released)
+	}
+}
+
+// expiryReleaser is the repo that releases the expired claims (teamstate.Repo).
+type expiryReleaser interface {
+	ReleaseExpiredClaims(ctx context.Context, now time.Time, projects ...string) ([]teamstate.Claim, error)
+}
+
+// releaseExpired releases the claims of the synced projects whose lease is
+// past (or that are inactive, for a claim without lease), inside the
+// transaction of Run. Only when the team asks for it ([claim]
+// release_expired_on_sync, off by default): an expired claim is otherwise
+// reported by oh doctor and may be taken over.
+func (e *Engine) releaseExpired(ctx context.Context, result *SyncResult) {
+	reader, ok := e.repo.(teamstate.TeamStateReader)
+	releaser, canRelease := e.repo.(expiryReleaser)
+	if !ok || !canRelease {
+		return
+	}
+	teamCfg, err := reader.LoadConfig()
+	if err != nil || teamCfg == nil || !teamCfg.Claim.ReleaseExpiredOnSync {
+		return
+	}
+	projects := make([]string, 0, len(e.cfg.Projects)) //nolint:staticcheck // backward compat: deprecated field
+	for p := range e.cfg.Projects {                    //nolint:staticcheck // backward compat: deprecated field
+		projects = append(projects, p)
+	}
+	released, err := releaser.ReleaseExpiredClaims(ctx, result.SyncedAt, projects...)
+	if err != nil {
+		slog.Warn("tracker.sync.expire_failed", "error", err)
+		return
+	}
+	if len(released) == 0 {
+		return
+	}
+	slog.Info("tracker.sync.expired", "released", len(released))
+	result.ClaimsExpired = len(released)
+	for _, c := range released {
+		result.Warnings = append(result.Warnings, SyncWarning{ProjectID: c.Project, TicketID: c.TicketID,
+			Message: i18n.Tf("tracker.sync.expired_released", c.ClaimedBy)})
+	}
+	e.forgetKnown(released)
+}
+
+// forgetKnown takes the claims the run released itself out of the known
+// tickets: they are gone on purpose, not lost.
+func (e *Engine) forgetKnown(released []teamstate.Claim) {
+	for _, c := range released {
+		e.state.ForgetKnownTicket(c.Project, c.TicketID)
 	}
 }
 

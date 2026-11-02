@@ -6274,5 +6274,6 @@
   "fmt.bytes.mib": "%.1f Mio",
   "fmt.bytes.gib": "%.1f Gio",
   "fmt.on": "activé",
-  "fmt.off": "désactivé"
+  "fmt.off": "désactivé",
+  "tracker.sync.expired_released": "claim expiré de %s libéré (réglage d'équipe release_expired_on_sync)"
 }

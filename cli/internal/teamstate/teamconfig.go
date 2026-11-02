@@ -366,6 +366,12 @@ type ClaimConfig struct {
 	// Otherwise MinHeartbeatMinutes..MaxHeartbeatMinutes and at most half the
 	// lease (a renewal only happens when less than half of the lease is left).
 	HeartbeatMinutes int `toml:"heartbeat_minutes"`
+	// ReleaseExpiredOnSync lets the synchronization of the tracker release
+	// the claims that are expired (lease past, or inactive for stale_days for
+	// a claim without lease): see Repo.ReleaseExpiredClaims. Off by default:
+	// an expired claim is otherwise only reported (oh doctor) and may be
+	// taken over.
+	ReleaseExpiredOnSync bool `toml:"release_expired_on_sync,omitempty"`
 }
 
 // Bounds and defaults of the lease settings of ClaimConfig.
