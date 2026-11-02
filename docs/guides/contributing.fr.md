@@ -70,15 +70,17 @@ le profil de couverture, dont le total est comparé au seuil sous Linux et macOS
 part lance les tests de contrat (tag `integration`) contre un vrai `opencode serve` de version
 épinglée, sans appeler de modèle, sur les seuls paquets qui en ont (la liste est calculée à partir des
 fichiers de test `//go:build integration`, un nouveau paquet la rejoint donc tout seul ; aujourd'hui
-`internal/adapters/opencodev2`, `internal/gateway`, `internal/runsvc` et `internal/services/remote`). Les tests e2e (tag `e2e`, vrai modèle Bedrock) et les évaluations
+`internal/adapters/opencodev2`, `internal/gateway`, `internal/runsvc` et `internal/services/remote`), plus les tests de `./cmd` qui construisent et lancent le binaire `oh` (`TestBinary*`, dans `cmd/integration_test.go` et `cmd/startup_levels_test.go`, sous le même tag `integration` : les autres tests de `./cmd` tournent dans le job principal). Les tests e2e (tag `e2e`, vrai modèle Bedrock) et les évaluations
 (`make test-eval`) ne tournent jamais en CI : ils sont locaux et manuels, et aucune clé de modèle
 n'est confiée aux secrets GitHub.
 
-Sous Windows, la CI ne teste que les paquets listés dans `.github/windows-test-packages.txt` : les
-tests des 24 autres, écrits pour Unix, y échouent. Ils sont listés avec leur cause dans
+Sous Windows, la CI ne teste que les paquets listés dans `.github/windows-test-packages.txt` (99
+aujourd'hui) : les tests des 20 autres, écrits pour Unix, y échouent. Ils sont listés avec leur cause dans
 `.github/windows-test-packages-excluded.txt` et suivis par le lot `windows-tests`, qui les rendra
-verts. Un nouveau paquet absent des deux fichiers n'est pas testé sous Windows : la CI le signale par
-un avertissement (`.github/scripts/windows-packages.sh check`) ; ajoutez-le à l'un des deux fichiers.
+verts. Chaque paquet de `go list ./...` doit être dans un seul des deux fichiers : le job Windows échoue
+(`.github/scripts/windows-packages.sh check`, lancé avant `go vet`) quand un paquet n'est dans aucun,
+dans les deux, ou n'existe plus. Un nouveau paquet se classe dans le commit qui le crée : dans le premier
+fichier si ses tests passent sous Windows, sinon dans le second avec sa cause.
 Le seuil de couverture n'est pas calculé sous Windows, pour rester celui du module entier.
 
 La suite complète dépasse le délai par défaut de `go test` (10 minutes), surtout quand d'autres
