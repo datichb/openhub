@@ -22,7 +22,8 @@ import (
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
-	"github.com/datichb/openhub/cli/internal/daemon"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
+	"github.com/datichb/openhub/cli/internal/daemon/client"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/evalrun"
 	"github.com/datichb/openhub/cli/internal/hubcontent"
@@ -1058,7 +1059,7 @@ func stopEvalPass(svc *runsvc.Service, sid string) {
 		fmt.Fprintln(os.Stderr, "eval pass: stopping the session:", err)
 	}
 	if capability, _, err := daemonCapability(ctx); err == nil {
-		_ = daemon.NewClient(daemon.Paths{Dir: ohRunDir()}).WithCapability(capability).Shutdown(ctx, true)
+		_ = client.NewClient(api.Paths{Dir: ohRunDir()}).WithCapability(capability).Shutdown(ctx, true)
 	}
 }
 

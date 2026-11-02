@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/credproxy"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/provider"
@@ -37,12 +38,12 @@ func credentialRef(src domain.CredentialSource, secret string) credproxy.Credent
 }
 
 // authRejected is the credential refusal of a token for the API, if any.
-func (d *Daemon) authRejected(token string) *AuthRejected {
+func (d *Daemon) authRejected(token string) *api.AuthRejected {
 	r, ok := d.proxy.AuthRejection(token)
 	if !ok {
 		return nil
 	}
-	return &AuthRejected{Status: r.Status, Message: r.Message, CredentialKey: r.Credential.Key, Scope: r.Credential.Scope, At: r.At}
+	return &api.AuthRejected{Status: r.Status, Message: r.Message, CredentialKey: r.Credential.Key, Scope: r.Credential.Scope, At: r.At}
 }
 
 func (d *Daemon) onAuthRejected(r credproxy.AuthRejection) {

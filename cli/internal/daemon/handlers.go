@@ -16,37 +16,37 @@ import (
 
 func (d *Daemon) routes() http.Handler {
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET "+apiPrefix+api.RouteHealth, d.handleHealth)
-	mux.HandleFunc("POST "+apiPrefix+api.RouteGrants, d.privileged(d.afterRestore(d.handleIssue)))
-	mux.HandleFunc("POST "+apiPrefix+api.RouteGrantsSecret, d.privileged(d.afterRestore(d.handleSecret)))
-	mux.HandleFunc("GET "+apiPrefix+api.RouteGrantsPending, d.privileged(d.afterRestore(d.handlePending)))
-	mux.HandleFunc("DELETE "+apiPrefix+api.RouteOwnerGrants, d.privileged(d.afterRestore(d.handleRevokeOwner)))
-	mux.HandleFunc("GET "+apiPrefix+api.RouteUsage, d.afterRestore(d.handleUsage))
-	mux.HandleFunc("POST "+apiPrefix+api.RouteServerTouch, d.handleTouch)
-	mux.HandleFunc("POST "+apiPrefix+api.RouteShutdown, d.privileged(d.handleShutdown))
-	mux.HandleFunc("POST "+apiPrefix+api.RouteClientHeartbeat, d.handleHeartbeat)
-	mux.HandleFunc("DELETE "+apiPrefix+api.RouteClient, d.handleClientGone)
-	mux.HandleFunc("GET "+apiPrefix+api.RouteClients, d.privileged(d.handleClients))
-	mux.HandleFunc("POST "+apiPrefix+api.RouteGroupPolicy, d.privileged(d.handlePolicy))
-	mux.HandleFunc("POST "+apiPrefix+api.RouteProxyListeners, d.privileged(d.handleListen))
-	mux.HandleFunc("POST "+apiPrefix+api.RouteGatewayGrants, d.privileged(d.handleGatewayGrant))
+	mux.HandleFunc("GET "+api.Prefix+api.RouteHealth, d.handleHealth)
+	mux.HandleFunc("POST "+api.Prefix+api.RouteGrants, d.privileged(d.afterRestore(d.handleIssue)))
+	mux.HandleFunc("POST "+api.Prefix+api.RouteGrantsSecret, d.privileged(d.afterRestore(d.handleSecret)))
+	mux.HandleFunc("GET "+api.Prefix+api.RouteGrantsPending, d.privileged(d.afterRestore(d.handlePending)))
+	mux.HandleFunc("DELETE "+api.Prefix+api.RouteOwnerGrants, d.privileged(d.afterRestore(d.handleRevokeOwner)))
+	mux.HandleFunc("GET "+api.Prefix+api.RouteUsage, d.afterRestore(d.handleUsage))
+	mux.HandleFunc("POST "+api.Prefix+api.RouteServerTouch, d.handleTouch)
+	mux.HandleFunc("POST "+api.Prefix+api.RouteShutdown, d.privileged(d.handleShutdown))
+	mux.HandleFunc("POST "+api.Prefix+api.RouteClientHeartbeat, d.handleHeartbeat)
+	mux.HandleFunc("DELETE "+api.Prefix+api.RouteClient, d.handleClientGone)
+	mux.HandleFunc("GET "+api.Prefix+api.RouteClients, d.privileged(d.handleClients))
+	mux.HandleFunc("POST "+api.Prefix+api.RouteGroupPolicy, d.privileged(d.handlePolicy))
+	mux.HandleFunc("POST "+api.Prefix+api.RouteProxyListeners, d.privileged(d.handleListen))
+	mux.HandleFunc("POST "+api.Prefix+api.RouteGatewayGrants, d.privileged(d.handleGatewayGrant))
 	mux.HandleFunc("POST "+hookTokenRoute, d.handleHookToken) // S-06: checked on the caller process tree
-	mux.HandleFunc("GET "+apiPrefix+api.RouteStream, d.handleStream)
-	mux.HandleFunc("GET "+apiPrefix+api.RouteWorkflowStatus, d.handleWorkflowStatus)
-	mux.HandleFunc("POST "+apiPrefix+api.RouteWorkflowCheckpoint, d.handleWorkflowCheckpoint)
-	mux.HandleFunc("POST "+apiPrefix+api.RouteWorkflowOutputs, d.handleWorkflowOutputs)
-	mux.HandleFunc("POST "+apiPrefix+api.RouteWorkflowReport, d.handleWorkflowReport)
-	mux.HandleFunc("GET "+apiPrefix+api.RouteWorkflowReport, d.handleWorkflowReportGet)
-	mux.HandleFunc("GET "+apiPrefix+api.RouteWorkflowReports, d.handleWorkflowReports)
-	mux.HandleFunc("GET "+apiPrefix+api.RouteWikiIndex, d.handleWikiIndex)
-	mux.HandleFunc("GET "+apiPrefix+api.RouteWikiPage, d.handleWikiPage)
-	mux.HandleFunc("POST "+apiPrefix+api.RouteWikiPropose, d.handleWikiPropose)
-	mux.HandleFunc("GET "+apiPrefix+api.RouteWikiPending, d.handleWikiPending)
-	mux.HandleFunc("GET "+apiPrefix+api.RouteWikiRefused, d.handleWikiRefused)
-	mux.HandleFunc("POST "+apiPrefix+api.RouteWikiApply, d.handleWikiApply)
-	mux.HandleFunc("GET "+apiPrefix+api.RouteWikiCheck, d.handleWikiCheck)
-	mux.HandleFunc("POST "+apiPrefix+api.RouteWorkflowRules, d.privileged(d.handleWorkflowRules))
-	mux.HandleFunc("POST "+apiPrefix+api.RouteSessionDecided, d.handleSessionDecided)
+	mux.HandleFunc("GET "+api.Prefix+api.RouteStream, d.handleStream)
+	mux.HandleFunc("GET "+api.Prefix+api.RouteWorkflowStatus, d.handleWorkflowStatus)
+	mux.HandleFunc("POST "+api.Prefix+api.RouteWorkflowCheckpoint, d.handleWorkflowCheckpoint)
+	mux.HandleFunc("POST "+api.Prefix+api.RouteWorkflowOutputs, d.handleWorkflowOutputs)
+	mux.HandleFunc("POST "+api.Prefix+api.RouteWorkflowReport, d.handleWorkflowReport)
+	mux.HandleFunc("GET "+api.Prefix+api.RouteWorkflowReport, d.handleWorkflowReportGet)
+	mux.HandleFunc("GET "+api.Prefix+api.RouteWorkflowReports, d.handleWorkflowReports)
+	mux.HandleFunc("GET "+api.Prefix+api.RouteWikiIndex, d.handleWikiIndex)
+	mux.HandleFunc("GET "+api.Prefix+api.RouteWikiPage, d.handleWikiPage)
+	mux.HandleFunc("POST "+api.Prefix+api.RouteWikiPropose, d.handleWikiPropose)
+	mux.HandleFunc("GET "+api.Prefix+api.RouteWikiPending, d.handleWikiPending)
+	mux.HandleFunc("GET "+api.Prefix+api.RouteWikiRefused, d.handleWikiRefused)
+	mux.HandleFunc("POST "+api.Prefix+api.RouteWikiApply, d.handleWikiApply)
+	mux.HandleFunc("GET "+api.Prefix+api.RouteWikiCheck, d.handleWikiCheck)
+	mux.HandleFunc("POST "+api.Prefix+api.RouteWorkflowRules, d.privileged(d.handleWorkflowRules))
+	mux.HandleFunc("POST "+api.Prefix+api.RouteSessionDecided, d.handleSessionDecided)
 	return mux
 }
 
@@ -89,7 +89,7 @@ func (d *Daemon) handleHealth(w http.ResponseWriter, r *http.Request) {
 		restoring = false
 	default:
 	}
-	writeJSON(w, http.StatusOK, Health{
+	writeJSON(w, http.StatusOK, api.Health{
 		Version: d.opts.Version, PID: os.Getpid(), ProxyURL: d.proxy.URL(),
 		Servers: d.liveServers(r.Context()), Grants: grants, PendingGrants: pending, Restoring: restoring,
 		MemoryMB: d.memoryUsed(),
@@ -97,7 +97,7 @@ func (d *Daemon) handleHealth(w http.ResponseWriter, r *http.Request) {
 }
 
 func (d *Daemon) handleIssue(w http.ResponseWriter, r *http.Request) {
-	var req GrantRequest
+	var req api.GrantRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeErr(w, http.StatusBadRequest, "invalid body")
 		return
@@ -125,11 +125,11 @@ func (d *Daemon) handleIssue(w http.ResponseWriter, r *http.Request) {
 	d.mu.Lock()
 	d.lastBusy = time.Now()
 	d.mu.Unlock()
-	writeJSON(w, http.StatusOK, GrantResponse{Token: token, BaseURL: d.proxy.BaseURL(req.Provider)})
+	writeJSON(w, http.StatusOK, api.GrantResponse{Token: token, BaseURL: d.proxy.BaseURL(req.Provider)})
 }
 
 func (d *Daemon) handleSecret(w http.ResponseWriter, r *http.Request) {
-	var req SecretRequest
+	var req api.SecretRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeErr(w, http.StatusBadRequest, "invalid body")
 		return
@@ -154,9 +154,9 @@ func (d *Daemon) handleSecret(w http.ResponseWriter, r *http.Request) {
 
 func (d *Daemon) handlePending(w http.ResponseWriter, _ *http.Request) {
 	d.mu.Lock()
-	out := make([]PendingGrant, 0, len(d.pending))
+	out := make([]api.PendingGrant, 0, len(d.pending))
 	for _, g := range d.pending {
-		out = append(out, PendingGrant{Token: g.TokenHash, Owner: g.Owner, Source: g.Source})
+		out = append(out, api.PendingGrant{Token: g.TokenHash, Owner: g.Owner, Source: g.Source})
 	}
 	d.mu.Unlock()
 	writeJSON(w, http.StatusOK, out)
@@ -178,7 +178,7 @@ func (d *Daemon) handleUsage(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusNotFound, "unknown token")
 		return
 	}
-	writeJSON(w, http.StatusOK, UsageResponse{Requests: u.Requests, InputTokens: u.InputTokens, OutputTokens: u.OutputTokens,
+	writeJSON(w, http.StatusOK, api.UsageResponse{Requests: u.Requests, InputTokens: u.InputTokens, OutputTokens: u.OutputTokens,
 		AuthRejected: d.authRejected(r.URL.Query().Get("token"))})
 }
 
@@ -217,7 +217,7 @@ func (d *Daemon) handleShutdown(w http.ResponseWriter, r *http.Request) {
 // container bridge gateway); public and unspecified addresses are refused so
 // that the proxy is never exposed on the network.
 func (d *Daemon) handleListen(w http.ResponseWriter, r *http.Request) {
-	var req ListenRequest
+	var req api.ListenRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeErr(w, http.StatusBadRequest, "invalid body")
 		return
@@ -235,5 +235,5 @@ func (d *Daemon) handleListen(w http.ResponseWriter, r *http.Request) {
 	if err := d.saveState(); err != nil {
 		slog.Warn("ohd: cannot save state", "error", err)
 	}
-	writeJSON(w, http.StatusOK, ListenResponse{URL: u})
+	writeJSON(w, http.StatusOK, api.ListenResponse{URL: u})
 }

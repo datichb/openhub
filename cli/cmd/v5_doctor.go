@@ -7,7 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/datichb/openhub/cli/internal/daemon"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
+	"github.com/datichb/openhub/cli/internal/daemon/client"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/semver"
 	"github.com/datichb/openhub/cli/internal/services/doctor"
@@ -39,7 +40,7 @@ func v5DoctorChecks(parent context.Context) []doctor.Result {
 		return out
 	}
 
-	dc := daemon.NewClient(daemon.Paths{Dir: ohRunDir()})
+	dc := client.NewClient(api.Paths{Dir: ohRunDir()})
 	if h, err := dc.Health(ctx); err == nil {
 		detail := i18n.Tf("cmd.doctor.v5.daemon_ok", h.Version, h.Servers, h.Grants)
 		ok := h.PendingGrants == 0

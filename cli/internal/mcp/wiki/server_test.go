@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/datichb/openhub/cli/internal/daemon"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	wikisvc "github.com/datichb/openhub/cli/internal/services/wiki"
@@ -20,41 +20,41 @@ import (
 
 type fakeBackend struct {
 	sessions []string
-	proposed []daemon.WikiProposeRequest
+	proposed []api.WikiProposeRequest
 	applied  []string
 	checks   []wikisvc.CheckOptions
 	err      error
 }
 
-func (f *fakeBackend) WikiIndex(_ context.Context, s string) (daemon.WikiIndex, error) {
+func (f *fakeBackend) WikiIndex(_ context.Context, s string) (api.WikiIndex, error) {
 	f.sessions = append(f.sessions, s)
-	return daemon.WikiIndex{Title: "Atlas", Sections: []string{"Stack critique", "God nodes"},
-		Pages:    []daemon.WikiPageInfo{{Path: "index.md", Title: "Atlas", Updated: "2026-10-01", Confidence: "mixed"}, {Path: "business/orders.md", Title: "Commandes"}},
+	return api.WikiIndex{Title: "Atlas", Sections: []string{"Stack critique", "God nodes"},
+		Pages:    []api.WikiPageInfo{{Path: "index.md", Title: "Atlas", Updated: "2026-10-01", Confidence: "mixed"}, {Path: "business/orders.md", Title: "Commandes"}},
 		GodNodes: []wikisvc.GodNode{{Concept: "Commande", Pages: []string{"business/orders.md", "technical/architecture.md"}, Criticality: "Critique"}},
 		Pending:  3,
-		Session:  []daemon.WikiProposal{{ID: "wp-2", WikiProposal: domain.WikiProposal{Seq: 2, Agent: "reviewer", Page: "index.md", Tag: "DÉDUIT", Status: "pending", Content: "a\nb"}}},
+		Session:  []api.WikiProposal{{ID: "wp-2", WikiProposal: domain.WikiProposal{Seq: 2, Agent: "reviewer", Page: "index.md", Tag: "DÉDUIT", Status: "pending", Content: "a\nb"}}},
 	}, f.err
 }
 
-func (f *fakeBackend) WikiPage(_ context.Context, s, page, section string) (daemon.WikiPage, error) {
+func (f *fakeBackend) WikiPage(_ context.Context, s, page, section string) (api.WikiPage, error) {
 	f.sessions = append(f.sessions, s+"/"+page+"/"+section)
-	return daemon.WikiPage{Page: page, Text: "## " + section}, f.err
+	return api.WikiPage{Page: page, Text: "## " + section}, f.err
 }
 
-func (f *fakeBackend) WikiPropose(_ context.Context, req daemon.WikiProposeRequest) (daemon.WikiProposal, error) {
+func (f *fakeBackend) WikiPropose(_ context.Context, req api.WikiProposeRequest) (api.WikiProposal, error) {
 	f.proposed = append(f.proposed, req)
 	if f.err != nil {
-		return daemon.WikiProposal{}, f.err
+		return api.WikiProposal{}, f.err
 	}
-	return daemon.WikiProposal{ID: "wp-4", WikiProposal: domain.WikiProposal{Seq: 4, Agent: "developer", Page: "technical/stack.md"}}, nil
+	return api.WikiProposal{ID: "wp-4", WikiProposal: domain.WikiProposal{Seq: 4, Agent: "developer", Page: "technical/stack.md"}}, nil
 }
 
-func (f *fakeBackend) WikiPending(_ context.Context, s string, only bool) ([]daemon.WikiProposal, error) {
+func (f *fakeBackend) WikiPending(_ context.Context, s string, only bool) ([]api.WikiProposal, error) {
 	f.sessions = append(f.sessions, s)
 	if only {
 		return nil, f.err
 	}
-	return []daemon.WikiProposal{{ID: "wp-1", WikiProposal: domain.WikiProposal{Seq: 1, Agent: "auditor", Page: "index.md", Section: "Zones d'ombre",
+	return []api.WikiProposal{{ID: "wp-1", WikiProposal: domain.WikiProposal{Seq: 1, Agent: "auditor", Page: "index.md", Section: "Zones d'ombre",
 		Tag: "INCERTAIN", Status: "pending", Content: strings.Repeat("é", 150)}}}, f.err
 }
 
@@ -132,7 +132,7 @@ func TestWikiTools(t *testing.T) {
 	// The author is never read from the call.
 	out = call(t, b, "tools/call", `{"name":"propose","arguments":{"page":"technical/stack.md","content":"zod","tag":"DÉDUIT","agent":"documentarian"},`+meta+`}`)
 	require.False(t, out.Result.IsError, out.Result.Content)
-	assert.Equal(t, []daemon.WikiProposeRequest{{ToolSession: "ses_child", Page: "technical/stack.md", Content: "zod", Tag: "DÉDUIT"}}, b.proposed)
+	assert.Equal(t, []api.WikiProposeRequest{{ToolSession: "ses_child", Page: "technical/stack.md", Content: "zod", Tag: "DÉDUIT"}}, b.proposed)
 	assert.Contains(t, out.Result.Content[0].Text, "wp-4 en file (auteur developer")
 	out = call(t, b, "tools/call", `{"name":"propose","arguments":{"page":"x.md","content":" ","tag":"DÉDUIT"},`+meta+`}`)
 	assert.True(t, out.Result.IsError)
@@ -171,7 +171,7 @@ func TestWikiTools(t *testing.T) {
 
 func TestWikiWithoutDaemon(t *testing.T) {
 	i18n.SetLocale("fr")
-	b := &fakeBackend{err: daemon.ErrNotRunning}
+	b := &fakeBackend{err: api.ErrNotRunning}
 	out := call(t, b, "tools/call", `{"name":"propose","arguments":{"page":"x.md","content":"x","tag":"DÉDUIT"},`+meta+`}`)
 	require.False(t, out.Result.IsError, "not an error: the agent keeps it in its report")
 	assert.Contains(t, out.Result.Content[0].Text, "non enregistrée")
@@ -179,11 +179,11 @@ func TestWikiWithoutDaemon(t *testing.T) {
 	assert.True(t, out.Result.IsError)
 	assert.Contains(t, out.Result.Content[0].Text, "n'est pas servi")
 
-	b.err = &daemon.APIError{Status: http.StatusUnprocessableEntity, Message: wikisvc.ErrSessionData.Error()}
+	b.err = &api.APIError{Status: http.StatusUnprocessableEntity, Message: wikisvc.ErrSessionData.Error()}
 	out = call(t, b, "tools/call", `{"name":"propose","arguments":{"page":"x.md","content":"x","tag":"DÉDUIT"},`+meta+`}`)
 	assert.True(t, out.Result.IsError)
 	assert.Contains(t, out.Result.Content[0].Text, "refusée par oh")
-	b.err = &daemon.APIError{Status: http.StatusForbidden, Message: "wiki_apply est réservé au documentarian"}
+	b.err = &api.APIError{Status: http.StatusForbidden, Message: "wiki_apply est réservé au documentarian"}
 	out = call(t, b, "tools/call", `{"name":"apply","arguments":{"ids":["wp-1"]},`+meta+`}`)
 	assert.True(t, out.Result.IsError)
 	assert.Contains(t, out.Result.Content[0].Text, "réservé au documentarian")
@@ -191,7 +191,7 @@ func TestWikiWithoutDaemon(t *testing.T) {
 
 // p5-fixes: a replacement is listed before → after.
 func TestProposalLineReplacement(t *testing.T) {
-	line := proposalLine(daemon.WikiProposal{ID: "wp-3", WikiProposal: domain.WikiProposal{Status: "pending", Agent: "onboarder", Page: "technical/stack.md",
+	line := proposalLine(api.WikiProposal{ID: "wp-3", WikiProposal: domain.WikiProposal{Status: "pending", Agent: "onboarder", Page: "technical/stack.md",
 		Tag: "CONFIRMÉ", Replaces: "- HTTP dans internal/http", Content: "- HTTP dans internal/api"}})
 	assert.Contains(t, line, "« - HTTP dans internal/http » → « - HTTP dans internal/api »")
 }
@@ -200,9 +200,9 @@ func TestProposalLineReplacement(t *testing.T) {
 // first line; no reason, nothing added.
 func TestProposalLineRefusalReason(t *testing.T) {
 	p := domain.WikiProposal{Status: "refused", Agent: "onboarder", Page: "technical/stack.md", Tag: "DÉDUIT", Content: "- zod"}
-	assert.Equal(t, "- wp-0 · refused · onboarder · technical/stack.md · DÉDUIT · « - zod »", proposalLine(daemon.WikiProposal{ID: "wp-0", WikiProposal: p}))
+	assert.Equal(t, "- wp-0 · refused · onboarder · technical/stack.md · DÉDUIT · « - zod »", proposalLine(api.WikiProposal{ID: "wp-0", WikiProposal: p}))
 	p.Reason = "déjà couvert par la page stack\nsuite ignorée"
-	line := proposalLine(daemon.WikiProposal{ID: "wp-0", WikiProposal: p})
+	line := proposalLine(api.WikiProposal{ID: "wp-0", WikiProposal: p})
 	assert.True(t, strings.HasSuffix(line, "déjà couvert par la page stack"), line)
 	assert.NotContains(t, line, "suite ignorée")
 }

@@ -14,6 +14,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/adapters"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
+	dclient "github.com/datichb/openhub/cli/internal/daemon/client"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
@@ -47,7 +49,7 @@ func TestProxyPortChangeSleepsStaleGroups(t *testing.T) {
 		require.NoError(t, servers.Upsert(ctx, &domain.Server{GroupKey: g, Adapter: "fake", ProjectID: "p1", PID: os.Getpid(), Status: domain.ServerReady, CreatedAt: old}))
 	}
 	require.NoError(t, os.MkdirAll(filepath.Join(serversDir, "recorded"), 0o700))
-	require.NoError(t, os.WriteFile(ProxyURLPath(serversDir, "recorded"), []byte(fmt.Sprintf("http://host.docker.internal:%d/amazon-bedrock", oldPort)), 0o600))
+	require.NoError(t, os.WriteFile(api.ProxyURLPath(serversDir, "recorded"), []byte(fmt.Sprintf("http://host.docker.internal:%d/amazon-bedrock", oldPort)), 0o600))
 	require.NoError(t, sessions.Create(ctx, &domain.Session{ID: "ses_work", ProjectID: "p1", Status: domain.SessionStatusRunning, GroupKey: "recorded", State: domain.RunActive}))
 	require.NoError(t, sessions.Create(ctx, &domain.Session{ID: "ses_idle", ProjectID: "p1", Status: domain.SessionStatusRunning, GroupKey: "legacy", State: domain.RunIdle}))
 
@@ -56,13 +58,13 @@ func TestProxyPortChangeSleepsStaleGroups(t *testing.T) {
 		Grants: sqlite.NewGrantStore(st), ServersDir: serversDir, Tick: 50 * time.Millisecond, IdleAfter: time.Hour, IdleSleep: time.Hour,
 		Adapter: func(string) adapters.ToolAdapter { return ad }})
 
-	h, err := NewClient(p).Health(ctx)
+	h, err := dclient.NewClient(p).Health(ctx)
 	require.NoError(t, err)
 	assert.NotEqual(t, oldPort, urlPort(h.ProxyURL))
 
 	// A group started after the restart records the new URL: kept.
 	require.NoError(t, os.MkdirAll(filepath.Join(serversDir, "fresh"), 0o700))
-	require.NoError(t, os.WriteFile(ProxyURLPath(serversDir, "fresh"), []byte(h.ProxyURL+"/amazon-bedrock"), 0o600))
+	require.NoError(t, os.WriteFile(api.ProxyURLPath(serversDir, "fresh"), []byte(h.ProxyURL+"/amazon-bedrock"), 0o600))
 	require.NoError(t, servers.Upsert(ctx, &domain.Server{GroupKey: "fresh", Adapter: "fake", ProjectID: "p1", PID: os.Getpid(), Status: domain.ServerReady, CreatedAt: time.Now()}))
 
 	status := func(g string) domain.ServerStatus {
@@ -113,7 +115,7 @@ func proxyPortKept(t *testing.T) bool {
 	ad := &stopCountingAdapter{fakeAdapter: newFake()}
 	runDaemon(t, Options{Paths: p, Servers: servers, Grants: grants, ServersDir: filepath.Join(p.Dir, "servers"), Tick: 50 * time.Millisecond,
 		IdleAfter: time.Hour, IdleSleep: time.Hour, Adapter: func(string) adapters.ToolAdapter { return ad }})
-	h, err := NewClient(p).Health(ctx)
+	h, err := dclient.NewClient(p).Health(ctx)
 	require.NoError(t, err)
 	if got := urlPort(h.ProxyURL); got != port {
 		t.Logf("port %d taken meanwhile (daemon on %d): again", port, got)

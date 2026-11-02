@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/datichb/openhub/cli/internal/daemon"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
@@ -157,7 +157,7 @@ func TestCheckpointUnlockedTextFollowsTheOps(t *testing.T) {
 }
 
 func TestCheckpointWithoutDaemonStillLetsTheAgentGoOn(t *testing.T) {
-	out := call(t, &fakeBackend{err: daemon.ErrNotRunning}, "tools/call", `{"name":"checkpoint","arguments":{"id":"cp-1","summary":"x"},`+meta+`}`)
+	out := call(t, &fakeBackend{err: api.ErrNotRunning}, "tools/call", `{"name":"checkpoint","arguments":{"id":"cp-1","summary":"x"},`+meta+`}`)
 	assert.False(t, out.Result.IsError)
 }
 
@@ -168,12 +168,12 @@ func TestErrors(t *testing.T) {
 	out = call(t, &fakeBackend{}, "tools/call", `{"name":"checkpoint","arguments":{"summary":"x"},`+meta+`}`)
 	assert.True(t, out.Result.IsError, "id required")
 
-	api := &daemon.APIError{Status: 422, Message: `unknown checkpoint "cp-9" (cp-1, cp-2)`}
-	out = call(t, &fakeBackend{err: api}, "tools/call", `{"name":"checkpoint","arguments":{"id":"cp-9","summary":"x"},`+meta+`}`)
+	apiErr := &api.APIError{Status: 422, Message: `unknown checkpoint "cp-9" (cp-1, cp-2)`}
+	out = call(t, &fakeBackend{err: apiErr}, "tools/call", `{"name":"checkpoint","arguments":{"id":"cp-9","summary":"x"},`+meta+`}`)
 	assert.True(t, out.Result.IsError)
-	assert.Equal(t, api.Message, out.Result.Content[0].Text, "daemon message shown as is")
+	assert.Equal(t, apiErr.Message, out.Result.Content[0].Text, "daemon message shown as is")
 
-	out = call(t, &fakeBackend{err: daemon.ErrNotRunning}, "tools/call", `{"name":"status","arguments":{},`+meta+`}`)
+	out = call(t, &fakeBackend{err: api.ErrNotRunning}, "tools/call", `{"name":"status","arguments":{},`+meta+`}`)
 	assert.True(t, out.Result.IsError)
 }
 

@@ -14,6 +14,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/datichb/openhub/cli/internal/daemon/api"
+	dclient "github.com/datichb/openhub/cli/internal/daemon/client"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/gateway/beadswire"
 	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
@@ -56,11 +58,11 @@ func TestDaemonBeadsActorAndProvenance(t *testing.T) {
 		done <- Run(dctx, Options{Paths: p, Version: "t", Servers: servers, Sessions: sessions, Tick: time.Hour, IdleAfter: time.Hour, BeadsBinary: bd})
 	}()
 	t.Cleanup(func() { cancel(); <-done })
-	c := NewClient(p)
+	c := dclient.NewClient(p)
 	require.Eventually(t, func() bool { _, err := c.Health(ctx); return err == nil }, 5*time.Second, 20*time.Millisecond)
 	h, err := c.Health(ctx)
 	require.NoError(t, err)
-	g, err := c.IssueGatewayGrant(ctx, GatewayGrantRequest{SessionID: "ses_a", GroupKey: "g1", ProjectID: "p1", WorkflowID: "ticket",
+	g, err := c.IssueGatewayGrant(ctx, api.GatewayGrantRequest{SessionID: "ses_a", GroupKey: "g1", ProjectID: "p1", WorkflowID: "ticket",
 		Location: project, BeadsAllow: []string{"show", "update", "close"}})
 	require.NoError(t, err)
 	bdExec := func(argv ...string) {

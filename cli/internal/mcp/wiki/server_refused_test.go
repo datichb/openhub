@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/datichb/openhub/cli/internal/daemon"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	wikisvc "github.com/datichb/openhub/cli/internal/services/wiki"
@@ -19,26 +19,26 @@ import (
 // refusingBackend is a daemon that knows the refusals of the user.
 type refusingBackend struct {
 	*fakeBackend
-	refused    []daemon.WikiProposal
+	refused    []api.WikiProposal
 	refusedErr error
 	asked      []bool // sessionOnly of each call
-	prior      *daemon.WikiRefusal
+	prior      *api.WikiRefusal
 }
 
-func (r *refusingBackend) WikiRefused(_ context.Context, _ string, only bool) ([]daemon.WikiProposal, error) {
+func (r *refusingBackend) WikiRefused(_ context.Context, _ string, only bool) ([]api.WikiProposal, error) {
 	r.asked = append(r.asked, only)
 	return r.refused, r.refusedErr
 }
 
-func (r *refusingBackend) WikiPropose(ctx context.Context, req daemon.WikiProposeRequest) (daemon.WikiProposal, error) {
+func (r *refusingBackend) WikiPropose(ctx context.Context, req api.WikiProposeRequest) (api.WikiProposal, error) {
 	p, err := r.fakeBackend.WikiPropose(ctx, req)
 	p.PreviouslyRefused = r.prior
 	return p, err
 }
 
-func refusal(seq int, reason string) daemon.WikiProposal {
+func refusal(seq int, reason string) api.WikiProposal {
 	at := time.Date(2026, 10, 12, 9, 0, 0, 0, time.UTC)
-	return daemon.WikiProposal{ID: "wp-" + string(rune('0'+seq)), WikiProposal: domain.WikiProposal{Seq: seq, Agent: "reviewer", Page: "technical/stack.md",
+	return api.WikiProposal{ID: "wp-" + string(rune('0'+seq)), WikiProposal: domain.WikiProposal{Seq: seq, Agent: "reviewer", Page: "technical/stack.md",
 		Tag: "DÉDUIT", Status: domain.WikiRefused, Content: "zod pour la validation\nsuite", Reason: reason, DecidedAt: &at}}
 }
 
@@ -46,7 +46,7 @@ func refusal(seq int, reason string) daemon.WikiProposal {
 // their reason, so that the agents do not propose them again.
 func TestPendingListsTheRecentRefusals(t *testing.T) {
 	i18n.SetLocale("fr")
-	b := &refusingBackend{fakeBackend: &fakeBackend{}, refused: []daemon.WikiProposal{refusal(7, "on utilise valibot"), refusal(5, "")}}
+	b := &refusingBackend{fakeBackend: &fakeBackend{}, refused: []api.WikiProposal{refusal(7, "on utilise valibot"), refusal(5, "")}}
 	out := call(t, b, "tools/call", `{"name":"pending","arguments":{},`+meta+`}`)
 	require.False(t, out.Result.IsError, out.Result.Content)
 	txt := out.Result.Content[0].Text
@@ -81,8 +81,8 @@ func TestPendingWithoutRefusalsIsUnchanged(t *testing.T) {
 func TestPendingSurvivesAnOldDaemon(t *testing.T) {
 	i18n.SetLocale("fr")
 	plain := call(t, &fakeBackend{}, "tools/call", `{"name":"pending","arguments":{},`+meta+`}`).Result.Content[0].Text
-	for _, err := range []error{&daemon.APIError{Status: http.StatusNotFound, Message: "404 page not found"}, daemon.ErrNotRunning, context.DeadlineExceeded} {
-		b := &refusingBackend{fakeBackend: &fakeBackend{}, refused: []daemon.WikiProposal{refusal(7, "x")}, refusedErr: err}
+	for _, err := range []error{&api.APIError{Status: http.StatusNotFound, Message: "404 page not found"}, api.ErrNotRunning, context.DeadlineExceeded} {
+		b := &refusingBackend{fakeBackend: &fakeBackend{}, refused: []api.WikiProposal{refusal(7, "x")}, refusedErr: err}
 		out := call(t, b, "tools/call", `{"name":"pending","arguments":{},`+meta+`}`)
 		require.False(t, out.Result.IsError, out.Result.Content)
 		assert.Equal(t, plain, out.Result.Content[0].Text, "%v", err)
@@ -94,7 +94,7 @@ func TestPendingSurvivesAnOldDaemon(t *testing.T) {
 func TestProposeWarnsAboutAPriorRefusal(t *testing.T) {
 	i18n.SetLocale("fr")
 	at := time.Date(2026, 10, 12, 9, 0, 0, 0, time.UTC)
-	b := &refusingBackend{fakeBackend: &fakeBackend{}, prior: &daemon.WikiRefusal{ID: "wp-7", Reason: "on utilise valibot", At: &at}}
+	b := &refusingBackend{fakeBackend: &fakeBackend{}, prior: &api.WikiRefusal{ID: "wp-7", Reason: "on utilise valibot", At: &at}}
 	out := call(t, b, "tools/call", `{"name":"propose","arguments":{"page":"technical/stack.md","content":"zod","tag":"DÉDUIT"},`+meta+`}`)
 	require.False(t, out.Result.IsError, "a warning, not a refusal")
 	txt := out.Result.Content[0].Text

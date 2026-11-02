@@ -12,7 +12,8 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/config"
-	"github.com/datichb/openhub/cli/internal/daemon"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
+	"github.com/datichb/openhub/cli/internal/daemon/client"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 )
@@ -168,7 +169,7 @@ func repairRestore(cmd *cobra.Command, backup, dbPath string, auto bool) error {
 }
 
 func daemonRunning(ctx context.Context) bool {
-	c := daemon.NewClient(daemon.Paths{Dir: ohRunDir()})
+	c := client.NewClient(api.Paths{Dir: ohRunDir()})
 	cctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 	_, err := c.Health(cctx)

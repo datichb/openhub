@@ -22,7 +22,7 @@ import (
 // socket connection) is run by git from the hook of the session location.
 
 // hookTokenRoute is beadswire.HookTokenPath.
-const hookTokenRoute = apiPrefix + api.RouteHookToken
+const hookTokenRoute = api.Prefix + api.RouteHookToken
 
 // procRead reads a process (replaced by tests).
 var procRead = procinfo.Get

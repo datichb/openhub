@@ -17,6 +17,8 @@ import (
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/credproxy"
 	"github.com/datichb/openhub/cli/internal/daemon"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
+	dclient "github.com/datichb/openhub/cli/internal/daemon/client"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
@@ -75,7 +77,7 @@ type workflowEnv struct {
 	cp        *checkpoint.Service
 	reports   *report.Service
 	wiki      *wiki.Service
-	client    *daemon.Client
+	client    *dclient.Client
 	// env is added to the environment of the servers (shell of the sessions).
 	env map[string]string
 }
@@ -116,7 +118,7 @@ func newWorkflowEnvFor(t *testing.T, a *Adapter, job bool) *workflowEnv {
 		e.cp.CommitPassed = e.wiki.CommitPassed
 	}
 
-	paths := daemon.Paths{Dir: filepath.Join(home, "run")}
+	paths := api.Paths{Dir: filepath.Join(home, "run")}
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
 	go func() {
@@ -138,7 +140,7 @@ func newWorkflowEnvFor(t *testing.T, a *Adapter, job bool) *workflowEnv {
 		case <-time.After(5 * time.Second):
 		}
 	})
-	e.client = daemon.NewClient(paths).WithCapability(harnessCapability)
+	e.client = dclient.NewClient(paths).WithCapability(harnessCapability)
 	require.Eventually(t, func() bool { _, err := e.client.Health(context.Background()); return err == nil }, 5*time.Second, 20*time.Millisecond)
 	return e
 }
@@ -192,7 +194,7 @@ func (e *workflowEnv) startServer(t *testing.T, a *Adapter, b sessionspec.Bundle
 func (e *workflowEnv) startGroup(t *testing.T, a *Adapter, b sessionspec.BundleSpec, bedrockToken string) (adapters.ServerHandle, string) {
 	t.Helper()
 	ctx := context.Background()
-	g, err := e.client.IssueGrant(ctx, daemon.GrantRequest{Owner: "g1", Provider: "amazon-bedrock", Region: "eu-west-1",
+	g, err := e.client.IssueGrant(ctx, api.GrantRequest{Owner: "g1", Provider: "amazon-bedrock", Region: "eu-west-1",
 		Source: domain.CredentialSource{Kind: domain.CredentialBearer}, Secret: bedrockToken})
 	require.NoError(t, err)
 	h, project := e.startServer(t, a, b, sessionspec.ProviderSpec{ID: "amazon-bedrock", Region: "eu-west-1", BaseURL: g.BaseURL, SessionToken: g.Token})

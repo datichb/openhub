@@ -11,7 +11,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/safego"
 )
 
-// In-process daemon (Windows option A, daemon.InProcessMode): the credential
+// In-process daemon (Windows option A, client.InProcessMode): the credential
 // proxy and the session supervision run inside this oh process, as long as
 // it lives. Its sessions are put to sleep when it exits (resumable).
 

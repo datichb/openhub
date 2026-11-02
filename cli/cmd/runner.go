@@ -20,6 +20,8 @@ import (
 	"github.com/datichb/openhub/cli/internal/buildinfo"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/daemon"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
+	"github.com/datichb/openhub/cli/internal/daemon/client"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/gateway"
 	"github.com/datichb/openhub/cli/internal/gateway/beadswire"
@@ -156,7 +158,7 @@ func runRunnerJob(cmd *cobra.Command, _ []string) error {
 	// the user validates them there (p3-remote-wiki).
 	wk := newWikiServiceFor(a)
 	secrets := runner.CISecrets{LLMKey: job.Secrets.LLMKey}
-	paths := daemon.Paths{Dir: ohRunDir()}
+	paths := api.Paths{Dir: ohRunDir()}
 	dctx, stopDaemon := context.WithCancel(context.WithoutCancel(ctx))
 	daemonDone := runJobDaemon(dctx, func(ctx context.Context) error {
 		return daemon.Run(ctx, daemon.Options{
@@ -185,7 +187,7 @@ func runRunnerJob(cmd *cobra.Command, _ []string) error {
 		case <-time.After(10 * time.Second):
 		}
 	}()
-	dc := daemon.NewClient(paths)
+	dc := client.NewClient(paths)
 	if err := waitDaemon(ctx, dc, daemonDone); err != nil {
 		return err
 	}
@@ -250,7 +252,7 @@ func runJobDaemon(ctx context.Context, run func(context.Context) error) <-chan e
 	return done
 }
 
-func waitDaemon(ctx context.Context, dc *daemon.Client, done <-chan error) error {
+func waitDaemon(ctx context.Context, dc *client.Client, done <-chan error) error {
 	deadline := time.Now().Add(20 * time.Second)
 	for time.Now().Before(deadline) {
 		if _, err := dc.Health(ctx); err == nil {
@@ -277,7 +279,7 @@ func runnerSessionEnv(dc gatewayGranter) runsvc.SessionEnvFunc {
 		if r.GatewayURL == "" {
 			return nil, errors.New(i18n.T("cmd.runner.beads_gateway_the_server_group_has"))
 		}
-		g, err := dc.IssueGatewayGrant(ctx, daemon.GatewayGrantRequest{
+		g, err := dc.IssueGatewayGrant(ctx, api.GatewayGrantRequest{
 			SessionID: r.SessionID, GroupKey: r.GroupKey, ProjectID: r.ProjectID, WorkflowID: r.WorkflowID,
 			Location: r.Location, BeadsAllow: r.BeadsAllow, GatewayURL: r.GatewayURL,
 		})

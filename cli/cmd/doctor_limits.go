@@ -4,7 +4,8 @@ import (
 	"context"
 	"strings"
 
-	"github.com/datichb/openhub/cli/internal/daemon"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
+	"github.com/datichb/openhub/cli/internal/daemon/client"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/limits"
 	"github.com/datichb/openhub/cli/internal/services/doctor"
@@ -31,7 +32,7 @@ func limitsDoctorChecks(ctx context.Context) []doctor.Result {
 	}
 	out := []doctor.Result{{Name: i18n.T("cmd.budget.doctor.name"), OK: true, Detail: detail}}
 
-	h, err := daemon.NewClient(daemon.Paths{Dir: ohRunDir()}).Health(ctx)
+	h, err := client.NewClient(api.Paths{Dir: ohRunDir()}).Health(ctx)
 	if err != nil || h.Servers == 0 {
 		return out
 	}

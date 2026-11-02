@@ -18,6 +18,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/credproxy"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/gateway"
 	"github.com/datichb/openhub/cli/internal/safego"
@@ -33,7 +34,7 @@ type SecretGetter interface {
 
 // Options configures a daemon.
 type Options struct {
-	Paths     Paths
+	Paths     api.Paths
 	Version   string
 	Grants    domain.GrantStore
 	Servers   domain.ServerStore
@@ -205,7 +206,7 @@ type Daemon struct {
 	clients      map[string]client
 	verified     map[string]bool // "group#pid" → authenticated as our server
 	verifyFails  map[string]int  // "group#pid" → consecutive failed checks
-	policies     map[string]QuitPolicy
+	policies     map[string]api.QuitPolicy
 	pending      map[string]domain.ProxyGrant
 	lastBusy     time.Time
 	queuedGroups map[string]bool // groups holding queued sessions (never sleep)
@@ -263,7 +264,7 @@ func Run(ctx context.Context, opts Options) error {
 	}
 	defer unlock()
 
-	d := &Daemon{opts: opts, proxy: credproxy.New(), pending: map[string]domain.ProxyGrant{}, clients: map[string]client{}, verified: map[string]bool{}, verifyFails: map[string]int{}, policies: map[string]QuitPolicy{}, watchers: map[string]*watcher{}, feed: newHub(), lastBusy: time.Now(), started: time.Now(), stop: make(chan struct{}), restored: make(chan struct{}), sigCache: map[string]credproxy.Auth{}, ledger: ledger{last: map[string]adapters.SessionResult{}}, kick: make(chan struct{}, 1)}
+	d := &Daemon{opts: opts, proxy: credproxy.New(), pending: map[string]domain.ProxyGrant{}, clients: map[string]client{}, verified: map[string]bool{}, verifyFails: map[string]int{}, policies: map[string]api.QuitPolicy{}, watchers: map[string]*watcher{}, feed: newHub(), lastBusy: time.Now(), started: time.Now(), stop: make(chan struct{}), restored: make(chan struct{}), sigCache: map[string]credproxy.Auth{}, ledger: ledger{last: map[string]adapters.SessionResult{}}, kick: make(chan struct{}, 1)}
 	d.proxy.SetResponseHeaderTimeout(opts.ProxyHeaderTimeout)
 	d.proxy.Hooks = d.hooksHandler()
 	d.proxy.OnUsage = d.onProxyUsage

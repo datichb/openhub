@@ -15,6 +15,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/datichb/openhub/cli/internal/daemon/api"
+	dclient "github.com/datichb/openhub/cli/internal/daemon/client"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/services/wiki"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
@@ -55,7 +57,7 @@ func wikiDo(t *testing.T, h http.Handler, method, path, body string, out any) in
 	} else {
 		rdr = &bytes.Buffer{}
 	}
-	h.ServeHTTP(rec, httptest.NewRequest(method, apiPrefix+path, rdr))
+	h.ServeHTTP(rec, httptest.NewRequest(method, api.Prefix+path, rdr))
 	if out != nil {
 		_ = json.Unmarshal(rec.Body.Bytes(), out)
 	}
@@ -68,7 +70,7 @@ func TestWikiRoutes(t *testing.T) {
 	d, wk, project, sdir := wikiEnv(t)
 	h := d.routes()
 
-	var p WikiProposal
+	var p api.WikiProposal
 	code := wikiDo(t, h, http.MethodPost, "/wiki/propose", `{"tool_session":"ses_rev","page":"technical/stack.md","section":"Librairies clés",
 		"content":"zod pour la validation","tag":"DÉDUIT","source":"package.json","agent":"documentarian"}`, &p)
 	require.Equal(t, http.StatusCreated, code)
@@ -89,19 +91,19 @@ func TestWikiRoutes(t *testing.T) {
 	assert.Equal(t, http.StatusRequestEntityTooLarge, wikiDo(t, h, http.MethodPost, "/wiki/propose",
 		`{"tool_session":"ses_rev","page":"index.md","tag":"INCERTAIN","content":"`+strings.Repeat("a", wikiRequestMax)+`"}`, nil))
 
-	var ix WikiIndex
+	var ix api.WikiIndex
 	require.Equal(t, http.StatusOK, wikiDo(t, h, http.MethodGet, "/wiki/index?tool_session=ses_rev", "", &ix))
 	assert.Equal(t, "Atlas", ix.Title)
 	assert.Len(t, ix.Pages, 2)
 	assert.Equal(t, 1, ix.Pending)
 	require.Len(t, ix.Session, 1)
 
-	var page WikiPage
+	var page api.WikiPage
 	require.Equal(t, http.StatusOK, wikiDo(t, h, http.MethodGet, "/wiki/page?tool_session=ses_rev&page=technical/stack.md&section=librairies", "", &page))
 	assert.Equal(t, "## Librairies clés\n- Go — `CONFIRMÉ` · onboarder · 2026-09-01 · go.mod", page.Text)
 	assert.Equal(t, http.StatusNotFound, wikiDo(t, h, http.MethodGet, "/wiki/page?tool_session=ses_rev&page=none.md", "", nil))
 
-	var pending []WikiProposal
+	var pending []api.WikiProposal
 	require.Equal(t, http.StatusOK, wikiDo(t, h, http.MethodGet, "/wiki/pending?tool_session=ses_b&scope=session", "", &pending))
 	assert.Empty(t, pending, "another session")
 	require.Equal(t, http.StatusOK, wikiDo(t, h, http.MethodGet, "/wiki/pending?tool_session=ses_b", "", &pending))
@@ -144,7 +146,7 @@ func TestWikiRoutes(t *testing.T) {
 func TestWikiProposeReplacement(t *testing.T) {
 	d, _, _, _ := wikiEnv(t)
 	h := d.routes()
-	var p WikiProposal
+	var p api.WikiProposal
 	require.Equal(t, http.StatusCreated, wikiDo(t, h, http.MethodPost, "/wiki/propose", `{"tool_session":"ses_rev","page":"technical/stack.md",
 		"content":"- Go 1.23","tag":"CONFIRMÉ","source":"go.mod","replaces":"- Go — `+"`CONFIRMÉ`"+` · onboarder · 2026-09-01 · go.mod"}`, &p))
 	assert.Equal(t, "- Go — `CONFIRMÉ` · onboarder · 2026-09-01 · go.mod", p.Replaces)
@@ -164,11 +166,11 @@ func TestWikiRoutesNeedTheGroupToken(t *testing.T) {
 	wk := &wiki.Service{Store: &memWiki{}}
 	runDaemon(t, Options{Paths: p, Version: "t", Sessions: e.sessions, Checkpoints: e.cp, Wiki: wk,
 		Capability: "cap", Tick: time.Hour, IdleAfter: time.Hour})
-	_, err := NewClient(p).WikiPropose(ctx, WikiProposeRequest{ToolSession: "ses_a", Page: "index.md", Content: "x", Tag: "INCERTAIN"})
+	_, err := dclient.NewClient(p).WikiPropose(ctx, api.WikiProposeRequest{ToolSession: "ses_a", Page: "index.md", Content: "x", Tag: "INCERTAIN"})
 	assert.Equal(t, http.StatusUnauthorized, apiStatus(err))
-	_, err = NewClient(p).WikiIndex(ctx, "ses_a")
+	_, err = dclient.NewClient(p).WikiIndex(ctx, "ses_a")
 	assert.Equal(t, http.StatusUnauthorized, apiStatus(err))
-	_, err = NewClient(p).WikiApply(ctx, "ses_a", []string{"wp-1"})
+	_, err = dclient.NewClient(p).WikiApply(ctx, "ses_a", []string{"wp-1"})
 	assert.Equal(t, http.StatusUnauthorized, apiStatus(err))
 }
 
@@ -192,12 +194,12 @@ func TestWikiRoutesInRemoteJob(t *testing.T) {
 	d.opts.WikiNoApply = true
 	h := d.routes()
 
-	var ix WikiIndex
+	var ix api.WikiIndex
 	require.Equal(t, http.StatusOK, wikiDo(t, h, http.MethodGet, "/wiki/index?tool_session=ses_rev", "", &ix))
 	assert.Equal(t, "Atlas", ix.Title)
 	require.Equal(t, http.StatusOK, wikiDo(t, h, http.MethodGet, "/wiki/page?tool_session=ses_rev&page=technical/stack.md", "", nil))
 	require.Equal(t, http.StatusOK, wikiDo(t, h, http.MethodGet, "/wiki/check?tool_session=ses_rev", "", nil))
-	var p WikiProposal
+	var p api.WikiProposal
 	require.Equal(t, http.StatusCreated, wikiDo(t, h, http.MethodPost, "/wiki/propose",
 		`{"tool_session":"ses_rev","page":"technical/stack.md","section":"Librairies clés","content":"zod pour la validation","tag":"DÉDUIT","source":"package.json"}`, &p))
 

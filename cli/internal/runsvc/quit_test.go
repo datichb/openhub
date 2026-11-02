@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/datichb/openhub/cli/internal/daemon"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
@@ -16,10 +16,10 @@ import (
 
 type policyDaemon struct {
 	DaemonClient
-	policies map[string]daemon.QuitPolicy
+	policies map[string]api.QuitPolicy
 }
 
-func (p *policyDaemon) SetPolicy(_ context.Context, group string, pol daemon.QuitPolicy) error {
+func (p *policyDaemon) SetPolicy(_ context.Context, group string, pol api.QuitPolicy) error {
 	p.policies[group] = pol
 	return nil
 }
@@ -41,7 +41,7 @@ func TestQuitPlanAndApply(t *testing.T) {
 		s.ProjectID, s.Status = "p1", domain.SessionStatusRunning
 		require.NoError(t, sessions.Create(ctx, &s))
 	}
-	dc := &policyDaemon{policies: map[string]daemon.QuitPolicy{}}
+	dc := &policyDaemon{policies: map[string]api.QuitPolicy{}}
 	svc := &Service{Sessions: sessions, Servers: sqlite.NewServerStore(st), Daemon: func(context.Context) (DaemonClient, error) { return dc, nil }}
 
 	plan, err := svc.QuitPlan(ctx)
@@ -54,8 +54,8 @@ func TestQuitPlanAndApply(t *testing.T) {
 	require.NoError(t, svc.ApplyQuit(ctx, plan, map[string]QuitChoice{
 		"ses_work1": QuitStop, "ses_work2": QuitBackground, // ses_work3: default (finish)
 	}))
-	assert.Equal(t, map[string]daemon.QuitPolicy{
-		"g1": daemon.PolicySleepWhenIdle, "g2": daemon.PolicyBackground, "g3": daemon.PolicySleepWhenIdle,
+	assert.Equal(t, map[string]api.QuitPolicy{
+		"g1": api.PolicySleepWhenIdle, "g2": api.PolicyBackground, "g3": api.PolicySleepWhenIdle,
 	}, dc.policies, "a group with a session sent to the background keeps running")
 	s, _ := sessions.Get(ctx, "ses_work1")
 	assert.Equal(t, domain.RunStopped, s.State)

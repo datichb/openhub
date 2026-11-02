@@ -12,6 +12,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/datichb/openhub/cli/internal/daemon/api"
+	dclient "github.com/datichb/openhub/cli/internal/daemon/client"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/gitutil"
 	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
@@ -53,7 +55,7 @@ func TestGitChangedAlert(t *testing.T) {
 		done <- Run(dctx, Options{Paths: p, Version: "t", Servers: sqlite.NewServerStore(st), Sessions: sessions, Decisions: decisions, Checkpoints: cp, Tick: time.Hour, IdleAfter: time.Hour})
 	}()
 	t.Cleanup(func() { cancel(); <-done })
-	c := NewClient(p)
+	c := dclient.NewClient(p)
 	require.Eventually(t, func() bool { _, err := c.Health(ctx); return err == nil }, 5*time.Second, 20*time.Millisecond)
 	open := func() []domain.Decision {
 		l, err := decisions.ListOpen(ctx, domain.DecisionFilter{SessionID: "ses_a"})
@@ -63,7 +65,7 @@ func TestGitChangedAlert(t *testing.T) {
 	refused := func() {
 		t.Helper()
 		_, err := c.WorkflowCheckpoint(ctx, "ses_a", checkpoint.Call{ID: "cp-1", Summary: "s"})
-		var api *APIError
+		var api *api.APIError
 		require.True(t, errors.As(err, &api), "%v", err)
 		assert.Equal(t, 409, api.Status)
 	}

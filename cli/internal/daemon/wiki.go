@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/datichb/openhub/cli/internal/daemon/api"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/services/wiki"
@@ -24,7 +25,9 @@ import (
 // bounded by the WikiService, after cleaning).
 const wikiRequestMax = 64 << 10
 
-func wikiView(p domain.WikiProposal) WikiProposal { return WikiProposal{ID: p.ID(), WikiProposal: p} }
+func wikiView(p domain.WikiProposal) api.WikiProposal {
+	return api.WikiProposal{ID: p.ID(), WikiProposal: p}
+}
 
 // wikiSession returns the oh session of an authorized wiki request
 // (written error otherwise).
@@ -76,9 +79,9 @@ func (d *Daemon) handleWikiIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ix := wk.Index()
-	out := WikiIndex{Title: ix.Title, Sections: ix.Sections, GodNodes: ix.GodNodes, NoIndex: !ix.Present, Skipped: wk.Skipped, Pages: []WikiPageInfo{}}
+	out := api.WikiIndex{Title: ix.Title, Sections: ix.Sections, GodNodes: ix.GodNodes, NoIndex: !ix.Present, Skipped: wk.Skipped, Pages: []api.WikiPageInfo{}}
 	for _, p := range wk.Pages {
-		out.Pages = append(out.Pages, WikiPageInfo{Path: p.Path, Title: p.Title, Updated: p.Frontmatter.Updated, Confidence: p.Frontmatter.Confidence})
+		out.Pages = append(out.Pages, api.WikiPageInfo{Path: p.Path, Title: p.Title, Updated: p.Frontmatter.Updated, Confidence: p.Frontmatter.Confidence})
 	}
 	if open, err := d.opts.Wiki.Open(r.Context(), sess.ProjectID, ""); err == nil {
 		out.Pending = len(open)
@@ -104,11 +107,11 @@ func (d *Daemon) handleWikiPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	rel, _ := wiki.PagePath(page)
-	writeJSON(w, http.StatusOK, WikiPage{Page: rel, Section: section, Text: text})
+	writeJSON(w, http.StatusOK, api.WikiPage{Page: rel, Section: section, Text: text})
 }
 
 func (d *Daemon) handleWikiPropose(w http.ResponseWriter, r *http.Request) {
-	var req WikiProposeRequest
+	var req api.WikiProposeRequest
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, wikiRequestMax)).Decode(&req); err != nil {
 		var tooBig *http.MaxBytesError
 		if errors.As(err, &tooBig) {
@@ -132,7 +135,7 @@ func (d *Daemon) handleWikiPropose(w http.ResponseWriter, r *http.Request) {
 	}
 	view := wikiView(p)
 	if prior, err := d.opts.Wiki.PriorRefusal(r.Context(), p); err == nil && prior != nil {
-		view.PreviouslyRefused = &WikiRefusal{ID: prior.ID(), Reason: prior.Reason, At: prior.DecidedAt}
+		view.PreviouslyRefused = &api.WikiRefusal{ID: prior.ID(), Reason: prior.Reason, At: prior.DecidedAt}
 	}
 	writeJSON(w, http.StatusCreated, view)
 }
@@ -152,7 +155,7 @@ func (d *Daemon) handleWikiPending(w http.ResponseWriter, r *http.Request) {
 		d.wikiErr(w, err)
 		return
 	}
-	out := make([]WikiProposal, 0, len(list))
+	out := make([]api.WikiProposal, 0, len(list))
 	for _, p := range list {
 		out = append(out, wikiView(p))
 	}
@@ -176,7 +179,7 @@ func (d *Daemon) handleWikiRefused(w http.ResponseWriter, r *http.Request) {
 		d.wikiErr(w, err)
 		return
 	}
-	out := make([]WikiProposal, 0, len(list))
+	out := make([]api.WikiProposal, 0, len(list))
 	for _, p := range list {
 		out = append(out, wikiView(p))
 	}
@@ -184,7 +187,7 @@ func (d *Daemon) handleWikiRefused(w http.ResponseWriter, r *http.Request) {
 }
 
 func (d *Daemon) handleWikiApply(w http.ResponseWriter, r *http.Request) {
-	var req WikiApplyRequest
+	var req api.WikiApplyRequest
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, wikiRequestMax)).Decode(&req); err != nil || len(req.IDs) == 0 {
 		writeErr(w, http.StatusBadRequest, "tool_session and ids are required")
 		return

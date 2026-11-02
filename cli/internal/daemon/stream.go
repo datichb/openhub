@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/datichb/openhub/cli/internal/daemon/api"
 	"github.com/datichb/openhub/cli/internal/domain"
 )
 
@@ -23,7 +24,7 @@ const (
 
 type subscriber struct {
 	session string
-	ch      chan StreamEvent
+	ch      chan api.StreamEvent
 }
 
 type hub struct {
@@ -47,7 +48,7 @@ func (h *hub) close() {
 func (h *hub) subscribe(session string) (*subscriber, []domain.FeedItem) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	s := &subscriber{session: session, ch: make(chan StreamEvent, subBuffer)}
+	s := &subscriber{session: session, ch: make(chan api.StreamEvent, subBuffer)}
 	h.subs[s] = struct{}{}
 	return s, append([]domain.FeedItem(nil), h.backlog[session]...)
 }
@@ -59,7 +60,7 @@ func (h *hub) unsubscribe(s *subscriber) {
 }
 
 // send never blocks: a slow client loses events (it reloads on changes).
-func send(s *subscriber, ev StreamEvent) {
+func send(s *subscriber, ev api.StreamEvent) {
 	select {
 	case s.ch <- ev:
 	default:
@@ -81,7 +82,7 @@ func (h *hub) publishFeed(it domain.FeedItem) {
 	}
 	for s := range h.subs {
 		if s.session == it.SessionID {
-			send(s, StreamEvent{Feed: &it})
+			send(s, api.StreamEvent{Feed: &it})
 		}
 	}
 }
@@ -97,7 +98,7 @@ func (h *hub) publishChange(c domain.SessionChange) {
 	defer h.mu.Unlock()
 	for s := range h.subs {
 		if s.session == "" || s.session == c.SessionID {
-			send(s, StreamEvent{Change: &c})
+			send(s, api.StreamEvent{Change: &c})
 		}
 	}
 }
@@ -125,16 +126,16 @@ func (d *Daemon) handleStream(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	enc := json.NewEncoder(w)
 	for i := range backlog {
-		if enc.Encode(StreamEvent{Feed: &backlog[i]}) != nil {
+		if enc.Encode(api.StreamEvent{Feed: &backlog[i]}) != nil {
 			return
 		}
 	}
-	_ = enc.Encode(StreamEvent{})
+	_ = enc.Encode(api.StreamEvent{})
 	fl.Flush()
 	ping := time.NewTicker(streamPingEv)
 	defer ping.Stop()
 	for {
-		var ev StreamEvent
+		var ev api.StreamEvent
 		select {
 		case <-r.Context().Done():
 			return

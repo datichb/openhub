@@ -15,7 +15,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/beads"
 	"github.com/datichb/openhub/cli/internal/config"
-	"github.com/datichb/openhub/cli/internal/daemon"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/launcher"
@@ -468,9 +468,9 @@ func tuiLaunchError(err error) error {
 	}
 	msg := localizeError(err)
 	var pe *ProviderCredentialError
-	var api *daemon.APIError
+	var apiErr *api.APIError
 	var te *runsvc.TransferError
-	if errors.As(err, &pe) || (errors.As(err, &api) && api.Path == "/grants" && api.Status == 422) {
+	if errors.As(err, &pe) || (errors.As(err, &apiErr) && apiErr.Path == "/grants" && apiErr.Status == 422) {
 		return views.ProviderCredentialsError(msg)
 	}
 	if errors.As(err, &te) {

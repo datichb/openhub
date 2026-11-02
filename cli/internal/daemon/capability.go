@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/datichb/openhub/cli/internal/daemon/api"
 	"github.com/datichb/openhub/cli/internal/filelock"
 )
 
@@ -40,13 +41,13 @@ type CapabilityStore interface {
 	Set(ctx context.Context, key, value string) error
 }
 
-func capabilityLock(p Paths) string { return filepath.Join(p.Dir, "capability.lock") }
+func capabilityLock(p api.Paths) string { return filepath.Join(p.Dir, "capability.lock") }
 
 // LoadCapability returns the issuing capability, creating it on first use:
 // in store when it is usable, otherwise in the fallback file (0600). The
 // creation is serialized between processes. Order: secret store, then an
 // existing file, then a new value in the store, else in a new file.
-func LoadCapability(ctx context.Context, store CapabilityStore, paths Paths) (string, CapabilitySource, error) {
+func LoadCapability(ctx context.Context, store CapabilityStore, paths api.Paths) (string, CapabilitySource, error) {
 	if err := os.MkdirAll(paths.Dir, 0o700); err != nil {
 		return "", "", err
 	}
@@ -90,7 +91,7 @@ func LoadCapability(ctx context.Context, store CapabilityStore, paths Paths) (st
 
 // PeekCapability tells where the capability is kept without creating it
 // (Doctor): found false when none exists yet.
-func PeekCapability(ctx context.Context, store CapabilityStore, paths Paths) (src CapabilitySource, found bool, err error) {
+func PeekCapability(ctx context.Context, store CapabilityStore, paths api.Paths) (src CapabilitySource, found bool, err error) {
 	if store != nil {
 		if v, gerr := store.Get(ctx, CapabilityKey); gerr == nil && v != "" {
 			return CapabilityKeychain, true, nil
@@ -104,7 +105,7 @@ func PeekCapability(ctx context.Context, store CapabilityStore, paths Paths) (sr
 	return "", false, nil
 }
 
-func readCapabilityFile(paths Paths) (string, error) {
+func readCapabilityFile(paths api.Paths) (string, error) {
 	data, err := os.ReadFile(paths.CapabilityFile())
 	if err != nil {
 		return "", err
@@ -130,7 +131,7 @@ func newCapability() string {
 func (d *Daemon) privileged(h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		want := d.opts.Capability
-		if want != "" && subtle.ConstantTimeCompare([]byte(r.Header.Get(CapabilityHeader)), []byte(want)) != 1 {
+		if want != "" && subtle.ConstantTimeCompare([]byte(r.Header.Get(api.CapabilityHeader)), []byte(want)) != 1 {
 			writeErr(w, http.StatusForbidden, "this daemon route is reserved to the oh CLI")
 			return
 		}

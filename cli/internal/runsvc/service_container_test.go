@@ -16,6 +16,8 @@ import (
 	"github.com/datichb/openhub/cli/internal/adapters/opencodev2"
 	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/daemon"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
+	"github.com/datichb/openhub/cli/internal/daemon/client"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 	ohruntime "github.com/datichb/openhub/cli/internal/runtime"
@@ -82,7 +84,7 @@ func realContainerSession(t *testing.T, engine container.EngineKind) {
 		t.Fatal(err)
 	}
 	secrets := realSecrets{"openhub.provider.bedrock.token": "real-secret-must-not-leak"}
-	paths := daemon.Paths{Dir: filepath.Join(short, "run")}
+	paths := api.Paths{Dir: filepath.Join(short, "run")}
 	dctx, cancel := context.WithCancel(ctx)
 	done := make(chan error, 1)
 	go func() {
@@ -91,7 +93,7 @@ func realContainerSession(t *testing.T, engine container.EngineKind) {
 			Adapter: func(string) adapters.ToolAdapter { return a }})
 	}()
 	t.Cleanup(func() { cancel(); <-done })
-	dc := daemon.NewClient(paths)
+	dc := client.NewClient(paths)
 	deadline := time.Now().Add(5 * time.Second)
 	for {
 		if _, err := dc.Health(ctx); err == nil {
@@ -208,7 +210,7 @@ func realContainerSession(t *testing.T, engine container.EngineKind) {
 	}
 }
 
-func mustHealth(t *testing.T, dc *daemon.Client) daemon.Health {
+func mustHealth(t *testing.T, dc *client.Client) api.Health {
 	h, err := dc.Health(context.Background())
 	if err != nil {
 		t.Fatal(err)

@@ -16,6 +16,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/adapters"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
+	dclient "github.com/datichb/openhub/cli/internal/daemon/client"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
@@ -103,20 +105,20 @@ func TestHeldRequestBeforeAdoption(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("watcher did not subscribe")
 	}
-	c := NewClient(p)
+	c := dclient.NewClient(p)
 	require.Eventually(t, func() bool { _, err := c.Health(ctx); return err == nil }, 5*time.Second, 20*time.Millisecond)
-	g, err := c.IssueGrant(ctx, GrantRequest{Owner: "g1", Provider: "amazon-bedrock", Region: "eu-west-1",
+	g, err := c.IssueGrant(ctx, api.GrantRequest{Owner: "g1", Provider: "amazon-bedrock", Region: "eu-west-1",
 		Source: domain.CredentialSource{Kind: domain.CredentialBearer}, Secret: "real"})
 	require.NoError(t, err)
 	h, _ := c.Health(ctx)
-	hook := func(body string) (int, HookPermissionResponse) {
+	hook := func(body string) (int, api.HookPermissionResponse) {
 		req, _ := http.NewRequest(http.MethodPost, h.ProxyURL+"/oh/v1/hooks/permission", strings.NewReader(body))
 		req.Header.Set("Authorization", "Bearer "+g.Token)
 		resp, err := http.DefaultClient.Do(req)
 		require.NoError(t, err)
 		defer resp.Body.Close()
 		raw, _ := io.ReadAll(resp.Body)
-		var out HookPermissionResponse
+		var out api.HookPermissionResponse
 		if resp.StatusCode == http.StatusOK {
 			require.NoError(t, json.Unmarshal(raw, &out), string(raw))
 		}

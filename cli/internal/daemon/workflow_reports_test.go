@@ -16,6 +16,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/datichb/openhub/cli/internal/daemon/api"
+	dclient "github.com/datichb/openhub/cli/internal/daemon/client"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 	"github.com/datichb/openhub/cli/internal/services/report"
@@ -54,7 +56,7 @@ func newReportEnv(t *testing.T, dir string) reportEnv {
 }
 
 func apiStatus(err error) int {
-	var api *APIError
+	var api *api.APIError
 	if errors.As(err, &api) {
 		return api.Status
 	}
@@ -68,15 +70,15 @@ func TestWorkflowReportRoutesNeedTheGroupToken(t *testing.T) {
 	ctx := context.Background()
 	runDaemon(t, Options{Paths: p, Version: "t", Sessions: e.sessions, Checkpoints: e.cp, Reports: e.reports,
 		Capability: "cap", Tick: time.Hour, IdleAfter: time.Hour})
-	oh := NewClient(p).WithCapability("cap")
+	oh := dclient.NewClient(p).WithCapability("cap")
 	issue := func(owner string) string {
-		g, err := oh.IssueGrant(ctx, GrantRequest{Owner: owner, Provider: "amazon-bedrock", Region: "eu-west-1",
+		g, err := oh.IssueGrant(ctx, api.GrantRequest{Owner: owner, Provider: "amazon-bedrock", Region: "eu-west-1",
 			Source: domain.CredentialSource{Kind: domain.CredentialBearer}, Secret: "real"})
 		require.NoError(t, err)
 		return g.Token
 	}
 
-	anon := NewClient(p)
+	anon := dclient.NewClient(p)
 	_, err := anon.WorkflowReport(ctx, "ses_a", "t", "corps")
 	assert.Equal(t, http.StatusUnauthorized, apiStatus(err))
 	_, err = anon.WorkflowReports(ctx, "ses_a")
@@ -84,11 +86,11 @@ func TestWorkflowReportRoutesNeedTheGroupToken(t *testing.T) {
 	_, err = anon.WorkflowReportGet(ctx, "ses_a", "rp-1", "")
 	assert.Equal(t, http.StatusUnauthorized, apiStatus(err))
 
-	other := NewClient(p).WithGroupToken(issue("g2"))
+	other := dclient.NewClient(p).WithGroupToken(issue("g2"))
 	_, err = other.WorkflowReport(ctx, "ses_a", "t", "corps")
 	assert.Equal(t, http.StatusForbidden, apiStatus(err), "token of another group")
 
-	mine := NewClient(p).WithGroupToken(issue("g1"))
+	mine := dclient.NewClient(p).WithGroupToken(issue("g1"))
 	rp, err := mine.WorkflowReport(ctx, "ses_a", "Fait", "## Tests\nok")
 	require.NoError(t, err)
 	assert.Equal(t, "rp-1", rp.ID)
@@ -118,10 +120,10 @@ func TestWorkflowReportAuthorIsTheCallingAgent(t *testing.T) {
 		children: map[string]string{"ses_child": "ses_a", "ses_quiet": "ses_a"}, childAgent: map[string]string{"ses_child": "reviewer"}}
 	d := &Daemon{opts: Options{Sessions: e.sessions, Checkpoints: e.cp, Reports: e.reports}, watchers: map[string]*watcher{"g1": w}}
 	h := d.routes()
-	post := func(body string) (*httptest.ResponseRecorder, WorkflowReport) {
+	post := func(body string) (*httptest.ResponseRecorder, api.WorkflowReport) {
 		rec := httptest.NewRecorder()
-		h.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, apiPrefix+"/workflow/report", bytes.NewBufferString(body)))
-		var out WorkflowReport
+		h.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, api.Prefix+"/workflow/report", bytes.NewBufferString(body)))
+		var out api.WorkflowReport
 		_ = json.Unmarshal(rec.Body.Bytes(), &out)
 		return rec, out
 	}

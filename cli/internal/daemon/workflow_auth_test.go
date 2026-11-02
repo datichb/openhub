@@ -15,6 +15,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/datichb/openhub/cli/internal/daemon/api"
+	dclient "github.com/datichb/openhub/cli/internal/daemon/client"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
@@ -43,22 +45,22 @@ func TestWorkflowRoutesNeedTheGroupToken(t *testing.T) {
 	runDaemon(t, Options{Paths: p, Version: "t", Servers: sqlite.NewServerStore(st), Sessions: sessions, Checkpoints: cp,
 		Capability: "cap", Tick: time.Hour, IdleAfter: time.Hour})
 
-	oh := NewClient(p).WithCapability("cap")
+	oh := dclient.NewClient(p).WithCapability("cap")
 	issue := func(owner string) string {
-		g, err := oh.IssueGrant(ctx, GrantRequest{Owner: owner, Provider: "amazon-bedrock", Region: "eu-west-1",
+		g, err := oh.IssueGrant(ctx, api.GrantRequest{Owner: owner, Provider: "amazon-bedrock", Region: "eu-west-1",
 			Source: domain.CredentialSource{Kind: domain.CredentialBearer}, Secret: "real"})
 		require.NoError(t, err)
 		return g.Token
 	}
 	status := func(err error) int {
-		var api *APIError
+		var api *api.APIError
 		if errors.As(err, &api) {
 			return api.Status
 		}
 		return 0
 	}
 
-	anon := NewClient(p)
+	anon := dclient.NewClient(p)
 	_, err := anon.WorkflowStatus(ctx, "ses_a")
 	assert.Equal(t, http.StatusUnauthorized, status(err), "no token")
 	_, err = anon.WorkflowCheckpoint(ctx, "ses_a", checkpoint.Call{ID: "cp-1"})
@@ -67,11 +69,11 @@ func TestWorkflowRoutesNeedTheGroupToken(t *testing.T) {
 	_, err = anon.WithGroupToken("ohs_forged").WorkflowStatus(ctx, "ses_a")
 	assert.Equal(t, http.StatusUnauthorized, status(err), "unknown token")
 
-	other := NewClient(p).WithGroupToken(issue("g2"))
+	other := dclient.NewClient(p).WithGroupToken(issue("g2"))
 	_, err = other.WorkflowCheckpoint(ctx, "ses_a", checkpoint.Call{ID: "cp-1"})
 	assert.Equal(t, http.StatusForbidden, status(err), "token of another group")
 
-	mine := NewClient(p).WithGroupToken(issue("g1"))
+	mine := dclient.NewClient(p).WithGroupToken(issue("g1"))
 	res, err := mine.WorkflowCheckpoint(ctx, "ses_a", checkpoint.Call{ID: "cp-1"})
 	require.NoError(t, err)
 	assert.Equal(t, "cp-1", res.ID)
@@ -88,7 +90,7 @@ func TestWorkflowRoutesNeedTheGroupToken(t *testing.T) {
 	// Routes only oh calls.
 	assert.Equal(t, http.StatusForbidden, status(anon.WorkflowRefresh(ctx, "ses_a")))
 	require.NoError(t, oh.WorkflowRefresh(ctx, "ses_a"))
-	assert.Equal(t, http.StatusForbidden, status(anon.SetPolicy(ctx, "g1", PolicyBackground)))
+	assert.Equal(t, http.StatusForbidden, status(anon.SetPolicy(ctx, "g1", api.PolicyBackground)))
 	_, err = anon.AttachedClients(ctx, "ses_a")
 	assert.Equal(t, http.StatusForbidden, status(err))
 }
@@ -96,7 +98,7 @@ func TestWorkflowRoutesNeedTheGroupToken(t *testing.T) {
 func TestHeartbeatTTLIsBounded(t *testing.T) {
 	p := shortPaths(t)
 	d := &Daemon{opts: Options{Paths: p}, clients: map[string]client{}}
-	body, _ := json.Marshal(HeartbeatRequest{ClientID: "x", Kind: ClientPresence, TTL: 86400})
+	body, _ := json.Marshal(api.HeartbeatRequest{ClientID: "x", Kind: api.ClientPresence, TTL: 86400})
 	rec := httptest.NewRecorder()
 	req, _ := http.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
 	d.handleHeartbeat(rec, req)

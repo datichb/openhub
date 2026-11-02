@@ -15,7 +15,8 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
-	"github.com/datichb/openhub/cli/internal/daemon"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
+	"github.com/datichb/openhub/cli/internal/daemon/client"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/limits"
@@ -131,7 +132,7 @@ func runBudgetShow(cmd *cobra.Command, _ []string) error {
 			rep.ProjectUSD, _ = us.DayCost(ctx, day, project.ID)
 		}
 	}
-	if h, err := daemon.NewClient(daemon.Paths{Dir: ohRunDir()}).Health(ctx); err == nil {
+	if h, err := client.NewClient(api.Paths{Dir: ohRunDir()}).Health(ctx); err == nil {
 		rep.MemoryMB = h.MemoryMB
 	}
 	if asJSON, _ := cmd.Flags().GetBool("json"); asJSON {

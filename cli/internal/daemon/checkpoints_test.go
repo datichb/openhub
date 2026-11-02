@@ -14,6 +14,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/bundle"
+	dclient "github.com/datichb/openhub/cli/internal/daemon/client"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
@@ -132,7 +133,7 @@ func TestWatcherCheckpoints(t *testing.T) {
 
 	// The call runs (MCP server → daemon): cp-1 passed, developer released.
 	fake.set(func() { fake.decisions["ses_a"] = nil })
-	c := NewClient(p)
+	c := dclient.NewClient(p)
 	_, err := c.WorkflowCheckpoint(ctx, "ses_a", checkpoint.Call{ID: "cp-1"})
 	require.NoError(t, err)
 	assert.False(t, denies(fake.rulesOf("ses_a"), "developer"))

@@ -7,7 +7,7 @@ import (
 	"net/http"
 
 	"github.com/datichb/openhub/cli/internal/bundle"
-	"github.com/datichb/openhub/cli/internal/daemon"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/gateway"
 	"github.com/datichb/openhub/cli/internal/gateway/beadswire"
@@ -19,7 +19,7 @@ import (
 
 // gatewayGranter is the part of the daemon client issuing gateway tokens.
 type gatewayGranter interface {
-	IssueGatewayGrant(ctx context.Context, req daemon.GatewayGrantRequest) (daemon.GatewayGrantResponse, error)
+	IssueGatewayGrant(ctx context.Context, req api.GatewayGrantRequest) (api.GatewayGrantResponse, error)
 }
 
 // gatewaySessionEnv gives the local and container sessions their Beads
@@ -45,11 +45,11 @@ func gatewaySessionEnv(dc func(ctx context.Context) (gatewayGranter, error)) run
 		if err != nil {
 			return nil, err
 		}
-		g, err := c.IssueGatewayGrant(ctx, daemon.GatewayGrantRequest{
+		g, err := c.IssueGatewayGrant(ctx, api.GatewayGrantRequest{
 			SessionID: r.SessionID, GroupKey: r.GroupKey, ProjectID: r.ProjectID, WorkflowID: r.WorkflowID,
 			Location: r.Location, BeadsAllow: r.BeadsAllow, GatewayURL: r.GatewayURL,
 		})
-		var apiErr *daemon.APIError
+		var apiErr *api.APIError
 		if errors.As(err, &apiErr) && (apiErr.Status == http.StatusNotFound || apiErr.Status == http.StatusMethodNotAllowed) {
 			return nil, errors.New(i18n.T("cmd.gateway.beads.daemon_outdated"))
 		}

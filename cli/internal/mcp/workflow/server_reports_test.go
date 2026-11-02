@@ -9,37 +9,37 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/datichb/openhub/cli/internal/daemon"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 )
 
 type reportCall struct{ session, title, body string }
 
-func (f *fakeBackend) WorkflowReport(_ context.Context, s, title, body string) (daemon.WorkflowReport, error) {
+func (f *fakeBackend) WorkflowReport(_ context.Context, s, title, body string) (api.WorkflowReport, error) {
 	f.reports = append(f.reports, reportCall{s, title, body})
 	if f.reportErr != nil {
-		return daemon.WorkflowReport{}, f.reportErr
+		return api.WorkflowReport{}, f.reportErr
 	}
-	return daemon.WorkflowReport{ID: "rp-3", Report: domain.Report{Seq: 3, Agent: "developer", Title: title, Bytes: 2150}}, nil
+	return api.WorkflowReport{ID: "rp-3", Report: domain.Report{Seq: 3, Agent: "developer", Title: title, Bytes: 2150}}, nil
 }
 
-func (f *fakeBackend) WorkflowReports(_ context.Context, s string) ([]daemon.WorkflowReport, error) {
+func (f *fakeBackend) WorkflowReports(_ context.Context, s string) ([]api.WorkflowReport, error) {
 	f.sessions = append(f.sessions, s)
 	if f.reportErr != nil {
 		return nil, f.reportErr
 	}
 	at := time.Date(2026, 10, 13, 10, 3, 0, 0, time.Local)
-	return []daemon.WorkflowReport{{ID: "rp-1", Report: domain.Report{Seq: 1, Agent: "developer", Title: "Fait", Bytes: 800, CreatedAt: at,
+	return []api.WorkflowReport{{ID: "rp-1", Report: domain.Report{Seq: 1, Agent: "developer", Title: "Fait", Bytes: 800, CreatedAt: at,
 		Sections: []string{"Changements par fichier", "Tests"}}}}, nil
 }
 
-func (f *fakeBackend) WorkflowReportGet(_ context.Context, s, id, section string) (daemon.WorkflowReport, error) {
+func (f *fakeBackend) WorkflowReportGet(_ context.Context, s, id, section string) (api.WorkflowReport, error) {
 	f.sessions = append(f.sessions, s+"/"+id+"/"+section)
 	if f.reportErr != nil {
-		return daemon.WorkflowReport{}, f.reportErr
+		return api.WorkflowReport{}, f.reportErr
 	}
-	return daemon.WorkflowReport{ID: id, Report: domain.Report{Agent: "reviewer", Title: "Review"}, Body: "## Verdict\ncorriger"}, nil
+	return api.WorkflowReport{ID: id, Report: domain.Report{Agent: "reviewer", Title: "Review"}, Body: "## Verdict\ncorriger"}, nil
 }
 
 func TestReportCall(t *testing.T) {
@@ -62,20 +62,20 @@ func TestReportCall(t *testing.T) {
 
 func TestReportWithoutDaemonFallsBackOnTheBlock(t *testing.T) {
 	i18n.SetLocale("fr")
-	for _, err := range []error{daemon.ErrNotRunning, &daemon.APIError{Status: http.StatusServiceUnavailable, Message: "off"},
-		&daemon.APIError{Status: http.StatusNotFound, Message: "404 Not Found"}} {
+	for _, err := range []error{api.ErrNotRunning, &api.APIError{Status: http.StatusServiceUnavailable, Message: "off"},
+		&api.APIError{Status: http.StatusNotFound, Message: "404 Not Found"}} {
 		out := call(t, &fakeBackend{reportErr: err}, "tools/call", `{"name":"report","arguments":{"body":"x"},`+meta+`}`)
 		require.False(t, out.Result.IsError, "the agent goes on")
 		assert.Contains(t, out.Result.Content[0].Text, "non enregistré")
 		assert.Contains(t, out.Result.Content[0].Text, "rapport complet")
 	}
-	out := call(t, &fakeBackend{reportErr: &daemon.APIError{Status: http.StatusUnprocessableEntity, Message: "the report is larger than 64 KiB"}},
+	out := call(t, &fakeBackend{reportErr: &api.APIError{Status: http.StatusUnprocessableEntity, Message: "the report is larger than 64 KiB"}},
 		"tools/call", `{"name":"report","arguments":{"body":"x"},`+meta+`}`)
 	assert.True(t, out.Result.IsError)
 	assert.Contains(t, out.Result.Content[0].Text, "64 KiB")
 	assert.Contains(t, out.Result.Content[0].Text, "rapport complet")
 
-	out = call(t, &fakeBackend{reportErr: daemon.ErrNotRunning}, "tools/call", `{"name":"reports","arguments":{},`+meta+`}`)
+	out = call(t, &fakeBackend{reportErr: api.ErrNotRunning}, "tools/call", `{"name":"reports","arguments":{},`+meta+`}`)
 	assert.True(t, out.Result.IsError)
 }
 
@@ -94,7 +94,7 @@ func TestReportGetAndList(t *testing.T) {
 	require.False(t, out.Result.IsError)
 	assert.Equal(t, "rp-1 · developer · « Fait » · 800 o · 10:03 · Changements par fichier | Tests", out.Result.Content[0].Text)
 
-	api := &daemon.APIError{Status: http.StatusNotFound, Message: "report rp-9: not found"}
+	api := &api.APIError{Status: http.StatusNotFound, Message: "report rp-9: not found"}
 	out = call(t, &fakeBackend{reportErr: api}, "tools/call", `{"name":"report_get","arguments":{"id":"rp-9"},`+meta+`}`)
 	assert.True(t, out.Result.IsError)
 	assert.Equal(t, api.Message, out.Result.Content[0].Text)

@@ -15,7 +15,8 @@ import (
 	"github.com/datichb/openhub/cli/internal/beads"
 	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/config"
-	"github.com/datichb/openhub/cli/internal/daemon"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
+	"github.com/datichb/openhub/cli/internal/daemon/client"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/storage/keychain"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
@@ -387,13 +388,13 @@ func defaultPurgeProcesses(ctx context.Context) purgeProcesses {
 	if a := TryApp(); a != nil && a.Servers != nil {
 		p.servers = a.Servers
 	}
-	paths := daemon.Paths{Dir: ohRunDir()}
+	paths := api.Paths{Dir: ohRunDir()}
 	if _, err := os.Lstat(paths.Socket()); err == nil {
 		capability, _, cerr := daemonCapability(ctx)
 		if cerr != nil {
 			p.daemonErr = cerr
 		} else {
-			p.daemon = daemon.NewClient(paths).WithCapability(capability)
+			p.daemon = client.NewClient(paths).WithCapability(capability)
 		}
 	}
 	return p

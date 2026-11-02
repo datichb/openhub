@@ -8,20 +8,20 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/datichb/openhub/cli/internal/daemon"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/runsvc"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
 type fakeGranter struct {
-	got []daemon.GatewayGrantRequest
+	got []api.GatewayGrantRequest
 	err error
 }
 
-func (f *fakeGranter) IssueGatewayGrant(_ context.Context, r daemon.GatewayGrantRequest) (daemon.GatewayGrantResponse, error) {
+func (f *fakeGranter) IssueGatewayGrant(_ context.Context, r api.GatewayGrantRequest) (api.GatewayGrantResponse, error) {
 	f.got = append(f.got, r)
-	return daemon.GatewayGrantResponse{Token: "ohg_t"}, f.err
+	return api.GatewayGrantResponse{Token: "ohg_t"}, f.err
 }
 
 func TestGatewaySessionEnv(t *testing.T) {
@@ -46,10 +46,10 @@ func TestGatewaySessionEnv(t *testing.T) {
 		WorkflowID: "ticket", Runtime: sessionspec.RuntimeContainer, BeadsAllow: []string{"show"}, GatewayURL: "http://h:1/oh-gateway"})
 	require.NoError(t, err)
 	assert.Equal(t, map[string]string{"OH_GATEWAY_URL": "http://h:1/oh-gateway", "OH_GATEWAY_TOKEN": "ohg_t"}, env)
-	assert.Equal(t, daemon.GatewayGrantRequest{SessionID: "ses_a", GroupKey: "g", ProjectID: "p", WorkflowID: "ticket", Location: "/p",
+	assert.Equal(t, api.GatewayGrantRequest{SessionID: "ses_a", GroupKey: "g", ProjectID: "p", WorkflowID: "ticket", Location: "/p",
 		BeadsAllow: []string{"show"}, GatewayURL: "http://h:1/oh-gateway"}, fg.got[0])
 
-	fg.err = &daemon.APIError{Status: http.StatusNotFound}
+	fg.err = &api.APIError{Status: http.StatusNotFound}
 	_, err = hook(ctx, runsvc.SessionEnvRequest{Runtime: sessionspec.RuntimeContainer})
 	assert.ErrorContains(t, err, "gateway address")
 	_, err = hook(ctx, runsvc.SessionEnvRequest{Runtime: sessionspec.RuntimeContainer, GatewayURL: "http://h:1/oh-gateway"})

@@ -16,6 +16,8 @@ import (
 	"github.com/datichb/openhub/cli/internal/adapters/opencodev2"
 	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/daemon"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
+	"github.com/datichb/openhub/cli/internal/daemon/client"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/gateway"
 	"github.com/datichb/openhub/cli/internal/gateway/beadswire"
@@ -114,7 +116,7 @@ func realBeadsGateway(t *testing.T, engine container.EngineKind) {
 		t.Fatal(err)
 	}
 	secrets := realSecrets{"openhub.provider.bedrock.token": "real-secret-must-not-leak"}
-	paths := daemon.Paths{Dir: filepath.Join(short, "run")}
+	paths := api.Paths{Dir: filepath.Join(short, "run")}
 	dctx, cancel := context.WithCancel(ctx)
 	done := make(chan error, 1)
 	go func() {
@@ -139,7 +141,7 @@ func realBeadsGateway(t *testing.T, engine container.EngineKind) {
 			}})
 	}()
 	t.Cleanup(func() { cancel(); <-done })
-	dc := daemon.NewClient(paths)
+	dc := client.NewClient(paths)
 	deadline := time.Now().Add(5 * time.Second)
 	for {
 		if _, err := dc.Health(ctx); err == nil {
@@ -171,7 +173,7 @@ func realBeadsGateway(t *testing.T, engine container.EngineKind) {
 			if r.Runtime != sessionspec.RuntimeContainer {
 				return nil, nil
 			}
-			g, err := dc.IssueGatewayGrant(ctx, daemon.GatewayGrantRequest{SessionID: r.SessionID, GroupKey: r.GroupKey,
+			g, err := dc.IssueGatewayGrant(ctx, api.GatewayGrantRequest{SessionID: r.SessionID, GroupKey: r.GroupKey,
 				ProjectID: r.ProjectID, Location: r.Location, BeadsAllow: r.BeadsAllow, GatewayURL: r.GatewayURL})
 			return map[string]string{beadswire.EnvURL: r.GatewayURL, beadswire.EnvToken: g.Token}, err
 		},

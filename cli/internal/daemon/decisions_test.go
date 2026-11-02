@@ -11,6 +11,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/credproxy"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/sessionresults"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
@@ -114,7 +115,7 @@ func TestSleepSavesResults(t *testing.T) {
 		Changes: []adapters.FileChange{{File: "a.go", Additions: 3, Patch: "+x\n"}}}
 	dir := t.TempDir()
 	d := &Daemon{opts: Options{Sessions: sessions, Decisions: decisions, SessionsDir: dir, Adapter: func(string) adapters.ToolAdapter { return fake }},
-		proxy: credproxy.New(), pending: map[string]domain.ProxyGrant{}, policies: map[string]QuitPolicy{}, watchers: map[string]*watcher{}}
+		proxy: credproxy.New(), pending: map[string]domain.ProxyGrant{}, policies: map[string]api.QuitPolicy{}, watchers: map[string]*watcher{}}
 
 	d.putToSleep(ctx, domain.Server{GroupKey: "g1", ProjectID: "p1", Adapter: "fake"}, false)
 	sum, patch, err := sessionresults.Load(dir, "ses_a")

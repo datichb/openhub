@@ -7,6 +7,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/credproxy"
 	"github.com/datichb/openhub/cli/internal/daemon"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/services/doctor"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
@@ -19,18 +20,18 @@ func securityDoctorChecks(ctx context.Context) []doctor.Result {
 	var out []doctor.Result
 	name := i18n.T("cmd.doctor.security.capability")
 	// Read only: Doctor never creates the capability (first launch does).
-	switch src, found, err := daemon.PeekCapability(ctx, capabilityStore(), daemon.Paths{Dir: ohRunDir()}); {
+	switch src, found, err := daemon.PeekCapability(ctx, capabilityStore(), api.Paths{Dir: ohRunDir()}); {
 	case err != nil:
 		out = append(out, doctor.Result{Name: name, OK: false, Detail: i18n.Tf("cmd.doctor.security.capability_error", err)})
 	case !found:
 		out = append(out, doctor.Result{Name: name, OK: true, Detail: i18n.T("cmd.doctor.security.capability_none")})
 	case src == daemon.CapabilityFile:
-		out = append(out, doctor.Result{Name: name, OK: true, Detail: i18n.Tf("cmd.doctor.security.capability_file", daemon.Paths{Dir: ohRunDir()}.CapabilityFile())})
+		out = append(out, doctor.Result{Name: name, OK: true, Detail: i18n.Tf("cmd.doctor.security.capability_file", api.Paths{Dir: ohRunDir()}.CapabilityFile())})
 	default:
 		out = append(out, doctor.Result{Name: name, OK: true, Detail: i18n.T("cmd.doctor.security.capability_keychain")})
 	}
 
-	sock := daemon.Paths{Dir: ohRunDir()}.Socket()
+	sock := api.Paths{Dir: ohRunDir()}.Socket()
 	if st, err := os.Stat(sock); err == nil {
 		ok := st.Mode().Perm()&0o077 == 0 && ownedByMe(st)
 		detail := i18n.T("cmd.doctor.security.socket_ok")

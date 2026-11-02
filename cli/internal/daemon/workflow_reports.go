@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/datichb/openhub/cli/internal/daemon/api"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
@@ -23,7 +24,7 @@ import (
 // itself is bounded by the ReportService, after cleaning).
 const reportRequestMax = 1 << 20
 
-func reportView(r domain.Report) WorkflowReport { return WorkflowReport{ID: r.ID(), Report: r} }
+func reportView(r domain.Report) api.WorkflowReport { return api.WorkflowReport{ID: r.ID(), Report: r} }
 
 // callerAgent returns the agent oh saw in a tool session of root: the
 // subagent of a child session, else the agent of the session's own
@@ -87,7 +88,7 @@ func (d *Daemon) handleWorkflowReport(w http.ResponseWriter, r *http.Request) {
 	if d.reportsOff(w) {
 		return
 	}
-	var req WorkflowReportRequest
+	var req api.WorkflowReportRequest
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, reportRequestMax)).Decode(&req); err != nil || req.ToolSession == "" {
 		var tooBig *http.MaxBytesError
 		if errors.As(err, &tooBig) {
@@ -129,7 +130,7 @@ func (d *Daemon) handleWorkflowReports(w http.ResponseWriter, r *http.Request) {
 		d.reportErr(w, err)
 		return
 	}
-	out := make([]WorkflowReport, 0, len(list))
+	out := make([]api.WorkflowReport, 0, len(list))
 	for _, rp := range list {
 		out = append(out, reportView(rp))
 	}

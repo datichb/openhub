@@ -15,6 +15,8 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/credproxy"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
+	dclient "github.com/datichb/openhub/cli/internal/daemon/client"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/limits"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
@@ -89,7 +91,7 @@ type limitEnv struct {
 	dir       string // sessions dir
 	events    chan adapters.ToolEvent
 	memoryMB  atomic.Int64
-	paths     Paths
+	paths     api.Paths
 }
 
 func newLimitEnv(t *testing.T, sessionIDs ...string) *limitEnv {
@@ -115,7 +117,7 @@ func newLimitEnv(t *testing.T, sessionIDs ...string) *limitEnv {
 			Memory:  func(context.Context, []int) (int, error) { return int(e.memoryMB.Load()), nil }})
 	}()
 	t.Cleanup(func() { cancel(); <-done })
-	c := NewClient(p)
+	c := dclient.NewClient(p)
 	require.Eventually(t, func() bool { h, err := c.Health(ctx); return err == nil && !h.Restoring }, 5*time.Second, 20*time.Millisecond)
 	select {
 	case e.events = <-e.ad.events:
@@ -254,7 +256,7 @@ func TestRaiseResumesTheInterruptedStep(t *testing.T) {
 	e.turn("ses_a", 1.2)
 	require.Eventually(t, func() bool { return len(e.openBudget("ses_a")) == 1 }, 3*time.Second, 20*time.Millisecond)
 	dec := e.openBudget("ses_a")[0]
-	c := NewClient(e.paths)
+	c := dclient.NewClient(e.paths)
 
 	// No interrupted step yet: a raise only updates the state.
 	require.NoError(t, e.usage.AddBudgetExtra(e.ctx, limits.SessionScope("ses_a"), "", 1))

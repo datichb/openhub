@@ -10,6 +10,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/credproxy"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/gitutil"
 	"github.com/datichb/openhub/cli/internal/i18n"
@@ -138,7 +139,7 @@ func (d *Daemon) handleWorkflowCheckpoint(w http.ResponseWriter, r *http.Request
 		writeErr(w, http.StatusServiceUnavailable, "checkpoints are not available")
 		return
 	}
-	var req WorkflowCheckpointRequest
+	var req api.WorkflowCheckpointRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.ToolSession == "" || req.ID == "" {
 		writeErr(w, http.StatusBadRequest, "tool_session and id are required")
 		return
@@ -169,7 +170,7 @@ func (d *Daemon) handleWorkflowCheckpoint(w http.ResponseWriter, r *http.Request
 // handleWorkflowRules re-applies the session rules of an oh session (its
 // workflow state changed in another process: circuit breaker dismissed).
 func (d *Daemon) handleWorkflowRules(w http.ResponseWriter, r *http.Request) {
-	var req WorkflowRulesRequest
+	var req api.WorkflowRulesRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.SessionID == "" {
 		writeErr(w, http.StatusBadRequest, "session_id is required")
 		return
@@ -202,7 +203,7 @@ func (d *Daemon) handleWorkflowOutputs(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusServiceUnavailable, "checkpoints are not available")
 		return
 	}
-	var req WorkflowOutputRequest
+	var req api.WorkflowOutputRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.ToolSession == "" {
 		writeErr(w, http.StatusBadRequest, "tool_session is required")
 		return
@@ -232,13 +233,13 @@ func (d *Daemon) hooksHandler() http.Handler {
 }
 
 func (d *Daemon) handleHookPermission(w http.ResponseWriter, r *http.Request) {
-	var req HookPermissionRequest
+	var req api.HookPermissionRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.SessionID == "" || req.Action == "" {
 		writeErr(w, http.StatusBadRequest, "sessionID and action are required")
 		return
 	}
 	if d.opts.Checkpoints == nil || d.opts.Sessions == nil {
-		writeJSON(w, http.StatusOK, HookPermissionResponse{})
+		writeJSON(w, http.StatusOK, api.HookPermissionResponse{})
 		return
 	}
 	root := d.rootSession(req.SessionID)
@@ -250,7 +251,7 @@ func (d *Daemon) handleHookPermission(w http.ResponseWriter, r *http.Request) {
 		if req.Pending {
 			// p6-debts: a session oh cannot link to one of its sessions has
 			// no checkpoint locks: what they lock is refused.
-			writeJSON(w, http.StatusOK, HookPermissionResponse{Effect: string(sessionspec.EffectDeny), Message: i18n.T("cmd.daemon.workflow.pending_unknown")})
+			writeJSON(w, http.StatusOK, api.HookPermissionResponse{Effect: string(sessionspec.EffectDeny), Message: i18n.T("cmd.daemon.workflow.pending_unknown")})
 			return
 		}
 		writeErr(w, http.StatusForbidden, "unknown session for this token")
@@ -271,30 +272,30 @@ func (d *Daemon) handleHookPermission(w http.ResponseWriter, r *http.Request) {
 		// from the rules it sets.
 		rules, err := d.opts.Checkpoints.Rules(r.Context(), root)
 		if err != nil {
-			writeJSON(w, http.StatusOK, HookPermissionResponse{Effect: string(sessionspec.EffectDeny), Message: i18n.T("cmd.daemon.workflow.pending_unconfirmed")})
+			writeJSON(w, http.StatusOK, api.HookPermissionResponse{Effect: string(sessionspec.EffectDeny), Message: i18n.T("cmd.daemon.workflow.pending_unconfirmed")})
 			return
 		}
 		if eff, ok := bundle.SessionRulesEffect(rules, action, req.Resources); ok && eff == sessionspec.EffectDeny {
-			writeJSON(w, http.StatusOK, HookPermissionResponse{Effect: string(eff), Message: i18n.Tf("cmd.daemon.workflow.pending_locked", strings.Join(req.Resources, " ; "))})
+			writeJSON(w, http.StatusOK, api.HookPermissionResponse{Effect: string(eff), Message: i18n.Tf("cmd.daemon.workflow.pending_locked", strings.Join(req.Resources, " ; "))})
 			return
 		}
 	}
 	// p6-debts: the git add and git commit lines of a writes: agent the
 	// rules cannot read (several paths, several -m) are read by oh.
 	if effect, msg, err := d.opts.Checkpoints.EvaluateWrites(r.Context(), root, req.Agent, action, req.Resources); err == nil && effect != "" {
-		writeJSON(w, http.StatusOK, HookPermissionResponse{Effect: effect, Message: msg})
+		writeJSON(w, http.StatusOK, api.HookPermissionResponse{Effect: effect, Message: msg})
 		return
 	}
 	// r5-fixes: the edit of a `writes:` path held until a checkpoint is
 	// refused with the reason.
 	if effect, msg, err := d.opts.Checkpoints.EvaluateEdit(r.Context(), root, action, req.Resources); err == nil && effect != "" {
-		writeJSON(w, http.StatusOK, HookPermissionResponse{Effect: effect, Message: msg})
+		writeJSON(w, http.StatusOK, api.HookPermissionResponse{Effect: effect, Message: msg})
 		return
 	}
 	effect, err := d.opts.Checkpoints.Evaluate(r.Context(), root, action, req.Input)
 	if err != nil {
-		writeJSON(w, http.StatusOK, HookPermissionResponse{})
+		writeJSON(w, http.StatusOK, api.HookPermissionResponse{})
 		return
 	}
-	writeJSON(w, http.StatusOK, HookPermissionResponse{Effect: effect})
+	writeJSON(w, http.StatusOK, api.HookPermissionResponse{Effect: effect})
 }
