@@ -27,7 +27,12 @@ func TestProviderViewRegionCheckedAsTyped(t *testing.T) {
 	i18n.SetLocale("en")
 	t.Cleanup(func() { i18n.SetLocale(prev) })
 	cfg := &config.Config{}
-	v := NewProviderView(nil, ProviderViewConfig{GetConfig: func() *config.Config { return cfg }})
+	v := NewProviderView(nil, ProviderViewConfig{
+		GetConfig: func() *config.Config { return cfg },
+		UpdateConfig: func(fn func(*config.Config) error) error { // the host's write path, without the file
+			return fn(cfg)
+		},
+	})
 	sh := &regionFormShell{}
 	v.SetShell(sh)
 	v.list = widgets.NewSectionedList()
