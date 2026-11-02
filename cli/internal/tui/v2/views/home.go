@@ -45,6 +45,10 @@ type HomeViewConfig struct {
 	OnAddProject func()
 	// Sessions shows the "Sessions" section (P3-T19).
 	Sessions SessionsSectionConfig
+	// ToolLine returns the tool line of the header (« <tool> v<version> ·
+	// adapter <adapter> ✔ », 10 §1): the tool and the adapter that launch the
+	// sessions. Must be cheap (a cached value). Nil or "" hides the line.
+	ToolLine func() string
 }
 
 // TeamEntry represents a team with positive stats for the hub home.
@@ -70,6 +74,7 @@ type HomeView struct {
 	content *tview.Flex
 	list    *widgets.SectionedList
 	dual    *homeDualLayout
+	info    *tview.TextView // tool line under the banner
 	shell   ShellAccess
 	cfg     HomeViewConfig
 	items   []homeItem
@@ -110,7 +115,18 @@ func (v *HomeView) Mount(content *tview.Flex, app *tview.Application) {
 		SetTextAlign(tview.AlignCenter).
 		SetScrollable(false)
 	logo.SetBackgroundColor(theme.BgPanel)
-	bannerStr, bh := renderBanner("OPENHUB", 100, theme.ActiveMode.AccentHex)
+	bannerStr, bh := renderBanner(hubBannerName, 100, theme.ActiveMode.AccentHex)
+
+	// ── Tool line (left-aligned, under the banner) ──────────────────────
+	info := tview.NewTextView().
+		SetDynamicColors(true).
+		SetScrollable(false)
+	info.SetBackgroundColor(theme.BgPanel)
+	v.info = info
+	header := tview.NewFlex().SetDirection(tview.FlexRow)
+	header.SetBackgroundColor(theme.BgPanel)
+	header.AddItem(logo, bh+1, 0, false) // banner + leading \n
+	header.AddItem(info, 0, 1, false)
 
 	footer := newHomeFooter(footerHub)
 
@@ -125,16 +141,24 @@ func (v *HomeView) Mount(content *tview.Flex, app *tview.Application) {
 	// Compact (N20): the banner on one line, no footer.
 	buildFn := func(width int, compact bool) homeFlexResult {
 		headerHeight := bh + 3
+		toolLine := v.toolLine()
 		if compact {
 			headerHeight = 1
-			logo.SetText(compactBanner("OPENHUB", theme.ActiveMode.AccentHex, ""))
+			header.ResizeItem(logo, 1, 0)
+			logo.SetText(compactBanner(hubBannerName, theme.ActiveMode.AccentHex, tview.Escape(toolLine)))
+			info.SetText("")
 		} else {
+			header.ResizeItem(logo, bh+1, 0)
 			logo.SetText(fmt.Sprintf("\n%s", bannerStr))
+			info.SetText("")
+			if toolLine != "" {
+				info.SetText("  " + theme.Paint(theme.TextMutedHex, tview.Escape(toolLine)))
+			}
 		}
 		leftItems, rightItems := v.splitItems()
 		r := buildHomeLayout(width, homeFlexConfig{
 			App:          app,
-			Header:       logo,
+			Header:       header,
 			HeaderHeight: headerHeight,
 			Footer:       footer,
 			FooterHeight: 4,
@@ -202,6 +226,15 @@ func (v *HomeView) Unmount() {
 	v.content = nil
 	v.list = nil
 	v.dual = nil
+	v.info = nil
+}
+
+// toolLine is the tool line of the header ("" when the wiring gives none).
+func (v *HomeView) toolLine() string {
+	if v.cfg.ToolLine == nil {
+		return ""
+	}
+	return v.cfg.ToolLine()
 }
 
 func (v *HomeView) StatusHints() string {
@@ -287,6 +320,8 @@ func (v *HomeView) buildLeftStaticItems() []homeItem {
 		homeItem{Icon: "📊", Label: i18n.T("tui.home.metrics"), Desc: i18n.T("tui.home.metrics_desc"), ViewID: "metrics"},
 		homeItem{Icon: "🔬", Label: i18n.T("tui.home.doctor"), Desc: i18n.T("tui.home.doctor_desc"), ViewID: "doctor"},
 		homeItem{Icon: "🔑", Label: i18n.T("tui.home.secrets"), Desc: i18n.T("tui.home.secrets_desc"), ViewID: "secrets"},
+		homeItem{Icon: "🔔", Label: i18n.T("tui.notifications.title"), Desc: i18n.T("tui.cmd.notifications.desc"), ViewID: "notifications"},
+		homeItem{Icon: "🧱", Label: i18n.T("tui.bricks.title"), Desc: i18n.T("tui.bricks.cmd_desc"), ViewID: "project.agents"},
 	)
 
 	return items

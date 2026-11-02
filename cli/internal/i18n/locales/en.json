@@ -2414,6 +2414,7 @@
   "tui.pm.no_project": "No active project",
   "tui.pm.hint_hub": "Use %sEsc%s to return to the Hub view\n  or %sCtrl+P%s > %sprojects%s to manage your projects.",
   "tui.pm.header_badge": "◆ Project View",
+  "tui.pm.runtimes": "execution:",
   "tui.pm.section.project": "Project",
   "tui.pm.section.configuration": "Configuration",
   "tui.pm.section.team": "Team",
@@ -3989,6 +3990,7 @@
 
 
   "tui.views.no_active_project": "No active project",
+  "tui.views.tool_line": "%s v%s · adapter %s",
   "tui.views.sync_in_progress": "Sync %s...",
   "tui.views.sync_failed": "Sync failed: ",
   "tui.views.sync_done": "Sync %s done",

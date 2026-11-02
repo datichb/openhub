@@ -236,6 +236,7 @@ func buildViews(a *app.App) []views.View {
 			}
 		},
 		ToolLine: tuiToolLine,
+		Runtimes: tuiProjectRuntimes(a),
 	})
 
 	allViews := []views.View{
@@ -293,7 +294,8 @@ func buildViews(a *app.App) []views.View {
 			OnAddProject: func() {
 				actionProjectAdd()
 			},
-			Start: startSection,
+			Start:    startSection,
+			ToolLine: tuiToolLine,
 		}),
 		views.NewBoardView(views.BoardViewConfig{
 			Tickets: fetchBoardTicketsForPath(resolveActiveProjectPath(a)),
@@ -825,11 +827,12 @@ func resolveGitBranch(projectPath string) string {
 	return strings.TrimSpace(string(out))
 }
 
-// tuiToolLine is the session tool line of the project mode header (cached
-// version, detected when the TUI starts: no process on the event loop).
+// tuiToolLine is the tool line of the hub and project headers (« opencode
+// v2.0.20 · adaptateur opencode-v2 ✔ »; cached version, detected when the TUI
+// starts: no process on the event loop).
 func tuiToolLine() string {
 	if v, _ := v5Ver.Load().(string); v != "" {
-		return v5Tool.DisplayName + " " + v + " · " + v5Tool.Name
+		return i18n.Tf("tui.views.tool_line", v5Tool.DisplayName, v, v5Tool.Name) + " " + theme.SymSuccess
 	}
 	if v5Err != nil {
 		return i18n.Tf("cmd.v1.unsupported.doctor_name", toolName()) + " " + theme.SymFailure

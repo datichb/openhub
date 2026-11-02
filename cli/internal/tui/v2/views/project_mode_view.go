@@ -1,7 +1,9 @@
 package views
 
 import (
+	"context"
 	"fmt"
+	"strings"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -28,6 +30,12 @@ type ProjectModeConfig struct {
 
 	// Sessions shows the "Sessions du projet" section (P3-T19).
 	Sessions SessionsSectionConfig
+
+	// Runtimes returns the execution environments of the project with their
+	// availability (⌂ local, ▣ container, ☁ remote: 10 §2). It may probe the
+	// container engine or the keychain: the view calls it off the event loop.
+	// Nil hides the line.
+	Runtimes func(ctx context.Context, project *ActiveProject) []LaunchRuntime
 }
 
 // projectModeItem represents a navigable item in the project mode view.
@@ -53,8 +61,11 @@ type ProjectModeView struct {
 	items       []projectModeItem
 	resolveTeam ResolveTeamFunc // resolves effective team config for the active project
 
-	headerTV *tview.TextView // header (badge, path, tool)
+	headerTV *tview.TextView // header (badge, path, tool, runtimes)
 	bannerTV *tview.TextView // centered ASCII art banner
+	compact  bool            // the layout in use is the compact one
+	runtimes []LaunchRuntime // the environments, once read
+	loads    loadSlot        // the read of the environments: only the latest is applied
 }
 
 var _ View = (*ProjectModeView)(nil)
@@ -182,7 +193,8 @@ func (v *ProjectModeView) Mount(content *tview.Flex, app *tview.Application) {
 	buildFn := func(width int, compact bool) homeFlexResult {
 		// Compact (N20): banner and badge on one line, path and tool on
 		// the next, no footer.
-		headerHeight := bh + 5
+		v.compact = compact
+		headerHeight := bh + 6
 		if compact {
 			headerHeight = 2
 			combinedHeader.ResizeItem(bannerView, 1, 0)
@@ -213,10 +225,25 @@ func (v *ProjectModeView) Mount(content *tview.Flex, app *tview.Application) {
 	}
 
 	adaptiveHomeMount(app, content, buildFn)
+
+	// ── Execution environments, read off the event loop ────────────────
+	v.runtimes = nil
+	if read, project := v.cfg.Runtimes, v.project; read != nil {
+		load(app, shellContext(v.shell), &v.loads, func(ctx context.Context) ([]LaunchRuntime, error) {
+			return read(ctx, project), nil
+		}, func(rt []LaunchRuntime, err error) {
+			if v.app == nil || err != nil {
+				return // unmounted, or the read failed: the line stays out
+			}
+			v.runtimes = rt
+			v.renderHeader(v.compact)
+		})
+	}
 }
 
 // Unmount cleans up resources.
 func (v *ProjectModeView) Unmount() {
+	v.loads.Invalidate() // drop the read in flight
 	v.app = nil
 	v.list = nil
 	v.dual = nil
@@ -304,11 +331,33 @@ func (v *ProjectModeView) renderHeader(compact bool) {
 		v.headerTV.SetText(line)
 		return
 	}
-	v.headerTV.SetText(fmt.Sprintf("  %s\n  %s\n  %s",
+	lines := []string{
 		theme.Paint(theme.ActiveMode.PrimaryHex, i18n.T("tui.pm.header_badge")),
 		theme.Paint(theme.TextMutedHex, tview.Escape(pathInfo)),
 		tool,
-	))
+	}
+	if rt := runtimesLine(v.runtimes); rt != "" {
+		lines = append(lines, rt)
+	}
+	v.headerTV.SetText("  " + strings.Join(lines, "\n  "))
+}
+
+// runtimesLine is the line of the execution environments of the header
+// (« exécution : ⌂ local ✔  ▣ conteneur · colima ✔  ☁ distant ✗ »): each
+// environment with its icon, its label and its availability. "" without any.
+func runtimesLine(runtimes []LaunchRuntime) string {
+	if len(runtimes) == 0 {
+		return ""
+	}
+	parts := make([]string, len(runtimes))
+	for i, r := range runtimes {
+		state := theme.Paint(theme.SuccessHex, theme.SymSuccess)
+		if !r.Available {
+			state = theme.Paint(theme.ErrorHex, theme.SymFailure)
+		}
+		parts[i] = theme.Paint(theme.TextMutedHex, tview.Escape(r.Label)) + " " + state
+	}
+	return theme.Paint(theme.TextMutedHex, i18n.T("tui.pm.runtimes")+" ") + strings.Join(parts, "  ")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -4,7 +4,6 @@ package views
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -165,7 +164,7 @@ func (v *TeamModeView) Mount(content *tview.Flex, app *tview.Application) {
 		SetScrollable(false)
 	v.header.SetBackgroundColor(theme.BgPanel)
 
-	bannerName := strings.ToUpper(v.team.Name)
+	bannerName := v.team.Name // as typed, like the name of a project
 	banner, bh := renderBanner(bannerName, 100, theme.ActiveMode.AccentHex)
 	compactNow := false
 
