@@ -10,6 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/glyph"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/textfmt"
@@ -148,7 +149,7 @@ func printBrickList(w io.Writer, ws *workflowsvc.BrickWorkspace, withOrigin bool
 	if len(ws.Drafts) > 0 {
 		fmt.Fprintf(w, "\n%s\n", i18n.Tf("cmd.brick.list.drafts", ws.Member))
 		for _, d := range ws.Drafts {
-			fmt.Fprintf(w, "  ✎ %s:%s  %s\n", d.Kind, d.ID, theme.Subtitle.Render(d.Rel))
+			fmt.Fprintf(w, "  %s %s:%s  %s\n", glyph.Modified, d.Kind, d.ID, theme.Subtitle.Render(d.Rel))
 		}
 	}
 	if invalid > 0 {

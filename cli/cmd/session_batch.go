@@ -11,6 +11,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/glyph"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
@@ -141,6 +142,6 @@ func printApprover(cmd *cobra.Command, ac checkpoint.ApproverCheck, approved boo
 	}
 	fmt.Fprintln(cmd.OutOrStdout(), i18n.Tf("cmd.session.approver", ac.ApproverText()))
 	if ac.Mismatch && approved {
-		fmt.Fprintln(cmd.ErrOrStderr(), "⚠ "+i18n.Tf("cmd.session.approver_mismatch_done", firstNonEmpty(ac.Identity.String(), "?"), ac.ApproverText()))
+		fmt.Fprintln(cmd.ErrOrStderr(), glyph.Warning+" "+i18n.Tf("cmd.session.approver_mismatch_done", firstNonEmpty(ac.Identity.String(), "?"), ac.ApproverText()))
 	}
 }

@@ -150,7 +150,7 @@ func buildColumnEditorStep(
 					if role == teamstate.ColumnRoleActive || col.Role == "" {
 						activeIdx++
 					}
-					colorDot := theme.Paint(color, "●")
+					colorDot := theme.Paint(color, theme.IconSwatch)
 					roleBadge := theme.BgTag(columnRoleHex(role)) + theme.Paint(theme.BgAppHex, " "+role+" ") + theme.TagBg
 					posIndicator := theme.Paint(theme.TextMutedHex, fmt.Sprintf("%d/%d", i+1, len(*columns)))
 
@@ -178,10 +178,10 @@ func buildColumnEditorStep(
 				legendText := "  " + accent(fmt.Sprintf("── %s ──", i18n.T("tui.team.columns.roles_header")))
 				list.AddItem(legendText, "", 0, nil)
 				legendLine := fmt.Sprintf("    %s %s  %s %s  %s %s  %s %s",
-					theme.Paint(theme.WarningHex, "●"), i18n.T("tui.team.columns.role_initial_desc"),
-					theme.Paint(theme.ActiveMode.AccentHex, "●"), i18n.T("tui.team.columns.role_active_desc"),
-					theme.Paint(theme.SuccessHex, "●"), i18n.T("tui.team.columns.role_terminal_desc"),
-					theme.Paint(theme.ErrorHex, "●"), i18n.T("tui.team.columns.role_blocked_desc"))
+					theme.Paint(theme.WarningHex, theme.IconSwatch), i18n.T("tui.team.columns.role_initial_desc"),
+					theme.Paint(theme.ActiveMode.AccentHex, theme.IconSwatch), i18n.T("tui.team.columns.role_active_desc"),
+					theme.Paint(theme.SuccessHex, theme.IconSwatch), i18n.T("tui.team.columns.role_terminal_desc"),
+					theme.Paint(theme.ErrorHex, theme.IconSwatch), i18n.T("tui.team.columns.role_blocked_desc"))
 				list.AddItem(legendLine,
 					"      "+theme.Paint(theme.TextMutedHex, i18n.T("tui.team.columns.roles_explanation")),
 					0, nil)

@@ -12,6 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/provider"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
@@ -133,7 +134,7 @@ func editorBundlePreview(ctx context.Context, c workflowsvc.Context, res *workfl
 	}
 	r := bundle.Show(b)
 	if project == nil {
-		lines = append(lines, "⚠ "+i18n.T("tui.editor.preview.no_project"))
+		lines = append(lines, theme.SymWarning+" "+i18n.T("tui.editor.preview.no_project"))
 	}
 	var agents []string
 	for _, ag := range r.Agents {
@@ -158,7 +159,7 @@ func editorBundlePreview(ctx context.Context, c workflowsvc.Context, res *workfl
 		if project == nil {
 			lines = append(lines, "  · "+i18n.Tf("tui.editor.preview.mcp_project", m))
 		} else {
-			lines = append(lines, "  ⚠ "+i18n.Tf("tui.editor.preview.mcp_missing", m))
+			lines = append(lines, "  "+theme.SymWarning+" "+i18n.Tf("tui.editor.preview.mcp_missing", m))
 		}
 	}
 	if len(r.Plugins) > 0 {

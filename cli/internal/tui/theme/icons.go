@@ -88,6 +88,10 @@ const (
 	IconCollapsed = "▾"
 	// IconDot is a bullet for menu items.
 	IconDot = "·"
+	// IconSwatch is a dot that only carries a color (the role of a board
+	// column, a legend entry): the color is the meaning, the shape has none.
+	// It is not SymLive, which is a session running right now.
+	IconSwatch = "●"
 	// IconConnector is a step bar connector.
 	IconConnector = "───"
 	// IconGutter is the active item left gutter.

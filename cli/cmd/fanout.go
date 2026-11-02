@@ -19,6 +19,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/daemon"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/filelock"
+	"github.com/datichb/openhub/cli/internal/glyph"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/runsvc"
 	"github.com/datichb/openhub/cli/internal/services/fanout"
@@ -182,7 +183,7 @@ func runFanoutClean(cmd *cobra.Command, args []string) error {
 		fmt.Fprintln(w, "  - "+b)
 	}
 	for _, d := range res.Discarded {
-		fmt.Fprintln(w, "  ✗ "+i18n.Tf("cmd.fanout.clean.discarded", d))
+		fmt.Fprintln(w, "  "+glyph.Failure+" "+i18n.Tf("cmd.fanout.clean.discarded", d))
 	}
 	for _, k := range res.Kept {
 		fmt.Fprintln(w, "  = "+k)

@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/glyph"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	teamsvc "github.com/datichb/openhub/cli/internal/services/team"
 	"github.com/datichb/openhub/cli/internal/textfmt"
@@ -84,7 +85,7 @@ func runSyncTracker(cmd *cobra.Command, _ []string) error {
 
 	if len(result.Errors) > 0 {
 		fmt.Fprintln(out)
-		fmt.Fprintf(out, "  %s %s\n", theme.ErrorStyle.Render("✗"),
+		fmt.Fprintf(out, "  %s %s\n", theme.ErrorStyle.Render(glyph.Failure),
 			i18n.T("cmd.team.sync_tracker.errors"))
 		for _, e := range result.Errors {
 			fmt.Fprintf(out, "    %s\n", e.Error())

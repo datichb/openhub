@@ -16,6 +16,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/glyph"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	providerPkg "github.com/datichb/openhub/cli/internal/provider"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
@@ -67,7 +68,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 
 	// ── Pre-flight: check git availability ───────────────────────────────────
 	if _, err := exec.LookPath("git"); err != nil {
-		fmt.Fprintf(os.Stderr, "  %s %s\n", "⚠", i18n.T("cmd.init.git_not_found"))
+		fmt.Fprintf(os.Stderr, "  %s %s\n", glyph.Warning, i18n.T("cmd.init.git_not_found"))
 	}
 
 	// ── Ensure a minimal app exists for the wizard ───────────────────────────

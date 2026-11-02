@@ -11,6 +11,7 @@ import (
 	"github.com/charmbracelet/huh"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/glyph"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/runsvc"
 	"github.com/datichb/openhub/cli/internal/services/launch"
@@ -233,7 +234,7 @@ func deletePlanLines(p *runsvc.DeletePlan, discardBase bool, warn, baseKey strin
 
 // deleteSummary is the TUI confirmation of a deletion plan.
 func deleteSummary(p *runsvc.DeletePlan) views.DeleteSummary {
-	s := views.DeleteSummary{SessionID: p.SessionID, Items: deletePlanLines(p, false, "⚠", "tui.delete.base_changes"), Losses: p.Losses(false)}
+	s := views.DeleteSummary{SessionID: p.SessionID, Items: deletePlanLines(p, false, glyph.Warning, "tui.delete.base_changes"), Losses: p.Losses(false)}
 	if p.InBase {
 		s.BaseChanges = len(p.ChangedFiles)
 	}
