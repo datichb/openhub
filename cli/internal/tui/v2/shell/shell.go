@@ -27,9 +27,9 @@
 //     handler. These handlers run on the event loop — same deadlock as above.
 //
 //     ✅ CORRECT pattern for "show something after a handler":
-//     go func() {
+//     safego.Go(func() {
 //     app.QueueUpdateDraw(func() { ... })  // goroutine blocks OUTSIDE the event loop
-//     }()
+//     })
 //
 //  3. When multiple sequential UI operations are needed after a handler, use a
 //     single goroutine with time.Sleep(50ms) + sequential QueueUpdateDraw calls.
@@ -37,11 +37,11 @@
 //     cause two page mutations in the same draw cycle → hard freeze.
 //
 //     ✅ CORRECT sequential pattern:
-//     go func() {
+//     safego.Go(func() {
 //     time.Sleep(50 * time.Millisecond) // let event loop finish the handler cycle
 //     app.QueueUpdateDraw(func() { ShowToast("step 1") }) // blocks until drawn
 //     app.QueueUpdateDraw(func() { ShowNextModal() })     // blocks until drawn
-//     }()
+//     })
 package shell
 
 import (
@@ -188,11 +188,11 @@ func New(cfg Config) *Shell {
 
 	// Wire text-selection manager — calls back into the shell for the toast.
 	s.selection = NewSelectionManager(func(text string) {
-		go func() {
+		safego.Go(func() {
 			s.app.QueueUpdateDraw(func() {
 				s.ShowToast(i18n.T("tui.shell.copied_clipboard"), ToastSuccess)
 			})
-		}()
+		})
 	})
 
 	// Build content panel — full screen, clean
@@ -311,9 +311,9 @@ func (s *Shell) repositionSuggestions() {
 func (s *Shell) Run() error {
 	// Rotate the persistent notifications file at startup (best-effort, background).
 	// Keeps at most 500 entries and removes entries older than 7 days.
-	go func() {
+	safego.Go(func() {
 		_ = RotateFile(NotificationsFilePath(), 500, 7*24*time.Hour)
-	}()
+	})
 	// Apply selection highlight after every draw cycle, before screen.Show().
 	// Also cache the screen reference so mouse handlers can read cell content.
 	s.app.SetBeforeDrawFunc(s.beforeDraw)
@@ -1796,7 +1796,7 @@ func (s *Shell) listMouseSelect(list *tview.List, pageName string, focusReturn t
 			// QueueUpdateDraw from the event loop deadlocks (the unbuffered
 			// done-channel blocks forever). Spawn a goroutine so that
 			// QueueUpdateDraw is called from outside the event loop.
-			go func() {
+			safego.Go(func() {
 				s.app.QueueUpdateDraw(func() {
 					idx := list.GetCurrentItem()
 					if idx >= 0 {
@@ -1811,7 +1811,7 @@ func (s *Shell) listMouseSelect(list *tview.List, pageName string, focusReturn t
 						}
 					}
 				})
-			}()
+			})
 			return action, event
 		}
 		return action, event
@@ -1828,14 +1828,14 @@ func (s *Shell) listMouseToggle(list *tview.List, toggle func(idx int)) {
 			// QueueUpdateDraw from the event loop deadlocks (the unbuffered
 			// done-channel blocks forever). Spawn a goroutine so that
 			// QueueUpdateDraw is called from outside the event loop.
-			go func() {
+			safego.Go(func() {
 				s.app.QueueUpdateDraw(func() {
 					idx := list.GetCurrentItem()
 					if idx >= 0 && toggle != nil {
 						toggle(idx)
 					}
 				})
-			}()
+			})
 			return action, event
 		}
 		return action, event

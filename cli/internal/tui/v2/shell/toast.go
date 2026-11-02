@@ -141,7 +141,7 @@ func (s *Shell) showToast(msg string, level ToastLevel, duration time.Duration) 
 		s.restoreFocusAfterToast(prev)
 
 		// Auto-dismiss after duration
-		time.AfterFunc(duration, func() {
+		safego.AfterFunc(duration, func() {
 			s.app.QueueUpdateDraw(func() {
 				s.dismissToast(pageName)
 			})
