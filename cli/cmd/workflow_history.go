@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 
@@ -42,7 +41,7 @@ func runWorkflowHistory(cmd *cobra.Command, args []string) error {
 		return cliout.JSON(out, versions)
 	}
 	fmt.Fprintln(out, theme.Bold.Render(versions[0].Ref.String()))
-	w := tabwriter.NewWriter(out, 0, 4, 2, ' ', 0)
+	w := cliout.Table(out)
 	fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", i18n.T("cmd.workflow.history.col_version"), i18n.T("cmd.workflow.history.col_date"),
 		i18n.T("cmd.workflow.history.col_author"), i18n.T("cmd.workflow.history.col_message"))
 	for _, v := range versions {

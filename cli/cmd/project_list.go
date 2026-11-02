@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 
@@ -46,7 +45,7 @@ func projectListCmd() *cobra.Command {
 				return nil
 			}
 
-			w := tabwriter.NewWriter(a.IO.Out, 0, 0, 2, ' ', 0)
+			w := cliout.Table(a.IO.Out)
 			fmt.Fprintln(w, i18n.T("cmd.project.list.header"))
 			for _, p := range projects {
 				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",

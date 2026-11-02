@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/signal"
 	"strings"
-	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 
@@ -99,7 +98,7 @@ var sessionInboxCmd = &cobra.Command{
 			fmt.Fprintln(cmd.OutOrStdout(), i18n.T("cmd.session.inbox_empty"))
 			return nil
 		}
-		tw := tabwriter.NewWriter(cmd.OutOrStdout(), 2, 4, 2, ' ', 0)
+		tw := cliout.Table(cmd.OutOrStdout())
 		fmt.Fprintln(tw, i18n.T("cmd.session.inbox_header"))
 		for _, it := range items {
 			d := it.Decision

@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 
@@ -209,7 +208,7 @@ func printBundleReport(w io.Writer, name string, r *bundle.Report, budget bool) 
 		return
 	}
 	fmt.Fprintf(w, "\n%s\n", theme.Title.Render(i18n.T("cmd.bundle.show.budget_title")))
-	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+	tw := cliout.Table(w)
 	fmt.Fprintf(tw, "  %s\t%s\t\n", i18n.T("cmd.bundle.show.col_agent"), i18n.T("cmd.bundle.show.col_tokens"))
 	for _, ag := range r.Agents {
 		fmt.Fprintf(tw, "  %s\t%d\t\n", ag.ID, ag.Tokens)
@@ -217,7 +216,7 @@ func printBundleReport(w io.Writer, name string, r *bundle.Report, budget bool) 
 	fmt.Fprintf(tw, "  %s\t%d\t\n", i18n.T("cmd.bundle.show.total"), r.Budget.Agents)
 	_ = tw.Flush()
 	fmt.Fprintln(w)
-	tw = tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+	tw = cliout.Table(w)
 	fmt.Fprintf(tw, "  %s\t%s\t\n", i18n.T("cmd.bundle.show.col_skill"), i18n.T("cmd.bundle.show.col_tokens"))
 	for _, sk := range r.Skills {
 		fmt.Fprintf(tw, "  %s\t%d\t\n", sk.ID, sk.Tokens)

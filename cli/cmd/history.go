@@ -5,12 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"text/tabwriter"
 	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
@@ -116,7 +116,7 @@ func runHistory(cmd *cobra.Command, _ []string) error {
 		return nil
 	}
 
-	w := tabwriter.NewWriter(a.IO.Out, 0, 0, 2, ' ', 0)
+	w := cliout.Table(a.IO.Out)
 	fmt.Fprintln(w, historyHeader("id", "project", "status", "started", "duration", "member"))
 	for i, s := range sessions {
 		if limit > 0 && i >= limit {
@@ -171,7 +171,7 @@ func runHistoryTeam(ctx context.Context, limit int) error {
 		return nil
 	}
 
-	w := tabwriter.NewWriter(a.IO.Out, 0, 0, 2, ' ', 0)
+	w := cliout.Table(a.IO.Out)
 	fmt.Fprintln(w, historyHeader("date", "project", "duration", "status"))
 	for _, e := range filtered {
 		dur := "—"

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"strings"
-	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 
@@ -83,7 +82,7 @@ func printSessionReports(w io.Writer, sessionID string, list []domain.Report) {
 		fmt.Fprintln(w, i18n.Tf("cmd.session.report.none", sessionID))
 		return
 	}
-	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+	tw := cliout.Table(w)
 	fmt.Fprintln(tw, i18n.T("cmd.session.report.columns"))
 	for _, r := range list {
 		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\n", r.ID(), firstNonEmpty(r.Agent, "?"), report.Clean(r.Title),

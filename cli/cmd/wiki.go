@@ -7,7 +7,6 @@ import (
 	"io"
 	"path/filepath"
 	"strings"
-	"text/tabwriter"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -276,7 +275,7 @@ func printWikiProposals(w io.Writer, list []domain.WikiProposal) {
 	for _, p := range list {
 		reasons = reasons || p.Reason != ""
 	}
-	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+	tw := cliout.Table(w)
 	header := i18n.T("cmd.wiki.pending.header")
 	if reasons {
 		header += "\t" + i18n.T("cmd.wiki.pending.header_reason")

@@ -5,11 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/glyph"
 	"github.com/datichb/openhub/cli/internal/i18n"
@@ -55,7 +55,7 @@ func runApproveBatch(cmd *cobra.Command, svc *sessionsvc.Service) error {
 	if !dry {
 		batch = sessionsvc.ApplyBatch(ctx, batch, func(ctx2 context.Context, r sessionsvc.Reply) error { return decisionError(svc.Decide(ctx2, r)) })
 	}
-	tw := tabwriter.NewWriter(w, 2, 4, 2, ' ', 0)
+	tw := cliout.Table(w)
 	fmt.Fprintln(tw, i18n.T("cmd.session.batch.header"))
 	failed := 0
 	for _, it := range batch {

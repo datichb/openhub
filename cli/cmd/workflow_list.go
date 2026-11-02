@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"strings"
-	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 
@@ -55,7 +54,7 @@ func printWorkflowList(w io.Writer, ws *workflowsvc.Workspace, asJSON bool) erro
 	if len(ws.Workflows) == 0 && len(ws.Drafts) == 0 {
 		fmt.Fprintln(w, i18n.T("cmd.workflow.list.empty"))
 	} else {
-		tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+		tw := cliout.Table(w)
 		fmt.Fprintf(tw, "  %s\t%s\t%s\t%s\t%s\t%s\n",
 			i18n.T("cmd.workflow.list.col_id"), i18n.T("cmd.workflow.list.col_layer"), i18n.T("cmd.workflow.list.col_version"),
 			i18n.T("cmd.workflow.list.col_risk"), i18n.T("cmd.workflow.list.col_runtime"), i18n.T("cmd.workflow.list.col_description"))

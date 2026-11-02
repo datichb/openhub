@@ -5,10 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/textfmt"
@@ -98,7 +98,7 @@ func runTeamsList(cmd *cobra.Command, _ []string) error {
 		return nil
 	}
 
-	w := tabwriter.NewWriter(a.IO.Out, 0, 4, 2, ' ', 0)
+	w := cliout.Table(a.IO.Out)
 	fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
 		theme.Bold.Render(i18n.T("cmd.teams.list.header_id")),
 		theme.Bold.Render(i18n.T("cmd.teams.list.header_name")),

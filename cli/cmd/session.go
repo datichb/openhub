@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
-	"text/tabwriter"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -180,7 +179,7 @@ var sessionListCmd = &cobra.Command{
 			}
 			return cliout.JSON(cmd.OutOrStdout(), out)
 		}
-		tw := tabwriter.NewWriter(cmd.OutOrStdout(), 2, 4, 2, ' ', 0)
+		tw := cliout.Table(cmd.OutOrStdout())
 		fmt.Fprintln(tw, i18n.T("cmd.session.list_header"))
 		for _, v := range views {
 			s := v.Session

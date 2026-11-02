@@ -10,7 +10,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"text/tabwriter"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -249,7 +248,7 @@ func printFanout(w io.Writer, id string, f *domain.SessionFanout) {
 	if f.BudgetUSD > 0 {
 		fmt.Fprintln(w, i18n.Tf("cmd.fanout.status.budget", f.SpentUSD, f.BudgetUSD))
 	}
-	tw := tabwriter.NewWriter(w, 2, 4, 2, ' ', 0)
+	tw := cliout.Table(w)
 	fmt.Fprintln(tw, i18n.T("cmd.fanout.status.header"))
 	for _, c := range f.Children {
 		detail := c.Error

@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"text/tabwriter"
 
 	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
@@ -70,7 +69,7 @@ func worktreeListCmd() *cobra.Command {
 				baseBranch = worktree.DetectBaseBranch(cwd)
 			}
 
-			w := tabwriter.NewWriter(a.IO.Out, 0, 0, 2, ' ', 0)
+			w := cliout.Table(a.IO.Out)
 			fmt.Fprintln(w, i18n.T("cmd.worktree.list.header"))
 			for _, e := range entries {
 				head := e.Head

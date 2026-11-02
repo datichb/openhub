@@ -7,7 +7,6 @@ import (
 	"os"
 	"slices"
 	"strings"
-	"text/tabwriter"
 
 	"github.com/charmbracelet/huh"
 	"github.com/rivo/tview"
@@ -589,7 +588,7 @@ func runMCPStatus(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
+	w := cliout.Table(cmd.OutOrStdout())
 	fmt.Fprintln(w, i18n.T("cmd.mcp.status.header"))
 
 	for _, svc := range services {
@@ -735,7 +734,7 @@ func mcpListCmd() *cobra.Command {
 			if jsonOut, _ := cmd.Flags().GetBool("json"); jsonOut {
 				return cliout.JSONCompact(cmd.OutOrStdout(), servers)
 			}
-			w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
+			w := cliout.Table(cmd.OutOrStdout())
 			fmt.Fprintln(w, i18n.T("cmd.mcp.list.header"))
 			for _, s := range servers {
 				fmt.Fprintf(w, "%s\t%s\t%s\n", s.Name, s.Description, theme.Subtitle.Render(s.Command))

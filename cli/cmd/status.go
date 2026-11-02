@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 
@@ -86,7 +85,7 @@ func runStatus(cmd *cobra.Command, args []string) error {
 
 	// Hub info
 	fmt.Fprintln(a.IO.Out, theme.Bold.Render(i18n.T("cmd.status.title_hub")))
-	w := tabwriter.NewWriter(a.IO.Out, 0, 0, 2, ' ', 0)
+	w := cliout.Table(a.IO.Out)
 	fmt.Fprintf(w, "  %s\t%s\n", i18n.T("cmd.status.config"), config.ConfigPath())
 	fmt.Fprintf(w, "  %s\t%s\n", i18n.T("cmd.status.language"), a.Config.CLI.Language)
 	fmt.Fprintf(w, "  %s\t%s\n", i18n.Tf("cmd.status.tool", toolName()), toolVersion(a))

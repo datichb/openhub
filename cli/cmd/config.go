@@ -7,7 +7,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 
@@ -447,7 +446,7 @@ func configListCmd() *cobra.Command {
 				if jsonOut {
 					return cliout.JSONCompact(cmd.OutOrStdout(), rows)
 				}
-				w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
+				w := cliout.Table(cmd.OutOrStdout())
 				fmt.Fprintln(w, i18n.T("cmd.config.list.header_all"))
 				for _, r := range rows {
 					v := r.Value
@@ -487,7 +486,7 @@ func configListCmd() *cobra.Command {
 				return nil
 			}
 
-			w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
+			w := cliout.Table(cmd.OutOrStdout())
 			fmt.Fprintln(w, i18n.T("cmd.config.list.header"))
 			for _, k := range keys {
 				fmt.Fprintf(w, "%s\t%v\n", k, m[k])

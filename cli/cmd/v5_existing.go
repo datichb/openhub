@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"io"
 	"strings"
-	"text/tabwriter"
 
 	"github.com/charmbracelet/huh"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/glyph"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/runsvc"
@@ -48,7 +48,7 @@ func printExistingTable(w io.Writer, plan *runsvc.RunPlan) {
 	for _, e := range plan.Existing {
 		ps := plan.Sessions[e.Planned]
 		fmt.Fprintf(w, "\n%s %s\n", theme.WarningStyle.Render(theme.IconWarning), i18n.Tf("cmd.run.existing.title", e.ID, strings.Join(e.Shared, ", ")))
-		tw := tabwriter.NewWriter(w, 2, 4, 2, ' ', 0)
+		tw := cliout.Table(w)
 		fmt.Fprintf(tw, "  \t%s\t%s\n", i18n.T("cmd.run.existing.col.existing"), i18n.T("cmd.run.existing.col.new"))
 		req := plan.Request
 		row := func(field, existing, planned string) {

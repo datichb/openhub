@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"text/tabwriter"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -115,7 +114,7 @@ func printBudgetReport(out io.Writer, rep *budgetSpendReport) {
 		fmt.Fprintln(out, i18n.T("cmd.budget.report.empty"))
 		return
 	}
-	tw := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
+	tw := cliout.Table(out)
 	fmt.Fprintln(tw, i18n.T("cmd.budget.report.header."+rep.By))
 	for _, g := range rep.Groups {
 		fmt.Fprintf(tw, "%s\t%d\t%s\t%d\t%d\n", g.Label, g.Sessions, textfmt.Cost(g.CostUSD), g.TokensIn, g.TokensOut)

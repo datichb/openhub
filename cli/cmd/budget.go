@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"text/tabwriter"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -142,7 +141,7 @@ func runBudgetShow(cmd *cobra.Command, _ []string) error {
 	if r.IsZero() {
 		fmt.Fprintln(out, i18n.T("cmd.budget.none"))
 	}
-	tw := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
+	tw := cliout.Table(out)
 	fmt.Fprintln(tw, i18n.T("cmd.budget.header"))
 	for _, row := range rep.Limits {
 		v, o := row.Value, ""

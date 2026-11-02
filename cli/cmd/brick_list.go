@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"strings"
-	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 
@@ -104,7 +103,7 @@ func printBrickList(w io.Writer, ws *workflowsvc.BrickWorkspace, withOrigin bool
 		fmt.Fprintln(w, i18n.T("cmd.brick.list.empty"))
 		return nil
 	}
-	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+	tw := cliout.Table(w)
 	header := []string{i18n.T("cmd.brick.list.col_id"), i18n.T("cmd.brick.list.col_kind"), i18n.T("cmd.brick.list.col_origin"),
 		i18n.T("cmd.brick.list.col_version")}
 	if withOrigin {
