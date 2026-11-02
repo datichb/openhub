@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -75,10 +76,12 @@ func TestChanges(t *testing.T) {
 
 func TestRealHubs(t *testing.T) {
 	t.Setenv("HOME", "/h")
+	t.Setenv("USERPROFILE", "/h") // os.UserHomeDir on Windows
 	t.Setenv("OH_HOME", "/x/oh")
-	assert.Equal(t, []string{"/x/oh/hub.toml", "/x/oh/oh.db", "/h/.oh/hub.toml", "/h/.oh/oh.db"}, realHubs())
+	p := filepath.FromSlash
+	assert.Equal(t, []string{p("/x/oh/hub.toml"), p("/x/oh/oh.db"), p("/h/.oh/hub.toml"), p("/h/.oh/oh.db")}, realHubs())
 	t.Setenv("OH_HOME", "/h/.oh/")
-	assert.Equal(t, []string{"/h/.oh/hub.toml", "/h/.oh/oh.db"}, realHubs())
+	assert.Equal(t, []string{p("/h/.oh/hub.toml"), p("/h/.oh/oh.db")}, realHubs())
 }
 
 // TestHelperIsolate is run by TestWatchdog in a test binary of its own,
@@ -108,10 +111,17 @@ func TestWatchdog(t *testing.T) {
 		// The Go tool variables are set so that Isolate does not run `go env`
 		// in the helper: the go command leaves a detached process writing its
 		// telemetry under HOME, which races with the removal of the folder.
-		c.Env = []string{"PATH=" + os.Getenv("PATH"), "HOME=" + home, "OH_HOME=" + real, "OH_TEST_ROOT=/x",
+		c.Env = []string{"PATH=" + os.Getenv("PATH"), "HOME=" + home, "USERPROFILE=" + home, "OH_HOME=" + real, "OH_TEST_ROOT=/x",
 			"GOCACHE=" + filepath.Join(home, "gocache"), "GOMODCACHE=" + filepath.Join(home, "gomod"),
 			"GOPATH=" + filepath.Join(home, "gopath"), "GOENV=off",
 			"TESTENV_HELPER_REAL=" + real}
+		if runtime.GOOS == "windows" {
+			// A Windows process needs SystemRoot to start and a temporary
+			// folder it can write to (Isolate creates one).
+			for _, k := range []string{"SystemRoot", "TMP", "TEMP"} {
+				c.Env = append(c.Env, k+"="+os.Getenv(k))
+			}
+		}
 		if write {
 			c.Env = append(c.Env, "TESTENV_HELPER_WRITE=1")
 		}
