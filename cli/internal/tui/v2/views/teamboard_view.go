@@ -1,6 +1,7 @@
 package views
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"sync"
@@ -13,6 +14,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/teamstate"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
@@ -115,9 +117,15 @@ type TeamBoardView struct {
 	// Debouncing: prevents double-press on non-modal actions (claim, release, refresh).
 	actionInProgress atomic.Bool
 
-	// Beads summary cache — populated by a background goroutine (ADR-032).
+	// Beads summary cache — read off the event loop (ADR-032).
 	// Stores a map[string]BeadsSummary keyed by external ref (e.g. "gitlab-693").
 	beadsSummary atomic.Value // holds map[string]BeadsSummary
+
+	loaded       bool     // the tickets were read at least once since the mount
+	configured   bool     // the team-state is resolved (else the empty state says so)
+	loads        loadSlot // the reads of the tickets: only the latest is applied
+	summaryReads loadSlot // the reads of the beads summary
+	detailReads  loadSlot // the read of the full description of a ticket
 }
 
 var _ View = (*TeamBoardView)(nil)
@@ -147,13 +155,13 @@ func (v *TeamBoardView) Title() string { return i18n.T("tui.team.board") }
 
 // StatusHints returns keybinding hints.
 func (v *TeamBoardView) StatusHints() string {
-	hints := keys.Hints("h/l "+i18n.T("tui.hints.columns"), "j/k "+i18n.T("tui.hints.items"),
-		keys.Open.HintAs(i18n.T("tui.hints.detail")), "a "+i18n.T("tui.hints.actions"),
-		"[[] /] "+i18n.T("tui.hints.projects"), keys.Filter.Hint(),
-		"c "+i18n.T("tui.hints.claim"), releaseKey.Hint(),
-		"t "+i18n.T("tui.hints.transfer"), "s "+i18n.T("tui.hints.status"), keys.Refresh.Hint())
+	hints := keys.Hints(columnsHint(), "j/k "+i18n.T("tui.hints.items"),
+		keys.Open.HintAs(i18n.T("tui.hints.detail")), boardActionsKey.Hint(),
+		projectsHint(), keys.Filter.Hint(),
+		teamClaimKey.Hint(), releaseKey.Hint(),
+		teamTransferKey.Hint(), teamStatusKey.Hint(), keys.Refresh.Hint())
 	if v.filterText != "" || v.filterAssignee != "" || v.filterLabel != "" {
-		hints += " · " + theme.ColorTag(theme.WarningHex) + i18n.T("tui.hints.filtered") + theme.TagColor
+		hints += " · " + theme.Paint(theme.WarningHex, i18n.T("tui.hints.filtered"))
 	}
 	return hints
 }
@@ -163,6 +171,8 @@ func (v *TeamBoardView) Mount(content *tview.Flex, app *tview.Application) {
 	v.app = app
 	v.content = content
 	v.done = make(chan struct{})
+	v.loaded = false
+	v.actionInProgress.Store(false)
 
 	columns := ColumnsFromConfig(v.cfg.BoardConfig)
 	v.allColumns = columns
@@ -209,6 +219,7 @@ func (v *TeamBoardView) Mount(content *tview.Flex, app *tview.Application) {
 	// out by populateColumns once real tickets arrive.
 	hasTickets := len(v.cfg.Tickets) > 0
 	isConfigured := v.cfg.IsConfigured == nil || v.cfg.IsConfigured()
+	v.configured = isConfigured
 
 	switch {
 	case !hasTickets && !isConfigured:
@@ -224,8 +235,7 @@ func (v *TeamBoardView) Mount(content *tview.Flex, app *tview.Application) {
 			SetDynamicColors(true).
 			SetTextAlign(tview.AlignCenter)
 		v.emptyTV.SetBackgroundColor(theme.BgPanel)
-		v.emptyTV.SetText("\n\n" + tagged(theme.WarningHex, i18n.T("tui.teamboard.empty_no_tickets")) +
-			"\n\n" + i18n.Tf("tui.teamboard.empty_no_tickets_hint", tagged(theme.TextPrimaryHex, "Sync Tracker"), "[::b]r[::-]"))
+		v.setNoTicketsText()
 		content.AddItem(v.emptyTV, 0, 1, true)
 	default:
 		content.AddItem(v.boardLayout, 0, 1, true)
@@ -244,29 +254,47 @@ func (v *TeamBoardView) Mount(content *tview.Flex, app *tview.Application) {
 		}
 		// Async pull on entry so the board starts with fresh data.
 		syncFuncAsync(v.app, v.cfg.SyncFunc, v.shell, func(_ error) {
-			v.refreshOnEventLoop(columns)
+			v.reload(nil)
 		})
-		go v.refreshLoop(rate, columns)
+		if app != nil {
+			everyOnLoop(app, rate, v.done, v.refreshIfIdle)
+		}
 	}
 
-	// Start beads summary goroutine — separate, slower interval (ADR-032).
+	// The beads summary: its own read, at a slower interval (ADR-032).
 	if v.cfg.BeadsSummaryFunc != nil {
-		// Initial fetch
-		go func() {
-			summary := v.cfg.BeadsSummaryFunc()
-			if summary != nil {
-				v.beadsSummary.Store(summary)
-				// Trigger a repaint with the badges
-				v.refresh(columns)
-			}
-		}()
-		// Periodic refresh (30s)
-		go v.beadsSummaryLoop(30*time.Second, columns)
+		v.loadSummary()
+		if app != nil {
+			everyOnLoop(app, 30*time.Second, v.done, v.loadSummary)
+		}
 	}
 }
 
+// setNoTicketsText says, in the empty-state placeholder, that the board has no
+// ticket: « loading » while the first read is on its way.
+func (v *TeamBoardView) setNoTicketsText() {
+	if v.emptyTV == nil || !v.configured {
+		return
+	}
+	if v.cfg.RefreshFunc != nil && !v.loaded {
+		v.emptyTV.SetText("\n\n" + stateText(stateLoading, ""))
+		return
+	}
+	v.emptyTV.SetText("\n\n" + tagged(theme.WarningHex, i18n.T("tui.teamboard.empty_no_tickets")) +
+		"\n\n" + i18n.Tf("tui.teamboard.empty_no_tickets_hint", tagged(theme.TextPrimaryHex, "Sync Tracker"),
+		theme.StyleTag(theme.AttrBold)+teamRefreshHint()+theme.TagAttrs))
+}
+
+// teamRefreshHint is the key that refreshes the board, as the hint of the empty
+// state names it.
+func teamRefreshHint() string { return keys.Refresh.Keys() }
+
 // Unmount stops the refresh goroutine.
 func (v *TeamBoardView) Unmount() {
+	v.loads.Invalidate()
+	v.summaryReads.Invalidate()
+	v.detailReads.Invalidate()
+	v.actionInProgress.Store(false)
 	v.once.Do(func() {
 		if v.done != nil {
 			close(v.done)
@@ -282,70 +310,110 @@ func (v *TeamBoardView) Unmount() {
 
 // HandleKey processes team board key events.
 func (v *TeamBoardView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
-	switch event.Key() {
-	case tcell.KeyEnter:
+	switch {
+	case keys.Open.Matches(event):
 		v.showTicketDetail()
-		return nil
-	case tcell.KeyRight:
+	case event.Key() == tcell.KeyRight, colNextKey.Matches(event):
 		v.moveFocus(1)
-		return nil
-	case tcell.KeyLeft:
+	case event.Key() == tcell.KeyLeft, colPrevKey.Matches(event):
 		v.moveFocus(-1)
-		return nil
-	}
-
-	switch event.Rune() {
-	case 'l':
-		v.moveFocus(1)
-		return nil
-	case 'h':
-		v.moveFocus(-1)
-		return nil
-	case '[':
+	case projectPrevKey.Matches(event):
 		v.prevProjectTab()
-		return nil
-	case ']':
+	case projectNextKey.Matches(event):
 		v.nextProjectTab()
-		return nil
-	case 'r':
-		if v.cfg.RefreshFunc != nil && !v.actionInProgress.Load() {
-			v.actionInProgress.Store(true)
-			// Chain: tracker sync (API) → git pull → local refresh.
-			// TrackerSyncFunc may be nil (no tracker configured) — skip to git pull.
-			trackerSync := v.cfg.TrackerSyncFunc
-			if trackerSync == nil {
-				trackerSync = func() error { return nil }
-			}
-			syncFuncAsync(v.app, trackerSync, v.shell, func(_ error) {
-				// Git pull to fetch our tracker-sync commits + colleagues' changes.
-				syncFuncAsync(v.app, v.cfg.SyncFunc, v.shell, func(_ error) {
-					v.refreshOnEventLoop(v.allColumns)
-					v.actionInProgress.Store(false)
-				})
-			})
-		}
-		return nil
-	case '/':
+	case keys.Refresh.Matches(event):
+		v.manualRefresh()
+	case keys.Filter.Matches(event):
 		v.showFilterMenu()
-		return nil
-	case 'c':
+	case teamClaimKey.Matches(event):
 		v.claimTicket()
-		return nil
-	case releaseKey.Rune():
+	case releaseKey.Matches(event):
 		v.releaseTicket()
-		return nil
-	case 't':
+	case teamTransferKey.Matches(event):
 		v.transferTicket()
-		return nil
-	case 's':
+	case teamStatusKey.Matches(event):
 		v.changeStatus()
-		return nil
-	case 'a':
+	case boardActionsKey.Matches(event):
 		v.showTeamBoardQuickActions()
-		return nil
+	default:
+		return event
 	}
+	return nil
+}
 
-	return event
+// manualRefresh is r: tracker sync (API), git pull, then a new read of the
+// tickets. TrackerSyncFunc may be nil (no tracker configured).
+func (v *TeamBoardView) manualRefresh() {
+	if v.cfg.RefreshFunc == nil || v.actionInProgress.Load() {
+		return
+	}
+	v.actionInProgress.Store(true)
+	trackerSync := v.cfg.TrackerSyncFunc
+	if trackerSync == nil {
+		trackerSync = func() error { return nil }
+	}
+	syncFuncAsync(v.app, trackerSync, v.shell, func(_ error) {
+		// Git pull to fetch our tracker-sync commits + colleagues' changes.
+		syncFuncAsync(v.app, v.cfg.SyncFunc, v.shell, func(_ error) {
+			v.reload(func() { v.actionInProgress.Store(false) })
+		})
+	})
+}
+
+// refreshIfIdle is the timer's refresh: it leaves the board alone while an
+// action is on its way, so that the data it brings is not overwritten by older
+// data.
+func (v *TeamBoardView) refreshIfIdle() {
+	if v.actionInProgress.Load() {
+		return
+	}
+	v.reload(nil)
+}
+
+// reload reads the tickets off the event loop and redraws the board, then
+// calls done (on the loop). Only the latest read is applied: done is not
+// called for one that a newer read or an unmount dropped.
+func (v *TeamBoardView) reload(done func()) {
+	refresh := v.cfg.RefreshFunc
+	if refresh == nil || v.columnCards == nil {
+		if done != nil {
+			done()
+		}
+		return
+	}
+	load(v.app, shellContext(v.shell), &v.loads, func(context.Context) ([]TeamTicket, error) {
+		return refresh(), nil
+	}, func(tickets []TeamTicket, err error) {
+		if v.columnCards == nil {
+			return // unmounted meanwhile
+		}
+		if err == nil {
+			v.loaded = true
+			v.populateColumns(tickets, v.allColumns)
+			v.setNoTicketsText()
+		}
+		if done != nil {
+			done()
+		}
+	})
+}
+
+// loadSummary reads the beads summary (bd runs) off the event loop, then
+// redraws the cards with their badges.
+func (v *TeamBoardView) loadSummary() {
+	fetch := v.cfg.BeadsSummaryFunc
+	if fetch == nil || v.columnCards == nil {
+		return
+	}
+	load(v.app, shellContext(v.shell), &v.summaryReads, func(context.Context) (map[string]BeadsSummary, error) {
+		return fetch(), nil
+	}, func(summary map[string]BeadsSummary, err error) {
+		if v.columnCards == nil || err != nil || summary == nil {
+			return
+		}
+		v.beadsSummary.Store(summary)
+		v.repopulateWithFilters()
+	})
 }
 
 // buildTeamCard builds a single card for a team ticket. Centralizes the rendering
@@ -358,15 +426,10 @@ func (v *TeamBoardView) buildTeamCard(t TeamTicket) widgets.Card {
 		projectDisplay = t.Project
 	}
 	if projectDisplay != "" {
-		projectTag = fmt.Sprintf("[black:%s] %s [-:-] ",
-			theme.ActiveMode.PrimaryHex, tview.Escape(projectDisplay))
+		projectTag = projectChip(projectDisplay) + " "
 	}
 	// Truncate title to keep line 1 readable
-	title := t.Title
-	titleRunes := []rune(title)
-	if len(titleRunes) > 40 {
-		title = string(titleRunes[:37]) + "..."
-	}
+	title := textfmt.Clip(t.Title, 40)
 	// Beads badge: [done/total] when linked beads exist (ADR-032)
 	badgeStr := ""
 	if summary := v.getBeadsSummary(); summary != nil {
@@ -375,7 +438,7 @@ func (v *TeamBoardView) buildTeamCard(t TeamTicket) widgets.Card {
 			if bs.Done == bs.Total {
 				color = theme.SuccessHex
 			}
-			badgeStr = fmt.Sprintf(" [%s][%d/%d][-]", color, bs.Done, bs.Total)
+			badgeStr = " " + theme.Paint(color, bracketed(fmt.Sprintf("%d/%d", bs.Done, bs.Total)))
 		}
 	}
 	mainText := projectTag + tview.Escape(title) + badgeStr
@@ -387,7 +450,7 @@ func (v *TeamBoardView) buildTeamCard(t TeamTicket) widgets.Card {
 	}
 
 	// ── Line 3: @assignee · label1 · label2 (workflow labels filtered) ──
-	parts := []string{formatAssignee(t.Assignee, widgets.ColorTag(theme.ActiveMode.Primary))}
+	parts := []string{formatAssignee(t.Assignee, theme.ColorTagOf(theme.ActiveMode.Primary))}
 	parts = append(parts, ticketLabelParts(t.Labels, v.cfg.LabelStatusMapping)...)
 	meta := strings.Join(parts, " · ")
 
@@ -489,9 +552,9 @@ func (v *TeamBoardView) applyFilters(tickets []TeamTicket) []TeamTicket {
 // name like "[dev]" would otherwise be read as a color tag and vanish.
 func formatAssignee(assignee, colorTag string) string {
 	if assignee == "" {
-		return fmt.Sprintf("[%s]%s[-]", theme.WarningHex, tview.Escape(i18n.T("board.claimable")))
+		return theme.Paint(theme.WarningHex, tview.Escape(i18n.T("board.claimable")))
 	}
-	return colorTag + "@" + tview.Escape(assignee) + "[-]"
+	return colorTag + "@" + tview.Escape(assignee) + theme.TagColor
 }
 
 // ticketLabelParts renders one markup chunk per ticket label, shared by both
@@ -506,11 +569,11 @@ func ticketLabelParts(labels []string, workflow map[string]string) []string {
 		}
 		switch l {
 		case teamstate.LabelAgentReviewed:
-			parts = append(parts, theme.ColorTag(theme.SuccessHex)+"[AI[]"+theme.TagColor)
+			parts = append(parts, theme.Paint(theme.SuccessHex, bracketed("AI")))
 		case teamstate.LabelNeedsHumanReview:
-			parts = append(parts, theme.ColorTag(theme.WarningHex)+"[![]"+theme.TagColor)
+			parts = append(parts, theme.Paint(theme.WarningHex, bracketed("!")))
 		default:
-			parts = append(parts, theme.ColorTag(theme.TextMutedHex)+tview.Escape("["+l+"]")+theme.TagColor)
+			parts = append(parts, theme.Paint(theme.TextMutedHex, bracketed(l)))
 		}
 	}
 	return parts
@@ -560,10 +623,10 @@ func (v *TeamBoardView) renderTabBar() {
 		}
 		if i == v.activeTabIdx {
 			// Active tab: accent background
-			fmt.Fprintf(&sb, "[black:%s] %s [-:-]", theme.ActiveMode.PrimaryHex, tview.Escape(label))
+			sb.WriteString(projectChip(label))
 		} else {
 			// Inactive tab: muted
-			fmt.Fprintf(&sb, "[%s] %s [-]", theme.TextMutedHex, tview.Escape(label))
+			sb.WriteString(theme.Paint(theme.TextMutedHex, " "+tview.Escape(label)+" "))
 		}
 		sb.WriteString("  ")
 	}
@@ -673,79 +736,6 @@ func (v *TeamBoardView) updateColumnFocus() {
 	}
 }
 
-func (v *TeamBoardView) refreshLoop(rate time.Duration, columns []BoardColumnDef) {
-	ticker := time.NewTicker(rate)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-v.done:
-			return
-		case <-ticker.C:
-			v.refresh(columns)
-		}
-	}
-}
-
-// refresh fetches tickets from the remote and schedules a board repopulation via
-// QueueUpdateDraw. Safe to call from ANY goroutine (ticker, background workers).
-// Do NOT call from inside a QueueUpdateDraw callback — use refreshOnEventLoop instead.
-// Skips the refresh if an action is in progress to avoid overwriting fresh post-action data.
-func (v *TeamBoardView) refresh(columns []BoardColumnDef) {
-	// Capture app locally before the blocking RefreshFunc call.
-	// Unmount() may set v.app = nil while RefreshFunc is running.
-	// Using a local copy guarantees we never call nil.QueueUpdateDraw.
-	app := v.app
-	if v.cfg.RefreshFunc == nil || app == nil || v.columnCards == nil || v.actionInProgress.Load() {
-		return
-	}
-	tickets := v.cfg.RefreshFunc()
-	app.QueueUpdateDraw(func() {
-		// Re-check inside the queued func — Unmount may have run between
-		// RefreshFunc() completing and the draw cycle executing this closure.
-		if v.columnCards == nil {
-			return
-		}
-		v.populateColumns(tickets, columns)
-	})
-}
-
-// refreshOnEventLoop fetches tickets and repopulates the board immediately.
-// MUST be called from inside the tview event loop (QueueUpdateDraw callback or
-// tview handler). Does NOT call QueueUpdateDraw — avoids the nested deadlock that
-// would occur if QueueUpdateDraw were called from inside a running QueueUpdateDraw
-// callback (the unbuffered done-channel would block forever).
-func (v *TeamBoardView) refreshOnEventLoop(columns []BoardColumnDef) {
-	if v.cfg.RefreshFunc == nil {
-		return
-	}
-	tickets := v.cfg.RefreshFunc()
-	v.populateColumns(tickets, columns)
-}
-
-// beadsSummaryLoop periodically refreshes the beads summary cache (ADR-032).
-// Uses a separate, slower interval than the main refresh loop to avoid
-// spawning too many bd subprocess invocations.
-func (v *TeamBoardView) beadsSummaryLoop(rate time.Duration, columns []BoardColumnDef) {
-	ticker := time.NewTicker(rate)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-v.done:
-			return
-		case <-ticker.C:
-			if v.cfg.BeadsSummaryFunc == nil {
-				return
-			}
-			summary := v.cfg.BeadsSummaryFunc()
-			if summary != nil {
-				v.beadsSummary.Store(summary)
-				// Trigger repaint to show updated badges
-				v.refresh(columns)
-			}
-		}
-	}
-}
-
 // getBeadsSummary returns the cached beads summary map, or nil if not loaded yet.
 func (v *TeamBoardView) getBeadsSummary() map[string]BeadsSummary {
 	val := v.beadsSummary.Load()
@@ -788,28 +778,26 @@ func (v *TeamBoardView) showTicketDetail() {
 	if v.actions != nil && v.actions.FetchDetail != nil {
 		actions = []ModalAction{
 			{Label: i18n.T("tui.teamboard.full_description"), Callback: func() {
-				// Fetch full description on-demand from tracker.
-				safego.Go(func() {
-					title, desc, err := v.actions.FetchDetail(ticket.Project, ticket.ID)
-					if v.app == nil {
+				// Fetch full description on-demand from tracker, off the event loop.
+				fetch, sh := v.actions.FetchDetail, v.shell
+				type fullDetail struct{ title, desc string }
+				load(v.app, shellContext(sh), &v.detailReads, func(context.Context) (fullDetail, error) {
+					title, desc, err := fetch(ticket.Project, ticket.ID)
+					return fullDetail{title, desc}, err
+				}, func(d fullDetail, err error) {
+					if err != nil {
+						sh.ShowToastMsg(i18n.T("tui.teamboard.error_prefix")+err.Error(), false)
 						return
 					}
-					v.app.QueueUpdateDraw(func() {
-						if err != nil {
-							v.shell.ShowToastMsg(i18n.T("tui.teamboard.error_prefix")+err.Error(), false)
-							return
-						}
-						// Update cached ticket data with fresh info.
-						if title != "" {
-							ticket.Title = title
-						}
-						if desc != "" {
-							ticket.Description = desc
-						}
-						// Re-display with full description.
-						fullDetail := v.formatTicketDetail(ticket)
-						v.shell.ShowScrollableModal(i18n.T("tui.teamboard.ticket_title")+ticket.ID, fullDetail, []ModalAction{{Label: closeLabel, Callback: nil}})
-					})
+					// Update cached ticket data with fresh info.
+					if d.title != "" {
+						ticket.Title = d.title
+					}
+					if d.desc != "" {
+						ticket.Description = d.desc
+					}
+					// Re-display with full description.
+					sh.ShowScrollableModal(i18n.T("tui.teamboard.ticket_title")+ticket.ID, v.formatTicketDetail(ticket), []ModalAction{{Label: closeLabel, Callback: nil}})
 				})
 			}},
 			{Label: closeLabel, Callback: nil},
@@ -822,41 +810,34 @@ func (v *TeamBoardView) showTicketDetail() {
 // formatTicketDetail builds the detail content string for a ticket.
 func (v *TeamBoardView) formatTicketDetail(ticket *TeamTicket) string {
 	var detail strings.Builder
-	fmt.Fprintf(&detail, "\n  [::b]%s%s\n\n", ticket.Title, theme.TagReset)
-	fmt.Fprintf(&detail, "  %sID:%s         %s\n",
-		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, ticket.ID)
+	label := func(s string) string { return theme.Paint(theme.TextSecondaryHex, s) }
+	fmt.Fprintf(&detail, "\n  %s%s%s\n\n", theme.StyleTag(theme.AttrBold), tview.Escape(ticket.Title), theme.TagAttrs)
+	fmt.Fprintf(&detail, "  %s         %s\n", label("ID:"), tview.Escape(ticket.ID))
 	if ticket.Project != "" {
-		fmt.Fprintf(&detail, "  %s%s%s     %s\n",
-			theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.teamboard.detail.project"), theme.TagColor, ticket.Project)
+		fmt.Fprintf(&detail, "  %s     %s\n", label(i18n.T("tui.teamboard.detail.project")), tview.Escape(ticket.Project))
 	}
-	fmt.Fprintf(&detail, "  %s%s%s     %s\n",
-		theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.teamboard.detail.status"), theme.TagColor, ticket.Status)
+	fmt.Fprintf(&detail, "  %s     %s\n", label(i18n.T("tui.teamboard.detail.status")), tview.Escape(ticket.Status))
 
 	assignee := "-"
 	if ticket.Assignee != "" {
 		assignee = "@" + ticket.Assignee
 	}
-	fmt.Fprintf(&detail, "  %sAssignee:%s   %s\n",
-		theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, assignee)
+	fmt.Fprintf(&detail, "  %s   %s\n", label("Assignee:"), tview.Escape(assignee))
 
 	if ticket.Priority != "" {
-		fmt.Fprintf(&detail, "  %s%s%s   %s\n",
-			theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.teamboard.detail.priority"), theme.TagColor, ticket.Priority)
+		fmt.Fprintf(&detail, "  %s   %s\n", label(i18n.T("tui.teamboard.detail.priority")), tview.Escape(ticket.Priority))
 	}
 
 	if len(ticket.Labels) > 0 {
-		fmt.Fprintf(&detail, "  %sLabels:%s     %s\n",
-			theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, strings.Join(ticket.Labels, ", "))
+		fmt.Fprintf(&detail, "  %s     %s\n", label("Labels:"), tview.Escape(strings.Join(ticket.Labels, ", ")))
 	}
 
 	if ticket.MRURL != "" {
-		fmt.Fprintf(&detail, "  %sMR:%s         %s\n",
-			theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, ticket.MRURL)
+		fmt.Fprintf(&detail, "  %s         %s\n", label("MR:"), tview.Escape(ticket.MRURL))
 	}
 
 	if ticket.Description != "" {
-		fmt.Fprintf(&detail, "\n  %sDescription:%s\n  %s\n",
-			theme.ColorTag(theme.TextSecondaryHex), theme.TagColor, tview.Escape(ticket.Description))
+		fmt.Fprintf(&detail, "\n  %s\n  %s\n", label("Description:"), tview.Escape(ticket.Description))
 	}
 
 	return detail.String()
@@ -959,23 +940,24 @@ func (v *TeamBoardView) claimTicket() {
 		return
 	}
 	v.actionInProgress.Store(true)
-	go func() {
-		err := v.actions.OnClaim(ticketID)
-		if v.app == nil {
+	onClaim, app := v.actions.OnClaim, v.app
+	safego.Go(func() { // an action, not a read: its result is shown even if the board was refreshed
+		err := onClaim(ticketID)
+		if app == nil {
 			return
 		}
-		v.app.QueueUpdateDraw(func() {
+		app.QueueUpdateDraw(func() {
 			v.actionInProgress.Store(false)
 			if err != nil {
 				v.shell.ShowToastMsg(i18n.T("tui.teamboard.claim_failed")+err.Error(), false)
 			} else {
 				v.shell.ShowToastMsg(i18n.T("tui.teamboard.claim_success")+ticketID, true)
 				if v.cfg.RefreshFunc != nil {
-					v.refreshOnEventLoop(v.allColumns)
+					v.reload(nil)
 				}
 			}
 		})
-	}()
+	})
 }
 
 func (v *TeamBoardView) releaseTicket() {
@@ -999,23 +981,24 @@ func (v *TeamBoardView) doReleaseTicket(ticketID string) {
 		return
 	}
 	v.actionInProgress.Store(true)
-	go func() {
-		err := v.actions.OnRelease(ticketID)
-		if v.app == nil {
+	onRelease, app := v.actions.OnRelease, v.app
+	safego.Go(func() { // an action, not a read: its result is shown even if the board was refreshed
+		err := onRelease(ticketID)
+		if app == nil {
 			return
 		}
-		v.app.QueueUpdateDraw(func() {
+		app.QueueUpdateDraw(func() {
 			v.actionInProgress.Store(false)
 			if err != nil {
 				v.shell.ShowToastMsg(i18n.T("tui.teamboard.release_failed")+err.Error(), false)
 			} else {
 				v.shell.ShowToastMsg(i18n.T("tui.teamboard.release_success")+ticketID, true)
 				if v.cfg.RefreshFunc != nil {
-					v.refreshOnEventLoop(v.allColumns)
+					v.reload(nil)
 				}
 			}
 		})
-	}()
+	})
 }
 
 func (v *TeamBoardView) transferTicket() {
@@ -1036,23 +1019,24 @@ func (v *TeamBoardView) transferTicket() {
 	}
 	v.actionInProgress.Store(true)
 	v.shell.ShowSelectModal(i18n.Tf("tui.teamboard.transfer_title", ticketID), members, "", func(toMember string) {
-		go func() {
+		app := v.app
+		safego.Go(func() { // an action, not a read: its result is shown even if the board was refreshed
 			err := v.actions.OnTransfer(ticketID, toMember)
-			if v.app == nil {
+			if app == nil {
 				return
 			}
-			v.app.QueueUpdateDraw(func() {
+			app.QueueUpdateDraw(func() {
 				v.actionInProgress.Store(false)
 				if err != nil {
 					v.shell.ShowToastMsg(i18n.T("tui.teamboard.transfer_failed")+err.Error(), false)
 				} else {
 					v.shell.ShowToastMsg(i18n.T("tui.teamboard.transfer_success")+toMember, true)
 					if v.cfg.RefreshFunc != nil {
-						v.refreshOnEventLoop(v.allColumns)
+						v.reload(nil)
 					}
 				}
 			})
-		}()
+		})
 	})
 }
 
@@ -1081,23 +1065,24 @@ func (v *TeamBoardView) changeStatus() {
 
 	v.actionInProgress.Store(true)
 	v.shell.ShowSelectModal(i18n.Tf("tui.teamboard.status_title", ticketID), statusOptions, currentStatus, func(newStatus string) {
-		go func() {
+		app := v.app
+		safego.Go(func() { // an action, not a read: its result is shown even if the board was refreshed
 			err := v.actions.OnStatus(ticketID, newStatus)
-			if v.app == nil {
+			if app == nil {
 				return
 			}
-			v.app.QueueUpdateDraw(func() {
+			app.QueueUpdateDraw(func() {
 				v.actionInProgress.Store(false)
 				if err != nil {
 					v.shell.ShowToastMsg(i18n.T("tui.teamboard.status_failed")+err.Error(), false)
 				} else {
 					v.shell.ShowToastMsg(i18n.T("tui.teamboard.status_updated"), true)
 					if v.cfg.RefreshFunc != nil {
-						v.refreshOnEventLoop(v.allColumns)
+						v.reload(nil)
 					}
 				}
 			})
-		}()
+		})
 	})
 }
 
@@ -1242,4 +1227,10 @@ func (v *TeamBoardView) repopulateWithFilters() {
 			break
 		}
 	}
+}
+
+// projectChip is a project name on the accent background, as the cards and
+// the tabs of the board show it.
+func projectChip(name string) string {
+	return theme.BgTag(theme.ActiveMode.PrimaryHex) + theme.Paint(theme.BgAppHex, " "+tview.Escape(name)+" ") + theme.TagBg
 }

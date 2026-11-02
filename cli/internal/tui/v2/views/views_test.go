@@ -195,21 +195,31 @@ func TestBoardViews_EmptyThenPopulated(t *testing.T) {
 		assert.Equal(t, 1, content.GetItemCount(), "content holds the board layout")
 	})
 
-	t.Run("team board with a refresh is populated during the mount", func(t *testing.T) {
-		// Without SyncFunc, syncFuncAsync calls onDone synchronously during
-		// Mount, which runs refreshOnEventLoop → populateColumns.
+	t.Run("team board with a refresh says loading, then is populated off the loop", func(t *testing.T) {
+		// The tickets are read in load(): the mount returns with a
+		// « loading » placeholder, the answer swaps it for the board.
+		release := make(chan struct{})
 		v := NewTeamBoardView(TeamBoardViewConfig{
 			RefreshFunc: func() []TeamTicket {
+				<-release
 				return []TeamTicket{{ID: "1", Title: "Review PR", Status: "in_progress", Assignee: "alice"}}
 			},
 			IsConfigured: func() bool { return true },
 		})
 		content := tview.NewFlex().SetDirection(tview.FlexRow)
-		v.Mount(content, tview.NewApplication())
-		defer v.Unmount()
-		assert.Nil(t, v.emptyTV, "placeholder cleared: the sync completed during the mount")
-		assert.Equal(t, 1, content.GetItemCount(), "content holds the board layout")
-		assert.NotEmpty(t, v.allTickets, "tickets populated")
+		app := runApp(t, content)
+		onLoop(app, func() { v.Mount(content, app) })
+		onLoop(app, func() {
+			require.NotNil(t, v.emptyTV, "placeholder while the tickets are read")
+			assert.Contains(t, v.emptyTV.GetText(true), i18n.T("tui.state.loading"))
+		})
+		close(release)
+		waitFor(t, app, func() bool { return v.emptyTV == nil })
+		onLoop(app, func() {
+			assert.Equal(t, 1, content.GetItemCount(), "content holds the board layout")
+			assert.NotEmpty(t, v.allTickets, "tickets populated")
+			v.Unmount()
+		})
 	})
 }
 

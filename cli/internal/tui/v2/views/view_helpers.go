@@ -76,3 +76,11 @@ func refreshModeBar(sh ShellAccess) {
 		r.RefreshModeBar()
 	}
 }
+
+// refreshHints redraws the hints line after a view changed what its
+// StatusHints says (a board that finds Beads is not set up). Event loop only.
+func refreshHints(sh ShellAccess) {
+	if r, ok := sh.(HintsRefresher); ok {
+		r.RefreshHints()
+	}
+}
