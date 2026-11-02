@@ -302,6 +302,58 @@ func TestColumnEditorMappings(t *testing.T) {
 	assert.Equal(t, 6+1+1+1+1, e.list.GetItemCount())
 }
 
+// The label and the status under the cursor of the mappings mode are renamed
+// and deleted (the cursor mark in front of the name is not part of the name).
+func TestColumnEditorRenamesAndDeletesAMapping(t *testing.T) {
+	labels := map[string]string{"wip": "in_progress", "doing": "in_progress"}
+	statuses := map[string]string{"In Dev": "in_progress"}
+	e := newColumnEditor(t, defaultColumns(), labels, statuses, "jira")
+	e.typ('j')
+	e.typ(columnEditorTestKeys.mappings)
+
+	// rename a label
+	e.press(tcell.KeyEnter, 0)
+	require.Len(t, e.ui.modals, 1)
+	assert.Equal(t, i18n.T("tui.team.columns.rename_prompt"), e.ui.modals[0].title)
+	assert.Equal(t, "doing", e.ui.modals[0].current)
+	e.ui.modals[0].confirm("doing")
+	e.ui.modals[0].confirm("")
+	assert.Contains(t, *e.labels, "doing", "same name or empty: nothing changes")
+	e.ui.modals[0].confirm(" stuck ")
+	assert.Equal(t, "in_progress", (*e.labels)["stuck"])
+	assert.NotContains(t, *e.labels, "doing")
+
+	// rename a status
+	e.typ('j')
+	e.typ('j')
+	e.press(tcell.KeyEnter, 0)
+	require.Len(t, e.ui.modals, 2)
+	assert.Equal(t, "In Dev", e.ui.modals[1].current)
+	e.ui.modals[1].confirm("Coding")
+	assert.Equal(t, map[string]string{"Coding": "in_progress"}, *e.status)
+
+	// delete a label, then a status
+	e.list.SetCurrentItem(2)
+	e.typ(columnEditorTestKeys.del)
+	assert.Len(t, *e.labels, 1)
+	assert.Equal(t, i18n.Tf("tui.team.columns.mapping_deleted", "stuck"), e.ui.lastToast())
+	for i := 0; i < e.list.GetItemCount(); i++ {
+		if strings.Contains(e.mainText(i), "Coding") {
+			e.list.SetCurrentItem(i)
+		}
+	}
+	e.typ(columnEditorTestKeys.del)
+	assert.Empty(t, *e.status)
+	assert.Equal(t, i18n.Tf("tui.team.columns.mapping_deleted", "Coding"), e.ui.lastToast())
+
+	// on a header there is nothing to rename or delete
+	e.list.SetCurrentItem(0)
+	before := len(e.ui.modals)
+	e.press(tcell.KeyEnter, 0)
+	e.typ(columnEditorTestKeys.del)
+	assert.Len(t, e.ui.modals, before)
+}
+
 func TestColumnEditorMappingsOnlyWhereThereAreMappings(t *testing.T) {
 	e := newColumnEditor(t, defaultColumns(), nil, nil, "")
 	e.typ(columnEditorTestKeys.mappings)

@@ -293,6 +293,7 @@ func (e *columnEditor) resolveMappingItem() *mappingRef {
 			break
 		}
 	}
+	name = strings.TrimSpace(name)
 	name = strings.TrimPrefix(name, theme.SymCursor+" ")
 	name = strings.TrimSpace(name)
 	if name == "" {
