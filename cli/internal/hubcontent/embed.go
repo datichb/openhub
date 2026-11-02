@@ -41,18 +41,24 @@ var embeddedFingerprint = sync.OnceValue(func() string { return fingerprint(embe
 // and content, without the .gitkeep placeholders).
 func fingerprint(fsys fs.FS) string {
 	h := sha256.New()
-	_ = fs.WalkDir(fsys, "hub", func(path string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() || d.Name() == ".gitkeep" {
+	err := fs.WalkDir(fsys, "hub", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() || d.Name() == ".gitkeep" {
 			return nil
 		}
-		data, rerr := fs.ReadFile(fsys, path)
-		if rerr != nil {
-			return nil
+		data, err := fs.ReadFile(fsys, path)
+		if err != nil {
+			return err
 		}
 		fmt.Fprintf(h, "%s\x00%d\x00", path, len(data))
 		h.Write(data)
 		return nil
 	})
+	if err != nil { // an unreadable tree never matches a marker written before
+		fmt.Fprintf(h, "error\x00%v", err)
+	}
 	return hex.EncodeToString(h.Sum(nil))[:12]
 }
 

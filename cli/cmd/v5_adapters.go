@@ -37,7 +37,7 @@ func strictIsolation() bool {
 
 // gcLogLimits are the bounds of the logs of the tool servers: [gc] log_max_mb
 // and log_keep (the defaults when the configuration cannot be read).
-func gcLogLimits() (int64, int) {
+func gcLogLimits() (maxBytes int64, keep int) {
 	var gc config.GCConfig
 	if c, err := config.Load(); err == nil && c != nil {
 		gc = c.GC
