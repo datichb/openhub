@@ -183,6 +183,8 @@ func TestValidate_Rules(t *testing.T) {
 		{"mode duplicate", "risk: write\nmodes: { allowed: [manuel, manuel] }\n", "duplicate_entry", "modes.allowed[1]", SeverityError},
 		// resources
 		{"model", "risk: write\nmodels: { default: sonnet }\n", "model_invalid", "models.default", SeverityError},
+		// A workflow file is shared and versioned: it names the provider, even for a short name with a version (that oh config model accepts).
+		{"model short name", "risk: write\nmodels: { default: claude-sonnet-5-5 }\n", "model_invalid", "models.default", SeverityError},
 		{"model agent", "risk: write\nmodels: { agents: { ghost: a/b } }\n", "model_agent_unknown", "models.agents.ghost", SeverityError},
 		{"skill unknown", "risk: write\nskills: { extra: [shared/nope] }\n", "skill_unknown", "skills.extra[0]", SeverityError},
 		{"skill deny unknown", "risk: write\nskills: { deny: [shared/nope] }\n", "skill_unknown_deny", "skills.deny[0]", SeverityWarning},

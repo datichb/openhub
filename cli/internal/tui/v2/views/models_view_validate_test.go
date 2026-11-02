@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/datichb/openhub/cli/internal/bricks"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/modelcheck"
 )
@@ -77,6 +78,19 @@ func TestModelsViewAddOverrideValidatesIdentifiers(t *testing.T) {
 	cfg, err = config.Load()
 	require.NoError(t, err)
 	assert.Equal(t, "anthropic/claude-haiku-4-5", cfg.Models.Agents["reviewer"])
+}
+
+// The form refuses a short name without a version number, like the CLI.
+func TestModelsViewRefusesShortNameWithoutVersion(t *testing.T) {
+	v, sh := catalogView(t)
+	v.addOverride()
+	require.NotNil(t, sh.form)
+	model := formFieldByKey(t, sh.form, "model")
+	msg, invalid := model.Validate("claude-sonnet")
+	assert.True(t, invalid)
+	assert.Contains(t, msg, bricks.FallbackModel, "the message gives the expected form")
+	_, invalid = model.Validate("anthropic/claude-sonnet")
+	assert.False(t, invalid, "a full reference is taken as written")
 }
 
 func TestModelsViewAcceptsAgentWhenCatalogueUnavailable(t *testing.T) {
