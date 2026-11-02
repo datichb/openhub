@@ -16,10 +16,8 @@ import (
 	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/daemon"
-	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/storage/keychain"
-	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -198,9 +196,8 @@ func buildPurgeInventory(ctx context.Context, keepBinary, includeToolData bool) 
 	}
 
 	// Projects from DB (best-effort — DB may be broken)
-	if store != nil {
-		ps := sqlite.NewProjectStore(store)
-		projects, err := ps.List(ctx, "")
+	if a := TryApp(); a != nil && a.Projects != nil {
+		projects, err := a.Projects.List(ctx, "")
 		if err == nil {
 			for _, p := range projects {
 				pp := purgeProject{
@@ -387,8 +384,8 @@ func defaultPurgeProcesses(ctx context.Context) purgeProcesses {
 		},
 		alive: pidAlive,
 	}
-	if store != nil {
-		p.servers = sqlite.NewServerStore(store)
+	if a := TryApp(); a != nil && a.Servers != nil {
+		p.servers = a.Servers
 	}
 	paths := daemon.Paths{Dir: ohRunDir()}
 	if _, err := os.Lstat(paths.Socket()); err == nil {
@@ -565,9 +562,3 @@ func formatBytes(b int64) string {
 		return fmt.Sprintf("%d B", b)
 	}
 }
-
-// Ensure unused imports are referenced for compilation.
-var (
-	_ = domain.ErrNotFound
-	_ = sqlite.DBPath
-)
