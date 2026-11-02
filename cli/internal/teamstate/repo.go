@@ -365,8 +365,9 @@ func (r *Repo) InitStructure(ctx context.Context) error {
 // catalogue of bricks catalog/ (ADR-054) included, are part of what the team
 // shares and must not stay untracked in the clone (A5). It does nothing more
 // when everything is tracked. A repository that is not a clone only gets the
-// folders; a commit that cannot be made (offline, lock busy) is logged and
-// left for the next call, the layout being on disk anyway.
+// folders. A commit that cannot be made (offline, lock busy) is returned as a
+// *StructureWarning, left for the next call, the layout being on disk anyway:
+// the callers tell the user and go on.
 func (r *Repo) EnsureStructure(ctx context.Context) error {
 	if err := r.InitStructure(ctx); err != nil {
 		return err
@@ -380,8 +381,28 @@ func (r *Repo) EnsureStructure(ctx context.Context) error {
 	}
 	if err := r.CommitAndPush(ctx, "team: init structure", missing...); err != nil {
 		slog.Warn("teamstate.structure.commit_failed", "error", err)
+		return &StructureWarning{Cause: err}
 	}
 	return nil
+}
+
+// StructureWarning is returned by EnsureStructure when the folders of the
+// layout exist on disk but their commit failed. It is not fatal: the team-state
+// is usable, and the next call commits what is left.
+type StructureWarning struct {
+	Cause error
+}
+
+func (w *StructureWarning) Error() string {
+	return fmt.Sprintf("structure folders not committed (%v)", w.Cause)
+}
+
+func (w *StructureWarning) Unwrap() error { return w.Cause }
+
+// IsStructureWarning reports whether err is a StructureWarning.
+func IsStructureWarning(err error) bool {
+	var w *StructureWarning
+	return errors.As(err, &w)
 }
 
 // untrackedKeeps lists the .gitkeep files of the layout that git does not

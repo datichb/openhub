@@ -189,7 +189,7 @@ func TestRunRecapModelRows(t *testing.T) {
 			Project:    &domain.Project{Name: "p"},
 			Resolution: &workflowsvc.Resolution{Resolved: &workflow.Resolved{Spec: &workflow.Spec{ID: "ticket"}, Mode: "semi-auto"}},
 			Bundle:     &bundle.Bundle{Spec: sessionspec.BundleSpec{EntryAgent: entry, DefaultModel: def, Agents: agents}},
-			Plan: &runsvc.RunPlan{Sessions: []runsvc.PlannedSession{{Location: runsvc.Location{Path: "/p", Kind: runsvc.LocationBase}}}},
+			Plan:       &runsvc.RunPlan{Sessions: []runsvc.PlannedSession{{Location: runsvc.Location{Path: "/p", Kind: runsvc.LocationBase}}}},
 		}
 	}
 	modelRows := func(p *launch.Prepared) (rows [][2]string) {

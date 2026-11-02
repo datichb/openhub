@@ -1,7 +1,9 @@
 package team
 
 import (
+	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -23,6 +25,14 @@ func reload(t *testing.T) map[string]config.TeamConfig {
 		byID[tc.ID] = tc
 	}
 	return byID
+}
+
+// mustInit joins the team and fails the test if Init fails or warns.
+func mustInit(t *testing.T, svc *Service, p InitParams) {
+	t.Helper()
+	res, err := svc.Init(t.Context(), p)
+	require.NoError(t, err)
+	require.NoError(t, res.StructureWarning)
 }
 
 func TestSaveTeamAddsOrReplacesWithoutTouchingTheOthers(t *testing.T) {
@@ -58,7 +68,7 @@ func TestInitClonesRegistersTheMemberAndWritesHubToml(t *testing.T) {
 	svc := New(cfg, nil, nil)
 
 	params := InitParams{StateRepo: bare, StatePath: statePath, MemberID: "dave", DisplayName: "Dave", GitLabUsername: "dave.g", Role: "dev"}
-	require.NoError(t, svc.Init(t.Context(), params))
+	mustInit(t, svc, params)
 
 	repo := teamstate.NewRepo(bare, statePath)
 	require.True(t, repo.IsCloned())
@@ -80,7 +90,7 @@ func TestInitClonesRegistersTheMemberAndWritesHubToml(t *testing.T) {
 
 	// Joining again updates the member instead of failing.
 	params.DisplayName = "David"
-	require.NoError(t, svc.Init(t.Context(), params))
+	mustInit(t, svc, params)
 	m, err = repo.GetMember("dave")
 	require.NoError(t, err)
 	assert.Equal(t, "David", m.DisplayName)
@@ -98,7 +108,7 @@ func TestInitKeepsTheTrackerUsernameOfAMember(t *testing.T) {
 	svc := New(cfg, nil, nil)
 	params := InitParams{StateRepo: bare, StatePath: statePath, MemberID: "ben", DisplayName: "Ben", GitLabUsername: "ben1", Role: "dev",
 		TrackerUsername: "@ben"}
-	require.NoError(t, svc.Init(t.Context(), params))
+	mustInit(t, svc, params)
 	repo := teamstate.NewRepo(bare, statePath)
 	m, err := repo.GetMember("ben")
 	require.NoError(t, err)
@@ -106,7 +116,7 @@ func TestInitKeepsTheTrackerUsernameOfAMember(t *testing.T) {
 
 	params.TrackerUsername = ""
 	params.DisplayName = "Benjamin"
-	require.NoError(t, svc.Init(t.Context(), params))
+	mustInit(t, svc, params)
 	m, err = repo.GetMember("ben")
 	require.NoError(t, err)
 	assert.Equal(t, "Benjamin", m.DisplayName)
@@ -118,7 +128,7 @@ func TestInitFailureNamesTheStep(t *testing.T) {
 	cfg := &config.Config{}
 	svc := New(cfg, nil, nil)
 
-	err := svc.Init(t.Context(), InitParams{StateRepo: filepath.Join(t.TempDir(), "no-such-remote"), StatePath: filepath.Join(t.TempDir(), "state"), MemberID: "dave"})
+	_, err := svc.Init(t.Context(), InitParams{StateRepo: filepath.Join(t.TempDir(), "no-such-remote"), StatePath: filepath.Join(t.TempDir(), "state"), MemberID: "dave"})
 	var ie *InitError
 	require.ErrorAs(t, err, &ie)
 	assert.Equal(t, StepClone, ie.Step)
@@ -137,4 +147,34 @@ func TestSaveTeamKeepsTheGitLabOfTheRepository(t *testing.T) {
 
 	require.NoError(t, svc.SaveTeam("git@mon-alias:acme/core.git", "/core", "alice", ""))
 	assert.Equal(t, "https://gitlab.corp.example", cfg.FindTeam("core").GitLabURL)
+}
+
+// M1: the commit of the structure of the team-state fails (here the remote
+// refuses it): Init does not fail, it tells so in its result, and the member
+// and hub.toml are written all the same. The failure is no longer only in a log.
+func TestInitStructureCommitFailureIsAWarning(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the remote hook is a shell script")
+	}
+	if testing.Short() {
+		t.Skip("the push is retried four times: about 8 s")
+	}
+	configtest.Home(t)
+	bare, _ := gittest.BareClone(t)
+	hook := "#!/bin/sh\nwhile read old new ref; do\n  if [ \"$(git log -1 --format=%s \"$new\")\" = \"team: init structure\" ]; then\n    echo \"structure refused\" >&2\n    exit 1\n  fi\ndone\n"
+	require.NoError(t, os.WriteFile(filepath.Join(bare, "hooks", "pre-receive"), []byte(hook), 0o755))
+	cfg := &config.Config{}
+	require.NoError(t, config.Save(cfg))
+	statePath := filepath.Join(t.TempDir(), "state")
+	svc := New(cfg, nil, nil)
+
+	res, err := svc.Init(t.Context(), InitParams{StateRepo: bare, StatePath: statePath, MemberID: "dave", DisplayName: "Dave", Role: "dev"})
+	require.NoError(t, err, "a structure that cannot be committed does not stop the join")
+	require.Error(t, res.StructureWarning)
+	assert.True(t, teamstate.IsStructureWarning(res.StructureWarning))
+
+	repo := teamstate.NewRepo(bare, statePath)
+	assert.True(t, repo.HasMember("dave"), "the member is registered")
+	assert.FileExists(t, filepath.Join(statePath, "catalog", "agents", ".gitkeep"), "the folders exist locally")
+	assert.Contains(t, reload(t), config.RepoNameFromRemote(bare), "hub.toml is written")
 }

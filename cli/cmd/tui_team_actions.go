@@ -18,6 +18,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/teamstate"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
@@ -57,6 +58,8 @@ func actionTeamInit() {
 		botName    = "OpenHub"
 
 		hasMember bool
+
+		structureWarning string // the commit of the structure of the team-state failed
 	)
 
 	// Pre-fill from existing hub.toml if already configured
@@ -68,7 +71,12 @@ func actionTeamInit() {
 		repo = teamstate.NewRepo(stateRepo, statePath)
 		if repo.IsCloned() {
 			_ = repo.Pull(ctx)
-			_ = repo.EnsureStructure(ctx)
+			if warn, err := ensureTeamStructure(ctx, repo); err != nil {
+				slog.Warn("team.init.structure_failed", "error", err)
+			} else if warn != "" {
+				structureWarning = warn
+				tuiShell.ShowToast(warn, shell.ToastWarning)
+			}
 			credState.Probe(ctx, stateRepo)
 			hasConfig = repo.HasConfig()
 			hasPolicies = repo.HasPolicies()
@@ -128,9 +136,11 @@ func actionTeamInit() {
 					return fmt.Errorf(i18n.T("cmd.tui_team_actions.cloning_team_state"), err)
 				}
 			}
-			if err := repo.EnsureStructure(ctx); err != nil {
+			warn, err := ensureTeamStructure(ctx, repo)
+			if err != nil {
 				return fmt.Errorf(i18n.T("cmd.tui_team_actions.init_structure"), err)
 			}
+			structureWarning = warn
 			credState.Probe(ctx, stateRepo)
 			// Pre-fill for subsequent steps
 			hasConfig = repo.HasConfig()
@@ -155,7 +165,11 @@ func actionTeamInit() {
 			return nil
 		},
 		InfoFields: func() []views.InfoField {
-			return []views.InfoField{{Label: "Repo", Value: stateRepo}}
+			fields := []views.InfoField{{Label: "Repo", Value: stateRepo}}
+			if structureWarning != "" {
+				fields = append(fields, views.InfoField{Label: theme.IconWarning + " " + i18n.T("m1.team_structure_label"), Value: structureWarning})
+			}
+			return fields
 		},
 	}
 

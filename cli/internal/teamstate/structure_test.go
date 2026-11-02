@@ -2,6 +2,8 @@ package teamstate
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -78,4 +80,42 @@ func TestEnsureStructureWithoutRemote(t *testing.T) {
 
 	plain := NewRepo("", t.TempDir())
 	require.NoError(t, plain.EnsureStructure(ctx), "not a git repository: the folders are created, no commit")
+}
+
+// M1: a commit of the structure that fails (remote unreachable, lock busy) is
+// not lost in a log: EnsureStructure returns a *StructureWarning, which the
+// callers show without stopping. The folders exist on disk and the next call
+// commits them.
+func TestEnsureStructureCommitFailureIsAWarning(t *testing.T) {
+	t.Parallel()
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+	ctx := context.Background()
+	bare, clone := gittest.BareClone(t)
+	r := NewRepo(bare, clone)
+
+	moved := bare + ".away"
+	require.NoError(t, os.Rename(bare, moved))
+	err := r.EnsureStructure(ctx)
+	require.Error(t, err)
+	var warn *StructureWarning
+	require.ErrorAs(t, err, &warn)
+	assert.True(t, IsStructureWarning(err))
+	assert.NotNil(t, warn.Cause)
+	assert.False(t, IsPullWarning(err))
+	for _, d := range structureDirs {
+		assert.FileExists(t, filepath.Join(clone, d, ".gitkeep"), "the layout is on disk anyway")
+	}
+
+	// Back online: the next call commits what was left.
+	require.NoError(t, os.Rename(moved, bare))
+	require.NoError(t, r.EnsureStructure(ctx))
+	assert.Empty(t, gittest.Run(t, clone, "status", "--porcelain", "--untracked-files=all"))
+	assert.Contains(t, gittest.Run(t, bare, "ls-tree", "-r", "--name-only", "main"), "catalog/agents/.gitkeep")
+
+	// Nothing to commit: no warning, whatever the state of the remote.
+	require.NoError(t, os.Rename(bare, moved))
+	t.Cleanup(func() { _ = os.Rename(moved, bare) })
+	assert.NoError(t, r.EnsureStructure(ctx), "the structure is already there: nothing to say")
 }

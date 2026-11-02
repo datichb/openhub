@@ -30,8 +30,18 @@ type teamInitParams struct {
 // team service (Service.Init): clone/pull repo → init structure → add/update
 // member → write hub.toml (the team is added, or replaces the entry of the
 // same team; the other teams, solo spaces included, are left as they are).
-func teamInitCore(ctx context.Context, a *app.App, p teamInitParams) error {
-	err := teamService(a).Init(ctx, teamsvc.InitParams(p))
+// warning is what the caller shows without stopping: the commit of the
+// structure of the team-state failed (empty otherwise).
+func teamInitCore(ctx context.Context, a *app.App, p teamInitParams) (warning string, err error) {
+	res, err := teamService(a).Init(ctx, teamsvc.InitParams(p))
+	if err == nil {
+		return structureWarningText(res.StructureWarning), nil
+	}
+	return "", teamInitError(err)
+}
+
+// teamInitError words the failure of Service.Init by the step that failed.
+func teamInitError(err error) error {
 	var initErr *teamsvc.InitError
 	if !errors.As(err, &initErr) {
 		return err

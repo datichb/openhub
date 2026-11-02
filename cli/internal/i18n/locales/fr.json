@@ -5806,6 +5806,8 @@
   "m1.session_not_started.queued": "La session %s n'a pas encore démarré : elle attend un créneau libre (file d'attente). La consigne n'a pas été envoyée ; réessaie quand elle sera active (oh session list).",
   "m1.session_not_started.preparing": "La session %s n'a pas encore démarré : elle est en préparation. La consigne n'a pas été envoyée ; réessaie quand elle sera active (oh session list).",
   "m1.sessions_send_not_started": "La session n'a pas encore démarré : la consigne ne serait pas envoyée. Réessaie quand elle sera active.",
+  "m1.team_structure_warning": "La structure du dépôt d'équipe est créée en local, mais son commit « team: init structure » a échoué (%s). L'équipe reste utilisable ; les dossiers seront commités à la prochaine exécution de oh team init.",
+  "m1.team_structure_label": "Structure du dépôt",
   "cmd.import.merge_overwrite": "--merge et --overwrite s'excluent",
   "cmd.import.merge_no_db": "archive invalide : oh.db manquant, rien à fusionner",
   "cmd.import.merge_open": "ouverture de la base de l'archive",
