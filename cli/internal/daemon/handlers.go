@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -205,8 +206,10 @@ func (d *Daemon) handleSessionDecided(w http.ResponseWriter, r *http.Request) {
 
 func (d *Daemon) handleShutdown(w http.ResponseWriter, r *http.Request) {
 	force := strings.EqualFold(r.URL.Query().Get("force"), "true")
-	if !force && d.liveServers(r.Context()) > 0 {
-		writeErr(w, http.StatusConflict, "sessions are running (use force)")
+	// The live tool servers are counted (their sessions go through the proxy
+	// of the daemon), not the sessions: a server may hold none working.
+	if n := d.liveServers(r.Context()); !force && n > 0 {
+		writeErr(w, http.StatusConflict, fmt.Sprintf("tool servers alive: %d (use force)", n))
 		return
 	}
 	w.WriteHeader(http.StatusAccepted)
