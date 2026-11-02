@@ -17,9 +17,9 @@ import (
 	"github.com/datichb/openhub/cli/internal/teamstate"
 )
 
-// wikiRepo is a team-state with a wiki: the other methods are not called.
+// wikiRepo is a team-state with a wiki: it implements wikiState and nothing
+// more.
 type wikiRepo struct {
-	teamstate.TeamStateWriter
 	mu        sync.Mutex
 	proposals []teamstate.WikiProposal
 	pages     map[string]string
@@ -29,6 +29,10 @@ type wikiRepo struct {
 }
 
 func (r *wikiRepo) Path() string               { return "" }
+func (r *wikiRepo) Remote() string             { return "" }
+func (r *wikiRepo) IsCloned() bool             { return true }
+func (r *wikiRepo) HasConfig() bool            { return false }
+func (r *wikiRepo) HasPolicies() bool          { return false }
 func (r *wikiRepo) Pull(context.Context) error { return nil }
 func (r *wikiRepo) WikiListPages() ([]string, error) {
 	r.mu.Lock()
@@ -72,6 +76,8 @@ func (r *wikiRepo) decide(verb, id string) error {
 	}
 	return nil
 }
+
+func (r *wikiRepo) WikiCreateProposal(context.Context, teamstate.WikiProposal) error { return nil }
 
 func (r *wikiRepo) WikiAcceptProposal(_ context.Context, id string) error {
 	return r.decide("accept", id)
@@ -192,7 +198,7 @@ func TestWikiView(t *testing.T) {
 	}
 	sh := &wikiShell{}
 	v := NewWikiView(func() TeamResolution { return TeamResolution{Enabled: true, MemberID: "alice"} })
-	v.openRepo = func() teamstate.TeamStateWriter { return repo }
+	v.openRepo = func() wikiState { return repo }
 	v.SetShell(sh)
 	onLoop := runWikiView(t, v)
 
@@ -310,7 +316,7 @@ func TestWikiViewFailuresAndEmpty(t *testing.T) {
 		failWith: errors.New("push refusé")}
 	sh := &wikiShell{}
 	v := NewWikiView(func() TeamResolution { return TeamResolution{Enabled: true} })
-	v.openRepo = func() teamstate.TeamStateWriter { return repo }
+	v.openRepo = func() wikiState { return repo }
 	v.SetShell(sh)
 	onLoop := runWikiView(t, v)
 	require.Eventually(t, func() bool {
@@ -380,7 +386,7 @@ func TestWikiViewRefuseButtonConfirmedAndUnmount(t *testing.T) {
 	repo := &wikiRepo{proposals: []teamstate.WikiProposal{{ID: "wp-a", Page: "conventions", Author: "reviewer"}}}
 	sh := &refuseShell{}
 	v := NewWikiView(func() TeamResolution { return TeamResolution{Enabled: true} })
-	v.openRepo = func() teamstate.TeamStateWriter { return repo }
+	v.openRepo = func() wikiState { return repo }
 	v.SetShell(sh)
 	onLoop := runWikiView(t, v)
 	require.Eventually(t, func() bool { ok := false; onLoop(func() { ok = len(v.proposals) == 1 }); return ok }, 3*time.Second, 20*time.Millisecond)
@@ -435,7 +441,7 @@ func TestWikiViewLoadAndRemount(t *testing.T) {
 		first:    make(chan struct{}), release: make(chan struct{}),
 	}
 	v := NewWikiView(func() TeamResolution { return TeamResolution{Enabled: true, MemberID: "alice"} })
-	v.openRepo = func() teamstate.TeamStateWriter { return repo }
+	v.openRepo = func() wikiState { return repo }
 	v.SetShell(&wikiShell{})
 	onLoop := runWikiView(t, v)
 	<-repo.first

@@ -34,7 +34,7 @@ func TestActivityViewLoadAndRemount(t *testing.T) {
 	var calls atomic.Int32
 	first, release := make(chan struct{}), make(chan struct{})
 	v := NewActivityView(func() TeamResolution { return tc })
-	v.read = func(teamstate.TeamStateReader, string) (activityData, error) {
+	v.read = func(activityReader, string) (activityData, error) {
 		event := func(ticket string) teamstate.Event {
 			return teamstate.Event{Timestamp: time.Now(), Actor: "alice", Type: teamstate.EventClaimTaken, Ticket: ticket}
 		}
@@ -69,7 +69,7 @@ func TestActivityViewReadAfterUnmountIsIgnored(t *testing.T) {
 	_, tc := soloState(t)
 	started, release, done := make(chan struct{}), make(chan struct{}), make(chan struct{})
 	v := NewActivityView(func() TeamResolution { return tc })
-	v.read = func(teamstate.TeamStateReader, string) (activityData, error) {
+	v.read = func(activityReader, string) (activityData, error) {
 		close(started)
 		<-release
 		defer close(done)
@@ -92,7 +92,7 @@ func TestTeamStatusViewLoadAndRemount(t *testing.T) {
 	var calls atomic.Int32
 	first, release := make(chan struct{}), make(chan struct{})
 	v := NewTeamStatusView(func() TeamResolution { return tc })
-	v.read = func(teamstate.TeamStateReader) *teamStatusData {
+	v.read = func(teamStatusReader) *teamStatusData {
 		member := func(id string) []teamstate.Member { return []teamstate.Member{{ID: id}} }
 		if calls.Add(1) == 1 {
 			close(first)
@@ -143,7 +143,7 @@ func TestTakeoverViewLoadAndRemount(t *testing.T) {
 	var calls atomic.Int32
 	first, release := make(chan struct{}), make(chan struct{})
 	v := NewTakeoverView(func() TeamResolution { return tc })
-	v.read = func(teamstate.TeamStateReader) (takeoverData, error) {
+	v.read = func(takeoverReader) (takeoverData, error) {
 		brief := func(ticket string) []teamstate.TakeoverMeta {
 			return []teamstate.TakeoverMeta{{TicketID: ticket, Project: "web", TransferredFrom: "a", TransferredTo: "b"}}
 		}

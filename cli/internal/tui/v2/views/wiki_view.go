@@ -39,9 +39,19 @@ type WikiView struct {
 	pageIndices map[int]int
 
 	// openRepo replaces the clone of the team-state (tests).
-	openRepo func() teamstate.TeamStateWriter
+	openRepo func() wikiState
 	loads    loadSlot // the reads of the proposals and pages: only the latest is applied
 	pageRead loadSlot // the read of the page being opened
+}
+
+// wikiState is the team-state of the view: pulled, its wiki read and
+// answered, and the activity log appended to.
+type wikiState interface {
+	pullableRepo
+	teamstate.RepoInfo
+	teamstate.WikiReader
+	teamstate.WikiWriter
+	teamstate.EventWriter
 }
 
 // wikiData is what a read of the team wiki gives back.
@@ -150,7 +160,7 @@ func (v *WikiView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 
 // newRepo is the team-state of the team, without touching the disk (nil
 // without a team).
-func (v *WikiView) newRepo() teamstate.TeamStateWriter {
+func (v *WikiView) newRepo() wikiState {
 	if v.openRepo != nil {
 		return v.openRepo()
 	}
@@ -163,7 +173,7 @@ func (v *WikiView) newRepo() teamstate.TeamStateWriter {
 
 // cloned tells whether repo has its clone. It stats the disk: off the event
 // loop.
-func (v *WikiView) cloned(repo teamstate.TeamStateWriter) bool {
+func (v *WikiView) cloned(repo wikiState) bool {
 	return v.openRepo != nil || repo.IsCloned()
 }
 

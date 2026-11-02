@@ -143,9 +143,18 @@ func (v *PatternsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	return event
 }
 
+// patternsState is the team-state of the view: pulled, its patterns read and
+// changed.
+type patternsState interface {
+	pullableRepo
+	teamstate.RepoInfo
+	teamstate.PatternReader
+	teamstate.PatternWriter
+}
+
 // newRepo is the team-state of the team, without touching the disk (nil
 // without a team).
-func (v *PatternsView) newRepo() teamstate.TeamStateWriter {
+func (v *PatternsView) newRepo() patternsState {
 	tc := v.resolveTeam()
 	if !tc.Enabled {
 		return nil

@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/datichb/openhub/cli/internal/services/policy"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 )
 
@@ -71,7 +72,7 @@ func mountedPoliciesView(t *testing.T, fake *fakePolicyService) (*PoliciesView, 
 		"existing": {Type: teamstate.PolicyTypeBoolean, Enabled: true, Enforcement: teamstate.EnforcementWarn},
 	}))
 	v := NewPoliciesView(func() TeamResolution { return tc }, nil)
-	v.SetPolicyService(func(teamstate.TeamStateWriter) PolicyService { return fake })
+	v.SetPolicyService(func(policy.Store) PolicyService { return fake })
 	sh := &viewShell{}
 	v.SetShell(sh)
 	content := tview.NewFlex()
