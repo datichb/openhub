@@ -10,7 +10,6 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/teamstate"
-	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
@@ -56,6 +55,7 @@ type TeamModelsView struct {
 
 	teamCfg *teamstate.TeamConfig
 	dirty   bool
+	badge   saveBadge
 	// saving is true while a save runs off the event loop; saveAgain, that an
 	// edit asked for another one meanwhile.
 	saving, saveAgain bool
@@ -79,7 +79,7 @@ func (v *TeamModelsView) Title() string          { return i18n.T("tui.config.sec
 
 func (v *TeamModelsView) StatusHints() string {
 	return keys.Hints(keys.Open.HintAs(i18n.T("tui.hints.edit")), keys.Create.Hint(),
-		keys.Delete.Hint(), cfgSaveKey.Hint(), cfgUndoKey.Hint())
+		keys.Delete.Hint(), keys.Save.Hint(), cfgUndoKey.Hint())
 }
 
 // SupportedModes implements ModeAware — this view is only relevant in team mode.
@@ -129,6 +129,7 @@ func (v *TeamModelsView) buildList(content *tview.Flex, app *tview.Application) 
 	v.list = widgets.NewSectionedList()
 	v.list.SetApp(app)
 	v.page = newListPage(v.Title(), v.list)
+	v.badge.attach(v.page, v.Title())
 
 	v.list.SetItemSelectedFunc(func(index int, item widgets.SectionItem) {
 		v.editByItem(item)
@@ -143,7 +144,7 @@ func (v *TeamModelsView) buildList(content *tview.Flex, app *tview.Application) 
 func (v *TeamModelsView) Unmount() {
 	v.loads.Invalidate() // drop the load in flight
 	if v.dirty && v.shell != nil {
-		v.shell.ShowToastMsg(i18n.T("tui.project.unsaved"), false)
+		v.shell.ShowToastMsg(i18n.T("tui.save.unpublished_left"), false)
 	}
 	v.undoStack.Clear()
 	v.app = nil
@@ -156,7 +157,7 @@ func (v *TeamModelsView) showDetail(item widgets.SectionItem) {
 	if v.page == nil || v.teamCfg == nil {
 		return
 	}
-	extra := append(keys.Pairs(keys.Create, keys.Delete), cfgSaveKey.Keys(), cfgSaveKey.Label(), cfgUndoKey.Keys(), cfgUndoKey.Label())
+	extra := append(keys.Pairs(keys.Create, keys.Delete), keys.Save.Keys(), keys.Save.Label(), cfgUndoKey.Keys(), cfgUndoKey.Label())
 	ref, ok := item.Reference.(teamModelsRef)
 	if !ok {
 		v.page.SetDetail(modelOverrideDetail("", "", "", "", extra...))
@@ -204,6 +205,15 @@ func (v *TeamModelsView) ensureMaps() {
 // Rendering
 // ─────────────────────────────────────────────────────────────────────────────
 
+// syncBadge shows whether the changes are published to the team-state.
+func (v *TeamModelsView) syncBadge() {
+	if v.saving {
+		v.badge.set(saveStatusPending) // the write runs: not published yet
+		return
+	}
+	v.badge.settle(v.dirty)
+}
+
 func (v *TeamModelsView) renderList() {
 	if v.list == nil {
 		return
@@ -211,13 +221,7 @@ func (v *TeamModelsView) renderList() {
 	savedIdx := v.list.GetCurrentItem()
 	notConfigured := muted(i18n.T("tui.config.not_configured"))
 
-	title := v.Title()
-	if v.dirty {
-		title += " · " + theme.SymModified + " " + i18n.T("tui.settings.modified")
-	}
-	if v.page != nil {
-		v.page.SetTitle(title)
-	}
+	v.syncBadge()
 
 	// ── General ──────────────────────────────────────────────────────────
 	items := []widgets.SectionItem{{IsHeader: true, MainText: i18n.T("tui.config.section.general")}}
@@ -306,7 +310,7 @@ func (v *TeamModelsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	case keys.Delete.Matches(event):
 		v.deleteEntry()
 		return nil
-	case cfgSaveKey.Matches(event):
+	case keys.Save.Matches(event):
 		v.save()
 		return nil
 	case cfgUndoKey.Matches(event):
@@ -479,6 +483,7 @@ func (v *TeamModelsView) save() {
 	edits := v.undoStack.Len()
 	v.dirty = false // an edit made during the write sets it again
 	v.saving = true
+	v.badge.set(saveStatusPending) // the write really runs: saved is said when it ends
 	persist(v.app, func(ctx context.Context) error { return write(ctx, &cfg) }, func(err error) {
 		v.saving = false
 		again := v.saveAgain
@@ -486,6 +491,7 @@ func (v *TeamModelsView) save() {
 		if err != nil {
 			v.dirty = true
 			v.shell.ShowToastMsg(i18n.T("tui.team_models.save_error")+err.Error(), false)
+			v.badge.set(saveStatusFailed)
 			return
 		}
 		if v.undoStack.Len() == edits {

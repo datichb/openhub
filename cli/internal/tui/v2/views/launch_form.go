@@ -575,7 +575,7 @@ var launchDirtyChoices = []struct {
 	key   keys.Action
 	value string
 }{
-	{keys.Own("launch.dirty_worktree", 'w', "tui.launch.dirty.worktree"), LaunchDirtyWorktree},
+	{keys.Own("launch.dirty_worktree", 't', "tui.launch.dirty.worktree"), LaunchDirtyWorktree},
 	{keys.Own("launch.dirty_stash", 's', "tui.launch.dirty.stash"), LaunchDirtyStash},
 	{keys.Own("launch.dirty_allow", 'b', "tui.launch.dirty.allow"), LaunchDirtyAllow},
 }

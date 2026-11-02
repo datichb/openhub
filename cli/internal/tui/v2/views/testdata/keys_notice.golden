@@ -10,12 +10,15 @@ Changé :
   Propositions wiki          a→y accepter · x→n refuser
   Workflows                  D→c comparer · x→d supprimer un brouillon
   Historique                 r→R restaurer
-  Éditeur                    x→d retirer · y→Y YAML brut
+  Éditeur                    x→d retirer · y→Y YAML brut · w→Ctrl+S enregistrer
   Patterns                   a→n créer · v→y valider
   Projets                    a→n créer · n→e renommer
   Board d'équipe             f→/ filtrer · x→L libérer
   Worktrees                  a→n créer · x→M nettoyer les fusionnés
-  Détail d'équipe            y→T découvrir le tracker
+  Détail d'équipe            y→T découvrir le tracker · w→Ctrl+S enregistrer
+  Activité d'équipe          w→s semaine
+  MCP                        w→m écriture
+  Fiche de lancement         w→t worktree (dossier modifié)
   Autres listes              a→n créer
 
 Revoir ce message : ? puis « Nouvelles touches ».

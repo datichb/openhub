@@ -2,7 +2,6 @@ package views
 
 import (
 	"context"
-	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -37,6 +36,7 @@ type ProjectMCPView struct {
 	fields    []configField
 	undoStack *widgets.UndoStack[domain.Project]
 	autoSaver *AutoSaver
+	badge     saveBadge
 }
 
 var _ View = (*ProjectMCPView)(nil)
@@ -65,7 +65,7 @@ func (v *ProjectMCPView) Mount(content *tview.Flex, app *tview.Application) {
 	v.undoStack.Clear()
 	v.live = v.cfg.GetProject()
 
-	v.autoSaver = NewAutoSaver(200*time.Millisecond, app, func() {
+	v.autoSaver = NewAutoSaver(SaveDelay, app, func() {
 		v.doSave()
 	})
 
@@ -77,6 +77,7 @@ func (v *ProjectMCPView) Mount(content *tview.Flex, app *tview.Application) {
 		title += " · " + v.live.Name
 	}
 	v.page = newListPage(title, v.list)
+	v.badge.attach(v.page, title)
 
 	if v.live == nil {
 		v.list.SetItems([]widgets.SectionItem{{MainText: stateText(stateEmpty, i18n.T("tui.project.no_active"))}})
@@ -104,6 +105,7 @@ func (v *ProjectMCPView) Unmount() {
 		v.autoSaver.Flush()
 	}
 	v.undoStack.Clear()
+	v.badge.detach()
 	v.app = nil
 	v.list = nil
 	v.page = nil
@@ -373,6 +375,7 @@ func (v *ProjectMCPView) pushUndo() {
 }
 
 func (v *ProjectMCPView) scheduleAutoSave() {
+	v.badge.set(saveStatusPending)
 	if v.autoSaver != nil {
 		v.autoSaver.Schedule()
 	}
@@ -391,11 +394,10 @@ func (v *ProjectMCPView) doSave() {
 		if v.shell != nil {
 			v.shell.ShowToastMsg(i18n.T("tui.project.save_error")+": "+err.Error(), false)
 		}
+		v.badge.set(saveStatusFailed)
 		return
 	}
-	if v.shell != nil {
-		v.shell.ShowToastMsg(i18n.T("tui.config.autosaved"), true)
-	}
+	v.badge.set(saveStatusSaved)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -20,7 +20,7 @@ import (
 // The filters of the activity, one key each.
 var (
 	activityTodayKey = keys.Own("activity.today", 't', "tui.hints.today")
-	activityWeekKey  = keys.Own("activity.week", 'w', "tui.hints.week")
+	activityWeekKey  = keys.Own("activity.week", 's', "tui.hints.week")
 	activityAllKey   = keys.Own("activity.all", '0', "tui.hints.all")
 )
 

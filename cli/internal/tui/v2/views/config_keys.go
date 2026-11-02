@@ -13,7 +13,6 @@ var (
 	// cfgToggleKey is the space bar: it switches the setting under the cursor.
 	cfgToggleKey = keys.Own("config.toggle", ' ', "tui.hints.toggle")
 	cfgUndoKey   = keys.Own("config.undo", 'u', "tui.hints.undo")
-	cfgSaveKey   = keys.Own("config.save", 'w', "tui.hints.save")
 	cfgSyncKey   = keys.Own("config.sync", 's', "tui.hints.sync")
 	cfgTestKey   = keys.Own("config.test", 't', "tui.hints.test")
 )

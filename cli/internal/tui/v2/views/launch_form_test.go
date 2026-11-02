@@ -216,7 +216,7 @@ func TestLaunchFormDirtyChoices(t *testing.T) {
 		return txt
 	}
 	require.Eventually(t, func() bool {
-		return strings.Contains(recapText(), "[w] ◉ "+i18n.T("tui.launch.dirty.worktree"))
+		return strings.Contains(recapText(), "[t] ◉ "+i18n.T("tui.launch.dirty.worktree"))
 	}, 2*time.Second, 10*time.Millisecond)
 	assert.Contains(t, recapText(), "cp-2 ⏸ pause (obligatoire)")
 	assert.Contains(t, recapText(), "[s] ○ "+i18n.T("tui.launch.dirty.stash"))

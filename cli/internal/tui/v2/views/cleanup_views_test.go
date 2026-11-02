@@ -105,6 +105,9 @@ func (s *viewShell) lastToast() string {
 
 func runeKey(r rune) *tcell.EventKey { return tcell.NewEventKey(tcell.KeyRune, r, tcell.ModNone) }
 
+// ctrlSKey is Ctrl+S, the key that saves (keys.Save).
+func ctrlSKey() *tcell.EventKey { return tcell.NewEventKey(tcell.KeyCtrlS, 0, tcell.ModNone) }
+
 // soloState creates a solo team-state and its resolution.
 func soloState(t *testing.T) (*teamstate.Repo, TeamResolution) {
 	t.Helper()
@@ -225,12 +228,15 @@ func TestProjectModelsViewKeys(t *testing.T) {
 	assert.Equal(t, "haiku", p.ModelOverrides.Families["developer"], "nothing deleted before the confirmation")
 	sh.confirmed(t, app)
 	assert.NotContains(t, p.ModelOverrides.Families, "developer")
+	assert.Contains(t, pageTitle(t, app, v.page), "enregistrement…", "the edit waits for the delay and says so")
 	select {
 	case got := <-saved:
 		assert.Empty(t, got)
 	case <-time.After(3 * time.Second):
 		t.Fatal("not saved")
 	}
+	require.Eventually(t, func() bool { return strings.Contains(pageTitle(t, app, v.page), "✔ enregistré") },
+		2*time.Second, 10*time.Millisecond, "saved: the title says so")
 }
 
 // ── Team models ────────────────────────────────────────────────────────────
@@ -265,9 +271,15 @@ func TestTeamModelsViewKeys(t *testing.T) {
 	onLoop(app, func() { selectSection(t, v.list, "quality"); v.HandleKey(runeKey('d')) })
 	require.Equal(t, 1, sh.confirmCount())
 	sh.confirmed(t, app)
+	assert.Contains(t, pageTitle(t, app, v.page), "non publié — Ctrl+S", "the change is not published until Ctrl+S")
 	onLoop(app, func() { v.HandleKey(runeKey('w')) })
+	assert.Nil(t, saved.Load(), "w no longer saves")
+	onLoop(app, func() { v.HandleKey(ctrlSKey()) })
 	require.Eventually(t, func() bool { return saved.Load() != nil }, 3*time.Second, 5*time.Millisecond)
 	assert.NotContains(t, saved.Load().Models.Families, "quality")
+	require.Eventually(t, func() bool { return strings.Contains(pageTitle(t, app, v.page), "✔ enregistré") },
+		2*time.Second, 10*time.Millisecond, "published: the title says so")
+	assert.NotContains(t, pageTitle(t, app, v.page), "non publié")
 }
 
 // ── Patterns ───────────────────────────────────────────────────────────────
@@ -519,7 +531,7 @@ func TestTeamMCPViewRefreshAsksWhenDirty(t *testing.T) {
 	waitFor(t, app, func() bool { return v.dirtyTeam || v.dirtyLocal })
 	onLoop(app, func() { v.HandleKey(runeKey('r')) })
 	assert.Equal(t, 1, sh.confirmCount(), "r asks before dropping the changes")
-	onLoop(app, func() { v.HandleKey(runeKey('w')) })
+	onLoop(app, func() { v.HandleKey(ctrlSKey()) })
 	require.Eventually(t, func() bool { return saved.Load() != nil }, 3*time.Second, 5*time.Millisecond)
 }
 
@@ -604,4 +616,58 @@ func TestTeamDetailKeys(t *testing.T) {
 	onLoop(app, func() { sh.modalTitle = ""; v.HandleKey(runeKey('s')) })
 	waitFor(t, app, func() bool { return strings.Contains(sh.lastToast(), "token expired") })
 	assert.Empty(t, sh.modalTitle, "an error that mentions a token is not a missing token")
+}
+
+// pageTitle is the title of the left frame of a page.
+func pageTitle(t *testing.T, app *tview.Application, page *widgets.ListDetailPage) string {
+	t.Helper()
+	var title string
+	onLoop(app, func() { title = page.Left.GetTitle() })
+	return title
+}
+
+// The indicator follows the real write, which runs off the event loop: while
+// it runs the title says « enregistrement… », when it ends « enregistré », and
+// when it fails « non enregistré » (the change stays unpublished).
+func TestTeamModelsViewIndicatorFollowsTheWrite(t *testing.T) {
+	frLocale(t)
+	repo, tc := soloState(t)
+	cfg, err := repo.LoadConfig()
+	require.NoError(t, err)
+	cfg.Models.Families = map[string]string{"quality": "sonnet", "fast": "haiku"}
+	require.NoError(t, repo.SaveConfig(context.Background(), cfg))
+
+	started, release := make(chan struct{}, 2), make(chan error)
+	v := NewTeamModelsView(TeamModelsViewConfig{
+		ResolveTeam: func() TeamResolution { return tc },
+		SaveTeamConfig: func() TeamConfigWriter {
+			return func(context.Context, *teamstate.TeamConfig) error {
+				started <- struct{}{}
+				return <-release
+			}
+		},
+	})
+	sh := &viewShell{}
+	v.SetShell(sh)
+	content := tview.NewFlex()
+	app := runApp(t, content)
+	onLoop(app, func() { v.Mount(content, app) })
+	waitFor(t, app, func() bool { return v.list != nil })
+	title := func() string { return pageTitle(t, app, v.page) }
+
+	onLoop(app, func() { selectSection(t, v.list, "quality"); v.HandleKey(runeKey('d')) })
+	sh.confirmed(t, app)
+	assert.Contains(t, title(), "non publié — Ctrl+S")
+
+	onLoop(app, func() { v.HandleKey(ctrlSKey()) })
+	<-started
+	assert.Contains(t, title(), "enregistrement…", "the write runs: not published yet")
+	release <- errors.New("push refused")
+	require.Eventually(t, func() bool { return strings.Contains(title(), "non enregistré") }, 2*time.Second, 10*time.Millisecond)
+
+	onLoop(app, func() { v.HandleKey(ctrlSKey()) })
+	<-started
+	assert.Contains(t, title(), "enregistrement…")
+	release <- nil
+	require.Eventually(t, func() bool { return strings.Contains(title(), "✔ enregistré") }, 2*time.Second, 10*time.Millisecond)
 }

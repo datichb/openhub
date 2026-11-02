@@ -6,7 +6,9 @@
 //
 // Contexts:
 //   - Everywhere: ↑↓/jk move, g/G first/last, / filter, r refresh, ? help,
-//     Enter open, Esc back;
+//     Enter open, Esc back, Ctrl+S save (the team configuration and the
+//     workflow editor, which do not save on their own; the hub and project
+//     pages save by themselves after one delay and say so);
 //   - List: n create, e edit, d delete (always confirmed), x archive or file
 //     away (never destructive), R resume or restore, c compare (diff);
 //   - Decision (checkpoint card, wiki proposal, element of a batch): y
@@ -16,7 +18,8 @@
 //
 // A view may bind other letters to its own actions (a attach, t transfer…)
 // but never gives a key of the convention another meaning, nor an action of
-// the convention another key. TestKeyConvention checks the hints lines.
+// the convention another key. w has one meaning only, open in the browser
+// (the sessions): saving is Ctrl+S. TestKeyConvention checks the hints lines.
 // See docs/dev/tui-conventions.md.
 package keys
 
@@ -183,7 +186,7 @@ func HelpRows(c Context) []HelpRow {
 
 func helpActions(c Context) []Action {
 	if c == Everywhere {
-		return []Action{Navigate, Ends, Filter, Refresh, Help, Open, Back}
+		return []Action{Navigate, Ends, Filter, Refresh, Help, Open, Back, Save}
 	}
 	return ByContext(c)
 }
@@ -203,7 +206,7 @@ func ByContext(c Context) []Action {
 // display order.
 func All() []Action {
 	return []Action{
-		Up, Down, First, Last, Filter, Refresh, Help, Open, Back,
+		Up, Down, First, Last, Filter, Refresh, Help, Open, Back, Save,
 		Create, Edit, Delete, Archive, Resume, Compare,
 		Accept, Refuse, Modify, Leave, AcceptAll,
 		Search, NextMatch, PrevMatch,
@@ -227,6 +230,12 @@ var (
 	Help    = Action{ID: "help", Context: Everywhere, Bindings: []Binding{Rune('?'), Special(tcell.KeyF1)}, display: "?", labelKey: "tui.keys.action.help"}
 	Open    = Action{ID: "open", Context: Everywhere, Bindings: []Binding{Special(tcell.KeyEnter)}, nameKey: "tui.keys.name.enter", labelKey: "tui.keys.action.open"}
 	Back    = Action{ID: "back", Context: Everywhere, Bindings: []Binding{Special(tcell.KeyEscape)}, nameKey: "tui.keys.name.esc", labelKey: "tui.keys.action.back"}
+	// Save saves what a page edited and does not save on its own: the team
+	// configuration (shared, hence « non publié » until then) and the
+	// workflow editor. The hub and project pages save after one delay
+	// (SaveDelay of the views) and need no key. In a launch form or a
+	// wizard Ctrl+S goes on to the next step or launches.
+	Save = Action{ID: "save", Context: Everywhere, Bindings: []Binding{Special(tcell.KeyCtrlS)}, display: "Ctrl+S", labelKey: "tui.keys.action.save"}
 
 	// Navigate (↑↓/jk) and Ends (g/G) are the composite entries of the
 	// hints and the help.
@@ -370,6 +379,7 @@ func Changes() []Change {
 		change("history", "r", Resume.Keys(), "restore"),
 		change("editor", "x", Delete.Keys(), "remove"),
 		change("editor", "y", "Y", "raw_yaml"),
+		change("editor", "w", Save.Keys(), "save"),
 		change("patterns", "a", Create.Keys(), "create"),
 		change("patterns", "v", Accept.Keys(), "validate"),
 		change("projects", "a", Create.Keys(), "create"),
@@ -379,6 +389,10 @@ func Changes() []Change {
 		change("worktrees", "a", Create.Keys(), "create"),
 		change("worktrees", "x", "M", "cleanup_merged"),
 		change("team", "y", "T", "discover"),
+		change("team", "w", Save.Keys(), "save"),
+		change("activity", "w", "s", "week"),
+		change("mcp", "w", "m", "write"),
+		change("launch", "w", "t", "dirty_worktree"),
 		change("lists", "a", Create.Keys(), "create"),
 	}
 }

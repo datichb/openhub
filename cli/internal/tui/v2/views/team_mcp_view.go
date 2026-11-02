@@ -74,6 +74,7 @@ type TeamMCPView struct {
 	fields     []configField
 	dirtyTeam  bool
 	dirtyLocal bool
+	badge      saveBadge
 	// saving is true while a save runs off the event loop; saveAgain, that an
 	// edit asked for another one meanwhile.
 	saving, saveAgain bool
@@ -105,7 +106,7 @@ func (v *TeamMCPView) Title() string { return i18n.T("tui.config.section.mcp_ser
 func (v *TeamMCPView) StatusHints() string {
 	return keys.Hints(keys.Navigate.Hint(), "{/} "+i18n.T("tui.hints.sections"),
 		toggleHint(),
-		keys.Open.HintAs(i18n.T("tui.hints.edit")), cfgSaveKey.Hint(),
+		keys.Open.HintAs(i18n.T("tui.hints.edit")), keys.Save.Hint(),
 		cfgUndoKey.Hint(), cfgTestKey.Hint(), keys.Refresh.Hint())
 }
 
@@ -128,6 +129,7 @@ func (v *TeamMCPView) Mount(content *tview.Flex, app *tview.Application) {
 		v.list = widgets.NewSectionedList()
 		v.list.SetApp(app)
 		v.page = newListPage(v.Title(), v.list)
+		v.badge.attach(v.page, v.Title())
 
 		v.list.SetItemSelectedFunc(func(index int, item widgets.SectionItem) {
 			v.onItemSelected(index, item)
@@ -199,7 +201,7 @@ func (v *TeamMCPView) Unmount() {
 	v.loads.Invalidate() // drop the load in flight
 	v.tests.Invalidate()
 	if (v.dirtyTeam || v.dirtyLocal) && v.shell != nil {
-		v.shell.ShowToastMsg(i18n.T("tui.settings.unsaved"), false)
+		v.shell.ShowToastMsg(i18n.T("tui.save.unpublished_left"), false)
 	}
 	v.app = nil
 	v.list = nil
@@ -208,7 +210,7 @@ func (v *TeamMCPView) Unmount() {
 
 // teamMCPExtraKeys are the page keys listed in the detail pane.
 func teamMCPExtraKeys() []string {
-	return []string{cfgTestKey.Keys(), cfgTestKey.Label(), cfgSaveKey.Keys(), cfgSaveKey.Label(), cfgUndoKey.Keys(), cfgUndoKey.Label(), keys.Refresh.Keys(), keys.Refresh.Label()}
+	return []string{cfgTestKey.Keys(), cfgTestKey.Label(), keys.Save.Keys(), keys.Save.Label(), cfgUndoKey.Keys(), cfgUndoKey.Label(), keys.Refresh.Keys(), keys.Refresh.Label()}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -231,7 +233,7 @@ func (v *TeamMCPView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	case cfgToggleKey.Matches(event):
 		v.toggleSelected()
 		return nil
-	case cfgSaveKey.Matches(event):
+	case keys.Save.Matches(event):
 		v.save()
 		return nil
 	case cfgUndoKey.Matches(event):
@@ -426,7 +428,17 @@ func (v *TeamMCPView) buildFields() {
 // Rendering
 // ─────────────────────────────────────────────────────────────────────────────
 
+// syncBadge shows whether the changes are published to the team-state.
+func (v *TeamMCPView) syncBadge() {
+	if v.saving {
+		v.badge.set(saveStatusPending) // the write runs: not published yet
+		return
+	}
+	v.badge.settle(v.dirtyTeam || v.dirtyLocal)
+}
+
 func (v *TeamMCPView) renderFields() {
+	v.syncBadge()
 	if v.list == nil {
 		return
 	}
@@ -662,6 +674,7 @@ func (v *TeamMCPView) save() {
 	var teamDone, localDone bool
 	var teamErr, localErr error
 	v.saving = true
+	v.badge.set(saveStatusPending) // the write really runs: saved is said when it ends
 	persist(v.app, func(ctx context.Context) error {
 		if saveTeam {
 			teamErr = writeTeam(ctx, &teamCopy)
@@ -690,10 +703,12 @@ func (v *TeamMCPView) save() {
 			v.dirtyTeam = true
 			v.dirtyLocal = v.dirtyLocal || saveLocal // not tried
 			v.shell.ShowToastMsg(i18n.T("tui.team_mcp.save_error_team")+teamErr.Error(), false)
+			v.badge.set(saveStatusFailed)
 			return
 		case localErr != nil:
 			v.dirtyLocal = true
 			v.shell.ShowToastMsg(i18n.T("tui.team_mcp.save_error_local")+localErr.Error(), false)
+			v.badge.set(saveStatusFailed)
 			return
 		}
 		var saved []string
@@ -707,6 +722,7 @@ func (v *TeamMCPView) save() {
 			saved = append(saved, i18n.T("tui.team_mcp.scope_local"))
 		}
 		if len(saved) == 0 {
+			v.syncBadge()
 			v.shell.ShowToastMsg(i18n.T("tui.team_mcp.no_changes"), true)
 			return
 		}

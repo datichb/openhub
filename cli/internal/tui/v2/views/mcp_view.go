@@ -60,11 +60,11 @@ type MCPViewConfig struct {
 // as `oh mcp trust`, after a confirmation).
 var trustKey = keys.Own("mcp.trust", 'T', "tui.mcp.trust_key")
 
-// The keys of the view that are its own: t stores the token of the service, w
+// The keys of the view that are its own: t stores the token of the service, m
 // switches its write mode.
 var (
 	mcpTokenKey = keys.Own("mcp.token", 't', "tui.hints.token")
-	mcpWriteKey = keys.Own("mcp.write", 'w', "tui.hints.write")
+	mcpWriteKey = keys.Own("mcp.write", 'm', "tui.hints.write")
 )
 
 // MCPView displays MCP server management with a SectionedList panel
