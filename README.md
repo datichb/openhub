@@ -63,7 +63,7 @@ opencode V1 is no longer supported: oh refuses to start a session with a clear m
 oh init                              # First-time setup: language, opencode V2 check, project, MCP, workflow space
 oh run quick -m "Fix the typo in the header"   # Small change, one agent
 oh run spec -m "CSV export of the invoices"   # Spec in the wiki then Beads tickets, no implementation
-oh run feature                       # Alias of spec (like oh start): the session asks for the feature
+oh run feature                       # Alias of spec: the session asks for the feature
 oh session next <session>            # Next step proposed by oh (here: implement-spec on the created tickets)
 oh run implement-spec --parent <session>   # Implement the tickets of the spec, review of the whole
 oh run ticket --tickets bd-42,bd-43  # One session per Beads ticket (one server, one worktree each)
@@ -114,7 +114,7 @@ In the TUI, **Start** lists the workflows (★ pinned, recent ones), opens the l
 | `oh gc` · `oh eval` | Cleanup (sessions, wiki proposals, fan-out branches); behaviour evaluations with a real model |
 | `oh beads …` | Proxy to `bd` (Beads CLI) |
 
-**Deprecated aliases** (warning, then `oh run`): `oh start` → `oh run feature` (alias of `spec`), `oh start --agent X` → `oh run libre --agent X`, `oh start --dev` → `oh run ticket`, `oh audit` → `oh run audit`, `oh review` → `oh run review` (`--publish` stays an oh command), `oh debug` → `oh run debug`. `oh deploy` and `oh sync` only display a migration message.
+**Removed commands.** `oh start`, `oh audit`, `oh review`, `oh debug`, `oh review feedback`, `oh service` and `oh takeover-brief enrich`, deprecated aliases in 5.0, were removed in 5.1: the name answers with its replacement (exit code 2) — `oh start` → `oh run <workflow>`, `oh audit|review|debug` → `oh run audit|review|debug`, `oh review --publish` → `oh mr create`, `oh service` → `oh mcp`. See [Migration from 5.0](docs/guides/migration-v5.en.md#from-50-to-51). `oh deploy` and `oh sync` only display a migration message.
 
 > Full reference: [docs/reference/cli.en.md](docs/reference/cli.en.md) · [CLI — Workflows](docs/reference/cli-workflows.en.md) · [CLI — Sessions](docs/reference/cli-sessions.en.md) · [v5 Sessions](docs/guides/sessions-v5.en.md)
 

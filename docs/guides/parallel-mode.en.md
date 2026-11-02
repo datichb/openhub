@@ -10,7 +10,7 @@ v5 equivalent: **one session per ticket, in a single server group**, each in its
 oh run ticket --tickets BD-42,BD-43,BD-44
 ```
 
-- `oh start --parallel --tickets a,b` remains a deprecated alias of this command; without `--tickets`, it is refused.
+- `oh start --parallel --tickets a,b` was an alias of this command; it was removed in 5.1.
 - Follow the sessions in the TUI **Sessions** view or with `oh session list`; branches are merged through your merge requests.
 - `--max-sessions` and `--priority` no longer have any effect.
 

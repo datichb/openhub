@@ -21,7 +21,7 @@ oh run review -i review_mode=standard+adversarial  # Combined modes
 oh run review -i review_mode=all                # All review modes
 ```
 
-`oh review [--mode …] [--branch …]` remains a deprecated alias of `oh run review`.
+`oh review [--mode …] [--branch …]` was removed in 5.1: use `oh run review -i review_mode=… -i branch=…`.
 
 **Automatic branch detection:** When on a feature branch, the reviewer agent automatically detects the base branch and injects `[BRANCH:feature/xyz] [BASE:main]` context into the review prompt.
 
@@ -67,14 +67,14 @@ This command:
 
 ## Processing Feedback
 
-When a human reviewer leaves comments on the MR, the `review-feedback` workflow addresses them. `oh review feedback <ticket-or-branch>` reads the discussions on GitLab then launches this workflow (deprecated alias of `oh run review-feedback`: oh shows a warning):
+When a human reviewer leaves comments on the MR, the `review-feedback` workflow addresses them. `oh run review-feedback -i mr=<url|!iid|branch>` reads the MR and its unresolved discussions on GitLab at launch, then runs the workflow (the former `oh review feedback` command, removed in 5.1, did the same):
 
 ```bash
-oh review feedback BD-42             # By ticket reference
-oh review feedback feat/auth-flow    # By branch name
+oh run review-feedback -i mr=!42                  # By MR number
+oh run review-feedback -i mr=feat/auth-flow      # By branch name
 ```
 
-The ticket or branch is required. With `oh run review-feedback`, you provide the `mr`, `branch` and `feedback` (discussions) inputs yourself (`-i key=value`): see [Shipped workflows › review-feedback](../reference/workflows.en.md#review-feedback).
+The `mr` input is required; `branch`, `base` and `feedback` (discussions) are computed by oh when left empty (`-i key=value` to force them): see [Shipped workflows › review-feedback](../reference/workflows.en.md#review-feedback).
 
 ### How it works
 
@@ -106,7 +106,7 @@ The ticket or branch is required. With `oh run review-feedback`, you provide the
 2. oh run review -i review_mode=standard  # AI reviews the code
 3. oh mr create                    # Create MR on GitLab
 4. [Human reviews on GitLab]              # Reviewer leaves comments
-5. oh review feedback BD-42               # AI addresses feedback (review-feedback workflow)
+5. oh run review-feedback -i mr=!42      # AI addresses feedback (review-feedback workflow)
 6. [Human approves MR]                    # Final approval
 7. [Developer merges]                     # Manual merge
 ```
@@ -129,7 +129,7 @@ The ticket or branch is required. With `oh run review-feedback`, you provide the
 Error: no merge request found for branch "feat/xyz"
 ```
 
-Verify the branch has been pushed to the remote. `oh review feedback` looks for an open MR matching the branch name.
+Verify the branch has been pushed to the remote. `oh run review-feedback` looks for an open MR matching the branch name.
 
 ### Insufficient token permissions
 

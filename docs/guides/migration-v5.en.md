@@ -2,7 +2,7 @@
 
 # Migrating to oh v5
 
-oh v5 starts every session from a **workflow** (`oh run <workflow>`), in a **session bundle** built outside the project, on an **opencode V2** server. This guide lists what changes for a v4 user (4.2.0). The same breaking changes, grouped by theme with the action to take, are in [MIGRATION.md](../../MIGRATION.md) (in French).
+oh v5 starts every session from a **workflow** (`oh run <workflow>`), in a **session bundle** built outside the project, on an **opencode V2** server. This guide lists what changes for a v4 user (4.2.0). The same breaking changes, grouped by theme with the action to take, are in [MIGRATION.md](../../MIGRATION.md) (in French). **Coming from 5.0?** Go to [From 5.0 to 5.1](#from-50-to-51).
 
 ## Step-by-step update
 
@@ -18,7 +18,7 @@ oh v5 starts every session from a **workflow** (`oh run <workflow>`), in a **ses
 
 ## 1. opencode V2 required
 
-opencode V1 is no longer supported, with no fallback. oh v5 requires an opencode version between **2.0.0** and **2.99.99**; the **recommended** version is **2.0.25** (the one of the CI). Outside that range, `oh run`, `oh start` and its aliases refuse to start and say why:
+opencode V1 is no longer supported, with no fallback. oh v5 requires an opencode version between **2.0.0** and **2.99.99**; the **recommended** version is **2.0.25** (the one of the CI). Outside that range, `oh run` refuses to start and says why:
 
 ```text
 opencode 1.18.29 is not supported: oh v5 requires version 2.0.0 or later.
@@ -34,9 +34,9 @@ The fingerprint of the opencode Linux packages is pinned in oh for versions **2.
 
 `oh upgrade opencode`, the managed install in `~/.oh/bin` and the `[opencode] version`, `channel`, `auto_update`, `install_dir` keys of `hub.toml` are removed (ignored if they remain). `[llm] default_provider` stays.
 
-## 2. Former commands: aliases of `oh run`
+## 2. Former commands: replaced by `oh run`
 
-They still work during v5.x, with a warning that gives the command to use:
+These commands were deprecated aliases during 5.0; **5.1 removed them** ([From 5.0 to 5.1](#from-50-to-51)). The table gives the command to use:
 
 | Former command | v5 equivalent |
 |---|---|
@@ -48,14 +48,12 @@ They still work during v5.x, with a warning that gives the command to use:
 | `oh start --sweep <goal>` | `oh run sweep -i goal=<goal>` |
 | `oh start --resume <id>` | `oh session attach <id> --attach suspend` |
 | `oh audit`, `oh review`, `oh debug` | `oh run audit`, `oh run review`, `oh run debug` |
-| `oh review feedback <mr>` | `oh run review-feedback -i mr=<mr>` (deprecated: `oh review feedback` still reads the GitLab discussions, previews them, then launches this workflow); `oh review --publish`: `oh mr create` |
+| `oh review feedback <mr>` | `oh run review-feedback -i mr=<mr>` (the workflow reads the GitLab discussions itself); `oh review --publish`: `oh mr create` |
 | `oh takeover-brief enrich` | `oh run brief-enrich --headless` |
 | `oh service` (`setup`, `remove`) | `oh mcp status`, `oh mcp setup`, `oh mcp disable` |
 
-No longer working:
+No longer working (no equivalent): `--max-sessions`, `--priority`, `--sweep-branch-prefix`.
 
-- `oh start --parallel` **without** `--tickets` (refused); `--max-sessions`, `--priority`, `--sweep-branch-prefix` have no effect.
-- `oh start --agent` combined with `--dev`, `--onboard`, `--parallel` or `--sweep` (refused).
 - The monitor and merge view of the parallel mode: follow the sessions in the **Sessions** view or `oh session list`.
 
 ## 3. Free session: the `libre` workflow
@@ -120,17 +118,17 @@ The former community skills registry (`oh skill add`, `list`, `remove`, `search`
 
 ## 11. Commands, options and exit codes
 
-**Removed or deprecated commands**
+**Removed commands**
 
 - `oh deploy` and `oh sync`: see §6 (hidden, exit code 2).
-- `oh start`, `oh audit`, `oh review`, `oh debug`, `oh review feedback`, `oh takeover-brief enrich`: deprecated aliases of `oh run` (§2). **`oh service`** (`setup`, `remove`) is deprecated too: use `oh mcp status`, `oh mcp setup`, `oh mcp disable`.
+- `oh start`, `oh audit`, `oh review`, `oh debug`, `oh review feedback`, `oh takeover-brief enrich`: removed in 5.1 (§2); so is **`oh service`** (`setup`, `remove`): use `oh mcp status`, `oh mcp setup`, `oh mcp disable`. The name answers with its replacement, exit code 2.
 - `oh plugin` (§4), `oh skill add|list|remove|search|budget` (§10) and `oh upgrade opencode` (§1) no longer exist: "unknown command", exit code 2.
 
 **Options**
 
-- **One letter, one meaning**: `-p` is always `--project`, `-m` always `--message`, `-y` always `--yes`… ([table of short options](../reference/cli.en.md#short-options)). The former forms are still accepted for **one version**, with a warning: `oh serve -p` (→ `--port`), `oh project configure -m` (→ `--model`), `oh metrics -d` (→ `--period`), `oh review -m` / `-b` (→ `--mode` / `--branch`), `oh debug -i` (→ `--issue`), `oh audit -t` (→ `--type`), `oh start -w` / `-l` (→ `--worktree` / `--label`), `oh session attach --how` (→ `--attach`; the value `here` becomes `suspend`).
+- **One letter, one meaning**: `-p` is always `--project`, `-m` always `--message`, `-y` always `--yes`… ([table of short options](../reference/cli.en.md#short-options)). The short forms deprecated in 5.0 (`oh serve -p`, `oh project configure -m`, `oh metrics -d`, `oh session attach --how` and the value `here`…) were **removed in 5.1**: use `--port`, `--model`, `--period`, `--attach` (value `suspend`).
 - **Removed without an alias** (exit code 2): `oh config model … -j` (use `-p`) and `oh purge --include-opencode` (use `--include-tool-data`).
-- `--force` / `-f` no longer skips a confirmation: use `--yes` / `-y`. On `oh purge`, `oh project remove`, `oh teams remove` and `oh service remove`, `--force` is still accepted for one version (same effect, warning, hidden from the help). `--force` stays where it overrides a safety: `oh daemon stop`, `oh remote setup`, `oh worktree remove`, `oh worktree cleanup` (the latter also deletes modified worktrees).
+- `--force` / `-f` no longer skips a confirmation: use `--yes` / `-y`. On `oh purge`, `oh project remove` and `oh teams remove`, `--force` was removed in 5.1. `--force` stays where it overrides a safety: `oh daemon stop`, `oh remote setup`, `oh worktree remove`, `oh worktree cleanup` (the latter also deletes modified worktrees).
 - `oh status --json`: `tool` and `tool_version` replace `opencode_version`.
 - **Implicit project**: outside the folder of a project, oh no longer silently takes the only registered project. A command that writes asks for confirmation and refuses without a terminal ("run the command from the project directory or use -p <project>"); a command that reads announces the project it uses.
 - **Help**: `oh --help` gives one line per top-level command (about 70 lines instead of 573), with an "Advanced" section (`bundle`, `fanout`, `migrate`, `takeover-brief`, `completion`). `oh help --all` (or `oh --help --all`) gives the full listing of before; `oh <command> --help` is unchanged. A script that parsed `oh --help` must read `oh help --all`. `oh --all` alone prints the full help instead of opening the TUI.
@@ -243,7 +241,7 @@ Nothing to configure: a "New keys" message is shown once at the first launch aft
 ## 17. Team mode
 
 - **No longer a beta (5.1).** Team mode no longer has a warning on stderr, a "beta mode" check in `oh doctor` or a "Beta" line at the top of the team board and team configuration. What 5.0 announced as limits is fixed: a claim in review (`ready-for-review` label or `review` status) is **kept** when the session ends, and so is a claim whose checkpoint (`cp-2`) is waiting or was put off with work left (label `session-ended`); it has a **lease** (`lease_hours`, 24 h by default) that the daemon renews while an open session works on the ticket, after which another member can take it over with `oh team claim <ticket>` (common confirmation; a takeover is no longer a silent transfer); what the end of a session decides goes through a local queue (`.git/oh-claims-queue.json`) applied as soon as the team repository answers, so a release is no longer lost offline. Details: [Lease and end of session](team-setup.en.md#lease-and-end-of-session) and [Status model](team-setup.en.md#status-model). The remote mode remains **experimental**.
-- **Single GitLab token.** One search order for the tracker sync, `oh mr create` and `oh review --publish`, `oh review feedback`, the identity check of `oh team init|rejoin` and `oh mcp enable --project`: `GITLAB_TOKEN`, `tracker_token_key`, project token, team token, hub MCP token (key of `[mcp.gitlab] token`, then `openhub.mcp.gitlab.token`, then `gitlab-token`), then the former key `openhub.tracker.gitlab.token`. For `oh mr create`, the token of the project's team comes before the hub MCP token.
+- **Single GitLab token.** One search order for the tracker sync, `oh mr create`, the `review-feedback` inputs, the identity check of `oh team init|rejoin` and `oh mcp enable --project`: `GITLAB_TOKEN`, `tracker_token_key`, project token, team token, hub MCP token (key of `[mcp.gitlab] token`, then `openhub.mcp.gitlab.token`, then `gitlab-token`), then the former key `openhub.tracker.gitlab.token`. For `oh mr create`, the token of the project's team comes before the hub MCP token.
 - **Disabled tracker.** The TUI no longer syncs a tracker with `[tracker] enabled = false`. Before, it synced it anyway.
 - `oh mr create` reads the GitLab project and the reviewer from the project's team (falling back to the hub team).
 - The REVIEW column of `oh board` and of the TUI Board is filled: a Beads `in_progress` ticket with the `ready-for-review` label is shown there. The MCP review vote moves an approved ticket through `review` then `done`.
@@ -269,9 +267,39 @@ Not tested: opening a 5.0 database with a 4.2.0 binary. `oh repair` (no option) 
 ## 20. Visible security
 
 - **`oh mcp trust <service>`**: an MCP service URL **imposed by the team** is used only once approved (pinned in `mcp.<service>.trusted_url` of your own `hub.toml`); `https` required outside loopback. Without approval, the token is not sent to that URL and oh warns (`oh doctor`, `oh mcp status`, `oh team config`, MCP view of the TUI, `T` key). Each member runs `oh mcp trust <service>` after checking the URL and host shown; `oh mcp untrust <service>` withdraws the approval.
-- **Global guard of the agents**: an agent can no longer run, from its shell, `oh mcp trust|untrust|setup|enable|disable|reset|serve`, `oh config set|unset|language|websearch`, `oh config model default|family|agent|unset`, `oh service setup|remove`, `oh secrets set|delete|get|cleanup`, `oh budget set|unset|raise`, nor what publishes or deletes: `oh workflow publish|archive|restore`, `oh brick publish`, `oh purge`, `oh project remove` (aliases `rm`, `p`), `oh teams remove|archive|restore`, `--yes` included. Reads (`list`, `show`, `diff`) stay allowed. This is a guard rail, not a barrier: run these commands yourself.
+- **Global guard of the agents**: an agent can no longer run, from its shell, `oh mcp trust|untrust|setup|enable|disable|reset|serve`, `oh config set|unset|language|websearch`, `oh config model default|family|agent|unset`, `oh secrets set|delete|get|cleanup`, `oh budget set|unset|raise`, nor what publishes or deletes: `oh workflow publish|archive|restore`, `oh brick publish`, `oh purge`, `oh project remove` (aliases `rm`, `p`), `oh teams remove|archive|restore`, `--yes` included. Reads (`list`, `show`, `diff`) stay allowed. This is a guard rail, not a barrier: run these commands yourself.
 - **`oh serve`**: random token per launch (URL `?token=…`, then a cookie), 401 without a token, 403 if `Host` is not `127.0.0.1`, `localhost` or `[::1]`. Open the URL shown and do not share it.
 - **Isolation**: the plugins of your personal opencode configuration are reported at launch and by `oh doctor`; `execution.strict_isolation = true` hides them and refuses an opencode package without a pinned fingerprint (default: `false`).
 - Without any action from you: the credential proxy no longer relays the agent's headers as is, the MCP gateway of containers is closed by default, writes of secrets, configuration, reports and wiki are atomic.
 
 Accepted limits and maturity of the features: [SECURITY.md](../../SECURITY.md).
+
+## From 5.0 to 5.1
+
+5.1 **removes** what 5.0 had deprecated (breaking change, announced in the [CHANGELOG](../../CHANGELOG.md)). A removed command name does not vanish without an explanation: `oh` shows the replacement on the error output and exits with code **2** (a script sees it). A removed option gives the unknown-option error of the command line (code 2).
+
+**Commands**
+
+| Removed in 5.1 | Replacement |
+|---|---|
+| `oh start` | `oh run <workflow>`: `oh run libre --agent <agent>` (free launch), `oh run ticket --tickets <ids>`, `oh run onboarding`, `oh run sweep`, `oh run feature`; `oh session attach <id>` to resume a session |
+| `oh audit` | `oh run audit -i type=<type>` |
+| `oh review` | `oh run review -i review_mode=<mode> -i branch=<branch>`; `oh review --publish` → `oh mr create` |
+| `oh review feedback <ref>` | `oh run review-feedback -i mr=<ref>` |
+| `oh debug` | `oh run debug -i issue=<description>` |
+| `oh service`, `oh service setup`, `oh service remove` | `oh mcp status`, `oh mcp setup`, `oh mcp disable` (delete the token with `oh secrets delete <key>`: `oh mcp disable` leaves the keychain alone) |
+| `oh takeover-brief enrich <ticket>` | `oh run brief-enrich --headless -i ticket=<ticket>`, or the `e` key of the Takeover view of the TUI (which saves the enriched brief) |
+
+**Options**
+
+| Removed in 5.1 | Replacement |
+|---|---|
+| `oh serve -p`, `oh metrics -d`, `oh project configure -m` | `--port`, `--period`, `--model` |
+| `oh session attach --how`, value `--attach here` | `--attach`, value `suspend` |
+| `--force` / `-f` of `oh purge`, `oh project remove`, `oh teams remove` | `--yes` / `-y` |
+| `oh repair --auto` | `--yes` (for `--restore` without a terminal) |
+| `-w`, `-l`, `-t`, `-A`, `-r` of `oh start`, `-m`, `-b` of `oh review`, `-t` of `oh audit`, `-i` of `oh debug` | gone with their commands |
+
+`--force` stays on `oh daemon stop`, `oh remote setup`, `oh worktree remove` and `oh worktree cleanup`, where it overrides a safety. `oh dashboard` and `oh metrics` are not concerned.
+
+**To do**: search these names in your scripts, shell aliases and CI (`grep -rnE 'oh (start|audit|review|debug|service)\b|takeover-brief enrich|--force|repair --auto'`), then replace them following the tables. Details of the commands: [Commands removed in 5.1](../reference/cli-sessions.en.md#commands-removed-in-51).

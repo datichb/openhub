@@ -2,7 +2,7 @@
 
 # Sessions sur le runtime v5 (opencode V2)
 
-Toutes les sessions passent par le runtime v5 : `oh run <workflow>` (y compris `--tickets` et `--headless`), les lancements depuis la TUI et les alias dépréciés (`oh start`…). Il demande opencode V2 (≥ 2.0.0) : opencode V1 n'est plus pris en charge (voir le [guide de migration v5](migration-v5.fr.md)).
+Toutes les sessions passent par le runtime v5 : `oh run <workflow>` (y compris `--tickets` et `--headless`), et les lancements depuis la TUI (les alias `oh start`… ont été retirés en 5.1). Il demande opencode V2 (≥ 2.0.0) : opencode V1 n'est plus pris en charge (voir le [guide de migration v5](migration-v5.fr.md)).
 
 ## Fonctionnement
 

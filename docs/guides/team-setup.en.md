@@ -355,7 +355,7 @@ oh team claim transfer SRU-142 --to alice
 
 The table of the statuses, what puts a ticket in REVIEW, the lease of a claim and what becomes of the claim when a session ends are described at the end of this guide: [Status model](#status-model) and [Lease and end of session](#lease-and-end-of-session).
 
-> **Note:** Starting a session on a ticket already claimed as `planned` with `oh start --dev` (deprecated alias of `oh run ticket`) automatically transitions it to `in_progress`. Otherwise, change the status from the team board.
+> **Note:** Starting a session on a ticket already claimed as `planned` with `oh run ticket --tickets <id>` automatically transitions it to `in_progress`. Otherwise, change the status from the team board.
 
 ### Team status
 
@@ -526,10 +526,11 @@ oh takeover-brief show SRU-142
 oh takeover-brief list
 
 # Enrich a brief with AI code analysis
-oh takeover-brief enrich SRU-142
+# (or from the command line, without saving the brief:)
+oh run brief-enrich --headless -i ticket=SRU-142
 ```
 
-`oh takeover-brief enrich` runs the `brief-enrich` workflow without interface (deprecated alias of `oh run brief-enrich --headless -i ticket=<id>`; the workflow reads the brief from the team space itself), then saves the enriched brief in team-state. The `brief-enricher` agent is used to:
+The enrichment runs the `brief-enrich` workflow without interface (`oh run brief-enrich --headless -i ticket=<id>`; the workflow reads the brief from the team space itself); the Takeover view of the TUI (key `e`) then saves the enriched brief in team-state (`oh takeover-brief enrich`, removed in 5.1, did it from the command line). The `brief-enricher` agent is used to:
 - Read the files mentioned in the brief
 - Identify architectural decisions
 - Spot open questions (TODO, FIXME)
@@ -602,7 +603,7 @@ oh run ticket --tickets bd-42,bd-43,bd-44
 oh run ticket --tickets bd-42,bd-43,bd-44 --one-session
 ```
 
-`oh start --parallel --tickets …` remains a deprecated alias of `oh run ticket --tickets …` (refused without `--tickets`). `--priority` and `--max-sessions` no longer have any effect; to limit the sessions working at the same time, use the `max_active_sessions` restriction (`oh budget set`, see [v5 sessions › Restrictions](sessions-v5.en.md#restrictions)).
+`oh start --parallel --tickets …` was removed in 5.1: use `oh run ticket --tickets …`. `--priority` and `--max-sessions` no longer have any effect; to limit the sessions working at the same time, use the `max_active_sessions` restriction (`oh budget set`, see [v5 sessions › Restrictions](sessions-v5.en.md#restrictions)).
 
 ### Monitoring
 
@@ -634,7 +635,7 @@ ticket_patterns = { "T-SRU" = "SRU-(\\d+)" }
 "T-SRU" = "42"              # hub project ID → GitLab project ID/path
 ```
 
-> **Note:** Connection credentials (token, URL) are reused from `[mcp.gitlab]` / `[mcp.jira]` in `hub.toml` — no duplication. The GitLab token is looked for in a single order for every command (`GITLAB_TOKEN`, `tracker_token_key`, project, team, MCP, former tracker key): see [`oh team sync-tracker`](../reference/cli-team.en.md#oh-team-sync-tracker). `oh mr create` (and `oh review --publish`) find the team token too.
+> **Note:** Connection credentials (token, URL) are reused from `[mcp.gitlab]` / `[mcp.jira]` in `hub.toml` — no duplication. The GitLab token is looked for in a single order for every command (`GITLAB_TOKEN`, `tracker_token_key`, project, team, MCP, former tracker key): see [`oh team sync-tracker`](../reference/cli-team.en.md#oh-team-sync-tracker). `oh mr create` finds the team token too.
 >
 > **Two GitLab instances (team repository and tracker).** Each token is only sent to the server it is declared for: the team repository token (`openhub.team.<team>.gitlab.token`) only serves the GitLab of the repository (the host of the `state_repo`, or the declared `gitlab_url` when the repository is reached through an SSH alias). For the tracker, store its token (`oh secrets set <key>`), then set the key in `[tracker]` of the team config or of `hub.toml` (`oh config set tracker.tracker_token_key <key>`, the `oh team config` → Tracker sync assistant, the `oh init` and `oh team rejoin` wizards, or the `team-detail` view of the TUI, whose "Tracker token" field shows the key and server really declared — "not configured" otherwise — and keeps the token under that key): it is valid for the tracker with no further declaration; `tracker_token_url` is only needed when the token is for another server. An MCP token without `mcp.gitlab.url` is valid for `https://gitlab.com` only; set `mcp.gitlab.url` for another GitLab. `GITLAB_TOKEN` still needs `OH_GITLAB_URL` (or `GITLAB_URL`). If `state_repo` goes through an SSH alias (`git@my-alias:…`), declare the real GitLab of the repository (`gitlab_url` of your team in `hub.toml`, asked by `oh init` and `oh team rejoin`, or `--gitlab-url`): the team token is then valid for that GitLab and not for the alias. See [the server of each GitLab token](../reference/config.en.md#the-server-of-each-gitlab-token).
 >
@@ -722,7 +723,7 @@ A ticket exists in two places: in **Beads** (or the tracker), which `oh board` a
 The contract:
 
 - **In Beads, REVIEW is a label, not a status.** Beads 1.3 has no `review` status (unless the project declares one with `bd config set status.custom`). An agent that has finished adds the label (`bd update <ID> --add-label ready-for-review`) and leaves the status at `in_progress`; the review removes the label to send the ticket back to development, or closes the ticket. `oh board` and the TUI Board put an `in_progress` ticket carrying this label in REVIEW.
-- **On the claim side, REVIEW is the `review` status.** It is set when a review is published (`oh mr create`, `oh review --publish`), from the team board, or by the MCP review verdict (approved: `review` then `done`; rejected: back to `in_progress`). The team board shows this status.
+- **On the claim side, REVIEW is the `review` status.** It is set when a review is published (`oh mr create`), from the team board, or by the MCP review verdict (approved: `review` then `done`; rejected: back to `in_progress`). The team board shows this status.
 - **The two are not copied into each other.** Adding the label in Beads does not change the status of the claim, and moving the claim to `review` does not add the label.
 - **A single equivalence, at the end of a session**: for `teamstate.DecideClaimEnd`, the `ready-for-review` (or `review`) label, on the ticket or on the claim, is worth the `review` status of the claim. Either way the claim outlives the session (see below).
 - **A remote session does not write a status the project does not know.** The fake `bd` of the job refuses at once, with the error message of `bd` (exit code 1, before any write), a `bd update` or `bd create` whose `--status` is not in the Beads configuration of the project (the statuses are in the snapshot sent to the job; the case must match exactly). A remote agent that writes `--status review` with no configured `review` status is therefore stopped, instead of failing at replay; it must use the label.

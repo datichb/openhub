@@ -4,12 +4,26 @@ oh 5.0 est une version majeure : opencode V2 devient obligatoire, chaque session
 
 **À retenir avant de commencer**
 
-- Installez **opencode V2** (2.0.0 au minimum, **2.0.25** recommandée) : sans lui, `oh run` et `oh start` refusent de démarrer.
+- Installez **opencode V2** (2.0.0 au minimum, **2.0.25** recommandée) : sans lui, `oh run` refuse de démarrer.
 - Faites `oh export` avant la mise à jour, puis lancez `oh doctor`.
 - **`SSH_AUTH_SOCK` et `GH_TOKEN` ne passent plus aux agents** : autorisez-les avec `execution.env_allow` si vos agents en ont besoin.
 - `hub.toml` est lu **strictement** (`"true"` n'est plus un booléen) et `./hub.toml` n'est plus lu.
 - Dans un script ou en CI : une confirmation sans terminal est **refusée** (code 2) sauf `--yes` ; une commande ou une option inconnue sort en **2** (et non plus 1) ; `oh deploy` et `oh sync` n'existent plus.
 - La base de données passe de la version 27 à la 49 au premier lancement, avec une copie automatique ; le retour en arrière se fait en restaurant cette copie.
+
+## Vous venez de la 5.0 : ce que la 5.1 retire
+
+La 5.1 **retire** ce que la 5.0 avait déprécié (rupture). Un nom de commande retiré affiche son remplaçant sur la sortie d'erreur et sort en **2** ; une option retirée donne « unknown flag » (2). Détail et explications : [guide de migration, « Depuis la 5.0 vers la 5.1 »](docs/guides/migration-v5.fr.md#depuis-la-50-vers-la-51).
+
+| Retiré en 5.1 | À faire |
+|---|---|
+| `oh start` (et ses modes) | `oh run <workflow>` : `oh run libre --agent <agent>`, `oh run ticket --tickets <ids>`, `oh run onboarding`, `oh run sweep`, `oh run feature` ; `oh session attach <id>` pour reprendre |
+| `oh audit`, `oh review`, `oh debug` | `oh run audit -i type=<type>`, `oh run review -i review_mode=<mode>`, `oh run debug -i issue=<…>` |
+| `oh review feedback <réf>`, `oh review --publish` | `oh run review-feedback -i mr=<réf>`, `oh mr create` |
+| `oh service` (`setup`, `remove`) | `oh mcp status`, `oh mcp setup`, `oh mcp disable` ; jeton du trousseau : `oh secrets delete <clé>` |
+| `oh takeover-brief enrich` | `oh run brief-enrich --headless -i ticket=<id>`, ou la touche `e` de la vue Reprise de la TUI |
+| Options courtes `oh serve -p`, `oh metrics -d`, `oh project configure -m` ; `oh session attach --how` et `--attach here` | `--port`, `--period`, `--model`, `--attach` (`suspend`) |
+| `--force` / `-f` de `oh purge`, `oh project remove`, `oh teams remove` ; `oh repair --auto` | `--yes` / `-y` |
 
 ## Prérequis
 
@@ -19,7 +33,7 @@ oh 5.0 est une version majeure : opencode V2 devient obligatoire, chaque session
 | opencode | **V2** : minimum **2.0.0**, maximum 2.99.99, **recommandée 2.0.25** (la version testée par la CI) | `opencode --version`, puis `oh doctor` (ligne « opencode ») |
 | Plateforme | macOS ou Linux. Windows : sessions locales seulement (pas de conteneur, pas de mode distant, pas d'arrière-plan pour le démon, `oh upgrade oh` non pris en charge) | |
 
-opencode V1 n'est plus pris en charge, sans repli. Avec une version hors de la plage (trop ancienne, ou au-delà de 2.99.99), `oh run`, `oh start` et les alias refusent de démarrer et affichent :
+opencode V1 n'est plus pris en charge, sans repli. Avec une version hors de la plage (trop ancienne, ou au-delà de 2.99.99), `oh run` refuse de démarrer et affiche :
 
 ```text
 opencode 1.18.29 n'est pas pris en charge : oh v5 demande la version 2.0.0 ou plus récente.
@@ -67,31 +81,31 @@ Chaque ligne donne ce qui change pour un utilisateur de la 4.2.0 et ce qu'il fau
 
 ### Commandes et options
 
-**Commandes retirées ou dépréciées**
+**Commandes retirées**
 
 | Avant (4.2.0) | Maintenant | À faire |
 |---|---|---|
 | `oh deploy`, `oh sync` | **Masquées**, n'affichent que le message de migration, **code de sortie 2**. oh n'écrit plus rien dans `.opencode` : chaque session part d'un paquet construit hors du projet (`oh bundle show <workflow>`). Les étapes Agents et Déploiement de `oh init`, `oh project add` et `oh project configure` sont retirées (colonne `projects.agents` supprimée, migrations 36 et 37) | Retirer ces commandes des scripts ; `oh migrate deploy-cleanup` ([guide §8](docs/guides/migration-v5.fr.md#8-nettoyer-les-anciens-déploiements--oh-migrate-deploy-cleanup)) |
-| `oh start` | **Alias déprécié** (avertissement qui donne la commande) → `oh run feature`, lui-même alias de `spec` (ou de `implement-spec` avec `--tickets`) | `oh run spec`, `oh run implement-spec --tickets …` |
+| `oh start` | → `oh run feature`, lui-même alias de `spec` (ou de `implement-spec` avec `--tickets`) | `oh run spec`, `oh run implement-spec --tickets …` |
 | `oh start --dev [-t <id>]`, `--parallel --tickets a,b` | → `oh run ticket --tickets <id>` | idem |
 | `oh start --onboard [--refresh]`, `--sweep <objectif>` | → `oh run onboarding [-i refresh=true]`, `oh run sweep -i goal=<objectif>` | idem |
 | `oh start --agent <id>` | → `oh run libre --agent <id>` | idem |
 | `oh start --resume <id>` | → `oh session attach <id> --attach suspend` | idem |
-| `oh audit`, `oh review`, `oh debug` | Alias dépréciés → `oh run audit`, `oh run review`, `oh run debug` | idem |
-| `oh review feedback <mr>`, `oh review --publish` | Dépréciés → `oh run review-feedback -i mr=<mr>` ; `oh mr create` | idem |
-| `oh takeover-brief enrich` | Déprécié → `oh run brief-enrich --headless` | idem |
-| `oh service` (`setup`, `remove`) | **Dépréciée** (non annoncée par l'ancien CHANGELOG) → `oh mcp status`, `oh mcp setup`, `oh mcp disable` | idem |
+| `oh audit`, `oh review`, `oh debug` | → `oh run audit`, `oh run review`, `oh run debug` | idem |
+| `oh review feedback <mr>`, `oh review --publish` | → `oh run review-feedback -i mr=<mr>` ; `oh mr create` | idem |
+| `oh takeover-brief enrich` | → `oh run brief-enrich --headless` | idem |
+| `oh service` (`setup`, `remove`) | → `oh mcp status`, `oh mcp setup`, `oh mcp disable` | idem |
 | `oh skill add\|list\|remove\|search` et `oh skill budget` | **Supprimées** (`oh skill check` reste) ; `~/.oh/skills` n'est plus lu | Copier les skills voulues dans le catalogue d'équipe ; budget : `oh bundle show <workflow> --budget` ([guide §10](docs/guides/migration-v5.fr.md#10-skills-communautaires-et-oh-skill-budget-déconnectés)) |
 
-Ces alias marchent pendant toute la 5.x. Restent refusés ou sans effet : `oh start --parallel` **sans** `--tickets` ; `--agent` combiné à `--dev`, `--onboard`, `--parallel` ou `--sweep` ; `--max-sessions`, `--priority`, `--sweep-branch-prefix` (sans effet) ; `oh start --yes` (déprécié).
+Ces commandes, des alias dépréciés pendant la 5.0, sont **retirées en 5.1** (section « Vous venez de la 5.0 »). Sans équivalent : `--max-sessions`, `--priority`, `--sweep-branch-prefix`.
 
 **Options**
 
 | Changement | À faire |
 |---|---|
-| **Options courtes : une lettre, un sens** (`-p` = `--project`, `-m` = `--message`, `-y` = `--yes`…, [tableau](docs/reference/cli.fr.md#options-courtes)). Anciennes formes acceptées **une version** avec avertissement : `oh serve -p` (→ `--port`), `oh project configure -m` (→ `--model`), `oh metrics -d` (→ `--period`), `oh review -m` / `-b` (→ `--mode` / `--branch`), `oh debug -i` (→ `--issue`), `oh audit -t` (→ `--type`), `oh start -w` / `-l` (→ `--worktree` / `--label`), `oh session attach --how` (→ `--attach`, `here` devient `suspend`) | Utiliser les formes longues ou les nouvelles lettres |
+| **Options courtes : une lettre, un sens** (`-p` = `--project`, `-m` = `--message`, `-y` = `--yes`…, [tableau](docs/reference/cli.fr.md#options-courtes)). Les anciennes formes dépréciées en 5.0 ont été **retirées en 5.1** : `oh serve -p` (→ `--port`), `oh project configure -m` (→ `--model`), `oh metrics -d` (→ `--period`), `oh session attach --how` (→ `--attach`, `here` devient `suspend`) | Utiliser les formes longues ou les nouvelles lettres |
 | **Supprimées sans alias** (code 2) : `oh config model … -j` (→ `-p`) et `oh purge --include-opencode` (→ `--include-tool-data`) | Remplacer dans les scripts |
-| `--force` / `-f` ne sert plus à sauter une confirmation : c'est `--yes` / `-y`. Sur `oh purge`, `oh project remove`, `oh teams remove`, `oh service remove`, `--force` reste accepté **une version** (même effet, avertissement, absent de l'aide). `--force` subsiste là où il outrepasse une sécurité : `oh daemon stop`, `oh remote setup`, `oh worktree remove`, `oh worktree cleanup` | `--force` → `--yes` |
+| `--force` / `-f` ne sert plus à sauter une confirmation : c'est `--yes` / `-y`. Sur `oh purge`, `oh project remove` et `oh teams remove`, `--force` a été **retiré en 5.1**. `--force` subsiste là où il outrepasse une sécurité : `oh daemon stop`, `oh remote setup`, `oh worktree remove`, `oh worktree cleanup` | `--force` → `--yes` |
 | `oh status --json` : `tool` et `tool_version` remplacent `opencode_version` | Adapter les scripts qui lisent ce champ |
 | **Projet implicite** : hors du dossier d'un projet, oh ne prend plus en silence le seul projet enregistré. Une commande qui écrit demande confirmation, et **refuse sans terminal** (« lancez la commande depuis le dossier du projet ou utilisez -p ») ; une commande qui lit annonce le projet utilisé | Se placer dans le projet, ou passer `-p <projet>` |
 | `oh --help` n'affiche plus qu'**une ligne par commande** (≈ 70 lignes au lieu de 573) ; `oh help --all` (ou `oh --help --all`) donne l'affichage complet d'avant ; `oh <commande> --help` est inchangé. `oh --all` seul affiche l'aide complète (il n'ouvre plus la TUI) | Un script qui analyse `oh --help` doit lire `oh help --all` |
@@ -231,7 +245,7 @@ Les **23 changements de touches** (`keys.Changes()`). La colonne « 4.2.0 » dit
 | Changement | À faire |
 |---|---|
 | **Le mode équipe n'est plus une bêta (5.1)** : plus d'avertissement sur stderr, de contrôle « mode bêta » dans `oh doctor` ni de ligne « Bêta » dans le board. Une réservation (claim) en revue (label `ready-for-review` ou statut `review`) est gardée à la fin de la session, avec ou sans checkpoint (`cp-2`) en attente ; elle a un bail (`lease_hours`, 24 h) que le démon renouvelle, puis un autre membre peut la reprendre avec `oh team claim <ticket>` (confirmation commune) ; une libération est mise en file localement et appliquée au retour du réseau. Le mode distant reste expérimental | Lire [Bail et fin de session](docs/guides/team-setup.fr.md#bail-et-fin-de-session) avant de passer une équipe sur la 5.1 |
-| **Jeton GitLab unifié** : un seul ordre de recherche pour la synchronisation du tracker, `oh mr create` / `oh review --publish`, `oh review feedback`, la vérification d'identité de `oh team init\|rejoin` et `oh mcp enable --project` : `GITLAB_TOKEN`, `tracker_token_key`, jeton du projet, jeton de l'équipe, jeton MCP du hub (`[mcp.gitlab] token`, puis `openhub.mcp.gitlab.token`, puis `gitlab-token`), ancienne clé `openhub.tracker.gitlab.token`. Pour `oh mr create`, le jeton de l'équipe du projet passe avant le jeton MCP du hub | Vérifier quel jeton est trouvé en premier si vous en avez plusieurs ; sinon rien |
+| **Jeton GitLab unifié** : un seul ordre de recherche pour la synchronisation du tracker, `oh mr create`, les entrées de `review-feedback`, la vérification d'identité de `oh team init\|rejoin` et `oh mcp enable --project` : `GITLAB_TOKEN`, `tracker_token_key`, jeton du projet, jeton de l'équipe, jeton MCP du hub (`[mcp.gitlab] token`, puis `openhub.mcp.gitlab.token`, puis `gitlab-token`), ancienne clé `openhub.tracker.gitlab.token`. Pour `oh mr create`, le jeton de l'équipe du projet passe avant le jeton MCP du hub | Vérifier quel jeton est trouvé en premier si vous en avez plusieurs ; sinon rien |
 | **La TUI ne synchronise plus un tracker désactivé** (`[tracker] enabled = false`) ; avant, elle le synchronisait quand même | Rien (réactiver avec `enabled = true` si vous comptiez sur la synchronisation de la TUI) |
 | `oh mr create` lit le projet GitLab et le relecteur dans l'équipe du projet (repli sur l'équipe du hub) | Rien |
 | Colonne REVIEW de `oh board` et du Board TUI : un ticket Beads `in_progress` portant le label `ready-for-review` y est affiché (elle n'était jamais remplie). Vote de review MCP : une approbation depuis `in_progress` passe par `review` puis `done` | Rien |
@@ -257,7 +271,7 @@ Les **23 changements de touches** (`keys.Changes()`). La colonne « 4.2.0 » dit
 | Changement | À faire |
 |---|---|
 | **`oh mcp trust <service>`** : une URL de service MCP **imposée par l'équipe** (`url_enforced`) n'est utilisée qu'une fois approuvée (épinglée dans `mcp.<service>.trusted_url` de **votre** `hub.toml`) ; `https` obligatoire hors loopback. Sans approbation, le jeton n'est **pas envoyé** à cette URL et oh avertit (`oh doctor`, `oh mcp status`, `oh team config`, vue MCP de la TUI, touche `T`). `oh mcp untrust <service>` retire l'approbation | Chaque membre lance `oh mcp trust <service>` après avoir vérifié l'URL et l'hôte affichés |
-| **Garde global des agents** : un agent ne peut plus lancer, de son shell, `oh mcp trust\|untrust\|setup\|enable\|disable\|reset\|serve`, `oh config set\|unset\|language\|websearch`, `oh config model default\|family\|agent\|unset`, `oh service setup\|remove`, `oh secrets set\|delete\|get\|cleanup`, `oh budget set\|unset\|raise`, ni ce qui publie ou supprime : `oh workflow publish\|archive\|restore`, `oh brick publish`, `oh purge`, `oh project remove` (alias `rm`, `p`), `oh teams remove\|archive\|restore` — `--yes` compris. Les lectures (`list`, `show`, `diff`, `config get`, `mcp status`) restent permises. C'est un garde-fou, pas une barrière | Lancer ces commandes vous-même |
+| **Garde global des agents** : un agent ne peut plus lancer, de son shell, `oh mcp trust\|untrust\|setup\|enable\|disable\|reset\|serve`, `oh config set\|unset\|language\|websearch`, `oh config model default\|family\|agent\|unset`, `oh secrets set\|delete\|get\|cleanup`, `oh budget set\|unset\|raise`, ni ce qui publie ou supprime : `oh workflow publish\|archive\|restore`, `oh brick publish`, `oh purge`, `oh project remove` (alias `rm`, `p`), `oh teams remove\|archive\|restore` — `--yes` compris. Les lectures (`list`, `show`, `diff`, `config get`, `mcp status`) restent permises. C'est un garde-fou, pas une barrière | Lancer ces commandes vous-même |
 | **`oh serve`** : jeton aléatoire par lancement (URL `?token=…`, puis cookie `HttpOnly` `SameSite=Strict`) ; 401 sans jeton, 403 si `Host` n'est pas `127.0.0.1`, `localhost` ou `[::1]`. En 4.2.0 : aucune garde | Ouvrir l'URL affichée (ne pas la partager) |
 | Le proxy d'identifiants ne relaie plus les en-têtes et la query de l'agent tels quels (liste blanche par fournisseur) ; un en-tête personnalisé ajouté aux options du fournisseur d'opencode est retiré | Rien (cas rare) |
 | La passerelle MCP des conteneurs est fermée par défaut ; les écritures de secrets, d'index du trousseau, de rapports, de wiki, de transcripts et de configuration sont atomiques et durables ; les serveurs MCP Figma et Google Slides refusent un identifiant mal formé | Rien |

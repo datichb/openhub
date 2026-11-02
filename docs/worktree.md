@@ -103,24 +103,18 @@ Worktrees mergés : 1
 
 ---
 
-## Mode `oh start --worktree`
+## Lancer une session dans un worktree : `--location new`
 
-Lance une session OpenCode isolée dans un nouveau worktree. Idéal pour travailler sur une nouvelle feature pendant que votre branche principale est en développement.
+`oh run <workflow> --location new` lance la session dans un nouveau worktree (la branche vient de l'entrée `branch` du workflow quand il en a une : `-i branch=feat/ma-feature`). Idéal pour travailler sur une nouvelle feature pendant que votre branche principale est en développement. (`oh start --worktree`, retiré en 5.1, faisait de même.)
 
 ```bash
-# Branche spécifiée directement
-oh start --worktree feat/ma-feature MON-APP
-
-# Branche demandée interactivement
-oh start --worktree MON-APP
+oh run feature -m "Ajoute l'export CSV" --location new -i branch=feat/ma-feature -p MON-APP
 ```
 
 **Comportement :**
 - Si le worktree pour cette branche n'existe pas → il est créé
-- Si le worktree existe déjà → il est réutilisé
 - La session OpenCode est lancée dans le répertoire du worktree
-- Pas de lien Beads obligatoire — développement libre
-- L'auto-cleanup est exécuté avant le lancement si activé
+- Un workflow qui écrit (`ticket`, `libre`…) travaille déjà dans son propre worktree : voir [`oh run`](reference/cli-workflows.fr.md#oh-run)
 
 **Après la session :**
 ```bash
@@ -135,23 +129,9 @@ oh worktree cleanup MON-APP
 
 ---
 
-## Mode `oh start --parallel`
+## Plusieurs tickets en parallèle
 
-Lance l'`orchestrator-dev` dans un worktree dédié avec un lot de tickets `ai-delegated`. Le workflow complet est préservé : implémentation → QA → review → CP-2.
-
-```bash
-oh start --parallel MON-APP
-```
-
-**Comportement :**
-1. Charge les tickets `ai-delegated` disponibles
-2. Crée un worktree sur une branche `parallel/YYYYMMDD-HHMMSS`
-3. Lance l'`orchestrator-dev` dans ce worktree
-4. Le workflow standard s'applique (modes manuel / semi-auto / auto, CP-2 obligatoire)
-
-**Différence avec `--dev` :**
-- `--dev` : session dans le répertoire principal du projet
-- `--parallel` : session dans un worktree isolé — permet d'avoir une session `--dev` en cours ET une session `--parallel` simultanément
+`oh run ticket --tickets bd-1,bd-2` lance une session par ticket, chacune dans son worktree. L'ancien `oh start --parallel` (retiré en 5.1) lançait l'`orchestrator-dev` dans un worktree dédié `parallel/YYYYMMDD-HHMMSS`.
 
 ---
 
@@ -173,7 +153,7 @@ oh init / config         →  Worktree: enabled activé dans projects.md
                                      │
          ┌───────────────────────────┴─────────────────────┐
          │                                                   │
-oh start --parallel              oh start --worktree BRANCH
+oh run ticket --tickets …        oh run … --location new
 (orchestrator-dev isolé)         (session libre isolée)
          │                                                   │
    workflow complet                   développement libre
@@ -185,7 +165,7 @@ oh start --parallel              oh start --worktree BRANCH
          └──────────────────┬────────────┘
                             │
                oh worktree cleanup
-               (ou auto au prochain oh start)
+               (ou auto au prochain lancement)
                → git worktree remove + prune
 ```
 
@@ -193,7 +173,7 @@ oh start --parallel              oh start --worktree BRANCH
 
 ## Auto-cleanup
 
-Quand `Worktree auto cleanup: true` est configuré, chaque `oh start` (quelle que soit sa variante) appelle `worktree_cleanup_merged` avant de lancer la session. Les worktrees dont la branche est mergée dans `Worktree base branch` sont automatiquement supprimés.
+Quand `Worktree auto cleanup: true` est configuré, chaque lancement de session appelle `worktree_cleanup_merged` avant de lancer la session. Les worktrees dont la branche est mergée dans `Worktree base branch` sont automatiquement supprimés.
 
 **Condition de suppression :** la branche doit être listée par `git branch --merged <base_branch>`.
 

@@ -10,7 +10,7 @@ L'ancien mode parallèle (`oh start --parallel`, un serveur opencode par ticket,
 oh run ticket --tickets BD-42,BD-43,BD-44
 ```
 
-- `oh start --parallel --tickets a,b` reste un alias déprécié de cette commande ; sans `--tickets`, il est refusé.
+- `oh start --parallel --tickets a,b` était un alias de cette commande ; il a été retiré en 5.1.
 - Le suivi se fait dans la vue **Sessions** de la TUI ou par `oh session list` ; la fusion des branches passe par vos merge requests.
 - `--max-sessions` et `--priority` n'ont plus d'effet.
 

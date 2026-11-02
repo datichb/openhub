@@ -21,7 +21,7 @@ oh run review -i review_mode=standard+adversarial  # Modes combines
 oh run review -i review_mode=all                # Tous les modes de revue
 ```
 
-`oh review [--mode …] [--branch …]` reste un alias déprécié de `oh run review`.
+`oh review [--mode …] [--branch …]` a été retiré en 5.1 : utilisez `oh run review -i review_mode=… -i branch=…`.
 
 **Détection automatique de branche :** Lorsque vous êtes sur une branche de fonctionnalité, l'agent de revue détecte automatiquement la branche de base et injecte le contexte `[BRANCH:feature/xyz] [BASE:main]` dans le prompt de revue.
 
@@ -67,14 +67,14 @@ Cette commande :
 
 ## Traitement du feedback
 
-Lorsqu'un relecteur humain laisse des commentaires sur la MR, le workflow `review-feedback` les traite. `oh review feedback <ticket-ou-branche>` lit les discussions sur GitLab puis lance ce workflow (alias déprécié de `oh run review-feedback` : oh affiche un avertissement) :
+Lorsqu'un relecteur humain laisse des commentaires sur la MR, le workflow `review-feedback` les traite. `oh run review-feedback -i mr=<url|!iid|branche>` lit la MR et ses discussions non résolues sur GitLab au lancement, puis lance le workflow (l'ancienne commande `oh review feedback`, retirée en 5.1, faisait de même) :
 
 ```bash
-oh review feedback BD-42             # Par reference de ticket
-oh review feedback feat/auth-flow    # Par nom de branche
+oh run review-feedback -i mr=!42                  # Par numéro de MR
+oh run review-feedback -i mr=feat/auth-flow      # Par nom de branche
 ```
 
-Le ticket ou la branche est obligatoire. Avec `oh run review-feedback`, les entrées `mr`, `branch` et `feedback` (discussions) sont à fournir vous-meme (`-i cle=valeur`) : voir [Workflows livrés › review-feedback](../reference/workflows.fr.md#review-feedback).
+L'entrée `mr` est obligatoire ; `branch`, `base` et `feedback` (discussions) sont calculées par oh quand elles sont laissées vides (`-i cle=valeur` pour les forcer) : voir [Workflows livrés › review-feedback](../reference/workflows.fr.md#review-feedback).
 
 ### Fonctionnement
 
@@ -106,7 +106,7 @@ Le ticket ou la branche est obligatoire. Avec `oh run review-feedback`, les entr
 2. oh run review -i review_mode=standard  # L'IA examine le code
 3. oh mr create                    # Creer la MR sur GitLab
 4. [Revue humaine sur GitLab]             # Le relecteur laisse des commentaires
-5. oh review feedback BD-42               # L'IA traite le feedback (workflow review-feedback)
+5. oh run review-feedback -i mr=!42      # L'IA traite le feedback (workflow review-feedback)
 6. [Approbation humaine]                  # Approbation finale
 7. [Fusion par le developpeur]            # Fusion manuelle
 ```
@@ -129,7 +129,7 @@ Le ticket ou la branche est obligatoire. Avec `oh run review-feedback`, les entr
 Error: no merge request found for branch "feat/xyz"
 ```
 
-Vérifiez que la branche a été poussée vers le dépôt distant. `oh review feedback` recherche une MR ouverte correspondant au nom de la branche.
+Vérifiez que la branche a été poussée vers le dépôt distant. `oh run review-feedback` recherche une MR ouverte correspondant au nom de la branche.
 
 ### Permissions du token insuffisantes
 

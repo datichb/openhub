@@ -2,7 +2,7 @@
 
 # Sessions on the v5 runtime (opencode V2)
 
-Every session uses the v5 runtime: `oh run <workflow>` (including `--tickets` and `--headless`), the TUI launches and the deprecated aliases (`oh start`…). It requires opencode V2 (≥ 2.0.0): opencode V1 is no longer supported (see the [v5 migration guide](migration-v5.en.md)).
+Every session uses the v5 runtime: `oh run <workflow>` (including `--tickets` and `--headless`), and the TUI launches (the `oh start`… aliases were removed in 5.1). It requires opencode V2 (≥ 2.0.0): opencode V1 is no longer supported (see the [v5 migration guide](migration-v5.en.md)).
 
 ## How it works
 

@@ -29,7 +29,7 @@ the onboarder changes no page: it **proposes** each update with `wiki_propose`
 
 ## Invoking the onboarder
 
-Launch the `onboarding` workflow (deprecated alias: `oh start --onboard`):
+Launch the `onboarding` workflow (replaces `oh start --onboard`, removed in 5.1):
 
 ```bash
 oh run onboarding                         # discover the project, create the wiki

@@ -403,7 +403,7 @@ oh takeover-brief list               # list available briefs
 oh run brief-enrich --headless -i ticket=<ticket-id>   # enrich with code analysis
 ```
 
-`oh takeover-brief enrich <ticket-id>` remains a deprecated alias of `oh run brief-enrich --headless`.
+`oh takeover-brief enrich <ticket-id>` was removed in 5.1: use `oh run brief-enrich --headless -i ticket=<id>`, or the `e` key of the Takeover view of the TUI (which saves the enriched brief).
 
 ### Patterns library
 

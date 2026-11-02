@@ -63,7 +63,7 @@ opencode V1 n'est plus pris en charge : oh refuse de lancer une session, avec un
 oh init                              # Premier réglage : langue, vérification d'opencode V2, projet, MCP, espace des workflows
 oh run quick -m "Corriger la coquille de l'en-tête"   # Petite modification, un seul agent
 oh run spec -m "Export CSV des factures"   # Spec dans le wiki puis tickets Beads, sans implémenter
-oh run feature                       # Alias de spec (comme oh start) : la session demande la feature
+oh run feature                       # Alias de spec : la session demande la feature
 oh session next <session>            # Suite proposée par oh (ici : implement-spec sur les tickets créés)
 oh run implement-spec --parent <session>   # Implémenter les tickets de la spec, revue de l'ensemble
 oh run ticket --tickets bd-42,bd-43  # Une session par ticket Beads (un serveur, un worktree chacune)
@@ -114,7 +114,7 @@ Dans la TUI, **Démarrer** liste les workflows (★ épinglés, récents), ouvre
 | `oh gc` · `oh eval` | Nettoyage (sessions, propositions du wiki, branches de fan-out) ; évaluations du comportement avec un vrai modèle |
 | `oh beads …` | Relais vers `bd` (CLI Beads) |
 
-**Alias dépréciés** (avertissement, puis `oh run`) : `oh start` → `oh run feature` (alias de `spec`), `oh start --agent X` → `oh run libre --agent X`, `oh start --dev` → `oh run ticket`, `oh audit` → `oh run audit`, `oh review` → `oh run review` (`--publish` reste une commande d'oh), `oh debug` → `oh run debug`. `oh deploy` et `oh sync` affichent seulement un message de migration.
+**Commandes retirées.** `oh start`, `oh audit`, `oh review`, `oh debug`, `oh review feedback`, `oh service` et `oh takeover-brief enrich`, alias dépréciés en 5.0, ont été retirés en 5.1 : le nom répond par son remplaçant (code de sortie 2) — `oh start` → `oh run <workflow>`, `oh audit|review|debug` → `oh run audit|review|debug`, `oh review --publish` → `oh mr create`, `oh service` → `oh mcp`. Voir [Migration depuis la 5.0](docs/guides/migration-v5.fr.md#depuis-la-50-vers-la-51). `oh deploy` et `oh sync` affichent seulement un message de migration.
 
 > Référence complète : [docs/reference/cli.fr.md](docs/reference/cli.fr.md) · [CLI — Workflows](docs/reference/cli-workflows.fr.md) · [CLI — Sessions](docs/reference/cli-sessions.fr.md) · [Sessions v5](docs/guides/sessions-v5.fr.md)
 

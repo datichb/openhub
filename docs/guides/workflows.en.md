@@ -45,7 +45,7 @@ oh session attach <session-id> # reopen the interface of a session (resumes a sl
 oh session resume <session-id> # resume a sleeping session without opening an interface
 ```
 
-In the TUI, the **Sessions** view (omnibar `sessions`) shows the same information. `oh start -r <session-id>` remains a deprecated alias of `oh session attach <session-id>`. Details: [Sessions v5](sessions-v5.en.md).
+In the TUI, the **Sessions** view (omnibar `sessions`) shows the same information. `oh session attach <session-id>` reopens a session (`oh start -r`, removed in 5.1, was its alias). Details: [Sessions v5](sessions-v5.en.md).
 
 ---
 
@@ -155,7 +155,7 @@ oh run feature -m "Implement JWT authentication for our REST API"           # mo
 oh run feature -m "…" -i method=tdd                                         # the implementation that follows will be TDD
 ```
 
-oh announces the redirection (`feature → spec`). Without a request (`oh run feature`, `oh start`), the session asks you for it first. With tickets already created, `oh run feature --tickets bd-1,bd-2` launches `implement-spec` directly (step 5).
+oh announces the redirection (`feature → spec`). Without a request (`oh run feature`), the session asks you for it first. With tickets already created, `oh run feature --tickets bd-1,bd-2` launches `implement-spec` directly (step 5).
 
 #### 2. Interview and understanding
 
@@ -442,7 +442,7 @@ implements the targeted fix, and the reviewer checks the PR.
 
 **Context:** a developer completes ticket bd-15 (implement user filtering feature).
 
-> **`oh run ticket`** (deprecated alias: `oh start --dev`) picks an epic/ticket and auto-transitions its claim status from `planned` → `in_progress`.
+> **`oh run ticket`** picks an epic/ticket and auto-transitions its claim status from `planned` → `in_progress`.
 > After team setup, run `oh team sync-tracker` to push claim `ExternalIID` links back to the external tracker (Jira, Linear, GitLab Issues).
 
 #### Living wiki enrichment (post-ticket)
