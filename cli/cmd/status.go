@@ -78,7 +78,7 @@ func runStatus(cmd *cobra.Command, args []string) error {
 			CurrentProject: currentProject,
 			Cwd:            cwd,
 		}
-		return cliout.JSONCompact(os.Stdout, out)
+		return cliout.JSONCompact(a.IO.Out, out)
 	}
 
 	fmt.Fprintln(a.IO.Out, theme.Title.Render("  oh status  "))

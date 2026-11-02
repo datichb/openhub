@@ -87,10 +87,7 @@ func resolveProject(ctx context.Context, a *app.App, projectID string, use proje
 		}
 	}
 
-	errOut := io.Writer(os.Stderr)
-	if a.IO != nil && a.IO.ErrOut != nil {
-		errOut = a.IO.ErrOut
-	}
+	errOut := errWriter(a)
 	if len(projects) == 1 {
 		p := &projects[0]
 		if use == projectRead {
@@ -148,4 +145,13 @@ func hubProviderCfg(a *app.App, prov string) provider.Config {
 	default:
 		return provider.Config{}
 	}
+}
+
+// errWriter is where the app writes its diagnostics: the error stream of its
+// IOStreams, and the process's when there is no app yet (TryApp can be nil).
+func errWriter(a *app.App) io.Writer {
+	if a != nil && a.IO != nil && a.IO.ErrOut != nil {
+		return a.IO.ErrOut
+	}
+	return os.Stderr
 }

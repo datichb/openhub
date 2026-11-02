@@ -44,10 +44,10 @@ func init() {
 func runInit(cmd *cobra.Command, args []string) error {
 	// ── Guard: warn if hub is already initialized ────────────────────────────
 	if existing, err := config.Load(); err == nil && existing.CLI.SetupDone {
-		fmt.Fprintf(os.Stderr, "%s\n", i18n.T("cmd.init.already_initialized"))
-		fmt.Fprintf(os.Stderr, "%s ", i18n.T("cmd.init.confirm_reinit"))
+		fmt.Fprintf(cmd.ErrOrStderr(), "%s\n", i18n.T("cmd.init.already_initialized"))
+		fmt.Fprintf(cmd.ErrOrStderr(), "%s ", i18n.T("cmd.init.confirm_reinit"))
 		var answer string
-		if _, err := fmt.Fscanln(os.Stdin, &answer); err != nil || !confirmed(answer, false) {
+		if _, err := fmt.Fscanln(cmd.InOrStdin(), &answer); err != nil || !confirmed(answer, false) {
 			return nil
 		}
 		// Backup existing config before overwriting.
@@ -68,7 +68,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 
 	// ── Pre-flight: check git availability ───────────────────────────────────
 	if _, err := exec.LookPath("git"); err != nil {
-		fmt.Fprintf(os.Stderr, "  %s %s\n", glyph.Warning, i18n.T("cmd.init.git_not_found"))
+		fmt.Fprintf(cmd.ErrOrStderr(), "  %s %s\n", glyph.Warning, i18n.T("cmd.init.git_not_found"))
 	}
 
 	// ── Ensure a minimal app exists for the wizard ───────────────────────────

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -140,7 +139,7 @@ func printCleanHints(w io.Writer, r beads.CleanReport) {
 func offerBeadsClean(a *app.App, path string) {
 	sh := tuiShell
 	if sh == nil {
-		printBeadsClean(os.Stderr, a, path, false)
+		printBeadsClean(errWriter(a), a, path, false)
 		return
 	}
 	safego.Go(func() {

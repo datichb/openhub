@@ -56,7 +56,7 @@ func worktreeListCmd() *cobra.Command {
 				for i, e := range entries {
 					out[i] = wtJSON{Branch: e.Branch, Path: e.Path, Head: e.Head, IsBare: e.IsBare}
 				}
-				return cliout.JSONCompact(os.Stdout, out)
+				return cliout.JSONCompact(a.IO.Out, out)
 			}
 
 			if len(entries) == 0 {

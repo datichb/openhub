@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -161,8 +162,8 @@ func configureGitLab(ctx context.Context, a *app.App, repo *teamstate.Repo, team
 			if askYN(out, i18n.T("cmd.team_config.set_up_a_new_gitlab_token"), true) {
 				tokenKey := askInput(out, i18n.T("cmd.team_config.key_name_in_the_keychain_e"), a.Config.MCP.Gitlab.Token)
 				fmt.Fprint(out, i18n.Tf("cmd.team_config.to_store_the_token", theme.Bold.Render("oh secrets set "+tokenKey)))
-				writeLocalLog(config.ConfigPath(), "mcp.gitlab.token_key", tokenKey)
-				writeLocalLog(config.ConfigPath(), "mcp.gitlab.enabled", "true")
+				writeLocalLog(a.IO, config.ConfigPath(), "mcp.gitlab.token_key", tokenKey)
+				writeLocalLog(a.IO, config.ConfigPath(), "mcp.gitlab.enabled", "true")
 				// The token is only used for the server declared for the GitLab MCP.
 				mcpURL := askInput(out, i18n.T("cmd.team_config.gitlab_server_of_the_key"), src.URL)
 				if tracker.ServerOf(mcpURL) != "" {
@@ -170,7 +171,7 @@ func configureGitLab(ctx context.Context, a *app.App, repo *teamstate.Repo, team
 						c.MCP.Gitlab.URL = mcpURL
 						return nil
 					}); err != nil {
-						fmt.Fprint(os.Stderr, i18n.Tf("cmd.team_config.warning", err))
+						fmt.Fprint(a.IO.ErrOut, i18n.Tf("cmd.team_config.warning", err))
 					}
 				}
 			}
@@ -178,7 +179,7 @@ func configureGitLab(ctx context.Context, a *app.App, repo *teamstate.Repo, team
 
 		// write_enabled
 		writeEnabled := askYN(out, i18n.T("cmd.team_config.enable_write_enabled_mr_creation_label"), a.Config.MCP.Gitlab.WriteEnabled)
-		writeLocalLog(config.ConfigPath(), "mcp.gitlab.write_enabled", fmt.Sprintf("%v", writeEnabled))
+		writeLocalLog(a.IO, config.ConfigPath(), "mcp.gitlab.write_enabled", fmt.Sprintf("%v", writeEnabled))
 
 		fmt.Fprint(out, i18n.Tf("cmd.team_config.gitlab_local_config_saved", theme.SuccessStyle.Render(theme.IconSuccess)))
 	}
@@ -219,12 +220,12 @@ func configureJira(ctx context.Context, a *app.App, repo *teamstate.Repo, teamCf
 			if askYN(out, i18n.T("cmd.team_config.set_up_a_new_jira_token"), true) {
 				tokenKey := askInput(out, i18n.T("cmd.team_config.key_name_in_the_keychain_e_2"), a.Config.MCP.Jira.Token)
 				fmt.Fprint(out, i18n.Tf("cmd.team_config.to_store_the_token", theme.Bold.Render("oh secrets set "+tokenKey)))
-				writeLocalLog(config.ConfigPath(), "mcp.jira.token_key", tokenKey)
-				writeLocalLog(config.ConfigPath(), "mcp.jira.enabled", "true")
+				writeLocalLog(a.IO, config.ConfigPath(), "mcp.jira.token_key", tokenKey)
+				writeLocalLog(a.IO, config.ConfigPath(), "mcp.jira.enabled", "true")
 			}
 		}
 		writeEnabled := askYN(out, i18n.T("cmd.team_config.enable_write_enabled_label_push"), a.Config.MCP.Jira.WriteEnabled)
-		writeLocalLog(config.ConfigPath(), "mcp.jira.write_enabled", fmt.Sprintf("%v", writeEnabled))
+		writeLocalLog(a.IO, config.ConfigPath(), "mcp.jira.write_enabled", fmt.Sprintf("%v", writeEnabled))
 		fmt.Fprint(out, i18n.Tf("cmd.team_config.jira_local_config_saved", theme.SuccessStyle.Render(theme.IconSuccess)))
 	}
 
@@ -259,8 +260,8 @@ func configureFigma(ctx context.Context, a *app.App, repo *teamstate.Repo, teamC
 		tokenKey := askInput(out, i18n.T("cmd.team_config.key_name_in_the_keychain_e_3"), a.Config.MCP.Figma.Token)
 		if tokenKey != "" {
 			fmt.Fprint(out, i18n.Tf("cmd.team_config.to_store_the_token", theme.Bold.Render("oh secrets set "+tokenKey)))
-			writeLocalLog(config.ConfigPath(), "mcp.figma.token_key", tokenKey)
-			writeLocalLog(config.ConfigPath(), "mcp.figma.enabled", "true")
+			writeLocalLog(a.IO, config.ConfigPath(), "mcp.figma.token_key", tokenKey)
+			writeLocalLog(a.IO, config.ConfigPath(), "mcp.figma.enabled", "true")
 			fmt.Fprint(out, i18n.Tf("cmd.team_config.figma_local_config_saved", theme.SuccessStyle.Render(theme.IconSuccess)))
 		}
 	}
@@ -476,17 +477,17 @@ func configureTrackerSync(ctx context.Context, a *app.App, repo *teamstate.Repo,
 
 		// enabled override
 		if askYN(out, i18n.T("cmd.team_config.disable_the_tracker_sync_locally"), false) {
-			writeLocalLog(config.ConfigPath(), "tracker.enabled", "false")
+			writeLocalLog(a.IO, config.ConfigPath(), "tracker.enabled", "false")
 		} else {
-			writeLocalLog(config.ConfigPath(), "tracker.enabled", "true")
+			writeLocalLog(a.IO, config.ConfigPath(), "tracker.enabled", "true")
 		}
 
 		// auto_sync override
 		sharedAutoSync := teamCfg.Tracker.AutoSync
 		if askYN(out, i18n.Tf("cmd.team_config.automatic_sync_team", sharedAutoSync), sharedAutoSync) {
-			writeLocalLog(config.ConfigPath(), "tracker.auto_sync", "true")
+			writeLocalLog(a.IO, config.ConfigPath(), "tracker.auto_sync", "true")
 		} else {
-			writeLocalLog(config.ConfigPath(), "tracker.auto_sync", "false")
+			writeLocalLog(a.IO, config.ConfigPath(), "tracker.auto_sync", "false")
 		}
 
 		// push_labels override
@@ -498,9 +499,9 @@ func configureTrackerSync(ctx context.Context, a *app.App, repo *teamstate.Repo,
 			fmt.Fprint(out, i18n.Tf("cmd.team_config.enable_write_enabled_in_mcp_to", teamCfg.Tracker.Type))
 		} else if writeEnabled {
 			if askYN(out, i18n.Tf("cmd.team_config.push_labels_prompt", sharedPush), sharedPush) {
-				writeLocalLog(config.ConfigPath(), "tracker.push_labels", "true")
+				writeLocalLog(a.IO, config.ConfigPath(), "tracker.push_labels", "true")
 			} else {
-				writeLocalLog(config.ConfigPath(), "tracker.push_labels", "false")
+				writeLocalLog(a.IO, config.ConfigPath(), "tracker.push_labels", "false")
 			}
 		}
 
@@ -513,7 +514,7 @@ func configureTrackerSync(ctx context.Context, a *app.App, repo *teamstate.Repo,
 				c.Tracker.SetTokenDecl(key, server)
 				return nil
 			}); err != nil {
-				fmt.Fprint(os.Stderr, i18n.Tf("cmd.team_config.warning", err))
+				fmt.Fprint(a.IO.ErrOut, i18n.Tf("cmd.team_config.warning", err))
 			}
 		}
 
@@ -522,7 +523,7 @@ func configureTrackerSync(ctx context.Context, a *app.App, repo *teamstate.Repo,
 			url := askTeamGitLabURL(out, func(prompt, def string) string { return askInput(out, prompt, def) }, tc.GitLabURL)
 			if url != tc.GitLabURL {
 				if err := setTeamGitLabURL(a, tc.ID, url); err != nil {
-					fmt.Fprint(os.Stderr, i18n.Tf("cmd.team_config.warning", err))
+					fmt.Fprint(a.IO.ErrOut, i18n.Tf("cmd.team_config.warning", err))
 				}
 			}
 		}
@@ -950,15 +951,15 @@ func coerceValue(s string) interface{} {
 // writeLocalLog calls writeLocal and logs any error to stderr.
 // Used by interactive config commands where write failures are non-fatal
 // but should be visible to the user.
-func writeLocalLog(configPath, keyPath, value string) {
-	if err := writeLocal(configPath, keyPath, value); err != nil {
-		fmt.Fprint(os.Stderr, i18n.Tf("cmd.team_config.warning", err))
+func writeLocalLog(streams *app.IOStreams, configPath, keyPath, value string) {
+	if err := writeLocal(streams.Out, configPath, keyPath, value); err != nil {
+		fmt.Fprint(streams.ErrOut, i18n.Tf("cmd.team_config.warning", err))
 	}
 }
 
 // reading the file, updating the value, and rewriting. This is intentionally
 // simple — for complex edits the user can edit hub.toml directly.
-func writeLocal(configPath, keyPath, value string) error {
+func writeLocal(w io.Writer, configPath, keyPath, value string) error {
 	// Read current content
 	data, err := os.ReadFile(configPath)
 	if err != nil && !os.IsNotExist(err) {
@@ -1002,7 +1003,7 @@ func writeLocal(configPath, keyPath, value string) error {
 	if err := fsutil.WriteFileAtomic(configPath, out, 0o600); err != nil {
 		return fmt.Errorf("writing %s: %w", configPath, err)
 	}
-	fmt.Print(i18n.Tf("cmd.team_config.updated", configPath, keyPath, value))
+	fmt.Fprint(w, i18n.Tf("cmd.team_config.updated", configPath, keyPath, value))
 	return nil
 }
 

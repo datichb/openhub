@@ -654,7 +654,7 @@ func mcpServeCmd() *cobra.Command {
 			tokenKey, _ := cmd.Flags().GetString("token-key")
 			if tokenKey != "" {
 				if err := injectTokenFromKeychain(name, tokenKey); err != nil {
-					fmt.Fprint(os.Stderr, i18n.Tf("cmd.mcp.warning_could_not_resolve_token_from", err))
+					fmt.Fprint(cmd.ErrOrStderr(), i18n.Tf("cmd.mcp.warning_could_not_resolve_token_from", err))
 				}
 			}
 

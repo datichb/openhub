@@ -872,7 +872,7 @@ func runEvalSession(ctx context.Context, cmd *cobra.Command, spec evalPassSpec, 
 	sid := results[0].SessionID
 	res.SessionID = sid
 	fmt.Fprintln(errOut, "eval pass: session", sid)
-	defer stopEvalPass(p.Svc, sid)
+	defer stopEvalPass(errOut, p.Svc, sid)
 
 	ssvc, err := newSessionService(ctx, a)
 	if err != nil {
@@ -1053,11 +1053,11 @@ func evalMaxTokens(model string, budget float64) int64 {
 }
 
 // stopEvalPass stops the session and the daemon of the pass home.
-func stopEvalPass(svc *runsvc.Service, sid string) {
+func stopEvalPass(errOut io.Writer, svc *runsvc.Service, sid string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 	if err := svc.StopSession(ctx, sid); err != nil {
-		fmt.Fprintln(os.Stderr, "eval pass: stopping the session:", err)
+		fmt.Fprintln(errOut, "eval pass: stopping the session:", err)
 	}
 	if capability, _, err := daemonCapability(ctx); err == nil {
 		_ = client.NewClient(api.Paths{Dir: ohRunDir()}).WithCapability(capability).Shutdown(ctx, true)

@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -27,8 +28,8 @@ func TestUnsetHubModelRemovesFamilyAndAgent(t *testing.T) {
 		return nil
 	}))
 
-	require.NoError(t, unsetHubModel("models.families.quality"))
-	require.NoError(t, unsetHubModel("models.agents.reviewer"))
+	require.NoError(t, unsetHubModel(io.Discard, "models.families.quality"))
+	require.NoError(t, unsetHubModel(io.Discard, "models.agents.reviewer"))
 
 	c, err := config.Load()
 	require.NoError(t, err)
@@ -38,7 +39,7 @@ func TestUnsetHubModelRemovesFamilyAndAgent(t *testing.T) {
 	assert.Contains(t, c.Models.Agents, "planner", "the other keys stay")
 	assert.Equal(t, "anthropic/claude-sonnet-4-5", c.Models.Default)
 
-	require.NoError(t, unsetHubModel("models.default"))
+	require.NoError(t, unsetHubModel(io.Discard, "models.default"))
 	c, err = config.Load()
 	require.NoError(t, err)
 	assert.Empty(t, c.Models.Default)

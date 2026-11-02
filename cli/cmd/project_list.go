@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
@@ -39,7 +38,7 @@ func projectListCmd() *cobra.Command {
 
 			jsonOut, _ := cmd.Flags().GetBool("json")
 			if jsonOut {
-				return cliout.JSONCompact(os.Stdout, projects)
+				return cliout.JSONCompact(a.IO.Out, projects)
 			}
 
 			if len(projects) == 0 {

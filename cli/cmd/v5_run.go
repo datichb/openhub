@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 
 	"github.com/datichb/openhub/cli/internal/app"
@@ -85,7 +84,7 @@ func afterStart(ctx context.Context, a *app.App, svc *runsvc.Service, ui launche
 		err := runAttachInline(ctx, a, svc, ui, res.SessionID)
 		if err == nil && first {
 			// R5: the client is closed; propose what follows (never launched).
-			printNextSteps(ctx, a, os.Stdout, res.SessionID)
+			printNextSteps(ctx, a, a.IO.Out, res.SessionID)
 		}
 		return err
 	default:

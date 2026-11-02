@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -70,9 +69,9 @@ func configModelDefaultCmd() *cobra.Command {
 			}
 
 			if projectID != "" {
-				return setProjectModel(cmd.Context(), projectID, model)
+				return setProjectModel(cmd.Context(), cmd.OutOrStdout(), projectID, model)
 			}
-			return setHubModelDefault(model)
+			return setHubModelDefault(cmd.OutOrStdout(), model)
 		},
 	}
 	cmd.Flags().StringP("project", "p", "", "Nom du projet (hub-level si absent)")
@@ -94,9 +93,9 @@ func configModelFamilyCmd() *cobra.Command {
 			}
 
 			if projectID != "" {
-				return setProjectModelFamily(cmd.Context(), projectID, family, model)
+				return setProjectModelFamily(cmd.Context(), cmd.OutOrStdout(), projectID, family, model)
 			}
-			return setHubModelFamily(family, model)
+			return setHubModelFamily(cmd.OutOrStdout(), family, model)
 		},
 	}
 	cmd.Flags().StringP("project", "p", "", "Nom du projet (hub-level si absent)")
@@ -117,9 +116,9 @@ func configModelAgentCmd() *cobra.Command {
 			}
 
 			if projectID != "" {
-				return setProjectModelAgent(cmd.Context(), projectID, agentID, model)
+				return setProjectModelAgent(cmd.Context(), cmd.OutOrStdout(), projectID, agentID, model)
 			}
-			return setHubModelAgent(agentID, model)
+			return setHubModelAgent(cmd.OutOrStdout(), agentID, model)
 		},
 	}
 	cmd.Flags().StringP("project", "p", "", "Nom du projet (hub-level si absent)")
@@ -321,27 +320,27 @@ func configModelUnsetCmd() *cobra.Command {
 			switch scope {
 			case "default":
 				if projectID != "" {
-					return unsetProjectModelDefault(cmd.Context(), projectID)
+					return unsetProjectModelDefault(cmd.Context(), cmd.OutOrStdout(), projectID)
 				}
-				return unsetHubModel("models.default")
+				return unsetHubModel(cmd.OutOrStdout(), "models.default")
 			case "family":
 				if len(args) < 2 {
 					return errors.New(i18n.T("cmd.config.model.unset.usage_family"))
 				}
 				key := "models.families." + args[1]
 				if projectID != "" {
-					return unsetProjectModelFamily(cmd.Context(), projectID, args[1])
+					return unsetProjectModelFamily(cmd.Context(), cmd.OutOrStdout(), projectID, args[1])
 				}
-				return unsetHubModel(key)
+				return unsetHubModel(cmd.OutOrStdout(), key)
 			case "agent":
 				if len(args) < 2 {
 					return errors.New(i18n.T("cmd.config.model.unset.usage_agent"))
 				}
 				key := "models.agents." + args[1]
 				if projectID != "" {
-					return unsetProjectModelAgent(cmd.Context(), projectID, args[1])
+					return unsetProjectModelAgent(cmd.Context(), cmd.OutOrStdout(), projectID, args[1])
 				}
-				return unsetHubModel(key)
+				return unsetHubModel(cmd.OutOrStdout(), key)
 			default:
 				return errors.New(i18n.Tf("cmd.config.model.unset.bad_scope", scope))
 			}
@@ -354,20 +353,20 @@ func configModelUnsetCmd() *cobra.Command {
 
 // --- Hub-level writers (hub.toml) ---
 
-func setHubModelDefault(model string) error {
+func setHubModelDefault(out io.Writer, model string) error {
 	if err := config.Update(func(c *config.Config) error {
 		c.Models.Default = model
 		return nil
 	}); err != nil {
 		return err
 	}
-	fmt.Fprintf(os.Stdout, "%s %s = %s\n",
+	fmt.Fprintf(out, "%s %s = %s\n",
 		theme.SuccessStyle.Render(theme.IconSuccess),
 		theme.Bold.Render("models.default"), model)
 	return nil
 }
 
-func setHubModelFamily(family, model string) error {
+func setHubModelFamily(out io.Writer, family, model string) error {
 	if err := config.Update(func(c *config.Config) error {
 		if c.Models.Families == nil {
 			c.Models.Families = make(map[string]string)
@@ -377,13 +376,13 @@ func setHubModelFamily(family, model string) error {
 	}); err != nil {
 		return err
 	}
-	fmt.Fprintf(os.Stdout, "%s %s = %s\n",
+	fmt.Fprintf(out, "%s %s = %s\n",
 		theme.SuccessStyle.Render(theme.IconSuccess),
 		theme.Bold.Render("models.families."+family), model)
 	return nil
 }
 
-func setHubModelAgent(agentID, model string) error {
+func setHubModelAgent(out io.Writer, agentID, model string) error {
 	if err := config.Update(func(c *config.Config) error {
 		if c.Models.Agents == nil {
 			c.Models.Agents = make(map[string]string)
@@ -393,13 +392,13 @@ func setHubModelAgent(agentID, model string) error {
 	}); err != nil {
 		return err
 	}
-	fmt.Fprintf(os.Stdout, "%s %s = %s\n",
+	fmt.Fprintf(out, "%s %s = %s\n",
 		theme.SuccessStyle.Render(theme.IconSuccess),
 		theme.Bold.Render("models.agents."+agentID), model)
 	return nil
 }
 
-func unsetHubModel(key string) error {
+func unsetHubModel(out io.Writer, key string) error {
 	if err := config.Update(func(c *config.Config) error {
 		if key == "models.default" {
 			c.Models.Default = ""
@@ -413,7 +412,7 @@ func unsetHubModel(key string) error {
 		return err
 	}
 
-	fmt.Fprintf(os.Stdout, "%s %s %s\n",
+	fmt.Fprintf(out, "%s %s %s\n",
 		theme.SuccessStyle.Render(theme.IconSuccess),
 		i18n.T("cmd.config.unset_success"),
 		theme.Bold.Render(key))
@@ -422,7 +421,7 @@ func unsetHubModel(key string) error {
 
 // --- Project-level writers (SQLite DB) ---
 
-func setProjectModel(ctx context.Context, projectID, model string) error {
+func setProjectModel(ctx context.Context, out io.Writer, projectID, model string) error {
 	a := MustApp()
 	project, err := a.Projects.Get(ctx, projectID)
 	if err != nil {
@@ -434,11 +433,11 @@ func setProjectModel(ctx context.Context, projectID, model string) error {
 		return err
 	}
 
-	fmt.Fprint(os.Stdout, i18n.Tf("cmd.config.model.project_default_set", theme.SuccessStyle.Render(theme.IconSuccess), theme.Bold.Render(project.Name), model))
+	fmt.Fprint(out, i18n.Tf("cmd.config.model.project_default_set", theme.SuccessStyle.Render(theme.IconSuccess), theme.Bold.Render(project.Name), model))
 	return nil
 }
 
-func setProjectModelFamily(ctx context.Context, projectID, family, model string) error {
+func setProjectModelFamily(ctx context.Context, out io.Writer, projectID, family, model string) error {
 	a := MustApp()
 	project, err := a.Projects.Get(ctx, projectID)
 	if err != nil {
@@ -457,11 +456,11 @@ func setProjectModelFamily(ctx context.Context, projectID, family, model string)
 		return err
 	}
 
-	fmt.Fprint(os.Stdout, i18n.Tf("cmd.config.model.project_family_set", theme.SuccessStyle.Render(theme.IconSuccess), theme.Bold.Render(project.Name), family, model))
+	fmt.Fprint(out, i18n.Tf("cmd.config.model.project_family_set", theme.SuccessStyle.Render(theme.IconSuccess), theme.Bold.Render(project.Name), family, model))
 	return nil
 }
 
-func setProjectModelAgent(ctx context.Context, projectID, agentID, model string) error {
+func setProjectModelAgent(ctx context.Context, out io.Writer, projectID, agentID, model string) error {
 	a := MustApp()
 	project, err := a.Projects.Get(ctx, projectID)
 	if err != nil {
@@ -480,11 +479,11 @@ func setProjectModelAgent(ctx context.Context, projectID, agentID, model string)
 		return err
 	}
 
-	fmt.Fprint(os.Stdout, i18n.Tf("cmd.config.model.project_agent_set", theme.SuccessStyle.Render(theme.IconSuccess), theme.Bold.Render(project.Name), agentID, model))
+	fmt.Fprint(out, i18n.Tf("cmd.config.model.project_agent_set", theme.SuccessStyle.Render(theme.IconSuccess), theme.Bold.Render(project.Name), agentID, model))
 	return nil
 }
 
-func unsetProjectModelDefault(ctx context.Context, projectID string) error {
+func unsetProjectModelDefault(ctx context.Context, out io.Writer, projectID string) error {
 	a := MustApp()
 	project, err := a.Projects.Get(ctx, projectID)
 	if err != nil {
@@ -496,11 +495,11 @@ func unsetProjectModelDefault(ctx context.Context, projectID string) error {
 		return err
 	}
 
-	fmt.Fprint(os.Stdout, i18n.Tf("cmd.config_model.project_model_default_unset", theme.SuccessStyle.Render(theme.IconSuccess), theme.Bold.Render(project.Name)))
+	fmt.Fprint(out, i18n.Tf("cmd.config_model.project_model_default_unset", theme.SuccessStyle.Render(theme.IconSuccess), theme.Bold.Render(project.Name)))
 	return nil
 }
 
-func unsetProjectModelFamily(ctx context.Context, projectID, family string) error {
+func unsetProjectModelFamily(ctx context.Context, out io.Writer, projectID, family string) error {
 	a := MustApp()
 	project, err := a.Projects.Get(ctx, projectID)
 	if err != nil {
@@ -514,11 +513,11 @@ func unsetProjectModelFamily(ctx context.Context, projectID, family string) erro
 		return err
 	}
 
-	fmt.Fprint(os.Stdout, i18n.Tf("cmd.config.model.project_family_unset", theme.SuccessStyle.Render(theme.IconSuccess), theme.Bold.Render(project.Name), family))
+	fmt.Fprint(out, i18n.Tf("cmd.config.model.project_family_unset", theme.SuccessStyle.Render(theme.IconSuccess), theme.Bold.Render(project.Name), family))
 	return nil
 }
 
-func unsetProjectModelAgent(ctx context.Context, projectID, agentID string) error {
+func unsetProjectModelAgent(ctx context.Context, out io.Writer, projectID, agentID string) error {
 	a := MustApp()
 	project, err := a.Projects.Get(ctx, projectID)
 	if err != nil {
@@ -532,7 +531,7 @@ func unsetProjectModelAgent(ctx context.Context, projectID, agentID string) erro
 		return err
 	}
 
-	fmt.Fprint(os.Stdout, i18n.Tf("cmd.config.model.project_agent_unset", theme.SuccessStyle.Render(theme.IconSuccess), theme.Bold.Render(project.Name), agentID))
+	fmt.Fprint(out, i18n.Tf("cmd.config.model.project_agent_unset", theme.SuccessStyle.Render(theme.IconSuccess), theme.Bold.Render(project.Name), agentID))
 	return nil
 }
 

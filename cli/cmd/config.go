@@ -386,7 +386,7 @@ func configGetCmd() *cobra.Command {
 				return fmt.Errorf("%s", i18n.Tf("cmd.config.key_not_found", key))
 			}
 
-			fmt.Fprintln(os.Stdout, val)
+			fmt.Fprintln(cmd.OutOrStdout(), val)
 			return nil
 		},
 	}
@@ -423,7 +423,7 @@ func configSetCmd() *cobra.Command {
 				return fmt.Errorf("%s: %w", i18n.T("cmd.config.save_failed"), err)
 			}
 
-			fmt.Fprintf(os.Stdout, "%s %s = %s\n",
+			fmt.Fprintf(cmd.OutOrStdout(), "%s %s = %s\n",
 				theme.SuccessStyle.Render(theme.IconSuccess),
 				theme.Bold.Render(key), value)
 			return nil
@@ -445,9 +445,9 @@ func configListCmd() *cobra.Command {
 			if all, _ := cmd.Flags().GetBool("all"); all {
 				rows := configListAll(cfg)
 				if jsonOut {
-					return cliout.JSONCompact(os.Stdout, rows)
+					return cliout.JSONCompact(cmd.OutOrStdout(), rows)
 				}
-				w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+				w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
 				fmt.Fprintln(w, i18n.T("cmd.config.list.header_all"))
 				for _, r := range rows {
 					v := r.Value
@@ -464,10 +464,10 @@ func configListCmd() *cobra.Command {
 			if onlyKeys, _ := cmd.Flags().GetBool("keys"); onlyKeys {
 				keys := append(configFieldKeys(), configKeyPatterns...)
 				if jsonOut {
-					return cliout.JSONCompact(os.Stdout, keys)
+					return cliout.JSONCompact(cmd.OutOrStdout(), keys)
 				}
 				for _, k := range keys {
-					fmt.Fprintln(os.Stdout, k)
+					fmt.Fprintln(cmd.OutOrStdout(), k)
 				}
 				return nil
 			}
@@ -479,15 +479,15 @@ func configListCmd() *cobra.Command {
 			sort.Strings(keys)
 
 			if jsonOut {
-				return cliout.JSONCompact(os.Stdout, m)
+				return cliout.JSONCompact(cmd.OutOrStdout(), m)
 			}
 
 			if len(keys) == 0 {
-				fmt.Fprintln(os.Stdout, theme.Subtitle.Render(i18n.T("cmd.config.no_config")))
+				fmt.Fprintln(cmd.OutOrStdout(), theme.Subtitle.Render(i18n.T("cmd.config.no_config")))
 				return nil
 			}
 
-			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+			w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
 			fmt.Fprintln(w, i18n.T("cmd.config.list.header"))
 			for _, k := range keys {
 				fmt.Fprintf(w, "%s\t%v\n", k, m[k])
@@ -508,7 +508,7 @@ func configPathCmd() *cobra.Command {
 		Use:   "path",
 		Short: "Affiche le chemin du fichier de configuration",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Fprintln(os.Stdout, config.ConfigPath())
+			fmt.Fprintln(cmd.OutOrStdout(), config.ConfigPath())
 		},
 	}
 }
@@ -540,7 +540,7 @@ func configUnsetCmd() *cobra.Command {
 				return fmt.Errorf("%s: %w", i18n.T("cmd.config.save_failed"), err)
 			}
 
-			fmt.Fprintf(os.Stdout, "%s %s\n",
+			fmt.Fprintf(cmd.OutOrStdout(), "%s %s\n",
 				theme.SuccessStyle.Render(theme.IconSuccess),
 				i18n.Tf("cmd.config.key_deleted", theme.Bold.Render(key)))
 			return nil
@@ -562,7 +562,7 @@ func configLanguageCmd() *cobra.Command {
 			}
 
 			if len(args) == 0 {
-				fmt.Fprintf(os.Stdout, "%s\n", i18n.Tf("cmd.config.lang_current", theme.Bold.Render(cfg.CLI.Language)))
+				fmt.Fprintf(cmd.OutOrStdout(), "%s\n", i18n.Tf("cmd.config.lang_current", theme.Bold.Render(cfg.CLI.Language)))
 				return nil
 			}
 
@@ -581,7 +581,7 @@ func configLanguageCmd() *cobra.Command {
 				return fmt.Errorf("%s: %w", i18n.T("cmd.config.save_failed"), err)
 			}
 
-			fmt.Fprintf(os.Stdout, "%s %s\n",
+			fmt.Fprintf(cmd.OutOrStdout(), "%s %s\n",
 				theme.SuccessStyle.Render(theme.IconSuccess),
 				i18n.Tf("cmd.config.lang_changed", theme.Bold.Render(lang)))
 			return nil
@@ -607,10 +607,10 @@ func configWebsearchCmd() *cobra.Command {
 				}); err != nil {
 					return fmt.Errorf("%s: %w", i18n.T("cmd.config.save_failed"), err)
 				}
-				fmt.Fprintf(os.Stdout, "%s %s\n",
+				fmt.Fprintf(cmd.OutOrStdout(), "%s %s\n",
 					theme.SuccessStyle.Render(theme.IconSuccess),
 					i18n.T("cmd.config.websearch_enabled"))
-				fmt.Fprintf(os.Stdout, "  %s\n", i18n.T("cmd.config.websearch_deploy_hint"))
+				fmt.Fprintf(cmd.OutOrStdout(), "  %s\n", i18n.T("cmd.config.websearch_deploy_hint"))
 
 			case "disable":
 				if err := config.Update(func(c *config.Config) error {
@@ -619,7 +619,7 @@ func configWebsearchCmd() *cobra.Command {
 				}); err != nil {
 					return fmt.Errorf("%s: %w", i18n.T("cmd.config.save_failed"), err)
 				}
-				fmt.Fprintf(os.Stdout, "%s %s\n",
+				fmt.Fprintf(cmd.OutOrStdout(), "%s %s\n",
 					theme.SuccessStyle.Render(theme.IconSuccess),
 					i18n.T("cmd.config.websearch_disabled"))
 
@@ -632,7 +632,7 @@ func configWebsearchCmd() *cobra.Command {
 				if cfg.Websearch.Enabled {
 					status = i18n.T("cmd.config.websearch_on")
 				}
-				fmt.Fprintf(os.Stdout, "%s\n",
+				fmt.Fprintf(cmd.OutOrStdout(), "%s\n",
 					i18n.Tf("cmd.config.websearch_status", status))
 
 			default:

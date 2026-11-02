@@ -76,7 +76,7 @@ func runPurge(cmd *cobra.Command, args []string) error {
 	keepBinary, _ := cmd.Flags().GetBool("keep-binary")
 	includeToolData, _ := cmd.Flags().GetBool("include-tool-data")
 
-	out := os.Stdout
+	out := cmd.OutOrStdout()
 	ctx := cmd.Context()
 
 	// ── Step 1: Build inventory ──
@@ -269,7 +269,7 @@ func detectBinaryInstall() (string, bool) {
 // Display
 // ─────────────────────────────────────────────────────────────────────────────
 
-func printPurgeInventory(out *os.File, inv purgeInventory, dryRun bool) {
+func printPurgeInventory(out io.Writer, inv purgeInventory, dryRun bool) {
 	if dryRun {
 		fmt.Fprintf(out, "\n  %s\n\n",
 			theme.WarningStyle.Render(i18n.T("cmd.purge.dry_run_header")))
@@ -404,7 +404,7 @@ func defaultPurgeProcesses(ctx context.Context) purgeProcesses {
 // Execution steps
 // ─────────────────────────────────────────────────────────────────────────────
 
-func deletePurgeSecrets(ctx context.Context, out *os.File, secrets []keychain.SecretEntry) {
+func deletePurgeSecrets(ctx context.Context, out io.Writer, secrets []keychain.SecretEntry) {
 	deleted := 0
 	for _, s := range secrets {
 		scope := s.Scope
@@ -427,7 +427,7 @@ func deletePurgeSecrets(ctx context.Context, out *os.File, secrets []keychain.Se
 	printStepDone(out, i18n.Tf("cmd.purge.secrets_deleted", deleted))
 }
 
-func cleanPurgeProjects(out *os.File, projects []purgeProject) {
+func cleanPurgeProjects(out io.Writer, projects []purgeProject) {
 	cleaned := 0
 	for _, p := range projects {
 		if p.path == "" {
@@ -454,7 +454,7 @@ func cleanPurgeProjects(out *os.File, projects []purgeProject) {
 	printStepDone(out, i18n.Tf("cmd.purge.projects_cleaned", cleaned))
 }
 
-func cleanToolData(out *os.File, dirs []string) {
+func cleanToolData(out io.Writer, dirs []string) {
 	for _, d := range dirs {
 		if dirExists(d) {
 			_ = os.RemoveAll(d)
@@ -463,7 +463,7 @@ func cleanToolData(out *os.File, dirs []string) {
 	printStepDone(out, "")
 }
 
-func removeHubDir(out *os.File, hubDir string) {
+func removeHubDir(out io.Writer, hubDir string) {
 	// Close the global SQLite store before deleting the directory
 	if store != nil {
 		store.Close()
@@ -480,7 +480,7 @@ func removeHubDir(out *os.File, hubDir string) {
 	printStepDone(out, "")
 }
 
-func uninstallBinary(out *os.File, inv purgeInventory) {
+func uninstallBinary(out io.Writer, inv purgeInventory) {
 	if inv.binaryPath == "" {
 		printStepSkipped(out)
 		return

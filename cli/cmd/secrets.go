@@ -325,7 +325,7 @@ var secretsCleanupCmd = &cobra.Command{
 	Short: i18n.T("cmd.secrets.cleanup_short"),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		dryRun, _ := cmd.Flags().GetBool("dry-run")
-		return runSecretsCleanup(dryRun)
+		return runSecretsCleanup(cmd.OutOrStdout(), cmd.ErrOrStderr(), dryRun)
 	},
 }
 
@@ -333,7 +333,7 @@ func init() {
 	secretsCleanupCmd.Flags().Bool("dry-run", false, "show orphaned entries without deleting them")
 }
 
-func runSecretsCleanup(dryRun bool) error {
+func runSecretsCleanup(out, errOut io.Writer, dryRun bool) error {
 	ks, ok := resolveKeychainStore()
 	if !ok {
 		return errors.New(i18n.T("cmd.secrets.keychain_not_available"))
@@ -342,12 +342,12 @@ func runSecretsCleanup(dryRun bool) error {
 	// List actual keychain accounts (macOS only).
 	accounts, err := ks.ListKeychainAccounts()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "  %s %s\n", theme.WarningStyle.Render(theme.IconDot), i18n.T("cmd.secrets.cleanup_not_supported"))
+		fmt.Fprintf(errOut, "  %s %s\n", theme.WarningStyle.Render(theme.IconDot), i18n.T("cmd.secrets.cleanup_not_supported"))
 		return nil //nolint:nilerr // listing unsupported on this platform: warn and stop
 	}
 
-	fmt.Fprintf(os.Stdout, "  %s\n", i18n.Tf("cmd.secrets.cleanup_scanning", "openhub-oh"))
-	fmt.Fprintf(os.Stdout, "  %s\n\n", i18n.Tf("cmd.secrets.cleanup_found", len(accounts)))
+	fmt.Fprintf(out, "  %s\n", i18n.Tf("cmd.secrets.cleanup_scanning", "openhub-oh"))
+	fmt.Fprintf(out, "  %s\n\n", i18n.Tf("cmd.secrets.cleanup_found", len(accounts)))
 
 	// Build a set of indexed account names for comparison.
 	indexed := make(map[string]bool)
@@ -363,26 +363,26 @@ func runSecretsCleanup(dryRun bool) error {
 	var orphans []string
 	for _, acct := range accounts {
 		if indexed[acct] {
-			fmt.Fprintf(os.Stdout, "    %s %s (%s)\n",
+			fmt.Fprintf(out, "    %s %s (%s)\n",
 				theme.SuccessStyle.Render(theme.IconSuccess), acct, i18n.T("cmd.secrets.cleanup_indexed"))
 		} else {
-			fmt.Fprintf(os.Stdout, "    %s %s (%s)\n",
+			fmt.Fprintf(out, "    %s %s (%s)\n",
 				theme.WarningStyle.Render(theme.IconDot), acct, i18n.T("cmd.secrets.cleanup_orphaned"))
 			orphans = append(orphans, acct)
 		}
 	}
 
-	fmt.Fprintln(os.Stdout)
+	fmt.Fprintln(out)
 
 	if len(orphans) == 0 {
-		fmt.Fprintf(os.Stdout, "  %s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.T("cmd.secrets.cleanup_none"))
+		fmt.Fprintf(out, "  %s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.T("cmd.secrets.cleanup_none"))
 		return nil
 	}
 
-	fmt.Fprintf(os.Stdout, "  %s\n", i18n.Tf("cmd.secrets.cleanup_count", len(orphans)))
+	fmt.Fprintf(out, "  %s\n", i18n.Tf("cmd.secrets.cleanup_count", len(orphans)))
 
 	if dryRun {
-		fmt.Fprintf(os.Stdout, "  %s\n", i18n.T("cmd.secrets.cleanup_dry_run"))
+		fmt.Fprintf(out, "  %s\n", i18n.T("cmd.secrets.cleanup_dry_run"))
 		return nil
 	}
 
@@ -393,7 +393,7 @@ func runSecretsCleanup(dryRun bool) error {
 			deleted++
 		}
 	}
-	fmt.Fprintf(os.Stdout, "  %s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.secrets.cleanup_deleted", deleted))
+	fmt.Fprintf(out, "  %s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.secrets.cleanup_deleted", deleted))
 	return nil
 }
 
