@@ -377,7 +377,7 @@ cd cli && go build -o oh . && mv oh /usr/local/bin/
 | Phase 5 — TUI avancé | DONE | `oh board` (kanban Bubbletea), `oh dashboard`, `oh metrics`, `oh optimize`, `oh yield` |
 | Phase 6 — MCP servers | DONE | `oh mcp serve` (figma/gitlab/gslides), protocole JSON-RPC stdio |
 | Phase 7 — Finalisation | DONE | `oh audit/review/debug/conventions/beads/service/upgrade`, shell completion |
-| Post-Phase 7 — Production readiness | À FAIRE | Voir `docs/dev/cli-remaining-work.md` |
+| Post-Phase 7 — Production readiness | À FAIRE | Voir `docs/legacy/cli-remaining-work.md` |
 
 ---
 
