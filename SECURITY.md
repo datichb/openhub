@@ -49,7 +49,7 @@ If declined, we will provide a clear explanation.
 - **Secrets stay on the machine.** opencode never receives an LLM key or an integration token: it gets a group token, exchanged by the credential proxy of the oh daemon. Containers and remote jobs receive no secret from the machine.
 - **Closed world.** A session only sees the agents and skills of its session bundle, and this is checked at each server start.
 - **Beads stays on the machine.** Outside the machine, `bd` goes through a gateway restricted by the workflow's allow-list.
-- **Maturity.** Team mode is in beta; the remote mode and the fan-out are experimental and disabled by default; Windows is less verified (see [Accepted limits and maturity of the features](#accepted-limits-and-maturity-of-the-features-50)).
+- **Maturity.** The remote mode and the fan-out are experimental and disabled by default; Windows is less verified (see [Accepted limits and maturity of the features](#accepted-limits-and-maturity-of-the-features-51)).
 - **Local mode is not a sandbox.** In local mode the agent's shell runs as your user (see [Known limitations of the local mode](#known-limitations-of-the-local-mode)). Use container sessions for real isolation.
 - **Guard rails, not barriers.** oh's shell rules (patterns) stop the mistakes of a model and cheap workarounds; they do not confine an agent that tries to get out (see [What the shell rules do not protect](#what-the-shell-rules-do-not-protect)). The locks that do not depend on patterns are: the checkpoint validation seen by oh, the gateways (Beads, MCP), the credential proxy and the container.
 
@@ -247,9 +247,9 @@ What does not depend on patterns: a paused checkpoint passes only with your vali
 - A target project can delete or replace the tags and packages of `oh-runner`: the jobs detect it (digests) and fail or rebuild (denial of service only). The image by digest after a build relies on GitLab Runner reading the dotenv in `image:` (to check during the acceptance run).
 - The remote mode has not yet been validated on a real runner: it is **experimental and disabled by default** (`[remote] experimental = true` to try it).
 
-### Accepted limits and maturity of the features (5.0)
+### Accepted limits and maturity of the features (5.1)
 
-These limits are known and accepted for 5.0 (the audit tracks them in [docs/dev/audit-v5.md](docs/dev/audit-v5.md)). They are the reason for the "guard rails, not barriers" wording above.
+These limits are known and accepted for 5.1 (the audit tracks them in [docs/dev/audit-v5.md](docs/dev/audit-v5.md)). They are the reason for the "guard rails, not barriers" wording above.
 
 **Limits we accept**
 
@@ -263,7 +263,7 @@ These limits are known and accepted for 5.0 (the audit tracks them in [docs/dev/
 
 **Maturity**
 
-- **Team mode: beta.** Single warning per process, warning in `oh doctor`, known limits (claims released when a session stops, no expiry, releases that can be lost offline): [team-setup](docs/guides/team-setup.en.md#known-limits). Full fix planned for 5.1.
+- **Team mode: supported.** A claim has a lease that expires, a claim in review outlives its session, and what the end of a session decides goes through a durable local queue (contract in [team-setup](docs/guides/team-setup.en.md#lease-and-end-of-session)). The team-state remains a git repository that every member can write to: the claims, the leases and the reviews are coordination, not access control.
 - **Remote mode: experimental, disabled by default** (`[remote] experimental`), never validated on a real runner.
 - **Fan-out: experimental, disabled by default** (`[fanout] experimental`).
 - **Windows: less verified.** Local sessions only (no container, no remote mode, the daemon runs inside the oh process, `oh upgrade oh` is not supported). 27 packages are excluded from the Windows CI ([`.github/windows-test-packages-excluded.txt`](.github/windows-test-packages-excluded.txt)).
@@ -271,7 +271,7 @@ These limits are known and accepted for 5.0 (the audit tracks them in [docs/dev/
 **Configuration and writes**
 
 - **`./hub.toml` is no longer read.** In 4.x, without `~/.oh/hub.toml`, oh read a `hub.toml` from the current directory, so a cloned repository could inject a configuration. Only the hub folder (`~/.oh`, or `OH_HOME`) is read. `hub.toml` is read strictly (a mistyped value is an error with file, line, column and key; an unknown key is a warning) and written atomically.
-- **Atomic, durable writes.** Secrets, the keychain index, server passwords, gateway grants, the shell environment, sync state, reports, wiki pages, transcripts, the team configuration, the import of a backup, the `bd` shim, the notification history and the project opencode configuration are written through a unique temporary file, `fsync` and `rename` (`internal/fsutil`): no fixed `.tmp` name, no half-written file after a crash.
+- **Atomic, durable writes.** Secrets, the keychain index, server passwords, gateway grants, the shell environment, sync state, reports, wiki pages, transcripts, the team configuration (`config.toml` of the team-state), the import of a backup, the `bd` shim, the notification history and the project opencode configuration are written through a unique temporary file, `fsync` and `rename` (`internal/fsutil`): no fixed `.tmp` name, no half-written file after a crash.
 
 ### Self-update
 

@@ -49,7 +49,7 @@ Si elle est déclinée, nous fournirons une explication claire.
 - **Les secrets restent sur la machine.** opencode ne reçoit jamais de clé LLM ni de jeton d'intégration : il reçoit un jeton de groupe, échangé par le proxy d'identifiants du démon oh. Les conteneurs et les jobs distants ne reçoivent aucun secret de la machine.
 - **Monde fermé.** Une session ne voit que les agents et les skills de son paquet de session, et c'est vérifié à chaque démarrage de serveur.
 - **Beads reste sur la machine.** Hors machine, `bd` passe par une passerelle limitée par la liste blanche du workflow.
-- **Maturité.** Le mode équipe est en bêta ; le mode distant et le fan-out sont expérimentaux et désactivés par défaut ; Windows est moins vérifié (voir [Limites assumées et maturité des fonctions](#limites-assumées-et-maturité-des-fonctions-50)).
+- **Maturité.** Le mode distant et le fan-out sont expérimentaux et désactivés par défaut ; Windows est moins vérifié (voir [Limites assumées et maturité des fonctions](#limites-assumées-et-maturité-des-fonctions-51)).
 - **Le mode local n'est pas un bac à sable.** En local, le shell de l'agent tourne sous votre utilisateur (voir [Limites connues du mode local](#limites-connues-du-mode-local)). La vraie isolation vient des sessions en conteneur.
 - **Garde-fous, pas barrières.** Les règles shell d'oh (motifs) arrêtent les erreurs d'un modèle et les contournements bon marché ; elles ne confinent pas un agent qui cherche à en sortir (voir [Ce que les règles shell ne protègent pas](#ce-que-les-règles-shell-ne-protègent-pas)). Les verrous qui ne dépendent pas des motifs sont : la validation des checkpoints vue par oh, les passerelles (Beads, MCP), le proxy d'identifiants et le conteneur.
 
@@ -246,9 +246,9 @@ Ce qui ne dépend pas des motifs : un checkpoint en pause ne passe qu'avec votre
 - Un projet cible peut effacer ou remplacer les étiquettes et paquets d'`oh-runner` : les jobs le détectent (empreintes) et échouent ou reconstruisent (déni de service seulement). L'image par empreinte après une construction repose sur la lecture du dotenv par GitLab Runner dans `image:` (à valider à la recette).
 - Le mode distant n'a pas encore été validé sur un vrai runner : il est **expérimental et désactivé par défaut** (`[remote] experimental = true` pour l'essayer).
 
-### Limites assumées et maturité des fonctions (5.0)
+### Limites assumées et maturité des fonctions (5.1)
 
-Ces limites sont connues et assumées pour la 5.0 (l'audit les suit dans [docs/dev/audit-v5.md](docs/dev/audit-v5.md)). Elles expliquent la formule « garde-fous, pas barrières » ci-dessus.
+Ces limites sont connues et assumées pour la 5.1 (l'audit les suit dans [docs/dev/audit-v5.md](docs/dev/audit-v5.md)). Elles expliquent la formule « garde-fous, pas barrières » ci-dessus.
 
 **Limites assumées**
 
@@ -262,7 +262,7 @@ Ces limites sont connues et assumées pour la 5.0 (l'audit les suit dans [docs/d
 
 **Maturité**
 
-- **Mode équipe : bêta.** Avertissement unique par processus, avertissement dans `oh doctor`, limites connues (claims libérés à l'arrêt d'une session, pas d'expiration, libérations qui peuvent se perdre hors ligne) : [team-setup](docs/guides/team-setup.fr.md#limites-connues). Correction complète prévue en 5.1.
+- **Mode équipe : pris en charge.** Une réservation a un bail qui expire, une réservation en revue survit à sa session, et ce que décide la fin d'une session passe par une file locale durable (contrat dans [team-setup](docs/guides/team-setup.fr.md#bail-et-fin-de-session)). Le team-state reste un dépôt git où tout membre peut écrire : les réservations, les baux et les revues sont de la coordination, pas un contrôle d'accès.
 - **Mode distant : expérimental, désactivé par défaut** (`[remote] experimental`), jamais validé sur un vrai runner.
 - **Fan-out : expérimental, désactivé par défaut** (`[fanout] experimental`).
 - **Windows : moins vérifié.** Sessions locales seulement (pas de conteneur, pas de mode distant, le démon tourne dans le processus oh, `oh upgrade oh` n'est pas pris en charge). 27 paquets sont exclus de la CI Windows ([`.github/windows-test-packages-excluded.txt`](.github/windows-test-packages-excluded.txt)).
@@ -270,7 +270,7 @@ Ces limites sont connues et assumées pour la 5.0 (l'audit les suit dans [docs/d
 **Configuration et écritures**
 
 - **`./hub.toml` n'est plus lu.** En 4.x, sans `~/.oh/hub.toml`, oh lisait un `hub.toml` du dossier courant : un dépôt cloné pouvait injecter une configuration. Seul le dossier du hub (`~/.oh`, ou `OH_HOME`) est lu. `hub.toml` est lu strictement (une valeur mal typée est une erreur avec fichier, ligne, colonne et clé ; une clé inconnue, un avertissement) et écrit de façon atomique.
-- **Écritures atomiques et durables.** Les secrets, l'index du trousseau, les mots de passe des serveurs, les droits de la passerelle, l'environnement du shell, l'état de synchronisation, les rapports, les pages du wiki, les transcriptions, la configuration d'équipe, l'import d'une sauvegarde, le shim `bd`, l'historique des notifications et la configuration opencode du projet sont écrits par un fichier temporaire unique, `fsync` puis `rename` (`internal/fsutil`) : plus de `.tmp` à nom fixe, plus de fichier à moitié écrit après un arrêt brutal.
+- **Écritures atomiques et durables.** Les secrets, l'index du trousseau, les mots de passe des serveurs, les droits de la passerelle, l'environnement du shell, l'état de synchronisation, les rapports, les pages du wiki, les transcriptions, la configuration d'équipe (`config.toml` du team-state), l'import d'une sauvegarde, le shim `bd`, l'historique des notifications et la configuration opencode du projet sont écrits par un fichier temporaire unique, `fsync` puis `rename` (`internal/fsutil`) : plus de `.tmp` à nom fixe, plus de fichier à moitié écrit après un arrêt brutal.
 
 ### Mise à jour automatique
 

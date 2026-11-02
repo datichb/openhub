@@ -2,8 +2,6 @@
 
 # Référence CLI — Équipe
 
-> **Bêta (v5.0).** Le mode équipe est publié en bêta : il fonctionne, mais quelques limites sont connues (réservation libérée à l'arrêt de la session, pas d'expiration, libération qui peut se perdre). Lisez les [limites connues](../guides/team-setup.fr.md#limites-connues) avant de vous y fier.
-
 Les fonctions d'équipe reposent sur un dépôt git **team-state** partage (claims, événements, wiki, policies, patterns, workflows d'équipe). Voir [Workflows d'équipe](../guides/team-workflows.fr.md) pour les workflows et l'[ADR-040](../architecture/adr/040-workflows-team-state-governance.fr.md).
 
 ## Collaboration (oh team)
@@ -157,7 +155,7 @@ oh team board [--watch]
 
 ### oh team claim
 
-Réclame un ticket dans le team-state pour signaler à l'équipe que vous travaillez dessus. Si le ticket est déjà pris, un avertissement s'affiche (non bloquant). Si la réservation d'un autre membre a expiré (son bail est dépassé ; sans bail, inactive depuis `takeover.stale_days` jours), vous pouvez la reprendre : après confirmation, un brief de reprise est généré et la réservation vous revient avec un nouveau bail. Si l'expirée est la vôtre, son bail est renouvelé.
+Réclame un ticket dans le team-state pour signaler à l'équipe que vous travaillez dessus. Si le ticket est déjà pris, un avertissement s'affiche (non bloquant). Si la réservation d'un autre membre a expiré (son bail est dépassé ; sans bail, inactive depuis `takeover.stale_days` jours), vous pouvez la reprendre : après confirmation, un brief de reprise est généré et la réservation vous revient avec un nouveau bail. Si la réservation est la vôtre, son bail est renouvelé (expirée ou non, sans confirmation).
 
 ```
 oh team claim <ticket-id> [options]
@@ -394,17 +392,27 @@ oh takeover-brief list                # lister les briefs
 oh takeover-brief enrich <ticket-id>  # alias deprecie : lance `oh run brief-enrich --headless` avec le brief et enregistre le resultat
 ```
 
-## Limites connues
+## Bail et fin de session
 
-Le mode équipe est en bêta en v5.0. Ces limites sont connues ; la correction complète est prévue pour la v5.1.
+Résumé de référence ; le contrat complet (statuts, bail, fin de session, file) est dans le guide [Setup équipe](../guides/team-setup.fr.md#bail-et-fin-de-session).
 
-- **Une réservation est libérée à l'arrêt de sa session**, même si une revue (checkpoint `cp-2`) est encore en attente : le ticket redevient disponible pour les autres membres avant la fin de la revue. Si le ticket est clos dans Beads, la réservation est terminée au lieu d'être libérée.
-- **Bail.** Une réservation en cours de travail a un bail (`lease_hours`, 24 h par défaut), que le démon renouvelle (`heartbeat_minutes`) tant qu'une session ouverte travaille sur le ticket. Le renouvellement a un plafond : une session en veille depuis plus de `sleeping_renewal_days` (3) jours et une session distante lancée depuis plus de `remote_renewal_days` (7) jours ne renouvellent plus ; leurs réservations expirent alors normalement. Quand le bail est dépassé, un autre membre peut la reprendre avec `oh team claim <ticket>` (confirmation commune, `--yes` sans terminal) : un brief de reprise est généré et la réservation lui revient avec un nouveau bail. Une réservation sans bail (créée avant la v5.1) est jugée sur `takeover.stale_days` jours d'inactivité (3 par défaut, section `[takeover]` du `config.toml` du team-state). Une réservation prise à la main, sans session (`oh team claim`, le board d'équipe), a un bail plus long (`lease_hours_manual`, 72 h par défaut) que rien ne renouvelle tout seul : `oh team claim <ticket>` sur sa propre réservation le renouvelle, expiré ou non, sans confirmation. `oh doctor` (`claims_expired`) donne la commande. L'équipe peut demander à la synchronisation du tracker de libérer les réservations expirées (`release_expired_on_sync`, désactivé par défaut ; une réservation en revue est gardée). Tous ces réglages sont dans la section `[claim]` du `config.toml` du team-state et dans `team-detail`.
-- **Une réservation libérée volontairement le reste.** La synchronisation du tracker ne prend plus une réservation libérée par son titulaire (`oh team release`, fin de session, board, rétention des réservations terminées) pour une réservation perdue par accident et ne la recrée plus. Une issue assignée à un membre dont la réservation a été libérée ne redevient une réservation `planned` que si elle est mise à jour sur le tracker ensuite.
-- **Issues laissées hors du board.** `max_auto_plan_per_member` (5 par défaut) borne les claims qu'une synchro crée pour un membre, par run (ce n'est pas un plafond permanent : la synchro suivante repart de zéro, et les issues retenues entrent en premier). Les issues déjà en cours passent en premier et sont toujours acceptées, hors limite. Ce que la limite laisse dehors est compté : le résultat de la synchro et le board d'équipe disent `N issue(s) hors du board, limite atteinte`.
-- **Hors ligne, la fin d'une session attend le réseau.** Ce que la fin d'une session décide (libérer, terminer, marquer `session-ended`) est écrit tout de suite dans une file locale (`.git/oh-claims-queue.json` du clone du team-state), puis appliqué en un commit dès que le dépôt d'équipe répond : à chaque battement du démon, par sa tâche `claims-queue` (aussi au démarrage), ou à la fin d'une session. Une session qui démarre hors ligne sur un ticket que vous aviez déjà réservé reprend la réservation au retour du réseau, avant ce que la session précédente avait mis en file (qui est annulé).
-- **Réservation oubliée :** `oh team release <ticket-id> -p <projet>` la libère à la main.
-- **`oh doctor` signale les réservations orphelines** (ticket clos, ou toutes les sessions qui l'ont traité terminées), avec la commande à lancer. Les réservations prises sous l'ancien ID d'un projet recréé sont signalées aussi, et `oh doctor --fix` les rattache au projet local (voir [`oh doctor`](cli-infra.fr.md#oh-doctor)).
-- **La colonne REVIEW suit le label `ready-for-review`.** Dans `oh board` et dans le Board TUI, un ticket Beads `in_progress` qui porte ce label est en REVIEW (Beads n'a pas de statut `review`). Le board d'équipe affiche le statut `review` des réservations.
+**Statuts.** La colonne REVIEW est, côté Beads (`oh board`, Board TUI), un ticket `in_progress` qui porte le label `ready-for-review` (Beads 1.3 n'a pas de statut `review`) ; côté réservation (board d'équipe), le statut `review`. Les deux ne se recopient pas ; à la fin d'une session, l'un ou l'autre garde la réservation. Détail : [Modèle de statut](../guides/team-setup.fr.md#modèle-de-statut).
 
-oh avertit une fois par processus sur stderr (commandes d'équipe, première réservation prise par un lancement), et `oh doctor` liste le mode bêta comme un avertissement qui ne change pas son code de sortie.
+**Bail.** Une réservation en cours de travail (propriétaire et travail commencé ; pas `planned`, pas le pool, pas terminée) a un bail. Réglages de la section `[claim]` du `config.toml` du team-state (et de `team-detail`) :
+
+| Clé | Défaut | Rôle |
+|---|---|---|
+| `lease_hours` | 24 (1 à 168) | bail d'une réservation travaillée par une session |
+| `heartbeat_minutes` | 60 (0 = désactivé, 5 à 1440, au plus la moitié du bail) | signal de vie du démon : renouvelle le bail des sessions ouvertes quand il en reste moins de la moitié |
+| `sleeping_renewal_days` | 3 (1 à 90) | plafond : une session en veille depuis plus longtemps ne renouvelle plus |
+| `remote_renewal_days` | 7 (1 à 90) | plafond : une session distante lancée depuis plus longtemps ne renouvelle plus |
+| `lease_hours_manual` | 72 (`lease_hours` à 720) | bail d'une réservation prise à la main (sans session), que rien ne renouvelle tout seul |
+| `release_expired_on_sync` | `false` | la synchronisation du tracker libère les réservations expirées (une réservation en revue est gardée) |
+
+**Expiration et reprise.** Une réservation expirée (bail dépassé ; sans bail, inactive plus de `takeover.stale_days` jours) est signalée par `oh doctor` (`claims_expired`, avertissement). `oh team claim <ticket>` renouvelle votre propre réservation (expirée ou non, sans confirmation) et reprend celle d'un autre membre si elle a expiré (confirmation commune ; `--yes` sans terminal, sinon code 2).
+
+**Fin de session.** Pour chaque réservation de la session : terminée → gardée ; ticket clos → statut terminal ; en revue (label `review` / `ready-for-review` ou statut `review`) → **gardée** ; checkpoint en attente, `cp-2` reporté avec du travail laissé, état des checkpoints illisible → gardée avec le label `session-ended` ; sinon libérée. Une réservation gardée n'est plus renouvelée et expire à la fin de son bail.
+
+**File durable.** Les décisions de fin de session et les renouvellements non poussés sont écrits dans `.git/oh-claims-queue.json` du clone du team-state, puis appliqués en un commit dès que le dépôt répond (fin de session, battement du démon, tâche `claims-queue` toutes les 15 minutes). `oh doctor` (`claims_queue`) signale ce qui attend depuis plus de 15 minutes ; `oh doctor --fix` l'applique après confirmation.
+
+**Réservation oubliée :** `oh team release <ticket-id> -p <projet>` la libère à la main. `oh doctor` signale aussi les réservations orphelines (ticket clos, ou toutes les sessions qui l'ont traité terminées) ; celles prises sous l'ancien ID d'un projet recréé sont rattachées au projet local par `oh doctor --fix` (voir [`oh doctor`](cli-infra.fr.md#oh-doctor)).

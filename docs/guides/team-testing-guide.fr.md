@@ -2,8 +2,6 @@
 
 # Guide de test exhaustif — Feature Team (`oh`)
 
-> **Bêta (v5.0).** Le mode équipe est publié en bêta : il fonctionne, mais quelques limites sont connues (réservation libérée à l'arrêt de la session, pas d'expiration, libération qui peut se perdre). Lisez les [limites connues](team-setup.fr.md#limites-connues) avant de vous y fier.
-
 > Guide complet pour tester de fond en comble la feature Team d'OpenHub.
 > Comparaison CLI / TUI pour chaque action, schémas d'architecture, machines à états, et scénarios end-to-end.
 
@@ -33,7 +31,7 @@
 - [18. Credentials et sécurité](#18-credentials--sécurité)
 - [19. Concurrence Git](#19-concurrence-git-withwritelock)
 - [20. Scénarios end-to-end](#20-scénarios-end-to-end)
-- [Limites connues](#limites-connues)
+- [Bail et fin de session](#bail-et-fin-de-session)
 
 ---
 
@@ -1631,15 +1629,23 @@ Timeout HTTP: 10 secondes pour tous les clients.
 | `u` | Annuler (undo) |
 | `r` | Refresh |
 
-## Limites connues
+## Bail et fin de session
 
-Le mode équipe est en bêta en v5.0. Ces limites sont connues ; la correction complète est prévue pour la v5.1.
+Ce que le mode équipe garantit sur une réservation (claim), et comment le vérifier sur un team-state de test. Le contrat complet est dans [Setup équipe](team-setup.fr.md#bail-et-fin-de-session) et [Modèle de statut](team-setup.fr.md#modèle-de-statut) ; les réglages sont dans [Référence CLI — Équipe](../reference/cli-team.fr.md#bail-et-fin-de-session).
 
-- **Une réservation est libérée à l'arrêt de sa session**, même si une revue (checkpoint `cp-2`) est encore en attente : le ticket redevient disponible pour les autres membres avant la fin de la revue. Si le ticket est clos dans Beads, la réservation est terminée au lieu d'être libérée.
-- **Bail.** Une réservation en cours de travail a un bail (`lease_hours`, 24 h par défaut), que le démon renouvelle (`heartbeat_minutes`) tant qu'une session ouverte travaille sur le ticket. Quand le bail est dépassé, un autre membre peut la reprendre avec `oh team claim <ticket>` (confirmation commune, `--yes` sans terminal) : un brief de reprise est généré et la réservation lui revient avec un nouveau bail. Une réservation sans bail (créée avant la v5.1) est jugée sur `takeover.stale_days` jours d'inactivité (3 par défaut, section `[takeover]` du `config.toml` du team-state). Une réservation prise à la main, sans session, n'est pas renouvelée par le démon : `oh team claim <ticket>` renouvelle son bail.
-- **Hors ligne, la fin d'une session attend le réseau.** Ce que la fin d'une session décide (libérer, terminer, marquer `session-ended`) est écrit tout de suite dans une file locale (`.git/oh-claims-queue.json` du clone du team-state), puis appliqué en un commit dès que le dépôt d'équipe répond : à chaque battement du démon, par sa tâche `claims-queue` (aussi au démarrage), ou à la fin d'une session. Une session qui démarre hors ligne sur un ticket que vous aviez déjà réservé reprend la réservation au retour du réseau, avant ce que la session précédente avait mis en file (qui est annulé).
-- **Réservation oubliée :** `oh team release <ticket-id> -p <projet>` la libère à la main.
-- **`oh doctor` signale les réservations orphelines** (ticket clos, ou toutes les sessions qui l'ont traité terminées), avec la commande à lancer.
-- **La colonne REVIEW suit le label `ready-for-review`.** Dans `oh board` et dans le Board TUI, un ticket Beads `in_progress` qui porte ce label est en REVIEW (Beads n'a pas de statut `review`). Le board d'équipe affiche le statut `review` des réservations.
-
-oh avertit une fois par processus sur stderr (commandes d'équipe, première réservation prise par un lancement), et `oh doctor` liste le mode bêta comme un avertissement qui ne change pas son code de sortie.
+| À vérifier | Comment | Résultat attendu |
+|---|---|---|
+| Le bail d'une session | lancer une session sur un ticket réservé, lire `lease_until` dans le fichier de la réservation du team-state | `lease_until` = maintenant + `lease_hours` (24 h par défaut), la session est inscrite sur la réservation |
+| Le signal de vie | laisser le démon tourner plus de la moitié du bail avec une session ouverte | un commit `lease: … renews …` ; aucun tant que le bail est long |
+| Les plafonds | mettre la session en veille plus de `sleeping_renewal_days` jours (ou lancer une session distante il y a plus de `remote_renewal_days` jours) | le bail n'est plus renouvelé, `oh doctor` signale la réservation (`claims_expired`) |
+| Le bail d'une réservation prise à la main | `oh team claim <ticket>` | `lease_until` = maintenant + `lease_hours_manual` (72 h) ; refaire `oh team claim <ticket>` le renouvelle sans question |
+| La reprise | `oh team claim <ticket>` par un autre membre sur une réservation expirée | confirmation commune (`--yes` sans terminal, sinon code 2), brief de reprise, la réservation change de propriétaire avec un nouveau bail |
+| Une revue en attente | terminer la session d'un ticket avec le label `ready-for-review` (ou la réservation en `review`) | la réservation **est gardée**, elle n'est pas libérée |
+| `cp-2` reporté | terminer la session en reportant le commit, avec du travail laissé | la réservation est gardée avec le label `session-ended` ; `oh doctor` la signale |
+| Rien en attente | terminer la session d'un ticket sans revue ni checkpoint en attente | la réservation est libérée |
+| Ticket clos | clore le ticket dans Beads puis terminer la session | la réservation passe au statut terminal |
+| Hors ligne | couper l'accès au dépôt d'équipe, terminer la session | les décisions restent dans `.git/oh-claims-queue.json` (oh le dit) ; au retour du réseau, un battement du démon (ou `oh doctor --fix`) les applique en un commit |
+| Expiration à la synchro | `release_expired_on_sync = true`, une réservation expirée | la synchro la libère (`release: N expired claim(s)`), sauf si elle est en revue |
+| Réservation oubliée | `oh team release <ticket-id> -p <projet>` | la réservation est libérée |
+| Statuts configurés (session distante) | dans un job distant, `bd update <ID> --status review` sans statut `review` configuré | refusé tout de suite (code 1), rien n'est journalisé ; le label `ready-for-review` passe |
+| REVIEW | ticket `in_progress` + label `ready-for-review` | classé en REVIEW dans `oh board` et le Board TUI ; le board d'équipe affiche le statut `review` de la réservation |

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/datichb/openhub/cli/internal/fsutil"
 	"github.com/datichb/openhub/cli/internal/limits"
 	toml "github.com/pelletier/go-toml/v2"
 )
@@ -718,7 +719,7 @@ func (r *Repo) SaveConfig(ctx context.Context, cfg *TeamConfig) error {
 			return fmt.Errorf("marshaling config.toml: %w", err)
 		}
 		path := filepath.Join(r.path, "config.toml")
-		if err := os.WriteFile(path, data, 0o644); err != nil {
+		if err := fsutil.WriteFileAtomic(path, data, 0o644); err != nil {
 			return err
 		}
 		return r.commitAndPush(ctx, "config: update team config", "config.toml")

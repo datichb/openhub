@@ -97,6 +97,36 @@ func TestSaveConfig(t *testing.T) {
 	assert.Equal(t, cfg.Notification.BotName, loaded.Notification.BotName)
 }
 
+// SaveConfig replaces config.toml atomically (fsutil): the file is renamed
+// over the old one, so a crash or a concurrent reader never sees a partial
+// file. A hard link made to the file before the save keeps the old content
+// (an in-place write would have changed it), and no temporary file is left.
+func TestSaveConfigReplacesTheFileAtomically(t *testing.T) {
+	t.Parallel()
+	repo, _ := setupGitTestRepo(t)
+	ctx := context.Background()
+
+	require.NoError(t, repo.SaveConfig(ctx, &TeamConfig{Notification: NotificationConfig{BotName: "First"}}))
+	path := filepath.Join(repo.path, "config.toml")
+	before, err := os.ReadFile(path)
+	require.NoError(t, err)
+	link := filepath.Join(t.TempDir(), "config-before.toml")
+	require.NoError(t, os.Link(path, link))
+
+	require.NoError(t, repo.SaveConfig(ctx, &TeamConfig{Notification: NotificationConfig{BotName: "Second"}}))
+
+	kept, err := os.ReadFile(link)
+	require.NoError(t, err)
+	assert.Equal(t, string(before), string(kept), "the previous file is not written in place")
+	loaded, err := repo.LoadConfig()
+	require.NoError(t, err)
+	assert.Equal(t, "Second", loaded.Notification.BotName)
+
+	matches, err := filepath.Glob(filepath.Join(repo.path, ".config.toml.*.tmp"))
+	require.NoError(t, err)
+	assert.Empty(t, matches, "no temporary file is left")
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // BoardConfig method tests
 // ─────────────────────────────────────────────────────────────────────────────
