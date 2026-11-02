@@ -43,8 +43,7 @@ func TestClaimsHeartbeatCallsTheCallbackAtTheGivenRhythm(t *testing.T) {
 		t.Fatal("the loop did not stop with the context")
 	}
 	n := calls.Load()
-	time.Sleep(60 * time.Millisecond)
-	assert.Equal(t, n, calls.Load(), "no call after the stop")
+	assert.Never(t, func() bool { return calls.Load() != n }, 60*time.Millisecond, 5*time.Millisecond, "no call after the stop")
 }
 
 func TestClaimsHeartbeatFirstBeatIsImmediate(t *testing.T) {
@@ -110,8 +109,7 @@ func TestClaimsHeartbeatWaitsForTheGrantsAndStopsWithTheDaemon(t *testing.T) {
 	d := heartbeatDaemon(func(context.Context) error { calls.Add(1); return nil }, 5*time.Millisecond)
 	d.restored = make(chan struct{}) // not restored yet
 	done := runLoop(context.Background(), d)
-	time.Sleep(50 * time.Millisecond)
-	assert.Zero(t, calls.Load(), "not before the restoration")
+	assert.Never(t, func() bool { return calls.Load() > 0 }, 50*time.Millisecond, 5*time.Millisecond, "not before the restoration")
 
 	close(d.restored)
 	require.Eventually(t, func() bool { return calls.Load() >= 2 }, 10*time.Second, 5*time.Millisecond)
@@ -126,14 +124,20 @@ func TestClaimsHeartbeatWaitsForTheGrantsAndStopsWithTheDaemon(t *testing.T) {
 func TestClaimsHeartbeatContextIsPassedToTheCallback(t *testing.T) {
 	t.Parallel()
 	got := make(chan error, 1)
+	started := make(chan struct{})
 	d := heartbeatDaemon(func(ctx context.Context) error {
+		close(started)
 		<-ctx.Done()
 		got <- ctx.Err()
 		return ctx.Err()
 	}, time.Hour)
 	ctx, cancel := context.WithCancel(context.Background())
 	done := runLoop(ctx, d)
-	time.Sleep(20 * time.Millisecond)
+	select {
+	case <-started:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the callback did not start")
+	}
 	cancel()
 	assert.ErrorIs(t, <-got, context.Canceled, "a callback blocked on git is interrupted")
 	select {
@@ -174,6 +178,5 @@ func TestRunStopsTheClaimsHeartbeatWithItsContext(t *testing.T) {
 		t.Fatal("the daemon did not stop")
 	}
 	n := calls.Load()
-	time.Sleep(80 * time.Millisecond)
-	assert.Equal(t, n, calls.Load())
+	assert.Never(t, func() bool { return calls.Load() != n }, 80*time.Millisecond, 5*time.Millisecond, "no call after the daemon stopped")
 }
