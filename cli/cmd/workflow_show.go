@@ -23,9 +23,8 @@ func init() {
 
 func workflowShowCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "show <id>|<layer>:<id>",
-		Short: "Affiche un workflow résolu (avec l'origine des valeurs)",
-		Args:  cobra.ExactArgs(1),
+		Use:  "show <id>|<layer>:<id>",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			asJSON, _ := cmd.Flags().GetBool("json")
 			origin, _ := cmd.Flags().GetBool("origin")
@@ -59,8 +58,8 @@ func workflowShowCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().Bool("origin", false, "Affiche la couche qui a posé chaque valeur")
-	cmd.Flags().Bool("json", false, "Sortie JSON")
+	cmd.Flags().Bool("origin", false, "")
+	cmd.Flags().Bool("json", false, "")
 	addWorkflowContextFlags(cmd)
 	return cmd
 }

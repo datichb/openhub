@@ -24,7 +24,7 @@ var teamBoardCmd = &cobra.Command{
 
 func init() {
 	teamCmd.AddCommand(teamBoardCmd)
-	teamBoardCmd.Flags().Bool("watch", false, "Rafraîchissement automatique (touche r pour rafraîchir manuellement)")
+	teamBoardCmd.Flags().Bool("watch", false, "")
 }
 
 func runTeamBoard(cmd *cobra.Command, args []string) error {

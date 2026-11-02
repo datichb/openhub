@@ -21,16 +21,15 @@ import (
 )
 
 var doctorCmd = &cobra.Command{
-	Use:   "doctor",
-	Short: "Vérifie l'état du système et les dépendances",
-	RunE:  runDoctor,
+	Use:  "doctor",
+	RunE: runDoctor,
 }
 
 func init() {
 	rootCmd.AddCommand(withInitLevel(doctorCmd, levelDegraded))
-	doctorCmd.Flags().Bool("fix", false, "Répare ce qui peut l'être (Beads zéro impact) après un résumé et une confirmation")
-	doctorCmd.Flags().BoolP("yes", "y", false, "Avec --fix : appliquer sans confirmation (obligatoire sans terminal)")
-	doctorCmd.Flags().Bool("offline", false, "Aucun appel réseau (version publiée, validation de la clé du provider) ; aussi OH_DOCTOR_OFFLINE=1")
+	doctorCmd.Flags().Bool("fix", false, "")
+	doctorCmd.Flags().BoolP("yes", "y", false, "")
+	doctorCmd.Flags().Bool("offline", false, "")
 }
 
 // doctorOffline reports whether oh doctor must not use the network

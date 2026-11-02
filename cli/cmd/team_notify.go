@@ -16,26 +16,18 @@ import (
 )
 
 var teamNotifyCmd = &cobra.Command{
-	Use:   "notify",
-	Short: "Gestion des notifications d'équipe",
+	Use: "notify",
 }
 
 var teamNotifyTestCmd = &cobra.Command{
-	Use:   "test",
-	Short: "Envoie une notification de test au webhook configuré",
-	Long: `Envoie un message de test au(x) webhook(s) configuré(s) dans le team-state.
-Utile pour vérifier que la configuration des notifications fonctionne.
-
-Exemples:
-  oh team notify test
-  oh team notify test --message "Déploiement en cours"`,
+	Use:  "test",
 	RunE: runTeamNotifyTest,
 }
 
 func init() {
 	teamCmd.AddCommand(teamNotifyCmd)
 	teamNotifyCmd.AddCommand(teamNotifyTestCmd)
-	teamNotifyTestCmd.Flags().StringP("message", "m", "", "Message personnalisé (défaut: message de test standard)")
+	teamNotifyTestCmd.Flags().StringP("message", "m", "", "")
 }
 
 func runTeamNotifyTest(cmd *cobra.Command, args []string) error {

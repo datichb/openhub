@@ -14,15 +14,13 @@ import (
 )
 
 var boardCmd = &cobra.Command{
-	Use:   "board",
-	Short: "Affiche le tableau kanban des tickets",
-	Long:  "Lance un kanban board interactif en plein écran avec rafraîchissement automatique.",
-	RunE:  runBoard,
+	Use:  "board",
+	RunE: runBoard,
 }
 
 func init() {
 	rootCmd.AddCommand(boardCmd)
-	boardCmd.Flags().Bool("watch", false, "Rafraîchissement automatique toutes les 5s")
+	boardCmd.Flags().Bool("watch", false, "")
 }
 
 func runBoard(cmd *cobra.Command, args []string) error {

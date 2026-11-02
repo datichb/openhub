@@ -18,7 +18,6 @@ import (
 var worktreeCmd = &cobra.Command{
 	Use:     "worktree",
 	Aliases: []string{"wt"},
-	Short:   "Gestion des git worktrees",
 }
 
 func init() {
@@ -33,7 +32,6 @@ func worktreeListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Aliases: []string{"ls"},
-		Short:   "Liste les worktrees du projet",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := MustApp()
 			cwd, _ := os.Getwd()
@@ -90,16 +88,14 @@ func worktreeListCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().Bool("json", false, "Output in JSON format")
+	cmd.Flags().Bool("json", false, "")
 	return cmd
 }
 
 func worktreeAddCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "add [branch]",
-		Short: "Crée un nouveau worktree",
-		Long:  "Crée un worktree pour une branche. Lance un wizard si aucune branche n'est fournie.",
-		Args:  cobra.MaximumNArgs(1),
+		Use:  "add [branch]",
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := MustApp()
 			cwd, _ := os.Getwd()
@@ -153,7 +149,6 @@ func worktreeRemoveCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "remove [path]",
 		Aliases: []string{"rm"},
-		Short:   "Supprime un worktree",
 		Args:    cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := MustApp()
@@ -209,7 +204,7 @@ func worktreeRemoveCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().BoolVarP(&force, "force", "f", false, "Forcer la suppression")
+	cmd.Flags().BoolVarP(&force, "force", "f", false, "")
 	return cmd
 }
 
@@ -218,11 +213,7 @@ func worktreeCleanupCmd() *cobra.Command {
 	var force bool
 
 	cmd := &cobra.Command{
-		Use:   "cleanup",
-		Short: "Supprime les worktrees dont la branche est mergée",
-		Long: `Supprime automatiquement tous les worktrees dont la branche est entièrement
-mergée dans la branche de base (main par défaut). Utilise "git branch --merged"
-pour la détection.`,
+		Use: "cleanup",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := MustApp()
 			cwd, _ := os.Getwd()
@@ -312,8 +303,8 @@ pour la détection.`,
 		},
 	}
 
-	cmd.Flags().StringVarP(&baseBranch, "base", "b", "", "Branche de base pour la détection (défaut: auto-detect)")
-	cmd.Flags().BoolVarP(&force, "force", "f", false, "Also remove worktrees with uncommitted changes (asks no confirmation)")
+	cmd.Flags().StringVarP(&baseBranch, "base", "b", "", "")
+	cmd.Flags().BoolVarP(&force, "force", "f", false, "")
 	addYesFlag(cmd)
 	return cmd
 }

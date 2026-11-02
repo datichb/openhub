@@ -657,7 +657,7 @@ func mcpServeCmd() *cobra.Command {
 			return server.Serve()
 		},
 	}
-	cmd.Flags().String("token-key", "", "keychain key name to resolve the service token")
+	cmd.Flags().String("token-key", "", "")
 	return cmd
 }
 

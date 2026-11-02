@@ -27,8 +27,7 @@ import (
 // to inspect what a session sees; its --budget replaces oh skill budget).
 
 var bundleCmd = &cobra.Command{
-	Use:   "bundle",
-	Short: "Paquets de session (contenu compilé d'un workflow)",
+	Use: "bundle",
 }
 
 func init() {
@@ -37,16 +36,15 @@ func init() {
 }
 
 func bundleFlags(cmd *cobra.Command) {
-	cmd.Flags().StringP("project", "p", "", "Projet (instructions, modèles, MCP) ; détecté depuis le dossier courant")
-	cmd.Flags().StringP("provider", "P", "", "Fournisseur LLM (normalisation des modèles)")
-	cmd.Flags().Bool("json", false, "Sortie JSON")
+	cmd.Flags().StringP("project", "p", "", "")
+	cmd.Flags().StringP("provider", "P", "", "")
+	cmd.Flags().Bool("json", false, "")
 }
 
 func bundleBuildCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "build <workflow>",
-		Short: "Compile le paquet de session d'un workflow",
-		Args:  cobra.ExactArgs(1),
+		Use:  "build <workflow>",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			b, err := buildBundleFor(cmd, args[0])
 			if err != nil {
@@ -65,9 +63,8 @@ func bundleBuildCmd() *cobra.Command {
 
 func bundleShowCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "show <workflow>|<hash>",
-		Short: "Affiche le contenu d'un paquet de session (agents, skills, permissions, budget)",
-		Args:  cobra.ExactArgs(1),
+		Use:  "show <workflow>|<hash>",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			b, err := bundle.Load(ohBundlesDir(), args[0])
 			if err != nil {
@@ -85,7 +82,7 @@ func bundleShowCmd() *cobra.Command {
 		},
 	}
 	bundleFlags(cmd)
-	cmd.Flags().Bool("budget", false, "Détaille le budget estimé (tokens par agent et par skill)")
+	cmd.Flags().Bool("budget", false, "")
 	return cmd
 }
 

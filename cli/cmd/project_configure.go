@@ -27,10 +27,8 @@ func init() {
 
 func projectRenameCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "rename [project-id] [new-name]",
-		Short: "Renomme un projet",
-		Long:  "Change le nom d'affichage d'un projet enregistré. L'ID ne change pas.",
-		Args:  cobra.MaximumNArgs(2),
+		Use:  "rename [project-id] [new-name]",
+		Args: cobra.MaximumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := MustApp()
 			ctx := cmd.Context()
@@ -83,11 +81,7 @@ func projectRenameCmd() *cobra.Command {
 
 func projectMoveCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "move [project-id] [new-path]",
-		Short: "Change le chemin d'un projet",
-		Long: `Met à jour le chemin enregistré d'un projet dans le hub.
-Utile si le projet a été déplacé sur le filesystem.
-Ne déplace PAS physiquement le dossier.`,
+		Use:  "move [project-id] [new-path]",
 		Args: cobra.MaximumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := MustApp()
@@ -160,13 +154,7 @@ func projectConfigureCmd() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "configure [project-id]",
-		Short: "Configure les paramètres d'un projet",
-		Long: `Configure les paramètres spécifiques d'un projet : provider LLM, modèle,
-langage. Ces paramètres sont persistés et utilisés par oh run.
-
-En mode non-interactif, passez les flags correspondants.
-Sans flags, lance un wizard interactif.`,
+		Use:  "configure [project-id]",
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := MustApp()
@@ -216,9 +204,9 @@ Sans flags, lance un wizard interactif.`,
 		},
 	}
 
-	cmd.Flags().StringVarP(&provider, "provider", "P", "", "Provider LLM (bedrock, anthropic, openai)")
-	cmd.Flags().StringVar(&model, "model", "", "Modèle LLM")
-	cmd.Flags().StringVarP(&language, "language", "l", "", "Langage principal")
+	cmd.Flags().StringVarP(&provider, "provider", "P", "", "")
+	cmd.Flags().StringVar(&model, "model", "", "")
+	cmd.Flags().StringVarP(&language, "language", "l", "", "")
 
 	return cmd
 }

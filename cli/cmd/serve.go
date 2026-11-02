@@ -17,25 +17,13 @@ import (
 )
 
 var serveCmd = &cobra.Command{
-	Use:   "serve",
-	Short: "Lance le dashboard web oh",
-	Long: `Lance un serveur HTTP local exposant le dashboard oh.
-Le dashboard affiche projets, sessions, métriques, télémétrie agent,
-team board (kanban), timeline et membres.
-
-Par défaut le serveur écoute uniquement sur 127.0.0.1 (localhost).
-L'URL affichée au lancement contient un jeton d'accès aléatoire
-(http://127.0.0.1:8080/?token=…) : ouvrez-la telle quelle, ne la partagez pas.
-
-Exemples:
-  oh serve                   Lance sur le port par défaut (8080)
-  oh serve --port 9090       Lance sur un port personnalisé`,
+	Use:  "serve",
 	RunE: runServe,
 }
 
 func init() {
 	rootCmd.AddCommand(serveCmd)
-	serveCmd.Flags().Int("port", 8080, "Port d'écoute")
+	serveCmd.Flags().Int("port", 8080, "")
 }
 
 func runServe(cmd *cobra.Command, args []string) error {

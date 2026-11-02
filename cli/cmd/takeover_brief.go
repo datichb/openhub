@@ -22,21 +22,18 @@ import (
 var takeoverBriefCmd = &cobra.Command{
 	Use:     "takeover-brief",
 	Aliases: []string{"tb"},
-	Short:   "Gestion des briefs de reprise de ticket",
 	Long:    i18n.T("cmd.takeover_brief.long"),
 }
 
 var takeoverBriefShowCmd = &cobra.Command{
-	Use:   "show <ticket-id>",
-	Short: "Affiche le brief de reprise d'un ticket",
-	Args:  cobra.ExactArgs(1),
-	RunE:  runTakeoverBriefShow,
+	Use:  "show <ticket-id>",
+	Args: cobra.ExactArgs(1),
+	RunE: runTakeoverBriefShow,
 }
 
 var takeoverBriefListCmd = &cobra.Command{
-	Use:   "list",
-	Short: "Liste les briefs de reprise existants",
-	RunE:  runTakeoverBriefList,
+	Use:  "list",
+	RunE: runTakeoverBriefList,
 }
 
 func init() {
@@ -44,8 +41,8 @@ func init() {
 	takeoverBriefCmd.AddCommand(takeoverBriefShowCmd)
 	takeoverBriefCmd.AddCommand(takeoverBriefListCmd)
 
-	takeoverBriefShowCmd.Flags().StringP("project", "p", "", "Project name")
-	takeoverBriefListCmd.Flags().StringP("project", "p", "", "Project name")
+	takeoverBriefShowCmd.Flags().StringP("project", "p", "", "")
+	takeoverBriefListCmd.Flags().StringP("project", "p", "", "")
 }
 
 func runTakeoverBriefShow(cmd *cobra.Command, args []string) error {

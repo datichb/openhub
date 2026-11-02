@@ -20,24 +20,20 @@ import (
 )
 
 var providerCmd = &cobra.Command{
-	Use:   "provider",
-	Short: "Gestion des credentials provider LLM",
-	Long:  "Configure les credentials du provider LLM (clé API, profil AWS, bearer token) au niveau hub ou projet.",
+	Use: "provider",
 }
 
 var providerSetupCmd = &cobra.Command{
-	Use:   "setup [provider-name]",
-	Short: "Configure un provider LLM (wizard interactif)",
-	Long:  "Lance un wizard pour configurer les credentials d'un provider. Sans argument, propose un sélecteur.",
-	Args:  cobra.MaximumNArgs(1),
-	RunE:  runProviderSetup,
+	Use:  "setup [provider-name]",
+	Args: cobra.MaximumNArgs(1),
+	RunE: runProviderSetup,
 }
 
 func init() {
 	rootCmd.AddCommand(providerCmd)
 	providerCmd.AddCommand(providerSetupCmd)
-	providerSetupCmd.Flags().StringP("project", "p", "", "Configure provider for a specific project")
-	providerSetupCmd.Flags().Bool("from-env", false, "Bedrock : enregistre dans le trousseau la clé API du shell (AWS_BEARER_TOKEN_BEDROCK), sans wizard")
+	providerSetupCmd.Flags().StringP("project", "p", "", "")
+	providerSetupCmd.Flags().Bool("from-env", false, "")
 }
 
 // runProviderImportEnv imports the shell Bedrock API key (--from-env).

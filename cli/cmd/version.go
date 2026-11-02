@@ -11,8 +11,7 @@ import (
 )
 
 var versionCmd = &cobra.Command{
-	Use:   "version",
-	Short: "Affiche la version de oh",
+	Use: "version",
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Fprintf(cmd.OutOrStdout(), "oh %s\n", buildinfo.Version)
 		fmt.Fprintf(cmd.OutOrStdout(), "  %s\n", i18n.Tf("cmd.version.commit", buildinfo.Commit))

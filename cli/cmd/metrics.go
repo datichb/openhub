@@ -14,15 +14,14 @@ import (
 )
 
 var metricsCmd = &cobra.Command{
-	Use:   "metrics",
-	Short: "Affiche les métriques d'utilisation",
-	Long:  i18n.T("cmd.metrics.long"),
-	RunE:  runMetrics,
+	Use:  "metrics",
+	Long: i18n.T("cmd.metrics.long"),
+	RunE: runMetrics,
 }
 
 func init() {
 	rootCmd.AddCommand(metricsCmd)
-	metricsCmd.Flags().String("period", "all", "Période d'analyse (7d, 30d, all)")
+	metricsCmd.Flags().String("period", "all", "")
 }
 
 func runMetrics(cmd *cobra.Command, args []string) error {

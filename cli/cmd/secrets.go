@@ -24,17 +24,7 @@ import (
 // ─────────────────────────────────────────────────────────────────────────────
 
 var secretsCmd = &cobra.Command{
-	Use:   "secrets",
-	Short: "Gérer les secrets (tokens, clés API)",
-	Long: `Gérer les secrets stockés dans le keychain système (ou fichier chiffré en fallback).
-
-Les secrets sont référencés par nom dans hub.toml (token_key) et résolus au runtime.
-Ils peuvent être stockés en portée globale (partagés entre projets) ou par projet.
-
-Résolution cascade lors de l'utilisation :
-  1. Secret de portée projet (si dans un répertoire projet)
-  2. Secret de portée globale
-  3. Variable d'environnement correspondante`,
+	Use: "secrets",
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -42,16 +32,7 @@ Résolution cascade lors de l'utilisation :
 // ─────────────────────────────────────────────────────────────────────────────
 
 var secretsSetCmd = &cobra.Command{
-	Use:   "set <key>",
-	Short: "Stocker un secret dans le keychain",
-	Long: `Stocke une valeur secrète dans le keychain système sous le nom <key>.
-
-La portée est déterminée automatiquement :
-  - Si dans un répertoire projet enregistré → portée projet (prioritaire)
-  - Sinon → portée globale
-
-Utilisez --global pour forcer la portée globale.
-Utilisez --project pour cibler un projet spécifique.`,
+	Use:  "set <key>",
 	Args: cobra.ExactArgs(1),
 	RunE: runSecretsSet,
 }
@@ -60,8 +41,8 @@ var secretsSetGlobal bool
 var secretsSetProject string
 
 func init() {
-	secretsSetCmd.Flags().BoolVar(&secretsSetGlobal, "global", false, "Forcer la portée globale")
-	secretsSetCmd.Flags().StringVar(&secretsSetProject, "project", "", "ID du projet cible (ex: t-sru-b267fbf1)")
+	secretsSetCmd.Flags().BoolVar(&secretsSetGlobal, "global", false, "")
+	secretsSetCmd.Flags().StringVar(&secretsSetProject, "project", "", "")
 }
 
 func runSecretsSet(cmd *cobra.Command, args []string) error {
@@ -122,10 +103,9 @@ func readSecretValue(in io.Reader, out io.Writer, tty bool, key, scopeLabel stri
 // ─────────────────────────────────────────────────────────────────────────────
 
 var secretsGetCmd = &cobra.Command{
-	Use:   "get <key>",
-	Short: "Afficher un secret (masqué par défaut)",
-	Args:  cobra.ExactArgs(1),
-	RunE:  runSecretsGet,
+	Use:  "get <key>",
+	Args: cobra.ExactArgs(1),
+	RunE: runSecretsGet,
 }
 
 var secretsGetReveal bool
@@ -133,9 +113,9 @@ var secretsGetGlobal bool
 var secretsGetProject string
 
 func init() {
-	secretsGetCmd.Flags().BoolVar(&secretsGetReveal, "reveal", false, "Afficher la valeur en clair")
-	secretsGetCmd.Flags().BoolVar(&secretsGetGlobal, "global", false, "Chercher uniquement en portée globale")
-	secretsGetCmd.Flags().StringVar(&secretsGetProject, "project", "", "ID du projet cible")
+	secretsGetCmd.Flags().BoolVar(&secretsGetReveal, "reveal", false, "")
+	secretsGetCmd.Flags().BoolVar(&secretsGetGlobal, "global", false, "")
+	secretsGetCmd.Flags().StringVar(&secretsGetProject, "project", "", "")
 }
 
 func runSecretsGet(cmd *cobra.Command, args []string) error {
@@ -200,9 +180,8 @@ func runSecretsGet(cmd *cobra.Command, args []string) error {
 // ─────────────────────────────────────────────────────────────────────────────
 
 var secretsListCmd = &cobra.Command{
-	Use:   "list",
-	Short: "Lister tous les secrets connus",
-	RunE:  runSecretsList,
+	Use:  "list",
+	RunE: runSecretsList,
 }
 
 func runSecretsList(cmd *cobra.Command, _ []string) error {
@@ -268,18 +247,17 @@ func runSecretsList(cmd *cobra.Command, _ []string) error {
 // ─────────────────────────────────────────────────────────────────────────────
 
 var secretsDeleteCmd = &cobra.Command{
-	Use:   "delete <key>",
-	Short: "Supprimer un secret du keychain",
-	Args:  cobra.ExactArgs(1),
-	RunE:  runSecretsDelete,
+	Use:  "delete <key>",
+	Args: cobra.ExactArgs(1),
+	RunE: runSecretsDelete,
 }
 
 var secretsDeleteGlobal bool
 var secretsDeleteProject string
 
 func init() {
-	secretsDeleteCmd.Flags().BoolVar(&secretsDeleteGlobal, "global", false, "Supprimer de la portée globale")
-	secretsDeleteCmd.Flags().StringVar(&secretsDeleteProject, "project", "", "ID du projet cible")
+	secretsDeleteCmd.Flags().BoolVar(&secretsDeleteGlobal, "global", false, "")
+	secretsDeleteCmd.Flags().StringVar(&secretsDeleteProject, "project", "", "")
 }
 
 func runSecretsDelete(cmd *cobra.Command, args []string) error {
@@ -330,7 +308,7 @@ var secretsCleanupCmd = &cobra.Command{
 }
 
 func init() {
-	secretsCleanupCmd.Flags().Bool("dry-run", false, "show orphaned entries without deleting them")
+	secretsCleanupCmd.Flags().Bool("dry-run", false, "")
 }
 
 func runSecretsCleanup(out, errOut io.Writer, dryRun bool) error {

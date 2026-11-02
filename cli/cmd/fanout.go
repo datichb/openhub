@@ -52,7 +52,7 @@ func init() {
 		Args:  cobra.ExactArgs(1),
 		RunE:  runFanoutStatus,
 	}
-	status.Flags().Bool("json", false, "Sortie JSON")
+	status.Flags().Bool("json", false, "")
 	clean := &cobra.Command{
 		Use:   "clean <session-id>",
 		Short: i18n.T("cmd.fanout.clean.short"),
@@ -61,7 +61,7 @@ func init() {
 	}
 	clean.Flags().Bool("dry-run", false, i18n.T("cmd.fanout.clean.flags.dry_run"))
 	clean.Flags().Bool("discard", false, i18n.T("cmd.fanout.clean.flags.discard"))
-	clean.Flags().Bool("json", false, "Sortie JSON")
+	clean.Flags().Bool("json", false, "")
 	fanoutCmd.AddCommand(drive, status, clean)
 	rootCmd.AddCommand(fanoutCmd)
 }

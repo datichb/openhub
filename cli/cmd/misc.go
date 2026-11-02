@@ -14,7 +14,6 @@ import (
 
 var beadsCmd = &cobra.Command{
 	Use:                "beads",
-	Short:              "Gestion des tickets beads (proxy vers bd)",
 	DisableFlagParsing: true,
 	Args:               cobra.ArbitraryArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {

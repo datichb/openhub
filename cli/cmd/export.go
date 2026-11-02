@@ -34,24 +34,21 @@ type backupManifest struct {
 }
 
 var exportCmd = &cobra.Command{
-	Use:   "export",
-	Short: "Exporter la configuration et les données (backup)",
-	Long:  `Crée une archive .oh-backup.tar.gz contenant la DB, hub.toml et les secrets chiffrés.`,
-	RunE:  runExport,
+	Use:  "export",
+	RunE: runExport,
 }
 
 var importCmd = &cobra.Command{
-	Use:   "import [file]",
-	Short: "Restaurer depuis une archive de backup",
-	Args:  cobra.ExactArgs(1),
-	RunE:  runImport,
+	Use:  "import [file]",
+	Args: cobra.ExactArgs(1),
+	RunE: runImport,
 }
 
 func init() {
 	rootCmd.AddCommand(withInitLevel(exportCmd, levelDegraded))
 	rootCmd.AddCommand(importCmd)
 
-	exportCmd.Flags().StringP("output", "o", "", "Chemin de sortie (défaut: ./oh-backup-<date>.tar.gz)")
+	exportCmd.Flags().StringP("output", "o", "", "")
 	importCmd.Flags().Bool("overwrite", false, i18n.T("cmd.export.flag.overwrite"))
 	importCmd.Flags().Bool("merge", false, i18n.T("cmd.export.flag.merge"))
 }

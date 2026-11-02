@@ -17,7 +17,6 @@ func projectListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Aliases: []string{"ls"},
-		Short:   "Liste les projets enregistrés",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := MustApp()
 			ctx := cmd.Context()
@@ -58,8 +57,8 @@ func projectListCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&status, "status", "s", "", "Filtrer par statut (active, archived)")
-	cmd.Flags().Bool("json", false, "Output in JSON format")
+	cmd.Flags().StringVarP(&status, "status", "s", "", "")
+	cmd.Flags().Bool("json", false, "")
 	return cmd
 }
 

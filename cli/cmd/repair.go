@@ -19,19 +19,18 @@ import (
 )
 
 var repairCmd = &cobra.Command{
-	Use:   "repair",
-	Short: "Diagnostiquer et réparer la base de données oh",
-	Long:  i18n.T("cmd.repair.long"),
-	Args:  cobra.NoArgs,
-	RunE:  runRepair,
+	Use:  "repair",
+	Long: i18n.T("cmd.repair.long"),
+	Args: cobra.NoArgs,
+	RunE: runRepair,
 }
 
 func init() {
 	rootCmd.AddCommand(withInitLevel(repairCmd, levelDegraded))
-	repairCmd.Flags().Bool("check-only", false, "Vérifier uniquement, sans réparer")
-	repairCmd.Flags().Bool("migrate", false, "Appliquer les migrations en attente, après une sauvegarde")
+	repairCmd.Flags().Bool("check-only", false, "")
+	repairCmd.Flags().Bool("migrate", false, "")
 	addYesFlag(repairCmd)
-	repairCmd.Flags().String("restore", "", "Restaurer la base depuis une sauvegarde (fichier .bak)")
+	repairCmd.Flags().String("restore", "", "")
 }
 
 // runRepair never needs a working startup (N13): the database is opened

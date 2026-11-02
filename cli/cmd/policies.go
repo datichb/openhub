@@ -19,29 +19,22 @@ import (
 )
 
 var policiesCmd = &cobra.Command{
-	Use:   "policies",
-	Short: "Gestion des policies d'équipe",
-	Long: `Affiche, vérifie et gère les règles d'équipe appliquées à tous les projets.
-Les policies sont stockées dans le team-state (policies.toml) et peuvent
-être overridées par projet (policies-override.toml).`,
+	Use: "policies",
 }
 
 var policiesListCmd = &cobra.Command{
-	Use:   "list",
-	Short: "Affiche les policies actives",
-	RunE:  runPoliciesList,
+	Use:  "list",
+	RunE: runPoliciesList,
 }
 
 var policiesCheckCmd = &cobra.Command{
-	Use:   "check",
-	Short: "Vérifie les policies contre l'état courant",
-	RunE:  runPoliciesCheck,
+	Use:  "check",
+	RunE: runPoliciesCheck,
 }
 
 var policiesAddCmd = &cobra.Command{
-	Use:   "add",
-	Short: "Ajoute une policy custom",
-	RunE:  runPoliciesAdd,
+	Use:  "add",
+	RunE: runPoliciesAdd,
 }
 
 func init() {
@@ -50,10 +43,10 @@ func init() {
 	policiesCmd.AddCommand(policiesCheckCmd)
 	policiesCmd.AddCommand(policiesAddCmd)
 
-	policiesListCmd.Flags().StringP("project", "p", "", "Project name for merged view (optional)")
-	policiesCheckCmd.Flags().StringP("project", "p", "", "Project name")
-	policiesCheckCmd.Flags().String("branch", "", "Branch name to check")
-	policiesCheckCmd.Flags().String("commit", "", "Commit message to check")
+	policiesListCmd.Flags().StringP("project", "p", "", "")
+	policiesCheckCmd.Flags().StringP("project", "p", "", "")
+	policiesCheckCmd.Flags().String("branch", "", "")
+	policiesCheckCmd.Flags().String("commit", "", "")
 }
 
 func runPoliciesList(cmd *cobra.Command, args []string) error {

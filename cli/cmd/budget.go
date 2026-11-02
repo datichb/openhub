@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -27,39 +26,34 @@ import (
 // origin, hub and project settings, raise of a budget decision.
 
 var budgetCmd = &cobra.Command{
-	Use:   "budget",
-	Short: "Restrictions des sessions : sessions actives max, budgets, plafond mémoire, modèles (désactivées par défaut)",
+	Use: "budget",
 }
 
 func init() {
 	rootCmd.AddCommand(budgetCmd)
 	show := &cobra.Command{
-		Use:   "show",
-		Short: "Affiche les restrictions effectives (avec leur origine) et les dépenses du jour",
-		Args:  cobra.NoArgs,
-		RunE:  runBudgetShow,
+		Use:  "show",
+		Args: cobra.NoArgs,
+		RunE: runBudgetShow,
 	}
-	show.Flags().StringP("project", "p", "", "Projet (ID ou nom ; défaut : projet du dossier courant)")
-	show.Flags().Bool("json", false, "Sortie JSON")
+	show.Flags().StringP("project", "p", "", "")
+	show.Flags().Bool("json", false, "")
 	set := &cobra.Command{
-		Use:   "set <restriction> <value>",
-		Short: "Règle une restriction du hub (hub.toml) ou d'un projet (--project) : " + strings.Join(limits.Fields, ", "),
-		Args:  cobra.ExactArgs(2),
-		RunE:  func(cmd *cobra.Command, args []string) error { return runBudgetSet(cmd, args[0], args[1]) },
+		Use:  "set <restriction> <value>",
+		Args: cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error { return runBudgetSet(cmd, args[0], args[1]) },
 	}
-	set.Flags().StringP("project", "p", "", "Projet (ID ou nom) ; sans : le hub")
+	set.Flags().StringP("project", "p", "", "")
 	unset := &cobra.Command{
-		Use:   "unset <restriction>",
-		Short: "Retire une restriction du hub ou d'un projet (--project)",
-		Args:  cobra.ExactArgs(1),
-		RunE:  func(cmd *cobra.Command, args []string) error { return runBudgetSet(cmd, args[0], "") },
+		Use:  "unset <restriction>",
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error { return runBudgetSet(cmd, args[0], "") },
 	}
-	unset.Flags().StringP("project", "p", "", "Projet (ID ou nom) ; sans : le hub")
+	unset.Flags().StringP("project", "p", "", "")
 	raise := &cobra.Command{
-		Use:   "raise <session-id|decision-id> [amount-usd]",
-		Short: "Relève le budget d'une session arrêtée par une décision $ (défaut : le budget configuré une fois de plus)",
-		Args:  cobra.RangeArgs(1, 2),
-		RunE:  runBudgetRaise,
+		Use:  "raise <session-id|decision-id> [amount-usd]",
+		Args: cobra.RangeArgs(1, 2),
+		RunE: runBudgetRaise,
 	}
 	budgetCmd.AddCommand(show, set, unset, raise)
 }

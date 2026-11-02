@@ -35,8 +35,6 @@ func projectAddCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "add",
 		Aliases: []string{"register"},
-		Short:   "Enregistre un nouveau projet",
-		Long:    "Enregistre un projet dans le hub. Si aucun flag n'est fourni, lance un wizard interactif.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := MustApp()
 			ctx := cmd.Context()
@@ -63,10 +61,10 @@ func projectAddCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&name, "name", "n", "", "Nom du projet")
-	cmd.Flags().StringVarP(&path, "path", "d", "", "Chemin du projet (défaut: répertoire courant)")
-	cmd.Flags().StringVarP(&language, "language", "l", "", "Langage principal")
-	cmd.Flags().BoolVarP(&projectAddYes, "yes", "y", false, "Beads zéro impact : nettoyer sans confirmation et annuler le commit de bd init s'il n'est pas poussé")
+	cmd.Flags().StringVarP(&name, "name", "n", "", "")
+	cmd.Flags().StringVarP(&path, "path", "d", "", "")
+	cmd.Flags().StringVarP(&language, "language", "l", "", "")
+	cmd.Flags().BoolVarP(&projectAddYes, "yes", "y", false, "")
 
 	return cmd
 }

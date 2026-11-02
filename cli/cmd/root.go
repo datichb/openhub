@@ -97,6 +97,11 @@ func Execute() error {
 	defer stopInProcessDaemon()
 
 	theme.ApplyNoColor()
+	if len(os.Args) > 1 && (os.Args[1] == cobra.ShellCompRequestCmd || os.Args[1] == cobra.ShellCompNoDescRequestCmd) {
+		// The descriptions of the completion are the help of the commands,
+		// which the code does not hold: they come from the locale.
+		localizeHelp(rootCmd)
+	}
 	if err := rootCmd.Execute(); err != nil {
 		err = usageError(err)
 		var exit *ExitError
@@ -288,10 +293,10 @@ func init() {
 	// An unknown or malformed option is a usage error (exit code 2); cobra
 	// walks up to this function from any subcommand.
 	rootCmd.SetFlagErrorFunc(func(_ *cobra.Command, err error) error { return withExitCode(ExitUsage, err) })
-	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Enable verbose output (debug logging)")
-	rootCmd.PersistentFlags().String("log-format", "pretty", "Log output format: pretty (default) or json")
-	rootCmd.PersistentFlags().Bool("no-tui", false, "Disable rich TUI (use inline prompts only)")
-	rootCmd.Flags().StringP("project", "p", "", "Démarrer directement en mode projet pour ce projet")
+	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "")
+	rootCmd.PersistentFlags().String("log-format", "pretty", "")
+	rootCmd.PersistentFlags().Bool("no-tui", false, "")
+	rootCmd.Flags().StringP("project", "p", "", "")
 	_ = rootCmd.RegisterFlagCompletionFunc("project", completeProjectIDs)
 	// The paged overview is the help of oh itself; subcommands keep their
 	// own help (flags, examples).
@@ -312,7 +317,10 @@ func init() {
 // conventional key ("cmd.<command-path>.short", ".long",
 // ".flags.<flag-name>", e.g. "cmd.project.list.short"), else from the key of
 // the message it holds (texts built with i18n.T before the locale was
-// known). Every help has one or the other (TestEveryHelpIsTranslated).
+// known). The code writes no help text of its own: a command or a flag has
+// its text in the locales, under the conventional key (TestHelpIsNotInTheCode
+// refuses a literal), or is built with i18n.T. Every help has one or the other
+// (TestEveryHelpIsTranslated).
 func localizeCommands(cmd *cobra.Command) {
 	key := cmdI18nKey(cmd)
 	cmd.Short = localizedHelp(key+".short", cmd.Short)

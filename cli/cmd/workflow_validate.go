@@ -17,9 +17,8 @@ import (
 
 func workflowValidateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "validate [<file>|<id>|<layer>:<id>]",
-		Short: "Valide un workflow (fichier ou identifiant du catalogue)",
-		Args:  cobra.MaximumNArgs(1),
+		Use:  "validate [<file>|<id>|<layer>:<id>]",
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			layer, _ := cmd.Flags().GetString("layer")
 			asJSON, _ := cmd.Flags().GetBool("json")
@@ -42,9 +41,9 @@ func workflowValidateCmd() *cobra.Command {
 			return printWorkflowValidate(cmd.OutOrStdout(), report, asJSON)
 		},
 	}
-	cmd.Flags().String("layer", string(workflow.LayerHub), "Couche du fichier validé (hub, team, project)")
-	cmd.Flags().Bool("json", false, "Sortie JSON")
-	cmd.Flags().Bool("all", false, "Valide tous les workflows du hub")
+	cmd.Flags().String("layer", string(workflow.LayerHub), "")
+	cmd.Flags().Bool("json", false, "")
+	cmd.Flags().Bool("all", false, "")
 	cmd.Flags().String("project", "", i18n.T("teamstate.workflow.flag_project"))
 	cmd.Flags().String("team", "", i18n.T("teamstate.workflow.cli.flag_team"))
 	return cmd

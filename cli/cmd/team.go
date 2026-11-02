@@ -81,11 +81,7 @@ var teamActivityCmd = &cobra.Command{
 var teamRejoinCmd = &cobra.Command{
 	Use:   "rejoin",
 	Short: i18n.T("cmd.team.rejoin.short"),
-	Long: i18n.T("cmd.team.rejoin.long") + "\n\n" +
-		"NOTE: Do not run rejoin while the TUI is actively performing team\n" +
-		"operations on the same team-state clone. The in-process lock does not\n" +
-		"protect against concurrent access from separate processes.",
-	RunE: runTeamRejoin,
+	RunE:  runTeamRejoin,
 }
 
 func init() {
@@ -95,11 +91,11 @@ func init() {
 	teamCmd.AddCommand(teamActivityCmd)
 	teamCmd.AddCommand(teamRejoinCmd)
 
-	teamActivityCmd.Flags().Bool("today", false, "Show only today's events")
-	teamActivityCmd.Flags().Bool("week", false, "Show last 7 days")
-	teamActivityCmd.Flags().String("member", "", "Filter by member ID")
-	teamActivityCmd.Flags().String("project", "", "Filter by project")
-	teamActivityCmd.Flags().Int("limit", 20, "Maximum number of events to display")
+	teamActivityCmd.Flags().Bool("today", false, "")
+	teamActivityCmd.Flags().Bool("week", false, "")
+	teamActivityCmd.Flags().String("member", "", "")
+	teamActivityCmd.Flags().String("project", "", "")
+	teamActivityCmd.Flags().Int("limit", 20, "")
 
 	teamStatusCmd.Flags().Bool("detail", false, i18n.T("cmd.team.status.flags.detail"))
 

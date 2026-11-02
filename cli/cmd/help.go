@@ -105,6 +105,7 @@ func newHelpCommand() *cobra.Command {
 			cmd, _, e := c.Root().Find(args)
 			if cmd == nil || e != nil {
 				c.Printf("%s\n", i18n.Tf("help.unknown_topic", strings.Join(args, " ")))
+				localizeHelp(c.Root())
 				cobra.CheckErr(c.Root().Usage())
 				return
 			}

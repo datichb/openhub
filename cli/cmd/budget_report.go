@@ -23,14 +23,13 @@ const defaultReportSince = "30d"
 
 func init() {
 	report := &cobra.Command{
-		Use:   "report",
-		Short: "Dépenses par projet ou par workflow sur une période (sessions supprimées sous « inconnu »)",
-		Args:  cobra.NoArgs,
-		RunE:  runBudgetReport,
+		Use:  "report",
+		Args: cobra.NoArgs,
+		RunE: runBudgetReport,
 	}
-	report.Flags().String("by", string(domain.UsageByProject), "Regroupement : project ou workflow")
-	report.Flags().String("since", defaultReportSince, "Période : 7d, 12h… (0 = depuis toujours)")
-	report.Flags().Bool("json", false, "Sortie JSON")
+	report.Flags().String("by", string(domain.UsageByProject), "")
+	report.Flags().String("since", defaultReportSince, "")
+	report.Flags().Bool("json", false, "")
 	budgetCmd.AddCommand(report)
 }
 

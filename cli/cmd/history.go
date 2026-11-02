@@ -44,7 +44,7 @@ func init() {
 	historyCmd.AddCommand(historyImportCmd)
 
 	historyCmd.Flags().Bool("team", false, i18n.T("cmd.history.flags.team"))
-	historyCmd.Flags().Int("limit", 20, "Maximum number of entries")
+	historyCmd.Flags().Int("limit", 20, "")
 
 	historyExportCmd.Flags().String("output", "", i18n.T("cmd.history.export.flags.output"))
 	historyExportCmd.Flags().String("member-id", "", i18n.T("cmd.history.export.flags.member_id"))

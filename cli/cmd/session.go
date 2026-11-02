@@ -23,8 +23,7 @@ import (
 )
 
 var sessionCmd = &cobra.Command{
-	Use:   "session",
-	Short: "Gestion des sessions agentiques (v5)",
+	Use: "session",
 }
 
 // resolveSessionRef turns an ID or unique ID prefix into a session ID.
@@ -41,9 +40,8 @@ func resolveSessionRef(ctx context.Context, ref string) (string, error) {
 }
 
 var sessionAttachCmd = &cobra.Command{
-	Use:   "attach <session-id>",
-	Short: "Ouvre l'interface d'une session (nouvel onglet/fenêtre, tmux, navigateur ou terminal courant) ; reprend une session en veille",
-	Args:  cobra.ExactArgs(1),
+	Use:  "attach <session-id>",
+	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
 		a := MustApp()
@@ -147,8 +145,7 @@ func toDecisionJSON(d domain.Decision) decisionJSON {
 }
 
 var sessionListCmd = &cobra.Command{
-	Use:   "list",
-	Short: "Liste les sessions v5 (en cours, en attente, en veille ; --all pour les terminées)",
+	Use: "list",
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		ctx := cmd.Context()
 		trackRemoteSessions(ctx, MustApp())
@@ -202,9 +199,8 @@ func dash(s string) string {
 }
 
 var sessionStopCmd = &cobra.Command{
-	Use:   "stop <session-id>",
-	Short: "Arrête une session (et son serveur si plus aucune autre session ne l'utilise)",
-	Args:  cobra.ExactArgs(1),
+	Use:  "stop <session-id>",
+	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
 		svc, err := newRunService(ctx, MustApp())
@@ -256,12 +252,12 @@ func openURL(url string) error {
 }
 
 func init() {
-	sessionAttachCmd.Flags().Bool("exec", false, "Exécute l'interface dans le terminal courant (usage interne)")
-	sessionAttachCmd.Flags().String("attach", "auto", "auto | iterm | terminal | tmux | browser | suspend")
-	sessionAttachCmd.Flags().String("iterm-style", "tab", "tab | split | window")
+	sessionAttachCmd.Flags().Bool("exec", false, "")
+	sessionAttachCmd.Flags().String("attach", "auto", "")
+	sessionAttachCmd.Flags().String("iterm-style", "tab", "")
 	_ = sessionAttachCmd.Flags().MarkHidden("exec")
-	sessionListCmd.Flags().Bool("all", false, "Inclure les sessions terminées")
-	sessionListCmd.Flags().Bool("json", false, "Sortie JSON (sessions et décisions en attente)")
+	sessionListCmd.Flags().Bool("all", false, "")
+	sessionListCmd.Flags().Bool("json", false, "")
 	sessionCmd.AddCommand(sessionAttachCmd, sessionListCmd, sessionStopCmd)
 	rootCmd.AddCommand(sessionCmd)
 }

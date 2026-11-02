@@ -25,9 +25,8 @@ import (
 )
 
 var purgeCmd = &cobra.Command{
-	Use:   "purge",
-	Short: "Suppression totale du hub et de ses données",
-	RunE:  runPurge,
+	Use:  "purge",
+	RunE: runPurge,
 }
 
 func init() {

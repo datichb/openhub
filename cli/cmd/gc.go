@@ -35,10 +35,9 @@ import (
 // confirmation; the daemon does it every [gc] every_hours.
 
 var gcCmd = &cobra.Command{
-	Use:   "gc",
-	Short: "Nettoie ce qu'oh laisse derrière lui (paquets, données des serveurs, sessions arrêtées, worktrees automatiques, historique)",
-	Args:  cobra.NoArgs,
-	RunE:  runGC,
+	Use:  "gc",
+	Args: cobra.NoArgs,
+	RunE: runGC,
 }
 
 func init() {
@@ -48,11 +47,11 @@ func init() {
 
 func addGCFlags(c *cobra.Command) {
 	f := c.Flags()
-	f.Bool("dry-run", false, "Afficher ce qui serait supprimé, sans rien supprimer")
-	f.BoolP("yes", "y", false, "Supprimer sans confirmation (obligatoire sans terminal)")
-	f.Bool("json", false, "Plan (ou résultat) au format JSON")
-	f.StringSlice("only", nil, "Seulement ces catégories : bundles, servers, sessions, worktrees, fanout, temp, orphans, history")
-	f.String("older-than", "", "Garder les fichiers des sessions arrêtées moins longtemps que cette durée (ex. 30d, 12h ; défaut : [gc] session_days)")
+	f.Bool("dry-run", false, "")
+	f.BoolP("yes", "y", false, "")
+	f.Bool("json", false, "")
+	f.StringSlice("only", nil, "")
+	f.String("older-than", "", "")
 }
 
 // gcStore is the database side of the clean-up.

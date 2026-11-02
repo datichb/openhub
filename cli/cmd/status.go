@@ -17,14 +17,13 @@ import (
 )
 
 var statusCmd = &cobra.Command{
-	Use:   "status",
-	Short: "Affiche l'état du hub et du projet courant",
-	RunE:  runStatus,
+	Use:  "status",
+	RunE: runStatus,
 }
 
 func init() {
 	rootCmd.AddCommand(statusCmd)
-	statusCmd.Flags().Bool("json", false, "Output in JSON format")
+	statusCmd.Flags().Bool("json", false, "")
 }
 
 func runStatus(cmd *cobra.Command, args []string) error {

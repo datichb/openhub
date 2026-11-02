@@ -18,8 +18,7 @@ import (
 )
 
 var configCmd = &cobra.Command{
-	Use:   "config",
-	Short: "Gestion de la configuration du hub",
+	Use: "config",
 }
 
 func init() {
@@ -353,9 +352,8 @@ func configFieldKeys() []string {
 
 func configGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get <key>",
-		Short: "Affiche la valeur d'une clé de configuration",
-		Args:  cobra.ExactArgs(1),
+		Use:  "get <key>",
+		Args: cobra.ExactArgs(1),
 		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 			if len(args) > 0 {
 				return nil, cobra.ShellCompDirectiveNoFileComp
@@ -394,9 +392,8 @@ func configGetCmd() *cobra.Command {
 
 func configSetCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "set <key> <value>",
-		Short: "Modifie une valeur de configuration",
-		Args:  cobra.ExactArgs(2),
+		Use:  "set <key> <value>",
+		Args: cobra.ExactArgs(2),
 		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 			if len(args) == 0 {
 				return configFieldKeys(), cobra.ShellCompDirectiveNoFileComp
@@ -434,7 +431,6 @@ func configListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Aliases: []string{"ls"},
-		Short:   "Affiche toute la configuration",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := config.Load()
 			if err != nil {
@@ -496,16 +492,15 @@ func configListCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().Bool("json", false, "Output in JSON format")
-	cmd.Flags().Bool("keys", false, "Liste les clés modifiables par oh config set|unset")
-	cmd.Flags().Bool("all", false, "Toutes les clés modifiables, avec leur valeur ou celle par défaut et leur origine")
+	cmd.Flags().Bool("json", false, "")
+	cmd.Flags().Bool("keys", false, "")
+	cmd.Flags().Bool("all", false, "")
 	return cmd
 }
 
 func configPathCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "path",
-		Short: "Affiche le chemin du fichier de configuration",
+		Use: "path",
 		Run: func(cmd *cobra.Command, args []string) {
 			fmt.Fprintln(cmd.OutOrStdout(), config.ConfigPath())
 		},
@@ -514,10 +509,8 @@ func configPathCmd() *cobra.Command {
 
 func configUnsetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "unset <key>",
-		Short: "Supprime une clé de configuration",
-		Long:  "Supprime une clé du fichier hub.toml. La valeur par défaut sera utilisée si elle existe.",
-		Args:  cobra.ExactArgs(1),
+		Use:  "unset <key>",
+		Args: cobra.ExactArgs(1),
 		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 			if len(args) > 0 {
 				return nil, cobra.ShellCompDirectiveNoFileComp
@@ -548,10 +541,8 @@ func configUnsetCmd() *cobra.Command {
 
 func configLanguageCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "language [lang]",
-		Short: "Affiche ou change la langue de l'interface",
-		Long:  "Sans argument, affiche la langue actuelle. Avec argument (fr/en), change la langue.",
-		Args:  cobra.MaximumNArgs(1),
+		Use:  "language [lang]",
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := config.Load()
 			if err != nil {
@@ -587,7 +578,6 @@ func configLanguageCmd() *cobra.Command {
 func configWebsearchCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:       "websearch [enable|disable|status]",
-		Short:     "Gère les permissions WebSearch/WebFetch (Exa AI)",
 		Long:      i18n.T("cmd.config.websearch.long"),
 		Args:      cobra.ExactArgs(1),
 		ValidArgs: []string{"enable", "disable", "status"},

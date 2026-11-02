@@ -16,18 +16,11 @@ import (
 )
 
 var conventionsCmd = &cobra.Command{
-	Use:   "conventions",
-	Short: "Vérification des conventions d'équipe",
+	Use: "conventions",
 }
 
 var conventionsCheckCmd = &cobra.Command{
-	Use:   "check",
-	Short: "Vérifie que le travail courant respecte les conventions",
-	Long: `Vérifie la branche courante et les derniers commits par rapport
-aux conventions documentées dans le wiki projet (docs/wiki/technical/conventions.md)
-et le wiki d'équipe.
-
-Affiche des warnings (non bloquants) si des écarts sont détectés.`,
+	Use:  "check",
 	RunE: runConventionsCheck,
 }
 

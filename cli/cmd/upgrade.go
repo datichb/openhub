@@ -15,9 +15,8 @@ import (
 )
 
 var upgradeCmd = &cobra.Command{
-	Use:   "upgrade [component]",
-	Short: "Met à jour oh",
-	Long:  i18n.T("cmd.upgrade.long"),
+	Use:  "upgrade [component]",
+	Long: i18n.T("cmd.upgrade.long"),
 }
 
 func init() {
@@ -27,11 +26,7 @@ func init() {
 
 func upgradeOhCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "oh [version]",
-		Short: "Met à jour le binaire oh lui-même",
-		Long: `Télécharge et installe la dernière version du binaire oh en remplacement atomique.
-Fonctionne pour les installations via install.sh ou téléchargement direct.
-Les utilisateurs Homebrew peuvent utiliser: brew upgrade openhub`,
+		Use:  "oh [version]",
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := MustApp()
@@ -107,6 +102,6 @@ Les utilisateurs Homebrew peuvent utiliser: brew upgrade openhub`,
 		},
 	}
 
-	cmd.Flags().Bool("check", false, "Vérifier uniquement si une mise à jour est disponible")
+	cmd.Flags().Bool("check", false, "")
 	return cmd
 }

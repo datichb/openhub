@@ -76,8 +76,7 @@ func endedMessage(e *sessionsvc.EndedError) string {
 }
 
 var sessionInboxCmd = &cobra.Command{
-	Use:   "inbox",
-	Short: "Décisions en attente de toutes les sessions (⏸ checkpoint · ? question · ! permission · $ budget · ✗ erreur · ⊘ coupe-circuit)",
+	Use: "inbox",
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		svc, err := sessionService(cmd)
 		if err != nil {
@@ -113,8 +112,7 @@ var sessionInboxCmd = &cobra.Command{
 }
 
 var sessionApproveCmd = &cobra.Command{
-	Use:   "approve <session-id|decision-id> | --batch [--fanout <session>] [--checkpoint cp-2,cp-merge] [--except <id>] [--reject <id>[=message]] [--dry-run]",
-	Short: "Répond à une permission (ou à un checkpoint) en attente, sans attacher la session ; --batch valide plusieurs checkpoints d'un coup",
+	Use: "approve <session-id|decision-id> | --batch [--fanout <session>] [--checkpoint cp-2,cp-merge] [--except <id>] [--reject <id>[=message]] [--dry-run]",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if batch, _ := cmd.Flags().GetBool("batch"); batch {
 			return cobra.MaximumNArgs(0)(cmd, args)
@@ -147,9 +145,8 @@ var sessionApproveCmd = &cobra.Command{
 }
 
 var sessionAnswerCmd = &cobra.Command{
-	Use:   "answer <session-id|decision-id> --field key=value…",
-	Short: "Répond à une question de l'agent (formulaire), sans attacher la session",
-	Args:  cobra.ExactArgs(1),
+	Use:  "answer <session-id|decision-id> --field key=value…",
+	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		svc, err := sessionService(cmd)
 		if err != nil {
@@ -213,9 +210,8 @@ func describeQuestion(d domain.Decision) string {
 }
 
 var sessionDismissCmd = &cobra.Command{
-	Use:   "dismiss <session-id|decision-id>",
-	Short: "Classe une alerte (✗ erreur, ✗ coupe-circuit, $ budget) d'une session",
-	Args:  cobra.ExactArgs(1),
+	Use:  "dismiss <session-id|decision-id>",
+	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		svc, err := sessionService(cmd)
 		if err != nil {
@@ -234,9 +230,8 @@ var sessionDismissCmd = &cobra.Command{
 }
 
 var sessionSendCmd = &cobra.Command{
-	Use:   "send <session-id> \"instruction…\"",
-	Short: "Envoie une consigne courte à une session (prise en compte à la prochaine étape)",
-	Args:  cobra.MinimumNArgs(2),
+	Use:  "send <session-id> \"instruction…\"",
+	Args: cobra.MinimumNArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		svc, err := sessionService(cmd)
 		if err != nil {
@@ -261,11 +256,10 @@ var sessionSendCmd = &cobra.Command{
 }
 
 // sessionOp builds a command applying one operation to a session.
-func sessionOp(use, short, done string, nargs int, op func(ctx context.Context, svc *sessionsvc.Service, id string, args []string) error) *cobra.Command {
+func sessionOp(use, done string, nargs int, op func(ctx context.Context, svc *sessionsvc.Service, id string, args []string) error) *cobra.Command {
 	return &cobra.Command{
-		Use:   use,
-		Short: short,
-		Args:  cobra.ExactArgs(nargs),
+		Use:  use,
+		Args: cobra.ExactArgs(nargs),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			svc, err := sessionService(cmd)
 			if err != nil {
@@ -285,24 +279,23 @@ func sessionOp(use, short, done string, nargs int, op func(ctx context.Context, 
 }
 
 var (
-	sessionInterruptCmd = sessionOp("interrupt <session-id>", "Interrompt l'étape en cours (la session reste ouverte)", "cmd.session.interrupted", 1,
+	sessionInterruptCmd = sessionOp("interrupt <session-id>", "cmd.session.interrupted", 1,
 		func(ctx context.Context, svc *sessionsvc.Service, id string, _ []string) error {
 			return svc.Interrupt(ctx, id)
 		})
-	sessionCompactCmd = sessionOp("compact <session-id>", "Compacte l'historique d'une session", "cmd.session.compacted", 1,
+	sessionCompactCmd = sessionOp("compact <session-id>", "cmd.session.compacted", 1,
 		func(ctx context.Context, svc *sessionsvc.Service, id string, _ []string) error {
 			return svc.Compact(ctx, id)
 		})
-	sessionModelCmd = sessionOp("model <session-id> <provider/model>", "Change le modèle des prochaines étapes d'une session", "cmd.session.model_switched", 2,
+	sessionModelCmd = sessionOp("model <session-id> <provider/model>", "cmd.session.model_switched", 2,
 		func(ctx context.Context, svc *sessionsvc.Service, id string, args []string) error {
 			return svc.SwitchModel(ctx, id, args[0])
 		})
 )
 
 var sessionForkCmd = &cobra.Command{
-	Use:   "fork <session-id>",
-	Short: "Crée une variante d'une session (copie de son historique, même serveur)",
-	Args:  cobra.ExactArgs(1),
+	Use:  "fork <session-id>",
+	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
 		id, err := resolveSessionRef(ctx, args[0])
@@ -323,9 +316,8 @@ var sessionForkCmd = &cobra.Command{
 }
 
 var sessionResumeCmd = &cobra.Command{
-	Use:   "resume <session-id>",
-	Short: "Reprend une session en veille (redémarre son serveur) sans ouvrir d'interface",
-	Args:  cobra.ExactArgs(1),
+	Use:  "resume <session-id>",
+	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
 		a := MustApp()
@@ -350,9 +342,8 @@ var sessionResumeCmd = &cobra.Command{
 }
 
 var sessionOpenCmd = &cobra.Command{
-	Use:   "open <session-id> --browser",
-	Short: "Ouvre une session dans le navigateur (code d'appairage à usage unique, 5 min)",
-	Args:  cobra.ExactArgs(1),
+	Use:  "open <session-id> --browser",
+	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
 		a := MustApp()
@@ -373,9 +364,8 @@ var sessionOpenCmd = &cobra.Command{
 }
 
 var sessionFollowCmd = &cobra.Command{
-	Use:   "follow <session-id>",
-	Short: "Suit une session en direct (lecture seule : agent courant, outils, messages, coût) ; Ctrl+C pour quitter",
-	Args:  cobra.ExactArgs(1),
+	Use:  "follow <session-id>",
+	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		svc, err := sessionService(cmd)
 		if err != nil {
@@ -417,9 +407,8 @@ var sessionFollowCmd = &cobra.Command{
 }
 
 var sessionResultsCmd = &cobra.Command{
-	Use:   "results <session-id>",
-	Short: "Résultats de toute la session : fichiers modifiés depuis son départ, branche, coût total et description de MR ; --mr pour la description seule, --patch pour le diff",
-	Args:  cobra.ExactArgs(1),
+	Use:  "results <session-id>",
+	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		svc, err := sessionService(cmd)
 		if err != nil {
@@ -456,25 +445,25 @@ var sessionResultsCmd = &cobra.Command{
 }
 
 func init() {
-	sessionInboxCmd.Flags().Bool("json", false, "Sortie JSON")
-	sessionApproveCmd.Flags().String("decision", "once", "once | always | reject ; checkpoint : once (valider) | fix (corriger d'abord) | other (autre consigne) | reject — fix/other exigent -m")
-	sessionApproveCmd.Flags().StringP("message", "m", "", "Message transmis à l'agent")
+	sessionInboxCmd.Flags().Bool("json", false, "")
+	sessionApproveCmd.Flags().String("decision", "once", "")
+	sessionApproveCmd.Flags().StringP("message", "m", "", "")
 	// R6, CP-R6: validation by batch.
-	sessionApproveCmd.Flags().Bool("batch", false, "Valider d'un coup les checkpoints en attente (chacun listé ; --except le laisse en attente, --reject le refuse)")
-	sessionApproveCmd.Flags().StringArray("session", nil, "Avec --batch : seulement ces sessions (répétable)")
-	sessionApproveCmd.Flags().String("fanout", "", "Avec --batch : la session parente d'un fan-out et ses sessions enfants")
-	sessionApproveCmd.Flags().StringSlice("checkpoint", nil, "Avec --batch : seulement ces checkpoints (cp-2,cp-merge)")
-	sessionApproveCmd.Flags().StringArray("except", nil, "Avec --batch : décision laissée en attente (répétable)")
-	sessionApproveCmd.Flags().StringArray("reject", nil, "Avec --batch : décision refusée, id ou id=message (répétable)")
-	sessionApproveCmd.Flags().Bool("dry-run", false, "Avec --batch : lister sans répondre")
-	sessionAnswerCmd.Flags().StringArray("field", nil, "Réponse clé=valeur (répétable ; liste : a,b)")
-	sessionSendCmd.Flags().Bool("synthetic", false, "Message d'oh (non utilisateur)")
-	sessionSendCmd.Flags().Bool("queue", false, "Après l'étape en cours (au lieu de la prochaine étape)")
-	sessionOpenCmd.Flags().Bool("browser", true, "Ouvrir dans le navigateur (seul mode disponible)")
-	sessionOpenCmd.Flags().Bool("print", false, "Afficher l'URL sans ouvrir le navigateur")
-	sessionResultsCmd.Flags().Bool("mr", false, "Description de MR seule (Markdown)")
-	sessionResultsCmd.Flags().Bool("patch", false, "Diff complet")
-	sessionResultsCmd.Flags().Bool("json", false, "Sortie JSON")
+	sessionApproveCmd.Flags().Bool("batch", false, "")
+	sessionApproveCmd.Flags().StringArray("session", nil, "")
+	sessionApproveCmd.Flags().String("fanout", "", "")
+	sessionApproveCmd.Flags().StringSlice("checkpoint", nil, "")
+	sessionApproveCmd.Flags().StringArray("except", nil, "")
+	sessionApproveCmd.Flags().StringArray("reject", nil, "")
+	sessionApproveCmd.Flags().Bool("dry-run", false, "")
+	sessionAnswerCmd.Flags().StringArray("field", nil, "")
+	sessionSendCmd.Flags().Bool("synthetic", false, "")
+	sessionSendCmd.Flags().Bool("queue", false, "")
+	sessionOpenCmd.Flags().Bool("browser", true, "")
+	sessionOpenCmd.Flags().Bool("print", false, "")
+	sessionResultsCmd.Flags().Bool("mr", false, "")
+	sessionResultsCmd.Flags().Bool("patch", false, "")
+	sessionResultsCmd.Flags().Bool("json", false, "")
 	sessionCmd.AddCommand(sessionInboxCmd, sessionApproveCmd, sessionAnswerCmd, sessionDismissCmd, sessionSendCmd,
 		sessionInterruptCmd, sessionCompactCmd, sessionModelCmd, sessionForkCmd, sessionResumeCmd, sessionOpenCmd,
 		sessionFollowCmd, sessionResultsCmd)

@@ -30,20 +30,7 @@ func init() {
 
 func configModelCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "model",
-		Short: "Gestion de la cascade de modèles par agent",
-		Long: `Configure les modèles IA par agent, par famille ou globalement.
-
-La cascade de résolution (priorité décroissante) :
-  1. Project agent override    (oh config model agent <id> <model> --project <p>)
-  2. Project family override   (oh config model family <name> <model> --project <p>)
-  3. Project global model      (oh config model default <model> --project <p>)
-  4. Hub agent override        (oh config model agent <id> <model>)
-  5. Hub family override       (oh config model family <name> <model>)
-  6. Hub global model          (oh config model default <model>)
-  7. Agent frontmatter floor   (model: dans le .md de l'agent)
-
-Le modèle résolu est normalisé vers le provider du projet lors du deploy.`,
+		Use: "model",
 	}
 
 	cmd.AddCommand(configModelDefaultCmd())
@@ -57,10 +44,8 @@ Le modèle résolu est normalisé vers le provider du projet lors du deploy.`,
 
 func configModelDefaultCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "default <model>",
-		Short: "Définit le modèle global par défaut",
-		Long:  "Sans --project: écrit dans hub.toml [models.default]. Avec --project: écrit dans la DB projet.",
-		Args:  cobra.ExactArgs(1),
+		Use:  "default <model>",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			model := args[0]
 			projectID, _ := cmd.Flags().GetString("project")
@@ -74,17 +59,15 @@ func configModelDefaultCmd() *cobra.Command {
 			return setHubModelDefault(cmd.OutOrStdout(), model)
 		},
 	}
-	cmd.Flags().StringP("project", "p", "", "Nom du projet (hub-level si absent)")
+	cmd.Flags().StringP("project", "p", "", "")
 	_ = cmd.RegisterFlagCompletionFunc("project", completeProjectIDs)
 	return cmd
 }
 
 func configModelFamilyCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "family <name> <model>",
-		Short: "Définit le modèle pour une famille d'agents",
-		Long:  "Familles: les dossiers d'agents du catalogue (planning, developer, quality, auditor, design, documentation, infra, delivery, utility, équipe…).",
-		Args:  cobra.ExactArgs(2),
+		Use:  "family <name> <model>",
+		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			family, model := args[0], args[1]
 			projectID, _ := cmd.Flags().GetString("project")
@@ -98,16 +81,15 @@ func configModelFamilyCmd() *cobra.Command {
 			return setHubModelFamily(cmd.OutOrStdout(), family, model)
 		},
 	}
-	cmd.Flags().StringP("project", "p", "", "Nom du projet (hub-level si absent)")
+	cmd.Flags().StringP("project", "p", "", "")
 	_ = cmd.RegisterFlagCompletionFunc("project", completeProjectIDs)
 	return cmd
 }
 
 func configModelAgentCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "agent <id> <model>",
-		Short: "Définit le modèle pour un agent spécifique",
-		Args:  cobra.ExactArgs(2),
+		Use:  "agent <id> <model>",
+		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			agentID, model := args[0], args[1]
 			projectID, _ := cmd.Flags().GetString("project")
@@ -121,7 +103,7 @@ func configModelAgentCmd() *cobra.Command {
 			return setHubModelAgent(cmd.OutOrStdout(), agentID, model)
 		},
 	}
-	cmd.Flags().StringP("project", "p", "", "Nom du projet (hub-level si absent)")
+	cmd.Flags().StringP("project", "p", "", "")
 	_ = cmd.RegisterFlagCompletionFunc("project", completeProjectIDs)
 	return cmd
 }
@@ -182,9 +164,8 @@ func catalogFor(ctx context.Context, c workflowsvc.Context) modelcheck.Catalog {
 
 func configModelShowCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "show",
-		Short: "Affiche la configuration des modèles",
-		Args:  cobra.NoArgs,
+		Use:  "show",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			projectFlag, _ := cmd.Flags().GetString("project")
 			workflowID, _ := cmd.Flags().GetString("workflow")
@@ -210,9 +191,9 @@ func configModelShowCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringP("project", "p", "", "Projet (ID ou nom ; défaut : projet du dossier courant)")
-	cmd.Flags().StringP("workflow", "w", "", "Inclure le niveau d'un workflow (id ou <couche>:<id>)")
-	cmd.Flags().Bool("json", false, "Sortie JSON")
+	cmd.Flags().StringP("project", "p", "", "")
+	cmd.Flags().StringP("workflow", "w", "", "")
+	cmd.Flags().Bool("json", false, "")
 	_ = cmd.RegisterFlagCompletionFunc("project", completeProjectIDs)
 	return cmd
 }
@@ -310,9 +291,8 @@ func printModelCascade(w io.Writer, levels []modelLevel) {
 
 func configModelUnsetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "unset [default|family <name>|agent <id>]",
-		Short: "Supprime un override de modèle",
-		Args:  cobra.MinimumNArgs(1),
+		Use:  "unset [default|family <name>|agent <id>]",
+		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			projectID, _ := cmd.Flags().GetString("project")
 			scope := args[0]
@@ -346,7 +326,7 @@ func configModelUnsetCmd() *cobra.Command {
 			}
 		},
 	}
-	cmd.Flags().StringP("project", "p", "", "Nom du projet")
+	cmd.Flags().StringP("project", "p", "", "")
 	_ = cmd.RegisterFlagCompletionFunc("project", completeProjectIDs)
 	return cmd
 }

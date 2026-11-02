@@ -79,12 +79,11 @@ func init() {
 
 	pass := &cobra.Command{
 		Use:    "pass",
-		Short:  "Run one evaluation pass (internal, run by oh eval in a temporary OH_HOME)",
 		Hidden: true,
 		Args:   cobra.NoArgs,
 		RunE:   runEvalPass,
 	}
-	pass.Flags().String("spec", "", "pass specification (JSON)")
+	pass.Flags().String("spec", "", "")
 	withInitLevel(pass, levelFull)
 	cmd.AddCommand(pass)
 	rootCmd.AddCommand(cmd)
