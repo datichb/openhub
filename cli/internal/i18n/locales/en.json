@@ -5761,8 +5761,6 @@
   "cmd.doctor.env_allow.managed": "execution.env_allow: %s are credentials managed by oh, they are removed anyway (the agents only get the session token of the oh proxy)",
   "cmd.gateway.beads.shell_bd_detail_interactive": "In an interactive shell of the session (bash -i, zsh -i, sh -i, fish -i), `bd` is %s instead of the oh fake bd (%s): Beads commands typed there would bypass the gateway and beads.allow. Your ~/.bashrc, ~/.zshrc or fish configuration puts another bd first: for bash, add `[ -n \"$OH_PATH_FIRST\" ] && PATH=\"$OH_PATH_FIRST:$PATH\"` at the end of ~/.bashrc, then run oh doctor.",
   "cmd.doctor.gateway.shell_bd_interactive": "an interactive session shell finds %s first: for bash add `[ -n \"$OH_PATH_FIRST\" ] && PATH=\"$OH_PATH_FIRST:$PATH\"` at the end of ~/.bashrc, and check ~/.zshrc and your fish configuration",
-  "cmd.deprecated_option.value": "The value %s of %s is deprecated, use %s.",
-  "cmd.deprecated_option.warn": "Option %s of `%s` is deprecated, use %s.",
   "cmd.mr.short": "Merge requests (GitLab)",
   "cmd.mr.long": "Publishes work as a GitLab merge request. The review itself is a workflow: oh run review.",
   "cmd.mr.create.short": "Creates the merge request of the current branch (and assigns a reviewer)",

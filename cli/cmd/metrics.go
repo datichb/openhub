@@ -22,7 +22,6 @@ var metricsCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(metricsCmd)
 	metricsCmd.Flags().String("period", "all", "Période d'analyse (7d, 30d, all)")
-	deprecateShorthand(metricsCmd, "d", "period") // -d is the path of oh project add
 }
 
 func runMetrics(cmd *cobra.Command, args []string) error {

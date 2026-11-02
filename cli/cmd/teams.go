@@ -81,7 +81,6 @@ func init() {
 	teamsAddCmd.Flags().String("gitlab-url", "", i18n.T("cmd.team.rejoin.flags.gitlab_url"))
 
 	addYesFlag(teamsRemoveCmd)
-	deprecateForceAsYes(teamsRemoveCmd, true)
 }
 
 func runTeamsList(cmd *cobra.Command, _ []string) error {

@@ -5761,8 +5761,6 @@
   "cmd.doctor.env_allow.managed": "execution.env_allow : %s sont des identifiants gérés par oh, ils sont retirés quand même (les agents n'ont que le jeton de session du proxy oh)",
   "cmd.gateway.beads.shell_bd_detail_interactive": "Dans un shell interactif de la session (bash -i, zsh -i, sh -i, fish -i), `bd` désigne %s et non le faux bd d'oh (%s) : les commandes Beads tapées là contourneraient la passerelle et beads.allow. Votre ~/.bashrc, ~/.zshrc ou la configuration de fish met un autre bd en premier : pour bash, ajoutez `[ -n \"$OH_PATH_FIRST\" ] && PATH=\"$OH_PATH_FIRST:$PATH\"` à la fin de ~/.bashrc, puis lancez oh doctor.",
   "cmd.doctor.gateway.shell_bd_interactive": "un shell interactif de la session trouve d'abord %s : pour bash, ajoutez `[ -n \"$OH_PATH_FIRST\" ] && PATH=\"$OH_PATH_FIRST:$PATH\"` à la fin de ~/.bashrc, et vérifiez ~/.zshrc et la configuration de fish",
-  "cmd.deprecated_option.value": "La valeur %s de %s est dépréciée, utilisez %s.",
-  "cmd.deprecated_option.warn": "L'option %s de `%s` est dépréciée, utilisez %s.",
   "cmd.mr.short": "Merge requests (GitLab)",
   "cmd.mr.long": "Publie le travail en merge request GitLab. La review elle-même est un workflow : oh run review.",
   "cmd.mr.create.short": "Crée la merge request de la branche courante (et assigne un relecteur)",

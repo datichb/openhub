@@ -174,6 +174,5 @@ func projectRemoveCmd() *cobra.Command {
 	}
 
 	addYesFlag(cmd)
-	deprecateForceAsYes(cmd, true)
 	return cmd
 }
