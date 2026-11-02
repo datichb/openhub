@@ -39,15 +39,17 @@ func TestProjectRemoveWizard(t *testing.T) {
 		name        string
 		answers     map[int]func(f *tview.Form)
 		abortAt     int
+		yes         bool
 		wantRan     []int
 		wantDeleted []string
 		wantOut     string
 	}{
-		{"the second project is picked and confirmed", pick(1, true), -1, []int{0, 1}, []string{"p2"}, "removed"},
-		{"the first project is the default", pick(0, true), -1, []int{0, 1}, []string{"p1"}, "removed"},
-		{"not confirmed: nothing is deleted, no error", pick(1, false), -1, []int{0, 1}, nil, i18n.T("form.project.cancelled")},
-		{"the user quits at the confirmation", pick(1, true), 1, []int{0}, nil, ""},
-		{"the user quits at once", pick(1, true), 0, nil, nil, ""},
+		{"the second project is picked and confirmed", pick(1, true), -1, false, []int{0, 1}, []string{"p2"}, "removed"},
+		{"the first project is the default", pick(0, true), -1, false, []int{0, 1}, []string{"p1"}, "removed"},
+		{"not confirmed: nothing is deleted, no error", pick(1, false), -1, false, []int{0, 1}, nil, i18n.T("form.project.cancelled")},
+		{"--yes: no confirmation, the picked project is deleted", pick(1, false), -1, true, []int{0}, []string{"p2"}, "removed"},
+		{"the user quits at the confirmation", pick(1, true), 1, false, []int{0}, nil, ""},
+		{"the user quits at once", pick(1, true), 0, false, nil, nil, ""},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -63,6 +65,9 @@ func TestProjectRemoveWizard(t *testing.T) {
 
 			cmd := projectRemoveCmd()
 			cmd.SetContext(t.Context())
+			if tc.yes {
+				require.NoError(t, cmd.Flags().Set("yes", "true"))
+			}
 			require.NoError(t, cmd.RunE(cmd, nil), "the command")
 
 			assert.Equal(t, "project remove", s.command, "command of the wizard")

@@ -106,10 +106,7 @@ func projectRemoveCmd() *cobra.Command {
 							i18n.T("form.project.select_remove"),
 							projectNames, 0,
 							func(_ string, idx int) { selectedIdx = idx })
-						form.AddButton(i18n.T("cmd.button.next"), func() {
-							projectID = projectIDs[selectedIdx]
-							onDone()
-						})
+						form.AddButton(i18n.T("cmd.button.next"), func() { onDone() })
 						return form
 					},
 					InfoFields: func() []views.InfoField {
@@ -130,16 +127,6 @@ func projectRemoveCmd() *cobra.Command {
 						form.AddButton(i18n.T("cmd.button.delete"), func() { onDone() })
 						return form
 					},
-					OnDone: func() error {
-						if !confirm {
-							fmt.Fprintln(a.IO.Out, theme.Subtitle.Render(i18n.T("form.project.cancelled")))
-							return fmt.Errorf("cancelled")
-						}
-						if err := a.Projects.Delete(ctx, projectID); err != nil {
-							return fmt.Errorf(i18n.T("cmd.project_remove.deleting_project"), err)
-						}
-						return nil
-					},
 					InfoFields: func() []views.InfoField {
 						return []views.InfoField{{Label: "Status", Value: "deleted"}}
 					},
@@ -152,10 +139,17 @@ func projectRemoveCmd() *cobra.Command {
 				return nil
 			}
 			if wizResult.Err != nil {
-				if wizResult.Err.Error() == "cancelled" {
-					return nil
-				}
 				return wizResult.Err
+			}
+
+			// The wizard only asks: the project is deleted once it has
+			// ended, whether the user confirmed or passed --yes.
+			if !yes && !confirm {
+				fmt.Fprintln(a.IO.Out, theme.Subtitle.Render(i18n.T("form.project.cancelled")))
+				return nil
+			}
+			if err := a.Projects.Delete(ctx, projectIDs[selectedIdx]); err != nil {
+				return fmt.Errorf(i18n.T("cmd.project_remove.deleting_project"), err)
 			}
 
 			fmt.Fprintf(a.IO.Out, "%s %s\n",
