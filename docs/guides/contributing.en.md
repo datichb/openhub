@@ -227,6 +227,7 @@ The CLI is a single Go binary (`cli/main.go` -> `cli/cmd/root.go`). Internal arc
 | `internal/storage/` | SQLite (projects, sessions), keychain, file encryption |
 | `internal/tracker/` | External tracker sync (GitLab, Jira) |
 | `internal/i18n/` | Internationalization (FR + EN, JSON) |
+| `internal/cliout/` | What the commands print: tables, JSON documents, status messages, on an `io.Writer` |
 
 The binary embeds agents, skills, and permissions via `go:embed` (`internal/hubcontent/`).
 `CGO_ENABLED=0` — no C dependencies, static binary.
@@ -238,6 +239,8 @@ The binary embeds agents, skills, and permissions via `go:embed` (`internal/hubc
 - **Contracts in `internal/domain/`** (types, `XxxStore` interfaces, `ErrXxx` sentinel errors), implementations in `internal/storage/sqlite/` (migrations in `migrate.go`), checked at compile time (`var _ domain.XxxStore = (*XxxStore)(nil)`).
 - **Independence from the agentic tool**: only `internal/adapters/<tool>/` and the composition root (`cmd/v5_adapters.go`) name the tool; `internal/archtest/` checks it.
 - **Displayed texts** through `i18n.T` / `i18n.Tf`, keys in `internal/i18n/locales/fr.json` and `en.json` (a test checks they match). No message is written in the code of `cmd/` or of the TUI views (`TestNoLiteralUserMessages`; the few exceptions are listed with their reason in `cmd/messages_literal_test.go`), and a key of `en.json` that the code does not use anywhere is refused (`TestNoOrphanKeys`; a key built at run time, `i18n.T("prefix." + x)`, is recognised by its prefix). A confirmation typed on the keyboard goes through `confirmed()` (`cmd/confirm.go`: `o`, `oui`, `y`, `yes`).
+- **Help of the commands** in the locales only: the text of a command and of an option is under `cmd.<command path>.short|long|flags.<name>` in `fr.json` and `en.json`, and the code leaves it out of the definition (`TestHelpIsNotInTheCode` refuses a literal; a text written there never appeared and went out of step with the locale). `TestNoOrphanHelpKeys` refuses a help key whose command or option is gone.
+- **Output of the commands** to the writers of the command (`cmd.OutOrStdout()`, `cmd.ErrOrStderr()`, `a.IO.Out`), never `os.Stdout` or `fmt.Print*`: tables, JSON (`--json`) and status messages go through `internal/cliout` (`cliout.Table`, `cliout.JSON`, `cliout.Success`, `Warn`, `Info`, `Error`). `internal/archtest` refuses a new use of the standard streams in `cmd/` outside the short list of its exceptions (a subprocess given the terminal, the size of the terminal, the logger).
 - **Errors** wrapped with their context (`fmt.Errorf("creating project %s: %w", id, err)`), tested with `errors.Is` / `errors.As`.
 - **Tests** in the same package, with `testify` (`require` for preconditions), table-driven cases, `t.TempDir()` and `t.Helper()` helpers. A test that starts processes (git, bd, servers) waits for them to end before its directory is cleaned up; the tests that push to bare repositories turn git's automatic maintenance off (`internal/gitutil/gittest`).
 
