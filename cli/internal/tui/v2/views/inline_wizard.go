@@ -1159,10 +1159,7 @@ func (w *InlineWizardView) renderStep(idx int) {
 
 			if len(w.cfg.Groups) > 0 {
 				// Detect terminal height early to decide layout mode.
-				_, termH, _ := term.GetSize(int(os.Stdout.Fd()))
-				if termH <= 0 {
-					termH = 50 // safe fallback
-				}
+				termH := wizardTermHeight()
 				groupedAvailH := termH - 7 // shell overhead: omnibar(5) + border_padding(1) + hints(1)
 				minimalLayout := groupedAvailH < 20
 
@@ -1297,6 +1294,16 @@ func (w *InlineWizardView) renderStep(idx int) {
 			}
 		})
 	}
+}
+
+// wizardTermHeight is the height of the terminal (50 when it is unknown); a
+// variable so that the tests choose the layout.
+var wizardTermHeight = func() int {
+	_, termH, _ := term.GetSize(int(os.Stdout.Fd()))
+	if termH <= 0 {
+		termH = 50 // safe fallback
+	}
+	return termH
 }
 
 // primaryButtonAction returns the action of the first button of the form: a
