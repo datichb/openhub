@@ -15,7 +15,6 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
-	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 )
 
 // Source session.traces(<input>) (r9b, retro): the trace summaries of the
@@ -136,7 +135,7 @@ var sessionTraceDigest = func(ctx context.Context, a *app.App, id string) (strin
 	if err != nil {
 		return "", err
 	}
-	tr, err := ssvc.Trace(ctx, id, sessionsvc.TraceOptions{Usage: sqlite.NewUsageStore(store)})
+	tr, err := ssvc.Trace(ctx, id, sessionsvc.TraceOptions{Usage: a.Usage})
 	if err != nil {
 		return "", fmt.Errorf(i18n.T("cmd.v5_inputs_traces.trace_of"), id, err)
 	}

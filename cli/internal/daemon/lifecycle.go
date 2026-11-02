@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/adapters"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/filelock"
 	"github.com/datichb/openhub/cli/internal/sessionresults"
@@ -24,7 +25,7 @@ import (
 //     present (TUI open); otherwise the idle timer applies.
 
 type client struct {
-	kind    ClientKind
+	kind    api.ClientKind
 	group   string
 	session string
 	where   *termlaunch.Location
@@ -35,7 +36,7 @@ type client struct {
 const maxClientTTL = 300 * time.Second
 
 func (d *Daemon) handleHeartbeat(w http.ResponseWriter, r *http.Request) {
-	var req HeartbeatRequest
+	var req api.HeartbeatRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.ClientID == "" {
 		writeErr(w, http.StatusBadRequest, "client_id is required")
 		return
@@ -48,7 +49,7 @@ func (d *Daemon) handleHeartbeat(w http.ResponseWriter, r *http.Request) {
 	d.mu.Lock()
 	d.clients[req.ClientID] = client{kind: req.Kind, group: req.Group, session: req.SessionID, where: req.Where, expires: time.Now().Add(ttl)}
 	d.lastBusy = time.Now()
-	if req.Kind == ClientAttach && req.Group != "" {
+	if req.Kind == api.ClientAttach && req.Group != "" {
 		delete(d.policies, req.Group) // a user is back on the session
 	}
 	d.mu.Unlock()
@@ -64,13 +65,13 @@ func (d *Daemon) handleClientGone(w http.ResponseWriter, r *http.Request) {
 }
 
 func (d *Daemon) handlePolicy(w http.ResponseWriter, r *http.Request) {
-	var req PolicyRequest
+	var req api.PolicyRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeErr(w, http.StatusBadRequest, "invalid body")
 		return
 	}
 	switch req.Policy {
-	case PolicySleepWhenIdle, PolicyBackground, PolicyStopNow:
+	case api.PolicySleepWhenIdle, api.PolicyBackground, api.PolicyStopNow:
 	default:
 		writeErr(w, http.StatusBadRequest, "unknown policy")
 		return
@@ -94,11 +95,11 @@ func (d *Daemon) clientState(group string) (attached, presence bool) {
 			continue
 		}
 		switch c.kind {
-		case ClientAttach:
+		case api.ClientAttach:
 			if c.group == group {
 				attached = true
 			}
-		case ClientPresence:
+		case api.ClientPresence:
 			presence = true
 		}
 	}
@@ -111,7 +112,7 @@ func (d *Daemon) sleepDecision(srv domain.Server, w *watcher) (sleep, stop bool)
 	policy := d.policies[srv.GroupKey]
 	queued := d.queuedGroups[srv.GroupKey]
 	d.mu.Unlock()
-	if policy == PolicyStopNow {
+	if policy == api.PolicyStopNow {
 		return false, true
 	}
 	if queued {
@@ -125,7 +126,7 @@ func (d *Daemon) sleepDecision(srv domain.Server, w *watcher) (sleep, stop bool)
 	if executing > 0 {
 		return false, false
 	}
-	if policy == PolicySleepWhenIdle {
+	if policy == api.PolicySleepWhenIdle {
 		return true, false
 	}
 	if pending > 0 && presence {
@@ -242,7 +243,7 @@ func (d *Daemon) applyLifecycle(ctx context.Context, ready []domain.Server) {
 // a client is left for the next pass; the row is re-read under the lock.
 func (d *Daemon) sleepLocked(ctx context.Context, srv domain.Server, final bool) {
 	if d.opts.ServersDir != "" {
-		unlock, err := filelock.TryLock(GroupLockPath(d.opts.ServersDir, srv.GroupKey))
+		unlock, err := filelock.TryLock(api.GroupLockPath(d.opts.ServersDir, srv.GroupKey))
 		if err != nil {
 			slog.Debug("ohd: group busy with a client, sleep postponed", "group", srv.GroupKey, "error", err)
 			return

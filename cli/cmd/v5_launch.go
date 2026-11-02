@@ -21,7 +21,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/bricks"
 	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/config"
-	"github.com/datichb/openhub/cli/internal/daemon"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/hubcontent"
 	"github.com/datichb/openhub/cli/internal/launcher"
@@ -121,8 +121,8 @@ func runAttachChild(ctx context.Context, a *app.App, svc *runsvc.Service, sessio
 	hbCtx, stop := context.WithCancel(ctx)
 	defer stop()
 	if dc, _, derr := ensureDaemon(ctx); derr == nil && sess != nil {
-		go dc.KeepAlive(hbCtx, daemon.HeartbeatRequest{
-			ClientID: "attach-" + sessionspec.NewSessionID(), Kind: daemon.ClientAttach, Group: sess.GroupKey, SessionID: sessionID,
+		go dc.KeepAlive(hbCtx, api.HeartbeatRequest{
+			ClientID: "attach-" + sessionspec.NewSessionID(), Kind: api.ClientAttach, Group: sess.GroupKey, SessionID: sessionID,
 			Where: clientLocation(),
 		}, 30*time.Second)
 	}

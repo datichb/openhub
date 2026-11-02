@@ -9,7 +9,7 @@ import (
 	"runtime"
 
 	"github.com/datichb/openhub/cli/internal/config"
-	"github.com/datichb/openhub/cli/internal/daemon"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
 	"github.com/datichb/openhub/cli/internal/fsutil"
 	"github.com/datichb/openhub/cli/internal/gateway"
 	"github.com/datichb/openhub/cli/internal/gateway/beadswire"
@@ -31,7 +31,7 @@ func ohShimsDir() string { return filepath.Join(config.HubDir(), "run", "bin") }
 // It is rewritten when the oh executable moved. It tells the fake bd the
 // daemon socket, where a git hook asks for its hook token (S-06).
 func ensureBeadsShim(dir, exe string) error {
-	sock := daemon.DefaultPaths().Socket()
+	sock := api.DefaultPaths().Socket()
 	name, content := "bd", "#!/bin/sh\n# oh: Beads goes through the oh gateway (beads.allow of the workflow).\n"+
 		beadswire.EnvDaemonSocket+"="+shellQuote(sock)+" exec "+shellQuote(exe)+" "+BeadsShimArg+" \"$@\"\n"
 	if runtime.GOOS == "windows" {

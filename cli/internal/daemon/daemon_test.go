@@ -11,6 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/credproxy"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
+	dclient "github.com/datichb/openhub/cli/internal/daemon/client"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
@@ -26,16 +28,16 @@ func (m mapSecrets) Get(_ context.Context, k string) (string, error) {
 }
 
 // shortPaths: Unix socket paths are limited to ~104 bytes on macOS.
-func shortPaths(t *testing.T) Paths {
+func shortPaths(t *testing.T) api.Paths {
 	t.Helper()
 	dir, err := os.MkdirTemp("/tmp", "ohd-")
 	require.NoError(t, err)
 	t.Cleanup(func() { os.RemoveAll(dir) })
-	return Paths{Dir: dir}
+	return api.Paths{Dir: dir}
 }
 
 type env struct {
-	paths   Paths
+	paths   api.Paths
 	store   *sqlite.Store
 	grants  domain.GrantStore
 	servers domain.ServerStore
@@ -48,7 +50,7 @@ func newEnv(t *testing.T) *env {
 	return &env{paths: p, store: st, grants: sqlite.NewGrantStore(st), servers: sqlite.NewServerStore(st)}
 }
 
-func (e *env) start(t *testing.T, secrets SecretGetter, idle time.Duration) (*Client, chan error) {
+func (e *env) start(t *testing.T, secrets SecretGetter, idle time.Duration) (*dclient.Client, chan error) {
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
@@ -70,7 +72,7 @@ func (e *env) start(t *testing.T, secrets SecretGetter, idle time.Duration) (*Cl
 		case <-time.After(5 * time.Second):
 		}
 	})
-	c := NewClient(e.paths)
+	c := dclient.NewClient(e.paths)
 	require.Eventually(t, func() bool { h, err := c.Health(context.Background()); return err == nil && !h.Restoring }, 5*time.Second, 20*time.Millisecond)
 	return c, done
 }
@@ -90,7 +92,7 @@ func TestDaemonGrantsAndRestore(t *testing.T) {
 	err = Run(ctx, Options{Paths: e.paths})
 	assert.ErrorIs(t, err, ErrAlreadyRunning)
 
-	resp, err := c.IssueGrant(ctx, GrantRequest{
+	resp, err := c.IssueGrant(ctx, api.GrantRequest{
 		Owner: "g1", Provider: credproxy.ProviderBedrock, Region: "eu-west-1",
 		Source: domain.CredentialSource{Kind: domain.CredentialBearer, KeychainKey: "openhub.provider.bedrock.token"},
 		Secret: "real",
@@ -98,11 +100,11 @@ func TestDaemonGrantsAndRestore(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, resp.Token, "ohs_")
 	assert.Equal(t, h.ProxyURL+"/amazon-bedrock", resp.BaseURL)
-	sig, err := c.IssueGrant(ctx, GrantRequest{Owner: "g2", Provider: credproxy.ProviderBedrock, Region: "eu-west-1",
+	sig, err := c.IssueGrant(ctx, api.GrantRequest{Owner: "g2", Provider: credproxy.ProviderBedrock, Region: "eu-west-1",
 		Source: domain.CredentialSource{Kind: domain.CredentialSigV4, Profile: "work"}})
 	require.NoError(t, err)
 
-	_, err = c.IssueGrant(ctx, GrantRequest{Owner: "g3", Provider: credproxy.ProviderAnthropic, Source: domain.CredentialSource{Kind: domain.CredentialAPIKey}})
+	_, err = c.IssueGrant(ctx, api.GrantRequest{Owner: "g3", Provider: credproxy.ProviderAnthropic, Source: domain.CredentialSource{Kind: domain.CredentialAPIKey}})
 	assert.Error(t, err, "api key grant without secret")
 
 	_, err = c.Usage(ctx, resp.Token)
@@ -202,7 +204,7 @@ func TestHelperDaemon(t *testing.T) {
 	if dir == "" {
 		t.Skip("helper process only")
 	}
-	err := Run(context.Background(), Options{Paths: Paths{Dir: dir}, Version: "helper", IdleAfter: 2 * time.Second, Tick: 100 * time.Millisecond})
+	err := Run(context.Background(), Options{Paths: api.Paths{Dir: dir}, Version: "helper", IdleAfter: 2 * time.Second, Tick: 100 * time.Millisecond})
 	if err != nil && !errors.Is(err, ErrAlreadyRunning) {
 		t.Fatal(err)
 	}
@@ -211,24 +213,24 @@ func TestHelperDaemon(t *testing.T) {
 func TestEnsureSpawnsDaemon(t *testing.T) {
 	p := shortPaths(t)
 	ctx := context.Background()
-	opts := EnsureOptions{
+	opts := dclient.EnsureOptions{
 		Executable: os.Args[0],
 		Args:       []string{"-test.run=^TestHelperDaemon$"},
 		Env:        append(os.Environ(), "OHD_TEST_HELPER_DIR="+p.Dir),
 		Version:    "helper",
 	}
-	c, h, err := Ensure(ctx, p, opts)
+	c, h, err := dclient.Ensure(ctx, p, opts)
 	require.NoError(t, err)
 	assert.Equal(t, "helper", h.Version)
 	pid := h.PID
 
 	// Second Ensure reuses the running daemon.
-	_, h2, err := Ensure(ctx, p, opts)
+	_, h2, err := dclient.Ensure(ctx, p, opts)
 	require.NoError(t, err)
 	assert.Equal(t, pid, h2.PID)
 
 	require.NoError(t, c.Shutdown(ctx, false))
 	require.Eventually(t, func() bool { _, err := c.Health(ctx); return err != nil }, 5*time.Second, 50*time.Millisecond)
 	_, err = c.Health(ctx)
-	assert.ErrorIs(t, err, ErrNotRunning)
+	assert.ErrorIs(t, err, api.ErrNotRunning)
 }

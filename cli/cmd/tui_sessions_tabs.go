@@ -15,7 +15,6 @@ import (
 	"github.com/datichb/openhub/cli/internal/services/fanout"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
-	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
@@ -101,8 +100,8 @@ func (t *tuiSessions) SessionTrace(ctx context.Context, sessionID string) (strin
 		return "", err
 	}
 	opts := sessionsvc.TraceOptions{}
-	if store != nil {
-		opts.Usage = sqlite.NewUsageStore(store)
+	if t.a.Usage != nil {
+		opts.Usage = t.a.Usage
 	}
 	tr, err := svc.Trace(ctx, sessionID, opts)
 	if err != nil {
@@ -286,10 +285,10 @@ func (t *tuiSessions) CleanFanout(ctx context.Context, parentID string, discard,
 	if !fanout.Cleanable(sess) {
 		return views.FanoutCleanView{}, errors.New(i18n.Tf("cmd.fanout.clean.not_done", sess.ID, string(sess.Fanout.Status)))
 	}
-	if store == nil {
+	if t.a.Fanout == nil {
 		return views.FanoutCleanView{}, fmt.Errorf(i18n.T("cmd.tui_sessions_tabs.fan_out_no_session_store"), sess.ID)
 	}
-	res, err := fanout.Clean(ctx, sqlite.NewSessionStore(store), sess, fanout.CleanOptions{DryRun: dry, Discard: discard})
+	res, err := fanout.Clean(ctx, t.a.Fanout, sess, fanout.CleanOptions{DryRun: dry, Discard: discard})
 	if err != nil {
 		return views.FanoutCleanView{}, err
 	}

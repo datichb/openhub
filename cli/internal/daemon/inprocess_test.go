@@ -11,6 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/adapters"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
+	dclient "github.com/datichb/openhub/cli/internal/daemon/client"
 	"github.com/datichb/openhub/cli/internal/domain"
 )
 
@@ -18,12 +20,12 @@ import (
 // the daemon inside the process instead of spawning it, once.
 func TestEnsureInProcess(t *testing.T) {
 	t.Setenv("OH_DAEMON_INPROCESS", "1")
-	require.True(t, InProcessMode())
+	require.True(t, dclient.InProcessMode())
 	p, servers, grants := hardeningEnv(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
 	var starts atomic.Int32
-	opts := EnsureOptions{Version: "t", InProcess: func() error {
+	opts := dclient.EnsureOptions{Version: "t", InProcess: func() error {
 		starts.Add(1)
 		go func() {
 			done <- Run(ctx, Options{Paths: p, Version: "t", Servers: servers, Grants: grants, Tick: time.Hour, IdleAfter: time.Hour})
@@ -31,15 +33,15 @@ func TestEnsureInProcess(t *testing.T) {
 		return nil
 	}}
 	t.Cleanup(func() { cancel(); <-done })
-	_, h, err := Ensure(context.Background(), p, opts)
+	_, h, err := dclient.Ensure(context.Background(), p, opts)
 	require.NoError(t, err)
 	assert.Equal(t, os.Getpid(), h.PID, "the daemon runs in this process")
-	_, _, err = Ensure(context.Background(), p, opts)
+	_, _, err = dclient.Ensure(context.Background(), p, opts)
 	require.NoError(t, err)
 	assert.Equal(t, int32(1), starts.Load(), "started once")
 
-	_, _, err = Ensure(context.Background(), Paths{Dir: t.TempDir()}, EnsureOptions{})
-	assert.ErrorIs(t, err, ErrUnsupported, "no in-process starter")
+	_, _, err = dclient.Ensure(context.Background(), api.Paths{Dir: t.TempDir()}, dclient.EnsureOptions{})
+	assert.ErrorIs(t, err, api.ErrUnsupported, "no in-process starter")
 }
 
 // The in-process daemon puts its server groups to sleep when it stops (the
@@ -55,7 +57,7 @@ func TestStopServersOnExit(t *testing.T) {
 		done <- Run(dctx, Options{Paths: p, Servers: servers, Grants: grants, Tick: time.Hour, IdleAfter: time.Hour, IdleSleep: time.Hour,
 			StopServersOnExit: true, Adapter: func(string) adapters.ToolAdapter { return ad }})
 	}()
-	c := NewClient(p)
+	c := dclient.NewClient(p)
 	require.Eventually(t, func() bool { h, err := c.Health(ctx); return err == nil && !h.Restoring }, 5*time.Second, 20*time.Millisecond)
 	cancel()
 	select {

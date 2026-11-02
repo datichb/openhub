@@ -31,7 +31,7 @@ func newProjectWikiView(a *app.App) *views.ProjectWikiView {
 			}
 			svc := &wiki.Service{}
 			if store != nil {
-				svc = newWikiService()
+				svc = newWikiServiceFor(a)
 			}
 			m, err := svc.Metrics(ctx, path, projectID)
 			if errors.Is(err, wiki.ErrNoWiki) {
@@ -84,7 +84,7 @@ func projectWikiQueue(ctx context.Context, a *app.App, path string) (*wiki.Servi
 	if err != nil {
 		return nil, "", err
 	}
-	return newWikiService(), projectID, nil
+	return newWikiServiceFor(a), projectID, nil
 }
 
 // queueWiki renders the queue of the project for the view: the proposals

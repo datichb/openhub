@@ -11,7 +11,8 @@ import (
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/beads/bdschema"
-	"github.com/datichb/openhub/cli/internal/daemon"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
+	"github.com/datichb/openhub/cli/internal/daemon/client"
 	"github.com/datichb/openhub/cli/internal/gateway"
 	"github.com/datichb/openhub/cli/internal/gateway/bdargs"
 	"github.com/datichb/openhub/cli/internal/i18n"
@@ -77,15 +78,15 @@ func gatewayChecks(ctx context.Context) []doctor.Result {
 		}
 	}
 
-	dc := daemon.NewClient(daemon.Paths{Dir: ohRunDir()})
+	dc := client.NewClient(api.Paths{Dir: ohRunDir()})
 	h, err := dc.Health(ctx)
 	if err != nil {
 		return append(out, check("daemon", true, i18n.T("cmd.doctor.gateway.daemon_off")))
 	}
 	// An empty grant request is refused (400) by a daemon serving the
 	// gateway, and unknown (404) to an older one: nothing is issued.
-	_, gerr := dc.IssueGatewayGrant(ctx, daemon.GatewayGrantRequest{})
-	var apiErr *daemon.APIError
+	_, gerr := dc.IssueGatewayGrant(ctx, api.GatewayGrantRequest{})
+	var apiErr *api.APIError
 	if errors.As(gerr, &apiErr) && apiErr.Status == http.StatusNotFound {
 		return append(out, check("daemon", false, i18n.T("cmd.gateway.beads.daemon_outdated")))
 	}

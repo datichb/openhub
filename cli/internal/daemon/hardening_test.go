@@ -12,12 +12,14 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/credproxy"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
+	dclient "github.com/datichb/openhub/cli/internal/daemon/client"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
-func hardeningEnv(t *testing.T) (Paths, *sqlite.ServerStore, *sqlite.GrantStore) {
+func hardeningEnv(t *testing.T) (api.Paths, *sqlite.ServerStore, *sqlite.GrantStore) {
 	p := shortPaths(t)
 	st := sqlitetest.New(t)
 	return p, sqlite.NewServerStore(st), sqlite.NewGrantStore(st)
@@ -28,7 +30,7 @@ func runDaemon(t *testing.T, opts Options) {
 	done := make(chan error, 1)
 	go func() { done <- Run(ctx, opts) }()
 	t.Cleanup(func() { cancel(); <-done })
-	c := NewClient(opts.Paths)
+	c := dclient.NewClient(opts.Paths)
 	require.Eventually(t, func() bool { h, err := c.Health(context.Background()); return err == nil && !h.Restoring }, 15*time.Second, 20*time.Millisecond) // generous: the -race suite runs packages in parallel
 }
 
@@ -107,7 +109,7 @@ func TestRestoreRevokesOrphansAndCachesSigners(t *testing.T) {
 	}
 	assert.ElementsMatch(t, []string{credproxy.TokenHash(held), credproxy.TokenHash(fresh)}, toks, "kept, and stored as hashes only")
 	assert.Equal(t, int32(1), loads.Load(), "one signer for the profile/region")
-	c := NewClient(p)
+	c := dclient.NewClient(p)
 	_, err = c.Usage(ctx, held)
 	assert.NoError(t, err)
 	_, err = c.Usage(ctx, stale)
@@ -133,7 +135,7 @@ func TestSocketAnswersBeforeSlowRestore(t *testing.T) {
 			}})
 	}()
 	t.Cleanup(func() { cancel(); <-done })
-	c := NewClient(p)
+	c := dclient.NewClient(p)
 	require.Eventually(t, func() bool { h, err := c.Health(ctx); return err == nil && h.Restoring }, 5*time.Second, 20*time.Millisecond)
 	got := make(chan error, 1)
 	go func() { _, err := c.Usage(ctx, tok); got <- err }()

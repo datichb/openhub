@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/datichb/openhub/cli/internal/config"
-	"github.com/datichb/openhub/cli/internal/daemon"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
@@ -49,16 +49,16 @@ func ensureLocale() {
 
 // localizeError returns the message printed for an error of a command.
 func localizeError(err error) string {
-	var api *daemon.APIError
+	var apiErr *api.APIError
 	var newer *sqlite.SchemaNewerError
 	var mig *sqlite.MigrationError
 	var startup *startupError
 	var busy *teamstate.BusyError
 	switch {
-	case errors.As(err, &api) && api.Path == "/shutdown" && api.Status == 409:
+	case errors.As(err, &apiErr) && apiErr.Path == "/shutdown" && apiErr.Status == 409:
 		return i18n.T("cmd.daemon.stop_busy")
-	case errors.As(err, &api) && api.Path == "/grants" && api.Status == 422:
-		return i18n.Tf("cmd.run.provider.grant_refused", api.Message)
+	case errors.As(err, &apiErr) && apiErr.Path == "/grants" && apiErr.Status == 422:
+		return i18n.Tf("cmd.run.provider.grant_refused", apiErr.Message)
 	case isNoTerminalError(err):
 		return i18n.T("cmd.errors.no_terminal")
 	case errors.As(err, &newer):

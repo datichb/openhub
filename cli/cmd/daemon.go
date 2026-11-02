@@ -14,6 +14,8 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/buildinfo"
 	"github.com/datichb/openhub/cli/internal/daemon"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
+	"github.com/datichb/openhub/cli/internal/daemon/client"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/sysnotify"
 )
@@ -49,9 +51,9 @@ var daemonStatusCmd = &cobra.Command{
 	Use:   "status",
 	Short: "Affiche l'état du démon oh",
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		c := daemon.NewClient(daemon.Paths{Dir: ohRunDir()})
+		c := client.NewClient(api.Paths{Dir: ohRunDir()})
 		h, err := c.Health(cmd.Context())
-		if errors.Is(err, daemon.ErrNotRunning) {
+		if errors.Is(err, api.ErrNotRunning) {
 			fmt.Fprintln(cmd.OutOrStdout(), i18n.T("cmd.daemon.not_running"))
 			return nil
 		}
@@ -72,9 +74,9 @@ var daemonStopCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		c := daemon.NewClient(daemon.Paths{Dir: ohRunDir()}).WithCapability(capability)
+		c := client.NewClient(api.Paths{Dir: ohRunDir()}).WithCapability(capability)
 		err = c.Shutdown(cmd.Context(), force)
-		if errors.Is(err, daemon.ErrNotRunning) {
+		if errors.Is(err, api.ErrNotRunning) {
 			fmt.Fprintln(cmd.OutOrStdout(), i18n.T("cmd.daemon.not_running"))
 			return nil
 		}
@@ -110,7 +112,7 @@ func daemonOptions(ctx context.Context, a *app.App, capability string) daemon.Op
 	wk := newWikiServiceFor(a)
 	opts := daemon.Options{
 		Capability:  capability,
-		Paths:       daemon.Paths{Dir: ohRunDir()},
+		Paths:       api.Paths{Dir: ohRunDir()},
 		Version:     buildinfo.Version,
 		Grants:      a.Grants,
 		Servers:     a.Servers,

@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/datichb/openhub/cli/internal/daemon/api"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 )
@@ -56,7 +57,7 @@ func urlPort(raw string) int {
 // started before this daemon and its main port changed.
 func (d *Daemon) staleProxyPort(srv domain.Server, ports map[int]bool) int {
 	if d.opts.ServersDir != "" {
-		if data, err := os.ReadFile(ProxyURLPath(d.opts.ServersDir, srv.GroupKey)); err == nil {
+		if data, err := os.ReadFile(api.ProxyURLPath(d.opts.ServersDir, srv.GroupKey)); err == nil {
 			p := urlPort(strings.TrimSpace(string(data)))
 			if p > 0 && !ports[p] {
 				return p

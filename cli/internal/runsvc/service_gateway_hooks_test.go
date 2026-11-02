@@ -16,6 +16,8 @@ import (
 	"github.com/datichb/openhub/cli/internal/adapters/opencodev2"
 	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/daemon"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
+	"github.com/datichb/openhub/cli/internal/daemon/client"
 	"github.com/datichb/openhub/cli/internal/gateway"
 	"github.com/datichb/openhub/cli/internal/gateway/beadswire"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
@@ -104,7 +106,7 @@ func TestLocalSessionBeadsHooksAndShell(t *testing.T) {
 		t.Fatal(err)
 	}
 	secrets := mapSecrets{"openhub.provider.bedrock.token": "fake-key"}
-	paths := daemon.Paths{Dir: filepath.Join(root, "run")}
+	paths := api.Paths{Dir: filepath.Join(root, "run")}
 	dctx, cancel := context.WithCancel(ctx)
 	done := make(chan error, 1)
 	realBD, _ := exec.LookPath("bd")
@@ -114,7 +116,7 @@ func TestLocalSessionBeadsHooksAndShell(t *testing.T) {
 			BeadsBinary: realBD, Adapter: func(string) adapters.ToolAdapter { return a }})
 	}()
 	t.Cleanup(func() { cancel(); <-done })
-	dc := daemon.NewClient(paths)
+	dc := client.NewClient(paths)
 	for deadline := time.Now().Add(5 * time.Second); ; time.Sleep(20 * time.Millisecond) {
 		if _, err := dc.Health(ctx); err == nil {
 			break
@@ -148,7 +150,7 @@ func TestLocalSessionBeadsHooksAndShell(t *testing.T) {
 		LocalShellPath: []string{shims},
 		LocalShellEnv:  startup,
 		SessionEnv: func(ctx context.Context, r SessionEnvRequest) (map[string]string, error) {
-			g, err := dc.IssueGatewayGrant(ctx, daemon.GatewayGrantRequest{SessionID: r.SessionID, GroupKey: r.GroupKey,
+			g, err := dc.IssueGatewayGrant(ctx, api.GatewayGrantRequest{SessionID: r.SessionID, GroupKey: r.GroupKey,
 				ProjectID: r.ProjectID, Location: r.Location, BeadsAllow: r.BeadsAllow, GatewayURL: r.GatewayURL})
 			return map[string]string{beadswire.EnvURL: r.GatewayURL, beadswire.EnvToken: g.Token}, err
 		},

@@ -17,6 +17,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/adapters"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
+	dclient "github.com/datichb/openhub/cli/internal/daemon/client"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/gateway"
 	"github.com/datichb/openhub/cli/internal/gateway/beadswire"
@@ -60,12 +62,12 @@ func TestDaemonBeadsGateway(t *testing.T) {
 					return gateway.View{Paths: ohruntime.PathMap{{Host: project, Inner: "/work/p1"}}, Locations: []string{project}}, nil
 				}})
 		}()
-		c := NewClient(p)
+		c := dclient.NewClient(p)
 		require.Eventually(t, func() bool { _, err := c.Health(ctx); return err == nil }, 5*time.Second, 20*time.Millisecond)
 		return cancel, done
 	}
 	cancel, done := start()
-	c := NewClient(p)
+	c := dclient.NewClient(p)
 	h, err := c.Health(ctx)
 	require.NoError(t, err)
 
@@ -84,7 +86,7 @@ func TestDaemonBeadsGateway(t *testing.T) {
 	code, _ := exec(staleTok, "show", "x")
 	assert.Equal(t, http.StatusUnauthorized, code, "stale grant dropped")
 
-	g, err := c.IssueGatewayGrant(ctx, GatewayGrantRequest{SessionID: "ses_a", GroupKey: "g1", ProjectID: "p1", Location: project, BeadsAllow: []string{"show"}})
+	g, err := c.IssueGatewayGrant(ctx, api.GatewayGrantRequest{SessionID: "ses_a", GroupKey: "g1", ProjectID: "p1", Location: project, BeadsAllow: []string{"show"}})
 	require.NoError(t, err)
 	code, out := exec(g.Token, "show", "bd-1")
 	require.Equal(t, http.StatusOK, code, out.Error)
@@ -166,9 +168,9 @@ func TestDaemonSubagentSessionEnvironment(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("watcher did not subscribe")
 	}
-	c := NewClient(p)
+	c := dclient.NewClient(p)
 	require.Eventually(t, func() bool { _, err := c.Health(ctx); return err == nil }, 3*time.Second, 20*time.Millisecond)
-	root, err := c.IssueGatewayGrant(ctx, GatewayGrantRequest{SessionID: "ses_r", GroupKey: "g1", Location: "/p1",
+	root, err := c.IssueGatewayGrant(ctx, api.GatewayGrantRequest{SessionID: "ses_r", GroupKey: "g1", Location: "/p1",
 		BeadsAllow: []string{"show"}, GatewayURL: "http://host.docker.internal:1/oh-gateway"})
 	require.NoError(t, err)
 	ch <- adapters.ToolEvent{Kind: adapters.EventConnected}
@@ -245,9 +247,9 @@ func TestDaemonMCPGateway(t *testing.T) {
 			}})
 	}()
 	t.Cleanup(func() { cancel(); <-done })
-	c := NewClient(p)
+	c := dclient.NewClient(p)
 	require.Eventually(t, func() bool { _, err := c.Health(ctx); return err == nil }, 5*time.Second, 20*time.Millisecond)
-	grant, err := c.IssueGrant(ctx, GrantRequest{Owner: "g1", Provider: "amazon-bedrock", Region: "eu-west-1",
+	grant, err := c.IssueGrant(ctx, api.GrantRequest{Owner: "g1", Provider: "amazon-bedrock", Region: "eu-west-1",
 		Source: domain.CredentialSource{Kind: domain.CredentialBearer}, Secret: "real"})
 	require.NoError(t, err)
 	h, err := c.Health(ctx)

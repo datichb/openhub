@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/datichb/openhub/cli/internal/daemon/api"
 	"github.com/datichb/openhub/cli/internal/termlaunch"
 )
 
@@ -15,9 +16,9 @@ import (
 func TestAttachedClientsOfASession(t *testing.T) {
 	e := startLifecycle(t, time.Hour, "g1", "ses_a")
 	where := &termlaunch.Location{Program: "iTerm.app", TTY: "/dev/ttys007"}
-	require.NoError(t, e.client.Heartbeat(e.ctx, HeartbeatRequest{ClientID: "c1", Kind: ClientAttach, Group: "g1", SessionID: "ses_a", Where: where}))
-	require.NoError(t, e.client.Heartbeat(e.ctx, HeartbeatRequest{ClientID: "c2", Kind: ClientAttach, Group: "g1", SessionID: "ses_b"}))
-	require.NoError(t, e.client.Heartbeat(e.ctx, HeartbeatRequest{ClientID: "tui", Kind: ClientPresence}))
+	require.NoError(t, e.client.Heartbeat(e.ctx, api.HeartbeatRequest{ClientID: "c1", Kind: api.ClientAttach, Group: "g1", SessionID: "ses_a", Where: where}))
+	require.NoError(t, e.client.Heartbeat(e.ctx, api.HeartbeatRequest{ClientID: "c2", Kind: api.ClientAttach, Group: "g1", SessionID: "ses_b"}))
+	require.NoError(t, e.client.Heartbeat(e.ctx, api.HeartbeatRequest{ClientID: "tui", Kind: api.ClientPresence}))
 
 	got, err := e.client.AttachedClients(e.ctx, "ses_a")
 	require.NoError(t, err)

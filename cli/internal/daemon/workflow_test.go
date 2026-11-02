@@ -15,6 +15,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/datichb/openhub/cli/internal/daemon/api"
+	dclient "github.com/datichb/openhub/cli/internal/daemon/client"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
@@ -47,7 +49,7 @@ func TestWorkflowAPI(t *testing.T) {
 		done <- Run(dctx, Options{Paths: p, Version: "t", Servers: sqlite.NewServerStore(st), Sessions: sessions, Checkpoints: cp, Tick: time.Hour, IdleAfter: time.Hour})
 	}()
 	t.Cleanup(func() { cancel(); <-done })
-	c := NewClient(p)
+	c := dclient.NewClient(p)
 	require.Eventually(t, func() bool { _, err := c.Health(ctx); return err == nil }, 5*time.Second, 20*time.Millisecond)
 
 	stat, err := c.WorkflowStatus(ctx, "ses_a")
@@ -55,32 +57,32 @@ func TestWorkflowAPI(t *testing.T) {
 	assert.Equal(t, "cp-1", stat.Next)
 
 	_, err = c.WorkflowCheckpoint(ctx, "ses_a", checkpoint.Call{ID: "cp-1", Summary: "s"})
-	var api *APIError
-	require.True(t, errors.As(err, &api))
-	assert.Equal(t, 409, api.Status, "N1: cp-1 pauses in manuel and was not validated")
+	var apiErr *api.APIError
+	require.True(t, errors.As(err, &apiErr))
+	assert.Equal(t, 409, apiErr.Status, "N1: cp-1 pauses in manuel and was not validated")
 
 	// r5-fixes: cp-2 waits for cp-1.
 	_, err = c.WorkflowCheckpoint(ctx, "ses_a", checkpoint.Call{ID: "cp-2"})
-	require.True(t, errors.As(err, &api))
-	assert.Equal(t, 409, api.Status, "cp-2 before cp-1")
+	require.True(t, errors.As(err, &apiErr))
+	assert.Equal(t, 409, apiErr.Status, "cp-2 before cp-1")
 	assert.Contains(t, err.Error(), "cp-1")
 
 	_, err = c.WorkflowCheckpoint(ctx, "ses_a", checkpoint.Call{ID: "cp-9"})
-	require.True(t, errors.As(err, &api))
-	assert.Equal(t, 422, api.Status)
+	require.True(t, errors.As(err, &apiErr))
+	assert.Equal(t, 422, apiErr.Status)
 
 	require.NoError(t, c.WorkflowOutput(ctx, "ses_a", checkpoint.Output{Type: "branch", Value: "feat/x"}))
 	assert.Error(t, c.WorkflowOutput(ctx, "ses_a", checkpoint.Output{Type: "path", Value: "x"}))
 
 	_, err = c.WorkflowStatus(ctx, "ses_unknown")
-	require.True(t, errors.As(err, &api))
-	assert.Equal(t, 404, api.Status)
+	require.True(t, errors.As(err, &apiErr))
+	assert.Equal(t, 404, apiErr.Status)
 
 	// Plugin hooks on the proxy listener, authenticated by the group token.
-	g, err := c.IssueGrant(ctx, GrantRequest{Owner: "g1", Provider: "amazon-bedrock", Region: "eu-west-1",
+	g, err := c.IssueGrant(ctx, api.GrantRequest{Owner: "g1", Provider: "amazon-bedrock", Region: "eu-west-1",
 		Source: domain.CredentialSource{Kind: domain.CredentialBearer}, Secret: "real"})
 	require.NoError(t, err)
-	other, err := c.IssueGrant(ctx, GrantRequest{Owner: "g2", Provider: "amazon-bedrock", Region: "eu-west-1",
+	other, err := c.IssueGrant(ctx, api.GrantRequest{Owner: "g2", Provider: "amazon-bedrock", Region: "eu-west-1",
 		Source: domain.CredentialSource{Kind: domain.CredentialBearer}, Secret: "real"})
 	require.NoError(t, err)
 	h, _ := c.Health(ctx)
@@ -109,7 +111,7 @@ func TestWorkflowAPI(t *testing.T) {
 	// refused with the reason; another path keeps the decision of the tool.
 	code, out = hook(g.Token, `{"sessionID":"ses_a","agent":"planner","action":"edit","resources":["docs/wiki/specs/x.md"]}`)
 	assert.Equal(t, 200, code)
-	var resp HookPermissionResponse
+	var resp api.HookPermissionResponse
 	require.NoError(t, json.Unmarshal([]byte(out), &resp))
 	assert.Equal(t, "deny", resp.Effect)
 	assert.Contains(t, resp.Message, "cp-1")

@@ -12,6 +12,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/adapters"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
+	dclient "github.com/datichb/openhub/cli/internal/daemon/client"
 	"github.com/datichb/openhub/cli/internal/domain"
 )
 
@@ -26,7 +28,7 @@ func TestTeardownOnSleepAndDeadServer(t *testing.T) {
 	var mu sync.Mutex
 	torn := map[string]int{}
 	ad := &stopCountingAdapter{fakeAdapter: newFake()}
-	c := NewClient(p)
+	c := dclient.NewClient(p)
 	runDaemon(t, Options{Paths: p, Servers: servers, Grants: grants, Tick: 30 * time.Millisecond, IdleAfter: time.Hour, IdleSleep: time.Hour,
 		Adapter: func(string) adapters.ToolAdapter { return ad },
 		Teardown: func(_ context.Context, s domain.Server) {
@@ -36,7 +38,7 @@ func TestTeardownOnSleepAndDeadServer(t *testing.T) {
 		}})
 	get := func(g string) int { mu.Lock(); defer mu.Unlock(); return torn[g] }
 	require.Eventually(t, func() bool { return get("dead") == 1 }, 10*time.Second, 20*time.Millisecond) // generous: the -race suite runs packages in parallel
-	require.NoError(t, c.SetPolicy(ctx, "live", PolicyStopNow))
+	require.NoError(t, c.SetPolicy(ctx, "live", api.PolicyStopNow))
 	require.Eventually(t, func() bool { return get("live") == 1 }, 10*time.Second, 20*time.Millisecond) // generous: the -race suite runs packages in parallel
 	assert.Equal(t, 0, get("local"), "nothing to remove for a local server")
 }

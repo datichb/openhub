@@ -20,6 +20,8 @@ import (
 	"github.com/datichb/openhub/cli/internal/adapters/opencodev2"
 	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/daemon"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
+	"github.com/datichb/openhub/cli/internal/daemon/client"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
@@ -68,7 +70,7 @@ func newFixture(t *testing.T, secrets mapSecrets) *fixture {
 	_, err = a.Detect(context.Background())
 	require.NoError(t, err)
 
-	paths := daemon.Paths{Dir: filepath.Join(root, "run")}
+	paths := api.Paths{Dir: filepath.Join(root, "run")}
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
 	go func() {
@@ -78,7 +80,7 @@ func newFixture(t *testing.T, secrets mapSecrets) *fixture {
 			Adapter: func(string) adapters.ToolAdapter { return a }})
 	}()
 	t.Cleanup(func() { cancel(); <-done })
-	dc := daemon.NewClient(paths)
+	dc := client.NewClient(paths)
 	require.Eventually(t, func() bool { _, err := dc.Health(context.Background()); return err == nil }, 5*time.Second, 20*time.Millisecond)
 
 	skills := filepath.Join(root, "bundle-src", "skills")

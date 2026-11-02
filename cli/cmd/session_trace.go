@@ -11,7 +11,6 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/i18n"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
-	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 )
 
 // `oh session trace` (E11, P0.4): the whole history of a session, one event
@@ -41,8 +40,8 @@ func runSessionTrace(cmd *cobra.Command, args []string) error {
 		return sessionRefError(args[0], err)
 	}
 	opts := sessionsvc.TraceOptions{}
-	if store != nil {
-		opts.Usage = sqlite.NewUsageStore(store)
+	if a := MustApp(); a.Usage != nil {
+		opts.Usage = a.Usage
 	}
 	tr, err := svc.Trace(ctx, sess.ID, opts)
 	if err != nil {

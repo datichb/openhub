@@ -15,6 +15,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/credproxy"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
+	dclient "github.com/datichb/openhub/cli/internal/daemon/client"
 	"github.com/datichb/openhub/cli/internal/domain"
 )
 
@@ -43,7 +45,7 @@ func (s *memStore) Set(_ context.Context, k, v string) error {
 
 func TestLoadCapability(t *testing.T) {
 	ctx := context.Background()
-	p := Paths{Dir: t.TempDir()}
+	p := api.Paths{Dir: t.TempDir()}
 
 	// Secret store usable: created there once, then reused.
 	ks := &memStore{m: map[string]string{}}
@@ -57,7 +59,7 @@ func TestLoadCapability(t *testing.T) {
 	assert.True(t, os.IsNotExist(err))
 
 	// No usable store: 0600 file, stable across calls.
-	q := Paths{Dir: t.TempDir()}
+	q := api.Paths{Dir: t.TempDir()}
 	f1, src, err := LoadCapability(ctx, &memStore{m: map[string]string{}, getErr: errors.New("locked")}, q)
 	require.NoError(t, err)
 	assert.Equal(t, CapabilityFile, src)
@@ -78,7 +80,7 @@ func TestLoadCapability(t *testing.T) {
 	assert.Empty(t, ks2.m, "nothing written to the store")
 
 	// A store that refuses writes: file, created once.
-	r := Paths{Dir: t.TempDir()}
+	r := api.Paths{Dir: t.TempDir()}
 	refusing := &memStore{m: map[string]string{}, setErr: errors.New("no default keychain")}
 	g1, src, err := LoadCapability(ctx, refusing, r)
 	require.NoError(t, err)
@@ -90,7 +92,7 @@ func TestLoadCapability(t *testing.T) {
 
 func TestPeekCapabilityNeverCreates(t *testing.T) {
 	ctx := context.Background()
-	p := Paths{Dir: t.TempDir()}
+	p := api.Paths{Dir: t.TempDir()}
 	ks := &memStore{m: map[string]string{}}
 	_, found, err := PeekCapability(ctx, ks, p)
 	require.NoError(t, err)
@@ -112,11 +114,11 @@ func TestPrivilegedRoutesNeedTheCapability(t *testing.T) {
 	p, servers, grants := hardeningEnv(t)
 	ctx := context.Background()
 	runDaemon(t, Options{Paths: p, Servers: servers, Grants: grants, Tick: time.Hour, IdleAfter: time.Hour, Capability: "ohc_secret"})
-	bare := NewClient(p)
-	req := GrantRequest{Owner: "g", Provider: credproxy.ProviderBedrock, Region: "eu-west-1",
+	bare := dclient.NewClient(p)
+	req := api.GrantRequest{Owner: "g", Provider: credproxy.ProviderBedrock, Region: "eu-west-1",
 		Source: domain.CredentialSource{Kind: domain.CredentialBearer}, Secret: "real"}
 
-	var apiErr *APIError
+	var apiErr *api.APIError
 	_, err := bare.IssueGrant(ctx, req)
 	require.ErrorAs(t, err, &apiErr)
 	assert.Equal(t, http.StatusForbidden, apiErr.Status)
@@ -126,7 +128,10 @@ func TestPrivilegedRoutesNeedTheCapability(t *testing.T) {
 	for _, call := range []func() error{
 		func() error { return bare.RevokeOwner(ctx, "g") },
 		func() error { _, err := bare.ProxyListen(ctx, "127.0.0.1"); return err },
-		func() error { _, err := bare.IssueGatewayGrant(ctx, GatewayGrantRequest{SessionID: "s"}); return err },
+		func() error {
+			_, err := bare.IssueGatewayGrant(ctx, api.GatewayGrantRequest{SessionID: "s"})
+			return err
+		},
 		func() error { _, err := bare.PendingGrants(ctx); return err },
 		func() error { return bare.Shutdown(ctx, true) },
 	} {

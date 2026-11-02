@@ -16,7 +16,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/bundle"
-	"github.com/datichb/openhub/cli/internal/daemon"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/limits"
 	"github.com/datichb/openhub/cli/internal/provider"
@@ -169,7 +169,7 @@ type fakeDaemon struct {
 	listens  []string
 	revoked  []string
 	memoryMB int
-	grants   []daemon.GrantRequest
+	grants   []api.GrantRequest
 	touches  int
 	// failRevokes is the number of RevokeOwner calls that fail, and
 	// revokeCalls the number of calls made.
@@ -177,17 +177,17 @@ type fakeDaemon struct {
 	revokeCalls int
 }
 
-func (d *fakeDaemon) Health(context.Context) (daemon.Health, error) {
+func (d *fakeDaemon) Health(context.Context) (api.Health, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	return daemon.Health{MemoryMB: d.memoryMB}, nil
+	return api.Health{MemoryMB: d.memoryMB}, nil
 }
 
-func (d *fakeDaemon) IssueGrant(_ context.Context, req daemon.GrantRequest) (daemon.GrantResponse, error) {
+func (d *fakeDaemon) IssueGrant(_ context.Context, req api.GrantRequest) (api.GrantResponse, error) {
 	d.mu.Lock()
 	d.grants = append(d.grants, req)
 	d.mu.Unlock()
-	return daemon.GrantResponse{Token: "ohs_tok", BaseURL: "http://127.0.0.1:5555/amazon-bedrock"}, nil
+	return api.GrantResponse{Token: "ohs_tok", BaseURL: "http://127.0.0.1:5555/amazon-bedrock"}, nil
 }
 func (d *fakeDaemon) RevokeOwner(_ context.Context, owner string) error {
 	d.mu.Lock()
@@ -200,8 +200,8 @@ func (d *fakeDaemon) RevokeOwner(_ context.Context, owner string) error {
 	d.revoked = append(d.revoked, owner)
 	return nil
 }
-func (d *fakeDaemon) Usage(context.Context, string) (daemon.UsageResponse, error) {
-	return daemon.UsageResponse{}, nil
+func (d *fakeDaemon) Usage(context.Context, string) (api.UsageResponse, error) {
+	return api.UsageResponse{}, nil
 }
 func (d *fakeDaemon) Touch(context.Context, string) error {
 	d.mu.Lock()
@@ -280,7 +280,7 @@ func TestStartSessionInContainer(t *testing.T) {
 	assert.Equal(t, "http://host.docker.internal:5555/amazon-bedrock", sg.Provider.BaseURL, "proxy reached through the machine address")
 	assert.Equal(t, "ohs_tok", sg.Provider.SessionToken)
 	assert.Equal(t, "http://host.docker.internal:5555/oh-gateway", f.svc.loadGatewayURL(res.GroupKey), "Beads gateway next to the proxy")
-	pu, err := os.ReadFile(daemon.ProxyURLPath(f.svc.ServersDir, res.GroupKey))
+	pu, err := os.ReadFile(api.ProxyURLPath(f.svc.ServersDir, res.GroupKey))
 	require.NoError(t, err)
 	assert.Equal(t, "http://host.docker.internal:5555/amazon-bedrock", string(pu), "proxy URL recorded for the daemon (port changes)")
 	assert.Equal(t, []string{"/work/proj"}, f.ad.attested, "attestation in the container's view")

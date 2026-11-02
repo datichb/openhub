@@ -18,7 +18,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
-	"github.com/datichb/openhub/cli/internal/daemon"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/gc"
 	"github.com/datichb/openhub/cli/internal/i18n"
@@ -112,7 +112,7 @@ func gcEnv(a *app.App) (*gc.Env, error) {
 			}
 			return worktree.DetectBaseBranch(repo)
 		},
-		GroupLockPath: func(g string) string { return daemon.GroupLockPath(ohServersDir(), g) },
+		GroupLockPath: func(g string) string { return api.GroupLockPath(ohServersDir(), g) },
 	}
 	if l := serverLister(); l != nil {
 		env.Processes = l

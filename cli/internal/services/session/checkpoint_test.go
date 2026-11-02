@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/datichb/openhub/cli/internal/daemon"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
@@ -30,10 +30,10 @@ func TestCheckpointCardAndResolver(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(bundles, "h1", "bundle.json"), data, 0o644))
 
 	svc := &Service{Sessions: sqlite.NewSessionStore(st), Decisions: sqlite.NewDecisionStore(st), Servers: sqlite.NewServerStore(st), BundlesDir: bundles, SessionsDir: t.TempDir(),
-		Live: func(context.Context, string) (<-chan daemon.StreamEvent, error) {
-			ch := make(chan daemon.StreamEvent, 4)
+		Live: func(context.Context, string) (<-chan api.StreamEvent, error) {
+			ch := make(chan api.StreamEvent, 4)
 			for _, txt := range []string{"a", "b", "c", "d"} {
-				ch <- daemon.StreamEvent{Feed: &domain.FeedItem{SessionID: "ses_a", Kind: domain.FeedText, Agent: "reviewer", Text: txt}}
+				ch <- api.StreamEvent{Feed: &domain.FeedItem{SessionID: "ses_a", Kind: domain.FeedText, Agent: "reviewer", Text: txt}}
 			}
 			return ch, nil
 		}}

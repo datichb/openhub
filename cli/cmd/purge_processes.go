@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/adapters"
-	"github.com/datichb/openhub/cli/internal/daemon"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
@@ -25,9 +25,9 @@ import (
 // programs whose command line says "oh serve" are never touched. What oh
 // does not track is listed to be stopped by hand.
 
-// purgeDaemon is the daemon of the hub (a *daemon.Client).
+// purgeDaemon is the daemon of the hub (a *client.Client).
 type purgeDaemon interface {
-	Health(ctx context.Context) (daemon.Health, error)
+	Health(ctx context.Context) (api.Health, error)
 	Shutdown(ctx context.Context, force bool) error
 }
 
@@ -105,11 +105,11 @@ func (p purgeProcesses) stopDaemon(ctx context.Context, rep *purgeProcessReport)
 	if p.daemon == nil {
 		return
 	}
-	if _, err := p.daemon.Health(ctx); errors.Is(err, daemon.ErrNotRunning) {
+	if _, err := p.daemon.Health(ctx); errors.Is(err, api.ErrNotRunning) {
 		return
 	}
 	err := p.daemon.Shutdown(ctx, true)
-	if errors.Is(err, daemon.ErrNotRunning) {
+	if errors.Is(err, api.ErrNotRunning) {
 		return
 	}
 	if err != nil {
@@ -119,7 +119,7 @@ func (p purgeProcesses) stopDaemon(ctx context.Context, rep *purgeProcessReport)
 	wctx, cancel := context.WithTimeout(ctx, purgeDaemonWait)
 	defer cancel()
 	for {
-		if _, err := p.daemon.Health(wctx); errors.Is(err, daemon.ErrNotRunning) {
+		if _, err := p.daemon.Health(wctx); errors.Is(err, api.ErrNotRunning) {
 			rep.daemonStopped = true
 			return
 		}

@@ -15,13 +15,13 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
-	"github.com/datichb/openhub/cli/internal/daemon"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
+	"github.com/datichb/openhub/cli/internal/daemon/client"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/limits"
 	"github.com/datichb/openhub/cli/internal/services/launch"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
-	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 )
 
 // oh budget: session restrictions (I6) — effective values with their
@@ -125,15 +125,14 @@ func runBudgetShow(cmd *cobra.Command, _ []string) error {
 	if r.MaxActiveSessions > 0 {
 		rep.ActiveScope = r.ActiveScope()
 	}
-	if store != nil {
-		us := sqlite.NewUsageStore(store)
+	if us := a.Usage; us != nil {
 		day := domain.UsageDay(time.Now())
 		rep.TodayUSD, _ = us.DayCost(ctx, day, "")
 		if project != nil {
 			rep.ProjectUSD, _ = us.DayCost(ctx, day, project.ID)
 		}
 	}
-	if h, err := daemon.NewClient(daemon.Paths{Dir: ohRunDir()}).Health(ctx); err == nil {
+	if h, err := client.NewClient(api.Paths{Dir: ohRunDir()}).Health(ctx); err == nil {
 		rep.MemoryMB = h.MemoryMB
 	}
 	if asJSON, _ := cmd.Flags().GetBool("json"); asJSON {

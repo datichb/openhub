@@ -8,17 +8,17 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/adapters"
-	"github.com/datichb/openhub/cli/internal/daemon"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
 	"github.com/datichb/openhub/cli/internal/termlaunch"
 )
 
 type clientsDaemon struct {
 	*fakeDaemon
-	clients map[string][]daemon.AttachedClient
+	clients map[string][]api.AttachedClient
 	asked   []string
 }
 
-func (d *clientsDaemon) AttachedClients(_ context.Context, sessionID string) ([]daemon.AttachedClient, error) {
+func (d *clientsDaemon) AttachedClients(_ context.Context, sessionID string) ([]api.AttachedClient, error) {
 	d.asked = append(d.asked, sessionID)
 	return d.clients[sessionID], nil
 }
@@ -34,7 +34,7 @@ func withFocus(t *testing.T, fn func(context.Context, termlaunch.Location) error
 // instead of opening another client.
 func TestAttachFocusesTheOpenClient(t *testing.T) {
 	where := termlaunch.Location{Program: "iTerm.app", TTY: "/dev/ttys009"}
-	dc := &clientsDaemon{fakeDaemon: &fakeDaemon{}, clients: map[string][]daemon.AttachedClient{
+	dc := &clientsDaemon{fakeDaemon: &fakeDaemon{}, clients: map[string][]api.AttachedClient{
 		"ses_a": {{ClientID: "old", SessionID: "ses_a"}, {ClientID: "c1", SessionID: "ses_a", Where: &where}},
 	}}
 	svc := &Service{Daemon: func(context.Context) (DaemonClient, error) { return dc, nil }}
@@ -50,7 +50,7 @@ func TestAttachFocusesTheOpenClient(t *testing.T) {
 }
 
 func TestFocusAttachedWithoutWindow(t *testing.T) {
-	dc := &clientsDaemon{fakeDaemon: &fakeDaemon{}, clients: map[string][]daemon.AttachedClient{
+	dc := &clientsDaemon{fakeDaemon: &fakeDaemon{}, clients: map[string][]api.AttachedClient{
 		"ses_a": {{ClientID: "c1", SessionID: "ses_a", Where: &termlaunch.Location{TTY: "/dev/ttys009"}}},
 	}}
 	svc := &Service{Daemon: func(context.Context) (DaemonClient, error) { return dc, nil }}

@@ -13,13 +13,15 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/credproxy"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
+	dclient "github.com/datichb/openhub/cli/internal/daemon/client"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 )
 
-func healthOK(t *testing.T, p Paths) {
+func healthOK(t *testing.T, p api.Paths) {
 	t.Helper()
-	_, err := NewClient(p).Health(context.Background())
+	_, err := dclient.NewClient(p).Health(context.Background())
 	require.NoError(t, err, "the daemon still answers")
 }
 

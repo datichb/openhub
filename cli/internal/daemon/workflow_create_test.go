@@ -14,6 +14,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/adapters"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
+	dclient "github.com/datichb/openhub/cli/internal/daemon/client"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/gateway/beadswire"
 	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
@@ -77,10 +79,10 @@ func TestWorkflowCreateGuard(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("watcher did not subscribe")
 	}
-	c := NewClient(p)
+	c := dclient.NewClient(p)
 	h, err := c.Health(ctx)
 	require.NoError(t, err)
-	g, err := c.IssueGatewayGrant(ctx, GatewayGrantRequest{SessionID: "ses_c", GroupKey: "g1", ProjectID: "p1", Location: project, BeadsAllow: []string{"show", "list", "create", "q"}})
+	g, err := c.IssueGatewayGrant(ctx, api.GatewayGrantRequest{SessionID: "ses_c", GroupKey: "g1", ProjectID: "p1", Location: project, BeadsAllow: []string{"show", "list", "create", "q"}})
 	require.NoError(t, err)
 	bdExec := func(argv ...string) (int, beadswire.ExecResponse) {
 		body, _ := json.Marshal(beadswire.ExecRequest{Argv: argv, Cwd: project})

@@ -9,7 +9,8 @@ import (
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/app"
-	"github.com/datichb/openhub/cli/internal/daemon"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
+	"github.com/datichb/openhub/cli/internal/daemon/client"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/runsvc"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
@@ -51,8 +52,8 @@ func startTUIPresence(ctx context.Context) func() {
 	go func() {
 		// Heartbeats are retried every period: a daemon started (or
 		// restarted) after the TUI opened still learns that oh is open.
-		dc := daemon.NewClient(daemon.Paths{Dir: ohRunDir()})
-		dc.KeepAlive(pctx, daemon.HeartbeatRequest{ClientID: "tui-" + sessionspec.NewSessionID(), Kind: daemon.ClientPresence}, 30*time.Second)
+		dc := client.NewClient(api.Paths{Dir: ohRunDir()})
+		dc.KeepAlive(pctx, api.HeartbeatRequest{ClientID: "tui-" + sessionspec.NewSessionID(), Kind: api.ClientPresence}, 30*time.Second)
 	}()
 	return cancel
 }
@@ -104,7 +105,7 @@ func v5BeforeQuit(a *app.App, sh *shell.Shell) func(quit func()) {
 				sh.App().QueueUpdateDraw(finish)
 				return
 			}
-			if _, err := daemon.NewClient(daemon.Paths{Dir: ohRunDir()}).Health(ctx); err != nil {
+			if _, err := client.NewClient(api.Paths{Dir: ohRunDir()}).Health(ctx); err != nil {
 				sh.App().QueueUpdateDraw(finish)
 				return
 			}

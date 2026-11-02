@@ -17,7 +17,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/config/configtest"
-	"github.com/datichb/openhub/cli/internal/daemon"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 )
@@ -30,11 +30,11 @@ type fakePurgeDaemon struct {
 	staysUp     bool
 }
 
-func (f *fakePurgeDaemon) Health(context.Context) (daemon.Health, error) {
+func (f *fakePurgeDaemon) Health(context.Context) (api.Health, error) {
 	if !f.running {
-		return daemon.Health{}, daemon.ErrNotRunning
+		return api.Health{}, api.ErrNotRunning
 	}
-	return daemon.Health{}, nil
+	return api.Health{}, nil
 }
 
 func (f *fakePurgeDaemon) Shutdown(_ context.Context, force bool) error {

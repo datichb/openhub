@@ -15,6 +15,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/adapters"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
+	dclient "github.com/datichb/openhub/cli/internal/daemon/client"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/gateway/beadswire"
 	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
@@ -93,10 +95,10 @@ func TestWorkflowLocksAndEnd(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("watcher did not subscribe")
 	}
-	c := NewClient(p)
+	c := dclient.NewClient(p)
 	h, err := c.Health(ctx)
 	require.NoError(t, err)
-	g, err := c.IssueGatewayGrant(ctx, GatewayGrantRequest{SessionID: "ses_a", GroupKey: "g1", ProjectID: "p1", Location: project, BeadsAllow: []string{"show", "update", "close", "duplicate"}})
+	g, err := c.IssueGatewayGrant(ctx, api.GatewayGrantRequest{SessionID: "ses_a", GroupKey: "g1", ProjectID: "p1", Location: project, BeadsAllow: []string{"show", "update", "close", "duplicate"}})
 	require.NoError(t, err)
 	bdExec := func(argv ...string) (int, beadswire.ExecResponse) {
 		body, _ := json.Marshal(beadswire.ExecRequest{Argv: argv, Cwd: project})
@@ -151,7 +153,7 @@ func TestWorkflowLocksAndEnd(t *testing.T) {
 	// N1: the agent reaches the daemon itself (socket, forged MCP call)
 	// before any validation: refused, nothing unlocked.
 	_, err = c.WorkflowCheckpoint(ctx, "ses_a", checkpoint.Call{ID: "cp-2"})
-	var api *APIError
+	var api *api.APIError
 	require.ErrorAs(t, err, &api)
 	assert.Equal(t, http.StatusConflict, api.Status)
 	assert.Contains(t, api.Message, "cp-2")

@@ -16,6 +16,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/credproxy"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/gateway"
 	"github.com/datichb/openhub/cli/internal/gateway/beadswire"
@@ -250,7 +251,7 @@ func (d *Daemon) sessionAlive(ctx context.Context, id string) bool {
 }
 
 func (d *Daemon) handleGatewayGrant(w http.ResponseWriter, r *http.Request) {
-	var req GatewayGrantRequest
+	var req api.GatewayGrantRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeErr(w, http.StatusBadRequest, "invalid body")
 		return
@@ -263,7 +264,7 @@ func (d *Daemon) handleGatewayGrant(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, GatewayGrantResponse{Token: tok})
+	writeJSON(w, http.StatusOK, api.GatewayGrantResponse{Token: tok})
 }
 
 // envSessionID mirrors runsvc.EnvSessionID (runsvc depends on this package).

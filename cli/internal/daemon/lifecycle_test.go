@@ -13,6 +13,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/adapters"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
+	dclient "github.com/datichb/openhub/cli/internal/daemon/client"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/filelock"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
@@ -35,7 +37,7 @@ type lcEnv struct {
 	sessions *sqlite.SessionStore
 	servers  *sqlite.ServerStore
 	ad       *stopCountingAdapter
-	client   *Client
+	client   *dclient.Client
 	servDir  string
 	events   chan adapters.ToolEvent
 	endedMu  sync.Mutex
@@ -73,7 +75,7 @@ func startLifecycle(t *testing.T, idleSleep time.Duration, group string, session
 			}})
 	}()
 	t.Cleanup(func() { cancel(); <-done })
-	e.client = NewClient(p)
+	e.client = dclient.NewClient(p)
 	require.Eventually(t, func() bool { _, err := e.client.Health(ctx); return err == nil }, 5*time.Second, 20*time.Millisecond)
 	select {
 	case e.events = <-e.ad.events:
@@ -117,7 +119,7 @@ func TestIdleGroupSleeps(t *testing.T) {
 
 func TestAttachedClientPreventsSleep(t *testing.T) {
 	e := startLifecycle(t, 200*time.Millisecond, "g1", "ses_a")
-	require.NoError(t, e.client.Heartbeat(e.ctx, HeartbeatRequest{ClientID: "c1", Kind: ClientAttach, Group: "g1"}))
+	require.NoError(t, e.client.Heartbeat(e.ctx, api.HeartbeatRequest{ClientID: "c1", Kind: api.ClientAttach, Group: "g1"}))
 	e.staysReady("g1", 500*time.Millisecond, "an attached client keeps the server awake")
 	require.NoError(t, e.client.ClientGone(e.ctx, "c1"))
 	require.Eventually(t, func() bool { return e.serverStatus("g1") == domain.ServerSleeping }, 5*time.Second, 50*time.Millisecond)
@@ -127,7 +129,7 @@ func TestPendingDecisionKeptAwakeWhileOhOpen(t *testing.T) {
 	e := startLifecycle(t, 200*time.Millisecond, "g1")
 	require.NoError(t, e.sessions.Create(e.ctx, &domain.Session{ID: "ses_w", ProjectID: "p1", Status: domain.SessionStatusRunning, GroupKey: "g1", State: domain.RunActive}))
 	e.ad.set(func() { e.ad.pending["ses_w"] = 1 })
-	require.NoError(t, e.client.Heartbeat(e.ctx, HeartbeatRequest{ClientID: "tui", Kind: ClientPresence}))
+	require.NoError(t, e.client.Heartbeat(e.ctx, api.HeartbeatRequest{ClientID: "tui", Kind: api.ClientPresence}))
 	e.events <- adapters.ToolEvent{Kind: adapters.EventDecisionAsked, SessionID: "ses_w"}
 	require.Eventually(t, func() bool { return e.state("ses_w") == domain.RunWaiting }, 3*time.Second, 20*time.Millisecond)
 	e.staysReady("g1", 500*time.Millisecond, "decision pending and oh open: stay awake")
@@ -142,7 +144,7 @@ func TestSleepWhenIdlePolicyWaitsForTheTurn(t *testing.T) {
 	e.events <- adapters.ToolEvent{Kind: adapters.EventExecStarted, SessionID: "ses_a"}
 	require.Eventually(t, func() bool { return e.state("ses_a") == domain.RunActive }, 3*time.Second, 20*time.Millisecond)
 
-	require.NoError(t, e.client.SetPolicy(e.ctx, "g1", PolicySleepWhenIdle))
+	require.NoError(t, e.client.SetPolicy(e.ctx, "g1", api.PolicySleepWhenIdle))
 	e.staysReady("g1", 250*time.Millisecond, "the agent is still working")
 
 	e.ad.set(func() { e.ad.active["ses_a"] = false })
@@ -178,7 +180,7 @@ func TestLateSessionRowIsTracked(t *testing.T) {
 
 func TestStopNowPolicy(t *testing.T) {
 	e := startLifecycle(t, time.Hour, "g1", "ses_a")
-	require.NoError(t, e.client.SetPolicy(e.ctx, "g1", PolicyStopNow))
+	require.NoError(t, e.client.SetPolicy(e.ctx, "g1", api.PolicyStopNow))
 	require.Eventually(t, func() bool { return e.state("ses_a") == domain.RunStopped }, 3*time.Second, 20*time.Millisecond)
 	assert.Equal(t, domain.ServerStopped, e.serverStatus("g1"))
 	s, _ := e.sessions.Get(e.ctx, "ses_a")
@@ -192,7 +194,7 @@ func TestStopNowPolicy(t *testing.T) {
 // under its feet: the sleep waits for the lock.
 func TestSleepWaitsForTheGroupLock(t *testing.T) {
 	e := startLifecycle(t, 200*time.Millisecond, "g1", "ses_a")
-	unlock, err := filelock.Lock(GroupLockPath(e.servDir, "g1"))
+	unlock, err := filelock.Lock(api.GroupLockPath(e.servDir, "g1"))
 	require.NoError(t, err)
 	e.staysReady("g1", 500*time.Millisecond, "group locked by a client")
 	unlock()

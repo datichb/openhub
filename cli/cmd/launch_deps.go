@@ -7,7 +7,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/bundle"
-	"github.com/datichb/openhub/cli/internal/daemon"
+	"github.com/datichb/openhub/cli/internal/daemon/client"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/launcher"
 	"github.com/datichb/openhub/cli/internal/runsvc"
@@ -50,7 +50,7 @@ func launchDeps(a *app.App) launch.Deps {
 		Request: func(project *domain.Project, providerFlag string) runsvc.StartRequest {
 			return v5Request(a, project, providerFlag)
 		},
-		Daemon: func(ctx context.Context) (*daemon.Client, error) {
+		Daemon: func(ctx context.Context) (*client.Client, error) {
 			c, _, err := ensureDaemon(ctx)
 			return c, err
 		},

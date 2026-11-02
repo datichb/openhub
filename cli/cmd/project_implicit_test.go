@@ -15,7 +15,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
-	"github.com/datichb/openhub/cli/internal/daemon"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
@@ -161,7 +161,7 @@ func TestLaunchWithoutCredentials(t *testing.T) {
 // N12: the launch form shows the CLI message (daemon refusal translated).
 func TestTUILaunchErrorIsTranslated(t *testing.T) {
 	i18ntest.Set(t, "en")
-	err := tuiLaunchError(errors.Join(errors.New("issuing proxy grant"), &daemon.APIError{Method: "POST", Path: "/grants", Status: 422, Message: "no secret"}))
+	err := tuiLaunchError(errors.Join(errors.New("issuing proxy grant"), &api.APIError{Method: "POST", Path: "/grants", Status: 422, Message: "no secret"}))
 	require.Error(t, err)
 	assert.True(t, strings.HasPrefix(err.Error(), "the oh daemon could not prepare the provider credentials"), err.Error())
 	assert.Contains(t, err.Error(), "oh provider setup")

@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/datichb/openhub/cli/internal/daemon/api"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/services/wiki"
 )
@@ -20,9 +21,9 @@ func TestWikiRefusalsAreVisibleToTheAgents(t *testing.T) {
 	d, wk, _, _ := wikiEnv(t)
 	h := d.routes()
 	ctx := context.Background()
-	propose := func(tool, content string) WikiProposal {
+	propose := func(tool, content string) api.WikiProposal {
 		t.Helper()
-		var p WikiProposal
+		var p api.WikiProposal
 		require.Equal(t, http.StatusCreated, wikiDo(t, h, http.MethodPost, "/wiki/propose",
 			`{"tool_session":"`+tool+`","page":"technical/stack.md","section":"Librairies clés","content":"`+content+`","tag":"DÉDUIT","source":"package.json"}`, &p))
 		return p
@@ -31,7 +32,7 @@ func TestWikiRefusalsAreVisibleToTheAgents(t *testing.T) {
 	first := propose("ses_rev", "zod pour la validation")
 	assert.Nil(t, first.PreviouslyRefused, "nothing refused yet")
 
-	var refused []WikiProposal
+	var refused []api.WikiProposal
 	require.Equal(t, http.StatusOK, wikiDo(t, h, http.MethodGet, "/wiki/refused?tool_session=ses_rev", "", &refused))
 	assert.Empty(t, refused, "an open proposal is not a refusal")
 
@@ -50,7 +51,7 @@ func TestWikiRefusalsAreVisibleToTheAgents(t *testing.T) {
 	assert.Len(t, refused, 1)
 
 	// wiki_pending still lists the open proposals only.
-	var pending []WikiProposal
+	var pending []api.WikiProposal
 	require.Equal(t, http.StatusOK, wikiDo(t, h, http.MethodGet, "/wiki/pending?tool_session=ses_b", "", &pending))
 	assert.Empty(t, pending, "the contract of /wiki/pending is unchanged")
 

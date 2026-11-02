@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/datichb/openhub/cli/internal/daemon"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
 	"github.com/datichb/openhub/cli/internal/domain"
 )
 
@@ -17,16 +17,16 @@ func TestFollowFiltersTheSession(t *testing.T) {
 	_, err := svc.Follow(ctx, "ses_a")
 	assert.ErrorIs(t, err, ErrNoLive)
 
-	svc.Live = func(context.Context, string) (<-chan daemon.StreamEvent, error) { return nil, daemon.ErrNotRunning }
+	svc.Live = func(context.Context, string) (<-chan api.StreamEvent, error) { return nil, api.ErrNotRunning }
 	_, err = svc.Follow(ctx, "ses_a")
 	assert.ErrorIs(t, err, ErrNoLive)
 
-	src := make(chan daemon.StreamEvent, 4)
-	src <- daemon.StreamEvent{Feed: &domain.FeedItem{SessionID: "ses_a", Kind: domain.FeedText, Text: "hi"}}
-	src <- daemon.StreamEvent{Change: &domain.SessionChange{SessionID: "ses_a"}}
-	src <- daemon.StreamEvent{Feed: &domain.FeedItem{SessionID: "ses_b", Kind: domain.FeedText}}
+	src := make(chan api.StreamEvent, 4)
+	src <- api.StreamEvent{Feed: &domain.FeedItem{SessionID: "ses_a", Kind: domain.FeedText, Text: "hi"}}
+	src <- api.StreamEvent{Change: &domain.SessionChange{SessionID: "ses_a"}}
+	src <- api.StreamEvent{Feed: &domain.FeedItem{SessionID: "ses_b", Kind: domain.FeedText}}
 	close(src)
-	svc.Live = func(_ context.Context, id string) (<-chan daemon.StreamEvent, error) {
+	svc.Live = func(_ context.Context, id string) (<-chan api.StreamEvent, error) {
 		assert.Equal(t, "ses_a", id)
 		return src, nil
 	}
@@ -45,10 +45,10 @@ func TestFollowFiltersTheSession(t *testing.T) {
 func TestFollowShowsTheSessionTotal(t *testing.T) {
 	svc, ctx := newTestService(t)
 	require.NoError(t, svc.Sessions.Create(ctx, &domain.Session{ID: "ses_a", ProjectID: "p1", Status: domain.SessionStatusRunning, GroupKey: "g1", Cost: 3.41}))
-	src := make(chan daemon.StreamEvent, 2)
-	src <- daemon.StreamEvent{Feed: &domain.FeedItem{SessionID: "ses_a", Kind: domain.FeedUsage, Cost: 0.88}}
+	src := make(chan api.StreamEvent, 2)
+	src <- api.StreamEvent{Feed: &domain.FeedItem{SessionID: "ses_a", Kind: domain.FeedUsage, Cost: 0.88}}
 	close(src)
-	svc.Live = func(context.Context, string) (<-chan daemon.StreamEvent, error) { return src, nil }
+	svc.Live = func(context.Context, string) (<-chan api.StreamEvent, error) { return src, nil }
 	feed, err := svc.Follow(ctx, "ses_a")
 	require.NoError(t, err)
 	it := <-feed
@@ -103,9 +103,9 @@ func TestSubscribePollsWithoutDaemon(t *testing.T) {
 
 func TestSubscribeUsesTheStream(t *testing.T) {
 	svc, ctx := newTestService(t)
-	src := make(chan daemon.StreamEvent, 1)
-	src <- daemon.StreamEvent{Change: &domain.SessionChange{SessionID: "ses_x", State: domain.RunIdle}}
-	svc.Live = func(context.Context, string) (<-chan daemon.StreamEvent, error) { return src, nil }
+	src := make(chan api.StreamEvent, 1)
+	src <- api.StreamEvent{Change: &domain.SessionChange{SessionID: "ses_x", State: domain.RunIdle}}
+	svc.Live = func(context.Context, string) (<-chan api.StreamEvent, error) { return src, nil }
 	cctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	select {

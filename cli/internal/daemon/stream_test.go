@@ -11,6 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/adapters"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
+	dclient "github.com/datichb/openhub/cli/internal/daemon/client"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
@@ -64,7 +66,7 @@ func TestStreamFeedSubagentsAndNotifications(t *testing.T) {
 	}
 	ch <- adapters.ToolEvent{Kind: adapters.EventConnected}
 
-	c := NewClient(p)
+	c := dclient.NewClient(p)
 	require.Eventually(t, func() bool { _, err := c.Health(ctx); return err == nil }, 3*time.Second, 20*time.Millisecond)
 	sctx, scancel := context.WithCancel(ctx)
 	defer scancel()
@@ -73,7 +75,7 @@ func TestStreamFeedSubagentsAndNotifications(t *testing.T) {
 	changes, err := c.Stream(sctx, "")
 	require.NoError(t, err)
 
-	next := func(evs <-chan StreamEvent, want func(StreamEvent) bool) StreamEvent {
+	next := func(evs <-chan api.StreamEvent, want func(api.StreamEvent) bool) api.StreamEvent {
 		t.Helper()
 		deadline := time.After(3 * time.Second)
 		for {
@@ -88,8 +90,8 @@ func TestStreamFeedSubagentsAndNotifications(t *testing.T) {
 			}
 		}
 	}
-	isFeed := func(kind domain.FeedKind) func(StreamEvent) bool {
-		return func(ev StreamEvent) bool { return ev.Feed != nil && ev.Feed.Kind == kind }
+	isFeed := func(kind domain.FeedKind) func(api.StreamEvent) bool {
+		return func(ev api.StreamEvent) bool { return ev.Feed != nil && ev.Feed.Kind == kind }
 	}
 
 	agent := &domain.FeedItem{SessionID: "ses_r", Kind: domain.FeedAgent, Agent: "lead"}
@@ -113,7 +115,7 @@ func TestStreamFeedSubagentsAndNotifications(t *testing.T) {
 		fake.decisions["ses_c"] = []adapters.PendingDecision{{ID: "per_c", SessionID: "ses_c", Kind: adapters.DecisionPermission, Action: "shell"}}
 	})
 	ch <- adapters.ToolEvent{Kind: adapters.EventDecisionAsked, SessionID: "ses_c"}
-	next(changes, func(ev StreamEvent) bool {
+	next(changes, func(ev api.StreamEvent) bool {
 		return ev.Change != nil && ev.Change.SessionID == "ses_r" && ev.Change.Decisions
 	})
 	require.Eventually(t, func() bool {
@@ -134,7 +136,7 @@ func TestStreamFeedSubagentsAndNotifications(t *testing.T) {
 		return len(open) == 0
 	}, 3*time.Second, 20*time.Millisecond)
 	ch <- adapters.ToolEvent{Kind: adapters.EventExecEnded, Outcome: "succeeded", SessionID: "ses_r"}
-	next(changes, func(ev StreamEvent) bool { return ev.Change != nil && ev.Change.State == domain.RunIdle })
+	next(changes, func(ev api.StreamEvent) bool { return ev.Change != nil && ev.Change.State == domain.RunIdle })
 	require.Eventually(t, func() bool { return len(sent.list()) == 2 }, 3*time.Second, 20*time.Millisecond)
 
 	// The backlog is replayed to a late follower.

@@ -144,9 +144,10 @@ func runWikiStats(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	svc := newWikiService()
+	a := TryApp()
+	svc := newWikiServiceFor(a)
 	projectID := ""
-	if a := application; a != nil && a.Projects != nil {
+	if a != nil && a.Projects != nil {
 		projectID, _ = wikiProject(ctx, root, func(ctx context.Context, path string) (string, error) {
 			p, err := a.Projects.GetByPath(ctx, path)
 			if err != nil {

@@ -13,6 +13,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/datichb/openhub/cli/internal/daemon/api"
+	dclient "github.com/datichb/openhub/cli/internal/daemon/client"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/gateway/beadswire"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
@@ -65,11 +67,11 @@ func TestBeadsGitHookToken(t *testing.T) {
 		done <- Run(dctx, Options{Paths: p, Version: "t", Servers: servers, Sessions: sessions, Tick: time.Hour, IdleAfter: time.Hour, BeadsBinary: realBD})
 	}()
 	t.Cleanup(func() { cancel(); <-done })
-	c := NewClient(p)
+	c := dclient.NewClient(p)
 	require.Eventually(t, func() bool { _, err := c.Health(ctx); return err == nil }, 5*time.Second, 20*time.Millisecond)
 	h, err := c.Health(ctx)
 	require.NoError(t, err)
-	g, err := c.IssueGatewayGrant(ctx, GatewayGrantRequest{SessionID: "ses_a", GroupKey: "g1", ProjectID: "p1", Location: project, BeadsAllow: []string{"show"}})
+	g, err := c.IssueGatewayGrant(ctx, api.GatewayGrantRequest{SessionID: "ses_a", GroupKey: "g1", ProjectID: "p1", Location: project, BeadsAllow: []string{"show"}})
 	require.NoError(t, err)
 	env := []string{"PATH=" + bin + string(os.PathListSeparator) + os.Getenv("PATH"),
 		beadswire.EnvURL + "=" + h.ProxyURL + "/" + beadswire.Prefix, beadswire.EnvToken + "=" + g.Token,

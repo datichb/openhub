@@ -13,6 +13,8 @@ import (
 	"github.com/datichb/openhub/cli/internal/buildinfo"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/daemon"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
+	"github.com/datichb/openhub/cli/internal/daemon/client"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/filelock"
 	"github.com/datichb/openhub/cli/internal/i18n"
@@ -43,16 +45,16 @@ func ohWorktreesDir() string { return worktree.TempRoot(config.HubDir()) }
 
 // ensureDaemon returns a client to ohd, starting it when needed. The client
 // holds the issuing capability (token routes, M12).
-func ensureDaemon(ctx context.Context) (cl *daemon.Client, health daemon.Health, err error) {
+func ensureDaemon(ctx context.Context) (cl *client.Client, health api.Health, err error) {
 	capability, _, err := daemonCapability(ctx)
 	if err != nil {
-		return nil, daemon.Health{}, err
+		return nil, api.Health{}, err
 	}
 	var gcCfg config.GCConfig
 	if c, err := config.Load(); err == nil && c != nil {
 		gcCfg = c.GC
 	}
-	return daemon.Ensure(ctx, daemon.Paths{Dir: ohRunDir()}, daemon.EnsureOptions{Version: buildinfo.Version, Capability: capability,
+	return client.Ensure(ctx, api.Paths{Dir: ohRunDir()}, client.EnsureOptions{Version: buildinfo.Version, Capability: capability,
 		InProcess: startInProcessDaemon, LogMaxBytes: gcCfg.LogMaxBytes(), LogKeep: gcCfg.Logs()})
 }
 
@@ -60,7 +62,7 @@ func ensureDaemon(ctx context.Context) (cl *daemon.Client, health daemon.Health,
 // in the OS keychain, else in a 0600 file under ~/.oh/run. The encrypted
 // file store is not used (it would prompt for a passphrase in the daemon).
 func daemonCapability(ctx context.Context) (string, daemon.CapabilitySource, error) {
-	return daemon.LoadCapability(ctx, capabilityStore(), daemon.Paths{Dir: ohRunDir()})
+	return daemon.LoadCapability(ctx, capabilityStore(), api.Paths{Dir: ohRunDir()})
 }
 
 // capabilityStore is the OS keychain when items can be stored there
@@ -249,7 +251,7 @@ func newSessionService(ctx context.Context, a *app.App) (*sessionsvc.Service, er
 	if store == nil {
 		return nil, errors.New(i18n.T("cmd.v5_runtime.database_not_initialized"))
 	}
-	dc := daemon.NewClient(daemon.Paths{Dir: ohRunDir()})
+	dc := client.NewClient(api.Paths{Dir: ohRunDir()})
 	svc := &sessionsvc.Service{
 		Sessions:    a.Sessions,
 		Projects:    a.Projects,
@@ -292,7 +294,7 @@ func newCheckpointService(a *app.App) *checkpoint.Service {
 		ContainerExec: containerVerify(a)}
 }
 
-// newWikiService wires the WikiService (proposals of the wiki MCP server,
+// newWikiServiceFor wires the WikiService (proposals of the wiki MCP server,
 // LD-J).
 func newWikiServiceFor(a *app.App) *wiki.Service {
 	svc := &wiki.Service{SessionsDir: ohSessionsDir()}
@@ -301,10 +303,6 @@ func newWikiServiceFor(a *app.App) *wiki.Service {
 	}
 	return svc
 }
-
-// newWikiService is newWikiServiceFor on the shared app, for the callers that
-// do not hold one (cmd/tui_wiki.go: C8b passes its app, then this goes).
-func newWikiService() *wiki.Service { return newWikiServiceFor(application) }
 
 // daemonCheckpoints is the CheckpointService of the daemon: at the commit
 // checkpoint, oh applies the wiki proposals accepted on the card (LD-J).
@@ -362,7 +360,7 @@ func daemonReports(a *app.App) *report.Service {
 // without it (daemon stopped or crashed): sessions are only tracked, and
 // their decisions recorded, while the daemon runs.
 func ensureDaemonForLiveServers(ctx context.Context, servers domain.ServerStore) {
-	if _, err := daemon.NewClient(daemon.Paths{Dir: ohRunDir()}).Health(ctx); err == nil {
+	if _, err := client.NewClient(api.Paths{Dir: ohRunDir()}).Health(ctx); err == nil {
 		return
 	}
 	list, err := servers.List(ctx)

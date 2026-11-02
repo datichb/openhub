@@ -10,6 +10,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	dclient "github.com/datichb/openhub/cli/internal/daemon/client"
 )
 
 // N16: the logs the live processes keep open are copied then truncated.
@@ -41,7 +43,7 @@ func TestEnsureRotatesTheLog(t *testing.T) {
 	require.NoError(t, os.MkdirAll(p.Dir, 0o700))
 	require.NoError(t, os.WriteFile(p.Log(), bytes.Repeat([]byte("x"), 200), 0o600))
 	ctx := context.Background()
-	c, _, err := Ensure(ctx, p, EnsureOptions{
+	c, _, err := dclient.Ensure(ctx, p, dclient.EnsureOptions{
 		Executable:  os.Args[0],
 		Args:        []string{"-test.run=^TestHelperDaemon$"},
 		Env:         append(os.Environ(), "OHD_TEST_HELPER_DIR="+p.Dir),

@@ -11,7 +11,6 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	remotesvc "github.com/datichb/openhub/cli/internal/services/remote"
-	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
@@ -33,10 +32,10 @@ const remoteTrackEvery = 30 * time.Second
 // decorateRemote adds the remote status of the rows, and checks the running
 // pipelines (at most every 30 s).
 func (t *tuiSessions) decorateRemote(ctx context.Context, rows []views.SessionRow) []views.SessionRow {
-	if store == nil {
+	rs := t.a.Remotes
+	if rs == nil {
 		return rows
 	}
-	rs := sqlite.NewRemoteStore(store)
 	refs, err := rs.ListRemote(ctx)
 	if err != nil || len(refs) == 0 {
 		return rows

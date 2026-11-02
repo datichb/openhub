@@ -12,6 +12,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/config/configtest"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
@@ -190,7 +192,10 @@ func newPurgeFixture(t *testing.T) purgeFixture {
 		&domain.Project{ID: "web", Name: "web", Path: f.project, Status: domain.ProjectStatusActive}))
 	prev := store
 	store = s
-	t.Cleanup(func() { store = prev })
+	prevApp := application
+	application = &app.App{Config: &config.Config{}, IO: app.DefaultIOStreams()}
+	wireStores(application, s)
+	t.Cleanup(func() { store, application = prev, prevApp })
 	f.leftovers = append(f.leftovers, filepath.Join(f.hub, "oh.db"))
 	return f
 }
