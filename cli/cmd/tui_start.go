@@ -229,8 +229,8 @@ func (t *tuiStart) ticketWorkflows(scope views.StartScope) []views.TicketWorkflo
 }
 
 // requestWorkflows returns the workflows that take a free request and no
-// Beads ticket: spec (cadrage), quick, libre, infra-change, spike, incident,
-// retro… These are the ones a GitLab issue card of the board can launch, with
+// Beads ticket: spec (cadrage), quick, libre, infra-change, spike, incident…
+// These are the ones a GitLab issue card of the board can launch, with
 // the issue as the request (#<iid>).
 func (t *tuiStart) requestWorkflows(scope views.StartScope) []views.TicketWorkflow {
 	return t.workflowsWhere(scope, func(s workflowsvc.Summary) bool { return s.TicketInput == "" && requestInputOf(s) != "" })
@@ -255,8 +255,8 @@ const boardRequestInput = "request"
 
 // boardRequestInputs names, for the workflows whose main free-text input is not
 // called « request », the input that takes the issue: the question of a spike,
-// the incident, the subject of a retrospective.
-var boardRequestInputs = map[string]string{"spike": "question", "incident": "incident", "retro": "focus"}
+// the incident.
+var boardRequestInputs = map[string]string{"spike": "question", "incident": "incident"}
 
 // requestInputOf is the free-text input that takes the issue of a board card:
 // « request », else the one that boardRequestInputs names for the workflow;

@@ -47,7 +47,7 @@ La résolution se fait pour chaque agent du paquet de session. Premier trouvé g
 ### Niveau workflow (décision O9)
 
 - Le bloc `models:` d'un workflow `oh/v1` passe **avant** toute configuration du projet et du hub. Il n'a pas de familles.
-- Les identifiants complets (`amazon-bedrock/eu.anthropic.claude-sonnet-4-6`, suffixe `#variante`) sont acceptés : le préfixe régional Bedrock est retiré puis remis par l'adaptateur selon la région de la session, la variante est conservée.
+- Les identifiants complets (`amazon-bedrock/eu.anthropic.claude-sonnet-5-5`, suffixe `#variante`) sont acceptés : le préfixe régional Bedrock est retiré puis remis par l'adaptateur selon la région de la session, la variante est conservée.
 - Un patch (`extends`) remplace `models.default` et fusionne `models.agents` par agent.
 
 ### Modèles d'équipe
@@ -76,7 +76,7 @@ Les restrictions I6 peuvent limiter les modèles d'une session (motifs avec `*`,
 
 - niveaux : hub (`[limits] models`, `oh budget set models …`), équipe (`[limits.recommended]` ou `[limits.enforced]`), projet (`oh budget set models … -p <projet>`), workflow (`limits.models`) ;
 - la liste la plus précise l'emporte (workflow > projet > hub > recommandation d'équipe) ; une liste **imposée** par l'équipe est un plafond : seuls les motifs qu'elle couvre sont gardés ;
-- la liste ne change pas le modèle choisi par la cascade : elle est appliquée par le **proxy d'identifiants**, qui refuse les appels vers un autre modèle (identifiant envoyé au fournisseur, ex. `eu.anthropic.claude-sonnet-4-6`).
+- la liste ne change pas le modèle choisi par la cascade : elle est appliquée par le **proxy d'identifiants**, qui refuse les appels vers un autre modèle (identifiant envoyé au fournisseur, ex. `eu.anthropic.claude-sonnet-5-5`).
 
 Une session dont les agents résolvent vers un modèle hors de la liste **ne démarre pas** : le lancement (interactif ou `--headless`) échoue avant que rien ne soit créé, avec un message qui nomme l'agent et le modèle. Choisissez donc des modèles de cascade compatibles avec la liste. Voir `oh budget show` et [ADR-044](../architecture/adr/044-credential-proxy-session-limits.fr.md).
 
@@ -95,7 +95,7 @@ default = "claude-sonnet-4-5"
 
 [models.families]
 quality = "claude-opus-4"
-planning = "claude-sonnet-4-6"
+planning = "claude-sonnet-5-5"
 
 [models.agents]
 reviewer = "claude-opus-4"
@@ -126,7 +126,7 @@ oh config model agent reviewer claude-opus-4
 
 # --- Project-level ---
 oh config model default claude-opus-4 --project my-app
-oh config model family planning claude-sonnet-4-6 --project my-app
+oh config model family planning claude-sonnet-5-5 --project my-app
 oh config model agent reviewer claude-opus-4 --project my-app
 
 # --- Voir la configuration ---
@@ -166,7 +166,7 @@ Les agents peuvent déclarer un modèle via le champ `model:` de leur frontmatte
 ```yaml
 ---
 id: orchestrator
-model: claude-sonnet-4-6
+model: claude-sonnet-5-5
 ---
 ```
 
@@ -176,10 +176,10 @@ Ce champ est le **niveau 9** de la cascade : il ne s'applique que si aucun nivea
 
 | Agent | Plancher |
 |-------|----------|
-| `conductor`, `orchestrator`, `orchestrator-dev`, `planner`, `pathfinder`, `onboarder` | `claude-sonnet-4-6` |
-| `auditor`, `auditor-subagent`, `designer`, `debugger`, `documentarian`, `operator` | `claude-sonnet-4-6` |
+| `conductor`, `orchestrator`, `orchestrator-dev`, `planner`, `pathfinder`, `onboarder` | `claude-sonnet-5-5` |
+| `auditor`, `auditor-subagent`, `designer`, `debugger`, `documentarian`, `operator` | `claude-sonnet-5-5` |
 | `reviewer`, `benchmarker` | `claude-opus-4-6` |
-| `brief-enricher` | `anthropic/claude-sonnet-4-5` |
+| `brief-enricher` | `claude-sonnet-5-5` |
 
 Les agents `developer*` n'en déclarent pas : sans configuration, la session reçoit le modèle par défaut d'oh, `claude-sonnet-5-5` (converti pour le fournisseur de la session, par exemple `amazon-bedrock/anthropic.claude-sonnet-5-5` avec Bedrock). Le récapitulatif d'un lancement (`oh run --recap`, formulaire de lancement de la TUI) nomme le modèle que la session utilise (celui de l'agent d'entrée) et, sur une seconde ligne, les autres modèles des agents du paquet quand ils diffèrent.
 
@@ -193,7 +193,7 @@ Les agents `developer*` n'en déclarent pas : sans configuration, la session re�
 {
   "agent": {
     "orchestrator": {
-      "model": "amazon-bedrock/anthropic.claude-sonnet-4-6-20250715-v1:0",
+      "model": "amazon-bedrock/anthropic.claude-sonnet-5-5",
       "permission": {
         "question": "allow",
         "bash": "deny",

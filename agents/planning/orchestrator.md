@@ -25,7 +25,7 @@ permission:
   ctx_search: allow
   ctx_stats: allow
   ctx_batch_execute: allow
-model: claude-sonnet-4-6
+model: claude-sonnet-5-5
 skills: [shared/universal-guardrails, posture/core-posture, posture/user-facing-posture, posture/coordinator-posture, orchestrator/orchestrator-workflow-modes, orchestrator/orchestrator-protocol, shared/hub-workflow-reference]
 native_skills: [shared/rtk-usage, orchestrator/orchestrator-recap-edge, developer/beads-plan, shared/team-awareness, shared/team-policies-enforcement, orchestrator/takeover-context-protocol]
 project_instructions: none

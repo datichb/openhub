@@ -3,7 +3,7 @@ id: orchestrator
 label: Orchestrator
 description: Plans complex multi-step tasks and delegates to subagents.
 mode: primary
-model: anthropic/claude-sonnet-4-6
+model: anthropic/claude-sonnet-5-5
 permission:
   bash:
     allow: true

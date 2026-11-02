@@ -4,7 +4,7 @@
     {
       "id": "orchestrator",
       "mode": "primary",
-      "model": "/claude-sonnet-4-6",
+      "model": "/claude-sonnet-5-5",
       "permissions": [
         "shell * deny",
         "edit * deny",
@@ -330,7 +330,7 @@
     {
       "id": "debugger",
       "mode": "subagent",
-      "model": "/claude-sonnet-4-6",
+      "model": "/claude-sonnet-5-5",
       "permissions": [
         "shell * deny",
         "shell ls* allow",
@@ -680,7 +680,7 @@
     {
       "id": "designer",
       "mode": "subagent",
-      "model": "/claude-sonnet-4-6",
+      "model": "/claude-sonnet-5-5",
       "permissions": [
         "shell * deny",
         "shell bd list* allow",
@@ -1011,7 +1011,7 @@
     {
       "id": "onboarder",
       "mode": "subagent",
-      "model": "/claude-sonnet-4-6",
+      "model": "/claude-sonnet-5-5",
       "permissions": [
         "shell * deny",
         "shell ls* allow",
@@ -1348,7 +1348,7 @@
     {
       "id": "orchestrator-dev",
       "mode": "subagent",
-      "model": "/claude-sonnet-4-6",
+      "model": "/claude-sonnet-5-5",
       "permissions": [
         "shell * deny",
         "shell ls * allow",
@@ -1698,7 +1698,7 @@
     {
       "id": "pathfinder",
       "mode": "subagent",
-      "model": "/claude-sonnet-4-6",
+      "model": "/claude-sonnet-5-5",
       "permissions": [
         "shell * deny",
         "shell ls * allow",
@@ -2036,7 +2036,7 @@
     {
       "id": "planner",
       "mode": "subagent",
-      "model": "/claude-sonnet-4-6",
+      "model": "/claude-sonnet-5-5",
       "permissions": [
         "shell * deny",
         "shell ls * allow",
@@ -3196,7 +3196,7 @@
     {
       "id": "documentarian",
       "mode": "subagent",
-      "model": "/claude-sonnet-4-6",
+      "model": "/claude-sonnet-5-5",
       "permissions": [
         "shell * deny",
         "shell ls* allow",

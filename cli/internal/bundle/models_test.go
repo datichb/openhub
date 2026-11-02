@@ -1,6 +1,7 @@
 package bundle
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -120,6 +121,23 @@ func TestAgentModelsAreKnown(t *testing.T) {
 		assert.NotContains(t, fm.Model, "/", "%s: model %q names a provider: write the bare model name", id, fm.Model)
 		assert.True(t, knownModel(fm.Model), "%s: model %q is unknown to the model resolution (bricks/model_resolve.go)", id, fm.Model)
 	}
-	assert.False(t, knownModel("claude-sonet-4-6"), "a typo")
-	assert.True(t, knownModel("claude-sonnet-4-6"))
+	assert.False(t, knownModel("claude-sonet-5-5"), "a typo")
+	assert.True(t, knownModel("claude-sonnet-5-5"))
+}
+
+// The Sonnet floor of the agents is the model oh itself falls back on
+// (bricks.FallbackModel, claude-sonnet-5-5): no agent keeps an older Sonnet.
+func TestAgentSonnetFloorIsTheFallbackModel(t *testing.T) {
+	files, err := bricks.FindAgentFiles(repoHub(t))
+	require.NoError(t, err)
+	sonnets := 0
+	for _, id := range sortedKeys(files) {
+		fm, err := bricks.ParseAgentFrontmatter(files[id])
+		require.NoError(t, err)
+		if strings.Contains(fm.Model, "sonnet") {
+			sonnets++
+			assert.Equal(t, bricks.FallbackModel, fm.Model, "%s: the Sonnet floor of an agent", id)
+		}
+	}
+	assert.NotZero(t, sonnets)
 }

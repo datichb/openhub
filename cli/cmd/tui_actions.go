@@ -14,7 +14,6 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/beads"
-	"github.com/datichb/openhub/cli/internal/bricks"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
@@ -188,9 +187,7 @@ func buildProjectAddInlineWizard(a *app.App) *views.InlineWizardView {
 				return form
 			},
 			OnDone: func() error {
-				if model == "" {
-					model = bricks.FallbackModel
-				}
+				model = wizardProjectModel(model)
 				if apiKey != "" && a.Secrets != nil {
 					keyName := providerVal + "-token-project"
 					if err := a.Secrets.Set(context.Background(), keyName, apiKey); err != nil {

@@ -101,11 +101,12 @@ func warningsAbout(res *SyncResult, sub string) []SyncWarning {
 	return out
 }
 
-// A2: with more assigned issues than max_auto_plan_per_member, the issues left
-// off the board are counted and said; the issues already in progress come
-// first, whatever their age (#623 in DEV DOING stayed off the board: the
-// fetch stopped at the five newest issues).
-func TestAutoPlanSaysWhatTheLimitLeavesOffTheBoardAndStartedIssuesComeFirst(t *testing.T) {
+// With more assigned issues than max_auto_plan_per_member, a run creates at
+// most that many claims for a member; the issues left for the next run are
+// counted and said. The issues already in progress come first and are let in
+// whatever the limit, whatever their age (#623 in DEV DOING stayed off the
+// board: the fetch stopped at the five newest issues).
+func TestAutoPlanLimitsEachRunAndStartedIssuesComeFirst(t *testing.T) {
 	if testing.Short() {
 		t.Skip("git")
 	}
@@ -116,41 +117,76 @@ func TestAutoPlanSaysWhatTheLimitLeavesOffTheBoardAndStartedIssuesComeFirst(t *t
 	res := f.run(t)
 	got := f.claims(t)
 	assert.Equal(t, teamstate.ClaimStatusInProgress, got["623"], "the issue in progress is on the board though it is the oldest")
-	assert.Len(t, got, 5, "the board holds the limit: the started issue and four others")
-	for _, id := range []string{"617", "616", "615", "614"} {
+	assert.Len(t, got, 6, "the issue in progress, outside the limit, and five others")
+	for _, id := range []string{"617", "616", "615", "614", "613"} {
 		assert.Equal(t, teamstate.ClaimStatusPlanned, got[id], id)
 	}
-	assert.Equal(t, 4, res.Projects[0].AutoPlanHeld)
-	w := warningsAbout(res, "4 issue(s)")
+	assert.Equal(t, 6, res.ClaimsCreated)
+	assert.Equal(t, 3, res.Projects[0].AutoPlanHeld)
+	w := warningsAbout(res, "3 issue(s)")
 	require.Len(t, w, 1, "the run says it")
 	assert.Equal(t, "p", w[0].ProjectID)
 	assert.Contains(t, w[0].Message, "5", "with the limit")
 	held, limit := f.heldCount(t)
-	assert.Equal(t, 4, held)
+	assert.Equal(t, 3, held)
 	assert.Equal(t, 5, limit)
 
-	// Nothing changes while the board is full, and nothing is created twice.
-	res = f.run(t)
-	assert.Len(t, f.claims(t), 5)
-	assert.Zero(t, res.ClaimsCreated)
-	assert.Len(t, warningsAbout(res, "4 issue(s)"), 1, "still said")
-
-	// A planned claim released: the next issue held comes in.
-	require.NoError(t, f.repo.ReleaseClaim(t.Context(), "p", "617"))
+	// The limit is the one of a run, not a standing cap: the board is full of
+	// claims, the next run still lets the held issues in, nothing twice.
 	res = f.run(t)
 	got = f.claims(t)
-	assert.Equal(t, teamstate.ClaimStatusPlanned, got["613"], "the oldest held issue takes the room")
-	assert.NotContains(t, got, "617", "the claim released on purpose stays released")
-	assert.Equal(t, 3, res.Projects[0].AutoPlanHeld)
-
-	// Room for everyone: nothing held, nothing said.
-	f.cfg.MaxAutoPlanPerMember = 20
-	res = f.run(t)
+	assert.Len(t, got, 9)
+	for _, id := range []string{"612", "611", "610"} {
+		assert.Equal(t, teamstate.ClaimStatusPlanned, got[id], id)
+	}
+	assert.Equal(t, 3, res.ClaimsCreated)
 	assert.Zero(t, res.Projects[0].AutoPlanHeld)
-	assert.Empty(t, warningsAbout(res, "issue(s)"))
+	assert.Empty(t, warningsAbout(res, "issue(s)"), "nothing held, nothing said")
 	held, _ = f.heldCount(t)
 	assert.Zero(t, held)
-	assert.Contains(t, f.claims(t), "610")
+
+	// Nothing left to do: nothing created again.
+	res = f.run(t)
+	assert.Len(t, f.claims(t), 9)
+	assert.Zero(t, res.ClaimsCreated)
+}
+
+// A claim released on purpose is not planned again by the runs that follow.
+func TestAutoPlanKeepsAClaimReleasedOnPurposeReleased(t *testing.T) {
+	if testing.Short() {
+		t.Skip("git")
+	}
+	f := newAutoplanFixture(t, 2, issueOf(617), issueOf(616), issueOf(615))
+	f.run(t)
+	assert.Len(t, f.claims(t), 2)
+	require.NoError(t, f.repo.ReleaseClaim(t.Context(), "p", "617"))
+	f.run(t)
+	got := f.claims(t)
+	assert.NotContains(t, got, "617", "the claim released on purpose stays released")
+	assert.Contains(t, got, "615", "the held issue takes its turn")
+	assert.Contains(t, got, "616")
+}
+
+// The count is per run and per member: claims already on the board do not
+// use the limit up.
+func TestAutoPlanLimitIgnoresClaimsAlreadyOnTheBoard(t *testing.T) {
+	if testing.Short() {
+		t.Skip("git")
+	}
+	f := newAutoplanFixture(t, 2, issueOf(615), issueOf(614), issueOf(613))
+	for _, id := range []int{611, 612} {
+		_, err := f.repo.CreateClaim(t.Context(), teamstate.Claim{TicketID: strconv.Itoa(id), Project: "p", ClaimedBy: "alice",
+			Status: teamstate.ClaimStatusPlanned, ExternalIID: id})
+		require.NoError(t, err)
+		f.tr.issues[id] = issueOf(id)
+	}
+	res := f.run(t)
+	got := f.claims(t)
+	assert.Contains(t, got, "615")
+	assert.Contains(t, got, "614")
+	assert.NotContains(t, got, "613")
+	assert.Equal(t, 2, res.ClaimsCreated)
+	assert.Equal(t, 1, res.Projects[0].AutoPlanHeld)
 }
 
 // The real case: the board is full of planned claims, a project already synced
@@ -160,7 +196,7 @@ func TestAutoPlanFindsAnOldIssueInProgressOfAProjectAlreadySynced(t *testing.T) 
 	if testing.Short() {
 		t.Skip("git")
 	}
-	f := newAutoplanFixture(t, 3, issueOf(615), issueOf(614), issueOf(623, "DEV DOING"))
+	f := newAutoplanFixture(t, 1, issueOf(615), issueOf(614), issueOf(623, "DEV DOING"))
 	for _, id := range []int{611, 612, 613} {
 		_, err := f.repo.CreateClaim(t.Context(), teamstate.Claim{TicketID: strconv.Itoa(id), Project: "p", ClaimedBy: "alice",
 			Status: teamstate.ClaimStatusPlanned, ExternalIID: id})
@@ -175,10 +211,10 @@ func TestAutoPlanFindsAnOldIssueInProgressOfAProjectAlreadySynced(t *testing.T) 
 
 	res := f.run(t)
 	got := f.claims(t)
-	assert.Equal(t, teamstate.ClaimStatusInProgress, got["623"], "found by the first complete scan, and let in though the board is full")
-	assert.NotContains(t, got, "615")
-	assert.NotContains(t, got, "614")
-	assert.Equal(t, 2, res.Projects[0].AutoPlanHeld)
+	assert.Equal(t, teamstate.ClaimStatusInProgress, got["623"], "found by the first complete scan, and let in outside the limit")
+	assert.Equal(t, teamstate.ClaimStatusPlanned, got["615"], "one planned claim for the run")
+	assert.NotContains(t, got, "614", "held for the next run")
+	assert.Equal(t, 1, res.Projects[0].AutoPlanHeld)
 
 	// The scan is made once: the next run only looks at what was updated.
 	f.tr.asked = nil

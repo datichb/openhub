@@ -14,7 +14,6 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/beads"
-	"github.com/datichb/openhub/cli/internal/bricks"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	providerPkg "github.com/datichb/openhub/cli/internal/provider"
@@ -240,9 +239,7 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 				return form
 			},
 			OnDone: func() error {
-				if model == "" {
-					model = bricks.FallbackModel
-				}
+				model = wizardProjectModel(model)
 				// Store API key in keychain if provided
 				if apiKey != "" && a.Secrets != nil {
 					keyName := providerPkg.KeychainKey(providerPkg.Name(provider), "")
@@ -447,4 +444,11 @@ func buildProjectMCPConfig(services []string) *domain.ProjectMCPConfig {
 		cfg.Services = append(cfg.Services, domain.ProjectMCPService{Name: name})
 	}
 	return cfg
+}
+
+// wizardProjectModel is the model a project wizard writes on the project: what
+// was typed, trimmed; empty when the field is left empty, so that the project
+// inherits the model of the hub instead of pinning one.
+func wizardProjectModel(input string) string {
+	return strings.TrimSpace(input)
 }

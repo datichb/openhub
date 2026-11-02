@@ -22,8 +22,8 @@ import (
 func TestEvalSettings(t *testing.T) {
 	t.Setenv(envEvalModels, "")
 	assert.Equal(t, []string{defaultEvalModel}, evalModels())
-	t.Setenv(envEvalModels, " claude-haiku-4-5 , claude-sonnet-4-6,")
-	assert.Equal(t, []string{"claude-haiku-4-5", "claude-sonnet-4-6"}, evalModels())
+	t.Setenv(envEvalModels, " claude-haiku-4-5 , claude-sonnet-5-5,")
+	assert.Equal(t, []string{"claude-haiku-4-5", "claude-sonnet-5-5"}, evalModels())
 	t.Setenv(envEvalReps, "3")
 	assert.Equal(t, 3, envInt(envEvalReps, 1))
 	t.Setenv(envEvalReps, "x")
@@ -32,12 +32,12 @@ func TestEvalSettings(t *testing.T) {
 	assert.InDelta(t, 0.25, envFloat(envEvalBudget, 1), 1e-9)
 
 	assert.Equal(t, int64(9090909), evalMaxTokens("claude-haiku-4-5", 1))
-	assert.Equal(t, int64(454545), evalMaxTokens("claude-sonnet-4-6", 1))
+	assert.Equal(t, int64(454545), evalMaxTokens("claude-sonnet-5-5", 1))
 	assert.Equal(t, int64(181818), evalMaxTokens("eu.anthropic.claude-opus-5-5", 1))
 	assert.Zero(t, evalMaxTokens("claude-haiku-4-5", 0))
 
 	assert.InDelta(t, 1.0, defaultPassBudget([]string{"claude-haiku-4-5"}), 1e-9)
-	assert.InDelta(t, 2.5, defaultPassBudget([]string{"claude-haiku-4-5", "eu.anthropic.claude-sonnet-4-6"}), 1e-9, "a Sonnet session goes past $1")
+	assert.InDelta(t, 2.5, defaultPassBudget([]string{"claude-haiku-4-5", "eu.anthropic.claude-sonnet-5-5"}), 1e-9, "a Sonnet session goes past $1")
 }
 
 // The token cap of a pass follows its real cost, cache included: the

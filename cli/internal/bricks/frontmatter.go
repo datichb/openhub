@@ -16,7 +16,7 @@ type AgentFrontmatter struct {
 	Label          string                 `yaml:"label"`
 	Description    string                 `yaml:"description"`
 	Mode           string                 `yaml:"mode"`            // "primary" (default) | "subagent"
-	Model          string                 `yaml:"model"`           // floor model (optional, e.g. "anthropic/claude-sonnet-4-6")
+	Model          string                 `yaml:"model"`           // floor model (optional, e.g. "anthropic/claude-sonnet-5-5")
 	PermissionBase string                 `yaml:"permission_base"` // base permission file (resolved from permissions/<name>.yaml)
 	Permission     map[string]interface{} `yaml:"permission"`      // structured permissions (nested maps for bash/task)
 	Skills         []string               `yaml:"skills"`          // Bucket A — inline skills

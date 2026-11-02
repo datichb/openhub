@@ -3,7 +3,7 @@ id: auditor-subagent
 label: Auditor Subagent
 description: Sous-agent d'audit générique en lecture seule — reçoit un domaine et le native_skill correspondant injectés par le coordinateur d'audit dans le prompt d'invocation. Produit un rapport structuré selon audit-protocol-light et une enveloppe de retour. Ne réalise jamais d'action hors lecture.
 mode: subagent
-model: claude-sonnet-4-6
+model: claude-sonnet-5-5
 permission_base: readonly-code
 permission:
   bash:

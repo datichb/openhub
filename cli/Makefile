@@ -125,7 +125,7 @@ embed-bd:
 
 # ── Behavioural evaluations (P0.5) ────────────────────────────────────────
 # Real model calls (Bedrock EU): Haiku by default, OH_EVAL_MODELS for others
-# (e.g. claude-sonnet-4-6), OH_EVAL_REPS repetitions, OH_EVAL_BUDGET_USD cap
+# (e.g. claude-sonnet-5-5), OH_EVAL_REPS repetitions, OH_EVAL_BUDGET_USD cap
 # per pass (default 1, 2.50 with a Sonnet model), OH_EVAL_CASES to select
 # (S1,S2), OH_EVAL_PARALLEL passes at the same time, OH_EVAL_BUDGET_TOTAL cap
 # of the whole run. OH_EVAL_RECORD=1 records the reference measure
