@@ -23,6 +23,7 @@
 ./internal/archtest
 ./internal/beads/bdschema
 ./internal/buildinfo
+./internal/cliout
 ./internal/config
 ./internal/config/configtest
 ./internal/credproxy
