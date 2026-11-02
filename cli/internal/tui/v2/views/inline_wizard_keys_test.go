@@ -91,7 +91,7 @@ func TestInlineWizardView_Notify(t *testing.T) {
 	app := runApp(t, content)
 	onLoop(app, func() { v.Mount(content, app) })
 	hints := func() (text string) {
-		onLoop(app, func() { text = v.hintsBar.TextView.GetText(true) })
+		onLoop(app, func() { text = v.hintsBar.GetText(true) })
 		return text
 	}
 	base := hints()
