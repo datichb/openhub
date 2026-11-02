@@ -147,3 +147,19 @@ func TestExtractShortModelName(t *testing.T) {
 		})
 	}
 }
+
+// FallbackModel is the model of a session when no level of the cascade sets
+// one: its name carries a version number and every provider gets a usable id.
+func TestFallbackModel(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, "claude-sonnet-5-5", FallbackModel)
+	assert.Equal(t, "anthropic/claude-sonnet-5-5", NormalizeModelForProvider(FallbackModel, "anthropic"))
+	assert.Equal(t, "amazon-bedrock/anthropic.claude-sonnet-5-5", NormalizeModelForProvider(FallbackModel, "bedrock"))
+	assert.Equal(t, "amazon-bedrock/anthropic.claude-sonnet-5-5",
+		NormalizeModelForProvider("amazon-bedrock/eu.anthropic.claude-sonnet-5-5", "bedrock"), "the regional prefix is removed, the adapter adds it back")
+	assert.Equal(t, "claude-sonnet-5-5", extractShortModelName("amazon-bedrock/eu.anthropic.claude-sonnet-5-5"))
+	assert.Equal(t, "github-copilot/claude-sonnet-5.5", NormalizeModelForProvider(FallbackModel, "github-copilot"))
+	assert.Equal(t, "claude-sonnet-5-5", extractShortModelName("github-copilot/claude-sonnet-5.5"))
+	assert.Equal(t, "anthropic/claude-sonnet-5-5", NormalizeModelForProvider(FallbackModel, "openrouter"))
+	assert.Equal(t, "amazon-bedrock/anthropic.claude-sonnet-5-5#high", NormalizeModelForProvider(FallbackModel+"#high", "bedrock"))
+}

@@ -165,7 +165,7 @@ func TestBuildEntryWithoutModelGetsFallback(t *testing.T) {
 	b := agentBuild(t, "developer", "bedrock")
 	require.NotNil(t, b.Spec.DefaultModel)
 	assert.Equal(t, "amazon-bedrock", b.Spec.DefaultModel.Provider)
-	assert.Contains(t, b.Spec.DefaultModel.Model, "claude-sonnet-4-6")
+	assert.Contains(t, b.Spec.DefaultModel.Model, "claude-sonnet-5-5")
 }
 
 // agentSpec is the workflow of a free session on entry (workflow `libre`:
