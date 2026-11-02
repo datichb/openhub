@@ -17,6 +17,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/daemon/api"
 	"github.com/datichb/openhub/cli/internal/domain"
@@ -34,10 +35,9 @@ import (
 // confirmation; the daemon does it every [gc] every_hours.
 
 var gcCmd = &cobra.Command{
-	Use:   "gc",
-	Short: "Nettoie ce qu'oh laisse derrière lui (paquets, données des serveurs, sessions arrêtées, worktrees automatiques, historique)",
-	Args:  cobra.NoArgs,
-	RunE:  runGC,
+	Use:  "gc",
+	Args: cobra.NoArgs,
+	RunE: runGC,
 }
 
 func init() {
@@ -47,11 +47,11 @@ func init() {
 
 func addGCFlags(c *cobra.Command) {
 	f := c.Flags()
-	f.Bool("dry-run", false, "Afficher ce qui serait supprimé, sans rien supprimer")
-	f.BoolP("yes", "y", false, "Supprimer sans confirmation (obligatoire sans terminal)")
-	f.Bool("json", false, "Plan (ou résultat) au format JSON")
-	f.StringSlice("only", nil, "Seulement ces catégories : bundles, servers, sessions, worktrees, fanout, temp, orphans, history")
-	f.String("older-than", "", "Garder les fichiers des sessions arrêtées moins longtemps que cette durée (ex. 30d, 12h ; défaut : [gc] session_days)")
+	f.Bool("dry-run", false, "")
+	f.BoolP("yes", "y", false, "")
+	f.Bool("json", false, "")
+	f.StringSlice("only", nil, "")
+	f.String("older-than", "", "")
 }
 
 // gcStore is the database side of the clean-up.
@@ -201,7 +201,7 @@ func runGC(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 	if asJSON && (dry || plan.Empty()) {
-		return json.NewEncoder(w).Encode(plan)
+		return cliout.JSONCompact(w, plan)
 	}
 	if !asJSON {
 		printGCPlan(w, plan)
@@ -230,11 +230,11 @@ func runGC(cmd *cobra.Command, _ []string) error {
 	}
 	writeGCLast(gcLast{At: time.Now(), Bytes: done.Bytes(), Items: len(done.Items), Rows: done.History.Total(), Armed: true})
 	if asJSON {
-		return json.NewEncoder(w).Encode(done)
+		return cliout.JSONCompact(w, done)
 	}
-	fmt.Fprintf(w, "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.gc.done", len(done.Items), textfmt.Bytes(done.Bytes()), done.History.Total()))
+	cliout.Success(w, i18n.Tf("cmd.gc.done", len(done.Items), textfmt.Bytes(done.Bytes()), done.History.Total()))
 	for _, e := range done.Errors {
-		fmt.Fprintf(w, "  %s %s\n", theme.WarningStyle.Render(theme.IconWarning), e)
+		fmt.Fprintf(w, "  %s %s\n", cliout.WarnIcon(), e)
 	}
 	return nil
 }
@@ -278,7 +278,7 @@ func printGCPlan(w io.Writer, plan gc.Report) {
 		fmt.Fprintf(w, "  %s\n", i18n.Tf("cmd.gc.kind.history", h.Total(), h.Sessions, h.AgentEvents, h.Decisions, h.UsageSessions+h.UsageProxy+h.BudgetExtra, h.WikiProposals))
 	}
 	for _, e := range plan.Errors {
-		fmt.Fprintf(w, "  %s %s\n", theme.WarningStyle.Render(theme.IconWarning), e)
+		fmt.Fprintf(w, "  %s %s\n", cliout.WarnIcon(), e)
 	}
 }
 

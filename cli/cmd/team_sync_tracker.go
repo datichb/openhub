@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/glyph"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/safego"
@@ -77,7 +78,7 @@ func runSyncTracker(cmd *cobra.Command, _ []string) error {
 
 	if len(result.Warnings) > 0 {
 		fmt.Fprintln(out)
-		fmt.Fprintf(out, "  %s %s\n", theme.WarningStyle.Render(theme.IconWarning),
+		fmt.Fprintf(out, "  %s %s\n", cliout.WarnIcon(),
 			i18n.T("cmd.team.sync_tracker.warnings"))
 		for _, w := range result.Warnings {
 			fmt.Fprintf(out, "    %s\n", w.String())
@@ -94,10 +95,8 @@ func runSyncTracker(cmd *cobra.Command, _ []string) error {
 	}
 
 	fmt.Fprintln(out)
-	fmt.Fprintf(out, "%s %s\n",
-		theme.SuccessStyle.Render(theme.IconSuccess),
-		i18n.Tf("cmd.team.sync_tracker.total",
-			result.ClaimsCreated, result.ClaimsUpdated, result.LabelsPushed))
+	cliout.Success(out, i18n.Tf("cmd.team.sync_tracker.total",
+		result.ClaimsCreated, result.ClaimsUpdated, result.LabelsPushed))
 
 	return nil
 }
@@ -119,17 +118,13 @@ func syncTrackerError(a *app.App, err error) error {
 	case errors.As(err, &cfgErr):
 		return fmt.Errorf("%s: %w", i18n.T("cmd.team.sync_tracker.config_read_error"), cfgErr.Err)
 	case errors.Is(err, teamsvc.ErrTrackerNotConfigured):
-		fmt.Fprintf(a.IO.Out, "%s %s\n",
-			theme.WarningStyle.Render(theme.IconWarning),
-			i18n.Tf("cmd.team.sync_tracker.tracker_not_configured",
-				theme.Bold.Render("[tracker]\ntype = \"gitlab\""),
-				theme.Bold.Render("oh team config")))
+		cliout.Warn(a.IO.Out, i18n.Tf("cmd.team.sync_tracker.tracker_not_configured",
+			theme.Bold.Render("[tracker]\ntype = \"gitlab\""),
+			theme.Bold.Render("oh team config")))
 		return nil
 	case errors.Is(err, teamsvc.ErrTrackerDisabled):
-		fmt.Fprintf(a.IO.Out, "%s %s\n",
-			theme.WarningStyle.Render(theme.IconWarning),
-			i18n.Tf("cmd.team.sync_tracker.disabled_locally",
-				theme.Bold.Render("[tracker]\nenabled = false")))
+		cliout.Warn(a.IO.Out, i18n.Tf("cmd.team.sync_tracker.disabled_locally",
+			theme.Bold.Render("[tracker]\nenabled = false")))
 		return nil
 	case errors.As(err, &credErr) && tracker.IsMissingToken(credErr.Err):
 		// the error names the server, the sources read and what to declare
@@ -140,7 +135,7 @@ func syncTrackerError(a *app.App, err error) error {
 	case errors.As(err, &initErr):
 		return fmt.Errorf("%s: %w", i18n.T("cmd.team.sync_tracker.init_error"), initErr.Err)
 	case errors.Is(err, teamsvc.ErrNoProjects):
-		fmt.Fprint(a.IO.ErrOut, i18n.Tf("cmd.team_sync_tracker.no_project_configured_for_the_tracker", theme.WarningStyle.Render(theme.IconWarning)))
+		fmt.Fprint(a.IO.ErrOut, i18n.Tf("cmd.team_sync_tracker.no_project_configured_for_the_tracker", cliout.WarnIcon()))
 		fmt.Fprint(a.IO.ErrOut, i18n.T("cmd.team_sync_tracker.check"))
 		fmt.Fprint(a.IO.ErrOut, i18n.T("cmd.team_sync_tracker.tracker_project_is_set_in_the"))
 		fmt.Fprint(a.IO.ErrOut, i18n.T("cmd.team_sync_tracker.or_a_hub_project_overrides_tracker"))

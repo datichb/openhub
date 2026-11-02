@@ -1,14 +1,13 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"strings"
-	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/glyph"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
@@ -50,14 +49,12 @@ func workflowListCmd() *cobra.Command {
 func printWorkflowList(w io.Writer, ws *workflowsvc.Workspace, asJSON bool) error {
 	if asJSON {
 		list := append(append([]workflowsvc.Summary{}, ws.Workflows...), ws.Drafts...)
-		enc := json.NewEncoder(w)
-		enc.SetIndent("", "  ")
-		return enc.Encode(list)
+		return cliout.JSON(w, list)
 	}
 	if len(ws.Workflows) == 0 && len(ws.Drafts) == 0 {
 		fmt.Fprintln(w, i18n.T("cmd.workflow.list.empty"))
 	} else {
-		tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+		tw := cliout.Table(w)
 		fmt.Fprintf(tw, "  %s\t%s\t%s\t%s\t%s\t%s\n",
 			i18n.T("cmd.workflow.list.col_id"), i18n.T("cmd.workflow.list.col_layer"), i18n.T("cmd.workflow.list.col_version"),
 			i18n.T("cmd.workflow.list.col_risk"), i18n.T("cmd.workflow.list.col_runtime"), i18n.T("cmd.workflow.list.col_description"))
@@ -82,7 +79,7 @@ func printWorkflowList(w io.Writer, ws *workflowsvc.Workspace, asJSON bool) erro
 		}
 	}
 	if len(ws.Integrity) > 0 {
-		fmt.Fprintf(w, "\n%s %s\n", theme.WarningStyle.Render(theme.IconWarning), i18n.Tf("cmd.workflow.list.integrity", len(ws.Integrity)))
+		fmt.Fprintf(w, "\n%s %s\n", cliout.WarnIcon(), i18n.Tf("cmd.workflow.list.integrity", len(ws.Integrity)))
 		for _, d := range ws.Integrity {
 			fmt.Fprintf(w, "  · %s\n", d.Message)
 			if d.Source != "" {
@@ -97,12 +94,12 @@ func printWorkflowList(w io.Writer, ws *workflowsvc.Workspace, asJSON bool) erro
 }
 
 func printWorkflowRow(tw io.Writer, s workflowsvc.Summary) {
-	icon := theme.SuccessStyle.Render(theme.IconSuccess)
+	icon := cliout.SuccessIcon()
 	switch {
 	case !s.Valid:
-		icon = theme.ErrorStyle.Render(theme.IconError)
+		icon = cliout.ErrorIcon()
 	case s.Warnings > 0:
-		icon = theme.WarningStyle.Render(theme.IconWarning)
+		icon = cliout.WarnIcon()
 	}
 	desc := s.Description
 	if desc == "" {

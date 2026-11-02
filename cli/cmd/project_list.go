@@ -1,13 +1,11 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
-	"os"
-	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
@@ -19,7 +17,6 @@ func projectListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Aliases: []string{"ls"},
-		Short:   "Liste les projets enregistrés",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := MustApp()
 			ctx := cmd.Context()
@@ -39,7 +36,7 @@ func projectListCmd() *cobra.Command {
 
 			jsonOut, _ := cmd.Flags().GetBool("json")
 			if jsonOut {
-				return json.NewEncoder(os.Stdout).Encode(projects)
+				return cliout.JSONCompact(a.IO.Out, projects)
 			}
 
 			if len(projects) == 0 {
@@ -47,7 +44,7 @@ func projectListCmd() *cobra.Command {
 				return nil
 			}
 
-			w := tabwriter.NewWriter(a.IO.Out, 0, 0, 2, ' ', 0)
+			w := cliout.Table(a.IO.Out)
 			fmt.Fprintln(w, i18n.T("cmd.project.list.header"))
 			for _, p := range projects {
 				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
@@ -60,8 +57,8 @@ func projectListCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&status, "status", "s", "", "Filtrer par statut (active, archived)")
-	cmd.Flags().Bool("json", false, "Output in JSON format")
+	cmd.Flags().StringVarP(&status, "status", "s", "", "")
+	cmd.Flags().Bool("json", false, "")
 	return cmd
 }
 

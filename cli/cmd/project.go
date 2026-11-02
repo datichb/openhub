@@ -7,7 +7,6 @@ import (
 var projectCmd = &cobra.Command{
 	Use:     "project",
 	Aliases: []string{"p"},
-	Short:   "Gestion des projets enregistrés",
 }
 
 func init() {

@@ -11,6 +11,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/beads"
 	"github.com/datichb/openhub/cli/internal/buildinfo"
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/selfupdate"
@@ -20,16 +21,15 @@ import (
 )
 
 var doctorCmd = &cobra.Command{
-	Use:   "doctor",
-	Short: "Vérifie l'état du système et les dépendances",
-	RunE:  runDoctor,
+	Use:  "doctor",
+	RunE: runDoctor,
 }
 
 func init() {
 	rootCmd.AddCommand(withInitLevel(doctorCmd, levelDegraded))
-	doctorCmd.Flags().Bool("fix", false, "Répare ce qui peut l'être (Beads zéro impact) après un résumé et une confirmation")
-	doctorCmd.Flags().BoolP("yes", "y", false, "Avec --fix : appliquer sans confirmation (obligatoire sans terminal)")
-	doctorCmd.Flags().Bool("offline", false, "Aucun appel réseau (version publiée, validation de la clé du provider) ; aussi OH_DOCTOR_OFFLINE=1")
+	doctorCmd.Flags().Bool("fix", false, "")
+	doctorCmd.Flags().BoolP("yes", "y", false, "")
+	doctorCmd.Flags().Bool("offline", false, "")
 }
 
 // doctorOffline reports whether oh doctor must not use the network
@@ -142,13 +142,13 @@ func runDoctorChecks(w io.Writer, checks []doctor.Check) error {
 		s.Stop()
 
 		for _, r := range res {
-			icon := theme.SuccessStyle.Render(theme.IconSuccess)
+			icon := cliout.SuccessIcon()
 			switch {
 			case !r.OK:
-				icon = theme.ErrorStyle.Render(theme.IconError)
+				icon = cliout.ErrorIcon()
 				allPassed = false
 			case r.Warn:
-				icon = theme.WarningStyle.Render(theme.IconWarning)
+				icon = cliout.WarnIcon()
 			}
 			fmt.Fprintf(w, "  %s %s — %s\n", icon, r.Name, strings.ReplaceAll(r.Detail, "\n", "\n      "))
 		}

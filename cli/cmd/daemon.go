@@ -21,13 +21,11 @@ import (
 )
 
 var daemonCmd = &cobra.Command{
-	Use:   "daemon",
-	Short: "Démon oh (proxy d'identifiants, supervision des sessions)",
+	Use: "daemon",
 }
 
 var daemonRunCmd = &cobra.Command{
 	Use:    "run",
-	Short:  "Exécute le démon au premier plan (lancé automatiquement par oh)",
 	Hidden: true,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		a := MustApp()
@@ -48,8 +46,7 @@ var daemonRunCmd = &cobra.Command{
 }
 
 var daemonStatusCmd = &cobra.Command{
-	Use:   "status",
-	Short: "Affiche l'état du démon oh",
+	Use: "status",
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		c := client.NewClient(api.Paths{Dir: ohRunDir()})
 		h, err := c.Health(cmd.Context())
@@ -66,8 +63,7 @@ var daemonStatusCmd = &cobra.Command{
 }
 
 var daemonStopCmd = &cobra.Command{
-	Use:   "stop",
-	Short: "Arrête le démon oh (refusé tant que des serveurs d'outil sont actifs, sauf --force)",
+	Use: "stop",
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		force, _ := cmd.Flags().GetBool("force")
 		capability, _, err := daemonCapability(cmd.Context())
@@ -100,7 +96,7 @@ func daemonNotifier(a *app.App) daemon.NotifyFunc {
 }
 
 func init() {
-	daemonStopCmd.Flags().Bool("force", false, "Arrêter même si des sessions tournent")
+	daemonStopCmd.Flags().Bool("force", false, "")
 	daemonCmd.AddCommand(withInitDB(daemonRunCmd), daemonStatusCmd, daemonStopCmd)
 	rootCmd.AddCommand(daemonCmd)
 }

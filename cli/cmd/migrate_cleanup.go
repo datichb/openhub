@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -14,6 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/bricks"
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/prefsvc"
@@ -120,15 +120,13 @@ func runMigrateCleanup(cmd *cobra.Command, _ []string) error {
 	}
 	markCleanupOffered(ctx, a)
 	if asJSON {
-		enc := json.NewEncoder(out)
-		enc.SetIndent("", "  ")
 		if list == nil {
 			list = []projectCleanup{}
 		}
-		return enc.Encode(list)
+		return cliout.JSON(out, list)
 	}
 	if len(list) == 0 {
-		fmt.Fprintf(out, "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.T("cmd.migrate.cleanup.none"))
+		cliout.Success(out, i18n.T("cmd.migrate.cleanup.none"))
 		return nil
 	}
 	for _, pc := range list {
@@ -160,10 +158,10 @@ func applyCleanups(out io.Writer, list []projectCleanup) error {
 	for _, pc := range list {
 		if err := pc.Plan.Apply(); err != nil {
 			errs = append(errs, fmt.Errorf("%s: %w", pc.Name, err))
-			fmt.Fprintf(out, "%s %s\n", theme.ErrorStyle.Render(theme.IconError), i18n.Tf("cmd.migrate.cleanup.failed", pc.Name, err))
+			cliout.Error(out, i18n.Tf("cmd.migrate.cleanup.failed", pc.Name, err))
 			continue
 		}
-		fmt.Fprintf(out, "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.migrate.cleanup.done", pc.Name))
+		cliout.Success(out, i18n.Tf("cmd.migrate.cleanup.done", pc.Name))
 	}
 	return errors.Join(errs...)
 }

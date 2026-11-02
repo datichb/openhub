@@ -105,6 +105,7 @@ func newHelpCommand() *cobra.Command {
 			cmd, _, e := c.Root().Find(args)
 			if cmd == nil || e != nil {
 				c.Printf("%s\n", i18n.Tf("help.unknown_topic", strings.Join(args, " ")))
+				localizeHelp(c.Root())
 				cobra.CheckErr(c.Root().Usage())
 				return
 			}
@@ -131,7 +132,7 @@ func customHelpFunc(cmd *cobra.Command, args []string) {
 		}
 	}
 	// Fallback: print directly
-	fmt.Print(content)
+	fmt.Fprint(cmd.OutOrStdout(), content)
 }
 
 // buildHelpContent constructs the help text with colors: one line per

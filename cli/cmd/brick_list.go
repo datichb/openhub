@@ -1,15 +1,14 @@
 package cmd
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"strings"
-	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/glyph"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
@@ -46,9 +45,7 @@ func brickListCmd() *cobra.Command {
 			}
 			filterBricks(ws, kind)
 			if asJSON, _ := cmd.Flags().GetBool("json"); asJSON {
-				enc := json.NewEncoder(cmd.OutOrStdout())
-				enc.SetIndent("", "  ")
-				return enc.Encode(ws)
+				return cliout.JSON(cmd.OutOrStdout(), ws)
 			}
 			origin, _ := cmd.Flags().GetBool("origin")
 			return printBrickList(cmd.OutOrStdout(), ws, origin)
@@ -106,7 +103,7 @@ func printBrickList(w io.Writer, ws *workflowsvc.BrickWorkspace, withOrigin bool
 		fmt.Fprintln(w, i18n.T("cmd.brick.list.empty"))
 		return nil
 	}
-	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+	tw := cliout.Table(w)
 	header := []string{i18n.T("cmd.brick.list.col_id"), i18n.T("cmd.brick.list.col_kind"), i18n.T("cmd.brick.list.col_origin"),
 		i18n.T("cmd.brick.list.col_version")}
 	if withOrigin {
@@ -116,13 +113,13 @@ func printBrickList(w io.Writer, ws *workflowsvc.BrickWorkspace, withOrigin bool
 	fmt.Fprintf(tw, "  %s\n", strings.Join(header, "\t"))
 	invalid := 0
 	for _, e := range ws.Bricks {
-		icon := theme.SuccessStyle.Render(theme.IconSuccess)
+		icon := cliout.SuccessIcon()
 		switch {
 		case e.Errors > 0:
-			icon = theme.ErrorStyle.Render(theme.IconError)
+			icon = cliout.ErrorIcon()
 			invalid++
 		case e.Warnings > 0:
-			icon = theme.WarningStyle.Render(theme.IconWarning)
+			icon = cliout.WarnIcon()
 		}
 		version := "—"
 		if e.Version > 0 {
@@ -156,10 +153,10 @@ func printBrickList(w io.Writer, ws *workflowsvc.BrickWorkspace, withOrigin bool
 		fmt.Fprintln(w, theme.Subtitle.Render(i18n.Tf("cmd.brick.list.invalid_hint", invalid)))
 	}
 	if len(ws.Unsealed) > 0 {
-		fmt.Fprintf(w, "\n%s %s\n", theme.WarningStyle.Render(theme.IconWarning), i18n.Tf("cmd.brick.list.unsealed", len(ws.Unsealed)))
+		fmt.Fprintf(w, "\n%s %s\n", cliout.WarnIcon(), i18n.Tf("cmd.brick.list.unsealed", len(ws.Unsealed)))
 	}
 	if len(ws.Integrity) > 0 {
-		fmt.Fprintf(w, "\n%s %s\n", theme.WarningStyle.Render(theme.IconWarning), i18n.Tf("cmd.brick.list.integrity", len(ws.Integrity)))
+		fmt.Fprintf(w, "\n%s %s\n", cliout.WarnIcon(), i18n.Tf("cmd.brick.list.integrity", len(ws.Integrity)))
 		for _, d := range ws.Integrity {
 			fmt.Fprintf(w, "  · %s\n", d.Message)
 		}

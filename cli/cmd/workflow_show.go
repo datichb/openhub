@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -11,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
@@ -23,9 +23,8 @@ func init() {
 
 func workflowShowCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "show <id>|<layer>:<id>",
-		Short: "Affiche un workflow résolu (avec l'origine des valeurs)",
-		Args:  cobra.ExactArgs(1),
+		Use:  "show <id>|<layer>:<id>",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			asJSON, _ := cmd.Flags().GetBool("json")
 			origin, _ := cmd.Flags().GetBool("origin")
@@ -59,8 +58,8 @@ func workflowShowCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().Bool("origin", false, "Affiche la couche qui a posé chaque valeur")
-	cmd.Flags().Bool("json", false, "Sortie JSON")
+	cmd.Flags().Bool("origin", false, "")
+	cmd.Flags().Bool("json", false, "")
 	addWorkflowContextFlags(cmd)
 	return cmd
 }
@@ -94,9 +93,7 @@ func printWorkflowShowJSON(w io.Writer, res *workflowsvc.Resolution) error {
 	if out.Diagnostics == nil {
 		out.Diagnostics = workflow.Diagnostics{}
 	}
-	enc := json.NewEncoder(w)
-	enc.SetIndent("", "  ")
-	return enc.Encode(out)
+	return cliout.JSON(w, out)
 }
 
 func printWorkflowShow(w io.Writer, res *workflowsvc.Resolution, withOrigin bool) {

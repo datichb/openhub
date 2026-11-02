@@ -2,11 +2,11 @@ package cmd
 
 import (
 	"fmt"
-	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/platform"
 	"github.com/datichb/openhub/cli/internal/textfmt"
@@ -14,15 +14,14 @@ import (
 )
 
 var metricsCmd = &cobra.Command{
-	Use:   "metrics",
-	Short: "Affiche les métriques d'utilisation",
-	Long:  i18n.T("cmd.metrics.long"),
-	RunE:  runMetrics,
+	Use:  "metrics",
+	Long: i18n.T("cmd.metrics.long"),
+	RunE: runMetrics,
 }
 
 func init() {
 	rootCmd.AddCommand(metricsCmd)
-	metricsCmd.Flags().String("period", "all", "Période d'analyse (7d, 30d, all)")
+	metricsCmd.Flags().String("period", "all", "")
 }
 
 func runMetrics(cmd *cobra.Command, args []string) error {
@@ -59,7 +58,7 @@ func runMetrics(cmd *cobra.Command, args []string) error {
 
 	if stats.TotalSessions == 0 {
 		fmt.Fprintf(a.IO.Out, "  %s %s\n",
-			theme.WarningStyle.Render(theme.IconWarning), i18n.Tf("cmd.metrics.no_data", period))
+			cliout.WarnIcon(), i18n.Tf("cmd.metrics.no_data", period))
 		return nil
 	}
 
@@ -98,7 +97,7 @@ func runMetrics(cmd *cobra.Command, args []string) error {
 	fmt.Fprintln(a.IO.Out, theme.Subtitle.Render("  "+i18n.T("cmd.metrics.per_project")))
 	fmt.Fprintln(a.IO.Out)
 
-	w := tabwriter.NewWriter(a.IO.Out, 0, 0, 2, ' ', 0)
+	w := cliout.Table(a.IO.Out)
 	fmt.Fprintln(w, i18n.T("cmd.metrics.table.header"))
 
 	for _, p := range projects {
@@ -127,7 +126,7 @@ func runMetrics(cmd *cobra.Command, args []string) error {
 			fmt.Fprintln(a.IO.Out)
 			fmt.Fprintln(a.IO.Out, theme.Subtitle.Render("  Télémétrie agents"))
 			fmt.Fprintln(a.IO.Out)
-			wa := tabwriter.NewWriter(a.IO.Out, 0, 0, 2, ' ', 0)
+			wa := cliout.Table(a.IO.Out)
 			fmt.Fprintln(wa, i18n.T("cmd.metrics.agent_runs_success_avg_duration_tokens"))
 			for _, m := range agentMetrics {
 				dur := "—"

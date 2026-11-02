@@ -1,13 +1,13 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"strings"
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
@@ -71,9 +71,7 @@ func runBrickShow(cmd *cobra.Command, args []string) error {
 		res.Diagnostics = append(res.Diagnostics, ws.Problems[t.Ref.String()]...)
 	}
 	if asJSON, _ := cmd.Flags().GetBool("json"); asJSON {
-		enc := json.NewEncoder(out)
-		enc.SetIndent("", "  ")
-		return enc.Encode(res)
+		return cliout.JSON(out, res)
 	}
 	printBrickShow(out, res)
 	return nil

@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"sort"
@@ -9,8 +8,8 @@ import (
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/bundle"
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
 // staleOptions are the flags of `oh skill check --stale` (modernisation R13).
@@ -40,9 +39,7 @@ func runSkillStale(out io.Writer, hubDir string, today time.Time, opts staleOpti
 		return err
 	}
 	if asJSON {
-		enc := json.NewEncoder(out)
-		enc.SetIndent("", "  ")
-		if err := enc.Encode(rep); err != nil {
+		if err := cliout.JSON(out, rep); err != nil {
 			return err
 		}
 	} else {
@@ -56,16 +53,16 @@ func runSkillStale(out io.Writer, hubDir string, today time.Time, opts staleOpti
 
 func printStaleSkills(out io.Writer, rep *bundle.FreshnessReport) {
 	if len(rep.Skills) == 0 {
-		fmt.Fprintf(out, "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.skill.check.stale.ok", rep.Checked, rep.MaxAgeDays))
+		cliout.Success(out, i18n.Tf("cmd.skill.check.stale.ok", rep.Checked, rep.MaxAgeDays))
 		return
 	}
 	fmt.Fprintf(out, "%s\n\n", i18n.Tf("cmd.skill.check.stale.header", rep.Checked, rep.MaxAgeDays, rep.Today))
 	for _, s := range rep.Skills {
 		if s.Status == bundle.FreshnessMissing {
-			fmt.Fprintf(out, "  %s %s\n", theme.ErrorStyle.Render(theme.IconError), i18n.Tf("cmd.skill.check.stale.missing", s.Ref, s.Detail))
+			fmt.Fprintf(out, "  %s %s\n", cliout.ErrorIcon(), i18n.Tf("cmd.skill.check.stale.missing", s.Ref, s.Detail))
 			continue
 		}
-		fmt.Fprintf(out, "  %s %s\n", theme.WarningStyle.Render(theme.IconWarning), i18n.Tf("cmd.skill.check.stale.stale", s.Ref, s.Reviewed, s.AgeDays, formatVersions(s.Versions)))
+		fmt.Fprintf(out, "  %s %s\n", cliout.WarnIcon(), i18n.Tf("cmd.skill.check.stale.stale", s.Ref, s.Reviewed, s.AgeDays, formatVersions(s.Versions)))
 	}
 	fmt.Fprintf(out, "\n  %s\n", i18n.Tf("cmd.skill.check.stale.summary", len(rep.Skills)))
 }

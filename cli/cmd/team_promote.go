@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/teamstate"
@@ -40,7 +41,7 @@ func runTeamPromote(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 	out := cmd.OutOrStdout()
-	fmt.Fprintf(out, "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.team.promote.done", team.ID, remote))
+	cliout.Success(out, i18n.Tf("cmd.team.promote.done", team.ID, remote))
 	fmt.Fprintf(out, "  %s\n", i18n.T("cmd.team.promote.invite"))
 	fmt.Fprintf(out, "    %s\n", theme.Bold.Render("oh team init"))
 	fmt.Fprintf(out, "  %s\n", i18n.Tf("cmd.team.promote.invite_repo", remote))

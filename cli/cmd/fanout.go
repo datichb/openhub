@@ -10,12 +10,12 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"text/tabwriter"
 	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/daemon"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/filelock"
@@ -52,7 +52,7 @@ func init() {
 		Args:  cobra.ExactArgs(1),
 		RunE:  runFanoutStatus,
 	}
-	status.Flags().Bool("json", false, "Sortie JSON")
+	status.Flags().Bool("json", false, "")
 	clean := &cobra.Command{
 		Use:   "clean <session-id>",
 		Short: i18n.T("cmd.fanout.clean.short"),
@@ -61,7 +61,7 @@ func init() {
 	}
 	clean.Flags().Bool("dry-run", false, i18n.T("cmd.fanout.clean.flags.dry_run"))
 	clean.Flags().Bool("discard", false, i18n.T("cmd.fanout.clean.flags.discard"))
-	clean.Flags().Bool("json", false, "Sortie JSON")
+	clean.Flags().Bool("json", false, "")
 	fanoutCmd.AddCommand(drive, status, clean)
 	rootCmd.AddCommand(fanoutCmd)
 }
@@ -138,7 +138,7 @@ func runFanoutStatus(cmd *cobra.Command, args []string) error {
 		return errors.New(i18n.Tf("cmd.fanout.none", sess.ID))
 	}
 	if asJSON, _ := cmd.Flags().GetBool("json"); asJSON {
-		return printJSON(cmd, f)
+		return cliout.JSON(cmd.OutOrStdout(), f)
 	}
 	printFanout(cmd.OutOrStdout(), sess.ID, f)
 	return nil
@@ -171,7 +171,7 @@ func runFanoutClean(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	if asJSON, _ := f.GetBool("json"); asJSON {
-		return printJSON(cmd, res)
+		return cliout.JSON(cmd.OutOrStdout(), res)
 	}
 	w := cmd.OutOrStdout()
 	key := "cmd.fanout.clean.done"
@@ -248,7 +248,7 @@ func printFanout(w io.Writer, id string, f *domain.SessionFanout) {
 	if f.BudgetUSD > 0 {
 		fmt.Fprintln(w, i18n.Tf("cmd.fanout.status.budget", f.SpentUSD, f.BudgetUSD))
 	}
-	tw := tabwriter.NewWriter(w, 2, 4, 2, ' ', 0)
+	tw := cliout.Table(w)
 	fmt.Fprintln(tw, i18n.T("cmd.fanout.status.header"))
 	for _, c := range f.Children {
 		detail := c.Error

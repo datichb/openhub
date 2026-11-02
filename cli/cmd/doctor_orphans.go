@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/adapters"
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/gc"
@@ -128,6 +129,6 @@ func stopOrphanServers(ctx context.Context, w io.Writer, confirm confirmFunc) er
 		}
 		cancel()
 	}
-	fmt.Fprintf(w, "%s %s\n\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.doctor.orphans.stopped", stopped))
+	fmt.Fprintf(w, "%s %s\n\n", cliout.SuccessIcon(), i18n.Tf("cmd.doctor.orphans.stopped", stopped))
 	return nil
 }

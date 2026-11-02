@@ -7,12 +7,12 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/bundle"
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/provider"
@@ -27,8 +27,7 @@ import (
 // to inspect what a session sees; its --budget replaces oh skill budget).
 
 var bundleCmd = &cobra.Command{
-	Use:   "bundle",
-	Short: "Paquets de session (contenu compilé d'un workflow)",
+	Use: "bundle",
 }
 
 func init() {
@@ -37,26 +36,24 @@ func init() {
 }
 
 func bundleFlags(cmd *cobra.Command) {
-	cmd.Flags().StringP("project", "p", "", "Projet (instructions, modèles, MCP) ; détecté depuis le dossier courant")
-	cmd.Flags().StringP("provider", "P", "", "Fournisseur LLM (normalisation des modèles)")
-	cmd.Flags().Bool("json", false, "Sortie JSON")
+	cmd.Flags().StringP("project", "p", "", "")
+	cmd.Flags().StringP("provider", "P", "", "")
+	cmd.Flags().Bool("json", false, "")
 }
 
 func bundleBuildCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "build <workflow>",
-		Short: "Compile le paquet de session d'un workflow",
-		Args:  cobra.ExactArgs(1),
+		Use:  "build <workflow>",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			b, err := buildBundleFor(cmd, args[0])
 			if err != nil {
 				return err
 			}
 			if asJSON, _ := cmd.Flags().GetBool("json"); asJSON {
-				return printJSON(cmd, map[string]string{"hash": b.Spec.Hash, "dir": b.Dir})
+				return cliout.JSON(cmd.OutOrStdout(), map[string]string{"hash": b.Spec.Hash, "dir": b.Dir})
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess),
-				i18n.Tf("cmd.bundle.build.done", args[0], shortHash(b.Spec.Hash), b.Dir))
+			cliout.Success(cmd.OutOrStdout(), i18n.Tf("cmd.bundle.build.done", args[0], shortHash(b.Spec.Hash), b.Dir))
 			return nil
 		},
 	}
@@ -66,9 +63,8 @@ func bundleBuildCmd() *cobra.Command {
 
 func bundleShowCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "show <workflow>|<hash>",
-		Short: "Affiche le contenu d'un paquet de session (agents, skills, permissions, budget)",
-		Args:  cobra.ExactArgs(1),
+		Use:  "show <workflow>|<hash>",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			b, err := bundle.Load(ohBundlesDir(), args[0])
 			if err != nil {
@@ -78,7 +74,7 @@ func bundleShowCmd() *cobra.Command {
 			}
 			r := bundle.Show(b)
 			if asJSON, _ := cmd.Flags().GetBool("json"); asJSON {
-				return printJSON(cmd, r)
+				return cliout.JSON(cmd.OutOrStdout(), r)
 			}
 			budget, _ := cmd.Flags().GetBool("budget")
 			printBundleReport(cmd.OutOrStdout(), args[0], r, budget)
@@ -86,7 +82,7 @@ func bundleShowCmd() *cobra.Command {
 		},
 	}
 	bundleFlags(cmd)
-	cmd.Flags().Bool("budget", false, "Détaille le budget estimé (tokens par agent et par skill)")
+	cmd.Flags().Bool("budget", false, "")
 	return cmd
 }
 
@@ -119,7 +115,7 @@ func buildBundleFor(cmd *cobra.Command, id string) (*bundle.Bundle, error) {
 		return nil, fmt.Errorf(i18n.T("cmd.bundle.building_session_bundle"), err)
 	}
 	for _, m := range missing {
-		fmt.Fprintf(cmd.ErrOrStderr(), "%s %s\n", theme.WarningStyle.Render(theme.IconWarning), warningText(runsvc.Warning{Code: "mcp_missing", Args: []any{m}}))
+		cliout.Warn(cmd.ErrOrStderr(), warningText(runsvc.Warning{Code: "mcp_missing", Args: []any{m}}))
 	}
 	return b, nil
 }
@@ -208,7 +204,7 @@ func printBundleReport(w io.Writer, name string, r *bundle.Report, budget bool) 
 		return
 	}
 	fmt.Fprintf(w, "\n%s\n", theme.Title.Render(i18n.T("cmd.bundle.show.budget_title")))
-	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+	tw := cliout.Table(w)
 	fmt.Fprintf(tw, "  %s\t%s\t\n", i18n.T("cmd.bundle.show.col_agent"), i18n.T("cmd.bundle.show.col_tokens"))
 	for _, ag := range r.Agents {
 		fmt.Fprintf(tw, "  %s\t%d\t\n", ag.ID, ag.Tokens)
@@ -216,7 +212,7 @@ func printBundleReport(w io.Writer, name string, r *bundle.Report, budget bool) 
 	fmt.Fprintf(tw, "  %s\t%d\t\n", i18n.T("cmd.bundle.show.total"), r.Budget.Agents)
 	_ = tw.Flush()
 	fmt.Fprintln(w)
-	tw = tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+	tw = cliout.Table(w)
 	fmt.Fprintf(tw, "  %s\t%s\t\n", i18n.T("cmd.bundle.show.col_skill"), i18n.T("cmd.bundle.show.col_tokens"))
 	for _, sk := range r.Skills {
 		fmt.Fprintf(tw, "  %s\t%d\t\n", sk.ID, sk.Tokens)

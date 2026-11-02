@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/launcher"
 	"github.com/datichb/openhub/cli/internal/runsvc"
@@ -20,10 +21,9 @@ import (
 )
 
 var runCmd = &cobra.Command{
-	Use:   "run [workflow]",
-	Short: "Lance un workflow (une session par ticket ; sans argument : workflow par défaut du projet)",
-	Args:  cobra.MaximumNArgs(1),
-	RunE:  runWorkflowCmd,
+	Use:  "run [workflow]",
+	Args: cobra.MaximumNArgs(1),
+	RunE: runWorkflowCmd,
 }
 
 func init() {
@@ -34,27 +34,27 @@ func init() {
 // addRunFlags registers the flags of oh run.
 func addRunFlags(c *cobra.Command) {
 	f := c.Flags()
-	f.StringArrayP("input", "i", nil, "Entrée du workflow (clé=valeur, répétable)")
-	f.StringP("message", "m", "", "Demande (raccourci de -i request=…, si le workflow a cette entrée)")
-	f.String("mode", "", "Mode du workflow (manuel, semi-auto, auto)")
+	f.StringArrayP("input", "i", nil, "")
+	f.StringP("message", "m", "", "")
+	f.String("mode", "", "")
 	f.StringP("agent", "a", "", i18n.T("cmd.run.flags.agent"))
 	f.String("runtime", "", i18n.T("cmd.run.flags.runtime"))
-	f.String("location", "", "Emplacement : base, new (nouveau worktree) ou chemin d'un worktree existant")
-	f.Bool("allow-dirty", false, "Lancer quand même dans un dossier modifié (sans worktree ni stash)")
-	f.Bool("stash", false, "Mettre de côté (git stash) les modifications du dossier avant le lancement")
-	f.StringSlice("tickets", nil, "Tickets Beads (une session par ticket si le workflow le permet)")
-	f.String("attach", "", "Ouverture : auto, iterm, terminal, tmux, browser, suspend, none")
-	f.Bool("draft", false, "Utiliser mon brouillon du workflow (local uniquement, sans assouplir la sécurité publiée)")
-	f.Bool("recap", false, "Afficher le récapitulatif et demander confirmation avant le lancement")
+	f.String("location", "", "")
+	f.Bool("allow-dirty", false, "")
+	f.Bool("stash", false, "")
+	f.StringSlice("tickets", nil, "")
+	f.String("attach", "", "")
+	f.Bool("draft", false, "")
+	f.Bool("recap", false, "")
 	f.BoolP("yes", "y", false, i18n.T("cmd.confirm.flags.yes"))
-	f.StringP("project", "p", "", "Projet (détecté depuis le dossier courant)")
-	f.StringP("provider", "P", "", "Fournisseur LLM")
-	f.String("parent", "", "Session précédente (enchaînement)")
-	f.Bool("one-session", false, "Tous les tickets dans une seule session (au lieu d'une session par ticket)")
+	f.StringP("project", "p", "", "")
+	f.StringP("provider", "P", "", "")
+	f.String("parent", "", "")
+	f.Bool("one-session", false, "")
 	f.Bool("dry-run", false, i18n.T("cmd.run.dry_run.flag"))
-	f.Bool("headless", false, "Sans interface : attendre la fin du tour, afficher la réponse, arrêter la session")
-	f.String("output", "", "Avec --headless : écrire la réponse dans ce fichier (défaut : sortie standard)")
-	f.Duration("timeout", 30*time.Minute, "Avec --headless : durée maximale d'attente (0 = aucune)")
+	f.Bool("headless", false, "")
+	f.String("output", "", "")
+	f.Duration("timeout", 30*time.Minute, "")
 	f.String("on-existing", "", i18n.T("cmd.run.flags.on_existing"))
 	f.Bool("discard-base-changes", false, i18n.T("cmd.run.flags.discard_base"))
 }
@@ -161,7 +161,7 @@ func runWorkflowHeadlessCLI(cmd *cobra.Command, opts launch.Options) error {
 		if werr := os.WriteFile(path, []byte(r.Text), 0o600); werr != nil {
 			return werr
 		}
-		fmt.Fprintf(errOut, "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.run.headless_written", path, r.Result.Cost))
+		cliout.Success(errOut, i18n.Tf("cmd.run.headless_written", path, r.Result.Cost))
 	}
 	return err
 }
@@ -290,7 +290,7 @@ func runWorkflowCLI(cmd *cobra.Command, opts launch.Options, recap bool) error {
 func askPreconditionChoice(cmd *cobra.Command, a *app.App, opts launch.Options, p *launch.Prepared) (bool, error) {
 	s := p.Suggestions[0]
 	out := cmd.OutOrStdout()
-	fmt.Fprintf(out, "%s %s\n", theme.WarningStyle.Render(theme.IconWarning), i18n.Tf("cmd.run.warn.precondition", s.Label, s.Workflow))
+	cliout.Warn(out, i18n.Tf("cmd.run.warn.precondition", s.Label, s.Workflow))
 	choice := "first"
 	first := i18n.Tf("cmd.run.precondition_first", s.Workflow)
 	if s.Resume {

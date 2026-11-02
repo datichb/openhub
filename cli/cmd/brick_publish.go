@@ -1,14 +1,13 @@
 package cmd
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
-	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
@@ -51,7 +50,7 @@ func runBrickPublish(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return brickError(errOut, err)
 		}
-		fmt.Fprintf(out, "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.brick.publish.adopted", len(p.Adopted), strings.Join(p.Adopted, ", ")))
+		cliout.Success(out, i18n.Tf("cmd.brick.publish.adopted", len(p.Adopted), strings.Join(p.Adopted, ", ")))
 		return nil
 	}
 	if len(args) != 1 {
@@ -79,9 +78,9 @@ func runBrickPublish(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return brickError(errOut, err)
 	}
-	fmt.Fprintf(out, "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.brick.publish.published", p.Ref.String(), p.Version))
+	cliout.Success(out, i18n.Tf("cmd.brick.publish.published", p.Ref.String(), p.Version))
 	if p.Shadows != "" {
-		fmt.Fprintf(out, "  %s %s\n", theme.WarningStyle.Render(theme.IconWarning), i18n.Tf("cmd.brick.publish.shadows", p.Shadows))
+		fmt.Fprintf(out, "  %s %s\n", cliout.WarnIcon(), i18n.Tf("cmd.brick.publish.shadows", p.Shadows))
 	}
 	return nil
 }
@@ -102,12 +101,10 @@ func brickHistoryCmd() *cobra.Command {
 			}
 			out := cmd.OutOrStdout()
 			if asJSON, _ := cmd.Flags().GetBool("json"); asJSON {
-				enc := json.NewEncoder(out)
-				enc.SetIndent("", "  ")
-				return enc.Encode(versions)
+				return cliout.JSON(out, versions)
 			}
 			fmt.Fprintln(out, theme.Bold.Render(versions[0].Ref.String()))
-			w := tabwriter.NewWriter(out, 0, 4, 2, ' ', 0)
+			w := cliout.Table(out)
 			fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", i18n.T("cmd.workflow.history.col_version"), i18n.T("cmd.workflow.history.col_date"),
 				i18n.T("cmd.workflow.history.col_author"), i18n.T("cmd.workflow.history.col_message"))
 			for _, v := range versions {

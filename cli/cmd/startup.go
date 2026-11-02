@@ -135,11 +135,11 @@ func startupFor(cmd *cobra.Command, args []string) error {
 	}
 	// Former workflow configurations → team-state (v5 phase 2, v38).
 	if cmd.Name() != "init" && cmd.Name() != "purge" {
-		migrateLegacyWorkflowsAtStartup(cmd.Context(), os.Stderr)
+		migrateLegacyWorkflowsAtStartup(cmd.Context(), cmd.ErrOrStderr())
 	}
 	// Former deployments: offered once (the TUI shows its own screen).
 	if offerCleanupFor(cmd) {
-		offerDeployCleanupAtStartup(cmd.Context(), os.Stderr, cmd.Name())
+		offerDeployCleanupAtStartup(cmd.Context(), cmd.ErrOrStderr(), cmd.Name())
 	}
 	return nil
 }

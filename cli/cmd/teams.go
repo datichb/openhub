@@ -5,10 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/textfmt"
@@ -98,7 +98,7 @@ func runTeamsList(cmd *cobra.Command, _ []string) error {
 		return nil
 	}
 
-	w := tabwriter.NewWriter(a.IO.Out, 0, 4, 2, ' ', 0)
+	w := cliout.Table(a.IO.Out)
 	fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
 		theme.Bold.Render(i18n.T("cmd.teams.list.header_id")),
 		theme.Bold.Render(i18n.T("cmd.teams.list.header_name")),
@@ -212,9 +212,7 @@ func runTeamsAdd(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("%s: %w", i18n.T("cmd.teams.save_error"), err)
 	}
 
-	fmt.Fprintf(a.IO.Out, "%s %s\n",
-		theme.SuccessStyle.Render(theme.IconSuccess),
-		i18n.Tf("cmd.teams.add.success", theme.Bold.Render(newTeam.DisplayName())))
+	cliout.Success(a.IO.Out, i18n.Tf("cmd.teams.add.success", theme.Bold.Render(newTeam.DisplayName())))
 	fmt.Fprintf(a.IO.Out, "%s\n", i18n.Tf("cmd.teams.add.detail_id", id))
 	fmt.Fprintf(a.IO.Out, "%s\n", i18n.Tf("cmd.teams.add.detail_repo", repo))
 	fmt.Fprintf(a.IO.Out, "%s\n", i18n.Tf("cmd.teams.add.detail_member", memberID))
@@ -245,9 +243,7 @@ func runTeamsRemove(cmd *cobra.Command, args []string) error {
 			}
 		}
 		if len(attached) > 0 {
-			fmt.Fprintf(a.IO.Out, "%s %s\n",
-				theme.WarningStyle.Render(theme.IconWarning),
-				i18n.Tf("cmd.teams.remove.attached_projects", len(attached)))
+			cliout.Warn(a.IO.Out, i18n.Tf("cmd.teams.remove.attached_projects", len(attached)))
 			for _, name := range attached {
 				fmt.Fprintf(a.IO.Out, "  - %s\n", name)
 			}
@@ -288,9 +284,7 @@ func runTeamsRemove(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	fmt.Fprintf(a.IO.Out, "%s %s\n",
-		theme.SuccessStyle.Render(theme.IconSuccess),
-		i18n.Tf("cmd.teams.remove.success", theme.Bold.Render(teamID)))
+	cliout.Success(a.IO.Out, i18n.Tf("cmd.teams.remove.success", theme.Bold.Render(teamID)))
 
 	return nil
 }
@@ -319,11 +313,9 @@ func runTeamsDetach(_ *cobra.Command, args []string) error {
 		return fmt.Errorf("%s: %w", i18n.T("cmd.teams.detach.error"), err)
 	}
 
-	fmt.Fprintf(a.IO.Out, "%s %s\n",
-		theme.SuccessStyle.Render(theme.IconSuccess),
-		i18n.Tf("cmd.teams.detach.success",
-			theme.Bold.Render(projectName),
-			theme.Bold.Render(teamID)))
+	cliout.Success(a.IO.Out, i18n.Tf("cmd.teams.detach.success",
+		theme.Bold.Render(projectName),
+		theme.Bold.Render(teamID)))
 	return nil
 }
 
@@ -358,11 +350,9 @@ func runTeamsArchive(_ *cobra.Command, args []string) error {
 		return fmt.Errorf("%s: %w", i18n.T("cmd.teams.save_error"), err)
 	}
 
-	fmt.Fprintf(a.IO.Out, "%s %s\n",
-		theme.SuccessStyle.Render(theme.IconSuccess),
-		i18n.Tf("cmd.teams.archive.success",
-			theme.Bold.Render(teamID),
-			theme.Bold.Render("oh teams restore "+teamID)))
+	cliout.Success(a.IO.Out, i18n.Tf("cmd.teams.archive.success",
+		theme.Bold.Render(teamID),
+		theme.Bold.Render("oh teams restore "+teamID)))
 	return nil
 }
 
@@ -397,8 +387,6 @@ func runTeamsRestore(_ *cobra.Command, args []string) error {
 		return fmt.Errorf("%s: %w", i18n.T("cmd.teams.save_error"), err)
 	}
 
-	fmt.Fprintf(a.IO.Out, "%s %s\n",
-		theme.SuccessStyle.Render(theme.IconSuccess),
-		i18n.Tf("cmd.teams.restore.success", theme.Bold.Render(teamID)))
+	cliout.Success(a.IO.Out, i18n.Tf("cmd.teams.restore.success", theme.Bold.Render(teamID)))
 	return nil
 }

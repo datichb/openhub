@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/i18n"
 
 	"github.com/datichb/openhub/cli/internal/buildinfo"
@@ -14,9 +15,8 @@ import (
 )
 
 var upgradeCmd = &cobra.Command{
-	Use:   "upgrade [component]",
-	Short: "Met à jour oh",
-	Long:  i18n.T("cmd.upgrade.long"),
+	Use:  "upgrade [component]",
+	Long: i18n.T("cmd.upgrade.long"),
 }
 
 func init() {
@@ -26,11 +26,7 @@ func init() {
 
 func upgradeOhCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "oh [version]",
-		Short: "Met à jour le binaire oh lui-même",
-		Long: `Télécharge et installe la dernière version du binaire oh en remplacement atomique.
-Fonctionne pour les installations via install.sh ou téléchargement direct.
-Les utilisateurs Homebrew peuvent utiliser: brew upgrade openhub`,
+		Use:  "oh [version]",
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := MustApp()
@@ -61,18 +57,16 @@ Les utilisateurs Homebrew peuvent utiliser: brew upgrade openhub`,
 				if plan.status == versionAhead {
 					msg = i18n.Tf("cmd.upgrade.oh.ahead", current, latest)
 				}
-				fmt.Fprintf(a.IO.Out, "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), msg)
+				cliout.Success(a.IO.Out, msg)
 				return nil
 			}
 			if plan.downgrade {
-				fmt.Fprintf(a.IO.Out, "%s %s\n", theme.WarningStyle.Render(theme.IconWarning),
-					i18n.Tf("cmd.upgrade.oh.downgrade", current, plan.version))
+				cliout.Warn(a.IO.Out, i18n.Tf("cmd.upgrade.oh.downgrade", current, plan.version))
 			}
 
 			if checkOnly {
 				if !plan.downgrade {
-					fmt.Fprintf(a.IO.Out, "%s %s\n", theme.WarningStyle.Render(theme.IconWarning),
-						i18n.Tf("cmd.upgrade.oh.available", current, plan.version))
+					cliout.Warn(a.IO.Out, i18n.Tf("cmd.upgrade.oh.available", current, plan.version))
 					fmt.Fprintf(a.IO.Out, "  %s\n", i18n.T("cmd.upgrade.oh.run_hint"))
 				}
 				return nil
@@ -101,13 +95,13 @@ Les utilisateurs Homebrew peuvent utiliser: brew upgrade openhub`,
 			}
 
 			fmt.Fprintln(a.IO.Out)
-			fmt.Fprintf(a.IO.Out, "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.upgrade.oh.installed", plan.version, binPath))
+			cliout.Success(a.IO.Out, i18n.Tf("cmd.upgrade.oh.installed", plan.version, binPath))
 			fmt.Fprintf(a.IO.Out, "  %s\n", i18n.T("cmd.upgrade.oh.restart"))
 
 			return nil
 		},
 	}
 
-	cmd.Flags().Bool("check", false, "Vérifier uniquement si une mise à jour est disponible")
+	cmd.Flags().Bool("check", false, "")
 	return cmd
 }

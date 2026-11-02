@@ -5,18 +5,17 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"text/tabwriter"
 	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/textfmt"
-	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
 var historyCmd = &cobra.Command{
@@ -45,7 +44,7 @@ func init() {
 	historyCmd.AddCommand(historyImportCmd)
 
 	historyCmd.Flags().Bool("team", false, i18n.T("cmd.history.flags.team"))
-	historyCmd.Flags().Int("limit", 20, "Maximum number of entries")
+	historyCmd.Flags().Int("limit", 20, "")
 
 	historyExportCmd.Flags().String("output", "", i18n.T("cmd.history.export.flags.output"))
 	historyExportCmd.Flags().String("member-id", "", i18n.T("cmd.history.export.flags.member_id"))
@@ -116,7 +115,7 @@ func runHistory(cmd *cobra.Command, _ []string) error {
 		return nil
 	}
 
-	w := tabwriter.NewWriter(a.IO.Out, 0, 0, 2, ' ', 0)
+	w := cliout.Table(a.IO.Out)
 	fmt.Fprintln(w, historyHeader("id", "project", "status", "started", "duration", "member"))
 	for i, s := range sessions {
 		if limit > 0 && i >= limit {
@@ -171,7 +170,7 @@ func runHistoryTeam(ctx context.Context, limit int) error {
 		return nil
 	}
 
-	w := tabwriter.NewWriter(a.IO.Out, 0, 0, 2, ' ', 0)
+	w := cliout.Table(a.IO.Out)
 	fmt.Fprintln(w, historyHeader("date", "project", "duration", "status"))
 	for _, e := range filtered {
 		dur := "—"
@@ -204,7 +203,7 @@ func runHistoryExport(cmd *cobra.Command, _ []string) error {
 		return historyError(err)
 	}
 
-	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.history.exported_sessions_to", theme.SuccessStyle.Render(theme.IconSuccess), n, output))
+	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.history.exported_sessions_to", cliout.SuccessIcon(), n, output))
 	return nil
 }
 
@@ -219,6 +218,6 @@ func runHistoryImport(cmd *cobra.Command, args []string) error {
 		return historyError(err)
 	}
 
-	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.history.imported_sessions", theme.SuccessStyle.Render(theme.IconSuccess), res.Imported, res.Skipped))
+	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.history.imported_sessions", cliout.SuccessIcon(), res.Imported, res.Skipped))
 	return nil
 }

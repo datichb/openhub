@@ -13,10 +13,8 @@ import (
 )
 
 var dashboardCmd = &cobra.Command{
-	Use:   "dashboard",
-	Short: "Affiche le tableau de bord du hub",
-	Long:  "Lance un dashboard interactif affichant les métriques projets, sessions et tokens.",
-	RunE:  runDashboard,
+	Use:  "dashboard",
+	RunE: runDashboard,
 }
 
 func init() {

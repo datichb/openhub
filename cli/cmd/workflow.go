@@ -6,8 +6,7 @@ import (
 
 // workflowCmd groups the workflow commands.
 var workflowCmd = &cobra.Command{
-	Use:   "workflow",
-	Short: "Workflows déclaratifs (oh/v1)",
+	Use: "workflow",
 }
 
 func init() {

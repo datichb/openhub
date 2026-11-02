@@ -1,16 +1,15 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
-	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
@@ -18,14 +17,13 @@ import (
 )
 
 var statusCmd = &cobra.Command{
-	Use:   "status",
-	Short: "Affiche l'état du hub et du projet courant",
-	RunE:  runStatus,
+	Use:  "status",
+	RunE: runStatus,
 }
 
 func init() {
 	rootCmd.AddCommand(statusCmd)
-	statusCmd.Flags().Bool("json", false, "Output in JSON format")
+	statusCmd.Flags().Bool("json", false, "")
 }
 
 func runStatus(cmd *cobra.Command, args []string) error {
@@ -78,7 +76,7 @@ func runStatus(cmd *cobra.Command, args []string) error {
 			CurrentProject: currentProject,
 			Cwd:            cwd,
 		}
-		return json.NewEncoder(os.Stdout).Encode(out)
+		return cliout.JSONCompact(a.IO.Out, out)
 	}
 
 	fmt.Fprintln(a.IO.Out, theme.Title.Render("  oh status  "))
@@ -86,7 +84,7 @@ func runStatus(cmd *cobra.Command, args []string) error {
 
 	// Hub info
 	fmt.Fprintln(a.IO.Out, theme.Bold.Render(i18n.T("cmd.status.title_hub")))
-	w := tabwriter.NewWriter(a.IO.Out, 0, 0, 2, ' ', 0)
+	w := cliout.Table(a.IO.Out)
 	fmt.Fprintf(w, "  %s\t%s\n", i18n.T("cmd.status.config"), config.ConfigPath())
 	fmt.Fprintf(w, "  %s\t%s\n", i18n.T("cmd.status.language"), a.Config.CLI.Language)
 	fmt.Fprintf(w, "  %s\t%s\n", i18n.Tf("cmd.status.tool", toolName()), toolVersion(a))
@@ -100,12 +98,12 @@ func runStatus(cmd *cobra.Command, args []string) error {
 	if currentProject != nil {
 		fmt.Fprintln(a.IO.Out, theme.Bold.Render(i18n.T("cmd.status.title_current")))
 		fmt.Fprintf(a.IO.Out, "  %s %s (%s)\n",
-			theme.SuccessStyle.Render(theme.IconSuccess),
+			cliout.SuccessIcon(),
 			currentProject.Name, currentProject.Language)
 		fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.status.path", currentProject.Path))
 	} else {
 		fmt.Fprintf(a.IO.Out, "  %s %s\n",
-			theme.WarningStyle.Render(theme.IconWarning), i18n.Tf("cmd.status.not_in_project", cwd))
+			cliout.WarnIcon(), i18n.Tf("cmd.status.not_in_project", cwd))
 	}
 
 	return nil

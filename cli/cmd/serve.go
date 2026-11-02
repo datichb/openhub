@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net"
@@ -11,31 +10,20 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
 var serveCmd = &cobra.Command{
-	Use:   "serve",
-	Short: "Lance le dashboard web oh",
-	Long: `Lance un serveur HTTP local exposant le dashboard oh.
-Le dashboard affiche projets, sessions, métriques, télémétrie agent,
-team board (kanban), timeline et membres.
-
-Par défaut le serveur écoute uniquement sur 127.0.0.1 (localhost).
-L'URL affichée au lancement contient un jeton d'accès aléatoire
-(http://127.0.0.1:8080/?token=…) : ouvrez-la telle quelle, ne la partagez pas.
-
-Exemples:
-  oh serve                   Lance sur le port par défaut (8080)
-  oh serve --port 9090       Lance sur un port personnalisé`,
+	Use:  "serve",
 	RunE: runServe,
 }
 
 func init() {
 	rootCmd.AddCommand(serveCmd)
-	serveCmd.Flags().Int("port", 8080, "Port d'écoute")
+	serveCmd.Flags().Int("port", 8080, "")
 }
 
 func runServe(cmd *cobra.Command, args []string) error {
@@ -158,8 +146,7 @@ func runServe(cmd *cobra.Command, args []string) error {
 		// binds exclusively to 127.0.0.1 (no external exposure).
 	}
 
-	fmt.Fprintf(a.IO.Out, "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess),
-		i18n.Tf("cmd.serve.ready", fmt.Sprintf("http://%s/?%s=%s", addr, serveTokenQuery, token)))
+	cliout.Success(a.IO.Out, i18n.Tf("cmd.serve.ready", fmt.Sprintf("http://%s/?%s=%s", addr, serveTokenQuery, token)))
 	fmt.Fprintln(a.IO.Out, theme.Subtitle.Render("  "+i18n.T("cmd.serve.token_hint")))
 	fmt.Fprintln(a.IO.Out, theme.Subtitle.Render("  6 panels: Projets, Sessions+Coûts, Agents, Team Board, Timeline, Members"))
 	fmt.Fprintln(a.IO.Out, theme.Subtitle.Render("  SSE temps réel activé (push toutes les 5s)"))
@@ -199,7 +186,7 @@ func setCORS(w http.ResponseWriter) {
 func writeJSON(w http.ResponseWriter, v interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	setCORS(w)
-	_ = json.NewEncoder(w).Encode(v)
+	_ = cliout.JSONCompact(w, v)
 }
 
 func writeError(w http.ResponseWriter, err error, code int) {
@@ -212,6 +199,6 @@ func writeError(w http.ResponseWriter, err error, code int) {
 	if code < 500 {
 		msg = err.Error()
 	}
-	_ = json.NewEncoder(w).Encode(map[string]string{"error": msg})
+	_ = cliout.JSONCompact(w, map[string]string{"error": msg})
 	slog.Warn("HTTP error", "code", code, "error", err.Error())
 }

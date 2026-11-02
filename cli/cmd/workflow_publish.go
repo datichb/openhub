@@ -7,9 +7,9 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
-	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
 func init() {
@@ -71,7 +71,7 @@ func runWorkflowPublish(cmd *cobra.Command, args []string) error {
 		printPublication(out, p)
 		return nil
 	}
-	fmt.Fprintf(out, "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("teamstate.workflow.cli.published", p.Ref.String(), p.Version))
+	cliout.Success(out, i18n.Tf("teamstate.workflow.cli.published", p.Ref.String(), p.Version))
 	printDiagnostics(out, p.Diagnostics)
 	return nil
 }
@@ -84,7 +84,7 @@ func flushWorkflowQueue(cmd *cobra.Command, svc *workflowsvc.Service, c workflow
 		printPublication(out, p)
 	}
 	for _, e := range errs {
-		fmt.Fprintf(cmd.ErrOrStderr(), "%s %s\n", theme.ErrorStyle.Render(theme.IconError), workflowEditError(cmd.ErrOrStderr(), e))
+		cliout.Error(cmd.ErrOrStderr(), workflowEditError(cmd.ErrOrStderr(), e).Error())
 	}
 	if len(pubs) == 0 && len(errs) == 0 {
 		fmt.Fprintln(out, i18n.T("cmd.workflow.publish.queue_empty"))

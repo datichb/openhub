@@ -1,14 +1,13 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
-	"text/tabwriter"
 
 	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/components/floating"
 	"github.com/datichb/openhub/cli/internal/tui/progress"
@@ -19,7 +18,6 @@ import (
 var worktreeCmd = &cobra.Command{
 	Use:     "worktree",
 	Aliases: []string{"wt"},
-	Short:   "Gestion des git worktrees",
 }
 
 func init() {
@@ -34,7 +32,6 @@ func worktreeListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Aliases: []string{"ls"},
-		Short:   "Liste les worktrees du projet",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := MustApp()
 			cwd, _ := os.Getwd()
@@ -56,7 +53,7 @@ func worktreeListCmd() *cobra.Command {
 				for i, e := range entries {
 					out[i] = wtJSON{Branch: e.Branch, Path: e.Path, Head: e.Head, IsBare: e.IsBare}
 				}
-				return json.NewEncoder(os.Stdout).Encode(out)
+				return cliout.JSONCompact(a.IO.Out, out)
 			}
 
 			if len(entries) == 0 {
@@ -70,7 +67,7 @@ func worktreeListCmd() *cobra.Command {
 				baseBranch = worktree.DetectBaseBranch(cwd)
 			}
 
-			w := tabwriter.NewWriter(a.IO.Out, 0, 0, 2, ' ', 0)
+			w := cliout.Table(a.IO.Out)
 			fmt.Fprintln(w, i18n.T("cmd.worktree.list.header"))
 			for _, e := range entries {
 				head := e.Head
@@ -91,16 +88,14 @@ func worktreeListCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().Bool("json", false, "Output in JSON format")
+	cmd.Flags().Bool("json", false, "")
 	return cmd
 }
 
 func worktreeAddCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "add [branch]",
-		Short: "Crée un nouveau worktree",
-		Long:  "Crée un worktree pour une branche. Lance un wizard si aucune branche n'est fournie.",
-		Args:  cobra.MaximumNArgs(1),
+		Use:  "add [branch]",
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := MustApp()
 			cwd, _ := os.Getwd()
@@ -142,9 +137,7 @@ func worktreeAddCmd() *cobra.Command {
 				return err
 			}
 
-			fmt.Fprintf(a.IO.Out, "%s %s\n",
-				theme.SuccessStyle.Render(theme.IconSuccess),
-				i18n.Tf("cmd.worktree.created", theme.Bold.Render(branch), wtPath))
+			cliout.Success(a.IO.Out, i18n.Tf("cmd.worktree.created", theme.Bold.Render(branch), wtPath))
 			return nil
 		},
 	}
@@ -156,7 +149,6 @@ func worktreeRemoveCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "remove [path]",
 		Aliases: []string{"rm"},
-		Short:   "Supprime un worktree",
 		Args:    cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := MustApp()
@@ -207,14 +199,12 @@ func worktreeRemoveCmd() *cobra.Command {
 				return err
 			}
 
-			fmt.Fprintf(a.IO.Out, "%s %s\n",
-				theme.SuccessStyle.Render(theme.IconSuccess),
-				i18n.Tf("cmd.worktree.removed", wtPath))
+			cliout.Success(a.IO.Out, i18n.Tf("cmd.worktree.removed", wtPath))
 			return nil
 		},
 	}
 
-	cmd.Flags().BoolVarP(&force, "force", "f", false, "Forcer la suppression")
+	cmd.Flags().BoolVarP(&force, "force", "f", false, "")
 	return cmd
 }
 
@@ -223,11 +213,7 @@ func worktreeCleanupCmd() *cobra.Command {
 	var force bool
 
 	cmd := &cobra.Command{
-		Use:   "cleanup",
-		Short: "Supprime les worktrees dont la branche est mergée",
-		Long: `Supprime automatiquement tous les worktrees dont la branche est entièrement
-mergée dans la branche de base (main par défaut). Utilise "git branch --merged"
-pour la détection.`,
+		Use: "cleanup",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := MustApp()
 			cwd, _ := os.Getwd()
@@ -298,9 +284,7 @@ pour la détection.`,
 			}
 
 			if len(cleanupResult.Removed) > 0 {
-				fmt.Fprintf(a.IO.Out, "%s %s\n",
-					theme.SuccessStyle.Render(theme.IconSuccess),
-					i18n.Tf("cmd.worktree.cleanup_done", len(cleanupResult.Removed)))
+				cliout.Success(a.IO.Out, i18n.Tf("cmd.worktree.cleanup_done", len(cleanupResult.Removed)))
 				for _, branch := range cleanupResult.Removed {
 					fmt.Fprintf(a.IO.Out, "    %s %s\n", theme.Subtitle.Render("·"), branch)
 				}
@@ -319,8 +303,8 @@ pour la détection.`,
 		},
 	}
 
-	cmd.Flags().StringVarP(&baseBranch, "base", "b", "", "Branche de base pour la détection (défaut: auto-detect)")
-	cmd.Flags().BoolVarP(&force, "force", "f", false, "Also remove worktrees with uncommitted changes (asks no confirmation)")
+	cmd.Flags().StringVarP(&baseBranch, "base", "b", "", "")
+	cmd.Flags().BoolVarP(&force, "force", "f", false, "")
 	addYesFlag(cmd)
 	return cmd
 }

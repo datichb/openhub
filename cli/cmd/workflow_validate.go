@@ -2,13 +2,13 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
@@ -17,9 +17,8 @@ import (
 
 func workflowValidateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "validate [<file>|<id>|<layer>:<id>]",
-		Short: "Valide un workflow (fichier ou identifiant du catalogue)",
-		Args:  cobra.MaximumNArgs(1),
+		Use:  "validate [<file>|<id>|<layer>:<id>]",
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			layer, _ := cmd.Flags().GetString("layer")
 			asJSON, _ := cmd.Flags().GetBool("json")
@@ -42,9 +41,9 @@ func workflowValidateCmd() *cobra.Command {
 			return printWorkflowValidate(cmd.OutOrStdout(), report, asJSON)
 		},
 	}
-	cmd.Flags().String("layer", string(workflow.LayerHub), "Couche du fichier validé (hub, team, project)")
-	cmd.Flags().Bool("json", false, "Sortie JSON")
-	cmd.Flags().Bool("all", false, "Valide tous les workflows du hub")
+	cmd.Flags().String("layer", string(workflow.LayerHub), "")
+	cmd.Flags().Bool("json", false, "")
+	cmd.Flags().Bool("all", false, "")
 	cmd.Flags().String("project", "", i18n.T("teamstate.workflow.flag_project"))
 	cmd.Flags().String("team", "", i18n.T("teamstate.workflow.cli.flag_team"))
 	return cmd
@@ -77,9 +76,7 @@ func runWorkflowValidate(hubDir, target string, layer workflow.Layer, all bool, 
 func printWorkflowValidate(w io.Writer, r *workflowValidateReport, asJSON bool) error {
 	errs, warns := r.Counts()
 	if asJSON {
-		enc := json.NewEncoder(w)
-		enc.SetIndent("", "  ")
-		if err := enc.Encode(r); err != nil {
+		if err := cliout.JSON(w, r); err != nil {
 			return err
 		}
 	} else {
@@ -107,9 +104,9 @@ func printWorkflowValidate(w io.Writer, r *workflowValidateReport, asJSON bool) 
 				ref = i18n.Tf("cmd.workflow.validate.draft_ref", wf.Ref)
 			}
 			if wf.Valid {
-				fmt.Fprintf(w, "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.workflow.validate.valid", ref))
+				cliout.Success(w, i18n.Tf("cmd.workflow.validate.valid", ref))
 			} else {
-				fmt.Fprintf(w, "%s %s\n", theme.ErrorStyle.Render(theme.IconError), i18n.Tf("cmd.workflow.validate.invalid", ref))
+				cliout.Error(w, i18n.Tf("cmd.workflow.validate.invalid", ref))
 			}
 		}
 		if len(r.Workflows) == 0 {

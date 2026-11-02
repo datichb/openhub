@@ -7,11 +7,11 @@ import (
 	"io"
 	"path/filepath"
 	"strings"
-	"text/tabwriter"
 	"time"
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	mcpwiki "github.com/datichb/openhub/cli/internal/mcp/wiki"
@@ -117,7 +117,7 @@ func runWikiCheck(cmd *cobra.Command, args []string) error {
 		return wikiError(root, err)
 	}
 	if asJSON, _ := cmd.Flags().GetBool("json"); asJSON {
-		if err := writeIndentedJSON(out, rep); err != nil {
+		if err := cliout.JSON(out, rep); err != nil {
 			return err
 		}
 	} else {
@@ -163,7 +163,7 @@ func runWikiStats(cmd *cobra.Command, args []string) error {
 	}
 	out := cmd.OutOrStdout()
 	if asJSON, _ := cmd.Flags().GetBool("json"); asJSON {
-		return writeIndentedJSON(out, m)
+		return cliout.JSON(out, m)
 	}
 	printWikiMetrics(out, m)
 	return nil
@@ -244,7 +244,7 @@ func runWikiPending(cmd *cobra.Command, args []string) error {
 		for _, p := range list {
 			rows = append(rows, row{ID: p.ID(), WikiProposal: p})
 		}
-		return writeIndentedJSON(out, rows)
+		return cliout.JSON(out, rows)
 	}
 	printWikiProposals(out, list)
 	return nil
@@ -275,7 +275,7 @@ func printWikiProposals(w io.Writer, list []domain.WikiProposal) {
 	for _, p := range list {
 		reasons = reasons || p.Reason != ""
 	}
-	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+	tw := cliout.Table(w)
 	header := i18n.T("cmd.wiki.pending.header")
 	if reasons {
 		header += "\t" + i18n.T("cmd.wiki.pending.header_reason")

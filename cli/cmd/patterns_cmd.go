@@ -9,6 +9,7 @@ import (
 	"github.com/rivo/tview"
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
@@ -16,44 +17,36 @@ import (
 )
 
 var patternsCmd = &cobra.Command{
-	Use:   "patterns",
-	Short: "Gestion de la bibliothèque de patterns",
-	Long: `Affiche, crée et gère les patterns de décomposition réutilisables.
-Les patterns sont stockés dans le team-state et partagés entre tous les membres.`,
+	Use: "patterns",
 }
 
 var patternsListCmd = &cobra.Command{
-	Use:   "list",
-	Short: "Liste les patterns disponibles",
-	RunE:  runPatternsList,
+	Use:  "list",
+	RunE: runPatternsList,
 }
 
 var patternsShowCmd = &cobra.Command{
-	Use:   "show <name>",
-	Short: "Affiche le contenu d'un pattern",
-	Args:  cobra.ExactArgs(1),
-	RunE:  runPatternsShow,
+	Use:  "show <name>",
+	Args: cobra.ExactArgs(1),
+	RunE: runPatternsShow,
 }
 
 var patternsAddCmd = &cobra.Command{
-	Use:   "add [file]",
-	Short: "Ajoute un pattern (interactif ou depuis un fichier)",
-	Args:  cobra.MaximumNArgs(1),
-	RunE:  runPatternsAdd,
+	Use:  "add [file]",
+	Args: cobra.MaximumNArgs(1),
+	RunE: runPatternsAdd,
 }
 
 var patternsValidateCmd = &cobra.Command{
-	Use:   "validate <name>",
-	Short: "Valide un pattern proposé par un agent",
-	Args:  cobra.ExactArgs(1),
-	RunE:  runPatternsValidate,
+	Use:  "validate <name>",
+	Args: cobra.ExactArgs(1),
+	RunE: runPatternsValidate,
 }
 
 var patternsRemoveCmd = &cobra.Command{
-	Use:   "remove <name>",
-	Short: "Supprime un pattern",
-	Args:  cobra.ExactArgs(1),
-	RunE:  runPatternsRemove,
+	Use:  "remove <name>",
+	Args: cobra.ExactArgs(1),
+	RunE: runPatternsRemove,
 }
 
 func init() {
@@ -64,8 +57,8 @@ func init() {
 	patternsCmd.AddCommand(patternsValidateCmd)
 	patternsCmd.AddCommand(patternsRemoveCmd)
 
-	patternsListCmd.Flags().StringSlice("tags", nil, "Filter by tags")
-	patternsListCmd.Flags().Bool("all", false, "Show unvalidated patterns too")
+	patternsListCmd.Flags().StringSlice("tags", nil, "")
+	patternsListCmd.Flags().Bool("all", false, "")
 }
 
 func runPatternsList(cmd *cobra.Command, args []string) error {
@@ -105,9 +98,9 @@ func runPatternsList(cmd *cobra.Command, args []string) error {
 			continue
 		}
 
-		icon := theme.SuccessStyle.Render(theme.IconSuccess)
+		icon := cliout.SuccessIcon()
 		if !p.Validated {
-			icon = theme.WarningStyle.Render(theme.IconWarning)
+			icon = cliout.WarnIcon()
 		}
 
 		tagsStr := strings.Join(p.Tags, ", ")
@@ -264,7 +257,7 @@ func runPatternsAdd(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(i18n.T("cmd.patterns_cmd.committing_pattern"), err)
 	}
 
-	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.patterns_cmd.pattern_added", theme.SuccessStyle.Render(theme.IconSuccess), name))
+	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.patterns_cmd.pattern_added", cliout.SuccessIcon(), name))
 	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.patterns_cmd.to_see_the_content", theme.Bold.Render("oh patterns show "+name)))
 	return nil
 }
@@ -288,7 +281,7 @@ func runPatternsValidate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(i18n.T("cmd.patterns_cmd.committing_validation"), err)
 	}
 
-	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.patterns.validated", theme.SuccessStyle.Render(theme.IconSuccess), name))
+	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.patterns.validated", cliout.SuccessIcon(), name))
 	return nil
 }
 
@@ -311,6 +304,6 @@ func runPatternsRemove(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(i18n.T("cmd.patterns_cmd.committing_removal"), err)
 	}
 
-	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.patterns.deleted", theme.SuccessStyle.Render(theme.IconSuccess), name))
+	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.patterns.deleted", cliout.SuccessIcon(), name))
 	return nil
 }

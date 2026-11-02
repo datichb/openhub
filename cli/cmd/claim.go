@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/textfmt"
@@ -66,9 +67,7 @@ func runClaim(cmd *cobra.Command, args []string) error {
 
 	// Pull latest state to avoid conflicts and stale WIP checks
 	if pullErr := repo.Pull(ctx); pullErr != nil {
-		fmt.Fprintf(a.IO.ErrOut, "%s %s\n",
-			theme.WarningStyle.Render(theme.IconWarning),
-			i18n.T("cmd.claim.sync_failed"))
+		cliout.Warn(a.IO.ErrOut, i18n.T("cmd.claim.sync_failed"))
 	}
 
 	ticketID := args[0]
@@ -112,8 +111,7 @@ func runClaim(cmd *cobra.Command, args []string) error {
 				return fmt.Errorf(i18n.T("cmd.claim.policy_violation"), v.Name)
 			}
 			// Warn only
-			fmt.Fprintf(a.IO.Out, "%s %s\n",
-				theme.WarningStyle.Render(theme.IconWarning), v.Message)
+			cliout.Warn(a.IO.Out, v.Message)
 			fmt.Fprintf(a.IO.Out, "  %s\n\n", theme.Subtitle.Render(v.Details))
 		}
 	}
@@ -153,9 +151,7 @@ func runClaim(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(i18n.T("cmd.claim.creating_claim"), err)
 	}
 
-	fmt.Fprintf(a.IO.Out, "%s %s\n",
-		theme.SuccessStyle.Render(theme.IconSuccess),
-		i18n.Tf("cmd.claim.success", project, ticketID, memberID))
+	cliout.Success(a.IO.Out, i18n.Tf("cmd.claim.success", project, ticketID, memberID))
 
 	// Emit team event (best-effort, do not block on error).
 	_ = repo.AppendEvent(ctx, teamstate.Event{
@@ -197,12 +193,10 @@ func claimExists(cmd *cobra.Command, a *app.App, repo *teamstate.Repo, existing 
 			if expired {
 				key = "cmd.claims.own_renewed"
 			}
-			fmt.Fprintf(a.IO.Out, "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess),
-				i18n.Tf(key, project, ticketID, textfmt.DateTime(end)))
+			cliout.Success(a.IO.Out, i18n.Tf(key, project, ticketID, textfmt.DateTime(end)))
 			return nil
 		case errors.Is(err, teamstate.ErrNoLease):
-			fmt.Fprintf(a.IO.Out, "%s %s\n", theme.WarningStyle.Render(theme.IconWarning),
-				i18n.Tf("cmd.claims.own_no_lease", project, ticketID))
+			cliout.Warn(a.IO.Out, i18n.Tf("cmd.claims.own_no_lease", project, ticketID))
 			return nil
 		default:
 			return fmt.Errorf(i18n.T("cmd.claim.creating_claim"), err)
@@ -214,12 +208,10 @@ func claimExists(cmd *cobra.Command, a *app.App, repo *teamstate.Repo, existing 
 	}
 
 	// Not expired — standard warning
-	fmt.Fprintf(a.IO.Out, "%s %s\n",
-		theme.WarningStyle.Render(theme.IconWarning),
-		i18n.Tf("cmd.claim.already_taken",
-			project, ticketID,
-			theme.Bold.Render(existing.ClaimedBy),
-			textfmt.ShortDateTime(existing.ClaimedAt)))
+	cliout.Warn(a.IO.Out, i18n.Tf("cmd.claim.already_taken",
+		project, ticketID,
+		theme.Bold.Render(existing.ClaimedBy),
+		textfmt.ShortDateTime(existing.ClaimedAt)))
 	if existing.InReview() {
 		fmt.Fprintln(a.IO.Out, i18n.T("cmd.claims.in_review"))
 	}
@@ -247,15 +239,13 @@ func takeOverExpiredClaim(cmd *cobra.Command, a *app.App, repo *teamstate.Repo, 
 	reason := "stale"
 	if !existing.LeaseUntil.IsZero() {
 		reason = "expired"
-		fmt.Fprintf(a.IO.Out, "%s %s\n", theme.WarningStyle.Render(theme.IconWarning),
-			i18n.Tf("cmd.claims.expired.lease", project, ticketID, theme.Bold.Render(previousOwner), textfmt.DateTime(existing.LeaseUntil.Time())))
+		cliout.Warn(a.IO.Out, i18n.Tf("cmd.claims.expired.lease", project, ticketID, theme.Bold.Render(previousOwner), textfmt.DateTime(existing.LeaseUntil.Time())))
 	} else {
 		since := existing.ClaimedAt
 		if !existing.LastActivity.IsZero() {
 			since = existing.LastActivity.Time()
 		}
-		fmt.Fprintf(a.IO.Out, "%s %s\n", theme.WarningStyle.Render(theme.IconWarning),
-			i18n.Tf("cmd.claim.stale_warning", project, ticketID, theme.Bold.Render(previousOwner), int(time.Since(since).Hours()/24)))
+		cliout.Warn(a.IO.Out, i18n.Tf("cmd.claim.stale_warning", project, ticketID, theme.Bold.Render(previousOwner), int(time.Since(since).Hours()/24)))
 	}
 	ok, err := confirmActionWith(cmd,
 		i18n.Tf("cmd.claims.expired.question", project, ticketID, previousOwner),
@@ -273,14 +263,13 @@ func takeOverExpiredClaim(cmd *cobra.Command, a *app.App, repo *teamstate.Repo, 
 		if err := repo.SaveBrief(ctx, brief); err != nil {
 			slog.Warn("brief not saved", "ticket", ticketID, "error", err)
 		} else {
-			fmt.Fprintf(a.IO.Out, "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.T("cmd.claim.brief_generated"))
+			cliout.Success(a.IO.Out, i18n.T("cmd.claim.brief_generated"))
 		}
 	}
 	if err := repo.TransferClaim(ctx, project, ticketID, memberID); err != nil {
 		return fmt.Errorf(i18n.T("cmd.claim.transferring_claim"), err)
 	}
-	fmt.Fprintf(a.IO.Out, "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess),
-		i18n.Tf("cmd.claim.transferred_from_to", project, ticketID, previousOwner, memberID))
+	cliout.Success(a.IO.Out, i18n.Tf("cmd.claim.transferred_from_to", project, ticketID, previousOwner, memberID))
 	return nil
 }
 
@@ -301,17 +290,13 @@ func runRelease(cmd *cobra.Command, args []string) error {
 
 	if err := repo.ReleaseClaim(ctx, project, ticketID); err != nil {
 		if err == teamstate.ErrClaimNotFound {
-			fmt.Fprintf(a.IO.Out, "%s %s\n",
-				theme.WarningStyle.Render(theme.IconWarning),
-				i18n.Tf("cmd.release.not_found", project, ticketID))
+			cliout.Warn(a.IO.Out, i18n.Tf("cmd.release.not_found", project, ticketID))
 			return nil
 		}
 		return fmt.Errorf(i18n.T("cmd.claim.releasing_claim"), err)
 	}
 
-	fmt.Fprintf(a.IO.Out, "%s %s\n",
-		theme.SuccessStyle.Render(theme.IconSuccess),
-		i18n.Tf("cmd.release.success", project, ticketID))
+	cliout.Success(a.IO.Out, i18n.Tf("cmd.release.success", project, ticketID))
 
 	_ = repo.AppendEvent(ctx, teamstate.Event{
 		Actor:   a.Config.ActiveTeam().MemberID,
@@ -348,17 +333,13 @@ func runClaimTransfer(cmd *cobra.Command, args []string) error {
 
 	if err := repo.TransferClaim(ctx, project, ticketID, to); err != nil {
 		if err == teamstate.ErrClaimNotFound {
-			fmt.Fprintf(a.IO.Out, "%s %s\n",
-				theme.WarningStyle.Render(theme.IconWarning),
-				i18n.Tf("cmd.claim.transfer.not_found", project, ticketID))
+			cliout.Warn(a.IO.Out, i18n.Tf("cmd.claim.transfer.not_found", project, ticketID))
 			return nil
 		}
 		return fmt.Errorf(i18n.T("cmd.claim.transferring_claim"), err)
 	}
 
-	fmt.Fprintf(a.IO.Out, "%s %s\n",
-		theme.SuccessStyle.Render(theme.IconSuccess),
-		i18n.Tf("cmd.claim.transfer.success", project, ticketID, theme.Bold.Render(to)))
+	cliout.Success(a.IO.Out, i18n.Tf("cmd.claim.transfer.success", project, ticketID, theme.Bold.Render(to)))
 
 	// Generate takeover brief automatically
 	if previousOwner != "" {
@@ -368,19 +349,13 @@ func runClaimTransfer(cmd *cobra.Command, args []string) error {
 
 		brief, err := repo.GenerateRawBrief(ctx, project, ticketID, previousOwner, to, "transfer")
 		if err != nil {
-			fmt.Fprintf(a.IO.Out, "%s %s\n",
-				theme.WarningStyle.Render(theme.IconWarning),
-				i18n.Tf("cmd.claim.transfer.brief_error", err))
+			cliout.Warn(a.IO.Out, i18n.Tf("cmd.claim.transfer.brief_error", err))
 		} else {
 			if err := repo.SaveBrief(ctx, brief); err != nil {
-				fmt.Fprintf(a.IO.Out, "%s %s\n",
-					theme.WarningStyle.Render(theme.IconWarning),
-					i18n.Tf("cmd.claim.transfer.brief_save_error", err))
+				cliout.Warn(a.IO.Out, i18n.Tf("cmd.claim.transfer.brief_save_error", err))
 			} else {
-				fmt.Fprintf(a.IO.Out, "%s %s\n",
-					theme.SuccessStyle.Render(theme.IconSuccess),
-					i18n.Tf("cmd.claim.transfer.brief_done",
-						theme.Subtitle.Render("oh takeover-brief show "+ticketID)))
+				cliout.Success(a.IO.Out, i18n.Tf("cmd.claim.transfer.brief_done",
+					theme.Subtitle.Render("oh takeover-brief show "+ticketID)))
 			}
 		}
 	}

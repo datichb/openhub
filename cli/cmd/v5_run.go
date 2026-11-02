@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/bundle"
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/launcher"
@@ -85,7 +85,7 @@ func afterStart(ctx context.Context, a *app.App, svc *runsvc.Service, ui launche
 		err := runAttachInline(ctx, a, svc, ui, res.SessionID)
 		if err == nil && first {
 			// R5: the client is closed; propose what follows (never launched).
-			printNextSteps(ctx, a, os.Stdout, res.SessionID)
+			printNextSteps(ctx, a, a.IO.Out, res.SessionID)
 		}
 		return err
 	default:
@@ -202,13 +202,13 @@ func printRunRecap(w io.Writer, p *launch.Prepared) {
 		fmt.Fprintf(w, "  %-14s %s\n", r[0], r[1])
 	}
 	for _, wr := range warns {
-		fmt.Fprintf(w, "  %s %s\n", theme.WarningStyle.Render(theme.IconWarning), wr)
+		fmt.Fprintf(w, "  %s %s\n", cliout.WarnIcon(), wr)
 	}
 }
 
 func printRunWarnings(w io.Writer, warns []runsvc.Warning) {
 	for _, wr := range warns {
-		fmt.Fprintf(w, "  %s %s\n", theme.WarningStyle.Render(theme.IconWarning), warningText(wr))
+		fmt.Fprintf(w, "  %s %s\n", cliout.WarnIcon(), warningText(wr))
 	}
 }
 

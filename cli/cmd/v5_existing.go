@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"io"
 	"strings"
-	"text/tabwriter"
 
 	"github.com/charmbracelet/huh"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/glyph"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/runsvc"
@@ -47,8 +47,8 @@ func existingRecapRows(plan *runsvc.RunPlan) [][2]string {
 func printExistingTable(w io.Writer, plan *runsvc.RunPlan) {
 	for _, e := range plan.Existing {
 		ps := plan.Sessions[e.Planned]
-		fmt.Fprintf(w, "\n%s %s\n", theme.WarningStyle.Render(theme.IconWarning), i18n.Tf("cmd.run.existing.title", e.ID, strings.Join(e.Shared, ", ")))
-		tw := tabwriter.NewWriter(w, 2, 4, 2, ' ', 0)
+		fmt.Fprintf(w, "\n%s %s\n", cliout.WarnIcon(), i18n.Tf("cmd.run.existing.title", e.ID, strings.Join(e.Shared, ", ")))
+		tw := cliout.Table(w)
 		fmt.Fprintf(tw, "  \t%s\t%s\n", i18n.T("cmd.run.existing.col.existing"), i18n.T("cmd.run.existing.col.new"))
 		req := plan.Request
 		row := func(field, existing, planned string) {
@@ -175,7 +175,7 @@ func confirmDelete(ctx context.Context, out io.Writer, svc *runsvc.Service, id, 
 // printDeletePlan lists what a deletion removes and loses.
 func printDeletePlan(w io.Writer, p *runsvc.DeletePlan, discardBase bool) {
 	fmt.Fprintln(w, i18n.Tf("cmd.session.delete.plan_title", p.SessionID))
-	for _, l := range deletePlanLines(p, discardBase, theme.WarningStyle.Render(theme.IconWarning), "cmd.session.delete.base_changes") {
+	for _, l := range deletePlanLines(p, discardBase, cliout.WarnIcon(), "cmd.session.delete.base_changes") {
 		fmt.Fprintln(w, l)
 	}
 }
@@ -293,6 +293,6 @@ func resolveExistingChoice(ctx context.Context, out io.Writer, p *launch.Prepare
 // askTransferFallback offers to keep the work in a new session when a
 // transfer failed (the session is unchanged).
 func askTransferFallback(out io.Writer, te *runsvc.TransferError) (bool, error) {
-	fmt.Fprintf(out, "%s %s\n", theme.WarningStyle.Render(theme.IconWarning), i18n.Tf("cmd.run.existing.transfer_failed", te.SessionID, te.Err.Error()))
+	cliout.Warn(out, i18n.Tf("cmd.run.existing.transfer_failed", te.SessionID, te.Err.Error()))
 	return confirmPrompt(i18n.T("cmd.run.existing.transfer_fallback"), "", true)
 }

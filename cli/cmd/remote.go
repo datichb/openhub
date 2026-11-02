@@ -9,6 +9,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/buildinfo"
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	remotesvc "github.com/datichb/openhub/cli/internal/services/remote"
@@ -44,13 +45,13 @@ func newRemoteService(a *app.App) *remotesvc.Service {
 func remoteStepIcon(s remotesvc.StepStatus) string {
 	switch s {
 	case remotesvc.StepOK:
-		return theme.SuccessStyle.Render(theme.IconSuccess)
+		return cliout.SuccessIcon()
 	case remotesvc.StepCreated, remotesvc.StepUpdated:
 		return theme.SuccessStyle.Render("+")
 	case remotesvc.StepWarn:
-		return theme.WarningStyle.Render(theme.IconWarning)
+		return cliout.WarnIcon()
 	case remotesvc.StepFailed:
-		return theme.ErrorStyle.Render(theme.IconError)
+		return cliout.ErrorIcon()
 	default:
 		return theme.IconSkipped
 	}

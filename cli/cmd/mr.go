@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/gitlabapi"
@@ -93,19 +94,16 @@ func runReviewPublish(cmd *cobra.Command) error {
 		return fmt.Errorf("%s: %w", i18n.T("cmd.review.publish.create_failed"), err)
 	}
 
-	fmt.Fprintf(a.IO.Out, "%s %s\n",
-		theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.review.publish.created", theme.Bold.Render(mr.WebURL)))
+	cliout.Success(a.IO.Out, i18n.Tf("cmd.review.publish.created", theme.Bold.Render(mr.WebURL)))
 	fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.review.publish.title", mr.Title))
 
 	// Assign reviewer if requested.
 	reviewerFlag, _ := cmd.Flags().GetString("reviewer")
 	if reviewerFlag != "" {
 		if err := assignReviewer(ctx, a, project, gl, glProject, mr.IID, reviewerFlag); err != nil {
-			fmt.Fprintf(a.IO.Out, "%s %s\n",
-				theme.WarningStyle.Render(theme.IconWarning), i18n.Tf("cmd.review.publish.assign_failed", err))
+			cliout.Warn(a.IO.Out, i18n.Tf("cmd.review.publish.assign_failed", err))
 		} else {
-			fmt.Fprintf(a.IO.Out, "%s %s\n",
-				theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.review.publish.assigned", theme.Bold.Render(reviewerFlag)))
+			cliout.Success(a.IO.Out, i18n.Tf("cmd.review.publish.assigned", theme.Bold.Render(reviewerFlag)))
 		}
 	}
 
@@ -116,7 +114,7 @@ func runReviewPublish(cmd *cobra.Command) error {
 
 	fmt.Fprintln(a.IO.Out)
 	fmt.Fprintf(a.IO.Out, "  %s %s\n",
-		theme.WarningStyle.Render(theme.IconWarning), i18n.T("cmd.review.publish.manual_merge"))
+		cliout.WarnIcon(), i18n.T("cmd.review.publish.manual_merge"))
 
 	return nil
 }

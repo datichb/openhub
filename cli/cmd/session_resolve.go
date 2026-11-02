@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	remotesvc "github.com/datichb/openhub/cli/internal/services/remote"
 	"github.com/datichb/openhub/cli/internal/termtext"
@@ -39,9 +40,9 @@ func printReplayPlan(w io.Writer, p *remotesvc.ReplayPlan) {
 		icon := theme.IconPending
 		switch it.State {
 		case remotesvc.ItemApplied:
-			icon = theme.SuccessStyle.Render(theme.IconSuccess)
+			icon = cliout.SuccessIcon()
 		case remotesvc.ItemRefused, remotesvc.ItemFailed:
-			icon = theme.ErrorStyle.Render(theme.IconError)
+			icon = cliout.ErrorIcon()
 		case remotesvc.ItemSkipped:
 			icon = theme.IconSkipped
 		}
@@ -57,7 +58,7 @@ func printReplayPlan(w io.Writer, p *remotesvc.ReplayPlan) {
 		fmt.Fprintln(w, line)
 	}
 	for _, c := range p.Conflicts {
-		fmt.Fprintf(w, "%s %s\n", theme.WarningStyle.Render(theme.IconWarning), i18n.Tf("cmd.session.resolve.conflict", termtext.Clean(c.Ticket), termtext.Clean(c.Title)))
+		cliout.Warn(w, i18n.Tf("cmd.session.resolve.conflict", termtext.Clean(c.Ticket), termtext.Clean(c.Title)))
 		for _, f := range c.Fields {
 			fmt.Fprintf(w, "    %s : %s\n", termtext.Clean(f.Field), i18n.Tf("cmd.session.resolve.field", termtext.Clean(f.Local), termtext.Clean(f.Remote), termtext.Clean(f.Snapshot)))
 		}
@@ -166,6 +167,6 @@ func runSessionResolve(cmd *cobra.Command, args []string) error {
 	if failed > 0 {
 		return errors.New(i18n.Tf("cmd.session.resolve.failed", failed, id))
 	}
-	fmt.Fprintf(out, "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.T("cmd.session.resolve.done"))
+	cliout.Success(out, i18n.T("cmd.session.resolve.done"))
 	return nil
 }

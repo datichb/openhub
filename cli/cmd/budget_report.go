@@ -2,16 +2,15 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"text/tabwriter"
 	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/textfmt"
@@ -24,14 +23,13 @@ const defaultReportSince = "30d"
 
 func init() {
 	report := &cobra.Command{
-		Use:   "report",
-		Short: "Dépenses par projet ou par workflow sur une période (sessions supprimées sous « inconnu »)",
-		Args:  cobra.NoArgs,
-		RunE:  runBudgetReport,
+		Use:  "report",
+		Args: cobra.NoArgs,
+		RunE: runBudgetReport,
 	}
-	report.Flags().String("by", string(domain.UsageByProject), "Regroupement : project ou workflow")
-	report.Flags().String("since", defaultReportSince, "Période : 7d, 12h… (0 = depuis toujours)")
-	report.Flags().Bool("json", false, "Sortie JSON")
+	report.Flags().String("by", string(domain.UsageByProject), "")
+	report.Flags().String("since", defaultReportSince, "")
+	report.Flags().Bool("json", false, "")
 	budgetCmd.AddCommand(report)
 }
 
@@ -74,9 +72,7 @@ func runBudgetReport(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 	if asJSON {
-		enc := json.NewEncoder(cmd.OutOrStdout())
-		enc.SetIndent("", "  ")
-		return enc.Encode(rep)
+		return cliout.JSON(cmd.OutOrStdout(), rep)
 	}
 	printBudgetReport(cmd.OutOrStdout(), rep)
 	return nil
@@ -117,7 +113,7 @@ func printBudgetReport(out io.Writer, rep *budgetSpendReport) {
 		fmt.Fprintln(out, i18n.T("cmd.budget.report.empty"))
 		return
 	}
-	tw := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
+	tw := cliout.Table(out)
 	fmt.Fprintln(tw, i18n.T("cmd.budget.report.header."+rep.By))
 	for _, g := range rep.Groups {
 		fmt.Fprintf(tw, "%s\t%d\t%s\t%d\t%d\n", g.Label, g.Sessions, textfmt.Cost(g.CostUSD), g.TokensIn, g.TokensOut)

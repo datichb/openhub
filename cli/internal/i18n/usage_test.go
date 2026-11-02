@@ -220,8 +220,9 @@ func dynamicKeyPrefix(lit string) string {
 // with a literal of the code that looks like a key and that the code
 // completes at run time (i18n.T("prefix." + x), i18n.T(key + "_eta")).
 // The keys of the help of the commands (cmd.<command>.short|long|flags.*)
-// are read by convention from the command tree (localizeCommands) and are
-// not checked here.
+// are read by convention from the command tree (localizeCommands), which this
+// package cannot import: cmd.TestNoOrphanHelpKeys checks them against the tree
+// (and against the code, for the ones it names).
 func TestNoOrphanKeys(t *testing.T) {
 	data, err := localeFS.ReadFile("locales/en.json")
 	require.NoError(t, err)

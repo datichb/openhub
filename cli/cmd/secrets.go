@@ -12,6 +12,7 @@ import (
 	"golang.org/x/term"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/glyph"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/storage/keychain"
@@ -23,17 +24,7 @@ import (
 // ─────────────────────────────────────────────────────────────────────────────
 
 var secretsCmd = &cobra.Command{
-	Use:   "secrets",
-	Short: "Gérer les secrets (tokens, clés API)",
-	Long: `Gérer les secrets stockés dans le keychain système (ou fichier chiffré en fallback).
-
-Les secrets sont référencés par nom dans hub.toml (token_key) et résolus au runtime.
-Ils peuvent être stockés en portée globale (partagés entre projets) ou par projet.
-
-Résolution cascade lors de l'utilisation :
-  1. Secret de portée projet (si dans un répertoire projet)
-  2. Secret de portée globale
-  3. Variable d'environnement correspondante`,
+	Use: "secrets",
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -41,16 +32,7 @@ Résolution cascade lors de l'utilisation :
 // ─────────────────────────────────────────────────────────────────────────────
 
 var secretsSetCmd = &cobra.Command{
-	Use:   "set <key>",
-	Short: "Stocker un secret dans le keychain",
-	Long: `Stocke une valeur secrète dans le keychain système sous le nom <key>.
-
-La portée est déterminée automatiquement :
-  - Si dans un répertoire projet enregistré → portée projet (prioritaire)
-  - Sinon → portée globale
-
-Utilisez --global pour forcer la portée globale.
-Utilisez --project pour cibler un projet spécifique.`,
+	Use:  "set <key>",
 	Args: cobra.ExactArgs(1),
 	RunE: runSecretsSet,
 }
@@ -59,8 +41,8 @@ var secretsSetGlobal bool
 var secretsSetProject string
 
 func init() {
-	secretsSetCmd.Flags().BoolVar(&secretsSetGlobal, "global", false, "Forcer la portée globale")
-	secretsSetCmd.Flags().StringVar(&secretsSetProject, "project", "", "ID du projet cible (ex: t-sru-b267fbf1)")
+	secretsSetCmd.Flags().BoolVar(&secretsSetGlobal, "global", false, "")
+	secretsSetCmd.Flags().StringVar(&secretsSetProject, "project", "", "")
 }
 
 func runSecretsSet(cmd *cobra.Command, args []string) error {
@@ -90,8 +72,7 @@ func runSecretsSet(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	fmt.Fprintf(a.IO.Out, "%s %s\n",
-		theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.secrets.set.stored", key, scopeLabel))
+	cliout.Success(a.IO.Out, i18n.Tf("cmd.secrets.set.stored", key, scopeLabel))
 	return nil
 }
 
@@ -122,10 +103,9 @@ func readSecretValue(in io.Reader, out io.Writer, tty bool, key, scopeLabel stri
 // ─────────────────────────────────────────────────────────────────────────────
 
 var secretsGetCmd = &cobra.Command{
-	Use:   "get <key>",
-	Short: "Afficher un secret (masqué par défaut)",
-	Args:  cobra.ExactArgs(1),
-	RunE:  runSecretsGet,
+	Use:  "get <key>",
+	Args: cobra.ExactArgs(1),
+	RunE: runSecretsGet,
 }
 
 var secretsGetReveal bool
@@ -133,9 +113,9 @@ var secretsGetGlobal bool
 var secretsGetProject string
 
 func init() {
-	secretsGetCmd.Flags().BoolVar(&secretsGetReveal, "reveal", false, "Afficher la valeur en clair")
-	secretsGetCmd.Flags().BoolVar(&secretsGetGlobal, "global", false, "Chercher uniquement en portée globale")
-	secretsGetCmd.Flags().StringVar(&secretsGetProject, "project", "", "ID du projet cible")
+	secretsGetCmd.Flags().BoolVar(&secretsGetReveal, "reveal", false, "")
+	secretsGetCmd.Flags().BoolVar(&secretsGetGlobal, "global", false, "")
+	secretsGetCmd.Flags().StringVar(&secretsGetProject, "project", "", "")
 }
 
 func runSecretsGet(cmd *cobra.Command, args []string) error {
@@ -179,7 +159,7 @@ func runSecretsGet(cmd *cobra.Command, args []string) error {
 	}
 
 	if value == "" {
-		fmt.Fprint(a.IO.Out, i18n.Tf("cmd.secrets.secret_not_found", theme.WarningStyle.Render(theme.IconWarning), key))
+		fmt.Fprint(a.IO.Out, i18n.Tf("cmd.secrets.secret_not_found", cliout.WarnIcon(), key))
 		return nil
 	}
 
@@ -200,9 +180,8 @@ func runSecretsGet(cmd *cobra.Command, args []string) error {
 // ─────────────────────────────────────────────────────────────────────────────
 
 var secretsListCmd = &cobra.Command{
-	Use:   "list",
-	Short: "Lister tous les secrets connus",
-	RunE:  runSecretsList,
+	Use:  "list",
+	RunE: runSecretsList,
 }
 
 func runSecretsList(cmd *cobra.Command, _ []string) error {
@@ -234,7 +213,7 @@ func runSecretsList(cmd *cobra.Command, _ []string) error {
 			}
 			present := theme.ErrorStyle.Render(glyph.Failure)
 			if e.Present {
-				present = theme.SuccessStyle.Render(theme.IconSuccess)
+				present = cliout.SuccessIcon()
 			}
 			fmt.Fprintf(a.IO.Out, "  %-30s %-20s %s\n", e.Key, scope, present)
 		}
@@ -256,7 +235,7 @@ func runSecretsList(cmd *cobra.Command, _ []string) error {
 		fmt.Fprintf(a.IO.Out, "  %s\n", strings.Repeat("─", 60))
 		for _, k := range keys {
 			fmt.Fprintf(a.IO.Out, "  %-30s %-20s %s\n",
-				k, "global", theme.SuccessStyle.Render(theme.IconSuccess))
+				k, "global", cliout.SuccessIcon())
 		}
 		fmt.Fprintln(a.IO.Out)
 	}
@@ -268,18 +247,17 @@ func runSecretsList(cmd *cobra.Command, _ []string) error {
 // ─────────────────────────────────────────────────────────────────────────────
 
 var secretsDeleteCmd = &cobra.Command{
-	Use:   "delete <key>",
-	Short: "Supprimer un secret du keychain",
-	Args:  cobra.ExactArgs(1),
-	RunE:  runSecretsDelete,
+	Use:  "delete <key>",
+	Args: cobra.ExactArgs(1),
+	RunE: runSecretsDelete,
 }
 
 var secretsDeleteGlobal bool
 var secretsDeleteProject string
 
 func init() {
-	secretsDeleteCmd.Flags().BoolVar(&secretsDeleteGlobal, "global", false, "Supprimer de la portée globale")
-	secretsDeleteCmd.Flags().StringVar(&secretsDeleteProject, "project", "", "ID du projet cible")
+	secretsDeleteCmd.Flags().BoolVar(&secretsDeleteGlobal, "global", false, "")
+	secretsDeleteCmd.Flags().StringVar(&secretsDeleteProject, "project", "", "")
 }
 
 func runSecretsDelete(cmd *cobra.Command, args []string) error {
@@ -312,7 +290,7 @@ func runSecretsDelete(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.secrets.deleted", theme.SuccessStyle.Render(theme.IconSuccess), key, scopeLabel))
+	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.secrets.deleted", cliout.SuccessIcon(), key, scopeLabel))
 	return nil
 }
 
@@ -325,15 +303,15 @@ var secretsCleanupCmd = &cobra.Command{
 	Short: i18n.T("cmd.secrets.cleanup_short"),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		dryRun, _ := cmd.Flags().GetBool("dry-run")
-		return runSecretsCleanup(dryRun)
+		return runSecretsCleanup(cmd.OutOrStdout(), cmd.ErrOrStderr(), dryRun)
 	},
 }
 
 func init() {
-	secretsCleanupCmd.Flags().Bool("dry-run", false, "show orphaned entries without deleting them")
+	secretsCleanupCmd.Flags().Bool("dry-run", false, "")
 }
 
-func runSecretsCleanup(dryRun bool) error {
+func runSecretsCleanup(out, errOut io.Writer, dryRun bool) error {
 	ks, ok := resolveKeychainStore()
 	if !ok {
 		return errors.New(i18n.T("cmd.secrets.keychain_not_available"))
@@ -342,12 +320,12 @@ func runSecretsCleanup(dryRun bool) error {
 	// List actual keychain accounts (macOS only).
 	accounts, err := ks.ListKeychainAccounts()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "  %s %s\n", theme.WarningStyle.Render(theme.IconDot), i18n.T("cmd.secrets.cleanup_not_supported"))
+		fmt.Fprintf(errOut, "  %s %s\n", theme.WarningStyle.Render(theme.IconDot), i18n.T("cmd.secrets.cleanup_not_supported"))
 		return nil //nolint:nilerr // listing unsupported on this platform: warn and stop
 	}
 
-	fmt.Fprintf(os.Stdout, "  %s\n", i18n.Tf("cmd.secrets.cleanup_scanning", "openhub-oh"))
-	fmt.Fprintf(os.Stdout, "  %s\n\n", i18n.Tf("cmd.secrets.cleanup_found", len(accounts)))
+	fmt.Fprintf(out, "  %s\n", i18n.Tf("cmd.secrets.cleanup_scanning", "openhub-oh"))
+	fmt.Fprintf(out, "  %s\n\n", i18n.Tf("cmd.secrets.cleanup_found", len(accounts)))
 
 	// Build a set of indexed account names for comparison.
 	indexed := make(map[string]bool)
@@ -363,26 +341,26 @@ func runSecretsCleanup(dryRun bool) error {
 	var orphans []string
 	for _, acct := range accounts {
 		if indexed[acct] {
-			fmt.Fprintf(os.Stdout, "    %s %s (%s)\n",
-				theme.SuccessStyle.Render(theme.IconSuccess), acct, i18n.T("cmd.secrets.cleanup_indexed"))
+			fmt.Fprintf(out, "    %s %s (%s)\n",
+				cliout.SuccessIcon(), acct, i18n.T("cmd.secrets.cleanup_indexed"))
 		} else {
-			fmt.Fprintf(os.Stdout, "    %s %s (%s)\n",
+			fmt.Fprintf(out, "    %s %s (%s)\n",
 				theme.WarningStyle.Render(theme.IconDot), acct, i18n.T("cmd.secrets.cleanup_orphaned"))
 			orphans = append(orphans, acct)
 		}
 	}
 
-	fmt.Fprintln(os.Stdout)
+	fmt.Fprintln(out)
 
 	if len(orphans) == 0 {
-		fmt.Fprintf(os.Stdout, "  %s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.T("cmd.secrets.cleanup_none"))
+		fmt.Fprintf(out, "  %s %s\n", cliout.SuccessIcon(), i18n.T("cmd.secrets.cleanup_none"))
 		return nil
 	}
 
-	fmt.Fprintf(os.Stdout, "  %s\n", i18n.Tf("cmd.secrets.cleanup_count", len(orphans)))
+	fmt.Fprintf(out, "  %s\n", i18n.Tf("cmd.secrets.cleanup_count", len(orphans)))
 
 	if dryRun {
-		fmt.Fprintf(os.Stdout, "  %s\n", i18n.T("cmd.secrets.cleanup_dry_run"))
+		fmt.Fprintf(out, "  %s\n", i18n.T("cmd.secrets.cleanup_dry_run"))
 		return nil
 	}
 
@@ -393,7 +371,7 @@ func runSecretsCleanup(dryRun bool) error {
 			deleted++
 		}
 	}
-	fmt.Fprintf(os.Stdout, "  %s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.secrets.cleanup_deleted", deleted))
+	fmt.Fprintf(out, "  %s %s\n", cliout.SuccessIcon(), i18n.Tf("cmd.secrets.cleanup_deleted", deleted))
 	return nil
 }
 

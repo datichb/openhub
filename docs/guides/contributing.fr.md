@@ -228,6 +228,7 @@ Le CLI est un binaire Go unique (`cli/main.go` -> `cli/cmd/root.go`). L'architec
 | `internal/storage/` | SQLite (projets, sessions), keychain, chiffrement fichier |
 | `internal/tracker/` | Sync trackers externes (GitLab, Jira) |
 | `internal/i18n/` | Internationalisation (FR + EN, JSON) |
+| `internal/cliout/` | Ce que les commandes affichent : tableaux, documents JSON, messages d'état, sur un `io.Writer` |
 
 Le binaire embarque les agents, skills et permissions via `go:embed` (`internal/hubcontent/`).
 `CGO_ENABLED=0` — pas de dépendance C, binaire statique.
@@ -239,6 +240,8 @@ Le binaire embarque les agents, skills et permissions via `go:embed` (`internal/
 - **Contrats dans `internal/domain/`** (types, interfaces `XxxStore`, erreurs sentinelles `ErrXxx`), implémentations dans `internal/storage/sqlite/` (migrations dans `migrate.go`), vérifiées à la compilation (`var _ domain.XxxStore = (*XxxStore)(nil)`).
 - **Indépendance de l'outil agentique** : seul `internal/adapters/<outil>/` et la racine de composition (`cmd/v5_adapters.go`) nomment l'outil ; `internal/archtest/` le vérifie.
 - **Textes affichés** par `i18n.T` / `i18n.Tf`, clés dans `internal/i18n/locales/fr.json` et `en.json` (un test vérifie la parité). Aucun message n'est écrit en dur dans `cmd/` ni dans les vues de la TUI (`TestNoLiteralUserMessages` ; les rares exceptions sont listées avec leur raison dans `cmd/messages_literal_test.go`), et une clé de `en.json` que le code n'utilise nulle part est refusée (`TestNoOrphanKeys` ; une clé construite à l'exécution, `i18n.T("prefixe." + x)`, est reconnue par son préfixe). Une confirmation tapée au clavier passe par `confirmed()` (`cmd/confirm.go` : `o`, `oui`, `y`, `yes`).
+- **Aide des commandes** dans les locales seulement : le texte d'une commande et d'une option est sous `cmd.<chemin de la commande>.short|long|flags.<nom>` dans `fr.json` et `en.json`, et le code ne l'écrit pas dans la définition (`TestHelpIsNotInTheCode` refuse un littéral ; un texte écrit là ne s'affichait jamais et s'écartait de la locale). `TestNoOrphanHelpKeys` refuse une clé d'aide dont la commande ou l'option n'existe plus.
+- **Sortie des commandes** vers les writers de la commande (`cmd.OutOrStdout()`, `cmd.ErrOrStderr()`, `a.IO.Out`), jamais `os.Stdout` ni `fmt.Print*` : tableaux, JSON (`--json`) et messages d'état passent par `internal/cliout` (`cliout.Table`, `cliout.JSON`, `cliout.Success`, `Warn`, `Info`, `Error`). `internal/archtest` refuse un nouvel usage des flux standard dans `cmd/` hors de la courte liste de ses exceptions (un sous-processus à qui l'on donne le terminal, la taille du terminal, le journal).
 - **Erreurs** enveloppées avec leur contexte (`fmt.Errorf("creating project %s: %w", id, err)`), testées par `errors.Is` / `errors.As`.
 - **Tests** dans le même package, avec `testify` (`require` pour les préconditions), des cas en table, `t.TempDir()` et des helpers `t.Helper()`. Un test qui lance des processus (git, bd, serveurs) attend leur fin avant le nettoyage de son dossier ; les tests qui poussent vers des dépôts nus coupent la maintenance automatique de git (`internal/gitutil/gittest`).
 

@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/glyph"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/notify"
@@ -15,26 +16,18 @@ import (
 )
 
 var teamNotifyCmd = &cobra.Command{
-	Use:   "notify",
-	Short: "Gestion des notifications d'équipe",
+	Use: "notify",
 }
 
 var teamNotifyTestCmd = &cobra.Command{
-	Use:   "test",
-	Short: "Envoie une notification de test au webhook configuré",
-	Long: `Envoie un message de test au(x) webhook(s) configuré(s) dans le team-state.
-Utile pour vérifier que la configuration des notifications fonctionne.
-
-Exemples:
-  oh team notify test
-  oh team notify test --message "Déploiement en cours"`,
+	Use:  "test",
 	RunE: runTeamNotifyTest,
 }
 
 func init() {
 	teamCmd.AddCommand(teamNotifyCmd)
 	teamNotifyCmd.AddCommand(teamNotifyTestCmd)
-	teamNotifyTestCmd.Flags().StringP("message", "m", "", "Message personnalisé (défaut: message de test standard)")
+	teamNotifyTestCmd.Flags().StringP("message", "m", "", "")
 }
 
 func runTeamNotifyTest(cmd *cobra.Command, args []string) error {
@@ -48,7 +41,7 @@ func runTeamNotifyTest(cmd *cobra.Command, args []string) error {
 
 	// Pull latest config
 	if err := repo.Pull(ctx); err != nil {
-		fmt.Fprint(a.IO.ErrOut, i18n.Tf("cmd.team_notify.sync_failed", theme.WarningStyle.Render(theme.IconWarning), err))
+		fmt.Fprint(a.IO.ErrOut, i18n.Tf("cmd.team_notify.sync_failed", cliout.WarnIcon(), err))
 	}
 
 	teamCfg, err := repo.LoadConfig()
@@ -91,7 +84,7 @@ func runTeamNotifyTest(cmd *cobra.Command, args []string) error {
 	if notifyType == "" {
 		notifyType = "webhook"
 	}
-	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.team_notify.notification_sent_via", theme.SuccessStyle.Render(theme.IconSuccess), notifyType))
+	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.team_notify.notification_sent_via", cliout.SuccessIcon(), notifyType))
 
 	return nil
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/rivo/tview"
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/gitutil"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	policysvc "github.com/datichb/openhub/cli/internal/services/policy"
@@ -18,29 +19,22 @@ import (
 )
 
 var policiesCmd = &cobra.Command{
-	Use:   "policies",
-	Short: "Gestion des policies d'équipe",
-	Long: `Affiche, vérifie et gère les règles d'équipe appliquées à tous les projets.
-Les policies sont stockées dans le team-state (policies.toml) et peuvent
-être overridées par projet (policies-override.toml).`,
+	Use: "policies",
 }
 
 var policiesListCmd = &cobra.Command{
-	Use:   "list",
-	Short: "Affiche les policies actives",
-	RunE:  runPoliciesList,
+	Use:  "list",
+	RunE: runPoliciesList,
 }
 
 var policiesCheckCmd = &cobra.Command{
-	Use:   "check",
-	Short: "Vérifie les policies contre l'état courant",
-	RunE:  runPoliciesCheck,
+	Use:  "check",
+	RunE: runPoliciesCheck,
 }
 
 var policiesAddCmd = &cobra.Command{
-	Use:   "add",
-	Short: "Ajoute une policy custom",
-	RunE:  runPoliciesAdd,
+	Use:  "add",
+	RunE: runPoliciesAdd,
 }
 
 func init() {
@@ -49,10 +43,10 @@ func init() {
 	policiesCmd.AddCommand(policiesCheckCmd)
 	policiesCmd.AddCommand(policiesAddCmd)
 
-	policiesListCmd.Flags().StringP("project", "p", "", "Project name for merged view (optional)")
-	policiesCheckCmd.Flags().StringP("project", "p", "", "Project name")
-	policiesCheckCmd.Flags().String("branch", "", "Branch name to check")
-	policiesCheckCmd.Flags().String("commit", "", "Commit message to check")
+	policiesListCmd.Flags().StringP("project", "p", "", "")
+	policiesCheckCmd.Flags().StringP("project", "p", "", "")
+	policiesCheckCmd.Flags().String("branch", "", "")
+	policiesCheckCmd.Flags().String("commit", "", "")
 }
 
 func runPoliciesList(cmd *cobra.Command, args []string) error {
@@ -86,7 +80,7 @@ func runPoliciesList(cmd *cobra.Command, args []string) error {
 	fmt.Fprintln(a.IO.Out)
 
 	for _, p := range policies {
-		icon := theme.SuccessStyle.Render(theme.IconSuccess)
+		icon := cliout.SuccessIcon()
 		enfStr := theme.Subtitle.Render("warn")
 		if p.Enforcement == teamstate.EnforcementRefuse {
 			enfStr = theme.ErrorStyle.Render("refuse")
@@ -226,7 +220,7 @@ func runPoliciesCheck(cmd *cobra.Command, args []string) error {
 
 	fmt.Fprintln(a.IO.Out)
 	if len(violations) == 0 {
-		fmt.Fprint(a.IO.Out, i18n.Tf("cmd.policies.all_policies_are_respected", theme.SuccessStyle.Render(theme.IconSuccess)))
+		fmt.Fprint(a.IO.Out, i18n.Tf("cmd.policies.all_policies_are_respected", cliout.SuccessIcon()))
 		return nil
 	}
 
@@ -242,7 +236,7 @@ func runPoliciesCheck(cmd *cobra.Command, args []string) error {
 			fmt.Fprintln(a.IO.Out)
 			continue
 		}
-		icon := theme.WarningStyle.Render(theme.IconWarning)
+		icon := cliout.WarnIcon()
 		if v.Enforcement == teamstate.EnforcementRefuse {
 			icon = theme.ErrorStyle.Render(theme.IconWarning)
 		}
@@ -409,6 +403,6 @@ func runPoliciesAdd(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(i18n.T("cmd.policies.saving_policy"), err)
 	}
 
-	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.policies.policy_added", theme.SuccessStyle.Render(theme.IconSuccess), name))
+	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.policies.policy_added", cliout.SuccessIcon(), name))
 	return nil
 }

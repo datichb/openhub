@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/remote"
@@ -111,10 +112,10 @@ func runSessionFetch(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	s := res.Summary
-	ok := theme.SuccessStyle.Render(theme.IconSuccess)
+	ok := cliout.SuccessIcon()
 	fmt.Fprintf(out, "%s %s\n", ok, i18n.Tf("cmd.session.fetch.summary", i18n.T("cmd.session.fetch.outcome."+s.Outcome), textfmt.Cost(s.Cost), len(res.Journal)))
 	if s.Error != "" {
-		fmt.Fprintf(out, "%s %s\n", theme.WarningStyle.Render(theme.IconWarning), termtext.Clean(s.Error))
+		cliout.Warn(out, termtext.Clean(s.Error))
 	}
 	if s.MRURL != "" {
 		fmt.Fprintf(out, "  %s %s\n", theme.IconArrow, i18n.Tf("cmd.session.fetch.mr", termtext.Clean(s.MRURL)))
@@ -126,9 +127,9 @@ func runSessionFetch(cmd *cobra.Command, args []string) error {
 		fmt.Fprintf(out, "  %s %s\n", theme.IconArrow, i18n.Tf("cmd.session.fetch.question", termtext.Clean(s.Question.Label)))
 	}
 	for _, v := range checkpoint.FromSummary(s.Verifications) {
-		icon := theme.SuccessStyle.Render(theme.IconSuccess)
+		icon := cliout.SuccessIcon()
 		if !v.Result.OK() {
-			icon = theme.WarningStyle.Render(theme.IconWarning)
+			icon = cliout.WarnIcon()
 		}
 		fmt.Fprintf(out, "  %s %s\n", icon, i18n.Tf("cmd.session.fetch.verified", termtext.Clean(v.ID), termtext.Clean(checkpoint.VerifySummary(v.Result))))
 	}
