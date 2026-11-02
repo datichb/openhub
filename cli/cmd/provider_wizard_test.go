@@ -15,8 +15,9 @@ import (
 	"github.com/datichb/openhub/cli/internal/provider"
 )
 
-// The check box of the detected credentials is shown ticked, but tview calls the
-// handler of a check box when it changes only: the tests untick and tick it.
+// The check box of the detected credentials is shown ticked, and tview calls the
+// handler of a check box when it changes only: "used as it is" tests untick it
+// and tick it again, "left as it is" tests leave it.
 
 // providerWizardEnv isolates the hub and the credentials of the shell, and
 // returns an app with a project store and the project p1.
@@ -79,6 +80,10 @@ func TestProviderAPIKeyWizard(t *testing.T) {
 		},
 		{
 			name: "the key of the shell is used as it is", env: "sk-shell", answers: map[int]func(f *tview.Form){0: func(f *tview.Form) { tick(f, 0, false); tick(f, 0, true) }}, abortAt: -1, wantRan: []int{0},
+			wantSecrets: map[string]string{}, wantOut: i18n.Tf("cmd.provider.hub_configured", "anthropic"),
+		},
+		{
+			name: "the key of the shell is used when the ticked box is left as it is", env: "sk-shell", abortAt: -1, wantRan: []int{0},
 			wantSecrets: map[string]string{}, wantOut: i18n.Tf("cmd.provider.hub_configured", "anthropic"),
 		},
 		{
@@ -202,6 +207,14 @@ func TestProviderBedrockWizard(t *testing.T) {
 			name:    "API key of the shell, used as it is",
 			env:     map[string]string{"AWS_BEARER_TOKEN_BEDROCK": "ABSK-shell"},
 			answers: map[int]func(f *tview.Form){0: func(f *tview.Form) { tick(f, 0, false); tick(f, 0, true) }},
+			abortAt: -1, wantRan: []int{0},
+			wantSecrets: map[string]string{hubKey: "ABSK-shell"},
+			wantHub:     config.ProviderConfig{AuthMode: "bearer"},
+			wantOut:     i18n.Tf("cmd.provider.from_env.done", hubKey),
+		},
+		{
+			name:    "API key of the shell, ticked box left as it is",
+			env:     map[string]string{"AWS_BEARER_TOKEN_BEDROCK": "ABSK-shell"},
 			abortAt: -1, wantRan: []int{0},
 			wantSecrets: map[string]string{hubKey: "ABSK-shell"},
 			wantHub:     config.ProviderConfig{AuthMode: "bearer"},

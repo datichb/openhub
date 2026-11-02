@@ -160,6 +160,10 @@ func setupBedrock(ctx context.Context, a *app.App, project *domain.Project) erro
 	// awsRegionIdx starts at 0 (placeholder option) — the user must
 	// actively select a region for validation to pass.
 
+	// The box « use the detected credentials » is shown ticked: tview calls
+	// the handler of a box when it changes only, so the state starts ticked.
+	useExisting = detection.Available
+
 	var steps []views.WizardStep
 	steps = []views.WizardStep{
 		// Step 1: Use existing detected config?
@@ -368,6 +372,9 @@ func setupAPIKey(ctx context.Context, a *app.App, project *domain.Project, name 
 	)
 
 	envVar := provider.EnvVar(name)
+
+	// The box « use the detected key » is shown ticked (see setupBedrock).
+	useExisting = detection.Available
 
 	steps := []views.WizardStep{
 		// Step 1: Use existing detected key?
