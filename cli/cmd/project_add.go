@@ -88,6 +88,7 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 		mcpServices   []string
 		projectTeamID *string
 		projectSolo   bool
+		initBeads     = true
 	)
 
 	hubProvider := a.Config.LLM.DefaultProvider
@@ -165,19 +166,16 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 			},
 			Form: func(_ *tview.Application, onDone func()) *tview.Form {
 				form := tview.NewForm()
-				doInit := true
+				initBeads = true
 				form.AddCheckbox(i18n.T("form.project.beads_init"), true,
-					func(checked bool) { doInit = checked })
-				form.AddButton(i18n.T("cmd.button.next"), func() {
-					if !doInit {
-						onDone()
-						return
-					}
-					onDone()
-				})
+					func(checked bool) { initBeads = checked })
+				form.AddButton(i18n.T("cmd.button.next"), func() { onDone() })
 				return form
 			},
 			OnDone: func() error {
+				if !initBeads {
+					return nil
+				}
 				id := generateProjectID(name)
 				if err := beads.Init(absPath, id); err != nil {
 					fmt.Fprintf(a.IO.Out, "  %s bd init: %s\n",
@@ -191,6 +189,9 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 				return nil
 			},
 			InfoFields: func() []views.InfoField {
+				if !initBeads {
+					return []views.InfoField{{Label: "Beads", Value: i18n.T("cmd.init.wizard_team_info_skipped")}}
+				}
 				return []views.InfoField{{Label: "Beads", Value: "initialized"}}
 			},
 		},
