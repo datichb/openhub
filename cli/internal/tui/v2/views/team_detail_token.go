@@ -301,7 +301,8 @@ func (v *TeamDetailView) applyTokenDecl(eff tracker.EffectiveTrackerConfig, key,
 	// The keychain and hub.toml are written off the event loop.
 	persist(v.app, func(context.Context) error {
 		if token != "" {
-			if tokenErr = v.storeSecret(key, token); tokenErr != nil {
+			tokenErr = v.storeSecret(key, token)
+			if tokenErr != nil {
 				return tokenErr
 			}
 		}

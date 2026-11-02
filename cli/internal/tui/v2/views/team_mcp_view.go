@@ -664,16 +664,18 @@ func (v *TeamMCPView) save() {
 	v.saving = true
 	persist(v.app, func(ctx context.Context) error {
 		if saveTeam {
-			if teamErr = writeTeam(ctx, &teamCopy); teamErr != nil {
+			teamErr = writeTeam(ctx, &teamCopy)
+			if teamErr != nil {
 				return teamErr
 			}
 			teamDone = true
 		}
 		if writeLocal {
-			if localErr = v.cfg.UpdateHubConfig(func(c *config.Config) error {
+			localErr = v.cfg.UpdateHubConfig(func(c *config.Config) error {
 				patch(&c.MCP)
 				return nil
-			}); localErr != nil {
+			})
+			if localErr != nil {
 				return localErr
 			}
 			localDone = true
