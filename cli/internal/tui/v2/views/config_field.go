@@ -239,8 +239,10 @@ func enabledText() string {
 	return theme.Paint(theme.SuccessHex, theme.SymSuccess+" "+i18n.T("tui.config.enabled"))
 }
 
+// disabledText is « ○ Désactivé » in grey: off is not an error, so not a red
+// cross (the symbol of « off » in the table of meanings).
 func disabledText() string {
-	return theme.Paint(theme.ErrorHex, theme.SymFailure+" "+i18n.T("tui.config.disabled"))
+	return theme.Paint(theme.TextMutedHex, theme.SymInactive+" "+i18n.T("tui.config.disabled"))
 }
 
 // ---------- Editing ----------
@@ -432,7 +434,7 @@ func triStateOptions() []SelectOption {
 	return []SelectOption{
 		{Label: "↩ " + i18n.T("tui.config.not_configured"), Value: ""},
 		{Label: theme.SymSuccess + " " + i18n.T("tui.config.enabled"), Value: "true"},
-		{Label: theme.SymFailure + " " + i18n.T("tui.config.disabled"), Value: "false"},
+		{Label: theme.SymInactive + " " + i18n.T("tui.config.disabled"), Value: "false"},
 	}
 }
 
