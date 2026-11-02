@@ -366,7 +366,7 @@ Fuzzy matching sur les noms et les alias :
 | `project add` | assistant d'ajout de projet |
 | `board`, `board init` | board Beads du projet, initialisation |
 | `project-config` | configuration du projet (dont Exécution) |
-| `settings`, `models`, `provider`, `mcp`, `secrets` | réglages, modèles, fournisseur (région Bedrock vérifiée dès la saisie, message sous le champ), serveurs MCP, secrets |
+| `settings`, `models`, `provider`, `mcp`, `secrets` | réglages, modèles, fournisseur (région Bedrock vérifiée dès la saisie, message sous le champ), serveurs MCP, secrets. Dans Réglages, la ligne « Token Tracker » (clé du trousseau) est suivie de « Serveur du jeton » (`tracker_token_url`, vide = le serveur du tracker) ; une ligne qui ne s'applique pas n'est pas dessinée : pas de « Serveur du jeton » quand le tracker de l'équipe est Jira (ici et dans `team-detail`). Le serveur Google Slides n'a pas de réglage d'URL (Figma non plus) : une URL déjà enregistrée est ignorée |
 | `teams`, `team-detail` | équipes, détail de l'équipe (`T` découvrir le tracker, `K` clé du fournisseur pour l'équipe ; espace solo : « Passer en équipe »). Le champ « Jeton du tracker » affiche la clé et le serveur déclarés (« non configuré » sinon, « implicite : serveur du tracker » sans serveur déclaré) et demande clé, serveur puis jeton ; il écrit `tracker_token_key` et `tracker_token_url` dans `hub.toml` et range le jeton sous cette clé, sans activer `mcp.gitlab`. Les champs « Clé du jeton » et « Serveur du jeton » (équipe) règlent la recommandation partagée ; « Serveur GitLab de l'équipe » déclare le GitLab d'un dépôt joint par un alias SSH ; la section Collaboration règle `lease_hours` et `heartbeat_minutes` |
 | `init` | relancer l'assistant de configuration |
 
