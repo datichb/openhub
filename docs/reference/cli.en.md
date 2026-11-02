@@ -30,7 +30,7 @@ Accepted by every command.
 | [Infrastructure](cli-infra.en.md) | `cli-infra.en.md` | `oh init`, `oh doctor`, `oh status`, `oh repair`, `oh export`, `oh import`, `oh purge`, `oh upgrade oh`, `oh migrate deploy-cleanup`, `oh daemon status\|stop`, `oh remote setup\|status`, `oh serve` |
 | [MCP](cli-mcp.en.md) | `cli-mcp.en.md` | `oh mcp list\|status\|enable\|disable\|reset\|setup\|serve` |
 | [Team](cli-team.en.md) | `cli-team.en.md` | `oh team *`, `oh teams *`, `oh conventions check`, `oh patterns *`, `oh policies *`, `oh takeover-brief *` |
-| [Tools](cli-tools.en.md) | `cli-tools.en.md` | `oh skill check`, `oh eval`, `oh worktree *`, `oh secrets *`, `oh metrics`, `oh dashboard`, `oh board`, `oh version`, `oh completion` |
+| [Tools](cli-tools.en.md) | `cli-tools.en.md` | `oh skill check`, `oh eval`, `oh worktree *`, `oh secrets *`, `oh metrics` (deprecated), `oh dashboard` (deprecated), `oh board`, `oh version`, `oh completion` |
 
 Internal commands (hidden from the help, not documented in detail): `oh daemon run` (the `ohd` daemon, started automatically by oh), `oh runner install|run` (CI side of remote execution, used by the `oh-runner` pipeline), `oh mcp serve workflow` (the `workflow` MCP server injected into every session bundle), `oh mcp serve wiki` (the project `wiki` MCP server).
 
@@ -76,6 +76,8 @@ A letter has one meaning in every command. The former forms deprecated in 5.0 we
 The short forms deprecated in 5.0 no longer exist: `oh serve -p` (now `--port`), `oh metrics -d` (`--period`), `oh project configure -m` (`--model`), `oh session attach --how` (`--attach`). The long names do not change. The short options of `oh start`, `oh audit`, `oh review` and `oh debug` went with these commands (see [Migration from 5.0](../guides/migration-v5.en.md#from-50-to-51)).
 
 `--force` no longer skips a confirmation: that is `--yes`. On `oh purge`, `oh project remove` and `oh teams remove`, `--force` and `-f` were removed in 5.1 (they were deprecated aliases of `--yes`). `--force` stays only where it overrides a safety: `oh daemon stop` (stop even though sessions are running), `oh remote setup` (replace a hand-written `.gitlab-ci.yml`), `oh worktree remove` and `oh worktree cleanup` (also remove worktrees with uncommitted changes). Likewise `oh repair --auto` was removed: `--yes` confirms the restoration.
+
+**Deprecated in 5.1 (removed in v6).** `oh dashboard` and `oh metrics` still work, hidden from the help, and warn on the error output (`"oh dashboard" is deprecated and will be removed in v6: use the Metrics view of the TUI (oh, then Ctrl+P, Metrics)`) in the language of the hub. `oh dashboard` opens the TUI on that view; `oh metrics` keeps its text output on the standard output until v6.
 
 **Opening a window.** One option, `--attach` (`auto`, `iterm`, `terminal`, `tmux`, `browser`, `suspend`, and `none` for `oh run`), in `oh run` as in `oh session attach`. The former name `--how` of `oh session attach` and the value `here` (former synonym of `suspend`) were removed in 5.1.
 

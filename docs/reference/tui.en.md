@@ -341,6 +341,8 @@ Command `doctor`. `f` fix the selected check (like `oh doctor --fix`, with a pre
 
 ### Boards
 
+`oh board`, `oh team board` and `oh dashboard` (deprecated) open the TUI directly on the **Board**, **Team board** and **Metrics** views below, over the landing of the mode (project, team, hub): `Esc` goes back to it, `Ctrl+Q` quits. Without a terminal they exit with code 2. There is no separate full-screen board any more: what the command opens is the view of the shell, with its keys.
+
 | View | Keys |
 |------|------|
 | Project board | `h` / `l` columns, `Enter` detail, `a` actions (launch a workflow on the ticket), `L` link to the tracker, `i` initialise Beads |

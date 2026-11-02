@@ -300,6 +300,17 @@ La 5.1 **retire** ce que la 5.0 avait déprécié (rupture annoncée dans le [CH
 | `oh repair --auto` | `--yes` (pour `--restore` sans terminal) |
 | `-w`, `-l`, `-t`, `-A`, `-r` d'`oh start`, `-m`, `-b` d'`oh review`, `-t` d'`oh audit`, `-i` d'`oh debug` | partis avec leurs commandes |
 
-`--force` reste sur `oh daemon stop`, `oh remote setup`, `oh worktree remove` et `oh worktree cleanup`, où il outrepasse une sécurité. `oh dashboard` et `oh metrics` ne sont pas concernés.
+`--force` reste sur `oh daemon stop`, `oh remote setup`, `oh worktree remove` et `oh worktree cleanup`, où il outrepasse une sécurité.
 
 **À faire** : chercher ces noms dans vos scripts, alias de shell et CI (`grep -rnE 'oh (start|audit|review|debug|service)\b|takeover-brief enrich|--force|repair --auto'`), puis remplacer selon les tableaux. Détail des commandes : [Commandes retirées en 5.1](../reference/cli-sessions.fr.md#commandes-retirées-en-51).
+
+**Déprécié en 5.1 (retiré en v6)**
+
+| Déprécié | Remplaçant |
+|---|---|
+| `oh dashboard` | La vue **Métriques** de la TUI (`oh`, puis `Ctrl+P` › Métriques). La commande l'ouvre encore, avec un avertissement |
+| `oh metrics` | La même vue. La commande garde son texte (`--period`) sur la sortie standard jusqu'à la v6, et avertit sur la sortie d'erreur |
+
+Les deux sont masquées de l'aide. À faire : les remplacer dans vos habitudes ; un script qui lit `oh metrics` a jusqu'à la v6 (`oh budget report --json` donne les dépenses).
+
+**Changé en 5.1** : `oh board`, `oh team board` et `oh dashboard` ne dessinent plus de vue plein écran à part : elles ouvrent la TUI sur le Board, le Board d'équipe et la vue Métriques, et `Esc` revient à l'accueil du mode. Sans terminal (script, CI), elles sortent avec le code **2**. `oh board` affiche le projet du dossier courant (ou `--project <nom>`, ou l'unique projet enregistré) au lieu des tickets du dossier courant ; `--watch` est accepté et sans effet (le board se rafraîchit toutes les 5 s).

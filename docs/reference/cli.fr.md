@@ -30,7 +30,7 @@ Acceptés par toutes les commandes.
 | [Infrastructure](cli-infra.fr.md) | `cli-infra.fr.md` | `oh init`, `oh doctor`, `oh status`, `oh repair`, `oh export`, `oh import`, `oh purge`, `oh upgrade oh`, `oh migrate deploy-cleanup`, `oh daemon status\|stop`, `oh remote setup\|status`, `oh serve` |
 | [MCP](cli-mcp.fr.md) | `cli-mcp.fr.md` | `oh mcp list\|status\|enable\|disable\|reset\|setup\|serve` |
 | [Équipe](cli-team.fr.md) | `cli-team.fr.md` | `oh team *`, `oh teams *`, `oh conventions check`, `oh patterns *`, `oh policies *`, `oh takeover-brief *` |
-| [Outils](cli-tools.fr.md) | `cli-tools.fr.md` | `oh skill check`, `oh eval`, `oh worktree *`, `oh secrets *`, `oh metrics`, `oh dashboard`, `oh board`, `oh version`, `oh completion` |
+| [Outils](cli-tools.fr.md) | `cli-tools.fr.md` | `oh skill check`, `oh eval`, `oh worktree *`, `oh secrets *`, `oh metrics` (déprécié), `oh dashboard` (déprécié), `oh board`, `oh version`, `oh completion` |
 
 Commandes internes (masquées de l'aide, non documentées en détail) : `oh daemon run` (démon `ohd`, lancé automatiquement par oh), `oh runner install|run` (côté CI de l'exécution distante, utilisé par le pipeline `oh-runner`), `oh mcp serve workflow` (serveur MCP `workflow` injecté dans chaque paquet de session), `oh mcp serve wiki` (serveur MCP `wiki` du projet).
 
@@ -76,6 +76,8 @@ Une lettre a un seul sens dans toutes les commandes. Les anciennes formes dépr�
 Les formes courtes dépréciées en 5.0 n'existent plus : `oh serve -p` (maintenant `--port`), `oh metrics -d` (`--period`), `oh project configure -m` (`--model`), `oh session attach --how` (`--attach`). Les noms longs ne changent pas. Les options courtes de `oh start`, `oh audit`, `oh review` et `oh debug` sont parties avec ces commandes (voir [Migration depuis la 5.0](../guides/migration-v5.fr.md#depuis-la-50-vers-la-51)).
 
 `--force` ne sert plus à sauter une confirmation : c'est `--yes`. Sur `oh purge`, `oh project remove` et `oh teams remove`, `--force` et `-f` ont été retirés en 5.1 (ils étaient des alias dépréciés de `--yes`). `--force` ne subsiste que là où il outrepasse une sécurité : `oh daemon stop` (arrêter malgré des sessions en cours), `oh remote setup` (remplacer un `.gitlab-ci.yml` écrit à la main), `oh worktree remove` et `oh worktree cleanup` (supprimer aussi les worktrees qui ont des modifications non validées). De même, `oh repair --auto` a été retiré : `--yes` confirme la restauration.
+
+**Déprécié en 5.1 (retiré en v6).** `oh dashboard` et `oh metrics` fonctionnent encore, masqués de l'aide, et avertissent sur la sortie d'erreur (`« oh dashboard » est déprécié et sera retiré en v6 : utilisez la vue « Métriques » du TUI (oh, puis Ctrl+P, Métriques)`) dans la langue du hub. `oh dashboard` ouvre la TUI sur cette vue ; `oh metrics` garde sa sortie texte sur la sortie standard jusqu'à la v6.
 
 **Ouvrir une fenêtre.** Une seule option, `--attach` (`auto`, `iterm`, `terminal`, `tmux`, `browser`, `suspend`, et `none` pour `oh run`), dans `oh run` comme dans `oh session attach`. L'ancien nom `--how` de `oh session attach` et la valeur `here` (ancien synonyme de `suspend`) ont été retirés en 5.1.
 

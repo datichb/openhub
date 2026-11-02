@@ -231,6 +231,8 @@ oh worktree cleanup -b develop --yes
 
 ### oh metrics
 
+> **Déprécié en 5.1, retiré en v6.** Utilisez la vue **Métriques** de la TUI (`oh`, puis `Ctrl+P` › Métriques) : mêmes chiffres, pour le hub, l'équipe ou le projet, avec les périodes sur les touches `7` / `3` / `0` et l'usage par agent sur `Tab`. La commande continue d'écrire son texte sur la sortie standard jusqu'à la v6 ; elle avertit maintenant sur la sortie d'erreur (traduit, avec le nom de la vue). Elle est masquée de l'aide.
+
 Metriques d'utilisation : sessions, tokens, coûts et economies.
 
 ```
@@ -253,7 +255,9 @@ oh metrics --period 7d
 
 ### oh dashboard
 
-Tableau de bord interactif (TUI) : projets, sessions, tokens. Sans flag.
+> **Déprécié en 5.1, retiré en v6.** Masqué de l'aide.
+
+Ouvre la TUI sur la vue **Métriques** du hub (sessions, sessions du jour, projets actifs, tokens, cache, coût estimé ; `Esc` revient au hub). Elle avertit sur la sortie d'erreur (et par un toast dans la TUI) qu'elle disparaît en v6. Sans terminal, elle sort avec le code 2 et nomme `oh metrics` (texte) et `oh budget report` (dépenses). Sans flag.
 
 ```
 oh dashboard
@@ -263,7 +267,7 @@ oh dashboard
 
 ### oh board
 
-Tableau kanban des tickets en plein écran.
+Ouvre la TUI sur la vue **Board** d'un projet (la même vue que `board` en mode projet : colonnes, `Enter` détail, `a` actions, `L` lien vers le tracker, `r` rafraîchir ; le board se rafraîchit aussi toutes les 5 s). `Esc` revient au mode projet. Le projet est celui que nomme `--project`, sinon celui qui contient le dossier courant, sinon l'unique projet enregistré.
 
 ```
 oh board [options]
@@ -271,14 +275,17 @@ oh board [options]
 
 | Flag | Type | Description |
 |------|------|-------------|
-| `--watch` | bool | Rafraichissement automatique toutes les 5 s |
+| `--project` | string | Projet à afficher (défaut : le projet du dossier courant) |
+| `--watch` | bool | Accepté et sans effet (masqué) : le board se rafraîchit toujours seul |
 
 **Exemple :**
 
 ```bash
 oh board
-oh board --watch
+oh board --project mon-app
 ```
+
+Sans terminal (script, CI, `--no-tui`), le board ne peut pas s'ouvrir : la commande sort avec le code **2** et nomme `oh beads list`. Sans `bd` (Beads) dans le `PATH`, elle affiche le conseil d'installation (`brew install beads`) et sort avec le code 0, avec ou sans terminal. Différences avec l'ancien board plein écran : les epics sont écartées, un projet non initialisé reçoit l'invitation à faire `bd init`, et le dossier courant ne compte plus quand `--project` nomme le projet.
 
 Un ticket `in_progress` qui porte le label `ready-for-review` est affiché dans la colonne REVIEW (Beads n'a pas de statut `review`). Même règle dans le Board TUI.
 

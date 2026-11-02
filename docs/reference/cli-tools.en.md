@@ -231,6 +231,8 @@ oh worktree cleanup -b develop --yes
 
 ### oh metrics
 
+> **Deprecated in 5.1, removed in v6.** Use the **Metrics** view of the TUI (`oh`, then `Ctrl+P` › Metrics): same figures, scoped to the hub, the team or the project, with the periods on the `7` / `3` / `0` keys and the usage by agent on `Tab`. The command keeps printing its text on the standard output until v6; it now warns on the error output (translated, naming the view). It is hidden from the help.
+
 Usage metrics: sessions, tokens, costs and savings.
 
 ```
@@ -253,7 +255,9 @@ oh metrics --period 7d
 
 ### oh dashboard
 
-Interactive dashboard (TUI): projects, sessions, tokens. No flags.
+> **Deprecated in 5.1, removed in v6.** Hidden from the help.
+
+Opens the TUI on the **Metrics** view of the hub (sessions, sessions of the day, active projects, tokens, cache, estimated cost; `Esc` goes back to the hub). It warns on the error output (and with a toast in the TUI) that it goes away in v6. Without a terminal it exits with code 2 and names `oh metrics` (text) and `oh budget report` (spending). No flags.
 
 ```
 oh dashboard
@@ -263,7 +267,7 @@ oh dashboard
 
 ### oh board
 
-Full-screen ticket kanban board.
+Opens the TUI on the **Board** view of a project (the same view as `board` in the project mode: columns, `Enter` detail, `a` actions, `L` link to the tracker, `r` refresh; the board also refreshes every 5 s). `Esc` goes back to the project mode. The project is the one named by `--project`, else the one that holds the current directory, else the only registered project.
 
 ```
 oh board [options]
@@ -271,14 +275,17 @@ oh board [options]
 
 | Flag | Type | Description |
 |------|------|-------------|
-| `--watch` | bool | Automatic refresh every 5 s |
+| `--project` | string | Project to show (default: the project of the current directory) |
+| `--watch` | bool | Accepted and without effect (hidden): the board always refreshes on its own |
 
 **Example:**
 
 ```bash
 oh board
-oh board --watch
+oh board --project my-app
 ```
+
+Without a terminal (script, CI, `--no-tui`) the board cannot open: the command exits with code **2** and names `oh beads list`. Without `bd` (Beads) in the `PATH` it prints the install hint (`brew install beads`) and exits with code 0, with or without a terminal. Differences with the former full-screen board: epics are left out, a project that is not initialised gets the invitation to `bd init`, and the directory no longer matters when `--project` names the project.
 
 An `in_progress` ticket carrying the `ready-for-review` label is shown in the REVIEW column (Beads has no `review` status). Same rule in the Board TUI.
 

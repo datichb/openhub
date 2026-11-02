@@ -174,12 +174,9 @@ Teinte indigo dans le noir. Plus distinctif, plus "nuit étoilée".
 
 Pas de bordure (rendu inline dans le terminal). Pas de fond (pas de contrôle background en mode inline).
 
-### Title Bar (dashboard)
+### Barre de titre (retirée en 5.1)
 
-- Background : Surface (BgPanel)
-- Foreground : Primary
-- Pas de bordure arrondie (barre, pas un panel)
-- Note : les boards kanban n'utilisent plus de title bar — le header de colonne est intégré dans le widget `CardColumn`
+Le dashboard et les boards plein écran avaient une barre de titre (fond Surface/BgPanel, texte Primary, sans bordure arrondie), construite par le paquet `layout`. Ce paquet est supprimé : `oh board`, `oh team board` et `oh dashboard` ouvrent les vues du shell, qui n'ont pas de barre de titre. L'identité du mode (icône, nom du projet ou de l'équipe, pastille des sessions) est dans la **barre de mode**, dernière ligne de l'omnibar ; le header de colonne des boards est intégré dans le widget `CardColumn`.
 
 ### Cards / Kanban (`widgets/cardcolumn.go`)
 

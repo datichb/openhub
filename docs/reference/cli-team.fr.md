@@ -141,15 +141,17 @@ oh team activity --member alice --limit 50
 
 ### oh team board
 
-Tableau kanban de l'équipe en plein écran (tickets en cours, prévus, terminés).
+Ouvre la TUI sur le **board d'équipe** (la vue `team.board` : tickets en cours, prévus, terminés, projets sur `[` / `]`, filtre sur `/`, réservation, libération, transfert). `Esc` revient au mode équipe, puis au hub. L'équipe est celle du hub (`oh team init` d'abord : le team-state doit être cloné, comme avant). Le board se rafraîchit toutes les 5 s et sur `r`.
 
 ```
-oh team board [--watch]
+oh team board
 ```
 
 | Flag | Type | Description |
 |------|------|-------------|
-| `--watch` | bool | Rafraîchissement automatique (touche `r` pour rafraîchir à la main) |
+| `--watch` | bool | Accepté et sans effet (masqué) : le board se rafraîchit toujours seul |
+
+Sans terminal, la commande sort avec le code **2** et nomme `oh team status`. Différences avec l'ancien board plein écran : c'est le board de la TUI, avec ses colonnes personnalisées (`[board]`), ses filtres et ses actions.
 
 ---
 

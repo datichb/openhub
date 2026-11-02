@@ -107,7 +107,7 @@ Dans la TUI, **Démarrer** liste les workflows (★ épinglés, récents), ouvre
 | `oh team init [--solo]` · `oh team promote` | Fonctions d'équipe, espace solo et son partage |
 | `oh team claim` · `release` · `status` · `board` | Réservation des tickets et vue d'équipe |
 | `oh doctor` · `oh status` · `oh repair` | Diagnostic, état, réparation de la base |
-| `oh metrics` · `oh dashboard` · `oh board` · `oh serve` | Usage et coûts, tableau de bord TUI, kanban Beads, tableau de bord web local |
+| `oh metrics` · `oh dashboard` · `oh board` · `oh serve` | Usage et coûts, tableau de bord TUI, kanban Beads (ouvre la TUI sur sa vue), tableau de bord web local. `oh metrics` et `oh dashboard` sont dépréciés (retrait en v6) : utilisez la vue Métriques de la TUI |
 | `oh export` · `oh import` | Sauvegarde et restauration |
 | `oh upgrade oh` | Mise à jour d'oh (hors Homebrew) |
 | `oh skill check` | Contrôle du catalogue des skills (doublons, `requires:`, frontmatter, annexes ; `--stale` : fraîcheur des skills de stack) |
