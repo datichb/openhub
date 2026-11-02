@@ -74,7 +74,7 @@ func doctorRegistry() []doctor.Check {
 		doctor.OS(),
 		doctor.GoRuntime(),
 		doctor.Binary("git", "git"),
-		doctor.OptionalBinary("bd", "bd", "bd (beads)", "brew install datichb/tap/bd"),
+		doctor.OptionalBinary("bd", "bd", "bd (beads)", "brew install beads"),
 		{ID: "version", Name: i18n.T("cmd.doctor.check.version"), Run: one(checkOhUpdate)},
 		{ID: "config", Name: i18n.T("cmd.doctor.check.config"), Run: single(checkConfig), Fix: configFix},
 		{ID: "setup", Name: i18n.T("cmd.doctor.check.setup"), Run: setupDoctorChecks},

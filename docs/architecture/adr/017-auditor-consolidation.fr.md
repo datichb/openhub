@@ -121,4 +121,4 @@ Le flag `--type` est conservé pour la compatibilité CLI mais son rôle change 
 | `docs/architecture/skills.fr.md` + `.en.md` | Modifié |
 | `docs/architecture/task-delegation.fr.md` | Modifié |
 | `docs/guides/workflows.fr.md` + `.en.md` | Modifié |
-| `docs/dev/fiabilisation-agents-en-cours.md` | Modifié — C-2, C-5, m-3 marqués résolus |
+| [`docs/legacy/fiabilisation-agents-en-cours.md`](../../legacy/fiabilisation-agents-en-cours.md) | Modifié — C-2, C-5, m-3 marqués résolus |

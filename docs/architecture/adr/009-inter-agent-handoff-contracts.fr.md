@@ -4,7 +4,7 @@
 
 ## Statut
 
-Accepté
+~~Accepté~~ **Remplacé par [ADR-059](./059-return-envelope-and-workflow-report.fr.md)** : les skills `*-handoff-format` n'existent plus ; un agent rend une enveloppe courte et dépose son rapport avec `workflow_report`
 
 ## Contexte
 

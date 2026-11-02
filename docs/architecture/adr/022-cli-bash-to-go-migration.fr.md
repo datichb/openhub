@@ -8,7 +8,7 @@ accepted
 
 Le CLI original (`oc`) était un ensemble de ~60 scripts shell (bash) totalisant ~15 000 lignes de code, orchestré par un dispatcher central (`oc.sh`). Il dépendait d'outils externes : jq, Node.js, sqlite3, bun, curl, et GNU parallel.
 
-Une analyse menée en juin 2026 (`docs/dev/cli-migration-analysis.md`) a identifié 17 problèmes structurels :
+Une analyse menée en juin 2026 ([`docs/legacy/cli-migration-analysis.md`](../../legacy/cli-migration-analysis.md)) a identifié 17 problèmes structurels :
 
 - **Fragilité** : parsing texte avec awk/sed/grep, pas de typage, erreurs silencieuses
 - **Dépendances externes** : 6+ outils runtime requis, comportement variable selon la plateforme
@@ -39,9 +39,9 @@ Nous avons décidé de réécrire le CLI entièrement en Go, sous le nouveau nom
 La migration a été exécutée en 7 phases de développement plus 3 passes prioritaires (P0, P1, P2 avec 5 blocs), un cycle d'audit (33 findings, 6 phases de remédiation A-F), et un bloc final de nettoyage. Effort total : ~12 jours répartis sur juin-juillet 2026.
 
 Documents de référence :
-- `docs/dev/cli-migration-plan-v2.md` — plan technique complet
-- `docs/dev/cli-remaining-work.md` — suivi du backlog (100% terminé)
-- `docs/dev/cli-migration-analysis.md` — analyse initiale des problèmes
+- [`docs/legacy/cli-migration-plan-v2.md`](../../legacy/cli-migration-plan-v2.md) — plan technique complet
+- [`docs/legacy/cli-remaining-work.md`](../../legacy/cli-remaining-work.md) — suivi du backlog (100% terminé)
+- [`docs/legacy/cli-migration-analysis.md`](../../legacy/cli-migration-analysis.md) — analyse initiale des problèmes
 
 ## Conséquences
 

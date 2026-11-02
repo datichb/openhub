@@ -70,15 +70,17 @@ coverage profile, whose total is checked against the threshold on Linux and macO
 job runs the contract tests (tag `integration`) against a real `opencode serve` of a pinned
 version, without calling any model, on the packages that have such tests only (the list is computed
 from the `//go:build integration` test files, so a new package joins it by itself; today
-`internal/adapters/opencodev2`, `internal/gateway`, `internal/runsvc` and `internal/services/remote`). The e2e tests (tag `e2e`, real Bedrock model) and the
+`internal/adapters/opencodev2`, `internal/gateway`, `internal/runsvc` and `internal/services/remote`), plus the tests of `./cmd` that build and run the `oh` binary (`TestBinary*`, in `cmd/integration_test.go` and `cmd/startup_levels_test.go`, under the same `integration` tag: the other tests of `./cmd` run in the main job). The e2e tests (tag `e2e`, real Bedrock model) and the
 evaluations (`make test-eval`) never run in CI: they are local and manual, and no model key is
 given to the GitHub secrets.
 
-On Windows, CI only tests the packages listed in `.github/windows-test-packages.txt`: the tests of
-the 24 others, written for Unix, fail there. They are listed with their cause in
+On Windows, CI only tests the packages listed in `.github/windows-test-packages.txt` (99 today): the
+tests of the 20 others, written for Unix, fail there. They are listed with their cause in
 `.github/windows-test-packages-excluded.txt` and followed by the `windows-tests` batch, which will make
-them green. A new package that is in neither file is not tested on Windows: CI reports it with a
-warning (`.github/scripts/windows-packages.sh check`); add it to one of the two files. The coverage
+them green. Every package of `go list ./...` must be in exactly one of the two files: the Windows job fails
+(`.github/scripts/windows-packages.sh check`, run before `go vet`) when a package is in neither,
+in both, or no longer exists. A new package is classified in the commit that creates it: in the first
+file if its tests pass on Windows, otherwise in the second with its cause. The coverage
 threshold is not computed on Windows, so that it stays the one of the whole module.
 
 The full suite takes longer than the default `go test` timeout (10 minutes), especially while

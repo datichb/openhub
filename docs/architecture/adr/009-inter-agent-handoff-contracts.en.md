@@ -4,7 +4,7 @@
 
 ## Status
 
-Accepted
+~~Accepted~~ **Superseded by [ADR-059](./059-return-envelope-and-workflow-report.en.md)**: the `*-handoff-format` skills no longer exist; an agent returns a short envelope and files its report with `workflow_report`
 
 ## Context
 

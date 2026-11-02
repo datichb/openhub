@@ -13,7 +13,7 @@
 %% oh is the control tower: it resolves a workflow, builds a session bundle,
 %% starts one opencode server per group and supervises the sessions through
 %% its daemon (credential proxy, gateways, decisions, MCP servers of oh).
-%% See ADR-038 to ADR-055.
+%% See ADR-038 to ADR-060.
 
 flowchart LR
     U["fa:fa-user User"] -->|"oh run &lt;workflow&gt;<br/>TUI · oh session …"| CLI["fa:fa-terminal oh<br/>CLI + TUI"]
@@ -395,6 +395,11 @@ Implementing and diagnosing are given to different agents (developer, debugger);
 | [053](./adr/053-fanout-control-substitution.en.md) | Fan-out: child sessions driven by oh and control substitution (CP-R3) | — |
 | [054](./adr/054-team-brick-catalogue.en.md) | Team brick catalogue: `oh brick`, governance and integrity (`catalog.lock`) | evolves 040, follows 051 |
 | [055](./adr/055-checkpoint-approver.en.md) | Human approver of a checkpoint (`approver:`, CP-R9), step 1 | — |
+| [056](./adr/056-team-claim-lease.en.md) | Team claims: lease, heartbeat, end of session and durable queue | evolves 024 |
+| [057](./adr/057-gitlab-token-per-server.en.md) | Strict GitLab token per server | evolves 028 |
+| [058](./adr/058-primary-agent-called-is-all.en.md) | A `primary` agent called by the workflow is shipped as `mode: all` | complements 038, 039 |
+| [059](./adr/059-return-envelope-and-workflow-report.en.md) | Return envelope, `workflow_report` and role-filtered skills | replaces 009, 015, 016 |
+| [060](./adr/060-living-wiki.en.md) | Living documentation wiki: agents propose, the user validates, oh applies and checks | — |
 
 All ADRs: [`docs/architecture/adr/`](./adr/).
 

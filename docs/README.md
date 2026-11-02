@@ -144,7 +144,7 @@ The `workflow` MCP server (`workflow_status`, `workflow_checkpoint`, `workflow_o
 
 ---
 
-## Architecture (6 docs + 53 ADRs)
+## Architecture (6 docs + 60 ADRs)
 
 | Document | Description |
 |----------|-------------|
@@ -154,7 +154,7 @@ The `workflow` MCP server (`workflow_status`, `workflow_checkpoint`, `workflow_o
 | [Task Delegation](architecture/task-delegation.en.md) | Inter-agent delegation model (`calls:`, `after:`) |
 | [Living Wiki](architecture/living-wiki.en.md) | Living documentation wiki architecture |
 | [TodoWrite Isolation](architecture/todowrite-session-isolation.en.md) | Session isolation design |
-| [ADRs](architecture/adr/) | 54 Architecture Decision Records (v5: 038 to 054) |
+| [ADRs](architecture/adr/) | 60 Architecture Decision Records (v5: 038 to 060) |
 
 ### v5 decisions
 
@@ -178,6 +178,11 @@ The `workflow` MCP server (`workflow_status`, `workflow_checkpoint`, `workflow_o
 | [053](architecture/adr/053-fanout-control-substitution.en.md) | Fan-out: child sessions driven by oh and control substitution (CP-R3) |
 | [054](architecture/adr/054-team-brick-catalogue.en.md) | Team brick catalogue: `oh brick`, governance and integrity (`catalog.lock`) |
 | [055](architecture/adr/055-checkpoint-approver.en.md) | Human approver of a checkpoint (`approver:`, CP-R9), step 1 |
+| [056](architecture/adr/056-team-claim-lease.en.md) | Team claims: lease, heartbeat, end of session and durable queue |
+| [057](architecture/adr/057-gitlab-token-per-server.en.md) | Strict GitLab token per server |
+| [058](architecture/adr/058-primary-agent-called-is-all.en.md) | A `primary` agent called by the workflow is shipped as `mode: all` |
+| [059](architecture/adr/059-return-envelope-and-workflow-report.en.md) | Return envelope, `workflow_report` and role-filtered skills |
+| [060](architecture/adr/060-living-wiki.en.md) | Living documentation wiki: agents propose, the user validates, oh applies and checks |
 
 ---
 
@@ -223,23 +228,37 @@ Diagram sources (`.mermaid`, one diagram per file) live in [`diagrams/`](diagram
 
 ---
 
-## Developer Internal (15 docs)
+## Developer Internal (8 docs)
 
-Internal development notes (mostly monolingual, not translated). Some describe the state before v5.
+Internal development notes (mostly monolingual, not translated). The documents that describe the state before v5 are archived in [Archives](#archives).
 
 | Document | Description |
 |----------|-------------|
 | [Architecture](dev/architecture.md) | Moved: points to the [architecture overview](architecture/overview.en.md) and the code conventions of [Contributing](guides/contributing.en.md#code-conventions) |
+| [Release checklist](dev/release-checklist.md) | Maintainers: from `main` to the verification of the published release |
 | [v5 Audit](dev/audit-v5.md) | v5 audit (security, design, ergonomics, functional, architecture) and correction plan (P0/P1/P2) |
-| [CLI Migration Analysis](dev/cli-migration-analysis.md) | Bash-to-Go migration analysis |
-| [CLI Migration Plan v2](dev/cli-migration-plan-v2.md) | Migration implementation plan |
-| [CLI Remaining Work](dev/cli-remaining-work.md) | Post-migration remaining tasks |
-| [Agent Reliability](dev/fiabilisation-agents-en-cours.md) | Agent reliability improvements |
-| [File Locking](dev/file-locking.md) | File locking strategy |
-| [Git Hooks](dev/git-hooks.md) | Optional pre-commit and commit-msg hooks |
-| [Performance Optimizations](dev/performance-optimizations.md) | Performance notes |
-| [Progress Bar](dev/progress-bar.md) | Progress bar implementation |
-| [Roadmap Audit](dev/roadmap-audit.md) | Roadmap audit notes |
-| [Shell Gotchas](dev/shell-gotchas.md) | Shell compatibility issues |
+| [v5 changelog by lot](dev/changelog-v5-lots.md) | Detail of the v5 lots, kept for the record (the final state is in the [CHANGELOG](../CHANGELOG.md)) |
+| [Modernisation report (October 2026)](dev/rapport-modernisation-2026-10.md) | Snapshot of 12 October 2026: audit, target architecture and decisions of the modernisation (historical) |
 | [TUI Architecture](dev/tui-architecture.md) | TUI internal architecture |
+| [TUI Conventions](dev/tui-conventions.md) | Keys and action list of the TUI views |
 | [TUI Testing](dev/tui-testing.md) | TUI test strategy |
+
+---
+
+## Archives
+
+Documents from before v5 (Bash CLI, Bash-to-Go migration), kept in [`legacy/`](legacy/) for the record. They no longer describe the code; each one carries a banner that says so.
+
+| Document | Description |
+|----------|-------------|
+| [Bash CLI README](legacy/README-bash.md) | README of the Bash CLI v1.x |
+| [CLI Migration Analysis](legacy/cli-migration-analysis.md) | Bash-to-Go migration analysis ([ADR-022](architecture/adr/022-cli-bash-to-go-migration.en.md)) |
+| [CLI Migration Plan v2](legacy/cli-migration-plan-v2.md) | Migration implementation plan |
+| [CLI Remaining Work](legacy/cli-remaining-work.md) | Post-migration backlog (v2.0.0, closed) |
+| [Agent Reliability](legacy/fiabilisation-agents-en-cours.md) | Agent reliability work (before v5) |
+| [File Locking](legacy/file-locking.md) | Locking of the Bash scripts |
+| [Git Hooks](legacy/git-hooks.md) | Hooks of the Bash scripts |
+| [Performance Optimizations](legacy/performance-optimizations.md) ([FR](legacy/performance-optimizations.fr.md)) | Optimisations of the Bash-era `oh deploy` |
+| [Progress Bar](legacy/progress-bar.md) ([FR](legacy/progress-bar.fr.md)) | Progress bar of the Bash scripts |
+| [Roadmap Audit](legacy/roadmap-audit.md) | Action plan of the July 2026 audit |
+| [Shell Gotchas](legacy/shell-gotchas.md) | Pitfalls of the Bash scripts |

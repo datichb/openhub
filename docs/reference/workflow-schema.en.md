@@ -318,7 +318,7 @@ The key is the id of an agent of the brick catalogue (hub + team), in kebab-case
 | Field | Type | Values | Absent | Role |
 |---|---|---|---|---|
 | `role` | text | `workflow`, `independent`, `disabled` | required | `workflow`: in the chain, must be reachable from the entry (`agent_unreachable`); `independent`: available on demand, outside the chain; `disabled`: removed (patch) |
-| `mode` | text | `primary`, `subagent` | mode of the agent in the catalogue | `primary`: the user may pick it; `subagent`: only called by delegation |
+| `mode` | text | `primary`, `subagent`, `all` | mode of the agent in the catalogue | `primary`: the user may pick it; `subagent`: only called by delegation; `all`: both. A `primary` agent that an agent of the workflow may launch (itself included) is shipped as `all`: opencode refuses to launch a `primary` agent through `task` ([ADR-058](../architecture/adr/058-primary-agent-called-is-all.en.md)) |
 | `after` | text | checkpoint or agent id | no gate | the agent can only be called after this checkpoint or agent (`after_unknown`, `after_cycle`) |
 | `calls` | list | agent ids of the workflow | `task` permission of the agent, restricted to the workflow | allowed delegations (`calls_unknown`, `graph_cycle`) |
 | `scratch` | table | `{ readers: [<agent>…] }` | no scratch folder | session scratch folder of the agent (see [below](#scratch-session-scratch-folders)) |
@@ -740,6 +740,7 @@ A diagnostic has a severity (error or warning), a code, the field path, the sour
 | `enforced_field`, `enforce_unknown_field` | field locked by a parent; unknown `enforce` value |
 | `entry_not_primary`, `entry_role`, `entry_disabled`, `agent_unknown`, `agent_unreachable` | invalid entry agent or member |
 | `after_unknown`, `after_cycle`, `calls_unknown`, `graph_cycle` | `after` gates and delegations |
+| `calls_target_primary` | an agent written `mode: primary` is called: it is shipped as `all` (warning) |
 | `scratch_reader_unknown`, `scratch_reader_owner` | scratch reader not in the workflow, or the owner itself |
 | `writes_after_unknown`, `writes_after_without_writes`, `checkpoint_after_unknown`, `checkpoint_after_order`, `order_method_after` | order of the writes and of the checkpoints (r5-fixes) |
 | `writes_path_invalid`, `writes_read_only` | write path outside `docs/` or with a wildcard other than `/**`; `writes` in a `risk: read` workflow |

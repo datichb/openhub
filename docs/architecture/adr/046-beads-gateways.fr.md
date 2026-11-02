@@ -4,7 +4,7 @@
 
 ## Statut
 
-Accepté — évolué par l'[ADR-052](052-beads-identity-provenance.fr.md) (`--readonly` sur les lectures, auteur fixé par oh, événements de provenance)
+Accepté — évolué par l'[ADR-052](052-beads-identity-provenance.fr.md) (`--readonly` sur les lectures, auteur fixé par oh, événements de provenance) et par l'[amendement du 2026-11-02](#amendement--2026-11-02) (en local aussi, `bd` passe par le faux `bd` et la passerelle)
 
 ## Date
 
@@ -104,3 +104,7 @@ Décision D9 : Beads reste toujours sur la machine.
 | Réécrire chaque serveur MCP en HTTP | Un pont générique couvre tous les serveurs d'oh sans les modifier. |
 | Passer le jeton de la passerelle dans l'environnement du serveur | Le shell de session n'hérite pas de l'environnement du serveur (F30) ; il passe par l'environnement de session. |
 | Appliquer directement les écritures du job distant à la base | Le job ne joint pas la machine, et une écriture concurrente serait écrasée sans le savoir. |
+
+## Amendement — 2026-11-02
+
+« En local, `bd` reste direct » (§ 1 et décision D9 ci-dessus) n'est plus vrai. Depuis la correction QB1, les sessions locales trouvent **en premier dans leur `PATH`** un `bd` qui est le faux `bd` d'oh (`~/.oh/run/bin/bd`, qui relance l'exécutable `oh` avec l'argument caché `__bd` ; `bd.cmd` sous Windows) : tout appel de l'agent passe par la passerelle du démon, comme dans un conteneur, et la liste blanche `beads.allow` du workflow, l'auteur fixé par oh et les événements de provenance ([ADR-052](052-beads-identity-provenance.fr.md)) s'appliquent donc dans **tous** les environnements, pas seulement hors machine. Le vrai `bd` n'est lancé que par le démon, sur la machine. Ce qui reste direct, c'est le `bd` que l'utilisateur ou les commandes d'oh (`oh board`…) lancent hors d'une session d'agent. Code : `internal/gateway/fakebd`, `cmd/v5_beads_local.go`.

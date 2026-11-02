@@ -29,6 +29,8 @@ Trois règles gouvernent tout le reste :
   | `.github/workflows/ci.yml` | `OPENCODE_VERSION` (et les deux `OPENCODE_SHA256_DARWIN_*`) |
   | `cli/internal/adapters/opencodev2/pinned_integrity.json` | l'empreinte sha512 des quatre paquets Linux de cette version |
 
+  **Chaque version mineure ajoute son entrée** `oh_versions."X.Y"` à `compatibility.json` (`opencode_min`, `opencode_max`, `opencode_recommended`, `notes`) : sans elle, la version de oh retombe sur `default` (`SupportedRange` lit `oh_versions` par `MajorMinor`), qui ne dit rien de cette version. Ajouter l'entrée `"5.1"` pour la 5.1, puis une par version mineure suivante.
+
   Pour épingler une version (lecture seule, ne modifie rien ; à lancer deux fois, de préférence depuis deux réseaux, et à comparer) :
 
   ```bash
@@ -41,9 +43,13 @@ Trois règles gouvernent tout le reste :
   ```bash
   make embed-sync      # contenu du hub embarqué + bd (obligatoire avant le premier build)
   go vet ./...
-  make lint            # golangci-lint sur linux, darwin et windows
-  make test            # go test ./... -race, timeout 40 min
+  GOTOOLCHAIN=go1.26.10 make lint   # golangci-lint sur linux, darwin et windows
+  make test                         # go test ./... -race, timeout 40 min
+  go test -count=1 ./cmd/           # sans -short (environ 4 minutes)
   ```
+
+  - **Lint avec `GOTOOLCHAIN=go1.26.10`** : un `golangci-lint` compilé avec un Go plus ancien que `toolchain` de `cli/go.mod` (1.26.10) échoue (« file requires newer Go version… ») ; la variable lui fait utiliser le Go du module. La CI épingle `golangci-lint` v2.14 (`ci.yml`), plus récent que la plupart des installations locales (`golangci-lint --version`) : un écart de règles entre le poste et la CI se règle en alignant la version locale.
+  - **Les tests de `./cmd` se lancent sans `-short`.** `make test` ne passe pas `-short`, mais `make test-unit` et `go test -short ./...` oui, et `-short` saute des tests de `cmd/` (le 23/10/2026 il cachait deux régressions, `TestTeamInitSolo` et `TestTUIEditorCheck`). Ne pas conclure d'un `-short` vert.
 
   `make test` ne lance ni l'intégration, ni l'e2e, ni les conteneurs, ni les évals (voir [étape 3](#3-validations-manuelles)). Compter une dizaine de minutes sur une machine peu chargée (515 s le 22/10/2026) ; sous forte charge, deux tests à délai fixe peuvent échouer (`gitutil TestFingerprintDoesNotBlockOnFIFO`, `fanout TestDriverMergerKeepsAPartForThePendingChildren`) : les relancer seuls avant de conclure.
 - [ ] **GoReleaser en local.** Depuis `cli/` :
@@ -54,7 +60,8 @@ Trois règles gouvernent tout le reste :
   ```
 
   - `goreleaser check` **échoue aujourd'hui, et c'est attendu** : il signale que `brews` est déprécié (au profit de `homebrew_casks`). **Décision du 22/10/2026 : `brews` est gardé pour la 5.0** (la formule `openhub` du tap continue d'être produite) ; la migration vers `homebrew_casks` est à planifier après la 5.0, en étudiant l'effet sur `brew install datichb/tap/openhub` et sur Linux. Tout autre message de `check` bloque la release.
-  - Le snapshot ne publie rien. `--skip=sign` est nécessaire en local : la signature Cosign sans clé utilise l'identité OIDC de GitHub Actions, absente d'un poste. Il lance les hooks `before` (`go mod tidy`, `make sync-content`, `make embed-bd`), construit `darwin` et `linux` en `amd64` et `arm64` (pas de Windows) et écrit dans `cli/dist/` (ignoré par git) : quatre `openhub_<os>_<arch>.tar.gz`, `checksums.txt` et la formule `dist/homebrew/Formula/openhub.rb`. Compter une trentaine de secondes. Ensuite, `git status` doit être propre (sinon `go mod tidy` a trouvé un écart à committer), et le binaire de la machine (`cli/dist/openhub_<os>_<arch>*/oh`) répond à `oh version` (avec un `OH_HOME` temporaire). La version affichée est celle d'un snapshot (`4.2.0-SNAPSHOT-<commit>`) : c'est normal.
+  - Le snapshot ne publie rien. `--skip=sign` est nécessaire en local : la signature Cosign sans clé utilise l'identité OIDC de GitHub Actions, absente d'un poste. Il lance les hooks `before` (`go mod tidy`, `make sync-content`, `make embed-bd`), construit `darwin` et `linux` en `amd64` et `arm64` (pas de Windows) et écrit dans `cli/dist/` (ignoré par git) : quatre `openhub_<os>_<arch>.tar.gz`, `checksums.txt` et la formule `dist/homebrew/Formula/openhub.rb`. Compter une trentaine de secondes. Ensuite, `git status` doit être propre (sinon `go mod tidy` a trouvé un écart à committer), et le binaire de la machine (`cli/dist/openhub_<os>_<arch>*/oh`) répond à `oh version` (avec un `OH_HOME` temporaire). La version affichée est celle d'un snapshot, `<dernier tag>-SNAPSHOT-<commit>` (par exemple `5.0.0-SNAPSHOT-24741c00` après `v5.0.0`) : c'est normal.
+  - **Dépendances de la formule** (décision BL-22) : `dist/homebrew/Formula/openhub.rb` doit déclarer `git` et `opencode` comme dépendances obligatoires, `beads` et `terminal-notifier` comme recommandées (`dependencies` de `brews` dans `cli/.goreleaser.yml`). Sans `opencode`, `brew install datichb/tap/openhub` donne un `oh` qui ne peut lancer aucune session.
 
 ## 2. Push et CI verte
 
@@ -72,6 +79,7 @@ La CI n'appelle aucun modèle et ne lance ni les évals ni l'e2e (décision docu
 - [ ] **Évals de comportement** : `cd cli && make test-eval` (variables `OH_EVAL_*` documentées dans `cli/Makefile` ; `OH_EVAL_PLAN=1` estime le coût sans rien lancer). Comparer à `internal/evalrun/testdata/evals/baseline.json` ; ne pas réenregistrer la référence (`OH_EVAL_RECORD`) sans décision.
 - [ ] **E2E** : `cd cli && make test-e2e` (tests `TestE2E`, vrai modèle). Intégration contre un vrai `opencode serve` : `make test-integration` (sans modèle). Conteneurs, si Colima, Podman ou Docker tourne : `make test-container`.
 - [ ] **Mode équipe** : suivre [team-testing-guide](../guides/team-testing-guide.fr.md) sur un team-state de test. Vérifier la colonne REVIEW de `oh board` (ticket `in_progress` + label `ready-for-review`), le bail et la fin de session (réservation gardée en revue, libérée sinon, reprise d'une réservation expirée, `oh doctor` `claims_expired` et `claims_queue`), `oh team release`, et que [Bail et fin de session](../guides/team-setup.fr.md#bail-et-fin-de-session) correspond toujours à ce que l'on observe. Aucun avertissement sur stderr ne doit apparaître.
+- [ ] **Recette réelle** (jalon, avant le tag d'une version mineure ou majeure ; elle ne remplace aucune des lignes ci-dessus) : dérouler la liste de recette des mainteneurs sur le commit à taguer, avec un vrai modèle, le vrai `opencode` épinglé et le vrai `bd` : les parcours critiques (près de trente), la recette de la TUI (une cinquantaine de points) et, pour le mode distant, un vrai runner GitLab (`image:` dotenv, Kaniko, arrêt de la session, sceau du journal). Ces listes ne sont pas dans le dépôt : les tenir à jour avec les lots, et noter dans la release ce qui n'a pas été déroulé.
 - [ ] **Plugins (S-11)** : avec un plugin dans la configuration personnelle de l'outil (`opencode.json`, clé `plugin`, ou dossier `plugin/` de `$XDG_CONFIG_HOME/opencode`), `oh doctor` affiche l'avertissement, le lancement d'une session local le signale, et `execution.strict_isolation = true` les masque. Le format de configuration d'opencode est lu par `adapters/opencodev2/user_plugins.go` : à revérifier à chaque nouvelle version d'opencode recommandée.
 - [ ] **`oh init`** : dans un `OH_HOME` temporaire (jamais le vrai `~/.oh`), le parcours solo tient en 3 écrans, l'équipe en 4, le complet en 5 ; le `hub.toml` produit est relu sans avertissement (`oh doctor`).
 - [ ] Binaire du snapshot (étape 1), avec un `OH_HOME` temporaire : `oh version`, `oh doctor`, `oh --help` (une page).
@@ -128,7 +136,7 @@ Attendre la fin du workflow `Release — GoReleaser` (onglet Actions), puis :
   ```
 
   Puis `shasum -a 256 -c checksums.txt --ignore-missing` à côté d'une archive.
-- [ ] **Homebrew** (release finale seulement) : un commit de GoReleaser apparaît dans `datichb/homebrew-tap`, `Formula/openhub.rb`, à la nouvelle version, avec les URL et les SHA-256 de la release. Sur une machine : `brew update && brew upgrade openhub` (ou `brew install datichb/tap/openhub`), puis `oh version`.
+- [ ] **Homebrew** (release finale seulement) : un commit de GoReleaser apparaît dans `datichb/homebrew-tap`, `Formula/openhub.rb`, à la nouvelle version, avec les URL et les SHA-256 de la release. Sur une machine : `brew update && brew upgrade openhub` (ou `brew install datichb/tap/openhub`), puis `oh version` ; `brew deps openhub` liste `opencode` (BL-22).
 - [ ] **`install.sh`** (release finale) : dans un dossier jetable, avec `cosign` installé pour que la signature soit contrôlée :
 
   ```bash

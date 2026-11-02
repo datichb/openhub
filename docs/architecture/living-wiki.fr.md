@@ -324,4 +324,4 @@ code ne reçoit aucune proposition. Plus de réécriture complète : supprimer `
 - Skill `documentarian/doc-wiki-protocol` — formats canoniques + règles d'enrichissement
 - Skill `shared/living-docs-enrichment` — propositions avec `wiki_propose`
 - [Serveur MCP `wiki`](../reference/cli-mcp.fr.md#serveur-mcp-wiki) et [`oh wiki`](../reference/cli-projects.fr.md#oh-wiki-check)
-- ADR à venir : décision d'adoption du wiki documentaire vivant
+- [ADR-060](./adr/060-living-wiki.fr.md) : décision d'adoption du wiki documentaire vivant

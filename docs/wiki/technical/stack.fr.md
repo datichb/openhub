@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-15
+updated: 2026-11-02
 confidence: confirmed
 agents: [onboarder, documentarian]
 ---
@@ -8,13 +8,13 @@ agents: [onboarder, documentarian]
 
 # Stack technologique
 
-Sources de la page — `CONFIRMÉ` · onboarder · 2026-10-06 · cli/go.mod, cli/.goreleaser.yml, cli/Makefile, docs/architecture/overview.fr.md
+Sources de la page — `CONFIRMÉ` · onboarder · 2026-10-06 · cli/go.mod, cli/.goreleaser.yml, cli/Makefile, .github/workflows/ci.yml, docs/architecture/overview.fr.md
 
 ## Runtime
 
 | Composant | Technologie | Version |
 |-----------|------------|---------|
-| Langage | Go | 1.26.4 |
+| Langage | Go | 1.26 (`go 1.26.4`, toolchain 1.26.10) |
 | Binaire | Binaire statique unique | `CGO_ENABLED=0` |
 | Framework TUI | [tview](https://github.com/rivo/tview) | base tcell |
 | Invites en ligne (hors TUI) | [huh](https://github.com/charmbracelet/huh) | -- |
@@ -32,7 +32,7 @@ Sources de la page — `CONFIRMÉ` · onboarder · 2026-10-06 · cli/go.mod, cli
 |-------|-------|
 | [GoReleaser](https://goreleaser.com/) v2 | Compilation croisee, signature d'artefacts, GitHub Release |
 | [Cosign](https://docs.sigstore.dev/cosign/) | Signature sans clé (Sigstore OIDC) |
-| [golangci-lint](https://golangci-lint.run/) v2.1 | Linting Go (bodyclose, gocritic, misspell, nilerr) |
+| [golangci-lint](https://golangci-lint.run/) v2.14 | Linting Go (bodyclose, gocritic, misspell, nilerr) ; en local, `GOTOOLCHAIN=go1.26.10 make lint` |
 | [govulncheck](https://pkg.go.dev/golang.org/x/vuln/cmd/govulncheck) | Scan de vulnérabilités des dépendances Go |
 | GitHub Actions | CI (matrice 3 OS) + automatisation release |
 | Dependabot | Mises à jour hebdomadaires des dépendances |

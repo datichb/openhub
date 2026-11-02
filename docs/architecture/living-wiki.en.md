@@ -323,4 +323,4 @@ faithful to the code gets no proposal. No more full rewrite: delete `docs/wiki/`
 - Skill `documentarian/doc-wiki-protocol` — canonical formats + enrichment rules
 - Skill `shared/living-docs-enrichment` — proposals with `wiki_propose`
 - [`wiki` MCP server](../reference/cli-mcp.en.md#wiki-mcp-server) and [`oh wiki`](../reference/cli-projects.en.md#oh-wiki-check)
-- ADR to come: decision to adopt the living documentation wiki
+- [ADR-060](./adr/060-living-wiki.en.md): decision to adopt the living documentation wiki

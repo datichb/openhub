@@ -4,7 +4,7 @@
 
 ## Status
 
-Accepted — evolved by [ADR-052](052-beads-identity-provenance.en.md) (`--readonly` on reads, actor set by oh, provenance events)
+Accepted — evolved by [ADR-052](052-beads-identity-provenance.en.md) (`--readonly` on reads, actor set by oh, provenance events) and by the [amendment of 2026-11-02](#amendment--2026-11-02) (locally too, `bd` goes through the fake `bd` and the gateway)
 
 ## Date
 
@@ -104,3 +104,7 @@ Decision D9: Beads always stays on the machine.
 | Rewrite each MCP server over HTTP | A generic bridge covers every oh server without changing them. |
 | Pass the gateway token in the server environment | The session shell does not inherit the server environment (F30); it goes through the session environment. |
 | Apply the remote job's writes directly to the database | The job cannot reach the machine, and a concurrent write would be overwritten unknowingly. |
+
+## Amendment — 2026-11-02
+
+"Locally, `bd` stays direct" (§ 1 and decision D9 above) is no longer true. Since the QB1 fix, local sessions find, **first on their `PATH`**, a `bd` that is the oh fake `bd` (`~/.oh/run/bin/bd`, which runs the `oh` executable again with the hidden `__bd` argument; `bd.cmd` on Windows): every call of the agent goes through the daemon gateway, as in a container, so the `beads.allow` allow-list of the workflow, the actor set by oh and the provenance events ([ADR-052](052-beads-identity-provenance.en.md)) apply in **every** environment, not only off the machine. The real `bd` is only run by the daemon, on the machine. What stays direct is the `bd` that the user or the oh commands (`oh board`…) run outside an agent session. Code: `internal/gateway/fakebd`, `cmd/v5_beads_local.go`.

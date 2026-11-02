@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted — **Evolved by [ADR-040](./040-workflows-team-state-governance.en.md)**
+Accepted — **Evolved by [ADR-040](./040-workflows-team-state-governance.en.md)** and **[ADR-056](./056-team-claim-lease.en.md)** (lease, end of session and durable queue of the claims)
 
 ## Date
 
@@ -106,7 +106,7 @@ backward compatibility.
 - The `state_path` is auto-derived per remote URL (`~/.oh/team-states/<repo-name>`) to prevent
   clone collisions between projects using different team-state repos.
 
-**Related:** `cli/internal/config/team_resolve.go`, `docs/dev/team-features-spec.md §6`
+**Related:** `cli/internal/config/team_resolve.go` (the original specification, `docs/dev/team-features-spec.md`, is no longer in the repository)
 
 ## Amendment — 2026-07-28
 

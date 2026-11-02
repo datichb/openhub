@@ -2,7 +2,7 @@
 
 ## Statut
 
-Accepté — **Évolué par [ADR-040](./040-workflows-team-state-governance.fr.md)**
+Accepté — **Évolué par [ADR-040](./040-workflows-team-state-governance.fr.md)** et **[ADR-056](./056-team-claim-lease.fr.md)** (bail, fin de session et file durable des claims)
 
 ## Date
 
@@ -106,7 +106,7 @@ la compatibilité ascendante complète.
 - Le `state_path` est auto-déduit par URL remote (`~/.oh/team-states/<nom-repo>`) pour éviter
   les collisions de clone entre projets utilisant des repos team-state différents.
 
-**Références :** `cli/internal/config/team_resolve.go`, `docs/dev/team-features-spec.md §6`
+**Références :** `cli/internal/config/team_resolve.go` (la spécification d'origine, `docs/dev/team-features-spec.md`, n'est plus dans le dépôt)
 
 ## Amendement — 2026-07-28
 
