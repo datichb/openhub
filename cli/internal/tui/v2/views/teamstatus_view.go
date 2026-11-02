@@ -1,6 +1,7 @@
 package views
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -10,7 +11,9 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/teamstate"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 )
 
 // TeamStatusView displays team status (who works on what) and activity.
@@ -19,6 +22,20 @@ type TeamStatusView struct {
 	resolveTeam ResolveTeamFunc
 	shell       ShellAccess
 	tv          *tview.TextView
+	loads       loadSlot // the reads of the team-state: only the latest is applied
+
+	// read replaces the read of the team-state (tests).
+	read func(repo teamstate.TeamStateReader) *teamStatusData
+}
+
+// teamStatusData is what a read of the team-state gives back.
+type teamStatusData struct {
+	members    []teamstate.Member
+	claims     []teamstate.Claim
+	events     []teamstate.Event
+	membersErr error
+	claimsErr  error
+	eventsErr  error
 }
 
 var _ View = (*TeamStatusView)(nil)
@@ -41,7 +58,7 @@ func (v *TeamStatusView) Title() string { return i18n.T("tui.team.status") }
 
 // StatusHints returns keybinding hints.
 func (v *TeamStatusView) StatusHints() string {
-	return fmt.Sprintf("r %s · Esc %s", i18n.T("tui.hints.refresh"), i18n.T("tui.hints.back"))
+	return keys.Hints(keys.Refresh.Hint(), keys.Back.Hint())
 }
 
 // Mount builds the team status display.
@@ -60,112 +77,125 @@ func (v *TeamStatusView) Mount(content *tview.Flex, app *tview.Application) {
 
 // Unmount cleans up resources.
 func (v *TeamStatusView) Unmount() {
+	v.loads.Invalidate() // drop the read in flight
 	v.app = nil
 	v.tv = nil
 }
 
 // HandleKey processes key events.
 func (v *TeamStatusView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
-	if event.Rune() == 'r' {
+	if keys.Refresh.Matches(event) {
 		v.syncAndRender()
 		return nil
 	}
 	return event
 }
 
-// syncAndRender performs an async pull then re-renders the status view.
+// syncAndRender pulls the team-state, reads it off the event loop, then
+// draws the status.
 func (v *TeamStatusView) syncAndRender() {
-	tc := v.resolveTeam()
-	if !tc.Enabled {
-		v.render(tc, nil)
-		return
-	}
-	repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
-	if !repo.IsCloned() {
-		v.render(tc, nil)
-		return
-	}
-	syncAsync(v.app, repo, v.shell, func(_ error) {
-		v.render(tc, repo)
-	})
-}
-
-func (v *TeamStatusView) render(tc TeamResolution, repo teamstate.TeamStateWriter) {
 	if v.tv == nil {
 		return
 	}
+	tc := v.resolveTeam()
+	if !tc.Enabled {
+		v.loads.Invalidate()
+		v.render(tc, nil)
+		return
+	}
+	setState(v.tv, stateLoading, "")
+	repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
+	read := v.read
+	if read == nil {
+		read = readTeamStatus
+	}
+	fetch := func(context.Context) (*teamStatusData, error) { return read(repo), nil }
+	syncLoad(v.app, shellContext(v.shell), &v.loads, repo, v.shell, fetch, func(d *teamStatusData, _ error) {
+		if v.tv != nil {
+			v.render(tc, d)
+		}
+	})
+}
+
+// readTeamStatus reads the members, the claims and the last events; nil when
+// the clone of the team-state is missing. It reads files: call it off the
+// event loop.
+func readTeamStatus(repo teamstate.TeamStateReader) *teamStatusData {
+	if !repo.IsCloned() {
+		return nil
+	}
+	var d teamStatusData
+	d.members, d.membersErr = repo.ListMembers()
+	d.claims, d.claimsErr = repo.ListClaims("")
+	d.events, d.eventsErr = repo.ListEventsLimited("", 5)
+	return &d
+}
+
+// render draws the status; d is nil when the clone of the team-state is
+// missing.
+func (v *TeamStatusView) render(tc TeamResolution, d *teamStatusData) {
+	bold, plain := theme.StyleTag(theme.AttrBold), theme.TagAttrs
+	secondary := func(s string) string { return theme.Paint(theme.TextSecondaryHex, s) }
 
 	var sb strings.Builder
-	fmt.Fprintf(&sb, "\n  [::b]%s%s\n\n", i18n.T("tui.teamstatus.title"), theme.TagReset)
+	fmt.Fprintf(&sb, "\n  %s%s%s\n\n", bold, i18n.T("tui.teamstatus.title"), plain)
 
 	if !tc.Enabled {
-		fmt.Fprintf(&sb, "  %s%s%s\n\n",
-			theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.teamstatus.team_not_configured"), theme.TagColor)
-		fmt.Fprintf(&sb, "  %s%s%s\n",
-			theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.teamstatus.configure_hint"), theme.TagColor)
+		fmt.Fprintf(&sb, "  %s\n\n", secondary(i18n.T("tui.teamstatus.team_not_configured")))
+		fmt.Fprintf(&sb, "  %s\n", secondary(i18n.T("tui.teamstatus.configure_hint")))
 		v.tv.SetText(sb.String())
 		return
 	}
 
-	fmt.Fprintf(&sb, "  %s%s%s    %s\n",
-		theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.teamstatus.repo_label"), theme.TagColor, tc.StateRepo)
-	fmt.Fprintf(&sb, "  %s%s%s  %s\n\n",
-		theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.teamstatus.member_label"), theme.TagColor, tc.MemberID)
+	fmt.Fprintf(&sb, "  %s    %s\n", secondary(i18n.T("tui.teamstatus.repo_label")), tview.Escape(tc.StateRepo))
+	fmt.Fprintf(&sb, "  %s  %s\n\n", secondary(i18n.T("tui.teamstatus.member_label")), tview.Escape(tc.MemberID))
 
-	if repo == nil {
-		fmt.Fprintf(&sb, "  %s%s%s\n",
-			theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.teamstatus.repo_not_cloned"), theme.TagColor)
+	if d == nil {
+		fmt.Fprintf(&sb, "  %s\n", stateText(stateEmpty, i18n.T("tui.teamstatus.repo_not_cloned")))
 		v.tv.SetText(sb.String())
 		return
 	}
 
 	// --- Members with assignments ---
-	members, membersErr := repo.ListMembers()
-	claims, claimsErr := repo.ListClaims("")
-
-	if membersErr != nil || claimsErr != nil {
+	if d.membersErr != nil || d.claimsErr != nil {
 		if v.shell != nil {
-			errMsg := ""
-			if membersErr != nil {
-				errMsg = membersErr.Error()
-			} else {
-				errMsg = claimsErr.Error()
+			err := d.membersErr
+			if err == nil {
+				err = d.claimsErr
 			}
-			v.shell.ShowToastMsg(i18n.Tf("tui.teamstatus.error_loading", errMsg), false)
+			v.shell.ShowToastMsg(i18n.Tf("tui.teamstatus.error_loading", err.Error()), false)
 		}
 	}
 
 	// Build member → claims map
 	memberClaims := make(map[string][]teamstate.Claim)
-	for _, c := range claims {
+	for _, c := range d.claims {
 		memberClaims[c.ClaimedBy] = append(memberClaims[c.ClaimedBy], c)
 	}
 
-	if len(members) > 0 {
-		fmt.Fprintf(&sb, "  [::b]%s%s\n\n", i18n.Tf("tui.teamstatus.members_header", len(members)), theme.TagReset)
-		for _, m := range members {
+	if len(d.members) > 0 {
+		fmt.Fprintf(&sb, "  %s%s%s\n\n", bold, i18n.Tf("tui.teamstatus.members_header", len(d.members)), plain)
+		for _, m := range d.members {
 			myClaims := memberClaims[m.ID]
-			var countStr string
+			countKey := "tui.teamstatus.ticket_count_plural"
 			if len(myClaims) == 1 {
-				countStr = i18n.Tf("tui.teamstatus.ticket_count", len(myClaims))
-			} else {
-				countStr = i18n.Tf("tui.teamstatus.ticket_count_plural", len(myClaims))
+				countKey = "tui.teamstatus.ticket_count"
 			}
 
 			// Highlight current user
-			nameColor := theme.ColorTag(theme.TextSecondaryHex)
+			nameColor := theme.TextSecondaryHex
 			if m.ID == tc.MemberID {
-				nameColor = theme.ColorTag(theme.ActiveMode.PrimaryHex)
+				nameColor = theme.ActiveMode.PrimaryHex
 			}
 
-			fmt.Fprintf(&sb, "  %s@%-12s%s %s%-14s%s",
-				nameColor, m.ID, theme.TagColor,
-				theme.ColorTag(theme.TextSecondaryHex), countStr, theme.TagColor)
+			fmt.Fprintf(&sb, "  %s %s",
+				theme.Paint(nameColor, fmt.Sprintf("@%-12s", tview.Escape(m.ID))),
+				secondary(fmt.Sprintf("%-14s", i18n.Tf(countKey, len(myClaims)))))
 
 			if len(myClaims) > 0 {
 				var parts []string
 				for _, c := range myClaims {
-					parts = append(parts, fmt.Sprintf("%s (%s)", c.TicketID, c.Status))
+					parts = append(parts, tview.Escape(fmt.Sprintf("%s (%s)", c.TicketID, c.Status)))
 				}
 				sb.WriteString(" " + strings.Join(parts, ", "))
 			}
@@ -176,11 +206,11 @@ func (v *TeamStatusView) render(tc TeamResolution, repo teamstate.TeamStateWrite
 
 	// --- Status summary ---
 	statusCounts := make(map[string]int)
-	for _, c := range claims {
+	for _, c := range d.claims {
 		statusCounts[c.Status]++
 	}
-	if len(claims) > 0 {
-		fmt.Fprintf(&sb, "  [::b]%s%s\n\n  ", i18n.T("tui.teamstatus.summary_header"), theme.TagReset)
+	if len(d.claims) > 0 {
+		fmt.Fprintf(&sb, "  %s%s%s\n\n  ", bold, i18n.T("tui.teamstatus.summary_header"), plain)
 		statuses := []struct {
 			key   string
 			label string
@@ -194,51 +224,34 @@ func (v *TeamStatusView) render(tc TeamResolution, repo teamstate.TeamStateWrite
 		}
 		var parts []string
 		for _, s := range statuses {
-			count := statusCounts[s.key]
-			parts = append(parts, fmt.Sprintf("● %d %s", count, s.label))
+			parts = append(parts, fmt.Sprintf("%s %d %s", theme.IconDot, statusCounts[s.key], s.label))
 		}
 		sb.WriteString(strings.Join(parts, "  "))
 		sb.WriteString("\n\n")
 	}
 
 	// --- Recent activity ---
-	events, eventsErr := repo.ListEventsLimited("", 5)
-	if eventsErr != nil && v.shell != nil {
-		v.shell.ShowToastMsg(i18n.Tf("tui.teamstatus.error_events", eventsErr.Error()), false)
+	if d.eventsErr != nil && v.shell != nil {
+		v.shell.ShowToastMsg(i18n.Tf("tui.teamstatus.error_events", d.eventsErr.Error()), false)
 	}
-	fmt.Fprintf(&sb, "  [::b]%s%s\n\n", i18n.T("tui.teamstatus.recent_activity_header"), theme.TagReset)
-	if len(events) == 0 {
-		fmt.Fprintf(&sb, "  %s%s%s\n",
-			theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.teamstatus.no_recent_activity"), theme.TagColor)
+	fmt.Fprintf(&sb, "  %s%s%s\n\n", bold, i18n.T("tui.teamstatus.recent_activity_header"), plain)
+	if len(d.events) == 0 {
+		fmt.Fprintf(&sb, "  %s\n", stateText(stateEmpty, i18n.T("tui.teamstatus.no_recent_activity")))
 	} else {
-		for _, e := range events {
-			ago := formatTimeAgo(e.Timestamp)
-			fmt.Fprintf(&sb, "  %s%-12s%s %s %s\n",
-				theme.ColorTag(theme.TextSecondaryHex), ago, theme.TagColor,
-				e.Actor, formatEventDescription(e))
+		for _, e := range d.events {
+			fmt.Fprintf(&sb, "  %s %s %s\n",
+				secondary(fmt.Sprintf("%-12s", timeAgo(e.Timestamp))),
+				tview.Escape(e.Actor), tview.Escape(formatEventDescription(e)))
 		}
 	}
 
 	v.tv.SetText(sb.String())
 }
 
-// formatTimeAgo returns a human-readable relative time string.
-func formatTimeAgo(t time.Time) string {
-	d := time.Since(t)
-	switch {
-	case d < time.Minute:
-		return i18n.T("tui.teamstatus.time_just_now")
-	case d < time.Hour:
-		return i18n.Tf("tui.teamstatus.time_minutes_ago", int(d.Minutes()))
-	case d < 24*time.Hour:
-		return i18n.Tf("tui.teamstatus.time_hours_ago", int(d.Hours()))
-	case d < 7*24*time.Hour:
-		days := int(d.Hours() / 24)
-		if days == 1 {
-			return i18n.T("tui.teamstatus.time_yesterday")
-		}
-		return i18n.Tf("tui.teamstatus.time_days_ago", days)
-	default:
-		return t.Format("02 Jan")
+// timeAgo is how long ago t was (« 3 min ago »), the date from a week on.
+func timeAgo(t time.Time) string {
+	if !t.IsZero() && textfmt.Now().Sub(t) >= 7*24*time.Hour {
+		return textfmt.Date(t)
 	}
+	return textfmt.Ago(t)
 }

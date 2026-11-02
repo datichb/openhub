@@ -8,6 +8,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
@@ -52,7 +53,6 @@ type ProjectModeView struct {
 	items       []projectModeItem
 	resolveTeam ResolveTeamFunc // resolves effective team config for the active project
 
-	mountGen uint64          // guards stale goroutines (standard pattern)
 	headerTV *tview.TextView // header (badge, path, tool)
 	bannerTV *tview.TextView // centered ASCII art banner
 }
@@ -87,17 +87,16 @@ func (v *ProjectModeView) Title() string {
 // StatusHints returns keybinding hints for the omnibar (passive mode).
 func (v *ProjectModeView) StatusHints() string {
 	if v.project == nil {
-		return fmt.Sprintf("%s · Esc %s · Ctrl+T %s", i18n.T("tui.pm.no_project"), i18n.T("tui.hints.hub_mode"), i18n.T("tui.hints.team_mode"))
+		return keys.Hints(i18n.T("tui.pm.no_project"), keys.Back.HintAs(i18n.T("tui.hints.hub_mode")), "Ctrl+T "+i18n.T("tui.hints.team_mode"))
 	}
 	// Ctrl+T enters the team mode; Esc goes back to the hub (A33).
-	return fmt.Sprintf(
-		"%s · j/k %s · Enter %s · Ctrl+P %s · Esc %s · Ctrl+T %s",
+	return keys.Hints(
 		v.project.Name,
-		i18n.T("tui.hints.navigate"),
-		i18n.T("tui.hints.open"),
-		i18n.T("tui.hints.commands"),
-		i18n.T("tui.hints.hub_mode"),
-		i18n.T("tui.hints.team_mode"),
+		keys.Navigate.HintAs(i18n.T("tui.hints.navigate")),
+		keys.Open.HintAs(i18n.T("tui.hints.open")),
+		"Ctrl+P "+i18n.T("tui.hints.commands"),
+		keys.Back.HintAs(i18n.T("tui.hints.hub_mode")),
+		"Ctrl+T "+i18n.T("tui.hints.team_mode"),
 	)
 }
 
@@ -116,7 +115,6 @@ func (v *ProjectModeView) ModeInfo() ModeBarInfo {
 // Mount builds the project mode view.
 func (v *ProjectModeView) Mount(content *tview.Flex, app *tview.Application) {
 	v.app = app
-	v.mountGen++
 
 	// Refresh project from shell each time the view is mounted
 	if v.shell != nil {
@@ -131,8 +129,8 @@ func (v *ProjectModeView) Mount(content *tview.Flex, app *tview.Application) {
 		tv.SetBackgroundColor(theme.BgPanel)
 		tv.SetBorderPadding(1, 0, 2, 2)
 		tv.SetText(fmt.Sprintf(
-			"\n  [red]%s[-]\n\n  %s",
-			i18n.T("tui.pm.no_project"),
+			"\n  %s\n\n  %s",
+			stateText(stateEmpty, i18n.T("tui.pm.no_project")),
 			i18n.Tf("tui.pm.hint_hub",
 				theme.ColorTag(theme.ActiveMode.PrimaryHex), theme.TagColor,
 				theme.ColorTag(theme.ActiveMode.PrimaryHex), theme.TagColor,
@@ -162,22 +160,7 @@ func (v *ProjectModeView) Mount(content *tview.Flex, app *tview.Application) {
 
 	_, bh := renderBanner(v.project.Name, 100, theme.ActiveMode.AccentHex)
 
-	// ── Footer ──────────────────────────────────────────────────────────
-	muted := theme.ColorTag(theme.TextMutedHex)
-	accent := theme.ColorTag(theme.ActiveMode.PrimaryHex)
-	reset := theme.TagColor
-	footer := tview.NewTextView().
-		SetDynamicColors(true).
-		SetTextAlign(tview.AlignCenter).
-		SetScrollable(false)
-	footer.SetBackgroundColor(theme.BgPanel)
-	footer.SetText(fmt.Sprintf("\n%s%sCtrl+P%s %s  %s?%s %s  %sCtrl+T%s %s  %sCtrl+Q%s %s",
-		muted,
-		accent, reset, i18n.T("tui.home.shortcut.commands"),
-		accent, reset, i18n.T("tui.home.shortcut.help"),
-		accent, reset, i18n.T("tui.home.shortcut.team_mode"),
-		accent, reset, i18n.T("tui.home.shortcut.quit"),
-	))
+	footer := newHomeFooter(footerProject)
 
 	// ── Split items for dual-column: left = Sessions+Projet, right = Config+Team+Hub ──
 	leftItems, rightItems := v.splitItems()
@@ -234,7 +217,6 @@ func (v *ProjectModeView) Mount(content *tview.Flex, app *tview.Application) {
 
 // Unmount cleans up resources.
 func (v *ProjectModeView) Unmount() {
-	v.mountGen++ // invalidate in-flight async goroutine
 	v.app = nil
 	v.list = nil
 	v.dual = nil
@@ -244,7 +226,7 @@ func (v *ProjectModeView) Unmount() {
 
 // HandleKey processes view-specific key events.
 func (v *ProjectModeView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
-	if event.Rune() == '*' {
+	if homePinKey.Matches(event) {
 		if ref, ok := homeCurrentRef(v.list, v.dual); ok && ref < len(v.items) &&
 			togglePinOf(v.cfg.Start, v.startScope(), v.items[ref].start) {
 			return nil
@@ -294,10 +276,6 @@ func (v *ProjectModeView) renderHeader(compact bool) {
 	if v.headerTV == nil || v.project == nil {
 		return
 	}
-	secondary := theme.ColorTag(theme.ActiveMode.PrimaryHex)
-	muted := theme.ColorTag(theme.TextMutedHex)
-	reset := theme.TagColor
-
 	// Update banner (centered)
 	if v.bannerTV != nil {
 		if compact {
@@ -311,7 +289,7 @@ func (v *ProjectModeView) renderHeader(compact bool) {
 	// Update header (badge + path + session tool)
 	tool := ""
 	if v.cfg.ToolLine != nil {
-		tool = muted + v.cfg.ToolLine() + reset
+		tool = theme.Paint(theme.TextMutedHex, tview.Escape(v.cfg.ToolLine()))
 	}
 	pathInfo := v.project.Path
 	if v.project.Branch != "" {
@@ -319,16 +297,16 @@ func (v *ProjectModeView) renderHeader(compact bool) {
 	}
 	v.headerTV.SetWrap(!compact) // compact: one line, cut on the right
 	if compact {
-		line := "  " + muted + pathInfo + reset
+		line := "  " + theme.Paint(theme.TextMutedHex, tview.Escape(pathInfo))
 		if tool != "" {
-			line += muted + " · " + reset + tool
+			line += theme.Paint(theme.TextMutedHex, " · ") + tool
 		}
 		v.headerTV.SetText(line)
 		return
 	}
-	v.headerTV.SetText(fmt.Sprintf("  %s%s%s\n  %s%s%s\n  %s",
-		secondary, i18n.T("tui.pm.header_badge"), reset,
-		muted, pathInfo, reset,
+	v.headerTV.SetText(fmt.Sprintf("  %s\n  %s\n  %s",
+		theme.Paint(theme.ActiveMode.PrimaryHex, i18n.T("tui.pm.header_badge")),
+		theme.Paint(theme.TextMutedHex, tview.Escape(pathInfo)),
 		tool,
 	))
 }

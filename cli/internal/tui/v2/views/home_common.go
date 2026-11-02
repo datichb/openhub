@@ -5,9 +5,69 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/mattn/go-runewidth"
+	"github.com/rivo/tview"
 
+	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
+
+// The keys of the landings and of the boards, read through keys instead of a
+// letter written in each view.
+var (
+	// colPrevKey and colNextKey move between the columns of a landing (dual
+	// layout) and of a board.
+	colPrevKey = keys.Own("columns.prev", 'h', "tui.columns.key.prev")
+	colNextKey = keys.Own("columns.next", 'l', "tui.columns.key.next")
+	// homePinKey pins or unpins the workflow under the cursor of « Démarrer ».
+	homePinKey = keys.Own("home.pin", '*', "tui.catalog.key.pin")
+)
+
+// columnsHint is the hint of the keys that move between columns (« h/l colonnes »).
+func columnsHint() string {
+	return colPrevKey.Keys() + "/" + colNextKey.Keys() + " " + i18n.T("tui.hints.columns")
+}
+
+// homeFooterMode is the landing a footer is drawn for.
+type homeFooterMode int
+
+const (
+	footerHub homeFooterMode = iota
+	footerProject
+	footerTeam
+)
+
+// homeShortcutsFooter is the footer of the three landings (Hub, Project,
+// Team): the same four shortcuts in the same order, Ctrl+T leading to the
+// team view from the hub and the project, and back to the hub from the team
+// (A33).
+func homeShortcutsFooter(mode homeFooterMode) string {
+	ctrlT := i18n.T("tui.home.shortcut.team_mode")
+	if mode == footerTeam {
+		ctrlT = i18n.T("tui.home.shortcut.hub_mode")
+	}
+	entry := func(key, label string) string {
+		return theme.Paint(theme.ActiveMode.PrimaryHex, key) + " " + theme.Paint(theme.TextMutedHex, label)
+	}
+	return "\n" + strings.Join([]string{
+		entry("Ctrl+P", i18n.T("tui.home.shortcut.commands")),
+		entry("?", i18n.T("tui.home.shortcut.help")),
+		entry("Ctrl+T", ctrlT),
+		entry("Ctrl+Q", i18n.T("tui.home.shortcut.quit")),
+	}, "  ")
+}
+
+// newHomeFooter is the text view of the footer of a landing.
+func newHomeFooter(mode homeFooterMode) *tview.TextView {
+	footer := tview.NewTextView().
+		SetDynamicColors(true).
+		SetTextAlign(tview.AlignCenter).
+		SetScrollable(false)
+	footer.SetBackgroundColor(theme.BgPanel)
+	footer.SetText(homeShortcutsFooter(mode))
+	return footer
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Common helpers shared by the 3 home views (HomeView, ProjectModeView,
@@ -35,7 +95,7 @@ func homeHandleKey(
 		}
 	}
 
-	if event.Key() == tcell.KeyEnter {
+	if keys.Open.Matches(event) {
 		active := list
 		if dual != nil {
 			active = dual.activeList()

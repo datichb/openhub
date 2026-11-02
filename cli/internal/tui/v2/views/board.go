@@ -285,18 +285,6 @@ func priorityColor(priority string) tcell.Color {
 	}
 }
 
-// truncateTitle shortens title to maxLen runes, appending "…" if truncated.
-func truncateTitle(title string, maxLen int) string {
-	runes := []rune(title)
-	if len(runes) <= maxLen {
-		return title
-	}
-	if maxLen <= 1 {
-		return "…"
-	}
-	return string(runes[:maxLen-1]) + "…"
-}
-
 // priorityPrefix returns a short coloured prefix for the ticket priority,
 // e.g. "[P0] " in red, "[P1] " in yellow, etc.
 func priorityPrefix(priority string) string {

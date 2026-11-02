@@ -79,9 +79,7 @@ func TestDecisionSettledElsewhereClosesItsWindow(t *testing.T) {
 	app := tview.NewApplication().SetScreen(sim)
 	content := tview.NewFlex()
 	app.SetRoot(content, true)
-	done := make(chan struct{})
-	go func() { _ = app.Run(); close(done) }()
-	t.Cleanup(func() { app.Stop(); <-done })
+	runLoop(t, app)
 	onLoop := func(fn func()) {
 		ch := make(chan struct{})
 		app.QueueUpdateDraw(func() { fn(); close(ch) })

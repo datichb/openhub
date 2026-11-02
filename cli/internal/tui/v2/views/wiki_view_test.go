@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -144,9 +145,7 @@ func runWikiView(t *testing.T, v *WikiView) (onLoop func(func())) {
 	app := tview.NewApplication().SetScreen(sim)
 	content := tview.NewFlex()
 	app.SetRoot(content, true)
-	done := make(chan struct{})
-	go func() { _ = app.Run(); close(done) }()
-	t.Cleanup(func() { app.Stop(); <-done })
+	runLoop(t, app)
 	onLoop = func(fn func()) {
 		ch := make(chan struct{})
 		app.QueueUpdateDraw(func() { fn(); close(ch) })
@@ -205,7 +204,7 @@ func TestWikiView(t *testing.T) {
 	assert.Contains(t, texts[0], "Propositions en attente (2)")
 	assert.Contains(t, texts[1], tview.Escape("[wp-a]")+" conventions", "the id escaped")
 	assert.Contains(t, texts[1], "reviewer")
-	assert.Contains(t, texts[1], "il y a 2 heures")
+	assert.Contains(t, texts[1], "il y a 2 h")
 	assert.Contains(t, texts[3], "Pages wiki (2)")
 	assert.Contains(t, texts[4], "architecture")
 	assert.Equal(t, 1, current, "the first proposal is selected")
@@ -259,8 +258,8 @@ func TestWikiView(t *testing.T) {
 		v.HandleKey(tcell.NewEventKey(tcell.KeyEnter, 0, 0))
 	})
 	assert.Contains(t, header, "Pages du wiki d'équipe")
+	require.Eventually(t, func() bool { title, _, _ = sh.modal(); return title == "architecture" }, 3*time.Second, 10*time.Millisecond, "the page is read off the loop")
 	title, body, _ = sh.modal()
-	assert.Equal(t, "architecture", title)
 	assert.Equal(t, "# Architecture [b[]x[-[]", body)
 	// y / n on a page do nothing.
 	onLoop(func() {
@@ -325,7 +324,7 @@ func TestWikiViewFailuresAndEmpty(t *testing.T) {
 	onLoop = runWikiView(t, off)
 	onLoop(func() { header = off.header.GetText(true) })
 	assert.Contains(t, header, "Team non configurée")
-	onLoop(func() { off.doAcceptProposal(teamstate.WikiProposal{ID: "wp-z"}) })
+	onLoop(func() { off.decide(teamstate.WikiProposal{ID: "wp-z"}, true) })
 	assert.Contains(t, sh.toastList(), "Team non configurée")
 	assert.Len(t, off.ContextCommands(), 2)
 	assert.Equal(t, "team.wiki", off.ID())
@@ -364,7 +363,7 @@ func TestWikiViewRefuseButtonConfirmedAndUnmount(t *testing.T) {
 	onLoop(func() { app = v.app })
 	p := repo.proposals[0]
 	for i := 0; i < 20; i++ {
-		onLoop(func() { v.doAcceptProposal(p); v.Unmount(); v.Mount(tview.NewFlex(), app) })
+		onLoop(func() { v.decide(p, true); v.Unmount(); v.Mount(tview.NewFlex(), app) })
 	}
 	onLoop(func() { sh.yes() })
 	require.Eventually(t, func() bool { c, _ := repo.got(); return len(c) > 0 && c[len(c)-1] == "reject wp-a" }, 3*time.Second, 20*time.Millisecond)
@@ -378,3 +377,54 @@ type refuseShell struct {
 }
 
 func (s *refuseShell) Confirm(_, _ string, _ bool, onYes func()) { s.yes = onYes }
+
+// slowWikiRepo blocks its first read of the proposals until release.
+type slowWikiRepo struct {
+	*wikiRepo
+	calls          atomic.Int32
+	first, release chan struct{}
+}
+
+func (r *slowWikiRepo) WikiListPending() ([]teamstate.WikiProposal, error) {
+	if r.calls.Add(1) == 1 {
+		close(r.first)
+		<-r.release
+		return []teamstate.WikiProposal{{ID: "wp-old", Page: "ancienne"}}, nil
+	}
+	return r.wikiRepo.WikiListPending()
+}
+
+// The proposals and the pages are read in load(): the mount returns with
+// « loading », and the answer of a read made before an unmount is not applied
+// to the next mount.
+func TestWikiViewLoadAndRemount(t *testing.T) {
+	withFrench(t)
+	repo := &slowWikiRepo{
+		wikiRepo: &wikiRepo{proposals: []teamstate.WikiProposal{{ID: "wp-new", Page: "nouvelle", Confidence: "CONFIRMED"}}},
+		first:    make(chan struct{}), release: make(chan struct{}),
+	}
+	v := NewWikiView(func() TeamResolution { return TeamResolution{Enabled: true, MemberID: "alice"} })
+	v.openRepo = func() teamstate.TeamStateWriter { return repo }
+	v.SetShell(&wikiShell{})
+	onLoop := runWikiView(t, v)
+	<-repo.first
+	var header string
+	onLoop(func() { header = v.header.GetText(true) })
+	assert.Contains(t, header, "Chargement")
+
+	var app *tview.Application
+	onLoop(func() { app = v.app; v.Unmount() })
+	onLoop(func() { v.Mount(tview.NewFlex(), app) })
+	require.Eventually(t, func() bool {
+		var n int
+		onLoop(func() { n = len(v.proposals) })
+		return n == 1
+	}, 3*time.Second, 10*time.Millisecond)
+
+	close(repo.release)
+	time.Sleep(50 * time.Millisecond)
+	onLoop(func() {
+		require.Len(t, v.proposals, 1)
+		assert.Equal(t, "wp-new", v.proposals[0].ID, "the answer of the previous mount is dropped")
+	})
+}

@@ -1,6 +1,7 @@
 package views
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -12,7 +13,10 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/beads"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/safego"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
@@ -61,6 +65,11 @@ type BoardView struct {
 	shell          ShellAccess
 	content        *tview.Flex     // parent container — stored to swap empty↔board
 	emptyTV        *tview.TextView // empty-state placeholder, nil once board is shown
+
+	checkReads  loadSlot // the check that Beads is set up: only the latest is applied
+	loads       loadSlot // the reads of the tickets: only the latest is applied
+	detailReads loadSlot // the read of the ticket being opened
+	descReads   loadSlot // the read of the description for the quick actions
 }
 
 var _ View = (*BoardView)(nil)
@@ -83,24 +92,15 @@ func (v *BoardView) Title() string { return i18n.T("tui.board.title") }
 // StatusHints returns keybinding hints.
 func (v *BoardView) StatusHints() string {
 	if !v.initialized {
-		return fmt.Sprintf("i %s · Ctrl+P %s · Esc %s",
-			i18n.T("tui.hints.init_beads"),
-			i18n.T("tui.hints.commands"),
-			i18n.T("tui.hints.back"),
-		)
+		return keys.Hints(boardInitKey.Hint(), "Ctrl+P "+i18n.T("tui.hints.commands"), keys.Back.Hint())
 	}
-	return fmt.Sprintf("h/l %s · j/k %s · Enter %s · a %s · L %s · r %s · Esc %s",
-		i18n.T("tui.hints.columns"),
-		i18n.T("tui.hints.items"),
-		i18n.T("tui.hints.detail"),
-		i18n.T("tui.hints.actions"),
-		i18n.T("tui.hints.link"),
-		i18n.T("tui.hints.refresh"),
-		i18n.T("tui.hints.back"),
-	)
+	return keys.Hints(columnsHint(), "j/k "+i18n.T("tui.hints.items"), keys.Open.HintAs(i18n.T("tui.hints.detail")),
+		boardActionsKey.Hint(), boardLinkKey.Hint(), keys.Refresh.Hint(), keys.Back.Hint())
 }
 
-// Mount builds the kanban board and inserts it into the content panel.
+// Mount builds the kanban board and inserts it into the content panel. Whether
+// Beads is set up is checked off the event loop (it runs bd): the board shows
+// « loading » until then, with the tickets the view was given.
 func (v *BoardView) Mount(content *tview.Flex, app *tview.Application) {
 	v.app = app
 	v.content = content
@@ -108,15 +108,34 @@ func (v *BoardView) Mount(content *tview.Flex, app *tview.Application) {
 	v.ticketsByID = make(map[string]BoardTicket)
 
 	v.initialized = true
-	if v.cfg.CheckInitialized != nil {
-		v.initialized = v.cfg.CheckInitialized()
-	}
-
-	if !v.initialized {
-		v.mountUninitializedScreen(content)
+	check := v.cfg.CheckInitialized
+	if check == nil {
+		v.mountBoard(content, app)
 		return
 	}
+	content.AddItem(stateView(stateLoading, ""), 0, 1, true)
+	load(app, shellContext(v.shell), &v.checkReads, func(context.Context) (bool, error) {
+		return check(), nil
+	}, func(ok bool, _ error) {
+		if v.content == nil {
+			return // unmounted meanwhile
+		}
+		v.content.Clear()
+		v.initialized = ok
+		if app != nil {
+			app.SetFocus(v.content)
+		}
+		if !ok {
+			v.mountUninitializedScreen(v.content)
+		} else {
+			v.mountBoard(v.content, app)
+		}
+		refreshHints(v.shell)
+	})
+}
 
+// mountBoard builds the columns of the board and starts reading the tickets.
+func (v *BoardView) mountBoard(content *tview.Flex, app *tview.Application) {
 	columns := DefaultColumns()
 	v.columnCards = make([]*widgets.CardColumn, len(columns))
 	v.columnFlex = tview.NewFlex()
@@ -139,12 +158,11 @@ func (v *BoardView) Mount(content *tview.Flex, app *tview.Application) {
 	v.populateColumns(v.cfg.Tickets, columns)
 
 	if len(v.cfg.Tickets) == 0 {
-		muted := theme.ColorTag(theme.TextMutedHex)
 		v.emptyTV = tview.NewTextView().
 			SetDynamicColors(true).
 			SetTextAlign(tview.AlignCenter)
 		v.emptyTV.SetBackgroundColor(theme.BgPanel)
-		v.emptyTV.SetText(fmt.Sprintf("\n\n  %s%s%s", muted, i18n.T("tui.board.no_tickets"), theme.TagColor))
+		v.emptyTV.SetText("\n\n  " + stateText(stateEmpty, i18n.T("tui.board.no_tickets")))
 		content.AddItem(v.emptyTV, 0, 1, true)
 	} else {
 		content.AddItem(v.columnFlex, 0, 1, true)
@@ -153,30 +171,30 @@ func (v *BoardView) Mount(content *tview.Flex, app *tview.Application) {
 	v.focusCol = 0
 	v.updateColumnFocus()
 
-	if v.cfg.RefreshFunc != nil {
+	if v.cfg.RefreshFunc != nil && app != nil {
 		rate := v.cfg.RefreshRate
 		if rate == 0 {
 			rate = 5 * time.Second
 		}
-		go v.refreshLoop(rate, columns)
+		v.reload()
+		everyOnLoop(app, rate, v.done, v.reload)
 	}
 }
 
 // mountUninitializedScreen renders the "beads not configured" invite screen.
 func (v *BoardView) mountUninitializedScreen(content *tview.Flex) {
-	accent := theme.ColorTag(theme.ActiveMode.PrimaryHex)
-	muted := theme.ColorTag(theme.TextMutedHex)
-	reset := theme.TagColor
+	accent := func(s string) string { return theme.Paint(theme.ActiveMode.PrimaryHex, s) }
+	muted := func(s string) string { return theme.Paint(theme.TextMutedHex, s) }
 
 	var b strings.Builder
-	fmt.Fprintf(&b, "\n\n  %s⊞ %s%s\n\n", accent, i18n.T("tui.board.not_configured"), reset)
-	fmt.Fprintf(&b, "  %s%s%s\n\n", muted, i18n.T("tui.board.not_configured_desc"), reset)
+	fmt.Fprintf(&b, "\n\n  %s\n\n", accent("⊞ "+i18n.T("tui.board.not_configured")))
+	fmt.Fprintf(&b, "  %s\n\n", muted(i18n.T("tui.board.not_configured_desc")))
 
 	if v.cfg.OnInitBeads != nil {
-		fmt.Fprintf(&b, "  %s[i]%s %s  ·  %sCtrl+P%s %s\n\n", accent, reset, i18n.T("tui.board.init_board"), accent, reset, i18n.T("tui.hints.commands"))
-		fmt.Fprintf(&b, "  %s%s%s\n", muted, i18n.T("tui.board.init_safe"), reset)
+		fmt.Fprintf(&b, "  %s %s  ·  %s %s\n\n", accent(bracketed(boardInitKey.Keys())), i18n.T("tui.board.init_board"), accent("Ctrl+P"), i18n.T("tui.hints.commands"))
+		fmt.Fprintf(&b, "  %s\n", muted(i18n.T("tui.board.init_safe")))
 	} else {
-		fmt.Fprintf(&b, "  %s%s%s\n", muted, i18n.T("tui.board.init_terminal"), reset)
+		fmt.Fprintf(&b, "  %s\n", muted(i18n.T("tui.board.init_terminal")))
 	}
 
 	tv := tview.NewTextView().
@@ -191,6 +209,10 @@ func (v *BoardView) mountUninitializedScreen(content *tview.Flex) {
 
 // Unmount stops the refresh goroutine.
 func (v *BoardView) Unmount() {
+	v.checkReads.Invalidate()
+	v.loads.Invalidate()
+	v.detailReads.Invalidate()
+	v.descReads.Invalidate()
 	v.once.Do(func() {
 		if v.done != nil {
 			close(v.done)
@@ -209,58 +231,50 @@ func (v *BoardView) Unmount() {
 // HandleKey processes board-specific key events.
 func (v *BoardView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	if !v.initialized {
-		if event.Rune() == 'i' && v.cfg.OnInitBeads != nil {
+		if boardInitKey.Matches(event) && v.cfg.OnInitBeads != nil {
 			v.cfg.OnInitBeads()
 			return nil
 		}
 		return event
 	}
 
-	switch event.Key() {
-	case tcell.KeyEnter:
+	switch {
+	case keys.Open.Matches(event):
 		v.showTicketDetail()
-		return nil
-	case tcell.KeyRight:
+	case event.Key() == tcell.KeyRight, colNextKey.Matches(event):
 		v.moveFocus(1)
-		return nil
-	case tcell.KeyLeft:
+	case event.Key() == tcell.KeyLeft, colPrevKey.Matches(event):
 		v.moveFocus(-1)
-		return nil
-	}
-
-	switch event.Rune() {
-	case 'l':
-		v.moveFocus(1)
-		return nil
-	case 'h':
-		v.moveFocus(-1)
-		return nil
-	case 'r':
-		if v.cfg.RefreshFunc != nil {
-			go func() {
-				tickets := v.cfg.RefreshFunc()
-				if v.app != nil {
-					v.app.QueueUpdateDraw(func() {
-						if v.columnCards != nil {
-							v.populateColumns(tickets, DefaultColumns())
-						}
-					})
-				}
-			}()
-		}
-		return nil
-	case 'L':
+	case keys.Refresh.Matches(event):
+		v.reload()
+	case boardLinkKey.Matches(event):
 		v.linkTicketToTracker()
-		return nil
-	case 'a':
+	case boardActionsKey.Matches(event):
 		v.showBoardQuickActions()
-		return nil
+	default:
+		return event
 	}
-
-	return event
+	return nil
 }
 
-// showTicketDetail fetches and displays the full detail of the selected ticket.
+// reload reads the tickets off the event loop (bd list) and redraws the board.
+func (v *BoardView) reload() {
+	refresh := v.cfg.RefreshFunc
+	if refresh == nil || v.columnCards == nil {
+		return
+	}
+	load(v.app, shellContext(v.shell), &v.loads, func(context.Context) ([]BoardTicket, error) {
+		return refresh(), nil
+	}, func(tickets []BoardTicket, err error) {
+		if v.columnCards == nil || err != nil {
+			return // unmounted meanwhile, or the read failed: the board stays
+		}
+		v.populateColumns(tickets, DefaultColumns())
+	})
+}
+
+// showTicketDetail shows the full detail of the selected ticket, read with
+// bd show off the event loop (the basic card when it cannot be read).
 func (v *BoardView) showTicketDetail() {
 	if v.shell == nil || len(v.columnCards) == 0 {
 		return
@@ -271,37 +285,34 @@ func (v *BoardView) showTicketDetail() {
 		return
 	}
 
-	// Look up cached ticket for immediate display while bd show runs.
+	// Look up cached ticket for the fallback display.
 	ticket, ok := v.ticketsByID[ticketID]
 	if !ok {
 		return
 	}
 
-	// Fetch full detail from bd show if projectPath is available.
+	sh := v.shell
+	closeAction := []ModalAction{{Label: i18n.T("tui.board.close"), Callback: nil}}
+	path := ""
 	if v.cfg.ProjectPath != nil {
-		path := v.cfg.ProjectPath()
-		if path != "" {
-			detail, err := beads.Show(path, ticketID)
-			if err != nil {
-				slog.Warn("board: failed to fetch ticket detail", "id", ticketID, "error", err)
-				// Fall through to show basic info from cached ticket.
-			} else {
-				v.shell.ShowScrollableModal(
-					ticketID,
-					formatTicketDetail(detail),
-					[]ModalAction{{Label: i18n.T("tui.board.close"), Callback: nil}},
-				)
-				return
-			}
-		}
+		path = v.cfg.ProjectPath()
 	}
-
-	// Fallback: show basic info from BoardTicket.
-	v.shell.ShowScrollableModal(
-		ticketID,
-		formatBoardTicket(ticket),
-		[]ModalAction{{Label: i18n.T("tui.board.close"), Callback: nil}},
-	)
+	load(v.app, shellContext(sh), &v.detailReads, func(context.Context) (*beads.TicketDetail, error) {
+		if path == "" {
+			return nil, nil
+		}
+		return beads.Show(path, ticketID)
+	}, func(detail *beads.TicketDetail, err error) {
+		if err != nil {
+			slog.Warn("board: failed to fetch ticket detail", "id", ticketID, "error", err)
+		}
+		if err == nil && detail != nil {
+			sh.ShowScrollableModal(ticketID, formatTicketDetail(detail), closeAction)
+			return
+		}
+		// Fallback: basic info from the BoardTicket.
+		sh.ShowScrollableModal(ticketID, formatBoardTicket(ticket), closeAction)
+	})
 }
 
 // selectedTicketID returns the ticket ID of the currently selected card.
@@ -333,7 +344,8 @@ func (v *BoardView) selectedTicket() (BoardTicket, bool) {
 	return t, ok
 }
 
-// showBoardQuickActions opens the quick action modal for the selected ticket.
+// showBoardQuickActions opens the quick action modal for the selected ticket;
+// its description is read off the event loop (best effort).
 func (v *BoardView) showBoardQuickActions() {
 	if v.shell == nil || v.cfg.QuickActions == nil || len(v.columnCards) == 0 {
 		return
@@ -348,15 +360,21 @@ func (v *BoardView) showBoardQuickActions() {
 		ID:    ticket.ID,
 		Title: ticket.Title,
 	}
-
-	// Best-effort: enrich description via FetchDescription callback.
-	if v.cfg.QuickActions.FetchDescription != nil && v.cfg.ProjectPath != nil {
-		if desc := v.cfg.QuickActions.FetchDescription(v.cfg.ProjectPath(), ticket.ID); desc != "" {
-			tc.Description = desc
-		}
+	sh, qa := v.shell, v.cfg.QuickActions
+	fetch := qa.FetchDescription
+	path := ""
+	if v.cfg.ProjectPath != nil {
+		path = v.cfg.ProjectPath()
 	}
-
-	showQuickActionModal(v.shell, tc, v.cfg.QuickActions)
+	load(v.app, shellContext(sh), &v.descReads, func(context.Context) (string, error) {
+		if fetch == nil || path == "" {
+			return "", nil
+		}
+		return fetch(path, ticket.ID), nil
+	}, func(desc string, _ error) {
+		tc.Description = desc
+		showQuickActionModal(sh, tc, qa)
+	})
 }
 
 // ContextCommands implements CommandProvider — injects ticket-specific commands
@@ -395,38 +413,35 @@ func (v *BoardView) linkTicketToTracker() {
 		current = t.ExternalRef
 	}
 
-	v.shell.ShowInputModal(i18n.T("tui.board.link_prompt"), current, func(ref string) {
+	sh, link, app := v.shell, v.cfg.OnLinkTracker, v.app
+	sh.ShowInputModal(i18n.T("tui.board.link_prompt"), current, func(ref string) {
 		ref = strings.TrimSpace(ref)
 		if ref == "" {
 			return
 		}
-		if err := v.cfg.OnLinkTracker(ticketID, ref); err != nil {
-			v.shell.ShowToastMsg(i18n.T("tui.board.link_failed")+err.Error(), false)
-			return
-		}
-		v.shell.ShowToastMsg(i18n.Tf("tui.board.link_success", ticketID, ref), true)
-		// Refresh to show the updated label
-		if v.cfg.RefreshFunc != nil {
-			go func() {
-				tickets := v.cfg.RefreshFunc()
-				if v.app != nil {
-					v.app.QueueUpdateDraw(func() {
-						if v.columnCards != nil {
-							v.populateColumns(tickets, DefaultColumns())
-						}
-					})
+		safego.Go(func() { // an action, not a read: its result is shown even if the board was refreshed
+			err := link(ticketID, ref)
+			done := func() {
+				if err != nil {
+					sh.ShowToastMsg(i18n.T("tui.board.link_failed")+err.Error(), false)
+					return
 				}
-			}()
-		}
+				sh.ShowToastMsg(i18n.Tf("tui.board.link_success", ticketID, ref), true)
+				v.reload() // to show the updated label
+			}
+			if app == nil {
+				done()
+				return
+			}
+			app.QueueUpdateDraw(done)
+		})
 	})
 }
 
 // formatTicketDetail formats a TicketDetail for the scrollable modal.
 func formatTicketDetail(d *beads.TicketDetail) string {
-	accent := theme.ColorTag(theme.ActiveMode.PrimaryHex)
-	muted := theme.ColorTag(theme.TextMutedHex)
-	reset := theme.TagColor
-	sep := fmt.Sprintf("%s%s%s", muted, strings.Repeat("─", 40), reset)
+	accent := func(s string) string { return theme.Paint(theme.ActiveMode.PrimaryHex, s) }
+	sep := theme.Paint(theme.TextMutedHex, strings.Repeat("─", 40))
 
 	var b strings.Builder
 
@@ -436,7 +451,7 @@ func formatTicketDetail(d *beads.TicketDetail) string {
 		if value == "" {
 			return
 		}
-		fmt.Fprintf(&b, "  %s%-14s%s %s\n", accent, label, reset, value)
+		fmt.Fprintf(&b, "  %s %s\n", accent(fmt.Sprintf("%-14s", label)), tview.Escape(value))
 	}
 	field(i18n.T("tui.board.field_title"), d.Title)
 	field(i18n.T("tui.board.field_status"), d.Status)
@@ -469,9 +484,9 @@ func formatTicketDetail(d *beads.TicketDetail) string {
 			return
 		}
 		fmt.Fprintf(&b, "\n%s\n", sep)
-		fmt.Fprintf(&b, "  %s%s%s\n\n", accent, title, reset)
+		fmt.Fprintf(&b, "  %s\n\n", accent(title))
 		for _, line := range strings.Split(strings.TrimSpace(content), "\n") {
-			fmt.Fprintf(&b, "  %s\n", line)
+			fmt.Fprintf(&b, "  %s\n", tview.Escape(line))
 		}
 	}
 
@@ -489,16 +504,13 @@ func formatTicketDetail(d *beads.TicketDetail) string {
 
 // formatBoardTicket formats a BoardTicket (fallback when bd show is unavailable).
 func formatBoardTicket(t BoardTicket) string {
-	accent := theme.ColorTag(theme.ActiveMode.PrimaryHex)
-	reset := theme.TagColor
-
 	var b strings.Builder
 	fmt.Fprintf(&b, "\n")
 	field := func(label, value string) {
 		if value == "" {
 			return
 		}
-		fmt.Fprintf(&b, "  %s%-14s%s %s\n", accent, label, reset, value)
+		fmt.Fprintf(&b, "  %s %s\n", theme.Paint(theme.ActiveMode.PrimaryHex, fmt.Sprintf("%-14s", label)), tview.Escape(value))
 	}
 	field(i18n.T("tui.board.field_title"), t.Title)
 	field(i18n.T("tui.board.field_status"), t.Status)
@@ -544,18 +556,13 @@ func (v *BoardView) populateColumns(tickets []BoardTicket, columns []BoardColumn
 			color := priorityColor(t.Priority)
 			prefix := priorityPrefix(t.Priority)
 			// Line 1 (main): "P1 · title" coloured by priority
-			mainText := fmt.Sprintf("%s%s%s%s",
-				widgets.ColorTag(color),
-				prefix,
-				tview.Escape(truncateTitle(t.Title, 36)),
-				"[-]",
-			)
+			mainText := theme.Paint(color, prefix+tview.Escape(textfmt.Clip(t.Title, 36)))
 			// Line 2 (secondary): "ID · type"
-			secondary := fmt.Sprintf("%s · %s", t.ID, t.Type)
+			secondary := tview.Escape(fmt.Sprintf("%s · %s", t.ID, t.Type))
 			// Line 3 (meta): external ref if present
 			meta := ""
 			if t.ExternalRef != "" {
-				meta = fmt.Sprintf("← %s", t.ExternalRef)
+				meta = tview.Escape(fmt.Sprintf("← %s", t.ExternalRef))
 			}
 			v.columnCards[i].AddCard(widgets.Card{
 				MainText:      mainText,
@@ -609,37 +616,4 @@ func (v *BoardView) updateColumnFocus() {
 			cc.SetFocused(false).SetNavArrows(false, false)
 		}
 	}
-}
-
-func (v *BoardView) refreshLoop(rate time.Duration, columns []BoardColumnDef) {
-	ticker := time.NewTicker(rate)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-v.done:
-			return
-		case <-ticker.C:
-			v.refresh(columns)
-		}
-	}
-}
-
-func (v *BoardView) refresh(columns []BoardColumnDef) {
-	// Capture app locally before the blocking RefreshFunc call.
-	// Unmount() may set v.app = nil while RefreshFunc is running (bd list is
-	// an external process call that can take hundreds of milliseconds).
-	// Using a local copy guarantees we never call nil.QueueUpdateDraw.
-	app := v.app
-	if v.cfg.RefreshFunc == nil || app == nil || v.columnCards == nil {
-		return
-	}
-	tickets := v.cfg.RefreshFunc()
-	app.QueueUpdateDraw(func() {
-		// Re-check inside the queued func — Unmount may have run between
-		// RefreshFunc() completing and the draw cycle executing this closure.
-		if v.columnCards == nil {
-			return
-		}
-		v.populateColumns(tickets, columns)
-	})
 }

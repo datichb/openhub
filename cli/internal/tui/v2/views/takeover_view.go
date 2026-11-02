@@ -1,14 +1,18 @@
 package views
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/teamstate"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
@@ -21,6 +25,20 @@ type TakeoverView struct {
 	shell       ShellAccess
 	briefs      []teamstate.TakeoverMeta
 	onEnrich    func(project, ticketID string) error
+	loads       loadSlot // the reads of the briefs: only the latest is applied
+	briefRead   loadSlot // the read of the brief being opened
+
+	// read replaces the read of the briefs (tests).
+	read func(repo teamstate.TeamStateReader) (takeoverData, error)
+}
+
+// takeoverEnrichKey asks the AI to enrich the brief under the cursor.
+var takeoverEnrichKey = keys.Own("takeover.enrich", 'e', "tui.hints.enrich_ai")
+
+// takeoverData is what a read of the briefs gives back.
+type takeoverData struct {
+	cloned bool
+	briefs []teamstate.TakeoverMeta
 }
 
 var _ View = (*TakeoverView)(nil)
@@ -45,7 +63,7 @@ func (v *TakeoverView) Title() string { return i18n.T("tui.team.briefs") }
 
 // StatusHints returns keybinding hints.
 func (v *TakeoverView) StatusHints() string {
-	return fmt.Sprintf("j/k %s · Enter %s · e %s · r %s", i18n.T("tui.hints.nav"), i18n.T("tui.hints.see"), i18n.T("tui.hints.enrich_ai"), i18n.T("tui.hints.refresh"))
+	return keys.Hints(keys.Navigate.HintAs(i18n.T("tui.hints.nav")), keys.Open.HintAs(i18n.T("tui.hints.see")), takeoverEnrichKey.Hint(), keys.Refresh.Hint())
 }
 
 // Mount builds the takeover briefs list.
@@ -84,23 +102,25 @@ func (v *TakeoverView) showDetail(idx int) {
 	d.field(i18n.T("tui.detail.from"), tview.Escape(b.TransferredFrom))
 	d.field(i18n.T("tui.detail.to"), tview.Escape(b.TransferredTo))
 	if !b.TransferDate.IsZero() {
-		d.field(i18n.T("tui.detail.date"), b.TransferDate.Format("2006-01-02 15:04"))
+		d.field(i18n.T("tui.detail.date"), textfmt.DateTime(b.TransferDate))
 	}
 	reason := b.Reason
 	if b.StaleDays > 0 {
 		reason += " · " + i18n.Tf("tui.detail.stale_days", b.StaleDays)
 	}
 	d.field(i18n.T("tui.detail.reason"), tview.Escape(reason))
-	keys := []string{"Enter", i18n.T("tui.hints.see")}
+	pairs := []string{keys.Open.Keys(), i18n.T("tui.hints.see")}
 	if v.onEnrich != nil {
-		keys = append(keys, "e", i18n.T("tui.hints.enrich_ai"))
+		pairs = append(pairs, takeoverEnrichKey.Keys(), takeoverEnrichKey.Label())
 	}
-	d.keys(append(keys, "r", i18n.T("tui.hints.refresh"))...)
+	d.keys(append(pairs, keys.Refresh.Keys(), keys.Refresh.Label())...)
 	v.page.SetDetail(d.String())
 }
 
 // Unmount cleans up resources.
 func (v *TakeoverView) Unmount() {
+	v.loads.Invalidate()
+	v.briefRead.Invalidate()
 	v.app = nil
 	v.list = nil
 	v.page = nil
@@ -108,50 +128,67 @@ func (v *TakeoverView) Unmount() {
 
 // HandleKey processes takeover view key events.
 func (v *TakeoverView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
-	switch event.Rune() {
-	case 'r':
+	switch {
+	case keys.Refresh.Matches(event):
 		v.refresh()
-		return nil
-	case 'e':
+	case takeoverEnrichKey.Matches(event):
 		v.enrichBrief()
-		return nil
-	}
-	if event.Key() == tcell.KeyEnter {
+	case keys.Open.Matches(event):
 		v.showBrief()
-		return nil
+	default:
+		return event
 	}
-	return event
+	return nil
 }
 
-func (v *TakeoverView) getRepo() teamstate.TeamStateWriter {
+// newRepo is the team-state of the team, without touching the disk (nil
+// without a team).
+func (v *TakeoverView) newRepo() teamstate.TeamStateWriter {
 	tc := v.resolveTeam()
 	if !tc.Enabled {
 		return nil
 	}
-	repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
-	if !repo.IsCloned() {
-		return nil
-	}
-	return repo
+	return teamstate.NewRepo(tc.StateRepo, tc.StatePath)
 }
 
+// refresh pulls the team-state, then reads the briefs off the event loop.
 func (v *TakeoverView) refresh() {
+	if v.list == nil {
+		return
+	}
 	v.list.Clear()
 	v.briefs = nil
 
-	repo := v.getRepo()
+	repo := v.newRepo()
 	if repo == nil {
-		v.list.AddItem("  "+i18n.T("tui.takeover.team_not_configured"), "", 0, nil)
+		v.loads.Invalidate()
+		v.list.AddItem("  "+stateText(stateEmpty, i18n.T("tui.takeover.team_not_configured")), "", 0, nil)
 		v.showDetail(-1)
 		return
 	}
+	v.list.AddItem("  "+stateText(stateLoading, ""), "", 0, nil)
+	v.showDetail(-1)
 
-	syncAsync(v.app, repo, v.shell, func(_ error) {
-		v.renderBriefs(repo)
+	read := v.read
+	if read == nil {
+		read = readTakeover
+	}
+	fetch := func(context.Context) (takeoverData, error) { return read(repo) }
+	syncLoad(v.app, shellContext(v.shell), &v.loads, repo, v.shell, fetch, func(d takeoverData, err error) {
+		v.renderBriefs(d, err)
 	})
 }
 
-func (v *TakeoverView) renderBriefs(repo teamstate.TeamStateWriter) {
+// readTakeover reads the briefs. It reads files: call it off the event loop.
+func readTakeover(repo teamstate.TeamStateReader) (takeoverData, error) {
+	if !repo.IsCloned() {
+		return takeoverData{}, nil
+	}
+	briefs, err := repo.ListBriefs("")
+	return takeoverData{cloned: true, briefs: briefs}, err
+}
+
+func (v *TakeoverView) renderBriefs(d takeoverData, err error) {
 	if v.list == nil {
 		return
 	}
@@ -159,23 +196,23 @@ func (v *TakeoverView) renderBriefs(repo teamstate.TeamStateWriter) {
 	v.briefs = nil
 	defer func() { v.showDetail(v.list.GetCurrentItem()) }()
 
-	briefs, err := repo.ListBriefs("")
-	if err != nil {
-		v.list.AddItem("  "+i18n.T("tui.takeover.error")+err.Error(), "", 0, nil)
+	switch {
+	case err != nil:
+		v.list.AddItem("  "+stateText(stateError, err.Error()), "", 0, nil)
+		return
+	case !d.cloned:
+		v.list.AddItem("  "+stateText(stateEmpty, i18n.T("tui.takeover.team_not_configured")), "", 0, nil)
+		return
+	case len(d.briefs) == 0:
+		v.list.AddItem("  "+stateText(stateEmpty, i18n.T("tui.takeover.no_briefs")), i18n.T("tui.takeover.no_briefs_desc"), 0, nil)
 		return
 	}
-	v.briefs = briefs
+	v.briefs = d.briefs
 
-	if len(briefs) == 0 {
-		v.list.AddItem("  "+i18n.T("tui.takeover.no_briefs"), i18n.T("tui.takeover.no_briefs_desc"), 0, nil)
-		return
-	}
-
-	for _, b := range briefs {
-		date := b.TransferDate.Format("2006-01-02")
+	for _, b := range d.briefs {
 		v.list.AddItem(
-			fmt.Sprintf("  %s  %s → %s", b.TicketID, b.TransferredFrom, b.TransferredTo),
-			fmt.Sprintf("    %s · %s · %s", date, b.Project, b.Reason),
+			fmt.Sprintf("  %s  %s → %s", tview.Escape(b.TicketID), tview.Escape(b.TransferredFrom), tview.Escape(b.TransferredTo)),
+			fmt.Sprintf("    %s · %s · %s", textfmt.Date(b.TransferDate), tview.Escape(b.Project), tview.Escape(b.Reason)),
 			0, nil,
 		)
 	}
@@ -183,29 +220,26 @@ func (v *TakeoverView) renderBriefs(repo teamstate.TeamStateWriter) {
 
 func (v *TakeoverView) showBrief() {
 	idx := v.list.GetCurrentItem()
-	if idx < 0 || idx >= len(v.briefs) {
+	if idx < 0 || idx >= len(v.briefs) || v.shell == nil {
 		return
 	}
 	b := v.briefs[idx]
-
-	repo := v.getRepo()
+	repo := v.newRepo()
 	if repo == nil {
 		return
 	}
-
-	content, err := repo.ReadBrief(b.Project, b.TicketID)
-	if err != nil {
-		if v.shell != nil {
-			v.shell.ShowToastMsg(i18n.T("tui.takeover.read_error")+err.Error(), false)
+	sh := v.shell
+	load(v.app, shellContext(sh), &v.briefRead, func(context.Context) (string, error) {
+		return repo.ReadBrief(b.Project, b.TicketID)
+	}, func(content string, err error) {
+		if err != nil {
+			sh.ShowToastMsg(i18n.T("tui.takeover.read_error")+err.Error(), false)
+			return
 		}
-		return
-	}
-
-	if v.shell != nil {
-		v.shell.ShowScrollableModal(i18n.Tf("tui.takeover.brief_title", b.TicketID), content, []ModalAction{
+		sh.ShowScrollableModal(i18n.Tf("tui.takeover.brief_title", b.TicketID), content, []ModalAction{
 			{Label: i18n.T("tui.takeover.close"), Callback: func() {}},
 		})
-	}
+	})
 }
 
 func (v *TakeoverView) enrichBrief() {
@@ -215,23 +249,30 @@ func (v *TakeoverView) enrichBrief() {
 	}
 	b := v.briefs[idx]
 
+	// The application is read on the event loop only (Unmount clears it).
+	app := v.app
 	if v.shell == nil || v.onEnrich == nil {
 		return
 	}
+	enrich := v.onEnrich
 
 	v.shell.ShowToastMsg(i18n.Tf("tui.takeover.enriching", b.TicketID), true)
 
-	go func() {
-		err := v.onEnrich(b.Project, b.TicketID)
-		if v.app != nil {
-			v.app.QueueUpdateDraw(func() {
-				if err != nil {
-					v.shell.ShowToastMsg(i18n.Tf("tui.takeover.enrich_failed", err.Error()), false)
-				} else {
-					v.shell.ShowToastMsg(i18n.Tf("tui.takeover.enriched", b.TicketID), true)
-					v.refresh()
-				}
-			})
+	safego.Go(func() { // an action, not a read: its result is applied even if the list was refreshed
+		err := enrich(b.Project, b.TicketID)
+		if app == nil {
+			return // no event loop (tests)
 		}
-	}()
+		app.QueueUpdateDraw(func() {
+			if v.app == nil {
+				return // unmounted meanwhile
+			}
+			if err != nil {
+				v.shell.ShowToastMsg(i18n.Tf("tui.takeover.enrich_failed", err.Error()), false)
+				return
+			}
+			v.shell.ShowToastMsg(i18n.Tf("tui.takeover.enriched", b.TicketID), true)
+			v.refresh()
+		})
+	})
 }

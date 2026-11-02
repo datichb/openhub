@@ -1,6 +1,7 @@
 package views
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -10,6 +11,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
@@ -64,14 +66,21 @@ type ProjectEntry struct {
 
 // HomeView is the splash/landing view for the TUI shell.
 type HomeView struct {
-	app      *tview.Application
-	content  *tview.Flex
-	list     *widgets.SectionedList
-	dual     *homeDualLayout
-	shell    ShellAccess
-	cfg      HomeViewConfig
-	items    []homeItem
-	mountGen uint64 // guards stale goroutines (standard pattern)
+	app     *tview.Application
+	content *tview.Flex
+	list    *widgets.SectionedList
+	dual    *homeDualLayout
+	shell   ShellAccess
+	cfg     HomeViewConfig
+	items   []homeItem
+	loads   loadSlot // the read of the teams and projects: only the latest is applied
+}
+
+// homeData is what the landing reads off the event loop: the teams and the
+// projects.
+type homeData struct {
+	teams    []TeamEntry
+	projects []ProjectEntry
 }
 
 var _ View = (*HomeView)(nil)
@@ -90,8 +99,6 @@ func (v *HomeView) Title() string { return i18n.T("tui.home.title") }
 func (v *HomeView) Mount(content *tview.Flex, app *tview.Application) {
 	v.app = app
 	v.content = content
-	v.mountGen++
-	gen := v.mountGen
 
 	// Build static items immediately (System + Actions rapides).
 	// Dynamic items (Teams, Projects) are loaded asynchronously below.
@@ -105,13 +112,7 @@ func (v *HomeView) Mount(content *tview.Flex, app *tview.Application) {
 	logo.SetBackgroundColor(theme.BgPanel)
 	bannerStr, bh := renderBanner("OPENHUB", 100, theme.ActiveMode.AccentHex)
 
-	// ── Footer ──────────────────────────────────────────────────────────
-	footer := tview.NewTextView().
-		SetDynamicColors(true).
-		SetTextAlign(tview.AlignCenter).
-		SetScrollable(false)
-	footer.SetBackgroundColor(theme.BgPanel)
-	footer.SetText(buildShortcutsFooter())
+	footer := newHomeFooter(footerHub)
 
 	onSelect := func(_ int, item widgets.SectionItem) {
 		if ref, ok := item.Reference.(int); ok {
@@ -155,37 +156,48 @@ func (v *HomeView) Mount(content *tview.Flex, app *tview.Application) {
 
 	adaptiveHomeMount(app, content, buildFn)
 
-	// ── Async: load Teams + Projects in background ─────────────────────
-	go func() {
-		items := v.buildItems()
-		if app != nil {
-			app.QueueUpdateDraw(func() {
-				if v.app == nil || v.mountGen != gen {
-					return // view was unmounted or re-mounted, discard stale result
-				}
-				v.items = items
-				// Keep the focus where it is when a modal (e.g. the quit
-				// dialog) holds it: only the home lists give it back.
-				owned := homeOwnsFocus(app, v.list, v.dual)
-				// Full layout rebuild to update both columns with fresh data
-				content.Clear()
-				adaptiveHomeMount(app, content, buildFn)
-				// Restore focus to the new widget (same pattern as resize handler)
-				if !owned {
-					return
-				}
-				if v.dual != nil {
-					v.dual.focusLeft()
-				} else if v.list != nil {
-					app.SetFocus(v.list)
-				}
-			})
+	// ── Teams + Projects, read off the event loop ──────────────────────
+	cfg := v.cfg
+	load(app, shellContext(v.shell), &v.loads, func(context.Context) (homeData, error) {
+		return readHomeData(cfg), nil
+	}, func(d homeData, err error) {
+		if v.app == nil || err != nil {
+			return // unmounted, or the read failed: the static items stay
 		}
-	}()
+		v.items = v.buildItems(d)
+		// Keep the focus where it is when a modal (e.g. the quit
+		// dialog) holds it: only the home lists give it back.
+		owned := homeOwnsFocus(app, v.list, v.dual)
+		// Full layout rebuild to update both columns with fresh data
+		content.Clear()
+		adaptiveHomeMount(app, content, buildFn)
+		// Restore focus to the new widget (same pattern as resize handler)
+		if !owned {
+			return
+		}
+		if v.dual != nil {
+			v.dual.focusLeft()
+		} else if v.list != nil {
+			app.SetFocus(v.list)
+		}
+	})
+}
+
+// readHomeData reads the teams and the projects of the landing. It does I/O:
+// call it off the event loop.
+func readHomeData(cfg HomeViewConfig) homeData {
+	var d homeData
+	if cfg.ListTeams != nil {
+		d.teams = cfg.ListTeams()
+	}
+	if cfg.ListProjects != nil {
+		d.projects = cfg.ListProjects()
+	}
+	return d
 }
 
 func (v *HomeView) Unmount() {
-	v.mountGen++ // invalidate in-flight async goroutine
+	v.loads.Invalidate() // drop the read in flight
 	v.app = nil
 	v.content = nil
 	v.list = nil
@@ -193,12 +205,12 @@ func (v *HomeView) Unmount() {
 }
 
 func (v *HomeView) StatusHints() string {
-	return fmt.Sprintf("j/k %s · Enter %s · Ctrl+P %s · ? %s · Ctrl+Q %s",
-		i18n.T("tui.hints.navigate"),
-		i18n.T("tui.hints.open"),
-		i18n.T("tui.hints.commands"),
-		i18n.T("tui.hints.help"),
-		i18n.T("tui.hints.quit"),
+	return keys.Hints(
+		keys.Navigate.HintAs(i18n.T("tui.hints.navigate")),
+		keys.Open.HintAs(i18n.T("tui.hints.open")),
+		"Ctrl+P "+i18n.T("tui.hints.commands"),
+		keys.Help.HintAs(i18n.T("tui.hints.help")),
+		"Ctrl+Q "+i18n.T("tui.hints.quit"),
 	)
 }
 
@@ -212,7 +224,7 @@ func (v *HomeView) ModeInfo() ModeBarInfo {
 }
 
 func (v *HomeView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
-	if event.Rune() == '*' {
+	if homePinKey.Matches(event) {
 		if ref, ok := homeCurrentRef(v.list, v.dual); ok && ref < len(v.items) &&
 			togglePinOf(v.cfg.Start, StartScope{}, v.items[ref].start) {
 			return nil
@@ -313,38 +325,31 @@ func (v *HomeView) buildProjectsSection(projects []ProjectEntry) []homeItem {
 	return items
 }
 
-func (v *HomeView) buildItems() []homeItem {
+// buildItems is the list of the landing once its teams and projects are read.
+func (v *HomeView) buildItems(d homeData) []homeItem {
 	var items []homeItem
 
 	// ── Teams section (ADR-032 Phase 3) ──
-	if v.cfg.ListTeams != nil {
-		teams := v.cfg.ListTeams()
-		if len(teams) > 0 {
-			items = append(items, homeItem{Icon: "─", Label: i18n.T("tui.home.section.teams"), Desc: ""})
-			for _, t := range teams {
-				team := t // capture
-				desc := i18n.Tf("tui.home.team_desc", team.MemberCount, team.ActiveCount)
-				items = append(items, homeItem{
-					Icon:  "👥",
-					Label: team.Name,
-					Desc:  desc,
-					Action: func() {
-						if v.cfg.OnSelectTeam != nil {
-							v.cfg.OnSelectTeam(team.ID, team.Name)
-						}
-					},
-				})
-			}
+	if len(d.teams) > 0 {
+		items = append(items, homeItem{Icon: "─", Label: i18n.T("tui.home.section.teams"), Desc: ""})
+		for _, t := range d.teams {
+			team := t // capture
+			items = append(items, homeItem{
+				Icon:  "👥",
+				Label: team.Name,
+				Desc:  i18n.Tf("tui.home.team_desc", team.MemberCount, team.ActiveCount),
+				Action: func() {
+					if v.cfg.OnSelectTeam != nil {
+						v.cfg.OnSelectTeam(team.ID, team.Name)
+					}
+				},
+			})
 		}
 	}
 
 	// ── Projects section (ADR-032 Phase 3) ──
 	// One « Projets » section; « Ajouter un projet » is its last row.
-	var projects []ProjectEntry
-	if v.cfg.ListProjects != nil {
-		projects = v.cfg.ListProjects()
-	}
-	items = append(items, v.buildProjectsSection(projects)...)
+	items = append(items, v.buildProjectsSection(d.projects)...)
 
 	// Append the other static sections (Démarrer, Sessions, Système).
 	items = append(items, v.buildLeftStaticItems()...)
@@ -393,22 +398,4 @@ func homeItemToSectionItem(it homeItem, idx int) widgets.SectionItem {
 		SecondaryText: it.Desc,
 		Reference:     idx,
 	}
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Static rendering helpers
-// ─────────────────────────────────────────────────────────────────────────────
-
-func buildShortcutsFooter() string {
-	accent := theme.ColorTag(theme.ActiveMode.PrimaryHex)
-	muted := theme.ColorTag(theme.TextMutedHex)
-	reset := theme.TagColor
-
-	return fmt.Sprintf("\n%s%sCtrl+P%s %s  %s?%s %s  %sCtrl+T%s %s  %sCtrl+Q%s %s",
-		muted,
-		accent, reset, i18n.T("tui.home.shortcut.commands"),
-		accent, reset, i18n.T("tui.home.shortcut.help"),
-		accent, reset, i18n.T("tui.home.shortcut.team_mode"),
-		accent, reset, i18n.T("tui.home.shortcut.quit"),
-	)
 }

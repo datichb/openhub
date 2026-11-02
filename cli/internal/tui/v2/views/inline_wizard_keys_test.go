@@ -36,9 +36,7 @@ func TestInlineWizardView_QuitPromptKeys(t *testing.T) {
 		}
 		return e
 	})
-	done := make(chan struct{})
-	go func() { _ = app.Run(); close(done) }()
-	t.Cleanup(func() { app.Stop(); <-done })
+	runLoop(t, app)
 	onLoop(app, func() { v.Mount(content, app) })
 	focused := func() string {
 		label := ""

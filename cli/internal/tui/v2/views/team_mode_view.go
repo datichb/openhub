@@ -2,6 +2,7 @@
 package views
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -10,6 +11,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
@@ -61,8 +63,9 @@ type TeamModeView struct {
 	header   *tview.TextView // header with badge + stats (updated async)
 	bannerTV *tview.TextView // centered ASCII art banner
 	stats    string          // stats line of the header ("" = loading)
+	summary  *TeamModeStats  // the stats once read (nil = not read yet)
 	items    []teamModeItem
-	mountGen uint64 // guards stale goroutines (standard pattern)
+	loads    loadSlot // the read of the stats: only the latest is applied
 }
 
 var _ View = (*TeamModeView)(nil)
@@ -92,13 +95,12 @@ func (v *TeamModeView) StatusHints() string {
 	if v.team == nil {
 		return fmt.Sprintf("%s · Ctrl+T %s", i18n.T("tui.tm.no_team"), i18n.T("tui.hints.hub_mode"))
 	}
-	return fmt.Sprintf(
-		"%s · j/k %s · Enter %s · Ctrl+P %s · Ctrl+T %s",
+	return keys.Hints(
 		v.team.Name,
-		i18n.T("tui.hints.navigate"),
-		i18n.T("tui.hints.open"),
-		i18n.T("tui.hints.commands"),
-		i18n.T("tui.hints.hub_mode"),
+		keys.Navigate.HintAs(i18n.T("tui.hints.navigate")),
+		keys.Open.HintAs(i18n.T("tui.hints.open")),
+		"Ctrl+P "+i18n.T("tui.hints.commands"),
+		"Ctrl+T "+i18n.T("tui.hints.hub_mode"),
 	)
 }
 
@@ -110,12 +112,12 @@ func (v *TeamModeView) ModeInfo() ModeBarInfo {
 	}
 	info.Label = v.team.Name
 
-	// Build right-side context: member count + active tickets.
-	if v.cfg.TeamStats != nil {
-		stats := v.cfg.TeamStats()
+	// Right-side context: member count + active tickets, once read (the
+	// mount reads them off the event loop and refreshes the bar).
+	if st := v.summary; st != nil {
 		info.Right = fmt.Sprintf("%d %s · %d %s",
-			stats.MemberCount, i18n.T("tui.mode.members"),
-			stats.ActiveCount, i18n.T("tui.mode.active"))
+			st.MemberCount, i18n.T("tui.mode.members"),
+			st.ActiveCount, i18n.T("tui.mode.active"))
 	}
 	return info
 }
@@ -123,8 +125,6 @@ func (v *TeamModeView) ModeInfo() ModeBarInfo {
 // Mount builds the team mode landing view.
 func (v *TeamModeView) Mount(content *tview.Flex, app *tview.Application) {
 	v.app = app
-	v.mountGen++
-	gen := v.mountGen
 
 	// Refresh team from shell on each mount
 	if v.shell != nil {
@@ -138,8 +138,8 @@ func (v *TeamModeView) Mount(content *tview.Flex, app *tview.Application) {
 		tv.SetBackgroundColor(theme.BgPanel)
 		tv.SetBorderPadding(1, 0, 2, 2)
 		tv.SetText(fmt.Sprintf(
-			"\n  [red]%s[-]\n\n  %s",
-			i18n.T("tui.tm.no_team_active"),
+			"\n  %s\n\n  %s",
+			stateText(stateEmpty, i18n.T("tui.tm.no_team_active")),
 			i18n.Tf("tui.tm.hint_hub",
 				theme.ColorTag(theme.ActiveMode.PrimaryHex), theme.TagColor,
 				theme.ColorTag(theme.ActiveMode.PrimaryHex), theme.TagColor,
@@ -165,10 +165,6 @@ func (v *TeamModeView) Mount(content *tview.Flex, app *tview.Application) {
 		SetScrollable(false)
 	v.header.SetBackgroundColor(theme.BgPanel)
 
-	secondary := theme.ColorTag(theme.ActiveMode.PrimaryHex)
-	muted := theme.ColorTag(theme.TextMutedHex)
-	reset := theme.TagColor
-
 	bannerName := strings.ToUpper(v.team.Name)
 	banner, bh := renderBanner(bannerName, 100, theme.ActiveMode.AccentHex)
 	compactNow := false
@@ -180,51 +176,39 @@ func (v *TeamModeView) Mount(content *tview.Flex, app *tview.Application) {
 		compactNow = compact
 		stats := v.stats
 		if stats == "" {
-			stats = i18n.T("tui.tm.loading")
+			stats = stateText(stateLoading, i18n.T("tui.tm.loading"))
+		} else {
+			stats = theme.Paint(theme.TextMutedHex, stats)
 		}
 		v.header.SetWrap(!compact)
 		if compact {
 			v.bannerTV.SetText(compactBanner(bannerName, theme.ActiveMode.AccentHex, i18n.T("tui.tm.header_badge")))
-			v.header.SetText(fmt.Sprintf("  %s%s%s", muted, stats, reset))
+			v.header.SetText("  " + stats)
 			return
 		}
 		v.bannerTV.SetText("\n" + banner)
-		v.header.SetText(fmt.Sprintf("  %s%s%s\n  %s%s%s",
-			secondary, i18n.T("tui.tm.header_badge"), reset,
-			muted, stats, reset,
-		))
+		v.header.SetText(fmt.Sprintf("  %s\n  %s",
+			theme.Paint(theme.ActiveMode.PrimaryHex, i18n.T("tui.tm.header_badge")), stats))
 	}
 
-	// Load stats asynchronously to avoid blocking the event loop
-	if v.cfg.TeamStats != nil {
-		go func() {
-			stats := v.cfg.TeamStats()
-			if v.app != nil {
-				v.app.QueueUpdateDraw(func() {
-					if v.app == nil || v.mountGen != gen {
-						return // view was unmounted or re-mounted, discard stale result
-					}
-					v.stats = i18n.Tf("tui.tm.stats", stats.MemberCount, stats.ActiveCount)
-					renderHeader(compactNow)
-				})
+	// Read the stats off the event loop, then draw them in the header and in
+	// the mode bar.
+	v.summary = nil
+	if stats := v.cfg.TeamStats; stats != nil {
+		load(app, shellContext(v.shell), &v.loads, func(context.Context) (TeamModeStats, error) {
+			return stats(), nil
+		}, func(st TeamModeStats, err error) {
+			if v.app == nil || err != nil {
+				return // unmounted, or the read failed: the header keeps « loading »
 			}
-		}()
+			v.summary = &st
+			v.stats = i18n.Tf("tui.tm.stats", st.MemberCount, st.ActiveCount)
+			renderHeader(compactNow)
+			refreshModeBar(v.shell)
+		})
 	}
 
-	// ── Footer ──────────────────────────────────────────────────────────
-	accent := theme.ColorTag(theme.ActiveMode.PrimaryHex)
-	footer := tview.NewTextView().
-		SetDynamicColors(true).
-		SetTextAlign(tview.AlignCenter).
-		SetScrollable(false)
-	footer.SetBackgroundColor(theme.BgPanel)
-	footer.SetText(fmt.Sprintf("\n%s%sCtrl+P%s %s  %s?%s %s  %sCtrl+T%s %s  %sCtrl+Q%s %s",
-		muted,
-		accent, reset, i18n.T("tui.home.shortcut.commands"),
-		accent, reset, i18n.T("tui.home.shortcut.help"),
-		accent, reset, i18n.T("tui.home.shortcut.hub_mode"), // Ctrl+T goes back to the hub (A33)
-		accent, reset, i18n.T("tui.home.shortcut.quit"),
-	))
+	footer := newHomeFooter(footerTeam)
 
 	// ── Split items for dual-column: left = Sessions+Board, right = Config+Nav ──
 	leftItems, rightItems := v.splitItems()
@@ -278,7 +262,7 @@ func (v *TeamModeView) Mount(content *tview.Flex, app *tview.Application) {
 
 // Unmount cleans up resources.
 func (v *TeamModeView) Unmount() {
-	v.mountGen++ // invalidate in-flight async goroutine
+	v.loads.Invalidate() // drop the read in flight
 	v.app = nil
 	v.list = nil
 	v.dual = nil
@@ -288,7 +272,7 @@ func (v *TeamModeView) Unmount() {
 
 // HandleKey processes view-specific key events.
 func (v *TeamModeView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
-	if event.Rune() == '*' {
+	if homePinKey.Matches(event) {
 		if ref, ok := homeCurrentRef(v.list, v.dual); ok && ref < len(v.items) &&
 			togglePinOf(v.cfg.Start, v.startScope(), v.items[ref].start) {
 			return nil

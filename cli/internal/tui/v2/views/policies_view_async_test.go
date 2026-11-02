@@ -143,3 +143,34 @@ func TestPoliciesView_EditCallsUpdate(t *testing.T) {
 	waitFor(t, app, func() bool { return sh.lastToast() != "" })
 	assert.Equal(t, []string{"update existing"}, fake.recorded())
 }
+
+// The check of the policies (git, files, every policy) never runs on the
+// event loop: the key answers at once with a toast, the outcome is shown on
+// the loop afterwards, and one that comes after an unmount is not shown.
+func TestPoliciesView_CheckRunsOffTheLoop(t *testing.T) {
+	fake := newFakePolicyService()
+	close(fake.release)
+	v, sh, app := mountedPoliciesView(t, fake)
+
+	onLoop(app, func() { v.HandleKey(runeKey('c')) })
+	assert.Equal(t, "Vérification des policies…", firstToast(sh), "the key returns with a toast, the check goes on")
+	waitFor(t, app, func() bool { return sh.lastToast() == "Aucune policy à vérifier" })
+
+	before := len(sh.snapshotToasts())
+	onLoop(app, func() { v.HandleKey(runeKey('c')); v.Unmount() })
+	time.Sleep(100 * time.Millisecond)
+	assert.Equal(t, before+1, len(sh.snapshotToasts()), "only the toast of the start: the outcome of a check made before the unmount is dropped")
+}
+
+func firstToast(sh *viewShell) string {
+	if t := sh.snapshotToasts(); len(t) > 0 {
+		return t[0]
+	}
+	return ""
+}
+
+func (s *viewShell) snapshotToasts() []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return append([]string(nil), s.toasts...)
+}

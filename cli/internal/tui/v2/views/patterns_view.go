@@ -10,6 +10,7 @@ import (
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
@@ -30,6 +31,15 @@ type PatternsView struct {
 	actionIndices map[int]func()
 	// patternIndices maps SectionedList item indices to pattern slice indices.
 	patternIndices map[int]int
+
+	loads    loadSlot // the reads of the patterns: only the latest is applied
+	readPage loadSlot // the read of the pattern being opened
+}
+
+// patternsData is what a read of the patterns gives back.
+type patternsData struct {
+	cloned   bool
+	patterns []teamstate.Pattern
 }
 
 var _ View = (*PatternsView)(nil)
@@ -93,6 +103,8 @@ func (v *PatternsView) Mount(content *tview.Flex, app *tview.Application) {
 
 // Unmount cleans up resources.
 func (v *PatternsView) Unmount() {
+	v.loads.Invalidate()
+	v.readPage.Invalidate()
 	v.app = nil
 	v.slist = nil
 	v.header = nil
@@ -115,7 +127,10 @@ func (v *PatternsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		v.removePattern()
 		return nil
 	}
-	if event.Key() == tcell.KeyEnter {
+	if keys.Open.Matches(event) {
+		if v.slist == nil {
+			return nil
+		}
 		if idx, _, ok := v.slist.CurrentItem(); ok {
 			if fn, exists := v.actionIndices[idx]; exists {
 				fn()
@@ -128,18 +143,17 @@ func (v *PatternsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	return event
 }
 
-func (v *PatternsView) getRepo() teamstate.TeamStateWriter {
+// newRepo is the team-state of the team, without touching the disk (nil
+// without a team).
+func (v *PatternsView) newRepo() teamstate.TeamStateWriter {
 	tc := v.resolveTeam()
 	if !tc.Enabled {
 		return nil
 	}
-	repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
-	if !repo.IsCloned() {
-		return nil
-	}
-	return repo
+	return teamstate.NewRepo(tc.StateRepo, tc.StatePath)
 }
 
+// refresh pulls the team-state, then reads the patterns off the event loop.
 func (v *PatternsView) refresh() {
 	v.patterns = nil
 	v.actionIndices = nil
@@ -149,38 +163,53 @@ func (v *PatternsView) refresh() {
 	}
 	setPageDetail(v.page, emptyDetail())
 
-	repo := v.getRepo()
+	repo := v.newRepo()
 	if repo == nil {
-		v.setHeaderText(i18n.T("tui.patterns.team_not_configured"))
+		v.loads.Invalidate()
+		v.setHeader(stateEmpty, i18n.T("tui.patterns.team_not_configured"))
 		return
 	}
+	v.setHeader(stateLoading, "")
 
-	syncAsync(v.app, repo, v.shell, func(_ error) {
-		v.renderPatterns(repo)
+	fetch := func(context.Context) (patternsData, error) {
+		if !repo.IsCloned() {
+			return patternsData{}, nil
+		}
+		patterns, err := repo.ListPatterns(nil, 0)
+		return patternsData{cloned: true, patterns: patterns}, err
+	}
+	syncLoad(v.app, shellContext(v.shell), &v.loads, repo, v.shell, fetch, func(d patternsData, err error) {
+		v.renderPatterns(d, err)
 	})
+}
+
+// setHeader writes a state in the header.
+func (v *PatternsView) setHeader(kind stateKind, msg string) {
+	if v.header != nil {
+		v.header.SetText(stateText(kind, msg))
+	}
 }
 
 func (v *PatternsView) setHeaderText(text string) {
 	if v.header == nil {
 		return
 	}
-	secondary := theme.ColorTag(theme.TextSecondaryHex)
-	reset := theme.TagReset
-	v.header.SetText(fmt.Sprintf("%s%s%s", secondary, text, reset))
+	v.header.SetText(theme.Paint(theme.TextSecondaryHex, tview.Escape(text)))
 }
 
-func (v *PatternsView) renderPatterns(repo teamstate.TeamStateWriter) {
+func (v *PatternsView) renderPatterns(d patternsData, err error) {
 	if v.slist == nil {
 		return
 	}
-
-	patterns, err := repo.ListPatterns(nil, 0)
-	if err != nil {
-		v.slist.SetItems([]widgets.SectionItem{
-			{MainText: "  " + errorText(err)},
-		})
+	switch {
+	case err != nil:
+		v.setHeader(stateError, err.Error())
+		return
+	case !d.cloned:
+		v.setHeader(stateEmpty, i18n.T("tui.patterns.team_not_configured"))
 		return
 	}
+	patterns := d.patterns
 	v.patterns = patterns
 
 	// Update header text based on state
@@ -241,9 +270,7 @@ func (v *PatternsView) renderPatterns(repo teamstate.TeamStateWriter) {
 	})
 	createIdx := len(items)
 	items = append(items, widgets.SectionItem{
-		MainText: fmt.Sprintf("  %s%s %s%s",
-			theme.ColorTag(theme.ActiveMode.SecondaryHex), theme.IconArrow,
-			i18n.T("tui.patterns.action_create"), theme.TagReset),
+		MainText: "  " + theme.Paint(theme.ActiveMode.SecondaryHex, theme.SymCursor+" "+i18n.T("tui.patterns.action_create")),
 	})
 	v.actionIndices[createIdx] = func() { v.addPattern() }
 
@@ -263,9 +290,9 @@ func (v *PatternsView) showItemDetail(idx int) {
 		var d detailText
 		d.title(tview.Escape(p.Name))
 		d.para(tview.Escape(p.Description))
-		status := theme.ColorTag(theme.TextMutedHex) + i18n.T("tui.detail.pattern.pending") + theme.TagReset
+		status := theme.Paint(theme.TextMutedHex, i18n.T("tui.detail.pattern.pending"))
 		if p.Validated {
-			status = theme.ColorTag(theme.SuccessHex) + i18n.T("tui.detail.pattern.validated") + theme.TagReset
+			status = theme.Paint(theme.SuccessHex, i18n.T("tui.detail.pattern.validated"))
 		}
 		d.field(i18n.T("tui.detail.status"), status)
 		d.field(i18n.T("tui.detail.complexity"), tview.Escape(p.Complexity))
@@ -293,25 +320,23 @@ func (v *PatternsView) showItemDetail(idx int) {
 }
 
 func (v *PatternsView) buildPatternItem(p teamstate.Pattern) widgets.SectionItem {
-	icon := fmt.Sprintf("%s○%s", theme.ColorTag(theme.TextMutedHex), theme.TagColor)
+	icon := theme.Paint(theme.TextMutedHex, theme.SymInactive)
 	if p.Validated {
-		icon = fmt.Sprintf("%s%s%s", theme.ColorTag(theme.SuccessHex), theme.SymSuccess, theme.TagColor)
+		icon = theme.Paint(theme.SuccessHex, theme.SymSuccess)
 	}
 
 	// Build metadata: complexity + tags
-	muted := theme.ColorTag(theme.TextMutedHex)
-	reset := theme.TagReset
 	meta := p.Complexity
 	if len(p.Tags) > 0 {
 		meta += " · " + strings.Join(p.Tags, ", ")
 	}
 
-	mainText := fmt.Sprintf("  %s %-30s %s%s%s", icon, p.Name, muted, meta, reset)
+	mainText := fmt.Sprintf("  %s %s %s", icon, tview.Escape(fmt.Sprintf("%-30s", p.Name)), theme.Paint(theme.TextMutedHex, tview.Escape(meta)))
 
 	// Description as secondary text in readable color
 	secondaryText := ""
 	if p.Description != "" {
-		secondaryText = fmt.Sprintf("    %s%s%s", theme.ColorTag(theme.TextSecondaryHex), p.Description, reset)
+		secondaryText = "    " + theme.Paint(theme.TextSecondaryHex, tview.Escape(p.Description))
 	}
 
 	return widgets.SectionItem{
@@ -321,36 +346,63 @@ func (v *PatternsView) buildPatternItem(p teamstate.Pattern) widgets.SectionItem
 }
 
 func (v *PatternsView) showPattern(patternIdx int) {
-	if patternIdx < 0 || patternIdx >= len(v.patterns) {
+	if patternIdx < 0 || patternIdx >= len(v.patterns) || v.shell == nil {
 		return
 	}
 	p := v.patterns[patternIdx]
-
-	repo := v.getRepo()
+	repo := v.newRepo()
 	if repo == nil {
 		return
 	}
-
-	content, err := repo.ReadPattern(p.Name)
-	if err != nil {
-		if v.shell != nil {
-			v.shell.ShowToastMsg(i18n.T("tui.patterns.read_error")+": "+err.Error(), false)
+	sh := v.shell
+	load(v.app, shellContext(sh), &v.readPage, func(context.Context) (string, error) {
+		return repo.ReadPattern(p.Name)
+	}, func(content string, err error) {
+		if err != nil {
+			sh.ShowToastMsg(i18n.T("tui.patterns.read_error")+": "+err.Error(), false)
+			return
 		}
-		return
-	}
-
-	if v.shell != nil {
-		v.shell.ShowScrollableModal(i18n.Tf("tui.patterns.modal_title", p.Name), content, []ModalAction{
+		sh.ShowScrollableModal(i18n.Tf("tui.patterns.modal_title", p.Name), content, []ModalAction{
 			{Label: i18n.T("tui.policies.close"), Callback: func() {}},
 		})
+	})
+}
+
+// act runs a write of the team-state off the event loop, then tells how it
+// went and reads the patterns again. Without an event loop (tests) it runs
+// at once.
+func (v *PatternsView) act(work func(ctx context.Context) error, done string) {
+	app, sh, ctx := v.app, v.shell, shellContext(v.shell)
+	finish := func(err error) {
+		if sh == nil {
+			return
+		}
+		if err != nil {
+			sh.ShowToastMsg(errorText(err), false)
+			return
+		}
+		sh.ShowToastMsg(done, true)
+		v.refresh()
 	}
+	if app == nil {
+		finish(work(ctx))
+		return
+	}
+	safego.Go(func() { // an action, not a read: its result is applied even if the list was refreshed
+		err := work(ctx)
+		app.QueueUpdateDraw(func() {
+			if v.app != nil { // else unmounted meanwhile
+				finish(err)
+			}
+		})
+	})
 }
 
 func (v *PatternsView) addPattern() {
 	if v.shell == nil {
 		return
 	}
-	repo := v.getRepo()
+	repo := v.newRepo()
 	if repo == nil {
 		v.shell.ShowToastMsg(i18n.T("tui.patterns.team_not_configured"), false)
 		return
@@ -388,7 +440,7 @@ func (v *PatternsView) addPattern() {
 				Complexity:  values["complexity"],
 				Source:      "manual",
 				Validated:   false,
-				CreatedAt:   time.Now().Format("2006-01-02"),
+				CreatedAt:   time.Now().Format(time.DateOnly),
 			}
 
 			// Build richer markdown template
@@ -397,12 +449,7 @@ func (v *PatternsView) addPattern() {
 				descLine = description
 			}
 			content := i18n.Tf("tui.patterns.template", name, descLine)
-			if err := repo.CreatePattern(context.Background(), p, content); err != nil {
-				v.shell.ShowToastMsg(errorText(err), false)
-			} else {
-				v.shell.ShowToastMsg(i18n.Tf("tui.patterns.created", name), true)
-				v.refresh()
-			}
+			v.act(func(ctx context.Context) error { return repo.CreatePattern(ctx, p, content) }, i18n.Tf("tui.patterns.created", name))
 		},
 		OnCancel: nil,
 	})
@@ -424,21 +471,11 @@ func (v *PatternsView) validatePattern() {
 	}
 	p := v.patterns[pi]
 
-	repo := v.getRepo()
+	repo := v.newRepo()
 	if repo == nil {
 		return
 	}
-
-	if err := repo.ValidatePattern(context.Background(), p.Name); err != nil {
-		if v.shell != nil {
-			v.shell.ShowToastMsg(errorText(err), false)
-		}
-	} else {
-		if v.shell != nil {
-			v.shell.ShowToastMsg(i18n.Tf("tui.patterns.validated", p.Name), true)
-		}
-		v.refresh()
-	}
+	v.act(func(ctx context.Context) error { return repo.ValidatePattern(ctx, p.Name) }, i18n.Tf("tui.patterns.validated", p.Name))
 }
 
 func (v *PatternsView) removePattern() {
@@ -456,21 +493,13 @@ func (v *PatternsView) removePattern() {
 	}
 	p := v.patterns[pi]
 
-	repo := v.getRepo()
-	if repo == nil {
-		return
-	}
-	if v.shell == nil {
+	repo := v.newRepo()
+	if repo == nil || v.shell == nil {
 		return
 	}
 
 	v.shell.Confirm(i18n.Tf("tui.patterns.confirm_delete", p.Name), i18n.T("tui.patterns.delete_detail"), true, func() {
-		if err := repo.RemovePattern(context.Background(), p.Name); err != nil {
-			v.shell.ShowToastMsg(errorText(err), false)
-		} else {
-			v.shell.ShowToastMsg(i18n.Tf("tui.patterns.deleted", p.Name), true)
-			v.refresh()
-		}
+		v.act(func(ctx context.Context) error { return repo.RemovePattern(ctx, p.Name) }, i18n.Tf("tui.patterns.deleted", p.Name))
 	})
 }
 

@@ -332,9 +332,7 @@ func TestBeadsPickerAsyncLoad(t *testing.T) {
 	app := tview.NewApplication().SetScreen(sc)
 	p := NewBeadsPicker(context.Background(), app, BeadsPickerConfig{Source: sampleBeads()})
 	app.SetRoot(p, true).SetFocus(p)
-	errc := make(chan error, 1)
-	go func() { errc <- app.Run() }()
-	t.Cleanup(func() { app.Stop(); <-errc })
+	runLoop(t, app)
 
 	// Load runs on the event loop, as the view does when it is mounted: the
 	// loop draws the picker meanwhile.

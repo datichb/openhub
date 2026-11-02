@@ -239,7 +239,7 @@ func (v *MCPView) showDetail(i int) {
 		if b {
 			return theme.Paint(theme.SuccessHex, theme.SymSuccess+" "+i18n.T("tui.config.enabled"))
 		}
-		return muted(theme.SymFailure + " " + i18n.T("tui.config.disabled"))
+		return muted(theme.SymInactive + " " + i18n.T("tui.config.disabled"))
 	}
 	var d detailText
 	d.title(svc.Name)
@@ -283,7 +283,7 @@ func (v *MCPView) hubItemText(svc MCPService) string {
 		statusIcon = theme.SymSuccess
 		statusColor = theme.SuccessHex
 	} else {
-		statusIcon = theme.SymFailure
+		statusIcon = theme.SymInactive
 		statusColor = theme.TextMutedHex
 	}
 	return theme.Paint(statusColor, statusIcon) + "  " + theme.Paint(theme.TextPrimaryHex, fmt.Sprintf("%-12s", svc.Name))
@@ -307,7 +307,7 @@ func (v *MCPView) hubItemSubtext(svc MCPService) string {
 		if svc.WriteEnabled {
 			parts = append(parts, theme.Paint(theme.SuccessHex, i18n.T("tui.hints.write")+" "+theme.SymSuccess))
 		} else {
-			parts = append(parts, muted(i18n.T("tui.hints.write")+" "+theme.SymFailure))
+			parts = append(parts, muted(i18n.T("tui.hints.write")+" "+theme.SymInactive))
 		}
 	}
 
@@ -665,7 +665,7 @@ func (v *MCPView) buildCommands() {
 		if svc.Enabled {
 			desc = theme.SymSuccess + " → " + i18n.T("tui.mcp.cmd_disable")
 		} else {
-			desc = theme.SymFailure + " → " + i18n.T("tui.mcp.cmd_enable")
+			desc = theme.SymInactive + " → " + i18n.T("tui.mcp.cmd_enable")
 		}
 		cmds = append(cmds, ContextCommand{
 			ID:          "toggle." + svc.Name,

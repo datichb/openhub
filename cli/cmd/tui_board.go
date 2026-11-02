@@ -13,9 +13,10 @@ import (
 // buildBoardQuickActions wires the board quick actions (P1-T25): the
 // workflows taking a Beads ticket, from the « Démarrer » cache, launched on
 // the ticket through the launch form (options step, ticket prefilled). On the
-// card of a GitLab issue, the workflows taking a free request (spec, quick…)
-// are offered too, launched with « #<iid> » as the request: the form opens on
-// its inputs, where the request can be completed.
+// card of a GitLab issue, the workflows taking a free request (spec, quick,
+// infra-change, spike, incident, retro…) are offered too, launched with
+// « #<iid> » as the request: the form opens on its inputs, where the request
+// can be completed.
 func buildBoardQuickActions(a *app.App) *views.BoardQuickActions {
 	return &views.BoardQuickActions{
 		Workflows: func() []views.TicketWorkflow {
@@ -35,7 +36,11 @@ func buildBoardQuickActions(a *app.App) *views.BoardQuickActions {
 		},
 		IssueRef: func(ticket views.TicketContext) string { return boardIssueRef(a, ticket) },
 		LaunchRequest: func(workflowID string, ticket views.TicketContext, request string) {
-			openLaunchForm(a, boardLaunchRequest(workflowID, ticket, tuiLaunchRequest{Prefill: map[string]string{boardRequestInput: request}}))
+			input := boardRequestInput
+			if tuiStartWiring != nil {
+				input = tuiStartWiring.requestInput(workflowID)
+			}
+			openLaunchForm(a, boardLaunchRequest(workflowID, ticket, tuiLaunchRequest{Prefill: map[string]string{input: request}}))
 		},
 		ResolveProjectByDirID: buildResolveProjectByDirID(a),
 		FetchDescription: func(projectPath, ticketID string) string {

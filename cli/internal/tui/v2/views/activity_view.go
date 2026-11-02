@@ -1,8 +1,10 @@
 package views
 
 import (
+	"context"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
@@ -10,7 +12,16 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/teamstate"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
+)
+
+// The filters of the activity, one key each.
+var (
+	activityTodayKey = keys.Own("activity.today", 't', "tui.hints.today")
+	activityWeekKey  = keys.Own("activity.week", 'w', "tui.hints.week")
+	activityAllKey   = keys.Own("activity.all", '0', "tui.hints.all")
 )
 
 // ActivityView displays the team activity stream.
@@ -19,7 +30,17 @@ type ActivityView struct {
 	resolveTeam ResolveTeamFunc
 	shell       ShellAccess
 	list        *tview.TextView
-	filter      string // "today", "week", "all"
+	filter      string   // "today", "week", "all"
+	loads       loadSlot // the reads of the events: only the latest is applied
+
+	// read replaces the read of the events (tests).
+	read func(repo teamstate.TeamStateReader, filter string) (activityData, error)
+}
+
+// activityData is what a read of the activity gives back.
+type activityData struct {
+	cloned bool
+	events []teamstate.Event
 }
 
 var _ View = (*ActivityView)(nil)
@@ -41,7 +62,7 @@ func (v *ActivityView) Title() string { return i18n.T("tui.team.activity") }
 
 // StatusHints returns keybinding hints.
 func (v *ActivityView) StatusHints() string {
-	return fmt.Sprintf("t %s · w %s · 0 %s · r %s · Esc %s", i18n.T("tui.hints.today"), i18n.T("tui.hints.week"), i18n.T("tui.hints.all"), i18n.T("tui.hints.refresh"), i18n.T("tui.hints.back"))
+	return keys.Hints(activityTodayKey.Hint(), activityWeekKey.Hint(), activityAllKey.Hint(), keys.Refresh.Hint(), keys.Back.Hint())
 }
 
 // Mount builds the activity stream.
@@ -61,32 +82,29 @@ func (v *ActivityView) Mount(content *tview.Flex, app *tview.Application) {
 
 // Unmount cleans up resources.
 func (v *ActivityView) Unmount() {
+	v.loads.Invalidate() // drop the read in flight
 	v.app = nil
 	v.list = nil
 }
 
 // HandleKey processes activity view key events.
 func (v *ActivityView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
-	switch event.Rune() {
-	case 't':
+	switch {
+	case activityTodayKey.Matches(event):
 		v.filter = "today"
-		v.refresh()
-		return nil
-	case 'w':
+	case activityWeekKey.Matches(event):
 		v.filter = "week"
-		v.refresh()
-		return nil
-	case '0':
+	case activityAllKey.Matches(event):
 		v.filter = "all"
-		v.refresh()
-		return nil
-	case 'r':
-		v.refresh()
-		return nil
+	case keys.Refresh.Matches(event):
+	default:
+		return event
 	}
-	return event
+	v.refresh()
+	return nil
 }
 
+// refresh pulls the team-state, then reads the events off the event loop.
 func (v *ActivityView) refresh() {
 	if v.list == nil {
 		return
@@ -94,79 +112,78 @@ func (v *ActivityView) refresh() {
 
 	tc := v.resolveTeam()
 	if !tc.Enabled {
-		v.list.SetText("  " + i18n.T("tui.activity.team_not_configured"))
+		v.loads.Invalidate()
+		v.list.SetText("  " + stateText(stateEmpty, i18n.T("tui.activity.team_not_configured")))
 		return
 	}
+	v.list.SetText("  " + stateText(stateLoading, ""))
 
 	repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
-
-	if !repo.IsCloned() {
-		v.list.SetText("  " + i18n.T("tui.activity.repo_not_cloned"))
-		return
+	filter, read := v.filter, v.read
+	if read == nil {
+		read = readActivity
 	}
-
-	// Async pull — updates the view on completion (or after > 1s toast).
-	syncAsync(v.app, repo, v.shell, func(_ error) {
-		v.renderEvents(repo)
+	fetch := func(context.Context) (activityData, error) { return read(repo, filter) }
+	// Pull first (the toast of a slow pull, the warning of a failed one).
+	syncLoad(v.app, shellContext(v.shell), &v.loads, repo, v.shell, fetch, func(d activityData, err error) {
+		if v.list != nil {
+			v.render(filter, d, err)
+		}
 	})
 }
 
-func (v *ActivityView) renderEvents(repo teamstate.TeamStateWriter) {
-	if v.list == nil {
-		return
+// readActivity reads the events of the period of filter. It reads files: call
+// it off the event loop.
+func readActivity(repo teamstate.TeamStateReader, filter string) (activityData, error) {
+	if !repo.IsCloned() {
+		return activityData{}, nil
 	}
-
-	// Determine time filter
-	var since time.Time
-	switch v.filter {
-	case "today":
-		now := time.Now()
-		since = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-	case "week":
-		since = time.Now().AddDate(0, 0, -7)
-	case "all":
-		since = time.Time{} // epoch
-	}
-
-	// Fetch events for all projects
-	events, err := repo.ListEvents("", since)
-	if err != nil {
-		v.list.SetText(fmt.Sprintf("  %s", i18n.Tf("tui.activity.error", err.Error())))
-		return
-	}
-
-	if len(events) == 0 {
-		filterLabel := v.filterLabel()
-		v.list.SetText(fmt.Sprintf("  %s", i18n.Tf("tui.activity.no_activity", filterLabel)))
-		return
-	}
-
-	// Build display
-	var text string
-	filterLabel := v.filterLabel()
-	text += fmt.Sprintf("  %s%s%s  %s\n\n",
-		theme.ColorTag(theme.ActiveMode.PrimaryHex), i18n.T("tui.activity.title_header"), theme.TagColor, i18n.Tf("tui.activity.filter_label", filterLabel))
-
-	for i := len(events) - 1; i >= 0; i-- { // newest first
-		e := events[i]
-		ts := e.Timestamp.Local().Format("15:04")
-		icon := eventIcon(e.Type)
-		actor := e.Actor
-		desc := formatEventDescription(e)
-
-		text += fmt.Sprintf("  %s%s%s  %s %s%s%s %s\n",
-			theme.ColorTag(theme.TextMutedHex), ts, theme.TagColor,
-			icon,
-			theme.ColorTag(theme.TextSecondaryHex), actor, theme.TagColor,
-			desc,
-		)
-	}
-
-	v.list.SetText(text)
+	events, err := repo.ListEvents("", activitySince(filter, time.Now()))
+	return activityData{cloned: true, events: events}, err
 }
 
-func (v *ActivityView) filterLabel() string {
-	switch v.filter {
+// activitySince is the start of the period of a filter.
+func activitySince(filter string, now time.Time) time.Time {
+	switch filter {
+	case "today":
+		return time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	case "week":
+		return now.AddDate(0, 0, -7)
+	}
+	return time.Time{} // all
+}
+
+func (v *ActivityView) render(filter string, d activityData, err error) {
+	switch {
+	case err != nil:
+		v.list.SetText("  " + stateText(stateError, err.Error()))
+		return
+	case !d.cloned:
+		v.list.SetText("  " + stateText(stateEmpty, i18n.T("tui.activity.repo_not_cloned")))
+		return
+	case len(d.events) == 0:
+		v.list.SetText("  " + stateText(stateEmpty, i18n.Tf("tui.activity.no_activity", v.labelOf(filter))))
+		return
+	}
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "  %s  %s\n\n",
+		theme.Paint(theme.ActiveMode.PrimaryHex, i18n.T("tui.activity.title_header")),
+		i18n.Tf("tui.activity.filter_label", v.labelOf(filter)))
+	for i := len(d.events) - 1; i >= 0; i-- { // newest first
+		e := d.events[i]
+		fmt.Fprintf(&b, "  %s  %s %s %s\n",
+			theme.Paint(theme.TextMutedHex, textfmt.Clock(e.Timestamp)),
+			eventIcon(e.Type),
+			theme.Paint(theme.TextSecondaryHex, tview.Escape(e.Actor)),
+			tview.Escape(formatEventDescription(e)),
+		)
+	}
+	v.list.SetText(b.String())
+}
+
+func (v *ActivityView) labelOf(filter string) string {
+	switch filter {
 	case "today":
 		return i18n.T("tui.activity.filter_today")
 	case "week":
@@ -174,35 +191,35 @@ func (v *ActivityView) filterLabel() string {
 	case "all":
 		return i18n.T("tui.activity.filter_all")
 	}
-	return v.filter
+	return filter
 }
 
 func eventIcon(eventType string) string {
 	switch eventType {
 	case teamstate.EventClaimTaken:
-		return tagged(theme.SuccessHex, "●")
+		return tagged(theme.SuccessHex, theme.SymLive)
 	case teamstate.EventClaimReleased:
-		return tagged(theme.WarningHex, "○")
+		return tagged(theme.TextMutedHex, theme.SymInactive)
 	case teamstate.EventClaimTransferred:
-		return tagged(theme.InfoHex, "◆")
+		return tagged(theme.InfoHex, theme.SymCurrent)
 	case teamstate.EventReviewReady:
-		return tagged(theme.ModeTeamHex, "◆")
+		return tagged(theme.ModeTeamHex, theme.SymCurrent)
 	case teamstate.EventSessionComplete:
 		return tagged(theme.SuccessHex, theme.SymSuccess)
 	case teamstate.EventAuditFinding:
-		return tagged(theme.ErrorHex, "!")
+		return tagged(theme.WarningHex, theme.SymWarning)
 	case teamstate.EventClaimConflict:
-		return tagged(theme.ErrorHex, "✗")
+		return tagged(theme.ErrorHex, theme.SymFailure)
 	case teamstate.EventWikiProposal:
 		return tagged(theme.InfoHex, "📝")
 	case teamstate.EventWikiAccepted:
 		return tagged(theme.SuccessHex, theme.SymSuccess)
 	case teamstate.EventWikiRejected:
-		return tagged(theme.ErrorHex, "✗")
+		return tagged(theme.ErrorHex, theme.SymFailure)
 	case teamstate.EventWorkflowPublished, teamstate.EventWorkflowRestored:
-		return tagged(theme.InfoHex, "◆")
+		return tagged(theme.InfoHex, theme.SymCurrent)
 	case teamstate.EventWorkflowArchived:
-		return tagged(theme.WarningHex, "○")
+		return tagged(theme.TextMutedHex, theme.SymInactive)
 	default:
 		return tagged(theme.TextPrimaryHex, "·")
 	}

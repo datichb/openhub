@@ -625,8 +625,7 @@ func (v *ProviderView) editCurrent() {
 			cur = line.get(cfg)
 		}
 		v.shell.ShowSelectModal(line.key, line.options, cur, func(newVal string) {
-			if line.set != nil {
-				line.set(cfg, newVal)
+			if line.set != nil && v.update(func(c *config.Config) error { line.set(c, newVal); return nil }) {
 				v.buildLines() // Rebuild because visibility may change (e.g., auth_mode)
 				v.renderList()
 			}
@@ -638,8 +637,7 @@ func (v *ProviderView) editCurrent() {
 			cur = line.get(cfg)
 		}
 		apply := func(newVal string) {
-			if line.set != nil {
-				line.set(cfg, newVal)
+			if line.set != nil && v.update(func(c *config.Config) error { line.set(c, newVal); return nil }) {
 				v.renderList()
 			}
 		}
@@ -705,10 +703,37 @@ func (v *ProviderView) setAsDefault() {
 		return
 	}
 
-	cfg := v.vcfg.GetConfig()
-	cfg.LLM.DefaultProvider = line.provider
+	if !v.update(func(c *config.Config) error { c.LLM.DefaultProvider = line.provider; return nil }) {
+		return
+	}
 	v.renderList()
 	v.shell.ShowToastMsg(i18n.Tf("tui.provider.set_default", line.provider), true)
+}
+
+// update writes a change of the provider settings to hub.toml through the
+// host's write path (the file as it is on disk, changed only where fn says so,
+// then the live config follows it). It tells the user when the write fails and
+// reports whether it went through.
+func (v *ProviderView) update(fn func(*config.Config) error) bool {
+	if err := v.vcfg.UpdateConfig(fn); err != nil {
+		v.shell.ShowToastMsg(errorText(err), false)
+		return false
+	}
+	return true
+}
+
+// resetSecretKey is the keychain key of the secret that a reset of a provider
+// deletes ("" when the provider has none).
+func resetSecretKey(name string) string {
+	switch name {
+	case "bedrock":
+		return provider.KeychainKey(provider.Bedrock, "")
+	case "anthropic":
+		return provider.KeychainKey(provider.Anthropic, "")
+	case "openrouter":
+		return provider.KeychainKey(provider.OpenRouter, "")
+	}
+	return ""
 }
 
 func (v *ProviderView) resetCurrentProvider() {
@@ -721,36 +746,30 @@ func (v *ProviderView) resetCurrentProvider() {
 	}
 	v.shell.Confirm(i18n.Tf("tui.provider.confirm_reset", name), i18n.T("tui.provider.reset_detail"), true,
 		func() {
-			cfg := v.vcfg.GetConfig()
-			// Clear provider config fields
-			switch name {
-			case "bedrock":
-				cfg.Provider.Bedrock = config.ProviderConfig{}
-				if v.vcfg.DeleteSecret != nil {
-					if err := v.vcfg.DeleteSecret(context.Background(), provider.KeychainKey(provider.Bedrock, "")); err != nil {
-						v.shell.ShowToastMsg(errorText(err), false)
-					}
+			// Clear the provider's settings (and the default, if it was this
+			// provider) in hub.toml, then its secret in the keychain.
+			if !v.update(func(c *config.Config) error {
+				switch name {
+				case "bedrock":
+					c.Provider.Bedrock = config.ProviderConfig{}
+				case "anthropic":
+					c.Provider.Anthropic = config.ProviderConfig{}
+				case "openrouter":
+					c.Provider.OpenRouter = config.ProviderConfig{}
 				}
-			case "anthropic":
-				cfg.Provider.Anthropic = config.ProviderConfig{}
-				if v.vcfg.DeleteSecret != nil {
-					key := provider.KeychainKey(provider.Anthropic, "")
-					if err := v.vcfg.DeleteSecret(context.Background(), key); err != nil {
-						v.shell.ShowToastMsg(errorText(err), false)
-					}
+				if c.LLM.DefaultProvider == name {
+					c.LLM.DefaultProvider = ""
 				}
-			case "openrouter":
-				cfg.Provider.OpenRouter = config.ProviderConfig{}
-				if v.vcfg.DeleteSecret != nil {
-					key := provider.KeychainKey(provider.OpenRouter, "")
-					if err := v.vcfg.DeleteSecret(context.Background(), key); err != nil {
-						v.shell.ShowToastMsg(errorText(err), false)
-					}
-				}
+				return nil
+			}) {
+				return
 			}
-			// Clear default if this was the default
-			if cfg.LLM.DefaultProvider == name {
-				cfg.LLM.DefaultProvider = ""
+			if v.vcfg.DeleteSecret != nil {
+				if key := resetSecretKey(name); key != "" {
+					if err := v.vcfg.DeleteSecret(context.Background(), key); err != nil {
+						v.shell.ShowToastMsg(errorText(err), false)
+					}
+				}
 			}
 			v.buildLines()
 			v.renderList()

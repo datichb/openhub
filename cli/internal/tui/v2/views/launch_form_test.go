@@ -112,10 +112,21 @@ func runApp(t *testing.T, root tview.Primitive) *tview.Application {
 	sc.SetSize(120, 40)
 	app := tview.NewApplication().SetScreen(sc)
 	app.SetRoot(root, true)
+	runLoop(t, app)
+	return app
+}
+
+// runLoop runs the event loop of app until the end of the test, and returns
+// once the loop handles updates. Without that wait a test that ends at once
+// stops the application before Run starts: tview then finds no screen, makes
+// a real one (tcell.NewScreen: terminfo, global state, a data race between
+// two such tests under -race) and the loop Run starts is stopped for nothing.
+func runLoop(t *testing.T, app *tview.Application) {
+	t.Helper()
 	errc := make(chan error, 1)
 	go func() { errc <- app.Run() }()
+	app.QueueUpdate(func() {}) // returns once the loop has run it
 	t.Cleanup(func() { app.Stop(); <-errc })
-	return app
 }
 
 func onLoop(app *tview.Application, fn func()) {

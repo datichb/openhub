@@ -195,21 +195,31 @@ func TestBoardViews_EmptyThenPopulated(t *testing.T) {
 		assert.Equal(t, 1, content.GetItemCount(), "content holds the board layout")
 	})
 
-	t.Run("team board with a refresh is populated during the mount", func(t *testing.T) {
-		// Without SyncFunc, syncFuncAsync calls onDone synchronously during
-		// Mount, which runs refreshOnEventLoop → populateColumns.
+	t.Run("team board with a refresh says loading, then is populated off the loop", func(t *testing.T) {
+		// The tickets are read in load(): the mount returns with a
+		// « loading » placeholder, the answer swaps it for the board.
+		release := make(chan struct{})
 		v := NewTeamBoardView(TeamBoardViewConfig{
 			RefreshFunc: func() []TeamTicket {
+				<-release
 				return []TeamTicket{{ID: "1", Title: "Review PR", Status: "in_progress", Assignee: "alice"}}
 			},
 			IsConfigured: func() bool { return true },
 		})
 		content := tview.NewFlex().SetDirection(tview.FlexRow)
-		v.Mount(content, tview.NewApplication())
-		defer v.Unmount()
-		assert.Nil(t, v.emptyTV, "placeholder cleared: the sync completed during the mount")
-		assert.Equal(t, 1, content.GetItemCount(), "content holds the board layout")
-		assert.NotEmpty(t, v.allTickets, "tickets populated")
+		app := runApp(t, content)
+		onLoop(app, func() { v.Mount(content, app) })
+		onLoop(app, func() {
+			require.NotNil(t, v.emptyTV, "placeholder while the tickets are read")
+			assert.Contains(t, v.emptyTV.GetText(true), i18n.T("tui.state.loading"))
+		})
+		close(release)
+		waitFor(t, app, func() bool { return v.emptyTV == nil })
+		onLoop(app, func() {
+			assert.Equal(t, 1, content.GetItemCount(), "content holds the board layout")
+			assert.NotEmpty(t, v.allTickets, "tickets populated")
+			v.Unmount()
+		})
 	})
 }
 
@@ -311,7 +321,7 @@ func TestHomeView_SplitItems_DualColumn(t *testing.T) {
 		},
 	})
 
-	v.items = v.buildItems()
+	v.items = v.buildItems(readHomeData(v.cfg))
 	left, right := v.splitItems()
 
 	// Collect section headers from left column
@@ -338,14 +348,14 @@ func TestHomeView_SingleProjectsSection_AddLast(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			v := NewHomeView(HomeViewConfig{ListProjects: func() []ProjectEntry { return tc.projects }})
-			for _, items := range [][]homeItem{v.buildItems(), v.buildStaticItems()} {
+			for _, items := range [][]homeItem{v.buildItems(readHomeData(v.cfg)), v.buildStaticItems()} {
 				v.items = items
 				_, right := v.splitItems()
 				assert.Equal(t, []string{"Projects"}, collectHeaders(right))
 				require.NotEmpty(t, right)
 				assert.Contains(t, right[len(right)-1].MainText, i18n.T("tui.home.project_add"))
 			}
-			v.items = v.buildItems()
+			v.items = v.buildItems(readHomeData(v.cfg))
 			_, right := v.splitItems()
 			assert.Len(t, right, 1+len(tc.projects)+1)
 		})

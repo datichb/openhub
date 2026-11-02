@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"runtime/debug"
 	"sync/atomic"
+	"time"
 
 	"github.com/rivo/tview"
 
@@ -79,5 +80,23 @@ func syncLoad[T any](app *tview.Application, ctx context.Context, slot *loadSlot
 			return
 		}
 		load(app, ctx, slot, fetch, apply)
+	})
+}
+
+// everyOnLoop calls fn on the event loop of app every rate until done is
+// closed. fn is where a view starts a read (load): the timer itself reads
+// nothing.
+func everyOnLoop(app *tview.Application, rate time.Duration, done <-chan struct{}, fn func()) {
+	safego.Go(func() {
+		ticker := time.NewTicker(rate)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-done:
+				return
+			case <-ticker.C:
+				app.QueueUpdate(fn)
+			}
+		}
 	})
 }
