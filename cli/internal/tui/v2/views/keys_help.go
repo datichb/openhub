@@ -13,7 +13,8 @@ import (
 // new keys (shown once at the first launch, again from the help).
 
 // KeysNoticePreference is the preference (global scope) that records the
-// notice of the new keys was shown.
+// revision of the table of key changes (keys.ChangesRevision) whose notice
+// was shown. A 5.0 recorded a boolean there: it counts as not seen.
 const KeysNoticePreference = "tui.keys_notice"
 
 // WriteKeyConvention writes the table of the key convention, one block per

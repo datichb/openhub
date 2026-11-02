@@ -9,7 +9,10 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/prefsvc"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
 func keysNoticeApp(t *testing.T) *app.App {
@@ -40,4 +43,23 @@ func TestKeysNoticeDue(t *testing.T) {
 	assert.False(t, keysNoticeDue(ctx, b, true), "first run: not shown")
 	markCleanupOffered(ctx, b)
 	assert.False(t, keysNoticeDue(ctx, b, false), "first run: recorded")
+}
+
+// The notice is versioned: the `true` recorded by a 5.0 (a boolean) and the
+// revision of an older key table both make it due again, once.
+func TestKeysNoticeDueAgainWhenTheTableChanges(t *testing.T) {
+	ctx := context.Background()
+	for name, old := range map[string]any{
+		"5.0 boolean":    true,
+		"older revision": "0123456789ab",
+	} {
+		t.Run(name, func(t *testing.T) {
+			a := keysNoticeApp(t)
+			markCleanupOffered(ctx, a)
+			require.NoError(t, prefsvc.New(a.Preferences, nil).Set(ctx, domain.PreferenceScopeGlobal, views.KeysNoticePreference, old))
+			assert.True(t, keysNoticeDue(ctx, a, false), "an old record shows the notice again")
+			markKeysNoticeSeen(ctx, a)
+			assert.False(t, keysNoticeDue(ctx, a, false), "once per revision")
+		})
+	}
 }
