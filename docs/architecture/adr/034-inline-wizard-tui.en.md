@@ -2,7 +2,7 @@
 
 ## Status
 
-accepted
+accepted — amended on 2026-11-02 (`RunWizard` removed, see [Amendment](#amendment--2026-11-02))
 
 ## Date
 
@@ -133,3 +133,7 @@ creation.
 - `cmd/tui.go` — first-run pushed inline after shell startup
 - `cmd/tui_actions.go` — added `actionProjectAdd()` and `buildProjectAddInlineWizard()`
 - `cmd/tui_commands.go` — omnibar commands `init` and `project.add`
+
+## Amendment — 2026-11-02
+
+`views.RunWizard` is removed (v5.1). The wizards of the CLI (`oh provider setup`, `oh project add|configure|remove`, `oh policies add`, `oh patterns add`, `oh mcp setup`, `oh team init`) run on `InlineWizardView`, alone in an application of their own (`views.RunInlineWizardStandalone`, as `oh init` already did): the same rendering as in the TUI, `Esc` asks "Quit the wizard?" (no more double `Esc`), a step that fails shows its error and waits for a retry (`Enter`) or a way back (`Ctrl+B`), and what a step prints is held until the wizard has left the screen. The "Two wizard implementations coexist" trade-off and the rejection of "Replace `RunWizard` with `InlineWizardView` everywhere" above no longer hold: the shell is not needed, a stub of it is enough.

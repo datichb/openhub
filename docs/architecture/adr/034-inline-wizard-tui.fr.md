@@ -2,7 +2,7 @@
 
 ## Statut
 
-accepted
+accepted — amendé le 2026-11-02 (`RunWizard` retiré, voir l'[amendement](#amendement--2026-11-02))
 
 ## Date
 
@@ -134,3 +134,7 @@ séparé avant la création du shell.
 - `cmd/tui.go` — first-run pushé inline après démarrage du shell
 - `cmd/tui_actions.go` — ajout `actionProjectAdd()` et `buildProjectAddInlineWizard()`
 - `cmd/tui_commands.go` — commandes omnibar `init` et `project.add`
+
+## Amendement — 2026-11-02
+
+`views.RunWizard` est retiré (v5.1). Les assistants de la CLI (`oh provider setup`, `oh project add|configure|remove`, `oh policies add`, `oh patterns add`, `oh mcp setup`, `oh team init`) tournent sur `InlineWizardView`, seul dans une application à lui (`views.RunInlineWizardStandalone`, comme `oh init` le faisait déjà) : même rendu que dans la TUI, `Échap` demande « Quitter l'assistant ? » (plus de double `Échap`), une étape qui échoue affiche son erreur et attend une nouvelle tentative (`Entrée`) ou un retour (`Ctrl+B`), et ce qu'une étape écrit est gardé jusqu'à ce que l'assistant ait quitté l'écran. Le compromis « Deux implémentations wizard coexistent » et le rejet de « Remplacer `RunWizard` par `InlineWizardView` partout » ci-dessus ne tiennent plus : le shell n'est pas nécessaire, un faux shell suffit.
