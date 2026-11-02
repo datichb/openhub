@@ -144,7 +144,7 @@ The `workflow` MCP server (`workflow_status`, `workflow_checkpoint`, `workflow_o
 
 ---
 
-## Architecture (6 docs + 53 ADRs)
+## Architecture (6 docs + 60 ADRs)
 
 | Document | Description |
 |----------|-------------|
@@ -154,7 +154,7 @@ The `workflow` MCP server (`workflow_status`, `workflow_checkpoint`, `workflow_o
 | [Task Delegation](architecture/task-delegation.en.md) | Inter-agent delegation model (`calls:`, `after:`) |
 | [Living Wiki](architecture/living-wiki.en.md) | Living documentation wiki architecture |
 | [TodoWrite Isolation](architecture/todowrite-session-isolation.en.md) | Session isolation design |
-| [ADRs](architecture/adr/) | 54 Architecture Decision Records (v5: 038 to 054) |
+| [ADRs](architecture/adr/) | 60 Architecture Decision Records (v5: 038 to 060) |
 
 ### v5 decisions
 
@@ -178,6 +178,11 @@ The `workflow` MCP server (`workflow_status`, `workflow_checkpoint`, `workflow_o
 | [053](architecture/adr/053-fanout-control-substitution.en.md) | Fan-out: child sessions driven by oh and control substitution (CP-R3) |
 | [054](architecture/adr/054-team-brick-catalogue.en.md) | Team brick catalogue: `oh brick`, governance and integrity (`catalog.lock`) |
 | [055](architecture/adr/055-checkpoint-approver.en.md) | Human approver of a checkpoint (`approver:`, CP-R9), step 1 |
+| [056](architecture/adr/056-team-claim-lease.en.md) | Team claims: lease, heartbeat, end of session and durable queue |
+| [057](architecture/adr/057-gitlab-token-per-server.en.md) | Strict GitLab token per server |
+| [058](architecture/adr/058-primary-agent-called-is-all.en.md) | A `primary` agent called by the workflow is shipped as `mode: all` |
+| [059](architecture/adr/059-return-envelope-and-workflow-report.en.md) | Return envelope, `workflow_report` and role-filtered skills |
+| [060](architecture/adr/060-living-wiki.en.md) | Living documentation wiki: agents propose, the user validates, oh applies and checks |
 
 ---
 
