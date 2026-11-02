@@ -19,7 +19,6 @@ import (
 	providerPkg "github.com/datichb/openhub/cli/internal/provider"
 	"github.com/datichb/openhub/cli/internal/tui/components/summary"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
-	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
@@ -300,14 +299,7 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 		buildProjectTeamStep(a, &projectTeamID, &projectSolo),
 	}
 
-	wizResult := views.RunWizard(views.WizardConfig{
-		Layout: layout.Config{
-			ProjectName: a.Config.Name,
-			Command:     "project add",
-			StatusHints: i18n.T("wizard.hints.default"),
-		},
-		Steps: steps,
-	})
+	wizResult := runCLIWizard(a, cliWizard{Command: "project add", Steps: steps})
 
 	if wizResult.Aborted {
 		return nil

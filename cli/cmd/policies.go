@@ -14,7 +14,6 @@ import (
 	policysvc "github.com/datichb/openhub/cli/internal/services/policy"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
-	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
@@ -370,14 +369,7 @@ func runPoliciesAdd(cmd *cobra.Command, args []string) error {
 		},
 	}
 
-	wizResult := views.RunWizard(views.WizardConfig{
-		Layout: layout.Config{
-			ProjectName: a.Config.Name,
-			Command:     "policies add",
-			StatusHints: i18n.T("wizard.hints.default"),
-		},
-		Steps: steps,
-	})
+	wizResult := runCLIWizard(a, cliWizard{Command: "policies add", Steps: steps})
 
 	if wizResult.Aborted {
 		return nil

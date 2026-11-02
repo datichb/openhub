@@ -10,8 +10,8 @@
 directly inside the TUI shell, without creating a separate `tview.Application`. It is
 pushed onto the router stack via `shell.PushView(v)` and behaves like any other shell view.
 
-The component reuses the `WizardStep` type (`wizard.go`) for compatibility of step
-definitions between the CLI standalone and TUI inline paths.
+The steps are `WizardStep` values (`wizard_step.go`), the same in the TUI shell and in
+the wizards of the CLI, which run this view alone (`RunInlineWizardStandalone`).
 
 **Source file**: `cli/internal/tui/v2/views/inline_wizard.go`
 
@@ -37,7 +37,7 @@ type InlineWizardConfig struct {
 
 ### `WizardStep`
 
-Type shared with `RunWizard` (`wizard.go`):
+Type shared by the TUI and the CLI wizards (`wizard_step.go`):
 
 | Field | Role |
 |-------|------|
@@ -208,7 +208,7 @@ func actionMyWizard() {
 
 **Shared state via closures**: variables shared across steps are declared before the
 steps and captured by the `Form`, `OnDone`, `Validate`, `InfoFields` closures. Same
-pattern as `RunWizard` in `team.go`.
+pattern as the CLI wizard in `team.go`.
 
 **Dynamic pre-fill**: a step's `OnDone` can modify default values for subsequent steps.
 The `Form` callback is called at render time (not at init), so it sees updated values.
@@ -303,20 +303,16 @@ the summary is displayed.
 
 ---
 
-## Differences with `RunWizard` (standalone)
+## In the shell and alone (`RunInlineWizardStandalone`)
 
-| Aspect | `RunWizard` (standalone) | `InlineWizardView` (inline) |
-|--------|--------------------------|----------------------------|
-| `tview.Application` | Creates its own | Uses the shell's |
-| Omnibar | Not available | Visible and accessible |
-| Toasts | Not available | Functional |
-| Navigation | `Ctrl+C` quits | `Esc` → « Quit the wizard? » |
-| Info panel | Dedicated side panel | Integrated in vertical layout |
-| Lifecycle | Blocking (`Run()` → `WizardResult`) | Async (`Mount/Unmount`, `OnComplete` callback) |
-| Usage | CLI one-shot, `--no-tui` | TUI shell interactive |
-| Prerequisite | None | Active TUI shell |
+The wizards of the CLI (`oh init`, `oh provider setup`, `oh project add|configure|remove`, `oh policies add`, `oh patterns add`, `oh mcp setup`, `oh team init`) mount the same `InlineWizardView` in an application of their own (`views.RunInlineWizardStandalone`); the old wizard engine (`RunWizard`) is removed.
 
-**When to use which:**
-- `RunWizard`: CLI one-shot commands (`oh team init`, `oh project add`, `oh project configure`, `oh project remove`, `oh provider`)
-- `InlineWizardView`: TUI actions (omnibar, first run, view integration)
-- `RunInlineWizardStandalone`: mounts an `InlineWizardView` in its own `tview.Application`, to reuse in the CLI the same wizard as the TUI (`oh init` = first-run wizard)
+| Aspect | In the shell | Alone (CLI) |
+|--------|--------------|-------------|
+| `tview.Application` | The shell's | Its own, alt-screen for the length of the wizard |
+| Omnibar | Visible and accessible | None |
+| Toasts (`ShowToastMsg`) | Shell toasts | A notification in the hints bar, for a few seconds (`Notify`) |
+| Quit | `Esc` → « Quit the wizard? » (the wizard is popped) | Same question; `Ctrl+C` quits at once |
+| Result | `OnComplete(completed, err)` | `StandaloneResult`: `Completed`, `Aborted` (the user quit), `Err` (a step failed and the user quit) |
+| What a step prints | Not applicable | Held until the wizard has left the screen (`oh` commands) |
+| Summary screen | Proposes a navigation | Not shown: the command prints its own summary |

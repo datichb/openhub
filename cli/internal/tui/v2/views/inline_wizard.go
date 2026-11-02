@@ -21,13 +21,13 @@ import (
 // InlineWizard — multi-step wizard view that runs inside the TUI shell
 // ─────────────────────────────────────────────────────────────────────────────
 //
-// Unlike RunWizard (wizard.go), which creates a separate tview.Application,
 // InlineWizardView implements the View interface and runs within the existing
 // shell. This avoids the jarring alt-screen switch and keeps the omnibar,
-// toasts, and shell chrome accessible throughout the wizard.
+// toasts, and shell chrome accessible throughout the wizard. The wizards of
+// the CLI run it alone, in an application of their own
+// (RunInlineWizardStandalone): same engine, same rendering.
 //
-// The component reuses the same WizardStep struct as the standalone wizard
-// for full step-definition compatibility.
+// The steps are WizardStep (wizard_step.go).
 
 // InlineWizardConfig configures an inline wizard view.
 type InlineWizardConfig struct {
@@ -35,7 +35,7 @@ type InlineWizardConfig struct {
 	ID string
 	// Title is displayed in the shell breadcrumb.
 	Title string
-	// Steps defines the wizard steps. Same struct as the standalone wizard.
+	// Steps defines the wizard steps.
 	Steps []WizardStep
 	// OnComplete is called when the wizard finishes.
 	// completed=true means all steps done; completed=false means user aborted.
@@ -159,6 +159,40 @@ func NewInlineWizardView(cfg InlineWizardConfig) *InlineWizardView {
 // trackTimer registers a timer so it can be cancelled in Unmount.
 func (w *InlineWizardView) trackTimer(t *time.Timer) {
 	w.activeTimers = append(w.activeTimers, t)
+}
+
+// notifyHold is how long a notification stays in the hints bar.
+var notifyHold = 3 * time.Second
+
+// Notify shows msg in the hints bar for a few seconds, then the hints of the
+// step come back. It does not take the focus and does not block the wizard,
+// and it may be called from any goroutine.
+func (w *InlineWizardView) Notify(msg string, isErr bool) {
+	app := w.app
+	if app == nil {
+		return
+	}
+	color := theme.Success
+	icon := theme.IconSuccess
+	if isErr {
+		color, icon = theme.Error, theme.IconError
+	}
+	text := theme.Paint(color, icon+" "+msg)
+	go app.QueueUpdateDraw(func() {
+		if w.app == nil || w.hintsBar == nil {
+			return
+		}
+		if w.quitBar == nil {
+			w.hintsBar.SetHints(text)
+		}
+		w.trackTimer(time.AfterFunc(notifyHold, func() {
+			app.QueueUpdateDraw(func() {
+				if w.app != nil && w.hintsBar != nil && w.quitBar == nil {
+					w.hintsBar.SetHints(w.statusHintsForStep(w.currentStep))
+				}
+			})
+		}))
+	})
 }
 
 // SetShell provides the shell reference (shellAware interface).
@@ -782,6 +816,8 @@ func (w *InlineWizardView) goBack() {
 	if len(w.infoAccum) > 0 {
 		w.infoAccum = w.infoAccum[:len(w.infoAccum)-1]
 	}
+	// Going back leaves the error of a step that failed behind it.
+	w.wizardErr = nil
 	w.currentStep = prev
 	w.renderInfoPanel()
 	w.doRenderStep(prev)

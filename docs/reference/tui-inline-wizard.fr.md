@@ -11,8 +11,8 @@ directement dans le shell TUI, sans créer de `tview.Application` séparé. Il e
 sur le router stack via `shell.PushView(v)` et se comporte comme n'importe quelle autre
 vue du shell.
 
-Le composant réutilise le type `WizardStep` (`wizard.go`) pour la compatibilité
-des définitions de steps entre le CLI standalone et le TUI inline.
+Les steps sont des `WizardStep` (`wizard_step.go`), les mêmes dans le shell TUI et dans
+les assistants de la CLI, qui font tourner cette vue seule (`RunInlineWizardStandalone`).
 
 **Fichier source** : `cli/internal/tui/v2/views/inline_wizard.go`
 
@@ -38,7 +38,7 @@ type InlineWizardConfig struct {
 
 ### `WizardStep`
 
-Type partagé avec `RunWizard` (`wizard.go`) :
+Type partagé par la TUI et les assistants de la CLI (`wizard_step.go`) :
 
 | Champ | Rôle |
 |-------|------|
@@ -209,7 +209,7 @@ func actionMyWizard() {
 
 **État partagé via closures** : les variables partagées entre steps sont déclarées avant les
 steps et capturées par les closures `Form`, `OnDone`, `Validate`, `InfoFields`. C'est le
-même pattern que `RunWizard` dans `team.go`.
+même pattern que l'assistant de la CLI dans `team.go`.
 
 **Pré-remplissage dynamique** : le `OnDone` d'un step peut modifier les valeurs par défaut
 des steps suivants. Le `Form` callback est appelé au moment du rendu (pas à l'init), donc
@@ -305,20 +305,16 @@ l'utilisateur ne choisisse sa navigation, ce qui permet de persister les changem
 
 ---
 
-## Différences avec `RunWizard` (standalone)
+## Dans le shell et seul (`RunInlineWizardStandalone`)
 
-| Aspect | `RunWizard` (standalone) | `InlineWizardView` (inline) |
-|--------|--------------------------|----------------------------|
-| `tview.Application` | Crée la sienne | Utilise celle du shell |
-| Omnibar | Non disponible | Visible et accessible |
-| Toasts | Non disponibles | Fonctionnels |
-| Navigation | `Ctrl+C` quitte | `Esc` → « Quitter l'assistant ? » |
-| Info panel | Panneau latéral dédié | Intégré dans le layout vertical |
-| Cycle de vie | Blocking (`Run()` → `WizardResult`) | Async (`Mount/Unmount`, callback `OnComplete`) |
-| Utilisation | CLI one-shot, `--no-tui` | TUI shell interactif |
-| Pré-requis | Aucun | Shell TUI actif |
+Les assistants de la CLI (`oh init`, `oh provider setup`, `oh project add|configure|remove`, `oh policies add`, `oh patterns add`, `oh mcp setup`, `oh team init`) montent le même `InlineWizardView` dans une application à eux (`views.RunInlineWizardStandalone`) ; l'ancien moteur d'assistant (`RunWizard`) est retiré.
 
-**Quand utiliser lequel :**
-- `RunWizard` : commandes CLI one-shot (`oh team init`, `oh project add`, `oh project configure`, `oh project remove`, `oh provider`)
-- `InlineWizardView` : action TUI (omnibar, premier lancement, intégration vue)
-- `RunInlineWizardStandalone` : monte un `InlineWizardView` dans sa propre `tview.Application`, pour réutiliser en CLI le même assistant que la TUI (`oh init` = assistant du premier lancement)
+| Aspect | Dans le shell | Seul (CLI) |
+|--------|---------------|------------|
+| `tview.Application` | Celle du shell | La sienne, en écran alternatif le temps de l'assistant |
+| Omnibar | Visible et accessible | Aucune |
+| Toasts (`ShowToastMsg`) | Toasts du shell | Une notification dans la barre d'aide, quelques secondes (`Notify`) |
+| Quitter | `Esc` → « Quitter l'assistant ? » (l'assistant est dépilé) | Même question ; `Ctrl+C` quitte tout de suite |
+| Résultat | `OnComplete(completed, err)` | `StandaloneResult` : `Completed`, `Aborted` (l'utilisateur a quitté), `Err` (une étape a échoué et l'utilisateur a quitté) |
+| Ce qu'une étape écrit | Sans objet | Gardé jusqu'à ce que l'assistant ait quitté l'écran (commandes `oh`) |
+| Écran de résumé | Propose une navigation | Non affiché : la commande écrit son propre résumé |
