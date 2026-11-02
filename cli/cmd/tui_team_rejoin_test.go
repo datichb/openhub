@@ -270,3 +270,76 @@ func TestRejoinWizardTrackerChoices(t *testing.T) {
 	dd.SetCurrentOption(2)
 	cfg.OnComplete(true, nil)
 }
+
+func newRejoinWizard(secrets *mockSecretStore) *rejoinWizard {
+	a := &app.App{Config: &config.Config{}}
+	if secrets != nil {
+		a.Secrets = secrets
+	}
+	return &rejoinWizard{ctx: context.Background(), a: a, cred: &httpsCredState{}, stateRepo: "git@host:acme/state.git"}
+}
+
+// A new GitLab token is stored under the key of the team; any other choice
+// stores nothing.
+func TestRejoinWizardStoresTheNewToken(t *testing.T) {
+	i18ntest.Set(t, "en")
+	secrets := &mockSecretStore{secrets: map[string]string{}}
+	w := newRejoinWizard(secrets)
+	step := w.gitlabTokenStep()
+
+	w.tokenChoice, w.gitlabToken = "skip", "glpat-x"
+	require.NoError(t, step.OnDone())
+	assert.Empty(t, secrets.secrets)
+
+	w.tokenChoice, w.gitlabToken = "new", ""
+	require.NoError(t, step.OnDone())
+	assert.Empty(t, secrets.secrets, "no token typed")
+
+	w.tokenChoice, w.gitlabToken = "new", "glpat-x"
+	require.NoError(t, step.OnDone())
+	assert.Equal(t, map[string]string{config.TeamGitLabTokenKey(config.RepoNameFromRemote(w.stateRepo)): "glpat-x"}, secrets.secrets)
+
+	w.a.Secrets = nil
+	require.NoError(t, step.OnDone(), "no keychain: nothing to store")
+
+	w.tokenChoice = "reuse"
+	assert.Equal(t, i18n.T("cmd.init.wizard_rejoin_token_reuse_short"), step.InfoFields()[0].Value)
+}
+
+// The step of the identity shows why the identity does not match, and the
+// choice « skip » lets the rejoin go on.
+func TestRejoinWizardIdentityMismatch(t *testing.T) {
+	i18ntest.Set(t, "en")
+	w := newRejoinWizard(&mockSecretStore{secrets: map[string]string{}})
+	step := w.identityMismatchStep()
+	assert.True(t, step.SkipIf(), "no mismatch: no step")
+
+	w.identityMismatch = &identityMismatchError{AuthenticatedAs: "project_1_bot", ExpectedUser: "tu", MemberID: "testuser", IsBot: true}
+	assert.False(t, step.SkipIf())
+	form := step.Form(tview.NewApplication(), func() {})
+	text := form.GetFormItem(0).(*tview.TextView).GetText(true)
+	assert.Equal(t, i18n.Tf("cmd.init.wizard_identity_bot_detected", "project_1_bot"), text)
+	w.identityMismatch.IsBot = false
+	form = step.Form(tview.NewApplication(), func() {})
+	assert.Equal(t, i18n.Tf("cmd.init.wizard_identity_user_mismatch", "project_1_bot", "testuser", "tu"),
+		form.GetFormItem(0).(*tview.TextView).GetText(true))
+
+	dd := dropDownOf(t, form)
+	require.Equal(t, 3, dd.GetOptionCount())
+	assert.Equal(t, i18n.T("cmd.init.wizard_rejoin_token_choice_required"), step.Validate(), "no choice")
+	dd.SetCurrentOption(1)
+	assert.Equal(t, "verify", w.mismatchChoice)
+	assert.Equal(t, i18n.T("cmd.init.wizard_rejoin_token_new_required"), step.Validate(), "verify needs a token")
+	inputPassword := form.GetFormItem(3).(*tview.InputField)
+	inputPassword.SetText("glpat-y")
+	assert.Equal(t, "glpat-y", w.mismatchPAT)
+	assert.Empty(t, step.Validate())
+	assert.Equal(t, i18n.T("tui.team.wizard.identity_verified"), step.InfoFields()[0].Value)
+
+	dd.SetCurrentOption(2)
+	assert.Equal(t, "skip", w.mismatchChoice)
+	require.NoError(t, step.OnDone())
+	assert.Nil(t, w.identityMismatch, "skipped: the mismatch is dropped")
+	assert.True(t, step.SkipIf())
+	assert.Equal(t, i18n.T("cmd.init.wizard_identity_skip"), step.InfoFields()[0].Value)
+}
