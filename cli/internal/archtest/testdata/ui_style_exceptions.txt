@@ -12,10 +12,6 @@
 #
 symbol cmd/tui_editor.go 2
 symbol cmd/tui_team_columns.go 5
-tag-color cmd/tui_team_columns.go 12
-tag-style cmd/tui_team_columns.go 2
-widgets-tag cmd/tui_team_columns.go 1
-symbol cmd/tui_team_tracker.go 2
 symbol internal/tui/theme/button.go 1
 symbol internal/tui/v2/layout/layout.go 1
 tag-style internal/tui/v2/layout/layout.go 1
