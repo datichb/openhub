@@ -261,6 +261,11 @@ func editConfigField(shell ShellAccess, f *configField, onDone func()) {
 		if onDone != nil {
 			onDone()
 		}
+		if f.Warn != nil {
+			if w := f.Warn(f.Get()); w != "" {
+				shell.ShowToastMsg(w, false)
+			}
+		}
 
 	case CfgFieldTriBool:
 		options := triStateOptions()

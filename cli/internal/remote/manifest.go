@@ -105,6 +105,11 @@ type ManifestCheckpoint struct {
 	Label     string `json:"label,omitempty"`
 	Policy    string `json:"policy"` // auto | defer
 	Mandatory bool   `json:"mandatory,omitempty"`
+	// Unlocks are the operations (`unlocks:`) the checkpoint unlocks, as the
+	// machine resolved them: the job refuses to start when its bundle does
+	// not lock them the same way. Additive: absent from a manifest of an
+	// older oh, which the job then reads as before (nothing to compare).
+	Unlocks []string `json:"unlocks,omitempty"`
 }
 
 // ManifestTeam is the team-state of the claims.

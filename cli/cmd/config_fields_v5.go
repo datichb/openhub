@@ -116,7 +116,18 @@ func v5ConfigFields() map[string]configField {
 			},
 			Unset: func(c *config.Config) { c.Execution.ColimaProfile = "" },
 		},
-		"execution.keep_images":      intField("execution.keep_images", func(c *config.Config) *int { return &c.Execution.KeepImages }, 1, 20),
+		"execution.keep_images": intField("execution.keep_images", func(c *config.Config) *int { return &c.Execution.KeepImages }, 1, 20),
+		"execution.container_memory": {
+			Set: func(c *config.Config, v string) error {
+				m, err := config.ParseContainerMemory(v)
+				if err != nil || m == "" {
+					return invalidConfigValue("execution.container_memory", v, "512m | 4g (512m to 1024g)")
+				}
+				c.Execution.ContainerMemory = m
+				return nil
+			},
+			Unset: func(c *config.Config) { c.Execution.ContainerMemory = "" },
+		},
 		"execution.strict_isolation": boolField("execution.strict_isolation", func(c *config.Config) *bool { return &c.Execution.StrictIsolation }),
 		"execution.env_allow": {
 			Set: func(c *config.Config, v string) error {

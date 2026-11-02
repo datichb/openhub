@@ -91,6 +91,11 @@ type ExecutionConfig struct {
 	// StrictIsolation hides the user tool configuration (XDG_CONFIG_HOME) of
 	// local servers too (containers never see it).
 	StrictIsolation bool `toml:"strict_isolation,omitempty"`
+	// ContainerMemory bounds the memory of a container group (docker/podman
+	// --memory): "512m" to "1024g" ("" = no limit, the default: the VM of
+	// the engine bounds it, and an out-of-memory kill takes every session
+	// of the group down). Applies to the containers started afterwards.
+	ContainerMemory string `toml:"container_memory,omitempty"`
 	// ProxyFirstByteTimeoutMinutes is how long the credential proxy waits
 	// for a model provider to start answering before it gives up on the
 	// request (default 5). A stream, once started, has no time limit.

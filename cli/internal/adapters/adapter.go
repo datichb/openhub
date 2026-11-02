@@ -100,10 +100,13 @@ type VisibilityReport struct {
 // Prefixes of the VisibilityReport.Warnings about plugins that the bundle does
 // not bring (S-11): "plugin:<id> (<source>)" for a plugin loaded from the
 // user's own tool configuration, and "plugins:unchecked (<reason>)" when the
-// plugin list could not be read.
+// plugin list could not be read. "plugin-inactive:<id> (<state>)" is a plugin
+// the bundle declares that the server does not run (not loaded, or in another
+// state than active); under strict isolation it is reported as unexpected.
 const (
 	WarnUserPlugin       = "plugin:"
 	WarnPluginsUnchecked = "plugins:unchecked"
+	WarnPluginInactive   = "plugin-inactive:"
 )
 
 // UserPluginLister is implemented by adapters whose tool loads plugins from

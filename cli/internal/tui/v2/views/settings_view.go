@@ -698,6 +698,11 @@ func (v *SettingsView) onToggleSelected() {
 	toggleConfigField(f)
 	v.scheduleAutoSave()
 	v.renderFields()
+	if f.Warn != nil && v.shell != nil {
+		if w := f.Warn(f.Get()); w != "" {
+			v.shell.ShowToastMsg(w, false)
+		}
+	}
 }
 
 // editTokenKey handles the 2-step edit for token/keychain fields:

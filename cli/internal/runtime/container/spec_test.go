@@ -245,3 +245,63 @@ func TestContainerHoldsNoCredentialOfTheMachine(t *testing.T) {
 	assert.Empty(t, testenv.LeaksIn(secrets, string(spec)))
 	require.NoError(t, rt.Teardown(context.Background(), pg))
 }
+
+// audit S-33 (reste): the memory of a group container is bounded when
+// execution.container_memory is set, with the same flag on every engine;
+// unset, nothing is passed (the engine VM bounds it).
+func TestContainerMemoryLimit(t *testing.T) {
+	_, project, _, bundle, data := layout(t)
+	g := ohruntime.Group{ProjectID: "app", ProjectDir: project, BundleDir: bundle, DataDir: data}
+	engines := map[string]Engine{
+		"docker":         {Kind: EngineDocker, Host: hostDocker},
+		"colima":         {Kind: EngineColima, Host: hostDocker, VM: true},
+		"podman rootful": {Kind: EnginePodman, Host: hostPodman},
+		"podman":         {Kind: EnginePodman, Rootless: true, Host: hostPodman},
+	}
+	for name, e := range engines {
+		t.Run(name, func(t *testing.T) {
+			s, err := buildSpec(e, specInput{GOOS: "linux", UID: 1000, GID: 1000, Memory: "4g"}, g, "img", "k")
+			require.NoError(t, err)
+			assert.Equal(t, "4g", s.Memory)
+			args, _, err := runArgs(s, ohruntime.Proc{Argv: []string{"faketool"}}, "/f")
+			require.NoError(t, err)
+			assert.Contains(t, args, "--memory=4g")
+
+			s, err = buildSpec(e, specInput{GOOS: "linux", UID: 1000, GID: 1000}, g, "img", "k")
+			require.NoError(t, err)
+			args, _, err = runArgs(s, ohruntime.Proc{Argv: []string{"faketool"}}, "/f")
+			require.NoError(t, err)
+			for _, a := range args {
+				assert.False(t, strings.HasPrefix(a, "--memory"), "no limit by default: %s", a)
+			}
+		})
+	}
+
+	t.Run("a value the engine could read as an option is refused", func(t *testing.T) {
+		for _, bad := range []string{"4g --privileged", "-1", "--privileged", "4", "0g", "4g\n"} {
+			_, err := buildSpec(Engine{Kind: EngineDocker}, specInput{Memory: bad}, g, "img", "k")
+			assert.Error(t, err, bad)
+		}
+	})
+}
+
+func TestPrepareAppliesTheMemoryOption(t *testing.T) {
+	_, project, worktree, bundle, data := layout(t)
+	r := newImageEngine(t, &fakeStore{images: map[string]string{}})
+	r.on("docker rm -f", "", nil)
+	r.on("docker run --rm --entrypoint sh --add-host host.docker.internal:host-gateway", "172.17.0.1      host.docker.internal\n", nil)
+	rt := New(Options{Runner: r, GOOS: "linux", CacheDir: t.TempDir(), Memory: "2g"})
+	rt.bd = func(arch string) ([]byte, error) { return []byte("bd-" + arch), nil }
+	g := ohruntime.Group{Key: sessionspec.GroupKey{BundleHash: "abc", ProjectID: "app", Runtime: sessionspec.RuntimeContainer},
+		ProjectID: "app", ProjectDir: project, Locations: []string{worktree}, BundleDir: bundle, DataDir: data,
+		Tool: &fakeTool{ver: "2.0.20", bin: writeBin(t)}}
+	pg, err := rt.Prepare(context.Background(), g)
+	require.NoError(t, err)
+	saved, err := LoadSpec(data)
+	require.NoError(t, err)
+	assert.Equal(t, "2g", saved.Memory, "kept with the spec of the group")
+
+	cmd, err := rt.Command(context.Background(), pg, ohruntime.Proc{Argv: []string{"faketool", "serve"}})
+	require.NoError(t, err)
+	assert.Contains(t, cmd.Args, "--memory=2g")
+}

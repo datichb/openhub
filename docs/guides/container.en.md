@@ -64,9 +64,11 @@ engine = "colima"            # auto (default: Colima, then Podman, then Docker) 
 keep_images = 2              # images kept per project and role (base, oh); the oldest are removed
 tool_version = "2.0.20"  # empty = the machine client version
 strict_isolation = true      # also hides your opencode config from local servers
+container_memory = "8g"      # memory limit of a container (512m to 1024g); empty = none (default)
 ```
 
 - **Pinned opencode version**: the image and the machine client must run the same version. When the pinned version differs from the client (for instance after a Homebrew upgrade), container launches are refused with the reason. Reinstall the pinned version or change the setting. Without a pinned version, the image follows the client: an opencode upgrade rebuilds the oh layer at the next launch.
+- **Memory limit** (`container_memory`): none by default. A container hosts every session of its group and the builds and tests of your project (npm, gradle…), which may legitimately need several GB, and one that exceeds the limit is killed with all its sessions: the VM of the engine (Colima, Docker Desktop) already bounds the total. Set `4g` or more if you want a runaway process to stay in its container. Applies to the containers started afterwards (end the sessions of the group first).
 - **Strict isolation**: locally, the server gets its own `XDG_CONFIG_HOME`. It is a copy of your config folder without `opencode/`, with links to the other folders, so git, gh… keep working. The plugins, agents and commands of your global opencode config are no longer loaded. In a container, this config is never visible.
 - The engine choice replaces the `OH_CONTAINER_ENGINE` variable, which no longer exists.
 

@@ -574,3 +574,50 @@ func TestRunSealsJournal(t *testing.T) {
 	data, _ := os.ReadFile(filepath.Join(out, remote.SummaryFile))
 	assert.NotContains(t, string(data), key)
 }
+
+func lockedBundle(unlocks ...string) *bundle.Bundle {
+	return &bundle.Bundle{Spec: sessionspec.BundleSpec{EntryAgent: "lead", Workflow: &sessionspec.WorkflowRuntime{
+		Checkpoints: []sessionspec.CheckpointDef{{ID: "cp-2", Mandatory: true, Unlocks: unlocks}}}}}
+}
+
+// The locks the machine announces (`unlocks` of the manifest) are the ones
+// the bundle applies in the job: otherwise the job does not start. A manifest
+// of an older oh, without the field, is read as before.
+func TestRunChecksTheAnnouncedLocks(t *testing.T) {
+	announced := func(ops ...string) remote.Manifest {
+		m := manifest()
+		m.Checkpoints = []remote.ManifestCheckpoint{{ID: "cp-2", Policy: "auto", Mandatory: true, Unlocks: ops}}
+		return m
+	}
+	run := func(t *testing.T, m remote.Manifest, b *bundle.Bundle) (*remote.Summary, *fakeSession, error) {
+		t.Helper()
+		sess := &fakeSession{fd: &fakeDecisions{}}
+		in, _ := runInput(t, sess, &fakeRepo{result: PushResult{Commit: "c9"}}, m)
+		in.Fetched.Bundle = b
+		sum, err := Run(context.Background(), in)
+		return sum, sess, err
+	}
+
+	t.Run("same locks: the session starts", func(t *testing.T) {
+		_, sess, err := run(t, announced("commit", "close"), lockedBundle("commit", "close", "push"))
+		require.NoError(t, err)
+		assert.Equal(t, "ses_1", sess.started.SessionID)
+	})
+	t.Run("a lock the bundle does not apply: refused before the clone", func(t *testing.T) {
+		sum, sess, err := run(t, announced("commit", "close"), lockedBundle("close"))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "cp-2")
+		assert.Contains(t, err.Error(), "commit")
+		assert.Equal(t, remote.OutcomeFailed, sum.Outcome)
+		assert.Empty(t, sess.started.SessionID, "no session started")
+	})
+	t.Run("no workflow in the bundle: refused", func(t *testing.T) {
+		_, _, err := run(t, announced("commit"), &bundle.Bundle{Spec: sessionspec.BundleSpec{EntryAgent: "lead"}})
+		require.Error(t, err)
+	})
+	t.Run("manifest without the field (older oh): as before", func(t *testing.T) {
+		_, sess, err := run(t, announced(), lockedBundle())
+		require.NoError(t, err)
+		assert.Equal(t, "ses_1", sess.started.SessionID)
+	})
+}

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -41,6 +42,9 @@ type Spec struct {
 	AddHosts  []string          `json:"add_hosts,omitempty"`
 	Host      string            `json:"host"`
 	Locations []string          `json:"locations"` // machine locations visible in the container
+	// Memory is the --memory limit of the container (N5-memory: "512m",
+	// "4g"; "" = none).
+	Memory string `json:"memory,omitempty"`
 }
 
 // ContainerName is the container name of a group (stable: a stale container
@@ -62,7 +66,13 @@ func ContainerName(groupKey string) string {
 type specInput struct {
 	GOOS     string
 	UID, GID int
+	Memory   string // --memory limit ("" = none)
 }
+
+// memoryRe is the form of a memory limit passed to the engine: a whole
+// number and m or g (checked by the configuration, again here because the
+// value ends up on a command line).
+var memoryRe = regexp.MustCompile(`^[1-9]\d{0,9}[mg]$`)
 
 // buildSpec computes mounts, path translation, user, environment and host
 // address of a group container.
@@ -72,7 +82,10 @@ type specInput struct {
 // git common directory of a worktree is also mounted at its machine path so
 // that absolute `gitdir:` links resolve; /opt/oh/home is a per-project volume.
 func buildSpec(e Engine, in specInput, g ohruntime.Group, image, groupKey string) (Spec, error) {
-	s := Spec{Name: ContainerName(groupKey), Image: image, Engine: e.Kind, Host: e.Host, Env: map[string]string{}}
+	if in.Memory != "" && !memoryRe.MatchString(in.Memory) {
+		return Spec{}, fmt.Errorf("container memory limit %q is not a size (512m, 4g): see execution.container_memory", in.Memory)
+	}
+	s := Spec{Name: ContainerName(groupKey), Image: image, Engine: e.Kind, Host: e.Host, Env: map[string]string{}, Memory: in.Memory}
 	add := func(m Mount) error {
 		if !m.Volume {
 			if strings.ContainsAny(m.Source, ",\n") || strings.ContainsAny(m.Target, ",\n") {
@@ -212,6 +225,9 @@ func runArgs(s Spec, p ohruntime.Proc, envFile string) (args []string, envConten
 		// The agent's processes get no capability and cannot gain one
 		// (setuid); a fork bomb stays in the container (audit S-33).
 		"--cap-drop=ALL", "--security-opt=no-new-privileges", "--pids-limit=" + strconv.Itoa(pidsLimit)}
+	if s.Memory != "" {
+		args = append(args, "--memory="+s.Memory)
+	}
 	args = append(args, s.UserArgs...)
 	for _, h := range s.AddHosts {
 		args = append(args, "--add-host", h)

@@ -4,15 +4,18 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/provider"
 	"github.com/datichb/openhub/cli/internal/remote"
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
+	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
 // CISecrets is the secret store of the job: the provider key of the jobs
@@ -231,4 +234,29 @@ func (r *Responder) answer(ctx context.Context, d domain.Decision) *Stop {
 func isResolved(err error) bool {
 	var re *sessionsvc.ResolvedError
 	return errors.As(err, &re)
+}
+
+// checkAnnouncedLocks compares the locks the machine announces in the
+// manifest (`unlocks` of each checkpoint) with the ones the bundle applies in
+// the job (the daemon of the job reads them from the workflow of the bundle):
+// a lock the bundle does not carry would let the job commit or close before
+// the checkpoint, so the session does not start. A manifest without the
+// field (an older oh) announces nothing and is not compared.
+func checkAnnouncedLocks(m *remote.Manifest, b *bundle.Bundle) error {
+	for _, c := range m.Checkpoints {
+		if len(c.Unlocks) == 0 {
+			continue
+		}
+		var def sessionspec.CheckpointDef
+		var ok bool
+		if b != nil {
+			def, ok = b.Spec.Workflow.Checkpoint(c.ID)
+		}
+		for _, op := range c.Unlocks {
+			if !ok || !slices.Contains(def.Unlocks, op) {
+				return fmt.Errorf("checkpoint %s unlocks %q on the machine but the bundle of the job does not lock it: the session does not start (update oh on the machine and run oh remote setup)", c.ID, op)
+			}
+		}
+	}
+	return nil
 }

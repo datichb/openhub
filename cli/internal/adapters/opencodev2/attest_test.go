@@ -83,7 +83,8 @@ func TestAttestUserPlugins(t *testing.T) {
 		{"id":"bundled-plugin","source":{"type":"file"},"state":{"status":"active"}},
 		{"id":"core","source":{"type":"builtin"},"state":{"status":"active"}},
 		{"id":"user-plugin","source":{"type":"file","path":"/home/me/.config/opencode/plugin/x.ts"},"state":{"status":"active"}}]}`
-	const onlyBundle = `{"data":[{"id":"` + OhPluginID + `","source":{"type":"file"},"state":{"status":"active"}}]}`
+	const onlyBundle = `{"data":[{"id":"` + OhPluginID + `","source":{"type":"file"},"state":{"status":"active"}},
+		{"id":"bundled-plugin","source":{"type":"file"},"state":{"status":"active"}}]}`
 
 	t.Run("unexpected plugin, not strict: warning", func(t *testing.T) {
 		rep, err := Attest(context.Background(), fakeToolServer(t, plugins), b, "/p", false)
@@ -118,5 +119,69 @@ func TestAttestUserPlugins(t *testing.T) {
 		_, err := Attest(context.Background(), fakeToolServer(t, ""), b, "/p", true)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "listing plugins")
+	})
+}
+
+// A plugin the workflow or the package declares but the server does not run
+// (not listed, or listed in another state than active) is reported: a warning,
+// a break of the isolation under strict isolation. A plugin list that cannot
+// be read leaves it unchecked, and says so.
+func TestAttestDeclaredPluginInactive(t *testing.T) {
+	old := declaredPluginWait
+	declaredPluginWait = 0
+	t.Cleanup(func() { declaredPluginWait = old })
+
+	b := sessionspec.BundleSpec{
+		Agents:  []sessionspec.AgentDef{{ID: "lead", Mode: "primary"}},
+		Plugins: []sessionspec.PluginDef{{ID: "@scope/pkg", Dir: "@scope/pkg@^1"}, {ID: "other", Dir: "other"}},
+	}
+	const ohActive = `{"id":"` + OhPluginID + `","source":{"type":"file"},"state":{"status":"active"}}`
+	const allActive = `{"data":[` + ohActive + `,
+		{"id":"@scope/pkg","source":{"type":"npm"},"state":{"status":"active"}},
+		{"id":"other","source":{"type":"npm"},"state":{"status":"active"}}]}`
+	const notLoaded = `{"data":[` + ohActive + `,{"id":"other","source":{"type":"npm"},"state":{"status":"active"}}]}`
+	const failed = `{"data":[` + ohActive + `,
+		{"id":"@scope/pkg","source":{"type":"npm"},"state":{"status":"failed"}},
+		{"id":"other","source":{"type":"npm"},"state":{"status":"active"}}]}`
+	const byPath = `{"data":[` + ohActive + `,
+		{"id":"pkg-own-id","source":{"type":"npm","path":"/data/node_modules/@scope/pkg/index.js"},"state":{"status":"active"}},
+		{"id":"other","source":{"type":"npm"},"state":{"status":"active"}}]}`
+
+	t.Run("all declared plugins active: nothing to report", func(t *testing.T) {
+		rep, err := Attest(context.Background(), fakeToolServer(t, allActive), b, "/p", true)
+		require.NoError(t, err)
+		assert.True(t, rep.OK(), "unexpected: %v", rep.Unexpected)
+		assert.Empty(t, rep.Warnings)
+	})
+	t.Run("declared plugin not loaded, not strict: warning", func(t *testing.T) {
+		rep, err := Attest(context.Background(), fakeToolServer(t, notLoaded), b, "/p", false)
+		require.NoError(t, err)
+		assert.True(t, rep.OK())
+		assert.Equal(t, []string{"plugin-inactive:@scope/pkg (not loaded)"}, rep.Warnings)
+	})
+	t.Run("declared plugin failed, not strict: warning with the state", func(t *testing.T) {
+		rep, err := Attest(context.Background(), fakeToolServer(t, failed), b, "/p", false)
+		require.NoError(t, err)
+		assert.True(t, rep.OK())
+		assert.Equal(t, []string{"plugin-inactive:@scope/pkg (failed)"}, rep.Warnings)
+	})
+	t.Run("declared plugin not loaded, strict: the isolation check fails", func(t *testing.T) {
+		rep, err := Attest(context.Background(), fakeToolServer(t, notLoaded), b, "/p", true)
+		require.NoError(t, err)
+		assert.False(t, rep.OK())
+		assert.Equal(t, []string{"plugin-inactive:@scope/pkg (not loaded)"}, rep.Unexpected)
+		assert.Empty(t, rep.Warnings)
+		assert.Equal(t, sessionspec.IsolationNone, rep.Level)
+	})
+	t.Run("a plugin under its own id is found by its install path", func(t *testing.T) {
+		rep, err := Attest(context.Background(), fakeToolServer(t, byPath), b, "/p", true)
+		require.NoError(t, err)
+		assert.True(t, rep.OK(), "unexpected: %v", rep.Unexpected)
+	})
+	t.Run("plugin list unreadable: unchecked, no plugin reported inactive", func(t *testing.T) {
+		rep, err := Attest(context.Background(), fakeToolServer(t, ""), b, "/p", false)
+		require.NoError(t, err)
+		require.Len(t, rep.Warnings, 1)
+		assert.Contains(t, rep.Warnings[0], "plugins:unchecked")
 	})
 }

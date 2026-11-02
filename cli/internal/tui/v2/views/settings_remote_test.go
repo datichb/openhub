@@ -3,14 +3,18 @@ package views
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/i18n"
 )
 
 func TestSettingsRemoteFields(t *testing.T) {
 	t.Parallel()
 	v := &SettingsView{live: &config.Config{}}
 	f := v.remoteFields()
-	if len(f) != 2 || f[0].Kind != CfgFieldSectionHeader || f[1].Kind != CfgFieldPlaceholder {
+	if len(f) != 3 || f[0].Kind != CfgFieldSectionHeader || f[1].Key != "remote_experimental" || f[2].Kind != CfgFieldPlaceholder {
 		t.Fatalf("no target: %+v", f)
 	}
 
@@ -45,4 +49,44 @@ func TestSettingsRemoteFields(t *testing.T) {
 	if v.live.Remote.Targets[0].Tag != "" {
 		t.Fatal("deep copy shares the targets")
 	}
+}
+
+// remote.experimental is set in the « Remote » section, with or without a
+// target, saved by the common write path (UpdateConfig) like every setting,
+// and the existing warning of the mode is shown when it is enabled.
+func TestSettingsRemoteExperimental(t *testing.T) {
+	useEnglish(t)
+	shared := seedHome(t)
+	v := NewSettingsView(SettingsViewConfig{
+		GetConfig:    func() *config.Config { return shared },
+		UpdateConfig: hubHost{shared}.update,
+	})
+	v.live = shared
+	v.buildFields()
+
+	f := settingsField(t, v, "remote_experimental")
+	require.Equal(t, CfgFieldBool, f.Kind)
+	assert.Equal(t, "false", f.Get())
+	assert.Empty(t, f.Source(), "no warning while it is off")
+	assert.NotEmpty(t, f.Description)
+
+	sh := &typingShell{}
+	v.shell = sh
+	v.pushUndo()
+	editConfigField(sh, f, func() { v.scheduleAutoSave() })
+	assert.Equal(t, "true", f.Get())
+	assert.Equal(t, i18n.T("cmd.remote.experimental.warning"), f.Source())
+	require.Len(t, sh.toasts, 1)
+	assert.Equal(t, i18n.T("cmd.remote.experimental.warning"), sh.toasts[0])
+
+	v.doSave()
+	got, err := config.Read()
+	require.NoError(t, err)
+	assert.True(t, got.Remote.Experimental, "written to hub.toml by UpdateConfig")
+
+	v.pushUndo()
+	toggleConfigField(f)
+	sh.toasts = nil
+	assert.Equal(t, "false", f.Get())
+	assert.Empty(t, f.Source())
 }

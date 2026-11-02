@@ -2,6 +2,7 @@ package remote
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -83,4 +84,21 @@ func TestSealJournalKey(t *testing.T) {
 	assert.Equal(t, pub, derived)
 	assert.GreaterOrEqual(t, len(priv), 8, "GitLab masks it")
 	assert.Regexp(t, `^[A-Za-z0-9+/]+$`, priv, "base64 alphabet only (maskable)")
+}
+
+// `unlocks` is additive: a manifest written before it is read as it was, and
+// one without locks does not write the field.
+func TestManifestCheckpointUnlocksAdditive(t *testing.T) {
+	var old Manifest
+	require.NoError(t, json.Unmarshal([]byte(`{"checkpoints":[{"id":"cp-2","policy":"defer","mandatory":true}]}`), &old))
+	require.Len(t, old.Checkpoints, 1)
+	assert.Equal(t, ManifestCheckpoint{ID: "cp-2", Policy: "defer", Mandatory: true}, old.Checkpoints[0])
+
+	data, err := json.Marshal(ManifestCheckpoint{ID: "cp-1", Policy: "auto"})
+	require.NoError(t, err)
+	assert.NotContains(t, string(data), "unlocks")
+
+	data, err = json.Marshal(ManifestCheckpoint{ID: "cp-2", Policy: "auto", Unlocks: []string{"commit"}})
+	require.NoError(t, err)
+	assert.Contains(t, string(data), `"unlocks":["commit"]`)
 }

@@ -67,3 +67,19 @@ func TestRemotePlanPublish(t *testing.T) {
 		t.Fatalf("publish: %v", err)
 	}
 }
+
+// The operations a checkpoint unlocks go to the job with its remote policy.
+func TestRemotePlanCarriesUnlocks(t *testing.T) {
+	y := remoteBase + `runtime: { default: local, allowed: [local, remote] }
+checkpoints:
+  cp-2: { label: Commit, mandatory: true, mode: { manuel: pause, semi-auto: pause }, remote: auto, unlocks: [commit, close] }
+  cp-3: { label: Doc, mode: { manuel: pause, semi-auto: pause }, remote: auto }
+`
+	plan, err := remoteRes(t, y, "semi-auto").RemotePlan("en")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(plan) != 2 || strings.Join(plan[0].Unlocks, ",") != "commit,close" || len(plan[1].Unlocks) != 0 {
+		t.Fatalf("plan = %+v", plan)
+	}
+}

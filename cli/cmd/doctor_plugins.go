@@ -37,6 +37,9 @@ func isolationWarningText(w string) string {
 	if rest, ok := strings.CutPrefix(w, adapters.WarnUserPlugin); ok {
 		return i18n.Tf("cmd.doctor.plugins.launch", toolName(), rest)
 	}
+	if rest, ok := strings.CutPrefix(w, adapters.WarnPluginInactive); ok {
+		return i18n.Tf("cmd.doctor.plugins.launch_inactive", toolName(), rest)
+	}
 	if rest, ok := strings.CutPrefix(w, adapters.WarnPluginsUnchecked); ok {
 		return i18n.Tf("cmd.doctor.plugins.launch_unchecked", toolName(), strings.TrimSpace(rest))
 	}

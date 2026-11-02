@@ -10,7 +10,7 @@ An oh session can run on a **GitLab CI runner** instead of your machine. This gu
 > oh config set remote.experimental true
 > ```
 >
-> Without this setting, `oh remote setup`, `oh run --runtime remote`, the ☁ option of the launch form, `oh session fetch` and `oh session resolve` refuse with the message "experimental remote mode, not validated: oh config set remote.experimental true". Once enabled, a warning stays in the launch recap, in `oh remote status` and in `oh doctor`. Use it for trials only, with test projects and tokens: the protections of the job (final git steps, image build, Beads journal replay) are in place and tested, but the flag will only be lifted after a trial on a real runner.
+> You can also switch it in the settings (Settings › Remote), which shows the same warning. Without this setting, `oh remote setup`, `oh run --runtime remote`, the ☁ option of the launch form, `oh session fetch` and `oh session resolve` refuse with the message "experimental remote mode, not validated: oh config set remote.experimental true". Once enabled, a warning stays in the launch recap, in `oh remote status` and in `oh doctor`. Use it for trials only, with test projects and tokens: the protections of the job (final git steps, image build, Beads journal replay) are in place and tested, but the flag will only be lifted after a trial on a real runner.
 
 > **v5.0:** remote execution is covered by tests (responder, machine ↔ job contract, journal replay, full local run of `oh runner run`), but has not yet been validated on a real runner. MCP servers that read a token from the machine keychain (gitlab, jira, figma…) are not available in the job (`workflow` and `wiki` are), and the build args of the Execution config are not passed to the remote image.
 
@@ -198,7 +198,7 @@ Then, for each session:
 
 When the trigger fails, the reservations made by oh are undone. `--headless` does not apply to remote runs.
 
-Checkpoint policy in the job (never blind approval): `remote: auto` is approved by oh's policy responder; `remote: defer` stops the session cleanly once the MR is ready, the rest happens locally after fetching. A verified checkpoint (`verify:`) never passes without its verification: it runs in the job (section 6, "Checkpoint verification").
+Checkpoint policy in the job (never blind approval): `remote: auto` is approved by oh's policy responder; `remote: defer` stops the session cleanly once the MR is ready, the rest happens locally after fetching. A verified checkpoint (`verify:`) never passes without its verification: it runs in the job (section 6, "Checkpoint verification"). The operations a checkpoint unlocks (`unlocks:`, e.g. commit and ticket closing) are locked in the job as on your machine, until the checkpoint is passed: the session manifest lists them for each checkpoint and the job refuses to start if its bundle does not lock them the same way (a manifest written by an older oh, without this list, is read as before).
 
 ## 6. In the job: `oh runner`
 

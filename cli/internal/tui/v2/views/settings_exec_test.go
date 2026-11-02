@@ -58,3 +58,27 @@ func TestSettingsExecSection(t *testing.T) {
 	st.Set("true")
 	assert.True(t, cfg.Execution.StrictIsolation)
 }
+
+func TestSettingsExecContainerMemory(t *testing.T) {
+	useEnglish(t)
+	cfg := &config.Config{}
+	v := NewSettingsView(SettingsViewConfig{})
+	v.live = cfg
+	v.buildFields()
+
+	f := settingsField(t, v, "exec_container_memory")
+	assert.Equal(t, CfgFieldString, f.Kind)
+	assert.Empty(t, f.Get(), "no limit by default")
+	assert.NotEmpty(t, f.Description)
+	for _, ok := range []string{"", "4g", "4G", "512m"} {
+		require.NoError(t, f.Validator.Validate(ok), ok)
+	}
+	for _, bad := range []string{"4", "256m", "4gb", "2000g", "x"} {
+		require.Error(t, f.Validator.Validate(bad), bad)
+	}
+	f.Set("4G")
+	assert.Equal(t, "4g", cfg.Execution.ContainerMemory, "same normalization as oh config set")
+	assert.Equal(t, "4g", f.Get())
+	f.Set("")
+	assert.Empty(t, cfg.Execution.ContainerMemory)
+}

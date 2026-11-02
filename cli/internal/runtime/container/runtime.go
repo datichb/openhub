@@ -26,6 +26,7 @@ type Options struct {
 	GOOS          string // default: runtime.GOOS
 	CacheDir      string // build contexts and probes (~/.oh/cache/container)
 	KeepImages    int    // images kept per project and role (default 2)
+	Memory        string // --memory limit of the group containers ("" = none)
 }
 
 // Runtime runs server groups in containers.
@@ -139,7 +140,7 @@ func (r *Runtime) Prepare(ctx context.Context, g ohruntime.Group) (*ohruntime.Pr
 	if id == "" {
 		id = g.Key.String()
 	}
-	spec, err := buildSpec(e, specInput{GOOS: r.opts.GOOS, UID: os.Getuid(), GID: os.Getgid()}, g, img.Ref, id)
+	spec, err := buildSpec(e, specInput{GOOS: r.opts.GOOS, UID: os.Getuid(), GID: os.Getgid(), Memory: r.opts.Memory}, g, img.Ref, id)
 	if err != nil {
 		return nil, err
 	}

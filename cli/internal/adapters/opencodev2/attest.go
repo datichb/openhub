@@ -3,12 +3,20 @@ package opencodev2
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
+	"github.com/datichb/openhub/cli/internal/workflow"
 )
+
+// declaredPluginWait is how long Attest lets the plugins declared by the
+// bundle finish loading (they load asynchronously after the server starts)
+// before reporting one as inactive.
+var declaredPluginWait = 5 * time.Second
 
 // Attest checks the closed world invariant on a running server: everything
 // the model can see at location must come from the bundle.
@@ -19,7 +27,10 @@ import (
 //   - MCP: configured servers ⊆ bundle MCP servers;
 //   - plugins: under the strict isolation setting, plugins ⊆ the oh plugin and
 //     the bundle plugins, and the plugin list must be readable. Otherwise the
-//     plugins of the user configuration are legitimate and only reported.
+//     plugins of the user configuration are legitimate and only reported;
+//   - declared plugins: a plugin of the bundle (workflow or package) that the
+//     server does not run is reported the same way (warning, or break of the
+//     isolation under strict isolation).
 func Attest(ctx context.Context, c *Client, b sessionspec.BundleSpec, location string, strict bool) (adapters.VisibilityReport, error) {
 	rep := adapters.VisibilityReport{Level: sessionspec.IsolationFull}
 
@@ -93,19 +104,15 @@ func Attest(ctx context.Context, c *Client, b sessionspec.BundleSpec, location s
 	// or tools. Under strict isolation the user configuration is hidden from
 	// the server: a plugin that is there anyway is a break of the isolation,
 	// and a plugin list that cannot be read leaves it unchecked (S-11).
-	plugins, err := c.Plugins(ctx, location)
+	plugins, err := waitDeclaredPlugins(ctx, c, location, b.Plugins)
 	if err != nil {
 		if strict {
 			return rep, fmt.Errorf("listing plugins: %w", err)
 		}
 		rep.Warnings = append(rep.Warnings, fmt.Sprintf(adapters.WarnPluginsUnchecked+" (GET /api/plugin failed: %v)", err))
 	}
-	allowed := map[string]bool{OhPluginID: true}
-	for _, p := range b.Plugins {
-		allowed[p.ID] = true
-	}
 	for _, p := range plugins {
-		if p.Source.Type == "builtin" || allowed[p.ID] {
+		if p.Source.Type == "builtin" || p.ID == OhPluginID || isDeclared(p, b.Plugins) {
 			continue
 		}
 		found := fmt.Sprintf(adapters.WarnUserPlugin+"%s (%s)", p.ID, p.Source.Path)
@@ -116,11 +123,83 @@ func Attest(ctx context.Context, c *Client, b sessionspec.BundleSpec, location s
 		}
 	}
 
+	if err == nil {
+		for _, d := range b.Plugins {
+			state, ok := declaredState(plugins, d)
+			if ok && state == pluginActive {
+				continue
+			}
+			if !ok {
+				state = "not loaded"
+			}
+			found := fmt.Sprintf(adapters.WarnPluginInactive+"%s (%s)", d.ID, state)
+			if strict {
+				rep.Unexpected = append(rep.Unexpected, found)
+			} else {
+				rep.Warnings = append(rep.Warnings, found)
+			}
+		}
+	}
+
 	sort.Strings(rep.Unexpected)
 	if !rep.OK() {
 		rep.Level = sessionspec.IsolationNone
 	}
 	return rep, nil
+}
+
+const pluginActive = "active"
+
+// declaredState returns the state the server reports for a plugin of the
+// bundle. The server may list it under the package name, the spec the bundle
+// gave, or an id of its own: the install path is then the last resort.
+func declaredState(plugins []Plugin, d sessionspec.PluginDef) (string, bool) {
+	for _, p := range plugins {
+		if matchesDeclared(p, d) {
+			return p.State.Status, true
+		}
+	}
+	return "", false
+}
+
+func matchesDeclared(p Plugin, d sessionspec.PluginDef) bool {
+	return p.ID == d.ID || (d.Dir != "" && p.ID == d.Dir) || (p.Source.Type != "builtin" && workflow.PluginPackage(p.ID) == d.ID) ||
+		(p.Source.Path != "" && strings.Contains(filepath.ToSlash(p.Source.Path), "/"+d.ID+"/"))
+}
+
+func isDeclared(p Plugin, declared []sessionspec.PluginDef) bool {
+	for _, d := range declared {
+		if matchesDeclared(p, d) {
+			return true
+		}
+	}
+	return false
+}
+
+// waitDeclaredPlugins lists the plugins and, while one the bundle declares is
+// not active yet, lists them again until declaredPluginWait has elapsed.
+func waitDeclaredPlugins(ctx context.Context, c *Client, location string, declared []sessionspec.PluginDef) ([]Plugin, error) {
+	deadline := time.Now().Add(declaredPluginWait)
+	for {
+		plugins, err := c.Plugins(ctx, location)
+		if err != nil {
+			return plugins, err
+		}
+		pending := false
+		for _, d := range declared {
+			if state, ok := declaredState(plugins, d); !ok || state != pluginActive {
+				pending = true
+			}
+		}
+		if !pending || !time.Now().Before(deadline) {
+			return plugins, nil
+		}
+		select {
+		case <-ctx.Done():
+			return plugins, ctx.Err()
+		case <-time.After(150 * time.Millisecond):
+		}
+	}
 }
 
 // waitAgents lists the agents at location. A location the server has not
