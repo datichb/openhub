@@ -46,7 +46,7 @@ Une version de la plage mais **non épinglée** dans oh (autre que 2.0.20 et 2.0
    `oh doctor --fix` applique les réparations après un récapitulatif et une confirmation ; sans terminal, il demande `--yes`.
 6. **Retirez les anciens déploiements** : `oh migrate deploy-cleanup --dry-run` (ce qui serait retiré), puis `oh migrate deploy-cleanup`. Voir [le guide](docs/guides/migration-v5.fr.md#8-nettoyer-les-anciens-déploiements--oh-migrate-deploy-cleanup).
 7. **Autorisez les variables d'environnement dont vos agents ont besoin** (git par ssh, `gh`…) : `oh config set execution.env_allow "SSH_AUTH_SOCK, GH_TOKEN"` ([détail](#environnement-des-agents)).
-8. **Si vous êtes dans une équipe**, approuvez chaque URL de service imposée par l'équipe : `oh mcp trust <service>` ([détail](#sécurité-visible)), et lisez [Mode équipe (bêta)](#mode-équipe-bêta).
+8. **Si vous êtes dans une équipe**, approuvez chaque URL de service imposée par l'équipe : `oh mcp trust <service>` ([détail](#sécurité-visible)), et lisez [Mode équipe](#mode-équipe).
 9. **Mettez à jour vos scripts et votre CI** : `oh deploy`/`oh sync`, `oh start` → `oh run <workflow>`, `--yes` partout où une confirmation est demandée, test du code de sortie 1, `-j`, `--include-opencode`, analyse de `oh --help`, `oh status --json` ([Commandes et options](#commandes-et-options)).
 10. **Vérifiez vos workflows d'équipe et de projet** : `oh workflow validate --all`. Les agents retirés, les couches qui étendent `feature` ou `cadrage`, les ajouts d'agent ou de skills par une couche de projet sont refusés ([Workflows et couches](#workflows-et-couches)).
 11. **Touches de la TUI** : au premier lancement, oh affiche un message « Nouvelles touches » (rappel : `?` ou `F1`). Voir [Touches de la TUI](#touches-de-la-tui).
@@ -226,11 +226,11 @@ Les **23 changements de touches** (`keys.Changes()`). La colonne « 4.2.0 » dit
 
 **À faire** : rien à configurer. Le message « Nouvelles touches » s'affiche une fois au premier lancement après la mise à jour, puis reste accessible depuis l'aide (`?`). Petits terminaux : mode compact sous 32 lignes (`[cli] compact = auto|always|never`) ; `NO_COLOR` est respecté.
 
-### Mode équipe (bêta)
+### Mode équipe
 
 | Changement | À faire |
 |---|---|
-| **Le mode équipe est publié en bêta** : avertissement unique par processus sur stderr (commandes `oh team …`, premier claim d'un lancement), avertissement dans `oh doctor` (sans effet sur le code de sortie), ligne « Bêta » en tête du board et de la configuration d'équipe. Limites connues : la réservation (claim) est libérée à l'arrêt de la session même avec `cp-2` en attente ; **pas d'expiration** (reprise manuelle après `takeover.stale_days`, 3 par défaut, `oh team claim transfer`) ; une libération peut se perdre hors ligne ou si le démon s'arrête avant le push (`oh team release <ticket> -p <projet>`) ; `oh doctor` signale les orphelins. Correction complète prévue en 5.1 | Lire les [limites connues](docs/guides/team-setup.fr.md#limites-connues) avant de passer une équipe sur la 5.0 |
+| **Le mode équipe n'est plus une bêta (5.1)** : plus d'avertissement sur stderr, de contrôle « mode bêta » dans `oh doctor` ni de ligne « Bêta » dans le board. Une réservation (claim) en revue (label `ready-for-review` ou statut `review`) est gardée à la fin de la session, avec ou sans checkpoint (`cp-2`) en attente ; elle a un bail (`lease_hours`, 24 h) que le démon renouvelle, puis un autre membre peut la reprendre avec `oh team claim <ticket>` (confirmation commune) ; une libération est mise en file localement et appliquée au retour du réseau. Le mode distant reste expérimental | Lire [Bail et fin de session](docs/guides/team-setup.fr.md#bail-et-fin-de-session) avant de passer une équipe sur la 5.1 |
 | **Jeton GitLab unifié** : un seul ordre de recherche pour la synchronisation du tracker, `oh mr create` / `oh review --publish`, `oh review feedback`, la vérification d'identité de `oh team init\|rejoin` et `oh mcp enable --project` : `GITLAB_TOKEN`, `tracker_token_key`, jeton du projet, jeton de l'équipe, jeton MCP du hub (`[mcp.gitlab] token`, puis `openhub.mcp.gitlab.token`, puis `gitlab-token`), ancienne clé `openhub.tracker.gitlab.token`. Pour `oh mr create`, le jeton de l'équipe du projet passe avant le jeton MCP du hub | Vérifier quel jeton est trouvé en premier si vous en avez plusieurs ; sinon rien |
 | **La TUI ne synchronise plus un tracker désactivé** (`[tracker] enabled = false`) ; avant, elle le synchronisait quand même | Rien (réactiver avec `enabled = true` si vous comptiez sur la synchronisation de la TUI) |
 | `oh mr create` lit le projet GitLab et le relecteur dans l'équipe du projet (repli sur l'équipe du hub) | Rien |
@@ -263,7 +263,7 @@ Les **23 changements de touches** (`keys.Changes()`). La colonne « 4.2.0 » dit
 | La passerelle MCP des conteneurs est fermée par défaut ; les écritures de secrets, d'index du trousseau, de rapports, de wiki, de transcripts et de configuration sont atomiques et durables ; les serveurs MCP Figma et Google Slides refusent un identifiant mal formé | Rien |
 | Isolation : les plugins de votre configuration personnelle d'opencode sont signalés au lancement et par `oh doctor` ; `execution.strict_isolation = true` les masque et refuse un paquet d'opencode sans empreinte épinglée (défaut inchangé : `false`) | Activer `strict_isolation` si vous voulez la refuser |
 
-Limites assumées, maturité des fonctions (bêta, expérimental) et ce que les garde-fous ne couvrent pas : [SECURITY.fr.md](SECURITY.fr.md).
+Limites assumées, maturité des fonctions (expérimental) et ce que les garde-fous ne couvrent pas : [SECURITY.fr.md](SECURITY.fr.md).
 
 ## Retour arrière
 

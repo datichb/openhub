@@ -12,7 +12,7 @@ oh v5 starts every session from a **workflow** (`oh run <workflow>`), in a **ses
 4. **Fix what `oh doctor` reports**: refused `hub.toml` (§13), former keys, former deployments (§8), `~/.oh/skills` (§10), opencode version. `oh doctor --fix` repairs after a summary and a confirmation (`--yes` without a terminal).
 5. **Remove the former deployments**: `oh migrate deploy-cleanup` (§8).
 6. **Allow the environment variables** your agents need: `oh config set execution.env_allow "SSH_AUTH_SOCK, GH_TOKEN"` (§14).
-7. **In a team**: `oh mcp trust <service>` for each imposed URL (§20), and read about team mode in beta (§17).
+7. **In a team**: `oh mcp trust <service>` for each imposed URL (§20), and read about team mode (§17).
 8. **Update scripts and CI**: `oh deploy`/`oh sync`, `oh start` → `oh run`, `--yes` (§12), exit code 2 (§11).
 9. **Check your workflows**: `oh workflow validate --all` (§15).
 
@@ -240,9 +240,9 @@ The **23 key changes**. The "4.2.0" column says whether the view already existed
 
 Nothing to configure: a "New keys" message is shown once at the first launch after the update, then stays available from the help (`?`).
 
-## 17. Team mode (beta)
+## 17. Team mode
 
-- **Beta.** Team mode is published with a single warning per process on stderr (`oh team …` commands, first claim of a launch), a warning in `oh doctor` (no effect on the exit code) and a "Beta" line at the top of the team board and team configuration. Known limits: the reservation (claim) is released when the session stops even with `cp-2` pending; **no expiry** (manual takeover after `takeover.stale_days`, 3 by default, `oh team claim transfer`); a release can be lost offline or if the daemon stops before the push (`oh team release <ticket> -p <project>`); `oh doctor` reports orphans. Details: [known limits](team-setup.en.md#known-limits). Full fix planned for 5.1.
+- **No longer a beta (5.1).** Team mode no longer has a warning on stderr, a "beta mode" check in `oh doctor` or a "Beta" line at the top of the team board and team configuration. What 5.0 announced as limits is fixed: a claim in review (`ready-for-review` label or `review` status) is **kept** when the session ends, and so is a claim whose checkpoint (`cp-2`) is waiting or was put off with work left (label `session-ended`); it has a **lease** (`lease_hours`, 24 h by default) that the daemon renews while an open session works on the ticket, after which another member can take it over with `oh team claim <ticket>` (common confirmation; a takeover is no longer a silent transfer); what the end of a session decides goes through a local queue (`.git/oh-claims-queue.json`) applied as soon as the team repository answers, so a release is no longer lost offline. Details: [Lease and end of session](team-setup.en.md#lease-and-end-of-session) and [Status model](team-setup.en.md#status-model). The remote mode remains **experimental**.
 - **Single GitLab token.** One search order for the tracker sync, `oh mr create` and `oh review --publish`, `oh review feedback`, the identity check of `oh team init|rejoin` and `oh mcp enable --project`: `GITLAB_TOKEN`, `tracker_token_key`, project token, team token, hub MCP token (key of `[mcp.gitlab] token`, then `openhub.mcp.gitlab.token`, then `gitlab-token`), then the former key `openhub.tracker.gitlab.token`. For `oh mr create`, the token of the project's team comes before the hub MCP token.
 - **Disabled tracker.** The TUI no longer syncs a tracker with `[tracker] enabled = false`. Before, it synced it anyway.
 - `oh mr create` reads the GitLab project and the reviewer from the project's team (falling back to the hub team).

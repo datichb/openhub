@@ -12,7 +12,7 @@ oh v5 lance chaque session à partir d'un **workflow** (`oh run <workflow>`), da
 4. **Corrigez ce que `oh doctor` signale** : `hub.toml` refusé (§13), clés héritées, anciens déploiements (§8), `~/.oh/skills` (§10), version d'opencode. `oh doctor --fix` répare après un récapitulatif et une confirmation (`--yes` sans terminal).
 5. **Retirez les anciens déploiements** : `oh migrate deploy-cleanup` (§8).
 6. **Autorisez les variables d'environnement** dont vos agents ont besoin : `oh config set execution.env_allow "SSH_AUTH_SOCK, GH_TOKEN"` (§14).
-7. **En équipe** : `oh mcp trust <service>` pour chaque URL imposée (§20), et lisez le mode équipe en bêta (§17).
+7. **En équipe** : `oh mcp trust <service>` pour chaque URL imposée (§20), et lisez le mode équipe (§17).
 8. **Mettez à jour scripts et CI** : `oh deploy`/`oh sync`, `oh start` → `oh run`, `--yes` (§12), code de sortie 2 (§11).
 9. **Vérifiez vos workflows** : `oh workflow validate --all` (§15).
 
@@ -240,9 +240,9 @@ Les **23 changements de touches**. La colonne « 4.2.0 » dit si la vue existait
 
 Rien à configurer : un message « Nouvelles touches » s'affiche une fois au premier lancement après la mise à jour, puis reste accessible depuis l'aide (`?`).
 
-## 17. Mode équipe (bêta)
+## 17. Mode équipe
 
-- **Bêta.** Le mode équipe est publié avec un avertissement unique par processus sur stderr (commandes `oh team …`, premier claim d'un lancement), un avertissement dans `oh doctor` (sans effet sur le code de sortie) et une ligne « Bêta » en tête du board et de la configuration d'équipe. Limites connues : la réservation (claim) est libérée à l'arrêt de la session même avec `cp-2` en attente ; **pas d'expiration** (reprise manuelle après `takeover.stale_days`, 3 par défaut, `oh team claim transfer`) ; une libération peut se perdre hors ligne ou si le démon s'arrête avant le push (`oh team release <ticket> -p <projet>`) ; `oh doctor` signale les orphelins. Détails : [limites connues](team-setup.fr.md#limites-connues). Correction complète prévue en 5.1.
+- **Plus de bêta (5.1).** Le mode équipe n'a plus d'avertissement sur stderr, de contrôle « mode bêta » dans `oh doctor` ni de ligne « Bêta » en tête du board et de la configuration d'équipe. Ce que la 5.0 annonçait comme limites est corrigé : une réservation (claim) en revue (label `ready-for-review` ou statut `review`) est **gardée** à la fin de la session, de même qu'une réservation dont le checkpoint (`cp-2`) est en attente ou reporté avec du travail laissé (label `session-ended`) ; elle a un **bail** (`lease_hours`, 24 h par défaut) que le démon renouvelle tant qu'une session ouverte travaille sur le ticket, après quoi un autre membre peut la reprendre avec `oh team claim <ticket>` (confirmation commune ; la reprise n'est plus un transfert silencieux) ; ce que la fin d'une session décide passe par une file locale (`.git/oh-claims-queue.json`) appliquée dès que le dépôt d'équipe répond, donc une libération ne se perd plus hors ligne. Détails : [Bail et fin de session](team-setup.fr.md#bail-et-fin-de-session) et [Modèle de statut](team-setup.fr.md#modèle-de-statut). Le mode distant reste **expérimental**.
 - **Jeton GitLab unifié.** Un seul ordre de recherche pour la synchronisation du tracker, `oh mr create` et `oh review --publish`, `oh review feedback`, la vérification d'identité de `oh team init|rejoin` et `oh mcp enable --project` : `GITLAB_TOKEN`, `tracker_token_key`, jeton du projet, jeton de l'équipe, jeton MCP du hub (clé de `[mcp.gitlab] token`, puis `openhub.mcp.gitlab.token`, puis `gitlab-token`), puis l'ancienne clé `openhub.tracker.gitlab.token`. Pour `oh mr create`, le jeton de l'équipe du projet passe avant le jeton MCP du hub.
 - **Tracker désactivé.** La TUI ne synchronise plus un tracker dont `[tracker] enabled = false`. Avant, elle le synchronisait quand même.
 - `oh mr create` lit le projet GitLab et le relecteur dans l'équipe du projet (repli sur l'équipe du hub).
