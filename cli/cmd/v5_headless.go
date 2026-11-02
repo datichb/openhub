@@ -15,7 +15,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
-// Headless launches (`oh run --headless`, takeover-brief enrich): the
+// Headless launches (`oh run --headless`, the enrichment of a takeover brief in the TUI): the
 // sessions start without client, oh waits for the end of their turn, reads
 // what the assistant wrote and stops them. A session that raises a decision
 // is left running (nobody can answer it here): `oh session approve <id>`.

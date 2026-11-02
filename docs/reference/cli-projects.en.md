@@ -70,7 +70,7 @@ oh project remove [project-id] [options]
 
 | Flag | Short | Type | Description |
 |------|-------|------|-------------|
-| `--yes` | `-y` | bool | Remove without confirmation (required without a terminal). Former names: `--force`, `-f` (deprecated, same effect, with a warning) |
+| `--yes` | `-y` | bool | Remove without confirmation (required without a terminal). Former names `--force` and `-f`: removed in 5.1 |
 
 **Example:**
 
@@ -145,7 +145,7 @@ oh project configure
 
 ### oh mr create
 
-Creates (or finds) the GitLab merge request of the current branch, against the base branch of the project, and optionally assigns a team reviewer. Replaces `oh review --publish`. The review itself is a workflow: [`oh run review`](cli-workflows.en.md#oh-run). Requires GitLab write access (`oh mcp setup gitlab`); merging remains a manual action. The GitLab token is looked for with the [same order as the tracker](cli-team.en.md#oh-team-sync-tracker), so the token of the team of the project is found too.
+Creates (or finds) the GitLab merge request of the current branch, against the base branch of the project, and optionally assigns a team reviewer. Replaces `oh review --publish` (removed in 5.1). The review itself is a workflow: [`oh run review`](cli-workflows.en.md#oh-run). Requires GitLab write access (`oh mcp setup gitlab`); merging remains a manual action. The GitLab token is looked for with the [same order as the tracker](cli-team.en.md#oh-team-sync-tracker), so the token of the team of the project is found too.
 
 ```
 oh mr create [-p <project>] [--reviewer <member>]

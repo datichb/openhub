@@ -17,7 +17,7 @@ type TokenPurpose string
 const (
 	// PurposeTracker: the ticket sync, the board, the tracker connection test.
 	PurposeTracker TokenPurpose = "tracker"
-	// PurposeMergeRequest: oh mr create, oh review feedback (the GitLab of the MCP).
+	// PurposeMergeRequest: oh mr create, the review inputs (the GitLab of the MCP).
 	PurposeMergeRequest TokenPurpose = "mr"
 	// PurposeTeam: the identity check on the GitLab of the team-state repository.
 	PurposeTeam TokenPurpose = "team"

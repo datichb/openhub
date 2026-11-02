@@ -403,7 +403,7 @@ oh takeover-brief list               # lister les briefs disponibles
 oh run brief-enrich --headless -i ticket=<ticket-id>   # enrichir avec l'analyse du code
 ```
 
-`oh takeover-brief enrich <ticket-id>` reste un alias déprécié de `oh run brief-enrich --headless`.
+`oh takeover-brief enrich <ticket-id>` a été retirée en 5.1 : `oh run brief-enrich --headless -i ticket=<id>`, ou la touche `e` de la vue Reprise de la TUI (qui enregistre le brief enrichi).
 
 ### Bibliothèque de patterns
 

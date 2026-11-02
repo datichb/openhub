@@ -2,7 +2,7 @@ id: S60
 title: "Feature (alias de spec) sans demande : le conductor la demande avec question avant toute étape, puis la transmet au planner"
 workflow: feature
 mode: semi-auto
-# B1 : `oh run feature` (ou `oh start`) sans demande lance spec, dont la
+# B1 : `oh run feature` sans demande lance spec, dont la
 # demande est facultative ; le conductor la demande d'abord à l'utilisateur
 # avec l'outil question, puis lance le planner avec la réponse. L'évaluation
 # s'arrête au premier checkpoint (compréhension).

@@ -246,7 +246,7 @@ The command, the sync key of the team screens (`s`) and the automatic sync follo
   | Command | Before | Now |
   |---------|--------|-----|
   | `oh team sync-tracker`, team screens, automatic sync | `GITLAB_TOKEN`, then the `tracker_token_key` only | the whole order above: a team or MCP token is now found without `tracker_token_key` |
-  | `oh mr create` (`oh review --publish`), `oh review feedback` and the inputs of the `review-feedback` workflow | `GITLAB_TOKEN`, then the MCP key of `hub.toml`, then `openhub.mcp.gitlab.token` | the whole order above: **the team token (and the project token) now comes before the hub MCP token**, and the team of the project is found; the former tracker key is the last resort |
+  | `oh mr create` and the inputs of the `review-feedback` workflow | `GITLAB_TOKEN`, then the MCP key of `hub.toml`, then `openhub.mcp.gitlab.token` | the whole order above: **the team token (and the project token) now comes before the hub MCP token**, and the team of the project is found; the former tracker key is the last resort |
   | Identity check of `oh team init` / `rejoin` | `GITLAB_TOKEN`, team, `openhub.mcp.gitlab.token`, former tracker key | same order; the key of `[mcp.gitlab] token` and the `gitlab-token` name are now read too |
   | `oh mcp enable --project` (token present?) | `GITLAB_TOKEN`, project token, hub token | same order; the key of `[mcp.gitlab] token` is now read. Team and former tracker tokens do not count: the MCP server is not given them |
 
@@ -325,7 +325,7 @@ oh teams remove [team-id] [--yes]
 
 | Flag | Short | Type | Description |
 |------|-------|------|-------------|
-| `--yes` | `-y` | bool | Remove without confirmation (required without a terminal). Former names: `--force`, `-f` (deprecated, same effect, with a warning) |
+| `--yes` | `-y` | bool | Remove without confirmation (required without a terminal). Former names `--force` and `-f`: removed in 5.1 |
 
 ### oh teams detach
 
@@ -389,7 +389,6 @@ Takeover briefs generated during ticket transfers. **Alias:** `oh tb`. Every sub
 ```bash
 oh takeover-brief show <ticket-id>    # show the takeover context
 oh takeover-brief list                # list the briefs
-oh takeover-brief enrich <ticket-id>  # deprecated alias: runs `oh run brief-enrich --headless` with the brief and saves the result
 ```
 
 ## Lease and end of session

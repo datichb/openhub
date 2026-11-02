@@ -165,7 +165,7 @@ func projectConfigureCmd() *cobra.Command {
 		Use:   "configure [project-id]",
 		Short: "Configure les paramètres d'un projet",
 		Long: `Configure les paramètres spécifiques d'un projet : provider LLM, modèle,
-langage. Ces paramètres sont persistés et utilisés par oh start.
+langage. Ces paramètres sont persistés et utilisés par oh run.
 
 En mode non-interactif, passez les flags correspondants.
 Sans flags, lance un wizard interactif.`,
@@ -222,7 +222,6 @@ Sans flags, lance un wizard interactif.`,
 
 	cmd.Flags().StringVarP(&provider, "provider", "P", "", "Provider LLM (bedrock, anthropic, openai)")
 	cmd.Flags().StringVar(&model, "model", "", "Modèle LLM")
-	deprecateShorthand(cmd, "m", "model") // -m is the message everywhere else
 	cmd.Flags().StringVarP(&language, "language", "l", "", "Langage principal")
 
 	return cmd

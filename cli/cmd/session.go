@@ -59,10 +59,6 @@ var sessionAttachCmd = &cobra.Command{
 			return runAttachChild(ctx, a, svc, id)
 		}
 		how, _ := cmd.Flags().GetString("attach")
-		if how == "here" { // former synonym of suspend, never documented as a value
-			warnDeprecatedOption(cmd, i18n.Tf("cmd.deprecated_option.value", how, "--attach", "suspend"))
-			how = "suspend"
-		}
 		if how == "suspend" {
 			return runAttachChild(ctx, a, svc, id)
 		}
@@ -268,7 +264,6 @@ func openURL(url string) error {
 func init() {
 	sessionAttachCmd.Flags().Bool("exec", false, "Exécute l'interface dans le terminal courant (usage interne)")
 	sessionAttachCmd.Flags().String("attach", "auto", "auto | iterm | terminal | tmux | browser | suspend")
-	deprecateFlag(sessionAttachCmd, "how", "attach") // one option opens a window: --attach, as in oh run
 	sessionAttachCmd.Flags().String("iterm-style", "tab", "tab | split | window")
 	_ = sessionAttachCmd.Flags().MarkHidden("exec")
 	sessionListCmd.Flags().Bool("all", false, "Inclure les sessions terminées")

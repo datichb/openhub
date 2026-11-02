@@ -984,7 +984,7 @@ Légende:
                           ├── SRU-142_2026-07-16.toml (structuré)
                           └── SRU-142_2026-07-16.md   (lisible)
 
-   oh takeover-brief enrich SRU-142
+   enrichissement (vue Reprise de la TUI, touche e)
           │
           └── Agent brief-enricher (headless)
                     │
@@ -1059,7 +1059,7 @@ team-state/projects/T-SRU/takeover-briefs/SRU-142_2026-07-16.toml
 |--------|-----|-----|
 | Lister | `oh takeover-brief list` | — |
 | Consulter | `oh takeover-brief show <ticket>` | — |
-| Enrichir (IA) | `oh takeover-brief enrich <ticket>` | Action `runTakeoverEnrich()` |
+| Enrichir (IA) | — (`oh run brief-enrich --headless -i ticket=<ticket>` sans enregistrer) | Touche `e` de la vue Reprise |
 
 ### Points de test
 
@@ -1067,7 +1067,7 @@ team-state/projects/T-SRU/takeover-briefs/SRU-142_2026-07-16.toml
 |---|----------|------------------|
 | 1 | Transfer claim | Brief auto-généré (.toml + .md) |
 | 2 | Brief contient contexte | Sessions, commits, fichiers, events |
-| 3 | `oh takeover-brief enrich` | `.enriched.md` créé par agent |
+| 3 | Enrichissement (touche `e` de la vue Reprise) | `.enriched.md` créé par agent |
 | 4 | Lecture via MCP | `team_takeover_brief` retourne le brief |
 | 5 | Ticket stale (> stale_days) | Proposition de générer un brief |
 | 6 | Priorité lecture | enriched > md > toml |
@@ -1175,7 +1175,7 @@ team-state/projects/T-SRU/takeover-briefs/SRU-142_2026-07-16.toml
 oh run ticket --tickets bd-42,bd-43,bd-44 [--one-session]
 ```
 
-`oh start --parallel --tickets …` reste un alias déprécié ; `--priority` et `--max-sessions` n'ont plus d'effet.
+`oh start --parallel --tickets …` a été retiré en 5.1 (`oh run ticket --tickets …`) ; `--priority` et `--max-sessions` n'ont plus d'effet.
 
 ### Architecture
 

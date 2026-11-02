@@ -217,14 +217,14 @@ Vérifie la base SQLite `~/.oh/oh.db` **sans la migrer** et sans avoir besoin d'
 Revenir en arrière après une migration = restaurer la sauvegarde faite juste avant (`oh repair --restore`) ; oh ne défait jamais lui-même le schéma d'une base utilisateur.
 
 ```
-oh repair [--check-only] [--auto] [--migrate] [--restore <fichier>]
+oh repair [--check-only] [--migrate] [--yes] [--restore <fichier>]
 ```
 
 | Flag | Type | Description |
 |------|------|-------------|
 | `--check-only` | bool | Vérifier uniquement, sans réparer |
-| `--auto` | bool | Mode non interactif (scripts) ; confirme `--restore` sans terminal |
 | `--migrate` | bool | Appliquer les migrations en attente ; une sauvegarde (`VACUUM INTO`, WAL compris) est faite avant ; l'erreur d'une migration est détaillée avec la sauvegarde à restaurer |
+| `--yes` | bool | Confirmer `--restore` sans question (obligatoire sans terminal) ; remplace `--auto`, retiré en 5.1 |
 | `--restore` | string | Remettre en place une sauvegarde (fichier `.bak`) ; le démon doit être arrêté (`oh daemon stop`) ; la base remplacée est gardée en `oh.db.replaced-<date>` |
 
 **Exemple :**
@@ -249,7 +249,7 @@ oh purge [--dry-run] [--yes] [--keep-binary] [--include-tool-data]
 | Flag | Type | Description |
 |------|------|-------------|
 | `--dry-run` | bool | Afficher ce qui serait supprimé sans rien supprimer |
-| `--yes` | `-y` | bool | Supprimer sans confirmation et sans proposer de sauvegarde (obligatoire sans terminal). Ancien nom : `--force` (déprécié, même effet, avec un avertissement) |
+| `--yes` | `-y` | bool | Supprimer sans confirmation et sans proposer de sauvegarde (obligatoire sans terminal). Ancien nom `--force` : retiré en 5.1 (« unknown flag », code de sortie 2) |
 | `--keep-binary` | bool | Conserver le binaire `oh` |
 | `--include-tool-data` | bool | Supprimer aussi les données globales de l'outil des sessions (pour opencode : `~/.local/share/opencode/`, `~/.config/opencode/`). Ancien nom `--include-opencode` : supprimé sans alias (« unknown flag », code 2) |
 

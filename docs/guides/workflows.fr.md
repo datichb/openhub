@@ -45,7 +45,7 @@ oh session attach <session-id> # rouvrir l'interface d'une session (reprend une 
 oh session resume <session-id> # reprendre une session en veille sans ouvrir d'interface
 ```
 
-Dans la TUI, la vue **Sessions** (omnibar `sessions`) regroupe les mêmes informations. `oh start -r <session-id>` reste un alias déprécié de `oh session attach <session-id>`. Détails : [Sessions v5](sessions-v5.fr.md).
+Dans la TUI, la vue **Sessions** (omnibar `sessions`) regroupe les mêmes informations. `oh session attach <session-id>` rouvre une session (`oh start -r`, retiré en 5.1, était son alias). Détails : [Sessions v5](sessions-v5.fr.md).
 
 ---
 
@@ -155,7 +155,7 @@ oh run feature -m "Implémente l'authentification JWT pour notre API REST"      
 oh run feature -m "…" -i method=tdd                                                 # l'implémentation qui suivra sera en TDD
 ```
 
-oh annonce la redirection (`feature → spec`). Sans demande (`oh run feature`, `oh start`), la session vous la demande au début. Avec des tickets déjà créés, `oh run feature --tickets bd-1,bd-2` lance directement `implement-spec` (étape 5).
+oh annonce la redirection (`feature → spec`). Sans demande (`oh run feature`), la session vous la demande au début. Avec des tickets déjà créés, `oh run feature --tickets bd-1,bd-2` lance directement `implement-spec` (étape 5).
 
 #### 2. Entretien et compréhension
 
@@ -442,7 +442,7 @@ implémente la correction ciblée, et le reviewer vérifie la PR.
 
 **Contexte :** un développeur vient de clore le ticket bd-15 (implémentation filtrage utilisateurs).
 
-> **`oh run ticket`** (alias déprécié : `oh start --dev`) sélectionne un epic/ticket et fait passer automatiquement le statut du claim de `planned` → `in_progress`.
+> **`oh run ticket`**  sélectionne un epic/ticket et fait passer automatiquement le statut du claim de `planned` → `in_progress`.
 > Après configuration de l'équipe, lancez `oh team sync-tracker` pour renvoyer les liens `ExternalIID` des claims vers le tracker externe (Jira, Linear, GitLab Issues).
 
 #### Enrichissement des documents vivants (post-ticket)

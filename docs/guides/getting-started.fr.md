@@ -266,7 +266,7 @@ oh run onboarding            # creer le wiki du projet
 oh run libre --agent orchestrator
 ```
 
-Les anciennes commandes `oh start`, `oh audit`, `oh review` et `oh debug` sont des alias dépréciés de `oh run feature|audit|review|debug`. `feature` est lui-meme un alias : `spec` (sans tickets), puis `implement-spec`, proposé à la fin.
+Les anciennes commandes `oh start`, `oh audit`, `oh review` et `oh debug`, alias dépréciés de `oh run feature|audit|review|debug` depuis la 5.0, ont été retirées en 5.1. `feature` est lui-meme un alias : `spec` (sans tickets), puis `implement-spec`, proposé à la fin.
 
 ```bash
 oh provider setup            # identifiants du fournisseur

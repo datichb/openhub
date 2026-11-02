@@ -32,7 +32,6 @@ func init() {
 	rootCmd.AddCommand(withInitLevel(purgeCmd, levelDegraded))
 	purgeCmd.Flags().Bool("dry-run", false, i18n.T("cmd.purge.flags.dry_run"))
 	addYesFlag(purgeCmd)
-	deprecateForceAsYes(purgeCmd, false)
 	purgeCmd.Flags().Bool("keep-binary", false, i18n.T("cmd.purge.flags.keep_binary"))
 	purgeCmd.Flags().Bool("include-tool-data", false, i18n.T("cmd.purge.flags.include-tool-data"))
 }
@@ -147,7 +146,7 @@ func runPurge(cmd *cobra.Command, args []string) error {
 
 // confirmPurge asks the two questions of a purge: a backup first, then the
 // final confirmation. --yes skips both (no backup is offered: the caller
-// asked for no question; --force is a deprecated alias of --yes). Without a terminal and without them, the
+// asked for no question). Without a terminal and without them, the
 // purge is refused at the first question (confirmAction, ExitUsage).
 func confirmPurge(cmd *cobra.Command, out io.Writer) (bool, error) {
 	if yes, _ := cmd.Flags().GetBool("yes"); yes {

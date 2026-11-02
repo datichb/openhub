@@ -5,7 +5,7 @@ description: "Carte du workflow libre : agents, délégations, checkpoints, mode
 
 # Carte du workflow `libre`
 
-Session avec l'agent de ton choix et les agents qu'il peut appeler, sans checkpoint (remplace oh start --agent)
+Session avec l'agent de ton choix et les agents qu'il peut appeler, sans checkpoint
 
 - Agent d'entrée : `orchestrator`
 - Risque : `write`

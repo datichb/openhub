@@ -217,14 +217,14 @@ Checks the SQLite database `~/.oh/oh.db` **without migrating it** and without ne
 Going back after a migration means restoring the backup made just before it (`oh repair --restore`); oh never rolls back the schema of a user's database itself.
 
 ```
-oh repair [--check-only] [--auto] [--migrate] [--restore <file>]
+oh repair [--check-only] [--migrate] [--yes] [--restore <file>]
 ```
 
 | Flag | Type | Description |
 |------|------|-------------|
 | `--check-only` | bool | Check only, without repairing |
-| `--auto` | bool | Non-interactive mode (scripts); confirms `--restore` without a terminal |
 | `--migrate` | bool | Apply the pending migrations; a backup (`VACUUM INTO`, WAL included) is taken first; a failed migration is detailed with the backup to restore |
+| `--yes` | bool | Confirm `--restore` without a question (required without a terminal); replaces `--auto`, removed in 5.1 |
 | `--restore` | string | Put a backup (`.bak` file) back; the daemon must be stopped (`oh daemon stop`); the replaced database is kept as `oh.db.replaced-<date>` |
 
 **Example:**
@@ -249,7 +249,7 @@ oh purge [--dry-run] [--yes] [--keep-binary] [--include-tool-data]
 | Flag | Type | Description |
 |------|------|-------------|
 | `--dry-run` | bool | Show what would be deleted without deleting anything |
-| `--yes` | `-y` | bool | Delete without confirmation and without offering a backup (required without a terminal). Former name: `--force` (deprecated, same effect, with a warning) |
+| `--yes` | `-y` | bool | Delete without confirmation and without offering a backup (required without a terminal). Former name `--force`: removed in 5.1 ("unknown flag", exit code 2) |
 | `--keep-binary` | bool | Keep the `oh` binary |
 | `--include-tool-data` | bool | Also delete the global data of the session tool (for opencode: `~/.local/share/opencode/`, `~/.config/opencode/`). Former name `--include-opencode`: removed without an alias ("unknown flag", exit code 2) |
 

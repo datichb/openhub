@@ -97,7 +97,6 @@ func Execute() error {
 	defer stopInProcessDaemon()
 
 	theme.ApplyNoColor()
-	defer silenceCobraDeprecation(rootCmd, os.Args[1:])()
 	if err := rootCmd.Execute(); err != nil {
 		err = usageError(err)
 		var exit *ExitError
@@ -303,7 +302,6 @@ func init() {
 			customHelpFunc(c, args)
 			return
 		}
-		listWorkflowEnumChoices(c)
 		defaultHelp(c, args)
 	})
 	rootCmd.AddCommand(secretsCmd)
@@ -363,7 +361,7 @@ func localizeHelp(root *cobra.Command) {
 
 // cmdI18nKey builds the i18n key prefix for a cobra command.
 // "oh" → "cmd.root"
-// "oh start" → "cmd.start"
+// "oh run" → "cmd.run"
 // "oh project list" → "cmd.project.list"
 // "oh config set" → "cmd.config.set"
 func cmdI18nKey(cmd *cobra.Command) string {

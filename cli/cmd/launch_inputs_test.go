@@ -7,71 +7,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/spf13/cobra"
-
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/services/launch"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 )
 
-func TestAliasReplacement(t *testing.T) {
-	al := workflowAlias{Workflow: "ticket", Opts: launch.Options{Tickets: []string{"bd-1", "bd-2"},
-		LooseInputs: map[string]string{"mode": "", "branch": "feat/x", "issue": "it's broken"}, Location: "new"}}
-	want := `oh run ticket --tickets bd-1,bd-2 -i branch=feat/x -i issue='it'\''s broken' --location new`
-	if got := aliasReplacement(al); got != want {
-		t.Fatalf("got  %s\nwant %s", got, want)
-	}
-	if got := aliasReplacement(workflowAlias{Workflow: "feature", Opts: launch.Options{Text: "Export CSV"}}); got != "oh run feature -m 'Export CSV'" {
-		t.Fatalf("aliasReplacement with a request = %q", got)
-	}
-	if got := aliasReplacement(workflowAlias{Workflow: "feature"}); got != "oh run feature" {
-		t.Fatalf("got %s", got)
-	}
-}
-
-func startFlagsCmd(t *testing.T, args ...string) *cobra.Command {
-	t.Helper()
-	c := &cobra.Command{Use: "start"}
-	addStartFlags(c)
-	if err := c.Flags().Parse(args); err != nil {
-		t.Fatal(err)
-	}
-	return c
-}
-
-func TestStartAliasFor(t *testing.T) {
-	cases := []struct {
-		args     []string
-		workflow string
-		check    func(workflowAlias) bool
-	}{
-		{nil, "feature", func(a workflowAlias) bool { return a.Opts.Text == "" }},
-		{[]string{"-m", "ajoute un export"}, "feature", func(a workflowAlias) bool { return a.Opts.Text == "ajoute un export" }},
-		{[]string{"--dev", "-t", "bd-1"}, "ticket", func(a workflowAlias) bool { return true }},
-		{[]string{"--onboard", "--refresh"}, "onboarding", func(a workflowAlias) bool { return a.Opts.LooseInputs["refresh"] == "true" }},
-		{[]string{"--parallel", "--tickets", "bd-1,bd-2"}, "ticket", func(a workflowAlias) bool { return len(a.Opts.Tickets) == 2 }},
-		{[]string{"--sweep", "migrer les logs"}, "sweep", func(a workflowAlias) bool { return a.Opts.Text == "migrer les logs" }},
-		{[]string{"-w", "feat/x", "--recap"}, "feature", func(a workflowAlias) bool {
-			return a.Recap && a.Opts.Location == "new" && a.Opts.Branch == "feat/x"
-		}},
-		{[]string{"-a", "debugger", "-m", "regarde le crash"}, "libre", func(a workflowAlias) bool {
-			return a.Opts.Agent == "debugger" && a.Opts.Text == "regarde le crash"
-		}},
-	}
-	for _, tc := range cases {
-		al := startAliasFor(startFlagsCmd(t, tc.args...))
-		if al.Workflow != tc.workflow || !tc.check(al) {
-			t.Errorf("%v → %+v", tc.args, al)
-		}
-	}
-	if got := aliasReplacement(startAliasFor(startFlagsCmd(t, "-a", "debugger"))); got != "oh run libre --agent debugger" {
-		t.Errorf("replacement = %s", got)
-	}
-}
-
-// Without a supported tool, `oh start` refuses (no former launch any more);
-// the message names the tool of the adapter.
-func TestStartRefusesWithoutV2(t *testing.T) {
+// Without a supported tool, a launch is refused; the message names the tool
+// of the adapter.
+func TestLaunchRefusesWithoutV2(t *testing.T) {
 	withoutV2(t, nil)
 	err := requireV2(context.Background())
 	if err == nil || !strings.Contains(err.Error(), "faketool") || !strings.Contains(err.Error(), "oh doctor") {

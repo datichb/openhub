@@ -201,8 +201,6 @@ func TestGlobalGuardRefusesOhCommandsThatChangeTrustAndSettings(t *testing.T) {
 		{"config", "model", "family", "f", "m"},
 		{"config", "model", "agent", "developer", "m"},
 		{"config", "model", "unset", "agent", "developer"},
-		{"service", "setup"},
-		{"service", "remove", "gitlab", "--force"},
 		{"secrets", "set", "openhub.mcp.gitlab.token"},
 		{"secrets", "delete", "openhub.mcp.gitlab.token"},
 		{"secrets", "get", "openhub.mcp.gitlab.token"},
@@ -273,7 +271,7 @@ func TestGlobalGuardRefusesOhCommandsThatChangeTrustAndSettings(t *testing.T) {
 func TestShippedAgentsRefuseTrustAndConfigCommands(t *testing.T) {
 	for _, ag := range [][2]string{{"developer", "developer"}, {"reviewer", "reviewer"}, {"operator", "operator"}} {
 		rules := effectiveRules(t, ag[0], ag[1])
-		for _, cmd := range []string{"oh mcp trust jira --yes", "env oh config set mcp.jira.url https://x", "/usr/local/bin/oh service setup", "oh mcp untrust jira",
+		for _, cmd := range []string{"oh mcp trust jira --yes", "env oh config set mcp.jira.url https://x", "/usr/local/bin/oh mcp setup gitlab", "oh mcp untrust jira",
 			"oh secrets set k", "oh secrets delete k", "oh secrets get k", "oh secrets cleanup", "oh mcp enable gitlab", "oh mcp disable gitlab", "oh mcp reset gitlab",
 			"oh config language en", "oh config websearch disable", "oh budget set max_budget_usd 1", "oh budget raise ses_a",
 			"oh workflow publish feature -m x --yes", "oh workflow archive team:feature", "oh workflow restore team:feature 2", "oh brick publish agent:x -m y",

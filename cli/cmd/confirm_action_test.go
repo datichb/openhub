@@ -252,17 +252,15 @@ func TestProjectRemoveConfirmation(t *testing.T) {
 		assert.Equal(t, ExitUsage, ExitCode(err))
 		assert.Empty(t, store.deleted)
 	})
-	for _, flag := range []string{"--yes", "--force"} {
-		t.Run("without terminal with "+flag, func(t *testing.T) {
-			terminalIs(t, false)
-			stubConfirmForm(t)
-			store, out := setup(t)
-			_, err := runSub(t, projectRemoveCmd(), "p1", flag)
-			require.NoError(t, err)
-			assert.Equal(t, []string{"p1"}, store.deleted)
-			assert.Contains(t, out.String(), "web")
-		})
-	}
+	t.Run("without terminal with --yes", func(t *testing.T) {
+		terminalIs(t, false)
+		stubConfirmForm(t)
+		store, out := setup(t)
+		_, err := runSub(t, projectRemoveCmd(), "p1", "--yes")
+		require.NoError(t, err)
+		assert.Equal(t, []string{"p1"}, store.deleted)
+		assert.Contains(t, out.String(), "web")
+	})
 	t.Run("terminal, answer no", func(t *testing.T) {
 		terminalIs(t, true)
 		fa := stubConfirmForm(t, false)
@@ -282,7 +280,7 @@ func TestProjectRemoveConfirmation(t *testing.T) {
 	})
 }
 
-// purge: --yes (and its deprecated alias --force) skip every question (no backup is offered);
+// purge: --yes skips every question (no backup is offered);
 // without a terminal the purge is refused at the first question; with a
 // terminal the backup is asked first, then the final confirmation.
 func TestPurgeConfirmation(t *testing.T) {
@@ -290,7 +288,6 @@ func TestPurgeConfirmation(t *testing.T) {
 		t.Helper()
 		c := &cobra.Command{Use: "purge"}
 		addYesFlag(c)
-		deprecateForceAsYes(c, false)
 		require.NoError(t, c.ParseFlags(args))
 		return c
 	}
@@ -304,17 +301,15 @@ func TestPurgeConfirmation(t *testing.T) {
 		assert.False(t, ok)
 		assert.Equal(t, ExitUsage, ExitCode(err))
 	})
-	for _, flag := range []string{"--yes", "--force"} {
-		t.Run(flag+" skips the questions and the backup", func(t *testing.T) {
-			terminalIs(t, false)
-			stubConfirmForm(t)
-			var out bytes.Buffer
-			ok, err := confirmPurge(newPurge(t, flag), &out)
-			require.NoError(t, err)
-			assert.True(t, ok)
-			assert.Empty(t, out.String())
-		})
-	}
+	t.Run("--yes skips the questions and the backup", func(t *testing.T) {
+		terminalIs(t, false)
+		stubConfirmForm(t)
+		var out bytes.Buffer
+		ok, err := confirmPurge(newPurge(t, "--yes"), &out)
+		require.NoError(t, err)
+		assert.True(t, ok)
+		assert.Empty(t, out.String())
+	})
 	t.Run("terminal: backup first then final", func(t *testing.T) {
 		i18ntest.Set(t, "en")
 		terminalIs(t, true)

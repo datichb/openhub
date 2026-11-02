@@ -266,7 +266,7 @@ oh run onboarding            # create the project wiki
 oh run libre --agent orchestrator
 ```
 
-The former `oh start`, `oh audit`, `oh review` and `oh debug` commands are deprecated aliases of `oh run feature|audit|review|debug`. `feature` is itself an alias: `spec` (without tickets), then `implement-spec`, proposed when it ends.
+The former `oh start`, `oh audit`, `oh review` and `oh debug` commands, deprecated aliases of `oh run feature|audit|review|debug` since 5.0, were removed in 5.1. `feature` is itself an alias: `spec` (without tickets), then `implement-spec`, proposed when it ends.
 
 ```bash
 oh provider setup            # provider credentials

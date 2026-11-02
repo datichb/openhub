@@ -135,12 +135,3 @@ func TestMigrateProjectTokenKeysLeavesTheRecordWhenTheKeychainFails(t *testing.T
 	require.NoError(t, err)
 	assert.Zero(t, n)
 }
-
-func TestProjectTokenKeys(t *testing.T) {
-	t.Parallel()
-	assert.Equal(t, []string{"gitlab-token-p1", "openhub.mcp.gitlab.token.p1"}, ProjectTokenKeys("gitlab", "p1", "gitlab-token-p1"), "the recorded key is the legacy name")
-	assert.Equal(t, []string{"custom", "openhub.mcp.gitlab.token.p1", "gitlab-token-p1"}, ProjectTokenKeys("gitlab", "p1", "custom"))
-	assert.Equal(t, []string{"openhub.mcp.gitlab.token.p1", "gitlab-token-p1"}, ProjectTokenKeys("gitlab", "p1", ""))
-	assert.Equal(t, []string{"openhub.mcp.gitlab.token.p1", "gitlab-token-p1"}, ProjectTokenKeys("gitlab", "p1", "openhub.mcp.gitlab.token"), "a shared hub key is never listed")
-	assert.Equal(t, []string{"openhub.mcp.gitlab.token.p1", "gitlab-token-p1"}, ProjectTokenKeys("gitlab", "p1", "gitlab-token"))
-}

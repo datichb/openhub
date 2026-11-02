@@ -30,12 +30,6 @@ type Ticket struct {
 	ExternalRef string   `json:"external_ref,omitempty"`
 }
 
-// ReadyOpts configures the ListReady query.
-type ReadyOpts struct {
-	Label    string // filter by label (default: "ai-delegated")
-	Assignee string // filter by assignee
-}
-
 // Available checks if bd is in PATH.
 func Available() error {
 	_, err := exec.LookPath("bd")
@@ -54,19 +48,6 @@ func BdCommand(ctx context.Context, args ...string) *exec.Cmd {
 	cmd := exec.CommandContext(ctx, "bd", args...)
 	cmd.Env = append(os.Environ(), "BD_ALLOW_REMOTE_MIGRATE=1")
 	return cmd
-}
-
-// ListReady returns tickets ready for implementation (no limit: bd shows
-// 100 by default).
-// Runs: bd -C <path> ready [--label <l> | --assignee <a>] --json -n 0
-func ListReady(projectPath string, opts ReadyOpts) ([]Ticket, error) {
-	args := []string{"-C", projectPath, "ready"}
-	if opts.Assignee != "" {
-		args = append(args, "--assignee", opts.Assignee)
-	} else if opts.Label != "" {
-		args = append(args, "--label", opts.Label)
-	}
-	return runBdJSON(append(args, "--json", "-n", "0"))
 }
 
 // ListAll returns all open tickets (flat, no tree nesting, no limit: bd
@@ -367,60 +348,6 @@ func DevPickableChildren(projectPath, epicID string) ([]Ticket, error) {
 	return pickable, nil
 }
 
-// ListEpicsWithDevPickableChildren returns epics that have at least one child
-// ticket in a dev-pickable status (ready or in-progress).
-func ListEpicsWithDevPickableChildren(projectPath string) ([]EpicWithCount, error) {
-	epics, err := ListEpics(projectPath)
-	if err != nil {
-		return nil, err
-	}
-
-	var result []EpicWithCount
-	for _, epic := range epics {
-		children, err := DevPickableChildren(projectPath, epic.ID)
-		if err != nil {
-			continue
-		}
-		if len(children) > 0 {
-			result = append(result, EpicWithCount{
-				Ticket:     epic,
-				ReadyCount: len(children),
-			})
-		}
-	}
-	return result, nil
-}
-
-// DevPickableOrphanTickets returns tickets (ready or in-progress) that have no parent epic.
-// If labelFilter is non-empty, only returns tickets matching that label.
-func DevPickableOrphanTickets(projectPath, labelFilter string) (withLabel, withoutLabel []Ticket, err error) {
-	all, err := ListAll(projectPath)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	defaultLabel := "ai-delegated"
-	if labelFilter != "" {
-		defaultLabel = labelFilter
-	}
-
-	for _, t := range all {
-		if t.Type == "epic" || !isDevPickableStatus(t.Status) {
-			continue
-		}
-		if t.Parent != "" {
-			continue
-		}
-
-		if hasLabel(t, defaultLabel) {
-			withLabel = append(withLabel, t)
-		} else {
-			withoutLabel = append(withoutLabel, t)
-		}
-	}
-	return withLabel, withoutLabel, nil
-}
-
 // TicketDetail holds the full content of a bd ticket as returned by bd show --json.
 // Fields are optional — they are empty when not set on the ticket.
 // Field names match the exact JSON keys returned by bd (snake_case).
@@ -690,28 +617,6 @@ func CreateSubtask(projectPath, parentID, title string, priority int) (string, e
 	}
 
 	return created.ID, nil
-}
-
-// RememberGitLabContext stores a persistent memory associating the session with a GitLab ticket.
-// Runs: bd -C <path> remember "<message>"
-func RememberGitLabContext(projectPath, gitlabRef, title, description string) error {
-	msg := fmt.Sprintf("Working on GitLab ticket %s: %s", gitlabRef, title)
-	if description != "" {
-		// Truncate description to keep it concise
-		if len(description) > 200 {
-			description = description[:200] + "..."
-		}
-		msg += "\nContext: " + description
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), bdTimeout)
-	defer cancel()
-	cmd := BdCommand(ctx, "-C", projectPath, "remember", msg)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("bd remember failed: %s: %w", strings.TrimSpace(string(output)), err)
-	}
-	return nil
 }
 
 // ClaimTicket atomically claims a bead ticket (sets assignee + in_progress).

@@ -5,7 +5,7 @@
 //
 // The tracker package owns issue lifecycle reconciliation; the MCP gitlab
 // package owns agent-facing tools. This package owns CLI-initiated GitLab
-// write operations (e.g., oh review --publish).
+// write operations (e.g., oh mr create).
 package gitlabapi
 
 import (

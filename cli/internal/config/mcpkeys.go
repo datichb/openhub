@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"log/slog"
-	"slices"
 	"strings"
 )
 
@@ -107,19 +106,4 @@ func StoreMCPToken(ctx context.Context, store SecretReadWriter, service, project
 		return key, err
 	}
 	return key, nil
-}
-
-// ProjectTokenKeys lists the keychain keys that can hold the token a project
-// keeps for a service: the key recorded in the project, the current name and
-// the legacy one, without duplicates. The hub keys are never listed, even when
-// the project records one: they are shared.
-func ProjectTokenKeys(service, projectID, recorded string) []string {
-	var keys []string
-	for _, k := range []string{recorded, MCPProjectTokenKey(service, projectID), LegacyMCPProjectTokenKey(service, projectID)} {
-		if k == "" || k == MCPTokenKey(service) || k == LegacyMCPTokenKey(service) || slices.Contains(keys, k) {
-			continue
-		}
-		keys = append(keys, k)
-	}
-	return keys
 }

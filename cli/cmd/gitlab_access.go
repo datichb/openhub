@@ -12,7 +12,7 @@ import (
 )
 
 // gitlabAccess is the GitLab that the commands on merge requests call (oh mr
-// create, oh review feedback, the review inputs of the workflows): its URL
+// create, the review inputs of the workflows): its URL
 // and the token that serves it.
 type gitlabAccess struct {
 	URL   string

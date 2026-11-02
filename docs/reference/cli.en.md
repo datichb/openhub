@@ -21,7 +21,7 @@ Accepted by every command.
 
 | Section | File | Key Commands |
 |---------|------|--------------|
-| [Sessions](cli-sessions.en.md) | `cli-sessions.en.md` | [Session management (v5)](cli-sessions.en.md#session-management-v5): `oh session list\|inbox\|attach\|follow\|approve\|answer\|dismiss\|send\|interrupt\|compact\|model\|fork\|results\|trace\|resume\|stop\|delete\|open\|fetch\|resolve`; `oh budget show\|set\|unset\|raise\|report`; `oh history`; `oh beads`; deprecated aliases `oh start`, `oh audit`, `oh review`, `oh debug` |
+| [Sessions](cli-sessions.en.md) | `cli-sessions.en.md` | [Session management (v5)](cli-sessions.en.md#session-management-v5): `oh session list\|inbox\|attach\|follow\|approve\|answer\|dismiss\|send\|interrupt\|compact\|model\|fork\|results\|trace\|resume\|stop\|delete\|open\|fetch\|resolve`; `oh budget show\|set\|unset\|raise\|report`; `oh history`; `oh beads` |
 | [Workflows](cli-workflows.en.md) | `cli-workflows.en.md` | `oh run`; `oh workflow list\|show\|validate\|new\|edit\|diff\|publish\|history\|restore\|archive`; `oh bundle build\|show` |
 | [Bricks](cli-bricks.en.md) | `cli-bricks.en.md` | `oh brick list\|show\|new\|edit\|publish\|history` (team brick catalogue) |
 | [Projects](cli-projects.en.md) | `cli-projects.en.md` | `oh project list\|add\|remove\|rename\|move\|configure`; `oh mr create`; `oh wiki check\|pending\|stats` |
@@ -44,7 +44,7 @@ The codes are defined in one place (`cli/cmd/exitcodes.go`). A script can test t
 |------|----------|---------|
 | `0` | `ExitOK` | Success. For `oh doctor`, also when only warnings (⚠) are shown: the optional checks (container engine, `bd`, gateway reach from a container) never fail the command, unless `execution.runtime = container` makes the container mandatory |
 | `1` | `ExitFailure` | Failure: the message is written to standard error. For example: `oh workflow validate` or `oh skill check` finding errors, `oh run --headless` with a failed session or exceeding `--timeout`, `oh doctor` when a mandatory check fails (✗), internal error (panic: oh asks to report the bug) |
-| `2` | `ExitUsage` | Wrong usage: unknown command or option, or removed command (`oh deploy`, `oh sync`: the migration message is shown). Also a confirmation asked without a terminal and without `--yes`: the action is refused (`workflow publish\|archive\|restore`, `brick publish`, `purge`, `project remove`, `teams remove`, `service remove`, `worktree cleanup`, `session delete\|resolve`, `migrate deploy-cleanup`, `run --recap`) |
+| `2` | `ExitUsage` | Wrong usage: unknown command or option, or removed command (`oh deploy`, `oh sync`, and in 5.1 `oh start`, `oh audit`, `oh review`, `oh debug`, `oh service`, `oh takeover-brief enrich`: the migration message is shown). Also a confirmation asked without a terminal and without `--yes`: the action is refused (`workflow publish\|archive\|restore`, `brick publish`, `purge`, `project remove`, `teams remove`, `worktree cleanup`, `session delete\|resolve`, `migrate deploy-cleanup`, `run --recap`) |
 | `3` | `ExitPending` | Waiting: `oh run --headless` with a session waiting for a decision (checkpoint) that nobody can answer without an interface. The session is left running: `oh session approve <id>` or `oh session answer <id>`. If another session failed, the code is `1` |
 | `bd` code | | `oh beads` passes the exit code of `bd` through |
 
@@ -52,35 +52,32 @@ The codes are defined in one place (`cli/cmd/exitcodes.go`). A script can test t
 
 ## Short options
 
-A letter has one meaning in every command. The former forms stay accepted for one version, with a warning, and are hidden from the help.
+A letter has one meaning in every command. The former forms deprecated in 5.0 were removed in 5.1: a removed option gives the unknown-option error (`unknown shorthand flag: 'p' in -p`, exit code 2).
 
-| Letter | Meaning | Commands | Former form (deprecated) |
-|--------|---------|----------|--------------------------|
-| `-a` | `--agent` | `oh run`, `oh start` | |
-| `-A` | `--assignee` | `oh start` | |
-| `-b` | `--base` (base branch) | `oh worktree cleanup` | `oh review -b` (now `--branch`) |
-| `-d` | `--path` (folder) | `oh project add` | `oh metrics -d` (now `--period`) |
-| `-f` | `--force` (override a safety) | `oh worktree remove`, `oh worktree cleanup` | `oh project remove -f`, `oh teams remove -f`, `oh service remove -f` (now `--yes`) |
-| `-h` | `--help` | all | |
-| `-i` | `--input` (workflow input) | `oh run` | `oh debug -i` (now `--issue`) |
-| `-l` | `--language` | `oh project add`, `oh project configure` | `oh start -l` (now `--label`) |
-| `-m` | `--message`: a text (the request of `oh run`, the publication note, the message passed to the agent). `--prompt` of `oh start` is the request | `oh run`, `oh brick publish`, `oh workflow publish`, `oh workflow archive`, `oh session approve`, `oh team notify test`, `oh start` | `oh review -m` (now `--mode`), `oh project configure -m` (now `--model`) |
-| `-n` | `--name` | `oh project add` | |
-| `-o` | `--output` | `oh export`, `oh session trace` | |
-| `-p` | `--project` | every command that targets a project, `oh` | `oh serve -p` (now `--port`) |
-| `-P` | `--provider` | `oh run`, `oh bundle build\|show`, `oh project configure`, `oh start` | |
-| `-r` | `--resume` | `oh start` | |
-| `-s` | `--status` | `oh project list` | |
-| `-t` | `--ticket` | `oh start` | `oh audit -t` (now `--type`) |
-| `-v` | `--verbose` | all | |
-| `-w` | `--workflow` | `oh config model show` | `oh start -w` (now `--worktree`) |
-| `-y` | `--yes` (no confirmation) | `oh doctor`, `oh gc`, `oh mcp trust`, `oh migrate deploy-cleanup`, `oh project add`, `oh session delete`, `oh session resolve`, `oh brick publish`, `oh workflow publish\|archive\|restore`, `oh run`, `oh purge`, `oh project remove`, `oh teams remove`, `oh service remove`, `oh worktree cleanup` | |
+| Letter | Meaning | Commands |
+|--------|---------|----------|
+| `-a` | `--agent` | `oh run` |
+| `-b` | `--base` (base branch) | `oh worktree cleanup` |
+| `-d` | `--path` (folder) | `oh project add` |
+| `-f` | `--force` (override a safety) | `oh worktree remove`, `oh worktree cleanup` |
+| `-h` | `--help` | all |
+| `-i` | `--input` (workflow input) | `oh run` |
+| `-l` | `--language` | `oh project add`, `oh project configure` |
+| `-m` | `--message`: a text (the request of `oh run`, the publication note, the message passed to the agent) | `oh run`, `oh brick publish`, `oh workflow publish`, `oh workflow archive`, `oh session approve`, `oh team notify test` |
+| `-n` | `--name` | `oh project add` |
+| `-o` | `--output` | `oh export`, `oh session trace` |
+| `-p` | `--project` | every command that targets a project, `oh` |
+| `-P` | `--provider` | `oh run`, `oh bundle build\|show`, `oh project configure` |
+| `-s` | `--status` | `oh project list` |
+| `-v` | `--verbose` | all |
+| `-w` | `--workflow` | `oh config model show` |
+| `-y` | `--yes` (no confirmation) | `oh doctor`, `oh gc`, `oh mcp trust`, `oh migrate deploy-cleanup`, `oh project add`, `oh session delete`, `oh session resolve`, `oh brick publish`, `oh workflow publish\|archive\|restore`, `oh run`, `oh purge`, `oh project remove`, `oh teams remove`, `oh worktree cleanup` |
 
-A former form stays accepted for one version: it does the same as the new one, prints a warning ("Option -p of oh serve is deprecated, use --port.") and is gone from the help. The short forms of `oh start`, `oh audit`, `oh review` and `oh debug` (deprecated aliases of `oh run`) follow the same rule.
+The short forms deprecated in 5.0 no longer exist: `oh serve -p` (now `--port`), `oh metrics -d` (`--period`), `oh project configure -m` (`--model`), `oh session attach --how` (`--attach`). The long names do not change. The short options of `oh start`, `oh audit`, `oh review` and `oh debug` went with these commands (see [Migration from 5.0](../guides/migration-v5.en.md#from-50-to-51)).
 
-`--force` no longer skips a confirmation: that is `--yes`. On `oh purge`, `oh project remove`, `oh teams remove` and `oh service remove`, `--force` (and `-f`) is still accepted for one version as a deprecated alias of `--yes`: same effect, with a warning, gone from the help. `--force` stays only where it overrides a safety: `oh daemon stop` (stop even though sessions are running), `oh remote setup` (replace a hand-written `.gitlab-ci.yml`), `oh worktree remove` and `oh worktree cleanup` (also remove worktrees with uncommitted changes).
+`--force` no longer skips a confirmation: that is `--yes`. On `oh purge`, `oh project remove` and `oh teams remove`, `--force` and `-f` were removed in 5.1 (they were deprecated aliases of `--yes`). `--force` stays only where it overrides a safety: `oh daemon stop` (stop even though sessions are running), `oh remote setup` (replace a hand-written `.gitlab-ci.yml`), `oh worktree remove` and `oh worktree cleanup` (also remove worktrees with uncommitted changes). Likewise `oh repair --auto` was removed: `--yes` confirms the restoration.
 
-**Opening a window.** One option, `--attach` (`auto`, `iterm`, `terminal`, `tmux`, `browser`, `suspend`, and `none` for `oh run`), in `oh run` as in `oh session attach`. The former name `--how` of `oh session attach` is still accepted (warning), and so is the value `here`, former synonym of `suspend`.
+**Opening a window.** One option, `--attach` (`auto`, `iterm`, `terminal`, `tmux`, `browser`, `suspend`, and `none` for `oh run`), in `oh run` as in `oh session attach`. The former name `--how` of `oh session attach` and the value `here` (former synonym of `suspend`) were removed in 5.1.
 
 **See without launching.** `oh run --dry-run` prepares the launch (workflow resolved, bundle built, sessions planned), shows the recap, the pauses and the warnings, then stops (« dry-run: nothing was started », exit code 0): no session, no worktree, no ticket claim, no question. See [`oh run`](cli-workflows.en.md#oh-run).
 

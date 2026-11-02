@@ -344,9 +344,9 @@ Read by `oh mcp serve <name>`; oh fills them in the bundle from the configuratio
 
 ---
 
-## Migrating from `oh service`
+## Migrating from `oh service` (removed in 5.1)
 
-The `oh service` commands are **deprecated** (hidden from the help). Use the `oh mcp` equivalents:
+The `oh service` commands were deprecated since 5.0; they are **removed in 5.1**. Use the `oh mcp` equivalents:
 
 | Old command | New command |
 |---|---|
@@ -355,7 +355,7 @@ The `oh service` commands are **deprecated** (hidden from the help). Use the `oh
 | `oh service setup -p <project>` | `oh mcp setup --project <project>` |
 | `oh service remove <service>` | `oh mcp disable <service>` |
 
-The `oh service` commands remain functional but display a deprecation message.
+`oh service` now answers with the replacement message (exit code 2). `oh mcp disable` does not delete the keychain token: use `oh secrets delete <key>`.
 
 ---
 

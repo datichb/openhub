@@ -347,7 +347,7 @@ oh team claim transfer SRU-142 --to alice
 
 Le tableau des statuts, ce qui met un ticket en REVIEW, le bail d'une réservation et ce que devient la réservation à la fin d'une session sont décrits en fin de guide : [Modèle de statut](#modèle-de-statut) et [Bail et fin de session](#bail-et-fin-de-session).
 
-> **Note :** Démarrer une session sur un ticket déjà claimé en `planned` avec `oh start --dev` (alias déprécié de `oh run ticket`) le fait passer automatiquement en `in_progress`. Sinon, change le statut depuis le board d'équipe.
+> **Note :** Démarrer une session sur un ticket déjà claimé en `planned` avec `oh run ticket --tickets <id>` le fait passer automatiquement en `in_progress`. Sinon, change le statut depuis le board d'équipe.
 
 ### Statut d'équipe
 
@@ -517,11 +517,12 @@ oh takeover-brief show SRU-142
 # Lister tous les briefs du projet
 oh takeover-brief list
 
-# Enrichir un brief avec une analyse IA du code source
-oh takeover-brief enrich SRU-142
+# Enrichir un brief avec une analyse IA du code source : touche `e` de la vue Reprise de la TUI,
+# ou en ligne de commande (sans enregistrer le brief) :
+oh run brief-enrich --headless -i ticket=SRU-142
 ```
 
-`oh takeover-brief enrich` lance le workflow `brief-enrich` sans interface (alias déprécié de `oh run brief-enrich --headless -i ticket=<id>` ; le workflow lit lui-même le brief dans l'espace d'équipe), puis enregistre le brief enrichi dans team-state. L'agent `brief-enricher` sert à :
+L'enrichissement lance le workflow `brief-enrich` sans interface (`oh run brief-enrich --headless -i ticket=<id>` ; le workflow lit lui-même le brief dans l'espace d'équipe) ; la vue Reprise de la TUI enregistre ensuite le brief enrichi dans team-state (`oh takeover-brief enrich`, retirée en 5.1, le faisait en ligne de commande). L'agent `brief-enricher` sert à :
 - Lire les fichiers mentionnés dans le brief
 - Identifier les décisions architecturales
 - Repérer les questions ouvertes (TODO, FIXME)
@@ -594,7 +595,7 @@ oh run ticket --tickets bd-42,bd-43,bd-44
 oh run ticket --tickets bd-42,bd-43,bd-44 --one-session
 ```
 
-`oh start --parallel --tickets …` reste un alias déprécié de `oh run ticket --tickets …` (refusé sans `--tickets`). `--priority` et `--max-sessions` n'ont plus d'effet ; pour limiter les sessions qui travaillent en même temps, utilise la restriction `max_active_sessions` (`oh budget set`, voir [Sessions v5 › Restrictions](sessions-v5.fr.md#restrictions)).
+`oh start --parallel --tickets …` a été retiré en 5.1 : utilisez `oh run ticket --tickets …`. `--priority` et `--max-sessions` n'ont plus d'effet ; pour limiter les sessions qui travaillent en même temps, utilise la restriction `max_active_sessions` (`oh budget set`, voir [Sessions v5 › Restrictions](sessions-v5.fr.md#restrictions)).
 
 ### Suivi
 
@@ -626,7 +627,7 @@ ticket_patterns = { "T-SRU" = "SRU-(\\d+)" }
 "T-SRU" = "42"              # ID projet hub → ID/path projet GitLab
 ```
 
-> **Note :** Les credentials de connexion (token, URL) sont réutilisés depuis `[mcp.gitlab]` / `[mcp.jira]` dans `hub.toml` — pas de duplication. Le jeton GitLab est cherché dans un seul ordre pour toutes les commandes (`GITLAB_TOKEN`, `tracker_token_key`, projet, équipe, MCP, ancienne clé du tracker) : voir [`oh team sync-tracker`](../reference/cli-team.fr.md#oh-team-sync-tracker). `oh mr create` (et `oh review --publish`) trouvent aussi le jeton de l'équipe.
+> **Note :** Les credentials de connexion (token, URL) sont réutilisés depuis `[mcp.gitlab]` / `[mcp.jira]` dans `hub.toml` — pas de duplication. Le jeton GitLab est cherché dans un seul ordre pour toutes les commandes (`GITLAB_TOKEN`, `tracker_token_key`, projet, équipe, MCP, ancienne clé du tracker) : voir [`oh team sync-tracker`](../reference/cli-team.fr.md#oh-team-sync-tracker). `oh mr create` trouve aussi le jeton de l'équipe.
 >
 > **Deux GitLab (dépôt d'équipe et tracker).** Chaque jeton n'est envoyé qu'au serveur pour lequel il est déclaré : le jeton du dépôt d'équipe (`openhub.team.<équipe>.gitlab.token`) ne sert que pour le GitLab du dépôt (l'hôte du `state_repo`, ou le `gitlab_url` déclaré quand le dépôt est joint par un alias SSH). Pour le tracker, stockez son jeton (`oh secrets set <clé>`), puis réglez la clé dans `[tracker]` de la config d'équipe ou de `hub.toml` (`oh config set tracker.tracker_token_key <clé>`, l'assistant `oh team config` → Tracker sync, les assistants `oh init` et `oh team rejoin`, ou la vue `team-detail` de la TUI, dont le champ « Jeton du tracker » affiche la clé et le serveur réellement déclarés — « non configuré » sinon — et range le jeton sous cette clé) : elle est valable pour le tracker, sans autre déclaration ; `tracker_token_url` ne sert que si le jeton est celui d'un autre serveur. Un jeton MCP sans `mcp.gitlab.url` est valable pour `https://gitlab.com` seulement ; réglez `mcp.gitlab.url` pour un autre GitLab. `GITLAB_TOKEN` demande toujours `OH_GITLAB_URL` (ou `GITLAB_URL`). Si `state_repo` passe par un alias SSH (`git@mon-alias:…`), déclarez le GitLab réel du dépôt (`gitlab_url` de votre équipe dans `hub.toml`, demandé par `oh init` et `oh team rejoin`, ou `--gitlab-url`) : le jeton de l'équipe est alors valable pour ce GitLab et non pour l'alias. Voir [le serveur de chaque jeton GitLab](../reference/config.fr.md#le-serveur-de-chaque-jeton-gitlab).
 >
@@ -716,7 +717,7 @@ Un ticket existe à deux endroits : dans **Beads** (ou le tracker), où `oh boar
 Le contrat :
 
 - **Sous Beads, REVIEW est un label, pas un statut.** Beads 1.3 n'a pas de statut `review` (sauf si le projet en déclare un avec `bd config set status.custom`). Un agent qui a fini met le label (`bd update <ID> --add-label ready-for-review`) et laisse le statut à `in_progress` ; la review retire le label pour renvoyer le ticket en développement, ou clôt le ticket. `oh board` et le Board de la TUI classent en REVIEW un ticket `in_progress` qui porte ce label.
-- **Côté réservation, REVIEW est le statut `review`.** Il est posé quand une revue est publiée (`oh mr create`, `oh review --publish`), depuis le board d'équipe ou par le vote de review MCP (approuvé : `review` puis `done` ; rejeté : retour à `in_progress`). Le board d'équipe affiche ce statut.
+- **Côté réservation, REVIEW est le statut `review`.** Il est posé quand une revue est publiée (`oh mr create`), depuis le board d'équipe ou par le vote de review MCP (approuvé : `review` puis `done` ; rejeté : retour à `in_progress`). Le board d'équipe affiche ce statut.
 - **Les deux ne se recopient pas.** Mettre le label dans Beads ne change pas le statut de la réservation, et passer la réservation en `review` ne met pas le label.
 - **Une seule équivalence, à la fin d'une session** : pour `teamstate.DecideClaimEnd`, le label `ready-for-review` (ou `review`), sur le ticket ou sur la réservation, vaut le statut `review` de la réservation. Dans les deux cas la réservation survit à la session (voir ci-dessous).
 - **Une session distante n'écrit pas un statut que le projet ne connaît pas.** Le faux `bd` du job refuse, tout de suite et avec le message d'erreur de `bd` (code 1, avant toute écriture), un `bd update` ou `bd create` dont `--status` n'est pas dans la configuration Beads du projet (les statuts sont dans l'instantané envoyé au job ; la casse doit être exacte). Un agent distant qui écrit `--status review` sans statut `review` configuré est donc arrêté, au lieu d'échouer au rejeu ; il doit utiliser le label.

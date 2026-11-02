@@ -57,39 +57,3 @@ func TestCheckProjectTokenReadsBothNames(t *testing.T) {
 	a := &app.App{Secrets: &mockSecretStore{secrets: map[string]string{"gitlab-token-p2": "tok"}}}
 	assert.False(t, checkProjectToken(t.Context(), a, "gitlab", p), "another project's token")
 }
-
-func TestRemoveProjectServiceTokensDeletesBothNamesAndTheRecordedKey(t *testing.T) {
-	project := &domain.Project{ID: "p1", MCPConfig: &domain.ProjectMCPConfig{Services: []domain.ProjectMCPService{
-		{Name: "gitlab", TokenKey: "custom-p1-key"},
-		{Name: "jira", TokenKey: "jira-token-p1"},
-	}}}
-	store := &mockSecretStore{secrets: map[string]string{
-		"openhub.mcp.gitlab.token.p1": "a",
-		"gitlab-token-p1":             "b",
-		"custom-p1-key":               "c",
-		"openhub.mcp.gitlab.token":    "hub",
-		"gitlab-token":                "hub legacy",
-		"openhub.mcp.gitlab.token.p2": "other project",
-		"jira-token-p1":               "j",
-	}}
-
-	removeProjectServiceTokens(t.Context(), store, project, "gitlab")
-
-	assert.Equal(t, map[string]string{
-		"openhub.mcp.gitlab.token":    "hub",
-		"gitlab-token":                "hub legacy",
-		"openhub.mcp.gitlab.token.p2": "other project",
-		"jira-token-p1":               "j",
-	}, store.secrets)
-	assert.Empty(t, project.MCPConfig.Services[0].TokenKey, "the recorded key is forgotten")
-	assert.Equal(t, "jira-token-p1", project.MCPConfig.Services[1].TokenKey)
-
-	// A project recording the shared hub key never deletes it.
-	project = &domain.Project{ID: "p1", MCPConfig: &domain.ProjectMCPConfig{Services: []domain.ProjectMCPService{
-		{Name: "gitlab", TokenKey: "openhub.mcp.gitlab.token"},
-	}}}
-	removeProjectServiceTokens(t.Context(), store, project, "gitlab")
-	assert.Contains(t, store.secrets, "openhub.mcp.gitlab.token")
-
-	removeProjectServiceTokens(t.Context(), nil, project, "gitlab") // no secret store: no-op
-}

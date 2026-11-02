@@ -29,7 +29,7 @@ l'onboarder ne modifie aucune page : il **propose** chaque mise à jour avec `wi
 
 ## Invoquer l'onboarder
 
-Lance le workflow `onboarding` (alias déprécié : `oh start --onboard`) :
+Lance le workflow `onboarding` (remplace `oh start --onboard`, retiré en 5.1) :
 
 ```bash
 oh run onboarding                         # découverte du projet, création du wiki

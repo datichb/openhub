@@ -46,7 +46,7 @@ oh repair                 # Diagnostic (sans migrer la base)
 oh repair --check-only    # Vérification sans modification
 oh repair --migrate       # Appliquer les migrations en attente, après une sauvegarde
 oh repair --restore <fichier.bak> # Remettre une sauvegarde en place (démon arrêté)
-oh repair --auto          # Non interactif (pour les scripts)
+oh repair --restore <fichier.bak> --yes  # Sans confirmation (pour les scripts)
 ```
 
 `oh repair` et `oh doctor` démarrent même si `hub.toml` ne se charge pas ou si la base ne s'ouvre pas : ils ne migrent jamais la base d'eux-mêmes.
@@ -103,7 +103,7 @@ L'outil réessaie seul quand le fournisseur répond 429 ; la session semble alor
 ```
 vous n'êtes dans le dossier d'aucun projet : lancez la commande depuis le dossier du projet ou utilisez -p <projet>
 ```
-Hors du dossier d'un projet, `oh` ne prend plus en silence le seul projet enregistré. Une commande qui écrit (`oh run` et ses alias, `oh review feedback`, `oh mcp setup|enable|disable|reset`, `oh project rename|move|configure`, `oh budget set`…) demande confirmation dans un terminal et refuse sans terminal ; une commande qui lit (`oh bundle show`, `oh mcp status`…) annonce sur la sortie d'erreur le projet utilisé. Avec plusieurs projets, une liste permet de choisir. Utilisez `-p <projet>` (`oh project list`).
+Hors du dossier d'un projet, `oh` ne prend plus en silence le seul projet enregistré. Une commande qui écrit (`oh run`, `oh mcp setup|enable|disable|reset`, `oh project rename|move|configure`, `oh budget set`…) demande confirmation dans un terminal et refuse sans terminal ; une commande qui lit (`oh bundle show`, `oh mcp status`…) annonce sur la sortie d'erreur le projet utilisé. Avec plusieurs projets, une liste permet de choisir. Utilisez `-p <projet>` (`oh project list`).
 
 **Jeton invalide (services MCP)**
 ```

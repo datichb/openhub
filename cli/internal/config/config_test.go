@@ -319,17 +319,3 @@ func TestToMap_AllKeys(t *testing.T) {
 	assert.Equal(t, "gitlab-token", m["mcp.gitlab.token_key"])
 	assert.Equal(t, true, m["websearch.enabled"])
 }
-
-func TestServiceTokenKeys(t *testing.T) {
-	t.Parallel()
-	c := &config.Config{}
-	assert.Equal(t, []string{"openhub.mcp.gitlab.token", "gitlab-token"}, config.ServiceTokenKeys(c, "gitlab"))
-
-	c.MCP.Gitlab.Token = "custom-gitlab"
-	assert.Equal(t, []string{"custom-gitlab", "openhub.mcp.gitlab.token", "gitlab-token"}, config.ServiceTokenKeys(c, "gitlab"))
-
-	c.MCP.Gitlab.Token = "gitlab-token" // legacy name still configured: listed once
-	assert.Equal(t, []string{"gitlab-token", "openhub.mcp.gitlab.token"}, config.ServiceTokenKeys(c, "gitlab"))
-
-	assert.Equal(t, []string{"openhub.mcp.github.token", "github-token"}, config.ServiceTokenKeys(nil, "github"))
-}

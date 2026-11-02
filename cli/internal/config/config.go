@@ -524,33 +524,6 @@ func DefaultTokenKeyForService(service string) string {
 	}
 }
 
-// ServiceTokenKeys lists the keychain keys that can hold the token of an MCP
-// service at hub level: the key configured in hub.toml, the current
-// convention (openhub.mcp.<service>.token) and the legacy name
-// (<service>-token), without duplicates.
-func ServiceTokenKeys(c *Config, service string) []string {
-	var keys []string
-	add := func(k string) {
-		if k == "" {
-			return
-		}
-		for _, existing := range keys {
-			if existing == k {
-				return
-			}
-		}
-		keys = append(keys, k)
-	}
-	if c != nil {
-		if s := c.MCPServer(service); s != nil {
-			add(s.Token)
-		}
-	}
-	add(DefaultTokenKeyForService(service))
-	add(service + "-token")
-	return keys
-}
-
 // TeamGitLabTokenKey returns the keychain key for a team-specific GitLab token.
 // Pattern: openhub.team.<teamID>.gitlab.token
 // This is separate from the MCP and tracker token keys so that teams pointing

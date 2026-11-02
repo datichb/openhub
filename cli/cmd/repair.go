@@ -28,7 +28,6 @@ var repairCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(withInitLevel(repairCmd, levelDegraded))
-	repairCmd.Flags().Bool("auto", false, "Mode non-interactif (pour scripts)")
 	repairCmd.Flags().Bool("check-only", false, "Vérifier uniquement, sans réparer")
 	repairCmd.Flags().Bool("migrate", false, "Appliquer les migrations en attente, après une sauvegarde")
 	addYesFlag(repairCmd)
@@ -40,13 +39,12 @@ func init() {
 func runRepair(cmd *cobra.Command, _ []string) error {
 	w := cmd.OutOrStdout()
 	checkOnly, _ := cmd.Flags().GetBool("check-only")
-	auto, _ := cmd.Flags().GetBool("auto")
 	migrate, _ := cmd.Flags().GetBool("migrate")
 	restore, _ := cmd.Flags().GetString("restore")
 	dbPath := sqlite.DBPath()
 
 	if restore != "" {
-		return repairRestore(cmd, restore, dbPath, auto)
+		return repairRestore(cmd, restore, dbPath)
 	}
 
 	fmt.Fprintln(w, i18n.Tf("cmd.repair.title", dbPath))
@@ -134,7 +132,7 @@ func repairMigrate(w io.Writer, s *sqlite.Store) error {
 
 // repairRestore puts a backup in place of the database. The daemon must be
 // stopped (it keeps the database open).
-func repairRestore(cmd *cobra.Command, backup, dbPath string, auto bool) error {
+func repairRestore(cmd *cobra.Command, backup, dbPath string) error {
 	w := cmd.OutOrStdout()
 	if _, err := os.Stat(backup); err != nil {
 		return errors.New(i18n.Tf("cmd.repair.restore_missing", backup))
@@ -143,15 +141,13 @@ func repairRestore(cmd *cobra.Command, backup, dbPath string, auto bool) error {
 		return errors.New(i18n.T("cmd.repair.restore_daemon"))
 	}
 	fmt.Fprintln(w, i18n.Tf("cmd.repair.restore_plan", backup, dbPath))
-	if !auto {
-		ok, err := confirmAction(cmd, i18n.T("cmd.repair.restore_confirm"), false)
-		if err != nil {
-			return err
-		}
-		if !ok {
-			fmt.Fprintln(w, i18n.T("cmd.doctor.fix.cancelled"))
-			return nil
-		}
+	ok, err := confirmAction(cmd, i18n.T("cmd.repair.restore_confirm"), false)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		fmt.Fprintln(w, i18n.T("cmd.doctor.fix.cancelled"))
+		return nil
 	}
 	if store != nil {
 		store.Close()

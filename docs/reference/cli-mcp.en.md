@@ -248,9 +248,9 @@ oh mcp ls --json
 
 ---
 
-### oh service (deprecated)
+### oh service (removed in 5.1)
 
-`oh service`, `oh service setup` and `oh service remove` still exist but are deprecated and hidden from the help: use `oh mcp status`, `oh mcp setup` and `oh mcp disable`. `oh service remove --project <project>` deletes the token of a project (current and former key names, never the hub token) and forgets the key recorded in the project. `oh service remove` asks for confirmation: `--yes` (`-y`) skips it (required without a terminal); `--force` and `-f` are deprecated former names of `--yes`.
+`oh service`, `oh service setup` and `oh service remove` were removed in 5.1 (deprecated since 5.0): use `oh mcp status`, `oh mcp setup` and `oh mcp disable`. The token of a service is no longer deleted by `oh service remove`: `oh mcp disable` disables the service and leaves the keychain alone; `oh secrets delete <key>` deletes the token (see `oh secrets list`).
 
 ---
 

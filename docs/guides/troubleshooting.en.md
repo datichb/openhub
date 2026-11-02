@@ -46,7 +46,7 @@ oh repair                 # Diagnosis (without migrating the database)
 oh repair --check-only    # Verify without modifying
 oh repair --migrate       # Apply the pending migrations, after a backup
 oh repair --restore <file.bak> # Put a backup back (daemon stopped)
-oh repair --auto          # Non-interactive (for scripts)
+oh repair --restore <file.bak> --yes  # Without confirmation (for scripts)
 ```
 
 `oh repair` and `oh doctor` start even when `hub.toml` does not load or the database does not open: they never migrate the database on their own.
@@ -103,7 +103,7 @@ The tool retries on its own when the provider answers 429; the session then look
 ```
 you are not in the directory of a project: run the command from the project directory or use -p <project>
 ```
-Outside of a project directory, `oh` no longer silently takes the only registered project. A command that writes (`oh run` and its aliases, `oh review feedback`, `oh mcp setup|enable|disable|reset`, `oh project rename|move|configure`, `oh budget set`…) asks for confirmation in a terminal and refuses without one; a command that reads (`oh bundle show`, `oh mcp status`…) names the project it uses on stderr. With several projects, a list lets you choose. Use `-p <project>` (`oh project list`).
+Outside of a project directory, `oh` no longer silently takes the only registered project. A command that writes (`oh run`, `oh mcp setup|enable|disable|reset`, `oh project rename|move|configure`, `oh budget set`…) asks for confirmation in a terminal and refuses without one; a command that reads (`oh bundle show`, `oh mcp status`…) names the project it uses on stderr. With several projects, a list lets you choose. Use `-p <project>` (`oh project list`).
 
 **Invalid token (MCP services)**
 ```

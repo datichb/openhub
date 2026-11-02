@@ -344,9 +344,9 @@ Lues par `oh mcp serve <nom>` ; oh les renseigne dans le paquet à partir de la 
 
 ---
 
-## Migration depuis `oh service`
+## Migration depuis `oh service` (retiré en 5.1)
 
-Les commandes `oh service` sont **dépréciées** (masquées de l'aide). Utilisez les équivalents `oh mcp` :
+Les commandes `oh service` étaient dépréciées depuis la 5.0 ; elles sont **retirées en 5.1**. Utilisez les équivalents `oh mcp` :
 
 | Ancienne commande | Nouvelle commande |
 |---|---|
@@ -355,7 +355,7 @@ Les commandes `oh service` sont **dépréciées** (masquées de l'aide). Utilise
 | `oh service setup -p <projet>` | `oh mcp setup --project <projet>` |
 | `oh service remove <service>` | `oh mcp disable <service>` |
 
-Les commandes `oh service` restent fonctionnelles mais affichent un message de dépréciation.
+`oh service` répond désormais par le message de remplacement (code de sortie 2). `oh mcp disable` ne supprime pas le jeton du trousseau : utilisez `oh secrets delete <clé>`.
 
 ---
 

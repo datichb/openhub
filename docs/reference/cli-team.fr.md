@@ -246,7 +246,7 @@ La commande, la touche de synchronisation (`s`) des écrans d'équipe et la sync
   | Commande | Avant | Maintenant |
   |----------|-------|------------|
   | `oh team sync-tracker`, écrans d'équipe, synchronisation automatique | `GITLAB_TOKEN`, puis la seule `tracker_token_key` | tout l'ordre ci-dessus : un jeton d'équipe ou MCP est trouvé sans `tracker_token_key` |
-  | `oh mr create` (`oh review --publish`), `oh review feedback` et les entrées du workflow `review-feedback` | `GITLAB_TOKEN`, puis la clé MCP de `hub.toml`, puis `openhub.mcp.gitlab.token` | tout l'ordre ci-dessus : **le jeton de l'équipe (et celui du projet) passe avant le jeton MCP du hub**, et l'équipe du projet est trouvée ; l'ancienne clé du tracker est le dernier recours |
+  | `oh mr create` et les entrées du workflow `review-feedback` | `GITLAB_TOKEN`, puis la clé MCP de `hub.toml`, puis `openhub.mcp.gitlab.token` | tout l'ordre ci-dessus : **le jeton de l'équipe (et celui du projet) passe avant le jeton MCP du hub**, et l'équipe du projet est trouvée ; l'ancienne clé du tracker est le dernier recours |
   | Vérification d'identité de `oh team init` / `rejoin` | `GITLAB_TOKEN`, équipe, `openhub.mcp.gitlab.token`, ancienne clé du tracker | même ordre ; la clé de `[mcp.gitlab] token` et le nom `gitlab-token` sont désormais lus aussi |
   | `oh mcp enable --project` (jeton présent ?) | `GITLAB_TOKEN`, jeton du projet, jeton du hub | même ordre ; la clé de `[mcp.gitlab] token` est désormais lue. Les jetons d'équipe et de l'ancien tracker ne comptent pas : le serveur MCP ne les reçoit pas |
 
@@ -325,7 +325,7 @@ oh teams remove [team-id] [--yes]
 
 | Flag | Court | Type | Description |
 |------|-------|------|-------------|
-| `--yes` | `-y` | bool | Supprimer sans confirmation (obligatoire sans terminal). Anciens noms : `--force`, `-f` (dépréciés, même effet, avec un avertissement) |
+| `--yes` | `-y` | bool | Supprimer sans confirmation (obligatoire sans terminal). Anciens noms `--force` et `-f` : retirés en 5.1 |
 
 ### oh teams detach
 
@@ -389,7 +389,6 @@ Briefs de reprise générés lors des transferts de tickets. **Alias :** `oh tb`
 ```bash
 oh takeover-brief show <ticket-id>    # voir le contexte de reprise
 oh takeover-brief list                # lister les briefs
-oh takeover-brief enrich <ticket-id>  # alias deprecie : lance `oh run brief-enrich --headless` avec le brief et enregistre le resultat
 ```
 
 ## Bail et fin de session

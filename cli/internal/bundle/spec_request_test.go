@@ -11,7 +11,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/workflow/hubcat"
 )
 
-// B1: spec runs without a request (oh run feature, oh start): the conductor
+// B1: spec runs without a request (oh run feature): the conductor
 // asks for it first with question; with a request or a source page (spike,
 // incident next:), it does not ask.
 func TestShippedSpecAsksForAMissingRequest(t *testing.T) {
