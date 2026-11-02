@@ -3,10 +3,10 @@
 #
 #   windows-packages.sh list    prints the packages to test, one per line
 #                               (./internal/..., usable as arguments of go test)
-#   windows-packages.sh check   prints a ::warning:: for every package of
-#                               `go list ./...` that is in neither list, and
-#                               for every entry of a list that is no package
-#                               (never fails because of them)
+#   windows-packages.sh check   prints an ::error:: and exits 1 when a package
+#                               of `go list ./...` is in neither list, when
+#                               one is in both, or when an entry of a list is
+#                               no package any more
 #
 # Run it from cli/ (go list ./...).
 set -euo pipefail
@@ -36,15 +36,24 @@ case "${1:-}" in
     ;;
   check)
     classified="$(printf '%s\n%s\n' "$tested" "$excluded" | { grep -v '^$' || true; } | LC_ALL=C sort -u)"
+    failures=0
     for p in $(LC_ALL=C comm -23 <(printf '%s\n' "$all") <(printf '%s\n' "$classified")); do
-      echo "::warning title=Package not classified for Windows::$p is in neither .github/windows-test-packages.txt nor .github/windows-test-packages-excluded.txt: it is not tested on Windows. Add it to one of them."
+      echo "::error title=Package not classified for Windows::$p is in neither .github/windows-test-packages.txt nor .github/windows-test-packages-excluded.txt. Add it to the first (it is tested on Windows) or to the second with its cause."
+      failures=$((failures + 1))
     done
     for p in $(LC_ALL=C comm -12 <(printf '%s\n' "$tested") <(printf '%s\n' "$excluded")); do
-      echo "::warning title=Package listed twice for Windows::$p is in both lists of .github: it is tested on Windows."
+      echo "::error title=Package listed twice for Windows::$p is in both lists of .github: keep it in one."
+      failures=$((failures + 1))
     done
     for p in $(LC_ALL=C comm -23 <(printf '%s\n' "$classified") <(printf '%s\n' "$all")); do
-      echo "::warning title=Unknown package in a Windows list::$p is in a list of .github but is not a package of go list ./... any more. Remove it."
+      echo "::error title=Unknown package in a Windows list::$p is in a list of .github but is not a package of go list ./... any more. Remove it."
+      failures=$((failures + 1))
     done
+    if [ "$failures" -gt 0 ]; then
+      echo "$failures problem(s) in the Windows package lists (.github/windows-test-packages*.txt)" >&2
+      exit 1
+    fi
+    echo "Windows package lists: every package is classified ($(printf '%s\n' "$tested" | grep -c .) tested, $(printf '%s\n' "$excluded" | grep -c .) excluded)"
     ;;
   *)
     echo "usage: $0 list|check" >&2

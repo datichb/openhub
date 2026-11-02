@@ -61,6 +61,16 @@ jobs:
           cp -r ../workflows internal/hubcontent/hub/workflows
           for a in amd64 arm64; do CGO_ENABLED=0 GOOS=linux GOARCH=$a go build -trimpath -ldflags "-s -w" -o internal/runtime/container/assets/bd-linux-$a ./cmd/oh-bd; done
 
+      # Windows only tests the packages of .github/windows-test-packages.txt
+      # (the tests of many packages were written for Unix and fail there; the
+      # excluded ones, with their cause, are in
+      # .github/windows-test-packages-excluded.txt). A package of `go list ./...`
+      # that is in neither file, or in both, fails this step: it runs first
+      # because it is cheap and the Test step below depends on it.
+      - name: Check the Windows package lists
+        if: runner.os == 'Windows'
+        run: ../.github/scripts/windows-packages.sh check
+
       - name: Vet
         run: go vet ./...
 
@@ -70,16 +80,6 @@ jobs:
           version: v2.14
           working-directory: cli
           args: --build-tags=integration,e2e,container
-
-      # Windows: the tests of many packages were written for Unix and fail there
-      # (first full run: 24 packages). Until the "windows-tests" batch makes them
-      # green, Windows only tests the packages of .github/windows-test-packages.txt
-      # (the excluded ones, with their cause, are in
-      # .github/windows-test-packages-excluded.txt). A new package that is in
-      # neither file is reported here as a warning, never as a failure.
-      - name: Check the Windows package lists
-        if: runner.os == 'Windows'
-        run: ../.github/scripts/windows-packages.sh check
 
       # One run per system: the tests under -race and the coverage profile come
       # from the same `go test` (they used to run twice, in two steps).
