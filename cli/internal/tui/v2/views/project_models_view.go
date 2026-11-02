@@ -11,7 +11,6 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
@@ -32,12 +31,11 @@ type projectModelsRef struct {
 
 // ProjectModelsView displays and edits per-project model overrides.
 type ProjectModelsView struct {
-	app      *tview.Application
-	list     *widgets.SectionedList
-	page     *widgets.ListDetailPage
-	shell    ShellAccess
-	cfg      ProjectModelsViewConfig
-	mountGen uint64
+	app   *tview.Application
+	list  *widgets.SectionedList
+	page  *widgets.ListDetailPage
+	shell ShellAccess
+	cfg   ProjectModelsViewConfig
 
 	live      *domain.Project
 	undoStack *widgets.UndoStack[domain.Project]
@@ -61,7 +59,7 @@ func (v *ProjectModelsView) ID() string    { return "project.models" }
 func (v *ProjectModelsView) Title() string { return i18n.T("tui.project_models.title") }
 func (v *ProjectModelsView) StatusHints() string {
 	return keys.Hints(keys.Navigate.Hint(), keys.Open.HintAs(i18n.T("tui.hints.edit")),
-		keys.Create.Hint(), keys.Delete.Hint(), "u "+i18n.T("tui.hints.undo"), keys.Back.Hint())
+		keys.Create.Hint(), keys.Delete.Hint(), cfgUndoKey.Hint(), keys.Back.Hint())
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -70,8 +68,6 @@ func (v *ProjectModelsView) StatusHints() string {
 
 func (v *ProjectModelsView) Mount(content *tview.Flex, app *tview.Application) {
 	v.app = app
-	v.mountGen++
-	gen := v.mountGen
 	v.undoStack.Clear()
 	v.live = v.cfg.GetProject()
 
@@ -79,55 +75,34 @@ func (v *ProjectModelsView) Mount(content *tview.Flex, app *tview.Application) {
 		v.doSave()
 	})
 
-	// Show loading placeholder immediately
-	loading := tview.NewTextView().
-		SetDynamicColors(true).
-		SetTextAlign(tview.AlignLeft)
-	loading.SetBackgroundColor(theme.BgPanel)
-	muted := theme.ColorTag(theme.TextMutedHex)
-	loading.SetText(fmt.Sprintf("\n  %s%s%s", muted, i18n.T("tui.project_models.loading"), theme.TagColor))
-	content.AddItem(loading, 0, 1, true)
+	// The project is already in memory: there is nothing to wait for.
+	v.list = widgets.NewSectionedList()
+	v.list.SetApp(app)
+	title := v.Title()
+	if v.live != nil {
+		title += " · " + v.live.Name
+	}
+	v.page = newListPage(title, v.list)
 
-	// Build UI asynchronously
-	go func() {
-		app.QueueUpdateDraw(func() {
-			if v.app == nil || v.mountGen != gen {
-				return
-			}
+	if v.live == nil {
+		v.list.SetItems([]widgets.SectionItem{{MainText: stateText(stateEmpty, i18n.T("tui.project.no_active"))}})
+		v.page.SetDetail(emptyDetail())
+		v.page.Mount(content)
+		app.SetFocus(v.list)
+		return
+	}
 
-			v.list = widgets.NewSectionedList()
-			v.list.SetApp(app)
-			title := v.Title()
-			if v.live != nil {
-				title += " · " + v.live.Name
-			}
-			v.page = newListPage(title, v.list)
+	v.list.SetItemSelectedFunc(func(index int, item widgets.SectionItem) {
+		v.editByItem(item)
+	})
+	v.list.SetItemChangedFunc(func(_ int, item widgets.SectionItem) { v.showDetail(item) })
 
-			if v.live == nil {
-				items := []widgets.SectionItem{{
-					MainText: i18n.T("tui.project.no_active"),
-				}}
-				v.list.SetItems(items)
-				v.page.SetDetail(emptyDetail())
-				v.page.Mount(content)
-				app.SetFocus(v.list)
-				return
-			}
-
-			v.list.SetItemSelectedFunc(func(index int, item widgets.SectionItem) {
-				v.editByItem(item)
-			})
-			v.list.SetItemChangedFunc(func(_ int, item widgets.SectionItem) { v.showDetail(item) })
-
-			v.renderList()
-			v.page.Mount(content)
-			app.SetFocus(v.list)
-		})
-	}()
+	v.renderList()
+	v.page.Mount(content)
+	app.SetFocus(v.list)
 }
 
 func (v *ProjectModelsView) Unmount() {
-	v.mountGen++ // invalidate in-flight async goroutine
 	if v.autoSaver != nil {
 		v.autoSaver.Flush()
 	}
@@ -142,7 +117,7 @@ func (v *ProjectModelsView) showDetail(item widgets.SectionItem) {
 	if v.page == nil || v.live == nil {
 		return
 	}
-	extra := append(keys.Pairs(keys.Create, keys.Delete), "u", i18n.T("tui.hints.undo"))
+	extra := append(keys.Pairs(keys.Create, keys.Delete), cfgUndoKey.Keys(), cfgUndoKey.Label())
 	ref, ok := item.Reference.(projectModelsRef)
 	if !ok {
 		v.page.SetDetail(modelOverrideDetail("", "", "", "", extra...))
@@ -168,17 +143,11 @@ func (v *ProjectModelsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	if v.live == nil || v.list == nil {
 		return event
 	}
-	if event.Key() == tcell.KeyEnter {
-		if _, item, ok := v.list.CurrentItem(); ok {
-			v.editByItem(item)
-		}
-		return nil
-	}
 	switch {
 	case keys.Create.Matches(event):
 		v.addEntry()
 		return nil
-	case keys.Edit.Matches(event):
+	case keys.Open.Matches(event), keys.Edit.Matches(event):
 		if _, item, ok := v.list.CurrentItem(); ok {
 			v.editByItem(item)
 		}
@@ -186,7 +155,7 @@ func (v *ProjectModelsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	case keys.Delete.Matches(event):
 		v.deleteEntry()
 		return nil
-	case event.Key() == tcell.KeyRune && event.Rune() == 'u':
+	case cfgUndoKey.Matches(event):
 		v.undo()
 		return nil
 	}
@@ -207,7 +176,7 @@ func (v *ProjectModelsView) renderList() {
 	items := []widgets.SectionItem{{IsHeader: true, MainText: i18n.T("tui.project_models.section_general")}}
 	modelVal := v.live.Model
 	if modelVal == "" {
-		modelVal = fmt.Sprintf("%s(%s)%s", theme.ColorTag(theme.TextMutedHex), i18n.T("tui.settings.inherited"), theme.TagColor)
+		modelVal = muted("(" + i18n.T("tui.settings.inherited") + ")")
 	}
 	items = append(items, widgets.SectionItem{
 		MainText:  fmt.Sprintf("%-28s %s", "model:", modelVal),
@@ -219,7 +188,7 @@ func (v *ProjectModelsView) renderList() {
 	families := v.modelOverrides().Families
 	if len(families) == 0 {
 		items = append(items, widgets.SectionItem{
-			MainText: fmt.Sprintf("  %s(vide)%s", theme.ColorTag(theme.TextMutedHex), theme.TagColor),
+			MainText: "  " + stateText(stateEmpty, i18n.T("tui.project_models.empty")),
 		})
 	} else {
 		fKeys := sortedKeys(families)
@@ -236,7 +205,7 @@ func (v *ProjectModelsView) renderList() {
 	agents := v.modelOverrides().Agents
 	if len(agents) == 0 {
 		items = append(items, widgets.SectionItem{
-			MainText: fmt.Sprintf("  %s(vide)%s", theme.ColorTag(theme.TextMutedHex), theme.TagColor),
+			MainText: "  " + stateText(stateEmpty, i18n.T("tui.project_models.empty")),
 		})
 	} else {
 		aKeys := sortedKeys(agents)

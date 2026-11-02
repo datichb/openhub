@@ -11,7 +11,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/provider"
-	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
@@ -34,12 +34,12 @@ type ProjectConfigViewConfig struct {
 
 // ProjectConfigView displays and edits the active project's configuration.
 type ProjectConfigView struct {
-	app      *tview.Application
-	list     *widgets.SectionedList
-	page     *widgets.ListDetailPage
-	shell    ShellAccess
-	cfg      ProjectConfigViewConfig
-	mountGen uint64
+	app   *tview.Application
+	list  *widgets.SectionedList
+	page  *widgets.ListDetailPage
+	shell ShellAccess
+	cfg   ProjectConfigViewConfig
+	loads loadSlot // the read of the hints: only the latest is applied
 
 	live      *domain.Project
 	fields    []configField
@@ -64,20 +64,12 @@ func (v *ProjectConfigView) SetShell(s ShellAccess) { v.shell = s }
 func (v *ProjectConfigView) ID() string    { return "project.config" }
 func (v *ProjectConfigView) Title() string { return i18n.T("tui.project.title") }
 func (v *ProjectConfigView) StatusHints() string {
-	return fmt.Sprintf("j/k %s · {/} %s · Space %s · Enter %s · u %s · Esc %s",
-		i18n.T("tui.hints.nav"),
-		i18n.T("tui.hints.navigate"),
-		i18n.T("tui.hints.toggle"),
-		i18n.T("tui.hints.edit"),
-		i18n.T("tui.hints.undo"),
-		i18n.T("tui.hints.back"),
-	)
+	return keys.Hints(keys.Navigate.HintAs(i18n.T("tui.hints.nav")), "{/} "+i18n.T("tui.hints.navigate"),
+		toggleHint(), keys.Open.HintAs(i18n.T("tui.hints.edit")), cfgUndoKey.Hint(), keys.Back.Hint())
 }
 
 func (v *ProjectConfigView) Mount(content *tview.Flex, app *tview.Application) {
 	v.app = app
-	v.mountGen++
-	gen := v.mountGen
 	v.undoStack.Clear()
 	v.live = v.cfg.GetProject() // synchronous
 
@@ -87,58 +79,56 @@ func (v *ProjectConfigView) Mount(content *tview.Flex, app *tview.Application) {
 	})
 
 	// Loading placeholder
-	loading := tview.NewTextView().
-		SetDynamicColors(true).
-		SetTextAlign(tview.AlignLeft)
-	loading.SetBackgroundColor(theme.BgPanel)
-	muted := theme.ColorTag(theme.TextMutedHex)
-	loading.SetText(fmt.Sprintf("\n  %s%s%s", muted, i18n.T("tui.project.loading"), theme.TagColor))
+	loading := stateView(stateLoading, i18n.T("tui.project.loading"))
 	content.AddItem(loading, 0, 1, true)
 
+	// The hints (a Dockerfile to detect) are read off the event loop, then the
+	// list is built on it.
 	live := v.live
-	go func() {
+	load(app, shellContext(v.shell), &v.loads, func(context.Context) (ProjectExecHints, error) {
 		var hints ProjectExecHints
 		if live != nil && v.cfg.ExecHints != nil {
 			hints = v.cfg.ExecHints(live.Path)
 		}
-		app.QueueUpdateDraw(func() {
-			if v.app == nil || v.mountGen != gen {
-				return
-			}
-			v.execHints = hints
+		return hints, nil
+	}, func(hints ProjectExecHints, err error) {
+		if v.app == nil {
+			return
+		}
+		if err != nil {
+			setState(loading, stateError, err.Error())
+			return
+		}
+		v.execHints = hints
 
-			v.list = widgets.NewSectionedList()
-			v.list.SetApp(app)
-			v.page = newListPage(v.pageTitle(), v.list)
+		v.list = widgets.NewSectionedList()
+		v.list.SetApp(app)
+		v.page = newListPage(v.pageTitle(), v.list)
 
-			if v.live == nil {
-				items := []widgets.SectionItem{{
-					MainText: i18n.T("tui.project.no_active"),
-				}}
-				v.list.SetItems(items)
-				v.page.SetDetail(emptyDetail())
-				v.page.Mount(content)
-				app.SetFocus(v.list)
-				return
-			}
-
-			v.list.SetItemSelectedFunc(func(index int, item widgets.SectionItem) {
-				v.onItemSelected(index, item)
-			})
-			v.list.SetItemChangedFunc(func(_ int, item widgets.SectionItem) {
-				showFieldItemDetail(v.page, v.fields, item, "u", i18n.T("tui.hints.undo"))
-			})
-
-			v.buildFields()
-			v.renderFields()
+		if v.live == nil {
+			v.list.SetItems([]widgets.SectionItem{{MainText: stateText(stateEmpty, i18n.T("tui.project.no_active"))}})
+			v.page.SetDetail(emptyDetail())
 			v.page.Mount(content)
 			app.SetFocus(v.list)
+			return
+		}
+
+		v.list.SetItemSelectedFunc(func(index int, item widgets.SectionItem) {
+			v.onItemSelected(index, item)
 		})
-	}()
+		v.list.SetItemChangedFunc(func(_ int, item widgets.SectionItem) {
+			showFieldItemDetail(v.page, v.fields, item, cfgUndoKey.Keys(), cfgUndoKey.Label())
+		})
+
+		v.buildFields()
+		v.renderFields()
+		v.page.Mount(content)
+		app.SetFocus(v.list)
+	})
 }
 
 func (v *ProjectConfigView) Unmount() {
-	v.mountGen++ // invalidate in-flight async goroutine
+	v.loads.Invalidate() // drop the load in flight
 	if v.autoSaver != nil {
 		v.autoSaver.Flush()
 	}
@@ -160,22 +150,16 @@ func (v *ProjectConfigView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	if v.live == nil || v.list == nil {
 		return event
 	}
-	if event.Key() == tcell.KeyEnter {
+	switch {
+	case keys.Open.Matches(event), keys.Edit.Matches(event):
 		if idx, item, ok := v.list.CurrentItem(); ok {
 			v.onItemSelected(idx, item)
 		}
 		return nil
-	}
-	switch event.Rune() {
-	case 'e':
-		if idx, item, ok := v.list.CurrentItem(); ok {
-			v.onItemSelected(idx, item)
-		}
-		return nil
-	case ' ':
+	case cfgToggleKey.Matches(event):
 		v.onToggleSelected()
 		return nil
-	case 'u':
+	case cfgUndoKey.Matches(event):
 		v.undo()
 		return nil
 	}
@@ -423,7 +407,7 @@ func (v *ProjectConfigView) renderFields() {
 	if savedIdx >= 0 {
 		v.list.SelectIndex(savedIdx)
 	}
-	showCurrentFieldDetail(v.page, v.list, v.fields, "u", i18n.T("tui.hints.undo"))
+	showCurrentFieldDetail(v.page, v.list, v.fields, cfgUndoKey.Keys(), cfgUndoKey.Label())
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

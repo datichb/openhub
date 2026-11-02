@@ -10,6 +10,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
@@ -66,8 +67,7 @@ func (v *TeamsView) Title() string { return i18n.T("tui.teams") }
 
 func (v *TeamsView) StatusHints() string {
 	return keys.Hints(keys.Open.HintAs(i18n.T("tui.hints.detail")), keys.Create.Hint(),
-		keys.Delete.Hint(), "s "+i18n.T("tui.hints.sync"), keys.Refresh.Hint(),
-		"u "+i18n.T("tui.hints.undo"))
+		keys.Delete.Hint(), cfgSyncKey.Hint(), keys.Refresh.Hint(), cfgUndoKey.Hint())
 }
 
 func (v *TeamsView) Mount(content *tview.Flex, app *tview.Application) {
@@ -98,13 +98,13 @@ func (v *TeamsView) showDetail(it widgets.SectionItem) {
 		var d detailText
 		d.title(i18n.T("tui.teams.no_teams"))
 		d.para(i18n.T("tui.teams.no_teams_hint"))
-		d.keys(append(keys.Pairs(keys.Create), "u", i18n.T("tui.hints.undo"))...)
+		d.keys(append(keys.Pairs(keys.Create), cfgUndoKey.Keys(), cfgUndoKey.Label())...)
 		v.page.SetDetail(d.String())
 		return
 	}
-	status := theme.ColorTag(theme.SuccessHex) + theme.SymSuccess + " " + theme.TagColor + i18n.T("tui.teams.status_active")
+	status := theme.Paint(theme.SuccessHex, theme.SymSuccess) + " " + i18n.T("tui.teams.status_active")
 	if !team.Enabled {
-		status = theme.ColorTag(theme.TextMutedHex) + i18n.T("tui.teams.status_inactive") + theme.TagColor
+		status = muted(i18n.T("tui.teams.status_inactive"))
 	}
 	repo := team.StateRepo
 	if team.Solo {
@@ -118,9 +118,9 @@ func (v *TeamsView) showDetail(it widgets.SectionItem) {
 	d.field(i18n.T("tui.detail.status"), status)
 	d.field(i18n.T("tui.detail.repo"), tview.Escape(repo))
 	d.field(i18n.T("tui.detail.path"), tview.Escape(team.StatePath))
-	pairs := []string{keys.Open.Keys(), i18n.T("tui.hints.detail"), "s", i18n.T("tui.hints.sync")}
+	pairs := []string{keys.Open.Keys(), i18n.T("tui.hints.detail"), cfgSyncKey.Keys(), cfgSyncKey.Label()}
 	pairs = append(pairs, keys.Pairs(keys.Create, keys.Delete, keys.Refresh)...)
-	d.keys(append(pairs, "u", i18n.T("tui.hints.undo"))...)
+	d.keys(append(pairs, cfgUndoKey.Keys(), cfgUndoKey.Label())...)
 	v.page.SetDetail(d.String())
 }
 
@@ -140,10 +140,10 @@ func (v *TeamsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	case keys.Refresh.Matches(event):
 		v.rebuild()
 		return nil
-	case event.Key() == tcell.KeyRune && event.Rune() == 's':
+	case cfgSyncKey.Matches(event):
 		v.handleSync()
 		return nil
-	case event.Key() == tcell.KeyRune && event.Rune() == 'u':
+	case cfgUndoKey.Matches(event):
 		v.handleUndo()
 		return nil
 	}
@@ -222,7 +222,7 @@ func (v *TeamsView) rebuild() {
 
 	if len(v.cfg.Teams) == 0 {
 		items = append(items, widgets.SectionItem{
-			MainText:      i18n.T("tui.teams.no_teams"),
+			MainText:      stateText(stateEmpty, i18n.T("tui.teams.no_teams")),
 			SecondaryText: i18n.T("tui.teams.no_teams_hint"),
 		})
 	} else {
@@ -232,7 +232,7 @@ func (v *TeamsView) rebuild() {
 		})
 
 		for _, t := range v.cfg.Teams {
-			status := fmt.Sprintf("%s %s", theme.ColorTag(theme.SuccessHex)+theme.SymSuccess+theme.TagColor, i18n.T("tui.teams.status_active"))
+			status := theme.Paint(theme.SuccessHex, theme.SymSuccess) + " " + i18n.T("tui.teams.status_active")
 			if !t.Enabled {
 				status = i18n.T("tui.teams.status_inactive")
 			}
@@ -406,26 +406,13 @@ func copyTeams(teams []config.TeamConfig) []config.TeamConfig {
 	return cp
 }
 
-// truncateString truncates a string for display to maxLen characters (not
-// bytes), the last one being « … » when it was cut.
-func truncateString(s string, maxLen int) string {
-	r := []rune(s)
-	if len(r) <= maxLen {
-		return s
-	}
-	if maxLen <= 0 {
-		return ""
-	}
-	return string(r[:maxLen-1]) + "…"
-}
-
 // teamRepoLabel is the team-state of a team: its remote, or « solo space »
 // (local, no remote; P2-T16).
 func teamRepoLabel(t config.TeamConfig) string {
 	if t.Solo {
 		return i18n.T("tui.solo.teams_label")
 	}
-	return truncateString(t.StateRepo, 40)
+	return textfmt.Clip(t.StateRepo, 40)
 }
 
 // teamsPatch changes a list of teams from before to after on the list that

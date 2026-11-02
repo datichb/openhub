@@ -362,13 +362,24 @@ func roleSuffix(role string) string {
 }
 
 // saveMemberField writes one field of the profile to the team-state (a push:
-// off the event loop when the view is mounted) and shows the profile as it
-// then is; a failure is said and the profile is left as it was.
+// off the event loop) and shows the profile as it then is; a failure is said
+// and the profile is left as it was. The saves do not replace one another:
+// each has its own slot.
 func (v *TeamDetailView) saveMemberField(field, value string) {
 	if v.shell == nil || v.cfg.SaveMemberField == nil {
 		return
 	}
-	done := func(err error) {
+	teamID := v.cfg.ResolveTeam().TeamID
+	v.shell.ShowToastMsg(i18n.T("tui.team.detail.member.saving"), true)
+	load(v.app, v.shell.Context(), new(loadSlot), func(ctx context.Context) (*teamstate.Member, error) {
+		if err := v.cfg.SaveMemberField(ctx, teamID, field, value); err != nil {
+			return nil, err
+		}
+		if v.cfg.GetMember == nil {
+			return nil, nil
+		}
+		return v.cfg.GetMember(teamID), nil
+	}, func(m *teamstate.Member, err error) {
 		if v.shell == nil {
 			return
 		}
@@ -376,28 +387,10 @@ func (v *TeamDetailView) saveMemberField(field, value string) {
 			v.shell.ShowToastMsg(i18n.Tf("tui.team.detail.member.save_error", err.Error()), false)
 			return
 		}
-		v.loadMember()
+		if m != nil {
+			v.member = *m
+		}
 		v.renderFields()
 		v.shell.ShowToastMsg(i18n.Tf("tui.team.detail.member.saved", field, strings.TrimSpace(value)), true)
-	}
-	if v.app == nil {
-		done(v.cfg.SaveMemberField(context.Background(), field, value))
-		return
-	}
-	app, ctx := v.app, v.shell.Context()
-	v.shell.ShowToastMsg(i18n.T("tui.team.detail.member.saving"), true)
-	go func() {
-		err := v.cfg.SaveMemberField(ctx, field, value)
-		app.QueueUpdateDraw(func() { done(err) })
-	}()
-}
-
-// loadMember reads the profile again (after a save).
-func (v *TeamDetailView) loadMember() {
-	if v.cfg.GetMember == nil {
-		return
-	}
-	if m := v.cfg.GetMember(); m != nil {
-		v.member = *m
-	}
+	})
 }

@@ -58,15 +58,16 @@ type secretEntry struct {
 // SecretsView displays and manages secrets (tokens, API keys) with global and
 // project scopes. Accessed via omnibar "secrets" / "tokens" / "credentials".
 type SecretsView struct {
-	app      *tview.Application
-	content  *tview.Flex
-	list     *widgets.SectionedList
-	page     *widgets.ListDetailPage
-	shell    ShellAccess
-	cfg      SecretsViewConfig
-	mountGen uint64
+	app     *tview.Application
+	content *tview.Flex
+	list    *widgets.SectionedList
+	page    *widgets.ListDetailPage
+	shell   ShellAccess
+	cfg     SecretsViewConfig
+	loads   loadSlot // the reads of the keychain: only the latest is applied
 
 	entries []secretEntry
+	loaded  bool // the entries were read at least once
 }
 
 var _ View = (*SecretsView)(nil)
@@ -88,44 +89,46 @@ func (v *SecretsView) StatusHints() string {
 func (v *SecretsView) Mount(content *tview.Flex, app *tview.Application) {
 	v.app = app
 	v.content = content
-	v.mountGen++
-	gen := v.mountGen
+	v.loaded = false
 
 	// Show loading placeholder immediately
-	loadingTV := tview.NewTextView().
-		SetDynamicColors(true)
-	loadingTV.SetBackgroundColor(theme.BgPanel)
-	muted := theme.ColorTag(theme.TextMutedHex)
-	loadingTV.SetText(fmt.Sprintf("\n  %s%s%s", muted, i18n.T("tui.secrets.loading"), theme.TagColor))
-	content.AddItem(loadingTV, 0, 1, true)
+	loading := stateView(stateLoading, i18n.T("tui.secrets.loading"))
+	content.AddItem(loading, 0, 1, true)
 
-	// Load secrets asynchronously (keychain access)
-	go func() {
-		entries := v.buildEntries()
-		app.QueueUpdateDraw(func() {
-			if v.app == nil || v.mountGen != gen {
-				return
-			}
+	// Read the secrets off the event loop (keychain access), then build the
+	// widgets on it.
+	load(app, shellContext(v.shell), &v.loads, v.read, func(entries []secretEntry, err error) {
+		if v.app == nil {
+			return
+		}
+		if err != nil {
+			setState(loading, stateError, err.Error())
+			return
+		}
+		v.list = widgets.NewSectionedList()
+		v.list.SetApp(app)
+		v.page = newListPage(v.Title(), v.list)
 
-			v.list = widgets.NewSectionedList()
-			v.list.SetApp(app)
-			v.page = newListPage(v.Title(), v.list)
-
-			v.list.SetItemSelectedFunc(func(index int, item widgets.SectionItem) {
-				v.editByItem(item)
-			})
-			v.list.SetItemChangedFunc(func(_ int, item widgets.SectionItem) { v.showDetail(item) })
-
-			v.entries = entries
-			v.renderList()
-			v.page.Mount(content)
-			app.SetFocus(v.list)
+		v.list.SetItemSelectedFunc(func(index int, item widgets.SectionItem) {
+			v.editByItem(item)
 		})
-	}()
+		v.list.SetItemChangedFunc(func(_ int, item widgets.SectionItem) { v.showDetail(item) })
+
+		v.entries, v.loaded = entries, true
+		v.renderList()
+		v.page.Mount(content)
+		app.SetFocus(v.list)
+	})
+}
+
+// read lists the secrets: it reads the keychain, so it runs off the event
+// loop.
+func (v *SecretsView) read(ctx context.Context) ([]secretEntry, error) {
+	return v.buildEntries(ctx), nil
 }
 
 func (v *SecretsView) Unmount() {
-	v.mountGen++ // invalidate in-flight async goroutine
+	v.loads.Invalidate() // drop the load in flight
 	v.app = nil
 	v.content = nil
 	v.list = nil
@@ -140,7 +143,7 @@ func (v *SecretsView) showDetail(item widgets.SectionItem) {
 	i, ok := item.Reference.(int)
 	if !ok || i < 0 || i >= len(v.entries) {
 		var d detailText
-		if len(v.entries) == 0 {
+		if len(v.entries) == 0 && v.loaded {
 			d.title(i18n.T("tui.secrets.empty"))
 			d.para(i18n.T("tui.detail.secret.desc"))
 			d.keys(keys.Pairs(keys.Create, keys.Refresh)...)
@@ -160,9 +163,9 @@ func (v *SecretsView) showDetail(item widgets.SectionItem) {
 	}
 	d.field(i18n.T("tui.detail.scope"), scope)
 	if e.Present {
-		d.field(i18n.T("tui.detail.value"), theme.ColorTag(theme.SuccessHex)+theme.SymSuccess+" "+theme.TagReset+tview.Escape(e.Masked))
+		d.field(i18n.T("tui.detail.value"), theme.Paint(theme.SuccessHex, theme.SymSuccess)+" "+tview.Escape(e.Masked))
 	} else {
-		d.field(i18n.T("tui.detail.value"), theme.ColorTag(theme.ErrorHex)+"✗ "+i18n.T("tui.secrets.absent")+theme.TagReset)
+		d.field(i18n.T("tui.detail.value"), theme.Paint(theme.ErrorHex, theme.SymFailure+" "+i18n.T("tui.secrets.absent")))
 	}
 	d.field(i18n.T("tui.secrets.referenced_by"), tview.Escape(e.Source))
 	d.field(i18n.T("tui.detail.secret.fallback"), tview.Escape(e.Fallback))
@@ -176,7 +179,7 @@ func (v *SecretsView) showDetail(item widgets.SectionItem) {
 
 func (v *SecretsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	switch {
-	case keys.Edit.Matches(event):
+	case keys.Open.Matches(event), keys.Edit.Matches(event):
 		v.editCurrent()
 		return nil
 	case keys.Create.Matches(event):
@@ -189,10 +192,6 @@ func (v *SecretsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		v.refresh()
 		return nil
 	}
-	if event.Key() == tcell.KeyEnter {
-		v.editCurrent()
-		return nil
-	}
 	return event
 }
 
@@ -200,29 +199,29 @@ func (v *SecretsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 // Data loading
 // ─────────────────────────────────────────────────────────────────────────────
 
+// refresh reads the keychain again. The latest request wins; Unmount drops
+// the one in flight.
 func (v *SecretsView) refresh() {
-	gen := v.mountGen
-	go func() {
-		entries := v.buildEntries()
-		if v.app == nil {
+	load(v.app, shellContext(v.shell), &v.loads, v.read, func(entries []secretEntry, err error) {
+		if v.list == nil || v.app == nil {
 			return
 		}
-		v.app.QueueUpdateDraw(func() {
-			if v.list == nil || v.app == nil || v.mountGen != gen {
-				return
-			}
-			v.entries = entries
-			v.renderList()
+		if err != nil {
 			if v.shell != nil {
-				v.shell.ShowToastMsg(i18n.T("tui.secrets.refreshed"), true)
+				v.shell.ShowToastMsg(errorText(err), false)
 			}
-		})
-	}()
+			return
+		}
+		v.entries, v.loaded = entries, true
+		v.renderList()
+		if v.shell != nil {
+			v.shell.ShowToastMsg(i18n.T("tui.secrets.refreshed"), true)
+		}
+	})
 }
 
-func (v *SecretsView) buildEntries() []secretEntry {
+func (v *SecretsView) buildEntries(ctx context.Context) []secretEntry {
 	store := v.cfg.GetStore()
-	ctx := context.Background()
 
 	var indexEntries []keychain.SecretEntry
 	if store != nil {
@@ -323,7 +322,7 @@ func (v *SecretsView) renderList() {
 
 	if len(v.entries) == 0 {
 		items := []widgets.SectionItem{{
-			MainText:      i18n.T("tui.secrets.empty"),
+			MainText:      stateText(stateEmpty, i18n.T("tui.secrets.empty")),
 			SecondaryText: i18n.T("tui.secrets.empty_hint"),
 		}}
 		v.list.SetItems(items)
@@ -377,14 +376,14 @@ func (v *SecretsView) renderList() {
 
 func (v *SecretsView) entryToItem(e secretEntry, entryIdx int) widgets.SectionItem {
 	// Status
-	status := fmt.Sprintf("%s✗ %s%s", theme.ColorTag(theme.ErrorHex), i18n.T("tui.secrets.absent"), theme.TagColor)
+	status := theme.Paint(theme.ErrorHex, theme.SymFailure+" "+i18n.T("tui.secrets.absent"))
 	if e.Present {
-		status = fmt.Sprintf("%s%s%s %s", theme.ColorTag(theme.SuccessHex), theme.SymSuccess, theme.TagColor, e.Masked)
+		status = theme.Paint(theme.SuccessHex, theme.SymSuccess) + " " + e.Masked
 	}
 
 	fallback := ""
 	if e.Fallback != "" {
-		fallback = fmt.Sprintf("  %s%s%s", theme.ColorTag(theme.TextMutedHex), e.Fallback, theme.TagColor)
+		fallback = "  " + muted(e.Fallback)
 	}
 
 	mainText := fmt.Sprintf("%-24s %s%s", e.Key, status, fallback)

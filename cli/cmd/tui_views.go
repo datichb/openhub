@@ -20,6 +20,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/storage/keychain"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tracker"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
@@ -553,15 +554,15 @@ func buildViews(a *app.App) []views.View {
 				return a.Secrets.Set(ctx, key, value)
 			},
 			OnDiscoverTracker: actionTrackerDiscovery,
-			GetMember: func() *teamstate.Member {
-				m, err := teamService(a).Profile(makeResolveTeamFunc(a)().TeamID)
+			GetMember: func(teamID string) *teamstate.Member {
+				m, err := teamService(a).Profile(teamID)
 				if err != nil {
 					return nil
 				}
 				return m
 			},
-			SaveMemberField: func(ctx context.Context, field, value string) error {
-				_, err := teamService(a).UpdateProfile(ctx, makeResolveTeamFunc(a)().TeamID, profilePatchForField(field, value))
+			SaveMemberField: func(ctx context.Context, teamID, field, value string) error {
+				_, err := teamService(a).UpdateProfile(ctx, teamID, profilePatchForField(field, value))
 				if err != nil {
 					return profileError(err)
 				}
@@ -857,7 +858,7 @@ func tuiToolLine() string {
 		return v5Tool.DisplayName + " " + v + " · " + v5Tool.Name
 	}
 	if v5Err != nil {
-		return i18n.Tf("cmd.v1.unsupported.doctor_name", toolName()) + " ✗"
+		return i18n.Tf("cmd.v1.unsupported.doctor_name", toolName()) + " " + theme.SymFailure
 	}
 	return ""
 }

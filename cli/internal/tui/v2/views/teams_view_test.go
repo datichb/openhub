@@ -32,7 +32,7 @@ func TestTeamsViewTranslated(t *testing.T) {
 			items := func(title string) {
 				fmt.Fprintf(&b, "== %s\n", title)
 				for _, it := range v.list.GetItems() {
-					fmt.Fprintf(&b, "%s | %s\n", it.MainText, it.SecondaryText)
+					fmt.Fprintf(&b, "%s | %s\n", stripTviewTags(it.MainText), it.SecondaryText)
 				}
 			}
 			v.rebuild()

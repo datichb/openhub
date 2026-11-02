@@ -10,6 +10,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/envfilter"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
 // « Exécution » section of the Settings (P4-T10, 10 §11): default runtime,
@@ -53,7 +54,7 @@ func envAllowWarning(entries []string) string {
 	}
 	var notes []string
 	if len(secret) > 0 {
-		notes = append(notes, "⚠ "+i18n.Tf("tui.settings.exec.env_allow.secret", strings.Join(secret, ", ")))
+		notes = append(notes, theme.SymWarning+" "+i18n.Tf("tui.settings.exec.env_allow.secret", strings.Join(secret, ", ")))
 	}
 	if len(managed) > 0 {
 		notes = append(notes, i18n.Tf("tui.settings.exec.env_allow.managed", strings.Join(managed, ", ")))

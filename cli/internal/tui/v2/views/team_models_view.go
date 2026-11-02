@@ -45,12 +45,12 @@ type teamModelsRef struct {
 // recommendations (default model, per-family overrides, per-agent overrides).
 // It extracts the Models section from TeamDetailView into a standalone sub-page.
 type TeamModelsView struct {
-	app      *tview.Application
-	list     *widgets.SectionedList
-	page     *widgets.ListDetailPage
-	shell    ShellAccess
-	cfg      TeamModelsViewConfig
-	mountGen uint64
+	app   *tview.Application
+	list  *widgets.SectionedList
+	page  *widgets.ListDetailPage
+	shell ShellAccess
+	cfg   TeamModelsViewConfig
+	loads loadSlot // the reads of the team config: only the latest is applied
 
 	teamCfg   *teamstate.TeamConfig
 	dirty     bool
@@ -74,7 +74,7 @@ func (v *TeamModelsView) Title() string          { return i18n.T("tui.config.sec
 
 func (v *TeamModelsView) StatusHints() string {
 	return keys.Hints(keys.Open.HintAs(i18n.T("tui.hints.edit")), keys.Create.Hint(),
-		keys.Delete.Hint(), "w "+i18n.T("tui.hints.save"), "u "+i18n.T("tui.hints.undo"))
+		keys.Delete.Hint(), cfgSaveKey.Hint(), cfgUndoKey.Hint())
 }
 
 // SupportedModes implements ModeAware — this view is only relevant in team mode.
@@ -88,47 +88,39 @@ func (v *TeamModelsView) SupportedModes() []Mode {
 
 func (v *TeamModelsView) Mount(content *tview.Flex, app *tview.Application) {
 	v.app = app
-	v.mountGen++
-	gen := v.mountGen
 	v.dirty = false
 	v.undoStack.Clear()
 
 	// Loading placeholder
-	loading := tview.NewTextView().
-		SetDynamicColors(true).
-		SetTextAlign(tview.AlignLeft)
-	loading.SetBackgroundColor(theme.BgPanel)
-	muted := theme.ColorTag(theme.TextMutedHex)
-	loading.SetText(fmt.Sprintf("\n  %s%s%s", muted, i18n.T("tui.team_models.loading"), theme.TagColor))
+	loading := stateView(stateLoading, i18n.T("tui.team_models.loading"))
 	content.AddItem(loading, 0, 1, true)
 
-	// Async pull team-state then build the list
+	// Pull the team-state, read its config off the event loop, then build the
+	// list on it.
 	tc := v.cfg.ResolveTeam()
-	if tc.Enabled {
-		repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
-		syncAsync(v.app, repo, v.shell, func(_ error) {
-			if v.app == nil || v.mountGen != gen {
-				return
-			}
-			v.loadData()
-			v.buildList(content, loading, app, gen)
-		})
-	} else {
-		// No team — build immediately with empty config
-		go func() {
-			app.QueueUpdateDraw(func() {
-				if v.app == nil || v.mountGen != gen {
-					return
-				}
-				v.loadData()
-				v.buildList(content, loading, app, gen)
-			})
-		}()
+	fetch := func(context.Context) (*teamstate.TeamConfig, error) {
+		if !tc.Enabled {
+			return nil, nil // no team: an empty config
+		}
+		return readTeamConfig(tc), nil
 	}
+	apply := func(cfg *teamstate.TeamConfig, _ error) {
+		if v.app == nil {
+			return
+		}
+		v.setTeamConfig(cfg)
+		v.buildList(content, app)
+	}
+	if tc.Enabled {
+		syncLoad(app, shellContext(v.shell), &v.loads, teamstate.NewRepo(tc.StateRepo, tc.StatePath), v.shell, fetch, apply)
+		return
+	}
+	load(app, shellContext(v.shell), &v.loads, fetch, apply)
 }
 
-// buildList creates the SectionedList widget and swaps it in for the loading placeholder.
-func (v *TeamModelsView) buildList(content *tview.Flex, loading tview.Primitive, app *tview.Application, gen uint64) {
+// buildList creates the SectionedList widget and mounts it in place of the
+// loading placeholder.
+func (v *TeamModelsView) buildList(content *tview.Flex, app *tview.Application) {
 	v.list = widgets.NewSectionedList()
 	v.list.SetApp(app)
 	v.page = newListPage(v.Title(), v.list)
@@ -144,7 +136,7 @@ func (v *TeamModelsView) buildList(content *tview.Flex, loading tview.Primitive,
 }
 
 func (v *TeamModelsView) Unmount() {
-	v.mountGen++ // invalidate in-flight async goroutine
+	v.loads.Invalidate() // drop the load in flight
 	if v.dirty && v.shell != nil {
 		v.shell.ShowToastMsg(i18n.T("tui.project.unsaved"), false)
 	}
@@ -159,7 +151,7 @@ func (v *TeamModelsView) showDetail(item widgets.SectionItem) {
 	if v.page == nil || v.teamCfg == nil {
 		return
 	}
-	extra := append(keys.Pairs(keys.Create, keys.Delete), "w", i18n.T("tui.hints.save"), "u", i18n.T("tui.hints.undo"))
+	extra := append(keys.Pairs(keys.Create, keys.Delete), cfgSaveKey.Keys(), cfgSaveKey.Label(), cfgUndoKey.Keys(), cfgUndoKey.Label())
 	ref, ok := item.Reference.(teamModelsRef)
 	if !ok {
 		v.page.SetDetail(modelOverrideDetail("", "", "", "", extra...))
@@ -181,16 +173,11 @@ func (v *TeamModelsView) showDetail(item widgets.SectionItem) {
 // Data loading
 // ─────────────────────────────────────────────────────────────────────────────
 
-func (v *TeamModelsView) loadData() {
-	tc := v.cfg.ResolveTeam()
-	if tc.Enabled {
-		repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
-		if repo.IsCloned() {
-			cfg, err := repo.LoadConfig()
-			if err == nil {
-				v.teamCfg = cfg
-			}
-		}
+// setTeamConfig takes the config that was read (nil: it has none, the config
+// already shown stays, else an empty one).
+func (v *TeamModelsView) setTeamConfig(cfg *teamstate.TeamConfig) {
+	if cfg != nil {
+		v.teamCfg = cfg
 	}
 	if v.teamCfg == nil {
 		v.teamCfg = &teamstate.TeamConfig{}
@@ -217,13 +204,11 @@ func (v *TeamModelsView) renderList() {
 		return
 	}
 	savedIdx := v.list.GetCurrentItem()
-	muted := theme.ColorTag(theme.TextMutedHex)
-	reset := theme.TagColor
-	notConfigured := i18n.T("tui.config.not_configured")
+	notConfigured := muted(i18n.T("tui.config.not_configured"))
 
 	title := v.Title()
 	if v.dirty {
-		title += " · ● " + i18n.T("tui.settings.modified")
+		title += " · " + theme.SymModified + " " + i18n.T("tui.settings.modified")
 	}
 	if v.page != nil {
 		v.page.SetTitle(title)
@@ -234,11 +219,11 @@ func (v *TeamModelsView) renderList() {
 
 	defaultVal := v.teamCfg.Models.Default
 	if defaultVal == "" {
-		defaultVal = fmt.Sprintf("%s%s%s", muted, notConfigured, reset)
+		defaultVal = notConfigured
 	}
 	items = append(items, widgets.SectionItem{
 		MainText:      fmt.Sprintf("%-28s %s", i18n.T("tui.config.field.default_model.label"), defaultVal),
-		SecondaryText: fmt.Sprintf("%s%s%s", muted, i18n.T("tui.config.field.default_model.desc"), reset),
+		SecondaryText: muted(i18n.T("tui.config.field.default_model.desc")),
 		Reference:     teamModelsRef{section: "general", key: "default"},
 	})
 
@@ -248,14 +233,14 @@ func (v *TeamModelsView) renderList() {
 	families := v.teamCfg.Models.Families
 	if len(families) == 0 {
 		items = append(items, widgets.SectionItem{
-			MainText: fmt.Sprintf("  %s%s%s", muted, notConfigured, reset),
+			MainText: "  " + notConfigured,
 		})
 	} else {
 		fKeys := teamModelsSortedKeys(families)
 		for _, k := range fKeys {
 			val := families[k]
 			if val == "" {
-				val = fmt.Sprintf("%s%s%s", muted, notConfigured, reset)
+				val = notConfigured
 			}
 			items = append(items, widgets.SectionItem{
 				MainText:  fmt.Sprintf("%-28s %s", k, val),
@@ -270,14 +255,14 @@ func (v *TeamModelsView) renderList() {
 	agents := v.teamCfg.Models.Agents
 	if len(agents) == 0 {
 		items = append(items, widgets.SectionItem{
-			MainText: fmt.Sprintf("  %s%s%s", muted, notConfigured, reset),
+			MainText: "  " + notConfigured,
 		})
 	} else {
 		aKeys := teamModelsSortedKeys(agents)
 		for _, k := range aKeys {
 			val := agents[k]
 			if val == "" {
-				val = fmt.Sprintf("%s%s%s", muted, notConfigured, reset)
+				val = notConfigured
 			}
 			items = append(items, widgets.SectionItem{
 				MainText:  fmt.Sprintf("%-28s %s", k, val),
@@ -302,19 +287,11 @@ func (v *TeamModelsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	if v.teamCfg == nil {
 		return event
 	}
-	if event.Key() == tcell.KeyEnter {
-		if v.list != nil {
-			if _, item, ok := v.list.CurrentItem(); ok {
-				v.editByItem(item)
-			}
-		}
-		return nil
-	}
 	switch {
 	case keys.Create.Matches(event):
 		v.addEntry()
 		return nil
-	case keys.Edit.Matches(event):
+	case keys.Open.Matches(event), keys.Edit.Matches(event):
 		if v.list != nil {
 			if _, item, ok := v.list.CurrentItem(); ok {
 				v.editByItem(item)
@@ -324,10 +301,10 @@ func (v *TeamModelsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	case keys.Delete.Matches(event):
 		v.deleteEntry()
 		return nil
-	case event.Key() == tcell.KeyRune && event.Rune() == 'w':
+	case cfgSaveKey.Matches(event):
 		v.save()
 		return nil
-	case event.Key() == tcell.KeyRune && event.Rune() == 'u':
+	case cfgUndoKey.Matches(event):
 		v.undo()
 		return nil
 	}

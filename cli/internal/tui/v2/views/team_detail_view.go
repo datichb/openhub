@@ -14,6 +14,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tracker"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
@@ -38,6 +39,9 @@ func (e *TrackerCredentialsError) Unwrap() error { return e.Err }
 // discoverKey launches the tracker discovery wizard (T: tracker; y is
 // accept in the key convention).
 var discoverKey = keys.Own("team.discover", 'T', "tui.team.detail.hint_discover")
+
+// teamLLMKey stores the LLM credential of the team for a provider.
+var teamLLMKey = keys.Own("team.llm_key", 'K', "tui.team.llm_key.hint")
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -70,10 +74,10 @@ type TeamDetailViewConfig struct {
 	// GetMember returns the profile of the current member in the team-state
 	// (nil when there is none). With SaveMemberField it shows the section
 	// « Ma fiche de membre ».
-	GetMember func() *teamstate.Member
+	GetMember func(teamID string) *teamstate.Member
 	// SaveMemberField writes one field of the profile of the current member
 	// (a Member* key) to the team-state, in one commit.
-	SaveMemberField func(ctx context.Context, field, value string) error
+	SaveMemberField func(ctx context.Context, teamID, field, value string) error
 	// OnDiscoverTracker launches the tracker discovery wizard.
 	// Called when the user presses T in the team detail view.
 	OnDiscoverTracker func()
@@ -90,11 +94,14 @@ type TeamDetailViewConfig struct {
 // (tracker, notifications, collaboration) and local overrides.
 // MCP and Models are accessible via sub-page links.
 type TeamDetailView struct {
-	app   *tview.Application
-	list  *widgets.SectionedList
-	page  *widgets.ListDetailPage
-	shell ShellAccess
-	cfg   TeamDetailViewConfig
+	app    *tview.Application
+	list   *widgets.SectionedList
+	page   *widgets.ListDetailPage
+	shell  ShellAccess
+	cfg    TeamDetailViewConfig
+	loads  loadSlot // the reads of the team config: only the latest is applied
+	syncs  loadSlot // the tracker sync: only the latest one is shown
+	checks loadSlot // the connection test: only the latest one is shown
 
 	teamCfg    *teamstate.TeamConfig
 	member     teamstate.Member // the profile of the current member, as read or last saved
@@ -131,13 +138,12 @@ func (v *TeamDetailView) Title() string          { return i18n.T("tui.team.detai
 func (v *TeamDetailView) StatusHints() string {
 	if v.solo() {
 		return keys.Hints(keys.Navigate.Hint(), keys.Open.HintAs(i18n.T("tui.hints.edit")),
-			"w "+i18n.T("tui.hints.save"), "u "+i18n.T("tui.hints.undo"))
+			cfgSaveKey.Hint(), cfgUndoKey.Hint())
 	}
-	return keys.Hints(keys.Navigate.Hint(), keys.SpaceName()+" "+i18n.T("tui.hints.toggle"),
-		keys.Open.HintAs(i18n.T("tui.hints.edit")), "w "+i18n.T("tui.hints.save"),
-		"s "+i18n.T("tui.hints.sync"), "t "+i18n.T("tui.hints.test"), "u "+i18n.T("tui.hints.undo"),
-		keys.Refresh.Hint(), discoverKey.Hint(),
-		"K "+i18n.T("tui.team.llm_key.hint"))
+	return keys.Hints(keys.Navigate.Hint(), toggleHint(),
+		keys.Open.HintAs(i18n.T("tui.hints.edit")), cfgSaveKey.Hint(),
+		cfgSyncKey.Hint(), cfgTestKey.Hint(), cfgUndoKey.Hint(),
+		keys.Refresh.Hint(), discoverKey.Hint(), teamLLMKey.Hint())
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -162,37 +168,31 @@ func (v *TeamDetailView) Mount(content *tview.Flex, app *tview.Application) {
 		showFieldItemDetail(v.page, v.fields, item, v.extraKeys()...)
 	})
 
-	// Async pull team-state then load
-	tc := v.cfg.ResolveTeam()
-	if tc.hasState() {
-		repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
-		syncAsync(v.app, repo, v.shell, func(_ error) {
-			v.loadData()
-			v.buildFields()
-			v.renderFields()
-		})
-	} else {
-		v.loadData()
+	// Pull the team-state, read it off the event loop, then show the fields.
+	v.page.Mount(content)
+	v.page.SetDetail(stateText(stateLoading, ""))
+	v.open(func() {
 		v.buildFields()
 		v.renderFields()
-	}
-
-	v.page.Mount(content)
+	})
 }
 
 // extraKeys are the page keys listed in the detail pane.
 func (v *TeamDetailView) extraKeys() []string {
-	pairs := []string{"w", i18n.T("tui.hints.save"), "u", i18n.T("tui.hints.undo")}
+	pairs := []string{cfgSaveKey.Keys(), cfgSaveKey.Label(), cfgUndoKey.Keys(), cfgUndoKey.Label()}
 	if v.solo() {
 		return pairs
 	}
 	return append(pairs,
-		"s", i18n.T("tui.hints.sync"), "t", i18n.T("tui.hints.test"),
+		cfgSyncKey.Keys(), cfgSyncKey.Label(), cfgTestKey.Keys(), cfgTestKey.Label(),
 		discoverKey.Keys(), discoverKey.Label(),
-		"K", i18n.T("tui.team.llm_key.hint"), keys.Refresh.Keys(), keys.Refresh.Label())
+		teamLLMKey.Keys(), teamLLMKey.Label(), keys.Refresh.Keys(), keys.Refresh.Label())
 }
 
 func (v *TeamDetailView) Unmount() {
+	v.loads.Invalidate() // drop the loads in flight
+	v.syncs.Invalidate()
+	v.checks.Invalidate()
 	if (v.dirtyTeam || v.dirtyLocal) && v.shell != nil {
 		v.shell.ShowToastMsg(i18n.T("tui.team.detail.unsaved"), false)
 	}
@@ -209,41 +209,36 @@ func (v *TeamDetailView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	if v.list == nil {
 		return event
 	}
-	if keys.Open.Matches(event) || keys.Edit.Matches(event) {
+	switch {
+	case keys.Open.Matches(event), keys.Edit.Matches(event):
 		v.editSelected()
 		return nil
-	}
-	if keys.Refresh.Matches(event) {
+	case keys.Refresh.Matches(event):
 		confirmDiscard(v.shell, v.dirtyTeam || v.dirtyLocal, v.reload)
 		return nil
-	}
-	if event.Key() != tcell.KeyRune {
-		return event
-	}
-	switch event.Rune() {
-	case ' ':
+	case cfgToggleKey.Matches(event):
 		v.toggleSelected()
 		return nil
-	case 'w':
+	case cfgSaveKey.Matches(event):
 		v.save()
 		return nil
-	case 's':
+	case cfgSyncKey.Matches(event):
 		if !v.solo() {
 			v.syncTracker()
 		}
 		return nil
-	case 't':
+	case cfgTestKey.Matches(event):
 		if !v.solo() {
 			v.testConnection()
 		}
 		return nil
-	case 'u':
+	case cfgUndoKey.Matches(event):
 		v.undo()
 		return nil
-	case 'K':
+	case teamLLMKey.Matches(event):
 		v.setTeamProviderKey()
 		return nil
-	case discoverKey.Rune():
+	case discoverKey.Matches(event):
 		if v.cfg.OnDiscoverTracker != nil && !v.solo() {
 			v.cfg.OnDiscoverTracker()
 		}
@@ -259,9 +254,7 @@ func (v *TeamDetailView) reload() {
 	if !tc.Enabled {
 		return
 	}
-	repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
-	syncAsync(v.app, repo, v.shell, func(_ error) {
-		v.loadData()
+	v.open(func() {
 		v.buildFields()
 		v.renderFields()
 		v.dirtyTeam = false
@@ -273,26 +266,53 @@ func (v *TeamDetailView) reload() {
 // Data loading
 // ─────────────────────────────────────────────────────────────────────────────
 
-func (v *TeamDetailView) loadData() {
-	v.localMCP = v.cfg.GetMCPConfig()
-	v.localTrk = v.cfg.GetTrackerLocalConfig()
-	v.baseMCP, v.baseTrk = v.localMCP, v.localTrk
+// teamDetailRead is what the view reads of the team-state, off the event loop.
+type teamDetailRead struct {
+	teamCfg *teamstate.TeamConfig
+	member  *teamstate.Member
+}
 
+// open reads what the view shows: the personal settings (taken on the event
+// loop, which owns the config), the team config and the profile of the member
+// (pulled and read off the loop). then runs on the loop once they are in; the
+// latest request wins, Unmount drops the one in flight.
+func (v *TeamDetailView) open(then func()) {
+	localMCP, localTrk := v.cfg.GetMCPConfig(), v.cfg.GetTrackerLocalConfig()
 	tc := v.cfg.ResolveTeam()
-	if tc.hasState() {
-		repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
-		if repo.IsCloned() {
-			teamCfg, err := repo.LoadConfig()
-			if err == nil {
-				v.teamCfg = teamCfg
-			}
+	fetch := func(context.Context) (teamDetailRead, error) {
+		var r teamDetailRead
+		r.teamCfg = readTeamConfig(tc)
+		if v.cfg.GetMember != nil {
+			r.member = v.cfg.GetMember(tc.TeamID)
 		}
+		return r, nil
+	}
+	apply := func(r teamDetailRead, _ error) {
+		v.localMCP, v.localTrk = localMCP, localTrk
+		v.baseMCP, v.baseTrk = localMCP, localTrk
+		v.setData(r)
+		then()
+	}
+	if tc.hasState() {
+		syncLoad(v.app, shellContext(v.shell), &v.loads, teamstate.NewRepo(tc.StateRepo, tc.StatePath), v.shell, fetch, apply)
+		return
+	}
+	load(v.app, shellContext(v.shell), &v.loads, fetch, apply)
+}
+
+// loadData reads the data in place, on the calling goroutine (tests only: the
+// view reads it with open).
+func (v *TeamDetailView) loadData() { v.open(func() {}) }
+
+// setData takes what was read: the team config (nil: it has none, the one
+// already shown stays) and the profile of the member.
+func (v *TeamDetailView) setData(r teamDetailRead) {
+	if r.teamCfg != nil {
+		v.teamCfg = r.teamCfg
 	}
 	v.member = teamstate.Member{}
-	if v.cfg.GetMember != nil {
-		if m := v.cfg.GetMember(); m != nil {
-			v.member = *m
-		}
+	if r.member != nil {
+		v.member = *r.member
 	}
 	// Ensure non-nil teamCfg for editing
 	if v.teamCfg == nil {
@@ -737,56 +757,50 @@ func (v *TeamDetailView) syncTracker() {
 
 	v.shell.ShowToastMsg(i18n.T("tui.team.sync.in_progress"), true)
 
-	app := v.app // capture stable reference before goroutine
-	go func() {
-		ctx := v.shell.Context()
-		select {
-		case <-ctx.Done():
+	load(v.app, v.shell.Context(), &v.syncs, v.cfg.SyncTracker, func(result *SyncTrackerResult, err error) {
+		if v.shell == nil {
 			return
-		default:
 		}
-		result, err := v.cfg.SyncTracker(ctx)
-
-		select {
-		case <-ctx.Done():
-			return
-		default:
-		}
-		app.QueueUpdateDraw(func() {
-			if v.shell == nil {
-				return
-			}
-			if err != nil {
-				var credErr *TrackerCredentialsError
-				if errors.As(err, &credErr) {
-					body := i18n.T("tui.team.detail.token_missing_body")
-					if credErr.Err != nil {
-						// the server, the sources read and how to declare the key
-						body = credErr.Err.Error() + "\n\n" + body
-					}
-					v.shell.ShowScrollableModal(i18n.T("tui.team.detail.token_missing_title"), body,
-						[]ModalAction{
-							{Label: i18n.T("tui.team.detail.token_configure"), Callback: func() {
-								v.promptTokenSetup()
-							}},
-							{Label: i18n.T("tui.team.detail.later"), Callback: func() {}},
-						})
-				} else {
-					v.shell.ShowToastMsg(i18n.Tf("tui.team.detail.sync_failed", err.Error()), false)
+		if err != nil {
+			var credErr *TrackerCredentialsError
+			if errors.As(err, &credErr) {
+				body := i18n.T("tui.team.detail.token_missing_body")
+				if credErr.Err != nil {
+					// the server, the sources read and how to declare the key
+					body = credErr.Err.Error() + "\n\n" + body
 				}
-				return
+				v.shell.ShowScrollableModal(i18n.T("tui.team.detail.token_missing_title"), body,
+					[]ModalAction{
+						{Label: i18n.T("tui.team.detail.token_configure"), Callback: func() {
+							v.promptTokenSetup()
+						}},
+						{Label: i18n.T("tui.team.detail.later"), Callback: func() {}},
+					})
+			} else {
+				v.shell.ShowToastMsg(i18n.Tf("tui.team.detail.sync_failed", err.Error()), false)
 			}
-			content := formatSyncTrackerResultView(result)
-			v.shell.ShowScrollableModal(i18n.T("tui.team.sync.result_title"), content, []ModalAction{
-				{Label: i18n.T("tui.team.detail.ok"), Callback: func() {
-					v.loadData()
+			return
+		}
+		content := formatSyncTrackerResultView(result)
+		v.shell.ShowScrollableModal(i18n.T("tui.team.sync.result_title"), content, []ModalAction{
+			{Label: i18n.T("tui.team.detail.ok"), Callback: func() {
+				v.open(func() {
 					v.buildFields()
 					v.renderFields()
-				}},
-			})
+				})
+			}},
 		})
-	}()
+	})
 }
+
+// connError says at which step the test of the connection failed.
+type connError struct {
+	key string // i18n key of the message
+	err error
+}
+
+func (e *connError) Error() string { return e.err.Error() }
+func (e *connError) Unwrap() error { return e.err }
 
 func (v *TeamDetailView) testConnection() {
 	if v.shell == nil || v.app == nil {
@@ -799,75 +813,58 @@ func (v *TeamDetailView) testConnection() {
 
 	v.shell.ShowToastMsg(i18n.T("tui.team.detail.testing"), true)
 
-	app := v.app // capture stable reference before goroutine
-	go func() {
-		ctx := v.shell.Context()
-		select {
-		case <-ctx.Done():
-			return
-		default:
+	// What the test needs of the view is taken here, on the event loop: the
+	// effective tracker config and the sources of the credentials.
+	effTracker := tracker.ResolveTrackerConfig(&v.teamCfg.Tracker, v.cfg.GetTrackerLocalConfig())
+	src := tracker.NewCredentialSource(effTracker, v.cfg.GetSecrets())
+	// Same GitLab token cascade as the sync: the team and the MCP key count,
+	// each for its own server.
+	teamID := ""
+	if v.cfg.ResolveTeam != nil {
+		tc := v.cfg.ResolveTeam()
+		teamID = tc.TeamID
+		src.TeamID = tc.TeamID
+		src.TeamServer = tracker.ServerOf(firstNonEmpty(tc.GitLabURL, tc.StateRepo))
+	}
+	if hub := v.cfg.GetHubConfig(); hub != nil {
+		src.MCPTokenKey = hub.MCP.Gitlab.Token
+		var shared *teamstate.SharedMCPConfig
+		if s, ok := v.teamCfg.MCP["gitlab"]; ok {
+			shared = &s
 		}
-		// Resolve effective tracker config and build credential source
-		effTracker := tracker.ResolveTrackerConfig(&v.teamCfg.Tracker, v.cfg.GetTrackerLocalConfig())
-		src := tracker.NewCredentialSource(effTracker, v.cfg.GetSecrets())
-		// Same GitLab token cascade as the sync: the team and the MCP key count,
-		// each for its own server.
-		teamID := ""
-		if v.cfg.ResolveTeam != nil {
-			tc := v.cfg.ResolveTeam()
-			teamID = tc.TeamID
-			src.TeamID = tc.TeamID
-			src.TeamServer = tracker.ServerOf(firstNonEmpty(tc.GitLabURL, tc.StateRepo))
-		}
-		if hub := v.cfg.GetHubConfig(); hub != nil {
-			src.MCPTokenKey = hub.MCP.Gitlab.Token
-			var shared *teamstate.SharedMCPConfig
-			if s, ok := v.teamCfg.MCP["gitlab"]; ok {
-				shared = &s
-			}
-			src.MCPServer, src.MCPImplicit = tracker.MCPServerOf(tracker.MCPGitLabURL(hub.MCP.Gitlab, shared, nil, teamID))
-		}
+		src.MCPServer, src.MCPImplicit = tracker.MCPServerOf(tracker.MCPGitLabURL(hub.MCP.Gitlab, shared, nil, teamID))
+	}
+	trackerType := tracker.Type(v.teamCfg.Tracker.Type)
 
-		trackerType := tracker.Type(v.teamCfg.Tracker.Type)
+	load(v.app, v.shell.Context(), &v.checks, func(ctx context.Context) (string, error) {
 		cfg, err := tracker.ResolveCredentials(ctx, src, trackerType)
 		if err != nil {
-			app.QueueUpdateDraw(func() {
-				if v.shell == nil {
-					return
-				}
-				v.shell.ShowToastMsg(i18n.Tf("tui.team.detail.credentials_unavailable", err.Error()), false)
-			})
-			return
+			return "", &connError{"tui.team.detail.credentials_unavailable", err}
 		}
-
 		t, err := tracker.New(cfg)
 		if err != nil {
-			app.QueueUpdateDraw(func() {
-				if v.shell == nil {
-					return
-				}
-				v.shell.ShowToastMsg(i18n.Tf("tui.team.detail.init_failed", err.Error()), false)
-			})
-			return
-		}
-
-		select {
-		case <-ctx.Done():
-			return
-		default:
+			return "", &connError{"tui.team.detail.init_failed", err}
 		}
 		username, err := t.TestConnection(ctx)
-		app.QueueUpdateDraw(func() {
-			if v.shell == nil {
-				return
+		if err != nil {
+			return "", &connError{"tui.team.detail.connection_failed", err}
+		}
+		return username, nil
+	}, func(username string, err error) {
+		if v.shell == nil {
+			return
+		}
+		if err != nil {
+			key := "tui.team.detail.connection_failed"
+			var ce *connError
+			if errors.As(err, &ce) {
+				key = ce.key
 			}
-			if err != nil {
-				v.shell.ShowToastMsg(i18n.Tf("tui.team.detail.connection_failed", err.Error()), false)
-			} else {
-				v.shell.ShowToastMsg(i18n.Tf("tui.team.detail.connected_as", username), true)
-			}
-		})
-	}()
+			v.shell.ShowToastMsg(i18n.Tf(key, err.Error()), false)
+			return
+		}
+		v.shell.ShowToastMsg(i18n.Tf("tui.team.detail.connected_as", username), true)
+	})
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -921,13 +918,13 @@ func formatSyncTrackerResultView(r *SyncTrackerResult) string {
 	if len(r.Warnings) > 0 {
 		sb.WriteString("\n" + i18n.T("tui.team.sync.warnings_header") + "\n")
 		for _, w := range r.Warnings {
-			fmt.Fprintf(&sb, "  ⚠ %s\n", w)
+			fmt.Fprintf(&sb, "  %s %s\n", theme.SymWarning, w)
 		}
 	}
 	if len(r.Errors) > 0 {
 		sb.WriteString("\n" + i18n.T("tui.team.sync.errors_header") + "\n")
 		for _, e := range r.Errors {
-			fmt.Fprintf(&sb, "  ✗ %s\n", e)
+			fmt.Fprintf(&sb, "  %s %s\n", theme.SymFailure, e)
 		}
 	}
 	return sb.String()

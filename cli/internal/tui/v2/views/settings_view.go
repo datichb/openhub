@@ -15,6 +15,8 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/provider"
 	"github.com/datichb/openhub/cli/internal/tracker"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
@@ -108,14 +110,8 @@ func (v *SettingsView) SetShell(s ShellAccess) { v.shell = s }
 func (v *SettingsView) ID() string    { return "settings" }
 func (v *SettingsView) Title() string { return i18n.T("tui.settings.title") }
 func (v *SettingsView) StatusHints() string {
-	return fmt.Sprintf("j/k %s · {/} %s · Space %s · Enter %s · u %s · r %s",
-		i18n.T("tui.hints.nav"),
-		i18n.T("tui.hints.navigate"),
-		i18n.T("tui.hints.toggle"),
-		i18n.T("tui.hints.edit"),
-		i18n.T("tui.hints.undo"),
-		i18n.T("tui.hints.refresh"),
-	)
+	return keys.Hints(keys.Navigate.HintAs(i18n.T("tui.hints.nav")), "{/} "+i18n.T("tui.hints.navigate"),
+		toggleHint(), keys.Open.HintAs(i18n.T("tui.hints.edit")), cfgUndoKey.Hint(), keys.Refresh.Hint())
 }
 
 // Mount builds and displays the view.
@@ -245,32 +241,26 @@ func (v *SettingsView) Unmount() {
 
 // settingsExtraKeys are the page keys listed in the detail pane.
 func settingsExtraKeys() []string {
-	return []string{"u", i18n.T("tui.hints.undo"), "r", i18n.T("tui.hints.refresh")}
+	return []string{cfgUndoKey.Keys(), cfgUndoKey.Label(), keys.Refresh.Keys(), keys.Refresh.Label()}
 }
 
 func (v *SettingsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	if v.list == nil {
 		return event
 	}
-	if event.Key() == tcell.KeyEnter {
+	switch {
+	case keys.Open.Matches(event), keys.Edit.Matches(event):
 		if idx, item, ok := v.list.CurrentItem(); ok {
 			v.onItemSelected(idx, item)
 		}
 		return nil
-	}
-	switch event.Rune() {
-	case 'e':
-		if idx, item, ok := v.list.CurrentItem(); ok {
-			v.onItemSelected(idx, item)
-		}
-		return nil
-	case ' ':
+	case cfgToggleKey.Matches(event):
 		v.onToggleSelected()
 		return nil
-	case 'u':
+	case cfgUndoKey.Matches(event):
 		v.undo()
 		return nil
-	case 'r':
+	case keys.Refresh.Matches(event):
 		v.refresh()
 		return nil
 	}
@@ -785,7 +775,7 @@ func (v *SettingsView) doSave() {
 	errs := validateAllFields(v.fields)
 	if len(errs) > 0 {
 		if v.shell != nil {
-			v.shell.ShowToastMsg(fmt.Sprintf("⚠ %d %s", len(errs), i18n.T("tui.settings.validation_errors")), false)
+			v.shell.ShowToastMsg(fmt.Sprintf("%s %d %s", theme.SymWarning, len(errs), i18n.T("tui.settings.validation_errors")), false)
 		}
 		return
 	}

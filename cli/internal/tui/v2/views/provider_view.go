@@ -56,15 +56,14 @@ type ProviderView struct {
 	list     *widgets.SectionedList
 	page     *widgets.ListDetailPage
 	commands []ContextCommand
-	mountGen uint64
+	loads    loadSlot // the detections and secrets read: only the latest is applied
 
 	lines            []providerConfigLine
 	selectedProvider string // currently selected provider for detail section
 	rendering        bool   // true while renderList is executing — suppresses handleChanged cascades
 
-	// Caches populated off the event loop (goroutine) then consumed on the
-	// event loop (QueueUpdateDraw). This avoids blocking exec.Command, keychain
-	// I/O, etc. from freezing the TUI.
+	// Caches read off the event loop (load) then consumed on it. This avoids
+	// blocking exec.Command, keychain I/O, etc. from freezing the TUI.
 	detectionCache map[string]provider.DetectionResult
 	secretCache    map[string]secretCacheEntry
 }
@@ -77,6 +76,20 @@ type secretCacheEntry struct {
 
 var _ View = (*ProviderView)(nil)
 var _ CommandProvider = (*ProviderView)(nil)
+
+// The keys of the view that are its own: Space makes the provider the
+// default one, s runs the setup wizard.
+var (
+	providerDefaultKey = keys.Own("provider.default", ' ', "tui.provider.hint_default")
+	providerSetupKey   = keys.Own("provider.setup", 's', "tui.hints.setup")
+)
+
+// providerRead is what the view reads off the event loop: the providers that
+// are available on the machine and the secrets of the keychain.
+type providerRead struct {
+	detections map[string]provider.DetectionResult
+	secrets    map[string]secretCacheEntry
+}
 
 // NewProviderView creates a new provider configuration view.
 func NewProviderView(a *app.App, vcfg ProviderViewConfig) *ProviderView {
@@ -97,67 +110,60 @@ func (v *ProviderView) StatusHints() string {
 	return keys.Hints(keys.Navigate.Hint(), "{/} "+i18n.T("tui.hints.sections"),
 		keys.SpaceName()+" "+i18n.T("tui.provider.hint_default"),
 		keys.Open.HintAs(i18n.T("tui.hints.edit")), keys.Edit.Hint(),
-		"s "+i18n.T("tui.hints.setup"), keys.Delete.HintAs(i18n.T("tui.provider.hint_delete")),
+		providerSetupKey.Hint(), keys.Delete.HintAs(i18n.T("tui.provider.hint_delete")),
 		keys.Refresh.Hint())
 }
 
 // Mount builds the provider configuration interface.
 func (v *ProviderView) Mount(content *tview.Flex, tvApp *tview.Application) {
 	v.app = tvApp
-	v.mountGen++
-	gen := v.mountGen
 
 	// Show loading placeholder immediately
-	loading := tview.NewTextView().
-		SetDynamicColors(true).
-		SetTextAlign(tview.AlignLeft)
-	loading.SetBackgroundColor(theme.BgPanel)
-	muted := theme.ColorTag(theme.TextMutedHex)
-	loading.SetText(fmt.Sprintf("\n  %s%s%s", muted, i18n.T("tui.provider.loading"), theme.TagColor))
+	loading := stateView(stateLoading, i18n.T("tui.provider.loading"))
 	content.AddItem(loading, 0, 1, true)
 
-	// Build asynchronously — all I/O (exec.Command for gh auth, keychain
-	// lookups) runs in the goroutine BEFORE QueueUpdateDraw. Only pure UI
-	// work runs on the tview event loop inside the callback.
-	go func() {
-		// Phase 1: I/O off the event loop
-		detections := v.prefetchDetections()
-		secrets := v.prefetchSecrets()
+	// All I/O (exec.Command for gh auth, keychain lookups) runs off the event
+	// loop; only the UI work runs on it.
+	load(tvApp, shellContext(v.shell), &v.loads, v.read, func(r providerRead, err error) {
+		if v.app == nil {
+			return
+		}
+		if err != nil {
+			setState(loading, stateError, err.Error())
+			return
+		}
+		v.detectionCache, v.secretCache = r.detections, r.secrets
 
-		// Phase 2: UI work on the event loop
-		tvApp.QueueUpdateDraw(func() {
-			if v.app == nil || v.mountGen != gen {
-				return
-			}
+		v.list = widgets.NewSectionedList()
+		v.list.SetApp(tvApp)
+		v.page = newListPage(v.Title(), v.list)
 
-			v.detectionCache = detections
-			v.secretCache = secrets
+		v.buildLines()
+		v.renderList()
 
-			v.list = widgets.NewSectionedList()
-			v.list.SetApp(tvApp)
-			v.page = newListPage(v.Title(), v.list)
-
-			v.buildLines()
-			v.renderList()
-
-			v.list.SetItemSelectedFunc(func(index int, item widgets.SectionItem) {
-				v.handleSelect(index, item)
-			})
-			v.list.SetItemChangedFunc(func(index int, item widgets.SectionItem) {
-				v.handleChanged(index, item)
-			})
-
-			v.buildCommands()
-			v.showCurrentDetail()
-			v.page.Mount(content)
-			tvApp.SetFocus(v.list)
+		v.list.SetItemSelectedFunc(func(index int, item widgets.SectionItem) {
+			v.handleSelect(index, item)
 		})
-	}()
+		v.list.SetItemChangedFunc(func(index int, item widgets.SectionItem) {
+			v.handleChanged(index, item)
+		})
+
+		v.buildCommands()
+		v.showCurrentDetail()
+		v.page.Mount(content)
+		tvApp.SetFocus(v.list)
+	})
+}
+
+// read asks the machine which providers it has and the keychain which
+// secrets are stored: it runs off the event loop.
+func (v *ProviderView) read(context.Context) (providerRead, error) {
+	return providerRead{detections: v.prefetchDetections(), secrets: v.prefetchSecrets()}, nil
 }
 
 // Unmount cleans up resources.
 func (v *ProviderView) Unmount() {
-	v.mountGen++ // invalidate in-flight async goroutine
+	v.loads.Invalidate() // drop the load in flight
 	v.app = nil
 	v.list = nil
 	v.page = nil
@@ -169,13 +175,13 @@ func (v *ProviderView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		return event
 	}
 	switch {
-	case event.Key() == tcell.KeyRune && event.Rune() == ' ':
+	case providerDefaultKey.Matches(event):
 		v.setAsDefault()
 		return nil
-	case keys.Edit.Matches(event):
+	case keys.Open.Matches(event), keys.Edit.Matches(event):
 		v.editCurrent()
 		return nil
-	case event.Key() == tcell.KeyRune && event.Rune() == 's':
+	case providerSetupKey.Matches(event):
 		v.setupProvider()
 		return nil
 	case keys.Delete.Matches(event):
@@ -183,10 +189,6 @@ func (v *ProviderView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		return nil
 	case keys.Refresh.Matches(event):
 		v.refresh()
-		return nil
-	}
-	if event.Key() == tcell.KeyEnter {
-		v.editCurrent()
 		return nil
 	}
 	return event
@@ -297,15 +299,15 @@ func (v *ProviderView) buildLines() {
 		providerConfigLine{kind: "section-header", key: i18n.T("tui.provider.section_actions")},
 		providerConfigLine{
 			key: i18n.T("tui.provider.action_detect"), kind: "action",
-			get: func(_ *config.Config) string { return "(r)" },
+			get: func(_ *config.Config) string { return "(" + keys.Refresh.Keys() + ")" },
 		},
 		providerConfigLine{
 			key: i18n.T("tui.provider.action_reset"), kind: "action",
-			get: func(_ *config.Config) string { return "(d)" },
+			get: func(_ *config.Config) string { return "(" + keys.Delete.Keys() + ")" },
 		},
 		providerConfigLine{
 			key: i18n.T("tui.provider.action_wizard"), kind: "action",
-			get: func(_ *config.Config) string { return "(s)" },
+			get: func(_ *config.Config) string { return "(" + providerSetupKey.Keys() + ")" },
 		},
 	)
 
@@ -366,7 +368,7 @@ func (v *ProviderView) cachedSecretDisplay(key string) string {
 			if entry.present {
 				return theme.SymSuccess + " " + entry.masked
 			}
-			return "✗ " + i18n.T("tui.provider.not_configured")
+			return theme.SymFailure + " " + i18n.T("tui.provider.not_configured")
 		}
 	}
 	// Fallback: live keychain check (may block on macOS keychain dialog)
@@ -375,7 +377,7 @@ func (v *ProviderView) cachedSecretDisplay(key string) string {
 	if present {
 		return theme.SymSuccess + " " + masked
 	}
-	return "✗ " + i18n.T("tui.provider.not_configured")
+	return theme.SymFailure + " " + i18n.T("tui.provider.not_configured")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -413,13 +415,13 @@ func (v *ProviderView) renderList() {
 			result := v.cachedDetection(name)
 			var statusStr string
 			if result.Available {
-				statusStr = fmt.Sprintf("%s%s%s %s", theme.ColorTag(theme.SuccessHex), theme.SymSuccess, theme.TagColor, result.Source)
+				statusStr = theme.Paint(theme.SuccessHex, theme.SymSuccess) + " " + result.Source
 			} else {
-				statusStr = fmt.Sprintf("%s✗%s %s", theme.ColorTag(theme.ErrorHex), theme.TagColor, i18n.T("tui.provider.not_detected"))
+				statusStr = theme.Paint(theme.ErrorHex, theme.SymFailure) + " " + i18n.T("tui.provider.not_detected")
 			}
 			defaultMarker := ""
 			if name == defaultProv {
-				defaultMarker = fmt.Sprintf("  %s★ %s%s", theme.ColorTag(theme.ActiveMode.PrimaryHex), i18n.T("tui.provider.default"), theme.TagColor)
+				defaultMarker = "  " + theme.Paint(theme.ActiveMode.PrimaryHex, theme.SymDefault+" "+i18n.T("tui.provider.default"))
 			}
 			items = append(items, widgets.SectionItem{
 				MainText:      fmt.Sprintf("%-18s %s%s", name, statusStr, defaultMarker),
@@ -433,7 +435,7 @@ func (v *ProviderView) renderList() {
 				val = line.get(cfg)
 			}
 			if val == "" {
-				val = fmt.Sprintf("%s(%s)%s", theme.ColorTag(theme.TextMutedHex), i18n.T("tui.provider.empty"), theme.TagColor)
+				val = muted("(" + i18n.T("tui.provider.empty") + ")")
 			}
 			items = append(items, widgets.SectionItem{
 				MainText:      fmt.Sprintf("%-18s %s", line.key, val),
@@ -458,7 +460,7 @@ func (v *ProviderView) renderList() {
 				val = line.get(cfg)
 			}
 			items = append(items, widgets.SectionItem{
-				MainText:      fmt.Sprintf("%s%s%s", theme.ColorTag(theme.TextMutedHex), val, theme.TagColor),
+				MainText:      muted(val),
 				SecondaryText: "",
 				Reference:     i,
 			})
@@ -469,7 +471,7 @@ func (v *ProviderView) renderList() {
 				val = line.get(cfg)
 			}
 			items = append(items, widgets.SectionItem{
-				MainText:      fmt.Sprintf("→ %s  %s%s%s", line.key, theme.ColorTag(theme.TextMutedHex), val, theme.TagColor),
+				MainText:      "→ " + line.key + "  " + muted(val),
 				SecondaryText: "",
 				Reference:     i,
 			})
@@ -500,7 +502,7 @@ func (v *ProviderView) showCurrentDetail() {
 	if line.get != nil {
 		val = line.get(cfg)
 	}
-	pageKeys := []string{"s", i18n.T("tui.hints.setup"), keys.Delete.Keys(), i18n.T("tui.provider.hint_delete"), keys.Refresh.Keys(), keys.Refresh.Label()}
+	pageKeys := []string{providerSetupKey.Keys(), providerSetupKey.Label(), keys.Delete.Keys(), i18n.T("tui.provider.hint_delete"), keys.Refresh.Keys(), keys.Refresh.Label()}
 	var d detailText
 	switch line.kind {
 	case "provider-item":
@@ -509,29 +511,29 @@ func (v *ProviderView) showCurrentDetail() {
 		d.para(provider.Description(provider.Name(name)))
 		res := v.cachedDetection(name)
 		if res.Available {
-			d.field(i18n.T("tui.detail.provider.detected"), theme.ColorTag(theme.SuccessHex)+theme.SymSuccess+" "+tview.Escape(res.Source)+theme.TagReset)
+			d.field(i18n.T("tui.detail.provider.detected"), theme.Paint(theme.SuccessHex, theme.SymSuccess+" "+tview.Escape(res.Source)))
 		} else {
-			d.field(i18n.T("tui.detail.provider.detected"), theme.ColorTag(theme.ErrorHex)+"✗ "+i18n.T("tui.provider.not_detected")+theme.TagReset)
+			d.field(i18n.T("tui.detail.provider.detected"), theme.Paint(theme.ErrorHex, theme.SymFailure+" "+i18n.T("tui.provider.not_detected")))
 		}
 		if res.Details != "" {
-			fmt.Fprintf(&d.b, "  %s%s%s\n", theme.ColorTag(theme.TextMutedHex), tview.Escape(res.Details), theme.TagReset)
+			d.b.WriteString("  " + muted(tview.Escape(res.Details)) + "\n")
 		}
 		if name == cfg.LLM.DefaultProvider {
-			d.field(i18n.T("tui.detail.status"), theme.ColorTag(theme.ActiveMode.PrimaryHex)+"★ "+i18n.T("tui.detail.provider.default_yes")+theme.TagReset)
+			d.field(i18n.T("tui.detail.status"), theme.Paint(theme.ActiveMode.PrimaryHex, theme.SymDefault+" "+i18n.T("tui.detail.provider.default_yes")))
 		}
-		d.keys(append([]string{"Space", i18n.T("tui.detail.provider.set_default"), "Enter", i18n.T("tui.hints.detail")}, pageKeys...)...)
+		d.keys(append([]string{keys.SpaceName(), i18n.T("tui.detail.provider.set_default"), keys.Open.Keys(), i18n.T("tui.hints.detail")}, pageKeys...)...)
 	case "info":
 		d.title(line.provider)
 		d.para(val)
 		d.keys(pageKeys...)
 	case "action":
 		d.title(line.key)
-		d.keys(append([]string{"Enter", i18n.T("tui.hints.open")}, pageKeys...)...)
+		d.keys(append([]string{keys.Open.Keys(), i18n.T("tui.hints.open")}, pageKeys...)...)
 	default:
 		d.title(line.key)
 		d.field("Provider :", line.provider)
 		if val == "" {
-			val = theme.ColorTag(theme.TextMutedHex) + i18n.T("tui.config.not_configured") + theme.TagReset
+			val = muted(i18n.T("tui.config.not_configured"))
 		} else if line.kind != "password" {
 			val = tview.Escape(val)
 		}
@@ -550,12 +552,12 @@ func (v *ProviderView) showCurrentDetail() {
 			for _, o := range line.options {
 				mark := "  "
 				if o.Value == cur {
-					mark = theme.ColorTag(theme.ActiveMode.PrimaryHex) + "● " + theme.TagReset
+					mark = theme.Paint(theme.ActiveMode.PrimaryHex, theme.SymSelected) + " "
 				}
-				fmt.Fprintf(&d.b, "  %s%s\n", mark, tview.Escape(o.Label))
+				d.b.WriteString("  " + mark + tview.Escape(o.Label) + "\n")
 			}
 		}
-		d.keys(append([]string{"Enter", i18n.T("tui.hints.edit")}, pageKeys...)...)
+		d.keys(append([]string{keys.Open.Keys(), i18n.T("tui.hints.edit")}, pageKeys...)...)
 	}
 	v.page.SetDetail(d.String())
 }
@@ -756,25 +758,30 @@ func (v *ProviderView) resetCurrentProvider() {
 		})
 }
 
+// refresh detects the providers and reads the secrets again, off the event
+// loop, as Mount does. The latest request wins; Unmount drops the one in
+// flight.
 func (v *ProviderView) refresh() {
 	if v.app == nil {
 		return
 	}
-	// Run I/O off the event loop, same pattern as Mount.
-	go func() {
-		detections := v.prefetchDetections()
-		secrets := v.prefetchSecrets()
-
-		v.app.QueueUpdateDraw(func() {
-			v.detectionCache = detections
-			v.secretCache = secrets
-			v.buildLines()
-			v.renderList()
+	load(v.app, shellContext(v.shell), &v.loads, v.read, func(r providerRead, err error) {
+		if v.list == nil {
+			return
+		}
+		if err != nil {
 			if v.shell != nil {
-				v.shell.ShowToastMsg(i18n.T("tui.provider.refreshed"), true)
+				v.shell.ShowToastMsg(errorText(err), false)
 			}
-		})
-	}()
+			return
+		}
+		v.detectionCache, v.secretCache = r.detections, r.secrets
+		v.buildLines()
+		v.renderList()
+		if v.shell != nil {
+			v.shell.ShowToastMsg(i18n.T("tui.provider.refreshed"), true)
+		}
+	})
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

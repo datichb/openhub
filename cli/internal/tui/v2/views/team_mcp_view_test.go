@@ -223,7 +223,11 @@ func TestTeamMCPViewOffersNoURLForFigmaAndGoogleSlides(t *testing.T) {
 func TestTeamMCPViewSaveKeepsARecordedFigmaURL(t *testing.T) {
 	frLocale(t)
 	shared := seedHome(t)
-	require.NoError(t, config.Update(func(c *config.Config) error { c.MCP.Figma.URL = "https://recorded.example"; c.MCP.Gslides.URL = "https://slides.recorded.example"; return nil }))
+	require.NoError(t, config.Update(func(c *config.Config) error {
+		c.MCP.Figma.URL = "https://recorded.example"
+		c.MCP.Gslides.URL = "https://slides.recorded.example"
+		return nil
+	}))
 	host := hubHost{shared}
 	v, _, _, app := mountTeamMCP(t, TeamMCPViewConfig{
 		GetMCPConfig:    func() config.MCPConfig { return shared.MCP },

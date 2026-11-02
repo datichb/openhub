@@ -1,11 +1,13 @@
 package views
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -34,4 +36,31 @@ func confirmDiscard(sh ShellAccess, dirty bool, reload func()) {
 		return
 	}
 	sh.Confirm(i18n.T("tui.config.discard_title"), i18n.T("tui.config.discard_detail"), true, reload)
+}
+
+// shellContext is the context of the shell, which ends with it (so that the
+// reads of a view stop with it); Background without a shell.
+func shellContext(sh ShellAccess) context.Context {
+	if sh != nil {
+		return sh.Context()
+	}
+	return context.Background()
+}
+
+// readTeamConfig reads the configuration of the team from the clone of its
+// team-state; nil when there is none or it cannot be read. It reads a file:
+// call it off the event loop.
+func readTeamConfig(tc TeamResolution) *teamstate.TeamConfig {
+	if !tc.hasState() {
+		return nil
+	}
+	repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
+	if !repo.IsCloned() {
+		return nil
+	}
+	cfg, err := repo.LoadConfig()
+	if err != nil {
+		return nil
+	}
+	return cfg
 }

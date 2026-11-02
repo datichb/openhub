@@ -2,7 +2,6 @@ package views
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"time"
 
@@ -15,7 +14,6 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/mcpresolve"
 	"github.com/datichb/openhub/cli/internal/teamstate"
-	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
@@ -59,13 +57,13 @@ type TeamMCPViewConfig struct {
 // TeamMCPView provides a standalone sub-page for editing team-level and local
 // MCP service configuration, extracted from TeamDetailView.
 type TeamMCPView struct {
-	app      *tview.Application
-	list     *widgets.SectionedList
-	page     *widgets.ListDetailPage
-	shell    ShellAccess
-	cfg      TeamMCPViewConfig
-	mountGen uint64
-	tests    loadSlot // connection tests: only the latest one is shown
+	app   *tview.Application
+	list  *widgets.SectionedList
+	page  *widgets.ListDetailPage
+	shell ShellAccess
+	cfg   TeamMCPViewConfig
+	loads loadSlot // the reads of the team config: only the latest is applied
+	tests loadSlot // connection tests: only the latest one is shown
 
 	teamCfg    *teamstate.TeamConfig
 	localMCP   config.MCPConfig
@@ -100,9 +98,9 @@ func (v *TeamMCPView) ID() string    { return "team.mcp" }
 func (v *TeamMCPView) Title() string { return i18n.T("tui.config.section.mcp_services") }
 func (v *TeamMCPView) StatusHints() string {
 	return keys.Hints(keys.Navigate.Hint(), "{/} "+i18n.T("tui.hints.sections"),
-		keys.SpaceName()+" "+i18n.T("tui.hints.toggle"),
-		keys.Open.HintAs(i18n.T("tui.hints.edit")), "w "+i18n.T("tui.hints.save"),
-		"u "+i18n.T("tui.hints.undo"), "t "+i18n.T("tui.hints.test"), keys.Refresh.Hint())
+		toggleHint(),
+		keys.Open.HintAs(i18n.T("tui.hints.edit")), cfgSaveKey.Hint(),
+		cfgUndoKey.Hint(), cfgTestKey.Hint(), keys.Refresh.Hint())
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -111,30 +109,16 @@ func (v *TeamMCPView) StatusHints() string {
 
 func (v *TeamMCPView) Mount(content *tview.Flex, app *tview.Application) {
 	v.app = app
-	v.mountGen++
-	gen := v.mountGen
 	v.dirtyTeam = false
 	v.dirtyLocal = false
 
 	// Show loading placeholder immediately
-	loading := tview.NewTextView().
-		SetDynamicColors(true).
-		SetTextAlign(tview.AlignLeft)
-	loading.SetBackgroundColor(theme.BgPanel)
-	muted := theme.ColorTag(theme.TextMutedHex)
-	loading.SetText(fmt.Sprintf("\n  %s%s%s", muted, i18n.T("tui.settings.loading"), theme.TagColor))
+	loading := stateView(stateLoading, i18n.T("tui.settings.loading"))
 	content.AddItem(loading, 0, 1, true)
 
-	// buildList creates the widget and swaps it in for the loading placeholder.
-	// MUST be called from inside a QueueUpdateDraw callback (or the tview event
-	// loop). Does NOT call QueueUpdateDraw itself — avoids the nested deadlock
-	// that would occur if QueueUpdateDraw were called from inside a running
-	// QueueUpdateDraw callback (the unbuffered done-channel would block forever).
-	buildList := func() {
-		if v.app == nil || v.mountGen != gen {
-			return
-		}
-
+	// Pull the team-state, read its config off the event loop, then build the
+	// list on it.
+	v.open(func() {
 		v.list = widgets.NewSectionedList()
 		v.list.SetApp(app)
 		v.page = newListPage(v.Title(), v.list)
@@ -151,35 +135,39 @@ func (v *TeamMCPView) Mount(content *tview.Flex, app *tview.Application) {
 
 		v.page.Mount(content)
 		app.SetFocus(v.list)
-	}
+	})
+}
 
-	// Async: pull team-state then load data
+// open reads what the view shows: the personal MCP settings (taken on the
+// event loop, which owns the config) and the team config, pulled and read off
+// the loop. then runs on the loop once they are in; the latest request wins,
+// Unmount drops the one in flight.
+func (v *TeamMCPView) open(then func()) {
+	local := v.cfg.GetMCPConfig()
 	tc := v.cfg.ResolveTeam()
-	if tc.Enabled {
-		repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
-		// syncAsync's onDone is already called inside QueueUpdateDraw (sync.go),
-		// so we do UI work directly here — no nested QueueUpdateDraw.
-		syncAsync(app, repo, v.shell, func(_ error) {
-			v.loadData()
-			buildList()
-		})
-	} else {
-		// No team — wrap in goroutine so QueueUpdateDraw is not called from
-		// the event loop (Mount runs on the event loop via router.mountLocked).
-		go func() {
-			app.QueueUpdateDraw(func() {
-				if v.app == nil || v.mountGen != gen {
-					return
-				}
-				v.loadData()
-				buildList()
-			})
-		}()
+	fetch := func(context.Context) (*teamstate.TeamConfig, error) {
+		if !tc.Enabled {
+			return nil, nil // no team: an empty config
+		}
+		return readTeamConfig(tc), nil
 	}
+	apply := func(cfg *teamstate.TeamConfig, _ error) {
+		if v.app == nil {
+			return
+		}
+		v.localMCP, v.baseMCP = local, local
+		v.setTeamConfig(cfg)
+		then()
+	}
+	if tc.Enabled {
+		syncLoad(v.app, shellContext(v.shell), &v.loads, teamstate.NewRepo(tc.StateRepo, tc.StatePath), v.shell, fetch, apply)
+		return
+	}
+	load(v.app, shellContext(v.shell), &v.loads, fetch, apply)
 }
 
 func (v *TeamMCPView) Unmount() {
-	v.mountGen++ // invalidate in-flight async goroutine
+	v.loads.Invalidate() // drop the load in flight
 	v.tests.Invalidate()
 	if (v.dirtyTeam || v.dirtyLocal) && v.shell != nil {
 		v.shell.ShowToastMsg(i18n.T("tui.settings.unsaved"), false)
@@ -191,7 +179,7 @@ func (v *TeamMCPView) Unmount() {
 
 // teamMCPExtraKeys are the page keys listed in the detail pane.
 func teamMCPExtraKeys() []string {
-	return []string{"t", i18n.T("tui.hints.test"), "w", i18n.T("tui.hints.save"), "u", i18n.T("tui.hints.undo"), keys.Refresh.Keys(), keys.Refresh.Label()}
+	return []string{cfgTestKey.Keys(), cfgTestKey.Label(), cfgSaveKey.Keys(), cfgSaveKey.Label(), cfgUndoKey.Keys(), cfgUndoKey.Label(), keys.Refresh.Keys(), keys.Refresh.Label()}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -202,30 +190,25 @@ func (v *TeamMCPView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	if v.list == nil {
 		return event
 	}
-	if event.Key() == tcell.KeyEnter {
+	switch {
+	case keys.Open.Matches(event):
 		if idx, item, ok := v.list.CurrentItem(); ok {
 			v.onItemSelected(idx, item)
 		}
 		return nil
-	}
-	if keys.Refresh.Matches(event) {
+	case keys.Refresh.Matches(event):
 		confirmDiscard(v.shell, v.dirtyTeam || v.dirtyLocal, v.reload)
 		return nil
-	}
-	if event.Key() != tcell.KeyRune {
-		return event
-	}
-	switch event.Rune() {
-	case ' ':
+	case cfgToggleKey.Matches(event):
 		v.toggleSelected()
 		return nil
-	case 'w':
+	case cfgSaveKey.Matches(event):
 		v.save()
 		return nil
-	case 'u':
+	case cfgUndoKey.Matches(event):
 		v.undo()
 		return nil
-	case 't':
+	case cfgTestKey.Matches(event):
 		v.testConnection()
 		return nil
 	}
@@ -239,9 +222,13 @@ func (v *TeamMCPView) reload() {
 	if !tc.Enabled {
 		return
 	}
-	repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
-	syncAsync(v.app, repo, v.shell, func(_ error) {
-		v.loadData()
+	v.refreshData()
+}
+
+// refreshData reads the data again and shows it; the changes not saved are
+// dropped.
+func (v *TeamMCPView) refreshData() {
+	v.open(func() {
 		v.buildFields()
 		v.renderFields()
 		v.dirtyTeam = false
@@ -265,13 +252,7 @@ func (v *TeamMCPView) ContextCommands() []ContextCommand {
 			ID: "team.mcp.reload", Label: i18n.T("tui.hints.refresh"),
 			Aliases:     []string{"refresh", "reload", "recharger"},
 			Description: i18n.T("tui.team_mcp.cmd_reload_desc"), Category: "MCP",
-			Action: func() {
-				v.loadData()
-				v.buildFields()
-				v.renderFields()
-				v.dirtyTeam = false
-				v.dirtyLocal = false
-			},
+			Action: v.refreshData,
 		},
 		{
 			ID: "team.mcp.test", Label: i18n.T("tui.team_mcp.cmd_test_label"),
@@ -286,19 +267,11 @@ func (v *TeamMCPView) ContextCommands() []ContextCommand {
 // Data loading
 // ─────────────────────────────────────────────────────────────────────────────
 
-func (v *TeamMCPView) loadData() {
-	v.localMCP = v.cfg.GetMCPConfig()
-	v.baseMCP = v.localMCP
-
-	tc := v.cfg.ResolveTeam()
-	if tc.Enabled {
-		repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
-		if repo.IsCloned() {
-			teamCfg, err := repo.LoadConfig()
-			if err == nil {
-				v.teamCfg = teamCfg
-			}
-		}
+// setTeamConfig takes the config that was read (nil: it has none, the config
+// already shown stays, else an empty one).
+func (v *TeamMCPView) setTeamConfig(cfg *teamstate.TeamConfig) {
+	if cfg != nil {
+		v.teamCfg = cfg
 	}
 	// Ensure non-nil teamCfg for editing
 	if v.teamCfg == nil {

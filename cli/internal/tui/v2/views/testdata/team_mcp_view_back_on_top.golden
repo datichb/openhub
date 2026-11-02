@@ -7,8 +7,8 @@
 ║                                                                                  ║│ Clé : gitlab · enabled                               │
 ║   Activé                       non configuré                                     ║│                                                      │
 ║     Active ce service MCP                                                        ║│ Touches                                              │
-║   Imposé                       non configuré                                     ║│   Space  basculer                                    │
-║     L'équipe impose ce réglage (non modifiable par les membres)                  ║│   Enter  éditer                                      │
+║   Imposé                       non configuré                                     ║│   Espace basculer                                    │
+║     L'équipe impose ce réglage (non modifiable par les membres)                  ║│   Entrée éditer                                      │
 ║   URL de l'instance            non configuré                                     ║│   t      test                                        │
 ║     URL de l'instance auto-hébergée                                              ║│   w      sauvegarder                                 │
 ║   URL imposée                  non configuré                                     ║│   u      annuler                                     │

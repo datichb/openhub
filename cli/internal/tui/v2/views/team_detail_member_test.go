@@ -29,8 +29,8 @@ func newMemberProfileEnv(t *testing.T) *memberProfileEnv {
 	e.v.cfg.ResolveTeam = func() TeamResolution {
 		return TeamResolution{Enabled: true, TeamID: "core", StatePath: t.TempDir(), StateRepo: "git@gitlab.corp.example:acme/core.git", MemberID: "alice"}
 	}
-	e.v.cfg.GetMember = func() *teamstate.Member { m := e.member; return &m }
-	e.v.cfg.SaveMemberField = func(_ context.Context, field, value string) error {
+	e.v.cfg.GetMember = func(string) *teamstate.Member { m := e.member; return &m }
+	e.v.cfg.SaveMemberField = func(_ context.Context, _, field, value string) error {
 		if e.err != nil {
 			return e.err
 		}

@@ -89,7 +89,9 @@ func TestModelsViewAcceptsAgentWhenCatalogueUnavailable(t *testing.T) {
 
 func TestModelsViewEditRefusesBadModel(t *testing.T) {
 	v, sh := catalogView(t)
-	v.loadEntries()
+	var err error
+	v.entries, err = v.readEntries(context.Background())
+	require.NoError(t, err)
 	v.editEntry(0)
 	require.NotNil(t, sh.input)
 
