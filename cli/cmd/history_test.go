@@ -93,3 +93,29 @@ func TestHistoryFlagsOnBothSides(t *testing.T) {
 	assert.NotNil(t, historyExportCmd.Flags().Lookup("member-id"), "export has --member-id")
 	assert.NotNil(t, historyImportCmd.Flags().Lookup("member-id"), "import has --member-id")
 }
+
+// oh history lists the sessions whatever the length of their identifiers (it
+// cut s.ID[:8] and s.ProjectID[:8] without a check), with headers in the
+// language of the user.
+func TestHistoryListsShortIdentifiers(t *testing.T) {
+	a, out := historyApp(t, &config.Config{})
+	ctx := context.Background()
+	require.NoError(t, a.Sessions.Create(ctx, &domain.Session{ID: "s1", ProjectID: "p1", StartedAt: time.Now().UTC(), Status: domain.SessionStatusCompleted}))
+	require.NoError(t, a.Sessions.Create(ctx, &domain.Session{ID: "ses_0123456789abcdef", ProjectID: "p1", StartedAt: time.Now().UTC(), Status: domain.SessionStatusCompleted}))
+
+	cmd := &cobra.Command{Use: "history"}
+	cmd.Flags().Bool("team", false, "")
+	cmd.Flags().Int("limit", 0, "")
+	cmd.SetContext(ctx)
+	require.NoError(t, runHistory(cmd, nil))
+	assert.Contains(t, out.String(), "Started")
+	assert.Contains(t, out.String(), "s1  ")
+	assert.Contains(t, out.String(), "ses_0123  ")
+	assert.NotContains(t, out.String(), "ses_01234")
+
+	i18ntest.Set(t, "fr")
+	out.Reset()
+	require.NoError(t, runHistory(cmd, nil))
+	assert.Contains(t, out.String(), "Début")
+	assert.NotContains(t, out.String(), "Started")
+}

@@ -195,6 +195,19 @@ func Clip(s string, n int) string {
 	return string(r[:n-1]) + ellipsis
 }
 
+// Head is the first n runes of s, without an ellipsis: the short form of an
+// identifier (« 3f9c2a1b »). Shorter than n, s is returned whole.
+func Head(s string, n int) string {
+	if n < 1 {
+		return ""
+	}
+	r := []rune(s)
+	if len(r) <= n {
+		return s
+	}
+	return string(r[:n])
+}
+
 // ClipLine is the first line of s, cut by Clip (no trimming: a text that
 // starts with a newline gives "").
 func ClipLine(s string, n int) string {

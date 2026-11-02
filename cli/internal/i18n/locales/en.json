@@ -6295,5 +6295,12 @@
   "cmd.start.flags.max-sessions": "Max parallel sessions (0 = configured value, default: 3)",
   "cmd.start.flags.priority": "Priority ticket (merged first)",
   "cmd.start.flags.sweep-branch-prefix": "Prefix of the sweep branches",
-  "cmd.start.deprecated_flag": "no effect since oh v5 (oh run ticket / oh run sweep)."
+  "cmd.start.deprecated_flag": "no effect since oh v5 (oh run ticket / oh run sweep).",
+  "cmd.history.col.id": "ID",
+  "cmd.history.col.project": "Project",
+  "cmd.history.col.status": "Status",
+  "cmd.history.col.started": "Started",
+  "cmd.history.col.duration": "Duration",
+  "cmd.history.col.member": "Member",
+  "cmd.history.col.date": "Date"
 }
