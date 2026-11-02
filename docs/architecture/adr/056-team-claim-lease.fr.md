@@ -29,6 +29,7 @@ Le claim reçoit un **bail**, que renouvelle le démon, et la fin d'une session 
 - Deux champs facultatifs sur le claim : `lease_until` (date limite, en chaîne RFC 3339 à la seconde, type `Instant` : un `time.Time` tagué `omitempty` serait ignoré par go-toml) et `session` (la session qui travaille). Un claim sans `lease_until` (écrit par oh 5.0) se juge par l'ancienne règle d'inactivité (`IsStale`, `[takeover] stale_days`) : aucune migration.
 - `Claim.IsExpired(now, cfg)` : le bail est dépassé s'il existe, sinon repli sur l'inactivité.
 - **Seul un claim avec un propriétaire et du travail commencé a un bail.** Un claim du pool (sans propriétaire), `planned`, dans la colonne initiale ou terminé n'en a pas : il n'expire jamais.
+- **Un claim en revue n'expire jamais** (amendé le 02/11/2026, avant la 5.1) : statut `review`, ou label `review` / `ready-for-review` sur le claim (`Claim.InReview`). Il attend une personne, pas une session : aucun bail ne s'épuise sur lui (`IsExpired` et `HasLease` répondent non, quel que soit `lease_until`), il reste réservé jusqu'à la fusion ou jusqu'à ce que son propriétaire le libère. `oh doctor` le signale s'il y est depuis plus de `stale_days` (`claims_review`, avertissement), sans le dire expiré. Quand la revue se termine (statut revenu à `in_progress`, label retiré) et que le bail qu'il portait est dépassé, il reçoit un nouveau bail à partir de ce moment, sinon il serait repris aussitôt.
 - `last_activity` s'écrit en date-heure TOML native, pas en chaîne : une oh 5.0 refuse sinon le claim entier (« cannot decode TOML string »). Un test relit le claim avec une structure de la 5.0.
 - Réglages (`[claim]` du `config.toml` du team-state, partagés par l'équipe) : `lease_hours` (24, de 1 à 168) et `heartbeat_minutes` (60, 0 = désactivé, de 5 à 1440, au plus la moitié du bail).
 
@@ -50,7 +51,7 @@ Fonction pure (`teamstate.DecideClaimEnd`), sans horloge, git ni fichier : l'app
 6. état des checkpoints illisible : gardé, `session-ended` (un claim libéré à tort est perdu, un claim gardé à tort expire avec son bail) ;
 7. sinon : libéré.
 
-Un claim gardé n'est plus renouvelé par la session terminée : il expire avec son bail si personne ne le reprend.
+Un claim gardé n'est plus renouvelé par la session terminée : il expire avec son bail si personne ne le reprend. L'exception est le claim en revue (règle 3) : il n'expire pas du tout, voir la section 1.
 
 ### 4. File durable
 
@@ -58,7 +59,7 @@ Ce que décide la fin de session (libérer, terminer, marquer) et les renouvelle
 
 ### 5. Expiration et reprise
 
-Un claim expiré n'est pas supprimé tout seul. `oh doctor` le signale (`claims_expired`, avertissement) avec la commande pour le garder ou le libérer, et signale la file qui attend (`claims_queue`, `--fix` l'applique). Un autre membre le reprend par `oh team claim <ticket>` : **confirmation réelle** (`--yes` sans terminal, sinon refus, code 2), brief de reprise généré, nouveau bail ; le transfert silencieux d'un claim périmé disparaît. `[claim] release_expired_on_sync` (désactivé) fait libérer les claims expirés par la synchro du tracker, sauf s'ils sont en revue. Un claim libéré volontairement n'est pas recréé par la synchro (`Repo.ClaimRemovedOnPurpose`, lu dans l'historique git).
+Un claim expiré n'est pas supprimé tout seul. `oh doctor` le signale (`claims_expired`, avertissement) avec la commande pour le garder ou le libérer, et signale la file qui attend (`claims_queue`, `--fix` l'applique). Un autre membre le reprend par `oh team claim <ticket>` : **confirmation réelle** (`--yes` sans terminal, sinon refus, code 2), brief de reprise généré, nouveau bail ; le transfert silencieux d'un claim périmé disparaît. `[claim] release_expired_on_sync` (désactivé) fait libérer les claims expirés par la synchro du tracker ; un claim en revue n'en fait jamais partie. `oh team claim` ne reprend pas le claim en revue d'un autre membre, quel que soit son bail. Un claim libéré volontairement n'est pas recréé par la synchro (`Repo.ClaimRemovedOnPurpose`, lu dans l'historique git).
 
 ### 6. Modèle de statut : REVIEW
 
@@ -70,7 +71,7 @@ Un claim expiré n'est pas supprimé tout seul. `oh doctor` le signale (`claims_
 
 ### Positives
 
-- Un claim ne survit plus indéfiniment, ne disparaît plus par accident, et le dit : `oh doctor` donne la commande.
+- Un claim ne survit plus indéfiniment, ne disparaît plus par accident, et le dit : `oh doctor` donne la commande. Un claim en revue garde sa réservation tant que la revue dure, et le doctor dit quand l'attente est longue.
 - La fin de session est testable (fonction pure) et ne perd rien hors ligne.
 - Compatibilité avec la 5.0 : champs ignorés par l'ancienne version, `last_activity` relisible, repli sur `IsStale`.
 - Le mode équipe n'est plus signalé comme bêta : ses limites connues sont des règles documentées.
@@ -81,6 +82,7 @@ Un claim expiré n'est pas supprimé tout seul. `oh doctor` le signale (`claims_
 - **Une ancienne oh qui réécrit un claim** efface `lease_until` : le claim retombe sur la règle d'inactivité (sans casse).
 - Un claim pris à la main expire s'il n'est pas renouvelé à la main ; une session `sleeping` ou distante cesse de renouveler au plafond, même si elle est reprise plus tard (`oh team claim` ou une nouvelle session renouvelle).
 - Un clone superficiel est traité comme un claim perdu ; la fenêtre entre le vidage de la file et l'adoption hors ligne reste étroite.
+- Un claim en revue que personne ne fusionne ni ne libère reste réservé indéfiniment : seul `oh doctor` (`claims_review`) le signale, son propriétaire ou un `oh team release` le libère.
 - Trois mécanismes à comprendre (bail, file, règle de fin) au lieu d'un champ d'activité.
 
 ## Alternatives envisagées

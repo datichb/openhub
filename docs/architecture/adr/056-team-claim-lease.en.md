@@ -29,6 +29,7 @@ The claim gets a **lease** renewed by the daemon, and the end of a session follo
 - Two optional fields on the claim: `lease_until` (deadline, an RFC 3339 string to the second, the `Instant` type: go-toml would drop a `time.Time` tagged `omitempty`) and `session` (the session working on it). A claim without `lease_until` (written by oh 5.0) is judged by the former inactivity rule (`IsStale`, `[takeover] stale_days`): no migration.
 - `Claim.IsExpired(now, cfg)`: the lease is past if there is one, otherwise it falls back on inactivity.
 - **Only a claim with an owner and work started has a lease.** A pool claim (no owner), `planned`, in the initial column or finished has none: it never expires.
+- **A claim in review never expires** (amended on 2026-11-02, before 5.1): status `review`, or the `review` / `ready-for-review` label on the claim (`Claim.InReview`). It waits for a person, not for a session, so no lease can run out on it (`IsExpired` and `HasLease` answer no, whatever `lease_until` says): it stays reserved until the merge or until its owner releases it. `oh doctor` reports it when it has been there for longer than `stale_days` (`claims_review`, a warning), without calling it expired. When the review ends (status back to `in_progress`, label removed) and the lease it held is past, it gets a new lease from that moment, otherwise it would be taken over at once.
 - `last_activity` is written as a native TOML date-time, not as a string: otherwise an oh 5.0 refuses the whole claim ("cannot decode TOML string"). A test reads the claim back with a 5.0 struct.
 - Settings (`[claim]` of the team-state `config.toml`, shared by the team): `lease_hours` (24, 1 to 168) and `heartbeat_minutes` (60, 0 = off, 5 to 1440, at most half the lease).
 
@@ -50,7 +51,7 @@ A pure function (`teamstate.DecideClaimEnd`), with no clock, git or file: the ca
 6. checkpoint state unreadable: kept, `session-ended` (a claim released by mistake is lost, a claim kept by mistake expires with its lease);
 7. otherwise: released.
 
-A kept claim is no longer renewed by the session that ended: it expires with its lease if nobody takes it up.
+A kept claim is no longer renewed by the session that ended: it expires with its lease if nobody takes it up. The exception is the claim in review (rule 3): it does not expire at all, see section 1.
 
 ### 4. Durable queue
 
@@ -58,7 +59,7 @@ What the end of a session decides (release, complete, mark) and the renewals tha
 
 ### 5. Expiry and takeover
 
-An expired claim is not deleted by itself. `oh doctor` reports it (`claims_expired`, a warning) with the command to keep or release it, and reports a waiting queue (`claims_queue`, `--fix` applies it). Another member takes it over with `oh team claim <ticket>`: a **real confirmation** (`--yes` without a terminal, otherwise refused, code 2), a takeover brief generated, a new lease; the silent transfer of a stale claim is gone. `[claim] release_expired_on_sync` (off) makes the tracker sync release expired claims, unless they are in review. A claim released on purpose is not recreated by the sync (`Repo.ClaimRemovedOnPurpose`, read from the git history).
+An expired claim is not deleted by itself. `oh doctor` reports it (`claims_expired`, a warning) with the command to keep or release it, and reports a waiting queue (`claims_queue`, `--fix` applies it). Another member takes it over with `oh team claim <ticket>`: a **real confirmation** (`--yes` without a terminal, otherwise refused, code 2), a takeover brief generated, a new lease; the silent transfer of a stale claim is gone. `[claim] release_expired_on_sync` (off) makes the tracker sync release expired claims; a claim in review is never one of them. `oh team claim` does not take over a claim in review of another member, whatever its lease. A claim released on purpose is not recreated by the sync (`Repo.ClaimRemovedOnPurpose`, read from the git history).
 
 ### 6. Status model: REVIEW
 
@@ -70,7 +71,7 @@ An expired claim is not deleted by itself. `oh doctor` reports it (`claims_expir
 
 ### Positive
 
-- A claim no longer lives for ever, no longer vanishes by accident, and says so: `oh doctor` gives the command.
+- A claim no longer lives for ever, no longer vanishes by accident, and says so: `oh doctor` gives the command. A claim in review keeps its reservation while the review lasts, and the doctor tells when the wait is long.
 - The end of a session is testable (pure function) and loses nothing offline.
 - Compatible with 5.0: fields ignored by the older version, `last_activity` readable, fallback on `IsStale`.
 - The team mode is no longer flagged as beta: its known limits are documented rules.
@@ -81,6 +82,7 @@ An expired claim is not deleted by itself. `oh doctor` reports it (`claims_expir
 - **An older oh that rewrites a claim** loses `lease_until`: the claim falls back on the inactivity rule (no breakage).
 - A hand-taken claim expires if it is not renewed by hand; a `sleeping` or remote session stops renewing at the cap, even if it is resumed later (`oh team claim` or a new session renews).
 - A shallow clone is treated as a lost claim; the window between emptying the queue and an offline adoption stays narrow.
+- A claim in review that nobody merges or releases stays reserved for ever: only `oh doctor` (`claims_review`) points it out, its owner or a `oh team release` frees it.
 - Three mechanisms to understand (lease, queue, end rule) instead of one activity field.
 
 ## Alternatives considered

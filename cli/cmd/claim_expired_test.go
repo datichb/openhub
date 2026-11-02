@@ -150,3 +150,27 @@ func TestRunClaimByHandHoldsTheLongLease(t *testing.T) {
 	assert.True(t, c.LeaseUntil.Time().After(time.Now().Add(71*time.Hour)))
 	assert.True(t, c.LeaseUntil.Time().Before(time.Now().Add(73*time.Hour)))
 }
+
+// v5.1: a claim in review never expires, even with a lease long past: it is
+// not taken over (whatever --yes says) and the message says it is in review.
+func TestRunClaimInReviewIsNotTakenOver(t *testing.T) {
+	i18ntest.Set(t, "en")
+	_, repo, stdout := setupClaimTestApp(t)
+	past := teamstate.InstantOf(time.Now().Add(-100 * time.Hour))
+	for _, c := range []teamstate.Claim{
+		{TicketID: "REV-1", Project: claimsProject, ClaimedBy: "alice", Status: teamstate.ClaimStatusReview, Session: "ses_alice", LeaseUntil: past},
+		{TicketID: "REV-2", Project: claimsProject, ClaimedBy: "alice", Status: teamstate.ClaimStatusInProgress, Session: "ses_alice", LeaseUntil: past, Labels: []string{teamstate.LabelReadyForReview}},
+	} {
+		_, err := repo.CreateClaim(context.Background(), c)
+		require.NoError(t, err)
+	}
+	terminalIs(t, false)
+
+	for _, id := range []string{"REV-1", "REV-2"} {
+		stdout.Reset()
+		require.NoError(t, runClaim(newClaimYesCmd(t, claimsProject, true), []string{id}))
+		assert.Equal(t, "alice", claimsOnDisk(t, repo, id).ClaimedBy, id)
+		assert.Contains(t, stdout.String(), "in review", id)
+		assert.NotContains(t, stdout.String(), "expired", id)
+	}
+}

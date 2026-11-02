@@ -432,8 +432,10 @@ func (r *Repo) applyClaimOp(tx *Tx, cfg *TeamConfig, op *ClaimOp) (ok, changed b
 		if !op.AnyTransition && !IsValidBoardTransition(c.Status, op.Status) {
 			return false, false, fmt.Sprintf("%v: from %q to %q", ErrInvalidTransition, c.Status, op.Status)
 		}
+		wasInReview := c.InReview()
 		c.Status = op.Status
 		c.LastActivity = InstantOf(time.Now())
+		renewLeaseAfterReview(c, cfg, wasInReview, time.Now().UTC())
 		return write()
 
 	case ClaimOpLabel:

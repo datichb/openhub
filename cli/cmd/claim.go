@@ -170,7 +170,8 @@ func runClaim(cmd *cobra.Command, args []string) error {
 
 // claimExists answers a ticket that is already claimed. A claim of another
 // member that has expired (its lease is past, or, without lease, it has been
-// inactive longer than stale_days) can be taken over after the common
+// inactive longer than stale_days; never one in review: it stays reserved
+// until the merge or its release) can be taken over after the common
 // confirmation (--yes without a terminal): a takeover brief is generated, the
 // claim comes with a new lease. The member's own claim is renewed (lease
 // only), expired or not, without confirmation: for a claim taken by hand, it
@@ -219,6 +220,9 @@ func claimExists(cmd *cobra.Command, a *app.App, repo *teamstate.Repo, existing 
 			project, ticketID,
 			theme.Bold.Render(existing.ClaimedBy),
 			textfmt.ShortDateTime(existing.ClaimedAt)))
+	if existing.InReview() {
+		fmt.Fprintln(a.IO.Out, i18n.T("cmd.claims.in_review"))
+	}
 	fmt.Fprintf(a.IO.Out, "%s\n",
 		i18n.Tf("cmd.claim.transfer_hint",
 			theme.Bold.Render("oh claim transfer "+ticketID+" --to "+memberID)))

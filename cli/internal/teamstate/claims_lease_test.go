@@ -269,3 +269,81 @@ func TestMalformedLeaseIsJudgedLikeNoLease(t *testing.T) {
 	c := Claim{LeaseUntil: "tomorrow", LastActivity: InstantOf(now.Add(-10 * 24 * time.Hour))}
 	assert.True(t, c.IsExpired(now, nil))
 }
+
+// A claim in review waits for a person, not for a session: it never expires,
+// whatever its lease or its last activity.
+func TestClaimInReviewNeverExpires(t *testing.T) {
+	t.Parallel()
+	now := time.Date(2026, 7, 10, 12, 0, 0, 0, time.UTC)
+	cfg := &TeamConfig{Takeover: TakeoverConfig{StaleDays: 2}}
+	past := InstantOf(now.Add(-48 * time.Hour))
+	longAgo := InstantOf(now.Add(-30 * 24 * time.Hour))
+
+	tests := []struct {
+		name  string
+		claim Claim
+	}{
+		{"status review, lease past", Claim{ClaimedBy: "alice", Status: ClaimStatusReview, LeaseUntil: past}},
+		{"status review, no lease, long inactive", Claim{ClaimedBy: "alice", Status: ClaimStatusReview, LastActivity: longAgo}},
+		{"ready-for-review label, lease past", Claim{ClaimedBy: "alice", Status: ClaimStatusInProgress, LeaseUntil: past, Labels: []string{LabelReadyForReview}}},
+		{"review label, no lease", Claim{ClaimedBy: "alice", Status: ClaimStatusInProgress, LastActivity: longAgo, Labels: []string{"x", "Review"}}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.True(t, tt.claim.InReview())
+			assert.False(t, tt.claim.IsExpired(now, cfg))
+			assert.False(t, tt.claim.IsExpired(now, nil))
+			assert.False(t, tt.claim.HasLease(cfg), "a claim in review has no lease that runs out")
+		})
+	}
+
+	t.Run("without review it expires as before", func(t *testing.T) {
+		t.Parallel()
+		c := Claim{ClaimedBy: "alice", Status: ClaimStatusInProgress, LeaseUntil: past, Labels: []string{"bug"}}
+		assert.False(t, c.InReview())
+		assert.True(t, c.IsExpired(now, cfg))
+		assert.True(t, c.HasLease(cfg))
+	})
+}
+
+// The doctor tells a claim that has been in review for longer than stale_days
+// without calling it expired.
+func TestClaimReviewIsStale(t *testing.T) {
+	t.Parallel()
+	now := time.Date(2026, 7, 10, 12, 0, 0, 0, time.UTC)
+	cfg := &TeamConfig{Takeover: TakeoverConfig{StaleDays: 2}}
+	at := func(d time.Duration) Instant { return InstantOf(now.Add(d)) }
+
+	assert.True(t, (&Claim{Status: ClaimStatusReview, LastActivity: at(-3 * 24 * time.Hour)}).ReviewStale(now, cfg))
+	assert.False(t, (&Claim{Status: ClaimStatusReview, LastActivity: at(-24 * time.Hour)}).ReviewStale(now, cfg))
+	assert.True(t, (&Claim{Status: ClaimStatusReview, ClaimedAt: now.Add(-5 * 24 * time.Hour)}).ReviewStale(now, cfg), "claimed_at when no activity")
+	assert.False(t, (&Claim{Status: ClaimStatusInProgress, LastActivity: at(-30 * 24 * time.Hour)}).ReviewStale(now, cfg), "not in review")
+	assert.True(t, (&Claim{Status: ClaimStatusInProgress, LastActivity: at(-30 * 24 * time.Hour), Labels: []string{LabelReadyForReview}}).ReviewStale(now, nil), "default stale days")
+}
+
+// A claim back from review gets a lease that runs from now: the lease it held
+// before the review may be long past.
+func TestClaimLeavingReviewGetsAFreshLease(t *testing.T) {
+	t.Parallel()
+	repo, _ := setupGitTestRepo(t)
+	ctx := context.Background()
+	past := InstantOf(time.Now().Add(-72 * time.Hour))
+	createUnder(t, repo, "p", Claim{TicketID: "T-1", ClaimedBy: "alice", Session: "ses_1", Status: ClaimStatusReview, LeaseUntil: past})
+	stale, err := repo.GetClaim("p", "T-1")
+	require.NoError(t, err)
+	require.True(t, stale.LeaseUntil.Time().Before(time.Now()), "the seed holds a past lease")
+
+	require.NoError(t, repo.UpdateClaimStatus(ctx, "p", "T-1", ClaimStatusInProgress))
+	got, err := repo.GetClaim("p", "T-1")
+	require.NoError(t, err)
+	assert.False(t, got.IsExpired(time.Now(), nil), "not expired the moment the review ends")
+	assert.WithinDuration(t, time.Now().Add(24*time.Hour), got.LeaseUntil.Time(), time.Minute)
+
+	// The same when the review label is removed.
+	createUnder(t, repo, "p", Claim{TicketID: "T-2", ClaimedBy: "alice", Status: ClaimStatusInProgress, LeaseUntil: past, Labels: []string{LabelReadyForReview}})
+	require.NoError(t, repo.RemoveClaimLabel(ctx, "p", "T-2", LabelReadyForReview))
+	got, err = repo.GetClaim("p", "T-2")
+	require.NoError(t, err)
+	assert.False(t, got.IsExpired(time.Now(), nil))
+}

@@ -1641,11 +1641,12 @@ Ce que le mode équipe garantit sur une réservation (claim), et comment le vér
 | Le bail d'une réservation prise à la main | `oh team claim <ticket>` | `lease_until` = maintenant + `lease_hours_manual` (72 h) ; refaire `oh team claim <ticket>` le renouvelle sans question |
 | La reprise | `oh team claim <ticket>` par un autre membre sur une réservation expirée | confirmation commune (`--yes` sans terminal, sinon code 2), brief de reprise, la réservation change de propriétaire avec un nouveau bail |
 | Une revue en attente | terminer la session d'un ticket avec le label `ready-for-review` (ou la réservation en `review`) | la réservation **est gardée**, elle n'est pas libérée |
+| Une réservation en revue depuis longtemps | une réservation en `review` (ou avec le label `ready-for-review`) dont le bail est dépassé, `oh team claim <ticket>` par un autre membre ; puis `oh doctor` après plus de `stale_days` jours | pas de reprise (le message dit qu'elle est en revue) ; `oh doctor` la signale dans `claims_review` (avertissement), pas dans `claims_expired` ; elle reste jusqu'à la fusion ou `oh team release` |
 | `cp-2` reporté | terminer la session en reportant le commit, avec du travail laissé | la réservation est gardée avec le label `session-ended` ; `oh doctor` la signale |
 | Rien en attente | terminer la session d'un ticket sans revue ni checkpoint en attente | la réservation est libérée |
 | Ticket clos | clore le ticket dans Beads puis terminer la session | la réservation passe au statut terminal |
 | Hors ligne | couper l'accès au dépôt d'équipe, terminer la session | les décisions restent dans `.git/oh-claims-queue.json` (oh le dit) ; au retour du réseau, un battement du démon (ou `oh doctor --fix`) les applique en un commit |
-| Expiration à la synchro | `release_expired_on_sync = true`, une réservation expirée | la synchro la libère (`release: N expired claim(s)`), sauf si elle est en revue |
+| Expiration à la synchro | `release_expired_on_sync = true`, une réservation expirée | la synchro la libère (`release: N expired claim(s)`) ; une réservation en revue n'est jamais libérée |
 | Réservation oubliée | `oh team release <ticket-id> -p <projet>` | la réservation est libérée |
 | Statuts configurés (session distante) | dans un job distant, `bd update <ID> --status review` sans statut `review` configuré | refusé tout de suite (code 1), rien n'est journalisé ; le label `ready-for-review` passe |
 | REVIEW | ticket `in_progress` + label `ready-for-review` | classé en REVIEW dans `oh board` et le Board TUI ; le board d'équipe affiche le statut `review` de la réservation |

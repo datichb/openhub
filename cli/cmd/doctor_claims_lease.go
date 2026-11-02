@@ -27,6 +27,10 @@ import (
 //     claim over (oh team claim). A warning with the commands to keep the claim
 //     (oh team claim renews the lease of one's own claim; so does starting a
 //     session on the ticket) or to release it.
+//   - claims_review: the claims of the active member that have been in review
+//     for longer than stale_days. They are not expired (a claim in review
+//     stays reserved until the merge or its release); a warning with the
+//     command to release it.
 //   - claims_queue: operations on the claims waiting in the durable queue of a
 //     team clone for longer than the daemon takes to empty it (the remote was
 //     out of reach, or oh stopped before the flush ended). A warning;
@@ -35,6 +39,7 @@ import (
 // Identifiers of the results.
 const (
 	doctorIDClaimsExpired = "claims_expired"
+	doctorIDClaimsReview  = "claims_review"
 	doctorIDClaimsQueue   = "claims_queue"
 )
 
@@ -81,6 +86,42 @@ func expiredClaims(project, member string, claims []teamstate.Claim, cfg *teamst
 		out = append(out, expiredClaim{Project: project, Ticket: c.TicketID, Reason: reason})
 	}
 	return out
+}
+
+// reviewClaim is a claim of the member that has been in review for long.
+type reviewClaim struct {
+	Project, Ticket string
+	Days            int
+}
+
+// staleReviewClaims returns the claims of member that have been in review
+// (status review, or the review or ready-for-review label) for longer than
+// stale_days at now, oldest activity first as listed. They are not expired.
+func staleReviewClaims(project, member string, claims []teamstate.Claim, cfg *teamstate.TeamConfig, now time.Time) []reviewClaim {
+	var out []reviewClaim
+	for i := range claims {
+		c := &claims[i]
+		if c.ClaimedBy != member || !c.ReviewStale(now, cfg) {
+			continue
+		}
+		out = append(out, reviewClaim{Project: project, Ticket: c.TicketID, Days: int(now.Sub(c.LastActive()).Hours() / 24)})
+	}
+	return out
+}
+
+// staleReviewClaimsResult is the warning about the claims in review for long;
+// nothing is reported when there are none.
+func staleReviewClaimsResult(list []reviewClaim) []doctor.Result {
+	if len(list) == 0 {
+		return nil
+	}
+	name := i18n.T("cmd.doctor.claims_review.name")
+	parts := make([]string, len(list))
+	for i, c := range list {
+		parts[i] = fmt.Sprintf("%s/%s (%s)", c.Project, c.Ticket, i18n.Tf("cmd.doctor.claims_review.age", c.Days))
+	}
+	return []doctor.Result{{ID: doctorIDClaimsReview, Name: name, OK: true, Warn: true,
+		Detail: i18n.Tf("cmd.doctor.claims_review.found", strings.Join(parts, ", "), list[0].Ticket, list[0].Project)}}
 }
 
 func expiredClaimsResult(list []expiredClaim) doctor.Result {
@@ -154,6 +195,7 @@ func claimsLeaseResults(ctx context.Context, a *app.App, now time.Time) []doctor
 		return nil
 	}
 	var expired []expiredClaim
+	var inReview []reviewClaim
 	for _, t := range teams {
 		cfg, _ := t.repo.LoadConfig()
 		projects := make([]string, 0, len(t.projects))
@@ -167,9 +209,10 @@ func claimsLeaseResults(ctx context.Context, a *app.App, now time.Time) []doctor
 				continue
 			}
 			expired = append(expired, expiredClaims(p, t.member, claims, cfg, now)...)
+			inReview = append(inReview, staleReviewClaims(p, t.member, claims, cfg, now)...)
 		}
 	}
-	results := []doctor.Result{expiredClaimsResult(expired)}
+	results := append([]doctor.Result{expiredClaimsResult(expired)}, staleReviewClaimsResult(inReview)...)
 	return append(results, claimQueueResults(claimQueueStates(teams), now)...)
 }
 

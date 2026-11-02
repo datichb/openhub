@@ -15,9 +15,9 @@ import (
 // returns the claims it released.
 //
 // Only the claims that carry a lease are concerned (HasLease: an owner and
-// work started; a pool claim, a planned claim, a finished claim never
-// expire), and a claim that waits for a review is kept (status review, or the
-// review or ready-for-review label): it waits for a person, not for a session.
+// work started; a pool claim, a planned claim, a finished claim and a claim
+// in review (status review, or the review or ready-for-review label) never
+// expire: a claim in review waits for a person, not for a session.
 // The claim is judged on the state of the clone, under the write lock.
 //
 // The synchronization of the tracker calls it when [claim]
@@ -40,7 +40,7 @@ func (r *Repo) ReleaseExpiredClaims(ctx context.Context, now time.Time, projects
 			if len(projects) > 0 && !slices.Contains(projects, c.Project) {
 				continue
 			}
-			if !c.HasLease(cfg) || !c.IsExpired(now, cfg) || c.Status == ClaimStatusReview || hasReviewLabel(c.Labels) {
+			if !c.HasLease(cfg) || !c.IsExpired(now, cfg) {
 				continue
 			}
 			path := r.claimFilePath(c.Project, c.TicketID)

@@ -74,11 +74,38 @@ type ClaimRef struct {
 	TicketID string
 }
 
+// InReview reports whether the claim waits for a review: status review, or
+// the review or ready-for-review label on the ticket. Such a claim waits for
+// a person, not for a session: it stays reserved until the merge or until
+// its owner releases it, it never expires.
+func (c *Claim) InReview() bool {
+	return c.Status == ClaimStatusReview || hasReviewLabel(c.Labels)
+}
+
+// ReviewStale reports whether the claim has been in review (InReview) for
+// longer than the stale_days of cfg (nil cfg: the default), counted from its
+// last activity or, without one, from claimed_at. It does not make the claim
+// expired: the doctor only tells the owner it has been waiting for long.
+func (c *Claim) ReviewStale(now time.Time, cfg *TeamConfig) bool {
+	if !c.InReview() {
+		return false
+	}
+	staleDays := 0
+	if cfg != nil {
+		staleDays = cfg.Takeover.StaleDays
+	}
+	return claimStale(c, staleDays, now)
+}
+
 // IsExpired reports whether the claim is expired at now: its lease is past
 // when it has one, otherwise it is stale (IsStale, with the stale_days of
 // cfg; nil cfg: the default). It does not look at the owner: a pool claim
-// (no owner) is judged like the others.
+// (no owner) is judged like the others. A claim in review (InReview) is
+// never expired.
 func (c *Claim) IsExpired(now time.Time, cfg *TeamConfig) bool {
+	if c.InReview() {
+		return false
+	}
 	if end := c.LeaseUntil.Time(); !end.IsZero() {
 		return now.After(end)
 	}
@@ -89,26 +116,32 @@ func (c *Claim) IsExpired(now time.Time, cfg *TeamConfig) bool {
 	return claimStale(c, staleDays, now)
 }
 
+// LastActive is the last activity on the claim, or claimed_at when it never
+// had one.
+func (c *Claim) LastActive() time.Time {
+	if t := c.LastActivity.Time(); !t.IsZero() {
+		return t
+	}
+	return c.ClaimedAt
+}
+
 // claimStale is IsStale at a given instant.
 func claimStale(claim *Claim, staleDays int, now time.Time) bool {
 	if staleDays <= 0 {
 		staleDays = 3
 	}
-	lastActive := claim.LastActivity.Time()
-	if lastActive.IsZero() {
-		lastActive = claim.ClaimedAt
-	}
-	return now.Sub(lastActive) > time.Duration(staleDays)*24*time.Hour
+	return now.Sub(claim.LastActive()) > time.Duration(staleDays)*24*time.Hour
 }
 
-// HasLease reports whether the claim carries a lease under cfg (nil: the
-// defaults): it has an owner and work started on it. A pool claim, a planned
-// or initial-column claim and a finished one have none, so they never expire.
+// HasLease reports whether the claim carries a lease that can run out under
+// cfg (nil: the defaults): it has an owner and work started on it. A pool
+// claim, a planned or initial-column claim, a finished one and one in review
+// (InReview) have none, so they never expire.
 func (c *Claim) HasLease(cfg *TeamConfig) bool {
 	if cfg == nil {
 		cfg = &TeamConfig{}
 	}
-	return leaseApplies(c, cfg)
+	return !c.InReview() && leaseApplies(c, cfg)
 }
 
 // leaseApplies reports whether a claim carries a lease: it needs an owner
@@ -139,6 +172,34 @@ func leaseEndFor(now time.Time, cfg *TeamConfig, session string) Instant {
 		return InstantOf(now.Add(cfg.Claim.ManualLeaseDuration()))
 	}
 	return leaseEnd(now, cfg)
+}
+
+// renewLeaseAfterReview gives a claim that just left review (wasInReview, and
+// no longer InReview) a lease that runs from now when the one it holds is
+// missing or past: a claim in review does not expire, so its lease was not
+// renewed and may have run out long ago, and the claim would be taken over
+// the moment the review ends. A lease still valid is kept.
+func renewLeaseAfterReview(c *Claim, cfg *TeamConfig, wasInReview bool, now time.Time) {
+	if !wasInReview || c.InReview() || !leaseApplies(c, cfg) {
+		return
+	}
+	if end := c.LeaseUntil.Time(); !end.IsZero() && end.After(now) {
+		return
+	}
+	c.LeaseUntil = leaseEndFor(now, cfg, c.Session)
+}
+
+// leaveReview is renewLeaseAfterReview with the config of the repo (the
+// defaults when it cannot be read).
+func (r *Repo) leaveReview(c *Claim, wasInReview bool, now time.Time) {
+	if !wasInReview {
+		return
+	}
+	cfg, err := r.loadConfig()
+	if err != nil {
+		cfg = &TeamConfig{}
+	}
+	renewLeaseAfterReview(c, cfg, true, now)
 }
 
 // stampLease sets the lease of a claim that is created or taken over:
