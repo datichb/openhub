@@ -359,30 +359,6 @@ func (o *Omnibar) Activate() {
 	o.shell.app.SetFocus(o.input)
 }
 
-// ActivateWithRune activates and pre-fills with the given character.
-func (o *Omnibar) ActivateWithRune(r rune) {
-	if o.active {
-		return
-	}
-	// Block activation when the current view captures all input (e.g. inline wizard).
-	if o.shell.capturesKeys() {
-		return
-	}
-	o.focusBack = o.shell.focusReturn()
-	o.active = true
-	// Suppress ChangedFunc during SetText to avoid a redundant
-	// updateSuggestions call — we call it explicitly right after.
-	o.input.SetChangedFunc(nil)
-	o.input.SetText(string(r))
-	o.input.SetChangedFunc(func(text string) {
-		o.updateSuggestions(text)
-	})
-	o.container.SwitchToPage("input")
-	o.updateSuggestions(string(r))
-	o.shell.showSuggestionsInLayout()
-	o.shell.app.SetFocus(o.input)
-}
-
 // RestoreFocus re-focuses the omnibar input field if the omnibar is active.
 // This must be called after any operation that may steal focus (e.g. Pages
 // AddPage/RemovePage in toast lifecycle) to ensure keyboard events still

@@ -222,15 +222,3 @@ func (s *Shell) enterTeamMode() {
 		})
 	}
 }
-
-// AutoDetectMode determines the initial mode based on configured teams and projects.
-// Rules (ADR-032): 1 team without solo projects → Team; no team + 1 project → Project; else → Hub.
-func AutoDetectMode(numTeams, numProjects int) views.Mode {
-	if numTeams == 1 && numProjects <= 1 {
-		return views.ModeTeam
-	}
-	if numTeams == 0 && numProjects == 1 {
-		return views.ModeProject
-	}
-	return views.ModeHub
-}
