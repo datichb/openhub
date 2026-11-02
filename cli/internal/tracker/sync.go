@@ -588,8 +588,14 @@ func (e *Engine) reconcileProject(
 	return pr, nil
 }
 
+// removalJudge tells how a claim file left the repository (teamstate.Repo).
+type removalJudge interface {
+	ClaimRemovedOnPurpose(ctx context.Context, project, ticketID string) bool
+}
+
 // recoverOrphans detects claims that existed in a previous sync but are now
-// missing locally (deleted, corrupted, or lost to git conflicts). For each
+// missing locally (deleted, corrupted, or lost to git conflicts; not the
+// ones released on purpose). For each
 // orphan, it fetches the issue from the tracker and recreates the claim.
 // Only open issues are recovered — closed issues are considered intentionally gone.
 func (e *Engine) recoverOrphans(
@@ -603,12 +609,21 @@ func (e *Engine) recoverOrphans(
 		return nil // first sync or no known tickets yet — nothing to compare
 	}
 
-	// Find orphans: tickets in KnownTickets but absent from current claims
+	// Find orphans: tickets in KnownTickets but absent from current claims.
+	// A claim released on purpose (oh team release, end of a session, the
+	// board, the retention of the done claims) is not an orphan: it left on
+	// purpose and the next snapshot no longer lists it.
+	judge, _ := e.repo.(removalJudge)
 	var orphans []KnownTicket
 	for _, kt := range known {
-		if !claimedTickets[kt.TicketID] {
-			orphans = append(orphans, kt)
+		if claimedTickets[kt.TicketID] {
+			continue
 		}
+		if judge != nil && judge.ClaimRemovedOnPurpose(ctx, hubProjectID, kt.TicketID) {
+			slog.Debug("tracker.orphan.released", "project", hubProjectID, "ticket", kt.TicketID)
+			continue
+		}
+		orphans = append(orphans, kt)
 	}
 	if len(orphans) == 0 {
 		return nil
