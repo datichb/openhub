@@ -385,6 +385,7 @@ func runMCPSetupForService(cmd *cobra.Command, serviceName string, project *doma
 	// Shared state between wizard steps
 	var token string
 	var writeEnabled bool
+	var emptyTokenWarning bool // said once the wizard has left the terminal
 
 	envHint := mcpServiceEnvVar[serviceName]
 
@@ -404,9 +405,7 @@ func runMCPSetupForService(cmd *cobra.Command, serviceName string, project *doma
 			OnDone: func() error {
 				// Store token
 				if token == "" && envHint != "" {
-					fmt.Fprintf(cmd.OutOrStdout(), "%s %s\n",
-						theme.WarningStyle.Render(theme.IconWarning),
-						i18n.Tf("cmd.service.token_empty_warning", envHint))
+					emptyTokenWarning = true
 				} else if token != "" && a.Secrets != nil {
 					if _, err := config.StoreMCPToken(ctx, a.Secrets, serviceName, projectIDOf(project), token); err != nil {
 						return fmt.Errorf("%s", i18n.Tf("cmd.service.keychain_error", err))
@@ -504,6 +503,12 @@ func runMCPSetupForService(cmd *cobra.Command, serviceName string, project *doma
 	}
 
 	wizResult := runCLIWizard(a, cliWizard{Command: "mcp setup", Steps: steps})
+
+	if emptyTokenWarning {
+		fmt.Fprintf(cmd.OutOrStdout(), "%s %s\n",
+			theme.WarningStyle.Render(theme.IconWarning),
+			i18n.Tf("cmd.service.token_empty_warning", envHint))
+	}
 
 	if wizResult.Aborted {
 		return nil
