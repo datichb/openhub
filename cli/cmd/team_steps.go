@@ -54,6 +54,32 @@ type teamStepState struct {
 	SelectedPolicies []string
 }
 
+// useRepo points the steps at a team-state that is available only now (the
+// clone of step 0) and pre-fills them from what it already holds: the config,
+// the policies and the profile of the member.
+func (s *teamStepState) useRepo(repo *teamstate.Repo) {
+	s.Repo = repo
+	s.HasConfig = repo.HasConfig()
+	s.HasPolicies = repo.HasPolicies()
+	s.ExistingCfg, _ = repo.LoadConfig()
+	if s.HasConfig && s.ExistingCfg != nil {
+		s.StaleDaysStr = strconv.Itoa(s.ExistingCfg.Takeover.StaleDays)
+		s.WebhookURL = s.ExistingCfg.Notification.MattermostWebhook
+		s.Channel = s.ExistingCfg.Notification.Channel
+		s.BotName = s.ExistingCfg.Notification.BotName
+	}
+	s.HasMember = s.MemberID != "" && repo.HasMember(s.MemberID)
+	if s.HasMember {
+		if m, err := repo.GetMember(s.MemberID); err == nil && m != nil {
+			s.DisplayName = m.DisplayName
+			s.GitLabUsername = m.GitLabUsername
+			s.TrackerUsername = m.TrackerUsername
+			s.MattermostUsername = m.MattermostUsername
+			s.Role = m.Role
+		}
+	}
+}
+
 // teamStepOpts configures optional per-caller overrides for the shared builders.
 type teamStepOpts struct {
 	// ExtraSkipIf is prepended to the default SkipIf (repo == nil).

@@ -254,6 +254,25 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	// ── Build shared team step state ──
+	tss := &teamStepState{
+		Ctx:                ctx,
+		Repo:               repo,
+		HasConfig:          hasConfig,
+		HasPolicies:        hasPolicies,
+		ExistingCfg:        existingCfg,
+		HasMember:          hasMember,
+		StaleDaysStr:       staleDaysStr,
+		MemberID:           memberID,
+		DisplayName:        displayName,
+		GitLabUsername:     gitlabUsername,
+		TrackerUsername:    trackerUsername,
+		MattermostUsername: mattermostUsername,
+		Role:               role,
+		WebhookURL:         webhookURL,
+		Channel:            channel,
+		BotName:            botName,
+	}
 	// ── Step 0: Repo team-state ──
 	repoStep := views.WizardStep{
 		Label:      i18n.T("cmd.team.init.step_repo"),
@@ -318,27 +337,9 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 			}
 			structureWarning = warn
 
-			// Now that repo is available, pre-fill state for subsequent steps
-			hasConfig = repo.HasConfig()
-			hasPolicies = repo.HasPolicies()
-			existingCfg, _ = repo.LoadConfig()
-			if hasConfig && existingCfg != nil {
-				staleDaysStr = strconv.Itoa(existingCfg.Takeover.StaleDays)
-				webhookURL = existingCfg.Notification.MattermostWebhook
-				channel = existingCfg.Notification.Channel
-				botName = existingCfg.Notification.BotName
-			}
-			hasMember = memberID != "" && repo.HasMember(memberID)
-			if hasMember {
-				existing, err := repo.GetMember(memberID)
-				if err == nil && existing != nil {
-					displayName = existing.DisplayName
-					gitlabUsername = existing.GitLabUsername
-					trackerUsername = existing.TrackerUsername
-					mattermostUsername = existing.MattermostUsername
-					role = existing.Role
-				}
-			}
+			// Now that the repo is available, the steps that follow work on it
+			tss.useRepo(repo)
+			hasConfig, hasPolicies = tss.HasConfig, tss.HasPolicies
 			return nil
 		},
 		InfoFields: func() []views.InfoField {
@@ -350,25 +351,6 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 		},
 	}
 
-	// ── Build shared team step state ──
-	tss := &teamStepState{
-		Ctx:                ctx,
-		Repo:               repo,
-		HasConfig:          hasConfig,
-		HasPolicies:        hasPolicies,
-		ExistingCfg:        existingCfg,
-		HasMember:          hasMember,
-		StaleDaysStr:       staleDaysStr,
-		MemberID:           memberID,
-		DisplayName:        displayName,
-		GitLabUsername:     gitlabUsername,
-		TrackerUsername:    trackerUsername,
-		MattermostUsername: mattermostUsername,
-		Role:               role,
-		WebhookURL:         webhookURL,
-		Channel:            channel,
-		BotName:            botName,
-	}
 	stepOpts := teamStepOpts{} // CLI wizard has no extra SkipIf
 	configStep := buildTeamConfigStep(tss, stepOpts)
 	identityStep := buildTeamIdentityStep(tss, stepOpts)
