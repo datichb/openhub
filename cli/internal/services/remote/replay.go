@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/datichb/openhub/cli/internal/beads"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/gateway"
 	"github.com/datichb/openhub/cli/internal/gateway/bdargs"
@@ -694,17 +695,28 @@ func labelsCommute(snapRaw, curRaw json.RawMessage, journal []beadswire.JournalE
 	return sameLabels(replayed, want)
 }
 
-// notesOnly reduces an entry to its notes and comments (MergeNotes), nil
-// when it has none.
+// notesOnly reduces an entry to its notes and comments (MergeNotes), and to
+// the ready-for-review label it adds or removes: the review of a ticket is
+// that label on an in-progress ticket, so a conflict on the status must not
+// lose it. nil when nothing is left.
 func notesOnly(c bdargs.Cmd) *bdargs.Cmd {
 	switch c.Key() {
 	case "note", "comment", "comments add":
 		return &c
+	case "label add", "label remove":
+		if len(c.Args) >= 2 && isReviewLabel(c.Args[len(c.Args)-1]) {
+			return &c
+		}
 	case "update":
 		out := bdargs.Cmd{Path: c.Path, Args: c.Args}
 		for _, f := range c.Flags {
-			if f.Name == "notes" || f.Name == "append-notes" {
+			switch f.Name {
+			case "notes", "append-notes":
 				out.Flags = append(out.Flags, f)
+			case "add-label", "remove-label":
+				if kept := reviewLabels(f.Value); kept != "" {
+					out.Flags = append(out.Flags, bdargs.Flag{Name: f.Name, Value: kept, Explicit: true})
+				}
 			}
 		}
 		if len(out.Flags) > 0 && len(out.Args) > 0 {
@@ -712,6 +724,21 @@ func notesOnly(c bdargs.Cmd) *bdargs.Cmd {
 		}
 	}
 	return nil
+}
+
+func isReviewLabel(l string) bool {
+	return strings.EqualFold(strings.TrimSpace(l), beads.LabelReadyForReview)
+}
+
+// reviewLabels keeps the ready-for-review label of a comma separated list.
+func reviewLabels(list string) string {
+	var kept []string
+	for _, l := range strings.Split(list, ",") {
+		if isReviewLabel(l) {
+			kept = append(kept, strings.TrimSpace(l))
+		}
+	}
+	return strings.Join(kept, ",")
 }
 
 // ApplyReplay applies the pending entries (after the user's confirmation),
