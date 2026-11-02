@@ -430,14 +430,7 @@ func (v *TeamMCPView) renderFields() {
 	}
 	savedIdx := v.list.GetCurrentItem()
 
-	items := make([]widgets.SectionItem, 0, len(v.fields))
-	for i, f := range v.fields {
-		item := renderConfigItem(f, 28)
-		item.Reference = i
-		items = append(items, item)
-	}
-
-	v.list.SetItems(items)
+	v.list.SetItems(configItems(v.fields, 28))
 	if savedIdx >= 0 {
 		v.list.SelectIndex(savedIdx)
 	}

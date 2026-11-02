@@ -619,6 +619,7 @@ func buildViews(a *app.App) []views.View {
 		// Hub config view
 		views.NewSettingsView(views.SettingsViewConfig{
 			ToolVersion: v5ToolVersion,
+			TrackerType: teamTrackerType,
 			GetConfig: func() *config.Config {
 				// Return the live config directly — no copy.
 				// The SettingsView uses undo (reload from disk) instead of
@@ -859,4 +860,22 @@ func tuiToolLine() string {
 		return i18n.Tf("cmd.v1.unsupported.doctor_name", toolName()) + " ✗"
 	}
 	return ""
+}
+
+// teamTrackerType is the type of the tracker of a team (gitlab, jira) as its
+// team-state declares it; "" when it is not cloned or says nothing. It reads
+// files: call it off the event loop.
+func teamTrackerType(team config.TeamConfig) string {
+	if team.StateRepo == "" {
+		return ""
+	}
+	repo := teamstate.NewRepo(team.StateRepo, team.StatePath)
+	if !repo.IsCloned() {
+		return ""
+	}
+	cfg, err := repo.LoadConfig()
+	if err != nil || cfg == nil {
+		return ""
+	}
+	return cfg.Tracker.Type
 }

@@ -68,6 +68,7 @@ func (v *TeamDetailView) tokenFields() []configField {
 			Description: i18n.T("tui.team.detail.token_url.desc"), Scope: ScopeTeamShared,
 			Placeholder: i18n.T("tui.team.detail.token_url.placeholder"),
 			Validator:   urlRule,
+			Visible:     func() bool { return v.effectiveTracker().Type != string(tracker.TypeJira) },
 			Get:         func() string { return v.teamCfg.Tracker.TrackerTokenURL },
 			Set: func(val string) {
 				v.teamCfg.Tracker.TrackerTokenURL = strings.TrimSpace(val)

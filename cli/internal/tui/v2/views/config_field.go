@@ -146,6 +146,22 @@ func renderConfigItem(f configField, columnWidth int) widgets.SectionItem {
 	}
 }
 
+// configItems are the list items of the fields that are visible (Visible nil
+// = always). The reference of an item is the index of its field in fields,
+// hidden ones included.
+func configItems(fields []configField, columnWidth int) []widgets.SectionItem {
+	items := make([]widgets.SectionItem, 0, len(fields))
+	for i, f := range fields {
+		if f.Visible != nil && !f.Visible() {
+			continue
+		}
+		item := renderConfigItem(f, columnWidth)
+		item.Reference = i
+		items = append(items, item)
+	}
+	return items
+}
+
 // formatFieldValue produces a colored display string for a config value.
 // It receives the full configField so it can use Scope for inheritance annotations.
 //
