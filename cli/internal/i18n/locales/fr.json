@@ -1275,9 +1275,9 @@
   "cmd.start.flags.provider": "Fournisseur LLM (bedrock, anthropic, openrouter, github-copilot)",
   "cmd.start.flags.resume": "Reprendre une session existante (ID)",
   "cmd.start.flags.worktree": "Branche pour lancer dans un git worktree",
-  "cmd.start.long": "Alias déprécié de oh run : oh start → oh run feature, --agent → oh run libre --agent,\n--dev → oh run ticket, --onboard → oh run onboarding, --parallel → oh run ticket --tickets,\n--sweep → oh run sweep. Demande une version prise en charge de l'outil des sessions (oh doctor).",
+  "cmd.start.long": "Alias déprécié de oh run : oh start → oh run feature (oh run libre pour un lancement libre), --agent → oh run libre --agent,\n--dev → oh run ticket, --onboard → oh run onboarding, --parallel → oh run ticket --tickets,\n--sweep → oh run sweep. Demande une version prise en charge de l'outil des sessions (oh doctor).",
   "cmd.start.short": "Lance une session (alias déprécié de oh run)",
-  "cmd.start.deprecated": "utilisez `oh run <workflow>` (`oh run feature` pour un lancement libre)",
+  "cmd.start.deprecated": "utilisez `oh run <workflow>` (`oh run libre` pour un lancement libre)",
   "cmd.start.cancelled": "Lancement annulé.",
   "cmd.status.config": "Config:",
   "cmd.status.flags.json": "Afficher en format JSON",
@@ -6289,5 +6289,11 @@
   "tui.team.detail.remote_renewal.desc": "Combien de temps après son lancement une session distante renouvelle ses claims ; ensuite ils expirent (remote_renewal_days).",
   "tui.team.detail.remote_renewal.placeholder": "1 à 90 (défaut 7)",
   "tui.team.detail.expire_on_sync.label": "Libérer les claims expirés à la synchro",
-  "tui.team.detail.expire_on_sync.desc": "La synchronisation du tracker libère les claims expirés (release_expired_on_sync) ; un claim en revue est gardé. Désactivé par défaut."
+  "tui.team.detail.expire_on_sync.desc": "La synchronisation du tracker libère les claims expirés (release_expired_on_sync) ; un claim en revue est gardé. Désactivé par défaut.",
+  "cmd.start.flags.yes": "Déprécié : le lancement rapide est le défaut. Utilisez --recap pour forcer le récap.",
+  "cmd.start.yes_deprecated": "le lancement rapide est le défaut. Utilisez --recap pour forcer le récap.",
+  "cmd.start.flags.max-sessions": "Nombre max de sessions parallèles (0 = valeur de la config, défaut : 3)",
+  "cmd.start.flags.priority": "Ticket prioritaire (fusionné en premier)",
+  "cmd.start.flags.sweep-branch-prefix": "Préfixe des branches du sweep",
+  "cmd.start.deprecated_flag": "sans effet depuis oh v5 (oh run ticket / oh run sweep)."
 }

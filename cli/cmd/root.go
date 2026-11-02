@@ -325,6 +325,9 @@ func localizeCommands(cmd *cobra.Command) {
 	localize := func(f *pflag.Flag) {
 		if f.Name != "help" {
 			f.Usage = localizedHelp(key+".flags."+f.Name, f.Usage)
+			if f.Deprecated != "" {
+				f.Deprecated = localizedHelp("", f.Deprecated)
+			}
 		}
 	}
 	cmd.Flags().VisitAll(localize)

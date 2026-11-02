@@ -1275,9 +1275,9 @@
   "cmd.start.flags.provider": "LLM provider (bedrock, anthropic, openrouter, github-copilot)",
   "cmd.start.flags.resume": "Resume an existing session (ID)",
   "cmd.start.flags.worktree": "Branch to launch in a git worktree",
-  "cmd.start.long": "Deprecated alias of oh run: oh start → oh run feature, --agent → oh run libre --agent,\n--dev → oh run ticket, --onboard → oh run onboarding, --parallel → oh run ticket --tickets,\n--sweep → oh run sweep. Requires a supported release of the session tool (oh doctor).",
+  "cmd.start.long": "Deprecated alias of oh run: oh start → oh run feature (oh run libre for a free launch), --agent → oh run libre --agent,\n--dev → oh run ticket, --onboard → oh run onboarding, --parallel → oh run ticket --tickets,\n--sweep → oh run sweep. Requires a supported release of the session tool (oh doctor).",
   "cmd.start.short": "Start a session (deprecated alias of oh run)",
-  "cmd.start.deprecated": "use `oh run <workflow>` (`oh run feature` for a free launch)",
+  "cmd.start.deprecated": "use `oh run <workflow>` (`oh run libre` for a free launch)",
   "cmd.start.cancelled": "Launch cancelled.",
   "cmd.status.config": "Config:",
   "cmd.status.flags.json": "Output in JSON format",
@@ -6289,5 +6289,11 @@
   "tui.team.detail.remote_renewal.desc": "How long after its launch a remote session keeps renewing its claims; then they expire (remote_renewal_days).",
   "tui.team.detail.remote_renewal.placeholder": "1 to 90 (default 7)",
   "tui.team.detail.expire_on_sync.label": "Release expired claims on sync",
-  "tui.team.detail.expire_on_sync.desc": "The tracker synchronization releases the expired claims (release_expired_on_sync); a claim in review is kept. Off by default."
+  "tui.team.detail.expire_on_sync.desc": "The tracker synchronization releases the expired claims (release_expired_on_sync); a claim in review is kept. Off by default.",
+  "cmd.start.flags.yes": "Deprecated: quick launch is the default. Use --recap to force the summary.",
+  "cmd.start.yes_deprecated": "quick launch is the default. Use --recap to force the summary.",
+  "cmd.start.flags.max-sessions": "Max parallel sessions (0 = configured value, default: 3)",
+  "cmd.start.flags.priority": "Priority ticket (merged first)",
+  "cmd.start.flags.sweep-branch-prefix": "Prefix of the sweep branches",
+  "cmd.start.deprecated_flag": "no effect since oh v5 (oh run ticket / oh run sweep)."
 }
