@@ -304,6 +304,26 @@ func TestPrefillProjectFromCwd(t *testing.T) {
 		assert.True(t, filepath.IsAbs(s.ProjectPath))
 	})
 
+	t.Run("the home folder and the root are not proposed", func(t *testing.T) {
+		home := t.TempDir()
+		t.Setenv("HOME", home)
+		t.Setenv("USERPROFILE", home)
+		t.Setenv("GIT_CEILING_DIRECTORIES", filepath.Dir(home))
+		for name, dir := range map[string]string{"home": home, "root": string(filepath.Separator)} {
+			t.Chdir(dir)
+			s := newTestState()
+			assert.Empty(t, prefillProjectFromCwd(s), name)
+			assert.Empty(t, s.ProjectPath, "%s: no path proposed", name)
+			assert.Empty(t, s.ProjectName, "%s: no name proposed", name)
+		}
+		sub := filepath.Join(home, "work")
+		require.NoError(t, os.MkdirAll(sub, 0o755))
+		t.Chdir(sub)
+		s := newTestState()
+		assert.NotEmpty(t, prefillProjectFromCwd(s), "a folder under home is proposed")
+		assert.Equal(t, "work", s.ProjectName)
+	})
+
 	t.Run("what is already set is kept", func(t *testing.T) {
 		t.Chdir(t.TempDir())
 		s := newTestState()
