@@ -774,14 +774,13 @@ const defaultMaxAutoPlan = 5
 // yet claimed. Claims are created locally in batch and committed in a single
 // git operation.
 //
-// max_auto_plan_per_member bounds what a member has on the board from the
-// tracker: the claims of the member that are linked to an issue and not
-// finished, plus the ones this run creates. Among the issues to put on the
-// board the ones already started (their status is not the initial column)
-// come first and are always let in, however full the board; the others fill
-// what is left of the limit, the oldest held issue first. What does not fit
-// is held: counted in the result, said in a warning, kept in the sync state
-// (AutoPlanHeld) for the next run and for the board.
+// max_auto_plan_per_member bounds the claims a run creates for a member, not
+// what the member has on the board: the next run starts again from zero. Among
+// the issues to put on the board the ones already started (their status is not
+// the initial column) come first and are always let in, outside the limit; the
+// others fill the limit, the ones held by the last run first. What does not
+// fit is held: counted in the result, said in a warning, kept in the sync
+// state (AutoPlanHeld) for the next run and for the board.
 func (e *Engine) autoplan(
 	ctx context.Context,
 	hubProjectID, trackerProjectID string,
@@ -804,15 +803,7 @@ func (e *Engine) autoplan(
 	}
 	slog.Debug("tracker.autoplan.start", "project", hubProjectID, "members", len(memberByGitLab), "first_sync", firstSync, "limit", limit)
 
-	onBoard := map[string]int{} // tracker claims of the member that are not finished
-	if claims, err := e.repo.ListClaims(hubProjectID); err == nil {
-		terminal := e.boardCfg.TerminalStatuses()
-		for i := range claims {
-			if c := &claims[i]; c.ClaimedBy != "" && c.ExternalIID > 0 && !slices.Contains(terminal, c.Status) {
-				onBoard[c.ClaimedBy]++
-			}
-		}
-	}
+	planned := map[string]int{} // claims of this run per member, the ones in progress apart
 
 	usernames := make([]string, 0, len(memberByGitLab))
 	for username := range memberByGitLab {
@@ -887,7 +878,8 @@ func (e *Engine) autoplan(
 
 		for _, issue := range candidates {
 			ticketID := ticketIDFromIssue(issue, "")
-			if !started(issue) && onBoard[member.ID] >= limit {
+			isStarted := started(issue)
+			if !isStarted && planned[member.ID] >= limit {
 				held = append(held, HeldIssue{TicketID: ticketID, ExternalIID: issue.IID, MemberID: member.ID})
 				continue
 			}
@@ -904,7 +896,9 @@ func (e *Engine) autoplan(
 				ExternalIID:   issue.IID,
 			})
 			claimedTickets[ticketID] = true
-			onBoard[member.ID]++
+			if !isStarted {
+				planned[member.ID]++
+			}
 		}
 	}
 	if scanned {

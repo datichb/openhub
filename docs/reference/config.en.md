@@ -617,7 +617,7 @@ write_enabled = false        # tracker writes (labels, assignment)
 | `auto_sync` | bool | `false` | Sync when opening team views |
 | `sync_interval_minutes` | int | `5` with `auto_sync`, otherwise `0` | Sync interval while the board is open (`0` = disabled) |
 | `auto_plan_assigned` | bool | `false` | `planned` claims for issues assigned to members |
-| `max_auto_plan_per_member` | int | `5` | Cap on the issues of the tracker a member has on the board (their claims linked to an issue and not finished, plus the ones the sync creates). The issues already in progress come first and are always let in; the others wait for room. What is left off is said: `N issue(s) outside the board, limit reached` in the sync result and on the team board |
+| `max_auto_plan_per_member` | int | `5` | Most claims one sync creates for a member from the issues assigned to them (per run, not a standing cap: the issues held come in at the next syncs). The issues already in progress come first and are always let in, outside the limit. What is left off is said: `N issue(s) outside the board, limit reached` in the sync result and on the team board |
 | `auto_plan_unassigned` | bool | `false` | Pool claims (taken with `c`) for unassigned issues |
 | `unassigned_labels` | list | `[]` | Labels required on unassigned issues |
 | `max_unassigned_issues` | int | `20` | Cap on unassigned issues per project |

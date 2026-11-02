@@ -617,7 +617,7 @@ write_enabled = false        # écritures tracker (labels, assignation)
 | `auto_sync` | bool | `false` | Synchroniser à l'ouverture des vues d'équipe |
 | `sync_interval_minutes` | int | `5` si `auto_sync`, sinon `0` | Intervalle de sync quand le board est ouvert (`0` = désactivé) |
 | `auto_plan_assigned` | bool | `false` | Claims `planned` pour les issues assignées aux membres |
-| `max_auto_plan_per_member` | int | `5` | Plafond des issues du tracker qu'un membre a sur le board (ses claims liés à une issue et non terminés, plus ceux que la synchro crée). Les issues déjà en cours passent en premier et sont toujours acceptées ; les autres attendent de la place. Ce qui reste dehors est signalé : `N issue(s) hors du board, limite atteinte` dans le résultat de la synchro et sur le board d'équipe |
+| `max_auto_plan_per_member` | int | `5` | Nombre maximal de claims qu'une synchro crée pour un membre à partir des issues qui lui sont assignées (par run, pas un plafond permanent : les issues retenues entrent aux synchros suivantes). Les issues déjà en cours passent en premier et sont toujours acceptées, hors limite. Ce qui reste dehors est signalé : `N issue(s) hors du board, limite atteinte` dans le résultat de la synchro et sur le board d'équipe |
 | `auto_plan_unassigned` | bool | `false` | Claims de pool (à prendre avec `c`) pour les issues non assignées |
 | `unassigned_labels` | liste | `[]` | Labels exigés pour les issues non assignées |
 | `max_unassigned_issues` | int | `20` | Plafond d'issues non assignées par projet |
