@@ -10,6 +10,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/i18n"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
@@ -85,4 +86,64 @@ func TestBoardIssueRef(t *testing.T) {
 	assert.Empty(t, boardIssueRef(trackerApp(t, "jira"), views.TicketContext{ID: "42"}), "a number on a Jira board is not a GitLab issue")
 	assert.Empty(t, boardIssueRef(trackerApp(t, ""), views.TicketContext{ID: "693"}), "no tracker declared")
 	assert.Empty(t, boardIssueRef(nil, views.TicketContext{ID: "693"}))
+}
+
+// hubCatalog is the catalogue of the workflows shipped with oh.
+func hubCatalog(t *testing.T) []workflowsvc.Summary {
+	t.Helper()
+	root := filepath.Join("..", "..")
+	if _, err := os.Stat(filepath.Join(root, "workflows")); err != nil {
+		t.Skip("hub content not found")
+	}
+	svc := &workflowsvc.Service{HubDir: root, HubWorkflowsDir: filepath.Join(root, "workflows"), Lang: "fr"}
+	list, err := svc.Catalog(t.Context(), workflowsvc.Context{})
+	require.NoError(t, err)
+	var valid []workflowsvc.Summary
+	for _, s := range list {
+		if s.Valid {
+			valid = append(valid, s)
+		}
+	}
+	return valid
+}
+
+// The menu of the card of a GitLab issue offers, besides the workflows that
+// take a Beads ticket, the ones of the hub that take a request: the cadrage
+// (spec), quick, libre, infra-change, and the three that have a main input of
+// their own, which the issue fills: spike (question), incident, retro (focus).
+func TestBoardMenuOfTheHubWorkflows(t *testing.T) {
+	ts := testTUIStart()
+	ts.catalog = hubCatalog(t)
+	offered := workflowIDsOf(ts.requestWorkflows(views.StartScope{}))
+	for _, id := range []string{"spec", "quick", "libre", "infra-change", "spike", "incident", "retro"} {
+		assert.Contains(t, offered, id)
+	}
+	for _, id := range []string{"ticket", "review", "sweep", "release", "merge-conflicts"} {
+		assert.NotContains(t, offered, id, "a workflow with a ticket, or with no free request")
+	}
+	for id, input := range map[string]string{"spec": "request", "infra-change": "request", "spike": "question", "incident": "incident", "retro": "focus", "unknown": "request"} {
+		assert.Equal(t, input, ts.requestInput(id), id)
+	}
+}
+
+// The workflows with a title of their own in the menu show it, in both languages,
+// and it fits the column; the others keep their description.
+func TestBoardMenuLabels(t *testing.T) {
+	ts := testTUIStart()
+	ts.catalog = hubCatalog(t)
+	for _, lang := range []string{"fr", "en"} {
+		prev := i18n.Locale()
+		i18n.SetLocale(lang)
+		labels := map[string]string{}
+		for _, w := range ts.requestWorkflows(views.StartScope{}) {
+			labels[w.ID] = w.Label
+		}
+		i18n.SetLocale(prev)
+		for _, id := range []string{"spike", "incident", "retro"} {
+			assert.NotEmpty(t, labels[id], "%s %s", lang, id)
+			assert.LessOrEqual(t, len([]rune(labels[id])), 34, "%s %s: the column of the menu is 34 wide: %q", lang, id, labels[id])
+			assert.Less(t, len([]rune(labels[id])), 40, "%s %s: a title, not the description: %q", lang, id, labels[id])
+		}
+		assert.Contains(t, labels["spike"], "spike")
+	}
 }

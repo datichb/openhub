@@ -228,27 +228,67 @@ func (t *tuiStart) ticketWorkflows(scope views.StartScope) []views.TicketWorkflo
 	return t.workflowsWhere(scope, func(s workflowsvc.Summary) bool { return s.TicketInput != "" })
 }
 
-// requestWorkflows returns the workflows that take a free request (an input
-// named « request ») and no Beads ticket: spec (cadrage), quick, libre…
-// These are the ones a GitLab issue card of the board can launch, with the
-// issue as the request (#<iid>).
+// requestWorkflows returns the workflows that take a free request and no
+// Beads ticket: spec (cadrage), quick, libre, infra-change, spike, incident,
+// retro… These are the ones a GitLab issue card of the board can launch, with
+// the issue as the request (#<iid>).
 func (t *tuiStart) requestWorkflows(scope views.StartScope) []views.TicketWorkflow {
-	return t.workflowsWhere(scope, func(s workflowsvc.Summary) bool { return s.TicketInput == "" && hasRequestInput(s) })
+	return t.workflowsWhere(scope, func(s workflowsvc.Summary) bool { return s.TicketInput == "" && requestInputOf(s) != "" })
 }
 
-// hasRequestInput reports whether the workflow has a free-text « request »
-// input, the main input of the workflows that take a demand.
-func hasRequestInput(s workflowsvc.Summary) bool {
-	for _, in := range s.Inputs {
-		if in.ID == boardRequestInput && (in.Type == wf.InputText || in.Type == wf.InputString) {
-			return true
+// requestInput is the input that the issue of a card fills when the workflow
+// is launched from the board ("request" when the workflow is not known).
+func (t *tuiStart) requestInput(workflowID string) string {
+	t.mu.Lock()
+	catalog := t.catalog
+	t.mu.Unlock()
+	if s, ok := workflowsvc.Find(catalog, workflowID); ok {
+		if id := requestInputOf(s); id != "" {
+			return id
 		}
 	}
-	return false
+	return boardRequestInput
 }
 
 // boardRequestInput is the input a GitLab issue card fills (« #<iid> »).
 const boardRequestInput = "request"
+
+// boardRequestInputs names, for the workflows whose main free-text input is not
+// called « request », the input that takes the issue: the question of a spike,
+// the incident, the subject of a retrospective.
+var boardRequestInputs = map[string]string{"spike": "question", "incident": "incident", "retro": "focus"}
+
+// requestInputOf is the free-text input that takes the issue of a board card:
+// « request », else the one that boardRequestInputs names for the workflow;
+// "" when the workflow takes none.
+func requestInputOf(s workflowsvc.Summary) string {
+	isText := func(id string) bool {
+		for _, in := range s.Inputs {
+			if in.ID == id {
+				return in.Type == wf.InputText || in.Type == wf.InputString
+			}
+		}
+		return false
+	}
+	if isText(boardRequestInput) {
+		return boardRequestInput
+	}
+	if id, ok := boardRequestInputs[s.ID]; ok && isText(id) {
+		return id
+	}
+	return ""
+}
+
+// boardLabel is how the menu of a card names a workflow: a short title of its
+// own where the catalogue has one (keys tui.board.label.<id>), else its
+// description.
+func boardLabel(s workflowsvc.Summary) string {
+	key := "tui.board.label." + s.ID
+	if label := i18n.T(key); label != key {
+		return label
+	}
+	return summaryDesc(s)
+}
 
 func (t *tuiStart) workflowsWhere(scope views.StartScope, pick func(workflowsvc.Summary) bool) []views.TicketWorkflow {
 	t.mu.Lock()
@@ -267,7 +307,7 @@ func (t *tuiStart) workflowsWhere(scope views.StartScope, pick func(workflowsvc.
 		if !pick(s) {
 			continue
 		}
-		w := views.TicketWorkflow{ID: s.ID, Label: summaryDesc(s), Risk: string(s.Risk), Pinned: pinned[s.ID]}
+		w := views.TicketWorkflow{ID: s.ID, Label: boardLabel(s), Risk: string(s.Risk), Pinned: pinned[s.ID]}
 		for _, r := range s.Runtimes {
 			w.Runtimes = append(w.Runtimes, string(r))
 		}
