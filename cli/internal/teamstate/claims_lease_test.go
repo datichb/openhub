@@ -126,11 +126,20 @@ func TestCreateClaimLeaseFollowsTheConfiguration(t *testing.T) {
 	require.NoError(t, repo.SaveConfig(ctx, &TeamConfig{Claim: ClaimConfig{LeaseHours: 6, HeartbeatMinutes: 30}}))
 
 	before := time.Now().UTC()
-	_, err := repo.CreateClaim(ctx, Claim{TicketID: "SRU-1", Project: "T-SRU", ClaimedBy: "benjamin"})
+	_, err := repo.CreateClaim(ctx, Claim{TicketID: "SRU-1", Project: "T-SRU", ClaimedBy: "benjamin", Session: "ses_1"})
 	require.NoError(t, err)
 	got, err := repo.GetClaim("T-SRU", "SRU-1")
 	require.NoError(t, err)
 	assert.WithinDuration(t, before.Add(6*time.Hour), got.LeaseUntil.Time(), time.Minute)
+	assert.Equal(t, "ses_1", got.Session)
+
+	// A claim taken by hand has the lease of the claims taken by hand (72 h by
+	// default, never shorter than the lease of a session).
+	_, err = repo.CreateClaim(ctx, Claim{TicketID: "SRU-2", Project: "T-SRU", ClaimedBy: "benjamin"})
+	require.NoError(t, err)
+	got, err = repo.GetClaim("T-SRU", "SRU-2")
+	require.NoError(t, err)
+	assert.WithinDuration(t, before.Add(72*time.Hour), got.LeaseUntil.Time(), time.Minute)
 	assert.Empty(t, got.Session)
 }
 
@@ -192,14 +201,15 @@ func TestTransferClaimRenewsTheLease(t *testing.T) {
 	_, err := repo.CreateClaim(ctx, Claim{TicketID: "SRU-1", Project: "T-SRU", ClaimedBy: "alice", Session: "ses_alice", LeaseUntil: InstantOf(old)})
 	require.NoError(t, err)
 
-	// Without a session: the one of the previous owner does not stay.
+	// Without a session: the one of the previous owner does not stay, the
+	// claim is taken by hand (the long lease).
 	before := time.Now().UTC()
 	require.NoError(t, repo.TransferClaim(ctx, "T-SRU", "SRU-1", "benjamin"))
 	got, err := repo.GetClaim("T-SRU", "SRU-1")
 	require.NoError(t, err)
 	assert.Equal(t, "benjamin", got.ClaimedBy)
 	assert.Empty(t, got.Session)
-	assert.WithinDuration(t, before.Add(24*time.Hour), got.LeaseUntil.Time(), time.Minute)
+	assert.WithinDuration(t, before.Add(72*time.Hour), got.LeaseUntil.Time(), time.Minute)
 
 	// With the session of the new owner.
 	require.NoError(t, repo.TransferClaim(WithClaimSession(ctx, "ses_carol"), "T-SRU", "SRU-1", "carol"))

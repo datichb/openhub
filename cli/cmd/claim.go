@@ -134,7 +134,8 @@ func runClaim(cmd *cobra.Command, args []string) error {
 
 	// Taken by hand: no session works on the ticket, so the claim carries
 	// none (the session that starts on it takes it, AdoptClaim). Its lease
-	// lasts lease_hours; claiming the ticket again renews it.
+	// lasts lease_hours_manual (72 h by default) and nothing renews it by
+	// itself; claiming the ticket again does.
 	claim := teamstate.Claim{
 		TicketID:  ticketID,
 		Project:   project,
@@ -171,8 +172,9 @@ func runClaim(cmd *cobra.Command, args []string) error {
 // member that has expired (its lease is past, or, without lease, it has been
 // inactive longer than stale_days) can be taken over after the common
 // confirmation (--yes without a terminal): a takeover brief is generated, the
-// claim comes with a new lease. The member's own expired claim is renewed
-// (lease only). Any other claim is reported and left as it is.
+// claim comes with a new lease. The member's own claim is renewed (lease
+// only), expired or not, without confirmation: for a claim taken by hand, it
+// is the only renewal. Any other claim is reported and left as it is.
 //
 // The claim is taken by hand, no session works on it: it carries none (the
 // first session that starts on the ticket takes it, AdoptClaim).
@@ -185,17 +187,24 @@ func claimExists(cmd *cobra.Command, a *app.App, repo *teamstate.Repo, existing 
 	now := time.Now()
 	expired := existing.IsExpired(now, teamCfg)
 
-	if expired && existing.ClaimedBy == memberID {
-		touched, err := repo.TouchClaims(ctx, []teamstate.ClaimRef{{Project: project, TicketID: ticketID}}, memberID, "", now)
-		if err != nil {
-			return fmt.Errorf(i18n.T("cmd.claim.creating_claim"), err)
-		}
-		if len(touched) > 0 {
-			if c, err := repo.GetClaim(project, ticketID); err == nil {
-				fmt.Fprintf(a.IO.Out, "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess),
-					i18n.Tf("cmd.claims.own_renewed", project, ticketID, textfmt.DateTime(c.LeaseUntil.Time())))
-				return nil
+	if existing.ClaimedBy == memberID {
+		// One's own claim is renewed, expired or not, without confirmation.
+		end, err := repo.RenewClaim(ctx, project, ticketID, memberID, now)
+		switch {
+		case err == nil:
+			key := "cmd.claims.own_renewed_live"
+			if expired {
+				key = "cmd.claims.own_renewed"
 			}
+			fmt.Fprintf(a.IO.Out, "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess),
+				i18n.Tf(key, project, ticketID, textfmt.DateTime(end)))
+			return nil
+		case errors.Is(err, teamstate.ErrNoLease):
+			fmt.Fprintf(a.IO.Out, "%s %s\n", theme.WarningStyle.Render(theme.IconWarning),
+				i18n.Tf("cmd.claims.own_no_lease", project, ticketID))
+			return nil
+		default:
+			return fmt.Errorf(i18n.T("cmd.claim.creating_claim"), err)
 		}
 	}
 

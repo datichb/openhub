@@ -202,7 +202,7 @@ func TestTouchClaimsFollowsLeaseHours(t *testing.T) {
 	repo, _ := setupGitTestRepo(t)
 	ctx := context.Background()
 	require.NoError(t, repo.SaveConfig(ctx, &TeamConfig{Claim: ClaimConfig{LeaseHours: 4, HeartbeatMinutes: 30}}))
-	mustCreate(t, repo, Claim{TicketID: "SRU-1", ClaimedBy: "benjamin"})
+	mustCreate(t, repo, Claim{TicketID: "SRU-1", ClaimedBy: "benjamin", Session: "ses_1"})
 	before := commitCount(t, repo.path)
 
 	// 1 h in: 3 h left of 4 h, long.

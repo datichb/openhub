@@ -6277,5 +6277,18 @@
   "fmt.off": "disabled",
   "tracker.sync.expired_released": "expired claim of %s released (team setting release_expired_on_sync)",
   "tracker.sync.autoplan_held": "%d issue(s) outside the board, limit reached (max_auto_plan_per_member = %d): %s. Issues already in progress come first; raise the limit with oh team config or in team-detail.",
-  "tracker.sync.held_notice": "%d issue(s) outside the board, limit reached (max_auto_plan_per_member = %d)"
+  "tracker.sync.held_notice": "%d issue(s) outside the board, limit reached (max_auto_plan_per_member = %d)",
+  "cmd.claims.own_renewed_live": "%s/%s is already yours: lease renewed until %s.",
+  "cmd.claims.own_no_lease": "%s/%s is already yours; it carries no lease (planned, pool or finished): nothing to renew.",
+  "tui.team.detail.lease_manual.label": "Lease of a claim taken by hand (hours)",
+  "tui.team.detail.lease_manual.desc": "Lease of a claim with no session on the ticket (oh team claim, the board): nothing renews it, oh team claim <ticket> does (lease_hours_manual).",
+  "tui.team.detail.lease_manual.placeholder": "lease_hours to 720 (default 72)",
+  "tui.team.detail.sleeping_renewal.label": "Renewal of a sleeping session (days)",
+  "tui.team.detail.sleeping_renewal.desc": "How long after it was put to sleep a session keeps renewing its claims; then they expire (sleeping_renewal_days).",
+  "tui.team.detail.sleeping_renewal.placeholder": "1 to 90 (default 3)",
+  "tui.team.detail.remote_renewal.label": "Renewal of a remote session (days)",
+  "tui.team.detail.remote_renewal.desc": "How long after its launch a remote session keeps renewing its claims; then they expire (remote_renewal_days).",
+  "tui.team.detail.remote_renewal.placeholder": "1 to 90 (default 7)",
+  "tui.team.detail.expire_on_sync.label": "Release expired claims on sync",
+  "tui.team.detail.expire_on_sync.desc": "The tracker synchronization releases the expired claims (release_expired_on_sync); a claim in review is kept. Off by default."
 }
