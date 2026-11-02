@@ -15,7 +15,6 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/provider"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
-	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
@@ -351,14 +350,7 @@ func setupBedrock(ctx context.Context, a *app.App, project *domain.Project) erro
 		},
 	}
 
-	wizResult := views.RunWizard(views.WizardConfig{
-		Layout: layout.Config{
-			ProjectName: a.Config.Name,
-			Command:     "provider setup",
-			StatusHints: i18n.T("wizard.hints.default"),
-		},
-		Steps: steps,
-	})
+	wizResult := runCLIWizard(a, cliWizard{Command: "provider setup", Steps: steps})
 
 	if wizResult.Aborted {
 		return nil
@@ -470,14 +462,7 @@ func setupAPIKey(ctx context.Context, a *app.App, project *domain.Project, name 
 		},
 	}
 
-	wizResult := views.RunWizard(views.WizardConfig{
-		Layout: layout.Config{
-			ProjectName: a.Config.Name,
-			Command:     "provider setup",
-			StatusHints: i18n.T("wizard.hints.default"),
-		},
-		Steps: steps,
-	})
+	wizResult := runCLIWizard(a, cliWizard{Command: "provider setup", Steps: steps})
 
 	if wizResult.Aborted {
 		return nil

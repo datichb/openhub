@@ -12,7 +12,6 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
-	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
@@ -220,14 +219,7 @@ func runPatternsAdd(cmd *cobra.Command, args []string) error {
 		},
 	}
 
-	wizResult := views.RunWizard(views.WizardConfig{
-		Layout: layout.Config{
-			ProjectName: a.Config.Name,
-			Command:     "patterns add",
-			StatusHints: i18n.T("wizard.hints.cancel"),
-		},
-		Steps: steps,
-	})
+	wizResult := runCLIWizard(a, cliWizard{Command: "patterns add", Steps: steps})
 
 	if wizResult.Aborted {
 		return nil

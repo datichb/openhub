@@ -25,7 +25,6 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/tracker"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
-	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
@@ -504,14 +503,7 @@ func runMCPSetupForService(cmd *cobra.Command, serviceName string, project *doma
 		},
 	}
 
-	wizResult := views.RunWizard(views.WizardConfig{
-		Layout: layout.Config{
-			ProjectName: a.Config.Name,
-			Command:     "mcp setup",
-			StatusHints: i18n.T("wizard.hints.default"),
-		},
-		Steps: steps,
-	})
+	wizResult := runCLIWizard(a, cliWizard{Command: "mcp setup", Steps: steps})
 
 	if wizResult.Aborted {
 		return nil

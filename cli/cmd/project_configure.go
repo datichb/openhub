@@ -15,7 +15,6 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
-	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
@@ -301,14 +300,7 @@ func runProjectConfigureInteractive(ctx context.Context, a *app.App, project *do
 		},
 	}
 
-	wizResult := views.RunWizard(views.WizardConfig{
-		Layout: layout.Config{
-			ProjectName: a.Config.Name,
-			Command:     "project configure",
-			StatusHints: i18n.T("wizard.hints.default"),
-		},
-		Steps: steps,
-	})
+	wizResult := runCLIWizard(a, cliWizard{Command: "project configure", Steps: steps})
 
 	if wizResult.Aborted {
 		return nil

@@ -24,7 +24,6 @@ import (
 	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tui/components/summary"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
-	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
@@ -378,14 +377,7 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 	// ══════════════════════════════════════════════════════════════════════════
 	// LAUNCH WIZARD (tview alt-screen, cell-buffer, no banding)
 	// ══════════════════════════════════════════════════════════════════════════
-	wizResult := views.RunWizard(views.WizardConfig{
-		Layout: layout.Config{
-			ProjectName: a.Config.Name,
-			Command:     "team init",
-			StatusHints: i18n.T("wizard.hints.default"),
-		},
-		Steps: []views.WizardStep{repoStep, configStep, identityStep, notifStep, policiesStep},
-	})
+	wizResult := runCLIWizard(a, cliWizard{Command: "team init", Steps: []views.WizardStep{repoStep, configStep, identityStep, notifStep, policiesStep}})
 	if wizResult.Aborted {
 		return nil
 	}
