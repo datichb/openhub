@@ -2,6 +2,7 @@ package views
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -146,6 +147,21 @@ type PoliciesView struct {
 	actionIndices map[int]func()
 	// policyIndices maps SectionedList item indices to policy slice indices.
 	policyIndices map[int]int
+
+	loads      loadSlot // the reads of the policies: only the latest is applied
+	checkReads loadSlot // the check of the policies: only the latest is applied
+}
+
+// The keys of the view besides the convention.
+var (
+	policyCheckKey    = keys.Own("policies.check", 'c', "tui.hints.check")
+	policyTemplateKey = keys.Own("policies.template", 't', "tui.hints.template")
+)
+
+// policiesData is what a read of the policies gives back.
+type policiesData struct {
+	cloned   bool
+	policies []teamstate.Policy
 }
 
 var _ View = (*PoliciesView)(nil)
@@ -177,8 +193,8 @@ func (v *PoliciesView) Title() string { return i18n.T("tui.team.policies") }
 func (v *PoliciesView) StatusHints() string {
 	return keys.Hints(keys.Navigate.Hint(), "{/} "+i18n.T("tui.hints.sections"),
 		keys.Open.HintAs(i18n.T("tui.hints.detail")), keys.Create.Hint(),
-		"t "+i18n.T("tui.hints.template"), keys.Edit.Hint(), keys.Delete.Hint(),
-		"c "+i18n.T("tui.hints.check"), keys.Refresh.Hint())
+		policyTemplateKey.Hint(), keys.Edit.Hint(), keys.Delete.Hint(),
+		policyCheckKey.Hint(), keys.Refresh.Hint())
 }
 
 // Mount builds the policies view with a descriptive header and SectionedList.
@@ -204,6 +220,8 @@ func (v *PoliciesView) Mount(content *tview.Flex, tvApp *tview.Application) {
 
 // Unmount cleans up resources.
 func (v *PoliciesView) Unmount() {
+	v.loads.Invalidate()
+	v.checkReads.Invalidate()
 	v.app = nil
 	v.slist = nil
 	v.header = nil
@@ -216,13 +234,13 @@ func (v *PoliciesView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	case keys.Refresh.Matches(event):
 		v.refresh()
 		return nil
-	case event.Key() == tcell.KeyRune && event.Rune() == 'c':
+	case policyCheckKey.Matches(event):
 		v.checkPolicies()
 		return nil
 	case keys.Create.Matches(event):
 		v.addPolicy()
 		return nil
-	case event.Key() == tcell.KeyRune && event.Rune() == 't':
+	case policyTemplateKey.Matches(event):
 		v.addFromTemplate()
 		return nil
 	case keys.Edit.Matches(event):
@@ -232,7 +250,10 @@ func (v *PoliciesView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		v.removeSelectedPolicy()
 		return nil
 	}
-	if event.Key() == tcell.KeyEnter {
+	if keys.Open.Matches(event) {
+		if v.slist == nil {
+			return nil
+		}
 		if idx, _, ok := v.slist.CurrentItem(); ok {
 			if fn, exists := v.actionIndices[idx]; exists {
 				fn()
@@ -245,18 +266,26 @@ func (v *PoliciesView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	return event
 }
 
-func (v *PoliciesView) getRepo() teamstate.TeamStateWriter {
+// newRepo is the team-state of the team, without touching the disk (nil
+// without a team).
+func (v *PoliciesView) newRepo() teamstate.TeamStateWriter {
 	tc := v.resolveTeam()
 	if !tc.Enabled {
 		return nil
 	}
-	repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
-	if !repo.IsCloned() {
+	return teamstate.NewRepo(tc.StateRepo, tc.StatePath)
+}
+
+// getRepo is newRepo for the actions, which need the clone to be there.
+func (v *PoliciesView) getRepo() teamstate.TeamStateWriter {
+	repo := v.newRepo()
+	if repo == nil || !repo.IsCloned() {
 		return nil
 	}
 	return repo
 }
 
+// refresh pulls the team-state, then reads the policies off the event loop.
 func (v *PoliciesView) refresh() {
 	v.policies = nil
 	v.actionIndices = nil
@@ -266,24 +295,38 @@ func (v *PoliciesView) refresh() {
 	}
 	setPageDetail(v.page, emptyDetail())
 
-	repo := v.getRepo()
+	repo := v.newRepo()
 	if repo == nil {
-		v.setHeaderText(i18n.T("tui.policies.team_not_configured"))
+		v.loads.Invalidate()
+		v.setHeader(stateEmpty, i18n.T("tui.policies.team_not_configured"))
 		return
 	}
+	v.setHeader(stateLoading, "")
 
-	syncAsync(v.app, repo, v.shell, func(_ error) {
-		v.renderPolicies(repo)
+	fetch := func(context.Context) (policiesData, error) {
+		if !repo.IsCloned() {
+			return policiesData{}, nil
+		}
+		policies, err := repo.LoadPolicies("")
+		return policiesData{cloned: true, policies: policies}, err
+	}
+	syncLoad(v.app, shellContext(v.shell), &v.loads, repo, v.shell, fetch, func(d policiesData, err error) {
+		v.renderPolicies(d, err)
 	})
+}
+
+// setHeader writes a state in the header.
+func (v *PoliciesView) setHeader(kind stateKind, msg string) {
+	if v.header != nil {
+		v.header.SetText(stateText(kind, msg))
+	}
 }
 
 func (v *PoliciesView) setHeaderText(text string) {
 	if v.header == nil {
 		return
 	}
-	secondary := theme.ColorTag(theme.TextSecondaryHex)
-	reset := theme.TagReset
-	v.header.SetText(fmt.Sprintf("%s%s%s", secondary, text, reset))
+	v.header.SetText(theme.Paint(theme.TextSecondaryHex, tview.Escape(text)))
 }
 
 // policySectionKey returns the i18n key for a policy type section header.
@@ -302,18 +345,19 @@ func policySectionKey(t teamstate.PolicyType) string {
 	}
 }
 
-func (v *PoliciesView) renderPolicies(repo teamstate.TeamStateWriter) {
+func (v *PoliciesView) renderPolicies(d policiesData, err error) {
 	if v.slist == nil {
 		return
 	}
-
-	policies, err := repo.LoadPolicies("")
-	if err != nil {
-		v.slist.SetItems([]widgets.SectionItem{
-			{MainText: "  " + errorText(err)},
-		})
+	switch {
+	case err != nil:
+		v.setHeader(stateError, err.Error())
+		return
+	case !d.cloned:
+		v.setHeader(stateEmpty, i18n.T("tui.policies.team_not_configured"))
 		return
 	}
+	policies := d.policies
 	v.policies = policies
 
 	if len(policies) == 0 {
@@ -386,25 +430,19 @@ func (v *PoliciesView) renderPolicies(repo teamstate.TeamStateWriter) {
 
 	templateIdx := len(items)
 	items = append(items, widgets.SectionItem{
-		MainText: fmt.Sprintf("  %s%s %s%s",
-			theme.ColorTag(theme.ActiveMode.SecondaryHex), theme.IconArrow,
-			i18n.T("tui.policies.action_template"), theme.TagReset),
+		MainText: "  " + theme.Paint(theme.ActiveMode.SecondaryHex, theme.SymCursor+" "+i18n.T("tui.policies.action_template")),
 	})
 	v.actionIndices[templateIdx] = func() { v.addFromTemplate() }
 
 	customIdx := len(items)
 	items = append(items, widgets.SectionItem{
-		MainText: fmt.Sprintf("  %s%s %s%s",
-			theme.ColorTag(theme.ActiveMode.SecondaryHex), theme.IconArrow,
-			i18n.T("tui.policies.action_custom"), theme.TagReset),
+		MainText: "  " + theme.Paint(theme.ActiveMode.SecondaryHex, theme.SymCursor+" "+i18n.T("tui.policies.action_custom")),
 	})
 	v.actionIndices[customIdx] = func() { v.addPolicy() }
 
 	checkIdx := len(items)
 	items = append(items, widgets.SectionItem{
-		MainText: fmt.Sprintf("  %s%s %s%s",
-			theme.ColorTag(theme.ActiveMode.SecondaryHex), theme.IconArrow,
-			i18n.T("tui.policies.action_check"), theme.TagReset),
+		MainText: "  " + theme.Paint(theme.ActiveMode.SecondaryHex, theme.SymCursor+" "+i18n.T("tui.policies.action_check")),
 	})
 	v.actionIndices[checkIdx] = func() { v.checkPolicies() }
 
@@ -425,7 +463,7 @@ func (v *PoliciesView) showItemDetail(idx int) {
 		d.title(tview.Escape(p.Name))
 		d.b.WriteString(tview.Escape(v.formatPolicyDetail(p)))
 		pairs := append([]string{keys.Open.Keys(), i18n.T("tui.hints.actions")}, keys.Pairs(keys.Edit, keys.Delete)...)
-		d.keys(append(pairs, "c", i18n.T("tui.hints.check"), keys.Refresh.Keys(), keys.Refresh.Label())...)
+		d.keys(append(pairs, policyCheckKey.Keys(), policyCheckKey.Label(), keys.Refresh.Keys(), keys.Refresh.Label())...)
 		v.page.SetDetail(d.String())
 		return
 	}
@@ -436,7 +474,7 @@ func (v *PoliciesView) showItemDetail(idx int) {
 			d.title(strings.TrimSpace(items[idx].MainText))
 		}
 		d.para(i18n.T("tui.detail.policy.action"))
-		d.keys(append(keys.Pairs(keys.Open, keys.Create), "t", i18n.T("tui.hints.template"))...)
+		d.keys(append(keys.Pairs(keys.Open, keys.Create), policyTemplateKey.Keys(), policyTemplateKey.Label())...)
 		v.page.SetDetail(d.String())
 		return
 	}
@@ -444,32 +482,32 @@ func (v *PoliciesView) showItemDetail(idx int) {
 }
 
 func (v *PoliciesView) buildPolicyItem(p teamstate.Policy) widgets.SectionItem {
-	muted := theme.ColorTag(theme.TextMutedHex)
-	reset := theme.TagReset
+	enfIcon := policyIcon(p.Enforcement)
+	meta := fmt.Sprintf("%s · %s", p.Type, p.Enforcement)
 
-	var enfIcon string
-	switch p.Enforcement {
-	case teamstate.EnforcementDisabled:
-		enfIcon = fmt.Sprintf("%s○%s", theme.ColorTag(theme.TextMutedHex), theme.TagColor)
-	case teamstate.EnforcementRefuse:
-		enfIcon = fmt.Sprintf("%s✗%s", theme.ColorTag(theme.ErrorHex), theme.TagColor)
-	default: // warn
-		enfIcon = fmt.Sprintf("%s⚠%s", theme.ColorTag(theme.WarningHex), theme.TagColor)
-	}
-
-	typeLabel := string(p.Type)
-	meta := fmt.Sprintf("%s · %s", typeLabel, p.Enforcement)
-
-	mainText := fmt.Sprintf("  %s %-30s %s%s%s", enfIcon, p.Name, muted, meta, reset)
+	mainText := fmt.Sprintf("  %s %s %s", enfIcon, tview.Escape(fmt.Sprintf("%-30s", p.Name)), theme.Paint(theme.TextMutedHex, tview.Escape(meta)))
 
 	secondaryText := ""
 	if p.Message != "" {
-		secondaryText = fmt.Sprintf("    %s%s%s", theme.ColorTag(theme.TextSecondaryHex), p.Message, reset)
+		secondaryText = "    " + theme.Paint(theme.TextSecondaryHex, tview.Escape(p.Message))
 	}
 
 	return widgets.SectionItem{
 		MainText:      mainText,
 		SecondaryText: secondaryText,
+	}
+}
+
+// policyIcon is the symbol of an enforcement level: disabled is the grey
+// « off » circle, refuse the red cross, warn the yellow warning.
+func policyIcon(e teamstate.PolicyEnforcement) string {
+	switch e {
+	case teamstate.EnforcementDisabled:
+		return theme.Paint(theme.TextMutedHex, theme.SymInactive)
+	case teamstate.EnforcementRefuse:
+		return theme.Paint(theme.ErrorHex, theme.SymFailure)
+	default: // warn
+		return theme.Paint(theme.WarningHex, theme.SymWarning)
 	}
 }
 
@@ -529,11 +567,11 @@ func (v *PoliciesView) formatPolicyDetail(p teamstate.Policy) string {
 	var statusLabel string
 	switch p.Enforcement {
 	case teamstate.EnforcementDisabled:
-		statusLabel = "○ " + i18n.T("tui.policies.status_disabled")
+		statusLabel = theme.SymInactive + " " + i18n.T("tui.policies.status_disabled")
 	case teamstate.EnforcementWarn:
-		statusLabel = "⚠ " + i18n.T("tui.policies.status_warn")
+		statusLabel = theme.SymWarning + " " + i18n.T("tui.policies.status_warn")
 	case teamstate.EnforcementRefuse:
-		statusLabel = "✗ " + i18n.T("tui.policies.status_refuse")
+		statusLabel = theme.SymFailure + " " + i18n.T("tui.policies.status_refuse")
 	}
 	detail += fmt.Sprintf("%-14s %s\n", i18n.T("tui.policies.field_enforcement")+":", statusLabel)
 	detail += fmt.Sprintf("%-14s %s\n", i18n.T("tui.policies.field_message")+":", p.Message)
@@ -701,112 +739,125 @@ func (v *PoliciesView) checkPolicies() {
 	if v.shell == nil {
 		return
 	}
-
-	repo := v.getRepo()
+	repo := v.newRepo()
 	if repo == nil {
 		v.shell.ShowToastMsg(i18n.T("tui.policies.team_not_configured"), false)
 		return
 	}
+	v.shell.ShowToastMsg(i18n.T("tui.policies.checking"), true)
 
-	ctx := teamstate.PolicyContext{
-		MemberID: v.resolveTeam().MemberID,
+	// What the check needs from the view, read on the loop; the rest (git, the
+	// files, the policies) is read off it.
+	member, appCtx, baseBranch := v.resolveTeam().MemberID, v.appCtx, ""
+	if appCtx != nil && appCtx.Config != nil {
+		baseBranch = appCtx.Config.Worktree.BaseBranch
 	}
+	sh := v.shell
+	load(v.app, shellContext(sh), &v.checkReads, func(context.Context) ([]teamstate.PolicyResult, error) {
+		if !repo.IsCloned() {
+			return nil, errors.New(i18n.T("tui.policies.team_not_configured"))
+		}
+		return repo.CheckAll("", policyCheckContext(repo, appCtx, member, baseBranch))
+	}, func(results []teamstate.PolicyResult, err error) {
+		if err != nil {
+			sh.ShowToastMsg(i18n.T("tui.policies.check_error")+": "+err.Error(), false)
+			return
+		}
+		if len(results) == 0 {
+			sh.ShowToastMsg(i18n.T("tui.policies.nothing_to_check"), true)
+			return
+		}
 
-	// Enrich context with git data if we can resolve a project path.
-	if v.appCtx != nil && v.appCtx.Projects != nil {
-		if p, err := resolveFirstProject(v.appCtx); err == nil && p.Path != "" {
-			baseBranch := gitutil.DetectBaseBranch(p.Path, "")
-			if v.appCtx.Config != nil {
-				baseBranch = gitutil.DetectBaseBranch(p.Path, v.appCtx.Config.Worktree.BaseBranch)
+		var b strings.Builder
+		passed := 0
+		for _, r := range results {
+			var icon string
+			switch {
+			case r.Passed:
+				icon = tagged(theme.SuccessHex, theme.SymSuccess)
+				passed++
+			case r.Enforcement == teamstate.EnforcementRefuse:
+				icon = tagged(theme.ErrorHex, theme.SymFailure)
+			default:
+				icon = tagged(theme.WarningHex, theme.SymWarning)
 			}
-
-			if b := gitCurrentBranch(p.Path); b != "" {
-				ctx.BranchName = b
-			}
-
-			if diffLines, err := gitutil.DiffAddedLines(p.Path, baseBranch); err == nil {
-				ctx.DiffLines = diffLines
-			} else {
-				slog.Debug("tui policies: failed to get diff lines", "error", err)
-			}
-			if modFiles, err := gitutil.ModifiedFiles(p.Path, baseBranch); err == nil {
-				ctx.ModifiedFiles = modFiles
-				ctx.HasTests = gitutil.HasTestFiles(modFiles)
-			} else {
-				slog.Debug("tui policies: failed to get modified files", "error", err)
-			}
-
-			// Lazy population of file content for all_files and modified_files scopes.
-			policies, _ := repo.LoadPolicies("")
-			needsAllFiles, needsModifiedContent := false, false
-			for _, pol := range policies {
-				if pol.Type == teamstate.PolicyTypeForbiddenPattern && pol.Enforcement != teamstate.EnforcementDisabled {
-					switch pol.Scope {
-					case "all_files":
-						needsAllFiles = true
-					case "modified_files":
-						needsModifiedContent = true
-					}
+			fmt.Fprintf(&b, "  %s %s", icon, tview.Escape(r.Name))
+			if !r.Passed {
+				fmt.Fprintf(&b, " — %s", tview.Escape(r.Message))
+				if r.Details != "" {
+					fmt.Fprintf(&b, "\n      %s", tview.Escape(r.Details))
 				}
 			}
-			if needsAllFiles {
-				if tracked, err := gitutil.TrackedFiles(p.Path); err == nil {
-					if lines, err := gitutil.ReadFileLines(p.Path, tracked); err == nil {
-						ctx.AllFileLines = lines
-					} else {
-						slog.Debug("tui policies: failed to read tracked files", "error", err)
-					}
-				}
-			}
-			if needsModifiedContent && len(ctx.ModifiedFiles) > 0 {
-				if lines, err := gitutil.ReadFileLines(p.Path, ctx.ModifiedFiles); err == nil {
-					ctx.ModifiedFileLines = lines
-				} else {
-					slog.Debug("tui policies: failed to read modified file contents", "error", err)
-				}
-			}
+			b.WriteString("\n")
 		}
-	}
+		fmt.Fprintf(&b, "\n  %s: %d/%d", i18n.T("tui.policies.result"), passed, len(results))
 
-	results, err := repo.CheckAll("", ctx)
-	if err != nil {
-		v.shell.ShowToastMsg(i18n.T("tui.policies.check_error")+": "+err.Error(), false)
-		return
-	}
-
-	if len(results) == 0 {
-		v.shell.ShowToastMsg(i18n.T("tui.policies.nothing_to_check"), true)
-		return
-	}
-
-	var text string
-	passed := 0
-	for _, r := range results {
-		var icon string
-		switch {
-		case r.Passed:
-			icon = tagged(theme.SuccessHex, theme.SymSuccess)
-			passed++
-		case r.Enforcement == teamstate.EnforcementRefuse:
-			icon = tagged(theme.ErrorHex, "✗")
-		default:
-			icon = tagged(theme.WarningHex, "⚠")
-		}
-		text += fmt.Sprintf("  %s %s", icon, r.Name)
-		if !r.Passed {
-			text += fmt.Sprintf(" — %s", r.Message)
-			if r.Details != "" {
-				text += fmt.Sprintf("\n      %s", r.Details)
-			}
-		}
-		text += "\n"
-	}
-
-	text += fmt.Sprintf("\n  %s: %d/%d", i18n.T("tui.policies.result"), passed, len(results))
-
-	v.shell.ShowScrollableModal(i18n.T("tui.policies.check_title"), text, []ModalAction{
-		{Label: i18n.T("tui.policies.close"), Callback: func() {}},
+		sh.ShowScrollableModal(i18n.T("tui.policies.check_title"), b.String(), []ModalAction{
+			{Label: i18n.T("tui.policies.close"), Callback: func() {}},
+		})
 	})
+}
+
+// policyCheckContext is what the policies are checked against: the member,
+// and, from the first project of the hub, its branch, its diff and its files.
+// It runs git and reads files: call it off the event loop.
+func policyCheckContext(repo teamstate.TeamStateReader, appCtx *app.App, member, configuredBase string) teamstate.PolicyContext {
+	ctx := teamstate.PolicyContext{MemberID: member}
+	if appCtx == nil || appCtx.Projects == nil {
+		return ctx
+	}
+	p, err := resolveFirstProject(appCtx)
+	if err != nil || p.Path == "" {
+		return ctx
+	}
+	baseBranch := gitutil.DetectBaseBranch(p.Path, configuredBase)
+
+	if b := gitCurrentBranch(p.Path); b != "" {
+		ctx.BranchName = b
+	}
+
+	if diffLines, err := gitutil.DiffAddedLines(p.Path, baseBranch); err == nil {
+		ctx.DiffLines = diffLines
+	} else {
+		slog.Debug("tui policies: failed to get diff lines", "error", err)
+	}
+	if modFiles, err := gitutil.ModifiedFiles(p.Path, baseBranch); err == nil {
+		ctx.ModifiedFiles = modFiles
+		ctx.HasTests = gitutil.HasTestFiles(modFiles)
+	} else {
+		slog.Debug("tui policies: failed to get modified files", "error", err)
+	}
+
+	// Lazy population of file content for all_files and modified_files scopes.
+	policies, _ := repo.LoadPolicies("")
+	needsAllFiles, needsModifiedContent := false, false
+	for _, pol := range policies {
+		if pol.Type == teamstate.PolicyTypeForbiddenPattern && pol.Enforcement != teamstate.EnforcementDisabled {
+			switch pol.Scope {
+			case "all_files":
+				needsAllFiles = true
+			case "modified_files":
+				needsModifiedContent = true
+			}
+		}
+	}
+	if needsAllFiles {
+		if tracked, err := gitutil.TrackedFiles(p.Path); err == nil {
+			if lines, err := gitutil.ReadFileLines(p.Path, tracked); err == nil {
+				ctx.AllFileLines = lines
+			} else {
+				slog.Debug("tui policies: failed to read tracked files", "error", err)
+			}
+		}
+	}
+	if needsModifiedContent && len(ctx.ModifiedFiles) > 0 {
+		if lines, err := gitutil.ReadFileLines(p.Path, ctx.ModifiedFiles); err == nil {
+			ctx.ModifiedFileLines = lines
+		} else {
+			slog.Debug("tui policies: failed to read modified file contents", "error", err)
+		}
+	}
+	return ctx
 }
 
 // ── Add from template ────────────────────────────────────────────────────────

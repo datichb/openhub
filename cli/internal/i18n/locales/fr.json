@@ -2632,6 +2632,7 @@
   "tui.policies.field_rule": "Règle",
   "tui.policies.check_error": "Erreur check",
   "tui.policies.nothing_to_check": "Aucune policy à vérifier",
+  "tui.policies.checking": "Vérification des policies…",
   "tui.policies.result": "Résultat",
   "tui.policies.check_title": "Vérification des policies",
   "tui.policies.create_title": "Créer une policy",
