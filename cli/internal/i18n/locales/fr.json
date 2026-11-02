@@ -708,6 +708,7 @@
   "cmd.doctor.plugins.hidden": "%d plugin(s) dans votre configuration personnelle (%s), masqué(s) aux sessions locales par execution.strict_isolation",
   "cmd.doctor.plugins.launch": "Plugin de votre configuration %s chargé dans cette session : %s. Pour le masquer : oh config set execution.strict_isolation true.",
   "cmd.doctor.plugins.launch_unchecked": "Les plugins chargés par le serveur %s n'ont pas pu être vérifiés %s. Pour masquer votre configuration personnelle : oh config set execution.strict_isolation true.",
+  "cmd.doctor.plugins.launch_inactive": "Un plugin déclaré par le workflow ou le paquet ne tourne pas dans le serveur %s : %s. Ses outils ou ses crochets manquent à cette session ; voir le journal du serveur.",
   "cmd.doctor.optional_missing": "non trouvé (optionnel — %s)",
   "cmd.doctor.short": "Vérifie l'état du système et les dépendances",
   "cmd.doctor.some_failed": "Certaines vérifications ont échoué.",

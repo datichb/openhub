@@ -52,5 +52,9 @@ func TestIsolationWarningText(t *testing.T) {
 	assert.Contains(t, got, "(GET /api/plugin failed: boom)")
 	assert.Contains(t, got, "execution.strict_isolation")
 
+	got = isolationWarningText(adapters.WarnPluginInactive + "@scope/pkg (not loaded)")
+	assert.Contains(t, got, "@scope/pkg (not loaded)")
+	assert.NotContains(t, got, adapters.WarnPluginInactive, "the raw prefix is not shown")
+
 	assert.Contains(t, isolationWarningText("something else"), "something else")
 }

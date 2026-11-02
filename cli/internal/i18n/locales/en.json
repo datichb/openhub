@@ -708,6 +708,7 @@
   "cmd.doctor.plugins.hidden": "%d plugin(s) in your own configuration (%s), hidden from local sessions by execution.strict_isolation",
   "cmd.doctor.plugins.launch": "A plugin of your %s configuration is loaded in this session: %s. To hide it: oh config set execution.strict_isolation true.",
   "cmd.doctor.plugins.launch_unchecked": "The plugins loaded by the %s server could not be checked %s. To hide your own configuration: oh config set execution.strict_isolation true.",
+  "cmd.doctor.plugins.launch_inactive": "A plugin declared by the workflow or the package is not running in the %s server: %s. Its tools or hooks are missing from this session; see the server log.",
   "cmd.doctor.optional_missing": "not found (optional — %s)",
   "cmd.doctor.short": "Check system health and dependencies",
   "cmd.doctor.some_failed": "Some checks failed.",
