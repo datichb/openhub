@@ -2,7 +2,7 @@
 
 ## Statut
 
-Accepted
+Accepted — **Évolué par [ADR-057](./057-gitlab-token-per-server.fr.md)** (jeton GitLab strict par serveur)
 
 ## Date
 

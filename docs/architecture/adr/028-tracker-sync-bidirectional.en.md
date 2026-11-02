@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Accepted — **Evolved by [ADR-057](./057-gitlab-token-per-server.en.md)** (strict GitLab token per server)
 
 ## Date
 

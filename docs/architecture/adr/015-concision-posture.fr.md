@@ -4,7 +4,7 @@
 
 ## Statut
 
-Accepté
+~~Accepté~~ **Remplacé par [ADR-059](./059-return-envelope-and-workflow-report.fr.md)** (§ 3) : les skills `concision-posture` et `subagent-concision-posture` et la clé `token_optimization.*` n'existent plus ; `core-posture`, `user-facing-posture` et `coordinator-posture` sont filtrées par rôle
 
 ## Contexte
 

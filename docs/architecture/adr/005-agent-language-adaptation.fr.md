@@ -2,7 +2,7 @@
 
 ## Statut
 
-Accepté
+~~Accepté~~ **Remplacé par [ADR-043](./043-session-bundle-deploy-removal.fr.md)** : le script de déploiement qui injectait l'instruction de langue et le champ `Langue` de `projects.md` n'existent plus ; le paquet de session est généré en français et la langue de réponse est la variable `oh.lang` du prompt de démarrage
 
 ## Contexte
 

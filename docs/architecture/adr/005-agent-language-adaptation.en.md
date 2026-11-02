@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+~~Accepted~~ **Superseded by [ADR-043](./043-session-bundle-deploy-removal.en.md)**: the deployment script that injected the language instruction and the `Langue` field of `projects.md` no longer exist; the session bundle is generated in French and the response language is the `oh.lang` variable of the start-up prompt
 
 ## Context
 

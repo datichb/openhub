@@ -4,7 +4,7 @@
 
 ## Status
 
-Accepted
+~~Accepted~~ **Superseded by [ADR-059](./059-return-envelope-and-workflow-report.en.md)** (§ 3): the `-standalone` and `-subagent` skills and the `[SKILL:…]` marker no longer exist; a single `execution-protocol` has one section per role (`when:`)
 
 ## Context
 
