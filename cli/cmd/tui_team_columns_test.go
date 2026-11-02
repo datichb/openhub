@@ -52,8 +52,8 @@ func (f *fakeColumnUI) lastToast() string {
 	return f.toasts[len(f.toasts)-1]
 }
 
-// columnEditor drives the step of the column editor like the wizard does.
-type columnEditor struct {
+// editorHarness drives the step of the column editor like the wizard does.
+type editorHarness struct {
 	t        *testing.T
 	list     *tview.List
 	hints    *tview.TextView
@@ -66,10 +66,10 @@ type columnEditor struct {
 	done     int
 }
 
-func newColumnEditor(t *testing.T, cols []teamstate.BoardColumnConfig, labels, statuses map[string]string, trackerType string) *columnEditor {
+func newColumnEditor(t *testing.T, cols []teamstate.BoardColumnConfig, labels, statuses map[string]string, trackerType string) *editorHarness {
 	t.Helper()
 	i18ntest.Set(t, "en")
-	e := &columnEditor{t: t, ui: &fakeColumnUI{}}
+	e := &editorHarness{t: t, ui: &fakeColumnUI{}}
 	prev := columnUI
 	columnUI = func() columnEditorUI { return e.ui }
 	t.Cleanup(func() { columnUI = prev })
@@ -97,14 +97,14 @@ func newColumnEditor(t *testing.T, cols []teamstate.BoardColumnConfig, labels, s
 	return e
 }
 
-func (e *columnEditor) press(key tcell.Key, r rune) {
+func (e *editorHarness) press(key tcell.Key, r rune) {
 	e.t.Helper()
 	e.list.InputHandler()(tcell.NewEventKey(key, r, tcell.ModNone), func(tview.Primitive) {})
 }
 
-func (e *columnEditor) typ(r rune) { e.t.Helper(); e.press(tcell.KeyRune, r) }
+func (e *editorHarness) typ(r rune) { e.t.Helper(); e.press(tcell.KeyRune, r) }
 
-func (e *columnEditor) names() []string {
+func (e *editorHarness) names() []string {
 	var out []string
 	for _, c := range *e.columns {
 		out = append(out, c.ID)
@@ -112,10 +112,10 @@ func (e *columnEditor) names() []string {
 	return out
 }
 
-func (e *columnEditor) hintsText() string { return e.hints.GetText(true) }
+func (e *editorHarness) hintsText() string { return e.hints.GetText(true) }
 
 // text of the main line of item i, without tags.
-func (e *columnEditor) mainText(i int) string {
+func (e *editorHarness) mainText(i int) string {
 	main, _ := e.list.GetItemText(i)
 	return tviewTags.ReplaceAllString(main, "")
 }
