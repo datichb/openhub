@@ -3,15 +3,13 @@ package cmd
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	"errors"
 	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/beads"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/tui/theme"
-	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
@@ -24,48 +22,21 @@ var teamBoardCmd = &cobra.Command{
 
 func init() {
 	teamCmd.AddCommand(teamBoardCmd)
-	teamBoardCmd.Flags().Bool("watch", false, "")
+	addBoardFlags(teamBoardCmd)
 }
 
+// runTeamBoard opens the TUI on the board of the team of the hub (the team
+// state must be set up and cloned, as before).
 func runTeamBoard(cmd *cobra.Command, args []string) error {
 	a := MustApp()
-	ctx := cmd.Context()
-
-	repo, err := ensureTeamRepo(ctx, a)
-	if err != nil {
+	if _, err := ensureTeamRepo(cmd.Context(), a); err != nil {
 		return err
 	}
-
-	tickets := views.FetchTeamTickets(repo, nil)
-
-	if len(tickets) == 0 {
-		fmt.Fprint(a.IO.Out, i18n.Tf("cmd.team_board.no_member_in_the_team_run", theme.Subtitle.Render(theme.IconInfo), theme.Bold.Render("oh team init")))
-		return nil
+	if !canLaunchTUI() {
+		return withExitCode(ExitUsage, errors.New(i18n.T("cmd.team.board.needs_terminal")))
 	}
-
-	var labelStatusMapping map[string]string
-	if teamCfg, err := repo.LoadConfig(); err == nil && teamCfg != nil {
-		labelStatusMapping = teamCfg.Tracker.LabelStatusMapping
-	}
-
-	cfg := views.TeamBoardConfig{
-		Layout: layout.Config{
-			ProjectName: a.Config.Name,
-			Command:     "team board",
-			StatusHints: i18n.T("cmd.board.status_hints"),
-		},
-		Tickets:            tickets,
-		LabelStatusMapping: labelStatusMapping,
-		RefreshFunc: func() []views.TeamTicket {
-			r, err := ensureTeamRepo(ctx, a)
-			if err != nil {
-				return tickets
-			}
-			return views.FetchTeamTickets(r, nil)
-		},
-	}
-
-	return views.RunTeamBoard(cfg)
+	hub := a.Config.ActiveTeam()
+	return runTUI(tuiLaunch{Team: &views.ActiveTeam{ID: hub.ID, Name: hub.DisplayName()}, View: "team.board"})
 }
 
 // fetchSubBeadsJSON attempts to get sub-tickets from the beads system.

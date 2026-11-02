@@ -10,10 +10,10 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
-// Ticket labels and the assignee must stay visible on both team boards (the
-// embedded view and the full-screen `oh team board`): the card renderer reads
-// "[word]" as a colour tag, so every literal bracket has to be escaped.
-func TestTeamBoards_TicketLabelsAlwaysVisible(t *testing.T) {
+// Ticket labels and the assignee must stay visible on the team board: the
+// card renderer reads "[word]" as a colour tag, so every literal bracket has
+// to be escaped.
+func TestTeamBoard_TicketLabelsAlwaysVisible(t *testing.T) {
 	t.Parallel()
 	const workflowLabel = "workflow-doing"
 	mapping := map[string]string{workflowLabel: "in_progress"}
@@ -31,10 +31,9 @@ func TestTeamBoards_TicketLabelsAlwaysVisible(t *testing.T) {
 		return screenText(t, col, 80, 12)
 	}
 
-	embedded := NewTeamBoardView(TeamBoardViewConfig{LabelStatusMapping: mapping})
+	view := NewTeamBoardView(TeamBoardViewConfig{LabelStatusMapping: mapping})
 	screens := map[string]string{
-		"vue intégrée":      render(embedded.buildTeamCard(ticket)),
-		"board plein écran": render(buildFullScreenCard(ticket, mapping)),
+		"vue": render(view.buildTeamCard(ticket)),
 	}
 
 	for name, screen := range screens {

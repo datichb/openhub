@@ -14,7 +14,7 @@ import (
 func TestFrenchLabelsAreNotEnglish(t *testing.T) {
 	keys := []string{
 		"cmd.team.init.step_policies", "cmd.team.init.recap.policies", "tui.team.policies", "tui.tm.item.policies",
-		"tui.tm.item.sync_tracker", "tui.cmd.sync_tracker", "cmd.board.status_hints", "cmd.init.wizard_choice_prompt",
+		"tui.tm.item.sync_tracker", "tui.cmd.sync_tracker", "cmd.init.wizard_choice_prompt",
 	}
 	i18ntest.Set(t, "en")
 	en := map[string]string{}

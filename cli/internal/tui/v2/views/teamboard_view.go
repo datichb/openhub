@@ -582,12 +582,6 @@ func ticketLabelParts(labels []string, workflow map[string]string) []string {
 	return parts
 }
 
-// formatTicketLabels renders the labels of a ticket as a single line for the
-// board cards (see ticketLabelParts).
-func formatTicketLabels(labels []string, workflow map[string]string) string {
-	return strings.Join(ticketLabelParts(labels, workflow), " · ")
-}
-
 // ─── Project Tabs ────────────────────────────────────────────────────────────
 
 // buildProjectTabs extracts unique project names from tickets and builds tab list.
