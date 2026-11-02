@@ -40,9 +40,18 @@ const (
 const timelineClosed = "closed"
 
 // LockError is an operation refused by the workflow state (message for the agent).
-type LockError struct{ Msg string }
+type LockError struct {
+	Msg string
+	// Checkpoint and Err say, for a refusal that has a cause outside the
+	// workflow state (git could not be read, its configuration changed), the
+	// checkpoint concerned and that cause (errors.Is sees through it).
+	Checkpoint string
+	Err        error
+}
 
 func (e *LockError) Error() string { return e.Msg }
+
+func (e *LockError) Unwrap() error { return e.Err }
 
 func (s *Service) headErr(ctx context.Context, dir string) (head string, dirty bool, err error) {
 	if dir == "" {
@@ -117,7 +126,7 @@ func (s *Service) GuardClose(ctx context.Context, root, dir string) error {
 	w, err := work(ctx, dir, u.Head, u.At)
 	switch {
 	case err != nil:
-		return &LockError{Msg: i18n.Tf("cmd.gateway.beads.locked_git", c.ID, label, err)}
+		return &LockError{Msg: i18n.Tf("cmd.gateway.beads.locked_git", c.ID, label, err), Checkpoint: c.ID, Err: err}
 	case !w.Committed:
 		return &LockError{Msg: i18n.Tf("cmd.gateway.beads.locked_commit", c.ID, label)}
 	case w.Dirty:

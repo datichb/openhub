@@ -94,6 +94,9 @@ func (d *Daemon) guardTickets(ctx context.Context, g gateway.Grant, op gateway.B
 		slog.Warn("ohd: ticket guard failed, closing refused", "session", g.SessionID, "error", err)
 		return errors.New(i18n.Tf("cmd.gateway.beads.guard_failed", err))
 	}
+	if lock != nil && errors.Is(err, gitutil.ErrConfigChanged) {
+		d.raiseGitChanged(ctx, g.SessionID, lock.Checkpoint, err) // as a checkpoint refused for it does
+	}
 	return err
 }
 

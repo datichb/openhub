@@ -15,6 +15,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/daemon/api"
 	dclient "github.com/datichb/openhub/cli/internal/daemon/client"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/gateway"
 	"github.com/datichb/openhub/cli/internal/gitutil"
 	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
@@ -93,4 +94,55 @@ func TestGitChangedAlert(t *testing.T) {
 	l = open()
 	require.Len(t, l, 1, "a further change is raised")
 	assert.Contains(t, l[0].Payload.Message, "post-checkout")
+}
+
+// The closing guard of a ticket raises the same alert as a checkpoint when the
+// git configuration of the session changed: the agent is refused and the user
+// is told, once.
+func TestGuardCloseRaisesGitChangedAlert(t *testing.T) {
+	gitutil.SetTrustDir(t.TempDir())
+	t.Cleanup(func() { gitutil.SetTrustDir("") })
+	st := sqlitetest.New(t)
+	ctx := context.Background()
+	sqlitetest.Seed(t, st).Project("p1", "/p1")
+	sessions, decisions := sqlite.NewSessionStore(st), sqlite.NewDecisionStore(st)
+
+	repo := t.TempDir()
+	gittest.Run(t, repo, "init", "-q")
+	gittest.Commit(t, repo, "a.txt", "a", "init")
+	bundles := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(bundles, "h1"), 0o755))
+	data, _ := json.Marshal(sessionspec.BundleSpec{Hash: "h1", Workflow: &sessionspec.WorkflowRuntime{ID: "ticket", Checkpoints: []sessionspec.CheckpointDef{
+		{ID: "cp-1", Behaviors: map[string]string{"auto": sessionspec.CheckpointAuto}, Unlocks: []string{sessionspec.UnlockClose}},
+	}}})
+	require.NoError(t, os.WriteFile(filepath.Join(bundles, "h1", "bundle.json"), data, 0o644))
+	require.NoError(t, sessions.Create(ctx, &domain.Session{ID: "ses_a", ProjectID: "p1", Status: domain.SessionStatusRunning, GroupKey: "g1",
+		BundleHash: "h1", Mode: "auto", State: domain.RunActive, LaunchPath: repo}))
+	require.NoError(t, gitutil.Trust(ctx, repo))
+	cs := sqlite.NewCheckpointStore(st)
+	cp := &checkpoint.Service{Sessions: sessions, States: cs, SessionOutputs: cs, BundlesDir: bundles, SessionsDir: t.TempDir(), ApprovalWait: 10 * time.Millisecond}
+	_, err := cp.Reached(ctx, "ses_a", checkpoint.Call{ID: "cp-1", Summary: "s"})
+	require.NoError(t, err)
+
+	d := &Daemon{opts: Options{Sessions: sessions, Decisions: decisions, Checkpoints: cp}}
+	grant := gateway.Grant{SessionID: "ses_a", Location: repo}
+	closing := gateway.BeadsOp{Kind: gateway.OpClose, IDs: []string{"pt-1"}}
+	open := func() []domain.Decision {
+		l, err := decisions.ListOpen(ctx, domain.DecisionFilter{SessionID: "ses_a"})
+		require.NoError(t, err)
+		return l
+	}
+
+	gittest.Run(t, repo, "config", "core.fsmonitor", "touch /tmp/oh-pwned")
+	err = d.guardTickets(ctx, grant, closing)
+	require.Error(t, err, "closing is refused")
+	assert.ErrorIs(t, err, gitutil.ErrConfigChanged)
+	l := open()
+	require.Len(t, l, 1, "the user is told")
+	assert.True(t, isOhAlert(l[0]))
+	assert.Contains(t, l[0].Payload.Message, filepath.Join(".git", "config"), "the file that changed")
+	assert.Contains(t, l[0].Payload.Message, "cp-1", "the checkpoint that unlocks closing")
+
+	require.Error(t, d.guardTickets(ctx, grant, closing))
+	assert.Len(t, open(), 1, "the same change is not raised twice")
 }
