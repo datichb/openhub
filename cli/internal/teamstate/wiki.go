@@ -191,8 +191,15 @@ func (r *Repo) WikiAcceptProposal(ctx context.Context, id string) error {
 	})
 }
 
-// WikiRejectProposal removes a pending proposal without merging.
-func (r *Repo) WikiRejectProposal(ctx context.Context, id string) error {
+// WikiRejectProposal removes a pending proposal without merging. The refusal
+// needs a reason (ErrReasonRequired otherwise, nothing is changed): the
+// proposer cannot ask why the proposal vanished. The reason is written, on one
+// line, in the subject of the commit.
+func (r *Repo) WikiRejectProposal(ctx context.Context, id, reason string) error {
+	reason = strings.Join(strings.Fields(reason), " ")
+	if reason == "" {
+		return ErrReasonRequired
+	}
 	return r.withWriteLock(ctx, func(ctx context.Context) error {
 		_, filename, err := r.findPendingByID(id)
 		if err != nil {
@@ -205,7 +212,7 @@ func (r *Repo) WikiRejectProposal(ctx context.Context, id string) error {
 		}
 
 		relPath := filepath.Join("wiki", ".pending", filename)
-		msg := fmt.Sprintf("wiki: rejected proposal %s", id)
+		msg := fmt.Sprintf("wiki: rejected proposal %s: %s", id, reason)
 		return r.commitAndPush(ctx, msg, relPath)
 	})
 }

@@ -30,6 +30,9 @@ var (
 	ErrProposalTooLarge = errors.New("wiki proposal exceeds maximum size")
 	// ErrProposalInvalid is returned when a wiki proposal fails validation.
 	ErrProposalInvalid = errors.New("wiki proposal validation failed")
+	// ErrReasonRequired is returned when a wiki proposal is refused without
+	// a reason.
+	ErrReasonRequired = errors.New("a reason is required to refuse a wiki proposal")
 
 	// ErrPolicyFileInvalid is returned when policies.toml cannot be parsed.
 	ErrPolicyFileInvalid = errors.New("policies file is invalid")

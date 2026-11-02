@@ -3,6 +3,7 @@ package views
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -75,7 +76,10 @@ func (r *wikiRepo) decide(verb, id string) error {
 func (r *wikiRepo) WikiAcceptProposal(_ context.Context, id string) error {
 	return r.decide("accept", id)
 }
-func (r *wikiRepo) WikiRejectProposal(_ context.Context, id string) error {
+func (r *wikiRepo) WikiRejectProposal(_ context.Context, id, reason string) error {
+	if strings.TrimSpace(reason) == "" {
+		return teamstate.ErrReasonRequired
+	}
 	return r.decide("reject", id)
 }
 
@@ -102,6 +106,25 @@ type wikiShell struct {
 	actions  []ModalAction
 	toasts   []string
 	confirms []string
+	// inputs are the instruction prompts opened by the view (title), answers
+	// the callbacks to answer them.
+	inputs  []string
+	answers []func(string)
+}
+
+func (s *wikiShell) ShowInputModal(title, _ string, onConfirm func(string)) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.inputs = append(s.inputs, title)
+	s.answers = append(s.answers, onConfirm)
+}
+
+// answer replies to the last prompt.
+func (s *wikiShell) answer(text string) {
+	s.mu.Lock()
+	fn := s.answers[len(s.answers)-1]
+	s.mu.Unlock()
+	fn(text)
 }
 
 func (s *wikiShell) ShowScrollableModal(title, body string, actions []ModalAction) {
@@ -240,15 +263,23 @@ func TestWikiView(t *testing.T) {
 	assert.Equal(t, "wp-a", events[0].Data["proposal_id"])
 	assert.Contains(t, sh.toastList(), "Proposition acceptée : conventions")
 
-	// n: confirmed, then refused.
+	// n: asks the reason; without one nothing is refused (v5.1), with one the
+	// proposal is refused and the event carries it.
 	onLoop(func() { v.slist.SelectIndex(1); v.HandleKey(tcell.NewEventKey(tcell.KeyRune, 'n', 0)) })
+	sh.mu.Lock()
+	assert.Equal(t, []string{"Refuser la proposition architecture (wp-b) : motif obligatoire"}, sh.inputs)
+	sh.mu.Unlock()
+	onLoop(func() { sh.answer("   ") })
+	calls, _ = repo.got()
+	assert.Equal(t, []string{"accept wp-a"}, calls, "no reason: not refused")
+	assert.Contains(t, sh.toastList(), "Motif obligatoire pour refuser une proposition")
+	onLoop(func() { v.HandleKey(tcell.NewEventKey(tcell.KeyRune, 'n', 0)) })
+	onLoop(func() { sh.answer("  déjà couvert par\nl'ADR 12 ") })
 	require.Eventually(t, loaded(0), 3*time.Second, 20*time.Millisecond)
 	calls, events = repo.got()
 	assert.Equal(t, []string{"accept wp-a", "reject wp-b"}, calls)
 	assert.Equal(t, teamstate.EventWikiRejected, events[1].Type)
-	sh.mu.Lock()
-	assert.Equal(t, []string{"Refuser la proposition d'équipe ? · La proposition pour la page architecture (wp-b) sera supprimée."}, sh.confirms)
-	sh.mu.Unlock()
+	assert.Equal(t, "déjà couvert par l'ADR 12", events[1].Data["reason"])
 	assert.Contains(t, sh.toastList(), "Proposition rejetée : architecture")
 
 	// Only pages left: Enter opens a page (escaped).
@@ -324,7 +355,7 @@ func TestWikiViewFailuresAndEmpty(t *testing.T) {
 	onLoop = runWikiView(t, off)
 	onLoop(func() { header = off.header.GetText(true) })
 	assert.Contains(t, header, "Team non configurée")
-	onLoop(func() { off.decide(teamstate.WikiProposal{ID: "wp-z"}, true) })
+	onLoop(func() { off.decide(teamstate.WikiProposal{ID: "wp-z"}, true, "") })
 	assert.Contains(t, sh.toastList(), "Team non configurée")
 	assert.Len(t, off.ContextCommands(), 2)
 	assert.Equal(t, "team.wiki", off.ID())
@@ -341,7 +372,7 @@ func TestWikiProposalIDEscaped(t *testing.T) {
 	assert.Contains(t, tv.GetText(true), "[red] p")
 }
 
-// The button of the modal refuses only once confirmed; a decision that
+// The button of the modal refuses only once the reason is given; a decision that
 // ends after Unmount touches nothing (race fixed: the application is read
 // on the event loop only).
 func TestWikiViewRefuseButtonConfirmedAndUnmount(t *testing.T) {
@@ -357,26 +388,26 @@ func TestWikiViewRefuseButtonConfirmedAndUnmount(t *testing.T) {
 	_, _, actions := sh.modal()
 	onLoop(func() { actions[1].Callback() })
 	calls, _ := repo.got()
-	assert.Empty(t, calls, "not refused before the confirmation")
-	require.NotNil(t, sh.yes)
+	assert.Empty(t, calls, "not refused before the reason")
+	require.NotNil(t, sh.reason)
 	var app *tview.Application
 	onLoop(func() { app = v.app })
 	p := repo.proposals[0]
 	for i := 0; i < 20; i++ {
-		onLoop(func() { v.decide(p, true); v.Unmount(); v.Mount(tview.NewFlex(), app) })
+		onLoop(func() { v.decide(p, true, ""); v.Unmount(); v.Mount(tview.NewFlex(), app) })
 	}
-	onLoop(func() { sh.yes() })
+	onLoop(func() { sh.reason("pas assez précis") })
 	require.Eventually(t, func() bool { c, _ := repo.got(); return len(c) > 0 && c[len(c)-1] == "reject wp-a" }, 3*time.Second, 20*time.Millisecond)
 	onLoop(func() { v.Unmount() })
 }
 
-// refuseShell keeps the confirmation for the test to answer.
+// refuseShell keeps the instruction prompt for the test to answer.
 type refuseShell struct {
 	wikiShell
-	yes func()
+	reason func(string)
 }
 
-func (s *refuseShell) Confirm(_, _ string, _ bool, onYes func()) { s.yes = onYes }
+func (s *refuseShell) ShowInputModal(_, _ string, onConfirm func(string)) { s.reason = onConfirm }
 
 // slowWikiRepo blocks its first read of the proposals until release.
 type slowWikiRepo struct {

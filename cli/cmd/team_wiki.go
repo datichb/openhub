@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"strings"
@@ -205,10 +206,9 @@ func runTeamWikiReview(cmd *cobra.Command, args []string) error {
 	fmt.Fprintln(a.IO.Out)
 
 	// Prompt
+	in := bufio.NewReader(cmd.InOrStdin())
 	fmt.Fprintf(a.IO.Out, "  %s", theme.Bold.Render(i18n.T("cmd.team.wiki.action_prompt")))
-	var response string
-	_, _ = fmt.Scanln(&response)
-	response = strings.TrimSpace(strings.ToLower(response))
+	response := strings.TrimSpace(strings.ToLower(readLine(in)))
 
 	switch response {
 	case "a", "accept":
@@ -236,7 +236,17 @@ func runTeamWikiReview(cmd *cobra.Command, args []string) error {
 			i18n.Tf("cmd.team.wiki.accepted", id, proposal.Page))
 
 	case "r", "reject":
-		if err := repo.WikiRejectProposal(ctx, id); err != nil {
+		// The proposal vanishes from the team-state: the reason is the only
+		// trace its author gets.
+		fmt.Fprintf(a.IO.Out, "  %s", theme.Bold.Render(i18n.T("cmd.team.wiki.reason_prompt")))
+		reason := strings.Join(strings.Fields(readLine(in)), " ")
+		if reason == "" {
+			fmt.Fprintf(a.IO.Out, "\n  %s %s\n\n",
+				theme.WarningStyle.Render(theme.IconWarning),
+				i18n.T("cmd.team.wiki.reason_required"))
+			return nil
+		}
+		if err := repo.WikiRejectProposal(ctx, id, reason); err != nil {
 			return fmt.Errorf(i18n.T("cmd.team_wiki.rejecting_proposal"), err)
 		}
 
@@ -245,7 +255,7 @@ func runTeamWikiReview(cmd *cobra.Command, args []string) error {
 			Actor:   a.Config.ActiveTeam().MemberID,
 			Type:    teamstate.EventWikiRejected,
 			Project: proposal.Project,
-			Data:    map[string]interface{}{"page": proposal.Page, "proposal_id": proposal.ID},
+			Data:    map[string]interface{}{"page": proposal.Page, "proposal_id": proposal.ID, "reason": reason},
 		}
 		_ = repo.AppendEvent(ctx, event)
 
@@ -266,4 +276,11 @@ func runTeamWikiReview(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+// readLine reads one line of the answers of the user ("" at the end of the
+// input).
+func readLine(in *bufio.Reader) string {
+	line, _ := in.ReadString('\n')
+	return strings.TrimRight(line, "\r\n")
 }
