@@ -60,11 +60,12 @@ func TestBoardViewChecksBeadsOffTheLoop(t *testing.T) {
 func TestBoardViewReloadsOffTheLoop(t *testing.T) {
 	frLocale(t)
 	var calls atomic.Int32
-	release := make(chan struct{})
+	started, release := make(chan struct{}), make(chan struct{})
 	v := NewBoardView(BoardViewConfig{
 		RefreshRate: time.Hour,
 		RefreshFunc: func() []BoardTicket {
 			if calls.Add(1) == 1 {
+				close(started)
 				<-release
 				return []BoardTicket{boardTicket("ancien-1")}
 			}
@@ -76,6 +77,7 @@ func TestBoardViewReloadsOffTheLoop(t *testing.T) {
 	app := runApp(t, content)
 
 	onLoop(app, func() { v.Mount(content, app) }) // the first read blocks: the mount does not
+	<-started
 	onLoop(app, func() { v.HandleKey(runeKey('r')) })
 	waitFor(t, app, func() bool { _, ok := v.ticketsByID["nouveau-2"]; return ok })
 
@@ -91,7 +93,7 @@ func TestBoardViewReloadsOffTheLoop(t *testing.T) {
 func TestTeamBoardViewReloadsOffTheLoop(t *testing.T) {
 	frLocale(t)
 	var calls atomic.Int32
-	release := make(chan struct{})
+	started, release := make(chan struct{}), make(chan struct{})
 	ticket := func(id string) []TeamTicket {
 		return []TeamTicket{{ID: id, Title: "T " + id, Status: "in_progress", Assignee: "alice"}}
 	}
@@ -100,6 +102,7 @@ func TestTeamBoardViewReloadsOffTheLoop(t *testing.T) {
 		IsConfigured: func() bool { return true },
 		RefreshFunc: func() []TeamTicket {
 			if calls.Add(1) == 1 {
+				close(started)
 				<-release
 				return ticket("ancien-1")
 			}
@@ -111,6 +114,7 @@ func TestTeamBoardViewReloadsOffTheLoop(t *testing.T) {
 	app := runApp(t, content)
 
 	onLoop(app, func() { v.Mount(content, app) })
+	<-started
 	// A manual refresh while the first read is slow: it takes over.
 	onLoop(app, func() { v.HandleKey(runeKey('r')) })
 	waitFor(t, app, func() bool { return len(v.allTickets) == 1 && v.allTickets[0].ID == "nouveau-2" })
