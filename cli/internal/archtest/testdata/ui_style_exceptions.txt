@@ -29,15 +29,12 @@ tag-color internal/tui/v2/views/inline_form.go 2
 tag-style internal/tui/v2/views/inline_wizard.go 1
 widgets-tag internal/tui/v2/views/inline_wizard.go 31
 symbol internal/tui/v2/views/list_page.go 1
-symbol internal/tui/v2/views/patterns_view.go 1
 symbol internal/tui/v2/views/policies_view.go 8
 tag-style internal/tui/v2/views/projects_view.go 1
 widgets-tag internal/tui/v2/views/teamboard.go 1
 tag-color internal/tui/v2/views/teamboard_view.go 6
 tag-style internal/tui/v2/views/teamboard_view.go 4
 widgets-tag internal/tui/v2/views/teamboard_view.go 1
-symbol internal/tui/v2/views/wiki_view.go 2
-tag-color internal/tui/v2/views/wiki_view.go 2
 widgets-tag internal/tui/v2/views/wizard.go 9
 tag-color internal/tui/v2/views/worktree_view.go 1
 tag-color internal/tui/v2/widgets/button.go 2

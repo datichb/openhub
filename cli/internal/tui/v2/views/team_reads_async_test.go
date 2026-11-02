@@ -136,3 +136,47 @@ func TestTimeAgoFallsBackToTheDateAfterAWeek(t *testing.T) {
 	assert.Equal(t, "il y a 3 min", timeAgo(now.Add(-3*time.Minute)))
 	assert.Contains(t, timeAgo(now.AddDate(0, 0, -10)), "2026")
 }
+
+func TestTakeoverViewLoadAndRemount(t *testing.T) {
+	frLocale(t)
+	_, tc := soloState(t)
+	var calls atomic.Int32
+	first, release := make(chan struct{}), make(chan struct{})
+	v := NewTakeoverView(func() TeamResolution { return tc })
+	v.read = func(teamstate.TeamStateReader) (takeoverData, error) {
+		brief := func(ticket string) []teamstate.TakeoverMeta {
+			return []teamstate.TakeoverMeta{{TicketID: ticket, Project: "web", TransferredFrom: "a", TransferredTo: "b"}}
+		}
+		if calls.Add(1) == 1 {
+			close(first)
+			<-release
+			return takeoverData{cloned: true, briefs: brief("ancien-1")}, nil
+		}
+		return takeoverData{cloned: true, briefs: brief("nouveau-2")}, nil
+	}
+	v.SetShell(&mockShell{})
+	content := tview.NewFlex()
+	loop := runApp(t, content)
+	listed := func() (n int) {
+		onLoop(loop, func() {
+			if v.list != nil && len(v.briefs) > 0 {
+				n = len(v.briefs)
+			}
+		})
+		return
+	}
+
+	onLoop(loop, func() { v.Mount(content, loop) })
+	<-first
+	assert.Zero(t, listed(), "the mount does not wait for the briefs")
+
+	onLoop(loop, v.Unmount)
+	onLoop(loop, func() { v.Mount(tview.NewFlex(), loop) })
+	require.Eventually(t, func() bool { return listed() == 1 }, 2*time.Second, 10*time.Millisecond)
+
+	close(release)
+	time.Sleep(50 * time.Millisecond)
+	onLoop(loop, func() {
+		assert.Equal(t, "nouveau-2", v.briefs[0].TicketID, "the answer of the previous mount is dropped")
+	})
+}
