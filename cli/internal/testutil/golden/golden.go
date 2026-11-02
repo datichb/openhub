@@ -44,6 +44,7 @@ func Assert[T ~string | ~[]byte](t testing.TB, name string, got T) {
 		return
 	}
 	path := filepath.Join("testdata", name+".golden")
+	shown := filepath.ToSlash(path) // the same message on every system
 	data := []byte(got)
 	if *update {
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
@@ -57,7 +58,7 @@ func Assert[T ~string | ~[]byte](t testing.TB, name string, got T) {
 	}
 	want, err := os.ReadFile(path)
 	if err != nil {
-		t.Errorf("golden: cannot read %s: %v\nto create it: %s", path, err, regenerate(t))
+		t.Errorf("golden: cannot read %s: %v\nto create it: %s", shown, err, regenerate(t))
 		return
 	}
 	if string(want) == string(data) {
@@ -66,11 +67,11 @@ func Assert[T ~string | ~[]byte](t testing.TB, name string, got T) {
 	diff, _ := difflib.GetUnifiedDiffString(difflib.UnifiedDiff{
 		A:        difflib.SplitLines(string(want)),
 		B:        difflib.SplitLines(string(data)),
-		FromFile: path + " (want)",
+		FromFile: shown + " (want)",
 		ToFile:   "output (got)",
 		Context:  3,
 	})
-	t.Errorf("golden: the output differs from %s:\n%s\nif the change is intended: %s", path, diff, regenerate(t))
+	t.Errorf("golden: the output differs from %s:\n%s\nif the change is intended: %s", shown, diff, regenerate(t))
 }
 
 // regenerate is the command that rewrites the golden files of the test.

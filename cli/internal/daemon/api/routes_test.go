@@ -2,6 +2,7 @@ package api
 
 import (
 	"errors"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -16,12 +17,12 @@ func TestRoute(t *testing.T) {
 }
 
 func TestPaths(t *testing.T) {
-	p := Paths{Dir: "/run/oh"}
-	assert.Equal(t, "/run/oh/ohd.sock", p.Socket())
-	assert.Equal(t, "/run/oh/spawn.lock", p.SpawnLock())
-	assert.Equal(t, "/run/oh/capability", p.CapabilityFile())
-	assert.Equal(t, "/s/g/lock", GroupLockPath("/s", "g"))
-	assert.Equal(t, "/s/g/proxy_url", ProxyURLPath("/s", "g"))
+	p := Paths{Dir: filepath.FromSlash("/run/oh")}
+	assert.Equal(t, filepath.FromSlash("/run/oh/ohd.sock"), p.Socket())
+	assert.Equal(t, filepath.FromSlash("/run/oh/spawn.lock"), p.SpawnLock())
+	assert.Equal(t, filepath.FromSlash("/run/oh/capability"), p.CapabilityFile())
+	assert.Equal(t, filepath.FromSlash("/s/g/lock"), GroupLockPath(filepath.FromSlash("/s"), "g"))
+	assert.Equal(t, filepath.FromSlash("/s/g/proxy_url"), ProxyURLPath(filepath.FromSlash("/s"), "g"))
 }
 
 func TestErrors(t *testing.T) {

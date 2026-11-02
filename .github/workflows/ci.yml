@@ -61,6 +61,16 @@ jobs:
           cp -r ../workflows internal/hubcontent/hub/workflows
           for a in amd64 arm64; do CGO_ENABLED=0 GOOS=linux GOARCH=$a go build -trimpath -ldflags "-s -w" -o internal/runtime/container/assets/bd-linux-$a ./cmd/oh-bd; done
 
+      # Windows only tests the packages of .github/windows-test-packages.txt
+      # (the tests of many packages were written for Unix and fail there; the
+      # excluded ones, with their cause, are in
+      # .github/windows-test-packages-excluded.txt). A package of `go list ./...`
+      # that is in neither file, or in both, fails this step: it runs first
+      # because it is cheap and the Test step below depends on it.
+      - name: Check the Windows package lists
+        if: runner.os == 'Windows'
+        run: ../.github/scripts/windows-packages.sh check
+
       - name: Vet
         run: go vet ./...
 
@@ -71,15 +81,31 @@ jobs:
           working-directory: cli
           args: --build-tags=integration,e2e,container
 
-      # Windows: the tests of many packages were written for Unix and fail there
-      # (first full run: 24 packages). Until the "windows-tests" batch makes them
-      # green, Windows only tests the packages of .github/windows-test-packages.txt
-      # (the excluded ones, with their cause, are in
-      # .github/windows-test-packages-excluded.txt). A new package that is in
-      # neither file is reported here as a warning, never as a failure.
-      - name: Check the Windows package lists
-        if: runner.os == 'Windows'
-        run: ../.github/scripts/windows-packages.sh check
+      # The tests of the real bd (bdtest.RequireRealBd: contracts of the JSON
+      # format, Beads gateway, remote jobs) skip themselves when bd is not on the
+      # PATH, so without this step they never ran in the CI. The version is the
+      # one oh is written for (bdargs/spec_bd.go, docs/reference/beads-model.*):
+      # the release asset of github.com/gastownhall/beads, its SHA-256 checked.
+      # To move to another version: regenerate bdargs/spec_bd.go (see
+      # beads-model.*), then take the SHA-256 of beads_<version>_linux_amd64.tar.gz
+      # from the release page (checksums.txt). Linux only: the tests skip
+      # themselves on the other systems.
+      - name: Install bd (pinned version, checksum verified)
+        if: runner.os == 'Linux'
+        env:
+          BD_VERSION: "1.3.1"
+          BD_SHA256_LINUX_AMD64: "3219443a9734b89b93fb16ee8d65844759fa1b3cd3cf139c606b7353cfb0715c"
+        run: |
+          archive="$RUNNER_TEMP/beads-$BD_VERSION.tar.gz"
+          bin="$RUNNER_TEMP/bd-bin"
+          mkdir -p "$bin"
+          curl --fail --silent --show-error --location --retry 3 \
+            --output "$archive" \
+            "https://github.com/gastownhall/beads/releases/download/v$BD_VERSION/beads_${BD_VERSION}_linux_amd64.tar.gz"
+          echo "$BD_SHA256_LINUX_AMD64  $archive" | sha256sum -c -
+          tar -xzf "$archive" -C "$bin" bd
+          echo "$bin" >> "$GITHUB_PATH"
+          "$bin/bd" version | tee /dev/stderr | grep -F "$BD_VERSION"
 
       # One run per system: the tests under -race and the coverage profile come
       # from the same `go test` (they used to run twice, in two steps).
@@ -196,6 +222,11 @@ jobs:
       # with `//go:build integration` tests joins it with no change here. A
       # constraint that excludes the tag (`!integration || windows`) or that asks
       # for e2e too (`integration && e2e`, never run in CI) does not count.
+      #
+      # ./cmd is the exception: its 370 unit tests take minutes and run in the
+      # main job, so only its tests that build and run the oh binary
+      # (cmd/integration_test.go, startup_levels_test.go), named TestBinary*, run
+      # here.
       - name: Integration tests (real opencode serve, no model calls)
         run: |
           pkgs=$(grep -rHE --include='*_test.go' '^//go:build ' . |
@@ -208,8 +239,66 @@ jobs:
           fi
           echo "Packages with integration tests:"
           echo "$pkgs"
-          # $pkgs unquoted on purpose: one argument per package (no space in the paths).
-          go test $pkgs -race -count=1 -tags integration -timeout "$GO_TEST_TIMEOUT"
+          others=$(printf '%s\n' "$pkgs" | grep -vx './cmd' || true)
+          # $others unquoted on purpose: one argument per package (no space in the paths).
+          if [ -n "$others" ]; then
+            go test $others -race -count=1 -tags integration -timeout "$GO_TEST_TIMEOUT"
+          fi
+          if [ "$others" != "$pkgs" ]; then
+            go test ./cmd -race -count=1 -tags integration -run '^TestBinary' -timeout "$GO_TEST_TIMEOUT"
+          fi
+
+  # The Mermaid diagrams of the docs render (TestMermaidRenders). The test skips
+  # itself when mmdc is missing or cannot start its browser, so that without
+  # this job it never ran in the CI: here a skip is a failure. Apart from the
+  # main job because it needs Node.js and a headless Chromium (downloaded by
+  # the install, about 150 MB), which the three systems of the main job do not
+  # need; it runs in parallel with it.
+  docs-mermaid:
+    name: Mermaid diagrams render
+    runs-on: ubuntu-latest
+    env:
+      # The version the diagrams are checked with. To move to another one, render
+      # the diagrams locally with it first (go test ./internal/docstest -run TestMermaidRenders).
+      MERMAID_CLI_VERSION: "11.17.0"
+    defaults:
+      run:
+        shell: bash
+        working-directory: cli
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: cli/go.mod
+          cache-dependency-path: cli/go.sum
+
+      # In a folder of the runner (no sudo, no global install). The Chromium of
+      # the runner cannot start its sandbox (user namespaces are restricted on
+      # Ubuntu 24.04): mmdc is started through a wrapper, named mmdc and first
+      # in the PATH, that gives it a Puppeteer configuration without sandbox
+      # (the runner is a throwaway machine, and only the diagrams of the
+      # repository are rendered).
+      - name: Install mmdc (pinned version)
+        run: |
+          npm install --no-audit --no-fund --prefix "$RUNNER_TEMP/mmdc" "@mermaid-js/mermaid-cli@$MERMAID_CLI_VERSION"
+          wrapper="$RUNNER_TEMP/mmdc-wrapper"
+          mkdir -p "$wrapper"
+          echo '{"args": ["--no-sandbox"]}' > "$RUNNER_TEMP/puppeteer-config.json"
+          printf '#!/usr/bin/env bash\nexec "%s/mmdc/node_modules/.bin/mmdc" -p "%s/puppeteer-config.json" "$@"\n' "$RUNNER_TEMP" "$RUNNER_TEMP" > "$wrapper/mmdc"
+          chmod +x "$wrapper/mmdc"
+          echo "$wrapper" >> "$GITHUB_PATH"
+          "$wrapper/mmdc" --version | tee /dev/stderr | grep -F "$MERMAID_CLI_VERSION"
+
+      - name: Render the diagrams
+        run: |
+          go test ./internal/docstest -run '^TestMermaidRenders$' -count=1 -v -timeout 15m | tee "$RUNNER_TEMP/mermaid.log"
+          if grep -q -- '--- SKIP' "$RUNNER_TEMP/mermaid.log"; then
+            echo "::error::TestMermaidRenders was skipped: mmdc is not usable on the runner"
+            exit 1
+          fi
 
   docs-checks:
     name: Documentation checks

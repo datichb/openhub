@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -108,10 +109,12 @@ func TestAddGetAndSections(t *testing.T) {
 	path := filepath.Join(s.SessionsDir, "ses_a", "reports", "rp-1.md")
 	fi, err := os.Stat(path)
 	require.NoError(t, err)
-	assert.Equal(t, os.FileMode(0o600), fi.Mode().Perm())
 	di, err := os.Stat(filepath.Dir(path))
 	require.NoError(t, err)
-	assert.Equal(t, os.FileMode(0o700), di.Mode().Perm())
+	if runtime.GOOS != "windows" { // no permission bits on Windows
+		assert.Equal(t, os.FileMode(0o600), fi.Mode().Perm())
+		assert.Equal(t, os.FileMode(0o700), di.Mode().Perm())
+	}
 
 	got, text, err := s.Get(ctx, "ses_a", "RP-1")
 	require.NoError(t, err)

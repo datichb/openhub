@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -80,7 +81,8 @@ func TestCopyTruncateWithAnAppendWriter(t *testing.T) {
 	if string(old) != strings.Repeat("before\n", 10) {
 		t.Fatalf("copy = %q", old)
 	}
-	if fi, _ := os.Stat(log + ".1"); fi.Mode().Perm() != 0o600 {
+	// Windows has no permission bits: a file reports 0666.
+	if fi, _ := os.Stat(log + ".1"); runtime.GOOS != "windows" && fi.Mode().Perm() != 0o600 {
 		t.Fatalf("mode %v", fi.Mode().Perm())
 	}
 }

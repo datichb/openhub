@@ -3,17 +3,18 @@
 # Why a list: the first full run of the suite on Windows (run 39478681062)
 # showed that 24 packages fail there, almost all because their tests were
 # written for Unix (/tmp, fake binaries written as shell scripts, Unix
-# sockets, file modes, "/" separators). To keep the CI green meanwhile, on
-# Windows the Test step only runs the packages below, which pass. The 24 others
-# are in windows-test-packages-excluded.txt, each with its main cause: making them
-# green is the job of the "windows-tests" batch, which moves them from that file
-# to this one. The other systems always run ./... .
+# sockets, file modes, "/" separators). Windows therefore only runs the
+# packages below in the Test step. Each of the others is in
+# windows-test-packages-excluded.txt with its cause; making one green moves
+# it from that file to this one. The other systems always run ./... .
 #
 # Format: one package per line, relative to the module (cli/), as printed by
 # `go list ./...`; blank lines and # comments are ignored. The packages without
-# test files are listed too: Windows then at least builds them.
-# A package of `go list ./...` that is in neither file is not tested on Windows
-# and is reported as a warning by the CI (.github/scripts/windows-packages.sh check).
+# test files, or whose test files are all Unix-only (daemon/client), are listed
+# too: Windows then at least builds them.
+#
+# Every package of `go list ./...` must be in exactly one of the two files:
+# `.github/scripts/windows-packages.sh check` (a step of the CI) fails otherwise.
 .
 ./cmd/oh-bd
 ./internal/adapters
@@ -22,12 +23,17 @@
 ./internal/archtest
 ./internal/beads/bdschema
 ./internal/buildinfo
+./internal/config
+./internal/config/configtest
 ./internal/credproxy
+./internal/daemon/api
+./internal/daemon/client
 ./internal/docstest
 ./internal/domain
 ./internal/envfilter
 ./internal/evalrun
 ./internal/filelock
+./internal/fsutil
 ./internal/gateway/bdargs
 ./internal/gateway/beadswire
 ./internal/gateway/fakebd
@@ -42,6 +48,7 @@
 ./internal/i18n/i18ntest
 ./internal/launcher
 ./internal/limits
+./internal/logrotate
 ./internal/mcp/figma
 ./internal/mcp/github
 ./internal/mcp/gitlab
@@ -70,19 +77,28 @@
 ./internal/retry
 ./internal/safego
 ./internal/semver
+./internal/services/doctor
 ./internal/services/fanout
+./internal/services/launch
+./internal/services/policy
 ./internal/services/remote
 ./internal/services/remote/runner
+./internal/services/report
+./internal/services/team
 ./internal/services/wiki
 ./internal/sessionctx
 ./internal/sessionresults
 ./internal/sessionspec
 ./internal/sessionstats
 ./internal/specdoc
+./internal/storage/filecrypt
 ./internal/storage/keychain
 ./internal/storage/sqlite/sqlitetest
 ./internal/sysnotify
 ./internal/termtext
+./internal/testenv
+./internal/testutil/golden
+./internal/textfmt
 ./internal/tracker
 ./internal/tui/common
 ./internal/tui/components/floating
@@ -95,5 +111,6 @@
 ./internal/tui/v2/shell
 ./internal/tui/v2/views
 ./internal/tui/v2/widgets
+./internal/wildcard
 ./internal/workflow
 ./internal/workflow/hubcat

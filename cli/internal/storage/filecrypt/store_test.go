@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"testing"
 
@@ -131,10 +132,12 @@ func TestAtomicWrite(t *testing.T) {
 	// Set a value to create the file
 	require.NoError(t, s.Set(ctx, "key", "value"))
 
-	// Verify file permissions are 0600
+	// Verify file permissions are 0600 (Windows has no permission bits)
 	info, err := os.Stat(path)
 	require.NoError(t, err)
-	assert.Equal(t, os.FileMode(0600), info.Mode().Perm())
+	if runtime.GOOS != "windows" {
+		assert.Equal(t, os.FileMode(0600), info.Mode().Perm())
+	}
 
 	// Verify no temp files are left behind
 	dir := filepath.Dir(path)

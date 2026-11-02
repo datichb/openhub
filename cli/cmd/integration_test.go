@@ -1,6 +1,9 @@
+//go:build integration
+
 package cmd_test
 
 import (
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -8,11 +11,13 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
-	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
-	"github.com/datichb/openhub/cli/internal/testenv"
 )
+
+// The tests of this file and of startup_levels_test.go run the real oh binary
+// (built with go build, then started as a subprocess): slow, and dependent on
+// the environment (go, git, the checks of oh doctor). They are named
+// TestBinary*: the CI runs `-run '^TestBinary'` for ./cmd in its integration
+// job, the rest of the tests of ./cmd run in the main job.
 
 // testBinary is the path to the compiled oh binary for integration tests, and
 // testBinaryHome the HOME it runs with (a minimal hub, so the init gate passes).
@@ -21,55 +26,55 @@ var (
 	testBinaryHome string
 )
 
-func TestMain(m *testing.M) {
-	// os.Exit skips the deferred calls: the code is returned once the
-	// temporary folders are removed (runMain).
-	os.Exit(runMain(m))
-}
+func init() { binarySetup = buildBinary }
 
-func runMain(m *testing.M) int {
-	// The real hub and home are out of reach of the tests (the Go caches of
-	// the user stay where they are, testenv pins them: the build below).
-	finish := testenv.Isolate()
+// buildBinary builds oh and creates the hub it runs with; the returned
+// function removes both.
+func buildBinary() (func(), error) {
+	var dirs []string
+	cleanup := func() {
+		for _, d := range dirs {
+			_ = os.RemoveAll(d)
+		}
+	}
 
 	// Build the binary into a temp directory
 	tmpDir, err := os.MkdirTemp("", "oh-integration-*")
 	if err != nil {
-		panic("failed to create temp dir: " + err.Error())
+		return nil, errors.New("failed to create temp dir: " + err.Error())
 	}
-	defer os.RemoveAll(tmpDir)
+	dirs = append(dirs, tmpDir)
 
 	testBinary = filepath.Join(tmpDir, "oh")
 	buildCmd := exec.Command("go", "build", "-o", testBinary, ".")
 	buildCmd.Dir = ".."
 	if out, err := buildCmd.CombinedOutput(); err != nil {
-		panic("failed to build oh binary: " + err.Error() + "\n" + string(out))
+		cleanup()
+		return nil, errors.New("failed to build oh binary: " + err.Error() + "\n" + string(out))
 	}
 
 	// Set HOME to a temp dir so we don't interfere with real config
 	testHome, err := os.MkdirTemp("", "oh-home-*")
 	if err != nil {
-		panic("failed to create temp home: " + err.Error())
+		cleanup()
+		return nil, errors.New("failed to create temp home: " + err.Error())
 	}
-	defer os.RemoveAll(testHome)
+	dirs = append(dirs, testHome)
 	testBinaryHome = testHome
 
 	// Create minimal hub content structure so the init gate passes
 	hubDir := filepath.Join(testHome, ".oh", "hub")
-	if err := os.MkdirAll(filepath.Join(hubDir, "agents"), 0o755); err != nil {
-		panic("failed to create hub agents dir: " + err.Error())
-	}
-	if err := os.MkdirAll(filepath.Join(hubDir, "skills"), 0o755); err != nil {
-		panic("failed to create hub skills dir: " + err.Error())
+	for _, d := range []string{"agents", "skills"} {
+		if err := os.MkdirAll(filepath.Join(hubDir, d), 0o755); err != nil {
+			cleanup()
+			return nil, errors.New("failed to create hub " + d + " dir: " + err.Error())
+		}
 	}
 	if err := os.WriteFile(filepath.Join(hubDir, ".version"), []byte("dev"), 0o644); err != nil {
-		panic("failed to write hub version: " + err.Error())
+		cleanup()
+		return nil, errors.New("failed to write hub version: " + err.Error())
 	}
-
-	// No background git maintenance (a commit, a fetch or a push starts a
-	// detached `git maintenance run --auto` that keeps writing to
-	// .git/objects while t.TempDir is removed: flaky TestMigrateLegacyWorkflows).
-	return finish(gittest.Main(m))
+	return cleanup, nil
 }
 
 func runOh(t *testing.T, args ...string) (string, string, int) {
@@ -91,15 +96,7 @@ func runOh(t *testing.T, args ...string) (string, string, int) {
 	return stdout.String(), stderr.String(), exitCode
 }
 
-// QB6: git runs no background maintenance in the tests (temp dir cleanup).
-func TestGitMaintenanceIsOffInTests(t *testing.T) {
-	t.Parallel()
-	out, err := exec.Command("git", "config", "--get", "maintenance.auto").Output()
-	require.NoError(t, err, "reading maintenance.auto")
-	assert.Equal(t, "false", strings.TrimSpace(string(out)), "maintenance.auto")
-}
-
-func TestDoctorRuns(t *testing.T) {
+func TestBinaryDoctorRuns(t *testing.T) {
 	t.Parallel()
 	stdout, _, exitCode := runOh(t, "doctor")
 	// Exit code 1 when a check fails (QB1), e.g. no container engine on the
