@@ -13,6 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/glyph"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/safego"
 	teamsvc "github.com/datichb/openhub/cli/internal/services/team"
 	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tracker"
@@ -157,7 +158,7 @@ func startSyncSpinner(a *app.App, trackerType string) func() {
 	}
 	stop := make(chan struct{})
 	stopped := make(chan struct{})
-	go func() {
+	safego.Go(func() {
 		defer close(stopped)
 		frames := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
 		msg := i18n.Tf("cmd.team.sync_tracker.running", trackerType)
@@ -171,7 +172,7 @@ func startSyncSpinner(a *app.App, trackerType string) func() {
 				time.Sleep(80 * time.Millisecond)
 			}
 		}
-	}()
+	})
 	return func() {
 		close(stop)
 		<-stopped

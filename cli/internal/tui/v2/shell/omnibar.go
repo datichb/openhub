@@ -8,6 +8,7 @@ import (
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
@@ -550,11 +551,11 @@ func (o *Omnibar) executeCurrent() {
 			//   handler returns immediately → the event loop finishes the draw cycle
 			//   → drains updates → executes cmd.Action() → signals done → goroutine
 			//   exits. No leak, no race.
-			go func() {
+			safego.Go(func() {
 				o.shell.app.QueueUpdateDraw(func() {
 					cmd.Action()
 				})
-			}()
+			})
 		}
 	} else if cmd.ViewID != "" {
 		// NavigateTo only manipulates the widget tree (no pages.AddPage) — safe to

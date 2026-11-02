@@ -16,6 +16,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/mcp/jira"
 	"github.com/datichb/openhub/cli/internal/mcp/linear"
 	"github.com/datichb/openhub/cli/internal/mcp/team"
+	"github.com/datichb/openhub/cli/internal/safego"
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/bricks"
@@ -121,10 +122,12 @@ func runAttachChild(ctx context.Context, a *app.App, svc *runsvc.Service, sessio
 	hbCtx, stop := context.WithCancel(ctx)
 	defer stop()
 	if dc, _, derr := ensureDaemon(ctx); derr == nil && sess != nil {
-		go dc.KeepAlive(hbCtx, api.HeartbeatRequest{
-			ClientID: "attach-" + sessionspec.NewSessionID(), Kind: api.ClientAttach, Group: sess.GroupKey, SessionID: sessionID,
-			Where: clientLocation(),
-		}, 30*time.Second)
+		safego.Go(func() {
+			dc.KeepAlive(hbCtx, api.HeartbeatRequest{
+				ClientID: "attach-" + sessionspec.NewSessionID(), Kind: api.ClientAttach, Group: sess.GroupKey, SessionID: sessionID,
+				Where: clientLocation(),
+			}, 30*time.Second)
+		})
 	}
 	c := exec.CommandContext(ctx, argv[0], argv[1:]...)
 	c.Stdin, c.Stdout, c.Stderr = os.Stdin, os.Stdout, os.Stderr

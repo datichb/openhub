@@ -12,6 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/tui/common"
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
@@ -144,12 +145,12 @@ func runTUIWithProject(projectName string) error {
 	if tuiSess != nil {
 		tuiSess.start(sessCtx)
 	}
-	go func() {
+	safego.Go(func() {
 		time.Sleep(500 * time.Millisecond)
 		showAbsenceRecap(context.Background(), a, tuiShell) // reads off the event loop
 		offerKeysNoticeInTUI(context.Background(), a, tuiShell, firstRun)
 		offerCleanupInTUI(context.Background(), a, tuiShell)
-	}()
+	})
 
 	err := tuiShell.Run()
 

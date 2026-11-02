@@ -6,6 +6,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
+	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -65,11 +66,11 @@ func RunInlineWizardStandalone(wizard *InlineWizardView) StandaloneResult {
 		}
 		// Stop the event loop so Run() returns. Use QueueUpdate to avoid
 		// calling Stop from inside a draw cycle.
-		go func() {
+		safego.Go(func() {
 			app.QueueUpdate(func() {
 				app.Stop()
 			})
-		}()
+		})
 	}
 
 	// Provide a minimal ShellAccess stub so the summary screen's

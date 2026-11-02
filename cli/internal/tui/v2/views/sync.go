@@ -8,6 +8,7 @@ import (
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 )
 
@@ -65,7 +66,7 @@ func SetTeamSyncHook(fn func(ctx context.Context, repoPath string)) { teamSyncHo
 // successful pull.
 func AfterTeamSync(ctx context.Context, repoPath string) {
 	if fn := teamSyncHook; fn != nil && repoPath != "" {
-		go fn(ctx, repoPath)
+		safego.Go(func() { fn(ctx, repoPath) })
 	}
 }
 
@@ -105,7 +106,7 @@ func syncFuncAsync(
 		ctx = context.Background()
 	}
 
-	go func() {
+	safego.Go(func() {
 		// Guarantee onDone is always called, even if the context is cancelled
 		// mid-flight. Without this, callers that set actionInProgress=true before
 		// calling syncFuncAsync would never reset it, permanently disabling the
@@ -144,5 +145,5 @@ func syncFuncAsync(
 			return
 		default:
 		}
-	}()
+	})
 }

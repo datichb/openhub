@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/safego"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
@@ -37,7 +38,7 @@ func actionFreeSessionWithAgent() {
 		return
 	}
 	scope := activeScope()
-	go func() {
+	safego.Go(func() {
 		ctx := context.Background()
 		res, err := newWorkflowService(ctx).Resolve(ctx, workflowsvc.Context{ProjectID: scope.ProjectID}, freeWorkflow, workflowsvc.ResolveOpts{})
 		sh.App().QueueUpdateDraw(func() {
@@ -56,5 +57,5 @@ func actionFreeSessionWithAgent() {
 			}
 			sh.ShowSelectModal(i18n.T("tui.launch.agent_pick"), opts, agents[0], openFreeSession)
 		})
-	}()
+	})
 }

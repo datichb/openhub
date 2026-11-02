@@ -20,6 +20,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/launcher"
 	"github.com/datichb/openhub/cli/internal/runsvc"
+	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/services/launch"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
@@ -65,7 +66,7 @@ func openLaunchForm(a *app.App, req tuiLaunchRequest) {
 		return
 	}
 	withTUIProject(a, req.ProjectID, func(project *domain.Project) {
-		go func() {
+		safego.Go(func() {
 			cfg, err := launchFormConfig(context.Background(), a, project, req)
 			sh.App().QueueUpdateDraw(func() {
 				if err != nil {
@@ -74,7 +75,7 @@ func openLaunchForm(a *app.App, req tuiLaunchRequest) {
 				}
 				sh.PushView(views.NewLaunchFormView(*cfg))
 			})
-		}()
+		})
 	})
 }
 

@@ -35,6 +35,13 @@ func Go(fn func()) {
 	}()
 }
 
+// AfterFunc is time.AfterFunc with the recovery of Go: fn runs in a goroutine
+// of its own after d, and a panic is logged instead of ending the process. The
+// returned timer stops it as time.AfterFunc's does.
+func AfterFunc(d time.Duration, fn func()) *time.Timer {
+	return time.AfterFunc(d, func() { Go(fn) })
+}
+
 // Default pauses between two runs of a supervised loop.
 const (
 	DefaultRestartMin = time.Second

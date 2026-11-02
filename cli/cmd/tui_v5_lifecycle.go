@@ -13,6 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/daemon/client"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/runsvc"
+	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
@@ -49,12 +50,12 @@ func startTUIPresence(ctx context.Context) func() {
 		return func() {}
 	}
 	pctx, cancel := context.WithCancel(ctx)
-	go func() {
+	safego.Go(func() {
 		// Heartbeats are retried every period: a daemon started (or
 		// restarted) after the TUI opened still learns that oh is open.
 		dc := client.NewClient(api.Paths{Dir: ohRunDir()})
 		dc.KeepAlive(pctx, api.HeartbeatRequest{ClientID: "tui-" + sessionspec.NewSessionID(), Kind: api.ClientPresence}, 30*time.Second)
-	}()
+	})
 	return cancel
 }
 
@@ -65,7 +66,7 @@ func showAbsenceRecap(ctx context.Context, a *app.App, sh *shell.Shell) {
 	if since.IsZero() || a.Sessions == nil {
 		return
 	}
-	go func() {
+	safego.Go(func() {
 		svc, err := newSessionService(ctx, a)
 		if err != nil {
 			return
@@ -83,7 +84,7 @@ func showAbsenceRecap(ctx context.Context, a *app.App, sh *shell.Shell) {
 			level = shell.ToastWarning
 		}
 		sh.App().QueueUpdateDraw(func() { sh.ShowToast(msg, level) })
-	}()
+	})
 }
 
 // v5BeforeQuit applies the quit policy to the open v5 sessions (I7):
@@ -97,7 +98,7 @@ func v5BeforeQuit(a *app.App, sh *shell.Shell) func(quit func()) {
 			writeLastSeen(time.Now())
 			quit()
 		}
-		go func() {
+		safego.Go(func() {
 			// Bounded reads: an unresponsive daemon must not hold the quit.
 			ctx, cancel := context.WithTimeout(context.Background(), quitReadTimeout)
 			defer cancel()
@@ -120,7 +121,7 @@ func v5BeforeQuit(a *app.App, sh *shell.Shell) func(quit func()) {
 				return
 			}
 			apply := func(choices map[string]runsvc.QuitChoice) {
-				go func() {
+				safego.Go(func() {
 					if err := svc.ApplyQuit(context.Background(), plan, choices); err != nil {
 						slog.Warn("quit policy not fully applied", "error", err)
 					}
@@ -133,7 +134,7 @@ func v5BeforeQuit(a *app.App, sh *shell.Shell) func(quit func()) {
 						cancel()
 					}
 					sh.App().QueueUpdateDraw(finish)
-				}()
+				})
 			}
 			if len(plan.Working) == 0 {
 				apply(nil)
@@ -158,7 +159,7 @@ func v5BeforeQuit(a *app.App, sh *shell.Shell) func(quit func()) {
 					OnCancel: sh.CancelQuit,
 				})
 			})
-		}()
+		})
 	}
 }
 

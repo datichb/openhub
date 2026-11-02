@@ -22,6 +22,7 @@ import (
 
 	"github.com/mattn/go-isatty"
 
+	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/tui/common"
 )
 
@@ -62,7 +63,7 @@ func (s *Spinner) Start() {
 	s.done = make(chan struct{})
 	s.mu.Unlock()
 
-	go func() {
+	safego.Go(func() {
 		i := 0
 		for {
 			select {
@@ -78,7 +79,7 @@ func (s *Spinner) Start() {
 				i++
 			}
 		}
-	}()
+	})
 }
 
 // Animated reports whether spinners are drawn: never with --no-tui, in CI,

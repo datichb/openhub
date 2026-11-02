@@ -13,6 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
@@ -203,7 +204,7 @@ func (v *WorktreeView) refresh() {
 	}
 	v.gen++
 	gen, tvApp, git := v.gen, v.app, v.cfg.Git
-	go func() {
+	safego.Go(func() {
 		entries, err := git.List(projectPath)
 		if tvApp == nil {
 			return
@@ -214,7 +215,7 @@ func (v *WorktreeView) refresh() {
 			}
 			v.render(projectPath, entries, err)
 		})
-	}()
+	})
 }
 
 func (v *WorktreeView) render(projectPath string, entries []worktree.Entry, err error) {
@@ -269,7 +270,7 @@ func (v *WorktreeView) runGit(op func() error, done func(err error)) {
 	if tvApp == nil {
 		return
 	}
-	go func() {
+	safego.Go(func() {
 		err := op()
 		tvApp.QueueUpdateDraw(func() {
 			if v.shell == nil {
@@ -278,7 +279,7 @@ func (v *WorktreeView) runGit(op func() error, done func(err error)) {
 			done(err)
 			v.refresh()
 		})
-	}()
+	})
 }
 
 func (v *WorktreeView) addWorktree() {

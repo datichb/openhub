@@ -17,6 +17,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
@@ -295,14 +296,14 @@ func actionTeamInit() {
 			// Launch discovery wizard if requested.
 			if launchDiscoveryAfter {
 				// Small delay to let the summary screen render before pushing the new wizard.
-				go func() {
+				safego.Go(func() {
 					time.Sleep(200 * time.Millisecond)
 					if tuiShell != nil {
 						tuiShell.App().QueueUpdateDraw(func() {
 							actionTrackerDiscovery()
 						})
 					}
-				}()
+				})
 			}
 		},
 	})
@@ -356,11 +357,11 @@ func actionTeamConfigure() {
 	}
 
 	tuiShell.ShowSelectModal(i18n.T("tui.team.configure.modal_title"), modeOptions, defaultVal, func(teamID string) {
-		go func() {
+		safego.Go(func() {
 			tuiShell.App().QueueUpdateDraw(func() {
 				applyProjectTeamID(a, project.ID, teamID)
 			})
-		}()
+		})
 	})
 }
 

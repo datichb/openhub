@@ -7,6 +7,8 @@ import (
 	"unicode"
 
 	"github.com/gdamore/tcell/v2"
+
+	"github.com/datichb/openhub/cli/internal/safego"
 )
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -179,12 +181,12 @@ func (sm *SelectionManager) HandleMouseUp(x, y int, screen tcell.Screen) {
 
 	// Copy in a goroutine so we don't block the event loop
 	cb := sm.onCopy
-	go func() {
+	safego.Go(func() {
 		_ = CopyToClipboard(text)
 		if cb != nil {
 			cb(text)
 		}
-	}()
+	})
 }
 
 // ── Highlight ─────────────────────────────────────────────────────────────────

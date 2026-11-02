@@ -11,6 +11,7 @@ import (
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
@@ -167,7 +168,8 @@ func (v *SessionsView) Mount(content *tview.Flex, app *tview.Application) {
 	v.list.SetItems([]widgets.SectionItem{{MainText: stateText(stateLoading, i18n.T("tui.sessions.loading")), IsHeader: true}})
 	v.reload()
 	if v.cfg.Backend != nil {
-		go v.watchChanges(v.ctx, v.gen, app)
+		ctx, gen := v.ctx, v.gen
+		safego.Go(func() { v.watchChanges(ctx, gen, app) })
 	}
 	v.feedMu.Lock()
 	on := v.feedOn
@@ -1006,7 +1008,7 @@ func (v *SessionsView) startFollow(r *SessionRow) {
 	title := sessionLabel(*r)
 	v.renderFeed(title)
 	app, gen, id := v.app, v.gen, r.ID
-	go func() {
+	safego.Go(func() {
 		lines, err := v.cfg.Backend.Follow(ctx, id)
 		if err != nil {
 			app.QueueUpdateDraw(func() {
@@ -1039,7 +1041,7 @@ func (v *SessionsView) startFollow(r *SessionRow) {
 				}
 			})
 		}
-	}()
+	})
 }
 
 func (v *SessionsView) renderFeed(title string) {

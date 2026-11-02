@@ -6,6 +6,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/prefsvc"
+	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
@@ -50,6 +51,6 @@ func offerKeysNoticeInTUI(ctx context.Context, a *app.App, sh *shell.Shell, firs
 		return
 	}
 	sh.App().QueueUpdateDraw(func() {
-		sh.OfferKeysNotice(func() { go markKeysNoticeSeen(context.Background(), a) })
+		sh.OfferKeysNotice(func() { safego.Go(func() { markKeysNoticeSeen(context.Background(), a) }) })
 	})
 }

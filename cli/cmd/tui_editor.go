@@ -11,6 +11,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/provider"
+	"github.com/datichb/openhub/cli/internal/safego"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
@@ -30,7 +31,7 @@ func openWorkflowEditor(c workflowsvc.Context, layer workflow.Layer, t *workflow
 	ref := t.Ref
 	ref.Layer = layer
 	var agents, workflows []string
-	go func() {
+	safego.Go(func() {
 		ctx := sh.Context()
 		svc := newWorkflowService(ctx)
 		agents, _ = svc.AgentIDs(ctx, c)
@@ -64,7 +65,7 @@ func openWorkflowEditor(c workflowsvc.Context, layer workflow.Layer, t *workflow
 				OnSaved: func(*views.EditorSaved) { refreshCatalog() },
 			}))
 		})
-	}()
+	})
 }
 
 // editorCheck checks the edited text and builds the bundle preview.

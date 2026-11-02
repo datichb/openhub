@@ -8,6 +8,7 @@ import (
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
@@ -127,7 +128,7 @@ func (v *ProjectsView) Mount(content *tview.Flex, app *tview.Application) {
 	content.AddItem(loading, 0, 1, true)
 
 	// Build list asynchronously — refresh from DB if a RefreshFunc is available.
-	go func() {
+	safego.Go(func() {
 		// Reload from the store so data is always fresh on each navigation.
 		var projects []ProjectItem
 		if v.cfg.RefreshFunc != nil {
@@ -181,7 +182,7 @@ func (v *ProjectsView) Mount(content *tview.Flex, app *tview.Application) {
 			page.Mount(content)
 			app.SetFocus(v.list)
 		})
-	}()
+	})
 }
 
 // scopedTeam returns the team whose projects are listed (nil outside team mode).

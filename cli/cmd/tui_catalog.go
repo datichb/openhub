@@ -8,6 +8,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/prefsvc"
+	"github.com/datichb/openhub/cli/internal/safego"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
@@ -177,7 +178,7 @@ func tuiAsync(fn func(ctx context.Context) error, then func()) {
 	if sh == nil {
 		return
 	}
-	go func() {
+	safego.Go(func() {
 		err := fn(sh.Context())
 		sh.App().QueueUpdateDraw(func() {
 			if err != nil {
@@ -188,7 +189,7 @@ func tuiAsync(fn func(ctx context.Context) error, then func()) {
 				then()
 			}
 		})
-	}()
+	})
 }
 
 // tuiWorkflowError is the message of a WorkflowService error.

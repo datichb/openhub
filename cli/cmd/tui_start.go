@@ -10,6 +10,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/prefsvc"
+	"github.com/datichb/openhub/cli/internal/safego"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
@@ -61,7 +62,7 @@ func (t *tuiStart) get(scope views.StartScope) views.StartEntries {
 	stale := !ok || time.Since(t.loaded[scope]) > tuiStartTTL
 	if stale && !t.loading[scope] {
 		t.loading[scope] = true
-		go t.load(scope)
+		safego.Go(func() { t.load(scope) })
 	}
 	t.mu.Unlock()
 	return e
@@ -161,7 +162,7 @@ func (t *tuiStart) togglePin(scope views.StartScope, e views.StartEntry) {
 	if pinScope == "" {
 		pinScope = prefsvc.Context{ProjectID: scope.ProjectID, TeamID: scope.TeamID}.Scopes()[0]
 	}
-	go func() {
+	safego.Go(func() {
 		pinned, err := t.prefs.TogglePin(context.Background(), pinScope, e.ID)
 		msg, ok := prefsvc.PinMessage(e.ID, pinScope, pinned), true
 		if err != nil {
@@ -178,7 +179,7 @@ func (t *tuiStart) togglePin(scope views.StartScope, e views.StartEntry) {
 			})
 		}
 		t.load(scope)
-	}()
+	})
 }
 
 // summaryDesc is the short description of a workflow.

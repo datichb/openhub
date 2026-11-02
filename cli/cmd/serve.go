@@ -172,12 +172,12 @@ func runServe(cmd *cobra.Command, args []string) error {
 	safego.Go(func() { hub.startBroadcaster(ctx, a) })
 
 	// Handle graceful shutdown
-	go func() {
+	safego.Go(func() {
 		<-ctx.Done()
 		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer shutdownCancel()
 		_ = server.Shutdown(shutdownCtx)
-	}()
+	})
 
 	if err := server.Serve(ln); err != nil && err != http.ErrServerClosed {
 		return fmt.Errorf(i18n.T("cmd.serve.http_server"), err)

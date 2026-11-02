@@ -14,6 +14,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tracker"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
@@ -1215,7 +1216,7 @@ func buildTeamModeIntroStep(state *initWizardTeamState) views.WizardStep {
 						state.TeamChoice = ""
 					}
 					if choiceMounted {
-						go func() { tvApp.QueueUpdateDraw(func() { rebuildButtons() }) }()
+						safego.Go(func() { tvApp.QueueUpdateDraw(func() { rebuildButtons() }) })
 					}
 				})
 				choiceMounted = true

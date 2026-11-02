@@ -17,6 +17,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/mcpresolve"
 	"github.com/datichb/openhub/cli/internal/provider"
+	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/storage/keychain"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tracker"
@@ -394,7 +395,7 @@ func buildViews(a *app.App) []views.View {
 				if tuiShell != nil {
 					tuiShell.ShowToast(i18n.Tf("tui.views.sync_in_progress", tc.DisplayName()), shell.ToastInfo)
 				}
-				go func() {
+				safego.Go(func() {
 					ctx := tuiShell.Context()
 					err := repo.Pull(ctx)
 					if err == nil || teamstate.IsPullWarning(err) {
@@ -412,7 +413,7 @@ func buildViews(a *app.App) []views.View {
 							tuiShell.ShowToast(i18n.Tf("tui.views.sync_done", tc.DisplayName()), shell.ToastSuccess)
 						}
 					})
-				}()
+				})
 			},
 			OnUpdate: func(fn func(*config.Config) error) error { return updateHubConfig(a, fn) },
 			OnNavigate: func(viewID string) {
