@@ -26,7 +26,7 @@ func buildBoardQuickActions(a *app.App) *views.BoardQuickActions {
 			return tuiStartWiring.ticketWorkflows(activeScope())
 		},
 		Launch: func(workflowID string, ticket views.TicketContext) {
-			openLaunchForm(a, boardLaunchRequest(workflowID, ticket, tuiLaunchRequest{Tickets: []string{ticket.ID}, AtOptions: true}))
+			openLaunchForm(a, boardTicketLaunch(a, workflowID, ticket))
 		},
 		RequestWorkflows: func() []views.TicketWorkflow {
 			if tuiStartWiring == nil {
@@ -51,6 +51,19 @@ func buildBoardQuickActions(a *app.App) *views.BoardQuickActions {
 			return detail.Description
 		},
 	}
+}
+
+// boardTicketLaunch is the launch of a workflow that takes a ticket on the
+// card. The card of a GitLab issue is named « #<iid> », never by its bare
+// number: "693" passes for a Beads id, and the session would then read a
+// Beads ticket that does not exist; « #693 » is refused by the Beads input
+// with the way to launch it (a workflow that takes a request).
+func boardTicketLaunch(a *app.App, workflowID string, ticket views.TicketContext) tuiLaunchRequest {
+	id := ticket.ID
+	if ref := boardIssueRef(a, ticket); ref != "" {
+		id = ref
+	}
+	return boardLaunchRequest(workflowID, ticket, tuiLaunchRequest{Tickets: []string{id}, AtOptions: true})
 }
 
 // boardLaunchRequest completes req with the workflow and the project of the
