@@ -180,6 +180,18 @@ func buildTeamIdentityStep(s *teamStepState, opts teamStepOpts) views.WizardStep
 			return form
 		},
 		OnDone: func() error {
+			if s.HasMember {
+				// The fiche is changed where the form shows it: what it does
+				// not show (default_mode, fields added later) is kept.
+				return s.Repo.PatchMember(s.Ctx, s.MemberID, func(m *teamstate.Member) error {
+					m.DisplayName = s.DisplayName
+					m.GitLabUsername = s.GitLabUsername
+					m.TrackerUsername = s.TrackerUsername
+					m.MattermostUsername = s.MattermostUsername
+					m.Role = s.Role
+					return nil
+				})
+			}
 			member := teamstate.Member{
 				ID:                 s.MemberID,
 				DisplayName:        s.DisplayName,
@@ -188,12 +200,6 @@ func buildTeamIdentityStep(s *teamStepState, opts teamStepOpts) views.WizardStep
 				MattermostUsername: s.MattermostUsername,
 				Role:               s.Role,
 				DefaultMode:        "semi-auto",
-			}
-			if s.HasMember {
-				if err := s.Repo.UpdateMember(s.Ctx, member); err != nil {
-					return err
-				}
-				return s.Repo.CommitAndPush(s.Ctx, fmt.Sprintf("team: update member %s", s.MemberID), "members.toml")
 			}
 			if err := s.Repo.AddMember(s.Ctx, member); err != nil {
 				if err == teamstate.ErrMemberExists {
