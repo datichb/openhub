@@ -32,9 +32,7 @@ widgets-tag internal/tui/v2/views/inline_wizard.go 31
 symbol internal/tui/v2/views/list_page.go 1
 symbol internal/tui/v2/views/patterns_view.go 1
 symbol internal/tui/v2/views/policies_view.go 8
-tag-color internal/tui/v2/views/project_mode_view.go 1
 tag-style internal/tui/v2/views/projects_view.go 1
-tag-color internal/tui/v2/views/team_mode_view.go 1
 widgets-tag internal/tui/v2/views/teamboard.go 1
 tag-color internal/tui/v2/views/teamboard_view.go 6
 tag-style internal/tui/v2/views/teamboard_view.go 4

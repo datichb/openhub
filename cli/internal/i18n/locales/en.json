@@ -2507,6 +2507,8 @@
   "tui.home.shortcut.team_mode": "team view",
   "tui.home.shortcut.hub_mode": "hub view",
   "tui.home.shortcut.quit": "quit",
+  "tui.columns.key.prev": "previous column",
+  "tui.columns.key.next": "next column",
   "tui.settings.unsaved": "Unsaved changes — w to save",
   "tui.settings.nothing_to_undo": "Nothing to undo",
   "tui.settings.undone": "Undone",

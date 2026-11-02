@@ -1186,6 +1186,14 @@ func (s *Shell) RemountIf(ids ...string) {
 	}
 }
 
+// RefreshModeBar redraws the mode bar from the current view (a view that got
+// data its ModeInfo shows). Must be called on the event loop.
+func (s *Shell) RefreshModeBar() {
+	if cur := s.router.Current(); cur != nil {
+		s.updateModeBar(cur)
+	}
+}
+
 // SetSessionsBadge sets the sessions badge of the mode bar ("● 2 ◐ 1", ""
 // to hide it). Must be called on the event loop.
 func (s *Shell) SetSessionsBadge(badge string, alert bool) {

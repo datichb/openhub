@@ -2507,6 +2507,8 @@
   "tui.home.shortcut.team_mode": "vue équipe",
   "tui.home.shortcut.hub_mode": "vue hub",
   "tui.home.shortcut.quit": "quitter",
+  "tui.columns.key.prev": "colonne précédente",
+  "tui.columns.key.next": "colonne suivante",
   "tui.settings.unsaved": "Modifications non sauvegardées — w pour sauvegarder",
   "tui.settings.nothing_to_undo": "Rien à annuler",
   "tui.settings.undone": "Annulé",

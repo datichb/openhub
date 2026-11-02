@@ -311,7 +311,7 @@ func TestHomeView_SplitItems_DualColumn(t *testing.T) {
 		},
 	})
 
-	v.items = v.buildItems()
+	v.items = v.buildItems(readHomeData(v.cfg))
 	left, right := v.splitItems()
 
 	// Collect section headers from left column
@@ -338,14 +338,14 @@ func TestHomeView_SingleProjectsSection_AddLast(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			v := NewHomeView(HomeViewConfig{ListProjects: func() []ProjectEntry { return tc.projects }})
-			for _, items := range [][]homeItem{v.buildItems(), v.buildStaticItems()} {
+			for _, items := range [][]homeItem{v.buildItems(readHomeData(v.cfg)), v.buildStaticItems()} {
 				v.items = items
 				_, right := v.splitItems()
 				assert.Equal(t, []string{"Projects"}, collectHeaders(right))
 				require.NotEmpty(t, right)
 				assert.Contains(t, right[len(right)-1].MainText, i18n.T("tui.home.project_add"))
 			}
-			v.items = v.buildItems()
+			v.items = v.buildItems(readHomeData(v.cfg))
 			_, right := v.splitItems()
 			assert.Len(t, right, 1+len(tc.projects)+1)
 		})

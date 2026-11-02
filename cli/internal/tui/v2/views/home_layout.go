@@ -6,6 +6,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
+	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
@@ -136,17 +137,18 @@ func (d *homeDualLayout) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		}
 		return nil
 	}
-	switch event.Rune() {
-	case 'l':
+	// Always consumed in dual mode, to prevent the omnibar from opening.
+	switch {
+	case colNextKey.Matches(event):
 		if d.activeCol == 0 {
 			d.focusRight()
 		}
-		return nil // always consume in dual mode to prevent omnibar activation
-	case 'h':
+		return nil
+	case colPrevKey.Matches(event):
 		if d.activeCol == 1 {
 			d.focusLeft()
 		}
-		return nil // always consume in dual mode to prevent omnibar activation
+		return nil
 	}
 	return event
 }
@@ -350,7 +352,7 @@ func adaptiveHomeMount(
 		if newKey != currentKey.Load() {
 			currentKey.Store(newKey)
 			// Rebuild on the next event loop tick to avoid mutating during draw
-			go func() {
+			safego.Go(func() {
 				if app != nil {
 					app.QueueUpdateDraw(func() {
 						// A modal (quit dialog, form) keeps the focus.
@@ -373,7 +375,7 @@ func adaptiveHomeMount(
 						homeRestore(app, result, ref, hasRef, col)
 					})
 				}
-			}()
+			})
 		}
 		return x, y, width, height
 	})
