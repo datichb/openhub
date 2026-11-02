@@ -17,6 +17,7 @@ import (
 	teamsvc "github.com/datichb/openhub/cli/internal/services/team"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tracker"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
@@ -642,13 +643,13 @@ func formatSyncResultModal(r *views.SyncTrackerResult) string {
 	if len(r.Warnings) > 0 {
 		sb.WriteString("\n" + i18n.T("tui.team.sync.warnings_header") + "\n")
 		for _, w := range r.Warnings {
-			fmt.Fprintf(&sb, "  ⚠ %s\n", w)
+			fmt.Fprintf(&sb, "  %s %s\n", theme.SymWarning, w)
 		}
 	}
 	if len(r.Errors) > 0 {
 		sb.WriteString("\n" + i18n.T("tui.team.sync.errors_header") + "\n")
 		for _, e := range r.Errors {
-			fmt.Fprintf(&sb, "  ✗ %s\n", e)
+			fmt.Fprintf(&sb, "  %s %s\n", theme.SymFailure, e)
 		}
 	}
 	return sb.String()

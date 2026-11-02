@@ -8,6 +8,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
@@ -32,7 +33,7 @@ type detailText struct{ b strings.Builder }
 
 // title writes the bold heading (already escaped / colour-tagged text).
 func (d *detailText) title(s string) *detailText {
-	fmt.Fprintf(&d.b, "[::b]%s[::-]\n\n", s)
+	d.b.WriteString(theme.StyleTag(theme.AttrBold) + s + theme.TagAttrs + "\n\n")
 	return d
 }
 
@@ -47,21 +48,21 @@ func (d *detailText) para(s string) *detailText {
 // muted writes a muted paragraph (skipped when empty).
 func (d *detailText) muted(s string) *detailText {
 	if strings.TrimSpace(s) != "" {
-		fmt.Fprintf(&d.b, "%s%s%s\n\n", theme.ColorTag(theme.TextMutedHex), s, theme.TagReset)
+		d.b.WriteString(muted(s) + "\n\n")
 	}
 	return d
 }
 
 // warn writes a warning line.
 func (d *detailText) warn(s string) *detailText {
-	fmt.Fprintf(&d.b, "%s%s%s\n\n", theme.ColorTag(theme.WarningHex), s, theme.TagReset)
+	d.b.WriteString(theme.Paint(theme.WarningHex, s) + "\n\n")
 	return d
 }
 
 // field writes « label value » (skipped when value is empty).
 func (d *detailText) field(label, value string) *detailText {
 	if value != "" {
-		fmt.Fprintf(&d.b, "%s%s%s %s\n", theme.ColorTag(theme.TextSecondaryHex), label, theme.TagReset, value)
+		d.b.WriteString(theme.Paint(theme.TextSecondaryHex, label) + " " + value + "\n")
 	}
 	return d
 }
@@ -77,10 +78,9 @@ func (d *detailText) keys(pairs ...string) *detailText {
 	if len(pairs) < 2 {
 		return d
 	}
-	accent := theme.ColorTag(theme.ActiveMode.PrimaryHex)
-	fmt.Fprintf(&d.b, "\n%s%s%s\n", theme.ColorTag(theme.TextSecondaryHex), i18n.T("tui.detail.keys"), theme.TagReset)
+	d.b.WriteString("\n" + theme.Paint(theme.TextSecondaryHex, i18n.T("tui.detail.keys")) + "\n")
 	for i := 0; i+1 < len(pairs); i += 2 {
-		fmt.Fprintf(&d.b, "  %s%-6s%s %s\n", accent, pairs[i], theme.TagReset, pairs[i+1])
+		d.b.WriteString("  " + theme.Paint(theme.ActiveMode.PrimaryHex, fmt.Sprintf("%-6s", pairs[i])) + " " + pairs[i+1] + "\n")
 	}
 	return d
 }
@@ -89,7 +89,7 @@ func (d *detailText) String() string { return d.b.String() }
 
 // emptyDetail is the text of the detail pane when nothing is selected.
 func emptyDetail() string {
-	return theme.ColorTag(theme.TextMutedHex) + i18n.T("tui.detail.empty") + theme.TagReset
+	return muted(i18n.T("tui.detail.empty"))
 }
 
 // fieldKeys returns the key/action pairs that apply to a config field.
@@ -99,11 +99,11 @@ func fieldKeys(f configField) []string {
 	}
 	switch f.Kind {
 	case CfgFieldBool, CfgFieldTriBool:
-		return []string{"Space", i18n.T("tui.hints.toggle"), "Enter", i18n.T("tui.hints.edit")}
+		return []string{keys.SpaceName(), i18n.T("tui.hints.toggle"), keys.Open.Keys(), i18n.T("tui.hints.edit")}
 	case CfgFieldLink:
-		return []string{"Enter", i18n.T("tui.hints.open")}
+		return []string{keys.Open.Keys(), i18n.T("tui.hints.open")}
 	case CfgFieldString, CfgFieldSelect, CfgFieldInt, CfgFieldPassword:
-		return []string{"Enter", i18n.T("tui.hints.edit")}
+		return []string{keys.Open.Keys(), i18n.T("tui.hints.edit")}
 	}
 	return nil
 }
@@ -154,7 +154,7 @@ func configFieldDetail(f configField, extra ...string) string {
 		for _, o := range opts {
 			mark := "  "
 			if o.Value == val {
-				mark = theme.ColorTag(theme.ActiveMode.PrimaryHex) + "● " + theme.TagReset
+				mark = theme.Paint(theme.ActiveMode.PrimaryHex, theme.SymSelected) + " "
 			}
 			fmt.Fprintf(&d.b, "  %s%s\n", mark, tview.Escape(o.Label))
 		}
@@ -273,17 +273,17 @@ func modelOverrideDetail(section, key, value, level string, extra ...string) str
 	}
 	d.field(i18n.T("tui.detail.level"), level)
 	if value == "" {
-		d.field(i18n.T("tui.detail.value"), theme.ColorTag(theme.TextMutedHex)+i18n.T("tui.config.not_configured")+theme.TagReset)
+		d.field(i18n.T("tui.detail.value"), muted(i18n.T("tui.config.not_configured")))
 	} else {
 		d.field(i18n.T("tui.detail.value"), tview.Escape(value))
 	}
 	d.gap()
 	d.muted(i18n.T("tui.detail.inherit_hint") + " " + i18n.T("tui.detail.models.cascade"))
-	keys := []string{"Enter", i18n.T("tui.hints.edit")}
-	keys = append(keys, extra...)
+	pairs := []string{keys.Open.Keys(), i18n.T("tui.hints.edit")}
+	pairs = append(pairs, extra...)
 	if section == "families" || section == "agents" {
-		keys = append(keys, "d", i18n.T("tui.hints.delete"))
+		pairs = append(pairs, keys.Delete.Keys(), i18n.T("tui.hints.delete"))
 	}
-	d.keys(keys...)
+	d.keys(pairs...)
 	return d.String()
 }

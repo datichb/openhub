@@ -2,7 +2,6 @@ package views
 
 import (
 	"context"
-	"fmt"
 	"sort"
 	"strings"
 
@@ -36,7 +35,7 @@ type ModelsView struct {
 	entries  []modelEntry
 	shell    ShellAccess
 	commands []ContextCommand
-	mountGen uint64
+	loads    loadSlot // the reads of the overrides: only the latest is applied
 	// loadCatalog reads the effective agent catalogue (nil: identifiers not
 	// verified); catalog is its result, loaded off the event loop at Mount.
 	loadCatalog func(ctx context.Context) modelcheck.Catalog
@@ -76,61 +75,66 @@ func (v *ModelsView) StatusHints() string {
 // Mount builds the models cascade table.
 func (v *ModelsView) Mount(content *tview.Flex, tvApp *tview.Application) {
 	v.app = tvApp
-	v.mountGen++
-	gen := v.mountGen
 
 	// Show loading placeholder immediately
-	loading := tview.NewTextView().
-		SetDynamicColors(true).
-		SetTextAlign(tview.AlignLeft)
-	loading.SetBackgroundColor(theme.BgPanel)
-	muted := theme.ColorTag(theme.TextMutedHex)
-	loading.SetText(fmt.Sprintf("\n  %s%s%s", muted, i18n.T("tui.models.loading"), theme.TagColor))
+	loading := stateView(stateLoading, i18n.T("tui.models.loading"))
 	content.AddItem(loading, 0, 1, true)
 
-	// Load entries and populate table asynchronously
-	go func() {
-		var catalog modelcheck.Catalog
+	// Read the catalogue and the overrides off the event loop, then build the
+	// table on it.
+	load(tvApp, shellContext(v.shell), &v.loads, func(ctx context.Context) (modelsRead, error) {
+		var r modelsRead
 		if v.loadCatalog != nil {
-			catalog = v.loadCatalog(context.Background())
+			r.catalog = v.loadCatalog(ctx)
 		}
-		tvApp.QueueUpdateDraw(func() {
-			if v.app == nil || v.mountGen != gen {
-				return // view was unmounted or re-mounted before the goroutine finished
+		var err error
+		r.entries, err = v.readEntries(ctx)
+		return r, err
+	}, func(r modelsRead, err error) {
+		if v.app == nil {
+			return // the view was unmounted before the read ended
+		}
+		if err != nil {
+			setState(loading, stateError, err.Error())
+			return
+		}
+		v.catalog, v.entries = r.catalog, r.entries
+
+		v.table = tview.NewTable().
+			SetSelectable(true, false).
+			SetFixed(1, 0)
+		v.table.SetBackgroundColor(theme.BgPanel)
+		v.page = newListPage(v.Title(), v.table)
+		v.table.SetSelectionChangedFunc(func(row, _ int) { v.showDetail(row - 1) })
+		v.table.SetSelectedStyle(tcell.StyleDefault.
+			Background(theme.BgElement).
+			Foreground(theme.FgPrimary))
+
+		// Handle Enter to edit
+		v.table.SetSelectedFunc(func(row, col int) {
+			if row == 0 || row-1 >= len(v.entries) {
+				return
 			}
-			v.catalog = catalog
-			v.loadEntries()
-
-			v.table = tview.NewTable().
-				SetSelectable(true, false).
-				SetFixed(1, 0)
-			v.table.SetBackgroundColor(theme.BgPanel)
-			v.page = newListPage(v.Title(), v.table)
-			v.table.SetSelectionChangedFunc(func(row, _ int) { v.showDetail(row - 1) })
-			v.table.SetSelectedStyle(tcell.StyleDefault.
-				Background(theme.BgElement).
-				Foreground(theme.FgPrimary))
-
-			// Handle Enter to edit
-			v.table.SetSelectedFunc(func(row, col int) {
-				if row == 0 || row-1 >= len(v.entries) {
-					return
-				}
-				v.editEntry(row - 1)
-			})
-
-			v.populateTable()
-			v.buildCommands()
-
-			v.page.Mount(content)
-			tvApp.SetFocus(v.table)
+			v.editEntry(row - 1)
 		})
-	}()
+
+		v.populateTable()
+		v.buildCommands()
+
+		v.page.Mount(content)
+		tvApp.SetFocus(v.table)
+	})
+}
+
+// modelsRead is what the view reads off the event loop at mount.
+type modelsRead struct {
+	entries []modelEntry
+	catalog modelcheck.Catalog
 }
 
 // Unmount cleans up resources.
 func (v *ModelsView) Unmount() {
-	v.mountGen++ // invalidate in-flight async goroutine
+	v.loads.Invalidate() // drop the load in flight
 	v.app = nil
 	v.table = nil
 	v.page = nil
@@ -182,9 +186,7 @@ func (v *ModelsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		return nil
 	case keys.Refresh.Matches(event):
 		if v.table != nil {
-			v.loadEntries()
-			v.buildCommands()
-			v.populateTable()
+			v.reload(nil)
 		}
 		return nil
 	}
@@ -194,18 +196,43 @@ func (v *ModelsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 // Model family names (known set).
 var modelFamilies = []string{"planning", "developer", "quality", "auditor", "infra", "design", "documentation", "utility"}
 
-func (v *ModelsView) loadEntries() {
-	v.entries = nil
-	cfg, err := config.Load()
+// reload reads the overrides again, off the event loop, then shows them (and
+// calls then, when given). A failed read keeps what is shown and says so.
+// The latest request wins; Unmount drops the one in flight.
+func (v *ModelsView) reload(then func()) {
+	load(v.app, shellContext(v.shell), &v.loads, v.readEntries, func(entries []modelEntry, err error) {
+		if v.table == nil {
+			return
+		}
+		if err != nil {
+			if v.shell != nil {
+				v.shell.ShowToastMsg(errorText(err), false)
+			}
+			return
+		}
+		v.entries = entries
+		v.buildCommands()
+		v.populateTable()
+		if then != nil {
+			then()
+		}
+	})
+}
+
+// readEntries lists the overrides of the hub and of the projects: it reads
+// hub.toml and the project store, so it runs off the event loop.
+func (v *ModelsView) readEntries(ctx context.Context) ([]modelEntry, error) {
+	var entries []modelEntry
+	cfg, err := config.Read()
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	// Hub default
 	if cfg.Models.Default != "" {
-		v.entries = append(v.entries, modelEntry{Level: "hub", Scope: "default", Key: i18n.T("tui.models.default"), Value: cfg.Models.Default})
+		entries = append(entries, modelEntry{Level: "hub", Scope: "default", Key: i18n.T("tui.models.default"), Value: cfg.Models.Default})
 	} else {
-		v.entries = append(v.entries, modelEntry{Level: "hub", Scope: "default", Key: i18n.T("tui.models.default"), Value: i18n.T("tui.models.not_set")})
+		entries = append(entries, modelEntry{Level: "hub", Scope: "default", Key: i18n.T("tui.models.default"), Value: i18n.T("tui.models.not_set")})
 	}
 
 	// Hub families
@@ -215,7 +242,7 @@ func (v *ModelsView) loadEntries() {
 	}
 	sort.Strings(familyKeys)
 	for _, k := range familyKeys {
-		v.entries = append(v.entries, modelEntry{Level: "hub", Scope: "family:" + k, Key: k, Value: cfg.Models.Families[k]})
+		entries = append(entries, modelEntry{Level: "hub", Scope: "family:" + k, Key: k, Value: cfg.Models.Families[k]})
 	}
 
 	// Hub agents
@@ -225,16 +252,16 @@ func (v *ModelsView) loadEntries() {
 	}
 	sort.Strings(agentKeys)
 	for _, k := range agentKeys {
-		v.entries = append(v.entries, modelEntry{Level: "hub", Scope: "agent:" + k, Key: k, Value: cfg.Models.Agents[k]})
+		entries = append(entries, modelEntry{Level: "hub", Scope: "agent:" + k, Key: k, Value: cfg.Models.Agents[k]})
 	}
 
 	// Project-level overrides (first project for simplicity)
 	if v.appCtx != nil && v.appCtx.Projects != nil {
-		projects, _ := v.appCtx.Projects.List(context.Background(), "")
+		projects, _ := v.appCtx.Projects.List(ctx, "")
 		for _, p := range projects {
 			prefix := p.Name
 			if p.Model != "" {
-				v.entries = append(v.entries, modelEntry{Level: prefix, Scope: "default", Key: i18n.T("tui.models.default"), Value: p.Model})
+				entries = append(entries, modelEntry{Level: prefix, Scope: "default", Key: i18n.T("tui.models.default"), Value: p.Model})
 			}
 			if p.ModelOverrides != nil {
 				fKeys := make([]string, 0, len(p.ModelOverrides.Families))
@@ -243,7 +270,7 @@ func (v *ModelsView) loadEntries() {
 				}
 				sort.Strings(fKeys)
 				for _, k := range fKeys {
-					v.entries = append(v.entries, modelEntry{Level: prefix, Scope: "family:" + k, Key: k, Value: p.ModelOverrides.Families[k]})
+					entries = append(entries, modelEntry{Level: prefix, Scope: "family:" + k, Key: k, Value: p.ModelOverrides.Families[k]})
 				}
 				aKeys := make([]string, 0, len(p.ModelOverrides.Agents))
 				for k := range p.ModelOverrides.Agents {
@@ -251,11 +278,12 @@ func (v *ModelsView) loadEntries() {
 				}
 				sort.Strings(aKeys)
 				for _, k := range aKeys {
-					v.entries = append(v.entries, modelEntry{Level: prefix, Scope: "agent:" + k, Key: k, Value: p.ModelOverrides.Agents[k]})
+					entries = append(entries, modelEntry{Level: prefix, Scope: "agent:" + k, Key: k, Value: p.ModelOverrides.Agents[k]})
 				}
 			}
 		}
 	}
+	return entries, nil
 }
 
 func (v *ModelsView) populateTable() {
@@ -315,11 +343,11 @@ func (v *ModelsView) editEntry(idx int) {
 			v.setProjectModel(entry.Level, entry.Scope, newModel)
 		}
 
-		v.loadEntries()
-		v.populateTable()
-		if v.shell != nil {
-			v.shell.ShowToastMsg(i18n.T("tui.models.updated"), true)
-		}
+		v.reload(func() {
+			if v.shell != nil {
+				v.shell.ShowToastMsg(i18n.T("tui.models.updated"), true)
+			}
+		})
 	})
 }
 
@@ -380,10 +408,7 @@ func (v *ModelsView) addOverride() {
 					v.setHubModel("agent:"+agentID, model)
 				}
 			}
-			v.loadEntries()
-			v.buildCommands()
-			v.populateTable()
-			v.shell.ShowToastMsg(i18n.T("tui.models.override_added"), true)
+			v.reload(func() { v.shell.ShowToastMsg(i18n.T("tui.models.override_added"), true) })
 		},
 		OnCancel: nil,
 	})
@@ -444,9 +469,7 @@ func (v *ModelsView) deleteEntry() {
 			return
 		}
 
-		v.loadEntries()
-		v.populateTable()
-		v.shell.ShowToastMsg(i18n.T("tui.models.override_deleted"), true)
+		v.reload(func() { v.shell.ShowToastMsg(i18n.T("tui.models.override_deleted"), true) })
 	})
 }
 

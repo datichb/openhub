@@ -207,3 +207,27 @@ func TestAPIErrorsAndLargeBodies(t *testing.T) {
 		assert.Contains(t, err.Error(), "request failed")
 	})
 }
+
+type hostRecorder struct{ hosts []string }
+
+func (h *hostRecorder) RoundTrip(req *http.Request) (*http.Response, error) {
+	h.hosts = append(h.hosts, req.URL.Scheme+"://"+req.URL.Host)
+	return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(`{}`)), Header: http.Header{}, Request: req}, nil
+}
+
+// The server always calls the official API, whatever URL is recorded for
+// Google Slides (the environment of the server has none, and the setting is
+// ignored).
+func TestServerAlwaysCallsTheOfficialAPI(t *testing.T) {
+	rec := &hostRecorder{}
+	prev := httpClient
+	httpClient = &http.Client{Transport: rec}
+	t.Cleanup(func() { httpClient = prev })
+	t.Setenv("GOOGLE_ACCESS_TOKEN", "ya29.secret")
+	t.Setenv("GSLIDES_URL", "https://slides.internal.example")
+
+	_, err := handleGetPresentation(context.Background(), params(t, map[string]any{"presentation_id": "p"}))
+
+	require.NoError(t, err)
+	assert.Equal(t, []string{"https://slides.googleapis.com"}, rec.hosts)
+}

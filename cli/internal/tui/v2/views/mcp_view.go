@@ -60,6 +60,13 @@ type MCPViewConfig struct {
 // as `oh mcp trust`, after a confirmation).
 var trustKey = keys.Own("mcp.trust", 'T', "tui.mcp.trust_key")
 
+// The keys of the view that are its own: t stores the token of the service, w
+// switches its write mode.
+var (
+	mcpTokenKey = keys.Own("mcp.token", 't', "tui.hints.token")
+	mcpWriteKey = keys.Own("mcp.write", 'w', "tui.hints.write")
+)
+
 // MCPView displays MCP server management with a SectionedList panel
 // for hub-level configuration (enable/disable, token, write).
 //
@@ -107,8 +114,7 @@ func (v *MCPView) Title() string { return i18n.T("tui.mcp.title") }
 // StatusHints returns keybinding hints.
 func (v *MCPView) StatusHints() string {
 	return keys.Hints(keys.Navigate.Hint(), "{/} "+i18n.T("tui.hints.sections"),
-		keys.SpaceName()+" "+i18n.T("tui.hints.toggle"),
-		"t "+i18n.T("tui.hints.token"), "w "+i18n.T("tui.hints.write"), trustKey.Hint(), keys.Refresh.Hint())
+		toggleHint(), mcpTokenKey.Hint(), mcpWriteKey.Hint(), trustKey.Hint(), keys.Refresh.Hint())
 }
 
 // Mount builds the MCP management interface.
@@ -173,17 +179,14 @@ func (v *MCPView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		v.trustCurrent()
 		return nil
 	}
-	if event.Key() != tcell.KeyRune {
-		return event
-	}
-	switch event.Rune() {
-	case ' ':
+	switch {
+	case cfgToggleKey.Matches(event):
 		v.toggleHubCurrent()
 		return nil
-	case 't':
+	case mcpTokenKey.Matches(event):
 		v.promptTokenCurrent()
 		return nil
-	case 'w':
+	case mcpWriteKey.Matches(event):
 		v.toggleWriteCurrent()
 		return nil
 	}
@@ -234,9 +237,9 @@ func (v *MCPView) showDetail(i int) {
 	svc := v.services[i]
 	onOff := func(b bool) string {
 		if b {
-			return theme.ColorTag(theme.SuccessHex) + theme.SymSuccess + " " + i18n.T("tui.config.enabled") + theme.TagReset
+			return theme.Paint(theme.SuccessHex, theme.SymSuccess+" "+i18n.T("tui.config.enabled"))
 		}
-		return theme.ColorTag(theme.TextMutedHex) + "✗ " + i18n.T("tui.config.disabled") + theme.TagReset
+		return muted(theme.SymFailure + " " + i18n.T("tui.config.disabled"))
 	}
 	var d detailText
 	d.title(svc.Name)
@@ -250,22 +253,22 @@ func (v *MCPView) showDetail(i int) {
 	case svc.Name == "team":
 		d.field(i18n.T("tui.detail.mcp.token"), i18n.T("tui.mcp.no_token"))
 	case svc.HasToken:
-		d.field(i18n.T("tui.detail.mcp.token"), theme.ColorTag(theme.SuccessHex)+theme.SymSuccess+" "+i18n.T("tui.config.configured")+theme.TagReset)
+		d.field(i18n.T("tui.detail.mcp.token"), theme.Paint(theme.SuccessHex, theme.SymSuccess+" "+i18n.T("tui.config.configured")))
 	default:
-		d.field(i18n.T("tui.detail.mcp.token"), theme.ColorTag(theme.ErrorHex)+"✗ "+i18n.T("tui.mcp.token_missing")+theme.TagReset)
+		d.field(i18n.T("tui.detail.mcp.token"), theme.Paint(theme.ErrorHex, theme.SymFailure+" "+i18n.T("tui.mcp.token_missing")))
 	}
 	if svc.Name == "gitlab" {
 		d.field(i18n.T("tui.detail.mcp.write"), onOff(svc.WriteEnabled))
 	}
 	if e := svc.Enforced; e != nil {
-		d.field(i18n.T("tui.detail.mcp.team_url"), theme.ColorTag(theme.WarningHex)+"⚠ "+e.Warning+theme.TagReset)
+		d.field(i18n.T("tui.detail.mcp.team_url"), theme.Paint(theme.WarningHex, theme.SymWarning+" "+e.Warning))
 	}
-	pairs := []string{keys.SpaceName(), i18n.T("tui.hints.toggle")}
+	pairs := []string{keys.SpaceName(), cfgToggleKey.Label()}
 	if svc.Name != "team" {
-		pairs = append(pairs, "t", i18n.T("tui.hints.token"))
+		pairs = append(pairs, mcpTokenKey.Keys(), mcpTokenKey.Label())
 	}
 	if svc.Name == "gitlab" {
-		pairs = append(pairs, "w", i18n.T("tui.hints.write"))
+		pairs = append(pairs, mcpWriteKey.Keys(), mcpWriteKey.Label())
 	}
 	if svc.Enforced != nil {
 		pairs = append(pairs, keys.Pairs(trustKey)...)
@@ -280,12 +283,10 @@ func (v *MCPView) hubItemText(svc MCPService) string {
 		statusIcon = theme.SymSuccess
 		statusColor = theme.SuccessHex
 	} else {
-		statusIcon = "✗"
+		statusIcon = theme.SymFailure
 		statusColor = theme.TextMutedHex
 	}
-	return fmt.Sprintf("%s%s%s  %s%-12s%s",
-		theme.ColorTag(statusColor), statusIcon, theme.TagColor,
-		theme.ColorTag(theme.TextPrimaryHex), svc.Name, theme.TagColor)
+	return theme.Paint(statusColor, statusIcon) + "  " + theme.Paint(theme.TextPrimaryHex, fmt.Sprintf("%-12s", svc.Name))
 }
 
 func (v *MCPView) hubItemSubtext(svc MCPService) string {
@@ -294,24 +295,24 @@ func (v *MCPView) hubItemSubtext(svc MCPService) string {
 	// Token indicator
 	switch {
 	case svc.Name == "team":
-		parts = append(parts, fmt.Sprintf("%s(%s)%s", theme.ColorTag(theme.TextMutedHex), i18n.T("tui.mcp.no_token"), theme.TagColor))
+		parts = append(parts, muted("("+i18n.T("tui.mcp.no_token")+")"))
 	case svc.HasToken:
-		parts = append(parts, fmt.Sprintf("%s%s %s%s", theme.ColorTag(theme.SuccessHex), i18n.T("tui.hints.token"), theme.SymSuccess, theme.TagColor))
+		parts = append(parts, theme.Paint(theme.SuccessHex, i18n.T("tui.hints.token")+" "+theme.SymSuccess))
 	default:
-		parts = append(parts, fmt.Sprintf("%s%s !%s", theme.ColorTag(theme.ErrorHex), i18n.T("tui.mcp.token_missing"), theme.TagColor))
+		parts = append(parts, theme.Paint(theme.ErrorHex, i18n.T("tui.mcp.token_missing")+" "+theme.SymWarning))
 	}
 
 	// Write mode (gitlab only)
 	if svc.Name == "gitlab" {
 		if svc.WriteEnabled {
-			parts = append(parts, fmt.Sprintf("%s%s %s%s", theme.ColorTag(theme.SuccessHex), i18n.T("tui.hints.write"), theme.SymSuccess, theme.TagColor))
+			parts = append(parts, theme.Paint(theme.SuccessHex, i18n.T("tui.hints.write")+" "+theme.SymSuccess))
 		} else {
-			parts = append(parts, fmt.Sprintf("%s%s ✗%s", theme.ColorTag(theme.TextMutedHex), i18n.T("tui.hints.write"), theme.TagColor))
+			parts = append(parts, muted(i18n.T("tui.hints.write")+" "+theme.SymFailure))
 		}
 	}
 
 	if svc.Enforced != nil {
-		parts = append(parts, fmt.Sprintf("%s⚠ URL%s", theme.ColorTag(theme.WarningHex), theme.TagColor))
+		parts = append(parts, theme.Paint(theme.WarningHex, theme.SymWarning+" URL"))
 	}
 
 	return strings.Join(parts, "  ")
@@ -495,7 +496,7 @@ func (v *MCPView) trustCurrent() {
 func (v *MCPView) confirmTrust(name, url string, hostLines []string, sensitive bool) {
 	detail := url + "\n\n" + i18n.T("tui.mcp.trust_resolves") + "\n  " + strings.Join(hostLines, "\n  ")
 	if sensitive {
-		detail += "\n\n⚠ " + i18n.Tf("tui.mcp.trust_private", name)
+		detail += "\n\n" + theme.SymWarning + " " + i18n.Tf("tui.mcp.trust_private", name)
 	}
 	detail += "\n\n" + i18n.Tf("tui.mcp.trust_detail", name)
 	v.shell.Confirm(i18n.Tf("tui.mcp.trust_title", name), detail, sensitive, func() { v.pinURL(name, url) })
@@ -664,7 +665,7 @@ func (v *MCPView) buildCommands() {
 		if svc.Enabled {
 			desc = theme.SymSuccess + " → " + i18n.T("tui.mcp.cmd_disable")
 		} else {
-			desc = "✗ → " + i18n.T("tui.mcp.cmd_enable")
+			desc = theme.SymFailure + " → " + i18n.T("tui.mcp.cmd_enable")
 		}
 		cmds = append(cmds, ContextCommand{
 			ID:          "toggle." + svc.Name,

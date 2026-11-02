@@ -104,7 +104,7 @@ func renderConfigItem(f configField, columnWidth int) widgets.SectionItem {
 	}
 	if f.Kind == CfgFieldSubHeader {
 		return widgets.SectionItem{
-			MainText: fmt.Sprintf("    %s%s%s", theme.ColorTag(theme.TextMutedHex), f.Label, theme.TagReset),
+			MainText: "    " + muted(f.Label),
 			IsHeader: true,
 		}
 	}
@@ -122,7 +122,7 @@ func renderConfigItem(f configField, columnWidth int) widgets.SectionItem {
 	sourceAnnotation := ""
 	if f.Source != nil {
 		if src := f.Source(); src != "" {
-			sourceAnnotation = fmt.Sprintf("  %s%s%s", theme.ColorTag(theme.TextMutedHex), src, theme.TagReset)
+			sourceAnnotation = "  " + muted(src)
 		}
 	}
 
@@ -136,7 +136,7 @@ func renderConfigItem(f configField, columnWidth int) widgets.SectionItem {
 	// Description as secondary text (muted color)
 	secondaryText := ""
 	if f.Description != "" {
-		secondaryText = fmt.Sprintf("%s%s%s", theme.ColorTag(theme.TextMutedHex), f.Description, theme.TagReset)
+		secondaryText = muted(f.Description)
 	}
 
 	return widgets.SectionItem{
@@ -146,6 +146,22 @@ func renderConfigItem(f configField, columnWidth int) widgets.SectionItem {
 	}
 }
 
+// configItems are the list items of the fields that are visible (Visible nil
+// = always). The reference of an item is the index of its field in fields,
+// hidden ones included.
+func configItems(fields []configField, columnWidth int) []widgets.SectionItem {
+	items := make([]widgets.SectionItem, 0, len(fields))
+	for i, f := range fields {
+		if f.Visible != nil && !f.Visible() {
+			continue
+		}
+		item := renderConfigItem(f, columnWidth)
+		item.Reference = i
+		items = append(items, item)
+	}
+	return items
+}
+
 // formatFieldValue produces a colored display string for a config value.
 // It receives the full configField so it can use Scope for inheritance annotations.
 //
@@ -153,26 +169,25 @@ func renderConfigItem(f configField, columnWidth int) widgets.SectionItem {
 // For CfgFieldTriBool at project/team-local scope, a parenthetical inheritance note
 // is appended: "non configuré (hérite du hub)".
 func formatFieldValue(f configField, val string) string {
-	muted := theme.ColorTag(theme.TextMutedHex)
-	reset := theme.TagReset
+	notConfigured := muted(i18n.T("tui.config.not_configured"))
 
 	switch f.Kind {
 	case CfgFieldBool:
 		switch val {
 		case "true":
-			return fmt.Sprintf("%s%s %s%s", theme.ColorTag(theme.SuccessHex), theme.SymSuccess, i18n.T("tui.config.enabled"), reset)
+			return enabledText()
 		case "false":
-			return fmt.Sprintf("%s✗ %s%s", theme.ColorTag(theme.ErrorHex), i18n.T("tui.config.disabled"), reset)
+			return disabledText()
 		default:
-			return fmt.Sprintf("%s%s%s", muted, i18n.T("tui.config.not_configured"), reset)
+			return notConfigured
 		}
 
 	case CfgFieldTriBool:
 		switch val {
 		case "true":
-			return fmt.Sprintf("%s%s %s%s", theme.ColorTag(theme.SuccessHex), theme.SymSuccess, i18n.T("tui.config.enabled"), reset)
+			return enabledText()
 		case "false":
-			return fmt.Sprintf("%s✗ %s%s", theme.ColorTag(theme.ErrorHex), i18n.T("tui.config.disabled"), reset)
+			return disabledText()
 		default:
 			label := i18n.T("tui.config.not_configured")
 			switch f.Scope {
@@ -181,42 +196,51 @@ func formatFieldValue(f configField, val string) string {
 			case ScopeTeamLocal:
 				label += " (" + i18n.T("tui.config.inherits_from_team") + ")"
 			}
-			return fmt.Sprintf("%s%s%s", muted, label, reset)
+			return muted(label)
 		}
 
 	case CfgFieldPassword:
 		if val != "" {
-			return fmt.Sprintf("%s%s %s%s", theme.ColorTag(theme.SuccessHex), theme.SymSuccess, i18n.T("tui.config.configured"), reset)
+			return theme.Paint(theme.SuccessHex, theme.SymSuccess+" "+i18n.T("tui.config.configured"))
 		}
-		return fmt.Sprintf("%s✗ %s%s", theme.ColorTag(theme.ErrorHex), i18n.T("tui.config.not_configured"), reset)
+		return theme.Paint(theme.ErrorHex, theme.SymFailure+" "+i18n.T("tui.config.not_configured"))
 
 	case CfgFieldSelect:
 		if val == "" {
-			return fmt.Sprintf("%s%s%s", muted, i18n.T("tui.config.not_configured"), reset)
+			return notConfigured
 		}
 		return val
 
 	case CfgFieldInt:
 		if val == "" || val == "(hérité)" || val == "(inherit)" {
-			return fmt.Sprintf("%s%s%s", muted, i18n.T("tui.config.not_configured"), reset)
+			return notConfigured
 		}
 		return val
 
 	case CfgFieldReadonly:
-		return fmt.Sprintf("%s%s %s%s", muted, val, i18n.T("tui.config.readonly"), reset)
+		return muted(val + " " + i18n.T("tui.config.readonly"))
 
 	case CfgFieldLink:
-		return fmt.Sprintf("%s→%s", theme.ColorTag(theme.ActiveMode.PrimaryHex), reset)
+		return theme.Paint(theme.ActiveMode.PrimaryHex, "→")
 
 	case CfgFieldPlaceholder:
-		return fmt.Sprintf("%s%s%s", muted, val, reset)
+		return muted(val)
 
 	default: // CfgFieldString, CfgFieldInfo, CfgFieldProviderItem, CfgFieldAction
 		if val == "" {
-			return fmt.Sprintf("%s%s%s", muted, i18n.T("tui.config.not_configured"), reset)
+			return notConfigured
 		}
 		return val
 	}
+}
+
+// enabledText and disabledText are the value of a setting that is on or off.
+func enabledText() string {
+	return theme.Paint(theme.SuccessHex, theme.SymSuccess+" "+i18n.T("tui.config.enabled"))
+}
+
+func disabledText() string {
+	return theme.Paint(theme.ErrorHex, theme.SymFailure+" "+i18n.T("tui.config.disabled"))
 }
 
 // ---------- Editing ----------
@@ -408,7 +432,7 @@ func triStateOptions() []SelectOption {
 	return []SelectOption{
 		{Label: "↩ " + i18n.T("tui.config.not_configured"), Value: ""},
 		{Label: theme.SymSuccess + " " + i18n.T("tui.config.enabled"), Value: "true"},
-		{Label: "✗ " + i18n.T("tui.config.disabled"), Value: "false"},
+		{Label: theme.SymFailure + " " + i18n.T("tui.config.disabled"), Value: "false"},
 	}
 }
 

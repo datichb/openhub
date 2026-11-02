@@ -2,7 +2,6 @@ package views
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
@@ -10,7 +9,6 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
@@ -29,12 +27,11 @@ type ProjectMCPViewConfig struct {
 
 // ProjectMCPView displays and edits per-project MCP service overrides.
 type ProjectMCPView struct {
-	app      *tview.Application
-	list     *widgets.SectionedList
-	page     *widgets.ListDetailPage
-	shell    ShellAccess
-	cfg      ProjectMCPViewConfig
-	mountGen uint64
+	app   *tview.Application
+	list  *widgets.SectionedList
+	page  *widgets.ListDetailPage
+	shell ShellAccess
+	cfg   ProjectMCPViewConfig
 
 	live      *domain.Project
 	fields    []configField
@@ -60,13 +57,11 @@ func (v *ProjectMCPView) StatusHints() string {
 	return keys.Hints(keys.Navigate.Hint(), "{/} "+i18n.T("tui.hints.sections"),
 		keys.Open.HintAs(i18n.T("tui.hints.edit")),
 		keys.SpaceName()+" "+i18n.T("tui.hints.toggle"),
-		"u "+i18n.T("tui.hints.undo"), keys.Back.Hint())
+		cfgUndoKey.Hint(), keys.Back.Hint())
 }
 
 func (v *ProjectMCPView) Mount(content *tview.Flex, app *tview.Application) {
 	v.app = app
-	v.mountGen++
-	gen := v.mountGen
 	v.undoStack.Clear()
 	v.live = v.cfg.GetProject()
 
@@ -74,56 +69,37 @@ func (v *ProjectMCPView) Mount(content *tview.Flex, app *tview.Application) {
 		v.doSave()
 	})
 
-	loading := tview.NewTextView().
-		SetDynamicColors(true).
-		SetTextAlign(tview.AlignLeft)
-	loading.SetBackgroundColor(theme.BgPanel)
-	muted := theme.ColorTag(theme.TextMutedHex)
-	loading.SetText(fmt.Sprintf("\n  %s%s%s", muted, i18n.T("tui.project.loading"), theme.TagColor))
-	content.AddItem(loading, 0, 1, true)
+	// The project is already in memory: there is nothing to wait for.
+	v.list = widgets.NewSectionedList()
+	v.list.SetApp(app)
+	title := v.Title()
+	if v.live != nil {
+		title += " · " + v.live.Name
+	}
+	v.page = newListPage(title, v.list)
 
-	go func() {
-		app.QueueUpdateDraw(func() {
-			if v.app == nil || v.mountGen != gen {
-				return
-			}
+	if v.live == nil {
+		v.list.SetItems([]widgets.SectionItem{{MainText: stateText(stateEmpty, i18n.T("tui.project.no_active"))}})
+		v.page.SetDetail(emptyDetail())
+		v.page.Mount(content)
+		app.SetFocus(v.list)
+		return
+	}
 
-			v.list = widgets.NewSectionedList()
-			v.list.SetApp(app)
-			title := v.Title()
-			if v.live != nil {
-				title += " · " + v.live.Name
-			}
-			v.page = newListPage(title, v.list)
+	v.list.SetItemSelectedFunc(func(index int, item widgets.SectionItem) {
+		v.onItemSelected(index, item)
+	})
+	v.list.SetItemChangedFunc(func(_ int, item widgets.SectionItem) {
+		showFieldItemDetail(v.page, v.fields, item, cfgUndoKey.Keys(), cfgUndoKey.Label())
+	})
 
-			if v.live == nil {
-				items := []widgets.SectionItem{{
-					MainText: i18n.T("tui.project.no_active"),
-				}}
-				v.list.SetItems(items)
-				v.page.SetDetail(emptyDetail())
-				v.page.Mount(content)
-				app.SetFocus(v.list)
-				return
-			}
-
-			v.list.SetItemSelectedFunc(func(index int, item widgets.SectionItem) {
-				v.onItemSelected(index, item)
-			})
-			v.list.SetItemChangedFunc(func(_ int, item widgets.SectionItem) {
-				showFieldItemDetail(v.page, v.fields, item, "u", i18n.T("tui.hints.undo"))
-			})
-
-			v.buildFields()
-			v.renderFields()
-			v.page.Mount(content)
-			app.SetFocus(v.list)
-		})
-	}()
+	v.buildFields()
+	v.renderFields()
+	v.page.Mount(content)
+	app.SetFocus(v.list)
 }
 
 func (v *ProjectMCPView) Unmount() {
-	v.mountGen++ // invalidate in-flight async goroutine
 	if v.autoSaver != nil {
 		v.autoSaver.Flush()
 	}
@@ -137,20 +113,16 @@ func (v *ProjectMCPView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	if v.live == nil || v.list == nil {
 		return event
 	}
-	if event.Key() == tcell.KeyEnter {
+	switch {
+	case keys.Open.Matches(event):
 		if idx, item, ok := v.list.CurrentItem(); ok {
 			v.onItemSelected(idx, item)
 		}
 		return nil
-	}
-	if event.Key() != tcell.KeyRune {
-		return event
-	}
-	switch event.Rune() {
-	case ' ':
+	case cfgToggleKey.Matches(event):
 		v.onToggleSelected()
 		return nil
-	case 'u':
+	case cfgUndoKey.Matches(event):
 		v.undo()
 		return nil
 	}
@@ -333,18 +305,11 @@ func (v *ProjectMCPView) renderFields() {
 	}
 	savedIdx := v.list.GetCurrentItem()
 
-	items := make([]widgets.SectionItem, 0, len(v.fields))
-	for i, f := range v.fields {
-		item := renderConfigItem(f, 28)
-		item.Reference = i
-		items = append(items, item)
-	}
-
-	v.list.SetItems(items)
+	v.list.SetItems(configItems(v.fields, 28))
 	if savedIdx >= 0 {
 		v.list.SelectIndex(savedIdx)
 	}
-	showCurrentFieldDetail(v.page, v.list, v.fields, "u", i18n.T("tui.hints.undo"))
+	showCurrentFieldDetail(v.page, v.list, v.fields, cfgUndoKey.Keys(), cfgUndoKey.Label())
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

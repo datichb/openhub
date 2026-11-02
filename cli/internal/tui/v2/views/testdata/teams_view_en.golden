@@ -8,4 +8,4 @@ Refresh | Reload the team list | Teams
 Sync Core | Pull the team repository of Core | Teams
 Sync solo | Pull the team repository of solo | Teams
 == empty
-No team | a: add a team · oh team init to create one
+No team | n add a team · oh team init to create one

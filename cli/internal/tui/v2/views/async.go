@@ -10,6 +10,7 @@ import (
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/safego"
+	"github.com/datichb/openhub/cli/internal/teamstate"
 )
 
 // loadSlot numbers the loads of a view: only the latest one may be applied.
@@ -65,4 +66,18 @@ func safeFetch[T any](ctx context.Context, fetch func(context.Context) (T, error
 		}
 	}()
 	return fetch(ctx)
+}
+
+// syncLoad pulls the team-state of repo (syncAsync: the slow-pull toast, the
+// failure warning), then reads with fetch off the event loop and applies the
+// result on it, as load does. The latest request of the slot wins: a newer
+// one, or an Unmount, drops this one at any step.
+func syncLoad[T any](app *tview.Application, ctx context.Context, slot *loadSlot, repo teamstate.TeamStateWriter, shell ShellAccess, fetch func(context.Context) (T, error), apply func(T, error)) {
+	gen := slot.gen.Add(1)
+	syncAsync(app, repo, shell, func(error) {
+		if slot.gen.Load() != gen {
+			return
+		}
+		load(app, ctx, slot, fetch, apply)
+	})
 }

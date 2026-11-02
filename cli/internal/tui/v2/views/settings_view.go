@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
@@ -13,6 +14,9 @@ import (
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/provider"
+	"github.com/datichb/openhub/cli/internal/tracker"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
@@ -41,6 +45,10 @@ type SettingsViewConfig struct {
 	// ToolVersion returns the machine tool client version (pinned version
 	// check; "" = unknown). Nil = unknown.
 	ToolVersion func() string
+	// TrackerType returns the type of the tracker of the team (gitlab, jira;
+	// "" = unknown), read in its team-state. It may block: the view calls it
+	// off the event loop, with the active team captured on it.
+	TrackerType func(team config.TeamConfig) string
 }
 
 // SettingsView displays and edits hub.toml using the unified configField system.
@@ -58,6 +66,8 @@ type SettingsView struct {
 	// off the event loop at mount (toolRead).
 	tool     settingsTool
 	toolRead bool
+	// trackerType is the type of the tracker of the team, read at mount.
+	trackerType string
 	// reading is true while a refresh reads hub.toml: the fields cannot be
 	// edited, the result would replace the edit.
 	reading bool
@@ -100,14 +110,8 @@ func (v *SettingsView) SetShell(s ShellAccess) { v.shell = s }
 func (v *SettingsView) ID() string    { return "settings" }
 func (v *SettingsView) Title() string { return i18n.T("tui.settings.title") }
 func (v *SettingsView) StatusHints() string {
-	return fmt.Sprintf("j/k %s · {/} %s · Space %s · Enter %s · u %s · r %s",
-		i18n.T("tui.hints.nav"),
-		i18n.T("tui.hints.navigate"),
-		i18n.T("tui.hints.toggle"),
-		i18n.T("tui.hints.edit"),
-		i18n.T("tui.hints.undo"),
-		i18n.T("tui.hints.refresh"),
-	)
+	return keys.Hints(keys.Navigate.HintAs(i18n.T("tui.hints.nav")), "{/} "+i18n.T("tui.hints.navigate"),
+		toggleHint(), keys.Open.HintAs(i18n.T("tui.hints.edit")), cfgUndoKey.Hint(), keys.Refresh.Hint())
 }
 
 // Mount builds and displays the view.
@@ -136,16 +140,20 @@ func (v *SettingsView) Mount(content *tview.Flex, app *tview.Application) {
 	loading := stateView(stateLoading, i18n.T("tui.settings.loading"))
 	content.AddItem(loading, 0, 1, true)
 
-	// Read what needs the tool client off the event loop, then build the
-	// widgets on it.
-	load(app, v.ctx, &v.loads, func(context.Context) (settingsTool, error) {
-		return v.readTool(), nil
-	}, func(t settingsTool, err error) {
+	// Read what needs the tool client and the team-state off the event loop,
+	// then build the widgets on it.
+	var team config.TeamConfig
+	if v.live != nil {
+		team = v.live.ActiveTeam()
+	}
+	load(app, v.ctx, &v.loads, func(context.Context) (settingsRead, error) {
+		return settingsRead{tool: v.readTool(), tracker: v.readTrackerType(team)}, nil
+	}, func(r settingsRead, err error) {
 		if err != nil {
 			setState(loading, stateError, err.Error())
 			return
 		}
-		v.tool, v.toolRead = t, true
+		v.tool, v.toolRead, v.trackerType = r.tool, true, r.tracker
 
 		v.list = widgets.NewSectionedList()
 		v.list.SetApp(app)
@@ -170,6 +178,28 @@ func (v *SettingsView) Mount(content *tview.Flex, app *tview.Application) {
 
 // settingsTool is the tool client as the « tool version » field shows it.
 type settingsTool struct{ client, name string }
+
+// settingsRead is what the view reads off the event loop at mount: the tool
+// client and the type of the tracker of the team.
+type settingsRead struct {
+	tool    settingsTool
+	tracker string
+}
+
+// readTrackerType asks for the type of the tracker of the team (a read of the
+// team-state): off the event loop.
+func (v *SettingsView) readTrackerType(team config.TeamConfig) string {
+	if v.cfg.TrackerType == nil {
+		return ""
+	}
+	return v.cfg.TrackerType(team)
+}
+
+// trackerIsJira is true when the tracker of the team is Jira: the server of
+// a token is a GitLab rule, the line is not drawn for Jira.
+func (v *SettingsView) trackerIsJira() bool {
+	return v.trackerType == string(tracker.TypeJira)
+}
 
 // readTool asks the tool client for its version and name (the first call may
 // probe the binary): off the event loop.
@@ -211,32 +241,26 @@ func (v *SettingsView) Unmount() {
 
 // settingsExtraKeys are the page keys listed in the detail pane.
 func settingsExtraKeys() []string {
-	return []string{"u", i18n.T("tui.hints.undo"), "r", i18n.T("tui.hints.refresh")}
+	return []string{cfgUndoKey.Keys(), cfgUndoKey.Label(), keys.Refresh.Keys(), keys.Refresh.Label()}
 }
 
 func (v *SettingsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	if v.list == nil {
 		return event
 	}
-	if event.Key() == tcell.KeyEnter {
+	switch {
+	case keys.Open.Matches(event), keys.Edit.Matches(event):
 		if idx, item, ok := v.list.CurrentItem(); ok {
 			v.onItemSelected(idx, item)
 		}
 		return nil
-	}
-	switch event.Rune() {
-	case 'e':
-		if idx, item, ok := v.list.CurrentItem(); ok {
-			v.onItemSelected(idx, item)
-		}
-		return nil
-	case ' ':
+	case cfgToggleKey.Matches(event):
 		v.onToggleSelected()
 		return nil
-	case 'u':
+	case cfgUndoKey.Matches(event):
 		v.undo()
 		return nil
-	case 'r':
+	case keys.Refresh.Matches(event):
 		v.refresh()
 		return nil
 	}
@@ -588,6 +612,13 @@ func (v *SettingsView) buildFields() {
 			Section:     "Tracker",
 			Get:         func() string { return v.live.Tracker.TrackerTokenKey },
 			Set:         func(val string) { v.live.Tracker.TrackerTokenKey = val }},
+		{Key: "tracker_token_url", Kind: CfgFieldString, Label: i18n.T("tui.config.field.tracker_hub_token_url.label"),
+			Description: i18n.T("tui.config.field.tracker_hub_token_url.desc"),
+			Placeholder: i18n.T("tui.config.field.tracker_hub_token_url.placeholder"),
+			Validator:   &FieldValidator{Check: serverCheck, AllowEmpty: true},
+			Visible:     func() bool { return !v.trackerIsJira() },
+			Get:         func() string { return v.live.Tracker.TrackerTokenURL },
+			Set:         func(val string) { v.live.Tracker.TrackerTokenURL = strings.TrimSpace(val) }},
 		v.trackerBoolField("write_enabled", i18n.T("tui.config.field.tracker_write_enabled.label"),
 			i18n.T("tui.config.field.tracker_write_enabled.desc"),
 			func() *bool { return v.live.Tracker.WriteEnabled },
@@ -607,14 +638,7 @@ func (v *SettingsView) renderFields() {
 	}
 	savedIdx := v.list.GetCurrentItem()
 
-	items := make([]widgets.SectionItem, 0, len(v.fields))
-	for i, f := range v.fields {
-		item := renderConfigItem(f, 28)
-		item.Reference = i
-		items = append(items, item)
-	}
-
-	v.list.SetItems(items)
+	v.list.SetItems(configItems(v.fields, 28))
 	if savedIdx >= 0 {
 		v.list.SelectIndex(savedIdx)
 	}
@@ -751,7 +775,7 @@ func (v *SettingsView) doSave() {
 	errs := validateAllFields(v.fields)
 	if len(errs) > 0 {
 		if v.shell != nil {
-			v.shell.ShowToastMsg(fmt.Sprintf("⚠ %d %s", len(errs), i18n.T("tui.settings.validation_errors")), false)
+			v.shell.ShowToastMsg(fmt.Sprintf("%s %d %s", theme.SymWarning, len(errs), i18n.T("tui.settings.validation_errors")), false)
 		}
 		return
 	}

@@ -49,9 +49,10 @@ type EffectiveConfig struct {
 }
 
 // ServiceHasURL reports whether the server of an MCP service takes a URL. The
-// Figma server always calls api.figma.com: a URL recorded for it (hub.toml,
-// project, team) is ignored, never offered and never reported.
-func ServiceHasURL(service string) bool { return service != "figma" }
+// Figma server always calls api.figma.com and the Google Slides server
+// slides.googleapis.com: a URL recorded for them (hub.toml, project, team) is
+// ignored, never offered and never reported.
+func ServiceHasURL(service string) bool { return service != "figma" && service != "gslides" }
 
 // Resolve merges a team-state MCP recommendation with a local hub.toml
 // MCP server config for a single service (e.g. "gitlab", "figma").

@@ -32,9 +32,10 @@ func init() {
 }
 
 // mcpPinServices are the services that have a URL and a personal entry in
-// hub.toml, so a URL to pin. Figma has none: its server always calls
-// api.figma.com, and a URL recorded for it is ignored.
-var mcpPinServices = []string{"gitlab", "gslides", "jira"}
+// hub.toml, so a URL to pin. Figma and Google Slides have none: their servers
+// always call api.figma.com and slides.googleapis.com, and a URL recorded for
+// them is ignored.
+var mcpPinServices = []string{"gitlab", "jira"}
 
 func completeMCPPinServices(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective) {
 	return mcpPinServices, cobra.ShellCompDirectiveNoFileComp
