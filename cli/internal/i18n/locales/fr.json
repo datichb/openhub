@@ -5454,7 +5454,6 @@
   "cmd.provider.setup.long": "Lance un assistant pour configurer les identifiants d'un fournisseur. Sans argument, propose une liste.",
   "cmd.provider.setup.flags.project": "Configurer le fournisseur d'un projet",
   "cmd.provider.setup.flags.from-env": "Bedrock : enregistre dans le trousseau la clé API du shell (AWS_BEARER_TOKEN_BEDROCK), sans wizard",
-  "cmd.repair.flags.auto": "Mode non interactif (scripts)",
   "cmd.repair.flags.check-only": "Vérifier uniquement, sans réparer",
   "cmd.secrets.short": "Gérer les secrets (tokens, clés API)",
   "cmd.secrets.long": "Gère les secrets stockés dans le trousseau du système (ou un fichier chiffré en secours).\n\nLes secrets sont référencés par nom dans hub.toml (token_key) et lus à l'exécution.\nIls peuvent être en portée globale (partagés entre projets) ou propres à un projet.\n\nOrdre de résolution :\n  1. Secret de portée projet (dans un dossier de projet)\n  2. Secret de portée globale\n  3. Variable d'environnement correspondante",

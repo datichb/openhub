@@ -5454,7 +5454,6 @@
   "cmd.provider.setup.long": "Launches a wizard to configure the credentials of a provider. Without argument, offers a list.",
   "cmd.provider.setup.flags.project": "Configure the provider of a project",
   "cmd.provider.setup.flags.from-env": "Bedrock: store the API key of the shell (AWS_BEARER_TOKEN_BEDROCK) in the keychain, without the wizard",
-  "cmd.repair.flags.auto": "Non-interactive mode (scripts)",
   "cmd.repair.flags.check-only": "Check only, without repairing",
   "cmd.secrets.short": "Manage the secrets (tokens, API keys)",
   "cmd.secrets.long": "Manages the secrets stored in the system keychain (or an encrypted file as a fallback).\n\nSecrets are referenced by name in hub.toml (token_key) and read at run time.\nThey can be global (shared by projects) or specific to a project.\n\nResolution order:\n  1. Project-scoped secret (inside a project folder)\n  2. Global secret\n  3. Matching environment variable",

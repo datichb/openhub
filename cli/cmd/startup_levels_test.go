@@ -130,8 +130,6 @@ func TestBinaryFailedMigrationDoctorAndRepair(t *testing.T) {
 	out, _, code = runOhHome(t, home, "repair", "--restore", backups[0], "--yes")
 	assert.Equal(t, 0, code, out)
 	assert.Contains(t, out, "Database restored")
-	out, _, code = runOhHome(t, home, "repair", "--restore", backups[0], "--auto")
-	assert.Equal(t, 0, code, "--auto still confirms a restoration: %s", out)
 }
 
 // N13: a corrupt database does not stop oh repair (no MustApp) nor doctor.
