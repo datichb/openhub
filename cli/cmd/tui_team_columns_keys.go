@@ -8,7 +8,9 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tracker"
+	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
+	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
 // handleKey is the key handler of the list: the mappings mode has its own
@@ -18,6 +20,11 @@ func (e *columnEditor) handleKey(event *tcell.EventKey) *tcell.EventKey {
 		return e.handleMappingsKey(event)
 	}
 	return e.handleColumnsKey(event)
+}
+
+// isRenameKey is e (keys.Edit) or Enter, which opens the item under the cursor.
+func isRenameKey(event *tcell.EventKey) bool {
+	return keys.Edit.Matches(event) || keys.Open.Matches(event)
 }
 
 // toast shows a message in the shell, when there is one.
@@ -36,23 +43,23 @@ func askName(title, current string, onConfirm func(string)) {
 
 func (e *columnEditor) handleMappingsKey(event *tcell.EventKey) *tcell.EventKey {
 	switch {
-	case event.Rune() == 'q':
+	case views.ColumnBack.Matches(event):
 		e.editingMappingsFor = ""
 		e.renderColumns()
 
-	case event.Key() == tcell.KeyDown || event.Rune() == 'j':
+	case keys.Down.Matches(event):
 		e.moveToMapping(+1)
 
-	case event.Key() == tcell.KeyUp || event.Rune() == 'k':
+	case keys.Up.Matches(event):
 		e.moveToMapping(-1)
 
-	case event.Rune() == 'a':
+	case keys.Create.Matches(event):
 		e.addLabel()
 
-	case event.Key() == tcell.KeyEnter:
+	case isRenameKey(event):
 		e.renameMapping()
 
-	case event.Rune() == 'd':
+	case keys.Delete.Matches(event):
 		e.deleteMapping()
 
 	default:
@@ -135,51 +142,51 @@ func (e *columnEditor) handleColumnsKey(event *tcell.EventKey) *tcell.EventKey {
 	isOnColumn := idx >= 0 && idx < n
 
 	switch {
-	case event.Key() == tcell.KeyDown || event.Rune() == 'j':
+	case keys.Down.Matches(event):
 		if cur := e.list.GetCurrentItem(); cur < n {
 			e.list.SetCurrentItem(cur + 1)
 		}
 
-	case event.Key() == tcell.KeyUp || event.Rune() == 'k':
+	case keys.Up.Matches(event):
 		if cur := e.list.GetCurrentItem(); cur > 1 {
 			e.list.SetCurrentItem(cur - 1)
 		}
 
-	case event.Rune() == 'K':
+	case views.ColumnMoveUp.Matches(event):
 		if isOnColumn && idx > 0 {
 			e.moveColumn(idx, -1)
 		}
 
-	case event.Rune() == 'J':
+	case views.ColumnMoveDown.Matches(event):
 		if isOnColumn && idx < n-1 {
 			e.moveColumn(idx, +1)
 		}
 
-	case event.Rune() == 'a':
+	case keys.Create.Matches(event):
 		e.addColumn(idx)
 
-	case event.Key() == tcell.KeyEnter:
+	case isRenameKey(event):
 		if isOnColumn {
 			e.renameColumn(idx)
 		}
 
-	case event.Rune() == 'd':
+	case keys.Delete.Matches(event):
 		if isOnColumn {
 			e.deleteColumn(idx)
 		}
 
-	case event.Rune() == 'r':
+	case views.ColumnRole.Matches(event):
 		if isOnColumn {
 			e.cycleRole(idx)
 		}
 
-	case event.Rune() == 'm':
+	case views.ColumnMappings.Matches(event):
 		if e.hasMappings() && isOnColumn {
 			e.editingMappingsFor = (*e.columns)[idx].ID
 			e.renderMappings()
 		}
 
-	case event.Key() == tcell.KeyCtrlS:
+	case keys.Save.Matches(event):
 		e.save()
 
 	default:

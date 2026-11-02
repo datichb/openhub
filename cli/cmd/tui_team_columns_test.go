@@ -20,7 +20,7 @@ import (
 // The keys of the editor, in one place: a change of key is one line here.
 var columnEditorTestKeys = struct {
 	add, del, role, mappings, up, down, back rune
-}{add: 'a', del: 'd', role: 'r', mappings: 'm', up: 'K', down: 'J', back: 'q'}
+}{add: 'n', del: 'd', role: 'o', mappings: 'm', up: 'K', down: 'J', back: 'q'}
 
 var tviewTags = regexp.MustCompile(`\[[^\[\]]*\]`)
 
@@ -139,9 +139,7 @@ func TestColumnEditorRendersTheColumns(t *testing.T) {
 	assert.Contains(t, e.mainText(6), "blocked")
 
 	hints := e.hintsText()
-	for _, want := range []string{"nav", i18n.T("tui.team.columns.hint_move"), i18n.T("tui.team.columns.hint_add"),
-		i18n.T("tui.team.columns.hint_rename"), i18n.T("tui.team.columns.hint_delete"), i18n.T("tui.team.columns.hint_role"),
-		"Ctrl+S", i18n.T("tui.team.columns.hint_save")} {
+	for _, want := range []string{"↑↓/jk move", "K move up", "J move down", "n add", "e rename", "d delete", "o role", "Ctrl+S save"} {
 		assert.Contains(t, hints, want)
 	}
 	assert.NotContains(t, hints, "mappings", "the mappings key only shows with mappings")
@@ -258,7 +256,7 @@ func TestColumnEditorMappings(t *testing.T) {
 	e := newColumnEditor(t, defaultColumns(), labels, statuses, "jira")
 	_, secondary := e.list.GetItemText(2)
 	assert.Contains(t, secondary, "labels: doing, wip, In Dev", "the labels then the statuses of the column")
-	assert.Contains(t, e.hintsText(), "mappings")
+	assert.Contains(t, e.hintsText(), "m mappings")
 
 	// m opens the mappings of the column under the cursor
 	e.typ('j')
@@ -274,8 +272,9 @@ func TestColumnEditorMappings(t *testing.T) {
 	assert.Contains(t, text, "Statuses (Jira)")
 	assert.Contains(t, text, "In Dev")
 	assert.NotContains(t, text, "later")
-	assert.Contains(t, e.hintsText(), i18n.T("tui.team.columns.hint_back_columns"))
-	assert.Contains(t, e.hintsText(), i18n.T("tui.team.columns.hint_add_label"))
+	assert.Contains(t, e.hintsText(), "q "+i18n.T("tui.team.columns.hint_back_columns"))
+	assert.Contains(t, e.hintsText(), "n "+i18n.T("tui.team.columns.hint_add_label"))
+	assert.Contains(t, e.hintsText(), "e rename")
 	assert.Contains(t, shown[e.list.GetCurrentItem()], "doing", "the cursor starts on the first mapping")
 
 	// the cursor skips the headers
@@ -414,4 +413,48 @@ func TestColumnRoleHexAndColorName(t *testing.T) {
 	assert.Equal(t, theme.AccentHex, columnRoleHex(teamstate.ColumnRoleActive))
 	assert.Equal(t, "red", columnColorName(teamstate.BoardColumnConfig{Color: "red"}, tcell.ColorRed))
 	assert.Equal(t, "auto (#ff0000)", columnColorName(teamstate.BoardColumnConfig{}, tcell.NewRGBColor(255, 0, 0)))
+}
+
+// The keys of the editor are those of the convention (n add, e rename, d
+// delete, Ctrl+S save) and o for the role: a and r, which it used before, do
+// nothing, r being the refresh of the other views.
+func TestColumnEditorKeysFollowTheConvention(t *testing.T) {
+	e := newColumnEditor(t, defaultColumns(), map[string]string{"wip": "in_progress"}, map[string]string{}, "gitlab")
+	role := (*e.columns)[0].Role
+	e.typ('a')
+	e.typ('r')
+	assert.Empty(t, e.ui.modals, "a does not add any more")
+	assert.Equal(t, role, (*e.columns)[0].Role, "r does not change the role any more")
+
+	e.typ('e')
+	require.Len(t, e.ui.modals, 1, "e renames, like Enter")
+	assert.Equal(t, i18n.T("cmd.discovery.field.column_rename"), e.ui.modals[0].title)
+	e.press(tcell.KeyEnter, 0)
+	require.Len(t, e.ui.modals, 2)
+	assert.Equal(t, e.ui.modals[0].title, e.ui.modals[1].title)
+
+	// Alt+letter is not the letter
+	e.list.InputHandler()(tcell.NewEventKey(tcell.KeyRune, 'o', tcell.ModAlt), func(tview.Primitive) {})
+	assert.Equal(t, role, (*e.columns)[0].Role)
+
+	// the mappings mode: n adds a label, e renames, d deletes, q goes back
+	e.typ('j')
+	e.typ(columnEditorTestKeys.mappings)
+	e.typ('a')
+	assert.Len(t, e.ui.modals, 2, "a adds no label")
+	e.typ('n')
+	require.Len(t, e.ui.modals, 3)
+	assert.Equal(t, i18n.T("tui.team.columns.label_name_prompt"), e.ui.modals[2].title)
+	e.typ('e')
+	assert.Len(t, e.ui.modals, 4, "e renames the label under the cursor")
+	e.typ(columnEditorTestKeys.back)
+	assert.Contains(t, e.mainText(0), "Columns")
+}
+
+// The empty list of a section tells which key adds to it.
+func TestColumnEditorMappingsSayWhichKeyAdds(t *testing.T) {
+	e := newColumnEditor(t, defaultColumns(), map[string]string{}, map[string]string{}, "")
+	e.typ(columnEditorTestKeys.mappings)
+	_, secondary := e.list.GetItemText(2)
+	assert.Contains(t, tviewTags.ReplaceAllString(secondary, ""), "Press n to add")
 }

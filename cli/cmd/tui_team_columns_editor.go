@@ -11,6 +11,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
@@ -99,30 +100,34 @@ func truncLabels(items []string, max int) string {
 	return strings.Join(items[:max], ", ") + fmt.Sprintf(" +%d", len(items)-max)
 }
 
+// hintOf is a key of the editor and its label, the key in the accent color.
+func hintOf(a keys.Action, label string) string { return accentText(a.Keys()) + " " + label }
+
 // updateHints writes the keys of the mode the editor is in.
 func (e *columnEditor) updateHints() {
 	hintSep := " " + theme.Paint(theme.TextMutedHex, "│") + " "
 	var parts []string
 	if e.editingMappingsFor == "" {
 		parts = []string{
-			accentText("↑↓") + " nav",
-			accentText("J/K") + " " + i18n.T("tui.team.columns.hint_move"),
-			accentText("a") + " " + i18n.T("tui.team.columns.hint_add"),
-			accentText("Enter") + " " + i18n.T("tui.team.columns.hint_rename"),
-			accentText("d") + " " + i18n.T("tui.team.columns.hint_delete"),
-			accentText("r") + " " + i18n.T("tui.team.columns.hint_role"),
+			hintOf(keys.Navigate, keys.Navigate.Label()),
+			hintOf(views.ColumnMoveUp, views.ColumnMoveUp.Label()),
+			hintOf(views.ColumnMoveDown, views.ColumnMoveDown.Label()),
+			hintOf(keys.Create, i18n.T("tui.team.columns.hint_add")),
+			hintOf(keys.Edit, i18n.T("tui.team.columns.hint_rename")),
+			hintOf(keys.Delete, i18n.T("tui.team.columns.hint_delete")),
+			hintOf(views.ColumnRole, views.ColumnRole.Label()),
 		}
 		if e.hasMappings() {
-			parts = append(parts, accentText("m")+" mappings")
+			parts = append(parts, hintOf(views.ColumnMappings, views.ColumnMappings.Label()))
 		}
-		parts = append(parts, accentText("Ctrl+S")+" "+i18n.T("tui.team.columns.hint_save"))
+		parts = append(parts, hintOf(keys.Save, i18n.T("tui.team.columns.hint_save")))
 	} else {
 		parts = []string{
-			accentText("↑↓") + " nav",
-			accentText("a") + " " + i18n.T("tui.team.columns.hint_add_label"),
-			accentText("Enter") + " " + i18n.T("tui.team.columns.hint_rename"),
-			accentText("d") + " " + i18n.T("tui.team.columns.hint_delete"),
-			accentText("q") + " " + i18n.T("tui.team.columns.hint_back_columns"),
+			hintOf(keys.Navigate, keys.Navigate.Label()),
+			hintOf(keys.Create, i18n.T("tui.team.columns.hint_add_label")),
+			hintOf(keys.Edit, i18n.T("tui.team.columns.hint_rename")),
+			hintOf(keys.Delete, i18n.T("tui.team.columns.hint_delete")),
+			hintOf(views.ColumnBack, views.ColumnBack.Label()),
 		}
 	}
 	e.hints.SetText("  " + strings.Join(parts, hintSep))
@@ -254,7 +259,7 @@ func (e *columnEditor) addMappingSection(header, none, bullet string, items []st
 	if len(items) == 0 {
 		e.list.AddItem(
 			"    "+theme.Paint(theme.TextMutedHex, none),
-			"      "+theme.Paint(theme.TextMutedHex, i18n.T("tui.team.columns.press_a_to_add")),
+			"      "+theme.Paint(theme.TextMutedHex, i18n.Tf("tui.team.columns.press_to_add", keys.Create.Keys())),
 			0, nil)
 	}
 	for _, item := range items {
