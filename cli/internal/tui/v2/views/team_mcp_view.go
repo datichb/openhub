@@ -2,6 +2,7 @@ package views
 
 import (
 	"context"
+	"reflect"
 	"strings"
 	"time"
 
@@ -150,25 +151,48 @@ func (v *TeamMCPView) Mount(content *tview.Flex, app *tview.Application) {
 func (v *TeamMCPView) open(then func()) {
 	local := v.cfg.GetMCPConfig()
 	tc := v.cfg.ResolveTeam()
+	before := v.edited()
 	fetch := func(context.Context) (*teamstate.TeamConfig, error) {
 		if !tc.Enabled {
 			return nil, nil // no team: an empty config
 		}
 		return readTeamConfig(tc), nil
 	}
+	take := func(cfg *teamstate.TeamConfig) {
+		v.localMCP, v.baseMCP = local, local
+		v.setTeamConfig(cfg)
+		then()
+	}
 	apply := func(cfg *teamstate.TeamConfig, _ error) {
 		if v.app == nil {
 			return
 		}
-		v.localMCP, v.baseMCP = local, local
-		v.setTeamConfig(cfg)
-		then()
+		if reflect.DeepEqual(v.edited(), before) {
+			take(cfg)
+			return
+		}
+		// An edit was made while the read ran (a reload is asked, the user
+		// edits before it ends): taking the file would drop it unseen.
+		if v.shell == nil {
+			return
+		}
+		v.shell.Confirm(i18n.T("tui.config.discard_title"), i18n.T("tui.config.discard_detail"), true, func() { take(cfg) })
 	}
 	if tc.Enabled {
 		syncLoad(v.app, shellContext(v.shell), &v.loads, teamstate.NewRepo(tc.StateRepo, tc.StatePath), v.shell, fetch, apply)
 		return
 	}
 	load(v.app, shellContext(v.shell), &v.loads, fetch, apply)
+}
+
+// edited is the content the user edits (the team config and the personal MCP
+// settings), to tell whether an edit was made between two moments.
+func (v *TeamMCPView) edited() teamMCPSnapshot {
+	snap := teamMCPSnapshot{localMCP: v.localMCP}
+	if v.teamCfg != nil {
+		snap.teamCfg = deepCopyTeamConfig(v.teamCfg)
+	}
+	return snap
 }
 
 func (v *TeamMCPView) Unmount() {

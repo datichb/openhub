@@ -248,6 +248,37 @@ func TestTeamMCPViewSaveKeepsARecordedFigmaURL(t *testing.T) {
 	assert.Equal(t, "https://slides.recorded.example", got.MCP.Gslides.URL)
 }
 
+// Jalon 2: an edit made while a reload reads the team config is not erased
+// without asking. The edit is kept until the user agrees to drop it.
+func TestTeamMCPViewReloadAsksWhenAnEditCameDuringTheRead(t *testing.T) {
+	frLocale(t)
+	v, sh, _, app := mountTeamMCP(t, TeamMCPViewConfig{})
+	rebuilt := 0
+	onLoop(app, func() {
+		v.open(func() { rebuilt++ })
+		// the read is in flight (its result comes later, on this loop)
+		v.localMCP.Gitlab.Enabled = true
+		v.dirtyLocal = true
+	})
+	waitFor(t, app, func() bool { return sh.confirmCount() == 1 })
+	onLoop(app, func() {
+		assert.True(t, v.localMCP.Gitlab.Enabled, "the edit is still there while the question is asked")
+		assert.Zero(t, rebuilt)
+	})
+
+	// no answer: the edit stays; a yes takes the file
+	sh.confirmed(t, app)
+	onLoop(app, func() {
+		assert.False(t, v.localMCP.Gitlab.Enabled, "dropped after the yes")
+		assert.Equal(t, 1, rebuilt)
+	})
+
+	// without edit during the read, nothing is asked
+	onLoop(app, func() { v.open(func() { rebuilt++ }) })
+	waitFor(t, app, func() bool { return rebuilt == 2 })
+	assert.Equal(t, 1, sh.confirmCount(), "no second question")
+}
+
 // Saved off the event loop, one at a time: an edit made while a save runs is
 // written by a second save, and a failed write gives the changes back.
 func TestTeamMCPViewSavesOffTheLoopOneAtATime(t *testing.T) {
