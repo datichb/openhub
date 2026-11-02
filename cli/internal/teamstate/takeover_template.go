@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 )
 
 // RenderTemplateBrief generates a human-readable Markdown summary from raw brief data.
@@ -31,8 +32,8 @@ func RenderTemplateBrief(brief *TakeoverBrief) string {
 		fmt.Fprintf(&b, "- %d session(s)", brief.Activity.SessionsCount)
 		if !brief.Activity.FirstSession.IsZero() && !brief.Activity.LastSession.IsZero() {
 			fmt.Fprintf(&b, " (%s → %s)",
-				brief.Activity.FirstSession.Format("02 Jan"),
-				brief.Activity.LastSession.Format("02 Jan"))
+				textfmt.Date(brief.Activity.FirstSession),
+				textfmt.Date(brief.Activity.LastSession))
 		}
 		b.WriteString("\n")
 		if brief.Activity.TotalDurationMinutes > 0 {
@@ -80,7 +81,7 @@ func RenderTemplateBrief(brief *TakeoverBrief) string {
 		b.WriteString("## Dernier etat connu\n\n")
 		fmt.Fprintf(&b, "- Dernier commit : \"%s\"", brief.Git.LastCommitMessage)
 		if !brief.Git.LastCommitDate.IsZero() {
-			fmt.Fprintf(&b, " (%s)", brief.Git.LastCommitDate.Format("02 Jan 15:04"))
+			fmt.Fprintf(&b, " (%s)", textfmt.DateTime(brief.Git.LastCommitDate))
 		}
 		b.WriteString("\n")
 		if len(brief.Events) > 0 {
@@ -97,7 +98,7 @@ func RenderTemplateBrief(brief *TakeoverBrief) string {
 			e := brief.Events[i]
 			fmt.Fprintf(&b, "%d. **%s** — %s\n",
 				len(brief.Events)-i,
-				e.Timestamp.Format("02 Jan"),
+				textfmt.Date(e.Timestamp),
 				e.Summary)
 		}
 		b.WriteString("\n")
