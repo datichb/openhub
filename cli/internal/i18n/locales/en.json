@@ -6303,5 +6303,7 @@
   "cmd.history.col.started": "Started",
   "cmd.history.col.duration": "Duration",
   "cmd.history.col.member": "Member",
-  "cmd.history.col.date": "Date"
+  "cmd.history.col.date": "Date",
+  "cmd.board.status_hints": "←→ columns · ↑↓ scroll · r refresh · q quit",
+  "cmd.init.wizard_choice_prompt": "  Choice [%d]: "
 }

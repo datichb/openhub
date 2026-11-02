@@ -1,4 +1,4 @@
-┌ Policies ──────────────────────────────────────────────────────┐┌ Détail ──────────────────────────────────┐
+┌ Politiques ────────────────────────────────────────────────────┐┌ Détail ──────────────────────────────────┐
 │ Les policies sont des règles automatiques vérifiées par l'IA   ││ branch-naming                            │
 │ et les hooks. "warn" affiche un avertissement, "refuse"        ││                                          │
 │ bloque l'opération. Les projets peuvent durcir mais jamais     ││ Nom:           branch-naming             │

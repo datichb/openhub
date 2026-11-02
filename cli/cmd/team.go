@@ -1066,7 +1066,7 @@ func runTeamRejoin(cmd *cobra.Command, _ []string) error {
 			fmt.Fprintf(a.IO.Out, "  [1] %s\n", i18n.T("cmd.init.wizard_rejoin_token_reuse_short"))
 			fmt.Fprintf(a.IO.Out, "  [2] %s\n", i18n.T("cmd.init.wizard_rejoin_token_new"))
 			fmt.Fprintf(a.IO.Out, "  [3] %s\n", i18n.T("cmd.init.wizard_rejoin_token_skip"))
-			fmt.Fprintf(a.IO.Out, "  Choice [1]: ")
+			fmt.Fprint(a.IO.Out, i18n.Tf("cmd.init.wizard_choice_prompt", 1))
 			var choiceStr string
 			_, _ = fmt.Fscanln(a.IO.In, &choiceStr)
 			switch choiceStr {
@@ -1095,7 +1095,7 @@ func runTeamRejoin(cmd *cobra.Command, _ []string) error {
 			)
 			fmt.Fprintf(a.IO.Out, "  [1] %s\n", i18n.T("cmd.init.wizard_rejoin_token_new"))
 			fmt.Fprintf(a.IO.Out, "  [2] %s\n", i18n.T("cmd.init.wizard_rejoin_token_skip"))
-			fmt.Fprintf(a.IO.Out, "  Choice [1]: ")
+			fmt.Fprint(a.IO.Out, i18n.Tf("cmd.init.wizard_choice_prompt", 1))
 			var choiceStr string
 			_, _ = fmt.Fscanln(a.IO.In, &choiceStr)
 			if choiceStr != "2" {
@@ -1152,7 +1152,7 @@ func runTeamRejoin(cmd *cobra.Command, _ []string) error {
 		)
 		fmt.Fprintf(a.IO.Out, "  [1] %s\n", i18n.T("cmd.init.wizard_identity_verify"))
 		fmt.Fprintf(a.IO.Out, "  [2] %s\n", i18n.T("cmd.init.wizard_identity_skip"))
-		fmt.Fprintf(a.IO.Out, "  Choice [2]: ")
+		fmt.Fprint(a.IO.Out, i18n.Tf("cmd.init.wizard_choice_prompt", 2))
 		var choiceStr string
 		_, _ = fmt.Fscanln(a.IO.In, &choiceStr)
 		if choiceStr == "1" {

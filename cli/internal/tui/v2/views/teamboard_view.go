@@ -285,7 +285,7 @@ func (v *TeamBoardView) setNoTicketsText() {
 		return
 	}
 	v.emptyTV.SetText("\n\n" + tagged(theme.WarningHex, i18n.T("tui.teamboard.empty_no_tickets")) +
-		"\n\n" + i18n.Tf("tui.teamboard.empty_no_tickets_hint", tagged(theme.TextPrimaryHex, "Sync Tracker"),
+		"\n\n" + i18n.Tf("tui.teamboard.empty_no_tickets_hint", tagged(theme.TextPrimaryHex, i18n.T("tui.cmd.sync_tracker")),
 		theme.StyleTag(theme.AttrBold)+teamRefreshHint()+theme.TagAttrs))
 }
 
