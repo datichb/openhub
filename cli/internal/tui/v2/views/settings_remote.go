@@ -6,11 +6,26 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 )
 
+// remoteExperimentalWarning is the permanent warning of the remote mode
+// (the one of the CLI), shown while it is enabled.
+func remoteExperimentalWarning(on bool) string {
+	if !on {
+		return ""
+	}
+	return i18n.T("cmd.remote.experimental.warning")
+}
+
 // remoteFields is the « Distant » section of the hub settings: one block per
 // remote target (oh-runner project). Changing a pipeline option takes effect
 // at the next `oh remote setup`, which rewrites the generated pipeline.
 func (v *SettingsView) remoteFields() []configField {
-	fields := []configField{{Kind: CfgFieldSectionHeader, Label: i18n.T("tui.settings.remote.section")}}
+	fields := []configField{{Kind: CfgFieldSectionHeader, Label: i18n.T("tui.settings.remote.section")},
+		{Key: "remote_experimental", Kind: CfgFieldBool, Label: i18n.T("tui.settings.remote.experimental.label"),
+			Description: i18n.T("tui.settings.remote.experimental.desc"),
+			Get:         func() string { return boolStr(v.live.Remote.Experimental) },
+			Set:         func(val string) { v.live.Remote.Experimental = val == "true" },
+			Source:      func() string { return remoteExperimentalWarning(v.live.Remote.Experimental) },
+			Warn:        func(val string) string { return remoteExperimentalWarning(val == "true") }}}
 	targets := v.live.Remote.Targets
 	if len(targets) == 0 {
 		return append(fields, configField{Key: "remote_none", Kind: CfgFieldPlaceholder,

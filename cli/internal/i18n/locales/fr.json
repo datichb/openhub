@@ -5037,6 +5037,8 @@
   "cmd.remote.experimental.doctor.enabled": "activé (remote.experimental = true) : non validé sur un vrai runner, à réserver aux essais",
   "cmd.remote.experimental.doctor.disabled": "cibles configurées mais mode désactivé (oh config set remote.experimental true pour l'essayer)",
   "tui.settings.remote.section": "Distant (GitLab CI)",
+  "tui.settings.remote.experimental.label": "Mode distant (expérimental)",
+  "tui.settings.remote.experimental.desc": "Active l'exécution distante sur cette machine (remote.experimental). Désactivé par défaut : jamais validé sur un vrai runner GitLab.",
   "tui.settings.remote.none": "Aucune cible distante",
   "tui.settings.remote.none_desc": "Créer ou mettre à jour une cible : oh remote setup (guide docs/guides/remote-runners.fr.md)",
   "tui.settings.remote.instance": "Instance · groupe",
