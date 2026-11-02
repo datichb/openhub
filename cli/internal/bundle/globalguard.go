@@ -89,7 +89,6 @@ var ohControlDeny = func() []string {
 		{"mcp", "trust"}, {"mcp", "untrust"}, {"mcp", "setup"},
 		{"config", "set"}, {"config", "unset"},
 		{"config", "model", "default"}, {"config", "model", "family"}, {"config", "model", "agent"}, {"config", "model", "unset"},
-		{"service", "setup"}, {"service", "remove"},
 		{"secrets", "set"}, {"secrets", "delete"}, {"secrets", "get"}, {"secrets", "cleanup"},
 		{"mcp", "enable"}, {"mcp", "disable"}, {"mcp", "reset"},
 		{"config", "language"}, {"config", "websearch"},

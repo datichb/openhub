@@ -68,7 +68,6 @@
 ./internal/prefsvc
 ./internal/prettylog
 ./internal/procinfo
-./internal/prompt
 ./internal/provider
 ./internal/remote
 ./internal/remote/ciconfig

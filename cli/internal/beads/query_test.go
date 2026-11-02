@@ -70,7 +70,7 @@ func TestQueryRealBd(t *testing.T) {
 	require.Len(t, got, 1, "the value is not an expression")
 }
 
-// bd lists 50 tickets (ready: 100) by default: oh asks for all of them.
+// bd lists 50 tickets by default: oh asks for all of them.
 func TestListsAreNotTruncated(t *testing.T) {
 	patientBd(t)
 	dir := t.TempDir()
@@ -79,13 +79,11 @@ func TestListsAreNotTruncated(t *testing.T) {
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 	_, err := ListAll("/p")
 	require.NoError(t, err)
-	_, err = ListReady("/p", ReadyOpts{Label: "ai-delegated"})
-	require.NoError(t, err)
 	_, err = Query("/p", `label="x"`, true)
 	require.NoError(t, err)
 	data, err := os.ReadFile(log)
 	require.NoError(t, err)
-	assert.Equal(t, "-C /p list --json --flat -n 0\n-C /p ready --label ai-delegated --json -n 0\n-C /p --readonly query label=\"x\" --json -n 0 --all\n", string(data))
+	assert.Equal(t, "-C /p list --json --flat -n 0\n-C /p --readonly query label=\"x\" --json -n 0 --all\n", string(data))
 }
 
 // Contract with the real bd: lint names the missing sections, and exits 1
