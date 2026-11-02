@@ -37,7 +37,7 @@ permission:
   ctx_search: allow
   ctx_stats: allow
   ctx_batch_execute: allow
-model: claude-sonnet-4-6
+model: claude-sonnet-5-5
 skills: [shared/universal-guardrails, posture/core-posture, posture/user-facing-posture, shared/handoff-envelope, posture/coordinator-posture, orchestrator/orchestrator-workflow-modes, orchestrator/orchestrator-dev-protocol, orchestrator/orchestrator-dev-payload]
 native_skills: [developer/dev-drift-detection, shared/rtk-usage, orchestrator/orchestrator-dev-routing, orchestrator/orchestrator-dev-ticket-workflow, orchestrator/orchestrator-dev-recap, orchestrator/orchestrator-dev-edge-cases, orchestrator/error-recovery-protocol, shared/team-awareness, shared/team-policies-enforcement, orchestrator/team-coordination, orchestrator/takeover-context-protocol]
 project_instructions: index

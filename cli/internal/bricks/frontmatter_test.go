@@ -20,7 +20,7 @@ permission:
   task:
     "*": deny
     "planner": allow
-model: anthropic/claude-sonnet-4-6
+model: anthropic/claude-sonnet-5-5
 skills: [skill-a, skill-b]
 native_skills: [native-a]
 ---
@@ -37,7 +37,7 @@ Body content here.
 	assert.Equal(t, "Orchestrator", fm.Label)
 	assert.Equal(t, "AI project manager", fm.Description)
 	assert.Equal(t, "primary", fm.Mode)
-	assert.Equal(t, "anthropic/claude-sonnet-4-6", fm.Model)
+	assert.Equal(t, "anthropic/claude-sonnet-5-5", fm.Model)
 	assert.Equal(t, []string{"skill-a", "skill-b"}, fm.Skills)
 	assert.Equal(t, []string{"native-a"}, fm.NativeSkills)
 
@@ -227,7 +227,7 @@ permission:
   ctx_search: allow
   ctx_stats: allow
   ctx_batch_execute: allow
-model: anthropic/claude-sonnet-4-6
+model: anthropic/claude-sonnet-5-5
 skills: [skill-a, skill-b, skill-c]
 native_skills: [native-a, native-b]
 ---
@@ -240,7 +240,7 @@ native_skills: [native-a, native-b]
 
 	assert.Equal(t, "pathfinder", fm.ID)
 	assert.Equal(t, "primary", fm.Mode)
-	assert.Equal(t, "anthropic/claude-sonnet-4-6", fm.Model)
+	assert.Equal(t, "anthropic/claude-sonnet-5-5", fm.Model)
 
 	// Verify all permission types
 	assert.Equal(t, "allow", fm.Permission["question"])

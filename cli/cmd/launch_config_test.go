@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	modelAtStart = "anthropic/claude-sonnet-4-6"
+	modelAtStart = "anthropic/claude-sonnet-4-5"
 	modelLater   = "anthropic/claude-sonnet-5-5"
 )
 
@@ -61,7 +61,7 @@ func TestLaunchUsesHubTomlChangedSinceStart(t *testing.T) {
 
 	before, err := launch.Prepare(context.Background(), launchDeps(a), opts)
 	require.NoError(t, err)
-	assert.Contains(t, entryModel(t, before), "claude-sonnet-4-6")
+	assert.Contains(t, entryModel(t, before), "claude-sonnet-4-5")
 
 	anotherTerminal(t, func(c *config.Config) { c.Models.Default = modelLater })
 

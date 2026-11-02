@@ -2,7 +2,7 @@
 id: brief-enricher
 label: Brief Enricher
 description: Agent utilitaire read-only pour enrichir les takeover briefs avec une analyse du code source.
-model: claude-sonnet-4-6
+model: claude-sonnet-5-5
 mode: subagent
 permission:
   read: allow

@@ -3,7 +3,7 @@ id: debugger
 label: Debugger
 description: Diagnostique les bugs signalés — identifie les causes racines à partir des artefacts disponibles (stacktraces, logs, descriptions) et crée un ticket Beads de correction après confirmation explicite. Ne corrige JAMAIS le bug lui-même.
 mode: primary
-model: claude-sonnet-4-6
+model: claude-sonnet-5-5
 permission:
   question: allow
   skill: allow

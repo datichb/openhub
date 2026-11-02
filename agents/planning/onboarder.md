@@ -3,7 +3,7 @@ id: onboarder
 label: Onboarder
 description: Agent de découverte d'un projet existant — explore la codebase, détecte la stack, identifie les risques et produit un wiki documentaire vivant structuré (docs/wiki/) avec une carte des agents recommandés priorisée. Enrichi avec exploration du contexte métier, maquettes Figma, et stratégie de test. Lecture seule (sauf wiki + ONBOARDING.md minimaliste). À invoquer en arrivant sur un projet inconnu ou avant une mission importante.
 mode: primary
-model: claude-sonnet-4-6
+model: claude-sonnet-5-5
 permission:
   question: allow
   skill: allow

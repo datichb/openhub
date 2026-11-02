@@ -3,7 +3,7 @@ id: release-manager
 label: Release Manager
 description: "Prépare une release — version SemVer déduite des commits et du CHANGELOG, section [Unreleased] datée, notes de release, commit de release, tag annoté et, si demandé, description de MR/PR — et la fait valider avant tout commit ou tag. Ne pousse jamais (le push revient à l'utilisateur)."
 mode: primary
-model: claude-sonnet-4-6
+model: claude-sonnet-5-5
 permission:
   question: allow
   skill: allow

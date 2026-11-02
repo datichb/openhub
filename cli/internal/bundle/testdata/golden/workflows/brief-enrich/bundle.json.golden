@@ -4,7 +4,7 @@
     {
       "id": "brief-enricher",
       "mode": "primary",
-      "model": "/claude-sonnet-4-6",
+      "model": "/claude-sonnet-5-5",
       "permissions": [
         "shell * deny",
         "edit * deny",

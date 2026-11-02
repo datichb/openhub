@@ -45,13 +45,13 @@ func TestTeamModelOverrides(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(dir, ".git"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	cfg := "[models]\ndefault = \"claude-sonnet-4-6\"\n[models.agents]\nreviewer = \"claude-opus-4-6\"\n[models.families]\nquality = \"claude-haiku-4-5\"\n"
+	cfg := "[models]\ndefault = \"claude-sonnet-5-5\"\n[models.agents]\nreviewer = \"claude-opus-4-6\"\n[models.families]\nquality = \"claude-haiku-4-5\"\n"
 	if err := os.WriteFile(filepath.Join(dir, "config.toml"), []byte(cfg), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	tc := config.ResolvedTeamConfig{Enabled: true, TeamID: "t", StatePath: dir}
 	got := teamModelOverrides(tc)
-	if got == nil || got.Default != "claude-sonnet-4-6" || got.Agents["reviewer"] != "claude-opus-4-6" || got.Families["quality"] != "claude-haiku-4-5" {
+	if got == nil || got.Default != "claude-sonnet-5-5" || got.Agents["reviewer"] != "claude-opus-4-6" || got.Families["quality"] != "claude-haiku-4-5" {
 		t.Fatalf("overrides = %+v", got)
 	}
 	req := bundle.Request{TeamOverrides: got}

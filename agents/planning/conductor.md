@@ -12,7 +12,7 @@ permission:
   grep: deny
   task:
     "*": allow
-model: claude-sonnet-4-6
+model: claude-sonnet-5-5
 skills: [shared/universal-guardrails, posture/core-posture, posture/user-facing-posture, posture/coordinator-posture, workflow/workflow-map]
 native_skills: [shared/rtk-usage, shared/team-awareness, shared/team-policies-enforcement]
 project_instructions: none
