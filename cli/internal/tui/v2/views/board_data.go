@@ -35,18 +35,25 @@ type TeamTicket struct {
 // Returns the input as-is if no mapping is found.
 type ProjectNameResolver func(projectDirID string) string
 
+// TeamTicketSource is what the board reads of the team-state: the members
+// (their display names) and the claims (the tickets).
+type TeamTicketSource interface {
+	teamstate.MemberReader
+	teamstate.ClaimReader
+}
+
 // FetchTeamTickets builds the ticket list from team-state claims for the board views.
 // Members with no active claims are omitted — the board shows tickets, not people.
 // resolver is optional — if nil, project directory names are used as-is.
 // Uses DefaultColumns() for status mapping. For custom columns, use FetchTeamTicketsWithColumns.
-func FetchTeamTickets(repo teamstate.TeamStateReader, resolver ProjectNameResolver) []TeamTicket {
+func FetchTeamTickets(repo TeamTicketSource, resolver ProjectNameResolver) []TeamTicket {
 	return FetchTeamTicketsWithColumns(repo, resolver, nil)
 }
 
 // FetchTeamTicketsWithColumns is like FetchTeamTickets but uses the provided
 // column definitions for status mapping. If columns is nil, falls back to
 // the legacy MapClaimStatus (DefaultColumns-compatible).
-func FetchTeamTicketsWithColumns(repo teamstate.TeamStateReader, resolver ProjectNameResolver, columns []BoardColumnDef) []TeamTicket {
+func FetchTeamTicketsWithColumns(repo TeamTicketSource, resolver ProjectNameResolver, columns []BoardColumnDef) []TeamTicket {
 	members, err := repo.ListMembers()
 	if err != nil {
 		return nil

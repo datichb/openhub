@@ -29,11 +29,24 @@ type TakeoverView struct {
 	briefRead   loadSlot // the read of the brief being opened
 
 	// read replaces the read of the briefs (tests).
-	read func(repo teamstate.TeamStateReader) (takeoverData, error)
+	read func(repo takeoverReader) (takeoverData, error)
 }
 
 // takeoverEnrichKey asks the AI to enrich the brief under the cursor.
 var takeoverEnrichKey = keys.Own("takeover.enrich", 'e', "tui.hints.enrich_ai")
+
+// takeoverReader is what the view reads of the team-state: whether the clone
+// is there, and the briefs.
+type takeoverReader interface {
+	teamstate.RepoInfo
+	teamstate.BriefReader
+}
+
+// takeoverState is the team-state of the view: pulled, then read.
+type takeoverState interface {
+	pullableRepo
+	takeoverReader
+}
 
 // takeoverData is what a read of the briefs gives back.
 type takeoverData struct {
@@ -143,7 +156,7 @@ func (v *TakeoverView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 
 // newRepo is the team-state of the team, without touching the disk (nil
 // without a team).
-func (v *TakeoverView) newRepo() teamstate.TeamStateWriter {
+func (v *TakeoverView) newRepo() takeoverState {
 	tc := v.resolveTeam()
 	if !tc.Enabled {
 		return nil
@@ -180,7 +193,7 @@ func (v *TakeoverView) refresh() {
 }
 
 // readTakeover reads the briefs. It reads files: call it off the event loop.
-func readTakeover(repo teamstate.TeamStateReader) (takeoverData, error) {
+func readTakeover(repo takeoverReader) (takeoverData, error) {
 	if !repo.IsCloned() {
 		return takeoverData{}, nil
 	}

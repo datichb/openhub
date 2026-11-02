@@ -34,13 +34,20 @@ type ActivityView struct {
 	loads       loadSlot // the reads of the events: only the latest is applied
 
 	// read replaces the read of the events (tests).
-	read func(repo teamstate.TeamStateReader, filter string) (activityData, error)
+	read func(repo activityReader, filter string) (activityData, error)
 }
 
 // activityData is what a read of the activity gives back.
 type activityData struct {
 	cloned bool
 	events []teamstate.Event
+}
+
+// activityReader is what the view reads of the team-state: whether the clone
+// is there, and the events.
+type activityReader interface {
+	teamstate.RepoInfo
+	teamstate.EventReader
 }
 
 var _ View = (*ActivityView)(nil)
@@ -134,7 +141,7 @@ func (v *ActivityView) refresh() {
 
 // readActivity reads the events of the period of filter. It reads files: call
 // it off the event loop.
-func readActivity(repo teamstate.TeamStateReader, filter string) (activityData, error) {
+func readActivity(repo activityReader, filter string) (activityData, error) {
 	if !repo.IsCloned() {
 		return activityData{}, nil
 	}

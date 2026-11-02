@@ -24,7 +24,7 @@ type TeamStatusView struct {
 	loads       loadSlot // the reads of the team-state: only the latest is applied
 
 	// read replaces the read of the team-state (tests).
-	read func(repo teamstate.TeamStateReader) *teamStatusData
+	read func(repo teamStatusReader) *teamStatusData
 }
 
 // teamStatusData is what a read of the team-state gives back.
@@ -35,6 +35,15 @@ type teamStatusData struct {
 	membersErr error
 	claimsErr  error
 	eventsErr  error
+}
+
+// teamStatusReader is what the view reads of the team-state: whether the clone
+// is there, the members, the claims and the last events.
+type teamStatusReader interface {
+	teamstate.RepoInfo
+	teamstate.MemberReader
+	teamstate.ClaimReader
+	teamstate.EventReader
 }
 
 var _ View = (*TeamStatusView)(nil)
@@ -119,7 +128,7 @@ func (v *TeamStatusView) syncAndRender() {
 // readTeamStatus reads the members, the claims and the last events; nil when
 // the clone of the team-state is missing. It reads files: call it off the
 // event loop.
-func readTeamStatus(repo teamstate.TeamStateReader) *teamStatusData {
+func readTeamStatus(repo teamStatusReader) *teamStatusData {
 	if !repo.IsCloned() {
 		return nil
 	}

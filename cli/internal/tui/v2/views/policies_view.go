@@ -46,11 +46,20 @@ type PolicyService interface {
 	Remove(ctx context.Context, name string) error
 }
 
-// PolicyServiceFunc builds the service of a team-state repository.
-type PolicyServiceFunc func(repo teamstate.TeamStateWriter) PolicyService
+// policiesState is the team-state of the view: pulled, read (the policies and
+// their check) and changed through the policy service (a transaction).
+type policiesState interface {
+	teamstate.RepoInfo
+	teamstate.RepoSync
+	teamstate.PolicyReader
+	teamstate.PolicyWriter
+}
 
-func defaultPolicyService(repo teamstate.TeamStateWriter) PolicyService {
-	return policy.New(repo)
+// PolicyServiceFunc builds the service of a team-state repository.
+type PolicyServiceFunc func(store policy.Store) PolicyService
+
+func defaultPolicyService(store policy.Store) PolicyService {
+	return policy.New(store)
 }
 
 // builtinPolicyTemplates returns the list of available policy templates.
@@ -268,7 +277,7 @@ func (v *PoliciesView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 
 // newRepo is the team-state of the team, without touching the disk (nil
 // without a team).
-func (v *PoliciesView) newRepo() teamstate.TeamStateWriter {
+func (v *PoliciesView) newRepo() policiesState {
 	tc := v.resolveTeam()
 	if !tc.Enabled {
 		return nil
@@ -612,7 +621,7 @@ func (v *PoliciesView) setEnforcement(policyIdx int, enforcement teamstate.Polic
 // clone is there, pulls and pushes the team-state), then, on the loop, shows the error or the success
 // toast and reloads the list. Without a running application (tests) it runs
 // inline.
-func (v *PoliciesView) mutate(repo teamstate.TeamStateWriter, op func(ctx context.Context, svc PolicyService) error, success string) {
+func (v *PoliciesView) mutate(repo policiesState, op func(ctx context.Context, svc PolicyService) error, success string) {
 	svc := v.newService(repo)
 	ctx := context.Background()
 	if v.shell != nil {
@@ -798,7 +807,7 @@ func (v *PoliciesView) checkPolicies() {
 // policyCheckContext is what the policies are checked against: the member,
 // and, from the first project of the hub, its branch, its diff and its files.
 // It runs git and reads files: call it off the event loop.
-func policyCheckContext(repo teamstate.TeamStateReader, appCtx *app.App, member, configuredBase string) teamstate.PolicyContext {
+func policyCheckContext(repo teamstate.PolicyReader, appCtx *app.App, member, configuredBase string) teamstate.PolicyContext {
 	ctx := teamstate.PolicyContext{MemberID: member}
 	if appCtx == nil || appCtx.Projects == nil {
 		return ctx
@@ -911,7 +920,7 @@ func (v *PoliciesView) addPolicy() {
 // showPolicyForm displays the policy creation/edit form.
 // If editName is non-empty, this is an edit (Update); otherwise a creation
 // (Add). Both go through the policy service, off the event loop.
-func (v *PoliciesView) showPolicyForm(repo teamstate.TeamStateWriter, tpl *policyTemplate, editName string) {
+func (v *PoliciesView) showPolicyForm(repo policiesState, tpl *policyTemplate, editName string) {
 	defaultName := ""
 	defaultType := "regex"
 	defaultTarget := ""
