@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -238,10 +239,52 @@ func TestTeamMCPViewSaveKeepsARecordedFigmaURL(t *testing.T) {
 		v.dirtyLocal = true
 		v.save()
 	})
+	waitFor(t, app, func() bool { return !v.saving }) // the write runs off the loop
 
 	got, err := config.Read()
 	require.NoError(t, err)
 	assert.True(t, got.MCP.Figma.Enabled)
 	assert.Equal(t, "https://recorded.example", got.MCP.Figma.URL)
 	assert.Equal(t, "https://slides.recorded.example", got.MCP.Gslides.URL)
+}
+
+// Saved off the event loop, one at a time: an edit made while a save runs is
+// written by a second save, and a failed write gives the changes back.
+func TestTeamMCPViewSavesOffTheLoopOneAtATime(t *testing.T) {
+	frLocale(t)
+	release := make(chan struct{})
+	started := make(chan struct{}, 4)
+	var calls atomic.Int32
+	var failFirst atomic.Bool
+	failFirst.Store(true)
+	v, sh, _, app := mountTeamMCP(t, TeamMCPViewConfig{
+		UpdateHubConfig: func(fn func(*config.Config) error) error {
+			calls.Add(1)
+			started <- struct{}{}
+			<-release
+			if failFirst.CompareAndSwap(true, false) {
+				return errors.New("disk full")
+			}
+			return fn(&config.Config{})
+		},
+	})
+	onLoop(app, func() {
+		v.localMCP.Gitlab.Enabled = true
+		v.dirtyLocal = true
+		v.save() // returns at once
+		assert.True(t, v.saving)
+		assert.False(t, v.dirtyLocal, "the flag goes down for the write; an edit sets it again")
+		v.localMCP.Jira.Enabled = true
+		v.dirtyLocal = true
+		v.save()
+		assert.True(t, v.saveAgain)
+	})
+	<-started
+	assert.EqualValues(t, 1, calls.Load(), "one write at a time")
+	release <- struct{}{} // the first write fails
+	waitFor(t, app, func() bool { return !v.saving })
+	onLoop(app, func() {
+		assert.True(t, v.dirtyLocal, "a failed save leaves the changes to save")
+		assert.Contains(t, sh.lastToast(), "disk full")
+	})
 }

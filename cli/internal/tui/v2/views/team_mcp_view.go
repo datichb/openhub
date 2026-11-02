@@ -28,8 +28,10 @@ type TeamMCPViewConfig struct {
 	ResolveTeam ResolveTeamFunc
 	// GetMCPConfig returns the local hub.toml MCP configuration.
 	GetMCPConfig func() config.MCPConfig
-	// SaveTeamConfig persists the team-state config to the team-state repo.
-	SaveTeamConfig func(ctx context.Context, cfg *teamstate.TeamConfig) error
+	// SaveTeamConfig is called on the event loop and gives the function that
+	// writes the team-state config to the team-state repo, which the view
+	// runs off the loop. Nil: nothing to save with.
+	SaveTeamConfig func() TeamConfigWriter
 	// SaveLocalMCP persists a local hub.toml MCP override key/value.
 	SaveLocalMCP func(key, value string) error
 	// UpdateHubConfig changes hub.toml: fn receives the file as it is on disk
@@ -71,7 +73,10 @@ type TeamMCPView struct {
 	fields     []configField
 	dirtyTeam  bool
 	dirtyLocal bool
-	undoStack  *widgets.UndoStack[teamMCPSnapshot]
+	// saving is true while a save runs off the event loop; saveAgain, that an
+	// edit asked for another one meanwhile.
+	saving, saveAgain bool
+	undoStack         *widgets.UndoStack[teamMCPSnapshot]
 }
 
 // teamMCPSnapshot holds combined state for undo.
@@ -444,15 +449,19 @@ func (v *TeamMCPView) onItemSelected(_ int, item widgets.SectionItem) {
 			if val == "" {
 				return
 			}
-			if v.cfg.SetSecret != nil {
-				ctx := context.Background()
-				if err := v.cfg.SetSecret(ctx, tokenKey, val); err != nil {
+			persist(v.app, func(ctx context.Context) error {
+				if v.cfg.SetSecret == nil {
+					return nil
+				}
+				return v.cfg.SetSecret(ctx, tokenKey, val)
+			}, func(err error) {
+				if err != nil {
 					v.shell.ShowToastMsg(errorText(err), false)
 					return
 				}
-			}
-			v.renderFields()
-			v.shell.ShowToastMsg(i18n.T("tui.settings.secret_updated"), true)
+				v.renderFields()
+				v.shell.ShowToastMsg(i18n.T("tui.settings.secret_updated"), true)
+			})
 		})
 		return
 	}
@@ -593,40 +602,94 @@ func (v *TeamMCPView) save() {
 	if v.shell == nil {
 		return
 	}
-	ctx := context.Background()
-	var saved []string
-
-	if v.dirtyTeam && v.cfg.SaveTeamConfig != nil {
-		if err := v.cfg.SaveTeamConfig(ctx, v.teamCfg); err != nil {
-			v.shell.ShowToastMsg(i18n.T("tui.team_mcp.save_error_team")+err.Error(), false)
-			return
+	if v.saving {
+		v.saveAgain = true
+		return
+	}
+	// What the write needs from the view and the app is taken here, on the
+	// event loop; the write runs off it.
+	var (
+		writeTeam TeamConfigWriter
+		teamCopy  teamstate.TeamConfig
+		patch     func(*config.MCPConfig)
+		newMCP    = v.localMCP
+	)
+	saveTeam := v.dirtyTeam && v.cfg.SaveTeamConfig != nil
+	if saveTeam {
+		if writeTeam = v.cfg.SaveTeamConfig(); writeTeam == nil {
+			saveTeam = false
+		} else {
+			teamCopy = deepCopyTeamConfig(v.teamCfg)
 		}
-		saved = append(saved, i18n.T("tui.team_mcp.scope_team"))
+	}
+	saveLocal := v.dirtyLocal
+	writeLocal := saveLocal && v.cfg.UpdateHubConfig != nil
+	if writeLocal {
+		patch = config.Patch(v.baseMCP, v.localMCP)
+	}
+	// the flags go down now: an edit made during the write sets them again
+	if saveTeam {
 		v.dirtyTeam = false
 	}
-
-	if v.dirtyLocal {
-		if v.cfg.UpdateHubConfig != nil {
-			patch := config.Patch(v.baseMCP, v.localMCP)
-			if err := v.cfg.UpdateHubConfig(func(c *config.Config) error {
-				patch(&c.MCP)
-				return nil
-			}); err != nil {
-				v.shell.ShowToastMsg(i18n.T("tui.team_mcp.save_error_local")+err.Error(), false)
-				return
-			}
-			v.baseMCP = v.localMCP
-		}
-		saved = append(saved, i18n.T("tui.team_mcp.scope_local"))
+	if saveLocal {
 		v.dirtyLocal = false
 	}
 
-	if len(saved) == 0 {
-		v.shell.ShowToastMsg(i18n.T("tui.team_mcp.no_changes"), true)
-		return
-	}
-	v.shell.ShowToastMsg(i18n.Tf("tui.team_mcp.saved", strings.Join(saved, " + ")), true)
-	v.renderFields()
+	var teamDone, localDone bool
+	var teamErr, localErr error
+	v.saving = true
+	persist(v.app, func(ctx context.Context) error {
+		if saveTeam {
+			if teamErr = writeTeam(ctx, &teamCopy); teamErr != nil {
+				return teamErr
+			}
+			teamDone = true
+		}
+		if writeLocal {
+			if localErr = v.cfg.UpdateHubConfig(func(c *config.Config) error {
+				patch(&c.MCP)
+				return nil
+			}); localErr != nil {
+				return localErr
+			}
+			localDone = true
+		}
+		return nil
+	}, func(error) {
+		v.saving = false
+		again := v.saveAgain
+		v.saveAgain = false
+		switch {
+		case teamErr != nil:
+			v.dirtyTeam = true
+			v.dirtyLocal = v.dirtyLocal || saveLocal // not tried
+			v.shell.ShowToastMsg(i18n.T("tui.team_mcp.save_error_team")+teamErr.Error(), false)
+			return
+		case localErr != nil:
+			v.dirtyLocal = true
+			v.shell.ShowToastMsg(i18n.T("tui.team_mcp.save_error_local")+localErr.Error(), false)
+			return
+		}
+		var saved []string
+		if teamDone {
+			saved = append(saved, i18n.T("tui.team_mcp.scope_team"))
+		}
+		if saveLocal {
+			if localDone {
+				v.baseMCP = newMCP
+			}
+			saved = append(saved, i18n.T("tui.team_mcp.scope_local"))
+		}
+		if len(saved) == 0 {
+			v.shell.ShowToastMsg(i18n.T("tui.team_mcp.no_changes"), true)
+			return
+		}
+		v.shell.ShowToastMsg(i18n.Tf("tui.team_mcp.saved", strings.Join(saved, " + ")), true)
+		v.renderFields()
+		if again {
+			v.save()
+		}
+	})
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -108,10 +108,12 @@ func newTokenEnv(t *testing.T, trackerType string) *tokenEnv {
 			e.secrets[key] = value
 			return nil
 		},
-		SaveTeamConfig: func(_ context.Context, cfg *teamstate.TeamConfig) error {
-			c := *cfg
-			e.saved = &c
-			return nil
+		SaveTeamConfig: func() TeamConfigWriter {
+			return func(_ context.Context, cfg *teamstate.TeamConfig) error {
+				c := *cfg
+				e.saved = &c
+				return nil
+			}
 		},
 	})
 	e.v.SetShell(e.sh)

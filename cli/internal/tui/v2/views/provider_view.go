@@ -663,13 +663,19 @@ func (v *ProviderView) editCurrent() {
 			if line.provider == "bedrock" {
 				keychainKey = provider.KeychainKey(provider.Bedrock, "")
 			}
-			if keychainKey != "" {
-				if err := v.vcfg.SetSecret(context.Background(), keychainKey, val); err != nil {
-					v.shell.ShowToastMsg(errorText(err), false)
+			persist(v.app, func(ctx context.Context) error {
+				if keychainKey == "" {
+					return nil
 				}
-			}
-			v.renderList()
-			v.shell.ShowToastMsg(i18n.Tf("tui.provider.token_saved", line.provider), true)
+				return v.vcfg.SetSecret(ctx, keychainKey, val)
+			}, func(err error) {
+				if err != nil {
+					v.shell.ShowToastMsg(errorText(err), false)
+					return
+				}
+				v.renderList()
+				v.shell.ShowToastMsg(i18n.Tf("tui.provider.token_saved", line.provider), true)
+			})
 		})
 
 	case "action":
@@ -764,16 +770,21 @@ func (v *ProviderView) resetCurrentProvider() {
 			}) {
 				return
 			}
-			if v.vcfg.DeleteSecret != nil {
-				if key := resetSecretKey(name); key != "" {
-					if err := v.vcfg.DeleteSecret(context.Background(), key); err != nil {
-						v.shell.ShowToastMsg(errorText(err), false)
-					}
+			key := resetSecretKey(name)
+			persist(v.app, func(ctx context.Context) error {
+				if v.vcfg.DeleteSecret == nil || key == "" {
+					return nil
 				}
-			}
-			v.buildLines()
-			v.renderList()
-			v.shell.ShowToastMsg(i18n.Tf("tui.provider.reset_done", name), true)
+				return v.vcfg.DeleteSecret(ctx, key)
+			}, func(err error) {
+				v.buildLines()
+				v.renderList()
+				if err != nil {
+					v.shell.ShowToastMsg(errorText(err), false)
+					return
+				}
+				v.shell.ShowToastMsg(i18n.Tf("tui.provider.reset_done", name), true)
+			})
 		})
 }
 
@@ -900,32 +911,41 @@ func (v *ProviderView) setupBedrock() {
 				},
 				OnSubmit: func(values map[string]string, _ map[string][]string) {
 					token := values["token"]
-					// Store new token in keychain if provided.
-					if token != "" && v.vcfg.SetSecret != nil {
-						if err := v.vcfg.SetSecret(context.Background(), provider.KeychainKey(provider.Bedrock, ""), token); err != nil {
-							v.shell.ShowToastMsg(errorText(err), false)
+					proceed := func() {
+						// Reject if no token at all (neither new nor in keychain).
+						if token == "" && !hasKeychainToken {
+							v.shell.ShowToastMsg(i18n.T("cmd.init.wizard_token_required"), false)
+							return
 						}
+						region := values["region"]
+						if region == "custom" {
+							// Open a second form for custom region input.
+							v.shell.ShowInlineForm(InlineFormConfig{
+								Title: i18n.T("cmd.init.wizard_custom_region_input"),
+								Fields: []FormField{
+									{Label: "Region", Key: "region", Type: FieldText, Required: true, Validate: provider.RegionProblem},
+								},
+								OnSubmit: func(vals map[string]string, _ map[string][]string) {
+									saveBedrock("", vals["region"], "tui.provider.bedrock_configured_bearer")
+								},
+							})
+							return
+						}
+						saveBedrock("", region, "tui.provider.bedrock_configured_bearer")
 					}
-					// Reject if no token at all (neither new nor in keychain).
-					if token == "" && !hasKeychainToken {
-						v.shell.ShowToastMsg(i18n.T("cmd.init.wizard_token_required"), false)
-						return
-					}
-					region := values["region"]
-					if region == "custom" {
-						// Open a second form for custom region input.
-						v.shell.ShowInlineForm(InlineFormConfig{
-							Title: i18n.T("cmd.init.wizard_custom_region_input"),
-							Fields: []FormField{
-								{Label: "Region", Key: "region", Type: FieldText, Required: true, Validate: provider.RegionProblem},
-							},
-							OnSubmit: func(vals map[string]string, _ map[string][]string) {
-								saveBedrock("", vals["region"], "tui.provider.bedrock_configured_bearer")
-							},
+					// Store new token in keychain if provided (off the event loop).
+					if token != "" && v.vcfg.SetSecret != nil {
+						persist(v.app, func(ctx context.Context) error {
+							return v.vcfg.SetSecret(ctx, provider.KeychainKey(provider.Bedrock, ""), token)
+						}, func(err error) {
+							if err != nil {
+								v.shell.ShowToastMsg(errorText(err), false)
+							}
+							proceed()
 						})
 						return
 					}
-					saveBedrock("", region, "tui.provider.bedrock_configured_bearer")
+					proceed()
 				},
 			})
 		case "profile":
@@ -966,20 +986,25 @@ func (v *ProviderView) setupAPIKey(name provider.Name, title string) {
 			return
 		}
 		keychainKey := provider.KeychainKey(name, "")
-		if v.vcfg.SetSecret != nil && keychainKey != "" {
-			if err := v.vcfg.SetSecret(context.Background(), keychainKey, key); err != nil {
+		persist(v.app, func(ctx context.Context) error {
+			if v.vcfg.SetSecret == nil || keychainKey == "" {
+				return nil
+			}
+			return v.vcfg.SetSecret(ctx, keychainKey, key)
+		}, func(err error) {
+			if err != nil {
 				v.shell.ShowToastMsg(errorText(err), false)
 			}
-		}
-		if err := v.vcfg.UpdateConfig(func(c *config.Config) error {
-			c.LLM.DefaultProvider = string(name)
-			return nil
-		}); err != nil {
-			v.shell.ShowToastMsg(errorText(err), false)
-		}
-		v.buildLines()
-		v.renderList()
-		v.shell.ShowToastMsg(i18n.Tf("tui.provider.configured", string(name)), true)
+			if err := v.vcfg.UpdateConfig(func(c *config.Config) error {
+				c.LLM.DefaultProvider = string(name)
+				return nil
+			}); err != nil {
+				v.shell.ShowToastMsg(errorText(err), false)
+			}
+			v.buildLines()
+			v.renderList()
+			v.shell.ShowToastMsg(i18n.Tf("tui.provider.configured", string(name)), true)
+		})
 	})
 }
 

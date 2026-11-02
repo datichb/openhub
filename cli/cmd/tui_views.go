@@ -486,20 +486,9 @@ func buildViews(a *app.App) []views.View {
 			GetTrackerLocalConfig: func() config.TrackerLocalConfig {
 				return a.Config.Tracker
 			},
-			ResolveTeam: makeResolveTeamFunc(a),
-			PromoteSolo: tuiPromoteSolo,
-			SaveTeamConfig: func(ctx context.Context, cfg *teamstate.TeamConfig) error {
-				project, _ := resolveActiveProject(a)
-				tc := resolvedTeamConfig(a, project)
-				if !tc.Enabled {
-					return errors.New(i18n.T("tui.views.team_not_configured"))
-				}
-				repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
-				if err := repo.SaveConfig(ctx, cfg); err != nil {
-					return err
-				}
-				return nil
-			},
+			ResolveTeam:      makeResolveTeamFunc(a),
+			PromoteSolo:      tuiPromoteSolo,
+			SaveTeamConfig:   func() views.TeamConfigWriter { return teamConfigWriter(a) },
 			SaveLocalMCP:     func(key, value string) error { return nil },
 			SaveLocalTracker: func(key, value string) error { return nil },
 			GetSecrets: func() tracker.SecretGetter {
@@ -508,7 +497,7 @@ func buildViews(a *app.App) []views.View {
 			GetHubConfig: func() *config.Config {
 				return a.Config
 			},
-			UpdateHubConfig: func(fn func(*config.Config) error) error { return updateHubConfig(a, fn) },
+			UpdateHubConfig: func(fn func(*config.Config) error) error { return updateHubConfigOffLoop(a, fn) },
 			ListProjects: func(ctx context.Context) []views.ProjectInfo {
 				projects, err := a.Projects.List(ctx, "")
 				if err != nil {
@@ -572,18 +561,10 @@ func buildViews(a *app.App) []views.View {
 		}),
 		// Team sub-pages
 		views.NewTeamMCPView(views.TeamMCPViewConfig{
-			ResolveTeam:  makeResolveTeamFunc(a),
-			GetMCPConfig: func() config.MCPConfig { return a.Config.MCP },
-			SaveTeamConfig: func(ctx context.Context, cfg *teamstate.TeamConfig) error {
-				project, _ := resolveActiveProject(a)
-				tc := resolvedTeamConfig(a, project)
-				if !tc.Enabled {
-					return errors.New(i18n.T("tui.views.team_not_configured"))
-				}
-				repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
-				return repo.SaveConfig(ctx, cfg)
-			},
-			UpdateHubConfig: func(fn func(*config.Config) error) error { return updateHubConfig(a, fn) },
+			ResolveTeam:     makeResolveTeamFunc(a),
+			GetMCPConfig:    func() config.MCPConfig { return a.Config.MCP },
+			SaveTeamConfig:  func() views.TeamConfigWriter { return teamConfigWriter(a) },
+			UpdateHubConfig: func(fn func(*config.Config) error) error { return updateHubConfigOffLoop(a, fn) },
 			CheckSecret: func(ctx context.Context, key string) (bool, string) {
 				if a.Secrets == nil {
 					return false, ""
@@ -607,16 +588,8 @@ func buildViews(a *app.App) []views.View {
 			TestMCP: func(service string) func(context.Context) (string, error) { return prepareMCPTest(a, service) },
 		}),
 		views.NewTeamModelsView(views.TeamModelsViewConfig{
-			ResolveTeam: makeResolveTeamFunc(a),
-			SaveTeamConfig: func(ctx context.Context, cfg *teamstate.TeamConfig) error {
-				project, _ := resolveActiveProject(a)
-				tc := resolvedTeamConfig(a, project)
-				if !tc.Enabled {
-					return errors.New(i18n.T("tui.views.team_not_configured"))
-				}
-				repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
-				return repo.SaveConfig(ctx, cfg)
-			},
+			ResolveTeam:    makeResolveTeamFunc(a),
+			SaveTeamConfig: func() views.TeamConfigWriter { return teamConfigWriter(a) },
 		}),
 		// Hub config view
 		views.NewSettingsView(views.SettingsViewConfig{
@@ -636,7 +609,7 @@ func buildViews(a *app.App) []views.View {
 				_ = refreshSharedConfig(a)
 				return a.Config
 			},
-			UpdateConfig: func(fn func(*config.Config) error) error { return updateHubConfig(a, fn) },
+			UpdateConfig: func(fn func(*config.Config) error) error { return updateHubConfigOffLoop(a, fn) },
 			CheckSecret: func(ctx context.Context, key string) (bool, string) {
 				if a.Secrets == nil {
 					return false, ""

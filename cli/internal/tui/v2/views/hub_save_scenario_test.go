@@ -97,6 +97,7 @@ func TestTeamMCPViewSaveKeepsTheFieldsTheWizardWrote(t *testing.T) {
 		v.dirtyLocal = true
 		v.save()
 	})
+	waitFor(t, app, func() bool { return !v.saving }) // the write runs off the loop
 
 	got := requireWizardFields(t)
 	assert.True(t, got.MCP.Gitlab.Enabled, "the edit is saved")
@@ -110,6 +111,7 @@ func TestTeamMCPViewSaveKeepsTheFieldsTheWizardWrote(t *testing.T) {
 		v.dirtyLocal = true
 		v.save()
 	})
+	waitFor(t, app, func() bool { return !v.saving }) // the write runs off the loop
 	got = requireWizardFields(t)
 	assert.True(t, got.MCP.Gitlab.Enabled)
 	assert.True(t, got.MCP.Gitlab.WriteEnabled)
@@ -144,6 +146,7 @@ func TestTeamDetailViewSaveKeepsTheFieldsTheWizardWrote(t *testing.T) {
 		v.dirtyLocal = true
 		v.save()
 	})
+	waitFor(t, app, func() bool { return !v.saving }) // the write runs off the loop
 
 	got := requireWizardFields(t)
 	require.NotNil(t, got.Tracker.AutoSync)
@@ -177,6 +180,7 @@ func TestTeamMCPViewSaveKeepsWhatAnotherProcessWrote(t *testing.T) {
 		v.dirtyLocal = true
 		v.save()
 	})
+	waitFor(t, app, func() bool { return !v.saving }) // the write runs off the loop
 
 	got, err := config.Read()
 	require.NoError(t, err)

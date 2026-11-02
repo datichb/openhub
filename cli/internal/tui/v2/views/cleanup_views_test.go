@@ -243,12 +243,14 @@ func TestTeamModelsViewKeys(t *testing.T) {
 	cfg.Models.Families = map[string]string{"quality": "sonnet"}
 	require.NoError(t, repo.SaveConfig(context.Background(), cfg))
 
-	var saved *teamstate.TeamConfig
+	var saved atomic.Pointer[teamstate.TeamConfig] // written off the event loop
 	v := NewTeamModelsView(TeamModelsViewConfig{
 		ResolveTeam: func() TeamResolution { return tc },
-		SaveTeamConfig: func(_ context.Context, c *teamstate.TeamConfig) error {
-			saved = c
-			return nil
+		SaveTeamConfig: func() TeamConfigWriter {
+			return func(_ context.Context, c *teamstate.TeamConfig) error {
+				saved.Store(c)
+				return nil
+			}
 		},
 	})
 	sh := &viewShell{}
@@ -264,8 +266,8 @@ func TestTeamModelsViewKeys(t *testing.T) {
 	require.Equal(t, 1, sh.confirmCount())
 	sh.confirmed(t, app)
 	onLoop(app, func() { v.HandleKey(runeKey('w')) })
-	require.NotNil(t, saved)
-	assert.NotContains(t, saved.Models.Families, "quality")
+	require.Eventually(t, func() bool { return saved.Load() != nil }, 3*time.Second, 5*time.Millisecond)
+	assert.NotContains(t, saved.Load().Models.Families, "quality")
 }
 
 // ── Patterns ───────────────────────────────────────────────────────────────
@@ -482,12 +484,14 @@ func TestProjectMCPViewToggleAndUndo(t *testing.T) {
 func TestTeamMCPViewRefreshAsksWhenDirty(t *testing.T) {
 	frLocale(t)
 	_, tc := soloState(t)
-	var saved *teamstate.TeamConfig
+	var saved atomic.Pointer[teamstate.TeamConfig] // written off the event loop
 	var loads atomic.Int32
 	v := NewTeamMCPView(TeamMCPViewConfig{
-		ResolveTeam:    func() TeamResolution { return tc },
-		GetMCPConfig:   func() config.MCPConfig { loads.Add(1); return config.MCPConfig{} },
-		SaveTeamConfig: func(_ context.Context, c *teamstate.TeamConfig) error { saved = c; return nil },
+		ResolveTeam:  func() TeamResolution { return tc },
+		GetMCPConfig: func() config.MCPConfig { loads.Add(1); return config.MCPConfig{} },
+		SaveTeamConfig: func() TeamConfigWriter {
+			return func(_ context.Context, c *teamstate.TeamConfig) error { saved.Store(c); return nil }
+		},
 	})
 	sh := &viewShell{}
 	v.SetShell(sh)
@@ -516,7 +520,7 @@ func TestTeamMCPViewRefreshAsksWhenDirty(t *testing.T) {
 	onLoop(app, func() { v.HandleKey(runeKey('r')) })
 	assert.Equal(t, 1, sh.confirmCount(), "r asks before dropping the changes")
 	onLoop(app, func() { v.HandleKey(runeKey('w')) })
-	assert.NotNil(t, saved)
+	require.Eventually(t, func() bool { return saved.Load() != nil }, 3*time.Second, 5*time.Millisecond)
 }
 
 // ── History ────────────────────────────────────────────────────────────────
