@@ -31,6 +31,12 @@ La barre de mode affiche le badge des sessions **`● N ◐ M`** (N sessions qui
 
 **Petits terminaux** : sous 32 lignes, mise en page compacte (bandeau sur une ligne, omnibar et barre de mode sur 3 lignes) ; sous 60×16, message « Terminal trop petit » et seul `Ctrl+Q` fonctionne. Réglage `[cli] compact = auto | always | never`. Le changement de mise en page garde l'élément sélectionné.
 
+**Accueils.** Les trois accueils dessinent leur nom dans la bannière tel qu'il a été saisi (une équipe « Core » n'est pas « CORE » ; le Hub dessine le logo « OPENHUB »).
+
+- **Hub** : sous la bannière, la ligne de l'outil `opencode v2.0.20 · adaptateur opencode-v2 ✔` (l'outil et l'adaptateur qui lancent les sessions). La section Système liste Configuration, Métriques, Doctor, Secrets, **Notifications** et le **Catalogue des briques**.
+- **Projet** : l'en-tête donne le chemin et la branche, la ligne de l'outil et les environnements d'exécution avec leur état, `exécution : ⌂ local ✔  ▣ conteneur · colima ✔  ☁ distant ✗` (lus à l'ouverture de l'accueil, hors de la boucle d'événements).
+- **Équipe** : en plus des *Sessions de l'équipe*, la section **Sessions des autres membres** liste, d'après les claims du team-state, qui travaille sur quel ticket (membre, ticket, session, depuis quand ; `●` le claim est vivant, `○` son bail est dépassé). Elle est en **lecture seule** : `Entrée` ouvre une fenêtre de détail avec un seul bouton *Fermer* ; une session tourne sur la machine de son membre, oh n'agit pas dessus.
+
 ## Touches globales
 
 | Touche | Action |
@@ -39,7 +45,7 @@ La barre de mode affiche le badge des sessions **`● N ◐ M`** (N sessions qui
 | `/` | Filtrer la liste de la vue ; si la vue ne filtre pas : palette |
 | `?` / `F1` | Aide : touches globales, convention, touches de la vue active, légende, commandes |
 | `Échap` | Ferme d'abord les toasts ; sinon revient (vue précédente) ; à la racine d'une vue Projet ou Équipe : retour à la vue Hub |
-| `Ctrl+T` | Vue Équipe (choix si plusieurs équipes) ; depuis la vue Équipe : retour à la vue Hub |
+| `Ctrl+T` | Vue suivante du cycle **Hub → Projet → Équipe → Hub**, en sautant ce qui n'est pas configuré : depuis le Hub, le projet quitté (le seul, ou un choix parmi plusieurs), sinon l'équipe ; depuis le Projet, l'équipe (choix si plusieurs), sinon le Hub ; depuis l'Équipe, le Hub |
 | `Ctrl+Q` / `Ctrl+C` | Quitter (si des sessions travaillent : finir l'étape puis veille, arrière-plan ou arrêter) |
 | `Entrée` | Action de la liste, du bouton ou du champ sélectionné ; palette seulement si rien ne l'utilise |
 
@@ -62,6 +68,7 @@ Une touche a le même sens dans toutes les vues. Une vue peut donner une lettre 
 | Partout | `?` / `F1` | Aide et touches |
 | Partout | `Entrée` | Ouvrir l'élément sélectionné |
 | Partout | `Échap` | Revenir (ferme d'abord les toasts) |
+| Partout | `Ctrl+S` | Enregistrer : les pages d'équipe et l'éditeur de workflow, qui n'enregistrent pas seuls (dans une fiche de lancement ou un assistant : étape suivante ou lancer) |
 | Liste | `n` | Créer |
 | Liste | `e` | Éditer |
 | Liste | `d` | Supprimer, **toujours confirmé** |
@@ -78,6 +85,10 @@ Une touche a le même sens dans toutes les vues. Une vue peut donner une lettre 
 
 `e`, `s`, `A` et `c` portent une action propre à la vue quand elle n'a pas l'action de la convention (`e` enchaîner dans Sessions, `s` arrêter une session, `A` ouvrir avec…).
 
+`w` n'a qu'un sens : ouvrir dans le navigateur (Sessions). Enregistrer, c'est `Ctrl+S`.
+
+**Enregistrer** : les pages Réglages et Projet (config, modèles, MCP) enregistrent seules après **un seul délai** (500 ms, le même partout) et le disent dans le titre de la page : `✎ enregistrement…` puis `✔ enregistré` (`✗ non enregistré` si l'enregistrement a échoué). Les pages d'équipe (détail d'équipe, modèles d'équipe, MCP d'équipe) publient dans le team-state, partagé avec l'équipe : elles n'enregistrent pas seules, le titre dit `✎ non publié — Ctrl+S` tant qu'un changement attend, `✔ enregistré` une fois que `Ctrl+S` l'a publié.
+
 ### Touches changées
 
 | Vue | Avant → maintenant |
@@ -92,7 +103,12 @@ Une touche a le même sens dans toutes les vues. Une vue peut donner une lettre 
 | Projets | `a` → `n` créer · `n` → `e` renommer |
 | Board d'équipe | `f` → `/` filtrer · `x` → `L` libérer |
 | Worktrees | `a` → `n` créer · `x` → `M` nettoyer les fusionnés |
-| Détail d'équipe | `y` → `T` découvrir le tracker |
+| Détail d'équipe, modèles d'équipe, MCP d'équipe | `y` → `T` découvrir le tracker (détail) · `w` → `Ctrl+S` enregistrer |
+| Éditeur de workflow | aussi `w` → `Ctrl+S` enregistrer |
+| Activité d'équipe | `w` → `s` semaine (`t` aujourd'hui, `0` tout) |
+| MCP | `w` → `m` mode écriture d'un service |
+| Fiche de lancement (dossier modifié) | `w` → `t` worktree (`s` stash, `b` autoriser) |
+| Changer de vue | `Ctrl+T` : Hub → Projet → Équipe → Hub (il n'allait qu'entre le Hub et l'Équipe) |
 | Autres listes (modèles, policies, secrets, équipes…) | `a` → `n` créer |
 
 ## L'omnibar
@@ -271,7 +287,7 @@ Commande `project-wiki` (vue Projet). En tête, les métriques résumées (pages
 
 ### Propositions d'équipe (team-state)
 
-Commande `team.wiki` (vue Équipe) : propositions de wiki du team-state, puis pages. `{` / `}` sections, `Entrée` voir (boutons Accepter, Refuser confirmé, Fermer), `y` accepter, `n` refuser (confirmé), `r` rafraîchir.
+Commande `team.wiki` (vue Équipe) : propositions de wiki du team-state, puis pages. `{` / `}` sections, `Entrée` voir (boutons Accepter, Refuser, Fermer), `y` accepter, `n` refuser, `r` rafraîchir. **Refuser demande un motif** (obligatoire : un motif vide ne refuse rien) ; il est gardé dans l'historique du team-state et dans l'événement `wiki.rejected`, affiché dans la vue Activité et dans la notification.
 
 ### Briques
 
@@ -321,7 +337,7 @@ Commande `doctor`. `f` corriger le contrôle sélectionné (comme `oh doctor --f
 
 **Historique** : `Entrée` ou `c` diff avec la version actuelle, `R` restaurer (confirmé, republiée comme nouvelle version), `r` rafraîchir.
 
-**Éditeur** : sections Général, Graphe, Entrées & prompt, Ressources, Aperçu paquet (`Tab` / `Shift+Tab`). `Entrée` modifier, `d` (ou `Suppr`) retirer un élément ou revenir à la valeur héritée (confirmé), `a` agent ou entrée, `c` checkpoint, `m` mode affiché (Graphe), `P` gabarit dans `$EDITOR`, `Y` YAML brut dans `$EDITOR`, `u` / `U` annuler / rétablir, `w` ou `Ctrl+S` enregistrer, `Échap` (enregistrer et quitter, abandonner ou continuer).
+**Éditeur** : sections Général, Graphe, Entrées & prompt, Ressources, Aperçu paquet (`Tab` / `Shift+Tab`). `Entrée` modifier, `d` (ou `Suppr`) retirer un élément ou revenir à la valeur héritée (confirmé), `a` agent ou entrée, `c` checkpoint, `m` mode affiché (Graphe), `P` gabarit dans `$EDITOR`, `Y` YAML brut dans `$EDITOR`, `u` / `U` annuler / rétablir, `Ctrl+S` enregistrer, `Échap` (enregistrer et quitter, abandonner ou continuer).
 
 ### Boards
 
@@ -337,15 +353,15 @@ Commande `doctor`. `f` corriger le contrôle sélectionné (comme `oh doctor --f
 | Projets | `Entrée` configurer, `n` ajouter, `e` renommer, `m` déplacer, `d` supprimer (confirmé), `p` vue Projet, `b` initialiser Beads |
 | Worktrees | `Entrée` / `o` ouvrir dans un terminal, `n` créer, `d` supprimer, `p` nettoyer les références (prune), `M` supprimer les worktrees fusionnés (jamais ceux d'une session non arrêtée) ; confirmés |
 | Réglages, Config projet | `{` / `}` sections, `Espace` basculer, `Entrée` modifier, `u` annuler, `r` recharger (confirmé s'il reste des modifications) |
-| Modèles (hub, projet, équipe) | `Entrée` modifier, `n` créer, `d` supprimer (confirmé), `u` annuler, `w` enregistrer (équipe) |
+| Modèles (hub, projet, équipe) | `Entrée` modifier, `n` créer, `d` supprimer (confirmé), `u` annuler, `Ctrl+S` enregistrer (équipe) |
 | Fournisseur | `Espace` par défaut, `Entrée` / `e` modifier, `s` configurer, `d` effacer la configuration et la clé du trousseau (confirmé) |
-| MCP (hub, projet, équipe) | `Espace` activer, `Entrée` modifier, `t` jeton ou test, `w` enregistrer, `u` annuler, `T` approuver l'URL imposée par l'équipe (vue du hub ; confirmé, voir [`oh mcp trust`](cli-mcp.fr.md#oh-mcp-trust)) |
+| MCP (hub, projet, équipe) | `Espace` activer, `Entrée` modifier, `t` jeton ou test, `m` mode écriture (vue du hub), `Ctrl+S` enregistrer (équipe), `u` annuler, `T` approuver l'URL imposée par l'équipe (vue du hub ; confirmé, voir [`oh mcp trust`](cli-mcp.fr.md#oh-mcp-trust)) |
 | Secrets | `Entrée` / `e` modifier, `n` créer, `d` supprimer (confirmé) |
 | Équipes | `Entrée` ouvrir, `n` créer, `d` supprimer (confirmé), `s` synchroniser, `u` annuler |
-| Détail d'équipe | `Espace` basculer, `Entrée` modifier, `w` enregistrer, `s` synchroniser, `t` tester, `u` annuler, `T` découvrir le tracker, `K` clé du fournisseur de l'équipe |
+| Détail d'équipe | `Espace` basculer, `Entrée` modifier, `Ctrl+S` enregistrer, `s` synchroniser, `t` tester, `u` annuler, `T` découvrir le tracker, `K` clé du fournisseur de l'équipe |
 | Patterns | `Entrée` voir, `n` créer, `y` valider, `d` supprimer (confirmé) |
 | Policies | `Entrée` détail, `n` créer, `t` modèle, `e` éditer, `d` supprimer (confirmé), `c` vérifier |
-| Statut, Activité, Métriques | `c` vérifier les conventions · `t` / `w` / `0` aujourd'hui, semaine, tout · `7` / `3` / `0` période, `Tab` usage par agent |
+| Statut, Activité, Métriques | `c` vérifier les conventions · `t` / `s` / `0` aujourd'hui, semaine, tout (Activité) · `7` / `3` / `0` période, `Tab` usage par agent |
 | Reprises | `Entrée` voir le brief, `e` enrichir (workflow `brief-enrich`) |
 
 ## Assistants

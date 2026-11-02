@@ -36,28 +36,25 @@ func screenText(t *testing.T, p tview.Primitive, w, h int) string {
 	return b.String()
 }
 
-// A33: Ctrl+T enters the team mode from the hub and the project mode, and
-// goes back to the hub from the team mode: every hint says so.
+// A33, BL-24: Ctrl+T goes to the next view (Hub → Project → Team → Hub): the
+// hints of the three landings say the same thing.
 func TestCtrlTHintsMatchTheMode(t *testing.T) {
-	team, hub := "Ctrl+T "+i18n.T("tui.hints.team_mode"), "Ctrl+T "+i18n.T("tui.hints.hub_mode")
+	next := "Ctrl+T " + i18n.T("tui.hints.next_view")
 
 	pm := NewProjectModeView(ProjectModeConfig{})
 	pm.SetShell(&mockShell{project: &ActiveProject{ID: "p1", Name: "my-app", Path: "/tmp/my-app"}})
 	content := tview.NewFlex().SetDirection(tview.FlexRow)
 	pm.Mount(content, tview.NewApplication())
-	assert.Contains(t, pm.StatusHints(), team)
-	assert.NotContains(t, pm.StatusHints(), hub)
-	assert.Contains(t, screenText(t, content, 200, 60), "Ctrl+T "+i18n.T("tui.home.shortcut.team_mode"))
-	assert.Contains(t, NewProjectModeView(ProjectModeConfig{}).StatusHints(), team)
+	assert.Contains(t, pm.StatusHints(), next)
+	assert.Contains(t, screenText(t, content, 200, 60), "Ctrl+T "+i18n.T("tui.home.shortcut.next_view"))
+	assert.Contains(t, NewProjectModeView(ProjectModeConfig{}).StatusHints(), next)
 
 	tm := NewTeamModeView(TeamModeConfig{})
 	tm.SetShell(&mockShell{team: &ActiveTeam{ID: "t1", Name: "alpha"}})
 	content = tview.NewFlex().SetDirection(tview.FlexRow)
 	tm.Mount(content, tview.NewApplication())
-	assert.Contains(t, tm.StatusHints(), hub)
-	screen := screenText(t, content, 200, 60)
-	assert.Contains(t, screen, "Ctrl+T "+i18n.T("tui.home.shortcut.hub_mode"))
-	assert.NotContains(t, screen, "Ctrl+T "+i18n.T("tui.home.shortcut.team_mode"))
+	assert.Contains(t, tm.StatusHints(), next)
+	assert.Contains(t, screenText(t, content, 200, 60), "Ctrl+T "+i18n.T("tui.home.shortcut.next_view"))
 }
 
 // A33: the team entries are translated; the team mode entry of the catalogue

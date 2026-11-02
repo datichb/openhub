@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -78,6 +77,7 @@ type SettingsView struct {
 	fields    []configField
 	undoStack *widgets.UndoStack[settingsUndo]
 	autoSaver *AutoSaver
+	badge     saveBadge
 	// saving is true while a save runs off the event loop; saveAgain, that
 	// edits asked for another one meanwhile (saves go one at a time, in order).
 	saving, saveAgain bool
@@ -134,8 +134,8 @@ func (v *SettingsView) Mount(content *tview.Flex, app *tview.Application) {
 	v.pending = nil
 	v.live = v.cfg.GetConfig() // synchronous: always available for save()
 
-	// Initialize auto-saver (500ms debounce for local hub.toml)
-	v.autoSaver = NewAutoSaver(500*time.Millisecond, app, func() {
+	// Initialize auto-saver (SaveDelay, the same as the project pages)
+	v.autoSaver = NewAutoSaver(SaveDelay, app, func() {
 		v.doSave()
 	})
 
@@ -161,6 +161,7 @@ func (v *SettingsView) Mount(content *tview.Flex, app *tview.Application) {
 		v.list = widgets.NewSectionedList()
 		v.list.SetApp(app)
 		v.page = newListPage(v.Title(), v.list)
+		v.badge.attach(v.page, v.Title())
 
 		v.list.SetItemSelectedFunc(func(index int, item widgets.SectionItem) {
 			v.onItemSelected(index, item)
@@ -237,6 +238,7 @@ func (v *SettingsView) Unmount() {
 		v.autoSaver.Flush()
 	}
 	v.undoStack.Clear()
+	v.badge.detach()
 	v.app = nil
 	v.list = nil
 	v.page = nil
@@ -340,6 +342,7 @@ func (v *SettingsView) refresh() {
 // reloaded shows the config that was just read.
 func (v *SettingsView) reloaded() {
 	v.undoStack.Clear()
+	v.badge.set(saveStatusSaved)
 	v.renderFields()
 	if v.shell != nil {
 		v.shell.ShowToastMsg(i18n.T("tui.config.reloaded"), true)
@@ -766,6 +769,7 @@ func (v *SettingsView) scheduleAutoSave() {
 	} else if ok {
 		v.undoStack.Push(top)
 	}
+	v.badge.set(saveStatusPending)
 	if v.autoSaver != nil {
 		v.autoSaver.Schedule()
 	}
@@ -786,6 +790,7 @@ func (v *SettingsView) doSave() {
 		if v.shell != nil {
 			v.shell.ShowToastMsg(fmt.Sprintf("%s %d %s", theme.SymWarning, len(errs), i18n.T("tui.settings.validation_errors")), false)
 		}
+		v.badge.set(saveStatusFailed)
 		return
 	}
 
@@ -796,6 +801,7 @@ func (v *SettingsView) doSave() {
 	pending := v.pending
 	v.pending = nil
 	v.saving = true
+	v.badge.set(saveStatusPending) // the write really runs: saved is said when it ends
 	// The write (the lock, the file, the commit of the hub) runs off the event
 	// loop; the closures of pending only hold values.
 	persist(v.app, func(context.Context) error {
@@ -825,11 +831,13 @@ func (v *SettingsView) saved(pending []func(*config.Config), err error) {
 				}
 				v.undoStack.Clear()
 				v.renderFields()
+				v.badge.set(saveStatusSaved)
 				v.shell.ShowToastMsg(i18n.T("tui.config.external_modification"), false)
 				return
 			}
 			v.shell.ShowToastMsg(i18n.Tf("tui.config.save_failed", err.Error()), false)
 		}
+		v.badge.set(saveStatusFailed)
 		return
 	}
 
@@ -840,12 +848,16 @@ func (v *SettingsView) saved(pending []func(*config.Config), err error) {
 			apply(v.live)
 		}
 	}
-	if v.shell != nil {
-		v.shell.ShowToastMsg(i18n.T("tui.config.autosaved"), true)
-	}
 	if again {
+		v.badge.set(saveStatusPending) // the next write starts at once
 		v.doSave()
+		return
 	}
+	if v.autoSaver != nil && v.autoSaver.IsPending() {
+		v.badge.set(saveStatusPending) // an edit waits for its delay
+		return
+	}
+	v.badge.set(saveStatusSaved)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

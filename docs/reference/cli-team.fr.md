@@ -283,6 +283,8 @@ oh team wiki read <page>           # lire une page
 oh team wiki review [id]           # reviser une proposition (interactif sans id)
 ```
 
+Refuser une proposition (`r`) demande un **motif** (obligatoire : un motif vide annule le refus). La proposition est retirée du team-state ; le motif est gardé dans le sujet du commit (`wiki: rejected proposal <id>: <motif>`) et dans les données de l'événement `wiki.rejected`, que `oh team activity`, la vue Activité et la notification affichent.
+
 ---
 
 ## Gestion d'équipes (oh teams)
@@ -406,11 +408,11 @@ Résumé de référence ; le contrat complet (statuts, bail, fin de session, fil
 | `sleeping_renewal_days` | 3 (1 à 90) | plafond : une session en veille depuis plus longtemps ne renouvelle plus |
 | `remote_renewal_days` | 7 (1 à 90) | plafond : une session distante lancée depuis plus longtemps ne renouvelle plus |
 | `lease_hours_manual` | 72 (`lease_hours` à 720) | bail d'une réservation prise à la main (sans session), que rien ne renouvelle tout seul |
-| `release_expired_on_sync` | `false` | la synchronisation du tracker libère les réservations expirées (une réservation en revue est gardée) |
+| `release_expired_on_sync` | `false` | la synchronisation du tracker libère les réservations expirées (une réservation en revue n'est jamais libérée) |
 
-**Expiration et reprise.** Une réservation expirée (bail dépassé ; sans bail, inactive plus de `takeover.stale_days` jours) est signalée par `oh doctor` (`claims_expired`, avertissement). `oh team claim <ticket>` renouvelle votre propre réservation (expirée ou non, sans confirmation) et reprend celle d'un autre membre si elle a expiré (confirmation commune ; `--yes` sans terminal, sinon code 2).
+**Expiration et reprise.** Une réservation en revue (statut `review` ou label `review` / `ready-for-review`) **n'expire jamais** : elle reste réservée jusqu'à la fusion ou sa libération, et `oh doctor` (`claims_review`, avertissement) ne la signale que si elle y est depuis plus de `takeover.stale_days` jours. Toute autre réservation expirée (bail dépassé ; sans bail, inactive plus de `takeover.stale_days` jours) est signalée par `oh doctor` (`claims_expired`, avertissement). `oh team claim <ticket>` renouvelle votre propre réservation (expirée ou non, sans confirmation) et reprend celle d'un autre membre si elle a expiré (confirmation commune ; `--yes` sans terminal, sinon code 2).
 
-**Fin de session.** Pour chaque réservation de la session : terminée → gardée ; ticket clos → statut terminal ; en revue (label `review` / `ready-for-review` ou statut `review`) → **gardée** ; checkpoint en attente, `cp-2` reporté avec du travail laissé, état des checkpoints illisible → gardée avec le label `session-ended` ; sinon libérée. Une réservation gardée n'est plus renouvelée et expire à la fin de son bail.
+**Fin de session.** Pour chaque réservation de la session : terminée → gardée ; ticket clos → statut terminal ; en revue (label `review` / `ready-for-review` ou statut `review`) → **gardée** ; checkpoint en attente, `cp-2` reporté avec du travail laissé, état des checkpoints illisible → gardée avec le label `session-ended` ; sinon libérée. Une réservation gardée n'est plus renouvelée et expire à la fin de son bail, sauf la réservation en revue, qui n'expire pas.
 
 **File durable.** Les décisions de fin de session et les renouvellements non poussés sont écrits dans `.git/oh-claims-queue.json` du clone du team-state, puis appliqués en un commit dès que le dépôt répond (fin de session, battement du démon, tâche `claims-queue` toutes les 15 minutes). `oh doctor` (`claims_queue`) signale ce qui attend depuis plus de 15 minutes ; `oh doctor --fix` l'applique après confirmation.
 

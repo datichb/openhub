@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
@@ -354,10 +355,10 @@ func (v *WikiView) showProposal(proposalIdx int) {
 
 	v.shell.ShowScrollableModal(tview.Escape(i18n.Tf("tui.wiki.proposal_title", p.Page)), content, []ModalAction{
 		{Label: i18n.T("tui.wiki.btn_accept"), Callback: func() {
-			v.decide(p, true)
+			v.decide(p, true, "")
 		}},
 		{Label: i18n.T("tui.teamwiki.btn_refuse"), Danger: true, Callback: func() {
-			v.confirmReject(p)
+			v.askRejectReason(p)
 		}},
 		{Label: i18n.T("tui.wiki.btn_close"), Callback: func() {}},
 	})
@@ -398,7 +399,7 @@ func (v *WikiView) acceptSelected() {
 	if !isProposal || pi < 0 || pi >= len(v.proposals) {
 		return
 	}
-	v.decide(v.proposals[pi], true)
+	v.decide(v.proposals[pi], true, "")
 }
 
 func (v *WikiView) rejectSelected() {
@@ -413,22 +414,30 @@ func (v *WikiView) rejectSelected() {
 	if !isProposal || pi < 0 || pi >= len(v.proposals) {
 		return
 	}
-	v.confirmReject(v.proposals[pi])
+	v.askRejectReason(v.proposals[pi])
 }
 
-// confirmReject refuses a proposal once confirmed (n, button).
-func (v *WikiView) confirmReject(proposal teamstate.WikiProposal) {
+// askRejectReason refuses a proposal once the user gave the reason (n,
+// button): the proposal vanishes from the team-state, so its author must be
+// able to read why. Validating the reason is the confirmation; an empty one
+// refuses nothing.
+func (v *WikiView) askRejectReason(proposal teamstate.WikiProposal) {
 	if v.shell == nil {
 		return
 	}
-	v.shell.Confirm(i18n.T("tui.teamwiki.refuse_title"), i18n.Tf("tui.confirm.wiki_reject.detail", proposal.Page, proposal.ID), true, func() {
-		v.decide(proposal, false)
+	v.shell.ShowInputModal(i18n.Tf("tui.teamwiki.refuse_reason_title", proposal.Page, proposal.ID), "", func(reason string) {
+		reason = strings.Join(strings.Fields(reason), " ")
+		if reason == "" {
+			v.shell.ShowToastMsg(i18n.T("tui.teamwiki.reason_required"), false)
+			return
+		}
+		v.decide(proposal, false, reason)
 	})
 }
 
 // decide accepts or refuses a proposal off the event loop, writes the event
 // of the decision, then refreshes the list.
-func (v *WikiView) decide(proposal teamstate.WikiProposal, accept bool) {
+func (v *WikiView) decide(proposal teamstate.WikiProposal, accept bool, reason string) {
 	repo := v.newRepo()
 	if repo == nil {
 		if v.shell != nil {
@@ -443,9 +452,12 @@ func (v *WikiView) decide(proposal teamstate.WikiProposal, accept bool) {
 	}
 	actor := v.resolveTeam().MemberID
 	ctx := shellContext(v.shell)
-	run, eventType, failedKey, doneKey := repo.WikiRejectProposal, teamstate.EventWikiRejected, "tui.wiki.reject_failed", "tui.wiki.proposal_rejected"
+	run := func(ctx context.Context, id string) error { return repo.WikiRejectProposal(ctx, id, reason) }
+	eventType, failedKey, doneKey := teamstate.EventWikiRejected, "tui.wiki.reject_failed", "tui.wiki.proposal_rejected"
+	data := map[string]interface{}{"proposal_id": proposal.ID, "page": proposal.Page, "reason": reason}
 	if accept {
 		run, eventType, failedKey, doneKey = repo.WikiAcceptProposal, teamstate.EventWikiAccepted, "tui.wiki.accept_failed", "tui.wiki.proposal_accepted"
+		data = map[string]interface{}{"proposal_id": proposal.ID, "page": proposal.Page}
 	}
 	safego.Go(func() { // an action, not a read: its result is applied even if the view was refreshed
 		var err error
@@ -458,10 +470,7 @@ func (v *WikiView) decide(proposal teamstate.WikiProposal, accept bool) {
 				Actor:     actor,
 				Type:      eventType,
 				Project:   proposal.Project,
-				Data: map[string]interface{}{
-					"proposal_id": proposal.ID,
-					"page":        proposal.Page,
-				},
+				Data:      data,
 			})
 		}
 		app.QueueUpdateDraw(func() {

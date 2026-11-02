@@ -106,7 +106,7 @@ type TeamStateWriter interface {
 	// Wiki
 	WikiCreateProposal(ctx context.Context, p WikiProposal) error
 	WikiAcceptProposal(ctx context.Context, id string) error
-	WikiRejectProposal(ctx context.Context, id string) error
+	WikiRejectProposal(ctx context.Context, id, reason string) error
 
 	// Patterns
 	CreatePattern(ctx context.Context, p Pattern, content string) error

@@ -283,6 +283,8 @@ oh team wiki read <page>           # read a page
 oh team wiki review [id]           # review a proposal (interactive without id)
 ```
 
+Refusing a proposal (`r`) asks for a **reason** (required: an empty one cancels the refusal). The proposal is removed from the team-state; the reason is kept in the subject of the commit (`wiki: rejected proposal <id>: <reason>`) and in the data of the `wiki.rejected` event, which `oh team activity`, the Activity view and the notification show.
+
 ---
 
 ## Team Management (oh teams)
@@ -406,11 +408,11 @@ Reference summary; the full contract (statuses, lease, end of session, queue) is
 | `sleeping_renewal_days` | 3 (1 to 90) | ceiling: a session asleep for longer no longer renews |
 | `remote_renewal_days` | 7 (1 to 90) | ceiling: a remote session launched longer ago no longer renews |
 | `lease_hours_manual` | 72 (`lease_hours` to 720) | lease of a claim taken by hand (no session), which nothing renews on its own |
-| `release_expired_on_sync` | `false` | the tracker synchronization releases the expired claims (a claim in review is kept) |
+| `release_expired_on_sync` | `false` | the tracker synchronization releases the expired claims (a claim in review is never released) |
 
-**Expiry and takeover.** An expired claim (lease past; without a lease, inactive for more than `takeover.stale_days` days) is reported by `oh doctor` (`claims_expired`, a warning). `oh team claim <ticket>` renews your own claim (expired or not, without confirmation) and takes over the claim of another member when it has expired (common confirmation; `--yes` without a terminal, otherwise exit code 2).
+**Expiry and takeover.** A claim in review (`review` status or `review` / `ready-for-review` label) **never expires**: it stays reserved until the merge or its release, and `oh doctor` (`claims_review`, a warning) only reports it when it has been there for more than `takeover.stale_days` days. Any other expired claim (lease past; without a lease, inactive for more than `takeover.stale_days` days) is reported by `oh doctor` (`claims_expired`, a warning). `oh team claim <ticket>` renews your own claim (expired or not, without confirmation) and takes over the claim of another member when it has expired (common confirmation; `--yes` without a terminal, otherwise exit code 2).
 
-**End of a session.** For each claim of the session: finished → kept; ticket closed → terminal status; in review (label `review` / `ready-for-review` or `review` status) → **kept**; a checkpoint waiting, `cp-2` put off with work left, state of the checkpoints unreadable → kept with the `session-ended` label; otherwise released. A kept claim is no longer renewed and expires when its lease ends.
+**End of a session.** For each claim of the session: finished → kept; ticket closed → terminal status; in review (label `review` / `ready-for-review` or `review` status) → **kept**; a checkpoint waiting, `cp-2` put off with work left, state of the checkpoints unreadable → kept with the `session-ended` label; otherwise released. A kept claim is no longer renewed and expires when its lease ends, except a claim in review, which does not expire.
 
 **Durable queue.** The end-of-session decisions and the lease renewals that were not pushed are written to `.git/oh-claims-queue.json` of the team-state clone, then applied in one commit as soon as the repository answers (end of the session, beat of the daemon, `claims-queue` task every 15 minutes). `oh doctor` (`claims_queue`) reports what has been waiting for more than 15 minutes; `oh doctor --fix` applies it after a confirmation.
 

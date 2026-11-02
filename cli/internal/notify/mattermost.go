@@ -137,7 +137,11 @@ func FormatEvent(e teamstate.Event) string {
 		if p, ok := e.Data["page"]; ok {
 			page = fmt.Sprintf(" %s", p)
 		}
-		return fmt.Sprintf("[Équipe] Proposition wiki%s rejetée par %s", page, e.Actor)
+		reason := ""
+		if r, ok := e.Data["reason"].(string); ok && r != "" {
+			reason = " : " + r
+		}
+		return fmt.Sprintf("[Équipe] Proposition wiki%s rejetée par %s%s", page, e.Actor, reason)
 	case teamstate.EventReviewApproved:
 		return fmt.Sprintf("%s Review approuvée pour %s par %s", prefix, e.Ticket, e.Actor)
 	case teamstate.EventReviewRejected:

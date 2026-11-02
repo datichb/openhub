@@ -406,12 +406,30 @@ func tuiLaunchUI() launcher.LaunchUI {
 // tuiRuntimes lists the runtimes allowed by the workflow, with their
 // availability (remote: tui_launch_remote.go).
 func tuiRuntimes(ctx context.Context, a *app.App, sp *workflow.Spec, project *domain.Project) []views.LaunchRuntime {
+	return tuiRuntimeKinds(ctx, a, sp.AllowedRuntimes(), project)
+}
+
+// tuiProjectRuntimes lists the three execution environments of a project with
+// their availability: the line of the project landing (⌂ ▣ ☁, 10 §2). It probes
+// the container engine and the keychain: call it off the event loop.
+func tuiProjectRuntimes(a *app.App) func(ctx context.Context, p *views.ActiveProject) []views.LaunchRuntime {
+	return func(ctx context.Context, p *views.ActiveProject) []views.LaunchRuntime {
+		var project *domain.Project
+		if p != nil {
+			project, _ = a.Projects.Get(ctx, p.ID)
+		}
+		return tuiRuntimeKinds(ctx, a, []workflow.Runtime{workflow.RuntimeLocal, workflow.RuntimeContainer, workflow.RuntimeRemote}, project)
+	}
+}
+
+// tuiRuntimeKinds is the availability of the given runtimes.
+func tuiRuntimeKinds(ctx context.Context, a *app.App, kinds []workflow.Runtime, project *domain.Project) []views.LaunchRuntime {
 	var svc *runsvc.Service
 	if v5Available(ctx) {
 		svc, _ = newRunService(ctx, a)
 	}
 	var out []views.LaunchRuntime
-	for _, r := range sp.AllowedRuntimes() {
+	for _, r := range kinds {
 		lr := views.LaunchRuntime{Kind: string(r), Label: i18n.T("tui.launch.runtime_" + string(r))}
 		switch {
 		case r == workflow.RuntimeLocal:

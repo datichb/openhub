@@ -821,7 +821,7 @@ Legend:
 │  Push labels: [inherit]                                          │
 │                                                                  │
 ├──────────────────────────────────────────────────────────────────┤
-│  [w]save  [s]sync-tracker  [t]test  [a]add  [d]del  [u]undo      │
+│  [Ctrl+S]save  [s]sync  [t]test  [a]add  [d]del  [u]undo         │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
@@ -832,7 +832,7 @@ Legend:
 | `j`/`k` | Navigate between fields (skip headers/spacers) |
 | `Space` | Toggle bool / cycle tri-state (inherit→yes→no→inherit) |
 | `Enter` | Edit field (input/select/password modal) |
-| `w` | Save (2 passes: team commit+push + local hub.toml) |
+| `Ctrl+S` | Save (2 passes: team commit+push + local hub.toml); the title says `✎ not published — Ctrl+S` until then, `✔ saved` after |
 | `s` | Sync tracker (async pull from external tracker) |
 | `t` | Test tracker connection (displays username if OK) |
 | `a` | Add dynamic entry (mappings, families, agents) |
@@ -856,7 +856,7 @@ Legend:
 |---|-----|-----|
 | **Access** | `oh team config` (interactive wizard) | `Enter` on a team → `team.detail` view |
 | **View status** | `oh team config status` | Integrated in the view |
-| **Save** | Automatic at end of wizard | Key `w` (explicit, git push) for team views. Auto-save for hub/project views. |
+| **Save** | Automatic at end of wizard | `Ctrl+S` (explicit, git push) for team views, with the indicator « not published — Ctrl+S » / « saved » in the title. Auto-save after one delay (500 ms) for hub/project views, with the indicator « saving… » / « saved ». |
 | **Granularity** | Full wizard | Field by field |
 
 ### Test points
@@ -866,7 +866,7 @@ Legend:
 | 1 | Enforced fields | Non-editable, grayed out with "(enforced)" |
 | 2 | Masked token | Displays `●●●●` + ✓/✗ indicator |
 | 3 | Tri-state cycle | inherit → yes → no → inherit correctly |
-| 4 | `w` save | 2 passes: team (commit+push) + local (hub.toml) |
+| 4 | `Ctrl+S` save (`w` does nothing) | 2 passes: team (commit+push) + local (hub.toml); the title goes from « not published — Ctrl+S » to « saved » |
 | 5 | Quit without saving | Warning toast displayed |
 | 6 | `s` sync tracker | Summary modal (created/updated/pushed) |
 | 7 | `t` test connection | Username displayed if success, error otherwise |
@@ -1621,7 +1621,7 @@ HTTP timeout: 10 seconds for all clients.
 | `j`/`k` | Navigate |
 | `Space` | Toggle |
 | `Enter` | Edit |
-| `w` | Save |
+| `Ctrl+S` | Save |
 | `s` | Sync tracker |
 | `t` | Test connection |
 | `a` | Add dynamic |
@@ -1641,11 +1641,12 @@ What the team mode guarantees about a claim, and how to check it on a test team-
 | The lease of a claim taken by hand | `oh team claim <ticket>` | `lease_until` = now + `lease_hours_manual` (72 h); running `oh team claim <ticket>` again renews it without a question |
 | The takeover | `oh team claim <ticket>` by another member on an expired claim | common confirmation (`--yes` without a terminal, otherwise exit code 2), takeover brief, the claim changes owner with a new lease |
 | A pending review | end the session of a ticket with the `ready-for-review` label (or the claim in `review`) | the claim **is kept**, not released |
+| A claim in review for long | a claim in `review` (or with the `ready-for-review` label) whose lease is past, `oh team claim <ticket>` by another member; then `oh doctor` after more than `stale_days` days | not taken over (the message says it is in review); `oh doctor` reports it in `claims_review` (a warning), not in `claims_expired`; it stays until the merge or `oh team release` |
 | `cp-2` put off | end the session after putting off the commit, with work left | the claim is kept with the `session-ended` label; `oh doctor` reports it |
 | Nothing pending | end the session of a ticket with no review and no checkpoint waiting | the claim is released |
 | Ticket closed | close the ticket in Beads then end the session | the claim moves to the terminal status |
 | Offline | cut the access to the team repository, end the session | the decisions stay in `.git/oh-claims-queue.json` (oh says so); when the network is back, a beat of the daemon (or `oh doctor --fix`) applies them in one commit |
-| Expiry on sync | `release_expired_on_sync = true`, an expired claim | the sync releases it (`release: N expired claim(s)`), unless it is in review |
+| Expiry on sync | `release_expired_on_sync = true`, an expired claim | the sync releases it (`release: N expired claim(s)`); a claim in review is never released |
 | Forgotten claim | `oh team release <ticket-id> -p <project>` | the claim is released |
 | Configured statuses (remote session) | in a remote job, `bd update <ID> --status review` with no configured `review` status | refused at once (exit code 1), nothing is journalled; the `ready-for-review` label goes through |
 | REVIEW | `in_progress` ticket + `ready-for-review` label | placed in REVIEW in `oh board` and the TUI Board; the team board shows the `review` status of the claim |

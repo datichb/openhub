@@ -3,7 +3,6 @@ package views
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -45,6 +44,7 @@ type ProjectConfigView struct {
 	fields    []configField
 	undoStack *widgets.UndoStack[domain.Project]
 	autoSaver *AutoSaver
+	badge     saveBadge
 	execHints ProjectExecHints
 }
 
@@ -73,8 +73,8 @@ func (v *ProjectConfigView) Mount(content *tview.Flex, app *tview.Application) {
 	v.undoStack.Clear()
 	v.live = v.cfg.GetProject() // synchronous
 
-	// Auto-save: SQLite is fast, 200ms debounce
-	v.autoSaver = NewAutoSaver(200*time.Millisecond, app, func() {
+	// Auto-save after SaveDelay, the same as the other pages
+	v.autoSaver = NewAutoSaver(SaveDelay, app, func() {
 		v.doSave()
 	})
 
@@ -104,6 +104,7 @@ func (v *ProjectConfigView) Mount(content *tview.Flex, app *tview.Application) {
 		v.list = widgets.NewSectionedList()
 		v.list.SetApp(app)
 		v.page = newListPage(v.pageTitle(), v.list)
+		v.badge.attach(v.page, v.pageTitle())
 
 		if v.live == nil {
 			v.list.SetItems([]widgets.SectionItem{{MainText: stateText(stateEmpty, i18n.T("tui.project.no_active"))}})
@@ -133,6 +134,7 @@ func (v *ProjectConfigView) Unmount() {
 		v.autoSaver.Flush()
 	}
 	v.undoStack.Clear()
+	v.badge.detach()
 	v.app = nil
 	v.list = nil
 	v.page = nil
@@ -474,6 +476,7 @@ func (v *ProjectConfigView) pushUndo() {
 }
 
 func (v *ProjectConfigView) scheduleAutoSave() {
+	v.badge.set(saveStatusPending)
 	if v.autoSaver != nil {
 		v.autoSaver.Schedule()
 	}
@@ -492,11 +495,10 @@ func (v *ProjectConfigView) doSave() {
 		if v.shell != nil {
 			v.shell.ShowToastMsg(i18n.T("tui.project.save_error")+": "+err.Error(), false)
 		}
+		v.badge.set(saveStatusFailed)
 		return
 	}
-	if v.shell != nil {
-		v.shell.ShowToastMsg(i18n.T("tui.config.autosaved"), true)
-	}
+	v.badge.set(saveStatusSaved)
 }
 
 // ContextCommands implements CommandProvider.

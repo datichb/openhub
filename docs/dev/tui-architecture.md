@@ -89,7 +89,7 @@ The TUI has 3 navigation modes, each with its own home page:
 | Project | `project.mode` | `ProjectModeView` | Single active project |
 | Team | `team.mode` | `TeamModeView` | Single active team |
 
-Mode switching: `Ctrl+T`, or selecting a team/project from the Hub Home.
+Mode switching: `Ctrl+T` (cycle Hub → Project → Team → Hub, `Shell.cycleMode`), or selecting a team/project from the Hub Home.
 
 ### Home page shared patterns (`home_common.go`)
 
@@ -195,7 +195,7 @@ tview.Application.InputCapture (globalKeyHandler)
     ├── [view is InputCapturing?] → view.HandleKey(event), then tview focus delivery
     │
     ├── Esc → closes the toasts, then router.Pop() (or back to the hub)
-    ├── Ctrl+P → omnibar.Activate(); Ctrl+T → toggle team mode; ? → help overlay
+    ├── Ctrl+P → omnibar.Activate(); Ctrl+T → cycle mode; ? → help overlay
     │
     ├── view.HandleKey(event)
     │   ├── returns nil → consumed, done

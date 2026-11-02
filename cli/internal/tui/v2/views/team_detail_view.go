@@ -115,6 +115,7 @@ type TeamDetailView struct {
 	fields     []configField
 	dirtyTeam  bool
 	dirtyLocal bool
+	badge      saveBadge
 	// saving is true while a save runs off the event loop; saveAgain, that an
 	// edit asked for another one meanwhile.
 	saving, saveAgain bool
@@ -144,10 +145,10 @@ func (v *TeamDetailView) Title() string          { return i18n.T("tui.team.detai
 func (v *TeamDetailView) StatusHints() string {
 	if v.solo() {
 		return keys.Hints(keys.Navigate.Hint(), keys.Open.HintAs(i18n.T("tui.hints.edit")),
-			cfgSaveKey.Hint(), cfgUndoKey.Hint())
+			keys.Save.Hint(), cfgUndoKey.Hint())
 	}
 	return keys.Hints(keys.Navigate.Hint(), toggleHint(),
-		keys.Open.HintAs(i18n.T("tui.hints.edit")), cfgSaveKey.Hint(),
+		keys.Open.HintAs(i18n.T("tui.hints.edit")), keys.Save.Hint(),
 		cfgSyncKey.Hint(), cfgTestKey.Hint(), cfgUndoKey.Hint(),
 		keys.Refresh.Hint(), discoverKey.Hint(), teamLLMKey.Hint())
 }
@@ -162,6 +163,7 @@ func (v *TeamDetailView) Mount(content *tview.Flex, app *tview.Application) {
 	v.list = widgets.NewSectionedList()
 	v.list.SetApp(app)
 	v.page = widgets.NewListDetailPage(v.Title(), i18n.T("tui.catalog.detail"))
+	v.badge.attach(v.page, v.Title())
 	v.page.SetMain(v.list)
 
 	v.list.SetItemSelectedFunc(func(_ int, item widgets.SectionItem) {
@@ -182,7 +184,7 @@ func (v *TeamDetailView) Mount(content *tview.Flex, app *tview.Application) {
 
 // extraKeys are the page keys listed in the detail pane.
 func (v *TeamDetailView) extraKeys() []string {
-	pairs := []string{cfgSaveKey.Keys(), cfgSaveKey.Label(), cfgUndoKey.Keys(), cfgUndoKey.Label()}
+	pairs := []string{keys.Save.Keys(), keys.Save.Label(), cfgUndoKey.Keys(), cfgUndoKey.Label()}
 	if v.solo() {
 		return pairs
 	}
@@ -197,7 +199,7 @@ func (v *TeamDetailView) Unmount() {
 	v.syncs.Invalidate()
 	v.checks.Invalidate()
 	if (v.dirtyTeam || v.dirtyLocal) && v.shell != nil {
-		v.shell.ShowToastMsg(i18n.T("tui.team.detail.unsaved"), false)
+		v.shell.ShowToastMsg(i18n.T("tui.save.unpublished_left"), false)
 	}
 	v.app = nil
 	v.list = nil
@@ -222,7 +224,7 @@ func (v *TeamDetailView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	case cfgToggleKey.Matches(event):
 		v.toggleSelected()
 		return nil
-	case cfgSaveKey.Matches(event):
+	case keys.Save.Matches(event):
 		v.save()
 		return nil
 	case cfgSyncKey.Matches(event):
@@ -559,7 +561,17 @@ func (v *TeamDetailView) appendLinks() {
 // Rendering
 // ─────────────────────────────────────────────────────────────────────────────
 
+// syncBadge shows whether the changes are published to the team-state.
+func (v *TeamDetailView) syncBadge() {
+	if v.saving {
+		v.badge.set(saveStatusPending) // the write runs: not published yet
+		return
+	}
+	v.badge.settle(v.dirtyTeam || v.dirtyLocal)
+}
+
 func (v *TeamDetailView) renderFields() {
+	v.syncBadge()
 	if v.list == nil {
 		return
 	}
@@ -751,6 +763,7 @@ func (v *TeamDetailView) save() {
 	var teamDone, localDone bool
 	var teamErr, localErr error
 	v.saving = true
+	v.badge.set(saveStatusPending) // the write really runs: saved is said when it ends
 	persist(v.app, func(ctx context.Context) error {
 		if saveTeam {
 			teamErr = writeTeam(ctx, &teamCopy)
@@ -781,10 +794,12 @@ func (v *TeamDetailView) save() {
 			v.dirtyTeam = true
 			v.dirtyLocal = v.dirtyLocal || saveLocal // not tried
 			v.shell.ShowToastMsg(i18n.Tf("tui.team.detail.save_team_error", teamErr.Error()), false)
+			v.badge.set(saveStatusFailed)
 			return
 		case localErr != nil:
 			v.dirtyLocal = true
 			v.shell.ShowToastMsg(i18n.Tf("tui.team.detail.save_local_error", localErr.Error()), false)
+			v.badge.set(saveStatusFailed)
 			return
 		}
 		if teamDone {
@@ -801,6 +816,7 @@ func (v *TeamDetailView) save() {
 		} else {
 			v.shell.ShowToastMsg(i18n.Tf("tui.team.detail.saved", strings.Join(saved, " + ")), true)
 		}
+		v.syncBadge()
 		if again {
 			v.save()
 		}

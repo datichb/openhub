@@ -189,7 +189,7 @@ func TestTeamMCPViewTestUnavailableAndUnsaved(t *testing.T) {
 	prepared, runs = ft.counts()
 	assert.Equal(t, []string{"figma"}, prepared, "nothing prepared with unsaved changes")
 	assert.Zero(t, runs)
-	assert.Contains(t, lastToast(sh), "w")
+	assert.Contains(t, lastToast(sh), "Ctrl+S")
 }
 
 // Bug 10: the Figma server always calls api.figma.com and the Google Slides

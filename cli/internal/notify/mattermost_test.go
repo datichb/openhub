@@ -204,6 +204,16 @@ func TestFormatEvent(t *testing.T) {
 			expected: "[Équipe] Proposition wiki architecture rejetée par benjamin",
 		},
 		{
+			name: "wiki rejected with its reason",
+			event: teamstate.Event{
+				Type:    teamstate.EventWikiRejected,
+				Actor:   "benjamin",
+				Project: "T-SRU",
+				Data:    map[string]interface{}{"page": "architecture", "reason": "déjà couvert par l'ADR 12"},
+			},
+			expected: "[Équipe] Proposition wiki architecture rejetée par benjamin : déjà couvert par l'ADR 12",
+		},
+		{
 			name: "review approved",
 			event: teamstate.Event{
 				Type:    teamstate.EventReviewApproved,

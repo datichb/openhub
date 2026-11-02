@@ -87,7 +87,7 @@ La synchro du tracker attribue les issues aux membres **par nom d'utilisateur** 
 | `oh team rejoin` | option `--tracker-username <nom>`, ou la question posée quand le tracker de l'équipe est sur un autre serveur que le dépôt et que ta fiche n'a pas de nom |
 | Assistant `oh init` (groupe équipe, « rejoindre ») et TUI `team rejoin` | étape « Nom sur le tracker », mêmes conditions |
 | `oh team profile` | `oh team profile --tracker-username <nom>` ; sans option, affiche ta fiche ; une option donnée vide efface le champ |
-| TUI, vue `team-detail` | section « Ma fiche de membre » : nom affiché, noms GitLab, Mattermost et tracker, enregistrés tout de suite (un commit), sans passer par `w` |
+| TUI, vue `team-detail` | section « Ma fiche de membre » : nom affiché, noms GitLab, Mattermost et tracker, enregistrés tout de suite (un commit), sans passer par `Ctrl+S` |
 
 `oh doctor` le contrôle : ✗ si le tracker est sur un autre serveur que le dépôt d'équipe et que ton `tracker_username` est vide ; ⚠ (en ligne) si le nom que le tracker renvoie pour ton jeton ne correspond à aucun membre. La synchro (`oh team sync-tracker`) le dit aussi dans son résumé quand des issues sont assignées à des noms inconnus de l'équipe et que ta fiche n'a pas de `tracker_username`. Voir [`oh doctor`](../reference/cli-infra.fr.md#oh-doctor).
 
@@ -724,7 +724,7 @@ Le contrat :
 
 ## Bail et fin de session
 
-Une réservation en cours de travail a un **bail** : une date limite (`lease_until` dans le fichier de la réservation) après laquelle elle est *expirée*. Seule une réservation avec un propriétaire et du travail commencé a un bail : une réservation du pool (sans propriétaire), `planned`, dans la colonne initiale ou terminée n'en a pas, et ni `oh doctor` ni la synchronisation ne la jugent jamais expirée.
+Une réservation en cours de travail a un **bail** : une date limite (`lease_until` dans le fichier de la réservation) après laquelle elle est *expirée*. Seule une réservation avec un propriétaire et du travail commencé a un bail : une réservation du pool (sans propriétaire), `planned`, dans la colonne initiale ou terminée n'en a pas, et ni `oh doctor` ni la synchronisation ne la jugent jamais expirée. **Une réservation en revue n'a pas non plus de bail qui s'épuise** (voir *Réservation en revue* ci-dessous).
 
 **Réglages** (section `[claim]` du `config.toml` du team-state, modifiables dans `team-detail`) :
 
@@ -747,7 +747,7 @@ Une réservation en cours de travail a un **bail** : une date limite (`lease_unt
 
 - `oh doctor` (`claims_expired`, avertissement qui ne change pas le code de sortie) liste vos réservations expirées et celles que la fin d'une session a marquées `session-ended`, avec la commande pour les garder (`oh team claim <ticket>`) ou les libérer (`oh team release <ticket> -p <projet>`) ;
 - un autre membre peut la reprendre avec `oh team claim <ticket>` : après la confirmation commune (`--yes` sans terminal, sinon refus, code 2), un brief de reprise est généré et la réservation lui revient avec un nouveau bail ;
-- si l'équipe active `release_expired_on_sync`, la synchronisation du tracker libère les réservations expirées (un commit `release: N expired claim(s)`). Une réservation en revue (statut `review` ou label `review` / `ready-for-review`) est gardée.
+- si l'équipe active `release_expired_on_sync`, la synchronisation du tracker libère les réservations expirées (un commit `release: N expired claim(s)`). Une réservation en revue (statut `review` ou label `review` / `ready-for-review`) n'en fait jamais partie.
 
 **Fin de session.** Quand une session se termine, `teamstate.DecideClaimEnd` décide, pour chaque réservation de ses tickets (celles d'un autre membre ou d'une autre session sont laissées telles quelles), avec la première règle qui s'applique :
 
@@ -761,7 +761,9 @@ Une réservation en cours de travail a un **bail** : une date limite (`lease_unt
 | l'état des checkpoints est illisible | gardée, label `session-ended` |
 | sinon | libérée |
 
-Une réservation gardée n'est plus renouvelée par la session qui s'est terminée : elle expire à la fin de son bail si personne ne la reprend (`oh team claim <ticket>` la renouvelle ; une nouvelle session sur le ticket aussi, et retire le label `session-ended`). Une réservation en revue n'est jamais libérée par la synchronisation, mais elle expire comme les autres : un autre membre pourrait la reprendre, `oh doctor` la signale.
+Une réservation gardée n'est plus renouvelée par la session qui s'est terminée : elle expire à la fin de son bail si personne ne la reprend (`oh team claim <ticket>` la renouvelle ; une nouvelle session sur le ticket aussi, et retire le label `session-ended`). La réservation en revue fait exception : elle n'expire pas (paragraphe suivant).
+
+**Réservation en revue.** Une réservation dont le statut est `review`, ou qui porte le label `review` ou `ready-for-review`, **n'expire pas**, quel que soit son bail : elle attend une personne (le relecteur, la fusion), pas une session. Elle reste réservée jusqu'à la fusion (la réservation est alors terminée) ou jusqu'à ce que son propriétaire la libère (`oh team release <ticket> -p <projet>`) ; ni `oh team claim` d'un autre membre ni `release_expired_on_sync` ne la prennent. Si la revue renvoie le travail (statut `in_progress`, label retiré) et que son bail est dépassé, elle en reçoit un nouveau à partir de ce moment. `oh doctor` (`claims_review`, avertissement) liste vos réservations en revue depuis plus de `takeover.stale_days` jours, sans les dire expirées, avec la commande pour les libérer si le travail est abandonné.
 
 **File durable.** Ce que la fin d'une session décide (libérer, terminer, marquer `session-ended`) et les renouvellements de bail qui n'ont pas pu être poussés sont d'abord écrits dans une file locale, `.git/oh-claims-queue.json` du clone du team-state (jamais committée). Chaque opération porte ses conditions : la réservation doit encore appartenir au même membre et à la même session, sinon elle est abandonnée et journalisée. La file est appliquée en un commit (un pull, un push) dès que le dépôt d'équipe répond : à la fin de la session (attente bornée à 15 s dont 10 s pour le verrou du clone ; le démon patiente jusqu'à 2 min), à chaque battement du démon, par la tâche `claims-queue` du démon (au démarrage, puis toutes les 15 minutes). Hors ligne, ou si le dépôt reste occupé, rien n'est perdu : les opérations restent dans la file et oh le dit à la fin de la session. Une session qui démarre hors ligne sur un ticket que vous déteniez déjà reprend la réservation au retour du réseau ; ce que la session précédente avait mis en file sur cette réservation est annulé. `oh doctor` (`claims_queue`) avertit quand des opérations attendent depuis plus de 15 minutes, ou quand le fichier est illisible (il est alors mis de côté, pas supprimé) ; `oh doctor --fix` applique la file après confirmation.
 

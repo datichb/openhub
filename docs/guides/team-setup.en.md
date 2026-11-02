@@ -87,7 +87,7 @@ The tracker sync attributes the issues to the members **by user name**: the `tra
 | `oh team rejoin` | the `--tracker-username <name>` option, or the question asked when the team tracker is on another server than the repository and your profile has no name |
 | `oh init` wizard (team group, "rejoin") and TUI `team rejoin` | "Tracker name" step, same conditions |
 | `oh team profile` | `oh team profile --tracker-username <name>`; without options, shows your profile; an option given empty clears the field |
-| TUI, `team-detail` view | "My member profile" section: display name, GitLab, Mattermost and tracker names, saved at once (one commit), without `w` |
+| TUI, `team-detail` view | "My member profile" section: display name, GitLab, Mattermost and tracker names, saved at once (one commit), without `Ctrl+S` |
 
 `oh doctor` checks it: ✗ when the tracker is on another server than the team repository and your `tracker_username` is empty; ⚠ (online) when the name the tracker returns for your token matches no member. The sync (`oh team sync-tracker`) also says so in its summary when issues are assigned to names unknown to the team and your profile has no `tracker_username`. See [`oh doctor`](../reference/cli-infra.en.md#oh-doctor).
 
@@ -406,7 +406,7 @@ Pulls issue states from the tracker and updates claim statuses:
 ### Wiki management
 
 ```bash
-# Review pending wiki proposals (from AI agents)
+# Review pending wiki proposals (from AI agents); refusing one asks for a reason
 oh team wiki review
 
 # List wiki pages
@@ -730,7 +730,7 @@ The contract:
 
 ## Lease and end of session
 
-A claim being worked on has a **lease**: a deadline (`lease_until` in the claim file) after which it is *expired*. Only a claim with an owner and work started has a lease: a pool claim (no owner), a `planned` one, one in the initial column or a finished one has none, and neither `oh doctor` nor the synchronization ever judges it expired.
+A claim being worked on has a **lease**: a deadline (`lease_until` in the claim file) after which it is *expired*. Only a claim with an owner and work started has a lease: a pool claim (no owner), a `planned` one, one in the initial column or a finished one has none, and neither `oh doctor` nor the synchronization ever judges it expired. **A claim in review has none that can run out either** (see *Claim in review* below).
 
 **Settings** (`[claim]` section of the team-state `config.toml`, editable in `team-detail`):
 
@@ -753,7 +753,7 @@ A claim being worked on has a **lease**: a deadline (`lease_until` in the claim 
 
 - `oh doctor` (`claims_expired`, a warning that does not change the exit code) lists your expired claims and those the end of a session labelled `session-ended`, with the command to keep them (`oh team claim <ticket>`) or release them (`oh team release <ticket> -p <project>`);
 - another member can take it over with `oh team claim <ticket>`: after the common confirmation (`--yes` without a terminal, otherwise refused, exit code 2), a takeover brief is generated and the claim comes to them with a new lease;
-- if the team turns on `release_expired_on_sync`, the tracker synchronization releases the expired claims (one `release: N expired claim(s)` commit). A claim in review (`review` status or `review` / `ready-for-review` label) is kept.
+- if the team turns on `release_expired_on_sync`, the tracker synchronization releases the expired claims (one `release: N expired claim(s)` commit). A claim in review (`review` status or `review` / `ready-for-review` label) is never one of them.
 
 **End of a session.** When a session ends, `teamstate.DecideClaimEnd` decides, for each claim of its tickets (those of another member or of another session are left as they are), with the first rule that applies:
 
@@ -767,7 +767,9 @@ A claim being worked on has a **lease**: a deadline (`lease_until` in the claim 
 | the state of the checkpoints cannot be read | kept, label `session-ended` |
 | otherwise | released |
 
-A kept claim is no longer renewed by the session that ended: it expires when its lease ends if nobody takes it up again (`oh team claim <ticket>` renews it; so does a new session on the ticket, which also removes the `session-ended` label). A claim in review is never released by the synchronization, but it expires like the others: another member could take it over, and `oh doctor` reports it.
+A kept claim is no longer renewed by the session that ended: it expires when its lease ends if nobody takes it up again (`oh team claim <ticket>` renews it; so does a new session on the ticket, which also removes the `session-ended` label). A claim in review is the exception: it does not expire (next paragraph).
+
+**Claim in review.** A claim whose status is `review`, or that carries the `review` or `ready-for-review` label, **does not expire**, whatever its lease: it waits for a person (the reviewer, the merge), not for a session. It stays reserved until the merge (the claim is then finished) or until its owner releases it (`oh team release <ticket> -p <project>`); neither `oh team claim` by another member nor `release_expired_on_sync` takes it. If the review sends the work back (status `in_progress`, label removed) and its lease is past, it gets a new one from that moment. `oh doctor` (`claims_review`, a warning) lists your claims that have been in review for longer than `takeover.stale_days` days, without calling them expired, with the command to release them if the work is dropped.
 
 **Durable queue.** What the end of a session decides (release, complete, label `session-ended`) and the lease renewals that could not be pushed are first written to a local queue, `.git/oh-claims-queue.json` of the team-state clone (never committed). Each operation carries its conditions: the claim must still belong to the same member and the same session, otherwise it is dropped and logged. The queue is applied in one commit (one pull, one push) as soon as the team repository answers: at the end of the session (a wait bounded to 15 s, 10 s of which for the lock of the clone; the daemon waits up to 2 min), at each beat of the daemon, and by the `claims-queue` task of the daemon (when it starts, then every 15 minutes). Offline, or if the repository stays busy, nothing is lost: the operations stay in the queue and oh says so at the end of the session. A session that starts offline on a ticket you already held takes the claim over when the network is back; what the previous session had queued on that claim is cancelled. `oh doctor` (`claims_queue`) warns when operations have been waiting for more than 15 minutes, or when the file cannot be read (it is then set aside, not deleted); `oh doctor --fix` applies the queue after a confirmation.
 

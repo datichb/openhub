@@ -112,6 +112,22 @@ A symbol stands for one thing, in the CLI (`oh session list`, `oh session inbox`
 | `✗` | error | the agent hit an error to handle |
 | `⊘` | circuit breaker | too many subagent calls without you: delegation is denied until you dismiss it |
 
+**Team event** (`oh team activity`, Activity and Team Status views: `cli/internal/glyph`, `Events`)
+
+| Symbol | Events |
+|--------|--------|
+| `●` | `claim.taken` |
+| `○` | `claim.released`, `workflow.archived` |
+| `→` | `claim.transferred` |
+| `✗` | `claim.conflict`, `review.rejected`, `wiki.rejected` |
+| `✔` | `session.complete`, `review.approved`, `wiki.accepted`, `workflow.published` |
+| `◐` | `review.ready` (waits for a person) |
+| `⚠` | `audit.finding` |
+| `✎` | `wiki.proposal` |
+| `↺` | `workflow.restored` |
+
+The phrase after the actor is the same in the CLI and the TUI (`Event.Describe`).
+
 The mode bar badge, `● N  ◐ M`, counts live sessions (`●`) and waiting decisions (`◐`). Elsewhere, `✓` marks a successful command result, `✗` a failed one, `⚠` or `!` a warning.
 
 **Colors.** `NO_COLOR` (any non-empty value, see [no-color.org](https://no-color.org)) removes the colors of the CLI (help, tables, forms, logs) and of the TUI; the symbols above are enough to read the state. Without `NO_COLOR`, the terminal decides (redirected output = no color). There is no `--no-color` option.

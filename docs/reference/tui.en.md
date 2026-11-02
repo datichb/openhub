@@ -31,6 +31,12 @@ The mode bar shows the sessions badge **`● N ◐ M`** (N sessions working, M d
 
 **Small terminals**: under 32 rows, compact layout (one-line banner, omnibar and mode bar on 3 rows); under 60×16, a « Terminal too small » message and only `Ctrl+Q` works. Setting `[cli] compact = auto | always | never`. Switching layouts keeps the selected element.
 
+**Landings.** The three landings draw their name in the banner as it was typed (a team « Core » is not « CORE »; the Hub draws the logo « OPENHUB »).
+
+- **Hub**: under the banner, the tool line `opencode v2.0.20 · adapter opencode-v2 ✔` (the tool and the adapter that launch the sessions). The System section lists Configuration, Metrics, Doctor, Secrets, **Notifications** and the **Brick catalogue**.
+- **Project**: the header gives the path and the branch, the tool line and the execution environments with their state, `execution: ⌂ local ✔  ▣ container · colima ✔  ☁ remote ✗` (read when the landing opens, not on the event loop).
+- **Team**: besides *Team sessions*, the section **Sessions of the other members** lists, from the claims of the team-state, who works on which ticket (member, ticket, session, since when; `●` the claim is alive, `○` its lease is past). It is **read only**: `Enter` opens a window with the details and a single button *Close*; a session runs on the machine of its member, oh does not act on it.
+
 ## Global keys
 
 | Key | Action |
@@ -39,7 +45,7 @@ The mode bar shows the sessions badge **`● N ◐ M`** (N sessions working, M d
 | `/` | Filter the list of the view; when the view does not filter: palette |
 | `?` / `F1` | Help: global keys, convention, keys of the active view, legend, commands |
 | `Esc` | Closes the toasts first; else goes back (previous view); at the root of a Project or Team view: back to the Hub view |
-| `Ctrl+T` | Team view (choice when there are several teams); from the Team view: back to the Hub view |
+| `Ctrl+T` | Next view of the cycle **Hub → Project → Team → Hub**, skipping what is not configured: from the Hub, the project you left (the only one, or a choice among several), else the team; from the Project, the team (choice when there are several), else the Hub; from the Team, the Hub |
 | `Ctrl+Q` / `Ctrl+C` | Quit (when sessions work: finish the step then sleep, background, or stop) |
 | `Enter` | Action of the selected list, button or field; palette only when nothing uses it |
 
@@ -62,6 +68,7 @@ A key has the same meaning in every view. A view may give a free letter to an ac
 | Everywhere | `?` / `F1` | Help and keys |
 | Everywhere | `Enter` | Open the selected element |
 | Everywhere | `Esc` | Back (closes the toasts first) |
+| Everywhere | `Ctrl+S` | Save: the team pages and the workflow editor, which do not save on their own (in a launch form or a wizard: next step or launch) |
 | List | `n` | Create |
 | List | `e` | Edit |
 | List | `d` | Delete, **always confirmed** |
@@ -78,6 +85,10 @@ A key has the same meaning in every view. A view may give a free letter to an ac
 
 `e`, `s`, `A` and `c` carry an action of the view when it has not the action of the convention (`e` chain in Sessions, `s` stop a session, `A` open with…).
 
+`w` has one meaning only: open in the browser (Sessions). Saving is `Ctrl+S`.
+
+**Saving**: the Settings and the Project pages (config, models, MCP) save by themselves after **one delay** (500 ms, the same everywhere) and say so in the title of the page: `✎ saving…` then `✔ saved` (`✗ not saved` when the save failed). The team pages (team detail, team models, team MCP) publish to the team-state, shared with the team: they do not save on their own, the title says `✎ not published — Ctrl+S` as long as a change waits, `✔ saved` once `Ctrl+S` published it.
+
 ### Changed keys
 
 | View | Before → now |
@@ -92,7 +103,12 @@ A key has the same meaning in every view. A view may give a free letter to an ac
 | Projects | `a` → `n` create · `n` → `e` rename |
 | Team board | `f` → `/` filter · `x` → `L` release |
 | Worktrees | `a` → `n` create · `x` → `M` clean up merged ones |
-| Team detail | `y` → `T` discover the tracker |
+| Team detail, team models, team MCP | `y` → `T` discover the tracker (detail) · `w` → `Ctrl+S` save |
+| Workflow editor | also `w` → `Ctrl+S` save |
+| Team activity | `w` → `s` week (`t` today, `0` all) |
+| MCP | `w` → `m` write mode of a service |
+| Launch form (modified directory) | `w` → `t` worktree (`s` stash, `b` allow) |
+| Switching views | `Ctrl+T`: Hub → Project → Team → Hub (it only went between the Hub and the Team) |
 | Other lists (models, policies, secrets, teams…) | `a` → `n` create |
 
 ## The omnibar
@@ -271,7 +287,7 @@ Command `project-wiki` (Project view). At the top, the summarised metrics (pages
 
 ### Team proposals (team-state)
 
-Command `team.wiki` (Team view): wiki proposals of the team-state, then pages. `{` / `}` sections, `Enter` see (buttons Accept, Refuse confirmed, Close), `y` accept, `n` refuse (confirmed), `r` refresh.
+Command `team.wiki` (Team view): wiki proposals of the team-state, then pages. `{` / `}` sections, `Enter` see (buttons Accept, Refuse, Close), `y` accept, `n` refuse, `r` refresh. **Refusing asks for a reason** (required: an empty one refuses nothing); it is kept in the history of the team-state and in the `wiki.rejected` event, shown in the Activity view and in the notification.
 
 ### Bricks
 
@@ -321,7 +337,7 @@ Command `doctor`. `f` fix the selected check (like `oh doctor --fix`, with a pre
 
 **History**: `Enter` or `c` diff with the current version, `R` restore (confirmed, republished as a new version), `r` refresh.
 
-**Editor**: sections General, Graph, Inputs & prompt, Resources, Bundle preview (`Tab` / `Shift+Tab`). `Enter` modify, `d` (or `Delete`) remove an element or go back to the inherited value (confirmed), `a` agent or input, `c` checkpoint, `m` mode shown (Graph), `P` template in `$EDITOR`, `Y` raw YAML in `$EDITOR`, `u` / `U` undo / redo, `w` or `Ctrl+S` save, `Esc` (save and quit, drop or keep editing).
+**Editor**: sections General, Graph, Inputs & prompt, Resources, Bundle preview (`Tab` / `Shift+Tab`). `Enter` modify, `d` (or `Delete`) remove an element or go back to the inherited value (confirmed), `a` agent or input, `c` checkpoint, `m` mode shown (Graph), `P` template in `$EDITOR`, `Y` raw YAML in `$EDITOR`, `u` / `U` undo / redo, `Ctrl+S` save, `Esc` (save and quit, drop or keep editing).
 
 ### Boards
 
@@ -337,15 +353,15 @@ Command `doctor`. `f` fix the selected check (like `oh doctor --fix`, with a pre
 | Projects | `Enter` configure, `n` add, `e` rename, `m` move, `d` delete (confirmed), `p` Project view, `b` initialise Beads |
 | Worktrees | `Enter` / `o` open in a terminal, `n` create, `d` delete, `p` prune the references, `M` delete the merged worktrees (never those of a session not stopped); confirmed |
 | Settings, Project config | `{` / `}` sections, `Space` toggle, `Enter` modify, `u` undo, `r` reload (confirmed when changes are unsaved) |
-| Models (hub, project, team) | `Enter` modify, `n` create, `d` delete (confirmed), `u` undo, `w` save (team) |
+| Models (hub, project, team) | `Enter` modify, `n` create, `d` delete (confirmed), `u` undo, `Ctrl+S` save (team) |
 | Provider | `Space` default, `Enter` / `e` modify, `s` set up, `d` clear the configuration and the key of the keychain (confirmed) |
-| MCP (hub, project, team) | `Space` enable, `Enter` modify, `t` token or test, `w` save, `u` undo, `T` approve the URL imposed by the team (hub view; confirmed, see [`oh mcp trust`](cli-mcp.en.md#oh-mcp-trust)) |
+| MCP (hub, project, team) | `Space` enable, `Enter` modify, `t` token or test, `m` write mode (hub view), `Ctrl+S` save (team), `u` undo, `T` approve the URL imposed by the team (hub view; confirmed, see [`oh mcp trust`](cli-mcp.en.md#oh-mcp-trust)) |
 | Secrets | `Enter` / `e` modify, `n` create, `d` delete (confirmed) |
 | Teams | `Enter` open, `n` create, `d` delete (confirmed), `s` sync, `u` undo |
-| Team detail | `Space` toggle, `Enter` modify, `w` save, `s` sync, `t` test, `u` undo, `T` discover the tracker, `K` provider key of the team |
+| Team detail | `Space` toggle, `Enter` modify, `Ctrl+S` save, `s` sync, `t` test, `u` undo, `T` discover the tracker, `K` provider key of the team |
 | Patterns | `Enter` see, `n` create, `y` validate, `d` delete (confirmed) |
 | Policies | `Enter` detail, `n` create, `t` template, `e` edit, `d` delete (confirmed), `c` check |
-| Status, Activity, Metrics | `c` check the conventions · `t` / `w` / `0` today, week, all · `7` / `3` / `0` period, `Tab` usage by agent |
+| Status, Activity, Metrics | `c` check the conventions · `t` / `s` / `0` today, week, all (Activity) · `7` / `3` / `0` period, `Tab` usage by agent |
 | Briefs | `Enter` see the brief, `e` enrich (workflow `brief-enrich`) |
 
 ## Wizards

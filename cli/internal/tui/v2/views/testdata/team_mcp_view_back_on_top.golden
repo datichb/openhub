@@ -10,7 +10,7 @@
 ║   Imposé                       non configuré                                     ║│   Espace basculer                                    │
 ║     L'équipe impose ce réglage (non modifiable par les membres)                  ║│   Entrée éditer                                      │
 ║   URL de l'instance            non configuré                                     ║│   t      test                                        │
-║     URL de l'instance auto-hébergée                                              ║│   w      sauvegarder                                 │
+║     URL de l'instance auto-hébergée                                              ║│   Ctrl+S enregistrer                                 │
 ║   URL imposée                  non configuré                                     ║│   u      annuler                                     │
 ║     L'équipe impose l'URL de l'instance                                          ║│   r      rafraîchir                                  │
 ║   Écriture recommandée         ○ désactivé                                       ║│                                                      │

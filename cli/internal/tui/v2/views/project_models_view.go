@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"sort"
-	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -40,6 +39,7 @@ type ProjectModelsView struct {
 	live      *domain.Project
 	undoStack *widgets.UndoStack[domain.Project]
 	autoSaver *AutoSaver
+	badge     saveBadge
 }
 
 var _ View = (*ProjectModelsView)(nil)
@@ -71,7 +71,7 @@ func (v *ProjectModelsView) Mount(content *tview.Flex, app *tview.Application) {
 	v.undoStack.Clear()
 	v.live = v.cfg.GetProject()
 
-	v.autoSaver = NewAutoSaver(200*time.Millisecond, app, func() {
+	v.autoSaver = NewAutoSaver(SaveDelay, app, func() {
 		v.doSave()
 	})
 
@@ -83,6 +83,7 @@ func (v *ProjectModelsView) Mount(content *tview.Flex, app *tview.Application) {
 		title += " · " + v.live.Name
 	}
 	v.page = newListPage(title, v.list)
+	v.badge.attach(v.page, title)
 
 	if v.live == nil {
 		v.list.SetItems([]widgets.SectionItem{{MainText: stateText(stateEmpty, i18n.T("tui.project.no_active"))}})
@@ -107,6 +108,7 @@ func (v *ProjectModelsView) Unmount() {
 		v.autoSaver.Flush()
 	}
 	v.undoStack.Clear()
+	v.badge.detach()
 	v.app = nil
 	v.list = nil
 	v.page = nil
@@ -256,9 +258,7 @@ func (v *ProjectModelsView) editByItem(item widgets.SectionItem) {
 		v.shell.ShowInputModal(i18n.T("tui.config.field.default_model.label"), cur, func(newVal string) {
 			v.pushUndo()
 			v.live.Model = newVal
-			if v.autoSaver != nil {
-				v.autoSaver.Schedule()
-			}
+			v.scheduleAutoSave()
 			v.renderList()
 		})
 
@@ -271,9 +271,7 @@ func (v *ProjectModelsView) editByItem(item widgets.SectionItem) {
 				v.live.ModelOverrides.Families = make(map[string]string)
 			}
 			v.live.ModelOverrides.Families[ref.key] = newVal
-			if v.autoSaver != nil {
-				v.autoSaver.Schedule()
-			}
+			v.scheduleAutoSave()
 			v.renderList()
 		})
 
@@ -286,9 +284,7 @@ func (v *ProjectModelsView) editByItem(item widgets.SectionItem) {
 				v.live.ModelOverrides.Agents = make(map[string]string)
 			}
 			v.live.ModelOverrides.Agents[ref.key] = newVal
-			if v.autoSaver != nil {
-				v.autoSaver.Schedule()
-			}
+			v.scheduleAutoSave()
 			v.renderList()
 		})
 	}
@@ -330,9 +326,7 @@ func (v *ProjectModelsView) addEntry() {
 					}
 					v.live.ModelOverrides.Agents[key] = model
 				}
-				if v.autoSaver != nil {
-					v.autoSaver.Schedule()
-				}
+				v.scheduleAutoSave()
 				v.renderList()
 				v.shell.ShowToastMsg(i18n.T("tui.project_models.override_added"), true)
 			})
@@ -363,9 +357,7 @@ func (v *ProjectModelsView) deleteEntry() {
 		case "agents":
 			delete(v.live.ModelOverrides.Agents, ref.key)
 		}
-		if v.autoSaver != nil {
-			v.autoSaver.Schedule()
-		}
+		v.scheduleAutoSave()
 		v.renderList()
 		v.shell.ShowToastMsg(i18n.T("tui.project_models.override_deleted"), true)
 	})
@@ -399,6 +391,14 @@ func (v *ProjectModelsView) undo() {
 	}
 }
 
+// scheduleAutoSave saves after SaveDelay and says so in the title.
+func (v *ProjectModelsView) scheduleAutoSave() {
+	v.badge.set(saveStatusPending)
+	if v.autoSaver != nil {
+		v.autoSaver.Schedule()
+	}
+}
+
 func (v *ProjectModelsView) doSave() {
 	if v.live == nil {
 		return
@@ -408,11 +408,10 @@ func (v *ProjectModelsView) doSave() {
 		if v.shell != nil {
 			v.shell.ShowToastMsg(i18n.T("tui.project.save_error")+": "+err.Error(), false)
 		}
+		v.badge.set(saveStatusFailed)
 		return
 	}
-	if v.shell != nil {
-		v.shell.ShowToastMsg(i18n.T("tui.config.autosaved"), true)
-	}
+	v.badge.set(saveStatusSaved)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -4,7 +4,6 @@ package views
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -39,6 +38,9 @@ type TeamModeConfig struct {
 type TeamModeStats struct {
 	MemberCount int // number of team members
 	ActiveCount int // tickets in progress + review (momentum indicator)
+	// Others are the sessions of the other members, read from the claims
+	// (OtherMemberSessions): shown read only.
+	Others []TeamMemberSession
 }
 
 // teamModeItem represents a navigable item in the team mode landing.
@@ -60,10 +62,11 @@ type TeamModeView struct {
 	app      *tview.Application
 	list     *widgets.SectionedList
 	dual     *homeDualLayout
-	header   *tview.TextView // header with badge + stats (updated async)
-	bannerTV *tview.TextView // centered ASCII art banner
-	stats    string          // stats line of the header ("" = loading)
-	summary  *TeamModeStats  // the stats once read (nil = not read yet)
+	header   *tview.TextView     // header with badge + stats (updated async)
+	bannerTV *tview.TextView     // centered ASCII art banner
+	stats    string              // stats line of the header ("" = loading)
+	summary  *TeamModeStats      // the stats once read (nil = not read yet)
+	others   []TeamMemberSession // the sessions of the other members, once read
 	items    []teamModeItem
 	loads    loadSlot // the read of the stats: only the latest is applied
 }
@@ -93,14 +96,14 @@ func (v *TeamModeView) Title() string {
 // StatusHints returns keybinding hints.
 func (v *TeamModeView) StatusHints() string {
 	if v.team == nil {
-		return fmt.Sprintf("%s · Ctrl+T %s", i18n.T("tui.tm.no_team"), i18n.T("tui.hints.hub_mode"))
+		return fmt.Sprintf("%s · Ctrl+T %s", i18n.T("tui.tm.no_team"), i18n.T("tui.hints.next_view"))
 	}
 	return keys.Hints(
 		v.team.Name,
 		keys.Navigate.HintAs(i18n.T("tui.hints.navigate")),
 		keys.Open.HintAs(i18n.T("tui.hints.open")),
 		"Ctrl+P "+i18n.T("tui.hints.commands"),
-		"Ctrl+T "+i18n.T("tui.hints.hub_mode"),
+		"Ctrl+T "+i18n.T("tui.hints.next_view"),
 	)
 }
 
@@ -150,6 +153,7 @@ func (v *TeamModeView) Mount(content *tview.Flex, app *tview.Application) {
 		return
 	}
 
+	v.others = nil
 	v.items = v.buildItems()
 
 	// ── Banner (centered) ──────────────────────────────────────────────
@@ -165,7 +169,7 @@ func (v *TeamModeView) Mount(content *tview.Flex, app *tview.Application) {
 		SetScrollable(false)
 	v.header.SetBackgroundColor(theme.BgPanel)
 
-	bannerName := strings.ToUpper(v.team.Name)
+	bannerName := v.team.Name // as typed, like the name of a project
 	banner, bh := renderBanner(bannerName, 100, theme.ActiveMode.AccentHex)
 	compactNow := false
 
@@ -191,27 +195,7 @@ func (v *TeamModeView) Mount(content *tview.Flex, app *tview.Application) {
 			theme.Paint(theme.ActiveMode.PrimaryHex, i18n.T("tui.tm.header_badge")), stats))
 	}
 
-	// Read the stats off the event loop, then draw them in the header and in
-	// the mode bar.
-	v.summary = nil
-	if stats := v.cfg.TeamStats; stats != nil {
-		load(app, shellContext(v.shell), &v.loads, func(context.Context) (TeamModeStats, error) {
-			return stats(), nil
-		}, func(st TeamModeStats, err error) {
-			if v.app == nil || err != nil {
-				return // unmounted, or the read failed: the header keeps « loading »
-			}
-			v.summary = &st
-			v.stats = i18n.Tf("tui.tm.stats", st.MemberCount, st.ActiveCount)
-			renderHeader(compactNow)
-			refreshModeBar(v.shell)
-		})
-	}
-
-	footer := newHomeFooter(footerTeam)
-
-	// ── Split items for dual-column: left = Sessions+Board, right = Config+Nav ──
-	leftItems, rightItems := v.splitItems()
+	footer := newHomeFooter()
 
 	onSelect := func(_ int, item widgets.SectionItem) {
 		if idx, ok := item.Reference.(int); ok {
@@ -227,6 +211,8 @@ func (v *TeamModeView) Mount(content *tview.Flex, app *tview.Application) {
 	combinedHeader.AddItem(v.header, 0, 1, false)      // badge/stats fills rest
 
 	buildFn := func(width int, compact bool) homeFlexResult {
+		// Split items for dual-column: left = Sessions+Board, right = Config+Nav.
+		leftItems, rightItems := v.splitItems()
 		headerHeight := bh + 4
 		if compact {
 			headerHeight = 2
@@ -258,6 +244,41 @@ func (v *TeamModeView) Mount(content *tview.Flex, app *tview.Application) {
 	}
 
 	adaptiveHomeMount(app, content, buildFn)
+
+	// Read the stats off the event loop, then draw them in the header and in
+	// the mode bar.
+	v.summary = nil
+	if stats := v.cfg.TeamStats; stats != nil {
+		load(app, shellContext(v.shell), &v.loads, func(context.Context) (TeamModeStats, error) {
+			return stats(), nil
+		}, func(st TeamModeStats, err error) {
+			if v.app == nil || err != nil {
+				return // unmounted, or the read failed: the header keeps « loading »
+			}
+			v.summary = &st
+			v.stats = i18n.Tf("tui.tm.stats", st.MemberCount, st.ActiveCount)
+			renderHeader(compactNow)
+			refreshModeBar(v.shell)
+			if len(st.Others) == 0 && len(v.others) == 0 {
+				return
+			}
+			// The sessions of the others join the list: build it again, the
+			// focus staying where it is.
+			v.others = st.Others
+			v.items = v.buildItems()
+			owned := homeOwnsFocus(app, v.list, v.dual)
+			content.Clear()
+			adaptiveHomeMount(app, content, buildFn)
+			if !owned {
+				return
+			}
+			if v.dual != nil {
+				v.dual.focusLeft()
+			} else if v.list != nil {
+				app.SetFocus(v.list)
+			}
+		})
+	}
 }
 
 // Unmount cleans up resources.
@@ -337,6 +358,14 @@ func (v *TeamModeView) buildItems() []teamModeItem {
 		}
 	}
 
+	// ── Sessions of the other members (read only, from the claims) ──
+	if len(v.others) > 0 {
+		items = append(items, teamModeItem{Icon: "─", Label: i18n.Tf("tui.tm.others.section", len(v.others)), SectionID: "others"})
+		for _, s := range v.others {
+			items = append(items, teamModeItem{Icon: s.icon(), Label: s.label(), Desc: s.desc(), Action: func() { v.showOtherSession(s) }})
+		}
+	}
+
 	// ── Board section ──
 	items = append(items,
 		teamModeItem{Icon: "─", Label: i18n.T("tui.tm.section.board"), SectionID: "board"},
@@ -382,6 +411,17 @@ func (v *TeamModeView) buildItems() []teamModeItem {
 	)
 
 	return items
+}
+
+// showOtherSession shows a session of another member in a window that only
+// reads: there is nothing to launch, stop or send to a session that runs on
+// another machine.
+func (v *TeamModeView) showOtherSession(s TeamMemberSession) {
+	if v.shell == nil {
+		return
+	}
+	v.shell.ShowScrollableModal(tview.Escape(i18n.Tf("tui.tm.others.title", s.Member, s.Ticket)), s.detail(),
+		[]ModalAction{{Label: i18n.T("tui.wiki.btn_close"), Callback: func() {}}})
 }
 
 // splitItems distributes team mode items into left/right columns for dual mode.

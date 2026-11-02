@@ -25,7 +25,8 @@ On the first start without configuration, the `oh init` wizard opens in the TUI 
 | `Ctrl+P` or `/` | Open the omnibar (`/`: when the view does not use it to filter) |
 | `?` or `F1` | Help (global shortcuts, key convention, keys of the current view); works in the tabs of a session and in the batch too |
 | `Esc` | Close the toasts shown; otherwise back to the previous view; at the root of a project or team mode, back to Hub mode. In the launch form and the wizards, `Esc` keeps its meaning (close the form, « Quit the wizard? ») and does not close the toasts |
-| `Ctrl+T` | Enter team mode (choice when there are several teams); from team mode, back to the Hub |
+| `Ctrl+T` | Next mode: Hub → Project → Team → Hub, skipping what is not configured (the project you left, or the only one, or a choice; then the team, or a choice among several teams) |
+| `Ctrl+S` | Save (team pages, workflow editor); in the launch form and the wizards: next step or launch |
 | `Ctrl+Q` (or `Ctrl+C`) | Quit (see [Quitting oh](#quitting-oh)) |
 | `j` / `k`, `g` / `G` | Down / up, top / bottom of a list, in every view |
 | `{` / `}` | Previous / next section in sectioned lists |
@@ -54,15 +55,19 @@ Switching between layouts keeps the selected item. Setting `[cli] compact = auto
 
 The bottom bar shows `● N ◐ M` everywhere: `N` live sessions (neither sleeping nor finished), `M` waiting decisions. The badge turns to the alert color when `M > 0`, and a toast announces each new decision. System notifications come from the oh daemon, even with the TUI closed.
 
+### Saving
+
+The Settings and the Project pages save by themselves, after **one delay** (500 ms) the same everywhere, and say so in the title of the page: `✎ saving…`, then `✔ saved` (or `✗ not saved`, the toast says why). The team pages (team detail, team models, team MCP) publish to the team-state, shared with the team, so they do not save on their own: the title says `✎ not published — Ctrl+S` while a change waits, and `✔ saved` after `Ctrl+S`. `w` no longer saves anywhere: it only opens a session in the browser.
+
 ### Modes
 
 | Mode | Landing content |
 |------|-----------------|
-| **Hub** | Start, Running sessions, System (Configuration = Settings, Metrics, Doctor, Secrets), Projects (known projects, then "Add a project"), Teams |
-| **Project** | Start (with categories), Project sessions, Project (Board, Metrics, Status), Configuration (Project Config, Worktrees, Project workflows), Team |
-| **Team** | Start (with categories), Team sessions, Board (team board, status, activity, takeover briefs), Configuration (patterns, policies, team detail, team workflows), Navigation |
+| **Hub** | Start, Running sessions, System (Configuration = Settings, Metrics, Doctor, Secrets, Notifications, Brick catalogue), Projects (known projects, then "Add a project"), Teams. The header tells the tool and its adapter (`opencode v2.0.20 · adapter opencode-v2 ✔`) |
+| **Project** | Start (with categories), Project sessions, Project (Board, Metrics, Status), Configuration (Project Config, Worktrees, Project workflows), Team. The header gives the execution environments with their state (`⌂ local ✔  ▣ container · colima ✔  ☁ remote ✗`) |
+| **Team** | Start (with categories), Team sessions, **Sessions of the other members** (read only, from the claims: member, ticket, session, since when), Board (team board, status, activity, takeover briefs), Configuration (patterns, policies, team detail, team workflows), Navigation |
 
-Selecting a project or a team on the Hub landing opens its mode. Started from the directory of a registered project, `oh` opens in Project mode. The omnibar only shows the commands of the active mode. On the landings, texts that are too long are cut with "…" and the two columns widen with the terminal (up to 180 columns).
+Selecting a project or a team on the Hub landing opens its mode; `Ctrl+T` goes from one mode to the next (Hub → Project → Team → Hub). Started from the directory of a registered project, `oh` opens in Project mode. The omnibar only shows the commands of the active mode. On the landings, texts that are too long are cut with "…" and the two columns widen with the terminal (up to 180 columns).
 
 ---
 
@@ -214,7 +219,7 @@ CLI equivalent: `oh session approve <id> --decision once|fix|other|reject [-m "�
 
 - **During a checkpoint** (onboarding, doc-sync…): on the card, **Wiki proposals (N): decide…** opens the full list: `y` accept, `n` refuse (optional reason, then `Enter`; the reason is kept and shown on the refused proposal), `e` modify (one line, or `$EDITOR`), `s` leave, `A` accept all. `Esc` goes back to the card, `Enter` decides the checkpoint; the accepted ones are applied when the checkpoint passes, before the commit.
 - **Outside a checkpoint**: `project-wiki` command ("Project wiki"): pending, accepted (applied at the next commit) and stale proposals, same keys, `/` filter, `m` metrics. A decision here is the same as `oh wiki decide`.
-- **Team wiki**: `team.wiki` command ("Team proposals (team-state)"): `y` accept, `n` refuse (confirmed).
+- **Team wiki**: `team.wiki` command ("Team proposals (team-state)"): `y` accept, `n` refuse; **the reason is required** (an empty one refuses nothing), kept in the history of the team-state and shown in the team activity.
 
 ### Batch validation
 
@@ -298,7 +303,7 @@ Sections (`Tab` / `Shift+Tab`): **General**, **Graph**, **Inputs & prompt**, **R
 | `P` | edit the prompt template in `$EDITOR` |
 | `Y` | edit the raw YAML in `$EDITOR` |
 | `u` / `U` | undo / redo |
-| `w` or `Ctrl+S` | save the draft |
+| `Ctrl+S` | save the draft |
 | `Esc` | close (asks what to do when changes remain) |
 
 ---

@@ -202,7 +202,7 @@ func TestWorkflowEditorGeneralUndoSave(t *testing.T) {
 	env.key(tcell.KeyEscape, 0)
 	require.Len(t, env.sh.modal, 3)
 	assert.Zero(t, env.sh.popped)
-	env.key(tcell.KeyRune, 'w')
+	env.key(tcell.KeyCtrlS, 0)
 	require.Eventually(t, func() bool { env.mu.Lock(); defer env.mu.Unlock(); return len(env.saved) == 1 }, 2*time.Second, 20*time.Millisecond)
 	assert.Contains(t, string(env.saved[0]), "risk: read")
 	var dirty bool
@@ -262,7 +262,7 @@ func TestWorkflowEditorInvalidAndJump(t *testing.T) {
 		env.v.SetCheck(&EditorCheck{Spec: env.v.check.Spec, Origins: env.v.check.Origins,
 			Diagnostics: []EditorDiag{{Error: true, Path: "agents.developer.after", Message: "bad"}, {Error: true, Path: "risk", Message: "x"}}})
 	})
-	env.key(tcell.KeyRune, 'w')
+	env.key(tcell.KeyCtrlS, 0)
 	env.mu.Lock()
 	assert.Empty(t, env.saved, "invalid: not saved")
 	env.mu.Unlock()

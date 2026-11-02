@@ -13,6 +13,10 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
+// hubBannerName is the name drawn in the banner of the hub: the product. The
+// project and the team draw their own name, as it was typed (never in capitals).
+const hubBannerName = "OPENHUB"
+
 // bannerFont is the figlet font used for big title rendering.
 // "small" is 4-5 lines tall, compact, and fits most names within 72 cols.
 const bannerFont = "small"

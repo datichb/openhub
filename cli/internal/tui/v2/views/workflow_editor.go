@@ -295,7 +295,7 @@ func (v *WorkflowEditorView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	case tcell.KeyEscape:
 		v.close()
 		return nil
-	case tcell.KeyCtrlS:
+	case tcell.KeyCtrlS: // keys.Save
 		v.save()
 		return nil
 	case tcell.KeyDelete, tcell.KeyBackspace, tcell.KeyBackspace2:
@@ -318,9 +318,6 @@ func (v *WorkflowEditorView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		return nil
 	case rawYAMLKey.Matches(event):
 		v.editRaw(0)
-		return nil
-	case saveKey.Matches(event):
-		v.save()
 		return nil
 	case keys.Delete.Matches(event):
 		v.removeCurrent()
@@ -1089,7 +1086,6 @@ var (
 	rawYAMLKey    = keys.Own("editor.raw_yaml", 'Y', "tui.editor.raw_yaml")
 	undoKey       = keys.Own("editor.undo", 'u', "tui.editor.key.undo")
 	redoKey       = keys.Own("editor.redo", 'U', "tui.editor.key.redo")
-	saveKey       = keys.Own("editor.save", 'w', "tui.editor.key.save")
 	addKey        = keys.Own("editor.add", 'a', "tui.editor.key.add")
 	checkpointKey = keys.Own("editor.checkpoint", 'c', "tui.editor.key.checkpoint")
 	modeKey       = keys.Own("editor.mode", 'm', "tui.editor.key.mode")

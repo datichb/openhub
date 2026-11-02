@@ -25,7 +25,8 @@ Au premier démarrage sans configuration, l'assistant `oh init` se lance dans la
 | `Ctrl+P` ou `/` | Ouvrir l'omnibar (`/` : si la vue ne l'utilise pas pour filtrer) |
 | `?` ou `F1` | Aide (raccourcis globaux, convention des touches, touches de la vue active) ; marche aussi dans les onglets d'une session et dans le lot |
 | `Esc` | Fermer les toasts affichés ; sinon retour à la vue précédente ; à la racine d'un mode projet ou équipe, retour au mode Hub. Dans la fiche de lancement et les assistants, `Esc` garde son sens (fermer la fiche, « Quitter l'assistant ? ») et ne ferme pas les toasts |
-| `Ctrl+T` | Entrer en mode équipe (choix si plusieurs équipes) ; depuis le mode équipe, revenir au Hub |
+| `Ctrl+T` | Mode suivant : Hub → Projet → Équipe → Hub, en sautant ce qui n'est pas configuré (le projet quitté, ou le seul, ou un choix ; puis l'équipe, ou un choix parmi plusieurs équipes) |
+| `Ctrl+S` | Enregistrer (pages d'équipe, éditeur de workflow) ; dans la fiche de lancement et les assistants : étape suivante ou lancer |
 | `Ctrl+Q` (ou `Ctrl+C`) | Quitter (voir [Fermer oh](#fermer-oh)) |
 | `j` / `k`, `g` / `G` | Bas / haut, début / fin de liste, dans toutes les vues |
 | `{` / `}` | Section précédente / suivante dans les listes à sections |
@@ -54,15 +55,19 @@ Le passage d'une mise en page à l'autre garde l'élément sélectionné. Régla
 
 La barre du bas affiche partout `● N ◐ M` : `N` sessions vivantes (ni en veille ni terminées), `M` décisions en attente. Le badge passe en couleur d'alerte quand `M > 0`, et un toast annonce chaque nouvelle décision. Les notifications système viennent du démon oh, même TUI fermée.
 
+### Enregistrement
+
+Les pages Réglages et Projet enregistrent seules, après **un seul délai** (500 ms) le même partout, et le disent dans le titre de la page : `✎ enregistrement…`, puis `✔ enregistré` (ou `✗ non enregistré`, le toast dit pourquoi). Les pages d'équipe (détail d'équipe, modèles d'équipe, MCP d'équipe) publient dans le team-state, partagé avec l'équipe : elles n'enregistrent pas seules, le titre dit `✎ non publié — Ctrl+S` tant qu'un changement attend, puis `✔ enregistré` après `Ctrl+S`. `w` n'enregistre plus nulle part : il ouvre seulement une session dans le navigateur.
+
 ### Modes
 
 | Mode | Contenu de l'accueil |
 |------|----------------------|
-| **Hub** | Démarrer, Sessions en cours, Système (Configuration = Réglages, Métriques, Doctor, Secrets), Projets (projets connus, puis « Ajouter un projet »), Équipes |
-| **Projet** | Démarrer (avec catégories), Sessions du projet, Projet (Board, Métriques, Statut), Configuration (Config Projet, Worktrees, Workflows du projet), Équipe |
-| **Équipe** | Démarrer (avec catégories), Sessions de l'équipe, Board (board d'équipe, statut, activité, résumés de reprise), Configuration (patterns, politiques, détail équipe, workflows de l'équipe), Navigation |
+| **Hub** | Démarrer, Sessions en cours, Système (Configuration = Réglages, Métriques, Doctor, Secrets, Notifications, Catalogue des briques), Projets (projets connus, puis « Ajouter un projet »), Équipes. L'en-tête dit l'outil et son adaptateur (`opencode v2.0.20 · adaptateur opencode-v2 ✔`) |
+| **Projet** | Démarrer (avec catégories), Sessions du projet, Projet (Board, Métriques, Statut), Configuration (Config Projet, Worktrees, Workflows du projet), Équipe. L'en-tête donne les environnements d'exécution avec leur état (`⌂ local ✔  ▣ conteneur · colima ✔  ☁ distant ✗`) |
+| **Équipe** | Démarrer (avec catégories), Sessions de l'équipe, **Sessions des autres membres** (lecture seule, d'après les claims : membre, ticket, session, depuis quand), Board (board d'équipe, statut, activité, résumés de reprise), Configuration (patterns, politiques, détail équipe, workflows de l'équipe), Navigation |
 
-Sélectionner un projet ou une équipe sur l'accueil Hub ouvre son mode. Lancée depuis le dossier d'un projet enregistré, `oh` démarre en mode Projet. L'omnibar ne montre que les commandes du mode actif. Sur les accueils, les textes trop longs sont coupés par « … » et les deux colonnes s'élargissent avec le terminal (jusqu'à 180 colonnes).
+Sélectionner un projet ou une équipe sur l'accueil Hub ouvre son mode ; `Ctrl+T` passe d'un mode au suivant (Hub → Projet → Équipe → Hub). Lancée depuis le dossier d'un projet enregistré, `oh` démarre en mode Projet. L'omnibar ne montre que les commandes du mode actif. Sur les accueils, les textes trop longs sont coupés par « … » et les deux colonnes s'élargissent avec le terminal (jusqu'à 180 colonnes).
 
 ---
 
@@ -214,7 +219,7 @@ Sur une ligne « À récupérer » : compte rendu (artefacts, import de la sessi
 
 - **Pendant un checkpoint** (onboarding, doc-sync…) : sur la fiche, **Propositions du wiki (N) : décider…** ouvre la liste complète : `y` accepter, `n` refuser (motif facultatif, puis `Entree` ; le motif est conservé et affiché sur la proposition refusée), `e` modifier (une ligne, ou `$EDITOR`), `s` laisser, `A` tout accepter. `Échap` revient à la fiche, `Entree` décide le checkpoint ; les acceptées sont appliquées au passage du checkpoint, avant le commit.
 - **Hors checkpoint** : commande `project-wiki` (« Wiki du projet ») : propositions en attente, acceptées (appliquées au prochain commit) et périmées, mêmes touches, `/` filtrer, `m` métriques. Une décision ici est la même que `oh wiki decide`.
-- **Wiki d'équipe** : commande `team.wiki` (« Propositions d'équipe (team-state) ») : `y` accepter, `n` refuser (confirmé).
+- **Wiki d'équipe** : commande `team.wiki` (« Propositions d'équipe (team-state) ») : `y` accepter, `n` refuser ; **le motif est obligatoire** (un motif vide ne refuse rien), gardé dans l'historique du team-state et affiché dans l'activité de l'équipe.
 
 ### Valider en lot
 
@@ -298,7 +303,7 @@ Sections (`Tab` / `Shift+Tab`) : **Général**, **Graphe**, **Entrées & prompt*
 | `P` | éditer le gabarit du prompt dans `$EDITOR` |
 | `Y` | éditer le YAML brut dans `$EDITOR` |
 | `u` / `U` | annuler / rétablir |
-| `w` ou `Ctrl+S` | enregistrer le brouillon |
+| `Ctrl+S` | enregistrer le brouillon |
 | `Esc` | fermer (demande quoi faire s'il reste des modifications) |
 
 ---

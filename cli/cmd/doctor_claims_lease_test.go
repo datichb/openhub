@@ -26,6 +26,8 @@ func TestExpiredClaims(t *testing.T) {
 		{TicketID: "bob", ClaimedBy: "bob", Status: teamstate.ClaimStatusInProgress, LeaseUntil: at(-time.Hour)},
 		{TicketID: "done", ClaimedBy: "me", Status: teamstate.ClaimStatusDone, LeaseUntil: at(-time.Hour)},
 		{TicketID: "planned", ClaimedBy: "me", Status: teamstate.ClaimStatusPlanned, LastActivity: at(-9 * 24 * time.Hour)},
+		{TicketID: "in-review", ClaimedBy: "me", Status: teamstate.ClaimStatusReview, LeaseUntil: at(-time.Hour)},
+		{TicketID: "review-label", ClaimedBy: "me", Status: teamstate.ClaimStatusInProgress, LastActivity: at(-9 * 24 * time.Hour), Labels: []string{teamstate.LabelReadyForReview}},
 	}
 	got := expiredClaims("p1", "me", claims, cfg, now)
 	reasons := map[string]string{}
@@ -34,7 +36,36 @@ func TestExpiredClaims(t *testing.T) {
 	}
 	assert.Equal(t, map[string]string{
 		"lease-past": "lease", "legacy-stale": "inactive", "ended": "ended",
-	}, reasons, "the member's own claims only, none without a lease (planned, done), none still valid")
+	}, reasons, "the member's own claims only, none without a lease (planned, done), none still valid, none in review (they do not expire)")
+}
+
+func TestStaleReviewClaims(t *testing.T) {
+	now := time.Date(2026, 7, 10, 12, 0, 0, 0, time.UTC)
+	at := func(d time.Duration) teamstate.Instant { return teamstate.InstantOf(now.Add(d)) }
+	cfg := &teamstate.TeamConfig{Takeover: teamstate.TakeoverConfig{StaleDays: 3}}
+	claims := []teamstate.Claim{
+		{TicketID: "old", ClaimedBy: "me", Status: teamstate.ClaimStatusReview, LastActivity: at(-5 * 24 * time.Hour)},
+		{TicketID: "old-label", ClaimedBy: "me", Status: teamstate.ClaimStatusInProgress, LastActivity: at(-4 * 24 * time.Hour), Labels: []string{teamstate.LabelReadyForReview}},
+		{TicketID: "recent", ClaimedBy: "me", Status: teamstate.ClaimStatusReview, LastActivity: at(-time.Hour)},
+		{TicketID: "bob", ClaimedBy: "bob", Status: teamstate.ClaimStatusReview, LastActivity: at(-9 * 24 * time.Hour)},
+		{TicketID: "working", ClaimedBy: "me", Status: teamstate.ClaimStatusInProgress, LastActivity: at(-9 * 24 * time.Hour)},
+	}
+	got := staleReviewClaims("p1", "me", claims, cfg, now)
+	assert.Equal(t, []reviewClaim{{Project: "p1", Ticket: "old", Days: 5}, {Project: "p1", Ticket: "old-label", Days: 4}}, got)
+}
+
+func TestStaleReviewClaimsResult(t *testing.T) {
+	i18ntest.Set(t, "fr")
+	assert.Empty(t, staleReviewClaimsResult(nil), "nothing to say")
+
+	rs := staleReviewClaimsResult([]reviewClaim{{Project: "p1", Ticket: "T-1", Days: 5}})
+	require.Len(t, rs, 1)
+	r := rs[0]
+	assert.Equal(t, doctorIDClaimsReview, r.ID)
+	assert.True(t, r.OK && r.Warn, "a warning, never an error: the claim is not expired")
+	assert.Contains(t, r.Detail, "p1/T-1 (5 j)")
+	assert.Contains(t, r.Detail, "oh team release T-1 -p p1", "the way out")
+	assert.NotContains(t, r.Detail, "expir", "not declared expired")
 }
 
 func TestExpiredClaimsResult(t *testing.T) {
@@ -109,4 +140,19 @@ func TestClaimsLeaseDoctorChecks(t *testing.T) {
 	ops, err := repo.ClaimQueue()
 	require.NoError(t, err)
 	assert.Empty(t, ops)
+}
+
+// A claim in review for long is reported by its own check, never as expired.
+func TestClaimsLeaseDoctorChecksReportsALongReview(t *testing.T) {
+	a, repo := setupBeat(t)
+	claimsCreate(t, repo, "pt-r", "testuser", "ses_1")
+	require.NoError(t, repo.UpdateClaimStatus(context.Background(), claimsProject, "pt-r", teamstate.ClaimStatusReview))
+
+	rs := claimsLeaseResults(context.Background(), a, time.Now().Add(10*24*time.Hour))
+	require.Len(t, rs, 2)
+	assert.Equal(t, doctorIDClaimsExpired, rs[0].ID)
+	assert.False(t, rs[0].Warn, "in review: not expired, however old")
+	assert.Equal(t, doctorIDClaimsReview, rs[1].ID)
+	assert.True(t, rs[1].Warn)
+	assert.Contains(t, rs[1].Detail, claimsProject+"/pt-r")
 }

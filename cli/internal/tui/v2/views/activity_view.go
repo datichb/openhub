@@ -3,13 +3,13 @@ package views
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
+	"github.com/datichb/openhub/cli/internal/glyph"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/textfmt"
@@ -20,7 +20,7 @@ import (
 // The filters of the activity, one key each.
 var (
 	activityTodayKey = keys.Own("activity.today", 't', "tui.hints.today")
-	activityWeekKey  = keys.Own("activity.week", 'w', "tui.hints.week")
+	activityWeekKey  = keys.Own("activity.week", 's', "tui.hints.week")
 	activityAllKey   = keys.Own("activity.all", '0', "tui.hints.all")
 )
 
@@ -194,94 +194,22 @@ func (v *ActivityView) labelOf(filter string) string {
 	return filter
 }
 
+// eventToneHex is the color of the tone of an event (glyph.Events).
+var eventToneHex = map[glyph.Tone]string{
+	glyph.ToneSuccess: theme.SuccessHex,
+	glyph.ToneError:   theme.ErrorHex,
+	glyph.ToneWarning: theme.WarningHex,
+	glyph.ToneInfo:    theme.InfoHex,
+	glyph.ToneMuted:   theme.TextMutedHex,
+}
+
+// eventIcon is the symbol of an event type, painted with the color of its
+// tone: the table is glyph.Events, shared with oh team activity.
 func eventIcon(eventType string) string {
-	switch eventType {
-	case teamstate.EventClaimTaken:
-		return tagged(theme.SuccessHex, theme.SymLive)
-	case teamstate.EventClaimReleased:
-		return tagged(theme.TextMutedHex, theme.SymInactive)
-	case teamstate.EventClaimTransferred:
-		return tagged(theme.InfoHex, theme.SymCurrent)
-	case teamstate.EventReviewReady:
-		return tagged(theme.ModeTeamHex, theme.SymCurrent)
-	case teamstate.EventSessionComplete:
-		return tagged(theme.SuccessHex, theme.SymSuccess)
-	case teamstate.EventAuditFinding:
-		return tagged(theme.WarningHex, theme.SymWarning)
-	case teamstate.EventClaimConflict:
-		return tagged(theme.ErrorHex, theme.SymFailure)
-	case teamstate.EventWikiProposal:
-		return tagged(theme.InfoHex, "📝")
-	case teamstate.EventWikiAccepted:
-		return tagged(theme.SuccessHex, theme.SymSuccess)
-	case teamstate.EventWikiRejected:
-		return tagged(theme.ErrorHex, theme.SymFailure)
-	case teamstate.EventWorkflowPublished, teamstate.EventWorkflowRestored:
-		return tagged(theme.InfoHex, theme.SymCurrent)
-	case teamstate.EventWorkflowArchived:
-		return tagged(theme.TextMutedHex, theme.SymInactive)
-	default:
-		return tagged(theme.TextPrimaryHex, "·")
-	}
+	g := glyph.ForEvent(eventType)
+	return tagged(eventToneHex[g.Tone], g.Glyph)
 }
 
 // formatEventDescription is the phrase of an event after its actor (Activity
-// and Team Status views).
-func formatEventDescription(e teamstate.Event) string {
-	switch e.Type {
-	case teamstate.EventClaimTaken:
-		return i18n.Tf("tui.activity.event_claim_taken", e.Ticket)
-	case teamstate.EventClaimReleased:
-		return i18n.Tf("tui.activity.event_claim_released", e.Ticket)
-	case teamstate.EventClaimTransferred:
-		return i18n.Tf("tui.activity.event_claim_transferred", e.Ticket, eventData(e, "to"))
-	case teamstate.EventReviewReady:
-		return i18n.Tf("tui.activity.event_review_ready", eventSubject(e))
-	case teamstate.EventSessionComplete:
-		if subject := eventSubject(e); subject != "" {
-			return i18n.Tf("tui.activity.event_session_complete", subject)
-		}
-		return i18n.T("tui.activity.event_session_complete_bare")
-	case teamstate.EventAuditFinding:
-		return i18n.Tf("tui.activity.event_audit_finding", eventSubject(e))
-	case teamstate.EventClaimConflict:
-		return i18n.Tf("tui.activity.event_claim_conflict", e.Ticket)
-	case teamstate.EventWikiProposal:
-		return i18n.Tf("tui.activity.event_wiki_proposal", eventData(e, "page"))
-	case teamstate.EventWikiAccepted:
-		return i18n.Tf("tui.activity.event_wiki_accepted", eventData(e, "page"))
-	case teamstate.EventWikiRejected:
-		return i18n.Tf("tui.activity.event_wiki_rejected", eventData(e, "page"))
-	case teamstate.EventWorkflowPublished:
-		return i18n.Tf("tui.activity.event_workflow_published", eventData(e, "workflow"), eventData(e, "version"))
-	case teamstate.EventWorkflowRestored:
-		return i18n.Tf("tui.activity.event_workflow_restored", eventData(e, "workflow"), eventData(e, "restored_from"), eventData(e, "version"))
-	case teamstate.EventWorkflowArchived:
-		return i18n.Tf("tui.activity.event_workflow_archived", eventData(e, "workflow"))
-	default:
-		return e.Type
-	}
-}
-
-// eventSubject is what an event is about: project, and ticket when known.
-func eventSubject(e teamstate.Event) string {
-	switch {
-	case e.Project != "" && e.Ticket != "":
-		return e.Project + "/" + e.Ticket
-	case e.Project != "":
-		return e.Project
-	}
-	return e.Ticket
-}
-
-// eventData is a value of the event data as text ("" when absent).
-func eventData(e teamstate.Event, key string) string {
-	v, ok := e.Data[key]
-	if !ok || v == nil {
-		return ""
-	}
-	if f, ok := v.(float64); ok && f == float64(int64(f)) {
-		return strconv.FormatInt(int64(f), 10)
-	}
-	return fmt.Sprint(v)
-}
+// and Team Status views): Event.Describe, escaped for tview by the callers.
+func formatEventDescription(e teamstate.Event) string { return e.Describe() }

@@ -1,6 +1,7 @@
 package teamstate
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -8,6 +9,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 )
 
 func TestWikiListPages(t *testing.T) {
@@ -128,4 +131,50 @@ func TestWikiListPendingEmpty(t *testing.T) {
 	pending, err := repo.WikiListPending()
 	require.NoError(t, err)
 	assert.Empty(t, pending)
+}
+
+// writePending writes a pending proposal into a git clone and commits it.
+func writePending(t *testing.T, repo *Repo, id string) {
+	t.Helper()
+	dir := filepath.Join(repo.path, "wiki", ".pending")
+	require.NoError(t, os.MkdirAll(dir, 0o755))
+	proposal := `id = "` + id + `"
+page = "decisions"
+content = "## New Decision\n\nContent here."
+confidence = "CONFIRMED"
+author = "documentarian"
+project = "T-SRU"
+created_at = 2026-07-07T14:30:00Z
+`
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "2026-07-07T14h30-"+id+".toml"), []byte(proposal), 0o644))
+	gittest.Run(t, repo.Path(), "add", "-A")
+	gittest.Run(t, repo.Path(), "commit", "-qm", "propose "+id)
+	gittest.Run(t, repo.Path(), "push", "-q")
+}
+
+// v5.1: the refusal of a proposal of the team wiki needs a reason: it is kept
+// in the commit, and a refusal without one changes nothing.
+func TestWikiRejectProposalNeedsAReason(t *testing.T) {
+	t.Parallel()
+	repo, _ := setupGitTestRepo(t)
+	ctx := context.Background()
+	writePending(t, repo, "abc12345")
+
+	for _, reason := range []string{"", "   ", "\n\t"} {
+		err := repo.WikiRejectProposal(ctx, "abc12345", reason)
+		require.ErrorIs(t, err, ErrReasonRequired, "reason %q", reason)
+	}
+	pending, err := repo.WikiListPending()
+	require.NoError(t, err)
+	assert.Len(t, pending, 1, "refused for want of a reason: the proposal stays")
+
+	require.NoError(t, repo.WikiRejectProposal(ctx, "abc12345", "already\ncovered   by the ADR 12"))
+	pending, err = repo.WikiListPending()
+	require.NoError(t, err)
+	assert.Empty(t, pending)
+	subject := gittest.Run(t, repo.Path(), "log", "-1", "--format=%s")
+	assert.Contains(t, subject, "wiki: rejected proposal abc12345")
+	assert.Contains(t, subject, "already covered by the ADR 12", "the reason, on one line")
+
+	require.ErrorIs(t, repo.WikiRejectProposal(ctx, "abc12345", "again"), ErrProposalNotFound)
 }
