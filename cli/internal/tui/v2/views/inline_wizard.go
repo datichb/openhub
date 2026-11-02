@@ -1129,6 +1129,11 @@ func (w *InlineWizardView) renderStep(idx int) {
 			})
 			w.form = form
 
+			// Ctrl+S and the button of the engine go through the main button
+			// of the step, like a press on it: its handler may set the state
+			// the step needs (the services ticked, the policies chosen).
+			submit := primaryButtonAction(form, onDone)
+
 			// Ctrl+S = submit, Ctrl+B = back
 			form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 				// Arrow keys → Tab/Backtab (except on DropDowns)
@@ -1137,7 +1142,7 @@ func (w *InlineWizardView) renderStep(idx int) {
 					return remapped
 				}
 				if event.Key() == tcell.KeyCtrlS {
-					onDone()
+					submit()
 					return nil
 				}
 				if event.Key() == tcell.KeyCtrlB {
@@ -1174,7 +1179,7 @@ func (w *InlineWizardView) renderStep(idx int) {
 
 					form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 						if event.Key() == tcell.KeyCtrlS {
-							onDone()
+							submit()
 							return nil
 						}
 						if event.Key() == tcell.KeyCtrlB {
@@ -1210,7 +1215,7 @@ func (w *InlineWizardView) renderStep(idx int) {
 
 					// Separate button form at fixed position.
 					buttonForm := NewStyledButtonForm()
-					buttonForm.AddButton("  "+i18n.T("wizard.hint.submit")+"  ", onDone)
+					buttonForm.AddButton("  "+i18n.T("wizard.hint.submit")+"  ", submit)
 
 					// Assemble the page layout via BuildWizardPage.
 					pageResult := BuildWizardPage(nil, w.stepContentInner, WizardPageLayout{
@@ -1234,7 +1239,7 @@ func (w *InlineWizardView) renderStep(idx int) {
 					navFormCapture := form.GetInputCapture()
 					form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 						if event.Key() == tcell.KeyCtrlS {
-							onDone()
+							submit()
 							return nil
 						}
 						if event.Key() == tcell.KeyCtrlB {
@@ -1259,7 +1264,7 @@ func (w *InlineWizardView) renderStep(idx int) {
 					navBtnCapture := buttonForm.GetInputCapture()
 					buttonForm.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 						if event.Key() == tcell.KeyCtrlS {
-							onDone()
+							submit()
 							return nil
 						}
 						if navBtnCapture != nil {
@@ -1291,6 +1296,19 @@ func (w *InlineWizardView) renderStep(idx int) {
 				w.doRenderStep(w.currentStep)
 			}
 		})
+	}
+}
+
+// primaryButtonAction returns the action of the first button of the form: a
+// press on it, so that its handler runs. The button stays valid when the
+// form gives it up (grouped layout). Without a button, it is fallback.
+func primaryButtonAction(form *tview.Form, fallback func()) func() {
+	if form.GetButtonCount() == 0 {
+		return fallback
+	}
+	button := form.GetButton(0)
+	return func() {
+		button.InputHandler()(tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone), func(tview.Primitive) {})
 	}
 }
 

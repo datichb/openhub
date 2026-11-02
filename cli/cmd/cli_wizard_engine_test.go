@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/config/configtest"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 	"github.com/datichb/openhub/cli/internal/teamstate"
@@ -151,6 +152,40 @@ func TestPoliciesAddOnTheEngine(t *testing.T) {
 	assert.Equal(t, teamstate.Policy{
 		Name: "branch", Type: teamstate.PolicyTypeRegex, Rule: "^feat/", Enforcement: teamstate.EnforcementWarn,
 	}, list[0])
+}
+
+// Ctrl+S submits a step like its button does: the MCP step of oh project add
+// takes the services from its button, so they are kept (before, Ctrl+S went
+// past the button and the services were lost).
+func TestProjectAddMCPOnTheEngine(t *testing.T) {
+	i18ntest.Set(t, "en")
+	configtest.Home(t)
+	fakeBd(t, false)
+	a := newMockApp(nil, nil)
+	io, _, _ := testIO()
+	a.IO = io
+	store := &mockProjectStore{}
+	a.Projects = store
+	onKeys(t, func(k *wizardKeys) {
+		k.waitFor(i18n.T("cmd.init.project_name"))
+		k.typ("mcpapp")
+		k.waitFor("mcpapp")
+		k.key(tcell.KeyCtrlS) // no path: the working directory
+		k.waitFor(i18n.Tf("form.project.provider_custom", "bedrock"))
+		k.key(tcell.KeyCtrlS)
+		k.waitFor("Figma")
+		k.typ(" ")
+		k.key(tcell.KeyDown, tcell.KeyDown)
+		k.typ(" ")
+		k.key(tcell.KeyCtrlS)
+		k.waitFor(i18n.T("form.project.team_no_team")) // the drop-down: the title says « Team » already
+		k.key(tcell.KeyCtrlS)
+	})
+
+	require.NoError(t, runProjectAddInteractive(t.Context(), a))
+
+	require.Len(t, store.projects, 1)
+	assert.Equal(t, []string{"figma", "gslides"}, store.projects[0].MCP)
 }
 
 // Esc asks whether to quit (no more silent double Esc); « Quit » ends the
