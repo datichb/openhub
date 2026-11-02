@@ -12,7 +12,7 @@ risk: plan
 # --tickets …` implement-spec (feature.yaml removed).
 aliases: [cadrage, feature]
 inputs:
-  # B1: optional; without it (oh run feature, oh start), the session asks
+  # B1: optional; without it (oh run feature), the session asks
   # for it first.
   request:
     type: text

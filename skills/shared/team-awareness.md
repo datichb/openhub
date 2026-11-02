@@ -32,7 +32,7 @@ Il fournit les règles de base pour la collaboration via le MCP server `team`.
 
 Quand tu consultes `team_claims`, chaque réservation a un statut :
 
-- `planned` — ticket réservé, pas encore démarré. Si l'utilisateur courant est propriétaire de ce ticket, `oh start --dev` le transitionnera automatiquement en `in_progress`.
+- `planned` — ticket réservé, pas encore démarré. Si l'utilisateur courant est propriétaire de ce ticket, `oh run ticket --tickets <id>` le transitionnera automatiquement en `in_progress`.
 - `in_progress` — travail en cours actif
 - `review` — travail terminé, en attente de review humaine
 - `blocked` — bloqué sur une dépendance externe

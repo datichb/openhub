@@ -4,8 +4,8 @@ id: libre
 category: other
 label: { fr: Session libre, en: Free session }
 description:
-  fr: Session avec l'agent de ton choix et les agents qu'il peut appeler, sans checkpoint (remplace oh start --agent)
-  en: Session with the agent of your choice and the agents it may call, without checkpoints (replaces oh start --agent)
+  fr: Session avec l'agent de ton choix et les agents qu'il peut appeler, sans checkpoint
+  en: Session with the agent of your choice and the agents it may call, without checkpoints
 risk: write
 aliases: [free]
 entry:

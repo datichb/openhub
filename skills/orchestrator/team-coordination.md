@@ -28,7 +28,7 @@ Quand l'utilisateur demande un ticket à travailler sans spécifier lequel :
 
 1. Appelle `team_claims` pour voir les tickets déjà pris
 2. Les tickets en statut `planned` appartenant à l'utilisateur **sont disponibles** — ils sont réservés mais pas encore démarrés
-3. Si l'utilisateur choisit un ticket `planned` qui lui appartient : rappelle-lui que `oh start --dev --ticket <id>` le transitionnera automatiquement en `in_progress`
+3. Si l'utilisateur choisit un ticket `planned` qui lui appartient : rappelle-lui que `oh run ticket --tickets <id>` le transitionnera automatiquement en `in_progress`
 4. Ne **pas** suggérer de re-claimer un ticket déjà en `planned` pour cet utilisateur
 5. Suggère uniquement les tickets **non claimés** ou `planned` par l'utilisateur courant
 6. Affiche les claims actifs pour contexte : "Alice travaille sur X, Benjamin sur Y"
@@ -58,7 +58,7 @@ Quand l'implémentation est terminée et qu'une review est nécessaire :
    - Quand `review.ready` est émis, le label `agent-reviewed` est automatiquement appliqué au claim — il apparaît comme `[AI]` sur le board d'équipe et indique aux coéquipiers qu'une review IA a été effectuée
 3. Propose à l'utilisateur de créer la MR : "Souhaites-tu que je crée la MR ?" (JAMAIS automatique)
 4. Si l'utilisateur confirme et que `gitlab_create_mr` est disponible : crée la MR
-5. Si l'utilisateur refuse : il pourra utiliser `oh review --publish` plus tard
+5. Si l'utilisateur refuse : il pourra utiliser `oh mr create` plus tard
 
 ## Vérification des conventions
 
