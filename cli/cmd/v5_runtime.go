@@ -292,7 +292,7 @@ func newCheckpointService(a *app.App) *checkpoint.Service {
 		ContainerExec: containerVerify(a)}
 }
 
-// newWikiService wires the WikiService (proposals of the wiki MCP server,
+// newWikiServiceFor wires the WikiService (proposals of the wiki MCP server,
 // LD-J).
 func newWikiServiceFor(a *app.App) *wiki.Service {
 	svc := &wiki.Service{SessionsDir: ohSessionsDir()}
@@ -301,10 +301,6 @@ func newWikiServiceFor(a *app.App) *wiki.Service {
 	}
 	return svc
 }
-
-// newWikiService is newWikiServiceFor on the shared app, for the callers that
-// do not hold one (cmd/tui_wiki.go: C8b passes its app, then this goes).
-func newWikiService() *wiki.Service { return newWikiServiceFor(application) }
 
 // daemonCheckpoints is the CheckpointService of the daemon: at the commit
 // checkpoint, oh applies the wiki proposals accepted on the card (LD-J).
