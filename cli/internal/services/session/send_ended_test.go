@@ -76,3 +76,26 @@ func TestEndedErrorIsNotAnotherError(t *testing.T) {
 	assert.False(t, errors.Is(ErrServerNotRunning, ErrSessionEnded))
 	assert.False(t, errors.Is(&EndedError{}, ErrServerNotRunning))
 }
+
+// M1: a session that has not started yet (queued for a free slot, or still
+// preparing) has no one to read a message: it is refused, with a typed error
+// the CLI and the TUI turn into « la session n'a pas encore démarré ».
+func TestSendToASessionNotStartedIsRefused(t *testing.T) {
+	for _, st := range []domain.RunState{domain.RunQueued, domain.RunPreparing} {
+		t.Run(string(st), func(t *testing.T) {
+			f := newFixture(t, false)
+			setState(t, f, st)
+			err := f.svc.Send(f.ctx, "ses_a", "relis les tests", SendOptions{ReportEnd: true})
+			var ns *NotStartedError
+			require.ErrorAs(t, err, &ns)
+			assert.ErrorIs(t, err, ErrSessionNotStarted)
+			assert.NotErrorIs(t, err, ErrSessionEnded)
+			assert.Equal(t, NotStartedError{SessionID: "ses_a", State: st}, *ns)
+			assert.Empty(t, f.tool.controls, "nothing is sent to the tool")
+
+			// The callers that do not speak for a user keep their behavior.
+			require.NoError(t, f.svc.Send(f.ctx, "ses_a", "relis les tests", SendOptions{}))
+			assert.Len(t, f.tool.controls, 1)
+		})
+	}
+}

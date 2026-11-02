@@ -30,9 +30,12 @@ func decisionError(err error) error {
 	var re *sessionsvc.ResolvedError
 	var several *sessionsvc.ErrSeveralDecisions
 	var ended *sessionsvc.EndedError
+	var notStarted *sessionsvc.NotStartedError
 	switch {
 	case errors.As(err, &ended):
 		return errors.New(endedMessage(ended))
+	case errors.As(err, &notStarted):
+		return errors.New(i18n.Tf("m1.session_not_started."+string(notStarted.State), notStarted.SessionID))
 	case errors.As(err, &re):
 		by := re.By
 		if by == "" {

@@ -106,6 +106,11 @@ func (s *Service) Raise(ctx context.Context, d *domain.Decision) error {
 	return s.Decisions.Upsert(ctx, d)
 }
 
+// notStarted reports a session whose first prompt has not been sent yet.
+func notStarted(st domain.RunState) bool {
+	return st == domain.RunQueued || st == domain.RunPreparing
+}
+
 func isTerminal(st domain.RunState) bool {
 	return st == domain.RunStopped || st == domain.RunCompleted || st == domain.RunFailed
 }
