@@ -1,20 +1,19 @@
 package cmd
 
 import (
-	"fmt"
+	"errors"
 
 	"github.com/spf13/cobra"
 
-	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/textfmt"
-	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
-	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
+// dashboardCmd is deprecated (removed in v6): it opens the TUI on the
+// Metrics view of the hub, which shows what the dashboard showed.
 var dashboardCmd = &cobra.Command{
-	Use:  "dashboard",
-	RunE: runDashboard,
+	Use:        "dashboard",
+	Deprecated: i18n.T("cmd.dashboard.deprecated"),
+	RunE:       runDashboard,
 }
 
 func init() {
@@ -22,55 +21,9 @@ func init() {
 }
 
 func runDashboard(cmd *cobra.Command, args []string) error {
-	a := MustApp()
-	ctx := cmd.Context()
-
-	// Gather project stats from oh DB
-	projects, err := a.Projects.List(ctx, "")
-	if err != nil {
-		return fmt.Errorf(i18n.T("cmd.dashboard_cmd.reading_projects"), err)
+	warnDeprecatedCommand(cmd.ErrOrStderr(), "oh dashboard", "cmd.dashboard.deprecated")
+	if !canLaunchTUI() {
+		return withExitCode(ExitUsage, errors.New(i18n.T("cmd.dashboard.needs_terminal")))
 	}
-	active := 0
-	for _, p := range projects {
-		if p.Status == domain.ProjectStatusActive {
-			active++
-		}
-	}
-
-	topProject := "—"
-	if len(projects) > 0 {
-		topProject = projects[0].Name
-	}
-
-	// Gather real metrics from platform stats provider
-	var totalSessions, todaySessions int
-	var tokensUsed int64
-	if a.Stats != nil && a.Stats.Available() {
-		stats, err := a.Stats.AggregateStats("all")
-		if err == nil && stats != nil {
-			totalSessions = stats.TotalSessions
-			todaySessions = stats.TodaySessions
-			tokensUsed = stats.TotalTokensIn + stats.TotalTokensOut
-		}
-	}
-
-	cfg := views.DashboardConfig{
-		Layout: layout.Config{
-			ProjectName: a.Config.Name,
-			Command:     "dashboard",
-			StatusHints: i18n.T("tui.dashboard.quit"),
-		},
-		Stats: []views.DashboardStat{
-			{Label: i18n.T("tui.dashboard.projects"), Value: i18n.Tf("tui.dashboard.projects_value", len(projects), active)},
-			{Label: i18n.T("tui.dashboard.top_project"), Value: topProject},
-			{Label: i18n.T("tui.dashboard.sessions"), Value: i18n.Tf("tui.dashboard.sessions_value", totalSessions, todaySessions)},
-			{Label: i18n.T("tui.dashboard.tokens_used_label"), Value: textfmt.Tokens(tokensUsed)},
-		},
-		TokenUsage: []views.TokenBar{
-			{Label: i18n.T("tui.dashboard.today_label"), Current: todaySessions, Max: 50},
-		},
-		RecentItems: []string{},
-	}
-
-	return views.RunDashboard(cfg)
+	return runTUI(tuiLaunch{Hub: true, View: "metrics", Notice: deprecatedCommandMessage("oh dashboard", "cmd.dashboard.deprecated")})
 }

@@ -72,4 +72,8 @@ func TestBuildViews(t *testing.T) {
 		ids[i] = v.ID()
 	}
 	assert.Contains(t, ids, "notifications", "the notifications view is registered")
+	// The views `oh board`, `oh team board` and `oh dashboard` open on.
+	for _, id := range []string{"board", "team.board", "metrics", "team.mode", "project.mode"} {
+		assert.Contains(t, ids, id, "the shell registers the %s view", id)
+	}
 }

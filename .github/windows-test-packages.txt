@@ -106,7 +106,6 @@
 ./internal/tui/progress
 ./internal/tui/theme
 ./internal/tui/v2/keys
-./internal/tui/v2/layout
 ./internal/tui/v2/router
 ./internal/tui/v2/shell
 ./internal/tui/v2/views

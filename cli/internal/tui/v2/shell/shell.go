@@ -73,6 +73,10 @@ type Config struct {
 	Views []views.View
 	// HomeViewID is the ID of the initial view to display.
 	HomeViewID string
+	// InitialViewID, when set, is a view opened on top of the home view at
+	// start (`oh board`, `oh team board`, `oh dashboard`): Esc goes back to
+	// the home view of the mode, as from the menu of that mode.
+	InitialViewID string
 	// Notifications is an optional pre-created notification store. When nil,
 	// a default store with capacity 50 is created automatically.
 	Notifications *NotificationStore
@@ -389,11 +393,15 @@ func (s *Shell) Notifications() *NotificationStore {
 
 // NavigateHome navigates to the registered home view by ID and sets the
 // active navigation mode accordingly. This ensures theme.ActiveMode is
-// correct when the TUI starts directly in project or team mode.
+// correct when the TUI starts directly in project or team mode. The initial
+// view of the configuration, if any, is opened on top of the home view.
 func (s *Shell) NavigateHome(homeID string, mode views.Mode) {
 	s.activeMode = mode
 	theme.SetActiveMode(string(mode))
 	s.router.NavigateTo(homeID)
+	if id := s.cfg.InitialViewID; id != "" && id != homeID {
+		s.router.NavigateTo(id)
+	}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

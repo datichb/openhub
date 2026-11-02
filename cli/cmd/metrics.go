@@ -16,7 +16,9 @@ import (
 var metricsCmd = &cobra.Command{
 	Use:  "metrics",
 	Long: i18n.T("cmd.metrics.long"),
-	RunE: runMetrics,
+	// Removed in v6: the Metrics view of the TUI shows the same figures.
+	Deprecated: i18n.T("cmd.metrics.deprecated"),
+	RunE:       runMetrics,
 }
 
 func init() {
@@ -27,6 +29,7 @@ func init() {
 func runMetrics(cmd *cobra.Command, args []string) error {
 	a := MustApp()
 	ctx := cmd.Context()
+	warnDeprecatedCommand(cmd.ErrOrStderr(), "oh metrics", "cmd.metrics.deprecated")
 	period, _ := cmd.Flags().GetString("period")
 
 	// Validate period

@@ -1,17 +1,22 @@
 package cmd
 
 import (
-	"fmt"
+	"context"
+	"errors"
 
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/beads"
 	"github.com/datichb/openhub/cli/internal/cliout"
+	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/tui/theme"
-	"github.com/datichb/openhub/cli/internal/tui/v2/layout"
-	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
+
+// `oh board`, `oh team board` and `oh dashboard` open the TUI shell on the
+// view that shows the same thing (board, team.board, metrics), over the home
+// view of the mode: Esc goes back to it. Without a terminal there is no
+// board to show: the command ends with ExitUsage and names what works
+// without one.
 
 var boardCmd = &cobra.Command{
 	Use:  "board",
@@ -20,95 +25,59 @@ var boardCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(boardCmd)
-	boardCmd.Flags().Bool("watch", false, "")
+	addBoardFlags(boardCmd)
+	boardCmd.Flags().String("project", "", "")
+}
+
+// addBoardFlags adds --watch: the board of the TUI refreshes every 5 s on
+// its own (and on r), so the option stays accepted for the scripts and the
+// habits, without effect.
+func addBoardFlags(c *cobra.Command) {
+	c.Flags().Bool("watch", false, "")
+	_ = c.Flags().MarkHidden("watch")
 }
 
 func runBoard(cmd *cobra.Command, args []string) error {
 	a := MustApp()
-	tickets := fetchTickets()
 
-	if len(tickets) == 0 {
-		// Distinguish "bd not installed" from "0 tickets"
-		if err := beads.Available(); err != nil {
-			cliout.Warn(a.IO.Out, i18n.T("tui.board.bd_not_installed"))
-		} else {
-			fmt.Fprintln(a.IO.Out, theme.Subtitle.Render(i18n.T("tui.board.no_tickets_hint")))
-		}
+	// Without bd there is nothing to list, with or without a terminal.
+	if !bdInstalled() {
+		cliout.Warn(cmd.OutOrStdout(), i18n.T("tui.board.bd_not_installed"))
 		return nil
 	}
-
-	watch, _ := cmd.Flags().GetBool("watch")
-
-	v2Tickets := boardViewTickets(tickets)
-	cfg := views.BoardConfig{
-		Layout: layout.Config{
-			ProjectName: a.Config.Name,
-			Command:     "board",
-			StatusHints: i18n.T("cmd.board.status_hints"),
-		},
-		Tickets: v2Tickets,
+	if !canLaunchTUI() {
+		return withExitCode(ExitUsage, errors.New(i18n.T("cmd.board.needs_terminal")))
 	}
-	if watch {
-		cfg.RefreshFunc = func() []views.BoardTicket {
-			return boardViewTickets(fetchTickets())
-		}
+
+	name, _ := cmd.Flags().GetString("project")
+	project, err := boardProject(cmd.Context(), a.Projects, name)
+	if err != nil {
+		return err
 	}
-	return views.RunBoard(cfg)
+	return runTUI(tuiLaunch{Project: project, View: "board"})
 }
 
-// boardTicket is a local struct for the CLI board display.
-type boardTicket struct {
-	ID       string
-	Title    string
-	Status   string
-	Priority string
-	Type     string
-	Labels   []string
-}
+// bdInstalled reports whether bd (Beads) is in the PATH.
+func bdInstalled() bool { return beads.Available() == nil }
 
-// boardViewTickets converts the CLI board tickets to the board view ones.
-func boardViewTickets(raw []boardTicket) []views.BoardTicket {
-	out := make([]views.BoardTicket, len(raw))
-	for i, t := range raw {
-		out[i] = views.BoardTicket{
-			ID:       t.ID,
-			Title:    t.Title,
-			Status:   t.Status,
-			Priority: t.Priority,
-			Type:     t.Type,
-			Labels:   t.Labels,
-		}
+// boardProject is the project of `oh board`: the one that is named, else the
+// one that holds the current directory, else the only one.
+func boardProject(ctx context.Context, projects domain.ProjectStore, name string) (string, error) {
+	if name != "" {
+		return name, nil
 	}
-	return out
-}
-
-// fetchTickets attempts to get tickets from the beads system via beads.ListCWD.
-// Returns nil if bd is not installed or returns no data.
-func fetchTickets() []boardTicket {
-	if err := beads.Available(); err != nil {
-		return nil
+	if projects == nil {
+		return "", withExitCode(ExitUsage, errors.New(i18n.T("cmd.board.no_project")))
 	}
-	raw, err := beads.ListCWD()
-	if err != nil || len(raw) == 0 {
-		return nil
+	active, err := projects.List(ctx, domain.ProjectStatusActive)
+	if err != nil {
+		return "", err
 	}
-	return boardTickets(raw)
-}
-
-// boardTickets maps Beads tickets to the CLI board ones, the status being
-// the board column (an in-progress ticket labelled ready-for-review is in
-// REVIEW).
-func boardTickets(raw []beads.Ticket) []boardTicket {
-	tickets := make([]boardTicket, len(raw))
-	for i, r := range raw {
-		tickets[i] = boardTicket{
-			ID:       r.ID,
-			Title:    r.Title,
-			Status:   beads.BoardColumn(r.Status, r.Labels),
-			Priority: r.Priority,
-			Type:     r.Type,
-			Labels:   r.Labels,
-		}
+	if p := projectAtCwd(active); p != nil {
+		return p.Name, nil
 	}
-	return tickets
+	if len(active) == 1 {
+		return active[0].Name, nil
+	}
+	return "", withExitCode(ExitUsage, errors.New(i18n.T("cmd.board.no_project")))
 }

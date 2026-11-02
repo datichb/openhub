@@ -25,6 +25,8 @@ La 5.1 **retire** ce que la 5.0 avait déprécié (rupture). Un nom de commande 
 | Options courtes `oh serve -p`, `oh metrics -d`, `oh project configure -m` ; `oh session attach --how` et `--attach here` | `--port`, `--period`, `--model`, `--attach` (`suspend`) |
 | `--force` / `-f` de `oh purge`, `oh project remove`, `oh teams remove` ; `oh repair --auto` | `--yes` / `-y` |
 
+La 5.1 **déprécie** `oh dashboard` et `oh metrics` (retrait en v6) : elles avertissent sur la sortie d'erreur et nomment la vue **Métriques** de la TUI (`oh`, puis `Ctrl+P` › Métriques) ; `oh metrics` garde sa sortie texte jusqu'à la v6. `oh board`, `oh team board` et `oh dashboard` ouvrent maintenant la TUI sur leur vue (code 2 sans terminal).
+
 ## Prérequis
 
 | Prérequis | Valeur | Vérification |

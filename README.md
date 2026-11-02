@@ -107,7 +107,7 @@ In the TUI, **Start** lists the workflows (★ pinned, recent ones), opens the l
 | `oh team init [--solo]` · `oh team promote` | Team features, solo space and its sharing |
 | `oh team claim` · `release` · `status` · `board` | Ticket claims and team view |
 | `oh doctor` · `oh status` · `oh repair` | Health check, status, database repair |
-| `oh metrics` · `oh dashboard` · `oh board` · `oh serve` | Usage and cost, TUI dashboard, Beads kanban, local web dashboard |
+| `oh metrics` · `oh dashboard` · `oh board` · `oh serve` | Usage and cost, TUI dashboard, Beads kanban (opens the TUI on its view), local web dashboard. `oh metrics` and `oh dashboard` are deprecated (removed in v6): use the Metrics view of the TUI |
 | `oh export` · `oh import` | Backup and restore |
 | `oh upgrade oh` | Self-update of oh (non-Homebrew installs) |
 | `oh skill check` | Skill catalogue check (duplicates, `requires:`, frontmatter, annexes; `--stale`: freshness of the stack skills) |

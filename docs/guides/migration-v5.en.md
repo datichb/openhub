@@ -300,6 +300,17 @@ Accepted limits and maturity of the features: [SECURITY.md](../../SECURITY.md).
 | `oh repair --auto` | `--yes` (for `--restore` without a terminal) |
 | `-w`, `-l`, `-t`, `-A`, `-r` of `oh start`, `-m`, `-b` of `oh review`, `-t` of `oh audit`, `-i` of `oh debug` | gone with their commands |
 
-`--force` stays on `oh daemon stop`, `oh remote setup`, `oh worktree remove` and `oh worktree cleanup`, where it overrides a safety. `oh dashboard` and `oh metrics` are not concerned.
+`--force` stays on `oh daemon stop`, `oh remote setup`, `oh worktree remove` and `oh worktree cleanup`, where it overrides a safety.
 
 **To do**: search these names in your scripts, shell aliases and CI (`grep -rnE 'oh (start|audit|review|debug|service)\b|takeover-brief enrich|--force|repair --auto'`), then replace them following the tables. Details of the commands: [Commands removed in 5.1](../reference/cli-sessions.en.md#commands-removed-in-51).
+
+**Deprecated in 5.1 (removed in v6)**
+
+| Deprecated | Replacement |
+|---|---|
+| `oh dashboard` | The **Metrics** view of the TUI (`oh`, then `Ctrl+P` › Metrics). The command still opens it, with a warning |
+| `oh metrics` | The same view. The command keeps printing its text (`--period`) on the standard output until v6, and warns on the error output |
+
+Both are hidden from the help. To do: replace them in your habits; a script that reads `oh metrics` has until v6 (`oh budget report --json` gives the spending).
+
+**Changed in 5.1**: `oh board`, `oh team board` and `oh dashboard` no longer draw a separate full-screen view: they open the TUI on the Board, the Team board and the Metrics view, and `Esc` goes back to the landing of the mode. Without a terminal (script, CI) they exit with code **2**. `oh board` shows the project of the current directory (or `--project <name>`, or the only registered project) instead of the tickets of the current directory; `--watch` is accepted and has no effect (the board refreshes every 5 s).

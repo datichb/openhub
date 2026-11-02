@@ -11,15 +11,9 @@
 # The lot A12 removes widgets.ColorTag, and with it the widgets-tag lines.
 #
 symbol internal/tui/theme/button.go 1
-symbol internal/tui/v2/layout/layout.go 1
-tag-style internal/tui/v2/layout/layout.go 1
-widgets-tag internal/tui/v2/layout/layout.go 1
 symbol internal/tui/v2/shell/shell.go 2
 symbol internal/tui/v2/views/action_list.go 2
 tag-style internal/tui/v2/views/banner.go 3
-color-literal internal/tui/v2/views/board.go 5
-widgets-tag internal/tui/v2/views/board.go 1
-widgets-tag internal/tui/v2/views/dashboard.go 7
 tag-style internal/tui/v2/views/help_view.go 1
 symbol internal/tui/v2/views/inline_form.go 2
 tag-color internal/tui/v2/views/inline_form.go 2
@@ -27,7 +21,6 @@ tag-style internal/tui/v2/views/inline_wizard.go 1
 widgets-tag internal/tui/v2/views/inline_wizard.go 31
 symbol internal/tui/v2/views/list_page.go 1
 tag-style internal/tui/v2/views/projects_view.go 1
-widgets-tag internal/tui/v2/views/teamboard.go 1
 tag-color internal/tui/v2/views/worktree_view.go 1
 tag-color internal/tui/v2/widgets/button.go 2
 symbol internal/tui/v2/widgets/inlineselect.go 2

@@ -141,15 +141,17 @@ oh team activity --member alice --limit 50
 
 ### oh team board
 
-Full-screen team kanban board (current, planned and completed tickets).
+Opens the TUI on the **team board** (the `team.board` view: current, planned and completed tickets, projects on `[` / `]`, filter on `/`, claim, release, transfer). `Esc` goes back to the team mode, then to the hub. The team is the one of the hub (`oh team init` first: the team-state must be cloned, as before). The board refreshes every 5 s and on `r`.
 
 ```
-oh team board [--watch]
+oh team board
 ```
 
 | Flag | Type | Description |
 |------|------|-------------|
-| `--watch` | bool | Automatic refresh (`r` key to refresh by hand) |
+| `--watch` | bool | Accepted and without effect (hidden): the board always refreshes on its own |
+
+Without a terminal the command exits with code **2** and names `oh team status`. Differences with the former full-screen board: the board is the one of the TUI, with its custom columns (`[board]`), its filters and its actions.
 
 ---
 

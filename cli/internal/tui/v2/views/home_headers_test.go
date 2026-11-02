@@ -23,13 +23,15 @@ func TestHubLandingShowsTheToolAndTheWholeSystemSection(t *testing.T) {
 	onLoop(app, func() { v.Mount(content, app) })
 	waitFor(t, app, func() bool { return v.info != nil && v.list != nil || v.dual != nil })
 
+	// The items are written by the load, on the event loop: read them there.
 	var info string
-	onLoop(app, func() { info = v.info.GetText(true) })
+	var items []homeItem
+	onLoop(app, func() { info = v.info.GetText(true); items = append(items, v.items...) })
 	assert.Contains(t, info, "acme v1.2.3 · adaptateur acme-v1 ✔")
 
 	var system []string
 	inSystem := false
-	for _, it := range v.items {
+	for _, it := range items {
 		if it.Icon == "─" {
 			inSystem = it.Label == "Système"
 			continue
@@ -39,7 +41,7 @@ func TestHubLandingShowsTheToolAndTheWholeSystemSection(t *testing.T) {
 		}
 	}
 	assert.Equal(t, []string{"Configuration", "Métriques", "Doctor", "Secrets", "Notifications", "Catalogue des briques"}, system)
-	for _, it := range v.items {
+	for _, it := range items {
 		switch it.Label {
 		case "Notifications":
 			assert.Equal(t, "notifications", it.ViewID)

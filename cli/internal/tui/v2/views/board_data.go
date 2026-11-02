@@ -4,6 +4,33 @@ import (
 	"github.com/datichb/openhub/cli/internal/teamstate"
 )
 
+// BoardTicket represents a kanban ticket.
+type BoardTicket struct {
+	ID          string
+	Title       string
+	Status      string // "planned", "in_progress", "review", "done", "blocked"
+	Priority    string
+	Type        string
+	ExternalRef string // external tracker reference (e.g. "gitlab-693") — ADR-032
+	Labels      []string
+}
+
+// TeamTicket extends BoardTicket with team assignment and label info.
+type TeamTicket struct {
+	ID          string
+	Title       string
+	Status      string
+	Priority    string
+	Assignee    string
+	Project     string // directory-based ID (used for filtering)
+	ProjectName string // human-friendly display name (ADR-032)
+	Description string
+	// Labels are displayed as compact tags on the board item.
+	Labels []string
+	// MRURL is the merge request URL (from claim). Empty if no MR published.
+	MRURL string
+}
+
 // ProjectNameResolver maps a project directory ID to a human-friendly display name.
 // Returns the input as-is if no mapping is found.
 type ProjectNameResolver func(projectDirID string) string

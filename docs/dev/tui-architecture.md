@@ -35,7 +35,6 @@ cli/internal/
         │   ├── help.go           ← help overlay (built from the keys package)
         │   └── layout.go         ← terminal size levels (N20)
         ├── router/     ← Navigation stack (push/pop/replace)
-        ├── layout/     ← Unified layout builder (header, sidebar, content, status bar)
         ├── keys/       ← Key convention: one keys.Action per action (see tui-conventions.md)
         ├── widgets/    ← Reusable tview primitives (SectionedList, InlineSelect, StepBar, ListDetailPage, graphs…)
         └── views/      ← All navigable views
@@ -90,6 +89,10 @@ The TUI has 3 navigation modes, each with its own home page:
 | Team | `team.mode` | `TeamModeView` | Single active team |
 
 Mode switching: `Ctrl+T` (cycle Hub → Project → Team → Hub, `Shell.cycleMode`), or selecting a team/project from the Hub Home.
+
+### Opening on a view (`InitialViewID`)
+
+`shell.Config.InitialViewID` opens a view on top of the home view of the mode: `NavigateHome` navigates to the home view, then to that view, so `Esc` goes back to the landing. `oh board` (`board`, project mode), `oh team board` (`team.board`, team mode) and `oh dashboard` (`metrics`, hub) start the shell this way (`cmd/tui.go`, `tuiLaunch`); there is no full-screen board outside the shell: the former `layout` package and the `RunBoard`, `RunTeamBoard` and `RunDashboard` views were removed in 5.1. Without a terminal these commands do not start the shell: they end with code 2.
 
 ### Home page shared patterns (`home_common.go`)
 

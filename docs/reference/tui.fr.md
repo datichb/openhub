@@ -341,6 +341,8 @@ Commande `doctor`. `f` corriger le contrôle sélectionné (comme `oh doctor --f
 
 ### Boards
 
+`oh board`, `oh team board` et `oh dashboard` (déprécié) ouvrent la TUI directement sur les vues **Board**, **Board d'équipe** et **Métriques** ci-dessous, au-dessus de l'accueil du mode (projet, équipe, hub) : `Esc` y revient, `Ctrl+Q` quitte. Sans terminal, elles sortent avec le code 2. Il n'y a plus de board plein écran séparé : ce que la commande ouvre est la vue du shell, avec ses touches.
+
 | Vue | Touches |
 |-----|---------|
 | Board du projet | `h` / `l` colonnes, `Entrée` détail, `a` actions (lancer un workflow sur le ticket), `L` lier au tracker, `i` initialiser Beads |

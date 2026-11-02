@@ -21,16 +21,41 @@ import (
 // tuiShell holds a reference to the running shell for action callbacks.
 var tuiShell *shell.Shell
 
+// tuiLaunch says how the TUI shell opens. The zero value is the usual start:
+// project mode inside a registered project, the hub elsewhere.
+type tuiLaunch struct {
+	// Project is the name of the project to open in project mode.
+	Project string
+	// Team opens the team mode on this team (its ID may be empty: the team of
+	// the hub).
+	Team *views.ActiveTeam
+	// Hub opens the hub even inside a registered project.
+	Hub bool
+	// View is a view opened on top of the home view of the mode
+	// (`oh board`, `oh team board`, `oh dashboard`); Esc goes back to it.
+	View string
+	// Notice is a warning shown as a toast once the shell is up (the
+	// terminal is then on the alternate screen: the message printed before
+	// is only seen at exit).
+	Notice string
+}
+
 // runTUIWithProject launches the TUI, optionally activating project mode
 // immediately for the given project name.
 func runTUIWithProject(projectName string) error {
+	return runTUI(tuiLaunch{Project: projectName})
+}
+
+// runTUI launches the TUI shell as l says.
+func runTUI(l tuiLaunch) error {
 	a := MustApp()
+	projectName := l.Project
 
 	// ── First-run detection ─────────────────────────────────────────────
 	// If no provider is configured, the inline wizard will be pushed into
 	// the TUI shell (see below). If the TUI cannot launch (no TTY, --no-tui),
 	// redirect to the CLI 'oh init' command.
-	firstRun := needsFirstRunWizard(a) && projectName == ""
+	firstRun := needsFirstRunWizard(a) && projectName == "" && l.View == ""
 	if firstRun && !canLaunchTUI() {
 		fmt.Fprintln(a.IO.Out, i18n.T("cmd.init.wizard_no_tui_hint"))
 		return nil
@@ -47,7 +72,7 @@ func runTUIWithProject(projectName string) error {
 		if err != nil || p == nil {
 			return fmt.Errorf(i18n.T("cmd.tui.project_not_found"), projectName)
 		}
-	} else if projectName == "" && a.Projects != nil {
+	} else if projectName == "" && a.Projects != nil && !l.Hub && l.Team == nil {
 		// Inside a registered project: project mode; elsewhere: hub, no question.
 		if projects, err := a.Projects.List(context.Background(), domain.ProjectStatusActive); err == nil {
 			p = projectAtCwd(projects)
@@ -61,6 +86,9 @@ func runTUIWithProject(projectName string) error {
 			Branch: resolveGitBranch(p.Path),
 		}
 		homeViewID = "project.mode"
+	}
+	if l.Team != nil {
+		homeViewID = "team.mode"
 	}
 
 	// Create the notification store upfront so it can be shared between the
@@ -82,6 +110,7 @@ func runTUIWithProject(projectName string) error {
 		Commands:      buildCommands(a),
 		Views:         builtViews,
 		HomeViewID:    homeViewID,
+		InitialViewID: l.View,
 		Notifications: notifStore,
 		BeforeQuit:    func(quit func()) { v5BeforeQuit(a, tuiShell)(quit) },
 		Compact:       func() string { return a.Config.CLI.Compact },
@@ -129,6 +158,9 @@ func runTUIWithProject(projectName string) error {
 	if initialProject != nil {
 		tuiShell.SetActiveProject(initialProject)
 	}
+	if l.Team != nil {
+		tuiShell.SetActiveTeam(l.Team)
+	}
 
 	// Determine the navigation mode for the home view
 	homeMode := views.ModeHub
@@ -164,6 +196,9 @@ func runTUIWithProject(projectName string) error {
 	safego.Go(func() {
 		time.Sleep(500 * time.Millisecond)
 		showAbsenceRecap(context.Background(), a, tuiShell) // reads off the event loop
+		if l.Notice != "" {
+			tuiShell.ShowToast(l.Notice, shell.ToastWarning)
+		}
 		offerKeysNoticeInTUI(context.Background(), a, tuiShell, firstRun)
 		offerCleanupInTUI(context.Background(), a, tuiShell)
 	})

@@ -16,25 +16,8 @@ func reviewFixture() []beads.Ticket {
 	}
 }
 
-// `oh board`: an in-progress ticket labelled ready-for-review is in REVIEW.
-func TestBoardTicketsReviewColumn(t *testing.T) {
-	got := map[string]string{}
-	for _, b := range boardTickets(reviewFixture()) {
-		got[b.ID] = b.Status
-	}
-	want := map[string]string{"a-1": "todo", "a-2": "in_progress", "a-3": "review", "a-4": "review", "a-5": "done"}
-	for id, w := range want {
-		if got[id] != w {
-			t.Errorf("%s: column %q, want %q", id, got[id], w)
-		}
-	}
-	vt := boardViewTickets(boardTickets(reviewFixture()))
-	if vt[2].Status != "review" || len(vt[2].Labels) != 1 {
-		t.Errorf("view ticket = %+v", vt[2])
-	}
-}
-
-// The Board TUI follows the same rule and leaves epics out.
+// The board follows the rule of the columns (an in-progress ticket labelled
+// ready-for-review is in REVIEW) and leaves epics out.
 func TestTUIBoardTicketsReviewColumn(t *testing.T) {
 	out := tuiBoardTickets(reviewFixture())
 	if len(out) != 4 {
