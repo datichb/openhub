@@ -24,9 +24,19 @@ import (
 // A literal that must not be translated is listed in literalExceptions with
 // its reason; nothing else is allowed.
 
-// proseRe matches a text made of words: two words of letters separated by
-// spaces or punctuation.
-var proseRe = regexp.MustCompile(`[A-Za-zÀ-ÿ]{2,}[ ,;:'’-]+[A-Za-zÀ-ÿ]{2,}`)
+// proseRe matches a text made of words. Five shapes: two words of letters
+// separated by spaces or punctuation; a word and a one-letter word around a
+// space or an apostrophe (« Impossible d'écrire », « Rien à faire »); two
+// words around a verb (« Membre %q supprimé »); a text that starts with a
+// capitalised word, after spaces and verbs (« Ignoré\n », « %s Erreur: %v »,
+// « Ignoré (absent): %s »); a warning or error label (« warning: %v »).
+// Error wrappers (« keychain: %w ») and key: value lines are not prose.
+var proseRe = regexp.MustCompile(`[A-Za-zÀ-ÿ]{2,}[ ,;:'’-]+[A-Za-zÀ-ÿ]{2,}` +
+	`|[A-Za-zÀ-ÿ]{3,}[ ,;'’-]+[A-Za-zÀ-ÿ]['’ ]` +
+	`|(?:^|[ '’])[A-Za-zÀ-ÿ]['’ ][A-Za-zÀ-ÿ]{3,}` +
+	`|[A-Za-zÀ-ÿ]{3,} %[qsvd] [A-Za-zÀ-ÿ]{3,}` +
+	`|^(?:\s|%[sv]\s?)*[A-ZÀ-Ý][a-zà-ÿ]{3,}[\s:(]` +
+	`|(?i:warning|error|erreur|avertissement|attention) ?:`)
 
 // literalSinkMethods are the methods (of huh forms and tview widgets) whose
 // string arguments are shown to the user.
@@ -41,7 +51,7 @@ var wordRe = regexp.MustCompile(`^[A-Za-zÀ-ÿ]{3,}$`)
 
 // literalSinkFields are the struct fields (steps and fields of the forms) that
 // hold text shown to the user.
-var literalSinkFields = map[string]bool{"Label": true, "Title": true, "Desc": true, "Description": true, "Placeholder": true, "Hint": true, "Help": true}
+var literalSinkFields = map[string]bool{"Label": true, "Title": true, "Desc": true, "Description": true, "Placeholder": true, "Hint": true, "Help": true, "StatusHints": true}
 
 // literalSinkFuncs are the prompt helpers of the CLI.
 var literalSinkFuncs = map[string]bool{"askInput": true, "askYN": true, "askSelect": true}
@@ -68,9 +78,6 @@ var literalExceptions = map[string]string{
 	"tracker: discovery config for %s (%s)": "git commit message",
 	"# Takeover Brief (enrichi): %s\n\n%s":  "document committed to the team-state",
 	"[ai-delegated]%s %s — %s":              "ticket title written to the tracker",
-	"review prête pour %s/%s":               "notification sent to the team (shared, fixed language)",
-	"audit findings sur %s/%s":              "notification sent to the team (shared, fixed language)",
-	"conflit de claim sur %s/%s":            "notification sent to the team (shared, fixed language)",
 	"Travaille sur le ticket %s. Utilise `bd prime` pour le contexte et `bd ready` pour les tâches disponibles.": "prompt for the agent",
 	// Protocols and markup.
 	"event: ping\ndata: {\"status\":\"connected\"}\n\n": "server-sent event",
@@ -226,6 +233,16 @@ func f(w interface{ Write([]byte) (int, error) }) error {
 	_ = askSelect(w, "choix", []string{"Première option", "Seconde option"})
 	_ = t("Ceci est un texte")
 	_ = fmt.Sprintf("%s: %w", "a", nil)
+	_ = fmt.Sprintf("Impossible d'écrire %s", "a")
+	_ = fmt.Sprintf("Rien à faire")
+	_ = fmt.Sprintf("Erreur : %v", nil)
+	_ = fmt.Sprintf("%s: %d", "a", 1)
+	_ = fmt.Sprintf("%d-%d", 1, 2)
+	_ = fmt.Sprintf("%s=%s", "a", "b")
+	_ = fmt.Sprintf("Membre %q supprimé", "a")
+	_ = fmt.Sprintf("  Ignoré\n")
+	_ = fmt.Sprintf("keychain: %w", nil)
+	_ = struct{ StatusHints string }{StatusHints: "←→ columns · r refresh · q quit"}
 	return errors.New("something went wrong")
 }
 func t(string) string { return "" }
@@ -239,7 +256,7 @@ func askSelect(w interface{ Write([]byte) (int, error) }, p string, o []string) 
 	for _, h := range userLiterals(t, dir) {
 		got = append(got, h.text)
 	}
-	want := []string{"Création du projet %s\n", "Continuer le traitement ?", "Première option", "Seconde option", "something went wrong"}
+	want := []string{"Création du projet %s\n", "Continuer le traitement ?", "Première option", "Seconde option", "Impossible d'écrire %s", "Rien à faire", "Erreur : %v", "Membre %q supprimé", "  Ignoré\n", "←→ columns · r refresh · q quit", "something went wrong"}
 	if strings.Join(got, "|") != strings.Join(want, "|") {
 		t.Fatalf("found %q, want %q", got, want)
 	}

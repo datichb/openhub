@@ -53,8 +53,7 @@ func runConventionsCheck(cmd *cobra.Command, args []string) error {
 			re, err := regexp.Compile(branchPattern)
 			if err == nil {
 				if re.MatchString(branch) {
-					fmt.Fprintf(a.IO.Out, "  %s Branch : %s (conforme)\n",
-						theme.SuccessStyle.Render(theme.IconSuccess), branch)
+					fmt.Fprint(a.IO.Out, i18n.Tf("cmd.conventions.branch_follows_the_pattern", theme.SuccessStyle.Render(theme.IconSuccess), branch))
 				} else {
 					fmt.Fprint(a.IO.Out, i18n.Tf("cmd.conventions.branch_does_not_follow_the_pattern", theme.WarningStyle.Render(theme.IconWarning), branch, branchPattern))
 					issues++

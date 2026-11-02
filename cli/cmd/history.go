@@ -219,7 +219,6 @@ func runHistoryImport(cmd *cobra.Command, args []string) error {
 		return historyError(err)
 	}
 
-	fmt.Fprintf(a.IO.Out, "%s Imported %d sessions (skipped %d existing)\n",
-		theme.SuccessStyle.Render(theme.IconSuccess), res.Imported, res.Skipped)
+	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.history.imported_sessions", theme.SuccessStyle.Render(theme.IconSuccess), res.Imported, res.Skipped))
 	return nil
 }

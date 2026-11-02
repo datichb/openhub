@@ -296,8 +296,7 @@ func runPatternsValidate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(i18n.T("cmd.patterns_cmd.committing_validation"), err)
 	}
 
-	fmt.Fprintf(a.IO.Out, "%s Pattern %q validé.\n",
-		theme.SuccessStyle.Render(theme.IconSuccess), name)
+	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.patterns.validated", theme.SuccessStyle.Render(theme.IconSuccess), name))
 	return nil
 }
 
@@ -320,7 +319,6 @@ func runPatternsRemove(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(i18n.T("cmd.patterns_cmd.committing_removal"), err)
 	}
 
-	fmt.Fprintf(a.IO.Out, "%s Pattern %q supprimé.\n",
-		theme.SuccessStyle.Render(theme.IconSuccess), name)
+	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.patterns.deleted", theme.SuccessStyle.Render(theme.IconSuccess), name))
 	return nil
 }

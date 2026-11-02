@@ -211,11 +211,11 @@ func formatFeedbackDiscussions(discussions []gitlabapi.Discussion) string {
 		}
 		n := d.Notes[0] // first note = the finding
 		fmt.Fprintf(&sb, "--- Discussion %d ---\n", i+1)
-		fmt.Fprintf(&sb, "Auteur: @%s\n", n.Author.Username)
+		fmt.Fprint(&sb, i18n.Tf("cmd.review_feedback.note_author", n.Author.Username))
 		if n.Position != nil && n.Position.NewPath != "" {
-			fmt.Fprintf(&sb, "Fichier: %s:%d\n", n.Position.NewPath, n.Position.NewLine)
+			fmt.Fprint(&sb, i18n.Tf("cmd.review_feedback.note_file", n.Position.NewPath, n.Position.NewLine))
 		}
-		fmt.Fprintf(&sb, "Commentaire:\n%s\n", clipNote(n.Body))
+		fmt.Fprint(&sb, i18n.Tf("cmd.review_feedback.note_comment", clipNote(n.Body)))
 		for _, reply := range d.Notes[1:] { // replies, for context
 			fmt.Fprintf(&sb, "  ↳ @%s: %s\n", reply.Author.Username, clipNote(reply.Body))
 		}

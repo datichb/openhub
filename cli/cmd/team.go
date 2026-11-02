@@ -797,25 +797,25 @@ func formatEvent(e teamstate.Event) string {
 		if ticket == "" {
 			ticket = "session"
 		}
-		return fmt.Sprintf("a terminé %s/%s", e.Project, ticket)
+		return i18n.Tf("cmd.team.event.session_complete", e.Project, ticket)
 	case teamstate.EventReviewReady:
-		return fmt.Sprintf("review prête pour %s/%s", e.Project, e.Ticket)
+		return i18n.Tf("cmd.team.event.review_ready", e.Project, e.Ticket)
 	case teamstate.EventAuditFinding:
-		return fmt.Sprintf("audit findings sur %s/%s", e.Project, e.Ticket)
+		return i18n.Tf("cmd.team.event.audit_finding", e.Project, e.Ticket)
 	case teamstate.EventClaimTaken:
-		return fmt.Sprintf("a pris %s/%s", e.Project, e.Ticket)
+		return i18n.Tf("cmd.team.event.claim_taken", e.Project, e.Ticket)
 	case teamstate.EventClaimConflict:
-		return fmt.Sprintf("conflit de claim sur %s/%s", e.Project, e.Ticket)
+		return i18n.Tf("cmd.team.event.claim_conflict", e.Project, e.Ticket)
 	case teamstate.EventClaimTransferred:
-		return fmt.Sprintf("transfert %s/%s", e.Project, e.Ticket)
+		return i18n.Tf("cmd.team.event.claim_transferred", e.Project, e.Ticket)
 	case teamstate.EventClaimReleased:
-		return fmt.Sprintf("a libéré %s/%s", e.Project, e.Ticket)
+		return i18n.Tf("cmd.team.event.claim_released", e.Project, e.Ticket)
 	case teamstate.EventWikiProposal:
-		return "a proposé une entrée wiki"
+		return i18n.T("cmd.team.event.wiki_proposal")
 	case teamstate.EventWikiAccepted:
-		return "entrée wiki acceptée"
+		return i18n.T("cmd.team.event.wiki_accepted")
 	case teamstate.EventWikiRejected:
-		return "proposition wiki rejetée"
+		return i18n.T("cmd.team.event.wiki_rejected")
 	default:
 		return e.Type
 	}

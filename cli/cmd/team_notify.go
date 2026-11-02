@@ -81,8 +81,7 @@ func runTeamNotifyTest(cmd *cobra.Command, args []string) error {
 
 	d := notify.NewDispatcher(teamCfg)
 	if err := d.Dispatch(ctx, event); err != nil {
-		fmt.Fprintf(a.IO.ErrOut, "%s Erreur: %s\n",
-			theme.ErrorStyle.Render("✗"), err)
+		fmt.Fprint(a.IO.ErrOut, i18n.Tf("cmd.team_notify.error", theme.ErrorStyle.Render("✗"), err))
 		return err
 	}
 
