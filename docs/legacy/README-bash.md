@@ -285,9 +285,9 @@ The Pathfinder, Planner, and Onboarder agents automatically query Figma when ana
 
 | Document | Description |
 |----------|-------------|
-| [Performance optimizations](../../docs/dev/performance-optimizations.md) | Performance improvements in `oc deploy` |
-| [Progress bar system](../../docs/dev/progress-bar.md) | Visual feedback system for long operations |
-| [Shell gotchas](../../docs/dev/shell-gotchas.md) | Common pitfalls in bash scripting |
+| [Performance optimizations](./performance-optimizations.md) | Performance improvements in `oc deploy` |
+| [Progress bar system](./progress-bar.md) | Visual feedback system for long operations |
+| [Shell gotchas](./shell-gotchas.md) | Common pitfalls in bash scripting |
 
 ---
 

@@ -8,7 +8,7 @@ accepted
 
 The original CLI (`oc`) was a collection of ~60 shell scripts (bash) totaling ~15,000 lines of code, orchestrated by a central dispatcher (`oc.sh`). It depended on external tools: jq, Node.js, sqlite3, bun, curl, and GNU parallel.
 
-An analysis conducted in June 2026 (`docs/dev/cli-migration-analysis.md`) identified 17 structural problems:
+An analysis conducted in June 2026 ([`docs/legacy/cli-migration-analysis.md`](../../legacy/cli-migration-analysis.md)) identified 17 structural problems:
 
 - **Fragility**: text parsing with awk/sed/grep, no type safety, silent failures
 - **External dependencies**: 6+ runtime tools required, platform-specific behavior
@@ -39,9 +39,9 @@ We decided to rewrite the CLI entirely in Go, under the new name `oh`:
 The migration was executed in 7 development phases plus 3 priority passes (P0, P1, P2 with 5 blocs), an audit cycle (33 findings, 6 remediation phases A-F), and a final cleanup bloc. Total effort: ~12 days spread over June-July 2026.
 
 Reference documents:
-- `docs/dev/cli-migration-plan-v2.md` — full technical plan
-- `docs/dev/cli-remaining-work.md` — backlog tracking (100% complete)
-- `docs/dev/cli-migration-analysis.md` — initial problem analysis
+- [`docs/legacy/cli-migration-plan-v2.md`](../../legacy/cli-migration-plan-v2.md) — full technical plan
+- [`docs/legacy/cli-remaining-work.md`](../../legacy/cli-remaining-work.md) — backlog tracking (100% complete)
+- [`docs/legacy/cli-migration-analysis.md`](../../legacy/cli-migration-analysis.md) — initial problem analysis
 
 ## Consequences
 
