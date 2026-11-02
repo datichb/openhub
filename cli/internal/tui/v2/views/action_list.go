@@ -49,8 +49,9 @@ type ActionList struct {
 	rowItem []int    // table row → item index (-1: header, section, empty)
 	rows    []string // row texts without the selection marker
 	widths  []int
-	marked  int // row with the marker (-1: none)
-	shown   int // elements shown (the filter hides the others)
+	empty   stateKind // what the text shown without elements says
+	marked  int       // row with the marker (-1: none)
+	shown   int       // elements shown (the filter hides the others)
 }
 
 // ItemState is the state of an element. The list knows the usual ones
@@ -157,8 +158,9 @@ type ActionListConfig struct {
 	// StateLabels replace the labels of states (plain text, e.g. feminine
 	// forms « acceptée »), or name the states of the view.
 	StateLabels map[ItemState]string
-	// Empty is the text shown without elements (default: the common text,
-	// tui.state.empty).
+	// Empty is the text shown without elements, as the state « empty »
+	// (default: the common text, tui.state.empty). A list that loads or fails
+	// says so with SetEmpty.
 	Empty string
 	// OnOpen runs on Enter (optional); OpenLabel is its hint label.
 	OnOpen    func(ActionItem)
@@ -236,7 +238,7 @@ func (t *actionTable) Draw(screen tcell.Screen) {
 
 // NewActionList builds the list (empty: SetItems fills it).
 func NewActionList(cfg ActionListConfig) *ActionList {
-	l := &ActionList{cfg: cfg, marked: -1, title: cfg.Title}
+	l := &ActionList{cfg: cfg, marked: -1, title: cfg.Title, empty: stateEmpty}
 	l.table = &actionTable{Table: tview.NewTable()}
 	l.table.SetSelectable(true, false).
 		SetSelectedStyle(tcell.StyleDefault.Background(theme.BgElement).Foreground(theme.FgPrimary)).
@@ -357,14 +359,18 @@ func (l *ActionList) askQuery() {
 	}
 }
 
-// SetEmpty sets the text shown without elements (loading, error, none),
-// shown at once when the list is empty.
-func (l *ActionList) SetEmpty(text string) {
-	l.cfg.Empty = text
+// SetEmpty sets what is shown without elements: loading, empty (nothing to
+// list) or error (msg is the reason), with the colours and the wording of the
+// common states (stateText). It shows at once when the list is empty.
+func (l *ActionList) SetEmpty(kind stateKind, msg string) {
+	l.cfg.Empty, l.empty = msg, kind
 	if len(l.items) == 0 {
 		l.render("")
 	}
 }
+
+// emptyText is the text shown without elements, and its colour.
+func (l *ActionList) emptyText() (text, hex string) { return statePlain(l.empty, l.cfg.Empty) }
 
 // SetItems replaces the elements; the selected element stays selected
 // when it is still there.
@@ -689,14 +695,11 @@ func (l *ActionList) render(keepID string) {
 		}
 	}
 	if shown == 0 {
-		empty := l.cfg.Empty
+		text, hex := l.emptyText()
 		if len(l.items) > 0 {
-			empty = i18n.Tf("tui.state.filter_none", l.query) // the filter hides them all
+			text, hex = statePlain(stateEmpty, i18n.Tf("tui.state.filter_none", l.query)) // the filter hides them all
 		}
-		if empty == "" {
-			empty = i18n.T("tui.state.empty")
-		}
-		add("  "+tview.Escape(empty), -1, false, theme.TextMutedHex)
+		add("  "+tview.Escape(text), -1, false, hex)
 		l.detail.SetTitle("")
 		l.detail.SetText("")
 		l.shown = 0

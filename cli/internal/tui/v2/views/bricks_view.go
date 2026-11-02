@@ -121,7 +121,6 @@ func (v *BricksView) newList() *ActionList {
 		Layout:      DetailRight,
 		Headers:     []string{i18n.T("tui.bricks.col.id"), i18n.T("tui.bricks.col.origin"), i18n.T("tui.bricks.col.version")},
 		StateHeader: i18n.T("tui.bricks.col.state"),
-		Empty:       i18n.T("tui.bricks.loading"),
 		Shell:       v.shell,
 		OnOpen:      func(it ActionItem) { v.openWorkflows(it) },
 		OpenLabel:   i18n.T("tui.bricks.open_label"),
@@ -228,11 +227,11 @@ func (v *BricksView) render() {
 	v.list.SetTitle(title)
 	switch {
 	case v.err != nil:
-		v.list.SetEmpty(i18n.Tf("tui.state.error", v.err.Error()))
+		v.list.SetEmpty(stateError, v.err.Error())
 	case v.loaded:
-		v.list.SetEmpty(i18n.T("tui.bricks.empty"))
+		v.list.SetEmpty(stateEmpty, i18n.T("tui.bricks.empty"))
 	default:
-		v.list.SetEmpty(i18n.T("tui.bricks.loading"))
+		v.list.SetEmpty(stateLoading, i18n.T("tui.bricks.loading"))
 	}
 	var items []ActionItem
 	for _, kind := range []string{"agent", "skill"} {

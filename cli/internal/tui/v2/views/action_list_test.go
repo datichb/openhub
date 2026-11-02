@@ -11,6 +11,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/testutil/golden"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 )
 
@@ -124,8 +125,16 @@ func TestActionListEmpty(t *testing.T) {
 	assert.Contains(t, screenText(t, l.Primitive(), 60, 6), "Aucune proposition")
 	_, ok := l.Current()
 	assert.False(t, ok)
-	l.SetEmpty("Chargement…")
+	l.SetEmpty(stateLoading, "Chargement…")
 	assert.Contains(t, screenText(t, l.Primitive(), 60, 6), "Chargement…")
+	l.SetEmpty(stateLoading, "")
+	assert.Contains(t, screenText(t, l.Primitive(), 60, 6), i18n.T("tui.state.loading"), "the common text of the state")
+	// an error is told with its symbol and the common wording
+	l.SetEmpty(stateError, "disque plein")
+	assert.Contains(t, screenText(t, l.Primitive(), 80, 6), theme.SymFailure+" "+i18n.Tf("tui.state.error", "disque plein"))
+	// the text of a state stays plain: brackets are shown as they are
+	l.SetEmpty(stateEmpty, "aucun [x]")
+	assert.Contains(t, screenText(t, l.Primitive(), 60, 6), "aucun [x]")
 }
 
 // y, e, s run at once on the selected element; n asks an instruction
