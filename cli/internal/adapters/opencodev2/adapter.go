@@ -41,6 +41,9 @@ type Adapter struct {
 	// version whose integrity is not pinned (pins.go) is then refused
 	// instead of downloaded with a warning (nil = warning).
 	StrictPins func() bool
+	// LogLimits gives the bounds of the server log, [gc] log_max_mb and
+	// log_keep (nil = the defaults of logrotate).
+	LogLimits func() (maxBytes int64, keep int)
 }
 
 var _ adapters.ToolAdapter = (*Adapter)(nil)
@@ -239,6 +242,9 @@ func (a *Adapter) start(ctx context.Context, g adapters.ServerGroup, b sessionsp
 		ReadyAgent: b.EntryAgent,
 		LogPath:    filepath.Join(g.DataDir, "oh-server.log"),
 		EnvAllow:   g.EnvAllow,
+	}
+	if a.LogLimits != nil {
+		opts.LogMaxBytes, opts.LogKeep = a.LogLimits()
 	}
 	if g.Runtime != nil && g.Prepared != nil {
 		var err error
