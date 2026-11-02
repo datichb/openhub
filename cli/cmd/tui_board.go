@@ -14,7 +14,7 @@ import (
 // workflows taking a Beads ticket, from the « Démarrer » cache, launched on
 // the ticket through the launch form (options step, ticket prefilled). On the
 // card of a GitLab issue, the workflows taking a free request (spec, quick,
-// infra-change, spike, incident, retro…) are offered too, launched with
+// infra-change, spike, incident…) are offered too, launched with
 // « #<iid> » as the request: the form opens on its inputs, where the request
 // can be completed.
 func buildBoardQuickActions(a *app.App) *views.BoardQuickActions {

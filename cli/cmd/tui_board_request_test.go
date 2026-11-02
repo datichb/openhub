@@ -109,19 +109,20 @@ func hubCatalog(t *testing.T) []workflowsvc.Summary {
 
 // The menu of the card of a GitLab issue offers, besides the workflows that
 // take a Beads ticket, the ones of the hub that take a request: the cadrage
-// (spec), quick, libre, infra-change, and the three that have a main input of
-// their own, which the issue fills: spike (question), incident, retro (focus).
+// (spec), quick, libre, infra-change, and the two that have a main input of
+// their own, which the issue fills: spike (question) and incident. The retro
+// takes no free request (it looks at past sessions): it is not offered.
 func TestBoardMenuOfTheHubWorkflows(t *testing.T) {
 	ts := testTUIStart()
 	ts.catalog = hubCatalog(t)
 	offered := workflowIDsOf(ts.requestWorkflows(views.StartScope{}))
-	for _, id := range []string{"spec", "quick", "libre", "infra-change", "spike", "incident", "retro"} {
+	for _, id := range []string{"spec", "quick", "libre", "infra-change", "spike", "incident"} {
 		assert.Contains(t, offered, id)
 	}
-	for _, id := range []string{"ticket", "review", "sweep", "release", "merge-conflicts"} {
+	for _, id := range []string{"ticket", "review", "sweep", "release", "merge-conflicts", "retro"} {
 		assert.NotContains(t, offered, id, "a workflow with a ticket, or with no free request")
 	}
-	for id, input := range map[string]string{"spec": "request", "infra-change": "request", "spike": "question", "incident": "incident", "retro": "focus", "unknown": "request"} {
+	for id, input := range map[string]string{"spec": "request", "infra-change": "request", "spike": "question", "incident": "incident", "retro": "request", "unknown": "request"} {
 		assert.Equal(t, input, ts.requestInput(id), id)
 	}
 }
@@ -139,7 +140,7 @@ func TestBoardMenuLabels(t *testing.T) {
 			labels[w.ID] = w.Label
 		}
 		i18n.SetLocale(prev)
-		for _, id := range []string{"spike", "incident", "retro"} {
+		for _, id := range []string{"spike", "incident"} {
 			assert.NotEmpty(t, labels[id], "%s %s", lang, id)
 			assert.LessOrEqual(t, len([]rune(labels[id])), 34, "%s %s: the column of the menu is 34 wide: %q", lang, id, labels[id])
 			assert.Less(t, len([]rune(labels[id])), 40, "%s %s: a title, not the description: %q", lang, id, labels[id])
