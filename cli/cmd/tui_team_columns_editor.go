@@ -89,15 +89,15 @@ func (e *columnEditor) labelsForCol(colID string) (labels, statuses []string) {
 	return labels, statuses
 }
 
-// truncLabels lists at most max items, with the count of the others.
-func truncLabels(items []string, max int) string {
+// truncLabels lists at most limit items, with the count of the others.
+func truncLabels(items []string, limit int) string {
 	if len(items) == 0 {
 		return "—"
 	}
-	if len(items) <= max {
+	if len(items) <= limit {
 		return strings.Join(items, ", ")
 	}
-	return strings.Join(items[:max], ", ") + fmt.Sprintf(" +%d", len(items)-max)
+	return strings.Join(items[:limit], ", ") + fmt.Sprintf(" +%d", len(items)-limit)
 }
 
 // hintOf is a key of the editor and its label, the key in the accent color.

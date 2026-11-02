@@ -90,7 +90,7 @@ func TestInlineWizardRenderStepRefreshesTheLabels(t *testing.T) {
 	assert.Equal(t, "Group New", v.groupStates[0].Label)
 }
 
-func hintsText(v *InlineWizardView) string { return v.hintsBar.TextView.GetText(true) }
+func hintsText(v *InlineWizardView) string { return v.hintsBar.GetText(true) }
 
 // A custom view that calls onDone with a failing Validate stays on its step
 // and shows the message in the hints bar; once valid it moves on.
