@@ -17,8 +17,6 @@ tag-style internal/tui/v2/views/banner.go 3
 tag-style internal/tui/v2/views/help_view.go 1
 symbol internal/tui/v2/views/inline_form.go 2
 tag-color internal/tui/v2/views/inline_form.go 2
-tag-style internal/tui/v2/views/inline_wizard.go 1
-widgets-tag internal/tui/v2/views/inline_wizard.go 31
 symbol internal/tui/v2/views/list_page.go 1
 tag-style internal/tui/v2/views/projects_view.go 1
 tag-color internal/tui/v2/views/worktree_view.go 1
