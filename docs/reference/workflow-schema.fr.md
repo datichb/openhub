@@ -252,7 +252,7 @@ inputs:
 | `mr.target_branch(mr)` | sa branche cible | idem |
 | `ticket.brief(ticket)` | le brief de reprise du ticket (la version enrichie d'abord) | un id de ticket |
 
-- **Noms neutres** : oh résout une source avec la forge du projet (aujourd'hui GitLab : jeton `oh service setup`, projet `tracker_project`) ou son espace d'équipe ; un workflow n'a pas à changer selon la forge. La liste est fermée, et ouverte à tous les workflows (livrés, d'équipe, de projet).
+- **Noms neutres** : oh résout une source avec la forge du projet (aujourd'hui GitLab : jeton `oh mcp setup gitlab`, projet `tracker_project`) ou son espace d'équipe ; un workflow n'a pas à changer selon la forge. La liste est fermée, et ouverte à tous les workflows (livrés, d'équipe, de projet).
 - **Priorité** : une valeur donnée au lancement l'emporte, puis la valeur calculée, puis le défaut.
 - **Échec** : si le calcul échoue, le lancement est refusé pour une entrée sans défaut ; sinon le défaut s'applique. La source est lue une seule fois par lancement.
 - La fiche de lancement ne demande pas ces entrées (elles restent modifiables).

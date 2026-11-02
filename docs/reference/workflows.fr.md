@@ -14,7 +14,7 @@ oh workflow validate ticket         # un workflow du catalogue
 oh workflow validate ./mon-wf.yaml  # un fichier
 ```
 
-On lance un workflow avec `oh run <workflow>` ou la fiche de lancement de la TUI ; les anciennes commandes (`oh start`, `oh audit`…) en sont des alias dépréciés.
+On lance un workflow avec `oh run <workflow>` ou la fiche de lancement de la TUI ; les anciennes commandes (`oh start`, `oh audit`, `oh review`, `oh debug`…), alias dépréciés depuis la 5.0, ont été retirées en 5.1 (voir [les commandes retirées](cli-sessions.fr.md#commandes-retirées-en-51)).
 
 Un workflow peut avoir d'autres noms, ses `aliases:` (voir [`aliases`](workflow-schema.fr.md#aliases--autres-noms-du-workflow)), reconnus par `oh run` comme par la palette de la TUI : `cadrage` et `feature` (`spec`), `feature` avec `--tickets` (`implement-spec`), `secu` (`security-fix`), `perf` (`benchmark`), `dbg` (`debug`), `feedback` et `retours` (`review-feedback`). Les autres termes de l'ancienne table de la palette (`dev`, `start`, `fast`, `rev`…) ne sont plus reconnus.
 
@@ -22,7 +22,7 @@ Un workflow peut avoir d'autres noms, ses `aliases:` (voir [`aliases`](workflow-
 
 ## Vue d'ensemble
 
-| Workflow | Agent d'entrée | Agents | Risque | Exécution | Remplace |
+| Workflow | Agent d'entrée | Agents | Risque | Exécution | Remplace (commande retirée en 5.1) |
 |---|---|---|---|---|---|
 | `ticket` | `orchestrator-dev` | `developer`, `reviewer`, `documentarian` (à la demande) | write | local, conteneur, distant | `oh start --dev`, `-t` |
 | `quick` | `developer` | — | write | local, conteneur | session rapide |
@@ -113,7 +113,7 @@ En méthode `tdd` (`-i method=tdd`), le `developer` passe lui-même `cp-seams` (
 
 | Lancement | Workflow lancé | Ancien mode |
 |---|---|---|
-| `oh run feature -m "…"` (et `oh start -m "…"`) ; sans demande, la session la demande | `spec` : `aliases: [cadrage, feature]` | A (feature en langage naturel) |
+| `oh run feature -m "…"` ; sans demande, la session la demande | `spec` : `aliases: [cadrage, feature]` | A (feature en langage naturel) |
 | `oh run feature --tickets bd-1,bd-2` | `implement-spec` : `aliases: [{ id: feature, with: tickets }]` ; consigne : `-i instructions=…` (`-m` y est refusé : pas d'entrée `request`) | B (tickets existants) |
 
 oh affiche la redirection (`feature → spec`). À la fin de `spec`, oh propose `implement-spec` sur les tickets créés et la spec écrite, sans le lancer (`oh session next <id>`, fermeture du client, « Enchaîner avec… » dans la TUI).
@@ -122,7 +122,7 @@ oh affiche la redirection (`feature → spec`). À la fin de `spec`, oh propose 
 
 Ce qui change par rapport à l'ancien `feature` (⚠) :
 
-- sans demande (`oh run feature`, `oh start`), la session la demande d'abord, comme l'ancien `feature` : le `conductor` la pose avec `question` ;
+- sans demande (`oh run feature`), la session la demande d'abord, comme l'ancien `feature` : le `conductor` la pose avec `question` ;
 - la spec est écrite et vérifiée dans le wiki (`docs/wiki/specs/`), les tickets créés à `cp-tickets` ; l'implémentation est une **seconde session**, proposée par oh ;
 - checkpoints : ceux de `spec` (`cp-understanding`, `cp-converge`, `cp-spec`, `cp-tickets`), puis ceux d'`implement-spec` (`cp-plan` remplace `cp-0`, `cp-final` remplace `cp-feature` et sa revue de l'ensemble) ; `cp-spec` (spec UX/UI conditionnelle) disparaît : le designer est appelé par le planner de `spec` ;
 - l'`orchestrator` n'est plus l'agent d'entrée que de [`libre`](#libre) ;

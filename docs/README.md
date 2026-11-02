@@ -108,7 +108,7 @@ In v5, plugins are declared per workflow (`plugins:`) and delivered in the sessi
 |----------|-------------|
 | [CLI Reference (Index)](reference/cli.en.md) | Table of contents, global flags, exit codes |
 | [CLI — Workflows](reference/cli-workflows.en.md) | `oh run`, `oh workflow *`, `oh bundle *` |
-| [CLI — Sessions](reference/cli-sessions.en.md) | `oh session *`, `oh budget`, `oh history`, `oh beads`, deprecated aliases (`oh start`, `oh audit`, `oh review`, `oh debug`) |
+| [CLI — Sessions](reference/cli-sessions.en.md) | `oh session *`, `oh budget`, `oh history`, `oh beads`, the commands removed in 5.1 (`oh start`, `oh audit`, `oh review`, `oh debug`) and their replacements |
 | [CLI — Projects](reference/cli-projects.en.md) | `oh project list\|add\|remove\|rename\|move\|configure` |
 | [CLI — Deployment](reference/cli-deploy.en.md) | `oh deploy`, `oh sync` (removed in v5), `oh migrate deploy-cleanup` |
 | [CLI — Configuration](reference/cli-config.en.md) | `oh config *`, `oh provider setup`, `oh config model` |

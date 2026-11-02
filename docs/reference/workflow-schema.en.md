@@ -252,7 +252,7 @@ inputs:
 | `mr.target_branch(mr)` | its target branch | same |
 | `ticket.brief(ticket)` | the takeover brief of the ticket (the enriched version first) | a ticket id |
 
-- **Neutral names**: oh resolves a source with the forge of the project (GitLab today: `oh service setup` token, `tracker_project` project) or its team space; a workflow does not change with the forge. The list is closed, and open to every workflow (shipped, team, project).
+- **Neutral names**: oh resolves a source with the forge of the project (GitLab today: `oh mcp setup gitlab` token, `tracker_project` project) or its team space; a workflow does not change with the forge. The list is closed, and open to every workflow (shipped, team, project).
 - **Priority**: a value given at launch wins, then the computed value, then the default.
 - **Failure**: when the computation fails, the launch is refused for an input without default; otherwise the default applies. The source is read once per launch.
 - The launch form does not ask for these inputs (they stay editable).

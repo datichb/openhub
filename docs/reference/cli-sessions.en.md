@@ -2,7 +2,7 @@
 
 # CLI Reference — Sessions
 
-This page covers **v5 session management** (`oh session …`), **restrictions** (`oh budget`), **history** (`oh history`), the `oh beads` proxy and the **deprecated launch aliases** (`oh start`, `oh audit`, `oh review`, `oh debug`). Launching itself is done with [`oh run`](cli-workflows.en.md#oh-run). Guide: [Sessions v5](../guides/sessions-v5.en.md); decisions: [ADR-042](../architecture/adr/042-checkpoints-headless-decisions.en.md), [ADR-047](../architecture/adr/047-session-interaction-daemon.en.md).
+This page covers **v5 session management** (`oh session …`), **restrictions** (`oh budget`), **history** (`oh history`), the `oh beads` proxy and the list of the **launch commands removed in 5.1** (`oh start`, `oh audit`, `oh review`, `oh debug`) with their replacement. Launching itself is done with [`oh run`](cli-workflows.en.md#oh-run). Guide: [Sessions v5](../guides/sessions-v5.en.md); decisions: [ADR-042](../architecture/adr/042-checkpoints-headless-decisions.en.md), [ADR-047](../architecture/adr/047-session-interaction-daemon.en.md).
 
 ## Session management (v5)
 
@@ -73,13 +73,13 @@ Opens the opencode interface on the session (new tab or window, tmux, browser or
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
-| `--attach` | string | `auto` | Opening, as in `oh run --attach`: `auto` (current terminal first: iTerm2 or Terminal.app, then the other one, then tmux when oh runs inside tmux), `iterm`, `terminal`, `tmux`, `browser`, `suspend` (in the current terminal). `--how` (former name) and the value `here` (former synonym of `suspend`) are still accepted, with a warning |
+| `--attach` | string | `auto` | Opening, as in `oh run --attach`: `auto` (current terminal first: iTerm2 or Terminal.app, then the other one, then tmux when oh runs inside tmux), `iterm`, `terminal`, `tmux`, `browser`, `suspend` (in the current terminal). `--how` (former name) and the value `here` were removed in 5.1 |
 | `--iterm-style` | string | `tab` | With iTerm2: `tab`, `split` or `window` |
 | `--exec` | bool | `false` | Internal, hidden from the help: runs the interface in the current process (command of the windows opened by oh) |
 
 ```bash
 oh session attach 7f3a
-oh session attach 7f3a --attach suspend      # replaces oh start --resume <id>
+oh session attach 7f3a --attach suspend      # resumes a session (replaces oh start --resume <id>, removed in 5.1)
 oh session attach 7f3a --attach tmux
 ```
 
@@ -417,194 +417,32 @@ oh beads ready
 
 ---
 
-## Deprecated aliases
+## Commands removed in 5.1
 
-> **v5 — deprecated aliases.** These commands are marked deprecated (cobra): they are no longer listed in `oh --help` but still work. They launch their workflow through [`oh run`](cli-workflows.en.md#oh-run) and print a warning: `oh start` → `oh run feature` (`--prompt` = first text input), `--agent <id>` → `oh run libre --agent <id>`, `--dev [-t <id>]` → `oh run ticket --tickets <id>` (an epic chosen in the picker: one session for the whole epic or one per ticket, as chosen), `--onboard` → `oh run onboarding`, `--parallel --tickets a,b` → `oh run ticket --tickets a,b` (without `--tickets`: refused), `--sweep <goal>` → `oh run sweep -i goal=<goal>`, `--worktree <branch>` → `--location new`, `--resume <id>` → `oh session attach <id> --attach suspend`, `oh audit|review|debug` → `oh run audit|review|debug` (flags become inputs when the workflow declares them), `oh review feedback` → `oh run review-feedback -i mr=<url>` (preview of the discussions, then the workflow reads them itself). They require opencode V2 and the target workflow; the former launch no longer exists (see the [v5 migration guide](../guides/migration-v5.en.md)). Sessions are then followed with `oh session …` or the TUI **Sessions** view (see [Sessions v5](../guides/sessions-v5.en.md)).
+`oh start`, `oh audit`, `oh review` (and `oh review feedback`), `oh debug` were deprecated aliases of [`oh run`](cli-workflows.en.md#oh-run) since 5.0; they are **removed in 5.1**. The name is still recognised only to show the replacement (message on the error output, exit code 2): `oh start -a debugger` answers "`oh start` was removed in 5.1" and names `oh run libre --agent <agent>`. Their options (`-p`, `-t`, `-m`, `-b`, `-i`, `-w`, `-l`…) go with them. The workflow inputs (audit types, review modes) are those of the workflow: see [Shipped workflows](workflows.en.md).
 
-### oh start
+| Removed | Replacement |
+|---------|-------------|
+| `oh start [-m "…"]` | `oh run feature -m "…"` (the message is the first text input) |
+| `oh start --agent <id> -m "…"` | `oh run libre --agent <id> -m "…"` |
+| `oh start --dev [-t <id>]` | `oh run ticket --tickets <id>` (without `--tickets`, the picker of the TUI) |
+| `oh start --onboard [--refresh]` | `oh run onboarding [-i refresh=true]` |
+| `oh start --parallel --tickets a,b` | `oh run ticket --tickets a,b` |
+| `oh start --sweep "<goal>"` | `oh run sweep -i goal="<goal>"` |
+| `oh start --worktree <branch>` | `oh run … --location new` |
+| `oh start --resume <id>` | `oh session attach <id> --attach suspend` |
+| `oh audit --type <type>` | `oh run audit -i type=<type>` |
+| `oh review [--mode <mode>] [--branch <b>]` | `oh run review -i review_mode=<mode> -i branch=<b>` |
+| `oh review --publish [--reviewer <id>]` | `oh mr create [--reviewer <id>]` |
+| `oh review feedback <ref>` | `oh run review-feedback -i mr=<ref>` |
+| `oh debug --issue "…"` | `oh run debug -i issue="…"` |
+| `oh service` | `oh mcp status` |
+| `oh service setup` | `oh mcp setup` |
+| `oh service remove <service>` | `oh mcp disable <service>` (delete the keychain token with `oh secrets delete`) |
+| `oh takeover-brief enrich <ticket>` | `oh run brief-enrich --headless -i ticket=<ticket>` (the enrichment that also saves the brief stays in the Takeover view of the TUI, key `e`) |
 
-Deprecated alias of `oh run` (see above).
-
-```
-oh start [options]
-```
-
-| Flag | Short | Description | v5 equivalent |
-|------|-------|-------------|---------------|
-| `--agent` | `-a` | Entry agent | `oh run libre --agent <id>` (the prompt becomes the `request` input). Refused with `--dev`, `--onboard`, `--parallel` or `--sweep` |
-| `--assignee` | `-A` | Filter the picker tickets by assignee (requires `--dev`, exclusive with `--label`) | No flag: pass the tickets with `oh run ticket --tickets` |
-| `--dev` | | Epic/ticket picker, then `ticket` | `oh run ticket --tickets <id>` (epic in one session: `--one-session`) |
-| `--label` | | Filter the picker tickets by label (requires `--dev`, exclusive with `--assignee`) | No flag: pass the tickets with `oh run ticket --tickets` |
-| `--onboard` | | Create or enrich the project wiki | `oh run onboarding` |
-| `--parallel` | | One session per ticket, requires `--tickets` (refused otherwise) | `oh run ticket --tickets a,b` |
-| `--project` | `-p` | Project ID (auto-detected otherwise) | `-p` |
-| `--prompt` | `-m` | Initial prompt | First text input (`oh run feature -m …`) |
-| `--provider` | `-P` | LLM provider (bedrock, anthropic, openrouter, github-copilot) | `-P` |
-| `--recap` | | Show summary and ask for confirmation | `--recap` |
-| `--refresh` | | Re-discover the wiki (requires `--onboard`) | `oh run onboarding -i refresh=true` |
-| `--resume` | `-r` | Open an existing session in this terminal | `oh session attach <id> --attach suspend` |
-| `--sweep` | | High-level sweep goal | `oh run sweep -i goal=<goal>` |
-| `--sweep-dry-run` | | Show the decomposition without executing | `-i dry_run=true` |
-| `--sweep-exclude` | | Glob patterns to exclude | `-i exclude=<patterns>` |
-| `--sweep-include` | | Glob patterns to include | `-i include=<patterns>` |
-| `--sweep-strategy` | | Decomposition: `manual`, `by-file`, `by-package`, `llm` | `-i strategy=<strategy>` (workflow default: `llm`) |
-| `--sweep-tasks` | | Manual task list (`--sweep-strategy=manual`) | `-i tasks=<tasks>` (one per line) |
-| `--sweep-verify` | | Final verification: `none`, `tests`, `lint`, `build`, `all`, `custom` | `-i verify=<value>` |
-| `--sweep-verify-cmd` | | Verification command (`--sweep-verify=custom`) | `-i verify_cmd=<command>` |
-| `--ticket` | `-t` | Ticket to work on directly (skips the picker, requires `--dev`) | `oh run ticket --tickets <id>` |
-| `--tickets` | | Comma-separated tickets (with `--parallel`) | `--tickets` |
-| `--worktree` | | Branch to launch in a git worktree | `--location new` |
-
-`--max-sessions`, `--priority` and `--sweep-branch-prefix` are still accepted but have no effect (hidden from the help), like `-y, --yes` (direct launch is the default; `--recap` to confirm). The former sweep (one worktree per subtask) and the former parallel mode (monitor, merge view) no longer exist.
-
-**Example:**
-
-```bash
-oh run feature -p my-app -m "Fix the login bug"
-oh run libre --agent debugger -m "Test X has been failing since yesterday"
-oh session attach abc123-session-id --attach suspend
-oh run ticket --tickets TICKET-123 --location new
-oh run onboarding -i refresh=true
-oh run feature -m "Refactor the auth module" --recap
-oh run ticket --tickets bd-42,bd-43,bd-44
-oh run sweep -i goal="Migrate deprecated API calls" -i strategy=llm -i verify=tests
-oh run sweep -i goal="Fix lint warnings" -i strategy=by-package -i dry_run=true
-
-# Equivalent deprecated aliases
-oh start -p my-app -m "Fix the login bug"
-oh start -a debugger -m "Test X has been failing since yesterday"
-oh start --resume abc123-session-id
-oh start --dev -t TICKET-123 --worktree feat/ticket-123
-oh start --onboard --refresh
-oh start -m "Refactor the auth module" --recap
-oh start --parallel --tickets bd-42,bd-43,bd-44
-oh start --sweep "Migrate deprecated API calls" --sweep-strategy llm --sweep-verify tests
-oh start --sweep "Fix lint warnings" --sweep-strategy by-package --sweep-dry-run
-```
-
-> **See also:** [Shipped workflows](workflows.en.md) | [Sessions v5](../guides/sessions-v5.en.md) | [Parallel mode (replaced)](../guides/parallel-mode.en.md) | [Sweep mode (replaced)](../guides/sweep-mode.en.md)
+The options of the former parallel and sweep launches that had no effect since 5.0 (`--max-sessions`, `--priority`, `--sweep-branch-prefix`) have no replacement.
 
 ---
 
-### oh audit
-
-Deprecated alias of `oh run audit` (read-only code audit).
-
-```
-oh audit [options]
-```
-
-| Flag | Short | Description | v5 equivalent |
-|------|-------|-------------|---------------|
-| `--project` | `-p` | Project ID | `-p` |
-| `--type` | | Audit type (default: security) | `-i type=<type>` |
-
-Available types: `security`, `performance`, `architecture`, `accessibility`, `ecodesign`, `observability`, `privacy`, `infra`, `database`.
-
-**Example:**
-
-```bash
-oh run audit -p my-app -i type=security
-oh run audit -p my-app -i type=performance
-oh run audit -i type=accessibility
-
-# Equivalent deprecated alias
-oh audit -p my-app --type performance
-```
-
----
-
-### oh review
-
-Deprecated alias of `oh run review` (read-only code review). `--publish` is not a workflow: its command is `oh mr create` (`oh review --publish` still works, with a warning).
-
-```
-oh review [options]
-```
-
-| Flag | Short | Description | v5 equivalent |
-|------|-------|-------------|---------------|
-| `--branch` | | Branch to review (diff vs main). Default: current branch if feature branch | `-i branch=<branch>` |
-| `--mode` | | Review mode (see below) | `-i review_mode=<mode>` |
-| `--project` | `-p` | Project ID | `-p` |
-| `--publish` | | Create a MR on GitLab and optionally assign a reviewer (requires write_enabled) | `oh mr create` |
-| `--reviewer` | | Member ID of the reviewer to assign on the MR (with `--publish`) | `oh mr create --reviewer <member>` |
-
-**Available modes:**
-
-| Mode | Description |
-|------|-------------|
-| `standard` | Classical 6-category checklist review |
-| `adversarial` | Critical review — maximum skepticism, min. 10 findings, dangerous assumptions |
-| `edge-case` | Exhaustive unhandled execution path hunting |
-| `standard+adversarial` | Both modes in parallel (independent sessions) + unified report |
-| `all` | Standard + Adversarial + Edge-case — maximum coverage |
-
-Without a mode, the reviewer offers the choice at session start.
-
-**Example:**
-
-```bash
-oh run review -p my-app
-oh run review -i review_mode=adversarial
-oh run review -i review_mode=standard+adversarial -p backend
-oh run review -i review_mode=all -i branch=feat/auth
-oh mr create --reviewer alice
-
-# Equivalent deprecated alias
-oh review --mode adversarial
-```
-
-> **See also:** [Review & Feedback Guide](../guides/review-feedback.en.md)
-
----
-
-### oh review feedback
-
-Fetches the unresolved GitLab discussions of a MR, shows a preview, asks for confirmation, then launches the `review-feedback` workflow (`mr`, `branch` and `feedback` inputs filled by oh). Warns that the alias is deprecated.
-
-```
-oh review feedback <ticket-or-branch>
-```
-
-| Flag | Short | Type | Description |
-|------|-------|------|-------------|
-| `--project` | `-p` | string | Project ID |
-| `--yes` | | bool | Skip confirmation prompt |
-
-```bash
-oh review feedback TICKET-123
-oh review feedback feat/my-branch -p backend
-oh review feedback TICKET-123 --yes
-```
-
-> **Limits:** Max 30 discussions per session, 2000 chars per note body.
-
----
-
-### oh debug
-
-Deprecated alias of `oh run debug` (bug diagnosis).
-
-```
-oh debug [options]
-```
-
-| Flag | Short | Description | v5 equivalent |
-|------|-------|-------------|---------------|
-| `--issue` | | Issue description | `-i issue=<description>` |
-| `--project` | `-p` | Project ID | `-p` |
-
-**Example:**
-
-```bash
-oh run debug -p my-app -i issue="Users get 500 on /api/auth/callback"
-oh run debug -i issue="Memory leak in worker process"
-
-# Equivalent deprecated alias
-oh debug -p my-app --issue "Users get 500 on /api/auth/callback"
-```
-
----
-
-> **See also:** [Shipped workflows](workflows.en.md) | [Sessions v5](../guides/sessions-v5.en.md) | [Review & Feedback guide](../guides/review-feedback.en.md)
+> **See also:** [Shipped workflows](workflows.en.md) | [Sessions v5](../guides/sessions-v5.en.md) | [Review & Feedback Guide](../guides/review-feedback.en.md) | [Migration from 5.0](../guides/migration-v5.en.md#from-50-to-51)
