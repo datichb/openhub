@@ -1,7 +1,7 @@
 ---
-updated: 2026-10-15
+updated: 2026-11-02
 confidence: confirmed
-agents: [developer]
+agents: [developer, documentarian]
 ---
 
 > [Read in English](config-cascade.en.md)
@@ -84,24 +84,27 @@ En v5, les serveurs activés à l'issue de cette cascade sont placés dans le pa
 | auto_sync | `*bool` | `bool` | `false` | Tri-state (non configuré / activé / désactivé) |
 | push_labels | `*bool` | `bool` | `false` | Tri-state (non configuré / activé / désactivé) |
 | auto_plan_assigned | `*bool` | `bool` | `false` | Tri-state (non configuré / activé / désactivé) |
-| max_auto_plan | `*int` | `int` | `5` | Int (vide = défaut) |
+| max_auto_plan_per_member | `*int` | `int` | `5` | Int (vide = défaut) ; limite **par synchro** |
 
 Sémantique hub `*bool` : `nil` = non configuré, `true/false` = surcharge explicite.
 
 — `CONFIRMÉ` · developer · 2026-09-10 · cli/internal/tracker/resolve_config.go
 
-### Tracker connexion (2 niveaux)
+### Tracker connexion (3 niveaux)
 
-**Cascade** : Projet → Team
+**Cascade** : Projet → Hub (`[tracker]` de `hub.toml`) → Team ; `tracker_project` et `ticket_pattern` : Projet → Team
 
-| Champ | Team | Projet | Notes |
-|-------|------|--------|-------|
-| tracker_url | `string` source | `string` override | |
-| tracker_project | `string` source | `string` override | |
-| tracker_token_key | `string` source | `string` override | |
-| ticket_pattern | `string` source | `string` override | |
+| Champ | Team | Hub | Projet | Notes |
+|-------|------|-----|--------|-------|
+| tracker_url | `string` source | `string` | `string` override | puis variable d'environnement, puis défaut |
+| tracker_project | `string` source | — | `string` override | |
+| tracker_token_key | `string` source | `string` | `string` override | clé du trousseau ; vide = clé dérivée |
+| tracker_token_url | `string` | `string` | `string` | serveur pour lequel la clé est valable ; **pris au même niveau que la clé** (une clé de `hub.toml` n'hérite pas du serveur déclaré à côté de la clé de l'équipe) |
+| ticket_pattern | `string` source | — | `string` override | |
 
-— `CONFIRMÉ` · developer · 2026-09-10 · cli/internal/tracker/resolve_config.go
+Sans `tracker_token_url`, le serveur de la clé est **implicite** : le `tracker_url` du niveau de la clé, à défaut le tracker effectif. Les autres sources de jeton GitLab ont leur serveur : `GITLAB_TOKEN` (`OH_GITLAB_URL`, sinon `GITLAB_URL`, à déclarer), jetons MCP (`[mcp.gitlab] url`, sinon `https://gitlab.com`), jeton de l'équipe (`[[teams]] gitlab_url` de `hub.toml` pour un dépôt joint par un alias SSH, sinon l'hôte de `state_repo`). Une source ne répond que pour le serveur appelé ([ADR-057](../../architecture/adr/057-gitlab-token-per-server.fr.md)).
+
+— `CONFIRMÉ` · developer · 2026-11-02 · cli/internal/tracker/resolve_config.go, cli/internal/tracker/gitlab_token.go, cli/internal/services/team/team.go
 
 ### Models (3 niveaux, toujours recommandation)
 
@@ -109,9 +112,9 @@ Sémantique hub `*bool` : `nil` = non configuré, `true/false` = surcharge expli
 
 **Jamais enforceable** — le team recommande, le membre/projet décide. Le modèle est résolu à la construction du paquet de session (plus de déploiement).
 
-> **Limite v5 :** les niveaux Team existent dans `bricks.ResolveAgentModel`, mais le lancement (`cmd/v5_launch.go`, `modelOverridesFor`) ne renseigne que le hub et le projet : les recommandations `[models]` du team-state ne sont pas appliquées aux sessions v5.
+Au lancement (`cmd/v5_launch.go`), le hub et le projet sont renseignés, puis les recommandations `[models]` du `config.toml` du team-state (si l'équipe est activée et le dépôt cloné) : les trois niveaux de la cascade sont appliqués aux sessions v5.
 
-— `CONFIRMÉ` · developer · 2026-10-06 · cli/internal/bricks/model_resolve.go
+— `CONFIRMÉ` · developer · 2026-11-02 · cli/internal/bricks/model_resolve.go, cli/cmd/v5_launch.go
 
 ### Workflows (couches, sécurité qui ne fait que se durcir)
 
@@ -148,9 +151,9 @@ Un runtime que le workflow n'autorise pas (`runtime.allowed`) est ignoré. `[exe
 | Notification | type, webhook_url, channel, bot_name, destinations |
 | Takeover | stale_days (défaut: 3) |
 | Parallel | max_sessions (défaut : 5), port_range_start, auto_merge_beads — réglages de l'ancien mode parallèle, sans effet sur les sessions v5 (limiter les sessions : `oh budget`) |
-| Claim | done_retention_days (défaut: 7) |
+| Claim | done_retention_days (défaut: 7) ; bail et signal de vie : `lease_hours` (24), `heartbeat_minutes` (60, 0 = désactivé), `lease_hours_manual` (72, claims pris à la main), `sleeping_renewal_days` (3) et `remote_renewal_days` (7), plafonds du renouvellement ; `release_expired_on_sync` (false) — voir [ADR-056](../../architecture/adr/056-team-claim-lease.fr.md) et [Bail et fin de session](../../guides/team-setup.fr.md#bail-et-fin-de-session) |
 
-— `CONFIRMÉ` · developer · 2026-09-10 · cli/internal/teamstate/teamconfig.go
+— `CONFIRMÉ` · developer · 2026-11-02 · cli/internal/teamstate/teamconfig.go
 
 ## Champs d'enforcement
 
@@ -168,3 +171,5 @@ Un runtime que le workflow n'autorise pas (`runtime.allowed`) est ignoré. `[exe
 
 - [ADR-030 — Enforced/Recommended config](../../architecture/adr/030-enforced-recommended-config.fr.md)
 - [ADR-033 — Matrice de cascade et d'enforcement](../../architecture/adr/033-config-cascade-enforcement.fr.md)
+- [ADR-056 — Claims d'équipe : bail, fin de session et file durable](../../architecture/adr/056-team-claim-lease.fr.md)
+- [ADR-057 — Jeton GitLab strict par serveur](../../architecture/adr/057-gitlab-token-per-server.fr.md)
