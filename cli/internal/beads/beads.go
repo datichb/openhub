@@ -40,7 +40,7 @@ type ReadyOpts struct {
 func Available() error {
 	_, err := exec.LookPath("bd")
 	if err != nil {
-		return fmt.Errorf("bd not found in PATH: install with: brew install datichb/tap/bd")
+		return fmt.Errorf("bd not found in PATH: install with: brew install beads")
 	}
 	return nil
 }

@@ -19,7 +19,7 @@ Exécutez `oh doctor` pour vérifier l'état de santé de votre installation. Il
 | 1 | OS / Architecture | Informations système (toujours OK) | — |
 | 2 | Runtime Go | Version de Go (toujours OK) | — |
 | 3 | git | Binaire `git` dans le PATH | Installer git |
-| 4 | bd (beads) | CLI Beads (optionnel) | `brew install datichb/tap/bd` |
+| 4 | bd (beads) | CLI Beads (optionnel) | `brew install beads` |
 | 5 | Version oh | Dernière version publiée de oh : une version plus récente est un avertissement (⚠, sans échec) ; une préversion ou un build de développement plus récent que la dernière version publiée est « à jour » | `oh upgrade oh` (ou `brew upgrade openhub`) |
 | 6 | Configuration | `hub.toml` se charge correctement | `oh init` pour réinitialiser |
 | 7 | Identifiants fournisseur | Identifiants trouvés selon la cascade d'un lancement depuis le dossier courant : clé du projet, de l'équipe, du hub, puis profil AWS (Bedrock) ; la clé, sa portée et sa date d'enregistrement sont affichées, une clé API Bedrock est validée auprès d'AWS (sauf `oh doctor --offline` ou `OH_DOCTOR_OFFLINE=1`) ; une `AWS_BEARER_TOKEN_BEDROCK` du shell inutilisée est signalée | `oh provider setup`, `oh provider setup bedrock --from-env`, `oh secrets set` |
