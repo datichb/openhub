@@ -141,9 +141,7 @@ func worktreeAddCmd() *cobra.Command {
 				return err
 			}
 
-			fmt.Fprintf(a.IO.Out, "%s %s\n",
-				theme.SuccessStyle.Render(theme.IconSuccess),
-				i18n.Tf("cmd.worktree.created", theme.Bold.Render(branch), wtPath))
+			cliout.Success(a.IO.Out, i18n.Tf("cmd.worktree.created", theme.Bold.Render(branch), wtPath))
 			return nil
 		},
 	}
@@ -206,9 +204,7 @@ func worktreeRemoveCmd() *cobra.Command {
 				return err
 			}
 
-			fmt.Fprintf(a.IO.Out, "%s %s\n",
-				theme.SuccessStyle.Render(theme.IconSuccess),
-				i18n.Tf("cmd.worktree.removed", wtPath))
+			cliout.Success(a.IO.Out, i18n.Tf("cmd.worktree.removed", wtPath))
 			return nil
 		},
 	}
@@ -297,9 +293,7 @@ pour la détection.`,
 			}
 
 			if len(cleanupResult.Removed) > 0 {
-				fmt.Fprintf(a.IO.Out, "%s %s\n",
-					theme.SuccessStyle.Render(theme.IconSuccess),
-					i18n.Tf("cmd.worktree.cleanup_done", len(cleanupResult.Removed)))
+				cliout.Success(a.IO.Out, i18n.Tf("cmd.worktree.cleanup_done", len(cleanupResult.Removed)))
 				for _, branch := range cleanupResult.Removed {
 					fmt.Fprintf(a.IO.Out, "    %s %s\n", theme.Subtitle.Render("·"), branch)
 				}

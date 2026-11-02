@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/glyph"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/notify"
@@ -48,7 +49,7 @@ func runTeamNotifyTest(cmd *cobra.Command, args []string) error {
 
 	// Pull latest config
 	if err := repo.Pull(ctx); err != nil {
-		fmt.Fprint(a.IO.ErrOut, i18n.Tf("cmd.team_notify.sync_failed", theme.WarningStyle.Render(theme.IconWarning), err))
+		fmt.Fprint(a.IO.ErrOut, i18n.Tf("cmd.team_notify.sync_failed", cliout.WarnIcon(), err))
 	}
 
 	teamCfg, err := repo.LoadConfig()
@@ -91,7 +92,7 @@ func runTeamNotifyTest(cmd *cobra.Command, args []string) error {
 	if notifyType == "" {
 		notifyType = "webhook"
 	}
-	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.team_notify.notification_sent_via", theme.SuccessStyle.Render(theme.IconSuccess), notifyType))
+	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.team_notify.notification_sent_via", cliout.SuccessIcon(), notifyType))
 
 	return nil
 }

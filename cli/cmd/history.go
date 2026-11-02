@@ -16,7 +16,6 @@ import (
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/textfmt"
-	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
 var historyCmd = &cobra.Command{
@@ -204,7 +203,7 @@ func runHistoryExport(cmd *cobra.Command, _ []string) error {
 		return historyError(err)
 	}
 
-	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.history.exported_sessions_to", theme.SuccessStyle.Render(theme.IconSuccess), n, output))
+	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.history.exported_sessions_to", cliout.SuccessIcon(), n, output))
 	return nil
 }
 
@@ -219,6 +218,6 @@ func runHistoryImport(cmd *cobra.Command, args []string) error {
 		return historyError(err)
 	}
 
-	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.history.imported_sessions", theme.SuccessStyle.Render(theme.IconSuccess), res.Imported, res.Skipped))
+	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.history.imported_sessions", cliout.SuccessIcon(), res.Imported, res.Skipped))
 	return nil
 }

@@ -1,14 +1,13 @@
 package cmd
 
 import (
-	"fmt"
 	"io"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/services/doctor"
 	"github.com/datichb/openhub/cli/internal/services/launch"
-	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
 // The remote runtime is experimental in 5.0 (DC22): it has never been
@@ -36,7 +35,7 @@ func requireRemoteExperimental(a *app.App) error {
 // printRemoteExperimentalWarning prints the permanent warning of the remote
 // mode.
 func printRemoteExperimentalWarning(w io.Writer) {
-	fmt.Fprintf(w, "%s %s\n", theme.WarningStyle.Render(theme.IconWarning), i18n.T("cmd.remote.experimental.warning"))
+	cliout.Warn(w, i18n.T("cmd.remote.experimental.warning"))
 }
 
 // remoteRecapWarnings is the permanent warning of a remote launch in the

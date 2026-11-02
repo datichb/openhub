@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
@@ -48,7 +49,7 @@ func runProviderImportEnv(ctx context.Context, a *app.App, project *domain.Proje
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(a.IO.Out, "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.provider.from_env.done", key))
+	cliout.Success(a.IO.Out, i18n.Tf("cmd.provider.from_env.done", key))
 	return nil
 }
 
@@ -131,7 +132,7 @@ func buildProviderOptions() []huh.Option[string] {
 			label = "GitHub Copilot"
 		}
 		if r.Available {
-			label += fmt.Sprintf(" %s (%s)", theme.SuccessStyle.Render(theme.IconSuccess), r.Source)
+			label += fmt.Sprintf(" %s (%s)", cliout.SuccessIcon(), r.Source)
 		}
 		options = append(options, huh.NewOption(label, string(r.Provider)))
 	}
@@ -187,7 +188,7 @@ func setupBedrock(ctx context.Context, a *app.App, project *domain.Project) erro
 					// The shell key is never passed to the tool: store it.
 					key, err := importBedrockEnvToken(ctx, a, project, project != nil)
 					if err == nil {
-						fmt.Fprintf(a.IO.Out, "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.provider.from_env.done", key))
+						cliout.Success(a.IO.Out, i18n.Tf("cmd.provider.from_env.done", key))
 					}
 					return err
 				}
@@ -447,9 +448,7 @@ func setupAPIKey(ctx context.Context, a *app.App, project *domain.Project, name 
 			},
 			OnDone: func() error {
 				if apiKey == "" {
-					fmt.Fprintf(a.IO.Out, "%s %s\n",
-						theme.WarningStyle.Render(theme.IconWarning),
-						i18n.T("cmd.provider.no_key"))
+					cliout.Warn(a.IO.Out, i18n.T("cmd.provider.no_key"))
 					return nil
 				}
 
@@ -480,18 +479,12 @@ func setupAPIKey(ctx context.Context, a *app.App, project *domain.Project, name 
 func setupGithubCopilot(a *app.App) error {
 	detection := provider.Detect(provider.GithubCopilot)
 	if detection.Available {
-		fmt.Fprintf(a.IO.Out, "%s %s\n",
-			theme.SuccessStyle.Render(theme.IconSuccess),
-			i18n.Tf("cmd.provider.detected", detection.Source, detection.Details))
-		fmt.Fprintf(a.IO.Out, "%s %s\n",
-			theme.SuccessStyle.Render(theme.IconSuccess),
-			i18n.T("cmd.provider.copilot_ready"))
+		cliout.Success(a.IO.Out, i18n.Tf("cmd.provider.detected", detection.Source, detection.Details))
+		cliout.Success(a.IO.Out, i18n.T("cmd.provider.copilot_ready"))
 		return nil
 	}
 
-	fmt.Fprintf(a.IO.Out, "%s %s\n",
-		theme.WarningStyle.Render(theme.IconWarning),
-		i18n.T("cmd.provider.copilot_not_found"))
+	cliout.Warn(a.IO.Out, i18n.T("cmd.provider.copilot_not_found"))
 	return nil
 }
 
@@ -522,9 +515,7 @@ func persistProviderConfig(ctx context.Context, a *app.App, project *domain.Proj
 		if err := a.Projects.Update(ctx, project); err != nil {
 			return fmt.Errorf(i18n.T("cmd.provider.updating_project_provider_config"), err)
 		}
-		fmt.Fprintf(a.IO.Out, "%s %s\n",
-			theme.SuccessStyle.Render(theme.IconSuccess),
-			i18n.Tf("cmd.provider.project_configured", string(name), project.Name))
+		cliout.Success(a.IO.Out, i18n.Tf("cmd.provider.project_configured", string(name), project.Name))
 	} else {
 		// Hub-scoped: write to hub.toml
 		if name == provider.Bedrock && rawConfig != "" {
@@ -540,9 +531,7 @@ func persistProviderConfig(ctx context.Context, a *app.App, project *domain.Proj
 				}
 			}
 		}
-		fmt.Fprintf(a.IO.Out, "%s %s\n",
-			theme.SuccessStyle.Render(theme.IconSuccess),
-			i18n.Tf("cmd.provider.hub_configured", string(name)))
+		cliout.Success(a.IO.Out, i18n.Tf("cmd.provider.hub_configured", string(name)))
 	}
 	return nil
 }

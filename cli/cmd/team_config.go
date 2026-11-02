@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/fsutil"
 	"github.com/datichb/openhub/cli/internal/glyph"
@@ -55,12 +56,12 @@ func runTeamConfigWizard(cmd *cobra.Command, _ []string) error {
 
 	// Step 0 — Vérification du team-state
 	if !a.Config.ActiveTeam().Enabled {
-		fmt.Fprint(a.IO.Out, i18n.Tf("cmd.team_config.team_not_configured_run_first", theme.WarningStyle.Render(theme.IconWarning), theme.Bold.Render("oh team init")))
+		fmt.Fprint(a.IO.Out, i18n.Tf("cmd.team_config.team_not_configured_run_first", cliout.WarnIcon(), theme.Bold.Render("oh team init")))
 		return nil
 	}
 	repo := teamstate.NewRepo(a.Config.ActiveTeam().StateRepo, a.Config.ActiveTeam().StatePath)
 	if !repo.IsCloned() {
-		fmt.Fprint(a.IO.Out, i18n.Tf("cmd.team_config.team_state_not_cloned_run_first", theme.WarningStyle.Render(theme.IconWarning), theme.Bold.Render("oh team init")))
+		fmt.Fprint(a.IO.Out, i18n.Tf("cmd.team_config.team_state_not_cloned_run_first", cliout.WarnIcon(), theme.Bold.Render("oh team init")))
 		return nil
 	}
 
@@ -149,7 +150,7 @@ func configureGitLab(ctx context.Context, a *app.App, repo *teamstate.Repo, team
 		if err := repo.SaveConfig(ctx, teamCfg); err != nil {
 			return fmt.Errorf(i18n.T("cmd.team_config.saving_the_team_config"), err)
 		}
-		fmt.Fprint(out, i18n.Tf("cmd.team_config.gitlab_team_config_saved", theme.SuccessStyle.Render(theme.IconSuccess)))
+		fmt.Fprint(out, i18n.Tf("cmd.team_config.gitlab_team_config_saved", cliout.SuccessIcon()))
 	}
 
 	// ── Config locale ──────────────────────────────────────────────────────────
@@ -181,7 +182,7 @@ func configureGitLab(ctx context.Context, a *app.App, repo *teamstate.Repo, team
 		writeEnabled := askYN(out, i18n.T("cmd.team_config.enable_write_enabled_mr_creation_label"), a.Config.MCP.Gitlab.WriteEnabled)
 		writeLocalLog(a.IO, config.ConfigPath(), "mcp.gitlab.write_enabled", fmt.Sprintf("%v", writeEnabled))
 
-		fmt.Fprint(out, i18n.Tf("cmd.team_config.gitlab_local_config_saved", theme.SuccessStyle.Render(theme.IconSuccess)))
+		fmt.Fprint(out, i18n.Tf("cmd.team_config.gitlab_local_config_saved", cliout.SuccessIcon()))
 	}
 
 	return nil
@@ -210,7 +211,7 @@ func configureJira(ctx context.Context, a *app.App, repo *teamstate.Repo, teamCf
 		if err := repo.SaveConfig(ctx, teamCfg); err != nil {
 			return fmt.Errorf(i18n.T("cmd.team_config.saving_the_team_config"), err)
 		}
-		fmt.Fprint(out, i18n.Tf("cmd.team_config.jira_team_config_saved", theme.SuccessStyle.Render(theme.IconSuccess)))
+		fmt.Fprint(out, i18n.Tf("cmd.team_config.jira_team_config_saved", cliout.SuccessIcon()))
 	}
 
 	if configLocal {
@@ -226,7 +227,7 @@ func configureJira(ctx context.Context, a *app.App, repo *teamstate.Repo, teamCf
 		}
 		writeEnabled := askYN(out, i18n.T("cmd.team_config.enable_write_enabled_label_push"), a.Config.MCP.Jira.WriteEnabled)
 		writeLocalLog(a.IO, config.ConfigPath(), "mcp.jira.write_enabled", fmt.Sprintf("%v", writeEnabled))
-		fmt.Fprint(out, i18n.Tf("cmd.team_config.jira_local_config_saved", theme.SuccessStyle.Render(theme.IconSuccess)))
+		fmt.Fprint(out, i18n.Tf("cmd.team_config.jira_local_config_saved", cliout.SuccessIcon()))
 	}
 
 	return nil
@@ -252,7 +253,7 @@ func configureFigma(ctx context.Context, a *app.App, repo *teamstate.Repo, teamC
 		if err := repo.SaveConfig(ctx, teamCfg); err != nil {
 			return fmt.Errorf(i18n.T("cmd.team_config.saving_the_team_config"), err)
 		}
-		fmt.Fprint(out, i18n.Tf("cmd.team_config.figma_team_config_saved", theme.SuccessStyle.Render(theme.IconSuccess)))
+		fmt.Fprint(out, i18n.Tf("cmd.team_config.figma_team_config_saved", cliout.SuccessIcon()))
 	}
 
 	if configLocal {
@@ -262,7 +263,7 @@ func configureFigma(ctx context.Context, a *app.App, repo *teamstate.Repo, teamC
 			fmt.Fprint(out, i18n.Tf("cmd.team_config.to_store_the_token", theme.Bold.Render("oh secrets set "+tokenKey)))
 			writeLocalLog(a.IO, config.ConfigPath(), "mcp.figma.token_key", tokenKey)
 			writeLocalLog(a.IO, config.ConfigPath(), "mcp.figma.enabled", "true")
-			fmt.Fprint(out, i18n.Tf("cmd.team_config.figma_local_config_saved", theme.SuccessStyle.Render(theme.IconSuccess)))
+			fmt.Fprint(out, i18n.Tf("cmd.team_config.figma_local_config_saved", cliout.SuccessIcon()))
 		}
 	}
 
@@ -320,9 +321,9 @@ func configureTrackerSync(ctx context.Context, a *app.App, repo *teamstate.Repo,
 						}
 					}
 					if err := a.Secrets.Set(ctx, tokenKey, token); err != nil {
-						fmt.Fprint(out, i18n.Tf("cmd.team_config.token_storage_error", theme.WarningStyle.Render(theme.IconWarning), err))
+						fmt.Fprint(out, i18n.Tf("cmd.team_config.token_storage_error", cliout.WarnIcon(), err))
 					} else {
-						fmt.Fprint(out, i18n.Tf("cmd.team_config.token_stored_in_the_keychain", theme.SuccessStyle.Render(theme.IconSuccess), tokenKey))
+						fmt.Fprint(out, i18n.Tf("cmd.team_config.token_stored_in_the_keychain", cliout.SuccessIcon(), tokenKey))
 						// Re-test connection
 						src = trackerCredentials(a, teamCfg)
 						fmt.Fprint(out, i18n.T("cmd.team_config.testing_the_connection_again"))
@@ -365,18 +366,18 @@ func configureTrackerSync(ctx context.Context, a *app.App, repo *teamstate.Repo,
 				trackerType := tracker.Type(teamCfg.Tracker.Type)
 				creds, credErr := tracker.ResolveCredentials(ctx, src, trackerType)
 				if credErr != nil {
-					fmt.Fprint(out, i18n.Tf("cmd.team_config.missing_credentials", theme.WarningStyle.Render(theme.IconWarning), credErr))
+					fmt.Fprint(out, i18n.Tf("cmd.team_config.missing_credentials", cliout.WarnIcon(), credErr))
 				} else {
 					t, tErr := tracker.New(creds)
 					if tErr != nil {
-						fmt.Fprint(out, i18n.Tf("cmd.team_config.tracker_error", theme.WarningStyle.Render(theme.IconWarning), tErr))
+						fmt.Fprint(out, i18n.Tf("cmd.team_config.tracker_error", cliout.WarnIcon(), tErr))
 					} else {
 						fmt.Fprint(out, i18n.T("cmd.team_config.fetching_labels_statuses"))
 						info, discErr := t.DiscoverProject(ctx, trackerProject)
 						if discErr != nil {
-							fmt.Fprint(out, i18n.Tf("cmd.team_config.discovery_error", theme.WarningStyle.Render(theme.IconWarning), discErr))
+							fmt.Fprint(out, i18n.Tf("cmd.team_config.discovery_error", cliout.WarnIcon(), discErr))
 						} else {
-							fmt.Fprint(out, i18n.Tf("cmd.team_config.labels_statuses_discovered", theme.SuccessStyle.Render(theme.IconSuccess), len(info.Labels), len(info.Statuses)))
+							fmt.Fprint(out, i18n.Tf("cmd.team_config.labels_statuses_discovered", cliout.SuccessIcon(), len(info.Labels), len(info.Statuses)))
 
 							// Suggest mappings.
 							existingCols := teamCfg.Board.Columns
@@ -428,7 +429,7 @@ func configureTrackerSync(ctx context.Context, a *app.App, repo *teamstate.Repo,
 											}
 										}
 									}
-									fmt.Fprint(out, i18n.Tf("cmd.team_config.mappings_applied", theme.SuccessStyle.Render(theme.IconSuccess), len(acceptedMappings)))
+									fmt.Fprint(out, i18n.Tf("cmd.team_config.mappings_applied", cliout.SuccessIcon(), len(acceptedMappings)))
 								}
 
 								// Suggest pool labels.
@@ -443,7 +444,7 @@ func configureTrackerSync(ctx context.Context, a *app.App, repo *teamstate.Repo,
 									if askYN(out, i18n.T("cmd.team_config.show_these_tickets_on_the_board"), true) {
 										teamCfg.Tracker.AutoPlanUnassigned = true
 										teamCfg.Tracker.UnassignedLabels = poolLabels
-										fmt.Fprint(out, i18n.Tf("cmd.team_config.pool_configured", theme.SuccessStyle.Render(theme.IconSuccess), strings.Join(poolLabels, ", ")))
+										fmt.Fprint(out, i18n.Tf("cmd.team_config.pool_configured", cliout.SuccessIcon(), strings.Join(poolLabels, ", ")))
 									}
 								}
 							}
@@ -468,7 +469,7 @@ func configureTrackerSync(ctx context.Context, a *app.App, repo *teamstate.Repo,
 		if err := repo.SaveConfig(ctx, teamCfg); err != nil {
 			return fmt.Errorf(i18n.T("cmd.team_config.saving_the_tracker_config"), err)
 		}
-		fmt.Fprint(out, i18n.Tf("cmd.team_config.team_tracker_config_saved", theme.SuccessStyle.Render(theme.IconSuccess)))
+		fmt.Fprint(out, i18n.Tf("cmd.team_config.team_tracker_config_saved", cliout.SuccessIcon()))
 	}
 
 	if configLocal {
@@ -495,7 +496,7 @@ func configureTrackerSync(ctx context.Context, a *app.App, repo *teamstate.Repo,
 		effLocal := tracker.ResolveTrackerConfig(&teamCfg.Tracker, a.Config.Tracker)
 		writeEnabled := effLocal.WriteEnabled
 		if !writeEnabled && sharedPush {
-			fmt.Fprint(out, i18n.Tf("cmd.team_config.push_labels_is_recommended_by_the", theme.WarningStyle.Render(theme.IconWarning)))
+			fmt.Fprint(out, i18n.Tf("cmd.team_config.push_labels_is_recommended_by_the", cliout.WarnIcon()))
 			fmt.Fprint(out, i18n.Tf("cmd.team_config.enable_write_enabled_in_mcp_to", teamCfg.Tracker.Type))
 		} else if writeEnabled {
 			if askYN(out, i18n.Tf("cmd.team_config.push_labels_prompt", sharedPush), sharedPush) {
@@ -528,7 +529,7 @@ func configureTrackerSync(ctx context.Context, a *app.App, repo *teamstate.Repo,
 			}
 		}
 
-		fmt.Fprint(out, i18n.Tf("cmd.team_config.tracker_local_config_saved", theme.SuccessStyle.Render(theme.IconSuccess)))
+		fmt.Fprint(out, i18n.Tf("cmd.team_config.tracker_local_config_saved", cliout.SuccessIcon()))
 	}
 
 	return nil
@@ -618,7 +619,7 @@ func runTeamConfigStatus(cmd *cobra.Command, _ []string) error {
 							theme.ErrorStyle.Render(glyph.Failure), hubID, trackerID, err)
 					} else {
 						fmt.Fprintf(out, "  %s %s → %s (%s)\n",
-							theme.SuccessStyle.Render(theme.IconSuccess), hubID, trackerID, projectName)
+							cliout.SuccessIcon(), hubID, trackerID, projectName)
 					}
 				}
 			}
@@ -670,7 +671,7 @@ func printMCPStatus(out interface{ Write([]byte) (int, error) },
 		fmt.Fprintf(out, "  url:           %s  %s\n", urlVal, theme.Subtitle.Render("("+urlSource+")"))
 		if eff.EnforcedURLPending != "" {
 			n := enforcedURLNotice{Service: name, URL: eff.EnforcedURLPending, Pinned: local.TrustedURL, Reason: eff.EnforcedURLReason}
-			fmt.Fprintf(out, "  %s %s\n", theme.WarningStyle.Render(theme.IconWarning), n.Message())
+			fmt.Fprintf(out, "  %s %s\n", cliout.WarnIcon(), n.Message())
 		}
 	}
 
@@ -784,7 +785,7 @@ func testAndDisplayConnection(ctx context.Context, out interface{ Write([]byte) 
 			theme.ErrorStyle.Render(glyph.Failure), trackerType, cfg.BaseURL, err)
 		return err
 	}
-	fmt.Fprint(out, i18n.Tf("cmd.team_config.connected_to_as", theme.SuccessStyle.Render(theme.IconSuccess), cfg.BaseURL, username))
+	fmt.Fprint(out, i18n.Tf("cmd.team_config.connected_to_as", cliout.SuccessIcon(), cfg.BaseURL, username))
 	return nil
 }
 
@@ -833,11 +834,11 @@ func checkAndCleanOrphanMembers(ctx context.Context, a *app.App, out interface{ 
 				fmt.Fprint(out, i18n.Tf("cmd.team_config.orphan_error", theme.ErrorStyle.Render(glyph.Failure), err))
 				continue
 			}
-			fmt.Fprint(out, i18n.Tf("cmd.team_config.member_removed", theme.SuccessStyle.Render(theme.IconSuccess), orphan.ID))
+			fmt.Fprint(out, i18n.Tf("cmd.team_config.member_removed", cliout.SuccessIcon(), orphan.ID))
 
 		case 1: // Fusionner
 			if err := mergeOrphanMember(ctx, out, repo, orphan, members); err != nil {
-				fmt.Fprint(out, i18n.Tf("cmd.team_config.merge_cancelled", theme.WarningStyle.Render(theme.IconWarning), err))
+				fmt.Fprint(out, i18n.Tf("cmd.team_config.merge_cancelled", cliout.WarnIcon(), err))
 			}
 
 		case 2: // Ignorer
@@ -899,9 +900,9 @@ func mergeOrphanMember(ctx context.Context, out interface{ Write([]byte) (int, e
 		return fmt.Errorf(i18n.T("cmd.team_config.removing_the_orphan"), err)
 	}
 
-	fmt.Fprint(out, i18n.Tf("cmd.team_config.merge_done", theme.SuccessStyle.Render(theme.IconSuccess)))
+	fmt.Fprint(out, i18n.Tf("cmd.team_config.merge_done", cliout.SuccessIcon()))
 
-	fmt.Fprint(out, i18n.Tf("cmd.team_config.members_merged", theme.SuccessStyle.Render(theme.IconSuccess)))
+	fmt.Fprint(out, i18n.Tf("cmd.team_config.members_merged", cliout.SuccessIcon()))
 	return nil
 }
 
@@ -1056,7 +1057,7 @@ func askSelect(out interface{ Write([]byte) (int, error) }, prompt string, optio
 
 func fmtBool(b bool) string {
 	if b {
-		return theme.SuccessStyle.Render(theme.IconSuccess)
+		return cliout.SuccessIcon()
 	}
 	return theme.Subtitle.Render(glyph.Inactive)
 }

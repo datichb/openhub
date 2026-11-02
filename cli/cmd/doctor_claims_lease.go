@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/services/doctor"
 	"github.com/datichb/openhub/cli/internal/teamstate"
@@ -255,11 +256,9 @@ func repairClaimsQueue(ctx context.Context, w io.Writer, confirm confirmFunc) er
 		f := flushClaimQueue(ctx, t.repo, claimEndLockWait, claimEndFlushLimit)
 		switch {
 		case f.Err == nil:
-			fmt.Fprintf(w, "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess),
-				i18n.Tf("cmd.doctor.claims_queue.fix_done", f.Applied, f.Dropped))
+			cliout.Success(w, i18n.Tf("cmd.doctor.claims_queue.fix_done", f.Applied, f.Dropped))
 		case errors.Is(f.Err, teamstate.ErrOffline):
-			fmt.Fprintf(w, "%s %s\n", theme.WarningStyle.Render(theme.IconWarning),
-				i18n.Tf("cmd.doctor.claims_queue.fix_offline", f.Pending))
+			cliout.Warn(w, i18n.Tf("cmd.doctor.claims_queue.fix_offline", f.Pending))
 		default:
 			return fmt.Errorf("%s", i18n.Tf("cmd.doctor.claims_queue.fix_failed", f.Err))
 		}

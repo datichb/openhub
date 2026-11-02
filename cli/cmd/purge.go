@@ -14,6 +14,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/beads"
 	"github.com/datichb/openhub/cli/internal/bundle"
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/daemon/api"
 	"github.com/datichb/openhub/cli/internal/daemon/client"
@@ -139,7 +140,7 @@ func runPurge(cmd *cobra.Command, args []string) error {
 
 	// ── Done ──
 	fmt.Fprintf(out, "\n%s %s\n",
-		theme.SuccessStyle.Render(theme.IconSuccess),
+		cliout.SuccessIcon(),
 		i18n.T("cmd.purge.done"))
 
 	return nil
@@ -161,7 +162,7 @@ func confirmPurge(cmd *cobra.Command, out io.Writer) (bool, error) {
 		fmt.Fprintf(out, "\n")
 		if err := runExport(cmd, nil); err != nil {
 			fmt.Fprintf(out, "  %s %s: %v\n",
-				theme.ErrorStyle.Render(theme.IconError),
+				cliout.ErrorIcon(),
 				i18n.T("cmd.purge.backup_failed"), err)
 		} else {
 			fmt.Fprintf(out, "\n")
@@ -289,7 +290,7 @@ func printPurgeInventory(out io.Writer, inv purgeInventory, dryRun bool) {
 				scope = "global"
 			}
 			fmt.Fprintf(out, "      %s %s (%s)\n",
-				theme.ErrorStyle.Render(theme.IconError), s.Key, scope)
+				cliout.ErrorIcon(), s.Key, scope)
 		}
 	}
 
@@ -301,11 +302,11 @@ func printPurgeInventory(out io.Writer, inv purgeInventory, dryRun bool) {
 		for _, p := range inv.projects {
 			for _, rel := range p.toolFiles {
 				fmt.Fprintf(out, "      %s %s\n",
-					theme.ErrorStyle.Render(theme.IconError), filepath.Join(p.path, rel))
+					cliout.ErrorIcon(), filepath.Join(p.path, rel))
 			}
 			if p.hasBeadsDolt {
 				fmt.Fprintf(out, "      %s %s/.beads/dolt/\n",
-					theme.ErrorStyle.Render(theme.IconError), p.path)
+					cliout.ErrorIcon(), p.path)
 			}
 			if len(p.toolFiles) == 0 && !p.hasBeadsDolt {
 				fmt.Fprintf(out, "      %s %s (%s)\n",
@@ -320,7 +321,7 @@ func printPurgeInventory(out io.Writer, inv purgeInventory, dryRun bool) {
 	if dirExists(inv.hubDir) {
 		size := textfmt.Bytes(dirSize(inv.hubDir))
 		fmt.Fprintf(out, "      %s %s/ (%s)\n",
-			theme.ErrorStyle.Render(theme.IconError), inv.hubDir, size)
+			cliout.ErrorIcon(), inv.hubDir, size)
 	} else {
 		fmt.Fprintf(out, "      %s\n", theme.Subtitle.Render(i18n.T("cmd.purge.none_detected")))
 	}
@@ -332,7 +333,7 @@ func printPurgeInventory(out io.Writer, inv purgeInventory, dryRun bool) {
 		for _, d := range inv.toolDataDirs {
 			if dirExists(d) {
 				fmt.Fprintf(out, "      %s %s/ (%s)\n",
-					theme.ErrorStyle.Render(theme.IconError), d, textfmt.Bytes(dirSize(d)))
+					cliout.ErrorIcon(), d, textfmt.Bytes(dirSize(d)))
 				printed = true
 			}
 		}
@@ -350,7 +351,7 @@ func printPurgeInventory(out io.Writer, inv purgeInventory, dryRun bool) {
 				method = "homebrew"
 			}
 			fmt.Fprintf(out, "      %s %s (%s)\n",
-				theme.ErrorStyle.Render(theme.IconError), inv.binaryPath, method)
+				cliout.ErrorIcon(), inv.binaryPath, method)
 		} else {
 			fmt.Fprintf(out, "      %s\n", theme.Subtitle.Render(i18n.T("cmd.purge.none_detected")))
 		}
@@ -365,9 +366,9 @@ func printStep(out io.Writer, current, total int, label string) {
 
 func printStepDone(out io.Writer, detail string) {
 	if detail != "" {
-		fmt.Fprintf(out, "%s (%s)\n", theme.SuccessStyle.Render(theme.IconSuccess), detail)
+		fmt.Fprintf(out, "%s (%s)\n", cliout.SuccessIcon(), detail)
 	} else {
-		fmt.Fprintf(out, "%s\n", theme.SuccessStyle.Render(theme.IconSuccess))
+		fmt.Fprintf(out, "%s\n", cliout.SuccessIcon())
 	}
 }
 
@@ -473,7 +474,7 @@ func removeHubDir(out io.Writer, hubDir string) {
 	if dirExists(hubDir) {
 		_ = bundle.Unseal(ohBundlesDir()) // session bundles are read-only
 		if err := os.RemoveAll(hubDir); err != nil {
-			fmt.Fprintf(out, "%s %v\n", theme.ErrorStyle.Render(theme.IconError), err)
+			fmt.Fprintf(out, "%s %v\n", cliout.ErrorIcon(), err)
 			return
 		}
 	}
@@ -490,7 +491,7 @@ func uninstallBinary(out io.Writer, inv purgeInventory) {
 		cmd := exec.Command("brew", "uninstall", "openhub")
 		if err := cmd.Run(); err != nil {
 			fmt.Fprintf(out, "%s brew uninstall: %v\n",
-				theme.ErrorStyle.Render(theme.IconError), err)
+				cliout.ErrorIcon(), err)
 			return
 		}
 		printStepDone(out, "homebrew")
@@ -499,7 +500,7 @@ func uninstallBinary(out io.Writer, inv purgeInventory) {
 
 	// Manual removal of the binary
 	if err := os.Remove(inv.binaryPath); err != nil {
-		fmt.Fprintf(out, "%s %v\n", theme.ErrorStyle.Render(theme.IconError), err)
+		fmt.Fprintf(out, "%s %v\n", cliout.ErrorIcon(), err)
 		return
 	}
 	printStepDone(out, inv.binaryPath)

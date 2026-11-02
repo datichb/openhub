@@ -59,7 +59,7 @@ func runMetrics(cmd *cobra.Command, args []string) error {
 
 	if stats.TotalSessions == 0 {
 		fmt.Fprintf(a.IO.Out, "  %s %s\n",
-			theme.WarningStyle.Render(theme.IconWarning), i18n.Tf("cmd.metrics.no_data", period))
+			cliout.WarnIcon(), i18n.Tf("cmd.metrics.no_data", period))
 		return nil
 	}
 

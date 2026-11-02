@@ -50,7 +50,7 @@ func runBrickPublish(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return brickError(errOut, err)
 		}
-		fmt.Fprintf(out, "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.brick.publish.adopted", len(p.Adopted), strings.Join(p.Adopted, ", ")))
+		cliout.Success(out, i18n.Tf("cmd.brick.publish.adopted", len(p.Adopted), strings.Join(p.Adopted, ", ")))
 		return nil
 	}
 	if len(args) != 1 {
@@ -78,9 +78,9 @@ func runBrickPublish(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return brickError(errOut, err)
 	}
-	fmt.Fprintf(out, "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.brick.publish.published", p.Ref.String(), p.Version))
+	cliout.Success(out, i18n.Tf("cmd.brick.publish.published", p.Ref.String(), p.Version))
 	if p.Shadows != "" {
-		fmt.Fprintf(out, "  %s %s\n", theme.WarningStyle.Render(theme.IconWarning), i18n.Tf("cmd.brick.publish.shadows", p.Shadows))
+		fmt.Fprintf(out, "  %s %s\n", cliout.WarnIcon(), i18n.Tf("cmd.brick.publish.shadows", p.Shadows))
 	}
 	return nil
 }

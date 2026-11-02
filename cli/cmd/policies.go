@@ -9,6 +9,7 @@ import (
 	"github.com/rivo/tview"
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/gitutil"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	policysvc "github.com/datichb/openhub/cli/internal/services/policy"
@@ -86,7 +87,7 @@ func runPoliciesList(cmd *cobra.Command, args []string) error {
 	fmt.Fprintln(a.IO.Out)
 
 	for _, p := range policies {
-		icon := theme.SuccessStyle.Render(theme.IconSuccess)
+		icon := cliout.SuccessIcon()
 		enfStr := theme.Subtitle.Render("warn")
 		if p.Enforcement == teamstate.EnforcementRefuse {
 			enfStr = theme.ErrorStyle.Render("refuse")
@@ -226,7 +227,7 @@ func runPoliciesCheck(cmd *cobra.Command, args []string) error {
 
 	fmt.Fprintln(a.IO.Out)
 	if len(violations) == 0 {
-		fmt.Fprint(a.IO.Out, i18n.Tf("cmd.policies.all_policies_are_respected", theme.SuccessStyle.Render(theme.IconSuccess)))
+		fmt.Fprint(a.IO.Out, i18n.Tf("cmd.policies.all_policies_are_respected", cliout.SuccessIcon()))
 		return nil
 	}
 
@@ -242,7 +243,7 @@ func runPoliciesCheck(cmd *cobra.Command, args []string) error {
 			fmt.Fprintln(a.IO.Out)
 			continue
 		}
-		icon := theme.WarningStyle.Render(theme.IconWarning)
+		icon := cliout.WarnIcon()
 		if v.Enforcement == teamstate.EnforcementRefuse {
 			icon = theme.ErrorStyle.Render(theme.IconWarning)
 		}
@@ -409,6 +410,6 @@ func runPoliciesAdd(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(i18n.T("cmd.policies.saving_policy"), err)
 	}
 
-	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.policies.policy_added", theme.SuccessStyle.Render(theme.IconSuccess), name))
+	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.policies.policy_added", cliout.SuccessIcon(), name))
 	return nil
 }

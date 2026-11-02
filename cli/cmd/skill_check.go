@@ -10,7 +10,6 @@ import (
 	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
 func skillCheckCmd() *cobra.Command {
@@ -83,13 +82,13 @@ func skillCheckCmd() *cobra.Command {
 
 func printSkillProblems(out interface{ Write([]byte) (int, error) }, problems []bundle.SkillProblem, errs int) {
 	if len(problems) == 0 {
-		fmt.Fprintf(out, "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.T("cmd.skill.check.ok"))
+		cliout.Success(out, i18n.T("cmd.skill.check.ok"))
 		return
 	}
 	for _, p := range problems {
-		icon := theme.WarningStyle.Render(theme.IconWarning)
+		icon := cliout.WarnIcon()
 		if p.Error {
-			icon = theme.ErrorStyle.Render(theme.IconError)
+			icon = cliout.ErrorIcon()
 		}
 		fmt.Fprintf(out, "  %s %s\n", icon, i18n.Tf("cmd.skill.check.kind."+string(p.Kind), p.Ref, p.Detail))
 	}

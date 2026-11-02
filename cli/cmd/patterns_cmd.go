@@ -9,6 +9,7 @@ import (
 	"github.com/rivo/tview"
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
@@ -105,9 +106,9 @@ func runPatternsList(cmd *cobra.Command, args []string) error {
 			continue
 		}
 
-		icon := theme.SuccessStyle.Render(theme.IconSuccess)
+		icon := cliout.SuccessIcon()
 		if !p.Validated {
-			icon = theme.WarningStyle.Render(theme.IconWarning)
+			icon = cliout.WarnIcon()
 		}
 
 		tagsStr := strings.Join(p.Tags, ", ")
@@ -264,7 +265,7 @@ func runPatternsAdd(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(i18n.T("cmd.patterns_cmd.committing_pattern"), err)
 	}
 
-	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.patterns_cmd.pattern_added", theme.SuccessStyle.Render(theme.IconSuccess), name))
+	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.patterns_cmd.pattern_added", cliout.SuccessIcon(), name))
 	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.patterns_cmd.to_see_the_content", theme.Bold.Render("oh patterns show "+name)))
 	return nil
 }
@@ -288,7 +289,7 @@ func runPatternsValidate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(i18n.T("cmd.patterns_cmd.committing_validation"), err)
 	}
 
-	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.patterns.validated", theme.SuccessStyle.Render(theme.IconSuccess), name))
+	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.patterns.validated", cliout.SuccessIcon(), name))
 	return nil
 }
 
@@ -311,6 +312,6 @@ func runPatternsRemove(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(i18n.T("cmd.patterns_cmd.committing_removal"), err)
 	}
 
-	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.patterns.deleted", theme.SuccessStyle.Render(theme.IconSuccess), name))
+	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.patterns.deleted", cliout.SuccessIcon(), name))
 	return nil
 }

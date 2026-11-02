@@ -12,6 +12,7 @@ import (
 	"golang.org/x/term"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/glyph"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/storage/keychain"
@@ -90,8 +91,7 @@ func runSecretsSet(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	fmt.Fprintf(a.IO.Out, "%s %s\n",
-		theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.secrets.set.stored", key, scopeLabel))
+	cliout.Success(a.IO.Out, i18n.Tf("cmd.secrets.set.stored", key, scopeLabel))
 	return nil
 }
 
@@ -179,7 +179,7 @@ func runSecretsGet(cmd *cobra.Command, args []string) error {
 	}
 
 	if value == "" {
-		fmt.Fprint(a.IO.Out, i18n.Tf("cmd.secrets.secret_not_found", theme.WarningStyle.Render(theme.IconWarning), key))
+		fmt.Fprint(a.IO.Out, i18n.Tf("cmd.secrets.secret_not_found", cliout.WarnIcon(), key))
 		return nil
 	}
 
@@ -234,7 +234,7 @@ func runSecretsList(cmd *cobra.Command, _ []string) error {
 			}
 			present := theme.ErrorStyle.Render(glyph.Failure)
 			if e.Present {
-				present = theme.SuccessStyle.Render(theme.IconSuccess)
+				present = cliout.SuccessIcon()
 			}
 			fmt.Fprintf(a.IO.Out, "  %-30s %-20s %s\n", e.Key, scope, present)
 		}
@@ -256,7 +256,7 @@ func runSecretsList(cmd *cobra.Command, _ []string) error {
 		fmt.Fprintf(a.IO.Out, "  %s\n", strings.Repeat("─", 60))
 		for _, k := range keys {
 			fmt.Fprintf(a.IO.Out, "  %-30s %-20s %s\n",
-				k, "global", theme.SuccessStyle.Render(theme.IconSuccess))
+				k, "global", cliout.SuccessIcon())
 		}
 		fmt.Fprintln(a.IO.Out)
 	}
@@ -312,7 +312,7 @@ func runSecretsDelete(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.secrets.deleted", theme.SuccessStyle.Render(theme.IconSuccess), key, scopeLabel))
+	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.secrets.deleted", cliout.SuccessIcon(), key, scopeLabel))
 	return nil
 }
 
@@ -364,7 +364,7 @@ func runSecretsCleanup(out, errOut io.Writer, dryRun bool) error {
 	for _, acct := range accounts {
 		if indexed[acct] {
 			fmt.Fprintf(out, "    %s %s (%s)\n",
-				theme.SuccessStyle.Render(theme.IconSuccess), acct, i18n.T("cmd.secrets.cleanup_indexed"))
+				cliout.SuccessIcon(), acct, i18n.T("cmd.secrets.cleanup_indexed"))
 		} else {
 			fmt.Fprintf(out, "    %s %s (%s)\n",
 				theme.WarningStyle.Render(theme.IconDot), acct, i18n.T("cmd.secrets.cleanup_orphaned"))
@@ -375,7 +375,7 @@ func runSecretsCleanup(out, errOut io.Writer, dryRun bool) error {
 	fmt.Fprintln(out)
 
 	if len(orphans) == 0 {
-		fmt.Fprintf(out, "  %s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.T("cmd.secrets.cleanup_none"))
+		fmt.Fprintf(out, "  %s %s\n", cliout.SuccessIcon(), i18n.T("cmd.secrets.cleanup_none"))
 		return nil
 	}
 
@@ -393,7 +393,7 @@ func runSecretsCleanup(out, errOut io.Writer, dryRun bool) error {
 			deleted++
 		}
 	}
-	fmt.Fprintf(out, "  %s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.secrets.cleanup_deleted", deleted))
+	fmt.Fprintf(out, "  %s %s\n", cliout.SuccessIcon(), i18n.Tf("cmd.secrets.cleanup_deleted", deleted))
 	return nil
 }
 

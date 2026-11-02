@@ -7,9 +7,9 @@ import (
 	"os"
 	"strings"
 
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
 // What reading hub.toml and the keychain has to say (A-08): a former key is
@@ -32,7 +32,7 @@ func warnConfigNotice(n config.Notice) {
 		slog.Warn(text)
 		return
 	}
-	fmt.Fprintf(os.Stderr, "%s %s\n", theme.WarningStyle.Render(theme.IconWarning), text)
+	cliout.Warn(os.Stderr, text)
 }
 
 // noticeText is the translated sentence of a notice.

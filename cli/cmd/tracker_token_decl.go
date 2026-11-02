@@ -10,12 +10,12 @@ import (
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	teamsvc "github.com/datichb/openhub/cli/internal/services/team"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tracker"
-	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
@@ -75,7 +75,7 @@ func askTrackerTokenDecl(out io.Writer, ask func(prompt, def string) string, sco
 		return newKey, ""
 	}
 	if err := tracker.ValidateServer(newServer); err != nil {
-		fmt.Fprintf(out, "  %s %s\n", theme.WarningStyle.Render(theme.IconWarning),
+		fmt.Fprintf(out, "  %s %s\n", cliout.WarnIcon(),
 			i18n.Tf("cmd.init.wizard_tracker_decl_server_invalid", newServer))
 		return newKey, server
 	}
@@ -92,7 +92,7 @@ func askTeamGitLabURL(out io.Writer, ask func(prompt, def string) string, curren
 		return ""
 	}
 	if err := tracker.ValidateServer(v); err != nil {
-		fmt.Fprintf(out, "  %s %s\n", theme.WarningStyle.Render(theme.IconWarning),
+		fmt.Fprintf(out, "  %s %s\n", cliout.WarnIcon(),
 			i18n.Tf("cmd.init.wizard_tracker_decl_server_invalid", v))
 		return current
 	}

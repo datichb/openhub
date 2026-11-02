@@ -8,11 +8,11 @@ import (
 	"strings"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/provider"
-	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
 // The Bedrock API key of the user's shell (AWS_BEARER_TOKEN_BEDROCK) is
@@ -144,9 +144,9 @@ func offerBedrockEnvImport(ctx context.Context, a *app.App, project *domain.Proj
 	}
 	key, err := importBedrockEnvToken(ctx, a, project, true)
 	if err != nil {
-		fmt.Fprintf(w, "%s %v\n", theme.ErrorStyle.Render(theme.IconError), err)
+		fmt.Fprintf(w, "%s %v\n", cliout.ErrorIcon(), err)
 		return false
 	}
-	fmt.Fprintf(w, "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.provider.from_env.done", key))
+	cliout.Success(w, i18n.Tf("cmd.provider.from_env.done", key))
 	return true
 }

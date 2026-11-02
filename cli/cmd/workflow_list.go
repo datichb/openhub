@@ -79,7 +79,7 @@ func printWorkflowList(w io.Writer, ws *workflowsvc.Workspace, asJSON bool) erro
 		}
 	}
 	if len(ws.Integrity) > 0 {
-		fmt.Fprintf(w, "\n%s %s\n", theme.WarningStyle.Render(theme.IconWarning), i18n.Tf("cmd.workflow.list.integrity", len(ws.Integrity)))
+		fmt.Fprintf(w, "\n%s %s\n", cliout.WarnIcon(), i18n.Tf("cmd.workflow.list.integrity", len(ws.Integrity)))
 		for _, d := range ws.Integrity {
 			fmt.Fprintf(w, "  · %s\n", d.Message)
 			if d.Source != "" {
@@ -94,12 +94,12 @@ func printWorkflowList(w io.Writer, ws *workflowsvc.Workspace, asJSON bool) erro
 }
 
 func printWorkflowRow(tw io.Writer, s workflowsvc.Summary) {
-	icon := theme.SuccessStyle.Render(theme.IconSuccess)
+	icon := cliout.SuccessIcon()
 	switch {
 	case !s.Valid:
-		icon = theme.ErrorStyle.Render(theme.IconError)
+		icon = cliout.ErrorIcon()
 	case s.Warnings > 0:
-		icon = theme.WarningStyle.Render(theme.IconWarning)
+		icon = cliout.WarnIcon()
 	}
 	desc := s.Description
 	if desc == "" {

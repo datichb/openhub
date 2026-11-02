@@ -6,8 +6,8 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
 // The commands deprecated in 5.0 were removed in 5.1. Their name stays as a
@@ -63,7 +63,7 @@ func newRemovedCommand(r removedCommand) *cobra.Command {
 		Args:               cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			w := cmd.ErrOrStderr()
-			fmt.Fprintf(w, "%s %s\n", theme.WarningStyle.Render(theme.IconWarning), i18n.Tf("cmd.removed.message", old))
+			cliout.Warn(w, i18n.Tf("cmd.removed.message", old))
 			fmt.Fprintf(w, "  %s\n", i18n.T(r.replacement))
 			return &ExitError{Code: ExitUsage} // the message is printed: the script must notice
 		},

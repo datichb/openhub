@@ -6,10 +6,10 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/runsvc"
 	"github.com/datichb/openhub/cli/internal/services/launch"
-	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
 func init() {
@@ -62,6 +62,6 @@ func runSessionDelete(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(out, "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), launch.DeleteReportText(rep))
+	cliout.Success(out, launch.DeleteReportText(rep))
 	return nil
 }

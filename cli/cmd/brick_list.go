@@ -113,13 +113,13 @@ func printBrickList(w io.Writer, ws *workflowsvc.BrickWorkspace, withOrigin bool
 	fmt.Fprintf(tw, "  %s\n", strings.Join(header, "\t"))
 	invalid := 0
 	for _, e := range ws.Bricks {
-		icon := theme.SuccessStyle.Render(theme.IconSuccess)
+		icon := cliout.SuccessIcon()
 		switch {
 		case e.Errors > 0:
-			icon = theme.ErrorStyle.Render(theme.IconError)
+			icon = cliout.ErrorIcon()
 			invalid++
 		case e.Warnings > 0:
-			icon = theme.WarningStyle.Render(theme.IconWarning)
+			icon = cliout.WarnIcon()
 		}
 		version := "—"
 		if e.Version > 0 {
@@ -153,10 +153,10 @@ func printBrickList(w io.Writer, ws *workflowsvc.BrickWorkspace, withOrigin bool
 		fmt.Fprintln(w, theme.Subtitle.Render(i18n.Tf("cmd.brick.list.invalid_hint", invalid)))
 	}
 	if len(ws.Unsealed) > 0 {
-		fmt.Fprintf(w, "\n%s %s\n", theme.WarningStyle.Render(theme.IconWarning), i18n.Tf("cmd.brick.list.unsealed", len(ws.Unsealed)))
+		fmt.Fprintf(w, "\n%s %s\n", cliout.WarnIcon(), i18n.Tf("cmd.brick.list.unsealed", len(ws.Unsealed)))
 	}
 	if len(ws.Integrity) > 0 {
-		fmt.Fprintf(w, "\n%s %s\n", theme.WarningStyle.Render(theme.IconWarning), i18n.Tf("cmd.brick.list.integrity", len(ws.Integrity)))
+		fmt.Fprintf(w, "\n%s %s\n", cliout.WarnIcon(), i18n.Tf("cmd.brick.list.integrity", len(ws.Integrity)))
 		for _, d := range ws.Integrity {
 			fmt.Fprintf(w, "  · %s\n", d.Message)
 		}

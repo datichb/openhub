@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
@@ -377,11 +378,10 @@ func repairClaimsProject(ctx context.Context, w io.Writer, confirm confirmFunc) 
 		}
 		moved += len(res.Moved)
 		for _, c := range res.Conflicts {
-			fmt.Fprintf(w, "%s %s\n", theme.WarningStyle.Render(theme.IconWarning),
-				i18n.Tf("cmd.doctor.claims.rehome_conflict", c.TicketID, c.To, c.TicketID, c.From))
+			cliout.Warn(w, i18n.Tf("cmd.doctor.claims.rehome_conflict", c.TicketID, c.To, c.TicketID, c.From))
 		}
 	}
-	fmt.Fprintf(w, "%s %s\n\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.doctor.claims.rehome_done", moved))
+	fmt.Fprintf(w, "%s %s\n\n", cliout.SuccessIcon(), i18n.Tf("cmd.doctor.claims.rehome_done", moved))
 	return nil
 }
 

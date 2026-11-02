@@ -8,6 +8,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/bundle"
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/launcher"
@@ -201,13 +202,13 @@ func printRunRecap(w io.Writer, p *launch.Prepared) {
 		fmt.Fprintf(w, "  %-14s %s\n", r[0], r[1])
 	}
 	for _, wr := range warns {
-		fmt.Fprintf(w, "  %s %s\n", theme.WarningStyle.Render(theme.IconWarning), wr)
+		fmt.Fprintf(w, "  %s %s\n", cliout.WarnIcon(), wr)
 	}
 }
 
 func printRunWarnings(w io.Writer, warns []runsvc.Warning) {
 	for _, wr := range warns {
-		fmt.Fprintf(w, "  %s %s\n", theme.WarningStyle.Render(theme.IconWarning), warningText(wr))
+		fmt.Fprintf(w, "  %s %s\n", cliout.WarnIcon(), warningText(wr))
 	}
 }
 

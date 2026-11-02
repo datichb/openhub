@@ -233,9 +233,9 @@ func runGC(cmd *cobra.Command, _ []string) error {
 	if asJSON {
 		return cliout.JSONCompact(w, done)
 	}
-	fmt.Fprintf(w, "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.gc.done", len(done.Items), textfmt.Bytes(done.Bytes()), done.History.Total()))
+	cliout.Success(w, i18n.Tf("cmd.gc.done", len(done.Items), textfmt.Bytes(done.Bytes()), done.History.Total()))
 	for _, e := range done.Errors {
-		fmt.Fprintf(w, "  %s %s\n", theme.WarningStyle.Render(theme.IconWarning), e)
+		fmt.Fprintf(w, "  %s %s\n", cliout.WarnIcon(), e)
 	}
 	return nil
 }
@@ -279,7 +279,7 @@ func printGCPlan(w io.Writer, plan gc.Report) {
 		fmt.Fprintf(w, "  %s\n", i18n.Tf("cmd.gc.kind.history", h.Total(), h.Sessions, h.AgentEvents, h.Decisions, h.UsageSessions+h.UsageProxy+h.BudgetExtra, h.WikiProposals))
 	}
 	for _, e := range plan.Errors {
-		fmt.Fprintf(w, "  %s %s\n", theme.WarningStyle.Render(theme.IconWarning), e)
+		fmt.Fprintf(w, "  %s %s\n", cliout.WarnIcon(), e)
 	}
 }
 

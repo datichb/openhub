@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/launcher"
 	"github.com/datichb/openhub/cli/internal/runsvc"
@@ -161,7 +162,7 @@ func runWorkflowHeadlessCLI(cmd *cobra.Command, opts launch.Options) error {
 		if werr := os.WriteFile(path, []byte(r.Text), 0o600); werr != nil {
 			return werr
 		}
-		fmt.Fprintf(errOut, "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.run.headless_written", path, r.Result.Cost))
+		cliout.Success(errOut, i18n.Tf("cmd.run.headless_written", path, r.Result.Cost))
 	}
 	return err
 }
@@ -290,7 +291,7 @@ func runWorkflowCLI(cmd *cobra.Command, opts launch.Options, recap bool) error {
 func askPreconditionChoice(cmd *cobra.Command, a *app.App, opts launch.Options, p *launch.Prepared) (bool, error) {
 	s := p.Suggestions[0]
 	out := cmd.OutOrStdout()
-	fmt.Fprintf(out, "%s %s\n", theme.WarningStyle.Render(theme.IconWarning), i18n.Tf("cmd.run.warn.precondition", s.Label, s.Workflow))
+	cliout.Warn(out, i18n.Tf("cmd.run.warn.precondition", s.Label, s.Workflow))
 	choice := "first"
 	first := i18n.Tf("cmd.run.precondition_first", s.Workflow)
 	if s.Resume {

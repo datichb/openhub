@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/teamstate"
@@ -113,7 +114,7 @@ func saveBrickEdit(cmd *cobra.Command, svc *workflowsvc.Service, c workflowsvc.C
 // printBrickDraft reports a saved draft brick.
 func printBrickDraft(w io.Writer, d *workflowsvc.BrickDraft) {
 	printDiagnostics(w, d.Diagnostics)
-	fmt.Fprintf(w, "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.brick.draft_saved", d.Ref.String(), d.Path))
+	cliout.Success(w, i18n.Tf("cmd.brick.draft_saved", d.Ref.String(), d.Path))
 	if !d.Pushed {
 		fmt.Fprintf(w, "  %s\n", theme.WarningStyle.Render(i18n.Tf("teamstate.workflow.cli.draft_not_pushed", d.PushError)))
 	}

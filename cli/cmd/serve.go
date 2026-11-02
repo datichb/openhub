@@ -158,8 +158,7 @@ func runServe(cmd *cobra.Command, args []string) error {
 		// binds exclusively to 127.0.0.1 (no external exposure).
 	}
 
-	fmt.Fprintf(a.IO.Out, "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess),
-		i18n.Tf("cmd.serve.ready", fmt.Sprintf("http://%s/?%s=%s", addr, serveTokenQuery, token)))
+	cliout.Success(a.IO.Out, i18n.Tf("cmd.serve.ready", fmt.Sprintf("http://%s/?%s=%s", addr, serveTokenQuery, token)))
 	fmt.Fprintln(a.IO.Out, theme.Subtitle.Render("  "+i18n.T("cmd.serve.token_hint")))
 	fmt.Fprintln(a.IO.Out, theme.Subtitle.Render("  6 panels: Projets, Sessions+Coûts, Agents, Team Board, Timeline, Members"))
 	fmt.Fprintln(a.IO.Out, theme.Subtitle.Render("  SSE temps réel activé (push toutes les 5s)"))

@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
@@ -54,7 +55,7 @@ func runTeamInitSolo(cmd *cobra.Command) error {
 		return err
 	}
 	out := cmd.OutOrStdout()
-	fmt.Fprintf(out, "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.team.solo.created", res.Team.ID, res.Team.StatePath))
+	cliout.Success(out, i18n.Tf("cmd.team.solo.created", res.Team.ID, res.Team.StatePath))
 	fmt.Fprintf(out, "  %s\n", i18n.Tf("cmd.team.solo.member", res.Team.MemberID))
 	if res.Project != nil {
 		fmt.Fprintf(out, "  %s\n", i18n.Tf("cmd.team.solo.attached", res.Project.Name))

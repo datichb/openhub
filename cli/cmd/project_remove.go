@@ -7,6 +7,7 @@ import (
 	"github.com/rivo/tview"
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
@@ -42,9 +43,7 @@ func projectRemoveCmd() *cobra.Command {
 				if err := a.Projects.Delete(ctx, projectID); err != nil {
 					return fmt.Errorf(i18n.T("cmd.project_remove.deleting_project"), err)
 				}
-				fmt.Fprintf(a.IO.Out, "%s %s\n",
-					theme.SuccessStyle.Render(theme.IconSuccess),
-					i18n.Tf("form.project.removed", theme.Bold.Render(project.Name)))
+				cliout.Success(a.IO.Out, i18n.Tf("form.project.removed", theme.Bold.Render(project.Name)))
 				return nil
 			}
 
@@ -70,9 +69,7 @@ func projectRemoveCmd() *cobra.Command {
 				if err := a.Projects.Delete(ctx, projectID); err != nil {
 					return fmt.Errorf(i18n.T("cmd.project_remove.deleting_project"), err)
 				}
-				fmt.Fprintf(a.IO.Out, "%s %s\n",
-					theme.SuccessStyle.Render(theme.IconSuccess),
-					i18n.Tf("form.project.removed", theme.Bold.Render(project.Name)))
+				cliout.Success(a.IO.Out, i18n.Tf("form.project.removed", theme.Bold.Render(project.Name)))
 				return nil
 			}
 
@@ -152,9 +149,7 @@ func projectRemoveCmd() *cobra.Command {
 				return fmt.Errorf(i18n.T("cmd.project_remove.deleting_project"), err)
 			}
 
-			fmt.Fprintf(a.IO.Out, "%s %s\n",
-				theme.SuccessStyle.Render(theme.IconSuccess),
-				i18n.Tf("form.project.removed", theme.Bold.Render(projectNames[selectedIdx])))
+			cliout.Success(a.IO.Out, i18n.Tf("form.project.removed", theme.Bold.Render(projectNames[selectedIdx])))
 			return nil
 		},
 	}

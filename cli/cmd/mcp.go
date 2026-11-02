@@ -130,9 +130,7 @@ func runMCPEnable(cmd *cobra.Command, args []string) error {
 		}); err != nil {
 			return fmt.Errorf("%s: %w", i18n.T("cmd.config.save_failed"), err)
 		}
-		fmt.Fprintf(cmd.OutOrStdout(), "%s %s\n",
-			theme.SuccessStyle.Render(theme.IconSuccess),
-			i18n.Tf("cmd.mcp.enable.success", theme.Bold.Render(serviceName)))
+		cliout.Success(cmd.OutOrStdout(), i18n.Tf("cmd.mcp.enable.success", theme.Bold.Render(serviceName)))
 		return nil
 	}
 
@@ -149,7 +147,7 @@ func runMCPEnable(cmd *cobra.Command, args []string) error {
 	if !hasToken && serviceName != "team" {
 		// Prompt user: inherit from hub or configure?
 		fmt.Fprintf(cmd.OutOrStdout(), "%s %s\n\n",
-			theme.WarningStyle.Render(theme.IconWarning),
+			cliout.WarnIcon(),
 			i18n.Tf("cmd.mcp.enable.no_token_prompt", serviceName))
 
 		var choice string
@@ -184,9 +182,7 @@ func runMCPEnable(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(i18n.T("cmd.mcp.updating_project"), err)
 	}
 
-	fmt.Fprintf(cmd.OutOrStdout(), "%s %s\n",
-		theme.SuccessStyle.Render(theme.IconSuccess),
-		i18n.Tf("cmd.mcp.enable.success_project", theme.Bold.Render(serviceName), project.Name))
+	cliout.Success(cmd.OutOrStdout(), i18n.Tf("cmd.mcp.enable.success_project", theme.Bold.Render(serviceName), project.Name))
 	return nil
 }
 
@@ -224,9 +220,7 @@ func runMCPDisable(cmd *cobra.Command, args []string) error {
 		}); err != nil {
 			return fmt.Errorf("%s: %w", i18n.T("cmd.config.save_failed"), err)
 		}
-		fmt.Fprintf(cmd.OutOrStdout(), "%s %s\n",
-			theme.SuccessStyle.Render(theme.IconSuccess),
-			i18n.Tf("cmd.mcp.disable.success", theme.Bold.Render(serviceName)))
+		cliout.Success(cmd.OutOrStdout(), i18n.Tf("cmd.mcp.disable.success", theme.Bold.Render(serviceName)))
 		return nil
 	}
 
@@ -248,9 +242,7 @@ func runMCPDisable(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(i18n.T("cmd.mcp.updating_project"), err)
 	}
 
-	fmt.Fprintf(cmd.OutOrStdout(), "%s %s\n",
-		theme.SuccessStyle.Render(theme.IconSuccess),
-		i18n.Tf("cmd.mcp.disable.success_project", theme.Bold.Render(serviceName), project.Name))
+	cliout.Success(cmd.OutOrStdout(), i18n.Tf("cmd.mcp.disable.success_project", theme.Bold.Render(serviceName), project.Name))
 	return nil
 }
 
@@ -294,9 +286,7 @@ func runMCPReset(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(i18n.T("cmd.mcp.updating_project"), err)
 	}
 
-	fmt.Fprintf(cmd.OutOrStdout(), "%s %s\n",
-		theme.SuccessStyle.Render(theme.IconSuccess),
-		i18n.Tf("cmd.mcp.reset.success", theme.Bold.Render(serviceName), project.Name))
+	cliout.Success(cmd.OutOrStdout(), i18n.Tf("cmd.mcp.reset.success", theme.Bold.Render(serviceName), project.Name))
 	return nil
 }
 
@@ -504,9 +494,7 @@ func runMCPSetupForService(cmd *cobra.Command, serviceName string, project *doma
 	wizResult := runCLIWizard(a, cliWizard{Command: "mcp setup", Steps: steps})
 
 	if emptyTokenWarning {
-		fmt.Fprintf(cmd.OutOrStdout(), "%s %s\n",
-			theme.WarningStyle.Render(theme.IconWarning),
-			i18n.Tf("cmd.service.token_empty_warning", envHint))
+		cliout.Warn(cmd.OutOrStdout(), i18n.Tf("cmd.service.token_empty_warning", envHint))
 	}
 
 	if wizResult.Aborted {
@@ -518,13 +506,9 @@ func runMCPSetupForService(cmd *cobra.Command, serviceName string, project *doma
 
 	// Print success message
 	if project != nil {
-		fmt.Fprintf(cmd.OutOrStdout(), "%s %s\n",
-			theme.SuccessStyle.Render(theme.IconSuccess),
-			i18n.Tf("cmd.service.project_configured", theme.Bold.Render(serviceName), project.Name))
+		cliout.Success(cmd.OutOrStdout(), i18n.Tf("cmd.service.project_configured", theme.Bold.Render(serviceName), project.Name))
 	} else {
-		fmt.Fprintf(cmd.OutOrStdout(), "%s %s\n",
-			theme.SuccessStyle.Render(theme.IconSuccess),
-			i18n.Tf("cmd.service.enabled", theme.Bold.Render(serviceName)))
+		cliout.Success(cmd.OutOrStdout(), i18n.Tf("cmd.service.enabled", theme.Bold.Render(serviceName)))
 	}
 	return nil
 }

@@ -105,9 +105,9 @@ func printWorkflowValidate(w io.Writer, r *workflowValidateReport, asJSON bool) 
 				ref = i18n.Tf("cmd.workflow.validate.draft_ref", wf.Ref)
 			}
 			if wf.Valid {
-				fmt.Fprintf(w, "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.workflow.validate.valid", ref))
+				cliout.Success(w, i18n.Tf("cmd.workflow.validate.valid", ref))
 			} else {
-				fmt.Fprintf(w, "%s %s\n", theme.ErrorStyle.Render(theme.IconError), i18n.Tf("cmd.workflow.validate.invalid", ref))
+				cliout.Error(w, i18n.Tf("cmd.workflow.validate.invalid", ref))
 			}
 		}
 		if len(r.Workflows) == 0 {

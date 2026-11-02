@@ -423,7 +423,7 @@ func configSetCmd() *cobra.Command {
 			}
 
 			fmt.Fprintf(cmd.OutOrStdout(), "%s %s = %s\n",
-				theme.SuccessStyle.Render(theme.IconSuccess),
+				cliout.SuccessIcon(),
 				theme.Bold.Render(key), value)
 			return nil
 		},
@@ -539,9 +539,7 @@ func configUnsetCmd() *cobra.Command {
 				return fmt.Errorf("%s: %w", i18n.T("cmd.config.save_failed"), err)
 			}
 
-			fmt.Fprintf(cmd.OutOrStdout(), "%s %s\n",
-				theme.SuccessStyle.Render(theme.IconSuccess),
-				i18n.Tf("cmd.config.key_deleted", theme.Bold.Render(key)))
+			cliout.Success(cmd.OutOrStdout(), i18n.Tf("cmd.config.key_deleted", theme.Bold.Render(key)))
 			return nil
 		},
 	}
@@ -580,9 +578,7 @@ func configLanguageCmd() *cobra.Command {
 				return fmt.Errorf("%s: %w", i18n.T("cmd.config.save_failed"), err)
 			}
 
-			fmt.Fprintf(cmd.OutOrStdout(), "%s %s\n",
-				theme.SuccessStyle.Render(theme.IconSuccess),
-				i18n.Tf("cmd.config.lang_changed", theme.Bold.Render(lang)))
+			cliout.Success(cmd.OutOrStdout(), i18n.Tf("cmd.config.lang_changed", theme.Bold.Render(lang)))
 			return nil
 		},
 	}
@@ -606,9 +602,7 @@ func configWebsearchCmd() *cobra.Command {
 				}); err != nil {
 					return fmt.Errorf("%s: %w", i18n.T("cmd.config.save_failed"), err)
 				}
-				fmt.Fprintf(cmd.OutOrStdout(), "%s %s\n",
-					theme.SuccessStyle.Render(theme.IconSuccess),
-					i18n.T("cmd.config.websearch_enabled"))
+				cliout.Success(cmd.OutOrStdout(), i18n.T("cmd.config.websearch_enabled"))
 				fmt.Fprintf(cmd.OutOrStdout(), "  %s\n", i18n.T("cmd.config.websearch_deploy_hint"))
 
 			case "disable":
@@ -618,9 +612,7 @@ func configWebsearchCmd() *cobra.Command {
 				}); err != nil {
 					return fmt.Errorf("%s: %w", i18n.T("cmd.config.save_failed"), err)
 				}
-				fmt.Fprintf(cmd.OutOrStdout(), "%s %s\n",
-					theme.SuccessStyle.Render(theme.IconSuccess),
-					i18n.T("cmd.config.websearch_disabled"))
+				cliout.Success(cmd.OutOrStdout(), i18n.T("cmd.config.websearch_disabled"))
 
 			case "status":
 				cfg, err := config.Load()

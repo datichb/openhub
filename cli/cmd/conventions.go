@@ -10,6 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
@@ -53,9 +54,9 @@ func runConventionsCheck(cmd *cobra.Command, args []string) error {
 			re, err := regexp.Compile(branchPattern)
 			if err == nil {
 				if re.MatchString(branch) {
-					fmt.Fprint(a.IO.Out, i18n.Tf("cmd.conventions.branch_follows_the_pattern", theme.SuccessStyle.Render(theme.IconSuccess), branch))
+					fmt.Fprint(a.IO.Out, i18n.Tf("cmd.conventions.branch_follows_the_pattern", cliout.SuccessIcon(), branch))
 				} else {
-					fmt.Fprint(a.IO.Out, i18n.Tf("cmd.conventions.branch_does_not_follow_the_pattern", theme.WarningStyle.Render(theme.IconWarning), branch, branchPattern))
+					fmt.Fprint(a.IO.Out, i18n.Tf("cmd.conventions.branch_does_not_follow_the_pattern", cliout.WarnIcon(), branch, branchPattern))
 					issues++
 				}
 			}
@@ -77,9 +78,9 @@ func runConventionsCheck(cmd *cobra.Command, args []string) error {
 				}
 			}
 			if nonConform == 0 {
-				fmt.Fprint(a.IO.Out, i18n.Tf("cmd.conventions.commits_the_last_follow_the_format", theme.SuccessStyle.Render(theme.IconSuccess), len(commits)))
+				fmt.Fprint(a.IO.Out, i18n.Tf("cmd.conventions.commits_the_last_follow_the_format", cliout.SuccessIcon(), len(commits)))
 			} else {
-				fmt.Fprint(a.IO.Out, i18n.Tf("cmd.conventions.commits_do_not_follow_the_pattern", theme.WarningStyle.Render(theme.IconWarning), nonConform, len(commits), commitPattern))
+				fmt.Fprint(a.IO.Out, i18n.Tf("cmd.conventions.commits_do_not_follow_the_pattern", cliout.WarnIcon(), nonConform, len(commits), commitPattern))
 				issues++
 			}
 		}
@@ -92,17 +93,17 @@ func runConventionsCheck(cmd *cobra.Command, args []string) error {
 		// Try to detect ticket from branch name
 		ticketRef := extractTicketFromBranch(branch)
 		if ticketRef != "" {
-			fmt.Fprint(a.IO.Out, i18n.Tf("cmd.conventions.ticket_detected_from_the_branch", theme.SuccessStyle.Render(theme.IconSuccess), ticketRef))
+			fmt.Fprint(a.IO.Out, i18n.Tf("cmd.conventions.ticket_detected_from_the_branch", cliout.SuccessIcon(), ticketRef))
 		}
 	}
 
 	// 4. Summary
 	fmt.Fprintln(a.IO.Out)
 	if issues == 0 {
-		fmt.Fprint(a.IO.Out, i18n.Tf("cmd.conventions.everything_complies", theme.SuccessStyle.Render(theme.IconSuccess)))
+		fmt.Fprint(a.IO.Out, i18n.Tf("cmd.conventions.everything_complies", cliout.SuccessIcon()))
 	} else {
 		fmt.Fprintf(a.IO.Out, "  %s %d warning(s) détecté(s)\n",
-			theme.WarningStyle.Render(theme.IconWarning), issues)
+			cliout.WarnIcon(), issues)
 	}
 
 	return nil

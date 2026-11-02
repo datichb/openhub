@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
@@ -74,9 +75,7 @@ func projectRenameCmd() *cobra.Command {
 				return fmt.Errorf(i18n.T("cmd.project_configure.updating_project"), err)
 			}
 
-			fmt.Fprintf(a.IO.Out, "%s %s\n",
-				theme.SuccessStyle.Render(theme.IconSuccess),
-				i18n.Tf("cmd.project.renamed", oldName, theme.Bold.Render(newName)))
+			cliout.Success(a.IO.Out, i18n.Tf("cmd.project.renamed", oldName, theme.Bold.Render(newName)))
 			return nil
 		},
 	}
@@ -145,7 +144,7 @@ Ne déplace PAS physiquement le dossier.`,
 			}
 
 			fmt.Fprintf(a.IO.Out, "%s %s\n  %s → %s\n",
-				theme.SuccessStyle.Render(theme.IconSuccess),
+				cliout.SuccessIcon(),
 				i18n.Tf("cmd.project.moved", theme.Bold.Render(project.Name)),
 				oldPath, absPath)
 			return nil
@@ -211,9 +210,7 @@ Sans flags, lance un wizard interactif.`,
 				if err := a.Projects.Update(ctx, project); err != nil {
 					return fmt.Errorf(i18n.T("cmd.project_configure.updating_project"), err)
 				}
-				fmt.Fprintf(a.IO.Out, "%s %s\n",
-					theme.SuccessStyle.Render(theme.IconSuccess),
-					i18n.Tf("cmd.project.configured", theme.Bold.Render(project.Name)))
+				cliout.Success(a.IO.Out, i18n.Tf("cmd.project.configured", theme.Bold.Render(project.Name)))
 			}
 			return nil
 		},
@@ -319,8 +316,6 @@ func runProjectConfigureInteractive(ctx context.Context, a *app.App, project *do
 		return fmt.Errorf(i18n.T("cmd.project_configure.updating_project"), err)
 	}
 
-	fmt.Fprintf(a.IO.Out, "%s %s\n",
-		theme.SuccessStyle.Render(theme.IconSuccess),
-		i18n.T("cmd.project.config_updated"))
+	cliout.Success(a.IO.Out, i18n.T("cmd.project.config_updated"))
 	return nil
 }

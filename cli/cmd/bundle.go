@@ -55,8 +55,7 @@ func bundleBuildCmd() *cobra.Command {
 			if asJSON, _ := cmd.Flags().GetBool("json"); asJSON {
 				return cliout.JSON(cmd.OutOrStdout(), map[string]string{"hash": b.Spec.Hash, "dir": b.Dir})
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess),
-				i18n.Tf("cmd.bundle.build.done", args[0], shortHash(b.Spec.Hash), b.Dir))
+			cliout.Success(cmd.OutOrStdout(), i18n.Tf("cmd.bundle.build.done", args[0], shortHash(b.Spec.Hash), b.Dir))
 			return nil
 		},
 	}
@@ -119,7 +118,7 @@ func buildBundleFor(cmd *cobra.Command, id string) (*bundle.Bundle, error) {
 		return nil, fmt.Errorf(i18n.T("cmd.bundle.building_session_bundle"), err)
 	}
 	for _, m := range missing {
-		fmt.Fprintf(cmd.ErrOrStderr(), "%s %s\n", theme.WarningStyle.Render(theme.IconWarning), warningText(runsvc.Warning{Code: "mcp_missing", Args: []any{m}}))
+		cliout.Warn(cmd.ErrOrStderr(), warningText(runsvc.Warning{Code: "mcp_missing", Args: []any{m}}))
 	}
 	return b, nil
 }

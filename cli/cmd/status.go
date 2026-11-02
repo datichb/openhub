@@ -99,12 +99,12 @@ func runStatus(cmd *cobra.Command, args []string) error {
 	if currentProject != nil {
 		fmt.Fprintln(a.IO.Out, theme.Bold.Render(i18n.T("cmd.status.title_current")))
 		fmt.Fprintf(a.IO.Out, "  %s %s (%s)\n",
-			theme.SuccessStyle.Render(theme.IconSuccess),
+			cliout.SuccessIcon(),
 			currentProject.Name, currentProject.Language)
 		fmt.Fprintf(a.IO.Out, "  %s\n", i18n.Tf("cmd.status.path", currentProject.Path))
 	} else {
 		fmt.Fprintf(a.IO.Out, "  %s %s\n",
-			theme.WarningStyle.Render(theme.IconWarning), i18n.Tf("cmd.status.not_in_project", cwd))
+			cliout.WarnIcon(), i18n.Tf("cmd.status.not_in_project", cwd))
 	}
 
 	return nil

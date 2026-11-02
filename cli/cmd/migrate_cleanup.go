@@ -126,7 +126,7 @@ func runMigrateCleanup(cmd *cobra.Command, _ []string) error {
 		return cliout.JSON(out, list)
 	}
 	if len(list) == 0 {
-		fmt.Fprintf(out, "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.T("cmd.migrate.cleanup.none"))
+		cliout.Success(out, i18n.T("cmd.migrate.cleanup.none"))
 		return nil
 	}
 	for _, pc := range list {
@@ -158,10 +158,10 @@ func applyCleanups(out io.Writer, list []projectCleanup) error {
 	for _, pc := range list {
 		if err := pc.Plan.Apply(); err != nil {
 			errs = append(errs, fmt.Errorf("%s: %w", pc.Name, err))
-			fmt.Fprintf(out, "%s %s\n", theme.ErrorStyle.Render(theme.IconError), i18n.Tf("cmd.migrate.cleanup.failed", pc.Name, err))
+			cliout.Error(out, i18n.Tf("cmd.migrate.cleanup.failed", pc.Name, err))
 			continue
 		}
-		fmt.Fprintf(out, "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.migrate.cleanup.done", pc.Name))
+		cliout.Success(out, i18n.Tf("cmd.migrate.cleanup.done", pc.Name))
 	}
 	return errors.Join(errs...)
 }

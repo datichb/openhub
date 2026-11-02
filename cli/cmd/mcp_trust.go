@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/glyph"
 	"github.com/datichb/openhub/cli/internal/i18n"
@@ -205,7 +206,7 @@ func printTrustProposal(out io.Writer, p *trustProposal) {
 		fmt.Fprintf(out, "  %s\n", l)
 	}
 	if p.Sensitive() {
-		fmt.Fprintf(out, "\n%s %s\n", theme.WarningStyle.Render(theme.IconWarning), i18n.Tf("cmd.mcp.trust.warn_private", p.Service))
+		fmt.Fprintf(out, "\n%s %s\n", cliout.WarnIcon(), i18n.Tf("cmd.mcp.trust.warn_private", p.Service))
 	}
 	if p.Pinned != "" && !mcpresolve.SameURL(p.Pinned, p.URL) {
 		fmt.Fprintf(out, "\n%s\n", i18n.Tf("cmd.mcp.trust.replaces", p.Pinned))
@@ -239,7 +240,7 @@ func trustURL(cmd *cobra.Command, service string, shared *teamstate.SharedMCPCon
 	}
 	printTrustProposal(out, p)
 	if p.Pinned != "" && mcpresolve.SameURL(p.Pinned, p.URL) {
-		fmt.Fprintf(out, "\n%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.mcp.trust.already", p.Service, p.Pinned))
+		fmt.Fprintf(out, "\n%s %s\n", cliout.SuccessIcon(), i18n.Tf("cmd.mcp.trust.already", p.Service, p.Pinned))
 		return nil
 	}
 	fmt.Fprintln(out)
@@ -254,7 +255,7 @@ func trustURL(cmd *cobra.Command, service string, shared *teamstate.SharedMCPCon
 	if err := pinMCPURL(p.Service, p.URL); err != nil {
 		return err
 	}
-	fmt.Fprintf(out, "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.mcp.trust.done", theme.Bold.Render(p.Service), p.URL))
+	cliout.Success(out, i18n.Tf("cmd.mcp.trust.done", theme.Bold.Render(p.Service), p.URL))
 	return nil
 }
 
@@ -288,7 +289,7 @@ func runMCPUntrust(cmd *cobra.Command, args []string) error {
 		fmt.Fprintf(out, "%s\n", i18n.Tf("cmd.mcp.untrust.none", service))
 		return nil
 	}
-	fmt.Fprintf(out, "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.mcp.untrust.done", theme.Bold.Render(service), previous))
+	cliout.Success(out, i18n.Tf("cmd.mcp.untrust.done", theme.Bold.Render(service), previous))
 	return nil
 }
 
@@ -375,6 +376,6 @@ func printEnforcedURLNotices(out io.Writer, notices []enforcedURLNotice) {
 	}
 	fmt.Fprintln(out)
 	for _, n := range notices {
-		fmt.Fprintf(out, "  %s %s\n", theme.WarningStyle.Render(theme.IconWarning), n.Message())
+		fmt.Fprintf(out, "  %s %s\n", cliout.WarnIcon(), n.Message())
 	}
 }

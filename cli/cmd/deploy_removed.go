@@ -5,8 +5,8 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
 // `oh deploy` and `oh sync` were removed in v5 (D14, P3-T23): sessions run
@@ -33,7 +33,7 @@ func init() {
 // deployRemoved prints what replaces the former deployment commands.
 func deployRemoved(cmd *cobra.Command, old string) {
 	w := cmd.ErrOrStderr()
-	fmt.Fprintf(w, "%s %s\n", theme.WarningStyle.Render(theme.IconWarning), i18n.Tf("cmd.deploy.removed.message", old))
+	cliout.Warn(w, i18n.Tf("cmd.deploy.removed.message", old))
 	fmt.Fprintf(w, "  %s\n", i18n.T("cmd.deploy.removed.bundle"))
 	fmt.Fprintf(w, "  %s\n", i18n.T("cmd.deploy.removed.cleanup"))
 }

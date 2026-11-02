@@ -13,6 +13,7 @@ import (
 	toml "github.com/pelletier/go-toml/v2"
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/services/doctor"
@@ -138,7 +139,7 @@ func repairConfig(w io.Writer, confirm confirmFunc) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(w, "%s %s\n\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.doctor.db.config_restored", backup, kept))
+	fmt.Fprintf(w, "%s %s\n\n", cliout.SuccessIcon(), i18n.Tf("cmd.doctor.db.config_restored", backup, kept))
 	// The file was replaced from outside: read it, and update in place the
 	// Config the views hold. A restored file that still does not load leaves
 	// the error in place.

@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	teamsvc "github.com/datichb/openhub/cli/internal/services/team"
 	"github.com/datichb/openhub/cli/internal/teamstate"
@@ -78,7 +79,7 @@ func runTeamProfile(cmd *cobra.Command, _ []string) error {
 		return profileError(err)
 	}
 	if !patch.Empty() {
-		fmt.Fprintf(a.IO.Out, "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.T("cmd.team.profile.updated"))
+		cliout.Success(a.IO.Out, i18n.T("cmd.team.profile.updated"))
 	}
 	printProfile(a.IO.Out, teamID, m)
 	return nil

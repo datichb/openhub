@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
@@ -263,7 +264,7 @@ func saveDraftEdit(cmd *cobra.Command, svc *workflowsvc.Service, c workflowsvc.C
 // printDraftSaved reports a saved draft.
 func printDraftSaved(w io.Writer, d *workflowsvc.Draft) {
 	printDiagnostics(w, d.Diagnostics)
-	fmt.Fprintf(w, "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("teamstate.workflow.cli.draft_saved", d.Ref.String(), d.Path))
+	cliout.Success(w, i18n.Tf("teamstate.workflow.cli.draft_saved", d.Ref.String(), d.Path))
 	if !d.Pushed {
 		fmt.Fprintf(w, "  %s\n", theme.WarningStyle.Render(i18n.Tf("teamstate.workflow.cli.draft_not_pushed", d.PushError)))
 	}
@@ -280,7 +281,7 @@ func printImpact(w io.Writer, r workflowsvc.ImpactReport) {
 	for _, it := range r.Items {
 		icon := theme.Subtitle.Render("•")
 		if it.Level == workflowsvc.ImpactWiden {
-			icon = theme.WarningStyle.Render(theme.IconWarning)
+			icon = cliout.WarnIcon()
 		}
 		fmt.Fprintf(w, "  %s %s\n", icon, it.Message)
 	}
@@ -292,12 +293,12 @@ func printImpact(w io.Writer, r workflowsvc.ImpactReport) {
 // printPublication reports a publication, restore or archive.
 func printPublication(w io.Writer, p *workflowsvc.Publication) {
 	if p.Queued {
-		fmt.Fprintf(w, "%s %s\n", theme.WarningStyle.Render(theme.IconWarning), i18n.Tf("teamstate.workflow.cli.queued", p.Kind, p.Ref.String()))
+		cliout.Warn(w, i18n.Tf("teamstate.workflow.cli.queued", p.Kind, p.Ref.String()))
 		return
 	}
 	printDiagnostics(w, p.Diagnostics)
 	key := map[string]string{workflowsvc.OpPublish: "teamstate.workflow.cli.published", workflowsvc.OpRestore: "teamstate.workflow.cli.restored", workflowsvc.OpArchive: "teamstate.workflow.cli.archived"}[p.Kind]
-	fmt.Fprintf(w, "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf(key, p.Ref.String(), p.Version))
+	cliout.Success(w, i18n.Tf(key, p.Ref.String(), p.Version))
 	if p.Kind != workflowsvc.OpArchive {
 		printImpact(w, p.Impact)
 	}

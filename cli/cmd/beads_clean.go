@@ -12,6 +12,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/beads"
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/safego"
@@ -106,7 +107,7 @@ func printBeadsClean(w io.Writer, a *app.App, path string, yes bool) {
 	}
 	r := applyBeadsClean(path, opts)
 	if r.Changed() {
-		fmt.Fprintf(w, "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.T("cmd.beads.clean.auto_done"))
+		cliout.Success(w, i18n.T("cmd.beads.clean.auto_done"))
 	}
 	printCleanActions(w, r)
 	printCleanHints(w, r)
@@ -224,7 +225,7 @@ func repairBeads(ctx context.Context, w io.Writer, a *app.App, undoCommit, hints
 			return fmt.Errorf("%s: %w", p.project.Name, err)
 		}
 	}
-	fmt.Fprintf(w, "%s %s\n\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.doctor.fix.done", len(plans)))
+	fmt.Fprintf(w, "%s %s\n\n", cliout.SuccessIcon(), i18n.Tf("cmd.doctor.fix.done", len(plans)))
 	return nil
 }
 

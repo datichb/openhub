@@ -11,6 +11,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/beads"
 	"github.com/datichb/openhub/cli/internal/buildinfo"
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/selfupdate"
@@ -142,13 +143,13 @@ func runDoctorChecks(w io.Writer, checks []doctor.Check) error {
 		s.Stop()
 
 		for _, r := range res {
-			icon := theme.SuccessStyle.Render(theme.IconSuccess)
+			icon := cliout.SuccessIcon()
 			switch {
 			case !r.OK:
-				icon = theme.ErrorStyle.Render(theme.IconError)
+				icon = cliout.ErrorIcon()
 				allPassed = false
 			case r.Warn:
-				icon = theme.WarningStyle.Render(theme.IconWarning)
+				icon = cliout.WarnIcon()
 			}
 			fmt.Fprintf(w, "  %s %s — %s\n", icon, r.Name, strings.ReplaceAll(r.Detail, "\n", "\n      "))
 		}
