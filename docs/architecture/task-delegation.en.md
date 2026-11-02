@@ -9,7 +9,7 @@ the invocation hierarchy, and inter-agent communication protocols.
 > [ADR-041](./adr/041-closed-world-isolation.en.md) (closed world),
 > [ADR-042](./adr/042-checkpoints-headless-decisions.en.md) (checkpoints, locks, circuit breaker),
 > [ADR-047](./adr/047-session-interaction-daemon.en.md) (sessions, `ohd` daemon),
-> [ADR-009](./adr/009-inter-agent-handoff-contracts.en.md) (handoff contracts).
+> [ADR-059](./adr/059-return-envelope-and-workflow-report.en.md) (return envelope and `workflow_report`; it replaced [ADR-009](./adr/009-inter-agent-handoff-contracts.en.md), handoff contracts).
 > [ADR-003](./adr/003-orchestrator-checkpoints.en.md) (checkpoints) and [ADR-006](./adr/006-orchestrator-configurable-mode.en.md)
 > (modes) are superseded by ADR-039 and ADR-042.
 
@@ -290,7 +290,7 @@ The caller reads the envelope with its coordinator posture (`posture/coordinator
 
 The agents never launched by another (`release-manager`, `merger`, `operator`, `benchmarker`, `conductor`, `orchestrator`) have no payload. In `security-fix`, the contract of the `developer` (one `F<n>` line per kept finding: fixed or false positive, test, files) goes to the `auditor-subagent` with its report.
 
-→ [ADR-009](./adr/009-inter-agent-handoff-contracts.en.md) (handoff contracts, replaced in L5 by the envelope and the payloads)
+→ [ADR-009](./adr/009-inter-agent-handoff-contracts.en.md) (handoff contracts, replaced by the envelope and the payloads: [ADR-059](./adr/059-return-envelope-and-workflow-report.en.md))
 
 ---
 
