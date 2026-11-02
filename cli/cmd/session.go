@@ -20,6 +20,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/runsvc"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
 	"github.com/datichb/openhub/cli/internal/termlaunch"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 )
 
 var sessionCmd = &cobra.Command{
@@ -189,8 +190,8 @@ var sessionListCmd = &cobra.Command{
 		fmt.Fprintln(tw, i18n.T("cmd.session.list_header"))
 		for _, v := range views {
 			s := v.Session
-			fmt.Fprintf(tw, "%s\t%s\t%s\t%s %s\t%s\t$%.3f\t%s\n", fanoutLabel(&s, s.ID), v.ProjectName, s.EntryAgent, sessionsvc.StateIcon(s.State), stateLabel(s.State),
-				dash(sessionsvc.DecisionBadges(v.Decisions)), s.Cost, s.StartedAt.Format("02/01 15:04"))
+			fmt.Fprintf(tw, "%s\t%s\t%s\t%s %s\t%s\t%s\t%s\n", fanoutLabel(&s, s.ID), v.ProjectName, s.EntryAgent, sessionsvc.StateIcon(s.State), stateLabel(s.State),
+				dash(sessionsvc.DecisionBadges(v.Decisions)), textfmt.Cost(s.Cost), textfmt.ShortDateTime(s.StartedAt))
 		}
 		_ = tw.Flush()
 		if len(views) == 0 {

@@ -80,14 +80,14 @@ var literalExceptions = map[string]string{
 	// Protocols and markup.
 	"event: ping\ndata: {\"status\":\"connected\"}\n\n": "server-sent event",
 	// Output of the eval harness, read by developers (make test-eval).
-	"eval pass:":                         "eval harness output",
-	"eval pass: session":                 "eval harness output",
-	"eval pass: wiki %s %s → %s %s\n":    "eval harness output",
-	"eval pass: %s %s → %s %s\n":         "eval harness output",
-	"more than %d decisions":             "eval harness output",
-	"pass budget spent ($%.3f of $%.2f)": "eval harness output",
-	"eval pass: stopping the session:":   "eval harness output",
-	"eval pass: fan-out:":                "eval harness output",
+	"eval pass:":                       "eval harness output",
+	"eval pass: session":               "eval harness output",
+	"eval pass: wiki %s %s → %s %s\n":  "eval harness output",
+	"eval pass: %s %s → %s %s\n":       "eval harness output",
+	"more than %d decisions":           "eval harness output",
+	"pass budget spent (%s of %s)":     "eval harness output",
+	"eval pass: stopping the session:": "eval harness output",
+	"eval pass: fan-out:":              "eval harness output",
 	// Commands to type, shown as they are.
 	"  %s bd init: %s\n":            "name of a command and its output",
 	"%s brew uninstall: %v\n":       "name of a command and its output",

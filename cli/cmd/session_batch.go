@@ -14,6 +14,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 )
 
 // Validation by batch (R6, CP-R6): `oh session approve --batch` lists the
@@ -66,7 +67,7 @@ func runApproveBatch(cmd *cobra.Command, svc *sessionsvc.Service) error {
 			result, failed = i18n.Tf("cmd.session.batch.failed", it.Error), failed+1
 		}
 		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\n", it.Decision.ID, it.Decision.SessionID, it.Checkpoint,
-			truncate(sessionsvc.DecisionSummary(it.Decision), 60), verify, result)
+			textfmt.Clip(sessionsvc.DecisionSummary(it.Decision), 60), verify, result)
 	}
 	if err := tw.Flush(); err != nil {
 		return err
@@ -110,14 +111,6 @@ func batchVerify(ctx context.Context, svc *sessionsvc.Service, it sessionsvc.Bat
 		}
 	}
 	return "—"
-}
-
-func truncate(s string, n int) string {
-	r := []rune(s)
-	if len(r) <= n {
-		return s
-	}
-	return string(r[:n-1]) + "…"
 }
 
 // approverOf is the approver check of a checkpoint decision (CP-R9; zero

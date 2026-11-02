@@ -14,6 +14,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/runsvc"
 	"github.com/datichb/openhub/cli/internal/services/launch"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
@@ -82,8 +83,8 @@ func printExistingTable(w io.Writer, plan *runsvc.RunPlan) {
 		}
 		row("work", work, "")
 		row("decisions", fmt.Sprint(e.OpenDecisions), "")
-		row("cost", fmt.Sprintf("$%.2f", e.Cost), "")
-		row("activity", e.LastActivity.Format("2006-01-02 15:04"), "")
+		row("cost", textfmt.Cost(e.Cost), "")
+		row("activity", textfmt.DateTime(e.LastActivity), "")
 		_ = tw.Flush()
 	}
 }

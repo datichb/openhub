@@ -11,6 +11,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/prefsvc"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 	wf "github.com/datichb/openhub/cli/internal/workflow"
@@ -138,7 +139,7 @@ func (t *tuiStart) compute(ctx context.Context, scope views.StartScope) (views.S
 	}
 	for _, r := range start.Recent {
 		e := entry(r.WorkflowID)
-		e.Ago = agoLabel(time.Since(r.LastUsed))
+		e.Ago = textfmt.Ago(r.LastUsed)
 		out.Recents = append(out.Recents, e)
 	}
 	for _, id := range start.Suggested {
@@ -198,17 +199,6 @@ func summaryOrigin(s workflowsvc.Summary) string {
 		o += " v" + strconv.Itoa(s.Version)
 	}
 	return o
-}
-
-func agoLabel(d time.Duration) string {
-	switch {
-	case d < time.Hour:
-		return i18n.Tf("tui.start.ago_minutes", max(int(d.Minutes()), 1))
-	case d < 48*time.Hour:
-		return i18n.Tf("tui.start.ago_hours", int(d.Hours()))
-	default:
-		return i18n.Tf("tui.start.ago_days", int(d.Hours()/24))
-	}
 }
 
 // tuiStartWiring is the « Démarrer » wiring of the running TUI.

@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -39,7 +40,7 @@ var optimizeCmd = &cobra.Command{
 
 		fmt.Fprintln(a.IO.Out, theme.Bold.Render("  "+i18n.T("cmd.optimize.analysis_title")))
 		fmt.Fprintf(a.IO.Out, "  %s %s\n", theme.IconInfo, i18n.Tf("cmd.optimize.sessions_analyzed", len(sessions)))
-		fmt.Fprintf(a.IO.Out, "  %s %s\n", theme.IconInfo, i18n.Tf("cmd.optimize.tokens_consumed", formatTokenCount(totalIn+totalOut)))
+		fmt.Fprintf(a.IO.Out, "  %s %s\n", theme.IconInfo, i18n.Tf("cmd.optimize.tokens_consumed", textfmt.Tokens(totalIn+totalOut)))
 		fmt.Fprintln(a.IO.Out)
 
 		// Suggestions

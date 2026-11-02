@@ -51,7 +51,7 @@ func TestBudgetReport(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, out, "Spending per project, since ")
 	assert.Contains(t, out, "PROJECT")
-	assert.Contains(t, out, "2.00 $")
+	assert.Contains(t, out, "$2.00")
 	assert.NotContains(t, out, "12.00", "the old row is out of the period")
 	assert.Contains(t, out, "Total: $2.00")
 

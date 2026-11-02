@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -116,7 +117,7 @@ func brickHistoryCmd() *cobra.Command {
 				}
 				date := ""
 				if !v.Entry.PublishedAt.IsZero() {
-					date = v.Entry.PublishedAt.Local().Format("2006-01-02 15:04")
+					date = textfmt.DateTime(v.Entry.PublishedAt)
 				}
 				fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", ver, date, v.Entry.PublishedBy, v.Entry.Message)
 			}

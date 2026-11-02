@@ -218,7 +218,7 @@ func claimExists(cmd *cobra.Command, a *app.App, repo *teamstate.Repo, existing 
 		i18n.Tf("cmd.claim.already_taken",
 			project, ticketID,
 			theme.Bold.Render(existing.ClaimedBy),
-			existing.ClaimedAt.Local().Format("02/01 15:04")))
+			textfmt.ShortDateTime(existing.ClaimedAt)))
 	fmt.Fprintf(a.IO.Out, "%s\n",
 		i18n.Tf("cmd.claim.transfer_hint",
 			theme.Bold.Render("oh claim transfer "+ticketID+" --to "+memberID)))

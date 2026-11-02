@@ -13,6 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	teamsvc "github.com/datichb/openhub/cli/internal/services/team"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tracker"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
@@ -50,7 +51,7 @@ func runSyncTracker(cmd *cobra.Command, _ []string) error {
 	fmt.Fprintf(out, "%s %s\n\n",
 		theme.Title.Render(i18n.T("cmd.team.sync_tracker.title")),
 		i18n.Tf("cmd.team.sync_tracker.results_title",
-			result.SyncedAt.Local().Format("15:04:05")))
+			textfmt.ClockSec(result.SyncedAt)))
 
 	for _, pr := range result.Projects {
 		fmt.Fprintf(out, "  %s %s → %s (%s)\n",

@@ -21,7 +21,7 @@ func TestPrintSessionReports(t *testing.T) {
 		{Seq: 2, Title: "Review", Bytes: 2150, CreatedAt: at},
 	})
 	out := b.String()
-	for _, want := range []string{"ID", "AUTEUR", "rp-1", "developer", "820 o", "09:05", "Changements par fichier · Tests", "rp-2", "?", "2.1 Ko", "oh session report ses_a <rp-id>"} {
+	for _, want := range []string{"ID", "AUTEUR", "rp-1", "developer", "820 o", "09:05", "Changements par fichier · Tests", "rp-2", "?", "2.1 Kio", "oh session report ses_a <rp-id>"} {
 		assert.Contains(t, out, want)
 	}
 	assert.NotContains(t, out, "\x1b")

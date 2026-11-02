@@ -23,6 +23,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/gc"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/services/doctor"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/worktree"
 )
@@ -231,7 +232,7 @@ func runGC(cmd *cobra.Command, _ []string) error {
 	if asJSON {
 		return json.NewEncoder(w).Encode(done)
 	}
-	fmt.Fprintf(w, "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.gc.done", len(done.Items), formatBytes(done.Bytes()), done.History.Total()))
+	fmt.Fprintf(w, "%s %s\n", theme.SuccessStyle.Render(theme.IconSuccess), i18n.Tf("cmd.gc.done", len(done.Items), textfmt.Bytes(done.Bytes()), done.History.Total()))
 	for _, e := range done.Errors {
 		fmt.Fprintf(w, "  %s %s\n", theme.WarningStyle.Render(theme.IconWarning), e)
 	}
@@ -244,7 +245,7 @@ func printGCPlan(w io.Writer, plan gc.Report) {
 		fmt.Fprintln(w, i18n.T("cmd.gc.nothing"))
 		return
 	}
-	fmt.Fprintln(w, theme.Bold.Render(i18n.Tf("cmd.gc.plan", formatBytes(plan.Bytes()))))
+	fmt.Fprintln(w, theme.Bold.Render(i18n.Tf("cmd.gc.plan", textfmt.Bytes(plan.Bytes()))))
 	by := plan.ByKind()
 	for _, k := range gc.Kinds {
 		items := by[k]
@@ -255,7 +256,7 @@ func printGCPlan(w io.Writer, plan gc.Report) {
 		for _, it := range items {
 			size += it.Bytes
 		}
-		line := i18n.Tf("cmd.gc.kind."+string(k), len(items), formatBytes(size))
+		line := i18n.Tf("cmd.gc.kind."+string(k), len(items), textfmt.Bytes(size))
 		if k == gc.KindOrphans {
 			line = i18n.Tf("cmd.gc.kind.orphans", len(items))
 		}
@@ -270,7 +271,7 @@ func printGCPlan(w io.Writer, plan gc.Report) {
 			if label == "" {
 				label = it.ID
 			}
-			fmt.Fprintf(w, "      %s  %s\n", label, theme.Subtitle.Render(formatBytes(it.Bytes)))
+			fmt.Fprintf(w, "      %s  %s\n", label, theme.Subtitle.Render(textfmt.Bytes(it.Bytes)))
 		}
 	}
 	if h := plan.History; h.Total() > 0 {
@@ -337,7 +338,7 @@ func daemonGC(a *app.App) func(ctx context.Context) {
 				return
 			}
 			writeGCLast(gcLast{At: time.Now(), DryRun: true, Bytes: plan.Bytes(), Items: len(plan.Items), Rows: plan.History.Total()})
-			slog.Info("gc: simulation (run oh gc to clean up)", "reclaimable", formatBytes(plan.Bytes()), "items", len(plan.Items), "rows", plan.History.Total())
+			slog.Info("gc: simulation (run oh gc to clean up)", "reclaimable", textfmt.Bytes(plan.Bytes()), "items", len(plan.Items), "rows", plan.History.Total())
 			return
 		}
 		done, err := gc.Run(ctx, env, opts, nil)
@@ -348,7 +349,7 @@ func daemonGC(a *app.App) func(ctx context.Context) {
 			return
 		}
 		writeGCLast(gcLast{At: time.Now(), Bytes: done.Bytes(), Items: len(done.Items), Rows: done.History.Total(), Armed: true})
-		slog.Info("gc", "freed", formatBytes(done.Bytes()), "items", len(done.Items), "rows", done.History.Total(), "errors", len(done.Errors))
+		slog.Info("gc", "freed", textfmt.Bytes(done.Bytes()), "items", len(done.Items), "rows", done.History.Total(), "errors", len(done.Errors))
 	}
 }
 
@@ -362,7 +363,7 @@ func gcDoctorCheck(context.Context) []doctor.Result {
 	case !ok:
 		return []doctor.Result{{ID: doctorIDGC, Name: name, OK: true, Detail: i18n.T("cmd.gc.doctor.never")}}
 	case last.DryRun && (last.Items > 0 || last.Rows > 0):
-		return []doctor.Result{{ID: doctorIDGC, Name: name, OK: true, Warn: true, Detail: i18n.Tf("cmd.gc.doctor.reclaimable", formatBytes(last.Bytes), last.Items, last.Rows)}}
+		return []doctor.Result{{ID: doctorIDGC, Name: name, OK: true, Warn: true, Detail: i18n.Tf("cmd.gc.doctor.reclaimable", textfmt.Bytes(last.Bytes), last.Items, last.Rows)}}
 	}
-	return []doctor.Result{{ID: doctorIDGC, Name: name, OK: true, Detail: i18n.Tf("cmd.gc.doctor.last", last.At.Local().Format("2006-01-02 15:04"), formatBytes(last.Bytes), last.Items)}}
+	return []doctor.Result{{ID: doctorIDGC, Name: name, OK: true, Detail: i18n.Tf("cmd.gc.doctor.last", textfmt.DateTime(last.At), textfmt.Bytes(last.Bytes), last.Items)}}
 }

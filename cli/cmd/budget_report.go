@@ -14,6 +14,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 )
 
 // oh budget report: what the sessions spent, per project or workflow, over a
@@ -119,8 +120,8 @@ func printBudgetReport(out io.Writer, rep *budgetSpendReport) {
 	tw := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(tw, i18n.T("cmd.budget.report.header."+rep.By))
 	for _, g := range rep.Groups {
-		fmt.Fprintf(tw, "%s\t%d\t%.2f $\t%d\t%d\n", g.Label, g.Sessions, g.CostUSD, g.TokensIn, g.TokensOut)
+		fmt.Fprintf(tw, "%s\t%d\t%s\t%d\t%d\n", g.Label, g.Sessions, textfmt.Cost(g.CostUSD), g.TokensIn, g.TokensOut)
 	}
 	_ = tw.Flush()
-	fmt.Fprintln(out, i18n.Tf("cmd.budget.report.total", rep.TotalUSD))
+	fmt.Fprintln(out, i18n.Tf("cmd.budget.report.total", textfmt.Cost(rep.TotalUSD)))
 }

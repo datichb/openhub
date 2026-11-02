@@ -25,6 +25,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/services/launch"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 )
 
 // Fan-out (R6, E3, experimental, `[fanout] experimental = true`): a
@@ -259,7 +260,7 @@ func printFanout(w io.Writer, id string, f *domain.SessionFanout) {
 	if n := len(f.Events); n > 0 {
 		fmt.Fprintln(w, i18n.T("cmd.fanout.status.events"))
 		for _, e := range f.Events[max(0, n-15):] {
-			fmt.Fprintf(w, "  %s  %-11s %s %s %s\n", e.At.Local().Format("15:04:05"), e.Kind, e.Ticket, e.Session, e.Message)
+			fmt.Fprintf(w, "  %s  %-11s %s %s %s\n", textfmt.ClockSec(e.At), e.Kind, e.Ticket, e.Session, e.Message)
 		}
 	}
 }
@@ -454,7 +455,7 @@ func newFanoutDriver(ctx context.Context, a *app.App, sess *domain.Session, log 
 			return wf, st, err
 		},
 		Log: func(format string, args ...any) {
-			fmt.Fprintf(log, time.Now().Format("15:04:05 ")+format+"\n", args...)
+			fmt.Fprintln(log, textfmt.ClockSec(time.Now())+" "+fmt.Sprintf(format, args...))
 		},
 	}, nil
 }

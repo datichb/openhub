@@ -12,6 +12,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/i18n"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -138,7 +139,7 @@ func printBrickList(w io.Writer, ws *workflowsvc.BrickWorkspace, withOrigin bool
 		if desc == "" {
 			desc = e.Label
 		}
-		cols = append(cols, truncate(desc, 80))
+		cols = append(cols, textfmt.Clip(desc, 80))
 		fmt.Fprintln(tw, strings.Join(cols, "\t"))
 	}
 	if err := tw.Flush(); err != nil {

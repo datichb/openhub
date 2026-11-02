@@ -14,6 +14,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/services/report"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
@@ -67,7 +68,7 @@ func sessionInputSources(a *app.App, note func(string)) map[string]workflowsvc.I
 				return "", err
 			}
 			note(i18n.Tf("cmd.run.input_from_session", workflow.SourceSessionTrace+"("+wfID+")", sess.ID, ""))
-			return clipUTF8(d, traceDigestMax), nil
+			return textfmt.ClipBytes(d, traceDigestMax), nil
 		},
 	}
 	// r9b: the sessions named by an input (ids, period, workflows).

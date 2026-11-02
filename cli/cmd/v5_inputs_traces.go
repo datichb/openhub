@@ -15,6 +15,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 )
 
 // Source session.traces(<input>) (r9b, retro): the trace summaries of the
@@ -155,7 +156,7 @@ func traceDigests(ctx context.Context, a *app.App, sessions []*domain.Session) (
 		if i > 0 {
 			b.WriteString("\n\n")
 		}
-		fmt.Fprintf(&b, "=== Session %d/%d ===\n%s", i+1, len(sessions), clipUTF8(d, per))
+		fmt.Fprintf(&b, "=== Session %d/%d ===\n%s", i+1, len(sessions), textfmt.ClipBytes(d, per))
 	}
 	return b.String(), nil
 }
@@ -166,15 +167,4 @@ func sessionIDs(list []*domain.Session) string {
 		ids[i] = s.ID
 	}
 	return strings.Join(ids, ", ")
-}
-
-// clipUTF8 cuts s to at most n bytes, on a character boundary.
-func clipUTF8(s string, n int) string {
-	if len(s) <= n {
-		return s
-	}
-	for n > 0 && s[n]&0xC0 == 0x80 {
-		n--
-	}
-	return s[:n]
 }

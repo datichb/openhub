@@ -34,6 +34,7 @@ import (
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 )
 
 // `oh eval` (P0.5): behavioural evaluations of the shipped workflows with a
@@ -1001,7 +1002,7 @@ func evalLoop(ctx context.Context, ssvc *sessionsvc.Service, sid string, answers
 			continue
 		}
 		if spent := sess.Cost + fan.cost(ctx); budget > 0 && spent >= budget {
-			res.Error = fmt.Sprintf("pass budget spent ($%.3f of $%.2f)", spent, budget)
+			res.Error = fmt.Sprintf("pass budget spent (%s of %s)", textfmt.Cost(spent), textfmt.Cost(budget))
 			return evalrun.OutcomeBudget
 		}
 		switch sess.State {
