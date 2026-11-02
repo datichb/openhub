@@ -69,6 +69,37 @@ func TestShell_NavigateHome(t *testing.T) {
 	assert.Equal(t, "home", s.router.Current().ID())
 }
 
+// `oh board`, `oh team board`, `oh dashboard`: the initial view opens on top
+// of the home view of the mode, and Esc goes back to that home view.
+func TestShell_InitialViewOpensOnTopOfHome(t *testing.T) {
+	home := &testView{id: "project.mode", title: "Project"}
+	board := &testView{id: "board", title: "Board"}
+
+	s := New(Config{Views: []views.View{home, board}, HomeViewID: "project.mode", InitialViewID: "board"})
+	s.NavigateHome("project.mode", views.ModeProject)
+
+	assert.Equal(t, "board", s.router.Current().ID())
+	assert.True(t, board.mounted)
+	assert.Equal(t, 2, s.router.StackDepth())
+	assert.Equal(t, views.ModeProject, s.Mode())
+
+	assert.True(t, s.router.Pop())
+	assert.Equal(t, "project.mode", s.router.Current().ID())
+	assert.True(t, home.mounted)
+}
+
+func TestShell_NoInitialViewStaysOnHome(t *testing.T) {
+	home := &testView{id: "home", title: "Home"}
+	s := New(Config{Views: []views.View{home}, HomeViewID: "home"})
+	s.NavigateHome("home", views.ModeHub)
+	assert.Equal(t, 1, s.router.StackDepth())
+
+	// An initial view that is not registered leaves the home view in place.
+	s = New(Config{Views: []views.View{home}, HomeViewID: "home", InitialViewID: "nope"})
+	s.NavigateHome("home", views.ModeHub)
+	assert.Equal(t, "home", s.router.Current().ID())
+}
+
 func TestOmnibar_SetHints(t *testing.T) {
 	homeView := &testView{id: "home", title: "Home"}
 
