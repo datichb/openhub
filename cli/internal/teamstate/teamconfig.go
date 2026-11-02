@@ -366,6 +366,28 @@ type ClaimConfig struct {
 	// Otherwise MinHeartbeatMinutes..MaxHeartbeatMinutes and at most half the
 	// lease (a renewal only happens when less than half of the lease is left).
 	HeartbeatMinutes int `toml:"heartbeat_minutes"`
+	// LeaseHoursManual is the duration of the lease of a claim taken by hand,
+	// with no session on the ticket (oh team claim, the team board, the
+	// tracker plan), in hours. Nobody renews it automatically: it is longer
+	// than lease_hours, and oh team claim <ticket> renews it. Default: 72
+	// (or lease_hours when that is longer). Bounds: lease_hours..
+	// MaxLeaseHoursManual; 0 = default.
+	LeaseHoursManual int `toml:"lease_hours_manual,omitempty"`
+	// SleepingRenewalDays is how long after a session was put to sleep the
+	// heartbeat keeps renewing the lease of its claims, in days. Past it the
+	// claim expires normally (oh doctor reports it). Default: 3. Bounds:
+	// MinRenewalDays..MaxRenewalDays; 0 = default.
+	SleepingRenewalDays int `toml:"sleeping_renewal_days,omitempty"`
+	// RemoteRenewalDays is how long after a remote session was started the
+	// heartbeat keeps renewing the lease of its claims, in days. Default: 7.
+	// Bounds: MinRenewalDays..MaxRenewalDays; 0 = default.
+	RemoteRenewalDays int `toml:"remote_renewal_days,omitempty"`
+	// ReleaseExpiredOnSync lets the synchronization of the tracker release
+	// the claims that are expired (lease past, or inactive for stale_days for
+	// a claim without lease): see Repo.ReleaseExpiredClaims. Off by default:
+	// an expired claim is otherwise only reported (oh doctor) and may be
+	// taken over.
+	ReleaseExpiredOnSync bool `toml:"release_expired_on_sync,omitempty"`
 }
 
 // Bounds and defaults of the lease settings of ClaimConfig.
@@ -376,6 +398,16 @@ const (
 	DefaultHeartbeatMinutes = 60
 	MinHeartbeatMinutes     = 5
 	MaxHeartbeatMinutes     = 1440 // one day
+
+	// DefaultLeaseHoursManual is the lease of a claim taken by hand.
+	DefaultLeaseHoursManual = 72
+	MaxLeaseHoursManual     = 720 // thirty days
+
+	// Renewal ceilings of the heartbeat (days).
+	DefaultSleepingRenewalDays = 3
+	DefaultRemoteRenewalDays   = 7
+	MinRenewalDays             = 1
+	MaxRenewalDays             = 90
 )
 
 // LeaseDuration is the duration of a lease: LeaseHours, or the default when
@@ -385,6 +417,34 @@ func (c ClaimConfig) LeaseDuration() time.Duration {
 		return DefaultLeaseHours * time.Hour
 	}
 	return time.Duration(c.LeaseHours) * time.Hour
+}
+
+// ManualLeaseDuration is the duration of the lease of a claim taken by hand:
+// LeaseHoursManual, or the default (never shorter than the lease of a
+// session) when it is not set.
+func (c ClaimConfig) ManualLeaseDuration() time.Duration {
+	hours := c.LeaseHoursManual
+	if hours <= 0 {
+		hours = DefaultLeaseHoursManual
+	}
+	return max(time.Duration(hours)*time.Hour, c.LeaseDuration())
+}
+
+// SleepingRenewalWindow is how long a sleeping session keeps its claims alive.
+func (c ClaimConfig) SleepingRenewalWindow() time.Duration {
+	return daysOr(c.SleepingRenewalDays, DefaultSleepingRenewalDays)
+}
+
+// RemoteRenewalWindow is how long a remote session keeps its claims alive.
+func (c ClaimConfig) RemoteRenewalWindow() time.Duration {
+	return daysOr(c.RemoteRenewalDays, DefaultRemoteRenewalDays)
+}
+
+func daysOr(days, def int) time.Duration {
+	if days <= 0 {
+		days = def
+	}
+	return time.Duration(days) * 24 * time.Hour
 }
 
 // HeartbeatInterval is the period of the heartbeat; 0 when it is disabled.
@@ -400,6 +460,22 @@ func (c ClaimConfig) HeartbeatInterval() time.Duration {
 func (c ClaimConfig) Validate() error {
 	if c.LeaseHours != 0 && (c.LeaseHours < MinLeaseHours || c.LeaseHours > MaxLeaseHours) {
 		return fmt.Errorf("claim: lease_hours must be between %d and %d, got %d", MinLeaseHours, MaxLeaseHours, c.LeaseHours)
+	}
+	if c.LeaseHoursManual != 0 {
+		if c.LeaseHoursManual < MinLeaseHours || c.LeaseHoursManual > MaxLeaseHoursManual {
+			return fmt.Errorf("claim: lease_hours_manual must be between %d and %d, got %d", MinLeaseHours, MaxLeaseHoursManual, c.LeaseHoursManual)
+		}
+		if lease := int(c.LeaseDuration() / time.Hour); c.LeaseHoursManual < lease {
+			return fmt.Errorf("claim: lease_hours_manual (%d) must not be shorter than lease_hours (%d)", c.LeaseHoursManual, lease)
+		}
+	}
+	for _, d := range []struct {
+		key  string
+		days int
+	}{{"sleeping_renewal_days", c.SleepingRenewalDays}, {"remote_renewal_days", c.RemoteRenewalDays}} {
+		if d.days != 0 && (d.days < MinRenewalDays || d.days > MaxRenewalDays) {
+			return fmt.Errorf("claim: %s must be between %d and %d, got %d", d.key, MinRenewalDays, MaxRenewalDays, d.days)
+		}
 	}
 	if c.HeartbeatMinutes == 0 {
 		return nil
@@ -427,6 +503,7 @@ func (c *ClaimConfig) normalize() {
 		slog.Warn("teamstate.config.lease_hours_clamped", "value", c.LeaseHours, "max", MaxLeaseHours)
 		c.LeaseHours = MaxLeaseHours
 	}
+	c.normalizeManual()
 	if c.HeartbeatMinutes <= 0 {
 		c.HeartbeatMinutes = 0
 		return
@@ -435,6 +512,26 @@ func (c *ClaimConfig) normalize() {
 	if hb != c.HeartbeatMinutes {
 		slog.Warn("teamstate.config.heartbeat_minutes_clamped", "value", c.HeartbeatMinutes, "used", hb)
 		c.HeartbeatMinutes = hb
+	}
+}
+
+// normalizeManual brings the lease of a claim taken by hand and the renewal
+// ceilings back into their bounds (an unset value stays unset: the default
+// applies, see ManualLeaseDuration).
+func (c *ClaimConfig) normalizeManual() {
+	if c.LeaseHoursManual != 0 {
+		clamped := min(max(c.LeaseHoursManual, c.LeaseHours), MaxLeaseHoursManual)
+		if clamped != c.LeaseHoursManual {
+			slog.Warn("teamstate.config.lease_hours_manual_clamped", "value", c.LeaseHoursManual, "used", clamped)
+			c.LeaseHoursManual = clamped
+		}
+	}
+	for _, d := range []*int{&c.SleepingRenewalDays, &c.RemoteRenewalDays} {
+		if *d < 0 {
+			*d = 0
+		} else if *d > MaxRenewalDays {
+			*d = MaxRenewalDays
+		}
 	}
 }
 

@@ -131,9 +131,20 @@ func leaseEnd(now time.Time, cfg *TeamConfig) Instant {
 	return InstantOf(now.Add(cfg.Claim.LeaseDuration()))
 }
 
+// leaseEndFor is the end of a lease that starts at now on a claim held by the
+// session: LeaseHours, or, with no session on the ticket (a claim taken by
+// hand: nobody renews it), the longer LeaseHoursManual.
+func leaseEndFor(now time.Time, cfg *TeamConfig, session string) Instant {
+	if session == "" {
+		return InstantOf(now.Add(cfg.Claim.ManualLeaseDuration()))
+	}
+	return leaseEnd(now, cfg)
+}
+
 // stampLease sets the lease of a claim that is created or taken over:
-// now + LeaseHours and the session (empty when the caller does not know
-// it), or no lease (the session is left as it is) when none applies. A config that cannot be read gives the
+// now + LeaseHours and the session, or now + LeaseHoursManual when the caller
+// knows no session (a claim taken by hand), or no lease (the session is left
+// as it is) when none applies. A config that cannot be read gives the
 // default duration. The caller holds the write lock.
 func (r *Repo) stampLease(c *Claim, session string, now time.Time) {
 	cfg, err := r.loadConfig()
@@ -144,8 +155,56 @@ func (r *Repo) stampLease(c *Claim, session string, now time.Time) {
 	if !leaseApplies(c, cfg) {
 		return
 	}
-	c.LeaseUntil = leaseEnd(now, cfg)
+	c.LeaseUntil = leaseEndFor(now, cfg, session)
 	c.Session = session
+}
+
+// RenewClaim renews the lease of a claim of the member by hand (oh team claim
+// on one's own claim), expired or not, in one commit ("lease: member renews
+// project/ticket"). The new lease lasts LeaseHoursManual when no session
+// works on the claim, LeaseHours otherwise; last_activity is not touched. It
+// returns the new end of the lease, or ErrClaimNotFound, ErrClaimNotOwned
+// (another member's claim) or ErrNoLease (a claim that carries none: pool,
+// planned, finished).
+func (r *Repo) RenewClaim(ctx context.Context, project, ticketID, member string, now time.Time) (time.Time, error) {
+	if _, err := SafeName(project); err != nil {
+		return time.Time{}, fmt.Errorf("invalid project name: %w", err)
+	}
+	if _, err := SafeName(ticketID); err != nil {
+		return time.Time{}, fmt.Errorf("invalid ticket ID: %w", err)
+	}
+	var end time.Time
+	err := r.withWriteLock(ctx, func(ctx context.Context) error {
+		c, err := r.getClaim(project, ticketID)
+		if err != nil {
+			return err
+		}
+		if member == "" || c.ClaimedBy != member {
+			return ErrClaimNotOwned
+		}
+		cfg, err := r.loadConfig()
+		if err != nil {
+			cfg = &TeamConfig{}
+		}
+		if !leaseApplies(c, cfg) {
+			return ErrNoLease
+		}
+		c.LeaseUntil = leaseEndFor(now, cfg, c.Session)
+		end = c.LeaseUntil.Time()
+		data, err := marshalClaim(c)
+		if err != nil {
+			return fmt.Errorf("marshaling claim: %w", err)
+		}
+		if err := os.WriteFile(r.claimFilePath(project, ticketID), data, 0o644); err != nil {
+			return fmt.Errorf("writing claim: %w", err)
+		}
+		slog.Debug("teamstate.claim.renew", "project", project, "ticket", ticketID, "member", member)
+		return r.commitAndPush(ctx, fmt.Sprintf("lease: %s renews %s/%s", member, project, ticketID), r.claimRelPath(project, ticketID))
+	})
+	if err != nil {
+		return time.Time{}, err
+	}
+	return end, nil
 }
 
 // TouchClaims renews the lease of the given claims in a single commit (one

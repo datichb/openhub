@@ -200,3 +200,86 @@ func TestClaimsBeatDue(t *testing.T) {
 	assert.True(t, b.due("a", time.Hour, now.Add(59*time.Minute)), "timer jitter")
 	assert.False(t, b.due("a", 0, now.Add(24*time.Hour)), "heartbeat off")
 }
+
+// The renewal has a ceiling: a session asleep for more than three days and a
+// remote session launched more than seven days ago stop renewing their claims,
+// which then expire normally. The ceilings are settings of the team.
+func TestClaimsBeatStopsRenewingPastTheCeilings(t *testing.T) {
+	now := time.Now()
+	sleeping := func(id string, since time.Duration, tickets ...string) domain.Session {
+		s := openSession(id, tickets...)
+		s.State = domain.RunSleeping
+		at := now.Add(-since)
+		s.StateChangedAt = &at
+		return s
+	}
+	remote := func(id string, age time.Duration, tickets ...string) domain.Session {
+		s := openSession(id, tickets...)
+		s.Runtime = "remote"
+		s.StartedAt = now.Add(-age)
+		return s
+	}
+	day := 24 * time.Hour
+	sessions := []domain.Session{
+		sleeping("ses_s2", 2*day, "t-sleep-2d"), sleeping("ses_s4", 4*day, "t-sleep-4d"),
+		remote("ses_r6", 6*day, "t-remote-6d"), remote("ses_r8", 8*day, "t-remote-8d"),
+		openSession("ses_l", "t-local"),
+	}
+	tickets := []string{"t-sleep-2d", "t-sleep-4d", "t-remote-6d", "t-remote-8d", "t-local"}
+	owner := map[string]string{"t-sleep-2d": "ses_s2", "t-sleep-4d": "ses_s4", "t-remote-6d": "ses_r6", "t-remote-8d": "ses_r8", "t-local": "ses_l"}
+
+	run := func(t *testing.T, claim teamstate.ClaimConfig) map[string]bool {
+		t.Helper()
+		a, repo := setupBeat(t, sessions...)
+		for _, id := range tickets {
+			claimsCreate(t, repo, id, "testuser", owner[id])
+		}
+		require.NoError(t, repo.SaveConfig(context.Background(), &teamstate.TeamConfig{Claim: claim}))
+		later := now.Add(13 * time.Hour) // more than half of the lease is gone
+		require.NoError(t, beaterOf(a, later).beat(context.Background()))
+		renewed := map[string]bool{}
+		for _, id := range tickets {
+			renewed[id] = claimsOnDisk(t, repo, id).LeaseUntil.Time().After(now.Add(30 * time.Hour))
+		}
+		return renewed
+	}
+
+	t.Run("defaults: 3 days asleep, 7 days remote", func(t *testing.T) {
+		assert.Equal(t, map[string]bool{
+			"t-sleep-2d": true, "t-sleep-4d": false, "t-remote-6d": true, "t-remote-8d": false, "t-local": true,
+		}, run(t, teamstate.ClaimConfig{LeaseHours: 24, HeartbeatMinutes: 60}))
+	})
+	t.Run("settings of the team", func(t *testing.T) {
+		assert.Equal(t, map[string]bool{
+			"t-sleep-2d": false, "t-sleep-4d": false, "t-remote-6d": true, "t-remote-8d": true, "t-local": true,
+		}, run(t, teamstate.ClaimConfig{LeaseHours: 24, HeartbeatMinutes: 60, SleepingRenewalDays: 1, RemoteRenewalDays: 10}))
+	})
+}
+
+func TestRenewableSession(t *testing.T) {
+	now := time.Date(2026, 11, 2, 12, 0, 0, 0, time.UTC)
+	at := func(d time.Duration) *time.Time { t := now.Add(-d); return &t }
+	day := 24 * time.Hour
+	cfg := teamstate.ClaimConfig{}
+	tests := []struct {
+		name string
+		s    domain.Session
+		want bool
+	}{
+		{"active", domain.Session{State: domain.RunActive, StartedAt: now.Add(-30 * day)}, true},
+		{"asleep for two days", domain.Session{State: domain.RunSleeping, StateChangedAt: at(2 * day)}, true},
+		{"asleep for exactly three days", domain.Session{State: domain.RunSleeping, StateChangedAt: at(3 * day)}, true},
+		{"asleep for more than three days", domain.Session{State: domain.RunSleeping, StateChangedAt: at(3*day + time.Minute)}, false},
+		{"asleep, date unknown: the start of the session", domain.Session{State: domain.RunSleeping, StartedAt: now.Add(-4 * day)}, false},
+		{"asleep, no date at all: kept", domain.Session{State: domain.RunSleeping}, true},
+		{"remote, six days", domain.Session{Runtime: "remote", State: domain.RunActive, StartedAt: now.Add(-6 * day)}, true},
+		{"remote, eight days", domain.Session{Runtime: "remote", State: domain.RunActive, StartedAt: now.Add(-8 * day)}, false},
+		{"remote asleep for a day, launched eight days ago", domain.Session{Runtime: "remote", State: domain.RunSleeping, StateChangedAt: at(day), StartedAt: now.Add(-8 * day)}, false},
+		{"local for ten days", domain.Session{Runtime: "local", State: domain.RunActive, StartedAt: now.Add(-10 * day)}, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, renewable(tt.s, cfg, now))
+		})
+	}
+}

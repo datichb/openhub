@@ -42,4 +42,10 @@ var (
 	// ErrClaimAlreadyOwned is returned when attempting to claim a pool ticket
 	// that already has an owner (ClaimedBy is not empty).
 	ErrClaimAlreadyOwned = errors.New("ticket already claimed by another member")
+	// ErrClaimNotOwned is returned when a member renews a claim that is not
+	// theirs.
+	ErrClaimNotOwned = errors.New("claim held by another member")
+	// ErrNoLease is returned when a renewal targets a claim that carries no
+	// lease (pool, planned or finished).
+	ErrNoLease = errors.New("this claim carries no lease")
 )

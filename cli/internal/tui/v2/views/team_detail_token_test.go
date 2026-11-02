@@ -354,3 +354,41 @@ func TestTeamDetailDrawsTheTokenLines(t *testing.T) {
 	})
 	assert.Contains(t, strings.Join(lines, "\n"), "Durée du bail (heures)")
 }
+
+// v5.1: the lease of a claim taken by hand, the renewal ceilings of the
+// sleeping and remote sessions and the release of the expired claims by the
+// synchronization are set here too, with the rules of ClaimConfig.Validate.
+func TestTeamDetailClaimLeaseCeilings(t *testing.T) {
+	e := newTokenEnv(t, "gitlab")
+	e.v.teamCfg.Claim = teamstate.ClaimConfig{LeaseHours: 24, HeartbeatMinutes: 60}
+	e.v.buildFields()
+	manual, sleeping, remote, expire := e.field(t, "lease_hours_manual"), e.field(t, "sleeping_renewal_days"),
+		e.field(t, "remote_renewal_days"), e.field(t, "release_expired_on_sync")
+	for _, f := range []configField{manual, sleeping, remote, expire} {
+		assert.Equal(t, ScopeTeamShared, f.Scope, f.Key)
+	}
+	assert.Equal(t, "72", manual.Get(), "the default is shown when nothing is set")
+	assert.Equal(t, "3", sleeping.Get())
+	assert.Equal(t, "7", remote.Get())
+	assert.Equal(t, "false", expire.Get())
+
+	require.NoError(t, manual.Validator.Validate("100"))
+	require.Error(t, manual.Validator.Validate("12"), "shorter than lease_hours (24)")
+	require.Error(t, manual.Validator.Validate("721"))
+	require.NoError(t, sleeping.Validator.Validate("5"))
+	require.Error(t, sleeping.Validator.Validate("0"))
+	require.Error(t, remote.Validator.Validate("91"))
+
+	manual.Set("100")
+	sleeping.Set("5")
+	remote.Set("14")
+	expire.Set("true")
+	assert.True(t, e.v.dirtyTeam)
+	e.v.save()
+	require.NotNil(t, e.saved)
+	assert.Equal(t, 100, e.saved.Claim.LeaseHoursManual)
+	assert.Equal(t, 5, e.saved.Claim.SleepingRenewalDays)
+	assert.Equal(t, 14, e.saved.Claim.RemoteRenewalDays)
+	assert.True(t, e.saved.Claim.ReleaseExpiredOnSync)
+	require.NoError(t, e.saved.Claim.Validate())
+}

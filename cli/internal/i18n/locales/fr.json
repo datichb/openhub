@@ -6274,5 +6274,21 @@
   "fmt.bytes.mib": "%.1f Mio",
   "fmt.bytes.gib": "%.1f Gio",
   "fmt.on": "activé",
-  "fmt.off": "désactivé"
+  "fmt.off": "désactivé",
+  "tracker.sync.expired_released": "claim expiré de %s libéré (réglage d'équipe release_expired_on_sync)",
+  "tracker.sync.autoplan_held": "%d issue(s) hors du board, limite atteinte (max_auto_plan_per_member = %d) : %s. Les issues déjà en cours passent en premier ; relevez la limite avec oh team config ou dans team-detail.",
+  "tracker.sync.held_notice": "%d issue(s) hors du board, limite atteinte (max_auto_plan_per_member = %d)",
+  "cmd.claims.own_renewed_live": "%s/%s est déjà à toi : bail renouvelé jusqu'au %s.",
+  "cmd.claims.own_no_lease": "%s/%s est déjà à toi ; il ne porte pas de bail (prévu, pool ou terminé) : rien à renouveler.",
+  "tui.team.detail.lease_manual.label": "Bail d'un claim pris à la main (heures)",
+  "tui.team.detail.lease_manual.desc": "Bail d'un claim sans session sur le ticket (oh team claim, le board) : rien ne le renouvelle, oh team claim <ticket> le fait (lease_hours_manual).",
+  "tui.team.detail.lease_manual.placeholder": "lease_hours à 720 (défaut 72)",
+  "tui.team.detail.sleeping_renewal.label": "Renouvellement d'une session en veille (jours)",
+  "tui.team.detail.sleeping_renewal.desc": "Combien de temps après sa mise en veille une session renouvelle ses claims ; ensuite ils expirent (sleeping_renewal_days).",
+  "tui.team.detail.sleeping_renewal.placeholder": "1 à 90 (défaut 3)",
+  "tui.team.detail.remote_renewal.label": "Renouvellement d'une session distante (jours)",
+  "tui.team.detail.remote_renewal.desc": "Combien de temps après son lancement une session distante renouvelle ses claims ; ensuite ils expirent (remote_renewal_days).",
+  "tui.team.detail.remote_renewal.placeholder": "1 à 90 (défaut 7)",
+  "tui.team.detail.expire_on_sync.label": "Libérer les claims expirés à la synchro",
+  "tui.team.detail.expire_on_sync.desc": "La synchronisation du tracker libère les claims expirés (release_expired_on_sync) ; un claim en revue est gardé. Désactivé par défaut."
 }

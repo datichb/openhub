@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -27,6 +28,7 @@ type SyncResult struct {
 	ClaimsCreated  int
 	ClaimsUpdated  int
 	ClaimsReleased int // done claims cleaned up by retention policy
+	ClaimsExpired  int // expired claims released (team setting release_expired_on_sync)
 	LabelsPushed   int
 	Warnings       []SyncWarning
 	Errors         []SyncError
@@ -42,6 +44,11 @@ type ProjectSyncResult struct {
 	LabelsPushed   int
 	Duration       time.Duration
 	Warnings       []string
+	// AutoPlanHeld is the number of issues assigned to members that the
+	// auto-plan left off the board because of max_auto_plan_per_member.
+	AutoPlanHeld   int
+	autoPlanLimit  int
+	autoPlanHeldBy []memberCount
 }
 
 // SyncWarning is a non-fatal condition worth surfacing (e.g. reassignment).
@@ -180,8 +187,13 @@ func (e *Engine) Run(ctx context.Context) (*SyncResult, error) {
 			return teamstate.TxResult{}, abort
 		}
 		e.cleanupDone(ctx, result)
-		return teamstate.TxResult{Message: fmt.Sprintf("sync: %d created, %d updated, %d labels pushed, %d released",
-			result.ClaimsCreated, result.ClaimsUpdated, result.LabelsPushed, result.ClaimsReleased)}, nil
+		e.releaseExpired(ctx, result)
+		msg := fmt.Sprintf("sync: %d created, %d updated, %d labels pushed, %d released",
+			result.ClaimsCreated, result.ClaimsUpdated, result.LabelsPushed, result.ClaimsReleased)
+		if result.ClaimsExpired > 0 {
+			msg += fmt.Sprintf(", %d expired", result.ClaimsExpired)
+		}
+		return teamstate.TxResult{Message: msg}, nil
 	})
 	if abort != nil {
 		return nil, abort
@@ -246,6 +258,9 @@ func (e *Engine) reconcileAll(ctx context.Context, result *SyncResult) (fatal, a
 		result.ClaimsUpdated += pr.ClaimsUpdated
 		result.LabelsPushed += pr.LabelsPushed
 
+		if w := e.heldWarning(&pr); w != nil {
+			result.Warnings = append(result.Warnings, *w)
+		}
 		if projectErr != nil {
 			// Fatal errors (token invalid, rate limit) abort the entire run.
 			if errors.Is(projectErr, ErrTokenInvalid) {
@@ -317,6 +332,20 @@ func (e *Engine) unknownAssigneesWarning(members []teamstate.Member) *SyncWarnin
 		len(names), shown, me.ID, firstNonEmptyStr(e.identity.TeamID, "<team>"))}
 }
 
+// heldWarning is the warning of a project when the auto-plan left issues off
+// the board because of max_auto_plan_per_member; nil when it left none.
+func (e *Engine) heldWarning(pr *ProjectSyncResult) *SyncWarning {
+	if pr.AutoPlanHeld == 0 {
+		return nil
+	}
+	by := make([]string, len(pr.autoPlanHeldBy))
+	for i, m := range pr.autoPlanHeldBy {
+		by[i] = fmt.Sprintf("%s %d", m.Member, m.Count)
+	}
+	return &SyncWarning{ProjectID: pr.ProjectID, Message: i18n.Tf("tracker.sync.autoplan_held",
+		pr.AutoPlanHeld, pr.autoPlanLimit, strings.Join(by, ", "))}
+}
+
 func firstNonEmptyStr(values ...string) string {
 	for _, v := range values {
 		if v != "" {
@@ -347,6 +376,56 @@ func (e *Engine) cleanupDone(ctx context.Context, result *SyncResult) {
 	} else if len(released) > 0 {
 		slog.Info("tracker.sync.cleanup", "released", len(released), "retention_days", retDays)
 		result.ClaimsReleased = len(released)
+		e.forgetKnown(released)
+	}
+}
+
+// expiryReleaser is the repo that releases the expired claims (teamstate.Repo).
+type expiryReleaser interface {
+	ReleaseExpiredClaims(ctx context.Context, now time.Time, projects ...string) ([]teamstate.Claim, error)
+}
+
+// releaseExpired releases the claims of the synced projects whose lease is
+// past (or that are inactive, for a claim without lease), inside the
+// transaction of Run. Only when the team asks for it ([claim]
+// release_expired_on_sync, off by default): an expired claim is otherwise
+// reported by oh doctor and may be taken over.
+func (e *Engine) releaseExpired(ctx context.Context, result *SyncResult) {
+	reader, ok := e.repo.(teamstate.TeamStateReader)
+	releaser, canRelease := e.repo.(expiryReleaser)
+	if !ok || !canRelease {
+		return
+	}
+	teamCfg, err := reader.LoadConfig()
+	if err != nil || teamCfg == nil || !teamCfg.Claim.ReleaseExpiredOnSync {
+		return
+	}
+	projects := make([]string, 0, len(e.cfg.Projects)) //nolint:staticcheck // backward compat: deprecated field
+	for p := range e.cfg.Projects {                    //nolint:staticcheck // backward compat: deprecated field
+		projects = append(projects, p)
+	}
+	released, err := releaser.ReleaseExpiredClaims(ctx, result.SyncedAt, projects...)
+	if err != nil {
+		slog.Warn("tracker.sync.expire_failed", "error", err)
+		return
+	}
+	if len(released) == 0 {
+		return
+	}
+	slog.Info("tracker.sync.expired", "released", len(released))
+	result.ClaimsExpired = len(released)
+	for _, c := range released {
+		result.Warnings = append(result.Warnings, SyncWarning{ProjectID: c.Project, TicketID: c.TicketID,
+			Message: i18n.Tf("tracker.sync.expired_released", c.ClaimedBy)})
+	}
+	e.forgetKnown(released)
+}
+
+// forgetKnown takes the claims the run released itself out of the known
+// tickets: they are gone on purpose, not lost.
+func (e *Engine) forgetKnown(released []teamstate.Claim) {
+	for _, c := range released {
+		e.state.ForgetKnownTicket(c.Project, c.TicketID)
 	}
 }
 
@@ -588,8 +667,14 @@ func (e *Engine) reconcileProject(
 	return pr, nil
 }
 
+// removalJudge tells how a claim file left the repository (teamstate.Repo).
+type removalJudge interface {
+	ClaimRemovedOnPurpose(ctx context.Context, project, ticketID string) bool
+}
+
 // recoverOrphans detects claims that existed in a previous sync but are now
-// missing locally (deleted, corrupted, or lost to git conflicts). For each
+// missing locally (deleted, corrupted, or lost to git conflicts; not the
+// ones released on purpose). For each
 // orphan, it fetches the issue from the tracker and recreates the claim.
 // Only open issues are recovered — closed issues are considered intentionally gone.
 func (e *Engine) recoverOrphans(
@@ -603,12 +688,21 @@ func (e *Engine) recoverOrphans(
 		return nil // first sync or no known tickets yet — nothing to compare
 	}
 
-	// Find orphans: tickets in KnownTickets but absent from current claims
+	// Find orphans: tickets in KnownTickets but absent from current claims.
+	// A claim released on purpose (oh team release, end of a session, the
+	// board, the retention of the done claims) is not an orphan: it left on
+	// purpose and the next snapshot no longer lists it.
+	judge, _ := e.repo.(removalJudge)
 	var orphans []KnownTicket
 	for _, kt := range known {
-		if !claimedTickets[kt.TicketID] {
-			orphans = append(orphans, kt)
+		if claimedTickets[kt.TicketID] {
+			continue
 		}
+		if judge != nil && judge.ClaimRemovedOnPurpose(ctx, hubProjectID, kt.TicketID) {
+			slog.Debug("tracker.orphan.released", "project", hubProjectID, "ticket", kt.TicketID)
+			continue
+		}
+		orphans = append(orphans, kt)
 	}
 	if len(orphans) == 0 {
 		return nil
@@ -669,9 +763,25 @@ func (e *Engine) recoverOrphans(
 	return e.repo.CommitAndPush(ctx, msg, relPaths...)
 }
 
-// autoplan creates "planned" claims for tracker issues assigned to team members
-// but not yet claimed. Respects MaxAutoPlanPerMember.
-// Claims are created locally in batch and committed in a single git operation.
+// autoPlanWindow bounds the assigned issues fetched per member: far more than
+// any limit worth setting, so that an old issue is not hidden by newer ones.
+const autoPlanWindow = 100
+
+// defaultMaxAutoPlan is max_auto_plan_per_member when none is set.
+const defaultMaxAutoPlan = 5
+
+// autoplan creates claims for tracker issues assigned to team members but not
+// yet claimed. Claims are created locally in batch and committed in a single
+// git operation.
+//
+// max_auto_plan_per_member bounds what a member has on the board from the
+// tracker: the claims of the member that are linked to an issue and not
+// finished, plus the ones this run creates. Among the issues to put on the
+// board the ones already started (their status is not the initial column)
+// come first and are always let in, however full the board; the others fill
+// what is left of the limit, the oldest held issue first. What does not fit
+// is held: counted in the result, said in a warning, kept in the sync state
+// (AutoPlanHeld) for the next run and for the board.
 func (e *Engine) autoplan(
 	ctx context.Context,
 	hubProjectID, trackerProjectID string,
@@ -681,65 +791,129 @@ func (e *Engine) autoplan(
 	firstSync bool,
 	pr *ProjectSyncResult,
 ) error {
+	limit := e.cfg.MaxAutoPlanPerMember
+	if limit <= 0 {
+		limit = defaultMaxAutoPlan
+	}
+	// The first complete scan of a project does not filter on the update
+	// time: an issue assigned long ago and not touched since has never been
+	// seen by a run that did.
 	var lastSync time.Time
-	if !firstSync {
+	if !firstSync && e.state.AutoPlanScan(trackerType, trackerProjectID) {
 		lastSync = e.state.LastSync(trackerType, trackerProjectID)
 	}
-	// firstSync: lastSync is zero → no updated_after filter → fetch all open issues
-	slog.Debug("tracker.autoplan.start", "project", hubProjectID, "members", len(memberByGitLab), "first_sync", firstSync)
+	slog.Debug("tracker.autoplan.start", "project", hubProjectID, "members", len(memberByGitLab), "first_sync", firstSync, "limit", limit)
+
+	onBoard := map[string]int{} // tracker claims of the member that are not finished
+	if claims, err := e.repo.ListClaims(hubProjectID); err == nil {
+		terminal := e.boardCfg.TerminalStatuses()
+		for i := range claims {
+			if c := &claims[i]; c.ClaimedBy != "" && c.ExternalIID > 0 && !slices.Contains(terminal, c.Status) {
+				onBoard[c.ClaimedBy]++
+			}
+		}
+	}
+
+	usernames := make([]string, 0, len(memberByGitLab))
+	for username := range memberByGitLab {
+		usernames = append(usernames, username)
+	}
+	sort.Strings(usernames)
+	previouslyHeld := e.state.AutoPlanHeld[hubProjectID].Issues
 
 	// Collect all claims to create, then batch commit.
-	type pendingClaim struct {
-		claim teamstate.Claim
-	}
-	var pending []pendingClaim
-
-	plannedByMember := make(map[string]int)
-	for username, member := range memberByGitLab {
+	var pending []teamstate.Claim
+	var held []HeldIssue
+	scanned := true
+	for _, username := range usernames {
+		member := memberByGitLab[username]
 		issues, err := e.tracker.ListAssignedIssues(ctx, trackerProjectID, ListOpts{
 			AssigneeUsername: username,
 			UpdatedAfter:     lastSync,
-			MaxResults:       e.cfg.MaxAutoPlanPerMember,
+			MaxResults:       autoPlanWindow,
 		})
 		if err != nil {
 			if errors.Is(err, ErrTokenInvalid) {
 				return err
 			}
 			slog.Warn("tracker.autoplan.member_error", "username", username, "error", err)
-			continue // skip this member on transient errors
+			scanned = false // the scan starts again
+			// A transient error: what was held for this member stays held.
+			for _, h := range previouslyHeld {
+				if h.MemberID == member.ID {
+					held = append(held, h)
+				}
+			}
+			continue
 		}
 		slog.Debug("tracker.autoplan.member", "username", username, "issues", len(issues))
 
-		for _, issue := range issues {
-			if plannedByMember[member.ID] >= e.cfg.MaxAutoPlanPerMember {
-				break
+		// What the last run held comes first (the oldest waits longest), then
+		// what the tracker lists; an issue is offered once.
+		var candidates []IssueState
+		offered := map[string]bool{}
+		offer := func(is IssueState) {
+			id := ticketIDFromIssue(is, "")
+			if offered[id] || claimedTickets[id] || is.IsClosed() {
+				return
 			}
-
-			ticketID := ticketIDFromIssue(issue, e.cfg.TicketPatterns[hubProjectID]) //nolint:staticcheck // backward compat: deprecated field
-			if claimedTickets[ticketID] {
+			offered[id] = true
+			candidates = append(candidates, is)
+		}
+		for _, h := range previouslyHeld {
+			if h.MemberID != member.ID || h.ExternalIID <= 0 {
 				continue
 			}
+			is, err := e.tracker.FetchIssue(ctx, trackerProjectID, h.ExternalIID)
+			if err != nil {
+				if errors.Is(err, ErrTokenInvalid) {
+					return err
+				}
+				if !errors.Is(err, ErrIssueNotFound) {
+					held = append(held, h) // unreachable for now: still held
+				}
+				continue
+			}
+			if assignedTo(is, username) {
+				offer(*is)
+			}
+		}
+		for _, is := range issues {
+			offer(is)
+		}
 
+		started := func(is IssueState) bool { return e.startedOnBoard(is) }
+		sort.SliceStable(candidates, func(i, j int) bool { return started(candidates[i]) && !started(candidates[j]) })
+
+		for _, issue := range candidates {
+			ticketID := ticketIDFromIssue(issue, "")
+			if !started(issue) && onBoard[member.ID] >= limit {
+				held = append(held, HeldIssue{TicketID: ticketID, ExternalIID: issue.IID, MemberID: member.ID})
+				continue
+			}
 			// Use the configurable status mapping instead of always "planned".
 			initialStatus := MapTrackerStatusWithBoard(&issue, e.cfg.StatusMapping, e.cfg.LabelStatusMapping, e.boardCfg)
-			truncDesc := TruncateDescription(issue.Description)
-
-			pending = append(pending, pendingClaim{
-				claim: teamstate.Claim{
-					TicketID:      ticketID,
-					Project:       hubProjectID,
-					ClaimedBy:     member.ID,
-					Status:        initialStatus,
-					Title:         issue.Title,
-					Description:   truncDesc,
-					TrackerStatus: issue.StatusName,
-					ExternalIID:   issue.IID,
-				},
+			pending = append(pending, teamstate.Claim{
+				TicketID:      ticketID,
+				Project:       hubProjectID,
+				ClaimedBy:     member.ID,
+				Status:        initialStatus,
+				Title:         issue.Title,
+				Description:   TruncateDescription(issue.Description),
+				TrackerStatus: issue.StatusName,
+				ExternalIID:   issue.IID,
 			})
 			claimedTickets[ticketID] = true
-			plannedByMember[member.ID]++
+			onBoard[member.ID]++
 		}
 	}
+	if scanned {
+		e.state.MarkAutoPlanScanned(trackerType, trackerProjectID, time.Now().UTC())
+	}
+	e.state.SetAutoPlanHeld(hubProjectID, limit, held)
+	pr.AutoPlanHeld = len(held)
+	pr.autoPlanLimit = limit
+	pr.autoPlanHeldBy = heldByMember(held)
 
 	if len(pending) == 0 {
 		return nil
@@ -753,16 +927,16 @@ func (e *Engine) autoplan(
 
 	var relPaths []string
 	for i := range pending {
-		relPath, err := e.repo.CreateClaimLocal(pending[i].claim)
+		relPath, err := e.repo.CreateClaimLocal(pending[i])
 		if err != nil {
 			if err == teamstate.ErrClaimExists {
 				continue
 			}
-			slog.Warn("tracker.autoplan.create_failed", "ticket", pending[i].claim.TicketID, "error", err)
+			slog.Warn("tracker.autoplan.create_failed", "ticket", pending[i].TicketID, "error", err)
 			continue
 		}
 		relPaths = append(relPaths, relPath)
-		slog.Debug("tracker.autoplan.created", "ticket", pending[i].claim.TicketID, "member", pending[i].claim.ClaimedBy)
+		slog.Debug("tracker.autoplan.created", "ticket", pending[i].TicketID, "member", pending[i].ClaimedBy)
 		pr.ClaimsCreated++
 	}
 
@@ -772,6 +946,42 @@ func (e *Engine) autoplan(
 
 	msg := fmt.Sprintf("autoplan: %d tickets for %s", len(relPaths), hubProjectID)
 	return e.repo.CommitAndPush(ctx, msg, relPaths...)
+}
+
+// startedOnBoard reports whether the issue is already being worked on, going
+// by the status it would get on the board: neither the initial column nor a
+// terminal one.
+func (e *Engine) startedOnBoard(is IssueState) bool {
+	status := MapTrackerStatusWithBoard(&is, e.cfg.StatusMapping, e.cfg.LabelStatusMapping, e.boardCfg)
+	return status != teamstate.ClaimStatusPlanned && status != e.boardCfg.InitialStatus() &&
+		!slices.Contains(e.boardCfg.TerminalStatuses(), status)
+}
+
+// assignedTo reports whether the issue is assigned to the tracker name.
+func assignedTo(is *IssueState, username string) bool {
+	return slices.ContainsFunc(is.Assignees, func(a string) bool { return strings.EqualFold(a, username) })
+}
+
+// heldByMember counts the held issues of each member, in member order.
+func heldByMember(held []HeldIssue) []memberCount {
+	var out []memberCount
+	index := map[string]int{}
+	for _, h := range held {
+		i, ok := index[h.MemberID]
+		if !ok {
+			i = len(out)
+			index[h.MemberID] = i
+			out = append(out, memberCount{Member: h.MemberID})
+		}
+		out[i].Count++
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Member < out[j].Member })
+	return out
+}
+
+type memberCount struct {
+	Member string
+	Count  int
 }
 
 // autopoolUnassigned creates claims for tracker issues so they appear on the

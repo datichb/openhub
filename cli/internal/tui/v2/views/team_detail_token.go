@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
@@ -124,8 +125,9 @@ func (v *TeamDetailView) tokenSource() string {
 	return ""
 }
 
-// claimFields are the lease and the heartbeat of the claims ([claim] of the
-// team config), checked together with ClaimConfig.Validate.
+// claimFields are the lease, the heartbeat and the renewal ceilings of the
+// claims ([claim] of the team config), checked together with
+// ClaimConfig.Validate.
 func (v *TeamDetailView) claimFields() []configField {
 	check := func(set func(*teamstate.ClaimConfig, int)) func(string) error {
 		return func(val string) error {
@@ -168,6 +170,52 @@ func (v *TeamDetailView) claimFields() []configField {
 					v.dirtyTeam = true
 				}
 			},
+		},
+		{
+			Key: "lease_hours_manual", Kind: CfgFieldInt, Label: i18n.T("tui.team.detail.lease_manual.label"),
+			Description: i18n.T("tui.team.detail.lease_manual.desc"), Scope: ScopeTeamShared,
+			Placeholder: i18n.T("tui.team.detail.lease_manual.placeholder"),
+			Validator: &FieldValidator{Numeric: true, MinInt: intPtr(teamstate.MinLeaseHours), MaxInt: intPtr(teamstate.MaxLeaseHoursManual),
+				Check: check(func(c *teamstate.ClaimConfig, n int) { c.LeaseHoursManual = n })},
+			Get: func() string { return strconv.Itoa(int(v.teamCfg.Claim.ManualLeaseDuration() / time.Hour)) },
+			Set: func(val string) {
+				if n, err := strconv.Atoi(val); err == nil {
+					v.teamCfg.Claim.LeaseHoursManual = n
+					v.dirtyTeam = true
+				}
+			},
+		},
+		v.renewalDaysField("sleeping_renewal_days", "tui.team.detail.sleeping_renewal", check,
+			func(c teamstate.ClaimConfig) time.Duration { return c.SleepingRenewalWindow() },
+			func(c *teamstate.ClaimConfig, n int) { c.SleepingRenewalDays = n }),
+		v.renewalDaysField("remote_renewal_days", "tui.team.detail.remote_renewal", check,
+			func(c teamstate.ClaimConfig) time.Duration { return c.RemoteRenewalWindow() },
+			func(c *teamstate.ClaimConfig, n int) { c.RemoteRenewalDays = n }),
+		{
+			Key: "release_expired_on_sync", Kind: CfgFieldBool, Label: i18n.T("tui.team.detail.expire_on_sync.label"),
+			Description: i18n.T("tui.team.detail.expire_on_sync.desc"), Scope: ScopeTeamShared,
+			Get: func() string { return tdBoolToStr(v.teamCfg.Claim.ReleaseExpiredOnSync) },
+			Set: func(val string) { v.teamCfg.Claim.ReleaseExpiredOnSync = val == "true"; v.dirtyTeam = true },
+		},
+	}
+}
+
+// renewalDaysField is a ceiling of the renewal of the leases, in days (the
+// labels are i18n.T(prefix + ".label" | ".desc" | ".placeholder")).
+func (v *TeamDetailView) renewalDaysField(key, prefix string, check func(func(*teamstate.ClaimConfig, int)) func(string) error,
+	window func(teamstate.ClaimConfig) time.Duration, set func(*teamstate.ClaimConfig, int)) configField {
+	return configField{
+		Key: key, Kind: CfgFieldInt, Label: i18n.T(prefix + ".label"),
+		Description: i18n.T(prefix + ".desc"), Scope: ScopeTeamShared,
+		Placeholder: i18n.T(prefix + ".placeholder"),
+		Validator: &FieldValidator{Numeric: true, MinInt: intPtr(teamstate.MinRenewalDays), MaxInt: intPtr(teamstate.MaxRenewalDays),
+			Check: check(set)},
+		Get: func() string { return strconv.Itoa(int(window(v.teamCfg.Claim) / (24 * time.Hour))) },
+		Set: func(val string) {
+			if n, err := strconv.Atoi(val); err == nil {
+				set(&v.teamCfg.Claim, n)
+				v.dirtyTeam = true
+			}
 		},
 	}
 }

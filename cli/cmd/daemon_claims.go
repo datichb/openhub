@@ -12,6 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/daemon"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 )
 
@@ -139,12 +140,34 @@ func (b *claimsBeater) openSessions(ctx context.Context) []domain.Session {
 	})
 }
 
+// renewable reports whether the heartbeat still renews the claims of an open
+// session: the renewal has a ceiling, so that a claim does not outlive for
+// ever a session nobody comes back to. A session asleep for more than
+// sleeping_renewal_days (3 by default) since it was put to sleep, and a remote
+// session launched more than remote_renewal_days (7) ago, stop renewing; their
+// claims then expire normally (oh doctor reports them).
+func renewable(s domain.Session, cfg teamstate.ClaimConfig, now time.Time) bool {
+	if s.State == domain.RunSleeping {
+		since := s.StartedAt
+		if s.StateChangedAt != nil {
+			since = *s.StateChangedAt
+		}
+		if !since.IsZero() && now.Sub(since) > cfg.SleepingRenewalWindow() {
+			return false
+		}
+	}
+	if s.Runtime == string(sessionspec.RuntimeRemote) && !s.StartedAt.IsZero() && now.Sub(s.StartedAt) > cfg.RemoteRenewalWindow() {
+		return false
+	}
+	return true
+}
+
 // refsOf are the claims of the open sessions of the projects of the team and
-// of its member.
-func (t *claimsTeam) refsOf(open []domain.Session) []teamstate.ClaimRef {
+// of its member whose renewal is still allowed (renewable).
+func (t *claimsTeam) refsOf(open []domain.Session, cfg teamstate.ClaimConfig, now time.Time) []teamstate.ClaimRef {
 	var refs []teamstate.ClaimRef
 	for _, s := range open {
-		if !t.projects[s.ProjectID] || (s.MemberID != nil && *s.MemberID != t.member) {
+		if !t.projects[s.ProjectID] || (s.MemberID != nil && *s.MemberID != t.member) || !renewable(s, cfg, now) {
 			continue
 		}
 		for _, id := range s.Tickets {
@@ -171,8 +194,12 @@ func (b *claimsBeater) beat(ctx context.Context) error {
 	now := b.now()
 	var errs []error
 	for _, t := range teams {
-		refs := t.refsOf(open)
-		every := heartbeatOf(t.repo)
+		var claimCfg teamstate.ClaimConfig
+		if cfg, err := t.repo.LoadConfig(); err == nil && cfg != nil {
+			claimCfg = cfg.Claim
+		}
+		refs := t.refsOf(open, claimCfg, now)
+		every := claimCfg.HeartbeatInterval()
 		key := t.repo.Path()
 		var err error
 		if len(refs) > 0 && b.due(key, every, now) {

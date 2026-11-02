@@ -104,3 +104,49 @@ func TestRunClaimRenewsTheOwnExpiredClaim(t *testing.T) {
 	assert.True(t, c.LeaseUntil.Time().After(time.Now().Add(23*time.Hour)))
 	assert.Contains(t, stdout.String(), "renewed")
 }
+
+// v5.1: oh team claim on one's own claim renews it whether it expired or not,
+// without any confirmation: the claim taken by hand has no session to renew it.
+func TestRunClaimRenewsTheOwnClaimWhichIsNotExpired(t *testing.T) {
+	i18ntest.Set(t, "en")
+	_, repo, stdout := setupClaimTestApp(t)
+	soon := teamstate.InstantOf(time.Now().Add(time.Hour))
+	for _, c := range []teamstate.Claim{
+		{TicketID: "HAND-1", Project: claimsProject, ClaimedBy: "testuser", Status: teamstate.ClaimStatusInProgress, LeaseUntil: soon},
+		{TicketID: "SES-1", Project: claimsProject, ClaimedBy: "testuser", Status: teamstate.ClaimStatusInProgress, LeaseUntil: soon, Session: "ses_mine"},
+		{TicketID: "PLAN-1", Project: claimsProject, ClaimedBy: "testuser", Status: teamstate.ClaimStatusPlanned},
+	} {
+		_, err := repo.CreateClaim(context.Background(), c)
+		require.NoError(t, err)
+	}
+	terminalIs(t, false)
+
+	require.NoError(t, runClaim(newClaimYesCmd(t, claimsProject, false), []string{"HAND-1"}))
+	c := claimsOnDisk(t, repo, "HAND-1")
+	assert.True(t, c.LeaseUntil.Time().After(time.Now().Add(71*time.Hour)), "the lease of a claim taken by hand: 72 h by default")
+	assert.Contains(t, stdout.String(), "renewed")
+	assert.NotContains(t, stdout.String(), "had expired")
+
+	stdout.Reset()
+	require.NoError(t, runClaim(newClaimYesCmd(t, claimsProject, false), []string{"SES-1"}))
+	c = claimsOnDisk(t, repo, "SES-1")
+	assert.Equal(t, "ses_mine", c.Session)
+	assert.True(t, c.LeaseUntil.Time().After(time.Now().Add(23*time.Hour)) && c.LeaseUntil.Time().Before(time.Now().Add(25*time.Hour)))
+
+	stdout.Reset()
+	require.NoError(t, runClaim(newClaimYesCmd(t, claimsProject, false), []string{"PLAN-1"}))
+	assert.Empty(t, claimsOnDisk(t, repo, "PLAN-1").LeaseUntil, "a planned claim has no lease")
+	assert.Contains(t, stdout.String(), "no lease")
+}
+
+// A claim taken by hand is held for lease_hours_manual (72 h by default).
+func TestRunClaimByHandHoldsTheLongLease(t *testing.T) {
+	_, repo, _ := setupClaimTestApp(t)
+	terminalIs(t, false)
+
+	require.NoError(t, runClaim(newClaimYesCmd(t, claimsProject, false), []string{"NEW-1"}))
+	c := claimsOnDisk(t, repo, "NEW-1")
+	assert.Empty(t, c.Session)
+	assert.True(t, c.LeaseUntil.Time().After(time.Now().Add(71*time.Hour)))
+	assert.True(t, c.LeaseUntil.Time().Before(time.Now().Add(73*time.Hour)))
+}

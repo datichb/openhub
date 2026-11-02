@@ -147,3 +147,31 @@ func TestBoardMenuLabels(t *testing.T) {
 		assert.Contains(t, labels["spike"], "spike")
 	}
 }
+
+// A workflow that takes a ticket, launched on the card of a GitLab issue,
+// used to get the bare IID as a Beads id ("693" looks like one, and the
+// session then ran `bd show 693`). The card is named as the issue it is
+// (#693); a Beads ticket and a Jira key are passed as they are.
+func TestBoardTicketLaunchNamesTheGitLabIssue(t *testing.T) {
+	t.Setenv("OH_HOME", t.TempDir())
+	for _, c := range []struct {
+		name   string
+		app    *app.App
+		ticket string
+		want   string
+	}{
+		{"gitlab issue", trackerApp(t, "gitlab"), "693", "#693"},
+		{"beads ticket on a gitlab board", trackerApp(t, "gitlab"), "bd-42", "bd-42"},
+		{"jira key", trackerApp(t, "jira"), "SRU-42", "SRU-42"},
+		{"number on a jira board", trackerApp(t, "jira"), "42", "42"},
+		{"no tracker", trackerApp(t, ""), "693", "693"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			req := boardTicketLaunch(c.app, "ticket", views.TicketContext{ID: c.ticket, ProjectID: "p1"})
+			assert.Equal(t, []string{c.want}, req.Tickets)
+			assert.Equal(t, "ticket", req.WorkflowID)
+			assert.Equal(t, "p1", req.ProjectID)
+			assert.True(t, req.AtOptions)
+		})
+	}
+}
