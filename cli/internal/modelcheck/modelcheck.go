@@ -88,7 +88,7 @@ func CheckModel(model string) error {
 			bricks.NormalizeModelForProvider(bricks.FallbackModel, "bedrock")))
 	}
 	if !slash && !strings.ContainsAny(ref.Model, "0123456789") {
-		return errors.New(i18n.Tf("m1.model_no_version", model, bricks.FallbackModel))
+		return errors.New(i18n.Tf("modelcheck.no_version", model, bricks.FallbackModel))
 	}
 	return nil
 }

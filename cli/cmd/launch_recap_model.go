@@ -33,7 +33,7 @@ func recapModelRows(r *bundle.Report) [][2]string {
 	if main == "" {
 		return nil
 	}
-	rows := [][2]string{{i18n.T("m1.recap_model"), main}}
+	rows := [][2]string{{i18n.T("cmd.run.recap.model"), main}}
 
 	var order []string
 	groups := map[string][]string{}
@@ -51,10 +51,10 @@ func recapModelRows(r *bundle.Report) [][2]string {
 	parts := make([]string, 0, maxRecapModelGroups+1)
 	for i, m := range order {
 		if i == maxRecapModelGroups {
-			parts = append(parts, i18n.Tf("m1.recap_model_more", len(order)-maxRecapModelGroups))
+			parts = append(parts, i18n.Tf("cmd.run.recap.model_more", len(order)-maxRecapModelGroups))
 			break
 		}
 		parts = append(parts, fmt.Sprintf("%s (%s)", m, strings.Join(groups[m], ", ")))
 	}
-	return append(rows, [2]string{i18n.T("m1.recap_model_others"), strings.Join(parts, " · ")})
+	return append(rows, [2]string{i18n.T("cmd.run.recap.model_others"), strings.Join(parts, " · ")})
 }

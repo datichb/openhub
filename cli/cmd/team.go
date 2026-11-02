@@ -344,7 +344,7 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 		InfoFields: func() []views.InfoField {
 			fields := []views.InfoField{{Label: "Repo", Value: stateRepo}}
 			if structureWarning != "" {
-				fields = append(fields, views.InfoField{Label: theme.IconWarning + " " + i18n.T("m1.team_structure_label"), Value: structureWarning})
+				fields = append(fields, views.InfoField{Label: theme.IconWarning + " " + i18n.T("cmd.team.init.structure_label"), Value: structureWarning})
 			}
 			return fields
 		},

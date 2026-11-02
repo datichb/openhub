@@ -195,9 +195,9 @@ func TestRunRecapModelRows(t *testing.T) {
 	modelRows := func(p *launch.Prepared) (rows [][2]string) {
 		all, _ := runRecap(p)
 		for i, r := range all {
-			if r[0] == i18n.T("m1.recap_model") {
+			if r[0] == i18n.T("cmd.run.recap.model") {
 				rows = append(rows, r)
-				if i+1 < len(all) && all[i+1][0] == i18n.T("m1.recap_model_others") {
+				if i+1 < len(all) && all[i+1][0] == i18n.T("cmd.run.recap.model_others") {
 					rows = append(rows, all[i+1])
 				}
 			}

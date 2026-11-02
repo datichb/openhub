@@ -18,7 +18,7 @@ func structureWarningText(err error) string {
 	if errors.As(err, &w) {
 		err = w.Cause
 	}
-	return i18n.Tf("m1.team_structure_warning", localizeError(err))
+	return i18n.Tf("cmd.team.init.structure_warning", localizeError(err))
 }
 
 // ensureTeamStructure creates the structure of the team-state and commits it.

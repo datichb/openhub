@@ -594,7 +594,7 @@ func (v *SessionsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		}
 		if r != nil && (r.State == "queued" || r.State == "preparing") {
 			// Not started: the backend refuses it too, but after the typing.
-			v.toast(i18n.T("m1.sessions_send_not_started"), false)
+			v.toast(i18n.T("tui.sessions.send_not_started"), false)
 			return nil
 		}
 		if r != nil && v.shell != nil {

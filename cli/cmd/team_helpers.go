@@ -461,7 +461,7 @@ func buildInitWizardTeamSteps(a **app.App, state *initWizardTeamState) []views.W
 						{Label: i18n.T("cmd.init.wizard_team_status_label"), Value: i18n.T("cmd.init.wizard_team_connected")},
 					}
 					if state.StructureWarning != "" {
-						fields = append(fields, views.InfoField{Label: theme.IconWarning + " " + i18n.T("m1.team_structure_label"), Value: state.StructureWarning})
+						fields = append(fields, views.InfoField{Label: theme.IconWarning + " " + i18n.T("cmd.team.init.structure_label"), Value: state.StructureWarning})
 					}
 					return fields
 				}
