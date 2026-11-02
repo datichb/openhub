@@ -90,10 +90,26 @@ func (e SyncError) Error() string {
 // Engine
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Store is what the engine needs from the team-state repository: the
+// interfaces of the sub-domains it reads and writes, nothing more
+// (*teamstate.Repo implements them all).
+type Store interface {
+	teamstate.RepoSync
+	teamstate.BoardStatusSetter
+	teamstate.ConfigReader
+	teamstate.MemberReader
+	teamstate.ClaimReader
+	teamstate.ClaimLabeler
+	teamstate.ClaimTrackerSync
+	teamstate.ClaimCleaner
+	teamstate.ClaimExpirer
+	teamstate.ClaimRemovalJudge
+}
+
 // Engine reconciles team-state claims with an external tracker.
 type Engine struct {
 	tracker  Tracker
-	repo     teamstate.TeamStateWriter
+	repo     Store
 	cfg      teamstate.TrackerConfig
 	boardCfg teamstate.BoardConfig
 	state    *SyncState
@@ -126,7 +142,7 @@ func (e *Engine) SetIdentity(id Identity) { e.identity = id }
 
 // NewEngine creates a sync engine.
 // stateDir is the local directory for sync-state.json (~/.oh/).
-func NewEngine(t Tracker, repo teamstate.TeamStateWriter, cfg teamstate.TrackerConfig, stateDir string) *Engine {
+func NewEngine(t Tracker, repo Store, cfg teamstate.TrackerConfig, stateDir string) *Engine {
 	return &Engine{
 		tracker:  t,
 		repo:     repo,
@@ -163,15 +179,11 @@ func (e *Engine) Run(ctx context.Context) (*SyncResult, error) {
 	e.state = state
 
 	// Load board config for dynamic status resolution.
-	if reader, ok := e.repo.(teamstate.TeamStateReader); ok {
-		if teamCfg, cfgErr := reader.LoadConfig(); cfgErr == nil && teamCfg != nil {
-			e.boardCfg = teamCfg.Board
-			// Propagate custom statuses to the repo so UpdateClaimStatus
-			// and UpdateClaimStatusFromTracker accept them.
-			if repo, ok := e.repo.(*teamstate.Repo); ok {
-				repo.SetBoardStatuses(e.boardCfg.AllStatuses())
-			}
-		}
+	if teamCfg, cfgErr := e.repo.LoadConfig(); cfgErr == nil && teamCfg != nil {
+		e.boardCfg = teamCfg.Board
+		// Propagate custom statuses to the repo so UpdateClaimStatus
+		// and UpdateClaimStatusFromTracker accept them.
+		e.repo.SetBoardStatuses(e.boardCfg.AllStatuses())
 	}
 
 	// One transaction for the whole run (N15): pull, every claim change of
@@ -358,11 +370,7 @@ func firstNonEmptyStr(values ...string) string {
 // cleanupDone releases the done claims past their retention (board terminal
 // statuses), inside the transaction of Run.
 func (e *Engine) cleanupDone(ctx context.Context, result *SyncResult) {
-	reader, ok := e.repo.(teamstate.TeamStateReader)
-	if !ok {
-		return
-	}
-	teamCfg, cfgErr := reader.LoadConfig()
+	teamCfg, cfgErr := e.repo.LoadConfig()
 	if cfgErr != nil || teamCfg == nil {
 		return
 	}
@@ -380,23 +388,13 @@ func (e *Engine) cleanupDone(ctx context.Context, result *SyncResult) {
 	}
 }
 
-// expiryReleaser is the repo that releases the expired claims (teamstate.Repo).
-type expiryReleaser interface {
-	ReleaseExpiredClaims(ctx context.Context, now time.Time, projects ...string) ([]teamstate.Claim, error)
-}
-
 // releaseExpired releases the claims of the synced projects whose lease is
 // past (or that are inactive, for a claim without lease), inside the
 // transaction of Run. Only when the team asks for it ([claim]
 // release_expired_on_sync, off by default): an expired claim is otherwise
 // reported by oh doctor and may be taken over.
 func (e *Engine) releaseExpired(ctx context.Context, result *SyncResult) {
-	reader, ok := e.repo.(teamstate.TeamStateReader)
-	releaser, canRelease := e.repo.(expiryReleaser)
-	if !ok || !canRelease {
-		return
-	}
-	teamCfg, err := reader.LoadConfig()
+	teamCfg, err := e.repo.LoadConfig()
 	if err != nil || teamCfg == nil || !teamCfg.Claim.ReleaseExpiredOnSync {
 		return
 	}
@@ -404,7 +402,7 @@ func (e *Engine) releaseExpired(ctx context.Context, result *SyncResult) {
 	for p := range e.cfg.Projects {                    //nolint:staticcheck // backward compat: deprecated field
 		projects = append(projects, p)
 	}
-	released, err := releaser.ReleaseExpiredClaims(ctx, result.SyncedAt, projects...)
+	released, err := e.repo.ReleaseExpiredClaims(ctx, result.SyncedAt, projects...)
 	if err != nil {
 		slog.Warn("tracker.sync.expire_failed", "error", err)
 		return
@@ -667,11 +665,6 @@ func (e *Engine) reconcileProject(
 	return pr, nil
 }
 
-// removalJudge tells how a claim file left the repository (teamstate.Repo).
-type removalJudge interface {
-	ClaimRemovedOnPurpose(ctx context.Context, project, ticketID string) bool
-}
-
 // recoverOrphans detects claims that existed in a previous sync but are now
 // missing locally (deleted, corrupted, or lost to git conflicts; not the
 // ones released on purpose). For each
@@ -692,13 +685,12 @@ func (e *Engine) recoverOrphans(
 	// A claim released on purpose (oh team release, end of a session, the
 	// board, the retention of the done claims) is not an orphan: it left on
 	// purpose and the next snapshot no longer lists it.
-	judge, _ := e.repo.(removalJudge)
 	var orphans []KnownTicket
 	for _, kt := range known {
 		if claimedTickets[kt.TicketID] {
 			continue
 		}
-		if judge != nil && judge.ClaimRemovedOnPurpose(ctx, hubProjectID, kt.TicketID) {
+		if e.repo.ClaimRemovedOnPurpose(ctx, hubProjectID, kt.TicketID) {
 			slog.Debug("tracker.orphan.released", "project", hubProjectID, "ticket", kt.TicketID)
 			continue
 		}
