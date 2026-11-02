@@ -1,6 +1,7 @@
 package views
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -70,4 +71,40 @@ func TestInlineWizardView_QuitPromptKeys(t *testing.T) {
 		onLoop(app, func() { n = sh.popped })
 		return n == 1
 	}, time.Second, 5*time.Millisecond)
+}
+
+// A notification shows in the hints bar without blocking the wizard, then the
+// hints of the step come back; the stub of the shell of a standalone wizard
+// routes ShowToastMsg to it.
+func TestInlineWizardView_Notify(t *testing.T) {
+	old := notifyHold
+	notifyHold = 80 * time.Millisecond
+	t.Cleanup(func() { notifyHold = old })
+
+	v := NewInlineWizardView(InlineWizardConfig{ID: "w", Steps: []WizardStep{{Label: "a", Form: func(_ *tview.Application, onDone func()) *tview.Form {
+		f := tview.NewForm()
+		f.AddInputField("Name", "", 0, nil, nil)
+		f.AddButton("Next", onDone)
+		return f
+	}}}})
+	content := tview.NewFlex()
+	app := runApp(t, content)
+	onLoop(app, func() { v.Mount(content, app) })
+	hints := func() (text string) {
+		onLoop(app, func() { text = v.hintsBar.TextView.GetText(true) })
+		return text
+	}
+	base := hints()
+	require.NotContains(t, base, "saved")
+
+	v.Notify("saved", false)
+	require.Eventually(t, func() bool { return strings.Contains(hints(), "saved") }, time.Second, 5*time.Millisecond, "the notification shows")
+	require.Eventually(t, func() bool { return hints() == base }, time.Second, 5*time.Millisecond, "the hints of the step come back")
+
+	(&standaloneShellStub{app: app, wizard: v}).ShowToastMsg("failed", true)
+	require.Eventually(t, func() bool { return strings.Contains(hints(), "failed") }, time.Second, 5*time.Millisecond, "the toast of the stub shows")
+	require.Eventually(t, func() bool { return hints() == base }, time.Second, 5*time.Millisecond)
+
+	onLoop(app, func() { v.Unmount() })
+	require.NotPanics(t, func() { v.Notify("late", false) }, "a notification after the end is ignored")
 }

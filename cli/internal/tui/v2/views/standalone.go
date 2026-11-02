@@ -15,19 +15,16 @@ import (
 // ─────────────────────────────────────────────────────────────────────────────
 //
 // RunInlineWizardStandalone mounts an InlineWizardView inside a dedicated
-// tview.Application, runs the event loop, and returns the result. This allows
-// CLI commands (e.g. `oh init`) to reuse the same wizard builder as the TUI
-// without requiring the full shell infrastructure.
-//
-// The 10+ existing RunWizard call sites are NOT affected — they continue to
-// use the classic wizard engine (wizard.go). Only callers that explicitly opt
-// in to the inline engine go through this path.
+// tview.Application, runs the event loop, and returns the result. This is how
+// the wizards of the CLI (oh init, oh provider setup, oh project add…) run:
+// the same engine and the same rendering as in the TUI, without the shell.
+// Esc asks whether to quit, as in the shell.
 
 // StandaloneResult holds the outcome of a standalone inline wizard run.
 type StandaloneResult struct {
 	Completed bool  // all steps finished successfully
-	Aborted   bool  // user pressed Ctrl+C or quit
-	Err       error // a step's OnDone returned an error (with retry declined)
+	Aborted   bool  // the user quit (Esc then « Quit », Ctrl+C) with no step failing
+	Err       error // a step failed and the user quit instead of retrying, or the screen could not start
 }
 
 // RunInlineWizardStandalone creates a tview.Application, mounts the given
@@ -37,6 +34,12 @@ type StandaloneResult struct {
 // then passes it here instead of shell.PushView. The wizard's OnComplete
 // callback is intercepted to capture the result and stop the application.
 func RunInlineWizardStandalone(wizard *InlineWizardView) StandaloneResult {
+	return RunInlineWizardStandaloneOn(wizard, nil)
+}
+
+// RunInlineWizardStandaloneOn is RunInlineWizardStandalone on a given screen
+// (nil: the terminal), for the tests that send keys to a simulation screen.
+func RunInlineWizardStandaloneOn(wizard *InlineWizardView, screen tcell.Screen) StandaloneResult {
 	// Fast path: no steps → completed immediately.
 	if len(wizard.cfg.Steps) == 0 {
 		if wizard.cfg.OnComplete != nil {
@@ -47,6 +50,9 @@ func RunInlineWizardStandalone(wizard *InlineWizardView) StandaloneResult {
 
 	tview.Styles = theme.TviewTheme()
 	app := tview.NewApplication()
+	if screen != nil {
+		app.SetScreen(screen)
+	}
 
 	var result StandaloneResult
 	// completedBeforeRun tracks whether OnComplete fired during Mount
@@ -59,6 +65,9 @@ func RunInlineWizardStandalone(wizard *InlineWizardView) StandaloneResult {
 	wizard.cfg.OnComplete = func(completed bool, err error) {
 		result.Completed = completed
 		result.Err = err
+		// Quitting with no step failing is not an error: the caller leaves
+		// quietly. A step that failed keeps its error.
+		result.Aborted = result.Aborted || (!completed && err == nil)
 		completedBeforeRun = true
 		// Forward to the original callback (e.g. config.Update, ReloadApp).
 		if originalOnComplete != nil {
@@ -75,7 +84,7 @@ func RunInlineWizardStandalone(wizard *InlineWizardView) StandaloneResult {
 
 	// Provide a minimal ShellAccess stub so the summary screen's
 	// NavigateTo/PopView calls work (they call app.Stop via the stub).
-	wizard.SetShell(&standaloneShellStub{app: app})
+	wizard.SetShell(&standaloneShellStub{app: app, wizard: wizard})
 
 	// Build the content flex — mirrors what the shell router provides.
 	content := tview.NewFlex().SetDirection(tview.FlexRow)
@@ -118,12 +127,15 @@ func RunInlineWizardStandalone(wizard *InlineWizardView) StandaloneResult {
 // InlineWizardView uses exactly 3 ShellAccess methods:
 //   - SetOmnibarVisible (Mount/Unmount)      → no-op
 //   - NavigateTo        (summary screen)      → stop the app
-//   - PopView           (summary screen)      → stop the app
+//   - PopView           (summary screen, quit) → stop the app
 //
-// All other methods panic — they are never called by the wizard.
+// ShowToastMsg is a notification that does not block: it shows in the hints
+// bar of the wizard for a few seconds. All other methods panic — they are
+// never called by the wizard.
 
 type standaloneShellStub struct {
-	app *tview.Application
+	app    *tview.Application
+	wizard *InlineWizardView
 }
 
 var _ ShellAccess = (*standaloneShellStub)(nil)
@@ -151,8 +163,10 @@ func (s *standaloneShellStub) ShowMultiSelectModal(string, []SelectOption, []str
 func (s *standaloneShellStub) ShowScrollableModal(string, string, []ModalAction) {
 	panic("standaloneShellStub: ShowScrollableModal not supported")
 }
-func (s *standaloneShellStub) ShowToastMsg(string, bool) {
-	panic("standaloneShellStub: ShowToastMsg not supported")
+func (s *standaloneShellStub) ShowToastMsg(msg string, isErr bool) {
+	if s.wizard != nil {
+		s.wizard.Notify(msg, isErr)
+	}
 }
 func (s *standaloneShellStub) ShowInlineForm(InlineFormConfig) {
 	panic("standaloneShellStub: ShowInlineForm not supported")
