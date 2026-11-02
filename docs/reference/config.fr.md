@@ -563,15 +563,23 @@ Ce fichier est versionné dans le dépôt team-state — **pas** dans `hub.toml`
 done_retention_days = 7
 lease_hours = 24
 heartbeat_minutes = 60
+lease_hours_manual = 72
+sleeping_renewal_days = 3
+remote_renewal_days = 7
+release_expired_on_sync = false
 ```
 
 | Champ | Type | Défaut | Description |
 |-------|------|--------|-------------|
 | `done_retention_days` | int | `7` | Jours pendant lesquels un claim reste `done` avant d'être purgé (`CleanupDoneClaims`) |
-| `lease_hours` | int | `24` | Durée du bail d'un claim sans activité, de 1 à 168 heures |
+| `lease_hours` | int | `24` | Durée du bail d'un claim travaillé par une session, de 1 à 168 heures |
 | `heartbeat_minutes` | int | `60` | Période du renouvellement automatique du bail ; `0` = désactivé, sinon de 5 à 1440 et au plus la moitié du bail |
+| `lease_hours_manual` | int | `72` | Durée du bail d'un claim pris à la main, sans session sur le ticket (`oh team claim`, le board d'équipe, le plan du tracker) : de `lease_hours` à 720 heures. Rien ne le renouvelle tout seul ; `oh team claim <ticket>` sur son propre claim le fait |
+| `sleeping_renewal_days` | int | `3` | Jours après la mise en veille d'une session pendant lesquels le démon renouvelle encore ses claims (1 à 90) ; ensuite ils expirent |
+| `remote_renewal_days` | int | `7` | Jours après le lancement d'une session distante pendant lesquels le démon renouvelle encore ses claims (1 à 90) ; ensuite ils expirent |
+| `release_expired_on_sync` | bool | `false` | La synchronisation du tracker (`oh team sync-tracker`, le board) libère les claims expirés des projets synchronisés. Un claim en revue (statut `review`, ou label `review` / `ready-for-review`) est gardé |
 
-`lease_hours` et `heartbeat_minutes` se règlent dans la vue `team-detail` (Collaboration), qui refuse une combinaison invalide (`ClaimConfig.Validate`).
+Les cinq réglages de bail se règlent dans la vue `team-detail` (Collaboration), qui refuse une combinaison invalide (`ClaimConfig.Validate`). Sans ces clés, une équipe garde le comportement de la version précédente (les nouvelles clés sont facultatives, un `oh` plus ancien les ignore). Un claim qui n'est plus renouvelé expire normalement : `oh doctor` le signale (`claims_expired`) avec les commandes pour le renouveler ou le libérer.
 
 ### Section `[tracker]`
 
@@ -609,7 +617,7 @@ write_enabled = false        # écritures tracker (labels, assignation)
 | `auto_sync` | bool | `false` | Synchroniser à l'ouverture des vues d'équipe |
 | `sync_interval_minutes` | int | `5` si `auto_sync`, sinon `0` | Intervalle de sync quand le board est ouvert (`0` = désactivé) |
 | `auto_plan_assigned` | bool | `false` | Claims `planned` pour les issues assignées aux membres |
-| `max_auto_plan_per_member` | int | `5` | Plafond de claims auto-planifiés par membre |
+| `max_auto_plan_per_member` | int | `5` | Plafond des issues du tracker qu'un membre a sur le board (ses claims liés à une issue et non terminés, plus ceux que la synchro crée). Les issues déjà en cours passent en premier et sont toujours acceptées ; les autres attendent de la place. Ce qui reste dehors est signalé : `N issue(s) hors du board, limite atteinte` dans le résultat de la synchro et sur le board d'équipe |
 | `auto_plan_unassigned` | bool | `false` | Claims de pool (à prendre avec `c`) pour les issues non assignées |
 | `unassigned_labels` | liste | `[]` | Labels exigés pour les issues non assignées |
 | `max_unassigned_issues` | int | `20` | Plafond d'issues non assignées par projet |

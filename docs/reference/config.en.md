@@ -563,15 +563,23 @@ This file is versioned in the team-state repository — **not** in `hub.toml`.
 done_retention_days = 7
 lease_hours = 24
 heartbeat_minutes = 60
+lease_hours_manual = 72
+sleeping_renewal_days = 3
+remote_renewal_days = 7
+release_expired_on_sync = false
 ```
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `done_retention_days` | int | `7` | Days a claim stays `done` before being purged (`CleanupDoneClaims`) |
-| `lease_hours` | int | `24` | Lease of a claim without activity, from 1 to 168 hours |
+| `lease_hours` | int | `24` | Lease of a claim worked on by a session, from 1 to 168 hours |
 | `heartbeat_minutes` | int | `60` | Period of the automatic renewal of the lease; `0` = off, otherwise 5 to 1440 and at most half the lease |
+| `lease_hours_manual` | int | `72` | Lease of a claim taken by hand, with no session on the ticket (`oh team claim`, the team board, the tracker plan): from `lease_hours` to 720 hours. Nothing renews it on its own; `oh team claim <ticket>` on one's own claim does |
+| `sleeping_renewal_days` | int | `3` | Days after a session is put to sleep during which the daemon still renews its claims (1 to 90); then they expire |
+| `remote_renewal_days` | int | `7` | Days after the launch of a remote session during which the daemon still renews its claims (1 to 90); then they expire |
+| `release_expired_on_sync` | bool | `false` | The tracker synchronization (`oh team sync-tracker`, the board) releases the expired claims of the synced projects. A claim in review (status `review`, or the `review` / `ready-for-review` label) is kept |
 
-`lease_hours` and `heartbeat_minutes` are set in the `team-detail` view (Collaboration), which refuses an invalid combination (`ClaimConfig.Validate`).
+The five lease settings are set in the `team-detail` view (Collaboration), which refuses an invalid combination (`ClaimConfig.Validate`). Without these keys a team keeps the behaviour of the version before (the new keys are optional, an older `oh` ignores them). A claim that is no longer renewed expires normally: `oh doctor` reports it (`claims_expired`) with the commands to renew or release it.
 
 ### `[tracker]` section
 
@@ -609,7 +617,7 @@ write_enabled = false        # tracker writes (labels, assignment)
 | `auto_sync` | bool | `false` | Sync when opening team views |
 | `sync_interval_minutes` | int | `5` with `auto_sync`, otherwise `0` | Sync interval while the board is open (`0` = disabled) |
 | `auto_plan_assigned` | bool | `false` | `planned` claims for issues assigned to members |
-| `max_auto_plan_per_member` | int | `5` | Cap on auto-planned claims per member |
+| `max_auto_plan_per_member` | int | `5` | Cap on the issues of the tracker a member has on the board (their claims linked to an issue and not finished, plus the ones the sync creates). The issues already in progress come first and are always let in; the others wait for room. What is left off is said: `N issue(s) outside the board, limit reached` in the sync result and on the team board |
 | `auto_plan_unassigned` | bool | `false` | Pool claims (taken with `c`) for unassigned issues |
 | `unassigned_labels` | list | `[]` | Labels required on unassigned issues |
 | `max_unassigned_issues` | int | `20` | Cap on unassigned issues per project |
