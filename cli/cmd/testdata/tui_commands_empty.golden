@@ -1,0 +1,29 @@
+libre | "Free session" | [coder session code free] | "Free workflow: the agent of your choice, no checkpoint" | "Sessions" | prio=80 | view= | action=cmd.actionFreeSession | direct=true | enabled=false | modes=project,team
+libre.agent | "Free session with an agent…" | [coder.agent coder agent libre agent free agent session agent] | "Choose the entry agent of the free session (oh run libre --agent)" | "Sessions" | prio=78 | view= | action=cmd.actionFreeSessionWithAgent | direct=false | enabled=false | modes=project,team
+sessions | "Sessions" | [parallel par multi inbox à traiter decisions] | "v5 sessions: to handle, running, sleeping, finished" | "Sessions" | prio=70 | view=sessions | action=- | direct=false | enabled=false | modes=
+cleanup | "Cleanup" | [nettoyage gc oh gc deploy-cleanup migrate garbage espace disque disk] | "Former deployments (oh migrate deploy-cleanup) and data of oh (oh gc: bundles, stopped sessions, worktrees, fan-outs, history): preview, then confirmed removal" | "System" | prio=30 | view= | action=cmd.actionCleanup | direct=false | enabled=false | modes=
+bricks | "Bricks" | [briques agents skills catalogue des briques] | "Agents and skills catalogue (origin, cost, workflows)" | "Workflows" | prio=60 | view=project.agents | action=- | direct=false | enabled=false | modes=
+workflows | "Workflows" | [catalogue catalog wf workflow] | "Workflow catalogue" | "Workflows" | prio=75 | view=workflows | action=- | direct=false | enabled=false | modes=
+projects | "Projects" | [proj list] | "Project list" | "Projects" | prio=100 | view=projects.list | action=- | direct=false | enabled=false | modes=
+teams | "Teams" | [team equipe equipes teams] | "Team management" | "Configuration" | prio=85 | view=teams | action=- | direct=false | enabled=false | modes=
+models | "Models" | [mod model llm] | "Model configuration" | "Configuration" | prio=50 | view=models | action=- | direct=false | enabled=false | modes=
+provider | "Provider" | [prov api] | "LLM provider configuration" | "Configuration" | prio=50 | view=provider | action=- | direct=false | enabled=false | modes=
+mcp | "MCP" | [servers] | "MCP servers" | "Configuration" | prio=50 | view=mcp | action=- | direct=false | enabled=false | modes=
+settings | "Settings" | [config cfg settings hub config] | "Personal hub configuration" | "Configuration" | prio=90 | view=settings | action=- | direct=false | enabled=false | modes=
+secrets | "Secrets & Tokens" | [tokens credentials keychain] | "Manage secrets (API tokens) — global and per project" | "Configuration" | prio=45 | view=secrets | action=- | direct=false | enabled=false | modes=
+status | "Status" | [stat info] | "System status" | "System" | prio=90 | view=status | action=- | direct=false | enabled=false | modes=
+doctor | "Doctor" | [doc health check] | "Health diagnostic" | "System" | prio=40 | view=doctor | action=- | direct=false | enabled=false | modes=
+metrics | "Metrics" | [met stats usage] | "Usage statistics" | "System" | prio=90 | view=metrics | action=- | direct=false | enabled=false | modes=
+notifications | "Notifications" | [notif logs messages toasts erreurs] | "Notification history for this session" | "System" | prio=30 | view=notifications | action=- | direct=false | enabled=false | modes=
+help | "Help" | [? aide shortcuts] | "Shortcuts and help" | "System" | prio=90 | view=help | action=- | direct=false | enabled=false | modes=
+history.export | "History Export" | [export history export sessions exporter] | "Export session history as JSON" | "System" | prio=35 | view= | action=cmd.actionHistoryExport | direct=false | enabled=false | modes=
+history.import | "History Import" | [import history import sessions importer] | "Import session history from a JSON file" | "System" | prio=35 | view= | action=cmd.actionHistoryImport | direct=false | enabled=false | modes=
+home | "Home" | [accueil welcome] | "Back to home" | "Navigation" | prio=100 | view=home | action=- | direct=false | enabled=false | modes=
+project.mode | "Project View" | [projet project focus] | "Switch to the Project view" | "Navigation" | prio=100 | view= | action=closure | direct=false | enabled=false | modes=hub,team
+hub.mode | "Hub View" | [hub complet retour] | "Return to full TUI (Hub view)" | "Navigation" | prio=95 | view= | action=closure | direct=false | enabled=false | modes=team,project
+quit | "Quit" | [exit q] | "Quit the TUI" | "Navigation" | prio=10 | view= | action=closure | direct=false | enabled=false | modes=
+team.init | "Initialize team" | [team init initialiser] | "Initialize team mode (hub)" | "Team" | prio=40 | view= | action=cmd.actionTeamInit | direct=false | enabled=false | modes=
+team.rejoin | "Rejoin a team" | [team rejoin rejoindre rejoin] | "Rejoin an existing team after reinstallation" | "Team" | prio=41 | view= | action=cmd.actionTeamRejoin | direct=false | enabled=false | modes=
+worktrees | "Worktrees" | [wt git worktree] | "Git worktree management" | "Git" | prio=100 | view=worktrees | action=- | direct=false | enabled=false | modes=
+init | "Configure hub" | [init setup reconfigure configurer] | "Run the hub setup wizard (provider, credentials)" | "Hub" | prio=30 | view= | action=closure | direct=false | enabled=false | modes=
+project.add | "Add project" | [project add add project nouveau projet] | "Add a new project with full configuration wizard" | "Projects" | prio=45 | view= | action=cmd.actionProjectAdd | direct=false | enabled=false | modes=
