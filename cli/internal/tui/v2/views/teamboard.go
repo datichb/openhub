@@ -15,22 +15,6 @@ import (
 // TeamBoard — team kanban with member assignment
 // ─────────────────────────────────────────────────────────────────────────────
 
-// TeamTicket extends BoardTicket with team assignment and label info.
-type TeamTicket struct {
-	ID          string
-	Title       string
-	Status      string
-	Priority    string
-	Assignee    string
-	Project     string // directory-based ID (used for filtering)
-	ProjectName string // human-friendly display name (ADR-032)
-	Description string
-	// Labels are displayed as compact tags on the board item.
-	Labels []string
-	// MRURL is the merge request URL (from claim). Empty if no MR published.
-	MRURL string
-}
-
 // TeamBoardConfig configures the team board.
 type TeamBoardConfig struct {
 	Layout      layout.Config

@@ -17,7 +17,6 @@ widgets-tag internal/tui/v2/layout/layout.go 1
 symbol internal/tui/v2/shell/shell.go 2
 symbol internal/tui/v2/views/action_list.go 2
 tag-style internal/tui/v2/views/banner.go 3
-color-literal internal/tui/v2/views/board.go 5
 widgets-tag internal/tui/v2/views/board.go 1
 widgets-tag internal/tui/v2/views/dashboard.go 7
 tag-style internal/tui/v2/views/help_view.go 1
