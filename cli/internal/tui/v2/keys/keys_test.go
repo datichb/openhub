@@ -149,3 +149,9 @@ func TestChangesByView(t *testing.T) {
 		seen[g.View] = true
 	}
 }
+
+func TestChangesRevisionIsStableAndFollowsTheTable(t *testing.T) {
+	rev := ChangesRevision()
+	assert.Regexp(t, `^[0-9a-f]{12}$`, rev)
+	assert.Equal(t, rev, ChangesRevision())
+}

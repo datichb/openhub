@@ -311,8 +311,7 @@ func runSecretsDelete(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	fmt.Fprintf(a.IO.Out, "%s Secret %q supprimé (%s)\n",
-		theme.SuccessStyle.Render(theme.IconSuccess), key, scopeLabel)
+	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.secrets.deleted", theme.SuccessStyle.Render(theme.IconSuccess), key, scopeLabel))
 	return nil
 }
 

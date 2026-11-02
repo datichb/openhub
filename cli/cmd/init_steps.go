@@ -638,13 +638,18 @@ func buildProviderStep(s *initStepState) views.WizardStep {
 // prefillProjectFromCwd fills the name and the path of the first project from
 // the current folder: the path is the folder, the name is the repository name
 // of its git remote, else the folder name. What the user (or an existing
-// project) already set is kept. It returns where the name comes from
-// ("git remote", the current folder, or "" when nothing was filled).
+// project) already set is kept. The home folder and the root of the disk are
+// not proposed: they are where a terminal opens, not a project. It returns
+// where the name comes from ("git remote", the current folder, or "" when
+// nothing was filled).
 func prefillProjectFromCwd(s *initStepState) string {
 	if s.ProjectPath == "" {
-		if cwd, err := os.Getwd(); err == nil {
+		if cwd, err := os.Getwd(); err == nil && !isHomeOrRoot(cwd) {
 			s.ProjectPath = cwd
 		}
+	}
+	if s.ProjectPath == "" {
+		return ""
 	}
 	if s.ProjectName != "" {
 		return ""
@@ -662,6 +667,23 @@ func prefillProjectFromCwd(s *initStepState) string {
 		return i18n.T("cmd.init.wizard_detected_cwd")
 	}
 	return ""
+}
+
+// isHomeOrRoot reports whether dir is the home folder of the user or the root
+// of a disk (symbolic links resolved).
+func isHomeOrRoot(dir string) bool {
+	resolve := func(p string) string {
+		if r, err := filepath.EvalSymlinks(p); err == nil {
+			return filepath.Clean(r)
+		}
+		return filepath.Clean(p)
+	}
+	dir = resolve(dir)
+	if dir == filepath.VolumeName(dir)+string(filepath.Separator) {
+		return true
+	}
+	home, err := os.UserHomeDir()
+	return err == nil && home != "" && dir == resolve(home)
 }
 
 // projectIntroText is the header of the project page: what the project is,

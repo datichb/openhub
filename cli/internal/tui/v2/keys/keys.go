@@ -21,6 +21,9 @@
 package keys
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
 	"strings"
 	"sync"
 
@@ -378,6 +381,17 @@ func Changes() []Change {
 		change("team", "y", "T", "discover"),
 		change("lists", "a", Create.Keys(), "create"),
 	}
+}
+
+// ChangesRevision identifies the current table of Changes (a short digest of
+// its keys and labels). The notice of the new keys records it when shown, so
+// it is shown again when the table changes (a key moved, a change added).
+func ChangesRevision() string {
+	h := sha256.New()
+	for _, c := range Changes() {
+		fmt.Fprintf(h, "%s\x00%s\x00%s\x00%s\n", c.view, c.From, c.To, c.labelKey)
+	}
+	return hex.EncodeToString(h.Sum(nil))[:12]
 }
 
 // ChangeGroup is the changes of one view.

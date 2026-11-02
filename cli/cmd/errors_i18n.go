@@ -56,7 +56,15 @@ func localizeError(err error) string {
 	var busy *teamstate.BusyError
 	switch {
 	case errors.As(err, &apiErr) && apiErr.Path == "/shutdown" && apiErr.Status == 409:
-		return i18n.T("cmd.daemon.stop_busy")
+		// "tool servers alive: N (use force)": the daemon counts servers.
+		if n, ok := strings.CutPrefix(apiErr.Message, "tool servers alive: "); ok {
+			if count, _, _ := strings.Cut(n, " "); count != "" {
+				if c, cerr := strconv.Atoi(count); cerr == nil {
+					return i18n.Tf("cmd.daemon.stop_busy", c)
+				}
+			}
+		}
+		return i18n.T("cmd.daemon.stop_busy_any")
 	case errors.As(err, &apiErr) && apiErr.Path == "/grants" && apiErr.Status == 422:
 		return i18n.Tf("cmd.run.provider.grant_refused", apiErr.Message)
 	case isNoTerminalError(err):

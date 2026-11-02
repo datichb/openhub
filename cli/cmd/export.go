@@ -127,7 +127,7 @@ func exportArchive(w io.Writer, output string) error {
 		data, err := os.ReadFile(f.src)
 		if err != nil {
 			if os.IsNotExist(err) {
-				fmt.Fprintf(w, "  Ignoré (absent): %s\n", f.name)
+				fmt.Fprint(w, i18n.Tf("cmd.export.skipped_missing", f.name))
 				continue
 			}
 			return fmt.Errorf("reading %s: %w", f.name, err)
@@ -171,7 +171,7 @@ func exportArchive(w io.Writer, output string) error {
 		if err := writeTarEntry(tw, name, contents[i]); err != nil {
 			return fmt.Errorf("archiving %s: %w", name, err)
 		}
-		fmt.Fprintf(w, "  Ajouté: %s (%d KB)\n", name, len(contents[i])/1024)
+		fmt.Fprint(w, i18n.Tf("cmd.export.added", name, len(contents[i])/1024))
 	}
 
 	// Explicitly close writers to catch flush errors (defers remain as safety net).
@@ -302,7 +302,7 @@ func runImport(cmd *cobra.Command, args []string) error {
 			_ = os.Remove(dest + "-wal")
 			_ = os.Remove(dest + "-shm")
 		}
-		fmt.Fprintf(a.IO.Out, "  Restauré: %s\n", name)
+		fmt.Fprint(a.IO.Out, i18n.Tf("cmd.export.restored", name))
 	}
 
 	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.export.import_complete_backup_of_restored", manifest.CreatedAt.Format("2006-01-02 15:04")))

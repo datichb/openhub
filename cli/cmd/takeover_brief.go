@@ -18,6 +18,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/launcher"
 	"github.com/datichb/openhub/cli/internal/services/launch"
 	"github.com/datichb/openhub/cli/internal/teamstate"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -133,7 +134,7 @@ func runTakeoverBriefList(cmd *cobra.Command, args []string) error {
 			m.TransferredFrom,
 			m.TransferredTo,
 			m.Reason,
-			m.TransferDate.Format("02 Jan 2006"))
+			textfmt.Date(m.TransferDate))
 	}
 	fmt.Fprintln(a.IO.Out)
 	return nil

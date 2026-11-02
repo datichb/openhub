@@ -121,7 +121,7 @@ func runTeamWikiRead(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Fprintln(a.IO.Out)
-	fmt.Fprintln(a.IO.Out, theme.Title.Render(fmt.Sprintf("  Wiki: %s  ", name)))
+	fmt.Fprintln(a.IO.Out, theme.Title.Render(i18n.Tf("cmd.team_wiki.page_title", name)))
 	fmt.Fprintln(a.IO.Out)
 	fmt.Fprintln(a.IO.Out, content)
 

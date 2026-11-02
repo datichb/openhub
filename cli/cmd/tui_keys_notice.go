@@ -6,12 +6,15 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/prefsvc"
+	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
-// Notice of the new keys (modernisation tui-keys): shown once, at the
-// first launch of the TUI after the update; again from the help (?).
+// Notice of the new keys (modernisation tui-keys): shown once per revision of
+// the table keys.Changes(), at the first launch of the TUI after the update;
+// again from the help (?). The preference holds the revision last shown; the
+// boolean recorded by a 5.0 never matches, so the notice shows once more.
 
 // keysNoticeDue reports whether the notice is to be shown. A first run (the
 // configuration wizard opens) records it without showing it: the keys are
@@ -21,9 +24,12 @@ func keysNoticeDue(ctx context.Context, a *app.App, firstRun bool) bool {
 	if a == nil || a.Preferences == nil {
 		return false
 	}
-	var seen bool
+	var seen any
 	ok, err := prefsvc.New(a.Preferences, nil).Get(ctx, domain.PreferenceScopeGlobal, views.KeysNoticePreference, &seen)
-	if err != nil || (ok && seen) {
+	if err != nil {
+		return false
+	}
+	if rev, isRev := seen.(string); ok && isRev && rev == keys.ChangesRevision() {
 		return false
 	}
 	if firstRun {
@@ -34,7 +40,7 @@ func keysNoticeDue(ctx context.Context, a *app.App, firstRun bool) bool {
 }
 
 func markKeysNoticeSeen(ctx context.Context, a *app.App) {
-	_ = prefsvc.New(a.Preferences, nil).Set(ctx, domain.PreferenceScopeGlobal, views.KeysNoticePreference, true)
+	_ = prefsvc.New(a.Preferences, nil).Set(ctx, domain.PreferenceScopeGlobal, views.KeysNoticePreference, keys.ChangesRevision())
 }
 
 // offerKeysNoticeInTUI shows the notice when it is due (reads off the event

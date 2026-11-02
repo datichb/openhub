@@ -289,7 +289,7 @@ func acquireInitLock(path string) error {
 				return fmt.Errorf(i18n.T("cmd.init.removing_stale_lockfile_delete_it_manually"), path, rmErr)
 			}
 		} else {
-			return fmt.Errorf("lockfile %s exists (created %s ago)", path, time.Since(info.ModTime()).Truncate(time.Second))
+			return errors.New(i18n.Tf("cmd.init.lockfile_exists", path, time.Since(info.ModTime()).Truncate(time.Second)))
 		}
 	}
 

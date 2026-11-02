@@ -67,7 +67,7 @@ var daemonStatusCmd = &cobra.Command{
 
 var daemonStopCmd = &cobra.Command{
 	Use:   "stop",
-	Short: "Arrête le démon oh (refusé si des sessions tournent, sauf --force)",
+	Short: "Arrête le démon oh (refusé tant que des serveurs d'outil sont actifs, sauf --force)",
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		force, _ := cmd.Flags().GetBool("force")
 		capability, _, err := daemonCapability(cmd.Context())

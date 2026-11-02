@@ -3,8 +3,12 @@ package views
 import (
 	"fmt"
 	"strings"
+	"unicode"
 
 	"github.com/common-nighthawk/go-figure"
+	"golang.org/x/text/runes"
+	"golang.org/x/text/transform"
+	"golang.org/x/text/unicode/norm"
 
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
@@ -13,6 +17,28 @@ import (
 // "small" is 4-5 lines tall, compact, and fits most names within 72 cols.
 const bannerFont = "small"
 
+// asciiLetters are the letters that do not decompose into a letter and an
+// accent.
+var asciiLetters = strings.NewReplacer("ß", "ss", "æ", "ae", "Æ", "AE", "œ", "oe", "Œ", "OE",
+	"ø", "o", "Ø", "O", "ł", "l", "Ł", "L", "đ", "d", "Đ", "D", "ð", "d", "Ð", "D", "þ", "th", "Þ", "TH")
+
+// asciiName writes name with the letters of ASCII: accents are removed
+// (« Équipe » → « Equipe »). It reports false when a character stays outside
+// ASCII (Chinese, emoji…).
+func asciiName(name string) (string, bool) {
+	t := transform.Chain(norm.NFD, runes.Remove(runes.In(unicode.Mn)), norm.NFC)
+	out, _, err := transform.String(t, asciiLetters.Replace(name))
+	if err != nil {
+		return name, false
+	}
+	for _, r := range out {
+		if r > unicode.MaxASCII {
+			return name, false
+		}
+	}
+	return out, true
+}
+
 // renderBanner generates ASCII art text using a figlet font, colored with the
 // provided hex color. If the rendered text exceeds maxWidth columns, it falls
 // back to a simple bold-colored line.
@@ -20,17 +46,24 @@ const bannerFont = "small"
 // Returns a tview-compatible dynamic color tagged string (multi-line)
 // and the number of visible lines the banner occupies.
 func renderBanner(name string, maxWidth int, colorHex string) (banner string, lineCount int) {
-	fig := figure.NewFigure(name, bannerFont, false)
-	lines := fig.Slicify()
-
 	color := theme.ColorTag(colorHex)
 	reset := theme.TagColor
+	plain := func() (string, int) { return fmt.Sprintf("%s[::b]%s[::-]%s", color, name, reset), 1 }
+
+	// The font draws ASCII only (« É » would come out as « ? »): the accents
+	// are dropped, and a name that stays non-ASCII is shown as a plain line.
+	art, ok := asciiName(name)
+	if !ok {
+		return plain()
+	}
+	fig := figure.NewFigure(art, bannerFont, false)
+	lines := fig.Slicify()
 
 	// Filter out fully empty leading/trailing lines
 	trimmed := trimEmptyLines(lines)
 
 	if len(trimmed) == 0 {
-		return fmt.Sprintf("%s[::b]%s[::-]%s", color, name, reset), 1
+		return plain()
 	}
 
 	// Check width — find the longest line
@@ -43,7 +76,7 @@ func renderBanner(name string, maxWidth int, colorHex string) (banner string, li
 
 	// Fallback: if too wide, return simple bold text
 	if maxLine > maxWidth {
-		return fmt.Sprintf("%s[::b]%s[::-]%s", color, name, reset), 1
+		return plain()
 	}
 
 	// Color each line with left margin and bold

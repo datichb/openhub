@@ -13,6 +13,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/gitutil"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
@@ -108,4 +109,20 @@ func TestWhenPathsUnknownPauses(t *testing.T) {
 
 	sess.LaunchPath = t.TempDir()
 	assert.Equal(t, sessionspec.CheckpointAuto, svc.behavior(ctx, sess, c), "no repository: nothing changed to read")
+}
+
+// The refusal keeps its cause and the checkpoint: the daemon tells a change of
+// the git configuration to the user, as it does for a checkpoint.
+func TestGuardCloseKeepsTheCauseOfAGitRefusal(t *testing.T) {
+	svc, ctx, _, _ := newVerifyService(t, nil)
+	_, err := reachValidated(t, svc, ctx, "ses_v", "cp-2")
+	require.NoError(t, err)
+	svc.Work = func(context.Context, string, string, time.Time) (Work, error) {
+		return Work{}, &gitutil.ConfigChangedError{Common: "/repo/.git", Files: []string{"/repo/.git/config"}}
+	}
+	var lock *LockError
+	err = svc.GuardClose(ctx, "ses_v", "")
+	require.ErrorAs(t, err, &lock)
+	assert.ErrorIs(t, err, gitutil.ErrConfigChanged)
+	assert.Equal(t, "cp-2", lock.Checkpoint)
 }

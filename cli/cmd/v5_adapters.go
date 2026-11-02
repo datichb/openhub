@@ -22,6 +22,7 @@ func newToolRegistry() *adapters.Registry {
 	r.Register(opencodev2.Name, func(string) adapters.ToolAdapter {
 		a := opencodev2.New("", ohCacheDir())
 		a.StrictPins = strictIsolation
+		a.LogLimits = gcLogLimits
 		return a
 	})
 	return r
@@ -32,6 +33,16 @@ func newToolRegistry() *adapters.Registry {
 func strictIsolation() bool {
 	c, err := config.Load()
 	return err == nil && c != nil && c.Execution.StrictIsolation
+}
+
+// gcLogLimits are the bounds of the logs of the tool servers: [gc] log_max_mb
+// and log_keep (the defaults when the configuration cannot be read).
+func gcLogLimits() (maxBytes int64, keep int) {
+	var gc config.GCConfig
+	if c, err := config.Load(); err == nil && c != nil {
+		gc = c.GC
+	}
+	return gc.LogMaxBytes(), gc.Logs()
 }
 
 // toolPins returns the versions of the tool whose package integrity is pinned

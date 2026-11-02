@@ -40,11 +40,11 @@ func addStartFlags(startCmd *cobra.Command) {
 	startCmd.Flags().Bool("onboard", false, "Mode onboarding — crée/enrichit le wiki projet")
 	startCmd.Flags().Bool("refresh", false, "Force la re-découverte du wiki (requiert --onboard)")
 	startCmd.Flags().Bool("recap", false, "Afficher le récap et demander confirmation avant le lancement")
-	startCmd.Flags().BoolP("yes", "y", false, "Deprecated: le lancement rapide est le défaut. Utilisez --recap pour forcer le récap.")
+	startCmd.Flags().BoolP("yes", "y", false, i18n.T("cmd.start.flags.yes"))
 	startCmd.Flags().Bool("parallel", false, "Lance N sessions en parallèle sur des tickets différents")
 	startCmd.Flags().StringSlice("tickets", nil, "Liste des tickets à traiter en parallèle (séparés par des virgules)")
-	startCmd.Flags().Int("max-sessions", 0, "Nombre max de sessions parallèles (0 = valeur config, default: 3)")
-	startCmd.Flags().String("priority", "", "Ticket prioritaire (merge en premier)")
+	startCmd.Flags().Int("max-sessions", 0, i18n.T("cmd.start.flags.max-sessions"))
+	startCmd.Flags().String("priority", "", i18n.T("cmd.start.flags.priority"))
 
 	// --- Sweep mode flags ---
 	startCmd.Flags().String("sweep", "", "Objectif sweep haut niveau (active le mode sweep)")
@@ -55,16 +55,16 @@ func addStartFlags(startCmd *cobra.Command) {
 	startCmd.Flags().String("sweep-verify", "none", "Vérification post-sweep: none, tests, lint, build, all, custom")
 	startCmd.Flags().String("sweep-verify-cmd", "", "Commande de vérification custom (requiert --sweep-verify=custom)")
 	startCmd.Flags().Bool("sweep-dry-run", false, "Afficher le plan décomposé sans exécuter")
-	startCmd.Flags().String("sweep-branch-prefix", "sweep/", "Préfixe des branches sweep")
+	startCmd.Flags().String("sweep-branch-prefix", "sweep/", i18n.T("cmd.start.flags.sweep-branch-prefix"))
 
 	deprecateShorthand(startCmd, "w", "worktree") // -w is the workflow of oh config model show
 	deprecateShorthand(startCmd, "l", "label")    // -l is the language of oh project add
 	// Mark --yes as deprecated (no-op with warning)
-	_ = startCmd.Flags().MarkDeprecated("yes", "le lancement rapide est le défaut. Utilisez --recap pour forcer le récap.")
+	_ = startCmd.Flags().MarkDeprecated("yes", i18n.T("cmd.start.yes_deprecated"))
 	// Options of the former parallel and sweep launches, without equivalent
 	// in the workflows (one server group, the sweep conductor plans itself).
 	for _, name := range []string{"max-sessions", "priority", "sweep-branch-prefix"} {
-		_ = startCmd.Flags().MarkDeprecated(name, "sans effet depuis oh v5 (oh run ticket / oh run sweep).")
+		_ = startCmd.Flags().MarkDeprecated(name, i18n.T("cmd.start.deprecated_flag"))
 	}
 }
 

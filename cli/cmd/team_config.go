@@ -121,7 +121,7 @@ func configureGitLab(ctx context.Context, a *app.App, repo *teamstate.Repo, team
 
 	// ── Config d'équipe ────────────────────────────────────────────────────────
 	if configTeam {
-		fmt.Fprintf(out, "%s Configuration d'équipe\n", theme.Bold.Render("→"))
+		fmt.Fprint(out, i18n.Tf("cmd.team_config.team_configuration", theme.Bold.Render("→")))
 
 		if teamCfg.MCP == nil {
 			teamCfg.MCP = make(map[string]teamstate.SharedMCPConfig)
@@ -169,7 +169,7 @@ func configureGitLab(ctx context.Context, a *app.App, repo *teamstate.Repo, team
 						c.MCP.Gitlab.URL = mcpURL
 						return nil
 					}); err != nil {
-						fmt.Fprintf(os.Stderr, "  warning: %v\n", err)
+						fmt.Fprint(os.Stderr, i18n.Tf("cmd.team_config.warning", err))
 					}
 				}
 			}
@@ -191,7 +191,7 @@ func configureJira(ctx context.Context, a *app.App, repo *teamstate.Repo, teamCf
 	fmt.Fprint(out, i18n.Tf("cmd.team_config.jira_configuration", theme.Title.Render("●")))
 
 	if configTeam {
-		fmt.Fprintf(out, "%s Configuration d'équipe\n", theme.Bold.Render("→"))
+		fmt.Fprint(out, i18n.Tf("cmd.team_config.team_configuration", theme.Bold.Render("→")))
 		if teamCfg.MCP == nil {
 			teamCfg.MCP = make(map[string]teamstate.SharedMCPConfig)
 		}
@@ -236,7 +236,7 @@ func configureFigma(ctx context.Context, a *app.App, repo *teamstate.Repo, teamC
 	fmt.Fprint(out, i18n.Tf("cmd.team_config.figma_configuration", theme.Title.Render("●")))
 
 	if configTeam {
-		fmt.Fprintf(out, "%s Configuration d'équipe\n", theme.Bold.Render("→"))
+		fmt.Fprint(out, i18n.Tf("cmd.team_config.team_configuration", theme.Bold.Render("→")))
 		if teamCfg.MCP == nil {
 			teamCfg.MCP = make(map[string]teamstate.SharedMCPConfig)
 		}
@@ -273,7 +273,7 @@ func configureTrackerSync(ctx context.Context, a *app.App, repo *teamstate.Repo,
 	fmt.Fprint(out, i18n.Tf("cmd.team_config.tracker_sync_configuration", theme.Title.Render("●")))
 
 	if configTeam {
-		fmt.Fprintf(out, "%s Configuration d'équipe\n", theme.Bold.Render("→"))
+		fmt.Fprint(out, i18n.Tf("cmd.team_config.team_configuration", theme.Bold.Render("→")))
 
 		// Type
 		typeIdx := askSelect(out, i18n.T("cmd.team_config.tracker_type"), []string{"GitLab", "Jira"})
@@ -436,7 +436,7 @@ func configureTrackerSync(ctx context.Context, a *app.App, repo *teamstate.Repo,
 								}
 								poolLabels := tracker.SuggestPoolLabels(acceptedMappings, boardCfg)
 								if len(poolLabels) > 0 {
-									fmt.Fprintf(out, "\n%s Tickets à prendre (pool)\n", theme.Bold.Render("→"))
+									fmt.Fprint(out, i18n.Tf("cmd.team_config.pool_tickets", theme.Bold.Render("→")))
 									fmt.Fprint(out, i18n.Tf("cmd.team_config.labels_detected_as_ready", strings.Join(poolLabels, ", ")))
 									if askYN(out, i18n.T("cmd.team_config.show_these_tickets_on_the_board"), true) {
 										teamCfg.Tracker.AutoPlanUnassigned = true
@@ -512,7 +512,7 @@ func configureTrackerSync(ctx context.Context, a *app.App, repo *teamstate.Repo,
 				c.Tracker.SetTokenDecl(key, server)
 				return nil
 			}); err != nil {
-				fmt.Fprintf(os.Stderr, "  warning: %v\n", err)
+				fmt.Fprint(os.Stderr, i18n.Tf("cmd.team_config.warning", err))
 			}
 		}
 
@@ -521,7 +521,7 @@ func configureTrackerSync(ctx context.Context, a *app.App, repo *teamstate.Repo,
 			url := askTeamGitLabURL(out, func(prompt, def string) string { return askInput(out, prompt, def) }, tc.GitLabURL)
 			if url != tc.GitLabURL {
 				if err := setTeamGitLabURL(a, tc.ID, url); err != nil {
-					fmt.Fprintf(os.Stderr, "  warning: %v\n", err)
+					fmt.Fprint(os.Stderr, i18n.Tf("cmd.team_config.warning", err))
 				}
 			}
 		}
@@ -828,10 +828,10 @@ func checkAndCleanOrphanMembers(ctx context.Context, a *app.App, out interface{ 
 		switch choice {
 		case 0: // Supprimer
 			if err := repo.RemoveMember(ctx, orphan.ID); err != nil {
-				fmt.Fprintf(out, "  %s Erreur: %v\n", theme.ErrorStyle.Render("✗"), err)
+				fmt.Fprint(out, i18n.Tf("cmd.team_config.orphan_error", theme.ErrorStyle.Render("✗"), err))
 				continue
 			}
-			fmt.Fprintf(out, "  %s Membre %q supprimé\n", theme.SuccessStyle.Render(theme.IconSuccess), orphan.ID)
+			fmt.Fprint(out, i18n.Tf("cmd.team_config.member_removed", theme.SuccessStyle.Render(theme.IconSuccess), orphan.ID))
 
 		case 1: // Fusionner
 			if err := mergeOrphanMember(ctx, out, repo, orphan, members); err != nil {
@@ -839,7 +839,7 @@ func checkAndCleanOrphanMembers(ctx context.Context, a *app.App, out interface{ 
 			}
 
 		case 2: // Ignorer
-			fmt.Fprintf(out, "  Ignoré\n")
+			fmt.Fprint(out, i18n.T("cmd.team_config.orphan_skipped"))
 		}
 	}
 }
@@ -951,7 +951,7 @@ func coerceValue(s string) interface{} {
 // but should be visible to the user.
 func writeLocalLog(configPath, keyPath, value string) {
 	if err := writeLocal(configPath, keyPath, value); err != nil {
-		fmt.Fprintf(os.Stderr, "  warning: %v\n", err)
+		fmt.Fprint(os.Stderr, i18n.Tf("cmd.team_config.warning", err))
 	}
 }
 
@@ -1001,7 +1001,7 @@ func writeLocal(configPath, keyPath, value string) error {
 	if err := fsutil.WriteFileAtomic(configPath, out, 0o600); err != nil {
 		return fmt.Errorf("writing %s: %w", configPath, err)
 	}
-	fmt.Printf("  %s mis à jour: %s = %s\n", configPath, keyPath, value)
+	fmt.Print(i18n.Tf("cmd.team_config.updated", configPath, keyPath, value))
 	return nil
 }
 

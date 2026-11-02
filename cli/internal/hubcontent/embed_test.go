@@ -3,7 +3,9 @@ package hubcontent
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"testing/fstest"
 
 	"github.com/datichb/openhub/cli/internal/buildinfo"
 )
@@ -20,8 +22,8 @@ func TestExtract_CreatesFilesAndVersionMarker(t *testing.T) {
 	if err != nil {
 		t.Fatalf("reading .version: %v", err)
 	}
-	if string(versionData) != buildinfo.Version {
-		t.Errorf(".version = %q, want %q", versionData, buildinfo.Version)
+	if string(versionData) != marker() {
+		t.Errorf(".version = %q, want %q", versionData, marker())
 	}
 
 	// Core directories must exist
@@ -105,8 +107,8 @@ func TestExtract_ReExtractsOnVersionChange(t *testing.T) {
 	if err != nil {
 		t.Fatalf("reading .version after re-extract: %v", err)
 	}
-	if string(data) != buildinfo.Version {
-		t.Errorf(".version = %q, want %q", data, buildinfo.Version)
+	if string(data) != marker() {
+		t.Errorf(".version = %q, want %q", data, marker())
 	}
 }
 
@@ -221,5 +223,85 @@ func TestInstall_KeepsAVariantInPlace(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(dest, "permissions")); !os.IsNotExist(err) {
 		t.Errorf("no permissions/ in the source: none installed (%v)", err)
+	}
+}
+
+// A development build ("dev") or a build of a modified tree ("-dirty") keeps
+// its version while the embedded content changes: the marker adds a
+// fingerprint, a release is told by its version alone.
+func TestMarker(t *testing.T) {
+	prev := buildinfo.Version
+	t.Cleanup(func() { buildinfo.Version = prev })
+	for _, v := range []string{"dev", "5.1.0-dirty", "v5.1.0-3-gabc1234-dirty"} {
+		buildinfo.Version = v
+		got := marker()
+		if !strings.HasPrefix(got, v+"+") || len(got) != len(v)+1+12 {
+			t.Errorf("marker() for %q = %q, want <version>+<12 hex>", v, got)
+		}
+	}
+	for _, v := range []string{"5.1.0", "5.1.0-rc.1", "v5.1.0"} {
+		buildinfo.Version = v
+		if got := marker(); got != v {
+			t.Errorf("marker() for %q = %q, want the version alone", v, got)
+		}
+	}
+}
+
+func TestFingerprintFollowsTheContent(t *testing.T) {
+	a := fstest.MapFS{"hub/agents/a.md": {Data: []byte("one")}, "hub/skills/.gitkeep": {Data: nil}}
+	same := fstest.MapFS{"hub/agents/a.md": {Data: []byte("one")}}
+	changed := fstest.MapFS{"hub/agents/a.md": {Data: []byte("two")}}
+	renamed := fstest.MapFS{"hub/agents/b.md": {Data: []byte("one")}}
+	if fingerprint(a) != fingerprint(same) {
+		t.Error("a placeholder .gitkeep changes nothing")
+	}
+	if fingerprint(a) == fingerprint(changed) || fingerprint(a) == fingerprint(renamed) {
+		t.Error("a changed or renamed file changes the fingerprint")
+	}
+}
+
+// Content embedded differently under the same version: a dev build extracts
+// again (the hub kept the content of the previous build); a release does not.
+func TestNeedsExtractFollowsTheContentOfADevBuild(t *testing.T) {
+	prev := buildinfo.Version
+	t.Cleanup(func() { buildinfo.Version = prev })
+	t.Setenv("OH_HOME", t.TempDir())
+	dest := HubContentDir()
+	versionFile := filepath.Join(dest, ".version")
+
+	buildinfo.Version = "dev"
+	if err := Extract(dest); err != nil {
+		t.Fatal(err)
+	}
+	if NeedsExtract() {
+		t.Fatal("just extracted: nothing to extract")
+	}
+	for name, old := range map[string]string{"marker of an older dev build": "dev", "other content": "dev+000000000000"} {
+		if err := os.WriteFile(versionFile, []byte(old), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if !NeedsExtract() {
+			t.Errorf("%s (%q): the embedded content may have changed, extract again", name, old)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(dest, "sentinel.txt"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := Extract(dest); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(dest, "sentinel.txt")); err == nil {
+		t.Error("Extract() kept the previous content of a dev build")
+	}
+	if NeedsExtract() {
+		t.Error("extracted again: up to date")
+	}
+
+	buildinfo.Version = "5.1.0"
+	if err := os.WriteFile(versionFile, []byte("5.1.0"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if NeedsExtract() {
+		t.Error("a release is told by its version alone")
 	}
 }

@@ -133,7 +133,8 @@ func TestLocalizeError(t *testing.T) {
 		`commande inconnue "session approve"`:    errors.New("unknown command \"session approve\" for \"oh\"\n\nDid you mean this?\n\tsession\n"),
 		"Vouliez-vous dire : session ?":          errors.New("unknown command \"sesion\" for \"oh\"\n\nDid you mean this?\n\tsession\n"),
 		"1 argument(s) attendu(s), 0 reçu(s)":    errors.New("accepts 1 arg(s), received 0"),
-		"Des sessions tournent":                  &api.APIError{Method: "POST", Path: "/shutdown", Status: 409, Message: "sessions are running (use force)"},
+		"Des serveurs d'outil sont actifs (2)":   &api.APIError{Method: "POST", Path: "/shutdown", Status: 409, Message: "tool servers alive: 2 (use force)"},
+		"Des serveurs d'outil sont actifs :":     &api.APIError{Method: "POST", Path: "/shutdown", Status: 409, Message: "sessions are running (use force)"},
 		"lancez cette commande dans un terminal": errors.New("open /dev/tty: device not configured"),
 		// N15
 		"occupé par pid 42": fmt.Errorf("pull: %w", &teamstate.BusyError{Path: "/t", Holder: "pid 42 (oh tui) since 10:00:00"}),

@@ -434,9 +434,7 @@ func setProjectModel(ctx context.Context, projectID, model string) error {
 		return err
 	}
 
-	fmt.Fprintf(os.Stdout, "%s project %s model.default = %s\n",
-		theme.SuccessStyle.Render(theme.IconSuccess),
-		theme.Bold.Render(project.Name), model)
+	fmt.Fprint(os.Stdout, i18n.Tf("cmd.config.model.project_default_set", theme.SuccessStyle.Render(theme.IconSuccess), theme.Bold.Render(project.Name), model))
 	return nil
 }
 
@@ -459,9 +457,7 @@ func setProjectModelFamily(ctx context.Context, projectID, family, model string)
 		return err
 	}
 
-	fmt.Fprintf(os.Stdout, "%s project %s model.families.%s = %s\n",
-		theme.SuccessStyle.Render(theme.IconSuccess),
-		theme.Bold.Render(project.Name), family, model)
+	fmt.Fprint(os.Stdout, i18n.Tf("cmd.config.model.project_family_set", theme.SuccessStyle.Render(theme.IconSuccess), theme.Bold.Render(project.Name), family, model))
 	return nil
 }
 
@@ -484,9 +480,7 @@ func setProjectModelAgent(ctx context.Context, projectID, agentID, model string)
 		return err
 	}
 
-	fmt.Fprintf(os.Stdout, "%s project %s model.agents.%s = %s\n",
-		theme.SuccessStyle.Render(theme.IconSuccess),
-		theme.Bold.Render(project.Name), agentID, model)
+	fmt.Fprint(os.Stdout, i18n.Tf("cmd.config.model.project_agent_set", theme.SuccessStyle.Render(theme.IconSuccess), theme.Bold.Render(project.Name), agentID, model))
 	return nil
 }
 
@@ -520,9 +514,7 @@ func unsetProjectModelFamily(ctx context.Context, projectID, family string) erro
 		return err
 	}
 
-	fmt.Fprintf(os.Stdout, "%s project %s model.families.%s unset\n",
-		theme.SuccessStyle.Render(theme.IconSuccess),
-		theme.Bold.Render(project.Name), family)
+	fmt.Fprint(os.Stdout, i18n.Tf("cmd.config.model.project_family_unset", theme.SuccessStyle.Render(theme.IconSuccess), theme.Bold.Render(project.Name), family))
 	return nil
 }
 
@@ -540,9 +532,7 @@ func unsetProjectModelAgent(ctx context.Context, projectID, agentID string) erro
 		return err
 	}
 
-	fmt.Fprintf(os.Stdout, "%s project %s model.agents.%s unset\n",
-		theme.SuccessStyle.Render(theme.IconSuccess),
-		theme.Bold.Render(project.Name), agentID)
+	fmt.Fprint(os.Stdout, i18n.Tf("cmd.config.model.project_agent_unset", theme.SuccessStyle.Render(theme.IconSuccess), theme.Bold.Render(project.Name), agentID))
 	return nil
 }
 

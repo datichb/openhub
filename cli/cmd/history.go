@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"text/tabwriter"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
 	"github.com/datichb/openhub/cli/internal/teamstate"
+	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
@@ -83,6 +85,16 @@ func historyError(err error) error {
 	return fmt.Errorf(i18n.T(key), he.Err)
 }
 
+// historyHeader is the header line of a table of oh history (tab-separated
+// columns, translated).
+func historyHeader(cols ...string) string {
+	names := make([]string, len(cols))
+	for i, c := range cols {
+		names[i] = i18n.T("cmd.history.col." + c)
+	}
+	return strings.Join(names, "\t")
+}
+
 func runHistory(cmd *cobra.Command, _ []string) error {
 	teamMode, _ := cmd.Flags().GetBool("team")
 	limit, _ := cmd.Flags().GetInt("limit")
@@ -105,7 +117,7 @@ func runHistory(cmd *cobra.Command, _ []string) error {
 	}
 
 	w := tabwriter.NewWriter(a.IO.Out, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tProject\tStatus\tStarted\tDuration\tMember")
+	fmt.Fprintln(w, historyHeader("id", "project", "status", "started", "duration", "member"))
 	for i, s := range sessions {
 		if limit > 0 && i >= limit {
 			break
@@ -119,8 +131,8 @@ func runHistory(cmd *cobra.Command, _ []string) error {
 			member = *s.MemberID
 		}
 		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
-			s.ID[:8], s.ProjectID[:8], s.Status,
-			s.StartedAt.Format("2006-01-02 15:04"), dur, member)
+			textfmt.Head(s.ID, 8), textfmt.Head(s.ProjectID, 8), s.Status,
+			textfmt.DateTime(s.StartedAt), dur, member)
 	}
 	return w.Flush()
 }
@@ -160,7 +172,7 @@ func runHistoryTeam(ctx context.Context, limit int) error {
 	}
 
 	w := tabwriter.NewWriter(a.IO.Out, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Date\tProject\tDuration\tStatus")
+	fmt.Fprintln(w, historyHeader("date", "project", "duration", "status"))
 	for _, e := range filtered {
 		dur := "—"
 		if d, ok := e.Data["duration_s"].(float64); ok {
@@ -171,7 +183,7 @@ func runHistoryTeam(ctx context.Context, limit int) error {
 			status = s
 		}
 		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
-			e.Timestamp.Format("2006-01-02 15:04"), e.Project, dur, status)
+			textfmt.DateTime(e.Timestamp), e.Project, dur, status)
 	}
 	return w.Flush()
 }
@@ -207,7 +219,6 @@ func runHistoryImport(cmd *cobra.Command, args []string) error {
 		return historyError(err)
 	}
 
-	fmt.Fprintf(a.IO.Out, "%s Imported %d sessions (skipped %d existing)\n",
-		theme.SuccessStyle.Render(theme.IconSuccess), res.Imported, res.Skipped)
+	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.history.imported_sessions", theme.SuccessStyle.Render(theme.IconSuccess), res.Imported, res.Skipped))
 	return nil
 }

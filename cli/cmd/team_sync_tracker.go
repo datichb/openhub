@@ -138,7 +138,7 @@ func syncTrackerError(a *app.App, err error) error {
 		return fmt.Errorf("%s: %w", i18n.T("cmd.team.sync_tracker.init_error"), initErr.Err)
 	case errors.Is(err, teamsvc.ErrNoProjects):
 		fmt.Fprint(a.IO.ErrOut, i18n.Tf("cmd.team_sync_tracker.no_project_configured_for_the_tracker", theme.WarningStyle.Render(theme.IconWarning)))
-		fmt.Fprintf(a.IO.ErrOut, "  Vérifiez:\n")
+		fmt.Fprint(a.IO.ErrOut, i18n.T("cmd.team_sync_tracker.check"))
 		fmt.Fprint(a.IO.ErrOut, i18n.T("cmd.team_sync_tracker.tracker_project_is_set_in_the"))
 		fmt.Fprint(a.IO.ErrOut, i18n.T("cmd.team_sync_tracker.or_a_hub_project_overrides_tracker"))
 		return nil

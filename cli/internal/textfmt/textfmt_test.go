@@ -217,6 +217,15 @@ func TestClip(t *testing.T) {
 	}
 }
 
+func TestHead(t *testing.T) {
+	assert.Equal(t, "ses_aaaa", Head("ses_aaaaaaaa-bbbb", 8))
+	assert.Equal(t, "ab", Head("ab", 8), "shorter than n: whole")
+	assert.Equal(t, "éé", Head("ééé", 2), "runes, not bytes")
+	assert.Equal(t, "", Head("abc", 0))
+	assert.Equal(t, "", Head("abc", -1))
+	assert.Equal(t, "", Head("", 8))
+}
+
 func TestClipLine(t *testing.T) {
 	assert.Equal(t, "first", ClipLine("first\nsecond", 10))
 	assert.Equal(t, "fir…", ClipLine("first\nsecond", 4))

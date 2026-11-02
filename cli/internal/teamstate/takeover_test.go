@@ -311,3 +311,22 @@ func TestGenerateRawBrief(t *testing.T) {
 func tomlMarshal(v interface{}) ([]byte, error) {
 	return toml.Marshal(v)
 }
+
+// The dates of the brief written to the team repository are neutral (ISO),
+// not English month names.
+func TestRenderTemplateBriefDatesAreNeutral(t *testing.T) {
+	noon := func(m time.Month, d int) time.Time { return time.Date(2026, m, d, 12, 0, 0, 0, time.UTC) }
+	brief := &TakeoverBrief{
+		Meta:     TakeoverMeta{TicketID: "bd-1", TransferDate: noon(7, 13)},
+		Activity: TakeoverActivity{SessionsCount: 2, FirstSession: noon(3, 2), LastSession: noon(7, 9)},
+		Git:      TakeoverGit{Branch: "feat/x", CommitsCount: 1, LastCommitMessage: "feat: x", LastCommitDate: noon(7, 10)},
+		Events:   []TakeoverEvent{{Timestamp: noon(10, 4), Summary: "did it"}},
+	}
+	md := RenderTemplateBrief(brief)
+	for _, month := range []string{"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"} {
+		assert.NotContains(t, md, month, "no English month name")
+	}
+	for _, want := range []string{"2026-03-02 → 2026-07-09", "(2026-07-10 ", "2026-10-04"} {
+		assert.Contains(t, md, want)
+	}
+}

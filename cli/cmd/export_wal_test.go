@@ -109,7 +109,7 @@ func TestExportFallsBackToTheRawFileWhenTheCopyFails(t *testing.T) {
 	archive := filepath.Join(t.TempDir(), "backup.tar.gz")
 	io, out, _ := testIO()
 	require.NoError(t, exportArchive(io.Out, archive))
-	assert.Contains(t, out.String(), "Ajouté: oh.db")
+	assert.Contains(t, out.String(), "Added: oh.db")
 	assert.Contains(t, out.String(), "WAL")
 }
 
@@ -118,5 +118,5 @@ func TestExportWithoutDatabase(t *testing.T) {
 	archive := filepath.Join(t.TempDir(), "backup.tar.gz")
 	io, out, _ := testIO()
 	require.NoError(t, exportArchive(io.Out, archive))
-	assert.Contains(t, out.String(), "Ignoré (absent): oh.db")
+	assert.Contains(t, out.String(), "Skipped (missing): oh.db")
 }

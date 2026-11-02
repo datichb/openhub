@@ -45,7 +45,7 @@ func runBoard(cmd *cobra.Command, args []string) error {
 		Layout: layout.Config{
 			ProjectName: a.Config.Name,
 			Command:     "board",
-			StatusHints: "←→ columns · ↑↓ scroll · r refresh · q quit",
+			StatusHints: i18n.T("cmd.board.status_hints"),
 		},
 		Tickets: v2Tickets,
 	}
