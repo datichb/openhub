@@ -4,6 +4,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -24,6 +25,13 @@ const teamstatePath = "github.com/datichb/openhub/cli/internal/teamstate"
 // teamstate.Repo in the source (a comment or a string naming it is no use).
 func concreteRepoUses(t *testing.T, fset *token.FileSet, name string, src any) []token.Position {
 	t.Helper()
+	return teamstateUses(t, fset, name, src, "Repo")
+}
+
+// teamstateUses returns the position of every selector teamstate.<one of
+// names> in the source.
+func teamstateUses(t *testing.T, fset *token.FileSet, name string, src any, names ...string) []token.Position {
+	t.Helper()
 	file, err := parser.ParseFile(fset, name, src, 0)
 	if err != nil {
 		t.Fatalf("%s: %v", name, err)
@@ -43,7 +51,7 @@ func concreteRepoUses(t *testing.T, fset *token.FileSet, name string, src any) [
 	}
 	var out []token.Position
 	ast.Inspect(file, func(n ast.Node) bool {
-		if sel, ok := n.(*ast.SelectorExpr); ok && sel.Sel.Name == "Repo" {
+		if sel, ok := n.(*ast.SelectorExpr); ok && slices.Contains(names, sel.Sel.Name) {
 			if x, ok := sel.X.(*ast.Ident); ok && x.Name == alias {
 				out = append(out, fset.Position(sel.Pos()))
 			}
@@ -74,6 +82,51 @@ func TestInterfaceOnlyPackagesDoNotNameTheConcreteRepo(t *testing.T) {
 	}
 	if scanned == 0 {
 		t.Fatal("no file scanned: interfaceOnlyDirs no longer matches anything")
+	}
+}
+
+// B9: the views of the TUI take the small interfaces of teamstate they need
+// (ClaimReader, MemberReader, WikiWriter, ...), not the whole repository:
+// they name neither *teamstate.Repo nor the temporary compositions
+// TeamStateReader / TeamStateWriter. Creating a repository
+// (teamstate.NewRepo) is the one thing that stays, since the views open the
+// clone of the team themselves; its result is held as an interface.
+var tuiWideRepoTypes = []string{"Repo", "TeamStateReader", "TeamStateWriter"}
+
+// tuiWideRepoExceptions lists the files of internal/tui that may still name
+// one of tuiWideRepoTypes, each with its reason. None for now.
+var tuiWideRepoExceptions = map[string]string{}
+
+func TestTUIViewsDoNotNameTheWholeRepo(t *testing.T) {
+	fset := token.NewFileSet()
+	scanned := 0
+	for _, f := range goFiles(t) {
+		if strings.HasSuffix(f.rel, "_test.go") || !strings.HasPrefix(f.rel, "internal/tui/") {
+			continue
+		}
+		scanned++
+		if _, ok := tuiWideRepoExceptions[f.rel]; ok {
+			continue
+		}
+		for _, pos := range teamstateUses(t, fset, f.path, nil, tuiWideRepoTypes...) {
+			t.Errorf("%s:%d: teamstate.Repo, TeamStateReader or TeamStateWriter named in the TUI; take the interfaces of the sub-domains the view needs (ClaimReader, MemberReader, WikiWriter, ...)", f.rel, pos.Line)
+		}
+	}
+	if scanned == 0 {
+		t.Fatal("no file scanned: internal/tui no longer matches anything")
+	}
+}
+
+func TestTeamstateUsesDetectorNamesSeveralTypes(t *testing.T) {
+	const src = `package x
+
+import "` + teamstatePath + `"
+
+func f(r teamstate.TeamStateReader, w teamstate.TeamStateWriter, c teamstate.ClaimReader) *teamstate.Repo { return nil }
+`
+	got := teamstateUses(t, token.NewFileSet(), "x.go", src, tuiWideRepoTypes...)
+	if len(got) != 3 {
+		t.Fatalf("want 3 uses (reader, writer, repo), got %v", got)
 	}
 }
 
