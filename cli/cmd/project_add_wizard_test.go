@@ -62,6 +62,7 @@ func TestProjectAddWizard(t *testing.T) {
 		wantSecrets map[string]string
 		wantOut     []string
 		wantBd      string
+		noBd        bool // bd is installed and must not be called
 	}{
 		{
 			name: "defaults: no custom provider, no MCP, no team",
@@ -84,6 +85,19 @@ func TestProjectAddWizard(t *testing.T) {
 			wantSecrets: map[string]string{},
 			wantOut:     []string{i18n.T("form.project.beads_initialized")},
 			wantBd:      "init --prefix beady-",
+		},
+		{
+			name:   "beads unticked: bd is not called",
+			withBd: true,
+			answers: func(dir string) map[int]func(f *tview.Form) {
+				return map[int]func(f *tview.Form){
+					0: identity("Nobeads", dir, 0),
+					1: func(f *tview.Form) { tick(f, 0, false) },
+				}
+			},
+			abortAt: -1, wantRan: []int{0, 1, 2, 4, 5}, noBd: true,
+			wantProject: &domain.Project{Name: "Nobeads", Language: "go", Status: domain.ProjectStatusActive},
+			wantSecrets: map[string]string{},
 		},
 		{
 			name: "custom provider, model trimmed, key in the keychain",
@@ -196,6 +210,10 @@ func TestProjectAddWizard(t *testing.T) {
 				logged, err := os.ReadFile(bdLog)
 				require.NoError(t, err)
 				assert.Contains(t, string(logged), tc.wantBd, "bd calls")
+			}
+			if tc.noBd {
+				assert.NoFileExists(t, bdLog, "bd calls")
+				assert.NotContains(t, out.String(), i18n.T("form.project.beads_initialized"), "output")
 			}
 			if tc.wantProject == nil {
 				assert.Empty(t, store.projects, "projects created")

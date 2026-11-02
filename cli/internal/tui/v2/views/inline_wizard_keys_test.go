@@ -108,3 +108,70 @@ func TestInlineWizardView_Notify(t *testing.T) {
 	onLoop(app, func() { v.Unmount() })
 	require.NotPanics(t, func() { v.Notify("late", false) }, "a notification after the end is ignored")
 }
+
+// Ctrl+S, and the button of the engine in the grouped layout, submit a step
+// like its own button does: the handler of that button runs (it may set the
+// state of the step) before the wizard goes on.
+func TestInlineWizardView_SubmitRunsTheStepButton(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		grouped bool
+		keys    []tcell.Key
+	}{
+		{"ctrl+s", false, []tcell.Key{tcell.KeyCtrlS}},
+		{"ctrl+s, grouped layout", true, []tcell.Key{tcell.KeyCtrlS}},
+		{"button of the engine, grouped layout", true, []tcell.Key{tcell.KeyTab, tcell.KeyEnter}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var chosen string
+			second := make(chan struct{})
+			steps := []WizardStep{
+				{Label: "one", Form: func(_ *tview.Application, onDone func()) *tview.Form {
+					f := tview.NewForm()
+					f.AddInputField("Name", "", 0, nil, nil)
+					f.AddButton("Next", func() { chosen = "from the button"; onDone() })
+					return f
+				}},
+				{Label: "two", Form: func(_ *tview.Application, onDone func()) *tview.Form {
+					close(second)
+					f := tview.NewForm()
+					f.AddButton("Next", onDone)
+					return f
+				}},
+			}
+			cfg := InlineWizardConfig{ID: "w", Steps: steps}
+			if tc.grouped {
+				cfg.Groups = []StepGroup{{Label: "G", StartIdx: 0}}
+			}
+			v := NewInlineWizardView(cfg)
+			v.SetShell(&popShell{})
+			sc := tcell.NewSimulationScreen("UTF-8")
+			require.NoError(t, sc.Init())
+			sc.SetSize(120, 40)
+			app := tview.NewApplication().SetScreen(sc)
+			content := tview.NewFlex()
+			app.SetRoot(content, true)
+			app.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
+				if v.HandleKey(e) == nil {
+					return nil
+				}
+				return e
+			})
+			runLoop(t, app)
+			onLoop(app, func() { v.Mount(content, app) })
+
+			for _, k := range tc.keys {
+				sc.InjectKey(k, 0, tcell.ModNone)
+				onLoop(app, func() {})
+			}
+
+			select {
+			case <-second:
+			case <-time.After(2 * time.Second):
+				t.Fatal("the wizard did not go on to the second step")
+			}
+			onLoop(app, func() {})
+			assert.Equal(t, "from the button", chosen, "the handler of the button ran")
+		})
+	}
+}

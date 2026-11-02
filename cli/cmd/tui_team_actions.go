@@ -101,6 +101,25 @@ func actionTeamInit() {
 		}
 	}
 
+	// ── Build shared team step state ────────────────────────────────
+	tss := &teamStepState{
+		Ctx:                ctx,
+		Repo:               repo,
+		HasConfig:          hasConfig,
+		HasPolicies:        hasPolicies,
+		ExistingCfg:        existingCfg,
+		HasMember:          hasMember,
+		StaleDaysStr:       staleDaysStr,
+		MemberID:           memberID,
+		DisplayName:        displayName,
+		GitLabUsername:     gitlabUsername,
+		TrackerUsername:    trackerUsername,
+		MattermostUsername: mattermostUsername,
+		Role:               role,
+		WebhookURL:         webhookURL,
+		Channel:            channel,
+		BotName:            botName,
+	}
 	// ── Step 0: Repository ──────────────────────────────────────────
 	repoStep := views.WizardStep{
 		Label:    i18n.T("cmd.team.init.step_repo"),
@@ -143,26 +162,8 @@ func actionTeamInit() {
 			}
 			structureWarning = warn
 			credState.Probe(ctx, stateRepo)
-			// Pre-fill for subsequent steps
-			hasConfig = repo.HasConfig()
-			hasPolicies = repo.HasPolicies()
-			existingCfg, _ = repo.LoadConfig()
-			if hasConfig && existingCfg != nil {
-				staleDaysStr = fmt.Sprintf("%d", existingCfg.Takeover.StaleDays)
-				webhookURL = existingCfg.Notification.MattermostWebhook
-				channel = existingCfg.Notification.Channel
-				botName = existingCfg.Notification.BotName
-			}
-			hasMember = memberID != "" && repo.HasMember(memberID)
-			if hasMember {
-				if m, err := repo.GetMember(memberID); err == nil && m != nil {
-					displayName = m.DisplayName
-					gitlabUsername = m.GitLabUsername
-					mattermostUsername = m.MattermostUsername
-					trackerUsername = m.TrackerUsername
-					role = m.Role
-				}
-			}
+			// Now that the repo is available, the steps that follow work on it
+			tss.useRepo(repo)
 			return nil
 		},
 		InfoFields: func() []views.InfoField {
@@ -177,25 +178,6 @@ func actionTeamInit() {
 	// ── Step 0b: HTTPS Credentials ──────────────────────────────────
 	credStep := buildHTTPSCredStep(ctx, &stateRepo, credState, nil, a.Secrets)
 
-	// ── Build shared team step state ────────────────────────────────
-	tss := &teamStepState{
-		Ctx:                ctx,
-		Repo:               repo,
-		HasConfig:          hasConfig,
-		HasPolicies:        hasPolicies,
-		ExistingCfg:        existingCfg,
-		HasMember:          hasMember,
-		StaleDaysStr:       staleDaysStr,
-		MemberID:           memberID,
-		DisplayName:        displayName,
-		GitLabUsername:     gitlabUsername,
-		TrackerUsername:    trackerUsername,
-		MattermostUsername: mattermostUsername,
-		Role:               role,
-		WebhookURL:         webhookURL,
-		Channel:            channel,
-		BotName:            botName,
-	}
 	stepOpts := teamStepOpts{}
 
 	configStep := buildTeamConfigStep(tss, stepOpts)
