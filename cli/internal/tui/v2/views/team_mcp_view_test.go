@@ -191,10 +191,11 @@ func TestTeamMCPViewTestUnavailableAndUnsaved(t *testing.T) {
 	assert.Contains(t, lastToast(sh), "w")
 }
 
-// Bug 10: the Figma server always calls api.figma.com, so the view offers no
-// URL for Figma (neither the one of the team, nor the imposed one, nor the
-// personal one); the other services keep theirs.
-func TestTeamMCPViewOffersNoURLForFigma(t *testing.T) {
+// Bug 10: the Figma server always calls api.figma.com and the Google Slides
+// one slides.googleapis.com, so the view offers no URL for them (neither the
+// one of the team, nor the imposed one, nor the personal one); the other
+// services keep theirs.
+func TestTeamMCPViewOffersNoURLForFigmaAndGoogleSlides(t *testing.T) {
 	frLocale(t)
 	v, _, _, app := mountTeamMCP(t, TeamMCPViewConfig{})
 
@@ -209,18 +210,20 @@ func TestTeamMCPViewOffersNoURLForFigma(t *testing.T) {
 
 	assert.Empty(t, urlKeys["figma"])
 	assert.Empty(t, urlKeys["figma.perso"])
+	assert.Empty(t, urlKeys["gslides"])
+	assert.Empty(t, urlKeys["gslides.perso"])
 	assert.Equal(t, []string{"url", "url_enforced"}, urlKeys["gitlab"])
 	assert.Equal(t, []string{"url"}, urlKeys["gitlab.perso"])
 	assert.Equal(t, []string{"url", "url_enforced"}, urlKeys["jira"])
 	assert.Equal(t, []string{"url"}, urlKeys["jira.perso"])
 }
 
-// A URL recorded for Figma in hub.toml or in the team config is neither shown
-// nor rewritten by a save.
+// A URL recorded for Figma or Google Slides in hub.toml or in the team config
+// is neither shown nor rewritten by a save.
 func TestTeamMCPViewSaveKeepsARecordedFigmaURL(t *testing.T) {
 	frLocale(t)
 	shared := seedHome(t)
-	require.NoError(t, config.Update(func(c *config.Config) error { c.MCP.Figma.URL = "https://recorded.example"; return nil }))
+	require.NoError(t, config.Update(func(c *config.Config) error { c.MCP.Figma.URL = "https://recorded.example"; c.MCP.Gslides.URL = "https://slides.recorded.example"; return nil }))
 	host := hubHost{shared}
 	v, _, _, app := mountTeamMCP(t, TeamMCPViewConfig{
 		GetMCPConfig:    func() config.MCPConfig { return shared.MCP },
@@ -236,4 +239,5 @@ func TestTeamMCPViewSaveKeepsARecordedFigmaURL(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, got.MCP.Figma.Enabled)
 	assert.Equal(t, "https://recorded.example", got.MCP.Figma.URL)
+	assert.Equal(t, "https://slides.recorded.example", got.MCP.Gslides.URL)
 }

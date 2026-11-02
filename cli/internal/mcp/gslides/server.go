@@ -117,13 +117,18 @@ var httpClient = httplog.Wrap(&http.Client{Timeout: 30 * time.Second}, "mcp.gsli
 
 const maxResponseSize = 50 << 20 // 50 MB
 
+// apiBase is the address of the Google Slides API. It is not configurable: a
+// URL recorded for gslides in hub.toml, in a project or in the team config is
+// ignored.
+const apiBase = "https://slides.googleapis.com"
+
 func slidesAPI(path string) ([]byte, error) {
 	token := os.Getenv("GOOGLE_ACCESS_TOKEN")
 	if token == "" {
 		return nil, fmt.Errorf("GOOGLE_ACCESS_TOKEN environment variable not set")
 	}
 
-	req, err := http.NewRequest("GET", "https://slides.googleapis.com"+path, http.NoBody)
+	req, err := http.NewRequest("GET", apiBase+path, http.NoBody)
 	if err != nil {
 		return nil, err
 	}
