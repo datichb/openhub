@@ -28,10 +28,12 @@ func actionTeamRejoin() {
 	if tuiShell == nil {
 		return
 	}
+	tuiShell.PushView(views.NewInlineWizardView(buildRejoinWizard(tuiShell.Context(), MustApp())))
+}
 
-	a := MustApp()
-	ctx := tuiShell.Context()
-
+// buildRejoinWizard is the wizard of the rejoin: its steps and what it does
+// when it ends.
+func buildRejoinWizard(ctx context.Context, a *app.App) views.InlineWizardConfig {
 	// ── Shared state (captured by step closures) ────────────────────
 	var (
 		stateRepo        string
@@ -536,7 +538,7 @@ func actionTeamRejoin() {
 		trackerTokenStepRejoin,
 	}
 
-	wizard := views.NewInlineWizardView(views.InlineWizardConfig{
+	return views.InlineWizardConfig{
 		ID:    "wizard.team.rejoin",
 		Title: i18n.T("tui.team.rejoin"),
 		Steps: steps,
@@ -552,9 +554,7 @@ func actionTeamRejoin() {
 				})
 			}
 		},
-	})
-
-	tuiShell.PushView(wizard)
+	}
 }
 
 // memberTrackerUsername is the tracker name of member id in members ("" when
