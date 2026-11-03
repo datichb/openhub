@@ -60,7 +60,7 @@ func writeAtomic(path string, data []byte, perm os.FileMode, doSync bool) (err e
 	if err = tmp.Close(); err != nil {
 		return fmt.Errorf("closing %s: %w", name, err)
 	}
-	if err = os.Rename(name, path); err != nil {
+	if err = rename(name, path); err != nil {
 		return fmt.Errorf("renaming %s to %s: %w", name, path, err)
 	}
 	if doSync {
