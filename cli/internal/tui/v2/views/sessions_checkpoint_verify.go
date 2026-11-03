@@ -11,7 +11,7 @@ import (
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Verification part of the checkpoint card (R3, CP-R5): the result of the
+// Verification part of the checkpoint card (CP-R5): the result of the
 // verification run by oh, the evidence of the agent checked against what oh
 // observed, and a ticket whose fix rounds reached the cap. A failed
 // verification is passed only with the « override » choice (traced).
@@ -26,8 +26,8 @@ const (
 	verifyPass    = "pass"
 	verifyFail    = "fail"
 	verifyNone    = "none"
-	// verifyUnavailable: the verification cannot run where the work is
-	// (R3-remote): passed only overridden, like a failure.
+	// verifyUnavailable: the verification cannot run where the work is:
+	// passed only overridden, like a failure.
 	verifyUnavailable = "unavailable"
 )
 
@@ -45,7 +45,7 @@ type CheckpointVerifyView struct {
 	// Unresolved is the ticket whose fix rounds reached the cap.
 	Unresolved string
 	// Remote is the result of the verification run in the remote job of
-	// the session (R3-remote); RemoteOK tells whether it let it pass.
+	// the session; RemoteOK tells whether it let it pass.
 	Remote   string
 	RemoteOK bool
 	// NoOverride: oh never passes this checkpoint over a failed

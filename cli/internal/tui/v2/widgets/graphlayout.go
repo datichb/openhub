@@ -106,7 +106,7 @@ type GraphModel struct {
 // checkpoints in pass order, each workflow agent under the checkpoint it
 // waits for (directly, or through the agent it follows), the others in the
 // start column; independent agents apart. layer names the document layer
-// that set each element (B10: the whole resolved workflow is shown, with
+// that set each element (the whole resolved workflow is shown, with
 // the origin of each element).
 func SpecGraphModel(sp *workflow.Spec, mode, lang, startLabel string, layer func(path string) string) GraphModel {
 	m := GraphModel{StartLabel: startLabel}

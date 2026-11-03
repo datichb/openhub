@@ -5,7 +5,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/limits"
 )
 
-// budgetFields are the hub session restrictions (I6, hub.toml [limits]),
+// budgetFields are the hub session restrictions (hub.toml [limits]),
 // shown after the Sessions settings. Empty = off. Team ceilings and project
 // values are shown by `oh budget show`.
 func (v *SettingsView) budgetFields() []configField {

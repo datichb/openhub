@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// A14: no animation when the output is not a terminal (pipe, --no-tui).
+// No animation when the output is not a terminal (pipe, --no-tui).
 func TestSpinnerSilentWithoutTerminal(t *testing.T) {
 	r, w, err := os.Pipe()
 	if err != nil {

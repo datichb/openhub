@@ -7,8 +7,8 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
-// Confirm asks for a confirmation before an action (views.ShellAccess,
-// N19). The focus starts on the primary button « Oui », except for a
+// Confirm asks for a confirmation before an action (views.ShellAccess).
+// The focus starts on the primary button « Oui », except for a
 // dangerous action where it starts on « Annuler », so an Enter typed by
 // reflex does not destroy anything; Tab reaches the text and the buttons.
 // Esc or « Annuler » close the window without acting. The focus returns to

@@ -7,7 +7,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
-// « Démarrer » section of the landings (P1-T20, 10 §1–§3): pinned workflows,
+// « Démarrer » section of the landings: pinned workflows,
 // recent ones, then (project and team modes) the categories, collapsed. The
 // entries come from the cache kept by the wiring layer (no I/O on the event
 // loop). `*` on an entry pins or unpins it.

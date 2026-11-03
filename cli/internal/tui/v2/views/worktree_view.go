@@ -21,7 +21,7 @@ import (
 )
 
 // WorktreeGit is the git side of the worktree view; every call runs off the
-// event loop (N19).
+// event loop.
 type WorktreeGit interface {
 	List(projectPath string) ([]worktree.Entry, error)
 	Create(projectPath, branch string) error

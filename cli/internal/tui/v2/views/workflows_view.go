@@ -16,9 +16,9 @@ import (
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Workflow catalogue (P1-T26, 10-tui §8): workflows by layer with version,
+// Workflow catalogue: workflows by layer with version,
 // risk, runtimes, chain and validity; a detail panel; Enter opens the launch
-// form, `*` pins. Phase 2 (P2-T13): the current member's drafts, integrity
+// form, `*` pins. Phase 2: the current member's drafts, integrity
 // warnings, « new brick » badge and the editing actions (n new, e edit,
 // v validate, t test the draft, p publish, D diff, h history, x archive).
 // ─────────────────────────────────────────────────────────────────────────────
@@ -102,7 +102,7 @@ type WorkflowCatalogConfig struct {
 	// TogglePin pins or unpins a workflow in the current context.
 	TogglePin func(id string)
 
-	// Editing (phase 2); a nil function disables its action.
+	// Editing; a nil function disables its action.
 	New       func(n CatalogNew)
 	Edit      func(e CatalogEntry)
 	TestDraft func(e CatalogEntry)
@@ -373,7 +373,7 @@ func (v *WorkflowCatalogView) toast(msg string, success bool) {
 func (v *WorkflowCatalogView) askNew(e CatalogEntry, hasEntry bool, kind string) {
 	if !v.data.Editable {
 		if v.cfg.NoTeamState != nil {
-			// Once the solo space exists, go on with the new workflow (A42).
+			// Once the solo space exists, go on with the new workflow.
 			v.cfg.NoTeamState(func() {
 				v.reload(func() {
 					if v.data.Editable {

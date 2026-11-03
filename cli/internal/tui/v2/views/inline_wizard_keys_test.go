@@ -14,7 +14,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
-// N19, with real key events: Esc asks, ← moves to « Quitter », Enter quits
+// With real key events: Esc asks, ← moves to « Quitter », Enter quits
 // and pops the wizard.
 func TestInlineWizardView_QuitPromptKeys(t *testing.T) {
 	v := NewInlineWizardView(InlineWizardConfig{ID: "w", Steps: []WizardStep{{Label: "a", Required: true, Form: func(_ *tview.Application, onDone func()) *tview.Form {

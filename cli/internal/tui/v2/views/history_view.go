@@ -18,7 +18,7 @@ import (
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
-// History screen (P2-T15, 10-tui §10): the published version then the
+// History screen: the published version then the
 // previous ones (author, date, message); Enter shows the diff of a version
 // against the current one (c too), R restores it (republished as a new
 // version), r reloads the list.

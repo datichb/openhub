@@ -9,7 +9,7 @@ import (
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Global key handler — the key contract (N19)
+// Global key handler — the key contract
 // ─────────────────────────────────────────────────────────────────────────────
 //
 // Layers, in order:
@@ -46,7 +46,7 @@ func (s *Shell) globalKeyHandler(event *tcell.EventKey) *tcell.EventKey {
 			return s.capturingViewKey(cur, event)
 		}
 	}
-	// Esc closes the toasts shown before going back (N19).
+	// Esc closes the toasts shown before going back.
 	if event.Key() == tcell.KeyEscape && s.DismissToasts() {
 		return nil
 	}

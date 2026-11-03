@@ -9,7 +9,7 @@ import (
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Board quick actions (P1-T25, 10-tui §6): the workflows that take a Beads
+// Board quick actions: the workflows that take a Beads
 // ticket, launched on the selected ticket — the launch form opens on its
 // options step with the ticket prefilled (location, worktree and opening are
 // chosen there). On the card of a GitLab issue the workflows that take a free

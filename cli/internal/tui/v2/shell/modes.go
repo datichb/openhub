@@ -110,7 +110,7 @@ func (s *Shell) ActiveTeam() *views.ActiveTeam {
 }
 
 // cycleMode is Ctrl+T: Hub → Project → Team → Hub, skipping the modes that
-// are not configured (BL-24; before 5.1 it only went between the hub and the
+// are not configured (it used to go only between the hub and the
 // team). From the hub, the project is the one the user left (or the only one,
 // or one to choose); from the project, the team (selector when several teams
 // are configured); from the team, back to the hub. With no project the hub

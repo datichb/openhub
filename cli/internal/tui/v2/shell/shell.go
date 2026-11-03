@@ -82,7 +82,7 @@ type Config struct {
 	TeamsProvider func() []views.SelectOption
 	// ProjectsProvider returns the active projects (ID in Value, name in
 	// Label), and ProjectResolver completes the one that is chosen (path,
-	// branch). Ctrl+T enters the project mode through them (BL-24); both are
+	// branch). Ctrl+T enters the project mode through them; both are
 	// called off the event loop. Without ProjectsProvider, Ctrl+T skips the
 	// project mode.
 	ProjectsProvider func() []views.SelectOption
@@ -92,7 +92,7 @@ type Config struct {
 	// quit to stop the TUI. A second Ctrl+Q while it is pending forces the quit.
 	BeforeQuit func(quit func())
 	// Compact returns the `[cli] compact` setting (auto | always | never;
-	// nil or "" = auto), read at every draw (N20).
+	// nil or "" = auto), read at every draw.
 	Compact func() string
 }
 
@@ -152,7 +152,7 @@ type Shell struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	// Layout level (N20): wantLevel is the level of the last drawn terminal
+	// Layout level: wantLevel is the level of the last drawn terminal
 	// size, applied on the event loop (applyLevel) into level; tooSmall
 	// blocks the keys behind the « terminal too small » message.
 	wantLevel     atomic.Int32

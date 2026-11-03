@@ -4,7 +4,7 @@ import "github.com/datichb/openhub/cli/internal/i18n"
 
 // decisionOverlay is the overlay showing a decision (card, form): it is
 // closed when the decision is settled elsewhere — in the tool interface, by
-// another oh, by the agent (A37).
+// another oh, by the agent.
 type decisionOverlay struct {
 	id    string
 	token any

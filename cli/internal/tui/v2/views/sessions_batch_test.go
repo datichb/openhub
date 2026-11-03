@@ -163,7 +163,7 @@ func batchRows() []SessionRow {
 	}
 }
 
-// R6, CP-R6: B shows the checkpoints of the fan-out of the selection in
+// CP-R6: B shows the checkpoints of the fan-out of the selection in
 // place of the list, filtered by checkpoint (/, as --checkpoint); a failed
 // verification is not validated in the batch (Enter opens its card); the
 // choices are y/s/n (refusal with its instruction); C confirms; only the

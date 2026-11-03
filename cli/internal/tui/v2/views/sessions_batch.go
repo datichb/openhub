@@ -16,7 +16,7 @@ import (
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Validation by batch (R6, CP-R6; `oh session approve --batch` in the CLI):
+// Validation by batch (CP-R6, `oh session approve --batch` in the CLI):
 // B lists the checkpoints waiting (those of the fan-out of the selected
 // session, else every one) in place of the list, each with its session, its
 // summary and the verification by oh, filtered by checkpoint (/), each one

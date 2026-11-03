@@ -76,7 +76,7 @@ func (s *Spinner) Start() {
 }
 
 // Animated reports whether spinners are drawn: never with --no-tui, in CI,
-// with TERM=dumb, or when stdout or stderr is not a terminal (A14).
+// with TERM=dumb, or when stdout or stderr is not a terminal.
 var Animated = func() bool {
 	if !common.UseRichTUI() {
 		return false

@@ -15,17 +15,16 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 )
 
-// ActionList is the shared « list with actions per element » (modernisation
-// tui-keys): wiki proposals of a checkpoint card and of the project queue,
-// batch validation, children of a fan-out, bricks. Elements on one line
-// each (columns aligned, optional sections), their state (pending,
-// accepted, refused…), a detail pane below or beside the list (e.g. the
-// before/after of a proposal), actions on the selected element bound to
-// the keys of the convention (y/n/e/s, d, x, R…) and global actions (A
-// accept all). Refusing asks an instruction, deleting a confirmation. No
-// limit on the number of elements: the list scrolls and shows how many are
-// below. The list calls back the view, which calls its service (off the
-// event loop) then updates the list (SetState, SetItems).
+// ActionList is the shared « list with actions per element »: wiki proposals of
+// a checkpoint card and of the project queue, batch validation, children of a
+// fan-out, bricks. Elements on one line each (columns aligned, optional
+// sections), their state (pending, accepted, refused…), a detail pane below or
+// beside the list (e.g. the before/after of a proposal), actions on the selected
+// element bound to the keys of the convention (y/n/e/s, d, x, R…) and global
+// actions (A accept all). Refusing asks an instruction, deleting a confirmation.
+// No limit on the number of elements: the list scrolls and shows how many are
+// below. The list calls back the view, which calls its service (off the event
+// loop) then updates the list (SetState, SetItems).
 //
 // Keys reach the list through its table (InputCapture); a view that owns
 // the keys of its screen may also forward them with HandleKey.

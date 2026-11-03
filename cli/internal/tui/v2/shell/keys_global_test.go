@@ -14,8 +14,8 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
-// These tests pin the key contract of globalKeyHandler (N19) before its code
-// is split (A10); the Ctrl+T cycle, Esc and the toasts, ? and the palette
+// These tests pin the key contract of globalKeyHandler before its code
+// is split; the Ctrl+T cycle, Esc and the toasts, ? and the palette
 // have their own tests (mode_cycle_test.go, keys_test.go).
 
 func (s *simShell) depth() (d int) {

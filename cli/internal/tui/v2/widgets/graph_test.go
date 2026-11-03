@@ -62,7 +62,7 @@ func TestSpecGraphModel(t *testing.T) {
 	}
 }
 
-// Golden rendering of the editor graph (P2-T14).
+// Golden rendering of the editor graph.
 func TestSpecGraphGolden(t *testing.T) {
 	g := NewModelGraph(SpecGraphModel(graphSpecOf(t), "semi-auto", "fr", "▶ Start", nil), false)
 	sc := tcell.NewSimulationScreen("UTF-8")

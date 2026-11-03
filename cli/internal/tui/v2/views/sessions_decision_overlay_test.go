@@ -67,7 +67,7 @@ func permissionRows() []SessionRow {
 		Decisions: []SessionDecision{{ID: "perm:ses_a:1", SessionID: "ses_a", Kind: DecisionKindPermission, Icon: "🔒", Summary: "bash git status", Created: time.Now()}}}}
 }
 
-// A37: the window of a decision settled elsewhere (tool interface) closes
+// The window of a decision settled elsewhere (tool interface) closes
 // with the reload of the list; one answered here does not announce it.
 func TestDecisionSettledElsewhereClosesItsWindow(t *testing.T) {
 	be := &fakeSessions{rows: permissionRows()}

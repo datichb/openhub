@@ -119,7 +119,7 @@ func trimEmptyLines(lines []string) []string {
 	return lines[start:end]
 }
 
-// compactBanner is the one-line banner of the compact landings (N20): the
+// compactBanner is the one-line banner of the compact landings: the
 // name in bold, then an optional muted suffix.
 func compactBanner(name, colorHex, suffix string) string {
 	line := fmt.Sprintf("%s%s%s%s%s", theme.ColorTag(colorHex), theme.StyleTag(theme.AttrBold), name, theme.TagAttrs, theme.TagColor)

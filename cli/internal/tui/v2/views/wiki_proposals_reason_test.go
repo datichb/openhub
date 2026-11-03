@@ -11,7 +11,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/testutil/golden"
 )
 
-// p9-wiki-refusal: a refused proposal shows the reason of the refusal in
+// A refused proposal shows the reason of the refusal in
 // its detail (golden), escaped; without a reason nothing is added, and a
 // proposal not refused shows none.
 func TestWikiRefusedReasonGolden(t *testing.T) {

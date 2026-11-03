@@ -9,7 +9,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
-// A37: a view closes the overlay it showed, and only that one.
+// A view closes the overlay it showed, and only that one.
 func TestCloseOverlayOnlyClosesItsOwn(t *testing.T) {
 	homeView := &testView{id: "home", title: "Home"}
 	s := New(Config{ProjectName: "test", Views: []views.View{homeView}, HomeViewID: "home"})

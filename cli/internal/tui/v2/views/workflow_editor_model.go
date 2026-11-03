@@ -6,7 +6,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
-// Editing state of the workflow editor (P2-T14): the YAML text and the
+// Editing state of the workflow editor: the YAML text and the
 // draft's own prompt template, undo/redo snapshots, saved state. Pure (no
 // UI): edits go through workflow.DocEdit so that comments and the presence
 // of each field are kept.

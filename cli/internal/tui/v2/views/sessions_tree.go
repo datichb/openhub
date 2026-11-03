@@ -7,7 +7,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
-// Fan-out in the Sessions list (modernisation tui-sessions): the children,
+// Fan-out in the Sessions list: the children,
 // mergers and fixers (↳) of a parent (⑂) shown in the list are grouped
 // under it, as a tree, in the section of their parent; a group goes to « À
 // traiter » when one of its sessions waits for a decision, each decision

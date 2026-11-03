@@ -269,7 +269,7 @@ func TestWikiView(t *testing.T) {
 	assert.Equal(t, "wp-a", events[0].Data["proposal_id"])
 	assert.Contains(t, sh.toastList(), "Proposition acceptée : conventions")
 
-	// n: asks the reason; without one nothing is refused (v5.1), with one the
+	// n: asks the reason; without one nothing is refused, with one the
 	// proposal is refused and the event carries it.
 	onLoop(func() { v.slist.SelectIndex(1); v.HandleKey(tcell.NewEventKey(tcell.KeyRune, 'n', 0)) })
 	sh.mu.Lock()
@@ -367,7 +367,7 @@ func TestWikiViewFailuresAndEmpty(t *testing.T) {
 	assert.Equal(t, "team.wiki", off.ID())
 }
 
-// p5-fixes: the id of a proposal (team state, written by others) is shown
+// The id of a proposal (team state, written by others) is shown
 // with its brackets, never read as a style tag.
 func TestWikiProposalIDEscaped(t *testing.T) {
 	t.Parallel()

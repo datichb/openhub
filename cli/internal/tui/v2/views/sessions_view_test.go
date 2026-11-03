@@ -296,7 +296,7 @@ func TestLandingsShowSessions(t *testing.T) {
 }
 
 // A budget decision is raised from the view ($ or the card button), as
-// `oh budget raise` (v5 finalisation, Q3-5).
+// `oh budget raise`.
 func TestSessionsViewRaiseBudget(t *testing.T) {
 	now := time.Now()
 	rows := []SessionRow{{ID: "ses_a", Agent: "developer", State: "waiting", Started: now,

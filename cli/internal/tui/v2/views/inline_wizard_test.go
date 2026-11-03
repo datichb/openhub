@@ -267,7 +267,7 @@ func TestInlineWizardView_HandleKey_FormPassthrough(t *testing.T) {
 	result = v.HandleKey(enterEvent)
 	assert.NotNil(t, result, "enter should pass through on form step")
 
-	// Esc asks whether to quit (N19); Esc again closes the question
+	// Esc asks whether to quit; Esc again closes the question
 	escEvent := tcell.NewEventKey(tcell.KeyEscape, 0, tcell.ModNone)
 	result = v.HandleKey(escEvent)
 	assert.Nil(t, result, "esc opens the quit question on form step")
@@ -375,7 +375,7 @@ func TestInlineWizardView_SummaryTargetFunc(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// N1 — isLastFocusableFormItem with trailing non-focusable TextView
+// IsLastFocusableFormItem with trailing non-focusable TextView
 // ─────────────────────────────────────────────────────────────────────────────
 
 func TestInlineWizardView_TabToButtonFormWithTrailingTextView(t *testing.T) {
@@ -426,7 +426,7 @@ func TestInlineWizardView_TabToButtonFormWithTrailingTextView(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// N2 — No more silent double-Esc (N19): two Esc open then close the question
+// No more silent double-Esc: two Esc open then close the question
 // ─────────────────────────────────────────────────────────────────────────────
 
 func TestInlineWizardView_DoubleEscCustomView(t *testing.T) {
@@ -489,7 +489,7 @@ func TestInlineWizardView_DoubleEscCustomView(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// N3 — Ctrl+B from summary screen goes back to last step
+// Ctrl+B from summary screen goes back to last step
 // ─────────────────────────────────────────────────────────────────────────────
 
 func TestInlineWizardView_SummaryCtrlB(t *testing.T) {
@@ -552,7 +552,7 @@ func TestInlineWizardView_SummaryCtrlB(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// N4 — Summary shows skipped steps with the skipped icon
+// Summary shows skipped steps with the skipped icon
 // ─────────────────────────────────────────────────────────────────────────────
 
 func TestInlineWizardView_SummaryShowsSkippedSteps(t *testing.T) {
@@ -633,7 +633,7 @@ func TestInlineWizardView_SummaryShowsSkippedSteps(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// N5 — Contextual hints per step
+// Contextual hints per step
 // ─────────────────────────────────────────────────────────────────────────────
 
 func TestInlineWizardView_ContextualHints(t *testing.T) {
@@ -701,7 +701,7 @@ func TestInlineWizardView_ContextualHints(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Error recovery tests (P2.6)
+// Error recovery tests
 // ─────────────────────────────────────────────────────────────────────────────
 
 func TestInlineWizardView_ErrorState(t *testing.T) {
@@ -748,7 +748,7 @@ func TestInlineWizardView_ErrorState(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// E2E full flow test (R20)
+// E2E full flow test
 // ─────────────────────────────────────────────────────────────────────────────
 
 // TestInlineWizardView_E2E_FullFlow exercises a complete wizard lifecycle:
@@ -1181,7 +1181,7 @@ type popShell struct {
 
 func (s *popShell) PopView() bool { s.popped++; return true }
 
-// N19: leaving a wizard step.
+// Leaving a wizard step.
 func TestInlineWizardView_QuitAndBack(t *testing.T) {
 	t.Run("esc then quit calls OnComplete(false) once and pops the wizard", func(t *testing.T) {
 		var calls []bool

@@ -11,7 +11,7 @@ import (
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Layout levels (N20): full ≥ 32 rows, compact 16–31 rows, too small under
+// Layout levels: full ≥ 32 rows, compact 16–31 rows, too small under
 // 60×16 (views.LevelFor). The level follows the terminal size at every draw;
 // it is applied on the event loop, the landings rebuild themselves.
 // ─────────────────────────────────────────────────────────────────────────────

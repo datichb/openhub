@@ -39,7 +39,7 @@ func TestMeaningsAreTheGlyphTable(t *testing.T) {
 }
 
 // The Icon* all follow the table of meanings; this test freezes their values.
-// Changing one is a decision of the product (v5.1: ✔ for success and for a
+// Changing one is a decision of the product (✔ for success and for a
 // finished step, ⚠ for a warning, – for a skipped step).
 func TestIconsKeepTheirSymbols(t *testing.T) {
 	tests := []struct{ name, got, want string }{

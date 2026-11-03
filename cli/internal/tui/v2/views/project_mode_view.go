@@ -16,7 +16,7 @@ import (
 
 // ProjectModeConfig holds the callbacks used by the project mode view.
 type ProjectModeConfig struct {
-	// Start is the « Démarrer » section (P1-T20).
+	// Start is the « Démarrer » section.
 	Start StartSectionConfig
 	// OnNavigate is called when the user wants to navigate to a sub-view.
 	// viewID identifies the target view.
@@ -28,7 +28,7 @@ type ProjectModeConfig struct {
 	// version, e.g. « <tool> <version> · <adapter> »). Must be cheap.
 	ToolLine func() string
 
-	// Sessions shows the "Sessions du projet" section (P3-T19).
+	// Sessions shows the "Sessions du projet" section.
 	Sessions SessionsSectionConfig
 
 	// Runtimes returns the execution environments of the project with their
@@ -100,7 +100,7 @@ func (v *ProjectModeView) StatusHints() string {
 	if v.project == nil {
 		return keys.Hints(i18n.T("tui.pm.no_project"), keys.Back.HintAs(i18n.T("tui.hints.hub_mode")), "Ctrl+T "+i18n.T("tui.hints.next_view"))
 	}
-	// Ctrl+T goes to the next view of the cycle; Esc goes back to the hub (A33).
+	// Ctrl+T goes to the next view of the cycle; Esc goes back to the hub.
 	return keys.Hints(
 		v.project.Name,
 		keys.Navigate.HintAs(i18n.T("tui.hints.navigate")),
@@ -191,7 +191,7 @@ func (v *ProjectModeView) Mount(content *tview.Flex, app *tview.Application) {
 	combinedHeader.AddItem(header, 0, 1, false)        // badge/path fills rest
 
 	buildFn := func(width int, compact bool) homeFlexResult {
-		// Compact (N20): banner and badge on one line, path and tool on
+		// Compact: banner and badge on one line, path and tool on
 		// the next, no footer.
 		v.compact = compact
 		headerHeight := bh + 6
@@ -298,7 +298,7 @@ func (v *ProjectModeView) executeItem(idx int) {
 
 // renderHeader sets (or re-sets) the header text (badge, path, tool).
 // The banner is rendered separately in bannerTV (centered); compact: one
-// line each (N20).
+// line each.
 func (v *ProjectModeView) renderHeader(compact bool) {
 	if v.headerTV == nil || v.project == nil {
 		return

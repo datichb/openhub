@@ -31,7 +31,7 @@ func columnsHint() string {
 
 // homeShortcutsFooter is the footer of the three landings (Hub, Project,
 // Team): the same four shortcuts in the same order, Ctrl+T leading to the next
-// view of the cycle Hub → Project → Team → Hub (A33, BL-24).
+// view of the cycle Hub → Project → Team → Hub.
 func homeShortcutsFooter() string {
 	ctrlT := i18n.T("tui.home.shortcut.next_view")
 	entry := func(key, label string) string {

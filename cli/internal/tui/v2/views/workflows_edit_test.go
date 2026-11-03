@@ -152,7 +152,7 @@ func TestWorkflowCatalogEditing(t *testing.T) {
 	assert.NotEmpty(t, sh.toasts)
 }
 
-// A42: n without a team-state creates the solo space, then goes on with the
+// N without a team-state creates the solo space, then goes on with the
 // « new workflow » form once the catalogue is editable.
 func TestWorkflowCatalogNewAfterSoloSpace(t *testing.T) {
 	var mu sync.Mutex

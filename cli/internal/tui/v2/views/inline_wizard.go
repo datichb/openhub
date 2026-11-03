@@ -119,7 +119,7 @@ type InlineWizardView struct {
 	// form is the form of the current step (nil for other steps).
 	form *tview.Form
 	// hintsHost is the flex holding the hints bar; the « quit the wizard? »
-	// prompt (quitBar) takes its row while shown (N19).
+	// prompt (quitBar) takes its row while shown.
 	hintsHost *tview.Flex
 	quitBar   *tview.Flex
 	quitBack  tview.Primitive

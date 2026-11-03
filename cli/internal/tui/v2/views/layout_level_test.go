@@ -29,7 +29,7 @@ func TestLevelFor(t *testing.T) {
 	}
 }
 
-// The narrow landing is min(72, width) wide (N20).
+// The narrow landing is min(72, width) wide.
 func TestContentWidthFor(t *testing.T) {
 	t.Parallel()
 	assert.Equal(t, 72, contentWidthFor(layoutNarrow, 80))

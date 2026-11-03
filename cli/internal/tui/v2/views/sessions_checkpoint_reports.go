@@ -12,7 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/textfmt"
 )
 
-// Reports on the checkpoint card (modernisation L4, workflow_report): the
+// Reports on the checkpoint card (workflow_report): the
 // reports filed since the previous checkpoint, each opened in a scrolling
 // reader. Report texts come from agents: always escaped.
 

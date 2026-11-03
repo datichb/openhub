@@ -28,7 +28,7 @@ type homeItem struct {
 
 // HomeViewConfig holds external dependencies for the home view.
 type HomeViewConfig struct {
-	// Start is the « Démarrer » section (P1-T20).
+	// Start is the « Démarrer » section.
 	Start StartSectionConfig
 	// HasProject returns true when at least one active project exists.
 	// Used to conditionally show project-specific items (ADR-032).
@@ -43,7 +43,7 @@ type HomeViewConfig struct {
 	OnSelectProject func(projectID, projectName, projectPath string)
 	// OnAddProject is called when the user triggers the "add project" quick action.
 	OnAddProject func()
-	// Sessions shows the "Sessions" section (P3-T19).
+	// Sessions shows the "Sessions" section.
 	Sessions SessionsSectionConfig
 	// ToolLine returns the tool line of the header (« <tool> v<version> ·
 	// adapter <adapter> ✔ », 10 §1): the tool and the adapter that launch the
@@ -138,7 +138,7 @@ func (v *HomeView) Mount(content *tview.Flex, app *tview.Application) {
 
 	// buildFn reads v.items at call time (not captured slices) so that
 	// both initial mount and async data arrival produce correct layouts.
-	// Compact (N20): the banner on one line, no footer.
+	// Compact: the banner on one line, no footer.
 	buildFn := func(width int, compact bool) homeFlexResult {
 		headerHeight := bh + 3
 		toolLine := v.toolLine()
@@ -296,7 +296,7 @@ func (v *HomeView) buildStaticItems() []homeItem {
 func (v *HomeView) buildLeftStaticItems() []homeItem {
 	var items []homeItem
 
-	// ── Démarrer (P1-T20) ──
+	// ── Démarrer ──
 	if header, sitems, ok := startSection(v.cfg.Start, StartScope{}, false, v.pick); ok {
 		items = append(items, homeItem{Icon: "─", Label: header})
 		for i := range sitems {

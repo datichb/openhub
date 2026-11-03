@@ -14,7 +14,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 )
 
-// Metrics of the project wiki (modernisation LD-I): coverage of the
+// Metrics of the project wiki: coverage of the
 // domains, median age of the pages, share of INCERTAIN and proposals
 // waiting, computed by oh (WikiService.Metrics). The view only shows them;
 // page paths come from the project: escaped.

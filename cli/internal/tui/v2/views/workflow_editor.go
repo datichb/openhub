@@ -19,7 +19,7 @@ import (
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Workflow editor (P2-T14, 10-tui §9): five sections — General, Graph,
+// Workflow editor: five sections — General, Graph,
 // Inputs & prompt, Resources, Bundle preview — over the draft's YAML text.
 // Every change goes through workflow.DocEdit (comments and field presence
 // kept), is checked off the event loop (resolution, origins, locks,
@@ -182,7 +182,7 @@ func (v *WorkflowEditorView) StatusHints() string {
 // CapturesInput keeps the editor keys while it is mounted.
 func (v *WorkflowEditorView) CapturesInput() bool { return v.app != nil }
 
-// Legend implements LegendProvider (help overlay, F1).
+// Legend implements LegendProvider (help overlay).
 func (v *WorkflowEditorView) Legend() string { return i18n.T("tui.editor.legend") }
 
 // Dirty reports unsaved changes.
@@ -197,7 +197,7 @@ func (v *WorkflowEditorView) Mount(content *tview.Flex, app *tview.Application) 
 	v.ctx, v.cancel = context.WithCancel(parent)
 	v.tabs = tview.NewTextView().SetDynamicColors(true)
 	v.tabs.SetBackgroundColor(theme.BgPanel)
-	v.body = tview.NewFlex() // the editor's own container: content keeps its direction (B10)
+	v.body = tview.NewFlex() // the editor's own container: content keeps its direction
 	v.body.SetBackgroundColor(theme.BgPanel)
 	v.status = tview.NewTextView().SetDynamicColors(true)
 	v.status.SetBackgroundColor(theme.BgPanel)
@@ -959,7 +959,7 @@ func (v *WorkflowEditorView) fieldMain(f *edField, doc *workflow.Document) strin
 	written := f.action == nil && len(f.path) > 0 && doc != nil && doc.Has(strings.Join(f.path, "."))
 	if written {
 		// The value written here, even when the resolution refuses it (a
-		// loosening keeps the parent's value, A39): the error says why.
+		// loosening keeps the parent's value): the error says why.
 		if w := v.current(f.path...); w != "" {
 			val = w
 		}

@@ -17,7 +17,7 @@ import (
 )
 
 // These tests pin the behaviour of ShowInlineForm (typing, fields of every
-// type, validation, Esc, buttons) before its code is split (A10).
+// type, validation, Esc, buttons) before its code is split.
 
 type formResult struct {
 	values map[string]string

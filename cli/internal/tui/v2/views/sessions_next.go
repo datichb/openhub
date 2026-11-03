@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-// `next:` steps of the selected session in the Détail tab (R5): read off
+// `next:` steps of the selected session in the Détail tab: read off
 // the event loop on selection, kept while the session (state, outputs)
 // does not change.
 

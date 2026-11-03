@@ -12,7 +12,7 @@ import (
 )
 
 // The letter keys of the projects and worktrees views, pinned before they went
-// through the keys package (v5.1, A12).
+// through the keys package.
 
 // inputModalShell records the input modal asked by a view.
 type inputModalShell struct {

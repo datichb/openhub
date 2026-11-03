@@ -2,7 +2,7 @@ package views
 
 import "sync/atomic"
 
-// LayoutLevel is the density of the TUI for the terminal size (N20).
+// LayoutLevel is the density of the TUI for the terminal size.
 type LayoutLevel int32
 
 const (

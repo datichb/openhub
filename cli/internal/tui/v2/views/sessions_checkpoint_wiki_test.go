@@ -127,7 +127,7 @@ func nineProposals() []CheckpointWikiProposal {
 	return list
 }
 
-// LD-J, tui-wiki-bricks: the card lists the proposals on one line each
+// The card lists the proposals on one line each
 // and opens them all in a list (no limit).
 func TestCheckpointCardWiki(t *testing.T) {
 	withFrench(t)

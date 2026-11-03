@@ -8,7 +8,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/testutil/golden"
 )
 
-// CP-R5 (R3): the card shows the verification run by oh, the evidence and
+// CP-R5: the card shows the verification run by oh, the evidence and
 // the unresolved ticket; a failed verification offers the override.
 func TestCheckpointCardVerify(t *testing.T) {
 	frLocale(t)
@@ -30,7 +30,7 @@ func TestCheckpointCardVerify(t *testing.T) {
 	assert.Equal(t, checkpointApprove, checkpointDefaultChoice(passed))
 	assert.Equal(t, checkpointBody(CheckpointCardView{}), checkpointBody(CheckpointCardView{Verify: CheckpointVerifyView{}}), "nothing without a verification")
 
-	// R3-remote: a verification that cannot run is passed only overridden.
+	// Remote job: a verification that cannot run is passed only overridden.
 	blocked := CheckpointVerifyView{Status: verifyUnavailable, Summary: "impossible ici — emplacement de travail introuvable"}
 	golden.Assert(t, "checkpoint_card/verify_blocked", cardBodyText(t, CheckpointCardView{Verify: blocked}))
 	assert.True(t, blocked.Failed())

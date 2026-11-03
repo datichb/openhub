@@ -14,7 +14,7 @@ import (
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Fan-out tab (R6, modernisation tui-sessions): the state of the fan-out of
+// Fan-out tab: the state of the fan-out of
 // the session (its parent for a child), the children (ticket, session,
 // state, branch, cost, end), the fix rounds, the last refusal of the merge
 // checkpoint, the integration branch and the budget; Enter opens a child,

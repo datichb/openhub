@@ -13,7 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
-// « Exécution » section of the Settings (P4-T10, 10 §11): default runtime,
+// « Exécution » section of the Settings: default runtime,
 // container engine, image cache, pinned tool version, strict isolation,
 // variables passed to the agents (execution.env_allow) and the wait of the
 // proxy for a provider (execution.proxy_first_byte_timeout_minutes).

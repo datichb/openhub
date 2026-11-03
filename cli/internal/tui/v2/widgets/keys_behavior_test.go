@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// The keys of the widgets, pinned before they went through the keys package
-// (v5.1, A12): each key does what it did, whatever way the code reads it.
+// The keys of the widgets, pinned before they went through the keys package:
+// each key does what it did, whatever way the code reads it.
 
 func keyEvent(k tcell.Key) *tcell.EventKey { return tcell.NewEventKey(k, 0, tcell.ModNone) }
 func runeEvent(r rune) *tcell.EventKey     { return tcell.NewEventKey(tcell.KeyRune, r, tcell.ModNone) }

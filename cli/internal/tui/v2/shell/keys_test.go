@@ -135,7 +135,7 @@ func newKeyShell(t *testing.T, home *keyView, extra ...views.View) *simShell {
 }
 
 // Enter on a focused SectionedList selects the item, it does not open the
-// palette (N19).
+// palette.
 func TestKeysEnterGoesToTheFocusedList(t *testing.T) {
 	v := &keyView{id: "home", focusList: true}
 	s := newKeyShell(t, v)
@@ -301,7 +301,7 @@ func TestKeysQuestionMarkOpensTheHelp(t *testing.T) {
 	assert.True(t, shown)
 }
 
-// Workflow catalogue: Enter launches the selected workflow (N19).
+// Workflow catalogue: Enter launches the selected workflow.
 func TestKeysCatalogEnterLaunches(t *testing.T) {
 	launched := make(chan string, 1)
 	cat := views.NewWorkflowCatalogView(views.WorkflowCatalogConfig{
@@ -332,7 +332,7 @@ func TestKeysCatalogEnterLaunches(t *testing.T) {
 }
 
 // Confirm runs onYes only once confirmed; Esc cancels. A dangerous action
-// starts on « Annuler » (Enter by reflex cancels), a safe one on « Oui » (N19).
+// starts on « Annuler » (Enter by reflex cancels), a safe one on « Oui ».
 func TestConfirm(t *testing.T) {
 	v := &keyView{id: "home", focusList: true}
 	s := newKeyShell(t, v)

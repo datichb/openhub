@@ -24,7 +24,7 @@ func safeLines(lines []string) string {
 	return strings.Join(out, "\n")
 }
 
-// Remote sessions in the Sessions view (P5-T18, 10 §7.4): « À récupérer »
+// Remote sessions in the Sessions view: « À récupérer »
 // section, fetch (`g`), replay of the Beads journal with the conflict window.
 
 // Remote statuses of SessionRow.Remote.

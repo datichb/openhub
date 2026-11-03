@@ -8,7 +8,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
-// Sessions section of the landings (P3-T19, 10 §1–§3): a short summary read
+// Sessions section of the landings: a short summary read
 // from the cache kept by the wiring layer (no I/O on the event loop).
 
 // SessionsSectionConfig is shared by the home, project and team landings.

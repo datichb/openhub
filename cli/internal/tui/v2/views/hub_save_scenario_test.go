@@ -13,7 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/tracker"
 )
 
-// Bug 1 of v5.1: the first-run wizard wrote setup_done, the provider, the
+// Regression: the first-run wizard wrote setup_done, the provider, the
 // region and the branch pattern, then the team MCP and team detail views saved
 // the whole hub.toml from the copy they held since the start, and the wizard
 // came back at every launch. The views now change only the settings they

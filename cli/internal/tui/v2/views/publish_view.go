@@ -15,7 +15,7 @@ import (
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Publication screen (P2-T15, 10-tui §10): next version, validation, impact
+// Publication screen: next version, validation, impact
 // summary (widenings flagged), new team bricks, diff of the draft against the
 // published version, mandatory message. Ctrl+S publishes once; an offline
 // publication is queued and shown as such.

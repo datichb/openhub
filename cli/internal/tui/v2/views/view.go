@@ -28,7 +28,7 @@ type TeamResolution struct {
 	GitLabURL string
 	// MemberID is the current user's member identifier in the team-state.
 	MemberID string
-	// Solo: a solo space (local team-state, team features off; P2-T16).
+	// Solo: a solo space (local team-state, team features off).
 	Solo bool
 	// TeamID identifies the team (or solo space).
 	TeamID string
@@ -166,7 +166,7 @@ type ShellAccess interface {
 	ShowToastMsg(msg string, success bool)
 	ShowInlineForm(cfg InlineFormConfig)
 	// Confirm asks for a confirmation before an action (every destructive
-	// action of a view goes through it, N19). onYes runs on the event loop
+	// action of a view goes through it). onYes runs on the event loop
 	// once the user confirms; cancelling (button, Esc) does nothing. danger
 	// styles the confirmation button as destructive.
 	Confirm(title, detail string, danger bool, onYes func())
@@ -209,7 +209,7 @@ type ShellAccess interface {
 
 // OverlayCloser is implemented by shells able to close an overlay they
 // showed once what it asks is no longer relevant (a decision settled
-// elsewhere, A37). CurrentOverlay is read right after showing it; nil =
+// elsewhere). CurrentOverlay is read right after showing it; nil =
 // none.
 type OverlayCloser interface {
 	CurrentOverlay() any
