@@ -6059,6 +6059,8 @@
   "cmd.provider_import.no_project_store": "aucun magasin de projets",
   "cmd.provider_import.updating_project_provider_config": "mise à jour de la config provider du projet : %w",
   "cmd.root.oh_internal_error_panic": "\noh : erreur interne (panic) : %v\n",
+  "cmd.root.crash_log_written": "Rapport de plantage écrit dans %s — joignez ce fichier au signalement du bogue.\n",
+  "cmd.root.crash_log_failed": "Impossible d'écrire le rapport de plantage (%v). Pile d'appels :\n",
   "cmd.root.please_report_this_bug_at_https": "Merci de signaler ce bogue sur https://github.com/datichb/openhub/issues\n",
   "cmd.team_config.team_not_configured_run_first": "%s Équipe non configurée. Lance d'abord %s\n",
   "cmd.team_config.team_state_not_cloned_run_first": "%s Team-state non cloné. Lance d'abord %s\n",

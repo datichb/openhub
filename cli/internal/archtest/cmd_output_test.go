@@ -40,7 +40,7 @@ var cmdOutputExceptions = map[string]outputUse{
 	"cmd/run_request.go os.Stderr":      {1, "the client of the tool takes over the terminal"},
 	"cmd/workflow_teamcli.go os.Stdout": {1, "the editor started for a draft takes over the terminal"},
 	"cmd/workflow_teamcli.go os.Stderr": {1, "the editor started for a draft takes over the terminal"},
-	"cmd/root.go os.Stderr":             {6, "the logger of the process (slog, 2), and Execute and MustApp, which run where there is no command to ask (panic, last error, app not initialized)"},
+	"cmd/root.go os.Stderr":             {5, "the logger of the process (slog, 2), and Execute and MustApp, which run where there is no command to ask (panic, last error, app not initialized)"},
 	"cmd/config_notices.go os.Stderr":   {1, "the notice handler is called by config.Load, outside of any command"},
 	"cmd/config.go os.Stderr":           {1, "the setter of a key of the field table (Set func) has no command"},
 	"cmd/start_helpers.go os.Stderr":    {1, "errWriter: the error stream of the process when there is no app yet"},

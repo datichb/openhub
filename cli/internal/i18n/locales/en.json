@@ -6059,6 +6059,8 @@
   "cmd.provider_import.no_project_store": "no project store",
   "cmd.provider_import.updating_project_provider_config": "updating project provider config: %w",
   "cmd.root.oh_internal_error_panic": "\noh: internal error (panic): %v\n",
+  "cmd.root.crash_log_written": "Crash report written to %s — please attach this file to the bug report.\n",
+  "cmd.root.crash_log_failed": "Could not write the crash report (%v). Stack:\n",
   "cmd.root.please_report_this_bug_at_https": "Please report this bug at https://github.com/datichb/openhub/issues\n",
   "cmd.team_config.team_not_configured_run_first": "%s Team not configured. Run %s first\n",
   "cmd.team_config.team_state_not_cloned_run_first": "%s Team-state not cloned. Run %s first\n",
