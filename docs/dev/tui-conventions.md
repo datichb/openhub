@@ -116,7 +116,7 @@ load(app, v.shell.Context(), &v.slot, func(ctx context.Context) ([]Row, error) {
 - `loadSlot` numérote les lectures : la plus récente gagne ; `Unmount` appelle `slot.Invalidate()`. Une panique dans `fetch` est récupérée et donnée à `apply` comme erreur. `syncLoad` tire d'abord le team-state (toast si le pull dépasse 1 s) puis lit comme `load` ; `everyOnLoop` ne fait que lancer une lecture à intervalle.
 - Une écriture passe par `persist` : elle n'est ni abandonnée par une écriture plus récente ni par un `Unmount`, et son contexte n'est pas celui du shell. Les pages Hub/Projet l'utilisent avec `views.SaveDelay`.
 - Ce qu'une vue dit sans données (chargement, vide, erreur) s'écrit avec `stateText(kind, msg)` / `stateView` / `setState` (`stateLoading`, `stateEmpty`, `stateError`, clés `tui.state.*`) : mêmes mots et mêmes couleurs partout ; l'erreur est en ✗ rouge. `ActionList.SetEmpty(kind, msg)` fait de même pour une liste.
-- Toute goroutine et tout minuteur passent par `safego` (`safego.Go`, `safego.AfterFunc`) ; la garde `TestNoBareGoInCriticalPackages` couvre `shell/` et `cmd/`.
+- Toute goroutine et tout minuteur passent par `safego` (`safego.Go`, `safego.AfterFunc`) ; la garde `TestNoBareGoInCriticalPackages` couvre tout `cmd/` et `internal/` (sauf `safego`), y compris `errgroup.Go` / `sync.WaitGroup.Go` (`g.Go(safego.WrapErr(fn))`, `wg.Go(safego.Wrap(fn))`) et `time.AfterFunc`. Une panique rattrapée écrit `~/.oh/run/crash-<date>.log` (`internal/crashlog`) et le toast en donne le chemin ; un `recover` écrit à la main appelle `safego.LogRecovered`.
 
 ## Le composant `ActionList`
 
