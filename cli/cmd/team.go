@@ -519,6 +519,8 @@ func runTeamStatus(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(i18n.T("cmd.team.listing_claims"), err)
 	}
 
+	names := views.NewNames(registryNames(ctx, a), members)
+
 	// Index claims by member
 	claimsByMember := make(map[string][]teamstate.Claim)
 	for _, c := range claims {
@@ -579,7 +581,7 @@ func runTeamStatus(cmd *cobra.Command, args []string) error {
 				roleCol = ""
 			}
 
-			ticketStr := fmt.Sprintf("%s/%s", c.Project, c.TicketID)
+			ticketStr := fmt.Sprintf("%s/%s", names.Project(c.Project), c.TicketID)
 			fmt.Fprintf(w, "  %s\t%s\t%s\t%s\t%s\n",
 				memberCol, roleCol, ticketStr, c.Status, sinceStr)
 
@@ -687,10 +689,11 @@ func runTeamActivity(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
+	names := readNames(ctx, a, repo)
 	for _, e := range events {
 		ts := textfmt.Clock(e.Timestamp)
 		fmt.Fprintf(a.IO.Out, "  %s %s %s %s\n",
-			theme.Subtitle.Render(ts), eventSymbol(e), theme.Bold.Render(e.Actor), e.Describe())
+			theme.Subtitle.Render(ts), eventSymbol(e), theme.Bold.Render(names.Member(e.Actor)), e.DescribeAs(names))
 	}
 
 	if totalCount > limit {
