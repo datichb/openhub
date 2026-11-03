@@ -281,7 +281,14 @@ func (p *panicSim) loopSafe(fn func()) {
 	}
 }
 
-func (p *panicSim) text() string {
+// text is the screen as text, read on the event loop: the loop draws into
+// the simulation screen, reading it from the test goroutine races with it.
+func (p *panicSim) text() (s string) {
+	p.loopSafe(func() { s = p.screenText() })
+	return s
+}
+
+func (p *panicSim) screenText() string {
 	cells, w, h := p.sim.GetContents()
 	var b strings.Builder
 	for y := 0; y < h; y++ {
