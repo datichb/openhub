@@ -51,11 +51,9 @@ func buildTeamDetailView(a *app.App) views.View {
 		GetTrackerLocalConfig: func() config.TrackerLocalConfig {
 			return a.Config.Tracker
 		},
-		ResolveTeam:      makeResolveTeamFunc(a),
-		PromoteSolo:      tuiPromoteSolo,
-		SaveTeamConfig:   func() views.TeamConfigWriter { return teamConfigWriter(a) },
-		SaveLocalMCP:     func(key, value string) error { return nil },
-		SaveLocalTracker: func(key, value string) error { return nil },
+		ResolveTeam:    makeResolveTeamFunc(a),
+		PromoteSolo:    tuiPromoteSolo,
+		SaveTeamConfig: func() views.TeamConfigWriter { return teamConfigWriter(a) },
 		GetSecrets: func() tracker.SecretGetter {
 			return a.Secrets
 		},

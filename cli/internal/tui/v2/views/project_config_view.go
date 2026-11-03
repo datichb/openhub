@@ -20,10 +20,6 @@ type ProjectConfigViewConfig struct {
 	GetProject func() *domain.Project
 	// SaveProject persists the modified project to the DB.
 	SaveProject func(ctx context.Context, p *domain.Project) error
-	// ResolveMCPSource returns the resolution source for an MCP field.
-	// Returns (effectiveValue, sourceAnnotation, isLocked).
-	// If nil, no resolution annotations are shown.
-	ResolveMCPSource func(service, field string) (effective string, source string, locked bool)
 	// ExecHints computes the « Exécution » hints of a project (detected
 	// Dockerfile), off the event loop. Nil = no hint.
 	ExecHints func(projectPath string) ProjectExecHints

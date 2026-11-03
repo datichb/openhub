@@ -55,11 +55,9 @@ type TeamDetailViewConfig struct {
 	// SaveTeamConfig is called on the event loop and gives the function that
 	// writes the config of the team to its team-state (a commit and a push),
 	// which the view runs off the loop. Nil: nothing to save with.
-	SaveTeamConfig   func() TeamConfigWriter
-	SaveLocalMCP     func(key, value string) error
-	SaveLocalTracker func(key, value string) error
-	GetSecrets       func() tracker.SecretGetter
-	GetHubConfig     func() *config.Config
+	SaveTeamConfig func() TeamConfigWriter
+	GetSecrets     func() tracker.SecretGetter
+	GetHubConfig   func() *config.Config
 	// UpdateHubConfig changes hub.toml: fn receives the file as it is on disk
 	// and changes only the settings the view edited (the host then brings the
 	// shared config up to date). The view never saves a whole config.
