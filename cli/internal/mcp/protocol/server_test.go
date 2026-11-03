@@ -271,7 +271,7 @@ func TestServeIOAnswersTheLastRequestBeforeEOF(t *testing.T) {
 	}
 }
 
-// QB3: tools are named without their server prefix (the tool client adds
+// Tools are named without their server prefix (the tool client adds
 // it); a call under the former prefixed name still works.
 func TestAcceptLegacyNames(t *testing.T) {
 	s := NewServer("gitlab-mcp", "1")

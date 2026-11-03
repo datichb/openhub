@@ -14,7 +14,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
-// Reports (modernisation L4): the agent files its whole report, oh keeps it
+// Reports: the agent files its whole report, oh keeps it
 // (rp-<n>) and the coordinators only pass the id on.
 
 func registerReports(s *protocol.Server, h handlers) {

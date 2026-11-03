@@ -79,7 +79,7 @@ func TestToolsList(t *testing.T) {
 	assert.ElementsMatch(t, []string{"status", "checkpoint", "outputs", "report", "report_get", "reports"}, names)
 }
 
-// Bug 15: a workflow without checkpoint does not offer workflow_checkpoint
+// A workflow without checkpoint does not offer workflow_checkpoint
 // (the agent invented cp-1).
 func TestToolsListWithoutCheckpoints(t *testing.T) {
 	out := call(t, &fakeBackend{}, "tools/list", `{}`, WithoutCheckpoints())
@@ -145,7 +145,7 @@ func TestCheckpointUnlockedTextFollowsTheOps(t *testing.T) {
 	assert.NotContains(t, tag, "merge request")
 	assert.NotContains(t, unlockedText([]string{"commit", "close"}, ""), "tag")
 
-	// p5-fixes: an earlier commit checkpoint unlocked again later: one
+	// An earlier commit checkpoint unlocked again later: one
 	// commit, never the closing of a ticket.
 	once := unlockedText([]string{"commit"}, "cp-postmortem")
 	assert.Contains(t, once, "en un seul commit")

@@ -189,14 +189,14 @@ func TestWikiWithoutDaemon(t *testing.T) {
 	assert.Contains(t, out.Result.Content[0].Text, "réservé au documentarian")
 }
 
-// p5-fixes: a replacement is listed before → after.
+// A replacement is listed before → after.
 func TestProposalLineReplacement(t *testing.T) {
 	line := proposalLine(api.WikiProposal{ID: "wp-3", WikiProposal: domain.WikiProposal{Status: "pending", Agent: "onboarder", Page: "technical/stack.md",
 		Tag: "CONFIRMÉ", Replaces: "- HTTP dans internal/http", Content: "- HTTP dans internal/api"}})
 	assert.Contains(t, line, "« - HTTP dans internal/http » → « - HTTP dans internal/api »")
 }
 
-// p9-wiki-refusal: the reason of a refusal ends the line, bounded to its
+// The reason of a refusal ends the line, bounded to its
 // first line; no reason, nothing added.
 func TestProposalLineRefusalReason(t *testing.T) {
 	p := domain.WikiProposal{Status: "refused", Agent: "onboarder", Page: "technical/stack.md", Tag: "DÉDUIT", Content: "- zod"}
