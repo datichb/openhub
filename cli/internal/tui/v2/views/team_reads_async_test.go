@@ -35,7 +35,7 @@ func TestActivityViewLoadAndRemount(t *testing.T) {
 	var calls atomic.Int32
 	first, release := make(chan struct{}), make(chan struct{})
 	v := NewActivityView(func() TeamResolution { return tc })
-	v.read = func(activityReader, string) (activityData, error) {
+	v.read = func(context.Context, activityReader, string) (activityData, error) {
 		event := func(ticket string) teamstate.Event {
 			return teamstate.Event{Timestamp: time.Now(), Actor: "alice", Type: teamstate.EventClaimTaken, Ticket: ticket}
 		}
@@ -70,7 +70,7 @@ func TestActivityViewReadAfterUnmountIsIgnored(t *testing.T) {
 	_, tc := soloState(t)
 	started, release, done := make(chan struct{}), make(chan struct{}), make(chan struct{})
 	v := NewActivityView(func() TeamResolution { return tc })
-	v.read = func(activityReader, string) (activityData, error) {
+	v.read = func(context.Context, activityReader, string) (activityData, error) {
 		close(started)
 		<-release
 		defer close(done)

@@ -63,7 +63,7 @@ func TestRunClaim_Success(t *testing.T) {
 	assert.Equal(t, teamstate.ClaimStatusInProgress, claim.Status)
 
 	// Event was emitted
-	events, err := repo.ListEventsLimited("myproject", 10)
+	events, err := repo.ListEventsLimited(ctx, "myproject", 10)
 	require.NoError(t, err)
 	assert.NotEmpty(t, events)
 

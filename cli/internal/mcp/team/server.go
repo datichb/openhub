@@ -625,7 +625,7 @@ func handleTeamEvents(ctx context.Context, params json.RawMessage) (*protocol.To
 		return nil, err
 	}
 
-	events, err := repo.ListEventsLimited(args.Project, args.Limit)
+	events, err := repo.ListEventsLimited(ctx, args.Project, args.Limit)
 	if err != nil {
 		return nil, fmt.Errorf("listing events: %w", err)
 	}

@@ -108,7 +108,7 @@ func (h *sseHub) pollTeamEvents(ctx context.Context, a *app.App, lastHash *strin
 	if repo == nil {
 		return
 	}
-	events, err := repo.ListEventsLimited("", 10)
+	events, err := repo.ListEventsLimited(ctx, "", 10)
 	if err != nil {
 		return
 	}

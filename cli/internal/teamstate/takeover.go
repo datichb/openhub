@@ -89,7 +89,7 @@ func (r *Repo) GenerateRawBrief(ctx context.Context, project, ticketID, from, to
 	}
 
 	// Collect events for this ticket
-	events, err := r.ListEvents(project, time.Time{})
+	events, err := r.ListEvents(ctx, project, time.Time{})
 	if err == nil {
 		var ticketEvents []TakeoverEvent
 		for _, e := range events {

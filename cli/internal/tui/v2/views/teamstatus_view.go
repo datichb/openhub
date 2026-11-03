@@ -135,7 +135,7 @@ func readTeamStatus(ctx context.Context, repo teamStatusReader) *teamStatusData 
 	var d teamStatusData
 	d.members, d.membersErr = repo.ListMembers(ctx)
 	d.claims, d.claimsErr = repo.ListClaims(ctx, "")
-	d.events, d.eventsErr = repo.ListEventsLimited("", 5)
+	d.events, d.eventsErr = repo.ListEventsLimited(ctx, "", 5)
 	return &d
 }
 

@@ -56,7 +56,7 @@ func TestTeamWikiReviewRefusalNeedsAReason(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, pending)
 	assert.Contains(t, gittest.Run(t, repo.Path(), "log", "--format=%s", "-3"), "rejected proposal wp-1: déjà couvert par l'ADR 12")
-	events, err := repo.ListEvents("p", time.Time{})
+	events, err := repo.ListEvents(t.Context(), "p", time.Time{})
 	require.NoError(t, err)
 	var reasons []any
 	for _, e := range events {

@@ -92,7 +92,7 @@ func BenchmarkListEventsLimited_5(b *testing.B) {
 	repo := setupBenchRepo(b)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		events, err := repo.ListEventsLimited("project-0", 5)
+		events, err := repo.ListEventsLimited(b.Context(), "project-0", 5)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -106,7 +106,7 @@ func BenchmarkListEventsLimited_20(b *testing.B) {
 	repo := setupBenchRepo(b)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		events, err := repo.ListEventsLimited("project-0", 20)
+		events, err := repo.ListEventsLimited(b.Context(), "project-0", 20)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -120,7 +120,7 @@ func BenchmarkListEventsLimited_AllProjects_5(b *testing.B) {
 	repo := setupBenchRepo(b)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		events, err := repo.ListEventsLimited("", 5)
+		events, err := repo.ListEventsLimited(b.Context(), "", 5)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -135,7 +135,7 @@ func BenchmarkListEvents_LastWeek(b *testing.B) {
 	since := time.Now().UTC().AddDate(0, 0, -7)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := repo.ListEvents("project-0", since)
+		_, err := repo.ListEvents(b.Context(), "project-0", since)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -146,7 +146,7 @@ func BenchmarkListEvents_All(b *testing.B) {
 	repo := setupBenchRepo(b)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := repo.ListEvents("project-0", time.Time{})
+		_, err := repo.ListEvents(b.Context(), "project-0", time.Time{})
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -268,7 +268,7 @@ func TestConcurrentReadWrite(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for i := 0; i < 5; i++ {
-				_, _ = repo.ListEventsLimited("T-RW", 10)
+				_, _ = repo.ListEventsLimited(ctx, "T-RW", 10)
 			}
 		}()
 	}
@@ -279,7 +279,7 @@ func TestConcurrentReadWrite(t *testing.T) {
 	assert.Empty(t, writeErrs, "write errors: %v", writeErrs)
 
 	// Events should be readable
-	events, err := repo.ListEventsLimited("T-RW", 20)
+	events, err := repo.ListEventsLimited(ctx, "T-RW", 20)
 	require.NoError(t, err)
 	assert.GreaterOrEqual(t, len(events), 1, "should have at least the seed event")
 }

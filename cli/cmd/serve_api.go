@@ -140,7 +140,7 @@ func handleTeamEvents(a *app.App) http.HandlerFunc {
 		}
 
 		project := r.URL.Query().Get("project")
-		events, err := repo.ListEventsLimited(project, limit)
+		events, err := repo.ListEventsLimited(r.Context(), project, limit)
 		if err != nil {
 			writeError(w, err, http.StatusInternalServerError)
 			return

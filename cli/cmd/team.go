@@ -652,7 +652,7 @@ func runTeamActivity(cmd *cobra.Command, args []string) error {
 	project, _ := cmd.Flags().GetString("project")
 	limit, _ := cmd.Flags().GetInt("limit")
 
-	events, err := repo.ListEvents(project, since)
+	events, err := repo.ListEvents(ctx, project, since)
 	if err != nil {
 		return fmt.Errorf(i18n.T("cmd.team.listing_events"), err)
 	}

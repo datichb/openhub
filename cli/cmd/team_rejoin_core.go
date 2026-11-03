@@ -150,7 +150,7 @@ func teamRejoinCore(ctx context.Context, a *app.App, p teamRejoinParams) (*teamR
 
 	// Count team events for this member (for summary display)
 	eventCount := 0
-	events, err := repo.ListEvents("", time.Time{})
+	events, err := repo.ListEvents(ctx, "", time.Time{})
 	if err == nil {
 		for _, e := range events {
 			if e.Actor == member.ID && e.Type == teamstate.EventSessionComplete {

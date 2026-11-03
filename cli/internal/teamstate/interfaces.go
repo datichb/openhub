@@ -122,8 +122,8 @@ type MemberWriter interface {
 
 // EventReader reads the activity log.
 type EventReader interface {
-	ListEvents(project string, since time.Time) ([]Event, error)
-	ListEventsLimited(project string, limit int) ([]Event, error)
+	ListEvents(ctx context.Context, project string, since time.Time) ([]Event, error)
+	ListEventsLimited(ctx context.Context, project string, limit int) ([]Event, error)
 }
 
 // EventWriter appends to the activity log.
