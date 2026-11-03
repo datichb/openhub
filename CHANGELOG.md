@@ -13,6 +13,7 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 - **Formule Homebrew** : la formule de la 5.1.0 dépendait d'`anomalyco/tap/opencode`, qui est opencode 1.x (refusé par oh 5) et qui entre en conflit avec l'opencode de homebrew-core (`brew upgrade openhub` demandait `brew uninstall opencode`). Elle dépend maintenant d'`opencode` (homebrew-core, opencode V2). La formule du tap a été corrigée le jour de la release, sans changer les binaires. Les guides d'installation disent `brew install opencode`.
 - **Windows** : en quittant oh, l'attente des sessions qui doivent finir leur étape pouvait conclure à tort qu'elles avaient fini quand le délai expirait pendant une lecture de l'état du serveur.
+- **`oh doctor` et les réservations d'un projet recréé** : quand un projet est recréé sous un nouvel ID, ses réservations restées sous l'ancien (sans `mr_url`, et dont le nom de l'ancien ID n'est pas celui du projet) n'étaient ni signalées ni rattachées, et le board gardait un onglet au nom de l'ancien ID. Le doctor propose maintenant le rattachement quand le projet est le seul projet actif de l'équipe sur la machine (preuve faible, dite dans le message et dans le plan de `--fix` ; refusée si une `mr_url` désigne un autre dépôt), et signale toujours les réservations sous un ID inconnu, avec leurs tickets et la commande `oh team release` à lancer quand rien ne permet de les rattacher.
 
 ## [5.1.0] — 2026-11-03
 
