@@ -70,10 +70,16 @@ brews:
     homepage: "https://github.com/datichb/openhub"
     description: "OpenHub CLI — orchestrateur pour opencode"
     license: "MIT"
+    # opencode runs every session: without it oh cannot start one. beads
+    # (bd) and terminal-notifier (clickable notifications, macOS only) are optional.
     dependencies:
       - name: git
+      - name: opencode
       - name: beads
         type: recommended
+      - name: terminal-notifier
+        type: recommended
+        os: mac
     install: |
       bin.install "oh"
     test: |
