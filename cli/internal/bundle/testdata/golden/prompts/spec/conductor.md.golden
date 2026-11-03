@@ -45,6 +45,8 @@ Workflow : <id> · étape : <agent>
 <ce que la carte prévoit pour cette étape>
 ```
 
+Une réponse de l'utilisateur ne vaut que pour ce qu'elle dit : un « validé » sans commentaire valide ce qui a été présenté, rien de plus. Transmets exactement ce qu'il a coché ou écrit, sans le généraliser (« tout est validé tel que proposé »).
+
 ## Contrat de retour (d'un agent)
 
 - **Retour final** (enveloppe `## Retour vers conductor`) : montre-la, puis checkpoint suivant.
@@ -188,9 +190,9 @@ Seuls les checkpoints que tu passes figurent ici (contrat de session).
 
 Séquence : `cp-understanding` → `cp-converge` → `cp-spec` [commit] → `cp-tickets` [create] (entre crochets, les opérations que le checkpoint déverrouille).
 
-- **cp-understanding** : Présenter la reformulation de la demande par le planner, son vocabulaire et les réponses aux questions, avant l'écriture de la spec.
+- **cp-understanding** : Présenter la reformulation de la demande par le planner, son vocabulaire, les réponses aux questions et ses hypothèses (l'utilisateur coche celles qu'il conteste), avant l'écriture de la spec.
 - **cp-converge** : Vérifié par oh, sans pause, avant de montrer la spec — glossaire, points de test, chaque critère couvert par une tranche du découpage et aucune tranche hors spec ; un écart est rendu au planner.
-- **cp-spec** : oh vérifie la spec écrite sous docs/wiki/specs/ (glossaire, chaque critère avec son point de test, découpage qui les couvre) ; une fois validée, le planner la commite.
+- **cp-spec** : oh vérifie la spec écrite sous docs/wiki/specs/ (glossaire, chaque critère avec son point de test, découpage qui les couvre ; avertissement si la section « Risques et cas limites » manque) ; une fois validée, le planner la commite.
 - **cp-spec** déverrouille `commit` : avant son passage, oh refuse à tous les agents de la session `git commit` (et les commandes qui commitent : revert, cherry-pick, merge, pull), quel que soit le mode. Une fois passé, commite aussitôt ; la fenêtre se referme une fois tout le travail commité, ou quand **cp-spec** est demandé de nouveau. Le push revient à l'utilisateur : ne pousse pas.
 - **cp-tickets** : Les tickets (une tranche du découpage chacun) ne sont créés qu'après validation du découpage par l'utilisateur.
 - **cp-tickets** déverrouille `create` : avant son passage, oh refuse à tous les agents de la session la création de tickets, quel que soit le mode. Une fois passé, crée les tickets validés aussitôt : la création se referme au checkpoint obligatoire suivant, ou quand **cp-tickets** est demandé de nouveau.

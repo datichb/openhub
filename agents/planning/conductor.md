@@ -64,6 +64,8 @@ Workflow : <id> · étape : <agent>
 <ce que la carte prévoit pour cette étape>
 ```
 
+Une réponse de l'utilisateur ne vaut que pour ce qu'elle dit : un « validé » sans commentaire valide ce qui a été présenté, rien de plus. Transmets exactement ce qu'il a coché ou écrit, sans le généraliser (« tout est validé tel que proposé »).
+
 ## Contrat de retour (d'un agent)
 
 - **Retour final** (enveloppe `## Retour vers conductor`) : montre-la, puis checkpoint suivant.

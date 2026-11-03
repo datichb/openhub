@@ -60,24 +60,24 @@ instruct review-feedback        orchestrator-dev                 4578     3010  
 instruct review-feedback        reviewer                        11822     5283    6   13    447   13    447
 instruct review-feedback        TOTAL                           28304    13845   20   28   1018   28   1018
 instruct security-fix           auditor-subagent                 7966     2811    6   14    499   14    499
-instruct security-fix           conductor                        3812     2612    5    0      0    0      0
+instruct security-fix           conductor                        3874     2612    5    0      0    0      0
 instruct security-fix           developer                       11900     5552    8   17    621   17    621
-instruct security-fix           TOTAL                           23678    10975   19   30   1084   30   1084
+instruct security-fix           TOTAL                           23740    10975   19   30   1084   30   1084
 instruct skill-refresh          documentarian                    4268     2640    4    9    289    9    289
 instruct skill-refresh          TOTAL                            4268     2640    4    9    289    9    289
-instruct spec                   conductor                        3881     2663    5    0      0    0      0
+instruct spec                   conductor                        3973     2694    5    0      0    0      0
 instruct spec                   designer                         4576     2435    6   12    411   12    411
 instruct spec                   pathfinder                       5853     3840    7    4    160    4    160
-instruct spec                   planner                          6086     3445    7   14    491   14    491
-instruct spec                   TOTAL                           20396    12383   25   25    872   25    872
+instruct spec                   planner                          6381     3445    7   14    491   14    491
+instruct spec                   TOTAL                           20783    12414   25   25    872   25    872
 instruct spike                  developer                       11898     5552    8   17    621   17    621
 instruct spike                  pathfinder                       5274     3202    6    4    160    4    160
 instruct spike                  TOTAL                           17172     8754   14   19    714   19    714
-instruct sweep                  conductor                        3633     2456    5    5    181    5    181
+instruct sweep                  conductor                        3694     2456    5    5    181    5    181
 instruct sweep                  developer                       11898     5552    8   17    621   17    621
 instruct sweep                  pathfinder                       5772     3840    7    4    160    4    160
 instruct sweep                  reviewer                        11816     5283    6   13    447   13    447
-instruct sweep                  TOTAL                           33119    17131   26   23    850   23    850
+instruct sweep                  TOTAL                           33180    17131   26   23    850   23    850
 instruct sweep-task             developer                       11253     5013    7   20    725   20    725
 instruct sweep-task             TOTAL                           11253     5013    7   20    725   20    725
 instruct ticket                 developer                       11902     5552    8   17    621   17    621
@@ -137,24 +137,24 @@ none     review-feedback        orchestrator-dev                 4180     3010  
 none     review-feedback        reviewer                         7010     4728    5   16    551   16    551
 none     review-feedback        TOTAL                           18615    12817   18   31   1122   31   1122
 none     security-fix           auditor-subagent                 3463     2270    5   13    463   13    463
-none     security-fix           conductor                        3720     2612    5    0      0    0      0
+none     security-fix           conductor                        3781     2612    5    0      0    0      0
 none     security-fix           developer                        7421     5079    7   20    725   20    725
-none     security-fix           TOTAL                           14604     9961   17   33   1188   33   1188
+none     security-fix           TOTAL                           14665     9961   17   33   1188   33   1188
 none     skill-refresh          documentarian                    3853     2640    4    9    289    9    289
 none     skill-refresh          TOTAL                            3853     2640    4    9    289    9    289
-none     spec                   conductor                        3788     2663    5    0      0    0      0
+none     spec                   conductor                        3881     2694    5    0      0    0      0
 none     spec                   designer                         4178     2435    6   12    411   12    411
 none     spec                   pathfinder                       4985     3366    6    4    160    4    160
-none     spec                   planner                          5688     3445    7   14    491   14    491
-none     spec                   TOTAL                           18639    11909   24   25    872   25    872
+none     spec                   planner                          5983     3445    7   14    491   14    491
+none     spec                   TOTAL                           19027    11940   24   25    872   25    872
 none     spike                  developer                        7420     5079    7   20    725   20    725
 none     spike                  pathfinder                       4406     2728    5    4    160    4    160
 none     spike                  TOTAL                           11826     7807   12   22    818   22    818
-none     sweep                  conductor                        3540     2456    5    5    181    5    181
+none     sweep                  conductor                        3602     2456    5    5    181    5    181
 none     sweep                  developer                        7419     5079    7   20    725   20    725
 none     sweep                  pathfinder                       4904     3366    6    4    160    4    160
 none     sweep                  reviewer                         7004     4728    5   16    551   16    551
-none     sweep                  TOTAL                           22867    15629   23   26    954   26    954
+none     sweep                  TOTAL                           22929    15629   23   26    954   26    954
 none     sweep-task             developer                        6774     4540    6   20    725   20    725
 none     sweep-task             TOTAL                            6774     4540    6   20    725   20    725
 none     ticket                 developer                        7423     5079    7   20    725   20    725
@@ -214,24 +214,24 @@ stacks   review-feedback        orchestrator-dev                 4180     3010  
 stacks   review-feedback        reviewer                         7010     4728    5   23    798   23    798
 stacks   review-feedback        TOTAL                           18615    12817   18   38   1369   38   1369
 stacks   security-fix           auditor-subagent                 3463     2270    5   13    463   13    463
-stacks   security-fix           conductor                        3720     2612    5    0      0    0      0
+stacks   security-fix           conductor                        3781     2612    5    0      0    0      0
 stacks   security-fix           developer                        7421     5079    7   27    972   27    972
-stacks   security-fix           TOTAL                           14604     9961   17   40   1435   40   1435
+stacks   security-fix           TOTAL                           14665     9961   17   40   1435   40   1435
 stacks   skill-refresh          documentarian                    3853     2640    4    9    289    9    289
 stacks   skill-refresh          TOTAL                            3853     2640    4    9    289    9    289
-stacks   spec                   conductor                        3788     2663    5    0      0    0      0
+stacks   spec                   conductor                        3881     2694    5    0      0    0      0
 stacks   spec                   designer                         4178     2435    6   12    411   12    411
 stacks   spec                   pathfinder                       4985     3366    6    4    160    4    160
-stacks   spec                   planner                          5688     3445    7   14    491   14    491
-stacks   spec                   TOTAL                           18639    11909   24   25    872   25    872
+stacks   spec                   planner                          5983     3445    7   14    491   14    491
+stacks   spec                   TOTAL                           19027    11940   24   25    872   25    872
 stacks   spike                  developer                        7420     5079    7   27    972   27    972
 stacks   spike                  pathfinder                       4406     2728    5    4    160    4    160
 stacks   spike                  TOTAL                           11826     7807   12   29   1065   29   1065
-stacks   sweep                  conductor                        3540     2456    5    5    181    5    181
+stacks   sweep                  conductor                        3602     2456    5    5    181    5    181
 stacks   sweep                  developer                        7419     5079    7   27    972   27    972
 stacks   sweep                  pathfinder                       4904     3366    6    4    160    4    160
 stacks   sweep                  reviewer                         7004     4728    5   23    798   23    798
-stacks   sweep                  TOTAL                           22867    15629   23   33   1201   33   1201
+stacks   sweep                  TOTAL                           22929    15629   23   33   1201   33   1201
 stacks   sweep-task             developer                        6774     4540    6   27    972   27    972
 stacks   sweep-task             TOTAL                            6774     4540    6   27    972   27    972
 stacks   ticket                 developer                        7423     5079    7   27    972   27    972
@@ -248,7 +248,7 @@ orchestrator-protocol                      3219 orchestrator
 pathfinder-protocol                        1917 pathfinder
 doc-protocol                               1878 documentarian
 planner-workflow                           1713 planner
-workflow-map                               1378 conductor
+workflow-map                               1409 conductor
 dev-standards-simplicity                   1375 developer
 dev-standards-universal                    1343 developer
 audit-protocol-light                       1122 auditor,auditor-subagent
