@@ -45,8 +45,8 @@ type BoardStatusSetter interface {
 
 // ClaimReader reads the claims.
 type ClaimReader interface {
-	ListClaims(project string) ([]Claim, error)
-	GetClaim(project, ticketID string) (*Claim, error)
+	ListClaims(ctx context.Context, project string) ([]Claim, error)
+	GetClaim(ctx context.Context, project, ticketID string) (*Claim, error)
 	IsStale(claim *Claim, staleDays int) bool
 }
 

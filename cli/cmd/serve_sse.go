@@ -121,12 +121,12 @@ func (h *sseHub) pollTeamEvents(ctx context.Context, a *app.App, lastHash *strin
 	}
 }
 
-func (h *sseHub) pollTeamBoard(_ context.Context, a *app.App, lastHash *string) {
+func (h *sseHub) pollTeamBoard(ctx context.Context, a *app.App, lastHash *string) {
 	repo := getTeamRepoSafe(a)
 	if repo == nil {
 		return
 	}
-	claims, err := repo.ListClaims("")
+	claims, err := repo.ListClaims(ctx, "")
 	if err != nil {
 		return
 	}

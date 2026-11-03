@@ -57,7 +57,7 @@ func TestRunClaim_Success(t *testing.T) {
 	assert.Contains(t, stdout.String(), "testuser")
 
 	// Verify claim file was created
-	claim, err := repo.GetClaim("myproject", "TICKET-1")
+	claim, err := repo.GetClaim(ctx, "myproject", "TICKET-1")
 	require.NoError(t, err)
 	assert.Equal(t, "testuser", claim.ClaimedBy)
 	assert.Equal(t, teamstate.ClaimStatusInProgress, claim.Status)
@@ -107,7 +107,7 @@ func TestRunClaim_Planned(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify claim has planned status
-	claim, err := repo.GetClaim("myproject", "PLAN-1")
+	claim, err := repo.GetClaim(t.Context(), "myproject", "PLAN-1")
 	require.NoError(t, err)
 	assert.Equal(t, teamstate.ClaimStatusPlanned, claim.Status)
 }
@@ -134,7 +134,7 @@ func TestRunRelease_Success(t *testing.T) {
 	assert.Contains(t, stdout.String(), "REL-1")
 
 	// Verify claim is gone
-	_, err = repo.GetClaim("myproject", "REL-1")
+	_, err = repo.GetClaim(ctx, "myproject", "REL-1")
 	assert.Error(t, err)
 }
 
@@ -171,7 +171,7 @@ func TestRunClaimTransfer_Success(t *testing.T) {
 	assert.Contains(t, stdout.String(), "XFER-1")
 
 	// Verify ownership changed
-	updated, err := repo.GetClaim("myproject", "XFER-1")
+	updated, err := repo.GetClaim(ctx, "myproject", "XFER-1")
 	require.NoError(t, err)
 	assert.Equal(t, "alice", updated.ClaimedBy)
 
@@ -193,14 +193,14 @@ func claimsCreate(t *testing.T, repo *teamstate.Repo, ticket, member, session st
 
 func claimsOnDisk(t *testing.T, repo *teamstate.Repo, ticket string) *teamstate.Claim {
 	t.Helper()
-	c, err := repo.GetClaim(claimsProject, ticket)
+	c, err := repo.GetClaim(t.Context(), claimsProject, ticket)
 	require.NoError(t, err)
 	return c
 }
 
 func claimsGone(t *testing.T, repo *teamstate.Repo, ticket string) {
 	t.Helper()
-	_, err := repo.GetClaim(claimsProject, ticket)
+	_, err := repo.GetClaim(t.Context(), claimsProject, ticket)
 	assert.ErrorIs(t, err, teamstate.ErrClaimNotFound, ticket)
 }
 
@@ -213,7 +213,7 @@ func TestStartTicketClaim(t *testing.T) {
 
 	note := startTicketClaim(ctx, repo, "myproject", "testuser", "NEW-1")
 	assert.Contains(t, note, "NEW-1")
-	c, err := repo.GetClaim("myproject", "NEW-1")
+	c, err := repo.GetClaim(ctx, "myproject", "NEW-1")
 	require.NoError(t, err)
 	assert.Equal(t, teamstate.ClaimStatusInProgress, c.Status)
 
@@ -221,7 +221,7 @@ func TestStartTicketClaim(t *testing.T) {
 	require.NoError(t, err)
 	note = startTicketClaim(ctx, repo, "myproject", "testuser", "PLAN-2")
 	assert.Contains(t, note, "→")
-	c, err = repo.GetClaim("myproject", "PLAN-2")
+	c, err = repo.GetClaim(ctx, "myproject", "PLAN-2")
 	require.NoError(t, err)
 	assert.Equal(t, teamstate.ClaimStatusInProgress, c.Status, "planned → in progress")
 
@@ -230,7 +230,7 @@ func TestStartTicketClaim(t *testing.T) {
 	_, err = repo.CreateClaim(ctx, teamstate.Claim{TicketID: "ALICE-3", Project: "myproject", ClaimedBy: "alice", Status: teamstate.ClaimStatusPlanned})
 	require.NoError(t, err)
 	assert.Contains(t, startTicketClaim(ctx, repo, "myproject", "testuser", "ALICE-3"), "alice")
-	c, _ = repo.GetClaim("myproject", "ALICE-3")
+	c, _ = repo.GetClaim(ctx, "myproject", "ALICE-3")
 	assert.Equal(t, teamstate.ClaimStatusPlanned, c.Status, "someone else's claim is left as is")
 }
 

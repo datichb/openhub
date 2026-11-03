@@ -264,12 +264,12 @@ func findClaimsRehomes(ctx context.Context, a *app.App) ([]claimsRehome, []claim
 	var ambiguous []claimsAmbiguity
 	for _, key := range order {
 		s := spaces[key]
-		claims, err := s.repo.ListClaims("")
+		claims, err := s.repo.ListClaims(ctx, "")
 		if err != nil {
 			continue
 		}
 		claimsOf := func(project string) []teamstate.Claim {
-			cs, _ := s.repo.ListClaims(project)
+			cs, _ := s.repo.ListClaims(ctx, project)
 			return cs
 		}
 		f, amb := matchClaimsRehomes(s.repo, s.member, claims, known, s.candidates, claimsOf, gitOriginOf)

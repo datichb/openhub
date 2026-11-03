@@ -30,7 +30,7 @@ status = "in_progress"
 	require.NoError(t, os.WriteFile(path, []byte(claim), 0o644))
 
 	// GetClaim should find it
-	got, err := repo.GetClaim("T-SRU", "SRU-142")
+	got, err := repo.GetClaim(t.Context(), "T-SRU", "SRU-142")
 	require.NoError(t, err)
 	assert.Equal(t, "benjamin", got.ClaimedBy)
 	assert.Equal(t, "feat/SRU-142-user-auth", got.Worktree)
@@ -43,7 +43,7 @@ func TestGetClaimNotFound(t *testing.T) {
 	t.Parallel()
 	repo := setupTestRepo(t)
 
-	_, err := repo.GetClaim("T-SRU", "NONEXISTENT")
+	_, err := repo.GetClaim(t.Context(), "T-SRU", "NONEXISTENT")
 	assert.ErrorIs(t, err, ErrClaimNotFound)
 }
 
@@ -65,7 +65,7 @@ status = "review"
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "SRU-142.toml"), []byte(claim1), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "SRU-155.toml"), []byte(claim2), 0o644))
 
-	claims, err := repo.ListClaims("T-SRU")
+	claims, err := repo.ListClaims(t.Context(), "T-SRU")
 	require.NoError(t, err)
 	assert.Len(t, claims, 2)
 
@@ -94,7 +94,7 @@ status = "in_progress"
 	require.NoError(t, os.WriteFile(filepath.Join(dir1, "SRU-142.toml"), []byte(claim), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(dir2, "OTHER-10.toml"), []byte(claim), 0o644))
 
-	claims, err := repo.ListClaims("")
+	claims, err := repo.ListClaims(t.Context(), "")
 	require.NoError(t, err)
 	assert.Len(t, claims, 2)
 }
@@ -103,7 +103,7 @@ func TestListClaimsEmptyProject(t *testing.T) {
 	t.Parallel()
 	repo := setupTestRepo(t)
 
-	claims, err := repo.ListClaims("NONEXISTENT")
+	claims, err := repo.ListClaims(t.Context(), "NONEXISTENT")
 	require.NoError(t, err)
 	assert.Empty(t, claims)
 }
@@ -125,7 +125,7 @@ tracker_status = "In Progress"
 	path := repo.claimFilePath("T-SRU", "SRU-142")
 	require.NoError(t, os.WriteFile(path, []byte(claim), 0o644))
 
-	got, err := repo.GetClaim("T-SRU", "SRU-142")
+	got, err := repo.GetClaim(t.Context(), "T-SRU", "SRU-142")
 	require.NoError(t, err)
 	assert.Equal(t, "benjamin", got.ClaimedBy)
 	assert.Equal(t, "in_progress", got.Status)
@@ -149,7 +149,7 @@ status = "review"
 	path := repo.claimFilePath("T-SRU", "SRU-155")
 	require.NoError(t, os.WriteFile(path, []byte(claim), 0o644))
 
-	got, err := repo.GetClaim("T-SRU", "SRU-155")
+	got, err := repo.GetClaim(t.Context(), "T-SRU", "SRU-155")
 	require.NoError(t, err)
 	assert.Equal(t, "alice", got.ClaimedBy)
 	assert.Equal(t, "review", got.Status)
@@ -180,7 +180,7 @@ func TestUpdateClaimStatusFromTracker_SkipsTransitionValidation(t *testing.T) {
 	err = repo.UpdateClaimStatusFromTracker(ctx, "T-SRU", "SRU-300", ClaimStatusReview)
 	require.NoError(t, err, "UpdateClaimStatusFromTracker should allow planned → review")
 
-	got, err := repo.GetClaim("T-SRU", "SRU-300")
+	got, err := repo.GetClaim(ctx, "T-SRU", "SRU-300")
 	require.NoError(t, err)
 	assert.Equal(t, ClaimStatusReview, got.Status)
 }
@@ -220,7 +220,7 @@ func TestUpdateClaimMetadata(t *testing.T) {
 	err = repo.UpdateClaimMetadata(ctx, "T-SRU", "SRU-310", "New Title", "A description", "Code Review")
 	require.NoError(t, err)
 
-	got, err := repo.GetClaim("T-SRU", "SRU-310")
+	got, err := repo.GetClaim(ctx, "T-SRU", "SRU-310")
 	require.NoError(t, err)
 	assert.Equal(t, "New Title", got.Title)
 	assert.Equal(t, "A description", got.Description)
@@ -275,7 +275,7 @@ func TestCreateClaimIntegration(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify claim exists
-	got, err := repo.GetClaim("T-SRU", "SRU-142")
+	got, err := repo.GetClaim(ctx, "T-SRU", "SRU-142")
 	require.NoError(t, err)
 	assert.Equal(t, "benjamin", got.ClaimedBy)
 }
@@ -324,7 +324,7 @@ func TestReleaseClaimIntegration(t *testing.T) {
 	require.NoError(t, err)
 
 	// Should be gone
-	_, err = repo.GetClaim("T-SRU", "SRU-142")
+	_, err = repo.GetClaim(ctx, "T-SRU", "SRU-142")
 	assert.ErrorIs(t, err, ErrClaimNotFound)
 }
 
@@ -354,7 +354,7 @@ func TestTransferClaimIntegration(t *testing.T) {
 	err = repo.TransferClaim(ctx, "T-SRU", "SRU-142", "alice")
 	require.NoError(t, err)
 
-	got, err := repo.GetClaim("T-SRU", "SRU-142")
+	got, err := repo.GetClaim(ctx, "T-SRU", "SRU-142")
 	require.NoError(t, err)
 	assert.Equal(t, "alice", got.ClaimedBy)
 	// Worktree should be preserved
@@ -425,7 +425,7 @@ func TestUpdateClaimStatus_InvalidTransition(t *testing.T) {
 	assert.ErrorIs(t, err, ErrInvalidTransition)
 
 	// Verify status unchanged
-	got, err := repo.GetClaim("T-SRU", "SRU-200")
+	got, err := repo.GetClaim(ctx, "T-SRU", "SRU-200")
 	require.NoError(t, err)
 	assert.Equal(t, ClaimStatusPlanned, got.Status)
 }
@@ -448,7 +448,7 @@ func TestUpdateClaimStatus_ValidTransition(t *testing.T) {
 	err = repo.UpdateClaimStatus(ctx, "T-SRU", "SRU-201", ClaimStatusInProgress)
 	require.NoError(t, err)
 
-	got, err := repo.GetClaim("T-SRU", "SRU-201")
+	got, err := repo.GetClaim(ctx, "T-SRU", "SRU-201")
 	require.NoError(t, err)
 	assert.Equal(t, ClaimStatusInProgress, got.Status)
 }

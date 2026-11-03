@@ -55,7 +55,7 @@ func (r *Repo) RehomeClaims(ctx context.Context, member string, moves []ClaimMov
 	err := r.Transact(ctx, func(_ context.Context, tx *Tx) (TxResult, error) {
 		res = RehomeResult{} // the build runs again when a push is rejected
 		for _, m := range moves {
-			claims, err := r.ListClaims(m.From)
+			claims, err := r.ListClaims(ctx, m.From)
 			if err != nil {
 				return TxResult{}, err
 			}

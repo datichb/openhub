@@ -65,7 +65,7 @@ func handleTeamBoard(a *app.App) http.HandlerFunc {
 		}
 
 		project := r.URL.Query().Get("project")
-		claims, err := repo.ListClaims(project)
+		claims, err := repo.ListClaims(r.Context(), project)
 		if err != nil {
 			writeError(w, err, http.StatusInternalServerError)
 			return

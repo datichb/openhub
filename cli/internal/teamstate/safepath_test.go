@@ -45,8 +45,8 @@ func TestPublicAPIRefusesUnsafeNames(t *testing.T) {
 		name    string
 		refused func(bad string) bool
 	}{
-		{"GetClaim project", func(bad string) bool { _, err := repo.GetClaim(bad, "ticket"); return unsafe(err) }},
-		{"GetClaim ticket", func(bad string) bool { _, err := repo.GetClaim("T-SRU", bad); return unsafe(err) }},
+		{"GetClaim project", func(bad string) bool { _, err := repo.GetClaim(ctx, bad, "ticket"); return unsafe(err) }},
+		{"GetClaim ticket", func(bad string) bool { _, err := repo.GetClaim(ctx, "T-SRU", bad); return unsafe(err) }},
 		{"CreateClaim project", func(bad string) bool {
 			_, err := repo.CreateClaim(ctx, Claim{Project: bad, TicketID: "ticket", ClaimedBy: "attacker"})
 			return unsafe(err)

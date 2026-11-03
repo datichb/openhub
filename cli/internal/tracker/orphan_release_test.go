@@ -67,12 +67,12 @@ func TestSyncDoesNotRecoverAClaimReleasedOnPurpose(t *testing.T) {
 			require.Len(t, state.GetKnownTickets("p"), 1, "the first run saw the claim")
 
 			c.remove(t, repo, clone)
-			_, err = repo.GetClaim("p", "1")
+			_, err = repo.GetClaim(ctx, "p", "1")
 			require.ErrorIs(t, err, teamstate.ErrClaimNotFound)
 
 			res, err := NewEngine(tr, repo, cfg, stateDir).Run(ctx)
 			require.NoError(t, err)
-			_, err = repo.GetClaim("p", "1")
+			_, err = repo.GetClaim(ctx, "p", "1")
 			if c.wantRecover {
 				require.NoError(t, err, "a claim lost by accident is recovered")
 				assert.Equal(t, 1, res.Projects[0].ClaimsCreated)
@@ -111,13 +111,13 @@ func TestSyncRetentionOfDoneClaimsIsNotUndoneByTheNextRun(t *testing.T) {
 	res, err := NewEngine(tr, repo, cfg, stateDir).Run(ctx)
 	require.NoError(t, err)
 	assert.Equal(t, 1, res.ClaimsReleased, "the retention released the done claim")
-	_, err = repo.GetClaim("p", "1")
+	_, err = repo.GetClaim(ctx, "p", "1")
 	require.ErrorIs(t, err, teamstate.ErrClaimNotFound)
 
 	res, err = NewEngine(tr, repo, cfg, stateDir).Run(ctx)
 	require.NoError(t, err)
 	assert.Zero(t, res.Projects[0].ClaimsCreated, "nothing recovered")
-	_, err = repo.GetClaim("p", "1")
+	_, err = repo.GetClaim(ctx, "p", "1")
 	require.ErrorIs(t, err, teamstate.ErrClaimNotFound, "the claim stays released")
 }
 
@@ -164,12 +164,12 @@ func TestSyncReleasesExpiredClaimsOnlyWhenTheTeamAsksForIt(t *testing.T) {
 			res, err := NewEngine(tr, repo, cfg, stateDir).Run(ctx)
 			require.NoError(t, err)
 			assert.Equal(t, c.want, res.ClaimsExpired)
-			left, err := repo.ListClaims("p")
+			left, err := repo.ListClaims(ctx, "p")
 			require.NoError(t, err)
 			assert.Len(t, left, 5-c.want)
 			if c.enabled {
 				for _, id := range []string{"1", "2"} {
-					_, err := repo.GetClaim("p", id)
+					_, err := repo.GetClaim(ctx, "p", id)
 					assert.ErrorIs(t, err, teamstate.ErrClaimNotFound, id)
 				}
 				require.Len(t, res.Warnings, 2, "each release is said")
@@ -180,7 +180,7 @@ func TestSyncReleasesExpiredClaimsOnlyWhenTheTeamAsksForIt(t *testing.T) {
 				res, err = NewEngine(tr, repo, cfg, stateDir).Run(ctx)
 				require.NoError(t, err)
 				assert.Zero(t, res.Projects[0].ClaimsCreated)
-				left, err = repo.ListClaims("p")
+				left, err = repo.ListClaims(ctx, "p")
 				require.NoError(t, err)
 				assert.Len(t, left, 3)
 			}

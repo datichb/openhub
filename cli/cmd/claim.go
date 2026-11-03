@@ -90,7 +90,7 @@ func runClaim(cmd *cobra.Command, args []string) error {
 
 	// Check max_ticket_wip policy before claiming
 	activeClaims := 0
-	allClaims, _ := repo.ListClaims("")
+	allClaims, _ := repo.ListClaims(ctx, "")
 	for _, c := range allClaims {
 		if c.ClaimedBy == memberID {
 			activeClaims++
@@ -325,7 +325,7 @@ func runClaimTransfer(cmd *cobra.Command, args []string) error {
 	}
 
 	// Get existing claim info before transfer (for brief generation)
-	existingClaim, _ := repo.GetClaim(project, ticketID)
+	existingClaim, _ := repo.GetClaim(ctx, project, ticketID)
 	var previousOwner string
 	if existingClaim != nil {
 		previousOwner = existingClaim.ClaimedBy

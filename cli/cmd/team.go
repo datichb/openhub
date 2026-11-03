@@ -512,7 +512,7 @@ func runTeamStatus(cmd *cobra.Command, args []string) error {
 	}
 
 	// List all claims
-	claims, err := repo.ListClaims("")
+	claims, err := repo.ListClaims(ctx, "")
 	if err != nil {
 		return fmt.Errorf(i18n.T("cmd.team.listing_claims"), err)
 	}

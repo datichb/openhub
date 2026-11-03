@@ -40,7 +40,7 @@ func buildHomeView(a *app.App, sessionsSection views.SessionsSectionConfig, star
 				if repo.IsCloned() {
 					members, _ := repo.ListMembers()
 					entry.MemberCount = len(members)
-					tickets := views.FetchTeamTickets(repo, nil)
+					tickets := views.FetchTeamTickets(tuiContext(), repo, nil)
 					for _, tk := range tickets {
 						if tk.Status == "in_progress" || tk.Status == "review" || tk.Status == "validation" {
 							entry.ActiveCount++

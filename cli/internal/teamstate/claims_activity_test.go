@@ -146,13 +146,13 @@ func TestIsStaleUsesLastActivityFromTheFile(t *testing.T) {
 	// claimed 10 days ago, in progress again just now: not stale.
 	_, err := repo.CreateClaim(ctx, Claim{TicketID: "SRU-1", Project: "T-SRU", ClaimedBy: "benjamin", ClaimedAt: time.Now().Add(-10 * 24 * time.Hour)})
 	require.NoError(t, err)
-	before, err := repo.GetClaim("T-SRU", "SRU-1")
+	before, err := repo.GetClaim(ctx, "T-SRU", "SRU-1")
 	require.NoError(t, err)
 	assert.True(t, before.LastActivity.IsZero())
 	assert.True(t, repo.IsStale(before, 3), "no activity: judged from claimed_at")
 
 	require.NoError(t, repo.AddClaimLabel(ctx, "T-SRU", "SRU-1", "touched"))
-	got, err := repo.GetClaim("T-SRU", "SRU-1")
+	got, err := repo.GetClaim(ctx, "T-SRU", "SRU-1")
 	require.NoError(t, err)
 	assert.False(t, got.LastActivity.IsZero(), "last_activity is on disk")
 	assert.WithinDuration(t, time.Now(), got.LastActivity.Time(), time.Minute)
@@ -176,7 +176,7 @@ func TestLastActivityIsSetByTheWritingOperations(t *testing.T) {
 	}
 	active := func(id string) bool {
 		t.Helper()
-		c, err := repo.GetClaim("T-SRU", id)
+		c, err := repo.GetClaim(ctx, "T-SRU", id)
 		require.NoError(t, err)
 		return !c.LastActivity.IsZero() && time.Since(c.LastActivity.Time()) < time.Minute
 	}

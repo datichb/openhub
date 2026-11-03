@@ -21,6 +21,16 @@ import (
 // tuiShell holds a reference to the running shell for action callbacks.
 var tuiShell *shell.Shell
 
+// tuiContext is the context of the running shell, which ends with it; the
+// callbacks of the views that read the clone of the team off the event loop
+// take it. Background when no shell runs (tests, standalone views).
+func tuiContext() context.Context {
+	if sh := tuiShell; sh != nil {
+		return sh.Context()
+	}
+	return context.Background()
+}
+
 // tuiLaunch says how the TUI shell opens. The zero value is the usual start:
 // project mode inside a registered project, the hub elsewhere.
 type tuiLaunch struct {

@@ -157,7 +157,7 @@ func BenchmarkListClaims_AllProjects(b *testing.B) {
 	repo := setupBenchRepo(b)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		claims, err := repo.ListClaims("")
+		claims, err := repo.ListClaims(b.Context(), "")
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -216,7 +216,7 @@ func TestConcurrentClaims(t *testing.T) {
 	}
 
 	// All claims should exist
-	claims, err := repo.ListClaims("T-CONC")
+	claims, err := repo.ListClaims(ctx, "T-CONC")
 	require.NoError(t, err)
 	assert.Len(t, claims, 5)
 }

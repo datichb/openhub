@@ -1,6 +1,7 @@
 package views
 
 import (
+	"context"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -92,7 +93,7 @@ func TestTeamStatusViewLoadAndRemount(t *testing.T) {
 	var calls atomic.Int32
 	first, release := make(chan struct{}), make(chan struct{})
 	v := NewTeamStatusView(func() TeamResolution { return tc })
-	v.read = func(teamStatusReader) *teamStatusData {
+	v.read = func(context.Context, teamStatusReader) *teamStatusData {
 		member := func(id string) []teamstate.Member { return []teamstate.Member{{ID: id}} }
 		if calls.Add(1) == 1 {
 			close(first)

@@ -70,7 +70,7 @@ func TestFlushClaimQueueAppliesAnAdoption(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 1, applied)
 	assert.Zero(t, dropped)
-	c, err := repo.GetClaim("T-SRU", "SRU-1")
+	c, err := repo.GetClaim(ctx, "T-SRU", "SRU-1")
 	require.NoError(t, err)
 	assert.Equal(t, "ses_2", c.Session)
 	assert.Empty(t, c.Labels, "the label of the previous session goes")
@@ -91,7 +91,7 @@ func TestFlushClaimQueueAppliesAnAdoption(t *testing.T) {
 	require.NoError(t, err)
 	assert.Zero(t, applied)
 	assert.Equal(t, 2, dropped)
-	c, _ = repo.GetClaim("T-SRU", "SRU-3")
+	c, _ = repo.GetClaim(ctx, "T-SRU", "SRU-3")
 	assert.Equal(t, "ses_a", c.Session)
 }
 
@@ -123,7 +123,7 @@ func TestAdoptClaimDurableOffline(t *testing.T) {
 	applied, _, err := repo.FlushClaimQueue(ctx)
 	require.NoError(t, err)
 	assert.Equal(t, 1, applied)
-	c, err := repo.GetClaim("T-SRU", "SRU-1")
+	c, err := repo.GetClaim(ctx, "T-SRU", "SRU-1")
 	require.NoError(t, err)
 	assert.Equal(t, "ses_2", c.Session)
 }
@@ -152,9 +152,9 @@ func TestAdoptClaimDurableOnlineCancelsTheQueueOfTheOthers(t *testing.T) {
 
 	_, _, err = repo.FlushClaimQueue(ctx)
 	require.NoError(t, err)
-	c, err := repo.GetClaim("T-SRU", "SRU-1")
+	c, err := repo.GetClaim(ctx, "T-SRU", "SRU-1")
 	require.NoError(t, err)
 	assert.Equal(t, "ses_2", c.Session, "still held")
-	_, err = repo.GetClaim("T-SRU", "SRU-2")
+	_, err = repo.GetClaim(ctx, "T-SRU", "SRU-2")
 	assert.ErrorIs(t, err, ErrClaimNotFound)
 }

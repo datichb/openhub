@@ -142,7 +142,7 @@ func runPoliciesCheck(cmd *cobra.Command, args []string) error {
 	memberID := a.Config.ActiveTeam().MemberID
 	activeClaims := 0
 	if memberID != "" {
-		claims, _ := repo.ListClaims("")
+		claims, _ := repo.ListClaims(ctx, "")
 		for _, c := range claims {
 			if c.ClaimedBy == memberID {
 				activeClaims++

@@ -79,7 +79,7 @@ func TestPublicMethodsJoinTheTransaction(t *testing.T) {
 		if err := repo.UpdateClaimStatus(ctx, "p", "T-1", ClaimStatusReview); err != nil {
 			return TxResult{}, err
 		}
-		if _, err := repo.ListClaims("p"); err != nil { // a read during the build
+		if _, err := repo.ListClaims(ctx, "p"); err != nil { // a read during the build
 			return TxResult{}, err
 		}
 		return TxResult{Message: "batch"}, repo.AppendEvent(ctx, Event{Type: "test", Actor: "alice", Project: "p"})
@@ -89,7 +89,7 @@ func TestPublicMethodsJoinTheTransaction(t *testing.T) {
 	assert.Equal(t, base+1, n, "one commit")
 	assert.Equal(t, "batch", gittest.Run(t, repo.Path(), "log", "-1", "--format=%s"))
 	assert.Equal(t, gittest.Run(t, repo.Path(), "rev-parse", "HEAD"), gittest.Run(t, bare, "rev-parse", "HEAD"))
-	c, err := repo.GetClaim("p", "T-1")
+	c, err := repo.GetClaim(ctx, "p", "T-1")
 	require.NoError(t, err)
 	assert.Equal(t, ClaimStatusReview, c.Status)
 }

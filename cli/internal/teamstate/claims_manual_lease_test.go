@@ -91,7 +91,7 @@ func TestClaimTakenByHandHasTheLongLease(t *testing.T) {
 	ctx := context.Background()
 	require.NoError(t, repo.SaveConfig(ctx, &TeamConfig{Claim: ClaimConfig{LeaseHours: 24, LeaseHoursManual: 100}}))
 	leaseOf := func(id string) time.Duration {
-		c, err := repo.GetClaim("p", id)
+		c, err := repo.GetClaim(ctx, "p", id)
 		require.NoError(t, err)
 		require.False(t, c.LeaseUntil.IsZero(), id)
 		return time.Until(c.LeaseUntil.Time()).Round(time.Hour)
@@ -137,7 +137,7 @@ func TestRenewClaimByHand(t *testing.T) {
 	assert.WithinDuration(t, now.Add(72*time.Hour), end, 2*time.Second, "not expired yet, renewed for the long lease")
 	assert.Equal(t, before+1, commitCount(t, bare))
 	assert.Equal(t, "lease: alice renews p/by-hand", gittest.Run(t, repo.Path(), "log", "-1", "--format=%s"))
-	got, err := repo.GetClaim("p", "by-hand")
+	got, err := repo.GetClaim(ctx, "p", "by-hand")
 	require.NoError(t, err)
 	assert.Equal(t, InstantOf(end), got.LeaseUntil)
 	assert.True(t, got.LastActivity.IsZero(), "a renewal is not activity")

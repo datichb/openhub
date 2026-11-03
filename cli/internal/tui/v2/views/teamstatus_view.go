@@ -24,7 +24,7 @@ type TeamStatusView struct {
 	loads       loadSlot // the reads of the team-state: only the latest is applied
 
 	// read replaces the read of the team-state (tests).
-	read func(repo teamStatusReader) *teamStatusData
+	read func(ctx context.Context, repo teamStatusReader) *teamStatusData
 }
 
 // teamStatusData is what a read of the team-state gives back.
@@ -117,7 +117,7 @@ func (v *TeamStatusView) syncAndRender() {
 	if read == nil {
 		read = readTeamStatus
 	}
-	fetch := func(context.Context) (*teamStatusData, error) { return read(repo), nil }
+	fetch := func(ctx context.Context) (*teamStatusData, error) { return read(ctx, repo), nil }
 	syncLoad(v.app, shellContext(v.shell), &v.loads, repo, v.shell, fetch, func(d *teamStatusData, _ error) {
 		if v.tv != nil {
 			v.render(tc, d)
@@ -128,13 +128,13 @@ func (v *TeamStatusView) syncAndRender() {
 // readTeamStatus reads the members, the claims and the last events; nil when
 // the clone of the team-state is missing. It reads files: call it off the
 // event loop.
-func readTeamStatus(repo teamStatusReader) *teamStatusData {
+func readTeamStatus(ctx context.Context, repo teamStatusReader) *teamStatusData {
 	if !repo.IsCloned() {
 		return nil
 	}
 	var d teamStatusData
 	d.members, d.membersErr = repo.ListMembers()
-	d.claims, d.claimsErr = repo.ListClaims("")
+	d.claims, d.claimsErr = repo.ListClaims(ctx, "")
 	d.events, d.eventsErr = repo.ListEventsLimited("", 5)
 	return &d
 }

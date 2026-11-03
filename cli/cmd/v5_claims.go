@@ -125,7 +125,7 @@ func endTicketClaims(ctx context.Context, repo *teamstate.Repo, in sessionClaims
 	terminals := board.TerminalStatuses()
 	var state *sessionEndState
 	for _, t := range in.Tickets {
-		c, err := repo.GetClaim(in.Project, t)
+		c, err := repo.GetClaim(ctx, in.Project, t)
 		if err != nil || c.ClaimedBy != in.Member {
 			continue // no claim, or someone else's
 		}

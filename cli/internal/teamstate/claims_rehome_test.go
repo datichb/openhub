@@ -40,7 +40,7 @@ func TestRehomeClaimsMovesTheClaimsOfTheMemberInOneCommit(t *testing.T) {
 	assert.Empty(t, res.Conflicts)
 	assert.Equal(t, before+1, commitCount(t, bare), "one commit for the five claims")
 
-	moved, err := repo.ListClaims("t-sru-0a1b2c3d")
+	moved, err := repo.ListClaims(ctx, "t-sru-0a1b2c3d")
 	require.NoError(t, err)
 	assert.Len(t, moved, 5)
 	for _, c := range moved {
@@ -50,7 +50,7 @@ func TestRehomeClaimsMovesTheClaimsOfTheMemberInOneCommit(t *testing.T) {
 	got, err := os.ReadFile(repo.claimFilePath("t-sru-0a1b2c3d", "SRU-1"))
 	require.NoError(t, err)
 	assert.Equal(t, string(raw), string(got), "the file is moved as it is, not rewritten")
-	left, err := repo.ListClaims("t-sru-b267fbf1")
+	left, err := repo.ListClaims(ctx, "t-sru-b267fbf1")
 	require.NoError(t, err)
 	require.Len(t, left, 1, "the claim of another member stays where it is")
 	assert.Equal(t, "alice", left[0].ClaimedBy)
@@ -74,10 +74,10 @@ func TestRehomeClaimsKeepsTheClaimOfTheNewID(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []RehomedClaim{{From: "old-12345678", To: "new-87654321", TicketID: "SRU-2"}}, res.Moved)
 	assert.Equal(t, []RehomedClaim{{From: "old-12345678", To: "new-87654321", TicketID: "SRU-1"}}, res.Conflicts)
-	c, err := repo.GetClaim("new-87654321", "SRU-1")
+	c, err := repo.GetClaim(t.Context(), "new-87654321", "SRU-1")
 	require.NoError(t, err)
 	assert.Equal(t, ClaimStatusReview, c.Status, "the claim of the new ID is not overwritten")
-	_, err = repo.GetClaim("old-12345678", "SRU-1")
+	_, err = repo.GetClaim(t.Context(), "old-12345678", "SRU-1")
 	assert.NoError(t, err, "the conflicting claim stays under the old ID")
 	assert.Equal(t, before+1, commitCount(t, bare))
 }

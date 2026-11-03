@@ -462,7 +462,7 @@ func handleTeamClaims(ctx context.Context, params json.RawMessage) (*protocol.To
 		return nil, err
 	}
 
-	claims, err := repo.ListClaims(args.Project)
+	claims, err := repo.ListClaims(ctx, args.Project)
 	if err != nil {
 		return nil, fmt.Errorf("listing claims: %w", err)
 	}
@@ -749,7 +749,7 @@ func handleTeamTakeoverBrief(ctx context.Context, params json.RawMessage) (*prot
 // target is left as it is. On a board without a review column, the approval
 // is applied directly, as the tracker sync does.
 func applyVerdictStatus(ctx context.Context, repo verdictStore, project, ticketID, target string) error {
-	claim, err := repo.GetClaim(project, ticketID)
+	claim, err := repo.GetClaim(ctx, project, ticketID)
 	if err != nil {
 		return err
 	}

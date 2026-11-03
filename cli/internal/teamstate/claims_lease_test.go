@@ -27,7 +27,7 @@ func TestClaimBefore5_1KeepsItsBytes(t *testing.T) {
 	require.NoError(t, os.MkdirAll(filepath.Dir(repo.claimFilePath("T-SRU", "SRU-142")), 0o755))
 	require.NoError(t, os.WriteFile(repo.claimFilePath("T-SRU", "SRU-142"), []byte(claimBefore5_1), 0o644))
 
-	c, err := repo.GetClaim("T-SRU", "SRU-142")
+	c, err := repo.GetClaim(t.Context(), "T-SRU", "SRU-142")
 	require.NoError(t, err)
 	assert.Empty(t, c.LeaseUntil)
 	assert.Empty(t, c.Session)
@@ -112,7 +112,7 @@ func TestCreateClaimSetsLease(t *testing.T) {
 	_, err := repo.CreateClaim(ctx, Claim{TicketID: "SRU-1", Project: "T-SRU", ClaimedBy: "benjamin", Session: "ses_1"})
 	require.NoError(t, err)
 
-	got, err := repo.GetClaim("T-SRU", "SRU-1")
+	got, err := repo.GetClaim(ctx, "T-SRU", "SRU-1")
 	require.NoError(t, err)
 	assert.Equal(t, "ses_1", got.Session)
 	assert.WithinDuration(t, before.Add(24*time.Hour), got.LeaseUntil.Time(), time.Minute)
@@ -128,7 +128,7 @@ func TestCreateClaimLeaseFollowsTheConfiguration(t *testing.T) {
 	before := time.Now().UTC()
 	_, err := repo.CreateClaim(ctx, Claim{TicketID: "SRU-1", Project: "T-SRU", ClaimedBy: "benjamin", Session: "ses_1"})
 	require.NoError(t, err)
-	got, err := repo.GetClaim("T-SRU", "SRU-1")
+	got, err := repo.GetClaim(ctx, "T-SRU", "SRU-1")
 	require.NoError(t, err)
 	assert.WithinDuration(t, before.Add(6*time.Hour), got.LeaseUntil.Time(), time.Minute)
 	assert.Equal(t, "ses_1", got.Session)
@@ -137,7 +137,7 @@ func TestCreateClaimLeaseFollowsTheConfiguration(t *testing.T) {
 	// default, never shorter than the lease of a session).
 	_, err = repo.CreateClaim(ctx, Claim{TicketID: "SRU-2", Project: "T-SRU", ClaimedBy: "benjamin"})
 	require.NoError(t, err)
-	got, err = repo.GetClaim("T-SRU", "SRU-2")
+	got, err = repo.GetClaim(ctx, "T-SRU", "SRU-2")
 	require.NoError(t, err)
 	assert.WithinDuration(t, before.Add(72*time.Hour), got.LeaseUntil.Time(), time.Minute)
 	assert.Empty(t, got.Session)
@@ -149,7 +149,7 @@ func TestCreateClaimKeepsAGivenLease(t *testing.T) {
 	lease := time.Date(2030, 1, 1, 0, 0, 0, 0, time.UTC)
 	_, err := repo.CreateClaim(context.Background(), Claim{TicketID: "SRU-1", Project: "T-SRU", ClaimedBy: "benjamin", LeaseUntil: InstantOf(lease)})
 	require.NoError(t, err)
-	got, err := repo.GetClaim("T-SRU", "SRU-1")
+	got, err := repo.GetClaim(t.Context(), "T-SRU", "SRU-1")
 	require.NoError(t, err)
 	assert.True(t, lease.Equal(got.LeaseUntil.Time()))
 }
@@ -167,7 +167,7 @@ func TestClaimsWithoutWorkHaveNoLease(t *testing.T) {
 	require.NoError(t, err)
 
 	for _, id := range []string{"SRU-1", "SRU-2", "SRU-3"} {
-		got, err := repo.GetClaim("T-SRU", id)
+		got, err := repo.GetClaim(ctx, "T-SRU", id)
 		require.NoError(t, err)
 		assert.Empty(t, got.LeaseUntil, id)
 	}
@@ -187,7 +187,7 @@ func TestCreateClaimLocalSetsLease(t *testing.T) {
 		return repo.CommitAndPush(ctx, "claims", rel)
 	})
 	require.NoError(t, err)
-	got, err := repo.GetClaim("T-SRU", "SRU-1")
+	got, err := repo.GetClaim(ctx, "T-SRU", "SRU-1")
 	require.NoError(t, err)
 	assert.WithinDuration(t, before.Add(24*time.Hour), got.LeaseUntil.Time(), time.Minute)
 	assert.Equal(t, "ses_1", got.Session)
@@ -205,7 +205,7 @@ func TestTransferClaimRenewsTheLease(t *testing.T) {
 	// claim is taken by hand (the long lease).
 	before := time.Now().UTC()
 	require.NoError(t, repo.TransferClaim(ctx, "T-SRU", "SRU-1", "benjamin"))
-	got, err := repo.GetClaim("T-SRU", "SRU-1")
+	got, err := repo.GetClaim(ctx, "T-SRU", "SRU-1")
 	require.NoError(t, err)
 	assert.Equal(t, "benjamin", got.ClaimedBy)
 	assert.Empty(t, got.Session)
@@ -213,7 +213,7 @@ func TestTransferClaimRenewsTheLease(t *testing.T) {
 
 	// With the session of the new owner.
 	require.NoError(t, repo.TransferClaim(WithClaimSession(ctx, "ses_carol"), "T-SRU", "SRU-1", "carol"))
-	got, err = repo.GetClaim("T-SRU", "SRU-1")
+	got, err = repo.GetClaim(ctx, "T-SRU", "SRU-1")
 	require.NoError(t, err)
 	assert.Equal(t, "carol", got.ClaimedBy)
 	assert.Equal(t, "ses_carol", got.Session)
@@ -228,7 +228,7 @@ func TestClaimPoolTicketSetsLease(t *testing.T) {
 
 	before := time.Now().UTC()
 	require.NoError(t, repo.ClaimPoolTicket(WithClaimSession(ctx, "ses_1"), "T-SRU", "SRU-1", "benjamin", ""))
-	got, err := repo.GetClaim("T-SRU", "SRU-1")
+	got, err := repo.GetClaim(ctx, "T-SRU", "SRU-1")
 	require.NoError(t, err)
 	assert.Equal(t, ClaimStatusInProgress, got.Status)
 	assert.Equal(t, "ses_1", got.Session)
@@ -241,13 +241,13 @@ func TestOtherWritesKeepTheLease(t *testing.T) {
 	ctx := context.Background()
 	_, err := repo.CreateClaim(ctx, Claim{TicketID: "SRU-1", Project: "T-SRU", ClaimedBy: "benjamin", Session: "ses_1"})
 	require.NoError(t, err)
-	before, err := repo.GetClaim("T-SRU", "SRU-1")
+	before, err := repo.GetClaim(ctx, "T-SRU", "SRU-1")
 	require.NoError(t, err)
 
 	require.NotEmpty(t, before.LeaseUntil)
 	require.NoError(t, repo.AddClaimLabel(ctx, "T-SRU", "SRU-1", "x"))
 	require.NoError(t, repo.UpdateClaimStatus(ctx, "T-SRU", "SRU-1", ClaimStatusReview))
-	after, err := repo.GetClaim("T-SRU", "SRU-1")
+	after, err := repo.GetClaim(ctx, "T-SRU", "SRU-1")
 	require.NoError(t, err)
 	assert.Equal(t, before.LeaseUntil, after.LeaseUntil)
 	assert.Equal(t, "ses_1", after.Session)
@@ -330,12 +330,12 @@ func TestClaimLeavingReviewGetsAFreshLease(t *testing.T) {
 	ctx := context.Background()
 	past := InstantOf(time.Now().Add(-72 * time.Hour))
 	createUnder(t, repo, "p", Claim{TicketID: "T-1", ClaimedBy: "alice", Session: "ses_1", Status: ClaimStatusReview, LeaseUntil: past})
-	stale, err := repo.GetClaim("p", "T-1")
+	stale, err := repo.GetClaim(ctx, "p", "T-1")
 	require.NoError(t, err)
 	require.True(t, stale.LeaseUntil.Time().Before(time.Now()), "the seed holds a past lease")
 
 	require.NoError(t, repo.UpdateClaimStatus(ctx, "p", "T-1", ClaimStatusInProgress))
-	got, err := repo.GetClaim("p", "T-1")
+	got, err := repo.GetClaim(ctx, "p", "T-1")
 	require.NoError(t, err)
 	assert.False(t, got.IsExpired(time.Now(), nil), "not expired the moment the review ends")
 	assert.WithinDuration(t, time.Now().Add(24*time.Hour), got.LeaseUntil.Time(), time.Minute)
@@ -343,7 +343,7 @@ func TestClaimLeavingReviewGetsAFreshLease(t *testing.T) {
 	// The same when the review label is removed.
 	createUnder(t, repo, "p", Claim{TicketID: "T-2", ClaimedBy: "alice", Status: ClaimStatusInProgress, LeaseUntil: past, Labels: []string{LabelReadyForReview}})
 	require.NoError(t, repo.RemoveClaimLabel(ctx, "p", "T-2", LabelReadyForReview))
-	got, err = repo.GetClaim("p", "T-2")
+	got, err = repo.GetClaim(ctx, "p", "T-2")
 	require.NoError(t, err)
 	assert.False(t, got.IsExpired(time.Now(), nil))
 }

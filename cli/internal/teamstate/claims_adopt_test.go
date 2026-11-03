@@ -21,7 +21,7 @@ func TestAdoptClaimTakesTheSession(t *testing.T) {
 	adopted, err := repo.AdoptClaim(ctx, "T-SRU", "SRU-1", "benjamin", "ses_new")
 	require.NoError(t, err)
 	assert.True(t, adopted)
-	c, err := repo.GetClaim("T-SRU", "SRU-1")
+	c, err := repo.GetClaim(ctx, "T-SRU", "SRU-1")
 	require.NoError(t, err)
 	assert.Equal(t, "ses_new", c.Session)
 	assert.Equal(t, []string{"keep-me"}, c.Labels, "the label of the previous session is removed")
@@ -43,7 +43,7 @@ func TestAdoptClaimWithoutSession(t *testing.T) {
 	adopted, err := repo.AdoptClaim(ctx, "T-SRU", "SRU-1", "benjamin", "ses_1")
 	require.NoError(t, err)
 	assert.True(t, adopted)
-	c, err := repo.GetClaim("T-SRU", "SRU-1")
+	c, err := repo.GetClaim(ctx, "T-SRU", "SRU-1")
 	require.NoError(t, err)
 	assert.Equal(t, "ses_1", c.Session)
 }
@@ -61,7 +61,7 @@ func TestAdoptClaimLeavesOthersAlone(t *testing.T) {
 		require.NoError(t, err)
 		assert.False(t, adopted, id)
 	}
-	c, _ := repo.GetClaim("T-SRU", "SRU-1")
+	c, _ := repo.GetClaim(ctx, "T-SRU", "SRU-1")
 	assert.Equal(t, "ses_alice", c.Session)
 	assert.Equal(t, before, commitCount(t, bare))
 

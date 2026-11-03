@@ -205,7 +205,7 @@ func claimsLeaseResults(ctx context.Context, a *app.App, now time.Time) []doctor
 		}
 		slices.Sort(projects)
 		for _, p := range projects {
-			claims, err := t.repo.ListClaims(p)
+			claims, err := t.repo.ListClaims(ctx, p)
 			if err != nil {
 				continue
 			}

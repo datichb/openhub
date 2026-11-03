@@ -36,7 +36,7 @@ func TestReleaseExpiredClaims(t *testing.T) {
 		createUnder(t, repo, project, c)
 	}
 	// A claim created without lease takes one: write the old shape by hand.
-	stale, err := repo.GetClaim("p", "stale-no-lease")
+	stale, err := repo.GetClaim(ctx, "p", "stale-no-lease")
 	require.NoError(t, err)
 	stale.LeaseUntil = ""
 	data, err := marshalClaim(stale)
@@ -56,10 +56,10 @@ func TestReleaseExpiredClaims(t *testing.T) {
 	assert.Equal(t, before+1, commitCount(t, bare), "one commit")
 	assert.Contains(t, gittest.Run(t, repo.Path(), "log", "-1", "--format=%s"), "release: 3 expired claim(s)")
 	for _, id := range []string{"alive", "in-review", "review-label", "pool", "planned", "done"} {
-		_, err := repo.GetClaim("p", id)
+		_, err := repo.GetClaim(ctx, "p", id)
 		assert.NoError(t, err, id+" is kept")
 	}
-	_, err = repo.GetClaim("q", "other-project")
+	_, err = repo.GetClaim(ctx, "q", "other-project")
 	assert.NoError(t, err, "the other project is not asked")
 	for _, id := range ids {
 		assert.True(t, repo.ClaimRemovedOnPurpose(ctx, "p", id), id)

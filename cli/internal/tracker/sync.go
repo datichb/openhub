@@ -453,7 +453,7 @@ func (e *Engine) FetchTicketDetail(ctx context.Context, hubProjectID, ticketID s
 
 	// Try to get the claim to read the stored ExternalIID.
 	var storedIID int
-	if c, err := e.repo.GetClaim(hubProjectID, ticketID); err == nil {
+	if c, err := e.repo.GetClaim(ctx, hubProjectID, ticketID); err == nil {
 		storedIID = c.ExternalIID
 	}
 
@@ -528,7 +528,7 @@ func (e *Engine) reconcileProject(
 	pattern := e.cfg.TicketPatterns[hubProjectID] //nolint:staticcheck // backward compat: deprecated field
 
 	// Load all claims for this project.
-	claims, err := e.repo.ListClaims(hubProjectID)
+	claims, err := e.repo.ListClaims(ctx, hubProjectID)
 	if err != nil {
 		return pr, fmt.Errorf("listing claims: %w", err)
 	}
@@ -649,7 +649,7 @@ func (e *Engine) reconcileProject(
 	}
 
 	// ── Snapshot known tickets for future orphan detection ───────────────────
-	updatedClaims, _ := e.repo.ListClaims(hubProjectID)
+	updatedClaims, _ := e.repo.ListClaims(ctx, hubProjectID)
 	known := make([]KnownTicket, 0, len(updatedClaims))
 	for _, c := range updatedClaims {
 		if c.ExternalIID > 0 {

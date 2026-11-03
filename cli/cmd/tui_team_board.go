@@ -94,7 +94,7 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 			}
 		}()
 		if repo := resolveRepo(); repo != nil {
-			initialTickets = views.FetchTeamTicketsWithColumns(repo, projectNameResolver, columns)
+			initialTickets = views.FetchTeamTicketsWithColumns(tuiContext(), repo, projectNameResolver, columns)
 		}
 	}()
 
@@ -117,7 +117,7 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 			if repo == nil {
 				return nil
 			}
-			return views.FetchTeamTicketsWithColumns(repo, projectNameResolver, columns)
+			return views.FetchTeamTicketsWithColumns(tuiContext(), repo, projectNameResolver, columns)
 		},
 		SyncFunc: func() error {
 			// Git pull only — fetches colleagues' changes from the shared state repo.
@@ -218,7 +218,7 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 				}
 
 				// Claim already exists — check if it's a pool ticket (unowned).
-				existing, getErr := repo.GetClaim(projectID, ticketID)
+				existing, getErr := repo.GetClaim(ctx, projectID, ticketID)
 				if getErr != nil {
 					return nil //nolint:nilerr // can't read claim, treat as idempotent
 				}

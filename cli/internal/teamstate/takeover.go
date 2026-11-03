@@ -113,7 +113,7 @@ func (r *Repo) GenerateRawBrief(ctx context.Context, project, ticketID, from, to
 
 	// Calculate stale days if reason is stale
 	if reason == "stale" {
-		claim, _ := r.GetClaim(project, ticketID)
+		claim, _ := r.GetClaim(ctx, project, ticketID)
 		if claim != nil {
 			lastActive := claim.LastActivity.Time()
 			if lastActive.IsZero() {
