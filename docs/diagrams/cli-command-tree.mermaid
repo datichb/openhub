@@ -1,6 +1,7 @@
-%% OpenHub -- CLI command tree (v5)
-%% oh commands grouped by domain (from `oh --help` and the cobra tree).
-%% Deprecated aliases of `oh run` are listed under "Aliases (deprecated)".
+%% OpenHub -- CLI command tree (v5.1)
+%% oh commands grouped by the sections of `oh --help` (checked against `oh help --all`).
+%% "Deprecated" commands still work and warn (removal in v6); "Removed" names
+%% only answer with their replacement and exit with code 2.
 
 mindmap
   root((oh))
@@ -17,86 +18,94 @@ mindmap
         history
         restore
         archive
-      bundle
-        build
-        show
+      brick
+        list · show
+        new · edit
+        history · publish
+      skill check
+      eval
     Sessions
       session
-        list
-        inbox
-        attach
-        follow
-        approve
-        answer
-        dismiss
-        send
-        interrupt
-        compact
-        model
-        fork
-        results
-        next
-        report
-        trace
-        resume
-        stop
-        open
-        fetch
-        resolve
-      fanout
-        drive · status
-        clean
+        list · inbox
+        attach · follow
+        approve · answer · dismiss
+        send · interrupt · compact
+        model · fork · next
+        results · report · trace
+        resume · stop · open
+        fetch · resolve · delete
       budget
-        show
-        set
-        unset
-        raise
-      daemon
-        status
-        stop
-      remote
-        setup
-        status
-      history
-    Removed (message only)
-      start · audit · review · debug · service
-      takeover-brief enrich
-      deploy · sync
-    Wiki
-      wiki
-        check · pending
-        decide · stats
-    Projects
+        show · set · unset
+        raise · report
+    Project
       project
         add · remove · rename
         move · configure · list
       worktree
+        add · list
+        remove · cleanup
+      mr create
+      board
+      wiki
+        check · pending
+        decide · stats
     Configuration
       config
-      provider
+        get · set · unset · list · path
+        language · websearch
+        model
+      provider setup
       mcp
+        list · status · setup
+        enable · disable · reset
+        trust · untrust · serve
       secrets
-      skill
+        list · get · set
+        delete · cleanup
     Team
       team
-        init · --solo
-        promote · rejoin
+        init · rejoin · profile
         status · activity · board
         claim · release
-        wiki · notify
+        config · sync-tracker
+        wiki · notify · promote
       teams
+        list · add · remove
+        archive · restore · detach
       policies
       patterns
-      conventions
+      conventions check
       beads
-    System
+      takeover-brief
+        list · show
+    Analytics
+      status
+      history
+        export · import
+      serve
+    Infrastructure
       init
       doctor
-      status · metrics
-      dashboard · board · serve
-      export · import
       repair · purge · gc
-      eval
-      migrate deploy-cleanup
+      export · import
       upgrade oh
+      daemon
+        status · stop
+      remote
+        setup · status
       version
+    Advanced
+      bundle
+        build · show
+      fanout
+        drive · status · clean
+      migrate deploy-cleanup
+      completion
+    Deprecated, removal in v6
+      dashboard · metrics
+    Removed in 5.1
+      start · audit · review · debug · service
+      review feedback
+      takeover-brief enrich
+    Removed in 5.0
+      deploy · sync
