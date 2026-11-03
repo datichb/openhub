@@ -50,8 +50,8 @@ func syncOf(t *testing.T, alice teamstate.Member, id *Identity) []SyncWarning {
 			{IID: 3, State: "open", StatusName: "opened", Title: "mine too", Assignees: []string{"Benjamin.Datiche"}},
 		},
 	}
-	e := NewEngine(tr, repo, teamstate.TrackerConfig{ //nolint:staticcheck // the engine still reads Projects
-		Projects: map[string]string{"p": "grp/p"}, AutoPlanUnassigned: true, UnassignedLabels: []string{"todo"}, MaxUnassignedIssues: 10,
+	e := NewEngine(tr, repo, teamstate.TrackerConfig{
+		Projects: map[string]string{"p": "grp/p"}, AutoPlanUnassigned: true, UnassignedLabels: []string{"todo"}, MaxUnassignedIssues: 10, //nolint:staticcheck // the engine still reads Projects
 	}, t.TempDir())
 	if id != nil {
 		e.SetIdentity(*id)
