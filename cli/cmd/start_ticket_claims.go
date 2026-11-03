@@ -42,12 +42,19 @@ func startTicketClaims(a *app.App, project *domain.Project) func(ctx context.Con
 	}
 }
 
+// ticketClaimStore is what claiming a ticket at launch asks of the team-state.
+type ticketClaimStore interface {
+	teamstate.ConfigReader
+	teamstate.ClaimWriter
+	teamstate.ClaimAdopter
+}
+
 // startTicketClaim claims a ticket for member, or moves its claim from the
 // initial / planned status to the work status; it returns a note ("" when
 // nothing changed). The session that starts (runsvc.StartedSession, when the
 // caller knows it) is recorded on the claim, new or already held, so that the
 // end of the session applies to the claim it worked on.
-func startTicketClaim(ctx context.Context, repo *teamstate.Repo, projectID, member, ticketID string) string {
+func startTicketClaim(ctx context.Context, repo ticketClaimStore, projectID, member, ticketID string) string {
 	var boardCfg teamstate.BoardConfig
 	if cfg, err := repo.LoadConfig(ctx); err == nil && cfg != nil {
 		boardCfg = cfg.Board

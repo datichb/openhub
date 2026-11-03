@@ -164,6 +164,22 @@ func runClaim(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// claimTakeover is what moving the claim of another member to oneself asks
+// of the team-state: the takeover brief and the transfer.
+type claimTakeover interface {
+	teamstate.BriefWriter
+	teamstate.ClaimWriter
+}
+
+// claimConflictStore is what answering a ticket that is already claimed asks
+// of the team-state.
+type claimConflictStore interface {
+	teamstate.ConfigReader
+	teamstate.ClaimRenewer
+	teamstate.EventWriter
+	claimTakeover
+}
+
 // claimExists answers a ticket that is already claimed. A claim of another
 // member that has expired (its lease is past, or, without lease, it has been
 // inactive longer than stale_days; never one in review: it stays reserved
@@ -175,7 +191,7 @@ func runClaim(cmd *cobra.Command, args []string) error {
 //
 // The claim is taken by hand, no session works on it: it carries none (the
 // first session that starts on the ticket takes it, AdoptClaim).
-func claimExists(cmd *cobra.Command, a *app.App, repo *teamstate.Repo, existing *teamstate.Claim, project, ticketID, memberID string) error {
+func claimExists(cmd *cobra.Command, a *app.App, repo claimConflictStore, existing *teamstate.Claim, project, ticketID, memberID string) error {
 	ctx := cmd.Context()
 	if existing == nil {
 		return nil
@@ -233,7 +249,7 @@ func claimExists(cmd *cobra.Command, a *app.App, repo *teamstate.Repo, existing 
 // takeOverExpiredClaim says why the claim of another member can be taken over,
 // asks for the confirmation, then generates the takeover brief and moves the
 // claim to the member.
-func takeOverExpiredClaim(cmd *cobra.Command, a *app.App, repo *teamstate.Repo, existing *teamstate.Claim, project, ticketID, memberID string) error {
+func takeOverExpiredClaim(cmd *cobra.Command, a *app.App, repo claimTakeover, existing *teamstate.Claim, project, ticketID, memberID string) error {
 	ctx := cmd.Context()
 	previousOwner := existing.ClaimedBy
 	reason := "stale"

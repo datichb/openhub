@@ -29,10 +29,20 @@ import (
 // git while the queue is empty.
 const claimsQueueEvery = 15 * time.Minute
 
+// claimsStore is what the daemon and the doctor ask of the team-state clone
+// when they look after the claims of a member: the signal of life, the queue,
+// the claims and the board to read, the claims to attach to another project.
+type claimsStore interface {
+	teamstate.RepoInfo
+	claimEnder
+	teamstate.ClaimHeartbeater
+	teamstate.ClaimRehomer
+}
+
 // claimsTeam is a team-state clone with the member who works in it and the
 // projects of this machine that share it.
 type claimsTeam struct {
-	repo     *teamstate.Repo
+	repo     claimsStore
 	member   string
 	projects map[string]bool
 }
@@ -112,7 +122,7 @@ func (b *claimsBeater) every(ctx context.Context) time.Duration {
 	return every
 }
 
-func heartbeatOf(ctx context.Context, repo *teamstate.Repo) time.Duration {
+func heartbeatOf(ctx context.Context, repo teamstate.ConfigReader) time.Duration {
 	cfg, err := repo.LoadConfig(ctx)
 	if err != nil || cfg == nil {
 		return 0
