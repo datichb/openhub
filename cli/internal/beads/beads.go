@@ -58,14 +58,6 @@ func ListAll(projectPath string) ([]Ticket, error) {
 	return runBdJSON(args)
 }
 
-// ListCWD returns all open tickets from the current working directory
-// (flat, no tree nesting, no limit).
-// Runs: bd list --json --flat -n 0
-// This is used by the CLI board command which operates in the cwd.
-func ListCWD() ([]Ticket, error) {
-	return runBdJSON([]string{"list", "--json", "--flat", "-n", "0"})
-}
-
 // LintResult is a ticket bd lint finds incomplete: the recommended
 // sections missing for its type ("## Acceptance Criteria" for a task or a
 // feature, "## Steps to Reproduce" for a bug, "## Success Criteria" for an
@@ -228,22 +220,6 @@ func Init(projectPath, prefix string) error {
 	return nil
 }
 
-// ListEpics returns tickets of type "epic" from the full ticket list.
-func ListEpics(projectPath string) ([]Ticket, error) {
-	all, err := ListAll(projectPath)
-	if err != nil {
-		return nil, err
-	}
-
-	var epics []Ticket
-	for _, t := range all {
-		if t.Type == "epic" {
-			epics = append(epics, t)
-		}
-	}
-	return epics, nil
-}
-
 // Children returns child tickets of an epic.
 // Runs: bd -C <path> children <epicID> --json
 func Children(projectPath, epicID string) ([]Ticket, error) {
@@ -251,81 +227,10 @@ func Children(projectPath, epicID string) ([]Ticket, error) {
 	return runBdJSON(args)
 }
 
-// ReadyChildren returns children of an epic that have a "ready" or "open" status.
-func ReadyChildren(projectPath, epicID string) ([]Ticket, error) {
-	children, err := Children(projectPath, epicID)
-	if err != nil {
-		return nil, err
-	}
-
-	var ready []Ticket
-	for _, t := range children {
-		if isReadyStatus(t.Status) {
-			ready = append(ready, t)
-		}
-	}
-	return ready, nil
-}
-
 // EpicWithCount represents an epic with its count of ready children.
 type EpicWithCount struct {
 	Ticket     Ticket
 	ReadyCount int
-}
-
-// ListEpicsWithReadyChildren returns epics that have at least one ready child ticket.
-func ListEpicsWithReadyChildren(projectPath string) ([]EpicWithCount, error) {
-	epics, err := ListEpics(projectPath)
-	if err != nil {
-		return nil, err
-	}
-
-	var result []EpicWithCount
-	for _, epic := range epics {
-		children, err := ReadyChildren(projectPath, epic.ID)
-		if err != nil {
-			continue // skip epics where children query fails
-		}
-		if len(children) > 0 {
-			result = append(result, EpicWithCount{
-				Ticket:     epic,
-				ReadyCount: len(children),
-			})
-		}
-	}
-	return result, nil
-}
-
-// OrphanTickets returns ready tickets that have no parent epic.
-// If labelFilter is non-empty, only returns tickets matching that label.
-func OrphanTickets(projectPath, labelFilter string) (withLabel, withoutLabel []Ticket, err error) {
-	all, err := ListAll(projectPath)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	defaultLabel := "ai-delegated"
-	if labelFilter != "" {
-		defaultLabel = labelFilter
-	}
-
-	for _, t := range all {
-		// Skip epics and non-ready tickets
-		if t.Type == "epic" || !isReadyStatus(t.Status) {
-			continue
-		}
-		// Skip tickets with a parent (they belong to an epic)
-		if t.Parent != "" {
-			continue
-		}
-
-		if hasLabel(t, defaultLabel) {
-			withLabel = append(withLabel, t)
-		} else {
-			withoutLabel = append(withoutLabel, t)
-		}
-	}
-	return withLabel, withoutLabel, nil
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -553,96 +458,6 @@ func hasLabel(t Ticket, label string) bool {
 // HasLabelExported checks if a ticket has a specific label (exported for use in cmd/).
 func HasLabelExported(t Ticket, label string) bool {
 	return hasLabel(t, label)
-}
-
-// CreateFromGitLab creates a bead ticket with a GitLab reference in the title
-// and stores the structured external_ref for cross-board linking (ADR-032).
-// Convention: title is prefixed with [GITLAB-REF] for correlation.
-// Runs: bd -C <path> create "[<ref>] <title>" -p <priority> --external-ref gitlab-<ref>
-func CreateFromGitLab(projectPath, gitlabRef, title string, priority int) (string, error) {
-	fullTitle := fmt.Sprintf("[%s] %s", gitlabRef, title)
-	extRef := BuildExternalRef(ProviderGitLab, gitlabRef)
-	args := []string{"-C", projectPath, "create", fullTitle, "-p", fmt.Sprintf("%d", priority)}
-	if extRef != "" {
-		args = append(args, "--external-ref", extRef)
-	}
-	args = append(args, "--json")
-
-	ctx, cancel := context.WithTimeout(context.Background(), bdTimeout)
-	defer cancel()
-	cmd := BdCommand(ctx, args...)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return "", fmt.Errorf("bd create failed: %s: %w", strings.TrimSpace(string(output)), err)
-	}
-
-	// Parse the created ticket ID from JSON output
-	var created struct {
-		ID string `json:"id"`
-	}
-	if unmarshalErr := json.Unmarshal(output, &created); unmarshalErr != nil {
-		// Fallback: raw output is valid enough as an ID when JSON parsing fails.
-		return strings.TrimSpace(string(output)), nil //nolint:nilerr // intentional fallback
-	}
-	return created.ID, nil
-}
-
-// CreateSubtask creates a child bead linked to a parent.
-// Runs: bd -C <path> create "<title>" -p <priority> then bd -C <path> dep add <child> <parent>
-func CreateSubtask(projectPath, parentID, title string, priority int) (string, error) {
-	// Create the ticket
-	args := []string{"-C", projectPath, "create", title, "-p", fmt.Sprintf("%d", priority), "--json"}
-	ctx, cancel := context.WithTimeout(context.Background(), bdTimeout)
-	defer cancel()
-	cmd := BdCommand(ctx, args...)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return "", fmt.Errorf("bd create subtask failed: %s: %w", strings.TrimSpace(string(output)), err)
-	}
-
-	var created struct {
-		ID string `json:"id"`
-	}
-	if err := json.Unmarshal(output, &created); err != nil {
-		return "", fmt.Errorf("parsing created ticket: %w", err)
-	}
-
-	// Link as dependency
-	depArgs := []string{"-C", projectPath, "dep", "add", created.ID, parentID}
-	depCtx, depCancel := context.WithTimeout(context.Background(), bdTimeout)
-	defer depCancel()
-	depCmd := BdCommand(depCtx, depArgs...)
-	if depOut, err := depCmd.CombinedOutput(); err != nil {
-		return created.ID, fmt.Errorf("bd dep add failed: %s: %w", strings.TrimSpace(string(depOut)), err)
-	}
-
-	return created.ID, nil
-}
-
-// ClaimTicket atomically claims a bead ticket (sets assignee + in_progress).
-// Runs: bd -C <path> update <ticketID> --claim
-func ClaimTicket(projectPath, ticketID string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), bdTimeout)
-	defer cancel()
-	cmd := BdCommand(ctx, "-C", projectPath, "update", ticketID, "--claim")
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("bd claim failed: %s: %w", strings.TrimSpace(string(output)), err)
-	}
-	return nil
-}
-
-// CloseTicket closes a bead ticket with a message.
-// Runs: bd -C <path> close <ticketID> "<message>"
-func CloseTicket(projectPath, ticketID, message string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), bdTimeout)
-	defer cancel()
-	cmd := BdCommand(ctx, "-C", projectPath, "close", ticketID, message)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("bd close failed: %s: %w", strings.TrimSpace(string(output)), err)
-	}
-	return nil
 }
 
 // LinkToTracker sets the external_ref on a bead ticket to link it to an

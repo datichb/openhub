@@ -4,7 +4,6 @@
 package remote
 
 import (
-	"fmt"
 	"regexp"
 	"strconv"
 )
@@ -105,14 +104,3 @@ const OutDir = "oh-out"
 
 // RunnerProjectName is the default path of the oh-runner project in a group.
 const RunnerProjectName = "oh-runner"
-
-// ReleaseURL is the release archive of oh for a version and architecture
-// (goreleaser archives).
-func ReleaseURL(version, arch string) string {
-	return fmt.Sprintf("https://github.com/datichb/openhub/releases/download/v%s/openhub_linux_%s.tar.gz", version, arch)
-}
-
-// ReleaseChecksumsURL is the checksums file of a release.
-func ReleaseChecksumsURL(version string) string {
-	return fmt.Sprintf("https://github.com/datichb/openhub/releases/download/v%s/checksums.txt", version)
-}

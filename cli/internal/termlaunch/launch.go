@@ -1,3 +1,6 @@
+// Package termlaunch opens an interactive client (the tool's own terminal
+// client, attached to a session) in iTerm2, Terminal.app or tmux, and brings
+// back to the front the window of a client that is already open.
 package termlaunch
 
 import (

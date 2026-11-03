@@ -347,15 +347,6 @@ func Remove(projectPath, wtPath string, force bool) error {
 	return nil
 }
 
-// BranchName formats a ticket ID using the given pattern (e.g. "feat/%s" → "feat/BD-42").
-// If pattern is empty or does not contain "%s", falls back to "feat/<ticketID>".
-func BranchName(pattern, ticketID string) string {
-	if pattern == "" || !strings.Contains(pattern, "%s") {
-		return "feat/" + ticketID
-	}
-	return fmt.Sprintf(pattern, ticketID)
-}
-
 // IsDirty reports whether the working tree at the given path has uncommitted changes
 // (staged or unstaged). Returns false for clean trees and on errors (fail-open).
 func IsDirty(path string) bool {
@@ -365,30 +356,6 @@ func IsDirty(path string) bool {
 		return false // fail-open: assume clean if git fails
 	}
 	return strings.TrimSpace(string(out)) != ""
-}
-
-// Checkout switches the working tree at the given path to the specified branch.
-// If the branch does not exist locally but exists on origin, it is created as a
-// tracking branch. Returns an error if the checkout fails (e.g. dirty state,
-// branch not found locally or remotely).
-func Checkout(path, branch string) error {
-	// Try a simple checkout first (branch exists locally).
-	cmd := gitutil.Command(context.Background(), path, "checkout", branch)
-	out, err := cmd.CombinedOutput()
-	if err == nil {
-		return nil
-	}
-
-	// Branch may exist on remote only — try creating a tracking branch.
-	if ExistsOnRemote(path, branch) {
-		cmd = gitutil.Command(context.Background(), path, "checkout", "-b", branch, "origin/"+branch)
-		out, err = cmd.CombinedOutput()
-		if err == nil {
-			return nil
-		}
-	}
-
-	return fmt.Errorf("git checkout %s: %s", branch, strings.TrimSpace(string(out)))
 }
 
 // Stash puts the uncommitted changes of the working tree at path aside
@@ -435,40 +402,4 @@ func StartRef(path string) string {
 		return ""
 	}
 	return strings.TrimSpace(string(out))
-}
-
-// StashAndCheckout stashes uncommitted changes with a tagged message, then
-// switches to the specified branch. The stash is NOT popped automatically —
-// the user must recover it manually with `git stash pop`.
-// Returns an error if either the stash or the checkout fails.
-func StashAndCheckout(path, branch string) error {
-	msg := fmt.Sprintf("oh: auto-stash before checkout %s", branch)
-	stashCmd := gitutil.Command(context.Background(), path, "stash", "push", "-m", msg)
-	stashOut, err := stashCmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("git stash: %s", strings.TrimSpace(string(stashOut)))
-	}
-
-	if err := Checkout(path, branch); err != nil {
-		// Checkout failed after stash — pop the stash to restore state.
-		popCmd := gitutil.Command(context.Background(), path, "stash", "pop")
-		_ = popCmd.Run() // best-effort restore
-		return err
-	}
-
-	return nil
-}
-
-// BulkCreate creates multiple worktrees sequentially (to avoid .git/index.lock contention).
-// Returns a slice of worktree paths in the same order as the input branches.
-func BulkCreate(projectPath string, branches []string) ([]string, error) {
-	paths := make([]string, 0, len(branches))
-	for _, branch := range branches {
-		wtPath, err := ResolveOrCreate(projectPath, branch)
-		if err != nil {
-			return paths, fmt.Errorf("creating worktree for branch %q: %w", branch, err)
-		}
-		paths = append(paths, wtPath)
-	}
-	return paths, nil
 }
