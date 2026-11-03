@@ -28,8 +28,3 @@ cmd/launch_deps.go 1
 cmd/workflow_layers.go 1
 cmd/workflow_doctor.go 1
 cmd/brick_doctor.go 1
-
-# saveBoardColumns takes the whole repository: the file belongs to the lot A12
-# (column editor, in progress); narrow it to ConfigReader + ConfigWriter once A12
-# is merged and remove this line.
-cmd/tui_team_columns.go 1
