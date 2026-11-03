@@ -30,7 +30,7 @@ func withFocus(t *testing.T, fn func(context.Context, termlaunch.Location) error
 	focusWindow = fn
 }
 
-// A43: opening a session that already has a client brings its window back
+// Opening a session that already has a client brings its window back
 // instead of opening another client.
 func TestAttachFocusesTheOpenClient(t *testing.T) {
 	where := termlaunch.Location{Program: "iTerm.app", TTY: "/dev/ttys009"}

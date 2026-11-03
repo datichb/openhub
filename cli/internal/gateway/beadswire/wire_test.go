@@ -64,7 +64,7 @@ func TestWireRoundTrip(t *testing.T) {
 	assert.Equal(t, entry, gotEntry)
 }
 
-// A journal written by an older fake bd (before phase 5: no seq, stdin or
+// A journal written by an older fake bd (no seq, stdin or
 // placeholder) and a request with a field added later are still read.
 func TestWireToleratesOlderAndNewerPeers(t *testing.T) {
 	var old JournalEntry

@@ -17,7 +17,7 @@ import (
 // ErrNoPorter is returned when the tool adapter cannot import sessions.
 var ErrNoPorter = errors.New("the tool adapter cannot import sessions")
 
-// AdoptSession brings a session that ran elsewhere (remote run, phase 5)
+// AdoptSession brings a session that ran elsewhere (remote run)
 // into the local server group of its bundle: the server is started (or
 // joined) for req.Location, the transcripts are imported (parents first; a
 // session already there is kept), then the session becomes a local,
@@ -88,7 +88,7 @@ func (s *Service) adopt(ctx context.Context, sessionID string, transcripts [][]b
 	if err := s.reapplySessionEnv(ctx, srv, sess); err != nil {
 		return nil, fmt.Errorf("applying the session environment: %w", err)
 	}
-	// p6-debts: the imported sessions come without their session rules
+	// The imported sessions come without their session rules
 	// (checkpoint locks); until the daemon sets them, the oh plugin refuses
 	// what they lock.
 	if s.RefreshRules != nil {

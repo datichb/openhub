@@ -24,7 +24,7 @@ type HeartbeatRequest struct {
 	SessionID string     `json:"session_id,omitempty"`
 	TTL       int        `json:"ttl_seconds,omitempty"` // default 90
 	// Where locates an attached client (its window is brought back to the
-	// front instead of opening another one, A43).
+	// front instead of opening another one).
 	Where *termlaunch.Location `json:"where,omitempty"`
 }
 

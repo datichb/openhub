@@ -15,7 +15,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
-// p6-debts: the driver of a fan-out that stopped before the merge
+// The driver of a fan-out that stopped before the merge
 // checkpoint is started again by the daemon, one at a time.
 func TestEnsureFanoutDriver(t *testing.T) {
 	st := sqlitetest.New(t)

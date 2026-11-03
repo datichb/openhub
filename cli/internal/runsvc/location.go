@@ -52,7 +52,7 @@ type Location struct {
 	// Create means the worktree is created when the session starts.
 	Create bool `json:"create,omitempty"`
 	// Auto means a worktree was chosen because the requested directory is
-	// used by another session that writes (O10) or has uncommitted changes.
+	// used by another session that writes or has uncommitted changes.
 	Auto bool `json:"auto,omitempty"`
 	// Stash means the uncommitted changes of the directory are stashed when
 	// the session starts (DirtyStash).
@@ -65,7 +65,7 @@ type Location struct {
 }
 
 // DirtyPolicy is what a writing session does when its directory has
-// uncommitted changes (v5 corrections, A18).
+// uncommitted changes.
 type DirtyPolicy string
 
 const (
@@ -123,7 +123,7 @@ var ErrNoBranch = errors.New("a branch name is required for a new worktree")
 // busyWriters returns the directories used by open sessions of a project
 // that may write (risk other than read; unknown risk counts as writing).
 // Sleeping sessions hold their directory too: they resume there, on their
-// branch (v5 corrections, A18).
+// branch.
 func (s *Service) busyWriters(ctx context.Context, projectID string) map[string]string {
 	out := map[string]string{}
 	if s.Sessions == nil || projectID == "" {
@@ -165,7 +165,7 @@ type locOptions struct {
 }
 
 // planLocations resolves the location of each session of a run. writes
-// tells whether the workflow may modify files (O10 applies to writers);
+// tells whether the workflow may modify files (the auto worktree applies to writers);
 // branches gives the branch of each session's worktree, if one is needed;
 // dirty tells what a writer does in a directory with uncommitted changes.
 // reads gives, by session, the branch a read-only session reviews (""

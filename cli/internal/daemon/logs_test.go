@@ -14,7 +14,7 @@ import (
 	dclient "github.com/datichb/openhub/cli/internal/daemon/client"
 )
 
-// N16: the logs the live processes keep open are copied then truncated.
+// The logs the live processes keep open are copied then truncated.
 func TestRotateLogs(t *testing.T) {
 	p := shortPaths(t)
 	servers := t.TempDir()
@@ -37,7 +37,7 @@ func TestRotateLogs(t *testing.T) {
 	assert.NoFileExists(t, small+".1", "below the limit")
 }
 
-// N16: ohd.log is rotated before a daemon is spawned (nobody writes it).
+// ohd.log is rotated before a daemon is spawned (nobody writes it).
 func TestEnsureRotatesTheLog(t *testing.T) {
 	p := shortPaths(t)
 	require.NoError(t, os.MkdirAll(p.Dir, 0o700))
@@ -57,7 +57,7 @@ func TestEnsureRotatesTheLog(t *testing.T) {
 	assert.EqualValues(t, 200, fi.Size())
 }
 
-// N16: a task runs once the grants are restored, then every Every; a panic
+// A task runs once the grants are restored, then every Every; a panic
 // does not stop it; it never marks the daemon busy.
 func TestRunTask(t *testing.T) {
 	d := &Daemon{restored: make(chan struct{}), stop: make(chan struct{})}

@@ -5,7 +5,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 )
 
-// Workflow API (P3-T01): backend of the oh MCP server `workflow` run by the
+// Workflow API: backend of the oh MCP server `workflow` run by the
 // tool for each location. The MCP server identifies the calling tool session
 // (a subagent runs in a child session); the daemon files it under the oh
 // session that delegated it.

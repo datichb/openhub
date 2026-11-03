@@ -220,7 +220,7 @@ func TestDaemonSubagentSessionEnvironment(t *testing.T) {
 }
 
 // The oh MCP servers of a group are served over HTTP on the proxy
-// listeners, authenticated by the group proxy token (P4-T08).
+// listeners, authenticated by the group proxy token.
 func TestDaemonMCPGateway(t *testing.T) {
 	p := shortPaths(t)
 	st := sqlitetest.New(t)

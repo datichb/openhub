@@ -15,7 +15,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/limits"
 )
 
-// Memory cap (I6): the daemon measures the resident memory of the live tool
+// Memory cap: the daemon measures the resident memory of the live tool
 // servers (process trees) at each supervision. Above the cap, new sessions
 // are queued (RunService, dequeue), idle groups are put to sleep, the
 // oldest first and one per pass, and the user is warned once. Container

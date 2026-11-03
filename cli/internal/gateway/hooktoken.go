@@ -15,7 +15,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/procinfo"
 )
 
-// Hook tokens (audit v5, S-06, DC24): the hook mode of the gateway (`bd
+// Hook tokens (audit v5, S-06): the hook mode of the gateway (`bd
 // hooks run` whatever beads.allow says) is granted only with a one-time
 // token. The daemon issues it on its socket to a fake bd that git runs
 // from the hook of the session location: an ancestor of the calling

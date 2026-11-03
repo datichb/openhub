@@ -17,7 +17,7 @@ import (
 var ErrForkUnsupported = errors.New("the session tool cannot fork sessions")
 
 // ForkSession creates a new session with a copy of the history of another
-// one (S9), on the same server group. The new oh session copies the origin
+// one, on the same server group. The new oh session copies the origin
 // settings and environment; the parent link is not stored yet (migration
 // v34, track F) — the title says where it comes from.
 func (s *Service) ForkSession(ctx context.Context, sessionID string) (string, error) {
@@ -109,7 +109,7 @@ type usageReader interface {
 
 // saveForkBaseline records what the forked session reports before it does
 // anything: the copied history and its cost, already in the ledger under
-// the parent (v5 finalisation, Q3-6).
+// the parent.
 func (s *Service) saveForkBaseline(ctx context.Context, srv *domain.Server, id string) error {
 	var (
 		res adapters.SessionResult

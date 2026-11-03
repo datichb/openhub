@@ -17,7 +17,7 @@ var errUnsupportedPeer = peercheck.ErrUnsupported
 func peerUID(c net.Conn) (int, error) { return peercheck.UID(c) }
 
 // peerListener accepts only the connections of processes running as the
-// daemon's user (M12): the socket mode (0600) is checked again on each
+// daemon's user: the socket mode (0600) is checked again on each
 // connection, by the kernel's peer credentials.
 type peerListener struct {
 	net.Listener

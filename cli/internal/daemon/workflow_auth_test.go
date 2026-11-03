@@ -24,7 +24,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
-// N1 (v5 critical): the workflow routes of the socket are reserved to the
+// The workflow routes of the socket are reserved to the
 // workflow MCP server of the session (group token); the routes only oh
 // calls need the capability.
 func TestWorkflowRoutesNeedTheGroupToken(t *testing.T) {

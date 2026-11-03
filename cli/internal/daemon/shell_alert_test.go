@@ -18,7 +18,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
-// A16: the daemon checks once the shell of a local session; when another
+// The daemon checks once the shell of a local session; when another
 // bd comes first, an alert (✗) is raised that the agent loop does not clear.
 func TestShellAlert(t *testing.T) {
 	p := shortPaths(t)

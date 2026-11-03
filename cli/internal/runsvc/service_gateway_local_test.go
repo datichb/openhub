@@ -24,7 +24,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
-// TestLocalBeadsGateway (QB1) runs bd from the shell of a local session (no
+// TestLocalBeadsGateway runs bd from the shell of a local session (no
 // LLM call): the fake bd first on its PATH sends the commands to the Beads
 // gateway of the daemon, which applies beads.allow and runs the real bd of
 // the machine, as in a container.

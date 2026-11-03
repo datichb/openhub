@@ -399,7 +399,7 @@ func TestTransferSessionLocalToContainer(t *testing.T) {
 	res, err := f.svc.TransferSession(ctx, r.SessionID, target)
 	require.NoError(t, err)
 	assert.Equal(t, OnExistingTransfer, res.Existing)
-	assert.Equal(t, []string{r.SessionID}, refreshed, "p6-debts: the imported session gets its session rules")
+	assert.Equal(t, []string{r.SessionID}, refreshed, "the imported session gets its session rules")
 	assert.Equal(t, []string{"/work/proj"}, pa.imported, "imported where the container sees the location")
 	sess, err = f.svc.Sessions.Get(ctx, r.SessionID)
 	require.NoError(t, err)

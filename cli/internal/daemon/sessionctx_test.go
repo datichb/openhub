@@ -36,7 +36,7 @@ func (c *ctxTool) ClearSessionContext(context.Context, adapters.ServerHandle, st
 	return nil
 }
 
-// QB8: the checkpoint entry lists the passed checkpoints, the current and
+// The checkpoint entry lists the passed checkpoints, the current and
 // the next one.
 func TestCheckpointsContext(t *testing.T) {
 	v := checkpointsContext(checkpoint.Status{Workflow: "ticket", Mode: "semi-auto", Next: "cp-3", Checkpoints: []checkpoint.CheckpointStatus{
@@ -48,7 +48,7 @@ func TestCheckpointsContext(t *testing.T) {
 	assert.JSONEq(t, `{"workflow":"ticket","mode":"semi-auto","passed":[{"id":"cp-1","label":"Start"}],"current":"cp-2","next":"cp-3"}`, string(data))
 }
 
-// QB8: the budget entry is written at a $ decision and after a raise, not
+// The budget entry is written at a $ decision and after a raise, not
 // at each step (spending alone does not rewrite it).
 func TestSyncBudgetOnDecisionAndRaise(t *testing.T) {
 	ctx := context.Background()
@@ -82,7 +82,7 @@ func TestSyncBudgetOnDecisionAndRaise(t *testing.T) {
 	assert.NotNil(t, w.contextWriter().Last("ses_r", sessionctx.KeyBudget))
 }
 
-// A29: the state written at creation (RunService) is the one the daemon
+// The state written at creation (RunService) is the one the daemon
 // computes for a session that has not moved yet: the resync after the first
 // prompt does not write it again.
 func TestInitialCheckpointsMatchTheDaemonState(t *testing.T) {
@@ -104,7 +104,7 @@ func TestInitialCheckpointsMatchTheDaemonState(t *testing.T) {
 	assert.False(t, ok, "no checkpoint: no entry")
 }
 
-// A29: a state change during a step is written once the step ended (a
+// A state change during a step is written once the step ended (a
 // write during the last step makes the agent run one more step).
 func TestStateWritesWaitForTheEndOfTheStep(t *testing.T) {
 	ctx := context.Background()

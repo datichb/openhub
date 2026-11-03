@@ -6,7 +6,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/gateway/bdargs"
 )
 
-// Ticket operations seen by the workflow guard (A17, A38): closing a ticket
+// Ticket operations seen by the workflow guard: closing a ticket
 // waits for the checkpoint that unlocks it; claimed and closed tickets tell
 // oh when the workflow is over.
 

@@ -112,7 +112,7 @@ func TestDaemonGrantsAndRestore(t *testing.T) {
 	stored, err := e.grants.ListActive(ctx)
 	require.NoError(t, err)
 	for _, g := range stored {
-		assert.NotContains(t, g.TokenHash, "ohs_", "M12: only token hashes are stored")
+		assert.NotContains(t, g.TokenHash, "ohs_", "only token hashes are stored")
 	}
 	_, err = c.Usage(ctx, credproxy.TokenHash(resp.Token))
 	require.NoError(t, err, "usage by token hash (server registry)")

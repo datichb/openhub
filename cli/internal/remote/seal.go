@@ -54,7 +54,7 @@ func CheckSeal(key, kind, sessionID, mac string, data ...[]byte) bool {
 	return err == nil && mac != "" && hmac.Equal([]byte(want), []byte(mac))
 }
 
-// Journal key transport (v5 N21 finitions): the envelope is a generic
+// Journal key transport: the envelope is a generic
 // package of oh-runner that every member of the project, and the image
 // build jobs (CI_JOB_TOKEN), can read. The journal key travels in it
 // encrypted for the target: X25519 key agreement with an ephemeral key, HKDF-

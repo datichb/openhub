@@ -11,7 +11,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 )
 
-// Agent telemetry (QB2): one agent_events row per tool session, i.e. the
+// Agent telemetry: one agent_events row per tool session, i.e. the
 // entry agent of an oh session and every subagent it delegates to, kept
 // up to date at the end of each step (status, duration, tokens, cost of the
 // tool session, skills loaded). It feeds the per-agent table of oh metrics,

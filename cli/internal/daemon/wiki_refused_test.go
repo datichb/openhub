@@ -13,7 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/services/wiki"
 )
 
-// p9-wiki-refusal follow-up: the agents learn that a proposal was refused,
+// The agents learn that a proposal was refused,
 // and why. wiki_pending gets the recent refusals from /wiki/refused, and
 // wiki_propose answers with the refusal a new proposal repeats; the proposal
 // is queued all the same.

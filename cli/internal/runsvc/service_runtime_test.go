@@ -472,7 +472,7 @@ func TestIsolateUserConfigReachesTheAdapter(t *testing.T) {
 	assert.NotEmpty(t, r.GroupKey)
 }
 
-// I6: beyond the maximum of working sessions, the first prompt waits in the
+// Beyond the maximum of working sessions, the first prompt waits in the
 // queue (the daemon sends it later); the model allow-list goes to the grant.
 func TestStartSessionQueuesBeyondMaxActive(t *testing.T) {
 	f := newRTFixture(t)
@@ -586,7 +586,7 @@ func (a *ctxAdapter) SendPrompt(context.Context, adapters.ServerHandle, string, 
 	return nil
 }
 
-// A29: the session state is set before the first prompt (part of the first
+// The session state is set before the first prompt (part of the first
 // turn, no extra step), and not at all without checkpoint.
 func TestStartSessionSetsTheStateBeforeThePrompt(t *testing.T) {
 	f := newRTFixture(t)

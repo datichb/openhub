@@ -19,7 +19,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
-// Session environment (S7, P3-T12): variables of the shell commands run by
+// Session environment: variables of the shell commands run by
 // one session, distinct from the server process environment shared by the
 // group. Static variables (StartRequest.SessionEnv, never secrets) are kept
 // in ~/.oh/sessions/<id>/env.json for resumes; dynamic ones (gateway tokens…)

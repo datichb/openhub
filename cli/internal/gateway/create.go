@@ -9,8 +9,8 @@ import (
 )
 
 // OpCreate is the creation of tickets (`create`, `create-form`, `q`): the
-// workflow guard refuses it before the checkpoint that unlocks `create`
-// (N9). Kept apart from ticketOp, whose argument parsing belongs to the
+// workflow guard refuses it before the checkpoint that unlocks `create`.
+// Kept apart from ticketOp, whose argument parsing belongs to the
 // closing and claiming guard.
 const OpCreate = "create"
 
@@ -25,7 +25,7 @@ func createOp(c command) (BeadsOp, bool) {
 	return BeadsOp{Kind: OpCreate}, true
 }
 
-// Ticket ids in the output of a creation (R5: oh records the tickets a
+// Ticket ids in the output of a creation (oh records the tickets a
 // session created). Forms of bd 1.3: « ✓ Created issue: ev-1 — title »,
 // « ✓ Created 2 issues from plan.md: » then « ev-1: title » lines, a bare id
 // per line (`q`, `--silent`), JSON (an object or a list, `--json`).

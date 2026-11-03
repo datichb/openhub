@@ -1,6 +1,6 @@
 // Package beadswire is the wire format between the fake `bd` installed in
-// oh container images and the Beads gateway of the oh daemon (P4-T07), plus
-// the journal entries of the remote mode (P5-T12). It has no dependency so
+// oh container images and the Beads gateway of the oh daemon, plus
+// the journal entries of the remote mode. It has no dependency so
 // that the fake bd stays small.
 package beadswire
 
@@ -14,7 +14,7 @@ const (
 	// EnvToken is the session gateway token (ohg_…), set per session.
 	EnvToken = "OH_GATEWAY_TOKEN"
 	// EnvMode selects the backend: "gateway" (default) or "journal" (remote
-	// runs: reads from a snapshot, writes to a journal — P5-T12).
+	// runs: reads from a snapshot, writes to a journal).
 	EnvMode = "OH_BD_MODE"
 	// EnvSnapshot and EnvJournal locate the files of the journal mode.
 	EnvSnapshot = "OH_BD_SNAPSHOT"
@@ -83,14 +83,14 @@ type ExecResponse struct {
 }
 
 // JournalEntry is one Beads command recorded by the journal mode, replayed
-// on the machine when a remote session comes back (P5-T17).
+// on the machine when a remote session comes back.
 type JournalEntry struct {
 	Time time.Time `json:"time"`
 	Argv []string  `json:"argv"`
 	Cwd  string    `json:"cwd"`
 	// Seq orders the entries (1, 2…), Stdin is the input of --stdin / "-",
 	// Placeholder the temporary id answered for a `create` (replaced by the
-	// real id at replay). Added in phase 5 (P5-T12).
+	// real id at replay). Absent from older journals.
 	Seq         int    `json:"seq,omitempty"`
 	Stdin       []byte `json:"stdin,omitempty"`
 	Placeholder string `json:"placeholder,omitempty"`

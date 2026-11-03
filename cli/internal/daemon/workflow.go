@@ -18,7 +18,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
-// Workflow API (P3-T01): backend of the oh MCP server `workflow` run by the
+// Workflow API: backend of the oh MCP server `workflow` run by the
 // tool for each location. The MCP server identifies the calling tool session
 // (a subagent runs in a child session); the daemon files it under the oh
 // session that delegated it.
@@ -36,7 +36,7 @@ func (d *Daemon) rootSession(id string) string {
 	return id
 }
 
-// Workflow routes are authenticated by the token of the server group (N1):
+// Workflow routes are authenticated by the token of the server group:
 // the workflow MCP server of the tool server sends it (EnvGroupToken), and
 // the session must belong to that group. Without a capability configured
 // (embedded uses, tests, a runner job), they are not guarded.
@@ -223,7 +223,7 @@ func (d *Daemon) handleWorkflowOutputs(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// hooksHandler serves the plugin hooks (P3-T05). The proxy has checked the
+// hooksHandler serves the plugin hooks. The proxy has checked the
 // session token; a group may only ask about its own sessions.
 func (d *Daemon) hooksHandler() http.Handler {
 	mux := http.NewServeMux()
@@ -249,7 +249,7 @@ func (d *Daemon) handleHookPermission(w http.ResponseWriter, r *http.Request) {
 	s, err := d.opts.Sessions.Get(r.Context(), root)
 	if err != nil || s.GroupKey != credproxy.HookOwner(r) {
 		if req.Pending {
-			// p6-debts: a session oh cannot link to one of its sessions has
+			// A session oh cannot link to one of its sessions has
 			// no checkpoint locks: what they lock is refused.
 			writeJSON(w, http.StatusOK, api.HookPermissionResponse{Effect: string(sessionspec.EffectDeny), Message: i18n.T("cmd.daemon.workflow.pending_unknown")})
 			return
@@ -280,13 +280,13 @@ func (d *Daemon) handleHookPermission(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	// p6-debts: the git add and git commit lines of a writes: agent the
+	// The git add and git commit lines of a writes: agent the
 	// rules cannot read (several paths, several -m) are read by oh.
 	if effect, msg, err := d.opts.Checkpoints.EvaluateWrites(r.Context(), root, req.Agent, action, req.Resources); err == nil && effect != "" {
 		writeJSON(w, http.StatusOK, api.HookPermissionResponse{Effect: effect, Message: msg})
 		return
 	}
-	// r5-fixes: the edit of a `writes:` path held until a checkpoint is
+	// The edit of a `writes:` path held until a checkpoint is
 	// refused with the reason.
 	if effect, msg, err := d.opts.Checkpoints.EvaluateEdit(r.Context(), root, action, req.Resources); err == nil && effect != "" {
 		writeJSON(w, http.StatusOK, api.HookPermissionResponse{Effect: effect, Message: msg})

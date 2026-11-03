@@ -12,7 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/safego"
 )
 
-// System notifications (P3-T13): the daemon is the only process alive when
+// System notifications: the daemon is the only process alive when
 // oh is closed, so it notifies — whether a TUI is open or not (the TUI adds
 // its own toast). Triggers: a new decision (⏸ ? ! $ ✗ ⊘, whoever raised it)
 // and the end of a turn when nobody is attached to the session. Notes are

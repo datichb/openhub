@@ -15,7 +15,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/termlaunch"
 )
 
-// Session lifecycle (E11):
+// Session lifecycle:
 //   - closing an interactive client never stops a session;
 //   - a server group sleeps (tool server stopped, sessions resumable) when no
 //     client is attached, no agent loop runs and the group has been idle for

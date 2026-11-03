@@ -34,7 +34,7 @@ func runDaemon(t *testing.T, opts Options) {
 	require.Eventually(t, func() bool { h, err := c.Health(context.Background()); return err == nil && !h.Restoring }, 15*time.Second, 20*time.Millisecond) // generous: the -race suite runs packages in parallel
 }
 
-// E14-B1: restarting an old group must not lose its proxy token while starting.
+// Restarting an old group must not lose its proxy token while starting.
 func TestRestartingOldGroupKeepsItsGrant(t *testing.T) {
 	p, servers, grants := hardeningEnv(t)
 	ctx := context.Background()
@@ -56,7 +56,7 @@ func TestRestartingOldGroupKeepsItsGrant(t *testing.T) {
 	}, 250*time.Millisecond, 10*time.Millisecond, "a starting server stays starting and its token is kept")
 }
 
-// E14-M1: a live PID that does not answer as our server is marked stopped and never signalled.
+// A live PID that does not answer as our server is marked stopped and never signalled.
 func TestReusedPIDIsNotSignalled(t *testing.T) {
 	p, servers, grants := hardeningEnv(t)
 	ctx := context.Background()

@@ -152,7 +152,7 @@ func TestSleepWhenIdlePolicyWaitsForTheTurn(t *testing.T) {
 	require.Eventually(t, func() bool { return e.serverStatus("g1") == domain.ServerSleeping }, 3*time.Second, 20*time.Millisecond)
 }
 
-// E14-M2: a session the tool runs but oh does not track keeps the group awake.
+// A session the tool runs but oh does not track keeps the group awake.
 func TestUntrackedToolSessionKeepsGroupAwake(t *testing.T) {
 	e := startLifecycle(t, 100*time.Millisecond, "g1")
 	e.ad.set(func() { e.ad.active["ses_untracked"] = true })
@@ -161,7 +161,7 @@ func TestUntrackedToolSessionKeepsGroupAwake(t *testing.T) {
 	require.Eventually(t, func() bool { return e.serverStatus("g1") == domain.ServerSleeping }, 5*time.Second, 50*time.Millisecond)
 }
 
-// E14-M2: an event for a session whose row appears just after is tracked.
+// An event for a session whose row appears just after is tracked.
 func TestLateSessionRowIsTracked(t *testing.T) {
 	// A session unknown to oh stays unknown for unknownTTL (5 s): a shorter
 	// one, set before the daemon starts and restored after it stopped.
@@ -187,7 +187,7 @@ func TestStopNowPolicy(t *testing.T) {
 	assert.Equal(t, domain.RunStopped, s.State)
 	assert.Equal(t, domain.SessionStatusCompleted, s.Status)
 	assert.NotNil(t, s.EndedAt)
-	assert.Equal(t, []string{"ses_a"}, e.endedIDs(), "E14-M10: session.complete hook")
+	assert.Equal(t, []string{"ses_a"}, e.endedIDs(), "session.complete hook")
 }
 
 // A group locked by a client (starting or resuming a session) never sleeps

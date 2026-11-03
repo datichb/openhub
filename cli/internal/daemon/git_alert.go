@@ -11,7 +11,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 )
 
-// Git configuration changed during a session (v5 critical N5): the
+// Git configuration changed during a session: the
 // checkpoint that unlocks an operation is refused to the agent, and the
 // user is told by an alert (✗ in « À traiter », not cleared by the agent
 // loop) which file changed and what to do.

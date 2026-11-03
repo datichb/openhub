@@ -17,7 +17,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/filelock"
 )
 
-// Issuing capability (M12). The daemon routes that hand out access (proxy
+// Issuing capability. The daemon routes that hand out access (proxy
 // and gateway tokens, credentials, listeners) or stop sessions require a
 // secret shared by the oh CLI/TUI and the daemon. It lives in the machine
 // secret store (or, without one, in a 0600 file) and is never put in the

@@ -7,6 +7,5 @@ import (
 )
 
 // SetDetached makes cmd outlive the oh process that starts it (its own
-// session on Unix, a new process group on Windows): the driver of a fan-out
-// (R6).
+// session on Unix, a new process group on Windows): the driver of a fan-out.
 func SetDetached(cmd *exec.Cmd) { dclient.SetDetached(cmd) }

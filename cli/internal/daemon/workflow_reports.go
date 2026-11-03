@@ -15,7 +15,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/services/report"
 )
 
-// Reports of workflow_report (modernisation L4): routes of the workflow MCP
+// Reports of workflow_report: routes of the workflow MCP
 // server, authenticated like the other workflow routes. The author of a
 // report is the agent the daemon saw in the calling tool session: a
 // request carries no author.
@@ -177,7 +177,7 @@ func (d *Daemon) reported(ctx context.Context, root string, rp domain.Report) {
 	if err := d.opts.Checkpoints.Reported(ctx, root, rp.ID(), rp.Agent); err != nil && !errors.Is(err, checkpoint.ErrNoState) {
 		slog.Debug("ohd: report not in the timeline", "session", root, "report", rp.ID(), "error", err)
 	}
-	// R5: the output `record: report` of the session is its last report.
+	// The output `record: report` of the session is its last report.
 	if _, err := d.opts.Checkpoints.Record(ctx, root, checkpoint.RecordReport, rp.ID()); err != nil {
 		slog.Debug("ohd: report output not recorded", "session", root, "report", rp.ID(), "error", err)
 	}

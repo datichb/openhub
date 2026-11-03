@@ -83,7 +83,7 @@ func TestPlanBase(t *testing.T) {
 	assert.Empty(t, plan.Warnings, "a reader does not care about uncommitted changes")
 }
 
-// A18: a writer never starts in a directory with uncommitted changes
+// A writer never starts in a directory with uncommitted changes
 // without an explicit choice: a worktree by default, the changes untouched.
 func TestPlanDirtyBaseUsesAWorktreeByDefault(t *testing.T) {
 	f, g := runFixture(t)
@@ -165,7 +165,7 @@ func TestPlanReadingOrEndedSessionsDoNotHoldTheBase(t *testing.T) {
 	assert.Equal(t, LocationBase, plan.Sessions[0].Location.Kind)
 }
 
-// A18: a sleeping writer resumes in its directory, on its branch: a new
+// A sleeping writer resumes in its directory, on its branch: a new
 // writer does not take it.
 func TestPlanSleepingWriterHoldsTheBase(t *testing.T) {
 	f, _ := runFixture(t)
@@ -235,7 +235,7 @@ func TestStartRunsTheSessionsInOneGroup(t *testing.T) {
 	res, err := f.svc.Start(ctx, plan)
 	require.NoError(t, err)
 	require.Len(t, res, 2)
-	assert.Equal(t, res[0].GroupKey, res[1].GroupKey, "one server group (I5)")
+	assert.Equal(t, res[0].GroupKey, res[1].GroupKey, "one server group")
 	assert.Len(t, f.ad.started, 1, "one server")
 	assert.Equal(t, []string{"feat/bd-1", "feat/bd-2"}, g.created)
 	require.Len(t, f.ad.created, 2)
@@ -252,7 +252,7 @@ func TestStartRunsTheSessionsInOneGroup(t *testing.T) {
 	assert.Equal(t, "ses_parent", sess.ParentSessionID)
 	assert.Equal(t, "tdd", sess.Outputs["method"], "recorded inputs (feature-migration)")
 	assert.Equal(t, "p1 · ticket bd-2", *sess.Title)
-	assert.True(t, sess.WorktreeAuto, "created by oh (N16, v43)")
+	assert.True(t, sess.WorktreeAuto, "created by oh (v43)")
 	assert.Equal(t, "feat/bd-2", sess.WorktreeBranch)
 }
 
@@ -283,7 +283,7 @@ func TestRuntimeAvailability(t *testing.T) {
 	assert.Error(t, err)
 }
 
-// QB2: every session started on tickets calls the claims hook (planned →
+// Every session started on tickets calls the claims hook (planned →
 // in progress for any workflow, formerly the --dev alias only).
 func TestStartCallsTheTicketsHook(t *testing.T) {
 	f, _ := runFixture(t)
@@ -307,7 +307,7 @@ func TestStartCallsTheTicketsHook(t *testing.T) {
 	assert.NotEmpty(t, sessions[0])
 }
 
-// A18: --stash puts the changes aside before the session starts and returns
+// --stash puts the changes aside before the session starts and returns
 // the stash commit.
 func TestStartStashesTheChanges(t *testing.T) {
 	f, g := runFixture(t)
@@ -324,7 +324,7 @@ func TestStartStashesTheChanges(t *testing.T) {
 	assert.Equal(t, f.project, f.ad.created[0].Location)
 }
 
-// A18 with a real repository: `oh run ticket` on a base with an uncommitted
+// With a real repository: `oh run ticket` on a base with an uncommitted
 // change starts the session in a new worktree and leaves the change as it is.
 func TestStartOnADirtyBaseKeepsTheUserChanges(t *testing.T) {
 	f := newRTFixture(t)

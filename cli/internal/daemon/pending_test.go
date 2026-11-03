@@ -57,7 +57,7 @@ func commitDenied(rules []sessionspec.PermissionRule) bool {
 	return false
 }
 
-// p6-debts: a request the plugin holds until oh confirms the session rules
+// A request the plugin holds until oh confirms the session rules
 // (subagent session created by the tool, not adopted yet; imported session)
 // is answered from the session rules oh sets, never from the rules the tool
 // held; a session oh cannot link is refused.

@@ -25,12 +25,12 @@ import (
 	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
-// TestLocalSessionBeadsHooksAndShell (piste T, T2; no LLM call): a real
+// TestLocalSessionBeadsHooksAndShell (no LLM call): a real
 // server, the oh daemon and the real bd, on a project initialized by
 // `bd init` with its git hooks.
-//   - A16: the user's ~/.zshenv puts another bd first on the PATH; oh's
+//   - the user's ~/.zshenv puts another bd first on the PATH; oh's
 //     shell start-up keeps the fake bd first all the same;
-//   - A19: `git commit` from the session shell runs the hooks of Beads
+//   - `git commit` from the session shell runs the hooks of Beads
 //     (`bd hooks run …` through the fake bd and the gateway), although the
 //     workflow does not allow `hooks`: the commit goes through.
 func TestLocalSessionBeadsHooksAndShell(t *testing.T) {
@@ -68,7 +68,7 @@ func TestLocalSessionBeadsHooksAndShell(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// The user's start-up file puts another bd first (A16).
+	// The user's start-up file puts another bd first.
 	home, other := filepath.Join(root, "home"), filepath.Join(root, "other")
 	for _, d := range []string{home, other} {
 		if err := os.MkdirAll(d, 0o755); err != nil {
@@ -201,10 +201,10 @@ func TestLocalSessionBeadsHooksAndShell(t *testing.T) {
 	}
 
 	if out := shell("command -v bd"); !strings.Contains(out, filepath.Join(shims, "bd")) {
-		t.Fatalf("A16: the fake bd must come first despite ~/.zshenv:\n%s", out)
+		t.Fatalf("the fake bd must come first despite ~/.zshenv:\n%s", out)
 	}
 	if out := shell("echo change > feature.txt && git add feature.txt && git commit -m 'feat: change'; echo EXIT=$?"); !strings.Contains(out, "EXIT=0") {
-		t.Fatalf("A19: git commit with the Beads hooks must go through:\n%s", out)
+		t.Fatalf("git commit with the Beads hooks must go through:\n%s", out)
 	}
 	if log := sh(project, "git", "log", "--format=%s"); !strings.Contains(log, "feat: change") {
 		t.Fatalf("no commit:\n%s", log)

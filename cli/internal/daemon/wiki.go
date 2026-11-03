@@ -13,7 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
-// Routes of the wiki MCP server of the project (modernisation LD-J),
+// Routes of the wiki MCP server of the project,
 // authenticated like the workflow routes (token of the server group, the
 // session must belong to it). The wiki is the one of the location of the
 // oh session (its worktree), the queue the one of its project. The author

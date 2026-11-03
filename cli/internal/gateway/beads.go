@@ -1,6 +1,6 @@
-// Package gateway is the GatewayService of the oh daemon (03 §11, P4-T07):
+// Package gateway is the GatewayService of the oh daemon:
 // it serves, to tool servers running in another runtime (container), the
-// machine resources that must stay on the machine (D9, D10). The Beads
+// machine resources that must stay on the machine. The Beads
 // gateway receives the commands of the fake bd, checks them against the
 // workflow allow-list and runs the real bd in the session directory.
 package gateway
@@ -121,7 +121,7 @@ func (b *Beads) Exec(ctx context.Context, g Grant, req beadswire.ExecRequest) (r
 			slog.Warn("gateway: Beads git hook without a valid hook token", "session", g.SessionID, "hook", hookName)
 			return refusalResp(i18n.T("cmd.gateway.beads.hook_unverified")), http.StatusForbidden
 		}
-		hook, allow = true, gitHookAllow // run by git, whatever the workflow allows (A19)
+		hook, allow = true, gitHookAllow // run by git, whatever the workflow allows
 	}
 	c, err := checkBeads(req.Argv, allow)
 	if err != nil {
@@ -212,7 +212,7 @@ func (b *Beads) Exec(ctx context.Context, g Grant, req beadswire.ExecRequest) (r
 	slog.Debug("gateway: bd", "session", g.SessionID, "command", c.Key(), "exit", resp.ExitCode)
 	if isOp && b.Done != nil && resp.ExitCode == 0 && resp.Error == "" {
 		if op.Kind == OpCreate {
-			op.IDs = CreatedIDs(stdout.Bytes()) // R5: the session output of the created tickets
+			op.IDs = CreatedIDs(stdout.Bytes()) // the session output of the created tickets
 		}
 		b.Done(ctx, g, op)
 	}

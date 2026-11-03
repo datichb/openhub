@@ -64,7 +64,7 @@ func wikiDo(t *testing.T, h http.Handler, method, path, body string, out any) in
 	return rec.Code
 }
 
-// LD-J: the author of a proposal is the agent oh sees; scratch paths and
+// The author of a proposal is the agent oh sees; scratch paths and
 // the session data are refused; wiki_apply is the documentarian's only.
 func TestWikiRoutes(t *testing.T) {
 	d, wk, project, sdir := wikiEnv(t)
@@ -141,7 +141,7 @@ func TestWikiRoutes(t *testing.T) {
 	assert.Equal(t, http.StatusServiceUnavailable, wikiDo(t, h, http.MethodGet, "/wiki/index?tool_session=ses_rev", "", nil))
 }
 
-// p5-fixes: a replacement is checked against the page of the session
+// A replacement is checked against the page of the session
 // location when it is filed: a line not in the page is refused.
 func TestWikiProposeReplacement(t *testing.T) {
 	d, _, _, _ := wikiEnv(t)
@@ -186,7 +186,7 @@ func (memWiki) GetWikiProposal(context.Context, string, int) (*domain.WikiPropos
 }
 func (memWiki) UpdateWikiProposal(context.Context, *domain.WikiProposal) error { return nil }
 
-// p3-remote-wiki: the daemon of a remote job serves the wiki of the clone
+// The daemon of a remote job serves the wiki of the clone
 // (read, check, propose) but refuses wiki_apply to every agent, the
 // documentarian included: the proposals go back to the machine.
 func TestWikiRoutesInRemoteJob(t *testing.T) {

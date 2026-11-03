@@ -16,7 +16,7 @@ import (
 // window. The command run there is `oh session attach <id> --exec`: no secret
 // appears on the command line. When a client is already attached to the
 // session, its window is brought back to the front instead
-// (termlaunch.MethodFocused): one session = one window (A43).
+// (termlaunch.MethodFocused): one session = one window.
 func (s *Service) Attach(ctx context.Context, sessionID, dir string, pref termlaunch.Pref, style termlaunch.ITermStyle, title string) (termlaunch.Method, error) {
 	if s.FocusAttached(ctx, sessionID) {
 		return termlaunch.MethodFocused, nil
@@ -101,7 +101,7 @@ func attachEnv() map[string]string {
 
 // AttachCommand returns the tool client command and environment for a
 // session (used by `oh session attach --exec`). The client is restricted to
-// the session when the adapter can (adapters.SingleSessionClient, A43).
+// the session when the adapter can (adapters.SingleSessionClient).
 func (s *Service) AttachCommand(ctx context.Context, sessionID string) (argv, env []string, err error) {
 	srv, err := s.serverForSession(ctx, sessionID)
 	if err != nil {

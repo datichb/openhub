@@ -35,7 +35,7 @@ func deniesShell(rules []sessionspec.PermissionRule, pattern string) bool {
 	return false
 }
 
-// A17, A36, A38 (piste T, T1): before cp-2, commit and closing are refused
+// Before cp-2, commit and closing are refused
 // (session rules, Beads gateway); after it, closing waits for a commit and
 // locks again; a question imitating a checkpoint is answered by oh; the end
 // of the workflow completes the session with its outputs.
@@ -131,7 +131,7 @@ func TestWorkflowLocksAndEnd(t *testing.T) {
 	code, _ = bdExec("update", "pt-1", "-s", "closed")
 	assert.Equal(t, http.StatusForbidden, code, "closing through update is refused too")
 
-	// A question imitating cp-2 is answered by oh with the instruction (A36).
+	// A question imitating cp-2 is answered by oh with the instruction.
 	fake.set(func() {
 		fake.decisions["ses_a"] = []adapters.PendingDecision{{ID: "que_1", SessionID: "ses_a", Kind: adapters.DecisionQuestion, Title: "[OrchestratorDev — CP-2]",
 			Fields: []adapters.FormField{{Key: "q0", Title: "Commit ou corriger ?", Type: "string", Custom: true, Options: []adapters.FormOption{{Value: "Commit", Label: "Commit"}}}}}}
@@ -150,7 +150,7 @@ func TestWorkflowLocksAndEnd(t *testing.T) {
 	assert.False(t, st0.HasPassed("cp-2"))
 	fake.set(func() { fake.decisions["ses_a"] = nil })
 
-	// N1: the agent reaches the daemon itself (socket, forged MCP call)
+	// The agent reaches the daemon itself (socket, forged MCP call)
 	// before any validation: refused, nothing unlocked.
 	_, err = c.WorkflowCheckpoint(ctx, "ses_a", checkpoint.Call{ID: "cp-2"})
 	var api *api.APIError
@@ -190,7 +190,7 @@ func TestWorkflowLocksAndEnd(t *testing.T) {
 	assert.Equal(t, []string{"pt-1"}, state().Closed)
 	assert.True(t, deniesShell(fake.rulesOf("ses_a"), "git commit*"), "locked again once the ticket is closed")
 
-	// The step ends with every ticket closed: completed, outputs declared (A38).
+	// The step ends with every ticket closed: completed, outputs declared.
 	ch <- adapters.ToolEvent{Kind: adapters.EventExecEnded, SessionID: "ses_a", Outcome: "succeeded"}
 	require.Eventually(t, func() bool { s, _ := sessions.Get(ctx, "ses_a"); return s.State == domain.RunCompleted }, 3*time.Second, 20*time.Millisecond)
 	s, err := sessions.Get(ctx, "ses_a")

@@ -16,7 +16,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
-// QB2: the daemon records one agent_events row per agent of a session (the
+// The daemon records one agent_events row per agent of a session (the
 // entry agent and each subagent), with status, tokens, cost and skills, so
 // that the per-agent metrics are fed again in v5.
 func TestWatcherRecordsAgentEvents(t *testing.T) {
