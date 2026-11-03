@@ -12,7 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
-// p5-fixes: a second commit checkpoint (`unlock_again`, incident). The
+// A second commit checkpoint (`unlock_again`, incident). The
 // window of the earlier one holds one commit: not opened with nothing to
 // commit, closed after the first commit, and at the latest when the later
 // commit checkpoint is asked; the later one behaves as any commit

@@ -1,4 +1,4 @@
-// Package session is the SessionService (03 §2.4): read model of the v5
+// Package session is the SessionService: read model of the v5
 // sessions and of their pending decisions (inbox), decisions, instructions
 // and live follow-up. Shared by the CLI and the TUI; no UI code. Real-time
 // tracking stays in the oh daemon, which feeds the stores read here.
@@ -34,7 +34,7 @@ type Service struct {
 	Checkpoints *checkpoint.Service
 	// Reports keeps the reports of workflow_report (nil = none shown).
 	Reports *report.Service
-	// Wiki keeps the proposals of the wiki MCP server (LD-J; nil = none
+	// Wiki keeps the proposals of the wiki MCP server (nil = none
 	// shown on the cards).
 	Wiki *wiki.Service
 	// Live opens the oh daemon live stream (nil = polling only).
@@ -43,7 +43,7 @@ type Service struct {
 	PollEvery time.Duration
 	// OhDecided tells the oh daemon that a decision it raised (budget,
 	// error) was answered here (nil = none): it updates the session state
-	// and resumes a step interrupted by the budget (A22).
+	// and resumes a step interrupted by the budget.
 	OhDecided func(ctx context.Context, sessionID string) error
 	// Alive reports whether a server PID is alive (nil = trust the store).
 	Alive func(pid int) bool
@@ -56,7 +56,7 @@ type InboxItem struct {
 	Session  *domain.Session
 }
 
-// Inbox returns the open decisions matching f, oldest first (I3).
+// Inbox returns the open decisions matching f, oldest first.
 func (s *Service) Inbox(ctx context.Context, f domain.DecisionFilter) ([]InboxItem, error) {
 	if s.Decisions == nil {
 		return nil, errors.New("session: no decision store")

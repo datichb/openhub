@@ -12,7 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
-// E7 (R8): the git and tool preconditions are read on the project at
+// The git and tool preconditions are read on the project at
 // launch; a failed block names what to fix and refuses the launch.
 func TestPreconditionsGit(t *testing.T) {
 	i18ntest.Set(t, "fr")
@@ -96,7 +96,7 @@ preconditions:
 	}
 }
 
-// p6-debts: the preconditions are read where the session works: a worktree
+// The preconditions are read where the session works: a worktree
 // created at launch (--location new) is clean, on its branch, with the
 // files of that branch or of the HEAD of the project; an existing worktree
 // is read as it is.

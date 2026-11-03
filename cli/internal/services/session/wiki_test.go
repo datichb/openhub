@@ -18,7 +18,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
-// LD-J: the card of the commit checkpoint carries the open wiki proposals
+// The card of the commit checkpoint carries the open wiki proposals
 // of the session; the user decides on each of them there.
 func TestCheckpointCardWiki(t *testing.T) {
 	st := sqlitetest.New(t)

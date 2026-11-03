@@ -9,7 +9,7 @@ import (
 	wf "github.com/datichb/openhub/cli/internal/workflow"
 )
 
-// Version is one published version of a workflow (P2-T06).
+// Version is one published version of a workflow.
 type Version struct {
 	Ref     wf.Ref              `json:"ref"`
 	Version int                 `json:"version"`

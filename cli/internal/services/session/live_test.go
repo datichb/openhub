@@ -40,7 +40,7 @@ func TestFollowFiltersTheSession(t *testing.T) {
 	assert.Equal(t, "hi", got[0].Text)
 }
 
-// A21: the live feed shows the oh session total (root + subagents), not the
+// The live feed shows the oh session total (root + subagents), not the
 // root tool session alone.
 func TestFollowShowsTheSessionTotal(t *testing.T) {
 	svc, ctx := newTestService(t)

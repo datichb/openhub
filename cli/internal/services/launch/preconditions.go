@@ -17,8 +17,8 @@ import (
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
-// R8 (E7): preconditions on the repository and the tools, read by oh at
-// launch where the session works (p6-debts): the project directory, the
+// Preconditions on the repository and the tools, read by oh at
+// launch where the session works: the project directory, the
 // worktree given with --location, or, for a worktree created at launch
 // (--location new), what it will hold: the files of its branch (or of the
 // HEAD of the project for a new branch), that branch, nothing uncommitted.

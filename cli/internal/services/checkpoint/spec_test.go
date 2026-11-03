@@ -15,9 +15,9 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
-// R4: cp-spec checks the spec written under docs/wiki/specs/ (glossary,
+// cp-spec checks the spec written under docs/wiki/specs/ (glossary,
 // criteria with test points), cp-converge its breakdown; nothing else runs.
-// p4-debts: and the format of the wiki (frontmatter, confidence tags).
+// And the format of the wiki (frontmatter, confidence tags).
 
 const specFM = "---\nupdated: 2026-10-14\nconfidence: mixed\nagents: [planner]\n---\n"
 
@@ -74,9 +74,9 @@ func TestSpecChecks(t *testing.T) {
 	assert.Equal(t, 0, ex.count(), "no command run")
 	sess, err := svc.Sessions.Get(ctx, "ses_s")
 	require.NoError(t, err)
-	assert.Equal(t, "docs/wiki/specs/percent.md", sess.Outputs["spec"], "R5: the spec checked is recorded by oh")
+	assert.Equal(t, "docs/wiki/specs/percent.md", sess.Outputs["spec"], "the spec checked is recorded by oh")
 
-	// The frontmatter of the wiki (p4-debts): keys and values of
+	// The frontmatter of the wiki: keys and values of
 	// doc-wiki-protocol, confidence tags well formed.
 	glossary := strings.TrimPrefix(body, specFM)
 	for _, c := range []struct{ fm, want string }{

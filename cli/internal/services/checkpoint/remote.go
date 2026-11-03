@@ -13,7 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/textfmt"
 )
 
-// Verifications in a remote session (R3-remote): the job runs them where
+// Verifications in a remote session: the job runs them where
 // the work is, as the account of the agents (Account), and keeps the last
 // result of each checkpoint in summary.json; the machine imports them at
 // fetch time, cleaned and bounded again, for the card and the timeline.

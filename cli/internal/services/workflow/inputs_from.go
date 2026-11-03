@@ -11,7 +11,7 @@ import (
 )
 
 // InputSource computes the value of an input declared with `from:` from the
-// value of its argument input (QB2: GitLab discussions of a merge request).
+// value of its argument input (GitLab discussions of a merge request).
 type InputSource func(ctx context.Context, c Context, arg string) (string, error)
 
 // ComputeInputs fills, in values, the inputs declared with `from:` that are
@@ -107,7 +107,7 @@ func given(v any) bool {
 	return true
 }
 
-// computeFromSession fills an input read from a previous session (R5):
+// computeFromSession fills an input read from a previous session:
 // session.output(<workflow>.<id>), session.trace([<workflow>]) and
 // session.traces(<input>). The source gets the argument "<workflow>.<id>",
 // "<workflow>" or the value of the input; nothing found leaves the input

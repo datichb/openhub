@@ -83,7 +83,7 @@ func askCP(t *testing.T, svc *Service, ctx context.Context, id string) bool {
 	return relocked
 }
 
-// A17: closing waits for cp-2 and for a commit since; a closed ticket and a
+// Closing waits for cp-2 and for a commit since; a closed ticket and a
 // new round of cp-2 lock again.
 func TestGuardCloseAndWindow(t *testing.T) {
 	svc, ctx, h := newLockService(t)
@@ -102,7 +102,7 @@ func TestGuardCloseAndWindow(t *testing.T) {
 	assert.Equal(t, "c1", st.Unlocks["close"].Head)
 	rules, _ = svc.Rules(ctx, "ses_l")
 	for _, r := range rules {
-		if !slices.Contains(bundle.ApplyLockPatterns, r.Resource) && !slices.Contains(bundle.PublishLockPatterns(), r.Resource) { // apply, tag, mr: nothing unlocks them here (N4, E9)
+		if !slices.Contains(bundle.ApplyLockPatterns, r.Resource) && !slices.Contains(bundle.PublishLockPatterns(), r.Resource) { // apply, tag, mr: nothing unlocks them here
 			assert.NotEqual(t, sessionspec.ActionShell, r.Action)
 		}
 	}
@@ -142,7 +142,7 @@ func TestGuardCloseAndWindow(t *testing.T) {
 
 func at(min int) time.Time { return time.Date(2026, 10, 8, 10, min, 0, 0, time.UTC) }
 
-// A38: end of the workflow.
+// End of the workflow.
 func TestFinished(t *testing.T) {
 	wf := lockWorkflow()
 	ev := func(kind, id string, min int) domain.CheckpointEvent {
@@ -209,7 +209,7 @@ func TestFinishDeclaresOutputs(t *testing.T) {
 	assert.Nil(t, st.Finished)
 }
 
-// A36: a question naming a checkpoint (id or label) imitates it.
+// A question naming a checkpoint (id or label) imitates it.
 func TestImitation(t *testing.T) {
 	svc, ctx, _ := newLockService(t)
 	q := func(title, field string) adapters.PendingDecision {
@@ -318,7 +318,7 @@ func TestGitHead(t *testing.T) {
 	assert.Error(t, err, "not a repository")
 }
 
-// N5 (v5 critical): a checkpoint that unlocks operations is refused when the
+// A checkpoint that unlocks operations is refused when the
 // git configuration of the session location changed since the session
 // started (a program would run on the machine at the next git of oh).
 func TestGuardRefusesTamperedConfig(t *testing.T) {

@@ -15,7 +15,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
-// R3-remote: a verified checkpoint never passes without its verification,
+// A verified checkpoint never passes without its verification,
 // even in a mode where it would pass on its own, when the verification
 // cannot run where the work is; the user alone overrides it (traced).
 func TestVerifyUnavailableNeverPassesAlone(t *testing.T) {

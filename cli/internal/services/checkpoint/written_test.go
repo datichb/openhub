@@ -13,7 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
-// B1: an output `record: written` holds the files the session changed under
+// An output `record: written` holds the files the session changed under
 // its paths, read when a checkpoint passes; with `match:`, the first group
 // of the expression in them (the verdict of a spike).
 func TestRecordWritten(t *testing.T) {

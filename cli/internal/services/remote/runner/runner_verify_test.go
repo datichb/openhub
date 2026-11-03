@@ -23,7 +23,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
-// R3-remote: a remote session simulated end to end on the services of the
+// A remote session simulated end to end on the services of the
 // job. The verification of a checkpoint runs in the clone of the job, its
 // failure is never overridden there, an impossible verification is
 // deferred to the machine, and the result travels in summary.json.

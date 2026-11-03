@@ -10,7 +10,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
-// Conditions of a checkpoint evaluated by oh (R3, CP-R7, E6): `when:` only
+// Conditions of a checkpoint evaluated by oh (CP-R7): `when:` only
 // adds a pause (an automatic checkpoint pauses when a condition holds, a
 // conditional one only then); a mandatory checkpoint always pauses.
 
@@ -20,7 +20,7 @@ const maxLabelTickets = 5
 // behavior returns the behavior of c for sess, its conditions evaluated.
 func (s *Service) behavior(ctx context.Context, sess *domain.Session, c sessionspec.CheckpointDef) string {
 	if _, _, ok := s.delegation(ctx, sess, c); ok {
-		// R6, CP-R3: replaced by the merge checkpoint of the parent.
+		// CP-R3: replaced by the merge checkpoint of the parent.
 		return sessionspec.CheckpointAuto
 	}
 	if c.When == nil {

@@ -12,7 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/teamstate"
 )
 
-// v5.1 (B3b): the claims taken for a remote session carry its ID, so that the
+// The claims taken for a remote session carry its ID, so that the
 // end of the session (and the lease) apply to the claim it worked on.
 func TestTeamClaimsRecordTheRemoteSession(t *testing.T) {
 	if testing.Short() {

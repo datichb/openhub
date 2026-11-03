@@ -23,7 +23,7 @@ func french(t *testing.T) {
 	t.Cleanup(func() { i18n.SetLocale(prev) })
 }
 
-// R7: cp-seams records where the changes are counted from, cp-red checks
+// cp-seams records where the changes are counted from, cp-red checks
 // the test files and that the tests fail for the right reason.
 
 // redWorkflow is the TDD part of the ticket workflow: cp-seams then cp-red.
@@ -125,7 +125,7 @@ func TestRedHelpers(t *testing.T) {
 	assert.Equal(t, []string{"a/b.go"}, outside)
 }
 
-// R7 with real git and go (no model): a test that fails passes cp-red, a
+// The TDD method with real git and go (no model): a test that fails passes cp-red, a
 // test that does not compile, a suite that passes and a diff without test
 // file are refused.
 func TestRedRealGo(t *testing.T) {

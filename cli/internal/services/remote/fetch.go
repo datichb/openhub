@@ -46,9 +46,9 @@ type FetchResult struct {
 	Imported  bool
 	Reports   int // reports of workflow_report imported
 	// Wiki is the number of wiki proposals of the job queued on the
-	// machine (p3-remote-wiki).
+	// machine.
 	Wiki int
-	// Verifications are the verifications of the job imported (R3-remote).
+	// Verifications are the verifications of the job imported.
 	Verifications int
 	Location      string // where the session continues locally
 	Ref           domain.RemoteRef
@@ -58,7 +58,7 @@ type FetchResult struct {
 var artifactNames = map[string]bool{remote.JournalFile: true, remote.SummaryFile: true, remote.ExportFile: true, remote.ReportsFile: true, remote.WikiFile: true}
 
 // Fetch downloads the artifacts of a finished remote session and imports the
-// session into a local server group so that it can be resumed (P5-T16). The
+// session into a local server group so that it can be resumed. The
 // session continues in a worktree of the pushed branch (the project base
 // directory when nothing was pushed). The Beads journal is not replayed
 // here (PlanReplay / ApplyReplay, with confirmation).
@@ -294,7 +294,7 @@ func (s *Service) importReports(ctx context.Context, sid, dir string, wikiIDs ma
 
 // importWiki queues the wiki proposals of the job (wiki.json, absent when
 // none was filed) in the queue of the project of the session, to be
-// validated on the machine (p3-remote-wiki). A full queue does not fail
+// validated on the machine. A full queue does not fail
 // the fetch: what fits is queued, the rest is reported.
 func (s *Service) importWiki(ctx context.Context, sess *domain.Session, dir string) (queued int, ids map[string]string, err error) {
 	if s.Wiki == nil {

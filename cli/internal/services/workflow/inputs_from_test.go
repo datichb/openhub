@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// QB2: inputs declared with `from:` are computed at launch by the service
+// Inputs declared with `from:` are computed at launch by the service
 // (oh run review-feedback reads the MR discussions itself, not only the
 // former alias): a given value wins, then the computed one, then the default.
 func TestComputeInputs(t *testing.T) {

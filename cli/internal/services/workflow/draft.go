@@ -12,7 +12,7 @@ import (
 	wf "github.com/datichb/openhub/cli/internal/workflow"
 )
 
-// Drafts (P2-T03): a member's unpublished version of a team or project
+// Drafts: a member's unpublished version of a team or project
 // workflow, validated when saved, launchable locally with --draft.
 
 var (

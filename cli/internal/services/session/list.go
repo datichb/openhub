@@ -188,7 +188,7 @@ func (s *Service) Pick(ctx context.Context, ref string, kinds ...domain.Decision
 }
 
 // recentResolution is how long a resolved decision explains that a session
-// has none open ("already decided in the tool", A30).
+// has none open ("already decided in the tool").
 const recentResolution = time.Hour
 
 // recentlyResolved returns the last decision of the kinds of a session

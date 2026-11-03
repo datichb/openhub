@@ -17,7 +17,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
-// R3-remote-git: a git read that fails keeps the protection closed.
+// A git read that fails keeps the protection closed.
 
 // errDubious is git refusing a repository of another owner.
 var errDubious = errors.New("fatal: detected dubious ownership in repository")

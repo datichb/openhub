@@ -10,7 +10,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 )
 
-// Metrics of the wiki (modernisation LD-I), computed by oh from the pages
+// Metrics of the wiki, computed by oh from the pages
 // and the queue, shown by the TUI (project wiki view) and `oh wiki stats`:
 //
 //   - coverage of the domains: the domains are the pages business/<d>.md

@@ -9,7 +9,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 )
 
-// Refused proposals, as the agents see them (p9-wiki-refusal follow-up). The
+// Refused proposals, as the agents see them. The
 // user may say why he refused a proposal; without a way to learn it, the
 // agents propose the same thing again. wiki_pending lists the recent
 // refusals with their reason, and wiki_propose warns when a near-identical

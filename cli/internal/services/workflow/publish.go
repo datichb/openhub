@@ -14,7 +14,7 @@ import (
 	wf "github.com/datichb/openhub/cli/internal/workflow"
 )
 
-// Publication (P2-T04, O14), restoration (P2-T06) and archiving: each runs
+// Publication, restoration and archiving: each runs
 // as a team-state transaction — pull, rebuild from disk (next version,
 // revalidation), commit, push; rebuilt when another member pushed first;
 // queued when the remote cannot be reached.

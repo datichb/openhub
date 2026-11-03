@@ -55,7 +55,7 @@ type claimSetter interface {
 }
 
 // TeamProgress publishes the progress of a remote session in the claims of
-// its tickets (P5-T13). Failures are logged, never fatal.
+// its tickets. Failures are logged, never fatal.
 type TeamProgress struct {
 	Repo        claimSetter
 	Project     string // oh project ID

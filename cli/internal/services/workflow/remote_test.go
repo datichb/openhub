@@ -59,7 +59,7 @@ checkpoints:
 	}
 }
 
-// R8: a publishing workflow never runs remotely, even if a layer lists
+// A publishing workflow never runs remotely, even if a layer lists
 // remote (the schema refuses it already).
 func TestRemotePlanPublish(t *testing.T) {
 	y := strings.Replace(remoteBase, "risk: write", "risk: publish", 1) + "runtime: { default: local, allowed: [local, remote] }\n"

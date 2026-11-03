@@ -67,7 +67,7 @@ func (s *Service) clientFor(ctx context.Context, name string) (*gitlab.Client, *
 	return s.client(*t, token), t, nil
 }
 
-// Track checks the pipelines of the remote sessions still running (P5-T15):
+// Track checks the pipelines of the remote sessions still running:
 // the reference and the session state follow the pipeline, and Notify is
 // called when a session becomes ready to fetch (or failed).
 func (s *Service) Track(ctx context.Context) ([]TrackResult, error) {

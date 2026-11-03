@@ -23,7 +23,7 @@ func (f fakeTickets) IsEpic(id string) (bool, error) {
 
 func (f fakeTickets) OpenChildren(epic string) ([]string, error) { return f.epics[epic], f.err }
 
-// A24: an epic stands for its open children, each ticket once.
+// An epic stands for its open children, each ticket once.
 func TestExpandEpics(t *testing.T) {
 	src := fakeTickets{epics: map[string][]string{"pt-c3b": {"pt-c3b.1", "pt-c3b.2"}, "pt-e": nil}}
 	got, exps, err := ExpandEpics(src, []string{"pt-1", "pt-c3b", "pt-c3b.1", "unknown"})

@@ -19,7 +19,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/remote"
 )
 
-// Replay of the Beads journal of a remote session (P5-T17): every write the
+// Replay of the Beads journal of a remote session: every write the
 // job recorded is checked again (allow-list of the workflow, refused
 // options, tickets of the session), compared with the current version of
 // its ticket (revision of the snapshot sent), and applied on the machine

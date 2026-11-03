@@ -9,7 +9,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 )
 
-// Reports of workflow_report on a checkpoint card (modernisation L4): the
+// Reports of workflow_report on a checkpoint card: the
 // reports filed since the last checkpoint passed before the decision, and
 // those the agent cited when it reached the checkpoint.
 

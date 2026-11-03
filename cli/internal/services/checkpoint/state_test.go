@@ -19,7 +19,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
-// R3: verification run by oh (E1), evidence (E2), fix rounds (E5),
+// Verification run by oh, evidence, fix rounds,
 // conditions (CP-R7) and windows (CP-R8).
 
 // fakeExec answers the verification commands: exit code and output per
@@ -235,7 +235,7 @@ func TestVerifyWithoutCommandOrLocation(t *testing.T) {
 	_, _ = svc.Sessions.Get(ctx, "ses_v")
 	sess := &domain.Session{ID: "ses_v", LaunchPath: "/no/such/dir"}
 	r = svc.runVerify(ctx, sess, sessionspec.CheckpointDef{ID: "cp-2", Verify: &sessionspec.VerifyDef{Cmd: []string{"make"}}})
-	assert.Equal(t, domain.VerifyUnavailable, r.Status, "location missing: the verification cannot run, never « nothing to verify » (R3-remote)")
+	assert.Equal(t, domain.VerifyUnavailable, r.Status, "location missing: the verification cannot run, never « nothing to verify » (remote job)")
 	assert.False(t, r.OK())
 }
 
@@ -257,7 +257,7 @@ func TestVerifyEnv(t *testing.T) {
 	env := verifyEnv(parent, nil)
 	assert.Equal(t, []string{"PATH=/bin", "HOME=/h", "GOPATH=/g", "CI=true", "NO_COLOR=1", "TERM=dumb"}, env)
 
-	// R3-remote: run as the account of the agents, with its own folders.
+	// Remote job: run as the account of the agents, with its own folders.
 	env = verifyEnv(append(parent, "USER=root", "TMPDIR=/root/tmp", "XDG_CACHE_HOME=/root/.cache"), &Account{UID: 1000, GID: 1000, Home: "/home/oh"})
 	assert.Equal(t, []string{"PATH=/bin", "GOPATH=/g", "HOME=/home/oh", "XDG_CONFIG_HOME=/home/oh/.config", "XDG_CACHE_HOME=/home/oh/.cache",
 		"TMPDIR=/home/oh/tmp", "CI=true", "NO_COLOR=1", "TERM=dumb"}, env)
@@ -282,7 +282,7 @@ func TestExecVerifyAndTail(t *testing.T) {
 	assert.True(t, strings.HasSuffix(ex, "last"))
 }
 
-// E2: the evidence of the agent is checked against the shell calls observed.
+// The evidence of the agent is checked against the shell calls observed.
 func TestEvidence(t *testing.T) {
 	svc, ctx, _, _ := newVerifyService(t, nil)
 	shell := func(id, cmd, status string) {
@@ -325,7 +325,7 @@ func TestEvidence(t *testing.T) {
 	_ = res
 }
 
-// E5: past limits.max_fix_rounds, the developer is locked and the commit
+// Past limits.max_fix_rounds, the developer is locked and the commit
 // checkpoint is marked unresolved, until the user steps in or the ticket
 // is closed.
 func TestFixRoundsLimit(t *testing.T) {

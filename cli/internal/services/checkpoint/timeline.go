@@ -24,7 +24,7 @@ const (
 	StepReport   = domain.CheckpointReport
 	StepWiki     = domain.CheckpointWiki
 	StepTodo     = "todo"
-	// R3: verification failed, validated despite it, fix rounds capped.
+	// Verification failed, validated despite it, fix rounds capped.
 	StepVerifyFail = domain.CheckpointVerifyFail
 	StepOverridden = domain.CheckpointOverridden
 	StepFixLimit   = domain.CheckpointFixLimit

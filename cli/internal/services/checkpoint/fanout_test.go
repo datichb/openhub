@@ -16,7 +16,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
-// R6, CP-R3: the control substitution in the daemon, and every attempt to
+// CP-R3: the control substitution in the daemon, and every attempt to
 // get around it.
 
 var allPause = func() map[string]string {
@@ -374,7 +374,7 @@ func TestFanoutMergeCheckpointGuards(t *testing.T) {
 	})
 }
 
-// R6: cp-merge refused with an instruction asks oh for a fix round on the
+// cp-merge refused with an instruction asks oh for a fix round on the
 // integration branch, with what failed in its verification; a plain
 // refusal, another checkpoint or a workflow without fix round does not.
 func TestFanoutMergeRefusedAsksForAFix(t *testing.T) {

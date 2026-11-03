@@ -257,7 +257,7 @@ func TestReplayApplyRemoteSubstitutesPlaceholders(t *testing.T) {
 	assert.Equal(t, domain.RemoteResolved, ref.Status)
 }
 
-// L4: the reports filed in the job come back with the session (reports.json),
+// The reports filed in the job come back with the session (reports.json),
 // cleaned and bounded again on the machine; fetching again adds nothing.
 func TestFetchImportsReports(t *testing.T) {
 	ctx := context.Background()
@@ -330,7 +330,7 @@ func (e *returnEnv) withArtifacts(t *testing.T, add map[string][]byte) {
 	e.pipeline.Status = "success"
 }
 
-// p3-remote-wiki: the wiki proposals of the job come back with the session
+// The wiki proposals of the job come back with the session
 // (wiki.json) and are queued, pending, in the queue of the project on the
 // machine, where the user validates them; the reports cite them by their
 // local id; fetching again adds nothing.
@@ -399,7 +399,7 @@ func TestFetchImportsWikiProposals(t *testing.T) {
 	assert.Len(t, list, 2)
 }
 
-// R3-remote: the verifications run in the job come back with summary.json
+// The verifications run in the job come back with summary.json
 // and are handed over to the checkpoints of the machine (not with
 // --no-import).
 func TestFetchImportsVerifications(t *testing.T) {

@@ -67,7 +67,7 @@ type Input struct {
 	// applied in the job), written to wiki.json; nil: none.
 	Wiki func(ctx context.Context, sessionID string) ([]remote.WikiEntry, error)
 	// WaitVerify waits for the checkpoint verifications oh runs in the
-	// background, in the clone and as the agent account (R3-remote), and
+	// background, in the clone and as the agent account, and
 	// Verifications returns them for summary.json; nil: none.
 	WaitVerify    func(ctx context.Context)
 	Verifications func(ctx context.Context, sessionID string) ([]remote.SummaryVerification, error)
@@ -83,7 +83,7 @@ const verifyWaitMax = 31 * time.Minute
 // JournalPath is the Beads journal of a job.
 func JournalPath(outDir string) string { return filepath.Join(outDir, remote.JournalFile) }
 
-// Run runs a remote session end to end (P5-T09 → T14) and writes the
+// Run runs a remote session end to end and writes the
 // summary. The returned error is the job failure (the summary is written
 // whenever possible).
 func Run(ctx context.Context, in Input) (*remote.Summary, error) {
@@ -129,7 +129,7 @@ func Run(ctx context.Context, in Input) (*remote.Summary, error) {
 		return finish(err)
 	}
 	if m.Workflow.Risk == "publish" {
-		// R8: a publishing workflow never runs remotely (refused by the
+		// A publishing workflow never runs remotely (refused by the
 		// machine already; checked again before the clone).
 		return finish(fmt.Errorf("workflow %s is risk: publish: it never runs remotely", m.Workflow.ID))
 	}
@@ -138,14 +138,14 @@ func Run(ctx context.Context, in Input) (*remote.Summary, error) {
 	}
 	progress("running", "clone", "")
 
-	// T09: clone of the target project.
+	// Clone of the target project.
 	base, err := in.Git.Clone(ctx, m.Project.CloneURL, m.Ref, m.Commit, m.Branch, m.WorkDir)
 	if err != nil {
 		return finish(fmt.Errorf("cloning %s: %w", m.Project.Path, err))
 	}
 	sum.BaseCommit = base
 
-	// T10: the session, with the same RunService as on the machine.
+	// The session, with the same RunService as on the machine.
 	b := in.Fetched.Bundle
 	entry := m.EntryAgent
 	if entry == "" {
@@ -163,7 +163,7 @@ func Run(ctx context.Context, in Input) (*remote.Summary, error) {
 	}
 	progress("running", "session", "")
 
-	// T11: the policy responder answers while the turn is awaited.
+	// The policy responder answers while the turn is awaited.
 	turnCtx, stopTurn := context.WithCancel(ctx)
 	defer stopTurn()
 	respDone := make(chan struct{})
@@ -249,7 +249,7 @@ func Run(ctx context.Context, in Input) (*remote.Summary, error) {
 		}
 	}
 
-	// T14 (part): results and export before the server stops.
+	// Results and export before the server stops.
 	if r, err := in.Session.Results(ctx, sid); err == nil {
 		sum.Cost, sum.TokensIn, sum.TokensOut = r.Cost, r.TokensIn, r.TokensOut
 		sum.TokensReasoning, sum.TokensCacheRead, sum.Model = r.TokensReasoning, r.TokensCacheRead, r.Model
@@ -284,7 +284,7 @@ func Run(ctx context.Context, in Input) (*remote.Summary, error) {
 		slog.Warn("runner: stopping the session", "err", err)
 	}
 
-	// T13: branch and draft merge request, once no code of the agent can
+	// Branch and draft merge request, once no code of the agent can
 	// run any more.
 	if in.Quiesce != nil {
 		if err := in.Quiesce(ctx); err != nil {

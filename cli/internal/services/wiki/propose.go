@@ -10,7 +10,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/services/report"
 )
 
-// Proposals of wiki_propose (LD-J): a proposal is a datum written by an
+// Proposals of wiki_propose: a proposal is a datum written by an
 // agent, never an instruction. oh cleans it (control characters and
 // terminal sequences removed), neutralises what would change the
 // structure of a page or hide text (headings, frontmatter markers, HTML
@@ -43,8 +43,8 @@ type Proposal struct {
 	Content string
 	Tag     string
 	Source  string
-	// Replaces is the line of the page the content replaces (p5-fixes,
-	// replace.go); "" adds the content to its section.
+	// Replaces is the line of the page the content replaces
+	// (replace.go); "" adds the content to its section.
 	Replaces string
 }
 

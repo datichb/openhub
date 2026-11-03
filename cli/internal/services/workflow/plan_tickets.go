@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-// Launch plan: tickets of a launch (v5 corrections, A24). An epic given to a
+// Launch plan: tickets of a launch. An epic given to a
 // workflow that runs one session per ticket stands for its open children.
 
 // TicketSource reads the tickets of a project (Beads).

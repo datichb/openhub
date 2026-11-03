@@ -12,7 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
-// Test written first (R7, method tdd): at cp-red oh checks that the changes
+// Test written first (method tdd): at cp-red oh checks that the changes
 // since cp-seams touch the test files of the stack (must_touch_tests), and
 // what was changed outside them (outside_tests: warn, refuse), then that the
 // tests fail for the right reason (expect: fail): the code builds, the

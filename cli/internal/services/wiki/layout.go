@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// Layout of the wiki (modernisation LD-F, doc-wiki-protocol): a single
+// Layout of the wiki: a single
 // place for what the project knows.
 //
 //	docs/wiki/

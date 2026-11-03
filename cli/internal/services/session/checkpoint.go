@@ -14,7 +14,7 @@ import (
 )
 
 // Checkpoint and circuit breaker decisions are answered by the
-// CheckpointService (P3-T17): it updates the workflow state and acts on the
+// CheckpointService: it updates the workflow state and acts on the
 // session through this service.
 
 // UseCheckpoints registers the CheckpointService as the resolver of the
@@ -73,7 +73,7 @@ type CheckpointCard struct {
 	// the agent cited), oldest first.
 	Reports []domain.Report
 	// Wiki are the open wiki proposals of the session, on the card of a
-	// checkpoint that unlocks the commit (LD-J, CP-R4); WikiCommit: the
+	// checkpoint that unlocks the commit (CP-R4); WikiCommit: the
 	// checkpoint is that one.
 	Wiki       []domain.WikiProposal
 	WikiCommit bool

@@ -14,7 +14,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/limits"
 )
 
-// Decisions (P3-T08): oh answers permissions and questions through the tool
+// Decisions: oh answers permissions and questions through the tool
 // API, from any client. The first answer wins: oh claims the decision in the
 // store before replying, and a request already settled in the tool (TUI,
 // web, mobile) is reported as resolved there.

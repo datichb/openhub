@@ -88,7 +88,7 @@ func TestReached(t *testing.T) {
 	assert.ErrorContains(t, err, "cp-1, cp-2", "known checkpoints listed for the agent")
 }
 
-// Bug 15: a workflow without checkpoint (review) answers that it has none,
+// A workflow without checkpoint (review) answers that it has none,
 // not "unknown checkpoint "cp-1" ()"; an unknown id lists the valid ones.
 func TestReachedWithoutCheckpoint(t *testing.T) {
 	svc, ctx := newTestService(t)
@@ -245,7 +245,7 @@ func TestCircuitBreaker(t *testing.T) {
 	assert.Equal(t, []string{"developer"}, cs.Ran)
 }
 
-// N1 (v5 critical): a checkpoint that waits for the user passes only with a
+// A checkpoint that waits for the user passes only with a
 // validation observed by oh, whatever calls the daemon.
 func TestPausedCheckpointNeedsAValidation(t *testing.T) {
 	svc, ctx := newTestService(t)

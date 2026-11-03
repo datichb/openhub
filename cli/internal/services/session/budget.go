@@ -10,7 +10,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/limits"
 )
 
-// BudgetResolver answers the budget decisions of the restrictions (I6):
+// BudgetResolver answers the budget decisions of the restrictions:
 // "raise" adds an amount (Reply.Message, USD; default: the configured
 // budget once more) to the session's or the day's allowance; "stop" stops
 // the session. The daemon lets the session go on as soon as the allowance

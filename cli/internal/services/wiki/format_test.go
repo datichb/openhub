@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// p4-debts: the format of one page, as verify.spec reads a spec: the
+// The format of one page, as verify.spec reads a spec: the
 // frontmatter checks of wiki_check, the keys of doc-wiki-protocol only
 // (synced in index.md), the tag lines well formed; the warnings of the
 // whole wiki (untagged page, CONFIRMÉ without source) are left out.
@@ -34,7 +34,7 @@ func TestFormatIssues(t *testing.T) {
 	assert.Equal(t, []string{IssueFrontmatter}, kinds("specs/a.md", "---\nupdated: [\n---\n"))
 }
 
-// p5-fixes: wiki_check reports a frontmatter key out of doc-wiki-protocol
+// wiki_check reports a frontmatter key out of doc-wiki-protocol
 // on every page, as a warning, and as an error in a spec (the format of
 // verify.spec); synced belongs to the index.
 func TestCheckFrontmatterKeys(t *testing.T) {

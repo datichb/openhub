@@ -24,7 +24,7 @@ agents:
   hotfixer: { role: workflow }
 `
 
-// The editable catalogue (lot 2.D): drafts with their validity and new
+// The editable catalogue: drafts with their validity and new
 // bricks, integrity warnings, team files in error at their own layer,
 // offline queue.
 func TestWorkspace(t *testing.T) {

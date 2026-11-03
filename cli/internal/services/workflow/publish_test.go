@@ -305,7 +305,7 @@ func TestConcurrentPublications(t *testing.T) {
 	assert.Empty(t, integrity)
 }
 
-// O14: offline, the publication is queued and replayed later.
+// Offline, the publication is queued and replayed later.
 func TestPublishOfflineQueue(t *testing.T) {
 	env := newTeamEnv(t, "alice")
 	alice := env.service(t, "alice")

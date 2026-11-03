@@ -11,7 +11,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 )
 
-// Check restricted to a change (modernisation LD-H, LD-D): the reviewer
+// Check restricted to a change: the reviewer
 // (third axis, documentation) and doc-sync ask wiki_check for the files a
 // change touched; oh answers, deterministically:
 //

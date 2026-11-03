@@ -13,7 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
-// LD-J: when a checkpoint that unlocks the commit is passed, oh applies the
+// When a checkpoint that unlocks the commit is passed, oh applies the
 // wiki proposals accepted on the card before the call returns (they are
 // committed with the code); the agent is told, the timeline records it.
 func TestCommitPassedAppliesTheWiki(t *testing.T) {

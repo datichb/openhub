@@ -10,7 +10,7 @@ import (
 	wf "github.com/datichb/openhub/cli/internal/workflow"
 )
 
-// Impact summary of a change (O12): shown before publishing, and used to
+// Impact summary of a change: shown before publishing, and used to
 // refuse a draft launch that would loosen the published security.
 
 // ImpactLevel says whether a change widens what the workflow may do.

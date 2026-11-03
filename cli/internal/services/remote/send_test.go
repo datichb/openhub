@@ -320,7 +320,7 @@ func TestSend(t *testing.T) {
 		}
 	}
 
-	// Journal key (N21): encrypted for the run job, never in clear in the
+	// Journal key: encrypted for the run job, never in clear in the
 	// registry; the private key of oh-runner opens it.
 	assert.Empty(t, man.LegacyJournalKey)
 	require.NotEmpty(t, man.JournalKeySealed)
@@ -336,7 +336,7 @@ func TestSend(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, key, opened)
 
-	// The run job never takes its image by tag (N21): built in this
+	// The run job never takes its image by tag: built in this
 	// pipeline, it gets the digest from the image job.
 	assert.Empty(t, v[remote.VarRunImage], "digest of the image job (dotenv)")
 	assert.True(t, ref.ImageBuilt)

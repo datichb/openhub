@@ -222,7 +222,7 @@ func TestServiceFlow(t *testing.T) {
 	assert.Len(t, failed, 2)
 }
 
-// p9-wiki-refusal: the reason of a refusal is cleaned (one line, no control
+// The reason of a refusal is cleaned (one line, no control
 // characters) and bounded; empty is allowed; an acceptance keeps none.
 func TestDecideRefusalReason(t *testing.T) {
 	ctx := context.Background()

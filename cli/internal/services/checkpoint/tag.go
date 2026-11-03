@@ -13,7 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
-// Tag window (CP-R8, p4-debts): like the commit window once the work is
+// Tag window (CP-R8): like the commit window once the work is
 // committed, the tag window closes after the first tag. oh notes the local
 // tags when the window opens; once a shell call ends with the tag window
 // open (and no longer waiting for the release commit) and the tags changed,

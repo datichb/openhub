@@ -8,7 +8,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 )
 
-// Proposals of a remote session (p3-remote-wiki): the job serves the wiki
+// Proposals of a remote session: the job serves the wiki
 // of its clone and queues the proposals of its agents, never applies them;
 // they go back to the machine in the artifacts of the job (wiki.json) and
 // are queued there, in the queue of the project, to be validated like the

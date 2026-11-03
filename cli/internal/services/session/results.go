@@ -16,7 +16,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/worktree"
 )
 
-// Results (P3-T11): diff, branch, cost and tokens of a session, read live
+// Results: diff, branch, cost and tokens of a session, read live
 // from the tool when its server runs (and saved), else from the last saved
 // snapshot, else from the oh session row (usage only).
 
@@ -33,7 +33,7 @@ type Results struct {
 // Results returns the results of a session: the tool (live) or the last
 // snapshot give the tool view; the changes are those of the whole session in
 // its directory (commits and changes since it started, subagents' work
-// included) and the usage is the oh session total (v5 corrections, A23).
+// included) and the usage is the oh session total.
 func (s *Service) Results(ctx context.Context, sessionID string) (*Results, error) {
 	if s.Sessions == nil {
 		return nil, errors.New("session: no session store")

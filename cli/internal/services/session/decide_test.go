@@ -231,7 +231,7 @@ func TestResultsLiveThenSnapshot(t *testing.T) {
 	assert.Empty(t, r.Files)
 }
 
-// A23 (and A21): the results of a session are those of the whole session:
+// The results of a session are those of the whole session:
 // every commit and change in its directory since it started (subagents'
 // work included, not only the last turn the tool shows) and its total cost.
 func TestResultsCoverTheWholeSession(t *testing.T) {
@@ -285,7 +285,7 @@ func TestResultsCoverTheWholeSession(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 4, r.Additions)
 	// The directory went back to main (base directory reused): the session
-	// commits are read on its branch (A23: session recorded before v42).
+	// commits are read on its branch (a session recorded by an older release).
 	git("switch", "main")
 	f.tool.result.Branch = "feat/pt-1"
 	r, err = f.svc.Results(f.ctx, "ses_old")
@@ -294,7 +294,7 @@ func TestResultsCoverTheWholeSession(t *testing.T) {
 	assert.Len(t, r.Files, 2)
 }
 
-// A22: answering a decision raised by oh tells the daemon at once (state,
+// Answering a decision raised by oh tells the daemon at once (state,
 // budget, resume of the interrupted step).
 func TestDecideTellsTheDaemon(t *testing.T) {
 	f := newFixture(t, false)

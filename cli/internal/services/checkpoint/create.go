@@ -11,7 +11,7 @@ import (
 )
 
 // GuardCreate checks that root may create tickets now: the checkpoint that
-// unlocks `create` is passed (N9). Unlike closing, creating does not close
+// unlocks `create` is passed. Unlike closing, creating does not close
 // the window: it stays open until the next mandatory checkpoint passes
 // (CP-R8) or the checkpoint is asked again. nil when the workflow locks
 // nothing.

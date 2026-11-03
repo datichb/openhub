@@ -267,7 +267,7 @@ func TestSetupScopesLegacySecrets(t *testing.T) {
 	assert.Equal(t, "glpat-new-token", runner.Variables[gitlabtest.VarKey(legacy, remote.RunEnvironment(api.ID))].Value)
 }
 
-// N21: setup creates the journal key pair of oh-runner (private key masked,
+// Setup creates the journal key pair of oh-runner (private key masked,
 // protected, scoped to the run job; public key in the repository), keeps it
 // when it is whole (another member's setup must not break the sessions sent
 // with it), and replaces it when a half is missing.

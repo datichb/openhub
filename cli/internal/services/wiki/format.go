@@ -8,7 +8,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 )
 
-// Format of one page (p4-debts, verify.spec of the workflow `spec`): the
+// Format of one page (verify.spec of the workflow `spec`): the
 // checks of wiki_check that bear on a page alone — its frontmatter
 // (checkFrontmatter: present, readable, `updated` a date, `confidence` one
 // of confirmed | mixed | uncertain and consistent with its tags, `agents`
@@ -41,7 +41,7 @@ func FormatIssues(rel, text string) []Issue {
 }
 
 // checkFrontmatterKeys reports the keys of the frontmatter of p that the
-// format does not know, with severity (p5-fixes: wiki_check warns about
+// format does not know, with severity (wiki_check warns about
 // them on every page but the specs, verify.spec refuses them).
 func checkFrontmatterKeys(p Page, severity string, add func(Issue)) {
 	for _, k := range p.Frontmatter.Keys {

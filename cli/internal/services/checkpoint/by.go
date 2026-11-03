@@ -10,7 +10,7 @@ import (
 )
 
 // byWarning warns when an agent passes a checkpoint its workflow gives to
-// other agents (L3, `by:`): the call goes on (oh never blocks on it), the
+// other agents (`by:`): the call goes on (oh never blocks on it), the
 // agent and the log are told. "" when the checkpoint names no agent, the
 // caller is unknown or is one of them.
 func byWarning(sessionID string, c sessionspec.CheckpointDef, agent string) string {

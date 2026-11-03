@@ -17,7 +17,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
-// Operations locked by a checkpoint (`unlocks:`, A17, A36, A38): a
+// Operations locked by a checkpoint (`unlocks:`): a
 // mandatory checkpoint that is not passed makes the work that depends on it
 // impossible, whatever the model does.
 //
@@ -101,7 +101,7 @@ func (s *Service) GuardClose(ctx context.Context, root, dir string) error {
 		return err
 	}
 	if err := guardFanoutClose(sess); err != nil {
-		return err // R6: oh closes the tickets it merged
+		return err // oh closes the tickets it merged
 	}
 	c, ok := bundle.UnlockingCheckpoint(wf, sessionspec.UnlockClose)
 	if !ok || c.Behavior(sess.Mode) == sessionspec.CheckpointSkip {
@@ -220,7 +220,7 @@ func (s *Service) BeadsDone(ctx context.Context, root, op string, ids []string) 
 			for _, id := range ids {
 				s.record(st, timelineClosed, id, "", "")
 				if resetRounds(st, id) && st.Unresolved == "" {
-					changed = true // the developer is unlocked (E5)
+					changed = true // the developer is unlocked
 				}
 			}
 			if c, ok := bundle.UnlockingCheckpoint(wf, sessionspec.UnlockClose); ok {
@@ -278,7 +278,7 @@ func finished(wf *sessionspec.WorkflowRuntime, mode string, st domain.Checkpoint
 	if missing {
 		// A session that went straight to its last checkpoint passed nothing
 		// else: nothing was unlocked nor done (a plan-only run, sweep
-		// dry_run, N7). It ends there.
+		// dry_run). It ends there.
 		return last != "" && len(st.Passed) == 1 && st.HasPassed(last) && !wfMandatory(wf, last)
 	}
 	lastPass, lastClose := -1, -1
@@ -342,7 +342,7 @@ func (s *Service) Finish(ctx context.Context, root string, branch func() string)
 	}
 	for _, o := range wf.Outputs {
 		if _, ok := sess.Outputs[o.ID]; ok || o.Record != "" {
-			continue // declared, or recorded by oh as it happens (R5)
+			continue // declared, or recorded by oh as it happens
 		}
 		value := ""
 		switch o.Type {
