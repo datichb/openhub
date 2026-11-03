@@ -352,9 +352,15 @@ func listTeamMembers(ctx context.Context, stateRepo, statePath string) (rejoinRe
 // retroTagSessions updates existing sessions and agent_events that have no member_id
 // with the given member ID. Returns the number of sessions updated.
 func retroTagSessions(ctx context.Context, memberID string) (int, error) {
+	return retroTagSessionsOf(ctx, application, memberID)
+}
+
+// retroTagSessionsOf is retroTagSessions on a given app, for callers that run
+// in the background and must not read the package-level application later.
+func retroTagSessionsOf(ctx context.Context, a *app.App, memberID string) (int, error) {
 	var tagger domain.MemberTagger
-	if application != nil {
-		tagger, _ = application.Sessions.(domain.MemberTagger)
+	if a != nil {
+		tagger, _ = a.Sessions.(domain.MemberTagger)
 	}
 	if tagger == nil {
 		return 0, errors.New(i18n.T("cmd.team_rejoin_core.database_not_initialized"))

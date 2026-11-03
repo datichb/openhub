@@ -309,7 +309,7 @@ func (w *rejoinWizard) validateStep() views.WizardStep {
 			// Retro-tag sessions in background
 			safego.Go(func() {
 				bgCtx := context.Background()
-				count, err := retroTagSessions(bgCtx, w.memberID)
+				count, err := retroTagSessionsOf(bgCtx, a, w.memberID)
 				if err == nil && count > 0 && tuiShell != nil {
 					tuiShell.App().QueueUpdateDraw(func() {
 						tuiShell.ShowToast(
