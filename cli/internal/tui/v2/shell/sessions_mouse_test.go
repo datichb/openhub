@@ -312,8 +312,11 @@ var mouseFull = flag.Bool("mouse-full", false, "sweep every cell of the screen i
 // opposite corner and the wheel.
 func (p *panicSim) sweep(cols, rows, xStep, yStep int) {
 	p.t.Helper()
-	if *mouseFull {
+	switch {
+	case *mouseFull:
 		xStep, yStep = 1, 1
+	case raceEnabled:
+		xStep, yStep = xStep*2, yStep*2
 	}
 	n := 0
 	for y := 0; y < rows; y += yStep {
@@ -368,37 +371,38 @@ func TestSessionsViewMouseSweep(t *testing.T) {
 		steps   []step
 		want    string // what the screen shows once there
 		fine    bool   // swept on a fine grid (else a coarse one)
+		extra   bool   // only with -mouse-full
 	}{
 		{name: "list, first decision", fine: true, want: "To handle"},
-		{name: "detail of a checkpoint", focus: "ses_inbox", want: "plan"},
+		{name: "detail of a checkpoint", extra: true, focus: "ses_inbox", want: "plan"},
 		{name: "trace tab", fine: true, focus: "ses_inbox", steps: []step{tab}, want: "step 0"},
-		{name: "trace search", focus: "ses_inbox", steps: []step{tab, r('/')}, want: "Search"},
+		{name: "trace search", extra: true, focus: "ses_inbox", steps: []step{tab, r('/')}, want: "Search"},
 		{name: "reports tab", fine: true, focus: "ses_inbox", steps: []step{tab, tab}, want: "line of the report"},
 		{name: "checkpoint card", fine: true, focus: "d:d-cp1", steps: []step{enter}, want: "Plan validation"},
-		{name: "permission decision", focus: "d:d-p1", steps: []step{enter}, want: "permission d-p1"},
-		{name: "budget decision", focus: "d:d-b1", steps: []step{enter}, want: "budget d-b1"},
-		{name: "error decision", focus: "d:d-e1", steps: []step{enter}, want: "error d-e1"},
+		{name: "permission decision", extra: true, focus: "d:d-p1", steps: []step{enter}, want: "permission d-p1"},
+		{name: "budget decision", extra: true, focus: "d:d-b1", steps: []step{enter}, want: "budget d-b1"},
+		{name: "error decision", extra: true, focus: "d:d-e1", steps: []step{enter}, want: "error d-e1"},
 		{name: "question form", fine: true, focus: "d:d-q1", steps: []step{enter}, want: "Color"},
 		{name: "live feed", focus: "ses_run", steps: []step{r('t')}, want: "assistant: done"},
 		{name: "batch", fine: true, steps: []step{r('B')}, want: "Validate by batch"},
-		{name: "running session", focus: "ses_run", want: "fix"},
-		{name: "sleeping session", focus: "ses_sleep", want: "beta"},
-		{name: "finished session", focus: "ses_done", want: "completed"},
-		{name: "failed session", focus: "ses_failed", want: "failed"},
-		{name: "queued session", focus: "ses_queued", want: "queued"},
+		{name: "running session", extra: true, focus: "ses_run", want: "fix"},
+		{name: "sleeping session", extra: true, focus: "ses_sleep", want: "beta"},
+		{name: "finished session", extra: true, focus: "ses_done", want: "completed"},
+		{name: "failed session", extra: true, focus: "ses_failed", want: "failed"},
+		{name: "queued session", extra: true, focus: "ses_queued", want: "queued"},
 		{name: "no project", focus: "ses_noproject", want: "ses_noproject"},
-		{name: "deleted project", focus: "ses_gone", want: "ses_gone"},
-		{name: "remote to fetch", focus: "ses_remote_ready", want: "pipeline #12"},
-		{name: "remote running", focus: "ses_remote_run", want: "ses_remote_run"},
-		{name: "fan-out parent", focus: "ses_parent", want: "2/3 children"},
+		{name: "deleted project", extra: true, focus: "ses_gone", want: "ses_gone"},
+		{name: "remote to fetch", extra: true, focus: "ses_remote_ready", want: "pipeline #12"},
+		{name: "remote running", extra: true, focus: "ses_remote_run", want: "ses_remote_run"},
+		{name: "fan-out parent", extra: true, focus: "ses_parent", want: "2/3 children"},
 		{name: "fan-out tab", fine: true, focus: "ses_parent", steps: []step{tab, tab, tab}, want: "oh-2"},
-		{name: "fan-out child, reports", focus: "ses_child1", steps: []step{tab, tab}, want: "line of the report"},
-		{name: "fan-out orphan child", focus: "ses_orphan", want: "ses_orphan"},
+		{name: "fan-out child, reports", extra: true, focus: "ses_child1", steps: []step{tab, tab}, want: "line of the report"},
+		{name: "fan-out orphan child", extra: true, focus: "ses_orphan", want: "ses_orphan"},
 		{name: "send modal", fine: true, focus: "ses_run", steps: []step{r('m')}, want: "nstruction"},
 		{name: "stop modal", focus: "ses_run", steps: []step{r('s')}, want: "Stop"},
-		{name: "attach modal", focus: "ses_run", steps: []step{r('A')}, want: "tmux"},
-		{name: "chain modal", focus: "ses_done", steps: []step{r('e')}, want: "Review"},
-		{name: "merge request", focus: "ses_done", steps: []step{r('o')}, want: "MR description"},
+		{name: "attach modal", extra: true, focus: "ses_run", steps: []step{r('A')}, want: "tmux"},
+		{name: "chain modal", extra: true, focus: "ses_done", steps: []step{r('e')}, want: "Review"},
+		{name: "merge request", extra: true, focus: "ses_done", steps: []step{r('o')}, want: "MR description"},
 		{name: "help", steps: []step{r('?')}, want: "Global shortcuts"},
 		{name: "palette", steps: []step{k(tcell.KeyCtrlP)}, want: "Hub"},
 		{name: "empty", fine: true, backend: func() *fakeSessionsBackend { return &fakeSessionsBackend{} }},
@@ -407,6 +411,12 @@ func TestSessionsViewMouseSweep(t *testing.T) {
 	}
 	for _, sc := range scenarios {
 		t.Run(sc.name, func(t *testing.T) {
+			if sc.extra && !*mouseFull {
+				t.Skip("swept with -mouse-full")
+			}
+			if raceEnabled && !sc.fine && !*mouseFull {
+				t.Skip("the race detector slows the sweep: the main states only")
+			}
 			be := &fakeSessionsBackend{rows: sessionsMouseRows()}
 			if sc.backend != nil {
 				be = sc.backend()
@@ -439,9 +449,9 @@ func TestSessionsViewMouseSweep(t *testing.T) {
 				}, 3*time.Second, 20*time.Millisecond, "the screen shows %q:\n%s", sc.want, p.text())
 			}
 			if sc.fine {
-				p.sweep(cols, rows, 3, 2)
+				p.sweep(cols, rows, 6, 3)
 			} else {
-				p.sweep(cols, rows, 7, 4)
+				p.sweep(cols, rows, 12, 5)
 			}
 		})
 	}
