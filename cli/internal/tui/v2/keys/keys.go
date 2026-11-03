@@ -10,7 +10,8 @@
 //     workflow editor, which do not save on their own; the hub and project
 //     pages save by themselves after one delay and say so);
 //   - List: n create, e edit, d delete (always confirmed), x archive or file
-//     away (never destructive), R resume or restore, c compare (diff);
+//     away (never destructive), R resume or restore, c compare (diff), Space
+//     tick, untick or switch the element under the cursor;
 //   - Decision (checkpoint card, wiki proposal, element of a batch): y
 //     accept, n refuse (confirmed, with an instruction), e modify, s leave
 //     pending, A accept all;
@@ -207,7 +208,7 @@ func ByContext(c Context) []Action {
 func All() []Action {
 	return []Action{
 		Up, Down, First, Last, Filter, Refresh, Help, Open, Back, Save,
-		Create, Edit, Delete, Archive, Resume, Compare,
+		Create, Edit, Delete, Archive, Resume, Compare, Toggle,
 		Accept, Refuse, Modify, Leave, AcceptAll,
 		Search, NextMatch, PrevMatch,
 	}
@@ -256,6 +257,10 @@ var (
 	Resume = letter("resume", List, 'R')
 	// Compare shows a diff (draft of a workflow, version of the history).
 	Compare = letter("compare", List, 'c')
+	// Toggle ticks or unticks the element under the cursor of a multiple
+	// choice, switches the setting under the cursor, or chooses the option
+	// under the cursor of an inline select: the space bar.
+	Toggle = Action{ID: "toggle", Context: List, Bindings: []Binding{Rune(' ')}, nameKey: "tui.keys.name.space", labelKey: "tui.hints.toggle"}
 )
 
 // Decision.

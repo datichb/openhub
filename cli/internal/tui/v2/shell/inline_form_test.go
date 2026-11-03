@@ -368,3 +368,37 @@ func TestInlineListsMouseClick(t *testing.T) {
 		t.Fatal("not confirmed")
 	}
 }
+
+// In a multi-select list Space and x tick the item under the cursor, the
+// arrows move, Enter validates and Esc closes without validating. Pinned before
+// the keys went through the keys package (v5.1, A12).
+func TestInlineMultiSelectKeys(t *testing.T) {
+	s := newKeyShell(t, &keyView{id: "home", focusList: true})
+	multi := make(chan []string, 1)
+	s.loop(func() {
+		s.ShowMultiSelectModal("Pick", options("a", "b", "c"), nil, func(v []string) { multi <- v })
+	})
+	checked := func(n int) {
+		t.Helper()
+		require.Eventually(t, func() bool {
+			return strings.Count(s.screenText(), theme.SymSelectedMulti) == n
+		}, 2*time.Second, 10*time.Millisecond, "%d item(s) checked", n)
+	}
+	checked(0)
+	s.key(tcell.KeyRune, ' ', tcell.ModNone)
+	checked(1)
+	s.key(tcell.KeyDown, 0, tcell.ModNone)
+	s.key(tcell.KeyRune, 'x', tcell.ModNone)
+	checked(2)
+	s.key(tcell.KeyRune, ' ', tcell.ModNone)
+	checked(1)
+	s.key(tcell.KeyRune, 'z', tcell.ModNone)
+	checked(1)
+	s.key(tcell.KeyEnter, 0, tcell.ModNone)
+	select {
+	case v := <-multi:
+		assert.Equal(t, []string{"a"}, v)
+	case <-time.After(2 * time.Second):
+		t.Fatal("not confirmed")
+	}
+}

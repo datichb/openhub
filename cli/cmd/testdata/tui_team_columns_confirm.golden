@@ -1,0 +1,10 @@
+[fr]
+column 2: Supprimer la colonne « IN PROGRESS » ? | La colonne sera retirée de l'éditeur, avec les rattachements qui y mènent (2).
+column 0: Supprimer la colonne « REVIEW » ? | La colonne sera retirée de l'éditeur.
+label: Retirer l'étiquette « wip » ? | Il ne sera plus rattaché à la colonne « IN PROGRESS ».
+status: Retirer le statut « wip » ? | Il ne sera plus rattaché à la colonne « IN PROGRESS ».
+[en]
+column 2: Delete the column "IN PROGRESS"? | The column will be removed from the editor, with the mappings that lead to it (2).
+column 0: Delete the column "REVIEW"? | The column will be removed from the editor.
+label: Remove the label "wip"? | It will no longer be mapped to the column "IN PROGRESS".
+status: Remove the status "wip"? | It will no longer be mapped to the column "IN PROGRESS".

@@ -504,9 +504,9 @@ func (f *inlineForm) currentStop(fields []int) int {
 // selectLabel formats the display text for a FieldSelect input: "◂ Label ▸".
 func selectLabel(field *views.FormField, idx int) string {
 	if idx < 0 || idx >= len(field.Options) {
-		return "◂ — ▸"
+		return theme.IconChoicePrev + " — " + theme.IconChoiceNext
 	}
-	return "◂ " + field.Options[idx].Label + " ▸"
+	return theme.IconChoicePrev + " " + field.Options[idx].Label + " " + theme.IconChoiceNext
 }
 
 // multiSummary formats the display text for a FieldMultiSelect input.

@@ -10,6 +10,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
@@ -268,7 +269,9 @@ func (s *Shell) showCheckList(w listWindow, title string, options []views.Select
 			}
 			return nil
 		}
-		if event.Rune() == ' ' || event.Rune() == 'x' {
+		// x ticks as well, as the [x] of a checkbox does: in a choice list it
+		// has no other meaning than the Archive of a list of objects.
+		if keys.Toggle.Matches(event) || keys.Archive.Matches(event) {
 			c.toggle(c.list.GetCurrentItem())
 			return nil
 		}

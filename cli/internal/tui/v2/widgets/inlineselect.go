@@ -8,11 +8,18 @@ import (
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
 // InlineSelect — a FormItem that displays all options inline with ↑↓ navigation
 // ─────────────────────────────────────────────────────────────────────────────
+
+// The radio marks drawn cell by cell: the table of meanings of the theme.
+var (
+	radioOn  = []rune(theme.SymSelected)[0]
+	radioOff = []rune(theme.SymUnselected)[0]
+)
 
 // InlineSelect is a custom form item that shows all options as a vertical list
 // with radio-style indicators (◉/○). The user navigates with ↑↓ (moves the
@@ -307,9 +314,9 @@ func (s *InlineSelect) Draw(screen tcell.Screen) {
 		// Option label line — radio style (◉ selected, ○ unselected)
 		col := x + padLeft + 2 // indent
 		if isSelected {
-			screen.SetContent(col, y+row, '◉', nil, radioStyle)
+			screen.SetContent(col, y+row, radioOn, nil, radioStyle)
 		} else {
-			screen.SetContent(col, y+row, '○', nil, radioStyle)
+			screen.SetContent(col, y+row, radioOff, nil, radioStyle)
 		}
 		col++
 		screen.SetContent(col, y+row, ' ', nil, rowStyle)
@@ -384,56 +391,47 @@ func (s *InlineSelect) InputHandler() func(event *tcell.EventKey, setFocus func(
 			return
 		}
 
-		switch event.Key() {
-		case tcell.KeyUp:
-			if s.cursor > 0 {
-				s.cursor--
-			}
-		case tcell.KeyDown:
-			if s.cursor < len(s.options)-1 {
-				s.cursor++
-			}
-		case tcell.KeyEnter:
-			// Confirm selection: move selected to cursor position.
-			if s.cursor != s.selected {
-				s.selected = s.cursor
-				if s.onChange != nil {
-					s.onChange(s.options[s.selected], s.selected)
-				}
-			}
-		case tcell.KeyTab:
-			if s.finishedFunc != nil {
-				s.finishedFunc(tcell.KeyTab)
-			}
-		case tcell.KeyBacktab:
-			if s.finishedFunc != nil {
-				s.finishedFunc(tcell.KeyBacktab)
-			}
-		case tcell.KeyEscape:
-			if s.finishedFunc != nil {
-				s.finishedFunc(tcell.KeyEscape)
-			}
-		default:
-			switch event.Rune() {
-			case 'j':
-				if s.cursor < len(s.options)-1 {
-					s.cursor++
-				}
-			case 'k':
-				if s.cursor > 0 {
-					s.cursor--
-				}
-			case ' ':
-				// Space also confirms selection.
-				if s.cursor != s.selected {
-					s.selected = s.cursor
-					if s.onChange != nil {
-						s.onChange(s.options[s.selected], s.selected)
-					}
-				}
-			}
+		switch {
+		case keys.Up.Matches(event):
+			s.moveCursor(-1)
+		case keys.Down.Matches(event):
+			s.moveCursor(1)
+		case keys.Open.Matches(event), keys.Toggle.Matches(event):
+			// Enter and Space confirm the selection: move selected to the cursor.
+			s.choose()
+		case event.Key() == tcell.KeyTab:
+			s.finish(tcell.KeyTab)
+		case event.Key() == tcell.KeyBacktab:
+			s.finish(tcell.KeyBacktab)
+		case keys.Back.Matches(event):
+			s.finish(tcell.KeyEscape)
 		}
 	})
+}
+
+// moveCursor moves the highlight by delta, without leaving the options.
+func (s *InlineSelect) moveCursor(delta int) {
+	if next := s.cursor + delta; next >= 0 && next < len(s.options) {
+		s.cursor = next
+	}
+}
+
+// choose makes the highlighted option the selected one.
+func (s *InlineSelect) choose() {
+	if s.cursor == s.selected {
+		return
+	}
+	s.selected = s.cursor
+	if s.onChange != nil {
+		s.onChange(s.options[s.selected], s.selected)
+	}
+}
+
+// finish tells the form which key left the item.
+func (s *InlineSelect) finish(key tcell.Key) {
+	if s.finishedFunc != nil {
+		s.finishedFunc(key)
+	}
 }
 
 // MouseHandler returns the mouse handler for this primitive.

@@ -28,16 +28,19 @@ import (
 //	               "[:#313244]"): use theme.StyleTag or theme.BgTag
 //	color-literal  a color named in the code (tcell.ColorRed, tcell.NewRGBColor,
 //	               lipgloss.Color, "#rrggbb"): use a token of the theme
-//	widgets-tag    a call to widgets.ColorTag, which is theme.ColorTagOf
 //	symbol         a symbol of the table of meanings (glyph.Symbols, and ✓, the
 //	               variant of ✔) written in a literal: use theme.Sym*
 //
 // The shortcuts that exist today are listed in testdata/ui_style_exceptions.txt,
 // per file and per kind, with their count. The list only shrinks: a new
 // shortcut fails the test, and so does a count that went down or a file that
-// has none left until the line is updated or removed. The theme itself is out
-// of the guard (it is where the colors are defined), and theme/icons.go is
-// where the symbols are.
+// has none left until the line is updated or removed. The list is empty since
+// v5.1 (A12): a new shortcut is not accepted, it is replaced by the theme.
+//
+// Three rules take a case out of the guard, in the code and not in the list:
+// the theme itself (it is where the colors are defined), theme/icons.go (where
+// the symbols are), and the text that goes through tview.Escape, which tview
+// shows as it is: tview.Escape("[" + name + "]") is brackets, not a tag.
 
 const uiStyleExceptionsFile = "testdata/ui_style_exceptions.txt"
 
@@ -45,7 +48,6 @@ const (
 	catTagColor     = "tag-color"
 	catTagStyle     = "tag-style"
 	catColorLiteral = "color-literal"
-	catWidgetsTag   = "widgets-tag"
 	catSymbol       = "symbol"
 )
 
@@ -53,7 +55,6 @@ var uiStyleAdvice = map[string]string{
 	catTagColor:     "build the tag with theme.Paint(color, text), theme.ColorTag(hex) or theme.ColorTagOf(color), which follow NO_COLOR",
 	catTagStyle:     "build the tag with theme.StyleTag(theme.AttrBold…) or theme.BgTag(color), which follow NO_COLOR",
 	catColorLiteral: "take the color from internal/tui/theme (a token such as theme.Success, theme.AccentHex), do not name one here",
-	catWidgetsTag:   "call theme.ColorTagOf (or theme.Paint) instead of widgets.ColorTag, which goes away",
 	catSymbol:       "take the symbol from the table of meanings of the theme (theme.SymSuccess, SymWarning…), do not write it in a literal",
 }
 
@@ -189,9 +190,9 @@ func stringOf(e ast.Expr) (string, bool) {
 	return v, err == nil
 }
 
-// uiFindings parses a Go file and returns its shortcuts. inWidgets tells that
-// the file is in package widgets (where ColorTag is called without a prefix);
-// isIcons is theme/icons.go, which defines the symbols.
+// uiFindings parses a Go file and returns its shortcuts. inTheme is a file of
+// the theme, where the colors are defined; isIcons is theme/icons.go, which
+// defines the symbols.
 func uiFindings(fset *token.FileSet, path string, src any, inTheme, isIcons bool) ([]uiFinding, error) {
 	file, err := parser.ParseFile(fset, path, src, 0)
 	if err != nil {
@@ -202,7 +203,6 @@ func uiFindings(fset *token.FileSet, path string, src any, inTheme, isIcons bool
 	add := func(cat string, pos token.Pos, text string) {
 		out = append(out, uiFinding{cat, fset.Position(pos).Line, text})
 	}
-	inWidgets := file.Name.Name == "widgets"
 	chains := map[*ast.BinaryExpr]bool{} // the inner parts of a chain of +, seen with the whole
 
 	ast.Inspect(file, func(n ast.Node) bool {
@@ -278,10 +278,22 @@ func uiFindings(fset *token.FileSet, path string, src any, inTheme, isIcons bool
 				add(catColorLiteral, n.Pos(), "tcell."+n.Sel.Name)
 			case pkg.Name == "lipgloss" && (n.Sel.Name == "Color" || n.Sel.Name == "AdaptiveColor") && !inTheme:
 				add(catColorLiteral, n.Pos(), "lipgloss."+n.Sel.Name)
-			case pkg.Name == "widgets" && n.Sel.Name == "ColorTag":
-				add(catWidgetsTag, n.Pos(), "widgets.ColorTag")
 			}
 		case *ast.CallExpr:
+			// tview.Escape("[" + name + "]") is text with brackets, not a tag:
+			// what goes through Escape is shown as it is.
+			if sel, ok := n.Fun.(*ast.SelectorExpr); ok && sel.Sel.Name == "Escape" {
+				if pkg, ok := sel.X.(*ast.Ident); ok && pkg.Name == "tview" {
+					for _, arg := range n.Args {
+						ast.Inspect(arg, func(m ast.Node) bool {
+							if b, ok := m.(*ast.BinaryExpr); ok {
+								chains[b] = true
+							}
+							return true
+						})
+					}
+				}
+			}
 			// tcell.GetColor(theme.XHex) converts a token; GetColor("red") names a color.
 			if sel, ok := n.Fun.(*ast.SelectorExpr); ok && !inTheme && len(n.Args) == 1 {
 				if pkg, ok := sel.X.(*ast.Ident); ok && pkg.Name == "tcell" && sel.Sel.Name == "GetColor" {
@@ -289,9 +301,6 @@ func uiFindings(fset *token.FileSet, path string, src any, inTheme, isIcons bool
 						add(catColorLiteral, n.Pos(), "tcell.GetColor("+v+")")
 					}
 				}
-			}
-			if id, ok := n.Fun.(*ast.Ident); ok && inWidgets && (id.Name == "ColorTag") {
-				add(catWidgetsTag, n.Pos(), "ColorTag")
 			}
 		}
 		return true
@@ -313,17 +322,19 @@ func uiGuarded(rel string) (guarded, inTheme, isIcons bool) {
 	return false, false, false
 }
 
-// uiCounts is the number of shortcuts per "<kind> <file>".
-func uiCounts(t *testing.T) (map[string]int, map[string][]uiFinding) {
+// uiCounts is the number of shortcuts per "<kind> <file>", and the number of
+// files that were read.
+func uiCounts(t *testing.T) (counts map[string]int, found map[string][]uiFinding, scanned int) {
 	t.Helper()
 	fset := token.NewFileSet()
-	counts := map[string]int{}
-	found := map[string][]uiFinding{}
+	counts = map[string]int{}
+	found = map[string][]uiFinding{}
 	for _, f := range goFiles(t) {
 		guarded, inTheme, isIcons := uiGuarded(f.rel)
 		if !guarded {
 			continue
 		}
+		scanned++
 		list, err := uiFindings(fset, f.path, nil, inTheme, isIcons)
 		if err != nil {
 			t.Fatalf("%s: %v", f.rel, err)
@@ -334,7 +345,7 @@ func uiCounts(t *testing.T) (map[string]int, map[string][]uiFinding) {
 			found[k] = append(found[k], fd)
 		}
 	}
-	return counts, found
+	return counts, found, scanned
 }
 
 // readUIExceptions reads the frozen list: "<kind> <file> <count>", with # for
@@ -376,9 +387,9 @@ func readUIExceptions(t *testing.T) map[string]int {
 // TestUIStyleGuard: colors and symbols come from the theme; the shortcuts
 // that exist are frozen and can only go down.
 func TestUIStyleGuard(t *testing.T) {
-	counts, found := uiCounts(t)
+	counts, found, scanned := uiCounts(t)
 	frozen := readUIExceptions(t)
-	if len(counts) == 0 && len(frozen) == 0 {
+	if scanned == 0 {
 		t.Fatal("the guard found nothing under internal/tui and cmd/tui_*: it checks nothing any more")
 	}
 
@@ -447,8 +458,6 @@ func f(hex string, c tcell.Color) {
 	_ = tcell.GetColor(hex)
 	_ = tcell.GetColor("#ff0000")
 	_ = "#ff0000"
-	_ = widgets.ColorTag(c)
-	_ = ColorTag(c)
 	_ = "✔ done"
 	_ = "[" + hex + "]✓[-] done"
 	_ = fmt.Sprintf("%s✓%s %s", "", "", "")
@@ -466,6 +475,7 @@ func f(hex string, c tcell.Color) {
 	_ = "[::-]"
 	_ = fmt.Sprintf("[%d]", 3)
 	_ = "x[0]"
+	_ = tview.Escape("[" + hex + "]")
 }
 `
 	got, err := uiFindings(token.NewFileSet(), "p.go", src, false, false)
@@ -480,7 +490,6 @@ func f(hex string, c tcell.Color) {
 		catTagColor:     6, // [#64a0ff], [red], [red:blue], [%s], "["+hex+"]", "["+hex+"]✓"
 		catTagStyle:     3, // [red:blue] background, [::b], [:#313244]
 		catColorLiteral: 5, // tcell.ColorRed, tcell.NewRGBColor, tcell.GetColor("red"), "#ff0000" twice
-		catWidgetsTag:   2,
 		catSymbol:       6, // ✔ done, ✓ (concatenated), ✓ (fmt), ⚠, ◉, – alone
 	}
 	for cat, n := range want {

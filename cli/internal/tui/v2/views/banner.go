@@ -52,7 +52,9 @@ func asciiName(name string) (string, bool) {
 func renderBanner(name string, maxWidth int, colorHex string) (banner string, lineCount int) {
 	color := theme.ColorTag(colorHex)
 	reset := theme.TagColor
-	plain := func() (string, int) { return fmt.Sprintf("%s[::b]%s[::-]%s", color, name, reset), 1 }
+	plain := func() (string, int) {
+		return fmt.Sprintf("%s%s%s%s%s", color, theme.StyleTag(theme.AttrBold), name, theme.TagAttrs, reset), 1
+	}
 
 	// The font draws ASCII only (« É » would come out as « ? »): the accents
 	// are dropped, and a name that stays non-ASCII is shown as a plain line.
@@ -86,7 +88,7 @@ func renderBanner(name string, maxWidth int, colorHex string) (banner string, li
 	// Color each line with left margin and bold
 	var b strings.Builder
 	for _, l := range trimmed {
-		fmt.Fprintf(&b, "%s[::b]%s[::-]%s\n", color, l, reset)
+		fmt.Fprintf(&b, "%s%s%s%s%s\n", color, theme.StyleTag(theme.AttrBold), l, theme.TagAttrs, reset)
 	}
 
 	// Decorative underline (60% of banner width, centered, in muted mode color)
@@ -120,7 +122,7 @@ func trimEmptyLines(lines []string) []string {
 // compactBanner is the one-line banner of the compact landings (N20): the
 // name in bold, then an optional muted suffix.
 func compactBanner(name, colorHex, suffix string) string {
-	line := fmt.Sprintf("%s[::b]%s[::-]%s", theme.ColorTag(colorHex), name, theme.TagColor)
+	line := fmt.Sprintf("%s%s%s%s%s", theme.ColorTag(colorHex), theme.StyleTag(theme.AttrBold), name, theme.TagAttrs, theme.TagColor)
 	if suffix != "" {
 		line += "  " + theme.ColorTag(theme.TextMutedHex) + suffix + theme.TagColor
 	}

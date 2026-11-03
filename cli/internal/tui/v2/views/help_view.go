@@ -66,7 +66,7 @@ func (v *HelpView) Mount(content *tview.Flex, app *tview.Application) {
 	r := theme.TagReset
 
 	var sb strings.Builder
-	fmt.Fprintf(&sb, "\n  [::b]%s%s\n\n", i18n.T("tui.help.title"), r)
+	fmt.Fprintf(&sb, "\n  %s%s%s\n\n", theme.StyleTag(theme.AttrBold), i18n.T("tui.help.title"), r)
 	fmt.Fprintf(&sb, "  %sOpenHub%s — %s\n\n", accent, c, i18n.T("tui.help.description"))
 	fmt.Fprintf(&sb, "  %s%s%s\n", accent, i18n.T("tui.help.shortcuts_title"), c)
 	fmt.Fprintf(&sb, "    Ctrl+P       %s\n", i18n.T("tui.help.shortcut_palette"))
@@ -75,6 +75,9 @@ func (v *HelpView) Mount(content *tview.Flex, app *tview.Application) {
 	fmt.Fprintf(&sb, "  %s%s%s\n\n", accent, i18n.T("tui.keys.help.convention"), c)
 	WriteKeyConvention(&sb, "    ")
 	fmt.Fprintf(&sb, "\n    %s%s%s\n\n", muted, i18n.T("tui.keys.notice.again"), c)
+	fmt.Fprintf(&sb, "  %s%s%s\n\n", accent, i18n.T("a12.legend.title"), c)
+	WriteSymbolLegend(&sb, "    ")
+	sb.WriteString("\n")
 	fmt.Fprintf(&sb, "  %s%s%s\n", accent, i18n.T("tui.help.sessions_title"), c)
 	fmt.Fprintf(&sb, "    %s\n", i18n.T("tui.help.sessions_line1"))
 	fmt.Fprintf(&sb, "    %s\n\n", i18n.T("tui.help.sessions_line2"))

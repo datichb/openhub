@@ -683,7 +683,7 @@ columns = [
 | `columns[].color` | string | role-based | `orange`, `blue`, `gray`, `cyan`, `green`, `red`, `purple`, `yellow` |
 | `columns[].role` | string | `"active"` | `initial`, `active`, `terminal`, `blocked` |
 
-> **Tip:** the `Discover Tracker` command (omnibar or `y` key in team config) configures the columns from the tracker labels. Without `[board]`, existing `"planned"` claims go to the first column.
+> **Tip:** the `Discover Tracker` command (omnibar or `T` key in team config) configures the columns from the tracker labels. The columns can also be edited by hand in the TUI editor (team home → *Board Columns*: `n` add, `e` rename, `d` delete after a confirmation, `o` role, `K` / `J` order, `m` mappings, `Ctrl+S` save; see [the editor](tui.en.md#board-columns-editor)). Without `[board]`, existing `"planned"` claims go to the first column.
 
 ### `[mcp.<service>]` section
 

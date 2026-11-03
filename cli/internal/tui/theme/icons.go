@@ -58,6 +58,32 @@ const (
 	SymUnselectedMulti = glyph.UnselectedMulti
 )
 
+// Meaning is one row of the legend of symbols (the help, key ?): a symbol of
+// the table above, its name in internal/glyph (the key of its label in the
+// locales is a12.legend.<Name>) and the color that goes with it ("" when the
+// symbol keeps the color of the text).
+type Meaning struct {
+	Name, Symbol, Hex string
+}
+
+// Meanings is the table of meanings in the order of the legend. A test checks
+// that it holds the symbols of internal/glyph and no other.
+var Meanings = []Meaning{
+	{"success", SymSuccess, SuccessHex},
+	{"failure", SymFailure, ErrorHex},
+	{"inactive", SymInactive, TextMutedHex},
+	{"absent", SymAbsent, TextMutedHex},
+	{"warning", SymWarning, WarningHex},
+	{"active", SymLive, ""},
+	{"current", SymCurrent, ""},
+	{"modified", SymModified, ""},
+	{"default", SymDefault, ""},
+	{"cursor", SymCursor, ""},
+	{"selected", SymSelected, ""},
+	{"selected-multi", SymSelectedMulti, ""},
+	{"unselected-multi", SymUnselectedMulti, ""},
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Icons (deduplicated, single source of truth for the screens)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -92,6 +118,13 @@ const (
 	// column, a legend entry): the color is the meaning, the shape has none.
 	// It is not SymLive, which is a session running right now.
 	IconSwatch = "●"
+	// IconChoicePrev and IconChoiceNext frame the value of an inline select
+	// ("◂ Label ▸"): the arrows say "left" and "right", not "cursor".
+	IconChoicePrev = "◂"
+	IconChoiceNext = "▸"
+	// IconRange separates the bounds of a range of values ("1 – 10"); it is
+	// punctuation, not SymAbsent.
+	IconRange = "–"
 	// IconConnector is a step bar connector.
 	IconConnector = "───"
 	// IconGutter is the active item left gutter.

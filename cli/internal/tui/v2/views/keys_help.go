@@ -34,6 +34,19 @@ func WriteKeyConvention(b *strings.Builder, indent string) {
 	}
 }
 
+// WriteSymbolLegend writes the legend of the symbols, one line per row of the
+// table of meanings of the theme (theme.Meanings), each prefixed by indent:
+// the symbol in the color that goes with it, then what it says.
+func WriteSymbolLegend(b *strings.Builder, indent string) {
+	for _, m := range theme.Meanings {
+		symbol := m.Symbol
+		if m.Hex != "" {
+			symbol = theme.Paint(m.Hex, symbol)
+		}
+		fmt.Fprintf(b, "%s  %s  %s\n", indent, symbol, i18n.T("a12.legend."+m.Name))
+	}
+}
+
 // KeysNoticeText is the text of the notice of the new keys (plain text).
 func KeysNoticeText() string {
 	var b strings.Builder

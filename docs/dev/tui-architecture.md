@@ -10,29 +10,34 @@ oh (no args) → cmd/tui.go → shell.New(cfg).Run()
                  └─ cmd/tui_views.go    : buildViews()     ← views and their wiring (services, callbacks)
 
 cli/internal/
-├── glyph/              ← Table of the symbols of the session states and decision kinds (CLI and TUI)
+├── glyph/              ← Table of the symbols (meanings, session states, decision kinds, team events), shared by the CLI and the TUI
+├── textfmt/            ← Formats of dates, durations, costs, sizes, tokens and the clipping of text (CLI and TUI, in the language of the interface)
+├── safego/             ← Go, AfterFunc, Supervise: goroutines and timers that recover a panic and log it
 └── tui/
     ├── theme/          ← Single source of truth for colors and styles
     │   ├── colors.go   ← Hex constants (Catppuccin Mocha)
-    │   ├── helpers.go  ← ColorTag(hex), TagColor, TagReset (tview tags, empty with NO_COLOR)
+    │   ├── helpers.go  ← The tview tags: ColorTag(hex), ColorTagOf(tcell.Color), Paint(color, text), BgTag, StyleTag(attrs), TagColor, TagReset, TagBg, TagAttrs (all empty with NO_COLOR)
     │   ├── tcell.go    ← tcell.Color vars
     │   ├── lipgloss.go ← lipgloss.Color + Style vars
     │   ├── huh.go      ← AurumTheme() for charmbracelet/huh
     │   ├── modal.go, button.go ← modal and button styles
     │   ├── nocolor.go  ← NO_COLOR support
-    │   └── icons.go    ← Icon constants
+    │   └── icons.go    ← Sym* (the table of meanings), Meanings (its legend), Icon* (the icons of the screens)
     ├── common/         ← Terminal capability detection (detect.go: --no-tui, TTY)
     ├── progress/       ← Spinner of the CLI (non-TUI)
     ├── components/     ← BubbleTea inline (floating, summary)
     └── v2/
         ├── shell/      ← Main application container
-        │   ├── shell.go          ← Shell struct (Pages + Content + Omnibar), global key handler
+        │   ├── shell.go          ← Shell struct (Pages + Content + Omnibar), New, Run, the lifecycle
+        │   ├── global_keys.go    ← the key contract: one method per layer (urgent, reserved, view, fallback)
+        │   ├── navigation.go, modes.go ← the router stack, the hand-over of the terminal; Hub/Project/Team modes and the Ctrl+T cycle
+        │   ├── mouse.go, selection.go, clipboard.go ← mouse capture, text selection and copy
         │   ├── command.go        ← Command struct + CommandRegistry + fuzzy search
-        │   ├── omnibar.go        ← Persistent omnibar widget
-        │   ├── overlay.go, modal.go, confirm.go ← inline overlays, modals, confirmations
+        │   ├── omnibar.go, omnibar_host.go ← the omnibar widget; the shell's side of it (suggestions, mode bar, hints)
+        │   ├── overlay.go, modal.go, modal_sizing.go, confirm.go ← inline overlays, modals, confirmations
+        │   ├── inline_form.go, inline_prompts.go ← ShowInlineForm; the input, select and check-list prompts
         │   ├── toast.go, notifications.go, tui_log_handler.go ← toasts and their history
-        │   ├── selection.go, clipboard.go ← mouse selection and copy
-        │   ├── help.go           ← help overlay (built from the keys package)
+        │   ├── help.go           ← help overlay (built from the keys package and the table of meanings)
         │   └── layout.go         ← terminal size levels (N20)
         ├── router/     ← Navigation stack (push/pop/replace)
         ├── keys/       ← Key convention: one keys.Action per action (see tui-conventions.md)
@@ -43,7 +48,11 @@ cli/internal/
             ├── project_mode_view.go, team_mode_view.go ← Project Home and Team Home
             ├── action_list.go   ← ActionList component (items, detail, actions)
             ├── list_page.go     ← List + detail page shared by the list views
+            ├── inline_wizard*.go ← the inline wizard, split by concern (see below)
             ├── standalone.go    ← RunInlineWizardStandalone (wizard without the shell)
+            ├── async.go         ← load, syncLoad, persist, everyOnLoop: reads and writes off the event loop
+            ├── state_text.go    ← stateText, stateView, setState: « loading… », « nothing », « cannot load »
+            ├── keys_help.go     ← the key convention and the legend of the symbols (help, notice of the new keys)
             ├── sync.go          ← Async git pull of the team views
             └── …                ← one file (or a few) per view: sessions_*, settings_*, launch_form*, wiki_*…
 ```
@@ -161,7 +170,7 @@ type View interface {
 Key lifecycle:
 - `Mount()`: called when navigating TO this view. Build widgets, add to content Flex.
 - `Unmount()`: called when navigating AWAY. Cleanup timers, channels.
-- `HandleKey()`: return `nil` to consume the event, return `event` to let it propagate to the shell (which then activates the omnibar for unhandled runes).
+- `HandleKey()`: return `nil` to consume the event, return `event` to let it propagate to the shell (fallback layer: `j`/`k`/`g`/`G` become arrows, `/` opens the palette). A view matches its keys with the `keys` package (`keys.Delete.Matches(event)`, or its own `keys.Own`), never with the letter of the event: `TestTUIKeysGoThroughKeys` fails otherwise.
 - `StatusHints()`: text displayed in omnibar passive mode. Build it with the `keys` package so that it follows the convention:
 
 ```go
@@ -204,8 +213,13 @@ tview.Application.InputCapture (globalKeyHandler)
     │   ├── returns nil → consumed, done
     │   └── returns event → continues below
     │
-    └── [rune?] → omnibar.ActivateWithRune(r)
+    ├── the focused widget takes the key (Enter and the letters are never taken from it)
+    │
+    └── fallback: j/k/g/G → ↓ ↑ Home End; / → omnibar.Activate() when the view has no filter;
+        Enter → omnibar.Activate() when the focused widget does not use it
 ```
+
+`shell/global_keys.go` documents the layers; each one is a method (`urgentKey`, `reservedKey`, `capturingViewKey`, `fallbackKey`…) that returns the event to give back to tview and whether it settled the key.
 
 ## Omnibar
 
@@ -214,7 +228,7 @@ The omnibar (`shell/omnibar.go`) is a persistent widget with two modes:
 1. **Passive**: `tview.TextView` showing contextual hints from `view.StatusHints()`
 2. **Active**: `tview.InputField` with fuzzy-search suggestions in a `Pages` overlay
 
-Activation: `Ctrl+P`, or any unhandled rune from `globalKeyHandler`.
+Activation: `Ctrl+P`, `/` in a view without a filter, or Enter when the focused widget does not use it (`fallbackKey`). An unhandled letter no longer opens the palette: it goes to the focused widget.
 
 ## ShellAccess (what a view can ask of the shell)
 
@@ -251,10 +265,27 @@ These render as **inline overlays** in the `Pages` system rather than traditiona
 
 ## Display rules
 
-- Every displayed text goes through `i18n.T` / `i18n.Tf`; the translations hold text only (no colour).
-- Colours come from the theme: `theme.ColorTag(theme.SuccessHex)` + text + `theme.TagColor`, never a colour name such as `[yellow]`.
+- Every displayed text goes through `i18n.T` / `i18n.Tf`; the translations hold text only (no colour, no symbol of the table of meanings).
+- Colours and styles come from `theme/helpers.go`, which builds every tview tag and follows `NO_COLOR`: `theme.Paint(theme.SuccessHex, text)` colours a text and gives the colour back; `theme.StyleTag(theme.AttrBold)` turns attributes on (`theme.TagAttrs` turns them off); `theme.BgTag(color)` sets a background (`theme.TagBg`); `theme.ColorTag(hex)` / `theme.ColorTagOf(color)` give the opening tag when the text is assembled in several steps. Never a tag written by hand (`"[#64a0ff]"`, `"[::b]"`) or a colour name such as `[yellow]`. `widgets.ColorTag` no longer exists.
+- Symbols come from the table of meanings (`theme.SymSuccess`, `SymFailure`, `SymWarning`…, values owned by `glyph`), never from a literal. `theme.Meanings` lists them in the order of the legend that the help (`?`) shows.
+- Dates, durations, costs, sizes, tokens and the clipping of a text come from `textfmt` (`textfmt.Ago`, `Cost`, `Clip`, `ClipWidth`…): no local formatter, and a column is measured with `ClipWidth`, never with `len`.
 - A text that does not come from the code (agents, files, config, names) is escaped with `tview.Escape`. A literal bracket word that must stay visible is written `[word[]` (the tview escape), never `[word]` (it would be read as a colour or a style tag and disappear).
+- `TestUIStyleGuard` (`internal/archtest`) enforces the colours, the tags and the symbols in `internal/tui/**` and `cmd/tui_*.go`; `TestTUIKeysGoThroughKeys` enforces the keys. Both lists of exceptions are empty.
 - See [`tui-conventions.md`](tui-conventions.md) for the keys, the `keys` package and the `ActionList` component, and [`tui-testing.md`](tui-testing.md) for the tests.
+
+## Goroutines and reads off the event loop
+
+- Every goroutine of the TUI is started with `safego.Go` (a panic is recovered and logged instead of killing the TUI), every timer with `safego.AfterFunc`, every long-lived loop with `safego.Supervise`. `TestNoBareGoInCriticalPackages` (`internal/archtest`) refuses a bare `go` statement or `time.AfterFunc` in `internal/tui/v2/shell` and in `cmd/`; the views follow the same rule, but the guard does not cover `internal/tui/v2/views` yet.
+- A view reads its data with `load` (and `syncLoad` for a team-state, which pulls first): the read runs off the loop, its result is applied on the loop and only if it is still the latest one of the view (`loadSlot`, invalidated in `Unmount`). A write goes through `persist` (never dropped by a newer request or an `Unmount`). A periodic refresh is `everyOnLoop`, which only starts a `load`. See [`tui-conventions.md`](tui-conventions.md#lire-et-écrire-hors-de-la-boucle).
+- What a view says when it has no data to show comes from `stateText` / `stateView` (`tui.state.*`): the same words and colours on every screen.
+
+## The big files, split by concern
+
+The shell and the inline wizard were single files of more than 2 000 lines; each is now a set of files that each hold one subject, and `ShowInlineForm`, `globalKeyHandler`, `renderStep` and the like are short functions that call named steps.
+
+- **Shell** (`shell/`): see the tree above. The key handler is `global_keys.go`; the modes and `Ctrl+T` are `modes.go`; the view stack and the hand-over of the terminal are `navigation.go`; the inline form and the prompts are `inline_form.go` and `inline_prompts.go`.
+- **Inline wizard** (`views/inline_wizard*.go`): `inline_wizard.go` (the view, its config, `Mount`), `_layout` (classic and grouped layouts, the step bar), `_nav` (next, previous, skip, back), `_step` (one function per kind of step: skipped, custom view, form, processing only), `_spinner` (the `OnDone` of a step behind a delayed spinner), `_quit` (« Quit the wizard? »), `_info` (sidebar and recap), `_summary` (completion), `_form_style` (the form helpers shared with `cmd/`). The types of a step are in `wizard_step.go`.
+- **`cmd/`**: `buildViews` assembles one builder per view group, `buildCommands` is a list of named groups; both are pinned by `cmd/tui_registry_test.go` (goldens `cmd/testdata/tui_commands_*` and `tui_views_*`).
 
 ## How to Add a New Command
 

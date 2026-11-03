@@ -368,7 +368,7 @@ oh team activity --week   # 7 derniers jours
 oh team activity --member alice  # filtrer par membre
 ```
 
-Le board affiche 5 colonnes : **TODO** · **IN PROGRESS** · **REVIEW** · **BLOCKED** · **DONE**.
+Par défaut, le board affiche 6 colonnes : **TODO** · **IN PROGRESS** · **REVIEW** · **VALIDATION** · **DONE** · **BLOCKED**. Les colonnes et les rattachements des labels du tracker se modifient dans l'éditeur de la TUI (accueil de l'équipe → *Colonnes du board* : `n` ajouter, `e` renommer, `d` supprimer après confirmation, `o` rôle, `K` / `J` ordre, `m` rattachements, `Ctrl+S` enregistrer) : voir [l'éditeur de colonnes](../reference/tui.fr.md#éditeur-de-colonnes-du-board).
 
 Raccourcis clavier dans le board (et les autres vues d'équipe) :
 

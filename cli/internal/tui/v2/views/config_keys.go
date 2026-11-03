@@ -11,7 +11,7 @@ import (
 // actions instead of a letter written in its code.
 var (
 	// cfgToggleKey is the space bar: it switches the setting under the cursor.
-	cfgToggleKey = keys.Own("config.toggle", ' ', "tui.hints.toggle")
+	cfgToggleKey = keys.Toggle
 	cfgUndoKey   = keys.Own("config.undo", 'u', "tui.hints.undo")
 	cfgSyncKey   = keys.Own("config.sync", 's', "tui.hints.sync")
 	cfgTestKey   = keys.Own("config.test", 't', "tui.hints.test")

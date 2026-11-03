@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/gdamore/tcell/v2"
 	"github.com/mattn/go-runewidth"
 	"github.com/rivo/tview"
@@ -273,31 +274,20 @@ func (g *WorkflowGraph) InputHandler() func(event *tcell.EventKey, setFocus func
 
 		prevSelected := g.selected
 
-		switch event.Key() {
-		case tcell.KeyLeft:
+		switch {
+		case event.Key() == tcell.KeyLeft || graphLeftKey.Matches(event):
 			g.navigateLeft()
-		case tcell.KeyRight:
+		case event.Key() == tcell.KeyRight || graphRightKey.Matches(event):
 			g.navigateRight()
-		case tcell.KeyUp:
+		case keys.Up.Matches(event):
 			g.navigateUp()
-		case tcell.KeyDown:
+		case keys.Down.Matches(event):
 			g.navigateDown()
-		case tcell.KeyEnter:
+		case keys.Open.Matches(event):
 			if g.onSelect != nil && g.selected < len(g.layout.Elements) {
 				g.onSelect(g.layout.Elements[g.selected])
 			}
 			return
-		case tcell.KeyRune:
-			switch event.Rune() {
-			case 'h':
-				g.navigateLeft()
-			case 'l':
-				g.navigateRight()
-			case 'k':
-				g.navigateUp()
-			case 'j':
-				g.navigateDown()
-			}
 		}
 
 		if g.selected != prevSelected && g.onChange != nil {
