@@ -1,0 +1,12 @@
+# Keys read from the rune of an event, accepted by TestTUIKeysGoThroughKeys
+# (internal/archtest/tui_keys_test.go).
+#
+# One line per file: "<file> <count>". The list only shrinks: a new key read
+# from a rune fails the test, and so does a count that went down (or a file
+# with none left) until its line is updated here or removed. Never raise a
+# count to make the test pass: ask a key of internal/tui/v2/keys
+# (keys.Delete.Matches(event), keys.Toggle…) or declare the letter of the view
+# with keys.Own.
+#
+# Empty since the lot A12 (v5.1): every key of internal/tui and cmd/tui_*.go
+# goes through keys.
