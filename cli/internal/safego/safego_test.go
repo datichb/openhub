@@ -11,6 +11,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"golang.org/x/sync/errgroup"
 )
 
 func TestGo_NoPanic(t *testing.T) {
@@ -260,4 +262,30 @@ func TestWrap_RecoversForAWaitGroup(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Go(Wrap(func() { panic("in a wait group") }))
 	wg.Wait()
+}
+
+func TestWrapErr_InAnErrgroupTheWaitReturnsThePanic(t *testing.T) {
+	captureLogs(t)
+	var g errgroup.Group
+	g.Go(WrapErr(func() error { return nil }))
+	g.Go(WrapErr(func() error { panic("one of the workers") }))
+	err := g.Wait()
+	var perr *PanicError
+	if !errors.As(err, &perr) || perr.Value != "one of the workers" {
+		t.Fatalf("Wait() = %v, want the panic as an error", err)
+	}
+	if !strings.Contains(err.Error(), "goroutine") {
+		t.Errorf("the error lacks the stack:\n%v", err)
+	}
+}
+
+func TestSummaryHasNoStack(t *testing.T) {
+	captureLogs(t)
+	err := WrapErr(func() error { panic("short") })()
+	if got := Summary(err); !strings.HasPrefix(got, "panic: short (crash report: ") || strings.Contains(got, "\n") {
+		t.Errorf("Summary = %q", got)
+	}
+	if got := Summary(errors.New("plain")); got != "plain" {
+		t.Errorf("Summary = %q", got)
+	}
 }
