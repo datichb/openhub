@@ -12,7 +12,7 @@ Poser les questions de clarification identifiées en Phase 1 pour lever les zone
 
 1. **Regrouper TOUTES les questions** de clarification en un seul envoi
 2. **Formuler les questions en s'appuyant sur les observations de Phase 1** — pas de questions génériques
-3. **Prioriser les questions par impact** — les plus impactantes en premier (5 questions maximum)
+3. **Prioriser les questions par impact** — les plus impactantes en premier (5 questions maximum ; une question **bloquante** — sans sa réponse, le diagnostic ou le profil repose sur une supposition — ne compte pas dans ce plafond et se pose toujours)
 
 ### Types de questions à poser
 
