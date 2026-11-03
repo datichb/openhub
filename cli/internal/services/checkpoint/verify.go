@@ -609,11 +609,6 @@ func (s *Service) fingerprint(ctx context.Context, sess *domain.Session) string 
 	return gitFingerprint(ctx, sess.LaunchPath, s.Account)
 }
 
-// GitFingerprint is the git fingerprint of the work in dir.
-func GitFingerprint(ctx context.Context, dir string) string {
-	return gitFingerprint(ctx, dir, nil)
-}
-
 // gitAs is git in dir (gitutil.Command), run as acct when set: in a remote
 // job the work tree belongs to the agent account, and oh never runs git in
 // it as root (S-01).

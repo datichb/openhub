@@ -16,12 +16,3 @@ func execBinary(binary string) error {
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
 }
-
-// ExecOrRun runs the binary as a subprocess (Windows — no exec-replace available).
-func ExecOrRun(binary string, args []string) error {
-	cmd := exec.Command(binary, args...)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
-}

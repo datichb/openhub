@@ -44,13 +44,6 @@ func NewSpinner(msg string) *Spinner {
 	return &Spinner{msg: msg}
 }
 
-// SetMessage updates the spinner label (safe to call while running).
-func (s *Spinner) SetMessage(msg string) {
-	s.mu.Lock()
-	s.msg = msg
-	s.mu.Unlock()
-}
-
 // Start begins the spinner animation in a background goroutine.
 // It is a no-op if the terminal is not interactive (e.g. piped output).
 func (s *Spinner) Start() {
