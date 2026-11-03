@@ -175,8 +175,17 @@ func (h *sseHub) serveSSE(w http.ResponseWriter, r *http.Request) {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-// getTeamRepoSafe returns a teamstate.Repo if team is configured and cloned, nil otherwise.
-func getTeamRepoSafe(a *app.App) *teamstate.Repo {
+// teamAPIRepo is what the HTTP API and the SSE stream read of the team-state.
+type teamAPIRepo interface {
+	teamstate.RepoInfo
+	teamstate.ConfigReader
+	teamstate.MemberReader
+	teamstate.ClaimReader
+	teamstate.EventReader
+}
+
+// getTeamRepoSafe returns the team-state if team is configured and cloned, nil otherwise.
+func getTeamRepoSafe(a *app.App) teamAPIRepo {
 	tc := a.Config.ActiveTeam()
 	if tc.StateRepo == "" {
 		return nil

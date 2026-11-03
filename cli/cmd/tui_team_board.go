@@ -19,6 +19,19 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
+// teamBoardRepo is what the team board asks of the team-state: the tickets
+// (claims and members) and their configuration to show, the claims to change,
+// the pull to refresh.
+type teamBoardRepo interface {
+	teamstate.RepoInfo
+	teamstate.RepoSync
+	teamstate.BoardStatusSetter
+	teamstate.ConfigReader
+	teamstate.MemberReader
+	teamstate.ClaimReader
+	teamstate.ClaimWriter
+}
+
 // buildTeamBoardViewConfig builds the full TeamBoardViewConfig for the shell TUI,
 // wiring the refresh, sync and action callbacks to the live team-state repo.
 func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
@@ -27,7 +40,7 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 	//   1. Project-level team config (TeamID or legacy TeamConfig)
 	//   2. Hub-level ActiveTeam() — matches CLI sync-tracker behavior
 	// This ensures tickets synced by the CLI are visible in the TUI.
-	resolveRepo := func() *teamstate.Repo {
+	resolveRepo := func() teamBoardRepo {
 		// Try project-level first
 		project, _ := resolveActiveProject(a)
 		tc := resolvedTeamConfig(a, project)
@@ -78,7 +91,7 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 	boardStatuses := boardConfig.AllStatuses()
 
 	// Wrap resolveRepo to propagate board statuses for custom column validation.
-	resolveRepoWithBoard := func() *teamstate.Repo {
+	resolveRepoWithBoard := func() teamBoardRepo {
 		repo := resolveRepo()
 		if repo != nil && len(boardStatuses) > 0 {
 			repo.SetBoardStatuses(boardStatuses)
