@@ -34,6 +34,7 @@ cli/internal/
         │   ├── mouse.go, selection.go, clipboard.go ← mouse capture, text selection and copy
         │   ├── command.go        ← Command struct + CommandRegistry + fuzzy search
         │   ├── omnibar.go, omnibar_host.go ← the omnibar widget; the shell's side of it (suggestions, mode bar, hints)
+        │   ├── windows.go        ← the stack of windows (3 pages), the focus given back, the questions over their window
         │   ├── overlay.go, modal.go, modal_sizing.go, confirm.go ← inline overlays, modals, confirmations
         │   ├── inline_form.go, inline_prompts.go ← ShowInlineForm; the input, select and check-list prompts
         │   ├── toast.go, notifications.go, tui_log_handler.go ← toasts and their history
@@ -261,7 +262,7 @@ type ShellAccess interface {
 }
 ```
 
-These render as **inline overlays** in the `Pages` system rather than traditional popup modals. `OverlayCloser` and `HintsRefresher` are implemented by the shell on top of this interface. Views must be testable without the shell: `views_test.go` has a `mockShell`, and `standalone.go` has a minimal stub (`standaloneShellStub`) for wizards run outside the TUI.
+These render as **inline overlays** in the `Pages` system rather than traditional popup modals. They are **windows** of a stack of three pages (`inline-overlay`, `sub-overlay`, `sub-overlay-2`; `shell/windows.go`): a window opened while others are shown opens over them (the last one is replaced when the stack is full); closing one closes the ones over it and gives the focus back to the widget that had it when it opened; a question (`Confirm`, input, form, choice) opens over the window it is asked from and, once answered, closes that window with it (cancelled, it gives it back as it was). `OverlayCloser` and `HintsRefresher` are implemented by the shell on top of this interface. Views must be testable without the shell: `views_test.go` has a `mockShell`, and `standalone.go` has a minimal stub (`standaloneShellStub`) for wizards run outside the TUI.
 
 ## Display rules
 
