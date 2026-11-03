@@ -1,0 +1,10 @@
+[fr]
+keys:   ↑↓/jk naviguer │ n ajouter label │ e renommer │ d supprimer │ v déplacer vers… │ q retour aux colonnes
+title: Déplacer « wip » vers la colonne…
+toast: « wip » déplacé vers REVIEW
+no other column: Il n'y a pas d'autre colonne où le déplacer
+[en]
+keys:   ↑↓/jk move │ n add label │ e rename │ d delete │ v move to… │ q back to columns
+title: Move “wip” to the column…
+toast: “wip” moved to REVIEW
+no other column: There is no other column to move it to

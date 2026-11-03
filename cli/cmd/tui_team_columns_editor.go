@@ -127,8 +127,11 @@ func (e *columnEditor) updateHints() {
 			hintOf(keys.Create, i18n.T("tui.team.columns.hint_add_label")),
 			hintOf(keys.Edit, i18n.T("tui.team.columns.hint_rename")),
 			hintOf(keys.Delete, i18n.T("tui.team.columns.hint_delete")),
-			hintOf(views.ColumnBack, views.ColumnBack.Label()),
 		}
+		if len(*e.columns) > 1 {
+			parts = append(parts, hintOf(views.ColumnMoveTo, views.ColumnMoveTo.Label()))
+		}
+		parts = append(parts, hintOf(views.ColumnBack, views.ColumnBack.Label()))
 	}
 	e.hints.SetText("  " + strings.Join(parts, hintSep))
 }

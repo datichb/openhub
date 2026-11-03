@@ -71,10 +71,92 @@ func (e *columnEditor) handleMappingsKey(event *tcell.EventKey) *tcell.EventKey 
 	case keys.Delete.Matches(event):
 		e.deleteMapping()
 
+	case views.ColumnMoveTo.Matches(event):
+		e.moveMapping()
+
 	default:
 		return event
 	}
 	return nil
+}
+
+// moveMapping asks which column the label or status under the cursor goes to
+// (the other columns are offered), then moves it there.
+func (e *columnEditor) moveMapping() {
+	ref := e.resolveMappingItem()
+	if ref == nil {
+		return
+	}
+	ui := columnUI()
+	if ui == nil {
+		return
+	}
+	var options []views.SelectOption
+	for _, c := range *e.columns {
+		if c.ID != e.editingMappingsFor {
+			options = append(options, views.SelectOption{Label: c.Name, Value: c.ID})
+		}
+	}
+	if len(options) == 0 {
+		toast(i18n.T("tui.team.columns.move_no_other"), shell.ToastError)
+		return
+	}
+	ui.ShowSelectModal(i18n.Tf("tui.team.columns.move_title", ref.key), options, "", func(target string) {
+		e.moveMappingTo(*ref, target)
+	})
+}
+
+// moveMappingTo maps the label or status to another column: it leaves the
+// list of the column being edited, the cursor stays on the next item.
+func (e *columnEditor) moveMappingTo(ref mappingRef, target string) {
+	if target == "" || target == e.editingMappingsFor || !e.hasColumn(target) {
+		return
+	}
+	switch {
+	case ref.kind == "label" && e.labelMappings != nil:
+		(*e.labelMappings)[ref.key] = target
+	case ref.kind == "status" && e.statusMappings != nil:
+		(*e.statusMappings)[ref.key] = target
+	default:
+		return
+	}
+	cur := e.list.GetCurrentItem()
+	e.renderMappings()
+	e.settleOnMapping(cur)
+	toast(i18n.Tf("tui.team.columns.mapping_moved", ref.key, e.columnName(target)), shell.ToastSuccess)
+}
+
+// hasColumn tells whether a column of this id exists.
+func (e *columnEditor) hasColumn(id string) bool {
+	for _, c := range *e.columns {
+		if c.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
+// settleOnMapping puts the cursor on the item at or before line, or the
+// nearest after it, that is not a header (the list was drawn again).
+func (e *columnEditor) settleOnMapping(line int) {
+	total := e.list.GetItemCount()
+	line = max(0, min(line, total-1))
+	if !e.isHeaderLine(line) {
+		e.list.SetCurrentItem(line)
+		return
+	}
+	for i := line - 1; i >= 0; i-- {
+		if !e.isHeaderLine(i) {
+			e.list.SetCurrentItem(i)
+			return
+		}
+	}
+	for i := line + 1; i < total; i++ {
+		if !e.isHeaderLine(i) {
+			e.list.SetCurrentItem(i)
+			return
+		}
+	}
 }
 
 // moveToMapping moves the cursor to the next (or previous) item that is not a

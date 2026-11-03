@@ -17,18 +17,25 @@ import (
 	"github.com/datichb/openhub/cli/internal/testutil/golden"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
+	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
 // The keys of the editor, in one place: a change of key is one line here.
 var columnEditorTestKeys = struct {
-	add, del, role, mappings, up, down, back rune
-}{add: 'n', del: 'd', role: 'o', mappings: 'm', up: 'K', down: 'J', back: 'q'}
+	add, del, role, mappings, up, down, back, moveTo rune
+}{add: 'n', del: 'd', role: 'o', mappings: 'm', up: 'K', down: 'J', back: 'q', moveTo: 'v'}
 
 var tviewTags = regexp.MustCompile(`\[[^\[\]]*\]`)
 
 type modalCall struct {
 	title, current string
 	confirm        func(string)
+}
+
+type selectCall struct {
+	title   string
+	options []views.SelectOption
+	pick    func(string)
 }
 
 type confirmCall struct {
@@ -40,6 +47,7 @@ type confirmCall struct {
 // fakeColumnUI records what the editor asks of the shell.
 type fakeColumnUI struct {
 	modals   []modalCall
+	selects  []selectCall
 	confirms []confirmCall
 	toasts   []string
 	levels   []shell.ToastLevel
@@ -59,6 +67,10 @@ func (f *fakeColumnUI) lastConfirm() *confirmCall {
 
 func (f *fakeColumnUI) ShowInputModal(title, current string, confirm func(string)) {
 	f.modals = append(f.modals, modalCall{title, current, confirm})
+}
+
+func (f *fakeColumnUI) ShowSelectModal(title string, options []views.SelectOption, _ string, pick func(string)) {
+	f.selects = append(f.selects, selectCall{title, options, pick})
 }
 
 func (f *fakeColumnUI) ShowToast(msg string, level shell.ToastLevel) {
@@ -553,4 +565,112 @@ func TestColumnEditorConfirmationTexts(t *testing.T) {
 		}
 	}
 	golden.Assert(t, "tui_team_columns_confirm", b.String())
+}
+
+// v moves the label or the status under the cursor to another column: the
+// other columns are offered, the mapping leaves the list of the column being
+// edited, the cursor stays in the list and the move is told.
+func TestColumnEditorMovesAMappingToAnotherColumn(t *testing.T) {
+	labels := map[string]string{"wip": "in_progress", "doing": "in_progress", "later": "todo"}
+	statuses := map[string]string{"In Dev": "in_progress"}
+	e := newColumnEditor(t, defaultColumns(), labels, statuses, "jira")
+	e.typ('j')
+	e.typ(columnEditorTestKeys.mappings)
+	assert.Contains(t, e.hintsText(), "v "+i18n.T("tui.team.columns.hint_move_to"))
+
+	// doing (first) goes to REVIEW
+	assert.Contains(t, e.mainText(e.list.GetCurrentItem()), "doing")
+	e.typ(columnEditorTestKeys.moveTo)
+	require.Len(t, e.ui.selects, 1)
+	call := e.ui.selects[0]
+	assert.Equal(t, i18n.Tf("tui.team.columns.move_title", "doing"), call.title)
+	var ids []string
+	for _, o := range call.options {
+		ids = append(ids, o.Value)
+	}
+	assert.Equal(t, []string{"todo", "review", "validation", "done", "blocked"}, ids, "every column but the one being edited")
+	assert.Equal(t, "REVIEW", call.options[1].Label)
+	assert.Equal(t, "in_progress", (*e.labels)["doing"], "nothing moves before the answer")
+
+	call.pick("review")
+	assert.Equal(t, "review", (*e.labels)["doing"])
+	assert.Equal(t, "in_progress", (*e.labels)["wip"], "the others stay")
+	assert.Equal(t, i18n.Tf("tui.team.columns.mapping_moved", "doing", "REVIEW"), e.ui.lastToast())
+	var shown []string
+	for i := 0; i < e.list.GetItemCount(); i++ {
+		shown = append(shown, e.mainText(i))
+	}
+	assert.NotContains(t, strings.Join(shown, "|"), "doing", "it left the column being edited")
+	assert.Contains(t, shown[e.list.GetCurrentItem()], "wip", "the cursor is on an item of the list, not on a header")
+
+	// the status of a Jira board goes the same way
+	for i := range shown {
+		if strings.Contains(shown[i], "In Dev") {
+			e.list.SetCurrentItem(i)
+		}
+	}
+	e.typ(columnEditorTestKeys.moveTo)
+	require.Len(t, e.ui.selects, 2)
+	e.ui.selects[1].pick("blocked")
+	assert.Equal(t, map[string]string{"In Dev": "blocked"}, *e.status)
+	assert.Contains(t, shown[e.list.GetCurrentItem()], "wip")
+
+	// the new column shows it
+	e.typ(columnEditorTestKeys.back)
+	_, secondary := e.list.GetItemText(3)
+	assert.Contains(t, secondary, "labels: doing", "REVIEW now holds doing")
+}
+
+// Nothing to move on a header; an answer that is not another column of the
+// editor changes nothing; with a single column there is nowhere to go.
+func TestColumnEditorMoveKeepsWhatItCannotMove(t *testing.T) {
+	labels := map[string]string{"wip": "in_progress"}
+	e := newColumnEditor(t, defaultColumns(), labels, map[string]string{}, "gitlab")
+	e.typ('j')
+	e.typ(columnEditorTestKeys.mappings)
+
+	e.list.SetCurrentItem(0)
+	e.typ(columnEditorTestKeys.moveTo)
+	assert.Empty(t, e.ui.selects, "a header is not a label")
+
+	e.list.SetCurrentItem(2)
+	e.typ(columnEditorTestKeys.moveTo)
+	require.Len(t, e.ui.selects, 1)
+	for _, answer := range []string{"", "in_progress", "nowhere"} {
+		e.ui.selects[0].pick(answer)
+		assert.Equal(t, map[string]string{"wip": "in_progress"}, *e.labels, "answer %q", answer)
+	}
+
+	// the column keys do not move anything in the columns mode
+	e.typ(columnEditorTestKeys.back)
+	e.typ(columnEditorTestKeys.moveTo)
+	assert.Len(t, e.ui.selects, 1)
+
+	one := newColumnEditor(t, []teamstate.BoardColumnConfig{{ID: "only", Name: "ONLY", Role: teamstate.ColumnRoleTerminal}},
+		map[string]string{"wip": "only"}, map[string]string{}, "gitlab")
+	one.typ(columnEditorTestKeys.mappings)
+	assert.NotContains(t, one.hintsText(), "v "+i18n.T("tui.team.columns.hint_move_to"), "nowhere to move to: no hint")
+	one.typ(columnEditorTestKeys.moveTo)
+	assert.Empty(t, one.ui.selects)
+	assert.Equal(t, i18n.T("tui.team.columns.move_no_other"), one.ui.lastToast())
+}
+
+// The words of the move, and the keys line of the mappings, in both languages
+// (golden).
+func TestColumnEditorMoveTexts(t *testing.T) {
+	var b strings.Builder
+	for _, lang := range []string{"fr", "en"} {
+		e := newColumnEditor(t, defaultColumns(), map[string]string{"wip": "in_progress"}, map[string]string{}, "gitlab")
+		i18ntest.Set(t, lang)
+		e.typ('j')
+		e.typ(columnEditorTestKeys.mappings)
+		e.typ(columnEditorTestKeys.moveTo)
+		fmt.Fprintf(&b, "[%s]\n", lang)
+		fmt.Fprintf(&b, "keys: %s\n", tviewTags.ReplaceAllString(e.hintsText(), ""))
+		fmt.Fprintf(&b, "title: %s\n", e.ui.selects[0].title)
+		e.ui.selects[0].pick("review")
+		fmt.Fprintf(&b, "toast: %s\n", e.ui.lastToast())
+		fmt.Fprintf(&b, "no other column: %s\n", i18n.T("tui.team.columns.move_no_other"))
+	}
+	golden.Assert(t, "tui_team_columns_move", b.String())
 }

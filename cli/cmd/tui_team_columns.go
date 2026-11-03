@@ -29,9 +29,10 @@ var columnEditorRoles = []string{
 }
 
 // columnEditorUI is what the column editor asks of the shell: an input box, a
-// confirmation and a toast.
+// list to choose from, a confirmation and a toast.
 type columnEditorUI interface {
 	ShowInputModal(title, currentValue string, onConfirm func(newValue string))
+	ShowSelectModal(title string, options []views.SelectOption, currentValue string, onConfirm func(value string))
 	Confirm(title, detail string, danger bool, onYes func())
 	ShowToast(msg string, level shell.ToastLevel)
 }
