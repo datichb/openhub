@@ -23,10 +23,10 @@ import (
 // initializes its tickets.
 func buildProjectsView(a *app.App) *views.ProjectsView {
 	projectsView := views.NewProjectsView(views.ProjectsViewConfig{
-		Projects:         loadProjectItems(a.Projects),
+		Projects:         loadProjectItems(a.Projects, a.Config),
 		KnownMCPServices: []string{"figma", "gitlab", "gslides"},
 		RefreshFunc: func() []views.ProjectItem {
-			return loadProjectItems(a.Projects)
+			return loadProjectItems(a.Projects, a.Config)
 		},
 	})
 	if a.Projects != nil {

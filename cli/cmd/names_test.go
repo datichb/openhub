@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 )
@@ -56,4 +57,16 @@ func TestBoardQuickActionsResolveTheProjectAtEachCall(t *testing.T) {
 	store.projects[0].Path = "/work/moved/api"
 	_, path, _ = resolve("api")
 	assert.Equal(t, "/work/moved/api", path, "the new path, not the one of the start")
+}
+
+// A project item names its team (the ID when the hub does not list it).
+func TestProjectItemNamesItsTeam(t *testing.T) {
+	cfg := &config.Config{Teams: []config.TeamConfig{{ID: "plat-1", Name: "Platform"}, {ID: "bare"}}}
+	team := func(id string) domain.Project { return domain.Project{ID: "p", Name: "P", TeamID: &id} }
+	assert.Equal(t, "Platform", domainProjectToViewItem(team("plat-1"), cfg).TeamName)
+	assert.Equal(t, "plat-1", domainProjectToViewItem(team("plat-1"), cfg).TeamID, "the ID stays what the view filters on")
+	assert.Equal(t, "bare", domainProjectToViewItem(team("bare"), cfg).TeamName, "no name: the ID")
+	assert.Equal(t, "ghost", domainProjectToViewItem(team("ghost"), cfg).TeamName, "unknown team: the ID")
+	assert.Empty(t, domainProjectToViewItem(domain.Project{ID: "solo"}, cfg).TeamName)
+	assert.Equal(t, "x", domainProjectToViewItem(team("x"), nil).TeamName)
 }

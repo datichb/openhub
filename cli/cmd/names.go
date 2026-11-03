@@ -5,6 +5,7 @@ import (
 	"log/slog"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
@@ -46,6 +47,17 @@ func readNames(ctx context.Context, a *app.App, members teamstate.MemberReader) 
 		}
 	}
 	return views.NewNames(registryNames(ctx, a), list)
+}
+
+// teamName is the name of a team of the hub config, or its ID when the hub does
+// not know the team (nil config: the ID).
+func teamName(cfg *config.Config, id string) string {
+	if cfg != nil {
+		if t := cfg.FindTeam(id); t != nil {
+			return t.DisplayName()
+		}
+	}
+	return id
 }
 
 // hubNames is the NamesFunc of the views: the registry, and the members of the

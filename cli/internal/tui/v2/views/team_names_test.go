@@ -106,3 +106,32 @@ func TestTakeoverViewShowsTheProjectAndTheMembersByName(t *testing.T) {
 	// The IDs are what the actions take.
 	onLoop(loop, func() { assert.Equal(t, "88280c5b", v.briefs[0].Project) })
 }
+
+// The detail of a project names its team; the ID is only the fallback.
+func TestProjectDetailNamesTheTeam(t *testing.T) {
+	i18ntest.Set(t, "en")
+	v := NewProjectsView(ProjectsViewConfig{})
+	v.detail = tview.NewTextView().SetDynamicColors(true)
+	teamLine := func(p ProjectItem) string {
+		v.showDetail(p)
+		for _, l := range strings.Split(v.detail.GetText(true), "\n") {
+			if strings.HasPrefix(l, "Team:") {
+				return l
+			}
+		}
+		return ""
+	}
+	assert.Equal(t, "Team: Platform", teamLine(ProjectItem{ID: "a", TeamID: "plat-1", TeamName: "Platform"}))
+	assert.Equal(t, "Team: plat-1", teamLine(ProjectItem{ID: "a", TeamID: "plat-1"}), "a team the hub does not list stays readable")
+	assert.Equal(t, "Team: none (solo project)", teamLine(ProjectItem{ID: "b"}))
+}
+
+// The window of a session of another member names the project.
+func TestOtherMemberSessionDetailNamesTheProject(t *testing.T) {
+	i18ntest.Set(t, "en")
+	s := TeamMemberSession{Member: "Alice", Ticket: "bd-7", Project: "88280c5b", ProjectName: "transparence-sru", Session: "ses_1", Live: true}
+	assert.Contains(t, s.detail(), "transparence-sru")
+	assert.NotContains(t, s.detail(), "88280c5b")
+	s.ProjectName = ""
+	assert.Contains(t, s.detail(), "88280c5b", "without a name: the ID")
+}

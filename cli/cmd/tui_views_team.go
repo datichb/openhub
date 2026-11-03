@@ -190,6 +190,12 @@ func teamModeStats(a *app.App) views.TeamModeStats {
 		}
 		active = teamstate.CountActive(claims, board)
 		others = views.OtherMemberSessions(claims, members, cfg, tr.MemberID, time.Now())
+		if len(others) > 0 {
+			names := readNames(ctx, a, nil)
+			for i := range others {
+				others[i].ProjectName = names.ProjectLabel(others[i].Project)
+			}
+		}
 	}
 	return views.TeamModeStats{
 		MemberCount: len(members),

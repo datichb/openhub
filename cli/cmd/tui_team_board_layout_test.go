@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 )
@@ -77,4 +78,25 @@ func TestTeamModeActiveCountFollowsTheColumnsOfTheBoard(t *testing.T) {
 	stats := teamModeStats(a)
 	assert.Equal(t, 2, stats.ActiveCount, "in_progress and qa: the active columns of this board (review is not one)")
 	assert.Equal(t, 1, stats.MemberCount)
+}
+
+// The sessions of the other members name their project, or mark the ID of one
+// the registry does not know.
+func TestTeamModeSessionsOfTheOthersNameTheProject(t *testing.T) {
+	i18ntest.Set(t, "en")
+	a, repo := setupBeat(t)
+	store := &mockProjectStore{projects: []domain.Project{{ID: claimsProject, Name: "Alpha", Path: "/p/alpha", TeamID: strp("test-team")}}}
+	a.Projects = store
+	for _, c := range []teamstate.Claim{
+		{TicketID: "O-1", Project: claimsProject, ClaimedBy: "colleague", Status: teamstate.ClaimStatusInProgress, Session: "ses_1"},
+		{TicketID: "O-2", Project: "deadbeef", ClaimedBy: "colleague", Status: teamstate.ClaimStatusInProgress, Session: "ses_2"},
+	} {
+		_, err := repo.CreateClaim(t.Context(), c)
+		require.NoError(t, err)
+	}
+	byTicket := map[string]string{}
+	for _, o := range teamModeStats(a).Others {
+		byTicket[o.Ticket] = o.ProjectName
+	}
+	assert.Equal(t, map[string]string{"O-1": "Alpha", "O-2": "deadbeef (unknown project)"}, byTicket)
 }
