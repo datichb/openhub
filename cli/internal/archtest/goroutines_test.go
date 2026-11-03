@@ -21,7 +21,7 @@ import (
 // directory names the files that start with it.
 //
 // cmd/ is guarded as a whole since v5.1 (A7): the daemon of a remote job
-// (cmd/runner.go), ohd (cmd/daemon*.go), the end of the claims (cmd/v5_claims.go)
+// (cmd/runner.go), ohd (cmd/daemon*.go), the end of the claims (cmd/session_claims.go)
 // and also the tview interface of the TUI (`safego.Go(func() {
 // app.QueueUpdateDraw(...) })`, spinners, watchers), the web server, the
 // heartbeat of an attach and the fan-out driver of an evaluation. A timer

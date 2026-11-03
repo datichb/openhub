@@ -58,7 +58,7 @@ func TestLocalSessionBeadsHooksAndShell(t *testing.T) {
 	}
 	shims := filepath.Join(root, "bin")
 	sh("../..", "go", "build", "-o", filepath.Join(root, "oh-bd"), "./cmd/oh-bd")
-	// Like the bd of local sessions (cmd/v5_beads_local.go): it gives the
+	// Like the bd of local sessions (cmd/local_shell.go): it gives the
 	// daemon socket, where a git hook gets its hook token (S-06).
 	if err := os.MkdirAll(shims, 0o755); err != nil {
 		t.Fatal(err)

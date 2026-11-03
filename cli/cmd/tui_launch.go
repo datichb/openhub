@@ -33,7 +33,7 @@ import (
 
 // TUI wiring of the launch form (P1-T22): the form is generated from the
 // resolved workflow; its recap and launch go through launch.Prepare and
-// the RunService (cmd/v5_run.go). No launch logic here.
+// the RunService (cmd/run_start.go). No launch logic here.
 
 // tuiLaunchRequest opens a launch form.
 type tuiLaunchRequest struct {

@@ -26,7 +26,7 @@ Nothing prevented adding more. Decision D19 (07/10/2026) requires every tool spe
 
 ## Decision
 
-1. **Adapter registry** (`adapters.Registry`): name → constructor, order of preference, `Detect` (the first installed and supported tool) and `Get` (the adapter of a recorded server group, former names included). It is built **explicitly** in a single **composition root**, `cmd/v5_adapters.go`, the only oh file outside the adapters that names a tool. The rest of `cmd` only sees `adapters.ToolAdapter` and `adapters.ToolInfo` (displayed name, binary, version, supported range).
+1. **Adapter registry** (`adapters.Registry`): name → constructor, order of preference, `Detect` (the first installed and supported tool) and `Get` (the adapter of a recorded server group, former names included). It is built **explicitly** in a single **composition root**, `cmd/tool_registry.go`, the only oh file outside the adapters that names a tool. The rest of `cmd` only sees `adapters.ToolAdapter` and `adapters.ToolInfo` (displayed name, binary, version, supported range).
 2. **Neutral capabilities** (optional interfaces of `internal/adapters`), implemented by the adapter:
    - `ProviderMapper` (provider id of the tool);
    - `LinuxInstaller` (tool of the job images);
