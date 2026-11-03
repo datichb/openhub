@@ -202,6 +202,16 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 				ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 				defer cancel()
 
+				// A claim someone holds is left as it is; any other one is one
+				// more ticket in progress for the member: refused past
+				// max_in_progress_per_member.
+				if held, gerr := repo.GetClaim(ctx, projectID, ticketID); gerr == nil && held.ClaimedBy != "" {
+					return nil // already owned, idempotent
+				}
+				if err := checkInProgressRoom(ctx, repo, a.Config.Tracker, memberID, teamstate.ClaimRef{Project: projectID, TicketID: ticketID}); err != nil {
+					return err
+				}
+
 				// The claim is taken from the board by hand: no session works on
 				// it yet, so it carries none. The session that starts on the
 				// ticket takes it (startTicketClaim, AdoptClaim) and from then on
@@ -277,6 +287,14 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 				}
 				ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 				defer cancel()
+				// A claim in progress handed to oneself is one more ticket in progress.
+				if me := a.Config.ActiveTeam().MemberID; toMember == me {
+					if c, gerr := repo.GetClaim(ctx, projectID, ticketID); gerr == nil {
+						if err := checkTransferToSelfRoom(ctx, repo, a.Config.Tracker, me, c); err != nil {
+							return err
+						}
+					}
+				}
 				return repo.TransferClaim(ctx, projectID, ticketID, toMember)
 			},
 			OnStatus: func(ticketID, newStatus string) error {
@@ -291,6 +309,13 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 				}
 				ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 				defer cancel()
+				// A card of the member moved to a column of work in progress is one
+				// more ticket in progress.
+				if c, gerr := repo.GetClaim(ctx, projectID, ticketID); gerr == nil {
+					if err := checkStatusMoveRoom(ctx, repo, a.Config.Tracker, a.Config.ActiveTeam().MemberID, c, newStatus); err != nil {
+						return err
+					}
+				}
 				return repo.UpdateClaimStatus(ctx, projectID, ticketID, newStatus)
 			},
 		},

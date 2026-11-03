@@ -159,6 +159,10 @@ type Deps struct {
 	// TicketClaims is the hook run when a session starts on tickets (nil
 	// without a team).
 	TicketClaims func(project *domain.Project) func(ctx context.Context, projectID string, tickets []string) []string
+	// TicketRoom is the check run before a session starts on tickets of a team
+	// project: it refuses (with a translated error) when the tickets would go
+	// past the limit of tickets the member has in progress (nil without a team).
+	TicketRoom func(project *domain.Project) func(ctx context.Context, projectID string, tickets []string) error
 	// BuildBundle compiles the bundle of a resolved workflow; missing lists the
 	// MCP servers the workflow asks for but the project does not provide.
 	BuildBundle func(ctx context.Context, project *domain.Project, res *workflowsvc.Resolution, prov string) (b *bundle.Bundle, missing []string, err error)
