@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/datichb/openhub/cli/internal/safego"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
 )
 
@@ -259,7 +260,7 @@ func (r *Runner) Run(ctx context.Context, cases []*Case) (*Report, error) {
 	}
 	for w := 0; w < workers; w++ {
 		wg.Add(1)
-		go func() {
+		safego.Go(func() {
 			defer wg.Done()
 			for {
 				i := queue.pop()
@@ -282,12 +283,21 @@ func (r *Runner) Run(ctx context.Context, cases []*Case) (*Report, error) {
 				if workers > 1 {
 					r.logf("→ %s", j.label())
 				}
-				res := r.runPass(ctx, i, j, func(cost float64) bool {
-					mu.Lock()
-					defer mu.Unlock()
-					spent += cost
-					return !overBudget()
-				})
+				// A panic of a pass is an error of that pass: the worker goes
+				// on, and queue.done() is called (else the others wait for
+				// the pass for ever).
+				var res PassResult
+				if perr := safego.WrapErr(func() error {
+					res = r.runPass(ctx, i, j, func(cost float64) bool {
+						mu.Lock()
+						defer mu.Unlock()
+						spent += cost
+						return !overBudget()
+					})
+					return nil
+				})(); perr != nil {
+					res = PassResult{Case: j.c.ID, Variant: j.variant.Name, Model: j.model, Rep: j.rep, Outcome: OutcomeError, Error: safego.Summary(perr)}
+				}
 				mu.Lock()
 				done++
 				n, total := done, len(jobs)
@@ -300,7 +310,7 @@ func (r *Runner) Run(ctx context.Context, cases []*Case) (*Report, error) {
 				r.logf("[%d/%d] %s: %s %s ($%.3f, %.0fs)", n, total, j.label(), res.Outcome, passWord(res.Pass), res.CostUSD, res.Seconds)
 				queue.done()
 			}
-		}()
+		})
 	}
 	wg.Wait()
 

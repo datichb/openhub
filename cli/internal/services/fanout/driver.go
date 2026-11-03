@@ -12,6 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/beads"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
@@ -532,9 +533,11 @@ func (d *Driver) runChildren(ctx context.Context, parent string, wf *sessionspec
 					runMu.Unlock()
 					n++
 					wg.Add(1)
-					go func(c domain.FanoutChild) {
+					safego.Go(func() {
 						defer wg.Done()
-						err := d.follow(ctx, parent, wf, c)
+						// A panic ends the child as a failure of the driver,
+						// not as a child still "running" that nothing follows.
+						err := safego.WrapErr(func() error { return d.follow(ctx, parent, wf, c) })()
 						if err != nil {
 							d.logf("fan-out %s: %s: %v", parent, c.Ticket, err)
 							setFatal(err)
@@ -543,7 +546,7 @@ func (d *Driver) runChildren(ctx context.Context, parent string, wf *sessionspec
 						delete(running, c.Ticket)
 						runMu.Unlock()
 						done <- struct{}{}
-					}(c)
+					})
 				}
 			}
 		}
@@ -588,11 +591,14 @@ func (d *Driver) runChildren(ctx context.Context, parent string, wf *sessionspec
 			runMu.Unlock()
 			n++
 			wg.Add(1)
-			go func(ticket string) {
+			ticket := c.Ticket
+			safego.Go(func() {
 				defer wg.Done()
-				if err := d.launch(ctx, parent, wf, ticket, share); err != nil {
+				err := safego.WrapErr(func() error { return d.launch(ctx, parent, wf, ticket, share) })()
+				var perr *safego.PanicError
+				if err != nil {
 					d.logf("fan-out %s: %s: %v", parent, ticket, err)
-					if errors.Is(err, errRecord) {
+					if errors.Is(err, errRecord) || errors.As(err, &perr) {
 						setFatal(err)
 					}
 				}
@@ -600,7 +606,7 @@ func (d *Driver) runChildren(ctx context.Context, parent string, wf *sessionspec
 				delete(running, ticket)
 				runMu.Unlock()
 				done <- struct{}{}
-			}(c.Ticket)
+			})
 		}
 		select {
 		case <-ctx.Done():

@@ -241,7 +241,7 @@ func (v *SessionsView) watchChanges(ctx context.Context, gen uint64, app *tview.
 			if timer != nil {
 				timer.Stop()
 			}
-			timer = time.AfterFunc(sessionsReloadDelay, func() {
+			timer = safego.AfterFunc(sessionsReloadDelay, func() {
 				app.QueueUpdateDraw(func() {
 					if v.gen == gen {
 						v.reload()

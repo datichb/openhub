@@ -14,6 +14,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/buildinfo"
 	ohruntime "github.com/datichb/openhub/cli/internal/runtime"
+	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
@@ -362,13 +363,24 @@ func (a *Adapter) AttachCommand(h adapters.ServerHandle, sessionID string) (argv
 }
 
 // Events implements adapters.ToolAdapter.
+//
+// A panic while an event is decoded recovers (safego: log, crash report) and
+// ends the stream: the channel closes, as when the connection drops. The
+// consumer then treats the stream as lost, reconnects and resynchronizes its
+// state from the list endpoints (the watchers of the daemon do), so the event
+// that was lost does not leave it stale. Skipping the event instead would
+// keep the stream open on a state nobody resynchronizes. The connection is
+// closed with the goroutine: the reader of the SSE must not outlive it.
 func (a *Adapter) Events(ctx context.Context, h adapters.ServerHandle) (<-chan adapters.ToolEvent, error) {
-	evs, _, err := client(h).Events(ctx)
+	sctx, cancel := context.WithCancel(ctx)
+	evs, _, err := client(h).Events(sctx)
 	if err != nil {
+		cancel()
 		return nil, err
 	}
 	out := make(chan adapters.ToolEvent, 64)
-	go func() {
+	safego.Go(func() {
+		defer cancel()
 		defer close(out)
 		feed := newFeedDecoder()
 		for e := range evs {
@@ -389,7 +401,7 @@ func (a *Adapter) Events(ctx context.Context, h adapters.ServerHandle) (<-chan a
 				return
 			}
 		}
-	}()
+	})
 	return out, nil
 }
 

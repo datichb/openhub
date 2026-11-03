@@ -115,3 +115,27 @@ func TestSubscribeUsesTheStream(t *testing.T) {
 		t.Fatal("no change")
 	}
 }
+
+// A panic of the live stream is logged and the subscription starts again:
+// the views that read it do not wait on a channel that closed without a word.
+func TestSubscribeSurvivesAPanic(t *testing.T) {
+	svc, ctx := newTestService(t)
+	src := make(chan api.StreamEvent, 1)
+	src <- api.StreamEvent{Change: &domain.SessionChange{SessionID: "ses_after", State: domain.RunIdle}}
+	calls := 0
+	svc.Live = func(context.Context, string) (<-chan api.StreamEvent, error) {
+		if calls++; calls == 1 {
+			panic("the stream exploded")
+		}
+		return src, nil
+	}
+	cctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	select {
+	case c, ok := <-svc.Subscribe(cctx):
+		require.True(t, ok, "the channel stays open")
+		assert.Equal(t, "ses_after", c.SessionID)
+	case <-time.After(10 * time.Second):
+		t.Fatal("the subscription did not start again after the panic")
+	}
+}

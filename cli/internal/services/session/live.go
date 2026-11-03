@@ -7,6 +7,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/daemon/api"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/safego"
 )
 
 // Live follow-up: the oh daemon watches the tool servers and
@@ -36,7 +37,7 @@ func (s *Service) Follow(ctx context.Context, sessionID string) (<-chan domain.F
 		return nil, err
 	}
 	out := make(chan domain.FeedItem, 64)
-	go func() {
+	safego.Go(func() {
 		defer close(out)
 		for ev := range evs {
 			if ev.Feed == nil || ev.Feed.SessionID != sessionID {
@@ -52,7 +53,7 @@ func (s *Service) Follow(ctx context.Context, sessionID string) (<-chan domain.F
 				return
 			}
 		}
-	}()
+	})
 	return out, nil
 }
 
@@ -78,53 +79,57 @@ func (s *Service) Subscribe(ctx context.Context) <-chan domain.SessionChange {
 	if every <= 0 {
 		every = defaultPollEvery
 	}
-	go func() {
+	safego.Go(func() {
 		defer close(out)
-		emit := func(c domain.SessionChange) bool {
-			select {
-			case out <- c:
-				return true
-			case <-ctx.Done():
-				return false
+		// A panic (the stream, the stores) restarts the loop after a pause,
+		// instead of closing the channel on views that would wait for ever.
+		safego.Supervise(ctx, "sessions subscription", func(ctx context.Context) {
+			emit := func(c domain.SessionChange) bool {
+				select {
+				case out <- c:
+					return true
+				case <-ctx.Done():
+					return false
+				}
 			}
-		}
-		var last map[string]pollState
-		for ctx.Err() == nil {
-			if s.Live != nil {
-				if evs, err := s.Live(ctx, ""); err == nil {
-					last = nil
-					for ev := range evs {
-						if ev.Change != nil && !emit(*ev.Change) {
+			var last map[string]pollState
+			for ctx.Err() == nil {
+				if s.Live != nil {
+					if evs, err := s.Live(ctx, ""); err == nil {
+						last = nil
+						for ev := range evs {
+							if ev.Change != nil && !emit(*ev.Change) {
+								return
+							}
+						}
+						select { // stream ended: reconnect (or poll)
+						case <-ctx.Done():
 							return
+						case <-time.After(time.Second):
+						}
+						continue
+					}
+				}
+				// Daemon unavailable: poll a few times, then try the stream again.
+				for i := 0; i < 3 && ctx.Err() == nil; i++ {
+					cur := s.pollState(ctx)
+					if last != nil {
+						for _, c := range diffPoll(last, cur) {
+							if !emit(c) {
+								return
+							}
 						}
 					}
-					select { // stream ended: reconnect (or poll)
+					last = cur
+					select {
 					case <-ctx.Done():
 						return
-					case <-time.After(time.Second):
-					}
-					continue
-				}
-			}
-			// Daemon unavailable: poll a few times, then try the stream again.
-			for i := 0; i < 3 && ctx.Err() == nil; i++ {
-				cur := s.pollState(ctx)
-				if last != nil {
-					for _, c := range diffPoll(last, cur) {
-						if !emit(c) {
-							return
-						}
+					case <-time.After(every):
 					}
 				}
-				last = cur
-				select {
-				case <-ctx.Done():
-					return
-				case <-time.After(every):
-				}
 			}
-		}
-	}()
+		})
+	})
 	return out
 }
 

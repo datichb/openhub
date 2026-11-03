@@ -346,3 +346,43 @@ func TestNoGitSameReport(t *testing.T) {
 	}
 	assert.JSONEq(t, string(run(nil)), string(run(noGit)))
 }
+
+// A pass that panics is an error of that pass: the others run, the run ends.
+func TestPanickingPassIsAnErrorOfThatPass(t *testing.T) {
+	t.Setenv("OH_HOME", t.TempDir())
+	cases := twoCases(t)
+	exec := ExecutorFunc(func(ctx context.Context, p Pass) (*PassOutput, error) {
+		if p.Case.ID == "S7" {
+			panic("the executor exploded")
+		}
+		return &PassOutput{Outcome: OutcomeCompleted}, nil
+	})
+	for _, parallel := range []int{1, 3} {
+		r := &Runner{Exec: exec, Models: []string{"m"}, Reps: 2, WorkRoot: t.TempDir(), OutDir: t.TempDir(), Parallel: parallel, Prepare: noGit}
+		done := make(chan struct{})
+		var rep *Report
+		var err error
+		go func() {
+			defer close(done)
+			rep, err = r.Run(context.Background(), cases)
+		}()
+		select {
+		case <-done:
+		case <-time.After(30 * time.Second):
+			t.Fatalf("parallel %d: the run never ends after a panic", parallel)
+		}
+		require.NoError(t, err)
+		require.Len(t, rep.Passes, 4)
+		for _, p := range rep.Passes {
+			if p.Case == "S7" {
+				assert.Equal(t, OutcomeError, p.Outcome)
+				assert.False(t, p.Pass)
+				assert.Contains(t, p.Error, "panic: the executor exploded")
+				assert.Contains(t, p.Error, "crash report")
+				assert.NotContains(t, p.Error, "goroutine ", "no stack in the report")
+			} else {
+				assert.Equal(t, OutcomeCompleted, p.Outcome)
+			}
+		}
+	}
+}

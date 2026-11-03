@@ -51,12 +51,41 @@ type PanicError struct {
 	CrashFile string // the crash report, empty when it could not be written
 }
 
-func (e *PanicError) Error() string {
+// Summary is the value of the panic and the crash report, in a line: what
+// the user is told. Error adds the stack.
+func (e *PanicError) Summary() string {
 	msg := fmt.Sprintf("panic: %v", e.Value)
 	if e.CrashFile != "" {
 		msg += " (crash report: " + e.CrashFile + ")"
 	}
-	return msg + "\n" + string(e.Stack)
+	return msg
+}
+
+func (e *PanicError) Error() string { return e.Summary() + "\n" + string(e.Stack) }
+
+// Summary is the one-line text of err for the user: PanicError.Summary for a
+// recovered panic (no stack), err.Error() for any other error.
+func Summary(err error) string {
+	var perr *PanicError
+	if errors.As(err, &perr) {
+		return perr.Summary()
+	}
+	return err.Error()
+}
+
+// LogPanicError logs err as a recovered panic when it is a *PanicError (as
+// logPanic does for the panics Go recovers) and reports whether it is.
+func LogPanicError(msg string, err error) bool {
+	var perr *PanicError
+	if !errors.As(err, &perr) {
+		return false
+	}
+	args := []any{"panic", perr.Value}
+	if perr.CrashFile != "" {
+		args = append(args, "crash_file", perr.CrashFile)
+	}
+	slog.Error(msg, append(args, "stack", string(perr.Stack))...)
+	return true
 }
 
 // Unwrap lets errors.Is and errors.As see an error given to panic.

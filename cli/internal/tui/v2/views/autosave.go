@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"github.com/rivo/tview"
+
+	"github.com/datichb/openhub/cli/internal/safego"
 )
 
 // AutoSaver provides debounced auto-save for configuration views.
@@ -50,7 +52,7 @@ func (as *AutoSaver) Schedule() {
 	if as.timer != nil {
 		as.timer.Stop()
 	}
-	as.timer = time.AfterFunc(as.delay, func() {
+	as.timer = safego.AfterFunc(as.delay, func() {
 		as.mu.Lock()
 		pending := as.pending
 		as.pending = false

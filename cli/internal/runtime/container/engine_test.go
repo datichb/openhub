@@ -5,8 +5,10 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -350,4 +352,24 @@ func TestWithDirs(t *testing.T) {
 	assert.Equal(t, "/usr/bin"+sep+dir, withDirs("/usr/bin", []string{dir, filepath.Join(dir, "missing")}))
 	assert.Equal(t, dir+sep+"/usr/bin", withDirs(dir+sep+"/usr/bin", []string{dir}))
 	assert.Equal(t, dir, withDirs("", []string{dir}))
+}
+
+// A panic of the line callback must not leave the engine blocked on a pipe
+// nobody reads.
+func TestExecRunnerStreamDrainsAfterAPanicInTheCallback(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses sh")
+	}
+	t.Setenv("OH_HOME", t.TempDir())
+	done := make(chan error, 1)
+	go func() {
+		done <- ExecRunner{}.Stream(context.Background(), func(string) { panic("callback exploded") },
+			"sh", "-c", "i=0; while [ $i -lt 20000 ]; do echo line-$i-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx; i=$((i+1)); done")
+	}()
+	select {
+	case err := <-done:
+		require.NoError(t, err)
+	case <-time.After(30 * time.Second):
+		t.Fatal("the stream never ends: the pipe is not read after the panic")
+	}
 }
