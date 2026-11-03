@@ -9,7 +9,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/wildcard"
 )
 
-// QB1: a bd named by a path bypasses the fake bd of the session (and the
+// A bd named by a path bypasses the fake bd of the session (and the
 // Beads gateway): the guard, last of every agent, refuses it even when the
 // agent allows any shell command.
 func TestBeadsShellGuard(t *testing.T) {

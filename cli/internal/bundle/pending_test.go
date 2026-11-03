@@ -16,7 +16,7 @@ func held(guard []sessionspec.PermissionRule, action, resource string) bool {
 	return ok && eff == sessionspec.EffectDeny
 }
 
-// p6-debts: a subagent session not adopted yet runs with the rules of its
+// A subagent session not adopted yet runs with the rules of its
 // agent only. The operations its checkpoints lock are held by the plugin
 // until oh confirms the session rules; the rest is unchanged.
 func TestPendingGuardTicket(t *testing.T) {
@@ -96,7 +96,7 @@ func TestSessionRulesEffect(t *testing.T) {
 	assert.Equal(t, sessionspec.EffectAsk, eff)
 }
 
-// p6-debts: the mitigation of incident is committed at cp-mitigated without
+// The mitigation of incident is committed at cp-mitigated without
 // the postmortem, which waits for cp-postmortem.
 func TestEarlyCommitWindowKeepsWritesPaths(t *testing.T) {
 	b := shippedBundle(t, "incident")

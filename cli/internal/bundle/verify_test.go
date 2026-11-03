@@ -38,7 +38,7 @@ func shellOf(t *testing.T, b *Bundle, id string, locks []sessionspec.PermissionR
 	return append(rules, locks...)
 }
 
-// C1.6: the reviewer (verify: true) runs the build and tests of the project,
+// The reviewer (verify: true) runs the build and tests of the project,
 // asked in the review of a merge request (risk: read); the other agents get
 // nothing, the guards and the locks still win.
 func TestReviewerVerifyCommands(t *testing.T) {

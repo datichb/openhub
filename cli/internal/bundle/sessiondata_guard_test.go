@@ -8,7 +8,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
-// L4: the session data of oh (reports of workflow_report, transcripts) are
+// The session data of oh (reports of workflow_report, transcripts) are
 // refused to every agent (layer 0, sessionDataDeny), before the scratch
 // exceptions: the owner of a scratch folder still reads and writes it.
 func TestSessionDataRefusedScratchKept(t *testing.T) {

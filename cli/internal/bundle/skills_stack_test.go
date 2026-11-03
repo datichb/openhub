@@ -41,7 +41,7 @@ func writeProjectFile(t *testing.T, dir, rel, content string) {
 	require.NoError(t, os.WriteFile(filepath.Join(dir, rel), []byte(content), 0o644))
 }
 
-// A8: in a FastAPI project, the ticket bundle has the Python and FastAPI
+// In a FastAPI project, the ticket bundle has the Python and FastAPI
 // skills, neither the frontend domain skills nor the skills of plugins the
 // workflow does not load (context-mode, rtk).
 func TestBundleSkillsFollowStackAndPlugins(t *testing.T) {
@@ -95,7 +95,7 @@ func TestPluginPermissionsFollowPlugins(t *testing.T) {
 }
 
 // An agent that names a skill left out of the bundle is told not to load it
-// (the reviewer names the frontend standards in its workflow; L6 moved the
+// (the reviewer names the frontend standards in its workflow; the
 // routing of orchestrator-dev to an on-demand skill).
 func TestAbsentSkillsNote(t *testing.T) {
 	t.Parallel()

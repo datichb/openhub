@@ -5,7 +5,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
-// Order of the checkpoints and of the writes (r5-fixes, workflow
+// Order of the checkpoints and of the writes (workflow
 // validate_order.go).
 //
 //   - `writes_after`: the `writes:` paths of an agent stay closed until the

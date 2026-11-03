@@ -15,7 +15,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
-// Composed prompt snapshots (modernisation P0.3): the system prompt of every
+// Composed prompt snapshots: the system prompt of every
 // agent of the main workflows, built without project, is pinned in
 // testdata/golden/prompts/<workflow>/<agent>.md.golden, so that a content change is
 // reviewed as a diff of what the model reads

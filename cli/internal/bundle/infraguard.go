@@ -2,7 +2,7 @@ package bundle
 
 import "github.com/datichb/openhub/cli/internal/sessionspec"
 
-// Infrastructure guard (v5 critical N4, DC4). The agents that run an
+// Infrastructure guard. The agents that run an
 // infrastructure tool as a whole (their own rules do not refuse an arbitrary
 // sub-command of it, e.g. `terraform*`) get, after their own rules:
 //   - the read-only commands allowed (anchored on the tool: a global option

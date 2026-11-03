@@ -8,7 +8,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
-// Lines of a `writes:` agent that the rules cannot read (p6-debts): git add
+// Lines of a `writes:` agent that the rules cannot read: git add
 // or git commit of several declared paths, a commit message in several -m.
 // oh reads them word by word, as the shell would, and lets through only:
 //

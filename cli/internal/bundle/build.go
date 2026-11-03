@@ -2,7 +2,7 @@
 // permissions, graph) into an immutable, content-addressed directory under
 // ~/.oh/bundles/<hash>, independent of the project directory.
 //
-// Phase 0 builder: agents are selected from the current (single) hub
+// Builder of the first bundles: agents are selected from the current (single) hub
 // workflow, starting at the entry agent and following the workflow
 // delegation graph. Declarative workflows (phase 1) will replace the
 // selection step; the assembly and layout stay.
@@ -34,8 +34,8 @@ type Request struct {
 	// verifyCommands are the verification commands of the project (set by
 	// Build, VerifyRules).
 	verifyCommands []string
-	// wikiMCP: the bundle has the wiki MCP server of the project (LD-J,
-	// set by Build).
+	// wikiMCP: the bundle has the wiki MCP server of the project
+	// (set by Build).
 	wikiMCP bool
 
 	HubDir string // ~/.oh/hub (agents/, skills/, permissions/)
@@ -49,7 +49,7 @@ type Request struct {
 	EntryAgent  string
 
 	// Model resolution (cascade levels, nil = none) and hub provider name ("bedrock"…).
-	// WorkflowModels is the workflow level (O9), see WorkflowModels().
+	// WorkflowModels is the workflow level, see WorkflowModels().
 	Provider string
 	// ToolProvider is the provider id of the tool for Provider (adapter,
 	// adapters.ProviderMapper; "" = Provider).
@@ -78,16 +78,16 @@ type Request struct {
 	StrictIsolation bool
 
 	// Spec is the resolved oh/v1 workflow (required). It selects the agents
-	// and the delegation graph (P1-T06), generates the chain skills (P1-T11)
+	// and the delegation graph, generates the chain skills
 	// and fills EntryAgent, WorkflowModels, ExtraSkills, DenySkills and
-	// Plugins when they are not set; its `code_mode` sets CodeMode (P1-T15).
+	// Plugins when they are not set; its `code_mode` sets CodeMode.
 	Spec *workflow.Spec
 
-	// Method is the method of the session (R7, input `method`; "" =
+	// Method is the method of the session (input `method`; "" =
 	// standard): the bundle keeps the checkpoints of this method only.
 	Method workflow.Method
 
-	// Fanout makes the bundle the one of a fan-out session (R6): the
+	// Fanout makes the bundle the one of a fan-out session: the
 	// fan-out checkpoints kept, the checkpoints the children pass dropped.
 	Fanout bool
 }
@@ -433,7 +433,7 @@ func Build(req Request) (*Bundle, error) {
 		// Already compiled: reused only if its content still matches its
 		// hash (an agent may have written to it), rebuilt otherwise.
 		if verr := Verify(final, hash); verr == nil {
-			touchBundle(final) // oh gc keeps a recently used bundle (N16)
+			touchBundle(final) // oh gc keeps a recently used bundle
 			return &Bundle{Spec: spec, Dir: final}, req.seal(final)
 		} else if errors.Is(verr, ErrTampered) {
 			slog.Warn("bundle: modified after it was built, rebuilt", "bundle", hash)
@@ -470,7 +470,7 @@ func (req Request) seal(dir string) error {
 }
 
 // touchBundle marks a reused bundle as recently used: oh gc keeps a bundle
-// during a grace period after its last use (N16). The directory may be
+// during a grace period after its last use. The directory may be
 // read-only (sealed): only its times change.
 func touchBundle(dir string) {
 	now := time.Now()
@@ -547,11 +547,11 @@ func (req Request) agentPermissions(fm *bricks.AgentFrontmatter, instructions pr
 	}
 	// The guards follow the instruction reads: they always win.
 	verify = append(verify, instructionReadRules(fm.InstructionsLevel(), own, instructions)...)
-	// R4: the documentation paths of the workflow (writes:), before the guards.
+	// The documentation paths of the workflow (writes:), before the guards.
 	verify = append(verify, WritesRules(req.writesOf(fm.ID))...)
 	rules := append(append(append(append(append(append(append(own, verify...), InfraGuard(own)...), GitShellGuard(own)...), BeadsShellGuard()...), HookGuard()...), HookEditGuard(own)...), BeadsDirGuard()...)
 	if req.wikiMCP {
-		// wiki_apply: the documentarian only (LD-J).
+		// wiki_apply: the documentarian only.
 		rules = append(rules, WikiApplyRules(fm.ID)...)
 	}
 	// Last: the session scratch folders (globalguard.go).

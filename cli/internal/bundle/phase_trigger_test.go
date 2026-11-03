@@ -11,12 +11,12 @@ import (
 	"github.com/datichb/openhub/cli/internal/bricks"
 )
 
-// Modernisation L6: a phase skill an agent loads on demand (ID with
+// A phase skill an agent loads on demand (ID with
 // -phase-<n>) is named in its composed prompt (inviting text: body and
 // inlined core) on a line that gives the moment to load it, a phase number
 // (« | Phase 3 | … | `auditor-phase-3` | », « charge `x-phase-2-3` avant la
 // phase 2 »). Without it the agent never knows when to load the phase and
-// skips it (S6).
+// skips it.
 
 // phaseSkillRe matches the ID of a phase skill.
 var phaseSkillRe = regexp.MustCompile(`-phase-\d`)

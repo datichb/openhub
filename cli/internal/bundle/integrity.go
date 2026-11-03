@@ -13,7 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
-// Integrity of the session bundles (v5 critical N23, audit S-03, S-10). A
+// Integrity of the session bundles (audit S-03, S-10). A
 // bundle is shared by every session of the same hash: an agent that changes
 // one of its files (a skill, an agent body, bundle.json with the checkpoint
 // behaviors) would change all of them. The hash of a bundle is recomputed

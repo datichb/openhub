@@ -15,7 +15,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/bricks"
 )
 
-// Freshness of the stack skills (modernisation R13). A stack skill
+// Freshness of the stack skills. A stack skill
 // (bricks.IsStackSkill) carries two hub-only frontmatter fields, never
 // delivered to the tool:
 //

@@ -5,7 +5,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
-// WorkflowPlugins turns the `plugins:` of a workflow (O5) into bundle
+// WorkflowPlugins turns the `plugins:` of a workflow into bundle
 // plugins. The id of a reference is an npm package spec ("context-mode",
 // "@scope/pkg@1.2.0") installed by the tool; the plugin id is the package
 // name, the spec is kept as is.

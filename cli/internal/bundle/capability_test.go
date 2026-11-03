@@ -24,7 +24,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/workflow/hubcat"
 )
 
-// Capability lint (N11): the instructions shipped to an agent (its prompt,
+// Capability lint: the instructions shipped to an agent (its prompt,
 // inlined skills and the skills it may load) only ask for what its
 // permissions allow. For each shipped workflow and each agent (and for each
 // agent of the hub as the entry of a libre session, libre@<agent>):
@@ -476,7 +476,7 @@ func TestCapabilities(t *testing.T) {
 				case capEffect(locks, cmd) == sessionspec.EffectDeny:
 					report = append(report, "locked "+id)
 				}
-				// C0.5: a bd command the agent may run must also be granted
+				// A bd command the agent may run must also be granted
 				// by the workflow's Beads list (the gateway refuses it).
 				if rest, ok := strings.CutPrefix(cmd, "bd "); ok && capEffect(a.Permissions, cmd) != sessionspec.EffectDeny {
 					var allowList []string
@@ -570,7 +570,7 @@ func TestCapabilities(t *testing.T) {
 				able := false
 				for _, a := range b.Spec.Agents {
 					able = able || capEffect(a.Permissions, cmd) != sessionspec.EffectDeny
-					// R4: an agent given documentation paths commits them only.
+					// An agent given documentation paths commits them only.
 					for _, w := range r.Spec.WritesOf(a.ID) {
 						only := cmd + " -- " + strings.ReplaceAll(WritesPattern(w), "*", "x.md")
 						able = able || (op == sessionspec.UnlockCommit && capEffect(a.Permissions, only) != sessionspec.EffectDeny)
@@ -652,7 +652,7 @@ func TestCapCheckpointRefs(t *testing.T) {
 }
 
 // The former sweep prompt asked a developer (gated after cp-plan) to list
-// the files before cp-plan (N7): the lint catches it.
+// the files before cp-plan: the lint catches it.
 func TestGatedBeforeCheckpoint(t *testing.T) {
 	wf := &sessionspec.WorkflowRuntime{Checkpoints: []sessionspec.CheckpointDef{{ID: "cp-plan"}}, Gates: []sessionspec.AgentGate{{Agent: "developer", After: "cp-plan"}}}
 	bad := "Découpage : fais lister les fichiers par un `developer`, lance-le.\n- `cp-plan` : présente la liste."

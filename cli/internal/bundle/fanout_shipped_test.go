@@ -10,7 +10,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
-// R6: implement-spec launched with fanout=true is a fan-out session: the
+// implement-spec launched with fanout=true is a fan-out session: the
 // checkpoints of the children are gone, cp-merge substitutes their cp-2
 // (CP-R3, declared by the hub layer), the developer is not in the bundle.
 // Without the input, the session keeps exactly the checkpoints of before.

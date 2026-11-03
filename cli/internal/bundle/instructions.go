@@ -12,7 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
-// Project instructions by level (modernisation L7): the instruction files
+// Project instructions by level: the instruction files
 // of the project reach each agent at the level of its frontmatter
 // (project_instructions:): full, their whole text (default); index, their
 // titles and the wiki index with its god nodes; none, nothing (the
@@ -97,7 +97,7 @@ func eachLine(text string, fn func(string)) {
 }
 
 // wikiIndexOf returns the index of the wiki of a project and the god nodes
-// oh computes from its pages (WikiService, LD-J); nil without
+// oh computes from its pages (WikiService); nil without
 // docs/wiki/index.md. Same data, same render as the table of the index.
 func wikiIndexOf(projectPath string) *wikiIndex {
 	w, err := wiki.Load(projectPath)

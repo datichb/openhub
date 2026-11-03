@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// N16: a reused bundle is marked as used (oh gc keeps it for a grace period).
+// A reused bundle is marked as used (oh gc keeps it for a grace period).
 func TestBuildTouchesAReusedBundle(t *testing.T) {
 	t.Parallel()
 	out := t.TempDir()

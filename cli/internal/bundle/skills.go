@@ -37,10 +37,10 @@ import (
 //	mcp:      <server>     shipped only when the session has this MCP server
 //	when:     <condition>  kept only for the agents it holds for (when.go)
 //	statuses: [<status>, …] statuses of the return of an agent, on its
-//	                       payload skill <agent>-payload (L5, contract.go)
-//	versions: {<tech>: <version>, …} versions a stack skill covers (R13,
-//	                       freshness.go)
-//	reviewed: <YYYY-MM-DD> date of the last review of a stack skill (R13)
+//	                       payload skill <agent>-payload (contract.go)
+//	versions: {<tech>: <version>, …} versions a stack skill covers
+//	                       (freshness.go)
+//	reviewed: <YYYY-MM-DD> date of the last review of a stack skill
 //
 // The delivered SKILL.md keeps only the Agent Skills spec keys; any other key
 // is reported by CheckSkills.
@@ -57,7 +57,7 @@ const (
 	maxSkillDescriptionLen = 1024
 )
 
-// maxHubDescriptionLen is the description limit of the hub catalogue (P1.3):
+// maxHubDescriptionLen is the description limit of the hub catalogue:
 // every description is in the catalogue of the agents, at each session.
 const maxHubDescriptionLen = 200
 
@@ -75,10 +75,10 @@ type skillFront struct {
 	MCP         string   `yaml:"mcp"`
 	When        string   `yaml:"when"`
 	Statuses    []string `yaml:"statuses"`
-	// Versions and Reviewed are the freshness metadata (R13, freshness.go).
+	// Versions and Reviewed are the freshness metadata (freshness.go).
 	Versions map[string]string `yaml:"versions"`
 	Reviewed string            `yaml:"reviewed"`
-	Bucket   string            `yaml:"bucket"` // legacy (B17), reported by CheckSkills
+	Bucket   string            `yaml:"bucket"` // legacy, reported by CheckSkills
 }
 
 type skillDoc struct {
@@ -167,7 +167,7 @@ func parseSkill(ref, src string, content []byte) (*skillDoc, error) {
 }
 
 // rootFilter tells whether an optional skill (agent skills, native skills,
-// mentions, stack) applies to the session (A8): a skill of a plugin the
+// mentions, stack) applies to the session: a skill of a plugin the
 // workflow does not load, a skill of an MCP server the session does not have
 // (tracker adapters), or a frontend domain skill in a project without
 // frontend, is left out. A requirement of a kept skill is never filtered.
@@ -417,13 +417,13 @@ const (
 	SkillUnknownKey         SkillProblemKind = "unknown_key"         // error: key neither delivered nor read by oh
 	SkillNoDescription      SkillProblemKind = "no_description"      // warning
 	SkillMissingAgentSkill  SkillProblemKind = "missing_agent_skill" // warning
-	SkillLegacyBucket       SkillProblemKind = "legacy_bucket"       // warning (B17)
+	SkillLegacyBucket       SkillProblemKind = "legacy_bucket"       // warning
 	SkillMissingAnnex       SkillProblemKind = "missing_annex"       // error
 	SkillUndeclaredAnnex    SkillProblemKind = "undeclared_annex"    // warning: referenced in the text, not in annexes:
 	SkillOrphanAnnex        SkillProblemKind = "orphan_annex"        // warning: file of skills/templates/ used by no skill
 	SkillInvalidWhen        SkillProblemKind = "invalid_when"        // error: `when:` or oh:when markers (when.go)
-	SkillMissingFreshness   SkillProblemKind = "missing_freshness"   // error: stack skill without versions: or reviewed: (R13)
-	SkillInvalidFreshness   SkillProblemKind = "invalid_freshness"   // error: versions: or reviewed: malformed (R13)
+	SkillMissingFreshness   SkillProblemKind = "missing_freshness"   // error: stack skill without versions: or reviewed:
+	SkillInvalidFreshness   SkillProblemKind = "invalid_freshness"   // error: versions: or reviewed: malformed
 
 	// SkillNotTrigger is a warning: the description does not open with
 	// « Utiliser … » (when to load the skill), generated skills aside.

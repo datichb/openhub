@@ -7,7 +7,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
-// Publishing guard (R8, E9): creating a tag and opening a merge request are
+// Publishing guard: creating a tag and opening a merge request are
 // operations a checkpoint unlocks (`unlocks: [tag, mr]`, risk: publish
 // only). Until it is passed, oh refuses them to every agent of the session;
 // in a workflow that declares no checkpoint unlocking them, they are always

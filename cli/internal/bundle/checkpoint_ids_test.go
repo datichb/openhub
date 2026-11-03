@@ -72,7 +72,7 @@ func stripFrontmatter(text string) string {
 	return text[4+end+4:]
 }
 
-// P1.4 (C-16): every checkpoint id named in the content (cp-… or CP-…) is a
+// Every checkpoint id named in the content (cp-… or CP-…) is a
 // checkpoint of a shipped workflow, written as the workflow writes it. In
 // the body of a shipped agent, it is a checkpoint of one of the workflows
 // that run the agent. A line marked `<!-- capability: optional -->` may name

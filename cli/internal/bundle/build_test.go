@@ -143,7 +143,7 @@ func TestBuildResolvesModels(t *testing.T) {
 	require.NotNil(t, b.Spec.DefaultModel, "entry agent model becomes the default model")
 }
 
-// E14-M3: write/patch never widen edit (benchmarker: edit deny + write allow).
+// write/patch never widen edit (benchmarker: edit deny + write allow).
 func TestConvertPermissionsMergedKeysAreRestrictive(t *testing.T) {
 	rules := ConvertPermissions(map[string]interface{}{"edit": "deny", "write": "allow"})
 	require.Len(t, rules, 1)
@@ -182,7 +182,7 @@ func agentSpec(t *testing.T, hub, entry string) *workflow.Spec {
 }
 
 // In a free session the agents the entry reaches are launched through task:
-// they are subagents, even when their frontmatter says primary (eval S14).
+// they are subagents, even when their frontmatter says primary.
 func TestSelectedEntryReachesSubagents(t *testing.T) {
 	spec := agentSpec(t, repoHub(t), "orchestrator")
 	require.Greater(t, spec.Agents.Len(), 1)

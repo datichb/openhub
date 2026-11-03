@@ -22,7 +22,7 @@ var handoffHeading = regexp.MustCompile("(?:^\\s*|`)#+ *(?:Retour (?:intermédia
 // purpose or until the lightening phase reworks their handoffs.
 var handoffAllow = map[string]string{}
 
-// C4: a handoff heading names its recipient by its agent id (or the
+// A handoff heading names its recipient by its agent id (or the
 // placeholder `<appelant>`): the coordinator looks for that exact heading.
 func TestHandoffHeadingsNameAgents(t *testing.T) {
 	t.Parallel()

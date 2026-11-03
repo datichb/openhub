@@ -9,8 +9,8 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
-// Simulator of the shell permission matching of the tool (lot 0 of the v5
-// critical fixes, probes U1–U5, TestE2EShellMatcherSemantics). It mirrors
+// Simulator of the shell permission matching of the tool
+// (probes of TestE2EShellMatcherSemantics). It mirrors
 // what opencode 2.0.20 does, read from its source (core/src/shell/parse.ts,
 // core/src/permission.ts, core/src/util/wildcard.ts) and verified by the e2e
 // probe:
@@ -20,8 +20,8 @@ import (
 //     (`&&`, `||`, `;`, `&`), subshells and command substitutions (`$(…)`,
 //     backquotes, also inside double quotes);
 //   - the text checked is the raw source text of the command: environment
-//     prefixes (`X=y git diff`) are part of it (U1), quotes and spaces are
-//     not normalized (`git pu''sh`, `git  push`, U2), a redirection is part of
+//     prefixes (`X=y git diff`) are part of it, quotes and spaces are
+//     not normalized (`git pu''sh`, `git  push`), a redirection is part of
 //     it (`echo x > f`);
 //   - `cd` (and pushd…) and declarations (`export X=…`, `declare`, `local`,
 //     `readonly`, `typeset`, `unset`) are not checked as commands: `cd`
@@ -29,13 +29,13 @@ import (
 //     substitutions inside declarations are checked;
 //   - the strings given to an interpreter (`sh -c '…'`) are not parsed;
 //   - a line is refused when one of its commands is refused, asks when one
-//     asks, runs otherwise (U5); the rules are the agent rules then the
+//     asks, runs otherwise; the rules are the agent rules then the
 //     session rules, the last matching rule wins, nothing matching = ask;
 //   - `*` matches any run (newlines included), `?` one character, matching
 //     is case sensitive (except on Windows) and a pattern ending in " *" also
 //     matches the bare command (`git status *` matches `git status`).
 //
-// Redirections are not checked against the external directory rules (U4):
+// Redirections are not checked against the external directory rules:
 // `echo x > ~/f` writes outside the project when `echo *` is allowed.
 
 // ShellEffect returns the effect the tool gives to a shell line under rules

@@ -21,7 +21,7 @@ var v1ToNeutral = map[string]string{
 // BeadsShellGuard returns the shell rules, last of every agent, that refuse
 // to run a bd named by a path ("/opt/homebrew/bin/bd close …"): sessions
 // call `bd`, found first on their PATH as the fake bd that goes through the
-// Beads gateway and the workflow beads.allow (QB1). In a container, the
+// Beads gateway and the workflow beads.allow. In a container, the
 // only bd is the fake one anyway.
 func BeadsShellGuard() []sessionspec.PermissionRule {
 	return []sessionspec.PermissionRule{
@@ -73,8 +73,8 @@ func ConvertPermissions(perms map[string]interface{}) []sessionspec.PermissionRu
 }
 
 // shellExecTools are plugin tools that run code like the shell does
-// (context-mode): they never get more than the shell of the agent (v5
-// critical N3, audit S-19), so an agent refused the shell is refused them.
+// (context-mode): they never get more than the shell of the agent (audit
+// S-19), so an agent refused the shell is refused them.
 var shellExecTools = []string{"ctx_execute", "ctx_execute_file", "ctx_batch_execute"}
 
 // execToolsFollowShell caps the effect of the shell execution tools with the

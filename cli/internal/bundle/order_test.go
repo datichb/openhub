@@ -12,7 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
-// r5-fixes: in spec, the planner writes its spec only once cp-understanding
+// In spec, the planner writes its spec only once cp-understanding
 // is passed, and oh refuses cp-converge, cp-spec and cp-tickets before the
 // checkpoint each one waits for.
 func TestShippedSpecOrder(t *testing.T) {
@@ -37,7 +37,7 @@ func TestShippedSpecOrder(t *testing.T) {
 	assert.Equal(t, "cp-understanding", CheckpointWaitsFor(wf, "auto", nil, cp), "auto: cp-understanding is still called")
 }
 
-// r5-fixes (S37): orchestrator-dev reads its tickets with `bd show`, even
+// The orchestrator-dev reads its tickets with `bd show`, even
 // after `cd <project> &&` (cd is not checked as a command); a line that
 // chains a command it may not run (echo, which, a pipe to head) is refused
 // as a whole, which its protocol says.

@@ -7,7 +7,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
-// Documentation written by a planning agent (R4, E8: `agents.<id>.writes`).
+// Documentation written by a planning agent (`agents.<id>.writes`).
 // The agent keeps its own rules (edit refused, shell restricted) and gets,
 // after them and before the guards, the edit of the declared paths and
 // their commit, nothing else:
@@ -19,11 +19,11 @@ import (
 //	shell      amend, -a/--all, --include, add -A/./-u      deny
 //	shell      a way out of a declared folder               deny
 //
-// Only declared paths are committed (p4-fixes): the message is quoted and
+// Only declared paths are committed: the message is quoted and
 // alone before `--` (a third quote of its kind asks), and after `--` comes
 // a path under the declared one: no `..`, `/.`, quote, `$`, backquote or
 // redirection after its folder. A line the rules cannot read (several
-// paths, several -m: p6-debts) asks: the oh plugin relays it and oh reads
+// paths, several -m) asks: the oh plugin relays it and oh reads
 // it word by word (WritesLineProblem): every path declared, nothing but -m
 // messages before `--`, otherwise refused. Without oh's answer it asks the
 // user (the commit stays held, pending.go).

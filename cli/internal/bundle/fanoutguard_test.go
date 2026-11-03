@@ -8,7 +8,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
-// R6, CP-R3: no session of a fan-out pushes, merges, closes a ticket or
+// CP-R3: no session of a fan-out pushes, merges, closes a ticket or
 // moves the branches of the fan-out (tests of getting around the guard).
 
 var (

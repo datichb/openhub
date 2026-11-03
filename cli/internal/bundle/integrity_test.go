@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// N23 (v5 critical, audit S-03, S-10): a bundle changed after it was built
+// Audit S-03, S-10: a bundle changed after it was built
 // is never used: Load refuses it, Build rebuilds it; its files are
 // read-only.
 func TestBundleIntegrity(t *testing.T) {

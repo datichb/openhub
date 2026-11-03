@@ -12,7 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
-// R8: the release-manager of the shipped `release` workflow reads the tags
+// The release-manager of the shipped `release` workflow reads the tags
 // freely; oh refuses it the commit, the tag and the merge request until
 // cp-release, the tag until the release is committed, and the push always.
 func TestShippedReleaseLocks(t *testing.T) {

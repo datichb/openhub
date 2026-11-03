@@ -11,10 +11,10 @@ import (
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
-// Session contract (modernisation L3): what the workflow gives each agent,
+// Session contract: what the workflow gives each agent,
 // generated from the workflow and its delegation graph, appended to the
 // prompt of the agent (templates/session-contract.md.tmpl). It replaces
-// the role note of C0.1: role, callers and return heading, agents it may
+// the role note: role, callers and return heading, agents it may
 // launch, its own checkpoints only (CP-R11), fix rounds, whether it may ask
 // the user, reports, headless session.
 
@@ -32,21 +32,21 @@ type contractData struct {
 	MaxFixRounds     int
 	Headless         bool
 	Report           bool
-	// WikiMCP: the wiki MCP server of the project (LD-J); WikiApply: the
+	// WikiMCP: the wiki MCP server of the project; WikiApply: the
 	// agent may apply proposals (wiki_apply).
 	WikiMCP, WikiApply bool
-	// Statuses: the return statuses of the agents it may launch (L5).
+	// Statuses: the return statuses of the agents it may launch.
 	Statuses []contractStatuses
-	// Method: the method of the session (R7) and its steps, in order.
+	// Method: the method of the session and its steps, in order.
 	Method contractMethod
-	// Writes: the documentation paths the workflow opens to the agent (R4);
+	// Writes: the documentation paths the workflow opens to the agent;
 	// WritesOnly: they are the only files it may edit (its own rules edit
 	// none).
 	Writes     []string
 	WritesOnly bool
-	// WritesAfter: the checkpoint that opens them (r5-fixes).
+	// WritesAfter: the checkpoint that opens them.
 	WritesAfter string
-	// RefusedShell: the helpers its shell refuses (p5-fixes).
+	// RefusedShell: the helpers its shell refuses.
 	RefusedShell []string
 }
 
@@ -138,7 +138,7 @@ func fillCheckpointBy(wf *sessionspec.WorkflowRuntime, spec *workflow.Spec, grap
 	}
 }
 
-// Return statuses of the callees (modernisation L5). Each agent that returns
+// Return statuses of the callees. Each agent that returns
 // to a caller has a payload skill <agent>-payload whose frontmatter lists
 // the statuses of its envelope (`statuses:`); the contract of a caller gives
 // them for the agents it may launch, so that the caller reads a status
@@ -191,7 +191,7 @@ func hubPayloadStatuses(loader *skillLoader, index map[string]string) payloadSta
 	}
 }
 
-// Restricted shell (p5-fixes): the tool checks every command of a line on
+// Restricted shell: the tool checks every command of a line on
 // its own (pipes, lists, substitutions) and refuses the whole line when
 // one is refused (shellsim.go). Agents allowed only a list of commands
 // chained a refused helper (`| head`, `echo`, `| jq`, `which`) and took

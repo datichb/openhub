@@ -46,7 +46,7 @@ func writeInstructionsFixture(dir string, wiki bool) error {
 		files["docs/wiki/index.md"] = "---\nupdated: 2026-10-01\n---\n\n# Atlas — Index Wiki\n\n## Stack critique\nGo.\n\n" +
 			"## God nodes — concepts les plus connectés\n\n| Concept | Pages liées | Criticité |\n|---|---|---|\n" +
 			"| Commande | [business/orders.md](business/orders.md), [business/billing.md](business/billing.md) | Critique |\n\n*(Vide si aucun concept)*\n\n## Zones d'ombre\n\n- Rétention.\n"
-		// The pages oh computes the god nodes from (LD-J).
+		// The pages oh computes the god nodes from.
 		files["docs/wiki/business/orders.md"] = "---\nupdated: 2026-10-01\n---\n\n# Commandes\n\n- Une commande.\n"
 		files["docs/wiki/business/billing.md"] = "---\nupdated: 2026-10-01\n---\n\n# Facturation\n\n- Facture par commande.\n"
 	}
@@ -77,7 +77,7 @@ func instructionsOf(body string) string {
 	return out
 }
 
-// L7: the project instructions of every agent of the libre workflow, at
+// The project instructions of every agent of the libre workflow, at
 // its level, are pinned in testdata/golden/instructions/libre/<agent>.md.golden
 // (go test ./internal/bundle -run ProjectInstructions -update).
 func TestProjectInstructionsGolden(t *testing.T) {
@@ -108,7 +108,7 @@ func TestProjectInstructionsGolden(t *testing.T) {
 	assert.Len(t, levels, 3, "libre covers the three levels")
 }
 
-// The levels of the shipped agents (modernisation plan, L7).
+// The levels of the shipped agents.
 func TestShippedInstructionLevels(t *testing.T) {
 	files, err := bricks.FindAgentFiles(repoHub(t))
 	require.NoError(t, err)
@@ -163,7 +163,7 @@ func TestInstructionsRender(t *testing.T) {
 	assert.NotEmpty(t, instructionsContract(bricks.InstructionsNone, p))
 }
 
-// LD-J: the wiki index of the prompts comes from the WikiService, god nodes
+// The wiki index of the prompts comes from the WikiService, god nodes
 // computed by oh from the pages; the same data renders as the table of the
 // index.
 func TestWikiIndexOf(t *testing.T) {
@@ -225,7 +225,7 @@ func TestFrontmatterProjectInstructions(t *testing.T) {
 	assert.ErrorContains(t, err, "project_instructions")
 }
 
-// L7: an agent at the level index may read each file of its index, on its
+// An agent at the level index may read each file of its index, on its
 // exact path only; an explicit refusal of the agent and the guards win.
 func TestIndexReadRules(t *testing.T) {
 	t.Parallel()

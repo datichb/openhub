@@ -68,10 +68,10 @@ func TestShellEffectLineRefusedWhenOneCommandIs(t *testing.T) {
 	assert.Equal(t, sessionspec.EffectDeny, ShellEffect(rules, "git status && git push"))
 	assert.Equal(t, sessionspec.EffectAsk, ShellEffect(rules, "ls && go test ./..."))
 	assert.Equal(t, sessionspec.EffectDeny, ShellEffect(rules, "go test ./... && git push"), "deny wins over ask")
-	assert.Equal(t, sessionspec.EffectDeny, ShellEffect(rules, "X=1 git status"), "the environment prefix is part of the text (U1)")
-	assert.Equal(t, sessionspec.EffectAllow, ShellEffect(rules, "git pu''sh"), "quotes are not normalized (U2): a pattern is not a barrier")
+	assert.Equal(t, sessionspec.EffectDeny, ShellEffect(rules, "X=1 git status"), "the environment prefix is part of the text")
+	assert.Equal(t, sessionspec.EffectAllow, ShellEffect(rules, "git pu''sh"), "quotes are not normalized: a pattern is not a barrier")
 	assert.Equal(t, sessionspec.EffectAsk, ShellEffect(nil, "whoami"), "nothing matching asks")
-	// Session rules come after the agent rules: the last one wins (U5).
+	// Session rules come after the agent rules: the last one wins.
 	session := append(append([]sessionspec.PermissionRule(nil), rules...), allow("git push*"))
 	assert.Equal(t, sessionspec.EffectAllow, ShellEffect(session, "git push"))
 }

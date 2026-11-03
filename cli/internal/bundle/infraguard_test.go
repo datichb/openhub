@@ -9,7 +9,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
-// N4 (v5 critical, DC4): the operator reads freely, asks for secrets,
+// The operator reads freely, asks for secrets,
 // never changes anything while `apply` is locked, and never prints
 // credentials; global options before the sub-command do not help.
 func TestInfraReadOnly(t *testing.T) {
@@ -86,7 +86,7 @@ func TestInfraReadOnly(t *testing.T) {
 	assert.Empty(t, InfraGuard(ConvertPermissions(map[string]interface{}{"bash": map[string]interface{}{"*": "deny", "git *": "allow"}})))
 }
 
-// C1: the auditor-subagent names a few analysis sub-commands (infra audit
+// The auditor-subagent names a few analysis sub-commands (infra audit
 // domain): they stay asked (the guard, for agents that run a tool as a
 // whole, does not apply), everything else is refused, changes included.
 func TestAuditorSubagentInfraTools(t *testing.T) {
@@ -110,7 +110,7 @@ func TestAuditorSubagentInfraTools(t *testing.T) {
 	assert.Equal(t, sessionspec.EffectDeny, ToolEffect(rules, sessionspec.ActionEdit, "infra/main.tf"))
 }
 
-// N4 (DC3): the debugger reads and diagnoses; it asks before running the
+// The debugger reads and diagnoses; it asks before running the
 // project's tests and cannot change files or run anything else.
 func TestDebuggerShell(t *testing.T) {
 	rules := effectiveRules(t, "debugger", "debugger")
@@ -126,7 +126,7 @@ func TestDebuggerShell(t *testing.T) {
 	assert.Equal(t, sessionspec.EffectDeny, ToolEffect(rules, sessionspec.ActionEdit, "src/a.go"))
 }
 
-// N4: the benchmarker no longer reads the environment and asks before the
+// The benchmarker no longer reads the environment and asks before the
 // tools that run an arbitrary command.
 func TestBenchmarkerShell(t *testing.T) {
 	rules := effectiveRules(t, "benchmarker", "benchmarker")
@@ -137,7 +137,7 @@ func TestBenchmarkerShell(t *testing.T) {
 		assert.Equal(t, sessionspec.EffectAsk, ShellEffect(rules, cmd), cmd)
 	}
 	assert.Equal(t, sessionspec.EffectAllow, ShellEffect(rules, "go test -bench=. ./..."))
-	// C0.9: load tools and curl hit a target to confirm; results only go to
+	// Load tools and curl hit a target to confirm; results only go to
 	// reports/benchmarks/ (the benchmarker never modifies the source).
 	for _, cmd := range []string{"k6 run load.js", "ab -n 1000 http://localhost/", "hey -z 10s http://x", "curl -s https://api.example.com"} {
 		assert.Equal(t, sessionspec.EffectAsk, ShellEffect(rules, cmd), cmd)

@@ -22,7 +22,7 @@ func WorkflowModels(m *workflow.Models) *bricks.ModelOverrides {
 	return out
 }
 
-// ResolveModel resolves the model of an agent with the full cascade (O9):
+// ResolveModel resolves the model of an agent with the full cascade:
 //
 //	workflow·agent > workflow > project·agent > project·family > project >
 //	hub·agent > hub·family > hub > team·agent > team·family > team > frontmatter

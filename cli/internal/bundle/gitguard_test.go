@@ -8,7 +8,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
-// A18: whatever the permission base allows, an agent cannot throw away
+// Whatever the permission base allows, an agent cannot throw away
 // changes it did not make; the harmless forms stay as allowed as before.
 func TestGitShellGuard(t *testing.T) {
 	own := ConvertPermissions(map[string]interface{}{"bash": map[string]interface{}{
@@ -45,7 +45,7 @@ func TestGitShellGuard(t *testing.T) {
 	assert.Equal(t, sessionspec.EffectAllow, eff)
 }
 
-// p4-fixes: the guard aims at the subcommand of git, not at any word of the
+// The guard aims at the subcommand of git, not at any word of the
 // command: a message that holds "git" then "clean" (a release tag, a commit)
 // runs, every form of a real `git clean` is still refused.
 func TestGitShellGuardSubcommandOnly(t *testing.T) {

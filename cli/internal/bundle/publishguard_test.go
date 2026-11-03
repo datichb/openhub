@@ -63,7 +63,7 @@ var (
 	}
 )
 
-// E9: tag and mr are refused in a workflow that declares no checkpoint
+// tag and mr are refused in a workflow that declares no checkpoint
 // unlocking them, whatever the agent's rules (like apply).
 func TestPublishLockedByDefault(t *testing.T) {
 	rules := shellRules(SessionRules(testRuntime(), "manuel", nil))
@@ -77,7 +77,7 @@ func TestPublishLockedByDefault(t *testing.T) {
 	assert.Empty(t, PublishLockedByDefault(releaseRuntime()), "declared: the checkpoint locks them")
 }
 
-// E9: before cp-release, tag and mr are refused; after it, the tag waits for
+// Before cp-release, tag and mr are refused; after it, the tag waits for
 // the release commit (same checkpoint), the merge request is open at once.
 func TestPublishLocks(t *testing.T) {
 	wf := releaseRuntime()

@@ -55,7 +55,7 @@ checkpoints:
     mode: { manuel: pause, semi-auto: auto, auto: auto }
 `
 
-// R7: the bundle of a TDD session holds cp-seams and cp-red, passed by the
+// The bundle of a TDD session holds cp-seams and cp-red, passed by the
 // developer, with what oh checks; the bundle of another session is the one
 // of a workflow without them.
 func TestMethodBundle(t *testing.T) {
@@ -118,7 +118,7 @@ func TestMethodBundle(t *testing.T) {
 	assert.Equal(t, a.Spec.Hash, b.Spec.Hash)
 }
 
-// R7: the text of the workflow map on a checkpoint verified for a test
+// The text of the workflow map on a checkpoint verified for a test
 // written first; nothing for the other verifications.
 func TestTestCheckText(t *testing.T) {
 	assert.Empty(t, testCheckText(nil))

@@ -15,7 +15,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/bricks"
 )
 
-// Modernisation L5: a subagent returns a short envelope (shared/handoff-envelope)
+// A subagent returns a short envelope (shared/handoff-envelope)
 // and files its whole report with workflow_report; the statuses and the report
 // sections of each agent are in its payload skill <agent>-payload; the title
 // of the return comes from the session contract (the real caller), never from
@@ -166,6 +166,6 @@ func TestSkillsNameNoReturnRecipient(t *testing.T) {
 	index := hubSkillIndex(hub, nil)
 	for id := range index {
 		assert.False(t, strings.HasSuffix(id, "-handoff-format") || strings.HasSuffix(id, "-execution-modes") || slices.Contains(removed, id),
-			"%s: replaced by the envelope, the payloads and execution-protocol (L5)", id)
+			"%s: replaced by the envelope, the payloads and execution-protocol", id)
 	}
 }

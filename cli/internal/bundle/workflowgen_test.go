@@ -127,7 +127,7 @@ checkpoints:
 	assert.NotContains(t, c.Body, "Aucune carte de workflow n'a été générée", "not the static fallback")
 }
 
-// N10: the generated rule of a checkpoint names only the operations it
+// The generated rule of a checkpoint names only the operations it
 // unlocks, and leaves the push to the user unless push is declared.
 func TestUnlockTextNamesDeclaredOperations(t *testing.T) {
 	commit := unlockText("cp-commit", []string{"commit"})
@@ -149,7 +149,7 @@ func TestUnlockTextNamesDeclaredOperations(t *testing.T) {
 	merge := unlockText("cp-merge", []string{"merge"})
 	assert.Contains(t, merge, "oh merge lui-même")
 	assert.NotContains(t, merge, "Le push revient")
-	// p5-fixes: an earlier commit checkpoint unlocked again (unlock_again).
+	// An earlier commit checkpoint unlocked again (unlock_again).
 	once := unlockText("cp-a", []string{"commit"}, "cp-b")
 	assert.Contains(t, once, "en un seul commit")
 	assert.Contains(t, once, "le commit suivant attend **cp-b**")

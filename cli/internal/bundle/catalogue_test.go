@@ -52,7 +52,7 @@ func delegatingAgentMD(id, mode, extra, native, callee, body string) string {
 		"skills: []\nnative_skills: [" + native + "]\n---\n\n# " + id + "\n\n" + body + "\n"
 }
 
-// L2: each agent of a bundle sees only its own skills; the bundle ships
+// Each agent of a bundle sees only its own skills; the bundle ships
 // their union.
 func TestBuildAgentCatalogues(t *testing.T) {
 	hub := fakeHub(t, map[string]string{
@@ -124,7 +124,7 @@ func idsOf(skills []sessionspec.SkillDef) []string {
 	return out
 }
 
-// Compatibility: an agent without catalogue (bundle built before L2) sees
+// Compatibility: an agent without catalogue (bundle built before per-agent catalogues) sees
 // every bundle skill.
 func TestVisibleSkillsWithoutCatalogue(t *testing.T) {
 	skills := []sessionspec.SkillDef{{ID: "a"}, {ID: "b"}}
@@ -159,7 +159,7 @@ func shippedCatalogues(t *testing.T) (string, []catalogueCase) {
 // skillTagLineRe finds the agent a line delegates to (task(subagent_type: "x" …).
 var skillTagLineRe = regexp.MustCompile(`subagent_type:\s*"([a-z0-9-]+)"`)
 
-// L2: every skill an agent is invited to load is in its catalogue (or
+// Every skill an agent is invited to load is in its catalogue (or
 // inlined in its prompt): its native skills, the skills named in its
 // prompt, the stack skills for the agents with stack_skills, the workflow
 // extra and prompt skills for the entry agent, the [SKILL:…] tags its
@@ -246,7 +246,7 @@ func TestAgentSkillReachability(t *testing.T) {
 					}
 				}
 			}
-			// The skills named by an on-demand skill of its catalogue (L2,
+			// The skills named by an on-demand skill of its catalogue (for example
 			// reviewer → dev-standards-backend → dev-standards-migration).
 			for _, id := range a.Skills {
 				d, err := loader.load(index[id])
@@ -268,7 +268,7 @@ func TestAgentSkillReachability(t *testing.T) {
 					continue // inlined, or left out of the session (plugin, MCP, frontend, denied)
 				}
 				if d, err := loader.load(ref); err == nil && !skillWhen(d, env) {
-					continue // its when: fails for this agent (L3)
+					continue // its when: fails for this agent
 				}
 				assert.Contains(t, a.Skills, id, "%s: %s (%s) is not in its catalogue", where, id, why)
 			}
@@ -276,7 +276,7 @@ func TestAgentSkillReachability(t *testing.T) {
 	}
 }
 
-// L2: no agent sees a skill it cannot reach (catalogue = reachableSkills,
+// No agent sees a skill it cannot reach (catalogue = reachableSkills,
 // computed apart from the build), nor a skill inlined in its prompt, nor a
 // stack skill without stack_skills; every shipped skill is in a catalogue.
 func TestNoSpuriousCatalogue(t *testing.T) {

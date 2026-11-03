@@ -21,7 +21,7 @@ func agentBody(t *testing.T, b *Bundle, id string) string {
 	return ""
 }
 
-// C0.1, L3: an agent learns its role from the workflow graph, not from a tag
+// An agent learns its role from the workflow graph, not from a tag
 // its caller would have to inject (session contract). A subagent never takes
 // the standalone path, where its `question` calls would stay invisible to
 // the user.
@@ -41,7 +41,7 @@ func TestSessionRoleFromGraph(t *testing.T) {
 	assert.Contains(t, agentBody(t, quick, "developer"), "- **Rôle** : agent d'entrée : tu échanges directement")
 }
 
-// C0.1: no shipped text decides the mode from a `[SKILL:…]` tag any more.
+// No shipped text decides the mode from a `[SKILL:…]` tag any more.
 func TestNoModeDetectionFromSkillTag(t *testing.T) {
 	t.Parallel()
 	hub := repoHub(t)
