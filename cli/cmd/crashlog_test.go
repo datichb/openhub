@@ -32,8 +32,7 @@ func (w *crashingWidget) MouseHandler() func(tview.MouseAction, *tcell.EventMous
 
 //go:noinline
 func explodeInTheHandler() {
-	var m map[string]int
-	m["x"] = 1 // assignment to entry in nil map
+	panic("boom in the handler")
 }
 
 func setTestLocale(t *testing.T, lang string) {
@@ -76,7 +75,7 @@ func TestReportPanicKeepsTheStackOfTheEventLoop(t *testing.T) {
 	}()
 
 	msg := out.String()
-	assert.Contains(t, msg, "internal error (panic): assignment to entry in nil map")
+	assert.Contains(t, msg, "internal error (panic): boom in the handler")
 	assert.Contains(t, msg, "Please report this bug")
 
 	files, err := filepath.Glob(filepath.Join(ohRunDir(), "crash-*.log"))
@@ -88,7 +87,7 @@ func TestReportPanicKeepsTheStackOfTheEventLoop(t *testing.T) {
 	data, err := os.ReadFile(files[0])
 	require.NoError(t, err)
 	body := string(data)
-	assert.Contains(t, body, "panic: assignment to entry in nil map")
+	assert.Contains(t, body, "panic: boom in the handler")
 	assert.Contains(t, body, "explodeInTheHandler", "the function that panicked")
 	assert.Contains(t, body, "crashingWidget", "the widget that was clicked")
 	assert.Contains(t, body, "tview.(*Application).fireMouseActions", "the way down from the event loop")
