@@ -60,6 +60,26 @@ func teamName(cfg *config.Config, id string) string {
 	return id
 }
 
+// teamMemberNames is the display name of the member of each team (team ID →
+// name), from the team-states that are cloned here. A team whose state is not
+// there, or does not list the member, is missing: its member ID shows.
+func teamMemberNames(ctx context.Context, teams []config.TeamConfig) map[string]string {
+	out := make(map[string]string, len(teams))
+	for _, t := range teams {
+		if t.MemberID == "" || t.StateRepo == "" && t.StatePath == "" {
+			continue
+		}
+		repo := teamstate.NewRepo(t.StateRepo, t.StatePath)
+		if !repo.IsCloned() {
+			continue
+		}
+		if name := readNames(ctx, nil, repo).Member(t.MemberID); name != t.MemberID {
+			out[t.ID] = name
+		}
+	}
+	return out
+}
+
 // hubNames is the NamesFunc of the views: the registry, and the members of the
 // team-state the view reads.
 func hubNames(a *app.App) views.NamesFunc {

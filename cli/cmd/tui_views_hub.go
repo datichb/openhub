@@ -117,7 +117,8 @@ func buildBoardView(a *app.App) views.View {
 // buildTeamsView lists the teams of the hub and syncs one of them.
 func buildTeamsView(a *app.App) views.View {
 	return views.NewTeamsView(views.TeamsViewDeps{
-		Config: a.Config,
+		Config:      a.Config,
+		MemberNames: teamMemberNames,
 		OnSync: func(teamID string) {
 			tc := a.Config.FindTeam(teamID)
 			if tc == nil || !tc.Enabled {

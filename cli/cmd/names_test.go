@@ -70,3 +70,14 @@ func TestProjectItemNamesItsTeam(t *testing.T) {
 	assert.Empty(t, domainProjectToViewItem(domain.Project{ID: "solo"}, cfg).TeamName)
 	assert.Equal(t, "x", domainProjectToViewItem(team("x"), nil).TeamName)
 }
+
+// The list of the teams names the member of each team from its team-state; a team
+// that is not cloned here is missing, and so is a member the team does not list.
+func TestTeamMemberNamesReadTheTeamStates(t *testing.T) {
+	a, _, _ := setupClaimTestApp(t)
+	teams := append([]config.TeamConfig(nil), a.Config.Teams...)
+	teams = append(teams,
+		config.TeamConfig{ID: "far", Enabled: true, StateRepo: "git@example.com:far/state.git", StatePath: t.TempDir() + "/absent", MemberID: "alice"},
+		config.TeamConfig{ID: "stranger", Enabled: true, StateRepo: teams[0].StateRepo, StatePath: teams[0].StatePath, MemberID: "nobody"})
+	assert.Equal(t, map[string]string{"test-team": "Test User"}, teamMemberNames(t.Context(), teams))
+}
