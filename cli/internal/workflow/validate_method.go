@@ -5,8 +5,8 @@ import (
 	"strings"
 )
 
-// Validation of the method of a session (R7): the `method` input and the
-// checkpoints declared for a method, and the R7 fields of `verify:`.
+// Validation of the method of a session: the `method` input and the
+// checkpoints declared for a method, and the TDD fields of `verify:`.
 
 // methodValues are the values the `method` input may offer.
 func methodValues() []string {
@@ -60,7 +60,7 @@ func (v *validator) methods() {
 	}
 }
 
-// verifyTests checks the R7 fields of the verification of checkpoint id.
+// verifyTests checks the TDD fields of the verification of checkpoint id.
 func (v *validator) verifyTests(base, id string, cp CheckpointSpec) {
 	vs := cp.Verify
 	if vs.OutsideTests != "" {

@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-// Migration of the legacy overrides (P2-T11, v38): a WorkflowOverride of
+// Migration of the legacy overrides (v38): a WorkflowOverride of
 // the former hard-coded workflow becomes an oh/v1 patch of the shipped
 // `implement-spec` workflow, which kept its implementation checkpoints and
 // agents (cp-1, cp-2, cp-3; orchestrator-dev, developer, reviewer). Until

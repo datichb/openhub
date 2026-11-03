@@ -9,7 +9,7 @@ import (
 )
 
 // WikiProposal is a proposal for the wiki of a project (docs/wiki/),
-// filed by an agent with wiki_propose (modernisation LD-J), kept in
+// filed by an agent with wiki_propose, kept in
 // wiki_proposals (v45) until the user validates it on the card of the
 // commit checkpoint (oh then applies it) or the documentarian applies it
 // (wiki_apply). The author is the agent oh saw calling the tool, never a
@@ -28,7 +28,7 @@ type WikiProposal struct {
 	Content string `json:"content"`
 	Tag     string `json:"tag"` // CONFIRMÉ | DÉDUIT | INCERTAIN
 	Source  string `json:"source,omitempty"`
-	// Replaces is the line of the page the proposal replaces (p5-fixes):
+	// Replaces is the line of the page the proposal replaces:
 	// "" adds the content to its section.
 	Replaces string `json:"replaces,omitempty"`
 	Status   string `json:"status"`
@@ -43,7 +43,7 @@ type WikiProposal struct {
 	AppliedAt *time.Time `json:"applied_at,omitempty"`
 	// Error is the last failure to apply it.
 	Error string `json:"error,omitempty"`
-	// Reason is why the user refused it (p9-wiki-refusal): optional, "" for
+	// Reason is why the user refused it: optional, "" for
 	// a proposal not refused or refused without a word.
 	Reason    string    `json:"reason,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
@@ -55,8 +55,8 @@ const (
 	WikiAccepted = "accepted"
 	WikiRefused  = "refused"
 	WikiApplied  = "applied"
-	// WikiStale: the line a replacement replaces is no longer in the page
-	// (p5-fixes): not applied.
+	// WikiStale: the line a replacement replaces is no longer in the page:
+	// not applied.
 	WikiStale = "stale"
 )
 

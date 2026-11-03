@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// Validation and patch of `writes:` and `verify.spec` (R4, schema_writes.go).
+// Validation and patch of `writes:` and `verify.spec` (schema_writes.go).
 
 // writes checks the `writes:` paths of an agent.
 func (v *validator) writes(base string, a AgentRef) {
@@ -31,7 +31,7 @@ func (v *validator) writes(base string, a AgentRef) {
 }
 
 // scopeInput checks an input that is the file scope of the session
-// (p6-debts): text, the only one, recorded at launch.
+// : text, the only one, recorded at launch.
 func (v *validator) scopeInput(at, id string, in Input) {
 	if in.Type != InputText && in.Type != InputString {
 		v.err("input_scope_type", at, id, string(in.Type))

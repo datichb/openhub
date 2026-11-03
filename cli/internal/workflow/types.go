@@ -3,7 +3,7 @@
 // rendering. The types below are shared by the schema (behaviors, roles,
 // modes) and by the former overrides read once by the v38 migration
 // (override.go, legacy.go); the former hard-coded workflow model was removed
-// in v5 (P2-T18).
+// in v5.
 package workflow
 
 // ---------------------------------------------------------------------------

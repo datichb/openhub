@@ -9,7 +9,7 @@ import (
 
 const releaseModes = "mode: { manuel: pause, semi-auto: pause, auto: pause }"
 
-// E7: git_clean, branch and tools are tests of their own, checked by the
+// git_clean, branch and tools are tests of their own, checked by the
 // schema.
 func TestValidate_PreconditionsRepo(t *testing.T) {
 	t.Parallel()
@@ -115,7 +115,7 @@ func TestBranchMatches(t *testing.T) {
 	}
 }
 
-// E9 and risk: publish: tag and mr are unlocked by a publishing workflow
+// With risk: publish, tag and mr are unlocked by a publishing workflow
 // only, at a checkpoint that pauses in every mode and never runs remotely.
 func TestValidate_Publish(t *testing.T) {
 	t.Parallel()
@@ -168,7 +168,7 @@ func TestPublishPatchHardened(t *testing.T) {
 	}
 }
 
-// p4-debts: in a `risk: publish` workflow, the inherited preconditions are
+// In a `risk: publish` workflow, the inherited preconditions are
 // security fields: a layer adds or hardens them, never removes nor loosens
 // them (the parent's value is kept); elsewhere a layer may still do so.
 func TestPublishPreconditionsHardened(t *testing.T) {

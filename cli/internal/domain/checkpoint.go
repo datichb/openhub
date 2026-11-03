@@ -18,7 +18,7 @@ const (
 	CheckpointBreaker  = "breaker"  // circuit breaker tripped
 	CheckpointImitated = "imitated" // a question imitated a checkpoint (closed by oh)
 	CheckpointReport   = "report"   // a report was stored (workflow_report)
-	CheckpointWiki     = "wiki"     // oh applied the wiki proposals accepted on the card (LD-J)
+	CheckpointWiki     = "wiki"     // oh applied the wiki proposals accepted on the card
 	CheckpointTasks    = "tasks"    // oh recorded the breakdown checked at the checkpoint (sweep-fanout)
 )
 
@@ -51,7 +51,7 @@ type CheckpointState struct {
 	// Timeline is the history shown in the session detail (oldest first, capped).
 	Timeline []CheckpointEvent `json:"timeline,omitempty"`
 
-	// R3 (checkpoint_verify.go): verification run by oh, evidence, shell
+	// Verification run by oh (checkpoint_verify.go), evidence, shell
 	// calls observed and developer → reviewer rounds.
 	Verify   map[string]CheckpointVerify     `json:"verify,omitempty"`
 	Evidence map[string][]CheckpointEvidence `json:"evidence,omitempty"`
@@ -63,16 +63,16 @@ type CheckpointState struct {
 	// the developer is locked and the commit checkpoint shows it.
 	Unresolved string `json:"unresolved,omitempty"`
 	// RemoteVerify are the verifications run by oh in the remote job of
-	// the session (R3-remote, imported at fetch): shown on the card, never
+	// the session (imported at fetch): shown on the card, never
 	// taken for a verification of the work on this machine.
 	RemoteVerify map[string]CheckpointVerify `json:"remote_verify,omitempty"`
 
-	// R7: Bases are the commits of the location when a checkpoint that
+	// Bases are the commits of the location when a checkpoint that
 	// starts a count of the changes (CheckpointDef.Base: cp-seams) was last
 	// passed, by checkpoint.
 	Bases map[string]string `json:"bases,omitempty"`
 
-	// R8: Committed are the commits that closed the commit window of a
+	// Committed are the commits that closed the commit window of a
 	// checkpoint, by checkpoint: a checkpoint passed again on that same
 	// commit (nothing new to commit) does not hold its tag back.
 	Committed map[string]string `json:"committed,omitempty"`

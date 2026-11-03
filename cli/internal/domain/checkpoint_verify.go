@@ -2,7 +2,7 @@ package domain
 
 import "time"
 
-// Checkpoint timeline entries of the verification run by oh (R3).
+// Checkpoint timeline entries of the verification run by oh.
 const (
 	CheckpointVerified   = "verified"    // the verification passed
 	CheckpointVerifyFail = "verify_fail" // the verification failed: nothing unlocked

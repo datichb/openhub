@@ -2,7 +2,7 @@ package workflow
 
 import "slices"
 
-// Order of the checkpoints and of the writes (r5-fixes):
+// Order of the checkpoints and of the writes:
 //
 //	agents:
 //	  planner: { role: workflow, writes: ["docs/wiki/specs/**"], writes_after: cp-understanding }

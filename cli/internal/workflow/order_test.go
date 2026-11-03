@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// r5-fixes: `writes_after` names a checkpoint of every session and needs
+// `writes_after` names a checkpoint of every session and needs
 // `writes:`; the `after` of a checkpoint names one declared before it.
 func TestValidate_Order(t *testing.T) {
 	t.Parallel()
@@ -60,7 +60,7 @@ func TestValidate_Order(t *testing.T) {
 	}
 }
 
-// r5-fixes: a layer adds an order or moves it to a later checkpoint, never
+// A layer adds an order or moves it to a later checkpoint, never
 // removes it nor moves it earlier (loosening, the parent's kept).
 func TestPatch_Order(t *testing.T) {
 	t.Parallel()

@@ -53,7 +53,7 @@ func (s *Spec) AllowsRuntime(r Runtime) bool {
 
 // IsMandatory reports whether the checkpoint cannot be removed or relaxed. A
 // checkpoint that unlocks an operation (`unlocks:`) is mandatory too: skipping
-// it would drop the lock (N24, S-17).
+// it would drop the lock (S-17).
 func (c CheckpointSpec) IsMandatory() bool {
 	return (c.Mandatory != nil && *c.Mandatory) || len(c.Unlocks) > 0
 }

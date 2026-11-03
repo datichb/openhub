@@ -1,6 +1,6 @@
 package workflow
 
-// A second commit checkpoint (p5-fixes, `unlock_again`). An operation is
+// A second commit checkpoint (`unlock_again`). An operation is
 // unlocked by one checkpoint (unlock_duplicate), except the commit: a
 // later checkpoint that declares `unlock_again: true` unlocks it again
 // (incident: the commit of the mitigation at cp-mitigated, then the one of

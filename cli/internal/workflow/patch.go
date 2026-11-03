@@ -151,7 +151,7 @@ func (p *patcher) apply() {
 	}
 	p.limits()
 	p.preconditions()
-	p.fanout() // R6
+	p.fanout()
 }
 
 // skillsDeny applies `skills.deny`. A refusal is a security field: outside
@@ -308,7 +308,7 @@ func (p *patcher) agents() {
 				continue
 			}
 			if len(v.Writes) > 0 {
-				// R4: a layer may not open documentation paths to an agent
+				// A layer may not open documentation paths to an agent
 				// it adds.
 				p.loosening(base+".writes", strings.Join(v.Writes, ","), "[]")
 				v.Writes, v.WritesAfter = nil, ""
@@ -520,7 +520,7 @@ func (p *patcher) beads() {
 	parent := p.dst.Beads
 	if parent == nil {
 		// Without a `beads:` block the gateway applies the read-only default
-		// list: the child is compared to it (N24, S-16).
+		// list: the child is compared to it (S-16).
 		if s.Beads == nil {
 			return
 		}
@@ -578,7 +578,7 @@ func (p *patcher) dropScratchReader(agent string) {
 }
 
 // after keeps a gate: it cannot be removed, nor moved to an earlier
-// checkpoint (N24, S-20). Moving it to a later checkpoint hardens it.
+// checkpoint (S-20). Moving it to a later checkpoint hardens it.
 func (p *patcher) after(path string, old *AgentRef, after string) {
 	if old.After == "" || after == old.After {
 		old.After = after
@@ -623,7 +623,7 @@ func (p *patcher) circuitBreaker() {
 
 // widens reports whether a layer may add plugins or MCP servers: only the
 // hub layer (oh's own content). Other layers may only keep a subset of the
-// parent list (N24, S-18): a plugin runs code, an MCP server reaches the
+// parent list (S-18): a plugin runs code, an MCP server reaches the
 // forges with the user's tokens.
 func (p *patcher) widens() bool { return p.doc.Source.Layer == LayerHub }
 

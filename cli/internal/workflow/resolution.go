@@ -100,10 +100,10 @@ type Resolved struct {
 	Runtime Runtime
 	// Inputs are the session inputs given (not defaults).
 	Inputs map[string]any
-	// Method is the method of the session (R7, input `method`): Check
+	// Method is the method of the session (input `method`): Check
 	// keeps in Spec the checkpoints of this method only.
 	Method Method
-	// Fanout reports a fan-out session (R6, the fan-out input is true):
+	// Fanout reports a fan-out session (the fan-out input is true):
 	// Check keeps in Spec the checkpoints of a fan-out session.
 	Fanout bool
 }
@@ -290,7 +290,7 @@ func (r *Resolved) applySession(opts *SessionOptions) Diagnostics {
 		}
 		// Convention: an enum input set to `custom` needs its companion
 		// `<input>_cmd` input when the workflow declares one (sweep:
-		// verify: custom + verify_cmd, N7).
+		// verify: custom + verify_cmd).
 		if v, ok := r.Inputs[k]; ok && in.Type == InputEnum && fmt.Sprint(v) == CustomValue {
 			cmd, given := r.Inputs[k+"_cmd"]
 			if _, has := s.Inputs.Get(k + "_cmd"); has && (!given || strings.TrimSpace(fmt.Sprint(cmd)) == "") {

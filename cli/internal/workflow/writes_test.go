@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// R4 (E8): `agents.<id>.writes` opens documentation paths only: relative,
+// `agents.<id>.writes` opens documentation paths only: relative,
 // under docs/, a file or a folder ending in /**.
 func TestWritesPathProblem(t *testing.T) {
 	t.Parallel()
@@ -25,7 +25,7 @@ func TestWritesPathProblem(t *testing.T) {
 		"docs/wiki//specs/**":     false,
 		`docs\wiki\**`:            false,
 		"":                        false,
-		// p6-debts: named root files, never a folder nor code
+		// Named root files, never a folder nor code
 		"ONBOARDING.md":       true,
 		"CONVENTIONS.md":      true,
 		"README.md":           true,
@@ -104,7 +104,7 @@ func TestValidate_Writes(t *testing.T) {
 	}
 }
 
-// R4 (E8): a layer narrows `writes:`, never widens it: a path the parent
+// A layer narrows `writes:`, never widens it: a path the parent
 // does not cover, or `writes:` on an agent without (inherited or added),
 // is a loosening; the parent's list is kept.
 func TestPatch_Writes(t *testing.T) {
@@ -159,7 +159,7 @@ func TestPatch_Writes(t *testing.T) {
 	}
 }
 
-// R4: `verify.spec` is a verification on its own (no from nor cmd needed);
+// `verify.spec` is a verification on its own (no from nor cmd needed);
 // a layer keeps its paths and breakdown.
 func TestVerifySpecCheck(t *testing.T) {
 	t.Parallel()
@@ -206,7 +206,7 @@ func hasCode(diags Diagnostics, code string) bool {
 	return false
 }
 
-// p6-debts: an input that is the file scope of the session: text, alone,
+// An input that is the file scope of the session: text, alone,
 // recorded at launch.
 func TestValidate_ScopeInput(t *testing.T) {
 	t.Parallel()

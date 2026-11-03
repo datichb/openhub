@@ -1,6 +1,6 @@
 package sessionspec
 
-// Wiki MCP server of the project (modernisation LD-J): `oh mcp serve wiki`,
+// Wiki MCP server of the project: `oh mcp serve wiki`,
 // served by the oh daemon like the workflow server, injected in the bundles
 // built from a workflow for a project that has a wiki (docs/wiki/). Tools
 // reach the model as wiki_<tool>.

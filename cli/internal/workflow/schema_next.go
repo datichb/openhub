@@ -9,7 +9,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Composition of workflows (R5, E4): what follows a session, the outputs oh
+// Composition of workflows: what follows a session, the outputs oh
 // records itself, the inputs computed from a previous session, and the
 // other ids a workflow answers to.
 //
@@ -43,7 +43,7 @@ type NextStep struct {
 // NextWhen is the condition of a NextStep.
 type NextWhen struct {
 	Outputs []string `yaml:"outputs,omitempty"`
-	// Equals (B1): proposed only when each output listed was recorded with
+	// Equals: proposed only when each output listed was recorded with
 	// this value (case ignored): `equals: { verdict: go }`.
 	Equals map[string]string `yaml:"equals,omitempty"`
 }
@@ -146,7 +146,7 @@ const (
 	// `paths:`, read each time a checkpoint passes (path; several joined by
 	// commas), or with `match:` the first group of that regular expression
 	// in those files (text): the postmortem of incident, the decision of
-	// spike and its verdict (B1).
+	// spike and its verdict.
 	RecordWritten OutputRecord = "written"
 	// RecordTasks: the breakdown oh read and checked at the checkpoint with
 	// `tasks:` (text, one task per line; sweep-fanout).

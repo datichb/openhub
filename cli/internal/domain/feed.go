@@ -2,7 +2,7 @@ package domain
 
 import "time"
 
-// FeedKind classifies an entry of a session live feed (P3-T10).
+// FeedKind classifies an entry of a session live feed.
 type FeedKind string
 
 const (

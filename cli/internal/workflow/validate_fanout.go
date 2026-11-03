@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// Validation of the fan-out (R6, schema_fanout.go). Every rule of the
+// Validation of the fan-out (schema_fanout.go). Every rule of the
 // control substitution (CP-R3) is checked here, on the resolved workflow:
 //   - the fan-out input is a bool input, the tickets input a beads-ids one;
 //   - the child workflow exists, is not itself a fan-out and holds every

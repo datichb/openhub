@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// Validation of the R3 checkpoint fields (verify, when) and of the pause
+// Validation of the verification fields of a checkpoint (verify, when) and of the pause
 // budget (CP-R2).
 
 // Pause budget (CP-R2, report 2026-10 §9.4): in semi-auto, a workflow pauses
@@ -29,7 +29,7 @@ type PauseCount struct {
 	Irreversible []string
 	// Budget is BudgetDecisionPauses + len(Irreversible).
 	Budget int
-	// MethodPauses are the pauses of the checkpoints of a method (R7),
+	// MethodPauses are the pauses of the checkpoints of a method,
 	// by method: a session of that method may pause MethodPauseAllowance
 	// more times (report 2026-10 §9.2: TDD adds cp-seams).
 	MethodPauses map[Method][]string

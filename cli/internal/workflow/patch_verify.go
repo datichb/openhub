@@ -2,7 +2,7 @@ package workflow
 
 import "strings"
 
-// checkpointVerify merges `verify:` and `when:` of a checkpoint patch (R3).
+// checkpointVerify merges `verify:` and `when:` of a checkpoint patch.
 // Both only harden: removing or weakening an inherited verification, or
 // dropping an inherited condition, is a loosening and keeps the parent value.
 func (p *patcher) checkpointVerify(base string, old *CheckpointSpec, v CheckpointSpec) {

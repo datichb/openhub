@@ -2,7 +2,7 @@ package workflow
 
 import "github.com/datichb/openhub/cli/internal/i18n"
 
-// removedAgents are the agent ids the hub no longer ships (consolidation C1),
+// removedAgents are the agent ids the hub no longer ships (consolidation),
 // with the i18n key of what replaces them: a workflow of the user or team
 // layer that still names one gets the replacement instead of a bare
 // "unknown agent".

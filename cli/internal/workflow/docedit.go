@@ -8,7 +8,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// DocEdit edits a workflow document as a YAML tree (TUI editor, P2-T14):
+// DocEdit edits a workflow document as a YAML tree (TUI editor):
 // comments, key order and the presence of each field (what a patch writes)
 // are kept; only the edited keys change.
 type DocEdit struct {
