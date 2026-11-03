@@ -93,7 +93,7 @@ func containerChecks(ctx context.Context) []doctor.Result {
 		}
 	}
 
-	out = append(out, imageDoctorChecks(ctx, rt, e, client, check)...)
+	out = append(out, imageDoctorChecks(ctx, rt, e, client, registryNames(ctx, a), check)...)
 
 	if runtime.GOOS == "linux" && !e.VM {
 		if ip, err := rt.HostIP(ctx, e, container.ProbeImage); err != nil {
@@ -106,7 +106,7 @@ func containerChecks(ctx context.Context) []doctor.Result {
 }
 
 // imageDoctorChecks runs the tool in the latest project images.
-func imageDoctorChecks(ctx context.Context, rt *container.Runtime, e container.Engine, client string, check func(string, bool, string) doctor.Result) []doctor.Result {
+func imageDoctorChecks(ctx context.Context, rt *container.Runtime, e container.Engine, client string, names map[string]string, check func(string, bool, string) doctor.Result) []doctor.Result {
 	images, err := rt.ProjectImages(ctx, e)
 	if err != nil {
 		return []doctor.Result{check("images", false, i18n.Tf("tui.doctor.container.probe_failed", err.Error()))}
@@ -120,7 +120,7 @@ func imageDoctorChecks(ctx context.Context, rt *container.Runtime, e container.E
 			break
 		}
 		tc := rt.CheckTool(ctx, e, img.Ref, toolInfo.Command)
-		name := i18n.Tf("tui.doctor.container.image", img.ProjectID)
+		name := imageCheckName(img.ProjectID, names)
 		switch {
 		case len(tc.MissingLibs) > 0:
 			out = append(out, doctor.Result{Name: name, Detail: i18n.Tf("tui.doctor.container.musl_libs", strings.Join(tc.MissingLibs, ", "))})
@@ -180,4 +180,10 @@ func doctorProjectDirs(ctx context.Context, projects domain.ProjectStore) []stri
 		}
 	}
 	return dirs
+}
+
+// imageCheckName names the check of the image of a project: the project by its
+// name and, in brackets, the ID the commands take (« api [3f2a9c1d] »).
+func imageCheckName(projectID string, names map[string]string) string {
+	return i18n.Tf("tui.doctor.container.image", claimProjectLabel(projectID, names[projectID]))
 }
