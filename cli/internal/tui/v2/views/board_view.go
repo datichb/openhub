@@ -177,7 +177,7 @@ func (v *BoardView) mountBoard(content *tview.Flex, app *tview.Application) {
 			rate = 5 * time.Second
 		}
 		v.reload()
-		everyOnLoop(app, rate, v.done, v.reload)
+		everyOnLoop(shellContext(v.shell), app, rate, v.done, v.reload)
 	}
 }
 
