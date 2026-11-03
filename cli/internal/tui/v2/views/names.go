@@ -2,6 +2,7 @@ package views
 
 import (
 	"context"
+	"maps"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/teamstate"
@@ -36,15 +37,23 @@ func (f NamesFunc) Read(ctx context.Context, members teamstate.MemberReader) Nam
 // NewNames builds a snapshot: the project names by ID (the registry of the hub)
 // and the members of the team (their display name).
 func NewNames(projects map[string]string, members []teamstate.Member) Names {
-	n := Names{projects: projects}
-	if len(members) > 0 {
-		n.members = make(map[string]string, len(members))
-		for _, m := range members {
-			if m.DisplayName != "" {
-				n.members[m.ID] = m.DisplayName
-			}
+	return Names{projects: projects}.WithMembers(members)
+}
+
+// WithMembers is n with the display names of members, for a view that has read
+// the members itself.
+func (n Names) WithMembers(members []teamstate.Member) Names {
+	if len(members) == 0 {
+		return n
+	}
+	byID := make(map[string]string, len(n.members)+len(members))
+	maps.Copy(byID, n.members)
+	for _, m := range members {
+		if m.DisplayName != "" {
+			byID[m.ID] = m.DisplayName
 		}
 	}
+	n.members = byID
 	return n
 }
 
@@ -65,8 +74,12 @@ func (n Names) Project(id string) string {
 
 // ProjectLabel is the name of the project; the ID of a project this machine
 // does not know is marked as such (« 88280c5b (projet inconnu) »), like the
-// tabs of the team board. "" for no project.
+// tabs of the team board. "" for no project. Without a registry read (a nil
+// map) nothing is known to be unknown: the ID alone.
 func (n Names) ProjectLabel(id string) string {
+	if n.projects == nil {
+		return id
+	}
 	return projectLabel(id, n.Project(id))
 }
 

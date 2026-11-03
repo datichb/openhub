@@ -50,6 +50,35 @@ func TestEventDescribe(t *testing.T) {
 	assert.Equal(t, "claimed api/bd-7", ev(EventClaimTaken, nil).Describe())
 }
 
+type testNames struct{ projects, members map[string]string }
+
+func (n testNames) Project(id string) string { return orID(n.projects, id) }
+func (n testNames) Member(id string) string  { return orID(n.members, id) }
+
+func orID(m map[string]string, id string) string {
+	if v := m[id]; v != "" {
+		return v
+	}
+	return id
+}
+
+// With names, the phrase has the name of the project and of the member the claim
+// went to; an ID nobody knows stays readable, and no names is the IDs.
+func TestEventDescribeAs(t *testing.T) {
+	i18ntest.Set(t, "en")
+	names := testNames{projects: map[string]string{"88280c5b": "transparence-sru"}, members: map[string]string{"alice": "Alice A."}}
+	taken := Event{Type: EventClaimTaken, Project: "88280c5b", Ticket: "bd-7"}
+	assert.Equal(t, "claimed transparence-sru/bd-7", taken.DescribeAs(names))
+	assert.Equal(t, "claimed 88280c5b/bd-7", taken.DescribeAs(nil))
+	assert.Equal(t, taken.Describe(), taken.DescribeAs(nil))
+
+	moved := Event{Type: EventClaimTransferred, Project: "deadbeef", Ticket: "bd-7", Data: map[string]interface{}{"to": "alice"}}
+	assert.Equal(t, "transferred deadbeef/bd-7 to Alice A.", moved.DescribeAs(names), "an unknown project keeps its ID")
+	moved.Data["to"] = "gone"
+	assert.Equal(t, "transferred deadbeef/bd-7 to gone", moved.DescribeAs(names))
+	assert.Equal(t, "claimed bd-7", Event{Type: EventClaimTaken, Ticket: "bd-7"}.DescribeAs(names))
+}
+
 // Every event type of the package has its symbol in glyph.Events, and the
 // table lists no other type.
 func TestEveryEventTypeHasASymbol(t *testing.T) {

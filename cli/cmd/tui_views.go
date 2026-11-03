@@ -106,8 +106,8 @@ func buildViews(a *app.App) []views.View {
 		newWorkflowCatalogView(tuiStartWiring),
 		projectsView,
 		projectModeView,
-		views.NewTeamStatusView(makeResolveTeamFunc(a)),
-		views.NewActivityView(makeResolveTeamFunc(a)),
+		newTeamStatusView(a),
+		newActivityView(a),
 		views.NewWorktreeView(a, views.WorktreeViewConfig{
 			OpenSession: func(path string) { openLaunchForm(a, tuiLaunchRequest{WorkflowID: "libre", Location: path}) },
 		}),

@@ -36,6 +36,7 @@ func TestNamesWithoutASourceAnswerWithTheID(t *testing.T) {
 	var f NamesFunc
 	n := f.Read(context.Background(), nil)
 	assert.Equal(t, "p1", n.Project("p1"))
+	assert.Equal(t, "p1", n.ProjectLabel("p1"), "nothing was read: not marked unknown")
 	assert.Equal(t, "alice", n.Member("alice"))
 	assert.Equal(t, "Bob", NamesFunc(func(context.Context, teamstate.MemberReader) Names {
 		return NewNames(nil, []teamstate.Member{{ID: "bob", DisplayName: "Bob"}})

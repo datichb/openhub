@@ -107,10 +107,27 @@ func buildTeamModelsView(a *app.App) views.View {
 	})
 }
 
+// newTeamStatusView is who works on what, with the names of the members and of
+// the projects.
+func newTeamStatusView(a *app.App) views.View {
+	v := views.NewTeamStatusView(makeResolveTeamFunc(a))
+	v.SetNames(hubNames(a))
+	return v
+}
+
+// newActivityView is the activity of the team, with the names of the members
+// and of the projects.
+func newActivityView(a *app.App) views.View {
+	v := views.NewActivityView(makeResolveTeamFunc(a))
+	v.SetNames(hubNames(a))
+	return v
+}
+
 // buildTakeoverView is the takeover briefs view, which enriches a brief
 // through the agent.
 func buildTakeoverView(a *app.App) views.View {
 	takeoverView := views.NewTakeoverView(makeResolveTeamFunc(a))
+	takeoverView.SetNames(hubNames(a))
 	takeoverView.SetOnEnrich(func(project, ticketID string) error {
 		return runTakeoverEnrich(a, project, ticketID)
 	})

@@ -30,7 +30,7 @@ func TestTeamEventPhrases(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.want, formatEventDescription(parse(tc.event)), "event phrase")
+			assert.Equal(t, tc.want, formatEventDescription(parse(tc.event), Names{}), "event phrase")
 		})
 	}
 	assert.NotEqual(t, eventIcon("unknown.event"), eventIcon(teamstate.EventWorkflowPublished), "workflow events have their own icon")

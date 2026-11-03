@@ -22,6 +22,7 @@ type TeamStatusView struct {
 	shell       ShellAccess
 	tv          *tview.TextView
 	loads       loadSlot // the reads of the team-state: only the latest is applied
+	names       NamesFunc
 
 	// read replaces the read of the team-state (tests).
 	read func(ctx context.Context, repo teamStatusReader) *teamStatusData
@@ -35,6 +36,7 @@ type teamStatusData struct {
 	membersErr error
 	claimsErr  error
 	eventsErr  error
+	names      Names
 }
 
 // teamStatusReader is what the view reads of the team-state: whether the clone
@@ -54,6 +56,10 @@ var _ View = (*TeamStatusView)(nil)
 func NewTeamStatusView(resolveTeam ResolveTeamFunc) *TeamStatusView {
 	return &TeamStatusView{resolveTeam: resolveTeam}
 }
+
+// SetNames sets the source of the names shown for the projects of the events
+// (their IDs without it); the members are named by the team-state the view reads.
+func (v *TeamStatusView) SetNames(f NamesFunc) { v.names = f }
 
 // SetShell provides the shell reference for toast notifications.
 func (v *TeamStatusView) SetShell(s ShellAccess) { v.shell = s }
@@ -117,7 +123,14 @@ func (v *TeamStatusView) syncAndRender() {
 	if read == nil {
 		read = readTeamStatus
 	}
-	fetch := func(ctx context.Context) (*teamStatusData, error) { return read(ctx, repo), nil }
+	names := v.names
+	fetch := func(ctx context.Context) (*teamStatusData, error) {
+		d := read(ctx, repo)
+		if d != nil {
+			d.names = names.Read(ctx, nil)
+		}
+		return d, nil
+	}
 	syncLoad(v.app, shellContext(v.shell), &v.loads, repo, v.shell, fetch, func(d *teamStatusData, _ error) {
 		if v.tv != nil {
 			v.render(tc, d)
@@ -155,8 +168,12 @@ func (v *TeamStatusView) render(tc TeamResolution, d *teamStatusData) {
 		return
 	}
 
+	var names Names // the IDs while the team-state is not read
+	if d != nil {
+		names = d.names.WithMembers(d.members)
+	}
 	fmt.Fprintf(&sb, "  %s    %s\n", secondary(i18n.T("tui.teamstatus.repo_label")), tview.Escape(tc.StateRepo))
-	fmt.Fprintf(&sb, "  %s  %s\n\n", secondary(i18n.T("tui.teamstatus.member_label")), tview.Escape(tc.MemberID))
+	fmt.Fprintf(&sb, "  %s  %s\n\n", secondary(i18n.T("tui.teamstatus.member_label")), tview.Escape(names.Member(tc.MemberID)))
 
 	if d == nil {
 		fmt.Fprintf(&sb, "  %s\n", stateText(stateEmpty, i18n.T("tui.teamstatus.repo_not_cloned")))
@@ -197,7 +214,7 @@ func (v *TeamStatusView) render(tc TeamResolution, d *teamStatusData) {
 			}
 
 			fmt.Fprintf(&sb, "  %s %s",
-				theme.Paint(nameColor, fmt.Sprintf("@%-12s", tview.Escape(m.ID))),
+				theme.Paint(nameColor, fmt.Sprintf("@%-12s", tview.Escape(names.Member(m.ID)))),
 				secondary(fmt.Sprintf("%-14s", i18n.Tf(countKey, len(myClaims)))))
 
 			if len(myClaims) > 0 {
@@ -249,7 +266,7 @@ func (v *TeamStatusView) render(tc TeamResolution, d *teamStatusData) {
 		for _, e := range d.events {
 			fmt.Fprintf(&sb, "  %s %s %s %s\n",
 				secondary(fmt.Sprintf("%-12s", textfmt.AgoOrDate(e.Timestamp))), eventIcon(e.Type),
-				tview.Escape(e.Actor), tview.Escape(formatEventDescription(e)))
+				tview.Escape(names.Member(e.Actor)), tview.Escape(formatEventDescription(e, names)))
 		}
 	}
 
