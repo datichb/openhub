@@ -35,7 +35,7 @@ func diskHub(t *testing.T) *config.Config {
 	return &c
 }
 
-// Bug 1 of v5.1: a copy read before the wizard wrote hub.toml was saved over
+// A copy read before the wizard wrote hub.toml was saved over
 // it once the file had been read again, because the protection was a mtime
 // kept by the process (Reset cleared it, the next Load armed it on the
 // current file). The protection follows the copy.

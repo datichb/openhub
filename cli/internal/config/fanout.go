@@ -1,6 +1,6 @@
 package config
 
-// FanoutConfig configures the fan-out of the workflows (R6, experimental):
+// FanoutConfig configures the fan-out of the workflows (experimental):
 // one child session per ticket, each in its own worktree, merged by oh.
 type FanoutConfig struct {
 	// Experimental enables the fan-out on this machine (off by default):

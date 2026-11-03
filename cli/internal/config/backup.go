@@ -15,7 +15,7 @@ const configBackupsKept = 3
 
 // backupConfig copies the current hub.toml to hub.toml.bak-<time> before it
 // is replaced by next, when it is valid TOML and differs: oh doctor --fix
-// restores the latest valid copy of a hub.toml that no longer loads (N13).
+// restores the latest valid copy of a hub.toml that no longer loads.
 func backupConfig(path string, next []byte) {
 	cur, err := os.ReadFile(path)
 	if err != nil || bytes.Equal(cur, next) {

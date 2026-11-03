@@ -13,7 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 )
 
-// N26 (v5 critical): the password of a tool server never stays in oh.db.
+// The password of a tool server never stays in oh.db.
 func TestServerPasswordsOutOfTheDatabase(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "oh.db")

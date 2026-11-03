@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// RemoteConfig configures the remote runtime (GitLab CI runners, v5 phase 5).
+// RemoteConfig configures the remote runtime (GitLab CI runners).
 type RemoteConfig struct {
 	// Experimental enables the remote runtime on this machine (off by
 	// default in 5.0: never validated on a real runner).

@@ -126,7 +126,7 @@ func ResolveTeamConfig(hub TeamConfig, project *domain.ProjectTeamConfig) Resolv
 func TeamStatePath(remoteURL string) string {
 	name := repoNameFromRemote(remoteURL)
 	host := hostFromRemote(remoteURL)
-	// Under the hub directory: OH_HOME relocates the team-states too (A3).
+	// Under the hub directory: OH_HOME relocates the team-states too.
 	base := filepath.Join(HubDir(), "team-states")
 	newPath := filepath.Join(base, host, name)
 

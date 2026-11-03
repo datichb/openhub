@@ -251,7 +251,7 @@ func TestResolveTeamForProject_LegacyCustom(t *testing.T) {
 	}
 }
 
-// A3: team-state clones follow OH_HOME (isolated environments) and still
+// team-state clones follow OH_HOME (isolated environments) and still
 // find a former clone without the host level.
 func TestTeamStatePath_UnderOHHome(t *testing.T) {
 	home := t.TempDir()

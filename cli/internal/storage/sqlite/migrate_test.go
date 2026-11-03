@@ -19,7 +19,7 @@ func countMigrations(t *testing.T, s *Store) (rows, distinct int) {
 	return rows, distinct
 }
 
-// N14: several connections (TUI, daemon, MCP servers after an upgrade) open
+// Several connections (TUI, daemon, MCP servers after an upgrade) open
 // a new database at once: every one succeeds, each version recorded once.
 func TestConcurrentOpenMigratesOnce(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "oh.db")
@@ -58,7 +58,7 @@ func TestHelperOpenProcess(t *testing.T) {
 	s.Close()
 }
 
-// N14: the same race across processes, on a new database and on a database
+// The same race across processes, on a new database and on a database
 // left at an older version.
 func TestMultiProcessOpen(t *testing.T) {
 	for _, tc := range []struct {
@@ -133,7 +133,7 @@ func hasColumnDB(s *Store, table, col string) (bool, error) {
 	return n > 0, err
 }
 
-// N14: a database half-migrated by an older oh (schema change done, version
+// A database half-migrated by an older oh (schema change done, version
 // not recorded) opens: the existing column, dropped column and index are
 // recognised from the schema itself.
 func TestHalfMigratedDatabaseOpens(t *testing.T) {
@@ -174,7 +174,7 @@ func withMigration(t *testing.T, m migration) {
 	t.Cleanup(func() { schemaMigrations = saved })
 }
 
-// N14: a copy is taken before migrating an existing database; it opens and
+// A copy is taken before migrating an existing database; it opens and
 // holds the rows still in the WAL; three are kept.
 func TestBackupBeforeMigration(t *testing.T) {
 	dir := t.TempDir()
@@ -207,7 +207,7 @@ func TestBackupBeforeMigration(t *testing.T) {
 	require.NoError(t, b.IntegrityCheck())
 }
 
-// N14: no backup, no migration (unless OH_SKIP_DB_BACKUP=1).
+// No backup, no migration (unless OH_SKIP_DB_BACKUP=1).
 func TestBackupFailureRefusesToMigrate(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "oh.db")
@@ -228,7 +228,7 @@ func TestBackupFailureRefusesToMigrate(t *testing.T) {
 	s.Close()
 }
 
-// N14: a failed migration names the backup; Restore puts it back.
+// A failed migration names the backup; Restore puts it back.
 func TestMigrationErrorNamesTheBackup(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "oh.db")
 	s, err := Open(path)
@@ -263,7 +263,7 @@ func TestMigrationErrorNamesTheBackup(t *testing.T) {
 	assert.Equal(t, 1, n)
 }
 
-// N14: a schema written by a more recent oh is refused, unless allowed.
+// A schema written by a more recent oh is refused, unless allowed.
 func TestSchemaNewer(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "oh.db")
 	s, err := Open(path)
@@ -290,7 +290,7 @@ func TestSchemaNewer(t *testing.T) {
 	s.Close()
 }
 
-// N14: nothing pending → no lock file, no backup.
+// Nothing pending → no lock file, no backup.
 func TestFastPathTakesNoLock(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "oh.db")
 	s, err := Open(path)
@@ -317,7 +317,7 @@ func TestSplitStatements(t *testing.T) {
 	assert.Equal(t, []string{"A", "B 'x;y'", "C"}, splitStatements("A;\n B 'x;y' ;\nC;"))
 }
 
-// N13: the last failed migration is kept for oh doctor, cleared on success.
+// The last failed migration is kept for oh doctor, cleared on success.
 func TestLastMigrationError(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "oh.db")
 	s, err := Open(path)

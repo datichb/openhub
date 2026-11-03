@@ -10,9 +10,9 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 )
 
-// HistoryStore counts and deletes the history past its retention (oh gc,
-// N16): stopped sessions, agent events, settled decisions and closed wiki
-// proposals (applied or refused, LD-J) older than the history cutoff;
+// HistoryStore counts and deletes the history past its retention (oh gc):
+// stopped sessions, agent events, settled decisions and closed wiki
+// proposals (applied or refused) older than the history cutoff;
 // usage ledger and budget raises older than the usage cutoff. Deletions go
 // by batches of historyBatch rows.
 type HistoryStore struct{ db *sql.DB }

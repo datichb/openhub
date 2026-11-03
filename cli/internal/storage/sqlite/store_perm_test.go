@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// E14-M4: pragmas apply to every pooled connection; files are owner-only.
+// Pragmas apply to every pooled connection; files are owner-only.
 func TestOpenPragmasAndPermissions(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "hub")
 	require.NoError(t, os.MkdirAll(dir, 0o755))

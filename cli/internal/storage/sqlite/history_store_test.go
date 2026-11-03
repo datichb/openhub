@@ -11,7 +11,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 )
 
-// N16: the history past its retention is counted then deleted; the rest
+// The history past its retention is counted then deleted; the rest
 // (recent rows, sessions not stopped) stays.
 func TestHistoryStore(t *testing.T) {
 	s := openTestStore(t)
