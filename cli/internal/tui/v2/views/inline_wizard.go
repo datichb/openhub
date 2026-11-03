@@ -2,6 +2,7 @@ package views
 
 import (
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
@@ -116,6 +117,14 @@ type InlineWizardView struct {
 	spinner    *widgets.Spinner
 	processing bool // a step's OnDone is running
 
+	// gen numbers the mounts (Mount and Unmount each add one): the result of
+	// an OnDone started in a previous mount is dropped, even when the wizard
+	// is mounted again by then. Read and written on the event loop.
+	gen uint64
+	// liveApp is app for the goroutines that read it (Notify): the field
+	// app itself is the event loop's.
+	liveApp atomic.Pointer[tview.Application]
+
 	// form is the form of the current step (nil for other steps).
 	form *tview.Form
 	// hintsHost is the flex holding the hints bar; the « quit the wizard? »
@@ -164,7 +173,7 @@ var notifyHold = 3 * time.Second
 // step come back. It does not take the focus and does not block the wizard,
 // and it may be called from any goroutine.
 func (w *InlineWizardView) Notify(msg string, isErr bool) {
-	app := w.app
+	app := w.liveApp.Load()
 	if app == nil {
 		return
 	}
@@ -248,6 +257,8 @@ func (w *InlineWizardView) updateDropdownHints(form *tview.Form) {
 
 func (w *InlineWizardView) Mount(content *tview.Flex, app *tview.Application) {
 	w.app = app
+	w.liveApp.Store(app)
+	w.gen++
 	w.completed = false
 	w.aborted = false
 	w.wizardErr = nil
@@ -382,6 +393,8 @@ func (w *InlineWizardView) Unmount() {
 		w.fireComplete()
 	}
 	w.app = nil
+	w.liveApp.Store(nil)
+	w.gen++
 	w.mainFlex = nil
 	w.stepBar = nil
 	w.stepHeader = nil

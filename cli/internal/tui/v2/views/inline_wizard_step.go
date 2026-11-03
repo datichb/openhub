@@ -127,14 +127,19 @@ func (w *InlineWizardView) completeStep(step WizardStep) {
 	})
 }
 
+// stepProblemHold is how long the message of a failed Validate, and the mark
+// on the first field, stay.
+var stepProblemHold = 3 * time.Second
+
 // showStepProblem puts the message of a failed Validate in the hints bar for a
 // few seconds.
 func (w *InlineWizardView) showStepProblem(msg string) {
 	w.hintsBar.SetHints(fmt.Sprintf("%s%s %s[-]",
 		theme.ColorTagOf(theme.Error), theme.IconWarning, msg))
-	w.trackTimer(safego.AfterFunc(3*time.Second, func() {
-		if w.app != nil {
-			w.app.QueueUpdateDraw(func() {
+	app := w.app // read on the loop: the timer must not read the field
+	w.trackTimer(safego.AfterFunc(stepProblemHold, func() {
+		if app != nil {
+			app.QueueUpdateDraw(func() {
 				if w.hintsBar != nil {
 					w.hintsBar.SetHints(w.statusHintsForStep(w.currentStep))
 				}
@@ -230,9 +235,10 @@ func (w *InlineWizardView) markFirstInput(form *tview.Form) {
 	origLabel := input.GetLabel()
 	input.SetLabel(fmt.Sprintf("%s%s[-] %s",
 		theme.ColorTagOf(theme.Error), theme.IconError, origLabel))
-	w.trackTimer(safego.AfterFunc(3*time.Second, func() {
-		if w.app != nil {
-			w.app.QueueUpdateDraw(func() { input.SetLabel(origLabel) })
+	app := w.app // read on the loop: the timer must not read the field
+	w.trackTimer(safego.AfterFunc(stepProblemHold, func() {
+		if app != nil {
+			app.QueueUpdateDraw(func() { input.SetLabel(origLabel) })
 		}
 	}))
 }

@@ -41,11 +41,17 @@ func (w *InlineWizardView) runWithSpinner(step WizardStep, afterDone func()) {
 	// dereference if Unmount() runs before QueueUpdateDraw fires.
 	tvApp := w.app
 
+	// What this run does to the wizard only counts while the wizard is still
+	// in the mount that started it: after an Unmount, and even after a new
+	// Mount, the result of this OnDone belongs to nobody.
+	gen, finished := w.gen, false
+	current := func() bool { return w.app != nil && w.gen == gen }
+
 	// showSpinner replaces the current step content with the spinner.
 	// Called either by the delayed timer or not at all if OnDone is fast.
 	spinnerShown := false
 	showSpinner := func() {
-		if w.app == nil {
+		if !current() || finished {
 			return
 		}
 		spinnerShown = true
@@ -71,11 +77,13 @@ func (w *InlineWizardView) runWithSpinner(step WizardStep, afterDone func()) {
 		}
 		spinnerTimer.Stop()
 		tvApp.QueueUpdateDraw(func() {
-			w.processing = false
-			// Guard: wizard may have been unmounted while OnDone was running.
-			if w.app == nil {
+			finished = true
+			// Guard: wizard may have been unmounted (and mounted again)
+			// while OnDone was running. Mount reset processing.
+			if !current() {
 				return
 			}
+			w.processing = false
 			if spinnerShown {
 				w.spinner.Stop()
 			}
