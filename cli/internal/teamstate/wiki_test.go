@@ -152,7 +152,7 @@ created_at = 2026-07-07T14:30:00Z
 	gittest.Run(t, repo.Path(), "push", "-q")
 }
 
-// v5.1: the refusal of a proposal of the team wiki needs a reason: it is kept
+// The refusal of a proposal of the team wiki needs a reason: it is kept
 // in the commit, and a refusal without one changes nothing.
 func TestWikiRejectProposalNeedsAReason(t *testing.T) {
 	t.Parallel()

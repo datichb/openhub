@@ -131,7 +131,7 @@ type Claim struct {
 	// Set by PublishReviewBatch (oh mr create); read by the review inputs
 	// and TUI board detail for context. Empty for claims without an MR.
 	MRURL string `toml:"mr_url,omitempty"`
-	// Remote is the remote session working on the ticket (v5 phase 5),
+	// Remote is the remote session working on the ticket,
 	// published by the machine at sending time and by the runner as it goes.
 	Remote *ClaimRemote `toml:"remote,omitempty"`
 }

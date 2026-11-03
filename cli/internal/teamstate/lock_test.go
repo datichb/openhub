@@ -32,7 +32,7 @@ func countEventLines(t *testing.T, repo *Repo, project string) int {
 	return n
 }
 
-// N15: two Repo values on the same clone, 50 concurrent writers: 50 lines,
+// Two Repo values on the same clone, 50 concurrent writers: 50 lines,
 // 50 commits (the in-process lock is per path, not per Repo).
 func TestConcurrentWritersSameClone(t *testing.T) {
 	t.Parallel()
@@ -91,7 +91,7 @@ func TestHelperTeamStateWriter(t *testing.T) {
 	}
 }
 
-// N15: the same race across processes (CLI, TUI, daemon on one clone).
+// The same race across processes (CLI, TUI, daemon on one clone).
 func TestConcurrentWritersProcesses(t *testing.T) {
 	repo, bare := setupGitTestRepo(t)
 	base, _ := strconv.Atoi(gittest.Run(t, repo.Path(), "rev-list", "--count", "HEAD"))
@@ -116,7 +116,7 @@ func TestConcurrentWritersProcesses(t *testing.T) {
 	assert.Equal(t, gittest.Run(t, repo.Path(), "rev-parse", "HEAD"), gittest.Run(t, bare, "rev-parse", "HEAD"), "everything pushed")
 }
 
-// N15: a busy clone gives ErrBusy naming the holder; WithTryLock does not
+// A busy clone gives ErrBusy naming the holder; WithTryLock does not
 // wait (TUI background synchronizations skip a turn).
 func TestBusyClone(t *testing.T) {
 	repo, bare := setupGitTestRepo(t)
@@ -152,7 +152,7 @@ func TestBusyClone(t *testing.T) {
 	require.NoError(t, other.Pull(ctx))
 }
 
-// N15: a stale .git/index.lock (killed git) is removed under the lock; a
+// A stale .git/index.lock (killed git) is removed under the lock; a
 // recent one (a git running in the clone) makes the clone busy.
 func TestIndexLock(t *testing.T) {
 	t.Parallel()
@@ -172,7 +172,7 @@ func TestIndexLock(t *testing.T) {
 	assert.NoFileExists(t, idx)
 }
 
-// N15: a rejected push drops our commit and puts back only the files of the
+// A rejected push drops our commit and puts back only the files of the
 // transaction: changes of the clone that are not ours are kept.
 func TestTransactKeepsOtherChanges(t *testing.T) {
 	t.Parallel()
@@ -199,7 +199,7 @@ func TestTransactKeepsOtherChanges(t *testing.T) {
 	assert.Equal(t, "edited meanwhile", string(got), "a hard reset would have lost it")
 }
 
-// N15: the offline queue is written under the lock.
+// The offline queue is written under the lock.
 func TestQueueUnderLock(t *testing.T) {
 	t.Parallel()
 	repo, _ := setupGitTestRepo(t)

@@ -15,7 +15,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/filelock"
 )
 
-// Write lock of a team-state clone (N15): every git operation that changes
+// Write lock of a team-state clone: every git operation that changes
 // the clone runs under
 //   - an in-process lock per clone path, shared by every Repo of the path
 //     (a process may hold several Repo values on the same clone), and

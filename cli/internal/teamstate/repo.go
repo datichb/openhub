@@ -29,7 +29,7 @@ const (
 //
 // The git operations also hold the write lock of the clone (lock.go): an
 // in-process lock shared by every Repo of the same path, and the file lock
-// .git/oh.lock shared with the other oh processes (N15).
+// .git/oh.lock shared with the other oh processes.
 type Repo struct {
 	mu            sync.RWMutex
 	path          string   // local clone path (e.g. ~/.oh/team-state/)
@@ -294,7 +294,7 @@ func (r *Repo) commitAndPush(ctx context.Context, msg string, files ...string) e
 
 // ErrStageAll: "." (or an empty list) was given as the files of a commit;
 // the caller must list its own files (another writer's files would be
-// committed with them, N15).
+// committed with them).
 var ErrStageAll = errors.New("team-state: commit every change (\".\") is refused, list the files")
 
 var errNoTransaction = errors.New("team-state: commit outside a transaction")
@@ -363,7 +363,7 @@ func (r *Repo) InitStructure(ctx context.Context) error {
 // files that git does not track yet (one commit "team: init structure", pushed
 // with the other writes of the team-state): the folders of the layout, the
 // catalogue of bricks catalog/ (ADR-054) included, are part of what the team
-// shares and must not stay untracked in the clone (A5). It does nothing more
+// shares and must not stay untracked in the clone. It does nothing more
 // when everything is tracked. A repository that is not a clone only gets the
 // folders. A commit that cannot be made (offline, lock busy) is returned as a
 // *StructureWarning, left for the next call, the layout being on disk anyway:

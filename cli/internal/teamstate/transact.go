@@ -16,7 +16,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
-// Publication transactions (O14): a change that depends on the latest state
+// Publication transactions: a change that depends on the latest state
 // of the team-state (next version number, revalidation) is rebuilt from
 // scratch when another member pushed first, instead of being rebased.
 
@@ -177,7 +177,7 @@ type TxResult struct {
 // runs again, so build must recompute everything from disk (version
 // numbers, validation). A build error restores the files it touched.
 //
-// It is the only path that writes the team-state (N15): CommitAndPush and
+// It is the only path that writes the team-state: CommitAndPush and
 // WithWriteLock are transactions too. The ctx given to build carries the
 // transaction: the public methods of the repo called with it join it.
 //
@@ -351,7 +351,7 @@ func classifyRemoteError(remote string, err error) error {
 // Offline queue
 // ---------------------------------------------------------------------------
 
-// QueuedOp is a team-state operation waiting for the network (O14). It is
+// QueuedOp is a team-state operation waiting for the network. It is
 // replayed through the whole cycle (revalidation, next version).
 type QueuedOp struct {
 	Kind     string    `json:"kind"` // publish | restore | archive

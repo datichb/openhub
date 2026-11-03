@@ -63,7 +63,7 @@ func TestAuthErrorMessage(t *testing.T) {
 	assert.Contains(t, msg, "team configure", "tells how to reconfigure")
 }
 
-// Bug 13: the HTTPS steps of the wizards asked a token for a repository that
+// The HTTPS steps of the wizards asked a token for a repository that
 // answers without one.
 func TestRemoteAccessible(t *testing.T) {
 	t.Parallel()

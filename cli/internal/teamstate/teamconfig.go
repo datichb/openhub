@@ -254,9 +254,9 @@ type TeamConfig struct {
 	// These are always recommendations (overridable) — never enforced.
 	// Resolution: Project > Hub > Team(recommended) > Agent Frontmatter.
 	Models TeamModelsConfig `toml:"models"`
-	// Governance holds who may publish the team workflows (v5 phase 2).
+	// Governance holds who may publish the team workflows.
 	Governance GovernanceConfig `toml:"governance,omitempty"`
-	// Limits holds the team session restrictions (I6): recommended values
+	// Limits holds the team session restrictions: recommended values
 	// and enforced ceilings ([limits.recommended], [limits.enforced]).
 	Limits *limits.TeamLimits `toml:"limits,omitempty"`
 }
@@ -340,8 +340,8 @@ type TakeoverConfig struct {
 }
 
 // ParallelConfig holds the settings of the former parallel mode. Kept to
-// read existing config.toml files; not applied in v5 (the session
-// restrictions are [limits], I6) and no longer editable (QB2).
+// read existing config.toml files; not applied (the session
+// restrictions are [limits]) and no longer editable.
 type ParallelConfig struct {
 	MaxSessions            int  `toml:"max_sessions"`              // Max concurrent sessions (default: 5)
 	MaxBudgetMinutes       int  `toml:"max_budget_minutes"`        // Max total estimated minutes (default: 180, 0 = disabled)
