@@ -54,8 +54,12 @@ type FormField struct {
 
 // InlineFormConfig holds the configuration for a modal form.
 type InlineFormConfig struct {
-	Title    string
-	Fields   []FormField
+	Title  string
+	Fields []FormField
+	// Check, if set, validates the form as a whole when it is submitted (a
+	// field needed by the choice of another): a non-empty message refuses
+	// the submission and keeps the form open with that message.
+	Check    func(values map[string]string, multi map[string][]string) string
 	OnSubmit func(values map[string]string, multi map[string][]string)
 	OnCancel func()
 }

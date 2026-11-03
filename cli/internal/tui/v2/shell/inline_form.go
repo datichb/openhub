@@ -47,6 +47,7 @@ type formFieldMeta struct {
 // inlineForm is one form being shown by ShowInlineForm.
 type inlineForm struct {
 	s      *Shell
+	win    *window
 	cfg    views.InlineFormConfig
 	form   *tview.Form
 	values map[string]string
@@ -71,7 +72,7 @@ func newInlineForm(s *Shell, cfg views.InlineFormConfig) *inlineForm {
 	form.SetFieldTextColor(theme.FgPrimary)
 	form.SetBorder(false) // the outer frame has the border
 	return &inlineForm{
-		s: s, cfg: cfg, form: form,
+		s: s, win: s.openPrompt(), cfg: cfg, form: form,
 		values:     make(map[string]string),
 		multi:      make(map[string][]string),
 		itemToMeta: make(map[int]int),
@@ -206,8 +207,8 @@ func (f *inlineForm) addBool(field *views.FormField) {
 // captureFieldKeys handles ↑/↓ (previous and next field) and ←/→/Enter on the
 // Select and MultiSelect fields.
 func (f *inlineForm) captureFieldKeys(event *tcell.EventKey) *tcell.EventKey {
-	// Sub-overlay open (select/multiselect list) → don't intercept anything.
-	if f.s.pages.HasPage("sub-overlay") {
+	// A list open over the form (select/multiselect) → don't intercept anything.
+	if f.s.hasWindowOver(f.win) {
 		return event
 	}
 	switch event.Key() {
@@ -294,32 +295,30 @@ func (f *inlineForm) multiSelectKey(meta *formFieldMeta, event *tcell.EventKey) 
 
 // ── Submit, cancel ───────────────────────────────────────────────────────────
 
-func (f *inlineForm) dismiss() {
-	f.s.pages.RemovePage("inline-overlay")
-	f.s.app.SetFocus(f.s.content)
-}
-
-// submit closes the form and hands the values over; a refused submission
-// (required field, invalid value) shows a warning and keeps it open.
+// submit closes the form (and the window it was opened from) and hands the
+// values over; a refused submission (required field, invalid value) shows a
+// warning and keeps it open.
 func (f *inlineForm) submit() {
 	if !f.valid() {
 		return
 	}
-	f.dismiss()
-	if f.cfg.OnSubmit != nil {
-		f.cfg.OnSubmit(f.values, f.multi)
-	}
+	f.s.answerWindow(f.win, func() {
+		if f.cfg.OnSubmit != nil {
+			f.cfg.OnSubmit(f.values, f.multi)
+		}
+	})
 }
 
+// cancel closes the form and gives the window it was opened from back.
 func (f *inlineForm) cancel() {
-	f.dismiss()
+	f.s.closeWindow(f.win)
 	if f.cfg.OnCancel != nil {
 		f.cfg.OnCancel()
 	}
 }
 
-// valid checks the required fields and the values; it warns about the first
-// one refused.
+// valid checks the required fields, the values and the form as a whole; it
+// warns about the first one refused.
 func (f *inlineForm) valid() bool {
 	for _, field := range f.cfg.Fields {
 		if field.Required && f.isEmpty(field) {
@@ -331,6 +330,12 @@ func (f *inlineForm) valid() bool {
 				f.s.ShowToast(msg, ToastWarning)
 				return false
 			}
+		}
+	}
+	if f.cfg.Check != nil {
+		if msg := f.cfg.Check(f.values, f.multi); msg != "" {
+			f.s.ShowToast(msg, ToastWarning)
+			return false
 		}
 	}
 	return true
@@ -403,8 +408,8 @@ func formHints() *tview.TextView {
 // show puts the frame over the content, sized for the visible fields.
 func (f *inlineForm) show(frame *tview.Flex) {
 	size := f.s.computeModalSize(modalSizeHint{FieldCount: f.visibleRows(), FixedWidth: theme.ModalMaxWidth})
-	grid := f.s.overlayGrid(frame, size.cols, size.rows, theme.BgDimOverlay, "", nil)
-	f.s.pages.AddPage("inline-overlay", grid, true, true)
+	grid := f.s.overlayGrid(frame, size.cols, size.rows, f.win.backdrop(), nil)
+	f.s.pages.AddPage(f.win.page, grid, true, true)
 	f.s.app.SetFocus(f.form)
 }
 

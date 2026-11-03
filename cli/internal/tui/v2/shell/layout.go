@@ -26,7 +26,7 @@ func (s *Shell) compactPref() string {
 
 // hasOverlay reports whether a window (modal, form, quit dialog) is shown.
 func (s *Shell) hasOverlay() bool {
-	return s.pages.HasPage("inline-overlay") || s.pages.HasPage("sub-overlay")
+	return s.pages.HasPage(windowPages[0])
 }
 
 // beforeDraw computes the level of the terminal; a new level is applied on

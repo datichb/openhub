@@ -35,18 +35,17 @@ func (s *Shell) ShowPasswordModal(title string, onConfirm func(value string)) {
 
 // ShowSelectModal displays an inline select list (fzf-style).
 func (s *Shell) ShowSelectModal(title string, options []views.SelectOption, currentValue string, onConfirm func(value string)) {
-	s.showSelectList(s.inlineListWindow(), title, options, currentValue, onConfirm)
+	s.showSelectList(s.openPrompt(), title, options, currentValue, onConfirm)
 }
 
 // ShowMultiSelectModal displays an inline multi-select list.
 func (s *Shell) ShowMultiSelectModal(title string, options []views.SelectOption, selected []string, onConfirm func(selected []string)) {
-	s.showCheckList(s.inlineListWindow(), title, options, selected, onConfirm)
+	s.showCheckList(s.openPrompt(), title, options, selected, onConfirm)
 }
 
 // ShowScrollableModal displays an inline scrollable content view with action buttons.
 // Shown while a window is already open (a reader opened from the decision
-// card), it opens over it as a sub-window: closing it gives the window its
-// focus back instead of leaving the screen without it.
+// card), it opens over it: closing it gives the window its focus back.
 func (s *Shell) ShowScrollableModal(title, content string, actions []views.ModalAction) {
 	textView := tview.NewTextView().SetText(content)
 	styleScrollableText(textView)
@@ -55,40 +54,21 @@ func (s *Shell) ShowScrollableModal(title, content string, actions []views.Modal
 	if len(actions) == 0 {
 		hints = i18n.T("tui.modal.hints.reader")
 	}
-	cfg := modalConfig{
+	s.showModal(modalConfig{
 		Title:        title,
 		Content:      textView,
 		Actions:      actions,
 		Size:         modalSizeHint{ContentLines: countLines(content), HasButtons: len(actions) > 0, ButtonCount: len(actions), ProportionalWidth: -4},
 		Hints:        hints,
 		LightDismiss: true,
-		PageName:     "inline-overlay",
-		FocusReturn:  s.content,
+		Win:          s.openWindow(nil),
 		FocusTarget:  textView,
 		FocusAction:  min(len(actions), 1), // the primary action, if any
-	}
-	if s.pages.HasPage("inline-overlay") {
-		cfg.PageName, cfg.IsSub, cfg.FocusReturn = "sub-overlay", true, s.subFocusReturn()
-	}
-	s.showModal(cfg)
-}
-
-// subFocusReturn is where the focus goes back when a sub-window closes: the
-// element of the window under it that had the focus when the sub-window was
-// opened. A sub-window opened over another one (replacing it) keeps the
-// focus the first one came from.
-func (s *Shell) subFocusReturn() tview.Primitive {
-	if s.pages.HasPage("sub-overlay") && s.subReturn != nil {
-		return s.subReturn
-	}
-	s.subReturn = s.app.GetFocus()
-	if s.subReturn == nil {
-		s.subReturn = s.content
-	}
-	return s.subReturn
+	})
 }
 
 func (s *Shell) showInlineInput(title, currentValue string, masked bool, onConfirm func(string)) {
+	w := s.openPrompt()
 	input := tview.NewInputField().SetText(currentValue).SetFieldWidth(0)
 	styleInputField(input)
 
@@ -96,11 +76,18 @@ func (s *Shell) showInlineInput(title, currentValue string, masked bool, onConfi
 		input.SetMaskCharacter('*')
 	}
 
+	// Enter confirms, Esc cancels; Tab and Shift+Tab would end the input
+	// too and lose what was typed: they do nothing.
 	input.SetDoneFunc(func(key tcell.Key) {
-		s.pages.RemovePage("inline-overlay")
-		s.app.SetFocus(s.content)
-		if key == tcell.KeyEnter && onConfirm != nil {
-			onConfirm(input.GetText())
+		switch key {
+		case tcell.KeyEnter:
+			s.answerWindow(w, func() {
+				if onConfirm != nil {
+					onConfirm(input.GetText())
+				}
+			})
+		case tcell.KeyEscape:
+			s.closeWindow(w)
 		}
 	})
 
@@ -134,67 +121,42 @@ func (s *Shell) showInlineInput(title, currentValue string, masked bool, onConfi
 
 	// Content-aware sizing
 	size := s.computeModalSize(modalSizeHint{FixedWidth: theme.ModalMaxWidth, FixedHeight: theme.ModalMinHeight})
-	grid := s.overlayGrid(frame, size.cols, size.rows, theme.BgDimOverlay, "", nil)
+	grid := s.overlayGrid(frame, size.cols, size.rows, w.backdrop(), nil)
 
-	s.pages.AddPage("inline-overlay", grid, true, true)
+	s.pages.AddPage(w.page, grid, true, true)
 	s.app.SetFocus(input)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Option lists: the select and the multi-select, as a window of their own or
-// as a sub-window of a form
+// as a window over a form
 // ─────────────────────────────────────────────────────────────────────────────
 
-// listWindow says where an option list is shown and how it goes away.
-type listWindow struct {
-	page      string          // name of the overlay page
-	bg        tcell.Color     // dimmed backdrop
-	returnTo  tview.Primitive // focus when the list closes
-	extraRows int             // rows of the window besides the options
-}
-
-// inlineListWindow is the list shown over the content.
-func (s *Shell) inlineListWindow() listWindow {
-	return listWindow{page: "inline-overlay", bg: theme.BgDimOverlay, returnTo: s.content, extraRows: theme.ModalHintsHeight}
-}
-
-// subListWindow is the list shown over a form, which gets the focus back.
-func subListWindow(returnTo tview.Primitive) listWindow {
-	return listWindow{page: "sub-overlay", bg: theme.BgDimSubOverlay, returnTo: returnTo}
-}
-
-func (s *Shell) closeList(w listWindow) {
-	s.pages.RemovePage(w.page)
-	s.app.SetFocus(w.returnTo)
-}
-
-// showList puts the list over the screen, sized for the options.
-func (s *Shell) showList(w listWindow, list *tview.List, optionCount int) {
-	size := s.computeModalSize(modalSizeHint{OptionCount: optionCount + w.extraRows, ProportionalWidth: -3})
-	grid := s.overlayGrid(list, size.cols, size.rows, w.bg, w.page, w.returnTo)
-	s.pages.AddPage(w.page, grid, true, true)
-	s.app.SetFocus(list)
-}
-
-// newTitledList is the bordered list of an option window.
-func newTitledList(title string) *tview.List {
+// newOptionList is the list of an option window.
+func newOptionList() *tview.List {
 	list := tview.NewList()
 	styleSelectList(list)
-	list.SetBorder(true)
-	list.SetBorderColor(theme.ActiveMode.Accent)
 	list.SetBorderPadding(0, 0, theme.ModalContentPadX, theme.ModalContentPadX)
-	applyRoundedCornersBox(list.Box, theme.ActiveMode.Accent, theme.BgModal)
-
-	pad := strings.Repeat(" ", theme.ModalTitlePad)
-	list.SetTitle(fmt.Sprintf("%s%s%s", pad, title, pad))
-	list.SetTitleColor(theme.ActiveMode.Accent)
 	return list
+}
+
+// showList puts the list in a window, sized for the options.
+func (s *Shell) showList(w *window, title string, list *tview.List, optionCount int, hints string) {
+	s.showModal(modalConfig{
+		Title:        title,
+		Content:      list,
+		Size:         modalSizeHint{OptionCount: optionCount + theme.ModalHintsHeight, ProportionalWidth: -3},
+		Hints:        hints,
+		LightDismiss: true,
+		Win:          w,
+		FocusTarget:  list,
+	})
 }
 
 // showSelectList shows the options as a list: Enter picks the highlighted
 // one, a click too, Esc closes the list.
-func (s *Shell) showSelectList(w listWindow, title string, options []views.SelectOption, currentValue string, onConfirm func(string)) {
-	list := newTitledList(title)
+func (s *Shell) showSelectList(w *window, title string, options []views.SelectOption, currentValue string, onConfirm func(string)) {
+	list := newOptionList()
 	currentIdx := 0
 	for i, opt := range options {
 		list.AddItem(opt.Label, "", 0, nil)
@@ -211,22 +173,17 @@ func (s *Shell) showSelectList(w listWindow, title string, options []views.Selec
 	}
 
 	list.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case tcell.KeyEscape:
-			s.closeList(w)
-			return nil
-		case tcell.KeyEnter:
+		if event.Key() == tcell.KeyEnter {
 			idx := list.GetCurrentItem()
-			s.closeList(w)
-			confirm(idx)
+			s.answerWindow(w, func() { confirm(idx) })
 			return nil
 		}
 		return event
 	})
 
 	// Click on item = immediate selection (macOS Finder / lazygit convention).
-	s.listMouseSelect(list, w.page, w.returnTo, confirm)
-	s.showList(w, list, len(options))
+	s.listMouseSelect(list, w, confirm)
+	s.showList(w, title, list, len(options), i18n.T("tui.modal.hints.select"))
 }
 
 // checkList is the state of a multi-select list.
@@ -236,12 +193,12 @@ type checkList struct {
 	checked []bool
 }
 
-func newCheckList(title string, options []views.SelectOption, selected []string) *checkList {
+func newCheckList(options []views.SelectOption, selected []string) *checkList {
 	selectedSet := make(map[string]bool, len(selected))
 	for _, v := range selected {
 		selectedSet[v] = true
 	}
-	c := &checkList{list: newTitledList(title), options: options, checked: make([]bool, len(options))}
+	c := &checkList{list: newOptionList(), options: options, checked: make([]bool, len(options))}
 	for i, opt := range options {
 		c.checked[i] = selectedSet[opt.Value]
 	}
@@ -280,19 +237,16 @@ func (c *checkList) values() (result []string) {
 
 // showCheckList shows the options as a list to check: space (or a click)
 // toggles the highlighted one, Enter validates, Esc closes the list.
-func (s *Shell) showCheckList(w listWindow, title string, options []views.SelectOption, selected []string, onConfirm func([]string)) {
-	c := newCheckList(title, options, selected)
+func (s *Shell) showCheckList(w *window, title string, options []views.SelectOption, selected []string, onConfirm func([]string)) {
+	c := newCheckList(options, selected)
 	c.list.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case tcell.KeyEscape:
-			s.closeList(w)
-			return nil
-		case tcell.KeyEnter:
+		if event.Key() == tcell.KeyEnter {
 			result := c.values()
-			s.closeList(w)
-			if onConfirm != nil {
-				onConfirm(result)
-			}
+			s.answerWindow(w, func() {
+				if onConfirm != nil {
+					onConfirm(result)
+				}
+			})
 			return nil
 		}
 		if keys.Toggle.Matches(event) {
@@ -304,18 +258,18 @@ func (s *Shell) showCheckList(w listWindow, title string, options []views.Select
 
 	// Click on item = toggle its checked state (standard checkbox UX).
 	s.listMouseToggle(c.list, c.toggle)
-	s.showList(w, c.list, len(options))
+	s.showList(w, title, c.list, len(options), i18n.T("tui.modal.hints.multiselect"))
 }
 
-// showSubSelect opens a list sub-modal on top of an existing overlay (the form).
-// On confirmation or cancellation the focus returns to the form.
+// showSubSelect opens a list over a form. On confirmation or cancellation the
+// focus returns to the form.
 func (s *Shell) showSubSelect(title string, options []views.SelectOption, currentValue string, returnTo tview.Primitive, onConfirm func(string)) {
-	s.showSelectList(subListWindow(returnTo), title, options, currentValue, onConfirm)
+	s.showSelectList(s.openWindow(returnTo), title, options, currentValue, onConfirm)
 }
 
-// showSubMultiSelect opens a multi-select list sub-modal on top of the form.
+// showSubMultiSelect opens a multi-select list over the form.
 func (s *Shell) showSubMultiSelect(title string, options []views.SelectOption, selected []string, returnTo tview.Primitive, onConfirm func([]string)) {
-	s.showCheckList(subListWindow(returnTo), title, options, selected, onConfirm)
+	s.showCheckList(s.openWindow(returnTo), title, options, selected, onConfirm)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -329,10 +283,10 @@ func (s *Shell) showSubMultiSelect(title string, options []views.SelectOption, s
 // constructor), so we explicitly fill all 8 surrounding cells with opaque Box
 // primitives — the only reliable way to render the backdrop in tview.
 //
-// When dismissPage is non-empty, clicking anywhere on the backdrop (outside
-// the content cell) dismisses the overlay — the "light dismiss" pattern
-// familiar from macOS and web dialogs.
-func (s *Shell) overlayGrid(content tview.Primitive, cols, rows []int, bg tcell.Color, dismissPage string, focusReturn tview.Primitive) *tview.Grid {
+// When dismiss is set, clicking anywhere on the backdrop (outside the
+// content cell) runs it — the "light dismiss" pattern familiar from macOS
+// and web dialogs.
+func (s *Shell) overlayGrid(content tview.Primitive, cols, rows []int, bg tcell.Color, dismiss func()) *tview.Grid {
 	grid := tview.NewGrid().SetColumns(cols...).SetRows(rows...)
 
 	// Fill every cell except (1,1) with an opaque backdrop box.
@@ -351,8 +305,8 @@ func (s *Shell) overlayGrid(content tview.Primitive, cols, rows []int, bg tcell.
 	grid.AddItem(content, 1, 1, 1, 1, 0, 0, true)
 
 	// Always intercept backdrop clicks — two behaviours depending on dismissPage:
-	// - non-empty: light dismiss (close modal, restore focus)
-	// - empty:     keep modal open but consume the click to prevent focus theft
+	// - set:   light dismiss (close modal, restore focus)
+	// - nil:   keep modal open but consume the click to prevent focus theft
 	//
 	// We intercept BOTH MouseLeftDown and MouseLeftClick because Box.MouseHandler
 	// calls setFocus(b) on MouseLeftDown — which fires BEFORE MouseLeftClick.
@@ -364,13 +318,8 @@ func (s *Shell) overlayGrid(content tview.Primitive, cols, rows []int, bg tcell.
 			// Click is on the dimmed backdrop (outside content bounds)
 			if mx < cx || mx >= cx+cw || my < cy || my >= cy+ch {
 				// Dismiss only on Click (not Down) — natural "release to dismiss" UX.
-				if action == tview.MouseLeftClick && dismissPage != "" {
-					s.pages.RemovePage(dismissPage)
-					if focusReturn != nil {
-						s.app.SetFocus(focusReturn)
-					} else {
-						s.app.SetFocus(s.content)
-					}
+				if action == tview.MouseLeftClick && dismiss != nil {
+					dismiss()
 				}
 				// Consume the event in both cases — prevents backdrop Box from
 				// calling setFocus and stealing focus from the modal content.
@@ -386,19 +335,15 @@ func (s *Shell) overlayGrid(content tview.Primitive, cols, rows []int, bg tcell.
 // inside a modal overlay. A click moves the cursor to the clicked item and
 // immediately confirms the selection — matching the macOS Finder / lazygit
 // "click to pick" pattern.
-func (s *Shell) listMouseSelect(list *tview.List, pageName string, focusReturn tview.Primitive, onSelect func(idx int)) {
+func (s *Shell) listMouseSelect(list *tview.List, w *window, onSelect func(idx int)) {
 	s.onListClick(list, func() {
 		idx := list.GetCurrentItem()
-		if idx >= 0 {
-			s.pages.RemovePage(pageName)
-			if focusReturn != nil {
-				s.app.SetFocus(focusReturn)
-			} else {
-				s.app.SetFocus(s.content)
-			}
-			if onSelect != nil {
-				onSelect(idx)
-			}
+		if idx >= 0 && s.windowOpen(w) {
+			s.answerWindow(w, func() {
+				if onSelect != nil {
+					onSelect(idx)
+				}
+			})
 		}
 	})
 }

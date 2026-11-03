@@ -66,7 +66,7 @@ func (s *Shell) mouseCapture(event *tcell.EventMouse, action tview.MouseAction) 
 func (s *Shell) isInteractiveZone(x, y int) bool {
 	// If any overlay modal is active, the whole screen is "interactive" —
 	// pass all events to tview so the modal works normally.
-	if s.pages.HasPage("inline-overlay") || s.pages.HasPage("sub-overlay") {
+	if s.hasOverlay() {
 		return true
 	}
 
