@@ -67,6 +67,10 @@ func (s selectionState) normalized() (start, end CellPos) {
 type SelectionManager struct {
 	mu    sync.Mutex
 	state selectionState
+	// dragging is true between a press taken by the selection and the
+	// release: only then do the moves extend it. A selection left on screen
+	// by an earlier click is active but not dragging.
+	dragging bool
 
 	// Multi-click detection
 	lastClickTime time.Time
@@ -75,6 +79,8 @@ type SelectionManager struct {
 
 	// onCopy is called after text is extracted and copied. Intended to show a toast.
 	onCopy func(text string)
+	// copy writes the text to the clipboard (CopyToClipboard; tests replace it).
+	copy func(text string) error
 
 	// screenWidth / screenHeight are updated before each highlight pass.
 	screenWidth  int
@@ -84,7 +90,7 @@ type SelectionManager struct {
 // NewSelectionManager creates a SelectionManager.
 // onCopy is called with the copied text after a successful mouse-up.
 func NewSelectionManager(onCopy func(text string)) *SelectionManager {
-	return &SelectionManager{onCopy: onCopy}
+	return &SelectionManager{onCopy: onCopy, copy: CopyToClipboard}
 }
 
 // IsActive reports whether a selection is currently in progress or visible.
@@ -94,11 +100,20 @@ func (sm *SelectionManager) IsActive() bool {
 	return sm.state.active
 }
 
+// IsDragging reports whether the primary button was pressed on the
+// selection and not released yet.
+func (sm *SelectionManager) IsDragging() bool {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	return sm.dragging
+}
+
 // Clear resets the selection state.
 func (sm *SelectionManager) Clear() {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 	sm.state = selectionState{}
+	sm.dragging = false
 }
 
 // ── Mouse handling ────────────────────────────────────────────────────────────
@@ -120,6 +135,7 @@ func (sm *SelectionManager) HandleMouseDown(x, y int, screen tcell.Screen) {
 	}
 	sm.lastClickTime = now
 	sm.lastClickPos = pos
+	sm.dragging = true
 
 	switch sm.clickCount % 3 {
 	case 0: // triple
@@ -153,7 +169,7 @@ func (sm *SelectionManager) HandleMouseDown(x, y int, screen tcell.Screen) {
 func (sm *SelectionManager) HandleMouseDrag(x, y int) {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
-	if !sm.state.active {
+	if !sm.state.active || !sm.dragging {
 		return
 	}
 	sm.state.cursor = CellPos{X: x, Y: y}
@@ -164,9 +180,11 @@ func (sm *SelectionManager) HandleMouseDrag(x, y int) {
 // and fires the onCopy callback.
 func (sm *SelectionManager) HandleMouseUp(x, y int, screen tcell.Screen) {
 	sm.mu.Lock()
+	sm.dragging = false
 	sm.state.cursor = CellPos{X: x, Y: y}
 	active := sm.state.active
 	stateCopy := sm.state
+	cp := sm.copy
 	sm.mu.Unlock()
 
 	if !active {
@@ -182,7 +200,9 @@ func (sm *SelectionManager) HandleMouseUp(x, y int, screen tcell.Screen) {
 	// Copy in a goroutine so we don't block the event loop
 	cb := sm.onCopy
 	safego.Go(func() {
-		_ = CopyToClipboard(text)
+		if cp != nil {
+			_ = cp(text)
+		}
 		if cb != nil {
 			cb(text)
 		}
