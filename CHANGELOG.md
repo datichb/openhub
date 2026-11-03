@@ -149,7 +149,7 @@ Un message « Nouvelles touches » s'affiche une fois après la mise à jour (il
 - **Confirmations** : `oh gc`, `oh beads clean`, `oh doctor --fix`, `oh repair --restore`, la réparation de la base et `oh mcp trust` refusent sans terminal sauf `--yes` (code 2) et ne modifient rien.
 - **Plugins** : un plugin déclaré mais inactif est signalé au lancement ou, en isolation stricte (`execution.strict_isolation`, désactivée par défaut), fait échouer le lancement ; l'isolation stricte reste une limite assumée ([SECURITY.md](SECURITY.md)).
 - **Écritures atomiques** : `config.toml` de l'équipe et l'export de l'historique sont écrits comme `hub.toml` (fichier temporaire, `fsync`, renommage).
-- Dépendances à jour (`modernc.org/sqlite` 1.60.1). Suivi des constats : [audit v5](docs/dev/audit-v5.md) (69 corrigés, 14 partiels, 0 ouvert).
+- Dépendances à jour (`modernc.org/sqlite` 1.60.1). Suivi des constats : [audit v5](docs/dev/audit-v5.md) (68 corrigés, 15 partiels, 0 ouvert).
 
 ## [5.0.0] — 2026-10-22
 
