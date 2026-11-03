@@ -100,7 +100,7 @@ Dans un workflow en lecture seule (`risk: read`), un checkpoint vérifié demand
 
 Les workflows livrés vérifient ainsi `cp-2` (`ticket`, `implement-spec`, `review-feedback`) et `cp-commit` (`quick`, `debug`, `sweep`, `sweep-task`).
 
-**Specs écrites (`verify.spec`, R4)** : au lieu de commandes, oh lit les specs que la session a modifiées sous les chemins donnés et vérifie leur frontmatter (format du wiki), leur glossaire, le point de test sur la ligne de chaque critère (`CA-n · Test : …`) et, avec `breakdown: true`, que le découpage couvre chaque critère sans tranche hors spec ([format](workflow-schema.fr.md#verify--vérification-lancée-par-oh)). Le workflow `spec` s'en sert trois fois : `cp-converge` (automatique dans tous les modes : la passe de convergence, qui renvoie un écart au planner sans pause), puis `cp-spec` et `cp-tickets` (même vérification avant le commit et la création des tickets).
+**Specs écrites (`verify.spec`, R4)** : au lieu de commandes, oh lit les specs que la session a modifiées sous les chemins donnés et vérifie leur frontmatter (format du wiki), leur glossaire, le point de test sur la ligne de chaque critère (`CA-n · Test : …`) et, avec `breakdown: true`, que le découpage couvre chaque critère sans tranche hors spec ; la section « Risques et cas limites » absente ou vide sans raison ne refuse rien, elle ajoute un avertissement au résultat ([format](workflow-schema.fr.md#verify--vérification-lancée-par-oh)). Le workflow `spec` s'en sert trois fois : `cp-converge` (automatique dans tous les modes : la passe de convergence, qui renvoie un écart au planner sans pause), puis `cp-spec` et `cp-tickets` (même vérification avant le commit et la création des tickets).
 
 ### Sessions en conteneur
 
