@@ -175,7 +175,7 @@ func (s *Service) Asked(ctx context.Context, root, toolSession string, p adapter
 		if c.Tasks != nil && !sameTasks(st.ShownTasks, tasks) {
 			st.ShownTasks, changed = tasks, true // what the user validates
 		}
-		if s.askedR3(st, d, c, evidence) {
+		if s.askedEvidence(st, d, c, evidence) {
 			changed = true
 		}
 		if st.Waiting != id {

@@ -272,10 +272,10 @@ func resetRounds(st *domain.CheckpointState, t string) bool {
 	return changed
 }
 
-// askedR3 completes the decision of a paused checkpoint: the evidence of
+// askedEvidence completes the decision of a paused checkpoint: the evidence of
 // the agent checked (CP-R5) and, at the commit checkpoint, the ticket whose
 // fix rounds reached the cap. changed reports a state change.
-func (s *Service) askedR3(st *domain.CheckpointState, d *domain.Decision, c sessionspec.CheckpointDef, evidence []Evidence) (changed bool) {
+func (s *Service) askedEvidence(st *domain.CheckpointState, d *domain.Decision, c sessionspec.CheckpointDef, evidence []Evidence) (changed bool) {
 	before := len(st.Timeline)
 	if unobserved := s.recordEvidence(st, c.ID, evidence); len(unobserved) > 0 {
 		d.Payload.Data[DataUnobserved] = unobserved
@@ -286,9 +286,9 @@ func (s *Service) askedR3(st *domain.CheckpointState, d *domain.Decision, c sess
 	return len(evidence) > 0 || len(st.Timeline) != before
 }
 
-// reachedR3 completes the result of a checkpoint passed: the verification
+// reachedEvidence completes the result of a checkpoint passed: the verification
 // and the evidence not observed.
-func (s *Service) reachedR3(ctx context.Context, sessionID string, c sessionspec.CheckpointDef, call Call, res *Result) {
+func (s *Service) reachedEvidence(ctx context.Context, sessionID string, c sessionspec.CheckpointDef, call Call, res *Result) {
 	if c.Verify != nil {
 		if r, ok := s.VerifyResult(ctx, sessionID, c.ID); ok {
 			res.Verify = VerifySummary(r)
@@ -303,10 +303,10 @@ func (s *Service) reachedR3(ctx context.Context, sessionID string, c sessionspec
 	})
 }
 
-// CardR3 is what the decision card of a checkpoint shows of R3 (CP-R5):
+// CardVerification is what the decision card of a checkpoint shows of R3 (CP-R5):
 // the verification run by oh, the evidence checked and the ticket whose
 // fix rounds reached the cap.
-type CardR3 struct {
+type CardVerification struct {
 	Verify *domain.CheckpointVerify
 	// Remote is the verification run in the remote job of the session
 	// (R3-remote, imported at fetch).
@@ -319,12 +319,12 @@ type CardR3 struct {
 }
 
 // Card returns the R3 part of the card of checkpoint id of a session.
-func (s *Service) Card(ctx context.Context, sessionID, id string) CardR3 {
+func (s *Service) Card(ctx context.Context, sessionID, id string) CardVerification {
 	st, err := s.state(ctx, sessionID)
 	if err != nil {
-		return CardR3{}
+		return CardVerification{}
 	}
-	var c CardR3
+	var c CardVerification
 	if r, ok := st.Verify[id]; ok {
 		c.Verify = &r
 	}

@@ -335,7 +335,7 @@ func (s *Service) Reached(ctx context.Context, sessionID string, call Call) (Res
 		res.Message = ap.Message
 		s.recordWritten(ctx, sess, wf)
 		res.Unlocked, res.CommitNext = s.unlockedBy(ctx, sess.ID, c)
-		s.reachedR3(ctx, sess.ID, c, call, &res)
+		s.reachedEvidence(ctx, sess.ID, c, call, &res)
 		res.Wiki = s.commitPassed(ctx, sess, c)
 	}
 	for i, cp := range wf.Checkpoints {
