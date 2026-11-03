@@ -75,13 +75,6 @@ func TestClaimsCheckFlagsTheClaimsOfAFormerProjectID(t *testing.T) {
 	_ = f
 }
 
-func TestClaimsCheckIgnoresAnIDWithoutALocalProject(t *testing.T) {
-	newRehomeFixture(t, "something-else", "")
-
-	res := claimsDoctorChecks(context.Background())
-	require.Len(t, res, 1)
-	assert.True(t, res[0].OK, "the claims of a project this machine does not know are the business of another machine: %s", res[0].Detail)
-}
 
 func TestDoctorFixRehomesTheClaimsOnceAndAsksOnce(t *testing.T) {
 	f := newRehomeFixture(t, "t-sru", "")
@@ -173,24 +166,27 @@ func TestMatchClaimsRehomes(t *testing.T) {
 	other := domain.Project{ID: "other-00000001", Name: "other", Path: "/p/other"}
 
 	t.Run("same name", func(t *testing.T) {
-		found, amb := matchClaimsRehomes(nil, "me", claimsOfID("t-sru-b267fbf1", "me", "SRU-1", "SRU-2"), map[string]bool{"88280c5b": true},
+		found, unres := matchClaimsRehomes(nil, "me", claimsOfID("t-sru-b267fbf1", "me", "SRU-1", "SRU-2"), map[string]bool{"88280c5b": true},
 			[]domain.Project{sru, other}, noClaims, originsByDir(nil))
 		require.Len(t, found, 1)
-		assert.Empty(t, amb)
+		assert.Empty(t, unres)
 		assert.Equal(t, "t-sru-b267fbf1", found[0].From)
 		assert.Equal(t, "88280c5b", found[0].To.ID)
 		assert.Equal(t, claimEvidenceName, found[0].Evidence)
 		assert.Equal(t, []string{"SRU-1", "SRU-2"}, found[0].Movable)
 	})
 
-	t.Run("another name, a bare uuid8, a known ID, another member: nothing", func(t *testing.T) {
+	t.Run("another name, a bare uuid8: reported; a known ID, another member: ignored", func(t *testing.T) {
 		known := map[string]bool{"88280c5b": true, "t-sru-aaaaaaaa": true}
 		claims := append(claimsOfID("api-b267fbf1", "me", "A-1"), claimsOfID("c0ffee00", "me", "B-1")...)
 		claims = append(claims, claimsOfID("t-sru-aaaaaaaa", "me", "C-1")...)
 		claims = append(claims, claimsOfID("t-sru-bbbbbbbb", "bob", "D-1")...)
-		found, amb := matchClaimsRehomes(nil, "me", claims, known, []domain.Project{sru, other}, noClaims, originsByDir(nil))
+		found, unres := matchClaimsRehomes(nil, "me", claims, known, []domain.Project{sru, other}, noClaims, originsByDir(nil))
 		assert.Empty(t, found)
-		assert.Empty(t, amb)
+		assert.Equal(t, []claimsUnresolved{
+			{From: "api-b267fbf1", Tickets: []string{"A-1"}},
+			{From: "c0ffee00", Tickets: []string{"B-1"}},
+		}, unres)
 	})
 
 	t.Run("merge request of the same repository", func(t *testing.T) {
@@ -207,9 +203,10 @@ func TestMatchClaimsRehomes(t *testing.T) {
 		claims := claimsOfID("t-sru-b267fbf1", "me", "SRU-1")
 		claims[0].MRURL = "https://gitlab.example.com/acme/elsewhere/-/merge_requests/4"
 		origins := originsByDir(map[string]config.GitRemote{"/p/sru": {Host: "gitlab.example.com", Path: "acme/sru"}})
-		found, amb := matchClaimsRehomes(nil, "me", claims, nil, []domain.Project{sru}, noClaims, origins)
+		found, unres := matchClaimsRehomes(nil, "me", claims, nil, []domain.Project{sru}, noClaims, origins)
 		assert.Empty(t, found)
-		assert.Empty(t, amb)
+		require.Len(t, unres, 1, "reported, not attached")
+		assert.Empty(t, unres[0].Candidates)
 	})
 
 	t.Run("a merge request without a readable origin falls back to the name", func(t *testing.T) {
@@ -222,10 +219,10 @@ func TestMatchClaimsRehomes(t *testing.T) {
 
 	t.Run("two projects of the same name are ambiguous", func(t *testing.T) {
 		twin := domain.Project{ID: "twin-00000001", Name: "t-sru", Path: "/p/twin"}
-		found, amb := matchClaimsRehomes(nil, "me", claimsOfID("t-sru-b267fbf1", "me", "SRU-1"), nil, []domain.Project{sru, twin}, noClaims, originsByDir(nil))
+		found, unres := matchClaimsRehomes(nil, "me", claimsOfID("t-sru-b267fbf1", "me", "SRU-1"), nil, []domain.Project{sru, twin}, noClaims, originsByDir(nil))
 		assert.Empty(t, found)
-		require.Len(t, amb, 1)
-		assert.Equal(t, []string{"T-SRU", "t-sru"}, amb[0].Candidates)
+		require.Len(t, unres, 1)
+		assert.Equal(t, []string{"T-SRU", "t-sru"}, unres[0].Candidates)
 	})
 
 	t.Run("the repository breaks the tie", func(t *testing.T) {
@@ -236,8 +233,8 @@ func TestMatchClaimsRehomes(t *testing.T) {
 			"/p/twin": {Host: "gitlab.example.com", Path: "acme/sru"},
 			"/p/sru":  {Host: "gitlab.example.com", Path: "acme/sru-fork"},
 		})
-		found, amb := matchClaimsRehomes(nil, "me", claims, nil, []domain.Project{sru, twin}, noClaims, origins)
-		assert.Empty(t, amb)
+		found, unres := matchClaimsRehomes(nil, "me", claims, nil, []domain.Project{sru, twin}, noClaims, origins)
+		assert.Empty(t, unres)
 		require.Len(t, found, 1)
 		assert.Equal(t, "twin-00000001", found[0].To.ID)
 	})
@@ -273,7 +270,7 @@ func TestClaimsReportIsNeverGreenWithClaimsUnderAnUnknownID(t *testing.T) {
 	assert.Contains(t, res.Detail, "oh team release T-1 -p p", "the orphan claims are still told")
 	assert.Contains(t, res.Detail, "oh doctor --fix")
 
-	res = claimsReport(nil, nil, []claimsAmbiguity{{From: "old-12345678", Candidates: []string{"a", "b"}, Tickets: []string{"SRU-1"}}})
+	res = claimsReport(nil, nil, []claimsUnresolved{{From: "old-12345678", Candidates: []string{"a", "b"}, Tickets: []string{"SRU-1"}}})
 	assert.False(t, res.OK)
 	assert.Equal(t, doctorIDClaimsUnknown, res.ID)
 }

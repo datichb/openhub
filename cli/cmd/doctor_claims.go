@@ -91,8 +91,8 @@ func claimsDoctorChecks(ctx context.Context) []doctor.Result {
 	if !teamed {
 		return nil
 	}
-	found, ambiguous := findClaimsRehomes(ctx, a)
-	return []doctor.Result{claimsReport(orphans, found, ambiguous)}
+	found, unresolved := findClaimsRehomes(ctx, a)
+	return []doctor.Result{claimsReport(orphans, found, unresolved)}
 }
 
 func claimsCheck(orphans []orphanClaim) doctor.Result { return claimsReport(orphans, nil, nil) }
@@ -100,9 +100,9 @@ func claimsCheck(orphans []orphanClaim) doctor.Result { return claimsReport(orph
 // claimsReport is the result of the claims check: the orphan claims of the
 // member and the claims under an ID no project has any more. Neither leaves
 // the check green.
-func claimsReport(orphans []orphanClaim, found []claimsRehome, ambiguous []claimsAmbiguity) doctor.Result {
+func claimsReport(orphans []orphanClaim, found []claimsRehome, unresolved []claimsUnresolved) doctor.Result {
 	res := orphanClaimsResult(orphans)
-	detail, repairable := claimsProjectDetail(found, ambiguous)
+	detail, repairable := claimsProjectDetail(found, unresolved)
 	if detail == "" {
 		return res
 	}

@@ -29,22 +29,29 @@ import (
 // any more, and the check of the orphan claims, which reads the claims of the
 // IDs it knows, said all was well.
 //
-// A claim is reported when it belongs to the active member, sits under an ID
-// no project of this machine has, and a local project of the same team space
-// is that project created again. The team-state does not record the git
-// remote of a project, so "the same project" is established from what it does
-// keep (rules in claimEvidence):
+// A claim is reported when it belongs to the active member and sits under an
+// ID no project of this machine has. When a local project of the same team
+// space is that project created again, the claims are proposed for attachment.
+// The team-state does not record the git remote of a project, so "the same
+// project" is established from what it does keep (rules in claimEvidence):
 //
 //   - remote: a claim of the ID carries the web URL of its merge request
 //     (mr_url, set by oh mr create), and its host and repository path
 //     are those of the origin remote of the local project;
 //   - name: the ID was made by domain.NewProjectID (<slug>-<uuid8>) and its
 //     slug is the slug of the name of the local project. Refused when an
-//     mr_url of the ID names another repository than the origin remote.
+//     mr_url of the ID names another repository than the origin remote;
+//   - sole: the local project is the only active project of this machine in
+//     the team space. The weakest evidence: used only when neither of the two
+//     above holds for the ID, and refused, like the name, when an mr_url of
+//     the ID names another repository than the origin remote.
 //
 // With one candidate project (or only one with the "remote" evidence) the
 // claims are proposed for attachment: oh doctor --fix moves them, after a
-// confirmation, in one commit. With several candidates nothing is proposed.
+// confirmation that tells the evidence, in one commit. With several
+// candidates nothing is proposed. The claims of an unknown ID that no
+// evidence attaches to a project are reported all the same (claims_unknown,
+// with the tickets and the manual step): the check is never green on them.
 
 // Identifiers of the results with a repair or without.
 const (
@@ -56,6 +63,7 @@ const (
 const (
 	claimEvidenceRemote = "remote"
 	claimEvidenceName   = "name"
+	claimEvidenceSole   = "sole"
 )
 
 // claimsRehome is the proposal to attach the claims of a member under an
@@ -71,8 +79,9 @@ type claimsRehome struct {
 	Movable, Conflicts []string
 }
 
-// claimsAmbiguity is a former ID with several candidate projects.
-type claimsAmbiguity struct {
+// claimsUnresolved is an unknown ID whose claims no evidence attaches to one
+// project: several projects fit (Candidates), or none does (Candidates empty).
+type claimsUnresolved struct {
 	From       string
 	Candidates []string // names of the projects
 	Tickets    []string
@@ -125,8 +134,9 @@ func sameRepository(a, b config.GitRemote) bool {
 }
 
 // claimEvidence says why project p is the one the claims of the former ID from
-// belong to: claimEvidenceRemote, claimEvidenceName, or "" (not the same).
-func claimEvidence(from string, claims []teamstate.Claim, p domain.Project, remoteOf remoteOfDir) string {
+// belong to: claimEvidenceRemote, claimEvidenceName, claimEvidenceSole (p is
+// the only project of its team space, sole) or "" (not the same).
+func claimEvidence(from string, claims []teamstate.Claim, p domain.Project, sole bool, remoteOf remoteOfDir) string {
 	var mrRepos []config.GitRemote
 	for _, c := range claims {
 		if r, ok := mrRepository(c.MRURL); ok {
@@ -146,6 +156,9 @@ func claimEvidence(from string, claims []teamstate.Claim, p domain.Project, remo
 	if slug, ok := domain.ProjectIDSlug(from); ok && slug == domain.ProjectSlug(p.Name) {
 		return claimEvidenceName
 	}
+	if sole {
+		return claimEvidenceSole
+	}
 	return ""
 }
 
@@ -154,7 +167,7 @@ func claimEvidence(from string, claims []teamstate.Claim, p domain.Project, remo
 // lists the claims already under a project (to find the conflicts).
 func matchClaimsRehomes(repo teamstate.ClaimRehomer, member string, claims []teamstate.Claim, known map[string]bool,
 	candidates []domain.Project, claimsOf func(project string) []teamstate.Claim, remoteOf remoteOfDir,
-) (found []claimsRehome, ambiguous []claimsAmbiguity) {
+) (found []claimsRehome, unresolved []claimsUnresolved) {
 	byID := map[string][]teamstate.Claim{}
 	var ids []string
 	for _, c := range claims {
@@ -171,7 +184,7 @@ func matchClaimsRehomes(repo teamstate.ClaimRehomer, member string, claims []tea
 		group := byID[from]
 		var hits []claimsRehome
 		for _, p := range candidates {
-			ev := claimEvidence(from, group, p, remoteOf)
+			ev := claimEvidence(from, group, p, len(candidates) == 1, remoteOf)
 			if ev == "" {
 				continue
 			}
@@ -190,6 +203,7 @@ func matchClaimsRehomes(repo teamstate.ClaimRehomer, member string, claims []tea
 		}
 		switch len(hits) {
 		case 0:
+			unresolved = append(unresolved, unresolvedOf(from, group, nil))
 		case 1:
 			h := hits[0]
 			existing := map[string]bool{}
@@ -207,23 +221,28 @@ func matchClaimsRehomes(repo teamstate.ClaimRehomer, member string, claims []tea
 			sort.Strings(h.Conflicts)
 			found = append(found, h)
 		default:
-			amb := claimsAmbiguity{From: from}
+			var names []string
 			for _, h := range hits {
-				amb.Candidates = append(amb.Candidates, h.To.Name)
+				names = append(names, h.To.Name)
 			}
-			for _, c := range group {
-				amb.Tickets = append(amb.Tickets, c.TicketID)
-			}
-			sort.Strings(amb.Tickets)
-			ambiguous = append(ambiguous, amb)
+			unresolved = append(unresolved, unresolvedOf(from, group, names))
 		}
 	}
-	return found, ambiguous
+	return found, unresolved
+}
+
+func unresolvedOf(from string, group []teamstate.Claim, candidates []string) claimsUnresolved {
+	u := claimsUnresolved{From: from, Candidates: candidates}
+	for _, c := range group {
+		u.Tickets = append(u.Tickets, c.TicketID)
+	}
+	sort.Strings(u.Tickets)
+	return u
 }
 
 // findClaimsRehomes looks for the claims under unknown IDs in the team space
 // of every active project of the hub.
-func findClaimsRehomes(ctx context.Context, a *app.App) ([]claimsRehome, []claimsAmbiguity) {
+func findClaimsRehomes(ctx context.Context, a *app.App) ([]claimsRehome, []claimsUnresolved) {
 	if a == nil || a.Projects == nil {
 		return nil, nil
 	}
@@ -261,7 +280,7 @@ func findClaimsRehomes(ctx context.Context, a *app.App) ([]claimsRehome, []claim
 		s.candidates = append(s.candidates, p)
 	}
 	var found []claimsRehome
-	var ambiguous []claimsAmbiguity
+	var unresolved []claimsUnresolved
 	for _, key := range order {
 		s := spaces[key]
 		claims, err := s.repo.ListClaims(ctx, "")
@@ -272,11 +291,11 @@ func findClaimsRehomes(ctx context.Context, a *app.App) ([]claimsRehome, []claim
 			cs, _ := s.repo.ListClaims(ctx, project)
 			return cs
 		}
-		f, amb := matchClaimsRehomes(s.repo, s.member, claims, known, s.candidates, claimsOf, gitOriginOf)
+		f, unres := matchClaimsRehomes(s.repo, s.member, claims, known, s.candidates, claimsOf, gitOriginOf)
 		found = append(found, f...)
-		ambiguous = append(ambiguous, amb...)
+		unresolved = append(unresolved, unres...)
 	}
-	return found, ambiguous
+	return found, unresolved
 }
 
 func (r claimsRehome) describe() string {
@@ -286,7 +305,7 @@ func (r claimsRehome) describe() string {
 
 // claimsProjectDetail is the detail of the claims check for the claims under
 // unknown IDs: what to attach (with the repair) and what needs a hand.
-func claimsProjectDetail(found []claimsRehome, ambiguous []claimsAmbiguity) (detail string, repairable bool) {
+func claimsProjectDetail(found []claimsRehome, unresolved []claimsUnresolved) (detail string, repairable bool) {
 	var parts []string
 	var movable []string
 	for _, r := range found {
@@ -301,8 +320,13 @@ func claimsProjectDetail(found []claimsRehome, ambiguous []claimsAmbiguity) (det
 	if len(movable) > 0 {
 		parts = append([]string{i18n.Tf("cmd.doctor.claims.rehome", strings.Join(movable, " ; "))}, parts...)
 	}
-	for _, amb := range ambiguous {
-		parts = append(parts, i18n.Tf("cmd.doctor.claims.ambiguous", amb.From, strings.Join(amb.Candidates, ", "), amb.Tickets[0], amb.From))
+	for _, u := range unresolved {
+		tickets := strings.Join(u.Tickets, ", ")
+		if len(u.Candidates) == 0 {
+			parts = append(parts, i18n.Tf("cmd.doctor.claims.unmatched", u.From, tickets, u.Tickets[0], u.From))
+			continue
+		}
+		parts = append(parts, i18n.Tf("cmd.doctor.claims.ambiguous", u.From, tickets, strings.Join(u.Candidates, ", "), u.Tickets[0], u.From))
 	}
 	return strings.Join(parts, " — "), repairable
 }
@@ -314,7 +338,8 @@ func planClaimsRehome(found []claimsRehome) string {
 		if len(r.Movable) == 0 {
 			continue
 		}
-		lines = append(lines, i18n.Tf("cmd.doctor.claims.rehome_plan", r.From, r.To.Name, r.To.ID, r.Member, strings.Join(r.Movable, ", ")))
+		lines = append(lines, i18n.Tf("cmd.doctor.claims.rehome_plan", r.From, r.To.Name, r.To.ID, r.Member, strings.Join(r.Movable, ", "),
+			i18n.T("cmd.doctor.claims.evidence_"+r.Evidence)))
 		if len(r.Conflicts) > 0 {
 			lines = append(lines, "  "+i18n.Tf("cmd.doctor.claims.rehome_plan_conflicts", strings.Join(r.Conflicts, ", ")))
 		}
