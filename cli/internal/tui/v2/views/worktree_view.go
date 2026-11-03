@@ -87,7 +87,7 @@ func (v *WorktreeView) Title() string { return i18n.T("tui.worktree.title") }
 // StatusHints returns keybinding hints.
 func (v *WorktreeView) StatusHints() string {
 	return keys.Hints(keys.Navigate.Hint(), keys.Open.Hint(), keys.Create.Hint(), keys.Delete.Hint(),
-		"o "+i18n.T("tui.hints.open"), "p "+i18n.T("tui.hints.prune"),
+		worktreeOpenKey.Hint(), worktreePruneKey.Hint(),
 		cleanupMergedKey.Hint(), keys.Refresh.Hint(), keys.Back.Hint())
 }
 
@@ -137,13 +137,20 @@ func (v *WorktreeView) showDetail() {
 	v.page.SetDetail(d.String())
 }
 
+// worktreeOpenKey opens a session in the worktree under the cursor and
+// worktreePruneKey prunes the stale worktrees (both ask nothing more).
+var (
+	worktreeOpenKey  = keys.Own("worktrees.open", 'o', "tui.hints.open")
+	worktreePruneKey = keys.Own("worktrees.prune", 'p', "tui.hints.prune")
+)
+
 // cleanupMergedKey removes the merged worktrees (M: merged; x never
 // destroys anything in the key convention).
 var cleanupMergedKey = keys.Own("worktrees.cleanup_merged", 'M', "tui.worktree.hint_cleanup_merged")
 
 // globalKeyPairs are the keys of the actions on every worktree.
 func (v *WorktreeView) globalKeyPairs() []string {
-	return []string{"p", i18n.T("tui.hints.prune"),
+	return []string{worktreePruneKey.Keys(), worktreePruneKey.Label(),
 		cleanupMergedKey.Keys(), cleanupMergedKey.Label(),
 		keys.Refresh.Keys(), keys.Refresh.Label()}
 }
@@ -172,17 +179,14 @@ func (v *WorktreeView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		v.removeWorktree()
 		return nil
 	}
-	if event.Key() != tcell.KeyRune {
-		return event
-	}
-	switch event.Rune() {
-	case 'o':
+	switch {
+	case worktreeOpenKey.Matches(event):
 		v.openInTerminal()
 		return nil
-	case 'p':
+	case worktreePruneKey.Matches(event):
 		v.pruneWorktrees()
 		return nil
-	case cleanupMergedKey.Rune():
+	case cleanupMergedKey.Matches(event):
 		v.cleanupWorktrees()
 		return nil
 	}

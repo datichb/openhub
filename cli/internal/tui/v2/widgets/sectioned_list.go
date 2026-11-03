@@ -9,6 +9,7 @@ import (
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 )
 
 // SectionItem represents one item in a SectionedList.
@@ -349,34 +350,27 @@ func (sl *SectionedList) formatItem(item SectionItem) (mainText, secondaryText s
 
 // handleInput captures key events for header skipping and section jumps.
 func (sl *SectionedList) handleInput(event *tcell.EventKey) *tcell.EventKey {
-	switch event.Key() {
-	case tcell.KeyRune:
-		switch event.Rune() {
-		case 'j':
-			sl.moveDown()
-			return nil
-		case 'k':
-			sl.moveUp()
-			return nil
-		case 'g':
-			sl.gotoFirst()
-			return nil
-		case 'G':
-			sl.gotoLast()
-			return nil
-		case '{':
-			sl.jumpPrevSection()
-			return nil
-		case '}':
-			sl.jumpNextSection()
-			return nil
-		}
-	case tcell.KeyDown:
+	switch {
+	case keys.Down.Matches(event):
 		sl.moveDown()
 		return nil
-	case tcell.KeyUp:
+	case keys.Up.Matches(event):
 		sl.moveUp()
 		return nil
+	case keys.First.Matches(event):
+		sl.gotoFirst()
+		return nil
+	case keys.Last.Matches(event):
+		sl.gotoLast()
+		return nil
+	case sectionPrevKey.Matches(event):
+		sl.jumpPrevSection()
+		return nil
+	case sectionNextKey.Matches(event):
+		sl.jumpNextSection()
+		return nil
+	}
+	switch event.Key() {
 	case tcell.KeyTab:
 		if sl.tabCaptureDisabled {
 			return event // let parent handle column switch

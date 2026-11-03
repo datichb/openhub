@@ -9,6 +9,7 @@ import (
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -613,34 +614,21 @@ func (c *CardColumn) visibleCount(availableHeight int) int {
 // InputHandler returns the input handler for keyboard navigation.
 func (c *CardColumn) InputHandler() func(event *tcell.EventKey, setFocus func(p tview.Primitive)) {
 	return c.WrapInputHandler(func(event *tcell.EventKey, setFocus func(p tview.Primitive)) {
-		switch event.Key() {
-		case tcell.KeyDown:
+		switch {
+		case keys.Down.Matches(event):
 			c.MoveSelection(1)
-		case tcell.KeyUp:
+		case keys.Up.Matches(event):
 			c.MoveSelection(-1)
-		case tcell.KeyHome:
+		case keys.First.Matches(event):
 			c.selected = 0
-		case tcell.KeyEnd:
+		case keys.Last.Matches(event):
 			if len(c.cards) > 0 {
 				c.selected = len(c.cards) - 1
 			}
-		case tcell.KeyPgDn:
+		case event.Key() == tcell.KeyPgDn:
 			c.MoveSelection(5)
-		case tcell.KeyPgUp:
+		case event.Key() == tcell.KeyPgUp:
 			c.MoveSelection(-5)
-		default:
-			switch event.Rune() {
-			case 'j':
-				c.MoveSelection(1)
-			case 'k':
-				c.MoveSelection(-1)
-			case 'g':
-				c.selected = 0
-			case 'G':
-				if len(c.cards) > 0 {
-					c.selected = len(c.cards) - 1
-				}
-			}
 		}
 	})
 }

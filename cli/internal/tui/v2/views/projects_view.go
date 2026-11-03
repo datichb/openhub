@@ -106,8 +106,8 @@ func (v *ProjectsView) Title() string { return i18n.T("tui.projects.title") }
 // StatusHints returns keybinding hints.
 func (v *ProjectsView) StatusHints() string {
 	return keys.Hints(keys.Navigate.Hint(), keys.Open.HintAs(i18n.T("tui.hints.configure")),
-		"p "+i18n.T("tui.hints.project_mode"), "b "+i18n.T("tui.hints.init_board"),
-		keys.Create.Hint(), keys.Edit.HintAs(i18n.T("tui.hints.rename")), "m "+i18n.T("tui.hints.move"),
+		projectModeKey.Hint(), projectBeadsKey.Hint(),
+		keys.Create.Hint(), keys.Edit.HintAs(i18n.T("tui.hints.rename")), projectMoveKey.Hint(),
 		keys.Delete.Hint(), keys.Refresh.Hint())
 }
 
@@ -232,26 +232,30 @@ func (v *ProjectsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		v.refreshProjects()
 		return nil
 	}
-	if event.Key() != tcell.KeyRune {
-		if event.Key() == tcell.KeyEnter {
-			v.openProjectConfig()
-			return nil
-		}
-		return event
-	}
-	switch event.Rune() {
-	case 'm':
+	switch {
+	case keys.Open.Matches(event):
+		v.openProjectConfig()
+		return nil
+	case projectMoveKey.Matches(event):
 		v.moveProject()
 		return nil
-	case 'p':
+	case projectModeKey.Matches(event):
 		v.enterProjectMode()
 		return nil
-	case 'b':
+	case projectBeadsKey.Matches(event):
 		v.initBeads()
 		return nil
 	}
 	return event
 }
+
+// The keys of the projects list that are its own (the rest is the
+// convention: n create, e rename, d remove, r refresh, Enter configure).
+var (
+	projectMoveKey  = keys.Own("projects.move", 'm', "tui.hints.move")
+	projectModeKey  = keys.Own("projects.mode", 'p', "tui.hints.project_mode")
+	projectBeadsKey = keys.Own("projects.init_beads", 'b', "tui.hints.init_board")
+)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Add / Remove

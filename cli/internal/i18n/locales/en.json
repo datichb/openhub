@@ -1760,6 +1760,7 @@
   "tui.keys.describe.archive": "Archive or file away (never destructive)",
   "tui.keys.describe.resume": "Resume or restore",
   "tui.keys.describe.compare": "Compare (diff)",
+  "tui.keys.describe.toggle": "Tick or untick, switch a setting, choose the option under the cursor",
   "tui.keys.describe.accept": "Accept",
   "tui.keys.describe.refuse": "Refuse (with an instruction, confirmed)",
   "tui.keys.describe.modify": "Modify before accepting",
@@ -6262,5 +6263,9 @@
   "cmd.team_config.updated": "  %s updated: %s = %s\n",
   "cmd.team_notify.error": "%s Error: %s\n",
   "cmd.team_sync_tracker.check": "  Check:\n",
-  "cmd.team_wiki.page_title": "  Wiki: %s  "
+  "cmd.team_wiki.page_title": "  Wiki: %s  ",
+  "a12.keys.section_prev": "previous section",
+  "a12.keys.section_next": "next section",
+  "a12.keys.graph_left": "to the left",
+  "a12.keys.graph_right": "to the right"
 }

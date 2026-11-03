@@ -104,9 +104,9 @@ func TestHelpRows(t *testing.T) {
 	rows := HelpRows(Everywhere)
 	assert.Equal(t, HelpRow{Keys: "↑↓/jk", Label: "Monter / descendre"}, rows[0])
 	assert.Equal(t, "g/G", rows[1].Keys)
-	assert.Len(t, HelpRows(List), 6)
+	assert.Len(t, HelpRows(List), 7)
 	assert.Equal(t, []string{"y", "n", "e", "s", "A"}, keysOf(ByContext(Decision)))
-	assert.Equal(t, []string{"n", "e", "d", "x", "R", "c"}, keysOf(ByContext(List)))
+	assert.Equal(t, []string{"n", "e", "d", "x", "R", "c", "Espace"}, keysOf(ByContext(List)))
 }
 
 func keysOf(actions []Action) []string {

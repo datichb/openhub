@@ -1760,6 +1760,7 @@
   "tui.keys.describe.archive": "Archiver ou classer (jamais destructif)",
   "tui.keys.describe.resume": "Reprendre ou restaurer",
   "tui.keys.describe.compare": "Comparer (diff)",
+  "tui.keys.describe.toggle": "Cocher ou décocher, basculer un réglage, choisir l'option sous le curseur",
   "tui.keys.describe.accept": "Valider ou accepter",
   "tui.keys.describe.refuse": "Refuser (avec une consigne, confirmé)",
   "tui.keys.describe.modify": "Modifier avant de valider",
@@ -6262,5 +6263,9 @@
   "cmd.team_config.updated": "  %s mis à jour : %s = %s\n",
   "cmd.team_notify.error": "%s Erreur : %s\n",
   "cmd.team_sync_tracker.check": "  Vérifiez :\n",
-  "cmd.team_wiki.page_title": "  Wiki : %s  "
+  "cmd.team_wiki.page_title": "  Wiki : %s  ",
+  "a12.keys.section_prev": "section précédente",
+  "a12.keys.section_next": "section suivante",
+  "a12.keys.graph_left": "vers la gauche",
+  "a12.keys.graph_right": "vers la droite"
 }

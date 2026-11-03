@@ -310,7 +310,7 @@ func (p *BeadsPicker) handleListKey(ev *tcell.EventKey) {
 		p.searching = true
 		p.search.Focus(nil)
 		p.refresh()
-	case ev.Key() == tcell.KeyRune && ev.Rune() == ' ': // the space bar ticks a ticket
+	case keys.Toggle.Matches(ev): // the space bar ticks a ticket
 		if p.cfg.Multi {
 			p.m.toggle()
 			p.moveCursor(1)
