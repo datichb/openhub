@@ -106,7 +106,7 @@ func (v *SessionsView) showCheckpoint(r *SessionRow, d *SessionDecision, c Check
 	actions = append(actions, v.wikiActions(r, &dec, c.Wiki)...)
 	if c.Patch != "" {
 		patch := c.Patch
-		actions = append(actions, ModalAction{Label: i18n.T("tui.checkpoint.diff_full"), Callback: func() {
+		actions = append(actions, ModalAction{Label: i18n.T("tui.checkpoint.diff_full"), KeepOpen: true, Callback: func() {
 			v.shell.ShowScrollableModal(i18n.T("tui.checkpoint.diff_title"), tview.Escape(patch), nil)
 			v.trackDecision(dec.ID)
 		}})

@@ -44,6 +44,9 @@ func (s *Shell) ShowMultiSelectModal(title string, options []views.SelectOption,
 }
 
 // ShowScrollableModal displays an inline scrollable content view with action buttons.
+// Shown while a window is already open (a reader opened from the decision
+// card), it opens over it as a sub-window: closing it gives the window its
+// focus back instead of leaving the screen without it.
 func (s *Shell) ShowScrollableModal(title, content string, actions []views.ModalAction) {
 	textView := tview.NewTextView().SetText(content)
 	styleScrollableText(textView)
@@ -52,8 +55,7 @@ func (s *Shell) ShowScrollableModal(title, content string, actions []views.Modal
 	if len(actions) == 0 {
 		hints = i18n.T("tui.modal.hints.reader")
 	}
-
-	s.showModal(modalConfig{
+	cfg := modalConfig{
 		Title:        title,
 		Content:      textView,
 		Actions:      actions,
@@ -64,7 +66,26 @@ func (s *Shell) ShowScrollableModal(title, content string, actions []views.Modal
 		FocusReturn:  s.content,
 		FocusTarget:  textView,
 		FocusAction:  min(len(actions), 1), // the primary action, if any
-	})
+	}
+	if s.pages.HasPage("inline-overlay") {
+		cfg.PageName, cfg.IsSub, cfg.FocusReturn = "sub-overlay", true, s.subFocusReturn()
+	}
+	s.showModal(cfg)
+}
+
+// subFocusReturn is where the focus goes back when a sub-window closes: the
+// element of the window under it that had the focus when the sub-window was
+// opened. A sub-window opened over another one (replacing it) keeps the
+// focus the first one came from.
+func (s *Shell) subFocusReturn() tview.Primitive {
+	if s.pages.HasPage("sub-overlay") && s.subReturn != nil {
+		return s.subReturn
+	}
+	s.subReturn = s.app.GetFocus()
+	if s.subReturn == nil {
+		s.subReturn = s.content
+	}
+	return s.subReturn
 }
 
 func (s *Shell) showInlineInput(title, currentValue string, masked bool, onConfirm func(string)) {

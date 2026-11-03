@@ -284,7 +284,9 @@ func buildButtonBar(actions []views.ModalAction, dismiss func()) (*tview.Flex, [
 		}
 		btn := widgets.DecorateButton(tview.NewButton(a.Label), role)
 		btn.SetSelectedFunc(func() {
-			dismiss()
+			if !a.KeepOpen {
+				dismiss()
+			}
 			if a.Callback != nil {
 				a.Callback()
 			}

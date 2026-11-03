@@ -87,7 +87,7 @@ func (v *SessionsView) reportActions(sessionID, decisionID string, reports []Che
 			break
 		}
 		rp := r
-		out = append(out, ModalAction{Label: i18n.Tf("tui.checkpoint.read_report", rp.ID), Callback: func() {
+		out = append(out, ModalAction{Label: i18n.Tf("tui.checkpoint.read_report", rp.ID), KeepOpen: true, Callback: func() {
 			v.openReport(rd, sessionID, decisionID, rp)
 		}})
 	}
@@ -95,7 +95,7 @@ func (v *SessionsView) reportActions(sessionID, decisionID string, reports []Che
 }
 
 // openReport loads a report off the event loop, then shows it in a
-// scrolling reader.
+// scrolling reader, a sub-window of the card (which stays open under it).
 func (v *SessionsView) openReport(rd CheckpointReportReader, sessionID, decisionID string, r CheckpointReport) {
 	var title, body string // written off the loop, read on it after
 	v.async(func(ctx context.Context) (string, error) {

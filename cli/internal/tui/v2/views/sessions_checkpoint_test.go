@@ -98,6 +98,8 @@ func TestCheckpointCard(t *testing.T) {
 	title, body, actions := sh.modal()
 	golden.Assert(t, "checkpoint_card/diff_messages_timeline", compactCardText(t, title, body, actions))
 	require.Len(t, actions, 3, "decide, full diff, attach")
+	assert.True(t, actions[1].KeepOpen, "the full diff opens over the card, which stays")
+	assert.False(t, actions[0].KeepOpen || actions[2].KeepOpen)
 
 	// Decide → form; "fix" without a message is refused, with one it is sent.
 	actions[0].Callback()
