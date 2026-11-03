@@ -5,17 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"sync/atomic"
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/beads"
-	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/teamstate"
-	"github.com/datichb/openhub/cli/internal/tracker"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
@@ -111,12 +108,8 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 		}
 	}()
 
-	notice := newAutoPlanNotice(a)
-	notice.refresh()
-
 	return views.TeamBoardViewConfig{
 		Tickets:            initialTickets,
-		Notice:             notice.text,
 		RefreshRate:        5 * time.Second,
 		LabelStatusMapping: labelStatusMapping,
 		BoardConfig:        boardConfig,
@@ -125,7 +118,6 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 		},
 		BeadsSummaryFunc: buildBeadsSummaryFunc(a),
 		RefreshFunc: func() []views.TeamTicket {
-			notice.refresh()
 			repo := resolveRepoWithBoard()
 			if repo == nil {
 				return nil
@@ -375,51 +367,4 @@ func buildProjectNameResolver(a *app.App) views.ProjectNameResolver {
 		}
 		return dirID // fallback to directory name
 	}
-}
-
-// autoPlanNotice is the line of the team board that says the auto-plan left
-// issues off the board: the tracker sync keeps what it held back in the
-// sync state of the machine, the board reads it with its refresh (not on the
-// event loop) and shows the last text read.
-type autoPlanNotice struct {
-	a    *app.App
-	last atomic.Value // string
-}
-
-func newAutoPlanNotice(a *app.App) *autoPlanNotice { return &autoPlanNotice{a: a} }
-
-func (n *autoPlanNotice) text() string {
-	s, _ := n.last.Load().(string)
-	return s
-}
-
-func (n *autoPlanNotice) refresh() {
-	n.last.Store(autoPlanNoticeText(n.a, config.HubDir()))
-}
-
-// autoPlanNoticeText is « N issues hors du board, limite atteinte » for the
-// projects of the active team, "" when the auto-plan held nothing back.
-func autoPlanNoticeText(a *app.App, stateDir string) string {
-	if a == nil || a.Projects == nil {
-		return ""
-	}
-	projects, err := a.Projects.List(context.Background(), domain.ProjectStatusActive)
-	if err != nil {
-		return ""
-	}
-	teamID := ""
-	if tuiShell != nil && tuiShell.Mode() == views.ModeTeam && tuiShell.ActiveTeam() != nil {
-		teamID = tuiShell.ActiveTeam().ID
-	}
-	var ids []string
-	for _, p := range projects {
-		if teamID == "" || (p.TeamID != nil && *p.TeamID == teamID) {
-			ids = append(ids, p.ID)
-		}
-	}
-	held, limit := tracker.AutoPlanHeldFor(stateDir, ids)
-	if held == 0 {
-		return ""
-	}
-	return i18n.Tf("tracker.sync.held_notice", held, limit)
 }

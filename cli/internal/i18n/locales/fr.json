@@ -6217,8 +6217,6 @@
   "fmt.on": "activé",
   "fmt.off": "désactivé",
   "tracker.sync.expired_released": "claim expiré de %s libéré (réglage d'équipe release_expired_on_sync)",
-  "tracker.sync.autoplan_held": "%d issue(s) hors du board, limite atteinte (max_auto_plan_per_member = %d par synchro) : %s. Elles entrent aux synchros suivantes ; les issues déjà en cours ne sont jamais retenues. Relevez la limite avec oh team config ou dans team-detail.",
-  "tracker.sync.held_notice": "%d issue(s) hors du board, limite atteinte (max_auto_plan_per_member = %d)",
   "cmd.claims.own_renewed_live": "%s/%s est déjà à toi : bail renouvelé jusqu'au %s.",
   "cmd.claims.in_review": "  Elle est en revue : elle reste réservée jusqu'à la fusion ou jusqu'à ce que son propriétaire la libère.",
   "cmd.claims.own_no_lease": "%s/%s est déjà à toi ; il ne porte pas de bail (prévu, pool ou terminé) : rien à renouveler.",
