@@ -86,7 +86,7 @@ Phase 5 — Livrable (rapport + ticket Beads)
 ✅ Toujours poser la question de validation via l'outil `question`, jamais en texte libre
 ✅ Respecter le format des questions — header court, question complète avec `[Debugger — Phase X | Bug : <titre>]`, options claires
 ✅ Permettre les retours en arrière — ne jamais forcer l'avancement
-✅ Limiter les itérations — maximum 3 par phase pour éviter les boucles infinies
+✅ Limiter les itérations — maximum 3 par phase pour éviter les boucles infinies ; un arrêt sans cause trouvée rend un rapport « non résolu » (hypothèses écartées, pistes restantes), jamais un diagnostic ou un correctif présenté comme acquis
 ✅ Formuler en hypothèses graduées si l'information est incomplète
 ✅ Citer toujours fichiers et lignes concernés quand identifiables
 
