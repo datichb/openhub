@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -134,7 +135,8 @@ type TeamBoardView struct {
 	filterLabel    string       // filter by specific label
 
 	// Project tabs
-	projectTabs  []string // ["", "proj-a", "proj-b"] — "" = all
+	projectTabs  []string // project IDs, "" = all: ["", "88280c5b", "a1b2c3d4"], by display name
+	projectNames map[string]projectName
 	activeTabIdx int
 	tabBar       *tview.TextView
 	boardLayout  *tview.Flex // vertical flex: tabBar + columnFlex
@@ -692,21 +694,68 @@ func ticketLabelParts(labels []string, workflow map[string]string) []string {
 
 // ─── Project Tabs ────────────────────────────────────────────────────────────
 
-// buildProjectTabs extracts unique project names from tickets and builds tab list.
+// projectName is how a project shows on its tab.
+type projectName struct {
+	// Name is the name of the project, or its ID when no name is known.
+	Name string
+	// Unknown: no local project has this ID (the resolver gave the ID back).
+	Unknown bool
+}
+
+// buildProjectTabs lists the projects of the tickets, one tab each: the tab
+// shows the name of the project and filters on its ID. The tabs are sorted by
+// name (then ID), so that they do not move from one read to the next.
 func (v *TeamBoardView) buildProjectTabs(tickets []TeamTicket) {
-	seen := make(map[string]bool)
-	var projects []string
+	names := make(map[string]projectName)
 	for _, t := range tickets {
-		if t.Project != "" && !seen[t.Project] {
-			seen[t.Project] = true
-			projects = append(projects, t.Project)
+		if t.Project == "" {
+			continue
 		}
+		if _, ok := names[t.Project]; ok {
+			continue
+		}
+		pn := projectName{Name: t.ProjectName}
+		switch {
+		case pn.Name == "":
+			pn.Name = t.Project
+		case pn.Name == t.Project:
+			pn.Unknown = true
+		}
+		names[t.Project] = pn
 	}
+	ids := make([]string, 0, len(names))
+	for id := range names {
+		ids = append(ids, id)
+	}
+	sort.Slice(ids, func(i, j int) bool {
+		a, b := strings.ToLower(names[ids[i]].Name), strings.ToLower(names[ids[j]].Name)
+		if a != b {
+			return a < b
+		}
+		return ids[i] < ids[j]
+	})
 	// Only show tabs if there are 2+ projects (or 1+ for the all tab to be useful)
-	v.projectTabs = append([]string{""}, projects...) // "" = all
+	v.projectTabs = append([]string{""}, ids...) // "" = all
+	v.projectNames = names
 	if v.activeTabIdx >= len(v.projectTabs) {
 		v.activeTabIdx = 0
 	}
+}
+
+// tabLabel is the text of a tab: « All », the name of the project, or its ID
+// marked as the ID of a project this machine does not know.
+func (v *TeamBoardView) tabLabel(id string) string {
+	if id == "" {
+		return i18n.T("tui.board.tab_all")
+	}
+	pn, ok := v.projectNames[id]
+	switch {
+	case !ok:
+		return id
+	case pn.Unknown:
+		return i18n.Tf("tui.teamboard.project_unknown", pn.Name)
+	}
+	return pn.Name
 }
 
 // renderTabBar renders the project tabs in the tab bar widget.
@@ -723,10 +772,7 @@ func (v *TeamBoardView) renderTabBar() {
 	var sb strings.Builder
 	sb.WriteString(" ")
 	for i, tab := range v.projectTabs {
-		label := tab
-		if label == "" {
-			label = i18n.T("tui.board.tab_all")
-		}
+		label := v.tabLabel(tab)
 		if i == v.activeTabIdx {
 			// Active tab: accent background
 			sb.WriteString(projectChip(label))
@@ -763,7 +809,7 @@ func (v *TeamBoardView) prevProjectTab() {
 	if v.activeTabIdx < 0 {
 		v.activeTabIdx = len(v.projectTabs) - 1
 	}
-	v.repopulateWithFilters()
+	v.filtersChanged()
 }
 
 // nextProjectTab switches to the next project tab.
@@ -775,7 +821,7 @@ func (v *TeamBoardView) nextProjectTab() {
 	if v.activeTabIdx >= len(v.projectTabs) {
 		v.activeTabIdx = 0
 	}
-	v.repopulateWithFilters()
+	v.filtersChanged()
 }
 
 func (v *TeamBoardView) moveFocus(delta int) {
@@ -1205,7 +1251,7 @@ func (v *TeamBoardView) showSearchFilter() {
 			// Empty search clears all filters (replaces Esc clear-filter behavior)
 			v.clearFilters()
 		} else {
-			v.repopulateWithFilters()
+			v.filtersChanged()
 			v.shell.ShowToastMsg(i18n.Tf("tui.teamboard.filter_search_applied", text), true)
 		}
 	})
@@ -1240,11 +1286,11 @@ func (v *TeamBoardView) showFilterMenu() {
 				return
 			}
 			v.filterOwner, v.filterAssignee = ownerMine, ""
-			v.repopulateWithFilters()
+			v.filtersChanged()
 			v.shell.ShowToastMsg(i18n.T("tui.teamboard.filter_mine_applied"), true)
 		case "_pool":
 			v.filterOwner, v.filterAssignee = ownerPool, ""
-			v.repopulateWithFilters()
+			v.filtersChanged()
 			v.shell.ShowToastMsg(i18n.T("tui.teamboard.filter_unassigned_applied"), true)
 		case "_assignee":
 			v.showAssigneeFilter()
@@ -1281,7 +1327,7 @@ func (v *TeamBoardView) showAssigneeFilter() {
 
 	v.shell.ShowSelectModal(i18n.T("tui.teamboard.filter_assignee_title"), options, "", func(assignee string) {
 		v.filterAssignee, v.filterOwner = assignee, ownerAny
-		v.repopulateWithFilters()
+		v.filtersChanged()
 		v.shell.ShowToastMsg(i18n.Tf("tui.teamboard.filter_assignee_applied", assignee), true)
 	})
 }
@@ -1293,7 +1339,7 @@ func (v *TeamBoardView) showLabelFilter() {
 	}
 	v.shell.ShowInputModal(i18n.T("tui.teamboard.filter_label_title"), v.filterLabel, func(label string) {
 		v.filterLabel = label
-		v.repopulateWithFilters()
+		v.filtersChanged()
 		if label != "" {
 			v.shell.ShowToastMsg(i18n.Tf("tui.teamboard.filter_label_applied", label), true)
 		}
@@ -1306,10 +1352,18 @@ func (v *TeamBoardView) clearFilters() {
 	v.filterAssignee = ""
 	v.filterOwner = ownerAny
 	v.filterLabel = ""
-	v.repopulateWithFilters()
+	v.filtersChanged()
 	if v.shell != nil {
 		v.shell.ShowToastMsg(i18n.T("tui.teamboard.filters_cleared"), true)
 	}
+}
+
+// filtersChanged draws the board again after a change of project tab or of
+// filter: the cards, the tabs (the active one) and the hints line (the
+// « filtered » mark), at once and not at the next read of the tickets.
+func (v *TeamBoardView) filtersChanged() {
+	v.repopulateWithFilters()
+	refreshHints(v.shell)
 }
 
 // repopulateWithFilters re-renders the board with current filters applied.
@@ -1317,6 +1371,7 @@ func (v *TeamBoardView) repopulateWithFilters() {
 	if v.columnCards == nil || len(v.allTickets) == 0 {
 		return
 	}
+	v.renderTabBar()
 	columns := v.allColumns
 	filtered := v.applyProjectFilter(v.allTickets)
 	filtered = v.applyFilters(filtered)

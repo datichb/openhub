@@ -3893,6 +3893,7 @@
   "tui.teamboard.filter_my_tickets": "Mes tickets",
   "tui.teamboard.filter_unassigned": "Non assignés",
   "tui.teamboard.filter_unassigned_applied": "Filtre: non assignés (réserve, à prendre avec la touche de prise)",
+  "tui.teamboard.project_unknown": "%s (projet inconnu)",
   "tui.teamboard.filter_mine_unknown": "Identité du membre inconnue : impossible de filtrer vos tickets (oh team init / oh team rejoin)",
   "tui.teamboard.filter_no_assignee": "Aucun assignee trouvé",
   "tui.teamboard.filter_search_applied": "Filtre: \"%s\" (/ vide pour effacer)",

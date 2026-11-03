@@ -29,6 +29,8 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 ### Fixed
 
 - **Board d'équipe : le filtre « Mes tickets » ne filtrait rien.** Il lisait le premier membre d'une liste que personne ne remplissait ; il garde maintenant les tickets du membre de l'équipe active (si son identité est inconnue, le filtre le dit au lieu de vider le board).
+- **Board d'équipe : les onglets de projet affichent le nom du projet**, plus son identifiant (`88280c5b`) ; le filtre reste sur l'identifiant. Les onglets sont triés par nom, et un identifiant qu'aucun projet local ne connaît est marqué « (projet inconnu) ».
+- **Board d'équipe : l'onglet actif et le repère « filtré » se mettent à jour tout de suite.** Après `[` / `]` ou un changement de filtre (`/`, « Mes tickets », « Non assignés », « Effacer les filtres »), les cartes étaient refiltrées mais l'onglet surligné et le repère des touches attendaient le rafraîchissement suivant (jusqu'à 5 s).
 
 ## [5.1.1] — 2026-11-03
 
