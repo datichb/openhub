@@ -370,11 +370,11 @@ Command `doctor`. `f` fix the selected check (like `oh doctor --fix`, with a pre
 | View | Keys |
 |------|------|
 | Project board | `h` / `l` columns, `Enter` detail, `a` actions (launch a workflow on the ticket), `L` link to the tracker, `i` initialise Beads |
-| Team board | `h` / `l` columns, `[` / `]` projects, `Enter` detail, `a` actions (workflows taking a ticket; on a GitLab issue, also the workflows taking a free request, with `#<iid>`), `/` filter (menu: text, assignee, label), `c` claim, `L` release (confirmed), `t` transfer, `s` status |
+| Team board | `h` / `l` columns, `[` / `]` projects, `Enter` detail, `a` actions (workflows taking a ticket; on a GitLab issue, also the workflows taking a free request, with `#<iid>`), `/` filter (menu: text, **My tickets**, **Unassigned** — the pool, to take with `c` —, assignee, label, clear), `c` claim (refused at `max_in_progress_per_member`), `L` release (confirmed), `t` transfer, `s` status, `C` edit the columns of the board (the editor below) |
 
 ### Board columns editor
 
-Team home → **Board Columns** (an active team with a cloned team-state is needed). The editor sets the columns of the team board (the `[board]` section of the team configuration, see [`config.en.md`](config.en.md#board-section)) and the rules that put a tracker label or status in a column. It is a wizard step: `Esc` asks « Quit the wizard? », and nothing is written until `Ctrl+S` is pressed.
+Team home → **Board Columns**, or `C` on the team board (an active team with a cloned team-state is needed; back from the editor, the board reads its tickets again with the new columns). The editor sets the columns of the team board (the `[board]` section of the team configuration, see [`config.en.md`](config.en.md#board-section)) and the rules that put a tracker label or status in a column. It is a wizard step: `Esc` asks « Quit the wizard? », and nothing is written until `Ctrl+S` is pressed.
 
 List of the columns:
 
@@ -397,6 +397,7 @@ Mappings of a column (`m`): the list of the labels, then of the statuses (Jira),
 | `n` | add a label (the name is asked) |
 | `e` / `Enter` | rename the label or the status |
 | `d` | remove it from the column, **after a confirmation** |
+| `v` | move it to another column: the list of the other columns is offered, the label or status then leaves this column (shown in the target's mappings) |
 | `q` | back to the list of the columns |
 
 The tracker discovery wizard (`Discover Tracker`) uses the same editor for its columns, without the `m` key. Before 5.1: `a` added and `r` changed the role; they are now `n` and `o` (`r` refreshes everywhere else), and `d` asks for a confirmation (see [Changed keys](#changed-keys)).

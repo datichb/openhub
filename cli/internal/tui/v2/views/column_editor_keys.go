@@ -15,6 +15,9 @@ var (
 	ColumnRole = keys.Own("columns.role", 'o', "tui.team.columns.hint_role")
 	// ColumnMappings opens the labels and statuses mapped to the column.
 	ColumnMappings = keys.Own("columns.mappings", 'm', "tui.team.columns.hint_mappings")
+	// ColumnMoveTo moves the label or the status under the cursor, in the
+	// mappings of a column, to another column.
+	ColumnMoveTo = keys.Own("columns.move_to", 'v', "tui.team.columns.hint_move_to")
 	// ColumnBack leaves the mappings for the columns (Esc asks to quit the wizard).
 	ColumnBack = keys.Own("columns.back", 'q', "tui.team.columns.hint_back_columns")
 )

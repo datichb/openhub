@@ -597,7 +597,7 @@ ticket_pattern = "APP-(\\d+)"   # regex à un groupe de capture → IID externe
 auto_sync = true             # synchroniser à l'ouverture des vues d'équipe
 sync_interval_minutes = 5    # intervalle quand le board est ouvert
 auto_plan_assigned = true    # claims "planned" pour les issues assignées
-max_auto_plan_per_member = 5
+max_in_progress_per_member = 5   # tickets en cours par membre (0 = sans limite)
 auto_plan_unassigned = false # claims de pool pour les issues non assignées
 push_labels = false          # renvoyer les labels vers le tracker
 write_enabled = false        # écritures tracker (labels, assignation)
@@ -618,8 +618,8 @@ write_enabled = false        # écritures tracker (labels, assignation)
 | `ticket_pattern` | string | vide | Regex à **un groupe de capture** extrayant l'IID |
 | `auto_sync` | bool | `false` | Synchroniser à l'ouverture des vues d'équipe |
 | `sync_interval_minutes` | int | `5` si `auto_sync`, sinon `0` | Intervalle de sync quand le board est ouvert (`0` = désactivé) |
-| `auto_plan_assigned` | bool | `false` | Claims `planned` pour les issues assignées aux membres |
-| `max_auto_plan_per_member` | int | `5` | Nombre maximal de claims qu'une synchro crée pour un membre à partir des issues qui lui sont assignées (par run, pas un plafond permanent : les issues retenues entrent aux synchros suivantes). Les issues déjà en cours passent en premier et sont toujours acceptées, hors limite. Ce qui reste dehors est signalé : `N issue(s) hors du board, limite atteinte` dans le résultat de la synchro et sur le board d'équipe |
+| `auto_plan_assigned` | bool | `false` | Toute issue ouverte assignée à un membre arrive sur le board sous forme de claim, dans la colonne que son statut désigne, **sans plafond par membre** (une issue déjà en cours sur le tracker arrive en cours) |
+| `max_in_progress_per_member` | int | `5` | **Limite de travail en cours** : le nombre maximal de tickets sur lesquels un membre travaille en même temps. Elle compte ses claims en cours (les colonnes `active` du board, `in_progress` par défaut), ceux en revue (statut `review` ou label `review` / `ready-for-review`) ou en validation exceptés. `0` = sans limite. Un membre qui l'a atteinte ne peut plus en prendre ni en démarrer un de plus : `oh team claim` (aussi la reprise d'un claim expiré et `oh team claim transfer` vers soi), la touche de prise, une carte passée en cours ou transférée à soi sur le board d'équipe, une session lancée sur des tickets. oh refuse en donnant le compte et cette clé. La synchro du tracker n'est jamais bornée par elle. Un membre peut fixer sa propre limite dans `hub.toml` (`oh config set tracker.max_in_progress_per_member 3`), qui l'emporte sur celle de l'équipe. **Remplace `max_auto_plan_per_member`** (dépréciée : encore lue quand cette clé est absente, signalée par `oh doctor` ; elle ne borne plus rien de ce que la synchro crée) |
 | `auto_plan_unassigned` | bool | `false` | Claims de pool (à prendre avec `c`) pour les issues non assignées |
 | `unassigned_labels` | liste | `[]` | Labels exigés pour les issues non assignées |
 | `max_unassigned_issues` | int | `20` | Plafond d'issues non assignées par projet |

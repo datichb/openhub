@@ -338,11 +338,12 @@ func configureTrackerSync(ctx context.Context, a *app.App, repo teamstate.Config
 
 		// Auto-plan
 		teamCfg.Tracker.AutoPlanAssigned = askYN(out, i18n.T("cmd.team_config.auto_create_planned_claims_for_assigned"), teamCfg.Tracker.AutoPlanAssigned)
-		if teamCfg.Tracker.AutoPlanAssigned {
-			maxStr := askInput(out, i18n.T("cmd.team_config.auto_plan_claims_limit_per_member"), fmt.Sprintf("%d", max(teamCfg.Tracker.MaxAutoPlanPerMember, 5)))
-			if n := parseInt(maxStr, 5); n > 0 {
-				teamCfg.Tracker.MaxAutoPlanPerMember = n
-			}
+
+		// Work-in-progress limit (0 = no limit); writing it also replaces the
+		// former max_auto_plan_per_member of the file.
+		maxStr := askInput(out, i18n.T("cmd.team_config.max_in_progress_per_member"), strconv.Itoa(teamCfg.Tracker.InProgressLimit()))
+		if n, err := strconv.Atoi(strings.TrimSpace(maxStr)); err == nil && n >= 0 {
+			teamCfg.Tracker.MaxInProgressPerMember = &n
 		}
 
 		// Push labels
@@ -719,6 +720,13 @@ func printTrackerStatus(out interface{ Write([]byte) (int, error) },
 	// auto_plan
 	autoPlanSrc := sourceLabel(local.AutoPlanAssigned != nil, "local", "équipe")
 	fmt.Fprintf(out, "%sauto_plan:     %s  %s\n", indent, fmtBool(eff.AutoPlanAssigned), autoPlanSrc)
+
+	// max_in_progress_per_member: the work-in-progress limit (0 = no limit)
+	limit := strconv.Itoa(eff.MaxInProgressPerMember)
+	if eff.MaxInProgressPerMember == 0 {
+		limit = i18n.T("cmd.team_config.status_no_limit")
+	}
+	fmt.Fprintf(out, "%smax_in_progress: %s  %s\n", indent, limit, sourceLabel(local.MaxInProgressPerMember != nil, "local", "équipe"))
 
 	// token: the key and the server it is declared for, as the cascade reads them
 	tokenSrc := sourceLabel(local.TrackerTokenKey != "", "local", "équipe")

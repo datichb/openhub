@@ -546,7 +546,7 @@ Legend:
 | 4 | Transfer (`t`) | Modal listing other members, confirmation |
 | 5 | Change status (`s`) | 5-choice modal, ticket moves to new column |
 | 6 | Filter `/` | Only matching tickets visible, `[FILTER]` indicator |
-| 7 | Filter `f` > "My tickets" | Only my tickets |
+| 7 | Filter `/` > "My tickets" then "Unassigned" | Only my tickets, then only the pool |
 | 8 | `--watch` (CLI) | Board auto-refreshes (5s) |
 | 9 | Labels displayed | `[AI]` and `[!]` correctly rendered |
 | 10 | Double-press action | Debouncing: no simultaneous execution |
@@ -922,7 +922,7 @@ Legend:
    │  │  If auto_plan_assigned enabled:          │  │
    │  │  • Fetch issues assigned per member      │  │
    │  │  • Create "planned" claim if absent      │  │
-   │  │  • Respect max_auto_plan_per_member      │  │
+   │  │  • Every assigned issue comes in         │  │
    │  └──────────────────────────────────────────┘  │
    └───────────────────────┬────────────────────────┘
                            │
@@ -966,7 +966,7 @@ Legend:
 | 5 | Issue reopened | Claim changes to `in_progress` |
 | 6 | `auto_plan_assigned` | New `planned` claims created |
 | 7 | `push_labels` | Labels visible on GitLab/Jira |
-| 8 | `max_auto_plan_per_member` | No more than N auto-created claims |
+| 8 | `max_in_progress_per_member` | Every assigned issue comes onto the board; taking or starting a ticket past the limit is refused |
 | 9 | Project mappings | Only configured projects synchronized |
 
 ---

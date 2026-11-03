@@ -130,6 +130,17 @@ func runClaim(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	// One more ticket in progress for the member: refused past
+	// max_in_progress_per_member. A ticket that is already claimed is not
+	// new work (claimExists answers it).
+	if !planned {
+		if _, gerr := repo.GetClaim(ctx, project, ticketID); errors.Is(gerr, teamstate.ErrClaimNotFound) {
+			if err := checkInProgressRoom(ctx, repo, a.Config.Tracker, memberID, teamstate.ClaimRef{Project: project, TicketID: ticketID}); err != nil {
+				return err
+			}
+		}
+	}
+
 	// Taken by hand: no session works on the ticket, so the claim carries
 	// none (the session that starts on it takes it, AdoptClaim). Its lease
 	// lasts lease_hours_manual (72 h by default) and nothing renews it by
@@ -174,6 +185,7 @@ type claimTakeover interface {
 // claimConflictStore is what answering a ticket that is already claimed asks
 // of the team-state.
 type claimConflictStore interface {
+	teamstate.ClaimReader
 	teamstate.ConfigReader
 	teamstate.ClaimRenewer
 	teamstate.EventWriter
@@ -220,6 +232,10 @@ func claimExists(cmd *cobra.Command, a *app.App, repo claimConflictStore, existi
 	}
 
 	if expired && existing.ClaimedBy != "" && existing.ClaimedBy != memberID {
+		// The claim comes to the member as it is: in progress, it is one more.
+		if err := checkTransferToSelfRoom(ctx, repo, a.Config.Tracker, memberID, existing); err != nil {
+			return err
+		}
 		return takeOverExpiredClaim(cmd, a, repo, existing, project, ticketID, memberID)
 	}
 
@@ -345,6 +361,13 @@ func runClaimTransfer(cmd *cobra.Command, args []string) error {
 	var previousOwner string
 	if existingClaim != nil {
 		previousOwner = existingClaim.ClaimedBy
+	}
+
+	// Handing a claim in progress to oneself is one more ticket in progress.
+	if me := a.Config.ActiveTeam().MemberID; to == me {
+		if err := checkTransferToSelfRoom(ctx, repo, a.Config.Tracker, me, existingClaim); err != nil {
+			return err
+		}
 	}
 
 	if err := repo.TransferClaim(ctx, project, ticketID, to); err != nil {

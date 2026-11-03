@@ -569,9 +569,17 @@ type TrackerConfig struct {
 	// AutoPlanAssigned automatically creates "planned" claims for tracker issues
 	// that are assigned to a team member but not yet claimed.
 	AutoPlanAssigned bool `toml:"auto_plan_assigned"`
-	// MaxAutoPlanPerMember limits the number of auto-planned claims per member
-	// to avoid flooding the TODO column. Default: 5.
-	MaxAutoPlanPerMember int `toml:"max_auto_plan_per_member"`
+	// MaxInProgressPerMember is the most tickets one member works on at once:
+	// the claims of the member in progress, those in review apart (see
+	// CountsInProgress). Taking or starting one more is refused. nil is the
+	// default (DefaultMaxInProgressPerMember), 0 is no limit. The tracker sync
+	// is never bound by it: a ticket already in progress on the tracker comes
+	// onto the board.
+	MaxInProgressPerMember *int `toml:"max_in_progress_per_member,omitempty"`
+	// MaxAutoPlanPerMember is the former name of the setting above, which
+	// bound the claims a sync created per member. Only read, when
+	// MaxInProgressPerMember is absent; SaveConfig writes the new key.
+	MaxAutoPlanPerMember int `toml:"max_auto_plan_per_member,omitempty"`
 	// AutoPlanUnassigned fetches unassigned open issues from the tracker and
 	// creates "pool" claims (ClaimedBy="") so they appear on the team board
 	// as claimable tickets. Members can claim them with the 'c' key.
@@ -627,6 +635,43 @@ type TrackerConfig struct {
 	// Valid statuses: planned, in_progress, review, validation, blocked, done
 	// Example: {"Bloqué" = "blocked", "DEV DOING" = "in_progress", "TO REVIEW" = "review"}
 	LabelStatusMapping map[string]string `toml:"label_status_mapping,omitempty"`
+}
+
+// DefaultMaxInProgressPerMember is the in-progress limit of a member when the
+// team sets none.
+const DefaultMaxInProgressPerMember = 5
+
+// InProgressLimit is the effective in-progress limit per member of the team:
+// max_in_progress_per_member, else the former max_auto_plan_per_member, else
+// the default; 0 is no limit. A negative value is not a limit and gives the
+// default.
+func (t TrackerConfig) InProgressLimit() int {
+	switch {
+	case t.MaxInProgressPerMember != nil && *t.MaxInProgressPerMember >= 0:
+		return *t.MaxInProgressPerMember
+	case t.MaxInProgressPerMember == nil && t.MaxAutoPlanPerMember > 0:
+		return t.MaxAutoPlanPerMember
+	}
+	return DefaultMaxInProgressPerMember
+}
+
+// UsesFormerInProgressKey reports whether the team still sets the former
+// max_auto_plan_per_member: oh reads it (when the new key is absent) and drops
+// it at the next write of config.toml.
+func (t TrackerConfig) UsesFormerInProgressKey() bool {
+	return t.MaxAutoPlanPerMember > 0
+}
+
+// migrated returns the tracker config as config.toml now writes it: the
+// former max_auto_plan_per_member gone, its value carried to
+// max_in_progress_per_member when that one is absent.
+func (t TrackerConfig) migrated() TrackerConfig {
+	if t.MaxInProgressPerMember == nil && t.MaxAutoPlanPerMember > 0 {
+		n := t.MaxAutoPlanPerMember
+		t.MaxInProgressPerMember = &n
+	}
+	t.MaxAutoPlanPerMember = 0
+	return t
 }
 
 // IsTypeEnforced reports whether the tracker Type is enforced by the team.
@@ -699,9 +744,6 @@ func (r *Repo) loadConfig() (*TeamConfig, error) {
 	if cfg.Claim.DoneRetentionDays <= 0 {
 		cfg.Claim.DoneRetentionDays = 7
 	}
-	if cfg.Tracker.MaxAutoPlanPerMember <= 0 {
-		cfg.Tracker.MaxAutoPlanPerMember = 5
-	}
 	if cfg.Tracker.MaxUnassignedIssues <= 0 {
 		cfg.Tracker.MaxUnassignedIssues = 20
 	}
@@ -711,15 +753,27 @@ func (r *Repo) loadConfig() (*TeamConfig, error) {
 	return &cfg, nil
 }
 
+// marshalConfig is the content of config.toml for cfg: the former
+// max_auto_plan_per_member is replaced by max_in_progress_per_member.
+func marshalConfig(cfg *TeamConfig) ([]byte, error) {
+	out := *cfg
+	out.Tracker = cfg.Tracker.migrated()
+	data, err := toml.Marshal(out)
+	if err != nil {
+		return nil, fmt.Errorf("marshaling config.toml: %w", err)
+	}
+	return data, nil
+}
+
 // SaveConfig writes config.toml to the team-state repo.
 func (r *Repo) SaveConfig(ctx context.Context, cfg *TeamConfig) error {
 	if err := cfg.Claim.Validate(); err != nil {
 		return err
 	}
 	return r.withWriteLock(ctx, func(ctx context.Context) error {
-		data, err := toml.Marshal(cfg)
+		data, err := marshalConfig(cfg)
 		if err != nil {
-			return fmt.Errorf("marshaling config.toml: %w", err)
+			return err
 		}
 		path := filepath.Join(r.path, "config.toml")
 		if err := fsutil.WriteFileAtomic(path, data, 0o644); err != nil {

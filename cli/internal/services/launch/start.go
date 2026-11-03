@@ -31,6 +31,9 @@ func Start(ctx context.Context, p *Prepared, so StartOptions) ([]*runsvc.StartRe
 	if p.Opts.DryRun {
 		return nil, ErrDryRun()
 	}
+	if err := checkTicketRoom(ctx, p); err != nil {
+		return nil, err
+	}
 	if p.Remote != nil {
 		return sendRemote(ctx, p, so.Progress)
 	}
@@ -76,6 +79,37 @@ func Start(ctx context.Context, p *Prepared, so StartOptions) ([]*runsvc.StartRe
 		}
 	}
 	return results, nil
+}
+
+// checkTicketRoom refuses a launch that would start more tickets than the
+// member may have in progress, before anything is created: no worktree, no
+// session, no claim. A session that continues an existing one (resume,
+// transfer) starts no ticket.
+func checkTicketRoom(ctx context.Context, p *Prepared) error {
+	if p.deps.TicketRoom == nil || p.Project == nil {
+		return nil
+	}
+	check := p.deps.TicketRoom(p.Project)
+	if check == nil {
+		return nil
+	}
+	var tickets []string
+	if p.Remote != nil {
+		for _, t := range p.Remote.tickets {
+			tickets = append(tickets, t...)
+		}
+	} else {
+		for _, ps := range p.Plan.Sessions {
+			if ps.Existing != "" && (ps.Action == runsvc.OnExistingResume || ps.Action == runsvc.OnExistingTransfer) {
+				continue
+			}
+			tickets = append(tickets, ps.Tickets...)
+		}
+	}
+	if len(tickets) == 0 {
+		return nil
+	}
+	return check(ctx, p.Project.ID, tickets)
 }
 
 // tellStarted tells what the start of a session did besides starting it.

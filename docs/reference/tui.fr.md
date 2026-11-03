@@ -370,11 +370,11 @@ Commande `doctor`. `f` corriger le contrôle sélectionné (comme `oh doctor --f
 | Vue | Touches |
 |-----|---------|
 | Board du projet | `h` / `l` colonnes, `Entrée` détail, `a` actions (lancer un workflow sur le ticket), `L` lier au tracker, `i` initialiser Beads |
-| Board d'équipe | `h` / `l` colonnes, `[` / `]` projets, `Entrée` détail, `a` actions (workflows à ticket ; sur une issue GitLab, aussi les workflows à demande libre avec `#<iid>`), `/` filtrer (menu : texte, assigné, libellé), `c` prendre, `L` libérer (confirmé), `t` transférer, `s` statut |
+| Board d'équipe | `h` / `l` colonnes, `[` / `]` projets, `Entrée` détail, `a` actions (workflows à ticket ; sur une issue GitLab, aussi les workflows à demande libre avec `#<iid>`), `/` filtrer (menu : texte, **Mes tickets**, **Non assignés** — la réserve, à prendre avec `c` —, assigné, libellé, effacer), `c` prendre (refusé à `max_in_progress_per_member`), `L` libérer (confirmé), `t` transférer, `s` statut, `C` éditer les colonnes du board (l'éditeur ci-dessous) |
 
 ### Éditeur de colonnes du board
 
-Accueil de l'équipe → **Colonnes du board** (il faut une équipe active et son team-state cloné). L'éditeur règle les colonnes du board d'équipe (section `[board]` de la configuration d'équipe, voir [`config.fr.md`](config.fr.md#section-board)) et les règles qui rangent un label ou un statut du tracker dans une colonne. C'est une étape d'assistant : `Échap` demande « Quitter l'assistant ? », et rien n'est écrit tant que `Ctrl+S` n'a pas été pressé.
+Accueil de l'équipe → **Colonnes du board**, ou `C` sur le board d'équipe (il faut une équipe active et son team-state cloné ; au retour de l'éditeur, le board relit ses tickets avec les nouvelles colonnes). L'éditeur règle les colonnes du board d'équipe (section `[board]` de la configuration d'équipe, voir [`config.fr.md`](config.fr.md#section-board)) et les règles qui rangent un label ou un statut du tracker dans une colonne. C'est une étape d'assistant : `Échap` demande « Quitter l'assistant ? », et rien n'est écrit tant que `Ctrl+S` n'a pas été pressé.
 
 Liste des colonnes :
 
@@ -397,6 +397,7 @@ Rattachements d'une colonne (`m`) : la liste des labels, puis des statuts (Jira)
 | `n` | ajouter un label (le nom est demandé) |
 | `e` / `Entrée` | renommer le label ou le statut |
 | `d` | le retirer de la colonne, **après confirmation** |
+| `v` | le déplacer vers une autre colonne : la liste des autres colonnes est proposée, le label ou le statut quitte alors cette colonne (il apparaît dans les rattachements de la cible) |
 | `q` | revenir à la liste des colonnes |
 
 L'assistant de découverte du tracker (`Discover Tracker`) utilise le même éditeur pour ses colonnes, sans la touche `m`. Avant la 5.1 : `a` ajoutait et `r` changeait le rôle ; c'est maintenant `n` et `o` (`r` rafraîchit partout ailleurs), et `d` demande confirmation (voir [Touches changées](#touches-changées)).

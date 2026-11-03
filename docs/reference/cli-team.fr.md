@@ -159,6 +159,8 @@ Sans terminal, la commande sort avec le code **2** et nomme `oh team status`. Di
 
 Réclame un ticket dans le team-state pour signaler à l'équipe que vous travaillez dessus. Si le ticket est déjà pris, un avertissement s'affiche (non bloquant). Si la réservation d'un autre membre a expiré (son bail est dépassé ; sans bail, inactive depuis `takeover.stale_days` jours), vous pouvez la reprendre : après confirmation, un brief de reprise est généré et la réservation vous revient avec un nouveau bail. Si la réservation est la vôtre, son bail est renouvelé (expirée ou non, sans confirmation).
 
+**Limite de travail en cours.** Un membre a au plus `max_in_progress_per_member` tickets en cours (5 par défaut, `0` = sans limite ; voir [`[tracker]`](config.fr.md#section-tracker)) ; les réservations en revue ou en validation ne comptent pas. Prendre un ticket de plus en cours est **refusé** (code de sortie 1) avec le compte et la clé : `Limite de travail en cours atteinte : alice a déjà 5 ticket(s) en cours (max_in_progress_per_member = 5)…`. La même limite s'applique à la reprise d'une réservation expirée, à `oh team claim transfer` vers soi, à la touche de prise et au changement de statut du board d'équipe, et à une session lancée sur des tickets. `--planned` n'y est pas soumis. Pour la relever : `oh config set tracker.max_in_progress_per_member <n>` (pour vous) ou `oh team config` (pour l'équipe). `max_ticket_wip` des policies d'équipe, qui contrôle aussi cette commande, est un réglage distinct.
+
 ```
 oh team claim <ticket-id> [options]
 ```
@@ -181,7 +183,7 @@ oh team claim TICKET-123 --worktree feat/ticket-123
 
 ### oh team claim transfer
 
-Change le propriétaire d'un claim existant sans le libérer.
+Change le propriétaire d'un claim existant sans le libérer. Se passer un claim en cours à soi-même est un ticket de plus en cours : refusé à la limite (voir [`oh team claim`](#oh-team-claim)) ; le passer à un autre membre ne l'est pas.
 
 ```
 oh team claim transfer <ticket-id> --to <member-id> [-p <projet>]

@@ -294,16 +294,19 @@ var configFieldMap = map[string]configField{
 		},
 		Unset: func(c *config.Config) { c.Tracker.AutoPlanAssigned = nil },
 	},
-	"tracker.max_auto_plan_per_member": {
+	// The limit of tickets a member has in progress (0 = no limit). The former
+	// tracker.max_auto_plan_per_member is accepted as an alias, announced (see
+	// config.LegacyKeyAliases).
+	"tracker.max_in_progress_per_member": {
 		Set: func(c *config.Config, v string) error {
 			n, err := strconv.Atoi(v)
-			if err != nil {
-				return errors.New(i18n.Tf("cmd.config.invalid_int", v))
+			if err != nil || n < 0 {
+				return errors.New(i18n.Tf("cmd.config.invalid_count", v))
 			}
-			c.Tracker.MaxAutoPlanPerMember = &n
+			c.Tracker.MaxInProgressPerMember = &n
 			return nil
 		},
-		Unset: func(c *config.Config) { c.Tracker.MaxAutoPlanPerMember = nil },
+		Unset: func(c *config.Config) { c.Tracker.MaxInProgressPerMember = nil },
 	},
 	// Tracker — connection (independent of MCP)
 	"tracker.tracker_url": {

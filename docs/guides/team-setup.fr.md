@@ -368,17 +368,23 @@ oh team activity --week   # 7 derniers jours
 oh team activity --member alice  # filtrer par membre
 ```
 
-Par défaut, le board affiche 6 colonnes : **TODO** · **IN PROGRESS** · **REVIEW** · **VALIDATION** · **DONE** · **BLOCKED**. Les colonnes et les rattachements des labels du tracker se modifient dans l'éditeur de la TUI (accueil de l'équipe → *Colonnes du board* : `n` ajouter, `e` renommer, `d` supprimer après confirmation, `o` rôle, `K` / `J` ordre, `m` rattachements, `Ctrl+S` enregistrer) : voir [l'éditeur de colonnes](../reference/tui.fr.md#éditeur-de-colonnes-du-board).
+Par défaut, le board affiche 6 colonnes : **TODO** · **IN PROGRESS** · **REVIEW** · **VALIDATION** · **DONE** · **BLOCKED**. Les colonnes et les rattachements des labels du tracker se modifient dans l'éditeur de la TUI, depuis l'accueil de l'équipe (*Colonnes du board*) ou avec `C` sur le board d'équipe (`n` ajouter, `e` renommer, `d` supprimer après confirmation, `o` rôle, `K` / `J` ordre, `m` rattachements, où `v` déplace un label ou un statut vers une autre colonne, `Ctrl+S` enregistrer) : voir [l'éditeur de colonnes](../reference/tui.fr.md#éditeur-de-colonnes-du-board). Au retour de l'éditeur, le board relit ses tickets avec les nouvelles colonnes.
 
 Raccourcis clavier dans le board (et les autres vues d'équipe) :
 
 | Touche | Action |
 |--------|--------|
-| `c` | Créer un claim |
-| `x` | Libérer le claim sélectionné |
+| `h` / `l`, `j` / `k` | Colonnes, cartes |
+| `Entrée` | Détail du ticket |
+| `a` | Workflows qui peuvent démarrer sur la carte |
+| `[` / `]` | Passer d'un projet à l'autre |
+| `/` | Filtrer : texte, **Mes tickets**, **Non assignés** (la réserve, à prendre avec `c`), assigné, label, effacer les filtres |
+| `c` | Prendre le ticket (refusé à `max_in_progress_per_member`) |
+| `L` | Libérer le claim sélectionné |
 | `t` | Transférer le claim sélectionné |
-| `s` | Sync tracker |
-| `r` | Rafraîchir |
+| `s` | Changer le statut (refusé à la limite quand il met votre carte en cours) |
+| `C` | Éditer les colonnes du board et les labels qui y sont rattachés |
+| `r` | Synchroniser le tracker, tirer et rafraîchir |
 
 > **Pull automatique :** toutes les vues d'équipe (board, status, activity, etc.) effectuent un `git pull` automatique à l'ouverture et sur la touche `r`. Un toast n'est affiché que si l'opération prend plus d'une seconde.
 
@@ -392,7 +398,7 @@ La commande tire les états des issues depuis le tracker et met à jour les stat
 - Issue fermée → claim passé en `done`
 - Issue réouverte → claim repassé en `in_progress`
 - Les labels sont mirrorés
-- Avec `auto_plan_assigned = true`, des claims `planned` sont créés automatiquement pour les issues assignées
+- Avec `auto_plan_assigned = true`, toute issue ouverte assignée à un membre arrive sur le board sous forme de claim, dans la colonne que son statut désigne, sans plafond par membre
 - Si des issues sont assignées à des noms qui ne sont ceux d'aucun membre alors que votre fiche n'a pas de `tracker_username`, le résumé de la synchro l'avertit et donne la commande (`oh team profile --tracker-username <nom>`)
 
 ### Gestion du wiki
@@ -618,8 +624,8 @@ enabled = true
 type = "gitlab"             # "gitlab" ou "jira"
 auto_sync = true            # sync à l'ouverture des vues d'équipe
 sync_interval_minutes = 5
-auto_plan_assigned = true   # crée des claims planned pour les issues assignées
-max_auto_plan_per_member = 5
+auto_plan_assigned = true   # toute issue assignée arrive sur le board
+max_in_progress_per_member = 5   # tickets en cours par membre en même temps (0 = sans limite)
 push_labels = true          # repousse les labels hub vers le tracker (requiert write_enabled)
 ticket_patterns = { "T-SRU" = "SRU-(\\d+)" }
 
@@ -769,6 +775,6 @@ Une réservation gardée n'est plus renouvelée par la session qui s'est termin�
 
 **Une réservation libérée volontairement le reste.** La synchronisation du tracker ne prend plus une réservation libérée par son titulaire (`oh team release`, fin de session, board, rétention des réservations terminées) pour une réservation perdue par accident et ne la recrée plus. Une issue assignée à un membre dont la réservation a été libérée ne redevient une réservation `planned` que si elle est mise à jour sur le tracker ensuite.
 
-**Issues laissées hors du board.** `max_auto_plan_per_member` (5 par défaut) borne les réservations qu'une synchro crée pour un membre, par run (ce n'est pas un plafond permanent : la synchro suivante repart de zéro, et les issues retenues entrent en premier). Les issues déjà en cours passent en premier et sont toujours acceptées, hors limite. Ce que la limite laisse dehors est compté : le résultat de la synchro et le board d'équipe disent `N issue(s) hors du board, limite atteinte`.
+**Limite de travail en cours.** La synchro met **toutes** les issues ouvertes assignées à un membre sur le board, sans plafond par membre : le board reflète le tracker. Ce qui borne un membre, c'est le nombre de tickets sur lesquels il travaille en même temps, `max_in_progress_per_member` (5 par défaut ; `0` = sans limite ; `[tracker]` du `config.toml` de l'équipe, ou `[tracker]` du `hub.toml` du membre, qui l'emporte). Elle compte les réservations du membre en cours (les colonnes `active` du board, `in_progress` par défaut) ; une réservation en revue (statut `review` ou label `review` / `ready-for-review`) ou en validation, une réservation prévue, bloquée ou terminée, et un ticket de la réserve ne comptent pas. À la limite, oh **refuse** que le membre en prenne ou en démarre un de plus, en donnant le compte et la clé : `oh team claim` (aussi la reprise d'une réservation expirée et `oh team claim transfer` vers soi), la touche de prise (`c`) du board d'équipe, une carte passée dans une colonne active ou transférée à soi sur le board, et une session lancée sur des tickets (locale ou distante, avant que rien ne soit créé). Passer un claim à un autre membre et le verdict de revue de merge request (une revue rejetée renvoie le claim en `in_progress`) ne sont pas contrôlés. La synchro ne refuse jamais rien : un ticket déjà en cours sur le tracker arrive en cours, même au-delà de la limite, et compte dès lors. Cette limite remplace `max_auto_plan_per_member`, qui bornait ce qu'une synchro créait : elle est **dépréciée**, encore lue quand `max_in_progress_per_member` est absente (et `oh config set tracker.max_auto_plan_per_member` écrit la nouvelle clé), signalée par `oh doctor` avec la commande à lancer, et retirée par la prochaine écriture du `config.toml` ou du `hub.toml`. C'est un réglage distinct de la policy `max_ticket_wip` ([conventions d'équipe](team-conventions.fr.md)), qui ne contrôle que `oh team claim`.
 
 **Autres signalements.** `oh doctor` signale aussi les réservations orphelines (ticket clos, ou toutes les sessions qui l'ont traité terminées), avec la commande à lancer ; les réservations prises sous l'ancien ID d'un projet recréé sont rattachées au projet local par `oh doctor --fix` (voir [`oh doctor`](../reference/cli-infra.fr.md#oh-doctor)). Une réservation oubliée se libère à la main : `oh team release <ticket-id> -p <projet>`.

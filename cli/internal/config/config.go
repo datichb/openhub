@@ -410,8 +410,10 @@ type TrackerLocalConfig struct {
 	PushLabels *bool `toml:"push_labels,omitempty"`
 	// AutoPlanAssigned overrides the auto-plan-from-tracker-assignee behaviour.
 	AutoPlanAssigned *bool `toml:"auto_plan_assigned,omitempty"`
-	// MaxAutoPlanPerMember overrides the per-member auto-plan limit.
-	MaxAutoPlanPerMember *int `toml:"max_auto_plan_per_member,omitempty"`
+	// MaxInProgressPerMember overrides the team's limit of tickets a member
+	// works on at once (0 = no limit). Its former name,
+	// max_auto_plan_per_member, is still read (legacy_keys.go).
+	MaxInProgressPerMember *int `toml:"max_in_progress_per_member,omitempty"`
 	// TrackerURL is the base URL of the tracker instance for this member.
 	// When set, overrides the team-state TrackerURL.
 	// Allows standalone tracker usage without a team or MCP config.

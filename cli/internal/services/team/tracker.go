@@ -237,20 +237,19 @@ func envVar(t tracker.Type) string {
 
 func engineConfig(eff tracker.EffectiveTrackerConfig, projects, patterns map[string]string) teamstate.TrackerConfig {
 	return teamstate.TrackerConfig{
-		Type:                 eff.Type,
-		Enabled:              eff.Enabled,
-		AutoSync:             eff.AutoSync,
-		SyncIntervalMinutes:  eff.SyncIntervalMinutes,
-		AutoPlanAssigned:     eff.AutoPlanAssigned,
-		MaxAutoPlanPerMember: eff.MaxAutoPlanPerMember,
-		AutoPlanUnassigned:   eff.AutoPlanUnassigned,
-		UnassignedLabels:     eff.UnassignedLabels,
-		MaxUnassignedIssues:  eff.MaxUnassignedIssues,
-		PushLabels:           eff.PushLabels,
-		TicketPatterns:       patterns, //nolint:staticcheck // legacy tracker fields still read by the sync engine (backward compatibility)
-		Projects:             projects, //nolint:staticcheck // legacy tracker fields still read by the sync engine (backward compatibility)
-		StatusMapping:        eff.StatusMapping,
-		LabelStatusMapping:   eff.LabelStatusMapping,
+		Type:                eff.Type,
+		Enabled:             eff.Enabled,
+		AutoSync:            eff.AutoSync,
+		SyncIntervalMinutes: eff.SyncIntervalMinutes,
+		AutoPlanAssigned:    eff.AutoPlanAssigned,
+		AutoPlanUnassigned:  eff.AutoPlanUnassigned,
+		UnassignedLabels:    eff.UnassignedLabels,
+		MaxUnassignedIssues: eff.MaxUnassignedIssues,
+		PushLabels:          eff.PushLabels,
+		TicketPatterns:      patterns, //nolint:staticcheck // legacy tracker fields still read by the sync engine (backward compatibility)
+		Projects:            projects, //nolint:staticcheck // legacy tracker fields still read by the sync engine (backward compatibility)
+		StatusMapping:       eff.StatusMapping,
+		LabelStatusMapping:  eff.LabelStatusMapping,
 	}
 }
 

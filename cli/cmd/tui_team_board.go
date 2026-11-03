@@ -10,12 +10,10 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/beads"
-	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/teamstate"
-	"github.com/datichb/openhub/cli/internal/tracker"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
@@ -69,9 +67,19 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 	// The async SyncFunc will refresh after pulling remote changes.
 	// Use a recover guard for safety (resolveRepo may panic with minimal test fixtures).
 
-	// Load label_status_mapping and board config from team config.
-	var labelStatusMapping map[string]string
-	var boardConfig teamstate.BoardConfig
+	// The columns of the board and the mapping of the labels come from the
+	// team config; they are read again with each read of the tickets (and by
+	// the column editor), so that the board follows an edit without restarting.
+	var layout atomic.Pointer[views.BoardLayout]
+	layout.Store(&views.BoardLayout{})
+	readLayout := func(repo teamBoardRepo) views.BoardLayout {
+		l := *layout.Load()
+		if cfg, err := repo.LoadConfig(tuiContext()); err == nil && cfg != nil {
+			l = views.BoardLayout{Board: cfg.Board, LabelStatusMapping: cfg.Tracker.LabelStatusMapping}
+			layout.Store(&l)
+		}
+		return l
+	}
 	func() {
 		defer func() {
 			if r := recover(); r != nil {
@@ -79,22 +87,15 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 			}
 		}()
 		if repo := resolveRepo(); repo != nil {
-			if cfg, err := repo.LoadConfig(tuiContext()); err == nil && cfg != nil {
-				labelStatusMapping = cfg.Tracker.LabelStatusMapping
-				boardConfig = cfg.Board
-			}
+			readLayout(repo)
 		}
 	}()
-
-	// Build columns from board config for ticket status mapping.
-	columns := views.ColumnsFromConfig(boardConfig)
-	boardStatuses := boardConfig.AllStatuses()
 
 	// Wrap resolveRepo to propagate board statuses for custom column validation.
 	resolveRepoWithBoard := func() teamBoardRepo {
 		repo := resolveRepo()
-		if repo != nil && len(boardStatuses) > 0 {
-			repo.SetBoardStatuses(boardStatuses)
+		if repo != nil {
+			repo.SetBoardStatuses(layout.Load().Board.AllStatuses())
 		}
 		return repo
 	}
@@ -107,30 +108,30 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 			}
 		}()
 		if repo := resolveRepo(); repo != nil {
-			initialTickets = views.FetchTeamTicketsWithColumns(tuiContext(), repo, projectNameResolver, columns)
+			initialTickets = views.FetchTeamTicketsWithColumns(tuiContext(), repo, projectNameResolver, views.ColumnsFromConfig(layout.Load().Board))
 		}
 	}()
 
-	notice := newAutoPlanNotice(a)
-	notice.refresh()
-
 	return views.TeamBoardViewConfig{
 		Tickets:            initialTickets,
-		Notice:             notice.text,
+		MemberID:           func() string { return a.Config.ActiveTeam().MemberID },
 		RefreshRate:        5 * time.Second,
-		LabelStatusMapping: labelStatusMapping,
-		BoardConfig:        boardConfig,
+		LabelStatusMapping: layout.Load().LabelStatusMapping,
+		BoardConfig:        layout.Load().Board,
+		Layout:             func() views.BoardLayout { return *layout.Load() },
+		OnBoardConfig:      actionBoardColumnConfig,
 		IsConfigured: func() bool {
 			return resolveRepo() != nil
 		},
 		BeadsSummaryFunc: buildBeadsSummaryFunc(a),
 		RefreshFunc: func() []views.TeamTicket {
-			notice.refresh()
-			repo := resolveRepoWithBoard()
+			repo := resolveRepo()
 			if repo == nil {
 				return nil
 			}
-			return views.FetchTeamTicketsWithColumns(tuiContext(), repo, projectNameResolver, columns)
+			l := readLayout(repo)
+			repo.SetBoardStatuses(l.Board.AllStatuses())
+			return views.FetchTeamTicketsWithColumns(tuiContext(), repo, projectNameResolver, views.ColumnsFromConfig(l.Board))
 		},
 		SyncFunc: func() error {
 			// Git pull only — fetches colleagues' changes from the shared state repo.
@@ -210,6 +211,16 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 				ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 				defer cancel()
 
+				// A claim someone holds is left as it is; any other one is one
+				// more ticket in progress for the member: refused past
+				// max_in_progress_per_member.
+				if held, gerr := repo.GetClaim(ctx, projectID, ticketID); gerr == nil && held.ClaimedBy != "" {
+					return nil // already owned, idempotent
+				}
+				if err := checkInProgressRoom(ctx, repo, a.Config.Tracker, memberID, teamstate.ClaimRef{Project: projectID, TicketID: ticketID}); err != nil {
+					return err
+				}
+
 				// The claim is taken from the board by hand: no session works on
 				// it yet, so it carries none. The session that starts on the
 				// ticket takes it (startTicketClaim, AdoptClaim) and from then on
@@ -240,7 +251,7 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 				}
 
 				// Pool ticket: claim it for ourselves.
-				workStatus := boardConfig.DefaultWorkStatus()
+				workStatus := layout.Load().Board.DefaultWorkStatus()
 				if poolErr := repo.ClaimPoolTicket(ctx, projectID, ticketID, memberID, workStatus); poolErr != nil {
 					return poolErr
 				}
@@ -285,6 +296,14 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 				}
 				ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 				defer cancel()
+				// A claim in progress handed to oneself is one more ticket in progress.
+				if me := a.Config.ActiveTeam().MemberID; toMember == me {
+					if c, gerr := repo.GetClaim(ctx, projectID, ticketID); gerr == nil {
+						if err := checkTransferToSelfRoom(ctx, repo, a.Config.Tracker, me, c); err != nil {
+							return err
+						}
+					}
+				}
 				return repo.TransferClaim(ctx, projectID, ticketID, toMember)
 			},
 			OnStatus: func(ticketID, newStatus string) error {
@@ -299,6 +318,13 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 				}
 				ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 				defer cancel()
+				// A card of the member moved to a column of work in progress is one
+				// more ticket in progress.
+				if c, gerr := repo.GetClaim(ctx, projectID, ticketID); gerr == nil {
+					if err := checkStatusMoveRoom(ctx, repo, a.Config.Tracker, a.Config.ActiveTeam().MemberID, c, newStatus); err != nil {
+						return err
+					}
+				}
 				return repo.UpdateClaimStatus(ctx, projectID, ticketID, newStatus)
 			},
 		},
@@ -375,51 +401,4 @@ func buildProjectNameResolver(a *app.App) views.ProjectNameResolver {
 		}
 		return dirID // fallback to directory name
 	}
-}
-
-// autoPlanNotice is the line of the team board that says the auto-plan left
-// issues off the board: the tracker sync keeps what it held back in the
-// sync state of the machine, the board reads it with its refresh (not on the
-// event loop) and shows the last text read.
-type autoPlanNotice struct {
-	a    *app.App
-	last atomic.Value // string
-}
-
-func newAutoPlanNotice(a *app.App) *autoPlanNotice { return &autoPlanNotice{a: a} }
-
-func (n *autoPlanNotice) text() string {
-	s, _ := n.last.Load().(string)
-	return s
-}
-
-func (n *autoPlanNotice) refresh() {
-	n.last.Store(autoPlanNoticeText(n.a, config.HubDir()))
-}
-
-// autoPlanNoticeText is « N issues hors du board, limite atteinte » for the
-// projects of the active team, "" when the auto-plan held nothing back.
-func autoPlanNoticeText(a *app.App, stateDir string) string {
-	if a == nil || a.Projects == nil {
-		return ""
-	}
-	projects, err := a.Projects.List(context.Background(), domain.ProjectStatusActive)
-	if err != nil {
-		return ""
-	}
-	teamID := ""
-	if tuiShell != nil && tuiShell.Mode() == views.ModeTeam && tuiShell.ActiveTeam() != nil {
-		teamID = tuiShell.ActiveTeam().ID
-	}
-	var ids []string
-	for _, p := range projects {
-		if teamID == "" || (p.TeamID != nil && *p.TeamID == teamID) {
-			ids = append(ids, p.ID)
-		}
-	}
-	held, limit := tracker.AutoPlanHeldFor(stateDir, ids)
-	if held == 0 {
-		return ""
-	}
-	return i18n.Tf("tracker.sync.held_notice", held, limit)
 }

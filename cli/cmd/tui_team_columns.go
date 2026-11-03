@@ -29,9 +29,10 @@ var columnEditorRoles = []string{
 }
 
 // columnEditorUI is what the column editor asks of the shell: an input box, a
-// confirmation and a toast.
+// list to choose from, a confirmation and a toast.
 type columnEditorUI interface {
 	ShowInputModal(title, currentValue string, onConfirm func(newValue string))
+	ShowSelectModal(title string, options []views.SelectOption, currentValue string, onConfirm func(value string))
 	Confirm(title, detail string, danger bool, onYes func())
 	ShowToast(msg string, level shell.ToastLevel)
 }
@@ -131,7 +132,12 @@ func columnColorName(col teamstate.BoardColumnConfig, resolved tcell.Color) stri
 // Board column config action (standalone, no tracker required)
 // ─────────────────────────────────────────────────────────────────────────────
 
-func actionBoardColumnConfig() {
+// actionBoardColumnConfig opens the editor of the columns of the board and of
+// the labels mapped to them, for the active team. It is the « Colonnes du
+// board » entry of the Team mode and the C key of the team board. afterSave
+// (nil: none) runs on the event loop once the changes are saved, so that the
+// board reads its tickets again.
+func actionBoardColumnConfig(afterSave func()) {
 	if tuiShell == nil {
 		return
 	}
@@ -189,7 +195,7 @@ func actionBoardColumnConfig() {
 			}
 			// Save columns + mappings to team-state config
 			safego.Go(func() {
-				saveBoardColumns(ctx, repo, finalColumns, labelMappings, statusMappings)
+				saveBoardColumns(ctx, repo, finalColumns, labelMappings, statusMappings, afterSave)
 			})
 		},
 	})
@@ -217,8 +223,9 @@ type boardConfigStore interface {
 }
 
 // saveBoardColumns writes the columns and the mappings to the config of the
-// team-state, off the event loop, and says how it went.
-func saveBoardColumns(ctx context.Context, repo boardConfigStore, columns []teamstate.BoardColumnConfig, labelMappings, statusMappings map[string]string) {
+// team-state, off the event loop, and says how it went; afterSave (nil: none)
+// is called on the event loop once they are written.
+func saveBoardColumns(ctx context.Context, repo boardConfigStore, columns []teamstate.BoardColumnConfig, labelMappings, statusMappings map[string]string, afterSave func()) {
 	freshCfg, err := repo.LoadConfig(ctx)
 	if err != nil {
 		tuiShell.App().QueueUpdateDraw(func() {
@@ -240,5 +247,8 @@ func saveBoardColumns(ctx context.Context, repo boardConfigStore, columns []team
 			i18n.Tf("tui.team.board_config.saved", theme.IconSuccess, len(columns)),
 			shell.ToastSuccess,
 		)
+		if afterSave != nil {
+			afterSave()
+		}
 	})
 }

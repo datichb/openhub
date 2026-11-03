@@ -66,7 +66,7 @@ func buildTeamModeView(a *app.App, sessionsSection views.SessionsSectionConfig, 
 			actionSyncTracker()
 		},
 		OnBoardConfig: func() {
-			actionBoardColumnConfig()
+			actionBoardColumnConfig(nil)
 		},
 	})
 }

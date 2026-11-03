@@ -159,6 +159,8 @@ Without a terminal the command exits with code **2** and names `oh team status`.
 
 Claims a ticket in the team-state to tell the team you are working on it. When the ticket is already taken, a warning is shown (non-blocking). When the claim of another member has expired (its lease is past; without a lease, inactive for `takeover.stale_days` days), you can take it over: after the confirmation, a takeover brief is generated and the claim comes to you with a new lease. When the claim is yours, its lease is renewed (expired or not, without confirmation).
 
+**Work-in-progress limit.** A member has at most `max_in_progress_per_member` tickets in progress (5 by default, `0` = no limit; see [`[tracker]`](config.en.md#tracker-section)); claims in review or in validation do not count. Taking one more ticket in progress is **refused** (exit code 1) with the count and the key: `Work-in-progress limit reached: alice already has 5 ticket(s) in progress (max_in_progress_per_member = 5)…`. The same limit applies to the takeover of an expired claim, to `oh team claim transfer` to yourself, to the take key and the status change of the team board, and to a session launched on tickets. `--planned` is not bound by it. Raise it with `oh config set tracker.max_in_progress_per_member <n>` (for you) or `oh team config` (for the team). `max_ticket_wip` of the team policies, which also checks this command, is a separate setting.
+
 ```
 oh team claim <ticket-id> [options]
 ```
@@ -181,7 +183,7 @@ oh team claim TICKET-123 --worktree feat/ticket-123
 
 ### oh team claim transfer
 
-Changes the owner of an existing claim without releasing it.
+Changes the owner of an existing claim without releasing it. Handing a claim in progress to yourself is one more ticket in progress: it is refused at the limit (see [`oh team claim`](#oh-team-claim)); handing it to someone else is not.
 
 ```
 oh team claim transfer <ticket-id> --to <member-id> [-p <project>]

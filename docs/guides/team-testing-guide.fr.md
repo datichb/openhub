@@ -546,7 +546,7 @@ Légende:
 | 4 | Transfer (`t`) | Modal listant les autres membres, confirmation |
 | 5 | Change status (`s`) | Modal 5 choix, ticket déplacé de colonne |
 | 6 | Filtre `/` | Seuls les tickets matchant visibles, indicateur `[FILTRE]` |
-| 7 | Filtre `f` > "Mes tickets" | Seuls mes tickets |
+| 7 | Filtre `/` > "Mes tickets" puis "Non assignés" | Seuls mes tickets, puis seulement la réserve |
 | 8 | `--watch` (CLI) | Board se met à jour automatiquement (5s) |
 | 9 | Labels affichés | `[AI]` et `[!]` correctement rendus |
 | 10 | Double-press action | Debouncing: pas d'exécution simultanée |
@@ -922,7 +922,7 @@ Légende:
    │  │  Si auto_plan_assigned enabled:          │  │
    │  │  • Fetch issues assignées par membre     │  │
    │  │  • Créer claim "planned" si absent       │  │
-   │  │  • Respecter max_auto_plan_per_member    │  │
+   │  │  • Toutes les issues assignées arrivent  │  │
    │  └──────────────────────────────────────────┘  │
    └───────────────────────┬────────────────────────┘
                            │
@@ -966,7 +966,7 @@ Légende:
 | 5 | Issue rouverte | Claim passe à `in_progress` |
 | 6 | `auto_plan_assigned` | Nouvelles claims `planned` créées |
 | 7 | `push_labels` | Labels visibles sur GitLab/Jira |
-| 8 | `max_auto_plan_per_member` | Pas plus de N claims auto-créées |
+| 8 | `max_in_progress_per_member` | Toutes les issues assignées arrivent sur le board ; prendre ou démarrer un ticket de plus que la limite est refusé |
 | 9 | Mapping projets | Seuls les projets configurés synchronisés |
 
 ---

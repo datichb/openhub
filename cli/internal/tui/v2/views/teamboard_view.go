@@ -3,6 +3,8 @@ package views
 import (
 	"context"
 	"fmt"
+	"slices"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -32,8 +34,12 @@ type BeadsSummary struct {
 
 // TeamBoardViewConfig holds the data for the team board inside the shell.
 type TeamBoardViewConfig struct {
-	Tickets     []TeamTicket
-	Members     []string
+	Tickets []TeamTicket
+	// MemberID returns the ID of the member who works on the board (the one of
+	// the active team): « Mes tickets » keeps the tickets they hold
+	// (TeamTicket.AssigneeID). Nil or empty when unknown: the filter says so
+	// instead of showing an empty board.
+	MemberID    func() string
 	RefreshFunc func() []TeamTicket
 	RefreshRate time.Duration
 	// SyncFunc performs a git pull on the team-state repo and returns any error.
@@ -47,6 +53,18 @@ type TeamBoardViewConfig struct {
 	// BoardConfig holds the team's custom board column layout.
 	// When empty (no custom columns), DefaultColumns() is used.
 	BoardConfig teamstate.BoardConfig
+	// Layout returns the board columns and the label → column mapping that
+	// the last read of the tickets (RefreshFunc) used. The board takes it at
+	// each mount and after each read: columns edited meanwhile (the editor of
+	// the C key, a colleague's change pulled) appear without restarting oh.
+	// It must not do any I/O (it is called on the event loop at mount).
+	Layout func() BoardLayout
+	// OnBoardConfig opens the editor of the columns and of the labels mapped
+	// to them (C), the same as the « Colonnes du board » entry of the Team
+	// mode. onSaved is called on the event loop once the editor saved its
+	// changes: the board then reads its tickets again with the new columns.
+	// Nil: the C key does nothing.
+	OnBoardConfig func(onSaved func())
 	// Actions wires the ticket action callbacks (claim, release, transfer, status).
 	// If nil, action keys (c/x/t/s) are no-ops.
 	Actions *BoardActions
@@ -64,10 +82,13 @@ type TeamBoardViewConfig struct {
 	// QuickActions provides callbacks for launching agent sessions from the board.
 	// If nil, the 'a' key quick-action feature is disabled.
 	QuickActions *BoardQuickActions
-	// Notice returns a line to show above the columns (the auto-plan limit
-	// left issues off the board). It is called on the event loop: it returns
-	// what the caller computed in RefreshFunc. May be nil.
-	Notice func() string
+}
+
+// BoardLayout is the layout of the board of the team: its columns and the
+// labels that put a ticket in one of them.
+type BoardLayout struct {
+	Board              teamstate.BoardConfig
+	LabelStatusMapping map[string]string
 }
 
 // BoardActions provides callbacks for ticket actions on the board.
@@ -110,10 +131,12 @@ type TeamBoardView struct {
 	allTickets     []TeamTicket // all tickets from RefreshFunc (unfiltered)
 	filterText     string       // text search filter (matches ID, title, assignee)
 	filterAssignee string       // filter by specific assignee
+	filterOwner    ownerFilter  // filter by who holds the ticket: me, or nobody (the pool)
 	filterLabel    string       // filter by specific label
 
 	// Project tabs
-	projectTabs  []string // ["", "proj-a", "proj-b"] — "" = all
+	projectTabs  []string // project IDs, "" = all: ["", "88280c5b", "a1b2c3d4"], by display name
+	projectNames map[string]projectName
 	activeTabIdx int
 	tabBar       *tview.TextView
 	boardLayout  *tview.Flex // vertical flex: tabBar + columnFlex
@@ -163,8 +186,8 @@ func (v *TeamBoardView) StatusHints() string {
 		keys.Open.HintAs(i18n.T("tui.hints.detail")), boardActionsKey.Hint(),
 		projectsHint(), keys.Filter.Hint(),
 		teamClaimKey.Hint(), releaseKey.Hint(),
-		teamTransferKey.Hint(), teamStatusKey.Hint(), keys.Refresh.Hint())
-	if v.filterText != "" || v.filterAssignee != "" || v.filterLabel != "" {
+		teamTransferKey.Hint(), teamStatusKey.Hint(), boardColumnsKey.Hint(), keys.Refresh.Hint())
+	if v.filtered() {
 		hints += " · " + theme.Paint(theme.WarningHex, i18n.T("tui.hints.filtered"))
 	}
 	return hints
@@ -178,23 +201,14 @@ func (v *TeamBoardView) Mount(content *tview.Flex, app *tview.Application) {
 	v.loaded = false
 	v.actionInProgress.Store(false)
 
+	if v.cfg.Layout != nil {
+		l := v.cfg.Layout()
+		v.cfg.BoardConfig, v.cfg.LabelStatusMapping = l.Board, l.LabelStatusMapping
+	}
 	columns := ColumnsFromConfig(v.cfg.BoardConfig)
-	v.allColumns = columns
-	v.columnCards = make([]*widgets.CardColumn, len(columns))
 	v.columnFlex = tview.NewFlex()
-
-	for i, col := range columns {
-		cc := widgets.NewCardColumn(tview.Escape(col.Name), col.Color)
-		v.columnCards[i] = cc
-	}
-
-	// Auto-detect visible column count (min 25 chars per column).
-	// Default to 4 visible columns; will be adjusted on first draw.
-	v.visibleCols = 4
-	if len(columns) < v.visibleCols {
-		v.visibleCols = len(columns)
-	}
-	v.colViewStart = 0
+	v.focusCol, v.colViewStart = 0, 0
+	v.setColumns(columns)
 	v.rebuildColumnFlex()
 
 	// When focus returns to the columnFlex (e.g. after closing a modal),
@@ -273,6 +287,51 @@ func (v *TeamBoardView) Mount(content *tview.Flex, app *tview.Application) {
 	}
 }
 
+// setColumns replaces the columns of the board: one card column each, the
+// focus and the window of visible columns kept inside them.
+func (v *TeamBoardView) setColumns(columns []BoardColumnDef) {
+	v.allColumns = columns
+	v.columnCards = make([]*widgets.CardColumn, len(columns))
+	for i, col := range columns {
+		v.columnCards[i] = widgets.NewCardColumn(tview.Escape(col.Name), col.Color)
+	}
+	// Default to 4 visible columns.
+	v.visibleCols = min(4, len(columns))
+	v.focusCol = max(0, min(v.focusCol, len(columns)-1))
+	if v.focusCol < v.colViewStart {
+		v.colViewStart = v.focusCol
+	}
+	if v.focusCol >= v.colViewStart+v.visibleCols {
+		v.colViewStart = v.focusCol - v.visibleCols + 1
+	}
+	v.colViewStart = max(0, min(v.colViewStart, len(columns)-v.visibleCols))
+}
+
+// applyLayout takes the layout the last read of the tickets used: the
+// mapping of the labels, and, when the columns changed, the new columns
+// (rebuilt, the focus kept as near as it can be).
+func (v *TeamBoardView) applyLayout(l BoardLayout) {
+	v.cfg.LabelStatusMapping = l.LabelStatusMapping
+	columns := ColumnsFromConfig(l.Board)
+	if slices.Equal(v.allColumns, columns) {
+		v.cfg.BoardConfig = l.Board
+		return
+	}
+	v.cfg.BoardConfig = l.Board
+	v.setColumns(columns)
+	v.rebuildColumnFlex()
+	v.updateColumnFocus()
+}
+
+// editColumns is C: the editor of the columns and of the labels mapped to
+// them; once it saved, the board reads its tickets again.
+func (v *TeamBoardView) editColumns() {
+	if v.cfg.OnBoardConfig == nil || v.actionInProgress.Load() {
+		return
+	}
+	v.cfg.OnBoardConfig(func() { v.reload(nil) })
+}
+
 // setNoTicketsText says, in the empty-state placeholder, that the board has no
 // ticket: « loading » while the first read is on its way.
 func (v *TeamBoardView) setNoTicketsText() {
@@ -336,6 +395,8 @@ func (v *TeamBoardView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		v.transferTicket()
 	case teamStatusKey.Matches(event):
 		v.changeStatus()
+	case boardColumnsKey.Matches(event):
+		v.editColumns()
 	case boardActionsKey.Matches(event):
 		v.showTeamBoardQuickActions()
 	default:
@@ -384,21 +445,37 @@ func (v *TeamBoardView) reload(done func()) {
 		}
 		return
 	}
-	load(v.app, shellContext(v.shell), &v.loads, func(context.Context) ([]TeamTicket, error) {
-		return refresh(), nil
-	}, func(tickets []TeamTicket, err error) {
+	layout := v.cfg.Layout
+	load(v.app, shellContext(v.shell), &v.loads, func(context.Context) (boardRead, error) {
+		r := boardRead{tickets: refresh()}
+		if layout != nil {
+			l := layout()
+			r.layout = &l
+		}
+		return r, nil
+	}, func(r boardRead, err error) {
 		if v.columnCards == nil {
 			return // unmounted meanwhile
 		}
 		if err == nil {
 			v.loaded = true
-			v.populateColumns(tickets, v.allColumns)
+			if r.layout != nil {
+				v.applyLayout(*r.layout)
+			}
+			v.populateColumns(r.tickets, v.allColumns)
 			v.setNoTicketsText()
 		}
 		if done != nil {
 			done()
 		}
 	})
+}
+
+// boardRead is what a read of the board brings: the tickets, and the layout
+// they were mapped to the columns with (nil when the board has no Layout).
+type boardRead struct {
+	tickets []TeamTicket
+	layout  *BoardLayout
 }
 
 // loadSummary reads the beads summary (bd runs) off the event loop, then
@@ -509,9 +586,31 @@ func (v *TeamBoardView) populateColumns(tickets []TeamTicket, columns []BoardCol
 	}
 }
 
+// ownerFilter keeps the tickets by who holds them.
+type ownerFilter int
+
+const (
+	ownerAny  ownerFilter = iota
+	ownerMine             // the tickets of the member who works on the board
+	ownerPool             // the tickets nobody holds, to take with the take key
+)
+
+// memberID is the member who works on the board ("" when unknown).
+func (v *TeamBoardView) memberID() string {
+	if v.cfg.MemberID == nil {
+		return ""
+	}
+	return v.cfg.MemberID()
+}
+
+// filtered reports whether a filter is active on the board.
+func (v *TeamBoardView) filtered() bool {
+	return v.filterText != "" || v.filterAssignee != "" || v.filterLabel != "" || v.filterOwner != ownerAny
+}
+
 // applyFilters returns the subset of tickets matching all active filters.
 func (v *TeamBoardView) applyFilters(tickets []TeamTicket) []TeamTicket {
-	if v.filterText == "" && v.filterAssignee == "" && v.filterLabel == "" {
+	if !v.filtered() {
 		return tickets
 	}
 
@@ -522,6 +621,17 @@ func (v *TeamBoardView) applyFilters(tickets []TeamTicket) []TeamTicket {
 		// Assignee filter
 		if v.filterAssignee != "" && t.Assignee != v.filterAssignee {
 			continue
+		}
+		// Owner filter: the member's own tickets, or the pool
+		switch v.filterOwner {
+		case ownerMine:
+			if me := v.memberID(); t.AssigneeID == "" || t.AssigneeID != me {
+				continue
+			}
+		case ownerPool:
+			if t.AssigneeID != "" {
+				continue
+			}
 		}
 		// Label filter
 		if v.filterLabel != "" {
@@ -584,21 +694,68 @@ func ticketLabelParts(labels []string, workflow map[string]string) []string {
 
 // ─── Project Tabs ────────────────────────────────────────────────────────────
 
-// buildProjectTabs extracts unique project names from tickets and builds tab list.
+// projectName is how a project shows on its tab.
+type projectName struct {
+	// Name is the name of the project, or its ID when no name is known.
+	Name string
+	// Unknown: no local project has this ID (the resolver gave the ID back).
+	Unknown bool
+}
+
+// buildProjectTabs lists the projects of the tickets, one tab each: the tab
+// shows the name of the project and filters on its ID. The tabs are sorted by
+// name (then ID), so that they do not move from one read to the next.
 func (v *TeamBoardView) buildProjectTabs(tickets []TeamTicket) {
-	seen := make(map[string]bool)
-	var projects []string
+	names := make(map[string]projectName)
 	for _, t := range tickets {
-		if t.Project != "" && !seen[t.Project] {
-			seen[t.Project] = true
-			projects = append(projects, t.Project)
+		if t.Project == "" {
+			continue
 		}
+		if _, ok := names[t.Project]; ok {
+			continue
+		}
+		pn := projectName{Name: t.ProjectName}
+		switch pn.Name {
+		case "":
+			pn.Name = t.Project
+		case t.Project:
+			pn.Unknown = true
+		}
+		names[t.Project] = pn
 	}
+	ids := make([]string, 0, len(names))
+	for id := range names {
+		ids = append(ids, id)
+	}
+	sort.Slice(ids, func(i, j int) bool {
+		a, b := strings.ToLower(names[ids[i]].Name), strings.ToLower(names[ids[j]].Name)
+		if a != b {
+			return a < b
+		}
+		return ids[i] < ids[j]
+	})
 	// Only show tabs if there are 2+ projects (or 1+ for the all tab to be useful)
-	v.projectTabs = append([]string{""}, projects...) // "" = all
+	v.projectTabs = append([]string{""}, ids...) // "" = all
+	v.projectNames = names
 	if v.activeTabIdx >= len(v.projectTabs) {
 		v.activeTabIdx = 0
 	}
+}
+
+// tabLabel is the text of a tab: « All », the name of the project, or its ID
+// marked as the ID of a project this machine does not know.
+func (v *TeamBoardView) tabLabel(id string) string {
+	if id == "" {
+		return i18n.T("tui.board.tab_all")
+	}
+	pn, ok := v.projectNames[id]
+	switch {
+	case !ok:
+		return id
+	case pn.Unknown:
+		return i18n.Tf("tui.teamboard.project_unknown", pn.Name)
+	}
+	return pn.Name
 }
 
 // renderTabBar renders the project tabs in the tab bar widget.
@@ -606,25 +763,16 @@ func (v *TeamBoardView) renderTabBar() {
 	if v.tabBar == nil {
 		return
 	}
-	notice := ""
-	if v.cfg.Notice != nil {
-		if n := v.cfg.Notice(); n != "" {
-			notice = " " + theme.ColorTag(theme.WarningHex) + theme.IconWarning + " " + tview.Escape(n) + theme.TagColor
-		}
-	}
 	if len(v.projectTabs) <= 2 {
 		// Hide the tabs when only 1 project (or none) — no need to filter
-		v.tabBar.SetText(notice)
+		v.tabBar.SetText("")
 		return
 	}
 
 	var sb strings.Builder
 	sb.WriteString(" ")
 	for i, tab := range v.projectTabs {
-		label := tab
-		if label == "" {
-			label = i18n.T("tui.board.tab_all")
-		}
+		label := v.tabLabel(tab)
 		if i == v.activeTabIdx {
 			// Active tab: accent background
 			sb.WriteString(projectChip(label))
@@ -634,7 +782,6 @@ func (v *TeamBoardView) renderTabBar() {
 		}
 		sb.WriteString("  ")
 	}
-	sb.WriteString(notice)
 	v.tabBar.SetText(sb.String())
 }
 
@@ -662,7 +809,7 @@ func (v *TeamBoardView) prevProjectTab() {
 	if v.activeTabIdx < 0 {
 		v.activeTabIdx = len(v.projectTabs) - 1
 	}
-	v.repopulateWithFilters()
+	v.filtersChanged()
 }
 
 // nextProjectTab switches to the next project tab.
@@ -674,7 +821,7 @@ func (v *TeamBoardView) nextProjectTab() {
 	if v.activeTabIdx >= len(v.projectTabs) {
 		v.activeTabIdx = 0
 	}
-	v.repopulateWithFilters()
+	v.filtersChanged()
 }
 
 func (v *TeamBoardView) moveFocus(delta int) {
@@ -1104,7 +1251,7 @@ func (v *TeamBoardView) showSearchFilter() {
 			// Empty search clears all filters (replaces Esc clear-filter behavior)
 			v.clearFilters()
 		} else {
-			v.repopulateWithFilters()
+			v.filtersChanged()
 			v.shell.ShowToastMsg(i18n.Tf("tui.teamboard.filter_search_applied", text), true)
 		}
 	})
@@ -1123,6 +1270,7 @@ func (v *TeamBoardView) showFilterMenu() {
 	options := []SelectOption{
 		{Label: i18n.T("tui.teamboard.filter_text"), Value: "_text"},
 		{Label: i18n.T("tui.teamboard.filter_my_tickets"), Value: "_mine"},
+		{Label: i18n.T("tui.teamboard.filter_unassigned"), Value: "_pool"},
 		{Label: i18n.T("tui.teamboard.filter_by_assignee"), Value: "_assignee"},
 		{Label: i18n.T("tui.teamboard.filter_by_label"), Value: "_label"},
 		{Label: i18n.T("tui.teamboard.filter_clear"), Value: "_clear"},
@@ -1133,12 +1281,17 @@ func (v *TeamBoardView) showFilterMenu() {
 		case "_text":
 			v.showSearchFilter()
 		case "_mine":
-			// Use the MemberID from the config if available via Members
-			if len(v.cfg.Members) > 0 {
-				v.filterAssignee = v.cfg.Members[0] // first member is self by convention
+			if v.memberID() == "" {
+				v.shell.ShowToastMsg(i18n.T("tui.teamboard.filter_mine_unknown"), false)
+				return
 			}
-			v.repopulateWithFilters()
+			v.filterOwner, v.filterAssignee = ownerMine, ""
+			v.filtersChanged()
 			v.shell.ShowToastMsg(i18n.T("tui.teamboard.filter_mine_applied"), true)
+		case "_pool":
+			v.filterOwner, v.filterAssignee = ownerPool, ""
+			v.filtersChanged()
+			v.shell.ShowToastMsg(i18n.T("tui.teamboard.filter_unassigned_applied"), true)
 		case "_assignee":
 			v.showAssigneeFilter()
 		case "_label":
@@ -1173,8 +1326,8 @@ func (v *TeamBoardView) showAssigneeFilter() {
 	}
 
 	v.shell.ShowSelectModal(i18n.T("tui.teamboard.filter_assignee_title"), options, "", func(assignee string) {
-		v.filterAssignee = assignee
-		v.repopulateWithFilters()
+		v.filterAssignee, v.filterOwner = assignee, ownerAny
+		v.filtersChanged()
 		v.shell.ShowToastMsg(i18n.Tf("tui.teamboard.filter_assignee_applied", assignee), true)
 	})
 }
@@ -1186,7 +1339,7 @@ func (v *TeamBoardView) showLabelFilter() {
 	}
 	v.shell.ShowInputModal(i18n.T("tui.teamboard.filter_label_title"), v.filterLabel, func(label string) {
 		v.filterLabel = label
-		v.repopulateWithFilters()
+		v.filtersChanged()
 		if label != "" {
 			v.shell.ShowToastMsg(i18n.Tf("tui.teamboard.filter_label_applied", label), true)
 		}
@@ -1197,11 +1350,20 @@ func (v *TeamBoardView) showLabelFilter() {
 func (v *TeamBoardView) clearFilters() {
 	v.filterText = ""
 	v.filterAssignee = ""
+	v.filterOwner = ownerAny
 	v.filterLabel = ""
-	v.repopulateWithFilters()
+	v.filtersChanged()
 	if v.shell != nil {
 		v.shell.ShowToastMsg(i18n.T("tui.teamboard.filters_cleared"), true)
 	}
+}
+
+// filtersChanged draws the board again after a change of project tab or of
+// filter: the cards, the tabs (the active one) and the hints line (the
+// « filtered » mark), at once and not at the next read of the tickets.
+func (v *TeamBoardView) filtersChanged() {
+	v.repopulateWithFilters()
+	refreshHints(v.shell)
 }
 
 // repopulateWithFilters re-renders the board with current filters applied.
@@ -1209,6 +1371,7 @@ func (v *TeamBoardView) repopulateWithFilters() {
 	if v.columnCards == nil || len(v.allTickets) == 0 {
 		return
 	}
+	v.renderTabBar()
 	columns := v.allColumns
 	filtered := v.applyProjectFilter(v.allTickets)
 	filtered = v.applyFilters(filtered)

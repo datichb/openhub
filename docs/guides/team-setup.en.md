@@ -376,17 +376,23 @@ oh team activity --week   # last 7 days
 oh team activity --member alice  # filter by member
 ```
 
-By default the board displays 6 columns: **TODO** · **IN PROGRESS** · **REVIEW** · **VALIDATION** · **DONE** · **BLOCKED**. The columns and the mapping of the tracker labels are edited in the TUI editor (team home → *Board Columns*: `n` add, `e` rename, `d` delete after a confirmation, `o` role, `K` / `J` order, `m` mappings, `Ctrl+S` save): see [the columns editor](../reference/tui.en.md#board-columns-editor).
+By default the board displays 6 columns: **TODO** · **IN PROGRESS** · **REVIEW** · **VALIDATION** · **DONE** · **BLOCKED**. The columns and the mapping of the tracker labels are edited in the TUI editor, from the team home (*Board Columns*) or with `C` on the team board (`n` add, `e` rename, `d` delete after a confirmation, `o` role, `K` / `J` order, `m` mappings, in which `v` moves a label or a status to another column, `Ctrl+S` save): see [the columns editor](../reference/tui.en.md#board-columns-editor). Back from the editor, the board reads its tickets again with the new columns.
 
 Keyboard shortcuts in the board (and other team views):
 
 | Key | Action |
 |-----|--------|
-| `c` | Create a claim |
-| `x` | Release the selected claim |
+| `h` / `l`, `j` / `k` | Columns, cards |
+| `Enter` | Detail of the ticket |
+| `a` | Workflows that can start on the card |
+| `[` / `]` | Move between the projects |
+| `/` | Filter: text, **My tickets**, **Unassigned** (the pool, to take with `c`), assignee, label, clear the filters |
+| `c` | Take the ticket (refused at `max_in_progress_per_member`) |
+| `L` | Release the selected claim |
 | `t` | Transfer the selected claim |
-| `s` | Sync tracker |
-| `r` | Refresh |
+| `s` | Change the status (refused at the limit when it puts your card in progress) |
+| `C` | Edit the columns of the board and the labels mapped to them |
+| `r` | Sync the tracker, pull and refresh |
 
 > **Async pull:** all team views (board, status, activity, etc.) automatically pull git on open and on `r`. A toast is only shown if it takes more than 1 second.
 
@@ -400,7 +406,7 @@ Pulls issue states from the tracker and updates claim statuses:
 - Closed issue → claim transitioned to `done`
 - Reopened issue → claim transitioned back to `in_progress`
 - Labels are mirrored
-- With `auto_plan_assigned = true`, `planned` claims are auto-created for assigned issues
+- With `auto_plan_assigned = true`, every open issue assigned to a member comes onto the board as a claim, in the column its status maps to, with no cap per member
 - If issues are assigned to names that belong to no member while your profile has no `tracker_username`, the sync summary warns you and gives the command (`oh team profile --tracker-username <name>`)
 
 ### Wiki management
@@ -626,8 +632,8 @@ enabled = true
 type = "gitlab"             # "gitlab" or "jira"
 auto_sync = true            # sync when opening team views
 sync_interval_minutes = 5
-auto_plan_assigned = true   # auto-create planned claims for assigned issues
-max_auto_plan_per_member = 5
+auto_plan_assigned = true   # every assigned issue comes onto the board
+max_in_progress_per_member = 5   # tickets a member has in progress at once (0 = no limit)
 push_labels = true          # push hub labels back to tracker (requires write_enabled)
 ticket_patterns = { "T-SRU" = "SRU-(\\d+)" }
 
@@ -775,6 +781,6 @@ A kept claim is no longer renewed by the session that ended: it expires when its
 
 **A claim released on purpose stays released.** The tracker synchronization does not take a claim released by its owner (`oh team release`, end of a session, board, retention of the done claims) for a claim lost by accident and no longer recreates it. An issue assigned to a member that was released comes back as a `planned` claim only if it is updated on the tracker afterwards.
 
-**Issues left off the board.** `max_auto_plan_per_member` (5 by default) bounds the claims a sync creates for a member, per run (it is not a standing cap: the next sync starts again, and the issues held come in first). The issues already in progress come first and are always let in, outside the limit. What the limit leaves off is counted: the sync result and the team board say `N issue(s) outside the board, limit reached`.
+**Work-in-progress limit.** The sync puts **every** open issue assigned to a member on the board, with no cap per member: the board reflects the tracker. What bounds a member is the number of tickets they work on at once, `max_in_progress_per_member` (5 by default; `0` = no limit; `[tracker]` of the team `config.toml`, or `[tracker]` of the member's `hub.toml`, which wins). It counts the member's claims in progress (the `active` columns of the board, `in_progress` by default); a claim in review (`review` status or `review` / `ready-for-review` label) or in validation, a planned, blocked or finished claim, and a ticket of the pool do not count. At the limit, oh **refuses** that the member takes or starts one more ticket, with the count and the key: `oh team claim` (also the takeover of an expired claim and `oh team claim transfer` to oneself), the take key (`c`) of the team board, a card moved to an active column or handed to oneself on the board, and a session launched on tickets (local or remote, before anything is created). Handing a claim to another member and the merge-request review verdict (a rejected review sends the claim back to `in_progress`) are not checked. The sync never refuses anything: a ticket already in progress on the tracker arrives in progress, even past the limit, and counts from then on. This limit replaces `max_auto_plan_per_member`, which capped what a sync created: it is **deprecated**, still read when `max_in_progress_per_member` is absent (and `oh config set tracker.max_auto_plan_per_member` writes the new key), reported by `oh doctor` with the command to run, and dropped by the next write of `config.toml` or `hub.toml`. It is a different setting from the `max_ticket_wip` policy ([team conventions](team-conventions.en.md)), which only checks `oh team claim`.
 
 **Other reports.** `oh doctor` also reports orphan claims (ticket closed, or every session that worked on it ended) with the command to run; claims taken under the former ID of a recreated project are attached to the local project by `oh doctor --fix` (see [`oh doctor`](../reference/cli-infra.en.md#oh-doctor)). A forgotten claim is freed by hand: `oh team release <ticket-id> -p <project>`.

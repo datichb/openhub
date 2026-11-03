@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"regexp"
-	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -44,11 +43,6 @@ type ProjectSyncResult struct {
 	LabelsPushed   int
 	Duration       time.Duration
 	Warnings       []string
-	// AutoPlanHeld is the number of issues assigned to members that the
-	// auto-plan left off the board because of max_auto_plan_per_member.
-	AutoPlanHeld   int
-	autoPlanLimit  int
-	autoPlanHeldBy []memberCount
 }
 
 // SyncWarning is a non-fatal condition worth surfacing (e.g. reassignment).
@@ -270,9 +264,6 @@ func (e *Engine) reconcileAll(ctx context.Context, result *SyncResult) (fatal, a
 		result.ClaimsUpdated += pr.ClaimsUpdated
 		result.LabelsPushed += pr.LabelsPushed
 
-		if w := e.heldWarning(&pr); w != nil {
-			result.Warnings = append(result.Warnings, *w)
-		}
 		if projectErr != nil {
 			// Fatal errors (token invalid, rate limit) abort the entire run.
 			if errors.Is(projectErr, ErrTokenInvalid) {
@@ -342,20 +333,6 @@ func (e *Engine) unknownAssigneesWarning(members []teamstate.Member) *SyncWarnin
 	}
 	return &SyncWarning{Message: i18n.Tf("tracker.sync.unknown_assignees",
 		len(names), shown, me.ID, firstNonEmptyStr(e.identity.TeamID, "<team>"))}
-}
-
-// heldWarning is the warning of a project when the auto-plan left issues off
-// the board because of max_auto_plan_per_member; nil when it left none.
-func (e *Engine) heldWarning(pr *ProjectSyncResult) *SyncWarning {
-	if pr.AutoPlanHeld == 0 {
-		return nil
-	}
-	by := make([]string, len(pr.autoPlanHeldBy))
-	for i, m := range pr.autoPlanHeldBy {
-		by[i] = fmt.Sprintf("%s %d", m.Member, m.Count)
-	}
-	return &SyncWarning{ProjectID: pr.ProjectID, Message: i18n.Tf("tracker.sync.autoplan_held",
-		pr.AutoPlanHeld, pr.autoPlanLimit, strings.Join(by, ", "))}
 }
 
 func firstNonEmptyStr(values ...string) string {
@@ -756,23 +733,18 @@ func (e *Engine) recoverOrphans(
 }
 
 // autoPlanWindow bounds the assigned issues fetched per member: far more than
-// any limit worth setting, so that an old issue is not hidden by newer ones.
+// any realistic board, so that an old issue is not hidden by newer ones.
 const autoPlanWindow = 100
-
-// defaultMaxAutoPlan is max_auto_plan_per_member when none is set.
-const defaultMaxAutoPlan = 5
 
 // autoplan creates claims for tracker issues assigned to team members but not
 // yet claimed. Claims are created locally in batch and committed in a single
 // git operation.
 //
-// max_auto_plan_per_member bounds the claims a run creates for a member, not
-// what the member has on the board: the next run starts again from zero. Among
-// the issues to put on the board the ones already started (their status is not
-// the initial column) come first and are always let in, outside the limit; the
-// others fill the limit, the ones held by the last run first. What does not
-// fit is held: counted in the result, said in a warning, kept in the sync
-// state (AutoPlanHeld) for the next run and for the board.
+// The sync reflects the tracker: every open issue assigned to a member comes
+// onto the board, in the column its status maps to, without any cap per
+// member. What bounds a member is the number of tickets they work on at once
+// (max_in_progress_per_member), checked where a ticket is taken or started,
+// never here.
 func (e *Engine) autoplan(
 	ctx context.Context,
 	hubProjectID, trackerProjectID string,
@@ -782,10 +754,6 @@ func (e *Engine) autoplan(
 	firstSync bool,
 	pr *ProjectSyncResult,
 ) error {
-	limit := e.cfg.MaxAutoPlanPerMember
-	if limit <= 0 {
-		limit = defaultMaxAutoPlan
-	}
 	// The first complete scan of a project does not filter on the update
 	// time: an issue assigned long ago and not touched since has never been
 	// seen by a run that did.
@@ -793,20 +761,16 @@ func (e *Engine) autoplan(
 	if !firstSync && e.state.AutoPlanScan(trackerType, trackerProjectID) {
 		lastSync = e.state.LastSync(trackerType, trackerProjectID)
 	}
-	slog.Debug("tracker.autoplan.start", "project", hubProjectID, "members", len(memberByGitLab), "first_sync", firstSync, "limit", limit)
-
-	planned := map[string]int{} // claims of this run per member, the ones in progress apart
+	slog.Debug("tracker.autoplan.start", "project", hubProjectID, "members", len(memberByGitLab), "first_sync", firstSync)
 
 	usernames := make([]string, 0, len(memberByGitLab))
 	for username := range memberByGitLab {
 		usernames = append(usernames, username)
 	}
 	sort.Strings(usernames)
-	previouslyHeld := e.state.AutoPlanHeld[hubProjectID].Issues
 
 	// Collect all claims to create, then batch commit.
 	var pending []teamstate.Claim
-	var held []HeldIssue
 	scanned := true
 	for _, username := range usernames {
 		member := memberByGitLab[username]
@@ -821,58 +785,13 @@ func (e *Engine) autoplan(
 			}
 			slog.Warn("tracker.autoplan.member_error", "username", username, "error", err)
 			scanned = false // the scan starts again
-			// A transient error: what was held for this member stays held.
-			for _, h := range previouslyHeld {
-				if h.MemberID == member.ID {
-					held = append(held, h)
-				}
-			}
 			continue
 		}
 		slog.Debug("tracker.autoplan.member", "username", username, "issues", len(issues))
 
-		// What the last run held comes first (the oldest waits longest), then
-		// what the tracker lists; an issue is offered once.
-		var candidates []IssueState
-		offered := map[string]bool{}
-		offer := func(is IssueState) {
-			id := ticketIDFromIssue(is, "")
-			if offered[id] || claimedTickets[id] || is.IsClosed() {
-				return
-			}
-			offered[id] = true
-			candidates = append(candidates, is)
-		}
-		for _, h := range previouslyHeld {
-			if h.MemberID != member.ID || h.ExternalIID <= 0 {
-				continue
-			}
-			is, err := e.tracker.FetchIssue(ctx, trackerProjectID, h.ExternalIID)
-			if err != nil {
-				if errors.Is(err, ErrTokenInvalid) {
-					return err
-				}
-				if !errors.Is(err, ErrIssueNotFound) {
-					held = append(held, h) // unreachable for now: still held
-				}
-				continue
-			}
-			if assignedTo(is, username) {
-				offer(*is)
-			}
-		}
-		for _, is := range issues {
-			offer(is)
-		}
-
-		started := func(is IssueState) bool { return e.startedOnBoard(is) }
-		sort.SliceStable(candidates, func(i, j int) bool { return started(candidates[i]) && !started(candidates[j]) })
-
-		for _, issue := range candidates {
+		for _, issue := range issues {
 			ticketID := ticketIDFromIssue(issue, "")
-			isStarted := started(issue)
-			if !isStarted && planned[member.ID] >= limit {
-				held = append(held, HeldIssue{TicketID: ticketID, ExternalIID: issue.IID, MemberID: member.ID})
+			if claimedTickets[ticketID] || issue.IsClosed() {
 				continue
 			}
 			// Use the configurable status mapping instead of always "planned".
@@ -888,18 +807,11 @@ func (e *Engine) autoplan(
 				ExternalIID:   issue.IID,
 			})
 			claimedTickets[ticketID] = true
-			if !isStarted {
-				planned[member.ID]++
-			}
 		}
 	}
 	if scanned {
 		e.state.MarkAutoPlanScanned(trackerType, trackerProjectID, time.Now().UTC())
 	}
-	e.state.SetAutoPlanHeld(hubProjectID, limit, held)
-	pr.AutoPlanHeld = len(held)
-	pr.autoPlanLimit = limit
-	pr.autoPlanHeldBy = heldByMember(held)
 
 	if len(pending) == 0 {
 		return nil
@@ -932,42 +844,6 @@ func (e *Engine) autoplan(
 
 	msg := fmt.Sprintf("autoplan: %d tickets for %s", len(relPaths), hubProjectID)
 	return e.repo.CommitAndPush(ctx, msg, relPaths...)
-}
-
-// startedOnBoard reports whether the issue is already being worked on, going
-// by the status it would get on the board: neither the initial column nor a
-// terminal one.
-func (e *Engine) startedOnBoard(is IssueState) bool {
-	status := MapTrackerStatusWithBoard(&is, e.cfg.StatusMapping, e.cfg.LabelStatusMapping, e.boardCfg)
-	return status != teamstate.ClaimStatusPlanned && status != e.boardCfg.InitialStatus() &&
-		!slices.Contains(e.boardCfg.TerminalStatuses(), status)
-}
-
-// assignedTo reports whether the issue is assigned to the tracker name.
-func assignedTo(is *IssueState, username string) bool {
-	return slices.ContainsFunc(is.Assignees, func(a string) bool { return strings.EqualFold(a, username) })
-}
-
-// heldByMember counts the held issues of each member, in member order.
-func heldByMember(held []HeldIssue) []memberCount {
-	var out []memberCount
-	index := map[string]int{}
-	for _, h := range held {
-		i, ok := index[h.MemberID]
-		if !ok {
-			i = len(out)
-			index[h.MemberID] = i
-			out = append(out, memberCount{Member: h.MemberID})
-		}
-		out[i].Count++
-	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Member < out[j].Member })
-	return out
-}
-
-type memberCount struct {
-	Member string
-	Count  int
 }
 
 // autopoolUnassigned creates claims for tracker issues so they appear on the

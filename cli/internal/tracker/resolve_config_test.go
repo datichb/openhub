@@ -3,6 +3,8 @@ package tracker
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/teamstate"
@@ -30,8 +32,8 @@ func TestResolveTrackerConfig_NilShared_DefaultsUsed(t *testing.T) {
 	if eff.AutoPlanAssigned {
 		t.Error("expected AutoPlanAssigned=false (default)")
 	}
-	if eff.MaxAutoPlanPerMember != 5 {
-		t.Errorf("expected MaxAutoPlanPerMember=5 (default), got %d", eff.MaxAutoPlanPerMember)
+	if eff.MaxInProgressPerMember != 5 {
+		t.Errorf("expected MaxInProgressPerMember=5 (default), got %d", eff.MaxInProgressPerMember)
 	}
 	if eff.MaxUnassignedIssues != 0 {
 		t.Errorf("expected MaxUnassignedIssues=0 (no shared), got %d", eff.MaxUnassignedIssues)
@@ -43,23 +45,23 @@ func TestResolveTrackerConfig_NilShared_DefaultsUsed(t *testing.T) {
 
 func TestResolveTrackerConfig_SharedValues_Inherited(t *testing.T) {
 	shared := &teamstate.TrackerConfig{
-		Type:                 "gitlab",
-		Enabled:              true,
-		AutoSync:             true,
-		PushLabels:           true,
-		WriteEnabled:         true,
-		AutoPlanAssigned:     true,
-		MaxAutoPlanPerMember: 10,
-		TrackerURL:           "https://gitlab.example.com",
-		TrackerTokenKey:      "team-token",
-		TrackerProject:       "group/project",
-		TicketPattern:        `^PRJ-(\d+)$`,
-		SyncIntervalMinutes:  5,
-		AutoPlanUnassigned:   true,
-		UnassignedLabels:     []string{"backlog"},
-		MaxUnassignedIssues:  50,
-		StatusMapping:        map[string]string{"In Progress": "in_progress"},
-		LabelStatusMapping:   map[string]string{"blocked": "blocked"},
+		Type:                   "gitlab",
+		Enabled:                true,
+		AutoSync:               true,
+		PushLabels:             true,
+		WriteEnabled:           true,
+		AutoPlanAssigned:       true,
+		MaxInProgressPerMember: intPtrTC(10),
+		TrackerURL:             "https://gitlab.example.com",
+		TrackerTokenKey:        "team-token",
+		TrackerProject:         "group/project",
+		TicketPattern:          `^PRJ-(\d+)$`,
+		SyncIntervalMinutes:    5,
+		AutoPlanUnassigned:     true,
+		UnassignedLabels:       []string{"backlog"},
+		MaxUnassignedIssues:    50,
+		StatusMapping:          map[string]string{"In Progress": "in_progress"},
+		LabelStatusMapping:     map[string]string{"blocked": "blocked"},
 	}
 	local := config.TrackerLocalConfig{}
 	eff := ResolveTrackerConfig(shared, local)
@@ -79,8 +81,8 @@ func TestResolveTrackerConfig_SharedValues_Inherited(t *testing.T) {
 	if !eff.AutoPlanAssigned {
 		t.Error("expected AutoPlanAssigned=true (inherited from shared)")
 	}
-	if eff.MaxAutoPlanPerMember != 10 {
-		t.Errorf("expected MaxAutoPlanPerMember=10, got %d", eff.MaxAutoPlanPerMember)
+	if eff.MaxInProgressPerMember != 10 {
+		t.Errorf("expected MaxInProgressPerMember=10, got %d", eff.MaxInProgressPerMember)
 	}
 	if eff.TrackerURL != "https://gitlab.example.com" {
 		t.Errorf("expected TrackerURL inherited, got %s", eff.TrackerURL)
@@ -116,19 +118,19 @@ func TestResolveTrackerConfig_SharedValues_Inherited(t *testing.T) {
 
 func TestResolveTrackerConfig_LocalOverrides_TakePrecedence(t *testing.T) {
 	shared := &teamstate.TrackerConfig{
-		Enabled:              true,
-		AutoSync:             true,
-		PushLabels:           true,
-		WriteEnabled:         true,
-		AutoPlanAssigned:     true,
-		MaxAutoPlanPerMember: 10,
+		Enabled:                true,
+		AutoSync:               true,
+		PushLabels:             true,
+		WriteEnabled:           true,
+		AutoPlanAssigned:       true,
+		MaxInProgressPerMember: intPtrTC(10),
 	}
 	local := config.TrackerLocalConfig{
-		Enabled:              boolPtr(false),
-		AutoSync:             boolPtr(false),
-		PushLabels:           boolPtr(false),
-		AutoPlanAssigned:     boolPtr(false),
-		MaxAutoPlanPerMember: intPtrTC(3),
+		Enabled:                boolPtr(false),
+		AutoSync:               boolPtr(false),
+		PushLabels:             boolPtr(false),
+		AutoPlanAssigned:       boolPtr(false),
+		MaxInProgressPerMember: intPtrTC(3),
 	}
 	eff := ResolveTrackerConfig(shared, local)
 
@@ -144,8 +146,8 @@ func TestResolveTrackerConfig_LocalOverrides_TakePrecedence(t *testing.T) {
 	if eff.AutoPlanAssigned {
 		t.Error("expected AutoPlanAssigned=false (local override)")
 	}
-	if eff.MaxAutoPlanPerMember != 3 {
-		t.Errorf("expected MaxAutoPlanPerMember=3 (local override), got %d", eff.MaxAutoPlanPerMember)
+	if eff.MaxInProgressPerMember != 3 {
+		t.Errorf("expected MaxInProgressPerMember=3 (local override), got %d", eff.MaxInProgressPerMember)
 	}
 
 	// Verify overrides are flagged
@@ -161,8 +163,8 @@ func TestResolveTrackerConfig_LocalOverrides_TakePrecedence(t *testing.T) {
 	if !eff.LocalOverrides.AutoPlanAssigned {
 		t.Error("expected LocalOverrides.AutoPlanAssigned=true")
 	}
-	if !eff.LocalOverrides.MaxAutoPlanPerMember {
-		t.Error("expected LocalOverrides.MaxAutoPlanPerMember=true")
+	if !eff.LocalOverrides.MaxInProgressPerMember {
+		t.Error("expected LocalOverrides.MaxInProgressPerMember=true")
 	}
 }
 
@@ -343,4 +345,23 @@ func TestResolveFullTrackerConfig_NilShared_NilProject(t *testing.T) {
 	if eff.TrackerURL != "" {
 		t.Errorf("expected empty TrackerURL when no shared, got %s", eff.TrackerURL)
 	}
+}
+
+// The in-progress limit of a member: hub.toml, else the team (its former
+// max_auto_plan_per_member read when the new key is absent), else 5; 0 is no
+// limit, at either level.
+func TestInProgressLimitCascade(t *testing.T) {
+	none := config.TrackerLocalConfig{}
+	assert.Equal(t, 5, InProgressLimit(nil, none), "no team: the default")
+	assert.Equal(t, 5, InProgressLimit(&teamstate.TrackerConfig{}, none), "a team that sets nothing: the default")
+	assert.Equal(t, 8, InProgressLimit(&teamstate.TrackerConfig{MaxInProgressPerMember: intPtrTC(8)}, none))
+	assert.Equal(t, 12, InProgressLimit(&teamstate.TrackerConfig{MaxAutoPlanPerMember: 12}, none), "the former team key is the fallback")
+	assert.Equal(t, 8, InProgressLimit(&teamstate.TrackerConfig{MaxInProgressPerMember: intPtrTC(8), MaxAutoPlanPerMember: 12}, none))
+	assert.Zero(t, InProgressLimit(&teamstate.TrackerConfig{MaxInProgressPerMember: intPtrTC(0)}, none), "the team lifts the limit")
+
+	local := config.TrackerLocalConfig{MaxInProgressPerMember: intPtrTC(3)}
+	assert.Equal(t, 3, InProgressLimit(&teamstate.TrackerConfig{MaxInProgressPerMember: intPtrTC(8)}, local), "hub.toml wins")
+	assert.Equal(t, 3, InProgressLimit(nil, local))
+	assert.Zero(t, InProgressLimit(&teamstate.TrackerConfig{MaxInProgressPerMember: intPtrTC(8)}, config.TrackerLocalConfig{MaxInProgressPerMember: intPtrTC(0)}), "a member may lift it for themselves")
+	assert.Equal(t, 8, InProgressLimit(&teamstate.TrackerConfig{MaxInProgressPerMember: intPtrTC(8)}, config.TrackerLocalConfig{MaxInProgressPerMember: intPtrTC(-2)}), "a negative value is ignored")
 }

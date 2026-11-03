@@ -27,7 +27,7 @@ Introduire un package `cli/internal/tracker/` qui :
 3. Exécute un moteur de réconciliation (`Engine.Run()`) qui :
    - **Direction pull (tracker → claims)** : issue fermée → claim `done` ; issue rouverte → claim `in_progress` ; labels du tracker reflétés sur le claim
    - **Direction push (claims → tracker, opt-in)** : labels hub (`agent-reviewed`, `hub:done`) poussés vers l'issue si `push_labels = true` et `write_enabled` est défini sur le serveur MCP
-   - **Auto-plan** : issues assignées à des membres de l'équipe sans claim → claim `planned` créé automatiquement (limité par `max_auto_plan_per_member`)
+   - **Auto-plan** : issues assignées à des membres de l'équipe sans claim → claim créé automatiquement dans la colonne que son statut désigne, sans plafond par membre (le membre est borné par la limite de travail en cours `max_in_progress_per_member`, vérifiée là où un ticket est pris ou démarré, jamais par la synchro ; elle remplace l'ancienne `max_auto_plan_per_member`)
 4. Utilise `~/.oh/sync-state.json` (local, absent du git team-state) pour stocker `last_sync_at` par projet — transmis comme `updated_after` aux APIs des trackers pour des récupérations incrémentales
 5. Effectue un seul `CommitAndPush` par cycle de synchronisation (commit groupé) pour minimiser les conditions de concurrence
 6. Est déclenché : à l'ouverture de la vue équipe (si `auto_sync = true`), sur la touche `r`, et via la commande CLI `oh team sync-tracker`
@@ -55,6 +55,6 @@ Jira utilise `statusCategory.key` (`"done"` = fermé) plutôt que les noms d'ét
 
 ### Négatives / Compromis
 - La sync est à cohérence éventuelle — le board peut être obsolète jusqu'au prochain cycle de synchronisation
-- L'auto-plan peut créer des claims indésirables si `max_auto_plan_per_member` n'est pas bien calibré
+- L'auto-plan met toute issue assignée sur le board : un membre qui en a beaucoup les voit toutes ; `max_in_progress_per_member` ne limite que ce qu'il peut prendre ou démarrer
 - La direction push nécessite un opt-in (`push_labels = true` + `write_enabled`) — non automatique
 - Le mapping `statusCategory.key` pour Jira couvre la majorité des cas mais peut manquer des cas limites avec des catégories de statut personnalisées

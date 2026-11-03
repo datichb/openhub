@@ -27,7 +27,7 @@ Introduce a `cli/internal/tracker/` package that:
 3. Runs a reconciliation engine (`Engine.Run()`) that:
    - **Pull direction (tracker → claims)**: closed issue → claim `done`; reopened issue → claim `in_progress`; tracker labels mirrored onto claim
    - **Push direction (claims → tracker, opt-in)**: hub labels (`agent-reviewed`, `hub:done`) pushed to issue if `push_labels = true` and `write_enabled` is set on the MCP server
-   - **Auto-plan**: issues assigned to team members without a claim → claim `planned` created automatically (bounded by `max_auto_plan_per_member`)
+   - **Auto-plan**: issues assigned to team members without a claim → claim created automatically in the column its status maps to, with no cap per member (the member is bounded by the work-in-progress limit `max_in_progress_per_member`, checked where a ticket is taken or started, never by the sync; it replaces the former `max_auto_plan_per_member`)
 4. Uses `~/.oh/sync-state.json` (local, not in team-state git) to store `last_sync_at` per project — passed as `updated_after` to tracker APIs for incremental fetches
 5. Performs a single `CommitAndPush` per sync run (batch commit) to minimize race conditions
 6. Is triggered: on team view open (if `auto_sync = true`), on `r` key, and via `oh team sync-tracker` CLI command
@@ -55,6 +55,6 @@ Jira uses `statusCategory.key` (`"done"` = closed) instead of issue state names 
 
 ### Negative / Trade-offs
 - Sync is eventually consistent — board can be stale until next sync cycle
-- Auto-plan can create unwanted claims if `max_auto_plan_per_member` is not tuned
+- Auto-plan puts every assigned issue on the board: a member with many issues sees them all; `max_in_progress_per_member` only limits what they can take or start
 - Push direction requires opt-in (`push_labels = true` + `write_enabled`) — not automatic
 - `statusCategory.key` mapping for Jira covers most cases but may miss edge cases with custom status categories

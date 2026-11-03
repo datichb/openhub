@@ -23,6 +23,9 @@ var (
 	teamStatusKey   = keys.Own("teamboard.status", 's', "tui.hints.status")
 	projectPrevKey  = keys.Own("teamboard.project_prev", '[', "tui.hints.projects")
 	projectNextKey  = keys.Own("teamboard.project_next", ']', "tui.hints.projects")
+	// boardColumnsKey opens the editor of the columns of the board and of the
+	// labels mapped to them (the « Colonnes du board » entry of the Team mode).
+	boardColumnsKey = keys.Own("teamboard.columns", 'C', "tui.hints.board_columns")
 )
 
 // projectsHint is the hint of the keys that move between the projects of the
