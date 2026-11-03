@@ -122,7 +122,7 @@ func TestValidate_Rules(t *testing.T) {
 		{"bool default", "risk: write\ninputs:\n  a: { type: bool, default: maybe }\n", "input_default_invalid", "inputs.a.default", SeverityError},
 		{"default self ref", "risk: write\ninputs:\n  a: { type: string, default: \"{{ .a }}\" }\n", "prompt_unknown_variable", "inputs.a.default", SeverityError},
 		{"negative max length", "risk: write\ninputs:\n  a: { type: text, max_length: -1 }\n", "negative_value", "inputs.a.max_length", SeverityError},
-		// computed inputs (QB2)
+		// computed inputs
 		{"from form", "risk: write\ninputs:\n  a: { type: text, from: mr.discussions }\n", "input_from_invalid", "inputs.a.from", SeverityError},
 		{"from source", "risk: write\ninputs:\n  mr: { type: string }\n  a: { type: text, from: \"jira.issue(mr)\" }\n", "input_from_unknown_source", "inputs.a.from", SeverityError},
 		{"from input", "risk: write\ninputs:\n  a: { type: text, from: \"mr.discussions(mr)\" }\n", "input_from_unknown_input", "inputs.a.from", SeverityError},
@@ -161,19 +161,19 @@ func TestValidate_Rules(t *testing.T) {
 		{"checkpoint mode missing", "risk: write\ncheckpoints:\n  cp-1: { mode: { manuel: pause } }\n", "checkpoint_mode_missing", "checkpoints.cp-1.mode", SeverityWarning},
 		{"checkpoint remote", "risk: write\ncheckpoints:\n  cp-1: { remote: later, mode: { manuel: pause, semi-auto: pause, auto: pause } }\n", "enum_invalid", "checkpoints.cp-1.remote", SeverityError},
 		{"checkpoint fanout scope without fanout", "risk: write\ncheckpoints:\n  cp-1: { fanout: never, " + pauses + " }\n", "checkpoint_fanout_without_fanout", "checkpoints.cp-1.fanout", SeverityError},
-		// session contract (L3)
+		// session contract
 		{"checkpoint by unknown", "risk: write\ncheckpoints:\n  cp-1: { by: [ghost], mode: { manuel: pause, semi-auto: pause, auto: pause } }\n", "checkpoint_by_unknown", "checkpoints.cp-1.by[0]", SeverityError},
 		{"checkpoint by duplicate", "risk: write\ncheckpoints:\n  cp-1: { by: [conductor, conductor], mode: { manuel: pause, semi-auto: pause, auto: pause } }\n", "checkpoint_by_duplicate", "checkpoints.cp-1.by[1]", SeverityWarning},
 		{"headless pause", "risk: write\nheadless: true\ncheckpoints:\n  cp-1: { mode: { manuel: auto, semi-auto: pause, auto: auto } }\n", "headless_checkpoint_pause", "checkpoints.cp-1", SeverityWarning},
-		// unlocks (piste T, T1)
+		// unlocks
 		{"unlock duplicate", "risk: write\ncheckpoints:\n  cp-1: { unlocks: [commit], " + pauses + " }\n  cp-2: { unlocks: [close, commit], " + pauses + " }\n", "unlock_duplicate", "checkpoints.cp-2.unlocks[1]", SeverityError},
 		{"unlock skipped", "risk: write\ncheckpoints:\n  cp-1: { unlocks: [commit], mode: { manuel: pause, semi-auto: pause, auto: skip } }\n", "unlock_skip", "checkpoints.cp-1.mode.auto", SeverityWarning},
-		// N10 (DC7): push in unlocks opens nothing outside a publishing workflow
+		// Push in unlocks opens nothing outside a publishing workflow
 		{"unlock push without publish", "risk: write\ncheckpoints:\n  cp-1: { unlocks: [commit, push], " + pauses + " }\n", "unlock_push_without_publish", "checkpoints.cp-1.unlocks[1]", SeverityWarning},
 		// LD-D: `wiki: sync` (doc-sync) on a checkpoint that unlocks the commit
 		{"wiki sync without commit", "risk: write\ncheckpoints:\n  cp-sync: { wiki: sync, " + pauses + " }\n", "checkpoint_wiki_commit", "checkpoints.cp-sync.wiki", SeverityError},
 		{"wiki value", "risk: write\ncheckpoints:\n  cp-sync: { wiki: all, unlocks: [commit], " + pauses + " }\n", "enum_invalid", "checkpoints.cp-sync.wiki", SeverityError},
-		// p5-fixes: a second commit checkpoint (`unlock_again`): only the commit, on a checkpoint after the first one that unlocks it
+		// A second commit checkpoint (`unlock_again`): only the commit, on a checkpoint after the first one that unlocks it
 		{"unlock again first", "risk: write\ncheckpoints:\n  cp-a: { unlocks: [commit], unlock_again: true, " + pauses + " }\n", "unlock_again_first", "checkpoints.cp-a.unlock_again", SeverityError},
 		{"unlock again without commit", "risk: write\ncheckpoints:\n  cp-a: { unlocks: [commit], " + pauses + " }\n  cp-b: { unlocks: [create], unlock_again: true, " + pauses + " }\n", "unlock_again_without_commit", "checkpoints.cp-b.unlock_again", SeverityError},
 		{"unlock again close stays single", "risk: write\ncheckpoints:\n  cp-a: { unlocks: [commit, close], " + pauses + " }\n  cp-b: { unlocks: [commit, close], unlock_again: true, " + pauses + " }\n", "unlock_duplicate", "checkpoints.cp-b.unlocks[1]", SeverityError},
@@ -342,7 +342,7 @@ func TestValidate_DiagnosticPointsToPatchLayer(t *testing.T) {
 	}
 }
 
-// C1: a workflow that still names an agent removed from the hub gets its
+// A workflow that still names an agent removed from the hub gets its
 // replacement, not a bare "unknown agent".
 func TestValidate_RemovedAgent(t *testing.T) {
 	t.Parallel()
@@ -382,7 +382,7 @@ func TestTemplateVariables(t *testing.T) {
 	}
 }
 
-// A10: a team or project workflow without prompt is reported (the session
+// A team or project workflow without prompt is reported (the session
 // would start without any instruction); a patch inherits the prompt.
 func TestValidate_PromptNone(t *testing.T) {
 	t.Parallel()

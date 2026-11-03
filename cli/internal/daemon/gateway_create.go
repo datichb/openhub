@@ -10,7 +10,7 @@ import (
 )
 
 // guardCreate refuses to create tickets before the checkpoint that unlocks
-// `create` (N9: cadrage and feature create tickets only once the split is
+// `create` (cadrage and feature create tickets only once the split is
 // approved). Kept apart from guardTickets (closing guard, Beads gateway
 // track).
 func (d *Daemon) guardCreate(ctx context.Context, g gateway.Grant) error {

@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// A16: the user's start-up files put another bd first; oh's start-up files
+// The user's start-up files put another bd first; oh's start-up files
 // load them, then put the fake bd back first (zsh and bash).
 func TestShellStartupKeepsTheFakeBdFirst(t *testing.T) {
 	root := t.TempDir()

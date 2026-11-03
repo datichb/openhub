@@ -17,7 +17,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
-// QB8 (S8): the session context capability writes and clears instruction
+// The session context capability writes and clears instruction
 // entries on a real server.
 func TestContractSessionContext(t *testing.T) {
 	cfg := `{"agents":{"pinger":{"mode":"primary","description":"p"}}}`
@@ -55,7 +55,7 @@ func TestContractSessionContext(t *testing.T) {
 	assert.Error(t, ad.SetSessionContext(ctx, h, sid, "Bad Key", 1), "key format checked by the tool")
 }
 
-// QB8: a server without the experimental route (404 without error tag, or
+// A server without the experimental route (404 without error tag, or
 // 405) makes the capability unsupported: the caller falls back.
 func TestSessionContextUnsupportedRoute(t *testing.T) {
 	for _, status := range []int{http.StatusNotFound, http.StatusMethodNotAllowed} {

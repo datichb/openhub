@@ -19,7 +19,6 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
-	"crypto/subtle"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -364,9 +363,4 @@ func VerifyPassphrase(path, passphrase string) error {
 		return errors.New("wrong passphrase")
 	}
 	return nil
-}
-
-// ConstantTimeEqual compares two strings in constant time to prevent timing attacks.
-func ConstantTimeEqual(a, b string) bool {
-	return subtle.ConstantTimeCompare([]byte(a), []byte(b)) == 1
 }

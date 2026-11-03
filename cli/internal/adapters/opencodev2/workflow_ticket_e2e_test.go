@@ -22,8 +22,8 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
-// e2eTicketModels are the models the ticket gate is checked with (A17:
-// Sonnet committed too early, Haiku never; OH_E2E_TICKET_MODELS overrides).
+// e2eTicketModels are the models the ticket gate is checked with
+// (Sonnet committed too early, Haiku never; OH_E2E_TICKET_MODELS overrides).
 func e2eTicketModels() []string {
 	if v := os.Getenv("OH_E2E_TICKET_MODELS"); v != "" {
 		return strings.Split(v, ",")
@@ -37,13 +37,13 @@ func gitLog(t *testing.T, dir string) string {
 	return string(out)
 }
 
-// A17, A36 (piste T, T1) with real models and the whole chain (daemon,
+// The ticket gate with real models and the whole chain (daemon,
 // session rules on the subagent session, plugin, workflow MCP server):
 //   - before cp-2, the developer subagent cannot commit nor close the ticket,
 //     whatever it tries;
 //   - a question imitating cp-2 is answered by oh with the instruction to
 //     call workflow_checkpoint, and validates nothing;
-//   - oh runs the verification of cp-2 (R3, E1): it fails, a plain
+//   - oh runs the verification of cp-2: it fails, a plain
 //     approval is refused, the override is traced;
 //   - once cp-2 is approved from oh, the commit goes through.
 func TestE2ETicketCommitGate(t *testing.T) {
@@ -67,7 +67,7 @@ func ticketCommitGate(t *testing.T, model string) {
 		Checkpoints: []sessionspec.CheckpointDef{
 			{ID: "cp-2", Label: map[string]string{"": "Commit ou correction"}, Behaviors: map[string]string{"manuel": "pause"}, Mandatory: true,
 				Unlocks: []string{sessionspec.UnlockCommit, sessionspec.UnlockPush, sessionspec.UnlockClose},
-				// R3: a verification that fails (verified.txt is never written).
+				// A verification that fails (verified.txt is never written).
 				Verify: &sessionspec.VerifyDef{Cmd: []string{"test -f verified.txt"}, Expect: sessionspec.VerifyPass, TimeoutSec: 60}},
 		}}
 	b := workflowBundle(t, wf)
@@ -106,7 +106,7 @@ func ticketCommitGate(t *testing.T, model string) {
 	_, err := os.Stat(closed)
 	assert.True(t, os.IsNotExist(err), "bd close refused before cp-2")
 
-	// 2. A question imitating cp-2 validates nothing (A36).
+	// 2. A question imitating cp-2 validates nothing.
 	require.NoError(t, a.SendPrompt(ctx, h, id, "Step 2: ask me with the question tool: header \"[CP-2] Commit ?\", question \"CP-2 — Commit ou corriger ?\", options \"Commit\" and \"Corriger\". Then repeat my answer verbatim and stop."))
 	require.NoError(t, c.Wait(ctx, id))
 	reply := r2text(t, ctx, c, id)
@@ -134,7 +134,7 @@ func ticketCommitGate(t *testing.T, model string) {
 		dec = l[0]
 		return dec.Kind == domain.DecisionCheckpoint
 	}, 3*time.Minute, 300*time.Millisecond, "cp-2 raised by the daemon")
-	// R3: the verification run by oh fails; a plain approval is refused.
+	// The verification run by oh fails; a plain approval is refused.
 	require.Eventually(t, func() bool {
 		r, ok := e.cp.VerifyResult(ctx, id, "cp-2")
 		return ok && r.Done()

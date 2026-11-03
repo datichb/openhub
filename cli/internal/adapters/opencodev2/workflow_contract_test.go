@@ -10,7 +10,7 @@ import (
 )
 
 // The workflow MCP server of a bundle (`{{oh.bin}} mcp serve workflow`) is
-// started by the tool for the session location (P3-T01).
+// started by the tool for the session location.
 func TestContractWorkflowMCPConnected(t *testing.T) {
 	a := newContractAdapter(t)
 	e := newWorkflowEnv(t, a)

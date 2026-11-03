@@ -60,7 +60,7 @@ func TestBuildFromWorkflowSpec_Errors(t *testing.T) {
 // all) only where the workflow writes it (review: calls: [reviewer]); the
 // sessions it launches delegate nothing more: one level is enough. Its
 // task permission to itself is never a delegation by itself: a free
-// session on the reviewer calls nothing (p7-leftovers).
+// session on the reviewer calls nothing.
 func TestReviewerSelfDelegation(t *testing.T) {
 	t.Parallel()
 	b, err := Build(Request{HubDir: repoHub(t), OutDir: t.TempDir(), Spec: parseSpec(t, `apiVersion: oh/v1
@@ -95,7 +95,7 @@ func TestBuildStrictIsolationFromSpec(t *testing.T) {
 	assert.True(t, loaded.Spec.StrictIsolation, "stored in bundle.json (read by the SessionService)")
 }
 
-// N24 (S-19): a read-only workflow never gets the write tools of the
+// Audit S-19: a read-only workflow never gets the write tools of the
 // project's MCP servers.
 func TestReadWorkflowDropsMCPWriteSwitch(t *testing.T) {
 	mcp := []sessionspec.MCPServerDef{{Name: "gitlab", Environment: map[string]string{"GITLAB_WRITE_ENABLED": "true", "GITLAB_URL": "https://g"}}}

@@ -64,7 +64,7 @@ func TestBuildSpecLayout(t *testing.T) {
 			volumes = append(volumes, m.Target)
 		}
 	}
-	// N5: what makes the git of the machine run programs is read-only, in
+	// What makes the git of the machine run programs is read-only, in
 	// every view (project mount, git common directory at its machine path).
 	assert.ElementsMatch(t, []string{InnerBundle,
 		"/work/app/.git/config", common + "/config", "/work/app/.git/hooks", common + "/hooks",
@@ -125,7 +125,7 @@ func TestRunArgsKeepsValuesOffTheCommandLine(t *testing.T) {
 	line := strings.Join(args, " ")
 	assert.NotContains(t, line, "secret-pw")
 	for _, opt := range []string{"--cap-drop=ALL", "--security-opt=no-new-privileges", "--pids-limit=4096"} {
-		assert.Contains(t, args, opt, "N5: hardened container")
+		assert.Contains(t, args, opt, "hardened container")
 	}
 	assert.Contains(t, line, "run --rm --init --name oh-g")
 	assert.Contains(t, line, "--mount type=bind,source=/b,target=/opt/oh/bundle,readonly")
@@ -178,7 +178,7 @@ func TestPrepareAndCommand(t *testing.T) {
 	require.NoError(t, rt.Teardown(context.Background(), pg))
 }
 
-// N5 (audit S-33): cache volumes cannot inject mount options or hide oh's
+// Audit S-33: cache volumes cannot inject mount options or hide oh's
 // directories; HOME is a volume of the group.
 func TestBuildSpecRefusesUnsafeVolumes(t *testing.T) {
 	_, project, _, bundle, data := layout(t)

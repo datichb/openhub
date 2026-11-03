@@ -9,7 +9,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/provider"
 )
 
-// E14-M6: provider, region, credential and exact project id separate groups.
+// Provider, region, credential and exact project id separate groups.
 func TestConfigFingerprintSeparatesGroups(t *testing.T) {
 	base := StartRequest{ProjectID: "a.b", Provider: "bedrock"}
 	cred := provider.ResolvedCredential{Source: domain.CredentialSource{Kind: domain.CredentialBearer, KeychainKey: "k"}, Secret: "s1"}
@@ -27,7 +27,7 @@ func TestConfigFingerprintSeparatesGroups(t *testing.T) {
 	assert.NotContains(t, fp, "s1")
 }
 
-// E14-M5: the AWS region chain is used before the us-east-1 default.
+// The AWS region chain is used before the us-east-1 default.
 func TestResolveProviderRegionFromEnv(t *testing.T) {
 	t.Setenv("AWS_REGION", "eu-west-3")
 	t.Setenv("AWS_CONFIG_FILE", "/nonexistent")

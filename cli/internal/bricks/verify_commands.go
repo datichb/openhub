@@ -223,7 +223,7 @@ func fileExists(p string) bool {
 	return err == nil
 }
 
-// R7 (TDD): test files of a stack and the reason a test run failed.
+// Test files of a stack (TDD method) and the reason a test run failed.
 
 // testFilePatterns are the test files of each signal (sessionspec.PathMatch
 // patterns: without a slash, the base name; `**` any folders).

@@ -165,7 +165,7 @@ func TestE2EPluginInjectsAgentPrompt(t *testing.T) {
 }
 
 // The model sees only the skills of the bundle and, among them, only the
-// catalogue of its agent (L2).
+// catalogue of its agent.
 func TestE2EModelSeesOnlyBundleSkills(t *testing.T) {
 	b := e2eBundle(t)
 	b.Agents[0].Skills = []string{"alpha"}
@@ -209,7 +209,7 @@ func TestE2EThroughCredentialProxy(t *testing.T) {
 
 	reply := r.ask(t, "lead", "go")
 	assert.NotContains(t, reply, real, "the real key must never reach the agent")
-	// N2 (v5 critical): the session token of the server is not in the shell either.
+	// The session token of the server is not in the shell either.
 	assert.NotContains(t, reply, "ohs_", "the agent does not see the session token: %q", reply)
 
 	u, ok := p.Usage(tok)
@@ -248,7 +248,7 @@ func TestE2EThroughCredentialProxySigV4(t *testing.T) {
 	assert.True(t, strings.HasPrefix(strings.TrimSpace(reply), "LEAD:"), "reply: %q", reply)
 }
 
-// P1-T09: an agent reads a skill annex stored in the bundle (outside the
+// An agent reads a skill annex stored in the bundle (outside the
 // project) through the expanded BundleRootVar path, without any
 // external_directory permission prompt.
 func TestE2EAgentReadsSkillAnnexOutsideProject(t *testing.T) {
@@ -313,7 +313,7 @@ func (r *e2eRun) text(t *testing.T, ctx context.Context, id string) string {
 	return txt
 }
 
-// Headless decisions (S3/S4, P3-T08): a permission and an agent question
+// Headless decisions: a permission and an agent question
 // answered through the API, then the agent goes on.
 func TestE2EHeadlessDecisions(t *testing.T) {
 	r := startE2E(t, e2eBundle(t), false)
@@ -382,9 +382,9 @@ func TestE2EHeadlessDecisions(t *testing.T) {
 	}
 }
 
-// The session environment (S7) is not passed to the sub-sessions started by
+// The session environment is not passed to the sub-sessions started by
 // the task tool (opencode 2.0.20): the oh daemon applies it to each
-// sub-session it sees (P4-T07, Beads gateway token). If this test fails
+// sub-session it sees (Beads gateway token). If this test fails
 // because the variable is inherited, that workaround can go.
 func TestE2ESubagentSessionEnvironment(t *testing.T) {
 	b := e2eBundle(t)
@@ -408,7 +408,7 @@ func TestE2ESubagentSessionEnvironment(t *testing.T) {
 	assert.Equal(t, "VAL=missing", strings.TrimSpace(string(data)), "opencode now passes the session environment to sub-sessions")
 }
 
-// A remote MCP server (oh MCP servers outside the machine, P4-T08) receives
+// A remote MCP server (oh MCP servers outside the machine) receives
 // the calling session in the `_meta` of tools/call, as a local one does
 // (the workflow server relies on it).
 func TestE2ERemoteMCPReceivesSessionMeta(t *testing.T) {

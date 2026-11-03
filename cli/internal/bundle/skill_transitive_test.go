@@ -12,7 +12,7 @@ import (
 )
 
 // crossReferences are skills named by another skill for context, not loaded
-// by the agents of the bundle (C0.3 review): the reason is kept with each.
+// by the agents of the bundle: the reason is kept with each.
 var crossReferences = map[string]string{
 	"living-docs-enrichment → onboarder-workflow":     "where the onboarder writes the wiki, for the reader",
 	"onboarder-phase-3-4 → dev-standards-testing":     "agent recommendation written in the report",
@@ -20,13 +20,13 @@ var crossReferences = map[string]string{
 	"planner-design-templates → prototype-protocol":   "the designer's protocol, named for a design delegation: triage has no designer (r9b, its planner launches no agent)",
 }
 
-// C0.3: a skill named inside a shipped skill is loadable in that bundle
+// A skill named inside a shipped skill is loadable in that bundle
 // (shipped on demand, or inlined in an agent). The mention scan of the build
 // only reads agent bodies: a skill named only by an on-demand skill must be
 // pulled in by `requires:`, otherwise the agent following that skill gets
 // « Unable to load skill ». Skills gated by a plugin the workflow does not
-// load, by an MCP server the session does not have or by a when: condition
-// (L3), and stack skills
+// load, by an MCP server the session does not have or by a when: condition,
+// and stack skills
 // (shipped when the project uses the stack), are absent on purpose.
 func TestShippedSkillMentionsResolveTransitively(t *testing.T) {
 	t.Parallel()

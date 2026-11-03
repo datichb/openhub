@@ -60,7 +60,7 @@ func runPlugin(t *testing.T, opts map[string]any, events []map[string]any) []dri
 	return out
 }
 
-// p6-debts, closed by default: a request the session rules may lock is
+// Closed by default: a request the session rules may lock is
 // refused unless oh confirms it (daemon down, session unknown to oh); the
 // others keep the rendered decision.
 func TestPluginHoldsLockedRequests(t *testing.T) {

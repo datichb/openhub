@@ -36,7 +36,7 @@ type Session struct {
 	CorrelationID *string     // groups related headless runs (e.g. all runs in a single sweep)
 
 	// Session bundle / server group fields (v5, migration v29)
-	WorkflowID string   // workflow (phase 0: entry agent based)
+	WorkflowID string   // workflow (the entry agent id for the oldest sessions)
 	EntryAgent string   // agent the session started with
 	BundleHash string   // compiled session bundle
 	GroupKey   string   // tool server group
@@ -46,14 +46,14 @@ type Session struct {
 	// StateChangedAt is when State last changed (migration v31).
 	StateChangedAt *time.Time
 
-	// Workflow launch fields (v5 phase 1, migration v34)
+	// Workflow launch fields (migration v34)
 	WorkflowLayer   string // layer of the launched workflow document (hub | team | project)
 	WorkflowVersion int    // published version (0 = unversioned)
 	WorkflowRisk    string // read | write | publish ("" = unknown, legacy launch)
 	Location        string // base | worktree
-	// Outputs are the typed values declared by the session (O7), by output id.
+	// Outputs are the typed values declared by the session, by output id.
 	Outputs map[string]any
-	// ParentSessionID is the session this one was chained from (O7).
+	// ParentSessionID is the session this one was chained from.
 	ParentSessionID string
 
 	// StartRef is the git commit the session started from (its uncommitted
@@ -67,7 +67,7 @@ type Session struct {
 	WorktreeAuto   bool
 	WorktreeBranch string
 
-	// Fanout is the fan-out record of the session (R6, v46): parent, child
+	// Fanout is the fan-out record of the session (v46): parent, child
 	// or merger; written by oh only (SessionFanoutStore).
 	Fanout *SessionFanout
 }
@@ -78,7 +78,7 @@ type RunState string
 const (
 	RunPreparing RunState = "preparing"
 	// RunQueued: the session exists but its first prompt waits for a free
-	// slot (I6 restrictions: working sessions, memory).
+	// slot (restrictions: working sessions, memory).
 	RunQueued    RunState = "queued"
 	RunActive    RunState = "active"
 	RunWaiting   RunState = "waiting"

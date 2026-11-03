@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// Git hooks of Beads (A19): `bd init` installs hooks that call
+// Git hooks of Beads: `bd init` installs hooks that call
 // `bd hooks run <hook>` with BD_GIT_HOOK=1. In a session they reach the
 // fake bd, hence the gateway: they run whatever the workflow beads.allow
 // says, so that a commit is never blocked (nor the hooks bypassed) because

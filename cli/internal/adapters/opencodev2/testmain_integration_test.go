@@ -15,7 +15,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/testenv"
 )
 
-// TestMain stops the servers left by interrupted test runs (N18): a test
+// TestMain stops the servers left by interrupted test runs: a test
 // binary killed before its cleanups (timeout, Ctrl+C) leaves its servers
 // running in their own session. Only servers whose parent is gone and whose
 // directories are those of a test or of the native agents discovery are

@@ -71,7 +71,7 @@ func (failingSecrets) Get(context.Context, string) (string, error) {
 	return "", errors.New("keychain locked")
 }
 
-// E14-K: a keychain failure never falls back to another key.
+// A keychain failure never falls back to another key.
 func TestResolveCredentialSourceKeychainErrorIsReported(t *testing.T) {
 	_, err := ResolveCredentialSource(context.Background(), failingSecrets{}, Bedrock, "p1", "t1", "", nil)
 	require.Error(t, err)

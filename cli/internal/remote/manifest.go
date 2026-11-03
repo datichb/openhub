@@ -10,7 +10,7 @@ import (
 )
 
 // ManifestSchema is the version of the session envelope format.
-const ManifestSchema = 3 // 2: journal key (S-04); 3: journal key sealed for the target (N21)
+const ManifestSchema = 3 // 2: journal key (S-04); 3: journal key sealed for the target
 
 // Files of the session envelope (oh-session package).
 const (
@@ -142,7 +142,7 @@ type Snapshot struct {
 }
 
 // SummarySchema is the version of summary.json.
-const SummarySchema = 2 // 2: verifications run by oh in the job (R3-remote)
+const SummarySchema = 2 // 2: verifications run by oh in the job
 
 // Outcomes of a remote session.
 const (
@@ -168,7 +168,7 @@ type Summary struct {
 	// Decisions are the answers of the policy responder.
 	Decisions []SummaryDecision `json:"decisions,omitempty"`
 	// Verifications are the last verification run by oh in the job for
-	// each verified checkpoint (R3-remote), by checkpoint id.
+	// each verified checkpoint, by checkpoint id.
 	Verifications []SummaryVerification `json:"verifications,omitempty"`
 
 	Branch     string `json:"branch,omitempty"`
@@ -257,7 +257,7 @@ type ReportEntry struct {
 	Body        string    `json:"body"`
 }
 
-// WikiSchema is the version of wiki.json. 2 (p6-debts): the proposals
+// WikiSchema is the version of wiki.json. 2: the proposals
 // that replace a line (`replaces`) are in Replacements, a key an oh of
 // schema 1 does not read: it leaves them out instead of queueing them as
 // lines to add. A wiki.json of a newer schema is not imported.
@@ -321,6 +321,6 @@ type WikiEntry struct {
 	Tag         string    `json:"tag"`
 	Source      string    `json:"source,omitempty"`
 	CreatedAt   time.Time `json:"created_at"`
-	// Replaces is the line the proposal replaces (p5-fixes).
+	// Replaces is the line the proposal replaces.
 	Replaces string `json:"replaces,omitempty"`
 }

@@ -11,7 +11,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionctx"
 )
 
-// Evolving session state for the entry agent (S8, QB8): checkpoints at each
+// Evolving session state for the entry agent: checkpoints at each
 // transition, remaining budget at a $ decision and after a raise; the resume
 // instruction (set by the RunService) is cleared after the next step.
 
@@ -46,7 +46,7 @@ func (w *watcher) syncCheckpoints(ctx context.Context, root string) {
 	}
 	st, err := cp.Status(ctx, root)
 	if err != nil || len(st.Checkpoints) == 0 {
-		return // not a workflow session, or a workflow without checkpoint (A29)
+		return // not a workflow session, or a workflow without checkpoint
 	}
 	if w.deferWhileExecuting(root, func(ctx context.Context) { w.syncCheckpoints(ctx, root) }) {
 		return
@@ -57,7 +57,7 @@ func (w *watcher) syncCheckpoints(ctx context.Context, root string) {
 }
 
 // deferWhileExecuting keeps a state write for the end of the running step
-// of root (A29): the tool announces a change at the next step boundary, and
+// of root: the tool announces a change at the next step boundary, and
 // a change written during the last step of a loop makes the agent run one
 // more step (« context updated… ») that replaces its real answer. Written
 // once the loop ended, the change is announced at the next turn. It reports

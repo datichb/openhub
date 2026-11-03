@@ -11,7 +11,7 @@ import (
 )
 
 // selectAgents returns the delegation graph and the agents of the bundle
-// (entry first). The workflow is the source of truth (P1-T06): every member
+// (entry first). The workflow is the source of truth: every member
 // is shipped (workflow and independent agents) and the graph is the workflow
 // delegation graph (`calls`, or each agent's task permission restricted to
 // the members).
@@ -70,7 +70,7 @@ const MCPWriteEnvSuffix = "_WRITE_ENABLED"
 
 // readOnlyMCP returns servers without their write switch: a read-only
 // workflow (risk: read) never gets the write tools of the project's MCP
-// servers, whatever the project allows (N24, S-19).
+// servers, whatever the project allows (S-19).
 func readOnlyMCP(servers []sessionspec.MCPServerDef) []sessionspec.MCPServerDef {
 	if len(servers) == 0 {
 		return servers
@@ -92,8 +92,8 @@ func readOnlyMCP(servers []sessionspec.MCPServerDef) []sessionspec.MCPServerDef 
 	return out
 }
 
-// specSkills returns the chain skills generated from the workflow YAML
-// (P1-T11), by skill ref.
+// specSkills returns the chain skills generated from the workflow YAML,
+// by skill ref.
 func specSkills(hubDir string, spec *workflow.Spec) (map[string]string, error) {
 	cat, err := hubcat.New(hubDir)
 	if err != nil {

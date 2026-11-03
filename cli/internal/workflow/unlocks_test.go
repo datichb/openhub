@@ -6,11 +6,11 @@ import (
 	"testing"
 )
 
-// unlocks: (piste T, T1): operations locked until a checkpoint is passed.
+// unlocks:: operations locked until a checkpoint is passed.
 // The refusals and warnings are rows of TestValidate_Rules.
 
 // An operation unknown to this version (written by a newer oh) is a warning,
-// not an error: a team on mixed versions keeps working (DC9).
+// not an error: a team on mixed versions keeps working.
 func TestValidate_UnlockUnknownIsWarning(t *testing.T) {
 	t.Parallel()
 	body := "risk: write\ncheckpoints:\n  cp-1: { unlocks: [deploy, commit], mode: { manuel: pause, semi-auto: pause, auto: pause } }\n"
@@ -54,7 +54,7 @@ func TestValidate_UnlocksAccepted(t *testing.T) {
 	}
 }
 
-// p5-fixes: the earlier commit checkpoint knows the later (CommitAgain); the
+// The earlier commit checkpoint knows the later (CommitAgain); the
 // repeated commit adds no irreversible pause to the budget.
 func TestSpec_UnlockAgainCommitAgain(t *testing.T) {
 	t.Parallel()
@@ -108,7 +108,7 @@ func TestResolve_UnlockMovedIsDuplicate(t *testing.T) {
 	t.Fatalf("unlocking commit earlier must be refused: %v", diagList(diags))
 }
 
-// p5-fixes: only the hub layer sets unlock_again (a commit unlocked by one
+// Only the hub layer sets unlock_again (a commit unlocked by one
 // more checkpoint): a team layer that sets it, on an inherited checkpoint
 // or a new one, is a loosening.
 func TestPatch_UnlockAgainHubOnly(t *testing.T) {

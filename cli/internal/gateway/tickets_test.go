@@ -54,7 +54,7 @@ func TestTicketOp(t *testing.T) {
 	}
 }
 
-// A17: the workflow guard refuses closing with its message; what ran is reported.
+// The workflow guard refuses closing with its message; what ran is reported.
 func TestBeadsWorkflowGuard(t *testing.T) {
 	f := newFixture(t, []string{"close", "update", "show"})
 	var done []BeadsOp
@@ -79,7 +79,7 @@ func TestBeadsWorkflowGuard(t *testing.T) {
 	assert.Equal(t, []BeadsOp{{Kind: OpClaim, IDs: []string{"pt-1"}}}, done, "only ticket operations that succeeded")
 }
 
-// A19: the Beads git hooks run whatever beads.allow says, only when git
+// The Beads git hooks run whatever beads.allow says, only when git
 // runs them; in another runtime they are not run on the machine.
 func TestBeadsGitHooks(t *testing.T) {
 	f := newFixture(t, []string{"show"})

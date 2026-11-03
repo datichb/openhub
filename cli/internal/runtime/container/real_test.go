@@ -188,7 +188,7 @@ func TestRealMountsAndNetwork(t *testing.T) {
 				"if touch " + InnerBundle + "/w 2>/dev/null; then echo BUNDLE-WRITABLE; fi",
 				"env | grep -E 'AWS_|SECRET|TOKEN' || echo no-secret",
 				"exec 3<>/dev/tcp/" + pg.HostAddress + "/" + strconv.Itoa(port) + "; printf 'GET / HTTP/1.0\\r\\n\\r\\n' >&3; tail -1 <&3; echo",
-				// N5: the git files that make the machine run programs are read-only.
+				// The git files that make the machine run programs are read-only.
 				"if git config oh.probe 1 2>/dev/null; then echo CONFIG-WRITABLE; fi",
 				"if echo 'gitdir: /tmp' > .git 2>/dev/null; then echo POINTER-WRITABLE; fi",
 				"common=$(git rev-parse --path-format=absolute --git-common-dir)",
@@ -210,7 +210,7 @@ func TestRealMountsAndNetwork(t *testing.T) {
 			}
 			for _, bad := range []string{"CONFIG-WRITABLE", "POINTER-WRITABLE", "HOOKS-WRITABLE", "COMMON-CONFIG-WRITABLE"} {
 				if strings.Contains(string(out), bad) {
-					t.Errorf("N5: %s", bad)
+					t.Errorf("%s", bad)
 				}
 			}
 			for _, want := range []string{"## feat", "no-secret", "oh-host", "COMMIT-OK", "SWITCH-OK", "HOME-OK"} {

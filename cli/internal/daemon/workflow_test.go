@@ -59,9 +59,9 @@ func TestWorkflowAPI(t *testing.T) {
 	_, err = c.WorkflowCheckpoint(ctx, "ses_a", checkpoint.Call{ID: "cp-1", Summary: "s"})
 	var apiErr *api.APIError
 	require.True(t, errors.As(err, &apiErr))
-	assert.Equal(t, 409, apiErr.Status, "N1: cp-1 pauses in manuel and was not validated")
+	assert.Equal(t, 409, apiErr.Status, "cp-1 pauses in manuel and was not validated")
 
-	// r5-fixes: cp-2 waits for cp-1.
+	// cp-2 waits for cp-1.
 	_, err = c.WorkflowCheckpoint(ctx, "ses_a", checkpoint.Call{ID: "cp-2"})
 	require.True(t, errors.As(err, &apiErr))
 	assert.Equal(t, 409, apiErr.Status, "cp-2 before cp-1")
@@ -107,7 +107,7 @@ func TestWorkflowAPI(t *testing.T) {
 	assert.Equal(t, 200, code)
 	assert.JSONEq(t, `{"effect":"allow"}`, out, "unknown checkpoint let through (the call lists the checkpoints)")
 
-	// r5-fixes: the edit of a writes: path before its checkpoint is
+	// The edit of a writes: path before its checkpoint is
 	// refused with the reason; another path keeps the decision of the tool.
 	code, out = hook(g.Token, `{"sessionID":"ses_a","agent":"planner","action":"edit","resources":["docs/wiki/specs/x.md"]}`)
 	assert.Equal(t, 200, code)

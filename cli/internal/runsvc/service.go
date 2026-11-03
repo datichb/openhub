@@ -72,22 +72,22 @@ type Service struct {
 	BundlesDir string // ~/.oh/bundles (resume loads the session bundle by hash)
 	// SessionsDir (~/.oh/sessions) keeps per-session files (static environment).
 	SessionsDir string
-	// SessionEnv returns dynamic per-session variables (S7), e.g. a gateway
+	// SessionEnv returns dynamic per-session variables, e.g. a gateway
 	// token minted for the session. Optional.
 	SessionEnv SessionEnvFunc
 	// OnTicketsStarted is called when a session of a run started on Beads
 	// tickets (any workflow with a ticket input): the team claims are taken
-	// or move to their work status (planned → in progress, QB2). It returns
+	// or move to their work status (planned → in progress). It returns
 	// notes for the user (StartResult.Notes). Nil = nothing. The context
 	// carries the session (StartedSession).
 	OnTicketsStarted func(ctx context.Context, projectID string, tickets []string) []string
 	// LocalShellPath lists directories put first on the PATH of local
 	// session shells: the fake bd, so that Beads goes through the gateway
-	// and its beads.allow in every runtime (QB1).
+	// and its beads.allow in every runtime.
 	LocalShellPath []string
 	// LocalShellEnv is added to the environment of local session shells:
 	// oh's shell start-up files, which keep LocalShellPath first after the
-	// user's own start-up files (A16).
+	// user's own start-up files.
 	LocalShellEnv map[string]string
 	// Decisions, when set, closes the pending decisions of stopped sessions.
 	Decisions domain.DecisionStore
@@ -151,7 +151,7 @@ type StartRequest struct {
 	WorktreeBranch string
 	// Headless marks a session run without interactive client.
 	Headless bool
-	// Fanout is the fan-out record of the session (R6): set by oh only,
+	// Fanout is the fan-out record of the session: set by oh only,
 	// for the parent, the children and the mergers of a fan-out.
 	Fanout *domain.SessionFanout
 	// Handoff is the brief of the session this one continues (launch with
@@ -191,7 +191,7 @@ type StartRequest struct {
 	// empty = no bd command). Kept for resumes.
 	BeadsAllow []string
 
-	// Limits are the resolved restrictions of the session (I6; zero = none).
+	// Limits are the resolved restrictions of the session (zero = none).
 	// Their model allow-list applies to the group's proxy grant; budgets and
 	// the queue are enforced by the daemon. Kept for resumes.
 	Limits limits.Resolved
@@ -298,12 +298,12 @@ func (s *Service) StartSession(ctx context.Context, req StartRequest) (*StartRes
 		Runtime: kind, Attach: req.Attach,
 		Model: entryModel(spec, entry), Provider: sessionspec.ProviderSpec{Region: region},
 		SessionEnv: env,
-		// Checkpoints and agent locks of the workflow (P3-T02/T04); the
+		// Checkpoints and agent locks of the workflow; the
 		// daemon replaces them as the session moves on.
 		SessionRules: append(bundle.SessionRules(spec.Workflow, req.Mode, nil), bundle.ScratchSessionRules(spec.Workflow, s.SessionsDir, sid)...),
 	}
 	if req.Fanout != nil {
-		// R6: from the first call, whatever the checkpoints unlock.
+		// From the first call, whatever the checkpoints unlock.
 		ss.SessionRules = append(ss.SessionRules, bundle.FanoutRoleRules(string(req.Fanout.Role))...)
 	}
 	if err := s.saveStaticEnv(sid, static); err != nil {
@@ -689,7 +689,7 @@ func (s *Service) startServer(ctx context.Context, dc DaemonClient, req StartReq
 		return nil, adapters.VisibilityReport{}, nil, err
 	}
 	spec := req.Bundle.Spec
-	spec.PendingGuard = bundle.PendingGuard(spec.Workflow) // p6-debts: closed until oh confirms the session rules
+	spec.PendingGuard = bundle.PendingGuard(spec.Workflow) // closed until oh confirms the session rules
 	if len(spec.PendingGuard) > 0 {
 		spec.PendingMessage = i18n.T("cmd.daemon.workflow.pending_unconfirmed")
 	}
@@ -947,7 +947,7 @@ func (s *Service) ResumeSession(ctx context.Context, sessionID string, req Start
 	return nil
 }
 
-// setInitialContext writes the session state before the first prompt (A29):
+// setInitialContext writes the session state before the first prompt:
 // an entry set before the first turn is part of it, while one written during
 // the turn is announced at its next step and makes the agent run one more.
 // A workflow without checkpoint has no oh.checkpoints entry.
@@ -962,8 +962,8 @@ func (s *Service) setInitialContext(ctx context.Context, h adapters.ServerHandle
 	}
 }
 
-// setResumeContext tells the entry agent that its server restarted (S8,
-// QB8): a session context entry, cleared by the daemon after the next step;
+// setResumeContext tells the entry agent that its server restarted:
+// a session context entry, cleared by the daemon after the next step;
 // a synthetic message without the capability.
 func (s *Service) setResumeContext(ctx context.Context, srv *domain.Server, sessionID string) {
 	w := &sessionctx.Writer{Adapter: s.Adapter, Dir: s.SessionsDir}

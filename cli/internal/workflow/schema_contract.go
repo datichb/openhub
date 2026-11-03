@@ -2,7 +2,7 @@ package workflow
 
 import "sort"
 
-// Session contract (modernisation L3): who passes each checkpoint, and
+// Session contract: who passes each checkpoint, and
 // whether anyone follows the session.
 
 // CheckpointBy returns the agents that pass checkpoint id: its `by` when

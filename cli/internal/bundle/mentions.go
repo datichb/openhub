@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-// Skills named in an agent body are made loadable (v5 finalisation, Q3-1).
+// Skills named in an agent body are made loadable.
 //
 // The hub content names skills in code spans (« voir skill `x` »), written
 // when every hub skill was deployed. In a closed-world bundle such a skill is
@@ -17,7 +17,7 @@ import (
 // heading naming it) or shipped on demand when the agent names it.
 
 // skillMentionRe matches a code span that may hold a skill reference, or a
-// skill tag of a delegation prompt ([SKILL:cat/name], QB3).
+// skill tag of a delegation prompt ([SKILL:cat/name]).
 var skillMentionRe = regexp.MustCompile("`([a-z0-9][a-z0-9/_-]*)`|\\[SKILL:([a-z0-9][a-z0-9/_-]*)\\]")
 
 // hubSkillIndex maps the reference forms of the hub and generated skills
@@ -103,7 +103,7 @@ var headingRe = regexp.MustCompile(`^(#{1,6})\s+(.+?)\s*$`)
 var titleWordRe = regexp.MustCompile(`[a-z0-9][a-z0-9-]*`)
 
 // ignoredSection reports whether the mentions of a section do not invite
-// agent to load a skill (L2): the « Relation avec … » and « Injection … »
+// agent to load a skill: the « Relation avec … » and « Injection … »
 // notes, and the sections addressed to other agents than this one: rules
 // for the consumer or the producer of a handoff, « Pour le <agent> » (a
 // title naming no agent, « agent appelant », is kept).
@@ -161,7 +161,7 @@ func invitingText(body, agent string, agents map[string]bool) string {
 
 // absentSkillsNote tells the agent which skills it names are not in this
 // session bundle (plugin not loaded, frontend skills in a project without
-// frontend, A8): it does not try to load them ("" when none). It closes an
+// frontend): it does not try to load them ("" when none). It closes an
 // agent prompt, or an on-demand skill for the skills that one names
 // (absentFromSkills).
 func absentSkillsNote(ids []string) string {

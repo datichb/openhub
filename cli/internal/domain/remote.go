@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// RemoteStatus is the lifecycle of a remote session (v5 phase 5).
+// RemoteStatus is the lifecycle of a remote session.
 type RemoteStatus string
 
 const (

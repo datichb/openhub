@@ -1,11 +1,11 @@
 // Package fakebd is the fake `bd` of oh sessions: installed in oh container
 // images (cmd/oh-bd) and put first on the PATH of local sessions (hidden oh
-// command, QB1). Beads always stays on the machine (D9): every call is sent
+// command). Beads always stays on the machine: every call is sent
 // with its working directory to the Beads gateway of the oh daemon, which
 // checks it against the workflow allow-list (beads.allow) and runs the real
 // bd on the machine; output and exit code are relayed.
 //
-// Backends: "gateway" (default) and "journal" (remote runs, P5-T12: reads
+// Backends: "gateway" (default) and "journal" (remote runs: reads
 // from a snapshot, writes to a journal; see journal.go).
 package fakebd
 

@@ -1,5 +1,5 @@
 // Package evalrun runs behavioural evaluations of the shipped workflows with
-// a real model (`oh eval`, P0.5): each case launches a workflow without
+// a real model (`oh eval`): each case launches a workflow without
 // interface on a throwaway clone of its fixture, answers its decisions as the
 // case says, reads the session trace (`oh session trace`), then checks
 // assertions on the trace and on the clone (hidden tests). Reports are
@@ -66,9 +66,9 @@ type Case struct {
 	// their whole report); "" keeps them.
 	Reports string `yaml:"reports" json:"reports,omitempty"`
 	// Previous are sessions recorded in the project before the launch, with
-	// their outputs (R5: the inputs read with `from: session.output(…)`).
+	// their outputs (the inputs read with `from: session.output(…)`).
 	Previous []PreviousSession `yaml:"previous" json:"previous,omitempty"`
-	// Fanout enables the experimental fan-out in the pass (R6), with its
+	// Fanout enables the experimental fan-out in the pass, with its
 	// number of children at the same time (1 to 3).
 	Fanout *FanoutSetup `yaml:"fanout" json:"fanout,omitempty"`
 

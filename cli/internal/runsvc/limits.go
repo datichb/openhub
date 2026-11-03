@@ -111,8 +111,8 @@ func checkAllowedModels(spec sessionspec.BundleSpec, allowed []string) error {
 	return nil
 }
 
-// queueSlot decides whether the first prompt of a new session must wait
-// (I6): too many sessions working in the scope of the maximum, sessions
+// queueSlot decides whether the first prompt of a new session must wait:
+// too many sessions working in the scope of the maximum, sessions
 // already queued there (first come, first served), or the tool servers
 // above the memory cap. It returns the queue entry (nil = start now) and
 // the number of sessions queued before it.

@@ -71,7 +71,7 @@ func (d *Daemon) startGateway(ctx context.Context) {
 }
 
 // guardTickets refuses to close a ticket before the checkpoint that
-// unlocks it, or before the work is committed (A17).
+// unlocks it, or before the work is committed.
 func (d *Daemon) guardTickets(ctx context.Context, g gateway.Grant, op gateway.BeadsOp) error {
 	cp := d.opts.Checkpoints
 	if cp != nil && op.Kind == gateway.OpCreate {
@@ -128,7 +128,7 @@ func (d *Daemon) ticketsDone(ctx context.Context, g gateway.Grant, op gateway.Be
 }
 
 // recordTickets records the tickets created, closed or changed in the
-// session outputs declared with `record: created`, `record: closed` (R5)
+// session outputs declared with `record: created`, `record: closed`
 // or `record: updated` (r9b). A failure is only logged.
 func (d *Daemon) recordTickets(ctx context.Context, g gateway.Grant, op gateway.BeadsOp) {
 	kind := ""
@@ -350,7 +350,7 @@ func (w *watcher) resumeChildGrant(root, child string) {
 }
 
 // handleHookMCP relays a message of an oh MCP server to its process on the
-// machine (P4-T08). The proxy has checked the session token of the group.
+// machine. The proxy has checked the session token of the group.
 func (d *Daemon) handleHookMCP(w http.ResponseWriter, r *http.Request) {
 	if d.mcp == nil || d.opts.MCPCommand == nil {
 		http.NotFound(w, r)
@@ -472,7 +472,7 @@ func (d *Daemon) checkMCPSession(ctx context.Context, group, id string) error {
 	return nil
 }
 
-// Shell of local sessions (A16): oh's start-up files keep the fake bd first
+// Shell of local sessions: oh's start-up files keep the fake bd first
 // on the PATH; the daemon checks it once per session and raises an alert
 // (✗, not cleared by the agent loop) when another bd comes first.
 

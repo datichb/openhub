@@ -31,7 +31,7 @@ func TestSessionRules(t *testing.T) {
 	wf := testRuntime()
 	sub := sessionspec.ActionSubagent
 	// Without a checkpoint unlocking `apply`, infrastructure changes stay
-	// refused (N4): those rules come last.
+	// refused: those rules come last.
 	locked := func(rules ...sessionspec.PermissionRule) []sessionspec.PermissionRule {
 		return append(append(rules, ApplyLockedByDefault(wf)...), PublishLockedByDefault(wf)...)
 	}
@@ -74,7 +74,7 @@ func TestBaseCheckpointRulesInBundle(t *testing.T) {
 	assert.Equal(t, "semi-auto", b.Spec.Workflow.DefaultMode)
 }
 
-// A17: the operations a checkpoint unlocks are refused on the shell until it
+// The operations a checkpoint unlocks are refused on the shell until it
 // is passed, also while the circuit breaker holds.
 func TestSessionRulesLockedOperations(t *testing.T) {
 	wf := testRuntime()
@@ -99,7 +99,7 @@ func TestSessionRulesLockedOperations(t *testing.T) {
 	passedOnly := &domain.CheckpointState{Passed: map[string]time.Time{"cp-2": time.Now()}}
 	assert.Equal(t, []string{"commit", "close"}, LockedOps(wf, "manuel", passedOnly), "a closed window locks again")
 
-	// A checkpoint that unlocks an operation is never skipped (N24, S-17):
+	// A checkpoint that unlocks an operation is never skipped (S-17):
 	// skip counts as pause and the lock stays.
 	wf.Checkpoints[1].Behaviors["auto"] = "skip"
 	assert.Equal(t, []string{"commit", "close"}, LockedOps(wf, "auto", nil))
@@ -118,16 +118,16 @@ func TestSessionRulesLockCreateAndApply(t *testing.T) {
 	assert.Contains(t, rules, rule(shell, "*kubectl* delete*", sessionspec.EffectDeny))
 	assert.Equal(t, []string{"create", "apply"}, LockedOps(wf, "manuel", nil))
 
-	// An operation unknown to this version locks nothing (DC9).
+	// An operation unknown to this version locks nothing.
 	wf.Checkpoints[1].Unlocks = []string{"deploy"}
 	for _, r := range SessionRules(wf, "manuel", nil) {
-		if !lockedByDefault(r.Resource) { // apply, tag and mr stay refused: nothing unlocks them (N4, E9)
+		if !lockedByDefault(r.Resource) { // apply, tag and mr stay refused: nothing unlocks them
 			assert.NotEqual(t, shell, r.Action, "unknown operation: %v", r)
 		}
 	}
 }
 
-// N9: creating tickets (create, quick capture, duplicate, supersede) is
+// Creating tickets (create, quick capture, duplicate, supersede) is
 // refused on the shell until the checkpoint that unlocks `create`.
 func TestSessionRulesLockCreate(t *testing.T) {
 	wf := testRuntime()
@@ -179,7 +179,7 @@ func lockedLine(rules []sessionspec.PermissionRule, line string) bool {
 	return false
 }
 
-// N10: the lock patterns refuse the operation and its detours, not the
+// The lock patterns refuse the operation and its detours, not the
 // commands that merely mention it.
 func TestLockPatternsWithoutFalsePositives(t *testing.T) {
 	wf := testRuntime()

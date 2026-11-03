@@ -47,7 +47,7 @@ type Options struct {
 	// session.complete event).
 	OnSessionEnd func(ctx context.Context, s domain.Session)
 	// FanoutDriver starts the driver of the fan-out of a parent session in
-	// the background (`oh fanout drive --relaunch`; p6-debts): the daemon
+	// the background (`oh fanout drive --relaunch`): the daemon
 	// starts it again when it stopped before the merge checkpoint. Nil = not
 	// started by the daemon.
 	FanoutDriver func(ctx context.Context, sessionID string) error
@@ -74,7 +74,7 @@ type Options struct {
 	// the agents keep their whole report in their handoff block).
 	Reports *report.Service
 	// Wiki keeps the proposals of the wiki MCP server of the projects
-	// (LD-J; nil = wiki MCP unavailable).
+	// (nil = wiki MCP unavailable).
 	Wiki *wiki.Service
 	// WikiNoApply refuses wiki_apply to every agent (remote job: the
 	// proposals go back to the machine, where the user validates them;
@@ -88,13 +88,13 @@ type Options struct {
 	// BeadsBinary is the real bd run by the gateway ("" = looked up in PATH).
 	BeadsBinary string
 	// MCPCommand returns the machine command of the oh MCP server name of a
-	// server group, served over HTTP to runtimes outside the machine
-	// (P4-T08). Nil = MCP gateway unavailable.
+	// server group, served over HTTP to runtimes outside the machine.
+	// Nil = MCP gateway unavailable.
 	MCPCommand func(ctx context.Context, srv domain.Server, name string) (gateway.MCPCommand, error)
 	// AgentEvents receives the agent telemetry of the tracked sessions
 	// (entry agent and subagents; nil = not recorded).
 	AgentEvents domain.AgentEventStore
-	// Usage is the usage ledger (I6 budgets, proxy traffic). Nil = no
+	// Usage is the usage ledger (budgets, proxy traffic). Nil = no
 	// accounting, no budget enforcement.
 	Usage domain.UsageStore
 	// Memory measures the tool servers (default: ps process trees).
@@ -194,7 +194,7 @@ type Daemon struct {
 	wfTokens map[string]string
 	// driverMu guards drivers.
 	driverMu sync.Mutex
-	// drivers are the last starts of a fan-out driver by session (p6-debts).
+	// drivers are the last starts of a fan-out driver by session.
 	drivers map[string]time.Time
 	// sigMu guards sigCache.
 	sigMu    sync.Mutex
@@ -564,7 +564,7 @@ func (d *Daemon) hashLegacyTokens(ctx context.Context) {
 }
 
 // movePasswords moves the server passwords left in clear in oh.db by an
-// older oh to their owner-only files (v5 critical N26).
+// older oh to their owner-only files.
 func (d *Daemon) movePasswords(ctx context.Context) {
 	m, ok := d.opts.Servers.(interface {
 		MovePasswords(ctx context.Context) (int, error)

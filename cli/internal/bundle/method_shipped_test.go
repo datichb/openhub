@@ -12,7 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/workflow/hubcat"
 )
 
-// R7: ticket and implement-spec offer the tdd method: cp-seams then cp-red, passed
+// Ticket and implement-spec offer the tdd method: cp-seams then cp-red, passed
 // by the developer after cp-1 and before cp-2, cp-red verified by oh for a
 // test written first; a standard session has neither.
 func TestShippedTDD(t *testing.T) {
@@ -86,7 +86,7 @@ func TestShippedSpecPassesMethodOn(t *testing.T) {
 	assert.Empty(t, workflow.CheckAliases(cat), "no ambiguous alias")
 }
 
-// B1: spike records its decision and the verdict of the decision line its
+// Spike records its decision and the verdict of the decision line its
 // prompt asks for; incident its postmortem; the session runtime carries the
 // paths and the expression.
 func TestShippedWrittenOutputs(t *testing.T) {

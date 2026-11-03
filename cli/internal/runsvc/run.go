@@ -19,9 +19,9 @@ import (
 	"github.com/datichb/openhub/cli/internal/worktree"
 )
 
-// Workflow launches (03 §2.4): Plan computes what a launch will do (fiche de
+// Workflow launches: Plan computes what a launch will do (fiche de
 // lancement, `oh run --recap`), Start runs it: N sessions of one bundle in
-// the same server group (I5), one location each.
+// the same server group, one location each.
 
 // Warning is a finding of a launch plan; Code is stable and localized by the
 // caller ("cmd.run.warn.<code>").
@@ -32,8 +32,8 @@ type Warning struct {
 
 // Warning codes.
 const (
-	WarnAutoWorktree = "auto_worktree" // O10: another writing session uses the directory (new worktree)
-	// WarnAutoWorktreeExisting: O10 with a worktree that already exists.
+	WarnAutoWorktree = "auto_worktree" // another writing session uses the directory (new worktree)
+	// WarnAutoWorktreeExisting: the same, with a worktree that already exists.
 	WarnAutoWorktreeExisting = "auto_worktree_existing"
 	// WarnWorktreeBusy: the worktree of the session is used by another
 	// writing session too.
@@ -101,7 +101,7 @@ type RunRequest struct {
 	Sessions    []PlannedInput // empty: one session
 	// Dirty is what a writer does in a directory with uncommitted changes.
 	Dirty DirtyPolicy
-	// ParentSessionID chains the sessions to a previous one (O7).
+	// ParentSessionID chains the sessions to a previous one.
 	ParentSessionID string
 	// OnExisting is what is done with the open sessions of the tickets of
 	// the launch (RunPlan.Existing).
@@ -449,7 +449,7 @@ func (s *Service) RuntimeAvailability(ctx context.Context, kind sessionspec.Runt
 }
 
 // volumeMountPoints warns about the relative cache volumes of a container
-// run that are absent from a location (v5 finalisation, Q3-4).
+// run that are absent from a location.
 func volumeMountPoints(base StartRequest, locs []Location) []Warning {
 	if base.Runtime != sessionspec.RuntimeContainer {
 		return nil

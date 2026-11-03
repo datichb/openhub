@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-// R3: verify: and when: on a checkpoint, and the pause budget (CP-R2).
+// Verify: and when: on a checkpoint, and the pause budget (CP-R2).
 
 const hubVerified = `apiVersion: oh/v1
 kind: Workflow

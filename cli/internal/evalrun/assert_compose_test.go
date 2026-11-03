@@ -8,7 +8,7 @@ import (
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
 )
 
-// R5: output and next assertions read the output events of the session and
+// Output and next assertions read the output events of the session and
 // the next events added by the pass.
 func TestCompositionAssertions(t *testing.T) {
 	evs := []sessionsvc.TraceEvent{

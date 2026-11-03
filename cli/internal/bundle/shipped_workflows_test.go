@@ -17,7 +17,7 @@ import (
 )
 
 // Shipped workflows (<repo>/workflows): every one is valid against the hub,
-// its prompt renders, its free-text inputs go through `data` (O11), and the
+// its prompt renders, its free-text inputs go through `data`, and the
 // bundle compiled from it is pinned by golden files
 // (go test ./internal/bundle -run ShippedWorkflow -update).
 
@@ -31,7 +31,7 @@ func TestShippedWorkflowsAreValid(t *testing.T) {
 	}
 }
 
-// QB1: Beads goes through the gateway in every runtime, where a workflow
+// Beads goes through the gateway in every runtime, where a workflow
 // without `beads:` gets the read-only default list: every shipped workflow
 // declares the commands its agents need.
 func TestShippedWorkflowsDeclareBeads(t *testing.T) {
@@ -154,7 +154,7 @@ func TestReviewFeedbackPromptDelimitsBranches(t *testing.T) {
 }
 
 // TestShippedWorkflowTextInputsAreDelimited checks that string and text
-// inputs only reach the prompt through `data` (O11); conditions may test them.
+// inputs only reach the prompt through `data`; conditions may test them.
 func TestShippedWorkflowTextInputsAreDelimited(t *testing.T) {
 	hub, cat, _ := shippedWorkflows(t)
 	hc, err := hubcat.New(hub)
@@ -250,7 +250,7 @@ type agentSummary struct {
 	Mode        string   `json:"mode"`
 	Model       string   `json:"model,omitempty"`
 	Permissions []string `json:"permissions"`
-	// Skills is the catalogue of the agent (L2).
+	// Skills is the catalogue of the agent.
 	Skills []string `json:"skills"`
 }
 
@@ -264,7 +264,7 @@ func TestShippedWorkflowBundles(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			// as the launch: selectable entries expanded
 			r, b := shippedBuildWith(t, ref, shippedOpts{Method: v.method, Fanout: v.fanout})
-			require.NoError(t, Verify(b.Dir, b.Spec.Hash), "N23: a built bundle verifies")
+			require.NoError(t, Verify(b.Dir, b.Spec.Hash), "a built bundle verifies")
 
 			s := b.Spec
 			sum := bundleSummary{EntryAgent: s.EntryAgent, SubagentGraph: s.SubagentGraph, MaxDepth: s.MaxDepth, CodeMode: s.CodeMode}
@@ -290,7 +290,7 @@ func TestShippedWorkflowBundles(t *testing.T) {
 			golden.Assert(t, path.Join("golden", "workflows", name, "bundle.json"), string(data)+"\n")
 
 			// As Build: the checkpoints of the method only, and of the
-			// kind of session (fan-out or not, R6).
+			// kind of session (fan-out or not).
 			spec := r.Spec.ForMethod(v.method).ForFanout(v.fanout && r.Spec.Fanout != nil)
 			_, graph := workflow.SubagentGraph(spec, hc)
 			gen, err := GenerateWorkflowSkills(spec, graph, func(id string) workflow.AgentMode {
@@ -305,14 +305,14 @@ func TestShippedWorkflowBundles(t *testing.T) {
 	}
 }
 
-// shippedVariant is a shipped workflow as a session of a method sees it
-// (R7): the standard one, named after the workflow, and one per method
+// shippedVariant is a shipped workflow as a session of a method sees it:
+// the standard one, named after the workflow, and one per method
 // its checkpoints are declared for, named <id>@<method>.
 type shippedVariant struct {
 	ref    workflow.Ref
 	name   string
 	method workflow.Method
-	// fanout: the fan-out session (R6), named <id>@fanout.
+	// fanout: the fan-out session, named <id>@fanout.
 	fanout bool
 }
 
@@ -335,7 +335,7 @@ func shippedVariants(t *testing.T, cat *workflow.MemCatalog) []shippedVariant {
 }
 
 // A session that already has its branch says so: the agent does not offer to
-// create one (v5 finalisation, Q3-2).
+// create one.
 func TestShippedWorkflowPromptsWorkBranch(t *testing.T) {
 	hub, cat, _ := shippedWorkflows(t)
 	hc, err := hubcat.New(hub)

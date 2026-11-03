@@ -86,7 +86,7 @@ func ids(r Report, k Kind) []string {
 
 const day = 24 * time.Hour
 
-// N16: only stopped sessions older than the retention lose their files;
+// Only stopped sessions older than the retention lose their files;
 // idle, sleeping, completed, failed and active ones keep them.
 func TestPlanSessionStates(t *testing.T) {
 	f := newFixture(t)
@@ -245,7 +245,7 @@ func (l *fakeLister) StopServerProcess(_ context.Context, pid int) error {
 	return nil
 }
 
-// N18: oh gc stops the orphan servers too.
+// oh gc stops the orphan servers too.
 func TestOrphansAreStopped(t *testing.T) {
 	f := newFixture(t)
 	tmp := t.TempDir()
@@ -262,7 +262,7 @@ func TestOrphansAreStopped(t *testing.T) {
 
 // --- worktrees, on real repositories ---
 
-// N16: a worktree goes only when oh created it, nobody uses it, it is clean,
+// A worktree goes only when oh created it, nobody uses it, it is clean,
 // unlocked and pushed; its branch only when merged.
 func TestWorktrees(t *testing.T) {
 	if testing.Short() {
@@ -423,7 +423,7 @@ func (c *fakeFanout) Clean(_ context.Context, id string) error {
 	return nil
 }
 
-// R6: oh gc cleans up the fan-outs merged or whose parent was stopped,
+// oh gc cleans up the fan-outs merged or whose parent was stopped,
 // never one still running or waiting for its merge checkpoint.
 func TestFanoutLeftovers(t *testing.T) {
 	f := newFixture(t)

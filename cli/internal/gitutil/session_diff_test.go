@@ -11,7 +11,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 )
 
-// A23: the results of a session cover every commit and change since it
+// The results of a session cover every commit and change since it
 // started, untracked files included, without touching the repository.
 func TestDiffSince(t *testing.T) {
 	dir := t.TempDir()

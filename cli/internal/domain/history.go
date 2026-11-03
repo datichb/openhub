@@ -11,8 +11,8 @@ type HistoryRows struct {
 	WikiProposals                                                            int
 }
 
-// HistoryStore counts and deletes the history past its retention (oh gc,
-// N16): stopped sessions, agent events, settled decisions and closed wiki
+// HistoryStore counts and deletes the history past its retention (oh gc):
+// stopped sessions, agent events, settled decisions and closed wiki
 // proposals older than the history cutoff; usage ledger and budget raises
 // older than the usage cutoff.
 type HistoryStore interface {

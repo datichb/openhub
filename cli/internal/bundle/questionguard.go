@@ -5,7 +5,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
-// Questions of a subagent (p4-fixes): the user never sees the `question`
+// Questions of a subagent: the user never sees the `question`
 // calls of an agent launched through `task`, so an agent that has no entry
 // role in the workflow (only callers, never the entry agent) is refused the
 // tool, last of its rules, whatever its frontmatter allows. Its decisions go
@@ -33,7 +33,7 @@ func pureSubagent(env whenEnv) bool {
 	return env.roles[roleSubagent] && !env.roles[roleEntry]
 }
 
-// Outputs of the session (p5-fixes): workflow_outputs declares an output
+// Outputs of the session: workflow_outputs declares an output
 // of the workflow, and oh records some itself (`record:`). In a workflow
 // with no output the agents may declare, the tool is refused to every
 // agent by a deny on "*", the last rule of the action, so that the tool

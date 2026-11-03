@@ -24,7 +24,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/workflow/hubcat"
 )
 
-// N6 (DC6): one checkpoint protocol, with a real model.
+// One checkpoint protocol, with a real model.
 //   - a subagent (orchestrator-dev invoked by the orchestrator) passes cp-2
 //     itself with workflow_checkpoint: the decision carries its tool
 //     session, approving it opens the commit window for the subagent;
@@ -172,7 +172,7 @@ func TestE2ELibreQuestionIsNotClosed(t *testing.T) {
 	}
 }
 
-// N10: with the commit lock on, the commands that merely mention commit or
+// With the commit lock on, the commands that merely mention commit or
 // push run (anchored patterns), the detours stay refused.
 func TestE2ELockPatternsWithoutFalsePositives(t *testing.T) {
 	tok := bedrockToken(t)
@@ -221,7 +221,7 @@ func TestE2ELockPatternsWithoutFalsePositives(t *testing.T) {
 	assert.Equal(t, "init commit\n", gitLog(t, project), "the detours are refused")
 }
 
-// DC26 (N11): the shipped quick workflow, its real developer: no commit
+// The shipped quick workflow, its real developer: no commit
 // before cp-commit; the developer asks it, and commits once approved.
 func TestE2EQuickCommitGate(t *testing.T) {
 	_, file, _, _ := runtime.Caller(0)
@@ -252,7 +252,7 @@ func TestE2EQuickCommitGate(t *testing.T) {
 	}
 	// The bundle is changed after the build (test model): saved under a
 	// test name, not under its content hash (bundles named by their hash are
-	// verified at load, N23).
+	// verified at load).
 	b.Hash = "h_quick_e2e"
 	e.saveBundle(t, b)
 	h, project := e.startGroup(t, a, b, tok)

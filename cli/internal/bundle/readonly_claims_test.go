@@ -19,7 +19,7 @@ import (
 // claimReadOnly is a body telling the agent it changes no file.
 var claimReadOnly = regexp.MustCompile(`(?i)ne modifies? (?:jamais|aucun)|lecture seule|read-only|never modif`)
 
-// C4: an agent whose body claims it never changes files is refused the
+// An agent whose body claims it never changes files is refused the
 // edits and the shell commands that change files. The paths it may still
 // write (its report, the wiki) are listed in testdata/capability_allow.yaml
 // (claims: "<agent>: edit <pattern>"), with the reason.

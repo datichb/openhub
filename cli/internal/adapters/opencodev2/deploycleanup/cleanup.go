@@ -1,5 +1,5 @@
 // Package deploycleanup removes what the former per-project deployment
-// (`oh deploy`, removed in v5) left in a project (P3-T28, `oh migrate
+// (`oh deploy`, removed in v5) left in a project (`oh migrate
 // deploy-cleanup`): the deployed agents and skills, its state files, the
 // team file of the team MCP server, and — in opencode.json — only the keys
 // oh wrote that are still unchanged since the last deployment.

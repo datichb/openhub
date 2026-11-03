@@ -12,7 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 )
 
-// Pending decisions (P3-T07): the watcher mirrors the tool requests
+// Pending decisions: the watcher mirrors the tool requests
 // (permissions, questions) into the pending_decisions table and raises the
 // decisions oh owns (agent loop failure, exhausted budget). The table is the
 // source of the inbox; the tool remains the source of truth after a resync.
@@ -65,8 +65,8 @@ func (w *watcher) syncToolDecisions(ctx context.Context, root, toolSession strin
 	}
 }
 
-// onAnswer records the answer given in the tool to a checkpoint request
-// (N1): only an observed validation lets the checkpoint pass.
+// onAnswer records the answer given in the tool to a checkpoint request:
+// only an observed validation lets the checkpoint pass.
 func (w *watcher) onAnswer(ctx context.Context, ev adapters.ToolEvent) {
 	store, cp := w.d.opts.Decisions, w.d.opts.Checkpoints
 	if store == nil || cp == nil || ev.Answer.ID == "" {

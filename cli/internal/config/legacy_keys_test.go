@@ -37,7 +37,7 @@ auto_update = true
 	assert.Empty(t, cfg.LLM.DefaultProvider)
 }
 
-// QB7 (D19): the former tool-named keys of hub.toml are still read into
+// The former tool-named keys of hub.toml are still read into
 // the neutral settings, and written back under the neutral keys.
 func TestLegacyKeysAreRead(t *testing.T) {
 	tmpDir := configtest.Home(t)

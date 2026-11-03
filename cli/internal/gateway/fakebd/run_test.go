@@ -85,7 +85,7 @@ func TestWantsStdin(t *testing.T) {
 	assert.False(t, wantsStdin([]string{"create", "a - b"}))
 }
 
-// A19: a command run by a Beads git hook says so to the gateway.
+// A command run by a Beads git hook says so to the gateway.
 func TestRunTellsGitHook(t *testing.T) {
 	var got beadswire.ExecRequest
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

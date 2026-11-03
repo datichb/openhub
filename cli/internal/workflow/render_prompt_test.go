@@ -215,8 +215,8 @@ func TestRenderPrompt_BranchValidation(t *testing.T) {
 	}
 }
 
-// A27: what the user typed is written as it is (their own request); a
-// value oh computed from an outside source stays inside data tags (O11).
+// What the user typed is written as it is (their own request); a
+// value oh computed from an outside source stays inside data tags.
 func TestRenderPromptUserAndExternalInputs(t *testing.T) {
 	t.Parallel()
 	doc := vHeader + `risk: write

@@ -11,7 +11,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 )
 
-// Checkpoints in the watcher (P3-T03, P3-T04, P3-T06): tool calls feed the
+// Checkpoints in the watcher: tool calls feed the
 // CheckpointService; each change of the workflow state re-applies the
 // session rules (agent locks, circuit breaker) to the oh session and to the
 // subagent sessions it delegated to.
@@ -120,7 +120,7 @@ func (w *watcher) applyAllRules(ctx context.Context, sessions []domain.Session) 
 }
 
 // closeImitation answers a question of a workflow session that imitates a
-// checkpoint (A36): it validates nothing, so oh ends it at once and tells
+// checkpoint: it validates nothing, so oh ends it at once and tells
 // the agent to call workflow_checkpoint. The answer carries the instruction
 // when every field takes free text; otherwise the question is dismissed and
 // the instruction sent to the agent.
@@ -165,7 +165,7 @@ func (w *watcher) closeImitation(ctx context.Context, root, toolSession string, 
 
 // finishWorkflow runs when the step of root ended: when its workflow reached
 // its end and nothing waits, oh declares the outputs the agent did not and
-// the session is completed (A38), which offers « Chain with… ».
+// the session is completed, which offers « Chain with… ».
 func (w *watcher) finishWorkflow(ctx context.Context, root string) {
 	cp := w.d.opts.Checkpoints
 	if cp == nil {

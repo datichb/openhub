@@ -6,7 +6,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
-// Wiki MCP server of the project (modernisation LD-J): in a bundle built
+// Wiki MCP server of the project: in a bundle built
 // from a workflow, for a project that has docs/wiki/. Every agent reads
 // the wiki and proposes enrichments (wiki_index, wiki_read, wiki_propose,
 // wiki_pending, wiki_check); only the documentarian applies proposals

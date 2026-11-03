@@ -14,7 +14,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/limits"
 )
 
-// Budgets (I6). The cost the tool reports for each session (and for its
+// Budgets. The cost the tool reports for each session (and for its
 // subagent sessions) is added to the usage ledger as it grows. When a
 // session's budget or the daily budget is spent, a budget decision ($) is
 // raised; while it is open, any new agent loop of the session is
@@ -89,10 +89,10 @@ func (w *watcher) accountChild(ctx context.Context, root, child string) {
 	}
 }
 
-// sessionTotal returns the usage of an oh session to show (v5 corrections,
-// A21): the ledger total of the root and its subagent sessions, as the
-// budget counts it, in place of what the root tool session alone reports
-// (res, kept when the ledger has nothing yet).
+// sessionTotal returns the usage of an oh session to show: the
+// ledger total of the root and its subagent sessions, as the budget counts
+// it, in place of what the root tool session alone reports (res, kept when
+// the ledger has nothing yet).
 func (w *watcher) sessionTotal(ctx context.Context, root string, res adapters.SessionResult) adapters.SessionResult {
 	if w.d.opts.Usage == nil {
 		return res
@@ -260,10 +260,9 @@ func (w *watcher) holdOverBudget(ctx context.Context, root, toolSession string) 
 }
 
 // afterOhDecision brings a session up to date once one of the decisions
-// raised by oh (budget, error) was answered in another process (v5
-// corrections, A22): its state no longer shows « waiting », the raised
-// budget is written to its state at once, and a step interrupted while the
-// decision was open is resumed by a short instruction.
+// raised by oh (budget, error) was answered in another process: its state no longer shows « waiting »,
+// the raised budget is written to its state at once, and a step interrupted
+// while the decision was open is resumed by a short instruction.
 func (w *watcher) afterOhDecision(ctx context.Context, root string) {
 	w.refreshAlerts(ctx, root)
 	w.persist(ctx, root, false)

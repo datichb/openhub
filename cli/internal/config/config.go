@@ -53,16 +53,16 @@ type Config struct {
 	// Execution holds the v5 execution settings (default runtime, container
 	// engine, image cache, pinned tool version, strict isolation).
 	Execution ExecutionConfig `toml:"execution,omitempty"`
-	// Remote holds the GitLab CI targets of the remote runtime (v5 phase 5).
+	// Remote holds the GitLab CI targets of the remote runtime.
 	Remote RemoteConfig `toml:"remote,omitempty"`
-	// Fanout holds the fan-out settings (R6, experimental, off by default).
+	// Fanout holds the fan-out settings (experimental, off by default).
 	Fanout FanoutConfig `toml:"fanout,omitempty"`
-	// Limits holds the optional session restrictions of the hub level (I6,
-	// off by default; cascade in internal/limits).
+	// Limits holds the optional session restrictions of the hub level
+	// (off by default; cascade in internal/limits).
 	Limits limits.Limits `toml:"limits,omitempty"`
 	// Beads holds the Beads settings of the hub (zero impact clean-up).
 	Beads BeadsConfig `toml:"beads,omitempty"`
-	// GC holds the clean-up settings (oh gc and the daemon, N16).
+	// GC holds the clean-up settings (oh gc and the daemon).
 	GC GCConfig `toml:"gc,omitempty"`
 
 	// src is the state of hub.toml this Config was read from (or last saved
@@ -262,7 +262,7 @@ type TeamConfig struct {
 	// "mon-alias" and never match a GitLab URL. Personal (the alias is local to
 	// the machine): it lives in hub.toml. Empty = the host of state_repo.
 	GitLabURL string `toml:"gitlab_url,omitempty"`
-	// Solo marks a local team-state without remote (v5 phase 2, `oh team
+	// Solo marks a local team-state without remote (`oh team
 	// init --solo`): it only holds workflows; team features (board, claims,
 	// notifications) stay off and ActiveTeam ignores it.
 	Solo bool `toml:"solo,omitempty"`
@@ -338,7 +338,7 @@ type CLIConfig struct {
 
 // DeployConfig holds the `[deploy]` section. Only the project instruction
 // files remain since v5 (the closed world of the session bundles replaced
-// `disable_native_agents`, D13).
+// `disable_native_agents`).
 type DeployConfig struct {
 	// InstructionFiles lists additional project files embedded as
 	// instructions in every agent body of a session bundle.

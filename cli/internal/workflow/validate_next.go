@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-// Validation of the composition fields (R5, schema_next.go): `next:`,
+// Validation of the composition fields (schema_next.go): `next:`,
 // `aliases:`, `outputs[].record` and the session sources of `from:`.
 
 // composition checks `next:` and `aliases:`.
@@ -98,7 +98,7 @@ func (v *validator) next() {
 				v.err("next_input_type", at, f.Output, string(out.Type), k, string(in.Type))
 				continue
 			}
-			// B1: a report goes on as its content, read from the session the
+			// A report goes on as its content, read from the session the
 			// launch is chained from by the `from:` of the input; prefilled,
 			// the next session would only get its id (rp-…).
 			if want := SourceSessionOutput + "(" + s.ID + "." + f.Output + ")"; out.Type == OutputReport && strings.ReplaceAll(in.From, " ", "") != want {
@@ -164,7 +164,7 @@ func (v *validator) outputRecord(base string, o Output) {
 	}
 }
 
-// outputWritten checks `paths:` and `match:` of an output (B1): with
+// outputWritten checks `paths:` and `match:` of an output: with
 // `record: written` only, paths required, match a regular expression with a
 // group.
 func (v *validator) outputWritten(base string, o Output) {

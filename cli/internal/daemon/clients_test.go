@@ -11,7 +11,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/termlaunch"
 )
 
-// A43: the daemon tells where the client of a session runs, so that oh brings
+// The daemon tells where the client of a session runs, so that oh brings
 // its window back instead of opening another client.
 func TestAttachedClientsOfASession(t *testing.T) {
 	e := startLifecycle(t, time.Hour, "g1", "ses_a")

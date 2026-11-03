@@ -155,7 +155,7 @@ func (a *Adapter) StartServer(ctx context.Context, g adapters.ServerGroup) (adap
 
 // fallbackAllowed refuses the fallback mode to a bundle whose subagent
 // sessions would run without the locks of its checkpoints until the daemon
-// adopts them (p6-debts, closed by default): only the oh plugin holds their
+// adopts them (closed by default): only the oh plugin holds their
 // locked operations meanwhile (PendingGuard).
 func fallbackAllowed(b sessionspec.BundleSpec) error {
 	if len(b.PendingGuard) == 0 {

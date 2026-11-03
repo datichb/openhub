@@ -52,17 +52,6 @@ func BedrockRegionLabels() []string {
 	return labels
 }
 
-// BedrockRegionIndex returns the index of region in BedrockRegions, or -1 if
-// the region code is not in the known list.
-func BedrockRegionIndex(region string) int {
-	for i, r := range BedrockRegions {
-		if r.Code == region {
-			return i
-		}
-	}
-	return -1
-}
-
 // Config holds non-secret provider configuration (stored in hub.toml or project DB).
 type Config struct {
 	AWSProfile string `mapstructure:"aws_profile" json:"aws_profile,omitempty"` // AWS profile name (bedrock)

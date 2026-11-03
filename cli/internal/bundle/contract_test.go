@@ -30,7 +30,7 @@ func contractOf(body string) string {
 	return rest
 }
 
-// L3: the session contract of every agent of every shipped workflow is
+// The session contract of every agent of every shipped workflow is
 // pinned in testdata/golden/contracts/<workflow>/<agent>.md.golden
 // (go test ./internal/bundle -run ShippedWorkflowContracts -update).
 func TestShippedWorkflowContracts(t *testing.T) {
@@ -62,7 +62,7 @@ func TestShippedWorkflowContracts(t *testing.T) {
 	}
 }
 
-// L3 (CP-R11): every checkpoint of a shipped workflow says who passes it
+// CP-R11: every checkpoint of a shipped workflow says who passes it
 // (`by:`), with members of the workflow that may call workflow_checkpoint,
 // and the runtime of the bundle carries it.
 func TestCheckpointByMembers(t *testing.T) {
@@ -71,7 +71,7 @@ func TestCheckpointByMembers(t *testing.T) {
 	for _, ref := range cat.Refs() {
 		r, _ := shippedBuild(t, "", ref)
 		members := r.Spec.Members()
-		// R7: a method checkpoint is in the bundle of its method; R6: a
+		// A method checkpoint is in the bundle of its method, a
 		// fan-out checkpoint in the bundle of a fan-out session.
 		type kind struct {
 			method workflow.Method
@@ -142,7 +142,7 @@ func TestCheckpointByDeduced(t *testing.T) {
 	assert.Equal(t, []string{"coord"}, s.CheckpointBy("cp-set", graph), "by: as written")
 }
 
-// L3: the contract says whether the agent may ask the user.
+// The contract says whether the agent may ask the user.
 func TestContractQuestion(t *testing.T) {
 	quick := contractOf(agentBody(t, shippedBundle(t, "quick"), "developer"))
 	assert.Contains(t, quick, "outil `question` pour les choix")
@@ -157,7 +157,7 @@ func TestContractQuestion(t *testing.T) {
 	assert.NotContains(t, brief, "outil `question` pour")
 }
 
-// p4-fixes: a pure subagent (no entry role in the workflow) is refused the
+// A pure subagent (no entry role in the workflow) is refused the
 // question tool by a deny on "*", the last rule of the action, so that the
 // tool hides it (Tool.snapshot of opencode 2.0.20); an entry agent, also
 // when other agents may launch it, keeps it.
@@ -198,7 +198,7 @@ func TestQuestionRefusedToPureSubagents(t *testing.T) {
 		eff, _ := questionEffect(shippedBundle(t, wf), id)
 		assert.NotEqual(t, sessionspec.EffectDeny, eff, "%s/%s keeps the question tool", wf, id)
 	}
-	// p4-debts: the developer has the tool where the user talks to it (entry
+	// The developer has the tool where the user talks to it (entry
 	// agent of quick, independent primary agent of debug), as its contract
 	// says; the base no longer refuses it.
 	for _, wf := range []string{"quick", "debug"} {
@@ -229,7 +229,7 @@ func TestSessionContractTemplate(t *testing.T) {
 	assert.NotContains(t, got, "Wiki du projet", "no wiki server yet")
 }
 
-// L5: a caller's contract lists the return statuses of the agents it may
+// A caller's contract lists the return statuses of the agents it may
 // launch, from their payload skills; the agent itself is left out.
 func TestContractCalleeStatuses(t *testing.T) {
 	env := whenEnv{roles: map[string]bool{roleEntry: true}, mcp: map[string]bool{}, flags: map[string]bool{}}
@@ -252,7 +252,7 @@ func TestContractCalleeStatuses(t *testing.T) {
 	assert.NotContains(t, contractOf(agentBody(t, shippedBundle(t, "ticket"), "documentarian")), "Statuts de leurs retours")
 }
 
-// p5-fixes: an agent whose rules refuse the usual helpers of a command
+// An agent whose rules refuse the usual helpers of a command
 // line is told, in its contract, which ones and that a line holding one is
 // refused whole; an agent without shell is not.
 func TestContractRestrictedShell(t *testing.T) {
@@ -274,7 +274,7 @@ func TestContractRestrictedShell(t *testing.T) {
 	assert.Empty(t, refusedShellHelpers([]sessionspec.PermissionRule{allow("*")}))
 }
 
-// p5-fixes: workflow_outputs is hidden (deny on "*", last rule of the
+// workflow_outputs is hidden (deny on "*", last rule of the
 // action) in a workflow without an output the agents may declare: the
 // debugger of incident called it; it stays allowed where an output is
 // declarable (debug: tickets).

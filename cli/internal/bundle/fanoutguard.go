@@ -5,7 +5,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
-// Fan-out guard (R6, E3, CP-R3). oh merges the children itself: no agent
+// Fan-out guard (CP-R3). oh merges the children itself: no agent
 // of a fan-out (parent, child or merger) pushes, merges, closes a ticket
 // or moves the branches of the fan-out, whatever its checkpoints unlock.
 // These session rules are added by the CheckpointService for the sessions

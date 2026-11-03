@@ -47,7 +47,7 @@ func (f *fakeTool) Control(_ context.Context, _ adapters.ServerHandle, sid strin
 
 var h = adapters.ServerHandle{URL: "http://127.0.0.1:1"}
 
-// QB8: an entry is written only when its value changes (each write is a
+// An entry is written only when its value changes (each write is a
 // message in the tool history), and the last value survives the process.
 func TestWriteOnlyOnChange(t *testing.T) {
 	ctx := context.Background()
@@ -77,7 +77,7 @@ func TestWriteOnlyOnChange(t *testing.T) {
 	assert.Empty(t, f.synthetic)
 }
 
-// QB8: without the capability (or when the API is gone), an entry with a
+// Without the capability (or when the API is gone), an entry with a
 // fallback text is sent as a synthetic message, the others are not sent.
 func TestFallback(t *testing.T) {
 	ctx := context.Background()

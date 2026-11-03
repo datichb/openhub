@@ -25,9 +25,9 @@ func effectiveRules(t *testing.T, entry, agent string) []sessionspec.PermissionR
 	return nil
 }
 
-// N3 (v5 critical, DC2): the cheap ways around the shell rules of the
-// analysis (S2.3 and audit S-12) are refused to every shipped agent, as the
-// tool matches them (simulator of lot 0).
+// The cheap ways around the shell rules of the
+// analysis (audit S-12) are refused to every shipped agent, as the
+// tool matches them (shell simulator).
 func TestGlobalGuard(t *testing.T) {
 	t.Parallel()
 	bypasses := []string{
@@ -71,7 +71,7 @@ func TestGlobalGuard(t *testing.T) {
 		for _, path := range []string{".husky/pre-commit", ".pre-commit-config.yaml", "lefthook.yml"} {
 			assert.NotEqual(t, sessionspec.EffectAllow, ToolEffect(rules, sessionspec.ActionEdit, path), "%s: edit %s asks", ag[1], path)
 		}
-		// L4: no agent reads nor forges a stored report.
+		// No agent reads nor forges a stored report.
 		for _, action := range []string{sessionspec.ActionRead, sessionspec.ActionEdit} {
 			assert.Equal(t, sessionspec.EffectDeny, ToolEffect(rules, action, "/Users/ada/.oh/sessions/ses_a/reports/rp-1.md"), "%s: %s a report", ag[1], action)
 		}
@@ -103,7 +103,7 @@ func TestGlobalGuard(t *testing.T) {
 	assert.Equal(t, sessionspec.EffectAllow, ToolEffect(dev, sessionspec.ActionEdit, "src/app.go"))
 }
 
-// N3: within a pattern map of the frontmatter, rules are ordered by
+// Within a pattern map of the frontmatter, rules are ordered by
 // literal length: a short deny loses against a longer allow. This is why
 // the refusals that matter are written in Go (global guard), not in the
 // frontmatter.
@@ -116,7 +116,7 @@ func TestFrontmatterDenyOrdering(t *testing.T) {
 	assert.Equal(t, sessionspec.EffectDeny, ShellEffect(guarded, "git fetch origin --upload-pack=/tmp/x"), "the global guard comes last")
 }
 
-// N3 (audit S-19): the context-mode tools that run code never get more
+// Audit S-19: the context-mode tools that run code never get more
 // than the shell of the agent.
 func TestCtxToolsFollowBash(t *testing.T) {
 	rules := ConvertPermissions(map[string]interface{}{
@@ -147,7 +147,7 @@ func filter(rules []sessionspec.PermissionRule, action string) []sessionspec.Per
 	return out
 }
 
-// N3 (audit S-12): commands that create a commit without `git commit` are
+// Audit S-12: commands that create a commit without `git commit` are
 // locked with it.
 func TestCommitLockCoversCommitLikeCommands(t *testing.T) {
 	wf := &sessionspec.WorkflowRuntime{ID: "t", DefaultMode: "manuel", Checkpoints: []sessionspec.CheckpointDef{
@@ -162,7 +162,7 @@ func TestCommitLockCoversCommitLikeCommands(t *testing.T) {
 	assert.Equal(t, sessionspec.EffectAllow, ShellEffect(open, "git revert HEAD"))
 }
 
-// N3 (probe U5): a session rule that allows would open what the guard of an
+// A session rule that allows would open what the guard of an
 // agent refuses: the session rules of oh never allow the shell or edits.
 func TestSessionRulesNeverAllowShell(t *testing.T) {
 	wf := &sessionspec.WorkflowRuntime{ID: "t", DefaultMode: "manuel",

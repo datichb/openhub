@@ -8,7 +8,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
-// A19: the ways around the git hooks are refused to every agent, after its
+// The ways around the git hooks are refused to every agent, after its
 // own rules (developer-rw allows git commit*, git *-like commands).
 func TestHookGuard(t *testing.T) {
 	own := ConvertPermissions(map[string]interface{}{"bash": map[string]interface{}{"*": "deny", "git commit*": "allow", "git config*": "allow", "git *": "allow", "cat *": "allow", "echo *": "allow"}, "edit": "allow"})

@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// N24 (audit-v5 S-16 → S-20): a layer may only harden its parent.
+// Audit S-16 → S-20: a layer may only harden its parent.
 
 const hubLayered = `apiVersion: oh/v1
 kind: Workflow

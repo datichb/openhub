@@ -2,9 +2,9 @@ package bundle
 
 import "github.com/datichb/openhub/cli/internal/sessionspec"
 
-// Git commands that throw away work an agent did not do (v5 corrections,
-// A18: a developer ran `git checkout app/store.py` and erased the user's
-// uncommitted change). They are refused to every agent, last of its rules
+// Git commands that throw away work an agent did not do (a developer ran
+// `git checkout app/store.py` and erased the user's uncommitted change).
+// They are refused to every agent, last of its rules
 // (last match wins), whatever its permission base allows. `git checkout
 // <path>` cannot be told from `git checkout <branch>` by a pattern: the whole
 // command is refused, branch changes go through `git switch` (and `git
@@ -38,11 +38,11 @@ var gitGuardKeep = [][2]string{
 	{"rm --cached *", "rm --cached x"},
 }
 
-// gitGuardPrefixes are the forms of `git` before a refused subcommand (v5
-// critical N3: the tool matches the raw text of each command, probe U1).
+// gitGuardPrefixes are the forms of `git` before a refused subcommand
+// (the tool matches the raw text of each command).
 // The subcommand follows `git` or its global options, never any text: a
 // commit or tag message that holds "git" then "clean" (`git tag -a v5 -m
-// "git hooks, cleanup"`) stays allowed (p4-fixes). Covered: `git sub`,
+// "git hooks, cleanup"`) stays allowed. Covered: `git sub`,
 // after a prefix (`env git`, `X=1 git`, `xargs git`), by path (`/usr/bin/git`,
 // `\git`), after global options (`git -C <dir> sub`, `git --no-pager sub`),
 // in a shell string (`sh -c '…git sub'`, `bash -lc`, `eval`), a quoted

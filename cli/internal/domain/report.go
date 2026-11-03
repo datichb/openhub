@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// Report is a report an agent filed with workflow_report (L4): oh keeps its
+// Report is a report an agent filed with workflow_report: oh keeps its
 // body under ~/.oh/sessions/<session>/reports/ and these metadata in
 // session_reports (v44). The author is the agent oh saw calling the tool,
 // never a value given by the agent.

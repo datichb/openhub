@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// DecisionKind classifies a decision waiting for a human (I3). The set is
+// DecisionKind classifies a decision waiting for a human. The set is
 // open: new kinds (e.g. checkpoint) need no schema change.
 type DecisionKind string
 

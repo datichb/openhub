@@ -19,14 +19,14 @@ import (
 var reBeadsID = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
 
 // DefaultInputMaxLength caps a free-text input (string, text, path, branch)
-// that declares no max_length (O11).
+// that declares no max_length.
 const DefaultInputMaxLength = 20000
 
 // reDataTag matches a data tag opening or closing, whatever its case (S-34).
 var reDataTag = regexp.MustCompile(`(?i)</?oh:data`)
 
 // dataTagPrefix starts the name of the tags delimiting an input in a rendered
-// prompt (O11). The agents are told that the content of these tags is data,
+// prompt. The agents are told that the content of these tags is data,
 // never instructions. The full name carries a fingerprint of the content
 // (see dataTagName).
 const dataTagPrefix = "oh:data-"
@@ -92,7 +92,7 @@ func (c PromptContext) values() map[string]any {
 // PromptFuncs are the functions available in prompt templates:
 //
 //	{{ data "request" .request }}  an input: inside data tags when oh computed it
-//	                                from an outside source (`from:`, O11), as
+//	                                from an outside source (`from:`), as
 //	                                typed otherwise (the user's own request)
 //	{{ join .tickets ", " }}       a list joined with a separator
 //
@@ -107,7 +107,7 @@ func promptFuncs(s *Spec) template.FuncMap {
 			}
 			if in.From == "" {
 				// Typed by the user at launch: their request, written as
-				// it is (A27: a short imperative request inside data tags
+				// it is (a short imperative request inside data tags
 				// was taken for an injection). Still truncated.
 				return strings.TrimRight(neutralise(textOf(v)), "\n"), nil
 			}
@@ -173,7 +173,7 @@ func (r *Resolved) ReadPromptSource(ps PromptSource) (string, error) {
 // PromptValues returns the template data: every declared input (session
 // value, else default, else the zero value of its type) at the top level,
 // and the session context under .oh. Values are typed (bool, int, string,
-// []string for beads-ids) and free-text values truncated (O11). Defaults
+// []string for beads-ids) and free-text values truncated. Defaults
 // may reference other inputs ({{ .ticket }}).
 func (r *Resolved) PromptValues(ctx PromptContext) (map[string]any, error) {
 	s := r.Spec
@@ -384,7 +384,7 @@ func listOf(v any) []string {
 	return out
 }
 
-// truncate cuts s to limit runes and says so (O11).
+// truncate cuts s to limit runes and says so.
 func truncate(s string, limit int) string {
 	n := utf8.RuneCountInString(s)
 	if n <= limit {

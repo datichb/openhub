@@ -5,7 +5,7 @@ import (
 	"slices"
 )
 
-// Method of a session (R7): chosen at launch with the enum input `method`,
+// Method of a session: chosen at launch with the enum input `method`,
 // it keeps the checkpoints declared for it (`checkpoints.<id>.method`) and
 // drops them from the sessions of another method.
 //

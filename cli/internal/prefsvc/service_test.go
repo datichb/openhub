@@ -79,7 +79,7 @@ func TestPinLimitPerScope(t *testing.T) {
 func TestStartMergesScopesRecentsAndSuggestions(t *testing.T) {
 	now := time.Now()
 	usage := &fakeUsage{uses: []domain.WorkflowUse{
-		{WorkflowID: "orchestrator", LastUsed: now}, // phase 0 session: agent id, not a workflow
+		{WorkflowID: "orchestrator", LastUsed: now}, // oldest session: agent id
 		{WorkflowID: "ticket", LastUsed: now},       // pinned: not repeated
 		{WorkflowID: "review", LastUsed: now.Add(-time.Hour)},
 		{WorkflowID: "audit", LastUsed: now.Add(-2 * time.Hour)},

@@ -10,7 +10,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 )
 
-// Quitting oh (I7, P3-T21): sessions that are idle or waiting go to sleep
+// Quitting oh: sessions that are idle or waiting go to sleep
 // now; for each session still working the user chooses: finish the current
 // step then sleep (default), keep running in the background, or stop now.
 // The sleep policy is held by the daemon per server group; stopping is per

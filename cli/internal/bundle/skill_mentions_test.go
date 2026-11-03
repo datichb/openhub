@@ -19,10 +19,10 @@ var inlinedHeadingRe = regexp.MustCompile("(?m)^> Skill `([a-z0-9_-]+)` : inclus
 // Every skill named in an agent body or a prompt template of a shipped
 // workflow is in the catalogue of the agent (shipped on demand for it) or
 // inlined in the agent under a heading that names it: otherwise the model
-// calls the skill tool and gets « Unable to load skill » (v5 finalisation,
-// Q3-1: cp-1 never declared in ticket). Sections that do not invite the
+// calls the skill tool and gets « Unable to load skill » (cp-1 was never declared
+// in ticket). Sections that do not invite the
 // agent to load a skill (rules for the consumer of a handoff…) are left out
-// (L2, invitingText).
+// (invitingText).
 func TestShippedWorkflowSkillMentionsResolve(t *testing.T) {
 	t.Parallel()
 	hub, cat, _ := shippedWorkflows(t)
@@ -58,10 +58,10 @@ func TestShippedWorkflowSkillMentionsResolve(t *testing.T) {
 			check := func(where, agent, text string, mentions func(string, map[string]string) []string) {
 				for _, ref := range mentions(text, index) {
 					if !keep(ref) || bricks.IsStackSkill(ref) {
-						continue // skill of a plugin the workflow does not load (A8), stack skill (detected stack)
+						continue // skill of a plugin the workflow does not load, stack skill (detected stack)
 					}
 					if d, err := whenLoader.load(ref); err == nil && !skillWhen(d, envs[agent]) {
-						continue // its when: fails for the agent (L3): named in the absent skills note
+						continue // its when: fails for the agent: named in the absent skills note
 					}
 					id := skillID(ref)
 					if !loadable[agent][id] && !headed[agent][id] {
@@ -130,7 +130,7 @@ var (
 	codeSpanRe    = regexp.MustCompile("`([a-z0-9][a-z0-9/_-]*)`")
 )
 
-// QB3: every skill reference of the hub content (agents/, skills/,
+// Every skill reference of the hub content (agents/, skills/,
 // workflows/prompts/) names an existing skill: a [SKILL:…] tag, a
 // `category/name` code span, or « skill `name` » (orchestrator-dev cited
 // dev-standards-security-hardening, the orchestrator injected
@@ -185,9 +185,9 @@ func TestHubSkillReferencesExist(t *testing.T) {
 	}
 }
 
-// QB3: the audit bundle ships every domain checklist of the hub
+// The audit bundle ships every domain checklist of the hub
 // (auditor/audit-<domain>), in the catalogue of auditor-subagent that loads
-// it (L2: named by its caller auditor, skills_from_callers).
+// it (named by its caller auditor, skills_from_callers).
 func TestAuditBundleShipsDomainChecklists(t *testing.T) {
 	hub, _, _ := shippedWorkflows(t)
 	_, b := shippedBuild(t, "", workflow.Ref{Layer: workflow.LayerHub, ID: "audit"})
@@ -214,7 +214,7 @@ func TestAuditBundleShipsDomainChecklists(t *testing.T) {
 	}
 }
 
-// C1: the `type` input of the audit workflow offers exactly the domains of
+// The `type` input of the audit workflow offers exactly the domains of
 // the hub (skills/auditor/audit-<domain>.md).
 func TestAuditTypeEnumMatchesDomainSkills(t *testing.T) {
 	hub, cat, _ := shippedWorkflows(t)

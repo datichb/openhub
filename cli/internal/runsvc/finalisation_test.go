@@ -13,7 +13,7 @@ import (
 )
 
 // The prompt says whether the session already has its own branch, so that
-// the agent does not offer to create one (v5 finalisation, Q3-2).
+// the agent does not offer to create one.
 func TestLocationWorkBranch(t *testing.T) {
 	project := t.TempDir()
 	gittest.Run(t, project, "init", "-q", "-b", "main")
@@ -32,7 +32,7 @@ func TestLocationWorkBranch(t *testing.T) {
 }
 
 // A relative cache volume absent from a location is reported: the engine
-// creates the folder, empty, as its mount point (v5 finalisation, Q3-4).
+// creates the folder, empty, as its mount point.
 func TestVolumeMountPointWarning(t *testing.T) {
 	present, absent := t.TempDir(), t.TempDir()
 	require.NoError(t, os.MkdirAll(filepath.Join(present, "node_modules"), 0o755))

@@ -73,7 +73,7 @@ type ProjectProviderConfig struct {
 	TokenKey   string `json:"token_key,omitempty"`   // project-specific keychain key for credentials
 }
 
-// ProjectExecConfig holds the execution settings of a project (v5 phase 4):
+// ProjectExecConfig holds the execution settings of a project:
 // the dev environment of the container runtime and the launch defaults.
 type ProjectExecConfig struct {
 	// Dockerfile is the dev Dockerfile, absolute or relative to the project

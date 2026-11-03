@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// Fan-out of a session (R6, E3, migration v46, experimental): a parent
+// Fan-out of a session (migration v46, experimental): a parent
 // session whose tickets are each implemented by a child session in its own
 // worktree; oh merges each child branch into an integration branch, asks a
 // merger session to resolve a conflict it cannot, and merges the
@@ -203,7 +203,7 @@ const (
 	FanoutEventDiscarded  = "discarded"  // a branch not merged deleted on request (its commit)
 	FanoutEventFix        = "fix"        // fix round launched on the integration branch
 	FanoutEventFixed      = "fixed"      // fix round done (taken by oh, or not)
-	FanoutEventDriver     = "driver"     // driver started again by the daemon (p6-debts)
+	FanoutEventDriver     = "driver"     // driver started again by the daemon
 )
 
 // fanoutEventsMax caps the stored events.

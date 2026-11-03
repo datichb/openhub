@@ -301,7 +301,7 @@ func TestContractAttestStrictIsolation(t *testing.T) {
 	assert.Empty(t, rep.Warnings)
 }
 
-// L2: each agent of the bundle gets only its catalogue, as the server
+// Each agent of the bundle gets only its catalogue, as the server
 // applies it (effective rules listed per agent), and Attest accepts it.
 func TestContractPerAgentCatalogue(t *testing.T) {
 	a := newContractAdapter(t)
@@ -428,7 +428,7 @@ func shellOutput(t *testing.T, c *Client, sessionID, command string) string {
 	return ""
 }
 
-// The session environment (S7) applies to the session shell only, and is
+// The session environment applies to the session shell only, and is
 // kept in memory: it is lost when the server restarts (oh applies it again).
 func TestContractSessionEnvironment(t *testing.T) {
 	cfg := `{"agents":{"pinger":{"mode":"primary","description":"p"}}}`

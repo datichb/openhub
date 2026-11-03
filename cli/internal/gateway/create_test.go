@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// N9: ticket creation is reported to the workflow guard.
+// Ticket creation is reported to the workflow guard.
 func TestCreateOp(t *testing.T) {
 	allow := []string{"create", "create-form", "q", "show", "list"}
 	for _, tc := range []struct {
@@ -31,7 +31,7 @@ func TestCreateOp(t *testing.T) {
 	}
 }
 
-// R5: the tickets a creation printed (bd 1.3 forms), recorded by oh as an
+// The tickets a creation printed (bd 1.3 forms), recorded by oh as an
 // output of the session.
 func TestCreatedIDs(t *testing.T) {
 	for out, want := range map[string][]string{

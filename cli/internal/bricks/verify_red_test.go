@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// R7: the test files of a stack and the reason a test written first fails.
+// The test files of a stack and the reason a test written first fails.
 
 func TestTestFilePatterns(t *testing.T) {
 	t.Parallel()

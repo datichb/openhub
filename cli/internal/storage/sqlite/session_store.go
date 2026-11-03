@@ -268,7 +268,7 @@ func outputsJSON(o map[string]any) string {
 	return string(data)
 }
 
-// SetSessionFanout writes the fan-out record of a session (R6; nil
+// SetSessionFanout writes the fan-out record of a session (nil
 // removes it). Update never writes it: the driver of the fan-out and the
 // daemon update the row at the same time.
 func (ss *SessionStore) SetSessionFanout(ctx context.Context, id string, f *domain.SessionFanout) error {

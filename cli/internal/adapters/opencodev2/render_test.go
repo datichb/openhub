@@ -74,7 +74,7 @@ func TestRenderGoldenWithPluginAndCodeMode(t *testing.T) {
 	golden.Assert(t, "golden/bundle-plugin.json", rc.Files[ConfigFileName])
 }
 
-// P1-T15: plugins declared by the workflow (npm specs, with or without
+// Plugins declared by the workflow (npm specs, with or without
 // options) are rendered next to the oh plugin.
 func TestRenderGoldenWorkflowPlugins(t *testing.T) {
 	b := sampleBundle()
@@ -194,7 +194,7 @@ func TestSkillVisibilityIgnoresAgentAllowOutsideBundle(t *testing.T) {
 	assert.ElementsMatch(t, []string{"orchestrator-dev", "developer"}, skillVisibleTo(b, "beads-dev"))
 }
 
-// L2: an agent with a catalogue sees only its skills, its own rules still
+// An agent with a catalogue sees only its skills, its own rules still
 // filter them; an agent without catalogue (older bundle) sees every bundle
 // skill its rules allow.
 func TestRenderAgentCatalogue(t *testing.T) {
@@ -278,7 +278,7 @@ func TestRenderMCPToolActions(t *testing.T) {
 	assert.Equal(t, "gitlab_issues", ToolAction(sessionspec.MCPToolAction("gitlab", "issues")))
 }
 
-// N2 (v5 critical): driving the tool server from the shell is refused to
+// Driving the tool server from the shell is refused to
 // every agent, even one allowed to run anything.
 func TestControlPlaneGuardLastOfEveryAgent(t *testing.T) {
 	b := sessionspec.BundleSpec{EntryAgent: "a", Agents: []sessionspec.AgentDef{{ID: "a",
@@ -312,7 +312,7 @@ func TestControlPlaneGuardLastOfEveryAgent(t *testing.T) {
 
 }
 
-// N23 (v5 critical, audit S-10): the bundle is readable from the agents
+// Audit S-10: the bundle is readable from the agents
 // (skill annexes) but never editable.
 func TestBundleReadOnlyForAgents(t *testing.T) {
 	b := sessionspec.BundleSpec{EntryAgent: "a", Root: "/oh/bundles/h", SkillsDir: "/oh/bundles/h/skills",

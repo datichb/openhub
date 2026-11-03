@@ -16,7 +16,7 @@ var _ adapters.SingleSessionClient = (*Adapter)(nil)
 // SingleSessionAttachCommand implements adapters.SingleSessionClient: the
 // session tabs of the TUI are turned off. They are remembered per directory
 // whatever the server, so opening another session of the same project added
-// a tab to the window already open (A43). A configuration the user already
+// a tab to the window already open. A configuration the user already
 // passes in the variable is kept.
 func (a *Adapter) SingleSessionAttachCommand(h adapters.ServerHandle, sessionID string, base []string) (argv, env []string) {
 	argv, env = a.AttachCommand(h, sessionID)

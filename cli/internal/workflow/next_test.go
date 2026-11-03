@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// R5 (schema_next.go): next:, aliases:, outputs[].record and the session
+// Composition (schema_next.go): next:, aliases:, outputs[].record and the session
 // sources of from:.
 
 func TestParseSessionFrom(t *testing.T) {
@@ -151,7 +151,7 @@ func TestValidate_SessionFrom(t *testing.T) {
 		{"unknown output", "  tickets: { type: beads-ids, from: session.output(from.branch) }\n", "input_from_unknown_output"},
 		{"type", "  tickets: { type: int, from: session.output(from.tickets) }\n", "input_from_type"},
 		{"invalid", "  tickets: { type: beads-ids, from: session.input(tickets) }\n", "input_from_invalid"},
-		// p6-debts: from_equals narrows the sessions read
+		// from_equals narrows the sessions read
 		{"from_equals", "  tickets: { type: beads-ids, from: session.output(from.tickets), from_equals: { tickets: x } }\n", ""},
 		{"from_equals unknown output", "  tickets: { type: beads-ids, from: session.output(from.tickets), from_equals: { type: x } }\n", "input_from_unknown_output"},
 		{"from_equals not a session output", "  digest: { type: text, from: session.trace(), from_equals: { type: x } }\n", "input_from_equals"},
@@ -188,7 +188,7 @@ func TestValidate_OutputRecord(t *testing.T) {
 		{"input", "  - { id: method, type: text, record: input }\ninputs:\n  method: { type: enum, values: [standard, tdd] }\n", ""},
 		{"input unknown", "  - { id: method, type: text, record: input }\n", "output_record_input_unknown"},
 		{"input type", "  - { id: method, type: path, record: input }\ninputs:\n  method: { type: enum, values: [standard, tdd] }\n", "output_record_type"},
-		// B1: files written under paths, or a value read in them.
+		// Files written under paths, or a value read in them.
 		{"written", "  - { id: decision, type: path, record: written, paths: [\"docs/wiki/decisions/**\"] }\n", ""},
 		{"written match", "  - { id: verdict, type: text, record: written, paths: [docs/a.md], match: 'Décision : (go|kill)' }\n", ""},
 		{"written type", "  - { id: verdict, type: path, record: written, paths: [docs/a.md], match: '(go)' }\n", "output_record_type"},
@@ -338,7 +338,7 @@ func TestRecordedInputs(t *testing.T) {
 	}
 }
 
-// B1: a step is proposed when its outputs were recorded, with the values of
+// A step is proposed when its outputs were recorded, with the values of
 // equals (case ignored).
 func TestNextWhenHolds(t *testing.T) {
 	t.Parallel()

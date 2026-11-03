@@ -5,7 +5,7 @@ import (
 	"sort"
 )
 
-// Catalogue side of the composition (R5, schema_next.go): the spec of
+// Catalogue side of the composition (schema_next.go): the spec of
 // another workflow (checks of `next:` and `from: session.output`) and the
 // aliases.
 

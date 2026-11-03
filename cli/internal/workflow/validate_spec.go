@@ -69,7 +69,7 @@ func BeadsWrites(entry string) bool { return !bdargs.EntryIsRead(entry) }
 
 // ExecPlugins are the plugins whose tools run commands (context-mode:
 // ctx_execute…): refused in a read-only workflow, where they would bypass
-// `bash: deny` (N24, S-19).
+// `bash: deny` (S-19).
 var ExecPlugins = []string{"context-mode"}
 
 // PluginPackage strips the version or tag of a plugin spec
@@ -112,17 +112,17 @@ func Check(cat Catalog, ref Ref, opts *SessionOptions, env Env) (*Resolved, Diag
 	}
 	diags = append(diags, r.Validate(env)...)
 	if opts != nil {
-		// R7: the session keeps the checkpoints of its method only
+		// The session keeps the checkpoints of its method only
 		// (validated above with the others).
 		r.Spec = r.Spec.ForMethod(r.Method)
-		// R6: a fan-out session keeps its fan-out checkpoints, the others
+		// A fan-out session keeps its fan-out checkpoints, the others
 		// the checkpoints of before.
 		r.Spec = r.Spec.ForFanout(r.Fanout)
 	}
 	return r, diags
 }
 
-// Validate checks the resolved workflow (03 §3.2): schema values, agents and
+// Validate checks the resolved workflow: schema values, agents and
 // graph, checkpoints, prompt variables, skills and security rules. Each
 // finding points to the document that set the offending value.
 func (r *Resolved) Validate(env Env) Diagnostics {
@@ -144,7 +144,7 @@ func (r *Resolved) Validate(env Env) Diagnostics {
 	v.security()
 	v.publish()
 	v.composition()
-	v.fanout() // R6
+	v.fanout()
 	return v.diags
 }
 
@@ -323,7 +323,7 @@ func (v *validator) inputNames() map[string]bool {
 func (v *validator) prompt() {
 	p := v.s.Prompt
 	if p == nil {
-		// Allowed, but the session starts without any instruction (A10);
+		// Allowed, but the session starts without any instruction;
 		// reported on the workflows of the teams and projects.
 		if v.r.Ref.Layer != LayerHub {
 			v.warn("prompt_none", "prompt")
@@ -608,7 +608,7 @@ func (v *validator) checkpoints() {
 		if len(cp.Unlocks) > 0 {
 			for _, mode := range sortedKeys(cp.Mode) {
 				if cp.Mode[mode] == BehaviorSkip {
-					// Treated as pause: skipping would drop the lock (N24).
+					// Treated as pause: skipping would drop the lock.
 					v.warn("unlock_skip", base+".mode."+mode, k, mode)
 				}
 			}
@@ -617,20 +617,20 @@ func (v *validator) checkpoints() {
 			at := fmt.Sprintf("%s.unlocks[%d]", base, i)
 			if !op.Valid() {
 				// An operation of a newer oh: warned, not refused, so that a
-				// team on mixed versions keeps working (DC9). It locks nothing
+				// team on mixed versions keeps working. It locks nothing
 				// here.
 				v.warn("unlock_unknown", at, string(op), UnlockOpNames())
 				continue
 			}
 			if op == UnlockPush && s.Risk != RiskPublish {
-				// No agent may push outside a publishing workflow (DC7): the
+				// No agent may push outside a publishing workflow: the
 				// lock opens nothing.
 				v.warn("unlock_push_without_publish", at, k)
 			}
 			prev, dup := unlockedBy[op]
 			switch {
 			case dup && op == UnlockCommit && cp.UnlockAgain:
-				// p5-fixes: a second commit checkpoint (schema_unlock.go).
+				// A second commit checkpoint (schema_unlock.go).
 			case dup:
 				v.err("unlock_duplicate", at, string(op), prev, k)
 			case op == UnlockCommit && cp.UnlockAgain:
@@ -669,7 +669,7 @@ func (v *validator) tasksChecks() {
 	}
 }
 
-// checkpointsBy checks `by:` of each checkpoint (L3): workflow members,
+// checkpointsBy checks `by:` of each checkpoint: workflow members,
 // once each. A headless workflow (nobody follows it) warns about a
 // checkpoint that may wait for the user.
 func (v *validator) checkpointsBy() {
@@ -948,8 +948,8 @@ func (v *validator) security() {
 }
 
 // parallelWriters warns about a writing workflow whose agents (two or more
-// that edit files) may all commit at will: no checkpoint unlocks commit
-// (N7). A free session (entry.selectable, `libre`) has no gate by nature.
+// that edit files) may all commit at will: no checkpoint unlocks commit.
+// A free session (entry.selectable, `libre`) has no gate by nature.
 func (v *validator) parallelWriters() {
 	s := v.s
 	if s.Risk != RiskWrite || v.env.Agents == nil || (s.Entry != nil && s.Entry.Selectable) {

@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// Documentation written by a planning agent (R4, E8) and the specs checked
+// Documentation written by a planning agent and the specs checked
 // by oh at a checkpoint.
 //
 //	agents:
@@ -18,7 +18,7 @@ import (
 //	    verify: { spec: { paths: ["docs/wiki/specs/**"], breakdown: true } }
 //
 // `writes:` opens documentation paths only (WritesRoot, and the root files
-// of WritesRootFiles: p6-debts), to an agent whose
+// of WritesRootFiles), to an agent whose
 // own rules refuse the edit tools: the bundle adds, after its own rules and
 // before the guards, the edit of these paths and the commit of these paths
 // only (bundle.WritesRules). A layer may only narrow an inherited list: a
@@ -29,7 +29,7 @@ import (
 const WritesRoot = "docs/"
 
 // WritesRootFiles are the files at the root of the project a `writes:`
-// path may name, besides docs/ (p6-debts): documentation files only, never
+// path may name, besides docs/ : documentation files only, never
 // a folder nor code.
 var WritesRootFiles = []string{"ONBOARDING.md", "CONVENTIONS.md", "README.md", "CHANGELOG.md"}
 

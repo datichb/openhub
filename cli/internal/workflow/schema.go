@@ -87,7 +87,7 @@ const (
 	InputBeadsIDs InputType = "beads-ids"
 )
 
-// OutputType is the type of a value declared by a session (O7).
+// OutputType is the type of a value declared by a session.
 type OutputType string
 
 const (
@@ -95,8 +95,7 @@ const (
 	OutputMergeRequest OutputType = "merge_request"
 	OutputBeadsIDs     OutputType = "beads-ids"
 	OutputPath         OutputType = "path"
-	// OutputReport is the id of a report deposited with workflow_report
-	// (R5).
+	// OutputReport is the id of a report deposited with workflow_report.
 	OutputReport OutputType = "report"
 	// OutputText is a plain value, such as an input of the session
 	// recorded by oh (`record: input`, feature-migration).
@@ -166,26 +165,26 @@ type Spec struct {
 	// Preconditions are checked before launch, in declaration order.
 	Preconditions OrderedMap[Precondition] `yaml:"preconditions,omitempty"`
 
-	// L3 (schema_contract.go): session contract.
+	// Session contract (schema_contract.go).
 
 	// Headless marks a session nobody follows (no interface: brief-enrich):
 	// no agent asks a question, a missing piece of information goes in its
 	// output.
 	Headless bool `yaml:"headless,omitempty"`
 
-	// R5 (schema_next.go): composition of workflows.
+	// Composition of workflows (schema_next.go).
 
-	// Next lists the workflows oh proposes once a session ends (E4), with
+	// Next lists the workflows oh proposes once a session ends, with
 	// inputs taken from its outputs; never launched by oh itself.
 	Next []NextStep `yaml:"next,omitempty"`
 	// Aliases are other ids that launch this workflow (`oh run cadrage`).
 	Aliases []Alias `yaml:"aliases,omitempty"`
 
-	// R6 (schema_fanout.go): fan-out (experimental).
+	// Fan-out, experimental (schema_fanout.go).
 
 	// Fanout runs one child session per ticket, each in its own worktree,
 	// merged by oh into an integration branch and validated at a mandatory
-	// verified checkpoint of the parent (E3, CP-R3).
+	// verified checkpoint of the parent (CP-R3).
 	Fanout *Fanout `yaml:"fanout,omitempty"`
 }
 
@@ -213,17 +212,17 @@ type Input struct {
 	Values []string `yaml:"values,omitempty"`
 	// Picker configures the Beads picker (beads-id, beads-ids).
 	Picker *Picker `yaml:"picker,omitempty"`
-	// MaxLength truncates the injected value (O11). 0 = adapter default.
+	// MaxLength truncates the injected value. 0 = adapter default.
 	MaxLength int `yaml:"max_length,omitempty"`
 	// From computes the value at launch when it is not given:
-	// "<source>(<input>)", e.g. "mr.discussions(mr)" (additive, QB2;
+	// "<source>(<input>)", e.g. "mr.discussions(mr)" (additive;
 	// sources: InputSources).
 	From string `yaml:"from,omitempty"`
-	// FromEquals (p6-debts) narrows a `from: session.output(…)` to the
+	// FromEquals narrows a `from: session.output(…)` to the
 	// sessions whose outputs listed were recorded with these values (the
 	// last security audit: { type: security }).
 	FromEquals map[string]string `yaml:"from_equals,omitempty"`
-	// Scope (p6-debts) makes a text input the file scope of the session:
+	// Scope makes a text input the file scope of the session:
 	// one entry per line or comma (path, folder, pattern of the repository,
 	// or a new file in an existing folder). oh checks it at launch and
 	// refuses, at the checkpoints it verifies, a change outside it. The
@@ -294,15 +293,15 @@ type AgentRef struct {
 	// Scratch gives the agent a session scratch folder (ScratchSpec).
 	Scratch *ScratchSpec `yaml:"scratch,omitempty"`
 
-	// R4 (schema_writes.go): documentation written by a planning agent.
+	// Documentation written by a planning agent (schema_writes.go).
 
-	// Writes lists the documentation paths the agent may write (E8): an
+	// Writes lists the documentation paths the agent may write: an
 	// agent refused the edit tools (planner) may edit these paths, and
 	// stage and commit them, and nothing else. A layer may only narrow an
 	// inherited list (WritesCovered).
 	Writes []string `yaml:"writes,omitempty"`
 
-	// r5-fixes (schema_writes.go): order of the writes.
+	// Order of the writes (schema_writes.go).
 
 	// WritesAfter opens the `writes:` paths only once this checkpoint has
 	// been passed (or is skipped in the mode): before, oh refuses their
@@ -335,7 +334,7 @@ type CheckpointSpec struct {
 	// Disabled removes an inherited checkpoint (patch only).
 	Disabled bool `yaml:"disabled,omitempty"`
 
-	// R3 (schema_verify.go): verification run by oh and conditions.
+	// Verification run by oh and conditions (schema_verify.go).
 
 	// Verify is the verification oh runs before the checkpoint passes
 	// (build, tests, lint): it opens no window while it fails. Removing or
@@ -346,7 +345,7 @@ type CheckpointSpec struct {
 	// never removes a pause.
 	When *CheckpointWhen `yaml:"when,omitempty"`
 
-	// L3 (schema_contract.go): session contract.
+	// Session contract (schema_contract.go).
 
 	// By lists the agents that pass the checkpoint (workflow members). Each
 	// agent's session contract names only its own checkpoints (CP-R11), and
@@ -360,14 +359,14 @@ type CheckpointSpec struct {
 	// synchronized in docs/wiki/index.md. It requires `unlocks: [commit]`.
 	Wiki CheckpointWiki `yaml:"wiki,omitempty"`
 
-	// R7 (schema_method.go): method of the session.
+	// Method of the session (schema_method.go).
 
 	// Method keeps the checkpoint only in the sessions launched with this
 	// method (input `method`, e.g. tdd): elsewhere it does not exist. It
 	// may only add a step: never mandatory, never unlocking.
 	Method Method `yaml:"method,omitempty"`
 
-	// r5-fixes: order of the checkpoints.
+	// Order of the checkpoints.
 
 	// After makes the checkpoint wait for an earlier one: oh refuses it
 	// while this checkpoint has not been passed (a checkpoint skipped in the
@@ -375,13 +374,13 @@ type CheckpointSpec struct {
 	// checkpoint, never remove it.
 	After string `yaml:"after,omitempty"`
 
-	// R6 (schema_fanout.go): fan-out.
+	// Fan-out (schema_fanout.go).
 
 	// Fanout keeps the checkpoint only in the fan-out sessions (`only`) or
 	// only in the others (`never`).
 	Fanout FanoutScope `yaml:"fanout,omitempty"`
 
-	// p5-fixes (schema_unlock.go): a second commit checkpoint.
+	// A second commit checkpoint (schema_unlock.go).
 
 	// UnlockAgain lets the `commit` of `unlocks` repeat the one of an
 	// earlier checkpoint (incident: the mitigation, then the postmortem):
@@ -425,12 +424,12 @@ const (
 	UnlockUpdate UnlockOp = "update" // changing Beads tickets (priority, labels, dependencies…; r9b)
 	UnlockApply  UnlockOp = "apply"  // changing infrastructure (terraform apply, kubectl apply…)
 
-	// R8: publishing (risk: publish only; refused in every workflow that
+	// Publishing (risk: publish only; refused in every workflow that
 	// declares no checkpoint unlocking them).
 	UnlockTag UnlockOp = "tag" // creating a git tag (git tag, git push --tags…)
 	UnlockMR  UnlockOp = "mr"  // opening a merge request (glab mr create, gh pr create…)
 
-	// R6: merging the children of a fan-out (done by oh itself, at the
+	// Merging the children of a fan-out (done by oh itself, at the
 	// merge checkpoint of the fan-out only; schema_fanout.go).
 	UnlockMerge UnlockOp = "merge" // git merge, git pull, forge merges
 )
@@ -475,7 +474,7 @@ type CircuitBreaker struct {
 	MaxConsecutiveSubagents *int `yaml:"max_consecutive_subagents,omitempty"`
 }
 
-// Models is the workflow level of the model cascade (O9).
+// Models is the workflow level of the model cascade.
 type Models struct {
 	Default string            `yaml:"default,omitempty"` // provider/model[#variant]
 	Agents  map[string]string `yaml:"agents,omitempty"`
@@ -487,7 +486,7 @@ type SkillSelection struct {
 	Deny  []string `yaml:"deny,omitempty"`
 }
 
-// PluginRef declares a tool plugin (O5). A plain string is shorthand for
+// PluginRef declares a tool plugin. A plain string is shorthand for
 // `{ id: <string> }`.
 type PluginRef struct {
 	ID      string         `yaml:"id"`
@@ -533,11 +532,11 @@ type Output struct {
 	Type  OutputType    `yaml:"type"`
 	Label LocalizedText `yaml:"label,omitempty"`
 
-	// R5 (schema_next.go): Record makes oh record the output itself, from
+	// Record (schema_next.go) makes oh record the output itself, from
 	// what it saw the session do (tickets created, spec checked…); the
 	// agents cannot declare it.
 	Record OutputRecord `yaml:"record,omitempty"`
-	// B1 (schema_next.go): with `record: written`, Paths are the files read
+	// With `record: written` (schema_next.go), Paths are the files read
 	// (patterns, as `writes:`) and Match, when given, a regular expression
 	// whose first group is the value recorded (type text).
 	Paths []string `yaml:"paths,omitempty"`
@@ -563,8 +562,8 @@ type PreconditionCheck struct {
 	// session location) exists.
 	PathExists []string `yaml:"path_exists,omitempty"`
 
-	// R8 (preconditions.go): state of the repository and tools, checked by
-	// oh at launch (E7).
+	// State of the repository and tools, checked by oh at launch
+	// (preconditions.go).
 
 	// GitClean is satisfied when the project is a git repository without
 	// uncommitted change (staged, unstaged or untracked and not ignored;
@@ -591,11 +590,11 @@ const (
 type PreconditionSuggest struct {
 	Workflow string `yaml:"workflow"`
 	// Resume offers to relaunch this workflow, with the same inputs, once
-	// the suggested one has finished (O7).
+	// the suggested one has finished.
 	Resume bool `yaml:"resume,omitempty"`
 }
 
-// Limits are optional per-session caps (I6), on top of the hub, team and
+// Limits are optional per-session caps, on top of the hub, team and
 // project restrictions (internal/limits).
 type Limits struct {
 	// BudgetUSD is the budget of a session (soft cap, checked between steps).

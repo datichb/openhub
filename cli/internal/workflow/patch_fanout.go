@@ -5,7 +5,7 @@ import (
 	"slices"
 )
 
-// Patch rules of the fan-out (R6, schema_fanout.go): the fan-out is a
+// Patch rules of the fan-out (schema_fanout.go): the fan-out is a
 // security field. A layer other than the hub may only lower `parallel`
 // and give the children fewer inputs (`inputs`, a subset of the parent's);
 // changing the input, the tickets, the child workflow, the merge

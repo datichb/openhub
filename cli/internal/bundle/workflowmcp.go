@@ -5,7 +5,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
-// Workflow runtime of a bundle built from an oh/v1 workflow (P3-T01): the
+// Workflow runtime of a bundle built from an oh/v1 workflow: the
 // `workflow` MCP server agents call at each checkpoint, and the checkpoints,
 // gates and circuit breaker oh enforces while the session runs.
 

@@ -14,7 +14,7 @@ import (
 )
 
 // SCR: the content never leads an agent to put a session scratch path in the
-// documentation or the wiki (wiki_propose refuses it too, LD-J; the files of
+// documentation or the wiki (wiki_propose refuses it too; the files of
 // docs/ written directly have no such guard).
 //   - no content cites a concrete scratch path (it would be copied as is);
 //   - the skills and agents that write the documentation or the wiki do not

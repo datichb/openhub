@@ -249,7 +249,7 @@ func realBeadsGateway(t *testing.T, engine container.EngineKind) {
 	if out := shell("bd --db /tmp/x.db list; echo EXIT=$?"); !strings.Contains(out, "EXIT=1") {
 		t.Fatalf("--db must be refused:\n%s", out)
 	}
-	// The oh MCP server runs on the machine, reached over HTTP (P4-T08).
+	// The oh MCP server runs on the machine, reached over HTTP.
 	var mcpStatus string
 	for deadline := time.Now().Add(30 * time.Second); time.Now().Before(deadline); time.Sleep(500 * time.Millisecond) {
 		list, err := c.MCP(ctx, "/work/proj")

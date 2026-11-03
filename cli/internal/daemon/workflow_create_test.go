@@ -25,10 +25,10 @@ import (
 	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
-// N9 (DC8): through the real Beads gateway, `bd create` is refused before
+// Through the real Beads gateway, `bd create` is refused before
 // the checkpoint that unlocks `create` (spec, feature: cp-tickets) and
 // accepted after it; the tickets created are recorded in the session output
-// declared with `record: created` (R5).
+// declared with `record: created`.
 func TestWorkflowCreateGuard(t *testing.T) {
 	p := shortPaths(t)
 	st := sqlitetest.New(t)
@@ -107,7 +107,7 @@ func TestWorkflowCreateGuard(t *testing.T) {
 	assert.Equal(t, http.StatusOK, code, "reading is not locked")
 
 	// cp-tickets asked by the tool, validated in the tool UI (answer
-	// observed, N1): creation unlocked.
+	// observed): creation unlocked.
 	fake.set(func() {
 		fake.decisions["ses_c"] = []adapters.PendingDecision{{ID: "per_cpt", SessionID: "ses_c", Kind: adapters.DecisionPermission,
 			Call: &adapters.ToolCall{ID: "call_1", Action: "mcp:workflow/checkpoint", Input: map[string]any{"id": "cp-tickets", "summary": "split"}}}}
@@ -128,5 +128,5 @@ func TestWorkflowCreateGuard(t *testing.T) {
 	assert.Equal(t, http.StatusOK, code, "the window stays open for the whole split")
 	sess, err := sessions.Get(ctx, "ses_c")
 	require.NoError(t, err)
-	assert.Equal(t, []any{"ev-1", "ev-2"}, sess.Outputs["tickets"], "R5: created tickets recorded by oh")
+	assert.Equal(t, []any{"ev-1", "ev-2"}, sess.Outputs["tickets"], "created tickets recorded by oh")
 }

@@ -15,7 +15,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/procinfo"
 )
 
-// Hook tokens of the Beads gateway (audit v5, S-06, DC24): the fake bd of
+// Hook tokens of the Beads gateway (audit v5, S-06): the fake bd of
 // a local session run by a Beads git hook asks the daemon, on its socket,
 // for a one-time token that opens the hook mode of the gateway for that
 // command. The daemon gives it only when the calling process (peer of the
@@ -65,7 +65,7 @@ func (d *Daemon) handleHookToken(w http.ResponseWriter, r *http.Request) {
 
 // checkHookCaller: the peer of the request runs under git from the hook.
 // Where the system tells neither the peer nor its parents, the shape of the
-// command is the only check (DC24, fallback).
+// command is the only check (fallback).
 func (d *Daemon) checkHookCaller(r *http.Request, g gateway.Grant, hook string) error {
 	c, _ := r.Context().Value(connKey{}).(net.Conn)
 	pid, err := peerPID(c)

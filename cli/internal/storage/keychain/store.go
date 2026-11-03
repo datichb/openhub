@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
-	"path/filepath"
 	"regexp"
 	"runtime"
 	"time"
@@ -35,15 +34,6 @@ type Store struct {
 func New(hubDir string) *Store {
 	return &Store{
 		idx: newSecretsIndex(hubDir),
-	}
-}
-
-// NewLegacy creates a Store without a hubDir (index disabled).
-// Kept for backward compatibility with callers that don't have hubDir yet.
-func NewLegacy() *Store {
-	homeDir := ""
-	return &Store{
-		idx: newSecretsIndex(filepath.Join(homeDir, ".oh")),
 	}
 }
 

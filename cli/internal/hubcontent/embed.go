@@ -71,13 +71,6 @@ func HubContentDir() string {
 	return filepath.Join(home, ".oh", "hub")
 }
 
-// IsInstalled returns true if hub content has been extracted at least once.
-func IsInstalled() bool {
-	dir := HubContentDir()
-	_, err := os.Stat(filepath.Join(dir, "agents"))
-	return err == nil
-}
-
 // NeedsExtract returns true if the hub content needs to be extracted (not
 // present, or a version mismatch with the current binary; for a development
 // or modified build, a mismatch of the embedded content too).

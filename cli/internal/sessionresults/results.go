@@ -1,6 +1,6 @@
 // Package sessionresults keeps the results snapshot of a session (diff,
 // branch, cost, tokens) under ~/.oh/sessions/<id>/results/, so that the
-// recap stays available once the tool server sleeps or stops (P3-T11).
+// recap stays available once the tool server sleeps or stops.
 package sessionresults
 
 import (

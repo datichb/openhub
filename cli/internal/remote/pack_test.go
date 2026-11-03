@@ -54,7 +54,7 @@ func TestProjectTokenVar(t *testing.T) {
 	assert.False(t, ok)
 }
 
-// N21: the journal key travels encrypted for the target, bound to its
+// The journal key travels encrypted for the target, bound to its
 // session; only the private key of the target opens it.
 func TestSealJournalKey(t *testing.T) {
 	pub, priv, err := NewJournalKeyPair()

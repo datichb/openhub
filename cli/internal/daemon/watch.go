@@ -13,7 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionctx"
 )
 
-// Session tracking (E10): one watcher per live tool server subscribes to the
+// Session tracking: one watcher per live tool server subscribes to the
 // tool event stream and keeps the oh sessions table up to date (run state,
 // cost, tokens). The stream is live-only, so each (re)connection starts with a
 // resynchronization from the tool list endpoints.
@@ -33,7 +33,7 @@ type sessionTrack struct {
 	childPending map[string]int // requests of its subagent sessions
 	alerts       int            // decisions raised by oh (error, budget)
 	// held: a step was interrupted while a budget decision was open; it is
-	// resumed once the decision is answered (A22).
+	// resumed once the decision is answered.
 	held bool
 	// deferred are the session state writes kept for the end of the step.
 	deferred  []func(ctx context.Context)
@@ -65,10 +65,10 @@ type watcher struct {
 	children   map[string]string    // subagent session id → oh session that delegated it
 	childAgent map[string]string    // subagent session id → its agent
 	callAgent  map[string]string    // subagent tool call id → delegated agent (checkpoints)
-	// shellChecked lists the sessions whose shell was checked (A16).
+	// shellChecked lists the sessions whose shell was checked.
 	shellChecked map[string]bool
 	runs         map[string]*agentRun // tool session id → agent telemetry (agent_events)
-	ctxw         *sessionctx.Writer   // evolving session state (S8)
+	ctxw         *sessionctx.Writer   // evolving session state
 	synced       bool                 // a resync succeeded since the last (re)connection
 	lastTouch    time.Time
 	lastEvent    time.Time // last session activity seen (idle-sleep timer)
@@ -304,7 +304,7 @@ func (w *watcher) onEvent(ctx context.Context, ev adapters.ToolEvent) {
 	switch {
 	case ev.Kind == adapters.EventExecStarted:
 		w.reopenCompleted(ctx, ev.SessionID)
-		w.d.ensureFanoutDriver(ctx, ev.SessionID) // p6-debts
+		w.d.ensureFanoutDriver(ctx, ev.SessionID)
 		if !w.holdOverBudget(ctx, ev.SessionID, ev.SessionID) {
 			w.clearAlerts(ctx, ev.SessionID)
 			w.syncBudget(ctx, ev.SessionID, false) // after a raise
@@ -330,7 +330,7 @@ func (w *watcher) onEvent(ctx context.Context, ev adapters.ToolEvent) {
 		w.finishWorkflow(ctx, ev.SessionID)
 	}
 	if ev.Kind == adapters.EventExecEnded {
-		w.d.ensureFanoutDriver(ctx, ev.SessionID) // p6-debts: the step is over, the driver may have ended with it
+		w.d.ensureFanoutDriver(ctx, ev.SessionID) // the step is over, the driver may have ended with it
 		w.flushDeferred(ctx, ev.SessionID)
 		w.raiseBudget(ctx, ev.SessionID, true) // the step is over: a dismissed decision is asked again
 		w.clearResume(ctx, ev.SessionID)
@@ -660,7 +660,7 @@ func (w *watcher) adoptNow(ctx context.Context, id string) (string, bool) {
 const maxAdoptDepth = 32
 
 // adoptForHook returns the oh session of a tool session that asks about a
-// held request (p6-debts): the session itself when oh knows it, else its
+// held request: the session itself when oh knows it, else its
 // root once adopted, retried for a few seconds (the tool may list a new
 // session a moment after its first call); id when none.
 func (d *Daemon) adoptForHook(ctx context.Context, id, group string) string {

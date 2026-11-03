@@ -11,7 +11,7 @@ import (
 
 // runLogRotation keeps the logs written by live processes bounded: ohd.log
 // (the daemon's own output) and the *.log files of the data directories of
-// the server groups (N16). It never keeps the daemon awake.
+// the server groups. It never keeps the daemon awake.
 func (d *Daemon) runLogRotation(ctx context.Context) {
 	every := d.opts.LogRotateEvery
 	if every <= 0 {

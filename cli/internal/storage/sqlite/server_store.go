@@ -20,7 +20,7 @@ import (
 
 // ServerStore implements domain.ServerStore.
 //
-// The password of a tool server is not kept in oh.db (v5 critical N26): an
+// The password of a tool server is not kept in oh.db: an
 // agent able to read the database (any interpreter) would drive the servers
 // of every project. It is written to a 0600 file per group under
 // <hub>/run/server-passwords/ (refused to the shell of the agents by the

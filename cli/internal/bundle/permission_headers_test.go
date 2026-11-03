@@ -13,7 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/bricks"
 )
 
-// C4: every permission base (permissions/<base>.yaml, plugin-tools.yaml is
+// Every permission base (permissions/<base>.yaml, plugin-tools.yaml is
 // not one) starts with `# Permission base: <base>` and has one
 // `# Used by: a, b` line listing, sorted, the agents whose frontmatter sets
 // `permission_base: <base>`.

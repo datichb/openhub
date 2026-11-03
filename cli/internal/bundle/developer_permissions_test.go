@@ -9,9 +9,9 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
-// A20 (piste T, T3): the shipped developer runs the project's Python tools
+// The shipped developer runs the project's Python tools
 // (python3, its virtual environment, uv, poetry) but never installs in the
-// system (pip outside a virtual environment, npm -g, gem install); A19: the
+// system (pip outside a virtual environment, npm -g, gem install); the git
 // hooks stay in force.
 func TestDeveloperShellPermissions(t *testing.T) {
 	b := agentBuild(t, "developer", "bedrock")

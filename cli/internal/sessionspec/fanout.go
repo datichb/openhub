@@ -1,6 +1,6 @@
 package sessionspec
 
-// Fan-out of a session (R6, E3, CP-R3), copied from the oh/v1 schema: the
+// Fan-out of a session (CP-R3), copied from the oh/v1 schema: the
 // bundle of a fan-out session carries it; the daemon reads it from the
 // bundle of the parent before it lets a delegated checkpoint of a child
 // pass without a pause.

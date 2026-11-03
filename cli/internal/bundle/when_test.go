@@ -159,7 +159,7 @@ func hubTexts(t *testing.T) map[string]string {
 	return out
 }
 
-// L3: the markers of the hub content are well formed and balanced.
+// The markers of the hub content are well formed and balanced.
 func TestHubWhenMarkersBalanced(t *testing.T) {
 	t.Parallel()
 	n := 0
@@ -218,7 +218,7 @@ func withAllFlags(env whenEnv) whenEnv {
 
 var questionCallRe = regexp.MustCompile("question\\(|outil `question` (?:pour|avec)|appelle(?:r)? (?:l'outil )?`question`")
 
-// L3 (C-6): a subagent never asks the user: no block written for subagents
+// A subagent never asks the user: no block written for subagents
 // calls the question tool.
 func TestNoQuestionInSubagentBlocks(t *testing.T) {
 	t.Parallel()
@@ -233,7 +233,7 @@ func TestNoQuestionInSubagentBlocks(t *testing.T) {
 	}
 }
 
-// L3: an agent's own text has no block for a role it never has in the
+// An agent's own text has no block for a role it never has in the
 // shipped workflows (dead text).
 func TestNoDeadRoleBlocksInAgents(t *testing.T) {
 	t.Parallel()
@@ -276,7 +276,7 @@ func TestNoDeadRoleBlocksInAgents(t *testing.T) {
 					env := withAllFlags(roleEnv(id, r))
 					env.method = string(m)
 					alive = alive || e.holds(env)
-					// R4: a negated flag (`!writes`) holds without the flag.
+					// A negated flag (`!writes`) holds without the flag.
 					bare := roleEnv(id, r)
 					bare.agent, bare.method = "*", string(m)
 					alive = alive || e.holds(bare)
@@ -292,7 +292,7 @@ func TestNoDeadRoleBlocksInAgents(t *testing.T) {
 	}
 }
 
-// L3: the composed prompt of an agent that is only a subagent does not
+// The composed prompt of an agent that is only a subagent does not
 // invite it to call question.
 func TestSubagentPromptsDoNotCallQuestion(t *testing.T) {
 	for _, wf := range []string{"libre", "ticket", "sweep", "spec", "implement-spec"} {

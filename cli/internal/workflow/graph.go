@@ -104,7 +104,7 @@ func graphKnown(s *Spec, agents AgentCatalog) bool {
 	return true
 }
 
-// SubagentGraph is the delegation graph compiled into a bundle (O1): the
+// SubagentGraph is the delegation graph compiled into a bundle: the
 // workflow members (entry first, then declaration order) and, for each
 // member, the members it may launch (sorted).
 func SubagentGraph(s *Spec, agents AgentCatalog) (members []string, graph map[string][]string) {

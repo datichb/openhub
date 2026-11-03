@@ -72,7 +72,7 @@ func TestFromOutput(t *testing.T) {
 	}
 }
 
-// A1: pre-releases and `git describe` builds are ordered, so oh never offers
+// pre-releases and `git describe` builds are ordered, so oh never offers
 // to "update" to an older version (5.0.0-test → 4.2.0).
 func TestCompare(t *testing.T) {
 	tests := []struct {

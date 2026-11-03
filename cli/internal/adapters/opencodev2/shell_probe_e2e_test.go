@@ -17,7 +17,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
-// Lot 0 of the v5 critical fixes (17-critiques, probes U1–U5): how the tool
+// Probes of how the tool
 // matches shell permission rules, observed through the files each command
 // creates when it runs. The simulator of internal/bundle (ShellEffect)
 // follows these results; a change of the tool breaks this test first.
@@ -63,7 +63,7 @@ func TestE2EShellMatcherSemantics(t *testing.T) {
 	}
 
 	// Production-like session: an environment is set (the shell does not
-	// inherit the server process environment, F30).
+	// inherit the server process environment).
 	env := map[string]string{"PATH": os.Getenv("PATH"), "HOME": os.Getenv("HOME"), "OH_SESSION_ID": "probe"}
 	reply := run(env, []sessionspec.PermissionRule{
 		rule(sh, "touch u5s*", sessionspec.EffectDeny),
@@ -85,17 +85,17 @@ func TestE2EShellMatcherSemantics(t *testing.T) {
 	})
 	t.Logf("reply: %s", reply)
 
-	// U1: the environment prefix is part of the text compared.
+	// The environment prefix is part of the text compared.
 	assert.False(t, exists("u1_env"), "U1: `X=1 touch` does not match `touch *`")
-	// U2: quotes and spaces are not normalized: a pattern is not a barrier.
+	// Quotes and spaces are not normalized: a pattern is not a barrier.
 	assert.True(t, exists("secret_u2q"), "U2: `touch sec''ret` escapes `touch secret*`")
 	assert.True(t, exists("secret_u2s"), "U2: `touch  secret` (two spaces) escapes `touch secret*`")
-	// U4: redirections and arguments are not checked against the external
+	// Redirections and arguments are not checked against the external
 	// directory rules, `cd` is.
 	assert.True(t, exists(filepath.Join(outside, "outside_u4r")), "U4: a redirection writes outside the project")
 	assert.True(t, exists(filepath.Join(outside, "outside_u4a")), "U4: an argument writes outside the project")
 	assert.False(t, exists(filepath.Join(outside, "outside_u4c")), "U4: `cd` outside the project is checked")
-	// U5: a line is refused when one of its commands is; session rules come
+	// A line is refused when one of its commands is; session rules come
 	// after the agent rules (the last matching rule wins, in both ways).
 	assert.False(t, exists("u5a_ok"), "U5: the whole line is refused")
 	assert.False(t, exists("u5s_session"), "U5: a session deny wins over an agent allow")
@@ -120,7 +120,7 @@ func TestE2EShellMatcherSemantics(t *testing.T) {
 	t.Logf("U3 without a session environment: password visible=%v, config visible=%v", strings.TrimSpace(string(pw)) != "", strings.TrimSpace(string(cfg)) != "")
 }
 
-// N3 (v5 critical): the global guard of oh, applied by the oh plugin to an
+// The global guard of oh, applied by the oh plugin to an
 // agent allowed to run anything: git options that run a program or write a
 // file, the git pointer file, the oh data and the git environment are
 // refused; an ordinary command still runs.

@@ -108,7 +108,7 @@ func TestPeekCapabilityNeverCreates(t *testing.T) {
 	assert.Equal(t, CapabilityKeychain, src)
 }
 
-// M12: issuing tokens, revoking, opening listeners and stopping the daemon
+// Issuing tokens, revoking, opening listeners and stopping the daemon
 // need the capability; the tool-facing routes do not.
 func TestPrivilegedRoutesNeedTheCapability(t *testing.T) {
 	p, servers, grants := hardeningEnv(t)

@@ -8,8 +8,8 @@ import (
 	"strings"
 )
 
-// R8: preconditions on the repository (E7) and publishing workflows
-// (risk: publish, operations tag and mr, E9).
+// Preconditions on the repository and publishing workflows
+// (risk: publish, operations tag and mr).
 
 // IsZero reports whether c declares no test.
 func (c PreconditionCheck) IsZero() bool {

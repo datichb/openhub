@@ -1,4 +1,4 @@
-// Package prefsvc is the PreferenceService (v5, T1): pinned workflows,
+// Package prefsvc is the PreferenceService (v5): pinned workflows,
 // recently used workflows (derived from the sessions), default suggestions
 // for the « Démarrer » block, and generic UI settings.
 package prefsvc
@@ -17,9 +17,9 @@ import (
 )
 
 const (
-	// MaxPins is the maximum number of pinned workflows per scope (T1).
+	// MaxPins is the maximum number of pinned workflows per scope.
 	MaxPins = 5
-	// MaxRecents is the maximum number of recent workflows shown (T1).
+	// MaxRecents is the maximum number of recent workflows shown.
 	MaxRecents = 3
 
 	keyPins = "start.pins"

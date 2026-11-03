@@ -91,7 +91,7 @@ func TestBuildAppliesWorkflowModels(t *testing.T) {
 	require.NoError(t, err)
 	dev := findAgent(b.Spec.Agents, "developer")
 	require.NotNil(t, dev.Model)
-	assert.Contains(t, dev.Model.Model, "claude-haiku-4-5", "workflow default beats project agent override (O9)")
+	assert.Contains(t, dev.Model.Model, "claude-haiku-4-5", "workflow default beats project agent override")
 	rev := findAgent(b.Spec.Agents, "reviewer")
 	require.NotNil(t, rev.Model)
 	assert.Contains(t, rev.Model.Model, "claude-opus-4-6")
@@ -107,7 +107,7 @@ func knownModel(m string) bool {
 		bricks.NormalizeModelForProvider(m, "github-copilot") != "github-copilot/"+m
 }
 
-// C4: the floor model of every agent is a bare model name (the provider is
+// The floor model of every agent is a bare model name (the provider is
 // the project's) known to the model resolution.
 func TestAgentModelsAreKnown(t *testing.T) {
 	files, err := bricks.FindAgentFiles(repoHub(t))

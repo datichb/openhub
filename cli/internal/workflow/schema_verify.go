@@ -6,7 +6,7 @@ import (
 )
 
 // Verification run by oh at a checkpoint and conditions of a checkpoint
-// (R3: E1, E6, CP-R7).
+// (CP-R7).
 //
 //	checkpoints:
 //	  cp-2:
@@ -41,7 +41,7 @@ type VerifySpec struct {
 	// of these paths (wildcards: *, **).
 	MustTouch []string `yaml:"must_touch,omitempty"`
 
-	// R7 (TDD): the changes and the test files.
+	// TDD method: the changes and the test files.
 
 	// MustTouchTests requires the changes to touch a test file of the
 	// stack (bricks.TestFilePatterns).
@@ -53,14 +53,14 @@ type VerifySpec struct {
 	// checkpoint was last passed ("" = from the start of the session).
 	Since string `yaml:"since,omitempty"`
 
-	// R4 (schema_writes.go): the specs written by the session.
+	// The specs written by the session (schema_writes.go).
 
 	// Spec checks the specs the session changed (SpecCheck): a glossary,
 	// acceptance criteria each with its test point and, with breakdown, a
 	// breakdown that covers every criterion and only them.
 	Spec *SpecCheck `yaml:"spec,omitempty"`
 
-	// R6 (schema_fanout.go): On runs the verification elsewhere than the
+	// Fan-out (schema_fanout.go): On runs the verification elsewhere than the
 	// session location: `integration`, the integration branch of a fan-out
 	// (merge checkpoint only).
 	On VerifyOn `yaml:"on,omitempty"`

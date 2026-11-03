@@ -11,7 +11,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
-// Checkpoint rules (P3-T02, P3-T04, P3-T06). The bundle is shared by every
+// Checkpoint rules. The bundle is shared by every
 // session of a server group whatever its mode, so it only carries the safe
 // base: workflow_checkpoint asks. Mode and progress dependent rules are
 // session rules, set when the session is created and replaced by the
@@ -25,7 +25,7 @@ var (
 	actionCheckpoint = sessionspec.MCPToolAction(sessionspec.WorkflowMCPServer, sessionspec.WorkflowToolCheckpoint)
 	actionStatus     = sessionspec.MCPToolAction(sessionspec.WorkflowMCPServer, sessionspec.WorkflowToolStatus)
 	actionOutputs    = sessionspec.MCPToolAction(sessionspec.WorkflowMCPServer, sessionspec.WorkflowToolOutputs)
-	// Reports (L4): filing and reading the reports of the session.
+	// Reports: filing and reading the reports of the session.
 	actionReport    = sessionspec.MCPToolAction(sessionspec.WorkflowMCPServer, sessionspec.WorkflowToolReport)
 	actionReportGet = sessionspec.MCPToolAction(sessionspec.WorkflowMCPServer, sessionspec.WorkflowToolReportGet)
 	actionReports   = sessionspec.MCPToolAction(sessionspec.WorkflowMCPServer, sessionspec.WorkflowToolReports)
@@ -104,8 +104,8 @@ func SessionRules(wf *sessionspec.WorkflowRuntime, mode string, st *domain.Check
 }
 
 // earlyWindowRules keep the `writes:` paths out of the commit window of a
-// checkpoint followed by another commit checkpoint (unlock_again,
-// p6-debts): the postmortem of incident is committed at cp-postmortem, not
+// checkpoint followed by another commit checkpoint (unlock_again):
+// the postmortem of incident is committed at cp-postmortem, not
 // with the mitigation at cp-mitigated. git add and git commit naming a
 // writes: path or a folder above it, and the forms that take every change
 // (-A, ., -u, commit -a), are refused while that window is open. A guard
@@ -161,7 +161,7 @@ func earlyWindowRules(wf *sessionspec.WorkflowRuntime, st *domain.CheckpointStat
 // lockPatterns are the shell commands refused while an operation is locked.
 // The tool matches each command of a compound line on its own (`a && b`,
 // pipes, subshells; verified on opencode 2.0.20). The patterns are anchored
-// on the subcommand (N10), so that `git log --grep commit`, `git diff
+// on the subcommand, so that `git log --grep commit`, `git diff
 // src/pushX.ts` or `bd list --status closed` stay allowed, and cover the
 // usual detours: a prefix (`env git commit`, `X=1 git commit`), global
 // options (`git -c k=v commit`, `git -C dir commit`, `bd --json close`), a
@@ -182,10 +182,10 @@ var lockPatterns = map[string][]string{
 		"assign", "priority", "set-state", "rename", "promote", "tag", "note", "delete", "duplicate", "supersede"),
 		"bd comment *", "* bd comment *", "*/bd comment *"),
 	sessionspec.UnlockApply: ApplyLockPatterns,
-	// R8 (publishguard.go)
+	// Publishing (publishguard.go)
 	sessionspec.UnlockTag: tagLockPatterns,
 	sessionspec.UnlockMR:  mrLockPatterns,
-	// R6 (fanoutguard.go)
+	// Fan-out merge (fanoutguard.go)
 	sessionspec.UnlockMerge: mergeLockPatterns,
 }
 
@@ -303,10 +303,10 @@ func gateOpen(wf *sessionspec.WorkflowRuntime, mode string, st *domain.Checkpoin
 }
 
 // ---------------------------------------------------------------------------
-// R3: verification run by oh, conditions, fix rounds and pauses.
+// Verification run by oh, conditions, fix rounds and pauses.
 // ---------------------------------------------------------------------------
 
-// applyCheckpointVerify copies into rt the R3 fields of the checkpoints of
+// applyCheckpointVerify copies into rt the verification fields of the checkpoints of
 // s (verify:, when:) and the cap of the fix rounds. In a read-only workflow
 // (risk: read) a verification is asked: its checkpoint pauses.
 func applyCheckpointVerify(rt *sessionspec.WorkflowRuntime, s *workflow.Spec) {
@@ -342,7 +342,7 @@ func applyCheckpointVerify(rt *sessionspec.WorkflowRuntime, s *workflow.Spec) {
 				Paths: append([]string(nil), w.Paths...), Outputs: append([]string(nil), w.Outputs...)}
 		}
 	}
-	// R7: the commit of the location is recorded when a checkpoint a
+	// The commit of the location is recorded when a checkpoint a
 	// verification counts the changes from (since:) is passed.
 	for _, def := range rt.Checkpoints {
 		if def.Verify == nil || def.Verify.Since == "" {

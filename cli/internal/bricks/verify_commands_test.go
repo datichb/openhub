@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// C1.6: the reviewer runs the build, tests, lint and type check of the
+// The reviewer runs the build, tests, lint and type check of the
 // detected stack, never an install or a publish.
 func TestVerifyCommands(t *testing.T) {
 	t.Parallel()
@@ -64,7 +64,7 @@ func TestVerifyCommandsNeverInstall(t *testing.T) {
 	}
 }
 
-// R3: the concrete commands oh runs at a checkpoint, by kind; each one is
+// The concrete commands oh runs at a checkpoint, by kind; each one is
 // allowed by VerifyCommands (never an install).
 func TestVerifyRuns(t *testing.T) {
 	t.Parallel()

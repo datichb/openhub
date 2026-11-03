@@ -30,7 +30,7 @@ type MCPCommand struct {
 	Dir  string
 }
 
-// MCP serves the oh MCP servers of a server group over HTTP (P4-T08), for
+// MCP serves the oh MCP servers of a server group over HTTP, for
 // tool servers running outside the machine: each server runs on the machine
 // as its usual stdio command (`oh mcp serve <name>`, tokens read from the
 // machine secret store) and the gateway relays JSON-RPC messages between the

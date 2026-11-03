@@ -4,7 +4,6 @@
 package remote
 
 import (
-	"fmt"
 	"regexp"
 	"strconv"
 )
@@ -12,7 +11,7 @@ import (
 // PipelineSchema is the version of the generated .gitlab-ci.yml contract
 // (variables, stages, artifacts). Bump it on any incompatible change: the
 // machine refuses to send to an oh-runner project with another schema.
-const PipelineSchema = 5 // 2: neutral OH_TOOL_VERSION (QB7); 3: secrets scoped to the run job, image context uploaded by the machine (S-02); 4: run image pinned by digest, journal key pair (N21); 5: reports of workflow_report among the artifacts (reports.json, L4)
+const PipelineSchema = 5 // 2: neutral OH_TOOL_VERSION; 3: secrets scoped to the run job, image context uploaded by the machine (S-02); 4: run image pinned by digest, journal key pair; 5: reports of workflow_report among the artifacts (reports.json)
 
 // CI variables of the oh-runner project (set by oh remote setup). Secret ones
 // are masked and protected; they never leave GitLab except into the job.
@@ -105,14 +104,3 @@ const OutDir = "oh-out"
 
 // RunnerProjectName is the default path of the oh-runner project in a group.
 const RunnerProjectName = "oh-runner"
-
-// ReleaseURL is the release archive of oh for a version and architecture
-// (goreleaser archives).
-func ReleaseURL(version, arch string) string {
-	return fmt.Sprintf("https://github.com/datichb/openhub/releases/download/v%s/openhub_linux_%s.tar.gz", version, arch)
-}
-
-// ReleaseChecksumsURL is the checksums file of a release.
-func ReleaseChecksumsURL(version string) string {
-	return fmt.Sprintf("https://github.com/datichb/openhub/releases/download/v%s/checksums.txt", version)
-}

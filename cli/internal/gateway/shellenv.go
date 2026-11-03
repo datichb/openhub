@@ -14,7 +14,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/fsutil"
 )
 
-// Shell start-up of local sessions (A16): the user's own start-up files
+// Shell start-up of local sessions: the user's own start-up files
 // (~/.zshenv…) may put their directories before the fake bd of oh on the
 // PATH, so that a real bd (npm, volta, ~/.local/bin) would bypass the
 // gateway and beads.allow. The shell of a local session reads oh's start-up

@@ -97,7 +97,7 @@ skills: [dev-standards]
 	assert.Equal(t, "allow", fm.Permission["edit"])
 }
 
-// The mode defaults to "primary"; C1.6: `verify: true` grants the
+// The mode defaults to "primary"; `verify: true` grants the
 // verification commands; unknown keys are ignored.
 func TestParseAgentFrontmatterFromBytes_ModeAndVerify(t *testing.T) {
 	t.Parallel()

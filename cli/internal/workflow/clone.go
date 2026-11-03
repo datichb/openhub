@@ -26,7 +26,7 @@ func (s *Spec) Clone() *Spec {
 		return in
 	})
 	c.Prompt = clonePtr(s.Prompt)
-	c.Fanout = s.Fanout.clone() // R6
+	c.Fanout = s.Fanout.clone()
 	c.Agents = s.Agents.cloneWith(func(a AgentRef) AgentRef {
 		a.Calls = cloneSlice(a.Calls)
 		a.Writes = cloneSlice(a.Writes)
@@ -166,7 +166,7 @@ func cloneAny(v any) any {
 	return v
 }
 
-// cloneNext copies the steps of `next:` (R5).
+// cloneNext copies the steps of `next:`.
 func cloneNext(steps []NextStep) []NextStep {
 	if steps == nil {
 		return nil

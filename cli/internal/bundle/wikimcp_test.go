@@ -12,7 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
-// LD-J: a workflow bundle for a project with a wiki gets the wiki MCP
+// A workflow bundle for a project with a wiki gets the wiki MCP
 // server; every agent reads and proposes, only the documentarian applies
 // (asked), and the session contract says so.
 func TestWikiMCPInBundle(t *testing.T) {
@@ -49,7 +49,7 @@ func TestWikiMCPInBundle(t *testing.T) {
 	}
 }
 
-// p3-remote-wiki: the bundle of a remote session is the one built on the
+// The bundle of a remote session is the one built on the
 // machine (the job runs it as is): every shipped workflow that runs
 // remotely gets the wiki MCP server with the same tools and rules as in a
 // local session; the job daemon serves them on its clone.

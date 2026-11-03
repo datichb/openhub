@@ -6,7 +6,7 @@ import (
 )
 
 // SessionPorter is implemented by adapters that can move a session between
-// servers (remote runs, S9): Export returns the transcript of a session in
+// servers (remote runs): Export returns the transcript of a session in
 // the tool's format, Import recreates it on another server at location
 // (same session id). Children must be imported after their parent.
 type SessionPorter interface {

@@ -19,7 +19,7 @@ type Source struct {
 	Layer Layer `json:"layer"`
 	// Path is the file the document was read from (display only).
 	Path string `json:"path,omitempty"`
-	// Draft marks an unpublished document (phase 2).
+	// Draft marks an unpublished document.
 	Draft bool `json:"draft,omitempty"`
 }
 

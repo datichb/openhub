@@ -12,7 +12,7 @@ import (
 
 const stacksDir = "../../../skills/developer/stacks"
 
-// C3.2: every mapped ref is a shipped stack skill, and every stack skill is
+// Every mapped ref is a shipped stack skill, and every stack skill is
 // reachable from a signal.
 func TestStackSkillMapping_MatchesCatalog(t *testing.T) {
 	t.Parallel()
@@ -61,14 +61,14 @@ func TestResolveStackSkills_Projects(t *testing.T) {
 		{"next.js and react declared: react appears once", map[string]string{
 			"package.json": `{"dependencies":{"next":"14.0","react":"18.0"}}`,
 		}, []string{p + "nextjs", p + "react"}},
-		{"QB3: django detected from pyproject.toml", map[string]string{
+		{"django detected from pyproject.toml", map[string]string{
 			"pyproject.toml": "[tool.poetry.dependencies]\ndjango = \"^4.2\"\n",
 			"Dockerfile":     "FROM python:3.11",
 		}, []string{p + "django", p + "docker", p + "python"}},
-		{"QB3: fastapi detected from requirements.txt", map[string]string{
+		{"fastapi detected from requirements.txt", map[string]string{
 			"requirements.txt": "fastapi==0.110\nuvicorn\n",
 		}, []string{p + "fastapi", p + "python"}},
-		{"QB3: rails detected from the Gemfile", map[string]string{
+		{"rails detected from the Gemfile", map[string]string{
 			"Gemfile": "source 'https://rubygems.org'\ngem 'rails', '~> 7.1'\n",
 		}, []string{p + "rails"}},
 		{"empty project", map[string]string{}, nil},

@@ -10,7 +10,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 )
 
-// R4: file_matches reads the files changed in the clone (the spec written
+// file_matches reads the files changed in the clone (the spec written
 // under docs/wiki/specs/); it needs the clone, so Rescore keeps its result.
 func TestFileMatches(t *testing.T) {
 	files := map[string]string{
@@ -41,7 +41,7 @@ func TestFileMatches(t *testing.T) {
 	assert.True(t, cloneAssertion(AssertFileMatches))
 }
 
-// R4: answers.sequence answers the first asks of a checkpoint in order,
+// answers.sequence answers the first asks of a checkpoint in order,
 // then answers.checkpoints applies.
 func TestAnswerSequence(t *testing.T) {
 	a := Answers{Checkpoints: map[string]string{"cp-spec": "approve"}, Sequence: map[string][]string{"cp-spec": {"reject: ajoute une règle"}}}

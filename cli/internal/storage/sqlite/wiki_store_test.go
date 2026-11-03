@@ -134,7 +134,7 @@ func TestWikiProposalPurge(t *testing.T) {
 	assert.Equal(t, "wp-6", p.ID(), "a purged number is never given again")
 }
 
-// v49 (p9-wiki-refusal): the reason of a refusal goes to the database and
+// v49: the reason of a refusal goes to the database and
 // comes back from Get and List; a proposal without one reads "".
 func TestWikiProposalReasonRoundTrip(t *testing.T) {
 	st := openTestStore(t)

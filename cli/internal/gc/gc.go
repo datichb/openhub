@@ -1,4 +1,4 @@
-// Package gc cleans up what oh leaves behind (N16, DC15): session bundles,
+// Package gc cleans up what oh leaves behind: session bundles,
 // data of the server groups, session folders, automatic worktrees, temporary
 // build folders, orphan tool servers and the old history of the database.
 //

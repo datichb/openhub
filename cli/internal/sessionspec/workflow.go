@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// Workflow runtime of a session bundle (phase 3, checkpoints): the part of
+// Workflow runtime of a session bundle: the part of
 // the oh/v1 workflow oh needs while a session runs (checkpoints, gates,
 // circuit breaker, outputs), and the oh MCP server `workflow` that agents
 // call at each checkpoint.
@@ -21,7 +21,7 @@ const (
 	WorkflowToolStatus     = "status"
 	WorkflowToolCheckpoint = "checkpoint"
 	WorkflowToolOutputs    = "outputs"
-	// Reports (modernisation L4): workflow_report, workflow_report_get,
+	// Reports: workflow_report, workflow_report_get,
 	// workflow_reports.
 	WorkflowToolReport    = "report"
 	WorkflowToolReportGet = "report_get"
@@ -32,8 +32,8 @@ const (
 var WorkflowTools = []string{WorkflowToolStatus, WorkflowToolCheckpoint, WorkflowToolOutputs,
 	WorkflowToolReport, WorkflowToolReportGet, WorkflowToolReports}
 
-// LegacyWorkflowTools maps the tool names served before v5 finalisation
-// (Q3-2: the model saw workflow_workflow_checkpoint) to the current ones, so
+// LegacyWorkflowTools maps the tool names served before the rename
+// (the model saw workflow_workflow_checkpoint) to the current ones, so
 // that the events of a session started before the rename are still read.
 var LegacyWorkflowTools = map[string]string{
 	"workflow_status":     WorkflowToolStatus,
@@ -68,7 +68,7 @@ func ParseMCPToolAction(action string) (server, tool string, ok bool) {
 // EnvGroupToken holds, in the environment of the tool server (and so of the
 // workflow MCP server it runs), the token of its server group: the workflow
 // MCP server sends it to the oh daemon, which refuses the workflow routes
-// without it (v5 critical N1). Never in the shell of a session (the adapter
+// without it. Never in the shell of a session (the adapter
 // removes it).
 const EnvGroupToken = "OH_GROUP_TOKEN"
 
@@ -114,26 +114,26 @@ type WorkflowRuntime struct {
 	// Scratch are the session scratch folders of the workflow (SCR).
 	Scratch []ScratchDef `json:"scratch,omitempty"`
 
-	// R3 (workflow_verify.go): developer → reviewer rounds per ticket
+	// Developer → reviewer rounds per ticket (workflow_verify.go)
 	// (`limits.max_fix_rounds`, 0 = no cap).
 	MaxFixRounds int `json:"max_fix_rounds,omitempty"`
 
-	// R7: Method is the method of the session ("" = standard): the
+	// Method is the method of the session ("" = standard): the
 	// bundle holds only the checkpoints of this method.
 	Method string `json:"method,omitempty"`
 
-	// R6 (fanout.go): Fanout is the fan-out of a fan-out session (nil for
+	// Fanout is the fan-out of a fan-out session (fanout.go; nil for
 	// the others).
 	Fanout *FanoutDef `json:"fanout,omitempty"`
-	// r5-fixes: WritesGates hold the `writes:` paths of an agent until a
+	// WritesGates hold the `writes:` paths of an agent until a
 	// checkpoint is passed (`writes_after`).
 	WritesGates []WritesGate `json:"writes_gates,omitempty"`
-	// p6-debts: Writes are the `writes:` paths of each agent: oh checks the
+	// Writes are the `writes:` paths of each agent: oh checks the
 	// git add and git commit lines of these paths the rules cannot read
 	// (several paths, several -m).
 	Writes map[string][]string `json:"writes,omitempty"`
 	// ScopeInput is the input that is the file scope of the session
-	// (p6-debts, recorded as an output of the same id; "" = none).
+	// (recorded as an output of the same id; "" = none).
 	ScopeInput string `json:"scope_input,omitempty"`
 }
 
@@ -162,12 +162,12 @@ type CheckpointDef struct {
 	// Unlocks lists the operations locked until this checkpoint is passed.
 	Unlocks []string `json:"unlocks,omitempty"`
 
-	// R3 (workflow_verify.go): verification run by oh before the checkpoint
+	// Verification run by oh before the checkpoint (workflow_verify.go)
 	// passes, and conditions that make it pause.
 	Verify *VerifyDef `json:"verify,omitempty"`
 	When   *WhenDef   `json:"when,omitempty"`
 
-	// L3: the agents that pass the checkpoint (workflow `by:`, or deduced
+	// The agents that pass the checkpoint (workflow `by:`, or deduced
 	// from the delegation graph); oh warns when another agent passes it.
 	By []string `json:"by,omitempty"`
 
@@ -183,17 +183,17 @@ type CheckpointDef struct {
 	// synchronization.
 	Wiki string `json:"wiki,omitempty"`
 
-	// R7: Base: oh records the commit of the location when the checkpoint
+	// Base: oh records the commit of the location when the checkpoint
 	// is passed (a later verification counts the changes from there,
 	// VerifyDef.Since).
 	Base bool `json:"base,omitempty"`
 
-	// r5-fixes: After is the checkpoint that must be passed first (a
+	// After is the checkpoint that must be passed first (a
 	// checkpoint skipped in the mode, or absent from the session, counts as
 	// passed): oh refuses this one until then.
 	After string `json:"after,omitempty"`
 
-	// p5-fixes: CommitNext is the later checkpoint that unlocks the commit
+	// CommitNext is the later checkpoint that unlocks the commit
 	// again (`unlock_again`): the commit window of this one holds one
 	// commit, and opens only when there is something to commit.
 	CommitNext string `json:"commit_next,omitempty"`
@@ -223,10 +223,10 @@ const (
 	// r9b: changing Beads tickets (triage).
 	UnlockUpdate = "update"
 	UnlockApply  = "apply"
-	// R8: publishing (risk: publish).
+	// Publishing (risk: publish).
 	UnlockTag = "tag"
 	UnlockMR  = "mr"
-	// R6: merging (fan-out: done by oh at the merge checkpoint).
+	// Merging (fan-out: done by oh at the merge checkpoint).
 	UnlockMerge = "merge"
 )
 
@@ -277,10 +277,10 @@ type OutputDef struct {
 	ID    string            `json:"id"`
 	Type  string            `json:"type"`
 	Label map[string]string `json:"label,omitempty"`
-	// Record is how oh records the output itself (R5: created, closed,
+	// Record is how oh records the output itself (created, closed,
 	// spec, report); such an output is never declared by an agent.
 	Record string `json:"record,omitempty"`
-	// B1: with record "written", the files read (Paths) and the regular
+	// With record "written", the files read (Paths) and the regular
 	// expression whose first group is recorded (Match, "" = the paths).
 	Paths []string `json:"paths,omitempty"`
 	Match string   `json:"match,omitempty"`

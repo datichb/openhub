@@ -88,7 +88,7 @@ func TestE2EStartSessionThroughDaemonProxy(t *testing.T) {
 	}
 	assert.True(t, strings.HasPrefix(strings.TrimSpace(text.String()), "LEAD:"), "reply: %q", text.String())
 
-	// E10: the daemon watcher tracked the session (idle after the turn, usage recorded).
+	// The daemon watcher tracked the session (idle after the turn, usage recorded).
 	require.Eventually(t, func() bool {
 		sess, err := f.svc.Sessions.Get(ctx, r.SessionID)
 		return err == nil && sess.State == domain.RunIdle && sess.TokensOut > 0 && sess.Cost > 0
@@ -126,9 +126,8 @@ func TestE2ESubagentGetsSessionEnvironment(t *testing.T) {
 	assert.Equal(t, "VAL=inherited SID="+r.SessionID, strings.TrimSpace(string(data)))
 }
 
-// I6 session budget with a real model (v5 finalisation, Q4: the e2e R4 did
-// not run): the turn that spends the budget ends, a $ decision is raised
-// with the spent amount; a turn started while it is open is interrupted;
+// Session budget with a real model: the turn that spends the budget ends, a
+// $ decision is raised with the spent amount; a turn started while it is open is interrupted;
 // once raised, the session answers again.
 func TestE2ESessionBudget(t *testing.T) {
 	key := bedrockKey(t)
@@ -190,7 +189,7 @@ func TestE2ESessionBudget(t *testing.T) {
 	}, 30*time.Second, 200*time.Millisecond, "answered after the raise")
 }
 
-// QB8 (S8): a checkpoint state written in the session context is known to
+// A checkpoint state written in the session context is known to
 // the entry agent at its next turn; a subagent does not receive it (tool
 // limit, documented).
 func TestE2ESessionContextReachesTheEntryAgent(t *testing.T) {

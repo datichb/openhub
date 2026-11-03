@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// Fan-out of a workflow (R6, E3, CP-R3), experimental: a session launched
+// Fan-out of a workflow (CP-R3), experimental: a session launched
 // with the fan-out input runs one child session per ticket, each in its own
 // worktree and branch; oh merges each child into an integration branch,
 // asks the merger to resolve a conflict it cannot, and runs the
@@ -225,7 +225,7 @@ func (s *Spec) FanoutOf(inputs map[string]any) bool {
 // a fan-out session the agents gated on a dropped checkpoint (the
 // developer, after cp-1) are removed: the children do their work. A
 // session that is not a fan-out loses the fan-out block (same bundle as
-// before R6). s itself is never changed.
+// before the fan-out existed). s itself is never changed.
 func (s *Spec) ForFanout(on bool) *Spec {
 	if s == nil {
 		return nil

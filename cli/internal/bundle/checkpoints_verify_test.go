@@ -11,7 +11,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
-// CP-R2 (R3): every shipped workflow stays within its pause budget in
+// CP-R2: every shipped workflow stays within its pause budget in
 // semi-auto: 2 human decisions, plus 1 per checkpoint that unlocks an
 // irreversible action (workflow.PauseBudget). A team workflow over budget
 // is only warned by oh workflow validate (pause_budget_exceeded).
@@ -26,7 +26,7 @@ func TestCheckpointPauseBudget(t *testing.T) {
 	}
 }
 
-// E1 (R3): the commit checkpoints of the writing workflows are verified by
+// The commit checkpoints of the writing workflows are verified by
 // oh (build, tests, type check of the stack), expecting a pass.
 func TestShippedWorkflowsVerifyCommit(t *testing.T) {
 	_, cat, _ := shippedWorkflows(t)
@@ -66,7 +66,7 @@ func TestPlannedPauses(t *testing.T) {
 	assert.Equal(t, []string{"cp-plan", "cp-2"}, ids("auto"), "auto = everything but the mandatory decisions")
 	assert.Len(t, PlannedPauses(rt, "manuel"), 5)
 	rt = WorkflowRuntime(sp.ForMethod(workflow.MethodTDD))
-	assert.Equal(t, []string{"cp-plan", "cp-seams", "cp-2", "cp-final"}, ids("semi-auto"), "R7: TDD adds cp-seams, cp-red passes on its own")
+	assert.Equal(t, []string{"cp-plan", "cp-seams", "cp-2", "cp-final"}, ids("semi-auto"), "TDD adds cp-seams, cp-red passes on its own")
 	assert.Equal(t, []string{"cp-plan", "cp-2"}, ids("auto"))
 	p := PlannedPauses(rt, "auto")
 	assert.True(t, p[0].Mandatory)
@@ -79,9 +79,9 @@ func TestPlannedPauses(t *testing.T) {
 	assert.Nil(t, PlannedPauses(nil, "auto"))
 }
 
-// R3: conditions make the tool ask (oh evaluates them); a read-only
+// Conditions make the tool ask (oh evaluates them); a read-only
 // workflow asks before verifying; the developer lock past the fix rounds.
-func TestSessionRulesR3(t *testing.T) {
+func TestSessionRulesVerificationConditions(t *testing.T) {
 	rt := &sessionspec.WorkflowRuntime{ID: "x", DefaultMode: "auto", MaxFixRounds: 2, Checkpoints: []sessionspec.CheckpointDef{
 		{ID: "cp-1", Behaviors: map[string]string{"auto": "auto"}, When: &sessionspec.WhenDef{Labels: []string{"ux"}}},
 	}}

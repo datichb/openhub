@@ -16,10 +16,10 @@ import (
 	"github.com/datichb/openhub/cli/internal/remote"
 )
 
-// journalBackend is the remote mode (P5-T12): Beads stays on the machine, so
+// journalBackend is the remote mode: Beads stays on the machine, so
 // the job reads from the snapshot sent with the session and records every
 // other command in the journal, replayed on the machine when the session is
-// fetched (P5-T17). In the oh runner the allow-list (beads.allow) is applied
+// fetched. In the oh runner the allow-list (beads.allow) is applied
 // before, by the Beads gateway of the job's oh daemon, which runs this
 // binary as its bd.
 //

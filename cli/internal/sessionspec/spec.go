@@ -212,8 +212,8 @@ type BundleSpec struct {
 	StrictIsolation bool      `json:"strict_isolation,omitempty"`
 	DefaultModel    *ModelRef `json:"default_model,omitempty"`
 	// Workflow is set for bundles built from an oh/v1 workflow: checkpoints,
-	// gates, circuit breaker, outputs (omitted otherwise: the hash of phase 0
-	// bundles is unchanged).
+	// gates, circuit breaker, outputs (omitted otherwise: the hash of bundles
+	// built without a workflow is unchanged).
 	Workflow *WorkflowRuntime `json:"workflow,omitempty"`
 }
 

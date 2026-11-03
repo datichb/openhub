@@ -1,4 +1,4 @@
-// Package ohruntime defines where a tool server runs (03 §2.3): on the
+// Package ohruntime defines where a tool server runs: on the
 // machine (local), in a container (Colima/Podman/Docker) or remotely.
 //
 // A runtime prepares the execution environment of a server group (image,

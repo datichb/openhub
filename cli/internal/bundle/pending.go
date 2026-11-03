@@ -4,7 +4,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
-// Sessions whose session rules are not posted yet (p6-debts, closed by
+// Sessions whose session rules are not posted yet (closed by
 // default). A session oh creates gets its session rules in the creation
 // request; a subagent session, created by the tool's delegation, gets them
 // only when the daemon handles its creation event (or resyncs after a lost

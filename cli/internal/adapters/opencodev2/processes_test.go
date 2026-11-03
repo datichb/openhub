@@ -19,7 +19,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/adapters"
 )
 
-// N18: only the servers oh starts are listed.
+// Only the servers oh starts are listed.
 func TestParsePS(t *testing.T) {
 	out := `  101     1 /opt/homebrew/bin/opencode serve --hostname 127.0.0.1 --port 4096
   102   900 opencode serve --hostname 0.0.0.0 --port 4100
@@ -50,7 +50,7 @@ func TestHelperStopOnSignal(t *testing.T) {
 	time.Sleep(30 * time.Second)
 }
 
-// N18: a discovery server is stopped when oh is interrupted, and the
+// A discovery server is stopped when oh is interrupted, and the
 // signal still ends oh.
 func TestStopOnSignal(t *testing.T) {
 	c := exec.Command(os.Args[0], "-test.run=^TestHelperStopOnSignal$", "-test.count=1", "-test.v")
@@ -74,7 +74,7 @@ func TestStopOnSignal(t *testing.T) {
 	require.Eventually(t, func() bool { return !processAlive(pid) }, 5*time.Second, 50*time.Millisecond, "the server is stopped")
 }
 
-// N18: the servers oh starts are found with their directories.
+// The servers oh starts are found with their directories.
 func TestListServerProcessesFindsAChild(t *testing.T) {
 	if _, err := exec.LookPath("lsof"); err != nil && !isLinux() {
 		t.Skip("lsof")

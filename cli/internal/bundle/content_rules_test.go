@@ -35,7 +35,7 @@ func agentRules(b *Bundle, agent, action string) []sessionspec.PermissionRule {
 	return out
 }
 
-// DC26 (N11): quick and debug write files: the commit waits for cp-commit,
+// Quick and debug write files: the commit waits for cp-commit,
 // which pauses in every mode. In debug, the fix ticket waits for cp-ticket.
 func TestQuickAndDebugCommitGate(t *testing.T) {
 	locked := map[string][]string{
@@ -59,7 +59,7 @@ func TestQuickAndDebugCommitGate(t *testing.T) {
 	}
 }
 
-// C0.2: closing a ticket is locked wherever an agent may close one, so a
+// Closing a ticket is locked wherever an agent may close one, so a
 // ticket is never marked done without a commit (and its provenance never
 // records a commit that did not happen). libre has no checkpoint by design.
 func TestShippedWorkflowsLockClose(t *testing.T) {
@@ -92,7 +92,7 @@ func TestShippedWorkflowsLockClose(t *testing.T) {
 	}
 }
 
-// DC26 (N11): the onboarder writes only the wiki (and ONBOARDING.md,
+// The onboarder writes only the wiki (and ONBOARDING.md,
 // CONVENTIONS.md), reads the history, and never commits.
 func TestOnboarderWritesOnlyTheWiki(t *testing.T) {
 	b := shippedBundle(t, "onboarding")
@@ -117,7 +117,7 @@ func TestOnboarderWritesOnlyTheWiki(t *testing.T) {
 	}
 }
 
-// C-5 (P1.1): no agent writes .git/info/exclude. The edit guard refuses
+// C-5: no agent writes .git/info/exclude. The edit guard refuses
 // .git/* to the agents that write the wiki, and the shipped content never
 // tells them to add a file there: a line that names it forbids it first.
 func TestNoAgentWritesGitInfoExclude(t *testing.T) {
@@ -159,7 +159,7 @@ func TestNoAgentWritesGitInfoExclude(t *testing.T) {
 	}
 }
 
-// N11: the instructions of the agents match their permissions (matrix).
+// The instructions of the agents match their permissions (matrix).
 func TestAgentInstructionsMatchPermissions(t *testing.T) {
 	feature := shippedBundle(t, "libre")
 	eff := func(rules []sessionspec.PermissionRule, s string) sessionspec.Effect {
@@ -172,7 +172,7 @@ func TestAgentInstructionsMatchPermissions(t *testing.T) {
 	}
 	designer := agentRules(feature, "designer", sessionspec.ActionShell)
 	assert.Equal(t, sessionspec.EffectAllow, eff(designer, "bd list"), "designer: bd list without argument")
-	// C1: the developer runs the DB migration commands of the former
+	// The developer runs the DB migration commands of the former
 	// developer-migrator (domain migration).
 	dev := agentRules(feature, "developer", sessionspec.ActionShell)
 	for _, c := range []string{"alembic upgrade head", "python manage.py migrate --plan", "python manage.py makemigrations", "rails db:migrate", "rails db:rollback", "flask db upgrade", "npx prisma migrate diff"} {

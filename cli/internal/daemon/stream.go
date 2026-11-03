@@ -10,7 +10,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 )
 
-// Live stream (P3-T10): the watchers publish feed items and session changes;
+// Live stream: the watchers publish feed items and session changes;
 // clients (TUI, `oh session follow`) read them from GET /v1/stream as NDJSON.
 // Without ?session=, a client receives the changes of every session (badge,
 // Sessions view); with it, also the feed of that session, starting with its

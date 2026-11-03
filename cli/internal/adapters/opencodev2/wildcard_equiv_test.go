@@ -6,7 +6,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/wildcard"
 )
 
-// The adapter keeps its own copy of the wildcard match (D19: the adapter
+// The adapter keeps its own copy of the wildcard match (the adapter
 // does not depend on oh internals to interpret the rules it renders). The
 // copy and the neutral package must never drift apart: oh evaluates the same
 // permission rules with wildcard.Match.

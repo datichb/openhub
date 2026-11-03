@@ -12,7 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
-// T4: a session completed by the end of its workflow already ran its end
+// A session completed by the end of its workflow already ran its end
 // (team claims, daemon): stopping it afterwards does not run it again.
 func TestStopCompletedSessionDoesNotEndItTwice(t *testing.T) {
 	st := sqlitetest.New(t)

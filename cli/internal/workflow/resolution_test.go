@@ -467,7 +467,7 @@ func TestSubagentGraphAndMaxDepth(t *testing.T) {
 	}
 }
 
-// QB1: code_mode and modes.allowed are security fields (hardening only).
+// code_mode and modes.allowed are security fields (hardening only).
 func TestResolve_CodeModeAndModesHardeningOnly(t *testing.T) {
 	t.Parallel()
 	const hubQuick = "apiVersion: oh/v1\nkind: Workflow\nid: quick\nmodes: { default: manuel, allowed: [manuel, semi-auto] }\n"
@@ -505,7 +505,7 @@ func TestResolve_CodeModeAndModesHardeningOnly(t *testing.T) {
 
 func codeMode(s *Spec) bool { return s.CodeMode != nil && *s.CodeMode }
 
-// QB2: a patch writing only entry.selectable keeps the parent's entry agent
+// A patch writing only entry.selectable keeps the parent's entry agent
 // and changes the flag (it had no effect).
 func TestResolve_EntrySelectableAlone(t *testing.T) {
 	t.Parallel()

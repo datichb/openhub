@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// p6-debts: the proposals that replace a line travel apart (an oh of
+// The proposals that replace a line travel apart (an oh of
 // schema 1 leaves them out instead of adding them); a newer schema is
 // refused.
 func TestWikiSchema2(t *testing.T) {

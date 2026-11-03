@@ -3,7 +3,7 @@ package bundle
 import "github.com/datichb/openhub/cli/internal/sessionspec"
 
 // HookGuard refuses, to every agent, the ways around the git hooks of the
-// project (A19): `--no-verify` (`-n` for commit), another hooks directory
+// project: `--no-verify` (`-n` for commit), another hooks directory
 // (`-c core.hooksPath=…`, `git config core.hooksPath`, `GIT_CONFIG_*`,
 // config includes), and writing to .git or to the Beads hooks. The tool
 // matches each command of a line on its own, environment prefixes included

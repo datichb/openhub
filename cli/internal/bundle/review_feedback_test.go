@@ -12,7 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
-// N8 (DC12): review-feedback fixes without committing, has the fixes
+// review-feedback fixes without committing, has the fixes
 // reviewed, commits after cp-2 only, and leaves the push and the MR replies
 // to the user.
 func TestReviewFeedbackWorkflow(t *testing.T) {

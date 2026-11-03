@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// R6: fan-out and control substitution (CP-R3). Each guard of CP-R3 that
+// fan-out and control substitution (CP-R3). Each guard of CP-R3 that
 // lives in the schema has its own case, attempts to get around it included.
 
 const fanoutChild = `apiVersion: oh/v1

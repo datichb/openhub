@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-// QB2: the sources of computed inputs are a public contract: the workflow
+// The sources of computed inputs are a public contract: the workflow
 // schema reference (fr and en) lists exactly the sources of InputSources.
 func TestInputSourcesAreDocumented(t *testing.T) {
 	t.Parallel()

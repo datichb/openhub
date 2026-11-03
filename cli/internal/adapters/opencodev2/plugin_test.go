@@ -64,5 +64,5 @@ func TestHookOptions(t *testing.T) {
 	assert.Equal(t, "http://host.docker.internal:5555/oh/v1/hooks", opts["hookURL"])
 	assert.NotContains(t, opts, "token", "the token stays in the server environment")
 	assert.Equal(t, []string{"OPENCODE_SERVER_PASSWORD", "OPENCODE_CONFIG_CONTENT", "OPENCODE_CONFIG", "OPENCODE_CONFIG_DIR", "OH_GROUP_TOKEN", "AWS_BEARER_TOKEN_BEDROCK"},
-		opts["scrubEnv"], "N2: the shell never gets the server secrets")
+		opts["scrubEnv"], "the shell never gets the server secrets")
 }

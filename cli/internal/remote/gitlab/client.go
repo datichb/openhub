@@ -1,4 +1,4 @@
-// Package gitlab is the GitLab REST client of the remote runtime (v5 phase 5):
+// Package gitlab is the GitLab REST client of the remote runtime:
 // the oh-runner project (pipeline file, CI variables, trigger), the generic
 // package registry, pipelines and their artifacts.
 //

@@ -2,7 +2,7 @@ package config
 
 import "strings"
 
-// Former keys of hub.toml, still read (D19: the tool-specific names live
+// Former keys of hub.toml, still read (the tool-specific names live
 // here only; no migration, hub.toml is written with the neutral keys at the
 // next save). Reading one is announced once per process (notices.go) and
 // reported by oh doctor; the support ends in v6.

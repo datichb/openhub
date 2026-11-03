@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-// Diagnostics of the container runtime (P4-T12, Doctor): facts only, the
+// Diagnostics of the container runtime (Doctor): facts only, the
 // command layer turns them into checks. Each call runs at most a few short
 // containers.
 

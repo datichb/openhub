@@ -12,7 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
-// R4 (E8): the planner of the spec workflow writes and commits its spec
+// The planner of the spec workflow writes and commits its spec
 // under docs/wiki/specs/ and nothing else; the commit waits for cp-spec;
 // the guards of the bundle still win; the other agents and the planner of
 // the other workflows are unchanged.
@@ -40,7 +40,7 @@ func TestWritesPlannerOfSpec(t *testing.T) {
 		for _, f := range []string{"docs/wiki/specs/percent.md", "docs/wiki/specs/team/auth.md"} {
 			assert.Equal(t, sessionspec.EffectAllow, p.effect(sessionspec.ActionEdit, f), "%s (plugin %v)", f, plugin)
 		}
-		assert.Equal(t, sessionspec.EffectAllow, p.effect(sessionspec.ActionEdit, "docs/wiki/index.md"), "p6-debts: the planner adds its spec to the index (plugin %v)", plugin)
+		assert.Equal(t, sessionspec.EffectAllow, p.effect(sessionspec.ActionEdit, "docs/wiki/index.md"), "the planner adds its spec to the index (plugin %v)", plugin)
 		for _, f := range []string{"calc.go", "docs/wiki/glossary.md", "README.md", "docs/wiki/specs.md", ".git/config", ".beads/config.yaml"} {
 			assert.Equal(t, sessionspec.EffectDeny, p.effect(sessionspec.ActionEdit, f), "%s (plugin %v)", f, plugin)
 		}
@@ -55,7 +55,7 @@ func TestWritesPlannerOfSpec(t *testing.T) {
 		} {
 			assert.Equal(t, sessionspec.EffectAllow, writesShell(p, cmd), "%s (plugin %v)", cmd, plugin)
 		}
-		// p6-debts: several declared paths, several -m: the rules ask, oh
+		// Several declared paths, several -m: the rules ask, oh
 		// reads the line and lets it through.
 		paths := b.Spec.Workflow.Writes["planner"]
 		require.NotEmpty(t, paths)
@@ -82,7 +82,7 @@ func TestWritesPlannerOfSpec(t *testing.T) {
 			"git add .", "git add -A", "git add calc.go", "git add docs/wiki/specs/percent.md .",
 			"git add -f docs/wiki/specs/percent.md",
 			"git push", "git checkout docs/wiki/specs/percent.md", "rm docs/wiki/specs/percent.md",
-			// p4-fixes: only the declared paths, before or after `--`
+			// Only the declared paths, before or after `--`
 			"git commit -m x src/a.go -- docs/wiki/specs/x.md",
 			`git commit -m "x" src/a.go -- docs/wiki/specs/x.md`,
 			`git commit -m "x" src/a.go "" -- docs/wiki/specs/x.md`,
@@ -104,7 +104,7 @@ func TestWritesPlannerOfSpec(t *testing.T) {
 			"git add docs/wiki/specs/x.md src/a.go", "git add -- docs/wiki/specs/x.md src/a.go",
 			"git add docs/wiki/specs/../../src/a.go", "git add docs/wiki/specs/x.md	src/a.go",
 			"git add ':(glob)**'", "git add --pathspec-from-file=list",
-			// p6-debts: one undeclared path among several, injection in -m
+			// One undeclared path among several, injection in -m
 			`git commit -m "x" -- docs/wiki/specs/x.md docs/wiki/specs/y.md src/a.go`,
 			`git commit -m "x" -- docs/wiki/specs/x.md docs/wiki/specs/../../src/a.go`,
 			`git commit -m "x" -- docs/wiki/specs/x.md ../src/a.go`,
@@ -129,7 +129,7 @@ func TestWritesPlannerOfSpec(t *testing.T) {
 		locked := agent("planner", understood, plugin)
 		assert.Equal(t, sessionspec.EffectDeny, writesShell(locked, `git commit -m "x" -- docs/wiki/specs/percent.md`), "the commit waits for cp-spec (plugin %v)", plugin)
 		assert.Equal(t, sessionspec.EffectAllow, locked.effect(sessionspec.ActionEdit, "docs/wiki/specs/percent.md"), "writing waits for cp-understanding only")
-		// r5-fixes: before cp-understanding the edit asks, so that oh
+		// Before cp-understanding the edit asks, so that oh
 		// refuses it with its message (services/checkpoint EvaluateEdit);
 		// the other files keep their refusal.
 		early := agent("planner", nil, plugin)
@@ -165,7 +165,7 @@ func TestWritesPlannerOfSpec(t *testing.T) {
 }
 
 // onboarding-refresh: the onboarder of onboarding commits the wiki once
-// cp-wiki is passed; p6-debts: with ONBOARDING.md and CONVENTIONS.md, its
+// cp-wiki is passed; with ONBOARDING.md and CONVENTIONS.md, its
 // writes: paths too, in one commit.
 func TestWritesOnboarderOfOnboarding(t *testing.T) {
 	t.Parallel()
@@ -187,7 +187,7 @@ func TestWritesOnboarderOfOnboarding(t *testing.T) {
 		assert.Equal(t, sessionspec.EffectAllow, o.effect(sessionspec.ActionEdit, f), f)
 	}
 	paths := b.Spec.Workflow.Writes["onboarder"]
-	// p6-debts: ONBOARDING.md and CONVENTIONS.md are committed with the
+	// ONBOARDING.md and CONVENTIONS.md are committed with the
 	// wiki at cp-wiki, nothing else.
 	for _, cmd := range []string{"git add ONBOARDING.md", `git commit -m "x" -- ONBOARDING.md`,
 		"git add docs/wiki/ ONBOARDING.md CONVENTIONS.md", `git commit -m "docs(wiki): onboarding" -- docs/wiki/ ONBOARDING.md CONVENTIONS.md`} {
@@ -255,7 +255,7 @@ func TestWritesRules(t *testing.T) {
 	}
 }
 
-// p6-debts: the lines oh reads for a writes: agent.
+// The lines oh reads for a writes: agent.
 func TestWritesLineProblem(t *testing.T) {
 	paths := []string{"docs/wiki/**", "ONBOARDING.md", "CONVENTIONS.md"}
 	for _, cmd := range []string{

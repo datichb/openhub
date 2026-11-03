@@ -16,7 +16,7 @@ type PreconditionResult struct {
 	// offers to come back to this workflow once it has finished.
 	Suggest string
 	Resume  bool
-	// Failure says what failed (R8, E7): set for the git and tool checks,
+	// Failure says what failed: set for the git and tool checks,
 	// so that the message names the branch, the changes or the tools.
 	Failure *PreconditionFailure
 }

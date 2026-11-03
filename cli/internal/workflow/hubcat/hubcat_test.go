@@ -31,7 +31,7 @@ func TestAgentInfo_FromRepositoryAgents(t *testing.T) {
 		{"orchestrator-dev", workflow.ModePrimary, false, false, "developer"},
 		{"auditor-subagent", workflow.ModeSubagent, false, false, ""},
 		{"reviewer", workflow.ModePrimary, false, false, ""},
-		{"debugger", workflow.ModePrimary, false, false, ""}, // N4: no free shell
+		{"debugger", workflow.ModePrimary, false, false, ""}, // no free shell
 	}
 	for _, tc := range cases {
 		a, ok := c.Agent(tc.id)
@@ -207,7 +207,7 @@ func TestConductorIsAReadOnlyCoordinator(t *testing.T) {
 	}
 }
 
-// The enchaînement comes from the workflows (P1-T13): the orchestrator keeps
+// The enchaînement comes from the workflows: the orchestrator keeps
 // only its posture and contracts.
 func TestOrchestratorHasNoHardCodedModes(t *testing.T) {
 	data, err := os.ReadFile(filepath.Join(repoHub, "agents", "planning", "orchestrator.md"))
@@ -222,8 +222,8 @@ func TestOrchestratorHasNoHardCodedModes(t *testing.T) {
 	}
 }
 
-// The former entry modes A–E are workflows now (P1-T14): no agent or skill
-// refers to them (the legacy static skills were removed, N6).
+// The former entry modes A–E are workflows now: no agent or skill
+// refers to them (the legacy static skills were removed).
 func TestNoLegacyEntryModes(t *testing.T) {
 	legacy := regexp.MustCompile(`\b[Mm]odes? [A-E]\b`)
 	allowed := map[string]bool{}

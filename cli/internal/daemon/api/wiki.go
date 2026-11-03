@@ -15,7 +15,7 @@ type WikiProposeRequest struct {
 	Content     string `json:"content"`
 	Tag         string `json:"tag"`
 	Source      string `json:"source,omitempty"`
-	// Replaces is the line of the page the content replaces (p5-fixes).
+	// Replaces is the line of the page the content replaces.
 	Replaces string `json:"replaces,omitempty"`
 }
 

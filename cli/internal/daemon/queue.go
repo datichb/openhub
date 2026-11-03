@@ -10,7 +10,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/limits"
 )
 
-// Queue of first prompts (I6): a session created beyond the maximum of
+// Queue of first prompts: a session created beyond the maximum of
 // working sessions (or over the memory cap) waits in state "queued"; the
 // daemon sends its prompt when a slot frees up, by priority (interactive
 // first), then first queued first. A group with a queued session never

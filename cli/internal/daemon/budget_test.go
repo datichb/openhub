@@ -222,7 +222,7 @@ func TestSessionBudgetDecisionAndHold(t *testing.T) {
 	assert.InDelta(t, 2.1, tot.CostUSD, 1e-9)
 }
 
-// A21: the session row holds the oh session total (root + subagents), as
+// The session row holds the oh session total (root + subagents), as
 // the budget counts it: what oh session list and the views show.
 func TestSessionRowHoldsTheTotalCost(t *testing.T) {
 	e := newLimitEnv(t, "ses_a")
@@ -248,7 +248,7 @@ func TestSessionRowHoldsTheTotalCost(t *testing.T) {
 	}, 3*time.Second, 20*time.Millisecond)
 }
 
-// A22: after a raise answered in oh, the session is no longer « waiting »
+// After a raise answered in oh, the session is no longer « waiting »
 // and the step interrupted while the decision was open is resumed.
 func TestRaiseResumesTheInterruptedStep(t *testing.T) {
 	e := newLimitEnv(t, "ses_a")
@@ -394,7 +394,7 @@ func TestProxyUsageLedger(t *testing.T) {
 }
 
 // A fork reports the copied history from its first turn: only what it spends
-// above that baseline is added to the ledger (v5 finalisation, Q3-6).
+// above that baseline is added to the ledger.
 func TestForkBaselineNotCountedTwice(t *testing.T) {
 	e := newLimitEnv(t, "ses_a")
 	e.turn("ses_a", 0.5)

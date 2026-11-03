@@ -22,7 +22,7 @@ var (
 	categoryRefRe = regexp.MustCompile("`((?:shared|planning|quality|developer|designer|design|reviewer|auditor|orchestrator|posture|documentarian|adapters|workflow)/[a-z0-9-]+)`")
 )
 
-// C0.5: an unbalanced code fence turns the rest of a skill into code for the
+// An unbalanced code fence turns the rest of a skill into code for the
 // model, and flips the capability lint for everything read after it.
 func TestHubMarkdownFencesBalanced(t *testing.T) {
 	t.Parallel()
@@ -49,7 +49,7 @@ func TestHubMarkdownFencesBalanced(t *testing.T) {
 	}
 }
 
-// C0.6: agent names written in the content are agents of the hub (or skill
+// Agent names written in the content are agents of the hub (or skill
 // and permission base names that share their prefix): a routing value such
 // as `developer-backend` names an agent that no longer exists.
 func TestNoStaleAgentNames(t *testing.T) {
@@ -90,7 +90,7 @@ func TestNoStaleAgentNames(t *testing.T) {
 	}
 }
 
-// C0.4
+// Skill load instructions name the skill, not a tag or a path.
 func TestSkillLoadInstructionsUseNames(t *testing.T) {
 	t.Parallel()
 	hub := repoHub(t)

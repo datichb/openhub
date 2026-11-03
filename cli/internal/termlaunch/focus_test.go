@@ -53,7 +53,7 @@ func TestFocusScriptsNeverStartATerminal(t *testing.T) {
 	assert.Contains(t, terminalFocusScript("x"), `set index of w to 1`)
 }
 
-// A43: the window of an attached client is brought back instead of opening
+// The window of an attached client is brought back instead of opening
 // another one; the terminal of the client is asked first.
 func TestFocusByTTY(t *testing.T) {
 	if runtime.GOOS != "darwin" {

@@ -12,7 +12,7 @@ import (
 	toml "github.com/pelletier/go-toml/v2"
 )
 
-// Strict reading of hub.toml (v5.0). The file is decoded with go-toml into a
+// Strict reading of hub.toml. The file is decoded with go-toml into a
 // Config that already holds the defaults, so a key left out keeps its
 // default. What the former reader (viper and mapstructure, weakly typed)
 // accepted and this one does not is listed in docs/reference/config.*.md

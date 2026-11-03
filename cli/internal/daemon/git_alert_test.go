@@ -24,7 +24,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
-// N5 (v5 critical, finitions): a checkpoint refused because the git
+// A checkpoint refused because the git
 // configuration of the session changed raises an alert (✗) for the user
 // that names the file, once per state of the repository.
 func TestGitChangedAlert(t *testing.T) {

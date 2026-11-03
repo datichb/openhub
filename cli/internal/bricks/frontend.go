@@ -7,7 +7,7 @@ import (
 )
 
 // FrontendSkills are the domain skills of a web frontend: shipped only when
-// the project has one (A8: they were delivered to every project through the
+// the project has one (they used to be delivered to every project through the
 // agents' menus of domain skills).
 var FrontendSkills = []string{
 	"developer/dev-standards-frontend",

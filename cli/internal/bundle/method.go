@@ -8,7 +8,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
-// Method of the session (R7): the bundle holds the checkpoints of its
+// Method of the session: the bundle holds the checkpoints of its
 // method only (cp-seams and cp-red for tdd), so that a session of another
 // method gets the same bundle as a workflow without them.
 

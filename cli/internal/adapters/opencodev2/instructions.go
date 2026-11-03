@@ -12,7 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/adapters"
 )
 
-// Ambient instructions of opencode V2 (Q35, checked on opencode 2.0.20 and
+// Ambient instructions of opencode V2 (checked on opencode 2.0.20 and
 // https://opencode.ai/v2/docs/instructions/):
 //
 //   - The AGENTS.md of the workspace and of its parents (up to the project

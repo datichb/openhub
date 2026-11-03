@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// Usage accounting (I6, migration v40). The daemon records what the
+// Usage accounting (migration v40). The daemon records what the
 // sessions spend, as reported by the tool (cost in USD, tokens) and as seen
 // by the credential proxy (tokens per server group), per local day. It
 // survives daemon restarts and sleep/resume cycles.

@@ -12,7 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
-// Chain skills generated from an oh/v1 workflow (P1-T11). They replace the
+// Chain skills generated from an oh/v1 workflow. They replace the
 // static skills of the same reference in the bundle (inlined or on demand),
 // so that every agent reads the enchaînement of the workflow it runs in,
 // never a hard-coded one.
@@ -26,7 +26,7 @@ var templateFS embed.FS
 
 // Skill references generated from the workflow.
 const (
-	// WorkflowMapSkill is the full map, read by the conductor (P1-T12).
+	// WorkflowMapSkill is the full map, read by the conductor.
 	WorkflowMapSkill = "workflow/workflow-map"
 	// Existing references, loaded by orchestrator, orchestrator-dev and planner.
 	workflowModesSkill     = "orchestrator/orchestrator-workflow-modes"
@@ -58,18 +58,18 @@ type mapData struct {
 	MaxConsecutive         int
 	MaxFixRounds           int
 	Outputs                []outputRow
-	// CheckpointAgents are the agents that pass a checkpoint (L3), with
+	// CheckpointAgents are the agents that pass a checkpoint, with
 	// the sequence of their own checkpoints.
 	CheckpointAgents []string
 	Sequences        []agentSequence
-	// Writes are the documentation paths opened to agents (R4).
+	// Writes are the documentation paths opened to agents.
 	Writes []agentWrites
 }
 
 type agentWrites struct {
 	Agent string
 	Paths []string
-	// After is the checkpoint that opens them (r5-fixes, writes_after).
+	// After is the checkpoint that opens them (writes_after).
 	After string
 }
 
@@ -90,15 +90,15 @@ type checkpointRow struct {
 	Behaviors                         []workflow.CheckpointBehavior // one per allowed mode
 	Remote                            workflow.RemotePolicy
 	Unlocks                           []string
-	// By are the agents that pass it (L3): the other agents do not see it.
+	// By are the agents that pass it: the other agents do not see it.
 	By []string
 	// Check is what oh checks before it passes, for a test written first
-	// (R7, testCheckText; "" otherwise).
+	// (testCheckText; "" otherwise).
 	Check string
-	// After is the checkpoint it waits for (r5-fixes): oh refuses it before.
+	// After is the checkpoint it waits for: oh refuses it before.
 	After string
 	// CommitNext is the later checkpoint that unlocks the commit again
-	// (p5-fixes, unlock_again).
+	// (unlock_again).
 	CommitNext string
 }
 
@@ -153,7 +153,7 @@ var unlockOpText = map[string]string{
 }
 
 // unlockText is the rule of a checkpoint that unlocks ops: only the declared
-// operations are named (N10), in the order the agent should run them.
+// operations are named, in the order the agent should run them.
 //
 // commitNext (one at most) is the later checkpoint that unlocks the commit
 // again (unlock_again): this one allows one commit.
@@ -314,7 +314,7 @@ func buildMapData(spec *workflow.Spec, graph map[string][]string, modeOf func(st
 	}
 	for _, o := range spec.Outputs {
 		if o.Record != "" {
-			continue // recorded by oh (R5): nothing for the agents to declare
+			continue // recorded by oh: nothing for the agents to declare
 		}
 		d.Outputs = append(d.Outputs, outputRow{ID: o.ID, Type: o.Type, Label: o.Label.Text(generatedLang)})
 	}

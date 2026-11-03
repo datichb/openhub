@@ -20,17 +20,16 @@ import (
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
-// Budget baseline (C4): the estimated context cost of every agent of every
+// Budget baseline: the estimated context cost of every agent of every
 // shipped workflow, built without project, with the common-stack project
 // of the capability lint (stack skills count) and with a project of about
-// 4 000 tokens of instructions and a wiki index (L7: instruction levels). Pinned in
+// 4 000 tokens of instructions and a wiki index (instruction levels). Pinned in
 // testdata/budget.golden (go test ./internal/bundle -run TestBudgetBaseline
 // -update); an agent prompt growing by more than budgetGrowth over the
 // golden is reported on its own.
 
 // budgetGrowth is the growth of an agent prompt tolerated over the golden:
-// 2 % since the end of P1 (modernisation plan P0.2; 10 % during the content
-// trimming).
+// 2 % since the end of the content trimming (10 % during it).
 const budgetGrowth = 0.02
 
 type budgetLine struct {
@@ -192,7 +191,7 @@ func readBudgetGolden(t *testing.T, name string) map[string]int {
 }
 
 // reachableSkills returns, by agent, the bundle skills the agent can reach
-// on demand (L2): its native skills, the skills named in its composed prompt
+// on demand: its native skills, the skills named in its composed prompt
 // (inlined ones and sections that do not invite it aside), the stack skills
 // of the project when it sets stack_skills, for the entry agent the workflow
 // `skills.extra` and the skills named in the prompt template, for an agent

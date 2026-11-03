@@ -148,7 +148,7 @@ func TestSessionStore_MemberID(t *testing.T) {
 	assert.Equal(t, "charlie", *got4.MemberID)
 }
 
-// v42: the starting point and the tickets of a session are kept (A23, A31).
+// v42: the starting point and the tickets of a session are kept.
 func TestSessionStore_StartRefAndTickets(t *testing.T) {
 	s := openTestStore(t)
 	ctx := context.Background()
@@ -169,7 +169,7 @@ func TestSessionStore_StartRefAndTickets(t *testing.T) {
 	assert.Equal(t, "abc123", got.StartRef)
 }
 
-// v42 (A21): the sessions recorded before show their total cost with their
+// v42: the sessions recorded before show their total cost with their
 // subagent sessions (usage ledger), as the budget counted it.
 func TestMigrationV42SessionTotals(t *testing.T) {
 	s := openTestStore(t)
@@ -202,7 +202,7 @@ func TestMigrationV42SessionTotals(t *testing.T) {
 	assert.InDelta(t, 0.88, got.Cost, 1e-9)
 }
 
-// R6: the fan-out record is written by oh only (Create, SetSessionFanout);
+// The fan-out record is written by oh only (Create, SetSessionFanout);
 // Update from a stale copy of the row never changes it.
 func TestSessionStore_Fanout(t *testing.T) {
 	s := openTestStore(t)

@@ -16,7 +16,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/config/configtest"
 )
 
-// Strict reading of hub.toml (v5.0, C3). Until v4 the file went through viper
+// Strict reading of hub.toml. Until v4 the file went through viper
 // and mapstructure with weak typing; now it goes through go-toml. Every case
 // below is a hub.toml that the former reader accepted: the tests say what
 // happens to it now. The same table is documented in

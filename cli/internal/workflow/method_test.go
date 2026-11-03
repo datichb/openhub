@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// R7: the method of a session (input `method`) and the checkpoints
+// The method of a session (input `method`) and the checkpoints
 // declared for it.
 
 const hubTDD = `apiVersion: oh/v1
@@ -164,7 +164,7 @@ checkpoints:
 }
 
 // A method drops a checkpoint outside of it: giving one to an inherited
-// checkpoint is a loosening; the R7 verification fields only harden.
+// checkpoint is a loosening; the TDD verification fields only harden.
 func TestMethod_PatchOnlyHardens(t *testing.T) {
 	t.Parallel()
 	loosen := []struct{ name, patch, path string }{
@@ -193,7 +193,7 @@ func TestMethod_PatchOnlyHardens(t *testing.T) {
 	}
 }
 
-// CP-R2 and R7: a method adds at most MethodPauseAllowance pause to the
+// CP-R2: a method adds at most MethodPauseAllowance pause to the
 // budget, for its sessions only.
 func TestPauseBudget_Method(t *testing.T) {
 	t.Parallel()

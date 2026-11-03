@@ -18,13 +18,13 @@ import (
 	"github.com/datichb/openhub/cli/internal/testutil/golden"
 )
 
-// Rule ledger (modernisation P0.1): no normative rule an agent sees leaves
+// Rule ledger: no normative rule an agent sees leaves
 // the content without a justification while the prompts are trimmed.
 //
 // For every agent of the shipped workflows (built without project), the
 // ledger collects the text it can see: its own body, the skills inlined in
 // its prompt and the on-demand skills it can reach (reachableSkills: its
-// catalogue of L2, natives, skills it names, requires closure), over all
+// per-agent catalogue, natives, skills it names, requires closure), over all
 // the workflows that ship it. The generated blocks of the prompt (absent skills, session role,
 // project instructions) are left out. Every normative line (JAMAIS,
 // TOUJOURS, NE … PAS, DOIT, OBLIGATOIRE, ❌, ✅, ⛔, MUST, NEVER, interdit),

@@ -12,7 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/workflow/hubcat"
 )
 
-// N7 (DC11): the sweep workflow.
+// The sweep workflow.
 func TestSweepWorkflow(t *testing.T) {
 	hub, cat, _ := shippedWorkflows(t)
 	hc, err := hubcat.New(hub)

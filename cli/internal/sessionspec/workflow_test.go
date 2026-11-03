@@ -36,7 +36,7 @@ func TestCheckpointDefBehavior(t *testing.T) {
 	c.Mandatory = true
 	assert.Equal(t, CheckpointPause, c.Behavior("auto"), "mandatory never skipped")
 	u := CheckpointDef{ID: "cp-2", Behaviors: map[string]string{"auto": "skip"}, Unlocks: []string{UnlockCommit}}
-	assert.Equal(t, CheckpointPause, u.Behavior("auto"), "an unlocking checkpoint is never skipped (N24)")
+	assert.Equal(t, CheckpointPause, u.Behavior("auto"), "an unlocking checkpoint is never skipped")
 	assert.Equal(t, "cp-1", c.LabelFor("fr"))
 	c.Label = map[string]string{"fr": "Démarrer", "en": "Start"}
 	assert.Equal(t, "Démarrer", c.LabelFor("fr"))

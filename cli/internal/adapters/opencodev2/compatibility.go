@@ -9,7 +9,7 @@ import (
 )
 
 // Supported opencode releases per oh version (major.minor). oh v5 only
-// supports opencode V2 (D3, revised on 06/10/2026): older releases are
+// supports opencode V2 (revised on 06/10/2026): older releases are
 // refused before any launch.
 
 //go:embed compatibility.json

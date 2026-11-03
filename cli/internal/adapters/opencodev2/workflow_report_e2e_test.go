@@ -39,7 +39,7 @@ func fileReportPrompt() string {
 		"\nThen reply with the id returned.\" Then repeat the id helper gave you."
 }
 
-// L4 with the whole chain (subagent session, workflow MCP server, group
+// Reports with the whole chain (subagent session, workflow MCP server, group
 // token, daemon): the reviewer files its report, oh stores it under the oh
 // session with the author it saw, and the coordinator gets only its id.
 func TestE2EReviewStoresReport(t *testing.T) {
@@ -81,7 +81,7 @@ func TestE2EReviewStoresReport(t *testing.T) {
 	assert.Contains(t, checkpoint.TimelineText(checkpoint.Timeline(b.Workflow, "manuel", "fr", st), 0), "▤ rp-1 (helper)")
 }
 
-// L4: the card of the next checkpoint shows the report filed since the
+// The card of the next checkpoint shows the report filed since the
 // previous one, readable in full.
 func TestE2ETicketCardShowsReport(t *testing.T) {
 	tok := bedrockToken(t)

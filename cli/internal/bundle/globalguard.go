@@ -9,7 +9,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
-// Global guard (v5 critical N3, DC2): shell and edit rules added last to
+// Global guard: shell and edit rules added last to
 // every agent, after its own rules and the other guards, whatever its
 // permission base allows, also in sessions without locks. They are refused
 // in Go, not in the frontmatter: within a pattern map, rules are ordered by
@@ -18,7 +18,7 @@ import (
 //
 // What they are: guard rails against the mistakes of a model and against
 // cheap tries. What they are not: a sandbox. The tool matches each command
-// of a line on its raw text (probes U1–U5, shellsim.go): quotes and spaces
+// of a line on its raw text (shellsim.go): quotes and spaces
 // are not normalized, `export X=…` is not checked, an interpreter or a build
 // tool allowed to the agent runs anything. Real confinement comes from the
 // checkpoint validation seen by oh, the gateways, the container and the
@@ -30,7 +30,7 @@ import (
 
 // controlPlaneDeny: the oh daemon, its socket and data (another session's
 // bundle, the server passwords, the database, the session folders: the
-// reports of workflow_report are read and filed through oh only, L4).
+// reports of workflow_report are read and filed through oh only).
 var controlPlaneDeny = []string{
 	"*ohd.sock*", "*--unix-socket*", "*.oh/run*", "*.oh/servers*", "*.oh/bundles*", "*.oh/oh.db*", "*.oh/sessions*",
 	// the environment of other processes of the user (the tool server holds
@@ -105,7 +105,7 @@ var ohControlDeny = func() []string {
 
 // gitEnvDeny: git environment and transport options that run a program or
 // redirect the repository (also refused by name; `export` escapes the name
-// check: the oh git calls do not trust the repository anyway, N5).
+// check: the oh git calls do not trust the repository anyway).
 var gitEnvDeny = []string{
 	"*GIT_DIR*", "*GIT_WORK_TREE*", "*GIT_EXTERNAL_DIFF*", "*GIT_SSH*", "*GIT_EDITOR*", "*GIT_SEQUENCE_EDITOR*",
 	"*GIT_ASKPASS*", "*GIT_EXEC_PATH*", "*GIT_PAGER*", "*GIT_INDEX_FILE*", "*GIT_TEMPLATE_DIR*",
@@ -152,7 +152,7 @@ var execDeny = []string{
 }
 
 // outsideDeny: persistence and credentials outside the project (an external
-// directory is checked for `cd` only, probe U4: a redirection or an argument
+// directory is checked for `cd` only: a redirection or an argument
 // writes anywhere).
 var outsideDeny = []string{
 	"*/.zshenv*", "*/.zshrc*", "*/.zprofile*", "*/.zlogin*", "*/.bashrc*", "*/.bash_profile*", "*/.bash_login*", "*/.profile*",
@@ -274,7 +274,7 @@ func HookEditGuard(own []sessionspec.PermissionRule) []sessionspec.PermissionRul
 // agent is checked on the tool action, the session on the outside
 // directory. The guards, in this order, each after the rules of the agent:
 //
-//  0. sessionDataDeny (L4): the broader refusal of the session data of oh
+//  0. sessionDataDeny: the broader refusal of the session data of oh
 //     (`*.oh/sessions*`: reports of workflow_report, transcripts, session
 //     environment) for the file tools; it is emitted first of scratchDeny (ScratchGuard, ScratchAgentGuard) and of
 //     ScratchSessionRules, so that the scratch exceptions still come after
@@ -324,7 +324,7 @@ func ScratchDir(sessionsDir, sessionID, agent string) string {
 
 // sessionDataDeny: refusals of the session data of oh broader than the
 // scratch folders (layer 0 above), for the file tools and the outside
-// directory: no agent reads nor forges a stored report (L4), a transcript
+// directory: no agent reads nor forges a stored report, a transcript
 // or the environment of a session. The custom oh home is added by
 // sessionDataPatterns, the sessions folder of the session rules by
 // ScratchSessionRules.

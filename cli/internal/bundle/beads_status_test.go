@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Piste T, T5: the shipped agents, skills and prompts only set the built-in
+// The shipped agents, skills and prompts only set the built-in
 // statuses of Beads (bd 1.3: `bd update -s review|cancelled` is refused
 // without a project configuration; review and cancelled are labels).
 func TestShippedContentUsesBuiltinBeadsStatuses(t *testing.T) {

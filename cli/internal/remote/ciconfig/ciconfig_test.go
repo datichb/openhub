@@ -153,7 +153,7 @@ printf 'sha256:%s' "$(echo "$dest" | sha256sum | cut -c1-64)" > "$df"
 	return string(c), string(d), err
 }
 
-// N21: the oh layer is built FROM the base by the digest just pushed, and
+// The oh layer is built FROM the base by the digest just pushed, and
 // the image job reports the run image by digest (dotenv), with both
 // builders.
 func TestImageJobPinsByDigest(t *testing.T) {

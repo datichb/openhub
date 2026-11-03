@@ -16,7 +16,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
-// N6 (DC6): one checkpoint protocol. Every v5 session runs a workflow; its
+// One checkpoint protocol. Every v5 session runs a workflow; its
 // checkpoints only pass through workflow_checkpoint. The content shipped to
 // the agents of a workflow with checkpoints never asks a checkpoint with the
 // `question` tool (oh closes such a question: the header or the text names
@@ -147,7 +147,7 @@ func TestCheckpointProtocolLint(t *testing.T) {
 }
 
 // The skills generated from the workflow replace the static files of the
-// same reference: those are stubs, never edited by hand (N6).
+// same reference: those are stubs, never edited by hand.
 func TestStaticGeneratedSkillsAreStubs(t *testing.T) {
 	hub := repoHub(t)
 	for ref := range generatedTemplates {
@@ -163,7 +163,7 @@ func TestStaticGeneratedSkillsAreStubs(t *testing.T) {
 	}
 }
 
-// N6: every skill of the hub is reachable — listed by an agent (skills,
+// Every skill of the hub is reachable — listed by an agent (skills,
 // native_skills), required by a reachable skill, generated, or cited by
 // the content ([SKILL:…], `category/name`, « skill `name` »). The legacy
 // skills of the deployment era (orchestrator-modes, orchestrator-ticket-

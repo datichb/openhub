@@ -43,9 +43,8 @@ func TestChainExplicitPrefs(t *testing.T) {
 	}
 }
 
-// attach = "iterm" without iTerm2 passes to the next method (I2) instead of
-// failing: oh run then ran the client in its own process (v5 finalisation,
-// Q3-3).
+// attach = "iterm" without iTerm2 passes to the next method instead of
+// failing: oh run then ran the client in its own process.
 func TestChainITermNotInstalled(t *testing.T) {
 	if runtime.GOOS != "darwin" {
 		t.Skip("macOS terminals")

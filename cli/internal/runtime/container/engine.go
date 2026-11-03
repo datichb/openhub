@@ -1,4 +1,4 @@
-// Package container is the container runtime (phase 4): the tool server of a
+// Package container is the container runtime: the tool server of a
 // group runs in a container built from the project dev Dockerfile, driven by
 // an OCI command-line tool (docker with a Colima context, podman, docker).
 // No container engine API is used.

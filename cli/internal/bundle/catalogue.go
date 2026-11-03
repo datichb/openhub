@@ -8,7 +8,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/bricks"
 )
 
-// Per-agent skill catalogue (modernisation L2). Each agent may load only
+// Per-agent skill catalogue. Each agent may load only
 // the skills it can reach:
 //
 //   - its native skills;
@@ -42,7 +42,7 @@ type agentCatalogue struct {
 	// inlined are the IDs of the skills inlined in the prompt.
 	inlined     map[string]bool
 	fromCallers bool
-	// env is the session of the agent (L3); skip and keep drop the skills
+	// env is the session of the agent; skip and keep drop the skills
 	// whose when: fails for it (keep also applies the session filters).
 	env  whenEnv
 	skip func(*skillDoc) bool

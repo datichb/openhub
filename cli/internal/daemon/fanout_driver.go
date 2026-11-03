@@ -10,7 +10,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/filelock"
 )
 
-// Fan-out driver started again by the daemon (p6-debts). The driver of a
+// Fan-out driver started again by the daemon. The driver of a
 // fan-out (`oh fanout drive`) runs in its own process: it ends when the
 // parent ends before its merge checkpoint (step over, session completed),
 // and nothing would drive the children, the merge or a fix round once the

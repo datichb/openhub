@@ -6,7 +6,7 @@ import (
 )
 
 // Verification run by oh at a checkpoint and conditions of a checkpoint
-// (R3: E1, E6, CP-R7), copied from the oh/v1 workflow.
+// (CP-R7), copied from the oh/v1 workflow.
 
 // Verify kinds and expectations (copied from the oh/v1 schema).
 const (
@@ -35,7 +35,7 @@ type VerifyDef struct {
 	// run at a checkpoint the user validates (Behavior returns pause).
 	Ask bool `json:"ask,omitempty"`
 
-	// R7 (TDD): MustTouchTests: the changes touch a test file of the
+	// TDD method: MustTouchTests: the changes touch a test file of the
 	// stack; OutsideTests: what a change outside the test files does
 	// ("", warn, refuse); Since: the changes are counted from the commit
 	// recorded when this checkpoint was last passed (CheckpointDef.Base).
@@ -43,10 +43,10 @@ type VerifyDef struct {
 	OutsideTests   string `json:"outside_tests,omitempty"`
 	Since          string `json:"since,omitempty"`
 
-	// R4: Spec checks the specs the session changed (internal/specdoc).
+	// Spec checks the specs the session changed (internal/specdoc).
 	Spec *SpecCheckDef `json:"spec,omitempty"`
 
-	// R6: On is "integration" when the verification runs on the
+	// On is "integration" when the verification runs on the
 	// integration branch of a fan-out (its worktree), not in the session
 	// location.
 	On string `json:"on,omitempty"`

@@ -175,7 +175,7 @@ func (s *Store) CountProjects(ctx context.Context) (int, error) {
 }
 
 // sequentialMigrations is the last migration of the strictly ordered era;
-// later versions are reserved by parallel branches (v5 phase 1+).
+// later versions are reserved by parallel branches.
 const sequentialMigrations = 31
 
 // migration represents a single schema change with an optional rollback.
@@ -508,7 +508,7 @@ CREATE INDEX IF NOT EXISTS idx_proxy_grants_owner ON proxy_grants(owner)`,
 		down:    `ALTER TABLE sessions DROP COLUMN state_changed_at`,
 	},
 	{
-		// v5 phase 1 (P1-T21): pinned workflows and UI settings. scope =
+		// Pinned workflows and UI settings. scope =
 		// "global" | "project:<id>" | "team:<id>"; value = JSON.
 		version: 32,
 		up: `CREATE TABLE IF NOT EXISTS preferences (
@@ -539,10 +539,10 @@ CREATE INDEX IF NOT EXISTS idx_pending_decisions_session ON pending_decisions(se
 		down: `DROP TABLE IF EXISTS pending_decisions`,
 	},
 	{
-		// v5 phase 1 (P1-T16/T27): workflow launches. workflow_risk decides
-		// automatic worktrees (O10); location = base | worktree; outputs =
+		// Workflow launches. workflow_risk decides
+		// automatic worktrees; location = base | worktree; outputs =
 		// typed session outputs (JSON object); parent_session_id = "chain
-		// with…" (O7).
+		// with…".
 		version: 34,
 		up: `ALTER TABLE sessions ADD COLUMN workflow_layer TEXT NOT NULL DEFAULT '';
 ALTER TABLE sessions ADD COLUMN workflow_version INTEGER NOT NULL DEFAULT 0;
@@ -558,7 +558,7 @@ ALTER TABLE sessions DROP COLUMN workflow_version;
 ALTER TABLE sessions DROP COLUMN workflow_layer`,
 	},
 	{
-		// v5 phase 3 (P3-T03): workflow state of a session (checkpoints
+		// Workflow state of a session (checkpoints
 		// passed, agents run, circuit breaker), JSON kept by the
 		// CheckpointService.
 		version: 35,
@@ -566,7 +566,7 @@ ALTER TABLE sessions DROP COLUMN workflow_layer`,
 		down:    `ALTER TABLE sessions DROP COLUMN checkpoint_state`,
 	},
 	{
-		// v5 phase 3 (P3-T25): projects.agents (agent selection of the
+		// projects.agents (agent selection of the
 		// former per-project deployment) is neutralized: sessions ship the
 		// agents of their workflow bundle. The selection is not kept.
 		version: 36,
@@ -574,13 +574,13 @@ ALTER TABLE sessions DROP COLUMN workflow_layer`,
 		down:    `SELECT 1`,
 	},
 	{
-		// v5 phase 3 (P3-T25): projects.agents is dropped.
+		// projects.agents is dropped.
 		version: 37,
 		up:      `ALTER TABLE projects DROP COLUMN agents`,
 		down:    `ALTER TABLE projects ADD COLUMN agents TEXT NOT NULL DEFAULT ''`,
 	},
 	{
-		// v5 phase 2 (P2-T11): projects.workflow_config is neutralized. Its
+		// projects.workflow_config is neutralized. Its
 		// content moves to workflow_config_legacy, read only by the migration
 		// to the team-state (cmd/workflow_migrate.go), then cleared there.
 		version: 38,
@@ -591,14 +591,14 @@ UPDATE projects SET workflow_config = ''`,
 ALTER TABLE projects DROP COLUMN workflow_config_legacy`,
 	},
 	{
-		// v5 phase 5 (P5-T08): reference of a remote session (GitLab target,
+		// Reference of a remote session (GitLab target,
 		// pipeline, packages, status), JSON kept by the remote service.
 		version: 39,
 		up:      `ALTER TABLE sessions ADD COLUMN remote_ref TEXT NOT NULL DEFAULT ''`,
 		down:    `ALTER TABLE sessions DROP COLUMN remote_ref`,
 	},
 	{
-		// v5 hardening (P3-T14, I6): persistent usage ledger — cost and
+		// Persistent usage ledger — cost and
 		// tokens per tool session and day (reported by the tool; root_id is
 		// the oh session a subagent session works for), proxy traffic per
 		// server group and day, budget raises.
@@ -638,7 +638,7 @@ DROP INDEX IF EXISTS idx_usage_sessions_session;
 DROP TABLE IF EXISTS usage_sessions`,
 	},
 	{
-		// v5 phase 4 (P4-T09): execution settings of a project (dev
+		// Execution settings of a project (dev
 		// Dockerfile, build args, cache volumes, default workflow and
 		// runtime), JSON.
 		version: 41,
@@ -646,9 +646,9 @@ DROP TABLE IF EXISTS usage_sessions`,
 		down:    `ALTER TABLE projects DROP COLUMN exec_config`,
 	},
 	{
-		// v5 corrections (A23, A31): git starting point of a session (its
+		// git starting point of a session (its
 		// results cover the whole session) and the tickets it works on
-		// (team claims released when it ends), JSON. A21: the cost of a
+		// (team claims released when it ends), JSON. The cost of a
 		// session is its total with its subagents (usage ledger), also for
 		// the sessions recorded before.
 		version: 42,
@@ -663,7 +663,7 @@ WHERE (SELECT SUM(u.cost_usd) FROM usage_sessions u WHERE u.root_id = sessions.i
 ALTER TABLE sessions DROP COLUMN start_ref`,
 	},
 	{
-		// v5 critical (N16, oh gc): the worktree a session got from oh at
+		// The worktree a session got from oh at
 		// launch (automatic: removed by oh gc once clean, pushed and unused;
 		// the sessions recorded before stay "unknown" and are never cleaned)
 		// and the indexes of the clean-up queries.
@@ -682,7 +682,7 @@ ALTER TABLE sessions DROP COLUMN worktree_branch;
 ALTER TABLE sessions DROP COLUMN worktree_auto`,
 	},
 	{
-		// Modernisation L4 (workflow_report): the reports filed by the agents
+		// Reports (workflow_report): the reports filed by the agents
 		// of a session (rp-<seq>); the bodies are files of the session folder.
 		version: 44,
 		up: `CREATE TABLE IF NOT EXISTS session_reports (
@@ -700,7 +700,7 @@ ALTER TABLE sessions DROP COLUMN worktree_auto`,
 		down: `DROP TABLE IF EXISTS session_reports`,
 	},
 	{
-		// Modernisation LD-J (wiki MCP of the project): the proposals for
+		// Wiki MCP of the project: the proposals for
 		// docs/wiki/ (wp-<seq> per project), kept after their session (the
 		// queue of the workflows without a commit).
 		version: 45,
@@ -732,7 +732,7 @@ DROP INDEX IF EXISTS idx_wiki_proposals_session;
 DROP TABLE IF EXISTS wiki_proposals`,
 	},
 	{
-		// Modernisation R6 (fan-out, experimental): the fan-out record of a
+		// Fan-out (experimental): the fan-out record of a
 		// session (parent, child or merger; children, integration branch,
 		// budget and events), JSON, written by oh only.
 		version: 46,
@@ -740,7 +740,7 @@ DROP TABLE IF EXISTS wiki_proposals`,
 		down:    `ALTER TABLE sessions DROP COLUMN fanout`,
 	},
 	{
-		// Modernisation p5-fixes (wiki_propose replaces a line): the line of
+		// wiki_propose replaces a line: the line of
 		// the page a proposal replaces ('' = an addition). v47 is taken by
 		// another lot.
 		version: 48,
@@ -748,7 +748,7 @@ DROP TABLE IF EXISTS wiki_proposals`,
 		down:    `ALTER TABLE wiki_proposals DROP COLUMN replaces`,
 	},
 	{
-		// Modernisation p9-wiki-refusal: the reason the user gave when
+		// Wiki refusal: the reason the user gave when
 		// refusing a wiki proposal ('' = none, or not refused). v50 is taken
 		// by another lot.
 		version: 49,

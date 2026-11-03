@@ -14,7 +14,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
-// Variants by role and by session (modernisation L3). A skill (frontmatter
+// Variants by role and by session. A skill (frontmatter
 // `when:`) or a block of text is kept only for the agents whose session
 // satisfies its condition:
 //
@@ -35,15 +35,15 @@ import (
 //	calls        an agent it may launch (consumer side of a shared format)
 //	mcp          an MCP server of the session (workflow, gitlab, team…)
 //	plugin       a plugin of the workflow
-//	method       the method of the session (R7: standard, tdd)
+//	method       the method of the session (standard, tdd)
 //	websearch    the web search tools are on and the agent may use them
 //	beads_write  the workflow lets agents write to Beads and the agent may run bd
 //	ticket       the workflow takes a Beads ticket as input
 //	wiki         the project has a wiki (docs/wiki/)
 //	shell        the agent may run shell commands
 //	headless     nobody follows the session (workflow `headless: true`)
-//	writes       the workflow opens documentation paths to the agent (R4,
-//	             `agents.<id>.writes`)
+//	writes       the workflow opens documentation paths to the agent
+//	             (`agents.<id>.writes`)
 //
 // Inlined skills and the agent body are filtered for the agent; an
 // on-demand skill for the union of the agents whose catalogue holds it (a
@@ -340,7 +340,7 @@ type sessionEnv struct {
 	ticket, wiki, headless bool
 	entry, method          string
 	graph, callers         map[string][]string
-	// writes: the documentation paths of each agent given some (R4, `writes:`).
+	// writes: the documentation paths of each agent given some (`writes:`).
 	writes map[string][]string
 }
 
