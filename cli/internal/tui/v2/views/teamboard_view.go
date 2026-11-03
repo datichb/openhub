@@ -1316,10 +1316,18 @@ func (v *TeamBoardView) showAssigneeFilter() {
 		}
 	}
 
+	// By displayed name: the order of a map changes at each opening.
 	var options []SelectOption
 	for a := range assigneeSet {
 		options = append(options, SelectOption{Label: "@" + a, Value: a})
 	}
+	sort.Slice(options, func(i, j int) bool {
+		a, b := strings.ToLower(options[i].Value), strings.ToLower(options[j].Value)
+		if a != b {
+			return a < b
+		}
+		return options[i].Value < options[j].Value
+	})
 	if len(options) == 0 {
 		v.shell.ShowToastMsg(i18n.T("tui.teamboard.filter_no_assignee"), false)
 		return
