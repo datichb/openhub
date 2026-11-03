@@ -9,6 +9,18 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Added
+
+- **`spec` : avertissement de `oh` quand la spec n'a pas de section « Risques et cas limites », ou qu'elle est vide sans raison** (`specdoc.Advise`). Il ne refuse rien : il s'ajoute au résultat de `cp-converge` et de `cp-spec` (« avertissement (non bloquant) »), sur la carte du checkpoint et dans la réponse faite à l'agent, qui fait compléter la section. « Aucun » est accepté avec sa raison.
+- **Skill `risk-review`** (l'avocat du diable du planner dans `spec`) : cas limites et risques à chercher dans le code (données existantes ou importées, état modifié en cours d'édition, droits, autres lecteurs des mêmes données, accessibilité, migration et fixtures, coordination, non-fonctionnel), chaque tension classée en question, risque ou hypothèse.
+- **Cas d'évaluation S78** (`evals/spec/`) : un ticket dont la valeur dépend d'un champ modifiable dans le même formulaire, avec des fixtures qui divergent et un écran partagé ; il attend une question sur un cas limite et une section Risques non vide dans la spec.
+
+### Changed
+
+- **Le workflow `spec` est plus exigeant sur les questions et sur les risques.** La spec écrite porte une section « Risques et cas limites » obligatoire (le risque, son impact, la parade ou le critère `CA-n` qui le couvre) et sépare « Décidé » de « Hypothèse (non contestée) ». Le planner charge `risk-review` avant ses questions ; en tier Small, l'allègement ne coupe plus les cas limites ni les risques. Pour une petite story, la section tient en quelques lignes.
+- **`spec` : les hypothèses se cochent à `cp-understanding`.** Le conductor présente les hypothèses du planner dans une seule question à choix multiple (« cochez celles que vous contestez ») et transmet exactement ce que l'utilisateur a coché ou écrit ; valider sans commentaire ne rend plus les hypothèses « validées telles que proposées », elles restent des hypothèses non contestées dans la spec. Le conductor applique la même règle à tous les workflows : une validation ne vaut que pour ce qu'elle dit.
+- **`spec` : un second envoi de questions, facultatif.** Après les cinq questions bloquantes au plus du premier envoi, le planner peut ajouter des questions que se poserait une équipe, présentées comme facultatives et ignorables ; jamais plus de deux envois, et une story déjà détaillée n'en demande souvent qu'un.
+
 ## [5.2.0] — 2026-11-03
 
 Version mineure : **la limite par personne du mode équipe devient une limite de travail en cours**, et le board d'équipe gagne des filtres et un accès direct à l'éditeur de colonnes. Elle reprend aussi les correctifs prévus pour une 5.1.1, jamais publiée : formule Homebrew ([installation](README.fr.md#installation)), réservations d'un projet recréé ([`oh doctor`](docs/reference/cli-infra.fr.md#oh-doctor)), sortie d'oh sous Windows. Pas de migration de la base.
