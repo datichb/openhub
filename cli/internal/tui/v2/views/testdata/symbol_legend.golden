@@ -1,0 +1,30 @@
+[fr] Symboles
+  ✔  réussi, valide
+  ✗  échoué, invalide
+  ○  désactivé, au repos
+  –  absent, non renseigné
+  ⚠  marche, mais demande de l'attention
+  ●  en cours d'exécution
+  ◆  élément courant (vue, étape, équipe)
+  ✎  modifié, ni enregistré ni publié
+  ★  choix par défaut, élément épinglé
+  ▸  ligne sous le curseur, début d'une action
+  ◉  choisi (choix unique)
+  ☑  coché (choix multiple)
+  ☐  non coché (choix multiple)
+
+[en] Symbols
+  ✔  worked, valid
+  ✗  failed, invalid
+  ○  off, at rest
+  –  missing, not set
+  ⚠  works, but needs attention
+  ●  running right now
+  ◆  current element (view, step, team)
+  ✎  changed, neither saved nor published
+  ★  chosen by default, pinned element
+  ▸  row under the cursor, start of an action
+  ◉  chosen (single choice)
+  ☑  ticked (multiple choice)
+  ☐  not ticked (multiple choice)
+

@@ -1,14 +1,17 @@
 package views
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/rivo/tview"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/testutil/golden"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
 type noticeShell struct {
@@ -73,4 +76,45 @@ func TestHelpViewShowsTheConvention(t *testing.T) {
 		cmds[0].Action()
 	}
 	assert.True(t, strings.HasPrefix(sh.text, "Les touches sont maintenant"))
+}
+
+// The legend of the symbols is the table of meanings of the theme, row by
+// row, in both languages (golden, without colors).
+func TestSymbolLegend(t *testing.T) {
+	t.Setenv("NO_COLOR", "1")
+	prev := i18n.Locale()
+	t.Cleanup(func() { i18n.SetLocale(prev) })
+
+	var all strings.Builder
+	for _, lang := range []string{"fr", "en"} {
+		i18n.SetLocale(lang)
+		var b strings.Builder
+		WriteSymbolLegend(&b, "")
+		lines := strings.Split(strings.TrimRight(b.String(), "\n"), "\n")
+		require.Len(t, lines, len(theme.Meanings), "one line per symbol of the table")
+		for i, m := range theme.Meanings {
+			assert.Contains(t, lines[i], m.Symbol)
+			assert.NotEqual(t, "a12.legend."+m.Name, strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(lines[i]), m.Symbol)), "%s: %s is translated", lang, m.Name)
+		}
+		fmt.Fprintf(&all, "[%s] %s\n%s\n", lang, i18n.T("a12.legend.title"), b.String())
+	}
+	golden.Assert(t, "symbol_legend", all.String())
+}
+
+// The help view shows the legend under the key convention.
+func TestHelpViewShowsTheSymbolLegend(t *testing.T) {
+	prev := i18n.Locale()
+	i18n.SetLocale("fr")
+	t.Cleanup(func() { i18n.SetLocale(prev) })
+
+	v := NewHelpView()
+	content := tview.NewFlex().SetDirection(tview.FlexRow)
+	v.Mount(content, tview.NewApplication())
+	screen := screenText(t, content, 120, 120)
+	convention := strings.Index(screen, "Convention des touches")
+	legend := strings.Index(screen, i18n.T("a12.legend.title"))
+	require.Greater(t, legend, convention, "the legend comes after the convention")
+	for _, m := range theme.Meanings {
+		assert.Contains(t, screen[legend:], m.Symbol+"  "+i18n.T("a12.legend."+m.Name))
+	}
 }

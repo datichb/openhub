@@ -90,3 +90,23 @@ func TestHelpListsAllTheKeysOfAView(t *testing.T) {
 	assert.Contains(t, screen, "Z zoomer")
 	assert.NotContains(t, screen, "Entrée ouvrir · ? aide")
 }
+
+// The help (?) holds the legend of the symbols, after the key convention; the
+// text scrolls with the arrows.
+func TestHelpShowsTheSymbolLegend(t *testing.T) {
+	prev := i18n.Locale()
+	i18n.SetLocale("fr")
+	t.Cleanup(func() { i18n.SetLocale(prev) })
+
+	title := i18n.T("a12.legend.title")
+	s := newKeyShell(t, &keyView{id: "home", focusList: true})
+	s.key(tcell.KeyRune, '?', tcell.ModNone)
+	var seen strings.Builder
+	for i := 0; i < 60 && !strings.Contains(seen.String(), title); i++ {
+		seen.WriteString(s.screen())
+		s.key(tcell.KeyPgDn, 0, tcell.ModNone)
+	}
+	assert.Contains(t, seen.String(), title)
+	assert.Contains(t, seen.String(), "Convention des touches")
+	assert.Less(t, strings.Index(seen.String(), "Convention des touches"), strings.Index(seen.String(), title))
+}

@@ -6273,5 +6273,19 @@
   "a12.columns.confirm_column_detail_mappings": "La colonne sera retirée de l'éditeur, avec les rattachements qui y mènent (%d).",
   "a12.columns.confirm_label_title": "Retirer l'étiquette « %s » ?",
   "a12.columns.confirm_status_title": "Retirer le statut « %s » ?",
-  "a12.columns.confirm_mapping_detail": "Il ne sera plus rattaché à la colonne « %s »."
+  "a12.columns.confirm_mapping_detail": "Il ne sera plus rattaché à la colonne « %s ».",
+  "a12.legend.title": "Symboles",
+  "a12.legend.success": "réussi, valide",
+  "a12.legend.failure": "échoué, invalide",
+  "a12.legend.inactive": "désactivé, au repos",
+  "a12.legend.absent": "absent, non renseigné",
+  "a12.legend.warning": "marche, mais demande de l'attention",
+  "a12.legend.active": "en cours d'exécution",
+  "a12.legend.current": "élément courant (vue, étape, équipe)",
+  "a12.legend.modified": "modifié, ni enregistré ni publié",
+  "a12.legend.default": "choix par défaut, élément épinglé",
+  "a12.legend.cursor": "ligne sous le curseur, début d'une action",
+  "a12.legend.selected": "choisi (choix unique)",
+  "a12.legend.selected-multi": "coché (choix multiple)",
+  "a12.legend.unselected-multi": "non coché (choix multiple)"
 }

@@ -48,6 +48,10 @@ func (s *Shell) showHelpOverlay() {
 	fmt.Fprintf(&b, "\n  %s%s%s\n\n", accent, i18n.T("tui.keys.help.convention"), reset)
 	views.WriteKeyConvention(&b, "  ")
 
+	// ── Legend of the symbols (table of meanings of the theme) ────────────────
+	fmt.Fprintf(&b, "\n  %s%s%s\n\n", accent, i18n.T("a12.legend.title"), reset)
+	views.WriteSymbolLegend(&b, "  ")
+
 	// ── Launch form and wizards ───────────────────────────────────────────────
 	fmt.Fprintf(&b, "\n  %s%s%s\n\n", accent, i18n.T("tui.keys.help.forms"), reset)
 	for _, r := range []struct{ key, desc string }{

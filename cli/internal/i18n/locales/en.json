@@ -6273,5 +6273,19 @@
   "a12.columns.confirm_column_detail_mappings": "The column will be removed from the editor, with the mappings that lead to it (%d).",
   "a12.columns.confirm_label_title": "Remove the label \"%s\"?",
   "a12.columns.confirm_status_title": "Remove the status \"%s\"?",
-  "a12.columns.confirm_mapping_detail": "It will no longer be mapped to the column \"%s\"."
+  "a12.columns.confirm_mapping_detail": "It will no longer be mapped to the column \"%s\".",
+  "a12.legend.title": "Symbols",
+  "a12.legend.success": "worked, valid",
+  "a12.legend.failure": "failed, invalid",
+  "a12.legend.inactive": "off, at rest",
+  "a12.legend.absent": "missing, not set",
+  "a12.legend.warning": "works, but needs attention",
+  "a12.legend.active": "running right now",
+  "a12.legend.current": "current element (view, step, team)",
+  "a12.legend.modified": "changed, neither saved nor published",
+  "a12.legend.default": "chosen by default, pinned element",
+  "a12.legend.cursor": "row under the cursor, start of an action",
+  "a12.legend.selected": "chosen (single choice)",
+  "a12.legend.selected-multi": "ticked (multiple choice)",
+  "a12.legend.unselected-multi": "not ticked (multiple choice)"
 }

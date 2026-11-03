@@ -25,6 +25,19 @@ func TestSymbolsAreTheGlyphTable(t *testing.T) {
 	}
 }
 
+// The legend of the help is the table of glyph, in the same order, and each
+// symbol has its label in both languages.
+func TestMeaningsAreTheGlyphTable(t *testing.T) {
+	if len(Meanings) != len(glyph.Symbols) {
+		t.Fatalf("%d meanings in the theme, %d symbols in glyph", len(Meanings), len(glyph.Symbols))
+	}
+	for i, s := range glyph.Symbols {
+		if m := Meanings[i]; m.Name != s.Name || m.Symbol != s.Glyph {
+			t.Errorf("row %d: theme %s %q, glyph %s %q", i, m.Name, m.Symbol, s.Name, s.Glyph)
+		}
+	}
+}
+
 // The Icon* all follow the table of meanings; this test freezes their values.
 // Changing one is a decision of the product (v5.1: ✔ for success and for a
 // finished step, ⚠ for a warning, – for a skipped step).
