@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"path/filepath"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -272,4 +273,23 @@ func TestLeafLocksAreIndependentOfTheSupervisionLock(t *testing.T) {
 		t.Fatal("waited for the lock of the supervision state")
 	}
 	assert.Equal(t, int64(5), d.proxyUsage["g1"].TokensIn)
+}
+
+// The panics the daemon recovers itself (a task, a heartbeat) leave the
+// stack in the log and a crash report, not only the value.
+func TestRecoveredPanicsKeepTheirStack(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("OH_HOME", home)
+	logs := captureLogs(t)
+
+	safeRun(context.Background(), Task{Name: "cleanup", Run: func(context.Context) { panic("task exploded") }})
+	(&Daemon{}).claimsBeat(context.Background(), func(context.Context) error { panic("beat exploded") })
+
+	out := logs.String()
+	for _, want := range []string{"daemon task panicked", "task=cleanup", "task exploded", "claims heartbeat panicked", "beat exploded", "goroutine", "TestRecoveredPanicsKeepTheirStack"} {
+		assert.Contains(t, out, want)
+	}
+	files, err := filepath.Glob(filepath.Join(home, "run", "crash-*.log"))
+	require.NoError(t, err)
+	assert.Len(t, files, 2, "one crash report per panic")
 }

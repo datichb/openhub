@@ -2,6 +2,7 @@ package views
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"sync"
 	"testing"
@@ -390,4 +391,78 @@ func TestSessionsViewDelete(t *testing.T) {
 		return false
 	}, 2*time.Second, 10*time.Millisecond)
 	onLoop(app, func() { v.Unmount() })
+}
+
+// A launch that succeeds after the form was left tells Launched but does not
+// pop the view that is on top by then.
+func TestLaunchFormLaunchedAfterTheFormWasLeftDoesNotPopAnotherView(t *testing.T) {
+	cfg := launchCfg(t)
+	cfg.Tickets = []string{"bd-1"}
+	cfg.Recap = func(context.Context, LaunchChoices) (*LaunchRecap, error) { return &LaunchRecap{}, nil }
+	started, release := make(chan struct{}), make(chan struct{})
+	cfg.Launch = func(context.Context, LaunchChoices) error {
+		close(started)
+		<-release
+		return nil
+	}
+	called := make(chan struct{}, 1)
+	cfg.Launched = func() { called <- struct{}{} }
+	v := NewLaunchFormView(cfg)
+	sh := &recordingShell{}
+	v.SetShell(sh)
+	content := tview.NewFlex()
+	app := runApp(t, content)
+	onLoop(app, func() { v.Mount(content, app); v.toRecap() })
+	require.Eventually(t, func() bool {
+		loaded := false
+		onLoop(app, func() { loaded = v.recap != nil })
+		return loaded
+	}, 2*time.Second, 10*time.Millisecond)
+	onLoop(app, func() { v.launch() })
+	<-started
+	onLoop(app, func() { v.Unmount() }) // the form is left while the launch runs
+	close(release)
+	select {
+	case <-called:
+	case <-time.After(2 * time.Second):
+		t.Fatal("Launched not called")
+	}
+	onLoop(app, func() {}) // the callback ran on the loop before Launched
+	sh.mu.Lock()
+	defer sh.mu.Unlock()
+	assert.Zero(t, sh.popped, "the view on top is not the form")
+}
+
+// The same launch failing after the form was left changes nothing on screen
+// (and does not panic on the widgets Unmount cleared).
+func TestLaunchFormFailureAfterTheFormWasLeftIsQuiet(t *testing.T) {
+	cfg := launchCfg(t)
+	cfg.Tickets = []string{"bd-1"}
+	cfg.Recap = func(context.Context, LaunchChoices) (*LaunchRecap, error) { return &LaunchRecap{}, nil }
+	started, release := make(chan struct{}), make(chan struct{})
+	cfg.Launch = func(context.Context, LaunchChoices) error {
+		close(started)
+		<-release
+		return errors.New("refused")
+	}
+	v := NewLaunchFormView(cfg)
+	v.SetShell(&recordingShell{})
+	content := tview.NewFlex()
+	app := runApp(t, content)
+	onLoop(app, func() { v.Mount(content, app); v.toRecap() })
+	require.Eventually(t, func() bool {
+		loaded := false
+		onLoop(app, func() { loaded = v.recap != nil })
+		return loaded
+	}, 2*time.Second, 10*time.Millisecond)
+	onLoop(app, func() { v.launch() })
+	<-started
+	onLoop(app, func() { v.Unmount() })
+	close(release)
+	require.Eventually(t, func() bool {
+		var launching bool
+		onLoop(app, func() { launching = v.launching })
+		return !launching
+	}, 2*time.Second, 10*time.Millisecond)
+	onLoop(app, func() { assert.EqualError(t, v.launchErr, "refused") })
 }

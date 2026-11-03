@@ -1014,6 +1014,7 @@
   "tui.checkpoint.verify.unreadable": "git ne peut pas lire l’état du travail (dépôt refusé) : la vérification ne peut pas y être rattachée",
   "tui.checkpoint.verify.remote": "Dans le job distant : %s (le travail est revérifié ici avant de passer)",
   "tui.checkpoint.verify.no_command": "aucune commande de vérification détectée pour ce projet",
+  "tui.checkpoint.verify.panic": "vérification interrompue par une erreur interne (%s)",
   "tui.checkpoint.verify.must_touch": "les changements ne touchent aucun de ces chemins : %s",
   "tui.checkpoint.verify.task_scope": "tâche %s : changements hors de son périmètre (%s) ; périmètre : %s. Annule-les : une autre session enfant travaille peut-être sur ces fichiers",
   "tui.checkpoint.verify.task_scope_unreadable": "changements de la tâche illisibles (%v)",

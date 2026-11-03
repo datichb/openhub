@@ -1014,6 +1014,7 @@
   "tui.checkpoint.verify.unreadable": "git cannot read the state of the work (repository refused): the verification cannot be tied to it",
   "tui.checkpoint.verify.remote": "In the remote job: %s (the work is verified again here before it passes)",
   "tui.checkpoint.verify.no_command": "no verification command detected for this project",
+  "tui.checkpoint.verify.panic": "verification stopped by an internal error (%s)",
   "tui.checkpoint.verify.must_touch": "the changes touch none of these paths: %s",
   "tui.checkpoint.verify.task_scope": "task %s: changes outside its scope (%s); scope: %s. Undo them: another child session may work on these files",
   "tui.checkpoint.verify.task_scope_unreadable": "changes of the task unreadable (%v)",

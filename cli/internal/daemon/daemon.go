@@ -9,7 +9,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"runtime/debug"
 	"sort"
 	"strconv"
 	"strings"
@@ -671,7 +670,7 @@ func upstreamFor(provider, region string, auth credproxy.Auth) (credproxy.Upstre
 func (d *Daemon) superviseSafe(ctx context.Context) (idle bool) {
 	defer func() {
 		if r := recover(); r != nil {
-			slog.Error("ohd: panic in the supervision pass", "panic", r, "stack", string(debug.Stack()))
+			safego.LogRecovered("ohd: panic in the supervision pass", r)
 			idle = false
 		}
 	}()

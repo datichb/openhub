@@ -11,6 +11,7 @@ import (
 	"time"
 
 	ohruntime "github.com/datichb/openhub/cli/internal/runtime"
+	"github.com/datichb/openhub/cli/internal/safego"
 )
 
 // engineExitError is the first exit code an engine CLI uses for its own
@@ -37,7 +38,7 @@ func (r *Runtime) Exec(ctx context.Context, pg *ohruntime.Prepared, p ohruntime.
 		return -1, err
 	}
 	done := make(chan error, 1)
-	go func() { done <- cmd.Wait() }()
+	safego.Go(func() { done <- safego.WrapErr(cmd.Wait)() }) // a panic is an error of the run, not a wait that never ends
 	var werr error
 	select {
 	case werr = <-done:

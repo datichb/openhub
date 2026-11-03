@@ -15,6 +15,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/provider"
+	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
@@ -256,7 +257,7 @@ func setupBedrock(ctx context.Context, a *app.App, project *domain.Project) erro
 				rerenderSafe := func() {
 					if stepIdx >= 0 {
 						if fn := steps[stepIdx].Rerender; fn != nil {
-							go func() { app.QueueUpdateDraw(func() { fn() }) }()
+							safego.Go(func() { app.QueueUpdateDraw(func() { fn() }) })
 						}
 					}
 				}
@@ -296,7 +297,7 @@ func setupBedrock(ctx context.Context, a *app.App, project *domain.Project) erro
 				rerenderSafe := func() {
 					if stepIdx >= 0 {
 						if fn := steps[stepIdx].Rerender; fn != nil {
-							go func() { app.QueueUpdateDraw(func() { fn() }) }()
+							safego.Go(func() { app.QueueUpdateDraw(func() { fn() }) })
 						}
 					}
 				}

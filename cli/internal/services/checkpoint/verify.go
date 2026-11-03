@@ -20,6 +20,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/gitutil"
 	"github.com/datichb/openhub/cli/internal/glyph"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
@@ -314,13 +315,19 @@ func (s *Service) launchVerify(sess *domain.Session, c sessionspec.CheckpointDef
 		s.verifier.mu.Unlock()
 		return
 	}
-	go func() {
+	safego.Go(func() {
 		defer func() {
 			s.verifier.mu.Lock()
 			delete(s.verifier.inflight, key)
 			s.verifier.mu.Unlock()
 		}()
-		r := s.runVerify(ctx, sess, c)
+		// A panic of the verification must not leave the result "running"
+		// for ever: it is a verification that could not run, which waits
+		// for an override like any other.
+		var r domain.CheckpointVerify
+		if perr := safego.WrapErr(func() error { r = s.runVerify(ctx, sess, c); return nil })(); perr != nil {
+			r = domain.CheckpointVerify{Status: domain.VerifyUnavailable, Reason: i18n.Tf("tui.checkpoint.verify.panic", safego.Summary(perr))}
+		}
 		r.Fingerprint, r.Started, r.Expect = fp, started, c.Verify.Expect
 		done := s.now()
 		r.Finished = &done
@@ -339,7 +346,7 @@ func (s *Service) launchVerify(sess *domain.Session, c sessionspec.CheckpointDef
 			s.record(st, kind, c.ID, "oh", VerifySummary(r))
 			return nil
 		})
-	}()
+	})
 }
 
 // runVerify runs the verification of c (no state change).

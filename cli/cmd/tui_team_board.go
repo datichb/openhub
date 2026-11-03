@@ -83,7 +83,7 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 	func() {
 		defer func() {
 			if r := recover(); r != nil {
-				slog.Error("board config init panic", "recover", r)
+				safego.LogRecovered("board config init panic", r)
 			}
 		}()
 		if repo := resolveRepo(); repo != nil {
@@ -104,7 +104,7 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 	func() {
 		defer func() {
 			if r := recover(); r != nil {
-				slog.Error("board tickets init panic", "recover", r)
+				safego.LogRecovered("board tickets init panic", r)
 			}
 		}()
 		if repo := resolveRepo(); repo != nil {
@@ -160,7 +160,7 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 				defer func() {
 					if r := recover(); r != nil {
 						err = fmt.Errorf(i18n.T("cmd.tui_team_board.tracker_sync_panic"), r)
-						slog.Error("tracker_sync.panic", "error", r)
+						safego.LogRecovered("tracker_sync.panic", r)
 					}
 				}()
 				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)

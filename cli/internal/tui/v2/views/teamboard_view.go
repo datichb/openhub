@@ -274,7 +274,7 @@ func (v *TeamBoardView) Mount(content *tview.Flex, app *tview.Application) {
 			v.reload(nil)
 		})
 		if app != nil {
-			everyOnLoop(app, rate, v.done, v.refreshIfIdle)
+			everyOnLoop(shellContext(v.shell), app, rate, v.done, v.refreshIfIdle)
 		}
 	}
 
@@ -282,7 +282,7 @@ func (v *TeamBoardView) Mount(content *tview.Flex, app *tview.Application) {
 	if v.cfg.BeadsSummaryFunc != nil {
 		v.loadSummary()
 		if app != nil {
-			everyOnLoop(app, 30*time.Second, v.done, v.loadSummary)
+			everyOnLoop(shellContext(v.shell), app, 30*time.Second, v.done, v.loadSummary)
 		}
 	}
 }

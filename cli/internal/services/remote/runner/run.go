@@ -14,6 +14,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/remote"
 	"github.com/datichb/openhub/cli/internal/runsvc"
+	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
@@ -167,10 +168,17 @@ func Run(ctx context.Context, in Input) (*remote.Summary, error) {
 	turnCtx, stopTurn := context.WithCancel(ctx)
 	defer stopTurn()
 	respDone := make(chan struct{})
-	go func() {
+	var respErr error // read after respDone
+	safego.Go(func() {
 		defer close(respDone)
-		in.Responder.Run(turnCtx, sid, func(Stop) { stopTurn() })
-	}()
+		respErr = safego.WrapErr(func() error {
+			in.Responder.Run(turnCtx, sid, func(Stop) { stopTurn() })
+			return nil
+		})()
+		if respErr != nil {
+			stopTurn() // nobody answers the decisions any more: the turn ends
+		}
+	})
 	poll := in.TurnPoll
 	if poll == 0 {
 		poll = 3 * time.Second
@@ -197,6 +205,9 @@ func Run(ctx context.Context, in Input) (*remote.Summary, error) {
 	}
 	stopTurn()
 	<-respDone
+	if respErr != nil && turnErr == nil {
+		turnErr = errors.New("answering the decisions: " + safego.Summary(respErr))
+	}
 	if turnErr == nil && in.Responder.Stopped() == nil && ctx.Err() == nil {
 		// Decisions raised as the turn ended (error of the last step).
 		in.Responder.Step(ctx, sid)

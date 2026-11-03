@@ -251,7 +251,7 @@ func (v *WorkflowEditorView) recheck(delay time.Duration) {
 		run()
 		return
 	}
-	v.timer = time.AfterFunc(delay, func() { app.QueueUpdate(run) }) // checked on the loop, read off it
+	v.timer = safego.AfterFunc(delay, func() { app.QueueUpdate(run) }) // checked on the loop, read off it
 }
 
 // SetCheck sets the check result (tests).

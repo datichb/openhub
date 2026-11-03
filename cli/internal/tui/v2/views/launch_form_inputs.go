@@ -9,6 +9,7 @@ import (
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
@@ -220,7 +221,7 @@ func (v *LaunchFormView) checkInput(k string) {
 		return
 	}
 	slot := v.inputs.checkSlot(k)
-	time.AfterFunc(inputCheckDelay, func() {
+	safego.AfterFunc(inputCheckDelay, func() {
 		if ctx.Err() != nil || !current() {
 			return
 		}

@@ -3,11 +3,16 @@ package safego
 import (
 	"bytes"
 	"context"
+	"errors"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"golang.org/x/sync/errgroup"
 )
 
 func TestGo_NoPanic(t *testing.T) {
@@ -145,5 +150,142 @@ func TestAfterFunc_StopCancelsTheCall(t *testing.T) {
 	case <-ran:
 		t.Fatal("a stopped timer ran")
 	case <-time.After(20 * time.Millisecond):
+	}
+}
+
+// captureLogs gives the default logger a buffer and the hub a folder of its own.
+func captureLogs(t *testing.T) (*syncBuffer, string) {
+	t.Helper()
+	home := t.TempDir()
+	t.Setenv("OH_HOME", home)
+	logs := &syncBuffer{}
+	prev := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(logs, nil)))
+	t.Cleanup(func() { slog.SetDefault(prev) })
+	return logs, filepath.Join(home, "run")
+}
+
+func crashFiles(t *testing.T, dir string) []string {
+	t.Helper()
+	files, err := filepath.Glob(filepath.Join(dir, "crash-*.log"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return files
+}
+
+func TestGo_WritesACrashFileAndLogsItsPath(t *testing.T) {
+	logs, dir := captureLogs(t)
+	done := make(chan struct{})
+	Go(func() {
+		defer close(done)
+		panic("goroutine exploded")
+	})
+	<-done
+	var files []string
+	for deadline := time.Now().Add(5 * time.Second); time.Now().Before(deadline); time.Sleep(5 * time.Millisecond) {
+		if files = crashFiles(t, dir); len(files) > 0 {
+			break
+		}
+	}
+	if len(files) != 1 {
+		t.Fatalf("crash files = %v, want 1", files)
+	}
+	data, err := os.ReadFile(files[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"panic: goroutine exploded", "TestGo_WritesACrashFileAndLogsItsPath"} {
+		if !strings.Contains(string(data), want) {
+			t.Errorf("crash file lacks %q:\n%s", want, data)
+		}
+	}
+	var out string
+	for deadline := time.Now().Add(5 * time.Second); time.Now().Before(deadline); time.Sleep(5 * time.Millisecond) {
+		if out = logs.String(); strings.Contains(out, "recovered panic") {
+			break
+		}
+	}
+	if !strings.Contains(out, "crash_file="+files[0]) {
+		t.Errorf("the log does not give the crash file %s:\n%s", files[0], out)
+	}
+}
+
+func TestSupervise_WritesACrashFile(t *testing.T) {
+	_, dir := captureLogs(t)
+	n := 0
+	SuperviseBackoff(context.Background(), "loop", time.Millisecond, time.Millisecond, func(context.Context) {
+		if n++; n == 1 {
+			panic("loop exploded")
+		}
+	})
+	if files := crashFiles(t, dir); len(files) != 1 {
+		t.Fatalf("crash files = %v, want 1", files)
+	}
+}
+
+func TestWrapErr_ReturnsThePanicAsAnErrorWithItsStack(t *testing.T) {
+	_, dir := captureLogs(t)
+	cause := errors.New("sentinel")
+	err := WrapErr(func() error { panic(cause) })()
+	var perr *PanicError
+	if !errors.As(err, &perr) {
+		t.Fatalf("err = %v, want a *PanicError", err)
+	}
+	if !errors.Is(err, cause) {
+		t.Error("the error given to panic is not reachable with errors.Is")
+	}
+	if !strings.Contains(string(perr.Stack), "TestWrapErr_ReturnsThePanicAsAnErrorWithItsStack") {
+		t.Errorf("stack lacks the panicking function:\n%s", perr.Stack)
+	}
+	files := crashFiles(t, dir)
+	if len(files) != 1 || perr.CrashFile != files[0] {
+		t.Errorf("CrashFile = %q, files = %v", perr.CrashFile, files)
+	}
+	if msg := err.Error(); !strings.Contains(msg, "sentinel") || !strings.Contains(msg, files[0]) || !strings.Contains(msg, "goroutine") {
+		t.Errorf("message lacks the value, the file or the stack:\n%s", msg)
+	}
+}
+
+func TestWrapErr_PassesTheErrorThrough(t *testing.T) {
+	want := errors.New("plain")
+	if got := WrapErr(func() error { return want })(); got != want {
+		t.Errorf("err = %v, want %v", got, want)
+	}
+	if got := WrapErr(func() error { return nil })(); got != nil {
+		t.Errorf("err = %v, want nil", got)
+	}
+}
+
+func TestWrap_RecoversForAWaitGroup(t *testing.T) {
+	captureLogs(t)
+	var wg sync.WaitGroup
+	wg.Go(Wrap(func() { panic("in a wait group") }))
+	wg.Wait()
+}
+
+func TestWrapErr_InAnErrgroupTheWaitReturnsThePanic(t *testing.T) {
+	captureLogs(t)
+	var g errgroup.Group
+	g.Go(WrapErr(func() error { return nil }))
+	g.Go(WrapErr(func() error { panic("one of the workers") }))
+	err := g.Wait()
+	var perr *PanicError
+	if !errors.As(err, &perr) || perr.Value != "one of the workers" {
+		t.Fatalf("Wait() = %v, want the panic as an error", err)
+	}
+	if !strings.Contains(err.Error(), "goroutine") {
+		t.Errorf("the error lacks the stack:\n%v", err)
+	}
+}
+
+func TestSummaryHasNoStack(t *testing.T) {
+	captureLogs(t)
+	err := WrapErr(func() error { panic("short") })()
+	if got := Summary(err); !strings.HasPrefix(got, "panic: short (crash report: ") || strings.Contains(got, "\n") {
+		t.Errorf("Summary = %q", got)
+	}
+	if got := Summary(errors.New("plain")); got != "plain" {
+		t.Errorf("Summary = %q", got)
 	}
 }

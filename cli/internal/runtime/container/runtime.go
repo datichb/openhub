@@ -15,6 +15,7 @@ import (
 	"time"
 
 	ohruntime "github.com/datichb/openhub/cli/internal/runtime"
+	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
@@ -271,10 +272,10 @@ func (r *Runtime) Command(ctx context.Context, pg *ohruntime.Prepared, p ohrunti
 	}
 	// The env file holds the session tokens: the engine CLI reads it when
 	// it starts; it is removed shortly after, and at Teardown (audit S-35).
-	go func() {
+	safego.Go(func() {
 		time.Sleep(envFileLife)
 		_ = os.Remove(envFile)
-	}()
+	})
 	cmd := exec.Command(e.CLI, append(append([]string{}, e.Args...), args...)...)
 	for _, k := range cliEnvKeys {
 		if v, ok := os.LookupEnv(k); ok {

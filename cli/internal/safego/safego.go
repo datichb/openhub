@@ -1,7 +1,8 @@
 // Package safego provides panic-safe goroutine launchers.
 //
 // All goroutines spawned via Go() are wrapped in a deferred recover that logs
-// the panic with a full stack trace. This prevents a single panicking goroutine
+// the panic with a full stack trace and writes the crash report
+// (internal/crashlog, the same file as the panic of the main goroutine). This prevents a single panicking goroutine
 // from silently dying (background refresh, network call, git operation) and
 // leaving the application in an inconsistent state with no diagnostic output.
 //
@@ -12,27 +13,130 @@ package safego
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log/slog"
 	"runtime/debug"
 	"time"
+
+	"github.com/datichb/openhub/cli/internal/crashlog"
 )
 
 // Go launches fn in a new goroutine with panic recovery.
 // If fn panics, the panic is recovered, logged via slog.Error with a full
-// stack trace, and the goroutine exits cleanly. The rest of the application
-// continues running.
+// stack trace and written to a crash file (internal/crashlog: the log shows
+// the path, so does the toast of the TUI), and the goroutine exits cleanly.
+// The rest of the application continues running.
 func Go(fn func()) {
-	go func() {
+	go Wrap(fn)()
+}
+
+// Wrap returns fn with the recovery of Go, for the launchers that start the
+// goroutine themselves: sync.WaitGroup.Go(safego.Wrap(fn)).
+func Wrap(fn func()) func() {
+	return func() {
 		defer func() {
 			if r := recover(); r != nil {
-				slog.Error("recovered panic in goroutine",
-					"panic", r,
-					"stack", string(debug.Stack()),
-				)
+				logPanic("recovered panic in goroutine", r)
 			}
 		}()
 		fn()
-	}()
+	}
+}
+
+// PanicError is the error a recovered panic becomes (WrapErr).
+type PanicError struct {
+	Value     any    // the value given to panic
+	Stack     []byte // the stack, read in the recover
+	CrashFile string // the crash report, empty when it could not be written
+}
+
+// Summary is the value of the panic and the crash report, in a line: what
+// the user is told. Error adds the stack.
+func (e *PanicError) Summary() string {
+	msg := fmt.Sprintf("panic: %v", e.Value)
+	if e.CrashFile != "" {
+		msg += " (crash report: " + e.CrashFile + ")"
+	}
+	return msg
+}
+
+func (e *PanicError) Error() string { return e.Summary() + "\n" + string(e.Stack) }
+
+// Summary is the one-line text of err for the user: PanicError.Summary for a
+// recovered panic (no stack), err.Error() for any other error.
+func Summary(err error) string {
+	var perr *PanicError
+	if errors.As(err, &perr) {
+		return perr.Summary()
+	}
+	return err.Error()
+}
+
+// LogPanicError logs err as a recovered panic when it is a *PanicError (as
+// logPanic does for the panics Go recovers) and reports whether it is.
+func LogPanicError(msg string, err error) bool {
+	var perr *PanicError
+	if !errors.As(err, &perr) {
+		return false
+	}
+	args := []any{"panic", perr.Value}
+	if perr.CrashFile != "" {
+		args = append(args, "crash_file", perr.CrashFile)
+	}
+	slog.Error(msg, append(args, "stack", string(perr.Stack))...)
+	return true
+}
+
+// Unwrap lets errors.Is and errors.As see an error given to panic.
+func (e *PanicError) Unwrap() error {
+	err, _ := e.Value.(error)
+	return err
+}
+
+// WrapErr returns fn with its panic recovered and returned as a *PanicError
+// (value, stack and crash report), for the launchers that collect an error:
+// errgroup.Group.Go(safego.WrapErr(fn)). The panic is neither logged nor
+// shown: the caller of Wait gets it as any other error, and an error is not
+// to be swallowed, so it must handle it. The crash file is written all the
+// same, the stack of the error being a text the user does not read.
+func WrapErr(fn func() error) func() error {
+	return func() (err error) {
+		defer func() {
+			if r := recover(); r != nil {
+				stack := debug.Stack()
+				perr := &PanicError{Value: r, Stack: stack}
+				if path, werr := crashlog.Write(r, stack, time.Now()); werr == nil {
+					perr.CrashFile = path
+				}
+				err = perr
+			}
+		}()
+		return fn()
+	}
+}
+
+// LogRecovered is for the code that recovers a panic itself (a deferred
+// recover that turns it into an error, or lets the loop go on): it logs the
+// value and the stack and writes the crash report, as safego.Go does. Call it
+// in the deferred function, where the frames of the panic are still there.
+// attrs are slog attributes put before the panic.
+func LogRecovered(msg string, r any, attrs ...any) { logPanic(msg, r, attrs...) }
+
+// logPanic logs a recovered panic (message, value, crash file, stack). The
+// stack comes last: the toast of the TUI keeps the first attributes and
+// leaves the stack out.
+func logPanic(msg string, r any, attrs ...any) {
+	stack := debug.Stack()
+	args := append([]any{}, attrs...)
+	args = append(args, "panic", r)
+	if path, err := crashlog.Write(r, stack, time.Now()); err == nil {
+		args = append(args, "crash_file", path)
+	} else if !errors.Is(err, crashlog.ErrDisabled) {
+		args = append(args, "crash_file_error", err.Error())
+	}
+	args = append(args, "stack", string(stack))
+	slog.Error(msg, args...)
 }
 
 // AfterFunc is time.AfterFunc with the recovery of Go: fn runs in a goroutine
@@ -93,11 +197,7 @@ func run(ctx context.Context, name string, fn func(ctx context.Context)) (panick
 	defer func() {
 		if r := recover(); r != nil {
 			panicked = true
-			slog.Error("recovered panic in supervised loop",
-				"loop", name,
-				"panic", r,
-				"stack", string(debug.Stack()),
-			)
+			logPanic("recovered panic in supervised loop", r, "loop", name)
 		}
 	}()
 	fn(ctx)

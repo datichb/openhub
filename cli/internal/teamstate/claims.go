@@ -14,6 +14,8 @@ import (
 
 	toml "github.com/pelletier/go-toml/v2"
 	"golang.org/x/sync/errgroup"
+
+	"github.com/datichb/openhub/cli/internal/safego"
 )
 
 // Claim status constants — the full lifecycle of a ticket on the team board.
@@ -843,7 +845,9 @@ func (r *Repo) listAllClaims() ([]Claim, error) {
 			continue
 		}
 		project := e.Name()
-		g.Go(func() error {
+		// A panic comes out of Wait as an error (with its stack), not as the
+		// end of the process.
+		g.Go(safego.WrapErr(func() error {
 			claims, err := r.listClaimsForProject(project)
 			if err != nil {
 				return nil //nolint:nilerr // skip broken projects
@@ -852,7 +856,7 @@ func (r *Repo) listAllClaims() ([]Claim, error) {
 			all = append(all, claims...)
 			mu.Unlock()
 			return nil
-		})
+		}))
 	}
 	if err := g.Wait(); err != nil {
 		return nil, err

@@ -4,6 +4,8 @@ import (
 	"context"
 	"log/slog"
 	"time"
+
+	"github.com/datichb/openhub/cli/internal/safego"
 )
 
 // Signal of life of the team claims. The daemon knows nothing of the
@@ -46,7 +48,7 @@ func (d *Daemon) runClaimsHeartbeat(ctx context.Context) {
 func (d *Daemon) claimsBeat(ctx context.Context, beat func(context.Context) error) {
 	defer func() {
 		if r := recover(); r != nil {
-			slog.Error("ohd: claims heartbeat panicked", "panic", r)
+			safego.LogRecovered("ohd: claims heartbeat panicked", r)
 		}
 	}()
 	if err := beat(ctx); err != nil {

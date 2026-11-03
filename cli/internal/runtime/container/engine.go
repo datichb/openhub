@@ -20,6 +20,7 @@ import (
 	"time"
 
 	ohruntime "github.com/datichb/openhub/cli/internal/runtime"
+	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/textfmt"
 )
 
@@ -135,8 +136,11 @@ func (r ExecRunner) Stream(ctx context.Context, line func(string), name string, 
 	}
 	var tail []string
 	done := make(chan struct{})
-	go func() {
+	safego.Go(func() {
 		defer close(done)
+		// Whatever happens (the line callback panics), the pipe is read to
+		// the end: the engine would block writing to it for ever.
+		defer func() { _, _ = io.Copy(io.Discard, pr) }()
 		sc := bufio.NewScanner(pr)
 		sc.Buffer(make([]byte, 64*1024), 1024*1024)
 		for sc.Scan() {
@@ -149,8 +153,7 @@ func (r ExecRunner) Stream(ctx context.Context, line func(string), name string, 
 				line(l)
 			}
 		}
-		_, _ = io.Copy(io.Discard, pr)
-	}()
+	})
 	err := cmd.Wait()
 	_ = pw.Close()
 	<-done

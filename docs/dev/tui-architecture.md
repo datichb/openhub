@@ -12,7 +12,7 @@ oh (no args) → cmd/tui.go → shell.New(cfg).Run()
 cli/internal/
 ├── glyph/              ← Table of the symbols (meanings, session states, decision kinds, team events), shared by the CLI and the TUI
 ├── textfmt/            ← Formats of dates, durations, costs, sizes, tokens and the clipping of text (CLI and TUI, in the language of the interface)
-├── safego/             ← Go, AfterFunc, Supervise: goroutines and timers that recover a panic and log it
+├── safego/             ← Go, AfterFunc, Supervise, Wrap, WrapErr: goroutines and timers that recover a panic, log it and write the crash report (internal/crashlog)
 └── tui/
     ├── theme/          ← Single source of truth for colors and styles
     │   ├── colors.go   ← Hex constants (Catppuccin Mocha)
@@ -275,7 +275,7 @@ These render as **inline overlays** in the `Pages` system rather than traditiona
 
 ## Goroutines and reads off the event loop
 
-- Every goroutine of the TUI is started with `safego.Go` (a panic is recovered and logged instead of killing the TUI), every timer with `safego.AfterFunc`, every long-lived loop with `safego.Supervise`. `TestNoBareGoInCriticalPackages` (`internal/archtest`) refuses a bare `go` statement or `time.AfterFunc` in `internal/tui/v2/shell` and in `cmd/`; the views follow the same rule, but the guard does not cover `internal/tui/v2/views` yet.
+- Every goroutine of the TUI is started with `safego.Go` (a panic is recovered and logged instead of killing the TUI), every timer with `safego.AfterFunc`, every long-lived loop with `safego.Supervise`. `TestNoBareGoInCriticalPackages` (`internal/archtest`) refuses a bare `go` statement, `time.AfterFunc` (under any import name) or `errgroup`/`sync.WaitGroup` `Go` whose argument is not a `safego.Wrap`/`WrapErr` call in all of `cmd/` and `internal/` (except `internal/safego`). A recovered panic writes `~/.oh/run/crash-<date>.log` and the toast gives its path. The router calls the views outside its lock and queues a navigation asked for from a view callback.
 - A view reads its data with `load` (and `syncLoad` for a team-state, which pulls first): the read runs off the loop, its result is applied on the loop and only if it is still the latest one of the view (`loadSlot`, invalidated in `Unmount`). A write goes through `persist` (never dropped by a newer request or an `Unmount`). A periodic refresh is `everyOnLoop`, which only starts a `load`. See [`tui-conventions.md`](tui-conventions.md#lire-et-écrire-hors-de-la-boucle).
 - What a view says when it has no data to show comes from `stateText` / `stateView` (`tui.state.*`): the same words and colours on every screen.
 

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/adapters"
+	"github.com/datichb/openhub/cli/internal/safego"
 )
 
 // Event is one server event from /api/event.
@@ -88,14 +89,18 @@ func (c *Client) Events(ctx context.Context) (events <-chan Event, errs <-chan e
 
 	out := make(chan Event, 64)
 	errc := make(chan error, 1)
-	go func() {
+	safego.Go(func() {
 		defer resp.Body.Close()
 		defer close(out)
 		defer close(errc)
-		if err := parseSSE(ctx, resp.Body, out); err != nil && ctx.Err() == nil {
+		// A panic of the reader is an error of the stream (errc), not a
+		// silent end: out closing alone looks like the server hanging up.
+		err := safego.WrapErr(func() error { return parseSSE(ctx, resp.Body, out) })()
+		safego.LogPanicError("recovered panic in the event stream", err)
+		if err != nil && ctx.Err() == nil {
 			errc <- err
 		}
-	}()
+	})
 	return out, errc, nil
 }
 

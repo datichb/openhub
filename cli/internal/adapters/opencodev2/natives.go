@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/semver"
 )
 
@@ -132,7 +133,7 @@ func stopOnSignal(srv *Server) func() {
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, os.Interrupt, syscall.SIGTERM)
 	done := make(chan struct{})
-	go func() {
+	safego.Go(func() {
 		select {
 		case sig := <-ch:
 			_ = srv.Stop(context.Background(), 2*time.Second)
@@ -142,7 +143,7 @@ func stopOnSignal(srv *Server) func() {
 			}
 		case <-done:
 		}
-	}()
+	})
 	return func() {
 		signal.Stop(ch)
 		close(done)

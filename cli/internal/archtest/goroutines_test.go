@@ -5,6 +5,7 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -20,50 +21,101 @@ import (
 // `go` statement is refused in non-test files. An entry that is not a
 // directory names the files that start with it.
 //
-// cmd/ is guarded as a whole: the daemon of a remote job
-// (cmd/runner.go), ohd (cmd/daemon*.go), the end of the claims (cmd/session_claims.go)
-// and also the tview interface of the TUI (`safego.Go(func() {
-// app.QueueUpdateDraw(...) })`, spinners, watchers), the web server, the
-// heartbeat of an attach and the fan-out driver of an evaluation. A timer
-// is safego.AfterFunc.
+// The whole of cmd/ and internal/ is guarded (v5.2.1: the guard first covered
+// the daemon, the proxy, the launcher, the gateways, cmd/ and the shell of the
+// TUI; the views, the widgets, the router, the services, the adapters, the
+// runtimes, teamstate, evalrun and mcp ran bare goroutines that a panic of an
+// external stream, a callback or a store ended the process with, and
+// under the TUI without a crash file). Every goroutine goes through
+// internal/safego, which recovers the panic, logs it and writes the crash
+// report. What the guard refuses, besides the `go` statement:
 //
-// internal/tui/v2/shell is guarded too: the click handlers of the
-// lists, the copy toast of the selection, the dismissal timer of the toasts
-// and the rotation of the notifications file ran in bare goroutines.
+//   - time.AfterFunc, also imported under another name (safego.AfterFunc);
+//   - the Go method of an errgroup.Group or of a sync.WaitGroup, unless its
+//     argument is a call to safego (g.Go(safego.WrapErr(fn)),
+//     wg.Go(safego.Wrap(fn))): the check reads the syntax, not the types, so
+//     any other method named Go is refused too, and the argument decides.
 var guardedDirs = []string{
-	"internal/daemon/",
-	"internal/credproxy/",
-	"internal/runsvc/",
-	"internal/gateway/",
 	"cmd/",
-	"internal/tui/v2/shell/",
+	"internal/",
+}
+
+// unguardedDirs are directories of guardedDirs the guard does not read, with
+// the reason.
+var unguardedDirs = map[string]string{
+	"internal/safego/": "the launchers themselves",
 }
 
 // unguardedFiles are the files of a guarded directory that still hold a bare
 // go statement, with the reason. The list only shrinks: a file that has none
 // left must be removed from it (TestUnguardedFilesStillNeedIt).
-var unguardedFiles = map[string]string{
-	"cmd/provider.go": "the steps of the Bedrock assistant, which the inline wizard replaces",
+var unguardedFiles = map[string]string{}
+
+const (
+	safegoPath = "github.com/datichb/openhub/cli/internal/safego"
+	timePath   = "time"
+)
+
+// importNames returns the names under which a file imports the package at
+// path (its last element when it is not renamed).
+func importNames(file *ast.File, path string) map[string]bool {
+	names := map[string]bool{}
+	for _, imp := range file.Imports {
+		if strings.Trim(imp.Path.Value, `"`) != path {
+			continue
+		}
+		switch {
+		case imp.Name != nil:
+			names[imp.Name.Name] = true
+		default:
+			names[path[strings.LastIndex(path, "/")+1:]] = true
+		}
+	}
+	return names
 }
 
-// bareGoStatements returns the position of every go statement of a Go
-// source file, found by parsing it (a comment or a string saying "go func"
-// is no statement), and of every time.AfterFunc call, whose function also
-// runs in a goroutine of its own.
+// isSafegoCall reports whether e is a call of a function of safego.
+func isSafegoCall(e ast.Expr, safegoNames map[string]bool) bool {
+	call, ok := e.(*ast.CallExpr)
+	if !ok {
+		return false
+	}
+	sel, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok {
+		return false
+	}
+	pkg, ok := sel.X.(*ast.Ident)
+	return ok && safegoNames[pkg.Name]
+}
+
+// bareGoStatements returns the position of every goroutine a Go source file
+// starts without safego, found by parsing it (a comment or a string saying
+// "go func" is no statement): the go statements, the time.AfterFunc calls,
+// whose function also runs in a goroutine of its own, and the Go methods
+// (errgroup, sync.WaitGroup) whose argument is not a call to safego.
 func bareGoStatements(t *testing.T, fset *token.FileSet, path string) []token.Position {
 	t.Helper()
 	file, err := parser.ParseFile(fset, path, nil, 0)
 	if err != nil {
 		t.Fatalf("%s: %v", path, err)
 	}
+	timeNames, safegoNames := importNames(file, timePath), importNames(file, safegoPath)
 	var out []token.Position
 	ast.Inspect(file, func(n ast.Node) bool {
 		switch n := n.(type) {
 		case *ast.GoStmt:
 			out = append(out, fset.Position(n.Go))
 		case *ast.CallExpr:
-			if sel, ok := n.Fun.(*ast.SelectorExpr); ok && sel.Sel.Name == "AfterFunc" {
-				if pkg, ok := sel.X.(*ast.Ident); ok && pkg.Name == "time" {
+			sel, ok := n.Fun.(*ast.SelectorExpr)
+			if !ok {
+				break
+			}
+			pkg, isIdent := sel.X.(*ast.Ident)
+			switch {
+			case sel.Sel.Name == "AfterFunc" && isIdent && timeNames[pkg.Name]:
+				out = append(out, fset.Position(n.Pos()))
+			case sel.Sel.Name == "Go" && (!isIdent || !safegoNames[pkg.Name]):
+				if len(n.Args) != 1 || !isSafegoCall(n.Args[0], safegoNames) {
 					out = append(out, fset.Position(n.Pos()))
 				}
 			}
@@ -80,7 +132,7 @@ func TestNoBareGoInCriticalPackages(t *testing.T) {
 		if strings.HasSuffix(f.rel, "_test.go") {
 			continue
 		}
-		if _, ok := unguardedFiles[f.rel]; ok {
+		if _, ok := unguardedFiles[f.rel]; ok || inDirs(f.rel, unguardedDirs) {
 			continue
 		}
 		for _, dir := range guardedDirs {
@@ -89,7 +141,7 @@ func TestNoBareGoInCriticalPackages(t *testing.T) {
 			}
 			scanned[dir]++
 			for _, pos := range bareGoStatements(t, fset, f.path) {
-				t.Errorf("%s:%d: bare go statement or time.AfterFunc — use safego.Go (a panic here would end the daemon; audit v5 A-02), or safego.Supervise for a loop the process needs", f.rel, pos.Line)
+				t.Errorf("%s:%d: bare go statement, time.AfterFunc or Go method — use safego.Go, safego.AfterFunc, safego.Wrap/WrapErr (a panic here would end the process; audit v5 A-02), or safego.Supervise for a loop the process needs", f.rel, pos.Line)
 			}
 		}
 	}
@@ -98,6 +150,15 @@ func TestNoBareGoInCriticalPackages(t *testing.T) {
 			t.Errorf("no Go file found under %s: the guard no longer checks anything, update guardedDirs", dir)
 		}
 	}
+}
+
+func inDirs(rel string, dirs map[string]string) bool {
+	for dir := range dirs {
+		if strings.HasPrefix(rel, dir) {
+			return true
+		}
+	}
+	return false
 }
 
 // An unguarded file must still hold a go statement: when the last one goes,
@@ -122,7 +183,9 @@ func TestUnguardedFilesStillNeedIt(t *testing.T) {
 	}
 }
 
-// The check sees a go statement wherever it is, and nothing else.
+// The check sees a go statement wherever it is, a time.AfterFunc under any
+// name of the package, and the Go method of a group unless safego wraps its
+// function — and nothing else.
 func TestBareGoDetection(t *testing.T) {
 	dir := t.TempDir()
 	src := `package p
@@ -130,6 +193,11 @@ func TestBareGoDetection(t *testing.T) {
 import (
 	"fmt"
 	"time"
+	clock "time"
+
+	"golang.org/x/sync/errgroup"
+
+	"github.com/datichb/openhub/cli/internal/safego"
 )
 
 // go func() {} is a comment
@@ -141,6 +209,15 @@ func f() {
 	}()
 	defer func() { go g() }()
 	time.AfterFunc(time.Second, g)
+	clock.AfterFunc(time.Second, g)
+	safego.AfterFunc(time.Second, g)
+	safego.Go(g)
+	var eg errgroup.Group
+	eg.Go(func() error { return nil })
+	eg.Go(safego.WrapErr(func() error { return nil }))
+	var wg sync.WaitGroup
+	wg.Go(g)
+	wg.Go(safego.Wrap(g))
 }
 
 func g() {}
@@ -154,13 +231,24 @@ func g() {}
 	for _, p := range got {
 		lines = append(lines, p.Line)
 	}
-	want := []int{11, 13, 15, 16}
+	want := []int{16, 18, 20, 21, 22, 26, 29}
 	if len(lines) != len(want) {
 		t.Fatalf("go statements at lines %v, want %v", lines, want)
 	}
 	for i := range want {
 		if lines[i] != want[i] {
 			t.Fatalf("go statements at lines %v, want %v", lines, want)
+		}
+	}
+}
+
+// What the guard exempts exists: a renamed or deleted directory is removed
+// from the list.
+func TestUnguardedDirsExist(t *testing.T) {
+	root := moduleRoot(t)
+	for dir := range unguardedDirs {
+		if info, err := os.Stat(filepath.Join(root, dir)); err != nil || !info.IsDir() {
+			t.Errorf("%s is not a directory of the module: remove it from unguardedDirs", dir)
 		}
 	}
 }

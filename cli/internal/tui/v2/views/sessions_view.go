@@ -241,7 +241,7 @@ func (v *SessionsView) watchChanges(ctx context.Context, gen uint64, app *tview.
 			if timer != nil {
 				timer.Stop()
 			}
-			timer = time.AfterFunc(sessionsReloadDelay, func() {
+			timer = safego.AfterFunc(sessionsReloadDelay, func() {
 				app.QueueUpdateDraw(func() {
 					if v.gen == gen {
 						v.reload()
@@ -1011,6 +1011,9 @@ func (v *SessionsView) startFollow(r *SessionRow) {
 	safego.Go(func() {
 		lines, err := v.cfg.Backend.Follow(ctx, id)
 		if err != nil {
+			if ctx.Err() != nil {
+				return // the follow was stopped: QueueUpdateDraw would wait for a loop that may be gone
+			}
 			app.QueueUpdateDraw(func() {
 				if v.gen == gen && v.feed != nil {
 					v.feed.SetText(muted(err.Error()))
@@ -1035,6 +1038,9 @@ func (v *SessionsView) startFollow(r *SessionRow) {
 				}
 			}
 			v.feedMu.Unlock()
+			if ctx.Err() != nil {
+				return
+			}
 			app.QueueUpdateDraw(func() {
 				if v.gen == gen {
 					v.renderFeed(title)

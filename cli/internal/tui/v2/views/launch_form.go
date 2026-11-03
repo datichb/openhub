@@ -727,8 +727,14 @@ func (v *LaunchFormView) launchWith(fn func(ctx context.Context, c LaunchChoices
 		app.QueueUpdateDraw(func() {
 			v.stopProgress()
 			v.launching = false
+			// The form was left meanwhile (Unmount): its screen is gone, and
+			// the view now on top is another one, which PopView would remove.
+			// The launch happened all the same, so Launched is still told.
+			left := v.app == nil
 			if err == nil {
-				v.close()
+				if !left {
+					v.close()
+				}
 				if v.cfg.Launched != nil {
 					v.cfg.Launched()
 				}
@@ -737,6 +743,9 @@ func (v *LaunchFormView) launchWith(fn func(ctx context.Context, c LaunchChoices
 			v.launchErr = err
 			choice := v.m.onExisting
 			v.m.onExisting, v.m.discardBase = "", false
+			if left {
+				return
+			}
 			if choice == LaunchExistingTransfer && errors.Is(err, ErrTransferFailed) {
 				v.offerKeep(err)
 			}

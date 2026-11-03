@@ -3,8 +3,6 @@ package views
 import (
 	"context"
 	"fmt"
-	"log/slog"
-	"runtime/debug"
 	"sync/atomic"
 	"time"
 
@@ -60,7 +58,7 @@ func load[T any](app *tview.Application, ctx context.Context, slot *loadSlot, fe
 func safeFetch[T any](ctx context.Context, fetch func(context.Context) (T, error)) (v T, err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			slog.Error("recovered panic in view load", "panic", r, "stack", string(debug.Stack()))
+			safego.LogRecovered("recovered panic in view load", r)
 			var zero T
 			v, err = zero, fmt.Errorf("panic: %v", r)
 		}
@@ -90,21 +88,42 @@ func syncLoad[T any](app *tview.Application, ctx context.Context, slot *loadSlot
 }
 
 // everyOnLoop calls fn on the event loop of app every rate until done is
-// closed. fn is where a view starts a read (load): the timer itself reads
-// nothing.
-func everyOnLoop(app *tview.Application, rate time.Duration, done <-chan struct{}, fn func()) {
-	safego.Go(func() {
-		ticker := time.NewTicker(rate)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-done:
-				return
-			case <-ticker.C:
-				app.QueueUpdate(fn)
-			}
+// closed or ctx (the one of the shell, which ends with the application) is.
+// fn is where a view starts a read (load): the timer itself reads nothing.
+func everyOnLoop(ctx context.Context, app *tview.Application, rate time.Duration, done <-chan struct{}, fn func()) {
+	safego.Go(func() { tickOnLoop(ctx, rate, done, func(f func()) { app.QueueUpdate(f) }, fn) })
+}
+
+// tickOnLoop is the loop of everyOnLoop, with the way to the event loop given.
+// QueueUpdate waits for the loop to have run fn, for ever once the
+// application stopped: the end of the view or of the shell is tested before
+// each tick is queued.
+func tickOnLoop(ctx context.Context, rate time.Duration, done <-chan struct{}, queue func(func()), fn func()) {
+	ticker := time.NewTicker(rate)
+	defer ticker.Stop()
+	over := func() bool {
+		select {
+		case <-done:
+			return true
+		case <-ctx.Done():
+			return true
+		default:
+			return false
 		}
-	})
+	}
+	for {
+		select {
+		case <-done:
+			return
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if over() { // the tick and the end were both ready
+				return
+			}
+			queue(fn)
+		}
+	}
 }
 
 // persist runs a write (work) off the event loop and gives its result to
@@ -119,7 +138,7 @@ func persist(app *tview.Application, work func(context.Context) error, done func
 	run := func() (err error) {
 		defer func() {
 			if r := recover(); r != nil {
-				slog.Error("recovered panic in view write", "panic", r, "stack", string(debug.Stack()))
+				safego.LogRecovered("recovered panic in view write", r)
 				err = fmt.Errorf("panic: %v", r)
 			}
 		}()

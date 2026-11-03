@@ -11,6 +11,8 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+
+	"github.com/datichb/openhub/cli/internal/safego"
 )
 
 // Request represents a JSON-RPC request.
@@ -118,16 +120,18 @@ func (s *Server) ServeIO(ctx context.Context, r io.Reader, writer io.Writer) err
 	lines := make(chan []byte, 1)
 	errs := make(chan error, 1)
 
-	go func() {
-		for {
-			line, err := reader.ReadBytes('\n')
-			if err != nil {
-				errs <- err
-				return
+	safego.Go(func() {
+		// A panic ends the server with an error, as a failed read does.
+		errs <- safego.WrapErr(func() error {
+			for {
+				line, err := reader.ReadBytes('\n')
+				if err != nil {
+					return err
+				}
+				lines <- line
 			}
-			lines <- line
-		}
-	}()
+		})()
+	})
 
 	for {
 		select {

@@ -90,7 +90,7 @@ func syncFuncAsync(
 	}
 
 	// Slow-pull indicator: fires only if the pull blocks for > 1 s.
-	timer := time.AfterFunc(pullSlowThreshold, func() {
+	timer := safego.AfterFunc(pullSlowThreshold, func() {
 		app.QueueUpdateDraw(func() {
 			if shell != nil {
 				shell.ShowToastMsg(i18n.T("tui.teams.sync_pulling"), true)
