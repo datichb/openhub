@@ -355,8 +355,12 @@ func (s *Service) runVerify(ctx context.Context, sess *domain.Session, c session
 	if !ok {
 		return failedChanges
 	}
-	if failedSpec, ok := s.specCheck(ctx, sess, v); !ok {
+	failedSpec, specNote, ok := s.specCheck(ctx, sess, v)
+	if !ok {
 		return failedSpec
+	}
+	if specNote != "" {
+		note = strings.TrimPrefix(note+" ; "+specNote, " ; ")
 	}
 	if failedScope, ok := s.scopeCheck(ctx, sess); !ok {
 		return failedScope

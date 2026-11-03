@@ -103,3 +103,41 @@ func TestCheckProblems(t *testing.T) {
 		}
 	}
 }
+
+func TestAdvise(t *testing.T) {
+	cases := map[string]struct {
+		spec string
+		want []Problem
+	}{
+		"good spec has no risks section":       {goodSpec, []Problem{{NoRisks, ""}}},
+		"entries":                              {"## Risques et cas limites\n- **R1** — total nul · Impact : division par zéro · Parade : CA-1\n", nil},
+		"english":                              {"## Risks and edge cases\n- **R1** — empty value · Impact : crash · Mitigation : AC-2\n", nil},
+		"edge cases only":                      {"## Cas limites\n- valeur vide : affiche 0 (CA-3)\n", nil},
+		"heading levels and frontmatter":       {"---\nupdated: 2026-11-03\n---\n# Spec\n### Risques\n1. Import non numérique → « 0 » (CA-4)\n", nil},
+		"table":                                {"## Risques\n| Risque | Impact | Parade |\n|---|---|---|\n| valeur vide | écran cassé | CA-3 |\n", nil},
+		"table without row":                    {"## Risques\n| Risque | Impact | Parade |\n|---|---|---|\n", []Problem{{EmptyRisks, ""}}},
+		"empty":                                {"## Risques et cas limites\n\n## Découpage\n- T1 · Couvre : CA-1\n", []Problem{{EmptyRisks, ""}}},
+		"bare none":                            {"## Risques et cas limites\nAucun.\n", []Problem{{EmptyRisks, ""}}},
+		"bare none item":                       {"## Risques et cas limites\n- Aucun risque\n", []Problem{{EmptyRisks, ""}}},
+		"placeholder":                          {"## Risques et cas limites\n- TBD\n- —\n", []Problem{{EmptyRisks, ""}}},
+		"none with its reason":                 {"## Risques et cas limites\n- Aucun : la story ne change qu'un libellé, sans donnée ni droit touché.\n", nil},
+		"none paragraph with its reason":       {"## Risques et cas limites\nAucun risque identifié : la story ne touche qu'un libellé.\n", nil},
+		"english none with its reason":         {"## Risks\nNone: the story only renames a label, no data involved.\n", nil},
+		"bold none with its reason":            {"## Risques\n- **Aucun** : écran en lecture seule, aucune donnée modifiée.\n", nil},
+		"none among entries":                   {"## Risques\n- Aucun\n- Import vide : affiche 0 · Parade : CA-2\n", nil},
+		"in a fence is ignored":                {"## Glossaire\n- a\n```\n## Risques\n- x y z\n```\n", []Problem{{NoRisks, ""}}},
+		"risk word in a body is not a heading": {"## Objectif\nLe risque est faible.\n", []Problem{{NoRisks, ""}}},
+	}
+	for name, c := range cases {
+		if got := Advise([]byte(c.spec)); !reflect.DeepEqual(got, c.want) {
+			t.Errorf("%s: warnings = %+v, want %+v", name, got, c.want)
+		}
+	}
+}
+
+// A warning is not a problem: Check does not report it.
+func TestCheckIgnoresRisks(t *testing.T) {
+	if got := Check([]byte(goodSpec), true); len(got) != 0 {
+		t.Fatalf("problems = %+v", got)
+	}
+}

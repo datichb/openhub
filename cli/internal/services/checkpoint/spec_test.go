@@ -72,6 +72,8 @@ func TestSpecChecks(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, domain.VerifyPassed, r.Status)
 	assert.Equal(t, 0, ex.count(), "no command run")
+	assert.Contains(t, r.Reason, "avertissement (non bloquant) : docs/wiki/specs/percent.md : pas de section « Risques et cas limites »",
+		"a spec without risks passes, with a warning")
 	sess, err := svc.Sessions.Get(ctx, "ses_s")
 	require.NoError(t, err)
 	assert.Equal(t, "docs/wiki/specs/percent.md", sess.Outputs["spec"], "the spec checked is recorded by oh")
@@ -103,6 +105,29 @@ func TestSpecChecks(t *testing.T) {
 	write(body)
 	_, err = svc.Reached(ctx, "ses_s", Call{ID: "cp-spec"})
 	require.NoError(t, err)
+
+	// The warning follows the section: empty, then filled in or explained.
+	for _, c := range []struct {
+		risks string
+		warn  string
+	}{
+		{"## Risques et cas limites\nAucun.\n", "la section « Risques et cas limites » est vide"},
+		{"## Risques et cas limites\n- Total nul · Impact : division par zéro · Parade : CA-1\n", ""},
+		{"## Risques et cas limites\n- Aucun : la fonction est pure, sans donnée existante ni droit.\n", ""},
+	} {
+		write(body + c.risks)
+		_, err = svc.Reached(ctx, "ses_s", Call{ID: "cp-spec"})
+		require.NoError(t, err, c.risks)
+		r, ok = svc.VerifyResult(ctx, "ses_s", "cp-spec")
+		require.True(t, ok)
+		assert.Equal(t, domain.VerifyPassed, r.Status, "a warning never refuses: %s", c.risks)
+		if c.warn == "" {
+			assert.NotContains(t, r.Reason, "avertissement", c.risks)
+		} else {
+			assert.Contains(t, r.Reason, c.warn)
+		}
+	}
+	write(body)
 
 	write(body + "## Découpage\n- T1 · Couvre : CA-1\n- T2 · la doc\n")
 	_, err = svc.Reached(ctx, "ses_s", Call{ID: "cp-converge"})

@@ -13,6 +13,14 @@
 //	## Découpage
 //	- **T1** — Percent et ses erreurs · Couvre : CA-1
 //
+// A spec also has a section of risks and edge cases: each entry names the
+// risk, its impact and what covers it (a criterion, a slice). Its absence is
+// not a defect that refuses the spec but a warning (Advise): "none" is
+// accepted with its reason.
+//
+//	## Risques et cas limites
+//	- **R1** — total nul · Impact : division par zéro · Parade : CA-1
+//
 // Lists and tables are read; headings in French or English. Fenced code
 // blocks and the frontmatter are left out.
 package specdoc
@@ -37,6 +45,12 @@ const (
 	CriterionUncovered    = "criterion_uncovered"
 )
 
+// Warning codes (Advise): they never refuse a spec.
+const (
+	NoRisks    = "no_risks"
+	EmptyRisks = "empty_risks"
+)
+
 // Problem is a defect of a spec. Item names what it is about: a criterion
 // id, or the start of the line of an item.
 type Problem struct {
@@ -54,9 +68,18 @@ var (
 	reGlossary  = regexp.MustCompile(`(?i)glossaire|glossary|vocabulaire|lexique`)
 	reCriteria  = regexp.MustCompile(`(?i)crit[eèé]res?|acceptance criteria`)
 	reBreakdown = regexp.MustCompile(`(?i)d[ée]coupage|tranches?|breakdown|slices?`)
+	reRisks     = regexp.MustCompile(`(?i)\brisques?\b|\brisks?\b|cas limites?|edge cases?`)
 	reTestCol   = regexp.MustCompile(`(?i)test`)
 	rePlacehold = regexp.MustCompile(`(?i)^(?:[?….—–-]+$|(?:tbd|todo|à définir|a definir|à préciser|a preciser|à venir|aucun|none|n/?a)\b)`)
+	// reNone starts an entry that says there is nothing ("Aucun : …").
+	reNone   = regexp.MustCompile(`(?i)^(?:aucune?s?|néant|rien|none|nothing|n/?a|tbd|todo|à définir|a definir|à préciser|a preciser|à venir)(?:[^\p{L}\p{N}]|$)[^\p{L}\p{N}]*`)
+	reWord   = regexp.MustCompile(`[\p{L}\p{N}]+`)
+	reMarker = regexp.MustCompile(`^(?:[-*+]|\d+[.)])[ \t]+`)
 )
+
+// minReasonWords is the number of words an entry needs after "Aucun" to
+// give its reason.
+const minReasonWords = 3
 
 // Check returns the problems of the spec src; breakdown also checks the
 // breakdown against the criteria (convergence of the tickets and the spec).
@@ -81,6 +104,52 @@ func Check(src []byte, breakdown bool) []Problem {
 		return append(out, Problem{Code: NoBreakdown})
 	}
 	return append(out, checkBreakdown(br, ids)...)
+}
+
+// Advise returns the warnings of the spec src: what is worth a second look
+// without refusing it. The section of risks and edge cases must exist and
+// say something: an entry, or "none" with its reason.
+func Advise(src []byte) []Problem {
+	risks := find(sections(lines(string(src))), reRisks)
+	switch {
+	case risks == nil:
+		return []Problem{{Code: NoRisks}}
+	case !hasRisk(risks):
+		return []Problem{{Code: EmptyRisks}}
+	}
+	return nil
+}
+
+// hasRisk reports whether a section lists at least one risk, or says why
+// there is none.
+func hasRisk(sec *section) bool {
+	us := units(sec.body, false)
+	if len(us) == 0 {
+		var text []string
+		for _, l := range sec.body {
+			if !reTableRow.MatchString(l) {
+				text = append(text, l)
+			}
+		}
+		return said(strings.Join(text, " "))
+	}
+	for _, u := range us {
+		if said(u.text) {
+			return true
+		}
+	}
+	return false
+}
+
+// said reports whether an entry has a content: a risk, or "none" followed by
+// its reason. A bare placeholder ("Aucun.", "TBD", "—") has none.
+func said(s string) bool {
+	s = strings.TrimSpace(strings.Trim(strings.TrimSpace(reMarker.ReplaceAllString(strings.TrimSpace(s), "")), "`*_|"))
+	need := 1
+	if m := reNone.FindString(s); m != "" {
+		s, need = s[len(m):], minReasonWords
+	}
+	return len(reWord.FindAllString(s, -1)) >= need
 }
 
 // IDs returns the criterion ids of the spec, in order.
