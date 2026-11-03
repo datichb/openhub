@@ -208,8 +208,8 @@ Diagram sources (`.mermaid`, one diagram per file) live in [`diagrams/`](diagram
 | [Agent-skill graph](diagrams/agent-skill-graph.mermaid) | The most shared skills and the agents that use them |
 | [Golden path](diagrams/golden-path.mermaid) | The essential steps of a new user: install, `oh init`, `oh run` |
 | [Provider decision tree](diagrams/provider-decision-tree.mermaid) | Choosing the LLM provider |
-| [Beads ticket lifecycle](diagrams/beads-lifecycle.mermaid) | Statuses of a Beads ticket |
-| [Claim lifecycle](diagrams/claim-lifecycle.mermaid) | Statuses of a team claim |
+| [Beads ticket lifecycle](diagrams/beads-lifecycle.mermaid) | Beads statuses as oh drives them: REVIEW is `in_progress` + label `ready-for-review`, cancelled is a label |
+| [Claim lifecycle](diagrams/claim-lifecycle.mermaid) | Statuses of a team claim, lease, and what the end of a session decides |
 | [Team init wizard](diagrams/team-init-wizard.mermaid) | `oh team init`: joining or creating the team-state, then the adaptive steps |
 | [Living wiki navigation](diagrams/living-wiki-navigation.mermaid) | Page navigation, trust evaluation and god nodes |
 

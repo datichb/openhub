@@ -1,22 +1,38 @@
-%% D10: Beads Ticket Lifecycle
-%% State diagram showing the 6-status Beads ticket lifecycle.
-%% Main flow: open -> in_progress -> review -> closed
-%% Blocked is accessible from in_progress.
-%% Cancelled is accessible from open and in_progress.
+%% OpenHub -- Beads ticket lifecycle as oh drives it (v5.1)
+%% Beads (bd 1.3) statuses that oh uses: open, in_progress, blocked, closed.
+%% There is no review status and no cancelled status in bd: REVIEW is an
+%% in_progress ticket carrying the label ready-for-review (beads.BoardColumn),
+%% and a cancelled ticket is closed with the label cancelled.
+%% Other bd statuses (deferred, pinned, hooked) are not driven by oh and the
+%% board shows them in TODO; custom statuses (validation, testing, qa,
+%% pre-release) are shown in VALIDATION.
 
 stateDiagram-v2
+    state "in_progress + label ready-for-review (REVIEW)" as in_review
+
     [*] --> open
 
-    open --> in_progress : Start work
-    open --> cancelled : Cancel
+    open --> in_progress : bd update status in_progress
+    open --> closed : cancelled, label cancelled then bd close
 
-    in_progress --> review : Submit for review
-    in_progress --> blocked : Blocked
-    in_progress --> cancelled : Cancel
+    in_progress --> blocked : blocked by a dependency
+    blocked --> in_progress : unblocked
 
-    blocked --> in_progress : Unblocked
+    in_progress --> in_review : agent adds the label
+    in_review --> in_progress : review removes the label, back to development
 
-    review --> closed : Approved & merged
+    in_progress --> closed : bd close, or cancelled
+    in_review --> closed : approved and merged
 
     closed --> [*]
-    cancelled --> [*]
+
+    note right of in_review
+        The status stays in_progress
+        oh board and the TUI Board show the ticket in REVIEW
+    end note
+
+    note right of closed
+        A closed ticket is not reopened by the agents
+        The claim of the team-state moves to its terminal status
+        at the end of the session
+    end note

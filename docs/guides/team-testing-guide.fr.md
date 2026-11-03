@@ -374,8 +374,14 @@ team-state/
 | `in_progress` | `blocked` | board `s` |
 | `review` | `done` | board `s` / tracker issue fermée |
 | `review` | `in_progress` | board `s` (retour) |
+| `review` | `validation` | board `s` |
+| `validation` | `done` | board `s` / tracker issue fermée |
+| `validation` | `review` | board `s` |
+| `validation` | `in_progress` | board `s` (retour) |
 | `blocked` | `in_progress` | board `s` |
 | `done` | `in_progress` | Tracker issue rouverte |
+
+Le diagramme de ces statuts, avec le bail et ce que décide la fin d'une session, est [claim-lifecycle](../diagrams/claim-lifecycle.mermaid) ; le contrat est dans [Bail et fin de session](team-setup.fr.md#bail-et-fin-de-session). Un claim en `review` n'expire jamais. La libération d'un claim (`oh team release`) est possible depuis n'importe quel statut.
 
 ### Stockage d'un claim
 
