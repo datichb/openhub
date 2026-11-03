@@ -71,8 +71,8 @@ instruct spec                   pathfinder                       5853     3840  
 instruct spec                   planner                          6381     3445    7   14    491   14    491
 instruct spec                   TOTAL                           20783    12414   25   25    872   25    872
 instruct spike                  developer                       11898     5552    8   17    621   17    621
-instruct spike                  pathfinder                       5274     3202    6    4    160    4    160
-instruct spike                  TOTAL                           17172     8754   14   19    714   19    714
+instruct spike                  pathfinder                       5323     3251    6    4    160    4    160
+instruct spike                  TOTAL                           17221     8803   14   19    714   19    714
 instruct sweep                  conductor                        3694     2456    5    5    181    5    181
 instruct sweep                  developer                       11898     5552    8   17    621   17    621
 instruct sweep                  pathfinder                       5772     3840    7    4    160    4    160
@@ -148,8 +148,8 @@ none     spec                   pathfinder                       4985     3366  
 none     spec                   planner                          5983     3445    7   14    491   14    491
 none     spec                   TOTAL                           19027    11940   24   25    872   25    872
 none     spike                  developer                        7420     5079    7   20    725   20    725
-none     spike                  pathfinder                       4406     2728    5    4    160    4    160
-none     spike                  TOTAL                           11826     7807   12   22    818   22    818
+none     spike                  pathfinder                       4455     2777    5    4    160    4    160
+none     spike                  TOTAL                           11875     7856   12   22    818   22    818
 none     sweep                  conductor                        3602     2456    5    5    181    5    181
 none     sweep                  developer                        7419     5079    7   20    725   20    725
 none     sweep                  pathfinder                       4904     3366    6    4    160    4    160
@@ -225,8 +225,8 @@ stacks   spec                   pathfinder                       4985     3366  
 stacks   spec                   planner                          5983     3445    7   14    491   14    491
 stacks   spec                   TOTAL                           19027    11940   24   25    872   25    872
 stacks   spike                  developer                        7420     5079    7   27    972   27    972
-stacks   spike                  pathfinder                       4406     2728    5    4    160    4    160
-stacks   spike                  TOTAL                           11826     7807   12   29   1065   29   1065
+stacks   spike                  pathfinder                       4455     2777    5    4    160    4    160
+stacks   spike                  TOTAL                           11875     7856   12   29   1065   29   1065
 stacks   sweep                  conductor                        3602     2456    5    5    181    5    181
 stacks   sweep                  developer                        7419     5079    7   27    972   27    972
 stacks   sweep                  pathfinder                       4904     3366    6    4    160    4    160
