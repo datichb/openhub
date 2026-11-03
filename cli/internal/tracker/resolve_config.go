@@ -73,8 +73,11 @@ type EffectiveTrackerConfig struct {
 	// AutoPlanAssigned controls whether assigned tracker issues without a claim
 	// automatically get a "planned" claim created.
 	AutoPlanAssigned bool
-	// MaxAutoPlanPerMember limits the number of auto-planned claims per member.
-	MaxAutoPlanPerMember int
+	// MaxInProgressPerMember is the most tickets a member works on at once
+	// (0 = no limit): the work-in-progress limit checked where a ticket is
+	// taken or started. Resolution: hub.toml → team config (its former
+	// max_auto_plan_per_member included) → 5.
+	MaxInProgressPerMember int
 	// AutoPlanUnassigned controls whether unassigned tracker issues are fetched
 	// and shown as claimable pool tickets on the team board.
 	AutoPlanUnassigned bool
@@ -98,12 +101,12 @@ type EffectiveTrackerConfig struct {
 
 // OverrideSet tracks which fields are locally overridden vs inherited from team-state.
 type OverrideSet struct {
-	Enabled              bool
-	AutoSync             bool
-	PushLabels           bool
-	AutoPlanAssigned     bool
-	MaxAutoPlanPerMember bool
-	WriteEnabled         bool
+	Enabled                bool
+	AutoSync               bool
+	PushLabels             bool
+	AutoPlanAssigned       bool
+	MaxInProgressPerMember bool
+	WriteEnabled           bool
 }
 
 // ResolveTrackerConfig merges the team-state TrackerConfig with the member's
@@ -210,13 +213,13 @@ func ResolveFullTrackerConfig(
 
 	var sharedEnabled, sharedAutoSync, sharedAutoPlan bool
 	var sharedPushLabels, sharedWriteEnabled bool
-	var sharedMaxAutoPlanVal int
+	var sharedMaxInProgressVal int
 
 	if shared != nil {
 		sharedEnabled = shared.Enabled
 		sharedAutoSync = shared.AutoSync
 		sharedAutoPlan = shared.AutoPlanAssigned
-		sharedMaxAutoPlanVal = shared.MaxAutoPlanPerMember
+		sharedMaxInProgressVal = shared.InProgressLimit()
 		sharedPushLabels = shared.PushLabels
 		sharedWriteEnabled = shared.WriteEnabled
 		// Pool (unassigned) settings — no local override, always from shared.
@@ -231,7 +234,7 @@ func ResolveFullTrackerConfig(
 	eff.Enabled, eff.LocalOverrides.Enabled = boolResolve(local.Enabled, sharedEnabled, true)
 	eff.AutoSync, eff.LocalOverrides.AutoSync = boolResolve(local.AutoSync, sharedAutoSync, false)
 	eff.AutoPlanAssigned, eff.LocalOverrides.AutoPlanAssigned = boolResolve(local.AutoPlanAssigned, sharedAutoPlan, false)
-	eff.MaxAutoPlanPerMember, eff.LocalOverrides.MaxAutoPlanPerMember = intResolve(local.MaxAutoPlanPerMember, sharedMaxAutoPlanVal, 5)
+	eff.MaxInProgressPerMember, eff.LocalOverrides.MaxInProgressPerMember = intResolve(local.MaxInProgressPerMember, sharedMaxInProgressVal, teamstate.DefaultMaxInProgressPerMember)
 
 	// WriteEnabled: resolved from tracker's own config, independent of MCP.
 	// Project override → hub override → team shared → false
@@ -256,6 +259,16 @@ func ResolveFullTrackerConfig(
 	}
 
 	return eff
+}
+
+// InProgressLimit is the effective in-progress limit of a member (0 = no
+// limit): the one set in hub.toml, else the team's, else the default. A
+// negative value in hub.toml is not a limit and gives the team's.
+func InProgressLimit(shared *teamstate.TrackerConfig, local config.TrackerLocalConfig) int {
+	if local.MaxInProgressPerMember != nil && *local.MaxInProgressPerMember < 0 {
+		local.MaxInProgressPerMember = nil
+	}
+	return ResolveTrackerConfig(shared, local).MaxInProgressPerMember
 }
 
 // TokenServer returns the server of the tracker key (tracker_token_key and

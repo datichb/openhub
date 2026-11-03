@@ -45,8 +45,11 @@ func legacyConfigCheck(notes []config.Notice) doctor.Result {
 	if len(found) == 0 {
 		return doctor.Result{Name: name, OK: true, Detail: i18n.T("cmd.doctor.legacy.none")}
 	}
-	return doctor.Result{Name: name, OK: true, Warn: true,
-		Detail: i18n.Tf("cmd.doctor.legacy.keys", strings.Join(found, " · "), config.LegacySupportEnds)}
+	detail := i18n.Tf("cmd.doctor.legacy.keys", strings.Join(found, " · "), config.LegacySupportEnds)
+	if hint := formerAutoPlanHint(found); hint != "" {
+		detail += " " + hint
+	}
+	return doctor.Result{Name: name, OK: true, Warn: true, Detail: detail}
 }
 
 func unknownKeysCheck(notes []config.Notice) doctor.Result {

@@ -9,16 +9,24 @@ import "strings"
 const (
 	legacyDefaultProvider = "opencode.default_provider"
 	legacyToolVersion     = "execution.opencode_version"
+	// legacyMaxAutoPlan bounded the claims a sync created per member; the
+	// setting is now the limit of tickets in progress (the key changes
+	// meaning, so it is announced like the other former keys).
+	legacyMaxAutoPlan = "tracker.max_auto_plan_per_member"
 )
 
 // LegacyKeyAliases maps the former `oh config set|get|unset` keys to the
 // current ones.
-var LegacyKeyAliases = map[string]string{legacyDefaultProvider: "llm.default_provider"}
+var LegacyKeyAliases = map[string]string{
+	legacyDefaultProvider: "llm.default_provider",
+	legacyMaxAutoPlan:     "tracker.max_in_progress_per_member",
+}
 
 // legacyReplacement is the current key of each former hub.toml key.
 var legacyReplacement = map[string]string{
 	legacyDefaultProvider: "llm.default_provider",
 	legacyToolVersion:     "execution.tool_version",
+	legacyMaxAutoPlan:     "tracker.max_in_progress_per_member",
 }
 
 // historicalKeys are the keys and sections of hub.toml that earlier versions
@@ -53,6 +61,9 @@ type legacyFile struct {
 	Execution struct {
 		ToolVersion *string `toml:"opencode_version"`
 	} `toml:"execution"`
+	Tracker struct {
+		MaxAutoPlanPerMember *int `toml:"max_auto_plan_per_member"`
+	} `toml:"tracker"`
 }
 
 // applyLegacyKeys fills the neutral settings from their former keys when
@@ -69,6 +80,14 @@ func applyLegacyKeys(l legacyFile, c *Config) []string {
 		found = append(found, legacyToolVersion)
 		if c.Execution.ToolVersion == "" {
 			c.Execution.ToolVersion = *p
+		}
+	}
+	if n := l.Tracker.MaxAutoPlanPerMember; n != nil {
+		found = append(found, legacyMaxAutoPlan)
+		// The former 0 meant the default, not "no limit".
+		if c.Tracker.MaxInProgressPerMember == nil && *n > 0 {
+			v := *n
+			c.Tracker.MaxInProgressPerMember = &v
 		}
 	}
 	return found

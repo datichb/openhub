@@ -106,6 +106,37 @@ func TestCurrentKeyWinsOverLegacyKey(t *testing.T) {
 	require.Len(t, notes, 1)
 }
 
+// The former max_auto_plan_per_member (a cap on the claims a sync created) is
+// read as the limit of tickets in progress, announced with the key that
+// replaces it, and written back under the new key. Its 0 meant the default,
+// not "no limit".
+func TestFormerAutoPlanLimitIsReadAsTheInProgressLimit(t *testing.T) {
+	cfg, notes, err := loadHub(t, "[tracker]\nmax_auto_plan_per_member = 8\n")
+	require.NoError(t, err)
+	require.NotNil(t, cfg.Tracker.MaxInProgressPerMember)
+	assert.Equal(t, 8, *cfg.Tracker.MaxInProgressPerMember)
+	require.Len(t, notes, 1)
+	assert.Equal(t, config.Notice{Kind: config.NoticeLegacyKey, Key: "tracker.max_auto_plan_per_member",
+		Replacement: "tracker.max_in_progress_per_member", File: config.ConfigPath(), Line: 2, Column: 1}, notes[0])
+	assert.Equal(t, "tracker.max_in_progress_per_member", config.LegacyKeyAliases["tracker.max_auto_plan_per_member"])
+
+	require.NoError(t, config.Save(cfg))
+	data, err := os.ReadFile(config.ConfigPath())
+	require.NoError(t, err)
+	assert.Contains(t, string(data), "max_in_progress_per_member = 8")
+	assert.NotContains(t, string(data), "max_auto_plan")
+
+	cfg, _, err = loadHub(t, "[tracker]\nmax_auto_plan_per_member = 0\n")
+	require.NoError(t, err)
+	assert.Nil(t, cfg.Tracker.MaxInProgressPerMember, "0 was the default, it does not become no limit")
+
+	cfg, notes, err = loadHub(t, "[tracker]\nmax_in_progress_per_member = 0\nmax_auto_plan_per_member = 8\n")
+	require.NoError(t, err)
+	require.NotNil(t, cfg.Tracker.MaxInProgressPerMember)
+	assert.Zero(t, *cfg.Tracker.MaxInProgressPerMember, "the current key wins, 0 is no limit")
+	require.Len(t, notes, 1)
+}
+
 // Accepted before and still silent: what earlier versions wrote and nothing
 // reads any more (managed install of the tool, native agents switch, former
 // workflow overrides). Not a warning on every command.

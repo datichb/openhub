@@ -61,9 +61,9 @@ func deepCopyConfig(c *config.Config) config.Config {
 		b := *c.Tracker.AutoPlanAssigned
 		cp.Tracker.AutoPlanAssigned = &b
 	}
-	if c.Tracker.MaxAutoPlanPerMember != nil {
-		n := *c.Tracker.MaxAutoPlanPerMember
-		cp.Tracker.MaxAutoPlanPerMember = &n
+	if c.Tracker.MaxInProgressPerMember != nil {
+		n := *c.Tracker.MaxInProgressPerMember
+		cp.Tracker.MaxInProgressPerMember = &n
 	}
 	if c.Tracker.WriteEnabled != nil {
 		b := *c.Tracker.WriteEnabled
@@ -227,6 +227,10 @@ func deepCopyTeamConfig(c *teamstate.TeamConfig) teamstate.TeamConfig {
 	if c.Tracker.TypeEnforced != nil {
 		b := *c.Tracker.TypeEnforced
 		cp.Tracker.TypeEnforced = &b
+	}
+	if c.Tracker.MaxInProgressPerMember != nil {
+		n := *c.Tracker.MaxInProgressPerMember
+		cp.Tracker.MaxInProgressPerMember = &n
 	}
 	if c.Tracker.PushLabelsEnforced != nil {
 		b := *c.Tracker.PushLabelsEnforced

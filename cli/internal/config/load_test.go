@@ -419,7 +419,7 @@ func TestSavedFileIsReadStrictly(t *testing.T) {
 	tracker := true
 	c.Tracker.Enabled = &tracker
 	n := 3
-	c.Tracker.MaxAutoPlanPerMember = &n
+	c.Tracker.MaxInProgressPerMember = &n
 	c.Remote.Projects = map[string]string{"P1": "t"}
 	require.NoError(t, config.Save(c))
 
@@ -430,7 +430,7 @@ func TestSavedFileIsReadStrictly(t *testing.T) {
 	assert.Equal(t, c.Limits.Models, got.Limits.Models)
 	require.NotNil(t, got.Tracker.Enabled)
 	assert.True(t, *got.Tracker.Enabled)
-	assert.Equal(t, 3, *got.Tracker.MaxAutoPlanPerMember)
+	assert.Equal(t, 3, *got.Tracker.MaxInProgressPerMember)
 	assert.Equal(t, map[string]string{"P1": "t"}, got.Remote.Projects)
 
 	entries, err := os.ReadDir(config.HubDir())

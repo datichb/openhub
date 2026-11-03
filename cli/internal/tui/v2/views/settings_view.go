@@ -589,23 +589,23 @@ func (v *SettingsView) buildFields() {
 			i18n.T("tui.config.field.auto_plan_assigned.desc"),
 			func() *bool { return v.live.Tracker.AutoPlanAssigned },
 			func(b *bool) { v.live.Tracker.AutoPlanAssigned = b }),
-		{Key: "max_auto_plan_per_member", Kind: CfgFieldInt, Label: i18n.T("tui.config.field.max_auto_plan.label"),
-			Description: i18n.T("tui.config.field.max_auto_plan.desc"),
-			Placeholder: i18n.T("tui.config.field.max_auto_plan.placeholder"),
+		{Key: "max_in_progress_per_member", Kind: CfgFieldInt, Label: i18n.T("tui.config.field.max_in_progress.label"),
+			Description: i18n.T("tui.config.field.max_in_progress.desc"),
+			Placeholder: i18n.T("tui.config.field.max_in_progress.placeholder"),
 			Validator:   &FieldValidator{Numeric: true, MinInt: intPtr(0), MaxInt: intPtr(100), AllowEmpty: true},
 			Get: func() string {
-				if v.live.Tracker.MaxAutoPlanPerMember == nil {
+				if v.live.Tracker.MaxInProgressPerMember == nil {
 					return ""
 				}
-				return strconv.Itoa(*v.live.Tracker.MaxAutoPlanPerMember)
+				return strconv.Itoa(*v.live.Tracker.MaxInProgressPerMember)
 			},
 			Set: func(val string) {
 				if val == "" {
-					v.live.Tracker.MaxAutoPlanPerMember = nil
+					v.live.Tracker.MaxInProgressPerMember = nil
 					return
 				}
 				if n, err := strconv.Atoi(val); err == nil {
-					v.live.Tracker.MaxAutoPlanPerMember = &n
+					v.live.Tracker.MaxInProgressPerMember = &n
 				}
 			}},
 		{Key: "tracker_url", Kind: CfgFieldString, Label: i18n.T("tui.config.field.tracker_hub_url.label"),

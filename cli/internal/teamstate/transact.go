@@ -11,8 +11,6 @@ import (
 	"strings"
 	"time"
 
-	toml "github.com/pelletier/go-toml/v2"
-
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
@@ -456,9 +454,9 @@ func (tx *Tx) Config() (*TeamConfig, error) { return tx.r.loadConfig() }
 
 // WriteConfig writes config.toml within the transaction.
 func (tx *Tx) WriteConfig(cfg *TeamConfig) error {
-	data, err := toml.Marshal(cfg)
+	data, err := marshalConfig(cfg)
 	if err != nil {
-		return fmt.Errorf("marshaling config.toml: %w", err)
+		return err
 	}
 	return tx.WriteFile("config.toml", data)
 }

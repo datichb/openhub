@@ -424,14 +424,14 @@ func (v *TeamDetailView) buildFields() {
 		Set: func(val string) { v.teamCfg.Tracker.AutoPlanAssigned = val == "true"; v.dirtyTeam = true },
 	})
 	v.fields = append(v.fields, configField{
-		Key: "max_auto_plan", Kind: CfgFieldInt, Label: i18n.T("tui.config.field.max_auto_plan.label"),
-		Description: i18n.T("tui.config.field.max_auto_plan.desc"), Scope: ScopeTeamShared,
-		Placeholder: i18n.T("tui.config.field.max_auto_plan.placeholder"),
+		Key: "max_in_progress", Kind: CfgFieldInt, Label: i18n.T("tui.config.field.max_in_progress.label"),
+		Description: i18n.T("tui.config.field.max_in_progress.desc"), Scope: ScopeTeamShared,
+		Placeholder: i18n.T("tui.config.field.max_in_progress.placeholder"),
 		Validator:   &FieldValidator{Numeric: true, MinInt: intPtr(0), MaxInt: intPtr(100)},
-		Get:         func() string { return strconv.Itoa(v.teamCfg.Tracker.MaxAutoPlanPerMember) },
+		Get:         func() string { return strconv.Itoa(v.teamCfg.Tracker.InProgressLimit()) },
 		Set: func(val string) {
 			if n, err := strconv.Atoi(val); err == nil {
-				v.teamCfg.Tracker.MaxAutoPlanPerMember = n
+				v.teamCfg.Tracker.MaxInProgressPerMember = &n
 				v.dirtyTeam = true
 			}
 		},
