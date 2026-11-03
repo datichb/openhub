@@ -9,6 +9,15 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+## [5.2.0] — 2026-11-03
+
+Version mineure : **la limite par personne du mode équipe devient une limite de travail en cours**, et le board d'équipe gagne des filtres et un accès direct à l'éditeur de colonnes. Elle reprend aussi les correctifs prévus pour une 5.1.1, jamais publiée : formule Homebrew ([installation](README.fr.md#installation)), réservations d'un projet recréé ([`oh doctor`](docs/reference/cli-infra.fr.md#oh-doctor)), sortie d'oh sous Windows. Pas de migration de la base.
+
+### ⚠ Ruptures et actions requises
+
+- **`max_auto_plan_per_member` est remplacée par `max_in_progress_per_member`**, qui ne compte que les tickets en cours d'un membre (la revue et la validation n'en font pas partie). La synchro met désormais sur le board **tous** les tickets assignés, sans plafond. L'ancienne clé est encore lue quand la nouvelle est absente, et `oh doctor` le signale. → `oh config set tracker.max_in_progress_per_member <n>` (machine) ou `oh team config` (équipe) ; `0` = sans limite.
+- **Au-delà de la limite, oh refuse qu'un membre prenne ou démarre un ticket de plus** (`oh team claim`, reprise, transfert vers soi, touche de prise et déplacement d'une carte sur le board, lancement d'une session sur un ticket d'équipe). Un script qui prend des tickets en boucle peut donc échouer là où il passait. → Augmenter la limite ou passer des tickets en revue.
+
 ### Added
 
 - **Board d'équipe : filtre « Non assignés »** (`/`) : il ne garde que les tickets de la réserve, ceux qu'aucun membre n'a pris (à prendre avec `c`). Le repère « filtré » s'affiche, « Effacer les filtres » le retire.
@@ -31,13 +40,6 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 - **Board d'équipe : le filtre « Mes tickets » ne filtrait rien.** Il lisait le premier membre d'une liste que personne ne remplissait ; il garde maintenant les tickets du membre de l'équipe active (si son identité est inconnue, le filtre le dit au lieu de vider le board).
 - **Board d'équipe : les onglets de projet affichent le nom du projet**, plus son identifiant (`88280c5b`) ; le filtre reste sur l'identifiant. Les onglets sont triés par nom, et un identifiant qu'aucun projet local ne connaît est marqué « (projet inconnu) ».
 - **Board d'équipe : l'onglet actif et le repère « filtré » se mettent à jour tout de suite.** Après `[` / `]` ou un changement de filtre (`/`, « Mes tickets », « Non assignés », « Effacer les filtres »), les cartes étaient refiltrées mais l'onglet surligné et le repère des touches attendaient le rafraîchissement suivant (jusqu'à 5 s).
-
-## [5.1.1] — 2026-11-03
-
-Version corrective de la 5.1.0 : formule Homebrew ([installation](README.fr.md#installation)), réservations d'un projet recréé ([`oh doctor`](docs/reference/cli-infra.fr.md#oh-doctor)), sortie d'oh sous Windows. Aucune rupture, aucune migration.
-
-### Fixed
-
 - **Formule Homebrew** : la formule de la 5.1.0 dépendait d'`anomalyco/tap/opencode`, qui est opencode 1.x (refusé par oh 5) et qui entre en conflit avec l'opencode de homebrew-core (`brew upgrade openhub` demandait `brew uninstall opencode`). Elle dépend maintenant d'`opencode` (homebrew-core, opencode V2). La formule du tap a été corrigée le jour de la release, sans changer les binaires. Les guides d'installation disent `brew install opencode`.
 - **Windows** : en quittant oh, l'attente des sessions qui doivent finir leur étape pouvait conclure à tort qu'elles avaient fini quand le délai expirait pendant une lecture de l'état du serveur.
 - **`oh doctor` et les réservations d'un projet recréé** : quand un projet est recréé sous un nouvel ID, ses réservations restées sous l'ancien (sans `mr_url`, et dont le nom de l'ancien ID n'est pas celui du projet) n'étaient ni signalées ni rattachées, et le board gardait un onglet au nom de l'ancien ID. Le doctor propose maintenant le rattachement quand le projet est le seul projet actif de l'équipe sur la machine (preuve faible, dite dans le message et dans le plan de `--fix` ; refusée si une `mr_url` désigne un autre dépôt), et signale toujours les réservations sous un ID inconnu, avec leurs tickets et la commande `oh team release` à lancer quand rien ne permet de les rattacher.
