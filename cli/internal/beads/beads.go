@@ -273,7 +273,7 @@ type TicketDetail struct {
 	Owner       string          `json:"owner,omitempty"`
 	ExternalRef string          `json:"external_ref,omitempty"`
 	CloseReason string          `json:"close_reason,omitempty"`
-	// Dependencies are the tickets this one depends on (R6: the fan-out
+	// Dependencies are the tickets this one depends on (the fan-out
 	// launches a child after the children of its blockers are merged).
 	Dependencies []TicketDependency `json:"dependencies,omitempty"`
 	// Missing are the sections bd lint finds missing (not part of bd show).
