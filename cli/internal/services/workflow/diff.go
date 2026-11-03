@@ -31,7 +31,7 @@ func TextString(t *Text, prompt bool) string {
 }
 
 // Governance returns the publication policy of the team-state of c
-// (teamstate.GovernancePublishAnyMember…; P2-T17).
+// (teamstate.GovernancePublishAnyMember…).
 func (s *Service) Governance(ctx context.Context, c Context) (string, error) {
 	ts, err := s.requireTeam(ctx, c)
 	if err != nil {

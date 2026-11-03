@@ -14,7 +14,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
-// E9 (R8): cp-release unlocks commit, tag and mr; the tag waits for the
+// cp-release unlocks commit, tag and mr; the tag waits for the
 // release commit, and the tag and mr windows close at the next mandatory
 // checkpoint (CP-R8) or when cp-release is asked again.
 func TestReleaseWindows(t *testing.T) {
@@ -58,7 +58,7 @@ func TestReleaseWindows(t *testing.T) {
 	assert.NotContains(t, rules(), tag, "committed: the tag opens")
 	assert.Contains(t, rules(), commit)
 
-	// p4-debts: the first tag closes the tag window, as the commit closes
+	// The first tag closes the tag window, as the commit closes
 	// the commit window; a call that leaves the tags as they were does not.
 	shell(t, svc, ctx, "ses_r", "s2", "git log -1")
 	assert.NotContains(t, rules(), tag, "no tag yet: the window stays open")
@@ -108,7 +108,7 @@ func shell(t *testing.T, svc *Service, ctx context.Context, sessionID, id, cmd s
 	return changed
 }
 
-// p4-debts: a checkpoint that unlocks the tag alone: a failed tag leaves
+// A checkpoint that unlocks the tag alone: a failed tag leaves
 // the window open, the first tag closes it, asking the checkpoint again
 // opens it; a git read that fails closes it (fails closed); tags that
 // could not be read when the window opened leave it to the next

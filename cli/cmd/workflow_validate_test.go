@@ -9,8 +9,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/workflow"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func writeTestFile(t *testing.T, path, content string) {
@@ -189,4 +192,19 @@ func TestWorkflowIntegrityCheck(t *testing.T) {
 	if c := workflowIntegrityCheck("acme", layers.Repo); !c.OK {
 		t.Fatalf("check = %+v", c)
 	}
+}
+
+// oh workflow validate <layer>:<id> validates the member's draft when
+// the workflow is not published.
+func TestWorkflowValidateDraft(t *testing.T) {
+	setupWorkflowCLI(t, "alice")
+	i18ntest.Set(t, "en")
+	out, err := runWorkflowSub(t, workflowNewCmd, "ticket-hotfix", "--extends", "hub:ticket", "--no-edit")
+	require.NoError(t, err, out)
+	out, err = runWorkflowSub(t, workflowValidateCmd, "team:ticket-hotfix")
+	require.NoError(t, err, out)
+	assert.Contains(t, out, "team:ticket-hotfix (your draft, not published): valid")
+
+	_, err = runWorkflowSub(t, workflowValidateCmd, "team:nope")
+	require.Error(t, err)
 }

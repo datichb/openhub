@@ -11,7 +11,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/worktree"
 )
 
-// « Enchaîner avec… » (O7, P1-T27): after a session, the workflows whose
+// « Enchaîner avec… »: after a session, the workflows whose
 // inputs take one of its typed outputs, with those inputs prefilled.
 
 // ChainSuggestion is a workflow to chain after a session.
@@ -24,8 +24,8 @@ type ChainSuggestion struct {
 	Tickets []string `json:"tickets,omitempty"`
 	// Matched lists the output types used (« branch », « beads-ids »).
 	Matched []wf.OutputType `json:"matched"`
-	// Declared: the suggestion is a `next:` step of the workflow that ended
-	// (R5, E4), listed first.
+	// Declared: the suggestion is a `next:` step of the workflow that ended,
+	// listed first.
 	Declared bool `json:"declared,omitempty"`
 }
 
@@ -56,7 +56,7 @@ func (s *Service) Chain(ctx context.Context, c Context, fromID string, outputs m
 }
 
 // NextSteps returns the `next:` steps of workflow fromID whose conditions
-// hold for the outputs of a session, with their inputs (R5, E4): what oh
+// hold for the outputs of a session, with their inputs: what oh
 // proposes at the end of the session, never launched by itself.
 func (s *Service) NextSteps(ctx context.Context, c Context, fromID string, outputs map[string]any) ([]ChainSuggestion, error) {
 	from, err := s.Resolve(ctx, c, fromID, ResolveOpts{})
@@ -72,7 +72,7 @@ func (s *Service) NextSteps(ctx context.Context, c Context, fromID string, outpu
 // nextSteps evaluates the `next:` of sp: a step is kept when every output
 // of its `when` was recorded (with the value of `equals`); its inputs take
 // the outputs named by session.output(<id>). A report is not prefilled when
-// the input reads it from the session (`from:`, B1): the launch chained
+// the input reads it from the session (`from:`): the launch chained
 // from the session gives its content, not its id.
 func (s *Service) nextSteps(ctx context.Context, c Context, sp *wf.Spec, outputs map[string]any) []ChainSuggestion {
 	var out []ChainSuggestion
@@ -142,7 +142,7 @@ func firstText(a, b wf.LocalizedText, lang string) string {
 }
 
 // chainByType suggests the workflows whose inputs take an output type of
-// the session (O7), other than the declared steps.
+// the session, other than the declared steps.
 func (s *Service) chainByType(ctx context.Context, c Context, fromID string, byType, fallback map[wf.OutputType]any, declared []ChainSuggestion) ([]ChainSuggestion, error) {
 	for t, v := range fallback {
 		if _, ok := byType[t]; !ok && v != nil && fmt.Sprint(v) != "" {

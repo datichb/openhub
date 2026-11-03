@@ -13,7 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
 )
 
-// Replay of the offline workflow publication queue (O14) after each
+// Replay of the offline workflow publication queue after each
 // successful team-state synchronization of the TUI (views.SetTeamSyncHook).
 // The CLI does not replay at startup: `oh workflow publish --retry`.
 

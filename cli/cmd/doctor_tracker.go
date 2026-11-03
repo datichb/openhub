@@ -15,7 +15,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/tracker"
 )
 
-// Doctor › tracker (K4b, end of bug 6): oh doctor stayed green while the
+// Doctor › tracker oh doctor stayed green while the
 // tracker could not be reached with the token of the configuration. Two
 // checks, over the team of the hub and the team of each active project:
 //
@@ -31,7 +31,7 @@ import (
 //     or does not know the API (404) is a failure that names the server, the
 //     source and the key; a network error is a warning.
 
-// Two more checks look at who the member is on the tracker (bug 12): the sync
+// Two more checks look at who the member is on the tracker: the sync
 // attributes the issues of the tracker to the members by name, and a tracker on
 // another server than the team-state repository does not know the GitLab name
 // of the member.

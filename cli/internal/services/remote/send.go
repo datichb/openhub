@@ -105,9 +105,9 @@ func WorkDir(project string) string {
 
 var schemaRe = regexp.MustCompile(`pipeline schema (\d+)`)
 
-// Send reserves the tickets, uploads the bundle and the session envelope
-// (with the Beads snapshot) and triggers the oh-runner pipeline (P5-T05 →
-// T08). The reservations are undone when the pipeline cannot be started.
+// Send reserves the tickets, uploads the bundle and the session envelope (with
+// the Beads snapshot) and triggers the oh-runner pipeline. The reservations are
+// undone when the pipeline cannot be started.
 func (s *Service) Send(ctx context.Context, req SendRequest) (*SendResult, error) {
 	t := req.Target
 	if err := t.Validate(); err != nil {
@@ -245,7 +245,7 @@ func (s *Service) Send(ctx context.Context, req SendRequest) (*SendResult, error
 		}
 	}
 
-	// Reservation (P5-T05), then the snapshot, which records the claimed
+	// Reservation, then the snapshot, which records the claimed
 	// state of the tickets.
 	sid := s.newSessionID()
 	// The claims taken for the session carry its ID (the end of the session
@@ -265,7 +265,7 @@ func (s *Service) Send(ctx context.Context, req SendRequest) (*SendResult, error
 		return nil, fmt.Errorf("Beads snapshot: %w", err)
 	}
 
-	// Packages (P5-T07): the bundle by its hash, the envelope by its own.
+	// Packages: the bundle by its hash, the envelope by its own.
 	now := s.now().UTC()
 	man := remote.Manifest{
 		Schema: remote.ManifestSchema, SessionID: sid, OhVersion: s.OhVersion, SentAt: now, Target: t.Name,
@@ -307,7 +307,7 @@ func (s *Service) Send(ctx context.Context, req SendRequest) (*SendResult, error
 		return nil, err
 	}
 
-	// Trigger (P5-T08).
+	// Trigger.
 	vars[remote.VarSessionID] = sid
 	vars[remote.VarProjectID] = fmt.Sprint(proj.ID)
 	vars[remote.VarProjectPath] = proj.PathWithNamespace
@@ -570,7 +570,7 @@ func (s *Service) recordedDigest(ctx context.Context, target, image string) stri
 }
 
 // saveEnvelope keeps the manifest (without the journal key) and the
-// snapshot sent (replay, P5-T17), sealed with the journal key: the replay
+// snapshot sent (replay), sealed with the journal key: the replay
 // trusts their allow-list and tickets only if the seal holds (S-04).
 func (s *Service) saveEnvelope(sid, key string, man remote.Manifest, snap *remote.Snapshot) error {
 	if s.SessionsDir == "" {

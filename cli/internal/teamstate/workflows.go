@@ -12,7 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
-// Workflow layout of the team-state (v5 phase 2, 03 §5):
+// Workflow layout of the team-state:
 //
 //	workflows/{published,drafts/<member>,prompts,history/<id>}/…   team scope
 //	projects/<p>/workflows/{published,drafts/<member>,prompts,history/<id>}/…

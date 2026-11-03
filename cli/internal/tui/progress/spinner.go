@@ -44,13 +44,6 @@ func NewSpinner(msg string) *Spinner {
 	return &Spinner{msg: msg}
 }
 
-// SetMessage updates the spinner label (safe to call while running).
-func (s *Spinner) SetMessage(msg string) {
-	s.mu.Lock()
-	s.msg = msg
-	s.mu.Unlock()
-}
-
 // Start begins the spinner animation in a background goroutine.
 // It is a no-op if the terminal is not interactive (e.g. piped output).
 func (s *Spinner) Start() {
@@ -83,7 +76,7 @@ func (s *Spinner) Start() {
 }
 
 // Animated reports whether spinners are drawn: never with --no-tui, in CI,
-// with TERM=dumb, or when stdout or stderr is not a terminal (A14).
+// with TERM=dumb, or when stdout or stderr is not a terminal.
 var Animated = func() bool {
 	if !common.UseRichTUI() {
 		return false

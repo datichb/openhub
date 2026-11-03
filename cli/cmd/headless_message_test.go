@@ -28,7 +28,7 @@ agents:
   conductor: { role: workflow, mode: primary }
 `
 
-// A25: a mandatory checkpoint that pauses in every mode is reported as
+// A mandatory checkpoint that pauses in every mode is reported as
 // such (no "choose another mode"); otherwise the modes that work are named.
 func TestHeadlessCheckpointsMessage(t *testing.T) {
 	i18ntest.Set(t, "en")

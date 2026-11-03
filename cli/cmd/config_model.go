@@ -220,7 +220,7 @@ func (l modelLevel) JSON() map[string]any {
 }
 
 // modelCascadeLevels returns the levels of the model cascade in priority
-// order (O9): workflow > project > hub > team (A11). The frontmatter of the
+// order: workflow > project > hub > team. The frontmatter of the
 // agents is the last level.
 func modelCascadeLevels(ctx context.Context, a *app.App, project *domain.Project, workflowID string) ([]modelLevel, error) {
 	var levels []modelLevel

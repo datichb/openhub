@@ -10,7 +10,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 )
 
-// L4: each stored report is a timeline step; the reports the agent cites
+// Each stored report is a timeline step; the reports the agent cites
 // in workflow_checkpoint ride on the decision.
 func TestReportsInTheWorkflowState(t *testing.T) {
 	svc, ctx := newTestService(t)

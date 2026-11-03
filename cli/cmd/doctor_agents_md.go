@@ -10,7 +10,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/services/doctor"
 )
 
-// Doctor › ambient instructions (Q35): the instruction files the tool adds
+// Doctor › ambient instructions: the instruction files the tool adds
 // to the prompts of an oh session by itself, outside the session bundle
 // (adapters.AmbientInstructions; what is and is not loaded is documented by
 // the adapter).

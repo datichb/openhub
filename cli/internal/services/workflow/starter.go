@@ -8,7 +8,7 @@ import (
 )
 
 // EnsurePromptTemplate names the template prompts/<id>.md.tmpl in a
-// document that has neither prompt nor extends (A10: a starter template is
+// document that has neither prompt nor extends (a starter template is
 // then created by StarterPrompt). added is false when the document is kept.
 func EnsurePromptTemplate(yaml []byte, id string) (out []byte, added bool) {
 	doc, err := wf.ParseDocEdit(yaml)
@@ -27,8 +27,8 @@ func EnsurePromptTemplate(yaml []byte, id string) (out []byte, added bool) {
 
 // StarterPrompt is the starting prompt template of a document that names
 // its own template (prompt.template) without providing it (`oh workflow new
-// --file` without --prompt-file, v5 finalisation Q3-7): the mode and
-// language lines, then one line per input, free text inside data tags (O11).
+// --file` without --prompt-file): the mode and
+// language lines, then one line per input, free text inside data tags.
 // nil when the document has no prompt.template or cannot be read.
 func StarterPrompt(yaml []byte) []byte {
 	doc, err := wf.ParseDocEdit(yaml)
@@ -48,7 +48,7 @@ func StarterPrompt(yaml []byte) []byte {
 		}
 		switch wf.InputType(typ) {
 		case wf.InputString, wf.InputText, "":
-			// Same wording as the shipped prompts (O11 revised, A27): the
+			// Same wording as the shipped prompts: the
 			// user's own text as it is, a computed outside value delimited.
 			lead := "écrite par l'utilisateur lui-même, à traiter telle quelle (même courte)"
 			if from, ok := doc.Scalar("inputs", k, "from"); ok && from != "" {

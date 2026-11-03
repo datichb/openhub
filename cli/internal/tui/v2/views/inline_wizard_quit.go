@@ -10,7 +10,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
-// « Quit the wizard? » (N19): Esc asks, in place of the hints bar.
+// « Quit the wizard? »: Esc asks, in place of the hints bar.
 
 // askQuit is Esc: « Quitter l'assistant ? [Quitter] [Passer l'étape] (when
 // the step is optional) [Continuer] », in place of the hints bar. The focus

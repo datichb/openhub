@@ -12,7 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 )
 
-// p5-fixes: a proposal may replace a line of a page (the exact old line
+// A proposal may replace a line of a page (the exact old line
 // and the new one): cleaned like an addition, the old line checked when it
 // is filed and when it is applied (else stale, not applied), written in
 // place with its tag line.

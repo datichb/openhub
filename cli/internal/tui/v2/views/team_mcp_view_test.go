@@ -38,7 +38,7 @@ func pressTeamMCPList(v *TeamMCPView, r rune) {
 	v.list.InputHandler()(tcell.NewEventKey(tcell.KeyRune, r, tcell.ModNone), func(tview.Primitive) {})
 }
 
-// Bug 9: the title of the first section ("MCP Gitlab") is drawn when the view
+// The title of the first section ("MCP Gitlab") is drawn when the view
 // opens and when the cursor comes back to the first field after a scroll
 // (tview then scrolled the title out of the list).
 func TestTeamMCPViewShowsTheFirstSectionTitle(t *testing.T) {
@@ -118,7 +118,7 @@ func lastToast(sh *viewShell) string {
 	return sh.toasts[len(sh.toasts)-1]
 }
 
-// Bug 8: t calls the server of the selected service (it used to check that a
+// t calls the server of the selected service (it used to check that a
 // token was present and say "testing" without any call) and shows the result.
 func TestTeamMCPViewTestCallsTheServer(t *testing.T) {
 	frLocale(t)
@@ -192,7 +192,7 @@ func TestTeamMCPViewTestUnavailableAndUnsaved(t *testing.T) {
 	assert.Contains(t, lastToast(sh), "Ctrl+S")
 }
 
-// Bug 10: the Figma server always calls api.figma.com and the Google Slides
+// The Figma server always calls api.figma.com and the Google Slides
 // one slides.googleapis.com, so the view offers no URL for them (neither the
 // one of the team, nor the imposed one, nor the personal one); the other
 // services keep theirs.

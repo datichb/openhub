@@ -93,7 +93,7 @@ inputs:
 	assert.Empty(t, n.Widenings())
 }
 
-// QB1: modes.allowed is a security field, any added mode is a widening.
+// modes.allowed is a security field, any added mode is a widening.
 func TestImpactAnyAddedModeWidens(t *testing.T) {
 	from := specOf(t, "apiVersion: oh/v1\nkind: Workflow\nid: x\nmodes: { allowed: [manuel] }\n")
 	to := specOf(t, "apiVersion: oh/v1\nkind: Workflow\nid: x\nmodes: { allowed: [manuel, semi-auto] }\n")

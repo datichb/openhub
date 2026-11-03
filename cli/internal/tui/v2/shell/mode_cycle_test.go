@@ -13,7 +13,7 @@ import (
 )
 
 // Ctrl+T cycles Hub → Project → Team → Hub, skipping what is not configured
-// (BL-24: the project mode had no shortcut, Ctrl+T only went between the hub
+// (the project mode had no shortcut, Ctrl+T only went between the hub
 // and the team).
 
 type cycleWorld struct {

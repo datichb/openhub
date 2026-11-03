@@ -9,7 +9,7 @@ import (
 )
 
 // AbsenceRecap summarizes what happened to the v5 sessions while oh was
-// closed (I7, P3-T21).
+// closed.
 type AbsenceRecap struct {
 	Changed       int     // sessions whose state changed
 	Waiting       int     // …now waiting for a decision

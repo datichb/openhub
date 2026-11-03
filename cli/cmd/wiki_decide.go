@@ -52,7 +52,7 @@ type wikiDecision struct {
 	// Content is the new content of an edit ("" with Editor: from $EDITOR).
 	Content string
 	Editor  bool
-	// Reason is the optional reason of a refusal (p9-wiki-refusal).
+	// Reason is the optional reason of a refusal.
 	Reason string
 }
 

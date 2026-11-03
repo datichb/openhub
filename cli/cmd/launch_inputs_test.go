@@ -14,14 +14,14 @@ import (
 
 // Without a supported tool, a launch is refused; the message names the tool
 // of the adapter.
-func TestLaunchRefusesWithoutV2(t *testing.T) {
-	withoutV2(t, nil)
-	err := requireV2(context.Background())
+func TestLaunchRefusesWithoutTool(t *testing.T) {
+	withoutTool(t, nil)
+	err := requireSupportedTool(context.Background())
 	if err == nil || !strings.Contains(err.Error(), "faketool") || !strings.Contains(err.Error(), "oh doctor") {
 		t.Fatalf("err = %v", err)
 	}
-	withoutV2(t, &adapters.UnsupportedVersionError{Tool: "faketool", Found: "1.18.29", Min: "2.0.0", Max: "2.99.99"})
-	err = requireV2(context.Background())
+	withoutTool(t, &adapters.UnsupportedVersionError{Tool: "faketool", Found: "1.18.29", Min: "2.0.0", Max: "2.99.99"})
+	err = requireSupportedTool(context.Background())
 	if err == nil || !strings.Contains(err.Error(), "1.18.29") || !strings.Contains(err.Error(), "oh doctor") {
 		t.Fatalf("err = %v", err)
 	}
@@ -71,7 +71,7 @@ func (e epicSource) OpenChildren(id string) ([]string, error) {
 	return e[id], nil
 }
 
-// A24: `oh run ticket --tickets <epic>` starts one session per open child
+// `oh run ticket --tickets <epic>` starts one session per open child
 // of the epic (one session with every child with --one-session); the recap
 // names the epic.
 func TestLaunchTicketsExpandsEpics(t *testing.T) {

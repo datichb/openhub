@@ -176,7 +176,7 @@ func TestBuildTeamModeIntroStep_Layout(t *testing.T) {
 	buttonForm := findButtonForm(container)
 	require.NotNil(t, buttonForm, "container should contain a button *tview.Form")
 
-	// Must have 4 buttons: Create, Rejoin, Solo space (P2-T16), Skip
+	// Must have 4 buttons: Create, Rejoin, Solo space, Skip
 	require.Equal(t, 4, buttonForm.GetButtonCount(),
 		"button form should have Create + Rejoin + Solo + Skip buttons")
 
@@ -297,7 +297,7 @@ func TestBuildTeamModeIntroStep_SkipCallback(t *testing.T) {
 // ---------------------------------------------------------------------------
 // TestBuildFirstRunInlineWizard_E2E_MountWithPreconfig
 //
-// P2.5: Verifies the wizard can be built and mounted with various
+// Verifies the wizard can be built and mounted with various
 // pre-existing configurations without panicking. Since the steps are
 // internal to the views package, we cannot programmatically advance
 // through all the steps from cmd. Instead we verify that different
@@ -388,7 +388,7 @@ func TestBuildFirstRunInlineWizard_E2E_MountWithPreconfig(t *testing.T) {
 // ---------------------------------------------------------------------------
 // TestBuildFirstRunInlineWizard_E2E_HandleKey
 //
-// R20: Verifies that HandleKey events (Ctrl+B, Esc) on the real wizard
+// Verifies that HandleKey events (Ctrl+B, Esc) on the real wizard
 // don't panic and behave correctly on the welcome CustomView step.
 // ---------------------------------------------------------------------------
 
@@ -441,7 +441,7 @@ func TestBuildFirstRunInlineWizard_E2E_HandleKey(t *testing.T) {
 	wiz.Unmount()
 }
 
-// P2-T16: the « solo space » choice of the first-run wizard.
+// The « solo space » choice of the first-run wizard.
 func TestBuildTeamModeIntroStep_SoloSpace(t *testing.T) {
 	state := &initWizardTeamState{}
 	step := buildTeamModeIntroStep(state)

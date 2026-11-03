@@ -301,7 +301,7 @@ func Serve() error {
 // Resolution order:
 //  1. the team of the session project, named by OH_TEAM_ID in the
 //     environment of the server declaration in the session bundle (set by
-//     oh at launch, P3-T29);
+//     oh at launch);
 //  2. the active team of hub.toml (server started outside a session).
 //
 // Repo cache: avoids re-creating the Repo + pulling on every handler call.

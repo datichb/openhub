@@ -61,7 +61,7 @@ func syncOf(t *testing.T, alice teamstate.Member, id *Identity) []SyncWarning {
 	return res.Warnings
 }
 
-// Bug 12: the tracker is on another server, the member has no tracker_username,
+// The tracker is on another server, the member has no tracker_username,
 // the issues assigned to "benjamin.datiche" belong to nobody and nothing said so.
 func TestSyncSaysWhenIssuesAreAssignedToANameNobodyHas(t *testing.T) {
 	warnings := syncOf(t, teamstate.Member{GitLabUsername: "benjamin.datiche1"}, &Identity{TeamID: "core", MemberID: "alice", CrossServer: true})

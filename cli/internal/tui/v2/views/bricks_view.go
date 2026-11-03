@@ -16,7 +16,7 @@ import (
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Brick catalogue (P3-T27, 10-tui §11; tui-wiki-bricks), read-only: the
+// Brick catalogue, read-only: the
 // agents and skills a session may receive, their origin (hub, team, team
 // brick that replaces a hub brick, team brick not sealed), published
 // version, state of their checks, estimated cost and the agents and

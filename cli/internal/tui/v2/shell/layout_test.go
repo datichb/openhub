@@ -73,7 +73,7 @@ func runHome(t *testing.T, cols, rows int, compact string) *simShell {
 }
 
 // 80×24: compact level — 3-row palette, one-line banner, no footer: the
-// list gets at least 10 rows and its first item is visible (N20).
+// list gets at least 10 rows and its first item is visible.
 func TestLayoutCompact80x24(t *testing.T) {
 	s := runHome(t, 80, 24, "")
 	s.waitLevel(t, views.LevelCompact)

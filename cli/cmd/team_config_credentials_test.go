@@ -58,7 +58,7 @@ func TestTrackerCredentialsDoNotSendTheTeamTokenToAnotherServer(t *testing.T) {
 	require.ErrorAs(t, err, &missing)
 	assert.Equal(t, "https://gitlab.forge.example", missing.Server)
 
-	// tracker_token_key of hub.toml (bug 11: the status ignored it) and its server
+	// tracker_token_key of hub.toml (the status used to ignore it) and its server
 	a.Config.Tracker.SetTokenDecl("forge.token", "https://gitlab.forge.example")
 	creds, err := tracker.ResolveCredentials(context.Background(), trackerCredentials(t.Context(), a, teamCfg), tracker.TypeGitLab)
 	require.NoError(t, err)

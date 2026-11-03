@@ -18,10 +18,10 @@ import (
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Launch form (P1-T22, 10-tui §4): generated from the workflow YAML — inputs,
+// Launch form: generated from the workflow YAML — inputs,
 // then options (mode, runtime with availability, location, opening), then a
 // recap computed by the wiring layer (bundle, plan, warnings). Ctrl+S goes
-// to the recap, then launches from the loaded recap only (N19); Ctrl+B,
+// to the recap, then launches from the loaded recap only; Ctrl+B,
 // Alt+← or PgUp go back, Alt+→ or PgDn forward, Esc closes. Beads inputs open
 // the tview picker in place.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -581,7 +581,7 @@ var launchDirtyChoices = []struct {
 }
 
 // dirtyChoicesText renders the choices for a directory with uncommitted
-// changes, the current one selected (10-tui §4.4).
+// changes, the current one selected.
 func (v *LaunchFormView) dirtyChoicesText() string {
 	parts := make([]string, len(launchDirtyChoices))
 	for i, c := range launchDirtyChoices {
@@ -657,7 +657,7 @@ func (v *LaunchFormView) next() {
 	v.render()
 }
 
-// toRecap is Ctrl+S before the recap: straight to the recap (N19).
+// toRecap is Ctrl+S before the recap: straight to the recap.
 func (v *LaunchFormView) toRecap() {
 	if v.launching || v.blocked() {
 		return
@@ -698,8 +698,8 @@ func (v *LaunchFormView) launch() {
 }
 
 // launchWith runs a launch function off the event loop, from the loaded
-// recap only (N19; double launch protection: ignored while a launch is in
-// progress, m12).
+// recap only (double launch protection: ignored while a launch is in
+// progress).
 func (v *LaunchFormView) launchWith(fn func(ctx context.Context, c LaunchChoices) error) {
 	if v.launching || fn == nil || v.step != launchStepRecap {
 		return
@@ -799,7 +799,7 @@ func indexOf(list []string, v string) int {
 }
 
 // isBackKey reports the « previous step » keys of the launch form and the
-// wizards: Ctrl+B, Alt+← and PgUp (N19).
+// wizards: Ctrl+B, Alt+← and PgUp.
 func isBackKey(event *tcell.EventKey) bool {
 	switch event.Key() {
 	case tcell.KeyCtrlB, tcell.KeyPgUp:

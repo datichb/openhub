@@ -16,7 +16,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/specdoc"
 )
 
-// Specs written by the session (R4, workflow spec): `verify.spec` makes oh
+// Specs written by the session (workflow spec): `verify.spec` makes oh
 // read the specs the session changed under its paths and check them
 // (internal/specdoc) before the checkpoint passes:
 //
@@ -32,7 +32,7 @@ const maxSpecSize = 1 << 20
 
 // specCheck checks the specs of verification v: a failed result when they
 // are missing or incomplete (ok false). The specs checked are recorded in
-// the output `record: spec` of the session (R5).
+// the output `record: spec` of the session.
 func (s *Service) specCheck(ctx context.Context, sess *domain.Session, v *sessionspec.VerifyDef) (failed domain.CheckpointVerify, ok bool) {
 	c := v.Spec
 	if c == nil {
@@ -53,7 +53,7 @@ func (s *Service) specCheck(ctx context.Context, sess *domain.Session, v *sessio
 			continue // deleted, or not a regular file
 		}
 		specs = append(specs, p)
-		// The format of the wiki first (p4-debts): frontmatter, its keys
+		// The format of the wiki first: frontmatter, its keys
 		// and values, the confidence tags (wiki.FormatIssues).
 		for _, is := range wiki.FormatIssues(strings.TrimPrefix(p, wiki.Dir+"/"), string(data)) {
 			at := p

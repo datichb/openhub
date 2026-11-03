@@ -35,7 +35,7 @@ func layoutModeForWidth(width int) homeLayoutMode {
 }
 
 // contentWidthFor is the width of the landing content for mode, never wider
-// than the available width (narrow: min(72, width), N20). The dual layout
+// than the available width (narrow: min(72, width)). The dual layout
 // grows with the terminal (width − 6, capped at 180).
 func contentWidthFor(mode homeLayoutMode, width int) int {
 	w := contentWidthForMode(mode)
@@ -169,7 +169,7 @@ type homeFlexConfig struct {
 	RightItems []widgets.SectionItem
 	// OnSelect is called when Enter is pressed on a non-header item.
 	OnSelect func(index int, item widgets.SectionItem)
-	// Compact drops the footer and the vertical spacers (N20).
+	// Compact drops the footer and the vertical spacers.
 	Compact bool
 }
 
@@ -315,7 +315,7 @@ func buildDualFlex(d *homeDualLayout) *tview.Flex {
 // adaptiveHomeMount installs a responsive layout into content that reacts to
 // terminal resize. It calls buildFn(width, compact) to construct the layout,
 // and reinstalls it whenever the terminal width crosses a breakpoint or the
-// layout level changes (N20), keeping the selected item and column.
+// layout level changes, keeping the selected item and column.
 //
 // Returns the initial homeFlexResult.
 func adaptiveHomeMount(

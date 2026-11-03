@@ -52,10 +52,10 @@ type Decisions interface {
 }
 
 // Responder answers the decisions of a remote session by the workflow
-// policy (S5), never by approving everything (--auto):
+// policy, never by approving everything (--auto):
 //   - checkpoint waiting in the mode, `remote: auto` → approved; when its
 //     verification failed → refused, the agent fixes the work; when its
-//     verification cannot run in the job → deferred (R3-remote);
+//     verification cannot run in the job → deferred;
 //   - checkpoint `remote: defer` → the session stops cleanly (MR ready, the
 //     user continues locally after fetching);
 //   - any other permission → rejected with a message;
@@ -180,7 +180,7 @@ func (r *Responder) answer(ctx context.Context, d domain.Decision) *Stop {
 			var oe *checkpoint.OverrideError
 			switch {
 			case errors.As(err, &oe) && oe.Result.Status == domain.VerifyUnavailable:
-				// R3-remote: never passed without its verification; only
+				// Never passed without its verification; only
 				// the user may override it, on the machine.
 				sd.Answer = "deferred"
 				r.record(sd)

@@ -97,7 +97,7 @@ func buildBundleFor(cmd *cobra.Command, id string) (*bundle.Bundle, error) {
 	}
 	c := workflowsvc.Context{}
 	if project != nil {
-		c.ProjectID = project.ID // the workflow of the project's layers (A6)
+		c.ProjectID = project.ID // the workflow of the project's layers
 	}
 	res, err := newWorkflowService(ctx).Resolve(ctx, c, id, workflowsvc.ResolveOpts{})
 	if err != nil {

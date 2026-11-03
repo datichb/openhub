@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-// The help of the commands is not written in the code (v5.1, C9). The text of
+// The help of the commands is not written in the code. The text of
 // a command (Short, Long, Example) and of an option (its usage) is replaced,
 // when the help is shown, by the one of the locales under the conventional key
 // (cmd.<command path>.short|long|example, cmd.<command path>.flags.<name>), so

@@ -15,7 +15,7 @@ import (
 
 func str(s string) *string { return &s }
 
-// Bug 12: the tracker name of the member is set in the profile, in the
+// The tracker name of the member is set in the profile, in the
 // team-state, and the rest of the profile is kept.
 func TestUpdateProfileWritesTheMemberOfTheTeam(t *testing.T) {
 	if testing.Short() {

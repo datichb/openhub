@@ -204,7 +204,7 @@ func claimsGone(t *testing.T, repo *teamstate.Repo, ticket string) {
 	assert.ErrorIs(t, err, teamstate.ErrClaimNotFound, ticket)
 }
 
-// QB2: a session started on tickets (any workflow, not only the --dev alias)
+// A session started on tickets (any workflow, not only the --dev alias)
 // claims each ticket for the member, or moves its planned claim to the work
 // status; a ticket claimed by someone else is reported.
 func TestStartTicketClaim(t *testing.T) {
@@ -262,7 +262,7 @@ func TestStartTicketClaimRecordsTheSession(t *testing.T) {
 	assert.Equal(t, "ses_bob", claimsOnDisk(t, repo, "BOB-4").Session, "someone else's claim is not taken")
 }
 
-// A31: the Doctor reports the claims of the member left behind (ticket
+// The Doctor reports the claims of the member left behind (ticket
 // closed, or every session on it ended), not the manual claims nor the
 // claims of a running session.
 func TestOrphanClaims(t *testing.T) {

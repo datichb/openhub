@@ -7,7 +7,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 )
 
-// Validation by batch (R6, CP-R6): the checkpoints waiting in several
+// Validation by batch (CP-R6): the checkpoints waiting in several
 // sessions (the children of a fan-out, remote sessions, the merge
 // checkpoints of several fan-outs) are validated in one go, each one
 // still listed with its session, its checkpoint and its summary, and each

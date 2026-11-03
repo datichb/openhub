@@ -1,10 +1,10 @@
-// Package wiki is the WikiService (modernisation LD-J): the wiki of a
+// Package wiki is the WikiService: the wiki of a
 // project (docs/wiki/, format of skills/documentarian/doc-wiki-protocol.md)
 // as oh reads, checks and enriches it.
 //
 //   - Load reads the pages; Index returns the index and the god nodes
 //     computed by oh from the pages (godnodes.go), which the prompts of the
-//     agents at the level index (L7) and wiki_index show;
+//     agents at the level index and wiki_index show;
 //   - Check verifies the frontmatter, the links, the confidence tags, the
 //     freshness (a page older than the files it cites) and the god nodes
 //     (check.go), Fix repairs what oh can compute;

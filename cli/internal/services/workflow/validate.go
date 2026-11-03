@@ -96,7 +96,7 @@ func (s *Service) Validate(ctx context.Context, c Context, in ValidateInput) (*V
 			ref = wf.Ref{Layer: wf.LayerHub, ID: in.Target}
 		}
 		if !found && cat.team != nil {
-			// Not published: the member's draft of that workflow (A9).
+			// Not published: the member's draft of that workflow.
 			drafts, ds := cat.team.Repo.LoadDrafts(cat.docs, cat.team.Member, cat.team.scopes()...)
 			if r, ok := s.lookup(cat, in.Target, ""); ok && slices.Contains(drafts, r) {
 				ref, draft = r, true

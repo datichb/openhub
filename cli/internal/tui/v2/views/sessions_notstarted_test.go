@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// M1: an instruction to a session that has not started yet (queued for a
+// An instruction to a session that has not started yet (queued for a
 // free slot, preparing) is not asked for: the view says so, as for a session
 // that is over, instead of opening the input and failing after the text is
 // typed.

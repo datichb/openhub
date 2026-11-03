@@ -407,7 +407,7 @@ func copyTeams(teams []config.TeamConfig) []config.TeamConfig {
 }
 
 // teamRepoLabel is the team-state of a team: its remote, or « solo space »
-// (local, no remote; P2-T16).
+// (local, no remote).
 func teamRepoLabel(t config.TeamConfig) string {
 	if t.Solo {
 		return i18n.T("tui.solo.teams_label")

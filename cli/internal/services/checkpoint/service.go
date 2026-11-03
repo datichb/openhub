@@ -1,4 +1,4 @@
-// Package checkpoint is the CheckpointService (03 §2.4, D8): the workflow
+// Package checkpoint is the CheckpointService: the workflow
 // state of each session (checkpoints passed, current one, gates, circuit
 // breaker) and the backend of the oh MCP server `workflow`. It runs in the
 // oh daemon, fed by the tool event stream; the CLI and the TUI read it.
@@ -52,7 +52,7 @@ type Service struct {
 	identityMu sync.Mutex
 	identities map[string]cachedIdentity
 
-	// R3 (verify.go, when.go): verification run by oh and conditions.
+	// Verification run by oh and conditions (verify.go, when.go).
 	// Exec runs a verification command (nil = exec); Fingerprint and
 	// Changed read the state of the work (nil = git); Labels reads the
 	// labels of a ticket (nil = bd show); VerifyWait bounds the wait of a
@@ -63,8 +63,8 @@ type Service struct {
 	Labels      func(ctx context.Context, dir, ticket string) ([]string, error)
 	VerifyWait  time.Duration
 	// Account runs the verifications and their git reads as the account
-	// of the agents (remote job: the oh account of the image, never root;
-	// R3-remote); nil = the account of oh.
+	// of the agents (remote job: the oh account of the image, never root);
+	// nil = the account of oh.
 	Account *Account
 	// ContainerExec runs the verifications of a session that works in a
 	// container, in a container (verify_container.go); nil: they cannot
@@ -73,14 +73,14 @@ type Service struct {
 	verifier      verifier
 
 	// CommitPassed runs when a checkpoint that unlocks the commit is
-	// passed, before the call returns to the agent (LD-J: oh applies the
+	// passed, before the call returns to the agent (oh applies the
 	// wiki proposals the user accepted on the card, so that they are
 	// committed with the code). It returns the line for the agent ("" =
 	// nothing applied) and the proposals applied, for the timeline. sync:
 	// the checkpoint synchronizes the wiki (`wiki: sync`, doc-sync, LD-D).
 	CommitPassed func(ctx context.Context, sess *domain.Session, checkpoint string, sync bool) (message string, applied []string)
 
-	// R6 (fanout.go): Integrate merges the integration branch of the
+	// Integrate (fanout.go) merges the integration branch of the
 	// fan-out of sess into the branch of the session and closes the tickets
 	// merged, when its merge checkpoint is validated and verified, before
 	// the checkpoint is recorded as passed (nil: the merge checkpoint never
@@ -145,7 +145,7 @@ type Status struct {
 	// Locked lists the agents that cannot be called yet, with their lock.
 	Locked []sessionspec.AgentGate `json:"locked_agents,omitempty"`
 	// ExpectedOutputs are the outputs the agents declare (workflow_outputs);
-	// the outputs recorded by oh (R5, `record:`) are left out.
+	// the outputs recorded by oh (`record:`) are left out.
 	ExpectedOutputs []sessionspec.OutputDef `json:"expected_outputs,omitempty"`
 	Outputs         []Output                `json:"outputs,omitempty"`
 	// Breaker: delegation is held by the circuit breaker until the user steps in.
@@ -154,9 +154,9 @@ type Status struct {
 	// passed (commit, push, close).
 	LockedOps []string `json:"locked_operations,omitempty"`
 	// LockedWrites lists the `writes:` paths still closed, with the
-	// checkpoint that opens them (r5-fixes, `writes_after`).
+	// checkpoint that opens them (`writes_after`).
 	LockedWrites []sessionspec.WritesGate `json:"locked_writes,omitempty"`
-	// Fanout is the fan-out of the session (R6): its children for the
+	// Fanout is the fan-out of the session: its children for the
 	// parent, its parent for a child.
 	Fanout *FanoutStatus `json:"fanout,omitempty"`
 }
@@ -174,7 +174,7 @@ type CheckpointStatus struct {
 type Call struct {
 	ID      string `json:"id"`
 	Summary string `json:"summary,omitempty"`
-	// Evidence are the commands the agent ran for this checkpoint (R3, E2),
+	// Evidence are the commands the agent ran for this checkpoint,
 	// checked against the shell calls oh observed.
 	Evidence []Evidence `json:"evidence,omitempty"`
 	// Reports are the reports (rp-…) the agent cites; those filed since the
@@ -200,18 +200,18 @@ type Result struct {
 	// Unlocked lists the operations the checkpoint unlocked (commit, push,
 	// close), until a ticket is closed or the checkpoint is asked again.
 	Unlocked []string `json:"unlocked,omitempty"`
-	// Verify is the result of the verification run by oh (R3).
+	// Verify is the result of the verification run by oh.
 	Verify string `json:"verify,omitempty"`
-	// Unobserved lists the evidence oh did not observe (R3, E2).
+	// Unobserved lists the evidence oh did not observe.
 	Unobserved []string `json:"unobserved,omitempty"`
-	// Warning tells the agent it passed a checkpoint of another agent (L3,
-	// `by:`).
+	// Warning tells the agent it passed a checkpoint of another agent
+	// (`by:`).
 	Warning string `json:"warning,omitempty"`
 	// Wiki tells the agent the wiki proposals oh applied at the checkpoint
-	// of the commit (LD-J).
+	// of the commit.
 	Wiki string `json:"wiki,omitempty"`
 	// CommitNext is the later checkpoint that unlocks the commit again
-	// (p5-fixes, unlock_again): this one allows one commit, or none when
+	// (unlock_again): this one allows one commit, or none when
 	// there was nothing to commit (commit absent from Unlocked).
 	CommitNext string `json:"commit_next,omitempty"`
 	// Tasks is the breakdown oh recorded at the checkpoint, one task per
@@ -219,7 +219,7 @@ type Result struct {
 	Tasks string `json:"tasks,omitempty"`
 }
 
-// Output is a typed value declared by workflow_outputs (O7).
+// Output is a typed value declared by workflow_outputs.
 type Output struct {
 	ID    string    `json:"id,omitempty"`
 	Type  string    `json:"type"`
@@ -262,14 +262,14 @@ func (s *Service) Status(ctx context.Context, sessionID string) (Status, error) 
 	lang := i18n.Locale()
 	st := Status{SessionID: sess.ID, Workflow: wf.ID, Mode: sess.Mode}
 	for _, o := range wf.Outputs {
-		if o.Record == "" { // R5: a recorded output is not for the agents to declare
+		if o.Record == "" { // a recorded output is not for the agents to declare
 			st.ExpectedOutputs = append(st.ExpectedOutputs, o)
 		}
 	}
 	for _, c := range wf.Checkpoints {
 		row := CheckpointStatus{ID: c.ID, Label: c.LabelFor(lang), Behavior: c.Behavior(sess.Mode), State: StateTodo}
 		if _, _, ok := s.delegation(ctx, sess, c); ok {
-			row.Behavior = sessionspec.CheckpointAuto // R6, CP-R3
+			row.Behavior = sessionspec.CheckpointAuto // CP-R3
 		}
 		switch {
 		case cs.HasPassed(c.ID):
@@ -335,7 +335,7 @@ func (s *Service) Reached(ctx context.Context, sessionID string, call Call) (Res
 		res.Message = ap.Message
 		s.recordWritten(ctx, sess, wf)
 		res.Unlocked, res.CommitNext = s.unlockedBy(ctx, sess.ID, c)
-		s.reachedR3(ctx, sess.ID, c, call, &res)
+		s.reachedEvidence(ctx, sess.ID, c, call, &res)
 		res.Wiki = s.commitPassed(ctx, sess, c)
 	}
 	for i, cp := range wf.Checkpoints {

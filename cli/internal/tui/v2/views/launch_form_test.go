@@ -185,7 +185,7 @@ func TestLaunchFormFlow(t *testing.T) {
 	assert.Equal(t, "semi-auto", launched[0].Mode)
 }
 
-// A35/A18: a directory with uncommitted changes offers [w] worktree (the
+// A directory with uncommitted changes offers [w] worktree (the
 // default) · [s] stash · [b] launch anyway on the recap; the choice is
 // recomputed and launched.
 func TestLaunchFormDirtyChoices(t *testing.T) {
@@ -261,7 +261,7 @@ func TestLaunchFormOpensAtOptions(t *testing.T) {
 	assert.Equal(t, launchStepOptions, v.step)
 }
 
-// A39: on the options step (form opened from the board quick actions) the
+// On the options step (form opened from the board quick actions) the
 // focus is on a closed drop-down: Esc closes the form; with its list open,
 // Esc closes the list only.
 func TestLaunchFormEscOnOptionsCloses(t *testing.T) {
@@ -441,7 +441,7 @@ func TestSessionsDetailShowsNext(t *testing.T) {
 	assert.Contains(t, v.detail.GetText(true), i18n.Tf("tui.launch.chain_next", "review"))
 }
 
-// N19: Ctrl+S on the first step goes to the recap without launching; the
+// Ctrl+S on the first step goes to the recap without launching; the
 // second Ctrl+S (recap loaded) launches. Alt+←/PgUp go back, Alt+→/PgDn
 // forward.
 func TestLaunchFormCtrlSGoesToTheRecap(t *testing.T) {

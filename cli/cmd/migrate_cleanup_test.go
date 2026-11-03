@@ -31,12 +31,12 @@ func (fakeCleaner) ScanLegacy(dir string, _ adapters.LegacyOptions) (*adapters.L
 	return p, nil
 }
 
-// The cleanup of former deployments goes through the adapter (D19): the
+// The cleanup of former deployments goes through the adapter: the
 // file formats are tested in its own package.
 func TestMigrateCleanupScanAndApply(t *testing.T) {
-	prev := v5Adapter
-	v5Adapter = fakeCleaner{}
-	t.Cleanup(func() { v5Adapter = prev })
+	prev := toolAdapter
+	toolAdapter = fakeCleaner{}
+	t.Cleanup(func() { toolAdapter = prev })
 	deployed := t.TempDir()
 	require.NoError(t, os.MkdirAll(filepath.Join(deployed, "legacy"), 0o755))
 	clean := t.TempDir()

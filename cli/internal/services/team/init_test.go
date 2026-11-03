@@ -78,7 +78,7 @@ func TestInitClonesRegistersTheMemberAndWritesHubToml(t *testing.T) {
 	assert.Equal(t, "dave.g", m.GitLabUsername)
 	assert.Equal(t, "semi-auto", m.DefaultMode)
 	assert.Empty(t, gittest.Run(t, statePath, "status", "--porcelain", "--untracked-files=all"),
-		"A5: the layout (catalog/ included) is committed, nothing is left untracked in the clone")
+		"the layout (catalog/ included) is committed, nothing is left untracked in the clone")
 	assert.Contains(t, gittest.Run(t, bare, "ls-tree", "-r", "--name-only", "main"), "catalog/agents/.gitkeep")
 
 	teams := reload(t)
@@ -97,7 +97,7 @@ func TestInitClonesRegistersTheMemberAndWritesHubToml(t *testing.T) {
 	assert.Len(t, reload(t), 2)
 }
 
-// Bug 12: joining again (oh init → team) replaced the whole member and lost its
+// Joining again (oh init → team) replaced the whole member and lost its
 // tracker_username.
 func TestInitKeepsTheTrackerUsernameOfAMember(t *testing.T) {
 	configtest.Home(t)
@@ -149,7 +149,7 @@ func TestSaveTeamKeepsTheGitLabOfTheRepository(t *testing.T) {
 	assert.Equal(t, "https://gitlab.corp.example", cfg.FindTeam("core").GitLabURL)
 }
 
-// M1: the commit of the structure of the team-state fails (here the remote
+// The commit of the structure of the team-state fails (here the remote
 // refuses it): Init does not fail, it tells so in its result, and the member
 // and hub.toml are written all the same. The failure is no longer only in a log.
 func TestInitStructureCommitFailureIsAWarning(t *testing.T) {

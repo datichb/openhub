@@ -8,8 +8,8 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 )
 
-// Publication policies of `[governance] publish` (D7). Only any_member is
-// implemented; finer rules are BL-2.
+// Publication policies of `[governance] publish`. Only any_member is
+// implemented; finer rules are not implemented.
 const (
 	GovernancePublishAnyMember = "any_member"
 )

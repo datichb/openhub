@@ -112,9 +112,9 @@ Sans `tracker_token_url`, le serveur de la clé est **implicite** : le `tracker_
 
 **Jamais enforceable** — le team recommande, le membre/projet décide. Le modèle est résolu à la construction du paquet de session (plus de déploiement).
 
-Au lancement (`cmd/v5_launch.go`), le hub et le projet sont renseignés, puis les recommandations `[models]` du `config.toml` du team-state (si l'équipe est activée et le dépôt cloné) : les trois niveaux de la cascade sont appliqués aux sessions v5.
+Au lancement (`cmd/run_request.go`), le hub et le projet sont renseignés, puis les recommandations `[models]` du `config.toml` du team-state (si l'équipe est activée et le dépôt cloné) : les trois niveaux de la cascade sont appliqués aux sessions v5.
 
-— `CONFIRMÉ` · developer · 2026-11-02 · cli/internal/bricks/model_resolve.go, cli/cmd/v5_launch.go
+— `CONFIRMÉ` · developer · 2026-11-02 · cli/internal/bricks/model_resolve.go, cli/cmd/run_request.go
 
 ### Workflows (couches, sécurité qui ne fait que se durcir)
 

@@ -13,7 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
-// TUI wiring of the publication and history screens (P2-T15): service calls
+// TUI wiring of the publication and history screens: service calls
 // mapped to the view models.
 
 // openPublishView pushes the publication screen of the draft ref.

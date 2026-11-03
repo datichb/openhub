@@ -70,7 +70,7 @@ var rootCmd = &cobra.Command{
 			common.SetNoTUI(true)
 		}
 
-		// Startup of the command's level (N13): background processes and
+		// Startup of the command's level: background processes and
 		// the diagnostic commands do not run the full startup. The help is
 		// translated when it is shown (help function), not here.
 		return startupFor(cmd, args)
@@ -127,24 +127,10 @@ func MustApp() *app.App {
 	return application
 }
 
-// ReloadApp re-initializes the application from disk configuration.
-// Call this after the init wizard writes config to disk to pick up changes.
-func ReloadApp() (*app.App, error) {
-	if err := initApp(); err != nil {
-		return nil, err
-	}
-	return application, nil
-}
-
 // TryApp returns the application instance or nil if initialization failed.
 // Use only in commands that explicitly handle the nil case (e.g., doctor checks).
 func TryApp() *app.App {
 	return application
-}
-
-// RootCmd returns the root cobra command (used by subpackages to register commands).
-func RootCmd() *cobra.Command {
-	return rootCmd
 }
 
 // initApp wires up all dependencies.

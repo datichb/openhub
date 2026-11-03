@@ -72,16 +72,16 @@ func dryRunHub(t *testing.T) (*app.App, *domain.Project) {
 	p := &domain.Project{ID: "demo", Name: "demo", Path: dir, Status: domain.ProjectStatusActive}
 	require.NoError(t, a.Projects.Create(context.Background(), p))
 
-	prevDetect := detectV2
-	detectV2 = func(context.Context) (adapters.ToolAdapter, adapters.ToolInfo, error) {
+	prevDetect := detectSupportedTool
+	detectSupportedTool = func(context.Context) (adapters.ToolAdapter, adapters.ToolInfo, error) {
 		return dryRunTool{}, adapters.ToolInfo{Name: "faketool", DisplayName: "faketool", Version: "2.0.25"}, nil
 	}
-	v5Once, v5Adapter, v5Tool, v5Err = sync.Once{}, nil, adapters.ToolInfo{}, nil
+	toolOnce, toolAdapter, toolInfo, toolErr = sync.Once{}, nil, adapters.ToolInfo{}, nil
 	prevCreds := launchCredentials
 	launchCredentials = func(context.Context, *app.App, *domain.Project, string) error { return nil }
 	t.Cleanup(func() {
-		detectV2, launchCredentials = prevDetect, prevCreds
-		v5Once, v5Adapter, v5Tool, v5Err = sync.Once{}, nil, adapters.ToolInfo{}, nil
+		detectSupportedTool, launchCredentials = prevDetect, prevCreds
+		toolOnce, toolAdapter, toolInfo, toolErr = sync.Once{}, nil, adapters.ToolInfo{}, nil
 	})
 	return a, p
 }

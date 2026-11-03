@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// N15 step B: "." is refused; the caller lists its files.
+// "." is refused; the caller lists its files.
 func TestCommitEverythingIsRefused(t *testing.T) {
 	t.Parallel()
 	repo, _ := setupGitTestRepo(t)
@@ -26,7 +26,7 @@ func TestCommitEverythingIsRefused(t *testing.T) {
 	require.ErrorIs(t, err, ErrStageAll)
 }
 
-// N15 step B: a write commits its own files only; another writer's files
+// A write commits its own files only; another writer's files
 // (untracked or modified) stay out of the commit and in place.
 func TestWritesCommitTheirFilesOnly(t *testing.T) {
 	t.Parallel()
@@ -42,7 +42,7 @@ func TestWritesCommitTheirFilesOnly(t *testing.T) {
 	assert.Contains(t, status, "M README.md")
 }
 
-// N15 step B: CommitAndPush is a transaction too: a push overtaken by
+// CommitAndPush is a transaction too: a push overtaken by
 // another member is retried on top of it, the caller's file kept.
 func TestCommitAndPushRetriesOnTop(t *testing.T) {
 	t.Parallel()
@@ -64,7 +64,7 @@ func TestCommitAndPushRetriesOnTop(t *testing.T) {
 	assert.Equal(t, "mine", string(got))
 }
 
-// N15 step B: inside a transaction, the public methods join it — one
+// Inside a transaction, the public methods join it — one
 // commit, no second lock nor pull (no deadlock).
 func TestPublicMethodsJoinTheTransaction(t *testing.T) {
 	t.Parallel()

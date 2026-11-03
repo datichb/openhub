@@ -23,7 +23,7 @@ func check(id string, run func(context.Context) []doctor.Result) doctor.Check {
 	return doctor.Check{ID: id, Name: id, Run: run}
 }
 
-// QB1: oh doctor exits non-zero when a check fails (it always exited 0).
+// oh doctor exits non-zero when a check fails (it always exited 0).
 func TestDoctorExitCode(t *testing.T) {
 	ok := check("ok", single(func() (string, bool) { return "fine", true }))
 	bad := check("bad", single(func() (string, bool) { return "broken", false }))
@@ -41,7 +41,7 @@ func TestDoctorExitCode(t *testing.T) {
 	}
 }
 
-// QB1: oh beads passes the exit code of bd through.
+// oh beads passes the exit code of bd through.
 func TestBdExitCodePassedThrough(t *testing.T) {
 	err := bdExit(exec.Command("sh", "-c", "exit 3").Run())
 	if ExitCode(err) != 3 {

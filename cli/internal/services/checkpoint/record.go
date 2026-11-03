@@ -9,7 +9,7 @@ import (
 	"sync"
 )
 
-// Outputs recorded by oh (R5): an output declared with `record:` is filled
+// Outputs recorded by oh: an output declared with `record:` is filled
 // by oh from what it saw the session do, never by an agent (Declare refuses
 // it): tickets created, closed or changed through the Beads gateway, specs checked
 // at a `verify.spec` checkpoint, reports deposited with workflow_report,

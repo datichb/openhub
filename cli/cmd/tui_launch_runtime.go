@@ -15,14 +15,14 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
-// TUI wiring of the runtime option of the launch form (P4-T11): engine
+// TUI wiring of the runtime option of the launch form: engine
 // state and image of the project (cached, or build to expect).
 
 // tuiRuntimeStatus returns the status line function of a project.
 func tuiRuntimeStatus(a *app.App, project *domain.Project) views.RuntimeStatusFunc {
 	return func(ctx context.Context, c views.LaunchChoices) string {
 		kind := sessionspec.RuntimeKind(c.Runtime)
-		if kind == "" || kind == sessionspec.RuntimeLocal || !v5Available(ctx) {
+		if kind == "" || kind == sessionspec.RuntimeLocal || !toolAvailable(ctx) {
 			return ""
 		}
 		svc, err := newRunService(ctx, a)
@@ -33,7 +33,7 @@ func tuiRuntimeStatus(a *app.App, project *domain.Project) views.RuntimeStatusFu
 		if err != nil || !av.OK {
 			return "" // the option label already shows the reason
 		}
-		req := v5Request(a, project, "")
+		req := startRequest(a, project, "")
 		req.Runtime, req.Location = kind, project.Path
 		est, ok, err := svc.PrepareEstimate(ctx, req)
 		return runtimeStatusText(av, est, ok, err)

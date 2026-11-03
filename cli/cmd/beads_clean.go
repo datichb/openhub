@@ -22,7 +22,7 @@ import (
 
 // Beads « zero impact »: what `bd init` wrote in a project outside .beads/ is
 // taken back out when oh initializes Beads or registers a project, after the
-// user saw the changes (N17, DC16), and on demand by `oh doctor --fix`
+// user saw the changes, and on demand by `oh doctor --fix`
 // (committed content too). The commit of `bd init` (not pushed, not the
 // first one, remotes fetched first) is undone only once listed and
 // confirmed in a terminal (CLI or TUI), or with an explicit --yes: never

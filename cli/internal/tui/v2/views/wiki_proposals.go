@@ -15,7 +15,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 )
 
-// Wiki proposals with their decision (modernisation tui-wiki-bricks): the
+// Wiki proposals with their decision: the
 // list of the checkpoint card (sessions_checkpoint_wiki.go) and the queue
 // of the project (project_wiki_view.go) share it. Each proposal on one
 // line, its before/after, source, author and tag below or beside; y
@@ -34,7 +34,7 @@ type WikiProposalView struct {
 	Source  string
 	Status  string // pending | accepted | refused | applied | stale
 	Content string
-	// Replaces is the line of the page the content replaces (p5-fixes):
+	// Replaces is the line of the page the content replaces:
 	// shown before the new one.
 	Replaces string
 
@@ -46,7 +46,7 @@ type WikiProposalView struct {
 	Edited bool
 	// Error is the last failure to apply it (stale: the line is gone).
 	Error string
-	// Reason is why the user refused it (p9-wiki-refusal), "" for none.
+	// Reason is why the user refused it, "" for none.
 	Reason string
 }
 

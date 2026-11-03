@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"bytes"
+	"context"
+	"strings"
 	"testing"
 
 	"github.com/rivo/tview"
@@ -119,5 +121,24 @@ func TestMCPSetupWizard(t *testing.T) {
 			require.NotNil(t, store.projects[0].MCPConfig, "project")
 			assert.Equal(t, []domain.ProjectMCPService{*tc.wantService}, store.projects[0].MCPConfig.Services, "project services")
 		})
+	}
+}
+
+// An interactive assistant without terminal stops with a clear message
+// and a non-zero code.
+func TestMCPSetupWithoutTerminal(t *testing.T) {
+	i18ntest.Set(t, "en")
+	prev := stdinIsTerminal
+	t.Cleanup(func() { stdinIsTerminal = prev })
+	stdinIsTerminal = func() bool { return false }
+	a := newMockApp(nil, nil)
+	prevApp := application
+	t.Cleanup(func() { application = prevApp })
+	application = a
+	cmd := mcpSetupCmd()
+	cmd.SetContext(context.Background())
+	err := runMCPSetup(cmd, []string{"gitlab"})
+	if err == nil || !strings.Contains(err.Error(), "run this command in a terminal") || ExitCode(err) == 0 {
+		t.Fatalf("err = %v", err)
 	}
 }

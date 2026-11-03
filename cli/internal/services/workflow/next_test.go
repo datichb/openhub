@@ -11,7 +11,7 @@ import (
 	wf "github.com/datichb/openhub/cli/internal/workflow"
 )
 
-// R5 on the shipped hub: spec proposes implement-spec with its recorded
+// The `next:` steps on the shipped hub: spec proposes implement-spec with its recorded
 // outputs, cadrage is an alias of spec, implement-spec reads the tickets of
 // the last spec session.
 
@@ -93,7 +93,7 @@ func TestComputeInputsFromSession(t *testing.T) {
 	assert.Empty(t, values)
 }
 
-// B1: a security audit proposes security-fix, which reads the report from
+// A security audit proposes security-fix, which reads the report from
 // the audit session (not prefilled: its content, not its id); another audit
 // proposes nothing.
 func TestNextStepsOfAudit(t *testing.T) {
@@ -119,7 +119,7 @@ func TestNextStepsOfAudit(t *testing.T) {
 	assert.Equal(t, "session.output(audit.findings)", in.From)
 }
 
-// B1: a spike decided go proposes spec with the decision; clarify or kill,
+// A spike decided go proposes spec with the decision; clarify or kill,
 // nothing. An incident proposes ticket on its action tickets and spec on its
 // postmortem.
 func TestNextStepsOfSpikeAndIncident(t *testing.T) {

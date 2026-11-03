@@ -29,7 +29,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/textfmt"
 )
 
-// Fan-out (R6, E3, experimental, `[fanout] experimental = true`): a
+// Fan-out (experimental, `[fanout] experimental = true`): a
 // session launched with the fan-out input (`oh run implement-spec -i
 // fanout=true`) gets one child session per ticket, each in its own
 // worktree, merged by oh into an integration branch. The driver runs in an
@@ -421,7 +421,7 @@ func (l *fanoutLauncher) Tell(ctx context.Context, id, text string) error {
 		return nil
 	}
 	// The server of the parent slept while the children ran: wake it.
-	if werr := resumeV5Session(ctx, l.a, l.rsvc, id); werr != nil {
+	if werr := resumeSession(ctx, l.a, l.rsvc, id); werr != nil {
 		return errors.Join(err, werr)
 	}
 	return l.ssvc.Send(ctx, id, text, sessionsvc.SendOptions{})

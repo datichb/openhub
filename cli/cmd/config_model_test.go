@@ -1,10 +1,12 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -54,7 +56,7 @@ func modelCLI(t *testing.T) *mockProjectStore {
 	t.Setenv("OH_HOME", home)
 	config.Reset()
 	t.Cleanup(config.Reset)
-	withoutV2(t, nil)
+	withoutTool(t, nil)
 	require.NoError(t, os.Symlink(root, filepath.Join(home, "hub")))
 	io, _, _ := testIO()
 	store := &mockProjectStore{projects: []domain.Project{{ID: "p1", Name: "web", Path: t.TempDir(), Status: domain.ProjectStatusActive}}}
@@ -170,4 +172,40 @@ func TestProjectLoadErrorTranslated(t *testing.T) {
 	i18ntest.Set(t, "fr")
 	err := projectLoadError("nope", fmt.Errorf("project nope: %w", domain.ErrNotFound))
 	assert.EqualError(t, err, "projet inconnu : nope (oh project list)")
+}
+
+// The model cascade shows the project, hub and workflow levels in
+// priority order, translated.
+func TestModelCascadeLevels(t *testing.T) {
+	testHubEnv(t)
+	t.Setenv(workflowsDirEnv, "")
+	i18ntest.Set(t, "fr")
+	a := newMockApp(nil, nil)
+	a.Config.Models.Default = "hub-model"
+	project := &domain.Project{ID: "p1", Name: "demo", Model: "project-model",
+		ModelOverrides: &domain.ProjectModelOverrides{Agents: map[string]string{"developer": "dev-model"}}}
+	levels, err := modelCascadeLevels(context.Background(), a, project, "ticket")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var ids []string
+	for _, l := range levels {
+		ids = append(ids, l.ID)
+	}
+	if strings.Join(ids, ",") != "workflow,project,hub" {
+		t.Fatalf("levels = %v", ids)
+	}
+	if levels[1].Models.Default != "project-model" || levels[1].Models.Agents["developer"] != "dev-model" || levels[2].Models.Default != "hub-model" {
+		t.Fatalf("levels = %+v", levels)
+	}
+	var out strings.Builder
+	printModelCascade(&out, levels)
+	for _, want := range []string{"Cascade des modèles", "Projet demo", "Hub (hub.toml)", "Frontmatter des agents"} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("output without %q:\n%s", want, out.String())
+		}
+	}
+	if strings.Contains(out.String(), "Model Configuration") || strings.Contains(out.String(), "Hub-level") {
+		t.Fatalf("untranslated output:\n%s", out.String())
+	}
 }

@@ -69,7 +69,7 @@ const issue623Notes = `[
   {"id": 3, "body": "Ok, noté", "system": false, "author": {"username": "benjamin.datiche", "name": "Benjamin D."}, "created_at": "2026-10-04T08:00:00Z"}
 ]`
 
-// Bug 20: no tool read an issue by its IID.
+// No tool read an issue by its IID.
 func TestGetIssueReadsOneIssueByIID(t *testing.T) {
 	reqs := fakeGitLab(t, map[string]string{
 		"/api/v4/projects/group%2Fapp/issues/623":                        issue623,
@@ -203,7 +203,7 @@ func TestGetIssueTruncatesNotes(t *testing.T) {
 	assert.True(t, got.NotesTruncated)
 }
 
-// Bug 20: list_issues had no IID filter and a single page.
+// list_issues had no IID filter and a single page.
 func TestListIssuesFiltersAndPagination(t *testing.T) {
 	reqs := fakeGitLab(t,
 		map[string]string{"/api/v4/projects/group%2Fapp/issues": `[

@@ -278,7 +278,7 @@ func TestProjectsView_NoRefreshFunc_UsesStaticProjects(t *testing.T) {
 	v.Unmount()
 }
 
-// A40: the view shows exactly the checks of `oh doctor` (warnings counted as
+// The view shows exactly the checks of `oh doctor` (warnings counted as
 // passed), not a subset of its own.
 func TestDoctorView_ShowsDoctorRegistry(t *testing.T) {
 	t.Parallel()

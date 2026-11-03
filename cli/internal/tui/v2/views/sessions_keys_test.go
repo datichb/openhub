@@ -40,7 +40,7 @@ func (s *actionSessions) got() []string {
 }
 
 // a attaches, m sends an instruction, i interrupts: keys of the view
-// declared with keys.Own, matched with Matches (modernisation tui-fanout).
+// declared with keys.Own, matched with Matches.
 func TestSessionsOwnKeysAttachSendInterrupt(t *testing.T) {
 	frLocale(t)
 	be := &actionSessions{fakeSessions: fakeSessions{rows: fanoutRows()}}
@@ -77,7 +77,7 @@ func TestSessionsHintsAreEssentialAndHelpListsAll(t *testing.T) {
 	assert.Contains(t, all, "Entrée décider/suivre")
 }
 
-// A6: an instruction to a session that is over is not asked for: nothing
+// An instruction to a session that is over is not asked for: nothing
 // reads it. The view says so instead of opening the input and, after the
 // text is typed, failing (or worse, saying « Consigne envoyée »).
 func TestSessionsSendToAnEndedSessionIsRefused(t *testing.T) {

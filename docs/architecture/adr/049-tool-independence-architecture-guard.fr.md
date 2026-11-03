@@ -26,7 +26,7 @@ Rien n'empêchait d'en ajouter. La décision D19 (07/10/2026) demande que toute 
 
 ## Décision
 
-1. **Registre d'adaptateurs** (`adapters.Registry`) : nom → constructeur, ordre de préférence, `Detect` (le premier outil installé et pris en charge) et `Get` (l'adaptateur d'un groupe de serveur enregistré, anciens noms compris). Il est construit **explicitement** dans une seule **racine de composition**, `cmd/v5_adapters.go`, le seul fichier d'oh hors des adaptateurs qui nomme un outil. Le reste de `cmd` ne voit que `adapters.ToolAdapter` et `adapters.ToolInfo` (nom affiché, binaire, version, plage prise en charge).
+1. **Registre d'adaptateurs** (`adapters.Registry`) : nom → constructeur, ordre de préférence, `Detect` (le premier outil installé et pris en charge) et `Get` (l'adaptateur d'un groupe de serveur enregistré, anciens noms compris). Il est construit **explicitement** dans une seule **racine de composition**, `cmd/tool_registry.go`, le seul fichier d'oh hors des adaptateurs qui nomme un outil. Le reste de `cmd` ne voit que `adapters.ToolAdapter` et `adapters.ToolInfo` (nom affiché, binaire, version, plage prise en charge).
 2. **Capacités neutres** (interfaces optionnelles de `internal/adapters`), implémentées par l'adaptateur :
    - `ProviderMapper` (identifiant de fournisseur de l'outil) ;
    - `LinuxInstaller` (outil des images de job) ;

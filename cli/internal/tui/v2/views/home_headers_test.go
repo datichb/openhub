@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// The landings against the mock-ups of 10-tui.md (A32, B7).
+// The landings against the mock-ups of the TUI design.
 
 // §1: the header of the hub tells the tool and its adapter; the Système
 // section lists Réglages, Métriques, Doctor, Secrets, Notifications and the

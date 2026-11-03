@@ -23,7 +23,7 @@ import (
 )
 
 // Checks of the configuration and of the database that work when either is
-// broken (N13): oh doctor runs with a degraded startup.
+// broken: oh doctor runs with a degraded startup.
 
 // checkConfig reports a hub.toml that does not load, with the line and
 // column of a TOML error and the backup oh doctor --fix can restore.

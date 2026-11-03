@@ -56,7 +56,7 @@ func Start(ctx context.Context, p *Prepared, so StartOptions) ([]*runsvc.StartRe
 		return results, BudgetError(err)
 	}
 	if p.Plan.Request.Base.Fanout != nil && d.SpawnFanoutDriver != nil {
-		// R6: the driver of the fan-out runs whatever the client does.
+		// The driver of the fan-out runs whatever the client does.
 		for _, res := range results {
 			if log, err := d.SpawnFanoutDriver(res.SessionID); err != nil {
 				emit(so.Progress, Event{Kind: EventWarning, Text: i18n.Tf("cmd.fanout.spawn_failed", res.SessionID, err)})

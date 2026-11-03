@@ -8,7 +8,7 @@ import (
 )
 
 // The registry of tool adapters: the composition root
-// (cmd/v5_adapters.go) registers the implementations, everything else asks
+// (cmd/tool_registry.go) registers the implementations, everything else asks
 // the registry for a neutral ToolAdapter.
 
 // ErrToolNotInstalled is returned by Detect when the tool binary is missing.

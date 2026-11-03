@@ -63,7 +63,7 @@ func TestWorkflowCommandsFromYAMLAliases(t *testing.T) {
 	assert.Equal(t, []tuiLaunchRequest{{WorkflowID: "feature", AliasTarget: "implement-spec"}, {WorkflowID: "spec"}}, opened)
 }
 
-// QB2: every omnibar term (command ID or alias) has a single meaning: `q`
+// Every omnibar term (command ID or alias) has a single meaning: `q`
 // (quit / quick), `hub` (settings / hub mode), `team config` (team detail /
 // configure) and `tokens` (secrets / metrics) had two.
 func TestOmnibarAliasesAreUnique(t *testing.T) {

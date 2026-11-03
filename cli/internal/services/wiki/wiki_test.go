@@ -103,7 +103,7 @@ func TestGodNodeRowChanges(t *testing.T) {
 
 // A declared row whose concept no page names any more (renamed, accented)
 // is stale even when the pages it links still exist: the table alone does
-// not keep it (p8-fixes: "Contenu embarque" stayed after "Contenu embarqué").
+// not keep it ("Contenu embarque" stayed after "Contenu embarqué").
 func TestGodNodeDeclaredOnlyByTable(t *testing.T) {
 	root := writeWiki(t, map[string]string{
 		"index.md": atlasIndex("| Contenu embarque | [technical/architecture.md](technical/architecture.md), [technical/stack.md](technical/stack.md) | Normale |\n" +

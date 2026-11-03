@@ -99,7 +99,7 @@ func runOh(t *testing.T, args ...string) (string, string, int) {
 func TestBinaryDoctorRuns(t *testing.T) {
 	t.Parallel()
 	stdout, _, exitCode := runOh(t, "doctor")
-	// Exit code 1 when a check fails (QB1), e.g. no container engine on the
+	// Exit code 1 when a check fails, e.g. no container engine on the
 	// test machine; 0 otherwise.
 	if strings.Contains(stdout, "✗") {
 		assert.Equal(t, 1, exitCode, "a failed check")

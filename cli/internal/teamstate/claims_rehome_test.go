@@ -19,7 +19,7 @@ func createUnder(t *testing.T, repo *Repo, project string, c Claim) {
 	require.NoError(t, err)
 }
 
-// Bug 7 (K4a): five claims of a member under the ID the project had before it
+// Five claims of a member under the ID the project had before it
 // was created again are attached to the new ID in one commit, and a second
 // run does nothing.
 func TestRehomeClaimsMovesTheClaimsOfTheMemberInOneCommit(t *testing.T) {

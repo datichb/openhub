@@ -18,11 +18,11 @@ import (
 	"testing"
 )
 
-// D19 (tool independence, 01-decisions): every specificity of a tool
+// Tool independence: every specificity of a tool
 // (names, provider ids, environment variables, API, paths, formats,
 // versions, binary, displayed names) lives only in internal/adapters/<tool>.
 // Outside of it: neutral interfaces and types; a single composition root
-// (cmd/v5_adapters.go) picks the implementation. These tests fail on any
+// (cmd/tool_registry.go) picks the implementation. These tests fail on any
 // import of an adapter, identifier or literal naming the tool, or native
 // agent name of the tool, outside the short allow-list below.
 
@@ -34,8 +34,8 @@ var toolAdapters = []string{"opencodev2"}
 // toolWord matches the name of a tool in identifiers and literals.
 var toolWord = regexp.MustCompile(`(?i)opencode`)
 
-// nativeAgents are the agents the tool ships (closed world, D13; rule 5 of
-// 00-INDEX): only the adapter disables them.
+// nativeAgents are the agents the tool ships (closed world): only the
+// adapter disables them.
 var nativeAgents = []string{"build", "plan", "general", "explore"}
 
 // contractTags are the build tags of the contract tests run against a real
@@ -50,7 +50,7 @@ func allowed(rel string, tags string) bool {
 	switch {
 	case strings.HasPrefix(rel, "internal/adapters/opencodev2/"):
 		return true
-	case rel == "cmd/v5_adapters.go", rel == "internal/config/legacy_keys.go", rel == "internal/config/legacy_keys_test.go":
+	case rel == "cmd/tool_registry.go", rel == "internal/config/legacy_keys.go", rel == "internal/config/legacy_keys_test.go":
 		return true
 	case strings.HasSuffix(rel, "_test.go") && tags != "":
 		return contractOnly(tags)
@@ -160,7 +160,7 @@ func goFiles(t *testing.T) []goFile {
 	return out
 }
 
-const d19 = "D19 (01-decisions): tool specifics live only in internal/adapters/<tool>; use a neutral interface or capability of the adapter, the tool name of ToolInfo, or the composition root cmd/v5_adapters.go"
+const d19 = "tool specifics live only in internal/adapters/<tool>; use a neutral interface or capability of the adapter, the tool name of ToolInfo, or the composition root cmd/tool_registry.go"
 
 // TestOnlyTheCompositionRootImportsAnAdapter: rule (1).
 func TestOnlyTheCompositionRootImportsAnAdapter(t *testing.T) {

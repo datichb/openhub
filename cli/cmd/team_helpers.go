@@ -161,7 +161,7 @@ type initWizardTeamState struct {
 	// Existing team detection (re-init)
 	ExistingTeam *config.TeamConfig // non-nil if a team is already configured
 	TeamChoice   string             // "keep", "reconfigure", "skip" (only when ExistingTeam != nil)
-	// SoloSpace: the user chose a solo workflow space (P2-T16); the
+	// SoloSpace: the user chose a solo workflow space; the
 	// wizard's project is attached to it.
 	SoloSpace     bool
 	attachProject bool            // true if user wants to attach the project to this team
@@ -1353,7 +1353,7 @@ func buildProjectTeamStep(a *app.App, out **string, solo *bool) views.WizardStep
 	hubTeam := a.Config.ActiveTeam()
 	hasTeam := hubTeam.Enabled && hubTeam.ID != ""
 
-	// Choices: hub team (default when there is one), solo space (P2-T16),
+	// Choices: hub team (default when there is one), solo space,
 	// no team.
 	const (
 		choiceTeam = "team"

@@ -14,7 +14,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/textfmt"
 )
 
-// Fan-out (R6, E3, CP-R3), the daemon side:
+// Fan-out (CP-R3), the daemon side:
 //
 //   - control substitution: a delegated checkpoint of a child session
 //     (cp-2) does not pause, if and only if oh recorded the session as a

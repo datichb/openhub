@@ -29,7 +29,7 @@ func godNames(w *Wiki) []string {
 	return out
 }
 
-// LD-J calibration: labels, emphasis words, product names and the
+// Calibration: labels, emphasis words, product names and the
 // metadata of the tags make no god node; the maps of the wiki cite none.
 func TestGodNodeNoise(t *testing.T) {
 	root := writeWiki(t, map[string]string{

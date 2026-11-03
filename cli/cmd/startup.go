@@ -21,7 +21,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 )
 
-// Startup levels (N13, DC14). A command declares the startup it needs with
+// Startup levels. A command declares the startup it needs with
 // the annotation initLevelKey, inherited from its parents; without one it
 // gets the full startup.
 //
@@ -133,7 +133,7 @@ func startupFor(cmd *cobra.Command, args []string) error {
 	if err := initApp(); err != nil {
 		return startupFailed(err)
 	}
-	// Former workflow configurations → team-state (v5 phase 2, v38).
+	// Former workflow configurations → team-state (v38).
 	if cmd.Name() != "init" && cmd.Name() != "purge" {
 		migrateLegacyWorkflowsAtStartup(cmd.Context(), cmd.ErrOrStderr())
 	}
@@ -269,10 +269,10 @@ func wireStores(a *app.App, s *sqlite.Store) {
 	a.WithFanout(sessions)
 	a.WithStats(sessionstats.New(a.Sessions, a.Projects))
 	a.WithToolVersion(func() (string, error) {
-		if err := requireV2(context.Background()); err != nil {
+		if err := requireSupportedTool(context.Background()); err != nil {
 			return "", err
 		}
-		return v5Tool.Version, nil
+		return toolInfo.Version, nil
 	})
 }
 

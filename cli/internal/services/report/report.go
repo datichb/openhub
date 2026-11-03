@@ -1,4 +1,4 @@
-// Package report is the ReportService (modernisation L4, workflow_report):
+// Package report is the ReportService (workflow_report):
 // the reports the agents of a session file with the workflow MCP server.
 // oh stores the body (a Markdown text) in the session folder
 // (~/.oh/sessions/<session>/reports/rp-<n>.md, mode 0600) and its metadata

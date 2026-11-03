@@ -13,7 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 )
 
-// A5: after team.init the clone of the team-state held a catalog/ folder that
+// After team.init the clone of the team-state held a catalog/ folder that
 // git did not track. catalog/ is the team brick catalogue (ADR-054), shared
 // like projects/ or workflows/: EnsureStructure commits the folders it creates.
 func TestEnsureStructureCommitsTheSharedLayout(t *testing.T) {
@@ -82,7 +82,7 @@ func TestEnsureStructureWithoutRemote(t *testing.T) {
 	require.NoError(t, plain.EnsureStructure(ctx), "not a git repository: the folders are created, no commit")
 }
 
-// M1: a commit of the structure that fails (remote unreachable, lock busy) is
+// A commit of the structure that fails (remote unreachable, lock busy) is
 // not lost in a log: EnsureStructure returns a *StructureWarning, which the
 // callers show without stopping. The folders exist on disk and the next call
 // commits them.

@@ -12,7 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 )
 
-// The « solo space » choice of the project wizards (P2-T16): the project is
+// The « solo space » choice of the project wizards: the project is
 // attached to the existing solo space, else to a new one.
 func TestAttachProjectSolo(t *testing.T) {
 	a, _ := setupSoloTestApp(t)

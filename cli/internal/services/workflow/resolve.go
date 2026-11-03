@@ -89,12 +89,12 @@ func (s *Service) lookup(cat *catalog, id string, layer wf.Layer) (wf.Ref, bool)
 			return ref, true
 		}
 	}
-	// R5: an alias stands for its default target (`aliases:`).
+	// An alias stands for its default target (`aliases:`).
 	return cat.docs.ResolveAlias(id, nil)
 }
 
 // ResolveAlias returns the workflow launched by alias id (`aliases:` of a
-// workflow, R5) when no document has that id: the target whose `with`
+// workflow) when no document has that id: the target whose `with`
 // input is given, else the default target. ok is false for a workflow id
 // or an unknown id.
 func (s *Service) ResolveAlias(ctx context.Context, c Context, id string, given func(input string) bool) (target string, ok bool) {

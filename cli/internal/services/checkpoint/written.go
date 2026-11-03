@@ -12,7 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
-// Files written by the session (B1, `record: written`): each time a
+// Files written by the session (`record: written`): each time a
 // checkpoint passes, oh reads the files the session changed under the paths
 // of the output (committed since it started, uncommitted or untracked) and
 // records them (the postmortem of incident, the decision of spike), or, with

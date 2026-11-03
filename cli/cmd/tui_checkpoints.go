@@ -10,7 +10,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
-// Checkpoint card and timeline of the Sessions view (P3-T17).
+// Checkpoint card and timeline of the Sessions view.
 
 // timelineSteps is the number of steps shown in the session detail.
 const timelineSteps = 12
@@ -43,7 +43,7 @@ func (t *tuiSessions) CheckpointCard(ctx context.Context, decisionID string) (vi
 	for _, m := range c.Messages {
 		out.Messages = append(out.Messages, cardMessage(m))
 	}
-	out.Verify = cardVerify(c.R3)
+	out.Verify = cardVerify(c.Verification)
 	for _, r := range c.Reports {
 		out.Reports = append(out.Reports, views.CheckpointReport{ID: r.ID(), Agent: r.Agent, Title: r.Title, Bytes: r.Bytes, At: r.CreatedAt})
 	}

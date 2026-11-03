@@ -167,7 +167,7 @@ func (e *Engine) Run(ctx context.Context) (*SyncResult, error) {
 	start := time.Now()
 
 	// Global timeout to bound the total sync wall time (plus the wait for
-	// the lock of the team-state clone: a background writer, N15).
+	// the lock of the team-state clone: a background writer).
 	ctx, cancel := context.WithTimeout(teamstate.WithLockWait(ctx, teamstate.BackgroundLockWait), teamstate.BackgroundLockWait+60*time.Second)
 	defer cancel()
 
@@ -186,7 +186,7 @@ func (e *Engine) Run(ctx context.Context) (*SyncResult, error) {
 		e.repo.SetBoardStatuses(e.boardCfg.AllStatuses())
 	}
 
-	// One transaction for the whole run (N15): pull, every claim change of
+	// One transaction for the whole run: pull, every claim change of
 	// the reconciliation and the clean-up of done claims, one commit, one
 	// push. A push overtaken by another member runs the reconciliation
 	// again on top of it.

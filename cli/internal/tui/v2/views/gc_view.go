@@ -16,7 +16,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 )
 
-// Clean-up view (modernisation tui-launch, merged by tui-docs), in two
+// Clean-up view, in two
 // sections (Tab):
 //   - « Anciens déploiements » (cleanup_deploy.go): what the former
 //     per-project deployments left, as `oh migrate deploy-cleanup` cleans

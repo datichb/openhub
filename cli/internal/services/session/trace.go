@@ -22,7 +22,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/wildcard"
 )
 
-// Session trace (E11, P0.4): everything a session did, one event per line
+// Session trace: everything a session did, one event per line
 // (JSONL), for evaluations and retrospectives. Sources: the session row, the
 // decisions (permissions granted or refused, questions, checkpoints,
 // budget), the checkpoint timeline kept by the oh daemon, the usage ledger,
@@ -43,8 +43,8 @@ const (
 	TraceUsage      = "usage"      // cost and tokens of one model turn
 	TraceEnd        = "end"        // an agent loop ended
 	TraceOutput     = "output"     // a typed output declared by the session (or recorded by oh)
-	TraceNext       = "next"       // a workflow oh proposes after the session (R5, `next:`), Title = workflow, Text = inputs
-	// TraceFanout is an event of the fan-out of the session (R6): Event =
+	TraceNext       = "next"       // a workflow oh proposes after the session (`next:`), Title = workflow, Text = inputs
+	// TraceFanout is an event of the fan-out of the session: Event =
 	// its kind (child, merged, conflict…), Title = ticket, ToolSession = the
 	// child or merger session; Event "child_checkpoint" is a checkpoint
 	// passed in a child (By "delegated" for a delegated one, CP-R3).

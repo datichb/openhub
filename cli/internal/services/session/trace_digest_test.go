@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-// R5: the digest of a trace (source session.trace()) names the session, its
+// The digest of a trace (source session.trace()) names the session, its
 // checkpoints, refusals, skills, delegations and outputs, in bounded lists.
 func TestTraceDigest(t *testing.T) {
 	no := false

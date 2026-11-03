@@ -23,7 +23,7 @@ import (
 // containerVerify is the checkpoint.ContainerExecFunc of the app.
 func containerVerify(a *app.App) checkpoint.ContainerExecFunc {
 	return func(ctx context.Context, sess *domain.Session) (checkpoint.ExecFunc, func(), error) {
-		rt := v5ContainerRuntime(a)
+		rt := containerRuntime(a)
 		if av, err := rt.Available(ctx); err != nil || !av.OK {
 			reason := av.Message()
 			if err != nil {
@@ -83,10 +83,10 @@ func containerVerify(a *app.App) checkpoint.ContainerExecFunc {
 // containerVerifyTool is the tool installed in the images (the image of a
 // verification is the one of the servers: same tool, same version).
 func containerVerifyTool(ctx context.Context) ohruntime.Tool {
-	if !v5Available(ctx) {
+	if !toolAvailable(ctx) {
 		return nil
 	}
-	if t, ok := v5Adapter.(interface{ ContainerTool() ohruntime.Tool }); ok {
+	if t, ok := toolAdapter.(interface{ ContainerTool() ohruntime.Tool }); ok {
 		return t.ContainerTool()
 	}
 	return nil

@@ -29,7 +29,7 @@ func launchDeps(a *app.App) launch.Deps {
 		Config:       a.Config,
 		Secrets:      a.Secrets,
 		Preferences:  a.Preferences,
-		RequireTool:  requireV2,
+		RequireTool:  requireSupportedTool,
 		Workflows:    newWorkflowService,
 		InputSources: func(note func(string)) map[string]workflowsvc.InputSource { return inputSources(a, note) },
 		Tracker: func(ctx context.Context, project *domain.Project) launch.TrackerInfo {
@@ -48,7 +48,7 @@ func launchDeps(a *app.App) launch.Deps {
 			return buildWorkflowBundle(ctx, a, project, res, prov)
 		},
 		Request: func(project *domain.Project, providerFlag string) runsvc.StartRequest {
-			return v5Request(a, project, providerFlag)
+			return startRequest(a, project, providerFlag)
 		},
 		Daemon: func(ctx context.Context) (*client.Client, error) {
 			c, _, err := ensureDaemon(ctx)

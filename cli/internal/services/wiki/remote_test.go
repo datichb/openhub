@@ -13,7 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 )
 
-// p3-remote-wiki: the proposals of a remote job are queued on the machine,
+// The proposals of a remote job are queued on the machine,
 // pending, cleaned again, renumbered by the local queue; a second fetch
 // adds nothing.
 func TestImportRemoteProposals(t *testing.T) {
@@ -80,7 +80,7 @@ func TestImportRemoteProposals(t *testing.T) {
 	assert.Zero(t, n)
 }
 
-// p3-remote-wiki: in a remote job oh reads the wiki as root in a clone of
+// In a remote job oh reads the wiki as root in a clone of
 // the agents' account: no symbolic link makes it read or stat a file out
 // of the project, whatever component it replaces.
 func TestWikiReadsStayInTheProject(t *testing.T) {

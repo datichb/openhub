@@ -77,7 +77,7 @@ func TestWikiDecisionFlags(t *testing.T) {
 	assert.Equal(t, "depuis stdin", got.Content)
 }
 
-// p9-wiki-refusal: the flag is on the real command.
+// The flag is on the real command.
 func TestWikiDecideReasonFlag(t *testing.T) {
 	var decide *cobra.Command
 	for _, c := range wikiCmd.Commands() {
@@ -183,7 +183,7 @@ func TestWikiDecide(t *testing.T) {
 	assert.Contains(t, out, "déjà appliquée ou refusée", "no editor for a closed proposal")
 	assert.Len(t, opened, 2)
 
-	// p9-wiki-refusal: the reason of a refusal is kept (cleaned) and told;
+	// The reason of a refusal is kept (cleaned) and told;
 	// without one the refusal reads as before.
 	d := propose("p1", "index.md", "quatre")
 	e := propose("p1", "index.md", "cinq")

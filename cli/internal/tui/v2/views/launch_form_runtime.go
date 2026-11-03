@@ -10,7 +10,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
-// Runtime option of the launch form (P4-T11, 10 §4.3): a status line under
+// Runtime option of the launch form: a status line under
 // the options for the selected runtime outside the machine (engine, image
 // cached or build to expect), computed off the event loop, and the
 // preparation output (image build) shown while launching.

@@ -18,7 +18,7 @@ import (
 type TeamModeConfig struct {
 	// OnNavigate is called when the user wants to navigate to a sub-view.
 	OnNavigate func(viewID string)
-	// Start is the « Démarrer » section (P1-T20).
+	// Start is the « Démarrer » section.
 	Start StartSectionConfig
 	// OnExitTeamMode is called when the user toggles back to hub mode.
 	OnExitTeamMode func()
@@ -29,7 +29,7 @@ type TeamModeConfig struct {
 	// OnBoardConfig is called when the user wants to configure board columns.
 	OnBoardConfig func()
 
-	// Sessions shows the "Sessions de l'équipe" section (P3-T19).
+	// Sessions shows the "Sessions de l'équipe" section.
 	Sessions SessionsSectionConfig
 }
 
@@ -173,7 +173,7 @@ func (v *TeamModeView) Mount(content *tview.Flex, app *tview.Application) {
 	banner, bh := renderBanner(bannerName, 100, theme.ActiveMode.AccentHex)
 	compactNow := false
 
-	// renderHeader shows the banner and the header; compact (N20): banner
+	// renderHeader shows the banner and the header; compact: banner
 	// and badge on one line, stats on the next.
 	v.stats = ""
 	renderHeader := func(compact bool) {
@@ -342,7 +342,7 @@ func (v *TeamModeView) buildItems() []teamModeItem {
 
 	items := []teamModeItem{}
 
-	// ── Démarrer (P1-T20) ──
+	// ── Démarrer ──
 	if header, sitems, ok := startSection(v.cfg.Start, v.startScope(), true, v.pick); ok {
 		items = append(items, teamModeItem{Icon: "─", Label: header, SectionID: "sessions"})
 		for i := range sitems {

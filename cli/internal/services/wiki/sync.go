@@ -13,9 +13,9 @@ import (
 	"github.com/datichb/openhub/cli/internal/gitutil"
 )
 
-// Changes of the project a check is restricted to (modernisation LD-H,
-// LD-D): files given by the caller, the files changed between two commits,
-// or the files changed since the last synchronization of the wiki.
+// Changes of the project a check is restricted to: files given by the caller,
+// the files changed between two commits, or the files changed since the last
+// synchronization of the wiki.
 //
 // The last synchronization is a commit kept in the frontmatter of
 // docs/wiki/index.md (`synced:`), written by oh when the checkpoint of

@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-// QB3: the built-in MCP servers name their tools without their server
+// The built-in MCP servers name their tools without their server
 // prefix: the tool shows `<server>_<tool>` to the model, so `gitlab_get_project`
 // (the name the agents and skills use) is the tool `get_project` of the
 // server `gitlab` (it was `gitlab_gitlab_get_project`, and the permission
@@ -55,7 +55,7 @@ func builtinTools(t *testing.T, srv string) map[string]bool {
 	return out
 }
 
-// QB3: the MCP tools the hub content tells agents to call exist (the figma
+// The MCP tools the hub content tells agents to call exist (the figma
 // skills called search_figma_files, get_figma_file_nodes, detect_ui_signals…).
 func TestHubContentCallsExistingMCPTools(t *testing.T) {
 	root := filepath.Join("..", "..", "..", "..")

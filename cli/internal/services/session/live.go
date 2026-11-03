@@ -9,7 +9,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 )
 
-// Live follow-up (P3-T10): the oh daemon watches the tool servers and
+// Live follow-up: the oh daemon watches the tool servers and
 // publishes feed items and session changes; the CLI and the TUI read them
 // here. The service never talks to the tool event stream itself.
 
@@ -58,7 +58,7 @@ func (s *Service) Follow(ctx context.Context, sessionID string) (<-chan domain.F
 
 // totalCost is the cost of an oh session for the live feed: the tool
 // reports its root session, the session row holds the total with the
-// subagent sessions (A21).
+// subagent sessions.
 func (s *Service) totalCost(ctx context.Context, sessionID string, root float64) float64 {
 	if s.Sessions == nil {
 		return root

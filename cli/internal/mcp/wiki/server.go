@@ -1,4 +1,4 @@
-// Package wiki is the oh MCP server `wiki` (modernisation LD-J), run by the
+// Package wiki is the oh MCP server `wiki`, run by the
 // tool for each session location (`oh mcp serve wiki`) in the bundles built
 // from a workflow for a project that has docs/wiki/. Tools reach the model
 // as wiki_<tool>:

@@ -27,7 +27,7 @@ func withStdin(t *testing.T, input string) {
 	t.Cleanup(func() { os.Stdin = prev; _ = r.Close() })
 }
 
-// Bug 10: the Figma server always calls api.figma.com, so the wizard no longer
+// The Figma server always calls api.figma.com, so the wizard no longer
 // asks for a URL; a URL already recorded by the team is kept as it is and
 // ignored.
 func TestConfigureFigmaDoesNotAskForAnURL(t *testing.T) {

@@ -15,7 +15,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
-// The driver of a fan-out (E3): it runs in an oh process (`oh run`, `oh
+// The driver of a fan-out: it runs in an oh process (`oh run`, `oh
 // fanout drive`, an evaluation pass), never in an agent.
 //
 //	parent passes cp-plan ─ integration branch from its HEAD
@@ -85,7 +85,7 @@ const (
 // no decision waiting, without its end of work, before oh stops it.
 const DefaultIdleTimeout = 10 * time.Minute
 
-// DefaultMergerIdleTimeout is the guard of a merger (p6-debts): it runs in
+// DefaultMergerIdleTimeout is the guard of a merger: it runs in
 // auto, nobody answers it, and its work is one merge; idle without the
 // merge concluded, it gave up.
 const DefaultMergerIdleTimeout = 2 * time.Minute
@@ -199,7 +199,7 @@ const (
 )
 
 // Relaunched records that the driver was started again by the daemon
-// (p6-debts) or by the user (from the TUI), before Run. An origin other
+// Or by the user (from the TUI), before Run. An origin other
 // than RelaunchByUser is the daemon's.
 func (d *Driver) Relaunched(ctx context.Context, parent, by string) error {
 	if by != RelaunchByUser {
@@ -336,7 +336,7 @@ func (d *Driver) waitStart(ctx context.Context, p *domain.Session) (*sessionspec
 			return nil, st, err
 		}
 		if cur.State == domain.RunCompleted {
-			// p6-debts: the parent ended its step before the checkpoints
+			// The parent ended its step before the checkpoints
 			// that start the children; the fan-out waits, the daemon starts
 			// the driver again when the parent goes on.
 			return nil, st, nil
@@ -613,7 +613,7 @@ func (d *Driver) runChildren(ctx context.Context, parent string, wf *sessionspec
 // resumable reads again child c, seen running in a record read before:
 // its follower may have ended since (merged, failed) and is then gone
 // from the running ones; following it again would merge it a second
-// time (p8-fixes: a merged child marked failed, « no commit »). The
+// time (a merged child marked failed, « no commit »). The
 // follower writes the record before it leaves the running ones.
 func (d *Driver) resumable(ctx context.Context, parent string, c domain.FanoutChild) (domain.FanoutChild, bool) {
 	cur, ok := d.childOf(ctx, parent, c.Ticket)

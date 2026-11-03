@@ -37,7 +37,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/textfmt"
 )
 
-// `oh eval` (P0.5): behavioural evaluations of the shipped workflows with a
+// `oh eval`: behavioural evaluations of the shipped workflows with a
 // real model. Each pass runs in its own oh home (OH_HOME and HOME are
 // temporary: the user's database, keychain and daemon are never touched),
 // on a throwaway clone of the case fixture: a child `oh eval pass` launches
@@ -58,7 +58,7 @@ const (
 	defaultEvalModel = "claude-haiku-4-5"
 	// defaultEvalBudget is the cost cap of a pass (USD);
 	// defaultEvalBudgetSonnet when a Sonnet model runs (a ticket session
-	// of Sonnet goes past 1 $, seen in L3).
+	// of Sonnet goes past 1 $).
 	defaultEvalBudget       = 1.0
 	defaultEvalBudgetSonnet = 2.5
 	// evalRegion is the Bedrock region of the evaluations.
@@ -578,9 +578,9 @@ type evalPassSpec struct {
 	Timeout   time.Duration     `json:"timeout_ns"`
 	Answers   evalrun.Answers   `json:"answers"`
 	OutDir    string            `json:"out_dir"`
-	// Previous are sessions recorded in the project before the launch (R5).
+	// Previous are sessions recorded in the project before the launch.
 	Previous []evalrun.PreviousSession `json:"previous,omitempty"`
-	// Fanout enables the fan-out in the pass (R6).
+	// Fanout enables the fan-out in the pass.
 	Fanout *evalrun.FanoutSetup `json:"fanout,omitempty"`
 }
 
@@ -849,7 +849,7 @@ func runEvalSession(ctx context.Context, cmd *cobra.Command, spec evalPassSpec, 
 		return fmt.Errorf(i18n.T("cmd.eval.recording_the_previous_sessions"), err)
 	}
 	if spec.Fanout != nil {
-		// R6: the fan-out of the pass, its global budget the one of the pass.
+		// The fan-out of the pass, its global budget the one of the pass.
 		a.Config.Fanout = config.FanoutConfig{Experimental: true, Parallel: spec.Fanout.Parallel, BudgetUSD: spec.BudgetUSD}
 	}
 	opts := launch.Options{Workflow: spec.Workflow, Project: project, Inputs: spec.Inputs, Mode: spec.Mode, Text: spec.Text, Tickets: spec.Tickets,
@@ -956,7 +956,7 @@ func evalLoop(ctx context.Context, ssvc *sessionsvc.Service, sid string, answers
 		if err != nil && ctx.Err() != nil {
 			return evalrun.OutcomeTimeout
 		}
-		// R6: the decisions of the children of a fan-out too.
+		// The decisions of the children of a fan-out too.
 		for _, child := range fan.sessions(ctx) {
 			if more, err := ssvc.Inbox(ctx, domain.DecisionFilter{SessionID: child}); err == nil {
 				items = append(items, more...)
@@ -1011,7 +1011,7 @@ func evalLoop(ctx context.Context, ssvc *sessionsvc.Service, sid string, answers
 			return evalrun.OutcomeFailed
 		case domain.RunIdle:
 			if len(items) > 0 || fan.running(ctx) {
-				// R6: the parent waits idle while its children run.
+				// The parent waits idle while its children run.
 				idleSince = time.Time{}
 				continue
 			}
@@ -1064,7 +1064,7 @@ func stopEvalPass(errOut io.Writer, svc *runsvc.Service, sid string) {
 }
 
 // evalPrevious records the previous sessions of a case in the project of
-// the pass, finished, oldest first (R5: `from: session.output(…)`).
+// the pass, finished, oldest first (`from: session.output(…)`).
 func evalPrevious(ctx context.Context, a *app.App, project *domain.Project, prev []evalrun.PreviousSession) error {
 	start := time.Now().Add(-time.Duration(len(prev)+1) * time.Hour)
 	for i, p := range prev {

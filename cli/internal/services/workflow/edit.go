@@ -11,7 +11,7 @@ import (
 	wf "github.com/datichb/openhub/cli/internal/workflow"
 )
 
-// Editing helpers for the CLI and the TUI (lot 2.C / 2.D): the text to edit,
+// Editing helpers for the CLI and the TUI: the text to edit,
 // the preview of a publication.
 
 // Text is a workflow document and its prompt template.

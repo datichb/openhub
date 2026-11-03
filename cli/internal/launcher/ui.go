@@ -1,6 +1,6 @@
 // Package launcher holds the UI abstraction used while a session starts
 // (CLI or TUI): confirmations, notifications, terminal suspension. Sessions
-// start through the RunService (`oh run`, cmd/v5_run.go); the former launch
+// start through the RunService (`oh run`, cmd/run_start.go); the former launch
 // pipeline was removed in v5.
 package launcher
 

@@ -85,7 +85,7 @@ type TeamDetailViewConfig struct {
 	// Called when the user presses T in the team detail view.
 	OnDiscoverTracker func()
 	// PromoteSolo turns the solo space teamID into a team pushed to remote
-	// (« Passer en équipe », P2-T16).
+	// (« Passer en équipe »).
 	PromoteSolo func(teamID, remote string)
 }
 
@@ -346,7 +346,7 @@ func (v *TeamDetailView) buildFields() {
 	v.buildWorkflowFields()
 	if v.solo() {
 		// Team features are off in a solo space (tracker, notifications,
-		// collaboration): only what applies to it is shown (A42).
+		// collaboration): only what applies to it is shown.
 		v.appendLinks()
 		return
 	}
@@ -1044,7 +1044,7 @@ func (v *TeamDetailView) setTeamProviderKey() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Workflows: governance (P2-T17) and solo space (P2-T16)
+// Workflows: governance and solo space
 // ─────────────────────────────────────────────────────────────────────────────
 
 // GovernanceLabel describes a workflow publication policy.

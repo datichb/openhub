@@ -143,7 +143,7 @@ func (s *Service) Get(ctx context.Context, projectID, id string) (*domain.WikiPr
 // Decide records the decision of the user on an open proposal: accept (oh
 // applies it at the commit checkpoint), edit (accepted with the content
 // given, cleaned like a proposal), refuse, or back to pending. For a
-// refusal, content is the optional reason of the user (p9-wiki-refusal):
+// refusal, content is the optional reason of the user:
 // cleaned and bounded by CleanReason, "" for none; the other choices keep
 // no reason. The callers that pass "" to refuse are unchanged.
 func (s *Service) Decide(ctx context.Context, projectID, id, choice, content, by string) (*domain.WikiProposal, error) {
@@ -247,7 +247,7 @@ func (s *Service) apply(ctx context.Context, root string, p *domain.WikiProposal
 	}
 	switch {
 	case errors.Is(err, ErrStale):
-		// p5-fixes: the replaced line is gone: never applied, closed.
+		// The replaced line is gone: never applied, closed.
 		p.Status, p.Error = domain.WikiStale, err.Error()
 		res.Err = p.Error
 	case err != nil:

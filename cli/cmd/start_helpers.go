@@ -17,7 +17,7 @@ import (
 )
 
 // projectUse tells resolveProject what the command does with the project
-// it was not given (N12, DC13).
+// it was not given.
 type projectUse int
 
 const (

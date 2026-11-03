@@ -22,7 +22,7 @@ type noSessions struct{ domain.SessionStore }
 
 func (noSessions) List(context.Context, string) ([]domain.Session, error) { return nil, nil }
 
-// rehomeFixture is the case of bug 7: the team repo holds 5 claims of the
+// rehomeFixture is the case of a project created again: the team repo holds 5 claims of the
 // member under t-sru-b267fbf1, the project was created again as 88280c5b.
 type rehomeFixture struct {
 	repo    *teamstate.Repo
@@ -58,7 +58,7 @@ func newRehomeFixture(t *testing.T, name, origin string) *rehomeFixture {
 	return &rehomeFixture{repo: repo, bare: bare, app: a, project: project}
 }
 
-// Bug 7 (K4a): 5 claims under the ID the project had before it was created
+// 5 claims under the ID the project had before it was created
 // again were not reported: the check of the claims said « no orphan claim ».
 func TestClaimsCheckFlagsTheClaimsOfAFormerProjectID(t *testing.T) {
 	f := newRehomeFixture(t, "t-sru", "")

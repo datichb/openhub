@@ -17,7 +17,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 )
 
-// v5.1 (0-C): the commands that change the user's data without a terminal
+// The commands that change the user's data without a terminal
 // are refused (ExitUsage) unless --yes is given; nothing is modified.
 
 func TestGCWithoutTerminalIsRefusedWithExitUsage(t *testing.T) {
@@ -112,9 +112,9 @@ func TestFixOrphanServersConfirmation(t *testing.T) {
 	i18ntest.Set(t, "en")
 	isolatedHub(t)
 	lister := &fakeOrphanLister{}
-	prevA, prevT := v5Adapter, v5Tool
-	v5Adapter, v5Tool = lister, adapters.ToolInfo{DisplayName: "tool"}
-	t.Cleanup(func() { v5Adapter, v5Tool = prevA, prevT })
+	prevA, prevT := toolAdapter, toolInfo
+	toolAdapter, toolInfo = lister, adapters.ToolInfo{DisplayName: "tool"}
+	t.Cleanup(func() { toolAdapter, toolInfo = prevA, prevT })
 	terminalIs(t, false)
 	stubConfirmForm(t)
 

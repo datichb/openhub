@@ -18,7 +18,7 @@ import (
 	wf "github.com/datichb/openhub/cli/internal/workflow"
 )
 
-// TUI wiring of the « Démarrer » section (P1-T20): a cache of the entries
+// TUI wiring of the « Démarrer » section: a cache of the entries
 // of each landing scope, filled off the event loop from the WorkflowService
 // (catalogue) and the PreferenceService (pins, recents, suggestions).
 
@@ -94,7 +94,7 @@ func (t *tuiStart) load(scope views.StartScope) {
 
 // compute builds the entries of a scope.
 func (t *tuiStart) compute(ctx context.Context, scope views.StartScope) (views.StartEntries, error) {
-	if err := requireV2(ctx); err != nil {
+	if err := requireSupportedTool(ctx); err != nil {
 		return views.StartEntries{}, err
 	}
 	list, err := newWorkflowService(ctx).Catalog(ctx, workflowsvc.Context{ProjectID: scope.ProjectID, TeamID: scope.TeamID})

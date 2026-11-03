@@ -33,7 +33,7 @@ func init() {
 	repairCmd.Flags().String("restore", "", "")
 }
 
-// runRepair never needs a working startup (N13): the database is opened
+// runRepair never needs a working startup: the database is opened
 // without migrating it; migrations run only with --migrate, after a backup.
 func runRepair(cmd *cobra.Command, _ []string) error {
 	w := cmd.OutOrStdout()

@@ -38,7 +38,7 @@ func warningCodes(p *Prepared) []string {
 	return out
 }
 
-// Bug 20: « #623 » was taken for a Beads ticket (bd show 623) because nothing
+// « #623 » was taken for a Beads ticket (bd show 623) because nothing
 // told the session it was a GitLab issue, nor with which tool to read it.
 func TestPromptNamesTheGitLabTicketOfTheRequest(t *testing.T) {
 	d, f := gitlabDeps(t, TrackerInfo{Type: "gitlab", Project: "group/app"}, "gitlab")

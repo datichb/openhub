@@ -74,7 +74,7 @@ type Server struct {
 	tools    map[string]Tool
 	handlers map[string]Handler
 	// legacyPrefix is accepted in front of a tool name in calls (tools
-	// served with their server prefix before v5 finalisation, QB3).
+	// served with their server prefix in earlier releases).
 	legacyPrefix string
 }
 

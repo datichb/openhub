@@ -18,7 +18,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/textfmt"
 )
 
-// v5 session control from the CLI (P3-T15): inbox, decisions, instructions,
+// v5 session control from the CLI: inbox, decisions, instructions,
 // live follow-up, results. All the logic lives in the SessionService.
 
 func sessionService(cmd *cobra.Command) (*sessionsvc.Service, error) {
@@ -333,7 +333,7 @@ var sessionResumeCmd = &cobra.Command{
 			fmt.Fprintln(cmd.OutOrStdout(), i18n.Tf("cmd.session.already_running", id))
 			return nil
 		}
-		if err := resumeV5Session(ctx, a, svc, id); err != nil {
+		if err := resumeSession(ctx, a, svc, id); err != nil {
 			return err
 		}
 		fmt.Fprintln(cmd.OutOrStdout(), i18n.Tf("cmd.session.resumed", id))
@@ -434,7 +434,7 @@ var sessionResultsCmd = &cobra.Command{
 			fmt.Fprint(out, r.Patch)
 			return nil
 		}
-		// The whole session (A23): recap, files, branch, and the merge
+		// The whole session: recap, files, branch, and the merge
 		// request description ready to paste.
 		fmt.Fprint(out, sessionsvc.MRDescription(r))
 		if !r.Live && !r.Current {
@@ -448,7 +448,7 @@ func init() {
 	sessionInboxCmd.Flags().Bool("json", false, "")
 	sessionApproveCmd.Flags().String("decision", "once", "")
 	sessionApproveCmd.Flags().StringP("message", "m", "", "")
-	// R6, CP-R6: validation by batch.
+	// CP-R6: validation by batch.
 	sessionApproveCmd.Flags().Bool("batch", false, "")
 	sessionApproveCmd.Flags().StringArray("session", nil, "")
 	sessionApproveCmd.Flags().String("fanout", "", "")

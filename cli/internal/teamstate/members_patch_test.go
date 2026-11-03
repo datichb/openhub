@@ -13,7 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 )
 
-// Bug 12: nothing changed one field of a member's profile: UpdateMember
+// Nothing changed one field of a member's profile: UpdateMember
 // replaces the whole record. PatchMember reads the member on top of the remote,
 // changes what fn changes and commits it, in one transaction.
 func TestPatchMemberChangesOnlyItsFields(t *testing.T) {

@@ -39,11 +39,11 @@ func TestRealContainerVerify(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = os.RemoveAll(root) })
 	t.Setenv("OH_HOME", filepath.Join(root, ".oh"))
-	if !v5Available(ctx) {
+	if !toolAvailable(ctx) {
 		t.Skip("no supported tool installed")
 	}
 	a := &app.App{Config: &config.Config{}}
-	rt := v5ContainerRuntime(a)
+	rt := containerRuntime(a)
 	if av, _ := rt.Available(ctx); !av.OK {
 		t.Skipf("container engine unavailable: %s", av.Message())
 	}

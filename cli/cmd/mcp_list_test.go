@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// QB2: oh mcp list shows every oh MCP server (it listed figma, gitlab and
+// oh mcp list shows every oh MCP server (it listed figma, gitlab and
 // gslides only), with a description.
 func TestMCPServerListHasEveryServer(t *testing.T) {
 	t.Setenv("OH_HOME", t.TempDir()) // no custom server
@@ -21,7 +21,7 @@ func TestMCPServerListHasEveryServer(t *testing.T) {
 	assert.Equal(t, []string{"figma", "github", "gitlab", "gslides", "jira", "linear", "team"}, names)
 }
 
-// QB2: oh mcp setup <service> configures that service (the argument was
+// oh mcp setup <service> configures that service (the argument was
 // ignored and a list always shown); an unknown service is refused.
 func TestMCPSetupServiceArgument(t *testing.T) {
 	name, err := mcpSetupService([]string{"Jira"})

@@ -19,7 +19,7 @@ import (
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SessionsView (P3-T16, P3-T18; replaces the empty "parallel" view, B11/T6):
+// SessionsView (replaces the empty "parallel" view):
 // « À traiter » (sessions with open decisions, each followed by its decisions),
 // the other running, sleeping and finished sessions, a detail pane and the
 // live feed (t).
@@ -36,7 +36,7 @@ type SessionsViewConfig struct {
 	Backend SessionsBackend
 }
 
-// attachMethods are the ways to open a session client (I2).
+// attachMethods are the ways to open a session client.
 var attachMethods = []string{"auto", "iterm", "terminal", "tmux", "browser", "suspend"}
 
 // sessionRef / decisionRef are the list item references.
@@ -75,7 +75,7 @@ type SessionsView struct {
 	feedLines  []string
 	feedCost   float64
 
-	decOverlay decisionOverlay // card or form of a decision (A37)
+	decOverlay decisionOverlay // card or form of a decision
 }
 
 var _ View = (*SessionsView)(nil)
@@ -495,7 +495,7 @@ func (v *SessionsView) renderDetail(r *SessionRow) {
 }
 
 // sessionDetailText is the Détail tab: state, timeline, decisions, the
-// fan-out, the outputs recorded by oh, the `next:` steps (R5) apart from
+// fan-out, the outputs recorded by oh, the `next:` steps apart from
 // the other suggestion of « Enchaîner avec… ».
 func sessionDetailText(r SessionRow, next []SessionNextStep) string {
 	var b strings.Builder

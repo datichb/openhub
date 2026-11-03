@@ -32,7 +32,7 @@ func fieldByKey(v *TeamDetailView, key string) (configField, bool) {
 	return configField{}, false
 }
 
-// P2-T17 (governance, read only) and P2-T16 (« Passer en équipe »).
+// The governance is read only; « Passer en équipe » promotes the solo space.
 func TestTeamDetailGovernanceAndPromote(t *testing.T) {
 	var promoted string
 	v := teamDetailFor(TeamResolution{Solo: true, TeamID: "solo", StatePath: t.TempDir()}, func(id, remote string) { promoted = id + "→" + remote })
@@ -71,8 +71,8 @@ func TestTeamDetailGovernanceAndPromote(t *testing.T) {
 	assert.Contains(t, GovernanceLabel("maintainers"), "maintainers")
 }
 
-// QB2: the team [parallel] settings have no effect in v5 (the session
-// restrictions are the [limits] of I6): they are no longer editable.
+// The team [parallel] settings have no effect (the session
+// restrictions are the [limits]): they are no longer editable.
 func TestTeamDetailHasNoParallelSetting(t *testing.T) {
 	v := teamDetailFor(TeamResolution{Enabled: true, TeamID: "core", StatePath: t.TempDir()}, nil)
 	v.SetShell(&formShell{})
@@ -83,7 +83,7 @@ func TestTeamDetailHasNoParallelSetting(t *testing.T) {
 	assert.False(t, ok)
 }
 
-// A42: the detail of a solo space hides what does not apply to it (tracker,
+// The detail of a solo space hides what does not apply to it (tracker,
 // notifications, collaboration, tracker overrides); a team keeps them.
 func TestTeamDetailSoloHidesTeamFeatures(t *testing.T) {
 	hidden := []string{"tracker_url", "webhook_url", "channel", "stale_days", "tracker_enabled", "auto_sync"}

@@ -48,7 +48,7 @@ func newMemberProfileEnv(t *testing.T) *memberProfileEnv {
 	return e
 }
 
-// Bug 12: no view showed or changed the profile of the member, so
+// No view showed or changed the profile of the member, so
 // tracker_username could only be set at team.init → Identity.
 func TestTeamDetailShowsAndEditsTheMemberProfile(t *testing.T) {
 	e := newMemberProfileEnv(t)

@@ -13,7 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
-// Notes under the inputs of the launch form (modernisation tui-launch): the
+// Notes under the inputs of the launch form: the
 // type error that blocks the launch (« Entier attendu »), the warning of a
 // path or branch not found, what oh computes for an input with `from:`
 // (« ⚙ calculé par oh : session.output(spec.spec) → ses_41c0 »), the notes

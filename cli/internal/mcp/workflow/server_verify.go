@@ -7,7 +7,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 )
 
-// Verification and evidence of workflow_checkpoint (R3: E1, E2).
+// Verification and evidence of workflow_checkpoint.
 
 // evidenceSchema is the input schema of the evidence of a checkpoint.
 func evidenceSchema() map[string]any {

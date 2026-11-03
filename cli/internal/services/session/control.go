@@ -11,13 +11,13 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
-// Instructions and control (P3-T09): short instructions from oh (S6), and
-// interrupt / model switch / compaction (S10). Fork creates a session: it is
+// Instructions and control: short instructions from oh, and
+// interrupt / model switch / compaction. Fork creates a session: it is
 // done by the RunService (runsvc.ForkSession).
 
 // SendOptions tunes Send.
 type SendOptions struct {
-	// Synthetic sends a message from oh rather than a user prompt (S6).
+	// Synthetic sends a message from oh rather than a user prompt.
 	Synthetic bool
 	// Delivery: steer (next step boundary, default of the tool) or queue
 	// (after the running loop).

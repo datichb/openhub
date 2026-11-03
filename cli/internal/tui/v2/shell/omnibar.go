@@ -39,7 +39,7 @@ type Omnibar struct {
 	modeBar     *tview.TextView // mode label + contextual info
 	wrapper     *tview.Flex     // outermost primitive with BgPanel margins
 	rightPane   *tview.Flex     // container + separator + mode bar
-	compact     bool            // 3-row layout (N20)
+	compact     bool            // 3-row layout
 	active      bool
 	focusBack   tview.Primitive // focus to give back on Deactivate
 	suggestions *tview.List
@@ -230,7 +230,7 @@ func (o *Omnibar) assemble() {
 
 // Omnibar heights (rows): full = wrapper padding (2) + hints/input (3) +
 // separator (1) + mode bar (2); compact = hints/input, separator and mode
-// bar on one row each (N20).
+// bar on one row each.
 const (
 	omnibarFullHeight    = 8
 	omnibarCompactHeight = 3

@@ -15,7 +15,7 @@ import (
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Detail of a session in tabs (modernisation tui-sessions): Détail (state,
+// Detail of a session in tabs: Détail (state,
 // outputs recorded by oh, `next:` steps), Trace (the text of `oh session
 // trace` in a reader), Rapports (the reports of the session and a reader),
 // Fan-out (sessions_fanout.go). Tab / Shift+Tab change the tab; outside

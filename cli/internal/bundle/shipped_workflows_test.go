@@ -376,7 +376,7 @@ func TestShippedWorkflowPromptsCarryMemories(t *testing.T) {
 	}
 }
 
-// Bug 17: the review prompt only knew `bd show` to read a ticket, even with
+// The review prompt only knew `bd show` to read a ticket, even with
 // a GitLab tracker (« Ticket 708 : non accessible »). The prompts that read
 // a ticket say how, by the source of the ticket.
 func TestTicketReadingPromptsFollowTheSourceOfTheTicket(t *testing.T) {

@@ -40,9 +40,6 @@ func NewClient(baseURL, password string) *Client {
 	}
 }
 
-// BaseURL returns the server URL.
-func (c *Client) BaseURL() string { return c.baseURL }
-
 // APIError is a non-2xx response from the server.
 type APIError struct {
 	Status  int
@@ -329,11 +326,6 @@ func (c *Client) PromptWith(ctx context.Context, sessionID, text, delivery strin
 	return c.do(ctx, http.MethodPost, sessionPath(sessionID, "prompt"), nil, withDelivery(map[string]any{"text": text}, delivery), nil)
 }
 
-// Synthetic admits a synthetic (non-user) message.
-func (c *Client) Synthetic(ctx context.Context, sessionID, text string) error {
-	return c.SyntheticWith(ctx, sessionID, text, "")
-}
-
 // SyntheticWith admits a synthetic message with a delivery mode.
 func (c *Client) SyntheticWith(ctx context.Context, sessionID, text, delivery string) error {
 	return c.do(ctx, http.MethodPost, sessionPath(sessionID, "synthetic"), nil, withDelivery(map[string]any{"text": text}, delivery), nil)
@@ -384,11 +376,6 @@ func (c *Client) Interrupt(ctx context.Context, sessionID string) error {
 	return c.do(ctx, http.MethodPost, sessionPath(sessionID, "interrupt"), nil, map[string]any{}, nil)
 }
 
-// SwitchAgent changes the agent used by subsequent requests.
-func (c *Client) SwitchAgent(ctx context.Context, sessionID, agent string) error {
-	return c.do(ctx, http.MethodPost, sessionPath(sessionID, "agent"), nil, map[string]any{"agent": agent}, nil)
-}
-
 // SwitchModel changes the model used by subsequent requests.
 func (c *Client) SwitchModel(ctx context.Context, sessionID string, model ModelRef) error {
 	return c.do(ctx, http.MethodPost, sessionPath(sessionID, "model"), nil, map[string]any{"model": model}, nil)
@@ -400,7 +387,8 @@ func (c *Client) SetEnvironment(ctx context.Context, sessionID string, vars map[
 }
 
 // Shell runs one shell command in the session working directory; the output
-// arrives with the session.shell.ended event.
+// arrives with the session.shell.ended event. Only the integration, e2e and
+// container tests use it: the product has no neutral operation for it.
 func (c *Client) Shell(ctx context.Context, sessionID, command string) error {
 	return c.do(ctx, http.MethodPost, sessionPath(sessionID, "shell"), nil, map[string]any{"command": command}, nil)
 }

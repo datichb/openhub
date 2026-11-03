@@ -1,8 +1,8 @@
-// Package runner is the CI side of the remote runtime (`oh runner`, v5
-// phase 5, lot 5.B): it fetches the session sent by the machine, clones the
-// project, runs the session with the same daemon, proxy and RunService code
-// as on the machine, answers its decisions by the workflow policy (never
-// --auto), pushes the branch and the merge request, and writes the artifacts.
+// Package runner is the CI side of the remote runtime (`oh runner`): it
+// fetches the session sent by the machine, clones the project, runs the
+// session with the same daemon, proxy and RunService code as on the machine,
+// answers its decisions by the workflow policy (never --auto), pushes the
+// branch and the merge request, and writes the artifacts.
 package runner
 
 import (

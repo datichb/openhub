@@ -34,7 +34,7 @@ func issueQuickActions(ref string, launched *string) *BoardQuickActions {
 	}
 }
 
-// A1: on the card of a GitLab issue, the modal lists the workflows taking a
+// On the card of a GitLab issue, the modal lists the workflows taking a
 // request after the ones taking a ticket, each launching with « #<iid> » as
 // the request.
 func TestQuickActionsOfAGitLabIssue(t *testing.T) {

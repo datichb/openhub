@@ -18,7 +18,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/remote"
 )
 
-// Beads is the machine's bd (D9: Beads stays on the machine).
+// Beads is the machine's bd (Beads stays on the machine).
 type Beads interface {
 	// Show returns the `bd show --json` records of ids.
 	Show(ctx context.Context, dir string, ids ...string) ([]json.RawMessage, error)
@@ -199,8 +199,7 @@ func configuredStatuses(out []byte) []string {
 	return names
 }
 
-// TakeSnapshot reads the tickets, their dependencies and their children
-// (P5-T06).
+// TakeSnapshot reads the tickets, their dependencies and their children.
 func TakeSnapshot(ctx context.Context, b Beads, dir string, tickets []string, now time.Time) (*remote.Snapshot, error) {
 	snap := &remote.Snapshot{Schema: remote.SnapshotSchema, TakenAt: now.UTC(), Requested: append([]string{}, tickets...),
 		Issues: map[string]json.RawMessage{}, Revisions: map[string]string{}, Children: map[string][]string{}}

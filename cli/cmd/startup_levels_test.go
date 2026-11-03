@@ -40,7 +40,7 @@ func newOhHome(t *testing.T) string {
 	return home
 }
 
-// N13: with a hub.toml that does not load, oh doctor still runs every
+// With a hub.toml that does not load, oh doctor still runs every
 // check, reports the TOML error with its position and exits with 1; a full
 // command points to oh doctor.
 func TestBinaryDoctorWithBrokenConfig(t *testing.T) {
@@ -64,7 +64,7 @@ func TestBinaryDoctorWithBrokenConfig(t *testing.T) {
 	assert.Contains(t, errOut, "oh doctor")
 }
 
-// N13: oh doctor --fix restores the latest valid backup of hub.toml.
+// oh doctor --fix restores the latest valid backup of hub.toml.
 func TestBinaryDoctorFixRestoresConfig(t *testing.T) {
 	t.Parallel()
 	home := newOhHome(t)
@@ -85,7 +85,7 @@ func TestBinaryDoctorFixRestoresConfig(t *testing.T) {
 	assert.Len(t, broken, 1, "the broken file is kept")
 }
 
-// N13 + N14: a migration that fails is shown by oh doctor, oh repair says
+// A migration that fails is shown by oh doctor, oh repair says
 // what is pending and restores the backup taken before the migration.
 func TestBinaryFailedMigrationDoctorAndRepair(t *testing.T) {
 	t.Parallel()
@@ -132,7 +132,7 @@ func TestBinaryFailedMigrationDoctorAndRepair(t *testing.T) {
 	assert.Contains(t, out, "Database restored")
 }
 
-// N13: a corrupt database does not stop oh repair (no MustApp) nor doctor.
+// A corrupt database does not stop oh repair (no MustApp) nor doctor.
 func TestBinaryRepairCorruptDatabase(t *testing.T) {
 	t.Parallel()
 	home := newOhHome(t)
@@ -149,7 +149,7 @@ func TestBinaryRepairCorruptDatabase(t *testing.T) {
 	assert.Contains(t, out, "oh repair")
 }
 
-// N13: the MCP server workflow talks to the daemon only: it starts with a
+// The MCP server workflow talks to the daemon only: it starts with a
 // database that cannot open, and never creates one.
 func TestBinaryMCPServeWorkflowNeedsNoDatabase(t *testing.T) {
 	t.Parallel()

@@ -33,7 +33,7 @@ func expiredClaimOf(t *testing.T, repo *teamstate.Repo, ticket, member string) {
 	require.NoError(t, err)
 }
 
-// v5.1 (B3b): a claim of another member whose lease is past can be taken over
+// A claim of another member whose lease is past can be taken over
 // by oh team claim, as a stale one could, after the common confirmation.
 func TestRunClaimTakesOverAnExpiredClaim(t *testing.T) {
 	i18ntest.Set(t, "en")
@@ -105,7 +105,7 @@ func TestRunClaimRenewsTheOwnExpiredClaim(t *testing.T) {
 	assert.Contains(t, stdout.String(), "renewed")
 }
 
-// v5.1: oh team claim on one's own claim renews it whether it expired or not,
+// oh team claim on one's own claim renews it whether it expired or not,
 // without any confirmation: the claim taken by hand has no session to renew it.
 func TestRunClaimRenewsTheOwnClaimWhichIsNotExpired(t *testing.T) {
 	i18ntest.Set(t, "en")
@@ -151,7 +151,7 @@ func TestRunClaimByHandHoldsTheLongLease(t *testing.T) {
 	assert.True(t, c.LeaseUntil.Time().Before(time.Now().Add(73*time.Hour)))
 }
 
-// v5.1: a claim in review never expires, even with a lease long past: it is
+// A claim in review never expires, even with a lease long past: it is
 // not taken over (whatever --yes says) and the message says it is in review.
 func TestRunClaimInReviewIsNotTakenOver(t *testing.T) {
 	i18ntest.Set(t, "en")

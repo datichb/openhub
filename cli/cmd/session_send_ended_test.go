@@ -11,7 +11,7 @@ import (
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
 )
 
-// A6: oh session send and the Sessions view say, in the language of the user,
+// oh session send and the Sessions view say, in the language of the user,
 // that the instruction is not delivered (session over) or may not be (session
 // ended during the send), instead of « session ses_a is completed ».
 func TestSessionEndedMessages(t *testing.T) {
@@ -42,7 +42,7 @@ func TestSessionEndedMessages(t *testing.T) {
 	}
 }
 
-// M1: a message to a session that has not started yet (queued, preparing) is
+// A message to a session that has not started yet (queued, preparing) is
 // refused with a clear message in the language of the user, and oh session
 // send ends with a non-zero code.
 func TestSessionNotStartedMessage(t *testing.T) {

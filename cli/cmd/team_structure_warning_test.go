@@ -15,7 +15,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/teamstate"
 )
 
-// M1: the commit of the structure of the team-state ("team: init structure")
+// The commit of the structure of the team-state ("team: init structure")
 // that fails is told to the user, in his language, with what stays true (the
 // folders exist, the team works) and what happens next. It does not stop the
 // join, and a team-state whose structure is already there says nothing.

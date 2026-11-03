@@ -16,7 +16,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
-// State machine of a workflow session (P3-T03, P3-T04, P3-T06), fed by the
+// State machine of a workflow session, fed by the
 // daemon from the tool event stream:
 //
 //	workflow_checkpoint asked ─┬─ automatic in the mode ── let through (policy)
@@ -36,7 +36,7 @@ const (
 	ChoiceOther   = "other"   // other instruction (reject + instruction)
 	ChoiceReject  = "reject"
 	ChoiceDismiss = "dismiss" // circuit breaker
-	// ChoiceOverride validates despite a failed verification (R3, traced).
+	// ChoiceOverride validates despite a failed verification (traced).
 	ChoiceOverride = "override"
 )
 
@@ -130,7 +130,7 @@ func (s *Service) Asked(ctx context.Context, root, toolSession string, p adapter
 	if !known || !s.needsDecision(ctx, sess, c) || s.outOfOrder(ctx, sess, wf, c) || s.mergeNotReady(ctx, sess, c) {
 		// An unknown checkpoint, or one called before the checkpoint it
 		// waits for: the call then fails with the reason.
-		// R6: a merge checkpoint asked before the children are done runs
+		// A merge checkpoint asked before the children are done runs
 		// at once and is refused with the reason (no decision to take).
 		return nil, true, false, nil
 	}
@@ -175,7 +175,7 @@ func (s *Service) Asked(ctx context.Context, root, toolSession string, p adapter
 		if c.Tasks != nil && !sameTasks(st.ShownTasks, tasks) {
 			st.ShownTasks, changed = tasks, true // what the user validates
 		}
-		if s.askedR3(st, d, c, evidence) {
+		if s.askedEvidence(st, d, c, evidence) {
 			changed = true
 		}
 		if st.Waiting != id {
@@ -211,13 +211,13 @@ func (s *Service) Settled(ctx context.Context, d domain.Decision) {
 
 // needsDecision reports whether checkpoint c waits for the user: in the
 // mode of the session, or because its verification cannot run where the
-// work is (R3-remote: never passed without verification, even in auto).
+// work is (remote: never passed without verification, even in auto).
 func (s *Service) needsDecision(ctx context.Context, sess *domain.Session, c sessionspec.CheckpointDef) bool {
 	return bundle.NeedsDecision(s.behavior(ctx, sess, c)) || verifyBlocked(sess, c)
 }
 
 // ErrNotApproved refuses a checkpoint that waits for the user in the mode
-// of the session but was not validated (v5 critical N1): neither in oh nor
+// of the session but was not validated: neither in oh nor
 // by an answer of the tool observed by oh. The call cannot pass it by
 // another way (the daemon socket, a forged MCP request).
 var ErrNotApproved = errors.New("checkpoint not validated by the user")
@@ -285,13 +285,13 @@ func (s *Service) tryPass(ctx context.Context, sess *domain.Session, c sessionsp
 	sessionID, id := sess.ID, c.ID
 	merge := mergeCheckpoint(c)
 	if merge {
-		// R6: every child done, integration branch where oh left it.
+		// Every child done, integration branch where oh left it.
 		if err := s.fanoutReady(ctx, sess); err != nil {
 			return domain.CheckpointApproval{}, err
 		}
 	}
 	if c.Verify != nil {
-		// Before any window opens (E1).
+		// Before any window opens.
 		if err := s.verifyGate(ctx, sess, c, needs); err != nil {
 			return domain.CheckpointApproval{}, err
 		}
@@ -320,10 +320,10 @@ func (s *Service) tryPass(ctx context.Context, sess *domain.Session, c sessionsp
 		head, dirty, err = s.headErr(ctx, sess.LaunchPath)
 		if errors.Is(err, gitutil.ErrConfigChanged) {
 			// The repository runs programs oh did not see at the start
-			// of the session (N5): nothing is unlocked.
+			// of the session: nothing is unlocked.
 			return domain.CheckpointApproval{}, err
 		}
-		// p5-fixes: the commit of an earlier checkpoint unlocked again later
+		// The commit of an earlier checkpoint unlocked again later
 		// (unlock_again) opens only when there is something to commit.
 		nothingToCommit = c.CommitNext != "" && err == nil && sess.LaunchPath != "" && !dirty
 	}
@@ -363,7 +363,7 @@ func (s *Service) tryPass(ctx context.Context, sess *domain.Session, c sessionsp
 		s.closeCreateWindow(st, c)
 		for _, op := range c.Unlocks {
 			if op == sessionspec.UnlockMerge {
-				continue // done by oh above (R6): no window for the agents
+				continue // done by oh above: no window for the agents
 			}
 			if op == sessionspec.UnlockCommit && nothingToCommit {
 				s.record(st, domain.CheckpointWindow, id, "oh", windowNothingToCommit)
@@ -560,7 +560,7 @@ func (s *Service) Resolve(ctx context.Context, tool Tool, d domain.Decision, cho
 	case ChoiceApprove, "once", "", ChoiceOverride:
 		override := choice == ChoiceOverride
 		if override && s.isMergeDecision(ctx, d.SessionID, id) {
-			// R6, CP-R3: the verification on the integration branch is what
+			// CP-R3: the verification on the integration branch is what
 			// replaces the checkpoints of the children: never overridden.
 			return errors.New(i18n.T("cmd.fanout.no_override"))
 		}
@@ -589,7 +589,7 @@ func (s *Service) Resolve(ctx context.Context, tool Tool, d domain.Decision, cho
 		}
 		fix := ""
 		if choice != ChoiceReject {
-			fix = s.fanoutFix(ctx, d.SessionID, id, message) // R6: fix round on the integration branch
+			fix = s.fanoutFix(ctx, d.SessionID, id, message) // fix round on the integration branch
 		}
 		unlocked := false
 		refusal, approver := s.approval(ctx, d.SessionID, id, domain.ResolvedByOh, message, false)
@@ -599,7 +599,7 @@ func (s *Service) Resolve(ctx context.Context, tool Tool, d domain.Decision, cho
 			}
 			st.Consecutive = 0
 			if choice != ChoiceReject {
-				// More work asked for: new fix rounds (E5).
+				// More work asked for: new fix rounds.
 				unlocked = resetRounds(st, "")
 			}
 			s.recordApproval(st, domain.CheckpointRefused, id, refusal, approver)
@@ -663,6 +663,6 @@ func (s *Service) Evaluate(ctx context.Context, root, action string, input map[s
 		return string(sessionspec.EffectAllow), nil // refused with the problems
 	}
 	// Asked even when the tool would let it run (an "always" answer saved
-	// by the tool): only a validation passes it (N1).
+	// by the tool): only a validation passes it.
 	return string(sessionspec.EffectAsk), nil
 }

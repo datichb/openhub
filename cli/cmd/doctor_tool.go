@@ -12,21 +12,21 @@ import (
 )
 
 // toolCheck reports whether the installed tool is a supported release (the
-// V1 of the tool is no longer supported in oh v5, P3-T30).
+// V1 of the tool is no longer supported in oh v5).
 func toolCheck(ctx context.Context) doctor.Result {
-	err := requireV2(ctx)
+	err := requireSupportedTool(ctx)
 	name := i18n.Tf("cmd.v1.unsupported.doctor_name", toolName())
 	if err != nil {
 		var ue *adapters.UnsupportedVersionError
 		detail := i18n.Tf("cmd.v1.unsupported.missing", toolName())
-		if errors.As(v5Err, &ue) {
+		if errors.As(toolErr, &ue) {
 			detail = i18n.Tf("cmd.v1.unsupported.version", toolName(), ue.Found, ue.Min)
 		}
 		return doctor.Result{Name: name, OK: false, Detail: detail + " " + i18n.Tf("cmd.v1.unsupported.hint", toolName())}
 	}
 	check := doctor.Result{Name: name, OK: true,
-		Detail: i18n.Tf("cmd.v1.unsupported.doctor_ok", toolName(), v5Tool.Version, v5Adapter.Name(), v5Tool.MinVersion)}
-	if warning := unpinnedToolWarning(v5Tool.Version); warning != "" {
+		Detail: i18n.Tf("cmd.v1.unsupported.doctor_ok", toolName(), toolInfo.Version, toolAdapter.Name(), toolInfo.MinVersion)}
+	if warning := unpinnedToolWarning(toolInfo.Version); warning != "" {
 		check.Warn = true
 		check.Detail += " · " + warning
 	}

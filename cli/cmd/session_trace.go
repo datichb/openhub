@@ -13,7 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/textfmt"
 )
 
-// `oh session trace` (E11, P0.4): the whole history of a session, one event
+// `oh session trace`: the whole history of a session, one event
 // per line (JSONL with --json), secrets masked. The SessionService gathers it.
 
 func init() {

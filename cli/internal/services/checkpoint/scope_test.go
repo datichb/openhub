@@ -14,7 +14,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
-// p6-debts: sweep-task launched by hand: the scope given as input is the
+// sweep-task launched by hand: the scope given as input is the
 // scope of the session; a change outside it refuses its checkpoint.
 func TestScopeInputOfASession(t *testing.T) {
 	svc, ctx := newTestService(t)

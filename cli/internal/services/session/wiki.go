@@ -9,8 +9,8 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
-// Wiki proposals on the card of the commit checkpoint (modernisation LD-J,
-// CP-R4): the open proposals of the session, each accepted, edited or
+// Wiki proposals on the card of the commit checkpoint
+// (CP-R4): the open proposals of the session, each accepted, edited or
 // refused there; oh applies the accepted ones when the checkpoint is
 // passed (the daemon, before the commit).
 
@@ -29,7 +29,7 @@ func (s *Service) cardWiki(ctx context.Context, d domain.Decision, id string) ([
 	}
 	c, ok := wf.Checkpoint(id)
 	if !ok || !slices.Contains(c.Unlocks, sessionspec.UnlockCommit) || c.CommitNext != "" {
-		return nil, false // p5-fixes: the proposals wait for the last commit checkpoint
+		return nil, false // the proposals wait for the last commit checkpoint
 	}
 	sess, err := s.Sessions.Get(ctx, d.SessionID)
 	if err != nil {

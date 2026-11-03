@@ -15,7 +15,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/textfmt"
 )
 
-// `oh session report` (modernisation L4): the reports the agents of a
+// `oh session report`: the reports the agents of a
 // session filed with workflow_report, or one of them.
 
 func init() {

@@ -9,7 +9,7 @@ import (
 
 // Prompt rendering: the engine is internal/workflow (render_prompt.go:
 // inputs at the top level, session context under .oh, `data` for free
-// text, O11). The service gives it the session context and the template
+// text). The service gives it the session context and the template
 // source of the catalogue.
 
 // ModeLinePrefix starts the line giving the workflow mode to the agents.
@@ -128,7 +128,7 @@ func gitlabRefsReminder(pc PromptContext) string {
 // gateReminder tells the entry agent which checkpoints it must report with
 // `workflow_checkpoint` before calling a locked agent: oh refuses the
 // delegation until then, and the tool does not pass the refusal reason to
-// the agent (lot 0 of track 3.E: orchestrator-dev never called cp-1 and
+// the agent (orchestrator-dev never called cp-1 and
 // stayed locked). Checkpoints skipped in the mode release their lock.
 func (r *Resolution) gateReminder() string {
 	sp := r.Spec

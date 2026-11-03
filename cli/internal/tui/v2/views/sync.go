@@ -40,7 +40,7 @@ func syncAsync(
 		ctx = context.Background()
 	}
 	pullFn := func() error {
-		// Background: skipped when the clone is busy (N15).
+		// Background: skipped when the clone is busy.
 		err := repo.Pull(teamstate.WithTryLock(ctx))
 		if errors.Is(err, teamstate.ErrBusy) {
 			return nil
@@ -58,7 +58,7 @@ var teamSyncHook func(ctx context.Context, repoPath string)
 
 // SetTeamSyncHook registers the function run, off the event loop and
 // without delaying the view, after each successful team-state pull of the
-// TUI: the offline workflow publication queue is replayed there (O14).
+// TUI: the offline workflow publication queue is replayed there.
 func SetTeamSyncHook(fn func(ctx context.Context, repoPath string)) { teamSyncHook = fn }
 
 // AfterTeamSync runs the team-sync hook in the background (no-op without

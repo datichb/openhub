@@ -17,7 +17,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/glyph"
 )
 
-// UI style guard (v5.1, A2): the colors and the symbols of the TUI come from
+// UI style guard: the colors and the symbols of the TUI come from
 // internal/tui/theme, nowhere else. The production code of internal/tui/** and
 // of cmd/tui_*.go is parsed, and four kinds of shortcut are counted per file:
 //
@@ -35,7 +35,7 @@ import (
 // per file and per kind, with their count. The list only shrinks: a new
 // shortcut fails the test, and so does a count that went down or a file that
 // has none left until the line is updated or removed. The list is empty since
-// v5.1 (A12): a new shortcut is not accepted, it is replaced by the theme.
+// A new shortcut is not accepted, it is replaced by the theme.
 //
 // Three rules take a case out of the guard, in the code and not in the list:
 // the theme itself (it is where the colors are defined), theme/icons.go (where

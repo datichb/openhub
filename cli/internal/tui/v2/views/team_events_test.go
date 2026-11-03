@@ -10,7 +10,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/teamstate"
 )
 
-// A41: complete phrases (the project of a finished session) and translated
+// Complete phrases (the project of a finished session) and translated
 // workflow events, read back from the team-state JSON.
 func TestTeamEventPhrases(t *testing.T) {
 	t.Parallel()

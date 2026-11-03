@@ -11,7 +11,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 )
 
-// « Exécution » section of the project config (P4-T09, 10 §11): dev image of
+// « Exécution » section of the project config: dev image of
 // the container runtime (Dockerfile, build arguments, cache volumes) and the
 // launch defaults (workflow, runtime).
 

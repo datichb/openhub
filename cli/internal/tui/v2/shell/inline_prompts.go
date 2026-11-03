@@ -252,8 +252,8 @@ func (c *checkList) values() (result []string) {
 	return result
 }
 
-// showCheckList shows the options as a list to check: space and x (or a
-// click) toggle the highlighted one, Enter validates, Esc closes the list.
+// showCheckList shows the options as a list to check: space (or a click)
+// toggles the highlighted one, Enter validates, Esc closes the list.
 func (s *Shell) showCheckList(w listWindow, title string, options []views.SelectOption, selected []string, onConfirm func([]string)) {
 	c := newCheckList(title, options, selected)
 	c.list.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
@@ -269,9 +269,7 @@ func (s *Shell) showCheckList(w listWindow, title string, options []views.Select
 			}
 			return nil
 		}
-		// x ticks as well, as the [x] of a checkbox does: in a choice list it
-		// has no other meaning than the Archive of a list of objects.
-		if keys.Toggle.Matches(event) || keys.Archive.Matches(event) {
+		if keys.Toggle.Matches(event) {
 			c.toggle(c.list.GetCurrentItem())
 			return nil
 		}

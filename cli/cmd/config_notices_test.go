@@ -17,7 +17,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 )
 
-// C3 / A-08: a hub.toml that does not load names the file, the line, the
+// A-08: a hub.toml that does not load names the file, the line, the
 // column and the key, in the language of the hub; former keys, unknown keys
 // and former keychain names are reported by oh doctor and announced once.
 

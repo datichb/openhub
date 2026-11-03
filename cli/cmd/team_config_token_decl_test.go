@@ -55,7 +55,7 @@ func trackerWizardEnv(t *testing.T, accepts string) (a *app.App, repo *teamstate
 	return a, repo, out, srv.URL, secrets
 }
 
-// Bug 3: oh team config → Tracker sync wrote tracker_token_key to the team
+// oh team config → Tracker sync wrote tracker_token_key to the team
 // config with the default value (openhub.tracker.<type>.token), whatever the
 // user answered and without saying so.
 func TestTeamConfigTrackerSyncDoesNotFillTheTokenKeyOnItsOwn(t *testing.T) {

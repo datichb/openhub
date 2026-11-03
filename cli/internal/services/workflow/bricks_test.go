@@ -42,7 +42,7 @@ func writeCatalog(t *testing.T, root string, files map[string]string) {
 	}
 }
 
-// Acceptance (P2-T07): team bricks are used by the workflows; an id already
+// Acceptance: team bricks are used by the workflows; an id already
 // used by the hub is refused unless the brick extends it explicitly.
 func TestTeamBricks(t *testing.T) {
 	env := newTeamEnv(t, "alice")

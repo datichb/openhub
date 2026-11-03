@@ -14,7 +14,7 @@ import (
 	"testing"
 )
 
-// B8 (audit v5, A-01): the packages that use the team-state repository
+// A-01: the packages that use the team-state repository
 // through the small interfaces of internal/teamstate (RepoInfo, ClaimReader,
 // MemberReader, ...) do not name the concrete *teamstate.Repo type: a test
 // serves them a fake, and the interfaces say what each one needs. Creating a
@@ -90,7 +90,7 @@ func TestInterfaceOnlyPackagesDoNotNameTheConcreteRepo(t *testing.T) {
 	}
 }
 
-// B9: the views of the TUI take the small interfaces of teamstate they need
+// The views of the TUI take the small interfaces of teamstate they need
 // (ClaimReader, MemberReader, WikiWriter, ...), not the whole repository:
 // they do not name *teamstate.Repo. Creating a repository
 // (teamstate.NewRepo) is the one thing that stays, since the views open the
@@ -151,7 +151,7 @@ func g() ts.RepoInfo              { return ts.NewRepo("", "") }
 	}
 }
 
-// B10: the commands of cmd/ take the small interfaces of teamstate they need
+// The commands of cmd/ take the small interfaces of teamstate they need
 // (or a minimal composition of them declared next to the command), not the
 // whole repository. *teamstate.Repo stays where a command builds the
 // repository or needs what no interface of a sub-domain offers (the clone, the

@@ -253,7 +253,7 @@ func (w *InlineWizardView) themeForm(form *tview.Form) {
 	// Apply initial label focus hierarchy (bold on focused, muted on rest).
 	fixFormLabelFocus(form)
 
-	// Esc asks whether to quit the wizard (N19). When a DropDown has
+	// Esc asks whether to quit the wizard. When a DropDown has
 	// focus, the Escape closing its popup also reaches CancelFunc
 	// (tview forwards it via finishedFunc): swallow it.
 	form.SetCancelFunc(func() {

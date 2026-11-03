@@ -9,7 +9,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
-// Launch form model (P1-T22): the state of the generated form, without
+// Launch form model: the state of the generated form, without
 // widgets (tests, golden rendering).
 
 // LaunchRuntime is an execution environment offered by the form.

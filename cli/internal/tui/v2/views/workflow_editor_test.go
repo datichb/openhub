@@ -223,7 +223,7 @@ func TestWorkflowEditorGeneralUndoSave(t *testing.T) {
 	assert.NotContains(t, env.text(), "risk:")
 }
 
-// A39: Code Mode is offered as on/off, and the written value is shown even
+// Code Mode is offered as on/off, and the written value is shown even
 // when the resolution refuses it (loosening: the parent value is kept).
 func TestWorkflowEditorCodeModeShowsWrittenValue(t *testing.T) {
 	env := newEditorEnv(t, WorkflowEditorConfig{})
@@ -301,7 +301,7 @@ func TestWorkflowEditorGraph(t *testing.T) {
 		}
 	})
 	assert.Equal(t, []string{"▶", "cp-1", "cp-2", "orchestrator-dev", "developer", "reviewer", "documentarian"}, ids,
-		"the resolved workflow (inherited elements included, B10): reviewer follows developer under cp-1")
+		"the resolved workflow (inherited elements included): reviewer follows developer under cp-1")
 
 	// a: add an agent of the catalogue.
 	env.key(tcell.KeyRune, 'a')

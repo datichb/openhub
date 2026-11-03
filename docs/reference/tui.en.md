@@ -111,6 +111,7 @@ A key has the same meaning in every view. A view may give a free letter to an ac
 | Launch form (modified directory) | `w` → `t` worktree (`s` stash, `b` allow) |
 | Switching views | `Ctrl+T`: Hub → Project → Team → Hub (it only went between the Hub and the Team) |
 | Other lists (models, policies, secrets, teams…) | `a` → `n` create |
+| Forms (multiple choice) | `x` → `Space` tick (`x` no longer ticks: it archives in lists of objects) |
 | Board columns editor | `a` → `n` add · `r` → `o` change the role · new: `e` rename, `d` asks for a confirmation (see [the editor](#board-columns-editor)) |
 
 ## Legend of the symbols

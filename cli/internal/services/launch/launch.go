@@ -243,13 +243,13 @@ func Prepare(ctx context.Context, d Deps, opts Options) (*Prepared, error) {
 		return nil, errors.New(i18n.T("cmd.run.dry_run.remote"))
 	}
 	if res.Fanout {
-		// R6: experimental, local, one parent session for every ticket.
+		// Experimental, local, one parent session for every ticket.
 		if err := CheckFanoutLaunch(d.Config, kind, perSession); err != nil {
 			return nil, err
 		}
 	}
-	// Credentials checked before anything is built or asked of the daemon
-	// (N12). A remote session gets its own from the runner.
+	// Credentials checked before anything is built or asked of the daemon.
+	// A remote session gets its own from the runner.
 	if kind != sessionspec.RuntimeRemote && d.Credentials != nil {
 		if err := d.Credentials(ctx, opts.Project, opts.Provider); err != nil {
 			return nil, err
@@ -293,7 +293,7 @@ func Prepare(ctx context.Context, d Deps, opts Options) (*Prepared, error) {
 	if res.Spec.Beads != nil {
 		base.BeadsAllow = append([]string{}, res.Spec.Beads.Allow...) // non-nil: declared
 	}
-	// p6-debts: a file scope given at launch (sweep-task by hand) is checked
+	// A file scope given at launch (sweep-task by hand) is checked
 	// now, as oh checks the tasks of a breakdown.
 	if id := res.Spec.ScopeInput(); id != "" {
 		if raw, _ := res.Inputs[id].(string); strings.TrimSpace(raw) != "" {
@@ -403,7 +403,7 @@ func (p *Prepared) planRun(ctx context.Context, req runsvc.RunRequest) error {
 	if err != nil {
 		return runPlanError(err)
 	}
-	// p6-debts: the preconditions are read where the session works (its
+	// The preconditions are read where the session works (its
 	// worktree with --location new), not in the project directory.
 	fsys, probe := preconditionTarget(opts.Project.Path, plan.Sessions, rp != nil)
 	if p.preconds, p.Suggestions, err = preconditionWarningsIn(p.Resolution.Spec, fsys, probe); err != nil {

@@ -12,7 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
-// Notice of the new keys (modernisation tui-keys): shown once per revision of
+// Notice of the new keys: shown once per revision of
 // the table keys.Changes(), at the first launch of the TUI after the update;
 // again from the help (?). The preference holds the revision last shown; the
 // boolean recorded by a 5.0 never matches, so the notice shows once more.

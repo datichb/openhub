@@ -10,7 +10,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
-// R5: an output declared with `record:` is filled by oh from what the
+// An output declared with `record:` is filled by oh from what the
 // session did, never by an agent.
 func TestRecordOutputs(t *testing.T) {
 	svc, ctx := newTestService(t)
@@ -64,7 +64,7 @@ func TestRecordOutputs(t *testing.T) {
 	assert.False(t, changed)
 }
 
-// R5: workflow_status lists as expected only the outputs the agents declare.
+// workflow_status lists as expected only the outputs the agents declare.
 func TestStatusLeavesRecordedOutputsOut(t *testing.T) {
 	svc, ctx := newTestService(t)
 	wf := TestWorkflow

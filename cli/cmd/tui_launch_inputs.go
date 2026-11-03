@@ -17,7 +17,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/worktree"
 )
 
-// Inputs of the launch form (modernisation tui-launch): the workflow an
+// Inputs of the launch form: the workflow an
 // alias opens, what oh computes for an input with `from:`, the checks of a
 // path or a branch, the notes of the inputs.
 

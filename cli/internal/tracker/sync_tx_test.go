@@ -47,7 +47,7 @@ func (s *stubTracker) DiscoverProject(context.Context, string) (*DiscoveryInfo, 
 	return &DiscoveryInfo{}, nil
 }
 
-// N15 step B: a tracker synchronization is one transaction: every claim
+// A tracker synchronization is one transaction: every claim
 // change of the run in one commit, pushed once.
 func TestSyncIsOneTransaction(t *testing.T) {
 	if testing.Short() {

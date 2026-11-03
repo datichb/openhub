@@ -159,5 +159,5 @@ func TestE2EGitOutputAndUploadPack(t *testing.T) {
 	_, err := os.Stat(filepath.Join(r.project, "ok.txt"))
 	assert.NoError(t, err, "an ordinary command still runs (the agent tried the steps)")
 	skill, _ := os.ReadFile(filepath.Join(b.SkillsDir, "alpha", "SKILL.md"))
-	assert.NotContains(t, string(skill), "hacked", "N23: the bundle is not editable by the agent")
+	assert.NotContains(t, string(skill), "hacked", "the bundle is not editable by the agent")
 }

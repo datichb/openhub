@@ -62,7 +62,7 @@ func RemoteTargetFor(cfg *config.Config, project *domain.Project) (*config.Remot
 	return t, nil
 }
 
-// PrepareRemote checks that the workflow can run remotely (P5-T04) and
+// PrepareRemote checks that the workflow can run remotely and
 // chooses the target.
 func PrepareRemote(ctx context.Context, d Deps, project *domain.Project, res *workflowsvc.Resolution) (*RemotePrep, error) {
 	if err := RequireRemoteExperimental(d.Config); err != nil {
@@ -161,7 +161,7 @@ func HTTPSRepoURL(raw string) string {
 	return "https://" + gr.Host + "/" + gr.Path + ".git"
 }
 
-// sendRemote sends each session of the plan (P5-T05 → T08).
+// sendRemote sends each session of the plan.
 func sendRemote(ctx context.Context, p *Prepared, progress func(Event)) ([]*runsvc.StartResult, error) {
 	d, rp := p.deps, p.Remote
 	if err := RequireRemoteExperimental(d.Config); err != nil {
@@ -208,7 +208,7 @@ func sendRemote(ctx context.Context, p *Prepared, progress func(Event)) ([]*runs
 		out = append(out, &runsvc.StartResult{SessionID: res.SessionID})
 	}
 	if len(out) > 0 && d.Daemon != nil {
-		// The daemon follows the pipelines while oh is closed (BL-17).
+		// The daemon follows the pipelines while oh is closed.
 		if _, err := d.Daemon(ctx); err != nil {
 			slog.Debug("oh daemon not started for remote tracking", "error", err)
 		}

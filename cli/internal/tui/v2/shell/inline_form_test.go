@@ -17,7 +17,7 @@ import (
 )
 
 // These tests pin the behaviour of ShowInlineForm (typing, fields of every
-// type, validation, Esc, buttons) before its code is split (A10).
+// type, validation, Esc, buttons) before its code is split.
 
 type formResult struct {
 	values map[string]string
@@ -264,8 +264,9 @@ func TestInlineFormSelectSubList(t *testing.T) {
 	assert.Equal(t, "e", f.result().values["mode"])
 }
 
-// Multi-select field: Enter opens the list, space and x toggle, Enter
-// validates; the summary shows the choice; a required one cannot stay empty.
+// Multi-select field: Enter opens the list, space toggles (x does not: it is
+// the Archive of a list of objects), Enter validates; the summary shows the
+// choice; a required one cannot stay empty.
 func TestInlineFormMultiSelect(t *testing.T) {
 	f := openForm(t, "Multi", views.FormField{Key: "tags", Label: "Tags", Type: views.FieldMultiSelect,
 		Options: options("a", "b", "c"), DefaultMulti: []string{"c"}, Required: true})
@@ -274,7 +275,8 @@ func TestInlineFormMultiSelect(t *testing.T) {
 	assert.True(t, f.subShown())
 	f.key(tcell.KeyRune, ' ', tcell.ModNone) // a
 	f.press(tcell.KeyDown)
-	f.key(tcell.KeyRune, 'x', tcell.ModNone) // b
+	f.key(tcell.KeyRune, 'x', tcell.ModNone) // nothing: x no longer ticks
+	f.key(tcell.KeyRune, ' ', tcell.ModNone) // b
 	f.press(tcell.KeyEnter)
 	assert.False(t, f.subShown())
 	require.Eventually(t, func() bool { return strings.Contains(f.screenText(), "opt-a, opt-b, +1") }, 2*time.Second, 10*time.Millisecond, "summary")
@@ -369,9 +371,9 @@ func TestInlineListsMouseClick(t *testing.T) {
 	}
 }
 
-// In a multi-select list Space and x tick the item under the cursor, the
-// arrows move, Enter validates and Esc closes without validating. Pinned before
-// the keys went through the keys package (v5.1, A12).
+// In a multi-select list Space ticks the item under the cursor (x does not:
+// it is the Archive of a list of objects), the arrows move, Enter validates
+// and Esc closes without validating.
 func TestInlineMultiSelectKeys(t *testing.T) {
 	s := newKeyShell(t, &keyView{id: "home", focusList: true})
 	multi := make(chan []string, 1)
@@ -389,6 +391,8 @@ func TestInlineMultiSelectKeys(t *testing.T) {
 	checked(1)
 	s.key(tcell.KeyDown, 0, tcell.ModNone)
 	s.key(tcell.KeyRune, 'x', tcell.ModNone)
+	checked(1)
+	s.key(tcell.KeyRune, ' ', tcell.ModNone)
 	checked(2)
 	s.key(tcell.KeyRune, ' ', tcell.ModNone)
 	checked(1)

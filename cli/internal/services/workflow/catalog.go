@@ -46,7 +46,7 @@ type Summary struct {
 	// ("agent:<id>", "skill:<ref>").
 	TeamBricks []string `json:"team_bricks,omitempty"`
 	// NewBricks are the team bricks a draft uses that its published version
-	// does not (O12 « nouvelle brique » badge).
+	// does not (« nouvelle brique » badge).
 	NewBricks []string `json:"new_bricks,omitempty"`
 	// Aliases are the other ids that launch the workflow (`aliases:`, the
 	// route `with` an input included).

@@ -184,7 +184,7 @@ func (s *Shell) dismissToast(pageName string) {
 	}
 }
 
-// DismissToasts removes every visible toast (Esc, N19). It reports whether
+// DismissToasts removes every visible toast (Esc). It reports whether
 // a toast was shown. Must be called on the tview event loop.
 func (s *Shell) DismissToasts() bool {
 	if len(s.activeToastIDs) == 0 {

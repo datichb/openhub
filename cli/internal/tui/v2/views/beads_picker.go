@@ -19,7 +19,7 @@ import (
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Beads picker (v5 T2, 10-tui §4.2): tview ticket selector with search, label
+// Beads picker: tview ticket selector with search, label
 // and epic filters, grouping by epic, preview and multi-selection. It replaces
 // the huh selector used during the TUI; the launch sheet (beads-id inputs)
 // embeds it as a primitive.

@@ -18,7 +18,7 @@ func setState(t *testing.T, f *fixture, st domain.RunState) {
 	require.NoError(t, f.svc.Sessions.Update(f.ctx, sess))
 }
 
-// A6: a message to a session that is over is refused, with a typed error the
+// A message to a session that is over is refused, with a typed error the
 // CLI and the TUI turn into « la consigne ne sera pas remise ». Every open
 // state takes it (the tool only admits it: it is read at the next step).
 func TestSendToAnEndedSessionIsRefused(t *testing.T) {
@@ -52,7 +52,7 @@ func TestControlOfAnEndedSessionIsTyped(t *testing.T) {
 	assert.False(t, ended.Send)
 }
 
-// A6: the tool admits a message without reading it. A session that ends as
+// The tool admits a message without reading it. A session that ends as
 // the message is sent is reported to a user (ReportEnd), who would otherwise
 // be told it was sent; the callers that are not a user keep their result.
 func TestSendReportsASessionThatEndedDuringTheSend(t *testing.T) {
@@ -77,7 +77,7 @@ func TestEndedErrorIsNotAnotherError(t *testing.T) {
 	assert.False(t, errors.Is(&EndedError{}, ErrServerNotRunning))
 }
 
-// M1: a session that has not started yet (queued for a free slot, or still
+// A session that has not started yet (queued for a free slot, or still
 // preparing) has no one to read a message: it is refused, with a typed error
 // the CLI and the TUI turn into « la session n'a pas encore démarré ».
 func TestSendToASessionNotStartedIsRefused(t *testing.T) {

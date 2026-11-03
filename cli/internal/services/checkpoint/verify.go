@@ -23,7 +23,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
-// Verification run by oh at a checkpoint (R3, E1): the build, tests and type
+// Verification run by oh at a checkpoint: the build, tests and type
 // check of the project (`verify: { from: stack }`, bricks.VerifyRuns) or the
 // commands of the workflow document (`cmd`), never a command of the agent.
 //
@@ -167,7 +167,7 @@ func verifyDir(sess *domain.Session, v *sessionspec.VerifyDef) string {
 }
 
 // verifyBlocked reports whether checkpoint c has a verification that cannot
-// run where the work of sess is (R3-remote): the checkpoint then waits for
+// run where the work of sess is: the checkpoint then waits for
 // the user in every mode, and passes only overridden (traced).
 func verifyBlocked(sess *domain.Session, c sessionspec.CheckpointDef) bool {
 	return c.Verify != nil && verifyDir(verifySession(sess, c), c.Verify) == ""
@@ -182,7 +182,7 @@ func unavailable() domain.CheckpointVerify {
 const unknownPrefix = "unknown-"
 
 // unreadable reports whether fp is the fingerprint of a work git cannot
-// read (R3-remote-git): no result can be tied to it, the verification
+// read: no result can be tied to it, the verification
 // cannot run as for a missing location.
 func unreadable(fp string) bool { return strings.HasPrefix(fp, unknownPrefix) }
 
@@ -193,7 +193,7 @@ func (s *Service) StartVerify(sess *domain.Session, c sessionspec.CheckpointDef)
 	if c.Verify == nil || s.States == nil {
 		return
 	}
-	sess = verifySession(sess, c) // R6: on the integration branch
+	sess = verifySession(sess, c) // on the integration branch
 	ctx := context.Background()
 	if verifyBlocked(sess, c) {
 		s.recordUnavailable(ctx, sess.ID, c, unavailable())
@@ -233,7 +233,7 @@ func (s *Service) recordUnavailable(ctx context.Context, sessionID string, c ses
 // work, running it when needed and waiting at most wait for its end
 // (ErrVerifyPending after that).
 func (s *Service) verification(ctx context.Context, sess *domain.Session, c sessionspec.CheckpointDef, wait time.Duration) (domain.CheckpointVerify, error) {
-	sess = verifySession(sess, c) // R6: on the integration branch
+	sess = verifySession(sess, c) // on the integration branch
 	if verifyBlocked(sess, c) {
 		return s.recordUnavailable(ctx, sess.ID, c, unavailable()), nil
 	}
@@ -348,7 +348,7 @@ func (s *Service) runVerify(ctx context.Context, sess *domain.Session, c session
 	dir := verifyDir(sess, v)
 	if dir == "" {
 		// The location is gone (or not on this machine): the verification
-		// cannot run, the checkpoint waits for an override (R3-remote).
+		// cannot run, the checkpoint waits for an override.
 		return unavailable()
 	}
 	failedChanges, note, ok := s.changesCheck(ctx, sess, v)
@@ -364,14 +364,14 @@ func (s *Service) runVerify(ctx context.Context, sess *domain.Session, c session
 	runs := verifyRuns(sess.LaunchPath, dir, v)
 	switch {
 	case len(runs) == 0 && v.Spec != nil:
-		// R4: the check of the specs is the verification.
+		// The check of the specs is the verification.
 		return withNote(domain.CheckpointVerify{Status: domain.VerifyPassed}, note)
 	case len(runs) == 0:
 		return withNote(domain.CheckpointVerify{Status: domain.VerifyNone, Reason: i18n.T("tui.checkpoint.verify.no_command")}, note)
 	}
 	red := v.Expect == sessionspec.VerifyFail
 	if red {
-		runs = redOrder(runs) // R7: the code builds before the tests fail
+		runs = redOrder(runs) // the code builds before the tests fail
 	}
 	ctx, cancel := context.WithTimeout(ctx, verifyTimeout(v))
 	defer cancel()
@@ -495,7 +495,7 @@ var accountEnvKeys = map[string]bool{
 	"XDG_CACHE_HOME": true, "XDG_CONFIG_HOME": true, "XDG_DATA_HOME": true,
 }
 
-// Account is the account a verification runs as (R3-remote: the oh
+// Account is the account a verification runs as (remote: the oh
 // account of a remote job, which runs the tool server and the agents).
 type Account struct {
 	UID, GID uint32
@@ -607,11 +607,6 @@ func (s *Service) fingerprint(ctx context.Context, sess *domain.Session) string 
 		return s.Fingerprint(ctx, sess.LaunchPath)
 	}
 	return gitFingerprint(ctx, sess.LaunchPath, s.Account)
-}
-
-// GitFingerprint is the git fingerprint of the work in dir.
-func GitFingerprint(ctx context.Context, dir string) string {
-	return gitFingerprint(ctx, dir, nil)
 }
 
 // gitAs is git in dir (gitutil.Command), run as acct when set: in a remote

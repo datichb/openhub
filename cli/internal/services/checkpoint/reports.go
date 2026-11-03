@@ -7,7 +7,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 )
 
-// Reports of workflow_report (modernisation L4) in the workflow state: each
+// Reports of workflow_report in the workflow state: each
 // stored report is a timeline entry (report, rp-<n>, by its author); the
 // checkpoint card attaches the reports filed since the last checkpoint
 // passed, and those the agent cites in workflow_checkpoint (Call.Reports).

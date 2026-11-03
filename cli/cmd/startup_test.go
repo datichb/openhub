@@ -16,7 +16,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
-// N13: the startup level of each command (annotations, inherited).
+// The startup level of each command (annotations, inherited).
 func TestInitLevels(t *testing.T) {
 	cases := map[string]initLevel{
 		"version":                levelNone,
@@ -87,7 +87,7 @@ func (c *countingSecrets) Set(_ context.Context, k, v string) error { c.m[k] = v
 func (c *countingSecrets) Delete(_ context.Context, k string) error { delete(c.m, k); return nil }
 func (c *countingSecrets) List(context.Context) ([]string, error)   { return nil, nil }
 
-// N13: the legacy keychain keys are migrated once (marker), not on every
+// The legacy keychain keys are migrated once (marker), not on every
 // start.
 func TestMigrateKeychainKeysOnce(t *testing.T) {
 	t.Setenv("OH_HOME", t.TempDir())
@@ -101,7 +101,7 @@ func TestMigrateKeychainKeysOnce(t *testing.T) {
 	assert.Zero(t, migrateKeychainKeysOnce(nil))
 }
 
-// N13: the secret store of the light and degraded startups is resolved on
+// The secret store of the light and degraded startups is resolved on
 // first use only.
 func TestLazySecrets(t *testing.T) {
 	resolved := 0

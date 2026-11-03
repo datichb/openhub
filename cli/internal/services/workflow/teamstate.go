@@ -10,7 +10,7 @@ import (
 	wf "github.com/datichb/openhub/cli/internal/workflow"
 )
 
-// Team-state layers (v5 phase 2): the published team and project workflows
+// Team-state layers: the published team and project workflows
 // of the context's team-state, integrity-checked against workflows.lock,
 // and the current member's drafts on demand.
 

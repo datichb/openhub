@@ -47,7 +47,7 @@ func rejoinTeam(t *testing.T, trackerURL, answers string, flags ...string) (out 
 	return stdout.String(), m
 }
 
-// Bug 12: oh team rejoin has an option for the tracker name of the member.
+// oh team rejoin has an option for the tracker name of the member.
 func TestTeamRejoinTrackerUsernameFlag(t *testing.T) {
 	out, m := rejoinTeam(t, "https://gitlab.other.example", "", "--tracker-username=@benjamin.datiche")
 	assert.Equal(t, "benjamin.datiche", m.TrackerUsername)
@@ -79,7 +79,7 @@ func TestTeamRejoinDoesNotAskWithoutNeed(t *testing.T) {
 	assert.Empty(t, m.TrackerUsername)
 }
 
-// Bug 12: the rejoin of the wizard of oh init has a step for the tracker name,
+// The rejoin of the wizard of oh init has a step for the tracker name,
 // shown when the tracker is elsewhere and the member has none.
 func TestInitWizardRejoinHasATrackerUsernameStep(t *testing.T) {
 	i18ntest.Set(t, "en")

@@ -14,7 +14,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
-// orderWorkflow is a spec-like runtime (r5-fixes): the planner writes its
+// orderWorkflow is a spec-like runtime: the planner writes its
 // spec once cp-understanding is passed; cp-converge waits for
 // cp-understanding and cp-spec for cp-converge.
 var orderWorkflow = sessionspec.WorkflowRuntime{
@@ -28,7 +28,7 @@ var orderWorkflow = sessionspec.WorkflowRuntime{
 	Writes:      map[string][]string{"planner": {"docs/wiki/specs/**", "docs/wiki/index.md"}},
 }
 
-// p6-debts: the lines of a writes: agent the rules cannot read are read by
+// The lines of a writes: agent the rules cannot read are read by
 // oh: allowed when they only name declared paths, refused with the reason
 // otherwise; another agent or another command keeps the decision of the tool.
 func TestEvaluateWrites(t *testing.T) {
@@ -74,7 +74,7 @@ func passUnderstanding(t *testing.T, svc *Service, ctx context.Context) {
 	require.NoError(t, err)
 }
 
-// r5-fixes: before cp-understanding, oh refuses the edit of the spec with a
+// Before cp-understanding, oh refuses the edit of the spec with a
 // message that names the checkpoint to wait for; once it is passed, the
 // decision of the tool stands (the planner's own allow).
 func TestEvaluateEditWaitsForTheCheckpoint(t *testing.T) {
@@ -123,7 +123,7 @@ func TestEvaluateEditWaitsForTheCheckpoint(t *testing.T) {
 	assert.Empty(t, eff)
 }
 
-// r5-fixes: a checkpoint called before the one it waits for is refused with
+// A checkpoint called before the one it waits for is refused with
 // the checkpoint to pass first; it never asks the user.
 func TestCheckpointOrder(t *testing.T) {
 	svc, ctx := newOrderService(t, "semi-auto")

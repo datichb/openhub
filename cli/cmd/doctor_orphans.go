@@ -20,7 +20,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
-// Doctor › orphan tool servers (N18): servers started by oh (or by its
+// Doctor › orphan tool servers: servers started by oh (or by its
 // tests) that nobody owns any more — interrupted tests, a discovery server
 // left by a killed oh, a server of this hub that oh believes stopped, a
 // server of a hub that was deleted. They keep memory until killed.

@@ -1,10 +1,10 @@
-// Package workflow is the WorkflowService (03 §2.4): catalogue of the
+// Package workflow is the WorkflowService: catalogue of the
 // declarative workflows of every available layer, resolution with the
 // origin of each value, validation against the brick catalogue and
 // rendering of the initial prompt. Shared by the CLI and the TUI; no UI code.
 //
-// The team-state layers (team, project, drafts) and the editing methods of
-// phase 2 are in separate files (teamstate.go, draft.go, publish.go…).
+// The team-state layers (team, project, drafts) and the editing methods are
+// in separate files (teamstate.go, draft.go, publish.go…).
 package workflow
 
 import (
@@ -31,7 +31,7 @@ type Service struct {
 	Isolation sessionspec.IsolationLevel
 	// Lang selects the language of labels ("" = current locale).
 	Lang string
-	// TeamState returns the team-state of a context (phase 2, teamstate.go);
+	// TeamState returns the team-state of a context (teamstate.go);
 	// nil: hub layer only.
 	TeamState TeamStateFunc
 	// BricksCacheDir holds the hub merged with team catalogues (bricks.go);
@@ -43,12 +43,12 @@ type Service struct {
 }
 
 // Context is the scope a workflow is listed or resolved in. The project and
-// team select the team-state layers (phase 2).
+// team select the team-state layers.
 type Context struct {
 	ProjectID string
 	TeamID    string
 	// FromSession is the session a launch is chained from (--parent): the
-	// session sources of `from:` read it first (R5).
+	// session sources of `from:` read it first.
 	FromSession string
 	// Workflow is the workflow being launched, set for the session sources
 	// (session.traces leaves its own sessions out unless they are named).

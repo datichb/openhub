@@ -36,7 +36,7 @@ func sanityRepo(t *testing.T, files map[string]string, commit bool) string {
 	return dir
 }
 
-// Q31: a .beads/ excluded without its lock fails the Beads zero-impact
+// A .beads/ excluded without its lock fails the Beads zero-impact
 // check, oh doctor --fix (FixImpact) repairs it; a shared .beads/ without
 // the lock in the team's .gitignore is a warning, never repaired.
 func TestBeadsSanityGateLock(t *testing.T) {

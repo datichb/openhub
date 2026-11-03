@@ -10,7 +10,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/services/launch"
 )
 
-// The remote runtime is experimental in 5.0 (DC22): it has never been
+// The remote runtime is experimental in 5.0: it has never been
 // validated on a real runner, so it stays off unless `[remote] experimental
 // = true` is set in hub.toml. Every entry point of the remote mode on the
 // machine (setup, launch, launch form option, fetch, replay) requires it;

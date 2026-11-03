@@ -85,7 +85,7 @@ func (s *confirmShell) take() (titles []string, yes func()) {
 }
 
 // Worktrees: d, p and M ask first; nothing happens before the
-// confirmation; M keeps a worktree used by a session (N19).
+// confirmation; M keeps a worktree used by a session.
 func TestWorktreeViewConfirmsDestructiveKeys(t *testing.T) {
 	git := &fakeWorktrees{entries: []worktree.Entry{
 		{Path: "/p", Branch: "main"},

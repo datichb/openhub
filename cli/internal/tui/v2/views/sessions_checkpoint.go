@@ -15,7 +15,7 @@ import (
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Checkpoint decision card (P3-T17, 10 §7.2): what the agent reports, the
+// Checkpoint decision card: what the agent reports, the
 // changes so far, its last messages and the timeline, then the decision
 // (validate / fix first / other instruction) with a message to the agent.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -41,7 +41,7 @@ type CheckpointCardView struct {
 	Patch      string
 	Messages   []string // "agent › text", oldest first
 	Timeline   string
-	Verify     CheckpointVerifyView     // R3 (sessions_checkpoint_verify.go)
+	Verify     CheckpointVerifyView     // sessions_checkpoint_verify.go
 	Reports    []CheckpointReport       // sessions_checkpoint_reports.go
 	Wiki       []CheckpointWikiProposal // sessions_checkpoint_wiki.go
 	Approver   CheckpointApproverView   // CP-R9

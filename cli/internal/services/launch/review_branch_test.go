@@ -55,7 +55,7 @@ func reviewDeps(t *testing.T) (Deps, *fakes, string) {
 	return d, f, worktree.TempRoot(hub)
 }
 
-// Bug 16: the review of a branch other than the current one read the files
+// The review of a branch other than the current one read the files
 // of the current branch (read, grep and glob), while the diff came from the
 // reviewed branch.
 func TestReviewOfAnotherBranchWorksOnThatBranch(t *testing.T) {

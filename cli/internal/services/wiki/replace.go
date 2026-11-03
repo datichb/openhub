@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// Replacement of a line (p5-fixes, wiki_propose `replaces`): a proposal
+// Replacement of a line (wiki_propose `replaces`): a proposal
 // may replace one line of a page instead of adding an entry, so that a
 // re-onboarding corrects an entry rather than add a corrected copy next
 // to it. The old line is given exactly (spaces around it aside); it must

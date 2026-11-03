@@ -7,7 +7,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 )
 
-// N20: cli.compact accepts auto (stored empty), always and never.
+// cli.compact accepts auto (stored empty), always and never.
 func TestConfigSetCompact(t *testing.T) {
 	i18ntest.Set(t, "en")
 	f, ok := lookupConfigField("cli.compact")

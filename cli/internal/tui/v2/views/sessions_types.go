@@ -6,7 +6,7 @@ import (
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Sessions view models (P3-T16): display-ready data produced by the wiring
+// Sessions view models: display-ready data produced by the wiring
 // layer (cmd) from the SessionService. The views package never reads stores.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -102,7 +102,7 @@ type SessionOutput struct {
 }
 
 // SessionNextStep is a `next:` step of the workflow of a session whose
-// condition holds (R5): what oh proposes after it, never launched alone.
+// condition holds: what oh proposes after it, never launched alone.
 type SessionNextStep struct {
 	Workflow string
 	Label    string
@@ -145,7 +145,7 @@ type SessionsBackend interface {
 }
 
 // SessionChainer is implemented by backends able to suggest the workflows to
-// chain after a session (« Enchaîner avec… », O7, P1-T27).
+// chain after a session (« Enchaîner avec… »).
 type SessionChainer interface {
 	// ChainOptions lists the workflows to chain after a session.
 	ChainOptions(ctx context.Context, sessionID string) ([]SelectOption, error)

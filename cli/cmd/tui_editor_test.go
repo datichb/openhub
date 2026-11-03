@@ -15,7 +15,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
-// Editor check on a real team-state (P2-T14): diagnostics with lines of the
+// Editor check on a real team-state: diagnostics with lines of the
 // edited document, locks, prompt preview, bundle preview (golden, numbers
 // normalized).
 func TestTUIEditorCheck(t *testing.T) {

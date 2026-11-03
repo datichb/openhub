@@ -15,7 +15,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
-// « Enchaîner avec… » in the Sessions view (P1-T27): the WorkflowService
+// « Enchaîner avec… » in the Sessions view: the WorkflowService
 // suggests the workflows taking the outputs of the session; the branch of the
 // session directory stands for a `branch` output the session did not declare.
 
@@ -63,7 +63,7 @@ func (t *tuiSessions) ChainOptions(ctx context.Context, sessionID string) ([]vie
 			label += "  (" + strings.Join(with, ", ") + ")"
 		}
 		if s.Declared {
-			// R5: a `next:` step of the workflow, apart from the
+			// A `next:` step of the workflow, apart from the
 			// suggestions by output type.
 			label = "↪ " + label + "  · " + i18n.T("tui.launch.chain_declared")
 		}

@@ -66,7 +66,7 @@ func setupWorkflowCLI(t *testing.T, member string, others ...string) *workflowCL
 	root := repoRoot(t)
 	home := t.TempDir()
 	t.Setenv("OH_HOME", home)
-	withoutV2(t, nil)
+	withoutTool(t, nil)
 	t.Setenv(workflowsDirEnv, filepath.Join(root, "cli", "internal", "services", "workflow", "testdata", "workflows"))
 	// The repository root has the hub layout (agents/, skills/, permissions/).
 	require.NoError(t, os.Symlink(root, filepath.Join(home, "hub")))
@@ -238,8 +238,8 @@ func TestWorkflowEditingSoloDefault(t *testing.T) {
 }
 
 // oh workflow new --file with a document naming a template that does not
-// exist yet: a starter template is created, or the --prompt-file one (v5
-// finalisation, Q3-7: refused before).
+// exist yet: a starter template is created, or the --prompt-file one (it
+// used to be refused).
 func TestWorkflowNewFileWithOwnTemplate(t *testing.T) {
 	setupWorkflowCLI(t, "alice")
 	doc := "apiVersion: oh/v1\nkind: Workflow\nid: %s\nrisk: write\nentry:\n  agent: developer\n" +
@@ -254,7 +254,7 @@ func TestWorkflowNewFileWithOwnTemplate(t *testing.T) {
 	require.NoError(t, err)
 	txt, err := svc.EditText(t.Context(), c, workflow.LayerTeam, "hotfix")
 	require.NoError(t, err)
-	assert.Contains(t, string(txt.Prompt), `{{ data "request" .request }}`, "free text delimited (O11)")
+	assert.Contains(t, string(txt.Prompt), `{{ data "request" .request }}`, "free text delimited")
 	assert.Contains(t, string(txt.Prompt), "{{ .ticket }}")
 
 	prompt := filepath.Join(t.TempDir(), "p.md.tmpl")
@@ -269,8 +269,8 @@ func TestWorkflowNewFileWithOwnTemplate(t *testing.T) {
 
 // oh run on a workflow with a required input given by --tickets: the
 // first resolution (to learn the ticket input) must not check the inputs
-// (v5 finalisation, Q4 recette: « Missing required input: ticket » for
-// every such workflow since 3.E).
+// (« Missing required input: ticket » was raised for every such
+// workflow).
 func TestPrepareRunRequiredTicketInput(t *testing.T) {
 	setupWorkflowCLI(t, "alice")
 	var errOut bytes.Buffer
@@ -282,7 +282,7 @@ func TestPrepareRunRequiredTicketInput(t *testing.T) {
 	assert.Equal(t, "bd-1", res.Inputs["ticket"])
 }
 
-// B1: `oh run feature` without a request launches spec,
+// `oh run feature` without a request launches spec,
 // which asks for it at the start of the session: no missing-input error.
 func TestPrepareRunFeatureWithoutRequest(t *testing.T) {
 	setupWorkflowCLI(t, "alice")

@@ -143,7 +143,7 @@ func (e *tokenEnv) hub(t *testing.T) *config.Config {
 	return got
 }
 
-// Bug 4: the field showed openhub.tracker.gitlab.token as soon as the type of
+// The field showed openhub.tracker.gitlab.token as soon as the type of
 // the tracker was set, whatever was configured.
 func TestTeamDetailTokenFieldShowsWhatIsConfigured(t *testing.T) {
 	e := newTokenEnv(t, "gitlab")
@@ -174,7 +174,7 @@ func TestTeamDetailTokenFieldShowsWhatIsConfigured(t *testing.T) {
 	assert.Contains(t, e.field(t, "tracker_token").Source(), "équipe")
 }
 
-// Bug 4: the token ended under the key of the MCP of the hub, enabled
+// The token ended under the key of the MCP of the hub, enabled
 // mcp.gitlab, and never wrote tracker_token_key.
 func TestTeamDetailTokenSetupWritesTrackerTokenKey(t *testing.T) {
 	e := newTokenEnv(t, "gitlab")
@@ -280,7 +280,7 @@ func TestTeamDetailSharedTokenDeclaration(t *testing.T) {
 	assert.Empty(t, e.v.teamCfg.Tracker.TrackerTokenURL, "a server without a key means nothing")
 }
 
-// Reste de B2a: the lease and the heartbeat of the claims, with the rules of
+// The lease and the heartbeat of the claims, with the rules of
 // ClaimConfig.Validate.
 func TestTeamDetailClaimSettings(t *testing.T) {
 	e := newTokenEnv(t, "gitlab")
@@ -312,7 +312,7 @@ func TestTeamDetailClaimSettings(t *testing.T) {
 	require.NoError(t, e.saved.Claim.Validate())
 }
 
-// Point 3 of K2: the real GitLab of the team-state repository, local to the
+// The real GitLab of the team-state repository, local to the
 // member (an SSH alias is a name of ~/.ssh/config).
 func TestTeamDetailTeamGitLabURL(t *testing.T) {
 	e := newTokenEnv(t, "gitlab")
@@ -357,7 +357,7 @@ func TestTeamDetailDrawsTheTokenLines(t *testing.T) {
 	assert.Contains(t, strings.Join(lines, "\n"), "Durée du bail (heures)")
 }
 
-// v5.1: the lease of a claim taken by hand, the renewal ceilings of the
+// The lease of a claim taken by hand, the renewal ceilings of the
 // sleeping and remote sessions and the release of the expired claims by the
 // synchronization are set here too, with the rules of ClaimConfig.Validate.
 func TestTeamDetailClaimLeaseCeilings(t *testing.T) {

@@ -171,7 +171,7 @@ func TestJSONValidity(t *testing.T) {
 	}
 }
 
-// QB3: the V1 of the tool is no longer supported (D3): no message offers
+// The V1 of the tool is no longer supported: no message offers
 // it (tui.start.free_desc did). The messages explaining that V1 is refused
 // (cmd.v1.unsupported.*) are the exception.
 func TestNoMessageOffersV1(t *testing.T) {

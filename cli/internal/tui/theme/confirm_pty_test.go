@@ -32,7 +32,7 @@ func TestMain(m *testing.M) {
 }
 
 // Enter alone validates a confirmation (oh run --recap) under a
-// pseudo-terminal (v5 finalisation, Q3-8). At start-up, Bubble Tea makes
+// pseudo-terminal. At start-up, Bubble Tea makes
 // termenv query the terminal (background OSC 11, then the cursor position):
 // a terminal answers at once; a bare pseudo-terminal does not, and termenv
 // reads the keyboard for up to termenv.OSCTimeout (5 s), swallowing a key

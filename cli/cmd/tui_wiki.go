@@ -11,7 +11,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
-// Metrics of the project wiki in the TUI (modernisation LD-I).
+// Metrics of the project wiki in the TUI.
 
 func newProjectWikiView(a *app.App) *views.ProjectWikiView {
 	return views.NewProjectWikiView(views.ProjectWikiViewConfig{

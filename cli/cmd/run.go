@@ -71,7 +71,7 @@ func runWorkflowCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	// The tool first: no project question for a launch that cannot start.
-	if err := requireV2(ctx); err != nil {
+	if err := requireSupportedTool(ctx); err != nil {
 		return err
 	}
 	projectID, _ := cmd.Flags().GetString("project")

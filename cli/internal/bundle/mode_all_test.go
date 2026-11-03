@@ -22,7 +22,7 @@ func modesOf(t *testing.T, src string) map[string]string {
 	return out
 }
 
-// Bug 14: the reviewer launches reviewer sessions (standard+adversarial, all).
+// The reviewer launches reviewer sessions (standard+adversarial, all).
 func TestPrimaryAgentCallingItselfIsAll(t *testing.T) {
 	t.Parallel()
 	modes := modesOf(t, `apiVersion: oh/v1

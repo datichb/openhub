@@ -9,7 +9,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 )
 
-// Digest of a trace (R5, source `session.trace()` of a workflow input): a
+// Digest of a trace (source `session.trace()` of a workflow input): a
 // short text a later session (retro) reads instead of the whole trace —
 // the session (title, state, duration), its checkpoints and those asked
 // several times, refused decisions (with the user's instruction) and

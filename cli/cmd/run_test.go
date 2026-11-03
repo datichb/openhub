@@ -77,7 +77,7 @@ func TestRunOptionsDirtyFlags(t *testing.T) {
 	}
 }
 
-// A35: the recap shows the checkpoints in the session mode, the Beads
+// The recap shows the checkpoints in the session mode, the Beads
 // commands and Code Mode; the dirty choice is offered when a writer starts
 // in a modified directory.
 func TestRunRecapRows(t *testing.T) {
@@ -125,7 +125,7 @@ func TestRunRecapRows(t *testing.T) {
 	}
 }
 
-// Bug 16: the recap of a review of another branch says it runs in a
+// The recap of a review of another branch says it runs in a
 // temporary worktree of that branch, and where.
 func TestRunRecapTemporaryWorktreeOfAReview(t *testing.T) {
 	i18ntest.Set(t, "en")

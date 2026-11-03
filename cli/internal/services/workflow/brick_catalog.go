@@ -15,7 +15,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/teamstate"
 )
 
-// Brick catalogue (P3-T27, read-only view `project.agents`): the agents and
+// Brick catalogue (read-only view `project.agents`): the agents and
 // skills a session may receive, with their origin (hub or team catalogue),
 // their estimated cost and the workflows that use them. It replaces the
 // per-project agent selection of the former deployment.

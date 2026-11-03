@@ -79,7 +79,7 @@ func TestFormat(t *testing.T) {
 	assert.Equal(t, "· cancelled", FeedLine(domain.FeedItem{Kind: domain.FeedState, Status: "cancelled"}))
 }
 
-// A30: a permission settled in the tool interface is reported as such, not
+// A permission settled in the tool interface is reported as such, not
 // as "no decision of this kind".
 func TestPickReportsDecisionResolvedInTool(t *testing.T) {
 	svc, ctx := newTestService(t)

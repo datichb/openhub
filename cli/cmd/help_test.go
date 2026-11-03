@@ -10,7 +10,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 )
 
-// QB4: every help (command Short and Long, flag usage) is translated, in a
+// Every help (command Short and Long, flag usage) is translated, in a
 // single language per locale: it was half French (texts written in the
 // code), half English (i18n.T run before the locale was known).
 func TestEveryHelpIsTranslated(t *testing.T) {
@@ -51,7 +51,7 @@ func TestEveryHelpIsTranslated(t *testing.T) {
 	}
 }
 
-// QB4: oh --help lists every visible command, from the command tree (it
+// oh --help lists every visible command, from the command tree (it
 // named claim and release at top level, which do not exist, and missed
 // session, budget, daemon, remote, bundle build…), each in a section.
 func TestHelpSectionsCoverEveryCommand(t *testing.T) {
@@ -181,7 +181,7 @@ func TestHelpAllOption(t *testing.T) {
 	}
 }
 
-// QB4: the headings, the help flag and the flag defaults of a command help
+// The headings, the help flag and the flag defaults of a command help
 // are in the locale too (cobra writes them in English).
 func TestCommandHelpTemplateIsLocalized(t *testing.T) {
 	defer func() { i18n.SetLocale("en"); localizeCommands(rootCmd) }()
@@ -202,7 +202,7 @@ func TestCommandHelpTemplateIsLocalized(t *testing.T) {
 	}
 }
 
-// QB4: the command lines (Use) hold no French placeholder, and `oh config
+// The command lines (Use) hold no French placeholder, and `oh config
 // model` takes -p for --project like every other command (it was -j).
 func TestHelpUseLinesAndProjectShorthand(t *testing.T) {
 	french := []string{"valeur", "montant", "fichier", "clé", "fournisseur", "modèle", "consigne"}

@@ -124,7 +124,7 @@ func syncTrackerTUIError(err error) error {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Tracker Discovery Wizard (C6)
+// Tracker Discovery Wizard
 // ─────────────────────────────────────────────────────────────────────────────
 
 // actionTrackerDiscovery launches the 5-step tracker discovery wizard.

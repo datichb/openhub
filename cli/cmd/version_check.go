@@ -18,7 +18,7 @@ const (
 
 // compareOhVersion places current against latest (semver 2.0, `git describe`
 // builds newer than their tag): oh never offers an older version as an
-// update (A1).
+// update.
 func compareOhVersion(current, latest string) versionStatus {
 	if current == "" || current == "dev" {
 		return versionUnknown

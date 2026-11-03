@@ -256,7 +256,7 @@ created_at = "2026-07-01"
 	return teamState
 }
 
-// ─── PR7: Write handler tests ─────────────────────────────────────────────────
+// ─── Write handler tests ─────────────────────────────────────────────────
 
 func TestHandleTeamWikiWrite(t *testing.T) {
 	if testing.Short() {

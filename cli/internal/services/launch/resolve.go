@@ -23,7 +23,7 @@ func ResolveLaunch(ctx context.Context, d Deps, opts *Options) (res *workflowsvc
 		resolve = wsvc.ResolveDraft
 	}
 	progress := opts.Progress
-	// R5: an alias (`aliases:`) launches its target; `with` routes it by
+	// An alias (`aliases:`) launches its target; `with` routes it by
 	// the inputs given (feature --tickets → implement-spec).
 	asked := opts.Workflow
 	if target, ok := wsvc.ResolveAlias(ctx, workflowsvc.Context{ProjectID: opts.Project.ID}, opts.Workflow, func(input string) bool {
@@ -100,7 +100,7 @@ func AliasTicketInput(ctx context.Context, wsvc *workflowsvc.Service, projectID,
 
 // LaunchTickets puts the tickets of a launch in the ticket input: one
 // session per ticket (perSession) when the input allows several sessions
-// (an epic then stands for its open children, A24), else a list or a single
+// (an epic then stands for its open children), else a list or a single
 // ticket. opts.Tickets and opts.Epics receive the expanded tickets.
 func LaunchTickets(sp *workflow.Spec, opts *Options, inputs map[string]any, src workflowsvc.TicketSource) (ticketInput string, perSession []string, err error) {
 	ticketInput, multi := workflowsvc.TicketInput(sp)

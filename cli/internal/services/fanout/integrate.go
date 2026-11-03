@@ -13,7 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 )
 
-// Package fanout runs the fan-out of a session (R6, E3, experimental): the
+// Package fanout runs the fan-out of a session (experimental): the
 // driver launches the children, oh merges them into the integration branch
 // (merger on a conflict) and, once the merge checkpoint of the parent is
 // validated and verified, merges the integration branch into the branch

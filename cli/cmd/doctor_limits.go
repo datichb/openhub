@@ -11,7 +11,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/services/doctor"
 )
 
-// limitsDoctorChecks reports the hub session restrictions (I6) and the
+// limitsDoctorChecks reports the hub session restrictions and the
 // memory the session servers use, with an estimate per server for sizing
 // the memory cap.
 func limitsDoctorChecks(ctx context.Context) []doctor.Result {

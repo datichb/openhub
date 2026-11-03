@@ -46,7 +46,7 @@ func runMain(m *testing.M) int {
 	return finish(gittest.Main(m))
 }
 
-// QB6: git runs no background maintenance in the tests (temp dir cleanup).
+// Git runs no background maintenance in the tests (temp dir cleanup).
 func TestGitMaintenanceIsOffInTests(t *testing.T) {
 	t.Parallel()
 	out, err := exec.Command("git", "config", "--get", "maintenance.auto").Output()

@@ -52,9 +52,9 @@ func importsOf(prefixes ...string) func(string) bool {
 // storageRoot are the files of cmd that may open the database and build its
 // stores: they are the composition root of the command line.
 var storageRoot = map[string]bool{
-	"cmd/root.go":       true,
-	"cmd/startup.go":    true,
-	"cmd/v5_runtime.go": true,
+	"cmd/root.go":           true,
+	"cmd/startup.go":        true,
+	"cmd/service_wiring.go": true,
 }
 
 var layerRules = []layerRule{
@@ -107,7 +107,7 @@ var layerRules = []layerRule{
 	},
 	{
 		name:   "cmd opens the database only from its composition root",
-		advice: "a command receives the store (or the service built on it) from the app context set up by cmd/root.go, cmd/startup.go and cmd/v5_runtime.go; do not import internal/storage/sqlite in a new file of cmd",
+		advice: "a command receives the store (or the service built on it) from the app context set up by cmd/root.go, cmd/startup.go and cmd/service_wiring.go; do not import internal/storage/sqlite in a new file of cmd",
 		from: func(rel string) bool {
 			return strings.HasPrefix(rel, "cmd/") && strings.Count(rel, "/") == 1 && !storageRoot[rel]
 		},

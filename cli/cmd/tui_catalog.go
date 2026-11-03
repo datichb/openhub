@@ -16,7 +16,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
-// TUI wiring of the workflow catalogue (P1-T26, P2-T13): the WorkflowService
+// TUI wiring of the workflow catalogue: the WorkflowService
 // workspace (catalogue, drafts, integrity, queue) mapped to the view, pins in
 // the active context, editing actions calling the service.
 
@@ -40,7 +40,7 @@ func newWorkflowCatalogView(start *tuiStart) *views.WorkflowCatalogView {
 		History: func(e views.CatalogEntry) { openHistoryView(e.Ref) },
 		Archive: tuiArchiveWorkflow,
 		Discard: tuiDiscardDraft,
-		// Without a team-state: offer a solo space (P2-T16).
+		// Without a team-state: offer a solo space.
 		NoTeamState: func(done func()) { tuiCreateSoloSpace(done) },
 	})
 }

@@ -21,7 +21,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/workflow/hubcat"
 )
 
-// Team brick catalogue (P2-T07): agents and skills of the team-state
+// Team brick catalogue: agents and skills of the team-state
 // catalog/ folder, used by the workflows like the hub bricks.
 //
 //	catalog/agents/<family>/<id>.md     same format as the hub agents

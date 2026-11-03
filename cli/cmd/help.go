@@ -24,7 +24,7 @@ var (
 	helpDescStyle    = lipgloss.NewStyle()
 )
 
-// The overview of `oh --help` is built from the command tree (QB4: a
+// The overview of `oh --help` is built from the command tree (a
 // hand-written list named commands that no longer exist and missed new
 // ones). By default it is one line per top-level command (U-01: it ran to
 // 570 lines); `oh help --all` (or `oh --help --all`) shows every visible

@@ -10,7 +10,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
-// remoteLaunchRuntime is the ☁ option of the launch form (P5-T18): available
+// remoteLaunchRuntime is the ☁ option of the launch form: available
 // when the project has a remote target with a trigger token on the machine.
 // The workflow checks (checkpoints forbidden remotely in the chosen mode,
 // pushed branch) are made when launching.

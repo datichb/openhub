@@ -13,7 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/teamstate"
 )
 
-// v5.1: oh team activity draws each event with the symbol of glyph.Events and
+// oh team activity draws each event with the symbol of glyph.Events and
 // the phrase of Event.Describe, the same as the Activity view of the TUI.
 func TestTeamActivityUsesTheCommonEventTable(t *testing.T) {
 	i18ntest.Set(t, "fr")

@@ -1,5 +1,5 @@
-// Package remote is the service of the remote runtime (v5 phase 5): set up
-// and check the oh-runner project of a GitLab group (lot 5.0).
+// Package remote is the service of the remote runtime: set up
+// and check the oh-runner project of a GitLab group.
 package remote
 
 import (
@@ -51,7 +51,7 @@ type Service struct {
 	ToolName    string
 	ToolVersion string
 
-	// Sending (lot 5.A).
+	// Sending.
 	Sessions domain.SessionStore
 	Remote   domain.RemoteStore
 	Git      Git   // default GitCLI
@@ -62,7 +62,7 @@ type Service struct {
 	Now          func() time.Time
 	NewSessionID func() string
 
-	// Return (lot 5.C).
+	// Return.
 	SessionsDir string // ~/.oh/sessions: <id>/remote/ keeps the envelope and the artifacts
 	BundlesDir  string // ~/.oh/bundles
 	// Target returns the remote target named name (hub.toml).
@@ -81,7 +81,7 @@ type Service struct {
 	// imported).
 	Wiki *wiki.Service
 	// Verifications receives the verifications run by oh in the job
-	// (summary.json, R3-remote) at fetch time (nil: not imported).
+	// (summary.json) at fetch time (nil: not imported).
 	Verifications func(ctx context.Context, sessionID string, list []remote.SummaryVerification) (int, error)
 }
 

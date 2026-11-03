@@ -7,7 +7,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 )
 
-// fanoutEvents are the events of the fan-out of a parent session (R6): the
+// fanoutEvents are the events of the fan-out of a parent session: the
 // steps oh recorded and the checkpoints passed in each child, so that the
 // trace of the parent shows what its children did (traceability).
 func (s *Service) fanoutEvents(ctx context.Context, sess *domain.Session) []TraceEvent {

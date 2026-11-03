@@ -16,7 +16,7 @@ import (
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
 )
 
-// Fan-out in an evaluation pass (R6): the driver runs in the pass process
+// Fan-out in an evaluation pass: the driver runs in the pass process
 // (it holds the credential of the pass), the children get the token cap of
 // the pass, their decisions are answered like those of the parent, the
 // pass does not settle while they run, and their cost counts.

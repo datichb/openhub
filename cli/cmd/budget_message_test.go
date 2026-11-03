@@ -8,7 +8,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/limits"
 )
 
-// A28: `oh budget unset` (or a value of 0/off) says the restriction was
+// `oh budget unset` (or a value of 0/off) says the restriction was
 // removed, not "saved".
 func TestBudgetSavedMessage(t *testing.T) {
 	i18ntest.Set(t, "en")

@@ -11,7 +11,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
-// Order of the checkpoints and of the writes (r5-fixes, bundle/order.go).
+// Order of the checkpoints and of the writes (bundle/order.go).
 
 // ErrOutOfOrder refuses a checkpoint called before the one it waits for
 // (`after:`).
@@ -81,7 +81,7 @@ func (s *Service) EvaluateEdit(ctx context.Context, root, action string, resourc
 }
 
 // EvaluateWrites answers a shell permission request of a `writes:` agent
-// relayed by the oh plugin (p6-debts): the git add and git commit lines
+// relayed by the oh plugin: the git add and git commit lines
 // the rules cannot read (several declared paths, several -m) are read by
 // oh, allowed when every word is one of a declared path or a message,
 // refused otherwise with the reason. effect "" keeps the decision of the

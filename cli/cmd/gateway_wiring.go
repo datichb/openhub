@@ -1,0 +1,103 @@
+package cmd
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"net/http"
+
+	"github.com/datichb/openhub/cli/internal/bundle"
+	"github.com/datichb/openhub/cli/internal/daemon/api"
+	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/gateway"
+	"github.com/datichb/openhub/cli/internal/gateway/beadswire"
+	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/runsvc"
+	"github.com/datichb/openhub/cli/internal/runtime/container"
+	"github.com/datichb/openhub/cli/internal/sessionspec"
+)
+
+// gatewayGranter is the part of the daemon client issuing gateway tokens.
+type gatewayGranter interface {
+	IssueGatewayGrant(ctx context.Context, req api.GatewayGrantRequest) (api.GatewayGrantResponse, error)
+}
+
+// gatewaySessionEnv gives the local and container sessions their Beads
+// gateway token (local sessions too: the fake bd comes first on their
+// PATH, so beads.allow applies in every runtime). The token is minted at
+// each start and resume, never written by oh (the daemon keeps only its
+// hash).
+func gatewaySessionEnv(dc func(ctx context.Context) (gatewayGranter, error)) runsvc.SessionEnvFunc {
+	return func(ctx context.Context, r runsvc.SessionEnvRequest) (map[string]string, error) {
+		local := r.Runtime == "" || r.Runtime == sessionspec.RuntimeLocal
+		if !local && r.Runtime != sessionspec.RuntimeContainer {
+			return nil, nil
+		}
+		if local && r.GatewayURL == "" {
+			// Group started by an older oh (no gateway address saved): its
+			// sessions run the real bd until the server restarts.
+			return nil, nil
+		}
+		if r.GatewayURL == "" {
+			return nil, errors.New(i18n.T("cmd.v5_gateway.beads_gateway_the_server_group_has"))
+		}
+		c, err := dc(ctx)
+		if err != nil {
+			return nil, err
+		}
+		g, err := c.IssueGatewayGrant(ctx, api.GatewayGrantRequest{
+			SessionID: r.SessionID, GroupKey: r.GroupKey, ProjectID: r.ProjectID, WorkflowID: r.WorkflowID,
+			Location: r.Location, BeadsAllow: r.BeadsAllow, GatewayURL: r.GatewayURL,
+		})
+		var apiErr *api.APIError
+		if errors.As(err, &apiErr) && (apiErr.Status == http.StatusNotFound || apiErr.Status == http.StatusMethodNotAllowed) {
+			return nil, errors.New(i18n.T("cmd.gateway.beads.daemon_outdated"))
+		}
+		if err != nil {
+			return nil, fmt.Errorf(i18n.T("cmd.v5_gateway.beads_gateway"), err)
+		}
+		return map[string]string{beadswire.EnvURL: r.GatewayURL, beadswire.EnvToken: g.Token}, nil
+	}
+}
+
+// gatewayView tells the daemon how the runtime of a server group sees the
+// machine (container mounts saved at preparation).
+func gatewayView(servers domain.ServerStore) func(ctx context.Context, group string) (gateway.View, error) {
+	return func(ctx context.Context, group string) (gateway.View, error) {
+		srv, err := servers.Get(ctx, group)
+		if err != nil {
+			return gateway.View{}, err
+		}
+		if sessionspec.RuntimeKind(srv.Runtime) != sessionspec.RuntimeContainer {
+			return gateway.View{}, nil
+		}
+		spec, err := container.LoadSpec(srv.DataDir)
+		if err != nil {
+			return gateway.View{}, err
+		}
+		return gateway.View{Paths: spec.Paths, Locations: spec.Locations}, nil
+	}
+}
+
+// gatewayMCPCommand returns the machine command of an oh MCP server of a
+// server group, read from its immutable bundle. The running oh
+// executable replaces the one recorded in the bundle (it may have moved).
+func gatewayMCPCommand(bundlesDir string) func(ctx context.Context, srv domain.Server, name string) (gateway.MCPCommand, error) {
+	return func(_ context.Context, srv domain.Server, name string) (gateway.MCPCommand, error) {
+		b, err := bundle.Load(bundlesDir, srv.BundleHash)
+		if err != nil {
+			return gateway.MCPCommand{}, fmt.Errorf(i18n.T("cmd.v5_gateway.bundle_of"), srv.GroupKey, err)
+		}
+		return ohMCPCommand(b.Spec, srv, name)
+	}
+}
+
+func ohMCPCommand(spec sessionspec.BundleSpec, srv domain.Server, name string) (gateway.MCPCommand, error) {
+	for _, m := range spec.MCP {
+		if n, ok := sessionspec.OhMCPName(m); ok && m.Name == name && n != "" {
+			argv := append([]string{sessionspec.OhExecutable()}, m.Command[1:]...)
+			return gateway.MCPCommand{Argv: argv, Env: m.Environment, Dir: srv.WorkDir}, nil
+		}
+	}
+	return gateway.MCPCommand{}, fmt.Errorf(i18n.T("cmd.v5_gateway.no_oh_mcp_server_in_the"), name, srv.GroupKey)
+}

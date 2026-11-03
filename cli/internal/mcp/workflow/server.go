@@ -1,4 +1,4 @@
-// Package workflow is the oh MCP server `workflow` (P3-T01, 03 §10), run by
+// Package workflow is the oh MCP server `workflow`, run by
 // the tool for each session location (`oh mcp serve workflow`). Agents call
 // it at each checkpoint of their workflow:
 //
@@ -8,9 +8,9 @@
 //     before running it when the checkpoint pauses in this mode; once it
 //     runs, the checkpoint is validated and the answer carries the
 //     instruction given with the validation;
-//   - workflow_outputs     {type, value[, id]}: declares a typed output (O7);
+//   - workflow_outputs     {type, value[, id]}: declares a typed output;
 //   - workflow_report      {title, body}: files the whole report of the
-//     agent (L4); oh stores it as rp-<n>, the author being the agent oh
+//     agent; oh stores it as rp-<n>, the author being the agent oh
 //     sees; without the daemon the answer says it is not recorded and the
 //     agent keeps its whole report in its handoff block;
 //   - workflow_report_get  {id[, section]}: reads a report, or one section;
@@ -217,7 +217,7 @@ func (h handlers) checkpoint(ctx context.Context, params json.RawMessage) (*prot
 		b.WriteString(unlockedText(res.Unlocked, res.CommitNext))
 	}
 	if res.CommitNext != "" && !slices.Contains(res.Unlocked, sessionspec.UnlockCommit) {
-		// p5-fixes: an earlier commit checkpoint with nothing to commit.
+		// An earlier commit checkpoint with nothing to commit.
 		b.WriteString("\n")
 		b.WriteString(i18n.Tf("cmd.mcp.workflow.checkpoint_commit_nothing", res.CommitNext))
 	}

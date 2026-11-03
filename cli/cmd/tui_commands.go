@@ -297,7 +297,7 @@ func navigationCommands() []shell.Command {
 			Priority:    10,
 			Action: func() {
 				if tuiShell != nil {
-					tuiShell.RequestQuit() // through the v5 quit dialog (I7)
+					tuiShell.RequestQuit() // through the v5 quit dialog
 				}
 			},
 		},
@@ -595,7 +595,7 @@ func hubSetupCommands() []shell.Command {
 const workflowCommandPrefix = "run."
 
 // registerWorkflowCommands replaces the `run <workflow>` commands of the
-// omnibar by those of the catalogue (P1-T24). The terms of a command are
+// omnibar by those of the catalogue. The terms of a command are
 // the id of the workflow and its `aliases:` read in the YAML (resolved by
 // the workflow service); an alias routed `with` an input (feature with
 // tickets → implement-spec) gets its own command, which opens the form of

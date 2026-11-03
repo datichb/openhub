@@ -522,7 +522,7 @@ func (f *fakeInstaller) InstallLinux(_ context.Context, o adapters.LinuxInstall)
 	return adapters.LinuxInstalled{Version: o.Version, Binary: p}, os.WriteFile(p, []byte("#!/bin/sh\n"), 0o755)
 }
 
-// QB7 (D19): the tool is installed by its adapter (neutral installer), with
+// The tool is installed by its adapter (neutral installer), with
 // the version of remote.VarToolVersion.
 func TestInstallUsesTheAdapter(t *testing.T) {
 	root := t.TempDir()

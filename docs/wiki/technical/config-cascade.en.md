@@ -112,9 +112,9 @@ Without `tracker_token_url`, the server of the key is **implicit**: the `tracker
 
 **Never enforceable** — team recommends, member/project decides. The model is resolved when the session bundle is built (no more deployment).
 
-At launch (`cmd/v5_launch.go`), the hub and project levels are filled, then the `[models]` recommendations of the team-state `config.toml` (when the team is enabled and the repository cloned): all three levels of the cascade apply to v5 sessions.
+At launch (`cmd/run_request.go`), the hub and project levels are filled, then the `[models]` recommendations of the team-state `config.toml` (when the team is enabled and the repository cloned): all three levels of the cascade apply to v5 sessions.
 
-— `CONFIRMED` · developer · 2026-11-02 · bricks/model_resolve.go, cmd/v5_launch.go
+— `CONFIRMED` · developer · 2026-11-02 · bricks/model_resolve.go, cmd/run_request.go
 
 ### Workflows (layers, security can only be hardened)
 

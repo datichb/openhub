@@ -863,7 +863,7 @@ func (s slowStore) Get(ctx context.Context, id string) (*domain.Session, error) 
 }
 
 // A child seen running in a record read before its follower ended is not
-// followed (and merged) a second time (p8-fixes: TestDriverConflictResolvedByMerger,
+// followed (and merged) a second time (TestDriverConflictResolvedByMerger:
 // a merged child marked failed, « no commit on the branch of the child »).
 func TestDriverChildFollowedOnce(t *testing.T) {
 	t.Parallel()
@@ -967,7 +967,7 @@ func TestDriverRefusals(t *testing.T) {
 	assert.ErrorIs(t, f.driver.Run(context.Background(), "ses_parent"), ErrNotFanout)
 
 	// The parent ends its step before cp-plan: nothing launched, the
-	// fan-out waits for the daemon to start the driver again (p6-debts);
+	// fan-out waits for the daemon to start the driver again;
 	// stopped for good, the fan-out stops.
 	for state, want := range map[domain.RunState]domain.FanoutStatus{domain.RunCompleted: domain.FanoutWaiting, domain.RunStopped: domain.FanoutStopped} {
 		g := newFixture(t, "ev-1")

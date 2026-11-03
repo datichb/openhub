@@ -8,7 +8,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
-// L3: passing a checkpoint the workflow gives to another agent is warned,
+// Passing a checkpoint the workflow gives to another agent is warned,
 // never refused.
 func TestByWarning(t *testing.T) {
 	c := sessionspec.CheckpointDef{ID: "cp-2", By: []string{"orchestrator-dev"}}

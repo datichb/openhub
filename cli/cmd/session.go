@@ -88,7 +88,7 @@ var sessionAttachCmd = &cobra.Command{
 func ensureSessionAwake(ctx context.Context, cmd *cobra.Command, a *app.App, svc *runsvc.Service, id string) error {
 	if _, _, err := svc.AttachCommand(ctx, id); errors.Is(err, runsvc.ErrServerNotRunning) {
 		fmt.Fprintln(cmd.OutOrStdout(), i18n.T("cmd.session.resuming"))
-		return resumeV5Session(ctx, a, svc, id)
+		return resumeSession(ctx, a, svc, id)
 	} else if err != nil {
 		return err
 	}
@@ -127,7 +127,7 @@ type sessionJSON struct {
 	Decisions  []decisionJSON `json:"decisions"`
 	EndedAt    *time.Time     `json:"ended_at,omitempty"`
 	BundleHash string         `json:"bundle,omitempty"`
-	// R6: Fanout is the fan-out record (parent, child or merger).
+	// Fanout is the fan-out record (parent, child or merger).
 	Fanout *domain.SessionFanout `json:"fanout,omitempty"`
 }
 
@@ -230,10 +230,10 @@ func stateLabel(s domain.RunState) string {
 }
 
 func pairURL(ctx context.Context, url, password string) (string, error) {
-	if err := requireV2(ctx); err != nil {
+	if err := requireSupportedTool(ctx); err != nil {
 		return "", err
 	}
-	p, ok := v5Adapter.(adapters.Pairer)
+	p, ok := toolAdapter.(adapters.Pairer)
 	if !ok {
 		return "", errors.New(i18n.Tf("cmd.session.open.unsupported", toolName()))
 	}

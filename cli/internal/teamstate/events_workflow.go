@@ -1,6 +1,6 @@
 package teamstate
 
-// Workflow events (v5 phase 2), appended to the events of the scope's
+// Workflow events, appended to the events of the scope's
 // project, or of TeamEventsProject for team workflows.
 const (
 	EventWorkflowPublished = "workflow.published"

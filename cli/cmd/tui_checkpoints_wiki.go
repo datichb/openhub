@@ -7,7 +7,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
-// Wiki proposals on the checkpoint card (modernisation LD-J).
+// Wiki proposals on the checkpoint card.
 
 var _ views.CheckpointWikiDecider = (*tuiSessions)(nil)
 

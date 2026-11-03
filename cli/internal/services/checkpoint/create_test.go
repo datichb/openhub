@@ -10,7 +10,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
-// N9: creating tickets waits for the checkpoint that unlocks `create`; a
+// Creating tickets waits for the checkpoint that unlocks `create`; a
 // closed ticket does not lock it again, the next mandatory checkpoint does
 // (CP-R8).
 func TestGuardCreate(t *testing.T) {

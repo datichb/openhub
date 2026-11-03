@@ -111,6 +111,7 @@ Une touche a le même sens dans toutes les vues. Une vue peut donner une lettre 
 | Fiche de lancement (dossier modifié) | `w` → `t` worktree (`s` stash, `b` autoriser) |
 | Changer de vue | `Ctrl+T` : Hub → Projet → Équipe → Hub (il n'allait qu'entre le Hub et l'Équipe) |
 | Autres listes (modèles, policies, secrets, équipes…) | `a` → `n` créer |
+| Formulaires (choix multiple) | `x` → `Espace` cocher (`x` ne coche plus : c'est l'archivage des listes d'objets) |
 | Éditeur de colonnes du board | `a` → `n` ajouter · `r` → `o` changer le rôle · nouveau : `e` renommer, `d` demande confirmation (voir [l'éditeur](#éditeur-de-colonnes-du-board)) |
 
 ## Légende des symboles

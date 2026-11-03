@@ -150,7 +150,7 @@ func TestPlanAutoWorktreeWhenAnotherWriterIsActive(t *testing.T) {
 	assert.Equal(t, LocationBase, plan.Sessions[0].Location.Kind, "readers share the base")
 
 	_, err = f.svc.Plan(ctx, f.run("write", LocationChoice{Kind: LocationBase}))
-	assert.ErrorIs(t, err, ErrNoBranch, "O10 needs a branch")
+	assert.ErrorIs(t, err, ErrNoBranch, "a write workflow needs a branch")
 }
 
 func TestPlanReadingOrEndedSessionsDoNotHoldTheBase(t *testing.T) {

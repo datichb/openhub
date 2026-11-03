@@ -36,7 +36,7 @@ func screenText(t *testing.T, p tview.Primitive, w, h int) string {
 	return b.String()
 }
 
-// A33, BL-24: Ctrl+T goes to the next view (Hub → Project → Team → Hub): the
+// Ctrl+T goes to the next view (Hub → Project → Team → Hub): the
 // hints of the three landings say the same thing.
 func TestCtrlTHintsMatchTheMode(t *testing.T) {
 	next := "Ctrl+T " + i18n.T("tui.hints.next_view")
@@ -57,7 +57,7 @@ func TestCtrlTHintsMatchTheMode(t *testing.T) {
 	assert.Contains(t, screenText(t, content, 200, 60), "Ctrl+T "+i18n.T("tui.home.shortcut.next_view"))
 }
 
-// A33: the team entries are translated; the team mode entry of the catalogue
+// The team entries are translated; the team mode entry of the catalogue
 // says what it opens.
 func TestTeamEntriesTranslated(t *testing.T) {
 	prev := i18n.Locale()

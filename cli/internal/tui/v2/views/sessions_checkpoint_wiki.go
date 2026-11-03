@@ -13,8 +13,8 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 )
 
-// Wiki proposals on the card of the commit checkpoint (modernisation LD-J,
-// CP-R4, tui-wiki-bricks): the card lists the open proposals of the
+// Wiki proposals on the card of the commit checkpoint
+// (CP-R4): the card lists the open proposals of the
 // session; its button opens them all in a list (wiki_proposals.go) where
 // each one is accepted, modified, refused or left pending; oh applies the
 // accepted ones when the checkpoint is passed, before the commit. Proposal

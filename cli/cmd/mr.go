@@ -208,7 +208,7 @@ func publishReviewToTeamState(ctx context.Context, a *app.App, projectID, ticket
 		Branch:   branch,
 		MRURL:    mrURL,
 		// Label intentionally empty: agent-reviewed is now set by
-		// team_review_verdict when the actual review completes (R3 fix).
+		// team_review_verdict when the actual review completes.
 	})
 	if err != nil {
 		slog.Warn("teamstate.publish.batch_failed", "project", projectID, "ticket", ticket, "error", err)

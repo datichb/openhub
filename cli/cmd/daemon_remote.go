@@ -14,13 +14,13 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
-// Daemon hooks for work that is not a local server (lot R6).
+// Daemon hooks for work that is not a local server.
 
 // daemonTeardown removes the runtime environment of a server group stopped
 // by the daemon (container), like runsvc.Service.stopServer.
 func daemonTeardown(a *app.App) func(ctx context.Context, srv domain.Server) {
 	return func(ctx context.Context, srv domain.Server) {
-		rt := v5Runtimes(a)[sessionspec.RuntimeKind(srv.Runtime)]
+		rt := sessionRuntimes(a)[sessionspec.RuntimeKind(srv.Runtime)]
 		if rt == nil {
 			return
 		}
@@ -34,8 +34,8 @@ func daemonTeardown(a *app.App) func(ctx context.Context, srv domain.Server) {
 	}
 }
 
-// daemonRemoteTracking follows the remote sessions while oh is closed
-// (BL-17): pipeline status (and the « ready to fetch » notification) and
+// daemonRemoteTracking follows the remote sessions while oh is closed:
+// pipeline status (and the « ready to fetch » notification) and
 // the Beads leases of their tickets. Busy while a remote session runs.
 func daemonRemoteTracking(a *app.App) func(ctx context.Context) bool {
 	return func(ctx context.Context) bool {
