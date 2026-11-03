@@ -198,7 +198,7 @@ func validatorRange(v *FieldValidator) string {
 	if v.MaxInt != nil {
 		hi = fmt.Sprint(*v.MaxInt)
 	}
-	return lo + " – " + hi
+	return lo + " " + theme.IconRange + " " + hi
 }
 
 // fieldOfItem returns the config field referenced by a list item.

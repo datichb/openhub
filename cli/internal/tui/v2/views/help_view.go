@@ -66,7 +66,7 @@ func (v *HelpView) Mount(content *tview.Flex, app *tview.Application) {
 	r := theme.TagReset
 
 	var sb strings.Builder
-	fmt.Fprintf(&sb, "\n  [::b]%s%s\n\n", i18n.T("tui.help.title"), r)
+	fmt.Fprintf(&sb, "\n  %s%s%s\n\n", theme.StyleTag(theme.AttrBold), i18n.T("tui.help.title"), r)
 	fmt.Fprintf(&sb, "  %sOpenHub%s — %s\n\n", accent, c, i18n.T("tui.help.description"))
 	fmt.Fprintf(&sb, "  %s%s%s\n", accent, i18n.T("tui.help.shortcuts_title"), c)
 	fmt.Fprintf(&sb, "    Ctrl+P       %s\n", i18n.T("tui.help.shortcut_palette"))

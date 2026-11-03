@@ -92,6 +92,13 @@ const (
 	// column, a legend entry): the color is the meaning, the shape has none.
 	// It is not SymLive, which is a session running right now.
 	IconSwatch = "●"
+	// IconChoicePrev and IconChoiceNext frame the value of an inline select
+	// ("◂ Label ▸"): the arrows say "left" and "right", not "cursor".
+	IconChoicePrev = "◂"
+	IconChoiceNext = "▸"
+	// IconRange separates the bounds of a range of values ("1 – 10"); it is
+	// punctuation, not SymAbsent.
+	IconRange = "–"
 	// IconConnector is a step bar connector.
 	IconConnector = "───"
 	// IconGutter is the active item left gutter.

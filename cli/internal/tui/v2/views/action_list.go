@@ -597,7 +597,7 @@ func (l *ActionList) stateText(it ActionItem) string {
 	case ItemAccepted:
 		return theme.SymSuccess + " " + i18n.T("tui.actionlist.state.accepted")
 	case ItemRefused:
-		return "✗ " + i18n.T("tui.actionlist.state.refused")
+		return theme.SymFailure + " " + i18n.T("tui.actionlist.state.refused")
 	}
 	return string(it.State)
 }
@@ -750,7 +750,7 @@ func (l *ActionList) setMarker(row int) {
 	}
 	l.marked = -1
 	if row >= 0 && row < len(l.rows) && l.rowItem[row] >= 0 {
-		l.table.GetCell(row, 0).SetText("▸" + strings.TrimPrefix(l.rows[row], " "))
+		l.table.GetCell(row, 0).SetText(theme.SymCursor + strings.TrimPrefix(l.rows[row], " "))
 		l.marked = row
 	}
 }

@@ -10,8 +10,8 @@ import "github.com/gdamore/tcell/v2"
 
 // Focus markers drawn around the label of the focused button.
 const (
-	ButtonFocusLeft  = "▸ "
-	ButtonFocusRight = " ◂"
+	ButtonFocusLeft  = SymCursor + " "
+	ButtonFocusRight = " " + IconChoicePrev
 )
 
 // ButtonStyle is the style of a button at rest: neutral background, the

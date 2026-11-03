@@ -14,6 +14,12 @@ import (
 // InlineSelect — a FormItem that displays all options inline with ↑↓ navigation
 // ─────────────────────────────────────────────────────────────────────────────
 
+// The radio marks drawn cell by cell: the table of meanings of the theme.
+var (
+	radioOn  = []rune(theme.SymSelected)[0]
+	radioOff = []rune(theme.SymUnselected)[0]
+)
+
 // InlineSelect is a custom form item that shows all options as a vertical list
 // with radio-style indicators (◉/○). The user navigates with ↑↓ (moves the
 // cursor highlight) and confirms with Enter or Space (commits the selection).
@@ -307,9 +313,9 @@ func (s *InlineSelect) Draw(screen tcell.Screen) {
 		// Option label line — radio style (◉ selected, ○ unselected)
 		col := x + padLeft + 2 // indent
 		if isSelected {
-			screen.SetContent(col, y+row, '◉', nil, radioStyle)
+			screen.SetContent(col, y+row, radioOn, nil, radioStyle)
 		} else {
-			screen.SetContent(col, y+row, '○', nil, radioStyle)
+			screen.SetContent(col, y+row, radioOff, nil, radioStyle)
 		}
 		col++
 		screen.SetContent(col, y+row, ' ', nil, rowStyle)

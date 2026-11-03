@@ -59,9 +59,9 @@ func ButtonLabel(btn *tview.Button) string {
 func roleTag(role ButtonRole) string {
 	switch role {
 	case ButtonPrimary:
-		return "[" + theme.ActiveMode.AccentHex + "::b]"
+		return theme.ColorTag(theme.ActiveMode.AccentHex) + theme.StyleTag(theme.AttrBold)
 	case ButtonDanger:
-		return "[" + theme.ErrorHex + "::b]"
+		return theme.ColorTag(theme.ErrorHex) + theme.StyleTag(theme.AttrBold)
 	}
 	return ""
 }

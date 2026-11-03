@@ -385,7 +385,7 @@ func (v *ProjectsView) showDetail(p ProjectItem) {
 	}
 	label := func(s string) string { return theme.ColorTag(theme.TextSecondaryHex) + s + theme.TagColor }
 	var b strings.Builder
-	fmt.Fprintf(&b, "[::b]%s%s\n\n", p.Name, theme.TagReset)
+	fmt.Fprintf(&b, "%s%s%s\n\n", theme.StyleTag(theme.AttrBold), p.Name, theme.TagReset)
 	fmt.Fprintf(&b, "%s %s\n", label("ID :"), p.ID)
 	fmt.Fprintf(&b, "%s %s\n", label(i18n.T("tui.projects.label_path")), p.Path)
 	fmt.Fprintf(&b, "%s %s\n", label(i18n.T("tui.projects.label_language")), displayOrPlaceholder(p.Language, "-"))

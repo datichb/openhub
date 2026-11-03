@@ -68,7 +68,7 @@ func ValidationText(msg string, invalid bool) string {
 		return ""
 	}
 	if invalid {
-		return "  [" + theme.ErrorHex + "]✗ " + tview.Escape(msg) + "[-]"
+		return "  " + theme.Paint(theme.ErrorHex, theme.SymFailure+" "+tview.Escape(msg))
 	}
-	return "  [" + theme.WarningHex + "]⚠ " + tview.Escape(msg) + "[-]"
+	return "  " + theme.Paint(theme.WarningHex, theme.SymWarning+" "+tview.Escape(msg))
 }
