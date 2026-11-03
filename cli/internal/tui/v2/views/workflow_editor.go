@@ -342,9 +342,12 @@ func (v *WorkflowEditorView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	return event
 }
 
+// setSection shows a section: its tabs and body, and its keys on the hints
+// line (each section has its own).
 func (v *WorkflowEditorView) setSection(s int) {
 	v.section = s
 	v.render()
+	refreshHints(v.shell)
 }
 
 // close leaves the editor, asking first when there are unsaved changes.
