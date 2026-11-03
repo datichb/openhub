@@ -11,7 +11,7 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [5.1.1] — 2026-11-03
 
-Version corrective de la 5.1.0 : formule Homebrew, réservations d'un projet recréé, sortie d'oh sous Windows. Aucune rupture, aucune migration.
+Version corrective de la 5.1.0 : formule Homebrew ([installation](README.fr.md#installation)), réservations d'un projet recréé ([`oh doctor`](docs/reference/cli-infra.fr.md#oh-doctor)), sortie d'oh sous Windows. Aucune rupture, aucune migration.
 
 ### Fixed
 
