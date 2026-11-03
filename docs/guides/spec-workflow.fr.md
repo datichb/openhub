@@ -10,9 +10,9 @@ oh run spec -m "Limiter à 3 le nombre de réservations en cours par abonné"
 
 En bref :
 
-1. le planner explore le code et vous pose ses questions (une par décision) ;
-2. **`cp-understanding`** : vous validez sa reformulation et son vocabulaire (chaque mot de la demande en face des noms du code) ;
-3. il écrit la spec : objectif, périmètre, glossaire, critères d'acceptation avec leur point de test, découpage en tranches ;
+1. le planner explore le code, cherche ce qui pourrait casser (cas limites, données existantes, autres écrans, droits…) et vous pose ses questions : cinq bloquantes au plus (une par décision), puis, s'il en reste, quelques questions facultatives que vous pouvez ignorer ; une story déjà détaillée n'en demande souvent qu'un envoi, parfois aucun ;
+2. **`cp-understanding`** : vous cochez les hypothèses du planner que vous contestez, puis vous validez sa reformulation et son vocabulaire (chaque mot de la demande en face des noms du code). Valider sans rien cocher ni écrire ne tranche rien : les hypothèses restent des « hypothèses (non contestées) » dans la spec, pas des décisions ;
+3. il écrit la spec : objectif, périmètre, glossaire, critères d'acceptation avec leur point de test, risques et cas limites, découpage en tranches ;
 4. **`cp-converge`**, sans pause : oh vérifie la spec et renvoie au planner ce qui manque ;
 5. **`cp-spec`** : vous validez la spec, le planner la commite (ce fichier seul) ;
 6. **`cp-tickets`** : vous validez le découpage, le planner crée un ticket par tranche.
@@ -28,11 +28,16 @@ En semi-auto, trois pauses : la compréhension, la spec, le découpage.
 ## Critères d'acceptation
 - **CA-1** — un 4ᵉ prêt en cours est refusé avec un message clair · Test : `TestReserve_LimitReached`
 
+## Risques et cas limites
+- **R1** — un adhérent déjà à 3 prêts importés d'un ancien fichier · Impact : plafond contourné · Parade : CA-1
+
 ## Découpage
 - **T1** — plafond des prêts par adhérent · Couvre : CA-1 · Agent prévu : developer (backend)
 ```
 
 Chaque critère porte un identifiant (`CA-1`) et, sur sa ligne, le test qui le vérifiera (son nom, ou la commande). Chaque tranche cite les critères qu'elle couvre. C'est ce qu'oh vérifie à `cp-converge`, `cp-spec` et `cp-tickets` ([`verify.spec`](../reference/workflow-schema.fr.md#verify--vérification-lancée-par-oh)) : un critère sans point de test, un critère qu'aucune tranche ne couvre ou une tranche hors spec refusent le checkpoint, et le planner corrige avant que la spec vous soit montrée.
+
+La section « Risques et cas limites » (chaque entrée : le risque, son impact, la parade ou le critère qui le couvre ; « Aucun » avec sa raison) est vérifiée autrement : si elle manque ou reste vide sans raison, oh ne refuse pas la spec, il affiche un avertissement sur la carte du checkpoint et le conductor fait compléter la section. Pour une petite story, quelques lignes suffisent.
 
 ## Ce que le planner peut écrire
 

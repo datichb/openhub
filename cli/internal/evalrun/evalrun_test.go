@@ -287,7 +287,7 @@ func TestShippedCases(t *testing.T) {
 			assert.Equal(t, "accept", c.Answers.Wiki, "the proposals on the card are accepted")
 		}
 	}
-	assert.Equal(t, []string{"S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10", "S11", "S12", "S13", "S14", "S15", "S16", "S17", "S18", "S19", "S20", "S21", "S22", "S23", "S24", "S25", "S26", "S27", "S28", "S29", "S30", "S31", "S33", "S34", "S35", "S36", "S37", "S38", "S39", "S40", "S41", "S42", "S43", "S44", "S45", "S46", "S47", "S48", "S49", "S50", "S51", "S52", "S53", "S54", "S58", "S59", "S60", "S61", "S62", "S63", "S64", "S65", "S66", "S67", "S70", "S71", "S72", "S73", "S74", "S75", "S76", "S77"}, ids)
+	assert.Equal(t, []string{"S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10", "S11", "S12", "S13", "S14", "S15", "S16", "S17", "S18", "S19", "S20", "S21", "S22", "S23", "S24", "S25", "S26", "S27", "S28", "S29", "S30", "S31", "S33", "S34", "S35", "S36", "S37", "S38", "S39", "S40", "S41", "S42", "S43", "S44", "S45", "S46", "S47", "S48", "S49", "S50", "S51", "S52", "S53", "S54", "S58", "S59", "S60", "S61", "S62", "S63", "S64", "S65", "S66", "S67", "S70", "S71", "S72", "S73", "S74", "S75", "S76", "S77", "S78"}, ids)
 }
 
 func requireGit(t *testing.T) {
@@ -457,6 +457,7 @@ var notInBaseline = map[string]string{
 	"S75": "added by p7-leftovers (ticket: the developer subagent tries to commit before cp-2, refused by oh, no commit before the approval)",
 	"S76": "added by p7-leftovers (security-fix without a security audit: the quality audit is not taken, the session asks for the findings with question)",
 	"S77": "added by p7-leftovers (sweep-task by hand with its scope: a change outside the scope refused by oh at cp-commit, only the scope committed)",
+	"S78": "added by v5.2 spec-depth (spec: a question on an edge case of the ticket, a non-empty Risks and edge cases section in the spec written)",
 }
 
 // The reference measure kept in the repository (make test-eval

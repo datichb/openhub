@@ -10,9 +10,9 @@ oh run spec -m "Limit to 3 the current reservations per member"
 
 In short:
 
-1. the planner explores the code and asks you its questions (one per decision);
-2. **`cp-understanding`**: you approve its restatement and its vocabulary (each word of the request against the names of the code);
-3. it writes the spec: goal, scope, glossary, acceptance criteria with their test point, breakdown into slices;
+1. the planner explores the code, looks for what could break (edge cases, existing data, other screens, rights…) and asks you its questions: five blocking ones at most (one per decision), then, if some remain, a few optional questions you can ignore; an already detailed story often needs one round, sometimes none;
+2. **`cp-understanding`**: you tick the planner's assumptions you dispute, then approve its restatement and its vocabulary (each word of the request against the names of the code). Approving without ticking or writing anything settles nothing: the assumptions stay “assumption (undisputed)” in the spec, not decisions;
+3. it writes the spec: goal, scope, glossary, acceptance criteria with their test point, risks and edge cases, breakdown into slices;
 4. **`cp-converge`**, without a pause: oh checks the spec and sends what is missing back to the planner;
 5. **`cp-spec`**: you approve the spec, the planner commits it (that file alone);
 6. **`cp-tickets`**: you approve the breakdown, the planner creates one ticket per slice.
@@ -28,11 +28,16 @@ In semi-auto, three pauses: the understanding, the spec, the breakdown.
 ## Critères d'acceptation
 - **CA-1** — a 4th current loan is refused with a clear message · Test : `TestReserve_LimitReached`
 
+## Risques et cas limites
+- **R1** — a member already at 3 loans imported from an old file · Impact: cap bypassed · Parade : CA-1
+
 ## Découpage
 - **T1** — cap of the loans per member · Couvre : CA-1 · Agent prévu : developer (backend)
 ```
 
-Each criterion carries an id (`CA-1`) and, on its line, the test that will check it (its name, or the command). Each slice cites the criteria it covers. This is what oh checks at `cp-converge`, `cp-spec` and `cp-tickets` ([`verify.spec`](../reference/workflow-schema.en.md#verify--verification-run-by-oh)): a criterion without a test point, a criterion no slice covers or a slice outside the spec refuse the checkpoint, and the planner fixes it before the spec is shown to you. Headings in English (`Glossary`, `Acceptance criteria`, `Breakdown`) are read too.
+Each criterion carries an id (`CA-1`) and, on its line, the test that will check it (its name, or the command). Each slice cites the criteria it covers. This is what oh checks at `cp-converge`, `cp-spec` and `cp-tickets` ([`verify.spec`](../reference/workflow-schema.en.md#verify--verification-run-by-oh)): a criterion without a test point, a criterion no slice covers or a slice outside the spec refuse the checkpoint, and the planner fixes it before the spec is shown to you.
+
+The “Risks and edge cases” section (each entry: the risk, its impact, the mitigation or the criterion that covers it; “None” with its reason) is checked differently: when it is missing or empty without a reason, oh does not refuse the spec, it shows a warning on the card of the checkpoint and the conductor has the section completed. For a small story, a few lines are enough. Headings in English (`Glossary`, `Acceptance criteria`, `Breakdown`) are read too.
 
 ## What the planner may write
 

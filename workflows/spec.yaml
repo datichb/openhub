@@ -54,8 +54,8 @@ checkpoints:
     by: [conductor]
     label: { fr: Valider la compréhension, en: Approve the understanding }
     description:
-      fr: Présenter la reformulation de la demande par le planner, son vocabulaire et les réponses aux questions, avant l'écriture de la spec.
-      en: Present the planner's restatement of the request, its vocabulary and the answers to the questions, before the spec is written.
+      fr: Présenter la reformulation de la demande par le planner, son vocabulaire, les réponses aux questions et ses hypothèses (l'utilisateur coche celles qu'il conteste), avant l'écriture de la spec.
+      en: Present the planner's restatement of the request, its vocabulary, the answers to the questions and its assumptions (the user ticks those he disputes), before the spec is written.
     mode: { manuel: pause, semi-auto: pause, auto: auto }
   cp-converge:
     by: [conductor]
@@ -73,8 +73,8 @@ checkpoints:
     after: cp-converge
     label: { fr: Valider la spec, en: Approve the spec }
     description:
-      fr: oh vérifie la spec écrite sous docs/wiki/specs/ (glossaire, chaque critère avec son point de test, découpage qui les couvre) ; une fois validée, le planner la commite.
-      en: oh checks the spec written under docs/wiki/specs/ (glossary, each criterion with its test point, a breakdown that covers them); once approved, the planner commits it.
+      fr: oh vérifie la spec écrite sous docs/wiki/specs/ (glossaire, chaque critère avec son point de test, découpage qui les couvre ; avertissement si la section « Risques et cas limites » manque) ; une fois validée, le planner la commite.
+      en: oh checks the spec written under docs/wiki/specs/ (glossary, each criterion with its test point, a breakdown that covers them; a warning when the “Risks and edge cases” section is missing); once approved, the planner commits it.
     mandatory: true
     mode: { manuel: pause, semi-auto: pause, auto: pause }
     unlocks: [commit]

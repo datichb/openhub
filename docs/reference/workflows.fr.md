@@ -155,15 +155,15 @@ Comprend une demande, écrit sa spec dans `docs/wiki/` (documentation versionné
 
 | Checkpoint | manuel | semi-auto | auto |
 |---|---|---|---|
-| `cp-understanding` Valider la compréhension (reformulation, vocabulaire, réponses aux questions) | pause | pause | auto |
+| `cp-understanding` Valider la compréhension (reformulation, vocabulaire, réponses aux questions, hypothèses cochées si contestées) | pause | pause | auto |
 | `cp-converge` Convergence de la spec et du découpage (vérifié par oh) | auto | auto | auto |
 | `cp-spec` Valider la spec (obligatoire, vérifié par oh, déverrouille `commit`) | pause | pause | pause |
 | `cp-tickets` Valider le découpage (obligatoire, vérifié par oh, déverrouille `create`) | pause | pause | pause |
 
 Déroulé :
 
-1. **Entretien** : le planner explore le code et charge `grilling` ; ses questions bloquantes (une par décision) sont posées par le `conductor`. Il rend sa reformulation et le vocabulaire (chaque mot de la demande en face des noms du code), présentés à `cp-understanding`.
-2. **Spec** : une fois `cp-understanding` passé (avant, oh refuse l'écriture de la spec et dit au planner d'attendre ce checkpoint), le planner écrit `docs/wiki/specs/<slug>.md` : objectif, périmètre, **glossaire**, **critères d'acceptation** (`CA-n`, chacun avec son point de test sur sa ligne : `· Test : TestPercent_ZeroTotal`), décisions et **découpage** en tranches verticales (`Couvre : CA-…`). Le format est dans le prompt du planner (section « Spec écrite »), pas dans une skill à charger.
+1. **Entretien** : le planner explore le code et charge `grilling` puis `risk-review` (l'avocat du diable : cas limites et risques) ; ses questions bloquantes (cinq au plus, une par décision) sont posées par le `conductor`, puis ses questions facultatives (un seul second envoi, que l'utilisateur peut ignorer). Il rend sa reformulation, le vocabulaire (chaque mot de la demande en face des noms du code) et ses hypothèses ; le conductor les présente à `cp-understanding` avec une case à cocher par hypothèse contestée, et transmet au planner ce que l'utilisateur a coché ou écrit (une validation sans commentaire ne tranche aucune hypothèse).
+2. **Spec** : une fois `cp-understanding` passé (avant, oh refuse l'écriture de la spec et dit au planner d'attendre ce checkpoint), le planner écrit `docs/wiki/specs/<slug>.md` : objectif, périmètre, **glossaire**, **critères d'acceptation** (`CA-n`, chacun avec son point de test sur sa ligne : `· Test : TestPercent_ZeroTotal`), risques et cas limites (section obligatoire ; son absence vaut un avertissement d'oh, pas un refus), décisions et hypothèses et **découpage** en tranches verticales (`Couvre : CA-…`). Le format est dans le prompt du planner (section « Spec écrite »), pas dans une skill à charger.
 3. **Passe de convergence** (`cp-converge`, sans pause) : oh lit la spec et vérifie le glossaire, le point de test de chaque critère, que chaque critère est couvert par une tranche et qu'aucune tranche n'est hors spec. Un écart refuse le checkpoint avec la liste des problèmes : le planner corrige (ou pose une question si l'écart demande une décision), puis le checkpoint est redemandé.
 4. **`cp-spec`** : l'utilisateur valide la spec (même vérification) ; le planner la commite avec sa ligne dans `docs/wiki/index.md` (s'il existe) : `git add docs/wiki/specs/<slug>.md docs/wiki/index.md`, puis `git commit -m "docs(spec): <slug>" -- docs/wiki/specs/<slug>.md docs/wiki/index.md`.
 5. **`cp-tickets`** : l'utilisateur valide le découpage ; le planner crée un ticket par tranche, dont la description cite la spec et ses critères. Une spec ou un découpage modifiés à un checkpoint repassent par `cp-converge`, `cp-spec` (nouveau commit) et `cp-tickets`.

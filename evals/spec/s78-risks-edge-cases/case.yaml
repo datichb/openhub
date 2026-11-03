@@ -1,0 +1,55 @@
+id: S78
+title: "Spec : un ticket dont la valeur dépend d'un champ modifiable dans le même formulaire fait poser une question sur le cas limite, et la spec écrite porte une section Risques et cas limites non vide"
+workflow: spec
+mode: semi-auto
+# Le démon ne garde aucun rapport : le planner rend son retour complet.
+reports: off
+text: |
+  Dans l'écran « Détails d'une opération », afficher en lecture seule le « Nombre de lits » (NombreDeLits) de l'opération, uniquement quand sa catégorie est « LOGEMENT FOYER ». Valeur absente : afficher « 0 ». Les valeurs viennent de l'import des directions, aucune saisie.
+beads:
+  prefix: ev
+timeout: 30m
+answers:
+  question: first
+  max_decisions: 60
+  checkpoints:
+    # La création des tickets n'est pas évaluée ici.
+    cp-tickets: "reject: Évaluation terminée : ne crée aucun ticket et termine le workflow."
+    "*": approve
+# v5.2 (spec plus exigeante) : la demande a l'air simple, le code cache les cas
+# limites d'une vraie story. La catégorie se modifie dans le même formulaire
+# (Formulaire.Categorie) avant l'enregistrement : « uniquement pour un foyer »
+# vaut-il pour la valeur enregistrée ou pour celle du formulaire ? Le DTO
+# (VersDTO) ne porte pas NombreDeLits, qui est une chaîne importée telle
+# qu'écrite (vide, « n/c »). Les fixtures des tests écrivent « FOYER
+# LOGEMENT », pas la constante CategorieFoyer. Le formulaire est partagé avec
+# la saisie d'une entrée hors inventaire (RendreEntree), Modifie compare
+# chaque champ du formulaire au DTO, l'export CSV relit les mêmes champs.
+# Le cas attend au moins une question sur l'un de ces cas limites (question
+# bloquante, hypothèse à cocher ou question facultative montrées par le
+# conductor) et, dans la spec écrite, une section Risques et cas limites qui
+# a du contenu.
+assertions:
+  - type: file_matches
+    name: la spec porte une section Risques et cas limites non vide
+    paths: ["docs/wiki/specs/**"]
+    pattern: "(?m)^#{2,4}[^\\n]*(risques?|risks?|cas limites|edge cases)[^\\n]*\\n(?:[ \\t]*\\n)*[ \\t]*(?:[-*+]|[0-9]+[.)]|\\|)[^\\n]{30,}"
+  - type: file_matches
+    name: la section Risques nomme un cas limite du code (catégorie modifiée avant l'enregistrement, valeur vide ou non numérique, formulaire partagé, fixtures)
+    paths: ["docs/wiki/specs/**"]
+    pattern: "(?s)\\n#{2,4}[^\\n]*(risques?|risks?|cas limites|edge cases)[^\\n]*\\n.*(cat[ée]gorie[^\\n]*(modifi|chang|s[ée]lect|enregistr|sauvegard)|(vide|absent|n/?c|non num[ée]rique)|partag[ée]|RendreEntree|fixtures?|Modifie)"
+  - type: text_matches
+    name: au moins une question porte sur un cas limite du ticket
+    agent: conductor
+    questions: true
+    pattern: "(cat[ée]gorie[^?]{0,200}(modifi|chang|s[ée]lect|enregistr|sauvegard|en direct)|(modifi|chang|s[ée]lect)[^?]{0,100}cat[ée]gorie|(vide|absent|nul|non num[ée]rique|n/?c)[^?]{0,150}(lits|logements|affich)|fixtures?[^?]{0,150}(FOYER LOGEMENT|LOGEMENT FOYER|cat[ée]gorie)|(partag|r[ée]utilis|autre[s]? [ée]cran|entr[ée]e hors)[^?]{0,150}(formulaire|[ée]cran))[^?]{0,200}\\?"
+  - type: checkpoint_order
+    order: [cp-understanding, cp-converge, cp-spec, cp-tickets]
+  - type: no_question_in_subagent
+    agents: [planner, designer]
+  - type: changed_within
+    name: seule la spec est écrite
+    paths: ["docs/wiki/specs/**"]
+    min_files: 1
+    max_files: 1
+  - type: no_denied_loop

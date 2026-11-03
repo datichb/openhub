@@ -350,6 +350,7 @@
         "planner-phase-3-4",
         "planner-phase-5-6",
         "research",
+        "risk-review",
         "triage"
       ]
     }
@@ -368,6 +369,7 @@
     "planner-phase-3-4",
     "planner-phase-5-6",
     "research",
+    "risk-review",
     "triage"
   ],
   "subagent_graph": {},

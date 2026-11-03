@@ -2382,7 +2382,8 @@
         "planner-phase-2-5",
         "planner-phase-3-4",
         "planner-phase-5-6",
-        "research"
+        "research",
+        "risk-review"
       ]
     },
     {
@@ -3604,6 +3605,7 @@
     "reviewer-adversarial",
     "reviewer-edge-case",
     "reviewer-reception",
+    "risk-review",
     "skill-authoring-protocol",
     "test-generation",
     "tui-patterns",

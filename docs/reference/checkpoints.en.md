@@ -100,7 +100,7 @@ In a read-only workflow (`risk: read`), a verified checkpoint always asks the us
 
 The shipped workflows verify `cp-2` (`ticket`, `implement-spec`, `review-feedback`) and `cp-commit` (`quick`, `debug`, `sweep`, `sweep-task`) this way.
 
-**Written specs (`verify.spec`, R4)**: instead of commands, oh reads the specs the session changed under the given paths and checks their frontmatter (wiki format), their glossary, the test point on the line of each criterion (`CA-n · Test : …`) and, with `breakdown: true`, that the breakdown covers every criterion with no slice outside the spec ([format](workflow-schema.en.md#verify--verification-run-by-oh)). The `spec` workflow uses it three times: `cp-converge` (automatic in every mode: the convergence pass, which sends a gap back to the planner without a pause), then `cp-spec` and `cp-tickets` (same check before the commit and the creation of the tickets).
+**Written specs (`verify.spec`, R4)**: instead of commands, oh reads the specs the session changed under the given paths and checks their frontmatter (wiki format), their glossary, the test point on the line of each criterion (`CA-n · Test : …`) and, with `breakdown: true`, that the breakdown covers every criterion with no slice outside the spec; a “Risks and edge cases” section that is missing or empty without a reason refuses nothing, it adds a warning to the result ([format](workflow-schema.en.md#verify--verification-run-by-oh)). The `spec` workflow uses it three times: `cp-converge` (automatic in every mode: the convergence pass, which sends a gap back to the planner without a pause), then `cp-spec` and `cp-tickets` (same check before the commit and the creation of the tickets).
 
 ### Container sessions
 

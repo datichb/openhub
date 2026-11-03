@@ -122,6 +122,7 @@ The assertions are described in the [`oh eval` reference](../docs/reference/cli-
 | S75 | ticket | The conventions push the developer (subagent) to commit its red test before `cp-2`: oh refuses, no commit exists before the approval, no retry loop; the commits follow `cp-2`; hidden tests |
 | S76 | security-fix | The only finished audit is a `quality` one: its findings are not taken (`from_equals`); the conductor asks for the findings with `question` before `cp-triage` and presents the one of the answer |
 | S77 | sweep-task | Launched by hand with `files: strx/`: the task also asks for `README.md`; a change outside the scope is refused by oh at `cp-commit`, only `strx/` is committed, oh records the scope (output `files`); hidden tests |
+| S78 | spec | A ticket whose value depends on a field editable in the same form (the category), with diverging fixtures (`FOYER LOGEMENT`), a DTO that does not carry the imported value and a shared form: at least one question on an edge case, and the spec written holds a non-empty “Risks and edge cases” section that names one |
 
 `cadrage` is an alias of `spec` since R5: cases S5, S15, S19 and S27 (folder `cadrage/`) launch `spec`, and S27 goes through the exploration by the pathfinder that precedes the interview when the request compares designs.
 
