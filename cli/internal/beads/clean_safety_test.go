@@ -9,7 +9,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 )
 
-// N17 / F-01: the commit of bd init and the files of the user are only
+// F-01: the commit of bd init and the files of the user are only
 // changed when it is safe and asked for.
 
 type gitRepo struct {
@@ -193,7 +193,7 @@ func countLines(content, line string) int {
 	return n
 }
 
-// Q31: the lock bd 1.3 leaves at the root of the project is excluded with
+// The lock bd 1.3 leaves at the root of the project is excluded with
 // .beads/, once, also in a project initialized before bd 1.3.
 func TestExcludeAddsGateLock(t *testing.T) {
 	r := gitRepo{t, t.TempDir()}

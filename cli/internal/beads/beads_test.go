@@ -544,7 +544,7 @@ bd hook post-checkout
 	assert.True(t, kinds["exclude_lock_missing"], "should detect missing gate lock exclude")
 }
 
-// Q31: a project excluding .beads/ but not the lock bd 1.3 leaves beside it.
+// A project excluding .beads/ but not the lock bd 1.3 leaves beside it.
 func TestDiagnoseBeadsImpact_GateLockMissing(t *testing.T) {
 	dir := gittest.Repo(t)
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".beads"), 0o755))

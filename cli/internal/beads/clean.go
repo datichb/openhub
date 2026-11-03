@@ -13,7 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/gitutil"
 )
 
-// Zero impact (A5): what `bd init` writes in a project besides .beads/ —
+// Zero impact: what `bd init` writes in a project besides .beads/ —
 // agent instruction files (AGENTS.md, CLAUDE.md), the folders of other AI
 // tools (.claude/, .codex/, .cursor/, .agents/), a .gitignore block — is
 // taken back out by CleanImpact. Only what bd wrote is removed: the blocks
@@ -33,8 +33,8 @@ type CleanOptions struct {
 	Tracked bool
 	// UndoCommit undoes the commit of `bd init` (HEAD, absent from every
 	// remote branch once the remotes are fetched). Only once the user saw
-	// it in the plan and confirmed in a terminal, or with an explicit --yes
-	// (N17): otherwise the commit is reported (CleanCommitKept).
+	// it in the plan and confirmed in a terminal, or with an explicit --yes:
+	// otherwise the commit is reported (CleanCommitKept).
 	UndoCommit bool
 	// KeepUntracked leaves the untracked settings files of other tools
 	// (.claude/settings.json…) untouched, reported as CleanAsk: they may be

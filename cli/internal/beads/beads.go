@@ -216,7 +216,7 @@ func Init(projectPath, prefix string) error {
 
 	// Belt & suspenders: bd's sections of .git/hooks, in case the flags
 	// were ignored. The project files are cleaned by the caller, after the
-	// user saw the changes (N17).
+	// user saw the changes.
 	sanitizeHooks(projectPath)
 
 	// Register default labels used by the hub agents

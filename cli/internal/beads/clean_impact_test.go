@@ -24,7 +24,7 @@ func writeProject(t *testing.T, dir string, files map[string]string) {
 	}
 }
 
-// A5 follow-up: the files of a `bd init` without --skip-agents (bd 1.3) are
+// The files of a `bd init` without --skip-agents (bd 1.3) are
 // reported, CLAUDE.md and .cursor/ included; a user's own tool folder is not.
 func TestDiagnoseBeadsImpactBd13AgentFiles(t *testing.T) {
 	dir := t.TempDir()
@@ -181,7 +181,7 @@ func TestCleanImpactUndoesBdInitCommit(t *testing.T) {
 		t.Fatal(err)
 	}
 	if gittest.Run(t, dir, "log", "-1", "--format=%s") != bdInitCommitSubject {
-		t.Fatalf("commit undone without UndoCommit (N17): %+v", report)
+		t.Fatalf("commit undone without UndoCommit: %+v", report)
 	}
 	report, err = CleanImpact(dir, CleanOptions{UndoCommit: true})
 	if err != nil {
