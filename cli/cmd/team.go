@@ -253,7 +253,6 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 	// ── Build shared team step state ──
 	tss := &teamStepState{
 		Ctx:                ctx,
-		Repo:               repo,
 		HasConfig:          hasConfig,
 		HasPolicies:        hasPolicies,
 		ExistingCfg:        existingCfg,
@@ -268,6 +267,9 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 		WebhookURL:         webhookURL,
 		Channel:            channel,
 		BotName:            botName,
+	}
+	if repo != nil { // a nil *Repo in the interface would not be nil
+		tss.Repo = repo
 	}
 	// ── Step 0: Repo team-state ──
 	repoStep := views.WizardStep{

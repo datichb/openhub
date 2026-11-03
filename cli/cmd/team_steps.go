@@ -18,6 +18,20 @@ import (
 // Shared team step builders (used by team.go CLI wizard and tui_team_actions.go TUI wizard)
 // ─────────────────────────────────────────────────────────────────────────────
 
+// teamStepStore is what the steps of the team wizard ask of the team-state:
+// the configuration, the members, the policies and a commit of their own.
+type teamStepStore interface {
+	teamstate.RepoInfo
+	teamstate.RepoSync
+	teamstate.ConfigReader
+	teamstate.ConfigWriter
+	teamstate.MemberReader
+	teamstate.MemberWriter
+	teamstate.MemberPatcher
+	teamstate.PolicyReader
+	teamstate.PolicyWriter
+}
+
 // teamStepState holds mutable state shared across the 4 team config wizard steps.
 // Callers populate input fields before step construction; the builders mutate
 // them via closures. Post-wizard code can read the final state from the struct.
@@ -26,7 +40,7 @@ type teamStepState struct {
 	Ctx context.Context
 
 	// Repo reference (may be nil initially; assigned by step 0)
-	Repo *teamstate.Repo
+	Repo teamStepStore
 
 	// Pre-loaded state
 	HasConfig   bool
@@ -57,7 +71,7 @@ type teamStepState struct {
 // useRepo points the steps at a team-state that is available only now (the
 // clone of step 0) and pre-fills them from what it already holds: the config,
 // the policies and the profile of the member.
-func (s *teamStepState) useRepo(repo *teamstate.Repo) {
+func (s *teamStepState) useRepo(repo teamStepStore) {
 	s.Repo = repo
 	s.HasConfig = repo.HasConfig()
 	s.HasPolicies = repo.HasPolicies()

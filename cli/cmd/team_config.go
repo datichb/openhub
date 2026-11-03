@@ -117,7 +117,7 @@ func runTeamConfigWizard(cmd *cobra.Command, _ []string) error {
 // Service configuration helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-func configureGitLab(ctx context.Context, a *app.App, repo *teamstate.Repo, teamCfg *teamstate.TeamConfig, configTeam, configLocal bool) error {
+func configureGitLab(ctx context.Context, a *app.App, repo teamstate.ConfigWriter, teamCfg *teamstate.TeamConfig, configTeam, configLocal bool) error {
 	out := a.IO.Out
 
 	fmt.Fprint(out, i18n.Tf("cmd.team_config.gitlab_configuration", theme.Title.Render(glyph.Current)))
@@ -188,7 +188,7 @@ func configureGitLab(ctx context.Context, a *app.App, repo *teamstate.Repo, team
 	return nil
 }
 
-func configureJira(ctx context.Context, a *app.App, repo *teamstate.Repo, teamCfg *teamstate.TeamConfig, configTeam, configLocal bool) error {
+func configureJira(ctx context.Context, a *app.App, repo teamstate.ConfigWriter, teamCfg *teamstate.TeamConfig, configTeam, configLocal bool) error {
 	out := a.IO.Out
 
 	fmt.Fprint(out, i18n.Tf("cmd.team_config.jira_configuration", theme.Title.Render(glyph.Current)))
@@ -233,7 +233,7 @@ func configureJira(ctx context.Context, a *app.App, repo *teamstate.Repo, teamCf
 	return nil
 }
 
-func configureFigma(ctx context.Context, a *app.App, repo *teamstate.Repo, teamCfg *teamstate.TeamConfig, configTeam, configLocal bool) error {
+func configureFigma(ctx context.Context, a *app.App, repo teamstate.ConfigWriter, teamCfg *teamstate.TeamConfig, configTeam, configLocal bool) error {
 	out := a.IO.Out
 
 	fmt.Fprint(out, i18n.Tf("cmd.team_config.figma_configuration", theme.Title.Render(glyph.Current)))
@@ -270,7 +270,7 @@ func configureFigma(ctx context.Context, a *app.App, repo *teamstate.Repo, teamC
 	return nil
 }
 
-func configureTrackerSync(ctx context.Context, a *app.App, repo *teamstate.Repo, teamCfg *teamstate.TeamConfig, configTeam, configLocal bool) error {
+func configureTrackerSync(ctx context.Context, a *app.App, repo teamstate.ConfigWriter, teamCfg *teamstate.TeamConfig, configTeam, configLocal bool) error {
 	out := a.IO.Out
 
 	fmt.Fprint(out, i18n.Tf("cmd.team_config.tracker_sync_configuration", theme.Title.Render(glyph.Current)))
@@ -552,7 +552,7 @@ func runTeamConfigStatus(cmd *cobra.Command, _ []string) error {
 
 	// Load team-state config (optional — degrades gracefully if not configured).
 	var teamCfg *teamstate.TeamConfig
-	var repo *teamstate.Repo
+	var repo mcpTrackerStore
 	if tc.Enabled && tc.StatePath != "" {
 		repo = teamstate.NewRepo(tc.StateRepo, tc.StatePath)
 		if repo.IsCloned() {
@@ -793,10 +793,25 @@ func testAndDisplayConnection(ctx context.Context, out interface{ Write([]byte) 
 // Orphan member detection + cleanup
 // ─────────────────────────────────────────────────────────────────────────────
 
+// memberRegistry is what cleaning the orphan members asks of the team-state:
+// the members to list, remove and merge.
+type memberRegistry interface {
+	teamstate.MemberReader
+	teamstate.MemberWriter
+}
+
+// mcpTrackerStore is what the configuration of the MCP and tracker asks of
+// the team-state: its configuration and its members.
+type mcpTrackerStore interface {
+	teamstate.RepoInfo
+	teamstate.ConfigReader
+	memberRegistry
+}
+
 // checkAndCleanOrphanMembers detects members in members.toml that are not
 // referenced as member_id in any active configuration (hub or project), displays
 // an insight for each, and offers to delete or merge them interactively.
-func checkAndCleanOrphanMembers(ctx context.Context, a *app.App, out interface{ Write([]byte) (int, error) }, repo *teamstate.Repo) {
+func checkAndCleanOrphanMembers(ctx context.Context, a *app.App, out interface{ Write([]byte) (int, error) }, repo memberRegistry) {
 	members, err := repo.ListMembers(ctx)
 	if err != nil || len(members) == 0 {
 		return
@@ -850,7 +865,7 @@ func checkAndCleanOrphanMembers(ctx context.Context, a *app.App, out interface{ 
 // mergeOrphanMember guides the user through merging an orphan member into an
 // active member. Non-empty fields of the orphan are offered to fill gaps in the
 // active member; when both have conflicting values the user chooses which to keep.
-func mergeOrphanMember(ctx context.Context, out interface{ Write([]byte) (int, error) }, repo *teamstate.Repo, orphan teamstate.Member, allMembers []teamstate.Member) error {
+func mergeOrphanMember(ctx context.Context, out interface{ Write([]byte) (int, error) }, repo memberRegistry, orphan teamstate.Member, allMembers []teamstate.Member) error {
 	// Build list of candidates (active members, i.e. not the orphan itself)
 	var candidates []teamstate.Member
 	for _, m := range allMembers {

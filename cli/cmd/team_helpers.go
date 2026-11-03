@@ -168,7 +168,7 @@ type initWizardTeamState struct {
 	Ctx           context.Context // propagated to OnDone closures (set by caller)
 	// Rejoin-specific state
 	Members              []teamstate.Member // fetched members for rejoin flow
-	TeamRepo             *teamstate.Repo    // repo handle (set after clone in rejoin_repo)
+	TeamRepo             rejoinRepo         // repo handle (set after clone in rejoin_repo)
 	AddingNewMember      bool               // true when user chose "add new member" in rejoin flow
 	NewMemberDisplayName string             // display name for new member being added
 	NewMemberGitLab      string             // gitlab username for new member being added

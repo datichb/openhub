@@ -175,14 +175,14 @@ func teamRejoinCore(ctx context.Context, a *app.App, p teamRejoinParams) (*teamR
 // The token is tested against the GitLab instance that hosts the team-state repo
 // (not the tracker instance, which may be different).
 // Returns nil if validation succeeds or if no GitLab token is available (with warning).
-func validateGitLabIdentity(ctx context.Context, a *app.App, repo *teamstate.Repo, member *teamstate.Member) error {
+func validateGitLabIdentity(ctx context.Context, a *app.App, repo teamstate.RepoInfo, member *teamstate.Member) error {
 	return validateGitLabIdentityAt(ctx, a, repo, member, registeredGitLabURL(a, repo.Remote()))
 }
 
 // validateGitLabIdentityAt is validateGitLabIdentity for a repository whose
 // remote is an SSH alias: gitlabURL is the GitLab it really is on (empty = the
 // host of the remote).
-func validateGitLabIdentityAt(ctx context.Context, a *app.App, repo *teamstate.Repo, member *teamstate.Member, gitlabURL string) error {
+func validateGitLabIdentityAt(ctx context.Context, a *app.App, repo teamstate.RepoInfo, member *teamstate.Member, gitlabURL string) error {
 	if member.GitLabUsername == "" {
 		// Member has no GitLab username configured — skip validation
 		return nil
@@ -316,10 +316,17 @@ func gitlabTeamTokenAt(ctx context.Context, a *app.App, teamID, repo, gitlabURL 
 		teamsvc.WithTeamRepo(repo), teamsvc.WithTeamServer(gitlabURL))
 }
 
+// rejoinRepo is the team-state a rejoin has cloned: its configuration, to ask
+// what the tracker needs, and its members, to add the one who joins.
+type rejoinRepo interface {
+	teamstate.ConfigReader
+	teamstate.MemberWriter
+}
+
 // listTeamMembers clones/pulls the team-state repo and returns the list of members.
 // Used by the rejoin wizard to display the member selection list.
 // The stale return value is true when the pull failed and local (possibly outdated) content was used.
-func listTeamMembers(ctx context.Context, stateRepo, statePath string) (*teamstate.Repo, []teamstate.Member, bool, error) {
+func listTeamMembers(ctx context.Context, stateRepo, statePath string) (rejoinRepo, []teamstate.Member, bool, error) {
 	if statePath == "" {
 		statePath = config.TeamStatePath(stateRepo)
 	}

@@ -121,7 +121,7 @@ func (w *rejoinWizard) repoStep() views.WizardStep {
 		OnDone: func() error {
 			w.statePath = config.TeamStatePath(w.stateRepo)
 			var (
-				handle *teamstate.Repo
+				handle rejoinRepo
 				err    error
 			)
 			handle, w.members, _, err = listTeamMembers(ctx, w.stateRepo, w.statePath)
