@@ -99,7 +99,8 @@ func TestCheckpointCard(t *testing.T) {
 	golden.Assert(t, "checkpoint_card/diff_messages_timeline", compactCardText(t, title, body, actions))
 	require.Len(t, actions, 3, "decide, full diff, attach")
 	assert.True(t, actions[1].KeepOpen, "the full diff opens over the card, which stays")
-	assert.False(t, actions[0].KeepOpen || actions[2].KeepOpen)
+	assert.True(t, actions[0].KeepOpen, "the decision form opens over the card, which stays under it")
+	assert.False(t, actions[2].KeepOpen)
 
 	// Decide → form; "fix" without a message is refused, with one it is sent.
 	actions[0].Callback()
@@ -108,6 +109,11 @@ func TestCheckpointCard(t *testing.T) {
 	sh.mu.Unlock()
 	require.NotNil(t, form)
 	assert.Equal(t, checkpointApprove, form.Fields[0].Default)
+	require.NotNil(t, form.Check, "the form refuses an incomplete answer before it closes")
+	assert.NotEmpty(t, form.Check(map[string]string{"decision": checkpointFix, "message": " "}, nil))
+	assert.NotEmpty(t, form.Check(map[string]string{"decision": checkpointOther}, nil))
+	assert.Empty(t, form.Check(map[string]string{"decision": checkpointApprove}, nil), "an approval needs no message")
+	assert.Empty(t, form.Check(map[string]string{"decision": checkpointFix, "message": "nommage"}, nil))
 	form.OnSubmit(map[string]string{"decision": checkpointFix, "message": " "}, nil)
 	form.OnSubmit(map[string]string{"decision": checkpointFix, "message": "nommage"}, nil)
 	require.Eventually(t, func() bool { return len(be.decisions()) == 1 }, 3*time.Second, 20*time.Millisecond)

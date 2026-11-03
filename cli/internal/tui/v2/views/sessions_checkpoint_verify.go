@@ -174,19 +174,14 @@ func (v *SessionsView) verifyFailedActions(r *SessionRow, d *SessionDecision, c 
 	if agent != "" {
 		fixLabel = i18n.Tf("tui.checkpoint.fix_action_to", agent)
 	}
-	actions := []ModalAction{{Label: fixLabel, Callback: func() {
-		v.shell.ShowInputModal(i18n.Tf("tui.checkpoint.fix_title", cp), "", func(msg string) {
-			msg = strings.TrimSpace(msg)
-			if msg == "" {
-				v.toast(i18n.T("tui.checkpoint.message_required"), false)
-				return
-			}
-			v.decide(&dec, checkpointFix, msg, nil)
+	actions := []ModalAction{{Label: fixLabel, KeepOpen: true, Callback: func() {
+		askChecked(v.shell, i18n.Tf("tui.checkpoint.fix_title", cp), "", requiredText(i18n.T("tui.checkpoint.message_required")), func(msg string) {
+			v.decide(&dec, checkpointFix, strings.TrimSpace(msg), nil)
 		})
 		v.trackDecision(dec.ID)
 	}}}
 	if !c.Verify.NoOverride {
-		actions = append(actions, ModalAction{Label: i18n.T("tui.checkpoint.override_action"), Danger: true, Callback: func() {
+		actions = append(actions, ModalAction{Label: i18n.T("tui.checkpoint.override_action"), Danger: true, KeepOpen: true, Callback: func() {
 			v.overrideCheckpoint(&dec, cp, c.Verify)
 		}})
 	}
@@ -197,12 +192,8 @@ func (v *SessionsView) verifyFailedActions(r *SessionRow, d *SessionDecision, c 
 // confirmation; the reason is traced with the validation.
 func (v *SessionsView) overrideCheckpoint(d *SessionDecision, cp string, verify CheckpointVerifyView) {
 	dec := *d
-	v.shell.ShowInputModal(i18n.Tf("tui.checkpoint.override_reason", cp), "", func(reason string) {
+	askChecked(v.shell, i18n.Tf("tui.checkpoint.override_reason", cp), "", requiredText(i18n.T("tui.checkpoint.override_reason_required")), func(reason string) {
 		reason = strings.TrimSpace(reason)
-		if reason == "" {
-			v.toast(i18n.T("tui.checkpoint.override_reason_required"), false)
-			return
-		}
 		detail := tview.Escape(firstText(verify.Summary, i18n.T("tui.checkpoint.verify.status.fail"))) + "\n\n" +
 			tview.Escape(i18n.Tf("tui.checkpoint.override_detail", reason))
 		v.shell.Confirm(i18n.Tf("tui.checkpoint.override_confirm", cp), detail, true, func() {

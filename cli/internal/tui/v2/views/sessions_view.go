@@ -882,7 +882,7 @@ func (v *SessionsView) openDecision(r *SessionRow, d *SessionDecision) {
 			}},
 		}
 		if d.Kind == DecisionKindBudget {
-			actions = append([]ModalAction{{Label: i18n.T("tui.inbox.raise"), Callback: func() { v.raiseBudget(&dec) }}}, actions...)
+			actions = append([]ModalAction{{Label: i18n.T("tui.inbox.raise"), KeepOpen: true, Callback: func() { v.raiseBudget(&dec) }}}, actions...)
 		}
 		v.shell.ShowScrollableModal(d.Icon+" "+who, tview.Escape(text), actions)
 		v.trackDecision(dec.ID)

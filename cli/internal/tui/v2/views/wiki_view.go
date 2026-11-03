@@ -367,7 +367,7 @@ func (v *WikiView) showProposal(proposalIdx int) {
 		{Label: i18n.T("tui.wiki.btn_accept"), Callback: func() {
 			v.decide(p, true, "")
 		}},
-		{Label: i18n.T("tui.teamwiki.btn_refuse"), Danger: true, Callback: func() {
+		{Label: i18n.T("tui.teamwiki.btn_refuse"), Danger: true, KeepOpen: true, Callback: func() {
 			v.askRejectReason(p)
 		}},
 		{Label: i18n.T("tui.wiki.btn_close"), Callback: func() {}},
@@ -435,13 +435,8 @@ func (v *WikiView) askRejectReason(proposal teamstate.WikiProposal) {
 	if v.shell == nil {
 		return
 	}
-	v.shell.ShowInputModal(i18n.Tf("tui.teamwiki.refuse_reason_title", proposal.Page, proposal.ID), "", func(reason string) {
-		reason = strings.Join(strings.Fields(reason), " ")
-		if reason == "" {
-			v.shell.ShowToastMsg(i18n.T("tui.teamwiki.reason_required"), false)
-			return
-		}
-		v.decide(proposal, false, reason)
+	askChecked(v.shell, i18n.Tf("tui.teamwiki.refuse_reason_title", proposal.Page, proposal.ID), "", requiredText(i18n.T("tui.teamwiki.reason_required")), func(reason string) {
+		v.decide(proposal, false, strings.Join(strings.Fields(reason), " "))
 	})
 }
 

@@ -21,12 +21,19 @@ import (
 // ShowInputModal displays an inline input prompt in the content area.
 // The content is temporarily replaced with a focused input field.
 func (s *Shell) ShowInputModal(title, currentValue string, onConfirm func(newValue string)) {
-	s.showInlineInput(title, currentValue, false, onConfirm)
+	s.showInlineInput(title, currentValue, false, nil, onConfirm)
+}
+
+// ShowCheckedInputModal is ShowInputModal that refuses a value (views.CheckedInputShell):
+// check returns the reason of the refusal, shown as a warning while the input
+// stays open with its text.
+func (s *Shell) ShowCheckedInputModal(title, currentValue string, check func(string) string, onConfirm func(string)) {
+	s.showInlineInput(title, currentValue, false, check, onConfirm)
 }
 
 // ShowPasswordModal displays an inline masked input prompt.
 func (s *Shell) ShowPasswordModal(title string, onConfirm func(value string)) {
-	s.showInlineInput(title, "", true, func(v string) {
+	s.showInlineInput(title, "", true, nil, func(v string) {
 		if onConfirm != nil {
 			onConfirm(v)
 		}
@@ -67,7 +74,7 @@ func (s *Shell) ShowScrollableModal(title, content string, actions []views.Modal
 	})
 }
 
-func (s *Shell) showInlineInput(title, currentValue string, masked bool, onConfirm func(string)) {
+func (s *Shell) showInlineInput(title, currentValue string, masked bool, check func(string) string, onConfirm func(string)) {
 	w := s.openPrompt()
 	input := tview.NewInputField().SetText(currentValue).SetFieldWidth(0)
 	styleInputField(input)
@@ -81,6 +88,12 @@ func (s *Shell) showInlineInput(title, currentValue string, masked bool, onConfi
 	input.SetDoneFunc(func(key tcell.Key) {
 		switch key {
 		case tcell.KeyEnter:
+			if check != nil {
+				if msg := check(input.GetText()); msg != "" {
+					s.ShowToast(msg, ToastWarning)
+					return
+				}
+			}
 			s.answerWindow(w, func() {
 				if onConfirm != nil {
 					onConfirm(input.GetText())
