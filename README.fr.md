@@ -50,7 +50,7 @@ cd cli && go install .
 oh n'installe plus opencode. Installez-le avec son propre outil :
 
 ```bash
-brew install anomalyco/tap/opencode    # ou voir https://opencode.ai
+brew install opencode    # ou voir https://opencode.ai
 ```
 
 opencode V1 n'est plus pris en charge : oh refuse de lancer une session, avec un message clair. `oh doctor` vérifie la version. Vous venez d'oh v4 : voir [Migrer vers oh v5](docs/guides/migration-v5.fr.md).

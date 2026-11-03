@@ -44,7 +44,7 @@ flowchart TD
 
 ```bash
 brew install datichb/tap/openhub
-brew install anomalyco/tap/opencode
+brew install opencode
 ```
 
 Without Homebrew: `curl -fsSL https://raw.githubusercontent.com/datichb/openhub/main/install.sh | bash` for oh, and https://opencode.ai for opencode.

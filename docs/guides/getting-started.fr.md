@@ -68,7 +68,7 @@ cd cli && go install .
 ### 2. Installer opencode V2
 
 ```bash
-brew install anomalyco/tap/opencode    # ou voir https://opencode.ai
+brew install opencode    # ou voir https://opencode.ai
 opencode --version                     # doit afficher 2.x
 ```
 

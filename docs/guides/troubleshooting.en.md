@@ -26,7 +26,7 @@ Run `oh doctor` to check your installation health. It performs about twenty chec
 | 8 | Database | SQLite database accessible | `oh repair` |
 | 9 | API keys | MCP service tokens (Figma, GitLab, etc.) | `oh mcp setup <service>` |
 | 10 | Beads zero-impact | No side effects from Beads (hooks, gitignore, agent files written by `bd init`: `AGENTS.md`, `CLAUDE.md`, `.claude/`, `.codex/`, `.cursor/`, `.agents/`; `.beads/` and `/.beads.gate.lock`, the lock bd 1.3 leaves at the project root, in `.git/info/exclude`). A `.beads/` tracked by git (shared with the team) is not excluded: when the repository's `.gitignore` does not cover `/.beads.gate.lock`, a warning (⚠) reports it, without writing anything | `oh doctor --fix` (see [Getting started](getting-started.en.md#initial-setup-oh-init)); shared `.beads/`: add `/.beads.gate.lock` to the team's `.gitignore` |
-| 11 | opencode V2 | opencode installed, minimum version 2.0.0 (V1 refused) | `brew install anomalyco/tap/opencode`; see the [v5 migration guide](migration-v5.en.md) |
+| 11 | opencode V2 | opencode installed, minimum version 2.0.0 (V1 refused) | `brew install opencode`; see the [v5 migration guide](migration-v5.en.md) |
 | 12 | Former deployments | Leftovers of `oh deploy` in the projects | `oh migrate deploy-cleanup` |
 | 13 | oh daemon | State of the `ohd` daemon (started on the first launch) | `oh daemon status` |
 | 14 | Security | Daemon issuing capability in the keychain, proxy tokens stored as hashes | — |

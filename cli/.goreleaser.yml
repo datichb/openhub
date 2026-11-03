@@ -74,7 +74,7 @@ brews:
     # (bd) and terminal-notifier (clickable notifications, macOS only) are optional.
     dependencies:
       - name: git
-      - name: anomalyco/tap/opencode
+      - name: opencode
       - name: beads
         type: recommended
       - name: terminal-notifier

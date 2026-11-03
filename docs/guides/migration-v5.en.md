@@ -27,7 +27,7 @@ Install a supported release of opencode, then run oh doctor. Guide: docs/guides/
 
 Without opencode: "opencode was not found: oh v5 requires a supported release of it".
 
-1. Install opencode V2 with its own tooling (`brew install anomalyco/tap/opencode`, or https://opencode.ai).
+1. Install opencode V2 with its own tooling (`brew install opencode`, or https://opencode.ai).
 2. Check with `oh doctor`: the **opencode** line must be green (✓).
 
 The fingerprint of the opencode Linux packages is pinned in oh for versions **2.0.20** and **2.0.25**. Another version of the range works, but `oh doctor` warns about it: container images would download it without a verified fingerprint, and `execution.strict_isolation = true` refuses it ([SECURITY.md](../../SECURITY.md#supply-chain)).

@@ -9,6 +9,10 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Fixed
+
+- **Formule Homebrew** : la formule de la 5.1.0 dépendait d'`anomalyco/tap/opencode`, qui est opencode 1.x (refusé par oh 5) et qui entre en conflit avec l'opencode de homebrew-core (`brew upgrade openhub` demandait `brew uninstall opencode`). Elle dépend maintenant d'`opencode` (homebrew-core, opencode V2). La formule du tap a été corrigée le jour de la release, sans changer les binaires. Les guides d'installation disent `brew install opencode`.
+
 ## [5.1.0] — 2026-11-03
 
 Version mineure qui **retire ce que la 5.0 avait déprécié**, fait sortir le mode équipe de la bêta et harmonise l'affichage de la CLI et de la TUI. **Si vous venez de la 5.0, lisez « Ruptures et actions requises »**, puis le [guide de migration](docs/guides/migration-v5.fr.md#depuis-la-50-vers-la-51) et [MIGRATION.md](MIGRATION.md#vous-venez-de-la-50--ce-que-la-51-retire) ; depuis la 4.2.0, lisez d'abord la section « Ruptures et actions requises » de la 5.0. Pas de migration de la base (schéma 49 inchangé) ; les réservations (claims) écrites par la 5.1 restent lisibles par la 5.0.

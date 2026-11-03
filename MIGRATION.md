@@ -49,7 +49,7 @@ Une version de la plage mais **non épinglée** dans oh (autre que 2.0.20 et 2.0
 ## Les étapes, dans l'ordre
 
 1. **Sauvegardez.** `oh export -o ~/oh-backup-4.x.tar.gz` emporte la base, `hub.toml` et les secrets chiffrés. Gardez aussi le binaire 4.2.0 (voir [Retour arrière](#retour-arrière)).
-2. **Installez opencode V2** avec son propre outil (`brew install anomalyco/tap/opencode`, ou <https://opencode.ai>). oh n'installe plus ni ne met plus à jour opencode (`oh upgrade opencode` n'existe plus). Vérifiez : `opencode --version`.
+2. **Installez opencode V2** avec son propre outil (`brew install opencode`, ou <https://opencode.ai>). oh n'installe plus ni ne met plus à jour opencode (`oh upgrade opencode` n'existe plus). Vérifiez : `opencode --version`.
 3. **Mettez oh à jour** : `brew upgrade openhub`, ou `oh upgrade oh` (`oh upgrade oh --check` pour seulement vérifier).
 4. **Lancez `oh doctor` en premier**, avant toute autre commande qui écrit (`oh config set`, la TUI…). Le premier lancement fait, tout seul :
    - la migration de la base de la version 27 à la 49, après une copie dans `~/.oh/backups/` ([Base de données](#base-de-données)) ;

@@ -27,7 +27,7 @@ Installez une version prise en charge de opencode, puis lancez oh doctor. Guide 
 
 Sans opencode : « opencode est introuvable : oh v5 en demande une version prise en charge ».
 
-1. Installez opencode V2 avec son propre outil (`brew install anomalyco/tap/opencode`, ou https://opencode.ai).
+1. Installez opencode V2 avec son propre outil (`brew install opencode`, ou https://opencode.ai).
 2. Vérifiez avec `oh doctor` : la ligne **opencode** doit être verte (✓).
 
 L'empreinte des paquets Linux d'opencode est épinglée dans oh pour les versions **2.0.20** et **2.0.25**. Une autre version de la plage fonctionne, mais `oh doctor` l'avertit : les images de conteneur la téléchargeraient sans empreinte vérifiée, et `execution.strict_isolation = true` la refuse ([SECURITY.fr.md](../../SECURITY.fr.md#chaîne-dapprovisionnement)).

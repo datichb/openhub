@@ -175,7 +175,7 @@ Récupération complète étape par étape sur une nouvelle machine :
 ```bash
 # 1. Installer oh et opencode V2 sur la nouvelle machine
 brew install datichb/tap/openhub      # ou : curl -fsSL https://raw.githubusercontent.com/datichb/openhub/main/install.sh | bash
-brew install anomalyco/tap/opencode   # opencode V2 (2.0.0 ou plus)
+brew install opencode   # opencode V2 (2.0.0 ou plus)
 
 # 2. Copier ton archive de sauvegarde sur la nouvelle machine
 scp ancienne-machine:~/oh-backup-latest.tar.gz .

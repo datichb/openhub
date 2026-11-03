@@ -26,7 +26,7 @@ Exécutez `oh doctor` pour vérifier l'état de santé de votre installation. Il
 | 8 | Base de données | Base SQLite accessible | `oh repair` |
 | 9 | Clés API | Jetons des services MCP (Figma, GitLab, etc.) | `oh mcp setup <service>` |
 | 10 | Beads zero-impact | Aucun effet de bord de Beads (hooks, gitignore, fichiers d'agents écrits par `bd init` : `AGENTS.md`, `CLAUDE.md`, `.claude/`, `.codex/`, `.cursor/`, `.agents/` ; `.beads/` et `/.beads.gate.lock`, le verrou que bd 1.3 laisse à la racine du projet, dans `.git/info/exclude`). Un `.beads/` suivi par git (partagé avec l'équipe) n'est pas exclu : si le `.gitignore` du dépôt ne couvre pas `/.beads.gate.lock`, un avertissement (⚠) le signale, sans rien écrire | `oh doctor --fix` (voir [Premiers pas](getting-started.fr.md#configuration-initiale--oh-init)) ; `.beads/` partagé : ajouter `/.beads.gate.lock` au `.gitignore` de l'équipe |
-| 11 | opencode V2 | opencode installé, version minimale 2.0.0 (V1 refusée) | `brew install anomalyco/tap/opencode` ; voir le [guide de migration v5](migration-v5.fr.md) |
+| 11 | opencode V2 | opencode installé, version minimale 2.0.0 (V1 refusée) | `brew install opencode` ; voir le [guide de migration v5](migration-v5.fr.md) |
 | 12 | Anciens déploiements | Restes de `oh deploy` dans les projets | `oh migrate deploy-cleanup` |
 | 13 | Démon oh | État du démon `ohd` (démarré au premier lancement) | `oh daemon status` |
 | 14 | Sécurité | Capacité d'émission du démon dans le trousseau, jetons du proxy stockés hachés | — |
