@@ -47,7 +47,7 @@ Sources de la page — `CONFIRMÉ` · onboarder · 2026-10-06 · cli/go.mod, cli
 | Fournisseurs | Anthropic Claude, AWS Bedrock, OpenAI, OpenRouter (configurable) |
 | Workflows | 24 workflows déclaratifs `oh/v1` et les alias `feature`, `cadrage` (YAML, embarqués via go:embed) |
 | Agents | 18 agents avec architecture de skills hybride (Bucket A/B), dont l'agent d'entrée générique `conductor` |
-| Skills | 181 skills de protocole + 11 annexes (embarqués via go:embed, livrés par le paquet de session) |
+| Skills | 180 skills de protocole + 11 annexes (embarqués via go:embed, livrés par le paquet de session) |
 | Plugin | Plugin oh pour opencode (TypeScript, embarqué ; monde fermé et checkpoints) |
 
 Nombres relevés dans `workflows/`, `agents/` et `skills/` — `CONFIRMÉ` · documentarian · 2026-10-15 · workflows/spec.yaml

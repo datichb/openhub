@@ -1,11 +1,12 @@
-%% OpenHub -- TUI navigation modes (v5)
+%% OpenHub -- TUI navigation modes (v5.1)
 %% Hub, project and team modes and their home sections.
+%% Ctrl+T cycles Hub -> Project -> Team -> Hub, skipping what is not configured.
 
 stateDiagram-v2
     [*] --> Hub : Default
 
-    Hub --> Project : Select project
-    Hub --> Team : Select team / Ctrl+T
+    Hub --> Project : Select project / Ctrl+T
+    Hub --> Team : Select team
 
     Project --> Hub : "Mode Hub" / Esc
     Project --> Team : Ctrl+T (team configured)
@@ -16,7 +17,7 @@ stateDiagram-v2
     state Hub {
         [*] --> HubHome
         HubHome : Start (pinned, recent workflows)
-        HubHome : Running sessions (● N ⏸ M)
+        HubHome : Running sessions (● N ◐ M)
         HubHome : Teams list
         HubHome : System (Settings, Metrics, Doctor, Secrets)
         HubHome : Projects (Add project, projects list)
