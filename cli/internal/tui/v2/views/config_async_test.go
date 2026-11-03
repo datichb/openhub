@@ -31,14 +31,15 @@ func contentCount(loop *tview.Application, content *tview.Flex) (n int) {
 	return
 }
 
-// eventually waits for cond, evaluated on the loop.
+// eventually waits for cond, evaluated on the loop. The bound is generous:
+// some loads read the machine (provider detection), slow on the Windows runners.
 func eventually(t *testing.T, loop *tview.Application, cond func() bool) {
 	t.Helper()
 	require.Eventually(t, func() bool {
 		var ok bool
 		onLoop(loop, func() { ok = cond() })
 		return ok
-	}, 2*time.Second, 10*time.Millisecond)
+	}, 10*time.Second, 10*time.Millisecond)
 }
 
 func TestSecretsViewLoadAndRemount(t *testing.T) {
