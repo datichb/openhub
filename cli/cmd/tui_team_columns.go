@@ -228,7 +228,7 @@ type boardConfigStore interface {
 func saveBoardColumns(ctx context.Context, repo boardConfigStore, columns []teamstate.BoardColumnConfig, labelMappings, statusMappings map[string]string, afterSave func()) {
 	freshCfg, err := repo.LoadConfig(ctx)
 	if err != nil {
-		tuiShell.App().QueueUpdateDraw(func() {
+		queueOnShell(tuiShell, func() {
 			tuiShell.ShowToast(i18n.T("tui.team.board_config.error_prefix")+err.Error(), shell.ToastError)
 		})
 		return
@@ -237,12 +237,12 @@ func saveBoardColumns(ctx context.Context, repo boardConfigStore, columns []team
 	freshCfg.Tracker.LabelStatusMapping = labelMappings
 	freshCfg.Tracker.StatusMapping = statusMappings
 	if err := repo.SaveConfig(ctx, freshCfg); err != nil {
-		tuiShell.App().QueueUpdateDraw(func() {
+		queueOnShell(tuiShell, func() {
 			tuiShell.ShowToast(i18n.T("tui.team.board_config.save_error")+err.Error(), shell.ToastError)
 		})
 		return
 	}
-	tuiShell.App().QueueUpdateDraw(func() {
+	queueOnShell(tuiShell, func() {
 		tuiShell.ShowToast(
 			i18n.Tf("tui.team.board_config.saved", theme.IconSuccess, len(columns)),
 			shell.ToastSuccess,

@@ -19,7 +19,7 @@ const maxConfigChanges = 5
 // no view holds it: nothing to do.
 var runOnLoop = func(fn func()) {
 	if sh := tuiShell; sh != nil {
-		sh.App().QueueUpdateDraw(fn)
+		queueOnShell(sh, fn)
 	}
 }
 

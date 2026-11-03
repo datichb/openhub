@@ -1092,13 +1092,13 @@ func (v *TeamBoardView) claimTicket() {
 		return
 	}
 	v.actionInProgress.Store(true)
-	onClaim, app := v.actions.OnClaim, v.app
+	onClaim, app, ctx := v.actions.OnClaim, v.app, shellContext(v.shell)
 	safego.Go(func() { // an action, not a read: its result is shown even if the board was refreshed
 		err := onClaim(ticketID)
 		if app == nil {
 			return
 		}
-		app.QueueUpdateDraw(func() {
+		queueIfLive(ctx, app, func() {
 			v.actionInProgress.Store(false)
 			if err != nil {
 				v.shell.ShowToastMsg(i18n.T("tui.teamboard.claim_failed")+err.Error(), false)
@@ -1133,13 +1133,13 @@ func (v *TeamBoardView) doReleaseTicket(ticketID string) {
 		return
 	}
 	v.actionInProgress.Store(true)
-	onRelease, app := v.actions.OnRelease, v.app
+	onRelease, app, ctx := v.actions.OnRelease, v.app, shellContext(v.shell)
 	safego.Go(func() { // an action, not a read: its result is shown even if the board was refreshed
 		err := onRelease(ticketID)
 		if app == nil {
 			return
 		}
-		app.QueueUpdateDraw(func() {
+		queueIfLive(ctx, app, func() {
 			v.actionInProgress.Store(false)
 			if err != nil {
 				v.shell.ShowToastMsg(i18n.T("tui.teamboard.release_failed")+err.Error(), false)
@@ -1171,7 +1171,7 @@ func (v *TeamBoardView) transferTicket() {
 	}
 	v.actionInProgress.Store(true)
 	v.shell.ShowSelectModal(i18n.Tf("tui.teamboard.transfer_title", ticketID), members, "", func(toMember string) {
-		app := v.app
+		app, ctx := v.app, shellContext(v.shell)
 		toName := toMember // the toast names the member as the list did
 		for _, m := range members {
 			if m.Value == toMember {
@@ -1183,7 +1183,7 @@ func (v *TeamBoardView) transferTicket() {
 			if app == nil {
 				return
 			}
-			app.QueueUpdateDraw(func() {
+			queueIfLive(ctx, app, func() {
 				v.actionInProgress.Store(false)
 				if err != nil {
 					v.shell.ShowToastMsg(i18n.T("tui.teamboard.transfer_failed")+err.Error(), false)
@@ -1223,13 +1223,13 @@ func (v *TeamBoardView) changeStatus() {
 
 	v.actionInProgress.Store(true)
 	v.shell.ShowSelectModal(i18n.Tf("tui.teamboard.status_title", ticketID), statusOptions, currentStatus, func(newStatus string) {
-		app := v.app
+		app, ctx := v.app, shellContext(v.shell)
 		safego.Go(func() { // an action, not a read: its result is shown even if the board was refreshed
 			err := v.actions.OnStatus(ticketID, newStatus)
 			if app == nil {
 				return
 			}
-			app.QueueUpdateDraw(func() {
+			queueIfLive(ctx, app, func() {
 				v.actionInProgress.Store(false)
 				if err != nil {
 					v.shell.ShowToastMsg(i18n.T("tui.teamboard.status_failed")+err.Error(), false)

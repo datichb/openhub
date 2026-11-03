@@ -41,7 +41,7 @@ func actionFreeSessionWithAgent() {
 	safego.Go(func() {
 		ctx := context.Background()
 		res, err := newWorkflowService(ctx).Resolve(ctx, workflowsvc.Context{ProjectID: scope.ProjectID}, freeWorkflow, workflowsvc.ResolveOpts{})
-		sh.App().QueueUpdateDraw(func() {
+		queueOnShell(sh, func() {
 			if err != nil {
 				sh.ShowToast(err.Error(), shell.ToastError)
 				return

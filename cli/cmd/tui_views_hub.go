@@ -139,7 +139,7 @@ func buildTeamsView(a *app.App) views.View {
 					return
 				default:
 				}
-				tuiShell.App().QueueUpdateDraw(func() {
+				queueOnShell(tuiShell, func() {
 					if err != nil && !teamstate.IsPullWarning(err) {
 						tuiShell.ShowToast(i18n.T("tui.views.sync_failed")+err.Error(), shell.ToastError)
 					} else {

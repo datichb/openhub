@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -80,4 +81,25 @@ func TestTeamMemberNamesReadTheTeamStates(t *testing.T) {
 		config.TeamConfig{ID: "far", Enabled: true, StateRepo: "git@example.com:far/state.git", StatePath: t.TempDir() + "/absent", MemberID: "alice"},
 		config.TeamConfig{ID: "stranger", Enabled: true, StateRepo: teams[0].StateRepo, StatePath: teams[0].StatePath, MemberID: "nobody"})
 	assert.Equal(t, map[string]string{"test-team": "Test User"}, teamMemberNames(t.Context(), teams))
+}
+
+// A goroutine that ends after the TUI stopped queues nothing on its event loop
+// (QueueUpdateDraw would wait for a loop that is gone).
+func TestQueueUnlessEndedQueuesNothingOnceTheShellEnded(t *testing.T) {
+	var queued int
+	queue := func(f func()) { queued++; f() }
+	ran := 0
+
+	ctx, end := context.WithCancel(t.Context())
+	queueUnlessEnded(ctx, queue, func() { ran++ })
+	assert.Equal(t, 1, queued, "queued while the shell lives")
+	assert.Equal(t, 1, ran)
+
+	end()
+	queueUnlessEnded(ctx, queue, func() { ran++ })
+	assert.Equal(t, 1, queued, "nothing queued once it ended")
+	assert.Equal(t, 1, ran)
+
+	queueOnShell(nil, func() { ran++ }) // no shell (command line): no panic, no call
+	assert.Equal(t, 1, ran)
 }

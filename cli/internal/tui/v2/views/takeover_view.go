@@ -280,7 +280,7 @@ func (v *TakeoverView) enrichBrief() {
 	if v.shell == nil || v.onEnrich == nil {
 		return
 	}
-	enrich := v.onEnrich
+	enrich, ctx := v.onEnrich, v.shell.Context()
 
 	v.shell.ShowToastMsg(i18n.Tf("tui.takeover.enriching", b.TicketID), true)
 
@@ -289,7 +289,7 @@ func (v *TakeoverView) enrichBrief() {
 		if app == nil {
 			return // no event loop (tests)
 		}
-		app.QueueUpdateDraw(func() {
+		queueIfLive(ctx, app, func() {
 			if v.app == nil {
 				return // unmounted meanwhile
 			}

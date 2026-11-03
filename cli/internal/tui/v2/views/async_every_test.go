@@ -2,6 +2,7 @@ package views
 
 import (
 	"context"
+	"github.com/rivo/tview"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -48,4 +49,21 @@ func TestTickOnLoopWithAnEndedShellQueuesNothing(t *testing.T) {
 	var queued atomic.Int32
 	tickOnLoop(ctx, time.Millisecond, make(chan struct{}), func(func()) { queued.Add(1) }, func() {})
 	assert.Zero(t, queued.Load())
+}
+
+// The end of an action queues its result on the loop only while the shell lives.
+func TestQueueIfLiveSkipsAnEndedShell(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	queueIfLive(ctx, tview.NewApplication(), func() { t.Fatal("queued after the end") }) // would block for ever if it queued
+	queueIfLive(context.Background(), nil, func() { t.Fatal("no application") })
+
+	app := runApp(t, tview.NewFlex())
+	ran := make(chan struct{})
+	go queueIfLive(context.Background(), app, func() { close(ran) })
+	select {
+	case <-ran:
+	case <-time.After(3 * time.Second):
+		t.Fatal("not queued while the shell lives")
+	}
 }

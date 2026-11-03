@@ -193,7 +193,7 @@ func tuiAsync(fn func(ctx context.Context) error, then func()) {
 	}
 	safego.Go(func() {
 		err := fn(sh.Context())
-		sh.App().QueueUpdateDraw(func() {
+		queueOnShell(sh, func() {
 			if err != nil {
 				sh.ShowToast(tuiWorkflowError(err), shell.ToastError)
 				return

@@ -278,7 +278,7 @@ func buildInitOnComplete(s *initStepState) func(bool, error) {
 			safego.Go(func() {
 				time.Sleep(200 * time.Millisecond)
 				if tuiShell != nil {
-					tuiShell.App().QueueUpdateDraw(func() {
+					queueOnShell(tuiShell, func() {
 						actionTrackerDiscovery()
 					})
 				}

@@ -12,6 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/beads"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
@@ -215,4 +216,24 @@ func resolveActiveProjectPath(a *app.App) string {
 		return ""
 	}
 	return projects[0].Path
+}
+
+// queueOnShell runs fn on the event loop of the shell, from another goroutine
+// (the result of a read, a toast). The shell ends with its application: past
+// that point QueueUpdateDraw waits for a loop that is gone, for ever, so a
+// goroutine that finishes after the TUI stopped queues nothing. No shell: nothing
+// to draw on.
+func queueOnShell(sh *shell.Shell, fn func()) {
+	if sh == nil {
+		return
+	}
+	queueUnlessEnded(sh.Context(), func(f func()) { sh.App().QueueUpdateDraw(f) }, fn)
+}
+
+// queueUnlessEnded hands fn to queue unless ctx (the one of the shell) is over.
+func queueUnlessEnded(ctx context.Context, queue func(func()), fn func()) {
+	if ctx.Err() != nil {
+		return
+	}
+	queue(fn)
 }

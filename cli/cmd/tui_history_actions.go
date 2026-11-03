@@ -30,7 +30,7 @@ func actionHistoryExport() {
 		safego.Go(func() {
 			n, err := sessionsvc.ExportHistory(context.Background(), a.Sessions, outputPath, sessionsvc.ExportOptions{MemberID: activeMemberID(a)})
 			if err != nil {
-				tuiShell.App().QueueUpdateDraw(func() {
+				queueOnShell(tuiShell, func() {
 					tuiShell.ShowToast(historyToastPrefix(err)+err.Error(), shell.ToastError)
 				})
 				return
@@ -38,7 +38,7 @@ func actionHistoryExport() {
 
 			msg := fmt.Sprintf("%s %s",
 				theme.IconSuccess, i18n.Tf("tui.history.sessions_exported", n, outputPath))
-			tuiShell.App().QueueUpdateDraw(func() {
+			queueOnShell(tuiShell, func() {
 				tuiShell.ShowToast(msg, shell.ToastSuccess)
 			})
 		})
@@ -80,7 +80,7 @@ func actionHistoryImport() {
 		safego.Go(func() {
 			res, err := sessionsvc.ImportHistoryFile(context.Background(), a.Sessions, filePath, sessionsvc.ImportOptions{DefaultMemberID: activeMemberID(a)})
 			if err != nil {
-				tuiShell.App().QueueUpdateDraw(func() {
+				queueOnShell(tuiShell, func() {
 					tuiShell.ShowToast(historyToastPrefix(err)+err.Error(), shell.ToastError)
 				})
 				return
@@ -88,7 +88,7 @@ func actionHistoryImport() {
 
 			msg := fmt.Sprintf("%s %s",
 				theme.IconSuccess, i18n.Tf("tui.history.sessions_imported", res.Imported, res.Skipped))
-			tuiShell.App().QueueUpdateDraw(func() {
+			queueOnShell(tuiShell, func() {
 				tuiShell.ShowToast(msg, shell.ToastSuccess)
 			})
 		})

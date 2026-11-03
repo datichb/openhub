@@ -68,7 +68,7 @@ func openLaunchForm(a *app.App, req tuiLaunchRequest) {
 	withTUIProject(a, req.ProjectID, func(project *domain.Project) {
 		safego.Go(func() {
 			cfg, err := launchFormConfig(context.Background(), a, project, req)
-			sh.App().QueueUpdateDraw(func() {
+			queueOnShell(sh, func() {
 				if err != nil {
 					sh.ShowToast(err.Error(), shell.ToastError)
 					return
@@ -398,7 +398,7 @@ func tuiLaunchUI() launcher.LaunchUI {
 			return <-done
 		},
 		func(msg string, ok bool) {
-			sh.App().QueueUpdateDraw(func() { sh.ShowToastMsg(msg, ok) })
+			queueOnShell(sh, func() { sh.ShowToastMsg(msg, ok) })
 		},
 	)
 }

@@ -58,7 +58,7 @@ func notifyQueueReplay(pubs []*workflowsvc.Publication, errs []error) {
 	for _, p := range pubs {
 		refs = append(refs, p.Ref.String())
 	}
-	sh.App().QueueUpdateDraw(func() {
+	queueOnShell(sh, func() {
 		if len(pubs) > 0 {
 			sh.ShowToast(i18n.Tf("tui.catalog.edit.queue_replayed", len(pubs), strings.Join(refs, ", ")), shell.ToastSuccess)
 		}
