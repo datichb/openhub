@@ -333,7 +333,7 @@ func TestClaimsCheckProposesTheOnlyProjectOfTheTeam(t *testing.T) {
 	assert.Contains(t, res[0].Detail, "only project of the team", "the message tells the evidence")
 	assert.Contains(t, res[0].Detail, "oh doctor --fix")
 
-	found, unres := findClaimsRehomes(ctx, TryApp())
+	found, unres, _ := findClaimsRehomes(ctx, TryApp())
 	require.Len(t, found, 1)
 	assert.Empty(t, unres)
 	assert.Equal(t, claimEvidenceSole, found[0].Evidence)
@@ -370,7 +370,7 @@ func TestClaimsCheckReportsWithoutProposingWhenTheTeamHasTwoProjects(t *testing.
 	assert.Contains(t, res[0].Detail, "oh team release SRU-1 -p t-sru-b267fbf1")
 	assert.NotContains(t, res[0].Detail, "oh doctor --fix")
 
-	found, _ := findClaimsRehomes(ctx, TryApp())
+	found, _, _ := findClaimsRehomes(ctx, TryApp())
 	assert.Empty(t, found)
 	assert.Nil(t, claimsProjectFix(res[0]), "no repair offered")
 
@@ -391,7 +391,7 @@ func TestClaimsCheckRefusesTheOnlyProjectWhenAMergeRequestContradicts(t *testing
 	assert.True(t, res[0].OK && res[0].Warn)
 	assert.Equal(t, doctorIDClaimsUnknown, res[0].ID)
 	assert.Contains(t, res[0].Detail, "t-sru-b267fbf1")
-	found, _ := findClaimsRehomes(ctx, TryApp())
+	found, _, _ := findClaimsRehomes(ctx, TryApp())
 	assert.Empty(t, found, "the merge requests are another repository's")
 	left, err := f.repo.ListClaims(ctx, "t-sru-b267fbf1")
 	require.NoError(t, err)
@@ -402,14 +402,14 @@ func TestClaimsCheckStillPrefersTheStrongerEvidence(t *testing.T) {
 	// the merge request of the claims is the repository of the project: remote
 	f := newRehomeFixtureMR(t, "transparence-sru", "git@gitlab.example.com:acme/sru.git",
 		"https://gitlab.example.com/acme/sru/-/merge_requests/9")
-	found, _ := findClaimsRehomes(context.Background(), TryApp())
+	found, _, _ := findClaimsRehomes(context.Background(), TryApp())
 	require.Len(t, found, 1)
 	assert.Equal(t, claimEvidenceRemote, found[0].Evidence)
 	_ = f
 
 	// the slug of the ID is the one of the name: name
 	g := newRehomeFixture(t, "t-sru", "")
-	found, _ = findClaimsRehomes(context.Background(), TryApp())
+	found, _, _ = findClaimsRehomes(context.Background(), TryApp())
 	require.Len(t, found, 1)
 	assert.Equal(t, claimEvidenceName, found[0].Evidence)
 	_ = g

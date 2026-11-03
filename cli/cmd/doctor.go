@@ -220,7 +220,7 @@ func checkBeadsSanity() []doctor.Result {
 	ctx := context.Background()
 	projects, err := a.Projects.List(ctx, "")
 	if err != nil {
-		return []doctor.Result{{OK: true, Detail: i18n.T("cmd.doctor.beads.list_failed")}}
+		return []doctor.Result{{OK: true, Warn: true, Detail: i18n.Tf("cmd.doctor.beads.list_failed", err)}}
 	}
 	return beadsSanityResults(projects)
 }

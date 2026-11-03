@@ -247,21 +247,41 @@ func trackerConnectionResult(ctx context.Context, p trackerProbe) doctor.Result 
 	return r
 }
 
+// identityReader reads who the member is in the team of a probe.
+type identityReader interface {
+	TrackerIdentity(ctx context.Context, project *domain.Project) (*teamsvc.TrackerIdentity, error)
+}
+
 // trackerUsernameChecks fails when the tracker is not on the server of the
-// team-state repository and the current member has no tracker_username.
+// team-state repository and the current member has no tracker_username. A
+// team whose identity cannot be read is a warning: nothing was checked.
 func trackerUsernameChecks(ctx context.Context) []doctor.Result {
 	a := TryApp()
 	if a == nil || a.Config == nil {
 		return nil
 	}
-	svc := teamService(a)
+	return trackerUsernameResults(ctx, trackerProbes(ctx, a), teamService(a))
+}
+
+func trackerUsernameResults(ctx context.Context, probes []trackerProbe, svc identityReader) []doctor.Result {
 	var out []doctor.Result
-	for _, p := range trackerProbes(ctx, a) {
+	for _, p := range probes {
+		name := i18n.Tf("cmd.doctor.tracker_username.name", p.label)
 		ti, err := svc.TrackerIdentity(ctx, p.project)
-		if err != nil || ti.Member == nil || !ti.CrossServer {
+		if err != nil {
+			out = append(out, doctor.Result{Name: name, OK: true, Warn: true,
+				Detail: i18n.Tf("cmd.doctor.tracker_username.unverified", err)})
+			continue
+		}
+		if !ti.CrossServer {
 			continue // on the same server, the GitLab name of the member is their tracker name
 		}
-		r := doctor.Result{Name: i18n.Tf("cmd.doctor.tracker_username.name", p.label)}
+		if ti.Member == nil {
+			out = append(out, doctor.Result{Name: name, OK: true, Warn: true,
+				Detail: i18n.Tf("cmd.doctor.tracker_username.no_member", ti.MemberID, ti.TeamID)})
+			continue
+		}
+		r := doctor.Result{Name: name}
 		if ti.Member.TrackerUsername == "" {
 			r.Detail = i18n.Tf("cmd.doctor.tracker_username.empty", ti.MemberID,
 				tracker.ServerOf(ti.TrackerURL), tracker.ServerOf(ti.TeamServer), ti.TeamID)
@@ -274,7 +294,9 @@ func trackerUsernameChecks(ctx context.Context) []doctor.Result {
 }
 
 // trackerIdentityChecks compares the name the tracker knows the token's owner
-// by with the names of the members.
+// by with the names of the members. What it could not look at (the identity of
+// the team, the client of the tracker) is a warning; a tracker that does not
+// answer is the business of tracker_connection.
 func trackerIdentityChecks(ctx context.Context) []doctor.Result {
 	a := TryApp()
 	if a == nil || a.Config == nil {
@@ -292,15 +314,23 @@ func trackerIdentityChecks(ctx context.Context) []doctor.Result {
 	if doctorOffline() {
 		return []doctor.Result{{OK: true, Detail: i18n.T("cmd.doctor.tracker_identity.offline")}}
 	}
-	svc := teamService(a)
+	return trackerIdentityResults(ctx, probes, teamService(a), tracker.New)
+}
+
+func trackerIdentityResults(ctx context.Context, probes []trackerProbe, svc identityReader, newTracker func(tracker.Config) (tracker.Tracker, error)) []doctor.Result {
 	var out []doctor.Result
 	for _, p := range probes {
+		name := i18n.Tf("cmd.doctor.tracker_identity.name", p.label)
 		ti, err := svc.TrackerIdentity(ctx, p.project)
 		if err != nil {
+			out = append(out, doctor.Result{Name: name, OK: true, Warn: true,
+				Detail: i18n.Tf("cmd.doctor.tracker_identity.unverified_team", err)})
 			continue
 		}
-		t, err := tracker.New(p.creds)
+		t, err := newTracker(p.creds)
 		if err != nil {
+			out = append(out, doctor.Result{Name: name, OK: true, Warn: true,
+				Detail: i18n.Tf("cmd.doctor.tracker_identity.unverified_client", p.creds.Type, err)})
 			continue
 		}
 		cctx, cancel := context.WithTimeout(ctx, doctorConnectionTimeout)
@@ -309,7 +339,7 @@ func trackerIdentityChecks(ctx context.Context) []doctor.Result {
 		if err != nil || username == "" {
 			continue // tracker_connection reports it
 		}
-		r := doctor.Result{Name: i18n.Tf("cmd.doctor.tracker_identity.name", p.label), OK: true}
+		r := doctor.Result{Name: name, OK: true}
 		server := tracker.ServerOf(p.creds.BaseURL)
 		if ti.HasName(username) {
 			r.Detail = i18n.Tf("cmd.doctor.tracker_identity.ok", server, username)

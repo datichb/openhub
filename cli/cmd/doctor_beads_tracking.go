@@ -25,7 +25,7 @@ func beadsTrackingChecks() []doctor.Result {
 	}
 	projects, err := a.Projects.List(context.Background(), "")
 	if err != nil {
-		return nil
+		return []doctor.Result{{OK: true, Warn: true, Detail: i18n.Tf("cmd.doctor.tracking.list_failed", err)}}
 	}
 	var out []doctor.Result
 	checked := 0

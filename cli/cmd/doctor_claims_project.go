@@ -242,13 +242,17 @@ func unresolvedOf(from string, group []teamstate.Claim, candidates []string) cla
 
 // findClaimsRehomes looks for the claims under unknown IDs in the team space
 // of every active project of the hub.
-func findClaimsRehomes(ctx context.Context, a *app.App) ([]claimsRehome, []claimsUnresolved) {
+//
+// The third value tells what could not be read, and so not checked (the list of
+// projects, the claims of a team space): the callers show it, a check that
+// could not look never says all is well.
+func findClaimsRehomes(ctx context.Context, a *app.App) (found []claimsRehome, unresolved []claimsUnresolved, unverified []string) {
 	if a == nil || a.Projects == nil {
-		return nil, nil
+		return nil, nil, nil
 	}
 	all, err := a.Projects.List(ctx, "")
 	if err != nil {
-		return nil, nil
+		return nil, nil, []string{i18n.Tf("cmd.doctor.claims.unverified.rehome_projects", err)}
 	}
 	known := map[string]bool{}
 	for i := range all {
@@ -279,23 +283,25 @@ func findClaimsRehomes(ctx context.Context, a *app.App) ([]claimsRehome, []claim
 		}
 		s.candidates = append(s.candidates, p)
 	}
-	var found []claimsRehome
-	var unresolved []claimsUnresolved
 	for _, key := range order {
 		s := spaces[key]
 		claims, err := s.repo.ListClaims(ctx, "")
 		if err != nil {
+			unverified = append(unverified, i18n.Tf("cmd.doctor.claims.unverified.rehome_space", s.repo.Path(), err))
 			continue
 		}
 		claimsOf := func(project string) []teamstate.Claim {
-			cs, _ := s.repo.ListClaims(ctx, project)
+			cs, err := s.repo.ListClaims(ctx, project)
+			if err != nil {
+				unverified = append(unverified, i18n.Tf("cmd.doctor.claims.unverified.rehome_conflicts", project, s.repo.Path(), err))
+			}
 			return cs
 		}
 		f, unres := matchClaimsRehomes(s.repo, s.member, claims, known, s.candidates, claimsOf, gitOriginOf)
 		found = append(found, f...)
 		unresolved = append(unresolved, unres...)
 	}
-	return found, unresolved
+	return found, unresolved, unverified
 }
 
 func (r claimsRehome) describe() string {
@@ -358,7 +364,7 @@ func fixClaimsProject(cmd *cobra.Command) error {
 // confirmation. It asks nothing and does nothing when no claim is left to
 // attach. It writes its report to w and asks through confirm.
 func repairClaimsProject(ctx context.Context, w io.Writer, confirm confirmFunc) error {
-	found, _ := findClaimsRehomes(ctx, TryApp())
+	found, _, _ := findClaimsRehomes(ctx, TryApp())
 	var todo []claimsRehome
 	for _, r := range found {
 		if len(r.Movable) > 0 {
@@ -412,7 +418,7 @@ func repairClaimsProject(ctx context.Context, w io.Writer, confirm confirmFunc) 
 
 // planClaimsRehomeFix is the plan shown by the Doctor view.
 func planClaimsRehomeFix(ctx context.Context) (string, error) {
-	found, _ := findClaimsRehomes(ctx, TryApp())
+	found, _, _ := findClaimsRehomes(ctx, TryApp())
 	if plan := planClaimsRehome(found); plan != "" {
 		return plan, nil
 	}
