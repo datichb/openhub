@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 
 	"github.com/charmbracelet/huh"
@@ -81,9 +82,11 @@ var rootCmd = &cobra.Command{
 func Execute() error {
 	defer func() {
 		if r := recover(); r != nil {
+			// The stack is read here, while the frames of the panic are still
+			// there; the terminal is already restored (tview does it).
+			stack := debug.Stack()
 			ensureLocale()
-			fmt.Fprint(os.Stderr, i18n.Tf("cmd.root.oh_internal_error_panic", r))
-			fmt.Fprint(os.Stderr, i18n.T("cmd.root.please_report_this_bug_at_https"))
+			reportPanic(os.Stderr, r, stack)
 			os.Exit(ExitFailure)
 		}
 	}()
