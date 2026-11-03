@@ -232,7 +232,7 @@ func TestPatternsAddErrorOnTheEngine(t *testing.T) {
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), i18n.T("cmd.patterns_cmd.use_hyphens_not_spaces"))
-	list, lerr := repo.ListPatterns(nil, 0)
+	list, lerr := repo.ListPatterns(t.Context(), nil, 0)
 	require.NoError(t, lerr)
 	assert.Empty(t, list)
 }

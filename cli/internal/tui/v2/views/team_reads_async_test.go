@@ -144,7 +144,7 @@ func TestTakeoverViewLoadAndRemount(t *testing.T) {
 	var calls atomic.Int32
 	first, release := make(chan struct{}), make(chan struct{})
 	v := NewTakeoverView(func() TeamResolution { return tc })
-	v.read = func(takeoverReader) (takeoverData, error) {
+	v.read = func(context.Context, takeoverReader) (takeoverData, error) {
 		brief := func(ticket string) []teamstate.TakeoverMeta {
 			return []teamstate.TakeoverMeta{{TicketID: ticket, Project: "web", TransferredFrom: "a", TransferredTo: "b"}}
 		}

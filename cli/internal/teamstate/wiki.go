@@ -27,7 +27,10 @@ type WikiProposal struct {
 }
 
 // WikiListPages returns the names of all wiki pages (without .md extension).
-func (r *Repo) WikiListPages() ([]string, error) {
+func (r *Repo) WikiListPages(ctx context.Context) ([]string, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	dir := filepath.Join(r.path, "wiki")
@@ -50,7 +53,10 @@ func (r *Repo) WikiListPages() ([]string, error) {
 }
 
 // WikiReadPage returns the content of a wiki page.
-func (r *Repo) WikiReadPage(name string) (string, error) {
+func (r *Repo) WikiReadPage(ctx context.Context, name string) (string, error) {
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
 	if _, err := SafeName(name); err != nil {
 		return "", fmt.Errorf("invalid wiki page name: %w", err)
 	}
@@ -115,7 +121,10 @@ func (r *Repo) WikiCreateProposal(ctx context.Context, p WikiProposal) error {
 }
 
 // WikiListPending returns all pending proposals.
-func (r *Repo) WikiListPending() ([]WikiProposal, error) {
+func (r *Repo) WikiListPending(ctx context.Context) ([]WikiProposal, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	return r.wikiListPending()

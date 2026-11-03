@@ -307,7 +307,7 @@ func TestPatternsViewKeys(t *testing.T) {
 
 	selectSection(t, v.slist, "api-crud")
 	v.HandleKey(runeKey('y'))
-	ps, err := repo.ListPatterns(nil, 0)
+	ps, err := repo.ListPatterns(ctx, nil, 0)
 	require.NoError(t, err)
 	require.Len(t, ps, 1)
 	assert.True(t, ps[0].Validated, "y validates the pattern")
@@ -315,10 +315,10 @@ func TestPatternsViewKeys(t *testing.T) {
 	selectSection(t, v.slist, "api-crud")
 	v.HandleKey(runeKey('d'))
 	require.Equal(t, 1, sh.confirmCount())
-	ps, _ = repo.ListPatterns(nil, 0)
+	ps, _ = repo.ListPatterns(ctx, nil, 0)
 	assert.Len(t, ps, 1, "nothing deleted before the confirmation")
 	sh.confirmed(t, nil)
-	ps, _ = repo.ListPatterns(nil, 0)
+	ps, _ = repo.ListPatterns(ctx, nil, 0)
 	assert.Empty(t, ps)
 }
 

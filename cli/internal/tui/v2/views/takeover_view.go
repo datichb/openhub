@@ -29,7 +29,7 @@ type TakeoverView struct {
 	briefRead   loadSlot // the read of the brief being opened
 
 	// read replaces the read of the briefs (tests).
-	read func(repo takeoverReader) (takeoverData, error)
+	read func(ctx context.Context, repo takeoverReader) (takeoverData, error)
 }
 
 // takeoverEnrichKey asks the AI to enrich the brief under the cursor.
@@ -186,18 +186,18 @@ func (v *TakeoverView) refresh() {
 	if read == nil {
 		read = readTakeover
 	}
-	fetch := func(context.Context) (takeoverData, error) { return read(repo) }
+	fetch := func(ctx context.Context) (takeoverData, error) { return read(ctx, repo) }
 	syncLoad(v.app, shellContext(v.shell), &v.loads, repo, v.shell, fetch, func(d takeoverData, err error) {
 		v.renderBriefs(d, err)
 	})
 }
 
 // readTakeover reads the briefs. It reads files: call it off the event loop.
-func readTakeover(repo takeoverReader) (takeoverData, error) {
+func readTakeover(ctx context.Context, repo takeoverReader) (takeoverData, error) {
 	if !repo.IsCloned() {
 		return takeoverData{}, nil
 	}
-	briefs, err := repo.ListBriefs("")
+	briefs, err := repo.ListBriefs(ctx, "")
 	return takeoverData{cloned: true, briefs: briefs}, err
 }
 
@@ -242,8 +242,8 @@ func (v *TakeoverView) showBrief() {
 		return
 	}
 	sh := v.shell
-	load(v.app, shellContext(sh), &v.briefRead, func(context.Context) (string, error) {
-		return repo.ReadBrief(b.Project, b.TicketID)
+	load(v.app, shellContext(sh), &v.briefRead, func(ctx context.Context) (string, error) {
+		return repo.ReadBrief(ctx, b.Project, b.TicketID)
 	}, func(content string, err error) {
 		if err != nil {
 			sh.ShowToastMsg(i18n.T("tui.takeover.read_error")+err.Error(), false)

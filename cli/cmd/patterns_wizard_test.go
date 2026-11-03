@@ -69,7 +69,7 @@ func TestPatternsAddWizard(t *testing.T) {
 			}
 
 			assert.Equal(t, "patterns add", s.command, "command of the wizard")
-			list, err := repo.ListPatterns(nil, 0)
+			list, err := repo.ListPatterns(t.Context(), nil, 0)
 			require.NoError(t, err)
 			if tc.none {
 				assert.Empty(t, list, "patterns written")
@@ -81,7 +81,7 @@ func TestPatternsAddWizard(t *testing.T) {
 			assert.Equal(t, tc.wantCompl, p.Complexity, "complexity")
 			assert.Equal(t, "manual", p.Source, "source")
 			assert.True(t, p.Validated, "validated")
-			content, err := repo.ReadPattern(p.Name)
+			content, err := repo.ReadPattern(t.Context(), p.Name)
 			require.NoError(t, err)
 			assert.Equal(t, tc.wantContent, content, "content")
 		})

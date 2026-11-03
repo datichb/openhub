@@ -483,7 +483,7 @@ func handleTeamWikiList(ctx context.Context, params json.RawMessage) (*protocol.
 		return nil, err
 	}
 
-	pages, err := repo.WikiListPages()
+	pages, err := repo.WikiListPages(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("listing wiki pages: %w", err)
 	}
@@ -511,7 +511,7 @@ func handleTeamWikiRead(ctx context.Context, params json.RawMessage) (*protocol.
 		return nil, err
 	}
 
-	content, err := repo.WikiReadPage(args.Page)
+	content, err := repo.WikiReadPage(ctx, args.Page)
 	if err != nil {
 		return nil, fmt.Errorf("reading wiki page: %w", err)
 	}
@@ -582,7 +582,7 @@ func handleTeamWikiPending(ctx context.Context, params json.RawMessage) (*protoc
 		return nil, err
 	}
 
-	pending, err := repo.WikiListPending()
+	pending, err := repo.WikiListPending(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("listing pending proposals: %w", err)
 	}
@@ -723,7 +723,7 @@ func handleTeamTakeoverBrief(ctx context.Context, params json.RawMessage) (*prot
 		return nil, err
 	}
 
-	content, err := repo.ReadBrief(args.Project, args.TicketID)
+	content, err := repo.ReadBrief(ctx, args.Project, args.TicketID)
 	if err != nil {
 		if err == teamstate.ErrBriefNotFound {
 			return &protocol.ToolResult{
@@ -894,7 +894,7 @@ func handleTeamPatternsList(ctx context.Context, params json.RawMessage) (*proto
 		minTags = len(args.Tags)
 	}
 
-	patterns, err := repo.ListPatterns(args.Tags, minTags)
+	patterns, err := repo.ListPatterns(ctx, args.Tags, minTags)
 	if err != nil {
 		return nil, fmt.Errorf("listing patterns: %w", err)
 	}
@@ -931,7 +931,7 @@ func handleTeamPatternsRead(ctx context.Context, params json.RawMessage) (*proto
 		return nil, err
 	}
 
-	content, err := repo.ReadPattern(args.Name)
+	content, err := repo.ReadPattern(ctx, args.Name)
 	if err != nil {
 		return nil, fmt.Errorf("reading pattern: %w", err)
 	}

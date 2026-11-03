@@ -34,7 +34,7 @@ func (r *wikiRepo) IsCloned() bool             { return true }
 func (r *wikiRepo) HasConfig() bool            { return false }
 func (r *wikiRepo) HasPolicies() bool          { return false }
 func (r *wikiRepo) Pull(context.Context) error { return nil }
-func (r *wikiRepo) WikiListPages() ([]string, error) {
+func (r *wikiRepo) WikiListPages(context.Context) ([]string, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	var out []string
@@ -46,7 +46,7 @@ func (r *wikiRepo) WikiListPages() ([]string, error) {
 	return out, nil
 }
 
-func (r *wikiRepo) WikiReadPage(name string) (string, error) {
+func (r *wikiRepo) WikiReadPage(_ context.Context, name string) (string, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if c, ok := r.pages[name]; ok {
@@ -55,7 +55,7 @@ func (r *wikiRepo) WikiReadPage(name string) (string, error) {
 	return "", errors.New("introuvable")
 }
 
-func (r *wikiRepo) WikiListPending() ([]teamstate.WikiProposal, error) {
+func (r *wikiRepo) WikiListPending(_ context.Context) ([]teamstate.WikiProposal, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return append([]teamstate.WikiProposal(nil), r.proposals...), nil
@@ -422,13 +422,13 @@ type slowWikiRepo struct {
 	first, release chan struct{}
 }
 
-func (r *slowWikiRepo) WikiListPending() ([]teamstate.WikiProposal, error) {
+func (r *slowWikiRepo) WikiListPending(ctx context.Context) ([]teamstate.WikiProposal, error) {
 	if r.calls.Add(1) == 1 {
 		close(r.first)
 		<-r.release
 		return []teamstate.WikiProposal{{ID: "wp-old", Page: "ancienne"}}, nil
 	}
-	return r.wikiRepo.WikiListPending()
+	return r.wikiRepo.WikiListPending(ctx)
 }
 
 // The proposals and the pages are read in load(): the mount returns with

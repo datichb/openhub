@@ -45,14 +45,14 @@ func TestTeamWikiReviewRefusalNeedsAReason(t *testing.T) {
 	seedWikiProposal(t, repo, "wp-1")
 
 	require.NoError(t, reviewWiki(t, "wp-1", "r\n\n"))
-	pending, err := repo.WikiListPending()
+	pending, err := repo.WikiListPending(t.Context())
 	require.NoError(t, err)
 	assert.Len(t, pending, 1, "no reason: the proposal stays")
 	assert.Contains(t, stdout.String(), "Motif")
 
 	stdout.Reset()
 	require.NoError(t, reviewWiki(t, "wp-1", "r\ndéjà   couvert par l'ADR 12\n"))
-	pending, err = repo.WikiListPending()
+	pending, err = repo.WikiListPending(t.Context())
 	require.NoError(t, err)
 	assert.Empty(t, pending)
 	assert.Contains(t, gittest.Run(t, repo.Path(), "log", "--format=%s", "-3"), "rejected proposal wp-1: déjà couvert par l'ADR 12")

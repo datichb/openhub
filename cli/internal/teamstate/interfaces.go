@@ -154,9 +154,9 @@ type PolicyWriter interface {
 
 // WikiReader reads the wiki pages and the pending proposals.
 type WikiReader interface {
-	WikiListPages() ([]string, error)
-	WikiReadPage(name string) (string, error)
-	WikiListPending() ([]WikiProposal, error)
+	WikiListPages(ctx context.Context) ([]string, error)
+	WikiReadPage(ctx context.Context, name string) (string, error)
+	WikiListPending(ctx context.Context) ([]WikiProposal, error)
 }
 
 // WikiWriter proposes, accepts and rejects wiki proposals.
@@ -168,8 +168,8 @@ type WikiWriter interface {
 
 // PatternReader reads the patterns.
 type PatternReader interface {
-	ListPatterns(tags []string, minMatchTags int) ([]Pattern, error)
-	ReadPattern(name string) (string, error)
+	ListPatterns(ctx context.Context, tags []string, minMatchTags int) ([]Pattern, error)
+	ReadPattern(ctx context.Context, name string) (string, error)
 }
 
 // PatternWriter creates, validates and removes patterns.
@@ -181,9 +181,9 @@ type PatternWriter interface {
 
 // BriefReader reads the takeover briefs.
 type BriefReader interface {
-	ReadBrief(project, ticketID string) (string, error)
-	ListBriefs(project string) ([]TakeoverMeta, error)
-	BriefExists(project, ticketID string) bool
+	ReadBrief(ctx context.Context, project, ticketID string) (string, error)
+	ListBriefs(ctx context.Context, project string) ([]TakeoverMeta, error)
+	BriefExists(ctx context.Context, project, ticketID string) bool
 }
 
 // BriefWriter generates and saves the takeover briefs.

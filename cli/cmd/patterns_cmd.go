@@ -78,7 +78,7 @@ func runPatternsList(cmd *cobra.Command, args []string) error {
 		minTags = 1
 	}
 
-	patterns, err := repo.ListPatterns(tags, minTags)
+	patterns, err := repo.ListPatterns(ctx, tags, minTags)
 	if err != nil {
 		return fmt.Errorf(i18n.T("cmd.patterns_cmd.listing_patterns"), err)
 	}
@@ -139,7 +139,7 @@ func runPatternsShow(cmd *cobra.Command, args []string) error {
 	}
 
 	name := args[0]
-	content, err := repo.ReadPattern(name)
+	content, err := repo.ReadPattern(ctx, name)
 	if err != nil {
 		return fmt.Errorf(i18n.T("cmd.patterns_cmd.reading_pattern"), err)
 	}
