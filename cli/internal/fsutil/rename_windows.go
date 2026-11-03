@@ -19,10 +19,10 @@ const (
 // rename replaces newpath with oldpath. On Windows, replacing a file that
 // another writer is replacing at the same time fails for a short while
 // (access denied, sharing violation) instead of waiting: retry for up to
-// about half a second, as the Go toolchain does (cmd/go/internal/robustio).
+// two seconds, as the Go toolchain does (cmd/go/internal/robustio).
 func rename(oldpath, newpath string) error {
 	delay := time.Millisecond
-	deadline := time.Now().Add(500 * time.Millisecond)
+	deadline := time.Now().Add(2 * time.Second)
 	for {
 		err := os.Rename(oldpath, newpath)
 		if err == nil || !transientRenameError(err) || time.Now().After(deadline) {
