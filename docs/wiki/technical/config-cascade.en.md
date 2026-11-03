@@ -84,7 +84,7 @@ In v5, the servers enabled after this cascade are placed in the session bundle a
 | auto_sync | `*bool` | `bool` | `false` | Tri-state (not configured / enabled / disabled) |
 | push_labels | `*bool` | `bool` | `false` | Tri-state (not configured / enabled / disabled) |
 | auto_plan_assigned | `*bool` | `bool` | `false` | Tri-state (not configured / enabled / disabled) |
-| max_auto_plan_per_member | `*int` | `int` | `5` | Int (empty = default); limit **per sync** |
+| max_in_progress_per_member | `*int` | `*int` | `5` | Int (empty = default, `0` = no limit); work-in-progress limit per member, checked where a ticket is taken or started. The former `max_auto_plan_per_member` is read when absent |
 
 Hub `*bool` semantics: `nil` = not configured, `true/false` = explicit override.
 

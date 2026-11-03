@@ -84,7 +84,7 @@ En v5, les serveurs activés à l'issue de cette cascade sont placés dans le pa
 | auto_sync | `*bool` | `bool` | `false` | Tri-state (non configuré / activé / désactivé) |
 | push_labels | `*bool` | `bool` | `false` | Tri-state (non configuré / activé / désactivé) |
 | auto_plan_assigned | `*bool` | `bool` | `false` | Tri-state (non configuré / activé / désactivé) |
-| max_auto_plan_per_member | `*int` | `int` | `5` | Int (vide = défaut) ; limite **par synchro** |
+| max_in_progress_per_member | `*int` | `*int` | `5` | Int (vide = défaut, `0` = sans limite) ; limite de travail en cours par membre, vérifiée là où un ticket est pris ou démarré. L'ancienne `max_auto_plan_per_member` est lue quand elle est absente |
 
 Sémantique hub `*bool` : `nil` = non configuré, `true/false` = surcharge explicite.
 

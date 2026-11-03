@@ -597,7 +597,7 @@ ticket_pattern = "APP-(\\d+)"   # regex with one capture group → external IID
 auto_sync = true             # sync when opening team views
 sync_interval_minutes = 5    # interval while the board is open
 auto_plan_assigned = true    # "planned" claims for assigned issues
-max_auto_plan_per_member = 5
+max_in_progress_per_member = 5   # tickets in progress per member (0 = no limit)
 auto_plan_unassigned = false # pool claims for unassigned issues
 push_labels = false          # push labels back to the tracker
 write_enabled = false        # tracker writes (labels, assignment)
@@ -618,8 +618,8 @@ write_enabled = false        # tracker writes (labels, assignment)
 | `ticket_pattern` | string | empty | Regex with **one capture group** extracting the IID |
 | `auto_sync` | bool | `false` | Sync when opening team views |
 | `sync_interval_minutes` | int | `5` with `auto_sync`, otherwise `0` | Sync interval while the board is open (`0` = disabled) |
-| `auto_plan_assigned` | bool | `false` | `planned` claims for issues assigned to members |
-| `max_auto_plan_per_member` | int | `5` | Most claims one sync creates for a member from the issues assigned to them (per run, not a standing cap: the issues held come in at the next syncs). The issues already in progress come first and are always let in, outside the limit. What is left off is said: `N issue(s) outside the board, limit reached` in the sync result and on the team board |
+| `auto_plan_assigned` | bool | `false` | Every open issue assigned to a member comes onto the board as a claim, in the column its status maps to, **with no cap per member** (an issue already in progress on the tracker arrives in progress) |
+| `max_in_progress_per_member` | int | `5` | **Work-in-progress limit**: the most tickets one member works on at once. It counts their claims in progress (the `active` columns of the board, `in_progress` by default), those in review (`review` status or `review` / `ready-for-review` label) or in validation apart. `0` = no limit. A member who has reached it can no longer take or start one more: `oh team claim` (also the takeover of an expired claim and `oh team claim transfer` to oneself), the take key and a card moved to in progress or handed to oneself on the team board, a session launched on tickets. oh refuses with the count and this key. The tracker sync is never bound by it. A member can set their own limit in `hub.toml` (`oh config set tracker.max_in_progress_per_member 3`), which wins over the team's. **Replaces `max_auto_plan_per_member`** (deprecated: still read when this key is absent, announced by `oh doctor`; it no longer caps anything the sync creates) |
 | `auto_plan_unassigned` | bool | `false` | Pool claims (taken with `c`) for unassigned issues |
 | `unassigned_labels` | list | `[]` | Labels required on unassigned issues |
 | `max_unassigned_issues` | int | `20` | Cap on unassigned issues per project |
