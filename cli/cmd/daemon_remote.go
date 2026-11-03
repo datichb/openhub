@@ -20,7 +20,7 @@ import (
 // by the daemon (container), like runsvc.Service.stopServer.
 func daemonTeardown(a *app.App) func(ctx context.Context, srv domain.Server) {
 	return func(ctx context.Context, srv domain.Server) {
-		rt := v5Runtimes(a)[sessionspec.RuntimeKind(srv.Runtime)]
+		rt := sessionRuntimes(a)[sessionspec.RuntimeKind(srv.Runtime)]
 		if rt == nil {
 			return
 		}

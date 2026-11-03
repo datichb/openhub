@@ -66,7 +66,7 @@ func setupWorkflowCLI(t *testing.T, member string, others ...string) *workflowCL
 	root := repoRoot(t)
 	home := t.TempDir()
 	t.Setenv("OH_HOME", home)
-	withoutV2(t, nil)
+	withoutTool(t, nil)
 	t.Setenv(workflowsDirEnv, filepath.Join(root, "cli", "internal", "services", "workflow", "testdata", "workflows"))
 	// The repository root has the hub layout (agents/, skills/, permissions/).
 	require.NoError(t, os.Symlink(root, filepath.Join(home, "hub")))

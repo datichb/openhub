@@ -15,8 +15,8 @@ const workflowsDirEnv = "OH_WORKFLOWS_DIR"
 // isolation level of the tool adapter is filled when a supported tool is present.
 func newWorkflowService(ctx context.Context) *workflowsvc.Service {
 	svc := &workflowsvc.Service{HubDir: findHubDir(), HubWorkflowsDir: os.Getenv(workflowsDirEnv), TeamState: workflowTeamState}
-	if ctx != nil && v5Available(ctx) {
-		svc.Isolation = v5Adapter.Capabilities().Isolation
+	if ctx != nil && toolAvailable(ctx) {
+		svc.Isolation = toolAdapter.Capabilities().Isolation
 	}
 	return svc
 }

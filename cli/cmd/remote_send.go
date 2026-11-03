@@ -14,8 +14,8 @@ func newRemoteSendService(a *app.App) *remotesvc.Service {
 	svc := newRemoteService(a)
 	svc.Sessions = a.Sessions
 	svc.Remote = a.Remotes
-	if v5Adapter != nil {
-		svc.ToolName, svc.ToolVersion = v5Adapter.Name(), v5Tool.Version
+	if toolAdapter != nil {
+		svc.ToolName, svc.ToolVersion = toolAdapter.Name(), toolInfo.Version
 	}
 	return svc
 }

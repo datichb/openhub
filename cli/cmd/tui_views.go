@@ -188,10 +188,10 @@ func resolveGitBranch(projectPath string) string {
 // v2.0.20 · adaptateur opencode-v2 ✔ »; cached version, detected when the TUI
 // starts: no process on the event loop).
 func tuiToolLine() string {
-	if v, _ := v5Ver.Load().(string); v != "" {
-		return i18n.Tf("tui.views.tool_line", v5Tool.DisplayName, v, v5Tool.Name) + " " + theme.SymSuccess
+	if v, _ := detectedVersion.Load().(string); v != "" {
+		return i18n.Tf("tui.views.tool_line", toolInfo.DisplayName, v, toolInfo.Name) + " " + theme.SymSuccess
 	}
-	if v5Err != nil {
+	if toolErr != nil {
 		return i18n.Tf("cmd.v1.unsupported.doctor_name", toolName()) + " " + theme.SymFailure
 	}
 	return ""

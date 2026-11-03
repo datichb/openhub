@@ -87,7 +87,7 @@ func doctorRegistry() []doctor.Check {
 		{ID: "api_keys", Name: i18n.T("cmd.doctor.check.api_keys"), Run: single(checkAPIKeys)},
 		{ID: "beads", Name: i18n.T("cmd.doctor.check.beads"), Run: many(checkBeadsSanity), Fix: beadsFix},
 		{ID: "beads_tracking", Name: i18n.T("cmd.doctor.check.beads_tracking"), Run: many(beadsTrackingChecks)},
-		{ID: "runtime", Name: i18n.T("cmd.doctor.check.runtime"), Run: v5DoctorChecks, Fix: runtimeFix},
+		{ID: "runtime", Name: i18n.T("cmd.doctor.check.runtime"), Run: runtimeDoctorChecks, Fix: runtimeFix},
 	}
 }
 

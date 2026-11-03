@@ -269,10 +269,10 @@ func wireStores(a *app.App, s *sqlite.Store) {
 	a.WithFanout(sessions)
 	a.WithStats(sessionstats.New(a.Sessions, a.Projects))
 	a.WithToolVersion(func() (string, error) {
-		if err := requireV2(context.Background()); err != nil {
+		if err := requireSupportedTool(context.Background()); err != nil {
 			return "", err
 		}
-		return v5Tool.Version, nil
+		return toolInfo.Version, nil
 	})
 }
 

@@ -17,47 +17,47 @@ import (
 // guide.
 
 var (
-	v5Once    sync.Once
-	v5Adapter adapters.ToolAdapter
-	v5Tool    adapters.ToolInfo
-	v5Err     error
-	// detectV2 finds the adapter of the installed tool (replaced by tests).
-	detectV2 = detectTool
+	toolOnce    sync.Once
+	toolAdapter adapters.ToolAdapter
+	toolInfo    adapters.ToolInfo
+	toolErr     error
+	// detectSupportedTool finds the adapter of the installed tool (replaced by tests).
+	detectSupportedTool = detectTool
 )
 
-// requireV2 returns nil when a supported tool is installed, else an error
+// requireSupportedTool returns nil when a supported tool is installed, else an error
 // to show as is (cmd.v1.unsupported.*).
-func requireV2(ctx context.Context) error {
-	v5Once.Do(func() {
-		v5Adapter, v5Tool, v5Err = detectV2(ctx)
-		if v5Err == nil && v5Adapter != nil {
-			v5Ver.Store(v5Tool.Version)
+func requireSupportedTool(ctx context.Context) error {
+	toolOnce.Do(func() {
+		toolAdapter, toolInfo, toolErr = detectSupportedTool(ctx)
+		if toolErr == nil && toolAdapter != nil {
+			detectedVersion.Store(toolInfo.Version)
 		}
 	})
-	if v5Err == nil {
+	if toolErr == nil {
 		return nil
 	}
-	slog.Debug("tool unavailable", "reason", v5Err)
-	return v2Unsupported(v5Err)
+	slog.Debug("tool unavailable", "reason", toolErr)
+	return unsupportedToolError(toolErr)
 }
 
-// v5Available reports whether a supported tool is installed.
-func v5Available(ctx context.Context) bool { return requireV2(ctx) == nil }
+// toolAvailable reports whether a supported tool is installed.
+func toolAvailable(ctx context.Context) bool { return requireSupportedTool(ctx) == nil }
 
 // toolName is the displayed name of the tool (of the preferred adapter
 // when none is installed).
 func toolName() string {
-	if v5Tool.DisplayName == "" {
-		_ = requireV2(context.Background())
+	if toolInfo.DisplayName == "" {
+		_ = requireSupportedTool(context.Background())
 	}
-	if v5Tool.DisplayName != "" {
-		return v5Tool.DisplayName
+	if toolInfo.DisplayName != "" {
+		return toolInfo.DisplayName
 	}
 	return "tool"
 }
 
-// v2Unsupported turns a detection error into the user message.
-func v2Unsupported(err error) error {
+// unsupportedToolError turns a detection error into the user message.
+func unsupportedToolError(err error) error {
 	var ue *adapters.UnsupportedVersionError
 	name := toolName()
 	switch {

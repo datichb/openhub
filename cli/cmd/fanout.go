@@ -421,7 +421,7 @@ func (l *fanoutLauncher) Tell(ctx context.Context, id, text string) error {
 		return nil
 	}
 	// The server of the parent slept while the children ran: wake it.
-	if werr := resumeV5Session(ctx, l.a, l.rsvc, id); werr != nil {
+	if werr := resumeSession(ctx, l.a, l.rsvc, id); werr != nil {
 		return errors.Join(err, werr)
 	}
 	return l.ssvc.Send(ctx, id, text, sessionsvc.SendOptions{})

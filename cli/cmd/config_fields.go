@@ -19,7 +19,7 @@ import (
 // [limits] and [remote], with the same values as the TUI Settings.
 
 func init() {
-	for k, f := range v5ConfigFields() {
+	for k, f := range configFields() {
 		configFieldMap[k] = f
 	}
 }
@@ -88,7 +88,7 @@ func validToolVersion(s string) bool {
 // colimaProfileRe matches a Colima profile name.
 var colimaProfileRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
 
-func v5ConfigFields() map[string]configField {
+func configFields() map[string]configField {
 	fields := map[string]configField{
 		"session.attach": enumField("session.attach", func(c *config.Config) *string { return &c.Session.Attach },
 			"", "auto", "iterm", "terminal", "tmux", "browser", "suspend"),

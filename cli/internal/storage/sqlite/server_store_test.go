@@ -81,7 +81,7 @@ func TestGrantStoreUnreadableModels(t *testing.T) {
 	assert.Empty(t, active[0].AllowedModels, "no list stays no list")
 }
 
-func TestSessionStoreV5Fields(t *testing.T) {
+func TestSessionStoreRunFields(t *testing.T) {
 	s := openTestStore(t)
 	ctx := context.Background()
 	seedProject(t, s, "p1")

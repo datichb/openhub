@@ -104,13 +104,13 @@ func tuiWorkflowIDs() []string {
 	return tuiStartWiring.workflowIDs()
 }
 
-// v5Ver is the tool client version, once detected.
-var v5Ver atomic.Value
+// detectedVersion is the tool client version, once detected.
+var detectedVersion atomic.Value
 
-// v5ToolVersion returns the detected client version without detecting it
+// detectedToolVersion returns the detected client version without detecting it
 // (event loop safe; "" before the first detection).
-func v5ToolVersion() string {
-	s, _ := v5Ver.Load().(string)
+func detectedToolVersion() string {
+	s, _ := detectedVersion.Load().(string)
 	return s
 }
 

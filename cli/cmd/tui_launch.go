@@ -425,7 +425,7 @@ func tuiProjectRuntimes(a *app.App) func(ctx context.Context, p *views.ActivePro
 // tuiRuntimeKinds is the availability of the given runtimes.
 func tuiRuntimeKinds(ctx context.Context, a *app.App, kinds []workflow.Runtime, project *domain.Project) []views.LaunchRuntime {
 	var svc *runsvc.Service
-	if v5Available(ctx) {
+	if toolAvailable(ctx) {
 		svc, _ = newRunService(ctx, a)
 	}
 	var out []views.LaunchRuntime

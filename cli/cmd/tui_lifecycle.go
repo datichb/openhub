@@ -46,7 +46,7 @@ func writeLastSeen(t time.Time) {
 // startTUIPresence declares the open TUI to the daemon (a pending decision then
 // keeps its server awake) and returns a stop function.
 func startTUIPresence(ctx context.Context) func() {
-	if !v5Available(ctx) {
+	if !toolAvailable(ctx) {
 		return func() {}
 	}
 	pctx, cancel := context.WithCancel(ctx)
@@ -87,12 +87,12 @@ func showAbsenceRecap(ctx context.Context, a *app.App, sh *shell.Shell) {
 	})
 }
 
-// v5BeforeQuit applies the quit policy to the open v5 sessions (I7):
+// beforeQuit applies the quit policy to the open v5 sessions (I7):
 // inactive/waiting sessions sleep now; for each working session the user
 // chooses — finish the step then sleep (default), keep running in the
 // background, or stop now. Stores and daemon are read off the event loop;
 // Esc cancels the quit.
-func v5BeforeQuit(a *app.App, sh *shell.Shell) func(quit func()) {
+func beforeQuit(a *app.App, sh *shell.Shell) func(quit func()) {
 	return func(quit func()) {
 		finish := func() {
 			writeLastSeen(time.Now())
@@ -102,7 +102,7 @@ func v5BeforeQuit(a *app.App, sh *shell.Shell) func(quit func()) {
 			// Bounded reads: an unresponsive daemon must not hold the quit.
 			ctx, cancel := context.WithTimeout(context.Background(), quitReadTimeout)
 			defer cancel()
-			if !v5Available(ctx) {
+			if !toolAvailable(ctx) {
 				sh.App().QueueUpdateDraw(finish)
 				return
 			}

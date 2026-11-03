@@ -335,9 +335,9 @@ func TestPurgeConfirmation(t *testing.T) {
 
 // Family « migrate deploy-cleanup »: its own refusal carries the same code.
 func TestMigrateCleanupConfirmation(t *testing.T) {
-	prev := v5Adapter
-	v5Adapter = fakeCleaner{}
-	t.Cleanup(func() { v5Adapter = prev })
+	prev := toolAdapter
+	toolAdapter = fakeCleaner{}
+	t.Cleanup(func() { toolAdapter = prev })
 	deployed := t.TempDir()
 	require.NoError(t, os.MkdirAll(filepath.Join(deployed, "legacy"), 0o755))
 	io, _, _ := testIO()

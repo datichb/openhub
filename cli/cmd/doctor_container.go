@@ -43,7 +43,7 @@ func containerDoctorChecks(ctx context.Context) []doctor.Result {
 
 func containerChecks(ctx context.Context) []doctor.Result {
 	a := TryApp()
-	rt := v5ContainerRuntime(a)
+	rt := containerRuntime(a)
 	e, av := rt.Engine(ctx)
 	check := func(key string, ok bool, detail string) doctor.Result {
 		return doctor.Result{Name: i18n.T("tui.doctor.container." + key), OK: ok, Detail: detail}
@@ -59,7 +59,7 @@ func containerChecks(ctx context.Context) []doctor.Result {
 	}
 	out := []doctor.Result{check("engine", true, engine)}
 
-	client := v5ToolVersion()
+	client := detectedToolVersion()
 	if pinned := executionConfig(a).ToolVersion; client != "" && !pinnedVersionOK(pinned, client) {
 		out = append(out, check("pinned", false, i18n.Tf("tui.settings.exec.tool.mismatch", toolName(), pinned, client)))
 	}
@@ -119,7 +119,7 @@ func imageDoctorChecks(ctx context.Context, rt *container.Runtime, e container.E
 		if i == doctorProjectImages {
 			break
 		}
-		tc := rt.CheckTool(ctx, e, img.Ref, v5Tool.Command)
+		tc := rt.CheckTool(ctx, e, img.Ref, toolInfo.Command)
 		name := i18n.Tf("tui.doctor.container.image", img.ProjectID)
 		switch {
 		case len(tc.MissingLibs) > 0:

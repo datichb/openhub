@@ -139,14 +139,14 @@ func sessionEndHook(a *app.App, async bool) func(context.Context, domain.Session
 	}
 }
 
-// v5Runtimes are the non-local execution environments, configured by the
+// sessionRuntimes are the non-local execution environments, configured by the
 // Settings › Exécution (`[execution]` of hub.toml): engine, image cache,
 // pinned tool version.
-func v5Runtimes(a *app.App) map[sessionspec.RuntimeKind]ohruntime.Runtime {
+func sessionRuntimes(a *app.App) map[sessionspec.RuntimeKind]ohruntime.Runtime {
 	ex := executionConfig(a)
-	var rt ohruntime.Runtime = v5ContainerRuntime(a)
-	if v5Adapter != nil {
-		rt = pinRuntime(rt, ex.ToolVersion, v5Tool.Version)
+	var rt ohruntime.Runtime = containerRuntime(a)
+	if toolAdapter != nil {
+		rt = pinRuntime(rt, ex.ToolVersion, toolInfo.Version)
 	}
 	return map[sessionspec.RuntimeKind]ohruntime.Runtime{sessionspec.RuntimeContainer: rt}
 }
@@ -159,9 +159,9 @@ func executionConfig(a *app.App) config.ExecutionConfig {
 	return config.ExecutionConfig{}
 }
 
-// v5ContainerRuntime is the container runtime configured by the Settings
+// containerRuntime is the container runtime configured by the Settings
 // (engine, Colima profile, image cache), without the pinned version check (Doctor).
-func v5ContainerRuntime(a *app.App) *container.Runtime {
+func containerRuntime(a *app.App) *container.Runtime {
 	ex := executionConfig(a)
 	engine, _ := container.ParseEngine(ex.Engine)
 	profile := ex.ColimaProfile
@@ -188,10 +188,10 @@ func newRunServiceFor(ctx context.Context, a *app.App, planOnly bool) (*runsvc.S
 	if store == nil {
 		return nil, errors.New(i18n.T("cmd.v5_runtime.database_not_initialized"))
 	}
-	if !v5Available(ctx) {
-		return nil, v2Unsupported(v5Err)
+	if !toolAvailable(ctx) {
+		return nil, unsupportedToolError(toolErr)
 	}
-	ad := v5Adapter
+	ad := toolAdapter
 	var (
 		shellPath []string
 		shellEnv  map[string]string
@@ -207,7 +207,7 @@ func newRunServiceFor(ctx context.Context, a *app.App, planOnly bool) (*runsvc.S
 	}
 	svc := &runsvc.Service{
 		Adapter:        ad,
-		AdapterVer:     v5Tool.Version,
+		AdapterVer:     toolInfo.Version,
 		Servers:        a.Servers,
 		Sessions:       a.Sessions,
 		Secrets:        a.Secrets,
@@ -218,7 +218,7 @@ func newRunServiceFor(ctx context.Context, a *app.App, planOnly bool) (*runsvc.S
 		Decisions:      a.Decisions,
 		Usage:          a.Usage,
 		OnSessionEnd:   sessionEndHook(a, false),
-		Runtimes:       v5Runtimes(a),
+		Runtimes:       sessionRuntimes(a),
 		LocalShellPath: shellPath,
 		LocalShellEnv:  shellEnv,
 		SessionEnv: gatewaySessionEnv(func(ctx context.Context) (gatewayGranter, error) {
@@ -233,7 +233,7 @@ func newRunServiceFor(ctx context.Context, a *app.App, planOnly bool) (*runsvc.S
 			return c, nil
 		},
 	}
-	svc.WakeSession = func(ctx context.Context, id string) error { return resumeV5Session(ctx, a, svc, id) }
+	svc.WakeSession = func(ctx context.Context, id string) error { return resumeSession(ctx, a, svc, id) }
 	svc.RefreshRules = func(ctx context.Context, id string) error {
 		dc, _, err := ensureDaemon(ctx)
 		if err != nil {
@@ -268,8 +268,8 @@ func newSessionService(ctx context.Context, a *app.App) (*sessionsvc.Service, er
 		Alive:       filelock.ProcessAlive,
 		Live:        dc.Stream,
 	}
-	if v5Available(ctx) {
-		svc.Adapter = v5Adapter
+	if toolAvailable(ctx) {
+		svc.Adapter = toolAdapter
 		ensureDaemonForLiveServers(ctx, svc.Servers)
 	}
 	svc.UseCheckpoints(newCheckpointService(a), func(ctx context.Context, id string) error {

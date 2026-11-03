@@ -624,7 +624,7 @@ func buildProviderStep(s *initStepState) views.WizardStep {
 					Value: infoWarning(i18n.T("cmd.init.wizard_no_keyring")),
 				})
 			}
-			if err := requireV2(context.Background()); err != nil {
+			if err := requireSupportedTool(context.Background()); err != nil {
 				fields = append(fields, views.InfoField{
 					Label: "Warning",
 					Value: infoWarning(err.Error()),

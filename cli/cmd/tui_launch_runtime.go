@@ -22,7 +22,7 @@ import (
 func tuiRuntimeStatus(a *app.App, project *domain.Project) views.RuntimeStatusFunc {
 	return func(ctx context.Context, c views.LaunchChoices) string {
 		kind := sessionspec.RuntimeKind(c.Runtime)
-		if kind == "" || kind == sessionspec.RuntimeLocal || !v5Available(ctx) {
+		if kind == "" || kind == sessionspec.RuntimeLocal || !toolAvailable(ctx) {
 			return ""
 		}
 		svc, err := newRunService(ctx, a)
@@ -33,7 +33,7 @@ func tuiRuntimeStatus(a *app.App, project *domain.Project) views.RuntimeStatusFu
 		if err != nil || !av.OK {
 			return "" // the option label already shows the reason
 		}
-		req := v5Request(a, project, "")
+		req := startRequest(a, project, "")
 		req.Runtime, req.Location = kind, project.Path
 		est, ok, err := svc.PrepareEstimate(ctx, req)
 		return runtimeStatusText(av, est, ok, err)

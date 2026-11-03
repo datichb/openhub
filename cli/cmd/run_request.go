@@ -47,9 +47,9 @@ func projectProvider(a *app.App, project *domain.Project, providerFlag string) (
 	return prov, tokenKey, provider.ResolveProviderConfig(projProv, hubProviderCfg(a, prov))
 }
 
-// v5Request returns the provider, team and attach settings of a project
+// startRequest returns the provider, team and attach settings of a project
 // session (bundle, location and prompt are set by the caller).
-func v5Request(a *app.App, project *domain.Project, providerFlag string) runsvc.StartRequest {
+func startRequest(a *app.App, project *domain.Project, providerFlag string) runsvc.StartRequest {
 	prov, tokenKey, provCfg := projectProvider(a, project, providerFlag)
 	req := runsvc.StartRequest{
 		ProjectID: project.ID, ProjectTokenKey: tokenKey, Provider: prov,
@@ -70,8 +70,8 @@ func v5Request(a *app.App, project *domain.Project, providerFlag string) runsvc.
 	return req
 }
 
-// resumeV5Session wakes the server group of a sleeping session.
-func resumeV5Session(ctx context.Context, a *app.App, svc *runsvc.Service, sessionID string) error {
+// resumeSession wakes the server group of a sleeping session.
+func resumeSession(ctx context.Context, a *app.App, svc *runsvc.Service, sessionID string) error {
 	sess, err := svc.Session(ctx, sessionID)
 	if err != nil {
 		return err
@@ -81,7 +81,7 @@ func resumeV5Session(ctx context.Context, a *app.App, svc *runsvc.Service, sessi
 		return err
 	}
 	a, _ = freshLaunchApp(a) // provider, region and limits as hub.toml has them now
-	req := v5Request(a, project, sess.Provider)
+	req := startRequest(a, project, sess.Provider)
 	return svc.ResumeSession(ctx, sessionID, req)
 }
 
@@ -110,7 +110,7 @@ func runAttachInline(ctx context.Context, a *app.App, svc *runsvc.Service, ui la
 func runAttachChild(ctx context.Context, a *app.App, svc *runsvc.Service, sessionID string) error {
 	argv, env, err := svc.AttachCommand(ctx, sessionID)
 	if errors.Is(err, runsvc.ErrServerNotRunning) {
-		if rerr := resumeV5Session(ctx, a, svc, sessionID); rerr != nil {
+		if rerr := resumeSession(ctx, a, svc, sessionID); rerr != nil {
 			return rerr
 		}
 		argv, env, err = svc.AttachCommand(ctx, sessionID)

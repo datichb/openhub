@@ -62,7 +62,7 @@ func newRemoteReturnService(ctx context.Context, a *app.App) *remotesvc.Service 
 		if err != nil {
 			return err
 		}
-		req := v5Request(a, project, "")
+		req := startRequest(a, project, "")
 		req.Location = location
 		return rs.AdoptSession(ctx, sid, trs, req)
 	}

@@ -95,8 +95,8 @@ func detectedAdapters(ctx context.Context) func(name string) adapters.ToolAdapte
 // preferredAdapter is the adapter of the installed tool, else the first
 // registered one (where the tool is not installed yet: job images).
 func preferredAdapter() adapters.ToolAdapter {
-	if v5Adapter != nil {
-		return v5Adapter
+	if toolAdapter != nil {
+		return toolAdapter
 	}
 	if names := toolRegistry.Names(); len(names) > 0 {
 		a, _ := toolRegistry.Get(names[0])

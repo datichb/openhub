@@ -126,7 +126,7 @@ func TestRunChecksTheToolBeforeTheProject(t *testing.T) {
 	a, _ := implicitProjectApp(t)
 	withTerminal(t, true)
 	asked := withConfirm(t, true)
-	withoutV2(t, nil)
+	withoutTool(t, nil)
 	application = a
 	t.Cleanup(func() { application = nil })
 	c := &cobra.Command{}

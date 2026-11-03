@@ -13,18 +13,18 @@ import (
 // and its adapter.
 func TestTUIToolLine(t *testing.T) {
 	i18ntest.Set(t, "fr")
-	prevTool, prevVer := v5Tool, v5Ver.Load()
+	prevTool, prevVer := toolInfo, detectedVersion.Load()
 	t.Cleanup(func() {
-		v5Tool = prevTool
+		toolInfo = prevTool
 		if prevVer != nil {
-			v5Ver.Store(prevVer)
+			detectedVersion.Store(prevVer)
 		} else {
-			v5Ver.Store("")
+			detectedVersion.Store("")
 		}
 	})
 
-	v5Tool = adapters.ToolInfo{Name: "acme-v1", DisplayName: "acme"}
-	v5Ver.Store("1.2.3")
+	toolInfo = adapters.ToolInfo{Name: "acme-v1", DisplayName: "acme"}
+	detectedVersion.Store("1.2.3")
 	assert.Equal(t, "acme v1.2.3 · adaptateur acme-v1 ✔", tuiToolLine())
 
 	i18ntest.Set(t, "en")

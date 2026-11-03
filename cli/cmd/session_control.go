@@ -333,7 +333,7 @@ var sessionResumeCmd = &cobra.Command{
 			fmt.Fprintln(cmd.OutOrStdout(), i18n.Tf("cmd.session.already_running", id))
 			return nil
 		}
-		if err := resumeV5Session(ctx, a, svc, id); err != nil {
+		if err := resumeSession(ctx, a, svc, id); err != nil {
 			return err
 		}
 		fmt.Fprintln(cmd.OutOrStdout(), i18n.Tf("cmd.session.resumed", id))

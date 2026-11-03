@@ -20,8 +20,8 @@ func init() {
 	views.DoctorChecks = collectDoctorChecks
 }
 
-// v5DoctorChecks reports the v5 runtime health (shared by `oh doctor` and the TUI).
-func v5DoctorChecks(parent context.Context) []doctor.Result {
+// runtimeDoctorChecks reports the v5 runtime health (shared by `oh doctor` and the TUI).
+func runtimeDoctorChecks(parent context.Context) []doctor.Result {
 	ctx, cancel := context.WithTimeout(parent, 5*time.Second)
 	defer cancel()
 	var out []doctor.Result
@@ -35,7 +35,7 @@ func v5DoctorChecks(parent context.Context) []doctor.Result {
 	out = append(out, legacyKeysChecks(ctx)...)
 	out = append(out, remoteDoctorChecks()...)
 
-	if !v5Available(ctx) {
+	if !toolAvailable(ctx) {
 		// No supported tool: the runtime checks below do not apply.
 		return out
 	}

@@ -56,7 +56,7 @@ func modelCLI(t *testing.T) *mockProjectStore {
 	t.Setenv("OH_HOME", home)
 	config.Reset()
 	t.Cleanup(config.Reset)
-	withoutV2(t, nil)
+	withoutTool(t, nil)
 	require.NoError(t, os.Symlink(root, filepath.Join(home, "hub")))
 	io, _, _ := testIO()
 	store := &mockProjectStore{projects: []domain.Project{{ID: "p1", Name: "web", Path: t.TempDir(), Status: domain.ProjectStatusActive}}}

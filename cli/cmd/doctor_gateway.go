@@ -92,7 +92,7 @@ func gatewayChecks(ctx context.Context) []doctor.Result {
 	}
 	out = append(out, check("daemon", true, i18n.Tf("cmd.doctor.gateway.daemon_ok", h.Version)))
 
-	rt := v5ContainerRuntime(TryApp())
+	rt := containerRuntime(TryApp())
 	e, av := rt.Engine(ctx)
 	if !av.OK || h.ProxyURL == "" {
 		return append(out, check("reach", true, i18n.T("cmd.doctor.gateway.no_engine")))

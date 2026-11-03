@@ -122,7 +122,7 @@ func runTUI(l tuiLaunch) error {
 		HomeViewID:    homeViewID,
 		InitialViewID: l.View,
 		Notifications: notifStore,
-		BeforeQuit:    func(quit func()) { v5BeforeQuit(a, tuiShell)(quit) },
+		BeforeQuit:    func(quit func()) { beforeQuit(a, tuiShell)(quit) },
 		Compact:       func() string { return a.Config.CLI.Compact },
 		TeamsProvider: func() []views.SelectOption { // B12
 			var out []views.SelectOption
