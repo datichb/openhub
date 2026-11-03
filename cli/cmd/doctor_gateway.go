@@ -20,7 +20,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/services/doctor"
 )
 
-// Doctor › gateways (P4-T12): bd on the machine, daemon recent enough, and
+// Doctor › gateways: bd on the machine, daemon recent enough, and
 // the Beads and MCP gateway routes reached from a container.
 
 func init() { registerDoctorCheck(gatewayDoctorChecks) }

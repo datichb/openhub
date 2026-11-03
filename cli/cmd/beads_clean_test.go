@@ -46,7 +46,7 @@ func doctorFixCmd(args ...string) (*cobra.Command, *bytes.Buffer) {
 	return c, &out
 }
 
-// A5 follow-up: oh doctor --fix lists the clean-up, needs --yes without
+// oh doctor --fix lists the clean-up, needs --yes without
 // terminal, then takes back out what bd init wrote (the user's text stays).
 func TestDoctorFixBeads(t *testing.T) {
 	i18ntest.Set(t, "en")
@@ -84,7 +84,7 @@ func TestDoctorFixBeads(t *testing.T) {
 	}
 }
 
-// N17: registering a project lists what bd init wrote; without a terminal
+// Registering a project lists what bd init wrote; without a terminal
 // nothing is changed (oh doctor --fix is named).
 func TestPrintBeadsCleanWithoutTerminal(t *testing.T) {
 	i18ntest.Set(t, "en")
@@ -109,7 +109,7 @@ func TestPrintBeadsCleanWithoutTerminal(t *testing.T) {
 	}
 }
 
-// N17: with a terminal, declined → nothing; accepted → cleaned.
+// With a terminal, declined → nothing; accepted → cleaned.
 func TestPrintBeadsCleanConfirmed(t *testing.T) {
 	i18ntest.Set(t, "en")
 	dir := beadsImpactProject(t)
@@ -128,7 +128,7 @@ func TestPrintBeadsCleanConfirmed(t *testing.T) {
 	}
 }
 
-// N17: [beads] zero_impact = off → nothing; auto → applied without asking.
+// [beads] zero_impact = off → nothing; auto → applied without asking.
 func TestPrintBeadsCleanModes(t *testing.T) {
 	i18ntest.Set(t, "en")
 	withTerminal(t, true)
@@ -190,7 +190,7 @@ func bdInitCommitRepo(t *testing.T) (dir string, git func(dir string, args ...st
 
 const bdInitSubject = "bd init: initialize beads issue tracking"
 
-// N17 (finitions): the commit of bd init is undone once listed and
+// The commit of bd init is undone once listed and
 // confirmed in a terminal, or with --yes; never without a terminal nor
 // --yes, never by the automatic mode, never when pushed.
 func TestPrintBeadsCleanCommit(t *testing.T) {
@@ -269,7 +269,7 @@ func TestPrintBeadsCleanCommit(t *testing.T) {
 	}
 }
 
-// N17 (finitions): oh doctor --fix undoes the commit of bd init once
+// oh doctor --fix undoes the commit of bd init once
 // confirmed in a terminal; without a terminal nothing happens without --yes.
 func TestDoctorFixUndoesCommitOnceConfirmed(t *testing.T) {
 	i18ntest.Set(t, "en")

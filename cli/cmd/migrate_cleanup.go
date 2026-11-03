@@ -20,7 +20,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
-// oh migrate deploy-cleanup (P3-T28): removes what the former per-project
+// oh migrate deploy-cleanup: removes what the former per-project
 // deployment left in the registered projects (internal/deploycleanup),
 // after showing it (diff of the tool configuration) and asking for confirmation.
 

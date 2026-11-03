@@ -9,7 +9,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 )
 
-// A10: oh workflow new --file with a document without prompt (nor extends)
+// oh workflow new --file with a document without prompt (nor extends)
 // names its own template and creates the starter one, with a message.
 func TestWorkflowNewFileWithoutPrompt(t *testing.T) {
 	setupWorkflowCLI(t, "alice")

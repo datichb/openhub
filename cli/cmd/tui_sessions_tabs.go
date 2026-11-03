@@ -18,7 +18,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
-// Tabs of the session detail in the TUI (modernisation tui-sessions): the
+// Tabs of the session detail in the TUI: the
 // outputs recorded by oh and the `next:` steps (`oh session next`), the
 // trace (`oh session trace`), the reports (`oh session report`) and the
 // fan-out (`oh fanout status|drive|clean`). Same services as the CLI.
@@ -239,7 +239,7 @@ func childEnds(f *domain.SessionFanout) map[string]string {
 }
 
 // fanoutDriverNeeded reports whether the driver of a parent has work left
-// (as the oh daemon decides it, p6-debts).
+// (as the oh daemon decides it).
 func fanoutDriverNeeded(s *domain.Session) bool {
 	f := s.Fanout
 	if f == nil || f.Role != domain.RoleParent || !f.Experimental || s.State == domain.RunStopped || s.State == domain.RunFailed {

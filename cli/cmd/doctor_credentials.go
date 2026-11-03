@@ -35,7 +35,7 @@ type credentialReport struct {
 }
 
 // credentialStatus follows the credential cascade of a launch of project
-// with the provider override (-P), as the launch does (N12: checked before
+// with the provider override (-P), as the launch does (checked before
 // any launch).
 func credentialStatus(ctx context.Context, a *app.App, project *domain.Project, providerFlag string) (string, bool) {
 	r := resolveCredentialReport(ctx, a, project, providerFlag)
@@ -117,7 +117,7 @@ func resolveCredentialReport(ctx context.Context, a *app.App, project *domain.Pr
 
 // checkProviderCredentials follows the credential cascade of a session
 // started from the current directory: project (explicit key, project key) →
-// team → hub → AWS profile or default chain for Bedrock (A2), then asks the
+// team → hub → AWS profile or default chain for Bedrock, then asks the
 // provider whether it accepts a stored Bedrock API key.
 func checkProviderCredentials() doctor.Result {
 	a := TryApp()

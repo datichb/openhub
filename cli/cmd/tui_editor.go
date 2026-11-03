@@ -18,7 +18,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
-// TUI wiring of the workflow editor (P2-T14): the WorkflowService check
+// TUI wiring of the workflow editor: the WorkflowService check
 // (resolution, origins, locks, diagnostics, prompt preview) and the bundle
 // preview, mapped to the view.
 

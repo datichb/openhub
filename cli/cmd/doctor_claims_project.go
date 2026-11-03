@@ -22,7 +22,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
-// Doctor › claims under an unknown project ID (K4a, bug 7). The claims of a
+// Doctor › claims under an unknown project ID. The claims of a
 // team live in the team-state under projects/<project ID>/claims. A project
 // that is created again gets a new ID, and the claims its member took under
 // the previous one stay where they were: nothing links them to the project

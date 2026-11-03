@@ -10,7 +10,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/services/launch"
 )
 
-// Session restrictions (I6) at launch: hub.toml [limits], team config.toml
+// Session restrictions at launch: hub.toml [limits], team config.toml
 // [limits.recommended|enforced], project preference "limits", workflow
 // limits: (see internal/limits).
 

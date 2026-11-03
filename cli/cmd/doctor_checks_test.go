@@ -10,7 +10,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
-// A40: the TUI Doctor view runs the same registry as `oh doctor`.
+// The TUI Doctor view runs the same registry as `oh doctor`.
 func TestDoctorViewUsesDoctorRegistry(t *testing.T) {
 	if views.DoctorChecks == nil {
 		t.Fatal("views.DoctorChecks not set")

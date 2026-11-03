@@ -12,7 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/teamstate"
 )
 
-// Doctor › team claims (v5 corrections, A31): the claims of the active
+// Doctor › team claims: the claims of the active
 // member left behind — ticket closed while its claim is still open, or the
 // sessions that worked on the ticket all ended.
 

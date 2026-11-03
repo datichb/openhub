@@ -16,7 +16,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/teamstate"
 )
 
-// Signal of life of the team claims, run by the daemon (v5.1, B3b). Each beat
+// Signal of life of the team claims, run by the daemon. Each beat
 // renews the lease of the claims of the open sessions (one commit per team
 // repository, none while the leases are long) and empties the queue of claim
 // operations of every team repository, sessions or not: what a session left

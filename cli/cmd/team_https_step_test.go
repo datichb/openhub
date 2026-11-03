@@ -38,7 +38,7 @@ func dumbGitServer(t *testing.T, wantToken string) *httptest.Server {
 	return srv
 }
 
-// Bug 13: « Authentification HTTPS » was shown for a repository already cloned
+// « Authentification HTTPS » was shown for a repository already cloned
 // and readable without a token; only SSH URLs skipped it.
 func TestHTTPSCredStepSkippedWhenTheRepositoryAnswers(t *testing.T) {
 	if testing.Short() {
@@ -85,7 +85,7 @@ func TestHTTPSCredStepSkippedWhenTheRepositoryAnswers(t *testing.T) {
 	})
 }
 
-// Bug 13: with the default choice (provide a token) and an empty field, the
+// With the default choice (provide a token) and an empty field, the
 // button did nothing and said nothing.
 func TestHTTPSCredStepSaysWhyANonEmptyTokenIsNeeded(t *testing.T) {
 	i18ntest.Set(t, "en")

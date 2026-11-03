@@ -14,7 +14,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/worktree"
 )
 
-// Doctor › container (P4-T12): engine, virtiofs, keep-id, folders shared
+// Doctor › container: engine, virtiofs, keep-id, folders shared
 // with the VM, the tool in the project images (version, C++ libraries on
 // musl), Linux second listener.
 

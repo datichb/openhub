@@ -21,7 +21,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
-// v5 session lifecycle in the TUI (E11): presence heartbeat while the TUI is
+// v5 session lifecycle in the TUI: presence heartbeat while the TUI is
 // open, recap of what ran while oh was closed, and the quit policy dialog.
 
 func lastSeenPath() string { return filepath.Join(ohRunDir(), "last_seen") }
@@ -87,7 +87,7 @@ func showAbsenceRecap(ctx context.Context, a *app.App, sh *shell.Shell) {
 	})
 }
 
-// beforeQuit applies the quit policy to the open v5 sessions (I7):
+// beforeQuit applies the quit policy to the open v5 sessions:
 // inactive/waiting sessions sleep now; for each working session the user
 // chooses — finish the step then sleep (default), keep running in the
 // background, or stop now. Stores and daemon are read off the event loop;

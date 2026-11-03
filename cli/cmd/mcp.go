@@ -311,7 +311,7 @@ func mcpSetupCmd() *cobra.Command {
 var mcpSetupServices = []string{"figma", "gitlab", "gslides", "jira"}
 
 // mcpSetupService returns the service named on the command line ("" =
-// ask; it was ignored before QB2).
+// ask; the argument used to be ignored).
 func mcpSetupService(args []string) (string, error) {
 	if len(args) == 0 {
 		return "", nil
@@ -738,7 +738,7 @@ type mcpServer struct {
 	Command     string `json:"command"`
 }
 
-// mcpServerList lists every oh MCP server (built-in and custom, QB2;
+// mcpServerList lists every oh MCP server (built-in and custom;
 // formerly figma, gitlab and gslides only), with a localized description
 // for the built-in ones.
 func mcpServerList() []mcpServer {

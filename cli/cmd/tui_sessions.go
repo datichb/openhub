@@ -25,7 +25,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
-// TUI wiring of the v5 sessions (P3-T16–T19): maps the SessionService and
+// TUI wiring of the v5 sessions: maps the SessionService and
 // the RunService to the Sessions view, keeps the cached summary used by the
 // landings and the mode bar badge, and toasts new decisions. No logic here
 // beyond presentation: decisions, instructions and lifecycle are services.

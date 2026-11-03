@@ -20,7 +20,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
-// Doctor › lease of the claims and queue of the claim operations (v5.1, B3b).
+// Doctor › lease of the claims and queue of the claim operations.
 //
 //   - claims_expired: the open claims of the active member whose lease is
 //     past (or, without lease, that have been inactive longer than stale_days)

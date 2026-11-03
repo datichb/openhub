@@ -11,10 +11,9 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 )
 
-// A supported release of the tool is required (D3, revised on 06/10/2026:
-// the V1 of the tool is no longer supported in oh v5). Every launch checks it
-// first and refuses with a message that points to Doctor and the migration
-// guide.
+// A supported release of the tool is required (the V1 of the tool is no longer
+// supported in oh v5). Every launch checks it first and refuses with a message
+// that points to Doctor and the migration guide.
 
 var (
 	toolOnce    sync.Once

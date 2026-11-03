@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// A4: without a terminal, the secret is read from the standard input
+// Without a terminal, the secret is read from the standard input
 // (scripts, CI) instead of failing with "inappropriate ioctl for device".
 func TestReadSecretValueFromStdin(t *testing.T) {
 	var out bytes.Buffer

@@ -14,7 +14,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
-// Doctor view repairs (modernisation tui-launch): the repairs of oh doctor
+// Doctor view repairs: the repairs of oh doctor
 // --fix on the checks that have one (configuration restored from a
 // backup, Beads zero impact, orphan servers), each planned, confirmed in
 // the view, then applied like `oh doctor --fix --yes`; the clean-up checks

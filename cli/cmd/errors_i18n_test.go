@@ -14,7 +14,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/teamstate"
 )
 
-// A12: cobra errors, unknown sessions and the daemon refusal are translated.
+// Cobra errors, unknown sessions and the daemon refusal are translated.
 func TestLocalizeError(t *testing.T) {
 	i18ntest.Set(t, "fr")
 	cases := map[string]error{
@@ -26,9 +26,9 @@ func TestLocalizeError(t *testing.T) {
 		"Des serveurs d'outil sont actifs (2)":   &api.APIError{Method: "POST", Path: "/shutdown", Status: 409, Message: "tool servers alive: 2 (use force)"},
 		"Des serveurs d'outil sont actifs :":     &api.APIError{Method: "POST", Path: "/shutdown", Status: 409, Message: "sessions are running (use force)"},
 		"lancez cette commande dans un terminal": errors.New("open /dev/tty: device not configured"),
-		// N15
+		// The team-state clone is busy.
 		"occupé par pid 42": fmt.Errorf("pull: %w", &teamstate.BusyError{Path: "/t", Holder: "pid 42 (oh tui) since 10:00:00"}),
-		// N14
+		// Database migrations.
 		"version plus récente d'oh (migrations v999":                                     fmt.Errorf("running migrations: %w", &sqlite.SchemaNewerError{Unknown: []int{999}, Known: 42}),
 		"oh repair --restore /b/oh.db.v41.bak":                                           &sqlite.MigrationError{Version: 42, Backup: "/b/oh.db.v41.bak", Err: errors.New("boom")},
 		"La migration v42 de la base de données a échoué : boom\nDiagnostic : oh doctor": &sqlite.MigrationError{Version: 42, Err: errors.New("boom")},

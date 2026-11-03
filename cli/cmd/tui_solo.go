@@ -12,7 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
-// TUI wiring of the solo space (P2-T16): creation from the catalogue,
+// TUI wiring of the solo space: creation from the catalogue,
 // attachment of a new project, « Passer en équipe » from team.detail. The
 // logic is initSoloTeam / attachProjectSolo / promoteSoloTeam (CLI).
 

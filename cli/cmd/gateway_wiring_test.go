@@ -29,7 +29,7 @@ func TestGatewaySessionEnv(t *testing.T) {
 	fg := &fakeGranter{}
 	hook := gatewaySessionEnv(func(context.Context) (gatewayGranter, error) { return fg, nil })
 
-	// QB1: local sessions go through the gateway too (fake bd first on their
+	// Local sessions go through the gateway too (fake bd first on their
 	// PATH); a group started by an older oh has no gateway address.
 	env, err := hook(ctx, runsvc.SessionEnvRequest{SessionID: "ses_a", Runtime: sessionspec.RuntimeLocal})
 	require.NoError(t, err)
@@ -71,7 +71,7 @@ func TestOhMCPCommand(t *testing.T) {
 	c, err = ohMCPCommand(spec, srv, "workflow")
 	require.NoError(t, err)
 	assert.Equal(t, []string{sessionspec.OhExecutable(), "mcp", "serve", "workflow"}, c.Argv)
-	// p3-remote-wiki: the wiki server too (job daemon, on its clone).
+	// The wiki server too (job daemon, on its clone).
 	spec.MCP = append(spec.MCP, sessionspec.WikiMCPDef())
 	c, err = ohMCPCommand(spec, srv, "wiki")
 	require.NoError(t, err)

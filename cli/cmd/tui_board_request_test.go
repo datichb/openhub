@@ -37,7 +37,7 @@ func workflowIDsOf(ws []views.TicketWorkflow) []string {
 	return ids
 }
 
-// A1: on an issue card the board used to offer only the workflows taking a
+// On an issue card the board used to offer only the workflows taking a
 // Beads ticket (the cadrage, a free request, was not among them). The ones
 // taking a request are now listed apart; the ticket ones are unchanged.
 func TestBoardWorkflowsOfARequest(t *testing.T) {

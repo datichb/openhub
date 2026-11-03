@@ -92,7 +92,7 @@ func requireOneResult(t *testing.T, id string) doctor.Result {
 
 func serverOf(srv *httptest.Server) string { return srv.Listener.Addr().String() }
 
-// Bug 6 (K4b): a token declared for another server than the tracker's left
+// A token declared for another server than the tracker's left
 // oh doctor green; the check names the server called and the sources read.
 func TestDoctorTokensFlagsATokenDeclaredForAnotherServer(t *testing.T) {
 	tr := newFakeTracker(t, "glpat-ok")
@@ -172,7 +172,7 @@ func TestDoctorTrackerChecksReportNothingWithoutTeamOrTracker(t *testing.T) {
 	assert.Empty(t, doctorCheckResults(t, "tracker_connection"))
 }
 
-// Bug 6 (K4b): a tracker that refuses the token left oh doctor green.
+// A tracker that refuses the token left oh doctor green.
 func TestDoctorConnectionFlagsATokenTheTrackerRefuses(t *testing.T) {
 	tr := newFakeTracker(t, "the-good-one")
 	doctorTrackerHub(t, tr.URL, "git@gitlab.octo.example:acme/core.git", nil)
@@ -335,7 +335,7 @@ func setTrackerUsername(t *testing.T, a *app.App, name string) {
 	}))
 }
 
-// Bug 12: a tracker on another server than the team repository, a member
+// A tracker on another server than the team repository, a member
 // without tracker_username: no issue was attributed to them and oh doctor was green.
 func TestDoctorTrackerUsernameFailsWhenTheTrackerIsOnAnotherServer(t *testing.T) {
 	tr := newFakeTracker(t, "glpat-ok")
@@ -363,7 +363,7 @@ func TestDoctorTrackerUsernameSaysNothingOnTheSameServer(t *testing.T) {
 	assert.Empty(t, doctorCheckResults(t, "tracker_username"))
 }
 
-// Bug 12, online: the tracker knows the user as a name that is no member.
+// The tracker knows the user as a name that is no member.
 func TestDoctorIdentityWarnsWhenTheTrackerNameMatchesNoMember(t *testing.T) {
 	tr := newFakeTracker(t, "glpat-ok") // GET /user → alice
 	a := doctorTrackerHub(t, tr.URL, "git@gitlab.octo.example:acme/core.git", nil)

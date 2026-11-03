@@ -75,13 +75,13 @@ func TestWikiPendingHelpers(t *testing.T) {
 		assert.Contains(t, b.String(), want)
 	}
 	assert.NotContains(t, b.String(), "suite")
-	// p5-fixes: a replacement, before → after.
+	// A replacement, before → after.
 	b.Reset()
 	printWikiProposals(&b, []domain.WikiProposal{{Seq: 3, Status: domain.WikiStale, Page: "technical/stack.md", Tag: "CONFIRMÉ",
 		Replaces: "- HTTP dans internal/http", Content: "- HTTP dans internal/api"}})
 	assert.Contains(t, b.String(), "« - HTTP dans internal/http » → « - HTTP dans internal/api »")
 	assert.Contains(t, b.String(), "stale")
-	// p9-wiki-refusal: the reason of a refusal gets a column when there is
+	// The reason of a refusal gets a column when there is
 	// one; the table is unchanged otherwise.
 	assert.NotContains(t, b.String(), "MOTIF")
 	b.Reset()
@@ -96,7 +96,7 @@ func TestWikiPendingHelpers(t *testing.T) {
 	assert.Contains(t, b.String(), "Aucune proposition")
 }
 
-// p9-wiki-refusal: the views get the reason of a refusal.
+// The views get the reason of a refusal.
 func TestWikiProposalViewReason(t *testing.T) {
 	v := wikiProposalView(domain.WikiProposal{Seq: 4, Status: domain.WikiRefused, Page: "index.md", Content: "x", Reason: "doublon"})
 	assert.Equal(t, "wp-4", v.ID)

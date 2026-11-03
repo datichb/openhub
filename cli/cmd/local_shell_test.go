@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// QB1: the bd of local sessions calls `oh __bd` with every argument, and is
+// The bd of local sessions calls `oh __bd` with every argument, and is
 // rewritten when the oh executable moved.
 func TestEnsureBeadsShim(t *testing.T) {
 	if runtime.GOOS == "windows" {
@@ -36,7 +36,7 @@ func TestEnsureBeadsShim(t *testing.T) {
 	assert.Contains(t, string(data), "exec /elsewhere/oh "+BeadsShimArg)
 }
 
-// QB1: the gateway runs the real bd, never the fake one of local sessions.
+// The gateway runs the real bd, never the fake one of local sessions.
 func TestRealBeadsBinarySkipsShim(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("shell shim")

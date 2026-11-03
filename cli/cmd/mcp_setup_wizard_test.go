@@ -124,7 +124,7 @@ func TestMCPSetupWizard(t *testing.T) {
 	}
 }
 
-// A13: an interactive assistant without terminal stops with a clear message
+// An interactive assistant without terminal stops with a clear message
 // and a non-zero code.
 func TestMCPSetupWithoutTerminal(t *testing.T) {
 	i18ntest.Set(t, "en")

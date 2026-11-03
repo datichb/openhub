@@ -9,7 +9,7 @@ import (
 )
 
 // deployLeftoversCheck reports the files left by the former per-project
-// deployment in the registered projects (P3-T28): fixed by
+// deployment in the registered projects: fixed by
 // `oh migrate deploy-cleanup`.
 func deployLeftoversCheck(ctx context.Context) doctor.Result {
 	name := i18n.T("cmd.migrate.cleanup.doctor_name")

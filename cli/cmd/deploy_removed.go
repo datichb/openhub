@@ -9,7 +9,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 )
 
-// `oh deploy` and `oh sync` were removed in v5 (D14, P3-T23): sessions run
+// `oh deploy` and `oh sync` were removed in v5: sessions run
 // from a bundle built at launch, outside the project. The commands stay
 // during v5.x to explain the migration; they exit with ExitUsage (U-05: a
 // removed command did nothing yet exited 0).

@@ -134,7 +134,7 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 		},
 		SyncFunc: func() error {
 			// Git pull only — fetches colleagues' changes from the shared state repo.
-			// Periodic: skipped when the clone is busy (N15).
+			// Periodic: skipped when the clone is busy.
 			ctx, cancel := context.WithTimeout(teamstate.WithTryLock(context.Background()), 15*time.Second)
 			defer cancel()
 			repo := resolveRepo()

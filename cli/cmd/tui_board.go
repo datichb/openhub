@@ -10,7 +10,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
-// buildBoardQuickActions wires the board quick actions (P1-T25): the
+// buildBoardQuickActions wires the board quick actions: the
 // workflows taking a Beads ticket, from the « Démarrer » cache, launched on
 // the ticket through the launch form (options step, ticket prefilled). On the
 // card of a GitLab issue, the workflows taking a free request (spec, quick,

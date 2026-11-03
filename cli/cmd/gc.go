@@ -29,7 +29,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/worktree"
 )
 
-// oh gc (N16, DC15): what oh leaves behind — session bundles, data of the
+// oh gc: what oh leaves behind — session bundles, data of the
 // server groups, session folders, automatic worktrees, temporary folders,
 // orphan tool servers, old history — removed after a summary and a
 // confirmation; the daemon does it every [gc] every_hours.

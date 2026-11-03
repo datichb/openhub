@@ -18,7 +18,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/textfmt"
 )
 
-// Validation by batch (R6, CP-R6): `oh session approve --batch` lists the
+// Validation by batch (CP-R6): `oh session approve --batch` lists the
 // checkpoints waiting (one line each: decision, session, checkpoint,
 // summary, verification by oh), then answers them one by one; --except
 // leaves one waiting, --reject refuses one, --dry-run only lists.

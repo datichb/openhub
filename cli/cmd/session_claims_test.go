@@ -50,7 +50,7 @@ func goOffline(t *testing.T, repo *teamstate.Repo) (online func()) {
 	return func() { gittest.Run(t, repo.Path(), "remote", "set-url", "origin", remote) }
 }
 
-// A31, v5.1 (B3a): at the end of a session, the claim of a closed ticket is
+// At the end of a session, the claim of a closed ticket is
 // completed, one in review stays, one with a checkpoint pending or the commit
 // put off with work left stays labelled session-ended, the others are
 // released; the claims of other members, of another session and of unknown

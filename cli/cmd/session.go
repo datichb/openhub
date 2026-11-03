@@ -127,7 +127,7 @@ type sessionJSON struct {
 	Decisions  []decisionJSON `json:"decisions"`
 	EndedAt    *time.Time     `json:"ended_at,omitempty"`
 	BundleHash string         `json:"bundle,omitempty"`
-	// R6: Fanout is the fan-out record (parent, child or merger).
+	// Fanout is the fan-out record (parent, child or merger).
 	Fanout *domain.SessionFanout `json:"fanout,omitempty"`
 }
 

@@ -6,7 +6,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/config"
 )
 
-// Settings of the robustness track: [beads] (N17) and [gc] (N16).
+// Settings of the robustness track: [beads] and [gc].
 func init() {
 	configFieldMap["beads.zero_impact"] = enumField("beads.zero_impact",
 		func(c *config.Config) *string { return &c.Beads.ZeroImpact }, zeroImpactAsk, zeroImpactAsk, zeroImpactAuto, zeroImpactOff)

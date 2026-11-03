@@ -8,7 +8,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/services/doctor"
 )
 
-// Doctor › setup of hub.toml (K4a, bug 6): what the first-run wizard writes
+// Doctor › setup of hub.toml: what the first-run wizard writes
 // (setup_done, the default provider and, for Bedrock, its region) and that a
 // hub.toml overwritten by a stale copy loses. Each missing key is a failure
 // that tells the command that writes it; oh doctor used to be green.

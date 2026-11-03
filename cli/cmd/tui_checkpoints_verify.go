@@ -5,7 +5,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
-// cardVerify renders the R3 part of a checkpoint card (CP-R5): the
+// cardVerify renders the verification part of a checkpoint card (CP-R5): the
 // verification run by oh, the evidence checked, the fix rounds.
 func cardVerify(r checkpoint.CardVerification) views.CheckpointVerifyView {
 	v := views.CheckpointVerifyView{Unresolved: r.Unresolved, NoOverride: r.NoOverride}

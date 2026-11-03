@@ -16,7 +16,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
-// QB2: every source of the workflow schema has an implementation on the
+// Every source of the workflow schema has an implementation on the
 // machine.
 func TestEveryInputSourceIsImplemented(t *testing.T) {
 	got := inputSources(&app.App{Config: &config.Config{}}, nil)
@@ -26,7 +26,7 @@ func TestEveryInputSourceIsImplemented(t *testing.T) {
 	assert.Len(t, got, len(workflow.InputSources)+len(workflow.SessionSources), "no source outside the schema list")
 }
 
-// QB2: ticket.brief reads the takeover brief of the ticket in the team
+// ticket.brief reads the takeover brief of the ticket in the team
 // space of the project (the enriched one first).
 func TestTicketBriefSource(t *testing.T) {
 	space := t.TempDir()

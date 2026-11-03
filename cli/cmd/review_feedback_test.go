@@ -40,7 +40,7 @@ func TestFormatFeedbackDiscussions_Basic(t *testing.T) {
 	}
 
 	out := formatFeedbackDiscussions(discussions)
-	// Branch, MR and steps come from the workflow template (QB2).
+	// Branch, MR and steps come from the workflow template.
 	assert.NotContains(t, out, "[MODE:feedback]")
 
 	// Inline position rendered.
@@ -94,7 +94,7 @@ func TestFormatFeedbackDiscussions_EmptyDiscussions(t *testing.T) {
 	assert.NotContains(t, out, "--- Discussion")
 }
 
-// QB2: the `mr` input of review-feedback may be a URL, !iid or iid.
+// The `mr` input of review-feedback may be a URL, !iid or iid.
 func TestMRIID(t *testing.T) {
 	for ref, want := range map[string]int{
 		"https://gitlab.com/org/repo/-/merge_requests/42": 42, "https://gitlab.com/org/repo/-/merge_requests/42/": 42, "!7": 7, "15": 15,

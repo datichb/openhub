@@ -89,7 +89,7 @@ func driveInitWizard(t *testing.T, setupMode, teamChoice string) initRun {
 }
 
 // TestInitWizard_ScreenCount counts the screens the wizard displays on each
-// path. Before v5.0 (U-10): solo 8, team 7 (team skipped) / 8 (new team),
+// path. Before U-10: solo 8, team 7 (team skipped) / 8 (new team),
 // full 9 / 10 — language, provider intro and form, team gateway, project intro
 // and form, MCP intro and form.
 func TestInitWizard_ScreenCount(t *testing.T) {

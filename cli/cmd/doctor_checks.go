@@ -56,7 +56,7 @@ func runtimeDoctorChecks(parent context.Context) []doctor.Result {
 	out = append(out, limitsDoctorChecks(ctx)...)
 	out = append(out, inProcessDoctorChecks()...)
 
-	// Informational until containers (phase 4) need --relative-paths.
+	// Informational until containers need --relative-paths.
 	_, gitDetail := gitRelativeWorktrees()
 	out = append(out, doctor.Result{Name: i18n.T("cmd.doctor.v5.git"), OK: true, Detail: gitDetail})
 

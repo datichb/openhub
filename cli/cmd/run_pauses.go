@@ -13,7 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
-// Pauses planned for the mode of a launch (R3, CP-R10): shown by oh run and
+// Pauses planned for the mode of a launch (CP-R10): shown by oh run and
 // in the recap of the TUI launch form, so that « auto » holds no surprise
 // (it keeps the mandatory decisions).
 

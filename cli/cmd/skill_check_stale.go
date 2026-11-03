@@ -12,7 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 )
 
-// staleOptions are the flags of `oh skill check --stale` (modernisation R13).
+// staleOptions are the flags of `oh skill check --stale`.
 type staleOptions struct {
 	enabled bool
 	maxAge  string

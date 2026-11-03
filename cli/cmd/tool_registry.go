@@ -11,7 +11,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/runsvc"
 )
 
-// The composition root of the tool adapters (D19): the only file of oh,
+// The composition root of the tool adapters: the only file of oh,
 // outside internal/adapters/<tool>, that names a tool. Everything else asks
 // toolRegistry for a neutral adapters.ToolAdapter.
 
@@ -60,7 +60,7 @@ func toolPins() (pinned []string, recommended string) {
 	return pinned, opencodev2.RecommendedVersion()
 }
 
-// detectTool returns the first installed and supported tool (D3: oh v5 runs
+// detectTool returns the first installed and supported tool (oh runs
 // sessions only on a supported release).
 func detectTool(ctx context.Context) (adapters.ToolAdapter, adapters.ToolInfo, error) {
 	return toolRegistry.Detect(ctx)

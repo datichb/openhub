@@ -21,7 +21,7 @@ import (
 )
 
 // `oh team init --solo`: a local team-state without remote for projects
-// without a team (v5 phase 2, P2-T09). The flags are added to the existing
+// without a team. The flags are added to the existing
 // `team init` command; without --solo the interactive wizard runs as before.
 func init() {
 	f := teamInitCmd.Flags()
@@ -152,7 +152,7 @@ type soloSpace struct {
 
 // attachProjectSolo attaches project to a solo space: the existing one (the
 // first cloned), else a new one (solo, solo-2…). Used by the migration and
-// the « solo space » choice of the project wizards (P2-T16).
+// the « solo space » choice of the project wizards.
 func attachProjectSolo(ctx context.Context, a *app.App, project *domain.Project) (*soloSpace, error) {
 	for _, t := range a.Config.Teams {
 		if !t.Solo || !t.Enabled {

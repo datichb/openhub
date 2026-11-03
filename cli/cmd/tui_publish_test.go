@@ -15,7 +15,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
-// TUI wiring of the publication and history screens (P2-T15) on a real
+// TUI wiring of the publication and history screens on a real
 // team-state, and the replay of the offline queue at TUI synchronization.
 func TestTUIPublishWiring(t *testing.T) {
 	env := setupWorkflowCLI(t, "alice")

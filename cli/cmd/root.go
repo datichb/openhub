@@ -70,7 +70,7 @@ var rootCmd = &cobra.Command{
 			common.SetNoTUI(true)
 		}
 
-		// Startup of the command's level (N13): background processes and
+		// Startup of the command's level: background processes and
 		// the diagnostic commands do not run the full startup. The help is
 		// translated when it is shown (help function), not here.
 		return startupFor(cmd, args)

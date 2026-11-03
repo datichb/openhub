@@ -71,7 +71,7 @@ func (e epicSource) OpenChildren(id string) ([]string, error) {
 	return e[id], nil
 }
 
-// A24: `oh run ticket --tickets <epic>` starts one session per open child
+// `oh run ticket --tickets <epic>` starts one session per open child
 // of the epic (one session with every child with --one-session); the recap
 // names the epic.
 func TestLaunchTicketsExpandsEpics(t *testing.T) {

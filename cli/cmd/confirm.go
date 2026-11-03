@@ -12,14 +12,14 @@ import (
 )
 
 // confirmAction is the single confirmation of the commands that act on the
-// user's data (D4, v5.0). With --yes the answer is yes without a question.
+// user's data. With --yes the answer is yes without a question.
 // Without a terminal nobody can answer: the action is refused with an error
 // that ends oh with ExitUsage, unless --yes is given. With a terminal, a
 // form asks the question (buttons in the language of the hub); defaultYes is
 // the button that is highlighted. Ctrl+C is a no.
 //
 // A command that already has a --force which skips the question keeps it
-// (v5.0) and tests it before calling confirmAction.
+// And tests it before calling confirmAction.
 func confirmAction(cmd *cobra.Command, question string, defaultYes bool) (bool, error) {
 	return confirmActionWith(cmd, question, "", defaultYes)
 }

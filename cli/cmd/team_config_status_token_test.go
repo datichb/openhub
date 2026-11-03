@@ -98,7 +98,7 @@ func TestTeamConfigStatusUsesTheCascadeOfTheTracker(t *testing.T) {
 }
 
 // A token refused by the server is named with its source, its key and the
-// server (bug 5).
+// server.
 func TestTeamConfigStatusNamesTheTokenTheServerRefused(t *testing.T) {
 	a, out, _, _, forgeURL := statusHub(t)
 	a.Secrets = &mockSecretStore{secrets: map[string]string{"forge.token": "expired"}}

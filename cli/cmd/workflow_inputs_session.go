@@ -18,7 +18,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
-// Inputs read from a previous session (R5, `from: session.output(…)` and
+// Inputs read from a previous session (`from: session.output(…)` and
 // `from: session.trace(…)`): the session the launch is chained from
 // (--parent) when it fits, else the last session of the project. note
 // receives the session used, for the launch output.
@@ -38,7 +38,7 @@ func sessionInputSources(a *app.App, note func(string)) map[string]workflowsvc.I
 				if outputText(s.Outputs[out]) == "" {
 					return false
 				}
-				// p6-debts: only the sessions whose outputs match (from_equals).
+				// Only the sessions whose outputs match (from_equals).
 				for k, want := range equals {
 					if outputText(s.Outputs[k]) != want {
 						return false
@@ -52,7 +52,7 @@ func sessionInputSources(a *app.App, note func(string)) map[string]workflowsvc.I
 			}
 			v := outputText(sess.Outputs[out])
 			note(i18n.Tf("cmd.run.input_from_session", workflow.SourceSessionOutput+"("+full+")", sess.ID, v))
-			// B1: a report goes on as its content (the findings of an audit).
+			// A report goes on as its content (the findings of an audit).
 			if sessionOutputType(ctx, c, sess.WorkflowID, out) == workflow.OutputReport {
 				return sessionReportBody(ctx, a, sess.ID, v)
 			}

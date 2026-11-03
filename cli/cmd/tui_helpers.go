@@ -17,7 +17,7 @@ import (
 
 // resolveActiveProject returns the currently selected project or the first one.
 //
-// In the TUI the shell's active project is the single source of truth (B4):
+// In the TUI the shell's active project is the single source of truth:
 // no interactive picker is ever started from here (it would fight with tview);
 // when nothing is selected and several projects exist, an error is returned
 // and the caller shows its own selector.
@@ -67,7 +67,7 @@ func projectAtCwd(projects []domain.Project) *domain.Project {
 // (project-level override → hub fallback) each time it is called.
 func makeResolveTeamFunc(a *app.App) views.ResolveTeamFunc {
 	return func() views.TeamResolution {
-		// Team mode: the team chosen in the TUI wins (B5).
+		// Team mode: the team chosen in the TUI wins.
 		if tuiShell != nil && tuiShell.Mode() == views.ModeTeam && tuiShell.ActiveTeam() != nil {
 			if t := a.Config.FindTeam(tuiShell.ActiveTeam().ID); t != nil {
 				return views.TeamResolution{Enabled: t.Enabled && !t.Solo, StateRepo: t.StateRepo, StatePath: t.StatePath, MemberID: t.MemberID,

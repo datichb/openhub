@@ -11,7 +11,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 )
 
-// A6: oh workflow show (and validate) resolve the chain down to the project
+// oh workflow show (and validate) resolve the chain down to the project
 // layer of the current project, like oh workflow list and oh run, and accept
 // project:<id>.
 func TestWorkflowShowProjectLayer(t *testing.T) {

@@ -44,7 +44,7 @@ func ohCacheDir() string    { return filepath.Join(config.HubDir(), "cache") }
 func ohWorktreesDir() string { return worktree.TempRoot(config.HubDir()) }
 
 // ensureDaemon returns a client to ohd, starting it when needed. The client
-// holds the issuing capability (token routes, M12).
+// holds the issuing capability (token routes).
 func ensureDaemon(ctx context.Context) (cl *client.Client, health api.Health, err error) {
 	capability, _, err := daemonCapability(ctx)
 	if err != nil {
@@ -93,10 +93,10 @@ func sessionEndHook(a *app.App, async bool) func(context.Context, domain.Session
 			return
 		}
 		if s.Fanout != nil && s.Fanout.Role == domain.RoleParent {
-			cleanFanoutOnEnd(ctx, a, s) // R6: the worktrees and branches of an abandoned fan-out
+			cleanFanoutOnEnd(ctx, a, s) // the worktrees and branches of an abandoned fan-out
 		}
 		// The daemon writes the team-state in the background: it waits
-		// longer for the lock of the clone (N15).
+		// longer for the lock of the clone.
 		ctx = teamstate.WithLockWait(ctx, teamstate.BackgroundLockWait)
 		proj, err := a.Projects.Get(ctx, s.ProjectID)
 		if err != nil {
@@ -239,7 +239,7 @@ func newRunServiceFor(ctx context.Context, a *app.App, planOnly bool) (*runsvc.S
 		if err != nil {
 			return err
 		}
-		capability, _, err := daemonCapability(ctx) // privileged route (N1)
+		capability, _, err := daemonCapability(ctx) // privileged route
 		if err != nil {
 			return err
 		}
@@ -273,7 +273,7 @@ func newSessionService(ctx context.Context, a *app.App) (*sessionsvc.Service, er
 		ensureDaemonForLiveServers(ctx, svc.Servers)
 	}
 	svc.UseCheckpoints(newCheckpointService(a), func(ctx context.Context, id string) error {
-		capability, _, err := daemonCapability(ctx) // privileged route (N1)
+		capability, _, err := daemonCapability(ctx) // privileged route
 		if err != nil {
 			return err
 		}
@@ -298,8 +298,7 @@ func newCheckpointService(a *app.App) *checkpoint.Service {
 		ContainerExec: containerVerify(a)}
 }
 
-// newWikiServiceFor wires the WikiService (proposals of the wiki MCP server,
-// LD-J).
+// newWikiServiceFor wires the WikiService (proposals of the wiki MCP server).
 func newWikiServiceFor(a *app.App) *wiki.Service {
 	svc := &wiki.Service{SessionsDir: ohSessionsDir()}
 	if a != nil {
@@ -309,11 +308,11 @@ func newWikiServiceFor(a *app.App) *wiki.Service {
 }
 
 // daemonCheckpoints is the CheckpointService of the daemon: at the commit
-// checkpoint, oh applies the wiki proposals accepted on the card (LD-J).
+// checkpoint, oh applies the wiki proposals accepted on the card.
 func daemonCheckpoints(a *app.App, wk *wiki.Service) *checkpoint.Service {
 	cp := newCheckpointService(a)
 	cp.CommitPassed = wk.CommitPassed
-	// R6: at the merge checkpoint of a fan-out, oh merges the integration
+	// At the merge checkpoint of a fan-out, oh merges the integration
 	// branch and closes the tickets merged.
 	in := &fanout.Integrator{Sessions: a.Fanout, Record: func(ctx context.Context, id string, tickets []string) {
 		if _, err := cp.Record(ctx, id, checkpoint.RecordClosed, tickets...); err != nil {
@@ -321,7 +320,7 @@ func daemonCheckpoints(a *app.App, wk *wiki.Service) *checkpoint.Service {
 		}
 	}}
 	cp.Integrate = in.Integrate
-	// R6: the merge checkpoint refused with an instruction, a fix round on
+	// The merge checkpoint refused with an instruction, a fix round on
 	// the integration branch (run by the driver).
 	cp.RequestFix = func(ctx context.Context, sess *domain.Session, wf *sessionspec.WorkflowRuntime, instruction, failure string) string {
 		round, rounds, err := fanout.RequestFix(ctx, a.Fanout, sess, wf, instruction, failure)

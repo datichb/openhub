@@ -23,7 +23,7 @@ type gatewayGranter interface {
 }
 
 // gatewaySessionEnv gives the local and container sessions their Beads
-// gateway token (P4-T07; local since QB1: the fake bd comes first on their
+// gateway token (local sessions too: the fake bd comes first on their
 // PATH, so beads.allow applies in every runtime). The token is minted at
 // each start and resume, never written by oh (the daemon keeps only its
 // hash).
@@ -80,7 +80,7 @@ func gatewayView(servers domain.ServerStore) func(ctx context.Context, group str
 }
 
 // gatewayMCPCommand returns the machine command of an oh MCP server of a
-// server group, read from its immutable bundle (P4-T08). The running oh
+// server group, read from its immutable bundle. The running oh
 // executable replaces the one recorded in the bundle (it may have moved).
 func gatewayMCPCommand(bundlesDir string) func(ctx context.Context, srv domain.Server, name string) (gateway.MCPCommand, error) {
 	return func(_ context.Context, srv domain.Server, name string) (gateway.MCPCommand, error) {

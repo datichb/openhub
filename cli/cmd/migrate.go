@@ -6,7 +6,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 )
 
-// oh migrate: one-off migrations to oh v5 (P3-T28). Each subcommand lives in
+// oh migrate: one-off migrations to oh v5. Each subcommand lives in
 // its own file (migrate_<name>.go).
 var migrateCmd = &cobra.Command{
 	Use:   "migrate",

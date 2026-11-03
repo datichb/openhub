@@ -21,7 +21,7 @@ import (
 // BeadsShimArg, as the first argument, makes oh act as the fake bd (main
 // dispatches it before any initialization). Local sessions find it first
 // on their PATH as `bd`, so that Beads goes through the gateway and the
-// workflow beads.allow in every runtime, as in containers (QB1).
+// workflow beads.allow in every runtime, as in containers.
 const BeadsShimArg = "__bd"
 
 // ohShimsDir holds the `bd` of local sessions.
@@ -59,7 +59,7 @@ func localShellPath() ([]string, error) {
 
 // localShellStartup writes oh's shell start-up files of local sessions and
 // returns their variables: the user's start-up files cannot put another bd
-// before the fake bd (A16).
+// before the fake bd.
 func localShellStartup(first []string) (map[string]string, error) {
 	return gateway.ShellStartup(filepath.Join(config.HubDir(), "run", "shell"), first, os.Getenv)
 }

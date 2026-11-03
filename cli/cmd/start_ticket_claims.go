@@ -14,7 +14,7 @@ import (
 )
 
 // startTicketClaims returns the hook run when a session starts on Beads
-// tickets (any workflow, QB2): each ticket is
+// tickets (any workflow): each ticket is
 // claimed in the team-state for the active member, or its claim moves from
 // the initial / planned status to the work status. Nil without a team.
 func startTicketClaims(a *app.App, project *domain.Project) func(ctx context.Context, projectID string, tickets []string) []string {

@@ -14,7 +14,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/provider"
 )
 
-// A2: the credential check follows the launch cascade (project key of the
+// The credential check follows the launch cascade (project key of the
 // current project → team → hub → AWS profile), not only the hub key.
 func TestProviderCredentialStatusFollowsCascade(t *testing.T) {
 	i18ntest.Set(t, "en")

@@ -152,7 +152,7 @@ func buildInitWizardConfig(a *app.App) (*views.InlineWizardConfig, *initStepStat
 	teamModeIntro.SkipIf = func() bool {
 		if s.SetupMode == "solo" {
 			teamState.Skipped = true
-			teamState.SoloSpace = true // working alone: a solo workflow space (P2-T16)
+			teamState.SoloSpace = true // working alone: a solo workflow space
 			return true
 		}
 		return false

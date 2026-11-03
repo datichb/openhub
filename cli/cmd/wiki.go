@@ -19,7 +19,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/textfmt"
 )
 
-// `oh wiki` (modernisation LD-J): the wiki of the project (docs/wiki/) as
+// `oh wiki`: the wiki of the project (docs/wiki/) as
 // oh checks it, and the proposals of the agents waiting in its queue.
 
 var wikiCmd = &cobra.Command{
@@ -288,7 +288,7 @@ func printWikiProposals(w io.Writer, list []domain.WikiProposal) {
 		}
 		first := textfmt.ClipLine(p.Content, 60)
 		if p.Replaces != "" {
-			// p5-fixes: a replacement, before → after.
+			// A replacement, before → after.
 			first = "« " + textfmt.ClipLine(p.Replaces, 28) + " » → « " + textfmt.ClipLine(p.Content, 28) + " »"
 		}
 		row := fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s\t%s", p.ID(), p.Status, firstNonEmpty(p.Agent, "?"), p.SessionID, page, p.Tag, first)

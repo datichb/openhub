@@ -8,7 +8,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
-// CP-R10 (R3): the launch shows the pauses planned in the mode.
+// CP-R10: the launch shows the pauses planned in the mode.
 func TestRecapPauses(t *testing.T) {
 	wf := &sessionspec.WorkflowRuntime{ID: "ticket", Checkpoints: []sessionspec.CheckpointDef{
 		{ID: "cp-1", Behaviors: map[string]string{"manuel": "pause", "auto": "auto"}},

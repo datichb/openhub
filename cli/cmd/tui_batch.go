@@ -9,7 +9,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
-// Validation by batch in the TUI (R6, CP-R6): the same selection and the
+// Validation by batch in the TUI (CP-R6): the same selection and the
 // same answers as `oh session approve --batch` (session_batch.go).
 
 var _ views.SessionBatcher = (*tuiSessions)(nil)

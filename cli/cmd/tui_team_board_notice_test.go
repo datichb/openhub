@@ -13,7 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/tracker"
 )
 
-// A2: the board says how many issues the auto-plan left off the board, from
+// The board says how many issues the auto-plan left off the board, from
 // the sync state of the machine, for the projects it reads.
 func TestAutoPlanNoticeSaysWhatTheLimitHeldBack(t *testing.T) {
 	i18ntest.Set(t, "en")

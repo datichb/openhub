@@ -29,7 +29,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/textfmt"
 )
 
-// Fan-out (R6, E3, experimental, `[fanout] experimental = true`): a
+// Fan-out (experimental, `[fanout] experimental = true`): a
 // session launched with the fan-out input (`oh run implement-spec -i
 // fanout=true`) gets one child session per ticket, each in its own
 // worktree, merged by oh into an integration branch. The driver runs in an

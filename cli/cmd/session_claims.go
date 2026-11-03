@@ -23,13 +23,13 @@ import (
 	"github.com/datichb/openhub/cli/internal/teamstate"
 )
 
-// Team claims of the tickets of a session at its end (v5 corrections, A31;
-// v5.1, B3a): teamstate.DecideClaimEnd decides for each claim of the member
-// who ran the session, from the facts gathered here (ticket, claim,
-// checkpoints, work left). The decisions become operations of the durable
-// queue of the team-state clone (conditioned on the member and on the
-// session), which is then flushed for a bounded time: a remote that does not
-// answer leaves them in the queue and never holds the end of the session.
+// Team claims of the tickets of a session at its end: teamstate.DecideClaimEnd
+// decides for each claim of the member who ran the session, from the facts
+// gathered here (ticket, claim, checkpoints, work left). The decisions become
+// operations of the durable queue of the team-state clone (conditioned on the
+// member and on the session), which is then flushed for a bounded time: a remote
+// that does not answer leaves them in the queue and never holds the end of the
+// session.
 
 const (
 	// claimEndLockWait and claimEndFlushLimit bound what the end of a

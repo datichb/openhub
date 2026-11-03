@@ -194,7 +194,7 @@ func TestWorkflowIntegrityCheck(t *testing.T) {
 	}
 }
 
-// A9: oh workflow validate <layer>:<id> validates the member's draft when
+// oh workflow validate <layer>:<id> validates the member's draft when
 // the workflow is not published.
 func TestWorkflowValidateDraft(t *testing.T) {
 	setupWorkflowCLI(t, "alice")

@@ -10,7 +10,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/config"
 )
 
-// QB1: the write switch of an MCP server is its own variable, and only
+// The write switch of an MCP server is its own variable, and only
 // servers that have write tools get one (GITLAB_WRITE_ENABLED was set for
 // every write_enabled service).
 func TestSessionMCPEnvWriteSwitch(t *testing.T) {
@@ -38,7 +38,7 @@ func TestSessionMCPEnvWriteSwitch(t *testing.T) {
 	}
 }
 
-// QB2: the team model recommendations ([models] of the team-state
+// The team model recommendations ([models] of the team-state
 // config.toml) are a level of the launch cascade (they were never applied).
 func TestTeamModelOverrides(t *testing.T) {
 	dir := t.TempDir()

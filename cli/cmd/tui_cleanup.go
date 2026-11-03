@@ -15,7 +15,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
-// TUI screen of `oh migrate deploy-cleanup` (P3-T28, 10-tui §12): shown
+// TUI screen of `oh migrate deploy-cleanup`: shown
 // once after the update when former deployments remain: what goes, what
 // is kept, Nettoyer / Voir le diff / Plus tard. The same clean-up is the
 // section « Anciens déploiements » of the clean-up view (`cleanup` omnibar

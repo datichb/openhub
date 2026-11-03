@@ -36,7 +36,7 @@ func swapClaimFlushes(t *testing.T, tr *taskTracker) {
 	t.Cleanup(func() { claimFlushes = prev })
 }
 
-// v5.1 (B3b), risk (c) of B3a: in the daemon the end of a session used to
+// In the daemon the end of a session used to
 // queue its decisions from a goroutine; one that dies (or a daemon that stops)
 // before it runs lost them. They are queued before sessionClaimsEnd returns.
 func TestSessionClaimsEndQueuesBeforeTheBackgroundTask(t *testing.T) {

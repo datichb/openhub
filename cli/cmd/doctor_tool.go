@@ -12,7 +12,7 @@ import (
 )
 
 // toolCheck reports whether the installed tool is a supported release (the
-// V1 of the tool is no longer supported in oh v5, P3-T30).
+// V1 of the tool is no longer supported in oh v5).
 func toolCheck(ctx context.Context) doctor.Result {
 	err := requireSupportedTool(ctx)
 	name := i18n.Tf("cmd.v1.unsupported.doctor_name", toolName())

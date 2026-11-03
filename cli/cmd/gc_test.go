@@ -67,7 +67,7 @@ func gcRun(t *testing.T, args ...string) (string, error) {
 	return out.String(), err
 }
 
-// N16: oh gc lists, refuses without a terminal nor --yes, then removes.
+// oh gc lists, refuses without a terminal nor --yes, then removes.
 func TestOhGC(t *testing.T) {
 	_, _ = gcTestApp(t)
 	withTerminal(t, false)
@@ -103,7 +103,7 @@ func TestOhGC(t *testing.T) {
 	assert.ErrorContains(t, err, "invalid duration")
 }
 
-// N16: the first pass of the daemon only simulates (doctor names what can
+// The first pass of the daemon only simulates (doctor names what can
 // be reclaimed); once oh gc ran, the daemon cleans up; never twice within
 // [gc] every_hours.
 func TestDaemonGC(t *testing.T) {

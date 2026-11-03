@@ -12,7 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 )
 
-// A4: « wiki » alone is read as the GitLab wiki. Where the labels speak of the
+// « wiki » alone is read as the GitLab wiki. Where the labels speak of the
 // wiki oh manages, they name docs/wiki/ and say what it is.
 func TestWikiLabelsNameTheVersionedDocumentation(t *testing.T) {
 	defer func() { i18n.SetLocale("en"); localizeCommands(rootCmd) }()

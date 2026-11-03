@@ -10,7 +10,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
-// Checkpoint card and timeline of the Sessions view (P3-T17).
+// Checkpoint card and timeline of the Sessions view.
 
 // timelineSteps is the number of steps shown in the session detail.
 const timelineSteps = 12

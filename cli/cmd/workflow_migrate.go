@@ -21,8 +21,8 @@ import (
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
-// Migration of the former workflow configurations to the team-state (v5
-// phase 2, P2-T11, migration v38). The former overrides modified the
+// Migration of the former workflow configurations to the team-state
+// (database migration v38). The former overrides modified the
 // hard-coded workflow, whose implementation checkpoints and agents live on
 // in the shipped `implement-spec` workflow (`feature` until
 // feature-migration, now an alias):
@@ -61,7 +61,7 @@ func (m *workflowMigration) notice(key string, args ...any) {
 }
 
 // The former configuration sections, read only here (their types left the
-// configuration packages with the former workflow view, P2-T18): hub.toml
+// configuration packages with the former workflow view): hub.toml
 // and team-state config.toml [workflow], projects.workflow_config_legacy.
 type (
 	legacyHubWorkflow struct {
@@ -306,7 +306,7 @@ func migrateProjectWorkflowConfigs(ctx context.Context, a *app.App, svc *workflo
 			jerr = json.Unmarshal([]byte(raw), &keys)
 		}
 		if jerr != nil || (wc.Overrides == nil || wc.Overrides.IsEmpty()) && len(keys) > 0 && !onlyEmptyOverrides(keys) {
-			// Unreadable or unknown format (A7): archived, never dropped silently.
+			// Unreadable or unknown format: archived, never dropped silently.
 			if path, err := archiveLegacyProjectConfig(pid, raw); err != nil {
 				m.Errors = append(m.Errors, fmt.Errorf(i18n.T("cmd.workflow_migrate.project_unknown_workflow_config_format_kept"), pid, err))
 			} else {

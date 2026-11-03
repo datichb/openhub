@@ -14,7 +14,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
-// Execution settings of a project (P4-T09, `project.config` › Exécution):
+// Execution settings of a project (`project.config` › Exécution):
 // dev image of the container runtime, default workflow and runtime.
 
 // projectExec returns the execution settings of a project (zero value when

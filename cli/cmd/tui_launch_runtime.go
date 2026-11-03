@@ -15,7 +15,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
-// TUI wiring of the runtime option of the launch form (P4-T11): engine
+// TUI wiring of the runtime option of the launch form: engine
 // state and image of the project (cached, or build to expect).
 
 // tuiRuntimeStatus returns the status line function of a project.

@@ -19,7 +19,7 @@ func noGitLabEnv(t *testing.T) {
 	t.Setenv("GITLAB_URL", "")
 }
 
-// Bug 8: t in the team MCP view calls the GitLab of the MCP with the token of
+// t in the team MCP view calls the GitLab of the MCP with the token of
 // the cascade, and tells who the token belongs to and where it comes from.
 func TestMCPTestGitLabCallsTheServer(t *testing.T) {
 	noGitLabEnv(t)

@@ -22,7 +22,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
-// projectAddYes is --yes of oh project add (Beads zero impact, N17).
+// projectAddYes is --yes of oh project add (Beads zero impact).
 var projectAddYes bool
 
 func projectAddCmd() *cobra.Command {

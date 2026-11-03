@@ -66,7 +66,7 @@ func many(fn func() []doctor.Result) func(context.Context) []doctor.Result {
 }
 
 // doctorRegistry lists every check of oh doctor, in display order. It is the
-// single source of `oh doctor` and of the TUI Doctor view (A40). The checks
+// single source of `oh doctor` and of the TUI Doctor view. The checks
 // of the machine (os, go, git, bd) live in services/doctor; the others still
 // read the state of cmd (configuration, database, keychain, projects).
 func doctorRegistry() []doctor.Check {
@@ -176,7 +176,7 @@ func checkAPIKeys() (string, bool) {
 }
 
 // checkOhUpdate compares the running oh with the latest published release:
-// a newer release is a warning (the check passes), never an older one (A1).
+// a newer release is a warning (the check passes), never an older one.
 func checkOhUpdate() doctor.Result {
 	current := buildinfo.Version
 	if compareOhVersion(current, "0.0.0") == versionUnknown {

@@ -8,7 +8,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/limits"
 )
 
-// A15: oh config set|unset know the v5 sections, with validated values.
+// oh config set|unset know the v5 sections, with validated values.
 func TestConfigSetKeys(t *testing.T) {
 	i18ntest.Set(t, "en")
 	c := &config.Config{Remote: config.RemoteConfig{Targets: []config.RemoteTarget{{Name: "acme", URL: "https://gitlab.com", Group: "acme"}}}}

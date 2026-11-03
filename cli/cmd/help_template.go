@@ -11,7 +11,7 @@ import (
 
 // The help of a command (`oh <command> --help`) is cobra's, with its
 // headings, the help flag and the flag defaults in the current locale
-// (QB4: one language per locale).
+// (one language per locale).
 
 const localizedUsageTemplate = `{{tr "help.usage.usage"}}{{if .Runnable}}
   {{.UseLine}}{{end}}{{if .HasAvailableSubCommands}}

@@ -16,7 +16,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
-// Remote sessions in the TUI (P5-T18): rows decorated with the remote
+// Remote sessions in the TUI: rows decorated with the remote
 // status, fetch and replay through the remote service.
 
 var _ views.SessionRemote = (*tuiSessions)(nil)

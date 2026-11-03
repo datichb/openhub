@@ -31,7 +31,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/worktree"
 )
 
-// TUI wiring of the launch form (P1-T22): the form is generated from the
+// TUI wiring of the launch form: the form is generated from the
 // resolved workflow; its recap and launch go through launch.Prepare and
 // the RunService (cmd/run_start.go). No launch logic here.
 
@@ -42,7 +42,7 @@ type tuiLaunchRequest struct {
 	Prefill    map[string]string
 	Tickets    []string
 	AtOptions  bool
-	Parent     string // chained session (O7)
+	Parent     string // chained session
 	// Mode and Runtime preselect the options ("" = workflow defaults).
 	Mode, Runtime string
 	// Draft tests the current member's draft (catalogue `t`, local only).
@@ -488,7 +488,7 @@ func tuiAttachOptions() []views.SelectOption {
 }
 
 // tuiLaunchError gives the launch form the message of the CLI (missing
-// credentials, refusal of the daemon translated: N12). Missing credentials
+// credentials, refusal of the daemon translated). Missing credentials
 // match views.ErrProviderCredentials (« Configure the provider » button).
 func tuiLaunchError(err error) error {
 	if err == nil {

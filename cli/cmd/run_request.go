@@ -141,7 +141,7 @@ func runAttachChild(ctx context.Context, a *app.App, svc *runsvc.Service, sessio
 }
 
 // clientLocation is where this client runs (nil when unknown): oh brings
-// its window back to the front instead of opening another client (A43).
+// its window back to the front instead of opening another client.
 func clientLocation() *termlaunch.Location {
 	if l := termlaunch.Here(); !l.Empty() {
 		return &l
@@ -175,7 +175,7 @@ func buildWorkflowBundleIn(ctx context.Context, a *app.App, project *domain.Proj
 	req.Method = res.Method
 	req.Fanout = res.Fanout
 	if dir := res.BricksDir(); dir != "" {
-		req.HubDir = dir // team catalogue bricks (v5 phase 2)
+		req.HubDir = dir // team catalogue bricks
 	}
 	if ids, set := res.MCPSelection(); set {
 		req.MCP, missing = selectMCP(req.MCP, ids)
@@ -314,7 +314,7 @@ func sessionMCP(ctx context.Context, a *app.App, project *domain.Project, teamCf
 		env := sessionMCPEnv(s)
 		if s.Name == "team" {
 			// The team server reads the team of the session project from its
-			// environment (P3-T29; formerly a file written by `oh deploy`).
+			// environment (formerly a file written by `oh deploy`).
 			env[team.EnvTeamID], env[team.EnvProjectID] = teamCfg.TeamID, project.ID
 		}
 		def := sessionspec.MCPServerDef{Name: s.Name, Type: "local", Command: cmd}

@@ -36,7 +36,7 @@ func reviewWiki(t *testing.T, id, answers string) error {
 	return runTeamWikiReview(cmd, []string{id})
 }
 
-// v5.1: refusing a proposal of the team wiki needs a reason, asked after the
+// Refusing a proposal of the team wiki needs a reason, asked after the
 // choice; without one nothing is refused, with one it goes to the history and
 // to the event.
 func TestTeamWikiReviewRefusalNeedsAReason(t *testing.T) {

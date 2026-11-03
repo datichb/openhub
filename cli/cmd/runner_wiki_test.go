@@ -12,7 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 )
 
-// p3-remote-wiki: the job exports the proposals of its session, with their
+// The job exports the proposals of its session, with their
 // id in the job, for wiki.json.
 func TestRunnerWiki(t *testing.T) {
 	ctx := context.Background()

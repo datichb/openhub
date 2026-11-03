@@ -230,7 +230,7 @@ func appendFile(t *testing.T, path, text string) {
 	require.NoError(t, f.Close())
 }
 
-// A7: a project configuration in an unknown format (or unreadable) is
+// A project configuration in an unknown format (or unreadable) is
 // archived with a notice, never cleared silently.
 func TestMigrateUnknownProjectConfigArchived(t *testing.T) {
 	i18ntest.Set(t, "en")

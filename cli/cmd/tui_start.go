@@ -18,7 +18,7 @@ import (
 	wf "github.com/datichb/openhub/cli/internal/workflow"
 )
 
-// TUI wiring of the « Démarrer » section (P1-T20): a cache of the entries
+// TUI wiring of the « Démarrer » section: a cache of the entries
 // of each landing scope, filled off the event loop from the WorkflowService
 // (catalogue) and the PreferenceService (pins, recents, suggestions).
 

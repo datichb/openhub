@@ -424,7 +424,7 @@ func TestBuildInitRefreshLabels_UpdatesLabels(t *testing.T) {
 	assert.Equal(t, "wizard.init", wiz.ID())
 }
 
-// Bug 7 (K4a): the project the init wizard creates gets the ID the CLI gives
+// The project the init wizard creates gets the ID the CLI gives
 // (<slug>-<uuid8>), not a bare uuid8: one generator for both.
 func TestBuildProjectStep_OnDone_ProjectIDIsTheCLIOne(t *testing.T) {
 	store := &mockProjectStore{}

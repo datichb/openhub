@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// A1: `oh upgrade oh` never installs an older version unless it is asked for
+// `oh upgrade oh` never installs an older version unless it is asked for
 // explicitly (then flagged as a downgrade).
 func TestPlanUpgradeNeverDowngradesImplicitly(t *testing.T) {
 	tests := []struct {

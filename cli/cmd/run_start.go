@@ -84,7 +84,7 @@ func afterStart(ctx context.Context, a *app.App, svc *runsvc.Service, ui launche
 		}
 		err := runAttachInline(ctx, a, svc, ui, res.SessionID)
 		if err == nil && first {
-			// R5: the client is closed; propose what follows (never launched).
+			// The client is closed; propose what follows (never launched).
 			printNextSteps(ctx, a, a.IO.Out, res.SessionID)
 		}
 		return err

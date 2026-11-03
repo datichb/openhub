@@ -15,7 +15,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/semver"
 )
 
-// v5 sections of `oh config set|unset` (A15): [session], [execution],
+// v5 sections of `oh config set|unset`: [session], [execution],
 // [limits] and [remote], with the same values as the TUI Settings.
 
 func init() {
@@ -148,7 +148,7 @@ func configFields() map[string]configField {
 		"execution.proxy_first_byte_timeout_minutes": intField("execution.proxy_first_byte_timeout_minutes",
 			func(c *config.Config) *int { return &c.Execution.ProxyFirstByteTimeoutMinutes }, 1, 240),
 		"remote.experimental": boolField("remote.experimental", func(c *config.Config) *bool { return &c.Remote.Experimental }),
-		// R6: fan-out (experimental).
+		// Fan-out (experimental).
 		"fanout.experimental": boolField("fanout.experimental", func(c *config.Config) *bool { return &c.Fanout.Experimental }),
 		"fanout.parallel":     intField("fanout.parallel", func(c *config.Config) *int { return &c.Fanout.Parallel }, 1, 3),
 		"fanout.budget_usd": {

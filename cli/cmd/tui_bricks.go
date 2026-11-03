@@ -10,10 +10,10 @@ import (
 	wf "github.com/datichb/openhub/cli/internal/workflow"
 )
 
-// newBricksView wires the read-only brick catalogue (P3-T27, tui-wiki-
-// bricks): bricks of the active project context (hub, merged with the team
-// catalogue), with their origin, version, publication and findings (the
-// workspace of `oh brick list`), read off the event loop.
+// newBricksView wires the read-only brick catalogue: bricks of the active
+// project context (hub, merged with the team catalogue), with their origin,
+// version, publication and findings (the workspace of `oh brick list`), read
+// off the event loop.
 func newBricksView(a *app.App) *views.BricksView {
 	return views.NewBricksView(views.BricksViewConfig{
 		Load: func(ctx context.Context) ([]views.BrickRow, error) {

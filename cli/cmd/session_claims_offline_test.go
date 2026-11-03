@@ -12,7 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/teamstate"
 )
 
-// v5.1 (B3b), risk (b) of B3a: a session ends offline (its `release` waits in
+// A session ends offline (its `release` waits in
 // the queue), then a new session starts on the same ticket, still offline, and
 // cannot take the claim over. When the network is back the old operation must
 // not release a claim the new session works on.

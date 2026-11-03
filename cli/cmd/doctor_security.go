@@ -13,8 +13,8 @@ import (
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 )
 
-// securityDoctorChecks reports the local mode protections of the oh daemon
-// (M12): where the issuing capability is kept, the daemon socket, and proxy
+// securityDoctorChecks reports the local mode protections of the oh daemon:
+// where the issuing capability is kept, the daemon socket, and proxy
 // tokens and server passwords left in clear by an older oh.
 func securityDoctorChecks(ctx context.Context) []doctor.Result {
 	var out []doctor.Result
@@ -64,7 +64,7 @@ func securityDoctorChecks(ctx context.Context) []doctor.Result {
 		} else {
 			out = append(out, doctor.Result{Name: i18n.T("cmd.doctor.security.tokens"), OK: false, Detail: i18n.Tf("cmd.doctor.security.tokens_clear", n)})
 		}
-		// N26: server passwords out of oh.db (moved by the daemon).
+		// Server passwords out of oh.db (moved by the daemon).
 		if k, err := sqlite.NewServerStore(store).CountClearPasswords(ctx); err == nil {
 			if k == 0 {
 				out = append(out, doctor.Result{Name: i18n.T("cmd.doctor.security.passwords"), OK: true, Detail: i18n.T("cmd.doctor.security.passwords_ok")})

@@ -15,9 +15,9 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
-// `oh team promote --remote <url>`: share a solo team-state (v5 phase 2,
-// P2-T10). The team keeps its id, folder and history: attached projects
-// and published workflows are unchanged.
+// `oh team promote --remote <url>`: share a solo team-state. The team keeps its
+// id, folder and history: attached projects and published workflows are
+// unchanged.
 func init() {
 	cmd := &cobra.Command{
 		Use:   "promote",

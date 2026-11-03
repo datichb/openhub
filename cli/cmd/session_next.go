@@ -16,7 +16,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
 
-// What follows a session (R5, E4): the outputs oh recorded and the `next:`
+// What follows a session: the outputs oh recorded and the `next:`
 // steps of its workflow, as `oh run` commands. Shown when an attached
 // session ends (oh run) and by `oh session next`; never launched by oh.
 
@@ -95,7 +95,7 @@ func nextCommand(s workflowsvc.ChainSuggestion, sessionID string) string {
 }
 
 // appendNextEvents adds to a trace the workflows proposed after its session
-// (R5: kind `next`, Title = workflow, Text = its inputs), before the summary.
+// (kind `next`, Title = workflow, Text = its inputs), before the summary.
 func appendNextEvents(ctx context.Context, a *app.App, tr *sessionsvc.Trace, sessionID string) {
 	if a == nil || a.Sessions == nil || tr == nil || len(tr.Events) == 0 {
 		return

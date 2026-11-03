@@ -17,7 +17,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 )
 
-// v5.1 (0-C): the commands that change the user's data without a terminal
+// The commands that change the user's data without a terminal
 // are refused (ExitUsage) unless --yes is given; nothing is modified.
 
 func TestGCWithoutTerminalIsRefusedWithExitUsage(t *testing.T) {

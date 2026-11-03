@@ -22,7 +22,7 @@ func (u *recordUI) SuspendAndExec() func(func() error) error { return nil }
 
 // No terminal could be opened and oh run has none to take over (script,
 // IDE): the session is left running and the user is told how to attach,
-// instead of a client blocking oh run (v5 finalisation, Q3-3).
+// instead of a client blocking oh run.
 func TestAfterStartWithoutTerminal(t *testing.T) {
 	prev := stdinIsTerminal
 	t.Cleanup(func() { stdinIsTerminal = prev })

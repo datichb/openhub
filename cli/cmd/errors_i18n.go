@@ -15,8 +15,8 @@ import (
 	"github.com/datichb/openhub/cli/internal/teamstate"
 )
 
-// Errors of cobra and of shared layers, translated before they are printed
-// (A12). Cobra's messages are fixed strings: they are matched here.
+// Errors of cobra and of shared layers, translated before they are printed.
+// Cobra's messages are fixed strings: they are matched here.
 
 var cobraErrors = []struct {
 	re  *regexp.Regexp
@@ -127,7 +127,7 @@ func joinInts(vs []int) string {
 	return strings.Join(parts, ", ")
 }
 
-// sessionRefError translates the errors of a session reference (A12).
+// sessionRefError translates the errors of a session reference.
 func sessionRefError(ref string, err error) error {
 	switch {
 	case err == nil:

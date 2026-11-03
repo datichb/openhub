@@ -53,7 +53,7 @@ func withConfirm(t *testing.T, answer bool) *int {
 	return &asked
 }
 
-// N12: outside of every project, a command that writes is refused without
+// Outside of every project, a command that writes is refused without
 // a terminal (never "the only project" silently).
 func TestImplicitProjectWriteWithoutTerminal(t *testing.T) {
 	a, _ := implicitProjectApp(t)
@@ -65,7 +65,7 @@ func TestImplicitProjectWriteWithoutTerminal(t *testing.T) {
 	assert.Zero(t, *asked)
 }
 
-// N12: with a terminal, the project is confirmed; declined → nothing.
+// With a terminal, the project is confirmed; declined → nothing.
 func TestImplicitProjectWriteConfirmed(t *testing.T) {
 	a, _ := implicitProjectApp(t)
 	withTerminal(t, true)
@@ -81,7 +81,7 @@ func TestImplicitProjectWriteConfirmed(t *testing.T) {
 	assert.Contains(t, err.Error(), "cancelled")
 }
 
-// N12: a command that reads announces the project it took on stderr.
+// A command that reads announces the project it took on stderr.
 func TestImplicitProjectReadWarns(t *testing.T) {
 	a, errOut := implicitProjectApp(t)
 	withTerminal(t, false)
@@ -112,7 +112,7 @@ func TestProjectFromDirectoryOrFlag(t *testing.T) {
 	assert.Contains(t, err.Error(), `project "nope" not found (list: oh project list)`)
 }
 
-// N12: several projects without a terminal → refused (no form opened).
+// Several projects without a terminal → refused (no form opened).
 func TestImplicitProjectSeveralWithoutTerminal(t *testing.T) {
 	a, _ := implicitProjectApp(t, domain.Project{ID: "web", Name: "web", Path: t.TempDir()}, domain.Project{ID: "api", Name: "api", Path: t.TempDir()})
 	withTerminal(t, false)
@@ -121,7 +121,7 @@ func TestImplicitProjectSeveralWithoutTerminal(t *testing.T) {
 	assert.Contains(t, err.Error(), "-p <project>")
 }
 
-// N12: oh run checks the tool before asking for a project.
+// oh run checks the tool before asking for a project.
 func TestRunChecksTheToolBeforeTheProject(t *testing.T) {
 	a, _ := implicitProjectApp(t)
 	withTerminal(t, true)
@@ -138,7 +138,7 @@ func TestRunChecksTheToolBeforeTheProject(t *testing.T) {
 	assert.Zero(t, *asked, "no project question for a launch that cannot start")
 }
 
-// N12: no credentials for the provider → a translated, actionable error
+// No credentials for the provider → a translated, actionable error
 // (checked before the daemon is asked for a grant).
 func TestLaunchWithoutCredentials(t *testing.T) {
 	i18ntest.Set(t, "en")
@@ -158,7 +158,7 @@ func TestLaunchWithoutCredentials(t *testing.T) {
 	assert.NoError(t, launchCredentials(context.Background(), a, project, ""))
 }
 
-// N12: the launch form shows the CLI message (daemon refusal translated).
+// The launch form shows the CLI message (daemon refusal translated).
 func TestTUILaunchErrorIsTranslated(t *testing.T) {
 	i18ntest.Set(t, "en")
 	err := tuiLaunchError(errors.Join(errors.New("issuing proxy grant"), &api.APIError{Method: "POST", Path: "/grants", Status: 422, Message: "no secret"}))

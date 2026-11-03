@@ -22,7 +22,7 @@ import (
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
 )
 
-// oh budget: session restrictions (I6) — effective values with their
+// oh budget: session restrictions — effective values with their
 // origin, hub and project settings, raise of a budget decision.
 
 var budgetCmd = &cobra.Command{
@@ -195,7 +195,7 @@ func runBudgetSet(cmd *cobra.Command, field, value string) error {
 }
 
 // budgetSavedMessage confirms a change: "removed" when the restriction is
-// off after it (unset, 0, off), "saved" otherwise (A28).
+// off after it (unset, 0, off), "saved" otherwise.
 func budgetSavedMessage(l limits.Limits, field, projectName string) string {
 	name := i18n.T("cmd.budget.field." + field)
 	removed := l.Value(field) == ""

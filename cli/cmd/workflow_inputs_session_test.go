@@ -17,7 +17,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
-// R5: session.output(<workflow>.<id>) reads the parent session when it is a
+// session.output(<workflow>.<id>) reads the parent session when it is a
 // session of that workflow with the output, else the last one of the
 // project.
 func TestSessionOutputSource(t *testing.T) {
@@ -62,7 +62,7 @@ func TestNextCommand(t *testing.T) {
 	assert.Equal(t, "oh run implement-spec --parent ses_1 --tickets ev-1,ev-2 -i spec='docs/wiki/specs/a b.md'", got)
 }
 
-// B1: an output of type report reaches the input as the content of the
+// An output of type report reaches the input as the content of the
 // report (the findings of an audit for security-fix), not its id.
 func TestSessionOutputSourceReadsReports(t *testing.T) {
 	st := sqlitetest.New(t)
@@ -149,7 +149,7 @@ func TestSessionTracesSource(t *testing.T) {
 	assert.Error(t, err, "nothing fits")
 }
 
-// p6-debts: security-fix without --parent reads the last audit of type
+// security-fix without --parent reads the last audit of type
 // security only (from_equals), never the report of another audit; without
 // one the input stays empty and the launch says so.
 func TestSessionOutputSourceFromEquals(t *testing.T) {

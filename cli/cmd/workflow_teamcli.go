@@ -24,7 +24,7 @@ import (
 )
 
 // Shared helpers of the editing commands (oh workflow new|edit|diff|publish|
-// history|restore|archive, v5 phase 2, P2-T12).
+// history|restore|archive).
 
 // addWorkflowContextFlags registers --project (team-state of the project).
 func addWorkflowContextFlags(c *cobra.Command) {
@@ -66,7 +66,7 @@ func workflowCmdContext(cmd *cobra.Command) (workflowsvc.Context, error) {
 // workflowReadContext is the WorkflowService context of the read-only
 // commands (show, validate, bundle): the one of a launch — --team, else the
 // project of --project or of the current directory (its team-state, solo
-// included), else the active team (A6).
+// included), else the active team.
 func workflowReadContext(cmd *cobra.Command) (workflowsvc.Context, error) {
 	a := TryApp()
 	if a == nil {

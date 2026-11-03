@@ -11,7 +11,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/services/launch"
 )
 
-// Bug 20: #623 is read as a GitLab issue where the tickets are on GitLab. With
+// #623 is read as a GitLab issue where the tickets are on GitLab. With
 // no tracker declared, the forge of the origin remote tells.
 func TestLaunchTrackerFollowsTheOriginRemote(t *testing.T) {
 	t.Setenv("GITLAB_URL", "")

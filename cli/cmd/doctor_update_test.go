@@ -8,7 +8,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 )
 
-// A1: a pre-release or a dev build newer than the latest published release
+// A pre-release or a dev build newer than the latest published release
 // is never told to "update" to it; a newer release is a warning only.
 func TestOhUpdateResultNeverOffersOlder(t *testing.T) {
 	i18ntest.Set(t, "en")

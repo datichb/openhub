@@ -174,7 +174,7 @@ func TestProjectLoadErrorTranslated(t *testing.T) {
 	assert.EqualError(t, err, "projet inconnu : nope (oh project list)")
 }
 
-// A11: the model cascade shows the project, hub and workflow levels in
+// The model cascade shows the project, hub and workflow levels in
 // priority order, translated.
 func TestModelCascadeLevels(t *testing.T) {
 	testHubEnv(t)

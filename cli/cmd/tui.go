@@ -124,7 +124,7 @@ func runTUI(l tuiLaunch) error {
 		Notifications: notifStore,
 		BeforeQuit:    func(quit func()) { beforeQuit(a, tuiShell)(quit) },
 		Compact:       func() string { return a.Config.CLI.Compact },
-		TeamsProvider: func() []views.SelectOption { // B12
+		TeamsProvider: func() []views.SelectOption {
 			var out []views.SelectOption
 			for _, t := range a.Config.Teams {
 				if t.Enabled {
@@ -133,7 +133,7 @@ func runTUI(l tuiLaunch) error {
 			}
 			return out
 		},
-		// Ctrl+T enters the project mode (BL-24): both run off the event loop.
+		// Ctrl+T enters the project mode: both run off the event loop.
 		ProjectsProvider: func() []views.SelectOption {
 			projects, _ := a.Projects.List(context.Background(), domain.ProjectStatusActive)
 			out := make([]views.SelectOption, 0, len(projects))

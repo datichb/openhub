@@ -27,7 +27,7 @@ func headlessCheck(p *launch.Prepared) error {
 }
 
 // headlessCheckpointsError explains why a workflow cannot run headless in a
-// mode, and whether another allowed mode can (A25: a mandatory checkpoint
+// mode, and whether another allowed mode can (a mandatory checkpoint
 // that pauses in every mode cannot be passed without interface).
 func headlessCheckpointsError(spec *workflow.Spec, mode string) error {
 	ids := spec.WaitingCheckpoints(mode)

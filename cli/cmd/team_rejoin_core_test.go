@@ -153,7 +153,7 @@ func TestRetroTagSessionsWithoutDatabase(t *testing.T) {
 	require.Error(t, err, "no application")
 }
 
-// Bug 12: rejoining did not offer the name of the member on the tracker.
+// Rejoining did not offer the name of the member on the tracker.
 func TestTeamRejoinCore_WritesTheTrackerUsernameOfTheMember(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test in short mode")

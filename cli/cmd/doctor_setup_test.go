@@ -44,7 +44,7 @@ func setupResults(t *testing.T) map[string]doctor.Result {
 	return out
 }
 
-// Bug 6 (K4a): a hub.toml with no setup_done, no default_provider and no
+// A hub.toml with no setup_done, no default_provider and no
 // region of the provider did not turn oh doctor red.
 func TestDoctorSetupFlagsAnIncompleteHubToml(t *testing.T) {
 	i18ntest.Set(t, "en")

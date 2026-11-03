@@ -23,7 +23,7 @@ func runProfile(t *testing.T, args ...string) error {
 	return runTeamProfile(c, nil)
 }
 
-// Bug 12: no command changed the profile of a member; oh team profile shows it
+// No command changed the profile of a member; oh team profile shows it
 // and changes only the fields it is given, in one commit.
 func TestTeamProfileShowsAndChangesTheMemberProfile(t *testing.T) {
 	_, repo, out := setupClaimTestApp(t)

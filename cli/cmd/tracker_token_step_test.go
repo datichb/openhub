@@ -123,7 +123,7 @@ func trackerTypeUpper(s string) string {
 }
 
 // The step asks the key and the server, stores the token under that key and
-// declares them in hub.toml (bug 3: nothing in the wizards did).
+// declares them in hub.toml (nothing in the wizards did).
 func TestTrackerTokenStepDeclaresTheKeyAndStoresTheToken(t *testing.T) {
 	a, step, secrets := tokenStepEnv(t, gitlabTrackerTOML(""), nil)
 	require.False(t, step.SkipIf())

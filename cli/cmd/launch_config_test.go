@@ -53,7 +53,7 @@ func entryModel(t *testing.T, p *launch.Prepared) string {
 	return p.Bundle.Spec.DefaultModel.Model // the provider format: anthropic.claude-… with Bedrock
 }
 
-// Bug 19: a launch after `oh config model default …` in another terminal
+// A launch after `oh config model default …` in another terminal
 // builds its bundle with the model of hub.toml as it is now.
 func TestLaunchUsesHubTomlChangedSinceStart(t *testing.T) {
 	a, p := runningTUI(t)
