@@ -9,6 +9,27 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Added
+
+- **Board d'équipe : filtre « Non assignés »** (`/`) : il ne garde que les tickets de la réserve, ceux qu'aucun membre n'a pris (à prendre avec `c`). Le repère « filtré » s'affiche, « Effacer les filtres » le retire.
+- **Board d'équipe : `C` ouvre l'éditeur de colonnes** (la même action que « Colonnes du board » de l'accueil de l'équipe) ; au retour, le board relit ses tickets avec les colonnes enregistrées, sans redémarrer oh. La touche figure dans les repères du bas et dans l'aide `?`.
+- **Éditeur de colonnes : `v` déplace un label ou un statut vers une autre colonne** (dans les rattachements d'une colonne : la liste des autres colonnes est proposée, l'élément quitte la colonne éditée).
+- **`max_in_progress_per_member`** (`[tracker]` de la configuration d'équipe et de `hub.toml`, 5 par défaut, `0` = sans limite) : voir « Changed ». `oh config set tracker.max_in_progress_per_member <n>`.
+
+### Changed
+
+- **⚠ Rupture — la limite par personne devient une limite de travail en cours.** `max_auto_plan_per_member` bornait les réservations que la synchro du tracker créait pour un membre ; elle est remplacée par `max_in_progress_per_member`, le nombre maximal de tickets **en cours** d'un membre (les réservations en revue — statut `review` ou label `review` / `ready-for-review` — et en validation ne comptent pas ; sur un board personnalisé, ce sont les colonnes de rôle `active`). La synchro met désormais **tous** les tickets assignés à un membre sur le board, sans plafond par membre, et ne refuse jamais rien : un ticket déjà en cours sur le tracker arrive en cours, même au-delà de la limite. Le mécanisme des issues « retenues » disparaît (l'avertissement de synchro, la ligne « N issue(s) hors du board » du board d'équipe, `autoplan_held` du fichier d'état) ; un état de synchro de la 5.1.0 qui en contient fait refaire un balayage complet au prochain run, qui met ces issues sur le board.
+- **⚠ Rupture — au-delà de la limite, oh refuse qu'un membre prenne ou démarre un ticket de plus**, en donnant le compte et la clé : `oh team claim` (aussi la reprise d'une réservation expirée et `oh team claim transfer` vers soi), la touche de prise et le changement de statut d'une carte (ou son transfert à soi) sur le board d'équipe, et une session lancée sur des tickets d'équipe (locale ou distante, avant que rien ne soit créé). Un script ou un membre qui avait plus de 5 tickets en cours est refusé au prochain ticket : `oh config set tracker.max_in_progress_per_member <n>` (pour soi) ou `oh team config` (pour l'équipe) relève la limite, `0` la supprime.
+- Le champ de la TUI « Max plan auto par membre » (Réglages et configuration d'équipe) devient « Tickets en cours par membre (max) ».
+
+### Deprecated
+
+- **`max_auto_plan_per_member`** (`[tracker]`, configuration d'équipe et `hub.toml`) : encore lue quand `max_in_progress_per_member` est absente (une valeur à 0 de `hub.toml` valait « défaut », elle est ignorée), annoncée une fois par processus, signalée par `oh doctor` (`oh config set tracker.max_in_progress_per_member <n>` pour `hub.toml`, `oh team config` pour l'équipe) et retirée à la prochaine écriture du fichier. `oh config set|get|unset tracker.max_auto_plan_per_member` est accepté comme alias de la nouvelle clé. Fin de la prise en charge en v6.
+
+### Fixed
+
+- **Board d'équipe : le filtre « Mes tickets » ne filtrait rien.** Il lisait le premier membre d'une liste que personne ne remplissait ; il garde maintenant les tickets du membre de l'équipe active (si son identité est inconnue, le filtre le dit au lieu de vider le board).
+
 ## [5.1.1] — 2026-11-03
 
 Version corrective de la 5.1.0 : formule Homebrew ([installation](README.fr.md#installation)), réservations d'un projet recréé ([`oh doctor`](docs/reference/cli-infra.fr.md#oh-doctor)), sortie d'oh sous Windows. Aucune rupture, aucune migration.
