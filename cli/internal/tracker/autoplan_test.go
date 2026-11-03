@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -84,16 +83,6 @@ func (f *autoplanFixture) claims(t *testing.T) map[string]string {
 	out := map[string]string{}
 	for _, c := range list {
 		out[c.TicketID] = c.Status
-	}
-	return out
-}
-
-func warningsAbout(res *SyncResult, sub string) []SyncWarning {
-	var out []SyncWarning
-	for _, w := range res.Warnings {
-		if strings.Contains(w.Message, sub) {
-			out = append(out, w)
-		}
 	}
 	return out
 }
