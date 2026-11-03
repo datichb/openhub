@@ -247,7 +247,7 @@ func modelCascadeLevels(ctx context.Context, a *app.App, project *domain.Project
 	if project != nil {
 		if tc := config.ResolveTeamForProject(a.Config, project); tc.Enabled {
 			levels = append(levels, modelLevel{ID: "team", Title: i18n.Tf("cmd.config.model.show.level_team", tc.TeamID),
-				Models: teamModelOverrides(tc)})
+				Models: teamModelOverrides(ctx, tc)})
 		}
 	}
 	return levels, nil

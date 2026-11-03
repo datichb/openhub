@@ -111,21 +111,30 @@ type sessionClaimsInput struct {
 	State func(ctx context.Context) sessionEndState
 }
 
+// claimEnder is what ending the claims of a session asks of the team-state:
+// the claims and the board to decide, the queue to record.
+type claimEnder interface {
+	teamstate.ClaimReader
+	teamstate.ConfigReader
+	teamstate.ClaimAdoptionReader
+	teamstate.ClaimOpQueue
+}
+
 // endTicketClaims decides what happens to the claims of the tickets of an
 // ended session and queues the operations (EnqueueClaimOp: local, never
 // waits for git). The claims of other members, those on another session,
 // those of unknown tickets and the ones with no claim are left as they are.
 // Nothing is written to the team-state: FlushClaimQueue applies the queue.
-func endTicketClaims(ctx context.Context, repo *teamstate.Repo, in sessionClaimsInput) map[string]claimEndOutcome {
+func endTicketClaims(ctx context.Context, repo claimEnder, in sessionClaimsInput) map[string]claimEndOutcome {
 	out := map[string]claimEndOutcome{}
 	var board teamstate.BoardConfig
-	if cfg, err := repo.LoadConfig(); err == nil && cfg != nil {
+	if cfg, err := repo.LoadConfig(ctx); err == nil && cfg != nil {
 		board = cfg.Board
 	}
 	terminals := board.TerminalStatuses()
 	var state *sessionEndState
 	for _, t := range in.Tickets {
-		c, err := repo.GetClaim(in.Project, t)
+		c, err := repo.GetClaim(ctx, in.Project, t)
 		if err != nil || c.ClaimedBy != in.Member {
 			continue // no claim, or someone else's
 		}
@@ -197,7 +206,7 @@ type claimFlush struct {
 // flushClaimQueue applies the queue of the clone, waiting at most limit (and
 // lockWait for its lock). A remote that cannot be reached, a clone that
 // stays busy or the end of limit leave the operations in the queue.
-func flushClaimQueue(ctx context.Context, repo *teamstate.Repo, lockWait, limit time.Duration) claimFlush {
+func flushClaimQueue(ctx context.Context, repo teamstate.ClaimOpQueue, lockWait, limit time.Duration) claimFlush {
 	fctx, cancel := context.WithTimeout(teamstate.WithLockWait(ctx, lockWait), limit)
 	defer cancel()
 	var f claimFlush
@@ -330,7 +339,7 @@ func sessionWork(ctx context.Context, s domain.Session) teamstate.ClaimWork {
 
 // teamClaimsRepo is the team-state of a project and the active member, as
 // used for the claims taken at launch (startTicketClaims).
-func teamClaimsRepo(a *app.App, proj *domain.Project) (*teamstate.Repo, string, bool) {
+func teamClaimsRepo(a *app.App, proj *domain.Project) (claimsStore, string, bool) {
 	if a == nil || a.Config == nil || proj == nil {
 		return nil, "", false
 	}
@@ -459,7 +468,7 @@ type claimsEndReport struct {
 }
 
 // endSessionClaims queues the end of the claims then flushes the queue.
-func endSessionClaims(ctx context.Context, repo *teamstate.Repo, in sessionClaimsInput, lockWait, limit time.Duration) claimsEndReport {
+func endSessionClaims(ctx context.Context, repo claimEnder, in sessionClaimsInput, lockWait, limit time.Duration) claimsEndReport {
 	r := claimsEndReport{Outcomes: endTicketClaims(ctx, repo, in)}
 	r.Flush = flushClaimQueue(ctx, repo, lockWait, limit)
 	return r

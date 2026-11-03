@@ -195,15 +195,15 @@ func (v *WikiView) refresh() {
 	}
 	v.setHeader(stateLoading, "")
 
-	fetch := func(context.Context) (wikiData, error) {
+	fetch := func(ctx context.Context) (wikiData, error) {
 		if !v.cloned(repo) {
 			return wikiData{}, nil
 		}
-		proposals, err := repo.WikiListPending()
+		proposals, err := repo.WikiListPending(ctx)
 		if err != nil {
 			return wikiData{}, err
 		}
-		pages, err := repo.WikiListPages()
+		pages, err := repo.WikiListPages(ctx)
 		return wikiData{cloned: true, proposals: proposals, pages: pages}, err
 	}
 	syncLoad(v.app, shellContext(v.shell), &v.loads, repo, v.shell, fetch, func(d wikiData, err error) {
@@ -384,8 +384,8 @@ func (v *WikiView) showPage(pageIdx int) {
 		return
 	}
 	sh := v.shell
-	load(v.app, shellContext(sh), &v.pageRead, func(context.Context) (string, error) {
-		return repo.WikiReadPage(pageName)
+	load(v.app, shellContext(sh), &v.pageRead, func(ctx context.Context) (string, error) {
+		return repo.WikiReadPage(ctx, pageName)
 	}, func(content string, err error) {
 		if err != nil {
 			sh.ShowToastMsg(i18n.Tf("tui.wiki.read_error", err.Error()), false)

@@ -77,12 +77,12 @@ func claimsDoctorChecks(ctx context.Context) []doctor.Result {
 			continue
 		}
 		teamed = true
-		claims, err := repo.ListClaims(p.ID)
+		claims, err := repo.ListClaims(ctx, p.ID)
 		if err != nil {
 			continue
 		}
 		var board teamstate.BoardConfig
-		if cfg, err := repo.LoadConfig(); err == nil && cfg != nil {
+		if cfg, err := repo.LoadConfig(ctx); err == nil && cfg != nil {
 			board = cfg.Board
 		}
 		sessions, _ := a.Sessions.List(ctx, p.ID)

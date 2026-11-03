@@ -97,7 +97,7 @@ func TestMigrateLegacyWorkflows(t *testing.T) {
 
 	// Team: archived, translated, published, removed from config.toml.
 	repo := teamstate.NewRepo(env.bare, alice)
-	_, err = repo.LoadConfig()
+	_, err = repo.LoadConfig(ctx)
 	require.NoError(t, err)
 	assert.Nil(t, repoTeamWorkflow(repo), "[workflow] removed from config.toml")
 	raw, err := os.ReadFile(filepath.Join(alice, "workflows", "migrated", "team-config-workflow.toml"))

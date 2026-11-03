@@ -80,7 +80,7 @@ func runReviewPublish(cmd *cobra.Command) error {
 	}
 
 	// Resolve GitLab project path (tracker config).
-	glProject := resolveGitLabProject(a, project)
+	glProject := resolveGitLabProject(ctx, a, project)
 	if glProject == "" {
 		return errors.New(i18n.Tf("cmd.review.publish.no_project", theme.Bold.Render("tracker_project")))
 	}
@@ -120,7 +120,7 @@ func runReviewPublish(cmd *cobra.Command) error {
 }
 
 // resolveGitLabProject resolves the GitLab project path/ID from config.
-func resolveGitLabProject(a *app.App, project *domain.Project) string {
+func resolveGitLabProject(ctx context.Context, a *app.App, project *domain.Project) string {
 	// 1. Per-project override.
 	if project.TrackerConfig != nil && project.TrackerConfig.TrackerProject != "" {
 		return project.TrackerConfig.TrackerProject
@@ -130,7 +130,7 @@ func resolveGitLabProject(a *app.App, project *domain.Project) string {
 	if teamCfg.StateRepo != "" {
 		repo := teamstate.NewRepo(teamCfg.StateRepo, teamCfg.StatePath)
 		if repo.IsCloned() {
-			if tc, err := repo.LoadConfig(); err == nil && tc.Tracker.TrackerProject != "" {
+			if tc, err := repo.LoadConfig(ctx); err == nil && tc.Tracker.TrackerProject != "" {
 				return tc.Tracker.TrackerProject
 			}
 		}
@@ -147,7 +147,7 @@ func assignReviewer(ctx context.Context, a *app.App, project *domain.Project, gl
 		return errors.New(i18n.T("cmd.review.publish.no_team_state"))
 	}
 
-	member, err := repo.GetMember(memberID)
+	member, err := repo.GetMember(ctx, memberID)
 	if err != nil {
 		return errors.New(i18n.Tf("cmd.review.publish.unknown_member", memberID))
 	}
@@ -216,7 +216,7 @@ func publishReviewToTeamState(ctx context.Context, a *app.App, projectID, ticket
 	}
 
 	// Best-effort notification dispatch.
-	if teamCfg, cfgErr := repo.LoadConfig(); cfgErr == nil {
+	if teamCfg, cfgErr := repo.LoadConfig(ctx); cfgErr == nil {
 		d := notify.NewDispatcher(teamCfg)
 		_ = d.Dispatch(ctx, event)
 	}

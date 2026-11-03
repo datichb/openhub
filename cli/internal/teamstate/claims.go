@@ -175,8 +175,12 @@ func IsValidBoardTransition(from, to string) bool {
 }
 
 // ListClaims returns all active claims for a project.
-// If project is empty, returns claims across all projects.
-func (r *Repo) ListClaims(project string) ([]Claim, error) {
+// If project is empty, returns claims across all projects. It reads the local
+// clone only; ctx is checked before and between the projects.
+func (r *Repo) ListClaims(ctx context.Context, project string) ([]Claim, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if project != "" {
 		if _, err := SafeName(project); err != nil {
 			return nil, fmt.Errorf("invalid project name: %w", err)
@@ -201,6 +205,9 @@ func (r *Repo) ListClaims(project string) ([]Claim, error) {
 		if !e.IsDir() {
 			continue
 		}
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		claims, err := r.listClaimsForProject(e.Name())
 		if err != nil {
 			return nil, err
@@ -211,7 +218,10 @@ func (r *Repo) ListClaims(project string) ([]Claim, error) {
 }
 
 // GetClaim retrieves a specific claim by project and ticket ID.
-func (r *Repo) GetClaim(project, ticketID string) (*Claim, error) {
+func (r *Repo) GetClaim(ctx context.Context, project, ticketID string) (*Claim, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if _, err := SafeName(project); err != nil {
 		return nil, fmt.Errorf("invalid project name: %w", err)
 	}

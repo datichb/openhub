@@ -42,11 +42,11 @@ func TestPatchMemberChangesOnlyItsFields(t *testing.T) {
 	// another clone sees it, with the rest of the record and the other member untouched
 	other := NewRepo(bare, clone+"-other")
 	require.NoError(t, other.Clone(ctx))
-	got, err := other.GetMember("ben")
+	got, err := other.GetMember(ctx, "ben")
 	require.NoError(t, err)
 	assert.Equal(t, Member{ID: "ben", DisplayName: "Ben", GitLabUsername: "benjamin.datiche1", MattermostUsername: "ben.m",
 		TrackerUsername: "benjamin.datiche", Role: "lead", DefaultMode: "auto"}, *got)
-	ana, err := other.GetMember("ana")
+	ana, err := other.GetMember(ctx, "ana")
 	require.NoError(t, err)
 	assert.Equal(t, "ana", ana.GitLabUsername)
 
@@ -69,7 +69,7 @@ func TestPatchMemberChangesOnlyItsFields(t *testing.T) {
 		err := r.PatchMember(ctx, "ben", func(m *Member) error { m.Role = "dev"; return boom })
 		assert.ErrorIs(t, err, boom)
 		assert.Equal(t, head, gittest.Run(t, bare, "rev-parse", "main"))
-		got, err := r.GetMember("ben")
+		got, err := r.GetMember(ctx, "ben")
 		require.NoError(t, err)
 		assert.Equal(t, "lead", got.Role, "the file is as it was")
 	})

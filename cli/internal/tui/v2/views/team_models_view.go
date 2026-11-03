@@ -103,11 +103,11 @@ func (v *TeamModelsView) Mount(content *tview.Flex, app *tview.Application) {
 	// Pull the team-state, read its config off the event loop, then build the
 	// list on it.
 	tc := v.cfg.ResolveTeam()
-	fetch := func(context.Context) (*teamstate.TeamConfig, error) {
+	fetch := func(ctx context.Context) (*teamstate.TeamConfig, error) {
 		if !tc.Enabled {
 			return nil, nil // no team: an empty config
 		}
-		return readTeamConfig(tc), nil
+		return readTeamConfig(ctx, tc), nil
 	}
 	apply := func(cfg *teamstate.TeamConfig, _ error) {
 		if v.app == nil {

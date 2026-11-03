@@ -1,0 +1,30 @@
+# Files of cmd/ that may still name *teamstate.Repo (TestCmdDoesNotNameTheWholeRepo,
+# internal/archtest/teamstate_interfaces_test.go).
+#
+# One line per file: "<file> <count>", the reason written above it. The list
+# only shrinks: a new use fails the test, and so does a count that went down (or
+# a file with none left) until its line is updated here or removed. Never raise
+# a count to make the test pass: take the interface of the sub-domain the
+# function needs (teamstate.ClaimReader, ConfigWriter, ...) or compose a few
+# next to it.
+#
+# The commands that build the repository keep the concrete type: they clone,
+# pull and hand it to helpers that take interfaces.
+
+# runTeamInit: the shared instance of the team commands (teamRepo, set once in
+# PersistentPreRun), the repository the init wizard clones, and the two
+# constructors ensureTeamRepo / ensureTeamRepoForProject (the second one wires
+# launch.Deps.TeamRepo, which is concrete).
+cmd/team.go 4
+
+# actionTeamInit: the repository the TUI init wizard clones.
+cmd/tui_team_actions.go 1
+
+# wiring of launch.Deps.TeamRepo (services/launch, concrete *teamstate.Repo).
+cmd/launch_deps.go 1
+
+# These feed services/workflow.TeamState.Repo, which works on the drafts, the
+# history and the queue of the workflows (no interface of a sub-domain yet).
+cmd/workflow_layers.go 1
+cmd/workflow_doctor.go 1
+cmd/brick_doctor.go 1

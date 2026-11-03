@@ -225,7 +225,7 @@ func TestTeamDetailLoadAndRemount(t *testing.T) {
 		GetMCPConfig:          func() config.MCPConfig { return shared.MCP },
 		GetTrackerLocalConfig: func() config.TrackerLocalConfig { return shared.Tracker },
 		ResolveTeam:           func() TeamResolution { return TeamResolution{} },
-		GetMember: func(string) *teamstate.Member {
+		GetMember: func(context.Context, string) *teamstate.Member {
 			if calls.Add(1) == 1 {
 				close(first)
 				<-release
@@ -259,7 +259,7 @@ func TestSettingsViewReadsTheTrackerTypeOffTheLoop(t *testing.T) {
 	var got atomic.Value
 	v := NewSettingsView(SettingsViewConfig{
 		GetConfig: func() *config.Config { return live },
-		TrackerType: func(team config.TeamConfig) string {
+		TrackerType: func(_ context.Context, team config.TeamConfig) string {
 			got.Store(team.ID)
 			close(started)
 			<-release

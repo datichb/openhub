@@ -49,7 +49,7 @@ func workflowIntegrityChecks() []doctor.Result {
 // retiredExtendsCheck reports the published team and project workflows
 // that extend a hub workflow retired as an alias (hub:feature, hub:cadrage:
 // feature-migration); ok is false when there is none (no check shown).
-func retiredExtendsCheck(name string, repo *teamstate.Repo, hubWorkflows string) (doctor.Result, bool) {
+func retiredExtendsCheck(name string, repo teamstate.WorkflowLayoutReader, hubWorkflows string) (doctor.Result, bool) {
 	hub := workflow.NewMemCatalog()
 	_ = hub.LoadDir(hubWorkflows, workflow.LayerHub)
 	scopes := []teamstate.WorkflowScope{teamstate.TeamScope()}
@@ -86,7 +86,7 @@ func retiredExtendsCheck(name string, repo *teamstate.Repo, hubWorkflows string)
 // change a checkpoint the children of a hub fan-out pass (fanout: never:
 // cp-commit of sweep, cp-2 of implement-spec): the change does not reach a
 // fan-out session (sweep-fanout); ok is false when there is none.
-func fanoutNeverCheck(name string, repo *teamstate.Repo, hubWorkflows string) (doctor.Result, bool) {
+func fanoutNeverCheck(name string, repo teamstate.WorkflowLayoutReader, hubWorkflows string) (doctor.Result, bool) {
 	hub := workflow.NewMemCatalog()
 	_ = hub.LoadDir(hubWorkflows, workflow.LayerHub)
 	scopes := []teamstate.WorkflowScope{teamstate.TeamScope()}

@@ -26,7 +26,7 @@ func TestTeamClaimsRecordTheRemoteSession(t *testing.T) {
 	created, err := tc.Claim(ctx, "p1", "T-1", "alice")
 	require.NoError(t, err)
 	assert.True(t, created)
-	c, err := repo.GetClaim("p1", "T-1")
+	c, err := repo.GetClaim(ctx, "p1", "T-1")
 	require.NoError(t, err)
 	assert.Equal(t, "ses_remote", c.Session)
 
@@ -36,7 +36,7 @@ func TestTeamClaimsRecordTheRemoteSession(t *testing.T) {
 	created, err = tc.Claim(ctx, "p1", "T-2", "alice")
 	require.NoError(t, err)
 	assert.False(t, created)
-	c, err = repo.GetClaim("p1", "T-2")
+	c, err = repo.GetClaim(ctx, "p1", "T-2")
 	require.NoError(t, err)
 	assert.Equal(t, "ses_remote", c.Session)
 
@@ -45,6 +45,6 @@ func TestTeamClaimsRecordTheRemoteSession(t *testing.T) {
 	require.NoError(t, err)
 	_, err = tc.Claim(ctx, "p1", "T-3", "alice")
 	assert.ErrorIs(t, err, remotesvc.ErrTicketTaken)
-	c, _ = repo.GetClaim("p1", "T-3")
+	c, _ = repo.GetClaim(ctx, "p1", "T-3")
 	assert.Equal(t, "ses_bob", c.Session)
 }

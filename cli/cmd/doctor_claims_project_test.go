@@ -95,7 +95,7 @@ func TestDoctorFixRehomesTheClaimsOnceAndAsksOnce(t *testing.T) {
 	assert.Equal(t, 1, asked, "one confirmation for all the claims")
 	assert.Contains(t, out.String(), "t-sru-b267fbf1")
 
-	claims, err := f.repo.ListClaims("88280c5b")
+	claims, err := f.repo.ListClaims(ctx, "88280c5b")
 	require.NoError(t, err)
 	assert.Len(t, claims, 5)
 	assert.Equal(t, before+1, commitsOf(t, f.bare), "one commit for the five claims")
@@ -115,7 +115,7 @@ func TestDoctorFixDeclinedChangesNothing(t *testing.T) {
 	f := newRehomeFixture(t, "t-sru", "")
 	var out bytes.Buffer
 	require.NoError(t, repairClaimsProject(context.Background(), &out, func(string) (bool, error) { return false, nil }))
-	left, err := f.repo.ListClaims("t-sru-b267fbf1")
+	left, err := f.repo.ListClaims(t.Context(), "t-sru-b267fbf1")
 	require.NoError(t, err)
 	assert.Len(t, left, 5)
 }
@@ -294,11 +294,11 @@ func TestDoctorFixCommandUsesTheCommonConfirmation(t *testing.T) {
 	err := fixClaimsProject(cmd)
 	require.Error(t, err)
 	assert.Equal(t, ExitUsage, ExitCode(err))
-	left, _ := f.repo.ListClaims("t-sru-b267fbf1")
+	left, _ := f.repo.ListClaims(t.Context(), "t-sru-b267fbf1")
 	assert.Len(t, left, 5, "refused: nothing moved")
 
 	require.NoError(t, cmd.Flags().Set("yes", "true"))
 	require.NoError(t, fixClaimsProject(cmd))
-	moved, _ := f.repo.ListClaims("88280c5b")
+	moved, _ := f.repo.ListClaims(t.Context(), "88280c5b")
 	assert.Len(t, moved, 5)
 }

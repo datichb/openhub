@@ -182,7 +182,7 @@ func TestClaimsBeatSeveralTeams(t *testing.T) {
 	assert.Equal(t, 30*time.Minute, b.every(context.Background()))
 	require.NoError(t, b.beat(context.Background()))
 	lease := func(repo *teamstate.Repo, project, id string) time.Time {
-		c, err := repo.GetClaim(project, id)
+		c, err := repo.GetClaim(t.Context(), project, id)
 		require.NoError(t, err)
 		return c.LeaseUntil.Time()
 	}

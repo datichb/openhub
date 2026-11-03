@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 
@@ -25,13 +26,13 @@ func findHubDir() string {
 // buildMCPServersForProject constructs MCP server definitions using the full
 // 3-level cascade: team-state (enforced/recommended) → hub → project.
 // Each service is resolved independently via mcpresolve.ResolveFull.
-func buildMCPServersForProject(a *app.App, mcpConfig *domain.ProjectMCPConfig, resolvedTeam config.ResolvedTeamConfig) []bricks.MCPServerDef {
+func buildMCPServersForProject(ctx context.Context, a *app.App, mcpConfig *domain.ProjectMCPConfig, resolvedTeam config.ResolvedTeamConfig) []bricks.MCPServerDef {
 	// Load team-state shared MCP config (if team is enabled and cloned)
 	var sharedMCP map[string]teamstate.SharedMCPConfig
 	if resolvedTeam.Enabled && resolvedTeam.StatePath != "" {
 		repo := teamstate.NewRepo(resolvedTeam.StateRepo, resolvedTeam.StatePath)
 		if repo.IsCloned() {
-			if teamCfg, err := repo.LoadConfig(); err == nil {
+			if teamCfg, err := repo.LoadConfig(ctx); err == nil {
 				sharedMCP = teamCfg.MCP
 			}
 		}

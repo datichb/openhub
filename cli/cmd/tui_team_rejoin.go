@@ -121,14 +121,14 @@ func (w *rejoinWizard) repoStep() views.WizardStep {
 		OnDone: func() error {
 			w.statePath = config.TeamStatePath(w.stateRepo)
 			var (
-				handle *teamstate.Repo
+				handle rejoinRepo
 				err    error
 			)
 			handle, w.members, _, err = listTeamMembers(ctx, w.stateRepo, w.statePath)
 			if err != nil {
 				return err
 			}
-			w.trackerWanted = trackerUsernameWanted(handle, w.stateRepo, w.gitlabURL)
+			w.trackerWanted = trackerUsernameWanted(ctx, handle, w.stateRepo, w.gitlabURL)
 			if len(w.members) == 0 {
 				return errors.New(i18n.T("tui.team.rejoin.no_members"))
 			}
@@ -524,7 +524,7 @@ func (w *rejoinWizard) recoverIdentity() error {
 		sp = config.TeamStatePath(w.stateRepo)
 	}
 	repo := teamstate.NewRepo(w.stateRepo, sp)
-	member, err := repo.GetMember(w.memberID)
+	member, err := repo.GetMember(ctx, w.memberID)
 	if err != nil {
 		return fmt.Errorf(i18n.T("cmd.tui_team_rejoin.member_lookup"), err)
 	}
@@ -545,7 +545,7 @@ func (w *rejoinWizard) trackerSetupForm(_ *tview.Application, onDone func()) *tv
 	}
 	repo := teamstate.NewRepo(w.stateRepo, sp)
 	trackerConfigured := false
-	if teamCfg, err := repo.LoadConfig(); err == nil && teamCfg.Tracker.Type != "" {
+	if teamCfg, err := repo.LoadConfig(w.ctx); err == nil && teamCfg.Tracker.Type != "" {
 		trackerConfigured = true
 		hint := i18n.T("cmd.init.wizard_tracker_configured") + "\n" +
 			i18n.Tf("cmd.init.wizard_tracker_info",

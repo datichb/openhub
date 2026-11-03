@@ -29,7 +29,7 @@ func TestTeamIdentityStepKeepsWhatTheFormDoesNotShow(t *testing.T) {
 		MattermostUsername: "alice-mm", Role: "lead"}
 	require.NoError(t, buildTeamIdentityStep(s, teamStepOpts{}).OnDone())
 
-	m, err := repo.GetMember("alice")
+	m, err := repo.GetMember(t.Context(), "alice")
 	require.NoError(t, err)
 	assert.Equal(t, "auto", m.DefaultMode, "the mode chosen by the member is kept")
 	assert.Equal(t, "alice.tracker", m.TrackerUsername)
@@ -41,7 +41,7 @@ func TestTeamIdentityStepKeepsWhatTheFormDoesNotShow(t *testing.T) {
 	// not know is not lost either.
 	s.DisplayName = "Alice C."
 	require.NoError(t, buildTeamIdentityStep(s, teamStepOpts{}).OnDone())
-	m, err = repo.GetMember("alice")
+	m, err = repo.GetMember(t.Context(), "alice")
 	require.NoError(t, err)
 	assert.Equal(t, "Alice C.", m.DisplayName)
 	assert.Equal(t, "auto", m.DefaultMode)
@@ -49,7 +49,7 @@ func TestTeamIdentityStepKeepsWhatTheFormDoesNotShow(t *testing.T) {
 	// A new member still starts in semi-auto.
 	s = &teamStepState{Ctx: t.Context(), Repo: repo, MemberID: "bob", DisplayName: "Bob", Role: "dev"}
 	require.NoError(t, buildTeamIdentityStep(s, teamStepOpts{}).OnDone())
-	m, err = repo.GetMember("bob")
+	m, err = repo.GetMember(t.Context(), "bob")
 	require.NoError(t, err)
 	assert.Equal(t, "semi-auto", m.DefaultMode)
 }

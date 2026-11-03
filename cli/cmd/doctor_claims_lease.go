@@ -198,14 +198,14 @@ func claimsLeaseResults(ctx context.Context, a *app.App, now time.Time) []doctor
 	var expired []expiredClaim
 	var inReview []reviewClaim
 	for _, t := range teams {
-		cfg, _ := t.repo.LoadConfig()
+		cfg, _ := t.repo.LoadConfig(ctx)
 		projects := make([]string, 0, len(t.projects))
 		for p := range t.projects {
 			projects = append(projects, p)
 		}
 		slices.Sort(projects)
 		for _, p := range projects {
-			claims, err := t.repo.ListClaims(p)
+			claims, err := t.repo.ListClaims(ctx, p)
 			if err != nil {
 				continue
 			}

@@ -303,11 +303,11 @@ func (v *PoliciesView) refresh() {
 	}
 	v.setHeader(stateLoading, "")
 
-	fetch := func(context.Context) (policiesData, error) {
+	fetch := func(ctx context.Context) (policiesData, error) {
 		if !repo.IsCloned() {
 			return policiesData{}, nil
 		}
-		policies, err := repo.LoadPolicies("")
+		policies, err := repo.LoadPolicies(ctx, "")
 		return policiesData{cloned: true, policies: policies}, err
 	}
 	syncLoad(v.app, shellContext(v.shell), &v.loads, repo, v.shell, fetch, func(d policiesData, err error) {
@@ -759,11 +759,11 @@ func (v *PoliciesView) checkPolicies() {
 		baseBranch = appCtx.Config.Worktree.BaseBranch
 	}
 	sh := v.shell
-	load(v.app, shellContext(sh), &v.checkReads, func(context.Context) ([]teamstate.PolicyResult, error) {
+	load(v.app, shellContext(sh), &v.checkReads, func(ctx context.Context) ([]teamstate.PolicyResult, error) {
 		if !repo.IsCloned() {
 			return nil, errors.New(i18n.T("tui.policies.team_not_configured"))
 		}
-		return repo.CheckAll("", policyCheckContext(repo, appCtx, member, baseBranch))
+		return repo.CheckAll(ctx, "", policyCheckContext(ctx, repo, appCtx, member, baseBranch))
 	}, func(results []teamstate.PolicyResult, err error) {
 		if err != nil {
 			sh.ShowToastMsg(i18n.T("tui.policies.check_error")+": "+err.Error(), false)
@@ -807,35 +807,35 @@ func (v *PoliciesView) checkPolicies() {
 // policyCheckContext is what the policies are checked against: the member,
 // and, from the first project of the hub, its branch, its diff and its files.
 // It runs git and reads files: call it off the event loop.
-func policyCheckContext(repo teamstate.PolicyReader, appCtx *app.App, member, configuredBase string) teamstate.PolicyContext {
-	ctx := teamstate.PolicyContext{MemberID: member}
+func policyCheckContext(ctx context.Context, repo teamstate.PolicyReader, appCtx *app.App, member, configuredBase string) teamstate.PolicyContext {
+	pctx := teamstate.PolicyContext{MemberID: member}
 	if appCtx == nil || appCtx.Projects == nil {
-		return ctx
+		return pctx
 	}
 	p, err := resolveFirstProject(appCtx)
 	if err != nil || p.Path == "" {
-		return ctx
+		return pctx
 	}
 	baseBranch := gitutil.DetectBaseBranch(p.Path, configuredBase)
 
 	if b := gitCurrentBranch(p.Path); b != "" {
-		ctx.BranchName = b
+		pctx.BranchName = b
 	}
 
 	if diffLines, err := gitutil.DiffAddedLines(p.Path, baseBranch); err == nil {
-		ctx.DiffLines = diffLines
+		pctx.DiffLines = diffLines
 	} else {
 		slog.Debug("tui policies: failed to get diff lines", "error", err)
 	}
 	if modFiles, err := gitutil.ModifiedFiles(p.Path, baseBranch); err == nil {
-		ctx.ModifiedFiles = modFiles
-		ctx.HasTests = gitutil.HasTestFiles(modFiles)
+		pctx.ModifiedFiles = modFiles
+		pctx.HasTests = gitutil.HasTestFiles(modFiles)
 	} else {
 		slog.Debug("tui policies: failed to get modified files", "error", err)
 	}
 
 	// Lazy population of file content for all_files and modified_files scopes.
-	policies, _ := repo.LoadPolicies("")
+	policies, _ := repo.LoadPolicies(ctx, "")
 	needsAllFiles, needsModifiedContent := false, false
 	for _, pol := range policies {
 		if pol.Type == teamstate.PolicyTypeForbiddenPattern && pol.Enforcement != teamstate.EnforcementDisabled {
@@ -850,20 +850,20 @@ func policyCheckContext(repo teamstate.PolicyReader, appCtx *app.App, member, co
 	if needsAllFiles {
 		if tracked, err := gitutil.TrackedFiles(p.Path); err == nil {
 			if lines, err := gitutil.ReadFileLines(p.Path, tracked); err == nil {
-				ctx.AllFileLines = lines
+				pctx.AllFileLines = lines
 			} else {
 				slog.Debug("tui policies: failed to read tracked files", "error", err)
 			}
 		}
 	}
-	if needsModifiedContent && len(ctx.ModifiedFiles) > 0 {
-		if lines, err := gitutil.ReadFileLines(p.Path, ctx.ModifiedFiles); err == nil {
-			ctx.ModifiedFileLines = lines
+	if needsModifiedContent && len(pctx.ModifiedFiles) > 0 {
+		if lines, err := gitutil.ReadFileLines(p.Path, pctx.ModifiedFiles); err == nil {
+			pctx.ModifiedFileLines = lines
 		} else {
 			slog.Debug("tui policies: failed to read modified file contents", "error", err)
 		}
 	}
-	return ctx
+	return pctx
 }
 
 // ── Add from template ────────────────────────────────────────────────────────

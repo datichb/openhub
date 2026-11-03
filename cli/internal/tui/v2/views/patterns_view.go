@@ -180,11 +180,11 @@ func (v *PatternsView) refresh() {
 	}
 	v.setHeader(stateLoading, "")
 
-	fetch := func(context.Context) (patternsData, error) {
+	fetch := func(ctx context.Context) (patternsData, error) {
 		if !repo.IsCloned() {
 			return patternsData{}, nil
 		}
-		patterns, err := repo.ListPatterns(nil, 0)
+		patterns, err := repo.ListPatterns(ctx, nil, 0)
 		return patternsData{cloned: true, patterns: patterns}, err
 	}
 	syncLoad(v.app, shellContext(v.shell), &v.loads, repo, v.shell, fetch, func(d patternsData, err error) {
@@ -364,8 +364,8 @@ func (v *PatternsView) showPattern(patternIdx int) {
 		return
 	}
 	sh := v.shell
-	load(v.app, shellContext(sh), &v.readPage, func(context.Context) (string, error) {
-		return repo.ReadPattern(p.Name)
+	load(v.app, shellContext(sh), &v.readPage, func(ctx context.Context) (string, error) {
+		return repo.ReadPattern(ctx, p.Name)
 	}, func(content string, err error) {
 		if err != nil {
 			sh.ShowToastMsg(i18n.T("tui.patterns.read_error")+": "+err.Error(), false)

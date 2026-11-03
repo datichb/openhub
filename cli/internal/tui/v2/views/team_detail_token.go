@@ -444,7 +444,7 @@ func (v *TeamDetailView) saveMemberField(field, value string) {
 		if v.cfg.GetMember == nil {
 			return nil, nil
 		}
-		return v.cfg.GetMember(teamID), nil
+		return v.cfg.GetMember(ctx, teamID), nil
 	}, func(m *teamstate.Member, err error) {
 		if v.shell == nil {
 			return

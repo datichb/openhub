@@ -100,7 +100,7 @@ func TestSaveAndReadBrief(t *testing.T) {
 	os.WriteFile(mdPath, []byte(md), 0o644)
 
 	// Test ReadBrief
-	content, err := repo.ReadBrief("T-SRU", "bd-42")
+	content, err := repo.ReadBrief(t.Context(), "T-SRU", "bd-42")
 	if err != nil {
 		t.Fatalf("ReadBrief failed: %v", err)
 	}
@@ -109,10 +109,10 @@ func TestSaveAndReadBrief(t *testing.T) {
 	}
 
 	// Test BriefExists
-	if !repo.BriefExists("T-SRU", "bd-42") {
+	if !repo.BriefExists(t.Context(), "T-SRU", "bd-42") {
 		t.Error("BriefExists should return true")
 	}
-	if repo.BriefExists("T-SRU", "bd-99") {
+	if repo.BriefExists(t.Context(), "T-SRU", "bd-99") {
 		t.Error("BriefExists should return false for non-existent")
 	}
 }
@@ -122,7 +122,7 @@ func TestReadBrief_NotFound(t *testing.T) {
 	dir := t.TempDir()
 	repo := &Repo{path: dir}
 
-	_, err := repo.ReadBrief("T-SRU", "bd-99")
+	_, err := repo.ReadBrief(t.Context(), "T-SRU", "bd-99")
 	if err != ErrBriefNotFound {
 		t.Errorf("expected ErrBriefNotFound, got: %v", err)
 	}
@@ -141,7 +141,7 @@ func TestReadBrief_PrefersEnriched(t *testing.T) {
 	os.WriteFile(filepath.Join(projectDir, baseName+".md"), []byte("template brief"), 0o644)
 	os.WriteFile(filepath.Join(projectDir, baseName+".enriched.md"), []byte("enriched brief"), 0o644)
 
-	content, err := repo.ReadBrief("T-SRU", "bd-42")
+	content, err := repo.ReadBrief(t.Context(), "T-SRU", "bd-42")
 	if err != nil {
 		t.Fatalf("ReadBrief failed: %v", err)
 	}
@@ -216,7 +216,7 @@ func TestListBriefs(t *testing.T) {
 	os.WriteFile(filepath.Join(projectDir, "bd-42_2026-07-13.toml"), data1, 0o644)
 	os.WriteFile(filepath.Join(projectDir, "bd-43_2026-07-14.toml"), data2, 0o644)
 
-	metas, err := repo.ListBriefs("T-SRU")
+	metas, err := repo.ListBriefs(t.Context(), "T-SRU")
 	if err != nil {
 		t.Fatalf("ListBriefs failed: %v", err)
 	}
@@ -250,7 +250,7 @@ func TestListBriefs_AllProjects(t *testing.T) {
 	}
 
 	// ListBriefs("") should return briefs from all projects
-	metas, err := repo.ListBriefs("")
+	metas, err := repo.ListBriefs(t.Context(), "")
 	assert.NoError(t, err)
 	assert.Len(t, metas, 2, "expected briefs from both projects")
 
@@ -263,7 +263,7 @@ func TestListBriefs_AllProjects(t *testing.T) {
 	assert.True(t, projects["project-beta"], "should include project-beta")
 
 	// ListBriefs("project-alpha") should return only that project's briefs
-	metas, err = repo.ListBriefs("project-alpha")
+	metas, err = repo.ListBriefs(t.Context(), "project-alpha")
 	assert.NoError(t, err)
 	assert.Len(t, metas, 1)
 	assert.Equal(t, "project-alpha", metas[0].Project)
@@ -275,7 +275,7 @@ func TestListBriefs_EmptyRepo(t *testing.T) {
 	repo := &Repo{path: dir}
 
 	// No projects dir at all — should return nil, no error
-	metas, err := repo.ListBriefs("")
+	metas, err := repo.ListBriefs(t.Context(), "")
 	assert.NoError(t, err)
 	assert.Nil(t, metas)
 }

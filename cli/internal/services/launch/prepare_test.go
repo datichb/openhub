@@ -147,7 +147,7 @@ func newDeps(t *testing.T) (Deps, *fakes) {
 			f.claimsHook++
 			return func(context.Context, string, []string) []string { return nil }
 		},
-		BuildBundle: func(_ *domain.Project, _ *workflowsvc.Resolution, prov string) (*bundle.Bundle, []string, error) {
+		BuildBundle: func(_ context.Context, _ *domain.Project, _ *workflowsvc.Resolution, prov string) (*bundle.Bundle, []string, error) {
 			f.provider = prov
 			return &bundle.Bundle{}, []string{"jira"}, f.bundleErr
 		},

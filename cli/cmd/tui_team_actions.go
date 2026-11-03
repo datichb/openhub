@@ -81,16 +81,16 @@ func actionTeamInit() {
 			credState.Probe(ctx, stateRepo)
 			hasConfig = repo.HasConfig()
 			hasPolicies = repo.HasPolicies()
-			existingCfg, _ = repo.LoadConfig()
+			existingCfg, _ = repo.LoadConfig(ctx)
 			if hasConfig && existingCfg != nil {
 				staleDaysStr = fmt.Sprintf("%d", existingCfg.Takeover.StaleDays)
 				webhookURL = existingCfg.Notification.MattermostWebhook
 				channel = existingCfg.Notification.Channel
 				botName = existingCfg.Notification.BotName
 			}
-			hasMember = memberID != "" && repo.HasMember(memberID)
+			hasMember = memberID != "" && repo.HasMember(ctx, memberID)
 			if hasMember {
-				if m, err := repo.GetMember(memberID); err == nil && m != nil {
+				if m, err := repo.GetMember(ctx, memberID); err == nil && m != nil {
 					displayName = m.DisplayName
 					gitlabUsername = m.GitLabUsername
 					mattermostUsername = m.MattermostUsername
@@ -104,7 +104,6 @@ func actionTeamInit() {
 	// ── Build shared team step state ────────────────────────────────
 	tss := &teamStepState{
 		Ctx:                ctx,
-		Repo:               repo,
 		HasConfig:          hasConfig,
 		HasPolicies:        hasPolicies,
 		ExistingCfg:        existingCfg,
@@ -119,6 +118,9 @@ func actionTeamInit() {
 		WebhookURL:         webhookURL,
 		Channel:            channel,
 		BotName:            botName,
+	}
+	if repo != nil { // a nil *Repo in the interface would not be nil
+		tss.Repo = repo
 	}
 	// ── Step 0: Repository ──────────────────────────────────────────
 	repoStep := views.WizardStep{
@@ -201,7 +203,7 @@ func actionTeamInit() {
 			}
 			repo := teamstate.NewRepo(stateRepo, sp)
 			trackerConfigured := false
-			if teamCfg, err := repo.LoadConfig(); err == nil && teamCfg.Tracker.Type != "" {
+			if teamCfg, err := repo.LoadConfig(ctx); err == nil && teamCfg.Tracker.Type != "" {
 				trackerConfigured = true
 				hint := i18n.T("cmd.init.wizard_tracker_configured") + "\n" +
 					i18n.Tf("cmd.init.wizard_tracker_info",

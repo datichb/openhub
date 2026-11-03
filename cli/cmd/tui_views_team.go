@@ -41,8 +41,9 @@ func buildTeamModeView(a *app.App, sessionsSection views.SessionsSectionConfig, 
 			if !repo.IsCloned() {
 				return views.TeamModeStats{}
 			}
-			members, _ := repo.ListMembers()
-			tickets := views.FetchTeamTickets(repo, nil)
+			ctx := tuiContext()
+			members, _ := repo.ListMembers(ctx)
+			tickets := views.FetchTeamTickets(ctx, repo, nil)
 			active := 0
 			for _, t := range tickets {
 				if t.Status == "in_progress" || t.Status == "review" || t.Status == "validation" {
@@ -51,8 +52,8 @@ func buildTeamModeView(a *app.App, sessionsSection views.SessionsSectionConfig, 
 			}
 			// The sessions of the other members, read from the claims.
 			var others []views.TeamMemberSession
-			if claims, err := repo.ListClaims(""); err == nil {
-				cfg, _ := repo.LoadConfig()
+			if claims, err := repo.ListClaims(ctx, ""); err == nil {
+				cfg, _ := repo.LoadConfig(ctx)
 				others = views.OtherMemberSessions(claims, members, cfg, tr.MemberID, time.Now())
 			}
 			return views.TeamModeStats{
@@ -100,8 +101,8 @@ func buildTeamDetailView(a *app.App) views.View {
 		TeamProviderKey:   teamProviderKey(a),
 		SetSecret:         secretSetter(a),
 		OnDiscoverTracker: actionTrackerDiscovery,
-		GetMember: func(teamID string) *teamstate.Member {
-			m, err := teamService(a).Profile(teamID)
+		GetMember: func(ctx context.Context, teamID string) *teamstate.Member {
+			m, err := teamService(a).Profile(ctx, teamID)
 			if err != nil {
 				return nil
 			}

@@ -60,14 +60,14 @@ func trackerWizardEnv(t *testing.T, accepts string) (a *app.App, repo *teamstate
 // user answered and without saying so.
 func TestTeamConfigTrackerSyncDoesNotFillTheTokenKeyOnItsOwn(t *testing.T) {
 	a, repo, out, serverURL, _ := trackerWizardEnv(t, "never")
-	teamCfg, err := repo.LoadConfig()
+	teamCfg, err := repo.LoadConfig(t.Context())
 	require.NoError(t, err)
 
 	// GitLab, the URL, no key, no token, then the yes/no questions and no project
 	answerPrompts(t, "1", serverURL, "", "n", "n", "n", "n", "n", "")
 	require.NoError(t, configureTrackerSync(t.Context(), a, repo, teamCfg, true, false))
 
-	saved, err := repo.LoadConfig()
+	saved, err := repo.LoadConfig(t.Context())
 	require.NoError(t, err)
 	assert.Empty(t, saved.Tracker.TrackerTokenKey, "the key is declared by the user or not at all")
 	assert.Empty(t, saved.Tracker.TrackerTokenURL)
@@ -78,14 +78,14 @@ func TestTeamConfigTrackerSyncDoesNotFillTheTokenKeyOnItsOwn(t *testing.T) {
 // config and the token is stored under that key.
 func TestTeamConfigTrackerSyncDeclaresTheKeyAndTheServer(t *testing.T) {
 	a, repo, _, serverURL, secrets := trackerWizardEnv(t, "glpat-1")
-	teamCfg, err := repo.LoadConfig()
+	teamCfg, err := repo.LoadConfig(t.Context())
 	require.NoError(t, err)
 
 	// GitLab, the URL, the key, its server, the token, then the rest
 	answerPrompts(t, "1", serverURL, "forge.token", serverURL, "y", "glpat-1", "n", "n", "n", "n", "")
 	require.NoError(t, configureTrackerSync(t.Context(), a, repo, teamCfg, true, false))
 
-	saved, err := repo.LoadConfig()
+	saved, err := repo.LoadConfig(t.Context())
 	require.NoError(t, err)
 	assert.Equal(t, "forge.token", saved.Tracker.TrackerTokenKey)
 	assert.Equal(t, serverURL, saved.Tracker.TrackerTokenURL)

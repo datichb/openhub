@@ -358,11 +358,11 @@ The team views share an async pull pattern defined in `cli/internal/tui/v2/views
 ### Helpers
 
 ```go
-// syncAsync pulls git in background via a teamstate.TeamStateWriter.
+// syncAsync pulls git in background through a pullableRepo (Path and Pull, which *teamstate.Repo implements).
 // Shows a "Synchronisation..." toast if the pull takes > 1s.
 // Calls onDone on the tview event loop after completion, with the pull error (nil on success).
 // On error, a warning toast tells that the data is local, then onDone still runs.
-func syncAsync(app *tview.Application, repo teamstate.TeamStateWriter, shell ShellAccess, onDone func(pullErr error))
+func syncAsync(app *tview.Application, repo pullableRepo, shell ShellAccess, onDone func(pullErr error))
 
 // syncFuncAsync is identical but accepts a bare func() error instead of a repo.
 // Used by TeamBoardView, which receives its pull function via SyncFunc in its config struct.

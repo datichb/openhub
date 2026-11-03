@@ -168,7 +168,7 @@ type initWizardTeamState struct {
 	Ctx           context.Context // propagated to OnDone closures (set by caller)
 	// Rejoin-specific state
 	Members              []teamstate.Member // fetched members for rejoin flow
-	TeamRepo             *teamstate.Repo    // repo handle (set after clone in rejoin_repo)
+	TeamRepo             rejoinRepo         // repo handle (set after clone in rejoin_repo)
 	AddingNewMember      bool               // true when user chose "add new member" in rejoin flow
 	NewMemberDisplayName string             // display name for new member being added
 	NewMemberGitLab      string             // gitlab username for new member being added
@@ -261,7 +261,7 @@ func buildTrackerSetupSteps(a **app.App, state *initWizardTeamState) []views.Wiz
 				statePath := config.TeamStatePath(state.Repo)
 				repo := teamstate.NewRepo(state.Repo, statePath)
 				trackerConfigured := false
-				if teamCfg, err := repo.LoadConfig(); err == nil && teamCfg.Tracker.Type != "" {
+				if teamCfg, err := repo.LoadConfig(state.Ctx); err == nil && teamCfg.Tracker.Type != "" {
 					trackerConfigured = true
 					hint := i18n.T("cmd.init.wizard_tracker_configured") + "\n" +
 						i18n.Tf("cmd.init.wizard_tracker_info",
@@ -638,7 +638,7 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 				}
 				state.Members = members
 				state.TeamRepo = repo
-				state.TrackerWanted = trackerUsernameWanted(repo, state.Repo, state.GitLabURL)
+				state.TrackerWanted = trackerUsernameWanted(state.Ctx, repo, state.Repo, state.GitLabURL)
 				state.ProbeRepo(state.Ctx)
 				return nil
 			},
@@ -1018,7 +1018,7 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 			// Re-run identity validation with the new token
 			statePath := config.TeamStatePath(state.Repo)
 			repo := teamstate.NewRepo(state.Repo, statePath)
-			member, err := repo.GetMember(state.MemberID)
+			member, err := repo.GetMember(state.Ctx, state.MemberID)
 			if err != nil {
 				return fmt.Errorf(i18n.T("cmd.team_helpers.member_lookup"), err)
 			}

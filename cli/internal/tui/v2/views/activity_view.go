@@ -34,7 +34,7 @@ type ActivityView struct {
 	loads       loadSlot // the reads of the events: only the latest is applied
 
 	// read replaces the read of the events (tests).
-	read func(repo activityReader, filter string) (activityData, error)
+	read func(ctx context.Context, repo activityReader, filter string) (activityData, error)
 }
 
 // activityData is what a read of the activity gives back.
@@ -130,7 +130,7 @@ func (v *ActivityView) refresh() {
 	if read == nil {
 		read = readActivity
 	}
-	fetch := func(context.Context) (activityData, error) { return read(repo, filter) }
+	fetch := func(ctx context.Context) (activityData, error) { return read(ctx, repo, filter) }
 	// Pull first (the toast of a slow pull, the warning of a failed one).
 	syncLoad(v.app, shellContext(v.shell), &v.loads, repo, v.shell, fetch, func(d activityData, err error) {
 		if v.list != nil {
@@ -141,11 +141,11 @@ func (v *ActivityView) refresh() {
 
 // readActivity reads the events of the period of filter. It reads files: call
 // it off the event loop.
-func readActivity(repo activityReader, filter string) (activityData, error) {
+func readActivity(ctx context.Context, repo activityReader, filter string) (activityData, error) {
 	if !repo.IsCloned() {
 		return activityData{}, nil
 	}
-	events, err := repo.ListEvents("", activitySince(filter, time.Now()))
+	events, err := repo.ListEvents(ctx, "", activitySince(filter, time.Now()))
 	return activityData{cloned: true, events: events}, err
 }
 

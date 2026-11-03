@@ -65,7 +65,7 @@ func runTeamConfigWizard(cmd *cobra.Command, _ []string) error {
 		return nil
 	}
 
-	teamCfg, _ := repo.LoadConfig()
+	teamCfg, _ := repo.LoadConfig(ctx)
 	if teamCfg == nil {
 		teamCfg = &teamstate.TeamConfig{}
 	}
@@ -117,7 +117,7 @@ func runTeamConfigWizard(cmd *cobra.Command, _ []string) error {
 // Service configuration helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-func configureGitLab(ctx context.Context, a *app.App, repo *teamstate.Repo, teamCfg *teamstate.TeamConfig, configTeam, configLocal bool) error {
+func configureGitLab(ctx context.Context, a *app.App, repo teamstate.ConfigWriter, teamCfg *teamstate.TeamConfig, configTeam, configLocal bool) error {
 	out := a.IO.Out
 
 	fmt.Fprint(out, i18n.Tf("cmd.team_config.gitlab_configuration", theme.Title.Render(glyph.Current)))
@@ -158,7 +158,7 @@ func configureGitLab(ctx context.Context, a *app.App, repo *teamstate.Repo, team
 		fmt.Fprint(out, i18n.Tf("cmd.team_config.local_configuration", theme.Bold.Render("→")))
 
 		// Test de connexion avec les credentials actuels du GitLab du MCP
-		src := mcpGitLabCredentials(a, teamCfg)
+		src := mcpGitLabCredentials(ctx, a, teamCfg)
 		if err := testAndDisplayConnection(ctx, out, src, tracker.TypeGitLab); err != nil {
 			if askYN(out, i18n.T("cmd.team_config.set_up_a_new_gitlab_token"), true) {
 				tokenKey := askInput(out, i18n.T("cmd.team_config.key_name_in_the_keychain_e"), a.Config.MCP.Gitlab.Token)
@@ -188,7 +188,7 @@ func configureGitLab(ctx context.Context, a *app.App, repo *teamstate.Repo, team
 	return nil
 }
 
-func configureJira(ctx context.Context, a *app.App, repo *teamstate.Repo, teamCfg *teamstate.TeamConfig, configTeam, configLocal bool) error {
+func configureJira(ctx context.Context, a *app.App, repo teamstate.ConfigWriter, teamCfg *teamstate.TeamConfig, configTeam, configLocal bool) error {
 	out := a.IO.Out
 
 	fmt.Fprint(out, i18n.Tf("cmd.team_config.jira_configuration", theme.Title.Render(glyph.Current)))
@@ -216,7 +216,7 @@ func configureJira(ctx context.Context, a *app.App, repo *teamstate.Repo, teamCf
 
 	if configLocal {
 		fmt.Fprint(out, i18n.Tf("cmd.team_config.local_configuration", theme.Bold.Render("→")))
-		src := trackerCredentials(a, teamCfg)
+		src := trackerCredentials(ctx, a, teamCfg)
 		if err := testAndDisplayConnection(ctx, out, src, tracker.TypeJira); err != nil {
 			if askYN(out, i18n.T("cmd.team_config.set_up_a_new_jira_token"), true) {
 				tokenKey := askInput(out, i18n.T("cmd.team_config.key_name_in_the_keychain_e_2"), a.Config.MCP.Jira.Token)
@@ -233,7 +233,7 @@ func configureJira(ctx context.Context, a *app.App, repo *teamstate.Repo, teamCf
 	return nil
 }
 
-func configureFigma(ctx context.Context, a *app.App, repo *teamstate.Repo, teamCfg *teamstate.TeamConfig, configTeam, configLocal bool) error {
+func configureFigma(ctx context.Context, a *app.App, repo teamstate.ConfigWriter, teamCfg *teamstate.TeamConfig, configTeam, configLocal bool) error {
 	out := a.IO.Out
 
 	fmt.Fprint(out, i18n.Tf("cmd.team_config.figma_configuration", theme.Title.Render(glyph.Current)))
@@ -270,7 +270,7 @@ func configureFigma(ctx context.Context, a *app.App, repo *teamstate.Repo, teamC
 	return nil
 }
 
-func configureTrackerSync(ctx context.Context, a *app.App, repo *teamstate.Repo, teamCfg *teamstate.TeamConfig, configTeam, configLocal bool) error {
+func configureTrackerSync(ctx context.Context, a *app.App, repo teamstate.ConfigWriter, teamCfg *teamstate.TeamConfig, configTeam, configLocal bool) error {
 	out := a.IO.Out
 
 	fmt.Fprint(out, i18n.Tf("cmd.team_config.tracker_sync_configuration", theme.Title.Render(glyph.Current)))
@@ -303,7 +303,7 @@ func configureTrackerSync(ctx context.Context, a *app.App, repo *teamstate.Repo,
 			out, ask, declTeam, teamCfg.Tracker.Type, teamCfg.Tracker.TrackerTokenKey, teamCfg.Tracker.TrackerTokenURL)
 
 		// Check if token exists, prompt if not
-		src := trackerCredentials(a, teamCfg)
+		src := trackerCredentials(ctx, a, teamCfg)
 		trackerType := tracker.Type(teamCfg.Tracker.Type)
 		fmt.Fprint(out, i18n.T("cmd.team_config.testing_the_connection"))
 		if err := testAndDisplayConnection(ctx, out, src, trackerType); err != nil {
@@ -325,7 +325,7 @@ func configureTrackerSync(ctx context.Context, a *app.App, repo *teamstate.Repo,
 					} else {
 						fmt.Fprint(out, i18n.Tf("cmd.team_config.token_stored_in_the_keychain", cliout.SuccessIcon(), tokenKey))
 						// Re-test connection
-						src = trackerCredentials(a, teamCfg)
+						src = trackerCredentials(ctx, a, teamCfg)
 						fmt.Fprint(out, i18n.T("cmd.team_config.testing_the_connection_again"))
 						_ = testAndDisplayConnection(ctx, out, src, trackerType)
 					}
@@ -362,7 +362,7 @@ func configureTrackerSync(ctx context.Context, a *app.App, repo *teamstate.Repo,
 				fmt.Fprint(out, i18n.Tf("cmd.team_config.project_discovery", theme.Bold.Render("→")))
 
 				// Build tracker client for discovery.
-				src := trackerCredentials(a, teamCfg)
+				src := trackerCredentials(ctx, a, teamCfg)
 				trackerType := tracker.Type(teamCfg.Tracker.Type)
 				creds, credErr := tracker.ResolveCredentials(ctx, src, trackerType)
 				if credErr != nil {
@@ -552,11 +552,11 @@ func runTeamConfigStatus(cmd *cobra.Command, _ []string) error {
 
 	// Load team-state config (optional — degrades gracefully if not configured).
 	var teamCfg *teamstate.TeamConfig
-	var repo *teamstate.Repo
+	var repo mcpTrackerStore
 	if tc.Enabled && tc.StatePath != "" {
 		repo = teamstate.NewRepo(tc.StateRepo, tc.StatePath)
 		if repo.IsCloned() {
-			teamCfg, _ = repo.LoadConfig()
+			teamCfg, _ = repo.LoadConfig(ctx)
 		}
 	}
 
@@ -602,7 +602,7 @@ func runTeamConfigStatus(cmd *cobra.Command, _ []string) error {
 
 	// ── Connection tests ─────────────────────────────────────────────────────
 	fmt.Fprintf(out, "\n%s\n", theme.Bold.Render("Test de connexion"))
-	src := buildCredentialSource(a, eff)
+	src := buildCredentialSource(ctx, a, eff)
 	trackerType := tracker.Type(teamCfg.Tracker.Type)
 	_ = testAndDisplayConnection(ctx, out, src, trackerType)
 
@@ -749,21 +749,21 @@ func printTrackerStatus(out interface{ Write([]byte) (int, error) },
 // with the hub team, the servers of its sources and the key of [mcp.gitlab],
 // so that the GitLab token is found with the unified cascade like everywhere
 // else, and only for the server of the tracker.
-func trackerCredentials(a *app.App, teamCfg *teamstate.TeamConfig) tracker.CredentialSource {
-	return buildCredentialSource(a, tracker.ResolveTrackerConfig(&teamCfg.Tracker, a.Config.Tracker))
+func trackerCredentials(ctx context.Context, a *app.App, teamCfg *teamstate.TeamConfig) tracker.CredentialSource {
+	return buildCredentialSource(ctx, a, tracker.ResolveTrackerConfig(&teamCfg.Tracker, a.Config.Tracker))
 }
 
 // mcpGitLabCredentials is the credential source for the GitLab of the MCP
 // (url of the team recommendation or of hub.toml): the token the MCP server
 // would be given.
-func mcpGitLabCredentials(a *app.App, teamCfg *teamstate.TeamConfig) tracker.CredentialSource {
+func mcpGitLabCredentials(ctx context.Context, a *app.App, teamCfg *teamstate.TeamConfig) tracker.CredentialSource {
 	svc := teamService(a)
 	var shared *teamstate.SharedMCPConfig
 	if s, ok := teamCfg.MCP["gitlab"]; ok {
 		shared = &s
 	}
 	url := tracker.MCPGitLabURL(a.Config.MCP.Gitlab, shared, nil, svc.ResolveTeam(nil).TeamID)
-	return svc.CredentialSource(tracker.CredentialSource{URL: url}, nil)
+	return svc.CredentialSource(ctx, tracker.CredentialSource{URL: url}, nil)
 }
 
 // testAndDisplayConnection builds a tracker, tests the connection, and prints
@@ -793,11 +793,26 @@ func testAndDisplayConnection(ctx context.Context, out interface{ Write([]byte) 
 // Orphan member detection + cleanup
 // ─────────────────────────────────────────────────────────────────────────────
 
+// memberRegistry is what cleaning the orphan members asks of the team-state:
+// the members to list, remove and merge.
+type memberRegistry interface {
+	teamstate.MemberReader
+	teamstate.MemberWriter
+}
+
+// mcpTrackerStore is what the configuration of the MCP and tracker asks of
+// the team-state: its configuration and its members.
+type mcpTrackerStore interface {
+	teamstate.RepoInfo
+	teamstate.ConfigReader
+	memberRegistry
+}
+
 // checkAndCleanOrphanMembers detects members in members.toml that are not
 // referenced as member_id in any active configuration (hub or project), displays
 // an insight for each, and offers to delete or merge them interactively.
-func checkAndCleanOrphanMembers(ctx context.Context, a *app.App, out interface{ Write([]byte) (int, error) }, repo *teamstate.Repo) {
-	members, err := repo.ListMembers()
+func checkAndCleanOrphanMembers(ctx context.Context, a *app.App, out interface{ Write([]byte) (int, error) }, repo memberRegistry) {
+	members, err := repo.ListMembers(ctx)
 	if err != nil || len(members) == 0 {
 		return
 	}
@@ -850,7 +865,7 @@ func checkAndCleanOrphanMembers(ctx context.Context, a *app.App, out interface{ 
 // mergeOrphanMember guides the user through merging an orphan member into an
 // active member. Non-empty fields of the orphan are offered to fill gaps in the
 // active member; when both have conflicting values the user chooses which to keep.
-func mergeOrphanMember(ctx context.Context, out interface{ Write([]byte) (int, error) }, repo *teamstate.Repo, orphan teamstate.Member, allMembers []teamstate.Member) error {
+func mergeOrphanMember(ctx context.Context, out interface{ Write([]byte) (int, error) }, repo memberRegistry, orphan teamstate.Member, allMembers []teamstate.Member) error {
 	// Build list of candidates (active members, i.e. not the orphan itself)
 	var candidates []teamstate.Member
 	for _, m := range allMembers {

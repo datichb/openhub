@@ -38,7 +38,7 @@ func TestAppendEventWritesFile(t *testing.T) {
 	require.NoError(t, os.WriteFile(path, append(line, '\n'), 0o644))
 
 	// Read it back
-	events, err := repo.ListEvents("T-SRU", time.Time{})
+	events, err := repo.ListEvents(t.Context(), "T-SRU", time.Time{})
 	require.NoError(t, err)
 	assert.Len(t, events, 1)
 	assert.Equal(t, EventSessionComplete, events[0].Type)
@@ -71,7 +71,7 @@ func TestListEventsFilterByDate(t *testing.T) {
 
 	// Filter: only events since July 4
 	since := time.Date(2026, 7, 4, 0, 0, 0, 0, time.UTC)
-	result, err := repo.ListEvents("T-SRU", since)
+	result, err := repo.ListEvents(t.Context(), "T-SRU", since)
 	require.NoError(t, err)
 	assert.Len(t, result, 2)
 	// Newest first
@@ -96,7 +96,7 @@ func TestListEventsMultipleMonths(t *testing.T) {
 	line2, _ := json.Marshal(e2)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "2026-07.jsonl"), append(line2, '\n'), 0o644))
 
-	result, err := repo.ListEvents("T-SRU", time.Time{})
+	result, err := repo.ListEvents(t.Context(), "T-SRU", time.Time{})
 	require.NoError(t, err)
 	assert.Len(t, result, 2)
 	// Newest first
@@ -123,7 +123,7 @@ func TestListEventsAllProjects(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(dir2, "2026-07.jsonl"), append(line2, '\n'), 0o644))
 
 	// Empty project = all
-	result, err := repo.ListEvents("", time.Time{})
+	result, err := repo.ListEvents(t.Context(), "", time.Time{})
 	require.NoError(t, err)
 	assert.Len(t, result, 2)
 }
@@ -150,7 +150,7 @@ func TestListEventsLimited(t *testing.T) {
 	}
 	f.Close()
 
-	result, err := repo.ListEventsLimited("T-SRU", 3)
+	result, err := repo.ListEventsLimited(t.Context(), "T-SRU", 3)
 	require.NoError(t, err)
 	assert.Len(t, result, 3)
 }
@@ -159,7 +159,7 @@ func TestListEventsEmpty(t *testing.T) {
 	t.Parallel()
 	repo := setupTestRepo(t)
 
-	result, err := repo.ListEvents("NONEXISTENT", time.Time{})
+	result, err := repo.ListEvents(t.Context(), "NONEXISTENT", time.Time{})
 	require.NoError(t, err)
 	assert.Empty(t, result)
 }
@@ -177,7 +177,7 @@ this is not json
 `
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "2026-07.jsonl"), []byte(content), 0o644))
 
-	result, err := repo.ListEvents("T-SRU", time.Time{})
+	result, err := repo.ListEvents(t.Context(), "T-SRU", time.Time{})
 	require.NoError(t, err)
 	// Malformed line is skipped
 	assert.Len(t, result, 2)
@@ -199,7 +199,7 @@ func TestListEventsLimited_LimitZero(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "2026-07.jsonl"), []byte(lines), 0o644))
 
 	// limit=0 means "no limit" — should return all 5 events
-	result, err := repo.ListEventsLimited("T-SRU", 0)
+	result, err := repo.ListEventsLimited(t.Context(), "T-SRU", 0)
 	require.NoError(t, err)
 	assert.Len(t, result, 5, "limit=0 should return all events")
 }

@@ -42,7 +42,7 @@ func rejoinTeam(t *testing.T, trackerURL, answers string, flags ...string) (out 
 	require.NoError(t, c.ParseFlags(args))
 	require.NoError(t, runTeamRejoin(c, nil))
 	require.NoError(t, repo.Pull(t.Context()))
-	m, err := repo.GetMember("testuser")
+	m, err := repo.GetMember(t.Context(), "testuser")
 	require.NoError(t, err)
 	return stdout.String(), m
 }
@@ -133,7 +133,7 @@ func TestTrackerUsernameWanted(t *testing.T) {
 				cfg = "[tracker]\n" + typ + "enabled = true\n" + tc.toml + "\n"
 			}
 			require.NoError(t, os.WriteFile(filepath.Join(repo.Path(), "config.toml"), []byte(cfg), 0o644))
-			assert.Equal(t, tc.want, trackerUsernameWanted(repo, tc.remote, tc.gitlabURL))
+			assert.Equal(t, tc.want, trackerUsernameWanted(t.Context(), repo, tc.remote, tc.gitlabURL))
 		})
 	}
 }

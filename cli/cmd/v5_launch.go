@@ -155,19 +155,19 @@ func clientLocation() *termlaunch.Location {
 // (bundle.Request.Spec) and `mcp:` (selection among the project MCP
 // servers). project may be nil (hub-only bundle). missing lists the MCP
 // servers the workflow asks for but the project does not provide.
-func buildWorkflowBundle(a *app.App, project *domain.Project, res *workflowsvc.Resolution, prov string) (b *bundle.Bundle, missing []string, err error) {
-	return buildWorkflowBundleIn(a, project, res, prov, "")
+func buildWorkflowBundle(ctx context.Context, a *app.App, project *domain.Project, res *workflowsvc.Resolution, prov string) (b *bundle.Bundle, missing []string, err error) {
+	return buildWorkflowBundleIn(ctx, a, project, res, prov, "")
 }
 
 // buildWorkflowBundleIn is buildWorkflowBundle with another bundles
 // directory ("" = ~/.oh/bundles; the editor preview builds in a temporary
 // one).
-func buildWorkflowBundleIn(a *app.App, project *domain.Project, res *workflowsvc.Resolution, prov, outDir string) (b *bundle.Bundle, missing []string, err error) {
+func buildWorkflowBundleIn(ctx context.Context, a *app.App, project *domain.Project, res *workflowsvc.Resolution, prov, outDir string) (b *bundle.Bundle, missing []string, err error) {
 	var tc config.ResolvedTeamConfig
 	if project != nil {
 		tc = config.ResolveTeamForProject(a.Config, project)
 	}
-	req := sessionBundleRequest(a, project, tc, prov)
+	req := sessionBundleRequest(ctx, a, project, tc, prov)
 	if outDir != "" {
 		req.OutDir = outDir
 	}
@@ -217,17 +217,17 @@ func selectMCP(available []sessionspec.MCPServerDef, ids []string) (kept []sessi
 
 // sessionBundleRequest is the part of a bundle request shared by every
 // launch: hub, project instructions, model cascade and MCP servers.
-func sessionBundleRequest(a *app.App, project *domain.Project, tc config.ResolvedTeamConfig, prov string) bundle.Request {
+func sessionBundleRequest(ctx context.Context, a *app.App, project *domain.Project, tc config.ResolvedTeamConfig, prov string) bundle.Request {
 	req := bundle.Request{
 		HubDir: hubcontent.HubContentDir(), OutDir: ohBundlesDir(), OhHome: config.HubDir(), Seal: true, Provider: prov, ToolProvider: toolProviderID(prov),
 		ExtraInstructionFiles: a.Config.Deploy.InstructionFiles,
 		WebsearchEnabled:      a.Config.Websearch.Enabled,
 	}
 	req.HubOverrides, req.ProjectOverrides = modelOverridesFor(a, project)
-	req.TeamOverrides = teamModelOverrides(tc)
+	req.TeamOverrides = teamModelOverrides(ctx, tc)
 	if project != nil {
 		req.ProjectPath = project.Path
-		req.MCP = sessionMCP(a, project, tc)
+		req.MCP = sessionMCP(ctx, a, project, tc)
 	}
 	return req
 }
@@ -250,7 +250,7 @@ func modelOverridesFor(a *app.App, project *domain.Project) (hub, proj *bricks.M
 
 // teamModelOverrides returns the team recommendations of the model cascade
 // (`[models]` of the team-state config.toml, ADR-030; below hub and project).
-func teamModelOverrides(tc config.ResolvedTeamConfig) *bricks.ModelOverrides {
+func teamModelOverrides(ctx context.Context, tc config.ResolvedTeamConfig) *bricks.ModelOverrides {
 	if !tc.Enabled || tc.StatePath == "" {
 		return nil
 	}
@@ -258,7 +258,7 @@ func teamModelOverrides(tc config.ResolvedTeamConfig) *bricks.ModelOverrides {
 	if !repo.IsCloned() {
 		return nil
 	}
-	cfg, err := repo.LoadConfig()
+	cfg, err := repo.LoadConfig(ctx)
 	if err != nil {
 		slog.Warn("team model recommendations not loaded", "team", tc.TeamID, "error", err)
 		return nil
@@ -297,13 +297,13 @@ func sessionMCPEnv(s bricks.MCPServerDef) map[string]string {
 
 // sessionMCP converts the project MCP cascade into bundle MCP servers
 // (`oh mcp serve <name>` reads its token from the host secret store).
-func sessionMCP(a *app.App, project *domain.Project, teamCfg config.ResolvedTeamConfig) []sessionspec.MCPServerDef {
+func sessionMCP(ctx context.Context, a *app.App, project *domain.Project, teamCfg config.ResolvedTeamConfig) []sessionspec.MCPServerDef {
 	exe, err := os.Executable()
 	if err != nil {
 		exe = "oh"
 	}
 	var out []sessionspec.MCPServerDef
-	for _, s := range buildMCPServersForProject(a, project.MCPConfig, teamCfg) {
+	for _, s := range buildMCPServersForProject(ctx, a, project.MCPConfig, teamCfg) {
 		if !s.Enabled || !bricks.MCPServerUsable(s) {
 			continue
 		}

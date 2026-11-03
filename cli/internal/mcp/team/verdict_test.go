@@ -30,7 +30,7 @@ func seedClaim(t *testing.T, stateDir, ticket, status string) {
 func readClaim(t *testing.T, stateDir, ticket string) *teamstate.Claim {
 	t.Helper()
 	repo := teamstate.NewRepo(stateDir, stateDir)
-	c, err := repo.GetClaim("myproject", ticket)
+	c, err := repo.GetClaim(t.Context(), "myproject", ticket)
 	require.NoError(t, err)
 	return c
 }

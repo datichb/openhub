@@ -37,7 +37,7 @@ func (s *Service) Governance(ctx context.Context, c Context) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	cfg, err := ts.Repo.LoadConfig()
+	cfg, err := ts.Repo.LoadConfig(ctx)
 	if err != nil {
 		return "", err
 	}

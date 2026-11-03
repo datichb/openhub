@@ -30,7 +30,10 @@ type patternsIndex struct {
 
 // ListPatterns returns all patterns from the index.
 // If tags is non-empty, filters by matching at least minMatchTags tags.
-func (r *Repo) ListPatterns(tags []string, minMatchTags int) ([]Pattern, error) {
+func (r *Repo) ListPatterns(ctx context.Context, tags []string, minMatchTags int) ([]Pattern, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	index, err := r.loadPatternsIndex()
@@ -57,7 +60,10 @@ func (r *Repo) ListPatterns(tags []string, minMatchTags int) ([]Pattern, error) 
 }
 
 // ReadPattern reads the full content of a pattern file.
-func (r *Repo) ReadPattern(name string) (string, error) {
+func (r *Repo) ReadPattern(ctx context.Context, name string) (string, error) {
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
 	if _, err := SafeName(name); err != nil {
 		return "", fmt.Errorf("invalid pattern name: %w", err)
 	}

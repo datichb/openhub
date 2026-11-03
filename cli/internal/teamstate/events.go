@@ -147,7 +147,10 @@ func NewSessionCompleteEvent(memberID, project string, data map[string]interface
 
 // ListEvents returns events for a project since the given time, sorted newest first.
 // If project is empty, returns events across all projects.
-func (r *Repo) ListEvents(project string, since time.Time) ([]Event, error) {
+func (r *Repo) ListEvents(ctx context.Context, project string, since time.Time) ([]Event, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	return r.listEventsQuery(project, since, 0)
@@ -156,7 +159,10 @@ func (r *Repo) ListEvents(project string, since time.Time) ([]Event, error) {
 // ListEventsLimited returns at most limit events, newest first.
 // Optimized to read monthly files in reverse chronological order and stop early
 // once enough events are collected — avoids loading all history for small limits.
-func (r *Repo) ListEventsLimited(project string, limit int) ([]Event, error) {
+func (r *Repo) ListEventsLimited(ctx context.Context, project string, limit int) ([]Event, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	return r.listEventsQuery(project, time.Time{}, limit)

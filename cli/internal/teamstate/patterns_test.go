@@ -27,7 +27,7 @@ func TestCreateAndListPatterns(t *testing.T) {
 	}
 
 	// List all
-	patterns, err := repo.ListPatterns(nil, 0)
+	patterns, err := repo.ListPatterns(ctx, nil, 0)
 	if err != nil {
 		t.Fatalf("ListPatterns failed: %v", err)
 	}
@@ -69,7 +69,7 @@ func TestListPatterns_FilterByTags(t *testing.T) {
 	}
 
 	// Filter: at least 2 tags matching ["backend", "api"]
-	filtered, err := repo.ListPatterns([]string{"backend", "api"}, 2)
+	filtered, err := repo.ListPatterns(ctx, []string{"backend", "api"}, 2)
 	if err != nil {
 		t.Fatalf("ListPatterns with filter failed: %v", err)
 	}
@@ -81,7 +81,7 @@ func TestListPatterns_FilterByTags(t *testing.T) {
 	}
 
 	// Filter: at least 1 tag matching ["backend"]
-	filtered, err = repo.ListPatterns([]string{"backend"}, 1)
+	filtered, err = repo.ListPatterns(ctx, []string{"backend"}, 1)
 	if err != nil {
 		t.Fatalf("ListPatterns with backend filter failed: %v", err)
 	}
@@ -101,7 +101,7 @@ func TestReadPattern(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	content, err := repo.ReadPattern("test-pattern")
+	content, err := repo.ReadPattern(ctx, "test-pattern")
 	if err != nil {
 		t.Fatalf("ReadPattern failed: %v", err)
 	}
@@ -114,7 +114,7 @@ func TestReadPattern_NotFound(t *testing.T) {
 	t.Parallel()
 	repo := setupTestRepo(t)
 
-	_, err := repo.ReadPattern("nonexistent")
+	_, err := repo.ReadPattern(t.Context(), "nonexistent")
 	if err == nil {
 		t.Error("expected error for nonexistent pattern")
 	}
@@ -131,7 +131,7 @@ func TestValidatePattern(t *testing.T) {
 	}
 
 	// Verify not validated
-	patterns, _ := repo.ListPatterns(nil, 0)
+	patterns, _ := repo.ListPatterns(ctx, nil, 0)
 	if patterns[0].Validated {
 		t.Error("should not be validated initially")
 	}
@@ -142,7 +142,7 @@ func TestValidatePattern(t *testing.T) {
 	}
 
 	// Verify validated
-	patterns, _ = repo.ListPatterns(nil, 0)
+	patterns, _ = repo.ListPatterns(ctx, nil, 0)
 	if !patterns[0].Validated {
 		t.Error("should be validated after ValidatePattern")
 	}
@@ -162,7 +162,7 @@ func TestRemovePattern(t *testing.T) {
 		t.Fatalf("RemovePattern failed: %v", err)
 	}
 
-	patterns, _ := repo.ListPatterns(nil, 0)
+	patterns, _ := repo.ListPatterns(ctx, nil, 0)
 	if len(patterns) != 0 {
 		t.Errorf("expected 0 patterns after remove, got %d", len(patterns))
 	}

@@ -61,7 +61,7 @@ const (
 // claimsRehome is the proposal to attach the claims of a member under an
 // unknown project ID to a local project.
 type claimsRehome struct {
-	Repo     *teamstate.Repo
+	Repo     teamstate.ClaimRehomer
 	Member   string
 	From     string
 	To       domain.Project
@@ -152,7 +152,7 @@ func claimEvidence(from string, claims []teamstate.Claim, p domain.Project, remo
 // matchClaimsRehomes finds, among the claims of member, those under an ID that
 // is not in known, and the local project each one is attached to. claimsOf
 // lists the claims already under a project (to find the conflicts).
-func matchClaimsRehomes(repo *teamstate.Repo, member string, claims []teamstate.Claim, known map[string]bool,
+func matchClaimsRehomes(repo teamstate.ClaimRehomer, member string, claims []teamstate.Claim, known map[string]bool,
 	candidates []domain.Project, claimsOf func(project string) []teamstate.Claim, remoteOf remoteOfDir,
 ) (found []claimsRehome, ambiguous []claimsAmbiguity) {
 	byID := map[string][]teamstate.Claim{}
@@ -236,7 +236,7 @@ func findClaimsRehomes(ctx context.Context, a *app.App) ([]claimsRehome, []claim
 		known[all[i].ID] = true
 	}
 	type space struct {
-		repo       *teamstate.Repo
+		repo       claimsStore
 		member     string
 		candidates []domain.Project
 	}
@@ -264,12 +264,12 @@ func findClaimsRehomes(ctx context.Context, a *app.App) ([]claimsRehome, []claim
 	var ambiguous []claimsAmbiguity
 	for _, key := range order {
 		s := spaces[key]
-		claims, err := s.repo.ListClaims("")
+		claims, err := s.repo.ListClaims(ctx, "")
 		if err != nil {
 			continue
 		}
 		claimsOf := func(project string) []teamstate.Claim {
-			cs, _ := s.repo.ListClaims(project)
+			cs, _ := s.repo.ListClaims(ctx, project)
 			return cs
 		}
 		f, amb := matchClaimsRehomes(s.repo, s.member, claims, known, s.candidates, claimsOf, gitOriginOf)
@@ -353,8 +353,8 @@ func repairClaimsProject(ctx context.Context, w io.Writer, confirm confirmFunc) 
 		fmt.Fprintln(w, i18n.T("cmd.doctor.fix.cancelled"))
 		return nil
 	}
-	byRepo := map[*teamstate.Repo][]claimsRehome{}
-	var repos []*teamstate.Repo
+	byRepo := map[teamstate.ClaimRehomer][]claimsRehome{}
+	var repos []teamstate.ClaimRehomer
 	for _, r := range todo {
 		if _, seen := byRepo[r.Repo]; !seen {
 			repos = append(repos, r.Repo)

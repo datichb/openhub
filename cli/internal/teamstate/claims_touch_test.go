@@ -57,7 +57,7 @@ func TestTouchClaimsOneCommitForSeveralTickets(t *testing.T) {
 		mustCreate(t, repo, Claim{TicketID: id, ClaimedBy: "benjamin", Session: "ses_1"})
 	}
 	before := commitCount(t, repo.path)
-	created, err := repo.GetClaim("T-SRU", "SRU-1")
+	created, err := repo.GetClaim(ctx, "T-SRU", "SRU-1")
 	require.NoError(t, err)
 
 	// 13 h after the creation: 11 h left, less than half.
@@ -71,7 +71,7 @@ func TestTouchClaimsOneCommitForSeveralTickets(t *testing.T) {
 	assert.Contains(t, gittest.Run(t, repo.path, "log", "-1", "--format=%s"), "lease: benjamin renews 3 claim(s)")
 
 	for _, id := range []string{"SRU-1", "SRU-2", "SRU-3"} {
-		got, err := repo.GetClaim("T-SRU", id)
+		got, err := repo.GetClaim(ctx, "T-SRU", id)
 		require.NoError(t, err)
 		assert.Equal(t, InstantOf(now.Add(24*time.Hour)), got.LeaseUntil, id)
 		assert.Equal(t, "ses_1", got.Session)
@@ -94,7 +94,7 @@ func TestTouchClaimsOnlyOnesOwnClaims(t *testing.T) {
 	mustCreate(t, repo, Claim{TicketID: "SRU-1", ClaimedBy: "benjamin", Session: "ses_1"})
 	mustCreate(t, repo, Claim{TicketID: "SRU-2", ClaimedBy: "alice", Session: "ses_alice"})
 	mustCreate(t, repo, Claim{TicketID: "SRU-3", ClaimedBy: "benjamin", Session: "ses_other"}) // same member, another session
-	other, err := repo.GetClaim("T-SRU", "SRU-2")
+	other, err := repo.GetClaim(ctx, "T-SRU", "SRU-2")
 	require.NoError(t, err)
 	before := commitCount(t, repo.path)
 
@@ -104,11 +104,11 @@ func TestTouchClaimsOnlyOnesOwnClaims(t *testing.T) {
 	assert.Equal(t, []ClaimRef{ref("SRU-1"), ref("SRU-3")}, touched, "the claim of another member is ignored")
 	assert.Equal(t, before+1, commitCount(t, repo.path))
 
-	got, err := repo.GetClaim("T-SRU", "SRU-2")
+	got, err := repo.GetClaim(ctx, "T-SRU", "SRU-2")
 	require.NoError(t, err)
 	assert.Equal(t, other.LeaseUntil, got.LeaseUntil, "alice's lease is untouched")
 
-	got, err = repo.GetClaim("T-SRU", "SRU-3")
+	got, err = repo.GetClaim(ctx, "T-SRU", "SRU-3")
 	require.NoError(t, err)
 	assert.Equal(t, "ses_other", got.Session, "the session of another session of the member stays")
 	assert.Equal(t, InstantOf(now.Add(24*time.Hour)), got.LeaseUntil)
@@ -162,7 +162,7 @@ func TestTouchClaimsAdoptsAClaimWithoutLease(t *testing.T) {
 	assert.Equal(t, before+1, commitCount(t, repo.path))
 	assert.Equal(t, before+1, commitCount(t, bare))
 
-	got, err := repo.GetClaim("T-SRU", "SRU-142")
+	got, err := repo.GetClaim(ctx, "T-SRU", "SRU-142")
 	require.NoError(t, err)
 	assert.Equal(t, Instant("2026-07-11T08:00:00Z"), got.LeaseUntil)
 	assert.Equal(t, "ses_1", got.Session)
@@ -178,7 +178,7 @@ func TestTouchClaimsRenewsAnExpiredLease(t *testing.T) {
 	touched, err := repo.TouchClaims(context.Background(), []ClaimRef{ref("SRU-1")}, "benjamin", "ses_1", time.Now())
 	require.NoError(t, err)
 	assert.Len(t, touched, 1)
-	got, err := repo.GetClaim("T-SRU", "SRU-1")
+	got, err := repo.GetClaim(t.Context(), "T-SRU", "SRU-1")
 	require.NoError(t, err)
 	assert.False(t, got.IsExpired(time.Now(), nil))
 }
@@ -216,7 +216,7 @@ func TestTouchClaimsFollowsLeaseHours(t *testing.T) {
 	touched, err = repo.TouchClaims(ctx, []ClaimRef{ref("SRU-1")}, "benjamin", "", now)
 	require.NoError(t, err)
 	assert.Len(t, touched, 1)
-	got, err := repo.GetClaim("T-SRU", "SRU-1")
+	got, err := repo.GetClaim(ctx, "T-SRU", "SRU-1")
 	require.NoError(t, err)
 	assert.Equal(t, InstantOf(now.Add(4*time.Hour)), got.LeaseUntil)
 }
@@ -268,10 +268,10 @@ func TestTouchClaimsConcurrentWithAnotherWriter(t *testing.T) {
 	require.NoError(t, <-errs)
 	require.NoError(t, <-errs)
 
-	got, err := repo.GetClaim("T-SRU", "SRU-1")
+	got, err := repo.GetClaim(ctx, "T-SRU", "SRU-1")
 	require.NoError(t, err)
 	assert.Equal(t, InstantOf(now.Add(24*time.Hour)), got.LeaseUntil)
-	got, err = repo.GetClaim("T-SRU", "SRU-2")
+	got, err = repo.GetClaim(ctx, "T-SRU", "SRU-2")
 	require.NoError(t, err)
 	assert.Equal(t, []string{"x"}, got.Labels)
 }

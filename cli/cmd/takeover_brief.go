@@ -63,7 +63,7 @@ func runTakeoverBriefShow(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	content, err := repo.ReadBrief(project, ticketID)
+	content, err := repo.ReadBrief(ctx, project, ticketID)
 	if err != nil {
 		if err == teamstate.ErrBriefNotFound {
 			fmt.Fprint(a.IO.Out, i18n.Tf("cmd.takeover_brief.no_brief_found_for", theme.Subtitle.Render(theme.IconInfo), project, ticketID))
@@ -94,7 +94,7 @@ func runTakeoverBriefList(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	metas, err := repo.ListBriefs(project)
+	metas, err := repo.ListBriefs(ctx, project)
 	if err != nil {
 		return fmt.Errorf(i18n.T("cmd.takeover_brief.listing_briefs"), err)
 	}

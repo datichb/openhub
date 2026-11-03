@@ -44,7 +44,7 @@ func runTeamNotifyTest(cmd *cobra.Command, args []string) error {
 		fmt.Fprint(a.IO.ErrOut, i18n.Tf("cmd.team_notify.sync_failed", cliout.WarnIcon(), err))
 	}
 
-	teamCfg, err := repo.LoadConfig()
+	teamCfg, err := repo.LoadConfig(ctx)
 	if err != nil {
 		return fmt.Errorf(i18n.T("cmd.team_notify.cannot_load_the_team_config"), err)
 	}

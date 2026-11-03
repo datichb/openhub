@@ -161,7 +161,7 @@ type Deps struct {
 	TicketClaims func(project *domain.Project) func(ctx context.Context, projectID string, tickets []string) []string
 	// BuildBundle compiles the bundle of a resolved workflow; missing lists the
 	// MCP servers the workflow asks for but the project does not provide.
-	BuildBundle func(project *domain.Project, res *workflowsvc.Resolution, prov string) (b *bundle.Bundle, missing []string, err error)
+	BuildBundle func(ctx context.Context, project *domain.Project, res *workflowsvc.Resolution, prov string) (b *bundle.Bundle, missing []string, err error)
 	// Request is the provider, team and attach settings of a project session.
 	Request func(project *domain.Project, providerFlag string) runsvc.StartRequest
 
@@ -277,7 +277,7 @@ func Prepare(ctx context.Context, d Deps, opts Options) (*Prepared, error) {
 	}
 
 	prov := provider.ResolveProvider(opts.Provider, opts.Project.Provider, d.Config.LLM.DefaultProvider)
-	b, missingMCP, err := d.BuildBundle(opts.Project, res, prov)
+	b, missingMCP, err := d.BuildBundle(ctx, opts.Project, res, prov)
 	if err != nil {
 		return nil, fmt.Errorf(i18n.T("cmd.v5_run.building_session_bundle"), err)
 	}

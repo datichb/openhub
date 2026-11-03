@@ -179,7 +179,7 @@ func (e *Engine) Run(ctx context.Context) (*SyncResult, error) {
 	e.state = state
 
 	// Load board config for dynamic status resolution.
-	if teamCfg, cfgErr := e.repo.LoadConfig(); cfgErr == nil && teamCfg != nil {
+	if teamCfg, cfgErr := e.repo.LoadConfig(ctx); cfgErr == nil && teamCfg != nil {
 		e.boardCfg = teamCfg.Board
 		// Propagate custom statuses to the repo so UpdateClaimStatus
 		// and UpdateClaimStatusFromTracker accept them.
@@ -233,7 +233,7 @@ func (e *Engine) Run(ctx context.Context) (*SyncResult, error) {
 // commit of what was done; abort aborts the transaction.
 func (e *Engine) reconcileAll(ctx context.Context, result *SyncResult) (fatal, abort error) {
 	// Load members once (needed for auto-plan and assignee lookup).
-	members, err := e.repo.ListMembers()
+	members, err := e.repo.ListMembers(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("sync engine: listing members: %w", err)
 	}
@@ -370,7 +370,7 @@ func firstNonEmptyStr(values ...string) string {
 // cleanupDone releases the done claims past their retention (board terminal
 // statuses), inside the transaction of Run.
 func (e *Engine) cleanupDone(ctx context.Context, result *SyncResult) {
-	teamCfg, cfgErr := e.repo.LoadConfig()
+	teamCfg, cfgErr := e.repo.LoadConfig(ctx)
 	if cfgErr != nil || teamCfg == nil {
 		return
 	}
@@ -394,7 +394,7 @@ func (e *Engine) cleanupDone(ctx context.Context, result *SyncResult) {
 // release_expired_on_sync, off by default): an expired claim is otherwise
 // reported by oh doctor and may be taken over.
 func (e *Engine) releaseExpired(ctx context.Context, result *SyncResult) {
-	teamCfg, err := e.repo.LoadConfig()
+	teamCfg, err := e.repo.LoadConfig(ctx)
 	if err != nil || teamCfg == nil || !teamCfg.Claim.ReleaseExpiredOnSync {
 		return
 	}
@@ -453,7 +453,7 @@ func (e *Engine) FetchTicketDetail(ctx context.Context, hubProjectID, ticketID s
 
 	// Try to get the claim to read the stored ExternalIID.
 	var storedIID int
-	if c, err := e.repo.GetClaim(hubProjectID, ticketID); err == nil {
+	if c, err := e.repo.GetClaim(ctx, hubProjectID, ticketID); err == nil {
 		storedIID = c.ExternalIID
 	}
 
@@ -494,7 +494,7 @@ func (e *Engine) AssignIssueToMember(ctx context.Context, hubProjectID string, e
 	}
 
 	// Resolve member → tracker username (TrackerUsername overrides GitLabUsername)
-	member, err := e.repo.GetMember(memberID)
+	member, err := e.repo.GetMember(ctx, memberID)
 	if err != nil {
 		return fmt.Errorf("resolving member %q: %w", memberID, err)
 	}
@@ -528,7 +528,7 @@ func (e *Engine) reconcileProject(
 	pattern := e.cfg.TicketPatterns[hubProjectID] //nolint:staticcheck // backward compat: deprecated field
 
 	// Load all claims for this project.
-	claims, err := e.repo.ListClaims(hubProjectID)
+	claims, err := e.repo.ListClaims(ctx, hubProjectID)
 	if err != nil {
 		return pr, fmt.Errorf("listing claims: %w", err)
 	}
@@ -649,7 +649,7 @@ func (e *Engine) reconcileProject(
 	}
 
 	// ── Snapshot known tickets for future orphan detection ───────────────────
-	updatedClaims, _ := e.repo.ListClaims(hubProjectID)
+	updatedClaims, _ := e.repo.ListClaims(ctx, hubProjectID)
 	known := make([]KnownTicket, 0, len(updatedClaims))
 	for _, c := range updatedClaims {
 		if c.ExternalIID > 0 {

@@ -25,7 +25,7 @@ func structureWarningText(err error) string {
 // A commit that fails is not an error: the folders exist and the team works,
 // the next call commits them. It is the warning the caller shows ("" when
 // there is none).
-func ensureTeamStructure(ctx context.Context, repo *teamstate.Repo) (warning string, err error) {
+func ensureTeamStructure(ctx context.Context, repo teamstate.StructureEnsurer) (warning string, err error) {
 	err = repo.EnsureStructure(ctx)
 	if teamstate.IsStructureWarning(err) {
 		return structureWarningText(err), nil

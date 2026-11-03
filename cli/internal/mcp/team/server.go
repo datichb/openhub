@@ -434,7 +434,7 @@ func handleTeamMembers(ctx context.Context, params json.RawMessage) (*protocol.T
 		return nil, err
 	}
 
-	members, err := repo.ListMembers()
+	members, err := repo.ListMembers(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("listing members: %w", err)
 	}
@@ -462,7 +462,7 @@ func handleTeamClaims(ctx context.Context, params json.RawMessage) (*protocol.To
 		return nil, err
 	}
 
-	claims, err := repo.ListClaims(args.Project)
+	claims, err := repo.ListClaims(ctx, args.Project)
 	if err != nil {
 		return nil, fmt.Errorf("listing claims: %w", err)
 	}
@@ -483,7 +483,7 @@ func handleTeamWikiList(ctx context.Context, params json.RawMessage) (*protocol.
 		return nil, err
 	}
 
-	pages, err := repo.WikiListPages()
+	pages, err := repo.WikiListPages(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("listing wiki pages: %w", err)
 	}
@@ -511,7 +511,7 @@ func handleTeamWikiRead(ctx context.Context, params json.RawMessage) (*protocol.
 		return nil, err
 	}
 
-	content, err := repo.WikiReadPage(args.Page)
+	content, err := repo.WikiReadPage(ctx, args.Page)
 	if err != nil {
 		return nil, fmt.Errorf("reading wiki page: %w", err)
 	}
@@ -563,7 +563,7 @@ func handleTeamWikiWrite(ctx context.Context, params json.RawMessage) (*protocol
 	}
 
 	// Best-effort notification
-	if teamCfg, err := repo.LoadConfig(); err == nil {
+	if teamCfg, err := repo.LoadConfig(ctx); err == nil {
 		d := notify.NewDispatcher(teamCfg)
 		_ = d.Dispatch(ctx, event)
 	}
@@ -582,7 +582,7 @@ func handleTeamWikiPending(ctx context.Context, params json.RawMessage) (*protoc
 		return nil, err
 	}
 
-	pending, err := repo.WikiListPending()
+	pending, err := repo.WikiListPending(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("listing pending proposals: %w", err)
 	}
@@ -625,7 +625,7 @@ func handleTeamEvents(ctx context.Context, params json.RawMessage) (*protocol.To
 		return nil, err
 	}
 
-	events, err := repo.ListEventsLimited(args.Project, args.Limit)
+	events, err := repo.ListEventsLimited(ctx, args.Project, args.Limit)
 	if err != nil {
 		return nil, fmt.Errorf("listing events: %w", err)
 	}
@@ -653,7 +653,7 @@ func handleTeamNotify(ctx context.Context, params json.RawMessage) (*protocol.To
 		return nil, err
 	}
 
-	teamCfg, err := repo.LoadConfig()
+	teamCfg, err := repo.LoadConfig(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("loading team config: %w", err)
 	}
@@ -685,7 +685,7 @@ func handleTeamPolicies(ctx context.Context, params json.RawMessage) (*protocol.
 		return nil, err
 	}
 
-	policies, err := repo.LoadPolicies(args.Project)
+	policies, err := repo.LoadPolicies(ctx, args.Project)
 	if err != nil {
 		return nil, fmt.Errorf("loading policies: %w", err)
 	}
@@ -723,7 +723,7 @@ func handleTeamTakeoverBrief(ctx context.Context, params json.RawMessage) (*prot
 		return nil, err
 	}
 
-	content, err := repo.ReadBrief(args.Project, args.TicketID)
+	content, err := repo.ReadBrief(ctx, args.Project, args.TicketID)
 	if err != nil {
 		if err == teamstate.ErrBriefNotFound {
 			return &protocol.ToolResult{
@@ -749,7 +749,7 @@ func handleTeamTakeoverBrief(ctx context.Context, params json.RawMessage) (*prot
 // target is left as it is. On a board without a review column, the approval
 // is applied directly, as the tracker sync does.
 func applyVerdictStatus(ctx context.Context, repo verdictStore, project, ticketID, target string) error {
-	claim, err := repo.GetClaim(project, ticketID)
+	claim, err := repo.GetClaim(ctx, project, ticketID)
 	if err != nil {
 		return err
 	}
@@ -863,7 +863,7 @@ func handleTeamReviewVerdict(ctx context.Context, params json.RawMessage) (*prot
 	}
 
 	// ── 5. Best-effort notification ──
-	if teamCfg, cfgErr := repo.LoadConfig(); cfgErr == nil {
+	if teamCfg, cfgErr := repo.LoadConfig(ctx); cfgErr == nil {
 		d := notify.NewDispatcher(teamCfg)
 		_ = d.Dispatch(ctx, event)
 	}
@@ -894,7 +894,7 @@ func handleTeamPatternsList(ctx context.Context, params json.RawMessage) (*proto
 		minTags = len(args.Tags)
 	}
 
-	patterns, err := repo.ListPatterns(args.Tags, minTags)
+	patterns, err := repo.ListPatterns(ctx, args.Tags, minTags)
 	if err != nil {
 		return nil, fmt.Errorf("listing patterns: %w", err)
 	}
@@ -931,7 +931,7 @@ func handleTeamPatternsRead(ctx context.Context, params json.RawMessage) (*proto
 		return nil, err
 	}
 
-	content, err := repo.ReadPattern(args.Name)
+	content, err := repo.ReadPattern(ctx, args.Name)
 	if err != nil {
 		return nil, fmt.Errorf("reading pattern: %w", err)
 	}

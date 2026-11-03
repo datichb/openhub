@@ -231,7 +231,7 @@ func projectMCPSource(a *app.App) func(service, field string) (effective string,
 			teamID = tc.TeamID
 			repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
 			if repo.IsCloned() {
-				teamCfg, _ := repo.LoadConfig()
+				teamCfg, _ := repo.LoadConfig(tuiContext())
 				if teamCfg != nil {
 					if s, ok := teamCfg.MCP[service]; ok {
 						shared = &s

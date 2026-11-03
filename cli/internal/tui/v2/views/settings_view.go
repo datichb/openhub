@@ -47,7 +47,7 @@ type SettingsViewConfig struct {
 	// TrackerType returns the type of the tracker of the team (gitlab, jira;
 	// "" = unknown), read in its team-state. It may block: the view calls it
 	// off the event loop, with the active team captured on it.
-	TrackerType func(team config.TeamConfig) string
+	TrackerType func(ctx context.Context, team config.TeamConfig) string
 }
 
 // SettingsView displays and edits hub.toml using the unified configField system.
@@ -149,8 +149,8 @@ func (v *SettingsView) Mount(content *tview.Flex, app *tview.Application) {
 	if v.live != nil {
 		team = v.live.ActiveTeam()
 	}
-	load(app, v.ctx, &v.loads, func(context.Context) (settingsRead, error) {
-		return settingsRead{tool: v.readTool(), tracker: v.readTrackerType(team)}, nil
+	load(app, v.ctx, &v.loads, func(ctx context.Context) (settingsRead, error) {
+		return settingsRead{tool: v.readTool(), tracker: v.readTrackerType(ctx, team)}, nil
 	}, func(r settingsRead, err error) {
 		if err != nil {
 			setState(loading, stateError, err.Error())
@@ -192,11 +192,11 @@ type settingsRead struct {
 
 // readTrackerType asks for the type of the tracker of the team (a read of the
 // team-state): off the event loop.
-func (v *SettingsView) readTrackerType(team config.TeamConfig) string {
+func (v *SettingsView) readTrackerType(ctx context.Context, team config.TeamConfig) string {
 	if v.cfg.TrackerType == nil {
 		return ""
 	}
-	return v.cfg.TrackerType(team)
+	return v.cfg.TrackerType(ctx, team)
 }
 
 // trackerIsJira is true when the tracker of the team is Jira: the server of

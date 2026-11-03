@@ -1,6 +1,8 @@
 package views
 
 import (
+	"context"
+
 	"github.com/datichb/openhub/cli/internal/teamstate"
 )
 
@@ -46,20 +48,20 @@ type TeamTicketSource interface {
 // Members with no active claims are omitted — the board shows tickets, not people.
 // resolver is optional — if nil, project directory names are used as-is.
 // Uses DefaultColumns() for status mapping. For custom columns, use FetchTeamTicketsWithColumns.
-func FetchTeamTickets(repo TeamTicketSource, resolver ProjectNameResolver) []TeamTicket {
-	return FetchTeamTicketsWithColumns(repo, resolver, nil)
+func FetchTeamTickets(ctx context.Context, repo TeamTicketSource, resolver ProjectNameResolver) []TeamTicket {
+	return FetchTeamTicketsWithColumns(ctx, repo, resolver, nil)
 }
 
 // FetchTeamTicketsWithColumns is like FetchTeamTickets but uses the provided
 // column definitions for status mapping. If columns is nil, falls back to
 // the legacy MapClaimStatus (DefaultColumns-compatible).
-func FetchTeamTicketsWithColumns(repo TeamTicketSource, resolver ProjectNameResolver, columns []BoardColumnDef) []TeamTicket {
-	members, err := repo.ListMembers()
+func FetchTeamTicketsWithColumns(ctx context.Context, repo TeamTicketSource, resolver ProjectNameResolver, columns []BoardColumnDef) []TeamTicket {
+	members, err := repo.ListMembers(ctx)
 	if err != nil {
 		return nil
 	}
 
-	claims, err := repo.ListClaims("")
+	claims, err := repo.ListClaims(ctx, "")
 	if err != nil {
 		return nil
 	}

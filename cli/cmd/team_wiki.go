@@ -54,12 +54,12 @@ func runTeamWikiList(cmd *cobra.Command, _ []string) error {
 	a := MustApp()
 	repo := teamRepo
 
-	pages, err := repo.WikiListPages()
+	pages, err := repo.WikiListPages(cmd.Context())
 	if err != nil {
 		return fmt.Errorf(i18n.T("cmd.team_wiki.listing_wiki_pages"), err)
 	}
 
-	pending, err := repo.WikiListPending()
+	pending, err := repo.WikiListPending(cmd.Context())
 	if err != nil {
 		return fmt.Errorf(i18n.T("cmd.team_wiki.listing_pending_proposals"), err)
 	}
@@ -111,7 +111,7 @@ func runTeamWikiRead(cmd *cobra.Command, args []string) error {
 	repo := teamRepo
 
 	name := args[0]
-	content, err := repo.WikiReadPage(name)
+	content, err := repo.WikiReadPage(cmd.Context(), name)
 	if err != nil {
 		if errors.Is(err, teamstate.ErrWikiPageNotFound) {
 			fmt.Fprintf(a.IO.Out, "\n  %s %s\n\n",
@@ -139,7 +139,7 @@ func runTeamWikiReview(cmd *cobra.Command, args []string) error {
 
 	// No ID: list pending proposals only
 	if len(args) == 0 {
-		pending, err := repo.WikiListPending()
+		pending, err := repo.WikiListPending(ctx)
 		if err != nil {
 			return fmt.Errorf(i18n.T("cmd.team_wiki.listing_pending_proposals"), err)
 		}
@@ -171,7 +171,7 @@ func runTeamWikiReview(cmd *cobra.Command, args []string) error {
 
 	// ID provided: interactive review
 	id := args[0]
-	pending, err := repo.WikiListPending()
+	pending, err := repo.WikiListPending(ctx)
 	if err != nil {
 		return fmt.Errorf(i18n.T("cmd.team_wiki.listing_pending_proposals"), err)
 	}
@@ -226,7 +226,7 @@ func runTeamWikiReview(cmd *cobra.Command, args []string) error {
 		_ = repo.AppendEvent(ctx, event)
 
 		// Dispatch notification
-		if teamCfg, cfgErr := repo.LoadConfig(); cfgErr == nil {
+		if teamCfg, cfgErr := repo.LoadConfig(ctx); cfgErr == nil {
 			d := notify.NewDispatcher(teamCfg)
 			_ = d.Dispatch(ctx, event)
 		}
@@ -260,7 +260,7 @@ func runTeamWikiReview(cmd *cobra.Command, args []string) error {
 		_ = repo.AppendEvent(ctx, event)
 
 		// Dispatch notification
-		if teamCfg, cfgErr := repo.LoadConfig(); cfgErr == nil {
+		if teamCfg, cfgErr := repo.LoadConfig(ctx); cfgErr == nil {
 			d := notify.NewDispatcher(teamCfg)
 			_ = d.Dispatch(ctx, event)
 		}

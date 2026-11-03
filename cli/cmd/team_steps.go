@@ -18,6 +18,20 @@ import (
 // Shared team step builders (used by team.go CLI wizard and tui_team_actions.go TUI wizard)
 // ─────────────────────────────────────────────────────────────────────────────
 
+// teamStepStore is what the steps of the team wizard ask of the team-state:
+// the configuration, the members, the policies and a commit of their own.
+type teamStepStore interface {
+	teamstate.RepoInfo
+	teamstate.RepoSync
+	teamstate.ConfigReader
+	teamstate.ConfigWriter
+	teamstate.MemberReader
+	teamstate.MemberWriter
+	teamstate.MemberPatcher
+	teamstate.PolicyReader
+	teamstate.PolicyWriter
+}
+
 // teamStepState holds mutable state shared across the 4 team config wizard steps.
 // Callers populate input fields before step construction; the builders mutate
 // them via closures. Post-wizard code can read the final state from the struct.
@@ -26,7 +40,7 @@ type teamStepState struct {
 	Ctx context.Context
 
 	// Repo reference (may be nil initially; assigned by step 0)
-	Repo *teamstate.Repo
+	Repo teamStepStore
 
 	// Pre-loaded state
 	HasConfig   bool
@@ -57,20 +71,20 @@ type teamStepState struct {
 // useRepo points the steps at a team-state that is available only now (the
 // clone of step 0) and pre-fills them from what it already holds: the config,
 // the policies and the profile of the member.
-func (s *teamStepState) useRepo(repo *teamstate.Repo) {
+func (s *teamStepState) useRepo(repo teamStepStore) {
 	s.Repo = repo
 	s.HasConfig = repo.HasConfig()
 	s.HasPolicies = repo.HasPolicies()
-	s.ExistingCfg, _ = repo.LoadConfig()
+	s.ExistingCfg, _ = repo.LoadConfig(s.Ctx)
 	if s.HasConfig && s.ExistingCfg != nil {
 		s.StaleDaysStr = strconv.Itoa(s.ExistingCfg.Takeover.StaleDays)
 		s.WebhookURL = s.ExistingCfg.Notification.MattermostWebhook
 		s.Channel = s.ExistingCfg.Notification.Channel
 		s.BotName = s.ExistingCfg.Notification.BotName
 	}
-	s.HasMember = s.MemberID != "" && repo.HasMember(s.MemberID)
+	s.HasMember = s.MemberID != "" && repo.HasMember(s.Ctx, s.MemberID)
 	if s.HasMember {
-		if m, err := repo.GetMember(s.MemberID); err == nil && m != nil {
+		if m, err := repo.GetMember(s.Ctx, s.MemberID); err == nil && m != nil {
 			s.DisplayName = m.DisplayName
 			s.GitLabUsername = m.GitLabUsername
 			s.TrackerUsername = m.TrackerUsername
@@ -273,7 +287,7 @@ func buildTeamNotifStep(s *teamStepState, opts teamStepOpts) views.WizardStep {
 			if s.WebhookURL == "" {
 				return nil
 			}
-			cfg, err := s.Repo.LoadConfig()
+			cfg, err := s.Repo.LoadConfig(s.Ctx)
 			if err != nil {
 				return err
 			}

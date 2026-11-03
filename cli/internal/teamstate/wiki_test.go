@@ -24,7 +24,7 @@ func TestWikiListPages(t *testing.T) {
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".pending"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "not-md.txt"), []byte("skip"), 0o644))
 
-	pages, err := repo.WikiListPages()
+	pages, err := repo.WikiListPages(t.Context())
 	require.NoError(t, err)
 	assert.Len(t, pages, 2)
 	assert.Contains(t, pages, "decisions")
@@ -35,7 +35,7 @@ func TestWikiListPagesEmpty(t *testing.T) {
 	t.Parallel()
 	repo := setupTestRepo(t)
 	// No wiki dir
-	pages, err := repo.WikiListPages()
+	pages, err := repo.WikiListPages(t.Context())
 	require.NoError(t, err)
 	assert.Empty(t, pages)
 }
@@ -48,7 +48,7 @@ func TestWikiReadPage(t *testing.T) {
 	require.NoError(t, os.MkdirAll(dir, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "decisions.md"), []byte("# Decisions\n\nSome content"), 0o644))
 
-	content, err := repo.WikiReadPage("decisions")
+	content, err := repo.WikiReadPage(t.Context(), "decisions")
 	require.NoError(t, err)
 	assert.Equal(t, "# Decisions\n\nSome content", content)
 }
@@ -57,7 +57,7 @@ func TestWikiReadPageNotFound(t *testing.T) {
 	t.Parallel()
 	repo := setupTestRepo(t)
 
-	_, err := repo.WikiReadPage("nonexistent")
+	_, err := repo.WikiReadPage(t.Context(), "nonexistent")
 	assert.ErrorIs(t, err, ErrWikiPageNotFound)
 }
 
@@ -115,7 +115,7 @@ created_at = 2026-07-07T14:30:00Z
 `
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "2026-07-07T14h30-decisions.toml"), []byte(proposal), 0o644))
 
-	pending, err := repo.WikiListPending()
+	pending, err := repo.WikiListPending(t.Context())
 	require.NoError(t, err)
 	assert.Len(t, pending, 1)
 	assert.Equal(t, "abc12345", pending[0].ID)
@@ -128,7 +128,7 @@ func TestWikiListPendingEmpty(t *testing.T) {
 	t.Parallel()
 	repo := setupTestRepo(t)
 
-	pending, err := repo.WikiListPending()
+	pending, err := repo.WikiListPending(t.Context())
 	require.NoError(t, err)
 	assert.Empty(t, pending)
 }
@@ -164,12 +164,12 @@ func TestWikiRejectProposalNeedsAReason(t *testing.T) {
 		err := repo.WikiRejectProposal(ctx, "abc12345", reason)
 		require.ErrorIs(t, err, ErrReasonRequired, "reason %q", reason)
 	}
-	pending, err := repo.WikiListPending()
+	pending, err := repo.WikiListPending(ctx)
 	require.NoError(t, err)
 	assert.Len(t, pending, 1, "refused for want of a reason: the proposal stays")
 
 	require.NoError(t, repo.WikiRejectProposal(ctx, "abc12345", "already\ncovered   by the ADR 12"))
-	pending, err = repo.WikiListPending()
+	pending, err = repo.WikiListPending(ctx)
 	require.NoError(t, err)
 	assert.Empty(t, pending)
 	subject := gittest.Run(t, repo.Path(), "log", "-1", "--format=%s")

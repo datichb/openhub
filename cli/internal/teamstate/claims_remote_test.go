@@ -20,7 +20,7 @@ func TestSetClaimRemote(t *testing.T) {
 	require.NoError(t, repo.SetClaimRemote(ctx, "T-SRU", "SRU-1", ClaimRemote{Session: "ses_x", Target: "acme", Pipeline: 812, Status: RemoteSent}))
 	require.NoError(t, repo.SetClaimRemote(ctx, "T-SRU", "SRU-1", ClaimRemote{Session: "ses_x", Target: "acme", Pipeline: 812, Status: RemoteMRReady, MRURL: "https://g/mr/1"}))
 
-	got, err := repo.GetClaim("T-SRU", "SRU-1")
+	got, err := repo.GetClaim(ctx, "T-SRU", "SRU-1")
 	require.NoError(t, err)
 	require.NotNil(t, got.Remote)
 	assert.Equal(t, RemoteMRReady, got.Remote.Status)

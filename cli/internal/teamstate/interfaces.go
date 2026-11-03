@@ -3,6 +3,8 @@ package teamstate
 import (
 	"context"
 	"time"
+
+	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
 // The team-state repository is used through small interfaces, one per
@@ -11,11 +13,12 @@ import (
 // the ones it needs and nothing more, so that a test fakes a few methods and
 // not the whole repository.
 //
-// The reads of the interfaces are local and short (they read the clone, they
-// do not run git and do not wait for the lock), which is why they take no
-// context; what can wait or run git (Pull, CommitAndPush, Transact and every
-// mutation) takes one. ClaimRemovedOnPurpose, which reads the history with
-// git, takes one as well.
+// Everything that reads the clone or writes to it takes a context as its
+// first parameter: the reads are local and short (they read the clone, they do
+// not run git and do not wait for the lock), but they stop when the context is
+// done, like the mutations, Pull, CommitAndPush and Transact, which can wait
+// or run git. The few that take none (RepoInfo, IsStale, the claim queue kept
+// in the clone, the workflow layers and lock) only stat or read a local file.
 
 // RepoInfo describes the clone: where it is, where it comes from, what it
 // holds.
@@ -45,8 +48,8 @@ type BoardStatusSetter interface {
 
 // ClaimReader reads the claims.
 type ClaimReader interface {
-	ListClaims(project string) ([]Claim, error)
-	GetClaim(project, ticketID string) (*Claim, error)
+	ListClaims(ctx context.Context, project string) ([]Claim, error)
+	GetClaim(ctx context.Context, project, ticketID string) (*Claim, error)
 	IsStale(claim *Claim, staleDays int) bool
 }
 
@@ -106,11 +109,11 @@ type ClaimRemovalJudge interface {
 
 // MemberReader reads the members of the team.
 type MemberReader interface {
-	HasMember(id string) bool
-	ListMembers() ([]Member, error)
-	GetMember(id string) (*Member, error)
-	FindMemberByGitLab(username string) (*Member, error)
-	FindMemberByMattermost(username string) (*Member, error)
+	HasMember(ctx context.Context, id string) bool
+	ListMembers(ctx context.Context) ([]Member, error)
+	GetMember(ctx context.Context, id string) (*Member, error)
+	FindMemberByGitLab(ctx context.Context, username string) (*Member, error)
+	FindMemberByMattermost(ctx context.Context, username string) (*Member, error)
 }
 
 // MemberWriter adds, removes and changes the members.
@@ -120,10 +123,16 @@ type MemberWriter interface {
 	UpdateMember(ctx context.Context, m Member) error
 }
 
+// MemberPatcher changes one member in a transaction (the profile of the
+// member who works in the team, without rewriting the others).
+type MemberPatcher interface {
+	PatchMember(ctx context.Context, id string, fn func(*Member) error) error
+}
+
 // EventReader reads the activity log.
 type EventReader interface {
-	ListEvents(project string, since time.Time) ([]Event, error)
-	ListEventsLimited(project string, limit int) ([]Event, error)
+	ListEvents(ctx context.Context, project string, since time.Time) ([]Event, error)
+	ListEventsLimited(ctx context.Context, project string, limit int) ([]Event, error)
 }
 
 // EventWriter appends to the activity log.
@@ -133,7 +142,7 @@ type EventWriter interface {
 
 // ConfigReader reads the configuration of the team.
 type ConfigReader interface {
-	LoadConfig() (*TeamConfig, error)
+	LoadConfig(ctx context.Context) (*TeamConfig, error)
 }
 
 // ConfigWriter saves the configuration of the team.
@@ -143,8 +152,8 @@ type ConfigWriter interface {
 
 // PolicyReader reads and checks the policies.
 type PolicyReader interface {
-	LoadPolicies(project string) ([]Policy, error)
-	CheckAll(project string, pctx PolicyContext) ([]PolicyResult, error)
+	LoadPolicies(ctx context.Context, project string) ([]Policy, error)
+	CheckAll(ctx context.Context, project string, pctx PolicyContext) ([]PolicyResult, error)
 }
 
 // PolicyWriter saves the policies.
@@ -154,9 +163,9 @@ type PolicyWriter interface {
 
 // WikiReader reads the wiki pages and the pending proposals.
 type WikiReader interface {
-	WikiListPages() ([]string, error)
-	WikiReadPage(name string) (string, error)
-	WikiListPending() ([]WikiProposal, error)
+	WikiListPages(ctx context.Context) ([]string, error)
+	WikiReadPage(ctx context.Context, name string) (string, error)
+	WikiListPending(ctx context.Context) ([]WikiProposal, error)
 }
 
 // WikiWriter proposes, accepts and rejects wiki proposals.
@@ -168,8 +177,8 @@ type WikiWriter interface {
 
 // PatternReader reads the patterns.
 type PatternReader interface {
-	ListPatterns(tags []string, minMatchTags int) ([]Pattern, error)
-	ReadPattern(name string) (string, error)
+	ListPatterns(ctx context.Context, tags []string, minMatchTags int) ([]Pattern, error)
+	ReadPattern(ctx context.Context, name string) (string, error)
 }
 
 // PatternWriter creates, validates and removes patterns.
@@ -181,9 +190,9 @@ type PatternWriter interface {
 
 // BriefReader reads the takeover briefs.
 type BriefReader interface {
-	ReadBrief(project, ticketID string) (string, error)
-	ListBriefs(project string) ([]TakeoverMeta, error)
-	BriefExists(project, ticketID string) bool
+	ReadBrief(ctx context.Context, project, ticketID string) (string, error)
+	ListBriefs(ctx context.Context, project string) ([]TakeoverMeta, error)
+	BriefExists(ctx context.Context, project, ticketID string) bool
 }
 
 // BriefWriter generates and saves the takeover briefs.
@@ -192,68 +201,97 @@ type BriefWriter interface {
 	SaveBrief(ctx context.Context, brief *TakeoverBrief) error
 }
 
-// TeamStateReader is the read-only view of a team-state repository: the
-// composition of the readers of every sub-domain. Prefer the interface of the
-// sub-domain a component needs; this one remains for the components (TUI
-// views, commands) that have not been narrowed yet.
-type TeamStateReader interface {
-	RepoInfo
-	ClaimReader
-	MemberReader
-	EventReader
-	ConfigReader
-	PolicyReader
-	WikiReader
-	PatternReader
-	BriefReader
+// ClaimRenewer renews the lease of a claim its owner keeps working on.
+type ClaimRenewer interface {
+	RenewClaim(ctx context.Context, project, ticketID, member string, now time.Time) (time.Time, error)
 }
 
-// TeamStateWriter extends TeamStateReader with the mutations that modify the
-// team-state repository (create/update/delete + git commit/push): the
-// composition of the writers of every sub-domain. Same remark as for
-// TeamStateReader.
-type TeamStateWriter interface {
-	TeamStateReader
-	RepoSync
-	ClaimWriter
-	ClaimLabeler
-	ClaimTrackerSync
-	ClaimCleaner
-	MemberWriter
-	EventWriter
-	ConfigWriter
-	PolicyWriter
-	WikiWriter
-	PatternWriter
-	BriefWriter
+// ClaimHeartbeater keeps the claims of a member or of a session alive: the
+// signal of life of the daemon.
+type ClaimHeartbeater interface {
+	Heartbeat(ctx context.Context, refs []ClaimRef, member, session string, now time.Time) (HeartbeatResult, error)
+}
+
+// ClaimRehomer moves the claims of a member from a project ID that no project
+// has any more to the ID of the project they belong to.
+type ClaimRehomer interface {
+	RehomeClaims(ctx context.Context, member string, moves []ClaimMove) (RehomeResult, error)
+}
+
+// ClaimAdopter hands a claim over to the session that takes the work up; the
+// adoption is queued when the remote cannot be reached.
+type ClaimAdopter interface {
+	AdoptClaimDurable(ctx context.Context, project, ticketID, member, session string) (adopted, queued bool, err error)
+	QueueAdoptClaim(project, ticketID, member, session string) (queued bool, err error)
+}
+
+// ClaimAdoptionReader tells the session a queued adoption gave a claim to.
+type ClaimAdoptionReader interface {
+	QueuedAdoption(project, ticketID, member string) (string, bool)
+}
+
+// ClaimOpQueue is the durable queue of the claim operations kept in the
+// clone: an operation is queued locally (never waits for git) and applied
+// later by FlushClaimQueue.
+type ClaimOpQueue interface {
+	ClaimQueue() ([]ClaimOp, error)
+	EnqueueClaimOp(op ClaimOp) error
+	FlushClaimQueue(ctx context.Context) (applied, dropped int, err error)
+}
+
+// StructureEnsurer creates the layout of the team-state (directories, base
+// files) when a clone lacks it.
+type StructureEnsurer interface {
+	EnsureStructure(ctx context.Context) error
+}
+
+// WorkflowLayoutReader reads the workflows of the team-state: the layers a
+// catalog is loaded from, the projects that have workflows, the lock.
+type WorkflowLayoutReader interface {
+	LoadWorkflowScopes(cat *workflow.MemCatalog, scopes ...WorkflowScope) workflow.Diagnostics
+	WorkflowProjects() ([]string, error)
+	ReadWorkflowLock() (*WorkflowLock, error)
+}
+
+// WorkflowLayoutCommitter commits the layout of the workflows of a scope.
+type WorkflowLayoutCommitter interface {
+	CommitWorkflowLayout(ctx context.Context, scope WorkflowScope, msg string) error
 }
 
 // Compile-time interface compliance checks.
 var (
-	_ RepoInfo          = (*Repo)(nil)
-	_ RepoSync          = (*Repo)(nil)
-	_ BoardStatusSetter = (*Repo)(nil)
-	_ ClaimReader       = (*Repo)(nil)
-	_ ClaimWriter       = (*Repo)(nil)
-	_ ClaimLabeler      = (*Repo)(nil)
-	_ ClaimTrackerSync  = (*Repo)(nil)
-	_ ClaimCleaner      = (*Repo)(nil)
-	_ ClaimExpirer      = (*Repo)(nil)
-	_ ClaimRemovalJudge = (*Repo)(nil)
-	_ MemberReader      = (*Repo)(nil)
-	_ MemberWriter      = (*Repo)(nil)
-	_ EventReader       = (*Repo)(nil)
-	_ EventWriter       = (*Repo)(nil)
-	_ ConfigReader      = (*Repo)(nil)
-	_ ConfigWriter      = (*Repo)(nil)
-	_ PolicyReader      = (*Repo)(nil)
-	_ PolicyWriter      = (*Repo)(nil)
-	_ WikiReader        = (*Repo)(nil)
-	_ WikiWriter        = (*Repo)(nil)
-	_ PatternReader     = (*Repo)(nil)
-	_ PatternWriter     = (*Repo)(nil)
-	_ BriefReader       = (*Repo)(nil)
-	_ BriefWriter       = (*Repo)(nil)
-	_ TeamStateReader   = (*Repo)(nil)
-	_ TeamStateWriter   = (*Repo)(nil)
+	_ RepoInfo                = (*Repo)(nil)
+	_ RepoSync                = (*Repo)(nil)
+	_ BoardStatusSetter       = (*Repo)(nil)
+	_ ClaimReader             = (*Repo)(nil)
+	_ ClaimWriter             = (*Repo)(nil)
+	_ ClaimLabeler            = (*Repo)(nil)
+	_ ClaimTrackerSync        = (*Repo)(nil)
+	_ ClaimCleaner            = (*Repo)(nil)
+	_ ClaimExpirer            = (*Repo)(nil)
+	_ ClaimRemovalJudge       = (*Repo)(nil)
+	_ ClaimHeartbeater        = (*Repo)(nil)
+	_ ClaimRehomer            = (*Repo)(nil)
+	_ ClaimRenewer            = (*Repo)(nil)
+	_ ClaimAdopter            = (*Repo)(nil)
+	_ ClaimAdoptionReader     = (*Repo)(nil)
+	_ ClaimOpQueue            = (*Repo)(nil)
+	_ StructureEnsurer        = (*Repo)(nil)
+	_ WorkflowLayoutReader    = (*Repo)(nil)
+	_ WorkflowLayoutCommitter = (*Repo)(nil)
+	_ MemberReader            = (*Repo)(nil)
+	_ MemberPatcher           = (*Repo)(nil)
+	_ MemberWriter            = (*Repo)(nil)
+	_ EventReader             = (*Repo)(nil)
+	_ EventWriter             = (*Repo)(nil)
+	_ ConfigReader            = (*Repo)(nil)
+	_ ConfigWriter            = (*Repo)(nil)
+	_ PolicyReader            = (*Repo)(nil)
+	_ PolicyWriter            = (*Repo)(nil)
+	_ WikiReader              = (*Repo)(nil)
+	_ WikiWriter              = (*Repo)(nil)
+	_ PatternReader           = (*Repo)(nil)
+	_ PatternWriter           = (*Repo)(nil)
+	_ BriefReader             = (*Repo)(nil)
+	_ BriefWriter             = (*Repo)(nil)
 )

@@ -108,7 +108,7 @@ func (h *sseHub) pollTeamEvents(ctx context.Context, a *app.App, lastHash *strin
 	if repo == nil {
 		return
 	}
-	events, err := repo.ListEventsLimited("", 10)
+	events, err := repo.ListEventsLimited(ctx, "", 10)
 	if err != nil {
 		return
 	}
@@ -121,12 +121,12 @@ func (h *sseHub) pollTeamEvents(ctx context.Context, a *app.App, lastHash *strin
 	}
 }
 
-func (h *sseHub) pollTeamBoard(_ context.Context, a *app.App, lastHash *string) {
+func (h *sseHub) pollTeamBoard(ctx context.Context, a *app.App, lastHash *string) {
 	repo := getTeamRepoSafe(a)
 	if repo == nil {
 		return
 	}
-	claims, err := repo.ListClaims("")
+	claims, err := repo.ListClaims(ctx, "")
 	if err != nil {
 		return
 	}
@@ -175,8 +175,17 @@ func (h *sseHub) serveSSE(w http.ResponseWriter, r *http.Request) {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-// getTeamRepoSafe returns a teamstate.Repo if team is configured and cloned, nil otherwise.
-func getTeamRepoSafe(a *app.App) *teamstate.Repo {
+// teamAPIRepo is what the HTTP API and the SSE stream read of the team-state.
+type teamAPIRepo interface {
+	teamstate.RepoInfo
+	teamstate.ConfigReader
+	teamstate.MemberReader
+	teamstate.ClaimReader
+	teamstate.EventReader
+}
+
+// getTeamRepoSafe returns the team-state if team is configured and cloned, nil otherwise.
+func getTeamRepoSafe(a *app.App) teamAPIRepo {
 	tc := a.Config.ActiveTeam()
 	if tc.StateRepo == "" {
 		return nil

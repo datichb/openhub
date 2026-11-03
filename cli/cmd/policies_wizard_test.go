@@ -112,7 +112,7 @@ func TestPoliciesAddWizard(t *testing.T) {
 
 			assert.Equal(t, "policies add", s.command, "command of the wizard")
 			assert.Equal(t, tc.wantRan, s.ran, "steps that ran")
-			list, err := repo.LoadPolicies("")
+			list, err := repo.LoadPolicies(t.Context(), "")
 			require.NoError(t, err)
 			got := map[string]teamstate.Policy{}
 			for _, p := range list {

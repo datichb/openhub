@@ -42,6 +42,6 @@ func resolveTrackerEngine(ctx context.Context, a *app.App) *tracker.Engine {
 // buildCredentialSource constructs a tracker.CredentialSource from the app's
 // secret store and a resolved EffectiveTrackerConfig, with the team of the
 // hub for the GitLab token cascade.
-func buildCredentialSource(a *app.App, eff tracker.EffectiveTrackerConfig) tracker.CredentialSource {
-	return teamService(a).CredentialSource(tracker.NewCredentialSource(eff, nil), nil)
+func buildCredentialSource(ctx context.Context, a *app.App, eff tracker.EffectiveTrackerConfig) tracker.CredentialSource {
+	return teamService(a).CredentialSource(ctx, tracker.NewCredentialSource(eff, nil), nil)
 }

@@ -199,11 +199,11 @@ func TestCheckTrackerTokenAgreesWithTheCredentials(t *testing.T) {
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			a, _, _ := tokenStepEnv(t, tt.toml, tt.secrets)
-			teamCfg, err := teamstate.NewRepo(aliasRepo, a.Config.Teams[0].StatePath).LoadConfig()
+			teamCfg, err := teamstate.NewRepo(aliasRepo, a.Config.Teams[0].StatePath).LoadConfig(t.Context())
 			require.NoError(t, err)
 			got := checkTrackerToken(t.Context(), a, "core", teamCfg)
 			assert.Equal(t, tt.want, got.Found)
-			_, err = tracker.ResolveCredentials(t.Context(), trackerCredentials(a, teamCfg), tracker.TypeGitLab)
+			_, err = tracker.ResolveCredentials(t.Context(), trackerCredentials(t.Context(), a, teamCfg), tracker.TypeGitLab)
 			assert.Equal(t, tt.want, err == nil, "the credentials agree")
 		})
 	}

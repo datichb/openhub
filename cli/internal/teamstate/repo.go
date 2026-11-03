@@ -446,9 +446,9 @@ func (r *Repo) HasPolicies() bool {
 }
 
 // HasMember returns true if the given member ID exists in members.toml.
-func (r *Repo) HasMember(id string) bool {
+func (r *Repo) HasMember(ctx context.Context, id string) bool {
 	// ListMembers acquires the read lock itself.
-	members, err := r.ListMembers()
+	members, err := r.ListMembers(ctx)
 	if err != nil {
 		return false
 	}

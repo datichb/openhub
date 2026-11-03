@@ -146,7 +146,7 @@ func TestPoliciesAddOnTheEngine(t *testing.T) {
 	policiesAddCmd.SetContext(t.Context())
 	require.NoError(t, runPoliciesAdd(policiesAddCmd, nil))
 
-	list, err := repo.LoadPolicies("")
+	list, err := repo.LoadPolicies(t.Context(), "")
 	require.NoError(t, err)
 	require.Len(t, list, 1)
 	assert.Equal(t, teamstate.Policy{
@@ -206,7 +206,7 @@ func TestPoliciesAddQuitOnTheEngine(t *testing.T) {
 	policiesAddCmd.SetContext(t.Context())
 	require.NoError(t, runPoliciesAdd(policiesAddCmd, nil))
 
-	list, err := repo.LoadPolicies("")
+	list, err := repo.LoadPolicies(t.Context(), "")
 	require.NoError(t, err)
 	assert.Empty(t, list)
 }
@@ -232,7 +232,7 @@ func TestPatternsAddErrorOnTheEngine(t *testing.T) {
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), i18n.T("cmd.patterns_cmd.use_hyphens_not_spaces"))
-	list, lerr := repo.ListPatterns(nil, 0)
+	list, lerr := repo.ListPatterns(t.Context(), nil, 0)
 	require.NoError(t, lerr)
 	assert.Empty(t, list)
 }

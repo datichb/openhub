@@ -1,6 +1,7 @@
 package views
 
 import (
+	"context"
 	"strings"
 	"testing"
 	"time"
@@ -74,7 +75,7 @@ func settingsTrackerView(t *testing.T, trackerType string) (*SettingsView, func(
 	v := NewSettingsView(SettingsViewConfig{
 		GetConfig:    func() *config.Config { return shared },
 		UpdateConfig: hubHost{shared}.update,
-		TrackerType:  func(config.TeamConfig) string { return trackerType },
+		TrackerType:  func(context.Context, config.TeamConfig) string { return trackerType },
 	})
 	v.SetShell(&askShell{})
 	content := tview.NewFlex()

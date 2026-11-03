@@ -89,7 +89,7 @@ func (r *Repo) GenerateRawBrief(ctx context.Context, project, ticketID, from, to
 	}
 
 	// Collect events for this ticket
-	events, err := r.ListEvents(project, time.Time{})
+	events, err := r.ListEvents(ctx, project, time.Time{})
 	if err == nil {
 		var ticketEvents []TakeoverEvent
 		for _, e := range events {
@@ -113,7 +113,7 @@ func (r *Repo) GenerateRawBrief(ctx context.Context, project, ticketID, from, to
 
 	// Calculate stale days if reason is stale
 	if reason == "stale" {
-		claim, _ := r.GetClaim(project, ticketID)
+		claim, _ := r.GetClaim(ctx, project, ticketID)
 		if claim != nil {
 			lastActive := claim.LastActivity.Time()
 			if lastActive.IsZero() {
@@ -166,7 +166,10 @@ func (r *Repo) SaveBrief(ctx context.Context, brief *TakeoverBrief) error {
 
 // ReadBrief reads the best available brief for a ticket.
 // Priority: .enriched.md > .md > .toml
-func (r *Repo) ReadBrief(project, ticketID string) (string, error) {
+func (r *Repo) ReadBrief(ctx context.Context, project, ticketID string) (string, error) {
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
 	if _, err := SafeName(project); err != nil {
 		return "", fmt.Errorf("invalid project name: %w", err)
 	}
@@ -224,7 +227,10 @@ func (r *Repo) ReadBrief(project, ticketID string) (string, error) {
 
 // ListBriefs returns all briefs for a project.
 // If project is empty, returns briefs across all projects.
-func (r *Repo) ListBriefs(project string) ([]TakeoverMeta, error) {
+func (r *Repo) ListBriefs(ctx context.Context, project string) ([]TakeoverMeta, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if project != "" {
 		if _, err := SafeName(project); err != nil {
 			return nil, fmt.Errorf("invalid project name: %w", err)
@@ -290,7 +296,10 @@ func (r *Repo) listBriefsForProject(project string) ([]TakeoverMeta, error) {
 }
 
 // BriefExists returns true if any brief exists for the given ticket.
-func (r *Repo) BriefExists(project, ticketID string) bool {
+func (r *Repo) BriefExists(ctx context.Context, project, ticketID string) bool {
+	if ctx.Err() != nil {
+		return false
+	}
 	if _, err := SafeName(project); err != nil {
 		return false
 	}

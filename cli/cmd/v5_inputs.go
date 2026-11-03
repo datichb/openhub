@@ -85,7 +85,7 @@ func ticketBrief(ctx context.Context, a *app.App, projectID, ticketID string) (s
 	if team == nil || team.StatePath == "" {
 		return "", errors.New(i18n.T("cmd.workflow.input.no_team_space"))
 	}
-	content, err := teamstate.NewRepo(team.StateRepo, team.StatePath).ReadBrief(p.Name, ticketID)
+	content, err := teamstate.NewRepo(team.StateRepo, team.StatePath).ReadBrief(ctx, p.Name, ticketID)
 	if errors.Is(err, teamstate.ErrBriefNotFound) {
 		return "", errors.New(i18n.Tf("cmd.workflow.input.no_brief", p.Name, ticketID))
 	}

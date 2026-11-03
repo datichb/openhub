@@ -18,7 +18,7 @@ type fakeVerdictStore struct {
 	calls    []string
 }
 
-func (f *fakeVerdictStore) GetClaim(project, ticketID string) (*teamstate.Claim, error) {
+func (f *fakeVerdictStore) GetClaim(_ context.Context, project, ticketID string) (*teamstate.Claim, error) {
 	return &teamstate.Claim{Project: project, TicketID: ticketID, Status: f.status}, nil
 }
 

@@ -77,7 +77,7 @@ func TestSyncIsOneTransaction(t *testing.T) {
 	assert.Equal(t, before+1, after, "one commit for the run")
 	assert.Equal(t, gittest.Run(t, clone, "rev-parse", "HEAD"), gittest.Run(t, bare, "rev-parse", "HEAD"), "pushed")
 	assert.NotContains(t, gittest.Run(t, clone, "show", "--name-only", "--format=", "HEAD"), "scratch.txt")
-	c, err := repo.GetClaim("p", "1")
+	c, err := repo.GetClaim(ctx, "p", "1")
 	require.NoError(t, err)
 	assert.Equal(t, "first", c.Title)
 	assert.Contains(t, c.Labels, "bug")

@@ -214,7 +214,7 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 	var existingCfg *teamstate.TeamConfig
 	var hasMember bool
 	if repo != nil {
-		existingCfg, _ = repo.LoadConfig()
+		existingCfg, _ = repo.LoadConfig(ctx)
 		if hasConfig && existingCfg != nil {
 			staleDaysStr = strconv.Itoa(existingCfg.Takeover.StaleDays)
 			webhookURL = existingCfg.Notification.MattermostWebhook
@@ -231,9 +231,9 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 		}
 
 		// Pre-fill member profile if exists
-		hasMember = memberID != "" && repo.HasMember(memberID)
+		hasMember = memberID != "" && repo.HasMember(ctx, memberID)
 		if hasMember {
-			existing, err := repo.GetMember(memberID)
+			existing, err := repo.GetMember(ctx, memberID)
 			if err == nil && existing != nil {
 				displayName = existing.DisplayName
 				gitlabUsername = existing.GitLabUsername
@@ -253,7 +253,6 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 	// ── Build shared team step state ──
 	tss := &teamStepState{
 		Ctx:                ctx,
-		Repo:               repo,
 		HasConfig:          hasConfig,
 		HasPolicies:        hasPolicies,
 		ExistingCfg:        existingCfg,
@@ -268,6 +267,9 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 		WebhookURL:         webhookURL,
 		Channel:            channel,
 		BotName:            botName,
+	}
+	if repo != nil { // a nil *Repo in the interface would not be nil
+		tss.Repo = repo
 	}
 	// ── Step 0: Repo team-state ──
 	repoStep := views.WizardStep{
@@ -499,7 +501,7 @@ func runTeamStatus(cmd *cobra.Command, args []string) error {
 	detail, _ := cmd.Flags().GetBool("detail")
 
 	// List members
-	members, err := repo.ListMembers()
+	members, err := repo.ListMembers(ctx)
 	if err != nil {
 		return fmt.Errorf(i18n.T("cmd.team.listing_members"), err)
 	}
@@ -512,7 +514,7 @@ func runTeamStatus(cmd *cobra.Command, args []string) error {
 	}
 
 	// List all claims
-	claims, err := repo.ListClaims("")
+	claims, err := repo.ListClaims(ctx, "")
 	if err != nil {
 		return fmt.Errorf(i18n.T("cmd.team.listing_claims"), err)
 	}
@@ -652,7 +654,7 @@ func runTeamActivity(cmd *cobra.Command, args []string) error {
 	project, _ := cmd.Flags().GetString("project")
 	limit, _ := cmd.Flags().GetInt("limit")
 
-	events, err := repo.ListEvents(project, since)
+	events, err := repo.ListEvents(ctx, project, since)
 	if err != nil {
 		return fmt.Errorf(i18n.T("cmd.team.listing_events"), err)
 	}
@@ -955,7 +957,7 @@ func runTeamRejoin(cmd *cobra.Command, _ []string) error {
 		v, _ := cmd.Flags().GetString("tracker-username")
 		trackerName = &v
 	} else if selectedMember != nil && selectedMember.TrackerUsername == "" &&
-		trackerUsernameWanted(teamRepoHandle, repoURL, gitlabURL) {
+		trackerUsernameWanted(ctx, teamRepoHandle, repoURL, gitlabURL) {
 		fmt.Fprintf(a.IO.Out, "\n  %s %s\n", theme.InfoStyle.Render(theme.IconInfo), i18n.T("cmd.team.rejoin.tracker_hint"))
 		fmt.Fprintf(a.IO.Out, "  %s", i18n.T("cmd.team.rejoin.tracker_prompt"))
 		var name string
@@ -1084,7 +1086,7 @@ func runTeamRejoin(cmd *cobra.Command, _ []string) error {
 					// Re-validate
 					sp := config.TeamStatePath(repoURL)
 					repo := teamstate.NewRepo(repoURL, sp)
-					member, _ := repo.GetMember(memberID)
+					member, _ := repo.GetMember(ctx, memberID)
 					if member != nil {
 						if err := validateGitLabIdentity(ctx, a, repo, member); err != nil {
 							fmt.Fprintf(a.IO.Out, "  %s %s\n",

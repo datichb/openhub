@@ -34,7 +34,7 @@ message = "Too many tickets in progress"
 		t.Fatal(err)
 	}
 
-	policies, err := repo.LoadPolicies("")
+	policies, err := repo.LoadPolicies(t.Context(), "")
 	if err != nil {
 		t.Fatalf("LoadPolicies failed: %v", err)
 	}
@@ -91,7 +91,7 @@ message = "Tests MUST pass on T-SRU"
 		t.Fatal(err)
 	}
 
-	policies, err := repo.LoadPolicies("T-SRU")
+	policies, err := repo.LoadPolicies(t.Context(), "T-SRU")
 	if err != nil {
 		t.Fatalf("LoadPolicies with override failed: %v", err)
 	}
@@ -146,7 +146,7 @@ enforcement = "warn"
 		t.Fatal(err)
 	}
 
-	policies, err := repo.LoadPolicies("lax")
+	policies, err := repo.LoadPolicies(t.Context(), "lax")
 	if err != nil {
 		t.Fatalf("LoadPolicies failed: %v", err)
 	}
@@ -321,7 +321,7 @@ func TestLoadPolicies_NoFile(t *testing.T) {
 	dir := t.TempDir()
 	repo := &Repo{path: dir}
 
-	policies, err := repo.LoadPolicies("")
+	policies, err := repo.LoadPolicies(t.Context(), "")
 	if err != nil {
 		t.Fatalf("expected nil error for missing file, got: %v", err)
 	}
@@ -352,12 +352,12 @@ message = "too many WIP"
 		t.Fatal(err)
 	}
 
-	ctx := PolicyContext{
+	pctx := PolicyContext{
 		BranchName:   "fix/something", // violates branch_naming
 		ActiveClaims: 4,               // violates max_wip
 	}
 
-	violations, err := repo.CheckAll("", ctx)
+	violations, err := repo.CheckAll(t.Context(), "", pctx)
 	if err != nil {
 		t.Fatalf("CheckAll failed: %v", err)
 	}
@@ -400,7 +400,7 @@ func TestSavePolicies(t *testing.T) {
 	}
 
 	// Roundtrip: load them back
-	loaded, err := repo.LoadPolicies("")
+	loaded, err := repo.LoadPolicies(t.Context(), "")
 	if err != nil {
 		t.Fatalf("LoadPolicies after save failed: %v", err)
 	}
@@ -451,7 +451,7 @@ func TestSavePoliciesOverwrite(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	loaded, err := repo.LoadPolicies("")
+	loaded, err := repo.LoadPolicies(t.Context(), "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -501,11 +501,11 @@ enforcement = "warn"
 		t.Fatal(err)
 	}
 
-	ctx := PolicyContext{
+	pctx := PolicyContext{
 		BranchName:    "bad-branch",
 		CommitMessage: "bad commit",
 	}
-	violations, err := repo.CheckAll("", ctx)
+	violations, err := repo.CheckAll(t.Context(), "", pctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -621,7 +621,7 @@ enforcement = "refuse"
 		t.Fatal(err)
 	}
 
-	policies, err := repo.LoadPolicies("")
+	policies, err := repo.LoadPolicies(t.Context(), "")
 	if err != nil {
 		t.Fatal(err)
 	}

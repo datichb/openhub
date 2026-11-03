@@ -244,7 +244,7 @@ func TestProjectModelsViewKeys(t *testing.T) {
 func TestTeamModelsViewKeys(t *testing.T) {
 	frLocale(t)
 	repo, tc := soloState(t)
-	cfg, err := repo.LoadConfig()
+	cfg, err := repo.LoadConfig(t.Context())
 	require.NoError(t, err)
 	cfg.Models.Families = map[string]string{"quality": "sonnet"}
 	require.NoError(t, repo.SaveConfig(context.Background(), cfg))
@@ -307,7 +307,7 @@ func TestPatternsViewKeys(t *testing.T) {
 
 	selectSection(t, v.slist, "api-crud")
 	v.HandleKey(runeKey('y'))
-	ps, err := repo.ListPatterns(nil, 0)
+	ps, err := repo.ListPatterns(ctx, nil, 0)
 	require.NoError(t, err)
 	require.Len(t, ps, 1)
 	assert.True(t, ps[0].Validated, "y validates the pattern")
@@ -315,10 +315,10 @@ func TestPatternsViewKeys(t *testing.T) {
 	selectSection(t, v.slist, "api-crud")
 	v.HandleKey(runeKey('d'))
 	require.Equal(t, 1, sh.confirmCount())
-	ps, _ = repo.ListPatterns(nil, 0)
+	ps, _ = repo.ListPatterns(ctx, nil, 0)
 	assert.Len(t, ps, 1, "nothing deleted before the confirmation")
 	sh.confirmed(t, nil)
-	ps, _ = repo.ListPatterns(nil, 0)
+	ps, _ = repo.ListPatterns(ctx, nil, 0)
 	assert.Empty(t, ps)
 }
 
@@ -357,11 +357,11 @@ func TestPoliciesViewKeys(t *testing.T) {
 
 	v.HandleKey(runeKey('d'))
 	require.Equal(t, 1, sh.confirmCount())
-	ps, err := repo.LoadPolicies("")
+	ps, err := repo.LoadPolicies(ctx, "")
 	require.NoError(t, err)
 	assert.Len(t, ps, 1, "nothing deleted before the confirmation")
 	sh.confirmed(t, nil)
-	ps, _ = repo.LoadPolicies("")
+	ps, _ = repo.LoadPolicies(ctx, "")
 	assert.Empty(t, ps)
 }
 
@@ -632,7 +632,7 @@ func pageTitle(t *testing.T, app *tview.Application, page *widgets.ListDetailPag
 func TestTeamModelsViewIndicatorFollowsTheWrite(t *testing.T) {
 	frLocale(t)
 	repo, tc := soloState(t)
-	cfg, err := repo.LoadConfig()
+	cfg, err := repo.LoadConfig(t.Context())
 	require.NoError(t, err)
 	cfg.Models.Families = map[string]string{"quality": "sonnet", "fast": "haiku"}
 	require.NoError(t, repo.SaveConfig(context.Background(), cfg))

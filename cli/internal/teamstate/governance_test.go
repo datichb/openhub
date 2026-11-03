@@ -35,19 +35,19 @@ func TestGovernance_ConfigTOML(t *testing.T) {
 	writeMembersToml(t, repo, "[members.alice]\ndisplay_name = \"Alice\"\n")
 
 	// No config.toml: any member may publish.
-	require.NoError(t, repo.CheckPublish("alice"))
-	assert.ErrorIs(t, repo.CheckPublish("bob"), ErrNotMember)
+	require.NoError(t, repo.CheckPublish(t.Context(), "alice"))
+	assert.ErrorIs(t, repo.CheckPublish(t.Context(), "bob"), ErrNotMember)
 
 	require.NoError(t, os.WriteFile(filepath.Join(repo.Path(), "config.toml"), []byte("[governance]\npublish = \"any_member\"\n"), 0o644))
-	cfg, err := repo.LoadConfig()
+	cfg, err := repo.LoadConfig(t.Context())
 	require.NoError(t, err)
 	assert.Equal(t, GovernancePublishAnyMember, cfg.Governance.Publish)
-	require.NoError(t, repo.CheckPublish("alice"))
+	require.NoError(t, repo.CheckPublish(t.Context(), "alice"))
 
 	require.NoError(t, os.WriteFile(filepath.Join(repo.Path(), "config.toml"), []byte("[governance]\npublish = \"two_reviewers\"\n"), 0o644))
-	_, err = repo.LoadConfig()
+	_, err = repo.LoadConfig(t.Context())
 	require.NoError(t, err, "an unknown policy must not break the config")
-	assert.ErrorIs(t, repo.CheckPublish("alice"), ErrGovernanceUnsupported)
+	assert.ErrorIs(t, repo.CheckPublish(t.Context(), "alice"), ErrGovernanceUnsupported)
 
 	// Round trip: the section is written when set, omitted when empty.
 	data, err := toml.Marshal(&TeamConfig{Governance: DefaultGovernance()})

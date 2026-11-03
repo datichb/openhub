@@ -19,7 +19,7 @@ func TestTeamPoliciesStepWritesThroughThePolicyService(t *testing.T) {
 	repo, err := teamstate.InitSolo(t.Context(), filepath.Join(t.TempDir(), "state"), teamstate.Member{ID: "alice"})
 	require.NoError(t, err)
 	byName := func() map[string]teamstate.Policy {
-		list, err := repo.LoadPolicies("")
+		list, err := repo.LoadPolicies(t.Context(), "")
 		require.NoError(t, err)
 		m := map[string]teamstate.Policy{}
 		for _, p := range list {

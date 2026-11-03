@@ -1,6 +1,7 @@
 package teamstate
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -56,10 +57,10 @@ func (g GovernanceConfig) CanPublish(memberID string, isMember func(string) bool
 
 // CheckPublish reads the team governance and checks that memberID may
 // publish workflows.
-func (r *Repo) CheckPublish(memberID string) error {
-	cfg, err := r.LoadConfig()
+func (r *Repo) CheckPublish(ctx context.Context, memberID string) error {
+	cfg, err := r.LoadConfig(ctx)
 	if err != nil {
 		return err
 	}
-	return cfg.Governance.CanPublish(memberID, r.HasMember)
+	return cfg.Governance.CanPublish(memberID, func(id string) bool { return r.HasMember(ctx, id) })
 }

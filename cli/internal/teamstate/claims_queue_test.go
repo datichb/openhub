@@ -174,17 +174,17 @@ func TestFlushClaimQueueOneCommitForSeveralOperations(t *testing.T) {
 	assert.Equal(t, beforeBare+1, commitCount(t, bare), "pushed")
 	assert.Equal(t, "claims-queue: benjamin applies 4 operation(s)", gittest.Run(t, repo.path, "log", "-1", "--format=%s"))
 
-	_, err = repo.GetClaim("T-SRU", "SRU-1")
+	_, err = repo.GetClaim(ctx, "T-SRU", "SRU-1")
 	assert.ErrorIs(t, err, ErrClaimNotFound)
-	c2, err := repo.GetClaim("T-SRU", "SRU-2")
+	c2, err := repo.GetClaim(ctx, "T-SRU", "SRU-2")
 	require.NoError(t, err)
 	assert.Equal(t, ClaimStatusReview, c2.Status)
 	assert.Equal(t, []string{"session-ended"}, c2.Labels)
 	assert.False(t, c2.LastActivity.IsZero())
-	c3, err := repo.GetClaim("T-SRU", "SRU-3")
+	c3, err := repo.GetClaim(ctx, "T-SRU", "SRU-3")
 	require.NoError(t, err)
 	assert.Equal(t, []string{"review"}, c3.Labels)
-	c4, err := repo.GetClaim("T-SRU", "SRU-4")
+	c4, err := repo.GetClaim(ctx, "T-SRU", "SRU-4")
 	require.NoError(t, err)
 	assert.Empty(t, c4.Labels, "untouched")
 
@@ -210,7 +210,7 @@ func TestFlushClaimQueueStaysQueuedWhileOffline(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, ops, 2, "the operations stay in the queue")
 	assert.Equal(t, before, commitCount(t, repo.path))
-	_, err = repo.GetClaim("T-SRU", "SRU-1")
+	_, err = repo.GetClaim(ctx, "T-SRU", "SRU-1")
 	assert.NoError(t, err, "nothing applied")
 
 	online()
@@ -220,7 +220,7 @@ func TestFlushClaimQueueStaysQueuedWhileOffline(t *testing.T) {
 	assert.Zero(t, dropped)
 	assert.Equal(t, beforeBare+1, commitCount(t, bare))
 	assert.NoFileExists(t, repo.claimQueuePath())
-	_, err = repo.GetClaim("T-SRU", "SRU-1")
+	_, err = repo.GetClaim(ctx, "T-SRU", "SRU-1")
 	assert.ErrorIs(t, err, ErrClaimNotFound)
 }
 
@@ -240,7 +240,7 @@ func TestFlushClaimQueueStaysQueuedWhenThePushFails(t *testing.T) {
 	require.NoError(t, qerr)
 	assert.Len(t, ops, 1)
 	assert.Equal(t, before, commitCount(t, repo.path), "the local commit is dropped")
-	_, err = repo.GetClaim("T-SRU", "SRU-1")
+	_, err = repo.GetClaim(t.Context(), "T-SRU", "SRU-1")
 	assert.NoError(t, err, "the claim is back")
 	assert.Empty(t, gittest.Run(t, repo.path, "status", "--porcelain"))
 
@@ -273,11 +273,11 @@ func TestFlushClaimQueueDropsWhatNoLongerApplies(t *testing.T) {
 	assert.Equal(t, 6, dropped)
 	assert.Equal(t, before+1, commitCount(t, repo.path))
 	for _, id := range []string{"OWNED", "OTHERSES", "NOSES", "TRANS"} {
-		c, err := repo.GetClaim("T-SRU", id)
+		c, err := repo.GetClaim(ctx, "T-SRU", id)
 		require.NoError(t, err, id)
 		assert.Empty(t, c.Labels, id)
 	}
-	trans, _ := repo.GetClaim("T-SRU", "TRANS")
+	trans, _ := repo.GetClaim(ctx, "T-SRU", "TRANS")
 	assert.Equal(t, ClaimStatusInProgress, trans.Status)
 	assert.NoFileExists(t, repo.claimQueuePath(), "dropped operations leave the queue too")
 }
@@ -307,7 +307,7 @@ func TestFlushClaimQueueAnyTransition(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 1, applied)
 	assert.Zero(t, dropped)
-	c, err := repo.GetClaim("T-SRU", "SRU-1")
+	c, err := repo.GetClaim(t.Context(), "T-SRU", "SRU-1")
 	require.NoError(t, err)
 	assert.Equal(t, ClaimStatusDone, c.Status)
 }
@@ -446,7 +446,7 @@ func TestFlushClaimQueueTouch(t *testing.T) {
 	repo, _ := setupGitTestRepo(t)
 	ctx := context.Background()
 	mustClaim(t, repo, "SRU-1")
-	created, err := repo.GetClaim("T-SRU", "SRU-1")
+	created, err := repo.GetClaim(ctx, "T-SRU", "SRU-1")
 	require.NoError(t, err)
 
 	// Queued 13 h after the creation (11 h left: less than half), flushed at once.
@@ -456,7 +456,7 @@ func TestFlushClaimQueueTouch(t *testing.T) {
 	applied, _, err := repo.FlushClaimQueue(ctx)
 	require.NoError(t, err)
 	assert.Equal(t, 1, applied)
-	got, err := repo.GetClaim("T-SRU", "SRU-1")
+	got, err := repo.GetClaim(ctx, "T-SRU", "SRU-1")
 	require.NoError(t, err)
 	assert.Equal(t, InstantOf(at.Add(24*time.Hour)), got.LeaseUntil, "renewed from the time it was queued")
 	assert.Equal(t, created.LastActivity, got.LastActivity, "a renewal is not an activity")
@@ -470,7 +470,7 @@ func TestFlushClaimQueueTouch(t *testing.T) {
 	assert.Equal(t, 1, applied)
 	assert.Zero(t, dropped)
 	assert.Equal(t, before, commitCount(t, repo.path))
-	got, _ = repo.GetClaim("T-SRU", "SRU-1")
+	got, _ = repo.GetClaim(ctx, "T-SRU", "SRU-1")
 	assert.Equal(t, InstantOf(at.Add(24*time.Hour)), got.LeaseUntil)
 }
 
@@ -525,7 +525,7 @@ func TestHeartbeatOfflineQueuesTheRenewalThenTheNextBeatAppliesIt(t *testing.T) 
 	assert.Equal(t, 2, res.Applied)
 	assert.Equal(t, beforeBare+1, commitCount(t, bare))
 	for _, id := range []string{"SRU-1", "SRU-2"} {
-		c, err := repo.GetClaim("T-SRU", id)
+		c, err := repo.GetClaim(ctx, "T-SRU", id)
 		require.NoError(t, err)
 		assert.Equal(t, InstantOf(now.Add(24*time.Hour)), c.LeaseUntil, id)
 	}

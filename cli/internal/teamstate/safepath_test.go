@@ -45,8 +45,8 @@ func TestPublicAPIRefusesUnsafeNames(t *testing.T) {
 		name    string
 		refused func(bad string) bool
 	}{
-		{"GetClaim project", func(bad string) bool { _, err := repo.GetClaim(bad, "ticket"); return unsafe(err) }},
-		{"GetClaim ticket", func(bad string) bool { _, err := repo.GetClaim("T-SRU", bad); return unsafe(err) }},
+		{"GetClaim project", func(bad string) bool { _, err := repo.GetClaim(ctx, bad, "ticket"); return unsafe(err) }},
+		{"GetClaim ticket", func(bad string) bool { _, err := repo.GetClaim(ctx, "T-SRU", bad); return unsafe(err) }},
 		{"CreateClaim project", func(bad string) bool {
 			_, err := repo.CreateClaim(ctx, Claim{Project: bad, TicketID: "ticket", ClaimedBy: "attacker"})
 			return unsafe(err)
@@ -64,10 +64,10 @@ func TestPublicAPIRefusesUnsafeNames(t *testing.T) {
 		{"AddClaimLabel", func(bad string) bool { return unsafe(repo.AddClaimLabel(ctx, bad, "evil", "label")) }},
 		{"RemoveClaimLabel", func(bad string) bool { return unsafe(repo.RemoveClaimLabel(ctx, bad, "evil", "label")) }},
 		{"SetClaimExternalIID", func(bad string) bool { return unsafe(repo.SetClaimExternalIID(ctx, bad, "evil", 42)) }},
-		{"ListBriefs", func(bad string) bool { _, err := repo.ListBriefs(bad); return unsafe(err) }},
-		{"BriefExists project", func(bad string) bool { return !repo.BriefExists(bad, "passwd") }},
-		{"BriefExists ticket", func(bad string) bool { return !repo.BriefExists("T-SRU", bad) }},
-		{"WikiReadPage", func(bad string) bool { _, err := repo.WikiReadPage(bad); return unsafe(err) }},
+		{"ListBriefs", func(bad string) bool { _, err := repo.ListBriefs(ctx, bad); return unsafe(err) }},
+		{"BriefExists project", func(bad string) bool { return !repo.BriefExists(ctx, bad, "passwd") }},
+		{"BriefExists ticket", func(bad string) bool { return !repo.BriefExists(ctx, "T-SRU", bad) }},
+		{"WikiReadPage", func(bad string) bool { _, err := repo.WikiReadPage(ctx, bad); return unsafe(err) }},
 		{"validateProposal page", func(bad string) bool {
 			err := validateProposal(WikiProposal{Page: bad, Content: "Some content", Confidence: "CONFIRMED", Author: "documentarian"})
 			return errors.Is(err, ErrProposalInvalid)

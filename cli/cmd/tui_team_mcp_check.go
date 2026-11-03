@@ -50,7 +50,7 @@ func testGitLabMCP(ctx context.Context, svc *teamsvc.Service) (string, error) {
 
 func testJiraMCP(ctx context.Context, svc *teamsvc.Service, secrets config.SecretReadWriter) (string, error) {
 	tc := svc.ResolveTeam(nil)
-	eff := mcpresolve.ResolveFull(sharedMCPService(tc, "jira"), svc.Config.MCP.Jira, nil, tc.TeamID)
+	eff := mcpresolve.ResolveFull(sharedMCPService(ctx, tc, "jira"), svc.Config.MCP.Jira, nil, tc.TeamID)
 
 	url := eff.URL
 	if url == "" {
@@ -97,7 +97,7 @@ func callError(server string, origin tracker.TokenOrigin, err error) error {
 
 // sharedMCPService reads the recommendation of the team for an MCP service
 // from the team-state clone (nil without team, clone or recommendation).
-func sharedMCPService(tc config.ResolvedTeamConfig, name string) *teamstate.SharedMCPConfig {
+func sharedMCPService(ctx context.Context, tc config.ResolvedTeamConfig, name string) *teamstate.SharedMCPConfig {
 	if !tc.Enabled || tc.StatePath == "" {
 		return nil
 	}
@@ -105,7 +105,7 @@ func sharedMCPService(tc config.ResolvedTeamConfig, name string) *teamstate.Shar
 	if !repo.IsCloned() {
 		return nil
 	}
-	cfg, err := repo.LoadConfig()
+	cfg, err := repo.LoadConfig(ctx)
 	if err != nil {
 		return nil
 	}

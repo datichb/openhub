@@ -168,13 +168,13 @@ func (s *Service) GitLabToken(ctx context.Context, teamID, server string, opts .
 	for _, o := range opts {
 		o(&r)
 	}
-	s.completeQuery(&r)
+	s.completeQuery(ctx, &r)
 	return tracker.ResolveGitLabToken(ctx, r.q)
 }
 
 // completeQuery fills the servers of the sources that come from the hub
 // configuration and the team-state.
-func (s *Service) completeQuery(r *tokenRequest) {
+func (s *Service) completeQuery(ctx context.Context, r *tokenRequest) {
 	q := &r.q
 	if s.Config != nil {
 		q.MCPKey = s.Config.MCP.Gitlab.Token
@@ -186,7 +186,7 @@ func (s *Service) completeQuery(r *tokenRequest) {
 	q.TeamServer = teamGitLabServer(repo, firstNonEmpty(r.teamServer, declared))
 	if s.Config != nil {
 		q.MCPServer, q.MCPImplicit = tracker.MCPServerOf(
-			tracker.MCPGitLabURL(s.Config.MCP.Gitlab, sharedGitLabMCP(statePath), r.project, q.TeamID))
+			tracker.MCPGitLabURL(s.Config.MCP.Gitlab, sharedGitLabMCP(ctx, statePath), r.project, q.TeamID))
 	}
 }
 
@@ -240,8 +240,8 @@ func (s *Service) teamRepoOf(teamID string, project *domain.Project) (remote, st
 
 // sharedGitLabMCP reads the [mcp.gitlab] recommendation of the team-state
 // cloned under statePath (nil when it is not cloned or has none).
-func sharedGitLabMCP(statePath string) *teamstate.SharedMCPConfig {
-	cfg := loadTeamConfig(statePath)
+func sharedGitLabMCP(ctx context.Context, statePath string) *teamstate.SharedMCPConfig {
+	cfg := loadTeamConfig(ctx, statePath)
 	if cfg == nil {
 		return nil
 	}
@@ -253,10 +253,10 @@ func sharedGitLabMCP(statePath string) *teamstate.SharedMCPConfig {
 
 // GitLabMCPURL is the URL of the GitLab the MCP server of project talks to:
 // the server of the MCP tokens ("" when no url is set for it).
-func (s *Service) GitLabMCPURL(project *domain.Project) string {
+func (s *Service) GitLabMCPURL(ctx context.Context, project *domain.Project) string {
 	tc := s.ResolveTeam(project)
 	_, statePath, _ := s.teamRepoOf(tc.TeamID, project)
-	return tracker.MCPGitLabURL(s.Config.MCP.Gitlab, sharedGitLabMCP(statePath), project, tc.TeamID)
+	return tracker.MCPGitLabURL(s.Config.MCP.Gitlab, sharedGitLabMCP(ctx, statePath), project, tc.TeamID)
 }
 
 // TrackerTokenDecl is the key of the tracker token (tracker_token_key) and its
@@ -267,11 +267,11 @@ func (s *Service) GitLabMCPURL(project *domain.Project) string {
 // empty when none is set; the server is still the one the former tracker key
 // is valid for. To edit the declaration, use
 // config.TrackerLocalConfig.SetTokenDecl.
-func (s *Service) TrackerTokenDecl(project *domain.Project) (key, server string, implicit bool) {
+func (s *Service) TrackerTokenDecl(ctx context.Context, project *domain.Project) (key, server string, implicit bool) {
 	tc := s.ResolveTeam(project)
 	var shared *teamstate.TrackerConfig
 	if tc.Enabled {
-		if cfg := loadTeamConfig(tc.StatePath); cfg != nil {
+		if cfg := loadTeamConfig(ctx, tc.StatePath); cfg != nil {
 			shared = &cfg.Tracker
 		}
 	}
@@ -286,7 +286,7 @@ func (s *Service) TrackerTokenDecl(project *domain.Project) (key, server string,
 
 // loadTeamConfig reads the config.toml of the team-state cloned under
 // statePath (nil when it is not cloned or unreadable).
-func loadTeamConfig(statePath string) *teamstate.TeamConfig {
+func loadTeamConfig(ctx context.Context, statePath string) *teamstate.TeamConfig {
 	if statePath == "" {
 		return nil
 	}
@@ -294,7 +294,7 @@ func loadTeamConfig(statePath string) *teamstate.TeamConfig {
 	if !repo.IsCloned() {
 		return nil
 	}
-	cfg, err := repo.LoadConfig()
+	cfg, err := repo.LoadConfig(ctx)
 	if err != nil {
 		return nil
 	}

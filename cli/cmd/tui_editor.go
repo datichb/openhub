@@ -129,7 +129,7 @@ func editorBundlePreview(ctx context.Context, c workflowsvc.Context, res *workfl
 		return nil, err.Error()
 	}
 	defer os.RemoveAll(dir)
-	b, missing, err := buildWorkflowBundleIn(a, project, res, prov, dir)
+	b, missing, err := buildWorkflowBundleIn(ctx, a, project, res, prov, dir)
 	if err != nil {
 		return nil, err.Error()
 	}

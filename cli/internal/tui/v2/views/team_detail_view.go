@@ -77,7 +77,7 @@ type TeamDetailViewConfig struct {
 	// GetMember returns the profile of the current member in the team-state
 	// (nil when there is none). With SaveMemberField it shows the section
 	// « Ma fiche de membre ».
-	GetMember func(teamID string) *teamstate.Member
+	GetMember func(ctx context.Context, teamID string) *teamstate.Member
 	// SaveMemberField writes one field of the profile of the current member
 	// (a Member* key) to the team-state, in one commit.
 	SaveMemberField func(ctx context.Context, teamID, field, value string) error
@@ -284,11 +284,11 @@ type teamDetailRead struct {
 func (v *TeamDetailView) open(then func()) {
 	localMCP, localTrk := v.cfg.GetMCPConfig(), v.cfg.GetTrackerLocalConfig()
 	tc := v.cfg.ResolveTeam()
-	fetch := func(context.Context) (teamDetailRead, error) {
+	fetch := func(ctx context.Context) (teamDetailRead, error) {
 		var r teamDetailRead
-		r.teamCfg = readTeamConfig(tc)
+		r.teamCfg = readTeamConfig(ctx, tc)
 		if v.cfg.GetMember != nil {
-			r.member = v.cfg.GetMember(tc.TeamID)
+			r.member = v.cfg.GetMember(ctx, tc.TeamID)
 		}
 		return r, nil
 	}

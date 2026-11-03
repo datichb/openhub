@@ -197,7 +197,7 @@ func (c trackerTokenStep) teamConfig() *teamstate.TeamConfig {
 	if path == "" {
 		path = config.TeamStatePath(repoURL)
 	}
-	cfg, err := teamstate.NewRepo(repoURL, path).LoadConfig()
+	cfg, err := teamstate.NewRepo(repoURL, path).LoadConfig(c.Ctx())
 	if err != nil || cfg.Tracker.Type == "" {
 		return nil
 	}

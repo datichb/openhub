@@ -152,7 +152,7 @@ func runHistoryTeam(ctx context.Context, limit int) error {
 		return errors.New(i18n.T("cmd.history.team_state_repository_not_cloned_run"))
 	}
 
-	events, err := repo.ListEventsLimited("", limit)
+	events, err := repo.ListEventsLimited(ctx, "", limit)
 	if err != nil {
 		return fmt.Errorf(i18n.T("cmd.history.listing_team_events"), err)
 	}

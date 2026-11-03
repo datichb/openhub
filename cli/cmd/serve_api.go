@@ -65,7 +65,7 @@ func handleTeamBoard(a *app.App) http.HandlerFunc {
 		}
 
 		project := r.URL.Query().Get("project")
-		claims, err := repo.ListClaims(project)
+		claims, err := repo.ListClaims(r.Context(), project)
 		if err != nil {
 			writeError(w, err, http.StatusInternalServerError)
 			return
@@ -73,7 +73,7 @@ func handleTeamBoard(a *app.App) http.HandlerFunc {
 
 		// Group claims by status into kanban columns from board config
 		boardCfg := teamstate.DefaultBoardConfig()
-		if teamCfg, err := repo.LoadConfig(); err == nil && len(teamCfg.Board.Columns) > 0 {
+		if teamCfg, err := repo.LoadConfig(r.Context()); err == nil && len(teamCfg.Board.Columns) > 0 {
 			boardCfg = teamCfg.Board
 		}
 		columns := make([]string, len(boardCfg.Columns))
@@ -140,7 +140,7 @@ func handleTeamEvents(a *app.App) http.HandlerFunc {
 		}
 
 		project := r.URL.Query().Get("project")
-		events, err := repo.ListEventsLimited(project, limit)
+		events, err := repo.ListEventsLimited(r.Context(), project, limit)
 		if err != nil {
 			writeError(w, err, http.StatusInternalServerError)
 			return
@@ -165,7 +165,7 @@ func handleTeamMembers(a *app.App) http.HandlerFunc {
 			return
 		}
 
-		members, err := repo.ListMembers()
+		members, err := repo.ListMembers(r.Context())
 		if err != nil {
 			writeError(w, err, http.StatusInternalServerError)
 			return

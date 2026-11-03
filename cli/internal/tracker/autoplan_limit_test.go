@@ -77,7 +77,7 @@ func (f *autoplanFixture) run(t *testing.T) *SyncResult {
 
 func (f *autoplanFixture) claims(t *testing.T) map[string]string {
 	t.Helper()
-	list, err := f.repo.ListClaims("p")
+	list, err := f.repo.ListClaims(t.Context(), "p")
 	require.NoError(t, err)
 	out := map[string]string{}
 	for _, c := range list {
