@@ -104,7 +104,7 @@ Un message « Nouvelles touches » s'affiche une fois après la mise à jour (il
 - La complétion du shell décrit les commandes et options dans la langue du hub ; `oh gc --only` liste `fanout`, `oh config model family` liste toutes les familles d'agents, l'aide de `oh daemon run`, `oh eval pass` et `oh session attach --exec` suit la langue.
 
 **Installation**
-- La formule Homebrew dépend d'`opencode` (obligatoire) et recommande `beads` et, sous macOS, `terminal-notifier`.
+- La formule Homebrew dépend d'`anomalyco/tap/opencode` (obligatoire) et recommande `beads` et, sous macOS, `terminal-notifier`.
 - `compatibility.json` : entrée `5.1` (opencode 2.0.0 à 2.99.99, 2.0.25 recommandée).
 
 ### Changed
