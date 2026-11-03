@@ -12,6 +12,7 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 ### Fixed
 
 - **Formule Homebrew** : la formule de la 5.1.0 dépendait d'`anomalyco/tap/opencode`, qui est opencode 1.x (refusé par oh 5) et qui entre en conflit avec l'opencode de homebrew-core (`brew upgrade openhub` demandait `brew uninstall opencode`). Elle dépend maintenant d'`opencode` (homebrew-core, opencode V2). La formule du tap a été corrigée le jour de la release, sans changer les binaires. Les guides d'installation disent `brew install opencode`.
+- **Windows** : en quittant oh, l'attente des sessions qui doivent finir leur étape pouvait conclure à tort qu'elles avaient fini quand le délai expirait pendant une lecture de l'état du serveur.
 
 ## [5.1.0] — 2026-11-03
 

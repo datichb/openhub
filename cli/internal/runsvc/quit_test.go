@@ -93,4 +93,7 @@ func TestWaitFinished(t *testing.T) {
 	defer cancel()
 	require.NoError(t, servers.SetStatus(ctx, "g1", domain.ServerReady))
 	assert.Error(t, svc.WaitFinished(short, plan, nil), "bounded")
+	gone, stop := context.WithCancel(ctx)
+	stop()
+	assert.ErrorIs(t, svc.WaitFinished(gone, plan, nil), context.Canceled, "a read cut by the end of the wait does not count as a stopped group")
 }

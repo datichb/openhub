@@ -121,6 +121,11 @@ func (s *Service) WaitFinished(ctx context.Context, plan QuitPlan, choices map[s
 	for len(groups) > 0 {
 		for g := range groups {
 			srv, err := s.Servers.Get(ctx, g)
+			if err != nil && ctx.Err() != nil {
+				// The read failed because the wait is over, not because
+				// the group is gone.
+				return ctx.Err()
+			}
 			if err != nil || srv.Status != domain.ServerReady {
 				delete(groups, g)
 			}
