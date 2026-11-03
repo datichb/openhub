@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 	"testing"
@@ -13,6 +14,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 	"github.com/datichb/openhub/cli/internal/teamstate"
+	"github.com/datichb/openhub/cli/internal/testutil/golden"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
 )
@@ -29,11 +31,30 @@ type modalCall struct {
 	confirm        func(string)
 }
 
+type confirmCall struct {
+	title, detail string
+	danger        bool
+	yes           func()
+}
+
 // fakeColumnUI records what the editor asks of the shell.
 type fakeColumnUI struct {
-	modals []modalCall
-	toasts []string
-	levels []shell.ToastLevel
+	modals   []modalCall
+	confirms []confirmCall
+	toasts   []string
+	levels   []shell.ToastLevel
+}
+
+func (f *fakeColumnUI) Confirm(title, detail string, danger bool, onYes func()) {
+	f.confirms = append(f.confirms, confirmCall{title, detail, danger, onYes})
+}
+
+// lastConfirm is the last confirmation asked, nil when none was.
+func (f *fakeColumnUI) lastConfirm() *confirmCall {
+	if len(f.confirms) == 0 {
+		return nil
+	}
+	return &f.confirms[len(f.confirms)-1]
 }
 
 func (f *fakeColumnUI) ShowInputModal(title, current string, confirm func(string)) {
@@ -216,13 +237,55 @@ func TestColumnEditorDeletes(t *testing.T) {
 	e := newColumnEditor(t, defaultColumns(), map[string]string{"wip": "in_progress", "later": "todo"}, map[string]string{"Doing": "in_progress"}, "jira")
 	e.typ('j') // IN PROGRESS
 	e.typ(columnEditorTestKeys.del)
+	c := e.ui.lastConfirm()
+	require.NotNil(t, c, "d asks before it deletes")
+	assert.Equal(t, i18n.Tf("a12.columns.confirm_column_title", "IN PROGRESS"), c.title)
+	assert.Equal(t, i18n.Tf("a12.columns.confirm_column_detail_mappings", 2), c.detail)
+	assert.True(t, c.danger, "a dangerous confirmation: the focus starts on Cancel")
+	assert.Len(t, e.names(), 6, "nothing is deleted before the answer")
+	assert.Empty(t, e.ui.toasts)
+	c.yes()
 	assert.Equal(t, []string{"todo", "review", "validation", "done", "blocked"}, e.names())
 	assert.Equal(t, map[string]string{"later": "todo"}, *e.labels, "the labels of the column go with it")
 	assert.Empty(t, *e.status)
 	assert.Equal(t, i18n.Tf("tui.team.columns.column_deleted", "IN PROGRESS")+i18n.Tf("tui.team.columns.mappings_cleaned", 2), e.ui.lastToast())
 
 	e.typ(columnEditorTestKeys.del) // REVIEW, no mapping
+	c = e.ui.lastConfirm()
+	assert.Equal(t, i18n.T("a12.columns.confirm_column_detail"), c.detail, "no mapping to mention")
+	c.yes()
 	assert.Equal(t, i18n.Tf("tui.team.columns.column_deleted", "REVIEW"), e.ui.lastToast())
+}
+
+// Answering « Annuler » (or closing the box) is not calling yes: the column
+// and its mappings are still there.
+func TestColumnEditorKeepsWhatIsNotConfirmed(t *testing.T) {
+	e := newColumnEditor(t, defaultColumns(), map[string]string{"wip": "in_progress"}, map[string]string{}, "gitlab")
+	e.typ('j')
+	e.typ(columnEditorTestKeys.del)
+	require.Len(t, e.ui.confirms, 1)
+	assert.Len(t, e.names(), 6)
+	assert.Equal(t, map[string]string{"wip": "in_progress"}, *e.labels)
+	assert.Empty(t, e.ui.toasts)
+
+	e.typ(columnEditorTestKeys.mappings)
+	e.typ(columnEditorTestKeys.del)
+	require.Len(t, e.ui.confirms, 2)
+	assert.Len(t, *e.labels, 1, "the mapping stays too")
+}
+
+// A column that went away between the question and the answer is not
+// removed twice, nor another one in its place.
+func TestColumnEditorDeletesTheColumnAskedAbout(t *testing.T) {
+	e := newColumnEditor(t, defaultColumns(), nil, nil, "")
+	e.typ('j') // IN PROGRESS
+	e.typ(columnEditorTestKeys.del)
+	yes := e.ui.lastConfirm().yes
+	e.typ('j') // the cursor moves on while the question is open
+	yes()
+	assert.Equal(t, []string{"todo", "review", "validation", "done", "blocked"}, e.names())
+	yes()
+	assert.Len(t, e.names(), 5, "asked twice: removed once")
 }
 
 func TestColumnEditorKeepsTwoColumns(t *testing.T) {
@@ -230,6 +293,7 @@ func TestColumnEditorKeepsTwoColumns(t *testing.T) {
 	e := newColumnEditor(t, cols, nil, nil, "")
 	e.typ(columnEditorTestKeys.del)
 	assert.Equal(t, []string{"a", "b"}, e.names())
+	assert.Nil(t, e.ui.lastConfirm(), "nothing to confirm: the refusal comes first")
 	assert.Equal(t, i18n.T("cmd.discovery.validate.min_columns"), e.ui.lastToast())
 	assert.Equal(t, shell.ToastError, e.ui.levels[len(e.ui.levels)-1])
 }
@@ -334,6 +398,12 @@ func TestColumnEditorRenamesAndDeletesAMapping(t *testing.T) {
 	// delete a label, then a status
 	e.list.SetCurrentItem(2)
 	e.typ(columnEditorTestKeys.del)
+	c := e.ui.lastConfirm()
+	require.NotNil(t, c, "d asks before it deletes a label")
+	assert.Equal(t, i18n.Tf("a12.columns.confirm_label_title", "stuck"), c.title)
+	assert.Equal(t, i18n.Tf("a12.columns.confirm_mapping_detail", "IN PROGRESS"), c.detail)
+	assert.Len(t, *e.labels, 2, "nothing is deleted before the answer")
+	c.yes()
 	assert.Len(t, *e.labels, 1)
 	assert.Equal(t, i18n.Tf("tui.team.columns.mapping_deleted", "stuck"), e.ui.lastToast())
 	for i := 0; i < e.list.GetItemCount(); i++ {
@@ -342,15 +412,20 @@ func TestColumnEditorRenamesAndDeletesAMapping(t *testing.T) {
 		}
 	}
 	e.typ(columnEditorTestKeys.del)
+	c = e.ui.lastConfirm()
+	assert.Equal(t, i18n.Tf("a12.columns.confirm_status_title", "Coding"), c.title)
+	assert.Len(t, *e.status, 1)
+	c.yes()
 	assert.Empty(t, *e.status)
 	assert.Equal(t, i18n.Tf("tui.team.columns.mapping_deleted", "Coding"), e.ui.lastToast())
 
 	// on a header there is nothing to rename or delete
 	e.list.SetCurrentItem(0)
-	before := len(e.ui.modals)
+	before, asked := len(e.ui.modals), len(e.ui.confirms)
 	e.press(tcell.KeyEnter, 0)
 	e.typ(columnEditorTestKeys.del)
 	assert.Len(t, e.ui.modals, before)
+	assert.Len(t, e.ui.confirms, asked)
 }
 
 func TestColumnEditorMappingsOnlyWhereThereAreMappings(t *testing.T) {
@@ -457,4 +532,25 @@ func TestColumnEditorMappingsSayWhichKeyAdds(t *testing.T) {
 	e.typ(columnEditorTestKeys.mappings)
 	_, secondary := e.list.GetItemText(2)
 	assert.Contains(t, tviewTags.ReplaceAllString(secondary, ""), "Press n to add")
+}
+
+// The words of the two confirmations, in both languages (golden).
+func TestColumnEditorConfirmationTexts(t *testing.T) {
+	var b strings.Builder
+	for _, lang := range []string{"fr", "en"} {
+		i18ntest.Set(t, lang)
+		fmt.Fprintf(&b, "[%s]\n", lang)
+		for _, c := range []struct {
+			name string
+			n    int
+		}{{"IN PROGRESS", 2}, {"REVIEW", 0}} {
+			title, detail := columnDeleteTexts(c.name, c.n)
+			fmt.Fprintf(&b, "column %d: %s | %s\n", c.n, title, detail)
+		}
+		for _, kind := range []string{"label", "status"} {
+			title, detail := mappingDeleteTexts(kind, "wip", "IN PROGRESS")
+			fmt.Fprintf(&b, "%s: %s | %s\n", kind, title, detail)
+		}
+	}
+	golden.Assert(t, "tui_team_columns_confirm", b.String())
 }

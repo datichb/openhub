@@ -6267,5 +6267,11 @@
   "a12.keys.section_prev": "previous section",
   "a12.keys.section_next": "next section",
   "a12.keys.graph_left": "to the left",
-  "a12.keys.graph_right": "to the right"
+  "a12.keys.graph_right": "to the right",
+  "a12.columns.confirm_column_title": "Delete the column \"%s\"?",
+  "a12.columns.confirm_column_detail": "The column will be removed from the editor.",
+  "a12.columns.confirm_column_detail_mappings": "The column will be removed from the editor, with the mappings that lead to it (%d).",
+  "a12.columns.confirm_label_title": "Remove the label \"%s\"?",
+  "a12.columns.confirm_status_title": "Remove the status \"%s\"?",
+  "a12.columns.confirm_mapping_detail": "It will no longer be mapped to the column \"%s\"."
 }

@@ -6267,5 +6267,11 @@
   "a12.keys.section_prev": "section précédente",
   "a12.keys.section_next": "section suivante",
   "a12.keys.graph_left": "vers la gauche",
-  "a12.keys.graph_right": "vers la droite"
+  "a12.keys.graph_right": "vers la droite",
+  "a12.columns.confirm_column_title": "Supprimer la colonne « %s » ?",
+  "a12.columns.confirm_column_detail": "La colonne sera retirée de l'éditeur.",
+  "a12.columns.confirm_column_detail_mappings": "La colonne sera retirée de l'éditeur, avec les rattachements qui y mènent (%d).",
+  "a12.columns.confirm_label_title": "Retirer l'étiquette « %s » ?",
+  "a12.columns.confirm_status_title": "Retirer le statut « %s » ?",
+  "a12.columns.confirm_mapping_detail": "Il ne sera plus rattaché à la colonne « %s »."
 }

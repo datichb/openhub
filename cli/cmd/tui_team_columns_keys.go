@@ -41,6 +41,15 @@ func askName(title, current string, onConfirm func(string)) {
 	}
 }
 
+// confirmColumnRemoval asks before something is removed, as the other views do
+// (Shell.Confirm, dangerous: the focus starts on « Annuler »). Without a shell
+// nothing is removed.
+func confirmColumnRemoval(title, detail string, onYes func()) {
+	if ui := columnUI(); ui != nil {
+		ui.Confirm(title, detail, true, onYes)
+	}
+}
+
 func (e *columnEditor) handleMappingsKey(event *tcell.EventKey) *tcell.EventKey {
 	switch {
 	case views.ColumnBack.Matches(event):
@@ -121,12 +130,38 @@ func (e *columnEditor) renameMapping() {
 	})
 }
 
-// deleteMapping removes the label or status under the cursor.
+// deleteMapping asks, then removes the label or status under the cursor.
 func (e *columnEditor) deleteMapping() {
 	ref := e.resolveMappingItem()
 	if ref == nil {
 		return
 	}
+	title, detail := mappingDeleteTexts(ref.kind, ref.key, e.columnName(e.editingMappingsFor))
+	confirmColumnRemoval(title, detail, func() { e.removeMapping(*ref) })
+}
+
+// mappingDeleteTexts are the title and the detail of the confirmation of the
+// removal of a label or a status from the column colName.
+func mappingDeleteTexts(kind, key, colName string) (title, detail string) {
+	titleKey := "a12.columns.confirm_label_title"
+	if kind == "status" {
+		titleKey = "a12.columns.confirm_status_title"
+	}
+	return i18n.Tf(titleKey, key), i18n.Tf("a12.columns.confirm_mapping_detail", colName)
+}
+
+// columnName is the name of the column of this id (the id when it is gone).
+func (e *columnEditor) columnName(id string) string {
+	for _, c := range *e.columns {
+		if c.ID == id {
+			return c.Name
+		}
+	}
+	return id
+}
+
+// removeMapping removes a label or a status from the mappings.
+func (e *columnEditor) removeMapping(ref mappingRef) {
 	if ref.kind == "label" && e.labelMappings != nil {
 		delete(*e.labelMappings, ref.key)
 	} else if ref.kind == "status" && e.statusMappings != nil {
@@ -249,12 +284,40 @@ func (e *columnEditor) renameColumn(idx int) {
 	})
 }
 
-// deleteColumn removes column idx (two are kept) with the mappings that point
-// to it.
+// deleteColumn asks, then removes column idx (two are kept) with the mappings
+// that point to it. The refusal to go under two columns comes first: there is
+// nothing to confirm.
 func (e *columnEditor) deleteColumn(idx int) {
 	cols := *e.columns
 	if len(cols) <= 2 {
 		toast(i18n.T("cmd.discovery.validate.min_columns"), shell.ToastError)
+		return
+	}
+	col := cols[idx]
+	title, detail := columnDeleteTexts(col.Name, e.mappingsOf(col.ID))
+	confirmColumnRemoval(title, detail, func() { e.removeColumn(col.ID) })
+}
+
+// columnDeleteTexts are the title and the detail of the confirmation of the
+// removal of a column that has n labels and statuses mapped to it.
+func columnDeleteTexts(name string, n int) (title, detail string) {
+	detail = i18n.T("a12.columns.confirm_column_detail")
+	if n > 0 {
+		detail = i18n.Tf("a12.columns.confirm_column_detail_mappings", n)
+	}
+	return i18n.Tf("a12.columns.confirm_column_title", name), detail
+}
+
+// removeColumn removes the column of this id and the mappings that point to it.
+func (e *columnEditor) removeColumn(id string) {
+	cols := *e.columns
+	idx := -1
+	for i, c := range cols {
+		if c.ID == id {
+			idx = i
+		}
+	}
+	if idx < 0 || len(cols) <= 2 {
 		return
 	}
 	deletedID := cols[idx].ID
@@ -268,6 +331,21 @@ func (e *columnEditor) deleteColumn(idx int) {
 		msg += i18n.Tf("tui.team.columns.mappings_cleaned", cleaned)
 	}
 	toast(msg, shell.ToastSuccess)
+}
+
+// mappingsOf counts the labels and statuses mapped to a column.
+func (e *columnEditor) mappingsOf(colID string) (n int) {
+	for _, m := range []*map[string]string{e.labelMappings, e.statusMappings} {
+		if m == nil {
+			continue
+		}
+		for _, v := range *m {
+			if v == colID {
+				n++
+			}
+		}
+	}
+	return n
 }
 
 // dropMappingsOf removes the labels and statuses mapped to a column and
