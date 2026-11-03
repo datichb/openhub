@@ -1898,6 +1898,7 @@
   "tui.hints.enrich_ai": "enrich (AI)",
   "tui.hints.claim": "claim",
   "tui.hints.release": "release",
+  "tui.hints.board_columns": "board columns",
   "tui.hints.transfer": "transfer",
   "tui.hints.status": "status",
   "tui.hints.prune": "prune",

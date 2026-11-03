@@ -3,6 +3,7 @@ package views
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -51,6 +52,18 @@ type TeamBoardViewConfig struct {
 	// BoardConfig holds the team's custom board column layout.
 	// When empty (no custom columns), DefaultColumns() is used.
 	BoardConfig teamstate.BoardConfig
+	// Layout returns the board columns and the label → column mapping that
+	// the last read of the tickets (RefreshFunc) used. The board takes it at
+	// each mount and after each read: columns edited meanwhile (the editor of
+	// the C key, a colleague's change pulled) appear without restarting oh.
+	// It must not do any I/O (it is called on the event loop at mount).
+	Layout func() BoardLayout
+	// OnBoardConfig opens the editor of the columns and of the labels mapped
+	// to them (C), the same as the « Colonnes du board » entry of the Team
+	// mode. onSaved is called on the event loop once the editor saved its
+	// changes: the board then reads its tickets again with the new columns.
+	// Nil: the C key does nothing.
+	OnBoardConfig func(onSaved func())
 	// Actions wires the ticket action callbacks (claim, release, transfer, status).
 	// If nil, action keys (c/x/t/s) are no-ops.
 	Actions *BoardActions
@@ -68,6 +81,13 @@ type TeamBoardViewConfig struct {
 	// QuickActions provides callbacks for launching agent sessions from the board.
 	// If nil, the 'a' key quick-action feature is disabled.
 	QuickActions *BoardQuickActions
+}
+
+// BoardLayout is the layout of the board of the team: its columns and the
+// labels that put a ticket in one of them.
+type BoardLayout struct {
+	Board              teamstate.BoardConfig
+	LabelStatusMapping map[string]string
 }
 
 // BoardActions provides callbacks for ticket actions on the board.
@@ -164,7 +184,7 @@ func (v *TeamBoardView) StatusHints() string {
 		keys.Open.HintAs(i18n.T("tui.hints.detail")), boardActionsKey.Hint(),
 		projectsHint(), keys.Filter.Hint(),
 		teamClaimKey.Hint(), releaseKey.Hint(),
-		teamTransferKey.Hint(), teamStatusKey.Hint(), keys.Refresh.Hint())
+		teamTransferKey.Hint(), teamStatusKey.Hint(), boardColumnsKey.Hint(), keys.Refresh.Hint())
 	if v.filtered() {
 		hints += " · " + theme.Paint(theme.WarningHex, i18n.T("tui.hints.filtered"))
 	}
@@ -179,23 +199,14 @@ func (v *TeamBoardView) Mount(content *tview.Flex, app *tview.Application) {
 	v.loaded = false
 	v.actionInProgress.Store(false)
 
+	if v.cfg.Layout != nil {
+		l := v.cfg.Layout()
+		v.cfg.BoardConfig, v.cfg.LabelStatusMapping = l.Board, l.LabelStatusMapping
+	}
 	columns := ColumnsFromConfig(v.cfg.BoardConfig)
-	v.allColumns = columns
-	v.columnCards = make([]*widgets.CardColumn, len(columns))
 	v.columnFlex = tview.NewFlex()
-
-	for i, col := range columns {
-		cc := widgets.NewCardColumn(tview.Escape(col.Name), col.Color)
-		v.columnCards[i] = cc
-	}
-
-	// Auto-detect visible column count (min 25 chars per column).
-	// Default to 4 visible columns; will be adjusted on first draw.
-	v.visibleCols = 4
-	if len(columns) < v.visibleCols {
-		v.visibleCols = len(columns)
-	}
-	v.colViewStart = 0
+	v.focusCol, v.colViewStart = 0, 0
+	v.setColumns(columns)
 	v.rebuildColumnFlex()
 
 	// When focus returns to the columnFlex (e.g. after closing a modal),
@@ -274,6 +285,51 @@ func (v *TeamBoardView) Mount(content *tview.Flex, app *tview.Application) {
 	}
 }
 
+// setColumns replaces the columns of the board: one card column each, the
+// focus and the window of visible columns kept inside them.
+func (v *TeamBoardView) setColumns(columns []BoardColumnDef) {
+	v.allColumns = columns
+	v.columnCards = make([]*widgets.CardColumn, len(columns))
+	for i, col := range columns {
+		v.columnCards[i] = widgets.NewCardColumn(tview.Escape(col.Name), col.Color)
+	}
+	// Default to 4 visible columns.
+	v.visibleCols = min(4, len(columns))
+	v.focusCol = max(0, min(v.focusCol, len(columns)-1))
+	if v.focusCol < v.colViewStart {
+		v.colViewStart = v.focusCol
+	}
+	if v.focusCol >= v.colViewStart+v.visibleCols {
+		v.colViewStart = v.focusCol - v.visibleCols + 1
+	}
+	v.colViewStart = max(0, min(v.colViewStart, len(columns)-v.visibleCols))
+}
+
+// applyLayout takes the layout the last read of the tickets used: the
+// mapping of the labels, and, when the columns changed, the new columns
+// (rebuilt, the focus kept as near as it can be).
+func (v *TeamBoardView) applyLayout(l BoardLayout) {
+	v.cfg.LabelStatusMapping = l.LabelStatusMapping
+	columns := ColumnsFromConfig(l.Board)
+	if slices.Equal(v.allColumns, columns) {
+		v.cfg.BoardConfig = l.Board
+		return
+	}
+	v.cfg.BoardConfig = l.Board
+	v.setColumns(columns)
+	v.rebuildColumnFlex()
+	v.updateColumnFocus()
+}
+
+// editColumns is C: the editor of the columns and of the labels mapped to
+// them; once it saved, the board reads its tickets again.
+func (v *TeamBoardView) editColumns() {
+	if v.cfg.OnBoardConfig == nil || v.actionInProgress.Load() {
+		return
+	}
+	v.cfg.OnBoardConfig(func() { v.reload(nil) })
+}
+
 // setNoTicketsText says, in the empty-state placeholder, that the board has no
 // ticket: « loading » while the first read is on its way.
 func (v *TeamBoardView) setNoTicketsText() {
@@ -337,6 +393,8 @@ func (v *TeamBoardView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		v.transferTicket()
 	case teamStatusKey.Matches(event):
 		v.changeStatus()
+	case boardColumnsKey.Matches(event):
+		v.editColumns()
 	case boardActionsKey.Matches(event):
 		v.showTeamBoardQuickActions()
 	default:
@@ -385,21 +443,37 @@ func (v *TeamBoardView) reload(done func()) {
 		}
 		return
 	}
-	load(v.app, shellContext(v.shell), &v.loads, func(context.Context) ([]TeamTicket, error) {
-		return refresh(), nil
-	}, func(tickets []TeamTicket, err error) {
+	layout := v.cfg.Layout
+	load(v.app, shellContext(v.shell), &v.loads, func(context.Context) (boardRead, error) {
+		r := boardRead{tickets: refresh()}
+		if layout != nil {
+			l := layout()
+			r.layout = &l
+		}
+		return r, nil
+	}, func(r boardRead, err error) {
 		if v.columnCards == nil {
 			return // unmounted meanwhile
 		}
 		if err == nil {
 			v.loaded = true
-			v.populateColumns(tickets, v.allColumns)
+			if r.layout != nil {
+				v.applyLayout(*r.layout)
+			}
+			v.populateColumns(r.tickets, v.allColumns)
 			v.setNoTicketsText()
 		}
 		if done != nil {
 			done()
 		}
 	})
+}
+
+// boardRead is what a read of the board brings: the tickets, and the layout
+// they were mapped to the columns with (nil when the board has no Layout).
+type boardRead struct {
+	tickets []TeamTicket
+	layout  *BoardLayout
 }
 
 // loadSummary reads the beads summary (bd runs) off the event loop, then

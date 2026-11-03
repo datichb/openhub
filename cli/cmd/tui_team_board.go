@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"sync/atomic"
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/app"
@@ -66,9 +67,19 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 	// The async SyncFunc will refresh after pulling remote changes.
 	// Use a recover guard for safety (resolveRepo may panic with minimal test fixtures).
 
-	// Load label_status_mapping and board config from team config.
-	var labelStatusMapping map[string]string
-	var boardConfig teamstate.BoardConfig
+	// The columns of the board and the mapping of the labels come from the
+	// team config; they are read again with each read of the tickets (and by
+	// the column editor), so that the board follows an edit without restarting.
+	var layout atomic.Pointer[views.BoardLayout]
+	layout.Store(&views.BoardLayout{})
+	readLayout := func(repo teamBoardRepo) views.BoardLayout {
+		l := *layout.Load()
+		if cfg, err := repo.LoadConfig(tuiContext()); err == nil && cfg != nil {
+			l = views.BoardLayout{Board: cfg.Board, LabelStatusMapping: cfg.Tracker.LabelStatusMapping}
+			layout.Store(&l)
+		}
+		return l
+	}
 	func() {
 		defer func() {
 			if r := recover(); r != nil {
@@ -76,22 +87,15 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 			}
 		}()
 		if repo := resolveRepo(); repo != nil {
-			if cfg, err := repo.LoadConfig(tuiContext()); err == nil && cfg != nil {
-				labelStatusMapping = cfg.Tracker.LabelStatusMapping
-				boardConfig = cfg.Board
-			}
+			readLayout(repo)
 		}
 	}()
-
-	// Build columns from board config for ticket status mapping.
-	columns := views.ColumnsFromConfig(boardConfig)
-	boardStatuses := boardConfig.AllStatuses()
 
 	// Wrap resolveRepo to propagate board statuses for custom column validation.
 	resolveRepoWithBoard := func() teamBoardRepo {
 		repo := resolveRepo()
-		if repo != nil && len(boardStatuses) > 0 {
-			repo.SetBoardStatuses(boardStatuses)
+		if repo != nil {
+			repo.SetBoardStatuses(layout.Load().Board.AllStatuses())
 		}
 		return repo
 	}
@@ -104,7 +108,7 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 			}
 		}()
 		if repo := resolveRepo(); repo != nil {
-			initialTickets = views.FetchTeamTicketsWithColumns(tuiContext(), repo, projectNameResolver, columns)
+			initialTickets = views.FetchTeamTicketsWithColumns(tuiContext(), repo, projectNameResolver, views.ColumnsFromConfig(layout.Load().Board))
 		}
 	}()
 
@@ -112,18 +116,22 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 		Tickets:            initialTickets,
 		MemberID:           func() string { return a.Config.ActiveTeam().MemberID },
 		RefreshRate:        5 * time.Second,
-		LabelStatusMapping: labelStatusMapping,
-		BoardConfig:        boardConfig,
+		LabelStatusMapping: layout.Load().LabelStatusMapping,
+		BoardConfig:        layout.Load().Board,
+		Layout:             func() views.BoardLayout { return *layout.Load() },
+		OnBoardConfig:      actionBoardColumnConfig,
 		IsConfigured: func() bool {
 			return resolveRepo() != nil
 		},
 		BeadsSummaryFunc: buildBeadsSummaryFunc(a),
 		RefreshFunc: func() []views.TeamTicket {
-			repo := resolveRepoWithBoard()
+			repo := resolveRepo()
 			if repo == nil {
 				return nil
 			}
-			return views.FetchTeamTicketsWithColumns(tuiContext(), repo, projectNameResolver, columns)
+			l := readLayout(repo)
+			repo.SetBoardStatuses(l.Board.AllStatuses())
+			return views.FetchTeamTicketsWithColumns(tuiContext(), repo, projectNameResolver, views.ColumnsFromConfig(l.Board))
 		},
 		SyncFunc: func() error {
 			// Git pull only — fetches colleagues' changes from the shared state repo.
@@ -243,7 +251,7 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 				}
 
 				// Pool ticket: claim it for ourselves.
-				workStatus := boardConfig.DefaultWorkStatus()
+				workStatus := layout.Load().Board.DefaultWorkStatus()
 				if poolErr := repo.ClaimPoolTicket(ctx, projectID, ticketID, memberID, workStatus); poolErr != nil {
 					return poolErr
 				}

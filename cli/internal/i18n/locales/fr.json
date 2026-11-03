@@ -1898,6 +1898,7 @@
   "tui.hints.enrich_ai": "enrichir (IA)",
   "tui.hints.claim": "prendre",
   "tui.hints.release": "libérer",
+  "tui.hints.board_columns": "colonnes du board",
   "tui.hints.transfer": "transférer",
   "tui.hints.status": "statut",
   "tui.hints.prune": "nettoyer",
