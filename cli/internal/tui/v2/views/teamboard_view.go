@@ -966,7 +966,7 @@ func (v *TeamBoardView) formatTicketDetail(ticket *TeamTicket) string {
 	fmt.Fprintf(&detail, "\n  %s%s%s\n\n", theme.StyleTag(theme.AttrBold), tview.Escape(ticket.Title), theme.TagAttrs)
 	fmt.Fprintf(&detail, "  %s         %s\n", label("ID:"), tview.Escape(ticket.ID))
 	if ticket.Project != "" {
-		fmt.Fprintf(&detail, "  %s     %s\n", label(i18n.T("tui.teamboard.detail.project")), tview.Escape(ticket.Project))
+		fmt.Fprintf(&detail, "  %s     %s\n", label(i18n.T("tui.teamboard.detail.project")), tview.Escape(projectLabel(ticket.Project, ticket.ProjectName)))
 	}
 	fmt.Fprintf(&detail, "  %s     %s\n", label(i18n.T("tui.teamboard.detail.status")), tview.Escape(ticket.Status))
 
@@ -1172,6 +1172,12 @@ func (v *TeamBoardView) transferTicket() {
 	v.actionInProgress.Store(true)
 	v.shell.ShowSelectModal(i18n.Tf("tui.teamboard.transfer_title", ticketID), members, "", func(toMember string) {
 		app := v.app
+		toName := toMember // the toast names the member as the list did
+		for _, m := range members {
+			if m.Value == toMember {
+				toName = m.Label
+			}
+		}
 		safego.Go(func() { // an action, not a read: its result is shown even if the board was refreshed
 			err := v.actions.OnTransfer(ticketID, toMember)
 			if app == nil {
@@ -1182,7 +1188,7 @@ func (v *TeamBoardView) transferTicket() {
 				if err != nil {
 					v.shell.ShowToastMsg(i18n.T("tui.teamboard.transfer_failed")+err.Error(), false)
 				} else {
-					v.shell.ShowToastMsg(i18n.T("tui.teamboard.transfer_success")+toMember, true)
+					v.shell.ShowToastMsg(i18n.T("tui.teamboard.transfer_success")+toName, true)
 					if v.cfg.RefreshFunc != nil {
 						v.reload(nil)
 					}

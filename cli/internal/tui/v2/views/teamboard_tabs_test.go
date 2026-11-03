@@ -3,6 +3,7 @@ package views
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/rivo/tview"
 	"github.com/stretchr/testify/assert"
@@ -168,4 +169,58 @@ func TestTeamBoardFilteredMarkFollowsTheFiltersAtOnce(t *testing.T) {
 	assert.True(t, filtered(), "label")
 	board.clearFilters()
 	assert.False(t, filtered())
+}
+
+// The detail of a ticket names the project; the ID of a project this machine
+// does not know is marked, like on its tab.
+func TestTeamBoardTicketDetailNamesTheProject(t *testing.T) {
+	board, _ := tabsBoard(t, tabsTickets())
+	known := board.formatTicketDetail(&TeamTicket{ID: "1", Title: "One", Project: "88280c5b", ProjectName: "transparence-sru"})
+	assert.Contains(t, known, "transparence-sru")
+	assert.NotContains(t, known, "88280c5b")
+
+	unknown := board.formatTicketDetail(&TeamTicket{ID: "3", Title: "Three", Project: "deadbeef", ProjectName: "deadbeef"})
+	assert.Contains(t, unknown, "deadbeef (unknown project)")
+
+	i18ntest.Set(t, "fr")
+	assert.Contains(t, board.formatTicketDetail(&TeamTicket{ID: "3", Project: "deadbeef", ProjectName: "deadbeef"}), "deadbeef (projet inconnu)")
+
+	none := board.formatTicketDetail(&TeamTicket{ID: "9", Title: "No project"})
+	assert.NotContains(t, none, "inconnu")
+}
+
+// The toast of a transfer names the member as the list did, not by their ID.
+func TestTeamBoardTransferToastNamesTheMember(t *testing.T) {
+	i18ntest.Set(t, "en")
+	tickets := []TeamTicket{{ID: "1", Title: "One", Status: "todo", Project: "p", AssigneeID: "alice", Assignee: "Alice"}}
+	var transferred string
+	board := NewTeamBoardView(TeamBoardViewConfig{
+		Tickets: tickets, IsConfigured: func() bool { return true },
+		Actions: &BoardActions{
+			Members: func() []SelectOption {
+				return []SelectOption{{Label: "Bob Builder", Value: "bob"}, {Label: "Alice", Value: "alice"}}
+			},
+			OnTransfer: func(_, to string) error { transferred = to; return nil },
+		},
+	})
+	content := tview.NewFlex()
+	app := runApp(t, content)
+	sh := &choosingShell{choice: "bob"}
+	onLoop(app, func() {
+		board.Mount(content, app)
+		board.SetShell(sh)
+		board.populateColumns(tickets, board.allColumns)
+		board.transferTicket()
+	})
+	require.Eventually(t, func() bool {
+		var n int
+		onLoop(app, func() { sh.mu.Lock(); n = len(sh.toasts); sh.mu.Unlock() })
+		return n > 0
+	}, 3*time.Second, 20*time.Millisecond)
+	onLoop(app, board.Unmount)
+	sh.mu.Lock()
+	defer sh.mu.Unlock()
+	assert.Equal(t, "bob", transferred, "the ID is what the action takes")
+	assert.Contains(t, sh.toasts[0], "Bob Builder")
+	assert.NotContains(t, sh.toasts[0], "bob")
 }
