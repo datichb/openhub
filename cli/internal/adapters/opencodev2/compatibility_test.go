@@ -27,7 +27,7 @@ func TestCheckVersion(t *testing.T) {
 func TestOhMinorVersionsHaveAnEntry(t *testing.T) {
 	var m compatMatrix
 	require.NoError(t, json.Unmarshal(compatibilityJSON, &m))
-	for _, minor := range []string{"5.0", "5.1"} {
+	for _, minor := range []string{"5.0", "5.1", "5.2"} {
 		r, ok := m.OhVersions[minor]
 		require.True(t, ok, "oh %s has no entry in compatibility.json", minor)
 		assert.Equal(t, r, SupportedRange(minor+".0"))

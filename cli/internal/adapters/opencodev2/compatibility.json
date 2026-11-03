@@ -17,6 +17,12 @@
       "opencode_max": "2.99.99",
       "opencode_recommended": "2.0.25",
       "notes": "Même plage que la 5.0 ; opencode V2 uniquement"
+    },
+    "5.2": {
+      "opencode_min": "2.0.0",
+      "opencode_max": "2.99.99",
+      "opencode_recommended": "2.0.25",
+      "notes": "Même plage que la 5.1 ; opencode V2 uniquement"
     }
   }
 }
