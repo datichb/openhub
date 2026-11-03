@@ -3,6 +3,8 @@ package cmd
 import (
 	"context"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -103,4 +105,26 @@ func (noPrefs) List(context.Context, string) ([]domain.Preference, error)  { ret
 
 func testTUIStart() *tuiStart {
 	return &tuiStart{a: application, prefs: prefsvc.New(noPrefs{}, nil)}
+}
+
+// The catalogue names the team and the member (the drafts are « Mes brouillons
+// (Alice Martin) ») where the service gives their IDs.
+func TestCatalogDataNamesTheTeamAndTheMember(t *testing.T) {
+	env := setupWorkflowCLI(t, "alice")
+	require.NoError(t, os.WriteFile(filepath.Join(env.clones["alice"], "members.toml"), []byte("[members.alice]\ndisplay_name = \"Alice Martin\"\n"), 0o644))
+
+	data, err := loadCatalogData(t.Context(), testTUIStart())
+	require.NoError(t, err)
+	assert.Equal(t, "acme", data.Team, "a team without a name is its ID")
+	assert.Equal(t, "Alice Martin", data.Member)
+
+	application.Config.Teams[0].Name = "ACME Corp"
+	data, err = loadCatalogData(t.Context(), testTUIStart())
+	require.NoError(t, err)
+	assert.Equal(t, "ACME Corp", data.Team)
+
+	require.NoError(t, os.WriteFile(filepath.Join(env.clones["alice"], "members.toml"), []byte("[members.bob]\ndisplay_name = \"Bob\"\n"), 0o644))
+	data, err = loadCatalogData(t.Context(), testTUIStart())
+	require.NoError(t, err)
+	assert.Equal(t, "alice", data.Member, "a member the team does not list is their ID")
 }
