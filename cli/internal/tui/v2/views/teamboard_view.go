@@ -715,10 +715,10 @@ func (v *TeamBoardView) buildProjectTabs(tickets []TeamTicket) {
 			continue
 		}
 		pn := projectName{Name: t.ProjectName}
-		switch {
-		case pn.Name == "":
+		switch pn.Name {
+		case "":
 			pn.Name = t.Project
-		case pn.Name == t.Project:
+		case t.Project:
 			pn.Unknown = true
 		}
 		names[t.Project] = pn
