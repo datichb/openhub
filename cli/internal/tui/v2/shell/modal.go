@@ -9,6 +9,7 @@ import (
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
@@ -124,14 +125,7 @@ func (s *Shell) buildModalFrame(cfg modalConfig) (result tview.Primitive, result
 		frame.AddItem(sep, 1, 0, false)
 
 		// Button bar (centered)
-		buttonBar, buttonFocusables := buildButtonBar(cfg.Actions, func() {
-			s.pages.RemovePage(cfg.PageName)
-			if cfg.FocusReturn != nil {
-				s.app.SetFocus(cfg.FocusReturn)
-			} else {
-				s.app.SetFocus(s.content)
-			}
-		})
+		buttonBar, buttonFocusables := buildButtonBar(cfg.Actions, func() { s.closeModal(cfg) })
 		frame.AddItem(buttonBar, 1, 0, false)
 		focusables = append(focusables, buttonFocusables...)
 
@@ -140,63 +134,71 @@ func (s *Shell) buildModalFrame(cfg modalConfig) (result tview.Primitive, result
 		frame.AddItem(pad, 1, 0, false)
 	}
 
-	// ── Focus cycling (the focused element is read from the app, so a mouse
-	// click keeps it in sync) ──
-	if len(focusables) > 1 {
-		frame.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-			cur := focusIndex(s.app, focusables)
-			switch event.Key() {
-			case tcell.KeyTab, tcell.KeyBacktab:
-				// Cycle through the content and every button.
-				next := cur + 1
-				if event.Key() == tcell.KeyBacktab {
-					next = cur - 1
-					if cur < 0 {
-						next = 0
-					}
+	// ── Keys: Esc closes the modal, with or without buttons (a reader has
+	// none); the focus cycling needs the content and at least a button. The
+	// focused element is read from the app, so a mouse click keeps it in sync.
+	frame.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if keys.Back.Matches(event) {
+			s.closeModal(cfg)
+			return nil
+		}
+		if len(focusables) < 2 {
+			return event
+		}
+		cur := focusIndex(s.app, focusables)
+		switch event.Key() {
+		case tcell.KeyTab, tcell.KeyBacktab:
+			// Cycle through the content and every button.
+			next := cur + 1
+			if event.Key() == tcell.KeyBacktab {
+				next = cur - 1
+				if cur < 0 {
+					next = 0
 				}
-				s.app.SetFocus(focusables[(next+len(focusables))%len(focusables)])
-				return nil
-			case tcell.KeyDown:
-				// ↓ scrolls a text or moves in a list; from other content
-				// (an input…) it reaches the buttons.
-				if cur == 0 && !scrollsVertically(cfg.Content) {
-					s.app.SetFocus(focusables[1])
-					return nil
-				}
-			case tcell.KeyUp:
-				// ↑ from a button → back to the content
-				if cur > 0 {
-					s.app.SetFocus(focusables[0])
-					return nil
-				}
-			case tcell.KeyLeft, tcell.KeyRight:
-				// ←/→ navigate between buttons when focus is on a button
-				if cur > 0 {
-					btnCount := len(focusables) - 1 // exclude content (index 0)
-					btnIdx := cur - 1
-					if event.Key() == tcell.KeyLeft {
-						btnIdx = (btnIdx - 1 + btnCount) % btnCount
-					} else {
-						btnIdx = (btnIdx + 1) % btnCount
-					}
-					s.app.SetFocus(focusables[btnIdx+1])
-					return nil
-				}
-			case tcell.KeyEscape:
-				s.pages.RemovePage(cfg.PageName)
-				if cfg.FocusReturn != nil {
-					s.app.SetFocus(cfg.FocusReturn)
-				} else {
-					s.app.SetFocus(s.content)
-				}
+			}
+			s.app.SetFocus(focusables[(next+len(focusables))%len(focusables)])
+			return nil
+		case tcell.KeyDown:
+			// ↓ scrolls a text or moves in a list; from other content
+			// (an input…) it reaches the buttons.
+			if cur == 0 && !scrollsVertically(cfg.Content) {
+				s.app.SetFocus(focusables[1])
 				return nil
 			}
-			return event
-		})
-	}
+		case tcell.KeyUp:
+			// ↑ from a button → back to the content
+			if cur > 0 {
+				s.app.SetFocus(focusables[0])
+				return nil
+			}
+		case tcell.KeyLeft, tcell.KeyRight:
+			// ←/→ navigate between buttons when focus is on a button
+			if cur > 0 {
+				btnCount := len(focusables) - 1 // exclude content (index 0)
+				btnIdx := cur - 1
+				if event.Key() == tcell.KeyLeft {
+					btnIdx = (btnIdx - 1 + btnCount) % btnCount
+				} else {
+					btnIdx = (btnIdx + 1) % btnCount
+				}
+				s.app.SetFocus(focusables[btnIdx+1])
+				return nil
+			}
+		}
+		return event
+	})
 
 	return frame, focusables
+}
+
+// closeModal removes the modal and gives the focus back to where it came from.
+func (s *Shell) closeModal(cfg modalConfig) {
+	s.pages.RemovePage(cfg.PageName)
+	if cfg.FocusReturn != nil {
+		s.app.SetFocus(cfg.FocusReturn)
+	} else {
+		s.app.SetFocus(s.content)
+	}
 }
 
 // focusIndex is the index of the focusable that has the focus (or contains

@@ -48,12 +48,17 @@ func (s *Shell) ShowScrollableModal(title, content string, actions []views.Modal
 	textView := tview.NewTextView().SetText(content)
 	styleScrollableText(textView)
 
+	hints := i18n.T("tui.modal.hints.scrollable")
+	if len(actions) == 0 {
+		hints = i18n.T("tui.modal.hints.reader")
+	}
+
 	s.showModal(modalConfig{
 		Title:        title,
 		Content:      textView,
 		Actions:      actions,
 		Size:         modalSizeHint{ContentLines: countLines(content), HasButtons: len(actions) > 0, ButtonCount: len(actions), ProportionalWidth: -4},
-		Hints:        i18n.T("tui.modal.hints.scrollable"),
+		Hints:        hints,
 		LightDismiss: true,
 		PageName:     "inline-overlay",
 		FocusReturn:  s.content,
