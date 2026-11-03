@@ -269,13 +269,13 @@ func TestMatchClaimsRehomes(t *testing.T) {
 	})
 }
 
-func TestClaimsReportIsNeverGreenWithClaimsUnderAnUnknownID(t *testing.T) {
+func TestClaimsReportIsNeverSilentOnClaimsUnderAnUnknownID(t *testing.T) {
 	i18ntest.Set(t, "en")
 	assert.True(t, claimsReport(nil, nil, nil).OK)
 
 	only := []claimsRehome{{From: "old-12345678", To: domain.Project{ID: "new", Name: "new"}, Evidence: claimEvidenceName, Conflicts: []string{"SRU-1"}}}
 	res := claimsReport(nil, only, nil)
-	assert.False(t, res.OK)
+	assert.True(t, res.OK && res.Warn, "a warning: nothing to attach")
 	assert.Equal(t, doctorIDClaimsUnknown, res.ID, "nothing to attach: no repair")
 	assert.Contains(t, res.Detail, "oh team release SRU-1 -p old-12345678")
 
@@ -287,7 +287,7 @@ func TestClaimsReportIsNeverGreenWithClaimsUnderAnUnknownID(t *testing.T) {
 	assert.Contains(t, res.Detail, "oh doctor --fix")
 
 	res = claimsReport(nil, nil, []claimsUnresolved{{From: "old-12345678", Candidates: []string{"a", "b"}, Tickets: []string{"SRU-1"}}})
-	assert.False(t, res.OK)
+	assert.True(t, res.OK && res.Warn, "a warning: nothing to attach")
 	assert.Equal(t, doctorIDClaimsUnknown, res.ID)
 }
 
@@ -363,7 +363,7 @@ func TestClaimsCheckReportsWithoutProposingWhenTheTeamHasTwoProjects(t *testing.
 
 	res := claimsDoctorChecks(ctx)
 	require.Len(t, res, 1)
-	assert.False(t, res[0].OK, "never green on claims of an unknown ID")
+	assert.True(t, res[0].OK && res[0].Warn, "a warning, never silent, on claims of an unknown ID")
 	assert.Equal(t, doctorIDClaimsUnknown, res[0].ID, "nothing to repair")
 	assert.Contains(t, res[0].Detail, "t-sru-b267fbf1")
 	assert.Contains(t, res[0].Detail, "SRU-1, SRU-2, SRU-3, SRU-4, SRU-5")
@@ -388,7 +388,7 @@ func TestClaimsCheckRefusesTheOnlyProjectWhenAMergeRequestContradicts(t *testing
 
 	res := claimsDoctorChecks(ctx)
 	require.Len(t, res, 1)
-	assert.False(t, res[0].OK)
+	assert.True(t, res[0].OK && res[0].Warn)
 	assert.Equal(t, doctorIDClaimsUnknown, res[0].ID)
 	assert.Contains(t, res[0].Detail, "t-sru-b267fbf1")
 	found, _ := findClaimsRehomes(ctx, TryApp())

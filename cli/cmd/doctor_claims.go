@@ -98,8 +98,9 @@ func claimsDoctorChecks(ctx context.Context) []doctor.Result {
 func claimsCheck(orphans []orphanClaim) doctor.Result { return claimsReport(orphans, nil, nil) }
 
 // claimsReport is the result of the claims check: the orphan claims of the
-// member and the claims under an ID no project has any more. Neither leaves
-// the check green.
+// member and the claims under an ID no project has any more. Orphans and
+// claims that --fix can attach fail the check; claims under an unknown ID that
+// nothing attaches only warn.
 func claimsReport(orphans []orphanClaim, found []claimsRehome, unresolved []claimsUnresolved) doctor.Result {
 	res := orphanClaimsResult(orphans)
 	detail, repairable := claimsProjectDetail(found, unresolved)
@@ -114,6 +115,13 @@ func claimsReport(orphans []orphanClaim, found []claimsRehome, unresolved []clai
 		res.Detail = detail
 	} else {
 		res.Detail += " — " + detail
+	}
+	if !repairable && res.OK {
+		// Claims under an ID no project of this machine has may belong to a
+		// project that lives on another machine: a warning, not a failure
+		// that would change the exit code of oh doctor.
+		res.Warn = true
+		return res
 	}
 	res.OK = false
 	return res
