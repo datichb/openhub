@@ -32,8 +32,12 @@ type BeadsSummary struct {
 
 // TeamBoardViewConfig holds the data for the team board inside the shell.
 type TeamBoardViewConfig struct {
-	Tickets     []TeamTicket
-	Members     []string
+	Tickets []TeamTicket
+	// MemberID returns the ID of the member who works on the board (the one of
+	// the active team): « Mes tickets » keeps the tickets they hold
+	// (TeamTicket.AssigneeID). Nil or empty when unknown: the filter says so
+	// instead of showing an empty board.
+	MemberID    func() string
 	RefreshFunc func() []TeamTicket
 	RefreshRate time.Duration
 	// SyncFunc performs a git pull on the team-state repo and returns any error.
@@ -106,6 +110,7 @@ type TeamBoardView struct {
 	allTickets     []TeamTicket // all tickets from RefreshFunc (unfiltered)
 	filterText     string       // text search filter (matches ID, title, assignee)
 	filterAssignee string       // filter by specific assignee
+	filterOwner    ownerFilter  // filter by who holds the ticket: me, or nobody (the pool)
 	filterLabel    string       // filter by specific label
 
 	// Project tabs
@@ -160,7 +165,7 @@ func (v *TeamBoardView) StatusHints() string {
 		projectsHint(), keys.Filter.Hint(),
 		teamClaimKey.Hint(), releaseKey.Hint(),
 		teamTransferKey.Hint(), teamStatusKey.Hint(), keys.Refresh.Hint())
-	if v.filterText != "" || v.filterAssignee != "" || v.filterLabel != "" {
+	if v.filtered() {
 		hints += " · " + theme.Paint(theme.WarningHex, i18n.T("tui.hints.filtered"))
 	}
 	return hints
@@ -505,9 +510,31 @@ func (v *TeamBoardView) populateColumns(tickets []TeamTicket, columns []BoardCol
 	}
 }
 
+// ownerFilter keeps the tickets by who holds them.
+type ownerFilter int
+
+const (
+	ownerAny  ownerFilter = iota
+	ownerMine             // the tickets of the member who works on the board
+	ownerPool             // the tickets nobody holds, to take with the take key
+)
+
+// memberID is the member who works on the board ("" when unknown).
+func (v *TeamBoardView) memberID() string {
+	if v.cfg.MemberID == nil {
+		return ""
+	}
+	return v.cfg.MemberID()
+}
+
+// filtered reports whether a filter is active on the board.
+func (v *TeamBoardView) filtered() bool {
+	return v.filterText != "" || v.filterAssignee != "" || v.filterLabel != "" || v.filterOwner != ownerAny
+}
+
 // applyFilters returns the subset of tickets matching all active filters.
 func (v *TeamBoardView) applyFilters(tickets []TeamTicket) []TeamTicket {
-	if v.filterText == "" && v.filterAssignee == "" && v.filterLabel == "" {
+	if !v.filtered() {
 		return tickets
 	}
 
@@ -518,6 +545,17 @@ func (v *TeamBoardView) applyFilters(tickets []TeamTicket) []TeamTicket {
 		// Assignee filter
 		if v.filterAssignee != "" && t.Assignee != v.filterAssignee {
 			continue
+		}
+		// Owner filter: the member's own tickets, or the pool
+		switch v.filterOwner {
+		case ownerMine:
+			if me := v.memberID(); t.AssigneeID == "" || t.AssigneeID != me {
+				continue
+			}
+		case ownerPool:
+			if t.AssigneeID != "" {
+				continue
+			}
 		}
 		// Label filter
 		if v.filterLabel != "" {
@@ -1112,6 +1150,7 @@ func (v *TeamBoardView) showFilterMenu() {
 	options := []SelectOption{
 		{Label: i18n.T("tui.teamboard.filter_text"), Value: "_text"},
 		{Label: i18n.T("tui.teamboard.filter_my_tickets"), Value: "_mine"},
+		{Label: i18n.T("tui.teamboard.filter_unassigned"), Value: "_pool"},
 		{Label: i18n.T("tui.teamboard.filter_by_assignee"), Value: "_assignee"},
 		{Label: i18n.T("tui.teamboard.filter_by_label"), Value: "_label"},
 		{Label: i18n.T("tui.teamboard.filter_clear"), Value: "_clear"},
@@ -1122,12 +1161,17 @@ func (v *TeamBoardView) showFilterMenu() {
 		case "_text":
 			v.showSearchFilter()
 		case "_mine":
-			// Use the MemberID from the config if available via Members
-			if len(v.cfg.Members) > 0 {
-				v.filterAssignee = v.cfg.Members[0] // first member is self by convention
+			if v.memberID() == "" {
+				v.shell.ShowToastMsg(i18n.T("tui.teamboard.filter_mine_unknown"), false)
+				return
 			}
+			v.filterOwner, v.filterAssignee = ownerMine, ""
 			v.repopulateWithFilters()
 			v.shell.ShowToastMsg(i18n.T("tui.teamboard.filter_mine_applied"), true)
+		case "_pool":
+			v.filterOwner, v.filterAssignee = ownerPool, ""
+			v.repopulateWithFilters()
+			v.shell.ShowToastMsg(i18n.T("tui.teamboard.filter_unassigned_applied"), true)
 		case "_assignee":
 			v.showAssigneeFilter()
 		case "_label":
@@ -1162,7 +1206,7 @@ func (v *TeamBoardView) showAssigneeFilter() {
 	}
 
 	v.shell.ShowSelectModal(i18n.T("tui.teamboard.filter_assignee_title"), options, "", func(assignee string) {
-		v.filterAssignee = assignee
+		v.filterAssignee, v.filterOwner = assignee, ownerAny
 		v.repopulateWithFilters()
 		v.shell.ShowToastMsg(i18n.Tf("tui.teamboard.filter_assignee_applied", assignee), true)
 	})
@@ -1186,6 +1230,7 @@ func (v *TeamBoardView) showLabelFilter() {
 func (v *TeamBoardView) clearFilters() {
 	v.filterText = ""
 	v.filterAssignee = ""
+	v.filterOwner = ownerAny
 	v.filterLabel = ""
 	v.repopulateWithFilters()
 	if v.shell != nil {

@@ -19,11 +19,14 @@ type BoardTicket struct {
 
 // TeamTicket extends BoardTicket with team assignment and label info.
 type TeamTicket struct {
-	ID          string
-	Title       string
-	Status      string
-	Priority    string
-	Assignee    string
+	ID       string
+	Title    string
+	Status   string
+	Priority string
+	Assignee string
+	// AssigneeID is the ID of the member who holds the claim; empty for a
+	// ticket of the pool (no owner, to take with the take key).
+	AssigneeID  string
 	Project     string // directory-based ID (used for filtering)
 	ProjectName string // human-friendly display name (ADR-032)
 	Description string
@@ -102,6 +105,7 @@ func FetchTeamTicketsWithColumns(ctx context.Context, repo TeamTicketSource, res
 			ProjectName: projName,
 			Status:      status,
 			Assignee:    name,
+			AssigneeID:  c.ClaimedBy,
 			Labels:      c.Labels,
 			Description: c.Description,
 			MRURL:       c.MRURL,

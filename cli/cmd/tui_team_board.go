@@ -110,6 +110,7 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 
 	return views.TeamBoardViewConfig{
 		Tickets:            initialTickets,
+		MemberID:           func() string { return a.Config.ActiveTeam().MemberID },
 		RefreshRate:        5 * time.Second,
 		LabelStatusMapping: labelStatusMapping,
 		BoardConfig:        boardConfig,
