@@ -114,7 +114,7 @@ func bareGoStatements(t *testing.T, fset *token.FileSet, path string) []token.Po
 			switch {
 			case sel.Sel.Name == "AfterFunc" && isIdent && timeNames[pkg.Name]:
 				out = append(out, fset.Position(n.Pos()))
-			case sel.Sel.Name == "Go" && !(isIdent && safegoNames[pkg.Name]):
+			case sel.Sel.Name == "Go" && (!isIdent || !safegoNames[pkg.Name]):
 				if len(n.Args) != 1 || !isSafegoCall(n.Args[0], safegoNames) {
 					out = append(out, fset.Position(n.Pos()))
 				}
