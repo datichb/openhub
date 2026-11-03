@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -157,6 +158,36 @@ func TestClaimsClosedSourceIsNotAFailureWithoutBeads(t *testing.T) {
 	closed, err := claimsClosedSource(t.TempDir())("T-1")
 	assert.False(t, closed)
 	assert.NoError(t, err, "a project that keeps its tickets in a tracker has no status to read")
+}
+
+func TestUnknownTicketsAreNotFailuresButOtherErrorsAre(t *testing.T) {
+	notFound := errors.New("bd show: warning: beads.role not configured\nFix: git config beads.role maintainer\nIssue 491 not found\nHint: try 'bd history 491'")
+	read := func(id string) (bool, error) {
+		switch id {
+		case "491":
+			return false, notFound
+		case "closed":
+			return true, nil
+		}
+		return false, errUnreadable
+	}
+	present, absent := func() error { return nil }, func() error { return errors.New("bd not found in PATH") }
+
+	src := unknownTicketsAreNotFailures(read, present)
+	closed, err := src("491")
+	assert.False(t, closed)
+	assert.NoError(t, err, "a tracker issue Beads does not know has no status to read")
+	closed, err = src("closed")
+	assert.True(t, closed)
+	assert.NoError(t, err)
+	_, err = src("other")
+	assert.ErrorIs(t, err, errUnreadable, "any other error stays a failure")
+
+	_, err = unknownTicketsAreNotFailures(read, absent)("491")
+	assert.Error(t, err, "bd missing: nothing was read")
+
+	assert.Equal(t, "bd show: warning: beads.role not configured Fix: git config beads.role maintainer Issue 491 not found Hint: try 'bd history 491'", oneLine(notFound))
+	assert.LessOrEqual(t, len([]rune(oneLine(errors.New(strings.Repeat("x", 500))))), 201)
 }
 
 func TestOrphanListNamesTheProjectNextToItsID(t *testing.T) {

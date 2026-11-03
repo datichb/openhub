@@ -114,7 +114,7 @@ func claimsDoctorChecks(ctx context.Context) []doctor.Result {
 		orphans = append(orphans, found...)
 		if len(closed.tickets) > 0 {
 			unverified = append(unverified, i18n.Tf("cmd.doctor.claims.unverified.closed", claimProjectLabel(p.ID, p.Name),
-				len(closed.tickets), shortList(closed.tickets), closed.first))
+				len(closed.tickets), shortList(closed.tickets), oneLine(closed.first)))
 		}
 	}
 	if !teamed {
@@ -127,12 +127,38 @@ func claimsDoctorChecks(ctx context.Context) []doctor.Result {
 
 // claimsClosedSource reads the status of the tickets in the Beads database of
 // the project. A project without Beads keeps its tickets elsewhere (the
-// tracker): there is no status to read, which is not a failed read.
+// tracker): there is no status to read, which is not a failed read. Neither is
+// a ticket Beads does not know (a claim on a tracker issue in a project that
+// also uses Beads).
 func claimsClosedSource(projectPath string) ticketClosed {
 	if !beads.IsInitialized(projectPath) {
 		return func(string) (bool, error) { return false, nil }
 	}
-	return beadsClosed(projectPath)
+	return unknownTicketsAreNotFailures(beadsClosed(projectPath), beads.Available)
+}
+
+// unknownTicketsAreNotFailures turns the answer « Issue <id> not found » of bd
+// into « not closed, nothing to read ». bd missing or any other error stays an
+// error.
+func unknownTicketsAreNotFailures(read ticketClosed, available func() error) ticketClosed {
+	return func(id string) (bool, error) {
+		closed, err := read(id)
+		if err != nil && available() == nil &&
+			strings.Contains(strings.ToLower(err.Error()), strings.ToLower("issue "+id+" not found")) {
+			return false, nil
+		}
+		return closed, err
+	}
+}
+
+// oneLine is an error on one line, cut short: bd prints advice on several
+// lines.
+func oneLine(err error) string {
+	s := strings.Join(strings.Fields(err.Error()), " ")
+	if r := []rune(s); len(r) > 200 {
+		s = string(r[:200]) + "…"
+	}
+	return s
 }
 
 // closedFailures remembers the tickets whose status could not be read: the
