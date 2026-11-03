@@ -33,7 +33,7 @@ type AgentFrontmatter struct {
 	SkillsFromCallers bool `yaml:"skills_from_callers"`
 	// ProjectInstructions is how the project instruction files reach the
 	// prompt of the agent: full (default), index (titles and the wiki
-	// index) or none (modernisation L7).
+	// index) or none.
 	ProjectInstructions string `yaml:"project_instructions"`
 }
 

@@ -142,7 +142,7 @@ func TestMermaidBlocksExtraction(t *testing.T) {
 	}
 }
 
-// P0.7: the diagrams are Mermaid, embedded in the docs; no SVG rendered by
+// The diagrams are Mermaid, embedded in the docs; no SVG rendered by
 // hand is left to go stale.
 func TestNoDiagramSVG(t *testing.T) {
 	root := repoRoot(t)

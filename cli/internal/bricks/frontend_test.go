@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// A8: frontend detection used to ship the frontend domain skills.
+// Frontend detection used to ship the frontend domain skills.
 func TestHasFrontend(t *testing.T) {
 	t.Parallel()
 	mk := func(files map[string]string) string {

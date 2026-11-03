@@ -55,7 +55,7 @@ const (
 	MethodTerminal Method = "terminal"
 	MethodTmux     Method = "tmux"
 	// MethodFocused: the window of a client already attached was brought
-	// back to the front, nothing was opened (A43).
+	// back to the front, nothing was opened.
 	MethodFocused Method = "focused"
 )
 
@@ -63,7 +63,7 @@ const (
 //
 // auto: the terminal oh runs in first (iTerm2 or Terminal.app), then the other
 // macOS terminal if installed, then tmux when inside a tmux session. An
-// explicit preference comes first, then the rest of the auto chain (I2: an
+// explicit preference comes first, then the rest of the auto chain (an
 // unavailable method passes to the next one); iTerm2 is left out when it is
 // not installed (AppleScript would ask where the application is).
 func Chain(p Pref) []Method {

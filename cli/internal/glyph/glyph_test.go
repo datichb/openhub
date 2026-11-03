@@ -38,7 +38,7 @@ func TestSymbolTable(t *testing.T) {
 }
 
 // U-09: a symbol means one thing (✔ finished and stopped, ⏸ waiting and
-// checkpoint, ✗ three meanings were the ambiguities). Since v5.1 the table of
+// checkpoint, ✗ three meanings were the ambiguities). The table of
 // meanings is part of it: a run state or a decision kind may take a symbol of
 // that table only for its own meaning (TestStatesShareOnlyTheirMeaning), so
 // ⊗ (a run that stopped on a failure) is not ✗ (a one-off error), ◌ (asleep)

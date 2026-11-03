@@ -52,7 +52,7 @@ func trappedRepo(t *testing.T) (repo, marks string) {
 	return repo, marks
 }
 
-// N5 (v5 critical): the git calls of oh never run the programs a repository
+// The git calls of oh never run the programs a repository
 // configuration names.
 func TestSafeGitIgnoresRepoConfig(t *testing.T) {
 	repo, marks := trappedRepo(t)
@@ -116,7 +116,7 @@ func TestIsolatedArgs(t *testing.T) {
 		"GIT_CONFIG_GLOBAL=" + os.DevNull, "GIT_ASKPASS=/s"}, env)
 }
 
-// N5: a change of the repository configuration or hooks after the session
+// A change of the repository configuration or hooks after the session
 // started is detected.
 func TestCheckDetectsTamperedConfig(t *testing.T) {
 	SetTrustDir(t.TempDir())
@@ -163,7 +163,7 @@ func TestCheckDetectsTamperedConfig(t *testing.T) {
 	assert.Error(t, Check(ctx, wt), "pointer file redirected")
 }
 
-// R6: each worktree keeps its own record. Sessions started in two worktrees
+// Each worktree keeps its own record. Sessions started in two worktrees
 // of the same repository (a fan-out) do not make each other look changed;
 // a change of the shared configuration is still seen by both.
 func TestTrustPerWorktree(t *testing.T) {

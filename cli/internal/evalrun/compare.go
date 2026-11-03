@@ -8,7 +8,7 @@ import (
 
 // Verdicts of a comparison between the reference variant (the first one,
 // which holds what is evaluated, a skill for instance) and another variant
-// (without it). The rule (P4): a gain is at least +1/3 of pass rate on a
+// (without it). The rule: a gain is at least +1/3 of pass rate on a
 // case without a drop elsewhere, or the same pass rate and a mean cost at
 // least 10 % lower; a gap of a single pass is ambiguous (run ×3 more).
 const (

@@ -271,7 +271,7 @@ func TestLoadCases(t *testing.T) {
 }
 
 // The shipped cases load, S1 to S10 are there and active; S8 runs with the
-// reports turned off (fallback on the whole report, L4).
+// reports turned off (fallback on the whole report).
 func TestShippedCases(t *testing.T) {
 	cases, err := LoadCases(filepath.Join("..", "..", "..", "evals"))
 	require.NoError(t, err)

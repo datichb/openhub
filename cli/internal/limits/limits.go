@@ -1,4 +1,4 @@
-// Package limits resolves the optional session restrictions (I6): maximum
+// Package limits resolves the optional session restrictions: maximum
 // of working sessions, budget per session and per day, memory cap of the
 // tool servers, model allow-list. They are off by default and set in
 // cascade: hub (hub.toml [limits]) → team (config.toml [limits.recommended]
@@ -338,7 +338,7 @@ func floatStr(v float64) string {
 
 // BaselineFile is the usage a tool session reported when oh created it
 // without spending anything (a fork copies the history and its cost):
-// the ledger counts what is spent above it (v5 finalisation, Q3-6).
+// the ledger counts what is spent above it.
 const BaselineFile = "usage-baseline.json"
 
 // UsageBaseline is that reported usage.

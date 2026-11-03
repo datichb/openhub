@@ -18,7 +18,7 @@ import (
 	"sync"
 )
 
-// Safe git for oh (v5 critical N5, DC5). oh runs git on the machine in
+// Safe git for oh. oh runs git on the machine in
 // project repositories an agent may have written to (its shell, or a
 // container that mounts the repository): `core.fsmonitor`, hooks
 // (`post-checkout`…), `diff.external`, textconv drivers, `core.sshCommand`,
@@ -279,7 +279,7 @@ func Fingerprint(ctx context.Context, dir string) (common, fingerprint string, e
 // worktree of dir (the common directory for the main worktree). The files
 // of a linked worktree are part of its fingerprint, so that each worktree
 // keeps its own record: a session started in one worktree does not make
-// the sessions of the others look changed (R6, fan-out).
+// the sessions of the others look changed (fan-out).
 func fingerprintFiles(ctx context.Context, dir string) (common, key, fingerprint string, files map[string]string, err error) {
 	common = commonDir(ctx, dir)
 	if common == "" {

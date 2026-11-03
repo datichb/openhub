@@ -392,7 +392,7 @@ func countingUpstream(t *testing.T) (*httptest.Server, *atomic.Int32) {
 	return up, &hits
 }
 
-// M12: the stored hash of a token is not a credential.
+// The stored hash of a token is not a credential.
 func TestProxyRefusesTokenHash(t *testing.T) {
 	up, hits := countingUpstream(t)
 	p := startProxy(t)

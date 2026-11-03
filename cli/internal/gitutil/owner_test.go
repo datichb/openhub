@@ -26,7 +26,7 @@ func asRoot(t *testing.T, uid uint32) {
 	t.Cleanup(func() { geteuid, fileOwner = euid, owner; ResetOwners() })
 }
 
-// R3-remote-git: as root, git runs as the registered owner of the
+// As root, git runs as the registered owner of the
 // repository, with its folders and nothing of the configuration of oh.
 func TestCommandRunsAsTheOwner(t *testing.T) {
 	asRoot(t, 4242)

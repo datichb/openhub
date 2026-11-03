@@ -1,5 +1,5 @@
 // Package specdoc checks the specs written in the wiki of a project
-// (docs/wiki/specs/<slug>.md, modernisation R4): what oh verifies at the
+// (docs/wiki/specs/<slug>.md): what oh verifies at the
 // checkpoints of the workflow `spec` instead of trusting the agent.
 //
 // A spec has a glossary, acceptance criteria that each carry an id (CA-1)

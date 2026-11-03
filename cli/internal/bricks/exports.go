@@ -3,7 +3,7 @@
 // stack skills, budget estimates, project instruction files, MCP servers of
 // a project. Used by the session bundle (internal/bundle), the workflow
 // catalogue (workflow/hubcat) and the CLI; it holds what remained of the
-// former per-project deployment (internal/deploy, removed in v5, P3-T24).
+// former per-project deployment (internal/deploy, removed in v5).
 package bricks
 
 import (

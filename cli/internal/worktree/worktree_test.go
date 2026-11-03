@@ -135,7 +135,7 @@ func TestIsMerged_Integration(t *testing.T) {
 	assert.Error(t, err)
 }
 
-// N16: a branch checked out in a worktree is listed by `git branch --merged`
+// A branch checked out in a worktree is listed by `git branch --merged`
 // with a "+ " prefix, which the old parser missed; a fresh worktree branch was
 // cleaned up as merged.
 func TestIsMerged_WorktreeBranches(t *testing.T) {
@@ -198,7 +198,7 @@ func TestList_Integration(t *testing.T) {
 	assert.Len(t, entries, 2)
 }
 
-// A18: Stash keeps every change (tracked and untracked) recoverable.
+// Stash keeps every change (tracked and untracked) recoverable.
 func TestStash(t *testing.T) {
 	repoDir := t.TempDir()
 	gittest.Run(t, repoDir, "init", "-b", "main")
@@ -221,7 +221,7 @@ func TestStash(t *testing.T) {
 	assert.FileExists(t, filepath.Join(repoDir, "new.txt"))
 }
 
-// A23: a session starts from HEAD, or from a commit of the uncommitted
+// A session starts from HEAD, or from a commit of the uncommitted
 // changes found there (nothing stored, the tree untouched).
 func TestStartRef(t *testing.T) {
 	repoDir := t.TempDir()

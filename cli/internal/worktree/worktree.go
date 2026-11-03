@@ -420,8 +420,7 @@ func BranchExists(path, branch string) bool {
 // StartRef returns the commit a session starting at path starts from: a
 // commit of the uncommitted changes (`git stash create`, nothing stored)
 // when the tree is modified, else HEAD; "" outside git or without commit.
-// The results of the session are the difference from it (v5 corrections,
-// A23).
+// The results of the session are the difference from it.
 func StartRef(path string) string {
 	if path == "" {
 		return ""

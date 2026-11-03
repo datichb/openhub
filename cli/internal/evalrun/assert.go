@@ -24,9 +24,9 @@ const (
 	AssertTextMatches          = "text_matches"            // an agent wrote (or never wrote) a text
 	AssertCalled               = "called"                  // a tool was called (before an event)
 	AssertFileMatches          = "file_matches"            // a file changed in the clone holds a text
-	AssertOutput               = "output"                  // oh recorded (or the session declared) an output (R5)
-	AssertNext                 = "next"                    // oh proposes a workflow after the session (R5, next:)
-	AssertFanout               = "fanout"                  // an event of the fan-out of the session, at least count times (R6)
+	AssertOutput               = "output"                  // oh recorded (or the session declared) an output
+	AssertNext                 = "next"                    // oh proposes a workflow after the session (next:)
+	AssertFanout               = "fanout"                  // an event of the fan-out of the session, at least count times
 )
 
 // Assertion is a check of a case (`type:` and its parameters).
@@ -89,7 +89,7 @@ type Assertion struct {
 	// spec=… »); Absent inverts it.
 	Workflow string `yaml:"workflow" json:"workflow,omitempty"`
 
-	// fanout (R6): Event is the kind of the fan-out event (child, merged,
+	// fanout: Event is the kind of the fan-out event (child, merged,
 	// conflict, merger, resolved, ready, integrated, closed, budget,
 	// child_checkpoint…); Checkpoint and By restrict child_checkpoint (By
 	// "delegated": passed by delegation, CP-R3); Count is the minimum
@@ -874,7 +874,7 @@ func checkFileMatches(a Assertion, ev Evidence) (pass bool, detail string) {
 	return false, "not found in " + strings.Join(seen, ", ")
 }
 
-// checkFanout counts the fan-out events of the trace (R6).
+// checkFanout counts the fan-out events of the trace.
 func checkFanout(a Assertion, evs []sessionsvc.TraceEvent) (pass bool, detail string) {
 	n, traced := 0, false
 	for _, e := range evs {

@@ -11,7 +11,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/adapters"
 )
 
-// N18: which tool servers belong to nobody.
+// Which tool servers belong to nobody.
 func TestClassifyOrphans(t *testing.T) {
 	tmp := t.TempDir()
 	hub := filepath.Join(t.TempDir(), "oh")

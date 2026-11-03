@@ -22,7 +22,7 @@ func mkProject(t *testing.T, files map[string]string) string {
 	return dir
 }
 
-// C3.2: one signal per detection rule.
+// One signal per detection rule.
 func TestDetectSignals(t *testing.T) {
 	t.Parallel()
 	cases := []struct {

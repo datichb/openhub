@@ -1,5 +1,5 @@
 // Package sessionctx keeps the evolving state of a session known to its
-// entry agent (S8, option 2, QB8): checkpoints passed and current, remaining
+// entry agent (option 2): checkpoints passed and current, remaining
 // budget, resume instruction. Each entry goes through the adapter capability
 // (adapters.SessionContextSetter) and is written only when it changes: the
 // tool announces every change in the history, which invalidates the prompt

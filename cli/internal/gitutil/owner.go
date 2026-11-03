@@ -9,7 +9,7 @@ import (
 	"sync"
 )
 
-// Git as the owner of the repository (R3-remote-git). In a remote job oh
+// Git as the owner of the repository. In a remote job oh
 // runs as root and the clone belongs to the account of the agents: git
 // refuses to work in a repository of another owner (safe.directory), and
 // it is right to — the configuration of the repository is written by the

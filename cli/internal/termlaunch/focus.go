@@ -12,7 +12,7 @@ import (
 )
 
 // Location is where an interactive client runs: enough to bring its window
-// back to the front (A43: one session = one window).
+// back to the front (one session = one window).
 type Location struct {
 	Program  string `json:"program,omitempty"`   // $TERM_PROGRAM of the client terminal (iTerm.app, Apple_Terminal…)
 	TTY      string `json:"tty,omitempty"`       // terminal device of the client (/dev/ttys003)

@@ -9,7 +9,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/adapters"
 )
 
-// Reasons of an orphan tool server (N18).
+// Reasons of an orphan tool server.
 const (
 	OrphanTemp    = "temp"     // test or discovery server whose parent is gone
 	OrphanUnowned = "unowned"  // server of this hub that oh does not run any more

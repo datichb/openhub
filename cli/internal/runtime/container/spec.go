@@ -42,7 +42,7 @@ type Spec struct {
 	AddHosts  []string          `json:"add_hosts,omitempty"`
 	Host      string            `json:"host"`
 	Locations []string          `json:"locations"` // machine locations visible in the container
-	// Memory is the --memory limit of the container (N5-memory: "512m",
+	// Memory is the --memory limit of the container ("512m",
 	// "4g"; "" = none).
 	Memory string `json:"memory,omitempty"`
 }
@@ -149,8 +149,8 @@ func buildSpec(e Engine, in specInput, g ohruntime.Group, image, groupKey string
 		}
 	}
 
-	// The git files that make git run programs are read-only inside (v5
-	// critical N5, DC5): the git of the machine (oh, and the user after the
+	// The git files that make git run programs are read-only inside:
+	// the git of the machine (oh, and the user after the
 	// session) would run them.
 	// A file may be visible at several places (the project mount and the
 	// git common directory at its machine path): every view is covered.

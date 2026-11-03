@@ -50,7 +50,7 @@ func CheckHub(hub string, workflows []string) error {
 		seen[id] = true
 		ref := workflow.Ref{Layer: workflow.LayerHub, ID: id}
 		if target, ok := cat.ResolveAlias(id, nil); ok {
-			ref = target // R5: a case may launch an alias (cadrage → spec)
+			ref = target // a case may launch an alias (cadrage → spec)
 		}
 		r, diags := workflow.Check(cat, ref, nil, env)
 		if err := diags.Err(); err != nil {

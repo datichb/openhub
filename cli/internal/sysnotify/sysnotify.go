@@ -1,4 +1,4 @@
-// Package sysnotify shows desktop notifications (P3-T13): terminal-notifier
+// Package sysnotify shows desktop notifications: terminal-notifier
 // when installed (a click brings the terminal running oh back), else
 // osascript on macOS, notify-send on Linux. Texts must never contain
 // sensitive content (prompts, code, secrets).
