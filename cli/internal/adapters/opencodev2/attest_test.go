@@ -29,7 +29,7 @@ func TestSkillVisibleOnServerUsesServerRules(t *testing.T) {
 	assert.Empty(t, skillVisibleOnServer(agents[:1], b, "report"))
 }
 
-// L2: a bundle skill the server exposes to an agent outside its catalogue
+// A bundle skill the server exposes to an agent outside its catalogue
 // breaks the closed world of that agent.
 func TestOutsideCatalogue(t *testing.T) {
 	b := sessionspec.BundleSpec{

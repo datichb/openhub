@@ -33,7 +33,7 @@ const ConfigFileName = "config.json"
 
 // Render produces the opencode V2 configuration for a bundle.
 //
-// Closed world rules (D13):
+// Closed world rules:
 //   - every native agent (natives) is disabled;
 //   - skills: deny "*" then allow the bundle skills (hides built-in skills),
 //     and per agent deny "*" then allow its catalogue (AgentDef.Skills);
@@ -185,8 +185,8 @@ func agentRules(a sessionspec.AgentDef, b sessionspec.BundleSpec, bundleSkills [
 	if b.SkillsDir != "" {
 		rules = append(rules, sessionspec.PermissionRule{Action: ActionExternalDir, Resource: path.Join(b.SkillsDir, "*"), Effect: sessionspec.EffectAllow})
 	}
-	// Read only: the bundle is shared by every session of its hash (v5
-	// critical N23); its files are also read-only on disk.
+	// Read only: the bundle is shared by every session of its hash;
+	// its files are also read-only on disk.
 	for _, dir := range []string{b.Root, b.SkillsDir} {
 		if dir != "" {
 			rules = append(rules, sessionspec.PermissionRule{Action: sessionspec.ActionEdit, Resource: path.Join(dir, "*"), Effect: sessionspec.EffectDeny})
@@ -215,11 +215,11 @@ func AgentGuard(b sessionspec.BundleSpec) []sessionspec.PermissionRule {
 }
 
 // controlPlaneShell are the shell commands refused to every agent, last of
-// its rules, that would drive the tool server itself (v5 critical N2): its
+// its rules, that would drive the tool server itself: its
 // secrets and the API answering permissions and questions. The server
 // password never reaches the shell (plugin, scrubEnv); these rules guard
 // against mistakes and cheap tries, they are not a barrier (a pattern is
-// escaped by quotes, probe U2).
+// escaped by quotes).
 var controlPlaneShell = []string{
 	"*OPENCODE_SERVER_PASSWORD*", "*OPENCODE_CONFIG_CONTENT*",
 	"*/api/session/*/permission*", "*/api/permission*", "*/api/session/*/form*", "*/api/form*",

@@ -28,7 +28,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 )
 
-// Workflow harness (phase 3, checkpoints): a real oh binary for the
+// Workflow harness (checkpoints): a real oh binary for the
 // `workflow` MCP server, an isolated OH_HOME, and an in-process oh daemon
 // serving the CheckpointService.
 
@@ -90,7 +90,7 @@ func newWorkflowEnv(t *testing.T, a *Adapter) *workflowEnv {
 }
 
 // newJobWorkflowEnv is newWorkflowEnv with the daemon of a remote job
-// (p3-remote-wiki): the wiki is served, its proposals are never applied
+// : the wiki is served, its proposals are never applied
 // (no CommitPassed, wiki_apply refused).
 func newJobWorkflowEnv(t *testing.T, a *Adapter) *workflowEnv {
 	t.Helper()
@@ -112,7 +112,7 @@ func newWorkflowEnvFor(t *testing.T, a *Adapter, job bool) *workflowEnv {
 	e.decisions = sqlite.NewDecisionStore(st)
 	e.cp = &checkpoint.Service{Sessions: e.sessions, States: sqlite.NewCheckpointStore(st), SessionOutputs: sqlite.NewCheckpointStore(st), BundlesDir: e.bundles, SessionsDir: filepath.Join(home, "sessions")}
 	e.reports = &report.Service{Store: sqlite.NewReportStore(st), SessionsDir: filepath.Join(home, "sessions")}
-	// LD-J: proposals of the wiki MCP server, applied at the commit checkpoint.
+	// Proposals of the wiki MCP server, applied at the commit checkpoint.
 	e.wiki = &wiki.Service{Store: sqlite.NewWikiProposalStore(st), SessionsDir: filepath.Join(home, "sessions")}
 	if !job {
 		e.cp.CommitPassed = e.wiki.CommitPassed
@@ -123,7 +123,7 @@ func newWorkflowEnvFor(t *testing.T, a *Adapter, job bool) *workflowEnv {
 	done := make(chan error, 1)
 	go func() {
 		// Guarded like the real daemon (capability): the workflow routes
-		// need the group token (v5 critical N1).
+		// need the group token.
 		done <- daemon.Run(ctx, daemon.Options{Paths: paths, Version: "test", Servers: e.servers, Sessions: e.sessions, Capability: harnessCapability,
 			Decisions: e.decisions, Checkpoints: e.cp, Reports: e.reports, Wiki: e.wiki, WikiNoApply: job, Tick: 200 * time.Millisecond, IdleAfter: time.Hour, IdleSleep: time.Hour,
 			Adapter: func(name string) adapters.ToolAdapter {

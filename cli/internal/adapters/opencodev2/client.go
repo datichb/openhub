@@ -477,7 +477,7 @@ func (c *Client) CancelForm(ctx context.Context, sessionID, formID string) error
 }
 
 // PutInstructionEntry sets an instruction entry of a session (experimental
-// API, S8): announced to the session at its next step boundary.
+// API): announced to the session at its next step boundary.
 func (c *Client) PutInstructionEntry(ctx context.Context, sessionID, key string, value any) error {
 	return c.do(ctx, http.MethodPut, "/api/experimental/session/"+url.PathEscape(sessionID)+"/instructions/entries/"+url.PathEscape(key), nil, map[string]any{"value": value}, nil)
 }

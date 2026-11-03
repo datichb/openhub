@@ -56,7 +56,7 @@ func writeProjectWiki(t *testing.T, project string) string {
 	return page
 }
 
-// LD-J, review (no commit): the reviewer proposes through the wiki MCP
+// Review (no commit): the reviewer proposes through the wiki MCP
 // server, oh queues the proposal with the author it saw; nothing is
 // written in docs/wiki/ and the proposal stays queued (doc-sync).
 func TestE2EReviewQueuesWikiProposal(t *testing.T) {
@@ -98,7 +98,7 @@ func TestE2EReviewQueuesWikiProposal(t *testing.T) {
 	assert.Contains(t, r2text(t, ctx, c, id), "wp-1", "the coordinator passes the id on")
 }
 
-// LD-J, ticket: the proposal of the reviewer is on the card of the commit
+// Ticket: the proposal of the reviewer is on the card of the commit
 // checkpoint; validated there, oh applies it when the checkpoint is passed,
 // before the call returns (committed with the code).
 func TestE2ETicketAppliesValidatedWikiProposal(t *testing.T) {
@@ -171,7 +171,7 @@ func TestE2ETicketAppliesValidatedWikiProposal(t *testing.T) {
 	assert.True(t, strings.Contains(r2text(t, ctx, c, id), "docs/wiki/technical/conventions.md"), "the agent is told what to commit: %s", r2text(t, ctx, c, id))
 }
 
-// p3-remote-wiki, the daemon of a remote job: the reviewer reads and
+// The daemon of a remote job: the reviewer reads and
 // proposes through the wiki MCP server served on the clone; the commit
 // checkpoint passed in the job applies nothing (the clone is pushed as the
 // agents left it); the proposals exported for wiki.json are queued on the

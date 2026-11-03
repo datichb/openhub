@@ -255,7 +255,7 @@ type DecisionReply struct {
 // Control operation kinds.
 const (
 	ControlPrompt      = "prompt"       // user prompt (Text)
-	ControlSynthetic   = "synthetic"    // synthetic message (Text), S6
+	ControlSynthetic   = "synthetic"    // synthetic message (Text)
 	ControlInterrupt   = "interrupt"    // stop the running agent loop
 	ControlSwitchModel = "switch_model" // Model, for the next turns
 	ControlCompact     = "compact"      // compact the session history
@@ -291,7 +291,7 @@ type ChildLister interface {
 	Children(ctx context.Context, h ServerHandle) (map[string]string, error)
 }
 
-// Forker is implemented by adapters that can fork a session (S9): a new
+// Forker is implemented by adapters that can fork a session: a new
 // session with a copy of the history. It returns the new tool session ID.
 type Forker interface {
 	Fork(ctx context.Context, h ServerHandle, sessionID string) (string, error)
@@ -353,7 +353,7 @@ type TurnWaiter interface {
 }
 
 // SessionEnvSetter is implemented by adapters that can (re)apply the
-// session environment (S7) of an existing session. Tools may keep it in
+// session environment of an existing session. Tools may keep it in
 // memory only: it must be applied again after a server restart.
 type SessionEnvSetter interface {
 	SetSessionEnv(ctx context.Context, h ServerHandle, sessionID string, env map[string]string) error

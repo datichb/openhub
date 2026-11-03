@@ -20,7 +20,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/workflow/hubcat"
 )
 
-// A27 (piste T, T3): a short request of the user (shipped workflow quick,
+// A short request of the user (shipped workflow quick,
 // its real developer agent, Haiku) is carried out, never taken for a
 // prompt injection.
 func TestE2EQuickShortRequest(t *testing.T) {

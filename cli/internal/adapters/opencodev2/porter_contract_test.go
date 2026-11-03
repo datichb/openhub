@@ -14,7 +14,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
-// Remote runs (P5-T14, T16): a session exported from the job's server is
+// Remote runs: a session exported from the job's server is
 // imported on the machine's server at another location, with the same id.
 func TestContractSessionExportImport(t *testing.T) {
 	cfg := `{"agents":{"build":{"disabled":true},"plan":{"disabled":true},"general":{"disabled":true},"explore":{"disabled":true},` +

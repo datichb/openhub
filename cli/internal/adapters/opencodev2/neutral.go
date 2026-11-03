@@ -14,7 +14,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/adapters/opencodev2/deploycleanup"
 )
 
-// Neutral capabilities of the adapter (D19): what oh asks the tool through
+// Neutral capabilities of the adapter: what oh asks the tool through
 // the adapters interfaces, without naming it.
 
 var (
@@ -60,7 +60,7 @@ func ProviderID(hubProvider string) string {
 const BedrockProvider = "amazon-bedrock"
 
 // legacyVersionEnv is the variable that gave the opencode version of remote
-// job images before v5 finalisation (read during v5.0).
+// job images in oh 5.0 (still read).
 const legacyVersionEnv = "OH_OPENCODE_VERSION"
 
 // InstallLinux implements adapters.LinuxInstaller: the opencode Linux binary
@@ -126,7 +126,7 @@ var _ adapters.SessionContextSetter = (*Adapter)(nil)
 const maxContextValue = 256 << 10
 
 // SetSessionContext implements adapters.SessionContextSetter (instruction
-// entries, S8). A route missing on this server (404/405) is ErrUnsupported.
+// entries). A route missing on this server (404/405) is ErrUnsupported.
 func (a *Adapter) SetSessionContext(ctx context.Context, h adapters.ServerHandle, sessionID, key string, value any) error {
 	data, err := json.Marshal(value)
 	if err != nil {

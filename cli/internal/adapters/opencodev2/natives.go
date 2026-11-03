@@ -43,7 +43,7 @@ func DiscoverNatives(ctx context.Context, binary string) ([]string, error) {
 	}
 	defer func() { _ = srv.Stop(context.Background(), 3*time.Second) }()
 	// The server has its own process group: a Ctrl+C or a kill of oh would
-	// leave it running (N18). It is stopped first, then the signal goes on.
+	// leave it running. It is stopped first, then the signal goes on.
 	defer stopOnSignal(srv)()
 
 	agents, err := srv.Client.Agents(ctx, work)

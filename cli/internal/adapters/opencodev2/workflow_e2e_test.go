@@ -27,7 +27,7 @@ func e2eWorkflowRuntime() sessionspec.WorkflowRuntime {
 	}}
 }
 
-// workflow_checkpoint asked through the permission API (S3, P3-T01/T02):
+// workflow_checkpoint asked through the permission API:
 // the action name is `<server>_<tool>`, the MCP server identifies the
 // calling session from the request `_meta` and gets its answer from the
 // oh daemon.
@@ -92,7 +92,7 @@ func subagentError(t *testing.T, ctx context.Context, c *Client, id string) stri
 	return "none"
 }
 
-// Acceptance (07 §3, criterion 3) with the whole chain: oh daemon
+// Acceptance with the whole chain: oh daemon
 // (CheckpointService, session rules), oh plugin (level 3 hooks through the
 // credential proxy), workflow MCP server, SessionService resolver.
 //   - before cp-1, delegating to the locked agent is refused;

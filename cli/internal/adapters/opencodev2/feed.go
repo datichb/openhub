@@ -10,7 +10,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/textfmt"
 )
 
-// Live feed decoding (P3-T10): opencode V2 events → tool-agnostic feed items.
+// Live feed decoding: opencode V2 events → tool-agnostic feed items.
 // Event shapes observed on opencode 2.0.20 (session.step.started → agent,
 // session.text.ended → text, session.tool.input.started → tool name,
 // session.tool.called → input, session.tool.success|failed → status).

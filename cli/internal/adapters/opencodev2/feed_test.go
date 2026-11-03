@@ -86,12 +86,12 @@ func TestFeedToolCalls(t *testing.T) {
 
 	step(ev("session.tool.input.started", `{"sessionID":"s","id":"c3","name":"skill"}`))
 	c = step(ev("session.tool.called", `{"sessionID":"s","id":"c3","input":{"name":"dev-standards-go"}}`))
-	assert.Equal(t, "dev-standards-go", c.Skill, "QB2: skill loaded, for agent_events")
+	assert.Equal(t, "dev-standards-go", c.Skill, "skill loaded, for agent_events")
 
 	assert.Nil(t, step(ev("session.tool.success", `{"sessionID":"s","id":"unknown"}`)), "call started before the stream")
 	assert.Equal(t, "shell", NeutralAction("shell"))
 	assert.Equal(t, "workflow_checkpoint", ToolAction(sessionspec.MCPToolAction("workflow", sessionspec.WorkflowToolCheckpoint)),
-		"the model sees the name used by the agents (Q3-2)")
+		"the model sees the name used by the agents")
 	assert.Equal(t, sessionspec.MCPToolAction("workflow", "checkpoint"), NeutralAction("workflow_workflow_checkpoint"),
 		"a session started before the rename is still read")
 }

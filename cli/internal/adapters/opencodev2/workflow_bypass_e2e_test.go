@@ -21,7 +21,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
-// N1 (v5 critical): an agent cannot pass a paused checkpoint itself by
+// An agent cannot pass a paused checkpoint itself by
 // reaching the oh daemon socket; the checkpoint passes once the user
 // validates it in the tool UI (answer observed by oh), and the commit lock
 // opens only then.
@@ -92,7 +92,7 @@ func TestE2ECheckpointSocketBypassRefused(t *testing.T) {
 	assert.Contains(t, st.Unlocks, sessionspec.UnlockCommit)
 }
 
-// N2 (v5 critical): the shell of a session never sees the secrets of the
+// The shell of a session never sees the secrets of the
 // tool server, with or without a session environment (a sub-session before
 // oh adopts it, a session opened in the tool's own interface).
 func TestE2EShellEnvHidesServerSecrets(t *testing.T) {

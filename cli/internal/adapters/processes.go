@@ -17,7 +17,7 @@ type ServerProcess struct {
 }
 
 // ServerProcessLister finds the servers of the tool started by oh, to spot
-// those nobody owns any more (oh doctor, oh gc: N18). Optional capability:
+// those nobody owns any more (oh doctor, oh gc). Optional capability:
 // without it, orphans are not looked for.
 type ServerProcessLister interface {
 	ServerProcesses(ctx context.Context) ([]ServerProcess, error)

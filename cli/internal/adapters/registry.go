@@ -7,7 +7,7 @@ import (
 	"sync"
 )
 
-// The registry of tool adapters (D19): the composition root
+// The registry of tool adapters: the composition root
 // (cmd/v5_adapters.go) registers the implementations, everything else asks
 // the registry for a neutral ToolAdapter.
 
@@ -108,7 +108,7 @@ func (r *Registry) Detect(ctx context.Context) (ToolAdapter, ToolInfo, error) {
 
 // ── Optional capabilities (neutral; implemented by the adapters) ──────────
 
-// Pairer opens a session in a browser or on a phone (S11): a one-time
+// Pairer opens a session in a browser or on a phone: a one-time
 // pairing URL for the server.
 type Pairer interface {
 	PairURL(ctx context.Context, h ServerHandle) (string, error)
@@ -235,7 +235,7 @@ func (p *LegacyPlan) Apply() error {
 // provide (any more): the caller falls back.
 var ErrUnsupported = errors.New("not supported by the tool")
 
-// SessionContextSetter sets the evolving state of a session (S8): named
+// SessionContextSetter sets the evolving state of a session: named
 // entries the entry agent knows from its next step (checkpoints passed,
 // remaining budget, resume instruction). Keys match ^[a-z0-9][a-z0-9._-]*$;
 // values are JSON values. ErrUnsupported when the tool cannot (any more).

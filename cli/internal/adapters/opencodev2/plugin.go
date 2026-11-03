@@ -56,7 +56,7 @@ func installPlugin(dir string, b sessionspec.BundleSpec) error {
 }
 
 // hookOptions returns the plugin options that relay permission evaluations
-// to the oh daemon (level 3 checkpoints, P3-T05): the hooks are served on
+// to the oh daemon (level 3 checkpoints): the hooks are served on
 // the credential proxy listeners, authenticated by the session token the
 // server already holds (read from its environment, never written in the
 // config). Nil without a proxy.
@@ -78,7 +78,7 @@ func hookOptions(p sessionspec.ProviderSpec) map[string]any {
 }
 
 // serverSecretEnv are the variables of the server process that a shell
-// never gets (v5 critical N2): with the password an agent could answer its
+// never gets: with the password an agent could answer its
 // own permission requests through the API, with the inline config read or
 // replace its rules; the group token opens the oh workflow routes.
 func serverSecretEnv(p sessionspec.ProviderSpec) []string {

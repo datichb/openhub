@@ -18,7 +18,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 )
 
-// A19 (piste T, T2): the ways around the git hooks are refused by the tool
+// The ways around the git hooks are refused by the tool
 // to an agent allowed to commit (bundle.HookGuard after its own rules).
 func TestE2EHookBypassRefused(t *testing.T) {
 	b := e2eBundle(t)

@@ -300,7 +300,7 @@ func skillVisibleTo(b sessionspec.BundleSpec, skill string) []string {
 }
 
 // outsideCatalogue returns the bundle agents to which the server exposes a
-// bundle skill that is not in their catalogue (AgentDef.Skills, L2).
+// bundle skill that is not in their catalogue (AgentDef.Skills).
 func outsideCatalogue(agents []Agent, b sessionspec.BundleSpec, skill string) []string {
 	var out []string
 	for _, a := range skillVisibleOnServer(agents, b, skill) {

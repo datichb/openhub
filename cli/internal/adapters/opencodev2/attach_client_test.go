@@ -19,7 +19,7 @@ func cliConfigOf(t *testing.T, env []string) map[string]any {
 	return cfg
 }
 
-// A43: the clients opened by oh have no session tabs (tabs remembered per
+// The clients opened by oh have no session tabs (tabs remembered per
 // directory, whatever the server, piled up in the open window).
 func TestSingleSessionAttachTurnsTabsOff(t *testing.T) {
 	a := &Adapter{Binary: "/bin/opencode"}

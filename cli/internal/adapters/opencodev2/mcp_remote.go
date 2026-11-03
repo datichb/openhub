@@ -14,7 +14,7 @@ import (
 const MCPHookPath = "mcp/"
 
 // remoteOhMCP declares the oh MCP servers of a bundle as remote servers
-// served by the oh daemon on the machine (P4-T08), for a tool server that
+// served by the oh daemon on the machine, for a tool server that
 // runs outside the machine (container): `oh` and the service tokens stay on
 // the machine. The tool authenticates with the session token it already
 // holds, read from its environment (`{env:…}`), never written in the config.
