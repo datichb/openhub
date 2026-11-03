@@ -8,7 +8,7 @@ Complete index of all openhub documentation (oh v5). Guides and references are b
 
 ---
 
-## Guides (42 guides)
+## Guides (47 guides)
 
 ### Getting Started
 
@@ -102,7 +102,7 @@ In v5, plugins are declared per workflow (`plugins:`) and delivered in the sessi
 
 ---
 
-## Reference (27 docs)
+## Reference (28 docs)
 
 | Document | Description |
 |----------|-------------|
@@ -114,8 +114,9 @@ In v5, plugins are declared per workflow (`plugins:`) and delivered in the sessi
 | [CLI — Configuration](reference/cli-config.en.md) | `oh config *`, `oh provider setup`, `oh config model` |
 | [CLI — Infrastructure](reference/cli-infra.en.md) | `oh init`, `oh doctor`, `oh status`, `oh migrate deploy-cleanup`, `oh upgrade oh`, `oh export`/`import`, `oh repair`, `oh purge`, `oh daemon`, `oh remote`, `oh serve` |
 | [CLI — MCP](reference/cli-mcp.en.md) | `oh mcp *` (`oh plugin` removed in v5) |
+| [CLI — Bricks](reference/cli-bricks.en.md) | `oh brick *`: the team brick catalogue (agents and skills of `catalog/`) |
 | [CLI — Team](reference/cli-team.en.md) | `oh team *` (incl. `init --solo`, `promote`), `oh teams *`, `oh conventions`, `oh patterns`, `oh policies`, `oh takeover-brief` |
-| [CLI — Tools](reference/cli-tools.en.md) | `oh skill *`, `oh worktree *`, `oh secrets *`, `oh metrics` |
+| [CLI — Tools](reference/cli-tools.en.md) | `oh skill *`, `oh worktree *`, `oh secrets *`, `oh metrics` (deprecated, removed in v6) |
 | [Shipped Workflows](reference/workflows.en.md) | The 24 `oh/v1` workflows shipped by the hub: entry agents, inputs, checkpoints, prompt templates |
 | [Workflow Schema](reference/workflow-schema.en.md) | `apiVersion: oh/v1` schema: fields, validation, layers, `extends`, `enforce` |
 | [Checkpoints](reference/checkpoints.en.md) | Modes and planned pauses, pause budget, verification run by oh, evidence, fix rounds, conditions, unlock windows |
@@ -201,9 +202,16 @@ Diagram sources (`.mermaid`, one diagram per file) live in [`diagrams/`](diagram
 | [Workflow layers](diagrams/config-resolution.mermaid) | Hub < team < project < session options |
 | [Model resolution cascade](diagrams/model-resolution-cascade.mermaid) | From workflow·agent down to frontmatter |
 | [Skill delivery](diagrams/skill-injection-flow.mermaid) | Bucket A / Bucket B through the session bundle |
-| [CLI command tree](diagrams/cli-command-tree.mermaid) | Main `oh` commands |
+| [CLI command tree](diagrams/cli-command-tree.mermaid) | The `oh` commands by section of `oh --help`, with the deprecated and removed ones |
 | [TUI navigation](diagrams/tui-navigation-modes.mermaid) | TUI views and omnibar |
 | [Agent hierarchy](diagrams/agent-hierarchy.mermaid) | Agents and delegations |
+| [Agent-skill graph](diagrams/agent-skill-graph.mermaid) | The most shared skills and the agents that use them |
+| [Golden path](diagrams/golden-path.mermaid) | The essential steps of a new user: install, `oh init`, `oh run` |
+| [Provider decision tree](diagrams/provider-decision-tree.mermaid) | Choosing the LLM provider |
+| [Beads ticket lifecycle](diagrams/beads-lifecycle.mermaid) | Beads statuses as oh drives them: REVIEW is `in_progress` + label `ready-for-review`, cancelled is a label |
+| [Claim lifecycle](diagrams/claim-lifecycle.mermaid) | Statuses of a team claim, lease, and what the end of a session decides |
+| [Team init wizard](diagrams/team-init-wizard.mermaid) | `oh team init`: joining or creating the team-state, then the adaptive steps |
+| [Living wiki navigation](diagrams/living-wiki-navigation.mermaid) | Page navigation, trust evaluation and god nodes |
 
 ---
 

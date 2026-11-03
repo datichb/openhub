@@ -1,20 +1,67 @@
-%% D9: Claim Lifecycle
-%% State diagram showing the 5-status claim lifecycle.
-%% Main flow: planned -> in_progress -> review -> done
-%% Blocked is accessible from in_progress and review,
-%% and returns to in_progress.
+%% OpenHub -- Team claim lifecycle (v5.1)
+%% Statuses and transitions of a claim of the team-state, as allowed by
+%% teamstate.ValidTransitions, with where the lease and the end of a session
+%% (teamstate.DecideClaimEnd) act. A claim is a file of the team-state:
+%% "released" means the file is removed.
+%% The lease is not a status: "expired" is a property of a claim worked on
+%% (Claim.IsExpired), judged by oh doctor, oh team claim and, when
+%% release_expired_on_sync is set, the tracker synchronization.
 
 stateDiagram-v2
-    [*] --> planned
+    [*] --> planned : tracker plan
+    [*] --> in_progress : oh team claim, session start
 
-    planned --> in_progress : Start work
+    planned --> in_progress : work starts
 
-    in_progress --> review : Submit for review
-    in_progress --> blocked : Blocked
+    in_progress --> review : review published, team board, MCP verdict
+    in_progress --> blocked : blocked
 
-    review --> done : Approved
-    review --> blocked : Blocked
+    blocked --> in_progress : unblocked
 
-    blocked --> in_progress : Unblocked
+    review --> validation : moved on the board
+    review --> done : approved, merged
+    review --> in_progress : sent back
 
-    done --> [*]
+    validation --> done : accepted
+    validation --> review : back to review
+    validation --> in_progress : sent back
+
+    done --> in_progress : reopen
+    done --> [*] : removed after done_retention_days
+
+    planned --> [*] : released
+    in_progress --> [*] : released
+    blocked --> [*] : released
+    review --> [*] : released by its owner only
+
+    note right of planned
+        No lease: nobody renews a planned claim,
+        a claim of the initial column or a pool claim
+    end note
+
+    note right of in_progress
+        Lease lease_until, from lease_hours when a session works on it
+        The daemon renews it while the session is open
+        Renewal stops for a session asleep for sleeping_renewal_days
+        or a remote session launched remote_renewal_days ago
+        Claim taken by hand, no session: lease_hours_manual, not renewed
+        oh team claim on your own claim renews it
+        Past the lease the claim is expired and another member can take it over
+    end note
+
+    note right of review
+        Status review, or label review or ready-for-review on the ticket
+        in Beads: the claim never expires and stays reserved
+        until the merge or until its owner releases it
+        oh doctor only reports it after stale_days
+    end note
+
+    note left of done
+        End of a session, first rule that applies:
+        claim already finished: kept
+        ticket closed: claim moves to its terminal status
+        in review: kept
+        checkpoint waiting, commit checkpoint put off with work left,
+        or state unreadable: kept with the label session-ended
+        otherwise: released
+    end note

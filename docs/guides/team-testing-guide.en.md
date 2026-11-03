@@ -374,8 +374,14 @@ team-state/
 | `in_progress` | `blocked` | board `s` |
 | `review` | `done` | board `s` / tracker issue closed |
 | `review` | `in_progress` | board `s` (return) |
+| `review` | `validation` | board `s` |
+| `validation` | `done` | board `s` / tracker issue closed |
+| `validation` | `review` | board `s` |
+| `validation` | `in_progress` | board `s` (return) |
 | `blocked` | `in_progress` | board `s` |
 | `done` | `in_progress` | Tracker issue reopened |
+
+The diagram of these statuses, with the lease and what the end of a session decides, is [claim-lifecycle](../diagrams/claim-lifecycle.mermaid); the contract is in [Lease and end of session](team-setup.en.md#lease-and-end-of-session). A claim in `review` never expires. The release of a claim (`oh team release`) is possible from any status.
 
 ### Claim storage
 
