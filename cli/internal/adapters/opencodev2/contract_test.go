@@ -82,7 +82,7 @@ func TestContractServer(t *testing.T) {
 	assert.Contains(t, ids, "opencode", "built-in skills are expected until denied by permissions")
 
 	// Unauthorized
-	_, err = NewClient(c.BaseURL(), "wrong").Info(ctx)
+	_, err = NewClient(c.baseURL, "wrong").Info(ctx)
 	assert.True(t, IsUnauthorized(err))
 
 	// Events: subscribe before mutating

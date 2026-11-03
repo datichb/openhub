@@ -174,20 +174,6 @@ func CoveredModels(list, ceiling []string) []string {
 	return out
 }
 
-// ModelAllowed reports whether a model id matches the allow-list (empty =
-// any model).
-func ModelAllowed(patterns []string, model string) bool {
-	if len(patterns) == 0 {
-		return true
-	}
-	for _, p := range patterns {
-		if wildcard.Match(p, model) {
-			return true
-		}
-	}
-	return false
-}
-
 // Scope of the daily budget and of the maximum of working sessions.
 const ScopeGlobal = "global"
 
