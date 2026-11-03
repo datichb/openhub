@@ -123,6 +123,8 @@ The assertions are described in the [`oh eval` reference](../docs/reference/cli-
 | S76 | security-fix | The only finished audit is a `quality` one: its findings are not taken (`from_equals`); the conductor asks for the findings with `question` before `cp-triage` and presents the one of the answer |
 | S77 | sweep-task | Launched by hand with `files: strx/`: the task also asks for `README.md`; a change outside the scope is refused by oh at `cp-commit`, only `strx/` is committed, oh records the scope (output `files`); hidden tests |
 | S78 | spec | A ticket whose value depends on a field editable in the same form (the category), with diverging fixtures (`FOYER LOGEMENT`), a DTO that does not carry the imported value and a shared form: at least one question on an edge case, and the spec written holds a non-empty “Risks and edge cases” section that names one |
+| S79 | triage | 33 open tickets, no list nor filter: the batch is cut at 30; the open tickets are counted (`bd count`), the report says 3 stay out of the batch and proposes a second batch; nothing is written before `cp-triage` |
+| S80 | spike | A question with no decision criteria nor time box: the pathfinder asks, before `cp-question`, for the go/kill criteria and the duration (every blocking question, no cap of 1-2) |
 
 `cadrage` is an alias of `spec` since R5: cases S5, S15, S19 and S27 (folder `cadrage/`) launch `spec`, and S27 goes through the exploration by the pathfinder that precedes the interview when the request compares designs.
 

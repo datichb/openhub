@@ -1,0 +1,39 @@
+id: S80
+title: "Spike : une question sans critère ni durée — le pathfinder pose, avant cp-question, toutes les questions bloquantes en un envoi (critères go/kill, durée), au lieu de s'arrêter à 1-2"
+workflow: spike
+mode: semi-auto
+reports: off
+# v5.2 (L3) : le protocole du pathfinder plafonnait les clarifications à
+# 1-2 questions. La demande ne donne ni critère de décision ni durée : les
+# deux sont bloquants pour un spike (sans eux la décision est arbitraire), et
+# sont posés avant cp-question, dans une seule demande à l'utilisateur.
+text: |
+  Faut-il remplacer le stockage de fichiers JSON par une base SQLite ?
+beads:
+  prefix: ev
+timeout: 20m
+answers:
+  question: first
+  permission: once
+  checkpoints:
+    "*": approve
+assertions:
+  - type: called
+    name: le pathfinder pose ses questions avant cp-question
+    agent: pathfinder
+    tool: question
+    before: { checkpoint: cp-question }
+  - type: text_matches
+    name: les critères go/kill sont demandés
+    agent: pathfinder
+    questions: true
+    pattern: "crit[èe]re"
+  - type: text_matches
+    name: la durée est demandée
+    agent: pathfinder
+    questions: true
+    pattern: "dur[ée]e|temps accord|combien de temps"
+  - type: checkpoint_order
+    order: [cp-question, cp-decision]
+  - type: no_question_in_subagent
+  - type: no_denied_loop

@@ -123,6 +123,8 @@ Les assertions sont décrites dans la [référence d'`oh eval`](../docs/referenc
 | S76 | security-fix | Le seul audit terminé est un audit `quality` : ses constats ne sont pas repris (`from_equals`) ; le conductor demande les constats avec `question` avant `cp-triage` et présente celui de la réponse |
 | S77 | sweep-task | Lancé à la main avec `files: strx/` : la tâche demande aussi `README.md` ; un changement hors périmètre est refusé par oh à `cp-commit`, seul `strx/` est commité, oh relève le périmètre (sortie `files`) ; tests cachés |
 | S78 | spec | Un ticket dont la valeur dépend d'un champ modifiable dans le même formulaire (la catégorie), avec des fixtures qui divergent (`FOYER LOGEMENT`), un DTO qui ne porte pas la valeur importée et un formulaire partagé : au moins une question sur un cas limite, et la spec écrite porte une section « Risques et cas limites » non vide qui en nomme un |
+| S79 | triage | 33 tickets ouverts, ni liste ni filtre : le lot est coupé à 30 ; les tickets ouverts sont comptés (`bd count`), le bilan dit que 3 restent hors du lot et propose un second lot ; rien n'est écrit avant `cp-triage` |
+| S80 | spike | Une question sans critère de décision ni durée : le pathfinder demande, avant `cp-question`, les critères go/kill et la durée (toutes les questions bloquantes, sans plafond de 1-2) |
 
 `cadrage` est un alias de `spec` depuis R5 : les cas S5, S15, S19 et S27 (dossier `cadrage/`) lancent `spec`, et S27 passe par l'exploration du pathfinder qui précède l'entretien quand la demande compare des conceptions.
 
