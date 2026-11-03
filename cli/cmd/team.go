@@ -231,9 +231,9 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 		}
 
 		// Pre-fill member profile if exists
-		hasMember = memberID != "" && repo.HasMember(memberID)
+		hasMember = memberID != "" && repo.HasMember(ctx, memberID)
 		if hasMember {
-			existing, err := repo.GetMember(memberID)
+			existing, err := repo.GetMember(ctx, memberID)
 			if err == nil && existing != nil {
 				displayName = existing.DisplayName
 				gitlabUsername = existing.GitLabUsername
@@ -499,7 +499,7 @@ func runTeamStatus(cmd *cobra.Command, args []string) error {
 	detail, _ := cmd.Flags().GetBool("detail")
 
 	// List members
-	members, err := repo.ListMembers()
+	members, err := repo.ListMembers(ctx)
 	if err != nil {
 		return fmt.Errorf(i18n.T("cmd.team.listing_members"), err)
 	}
@@ -1084,7 +1084,7 @@ func runTeamRejoin(cmd *cobra.Command, _ []string) error {
 					// Re-validate
 					sp := config.TeamStatePath(repoURL)
 					repo := teamstate.NewRepo(repoURL, sp)
-					member, _ := repo.GetMember(memberID)
+					member, _ := repo.GetMember(ctx, memberID)
 					if member != nil {
 						if err := validateGitLabIdentity(ctx, a, repo, member); err != nil {
 							fmt.Fprintf(a.IO.Out, "  %s %s\n",

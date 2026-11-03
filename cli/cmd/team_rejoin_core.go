@@ -90,7 +90,7 @@ func teamRejoinCore(ctx context.Context, a *app.App, p teamRejoinParams) (*teamR
 	}
 
 	// Verify that the member exists in the repo
-	member, err := repo.GetMember(p.MemberID)
+	member, err := repo.GetMember(ctx, p.MemberID)
 	if err != nil {
 		return nil, fmt.Errorf(i18n.T("cmd.team_rejoin_core.member_not_found_in_team_state"), p.MemberID)
 	}
@@ -102,7 +102,7 @@ func teamRejoinCore(ctx context.Context, a *app.App, p teamRejoinParams) (*teamR
 	if p.TrackerUsername != nil {
 		patch := teamsvc.ProfilePatch{TrackerUsername: p.TrackerUsername}
 		if profileErr = repo.PatchMember(ctx, p.MemberID, patch.Apply); profileErr == nil {
-			if fresh, err := repo.GetMember(p.MemberID); err == nil {
+			if fresh, err := repo.GetMember(ctx, p.MemberID); err == nil {
 				member = fresh
 			}
 		}
@@ -334,7 +334,7 @@ func listTeamMembers(ctx context.Context, stateRepo, statePath string) (*teamsta
 		stale = true
 	}
 
-	members, err := repo.ListMembers()
+	members, err := repo.ListMembers(ctx)
 	if err != nil {
 		return nil, nil, false, fmt.Errorf(i18n.T("cmd.team_rejoin_core.listing_members"), err)
 	}

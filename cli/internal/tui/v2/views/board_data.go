@@ -56,7 +56,7 @@ func FetchTeamTickets(ctx context.Context, repo TeamTicketSource, resolver Proje
 // column definitions for status mapping. If columns is nil, falls back to
 // the legacy MapClaimStatus (DefaultColumns-compatible).
 func FetchTeamTicketsWithColumns(ctx context.Context, repo TeamTicketSource, resolver ProjectNameResolver, columns []BoardColumnDef) []TeamTicket {
-	members, err := repo.ListMembers()
+	members, err := repo.ListMembers(ctx)
 	if err != nil {
 		return nil
 	}

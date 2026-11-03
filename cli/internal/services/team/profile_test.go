@@ -28,7 +28,7 @@ func TestUpdateProfileWritesTheMemberOfTheTeam(t *testing.T) {
 	cfg := &config.Config{Teams: []config.TeamConfig{{ID: "core", Enabled: true, StateRepo: bare, StatePath: clone, MemberID: "ben"}}}
 	svc := New(cfg, nil, nil)
 
-	got, err := svc.Profile("")
+	got, err := svc.Profile(t.Context(), "")
 	require.NoError(t, err)
 	assert.Empty(t, got.TrackerUsername, "not set yet")
 
@@ -49,15 +49,15 @@ func TestUpdateProfileWritesTheMemberOfTheTeam(t *testing.T) {
 }
 
 func TestProfileErrors(t *testing.T) {
-	_, err := New(&config.Config{}, nil, nil).Profile("")
+	_, err := New(&config.Config{}, nil, nil).Profile(t.Context(), "")
 	assert.ErrorIs(t, err, ErrTeamNotConfigured)
 
 	cfg := &config.Config{Teams: []config.TeamConfig{{ID: "core", Enabled: true, StateRepo: "git@x:a/core.git", StatePath: t.TempDir()}}}
-	_, err = New(cfg, nil, nil).Profile("")
+	_, err = New(cfg, nil, nil).Profile(t.Context(), "")
 	assert.ErrorIs(t, err, ErrNoMemberID)
 
 	cfg.Teams[0].MemberID = "ben"
-	_, err = New(cfg, nil, nil).Profile("")
+	_, err = New(cfg, nil, nil).Profile(t.Context(), "")
 	assert.ErrorIs(t, err, ErrNotCloned)
 }
 
@@ -76,7 +76,7 @@ func TestProfileOfAnotherTeam(t *testing.T) {
 	got, err := svc.UpdateProfile(t.Context(), "core", ProfilePatch{TrackerUsername: str("ben.t")})
 	require.NoError(t, err)
 	assert.Equal(t, "ben.t", got.TrackerUsername)
-	_, err = svc.Profile("nope")
+	_, err = svc.Profile(t.Context(), "nope")
 	assert.ErrorIs(t, err, ErrTeamNotConfigured)
 }
 
@@ -96,7 +96,7 @@ func TestTrackerIdentity(t *testing.T) {
 	cfg := &config.Config{Teams: []config.TeamConfig{{ID: "core", Enabled: true, StateRepo: "git@gitlab.corp.example:a/core.git", StatePath: statePath, MemberID: "ben"}}}
 	svc := New(cfg, nil, nil)
 
-	ti, err := svc.TrackerIdentity(nil)
+	ti, err := svc.TrackerIdentity(t.Context(), nil)
 	require.NoError(t, err)
 	assert.True(t, ti.CrossServer, "the tracker is not on the server of the team repository")
 	assert.Equal(t, "https://gitlab.other.example", ti.TrackerURL)
@@ -108,17 +108,17 @@ func TestTrackerIdentity(t *testing.T) {
 	assert.False(t, ti.HasName("benjamin.datiche"))
 
 	cfg.Teams[0].StateRepo = "git@gitlab.other.example:a/core.git"
-	ti, err = svc.TrackerIdentity(nil)
+	ti, err = svc.TrackerIdentity(t.Context(), nil)
 	require.NoError(t, err)
 	assert.False(t, ti.CrossServer, "same server")
 
 	cfg.Teams[0].StateRepo, cfg.Teams[0].GitLabURL = "git@mon-alias:a/core.git", "https://gitlab.corp.example"
-	ti, err = svc.TrackerIdentity(nil)
+	ti, err = svc.TrackerIdentity(t.Context(), nil)
 	require.NoError(t, err)
 	assert.True(t, ti.CrossServer, "an SSH alias is read through the GitLab declared for it")
 
 	cfg.Teams[0].StateRepo, cfg.Teams[0].GitLabURL = "/srv/team-state.git", ""
-	ti, err = svc.TrackerIdentity(nil)
+	ti, err = svc.TrackerIdentity(t.Context(), nil)
 	require.NoError(t, err)
 	assert.False(t, ti.CrossServer, "a repository whose server is not known is not said to be elsewhere")
 }

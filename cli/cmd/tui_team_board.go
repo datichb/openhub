@@ -161,7 +161,7 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 				if repo == nil {
 					return nil
 				}
-				members, err := repo.ListMembers()
+				members, err := repo.ListMembers(tuiContext())
 				if err != nil {
 					return nil
 				}

@@ -233,7 +233,7 @@ func (e *Engine) Run(ctx context.Context) (*SyncResult, error) {
 // commit of what was done; abort aborts the transaction.
 func (e *Engine) reconcileAll(ctx context.Context, result *SyncResult) (fatal, abort error) {
 	// Load members once (needed for auto-plan and assignee lookup).
-	members, err := e.repo.ListMembers()
+	members, err := e.repo.ListMembers(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("sync engine: listing members: %w", err)
 	}
@@ -494,7 +494,7 @@ func (e *Engine) AssignIssueToMember(ctx context.Context, hubProjectID string, e
 	}
 
 	// Resolve member → tracker username (TrackerUsername overrides GitLabUsername)
-	member, err := e.repo.GetMember(memberID)
+	member, err := e.repo.GetMember(ctx, memberID)
 	if err != nil {
 		return fmt.Errorf("resolving member %q: %w", memberID, err)
 	}

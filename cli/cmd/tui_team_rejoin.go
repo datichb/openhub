@@ -524,7 +524,7 @@ func (w *rejoinWizard) recoverIdentity() error {
 		sp = config.TeamStatePath(w.stateRepo)
 	}
 	repo := teamstate.NewRepo(w.stateRepo, sp)
-	member, err := repo.GetMember(w.memberID)
+	member, err := repo.GetMember(ctx, w.memberID)
 	if err != nil {
 		return fmt.Errorf(i18n.T("cmd.tui_team_rejoin.member_lookup"), err)
 	}

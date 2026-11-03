@@ -38,7 +38,7 @@ func buildHomeView(a *app.App, sessionsSection views.SessionsSectionConfig, star
 				entry := views.TeamEntry{ID: t.ID, Name: t.DisplayName()}
 				repo := teamstate.NewRepo(t.StateRepo, t.StatePath)
 				if repo.IsCloned() {
-					members, _ := repo.ListMembers()
+					members, _ := repo.ListMembers(tuiContext())
 					entry.MemberCount = len(members)
 					tickets := views.FetchTeamTickets(tuiContext(), repo, nil)
 					for _, tk := range tickets {

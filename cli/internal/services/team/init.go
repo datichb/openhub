@@ -88,8 +88,8 @@ func (s *Service) Init(ctx context.Context, p InitParams) (InitResult, error) {
 		Role:               p.Role,
 		DefaultMode:        "semi-auto",
 	}
-	if repo.HasMember(p.MemberID) {
-		if prev, err := repo.GetMember(p.MemberID); err == nil && member.TrackerUsername == "" {
+	if repo.HasMember(ctx, p.MemberID) {
+		if prev, err := repo.GetMember(ctx, p.MemberID); err == nil && member.TrackerUsername == "" {
 			member.TrackerUsername = prev.TrackerUsername
 		}
 		if err := repo.UpdateMember(ctx, member); err != nil {

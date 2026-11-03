@@ -225,7 +225,7 @@ func TestTeamDetailLoadAndRemount(t *testing.T) {
 		GetMCPConfig:          func() config.MCPConfig { return shared.MCP },
 		GetTrackerLocalConfig: func() config.TrackerLocalConfig { return shared.Tracker },
 		ResolveTeam:           func() TeamResolution { return TeamResolution{} },
-		GetMember: func(string) *teamstate.Member {
+		GetMember: func(context.Context, string) *teamstate.Member {
 			if calls.Add(1) == 1 {
 				close(first)
 				<-release

@@ -29,7 +29,7 @@ func TestInitSolo(t *testing.T) {
 	assert.Equal(t, "main", gittest.Run(t, path, "rev-parse", "--abbrev-ref", "HEAD"))
 	assert.Equal(t, "", gittest.Run(t, path, "status", "--porcelain"), "everything is committed")
 
-	members, err := repo.ListMembers()
+	members, err := repo.ListMembers(ctx)
 	require.NoError(t, err)
 	require.Len(t, members, 1)
 	assert.Equal(t, "alice", members[0].ID)
@@ -37,7 +37,7 @@ func TestInitSolo(t *testing.T) {
 	cfg, err := repo.LoadConfig()
 	require.NoError(t, err)
 	assert.Equal(t, GovernancePublishAnyMember, cfg.Governance.Publish)
-	require.NoError(t, repo.CheckPublish("alice"))
+	require.NoError(t, repo.CheckPublish(t.Context(), "alice"))
 	_, err = os.Stat(filepath.Join(path, "workflows", "published", ".gitkeep"))
 	require.NoError(t, err)
 
@@ -100,7 +100,7 @@ func TestPromote(t *testing.T) {
 	gittest.Run(t, t.TempDir(), "clone", bare, other)
 	assert.Equal(t, head, gittest.Run(t, other, "rev-parse", "HEAD"))
 	oRepo := NewRepo(bare, other)
-	require.NoError(t, oRepo.CheckPublish("alice"))
+	require.NoError(t, oRepo.CheckPublish(t.Context(), "alice"))
 
 	// Pushes now reach the remote.
 	require.NoError(t, repo.WithWriteLock(ctx, func(ctx context.Context) error {

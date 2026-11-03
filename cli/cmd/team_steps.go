@@ -68,9 +68,9 @@ func (s *teamStepState) useRepo(repo *teamstate.Repo) {
 		s.Channel = s.ExistingCfg.Notification.Channel
 		s.BotName = s.ExistingCfg.Notification.BotName
 	}
-	s.HasMember = s.MemberID != "" && repo.HasMember(s.MemberID)
+	s.HasMember = s.MemberID != "" && repo.HasMember(s.Ctx, s.MemberID)
 	if s.HasMember {
-		if m, err := repo.GetMember(s.MemberID); err == nil && m != nil {
+		if m, err := repo.GetMember(s.Ctx, s.MemberID); err == nil && m != nil {
 			s.DisplayName = m.DisplayName
 			s.GitLabUsername = m.GitLabUsername
 			s.TrackerUsername = m.TrackerUsername

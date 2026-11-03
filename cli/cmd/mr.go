@@ -147,7 +147,7 @@ func assignReviewer(ctx context.Context, a *app.App, project *domain.Project, gl
 		return errors.New(i18n.T("cmd.review.publish.no_team_state"))
 	}
 
-	member, err := repo.GetMember(memberID)
+	member, err := repo.GetMember(ctx, memberID)
 	if err != nil {
 		return errors.New(i18n.Tf("cmd.review.publish.unknown_member", memberID))
 	}

@@ -257,7 +257,7 @@ func trackerUsernameChecks(ctx context.Context) []doctor.Result {
 	svc := teamService(a)
 	var out []doctor.Result
 	for _, p := range trackerProbes(ctx, a) {
-		ti, err := svc.TrackerIdentity(p.project)
+		ti, err := svc.TrackerIdentity(ctx, p.project)
 		if err != nil || ti.Member == nil || !ti.CrossServer {
 			continue // on the same server, the GitLab name of the member is their tracker name
 		}
@@ -295,7 +295,7 @@ func trackerIdentityChecks(ctx context.Context) []doctor.Result {
 	svc := teamService(a)
 	var out []doctor.Result
 	for _, p := range probes {
-		ti, err := svc.TrackerIdentity(p.project)
+		ti, err := svc.TrackerIdentity(ctx, p.project)
 		if err != nil {
 			continue
 		}

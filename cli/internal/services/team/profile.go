@@ -95,12 +95,12 @@ func (s *Service) profileRepo(teamID string) (*teamstate.Repo, string, error) {
 // Profile reads the member of the team teamID ("" = the hub team) from the
 // local clone of the team-state. It fails with ErrTeamNotConfigured,
 // ErrNoMemberID, ErrNotCloned or teamstate.ErrMemberNotFound.
-func (s *Service) Profile(teamID string) (*teamstate.Member, error) {
+func (s *Service) Profile(ctx context.Context, teamID string) (*teamstate.Member, error) {
 	repo, id, err := s.profileRepo(teamID)
 	if err != nil {
 		return nil, err
 	}
-	return repo.GetMember(id)
+	return repo.GetMember(ctx, id)
 }
 
 // UpdateProfile changes the profile of the current member in the team-state
@@ -114,7 +114,7 @@ func (s *Service) UpdateProfile(ctx context.Context, teamID string, patch Profil
 	if err := repo.PatchMember(ctx, id, patch.Apply); err != nil {
 		return nil, err
 	}
-	return repo.GetMember(id)
+	return repo.GetMember(ctx, id)
 }
 
 // TrackerIdentity is what the name of the current member on the tracker
@@ -141,7 +141,7 @@ type TrackerIdentity struct {
 // TrackerIdentity reads the identity data of the tracker of the team of
 // project (nil: the hub team). It fails like TrackerEngine up to
 // ErrTrackerDisabled; it needs no credentials.
-func (s *Service) TrackerIdentity(project *domain.Project) (*TrackerIdentity, error) {
+func (s *Service) TrackerIdentity(ctx context.Context, project *domain.Project) (*TrackerIdentity, error) {
 	set, err := s.loadTracker(project)
 	if err != nil {
 		return nil, err
@@ -152,7 +152,7 @@ func (s *Service) TrackerIdentity(project *domain.Project) (*TrackerIdentity, er
 		TrackerURL: trackerBaseURL(set.eff), TeamServer: s.TeamRepoServer(project),
 	}
 	ti.CrossServer = crossServer(ti.TrackerURL, ti.TeamServer)
-	if members, err := set.repo.ListMembers(); err == nil {
+	if members, err := set.repo.ListMembers(ctx); err == nil {
 		for i := range members {
 			m := members[i]
 			if name := firstNonEmpty(m.TrackerUsername, m.GitLabUsername); name != "" {

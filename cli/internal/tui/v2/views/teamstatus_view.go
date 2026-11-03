@@ -133,7 +133,7 @@ func readTeamStatus(ctx context.Context, repo teamStatusReader) *teamStatusData 
 		return nil
 	}
 	var d teamStatusData
-	d.members, d.membersErr = repo.ListMembers()
+	d.members, d.membersErr = repo.ListMembers(ctx)
 	d.claims, d.claimsErr = repo.ListClaims(ctx, "")
 	d.events, d.eventsErr = repo.ListEventsLimited("", 5)
 	return &d

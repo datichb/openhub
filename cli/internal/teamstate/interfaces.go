@@ -106,11 +106,11 @@ type ClaimRemovalJudge interface {
 
 // MemberReader reads the members of the team.
 type MemberReader interface {
-	HasMember(id string) bool
-	ListMembers() ([]Member, error)
-	GetMember(id string) (*Member, error)
-	FindMemberByGitLab(username string) (*Member, error)
-	FindMemberByMattermost(username string) (*Member, error)
+	HasMember(ctx context.Context, id string) bool
+	ListMembers(ctx context.Context) ([]Member, error)
+	GetMember(ctx context.Context, id string) (*Member, error)
+	FindMemberByGitLab(ctx context.Context, username string) (*Member, error)
+	FindMemberByMattermost(ctx context.Context, username string) (*Member, error)
 }
 
 // MemberWriter adds, removes and changes the members.

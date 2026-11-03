@@ -170,7 +170,7 @@ func TestTeamRejoinCore_WritesTheTrackerUsernameOfTheMember(t *testing.T) {
 	require.NoError(t, result.ProfileErr)
 	assert.Equal(t, "benjamin.datiche", result.Member.TrackerUsername)
 
-	m, err := teamstate.NewRepo(repo.Remote(), repo.Path()).GetMember("testuser")
+	m, err := teamstate.NewRepo(repo.Remote(), repo.Path()).GetMember(t.Context(), "testuser")
 	require.NoError(t, err)
 	assert.Equal(t, "benjamin.datiche", m.TrackerUsername)
 	assert.Equal(t, "Test User", m.DisplayName, "the rest of the profile is kept")

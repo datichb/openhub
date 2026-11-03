@@ -165,7 +165,7 @@ func handleTeamMembers(a *app.App) http.HandlerFunc {
 			return
 		}
 
-		members, err := repo.ListMembers()
+		members, err := repo.ListMembers(r.Context())
 		if err != nil {
 			writeError(w, err, http.StatusInternalServerError)
 			return

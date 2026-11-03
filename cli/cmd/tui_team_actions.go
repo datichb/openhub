@@ -88,9 +88,9 @@ func actionTeamInit() {
 				channel = existingCfg.Notification.Channel
 				botName = existingCfg.Notification.BotName
 			}
-			hasMember = memberID != "" && repo.HasMember(memberID)
+			hasMember = memberID != "" && repo.HasMember(ctx, memberID)
 			if hasMember {
-				if m, err := repo.GetMember(memberID); err == nil && m != nil {
+				if m, err := repo.GetMember(ctx, memberID); err == nil && m != nil {
 					displayName = m.DisplayName
 					gitlabUsername = m.GitLabUsername
 					mattermostUsername = m.MattermostUsername

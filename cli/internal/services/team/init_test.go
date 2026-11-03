@@ -72,7 +72,7 @@ func TestInitClonesRegistersTheMemberAndWritesHubToml(t *testing.T) {
 
 	repo := teamstate.NewRepo(bare, statePath)
 	require.True(t, repo.IsCloned())
-	m, err := repo.GetMember("dave")
+	m, err := repo.GetMember(t.Context(), "dave")
 	require.NoError(t, err)
 	assert.Equal(t, "Dave", m.DisplayName)
 	assert.Equal(t, "dave.g", m.GitLabUsername)
@@ -91,7 +91,7 @@ func TestInitClonesRegistersTheMemberAndWritesHubToml(t *testing.T) {
 	// Joining again updates the member instead of failing.
 	params.DisplayName = "David"
 	mustInit(t, svc, params)
-	m, err = repo.GetMember("dave")
+	m, err = repo.GetMember(t.Context(), "dave")
 	require.NoError(t, err)
 	assert.Equal(t, "David", m.DisplayName)
 	assert.Len(t, reload(t), 2)
@@ -110,14 +110,14 @@ func TestInitKeepsTheTrackerUsernameOfAMember(t *testing.T) {
 		TrackerUsername: "@ben"}
 	mustInit(t, svc, params)
 	repo := teamstate.NewRepo(bare, statePath)
-	m, err := repo.GetMember("ben")
+	m, err := repo.GetMember(t.Context(), "ben")
 	require.NoError(t, err)
 	assert.Equal(t, "ben", m.TrackerUsername, "set at the first join, without the @")
 
 	params.TrackerUsername = ""
 	params.DisplayName = "Benjamin"
 	mustInit(t, svc, params)
-	m, err = repo.GetMember("ben")
+	m, err = repo.GetMember(t.Context(), "ben")
 	require.NoError(t, err)
 	assert.Equal(t, "Benjamin", m.DisplayName)
 	assert.Equal(t, "ben", m.TrackerUsername, "joining again without a value keeps it")
@@ -174,7 +174,7 @@ func TestInitStructureCommitFailureIsAWarning(t *testing.T) {
 	assert.True(t, teamstate.IsStructureWarning(res.StructureWarning))
 
 	repo := teamstate.NewRepo(bare, statePath)
-	assert.True(t, repo.HasMember("dave"), "the member is registered")
+	assert.True(t, repo.HasMember(t.Context(), "dave"), "the member is registered")
 	assert.FileExists(t, filepath.Join(statePath, "catalog", "agents", ".gitkeep"), "the folders exist locally")
 	assert.Contains(t, reload(t), config.RepoNameFromRemote(bare), "hub.toml is written")
 }

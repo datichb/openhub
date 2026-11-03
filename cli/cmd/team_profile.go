@@ -71,7 +71,7 @@ func runTeamProfile(cmd *cobra.Command, _ []string) error {
 		err error
 	)
 	if patch.Empty() {
-		m, err = svc.Profile(teamID)
+		m, err = svc.Profile(cmd.Context(), teamID)
 	} else {
 		m, err = svc.UpdateProfile(cmd.Context(), teamID, patch)
 	}

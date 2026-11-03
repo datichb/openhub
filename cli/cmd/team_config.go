@@ -797,7 +797,7 @@ func testAndDisplayConnection(ctx context.Context, out interface{ Write([]byte) 
 // referenced as member_id in any active configuration (hub or project), displays
 // an insight for each, and offers to delete or merge them interactively.
 func checkAndCleanOrphanMembers(ctx context.Context, a *app.App, out interface{ Write([]byte) (int, error) }, repo *teamstate.Repo) {
-	members, err := repo.ListMembers()
+	members, err := repo.ListMembers(ctx)
 	if err != nil || len(members) == 0 {
 		return
 	}

@@ -171,7 +171,7 @@ func BenchmarkListMembers(b *testing.B) {
 	repo := setupBenchRepo(b)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		members, err := repo.ListMembers()
+		members, err := repo.ListMembers(b.Context())
 		if err != nil {
 			b.Fatal(err)
 		}

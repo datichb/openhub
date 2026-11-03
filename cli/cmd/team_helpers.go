@@ -1018,7 +1018,7 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 			// Re-run identity validation with the new token
 			statePath := config.TeamStatePath(state.Repo)
 			repo := teamstate.NewRepo(state.Repo, statePath)
-			member, err := repo.GetMember(state.MemberID)
+			member, err := repo.GetMember(state.Ctx, state.MemberID)
 			if err != nil {
 				return fmt.Errorf(i18n.T("cmd.team_helpers.member_lookup"), err)
 			}

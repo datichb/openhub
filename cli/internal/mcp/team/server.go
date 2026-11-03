@@ -434,7 +434,7 @@ func handleTeamMembers(ctx context.Context, params json.RawMessage) (*protocol.T
 		return nil, err
 	}
 
-	members, err := repo.ListMembers()
+	members, err := repo.ListMembers(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("listing members: %w", err)
 	}

@@ -40,7 +40,7 @@ func TestMemberLookups(t *testing.T) {
 	repo := setupTestRepo(t)
 	writeMembersToml(t, repo, twoMembers)
 
-	members, err := repo.ListMembers()
+	members, err := repo.ListMembers(t.Context())
 	require.NoError(t, err)
 	ids := map[string]bool{}
 	for _, m := range members {
@@ -48,22 +48,22 @@ func TestMemberLookups(t *testing.T) {
 	}
 	assert.Equal(t, map[string]bool{"benjamin": true, "alice": true}, ids, "every member comes with its id")
 
-	m, err := repo.GetMember("benjamin")
+	m, err := repo.GetMember(t.Context(), "benjamin")
 	require.NoError(t, err)
 	assert.Equal(t, Member{
 		ID: "benjamin", DisplayName: "Benjamin", GitLabUsername: "bdatiche", MattermostUsername: "benjamin.datiche",
 		Role: "lead", DefaultMode: "semi-auto",
 	}, *m, "GetMember reads every field")
-	assert.True(t, repo.HasMember("alice"), "HasMember")
-	assert.False(t, repo.HasMember("bob"), "HasMember of an unknown member")
+	assert.True(t, repo.HasMember(t.Context(), "alice"), "HasMember")
+	assert.False(t, repo.HasMember(t.Context(), "bob"), "HasMember of an unknown member")
 
-	m, err = repo.FindMemberByGitLab("bdatiche")
+	m, err = repo.FindMemberByGitLab(t.Context(), "bdatiche")
 	require.NoError(t, err)
 	assert.Equal(t, "benjamin", m.ID, "by GitLab username")
-	m, err = repo.FindMemberByGitLab("BDatiche")
+	m, err = repo.FindMemberByGitLab(t.Context(), "BDatiche")
 	require.NoError(t, err)
 	assert.Equal(t, "benjamin", m.ID, "the GitLab username ignores the case")
-	m, err = repo.FindMemberByMattermost("alice.dev")
+	m, err = repo.FindMemberByMattermost(t.Context(), "alice.dev")
 	require.NoError(t, err)
 	assert.Equal(t, "alice", m.ID, "by Mattermost username")
 }
@@ -77,11 +77,11 @@ func TestMemberLookupErrors(t *testing.T) {
 		wantErr error
 		wantMsg string
 	}{
-		{"unknown member", twoMembers, func(r *Repo) error { _, err := r.GetMember("unknown"); return err }, ErrMemberNotFound, ""},
-		{"unknown GitLab username", twoMembers, func(r *Repo) error { _, err := r.FindMemberByGitLab("unknown"); return err }, ErrMemberNotFound, ""},
-		{"unknown Mattermost username", twoMembers, func(r *Repo) error { _, err := r.FindMemberByMattermost("nobody"); return err }, ErrMemberNotFound, ""},
-		{"invalid TOML", `this is not valid toml {{{{`, func(r *Repo) error { _, err := r.ListMembers(); return err }, nil, "parsing members.toml"},
-		{"no members.toml", "", func(r *Repo) error { _, err := r.ListMembers(); return err }, nil, ""},
+		{"unknown member", twoMembers, func(r *Repo) error { _, err := r.GetMember(t.Context(), "unknown"); return err }, ErrMemberNotFound, ""},
+		{"unknown GitLab username", twoMembers, func(r *Repo) error { _, err := r.FindMemberByGitLab(t.Context(), "unknown"); return err }, ErrMemberNotFound, ""},
+		{"unknown Mattermost username", twoMembers, func(r *Repo) error { _, err := r.FindMemberByMattermost(t.Context(), "nobody"); return err }, ErrMemberNotFound, ""},
+		{"invalid TOML", `this is not valid toml {{{{`, func(r *Repo) error { _, err := r.ListMembers(t.Context()); return err }, nil, "parsing members.toml"},
+		{"no members.toml", "", func(r *Repo) error { _, err := r.ListMembers(t.Context()); return err }, nil, ""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -102,9 +102,9 @@ func TestMemberLookupErrors(t *testing.T) {
 
 	t.Run("HasMember is false without a member", func(t *testing.T) {
 		repo := setupTestRepo(t)
-		assert.False(t, repo.HasMember("anyone"), "no members.toml")
+		assert.False(t, repo.HasMember(t.Context(), "anyone"), "no members.toml")
 		writeMembersToml(t, repo, "[members]\n")
-		assert.False(t, repo.HasMember("anyone"), "an empty members table")
+		assert.False(t, repo.HasMember(t.Context(), "anyone"), "an empty members table")
 	})
 }
 
@@ -115,7 +115,7 @@ func TestMembersCRUD(t *testing.T) {
 
 	charlie := Member{ID: "charlie", DisplayName: "Charlie", GitLabUsername: "charlie", MattermostUsername: "charlie.dev", Role: "dev", DefaultMode: "manual"}
 	require.NoError(t, repo.AddMember(ctx, charlie), "AddMember creates the members.toml")
-	got, err := repo.GetMember("charlie")
+	got, err := repo.GetMember(ctx, "charlie")
 	require.NoError(t, err)
 	assert.Equal(t, charlie, *got, "the member is written")
 
@@ -124,15 +124,15 @@ func TestMembersCRUD(t *testing.T) {
 	require.NoError(t, repo.AddMember(ctx, Member{ID: "alice", DisplayName: "Alice", GitLabUsername: "alice"}))
 	updated := Member{ID: "alice", DisplayName: "Alice Updated", GitLabUsername: "alice-new", MattermostUsername: "alice.new", Role: "lead", DefaultMode: "auto"}
 	require.NoError(t, repo.UpdateMember(ctx, updated))
-	got, err = repo.GetMember("alice")
+	got, err = repo.GetMember(ctx, "alice")
 	require.NoError(t, err)
 	assert.Equal(t, updated, *got, "UpdateMember replaces the member")
 	assert.ErrorIs(t, repo.UpdateMember(ctx, Member{ID: "bob", DisplayName: "Bob"}), ErrMemberNotFound, "updating an unknown member")
 
 	require.NoError(t, repo.RemoveMember(ctx, "charlie"))
-	_, err = repo.GetMember("charlie")
+	_, err = repo.GetMember(ctx, "charlie")
 	assert.ErrorIs(t, err, ErrMemberNotFound, "the removed member is gone")
-	_, err = repo.GetMember("alice")
+	_, err = repo.GetMember(ctx, "alice")
 	assert.NoError(t, err, "the others stay")
 	assert.ErrorIs(t, repo.RemoveMember(ctx, "unknown"), ErrMemberNotFound, "removing an unknown member")
 }

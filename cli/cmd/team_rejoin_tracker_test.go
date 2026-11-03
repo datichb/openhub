@@ -42,7 +42,7 @@ func rejoinTeam(t *testing.T, trackerURL, answers string, flags ...string) (out 
 	require.NoError(t, c.ParseFlags(args))
 	require.NoError(t, runTeamRejoin(c, nil))
 	require.NoError(t, repo.Pull(t.Context()))
-	m, err := repo.GetMember("testuser")
+	m, err := repo.GetMember(t.Context(), "testuser")
 	require.NoError(t, err)
 	return stdout.String(), m
 }

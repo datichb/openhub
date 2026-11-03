@@ -42,7 +42,7 @@ func buildTeamModeView(a *app.App, sessionsSection views.SessionsSectionConfig, 
 				return views.TeamModeStats{}
 			}
 			ctx := tuiContext()
-			members, _ := repo.ListMembers()
+			members, _ := repo.ListMembers(ctx)
 			tickets := views.FetchTeamTickets(ctx, repo, nil)
 			active := 0
 			for _, t := range tickets {
@@ -101,8 +101,8 @@ func buildTeamDetailView(a *app.App) views.View {
 		TeamProviderKey:   teamProviderKey(a),
 		SetSecret:         secretSetter(a),
 		OnDiscoverTracker: actionTrackerDiscovery,
-		GetMember: func(teamID string) *teamstate.Member {
-			m, err := teamService(a).Profile(teamID)
+		GetMember: func(ctx context.Context, teamID string) *teamstate.Member {
+			m, err := teamService(a).Profile(ctx, teamID)
 			if err != nil {
 				return nil
 			}

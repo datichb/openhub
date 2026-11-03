@@ -110,7 +110,7 @@ func TestTeamInitSolo(t *testing.T) {
 	assert.True(t, repo.IsLocalOnly(t.Context()))
 	_, err = os.Stat(filepath.Join(solo.StatePath, "projects", "web", "workflows", "published", ".gitkeep"))
 	require.NoError(t, err)
-	require.NoError(t, repo.CheckPublish("alice"))
+	require.NoError(t, repo.CheckPublish(t.Context(), "alice"))
 
 	// The project layer of the solo space is loaded for the project.
 	layers, err := resolveWorkflowTeamLayers(t.Context(), a, "web")
