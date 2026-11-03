@@ -59,10 +59,10 @@ opencode --version
 Sortie attendue :
 
 ```
-oh v5.0.0
+oh 5.1.0
   commit:  4fb125b4
   built:   2026-10-06T20:00:33Z
-  go:      go1.26.4
+  go:      go1.26.10
   os/arch: darwin/arm64
 2.0.20
 ```
