@@ -131,7 +131,7 @@ func (t *sessionTabs) hints() string {
 	case tabTrace:
 		return keys.Hints(keys.Search.Hint(), readerMatchHint(), keys.Ends.Hint(), keys.Refresh.Hint(), tab, back)
 	case tabReports:
-		return keys.Hints(keys.Open.HintAs(i18n.T("tui.sessions.reports.read")), keys.Search.Hint(), readerMatchHint(), tab, back)
+		return keys.Hints(keys.Open.HintAs(i18n.T("tui.sessions.reports.read")), keys.Search.Hint(), readerMatchHint(), keys.Refresh.Hint(), tab, back)
 	case tabFanout:
 		return t.fanout.hints(tab, back)
 	}

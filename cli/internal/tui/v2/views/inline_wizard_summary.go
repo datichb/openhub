@@ -160,6 +160,10 @@ func (w *InlineWizardView) addSummaryButton() {
 }
 
 func (w *InlineWizardView) handleSummaryKey(event *tcell.EventKey) *tcell.EventKey {
+	if isBackKey(event) {
+		w.backFromSummary()
+		return nil
+	}
 	switch event.Key() {
 	case tcell.KeyEnter, tcell.KeyTab, tcell.KeyBacktab:
 		// Let tview deliver to the focused form button.
@@ -170,29 +174,30 @@ func (w *InlineWizardView) handleSummaryKey(event *tcell.EventKey) *tcell.EventK
 			w.shell.PopView()
 		}
 		return nil
-	case tcell.KeyCtrlB, tcell.KeyPgUp:
-		// Allow going back from summary to review/edit the last step.
-		w.completed = false
-		w.wizardErr = nil
-		// Find the last completed step to return to.
-		lastDone := -1
-		for i := len(w.stepStates) - 1; i >= 0; i-- {
-			if w.stepStates[i].Status == widgets.StepDone && !w.cfg.Steps[i].SidebarHidden {
-				lastDone = i
-				break
-			}
-		}
-		if lastDone >= 0 {
-			w.syncStepBar(lastDone, widgets.StepActive)
-			w.currentStep = lastDone
-			if len(w.infoAccum) > 0 {
-				w.infoAccum = w.infoAccum[:len(w.infoAccum)-1]
-			}
-			w.renderInfoPanel()
-			w.doRenderStep(lastDone)
-		}
-		return nil
 	}
-	// Block everything else (Esc, runes, etc.).
+	// Block everything else (runes, etc.).
 	return nil
+}
+
+// backFromSummary goes back from the summary to review or edit the last step.
+func (w *InlineWizardView) backFromSummary() {
+	w.completed = false
+	w.wizardErr = nil
+	// Find the last completed step to return to.
+	lastDone := -1
+	for i := len(w.stepStates) - 1; i >= 0; i-- {
+		if w.stepStates[i].Status == widgets.StepDone && !w.cfg.Steps[i].SidebarHidden {
+			lastDone = i
+			break
+		}
+	}
+	if lastDone >= 0 {
+		w.syncStepBar(lastDone, widgets.StepActive)
+		w.currentStep = lastDone
+		if len(w.infoAccum) > 0 {
+			w.infoAccum = w.infoAccum[:len(w.infoAccum)-1]
+		}
+		w.renderInfoPanel()
+		w.doRenderStep(lastDone)
+	}
 }

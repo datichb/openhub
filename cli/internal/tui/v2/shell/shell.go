@@ -112,7 +112,7 @@ type Shell struct {
 	pages            *tview.Pages
 	root             *tview.Flex // main vertical layout (content + suggestions + omnibar)
 	content          *tview.Flex
-	subReturn        tview.Primitive // focus to give back when the sub-window closes
+	windows          [len(windowPages)]*window // the windows shown, by depth (windows.go)
 	omnibar          *Omnibar
 	router           *router.Router
 	registry         *CommandRegistry

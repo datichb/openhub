@@ -99,7 +99,7 @@ func (v *SessionsView) showCheckpoint(r *SessionRow, d *SessionDecision, c Check
 		id = r.ID
 	}
 	actions := v.verifyFailedActions(r, &dec, c)
-	actions = append(actions, ModalAction{Label: i18n.T("tui.checkpoint.decide"), Separator: len(actions) > 0, Callback: func() {
+	actions = append(actions, ModalAction{Label: i18n.T("tui.checkpoint.decide"), Separator: len(actions) > 0, KeepOpen: true, Callback: func() {
 		v.checkpointForm(r, &dec, c.Approver, checkpointDefaultChoice(c.Verify), checkpointExtraChoices(c.Verify)...)
 	}})
 	actions = append(actions, v.reportActions(dec.SessionID, dec.ID, c.Reports)...)
@@ -293,16 +293,29 @@ func (v *SessionsView) checkpointForm(r *SessionRow, d *SessionDecision, approve
 				}, extra...)},
 			{Key: "message", Label: i18n.T("tui.checkpoint.message"), Type: FieldText},
 		},
+		Check: func(values map[string]string, _ map[string][]string) string {
+			return checkpointMessageProblem(values["decision"], values["message"])
+		},
 		OnSubmit: func(values map[string]string, _ map[string][]string) {
 			ch, msg := values["decision"], strings.TrimSpace(values["message"])
-			if ch != checkpointApprove && msg == "" {
-				v.toast(i18n.T("tui.checkpoint.message_required"), false)
+			if problem := checkpointMessageProblem(ch, msg); problem != "" {
+				v.toast(problem, false)
 				return
 			}
 			v.decide(&dec, ch, msg, nil)
 		},
 	})
 	v.trackDecision(dec.ID)
+}
+
+// checkpointMessageProblem is what refuses the decision form: every choice but
+// the approval needs an instruction to the agent. The form checks it before
+// it closes, so the card and the typed text stay.
+func checkpointMessageProblem(choice, message string) string {
+	if choice != checkpointApprove && strings.TrimSpace(message) == "" {
+		return i18n.T("tui.checkpoint.message_required")
+	}
+	return ""
 }
 
 // approverHint is the approver line of the decision form: who the

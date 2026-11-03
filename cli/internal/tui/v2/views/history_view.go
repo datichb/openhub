@@ -239,7 +239,7 @@ func (v *HistoryView) showDiff(n int) {
 		}
 		actions := []ModalAction{{Label: i18n.T("tui.catalog.edit.close"), Callback: func() {}}}
 		if v.cfg.Restore != nil && !v.isCurrent(n) {
-			actions = append([]ModalAction{{Label: i18n.T("tui.history.restore"), Callback: func() { v.askRestore(n) }}}, actions...)
+			actions = append([]ModalAction{{Label: i18n.T("tui.history.restore"), KeepOpen: true, Callback: func() { v.askRestore(n) }}}, actions...)
 		}
 		sh.ShowScrollableModal(i18n.Tf("tui.history.diff_title", v.cfg.Ref, n), body, actions)
 	})

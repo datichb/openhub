@@ -257,6 +257,7 @@ func TestWikiView(t *testing.T) {
 	assert.Equal(t, []string{"[Accepter]", "[Refuser]", "[Fermer]"}, []string{actions[0].Label, actions[1].Label, actions[2].Label})
 
 	assert.True(t, actions[1].Danger)
+	assert.True(t, actions[1].KeepOpen, "the reason is asked over the proposal, which stays if the user cancels")
 	// y: the selected proposal is accepted, an event recorded, the list
 	// reloaded.
 	onLoop(func() { v.HandleKey(tcell.NewEventKey(tcell.KeyRune, 'y', 0)) })

@@ -167,7 +167,7 @@ func (p *deployPane) showDiff() {
 		return
 	}
 	sh.ShowScrollableModal(p.plan.DiffTitle, p.plan.Diff, []ModalAction{
-		{Label: i18n.T("tui.cleanup.apply"), Callback: p.confirmApply},
+		{Label: i18n.T("tui.cleanup.apply"), KeepOpen: true, Callback: p.confirmApply},
 		{Label: i18n.T("tui.cleanup.close"), Callback: func() {}, Separator: true},
 	})
 }

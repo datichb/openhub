@@ -439,6 +439,14 @@ func (w *InlineWizardView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		return event
 	}
 
+	// ── A step is running: going back and Esc wait for it, and say so ──
+	if w.processing && (isBackKey(event) || event.Key() == tcell.KeyEscape) {
+		if w.shell != nil {
+			w.shell.ShowToastMsg(i18n.T("tui.modal.hints.processing"), true)
+		}
+		return nil
+	}
+
 	// ── Ctrl+B, Alt+←, PgUp: go back (all step types) ──
 	if isBackKey(event) {
 		w.goBack()
@@ -450,9 +458,7 @@ func (w *InlineWizardView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		if step.CustomView == nil && formDropDownOpen(w.form) {
 			return event
 		}
-		if !w.processing {
-			w.askQuit()
-		}
+		w.askQuit()
 		return nil
 	}
 

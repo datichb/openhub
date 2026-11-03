@@ -21,7 +21,7 @@ import (
 // Dismissal:  Esc, or click outside (light dismiss).
 func (s *Shell) showHelpOverlay() {
 	// Do not stack on top of an existing overlay — silently ignore.
-	if s.pages.HasPage("inline-overlay") || s.pages.HasPage("sub-overlay") {
+	if s.hasOverlay() {
 		return
 	}
 
@@ -133,7 +133,7 @@ func (s *Shell) showHelpOverlay() {
 	textView := tview.NewTextView().SetText(text)
 	styleScrollableText(textView)
 	actions := []views.ModalAction{
-		{Label: i18n.T("tui.keys.notice.show"), Callback: func() { views.ShowKeysNotice(s, nil) }},
+		{Label: i18n.T("tui.keys.notice.show"), KeepOpen: true, Callback: func() { views.ShowKeysNotice(s, nil) }},
 	}
 	s.showModal(modalConfig{
 		Title:        i18n.T("tui.help.title"),
@@ -142,8 +142,7 @@ func (s *Shell) showHelpOverlay() {
 		Size:         modalSizeHint{ContentLines: countLines(text), HasButtons: true, ButtonCount: len(actions), ProportionalWidth: -4},
 		Hints:        i18n.T("tui.modal.hints.scrollable"),
 		LightDismiss: true,
-		PageName:     "inline-overlay",
-		FocusReturn:  s.focusReturn(),
+		Win:          s.openWindow(nil),
 		FocusTarget:  textView,
 	})
 }

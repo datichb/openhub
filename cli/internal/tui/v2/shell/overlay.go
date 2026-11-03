@@ -3,10 +3,10 @@ package shell
 // CurrentOverlay implements views.OverlayCloser: the overlay shown now (nil
 // when none).
 func (s *Shell) CurrentOverlay() any {
-	if !s.pages.HasPage("inline-overlay") {
+	if !s.pages.HasPage(windowPages[0]) {
 		return nil
 	}
-	return s.pages.GetPage("inline-overlay")
+	return s.pages.GetPage(windowPages[0])
 }
 
 // CloseOverlay implements views.OverlayCloser: it closes the overlay (and
@@ -15,8 +15,6 @@ func (s *Shell) CloseOverlay(token any) bool {
 	if token == nil || s.CurrentOverlay() != token {
 		return false
 	}
-	s.pages.RemovePage("sub-overlay")
-	s.pages.RemovePage("inline-overlay")
-	s.app.SetFocus(s.content)
+	s.closeWindows()
 	return true
 }

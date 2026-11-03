@@ -202,14 +202,19 @@ func (s *Shell) DismissToasts() bool {
 // whichever widget the user was interacting with. This helper restores focus:
 //   - to the widget that had it when a modal (form, sub-selector) is open,
 //   - to the omnibar input when the omnibar is active,
-//   - to the content area (active view) otherwise.
+//   - to the widget that had it otherwise (a tab of Sessions keeps its
+//     reader), the content area when none did.
 func (s *Shell) restoreFocusAfterToast(prev tview.Primitive) {
-	if prev != nil && (s.pages.HasPage("inline-overlay") || s.pages.HasPage("sub-overlay")) {
+	if s.hasOverlay() && prev != nil {
 		s.app.SetFocus(prev)
 		return
 	}
 	if s.omnibar.IsActive() {
 		s.omnibar.RestoreFocus()
+		return
+	}
+	if prev != nil {
+		s.app.SetFocus(prev)
 		return
 	}
 	s.app.SetFocus(s.content)

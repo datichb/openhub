@@ -35,10 +35,8 @@ type modalConfig struct {
 	Hints string
 
 	// Behavior
-	LightDismiss bool            // click outside to close
-	PageName     string          // "inline-overlay" or "sub-overlay"
-	FocusReturn  tview.Primitive // where to return focus on dismiss
-	IsSub        bool            // use darker backdrop for sub-overlay depth
+	LightDismiss bool    // click outside to close
+	Win          *window // the place of the window and where the focus goes back on close
 
 	// FocusTarget is the primitive to focus initially. If nil, Content is focused.
 	FocusTarget tview.Primitive
@@ -56,19 +54,14 @@ func (s *Shell) showModal(cfg modalConfig) {
 
 	size := s.computeModalSize(cfg.Size)
 
-	bg := theme.BgDimOverlay
-	if cfg.IsSub {
-		bg = theme.BgDimSubOverlay
-	}
-
-	dismissPage := ""
+	var dismiss func()
 	if cfg.LightDismiss {
-		dismissPage = cfg.PageName
+		dismiss = func() { s.closeWindow(cfg.Win) }
 	}
 
-	grid := s.overlayGrid(frame, size.cols, size.rows, bg, dismissPage, cfg.FocusReturn)
+	grid := s.overlayGrid(frame, size.cols, size.rows, cfg.Win.backdrop(), dismiss)
 
-	s.pages.AddPage(cfg.PageName, grid, true, true)
+	s.pages.AddPage(cfg.Win.page, grid, true, true)
 
 	// Set initial focus
 	switch {
@@ -125,7 +118,7 @@ func (s *Shell) buildModalFrame(cfg modalConfig) (result tview.Primitive, result
 		frame.AddItem(sep, 1, 0, false)
 
 		// Button bar (centered)
-		buttonBar, buttonFocusables := buildButtonBar(cfg.Actions, func() { s.closeModal(cfg) })
+		buttonBar, buttonFocusables := buildButtonBar(cfg.Actions, func() { s.closeWindow(cfg.Win) })
 		frame.AddItem(buttonBar, 1, 0, false)
 		focusables = append(focusables, buttonFocusables...)
 
@@ -139,7 +132,7 @@ func (s *Shell) buildModalFrame(cfg modalConfig) (result tview.Primitive, result
 	// focused element is read from the app, so a mouse click keeps it in sync.
 	frame.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if keys.Back.Matches(event) {
-			s.closeModal(cfg)
+			s.closeWindow(cfg.Win)
 			return nil
 		}
 		if len(focusables) < 2 {
@@ -189,16 +182,6 @@ func (s *Shell) buildModalFrame(cfg modalConfig) (result tview.Primitive, result
 	})
 
 	return frame, focusables
-}
-
-// closeModal removes the modal and gives the focus back to where it came from.
-func (s *Shell) closeModal(cfg modalConfig) {
-	s.pages.RemovePage(cfg.PageName)
-	if cfg.FocusReturn != nil {
-		s.app.SetFocus(cfg.FocusReturn)
-	} else {
-		s.app.SetFocus(s.content)
-	}
 }
 
 // focusIndex is the index of the focusable that has the focus (or contains
@@ -360,25 +343,6 @@ func applyRoundedCorners(p *tview.Flex, borderColor, bgColor tcell.Color) {
 			ix, iy, iw, ih = original(screen, x, y, width, height)
 		}
 		// Overdraw corners with rounded glyphs
-		if width >= 2 && height >= 2 {
-			style := tcell.StyleDefault.Foreground(borderColor).Background(bgColor)
-			screen.SetContent(x, y, '╭', nil, style)
-			screen.SetContent(x+width-1, y, '╮', nil, style)
-			screen.SetContent(x, y+height-1, '╰', nil, style)
-			screen.SetContent(x+width-1, y+height-1, '╯', nil, style)
-		}
-		return ix, iy, iw, ih
-	})
-}
-
-// applyRoundedCornersBox overdraws rounded corners on a tview.Box (for lists with borders).
-func applyRoundedCornersBox(p *tview.Box, borderColor, bgColor tcell.Color) {
-	original := p.GetDrawFunc()
-	p.SetDrawFunc(func(screen tcell.Screen, x, y, width, height int) (int, int, int, int) {
-		ix, iy, iw, ih := x+1, y+1, width-2, height-2
-		if original != nil {
-			ix, iy, iw, ih = original(screen, x, y, width, height)
-		}
 		if width >= 2 && height >= 2 {
 			style := tcell.StyleDefault.Foreground(borderColor).Background(bgColor)
 			screen.SetContent(x, y, '╭', nil, style)

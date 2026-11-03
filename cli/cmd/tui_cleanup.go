@@ -67,7 +67,7 @@ func deployCleanupConfig(a *app.App) *views.DeployCleanupConfig {
 }
 
 func showCleanupScreen(a *app.App, sh *shell.Shell, list []projectCleanup) {
-	sh.ShowScrollableModal(i18n.T("tui.cleanup.title"), cleanupText(list), cleanupActions(a, sh, list, true))
+	sh.ShowScrollableModal(i18n.T("tui.cleanup.title"), cleanupText(list), cleanupActions(sh, list))
 }
 
 // cleanupText is what goes and what is kept, by project.
@@ -85,16 +85,18 @@ func cleanupText(list []projectCleanup) string {
 	return b.String()
 }
 
-func cleanupActions(a *app.App, sh *shell.Shell, list []projectCleanup, withDiff bool) []views.ModalAction {
-	actions := []views.ModalAction{{Label: i18n.T("tui.cleanup.apply"), Callback: func() { applyCleanupInTUI(sh, list) }}}
-	if withDiff {
-		actions = append(actions, views.ModalAction{Label: i18n.T("tui.cleanup.diff"), Callback: func() { showCleanupDiff(a, sh, list) }})
+// cleanupActions are the buttons of the offer. The diff is a reader opened
+// over it: Esc gives the offer back, where « Appliquer » is.
+func cleanupActions(sh *shell.Shell, list []projectCleanup) []views.ModalAction {
+	return []views.ModalAction{
+		{Label: i18n.T("tui.cleanup.apply"), Callback: func() { applyCleanupInTUI(sh, list) }},
+		{Label: i18n.T("tui.cleanup.diff"), KeepOpen: true, Callback: func() { showCleanupDiff(sh, list) }},
+		{Label: i18n.T("tui.cleanup.later"), Callback: func() {}, Separator: true},
 	}
-	return append(actions, views.ModalAction{Label: i18n.T("tui.cleanup.later"), Callback: func() {}, Separator: true})
 }
 
-func showCleanupDiff(a *app.App, sh *shell.Shell, list []projectCleanup) {
-	sh.ShowScrollableModal(i18n.Tf("tui.cleanup.diff_title", cleanupConfigFile(list)), cleanupDiffText(list), cleanupActions(a, sh, list, false))
+func showCleanupDiff(sh *shell.Shell, list []projectCleanup) {
+	sh.ShowScrollableModal(i18n.Tf("tui.cleanup.diff_title", cleanupConfigFile(list)), cleanupDiffText(list), nil)
 }
 
 // cleanupDiffText is the diff of the configuration, by project.

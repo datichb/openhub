@@ -380,7 +380,7 @@ func (p *fanoutPane) previewClean(fb SessionFanouter, parent string, discard boo
 		}
 		actions := []ModalAction{
 			{Label: box + " " + i18n.T("tui.sessions.fanout.discard"), Callback: func() { p.previewClean(fb, parent, !discard) }},
-			{Label: i18n.T("tui.sessions.fanout.clean_do"), Danger: true, Separator: true, Callback: func() {
+			{Label: i18n.T("tui.sessions.fanout.clean_do"), Danger: true, Separator: true, KeepOpen: true, Callback: func() {
 				if plan.Empty() {
 					p.v.toast(i18n.T("tui.sessions.fanout.clean_nothing"), false)
 					return
