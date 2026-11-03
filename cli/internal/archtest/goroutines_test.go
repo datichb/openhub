@@ -20,14 +20,14 @@ import (
 // `go` statement is refused in non-test files. An entry that is not a
 // directory names the files that start with it.
 //
-// cmd/ is guarded as a whole since v5.1 (A7): the daemon of a remote job
+// cmd/ is guarded as a whole: the daemon of a remote job
 // (cmd/runner.go), ohd (cmd/daemon*.go), the end of the claims (cmd/session_claims.go)
 // and also the tview interface of the TUI (`safego.Go(func() {
 // app.QueueUpdateDraw(...) })`, spinners, watchers), the web server, the
 // heartbeat of an attach and the fan-out driver of an evaluation. A timer
 // is safego.AfterFunc.
 //
-// internal/tui/v2/shell joins in v5.1 (A10): the click handlers of the
+// internal/tui/v2/shell is guarded too: the click handlers of the
 // lists, the copy toast of the selection, the dismissal timer of the toasts
 // and the rotation of the notifications file ran in bare goroutines.
 var guardedDirs = []string{
@@ -43,7 +43,7 @@ var guardedDirs = []string{
 // go statement, with the reason. The list only shrinks: a file that has none
 // left must be removed from it (TestUnguardedFilesStillNeedIt).
 var unguardedFiles = map[string]string{
-	"cmd/provider.go": "the steps of the Bedrock assistant, which the inline wizard replaces (A8)",
+	"cmd/provider.go": "the steps of the Bedrock assistant, which the inline wizard replaces",
 }
 
 // bareGoStatements returns the position of every go statement of a Go

@@ -14,7 +14,7 @@ import (
 	"testing"
 )
 
-// Key guard (v5.1, A12): the keys of the TUI go through internal/tui/v2/keys.
+// Key guard: the keys of the TUI go through internal/tui/v2/keys.
 // A view or a widget asks keys.Delete.Matches(event) or the keys.Own action of
 // its own letter; it does not read the letter of the event. The production
 // code of internal/tui/** (keys/ itself excepted, it is where the letters are
@@ -28,7 +28,7 @@ import (
 // A rune read into a variable first (r := ev.Rune()) counts the same. The
 // keys that the code reads this way today are listed in
 // testdata/tui_keys_exceptions.txt, per file, with their count. The list only
-// shrinks, as the one of the style guard does; it is empty since A12.
+// shrinks, as the one of the style guard does; it is empty now.
 
 const tuiKeysExceptionsFile = "testdata/tui_keys_exceptions.txt"
 

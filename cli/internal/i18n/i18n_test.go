@@ -54,7 +54,7 @@ func keyOfScan(s string) string {
 	return ""
 }
 
-// N13: the reverse index gives the same key as the scan.
+// The reverse index gives the same key as the scan.
 func TestKeyOfMatchesTheScan(t *testing.T) {
 	n := 0
 	for _, locale := range []string{"en", "fr"} {

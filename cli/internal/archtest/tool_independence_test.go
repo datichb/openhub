@@ -18,7 +18,7 @@ import (
 	"testing"
 )
 
-// D19 (tool independence, 01-decisions): every specificity of a tool
+// Tool independence: every specificity of a tool
 // (names, provider ids, environment variables, API, paths, formats,
 // versions, binary, displayed names) lives only in internal/adapters/<tool>.
 // Outside of it: neutral interfaces and types; a single composition root
@@ -34,8 +34,8 @@ var toolAdapters = []string{"opencodev2"}
 // toolWord matches the name of a tool in identifiers and literals.
 var toolWord = regexp.MustCompile(`(?i)opencode`)
 
-// nativeAgents are the agents the tool ships (closed world, D13; rule 5 of
-// 00-INDEX): only the adapter disables them.
+// nativeAgents are the agents the tool ships (closed world): only the
+// adapter disables them.
 var nativeAgents = []string{"build", "plan", "general", "explore"}
 
 // contractTags are the build tags of the contract tests run against a real
@@ -160,7 +160,7 @@ func goFiles(t *testing.T) []goFile {
 	return out
 }
 
-const d19 = "D19 (01-decisions): tool specifics live only in internal/adapters/<tool>; use a neutral interface or capability of the adapter, the tool name of ToolInfo, or the composition root cmd/tool_registry.go"
+const d19 = "tool specifics live only in internal/adapters/<tool>; use a neutral interface or capability of the adapter, the tool name of ToolInfo, or the composition root cmd/tool_registry.go"
 
 // TestOnlyTheCompositionRootImportsAnAdapter: rule (1).
 func TestOnlyTheCompositionRootImportsAnAdapter(t *testing.T) {

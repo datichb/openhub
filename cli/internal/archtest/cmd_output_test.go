@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-// Output of the commands (v5.1, C9): a command writes to the writers of its
+// Output of the commands: a command writes to the writers of its
 // cobra command (cmd.OutOrStdout(), cmd.ErrOrStderr(), cmd.InOrStdin()) or to
 // those of the app (a.IO.Out, a.IO.ErrOut), through internal/cliout for what
 // has a shape (table, JSON, status message). That is what lets a test read
