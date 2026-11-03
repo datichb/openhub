@@ -72,9 +72,19 @@ type soloTeamParams struct {
 	ProjectRef string // project to attach (id or name), optional
 }
 
+// workflowStateRepo is a team-state whose workflow layout is read, committed
+// and rewritten in transactions: a solo space, and what the migration of the
+// former workflow configurations works on.
+type workflowStateRepo interface {
+	teamstate.RepoInfo
+	teamstate.RepoSync
+	teamstate.WorkflowLayoutReader
+	teamstate.WorkflowLayoutCommitter
+}
+
 type soloTeamResult struct {
 	Team    config.TeamConfig
-	Repo    *teamstate.Repo
+	Repo    workflowStateRepo
 	Project *domain.Project
 }
 
@@ -136,7 +146,7 @@ func initSoloTeam(ctx context.Context, a *app.App, p soloTeamParams) (*soloTeamR
 // soloSpace is the solo space a project was attached to.
 type soloSpace struct {
 	Team    config.TeamConfig
-	Repo    *teamstate.Repo
+	Repo    workflowStateRepo
 	Created bool
 }
 
@@ -175,7 +185,7 @@ func nextSoloID(cfg *config.Config) string {
 
 // attachProjectToSolo sets the project's team and creates its workflow
 // folders in the team-state.
-func attachProjectToSolo(ctx context.Context, a *app.App, repo *teamstate.Repo, project *domain.Project, teamID string) error {
+func attachProjectToSolo(ctx context.Context, a *app.App, repo teamstate.WorkflowLayoutCommitter, project *domain.Project, teamID string) error {
 	if err := repo.CommitWorkflowLayout(ctx, teamstate.ProjectScope(project.ID), "team: add project "+project.ID); err != nil {
 		return err
 	}

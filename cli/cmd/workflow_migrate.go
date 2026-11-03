@@ -106,7 +106,7 @@ func teamWorkflowSection(data []byte) *legacyTeamWorkflow {
 	return raw.Workflow
 }
 
-func repoTeamWorkflow(repo *teamstate.Repo) *legacyTeamWorkflow {
+func repoTeamWorkflow(repo teamstate.RepoInfo) *legacyTeamWorkflow {
 	data, err := os.ReadFile(filepath.Join(repo.Path(), "config.toml"))
 	if err != nil {
 		return nil
@@ -162,7 +162,7 @@ func legacyStoreOf(a *app.App) legacyWorkflowStore {
 	return nil
 }
 
-func teamRepoOf(t config.TeamConfig) *teamstate.Repo {
+func teamRepoOf(t config.TeamConfig) workflowStateRepo {
 	if !t.Enabled {
 		return nil
 	}
@@ -402,7 +402,7 @@ func projectLabel(ctx context.Context, a *app.App, id string) string {
 
 // projectTeamStateForMigration returns the team-state of project, creating
 // (or reusing) a solo space when it has no team.
-func projectTeamStateForMigration(ctx context.Context, a *app.App, project *domain.Project, m *workflowMigration) (*teamstate.Repo, string, error) {
+func projectTeamStateForMigration(ctx context.Context, a *app.App, project *domain.Project, m *workflowMigration) (workflowStateRepo, string, error) {
 	tc := config.ResolveTeamForProject(a.Config, project)
 	if tc.Enabled || tc.Solo {
 		path := tc.StatePath
@@ -442,7 +442,7 @@ func writeMigrationDraft(tx *teamstate.Tx, scope teamstate.WorkflowScope, member
 
 // publishMigration publishes the migrated draft when the scope has no
 // published `feature` yet; otherwise, or when invalid, the draft is kept.
-func publishMigration(ctx context.Context, svc *workflowsvc.Service, c workflowsvc.Context, repo *teamstate.Repo, scope teamstate.WorkflowScope, id string, m *workflowMigration) {
+func publishMigration(ctx context.Context, svc *workflowsvc.Service, c workflowsvc.Context, repo teamstate.WorkflowLayoutReader, scope teamstate.WorkflowScope, id string, m *workflowMigration) {
 	ref := string(scope.Layer()) + ":" + id
 	if lock, err := repo.ReadWorkflowLock(); err == nil {
 		if _, ok := lock.Get(scope, id); ok {
