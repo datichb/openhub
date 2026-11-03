@@ -62,6 +62,11 @@ func (h *TUILogHandler) Handle(_ context.Context, r slog.Record) error {
 	if r.Level >= slog.LevelWarn && h.shell != nil && h.shell.IsRunning() {
 		toastMsg := msg
 		safego.Go(func() {
+			// The application may have stopped since: QueueUpdateDraw would
+			// wait for an event loop that is gone.
+			if !h.shell.IsRunning() || h.shell.Context().Err() != nil {
+				return
+			}
 			h.shell.App().QueueUpdateDraw(func() {
 				h.shell.ShowToast(toastMsg, level)
 			})
@@ -114,9 +119,14 @@ func (h *TUILogHandler) formatMessage(r slog.Record) string {
 		fmt.Fprintf(&b, " %s=%v", a.Key, a.Value)
 	}
 
-	// Append record-level attrs (limited to first 3 for readability)
+	// Append record-level attrs (limited to first 3 for readability). The
+	// stack of a recovered panic stays in the log and in its crash file: it
+	// would fill the toast, which gives the path of the file instead.
 	count := 0
 	r.Attrs(func(a slog.Attr) bool {
+		if a.Key == "stack" {
+			return true
+		}
 		if count >= 3 {
 			return false
 		}
