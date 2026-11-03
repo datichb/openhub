@@ -116,6 +116,13 @@ func WrapErr(fn func() error) func() error {
 	}
 }
 
+// LogRecovered is for the code that recovers a panic itself (a deferred
+// recover that turns it into an error, or lets the loop go on): it logs the
+// value and the stack and writes the crash report, as safego.Go does. Call it
+// in the deferred function, where the frames of the panic are still there.
+// attrs are slog attributes put before the panic.
+func LogRecovered(msg string, r any, attrs ...any) { logPanic(msg, r, attrs...) }
+
 // logPanic logs a recovered panic (message, value, crash file, stack). The
 // stack comes last: the toast of the TUI keeps the first attributes and
 // leaves the stack out.

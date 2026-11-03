@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/logrotate"
+	"github.com/datichb/openhub/cli/internal/safego"
 )
 
 // runLogRotation keeps the logs written by live processes bounded: ohd.log
@@ -87,7 +88,7 @@ func (d *Daemon) runTask(ctx context.Context, t Task) {
 func safeRun(ctx context.Context, t Task) {
 	defer func() {
 		if r := recover(); r != nil {
-			slog.Error("daemon task panicked", "task", t.Name, "panic", r)
+			safego.LogRecovered("daemon task panicked", r, "task", t.Name)
 		}
 	}()
 	t.Run(ctx)

@@ -168,6 +168,7 @@ func TestStrictReading_ADateWhereAStringIsExpectedIsAnError(t *testing.T) {
 	var ce *config.ConfigError
 	require.ErrorAs(t, err, &ce)
 	assert.Equal(t, config.ConfigPath(), ce.Path)
+	assert.Contains(t, err.Error(), "decoder panic:", "the value of the panic is in the error")
 }
 
 // What the former reader accepted and the strict one still accepts.

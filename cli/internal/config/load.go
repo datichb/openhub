@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"reflect"
 	"regexp"
+	"runtime/debug"
 	"strings"
 
 	toml "github.com/pelletier/go-toml/v2"
@@ -160,11 +162,14 @@ func parseHub(path string, data []byte) (*Config, []Notice, error) {
 // decode reads a TOML document into v; unknownIsError makes the keys v has
 // no field for a *toml.StrictMissingError (the value is still filled). The
 // library panics on a date or time where it expects a string: that is
-// reported as an error too.
+// reported as an error too, with the value of the panic (it may be another
+// one, and a message that always says "date" would hide it); the stack goes
+// to the debug log. This package cannot use safego (which reads its folder).
 func decode(data []byte, v any, unknownIsError bool) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			err = errors.New("a date or time value where another type is expected")
+			slog.Debug("config: the TOML decoder panicked", "panic", r, "stack", string(debug.Stack()))
+			err = fmt.Errorf("a date or time value where another type is expected (decoder panic: %v)", r)
 		}
 	}()
 	dec := toml.NewDecoder(bytes.NewReader(data))
