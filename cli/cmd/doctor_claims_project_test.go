@@ -33,6 +33,12 @@ type rehomeFixture struct {
 
 func newRehomeFixture(t *testing.T, name, origin string) *rehomeFixture {
 	t.Helper()
+	return newRehomeFixtureMR(t, name, origin, "")
+}
+
+// newRehomeFixtureMR is newRehomeFixture where the claims carry the merge request mrURL.
+func newRehomeFixtureMR(t *testing.T, name, origin, mrURL string) *rehomeFixture {
+	t.Helper()
 	if testing.Short() {
 		t.Skip("skipping integration test in short mode")
 	}
@@ -40,7 +46,7 @@ func newRehomeFixture(t *testing.T, name, origin string) *rehomeFixture {
 	bare, clone := claimRepos(t)
 	repo := teamstate.NewRepo(bare, clone)
 	for _, id := range []string{"SRU-1", "SRU-2", "SRU-3", "SRU-4", "SRU-5"} {
-		_, err := repo.CreateClaim(context.Background(), teamstate.Claim{Project: "t-sru-b267fbf1", TicketID: id, ClaimedBy: "testuser", Status: teamstate.ClaimStatusReview})
+		_, err := repo.CreateClaim(context.Background(), teamstate.Claim{Project: "t-sru-b267fbf1", TicketID: id, ClaimedBy: "testuser", Status: teamstate.ClaimStatusReview, MRURL: mrURL})
 		require.NoError(t, err)
 	}
 	dir := gittest.Repo(t)
@@ -60,6 +66,17 @@ func newRehomeFixture(t *testing.T, name, origin string) *rehomeFixture {
 
 // 5 claims under the ID the project had before it was created
 // again were not reported: the check of the claims said « no orphan claim ».
+// addProject adds a second active project to the team of the fixture.
+func (f *rehomeFixture) addProject(t *testing.T, id, name, origin string) {
+	t.Helper()
+	dir := gittest.Repo(t)
+	if origin != "" {
+		gittest.Run(t, dir, "remote", "add", "origin", origin)
+	}
+	store := f.app.Projects.(*mockProjectStore)
+	store.projects = append(store.projects, domain.Project{ID: id, Name: name, Path: dir, Status: domain.ProjectStatusActive, TeamID: f.project.TeamID})
+}
+
 func TestClaimsCheckFlagsTheClaimsOfAFormerProjectID(t *testing.T) {
 	f := newRehomeFixture(t, "t-sru", "")
 
@@ -74,7 +91,6 @@ func TestClaimsCheckFlagsTheClaimsOfAFormerProjectID(t *testing.T) {
 	assert.NotContains(t, res[0].Detail, "no orphan claim")
 	_ = f
 }
-
 
 func TestDoctorFixRehomesTheClaimsOnceAndAsksOnce(t *testing.T) {
 	f := newRehomeFixture(t, "t-sru", "")
@@ -298,4 +314,170 @@ func TestDoctorFixCommandUsesTheCommonConfirmation(t *testing.T) {
 	require.NoError(t, fixClaimsProject(cmd))
 	moved, _ := f.repo.ListClaims(t.Context(), "88280c5b")
 	assert.Len(t, moved, 5)
+}
+
+// The case met on a real machine: the project transparence-sru was created
+// again (t-sru-b267fbf1 → 88280c5b), its slug is not the one of the old ID, the
+// claims have no mr_url, and the project is the only one of the team.
+func TestClaimsCheckProposesTheOnlyProjectOfTheTeam(t *testing.T) {
+	f := newRehomeFixture(t, "transparence-sru", "git@gitlab.example.com:acme/transparence-sru.git")
+	ctx := context.Background()
+
+	res := claimsDoctorChecks(ctx)
+	require.Len(t, res, 1)
+	assert.False(t, res[0].OK)
+	assert.Equal(t, doctorIDClaimsProject, res[0].ID, "repairable with --fix")
+	assert.Contains(t, res[0].Detail, "t-sru-b267fbf1")
+	assert.Contains(t, res[0].Detail, "transparence-sru (88280c5b)")
+	assert.Contains(t, res[0].Detail, "5 claim(s)")
+	assert.Contains(t, res[0].Detail, "only project of the team", "the message tells the evidence")
+	assert.Contains(t, res[0].Detail, "oh doctor --fix")
+
+	found, unres := findClaimsRehomes(ctx, TryApp())
+	require.Len(t, found, 1)
+	assert.Empty(t, unres)
+	assert.Equal(t, claimEvidenceSole, found[0].Evidence)
+	assert.Equal(t, []string{"SRU-1", "SRU-2", "SRU-3", "SRU-4", "SRU-5"}, found[0].Movable)
+
+	plan, err := planClaimsRehomeFix(ctx)
+	require.NoError(t, err)
+	assert.Contains(t, plan, "only project of the team", "the plan shown before the confirmation tells it too")
+
+	before := commitsOf(t, f.bare)
+	asked := 0
+	require.NoError(t, repairClaimsProject(ctx, &bytes.Buffer{}, func(string) (bool, error) { asked++; return true, nil }))
+	assert.Equal(t, 1, asked)
+	moved, err := f.repo.ListClaims(ctx, "88280c5b")
+	require.NoError(t, err)
+	assert.Len(t, moved, 5)
+	assert.Equal(t, before+1, commitsOf(t, f.bare), "one commit")
+	res = claimsDoctorChecks(ctx)
+	require.Len(t, res, 1)
+	assert.True(t, res[0].OK, res[0].Detail)
+}
+
+func TestClaimsCheckReportsWithoutProposingWhenTheTeamHasTwoProjects(t *testing.T) {
+	f := newRehomeFixture(t, "transparence-sru", "")
+	f.addProject(t, "other-00000001", "other", "")
+	ctx := context.Background()
+
+	res := claimsDoctorChecks(ctx)
+	require.Len(t, res, 1)
+	assert.False(t, res[0].OK, "never green on claims of an unknown ID")
+	assert.Equal(t, doctorIDClaimsUnknown, res[0].ID, "nothing to repair")
+	assert.Contains(t, res[0].Detail, "t-sru-b267fbf1")
+	assert.Contains(t, res[0].Detail, "SRU-1, SRU-2, SRU-3, SRU-4, SRU-5")
+	assert.Contains(t, res[0].Detail, "oh team release SRU-1 -p t-sru-b267fbf1")
+	assert.NotContains(t, res[0].Detail, "oh doctor --fix")
+
+	found, _ := findClaimsRehomes(ctx, TryApp())
+	assert.Empty(t, found)
+	assert.Nil(t, claimsProjectFix(res[0]), "no repair offered")
+
+	var out bytes.Buffer
+	require.NoError(t, repairClaimsProject(ctx, &out, func(string) (bool, error) { t.Fatal("nothing to confirm"); return false, nil }))
+	left, err := f.repo.ListClaims(ctx, "t-sru-b267fbf1")
+	require.NoError(t, err)
+	assert.Len(t, left, 5)
+}
+
+func TestClaimsCheckRefusesTheOnlyProjectWhenAMergeRequestContradicts(t *testing.T) {
+	f := newRehomeFixtureMR(t, "transparence-sru", "git@gitlab.example.com:acme/transparence-sru.git",
+		"https://gitlab.example.com/acme/elsewhere/-/merge_requests/9")
+	ctx := context.Background()
+
+	res := claimsDoctorChecks(ctx)
+	require.Len(t, res, 1)
+	assert.False(t, res[0].OK)
+	assert.Equal(t, doctorIDClaimsUnknown, res[0].ID)
+	assert.Contains(t, res[0].Detail, "t-sru-b267fbf1")
+	found, _ := findClaimsRehomes(ctx, TryApp())
+	assert.Empty(t, found, "the merge requests are another repository's")
+	left, err := f.repo.ListClaims(ctx, "t-sru-b267fbf1")
+	require.NoError(t, err)
+	assert.Len(t, left, 5)
+}
+
+func TestClaimsCheckStillPrefersTheStrongerEvidence(t *testing.T) {
+	// the merge request of the claims is the repository of the project: remote
+	f := newRehomeFixtureMR(t, "transparence-sru", "git@gitlab.example.com:acme/sru.git",
+		"https://gitlab.example.com/acme/sru/-/merge_requests/9")
+	found, _ := findClaimsRehomes(context.Background(), TryApp())
+	require.Len(t, found, 1)
+	assert.Equal(t, claimEvidenceRemote, found[0].Evidence)
+	_ = f
+
+	// the slug of the ID is the one of the name: name
+	g := newRehomeFixture(t, "t-sru", "")
+	found, _ = findClaimsRehomes(context.Background(), TryApp())
+	require.Len(t, found, 1)
+	assert.Equal(t, claimEvidenceName, found[0].Evidence)
+	_ = g
+}
+
+func TestMatchClaimsRehomesOnlyProjectEvidence(t *testing.T) {
+	noClaims := func(string) []teamstate.Claim { return nil }
+	sru := domain.Project{ID: "88280c5b", Name: "transparence-sru", Path: "/p/sru"}
+	other := domain.Project{ID: "other-00000001", Name: "other", Path: "/p/other"}
+	claims := claimsOfID("t-sru-b267fbf1", "me", "SRU-2", "SRU-1")
+
+	t.Run("alone: proposed with the weakest evidence", func(t *testing.T) {
+		found, unres := matchClaimsRehomes(nil, "me", claims, nil, []domain.Project{sru}, noClaims, originsByDir(nil))
+		require.Len(t, found, 1)
+		assert.Empty(t, unres)
+		assert.Equal(t, claimEvidenceSole, found[0].Evidence)
+		assert.Equal(t, []string{"SRU-1", "SRU-2"}, found[0].Movable)
+	})
+
+	t.Run("two projects: reported with no candidate", func(t *testing.T) {
+		found, unres := matchClaimsRehomes(nil, "me", claims, nil, []domain.Project{sru, other}, noClaims, originsByDir(nil))
+		assert.Empty(t, found)
+		assert.Equal(t, []claimsUnresolved{{From: "t-sru-b267fbf1", Tickets: []string{"SRU-1", "SRU-2"}}}, unres)
+	})
+
+	t.Run("a merge request of the same repository is the remote evidence", func(t *testing.T) {
+		withMR := claimsOfID("t-sru-b267fbf1", "me", "SRU-1")
+		withMR[0].MRURL = "https://gitlab.example.com/acme/sru/-/merge_requests/4"
+		origins := originsByDir(map[string]config.GitRemote{"/p/sru": {Host: "gitlab.example.com", Path: "acme/sru"}})
+		found, _ := matchClaimsRehomes(nil, "me", withMR, nil, []domain.Project{sru}, noClaims, origins)
+		require.Len(t, found, 1)
+		assert.Equal(t, claimEvidenceRemote, found[0].Evidence)
+	})
+
+	t.Run("a merge request of another repository refuses it", func(t *testing.T) {
+		withMR := claimsOfID("t-sru-b267fbf1", "me", "SRU-1")
+		withMR[0].MRURL = "https://gitlab.example.com/acme/elsewhere/-/merge_requests/4"
+		origins := originsByDir(map[string]config.GitRemote{"/p/sru": {Host: "gitlab.example.com", Path: "acme/sru"}})
+		found, unres := matchClaimsRehomes(nil, "me", withMR, nil, []domain.Project{sru}, noClaims, origins)
+		assert.Empty(t, found)
+		require.Len(t, unres, 1)
+	})
+
+	t.Run("a merge request without a readable origin does not refuse it", func(t *testing.T) {
+		withMR := claimsOfID("t-sru-b267fbf1", "me", "SRU-1")
+		withMR[0].MRURL = "https://gitlab.example.com/acme/sru/-/merge_requests/4"
+		found, _ := matchClaimsRehomes(nil, "me", withMR, nil, []domain.Project{sru}, noClaims, originsByDir(nil))
+		require.Len(t, found, 1)
+		assert.Equal(t, claimEvidenceSole, found[0].Evidence)
+	})
+
+	t.Run("the name wins over the only project", func(t *testing.T) {
+		named := domain.Project{ID: "88280c5b", Name: "T-SRU", Path: "/p/sru"}
+		found, _ := matchClaimsRehomes(nil, "me", claims, nil, []domain.Project{named}, noClaims, originsByDir(nil))
+		require.Len(t, found, 1)
+		assert.Equal(t, claimEvidenceName, found[0].Evidence)
+	})
+}
+
+func TestClaimsProjectDetailTellsTheTicketsOfAnUnmatchedID(t *testing.T) {
+	i18ntest.Set(t, "en")
+	detail, repairable := claimsProjectDetail(nil, []claimsUnresolved{{From: "old-12345678", Tickets: []string{"A-1", "A-2"}}})
+	assert.False(t, repairable)
+	assert.Contains(t, detail, "old-12345678")
+	assert.Contains(t, detail, "A-1, A-2")
+	assert.Contains(t, detail, "no local project matches")
+	assert.Contains(t, detail, "oh team release A-1 -p old-12345678")
+
+	detail, _ = claimsProjectDetail(nil, []claimsUnresolved{{From: "old-12345678", Candidates: []string{"a", "b"}, Tickets: []string{"A-1"}}})
+	assert.Contains(t, detail, "several local projects fit (a, b)")
 }
