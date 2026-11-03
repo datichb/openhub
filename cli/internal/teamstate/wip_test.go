@@ -63,6 +63,22 @@ func TestCountsInProgressOnACustomBoard(t *testing.T) {
 	assert.False(t, review.CountsInProgress(board), "in review by label")
 }
 
+// A team that left the columns unset and one that saved the default ones (the
+// column editor does it, where review and validation are active columns too)
+// count the same claims: the ones in progress.
+func TestCountsInProgressIsTheSameOnTheDefaultBoardSaved(t *testing.T) {
+	t.Parallel()
+	for _, board := range []BoardConfig{{}, DefaultBoardConfig()} {
+		for status, want := range map[string]bool{
+			ClaimStatusInProgress: true, ClaimStatusReview: false, ClaimStatusValidation: false,
+			ClaimStatusPlanned: false, "todo": false, ClaimStatusBlocked: false, ClaimStatusDone: false,
+		} {
+			c := claimOf("1", "alice", status)
+			assert.Equal(t, want, c.CountsInProgress(board), "%s (custom columns: %v)", status, board.HasCustomColumns())
+		}
+	}
+}
+
 func TestCheckInProgressRoom(t *testing.T) {
 	t.Parallel()
 	claims := []Claim{
