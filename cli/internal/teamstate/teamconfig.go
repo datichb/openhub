@@ -640,7 +640,10 @@ func (t TrackerConfig) IsPushLabelsEnforced() bool {
 }
 
 // LoadConfig reads config.toml from the team-state repo.
-func (r *Repo) LoadConfig() (*TeamConfig, error) {
+func (r *Repo) LoadConfig(ctx context.Context) (*TeamConfig, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	return r.loadConfig()

@@ -81,7 +81,7 @@ func actionTeamInit() {
 			credState.Probe(ctx, stateRepo)
 			hasConfig = repo.HasConfig()
 			hasPolicies = repo.HasPolicies()
-			existingCfg, _ = repo.LoadConfig()
+			existingCfg, _ = repo.LoadConfig(ctx)
 			if hasConfig && existingCfg != nil {
 				staleDaysStr = fmt.Sprintf("%d", existingCfg.Takeover.StaleDays)
 				webhookURL = existingCfg.Notification.MattermostWebhook
@@ -201,7 +201,7 @@ func actionTeamInit() {
 			}
 			repo := teamstate.NewRepo(stateRepo, sp)
 			trackerConfigured := false
-			if teamCfg, err := repo.LoadConfig(); err == nil && teamCfg.Tracker.Type != "" {
+			if teamCfg, err := repo.LoadConfig(ctx); err == nil && teamCfg.Tracker.Type != "" {
 				trackerConfigured = true
 				hint := i18n.T("cmd.init.wizard_tracker_configured") + "\n" +
 					i18n.Tf("cmd.init.wizard_tracker_info",

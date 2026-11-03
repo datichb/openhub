@@ -93,7 +93,7 @@ func boardIssueRef(a *app.App, ticket views.TicketContext) string {
 	if project == nil {
 		project, _ = resolveActiveProject(a)
 	}
-	if teamService(a).TrackerOf(project).Type != "gitlab" {
+	if teamService(a).TrackerOf(context.Background(), project).Type != "gitlab" {
 		return ""
 	}
 	return "#" + ticket.ID

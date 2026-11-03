@@ -49,7 +49,7 @@ func startTicketClaims(a *app.App, project *domain.Project) func(ctx context.Con
 // end of the session applies to the claim it worked on.
 func startTicketClaim(ctx context.Context, repo *teamstate.Repo, projectID, member, ticketID string) string {
 	var boardCfg teamstate.BoardConfig
-	if cfg, err := repo.LoadConfig(); err == nil && cfg != nil {
+	if cfg, err := repo.LoadConfig(ctx); err == nil && cfg != nil {
 		boardCfg = cfg.Board
 	}
 	session := runsvc.StartedSession(ctx)

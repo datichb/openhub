@@ -23,7 +23,7 @@ bot_name = "TeamHub"
 `
 	require.NoError(t, os.WriteFile(filepath.Join(repo.path, "config.toml"), []byte(content), 0o644))
 
-	cfg, err := repo.LoadConfig()
+	cfg, err := repo.LoadConfig(t.Context())
 	require.NoError(t, err)
 	assert.Equal(t, "https://mattermost.example.com/hooks/abc123", cfg.Notification.MattermostWebhook)
 	assert.Equal(t, "dev-ai-sessions", cfg.Notification.Channel)
@@ -36,7 +36,7 @@ func TestLoadConfigDefaults(t *testing.T) {
 	repo := setupTestRepo(t)
 	// No config.toml — should return defaults
 
-	cfg, err := repo.LoadConfig()
+	cfg, err := repo.LoadConfig(t.Context())
 	require.NoError(t, err)
 	assert.False(t, cfg.Notification.Enabled)
 	assert.Equal(t, "OpenHub", cfg.Notification.BotName)
@@ -54,7 +54,7 @@ enabled = true
 `
 	require.NoError(t, os.WriteFile(filepath.Join(repo.path, "config.toml"), []byte(content), 0o644))
 
-	cfg, err := repo.LoadConfig()
+	cfg, err := repo.LoadConfig(t.Context())
 	require.NoError(t, err)
 	// Default bot name should be applied
 	assert.Equal(t, "OpenHub", cfg.Notification.BotName)
@@ -67,7 +67,7 @@ func TestLoadConfigInvalid(t *testing.T) {
 	content := `this is {{{{ invalid toml`
 	require.NoError(t, os.WriteFile(filepath.Join(repo.path, "config.toml"), []byte(content), 0o644))
 
-	_, err := repo.LoadConfig()
+	_, err := repo.LoadConfig(t.Context())
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "parsing config.toml")
 }
@@ -89,7 +89,7 @@ func TestSaveConfig(t *testing.T) {
 	require.NoError(t, err)
 
 	// Read back
-	loaded, err := repo.LoadConfig()
+	loaded, err := repo.LoadConfig(t.Context())
 	require.NoError(t, err)
 	assert.Equal(t, cfg.Notification.MattermostWebhook, loaded.Notification.MattermostWebhook)
 	assert.Equal(t, cfg.Notification.Channel, loaded.Notification.Channel)
@@ -118,7 +118,7 @@ func TestSaveConfigReplacesTheFileAtomically(t *testing.T) {
 	kept, err := os.ReadFile(link)
 	require.NoError(t, err)
 	assert.Equal(t, string(before), string(kept), "the previous file is not written in place")
-	loaded, err := repo.LoadConfig()
+	loaded, err := repo.LoadConfig(ctx)
 	require.NoError(t, err)
 	assert.Equal(t, "Second", loaded.Notification.BotName)
 
@@ -406,7 +406,7 @@ func TestClaimConfigDefaults(t *testing.T) {
 	repo := setupTestRepo(t)
 
 	t.Run("no config.toml", func(t *testing.T) {
-		cfg, err := repo.LoadConfig()
+		cfg, err := repo.LoadConfig(t.Context())
 		require.NoError(t, err)
 		assert.Equal(t, 24, cfg.Claim.LeaseHours)
 		assert.Equal(t, 60, cfg.Claim.HeartbeatMinutes)
@@ -416,7 +416,7 @@ func TestClaimConfigDefaults(t *testing.T) {
 		t.Helper()
 		r := setupTestRepo(t)
 		require.NoError(t, os.WriteFile(filepath.Join(r.path, "config.toml"), []byte(content), 0o644))
-		cfg, err := r.LoadConfig()
+		cfg, err := r.LoadConfig(t.Context())
 		require.NoError(t, err)
 		return cfg.Claim
 	}
@@ -503,7 +503,7 @@ func TestSaveConfigRefusesInvalidClaimSettings(t *testing.T) {
 
 	ok := &TeamConfig{Claim: ClaimConfig{LeaseHours: 12, HeartbeatMinutes: 20}}
 	require.NoError(t, repo.SaveConfig(context.Background(), ok))
-	loaded, err := repo.LoadConfig()
+	loaded, err := repo.LoadConfig(t.Context())
 	require.NoError(t, err)
 	assert.Equal(t, ok.Claim.LeaseHours, loaded.Claim.LeaseHours)
 	assert.Equal(t, ok.Claim.HeartbeatMinutes, loaded.Claim.HeartbeatMinutes)
@@ -513,7 +513,7 @@ func TestSavedHeartbeatOfZeroStaysDisabled(t *testing.T) {
 	t.Parallel()
 	repo, _ := setupGitTestRepo(t)
 	require.NoError(t, repo.SaveConfig(context.Background(), &TeamConfig{Claim: ClaimConfig{LeaseHours: 24}}))
-	loaded, err := repo.LoadConfig()
+	loaded, err := repo.LoadConfig(t.Context())
 	require.NoError(t, err)
 	assert.Equal(t, 0, loaded.Claim.HeartbeatMinutes)
 }

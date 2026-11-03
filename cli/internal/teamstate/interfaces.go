@@ -133,7 +133,7 @@ type EventWriter interface {
 
 // ConfigReader reads the configuration of the team.
 type ConfigReader interface {
-	LoadConfig() (*TeamConfig, error)
+	LoadConfig(ctx context.Context) (*TeamConfig, error)
 }
 
 // ConfigWriter saves the configuration of the team.

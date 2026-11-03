@@ -53,7 +53,7 @@ func buildTeamModeView(a *app.App, sessionsSection views.SessionsSectionConfig, 
 			// The sessions of the other members, read from the claims.
 			var others []views.TeamMemberSession
 			if claims, err := repo.ListClaims(ctx, ""); err == nil {
-				cfg, _ := repo.LoadConfig()
+				cfg, _ := repo.LoadConfig(ctx)
 				others = views.OtherMemberSessions(claims, members, cfg, tr.MemberID, time.Now())
 			}
 			return views.TeamModeStats{

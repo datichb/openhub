@@ -133,7 +133,7 @@ func TestTrackerUsernameWanted(t *testing.T) {
 				cfg = "[tracker]\n" + typ + "enabled = true\n" + tc.toml + "\n"
 			}
 			require.NoError(t, os.WriteFile(filepath.Join(repo.Path(), "config.toml"), []byte(cfg), 0o644))
-			assert.Equal(t, tc.want, trackerUsernameWanted(repo, tc.remote, tc.gitlabURL))
+			assert.Equal(t, tc.want, trackerUsernameWanted(t.Context(), repo, tc.remote, tc.gitlabURL))
 		})
 	}
 }

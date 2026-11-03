@@ -64,7 +64,7 @@ func TestTeamTokenIsNotSentToTheTrackerOnAnotherServer(t *testing.T) {
 
 	connect := func() error {
 		creds, err := tracker.ResolveCredentials(t.Context(),
-			svc.CredentialSource(tracker.CredentialSource{URL: forge.URL}, nil), tracker.TypeGitLab)
+			svc.CredentialSource(t.Context(), tracker.CredentialSource{URL: forge.URL}, nil), tracker.TypeGitLab)
 		if err != nil {
 			return err
 		}
@@ -95,7 +95,7 @@ func TestTrackerTokenKeyDeclaredForItsServerIsUsed(t *testing.T) {
 	var shared teamstate.TrackerConfig
 	connect := func() (string, error) {
 		eff := tracker.ResolveTrackerConfig(&shared, cfg.Tracker)
-		creds, err := tracker.ResolveCredentials(t.Context(), svc.CredentialSource(tracker.NewCredentialSource(eff, nil), nil), tracker.TypeGitLab)
+		creds, err := tracker.ResolveCredentials(t.Context(), svc.CredentialSource(t.Context(), tracker.NewCredentialSource(eff, nil), nil), tracker.TypeGitLab)
 		if err != nil {
 			return "", err
 		}
@@ -122,14 +122,14 @@ func TestTrackerTokenKeyDeclaredForItsServerIsUsed(t *testing.T) {
 	assert.NotContains(t, forge.tokens(), "token-octo")
 	assert.Empty(t, octo.tokens())
 
-	key, server, implicit := svc.TrackerTokenDecl(nil)
+	key, server, implicit := svc.TrackerTokenDecl(t.Context(), nil)
 	assert.Equal(t, "forge.token", key)
 	assert.Equal(t, forge.URL, server)
 	assert.False(t, implicit)
 
 	cfg.Tracker.SetTokenDecl("forge.token", "")
 	cfg.Tracker.TrackerURL = forge.URL
-	_, server, implicit = svc.TrackerTokenDecl(nil)
+	_, server, implicit = svc.TrackerTokenDecl(t.Context(), nil)
 	assert.Equal(t, forge.URL, server, "no declared server: the tracker's own")
 	assert.True(t, implicit)
 }
@@ -167,9 +167,9 @@ func TestServersOfTheTokenSources(t *testing.T) {
 	assert.Equal(t, "gitlab.core.example", svc.TeamRepoServer(nil))
 	assert.Empty(t, New(&config.Config{}, nil, nil).TeamRepoServer(nil))
 
-	assert.Empty(t, svc.GitLabMCPURL(nil), "no url set for the GitLab MCP: its tokens have no declared server")
+	assert.Empty(t, svc.GitLabMCPURL(t.Context(), nil), "no url set for the GitLab MCP: its tokens have no declared server")
 	cfg.MCP.Gitlab.URL = "https://gitlab.mcp.example"
-	assert.Equal(t, "https://gitlab.mcp.example", svc.GitLabMCPURL(nil))
+	assert.Equal(t, "https://gitlab.mcp.example", svc.GitLabMCPURL(t.Context(), nil))
 }
 
 // With no url set for the GitLab MCP its tokens are valid for gitlab.com, where

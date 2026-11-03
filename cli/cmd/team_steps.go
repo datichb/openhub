@@ -61,7 +61,7 @@ func (s *teamStepState) useRepo(repo *teamstate.Repo) {
 	s.Repo = repo
 	s.HasConfig = repo.HasConfig()
 	s.HasPolicies = repo.HasPolicies()
-	s.ExistingCfg, _ = repo.LoadConfig()
+	s.ExistingCfg, _ = repo.LoadConfig(s.Ctx)
 	if s.HasConfig && s.ExistingCfg != nil {
 		s.StaleDaysStr = strconv.Itoa(s.ExistingCfg.Takeover.StaleDays)
 		s.WebhookURL = s.ExistingCfg.Notification.MattermostWebhook
@@ -273,7 +273,7 @@ func buildTeamNotifStep(s *teamStepState, opts teamStepOpts) views.WizardStep {
 			if s.WebhookURL == "" {
 				return nil
 			}
-			cfg, err := s.Repo.LoadConfig()
+			cfg, err := s.Repo.LoadConfig(s.Ctx)
 			if err != nil {
 				return err
 			}

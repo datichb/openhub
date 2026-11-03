@@ -19,13 +19,13 @@ import (
 // the remote).
 func launchTracker(ctx context.Context, a *app.App, project *domain.Project) launch.TrackerInfo {
 	svc := teamService(a)
-	kind := svc.TrackerOf(project)
+	kind := svc.TrackerOf(ctx, project)
 	info := launch.TrackerInfo{Type: kind.Type, Project: kind.Project}
 	if info.Type != "" && (info.Type != "gitlab" || info.Project != "") {
 		return info
 	}
 	known := ""
-	if u, err := url.Parse(gitlabURLWith(svc, project)); err == nil {
+	if u, err := url.Parse(gitlabURLWith(ctx, svc, project)); err == nil {
 		known = u.Hostname()
 	}
 	if path, ok := gitlabRemotePath(ctx, project.Path, known); ok {

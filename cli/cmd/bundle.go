@@ -110,7 +110,7 @@ func buildBundleFor(cmd *cobra.Command, id string) (*bundle.Bundle, error) {
 	} else if prov == "" {
 		prov = a.Config.LLM.DefaultProvider
 	}
-	b, missing, err := buildWorkflowBundle(a, project, res, prov)
+	b, missing, err := buildWorkflowBundle(ctx, a, project, res, prov)
 	if err != nil {
 		return nil, fmt.Errorf(i18n.T("cmd.bundle.building_session_bundle"), err)
 	}

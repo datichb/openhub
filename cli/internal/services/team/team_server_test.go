@@ -31,7 +31,7 @@ func TestTeamTokenFollowsTheGitLabURLOfAnAliasedRepository(t *testing.T) {
 	assert.Equal(t, tracker.TokenSourceTeam, res.Source)
 	assert.Equal(t, "gitlab.corp.example", svc.TeamRepoServer(nil))
 	assert.Empty(t, svc.GitLabToken(t.Context(), "core", "https://mon-alias").Token, "the declared GitLab replaces the host of the remote")
-	assert.Equal(t, "gitlab.corp.example", svc.CredentialSource(tracker.CredentialSource{}, nil).TeamServer)
+	assert.Equal(t, "gitlab.corp.example", svc.CredentialSource(t.Context(), tracker.CredentialSource{}, nil).TeamServer)
 }
 
 // A team that is not registered yet (oh team rejoin) gets its GitLab from the

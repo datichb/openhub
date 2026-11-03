@@ -122,7 +122,7 @@ func runClaim(cmd *cobra.Command, args []string) error {
 	}
 
 	// Use board config for dynamic status resolution when available.
-	if cfg, err := repo.LoadConfig(); err == nil && cfg != nil && cfg.Board.HasCustomColumns() {
+	if cfg, err := repo.LoadConfig(ctx); err == nil && cfg != nil && cfg.Board.HasCustomColumns() {
 		if planned {
 			initialStatus = cfg.Board.InitialStatus()
 		} else {
@@ -180,7 +180,7 @@ func claimExists(cmd *cobra.Command, a *app.App, repo *teamstate.Repo, existing 
 	if existing == nil {
 		return nil
 	}
-	teamCfg, _ := repo.LoadConfig()
+	teamCfg, _ := repo.LoadConfig(ctx)
 	now := time.Now()
 	expired := existing.IsExpired(now, teamCfg)
 

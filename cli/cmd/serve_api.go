@@ -73,7 +73,7 @@ func handleTeamBoard(a *app.App) http.HandlerFunc {
 
 		// Group claims by status into kanban columns from board config
 		boardCfg := teamstate.DefaultBoardConfig()
-		if teamCfg, err := repo.LoadConfig(); err == nil && len(teamCfg.Board.Columns) > 0 {
+		if teamCfg, err := repo.LoadConfig(r.Context()); err == nil && len(teamCfg.Board.Columns) > 0 {
 			boardCfg = teamCfg.Board
 		}
 		columns := make([]string, len(boardCfg.Columns))

@@ -39,13 +39,13 @@ func TestGovernance_ConfigTOML(t *testing.T) {
 	assert.ErrorIs(t, repo.CheckPublish(t.Context(), "bob"), ErrNotMember)
 
 	require.NoError(t, os.WriteFile(filepath.Join(repo.Path(), "config.toml"), []byte("[governance]\npublish = \"any_member\"\n"), 0o644))
-	cfg, err := repo.LoadConfig()
+	cfg, err := repo.LoadConfig(t.Context())
 	require.NoError(t, err)
 	assert.Equal(t, GovernancePublishAnyMember, cfg.Governance.Publish)
 	require.NoError(t, repo.CheckPublish(t.Context(), "alice"))
 
 	require.NoError(t, os.WriteFile(filepath.Join(repo.Path(), "config.toml"), []byte("[governance]\npublish = \"two_reviewers\"\n"), 0o644))
-	_, err = repo.LoadConfig()
+	_, err = repo.LoadConfig(t.Context())
 	require.NoError(t, err, "an unknown policy must not break the config")
 	assert.ErrorIs(t, repo.CheckPublish(t.Context(), "alice"), ErrGovernanceUnsupported)
 

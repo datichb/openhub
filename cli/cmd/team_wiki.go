@@ -226,7 +226,7 @@ func runTeamWikiReview(cmd *cobra.Command, args []string) error {
 		_ = repo.AppendEvent(ctx, event)
 
 		// Dispatch notification
-		if teamCfg, cfgErr := repo.LoadConfig(); cfgErr == nil {
+		if teamCfg, cfgErr := repo.LoadConfig(ctx); cfgErr == nil {
 			d := notify.NewDispatcher(teamCfg)
 			_ = d.Dispatch(ctx, event)
 		}
@@ -260,7 +260,7 @@ func runTeamWikiReview(cmd *cobra.Command, args []string) error {
 		_ = repo.AppendEvent(ctx, event)
 
 		// Dispatch notification
-		if teamCfg, cfgErr := repo.LoadConfig(); cfgErr == nil {
+		if teamCfg, cfgErr := repo.LoadConfig(ctx); cfgErr == nil {
 			d := notify.NewDispatcher(teamCfg)
 			_ = d.Dispatch(ctx, event)
 		}

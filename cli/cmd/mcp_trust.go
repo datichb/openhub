@@ -84,7 +84,7 @@ func pinService(name string) (string, error) {
 
 // sharedMCPForTeam returns the MCP configuration the team shares (nil
 // without team, or while the team-state is not cloned).
-func sharedMCPForTeam(tc config.ResolvedTeamConfig) map[string]teamstate.SharedMCPConfig {
+func sharedMCPForTeam(ctx context.Context, tc config.ResolvedTeamConfig) map[string]teamstate.SharedMCPConfig {
 	if !tc.Enabled || tc.StatePath == "" {
 		return nil
 	}
@@ -92,7 +92,7 @@ func sharedMCPForTeam(tc config.ResolvedTeamConfig) map[string]teamstate.SharedM
 	if !repo.IsCloned() {
 		return nil
 	}
-	cfg, err := repo.LoadConfig()
+	cfg, err := repo.LoadConfig(ctx)
 	if err != nil || cfg == nil {
 		return nil
 	}
@@ -224,7 +224,7 @@ func runMCPTrust(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	var shared *teamstate.SharedMCPConfig
-	if s, ok := sharedMCPForTeam(tc)[service]; ok {
+	if s, ok := sharedMCPForTeam(cmd.Context(), tc)[service]; ok {
 		shared = &s
 	}
 	return trustURL(cmd, service, shared, *a.Config.MCPServer(service))
@@ -352,7 +352,7 @@ func tuiEnforcedURLs(a *app.App) func() map[string]*views.MCPEnforcedURL {
 			*cfg.MCPServer(name) = s
 		}
 		out := map[string]*views.MCPEnforcedURL{}
-		for _, n := range enforcedURLNotices(cfg, sharedMCPForTeam(team)) {
+		for _, n := range enforcedURLNotices(cfg, sharedMCPForTeam(tuiContext(), team)) {
 			e := &views.MCPEnforcedURL{Warning: n.Message()}
 			if n.Reason != mcpresolve.PendingInvalid {
 				e.URL, _ = mcpresolve.NormalizeURL(n.URL)

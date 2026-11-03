@@ -200,7 +200,7 @@ func tuiToolLine() string {
 // teamTrackerType is the type of the tracker of a team (gitlab, jira) as its
 // team-state declares it; "" when it is not cloned or says nothing. It reads
 // files: call it off the event loop.
-func teamTrackerType(team config.TeamConfig) string {
+func teamTrackerType(ctx context.Context, team config.TeamConfig) string {
 	if team.StateRepo == "" {
 		return ""
 	}
@@ -208,7 +208,7 @@ func teamTrackerType(team config.TeamConfig) string {
 	if !repo.IsCloned() {
 		return ""
 	}
-	cfg, err := repo.LoadConfig()
+	cfg, err := repo.LoadConfig(ctx)
 	if err != nil || cfg == nil {
 		return ""
 	}

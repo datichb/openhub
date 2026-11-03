@@ -65,7 +65,7 @@ func runTeamConfigWizard(cmd *cobra.Command, _ []string) error {
 		return nil
 	}
 
-	teamCfg, _ := repo.LoadConfig()
+	teamCfg, _ := repo.LoadConfig(ctx)
 	if teamCfg == nil {
 		teamCfg = &teamstate.TeamConfig{}
 	}
@@ -158,7 +158,7 @@ func configureGitLab(ctx context.Context, a *app.App, repo *teamstate.Repo, team
 		fmt.Fprint(out, i18n.Tf("cmd.team_config.local_configuration", theme.Bold.Render("→")))
 
 		// Test de connexion avec les credentials actuels du GitLab du MCP
-		src := mcpGitLabCredentials(a, teamCfg)
+		src := mcpGitLabCredentials(ctx, a, teamCfg)
 		if err := testAndDisplayConnection(ctx, out, src, tracker.TypeGitLab); err != nil {
 			if askYN(out, i18n.T("cmd.team_config.set_up_a_new_gitlab_token"), true) {
 				tokenKey := askInput(out, i18n.T("cmd.team_config.key_name_in_the_keychain_e"), a.Config.MCP.Gitlab.Token)
@@ -216,7 +216,7 @@ func configureJira(ctx context.Context, a *app.App, repo *teamstate.Repo, teamCf
 
 	if configLocal {
 		fmt.Fprint(out, i18n.Tf("cmd.team_config.local_configuration", theme.Bold.Render("→")))
-		src := trackerCredentials(a, teamCfg)
+		src := trackerCredentials(ctx, a, teamCfg)
 		if err := testAndDisplayConnection(ctx, out, src, tracker.TypeJira); err != nil {
 			if askYN(out, i18n.T("cmd.team_config.set_up_a_new_jira_token"), true) {
 				tokenKey := askInput(out, i18n.T("cmd.team_config.key_name_in_the_keychain_e_2"), a.Config.MCP.Jira.Token)
@@ -303,7 +303,7 @@ func configureTrackerSync(ctx context.Context, a *app.App, repo *teamstate.Repo,
 			out, ask, declTeam, teamCfg.Tracker.Type, teamCfg.Tracker.TrackerTokenKey, teamCfg.Tracker.TrackerTokenURL)
 
 		// Check if token exists, prompt if not
-		src := trackerCredentials(a, teamCfg)
+		src := trackerCredentials(ctx, a, teamCfg)
 		trackerType := tracker.Type(teamCfg.Tracker.Type)
 		fmt.Fprint(out, i18n.T("cmd.team_config.testing_the_connection"))
 		if err := testAndDisplayConnection(ctx, out, src, trackerType); err != nil {
@@ -325,7 +325,7 @@ func configureTrackerSync(ctx context.Context, a *app.App, repo *teamstate.Repo,
 					} else {
 						fmt.Fprint(out, i18n.Tf("cmd.team_config.token_stored_in_the_keychain", cliout.SuccessIcon(), tokenKey))
 						// Re-test connection
-						src = trackerCredentials(a, teamCfg)
+						src = trackerCredentials(ctx, a, teamCfg)
 						fmt.Fprint(out, i18n.T("cmd.team_config.testing_the_connection_again"))
 						_ = testAndDisplayConnection(ctx, out, src, trackerType)
 					}
@@ -362,7 +362,7 @@ func configureTrackerSync(ctx context.Context, a *app.App, repo *teamstate.Repo,
 				fmt.Fprint(out, i18n.Tf("cmd.team_config.project_discovery", theme.Bold.Render("→")))
 
 				// Build tracker client for discovery.
-				src := trackerCredentials(a, teamCfg)
+				src := trackerCredentials(ctx, a, teamCfg)
 				trackerType := tracker.Type(teamCfg.Tracker.Type)
 				creds, credErr := tracker.ResolveCredentials(ctx, src, trackerType)
 				if credErr != nil {
@@ -556,7 +556,7 @@ func runTeamConfigStatus(cmd *cobra.Command, _ []string) error {
 	if tc.Enabled && tc.StatePath != "" {
 		repo = teamstate.NewRepo(tc.StateRepo, tc.StatePath)
 		if repo.IsCloned() {
-			teamCfg, _ = repo.LoadConfig()
+			teamCfg, _ = repo.LoadConfig(ctx)
 		}
 	}
 
@@ -602,7 +602,7 @@ func runTeamConfigStatus(cmd *cobra.Command, _ []string) error {
 
 	// ── Connection tests ─────────────────────────────────────────────────────
 	fmt.Fprintf(out, "\n%s\n", theme.Bold.Render("Test de connexion"))
-	src := buildCredentialSource(a, eff)
+	src := buildCredentialSource(ctx, a, eff)
 	trackerType := tracker.Type(teamCfg.Tracker.Type)
 	_ = testAndDisplayConnection(ctx, out, src, trackerType)
 
@@ -749,21 +749,21 @@ func printTrackerStatus(out interface{ Write([]byte) (int, error) },
 // with the hub team, the servers of its sources and the key of [mcp.gitlab],
 // so that the GitLab token is found with the unified cascade like everywhere
 // else, and only for the server of the tracker.
-func trackerCredentials(a *app.App, teamCfg *teamstate.TeamConfig) tracker.CredentialSource {
-	return buildCredentialSource(a, tracker.ResolveTrackerConfig(&teamCfg.Tracker, a.Config.Tracker))
+func trackerCredentials(ctx context.Context, a *app.App, teamCfg *teamstate.TeamConfig) tracker.CredentialSource {
+	return buildCredentialSource(ctx, a, tracker.ResolveTrackerConfig(&teamCfg.Tracker, a.Config.Tracker))
 }
 
 // mcpGitLabCredentials is the credential source for the GitLab of the MCP
 // (url of the team recommendation or of hub.toml): the token the MCP server
 // would be given.
-func mcpGitLabCredentials(a *app.App, teamCfg *teamstate.TeamConfig) tracker.CredentialSource {
+func mcpGitLabCredentials(ctx context.Context, a *app.App, teamCfg *teamstate.TeamConfig) tracker.CredentialSource {
 	svc := teamService(a)
 	var shared *teamstate.SharedMCPConfig
 	if s, ok := teamCfg.MCP["gitlab"]; ok {
 		shared = &s
 	}
 	url := tracker.MCPGitLabURL(a.Config.MCP.Gitlab, shared, nil, svc.ResolveTeam(nil).TeamID)
-	return svc.CredentialSource(tracker.CredentialSource{URL: url}, nil)
+	return svc.CredentialSource(ctx, tracker.CredentialSource{URL: url}, nil)
 }
 
 // testAndDisplayConnection builds a tracker, tests the connection, and prints

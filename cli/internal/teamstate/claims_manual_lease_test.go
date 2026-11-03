@@ -19,7 +19,7 @@ func TestClaimConfigManualLeaseAndRenewalCeilings(t *testing.T) {
 		t.Helper()
 		r := setupTestRepo(t)
 		require.NoError(t, os.WriteFile(filepath.Join(r.path, "config.toml"), []byte(content), 0o644))
-		cfg, err := r.LoadConfig()
+		cfg, err := r.LoadConfig(t.Context())
 		require.NoError(t, err)
 		return cfg.Claim
 	}

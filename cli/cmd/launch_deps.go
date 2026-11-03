@@ -44,8 +44,8 @@ func launchDeps(a *app.App) launch.Deps {
 		TicketClaims: func(project *domain.Project) func(ctx context.Context, projectID string, tickets []string) []string {
 			return startTicketClaims(a, project)
 		},
-		BuildBundle: func(project *domain.Project, res *workflowsvc.Resolution, prov string) (*bundle.Bundle, []string, error) {
-			return buildWorkflowBundle(a, project, res, prov)
+		BuildBundle: func(ctx context.Context, project *domain.Project, res *workflowsvc.Resolution, prov string) (*bundle.Bundle, []string, error) {
+			return buildWorkflowBundle(ctx, a, project, res, prov)
 		},
 		Request: func(project *domain.Project, providerFlag string) runsvc.StartRequest {
 			return v5Request(a, project, providerFlag)

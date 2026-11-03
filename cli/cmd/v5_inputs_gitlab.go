@@ -94,7 +94,7 @@ func fetchMRFeedback(ctx context.Context, a *app.App, projectID, ref string) (*m
 	if err != nil {
 		return nil, err
 	}
-	glProject := resolveGitLabProject(a, project)
+	glProject := resolveGitLabProject(ctx, a, project)
 	if glProject == "" {
 		return nil, errors.New(i18n.Tf("cmd.review.feedback.no_project", "tracker_project"))
 	}

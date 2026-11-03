@@ -157,7 +157,7 @@ func actionBoardColumnConfig() {
 	}
 
 	// Load current board config
-	cfg, err := repo.LoadConfig()
+	cfg, err := repo.LoadConfig(ctx)
 	if err != nil {
 		tuiShell.ShowToast(i18n.T("tui.team.board_config.config_load_error")+err.Error(), shell.ToastError)
 		return
@@ -212,7 +212,7 @@ func boardColumnsOf(cfg *teamstate.TeamConfig) []teamstate.BoardColumnConfig {
 // saveBoardColumns writes the columns and the mappings to the config of the
 // team-state, off the event loop, and says how it went.
 func saveBoardColumns(ctx context.Context, repo *teamstate.Repo, columns []teamstate.BoardColumnConfig, labelMappings, statusMappings map[string]string) {
-	freshCfg, err := repo.LoadConfig()
+	freshCfg, err := repo.LoadConfig(ctx)
 	if err != nil {
 		tuiShell.App().QueueUpdateDraw(func() {
 			tuiShell.ShowToast(i18n.T("tui.team.board_config.error_prefix")+err.Error(), shell.ToastError)

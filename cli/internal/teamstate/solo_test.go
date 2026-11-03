@@ -34,7 +34,7 @@ func TestInitSolo(t *testing.T) {
 	require.Len(t, members, 1)
 	assert.Equal(t, "alice", members[0].ID)
 	assert.Equal(t, SoloMemberRole, members[0].Role)
-	cfg, err := repo.LoadConfig()
+	cfg, err := repo.LoadConfig(ctx)
 	require.NoError(t, err)
 	assert.Equal(t, GovernancePublishAnyMember, cfg.Governance.Publish)
 	require.NoError(t, repo.CheckPublish(t.Context(), "alice"))

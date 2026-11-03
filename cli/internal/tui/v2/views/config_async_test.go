@@ -259,7 +259,7 @@ func TestSettingsViewReadsTheTrackerTypeOffTheLoop(t *testing.T) {
 	var got atomic.Value
 	v := NewSettingsView(SettingsViewConfig{
 		GetConfig: func() *config.Config { return live },
-		TrackerType: func(team config.TeamConfig) string {
+		TrackerType: func(_ context.Context, team config.TeamConfig) string {
 			got.Store(team.ID)
 			close(started)
 			<-release

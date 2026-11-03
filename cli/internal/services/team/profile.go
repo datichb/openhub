@@ -142,7 +142,7 @@ type TrackerIdentity struct {
 // project (nil: the hub team). It fails like TrackerEngine up to
 // ErrTrackerDisabled; it needs no credentials.
 func (s *Service) TrackerIdentity(ctx context.Context, project *domain.Project) (*TrackerIdentity, error) {
-	set, err := s.loadTracker(project)
+	set, err := s.loadTracker(ctx, project)
 	if err != nil {
 		return nil, err
 	}

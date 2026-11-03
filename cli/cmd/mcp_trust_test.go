@@ -266,14 +266,14 @@ func TestEnforcedURLNotices(t *testing.T) {
 
 func TestMCPURLDoctorChecks(t *testing.T) {
 	cfg := &config.Config{}
-	load := func(tc config.ResolvedTeamConfig) map[string]teamstate.SharedMCPConfig {
+	load := func(_ context.Context, tc config.ResolvedTeamConfig) map[string]teamstate.SharedMCPConfig {
 		if tc.TeamID != "acme" {
 			return nil
 		}
 		return map[string]teamstate.SharedMCPConfig{"jira": *urlEnforced("https://jira.example.com")}
 	}
 	teams := []config.ResolvedTeamConfig{{TeamID: "acme", Enabled: true}, {TeamID: "acme", Enabled: true}, {TeamID: "other", Enabled: true}, {}}
-	checks := mcpURLChecks(cfg, teams, load)
+	checks := mcpURLChecks(t.Context(), cfg, teams, load)
 	require.Len(t, checks, 1, "one warning per team and service")
 	assert.True(t, checks[0].OK)
 	assert.True(t, checks[0].Warn)
@@ -281,7 +281,7 @@ func TestMCPURLDoctorChecks(t *testing.T) {
 	assert.Contains(t, checks[0].Detail, "oh mcp trust jira")
 
 	cfg.MCP.Jira.TrustedURL = "https://jira.example.com"
-	assert.Empty(t, mcpURLChecks(cfg, teams, load), "pinned: nothing to say")
+	assert.Empty(t, mcpURLChecks(t.Context(), cfg, teams, load), "pinned: nothing to say")
 }
 
 // S-31 end to end: the environment of the Jira MCP server of a session does
@@ -296,7 +296,7 @@ func TestEnforcedURLIsNotInTheServerEnvironmentUntilPinned(t *testing.T) {
 	a := &app.App{Config: cfg}
 
 	jira := func() map[string]string {
-		for _, s := range buildMCPServersForProject(a, (*domain.ProjectMCPConfig)(nil), tc) {
+		for _, s := range buildMCPServersForProject(t.Context(), a, (*domain.ProjectMCPConfig)(nil), tc) {
 			if s.Name == "jira" {
 				return sessionMCPEnv(s)
 			}

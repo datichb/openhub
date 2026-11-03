@@ -563,7 +563,7 @@ func handleTeamWikiWrite(ctx context.Context, params json.RawMessage) (*protocol
 	}
 
 	// Best-effort notification
-	if teamCfg, err := repo.LoadConfig(); err == nil {
+	if teamCfg, err := repo.LoadConfig(ctx); err == nil {
 		d := notify.NewDispatcher(teamCfg)
 		_ = d.Dispatch(ctx, event)
 	}
@@ -653,7 +653,7 @@ func handleTeamNotify(ctx context.Context, params json.RawMessage) (*protocol.To
 		return nil, err
 	}
 
-	teamCfg, err := repo.LoadConfig()
+	teamCfg, err := repo.LoadConfig(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("loading team config: %w", err)
 	}
@@ -863,7 +863,7 @@ func handleTeamReviewVerdict(ctx context.Context, params json.RawMessage) (*prot
 	}
 
 	// ── 5. Best-effort notification ──
-	if teamCfg, cfgErr := repo.LoadConfig(); cfgErr == nil {
+	if teamCfg, cfgErr := repo.LoadConfig(ctx); cfgErr == nil {
 		d := notify.NewDispatcher(teamCfg)
 		_ = d.Dispatch(ctx, event)
 	}

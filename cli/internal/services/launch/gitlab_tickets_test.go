@@ -20,7 +20,7 @@ func gitlabDeps(t *testing.T, tr TrackerInfo, mcp ...string) (Deps, *fakes) {
 	t.Helper()
 	d, f := newDeps(t)
 	d.Tracker = func(context.Context, *domain.Project) TrackerInfo { return tr }
-	d.BuildBundle = func(*domain.Project, *workflowsvc.Resolution, string) (*bundle.Bundle, []string, error) {
+	d.BuildBundle = func(context.Context, *domain.Project, *workflowsvc.Resolution, string) (*bundle.Bundle, []string, error) {
 		b := &bundle.Bundle{}
 		for _, m := range mcp {
 			b.Spec.MCP = append(b.Spec.MCP, sessionspec.MCPServerDef{Name: m})

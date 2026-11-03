@@ -186,9 +186,9 @@ func TestResolveGitLabProjectUsesTheTeamOfTheProject(t *testing.T) {
 	a.Config.Teams[0].StatePath = mkState("acme/core-app")
 	a.Config.Teams[1].StatePath = mkState("acme/ops-app")
 
-	assert.Equal(t, "acme/ops-app", resolveGitLabProject(a, &domain.Project{ID: "p1", TeamID: teamOf("ops")}))
-	assert.Equal(t, "acme/core-app", resolveGitLabProject(a, &domain.Project{ID: "p2"}), "no team: the hub team")
-	assert.Equal(t, "acme/mine", resolveGitLabProject(a, &domain.Project{ID: "p3", TeamID: teamOf("ops"),
+	assert.Equal(t, "acme/ops-app", resolveGitLabProject(t.Context(), a, &domain.Project{ID: "p1", TeamID: teamOf("ops")}))
+	assert.Equal(t, "acme/core-app", resolveGitLabProject(t.Context(), a, &domain.Project{ID: "p2"}), "no team: the hub team")
+	assert.Equal(t, "acme/mine", resolveGitLabProject(t.Context(), a, &domain.Project{ID: "p3", TeamID: teamOf("ops"),
 		TrackerConfig: &domain.ProjectTrackerConfig{TrackerProject: "acme/mine"}}), "the project override wins")
 }
 

@@ -39,8 +39,8 @@ func resolveGitLabAccess(ctx context.Context, a *app.App, project *domain.Projec
 // resolveGitLabAccessWith is resolveGitLabAccess on a given team service (a
 // view hands one built on a snapshot of the configuration to a goroutine).
 func resolveGitLabAccessWith(ctx context.Context, svc *teamsvc.Service, project *domain.Project) (gitlabAccess, error) {
-	server := gitlabURLWith(svc, project)
-	key, keyServer, implicit := svc.TrackerTokenDecl(project)
+	server := gitlabURLWith(ctx, svc, project)
+	key, keyServer, implicit := svc.TrackerTokenDecl(ctx, project)
 	res := svc.GitLabToken(ctx, svc.ResolveTeam(project).TeamID, server,
 		teamsvc.WithProject(project), teamsvc.WithTrackerToken(key, keyServer, implicit))
 	if !res.Found() {
@@ -51,8 +51,8 @@ func resolveGitLabAccessWith(ctx context.Context, svc *teamsvc.Service, project 
 
 // gitlabURLWith is the GitLab URL of the MCP of a project (project, hub or
 // team url), else GITLAB_URL, else gitlab.com.
-func gitlabURLWith(svc *teamsvc.Service, project *domain.Project) string {
-	if u := svc.GitLabMCPURL(project); u != "" {
+func gitlabURLWith(ctx context.Context, svc *teamsvc.Service, project *domain.Project) string {
+	if u := svc.GitLabMCPURL(ctx, project); u != "" {
 		return u
 	}
 	if u := os.Getenv("GITLAB_URL"); u != "" {

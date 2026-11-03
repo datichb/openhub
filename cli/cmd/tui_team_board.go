@@ -66,7 +66,7 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 			}
 		}()
 		if repo := resolveRepo(); repo != nil {
-			if cfg, err := repo.LoadConfig(); err == nil && cfg != nil {
+			if cfg, err := repo.LoadConfig(tuiContext()); err == nil && cfg != nil {
 				labelStatusMapping = cfg.Tracker.LabelStatusMapping
 				boardConfig = cfg.Board
 			}

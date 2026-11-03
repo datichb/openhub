@@ -25,7 +25,7 @@ func TestTrackerCredentialsUseTheTeamToken(t *testing.T) {
 	teamCfg.Tracker.TrackerURL = "https://gitlab.example.com"
 	teamCfg.Tracker.TrackerTokenKey = "openhub.tracker.gitlab.token"
 
-	creds, err := tracker.ResolveCredentials(context.Background(), trackerCredentials(a, teamCfg), tracker.TypeGitLab)
+	creds, err := tracker.ResolveCredentials(context.Background(), trackerCredentials(t.Context(), a, teamCfg), tracker.TypeGitLab)
 	require.NoError(t, err)
 	assert.Equal(t, "from-team", creds.Token)
 	assert.Equal(t, "https://gitlab.example.com", creds.BaseURL)
@@ -53,26 +53,26 @@ func TestTrackerCredentialsDoNotSendTheTeamTokenToAnotherServer(t *testing.T) {
 	teamCfg := &teamstate.TeamConfig{}
 	teamCfg.Tracker.TrackerURL = "https://gitlab.forge.example"
 
-	_, err := tracker.ResolveCredentials(context.Background(), trackerCredentials(a, teamCfg), tracker.TypeGitLab)
+	_, err := tracker.ResolveCredentials(context.Background(), trackerCredentials(t.Context(), a, teamCfg), tracker.TypeGitLab)
 	var missing *tracker.MissingTokenError
 	require.ErrorAs(t, err, &missing)
 	assert.Equal(t, "https://gitlab.forge.example", missing.Server)
 
 	// tracker_token_key of hub.toml (bug 11: the status ignored it) and its server
 	a.Config.Tracker.SetTokenDecl("forge.token", "https://gitlab.forge.example")
-	creds, err := tracker.ResolveCredentials(context.Background(), trackerCredentials(a, teamCfg), tracker.TypeGitLab)
+	creds, err := tracker.ResolveCredentials(context.Background(), trackerCredentials(t.Context(), a, teamCfg), tracker.TypeGitLab)
 	require.NoError(t, err)
 	assert.Equal(t, "token-forge", creds.Token)
 
 	// the status reads the same cascade
 	eff := tracker.ResolveTrackerConfig(&teamCfg.Tracker, a.Config.Tracker)
-	creds, err = tracker.ResolveCredentials(context.Background(), buildCredentialSource(a, eff), tracker.TypeGitLab)
+	creds, err = tracker.ResolveCredentials(context.Background(), buildCredentialSource(t.Context(), a, eff), tracker.TypeGitLab)
 	require.NoError(t, err)
 	assert.Equal(t, "token-forge", creds.Token)
 
 	// a key without a declared server serves the tracker it is set for
 	a.Config.Tracker.SetTokenDecl("forge.token", "")
-	creds, err = tracker.ResolveCredentials(context.Background(), trackerCredentials(a, teamCfg), tracker.TypeGitLab)
+	creds, err = tracker.ResolveCredentials(context.Background(), trackerCredentials(t.Context(), a, teamCfg), tracker.TypeGitLab)
 	require.NoError(t, err)
 	assert.Equal(t, "token-forge", creds.Token)
 
@@ -81,7 +81,7 @@ func TestTrackerCredentialsDoNotSendTheTeamTokenToAnotherServer(t *testing.T) {
 	a.Config.Tracker.SetTokenDecl("", "")
 	teamCfg.Tracker.TrackerTokenKey = "forge.token"
 	a.Config.Tracker.TrackerURL = "https://gitlab.other.example"
-	_, err = tracker.ResolveCredentials(context.Background(), trackerCredentials(a, teamCfg), tracker.TypeGitLab)
+	_, err = tracker.ResolveCredentials(context.Background(), trackerCredentials(t.Context(), a, teamCfg), tracker.TypeGitLab)
 	require.ErrorAs(t, err, &missing)
 	assert.Contains(t, err.Error(), "forge.token")
 }

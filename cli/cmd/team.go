@@ -214,7 +214,7 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 	var existingCfg *teamstate.TeamConfig
 	var hasMember bool
 	if repo != nil {
-		existingCfg, _ = repo.LoadConfig()
+		existingCfg, _ = repo.LoadConfig(ctx)
 		if hasConfig && existingCfg != nil {
 			staleDaysStr = strconv.Itoa(existingCfg.Takeover.StaleDays)
 			webhookURL = existingCfg.Notification.MattermostWebhook
@@ -955,7 +955,7 @@ func runTeamRejoin(cmd *cobra.Command, _ []string) error {
 		v, _ := cmd.Flags().GetString("tracker-username")
 		trackerName = &v
 	} else if selectedMember != nil && selectedMember.TrackerUsername == "" &&
-		trackerUsernameWanted(teamRepoHandle, repoURL, gitlabURL) {
+		trackerUsernameWanted(ctx, teamRepoHandle, repoURL, gitlabURL) {
 		fmt.Fprintf(a.IO.Out, "\n  %s %s\n", theme.InfoStyle.Render(theme.IconInfo), i18n.T("cmd.team.rejoin.tracker_hint"))
 		fmt.Fprintf(a.IO.Out, "  %s", i18n.T("cmd.team.rejoin.tracker_prompt"))
 		var name string

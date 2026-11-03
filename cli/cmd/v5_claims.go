@@ -119,7 +119,7 @@ type sessionClaimsInput struct {
 func endTicketClaims(ctx context.Context, repo *teamstate.Repo, in sessionClaimsInput) map[string]claimEndOutcome {
 	out := map[string]claimEndOutcome{}
 	var board teamstate.BoardConfig
-	if cfg, err := repo.LoadConfig(); err == nil && cfg != nil {
+	if cfg, err := repo.LoadConfig(ctx); err == nil && cfg != nil {
 		board = cfg.Board
 	}
 	terminals := board.TerminalStatuses()

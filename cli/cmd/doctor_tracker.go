@@ -161,7 +161,7 @@ func trackerTokensChecks(ctx context.Context) []doctor.Result {
 		if failedServers[tc.TeamID+"|"+server] {
 			return // the same server already failed for the tracker: said once
 		}
-		key, keyServer, implicit := svc.TrackerTokenDecl(project)
+		key, keyServer, implicit := svc.TrackerTokenDecl(ctx, project)
 		res := svc.GitLabToken(ctx, tc.TeamID, server,
 			teamsvc.WithProject(project), teamsvc.WithTrackerToken(key, keyServer, implicit))
 		r := doctor.Result{Name: i18n.Tf("cmd.doctor.tokens.team.name", label)}

@@ -261,7 +261,7 @@ func buildTrackerSetupSteps(a **app.App, state *initWizardTeamState) []views.Wiz
 				statePath := config.TeamStatePath(state.Repo)
 				repo := teamstate.NewRepo(state.Repo, statePath)
 				trackerConfigured := false
-				if teamCfg, err := repo.LoadConfig(); err == nil && teamCfg.Tracker.Type != "" {
+				if teamCfg, err := repo.LoadConfig(state.Ctx); err == nil && teamCfg.Tracker.Type != "" {
 					trackerConfigured = true
 					hint := i18n.T("cmd.init.wizard_tracker_configured") + "\n" +
 						i18n.Tf("cmd.init.wizard_tracker_info",
@@ -638,7 +638,7 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 				}
 				state.Members = members
 				state.TeamRepo = repo
-				state.TrackerWanted = trackerUsernameWanted(repo, state.Repo, state.GitLabURL)
+				state.TrackerWanted = trackerUsernameWanted(state.Ctx, repo, state.Repo, state.GitLabURL)
 				state.ProbeRepo(state.Ctx)
 				return nil
 			},

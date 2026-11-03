@@ -27,7 +27,7 @@ const ProjectLimitsKey = "limits"
 // the workflow, nil without one).
 func SessionLimits(ctx context.Context, cfg *config.Config, prefs domain.PreferenceStore, project *domain.Project, spec *workflow.Spec) limits.Resolved {
 	in := limits.Input{Hub: cfg.Limits, ProjectID: project.ID}
-	in.Team = TeamLimits(cfg, project)
+	in.Team = TeamLimits(ctx, cfg, project)
 	in.Project = ProjectLimits(ctx, prefs, project.ID)
 	if spec != nil && spec.Limits != nil {
 		if spec.Limits.BudgetUSD != nil {
@@ -39,7 +39,7 @@ func SessionLimits(ctx context.Context, cfg *config.Config, prefs domain.Prefere
 }
 
 // TeamLimits reads the restrictions of the project's team (nil = none).
-func TeamLimits(cfg *config.Config, project *domain.Project) *limits.TeamLimits {
+func TeamLimits(ctx context.Context, cfg *config.Config, project *domain.Project) *limits.TeamLimits {
 	team := config.ResolveTeamForProject(cfg, project)
 	if !team.Enabled || team.StatePath == "" {
 		return nil
@@ -48,7 +48,7 @@ func TeamLimits(cfg *config.Config, project *domain.Project) *limits.TeamLimits 
 	if !repo.IsCloned() {
 		return nil
 	}
-	tcfg, err := repo.LoadConfig()
+	tcfg, err := repo.LoadConfig(ctx)
 	if err != nil {
 		slog.Warn("team restrictions not read", "team", team.TeamID, "error", err)
 		return nil

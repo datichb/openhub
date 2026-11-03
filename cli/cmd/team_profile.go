@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -144,8 +145,8 @@ func printProfile(out interface{ Write([]byte) (int, error) }, teamID string, m 
 // an SSH alias), so the GitLab name of the member is not their name there.
 // The tracker URL is the one the sync calls (a GitLab without tracker_url is
 // gitlab.com); when a server cannot be told, the name is asked.
-func trackerUsernameWanted(repo *teamstate.Repo, remote, gitlabURL string) bool {
-	cfg, err := repo.LoadConfig()
+func trackerUsernameWanted(ctx context.Context, repo *teamstate.Repo, remote, gitlabURL string) bool {
+	cfg, err := repo.LoadConfig(ctx)
 	if err != nil || cfg == nil || cfg.Tracker.Type == "" {
 		return false
 	}

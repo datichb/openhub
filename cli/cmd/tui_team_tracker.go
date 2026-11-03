@@ -155,7 +155,7 @@ func actionTrackerDiscovery() {
 	}
 
 	// Load existing team config for pre-fill
-	teamCfg, err := repo.LoadConfig()
+	teamCfg, err := repo.LoadConfig(ctx)
 	if err != nil {
 		tuiShell.ShowToast(i18n.T("tui.team.discovery.config_load_error")+err.Error(), shell.ToastError)
 		return
@@ -257,7 +257,7 @@ func actionTrackerDiscovery() {
 			if token != "" {
 				cfg.Token = token
 			} else {
-				credSrc := trackerCredentials(a, teamCfg)
+				credSrc := trackerCredentials(ctx, a, teamCfg)
 				resolved, err := tracker.ResolveCredentials(ctx, credSrc, tracker.Type(trackerType))
 				if err != nil {
 					return fmt.Errorf("%s: %w", i18n.T("tui.team.discovery.credentials_error"), err)
@@ -316,7 +316,7 @@ func actionTrackerDiscovery() {
 			if token != "" {
 				cfg.Token = token
 			} else {
-				credSrc := trackerCredentials(a, teamCfg)
+				credSrc := trackerCredentials(ctx, a, teamCfg)
 				resolved, err := tracker.ResolveCredentials(ctx, credSrc, tracker.Type(trackerType))
 				if err != nil {
 					return fmt.Errorf("credentials: %w", err)
@@ -493,7 +493,7 @@ func actionTrackerDiscovery() {
 		},
 		OnDone: func() error {
 			// ── Save everything to team-state config ────────────
-			cfg, err := repo.LoadConfig()
+			cfg, err := repo.LoadConfig(ctx)
 			if err != nil {
 				return fmt.Errorf("%s: %w", i18n.T("tui.team.sync.config_load_error"), err)
 			}

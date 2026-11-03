@@ -58,7 +58,7 @@ func (g GovernanceConfig) CanPublish(memberID string, isMember func(string) bool
 // CheckPublish reads the team governance and checks that memberID may
 // publish workflows.
 func (r *Repo) CheckPublish(ctx context.Context, memberID string) error {
-	cfg, err := r.LoadConfig()
+	cfg, err := r.LoadConfig(ctx)
 	if err != nil {
 		return err
 	}

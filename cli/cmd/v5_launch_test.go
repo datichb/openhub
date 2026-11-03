@@ -50,7 +50,7 @@ func TestTeamModelOverrides(t *testing.T) {
 		t.Fatal(err)
 	}
 	tc := config.ResolvedTeamConfig{Enabled: true, TeamID: "t", StatePath: dir}
-	got := teamModelOverrides(tc)
+	got := teamModelOverrides(t.Context(), tc)
 	if got == nil || got.Default != "claude-sonnet-5-5" || got.Agents["reviewer"] != "claude-opus-4-6" || got.Families["quality"] != "claude-haiku-4-5" {
 		t.Fatalf("overrides = %+v", got)
 	}
@@ -62,7 +62,7 @@ func TestTeamModelOverrides(t *testing.T) {
 	if m := req.ResolveModel("reviewer", "quality", ""); m != "hub-model" {
 		t.Fatalf("hub must win over the team recommendation, got %q", m)
 	}
-	if teamModelOverrides(config.ResolvedTeamConfig{}) != nil {
+	if teamModelOverrides(t.Context(), config.ResolvedTeamConfig{}) != nil {
 		t.Fatal("no team: no level")
 	}
 }

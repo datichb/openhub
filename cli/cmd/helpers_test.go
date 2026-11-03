@@ -199,7 +199,7 @@ func TestBuildMCPServersForProject(t *testing.T) {
 				tt.hub(cfg)
 			}
 			byName := map[string]bricks.MCPServerDef{}
-			for _, s := range buildMCPServersForProject(&app.App{Config: cfg}, tt.project, tt.team) {
+			for _, s := range buildMCPServersForProject(t.Context(), &app.App{Config: cfg}, tt.project, tt.team) {
 				byName[s.Name] = s
 			}
 			tt.check(t, byName)

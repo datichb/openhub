@@ -1,6 +1,8 @@
 package team
 
 import (
+	"context"
+
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tracker"
@@ -18,11 +20,11 @@ type TrackerKind struct {
 // those of its team, with the hub overrides), without the network and
 // whether or not the sync is enabled: where the tickets live does not depend
 // on the sync.
-func (s *Service) TrackerOf(project *domain.Project) TrackerKind {
+func (s *Service) TrackerOf(ctx context.Context, project *domain.Project) TrackerKind {
 	tc := s.ResolveTeam(project)
 	var shared *teamstate.TrackerConfig
 	if tc.Enabled {
-		if cfg := loadTeamConfig(tc.StatePath); cfg != nil {
+		if cfg := loadTeamConfig(ctx, tc.StatePath); cfg != nil {
 			shared = &cfg.Tracker
 		}
 	}

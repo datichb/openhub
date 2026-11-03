@@ -55,7 +55,7 @@ func TestTeamInitWizard(t *testing.T) {
 
 		assert.Equal(t, "team init", s.command, "command of the wizard")
 		assert.Equal(t, []int{1, 2, 3, 4}, s.ran, "steps that ran")
-		cfg, err := repo.LoadConfig()
+		cfg, err := repo.LoadConfig(t.Context())
 		require.NoError(t, err)
 		assert.Equal(t, 5, cfg.Takeover.StaleDays, "stale days")
 		assert.Equal(t, "https://mm.example/hook", cfg.Notification.MattermostWebhook, "webhook")
@@ -99,7 +99,7 @@ func TestTeamInitWizard(t *testing.T) {
 		require.NoError(t, runTeamInit(teamInitCmd, nil))
 
 		assert.Equal(t, []int{1, 2, 3, 4}, s.ran, "steps that ran")
-		cfg, err := repo.LoadConfig()
+		cfg, err := repo.LoadConfig(t.Context())
 		require.NoError(t, err)
 		assert.Equal(t, 3, cfg.Takeover.StaleDays, "stale days")
 		assert.False(t, cfg.Notification.Enabled, "no webhook: notifications stay off")
@@ -146,7 +146,7 @@ func TestTeamInitWizard(t *testing.T) {
 		require.NoError(t, runTeamInit(teamInitCmd, nil))
 
 		assert.Equal(t, []int{1}, s.ran, "steps that ran")
-		cfg, err := repo.LoadConfig()
+		cfg, err := repo.LoadConfig(t.Context())
 		require.NoError(t, err)
 		assert.Equal(t, 9, cfg.Takeover.StaleDays, "the config step had been applied")
 		assert.Empty(t, cfg.Notification.MattermostWebhook)
@@ -196,7 +196,7 @@ func TestTeamInitWizardFirstLaunch(t *testing.T) {
 	assert.Empty(t, s.refused, "steps refused")
 	repo := teamstate.NewRepo(bare, config.DefaultTeamStatePath())
 	require.True(t, repo.IsCloned(), "the team-state is cloned")
-	cfg, err := repo.LoadConfig()
+	cfg, err := repo.LoadConfig(t.Context())
 	require.NoError(t, err)
 	assert.Equal(t, 6, cfg.Takeover.StaleDays, "stale days")
 	assert.Equal(t, "https://mm.example/hook", cfg.Notification.MattermostWebhook, "webhook")

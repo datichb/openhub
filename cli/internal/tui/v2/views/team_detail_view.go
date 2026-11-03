@@ -286,7 +286,7 @@ func (v *TeamDetailView) open(then func()) {
 	tc := v.cfg.ResolveTeam()
 	fetch := func(ctx context.Context) (teamDetailRead, error) {
 		var r teamDetailRead
-		r.teamCfg = readTeamConfig(tc)
+		r.teamCfg = readTeamConfig(ctx, tc)
 		if v.cfg.GetMember != nil {
 			r.member = v.cfg.GetMember(ctx, tc.TeamID)
 		}

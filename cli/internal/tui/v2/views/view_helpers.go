@@ -50,7 +50,7 @@ func shellContext(sh ShellAccess) context.Context {
 // readTeamConfig reads the configuration of the team from the clone of its
 // team-state; nil when there is none or it cannot be read. It reads a file:
 // call it off the event loop.
-func readTeamConfig(tc TeamResolution) *teamstate.TeamConfig {
+func readTeamConfig(ctx context.Context, tc TeamResolution) *teamstate.TeamConfig {
 	if !tc.hasState() {
 		return nil
 	}
@@ -58,7 +58,7 @@ func readTeamConfig(tc TeamResolution) *teamstate.TeamConfig {
 	if !repo.IsCloned() {
 		return nil
 	}
-	cfg, err := repo.LoadConfig()
+	cfg, err := repo.LoadConfig(ctx)
 	if err != nil {
 		return nil
 	}

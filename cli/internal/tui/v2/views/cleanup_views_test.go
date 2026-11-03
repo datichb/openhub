@@ -244,7 +244,7 @@ func TestProjectModelsViewKeys(t *testing.T) {
 func TestTeamModelsViewKeys(t *testing.T) {
 	frLocale(t)
 	repo, tc := soloState(t)
-	cfg, err := repo.LoadConfig()
+	cfg, err := repo.LoadConfig(t.Context())
 	require.NoError(t, err)
 	cfg.Models.Families = map[string]string{"quality": "sonnet"}
 	require.NoError(t, repo.SaveConfig(context.Background(), cfg))
@@ -632,7 +632,7 @@ func pageTitle(t *testing.T, app *tview.Application, page *widgets.ListDetailPag
 func TestTeamModelsViewIndicatorFollowsTheWrite(t *testing.T) {
 	frLocale(t)
 	repo, tc := soloState(t)
-	cfg, err := repo.LoadConfig()
+	cfg, err := repo.LoadConfig(t.Context())
 	require.NoError(t, err)
 	cfg.Models.Families = map[string]string{"quality": "sonnet", "fast": "haiku"}
 	require.NoError(t, repo.SaveConfig(context.Background(), cfg))

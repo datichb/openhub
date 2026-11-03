@@ -154,11 +154,11 @@ func (v *TeamMCPView) open(then func()) {
 	local := v.cfg.GetMCPConfig()
 	tc := v.cfg.ResolveTeam()
 	before := v.edited()
-	fetch := func(context.Context) (*teamstate.TeamConfig, error) {
+	fetch := func(ctx context.Context) (*teamstate.TeamConfig, error) {
 		if !tc.Enabled {
 			return nil, nil // no team: an empty config
 		}
-		return readTeamConfig(tc), nil
+		return readTeamConfig(ctx, tc), nil
 	}
 	take := func(cfg *teamstate.TeamConfig) {
 		v.localMCP, v.baseMCP = local, local

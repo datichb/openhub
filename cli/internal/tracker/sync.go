@@ -179,7 +179,7 @@ func (e *Engine) Run(ctx context.Context) (*SyncResult, error) {
 	e.state = state
 
 	// Load board config for dynamic status resolution.
-	if teamCfg, cfgErr := e.repo.LoadConfig(); cfgErr == nil && teamCfg != nil {
+	if teamCfg, cfgErr := e.repo.LoadConfig(ctx); cfgErr == nil && teamCfg != nil {
 		e.boardCfg = teamCfg.Board
 		// Propagate custom statuses to the repo so UpdateClaimStatus
 		// and UpdateClaimStatusFromTracker accept them.
@@ -370,7 +370,7 @@ func firstNonEmptyStr(values ...string) string {
 // cleanupDone releases the done claims past their retention (board terminal
 // statuses), inside the transaction of Run.
 func (e *Engine) cleanupDone(ctx context.Context, result *SyncResult) {
-	teamCfg, cfgErr := e.repo.LoadConfig()
+	teamCfg, cfgErr := e.repo.LoadConfig(ctx)
 	if cfgErr != nil || teamCfg == nil {
 		return
 	}
@@ -394,7 +394,7 @@ func (e *Engine) cleanupDone(ctx context.Context, result *SyncResult) {
 // release_expired_on_sync, off by default): an expired claim is otherwise
 // reported by oh doctor and may be taken over.
 func (e *Engine) releaseExpired(ctx context.Context, result *SyncResult) {
-	teamCfg, err := e.repo.LoadConfig()
+	teamCfg, err := e.repo.LoadConfig(ctx)
 	if err != nil || teamCfg == nil || !teamCfg.Claim.ReleaseExpiredOnSync {
 		return
 	}

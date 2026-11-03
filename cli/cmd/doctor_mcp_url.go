@@ -30,12 +30,12 @@ func mcpURLDoctorChecks(ctx context.Context) []doctor.Result {
 			}
 		}
 	}
-	return mcpURLChecks(a.Config, teams, sharedMCPForTeam)
+	return mcpURLChecks(ctx, a.Config, teams, sharedMCPForTeam)
 }
 
 // mcpURLChecks returns one warning per URL imposed and not used, over the
 // teams of the hub and of its projects (one warning per team and service).
-func mcpURLChecks(cfg *config.Config, teams []config.ResolvedTeamConfig, load func(config.ResolvedTeamConfig) map[string]teamstate.SharedMCPConfig) []doctor.Result {
+func mcpURLChecks(ctx context.Context, cfg *config.Config, teams []config.ResolvedTeamConfig, load func(context.Context, config.ResolvedTeamConfig) map[string]teamstate.SharedMCPConfig) []doctor.Result {
 	var out []doctor.Result
 	var seen []string
 	for _, tc := range teams {
@@ -43,7 +43,7 @@ func mcpURLChecks(cfg *config.Config, teams []config.ResolvedTeamConfig, load fu
 			continue
 		}
 		seen = append(seen, tc.TeamID)
-		for _, n := range enforcedURLNotices(cfg, load(tc)) {
+		for _, n := range enforcedURLNotices(cfg, load(ctx, tc)) {
 			out = append(out, doctor.Result{
 				Name: i18n.Tf("cmd.doctor.mcp_url.name", n.Service), OK: true, Warn: true, Detail: n.Message(),
 			})

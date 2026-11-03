@@ -43,7 +43,7 @@ func TestConfigureFigmaDoesNotAskForAnURL(t *testing.T) {
 
 	assert.NotContains(t, out.String(), "URL", "no prompt for a URL")
 	assert.Equal(t, "https://recorded.example", teamCfg.MCP["figma"].URL, "the recorded value is not changed")
-	saved, err := repo.LoadConfig()
+	saved, err := repo.LoadConfig(t.Context())
 	require.NoError(t, err)
 	require.NotNil(t, saved.MCP["figma"].Enabled)
 	assert.True(t, *saved.MCP["figma"].Enabled)

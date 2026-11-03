@@ -105,15 +105,15 @@ func claimTeams(ctx context.Context, a *app.App, cfg *config.Config) []*claimsTe
 func (b *claimsBeater) every(ctx context.Context) time.Duration {
 	var every time.Duration
 	for _, t := range b.teams(ctx) {
-		if d := heartbeatOf(t.repo); d > 0 && (every == 0 || d < every) {
+		if d := heartbeatOf(ctx, t.repo); d > 0 && (every == 0 || d < every) {
 			every = d
 		}
 	}
 	return every
 }
 
-func heartbeatOf(repo *teamstate.Repo) time.Duration {
-	cfg, err := repo.LoadConfig()
+func heartbeatOf(ctx context.Context, repo *teamstate.Repo) time.Duration {
+	cfg, err := repo.LoadConfig(ctx)
 	if err != nil || cfg == nil {
 		return 0
 	}
@@ -195,7 +195,7 @@ func (b *claimsBeater) beat(ctx context.Context) error {
 	var errs []error
 	for _, t := range teams {
 		var claimCfg teamstate.ClaimConfig
-		if cfg, err := t.repo.LoadConfig(); err == nil && cfg != nil {
+		if cfg, err := t.repo.LoadConfig(ctx); err == nil && cfg != nil {
 			claimCfg = cfg.Claim
 		}
 		refs := t.refsOf(open, claimCfg, now)
