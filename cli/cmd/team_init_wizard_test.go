@@ -69,7 +69,7 @@ func TestTeamInitWizard(t *testing.T) {
 		assert.Equal(t, "tmm", m.MattermostUsername)
 		assert.Equal(t, "ttrack", m.TrackerUsername)
 		assert.Equal(t, "dev", m.Role)
-		list, err := repo.LoadPolicies("")
+		list, err := repo.LoadPolicies(t.Context(), "")
 		require.NoError(t, err)
 		var names []string
 		for _, p := range list {
@@ -150,7 +150,7 @@ func TestTeamInitWizard(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, 9, cfg.Takeover.StaleDays, "the config step had been applied")
 		assert.Empty(t, cfg.Notification.MattermostWebhook)
-		list, err := repo.LoadPolicies("")
+		list, err := repo.LoadPolicies(t.Context(), "")
 		require.NoError(t, err)
 		assert.Empty(t, list, "policies")
 		assert.NotContains(t, out.String(), i18n.T("cmd.team.init.done"), "no summary")
@@ -205,7 +205,7 @@ func TestTeamInitWizardFirstLaunch(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "New Bie", m.DisplayName)
 	assert.Equal(t, "dev", m.Role)
-	list, err := repo.LoadPolicies("")
+	list, err := repo.LoadPolicies(t.Context(), "")
 	require.NoError(t, err)
 	var names []string
 	for _, p := range list {

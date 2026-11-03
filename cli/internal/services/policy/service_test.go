@@ -24,7 +24,7 @@ func newService(t *testing.T) (*Service, *teamstate.Repo) {
 
 func load(t *testing.T, repo *teamstate.Repo) map[string]teamstate.Policy {
 	t.Helper()
-	list, err := repo.LoadPolicies("")
+	list, err := repo.LoadPolicies(t.Context(), "")
 	require.NoError(t, err)
 	m := make(map[string]teamstate.Policy, len(list))
 	for _, p := range list {

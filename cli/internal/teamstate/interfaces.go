@@ -143,8 +143,8 @@ type ConfigWriter interface {
 
 // PolicyReader reads and checks the policies.
 type PolicyReader interface {
-	LoadPolicies(project string) ([]Policy, error)
-	CheckAll(project string, pctx PolicyContext) ([]PolicyResult, error)
+	LoadPolicies(ctx context.Context, project string) ([]Policy, error)
+	CheckAll(ctx context.Context, project string, pctx PolicyContext) ([]PolicyResult, error)
 }
 
 // PolicyWriter saves the policies.

@@ -101,7 +101,7 @@ func runClaim(cmd *cobra.Command, args []string) error {
 		MemberID:     memberID,
 		ActiveClaims: activeClaims,
 	}
-	violations, _ := repo.CheckAll(project, policyCtx)
+	violations, _ := repo.CheckAll(ctx, project, policyCtx)
 	for _, v := range violations {
 		if v.Name == "max_ticket_wip" && !v.Passed {
 			if v.Enforcement == teamstate.EnforcementRefuse {

@@ -60,7 +60,7 @@ func runPoliciesList(cmd *cobra.Command, args []string) error {
 
 	project, _ := cmd.Flags().GetString("project")
 
-	policies, err := repo.LoadPolicies(project)
+	policies, err := repo.LoadPolicies(ctx, project)
 	if err != nil {
 		return fmt.Errorf(i18n.T("cmd.policies.loading_policies"), err)
 	}
@@ -183,7 +183,7 @@ func runPoliciesCheck(cmd *cobra.Command, args []string) error {
 
 		// Lazy population of file content for all_files and modified_files scopes.
 		// Only read files if the loaded policies actually use these scopes.
-		policies, _ := repo.LoadPolicies(project)
+		policies, _ := repo.LoadPolicies(ctx, project)
 		needsAllFiles, needsModifiedContent := false, false
 		for _, pol := range policies {
 			if pol.Type == teamstate.PolicyTypeForbiddenPattern && pol.Enforcement != teamstate.EnforcementDisabled {
@@ -213,7 +213,7 @@ func runPoliciesCheck(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	violations, err := repo.CheckAll(project, policyCtx)
+	violations, err := repo.CheckAll(ctx, project, policyCtx)
 	if err != nil {
 		return fmt.Errorf(i18n.T("cmd.policies.checking_policies"), err)
 	}

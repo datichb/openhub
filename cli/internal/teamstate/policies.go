@@ -110,7 +110,10 @@ type policiesFile struct {
 
 // LoadPolicies reads and merges global policies with project-specific overrides.
 // If project is empty, only global policies are returned.
-func (r *Repo) LoadPolicies(project string) ([]Policy, error) {
+func (r *Repo) LoadPolicies(ctx context.Context, project string) ([]Policy, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	global, err := r.loadPoliciesFromFile(filepath.Join(r.path, "policies.toml"))
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -194,8 +197,8 @@ func CheckPolicy(p Policy, ctx PolicyContext) PolicyResult {
 
 // CheckAll evaluates all policies for a project against the given context.
 // Returns only violations (passed=false). Disabled policies are skipped.
-func (r *Repo) CheckAll(project string, ctx PolicyContext) ([]PolicyResult, error) {
-	policies, err := r.LoadPolicies(project)
+func (r *Repo) CheckAll(ctx context.Context, project string, pctx PolicyContext) ([]PolicyResult, error) {
+	policies, err := r.LoadPolicies(ctx, project)
 	if err != nil {
 		return nil, err
 	}
@@ -205,7 +208,7 @@ func (r *Repo) CheckAll(project string, ctx PolicyContext) ([]PolicyResult, erro
 		if p.Enforcement == EnforcementDisabled {
 			continue
 		}
-		result := CheckPolicy(p, ctx)
+		result := CheckPolicy(p, pctx)
 		if !result.Passed || result.NotEvaluable {
 			violations = append(violations, result)
 		}

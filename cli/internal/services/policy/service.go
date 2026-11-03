@@ -32,7 +32,7 @@ var (
 // *teamstate.Repo implements it.
 type Store interface {
 	Transact(ctx context.Context, build func(ctx context.Context, tx *teamstate.Tx) (teamstate.TxResult, error)) error
-	LoadPolicies(project string) ([]teamstate.Policy, error)
+	LoadPolicies(ctx context.Context, project string) ([]teamstate.Policy, error)
 	SavePolicies(ctx context.Context, policies map[string]teamstate.Policy) error
 }
 
@@ -147,7 +147,7 @@ func (s *Service) edit(ctx context.Context, msg string, change func(map[string]t
 // editMsg is edit with a commit message that change returns.
 func (s *Service) editMsg(ctx context.Context, change func(map[string]teamstate.Policy) (string, error)) error {
 	return s.Store.Transact(ctx, func(ctx context.Context, _ *teamstate.Tx) (teamstate.TxResult, error) {
-		list, err := s.Store.LoadPolicies("")
+		list, err := s.Store.LoadPolicies(ctx, "")
 		if err != nil {
 			return teamstate.TxResult{}, err
 		}

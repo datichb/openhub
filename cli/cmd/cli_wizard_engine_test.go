@@ -146,7 +146,7 @@ func TestPoliciesAddOnTheEngine(t *testing.T) {
 	policiesAddCmd.SetContext(t.Context())
 	require.NoError(t, runPoliciesAdd(policiesAddCmd, nil))
 
-	list, err := repo.LoadPolicies("")
+	list, err := repo.LoadPolicies(t.Context(), "")
 	require.NoError(t, err)
 	require.Len(t, list, 1)
 	assert.Equal(t, teamstate.Policy{
@@ -206,7 +206,7 @@ func TestPoliciesAddQuitOnTheEngine(t *testing.T) {
 	policiesAddCmd.SetContext(t.Context())
 	require.NoError(t, runPoliciesAdd(policiesAddCmd, nil))
 
-	list, err := repo.LoadPolicies("")
+	list, err := repo.LoadPolicies(t.Context(), "")
 	require.NoError(t, err)
 	assert.Empty(t, list)
 }

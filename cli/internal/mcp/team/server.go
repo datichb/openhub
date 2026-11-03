@@ -685,7 +685,7 @@ func handleTeamPolicies(ctx context.Context, params json.RawMessage) (*protocol.
 		return nil, err
 	}
 
-	policies, err := repo.LoadPolicies(args.Project)
+	policies, err := repo.LoadPolicies(ctx, args.Project)
 	if err != nil {
 		return nil, fmt.Errorf("loading policies: %w", err)
 	}

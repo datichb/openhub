@@ -357,11 +357,11 @@ func TestPoliciesViewKeys(t *testing.T) {
 
 	v.HandleKey(runeKey('d'))
 	require.Equal(t, 1, sh.confirmCount())
-	ps, err := repo.LoadPolicies("")
+	ps, err := repo.LoadPolicies(ctx, "")
 	require.NoError(t, err)
 	assert.Len(t, ps, 1, "nothing deleted before the confirmation")
 	sh.confirmed(t, nil)
-	ps, _ = repo.LoadPolicies("")
+	ps, _ = repo.LoadPolicies(ctx, "")
 	assert.Empty(t, ps)
 }
 
