@@ -11,8 +11,8 @@
 
 project  workflow               agent                          prompt  inlined    n  cat cat_tk  rch rch_tk
 instruct audit                  auditor                          3806     2625    7   13    466   13    466
-instruct audit                  auditor-subagent                 7912     2811    6   14    499   14    499
-instruct audit                  TOTAL                           11718     5436   13   17    613   17    613
+instruct audit                  auditor-subagent                 7971     2870    6   14    499   14    499
+instruct audit                  TOTAL                           11777     5495   13   17    613   17    613
 instruct benchmark              benchmarker                      6604     1236    4    1     36    1     36
 instruct benchmark              TOTAL                            6604     1236    4    1     36    1     36
 instruct brief-enrich           brief-enricher                   4516        0    0    0      0    0      0
@@ -59,10 +59,10 @@ instruct review-feedback        developer                       11904     5552  
 instruct review-feedback        orchestrator-dev                 4578     3010    6   18    642   18    642
 instruct review-feedback        reviewer                        11822     5283    6   13    447   13    447
 instruct review-feedback        TOTAL                           28304    13845   20   28   1018   28   1018
-instruct security-fix           auditor-subagent                 7966     2811    6   14    499   14    499
+instruct security-fix           auditor-subagent                 8025     2870    6   14    499   14    499
 instruct security-fix           conductor                        3874     2612    5    0      0    0      0
 instruct security-fix           developer                       11900     5552    8   17    621   17    621
-instruct security-fix           TOTAL                           23740    10975   19   30   1084   30   1084
+instruct security-fix           TOTAL                           23799    11034   19   30   1084   30   1084
 instruct skill-refresh          documentarian                    4268     2640    4    9    289    9    289
 instruct skill-refresh          TOTAL                            4268     2640    4    9    289    9    289
 instruct spec                   conductor                        3973     2694    5    0      0    0      0
@@ -88,8 +88,8 @@ instruct ticket                 TOTAL                           33091    16875  
 instruct triage                 planner                          4375     2849    6   15    539   15    539
 instruct triage                 TOTAL                            4375     2849    6   15    539   15    539
 none     audit                  auditor                          3408     2625    7   13    466   13    466
-none     audit                  auditor-subagent                 3408     2270    5   13    463   13    463
-none     audit                  TOTAL                            6816     4895   12   17    613   17    613
+none     audit                  auditor-subagent                 3467     2329    5   13    463   13    463
+none     audit                  TOTAL                            6875     4954   12   17    613   17    613
 none     benchmark              benchmarker                      2167      762    3    1     36    1     36
 none     benchmark              TOTAL                            2167      762    3    1     36    1     36
 none     brief-enrich           brief-enricher                    513        0    0    0      0    0      0
@@ -136,10 +136,10 @@ none     review-feedback        developer                        7425     5079  
 none     review-feedback        orchestrator-dev                 4180     3010    6   21    746   21    746
 none     review-feedback        reviewer                         7010     4728    5   16    551   16    551
 none     review-feedback        TOTAL                           18615    12817   18   31   1122   31   1122
-none     security-fix           auditor-subagent                 3463     2270    5   13    463   13    463
+none     security-fix           auditor-subagent                 3522     2329    5   13    463   13    463
 none     security-fix           conductor                        3781     2612    5    0      0    0      0
 none     security-fix           developer                        7421     5079    7   20    725   20    725
-none     security-fix           TOTAL                           14665     9961   17   33   1188   33   1188
+none     security-fix           TOTAL                           14724    10020   17   33   1188   33   1188
 none     skill-refresh          documentarian                    3853     2640    4    9    289    9    289
 none     skill-refresh          TOTAL                            3853     2640    4    9    289    9    289
 none     spec                   conductor                        3881     2694    5    0      0    0      0
@@ -165,8 +165,8 @@ none     ticket                 TOTAL                           22986    15847  
 none     triage                 planner                          3977     2849    6   15    539   15    539
 none     triage                 TOTAL                            3977     2849    6   15    539   15    539
 stacks   audit                  auditor                          3408     2625    7   13    466   13    466
-stacks   audit                  auditor-subagent                 3408     2270    5   13    463   13    463
-stacks   audit                  TOTAL                            6816     4895   12   17    613   17    613
+stacks   audit                  auditor-subagent                 3467     2329    5   13    463   13    463
+stacks   audit                  TOTAL                            6875     4954   12   17    613   17    613
 stacks   benchmark              benchmarker                      2167      762    3    1     36    1     36
 stacks   benchmark              TOTAL                            2167      762    3    1     36    1     36
 stacks   brief-enrich           brief-enricher                    513        0    0    0      0    0      0
@@ -213,10 +213,10 @@ stacks   review-feedback        developer                        7425     5079  
 stacks   review-feedback        orchestrator-dev                 4180     3010    6   21    746   21    746
 stacks   review-feedback        reviewer                         7010     4728    5   23    798   23    798
 stacks   review-feedback        TOTAL                           18615    12817   18   38   1369   38   1369
-stacks   security-fix           auditor-subagent                 3463     2270    5   13    463   13    463
+stacks   security-fix           auditor-subagent                 3522     2329    5   13    463   13    463
 stacks   security-fix           conductor                        3781     2612    5    0      0    0      0
 stacks   security-fix           developer                        7421     5079    7   27    972   27    972
-stacks   security-fix           TOTAL                           14665     9961   17   40   1435   40   1435
+stacks   security-fix           TOTAL                           14724    10020   17   40   1435   40   1435
 stacks   skill-refresh          documentarian                    3853     2640    4    9    289    9    289
 stacks   skill-refresh          TOTAL                            3853     2640    4    9    289    9    289
 stacks   spec                   conductor                        3881     2694    5    0      0    0      0
@@ -251,7 +251,7 @@ planner-workflow                           1713 planner
 workflow-map                               1409 conductor
 dev-standards-simplicity                   1375 developer
 dev-standards-universal                    1343 developer
-audit-protocol-light                       1122 auditor,auditor-subagent
+audit-protocol-light                       1181 auditor,auditor-subagent
 orchestrator-dev-protocol                  1097 orchestrator-dev
 onboarder-workflow                         1072 onboarder
 beads-dev                                  1060 developer
