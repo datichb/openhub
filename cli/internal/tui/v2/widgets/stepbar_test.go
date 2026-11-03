@@ -3,20 +3,11 @@ package widgets
 import (
 	"testing"
 
-	"github.com/gdamore/tcell/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
-
-func TestColorTag(t *testing.T) {
-	assert.Equal(t, "[#ff0000]", ColorTag(tcell.NewRGBColor(255, 0, 0)), "RGB colour")
-	assert.Equal(t, "[#f28c50]", ColorTag(theme.Accent), "theme accent")
-
-	t.Setenv("NO_COLOR", "1")
-	assert.Equal(t, "", ColorTag(tcell.NewRGBColor(1, 2, 3)), "NO_COLOR: no tag")
-}
 
 func TestStepBar(t *testing.T) {
 	sb := NewStepBar([]Step{

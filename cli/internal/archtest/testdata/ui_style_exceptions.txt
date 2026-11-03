@@ -7,8 +7,7 @@
 # (theme.Paint, ColorTag, ColorTagOf, BgTag, StyleTag) and the symbol from its
 # table of meanings (theme.Sym*).
 #
-# kinds: tag-color, tag-style, color-literal, widgets-tag, symbol (see the test)
-# The lot A12 removes widgets.ColorTag, and with it the widgets-tag lines.
+# kinds: tag-color, tag-style, color-literal, symbol (see the test)
 #
 symbol internal/tui/theme/button.go 1
 symbol internal/tui/v2/shell/inline_form.go 2

@@ -28,7 +28,6 @@ import (
 //	               "[:#313244]"): use theme.StyleTag or theme.BgTag
 //	color-literal  a color named in the code (tcell.ColorRed, tcell.NewRGBColor,
 //	               lipgloss.Color, "#rrggbb"): use a token of the theme
-//	widgets-tag    a call to widgets.ColorTag, which is theme.ColorTagOf
 //	symbol         a symbol of the table of meanings (glyph.Symbols, and ✓, the
 //	               variant of ✔) written in a literal: use theme.Sym*
 //
@@ -45,7 +44,6 @@ const (
 	catTagColor     = "tag-color"
 	catTagStyle     = "tag-style"
 	catColorLiteral = "color-literal"
-	catWidgetsTag   = "widgets-tag"
 	catSymbol       = "symbol"
 )
 
@@ -53,7 +51,6 @@ var uiStyleAdvice = map[string]string{
 	catTagColor:     "build the tag with theme.Paint(color, text), theme.ColorTag(hex) or theme.ColorTagOf(color), which follow NO_COLOR",
 	catTagStyle:     "build the tag with theme.StyleTag(theme.AttrBold…) or theme.BgTag(color), which follow NO_COLOR",
 	catColorLiteral: "take the color from internal/tui/theme (a token such as theme.Success, theme.AccentHex), do not name one here",
-	catWidgetsTag:   "call theme.ColorTagOf (or theme.Paint) instead of widgets.ColorTag, which goes away",
 	catSymbol:       "take the symbol from the table of meanings of the theme (theme.SymSuccess, SymWarning…), do not write it in a literal",
 }
 
@@ -189,9 +186,9 @@ func stringOf(e ast.Expr) (string, bool) {
 	return v, err == nil
 }
 
-// uiFindings parses a Go file and returns its shortcuts. inWidgets tells that
-// the file is in package widgets (where ColorTag is called without a prefix);
-// isIcons is theme/icons.go, which defines the symbols.
+// uiFindings parses a Go file and returns its shortcuts. inTheme is a file of
+// the theme, where the colors are defined; isIcons is theme/icons.go, which
+// defines the symbols.
 func uiFindings(fset *token.FileSet, path string, src any, inTheme, isIcons bool) ([]uiFinding, error) {
 	file, err := parser.ParseFile(fset, path, src, 0)
 	if err != nil {
@@ -202,7 +199,6 @@ func uiFindings(fset *token.FileSet, path string, src any, inTheme, isIcons bool
 	add := func(cat string, pos token.Pos, text string) {
 		out = append(out, uiFinding{cat, fset.Position(pos).Line, text})
 	}
-	inWidgets := file.Name.Name == "widgets"
 	chains := map[*ast.BinaryExpr]bool{} // the inner parts of a chain of +, seen with the whole
 
 	ast.Inspect(file, func(n ast.Node) bool {
@@ -278,8 +274,6 @@ func uiFindings(fset *token.FileSet, path string, src any, inTheme, isIcons bool
 				add(catColorLiteral, n.Pos(), "tcell."+n.Sel.Name)
 			case pkg.Name == "lipgloss" && (n.Sel.Name == "Color" || n.Sel.Name == "AdaptiveColor") && !inTheme:
 				add(catColorLiteral, n.Pos(), "lipgloss."+n.Sel.Name)
-			case pkg.Name == "widgets" && n.Sel.Name == "ColorTag":
-				add(catWidgetsTag, n.Pos(), "widgets.ColorTag")
 			}
 		case *ast.CallExpr:
 			// tcell.GetColor(theme.XHex) converts a token; GetColor("red") names a color.
@@ -289,9 +283,6 @@ func uiFindings(fset *token.FileSet, path string, src any, inTheme, isIcons bool
 						add(catColorLiteral, n.Pos(), "tcell.GetColor("+v+")")
 					}
 				}
-			}
-			if id, ok := n.Fun.(*ast.Ident); ok && inWidgets && (id.Name == "ColorTag") {
-				add(catWidgetsTag, n.Pos(), "ColorTag")
 			}
 		}
 		return true
@@ -447,8 +438,6 @@ func f(hex string, c tcell.Color) {
 	_ = tcell.GetColor(hex)
 	_ = tcell.GetColor("#ff0000")
 	_ = "#ff0000"
-	_ = widgets.ColorTag(c)
-	_ = ColorTag(c)
 	_ = "✔ done"
 	_ = "[" + hex + "]✓[-] done"
 	_ = fmt.Sprintf("%s✓%s %s", "", "", "")
@@ -480,7 +469,6 @@ func f(hex string, c tcell.Color) {
 		catTagColor:     6, // [#64a0ff], [red], [red:blue], [%s], "["+hex+"]", "["+hex+"]✓"
 		catTagStyle:     3, // [red:blue] background, [::b], [:#313244]
 		catColorLiteral: 5, // tcell.ColorRed, tcell.NewRGBColor, tcell.GetColor("red"), "#ff0000" twice
-		catWidgetsTag:   2,
 		catSymbol:       6, // ✔ done, ✓ (concatenated), ✓ (fmt), ⚠, ◉, – alone
 	}
 	for cat, n := range want {

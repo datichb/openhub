@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/tui/theme"
@@ -111,16 +110,4 @@ func NewStatusBar(hints string) *StatusBar {
 // SetHints replaces the hint text.
 func (sb *StatusBar) SetHints(hints string) {
 	sb.SetText(fmt.Sprintf("%s%s[-]", theme.ColorTagOf(theme.FgSecondary), hints))
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────────────────────────────────────
-
-// ColorTag converts a tcell.Color to a tview color tag like "[#rrggbb]".
-// It is theme.ColorTagOf, kept for the views that still call it; new code
-// uses the theme (ColorTagOf, Paint) and this function goes away with the
-// last of them (v5.1, A12).
-func ColorTag(c tcell.Color) string {
-	return theme.ColorTagOf(c)
 }
