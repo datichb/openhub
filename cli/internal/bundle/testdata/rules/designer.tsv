@@ -118,7 +118,7 @@ tui-patterns	Taille terminal variable	Le terminal peut être redimensionné à t
 tui-patterns	Omnibar (Command Palette)	**Filtre** : `/` ouvre la palette quand la vue n'a pas de filtre à elle ; une vue qui filtre prend `/` elle-même
 tui-patterns	Omnibar (Command Palette)	Taper une lettre n'ouvre **pas** la palette : c'est `Ctrl+P` ou `/`.
 tui-patterns	Stack-based Router (navigation entre vues)	Pas de navigation directe entre vues sœurs — toujours via le router
-tui-patterns	Overlay system (modals TUI)	Jamais plus de 2 niveaux d'overlay
+tui-patterns	Overlay system (modals TUI)	Jamais plus de 3 niveaux de fenêtre
 tui-patterns	Toast notifications	Non bloquantes (ne prennent pas le focus)
 tui-patterns	Toast notifications	Elles s'empilent, 5 au plus à l'écran ; les suivantes ne s'affichent pas mais restent dans l'historique
 tui-patterns	Toast notifications	Un message d'erreur dit quoi, pourquoi et que faire : un toast n'est pas le seul endroit où il est lisible
