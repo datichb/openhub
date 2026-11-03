@@ -1137,6 +1137,7 @@
   "cmd.migrate.cleanup.doctor_name": "Former deployments",
   "cmd.doctor.legacy_skills.name": "Former community skills",
   "cmd.doctor.legacy_skills.none": "none in ~/.oh/skills",
+  "cmd.doctor.legacy_skills.unreadable": "cannot read %s (%v): the former community skills could not be counted, nothing was checked",
   "cmd.doctor.legacy_skills.found": "%d package(s) left in %s (%s): no longer shipped in sessions since v5 (ADR-051). To keep one, add it to the team catalogue (catalog/skills/ of the team-state); the folder can then be deleted",
   "cmd.doctor.legacy.name": "Former keys of hub.toml",
   "cmd.doctor.legacy.none": "none",

@@ -1137,6 +1137,7 @@
   "cmd.migrate.cleanup.doctor_name": "Anciens déploiements",
   "cmd.doctor.legacy_skills.name": "Anciennes skills communautaires",
   "cmd.doctor.legacy_skills.none": "aucune dans ~/.oh/skills",
+  "cmd.doctor.legacy_skills.unreadable": "lecture de %s impossible (%v) : les anciennes skills communautaires n'ont pas pu être comptées, le contrôle n'a rien vérifié",
   "cmd.doctor.legacy_skills.found": "%d paquet(s) restant(s) dans %s (%s) : plus livrés dans les sessions depuis la v5 (ADR-051). Pour en garder un, l'ajouter au catalogue d'équipe (catalog/skills/ du team-state) ; le dossier peut ensuite être supprimé",
   "cmd.doctor.legacy.name": "Clés héritées de hub.toml",
   "cmd.doctor.legacy.none": "aucune",
