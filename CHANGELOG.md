@@ -9,6 +9,147 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+## [5.1.0] — 2026-11-03
+
+Version mineure qui **retire ce que la 5.0 avait déprécié**, fait sortir le mode équipe de la bêta et harmonise l'affichage de la CLI et de la TUI. **Si vous venez de la 5.0, lisez « Ruptures et actions requises »**, puis le [guide de migration](docs/guides/migration-v5.fr.md#depuis-la-50-vers-la-51) et [MIGRATION.md](MIGRATION.md#vous-venez-de-la-50--ce-que-la-51-retire) ; depuis la 4.2.0, lisez d'abord la section « Ruptures et actions requises » de la 5.0. Pas de migration de la base (schéma 49 inchangé) ; les réservations (claims) écrites par la 5.1 restent lisibles par la 5.0.
+
+### En bref
+
+- **Dépréciations de la 5.0 retirées** : `oh start`, `oh audit`, `oh review`, `oh debug`, `oh review feedback`, `oh service` et `oh takeover-brief enrich` n'existent plus (le nom répond par son remplaçant et sort en 2), de même que les options courtes dépréciées, `--force` (là où il remplaçait `--yes`) et `oh repair --auto`.
+- **Fin de la bêta du mode équipe** : une réservation a un bail renouvelé par le démon, une réservation en revue ou dont le checkpoint est en attente survit à sa session, une libération n'est plus perdue hors ligne, une réservation expirée se reprend avec `oh team claim`. Le modèle de statut est documenté. Le mode distant reste expérimental.
+- **Jeton GitLab strict par serveur** : un jeton n'est plus envoyé qu'au serveur pour lequel il est déclaré ; les erreurs d'authentification disent la source, la clé et le serveur. `oh doctor` contrôle les jetons, la connexion du tracker, la configuration du hub et les réservations rattachées à un ancien projet.
+- **`hub.toml` n'est plus écrasé** par une copie périmée (l'assistant de premier lancement qui réapparaissait) et un lancement depuis la TUI relit la configuration.
+- **TUI et CLI qui parlent pareil** : une table de sens des symboles (avec légende dans l'aide `?`), des dates, coûts et tailles formatés au même endroit, des touches toutes déclarées dans un seul paquet (`Ctrl+S` pour enregistrer, `Ctrl+T` pour changer de vue), des chargements et écritures hors de la boucle d'événements, des confirmations avant toute suppression, les assistants de la CLI sur le moteur de ceux de la TUI, et `oh board`, `oh team board` et `oh dashboard` ouverts dans la TUI.
+- **Agents mieux outillés** : le serveur MCP GitLab lit une issue ou une MR précise, une review d'une autre branche tourne dans un worktree temporaire de cette branche, un agent `primary` que le workflow appelle est livré en `mode: all`, les sessions se lancent depuis une carte d'issue GitLab.
+- **Modèle de repli `claude-sonnet-5-5`** (agents, assistants de projet) ; un nom court de modèle doit porter un numéro de version.
+- **Homebrew** : la formule déclare `opencode` en dépendance et recommande `terminal-notifier` (macOS).
+- **Socle** : ADR 056 à 060, CI Windows étendue (98 paquets testés), aides et complétion dans la langue du hub, commentaires et fichiers du code nommés par leur sujet.
+
+### ⚠ Ruptures et actions requises
+
+Décrites pour un utilisateur de la **5.0**. Marche à suivre : [guide de migration](docs/guides/migration-v5.fr.md#depuis-la-50-vers-la-51) et [MIGRATION.md](MIGRATION.md#vous-venez-de-la-50--ce-que-la-51-retire).
+
+#### Dépréciations de la 5.0 retirées
+
+- **Commandes** : `oh start`, `oh audit`, `oh review`, `oh review --publish`, `oh review feedback`, `oh debug`, `oh service` (`setup`, `remove`) et `oh takeover-brief enrich` répondent par leur remplaçant sur la sortie d'erreur et sortent en **2**. → `oh run <workflow>` (`oh run libre --agent <agent>`, `oh run ticket --tickets <ids>`, `oh run audit|review|debug …`, `oh run review-feedback -i mr=<réf>`, `oh run brief-enrich --headless -i ticket=<id>`), `oh mr create` pour publier une review, `oh mcp status|setup|disable` pour `oh service` (le jeton du trousseau se supprime avec `oh secrets delete <clé>`, `oh service remove` le faisait aussi), `oh session attach <id>` pour reprendre.
+- **Options** : `oh serve -p`, `oh metrics -d`, `oh project configure -m`, `oh session attach --how` et `--attach here` donnent « unknown flag » (code 2). → `--port`, `--period`, `--model`, `--attach` (valeur `suspend`).
+- **`--force`** n'existe plus sur `oh purge`, `oh project remove` et `oh teams remove`, ni `oh repair --auto` : → `--yes` / `-y`. `--force` reste là où il outrepasse une sécurité (`oh daemon stop`, `oh remote setup`, `oh worktree remove|cleanup`).
+- → Chercher ces noms dans vos scripts, alias de shell et CI : `grep -rnE 'oh (start|audit|review|debug|service)\b|takeover-brief enrich|--force|repair --auto'`.
+
+#### Touches de la TUI
+
+Un message « Nouvelles touches » s'affiche une fois après la mise à jour (il se réaffiche chaque fois que la table des touches change) ; `?` les liste. Changent :
+
+- **Enregistrer** : `Ctrl+S` dans l'éditeur de workflows et les pages d'équipe (avant : `w`). `w` n'a plus qu'un sens (ouvrir une session dans le navigateur) ; ses autres usages : semaine de l'activité → `s`, mode écriture d'un MCP → `m`, worktree d'un dossier modifié dans la fiche de lancement → `t`. Les pages Hub et Projet enregistrent seules après 500 ms et le disent dans leur titre ; les pages d'équipe disent « non publié — Ctrl+S » jusqu'à l'enregistrement.
+- **Cocher dans un choix multiple** : `Espace` seul ; **`x` ne coche plus** (c'est la touche d'archivage des listes).
+- **Éditeur de colonnes du board** (`oh` › équipe › Colonnes du board) : `n` ajoute une colonne (avant : `a`), `e` renomme (`Entrée` aussi), `o` change le rôle (avant : `r`) ; `d` et le retrait d'un mapping demandent une confirmation.
+- **Session existante** (récapitulatif de lancement) : « remplacer en gardant le travail » passe de `k` à `K`.
+- **`Ctrl+T`** fait le tour Hub → Projet → Équipe → Hub, en sautant ce qui n'est pas configuré.
+- **`Alt+lettre`** n'agit plus comme la lettre ; `Début` et `Fin` d'une liste à sections vont au premier et au dernier champ, jamais sur un titre.
+- Avec `NO_COLOR`, le gras disparaît aussi des bannières, des détails de projet et des boutons principaux.
+
+#### Mode équipe
+
+- **Plus de bêta** : plus d'avertissement sur stderr, plus de ligne « Bêta » dans le board et la configuration d'équipe, et **le résultat `Team · beta mode` de `oh doctor` n'existe plus** (à retirer d'un script qui le lit).
+- **Bail et fin de session** : une réservation a un bail (`[claim] lease_hours`, 24 h) que le démon renouvelle tant qu'une session ouverte y travaille ; une réservation prise à la main (sans session) a un bail plus long (`lease_hours_manual`, 72 h) et n'est pas renouvelée automatiquement ; un renouvellement a un plafond (session en veille depuis plus de `sleeping_renewal_days`, 3 j ; session distante lancée il y a plus de `remote_renewal_days`, 7 j). Passé le bail, la réservation expire.
+- **Ce qui est gardé à la fin d'une session** (avant, la réservation était libérée) : un ticket fermé devient terminé ; une réservation **en revue** (label `ready-for-review` ou statut `review`) est **gardée et n'expire pas**, réservée jusqu'à la fusion ou la libération (`oh doctor` la signale au bout de `stale_days`) ; un checkpoint `cp-2` en attente, ou reporté avec du travail laissé, garde la réservation avec le label `session-ended` ; sinon elle est libérée. La libération passe par une file locale (`.git/oh-claims-queue.json`) appliquée dès que le dépôt d'équipe répond.
+- **Reprendre une réservation expirée** : `oh team claim <ticket>` demande une vraie confirmation (plus de transfert silencieux) ; sur votre propre réservation, il la renouvelle sans question.
+- **Refuser une proposition du wiki d'équipe demande un motif** (`oh team wiki review` et TUI), gardé dans l'historique et dans l'événement `wiki.rejected`.
+- Une 5.0 qui réécrit une réservation de la 5.1 la lit sans erreur (le bail retombe sur l'ancienne règle). → Lire [Bail et fin de session](docs/guides/team-setup.fr.md#bail-et-fin-de-session) et [Modèle de statut](docs/guides/team-setup.fr.md#modèle-de-statut).
+
+#### Jeton GitLab : un jeton, un serveur
+
+- Chaque source de jeton (variable d'environnement, `tracker_token_key`, jeton du projet, de l'équipe, du MCP) est rattachée à un serveur, et une source ne répond que pour le serveur appelé (hôte comparé sans tenir compte du schéma, du port ni de la casse). Le jeton du dépôt d'équipe n'est plus envoyé au tracker d'un autre GitLab. Sans jeton pour le serveur visé, l'erreur dit les sources lues, la clé, le serveur et la commande à lancer.
+- **`GITLAB_TOKEN` seul n'est plus envoyé nulle part** : déclarer son serveur avec `OH_GITLAB_URL` (ou `GITLAB_URL`). Une clé du trousseau garde par défaut le serveur du tracker (`tracker_token_url` pour le déclarer), un jeton MCP sans URL celui de gitlab.com (`[mcp.gitlab] url`), et un dépôt d'équipe joint par un alias SSH se déclare avec `[[teams]] gitlab_url` (`--gitlab-url`). → `oh doctor` dit quel jeton sert pour quel serveur ([ADR-057](docs/architecture/adr/057-gitlab-token-per-server.fr.md)).
+- `oh team config` ne remplit plus `tracker_token_key` tout seul (vide = garder, `-` = effacer) ; le champ « Jeton du tracker » de team-detail écrit cette clé, et non plus la clé MCP du hub.
+
+#### Sorties et codes de sortie
+
+- **Code de sortie 2 sans terminal** (script, CI, entrée redirigée), sauf `--yes`, au lieu de 1 : `oh gc`, `oh beads clean`, `oh doctor --fix`, `oh repair --restore`, la réparation de la base de `oh doctor`, `oh mcp trust`. Rien n'est modifié. `--yes` est ajouté là où il manquait. `oh board`, `oh team board` et `oh dashboard` sortent aussi en 2 sans terminal (ils ouvrent la TUI).
+- **`oh doctor` peut sortir en 1 là où il sortait 0** : `hub.toml` sans `setup_done`, fournisseur par défaut ou région, jeton absent pour le serveur du tracker, tracker qui répond 401, 403 ou 404, réservations rangées sous un ancien identifiant de projet, `tracker_username` vide quand le tracker et le dépôt d'équipe sont sur deux serveurs.
+- **Formats** : tailles en Kio/Mio/Gio (FR) ou KiB/MiB/GiB (EN), coûts à deux décimales avec le plancher « <$0.01 » (FR : « 0.12 $ »), dates à l'heure locale, âges et durées unifiés (`45s`, jours dès 24 h), nombres de jetons en « 1.5K ». Un réglage ou un service désactivé s'affiche `○` gris (avant : `✗` rouge) ; `◉`/`○` pour un choix unique, `☑`/`☐` pour un choix multiple, `◆` pour l'élément courant, `–` pour une étape sautée. Un script qui lit ces sorties à l'écran est à revoir.
+- `oh board` prend `--project <nom>` (défaut : le projet du dossier courant, sinon l'unique projet enregistré) au lieu d'afficher les tickets du dossier ; `--watch` est accepté sans effet ; les epics ne sont plus affichées.
+- `list_issues` et `list_mrs` du serveur MCP GitLab renvoient un **objet paginé** (`{issues, page, …}`) au lieu d'un tableau.
+
+#### Configuration
+
+- **Modèles** : le modèle par défaut d'une session, quand aucun niveau de la cascade n'en fixe un, est `claude-sonnet-5-5` (avant : `claude-sonnet-4-6`) ; les agents qui annonçaient `claude-sonnet-4-6` annoncent `claude-sonnet-5-5` (`reviewer` et `benchmarker` restent sur Opus). `oh config model` et la vue Modèles refusent un nom court sans numéro de version (`sonnet`, `claude-sonnet`) et montrent la forme attendue ; `provider/modèle` est inchangé.
+- Les assistants d'ajout de projet (CLI et TUI) n'écrivent plus de modèle quand le champ est vide : le projet hérite du hub (ils écrivaient `claude-sonnet-4-5`).
+- **Figma et Google Slides** : le champ URL est retiré de la vue MCP d'équipe, une valeur déjà enregistrée est ignorée sans erreur ; `oh mcp trust` ne liste plus `gslides`.
+- `oh init` refuse d'écraser un `hub.toml` existant (→ `oh doctor --fix`).
+- La limite `max_auto_plan_per_member` est une limite **par synchronisation** (au plus N réservations `planned` créées par run) ; les issues déjà en cours sont toujours acceptées, passent en premier, et la synchro dit combien sont restées hors du board.
+
+### Added
+
+**Mode équipe**
+- Bail des réservations, signal de vie du démon, file durable des opérations, `oh team claim` qui renouvelle ou reprend (voir « Ruptures »), réglages `[claim]` (`lease_hours`, `heartbeat_minutes`, `lease_hours_manual`, `sleeping_renewal_days`, `remote_renewal_days`, `release_expired_on_sync`) dans la vue de détail de l'équipe ; la synchro du tracker ne recrée plus une réservation libérée volontairement et peut libérer les réservations expirées (`release_expired_on_sync`, désactivé par défaut).
+- `tracker_username` : `oh team rejoin --tracker-username` (ou une question quand le tracker et le dépôt d'équipe sont sur deux serveurs), nouvelle commande `oh team profile`, section « Ma fiche de membre » de la vue de détail ; la synchro prévient des noms inconnus.
+- Déclarer où se trouve le jeton : `tracker_token_key` et `tracker_token_url` dans `oh init`, `oh team rejoin`, `oh team config` et la vue de détail ; `[[teams]] gitlab_url`.
+- Sessions des autres membres en lecture seule dans l'accueil de l'équipe ; une table unique des événements d'équipe (symbole, ton, phrase) pour `oh team activity` et la TUI ; `catalog/` committé à l'initialisation de l'équipe ; `oh team init` et les assistants préviennent quand le commit de structure échoue.
+
+**`oh doctor`**
+- Nouveaux contrôles : configuration du hub (`setup_done`, fournisseur par défaut, région), jetons GitLab du tracker et du dépôt d'équipe, connexion du tracker (appel réel borné à 5 s, `--offline` le saute), réservations sous un ancien identifiant de projet (`oh doctor --fix` les rattache au projet local en un seul commit), `tracker_username` et `tracker_identity`, réservations expirées, file en attente depuis plus de 15 min, réservations en revue anciennes. Un seul générateur d'identifiant de projet (`<nom>-<uuid8>`) pour la CLI et la TUI.
+
+**Agents et workflows**
+- Serveur MCP GitLab 2.1 : `get_issue` (notes, liens), `get_mr`, `list_issues` et `list_mrs` filtrés (`iids`, `search`, `assignee_username`, `labels`, `state`) et paginés. `#<n>` et `!<n>` sont reconnus comme issue ou MR GitLab quand le tracker est GitLab ; les prompts lisent un ticket depuis sa source (« Ticket <réf> non lu : <raison> » au lieu d'un silence) et le lancement avertit si le MCP GitLab n'est pas activé.
+- Review d'une autre branche que la courante : worktree temporaire détaché de cette branche (`read`, `grep`, `glob` et le diff voient les mêmes fichiers), supprimé à l'arrêt de la session et par `oh gc`.
+- Carte d'issue GitLab du board : `a` propose aussi `spec`, `quick`, `libre`, `infra-change`, `spike` et `incident` avec `request = #<iid>`.
+- Un agent `primary` que le workflow appelle est livré en `mode: all` (lui-même compris), `all` est accepté dans le schéma et l'éditeur de workflows, `oh workflow validate` avertit d'un `calls` vers un agent qui ne peut pas être sous-agent ([ADR-058](docs/architecture/adr/058-primary-agent-called-is-all.fr.md)) ; `workflow_checkpoint` n'est plus proposé dans un workflow sans checkpoint.
+- Un lancement relit `hub.toml` avant de construire son paquet et dit ce qui a changé (`models.default : A → B`) ; le récapitulatif (`oh run --recap`, fiche de lancement) montre le modèle utilisé et les autres modèles du paquet.
+- `Attest` signale un plugin que le paquet déclare mais que le serveur n'exécute pas (avertissement, échec en `execution.strict_isolation`) et dit quand `/api/plugin` est illisible.
+- Mode distant : le manifeste porte les `unlocks` de chaque checkpoint et le job refuse de démarrer si son paquet ne les verrouille pas pareil ; `remote.experimental` se règle dans Réglages › Distant. `execution.container_memory` (défaut : aucune ; `512m` à `1024g`) borne la mémoire d'un conteneur.
+
+**TUI**
+- Légende des symboles dans l'aide `?` ; `Ctrl+S` ; accueils Hub, Projet et Équipe sur un pied de page commun (outil et adaptateur dans l'en-tête du Hub, Notifications et Catalogue de briques sous Système, environnements ⌂ ▣ ☁ dans l'en-tête du Projet) ; indicateur d'enregistrement dans le titre ; vue Métriques complétée (sessions du jour, projets actifs, économies de cache, part de raisonnement) ; filtre `/` dans la liste des membres de `oh team rejoin` ; confirmation de suppression dans l'éditeur de colonnes ; « Serveur du jeton » (`tracker_token_url`) dans Réglages, masqué pour Jira.
+- La complétion du shell décrit les commandes et options dans la langue du hub ; `oh gc --only` liste `fanout`, `oh config model family` liste toutes les familles d'agents, l'aide de `oh daemon run`, `oh eval pass` et `oh session attach --exec` suit la langue.
+
+**Installation**
+- La formule Homebrew dépend d'`opencode` (obligatoire) et recommande `beads` et, sous macOS, `terminal-notifier`.
+- `compatibility.json` : entrée `5.1` (opencode 2.0.0 à 2.99.99, 2.0.25 recommandée).
+
+### Changed
+
+- **Affichage** : tailles, coûts, dates, âges, durées et nombres de jetons viennent d'un seul paquet (`textfmt`), les symboles d'une seule table, les couleurs de `theme.Paint` (elles suivent `NO_COLOR`) ; les vues lisent et écrivent hors de la boucle d'événements (Réglages, Fournisseur, MCP, Secrets, détail d'équipe, wiki, patterns, politiques, boards, Doctor, Nettoyage…) et disent « chargement », « vide » et « erreur » avec les mêmes mots ; une modification faite dans la vue MCP d'équipe pendant un rechargement n'est plus perdue.
+- **Assistants de la CLI** (`oh provider setup`, `oh project add|configure|remove`, `oh policies add`, `oh patterns add`, `oh mcp setup`, `oh team init`) : même moteur que ceux de la TUI (`oh init` l'était déjà). `Échap` demande « Quitter l'assistant ? » (plus de double `Échap` silencieux), une étape qui échoue affiche son erreur et attend une nouvelle tentative, ce qu'une étape écrit apparaît une fois l'assistant fermé.
+- **`hub.toml`** : chaque écrivain ne modifie que ses réglages, sur la version relue sous verrou (`config.Update`) ; la copie périmée d'une vue n'est plus enregistrée.
+- **Mode équipe** : `config.toml` de l'équipe écrit de façon atomique ; claim en revue (`ready-for-review` ou `review`) sans expiration ; écritures du team-state, de `bd` et du trousseau hors de la boucle de la TUI.
+- **Limite d'auto-planification** : voir « Configuration ». Une carte GitLab lancée sur un workflow à ticket passe `#<iid>` (refusé par son entrée Beads) au lieu du numéro nu.
+- **Mode distant** : le rejeu du journal Beads compare les labels comme des ensembles (un label ajouté ou retiré par la session n'est plus un conflit) et liste les labels en cas de conflit ; « Fusionner les notes » garde le label `ready-for-review` ; le faux `bd` du job refuse un statut absent de la configuration du projet. `--headless` imprime le texte de l'assistant dans l'ordre où il a été écrit.
+- **Socle** : `textfmt`, `fsutil`, `daemon/api` et `daemon/client`, `services/launch`, `services/doctor`, `app.App` et `cliout` ; `teamstate` en interfaces par sous-domaine avec `context.Context` (une lecture du clone d'équipe sur un contexte annulé, Ctrl+C ou fermeture de la TUI, s'arrête avec une erreur au lieu de continuer) ; `shell.go` et l'assistant intégré découpés ; codes de plan retirés des commentaires, fichiers `cmd/v5_*` nommés par sujet, code mort supprimé ; gardes `archtest` pour les couches, les touches, les styles, les goroutines et la sortie des commandes ; CI Windows étendue (98 paquets testés, 20 exclus avec leur cause), tests du binaire sous le tag `integration`, vrai `bd` et rendu Mermaid en CI.
+- **Documentation** : ADR 056 à 060 (réservations, jeton par serveur, `mode: all`, enveloppe de retour et `workflow_report`, wiki vivant), statuts d'ADR remis à jour, documents d'avant la v5 archivés dans `docs/legacy/`, index et checklist de release, guides TUI (légende des symboles, éditeur de colonnes), audit mis à jour.
+- Dépendance : `modernc.org/sqlite` 1.60.1.
+
+### Deprecated
+
+- `oh dashboard` et `oh metrics` sont **dépréciés** et seront retirés en v6 : utilisez la vue **Métriques** de la TUI (`oh`, puis `Ctrl+P` › Métriques). Ils avertissent sur la sortie d'erreur ; `oh metrics` garde sa sortie texte jusqu'en v6.
+- Rappel (annoncé en 5.0) : anciennes clés lues en repli, plus lues en v6 : `[opencode] default_provider`, `[execution] opencode_version`, noms de trousseau MCP `<service>-token`.
+
+### Removed
+
+- Commandes, options courtes et `--force` dépréciés en 5.0 (voir « Ruptures »).
+- Mode équipe : l'avertissement de bêta, le contrôle `Team · beta mode` de `oh doctor`, l'en-tête « Bêta » du board et de la configuration d'équipe.
+- Champ URL de Figma et de Google Slides de la vue MCP d'équipe.
+- Vues plein écran de `oh board`, `oh team board` et `oh dashboard` (la TUI les remplace).
+- Pour les développeurs : `widgets.ColorTag`, `FilterableList`, `RunWizard`, `daemon/compat.go`, le paquet `internal/prompt`.
+
+### Fixed
+
+- **`hub.toml` écrasé** par une copie périmée (l'assistant de premier lancement réapparaissait à chaque lancement) ; **lancement depuis la TUI qui ignorait** un `oh config model default …` fait dans un autre terminal.
+- **Jeton GitLab** du dépôt d'équipe envoyé au tracker d'un autre serveur (401 sans source ni serveur dans le message) ; `oh team config status` qui ignorait `tracker_token_key`.
+- **Réservations** : libération volontaire recréée par la synchro du tracker ; étape Identité de `oh team init|rejoin` qui remettait `default_mode` à zéro ; réservations sous un ancien identifiant de projet non signalées ; `last_activity` jamais écrit (la réservation retombait sur sa date de prise) ; un message envoyé à une session qui se termine, ou pas encore démarrée (`queued`, `preparing`), est refusé ou signalé au lieu de se perdre.
+- **Agents** : l'auto-délégation d'un agent `primary` refusée par opencode (« Agent reviewer cannot run as a subagent »), `workflow_checkpoint` proposé sans checkpoint (« unknown checkpoint "cp-1" () »), review d'une autre branche qui lisait les fichiers de la branche courante, `list_issues` sans filtre ni pagination, `oh config model` qui refusait les noms courts de modèles acceptés par les agents.
+- **Assistants** : `oh team init` au premier lancement qui sautait les étapes de configuration, d'identité, de notifications et de politiques ; `oh project add` qui initialisait Beads case décochée ; `Ctrl+S` qui ne validait pas le bouton principal de l'étape (services MCP de `oh project add`, politiques de `oh team init`) ; `oh project remove --yes` sans identifiant qui ne supprimait rien ; case « identifiants détectés » de `oh provider setup` ignorée ; étape d'authentification HTTPS affichée même pour un dépôt déjà cloné ; champ vide bloquant sans message.
+- **TUI** : la vue Fournisseur n'enregistrait pas le fournisseur par défaut, ses champs ni ses réinitialisations (changés en mémoire seulement) ; renommer ou supprimer une étiquette ou un statut dans l'écran des correspondances de l'éditeur de colonnes ne faisait rien ; le titre de la première section de la vue MCP d'équipe n'apparaissait pas ; `t` (tester) de cette vue n'appelait pas le serveur ; course de données sur `tcell` dans les tests.
+- **Divers** : `oh history` qui paniquait sur un identifiant court et ses en-têtes non traduits ; `oh init` qui proposait le dossier personnel ou la racine du disque comme premier projet ; fermer un ticket après un changement de la configuration git ne levait pas la même alerte qu'un checkpoint refusé ; `[gc] log_max_mb` et `log_keep` ignorés pour le journal du serveur d'outil ; `oh daemon stop` comptait des « sessions » au lieu des serveurs d'outil vivants ; libellés français (« Politiques », « Synchro tracker »), messages de la CLI passés par i18n, noms accentués de la bannière dessinés avec « ? » ; contenu du hub non réextrait par un build `dev` ou `-dirty` ; dates des briefs d'équipe en ISO.
+
+### Security
+
+- **Un jeton GitLab ne part qu'au serveur pour lequel il est déclaré** (voir « Ruptures ») ; les erreurs 401 et 403 disent la source, la clé et le serveur.
+- **Confirmations** : `oh gc`, `oh beads clean`, `oh doctor --fix`, `oh repair --restore`, la réparation de la base et `oh mcp trust` refusent sans terminal sauf `--yes` (code 2) et ne modifient rien.
+- **Plugins** : un plugin déclaré mais inactif est signalé au lancement ou, en isolation stricte (`execution.strict_isolation`, désactivée par défaut), fait échouer le lancement ; l'isolation stricte reste une limite assumée ([SECURITY.md](SECURITY.md)).
+- **Écritures atomiques** : `config.toml` de l'équipe et l'export de l'historique sont écrits comme `hub.toml` (fichier temporaire, `fsync`, renommage).
+- Dépendances à jour (`modernc.org/sqlite` 1.60.1). Suivi des constats : [audit v5](docs/dev/audit-v5.md) (69 corrigés, 14 partiels, 0 ouvert).
+
 ## [5.0.0] — 2026-10-22
 
 Version majeure : oh passe sur un runtime de sessions complet (opencode V2, workflows déclaratifs, démon, conteneur) et cesse de déployer des fichiers dans les projets. **Si vous venez de la 4.2.0, lisez d'abord « Ruptures et actions requises »**, puis [MIGRATION.md](MIGRATION.md) (marche à suivre) et le [guide de migration](docs/guides/migration-v5.fr.md). Le détail historique des lots de la v5 est conservé dans [docs/dev/changelog-v5-lots.md](docs/dev/changelog-v5-lots.md) ; certaines de ses entrées ont été dépassées par des lots ultérieurs : ce qui suit fait foi.
