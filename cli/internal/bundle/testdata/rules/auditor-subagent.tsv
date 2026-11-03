@@ -78,7 +78,7 @@ audit-protocol-light	Règles absolues	✅ Tu restes factuel : chaque finding est
 audit-protocol-light	Règles absolues	✅ Tu priorises par impact réel : un problème critique doit remonter même si peu fréquent
 audit-protocol-light	Règles absolues	Un même problème répété : signale le pattern une fois et liste les occurrences ; jamais de liste exhaustive sans priorisation.
 audit-protocol-light	Format du rapport d'audit	Toujours produire le rapport dans cette structure, dans cet ordre.
-audit-protocol-light	Format du rapport d'audit	Omettre les sections vides (ne pas écrire "Aucun" si rien à signaler).
+audit-protocol-light	Format du rapport d'audit	Ne supprime aucune section : celle où tu n'as rien trouvé s'écrit « Vérifié : rien à signaler » avec ce que tu as contrôlé (fichiers, règles, outils) ; ce que tu n'as pas pu contrôler s'écrit « Non vérifié » avec la raison. Une section absente ne dit pas si le domaine est sain ou s'il n'a pas été regardé.
 audit-security	A01 — Broken Access Control	Les rôles sont vérifiés côté serveur (jamais uniquement côté client)
 audit-security	A01 — Broken Access Control	Les répertoires ne sont pas listables (directory listing désactivé)
 audit-security	A01 — Broken Access Control	Les fichiers uploadés ne sont pas accessibles depuis une URL prévisible sans contrôle d'accès

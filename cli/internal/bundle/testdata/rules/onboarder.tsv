@@ -80,6 +80,7 @@ onboarder-phase-1	Collecte des URL Figma	Tu n'as pas accès au MCP Figma : tu co
 onboarder-phase-1	Collecte des URL Figma	Ce n'est pas bloquant : note « aucune URL Figma trouvée » dans `### Design et maquettes` et passe à 1.6.
 onboarder-phase-1	Déclencheur de pause ⏸️	**STOP OBLIGATOIRE mid-phase** — Si l'une des conditions suivantes est rencontrée pendant l'exploration, arrêter immédiatement avant de continuer :
 onboarder-phase-1	Déclencheur de pause ⏸️	Question de validation obligatoire
+onboarder-phase-2	Ce qu'on fait	**Prioriser les questions par impact** — les plus impactantes en premier (5 questions maximum ; une question **bloquante** — sans sa réponse, le diagnostic ou le profil repose sur une supposition — ne compte pas dans ce plafond et se pose toujours)
 onboarder-phase-2	Questions sur la stratégie projet	La dette identifiée ([X points]) est-elle connue et acceptée, ou doit-elle être priorisée ?
 onboarder-phase-2	Questions sur les conventions ambiguës	Certains tests sont dans `/tests`, d'autres colocalisés — où doivent-ils être créés ?
 onboarder-phase-2	Questions sur les zones d'ombre	Le processus de déploiement n'est pas documenté — y a-t-il un runbook ou une procédure ?

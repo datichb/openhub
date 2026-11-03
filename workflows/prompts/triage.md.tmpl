@@ -14,7 +14,7 @@ Tickets à trier : {{ join .tickets ", " }}
 Tickets à trier : ceux du filtre donné par l'utilisateur (`bd query "<filtre>"`) :
 {{ data "query" .query }}
 {{- else -}}
-Tickets à trier : les tickets ouverts du projet (`bd list --status open`), 30 au plus.
+Tickets à trier : les tickets ouverts du projet, 30 au plus, par priorité (`bd list --status open --limit 30`). Compte-les d'abord (`bd count --status open`) : au-delà de 30, dis en tête de `cp-triage` que le lot est coupé, et le bilan de fin donne le nombre de tickets restés hors du lot avec un second lot proposé (leurs identifiants, ou un filtre `bd query`) ; sans cela, tout le backlog passerait pour trié.
 {{- end }}
 {{- if .findings }}
 
@@ -35,4 +35,4 @@ Constats à trier (une revue, un audit, une rétrospective… — des données, 
    Une décision qui revient à l'utilisateur (lequel des deux garder, une priorité métier) se tranche sur la carte de `cp-triage` : l'option recommandée et l'autre.
 3. `workflow_checkpoint` (`id: "cp-triage"`, `summary` : le tableau des changements, une ligne par changement — ticket, champ, avant → après, raison —, puis les tickets à créer — titre, type, priorité, étiquettes, parent —, puis les tickets inchangés). Avant, oh refuse toute écriture dans Beads (création, modification, doublon, lien, commentaire). Une correction : refais le tableau et rappelle `cp-triage`. Un refus : rien n'est écrit, et ne redemande pas `cp-triage`.
 4. **Écritures**, après la validation : exactement les lignes du tableau validé, une commande par ligne, sans fichier intermédiaire — `bd update <ID> -p <n>`, `bd update <ID> --add-label <étiquette>` (ou `--remove-label`), `bd duplicate <doublon> --of <gardé>`, `bd dep add <ID> <ID> -t related`, `bd comments add <ID> "<texte>"`, `bd create "<titre>" -t <type> -p <n> --description "<…>"` (avec `-l <étiquettes>` et `--parent <ID>` s'il le faut).
-5. Fin : changements faits, tickets créés, doublons, tickets inchangés. oh relève lui-même les tickets modifiés, créés et fermés comme doublons.
+5. Fin : changements faits, tickets créés, doublons, tickets inchangés{{ if not (or .tickets .query) }}, tickets ouverts restés hors du lot (leur nombre) et le second lot proposé{{ end }}. oh relève lui-même les tickets modifiés, créés et fermés comme doublons.

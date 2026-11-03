@@ -1,0 +1,74 @@
+id: S79
+title: "Triage : un arriéré de 33 tickets ouverts — le lot est coupé à 30, et le bilan dit combien de tickets restent hors du lot et propose un second lot, au lieu de laisser croire que tout est trié"
+workflow: triage
+mode: semi-auto
+reports: off
+# v5.2 (L3) : « 30 au plus » coupait le backlog en silence. Sans ticket ni
+# filtre donné, le planner compte les tickets ouverts (bd count), en prend 30
+# par priorité, et le dit : 3 tickets restent hors du lot, un second lot est
+# proposé. Rien n'est écrit dans Beads avant cp-triage ; le cas ne vérifie
+# pas les changements eux-mêmes (voir S65), seulement que le lot coupé est
+# annoncé.
+beads:
+  prefix: ev
+  tickets:
+    - { id: ev-1, title: "Le formulaire de contact perd les pièces jointes de plus de 5 Mo", type: bug, priority: 1 }
+    - { id: ev-2, title: "Le tri par date inverse les semaines à la fin de l'année", type: bug, priority: 2 }
+    - { id: ev-3, title: "Mettre à jour la dépendance du générateur de PDF", type: task, priority: 3 }
+    - { id: ev-4, title: "La recherche ignore les accents dans les noms de clients", type: bug, priority: 2 }
+    - { id: ev-5, title: "Ajouter un filtre par statut sur la liste des commandes", type: feature, priority: 3 }
+    - { id: ev-6, title: "Renommer le dossier legacy/ en archive/", type: task, priority: 4 }
+    - { id: ev-7, title: "Le bouton Annuler reste actif après l'envoi", type: bug, priority: 3 }
+    - { id: ev-8, title: "Documenter les variables d'environnement du service de facturation", type: task, priority: 3 }
+    - { id: ev-9, title: "Le total TTC arrondit au centime inférieur", type: bug, priority: 2 }
+    - { id: ev-10, title: "Thème sombre pour l'interface d'administration", type: feature, priority: 4 }
+    - { id: ev-11, title: "Supprimer les journaux de plus de 90 jours", type: task, priority: 3 }
+    - { id: ev-12, title: "Le logo déborde sur mobile en paysage", type: bug, priority: 3 }
+    - { id: ev-13, title: "Ajouter des tests pour le calcul des remises", type: task, priority: 4 }
+    - { id: ev-14, title: "L'export Excel tronque les cellules de plus de 255 caractères", type: bug, priority: 2 }
+    - { id: ev-15, title: "Notifications par e-mail à la validation d'une commande", type: feature, priority: 3 }
+    - { id: ev-16, title: "Passer les scripts de déploiement en shellcheck", type: task, priority: 4 }
+    - { id: ev-17, title: "Le fuseau horaire des relances est celui du serveur", type: bug, priority: 3 }
+    - { id: ev-18, title: "Migrer la configuration vers des variables typées", type: task, priority: 3 }
+    - { id: ev-19, title: "Faute de frappe « livraision » dans le récapitulatif", type: bug, priority: 4 }
+    - { id: ev-20, title: "Raccourci clavier pour valider un devis", type: feature, priority: 3 }
+    - { id: ev-21, title: "Retirer l'ancien point d'entrée /v1/ping", type: task, priority: 4 }
+    - { id: ev-22, title: "Le panier vide affiche un total de -0,00 €", type: bug, priority: 2 }
+    - { id: ev-23, title: "Ajouter un index sur commandes(client_id, date)", type: task, priority: 3 }
+    - { id: ev-24, title: "Les e-mails de relance partent deux fois le lundi", type: bug, priority: 3 }
+    - { id: ev-25, title: "Afficher la dernière connexion sur le profil", type: feature, priority: 4 }
+    - { id: ev-26, title: "Mettre en cache la liste des pays", type: task, priority: 3 }
+    - { id: ev-27, title: "Le paiement par virement reste « en attente » après réception", type: bug, priority: 2 }
+    - { id: ev-28, title: "Uniformiser les messages d'erreur de l'API", type: task, priority: 4 }
+    - { id: ev-29, title: "La pagination saute la page 11", type: bug, priority: 3 }
+    - { id: ev-30, title: "Exporter les devis en PDF", type: feature, priority: 3 }
+    - { id: ev-31, title: "Nettoyer les fichiers .orig oubliés", type: task, priority: 4 }
+    - { id: ev-32, title: "Le champ SIRET accepte des lettres", type: bug, priority: 3 }
+    - { id: ev-33, title: "Ajouter un healthcheck au conteneur de l'API", type: task, priority: 3 }
+timeout: 20m
+answers:
+  question: first
+  permission: once
+  checkpoints:
+    "*": approve
+assertions:
+  - type: checkpoint_order
+    order: [cp-triage]
+  - type: ran
+    name: les tickets ouverts sont comptés
+    agent: planner
+    command: "bd count*"
+  - type: ran
+    name: aucune modification avant cp-triage
+    command: "bd update*"
+    absent: true
+    before: { checkpoint_passed: cp-triage }
+  - type: text_matches
+    name: le bilan dit que 3 tickets restent hors du lot
+    agent: planner
+    pattern: "(\\b3\\b|trois)[^.\\n]{0,60}(hors du lot|restent|restants|non tri)"
+  - type: text_matches
+    name: un second lot est proposé
+    agent: planner
+    pattern: "second lot|deuxième lot|lot suivant"
+  - type: no_denied_loop

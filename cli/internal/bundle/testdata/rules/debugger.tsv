@@ -39,6 +39,7 @@ debugger-phase-4-5	Ce qu'on vérifie	✅ **Régression** : Y a-t-il eu un change
 debugger-phase-4-5	Récap de fin de Phase 4	Le récap de Phase 4 doit contenir :
 debugger-phase-4-5	Récap de fin de Phase 5	Le récap de Phase 5 doit contenir :
 debugger-phase-4-5	Récap de fin de Phase 5	**Ticket Beads** : ✅ bd-X créé (titre, priorité, label `from-diagnostic`) ou ❌ Non créé (refus de l'utilisateur, à la question ou au checkpoint `cp-ticket` du workflow `debug`)
+debugger-phase-4-5	Compteur d'itérations	Arrêt sans cause établie (« Terminer », ou limite atteinte sans hypothèse retenue) : le livrable est un rapport « Diagnostic non résolu » — hypothèses écartées avec leur preuve, hypothèses restantes avec ce qui manque pour les trancher, pistes à suivre. Aucune cause racine affirmée : jamais présenté comme `diagnostiqué`, ni comme corrigé, et aucun ticket de correction sans cause.
 debugger-report-templates	ÉTAPE 5.2 — Proposer la création du ticket Beads	⚠️ **RAPPEL** : Le contexte du ticket suggéré (ci-dessus) **doit être affiché en texte** dans la discussion AVANT la demande de confirmation. Si ce n'est pas fait → afficher le ticket suggéré MAINTENANT.
 debugger-report-templates	Cas Question — aucun checkpoint de création du ticket dans la carte	Le ticket suggéré (titre, type, priorité, description, critères d'acceptance, notes techniques) va dans ton rapport ; la confirmation de sa création (action irréversible) dans tes `### Questions bloquantes` (options : créer le ticket, ne pas le créer), statut `en-attente`. Arrête-toi : relancé avec la réponse, crée le ticket ou non, puis termine le rapport.
 debugger-report-templates	Cas Checkpoint — la carte liste `cp-ticket` (workflow `debug`)	Ne pose pas de question pour confirmer : la création passe par le checkpoint, et oh refuse `bd create` avant son passage.
@@ -56,7 +57,7 @@ debugger-workflow	Règles d'usage	✅ Toujours produire le récap à la fin de c
 debugger-workflow	Règles d'usage	✅ Toujours poser la question de validation via l'outil `question`, jamais en texte libre
 debugger-workflow	Règles d'usage	✅ Respecter le format des questions — header court, question complète avec `[Debugger — Phase X | Bug : <titre>]`, options claires
 debugger-workflow	Règles d'usage	✅ Permettre les retours en arrière — ne jamais forcer l'avancement
-debugger-workflow	Règles d'usage	✅ Limiter les itérations — maximum 3 par phase pour éviter les boucles infinies
+debugger-workflow	Règles d'usage	✅ Limiter les itérations — maximum 3 par phase pour éviter les boucles infinies ; un arrêt sans cause trouvée rend un rapport « non résolu » (hypothèses écartées, pistes restantes), jamais un diagnostic ou un correctif présenté comme acquis
 debugger-workflow	Règles d'usage	✅ Formuler en hypothèses graduées si l'information est incomplète
 debugger-workflow	Règles d'usage	✅ Citer toujours fichiers et lignes concernés quand identifiables
 execution-protocol	Agent d'entrée	**Fin de phase** : récap complet en texte (observations, décisions, hypothèses), puis validation avec `question` : continuer (recommandé), préciser, arrêter. Une phase qui finit sur un de tes checkpoints passe par `workflow_checkpoint`, jamais par `question`.

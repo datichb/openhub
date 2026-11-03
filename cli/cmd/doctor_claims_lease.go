@@ -13,6 +13,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/cliout"
+	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/services/doctor"
 	"github.com/datichb/openhub/cli/internal/teamstate"
@@ -55,6 +56,7 @@ func init() {
 // expiredClaim is a claim of the member that nobody renews or holds any more.
 type expiredClaim struct {
 	Project, Ticket string
+	ProjectName     string // shown next to the ID (empty: the ID alone)
 	Reason          string // lease | inactive | ended
 }
 
@@ -92,6 +94,7 @@ func expiredClaims(project, member string, claims []teamstate.Claim, cfg *teamst
 // reviewClaim is a claim of the member that has been in review for long.
 type reviewClaim struct {
 	Project, Ticket string
+	ProjectName     string // shown next to the ID (empty: the ID alone)
 	Days            int
 }
 
@@ -119,23 +122,36 @@ func staleReviewClaimsResult(list []reviewClaim) []doctor.Result {
 	name := i18n.T("cmd.doctor.claims_review.name")
 	parts := make([]string, len(list))
 	for i, c := range list {
-		parts[i] = fmt.Sprintf("%s/%s (%s)", c.Project, c.Ticket, i18n.Tf("cmd.doctor.claims_review.age", c.Days))
+		parts[i] = fmt.Sprintf("%s/%s (%s)", claimProjectLabel(c.Project, c.ProjectName), c.Ticket, i18n.Tf("cmd.doctor.claims_review.age", c.Days))
 	}
 	return []doctor.Result{{ID: doctorIDClaimsReview, Name: name, OK: true, Warn: true,
 		Detail: i18n.Tf("cmd.doctor.claims_review.found", strings.Join(parts, ", "), list[0].Ticket, list[0].Project)}}
 }
 
-func expiredClaimsResult(list []expiredClaim) doctor.Result {
+// expiredClaimsResult is the result of the expired claims check. unverified
+// tells what could not be read: with it the result is a warning that says so,
+// never "no expired claim".
+func expiredClaimsResult(list []expiredClaim, unverified ...string) doctor.Result {
 	name := i18n.T("cmd.doctor.claims_expired.name")
+	var unread string
+	if len(unverified) > 0 {
+		unread = i18n.Tf("cmd.doctor.claims_expired.unverified", strings.Join(unverified, " ; "))
+	}
 	if len(list) == 0 {
+		if unread != "" {
+			return doctor.Result{ID: doctorIDClaimsExpired, Name: name, OK: true, Warn: true, Detail: unread}
+		}
 		return doctor.Result{ID: doctorIDClaimsExpired, Name: name, OK: true, Detail: i18n.T("cmd.doctor.claims_expired.ok")}
 	}
 	parts := make([]string, len(list))
 	for i, c := range list {
-		parts[i] = fmt.Sprintf("%s/%s (%s)", c.Project, c.Ticket, i18n.T("cmd.doctor.claims_expired.reason."+c.Reason))
+		parts[i] = fmt.Sprintf("%s/%s (%s)", claimProjectLabel(c.Project, c.ProjectName), c.Ticket, i18n.T("cmd.doctor.claims_expired.reason."+c.Reason))
 	}
-	return doctor.Result{ID: doctorIDClaimsExpired, Name: name, OK: true, Warn: true,
-		Detail: i18n.Tf("cmd.doctor.claims_expired.found", strings.Join(parts, ", "), list[0].Ticket, list[0].Project, list[0].Ticket, list[0].Project)}
+	detail := i18n.Tf("cmd.doctor.claims_expired.found", strings.Join(parts, ", "), list[0].Ticket, list[0].Project, list[0].Ticket, list[0].Project)
+	if unread != "" {
+		detail += " — " + unread
+	}
+	return doctor.Result{ID: doctorIDClaimsExpired, Name: name, OK: true, Warn: true, Detail: detail}
 }
 
 // claimQueueState is the queue of a team clone.
@@ -191,12 +207,25 @@ func claimsLeaseDoctorChecks(ctx context.Context) []doctor.Result {
 // claimsLeaseResults runs both checks over the team clones of the active
 // projects. Nothing is reported without a team.
 func claimsLeaseResults(ctx context.Context, a *app.App, now time.Time) []doctor.Result {
+	names := map[string]string{}
+	if a.Projects != nil {
+		projects, err := a.Projects.List(ctx, domain.ProjectStatusActive)
+		if err != nil {
+			// Without the projects there is no team to look at: say it,
+			// "no expired claim" would be false.
+			return []doctor.Result{expiredClaimsResult(nil, i18n.Tf("cmd.doctor.claims_expired.unverified_projects", err))}
+		}
+		for i := range projects {
+			names[projects[i].ID] = projects[i].Name
+		}
+	}
 	teams := claimTeams(ctx, a, a.Config)
 	if len(teams) == 0 {
 		return nil
 	}
 	var expired []expiredClaim
 	var inReview []reviewClaim
+	var unverified []string
 	for _, t := range teams {
 		cfg, _ := t.repo.LoadConfig(ctx)
 		projects := make([]string, 0, len(t.projects))
@@ -207,13 +236,20 @@ func claimsLeaseResults(ctx context.Context, a *app.App, now time.Time) []doctor
 		for _, p := range projects {
 			claims, err := t.repo.ListClaims(ctx, p)
 			if err != nil {
+				unverified = append(unverified, i18n.Tf("cmd.doctor.claims_expired.unverified_list", claimProjectLabel(p, names[p]), err))
 				continue
 			}
-			expired = append(expired, expiredClaims(p, t.member, claims, cfg, now)...)
-			inReview = append(inReview, staleReviewClaims(p, t.member, claims, cfg, now)...)
+			for _, c := range expiredClaims(p, t.member, claims, cfg, now) {
+				c.ProjectName = names[p]
+				expired = append(expired, c)
+			}
+			for _, c := range staleReviewClaims(p, t.member, claims, cfg, now) {
+				c.ProjectName = names[p]
+				inReview = append(inReview, c)
+			}
 		}
 	}
-	results := append([]doctor.Result{expiredClaimsResult(expired)}, staleReviewClaimsResult(inReview)...)
+	results := append([]doctor.Result{expiredClaimsResult(expired, unverified...)}, staleReviewClaimsResult(inReview)...)
 	return append(results, claimQueueResults(claimQueueStates(teams), now)...)
 }
 

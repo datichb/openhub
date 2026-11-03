@@ -87,6 +87,8 @@ var extraSamples = map[string]map[string]map[string]any{
 	"audit":      {"infra": {"type": "infra"}},
 	"onboarding": {"refresh": {"refresh": "true"}},
 	"spec":       {"source": {"source": "docs/wiki/decisions/cache.md"}},
+	// Without fan-out, with a spec: the orchestrator reads its criteria and risks.
+	"implement-spec": {"spec": {"tickets": "bd-2,bd-3", "spec": "docs/wiki/specs/cache.md"}},
 }
 
 func TestShippedWorkflowPrompts(t *testing.T) {

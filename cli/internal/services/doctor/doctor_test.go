@@ -129,8 +129,10 @@ func TestBinaryCheckEndToEnd(t *testing.T) {
 	assert.Equal(t, "not found in PATH", got[3].Detail)
 
 	assert.True(t, got[4].OK, "an optional program that is missing passes")
+	assert.True(t, got[4].Warn, "and says it is missing: no green line for a tool that is not there")
 	assert.Contains(t, got[4].Detail, "brew install tool")
 	assert.Equal(t, "optional tool", got[4].Name)
 
 	assert.Equal(t, "fakebd 1.2.3", got[5].Detail)
+	assert.False(t, got[5].Warn, "an optional program that is found is green")
 }

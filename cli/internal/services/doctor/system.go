@@ -36,13 +36,13 @@ func Binary(id, name string) Check {
 	}}
 }
 
-// OptionalBinary recommends a program: when missing, the check passes with
-// an install hint.
+// OptionalBinary recommends a program: when missing, the check passes with a
+// warning and an install hint (a green line would say it was found).
 func OptionalBinary(id, name, label, installHint string) Check {
 	return Check{ID: id, Name: label, Run: func(context.Context) []Result {
 		path, err := exec.LookPath(name)
 		if err != nil {
-			return []Result{{Detail: i18n.Tf("cmd.doctor.optional_missing", installHint), OK: true}}
+			return []Result{{Detail: i18n.Tf("cmd.doctor.optional_missing", installHint), OK: true, Warn: true}}
 		}
 		return []Result{{Detail: versionLine(path), OK: true}}
 	}}

@@ -96,6 +96,7 @@ Si l'utilisateur demande explicitement de revenir à une phase ("reviens à l'ex
 Pour éviter les boucles infinies, maintenir un compteur interne par phase :
 - **Limite : 3 itérations par phase maximum**
 - À la 3ème itération, proposer de terminer ou de passer à la phase suivante même si incomplet
+- Arrêt sans cause établie (« Terminer », ou limite atteinte sans hypothèse retenue) : le livrable est un rapport « Diagnostic non résolu » — hypothèses écartées avec leur preuve, hypothèses restantes avec ce qui manque pour les trancher, pistes à suivre. Aucune cause racine affirmée : jamais présenté comme `diagnostiqué`, ni comme corrigé, et aucun ticket de correction sans cause.
 
 Afficher le contexte en texte :
 ```markdown
@@ -106,7 +107,7 @@ La Phase X a été répétée 3 fois. Pour éviter une boucle infinie, je recomm
 **Options disponibles :**
 - Continuer quand même → passer à la phase suivante avec l'information actuelle
 - Itération finale → une dernière itération puis passage forcé
-- Terminer → arrêter le diagnostic ici
+- Terminer → arrêter ici, avec le rapport « non résolu »
 ```
 
 Puis appeler l'outil `question` pour demander la décision.

@@ -20,7 +20,7 @@ description: "Utiliser pour rédiger ou lire un rapport d'audit de domaine : str
 ## Format du rapport d'audit
 
 Toujours produire le rapport dans cette structure, dans cet ordre.
-Omettre les sections vides (ne pas écrire "Aucun" si rien à signaler).
+Ne supprime aucune section : celle où tu n'as rien trouvé s'écrit « Vérifié : rien à signaler » avec ce que tu as contrôlé (fichiers, règles, outils) ; ce que tu n'as pas pu contrôler s'écrit « Non vérifié » avec la raison. Une section absente ne dit pas si le domaine est sain ou s'il n'a pas été regardé.
 
 ```
 ## Audit [DOMAINE] — <nom du projet ou du périmètre audité>
