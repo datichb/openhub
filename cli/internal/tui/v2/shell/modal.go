@@ -353,22 +353,3 @@ func applyRoundedCorners(p *tview.Flex, borderColor, bgColor tcell.Color) {
 		return ix, iy, iw, ih
 	})
 }
-
-// applyRoundedCornersBox overdraws rounded corners on a tview.Box (for lists with borders).
-func applyRoundedCornersBox(p *tview.Box, borderColor, bgColor tcell.Color) {
-	original := p.GetDrawFunc()
-	p.SetDrawFunc(func(screen tcell.Screen, x, y, width, height int) (int, int, int, int) {
-		ix, iy, iw, ih := x+1, y+1, width-2, height-2
-		if original != nil {
-			ix, iy, iw, ih = original(screen, x, y, width, height)
-		}
-		if width >= 2 && height >= 2 {
-			style := tcell.StyleDefault.Foreground(borderColor).Background(bgColor)
-			screen.SetContent(x, y, '╭', nil, style)
-			screen.SetContent(x+width-1, y, '╮', nil, style)
-			screen.SetContent(x, y+height-1, '╰', nil, style)
-			screen.SetContent(x+width-1, y+height-1, '╯', nil, style)
-		}
-		return ix, iy, iw, ih
-	})
-}
