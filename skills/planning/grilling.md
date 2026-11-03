@@ -5,7 +5,7 @@ description: "Utiliser avant de poser des questions : confronter la demande au c
 
 # Interroger la demande
 
-Une demande dit ce que l'utilisateur veut ; le code dit ce que le projet garantit déjà. Les questions utiles naissent là où les deux se frottent. Une question n'a sa place que si deux réponses possibles mènent à deux plans différents.
+Une demande dit ce que l'utilisateur veut ; le code dit ce que le projet garantit déjà. Les questions utiles naissent là où les deux se frottent. Une question bloquante n'a sa place que si deux réponses possibles mènent à deux plans différents.
 
 ## 1. Relever ce que la demande affirme
 
@@ -52,9 +52,13 @@ Exemple (autre domaine) : « La demande dit d'envoyer la lettre d'information à
 
 1. Ce qui change le périmètre ou touche à une donnée sensible ou à un invariant.
 2. Ce qui change le découpage (un ticket de plus, une dépendance).
-3. Le reste devient une hypothèse écrite dans le rapport, pas une question.
+3. Le reste devient une hypothèse numérotée dans le rapport, ou une question facultative (ci-dessous). L'utilisateur peut la contester, mais elle n'est « décidée » que s'il l'a tranchée : un accord général (« ok », une validation sans commentaire) ne tranche aucune hypothèse.
 
-Cinq questions au plus par envoi ; les bloquantes d'abord.
+Cinq questions bloquantes au plus par envoi, jamais plus de deux envois :
+
+- **Envoi 1** : les bloquantes seulement.
+- **Envoi 2**, facultatif, avec ta reformulation, une fois les réponses reçues (d'emblée s'il n'y avait aucune bloquante) : les questions non bloquantes qu'une équipe se poserait (cas limites, droits, données existantes, écrans voisins), cinq au plus. Présente-les comme facultatives, chacune avec l'hypothèse retenue si l'utilisateur l'ignore ; il peut n'en traiter aucune.
+- Pas de troisième envoi. Une demande déjà détaillée (ticket complet) : un seul envoi, ou aucun, si rien ne manque.
 
 ## Interdits
 
@@ -62,4 +66,4 @@ Cinq questions au plus par envoi ; les bloquantes d'abord.
 - ❌ Une question dont la réponse se lit dans le code.
 - ❌ Trancher seul une tension entre la demande et une règle du projet, même avec une hypothèse « raisonnable ».
 
-Sous-agent : les décisions vont dans tes `### Questions bloquantes` (statut `en-attente`), une entrée par décision, avec ses options. Besoin flou dans son ensemble (pas une tension précise) : choisis une technique dans `elicitation-techniques`.
+Sous-agent : les décisions vont dans tes `### Questions bloquantes` (statut `en-attente`), une entrée par décision, avec ses options ; les facultatives, dans la section `### Questions facultatives` de ton rapport, jamais dans les bloquantes. Besoin flou dans son ensemble (pas une tension précise) : choisis une technique dans `elicitation-techniques`.

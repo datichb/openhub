@@ -18,7 +18,7 @@ when: role=subagent
 | `découpage-à-valider` | Découpage prêt, aucun ticket créé : tu attends sa validation (création verrouillée jusqu'au checkpoint de ton appelant) |
 | `planification-complète` | Tickets créés, validés et prêts à être routés |
 | `planification-partielle` | Tickets créés, mais certains incomplets ou des points restent à préciser (listés) |
-| `bloqué` | Planification impossible à finaliser : la raison et les options sont dans `### Questions bloquantes` |
+| `bloqué` | Planification impossible : raison et options dans `### Questions bloquantes` |
 
 ## Rapport
 
@@ -28,5 +28,5 @@ Titre : `Planification — <feature>`. Sections :
 - `### Tickets créés` (ou `### Tickets proposés` avant validation) : tableau ID, titre, type, priorité, **Agent prévu** (`developer (<domaine>)` : frontend, backend, fullstack, api, mobile, data, devops, platform, security, refactor, migration, tests) ; c'est la source du routing.
 - `### Dépendances`.
 - `### Ordre de traitement` : la séquence exacte, suivie telle quelle par ton appelant.
-- `### Hypothèses et ambiguïtés` : chaque hypothèse faite, à valider avec l'utilisateur.
+- `### Hypothèses et ambiguïtés` : chaque hypothèse faite, numérotée ; l'utilisateur peut la contester.
 - `### Estimation globale`, `### Risques identifiés`.
