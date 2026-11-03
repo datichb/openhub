@@ -151,6 +151,11 @@ type ModalAction struct {
 	Separator bool // insert a visual gap before this button to group actions
 	// Danger styles the button as a destructive action.
 	Danger bool
+	// KeepOpen keeps the window open when the button is pressed: the
+	// callback shows something over it (a reader) and the user comes back
+	// to the window when that is closed. By default a button closes its
+	// window before its callback runs.
+	KeepOpen bool
 }
 
 // ShellAccess provides access to shell overlay capabilities from views.

@@ -56,6 +56,8 @@ func TestCheckpointCardReports(t *testing.T) {
 	golden.Assert(t, "checkpoint_card/reports", compactCardText(t, title, body, actions))
 	require.Len(t, actions, 4, "decide, read rp-1, read rp-2, attach")
 	assert.Equal(t, "Lire rp-2", actions[2].Label)
+	assert.False(t, actions[0].KeepOpen, "deciding closes the card")
+	assert.True(t, actions[1].KeepOpen && actions[2].KeepOpen, "a reader opens over the card, which stays")
 
 	// The reader shows the escaped report.
 	actions[2].Callback()

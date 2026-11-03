@@ -1917,6 +1917,7 @@
   "tui.mode.members": "membres",
   "tui.mode.active": "actifs",
   "tui.modal.hints.scrollable": "↑↓ défiler · Tab actions · Esc fermer",
+  "tui.modal.hints.reader": "↑↓ défiler · Esc fermer",
   "tui.modal.hints.input": "Enter confirmer · Esc annuler",
   "tui.modal.btn.confirm": "Confirmer",
   "tui.modal.btn.cancel": "Annuler",

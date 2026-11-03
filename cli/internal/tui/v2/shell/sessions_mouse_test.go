@@ -33,8 +33,8 @@ type fakeSessionsBackend struct {
 
 func (f *fakeSessionsBackend) List(context.Context, string, bool) ([]views.SessionRow, error) {
 	f.mu.Lock()
+	defer f.mu.Unlock()
 	f.listed++
-	f.mu.Unlock()
 	return f.rows, f.listErr
 }
 func (f *fakeSessionsBackend) Changes(ctx context.Context) <-chan struct{} {
