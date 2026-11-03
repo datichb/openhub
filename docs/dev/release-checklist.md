@@ -29,7 +29,7 @@ Trois règles gouvernent tout le reste :
   | `.github/workflows/ci.yml` | `OPENCODE_VERSION` (et les deux `OPENCODE_SHA256_DARWIN_*`) |
   | `cli/internal/adapters/opencodev2/pinned_integrity.json` | l'empreinte sha512 des quatre paquets Linux de cette version |
 
-  **Chaque version mineure ajoute son entrée** `oh_versions."X.Y"` à `compatibility.json` (`opencode_min`, `opencode_max`, `opencode_recommended`, `notes`) : sans elle, la version de oh retombe sur `default` (`SupportedRange` lit `oh_versions` par `MajorMinor`), qui ne dit rien de cette version. Ajouter l'entrée `"5.1"` pour la 5.1, puis une par version mineure suivante.
+  **Chaque version mineure ajoute son entrée** `oh_versions."X.Y"` à `compatibility.json` (`opencode_min`, `opencode_max`, `opencode_recommended`, `notes`) : sans elle, la version de oh retombe sur `default` (`SupportedRange` lit `oh_versions` par `MajorMinor`), qui ne dit rien de cette version. L'entrée `"5.1"` existe depuis la 5.1 (`TestOhMinorVersionsHaveAnEntry`) ; ajouter l'entrée de chaque version mineure suivante, et son nom dans ce test.
 
   Pour épingler une version (lecture seule, ne modifie rien ; à lancer deux fois, de préférence depuis deux réseaux, et à comparer) :
 
@@ -59,9 +59,9 @@ Trois règles gouvernent tout le reste :
   goreleaser release --snapshot --clean --skip=sign
   ```
 
-  - `goreleaser check` **échoue aujourd'hui, et c'est attendu** : il signale que `brews` est déprécié (au profit de `homebrew_casks`). **Décision du 22/10/2026 : `brews` est gardé pour la 5.0** (la formule `openhub` du tap continue d'être produite) ; la migration vers `homebrew_casks` est à planifier après la 5.0, en étudiant l'effet sur `brew install datichb/tap/openhub` et sur Linux. Tout autre message de `check` bloque la release.
+  - `goreleaser check` **échoue aujourd'hui, et c'est attendu** : il signale que `brews` est déprécié (au profit de `homebrew_casks`). **Décision du 22/10/2026, reconduite pour la 5.1 : `brews` est gardé** (la formule `openhub` du tap continue d'être produite) ; la migration vers `homebrew_casks` est à planifier après la 5.1, en étudiant l'effet sur `brew install datichb/tap/openhub` et sur Linux. Tout autre message de `check` bloque la release.
   - Le snapshot ne publie rien. `--skip=sign` est nécessaire en local : la signature Cosign sans clé utilise l'identité OIDC de GitHub Actions, absente d'un poste. Il lance les hooks `before` (`go mod tidy`, `make sync-content`, `make embed-bd`), construit `darwin` et `linux` en `amd64` et `arm64` (pas de Windows) et écrit dans `cli/dist/` (ignoré par git) : quatre `openhub_<os>_<arch>.tar.gz`, `checksums.txt` et la formule `dist/homebrew/Formula/openhub.rb`. Compter une trentaine de secondes. Ensuite, `git status` doit être propre (sinon `go mod tidy` a trouvé un écart à committer), et le binaire de la machine (`cli/dist/openhub_<os>_<arch>*/oh`) répond à `oh version` (avec un `OH_HOME` temporaire). La version affichée est celle d'un snapshot, `<dernier tag>-SNAPSHOT-<commit>` (par exemple `5.0.0-SNAPSHOT-24741c00` après `v5.0.0`) : c'est normal.
-  - **Dépendances de la formule** (décision BL-22) : `dist/homebrew/Formula/openhub.rb` doit déclarer `git` et `opencode` comme dépendances obligatoires, `beads` et `terminal-notifier` comme recommandées (`dependencies` de `brews` dans `cli/.goreleaser.yml`). Sans `opencode`, `brew install datichb/tap/openhub` donne un `oh` qui ne peut lancer aucune session.
+  - **Dépendances de la formule** (décision BL-22) : `dist/homebrew/Formula/openhub.rb` doit déclarer `git` et `opencode` comme dépendances obligatoires, `beads` comme recommandée, et `terminal-notifier` comme recommandée sous macOS seulement (`if OS.mac?` ; `dependencies` de `brews` dans `cli/.goreleaser.yml`). Vérifier la formule du snapshot : `grep depends_on cli/dist/homebrew/Formula/openhub.rb`. Sans `opencode`, `brew install datichb/tap/openhub` donne un `oh` qui ne peut lancer aucune session.
 
 ## 2. Push et CI verte
 
