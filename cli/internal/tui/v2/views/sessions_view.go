@@ -630,6 +630,8 @@ func (v *SessionsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 			v.decide(d, "once", "", nil)
 		case d != nil && d.Kind == DecisionKindCheckpoint:
 			v.approveCheckpoint(r, d)
+		case d != nil:
+			v.toast(i18n.T("tui.sessions.answer_with_enter"), true)
 		}
 	case keys.Refuse.Matches(event):
 		switch {
@@ -637,6 +639,8 @@ func (v *SessionsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 			v.decide(d, "reject", "", nil)
 		case d != nil && d.Kind == DecisionKindCheckpoint:
 			v.refuseCheckpoint(r, d)
+		case d != nil:
+			v.toast(i18n.T("tui.sessions.answer_with_enter"), true)
 		}
 	case keys.Archive.Matches(event):
 		if d != nil && (d.Kind == DecisionKindError || d.Kind == DecisionKindBudget || d.Kind == DecisionKindCircuit) {
