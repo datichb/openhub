@@ -208,3 +208,20 @@ func TestLaunchFormChecksBranch(t *testing.T) {
 	onLoop(app, func() { problems = v.m.validate() })
 	assert.Empty(t, problems, "a missing branch does not block")
 }
+
+// The title of the form names the workflow by its label, in the language of the
+// form; a workflow without a label shows its ID, and the ID stays what the form
+// launches.
+func TestLaunchFormTitleNamesTheWorkflowByItsLabel(t *testing.T) {
+	frLocale(t)
+	spec := parseSpec(t, strings.Replace(libreTestSpec, "id: libre\n", "id: libre\nlabel: { fr: Session libre, en: Free session }\n", 1))
+	v := NewLaunchFormView(LaunchFormConfig{WorkflowID: "libre", Spec: spec, Lang: "fr"})
+	assert.Equal(t, "Lancer · Session libre", v.Title())
+	assert.Equal(t, "launch.libre", v.ID(), "the ID is not the label")
+
+	v = NewLaunchFormView(LaunchFormConfig{WorkflowID: "libre", Spec: spec, Lang: "en", Alias: "free"})
+	assert.Equal(t, "Lancer · free → Free session", v.Title())
+
+	v = NewLaunchFormView(LaunchFormConfig{WorkflowID: "libre", Spec: parseSpec(t, libreTestSpec), Lang: "fr"})
+	assert.Equal(t, "Lancer · libre", v.Title(), "no label: the ID")
+}

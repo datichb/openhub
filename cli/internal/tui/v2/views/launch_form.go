@@ -167,13 +167,25 @@ func (v *LaunchFormView) SetShell(s ShellAccess) { v.shell = s }
 func (v *LaunchFormView) ID() string { return "launch." + v.cfg.WorkflowID }
 
 func (v *LaunchFormView) Title() string {
+	workflow := v.workflowName()
 	switch {
 	case v.cfg.Alias != "" && v.cfg.AliasWith != "":
-		return i18n.Tf("tui.launch.title_alias_with", v.cfg.Alias, v.cfg.WorkflowID, strings.ToLower(v.m.plainLabel(v.cfg.AliasWith)))
+		return i18n.Tf("tui.launch.title_alias_with", v.cfg.Alias, workflow, strings.ToLower(v.m.plainLabel(v.cfg.AliasWith)))
 	case v.cfg.Alias != "":
-		return i18n.Tf("tui.launch.title_alias", v.cfg.Alias, v.cfg.WorkflowID)
+		return i18n.Tf("tui.launch.title_alias", v.cfg.Alias, workflow)
 	}
-	return i18n.Tf("tui.launch.title", v.cfg.WorkflowID)
+	return i18n.Tf("tui.launch.title", workflow)
+}
+
+// workflowName is the label of the workflow in the language of the form; its ID
+// when it has none.
+func (v *LaunchFormView) workflowName() string {
+	if v.cfg.Spec != nil {
+		if label := v.cfg.Spec.Label.Text(v.cfg.Lang); label != "" {
+			return label
+		}
+	}
+	return v.cfg.WorkflowID
 }
 
 // CapturesInput keeps every key for the form while it is mounted.
