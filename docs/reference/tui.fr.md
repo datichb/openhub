@@ -75,6 +75,7 @@ Une touche a le même sens dans toutes les vues. Une vue peut donner une lettre 
 | Liste | `x` | Archiver ou classer, **jamais destructif** |
 | Liste | `R` | Reprendre ou restaurer (session en veille, session distante, version d'un workflow) |
 | Liste | `c` | Comparer (diff) |
+| Liste | `Espace` | Cocher / décocher, basculer un réglage, choisir l'option sous le curseur |
 | Décision | `y` | Valider ou accepter (checkpoint, proposition wiki, élément d'un lot) |
 | Décision | `n` | Refuser, avec une consigne ; la consigne validée vaut confirmation |
 | Décision | `e` | Modifier avant de valider |
@@ -110,6 +111,28 @@ Une touche a le même sens dans toutes les vues. Une vue peut donner une lettre 
 | Fiche de lancement (dossier modifié) | `w` → `t` worktree (`s` stash, `b` autoriser) |
 | Changer de vue | `Ctrl+T` : Hub → Projet → Équipe → Hub (il n'allait qu'entre le Hub et l'Équipe) |
 | Autres listes (modèles, policies, secrets, équipes…) | `a` → `n` créer |
+| Éditeur de colonnes du board | `a` → `n` ajouter · `r` → `o` changer le rôle · nouveau : `e` renommer, `d` demande confirmation (voir [l'éditeur](#éditeur-de-colonnes-du-board)) |
+
+## Légende des symboles
+
+Un symbole veut dire **une seule chose**, sur tous les écrans de la TUI et dans les commandes. L'aide (`?`) en montre la légende, sous la convention des touches ; la source est la table des sens du thème (`theme.Meanings`, voir [Aurum](../design/aurum.md#table-des-sens-themeiconsgo-glyphsymbolsgo)).
+
+| Symbole | Sens |
+|---------|------|
+| `✔` | réussi, valide (aussi une étape terminée) |
+| `✗` | échoué, invalide : une erreur ponctuelle, une saisie refusée |
+| `○` | désactivé, au repos (aussi une étape à venir, un choix non retenu) |
+| `–` | absent, non renseigné (aussi une étape sautée) |
+| `⚠` | marche, mais demande de l'attention |
+| `●` | en cours d'exécution |
+| `◆` | élément courant : vue, étape, équipe |
+| `✎` | modifié, ni enregistré ni publié |
+| `★` | choix par défaut, élément épinglé |
+| `▸` | ligne sous le curseur, début d'une action |
+| `◉` | choisi dans un choix unique |
+| `☑` / `☐` | coché / non coché dans un choix multiple |
+
+Les états d'une session ont leurs propres symboles (`⊗` une session arrêtée sur un échec, `◌` une session en veille, voir la [référence de la CLI](cli.fr.md)) : `✗` est une erreur ponctuelle, `⊗` la façon dont une exécution a fini.
 
 ## L'omnibar
 
@@ -347,6 +370,35 @@ Commande `doctor`. `f` corriger le contrôle sélectionné (comme `oh doctor --f
 |-----|---------|
 | Board du projet | `h` / `l` colonnes, `Entrée` détail, `a` actions (lancer un workflow sur le ticket), `L` lier au tracker, `i` initialiser Beads |
 | Board d'équipe | `h` / `l` colonnes, `[` / `]` projets, `Entrée` détail, `a` actions (workflows à ticket ; sur une issue GitLab, aussi les workflows à demande libre avec `#<iid>`), `/` filtrer (menu : texte, assigné, libellé), `c` prendre, `L` libérer (confirmé), `t` transférer, `s` statut |
+
+### Éditeur de colonnes du board
+
+Accueil de l'équipe → **Colonnes du board** (il faut une équipe active et son team-state cloné). L'éditeur règle les colonnes du board d'équipe (section `[board]` de la configuration d'équipe, voir [`config.fr.md`](config.fr.md#section-board)) et les règles qui rangent un label ou un statut du tracker dans une colonne. C'est une étape d'assistant : `Échap` demande « Quitter l'assistant ? », et rien n'est écrit tant que `Ctrl+S` n'a pas été pressé.
+
+Liste des colonnes :
+
+| Touche | Action |
+|--------|--------|
+| `↑` `↓` / `j` `k` | choisir une colonne |
+| `n` | ajouter une colonne après celle du curseur (le nom est demandé ; l'identifiant en est tiré, le rôle est proposé d'après le nom) |
+| `e` / `Entrée` | renommer la colonne (son identifiant ne change pas) |
+| `d` | supprimer la colonne, **après confirmation** (le focus est sur « Annuler ») ; les labels et statuts qui y mènent partent avec elle, la confirmation en donne le nombre. Deux colonnes au moins restent : en dessous, un message refuse sans rien demander |
+| `o` | changer le rôle : `initial` → `active` → `terminal` → `blocked` |
+| `K` / `J` | monter / descendre la colonne |
+| `m` | ouvrir les rattachements de la colonne (quand l'équipe a un tracker) |
+| `Ctrl+S` | enregistrer : au moins deux colonnes dont une `terminal`, sinon un message dit ce qui manque |
+
+Rattachements d'une colonne (`m`) : la liste des labels, puis des statuts (Jira), qui rangent un ticket dans la colonne.
+
+| Touche | Action |
+|--------|--------|
+| `↑` `↓` / `j` `k` | choisir un label ou un statut (les titres sont sautés) |
+| `n` | ajouter un label (le nom est demandé) |
+| `e` / `Entrée` | renommer le label ou le statut |
+| `d` | le retirer de la colonne, **après confirmation** |
+| `q` | revenir à la liste des colonnes |
+
+L'assistant de découverte du tracker (`Discover Tracker`) utilise le même éditeur pour ses colonnes, sans la touche `m`. Avant la 5.1 : `a` ajoutait et `r` changeait le rôle ; c'est maintenant `n` et `o` (`r` rafraîchit partout ailleurs), et `d` demande confirmation (voir [Touches changées](#touches-changées)).
 
 ### Autres vues
 

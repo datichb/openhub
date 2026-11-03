@@ -376,7 +376,7 @@ oh team activity --week   # last 7 days
 oh team activity --member alice  # filter by member
 ```
 
-The board displays 5 columns: **TODO** · **IN PROGRESS** · **REVIEW** · **BLOCKED** · **DONE**.
+By default the board displays 6 columns: **TODO** · **IN PROGRESS** · **REVIEW** · **VALIDATION** · **DONE** · **BLOCKED**. The columns and the mapping of the tracker labels are edited in the TUI editor (team home → *Board Columns*: `n` add, `e` rename, `d` delete after a confirmation, `o` role, `K` / `J` order, `m` mappings, `Ctrl+S` save): see [the columns editor](../reference/tui.en.md#board-columns-editor).
 
 Keyboard shortcuts in the board (and other team views):
 

@@ -89,24 +89,50 @@ Teinte indigo dans le noir. Plus distinctif, plus "nuit étoilée".
 
 ## Iconographie
 
+### Table des sens (`theme/icons.go`, `glyph/symbols.go`)
+
+Un symbole veut dire **une seule chose**, sur tous les écrans et dans toutes les commandes. Les valeurs viennent de `internal/glyph` ; le thème les nomme (`theme.Sym*`) et un écran écrit `theme.SymSuccess`, jamais `"✔"` (la garde `TestUIStyleGuard` le vérifie). La liste ordonnée des sens et de leur couleur est `theme.Meanings` ; c'est elle qui produit la légende de l'aide (`?`).
+
+| Constante | Symbole | Sens | Couleur |
+|-----------|---------|------|---------|
+| `SymSuccess` | `✔` | réussi, valide (aussi une étape terminée) | Success/Green |
+| `SymFailure` | `✗` | échoué, invalide : une erreur ponctuelle, une saisie refusée | Error/Red |
+| `SymInactive` | `○` | désactivé, au repos (aussi une étape à venir) | Muted |
+| `SymAbsent` | `–` | absent, non renseigné (aussi une étape sautée) | Muted |
+| `SymWarning` | `⚠` | marche, mais demande de l'attention | Warning/Yellow |
+| `SymLive` | `●` | en cours d'exécution, et rien d'autre | texte |
+| `SymCurrent` | `◆` | l'élément courant : vue, étape, équipe | texte |
+| `SymModified` | `✎` | modifié, ni enregistré ni publié | texte |
+| `SymDefault` | `★` | choix par défaut, élément épinglé | texte |
+| `SymCursor` | `▸` | la ligne sous le curseur, le début d'une action ; jamais un état | texte |
+| `SymSelected` | `◉` | choisi dans un choix unique (les autres : `○`) | texte |
+| `SymSelectedMulti` / `SymUnselectedMulti` | `☑` / `☐` | coché / non coché dans un choix multiple | texte |
+
+Une session qui s'est arrêtée sur un échec est `⊗` (l'état `RunFailed` de `glyph`), pas `✗` : `✗` est un événement, `⊗` la façon dont une exécution a fini. Une session en veille est `◌`, pas `–`. La table des états d'une session et celle des événements d'équipe sont dans `glyph` (`ForState`, `Events`).
+
 ### Steps (wizards, progression)
 
-| État | Icône | Fallback | Couleur |
-|------|-------|----------|---------|
-| Done | `●` | `●` | Success/Green |
-| Active | `◔` | `►` | Action/Honey |
-| Pending | `○` | `○` | Muted |
-| Skipped | `○` | `○` | Muted (dim) |
+| État | Icône | Couleur |
+|------|-------|---------|
+| Terminée | `✔` (`IconDone`) | Success/Green |
+| Courante | `◆` (`IconStepActive`) | Action/Honey |
+| À venir | `○` (`IconPending`) | Muted |
+| Sautée | `–` (`IconSkipped`) | Muted (dim) |
+
+`●` n'est pas une étape terminée : c'est `SymLive`, une exécution en cours.
 
 ### Actions / Statuts
 
 | Élément | Icône | Couleur |
 |---------|-------|---------|
-| Succès | `✓` | Success/Green |
-| Erreur | `✗` | Error/Red |
-| Warning | `!` | Warning/Yellow |
-| Indicateur actif | `▸` | Action/Honey |
-| Point neutre | `·` | Muted |
+| Succès | `✔` (`IconSuccess`) | Success/Green |
+| Erreur | `✗` (`IconError`) | Error/Red |
+| Avertissement | `⚠` (`IconWarning`) | Warning/Yellow |
+| Indicateur actif | `▸` (`IconArrow`) | Action/Honey |
+| Point neutre | `·` (`IconDot`) | Muted |
+| Pastille de couleur seule | `●` (`IconSwatch`) | la couleur est le sens (rôle d'une colonne) |
+
+`⚠` a une largeur ambiguë dans les terminaux d'Asie orientale : on mesure une colonne avec `textfmt.ClipWidth`, jamais avec `len`.
 
 ### Connecteurs
 
@@ -148,7 +174,7 @@ Teinte indigo dans le noir. Plus distinctif, plus "nuit étoilée".
 │                                                            │
 │  ╭──────────────────────────────────────────────────────╮  │
 │  │                                                      │  │  ← SurfaceElem + BorderElem
-│  │  ● Label ─── ◔ Label ─── ○ Label ─── ○ Label        │  │  ← step bar
+│  │  ✔ Label ─── ◆ Label ─── ○ Label ─── ○ Label        │  │  ← step bar
 │  │                                                      │  │
 │  │  N/M · Label de l'étape                              │  │  ← Action bold
 │  │                                                      │  │
@@ -167,9 +193,10 @@ Teinte indigo dans le noir. Plus distinctif, plus "nuit étoilée".
   Titre                    ← Action bold
  
   Étapes
-  ● Label complété         ← Success/Green
-  ◔ Label actif            ← Action/Honey
+  ✔ Label complété         ← Success/Green
+  ◆ Label actif            ← Action/Honey
   ○ Label à venir          ← Muted
+  – Label sauté            ← Muted
 ```
 
 Pas de bordure (rendu inline dans le terminal). Pas de fond (pas de contrôle background en mode inline).
@@ -307,6 +334,7 @@ dual-column. Les sections avec le même `SectionID` restent groupées.
 - Ne **jamais** utiliser la couleur Action (Honey) pour du texte long (illisible). Réservé aux labels courts, icônes, bordures actives.
 - Ne **jamais** mélanger plus de 3 couleurs sémantiques dans la même zone visuelle.
 - Ne **jamais** utiliser de couleurs hardcodées (`lipgloss.Color("99")`) — toujours via `theme.*`.
+- Ne **jamais** écrire un symbole de la table des sens dans un littéral (`"✔"`, `"⚠"`…) ni une balise tview à la main (`"[#a6e3a1]"`, `"[::b]"`) : `theme.Sym*`, `theme.Paint`, `theme.StyleTag`. `TestUIStyleGuard` échoue sinon, sans liste d'exceptions.
 - Ne **jamais** coller un formulaire directement sous un titre sans espacement.
 - Les bordures sont des **murmures** : quasi-invisibles, même famille que le fond.
 
@@ -318,7 +346,7 @@ Tous les formulaires huh utilisent un thème personnalisé qui applique la palet
 - Bordure active : Action/Honey (`BorderActive`)
 - Titre : Action bold
 - Sélecteur : Accent/Blue
-- Selected : Success/Green (`✓`)
+- Selected : Success/Green (`✔`)
 - Erreurs : Error/Red
 - Curseur : Success/Green
 - Bouton focus : Action bg + Surface fg
@@ -332,7 +360,7 @@ Carte récapitulative affichée après un wizard alt-screen ou un flow multi-ét
 
 ```
 ╭──────────────────────────────────────────╮
-│  ✓ Team Setup Complete                   │
+│  ✔ Team Setup Complete                   │
 │                                          │
 │  Repo      git@gitlab.com:team/state     │
 │  Member    benjamin (lead)               │

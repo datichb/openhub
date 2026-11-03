@@ -75,6 +75,7 @@ A key has the same meaning in every view. A view may give a free letter to an ac
 | List | `x` | Archive or file away, **never destructive** |
 | List | `R` | Resume or restore (sleeping session, remote session, version of a workflow) |
 | List | `c` | Compare (diff) |
+| List | `Space` | Tick / untick, switch a setting, choose the option under the cursor |
 | Decision | `y` | Accept (checkpoint, wiki proposal, element of a batch) |
 | Decision | `n` | Refuse, with an instruction; the validated instruction is the confirmation |
 | Decision | `e` | Modify before accepting |
@@ -110,6 +111,28 @@ A key has the same meaning in every view. A view may give a free letter to an ac
 | Launch form (modified directory) | `w` → `t` worktree (`s` stash, `b` allow) |
 | Switching views | `Ctrl+T`: Hub → Project → Team → Hub (it only went between the Hub and the Team) |
 | Other lists (models, policies, secrets, teams…) | `a` → `n` create |
+| Board columns editor | `a` → `n` add · `r` → `o` change the role · new: `e` rename, `d` asks for a confirmation (see [the editor](#board-columns-editor)) |
+
+## Legend of the symbols
+
+A symbol has **one meaning**, on every screen of the TUI and in the commands. The help (`?`) shows the legend under the key convention; the source is the table of meanings of the theme (`theme.Meanings`, see [Aurum](../design/aurum.md#table-des-sens-themeiconsgo-glyphsymbolsgo)).
+
+| Symbol | Meaning |
+|--------|---------|
+| `✔` | worked, valid (also a finished step) |
+| `✗` | failed, invalid: a one-off error, a refused input |
+| `○` | off, at rest (also a step to come, a choice not taken) |
+| `–` | missing, not set (also a skipped step) |
+| `⚠` | works, but needs attention |
+| `●` | running right now |
+| `◆` | current element: view, step, team |
+| `✎` | changed, neither saved nor published |
+| `★` | chosen by default, pinned element |
+| `▸` | row under the cursor, start of an action |
+| `◉` | chosen in a single choice |
+| `☑` / `☐` | ticked / not ticked in a multiple choice |
+
+The states of a session have symbols of their own (`⊗` a session that stopped on a failure, `◌` a sleeping session, see the [CLI reference](cli.en.md)): `✗` is a one-off error, `⊗` is how a run ended.
 
 ## The omnibar
 
@@ -347,6 +370,35 @@ Command `doctor`. `f` fix the selected check (like `oh doctor --fix`, with a pre
 |------|------|
 | Project board | `h` / `l` columns, `Enter` detail, `a` actions (launch a workflow on the ticket), `L` link to the tracker, `i` initialise Beads |
 | Team board | `h` / `l` columns, `[` / `]` projects, `Enter` detail, `a` actions (workflows taking a ticket; on a GitLab issue, also the workflows taking a free request, with `#<iid>`), `/` filter (menu: text, assignee, label), `c` claim, `L` release (confirmed), `t` transfer, `s` status |
+
+### Board columns editor
+
+Team home → **Board Columns** (an active team with a cloned team-state is needed). The editor sets the columns of the team board (the `[board]` section of the team configuration, see [`config.en.md`](config.en.md#board-section)) and the rules that put a tracker label or status in a column. It is a wizard step: `Esc` asks « Quit the wizard? », and nothing is written until `Ctrl+S` is pressed.
+
+List of the columns:
+
+| Key | Action |
+|-----|--------|
+| `↑` `↓` / `j` `k` | choose a column |
+| `n` | add a column after the one under the cursor (the name is asked; the id is derived from it, the role is suggested from the name) |
+| `e` / `Enter` | rename the column (its id does not change) |
+| `d` | delete the column, **after a confirmation** (the focus is on « Cancel »); the labels and statuses that lead to it go with it, and the confirmation gives their number. Two columns at least stay: below that, a message refuses without asking |
+| `o` | change the role: `initial` → `active` → `terminal` → `blocked` |
+| `K` / `J` | move the column up / down |
+| `m` | open the mappings of the column (when the team has a tracker) |
+| `Ctrl+S` | save: at least two columns, one of them `terminal`, else a message says what is missing |
+
+Mappings of a column (`m`): the list of the labels, then of the statuses (Jira), that put a ticket in the column.
+
+| Key | Action |
+|-----|--------|
+| `↑` `↓` / `j` `k` | choose a label or a status (titles are skipped) |
+| `n` | add a label (the name is asked) |
+| `e` / `Enter` | rename the label or the status |
+| `d` | remove it from the column, **after a confirmation** |
+| `q` | back to the list of the columns |
+
+The tracker discovery wizard (`Discover Tracker`) uses the same editor for its columns, without the `m` key. Before 5.1: `a` added and `r` changed the role; they are now `n` and `o` (`r` refreshes everywhere else), and `d` asks for a confirmation (see [Changed keys](#changed-keys)).
 
 ### Other views
 
