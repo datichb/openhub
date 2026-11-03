@@ -185,6 +185,12 @@ func repoNameFromRemote(remote string) string {
 		return strings.TrimSuffix(remote, ".git")
 	}
 
+	// Local path on Windows (C:\...\repo.git): url.Parse reads the drive as
+	// a scheme, so take the base name as for a URL path.
+	if filepath.VolumeName(remote) != "" {
+		return strings.TrimSuffix(filepath.Base(remote), ".git")
+	}
+
 	// HTTP(S) URL
 	u, err := url.Parse(remote)
 	if err == nil && u.Path != "" {
