@@ -2,10 +2,9 @@
 // permissions, graph) into an immutable, content-addressed directory under
 // ~/.oh/bundles/<hash>, independent of the project directory.
 //
-// Builder of the first bundles: agents are selected from the current (single) hub
-// workflow, starting at the entry agent and following the workflow
-// delegation graph. Declarative workflows (phase 1) will replace the
-// selection step; the assembly and layout stay.
+// Agents are selected from the workflow of the session, starting at the
+// entry agent and following the delegation graph of the workflow; the
+// assembly and layout of the bundle do not depend on that selection.
 package bundle
 
 import (
