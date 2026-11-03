@@ -402,6 +402,7 @@ func Changes() []Change {
 		change("mcp", "w", "m", "write"),
 		change("launch", "w", "t", "dirty_worktree"),
 		change("lists", "a", Create.Keys(), "create"),
+		change("forms", "x", Toggle.Keys(), "check"),
 		change("modes", "", "Ctrl+T", "cycle"),
 	}
 }
