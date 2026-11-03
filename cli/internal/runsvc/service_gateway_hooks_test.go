@@ -131,7 +131,7 @@ func TestLocalSessionBeadsHooksAndShell(t *testing.T) {
 		t.Fatal(err)
 	}
 	if got, err := gateway.CheckShellBD(ctx, LocalSessionEnv(nil, nil, []string{shims}), filepath.Join(shims, "bd")); err == nil {
-		t.Fatalf("without oh's start-up, the user's .zshenv must win (A16 reproduced), got %s", got)
+		t.Fatalf("without oh's start-up, the user's .zshenv must win (reproduced), got %s", got)
 	}
 	model := sessionspec.ParseModelRef("amazon-bedrock/eu.anthropic.claude-haiku-4-5-20251001-v1:0")
 	bdir := filepath.Join(root, "bundle")

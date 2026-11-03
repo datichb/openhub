@@ -49,7 +49,7 @@ func TestShellStartupKeepsTheFakeBdFirst(t *testing.T) {
 				base["BASH_ENV"] = userBashEnv
 			}
 			got, err := CheckShellBD(context.Background(), base, want)
-			assert.ErrorIs(t, err, ErrShellBD, "the user's file wins without oh (A16 reproduced)")
+			assert.ErrorIs(t, err, ErrShellBD, "the user's file wins without oh (reproduced)")
 			assert.Equal(t, filepath.Join(other, "bd"), got)
 
 			env := map[string]string{}

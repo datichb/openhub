@@ -89,8 +89,8 @@ func newWorkflowEnv(t *testing.T, a *Adapter) *workflowEnv {
 	return newWorkflowEnvFor(t, a, false)
 }
 
-// newJobWorkflowEnv is newWorkflowEnv with the daemon of a remote job
-// : the wiki is served, its proposals are never applied
+// newJobWorkflowEnv is newWorkflowEnv with the daemon of a remote job:
+// the wiki is served, its proposals are never applied
 // (no CommitPassed, wiki_apply refused).
 func newJobWorkflowEnv(t *testing.T, a *Adapter) *workflowEnv {
 	t.Helper()

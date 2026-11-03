@@ -22,7 +22,7 @@ func workflowMCP(t *testing.T, src string) sessionspec.MCPServerDef {
 	return sessionspec.MCPServerDef{}
 }
 
-// Bug 15: the workflow MCP server of a workflow without checkpoint is told
+// The workflow MCP server of a workflow without checkpoint is told
 // not to offer workflow_checkpoint; with checkpoints it is unchanged.
 func TestWorkflowMCPWithoutCheckpoints(t *testing.T) {
 	t.Parallel()

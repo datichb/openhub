@@ -30,8 +30,8 @@ func (v *validator) writes(base string, a AgentRef) {
 	}
 }
 
-// scopeInput checks an input that is the file scope of the session
-// : text, the only one, recorded at launch.
+// scopeInput checks an input that is the file scope of the session:
+// text, the only one, recorded at launch.
 func (v *validator) scopeInput(at, id string, in Input) {
 	if in.Type != InputText && in.Type != InputString {
 		v.err("input_scope_type", at, id, string(in.Type))
