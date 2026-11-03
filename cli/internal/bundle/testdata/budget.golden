@@ -5,7 +5,7 @@
 # skills for the agents with stack_skills, extra and prompt skills for the entry agent, skills
 # named by its callers for the agents with skills_from_callers, their requires closure, then the
 # skills named by the on-demand skills reached, transitively) and their catalogue entries.
-# Per-agent catalogue (L2): catalog = reach.
+# Per-agent catalogue: catalog = reach.
 # TOTAL: sums of the agents; catalog = every skill of the bundle; reach = skills reached by an agent.
 # Regenerate: go test ./internal/bundle -run TestBudgetBaseline -update
 

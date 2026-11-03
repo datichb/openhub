@@ -112,7 +112,7 @@ func TestBudgetBaseline(t *testing.T) {
 	out.WriteString("# skills for the agents with stack_skills, extra and prompt skills for the entry agent, skills\n")
 	out.WriteString("# named by its callers for the agents with skills_from_callers, their requires closure, then the\n")
 	out.WriteString("# skills named by the on-demand skills reached, transitively) and their catalogue entries.\n")
-	out.WriteString("# Per-agent catalogue (L2): catalog = reach.\n")
+	out.WriteString("# Per-agent catalogue: catalog = reach.\n")
 	out.WriteString("# TOTAL: sums of the agents; catalog = every skill of the bundle; reach = skills reached by an agent.\n")
 	out.WriteString("# Regenerate: go test ./internal/bundle -run TestBudgetBaseline -update\n\n")
 	fmt.Fprintf(&out, "%-8s %-22s %-28s %8s %8s %4s %4s %6s %4s %6s\n", "project", "workflow", "agent",
