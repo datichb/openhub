@@ -3,11 +3,14 @@ package views
 import (
 	"context"
 	"fmt"
+	"log/slog"
 )
 
 // `next:` steps of the selected session in the Détail tab: read off
 // the event loop on selection, kept while the session (state, outputs)
-// does not change.
+// does not change. The steps are an addition to the detail, read without
+// the user asking: when they cannot be read the detail is shown without
+// them, quietly (no toast, no reload of the list).
 
 type sessionNext struct {
 	sig     string
@@ -31,16 +34,20 @@ func (v *SessionsView) nextSteps(r *SessionRow) []SessionNextStep {
 	if known && (cur.sig == sig || cur.loading) {
 		return cur.steps
 	}
+	if v.app == nil {
+		return cur.steps
+	}
 	id := r.ID
 	v.next[id] = sessionNext{sig: sig, steps: cur.steps, loading: true}
-	var steps []SessionNextStep
-	v.async(func(ctx context.Context) (string, error) {
-		var err error
-		steps, err = nb.NextSteps(ctx, id)
-		return "", err
-	}, func(string) {
+	load(v.app, v.ctx, &loadSlot{}, func(ctx context.Context) ([]SessionNextStep, error) {
+		return nb.NextSteps(ctx, id)
+	}, func(steps []SessionNextStep, err error) {
 		if v.next == nil {
 			return
+		}
+		if err != nil {
+			slog.Debug("next steps of a session unreadable", "session", id, "error", err)
+			steps = nil
 		}
 		v.next[id] = sessionNext{sig: sig, steps: steps}
 		if sel, _ := v.selected(); sel != nil && sel.ID == id {
