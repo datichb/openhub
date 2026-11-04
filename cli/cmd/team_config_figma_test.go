@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"bytes"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -14,32 +13,24 @@ import (
 	"github.com/datichb/openhub/cli/internal/teamstate"
 )
 
-// withStdin feeds the prompts of the wizard (they read the standard input).
-func withStdin(t *testing.T, input string) {
-	t.Helper()
-	r, w, err := os.Pipe()
-	require.NoError(t, err)
-	_, err = w.WriteString(input)
-	require.NoError(t, err)
-	require.NoError(t, w.Close())
-	prev := os.Stdin
-	os.Stdin = r
-	t.Cleanup(func() { os.Stdin = prev; _ = r.Close() })
-}
-
 // The Figma server always calls api.figma.com, so the wizard no longer
 // asks for a URL; a URL already recorded by the team is kept as it is and
 // ignored.
 func TestConfigureFigmaDoesNotAskForAnURL(t *testing.T) {
 	repo, err := teamstate.InitSolo(t.Context(), t.TempDir()+"/state", teamstate.Member{ID: "alice"})
 	require.NoError(t, err)
-	teamCfg := &teamstate.TeamConfig{MCP: map[string]teamstate.SharedMCPConfig{"figma": {URL: "https://recorded.example"}}}
-	// the answers: the team uses Figma; a second line that no prompt should read
-	withStdin(t, "y\nhttps://figma.example.com\n")
+	require.NoError(t, repo.UpdateConfig(t.Context(), func(c *teamstate.TeamConfig) error {
+		c.MCP = map[string]teamstate.SharedMCPConfig{"figma": {URL: "https://recorded.example"}}
+		return nil
+	}))
+	teamCfg, err := repo.LoadConfig(t.Context())
+	require.NoError(t, err)
 	var out bytes.Buffer
 	a := &app.App{Config: &config.Config{}, IO: &app.IOStreams{Out: &out, ErrOut: &out}}
+	// the answers: the team uses Figma (choice 2); a second line that no prompt should read
+	p := answerPrompts(t, a, "2", "https://figma.example.com")
 
-	require.NoError(t, configureFigma(t.Context(), a, repo, teamCfg, true, false))
+	require.NoError(t, configureFigma(t.Context(), a, p, repo, teamCfg, true, false))
 
 	assert.NotContains(t, out.String(), "URL", "no prompt for a URL")
 	assert.Equal(t, "https://recorded.example", teamCfg.MCP["figma"].URL, "the recorded value is not changed")

@@ -108,19 +108,6 @@ func teamGitLabURLProblem(v string) string {
 	return ""
 }
 
-// setTeamGitLabURL declares the GitLab of the team-state repository of the
-// team teamID in hub.toml (only that setting of the team changes).
-func setTeamGitLabURL(a *app.App, teamID, url string) error {
-	return updateHubConfig(a, func(c *config.Config) error {
-		t := c.FindTeam(teamID)
-		if t == nil {
-			return fmt.Errorf("%s", i18n.Tf("tui.team.detail.team_not_in_hub", teamID))
-		}
-		t.GitLabURL = url
-		return nil
-	})
-}
-
 // trackerTokenCheck says whether a token serves the tracker of a team: the
 // answer of the cascade that the sync reads, for the server of the tracker —
 // not whether a secret exists under some key.

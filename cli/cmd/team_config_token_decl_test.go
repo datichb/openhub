@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"bytes"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -17,18 +16,14 @@ import (
 	"github.com/datichb/openhub/cli/internal/tracker"
 )
 
-// answerPrompts plays the answers of the user to the questions asked with
-// fmt.Scanln (askInput, askYN, askSelect).
-func answerPrompts(t *testing.T, answers ...string) {
+// answerPrompts plays the answers of the user to the questions of the
+// assistant: they are read on the input of the app (a.IO.In).
+func answerPrompts(t *testing.T, a *app.App, answers ...string) *prompter {
 	t.Helper()
-	r, w, err := os.Pipe()
+	a.IO.In = strings.NewReader(strings.Join(answers, "\n") + "\n")
+	p, err := newPrompter(a)
 	require.NoError(t, err)
-	_, err = w.WriteString(strings.Join(answers, "\n") + "\n")
-	require.NoError(t, err)
-	require.NoError(t, w.Close())
-	prev := os.Stdin
-	os.Stdin = r
-	t.Cleanup(func() { os.Stdin = prev; _ = r.Close() })
+	return p
 }
 
 // trackerWizardEnv is a team whose team-state is a local repository without
@@ -64,8 +59,8 @@ func TestTeamConfigTrackerSyncDoesNotFillTheTokenKeyOnItsOwn(t *testing.T) {
 	require.NoError(t, err)
 
 	// GitLab, the URL, no key, no token, then the yes/no questions and no project
-	answerPrompts(t, "1", serverURL, "", "n", "n", "n", "n", "n", "")
-	require.NoError(t, configureTrackerSync(t.Context(), a, repo, teamCfg, true, false))
+	p := answerPrompts(t, a, "1", serverURL, "", "n", "n", "n", "", "n", "", "")
+	require.NoError(t, configureTrackerSync(t.Context(), a, p, repo, teamCfg, true, false))
 
 	saved, err := repo.LoadConfig(t.Context())
 	require.NoError(t, err)
@@ -82,8 +77,8 @@ func TestTeamConfigTrackerSyncDeclaresTheKeyAndTheServer(t *testing.T) {
 	require.NoError(t, err)
 
 	// GitLab, the URL, the key, its server, the token, then the rest
-	answerPrompts(t, "1", serverURL, "forge.token", serverURL, "y", "glpat-1", "n", "n", "n", "n", "")
-	require.NoError(t, configureTrackerSync(t.Context(), a, repo, teamCfg, true, false))
+	p := answerPrompts(t, a, "1", serverURL, "forge.token", serverURL, "y", "glpat-1", "n", "n", "", "n", "", "")
+	require.NoError(t, configureTrackerSync(t.Context(), a, p, repo, teamCfg, true, false))
 
 	saved, err := repo.LoadConfig(t.Context())
 	require.NoError(t, err)

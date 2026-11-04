@@ -157,7 +157,6 @@ type ConfigReader interface {
 // applies the changes between two copies and refuses to overwrite a setting a
 // colleague changed (ErrConfigConflict).
 type ConfigWriter interface {
-	SaveConfig(ctx context.Context, cfg *TeamConfig) error
 	UpdateConfig(ctx context.Context, patch func(*TeamConfig) error) error
 	UpdateConfigFrom(ctx context.Context, base, edited *TeamConfig) error
 }

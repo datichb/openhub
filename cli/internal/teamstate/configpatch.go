@@ -271,39 +271,29 @@ func appendStep(path []pathStep, s pathStep) []pathStep {
 }
 
 // getAt reads the value at path; present is false for a map entry that does
-// not exist (the value is then the zero value of its type).
+// not exist (the value is then the zero value of its type). A setting inside
+// an entry that does not exist is present: it has its zero value.
 func getAt(v reflect.Value, path []pathStep) (reflect.Value, bool) {
 	for i, s := range path {
 		v = derefOrZero(v)
-		if s.isKey {
-			if v.IsNil() {
-				return zeroAt(v.Type().Elem(), path[i+1:]), false
-			}
-			e := v.MapIndex(s.key)
-			if !e.IsValid() {
-				return zeroAt(v.Type().Elem(), path[i+1:]), false
-			}
-			v = e
+		if !s.isKey {
+			v = v.Field(s.field)
 			continue
 		}
-		v = v.Field(s.field)
+		var e reflect.Value
+		if !v.IsNil() {
+			e = v.MapIndex(s.key)
+		}
+		switch {
+		case e.IsValid():
+			v = e
+		case i == len(path)-1:
+			return reflect.Zero(v.Type().Elem()), false
+		default:
+			v = reflect.Zero(v.Type().Elem())
+		}
 	}
 	return v, true
-}
-
-// zeroAt is the zero value found at path under a value of type t.
-func zeroAt(t reflect.Type, path []pathStep) reflect.Value {
-	for _, s := range path {
-		if t.Kind() == reflect.Pointer {
-			t = t.Elem()
-		}
-		if s.isKey {
-			t = t.Elem()
-		} else {
-			t = t.Field(s.field).Type
-		}
-	}
-	return reflect.Zero(t)
 }
 
 // setAt sets the value at path (present false: deletes the map entry). Maps
