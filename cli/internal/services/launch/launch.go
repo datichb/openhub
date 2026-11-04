@@ -14,6 +14,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -87,12 +88,32 @@ type Options struct {
 	// DiscardBaseChanges lets OnExistingDelete discard the uncommitted
 	// changes of a session that worked in the project directory.
 	DiscardBaseChanges bool
+	// NoClaim lists tickets of the launch that the session does not claim
+	// for the member, nor counts in the limit of tickets in progress: another
+	// claim covers them (the card of the board whose issue was imported as
+	// that Beads ticket).
+	NoClaim []string
 	// DryRun prepares the launch to show it (oh run --dry-run) without any
 	// effect on the project or the team: no ticket claim, no remote
 	// preparation, no shell files of local sessions. The one thing written
 	// is the session bundle, content-addressed in ~/.oh/bundles (shared by
 	// every launch of the same content, removed by `oh gc` when unused).
 	DryRun bool
+}
+
+// withoutTickets is a ticket hook that leaves out the tickets of skip; nil
+// stays nil.
+func withoutTickets(hook func(ctx context.Context, projectID string, tickets []string) []string, skip []string) func(ctx context.Context, projectID string, tickets []string) []string {
+	if hook == nil || len(skip) == 0 {
+		return hook
+	}
+	return func(ctx context.Context, projectID string, tickets []string) []string {
+		kept := slices.DeleteFunc(slices.Clone(tickets), func(t string) bool { return slices.Contains(skip, t) })
+		if len(kept) == 0 {
+			return nil
+		}
+		return hook(ctx, projectID, kept)
+	}
 }
 
 // Suggestion is a failed `suggest` precondition of a launch (run another
@@ -265,7 +286,7 @@ func Prepare(ctx context.Context, d Deps, opts Options) (*Prepared, error) {
 		return nil, err
 	}
 	if !opts.DryRun && d.TicketClaims != nil {
-		svc.OnTicketsStarted = d.TicketClaims(opts.Project)
+		svc.OnTicketsStarted = withoutTickets(d.TicketClaims(opts.Project), opts.NoClaim)
 	}
 	var rp *RemotePrep
 	if kind == sessionspec.RuntimeRemote {

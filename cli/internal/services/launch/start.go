@@ -3,6 +3,7 @@ package launch
 import (
 	"context"
 	"errors"
+	"slices"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/runsvc"
@@ -106,6 +107,7 @@ func checkTicketRoom(ctx context.Context, p *Prepared) error {
 			tickets = append(tickets, ps.Tickets...)
 		}
 	}
+	tickets = slices.DeleteFunc(tickets, func(t string) bool { return slices.Contains(p.Opts.NoClaim, t) })
 	if len(tickets) == 0 {
 		return nil
 	}
