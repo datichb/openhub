@@ -50,6 +50,9 @@ type memberJoin struct {
 	PickerID, CardID, HandleID string
 	// HandleOnly is the handle typed for a card that has none.
 	HandleOnly string
+	// created: the card was made by the person just now, with the handle they
+	// wanted to give: it is not asked again.
+	created bool
 }
 
 func (j *memberJoin) active() bool { return j.Active == nil || j.Active() }
@@ -134,6 +137,7 @@ func (j *memberJoin) showPicker(tvApp *tview.Application, container *tview.Flex,
 		OpenLabel: i18n.T("wizard.hint.submit"),
 		OnOpen: func(it views.ActionItem) {
 			*j.Adding = it.ID == addNewMemberID
+			j.created = false
 			*j.MemberID = ""
 			if !*j.Adding {
 				*j.MemberID = it.ID
@@ -192,6 +196,7 @@ func (j *memberJoin) CardStep() views.WizardStep {
 			*j.Members = replaceMember(*j.Members, res.Member)
 			*j.MemberID = res.Member.ID
 			*j.Adding = false
+			j.created = true
 			return nil
 		},
 		InfoFields: func() []views.InfoField {
@@ -235,7 +240,7 @@ func (j *memberJoin) HandleStep() views.WizardStep {
 		ID:    j.HandleID,
 		Label: i18n.T("v532m.handle.label"),
 		SkipIf: func() bool {
-			if !j.active() || *j.Adding || *j.MemberID == "" {
+			if !j.active() || *j.Adding || j.created || *j.MemberID == "" {
 				return true
 			}
 			m, ok := memberByID(*j.Members, *j.MemberID)
