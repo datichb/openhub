@@ -29,9 +29,6 @@ import (
 type tuiCardClaim struct {
 	// Project and Ticket name the claim (the team-state project of the card).
 	Project, Ticket string
-	// Imported is the Beads ticket the issue of the card was imported as and
-	// the launch runs on: the card is the claim, not that ticket.
-	Imported string
 }
 
 // jiraKey is the shape of a Jira ticket key (SRU-12); the ID of a Beads
@@ -106,39 +103,15 @@ func cardLaunchRequest(l views.CardLaunch, ticket views.TicketContext) tuiLaunch
 }
 
 // boardLaunchCard opens the launch form of a workflow on a card of the team
-// board: the request or the inputs prefilled, the issue imported into Beads
-// first when asked, the claim of the card to move in progress when the launch
-// starts the work.
+// board: the request or the inputs prefilled, the claim of the card to move in
+// progress when the launch starts the work. The issue of a card that runs on a
+// Beads ticket is imported when the launch is confirmed, not now (cardImport).
 func boardLaunchCard(a *app.App, l views.CardLaunch, ticket views.TicketContext) {
 	req := cardLaunchRequest(l, ticket)
-	if !l.Import {
-		openLaunchForm(a, req)
-		return
+	if l.Import {
+		req.Import = &ticket
 	}
-	sh := tuiShell
-	if sh == nil {
-		return
-	}
-	ref := "#" + ticket.ID
-	safego.Go(func() {
-		id, created, err := importCardIssue(a, ticket)
-		queueOnShell(sh, func() {
-			if err != nil {
-				sh.ShowToast(i18n.Tf("v53f.card.import_failed", ref, localizeError(err)), shell.ToastError)
-				return
-			}
-			key := "v53f.card.import_reused"
-			if created {
-				key = "v53f.card.imported"
-			}
-			sh.ShowToast(i18n.Tf(key, ref, id), shell.ToastSuccess)
-			req.Tickets, req.AtOptions = []string{id}, true
-			if req.Card != nil {
-				req.Card.Imported = id
-			}
-			openLaunchForm(a, req)
-		})
-	})
+	openLaunchForm(a, req)
 }
 
 // importCardIssue returns the Beads ticket of the GitLab issue of a card,

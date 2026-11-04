@@ -60,6 +60,10 @@ type tuiLaunchRequest struct {
 	// claim goes in progress once the session runs, within the limit of work
 	// in progress (nil: the launch claims nothing for a card).
 	Card *tuiCardClaim
+	// Import is the card whose GitLab issue the launch runs on as a Beads
+	// ticket: the form shows the ticket the issue is, or will be, and the
+	// ticket is created (or found, if it exists) when the launch is confirmed.
+	Import *views.TicketContext
 }
 
 // openLaunchForm resolves the workflow and the project off the event loop,
@@ -143,6 +147,11 @@ func launchFormConfig(ctx context.Context, a *app.App, project *domain.Project, 
 	if req.Draft {
 		origin = theme.SymModified + " " + i18n.T("tui.catalog.edit.draft") + " · " + origin
 	}
+	var imp *cardImport
+	if req.Import != nil {
+		imp = newCardImport(a, *req.Import)
+		req.Tickets, req.AtOptions = []string{imp.current()}, true
+	}
 	cfg := &views.LaunchFormConfig{
 		WorkflowID: sp.ID, Origin: origin + " · " + project.Name, Spec: sp, Lang: i18n.Locale(),
 		Prefill: req.Prefill, Tickets: req.Tickets, AtOptions: req.AtOptions,
@@ -167,10 +176,14 @@ func launchFormConfig(ctx context.Context, a *app.App, project *domain.Project, 
 	}
 	runs := &tuiRunCache{}
 	opts := func(c views.LaunchChoices) launch.Options {
-		return launch.Options{Workflow: sp.ID, Project: project, Agent: c.Agent, Inputs: c.Inputs, Tickets: c.Tickets, Mode: c.Mode,
+		tickets, noClaim := c.Tickets, []string(nil)
+		if imp != nil {
+			tickets, noClaim = imp.tickets(c.Tickets), imp.noClaim()
+		}
+		return launch.Options{Workflow: sp.ID, Project: project, Agent: c.Agent, Inputs: c.Inputs, Tickets: tickets, Mode: c.Mode,
 			Runtime: c.Runtime, Location: c.Location, Attach: c.Attach, ParentSessionID: req.Parent, OneSession: c.OneSession, Draft: req.Draft,
 			Dirty: runsvc.DirtyPolicy(c.Dirty), OnExisting: runsvc.OnExisting(c.OnExisting), DiscardBaseChanges: c.DiscardBaseChanges,
-			NoClaim: cardNoClaim(req.Card)}
+			NoClaim: noClaim}
 	}
 	cfg.Recap = func(ctx context.Context, c views.LaunchChoices) (*views.LaunchRecap, error) {
 		p, err := runs.get(ctx, a, opts(c))
@@ -188,6 +201,9 @@ func launchFormConfig(ctx context.Context, a *app.App, project *domain.Project, 
 			}
 			out.Suggestions = append(out.Suggestions, views.LaunchSuggestion{WorkflowID: s.Workflow, Label: label})
 		}
+		if imp != nil {
+			out.Rows = append(out.Rows, imp.recapRow())
+		}
 		for _, r := range rows {
 			out.Rows = append(out.Rows, views.InfoField{Label: r[0], Value: r[1]})
 		}
@@ -196,6 +212,9 @@ func launchFormConfig(ctx context.Context, a *app.App, project *domain.Project, 
 	var resumed string // existing session continued by the last launch
 	cfg.Launch = func(ctx context.Context, c views.LaunchChoices) error {
 		resumed = ""
+		if err := importCardOnLaunch(imp); err != nil {
+			return tuiLaunchError(err) // nothing started: the message says so
+		}
 		p, err := runs.get(ctx, a, opts(c))
 		if err != nil {
 			return tuiLaunchError(err)
@@ -242,6 +261,9 @@ func launchFormConfig(ctx context.Context, a *app.App, project *domain.Project, 
 		return deleteSummary(plan), nil
 	}
 	cfg.LaunchFirst = func(ctx context.Context, c views.LaunchChoices, workflowID string) error {
+		if err := importCardOnLaunch(imp); err != nil {
+			return tuiLaunchError(err)
+		}
 		p, err := runs.get(ctx, a, opts(c))
 		if err != nil {
 			return err
@@ -261,13 +283,23 @@ func launchFormConfig(ctx context.Context, a *app.App, project *domain.Project, 
 	return cfg, nil
 }
 
-// cardNoClaim is the Beads ticket of a launch that the card covers: the
-// session does not claim it, the card is the claim.
-func cardNoClaim(card *tuiCardClaim) []string {
-	if card == nil || card.Imported == "" {
+// importCardOnLaunch creates, or finds, the Beads ticket of the issue of a
+// card when the launch is confirmed (nil: the launch is not on an issue). An
+// import that fails stops the launch before anything is started.
+func importCardOnLaunch(imp *cardImport) error {
+	if imp == nil {
 		return nil
 	}
-	return []string{card.Imported}
+	id, created, err := imp.resolve()
+	if err != nil {
+		return errors.New(i18n.Tf("v53f.card.import_failed", "#"+imp.ticket.ID, localizeError(err)))
+	}
+	key := "v53f.card.import_reused"
+	if created {
+		key = "v53f.card.imported"
+	}
+	tuiLaunchUI().Notify(i18n.Tf(key, "#"+imp.ticket.ID, id), launcher.LevelInfo)
+	return nil
 }
 
 // preferLocation moves the option of loc first (the form default).
