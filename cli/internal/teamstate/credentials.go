@@ -5,8 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"os"
-	"os/exec"
 	"strings"
 	"time"
 
@@ -100,43 +98,6 @@ func IsGitLabHost(remote string) bool {
 		return false
 	}
 	return strings.Contains(strings.ToLower(u.Host), "gitlab")
-}
-
-// ── Credential injection ──────────────────────────────────────────────────────
-
-// ConfigureCredential injects a username/password (or token) into git's
-// credential storage for the given remote URL via "git credential approve".
-// The credential is handled by whatever credential.helper is configured
-// (osxkeychain, store, etc.) — it is NEVER stored in oh's database or config.
-//
-// For GitLab Personal Access Tokens: username = "oauth2", password = token.
-// For GitHub tokens: username = your GitHub username, password = token.
-// For Bitbucket: username = "x-token-auth", password = token.
-func ConfigureCredential(ctx context.Context, remote, username, password string) error {
-	u, err := url.Parse(remote)
-	if err != nil {
-		return fmt.Errorf("parsing remote URL: %w", err)
-	}
-
-	// Format expected by "git credential approve"
-	// See: https://git-scm.com/docs/git-credential
-	input := fmt.Sprintf("protocol=%s\nhost=%s\nusername=%s\npassword=%s\n\n",
-		u.Scheme, u.Host, username, password)
-
-	// Timeout so that a blocking credential helper (e.g. keychain popup that
-	// cannot display in a headless subprocess) never hard-freezes the TUI.
-	credCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-
-	cmd := exec.CommandContext(credCtx, "git", "credential", "approve")
-	cmd.Stdin = strings.NewReader(input)
-	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("git credential approve: %s: %w",
-			strings.TrimSpace(string(out)), err)
-	}
-	return nil
 }
 
 // authErrorMessage returns a user-facing error message for an authentication

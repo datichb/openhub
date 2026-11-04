@@ -343,9 +343,16 @@ func buildWelcomeStep(s *initStepState) views.WizardStep {
 // The form adapts its fields based on the selected provider (and auth mode
 // for bedrock). DropDown changes trigger a full step re-render via Rerender.
 func buildProviderStep(s *initStepState) views.WizardStep {
+	return buildProviderStepAs(s, "provider")
+}
+
+// buildProviderStepAs is buildProviderStep with another step ID: the provider
+// asked again after the team group when the team was given up
+// (buildTeamAbandonedSteps).
+func buildProviderStepAs(s *initStepState, id string) views.WizardStep {
 	a := *s.AppPtr
 	return views.WizardStep{
-		ID:    "provider",
+		ID:    id,
 		Label: i18n.T("cmd.init.wizard_step_provider_label"),
 		SkipIf: func() bool {
 			return s.ProviderSkipped
@@ -420,7 +427,7 @@ func buildProviderStep(s *initStepState) views.WizardStep {
 				}
 			}
 
-			rerenderSafe := func() { rerenderStep(tvApp, s, "provider") }
+			rerenderSafe := func() { rerenderStep(tvApp, s, id) }
 
 			reset := theme.TagColor
 

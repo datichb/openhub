@@ -161,8 +161,13 @@ func buildInitWizardConfig(a *app.App) (*views.InlineWizardConfig, *initStepStat
 	// automatic skip of the solo setup type.
 	teamModeIntro.Required = false
 	steps = append(steps, teamModeIntro)
+	// The repository, the probe of its access and the access come first, for
+	// « Créer » and « Rejoindre »; then the steps of each, and what recovers
+	// from a team given up.
+	steps = append(steps, buildInitWizardRepoSteps(appPtr, teamState)...)
 	steps = append(steps, buildInitWizardTeamSteps(appPtr, teamState)...)
 	steps = append(steps, buildInitWizardRejoinSteps(appPtr, teamState)...)
+	steps = append(steps, buildTeamAbandonedSteps(s)...)
 
 	// Group: Project (optional, filled from the current folder)
 	steps = append(steps, buildProjectStep(s))
@@ -312,17 +317,23 @@ func buildInitRefreshLabels(cfg *views.InlineWizardConfig, steps []views.WizardS
 		}
 
 		refresh("welcome", "cmd.init.wizard_step_welcome")
+		refreshP("provider_late", "cmd.init.wizard_step_provider_label", "cmd.init.wizard_processing_credentials")
+		refresh("team_result", "cmd.init.wizard_step_team")
+		refresh("team_solo_offer", "v532w.solo.label")
 		refreshP("provider", "cmd.init.wizard_step_provider_label", "cmd.init.wizard_processing_credentials")
 		refresh("team_mode", "cmd.init.wizard_step_team")
+
+		// Repository and access, shared by « Créer » and « Rejoindre »
+		refresh("team_repo", "cmd.init.wizard_step_rejoin_repo")
+		refreshP("team_probe", "v532w.probe.label", "v532w.probe.processing")
+		refreshP("team_access", "v532w.access.label", "v532w.probe.processing")
 
 		// Team init steps
 		refresh("team_form", "cmd.init.wizard_step_team_form")
 		refresh("team_sync", "cmd.init.wizard_step_team_sync")
 
 		// Team rejoin steps
-		refreshP("rejoin_repo", "cmd.init.wizard_step_rejoin_repo", "cmd.init.wizard_processing_rejoin_clone")
-		refresh("team_cred_mode", "cmd.init.wizard_step_team_cred_mode")
-		refresh("team_creds", "cmd.init.wizard_step_team_creds")
+		refreshP("rejoin_clone", "v532w.clone.label", "cmd.init.wizard_processing_rejoin_clone")
 		refresh("rejoin_member", "cmd.init.wizard_step_rejoin_member")
 		refresh("rejoin_tracker_username", "tui.team.rejoin.tracker_step")
 		refreshP("rejoin_validate", "cmd.init.wizard_step_rejoin_validate", "cmd.init.wizard_processing_rejoin_validate")
