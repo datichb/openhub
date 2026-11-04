@@ -339,3 +339,45 @@ A member who reached the limit can no longer take or start one more ticket; oh r
 - launching a session on team tickets, local or remote, before anything is created.
 
 **To do**: a script or a member that had more than 5 tickets in progress is refused at the next ticket. Raise the limit (`oh config set tracker.max_in_progress_per_member <n>` for yourself, `oh team config` for the team, `0` to remove it) or move tickets to review. Details: [team mode](team-setup.en.md) and [`[tracker]`](../reference/config.en.md).
+
+## From 5.2 to 5.3
+
+5.3 changes four team mode behaviours, two of them breaking changes announced in the [CHANGELOG](../../CHANGELOG.md) (`unassigned_labels`, card menu). The database does not change. It recommends opencode **2.2.5** (the supported range does not move: 2.0.0 to 2.99.99) and expects bd **1.3.3**: [`oh doctor`](../reference/cli-infra.en.md#oh-doctor) reports another bd version. Without team mode, nothing else to do.
+
+**1. `unassigned_labels` becomes an OR, and the pool is swept entirely**
+
+| In 5.2 | Since 5.3 |
+|---|---|
+| An issue entered the pool only if it carried **all** the labels of `unassigned_labels`: with several labels, the pool was almost always empty | An issue that carries **any** of the labels enters the pool (one request per label, each issue counted once); Jira already worked that way |
+| Only the issues updated since the last sync were read: old issues never touched again never arrived | The pool is first swept entirely, over as many runs as needed (at most `max_unassigned_issues` claims per run, 20 by default), then incrementally; changing `unassigned_labels` starts the sweep again |
+
+A pool of 70 issues therefore takes four sync runs. A claim released by hand is not recreated by the sweep.
+
+**To do**: if you relied on the AND to narrow the pool, keep a single label or create a dedicated one. Raise `max_unassigned_issues` to go faster.
+
+**2. `'todo'` is not a claim status**
+
+The 5.2 discovery assistant wrote `'todo'` as a target of `label_status_mapping`. The sync refused it silently and put these issues in IN PROGRESS. 5.3 reads it as `planned` (status of the initial column) and reports it; a value that names no column is ignored and the sync says so. **Saving** the team config is refused, with the offending value and the valid statuses, while such a value is in it.
+
+**To do**: run `oh doctor` ("Tracker mappings" check), then `oh doctor --fix`, which rewrites `config.toml` in one commit of the team repository. A value that names nothing is fixed by hand. On the first run, a claim whose only status label is a "to do" label moves to TODO.
+
+**3. Several mapped labels: blocked first, then the most advanced**
+
+When an issue carries several labels mapped to statuses, a **blocked** column (role `blocked`, or `blocked` on the default board) always wins; otherwise the **most advanced** column (by default DONE > VALIDATION > REVIEW > IN PROGRESS > TODO); on a tie, the alphabetical order of the labels. Before, it was the first label of the issue in the tracker's order. An issue "Blocked" + "READY TO DEV" is therefore blocked, and an old "READY TO DEV" left next to "DEV DOING" no longer moves it back.
+
+**To do**: nothing, unless a column must win over the others: give it the role `blocked`, or place it further in the board. Details: [`[tracker]`](../reference/config.en.md#tracker-section).
+
+**4. The `a` menu of a card follows its column**
+
+| Column | Actions |
+|---|---|
+| todo (role `initial`) | *Frame and write the spec* (`spec`), *Implement the ticket* |
+| in progress (first `active` column) | *Implement the ticket*, *Give an instruction to the running session* |
+| review (role `review`) | *Code review* (branch of the claim), *Apply review feedback* (if the claim has an MR) |
+| validation, blocked, done… | detail, status, transfer |
+
+On a GitLab issue, *Implement the ticket* imports the issue as a Beads ticket **when you confirm the launch** (if the project has Beads), then launches `ticket`; otherwise `quick`. The claim of the card moves to in progress at launch, within the work-in-progress limit, and it is settled at the end of the session like those of the tickets. A board whose columns have no role keeps the former menu.
+
+The new column role `review` is optional: without it, the column whose ID is `review` stands in. Its claims do not count in the work-in-progress limit and do not expire, whatever the ID of the column.
+
+**To do**: to launch another workflow on a card, use the command bar or the home view. Details: [the `a` menu of a card](../reference/tui.en.md#the-a-menu-of-a-card) and [`[board]`](../reference/config.en.md#board-section).

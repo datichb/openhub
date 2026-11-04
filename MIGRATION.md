@@ -36,6 +36,17 @@ La 5.2 change le sens d'un réglage du mode équipe et ajoute un refus (deux rup
 | `max_auto_plan_per_member` (plafond des réservations créées par la synchro) est remplacée par `max_in_progress_per_member`, le nombre maximal de tickets **en cours** d'un membre (5 par défaut, `0` = sans limite). La synchro met désormais tous les tickets assignés sur le board. L'ancienne clé est encore lue quand la nouvelle est absente, `oh doctor` la signale, et `oh config set tracker.max_auto_plan_per_member` écrit la nouvelle clé (fin de prise en charge en v6) | `oh config set tracker.max_in_progress_per_member <n>` (machine) ou `oh team config` (équipe) |
 | Au-delà de la limite, oh **refuse** qu'un membre prenne ou démarre un ticket de plus : `oh team claim` (reprise et transfert vers soi compris), la touche de prise et le déplacement d'une carte sur le board d'équipe, le lancement d'une session sur un ticket d'équipe | Relever la limite (`0` la supprime) ou passer des tickets en revue ; un script qui prend des tickets en boucle peut échouer là où il passait |
 
+## Vous venez de la 5.2 : ce que la 5.3 change
+
+La 5.3 change quatre comportements du mode équipe, dont deux ruptures (`unassigned_labels`, menu des cartes). La base de données ne change pas. Sans mode équipe, rien à faire, sinon installer opencode **2.2.5** (recommandée) et bd **1.3.3** (attendue par `oh doctor`). Détail et explications : [guide de migration, « Depuis la 5.2 vers la 5.3 »](docs/guides/migration-v5.fr.md#depuis-la-52-vers-la-53).
+
+| Changé en 5.3 | À faire |
+|---|---|
+| **Rupture** : `unassigned_labels` est un **OU** (c'était un ET) : une issue qui porte l'un des labels entre dans la réserve. La réserve est d'abord balayée **en entier**, vieilles issues comprises, en autant de passages qu'il faut (au plus `max_unassigned_issues` claims par passage, 20 par défaut), puis en incrémental ; changer `unassigned_labels` relance ce balayage | Si vous comptiez sur le ET pour restreindre la réserve, gardez un seul label ou créez un label dédié. Augmentez `max_unassigned_issues` pour couvrir une grande réserve plus vite |
+| `'todo'` n'est pas un statut de claim : oh le lit comme `planned` (colonne initiale) et prévient. L'**enregistrement** de la config d'équipe est refusé tant qu'une valeur de `label_status_mapping` ou de `status_mapping` ne désigne aucun statut du board | `oh doctor`, puis `oh doctor --fix` (un commit dans le dépôt d'équipe) ; une valeur qui ne désigne rien se corrige à la main |
+| Plusieurs labels rattachés sur une issue : une colonne **bloquée** l'emporte toujours, sinon la colonne **la plus avancée**, puis l'ordre alphabétique. Au premier passage, les claims existants suivent leurs labels | Pour qu'une colonne passe avant les autres, donnez-lui le rôle `blocked`, ou placez-la plus loin dans le board |
+| **Rupture** : le menu `a` d'une carte du board d'équipe suit sa colonne (todo : *Cadrer et écrire la spec*, *Implémenter le ticket* ; en cours : *Implémenter le ticket*, *Donner une consigne à la session en cours* ; review : *Review de code*, *Traiter les retours de review* ; autres : détail, statut, transfert). Sur une issue GitLab, *Implémenter le ticket* importe l'issue en ticket Beads à la confirmation du lancement, puis lance `ticket` (sinon `quick`). Nouveau rôle de colonne `review`, facultatif | Pour un autre workflow sur une carte : la barre de commandes ou l'accueil. Le rôle `review` n'est pas obligatoire : sans lui, la colonne d'identifiant `review` en tient lieu |
+
 ## Prérequis
 
 | Prérequis | Valeur | Vérification |

@@ -339,3 +339,45 @@ Un membre qui a atteint sa limite ne peut plus prendre ni démarrer un ticket de
 - le lancement d'une session sur des tickets d'équipe, locale ou distante, avant que rien ne soit créé.
 
 **À faire** : un script ou un membre qui avait plus de 5 tickets en cours est refusé au prochain ticket. Relever la limite (`oh config set tracker.max_in_progress_per_member <n>` pour soi, `oh team config` pour l'équipe, `0` pour la supprimer) ou passer des tickets en revue. Détail : [mode équipe](team-setup.fr.md) et [`[tracker]`](../reference/config.fr.md).
+
+## Depuis la 5.2 vers la 5.3
+
+La 5.3 change quatre comportements du mode équipe, dont deux ruptures annoncées dans le [CHANGELOG](../../CHANGELOG.md) (`unassigned_labels`, menu des cartes). La base de données ne change pas. Elle recommande opencode **2.2.5** (la plage supportée ne bouge pas : 2.0.0 à 2.99.99) et attend bd **1.3.3** : [`oh doctor`](../reference/cli-infra.fr.md#oh-doctor) signale une autre version de bd. Sans mode équipe, rien d'autre à faire.
+
+**1. `unassigned_labels` devient un OU, et la réserve est balayée en entier**
+
+| En 5.2 | Depuis la 5.3 |
+|---|---|
+| Une issue n'entrait dans la réserve que si elle portait **tous** les labels de `unassigned_labels` : avec plusieurs labels, la réserve était presque toujours vide | Une issue qui porte **l'un** des labels entre dans la réserve (une requête par label, chaque issue comptée une fois) ; Jira l'était déjà |
+| Seules les issues mises à jour depuis la dernière synchro étaient lues : les vieilles issues jamais retouchées n'arrivaient jamais | La réserve est d'abord balayée en entier, en autant de passages qu'il faut (au plus `max_unassigned_issues` claims par passage, 20 par défaut), puis en incrémental ; changer `unassigned_labels` relance ce balayage |
+
+Une réserve de 70 issues demande donc quatre passages de synchro. Un claim libéré à la main n'est pas recréé par le balayage.
+
+**À faire** : si vous comptiez sur le ET pour restreindre la réserve, gardez un seul label ou créez un label dédié. Augmentez `max_unassigned_issues` pour aller plus vite.
+
+**2. `'todo'` n'est pas un statut de claim**
+
+L'assistant de découverte de la 5.2 écrivait `'todo'` comme cible de `label_status_mapping`. La synchro le refusait en silence et mettait ces issues en IN PROGRESS. La 5.3 le lit comme `planned` (statut de la colonne initiale) et le signale ; une valeur qui ne désigne aucune colonne est ignorée et la synchro le dit. L'**enregistrement** de la config d'équipe est refusé, avec la valeur en cause et les statuts valides, tant qu'une telle valeur s'y trouve.
+
+**À faire** : lancez `oh doctor` (contrôle « Correspondances du tracker »), puis `oh doctor --fix`, qui réécrit `config.toml` en un commit dans le dépôt d'équipe. Une valeur qui ne désigne rien se corrige à la main. Au premier passage, un claim dont le seul label de statut est un label « à faire » passe en TODO.
+
+**3. Plusieurs labels rattachés : bloqué d'abord, puis le plus avancé**
+
+Quand une issue porte plusieurs labels rattachés à des statuts, une colonne **bloquée** (rôle `blocked`, ou `blocked` sur le board par défaut) l'emporte toujours ; sinon la colonne **la plus avancée** (par défaut DONE > VALIDATION > REVIEW > IN PROGRESS > TODO) ; à égalité, l'ordre alphabétique des labels. Avant, c'était le premier label de l'issue dans l'ordre du tracker. Une issue « Bloqué » + « READY TO DEV » est donc bloquée, et un vieux « READY TO DEV » resté à côté de « DEV DOING » ne la fait plus reculer.
+
+**À faire** : rien, sauf si une colonne doit passer avant les autres : donnez-lui le rôle `blocked`, ou placez-la plus loin dans le board. Détail : [`[tracker]`](../reference/config.fr.md#section-tracker).
+
+**4. Le menu `a` d'une carte suit sa colonne**
+
+| Colonne | Actions |
+|---|---|
+| todo (rôle `initial`) | *Cadrer et écrire la spec* (`spec`), *Implémenter le ticket* |
+| en cours (première colonne `active`) | *Implémenter le ticket*, *Donner une consigne à la session en cours* |
+| review (rôle `review`) | *Review de code* (branche du claim), *Traiter les retours de review* (si le claim a une MR) |
+| validation, bloquée, terminée… | détail, statut, transfert |
+
+Sur une issue GitLab, *Implémenter le ticket* importe l'issue en ticket Beads **quand vous confirmez le lancement** (si le projet a Beads), puis lance `ticket` ; sinon `quick`. Le claim de la carte passe en cours au lancement, dans la limite de travail en cours, et il est réglé à la fin de la session comme ceux des tickets. Un board dont les colonnes n'ont aucun rôle garde l'ancien menu.
+
+Le nouveau rôle de colonne `review` est facultatif : sans lui, la colonne d'identifiant `review` en tient lieu. Ses claims ne comptent pas dans la limite de travail en cours et n'expirent pas, quel que soit l'ID de la colonne.
+
+**À faire** : pour lancer un autre workflow sur une carte, utilisez la barre de commandes ou l'accueil. Détail : [le menu `a` d'une carte](../reference/tui.fr.md#le-menu-a-dune-carte) et [`[board]`](../reference/config.fr.md#section-board).

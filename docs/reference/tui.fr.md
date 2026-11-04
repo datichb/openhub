@@ -380,18 +380,18 @@ Sur le board d'équipe, `a` propose les actions de la colonne où est la carte. 
 
 | Colonne (rôle) | Actions de `a` |
 |---|---|
-| todo (`initial`) | **Cadrer** (`spec`, avec l'issue `#<iid>` ou l'id Beads comme demande) · **Faire le ticket** (`ticket`) |
-| première colonne `active` (en cours) | **Faire le ticket** · **Consigne** à la session en cours, quand le claim en nomme une qui n'est pas finie |
-| `review` | **Review** (`review`, sur la branche du claim) · **Retours de review** (`review-feedback`, avec la MR du claim : seulement si le claim a un `mr_url`) |
+| todo (`initial`) | **Cadrer et écrire la spec** (`spec`, avec l'issue `#<iid>` ou l'id Beads comme demande) · **Implémenter le ticket** (`ticket`) |
+| première colonne `active` (en cours) | **Implémenter le ticket** · **Donner une consigne à la session en cours**, quand le claim en nomme une qui n'est pas finie |
+| `review` | **Review de code** (`review`, sur la branche du claim) · **Traiter les retours de review** (`review-feedback`, avec la MR du claim : seulement si le claim a un `mr_url`) |
 | les autres (validation, bloquée, terminée…) | Détail · statut · transfert |
 
-« Faire le ticket » dépend de la source de la carte :
+« Implémenter le ticket » dépend de la source de la carte :
 
 - **ticket Beads** : `ticket` sur son id ;
 - **issue GitLab** : si Beads est initialisé dans le projet, l'issue est **importée en ticket Beads** (liée par `external_ref = gitlab-<iid>`) puis `ticket` est lancé sur cet id. L'import a lieu **quand le lancement est confirmé** dans le formulaire (le récapitulatif annonce « sera importée en ticket Beads au lancement ») : annuler ne laisse rien, un import qui échoue arrête le lancement, et un second lancement reprend le ticket déjà lié, pas un second. Sans Beads dans le projet, `quick` prend l'issue comme demande. Un workflow à id Beads ne reçoit jamais `#<iid>` ;
 - **ticket d'un autre tracker** (clé Jira…) : `quick`, avec la clé comme demande.
 
-Le lancement de « Faire le ticket » met le claim de la carte **en cours** une fois la session démarrée (le claim est pris s'il est dans la réserve ou n'existe pas) et respecte `max_in_progress_per_member` : au-delà, le lancement est refusé avant de rien créer. Cadrer, Review et Retours de review ne touchent pas au claim. À la fin de la session, le claim de la carte est réglé comme ceux des tickets de la session (ticket fermé : terminé ; en revue : gardé ; checkpoint en attente ou reporté avec du travail : gardé et marqué `session-ended` ; sinon : libéré) ; pour une issue importée, « fermé » et « en revue » se lisent sur le ticket Beads lié.
+Le lancement de « Implémenter le ticket » met le claim de la carte **en cours** une fois la session démarrée (le claim est pris s'il est dans la réserve ou n'existe pas) et respecte `max_in_progress_per_member` : au-delà, le lancement est refusé avant de rien créer. Les autres actions ne touchent pas au claim. À la fin de la session, le claim de la carte est réglé comme ceux des tickets de la session (ticket fermé : terminé ; en revue : gardé ; checkpoint en attente ou reporté avec du travail : gardé et marqué `session-ended` ; sinon : libéré) ; pour une issue importée, « fermé » et « en revue » se lisent sur le ticket Beads lié.
 
 Une action indisponible reste dans la liste, en gris, avec la raison (« `spec` n'est pas proposé dans ce projet », « le claim n'a pas d'URL de merge request », « aucune session en cours sur ce ticket ») ; la choisir affiche la raison. Dans la barre de commandes, `run <workflow>` suit le même menu. Un projet qui ne propose pas le workflow, ou une colonne sans rôle (board construit à la main), garde le menu des autres boards.
 
