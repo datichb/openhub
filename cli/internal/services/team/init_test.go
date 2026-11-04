@@ -233,3 +233,53 @@ func TestInitRefusesAFolderThatHoldsAnotherRepository(t *testing.T) {
 	assert.Empty(t, reload(t), "nothing is written to hub.toml")
 	assert.False(t, teamstate.NewRepo(bare, clone).HasMember(t.Context(), "dave"), "no member was added to the clone of the other repository")
 }
+
+// The card of a colleague is not replaced by the one of someone who types the
+// same ID (the old Init updated it whole), and the refusal says why.
+func TestInitRefusesATakenIDAndLeavesTheCardOfTheColleague(t *testing.T) {
+	configtest.Home(t)
+	bare, _ := gittest.BareClone(t)
+	cfg := &config.Config{}
+	require.NoError(t, config.Save(cfg))
+	svc := New(cfg, nil, nil)
+	colleague := InitParams{StateRepo: bare, StatePath: filepath.Join(t.TempDir(), "alice-state"), MemberID: "ben",
+		DisplayName: "Benjamin", GitLabUsername: "ben.g", Role: "lead"}
+	mustInit(t, svc, colleague)
+
+	// another machine, another hub: nobody there is "ben" yet
+	configtest.Home(t)
+	other := New(&config.Config{}, nil, nil)
+	statePath := filepath.Join(t.TempDir(), "eve-state")
+	_, err := other.Init(t.Context(), InitParams{StateRepo: bare, StatePath: statePath, MemberID: "ben", DisplayName: "Eve", GitLabUsername: "eve.g", Role: "dev"})
+	var ie *InitError
+	require.ErrorAs(t, err, &ie)
+	assert.Equal(t, StepJoinMember, ie.Step)
+	var taken *teamstate.MemberIDTakenError
+	require.ErrorAs(t, err, &taken)
+	assert.Equal(t, "Benjamin", taken.Member.DisplayName)
+	assert.Empty(t, other.Config.Teams, "hub.toml does not point at the card of a colleague")
+
+	got, err := teamstate.NewRepo(bare, statePath).GetMember(t.Context(), "ben")
+	require.NoError(t, err)
+	assert.Equal(t, teamstate.Member{ID: "ben", DisplayName: "Benjamin", GitLabUsername: "ben.g", Role: "lead", DefaultMode: "semi-auto"}, *got)
+
+	t.Run("a handle that is a colleague's", func(t *testing.T) {
+		_, err := other.Init(t.Context(), InitParams{StateRepo: bare, StatePath: statePath, MemberID: "eve", DisplayName: "Eve", GitLabUsername: "@Ben.G", Role: "dev"})
+		var handle *teamstate.HandleTakenError
+		require.ErrorAs(t, err, &handle)
+		assert.Equal(t, "ben", handle.Member.ID)
+		assert.False(t, teamstate.NewRepo(bare, statePath).HasMember(t.Context(), "eve"))
+	})
+
+	t.Run("« C'est moi » attaches the card without overwriting it", func(t *testing.T) {
+		res, err := other.Init(t.Context(), InitParams{StateRepo: bare, StatePath: statePath, MemberID: "ben", DisplayName: "Eve", Role: "dev", Claim: true})
+		require.NoError(t, err)
+		assert.Empty(t, res.Join.Filled)
+		assert.ElementsMatch(t, []string{"display_name", "role"}, res.Join.Kept)
+		assert.Equal(t, "ben", reload(t)[config.RepoNameFromRemote(bare)].MemberID, "hub.toml points at the card")
+		got, err := teamstate.NewRepo(bare, statePath).GetMember(t.Context(), "ben")
+		require.NoError(t, err)
+		assert.Equal(t, "Benjamin", got.DisplayName)
+		assert.Equal(t, "ben.g", got.GitLabUsername)
+	})
+}

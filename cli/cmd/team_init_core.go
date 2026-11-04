@@ -21,6 +21,7 @@ type teamInitParams struct {
 	MattermostUsername string
 	TrackerUsername    string // name of the member on the tracker (empty = keep)
 	Role               string
+	Claim              bool   // « C'est moi »: attach the card that has this ID (see teamsvc.InitParams)
 	GitLabURL          string // GitLab of the repository when its remote is an SSH alias
 }
 
