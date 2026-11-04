@@ -86,7 +86,7 @@ func TestUpsertTeam_NeverOverwritesAnotherTeam(t *testing.T) {
 	byRepo := config.TeamConfig{ID: "acme-state", StateRepo: acme.StateRepo, StatePath: "/s/acme2", MemberID: "carol"}
 	cfg.UpsertTeam(byRepo)
 	require.Len(t, cfg.Teams, 4, "a team found by its repository is not duplicated")
-	assert.Equal(t, "acme-state", cfg.Teams[1].ID, "acme is updated through its repository")
+	assert.Equal(t, "acme", cfg.Teams[1].ID, "acme is updated through its repository and keeps its ID")
 	assert.Equal(t, "ACME", cfg.Teams[1].Name, "acme keeps its name")
 	assert.Equal(t, "/s/acme2", cfg.Teams[1].StatePath, "acme has the new path")
 	assert.Equal(t, "carol", cfg.Teams[1].MemberID, "acme has the new member")
@@ -96,7 +96,7 @@ func TestUpsertTeam_NeverOverwritesAnotherTeam(t *testing.T) {
 		require.Len(t, cfg.Teams, 4, "%s: four teams", when)
 		assert.True(t, cfg.Teams[0].Solo, "%s: the solo space is still solo", when)
 		assert.Equal(t, "/s/solo", cfg.Teams[0].StatePath, "%s: the solo space keeps its path", when)
-		assert.Equal(t, "acme-state", cfg.Teams[1].ID, "%s: acme in second position", when)
+		assert.Equal(t, "acme", cfg.Teams[1].ID, "%s: acme in second position", when)
 		assert.Equal(t, "ACME", cfg.Teams[1].Name, "%s: acme keeps its name", when)
 		assert.Equal(t, "beta", cfg.Teams[2].ID, "%s: beta in third position", when)
 		assert.Equal(t, "Beta Team", cfg.Teams[2].Name, "%s: beta keeps its name", when)
@@ -125,6 +125,8 @@ func TestTeamGitLabURL(t *testing.T) {
 	cfg.UpsertTeam(config.TeamConfig{ID: "core", Enabled: true, StateRepo: "git@alias:acme/core.git", MemberID: "alice"})
 	assert.Equal(t, "https://gitlab.corp.example", cfg.FindTeam("core").GitLabURL, "the same repository keeps its declared GitLab")
 
-	cfg.UpsertTeam(config.TeamConfig{ID: "core", Enabled: true, StateRepo: "git@other:acme/core.git", MemberID: "alice"})
-	assert.Empty(t, cfg.FindTeam("core").GitLabURL, "another repository: the old declaration no longer applies")
+	id := cfg.UpsertTeam(config.TeamConfig{ID: "core", Enabled: true, StateRepo: "git@other:acme/core.git", MemberID: "alice"})
+	assert.Equal(t, "https://gitlab.corp.example", cfg.FindTeam("core").GitLabURL, "another repository: the team of the first is not replaced")
+	assert.NotEqual(t, "core", id, "another repository: it gets an ID of its own")
+	assert.Empty(t, cfg.FindTeam(id).GitLabURL, "another repository: the old declaration does not apply to it")
 }
