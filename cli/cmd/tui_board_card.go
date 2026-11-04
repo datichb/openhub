@@ -36,13 +36,13 @@ type tuiCardClaim struct {
 
 // jiraKey is the shape of a Jira ticket key (SRU-12); the ID of a Beads
 // ticket has a lowercase prefix and a hash.
-var jiraKey = regexp.MustCompile(`^[A-Z][A-Z0-9_]+-[0-9]+$`)
+var jiraKey = regexp.MustCompile(`^[A-Z][A-Z0-9_]+-\d+$`)
 
 // boardCardSource tells where the ticket of a card lives: a number is an issue
 // where the tracker is GitLab, a Jira key is Jira's, anything else is a Beads
 // ticket. For a GitLab issue it also returns its reference (« #693 »).
-func boardCardSource(a *app.App, ticket views.TicketContext) (views.CardSource, string) {
-	if ref := boardIssueRef(a, ticket); ref != "" {
+func boardCardSource(a *app.App, ticket views.TicketContext) (source views.CardSource, ref string) {
+	if ref = boardIssueRef(a, ticket); ref != "" {
 		return views.CardGitLab, ref
 	}
 	if jiraKey.MatchString(ticket.ID) || strings.Trim(ticket.ID, "0123456789") == "" {

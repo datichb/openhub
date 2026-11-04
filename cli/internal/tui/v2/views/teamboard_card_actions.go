@@ -82,7 +82,7 @@ type cardEntry struct {
 }
 
 // cardSourceOf tells where the ticket of a card lives.
-func cardSourceOf(ticket TicketContext, qa *BoardQuickActions) (CardSource, string) {
+func cardSourceOf(ticket TicketContext, qa *BoardQuickActions) (source CardSource, ref string) {
 	if qa == nil {
 		return CardBeads, ""
 	}
@@ -90,7 +90,7 @@ func cardSourceOf(ticket TicketContext, qa *BoardQuickActions) (CardSource, stri
 		return qa.Source(ticket)
 	}
 	if qa.IssueRef != nil {
-		if ref := qa.IssueRef(ticket); ref != "" {
+		if ref = qa.IssueRef(ticket); ref != "" {
 			return CardGitLab, ref
 		}
 	}
