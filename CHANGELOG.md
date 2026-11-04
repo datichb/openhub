@@ -9,9 +9,14 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+## [5.3.1] — 2026-11-04
+
+Version corrective de la 5.3.0 : les boards ne ramènent plus en haut de la colonne à chaque rafraîchissement, et les valeurs `todo` migrées ne donnent plus qu'une ligne d'avertissement par équipe, avec la commande à lancer ([`oh doctor --fix`](docs/reference/cli-infra.fr.md#oh-doctor)). Aucune rupture, aucune migration.
+
 ### Fixed
 
 - **TUI : le board (d'équipe et Beads) ne ramène plus en haut de la colonne.** Quand une colonne avait plus de tickets que la hauteur de l'écran, on descendait au-delà du bas puis, au rafraîchissement suivant (toutes les 5 s, ou à l'arrivée du résumé Beads toutes les 30 s), la colonne était vidée et remplie de nouveau, sélection et défilement remis à zéro. Le rafraîchissement garde maintenant la carte sélectionnée (retrouvée par son id, et son projet sur le board d'équipe, où deux projets peuvent avoir le même id, où qu'elle soit allée), le défilement, la colonne focalisée et la fenêtre de colonnes. Une carte disparue laisse l'index le plus proche sélectionné. Un changement de filtre ou d'onglet de projet repart toujours du haut.
+- **Valeurs `todo` des correspondances du tracker : une seule ligne d'avertissement, avec la commande à lancer, au lieu d'une rafale de lignes de journal.** À l'ouverture d'oh, chaque valeur de `label_status_mapping` ou de `status_mapping` lue comme `planned` affichait sur le terminal, avant la TUI, une ligne brute `teamstate.config.mapping_migrated table=… key=… config=<chemin>`, sans dire quoi faire. La lecture ne change pas (`todo` reste lu comme `planned`), mais l'utilisateur voit au plus **une ligne par clone d'équipe et par processus**, dans sa langue et avec le nom de l'équipe : « t-sru-team : 4 valeur(s) de config.toml lue(s) comme un statut du board (ex. 'todo' → 'planned') — lancez `oh doctor --fix` » ; pour des valeurs qui ne désignent aucune colonne, un message distinct : « … corrigez config.toml (`oh doctor`) ». Dans la TUI, rien n'est plus écrit au-dessus de l'écran : la ligne arrive en toast une fois la TUI affichée, et reste dans les notifications. Le détail de chaque valeur (table, clé, valeur, statut retenu, config) passe au niveau Info du journal (visible avec `oh -v`). `oh doctor` est inchangé.
 
 ## [5.3.0] — 2026-11-04
 

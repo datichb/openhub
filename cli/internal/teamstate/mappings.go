@@ -2,12 +2,10 @@ package teamstate
 
 import (
 	"context"
-	"log/slog"
 	"path/filepath"
 	"slices"
 	"sort"
 	"strings"
-	"sync"
 
 	"github.com/datichb/openhub/cli/internal/fsutil"
 	"github.com/datichb/openhub/cli/internal/i18n"
@@ -206,22 +204,6 @@ func copyStringMap(m map[string]string) map[string]string {
 		out[k] = v
 	}
 	return out
-}
-
-// mappingWarned remembers the warnings already given (a config is read many
-// times a minute by the board): one per team clone and value.
-var mappingWarned sync.Map
-
-func warnMappingOnce(repoPath string, issue MappingIssue) {
-	key := strings.Join([]string{repoPath, issue.Table, issue.Key, issue.Value}, "\x00")
-	if _, seen := mappingWarned.LoadOrStore(key, struct{}{}); seen {
-		return
-	}
-	if issue.Migrated() {
-		slog.Warn("teamstate.config.mapping_migrated", "table", issue.Table, "key", issue.Key, "value", issue.Value, "used", issue.Status, "config", repoPath)
-		return
-	}
-	slog.Warn("teamstate.config.mapping_invalid", "table", issue.Table, "key", issue.Key, "value", issue.Value, "config", repoPath)
 }
 
 // TrackerMappingIssues lists the values of label_status_mapping and
