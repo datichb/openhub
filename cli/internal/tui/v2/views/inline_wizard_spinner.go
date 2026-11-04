@@ -3,6 +3,7 @@ package views
 import (
 	"fmt"
 	"time"
+	"unicode"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -10,6 +11,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
 // The OnDone of a step runs off the event loop, behind a delayed spinner; an
@@ -114,6 +116,14 @@ func (w *InlineWizardView) showSpinnerContent() {
 func (w *InlineWizardView) showStepError(err error) {
 	w.wizardErr = err
 	w.stepContentInner.Clear()
+	if w.currentStep >= 0 && w.currentStep < len(w.cfg.Steps) {
+		if build := w.cfg.Steps[w.currentStep].ErrorActions; build != nil {
+			if actions := withRetry(build(err)); len(actions) > 0 {
+				w.showStepErrorActions(err, actions)
+				return
+			}
+		}
+	}
 	errView := tview.NewTextView().SetDynamicColors(true)
 	errView.SetBackgroundColor(theme.BgPanel)
 	errView.SetText(fmt.Sprintf("  %s%s %s[-]\n\n  %s%s[-]\n\n  %sCtrl+B[-] %s  •  %sEnter[-] %s",
@@ -137,4 +147,104 @@ func (w *InlineWizardView) showStepError(err error) {
 	})
 	w.stepContentInner.AddItem(errView, 0, 1, true)
 	w.app.SetFocus(errView)
+}
+
+// withRetry puts a retry action first when the list has none.
+func withRetry(actions []ErrorAction) []ErrorAction {
+	for _, a := range actions {
+		if a.Retry {
+			return actions
+		}
+	}
+	return append([]ErrorAction{{Label: i18n.T("v532w.error.retry"), Retry: true}}, actions...)
+}
+
+// showStepErrorActions is the error screen with a row of buttons: the focus
+// starts on the retry button, Tab and the arrows move along the row, a letter
+// triggers its action, Ctrl+B goes back.
+func (w *InlineWizardView) showStepErrorActions(err error, actions []ErrorAction) {
+	errView := tview.NewTextView().SetDynamicColors(true)
+	errView.SetBackgroundColor(theme.BgPanel)
+	errView.SetText(fmt.Sprintf("  %s%s %s[-]\n\n  %s%s[-]\n\n  %sCtrl+B[-] %s  •  %sTab/←→[-] %s  •  %sEnter[-] %s",
+		theme.ColorTagOf(theme.Error), theme.IconError,
+		i18n.T("wizard.error"),
+		theme.ColorTagOf(theme.FgSecondary), err.Error(),
+		theme.ColorTagOf(theme.ActiveMode.Primary), i18n.T("wizard.error.back"),
+		theme.ColorTagOf(theme.ActiveMode.Primary), i18n.T("v532w.error.choose"),
+		theme.ColorTagOf(theme.ActiveMode.Primary), i18n.T("v532w.error.validate")))
+
+	buttons := tview.NewForm().SetHorizontal(true)
+	buttons.SetBackgroundColor(theme.BgPanel)
+	buttons.SetBorderPadding(0, 0, 2, 0)
+	buttons.SetButtonsAlign(tview.AlignLeft)
+	retryIdx := 0
+	for i, a := range actions {
+		if a.Retry {
+			retryIdx = i
+		}
+		a := a
+		buttons.AddButton("  "+a.Label+"  ", func() { w.runErrorAction(a) })
+	}
+	widgets.StyleFormButtons(buttons, retryIdx)
+	buttons.SetFocus(retryIdx)
+	buttons.SetCancelFunc(w.askQuit)
+	buttons.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		n := buttons.GetButtonCount()
+		cur := retryIdx
+		for i := 0; i < n; i++ {
+			if buttons.GetButton(i).HasFocus() {
+				cur = i
+			}
+		}
+		move := func(delta int) *tcell.EventKey {
+			buttons.SetFocus(((cur+delta)%n + n) % n)
+			w.app.SetFocus(buttons)
+			return nil
+		}
+		switch event.Key() {
+		case tcell.KeyCtrlB:
+			w.goBack()
+			return nil
+		case tcell.KeyLeft, tcell.KeyBacktab:
+			return move(-1)
+		case tcell.KeyRight, tcell.KeyTab:
+			return move(1)
+		case tcell.KeyRune:
+			for _, a := range actions {
+				if a.Key != 0 && unicode.ToLower(event.Rune()) == unicode.ToLower(a.Key) {
+					w.runErrorAction(a)
+					return nil
+				}
+			}
+		}
+		return event
+	})
+
+	w.stepContentInner.AddItem(errView, 0, 1, false)
+	w.stepContentInner.AddItem(buttons, 3, 0, true)
+	w.app.SetFocus(buttons)
+}
+
+// runErrorAction does what a button of the error screen says.
+func (w *InlineWizardView) runErrorAction(a ErrorAction) {
+	if a.Before != nil {
+		a.Before()
+	}
+	switch {
+	case a.GoToStep != "":
+		if !w.goToStep(a.GoToStep) {
+			w.wizardErr = nil
+			w.renderStep(w.currentStep)
+		}
+	case a.Skip:
+		w.skipCurrent()
+		if !w.completed && w.doRenderStep != nil {
+			w.doRenderStep(w.currentStep)
+		}
+	case a.Quit:
+		w.quitWizard()
+	default:
+		w.wizardErr = nil
+		w.renderStep(w.currentStep)
+	}
 }

@@ -6386,5 +6386,8 @@
   "v53f.launch.gitlab_for_beads": "%[2]s is a GitLab reference, not a Beads ticket: this workflow cannot read it (input “%[1]s”). On the board, “Implement the ticket” imports the issue into Beads; otherwise launch spec or quick with the reference as the request.",
   "v53f.card.import_row_label": "Beads ticket",
   "v53f.card.import_row_linked": "%[1]s is ticket %[2]s",
-  "v53f.card.import_row_new": "%[1]s will be imported as a Beads ticket when launched (linked as %[2]s)"
+  "v53f.card.import_row_new": "%[1]s will be imported as a Beads ticket when launched (linked as %[2]s)",
+  "v532w.error.retry": "Retry",
+  "v532w.error.choose": "choose",
+  "v532w.error.validate": "confirm"
 }
