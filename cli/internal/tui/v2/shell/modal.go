@@ -299,10 +299,17 @@ func buildButtonBar(actions []views.ModalAction, dismiss func()) (*tview.Flex, [
 // ─────────────────────────────────────────────────────────────────────────────
 
 // styleSelectList applies the standard modal style to a tview.List used in select modals.
+//
+// tview.NewList freezes the styles of its texts on the primitive background of
+// tview.Styles (BgPanel): SetBackgroundColor only paints the box, so each label
+// would be drawn on BgPanel over the BgModal of the window. The styles are set
+// whole, with the BgModal background; a theme.TagReset in a label resets to
+// them, not to BgPanel.
 func styleSelectList(list *tview.List) {
 	list.ShowSecondaryText(false)
 	list.SetHighlightFullLine(true)
-	list.SetMainTextColor(theme.FgPrimary)
+	list.SetMainTextStyle(tcell.StyleDefault.Foreground(theme.FgPrimary).Background(theme.BgModal))
+	list.SetSecondaryTextStyle(tcell.StyleDefault.Foreground(theme.FgSecondary).Background(theme.BgModal))
 	list.SetSelectedBackgroundColor(theme.BgModalHighlight)
 	list.SetSelectedTextColor(theme.FgPrimary)
 	list.SetBackgroundColor(theme.BgModal)
