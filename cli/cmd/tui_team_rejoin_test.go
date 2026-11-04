@@ -16,7 +16,6 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
-	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
 // These tests drive the steps of the TUI rejoin wizard one by one, like the
@@ -53,14 +52,33 @@ func dropDownOf(t *testing.T, form *tview.Form) *tview.DropDown {
 	return nil
 }
 
+// pickMember drives the member step like the engine does: the list opens on
+// the entry that creates one's own card, each Down goes to the next member,
+// Enter picks.
+func pickMember(t *testing.T, tvApp *tview.Application, step views.WizardStep, downs int) (picked int) {
+	t.Helper()
+	container := tview.NewFlex()
+	step.CustomView(tvApp, container, func() { picked++ })
+	press := func(key tcell.Key) {
+		h := container.InputHandler()
+		require.NotNil(t, h)
+		h(tcell.NewEventKey(key, 0, tcell.ModNone), func(p tview.Primitive) { tvApp.SetFocus(p) })
+	}
+	for range downs {
+		press(tcell.KeyDown)
+	}
+	press(tcell.KeyEnter)
+	return picked
+}
+
 func TestRejoinWizardStepsAndInitialSkips(t *testing.T) {
 	i18ntest.Set(t, "en")
 	cfg := buildRejoinWizard(context.Background(), &app.App{Config: &config.Config{}})
 	assert.Equal(t, "wizard.team.rejoin", cfg.ID)
 	assert.Equal(t, i18n.T("tui.team.rejoin"), cfg.Title)
 	assert.Equal(t, []string{
-		"team_repo", "team_probe", "team_access", "rejoin_clone", "", "rejoin_tracker_username", "rejoin_gitlab_token", "",
-		"rejoin_identity_mismatch", "rejoin_tracker_setup", "rejoin_tracker_token",
+		"team_repo", "team_probe", "team_access", "rejoin_clone", "rejoin_member", "rejoin_new_member", "rejoin_handle",
+		"rejoin_tracker_username", "rejoin_gitlab_token", "", "rejoin_identity_mismatch", "rejoin_tracker_setup", "rejoin_tracker_token",
 	}, rejoinStepIDs(cfg.Steps))
 
 	steps := cfg.Steps
@@ -68,18 +86,18 @@ func TestRejoinWizardStepsAndInitialSkips(t *testing.T) {
 		assert.True(t, steps[i].Required, "step %d (repository, probe, access, clone) cannot be left out: the wizard is only the team", i)
 	}
 	assert.True(t, steps[4].Required, "the member is required")
-	assert.Equal(t, i18n.T("cmd.team.rejoin.validating"), steps[7].Processing)
+	assert.Equal(t, i18n.T("cmd.team.rejoin.validating"), steps[9].Processing)
 
 	// nothing typed yet: the conditional steps stay out
-	for _, i := range []int{2, 5, 6, 8, 9, 10} {
+	for _, i := range []int{2, 5, 6, 7, 8, 10, 11, 12} {
 		require.NotNil(t, steps[i].SkipIf, "step %d is conditional", i)
 		assert.True(t, steps[i].SkipIf(), "step %d is skipped at the start", i)
 	}
 	assert.False(t, steps[0].SkipIf(), "the repository is always asked")
 	assert.False(t, steps[1].SkipIf(), "and probed")
 	assert.Nil(t, steps[3].SkipIf)
-	assert.Nil(t, steps[4].SkipIf)
-	assert.Nil(t, steps[7].SkipIf)
+	assert.False(t, steps[4].SkipIf(), "the member is always picked")
+	assert.Nil(t, steps[9].SkipIf)
 }
 
 func TestRejoinWizardRepositoryStep(t *testing.T) {
@@ -127,47 +145,42 @@ func TestRejoinWizardRunsEveryStep(t *testing.T) {
 	require.NoError(t, steps[3].OnDone(), "the team-state is cloned and its members listed")
 	assert.Equal(t, i18n.T("cmd.team.init.processing_repo"), steps[3].Processing)
 
-	// 1. member: one line per member under a header, Enter picks the line
-	picked := 0
-	container := tview.NewFlex()
-	steps[4].CustomView(tvApp, container, func() { picked++ })
-	list, ok := container.GetItem(0).(*widgets.SectionedList)
-	require.True(t, ok, "the members are a sectioned list")
+	// 1. member: the entry that creates one's card, then one line per member
 	assert.Empty(t, steps[4].InfoFields(), "no member chosen yet")
-	for _, key := range []tcell.Key{tcell.KeyDown, tcell.KeyEnter} {
-		list.InputHandler()(tcell.NewEventKey(key, 0, tcell.ModNone), func(tview.Primitive) {})
-	}
-	assert.Equal(t, 1, picked)
-	assert.Equal(t, []views.InfoField{{Label: i18n.T("tui.team.rejoin.member_label"), Value: "Test User (testuser)"}}, steps[4].InfoFields())
+	assert.Equal(t, 1, pickMember(t, tvApp, steps[4], 1))
+	assert.Equal(t, []views.InfoField{{Label: i18n.T("cmd.init.wizard_rejoin_member_label"), Value: "Test User (testuser)"}}, steps[4].InfoFields())
 
-	// 1a, 1b: the repository and the member say nothing more to ask
-	assert.True(t, steps[5].SkipIf(), "no tracker on another server")
-	assert.True(t, steps[6].SkipIf(), "the member has no GitLab name")
+	// 1a, 1b: the member picked has no card to create and nothing more to ask
+	assert.True(t, steps[5].SkipIf(), "the card exists: none to create")
+	assert.False(t, steps[6].SkipIf(), "the card has no GitLab handle: asked, optional")
+	require.NoError(t, steps[6].OnDone(), "left empty, nothing changes")
+	assert.True(t, steps[7].SkipIf(), "no tracker on another server")
+	assert.True(t, steps[8].SkipIf(), "the member has no GitLab name")
 
 	// 2. rejoin
-	require.NoError(t, steps[7].OnDone())
+	require.NoError(t, steps[9].OnDone())
 	require.Len(t, a.Config.Teams, 1)
 	assert.Equal(t, "testuser", a.Config.Teams[0].MemberID)
-	assert.Equal(t, i18n.T("tui.team.rejoin.status_label"), steps[7].InfoFields()[0].Label)
+	assert.Equal(t, i18n.T("tui.team.rejoin.status_label"), steps[9].InfoFields()[0].Label)
 
 	// 2b. no identity to recover
-	assert.True(t, steps[8].SkipIf())
+	assert.True(t, steps[10].SkipIf())
 
 	// 3. tracker: none configured in this team-state, configure now
-	assert.False(t, steps[9].SkipIf())
-	trackerForm := steps[9].Form(tvApp, func() {})
+	assert.False(t, steps[11].SkipIf())
+	trackerForm := steps[11].Form(tvApp, func() {})
 	dd := dropDownOf(t, trackerForm)
 	assert.Equal(t, 3, dd.GetOptionCount(), "placeholder, configure now, configure later")
-	assert.Equal(t, i18n.T("cmd.init.wizard_tracker_configure_later"), steps[9].InfoFields()[0].Value)
+	assert.Equal(t, i18n.T("cmd.init.wizard_tracker_configure_later"), steps[11].InfoFields()[0].Value)
 	dd.SetCurrentOption(1)
-	assert.Equal(t, i18n.T("cmd.init.wizard_tracker_configure_now"), steps[9].InfoFields()[0].Value)
+	assert.Equal(t, i18n.T("cmd.init.wizard_tracker_configure_now"), steps[11].InfoFields()[0].Value)
 	dd.SetCurrentOption(2)
-	assert.Equal(t, i18n.T("cmd.init.wizard_tracker_configure_later"), steps[9].InfoFields()[0].Value)
+	assert.Equal(t, i18n.T("cmd.init.wizard_tracker_configure_later"), steps[11].InfoFields()[0].Value)
 	dd.SetCurrentOption(0)
-	assert.Equal(t, i18n.T("cmd.init.wizard_tracker_configure_later"), steps[9].InfoFields()[0].Value)
+	assert.Equal(t, i18n.T("cmd.init.wizard_tracker_configure_later"), steps[11].InfoFields()[0].Value)
 
 	// 3b. only after « keep »
-	assert.True(t, steps[10].SkipIf())
+	assert.True(t, steps[12].SkipIf())
 
 	// the end: nothing more to launch without « configure now »
 	cfg.OnComplete(true, nil)
@@ -193,40 +206,36 @@ func TestRejoinWizardAsksForTheTokenAndTheTrackerName(t *testing.T) {
 	inputOf(t, form, i18n.T("cmd.team.init.repo_url_title")).SetText(repo.Remote())
 	require.NoError(t, steps[1].OnDone())
 	require.NoError(t, steps[3].OnDone())
-	container := tview.NewFlex()
-	steps[4].CustomView(tvApp, container, func() {})
-	list := container.GetItem(0).(*widgets.SectionedList)
-	for _, key := range []tcell.Key{tcell.KeyDown, tcell.KeyEnter} {
-		list.InputHandler()(tcell.NewEventKey(key, 0, tcell.ModNone), func(tview.Primitive) {})
-	}
+	pickMember(t, tvApp, steps[4], 1)
+	assert.True(t, steps[6].SkipIf(), "the card has a GitLab handle: none to ask")
 
 	// the tracker is on another server than the team repository, the member has no name there
-	assert.False(t, steps[5].SkipIf())
-	nameForm := steps[5].Form(tvApp, func() {})
+	assert.False(t, steps[7].SkipIf())
+	nameForm := steps[7].Form(tvApp, func() {})
 	inputOf(t, nameForm, i18n.T("tui.team.rejoin.tracker_label")).SetText(" tu-tracker ")
-	assert.Equal(t, "tu-tracker", steps[5].InfoFields()[0].Value)
+	assert.Equal(t, "tu-tracker", steps[7].InfoFields()[0].Value)
 
 	// a member with a GitLab name chooses what to do with the token
-	assert.False(t, steps[6].SkipIf())
-	assert.Equal(t, i18n.T("cmd.init.wizard_rejoin_token_choice_required"), steps[6].Validate())
-	tokenForm := steps[6].Form(tvApp, func() {})
+	assert.False(t, steps[8].SkipIf())
+	assert.Equal(t, i18n.T("cmd.init.wizard_rejoin_token_choice_required"), steps[8].Validate())
+	tokenForm := steps[8].Form(tvApp, func() {})
 	dd := dropDownOf(t, tokenForm)
 	options := dd.GetOptionCount()
 	require.GreaterOrEqual(t, options, 3, "placeholder, new, skip (and reuse when a token is known)")
 	dd.SetCurrentOption(options - 2) // new token
-	assert.Equal(t, i18n.T("cmd.init.wizard_rejoin_token_new_required"), steps[6].Validate())
+	assert.Equal(t, i18n.T("cmd.init.wizard_rejoin_token_new_required"), steps[8].Validate())
 	inputOf(t, tokenForm, i18n.T("cmd.init.wizard_rejoin_gitlab_token_label")).SetText("glpat-x")
-	assert.Empty(t, steps[6].Validate())
-	assert.Equal(t, i18n.T("tui.team.wizard.token_stored"), steps[6].InfoFields()[0].Value)
+	assert.Empty(t, steps[8].Validate())
+	assert.Equal(t, i18n.T("tui.team.wizard.token_stored"), steps[8].InfoFields()[0].Value)
 	dd.SetCurrentOption(options - 1) // skip
-	assert.Equal(t, i18n.T("cmd.init.wizard_team_skipped"), steps[6].InfoFields()[0].Value)
+	assert.Equal(t, i18n.T("cmd.init.wizard_team_skipped"), steps[8].InfoFields()[0].Value)
 }
 
 // The identity step validates its choice before it asks for anything.
 func TestRejoinWizardIdentityStepValidation(t *testing.T) {
 	i18ntest.Set(t, "en")
 	cfg := buildRejoinWizard(context.Background(), &app.App{Config: &config.Config{}})
-	step := cfg.Steps[8]
+	step := cfg.Steps[10]
 	assert.Equal(t, i18n.T("cmd.init.wizard_rejoin_token_choice_required"), step.Validate(), "no choice yet")
 	assert.Equal(t, i18n.T("tui.team.wizard.identity"), step.InfoFields()[0].Label)
 	assert.Equal(t, i18n.T("tui.team.wizard.identity_verified"), step.InfoFields()[0].Value)
@@ -256,7 +265,7 @@ func TestRejoinWizardTrackerChoices(t *testing.T) {
 	require.NoError(t, steps[1].OnDone())
 	require.NoError(t, steps[3].OnDone())
 
-	tracker := steps[9]
+	tracker := steps[11]
 	assert.False(t, tracker.SkipIf())
 	trackerForm := tracker.Form(tvApp, func() {})
 	dd := dropDownOf(t, trackerForm)
@@ -266,7 +275,7 @@ func TestRejoinWizardTrackerChoices(t *testing.T) {
 	assert.Equal(t, i18n.T("cmd.init.wizard_tracker_keep_existing"), tracker.InfoFields()[0].Value)
 	dd.SetCurrentOption(2)
 	assert.Equal(t, i18n.T("cmd.init.wizard_tracker_configure_now"), tracker.InfoFields()[0].Value)
-	assert.True(t, steps[10].SkipIf(), "no token step unless the tracker is kept")
+	assert.True(t, steps[12].SkipIf(), "no token step unless the tracker is kept")
 	dd.SetCurrentOption(3)
 	assert.Equal(t, i18n.T("cmd.init.wizard_tracker_configure_later"), tracker.InfoFields()[0].Value)
 	assert.NoError(t, tracker.OnDone())

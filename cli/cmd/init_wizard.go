@@ -229,7 +229,7 @@ func buildInitWizardConfig(a *app.App) (*views.InlineWizardConfig, *initStepStat
 	}
 
 	// RefreshLabels re-evaluates all construction-time i18n labels.
-	cfg.RefreshLabels = buildInitRefreshLabels(cfg, steps, groupLabelKeys)
+	cfg.RefreshLabels = buildInitRefreshLabels(cfg, steps, groupLabelKeys, s.TeamState)
 
 	return cfg, s
 }
@@ -294,7 +294,7 @@ func buildInitOnComplete(s *initStepState) func(bool, error) {
 
 // buildInitRefreshLabels creates the RefreshLabels callback for live locale switching.
 // groupLabelKeys are the i18n keys of the group labels, in the order of cfg.Groups.
-func buildInitRefreshLabels(cfg *views.InlineWizardConfig, steps []views.WizardStep, groupLabelKeys []string) func() {
+func buildInitRefreshLabels(cfg *views.InlineWizardConfig, steps []views.WizardStep, groupLabelKeys []string, team *initWizardTeamState) func() {
 	return func() {
 		cfg.Title = i18n.T("cmd.init.wizard_title")
 
@@ -334,7 +334,9 @@ func buildInitRefreshLabels(cfg *views.InlineWizardConfig, steps []views.WizardS
 
 		// Team rejoin steps
 		refreshP("rejoin_clone", "v532w.clone.label", "cmd.init.wizard_processing_rejoin_clone")
-		refresh("rejoin_member", "cmd.init.wizard_step_rejoin_member")
+		if step := views.StepByID(steps, "rejoin_member"); step != nil && team != nil && team.joiner != nil {
+			step.Label = team.joiner.Label() // « Membres de l'équipe (N) »
+		}
 		refresh("rejoin_tracker_username", "tui.team.rejoin.tracker_step")
 		refreshP("rejoin_validate", "cmd.init.wizard_step_rejoin_validate", "cmd.init.wizard_processing_rejoin_validate")
 

@@ -115,7 +115,7 @@ func TestBuildInitWizardTeamSteps_FormRendering(t *testing.T) {
 	tvApp := tview.NewApplication()
 	form := steps[0].Form(tvApp, func() {})
 	require.NotNil(t, form)
-	assert.Equal(t, 2, form.GetFormItemCount(), "identity form: MemberID and DisplayName")
+	assert.Equal(t, 4, form.GetFormItemCount(), "identity form: ID, display name, GitLab handle, role")
 	assert.Equal(t, 1, form.GetButtonCount(), "form should have 1 submit button")
 
 	form = repoSteps[0].Form(tvApp, func() {})
@@ -131,10 +131,12 @@ func TestMemberPickerFiltersAndPicks(t *testing.T) {
 		{ID: "alice", DisplayName: "Alice", Role: "dev"},
 		{ID: "bob", DisplayName: "Bob", Role: "lead", GitLabUsername: "bobl"},
 	}}
+	a := newMockApp(nil, nil)
+	join := state.join(&a)
 	tvApp := tview.NewApplication()
 	container := tview.NewFlex()
 	done := 0
-	showMemberPicker(tvApp, container, state, func() { done++ })
+	join.showPicker(tvApp, container, func() { done++ })
 	box, ok := container.GetItem(0).(*tview.Flex)
 	require.True(t, ok)
 	press := func(ev *tcell.EventKey) {
@@ -165,7 +167,7 @@ func TestMemberPickerFiltersAndPicks(t *testing.T) {
 	// The first element adds a member.
 	state.MemberID = ""
 	container.Clear()
-	showMemberPicker(tvApp, container, state, func() { done++ })
+	join.showPicker(tvApp, container, func() { done++ })
 	press(tcell.NewEventKey(tcell.KeyEnter, 0, 0))
 	assert.True(t, state.AddingNewMember)
 	assert.Equal(t, "", state.MemberID)

@@ -2,9 +2,7 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 	"strconv"
-	"strings"
 
 	"github.com/rivo/tview"
 
@@ -27,6 +25,7 @@ type teamStepStore interface {
 	teamstate.ConfigWriter
 	teamstate.MemberReader
 	teamstate.MemberWriter
+	teamstate.MemberJoiner
 	teamstate.MemberPatcher
 	teamstate.PolicyReader
 	teamstate.PolicyWriter
@@ -163,91 +162,67 @@ func buildTeamConfigStep(s *teamStepState, opts teamStepOpts) views.WizardStep {
 
 // ─── Identity step (unified: new + existing member) ──────────────────────────
 
+// identityFields are the fields of the identity form of the configuration of
+// the team (oh team init, « Initialiser l'équipe »): the form of every
+// assistant, plus the Mattermost and tracker names. The person configuring the
+// team creates it: lead by default.
+func (s *teamStepState) identityFields() identityFields {
+	return identityFields{ID: &s.MemberID, DisplayName: &s.DisplayName, GitLab: &s.GitLabUsername, Role: &s.Role,
+		Mattermost: &s.MattermostUsername, Tracker: &s.TrackerUsername, LockID: s.HasMember, DefaultRole: creatorRole}
+}
+
+// ownID is the card the person already has in this team: the member_id
+// hub.toml has, when the team-state holds that card.
+func (s *teamStepState) ownID() string {
+	if s.HasMember {
+		return s.MemberID
+	}
+	return ""
+}
+
 func buildTeamIdentityStep(s *teamStepState, opts teamStepOpts) views.WizardStep {
 	return views.WizardStep{
+		ID:         "team_identity",
 		Label:      i18n.T("cmd.team.init.step_identity"),
 		Processing: i18n.T("cmd.team.init.processing_identity"),
 		Required:   true,
 		SkipIf:     func() bool { return opts.shouldSkip(s) },
 		Validate: func() string {
-			if strings.TrimSpace(s.MemberID) == "" {
-				return i18n.T("cmd.team.init.validate.member_id_required")
+			var members []teamstate.Member
+			if s.Repo != nil {
+				members, _ = s.Repo.ListMembers(s.Ctx)
+				if members == nil {
+					members = []teamstate.Member{}
+				}
 			}
-			return ""
+			return s.identityFields().problem(members, s.ownID(), "v532m.join.id_taken_other")
 		},
 		Form: func(_ *tview.Application, onDone func()) *tview.Form {
 			form := tview.NewForm()
-			if !s.HasMember {
-				form.AddInputField(
-					i18n.T("cmd.team.init.identity_id"),
-					s.MemberID, 0, nil,
-					func(text string) { s.MemberID = text })
-			}
-			form.AddInputField(
-				i18n.T("cmd.team.init.identity_display"),
-				s.DisplayName, 0, nil,
-				func(text string) { s.DisplayName = text })
-			form.AddInputField(
-				i18n.T("cmd.team.init.identity_gitlab"),
-				s.GitLabUsername, 0, nil,
-				func(text string) { s.GitLabUsername = text })
-			form.AddInputField(
-				i18n.T("cmd.team.init.identity_mattermost"),
-				s.MattermostUsername, 0, nil,
-				func(text string) { s.MattermostUsername = text })
-			form.AddInputField(
-				i18n.T("tui.team.identity_tracker_username"),
-				s.TrackerUsername, 0, nil,
-				func(text string) { s.TrackerUsername = text })
-			roles := []string{"lead", "dev", "reviewer"}
-			roleLabels := []string{
-				i18n.T("cmd.init.wizard_team_role_lead"),
-				i18n.T("cmd.init.wizard_team_role_dev"),
-				i18n.T("cmd.init.wizard_team_role_reviewer"),
-			}
-			roleIdx := 0
-			for i, r := range roles {
-				if r == s.Role {
-					roleIdx = i
-					break
-				}
-			}
-			form.AddDropDown(
-				i18n.T("cmd.team.init.identity_role"),
-				roleLabels, roleIdx,
-				func(_ string, idx int) { s.Role = roles[idx] })
+			s.identityFields().addTo(form)
 			form.AddButton(i18n.T("wizard.hint.submit"), func() { onDone() })
 			return form
 		},
 		OnDone: func() error {
-			if s.HasMember {
-				// The fiche is changed where the form shows it: what it does
-				// not show (default_mode, fields added later) is kept.
-				return s.Repo.PatchMember(s.Ctx, s.MemberID, func(m *teamstate.Member) error {
-					m.DisplayName = s.DisplayName
-					m.GitLabUsername = s.GitLabUsername
-					m.TrackerUsername = s.TrackerUsername
-					m.MattermostUsername = s.MattermostUsername
-					m.Role = s.Role
-					return nil
-				})
+			// One transaction on top of the remote: the ID and the handle are
+			// checked against the latest members, the card of a colleague is
+			// never replaced, and the card of the person is changed where the
+			// form shows it (what it does not show - default_mode, fields
+			// added later - is kept).
+			f := s.identityFields()
+			m := f.member()
+			s.MemberID = m.ID
+			_, err := s.Repo.JoinMember(s.Ctx, m, teamstate.JoinModeFor(s.ownID(), m.ID, false))
+			return joinRefusalError(err, "v532m.join.id_taken_other")
+		},
+		ErrorActions: func(err error) []views.ErrorAction {
+			if !isJoinRefusal(err) {
+				return nil
 			}
-			member := teamstate.Member{
-				ID:                 s.MemberID,
-				DisplayName:        s.DisplayName,
-				GitLabUsername:     s.GitLabUsername,
-				TrackerUsername:    s.TrackerUsername,
-				MattermostUsername: s.MattermostUsername,
-				Role:               s.Role,
-				DefaultMode:        "semi-auto",
+			return []views.ErrorAction{
+				{Label: i18n.T("v532w.error.retry"), Retry: true},
+				{Label: i18n.T("v532m.join.action_change"), GoToStep: "team_identity"},
 			}
-			if err := s.Repo.AddMember(s.Ctx, member); err != nil {
-				if err == teamstate.ErrMemberExists {
-					return nil
-				}
-				return err
-			}
-			return s.Repo.CommitAndPush(s.Ctx, fmt.Sprintf("team: add member %s", s.MemberID), "members.toml")
 		},
 		InfoFields: func() []views.InfoField {
 			return []views.InfoField{

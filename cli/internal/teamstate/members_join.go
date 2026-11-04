@@ -117,6 +117,9 @@ func planJoin(members map[string]Member, m Member, mode JoinMode) (JoinResult, e
 	cur, exists := members[m.ID]
 	cur.ID = m.ID
 	if !exists {
+		if m.DisplayName == "" {
+			m.DisplayName = m.ID
+		}
 		if m.Role == "" {
 			m.Role = "dev"
 		}

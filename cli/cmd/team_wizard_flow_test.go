@@ -323,7 +323,7 @@ func TestTeamCreateOverHTTPSAsksTheTokenBeforeTheClone(t *testing.T) {
 		k.typ("glpat-s3cret")
 		k.key(tcell.KeyCtrlS)
 		// the identity of the member: still no clone
-		waitForText(k, i18n.T("cmd.init.wizard_team_member_id"))
+		waitForText(k, i18n.T("v532m.identity.id"))
 		assert.False(t, state.IsCloned(), "the identity is asked before the clone")
 		k.key(tcell.KeyCtrlS)
 		laterTracker(k)
@@ -384,7 +384,7 @@ func TestTeamAccessRefusesAWrongTokenAndKeepsNothing(t *testing.T) {
 		}
 		k.typ("glpat-good")
 		k.key(tcell.KeyCtrlS)
-		waitForText(k, i18n.T("cmd.init.wizard_team_member_id"))
+		waitForText(k, i18n.T("v532m.identity.id"))
 		k.key(tcell.KeyCtrlS)
 		laterTracker(k)
 	})
@@ -409,7 +409,7 @@ func TestTeamProbeRetryAndChangeTheURL(t *testing.T) {
 			waitForText(k, "Cannot read the repository")
 			copyTree(t, bare, later) // the repository is there now
 			k.key(tcell.KeyEnter)    // the focus starts on « Retry »
-			waitForText(k, i18n.T("cmd.init.wizard_team_member_id"))
+			waitForText(k, i18n.T("v532m.identity.id"))
 			k.key(tcell.KeyCtrlS)
 			laterTracker(k)
 		})
@@ -439,7 +439,7 @@ func TestTeamProbeRetryAndChangeTheURL(t *testing.T) {
 			}
 			k.typ(bare)
 			k.key(tcell.KeyCtrlS)
-			waitForText(k, i18n.T("cmd.init.wizard_team_member_id"))
+			waitForText(k, i18n.T("v532m.identity.id"))
 			k.key(tcell.KeyCtrlS)
 			laterTracker(k)
 		})
@@ -466,7 +466,7 @@ func TestTeamCloneRefusedOffersToSetTheAccessUp(t *testing.T) {
 		waitForText(k, i18n.T("cmd.team.init.repo_url_title"))
 		k.key(tcell.KeyCtrlS)
 		// the probe passes with the token of the keychain: the identity comes next
-		waitForText(k, i18n.T("cmd.init.wizard_team_member_id"))
+		waitForText(k, i18n.T("v532m.identity.id"))
 		assert.Equal(t, 1, f.calls("team_probe"))
 		require.NoError(t, f.secrets.Set(t.Context(), config.TeamGitTokenKey(url), "glpat-revoked"))
 		k.key(tcell.KeyCtrlS)
@@ -478,7 +478,7 @@ func TestTeamCloneRefusedOffersToSetTheAccessUp(t *testing.T) {
 		k.key(tcell.KeyTab)
 		k.typ("glpat-good")
 		k.key(tcell.KeyCtrlS)
-		waitForText(k, i18n.T("cmd.init.wizard_team_member_id")) // asked again
+		waitForText(k, i18n.T("v532m.identity.id")) // asked again
 		k.key(tcell.KeyCtrlS)
 		laterTracker(k)
 	})
@@ -663,10 +663,7 @@ func TestRejoinWizardOfThePaletteAsksTheAccessBeforeTheClone(t *testing.T) {
 	url := srv.URL
 	w := makeRejoinWizard(t.Context(), f.a)
 	w.stateRepo = url
-	cfg := views.InlineWizardConfig{ID: "wizard.team.rejoin", Title: "rejoin", OnComplete: w.onComplete, Steps: []views.WizardStep{
-		w.access.RepoStep(), w.access.ProbeStep(), w.access.AccessStep(), w.cloneStep(), w.memberStep(),
-		w.trackerNameStep(), w.gitlabTokenStep(), w.validateStep(), w.identityMismatchStep(), w.trackerSetupStep(), w.trackerTokenStep(),
-	}}
+	cfg := buildPaletteRejoin(w)
 	local := teamstate.NewRepo(url, config.TeamStatePath(url))
 
 	res := runWizardOnKeys(t, cfg, func(k *wizardKeys) {
@@ -680,6 +677,8 @@ func TestRejoinWizardOfThePaletteAsksTheAccessBeforeTheClone(t *testing.T) {
 		waitForText(k, "Test User") // the members of the cloned team-state
 		assert.True(t, local.IsCloned())
 		k.key(tcell.KeyDown, tcell.KeyEnter)
+		waitForText(k, i18n.T("v532m.handle.label"))
+		k.key(tcell.KeyCtrlS) // the card has no GitLab handle: optional, left empty
 		waitForText(k, i18n.T("cmd.init.wizard_tracker_not_configured"))
 		k.key(tcell.KeyCtrlS)
 	})
@@ -730,11 +729,11 @@ func TestTeamBackFromTheIdentityLandsOnTheRepository(t *testing.T) {
 	res := f.run(func(k *wizardKeys) {
 		waitForText(k, i18n.T("cmd.team.init.repo_url_title"))
 		k.key(tcell.KeyCtrlS)
-		waitForText(k, i18n.T("cmd.init.wizard_team_member_id"))
+		waitForText(k, i18n.T("v532m.identity.id"))
 		k.key(tcell.KeyCtrlB)
 		waitForText(k, i18n.T("cmd.team.init.repo_url_title"))
 		k.key(tcell.KeyCtrlS)
-		waitForText(k, i18n.T("cmd.init.wizard_team_member_id"))
+		waitForText(k, i18n.T("v532m.identity.id"))
 		k.key(tcell.KeyCtrlS)
 		laterTracker(k)
 	})
@@ -771,4 +770,14 @@ func TestTeamGroupGivenUpInTheGroupedLayout(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, cfg.CLI.SetupDone)
 	assert.Empty(t, cfg.Teams)
+}
+
+// buildPaletteRejoin is the wizard of the palette's « Rejoindre une équipe »
+// around the state w (the test sets the repository).
+func buildPaletteRejoin(w *rejoinWizard) views.InlineWizardConfig {
+	steps := []views.WizardStep{w.access.RepoStep(), w.access.ProbeStep(), w.access.AccessStep(), w.cloneStep()}
+	steps = append(steps, w.join.Steps()...)
+	steps = append(steps, w.trackerNameStep(), w.gitlabTokenStep(), w.validateStep(), w.identityMismatchStep(),
+		w.trackerSetupStep(), w.trackerTokenStep())
+	return views.InlineWizardConfig{ID: "wizard.team.rejoin", Title: "rejoin", OnComplete: w.onComplete, Steps: steps}
 }

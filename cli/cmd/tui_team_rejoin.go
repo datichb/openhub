@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -17,7 +16,6 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
-	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -40,7 +38,14 @@ type rejoinWizard struct {
 	gitlabURL        string // GitLab of the repository when its remote is an SSH alias
 	statePath        string
 	members          []teamstate.Member
+	teamRepo         rejoinRepo // the cloned team-state, to register the card of the member
 	memberID         string
+	adding           bool   // the person creates their own card
+	displayName      string // the card being created
+	gitlabUser       string
+	role             string
+	staleCause       string // why the list of members may be out of date ("" = it is up to date)
+	join             *memberJoin
 	gitlabToken      string
 	tokenChoice      string // "reuse", "new", or "skip"
 	tokenChoiceIdx   int    // current dropdown index (0 = placeholder)
@@ -59,25 +64,38 @@ type rejoinWizard struct {
 // when it ends.
 func buildRejoinWizard(ctx context.Context, a *app.App) views.InlineWizardConfig {
 	w := makeRejoinWizard(ctx, a)
+	steps := []views.WizardStep{
+		w.access.RepoStep(),
+		w.access.ProbeStep(),
+		w.access.AccessStep(),
+		w.cloneStep(),
+	}
+	steps = append(steps, w.join.Steps()...)
+	steps = append(steps,
+		w.trackerNameStep(),
+		w.gitlabTokenStep(),
+		w.validateStep(),
+		w.identityMismatchStep(),
+		w.trackerSetupStep(),
+		w.trackerTokenStep(),
+	)
 	return views.InlineWizardConfig{
 		ID:    "wizard.team.rejoin",
 		Title: i18n.T("tui.team.rejoin"),
-		Steps: []views.WizardStep{
-			w.access.RepoStep(),
-			w.access.ProbeStep(),
-			w.access.AccessStep(),
-			w.cloneStep(),
-			w.memberStep(),
-			w.trackerNameStep(),
-			w.gitlabTokenStep(),
-			w.validateStep(),
-			w.identityMismatchStep(),
-			w.trackerSetupStep(),
-			w.trackerTokenStep(),
+		Steps: steps,
+		// the member step says how many members the team has, once it is cloned
+		RefreshLabels: func() {
+			if step := views.StepByID(steps, rejoinMemberStepID); step != nil {
+				step.Label = w.join.Label()
+			}
 		},
 		OnComplete: w.onComplete,
 	}
 }
+
+// rejoinMemberStepID is the ID of the step that picks the member, in the
+// assistants of « Rejoindre ».
+const rejoinMemberStepID = "rejoin_member"
 
 // makeRejoinWizard is the state of the rejoin, with the repository and access
 // steps it starts with.
@@ -91,6 +109,24 @@ func makeRejoinWizard(ctx context.Context, a *app.App) *rejoinWizard {
 		Quit:        true, // the wizard is only the team: giving it up is leaving it
 		RequiredKey: "cmd.team.init.validate.repo_required",
 		NextLabel:   i18n.T("tui.team.rejoin.next"),
+	}
+	w.join = &memberJoin{
+		Members:  &w.members,
+		MemberID: &w.memberID,
+		Adding:   &w.adding,
+		Fields: identityFields{ID: &w.memberID, DisplayName: &w.displayName, GitLab: &w.gitlabUser,
+			Role: &w.role, DefaultRole: joinerRole},
+		Repo: func() teamstate.MemberJoiner {
+			if w.teamRepo == nil {
+				return nil
+			}
+			return w.teamRepo
+		},
+		Ctx:      func() context.Context { return w.ctx },
+		Own:      func() string { return teamService(w.a).MemberIDOf(w.stateRepo) },
+		Stale:    func() string { return w.staleCause },
+		Errors:   w.access.ErrorActions,
+		PickerID: rejoinMemberStepID, CardID: "rejoin_new_member", HandleID: "rejoin_handle",
 	}
 	return w
 }
@@ -121,83 +157,17 @@ func (w *rejoinWizard) cloneStep() views.WizardStep {
 		ErrorActions: w.access.ErrorActions,
 		OnDone: func() error {
 			w.statePath = config.TeamStatePath(w.stateRepo)
-			var (
-				handle rejoinRepo
-				err    error
-			)
-			handle, w.members, _, err = listTeamMembers(ctx, w.stateRepo, w.statePath)
+			handle, members, stale, err := listTeamMembers(ctx, w.stateRepo, w.statePath)
 			if err != nil {
 				return err
 			}
+			w.teamRepo, w.members, w.staleCause = handle, members, staleCause(stale)
 			w.trackerWanted = trackerUsernameWanted(ctx, handle, w.stateRepo, w.gitlabURL)
-			if len(w.members) == 0 {
-				return errors.New(i18n.T("tui.team.rejoin.no_members"))
-			}
 			return nil
 		},
 		Processing: i18n.T("cmd.team.init.processing_repo"),
 		InfoFields: func() []views.InfoField {
 			return []views.InfoField{{Label: "Repo", Value: w.stateRepo}}
-		},
-	}
-}
-
-// memberStep picks the member to reconnect as.
-func (w *rejoinWizard) memberStep() views.WizardStep {
-	return views.WizardStep{
-		Label:    i18n.T("cmd.team.rejoin.select_member"),
-		Required: true,
-		CustomView: func(tvApp *tview.Application, container *tview.Flex, onDone func()) {
-			list := widgets.NewSectionedList()
-			list.SetApp(tvApp)
-
-			var items []widgets.SectionItem
-			items = append(items, widgets.SectionItem{
-				MainText: i18n.T("tui.team.rejoin.members_header"),
-				IsHeader: true,
-			})
-			for _, m := range w.members {
-				label := fmt.Sprintf("%s (%s)", m.DisplayName, m.ID)
-				secondary := ""
-				if m.GitLabUsername != "" {
-					secondary = fmt.Sprintf("gitlab: %s", m.GitLabUsername)
-				}
-				if m.Role != "" {
-					if secondary != "" {
-						secondary += " — "
-					}
-					secondary += m.Role
-				}
-				items = append(items, widgets.SectionItem{
-					MainText:      label,
-					SecondaryText: secondary,
-					Reference:     m.ID,
-				})
-			}
-			list.SetItems(items)
-
-			list.SetItemSelectedFunc(func(_ int, item widgets.SectionItem) {
-				if id, ok := item.Reference.(string); ok {
-					w.memberID = id
-				}
-				onDone()
-			})
-
-			container.AddItem(list, 0, 1, true)
-			tvApp.SetFocus(list)
-		},
-		InfoFields: func() []views.InfoField {
-			if w.memberID == "" {
-				return nil
-			}
-			for _, m := range w.members {
-				if m.ID == w.memberID {
-					return []views.InfoField{
-						{Label: i18n.T("tui.team.rejoin.member_label"), Value: fmt.Sprintf("%s (%s)", m.DisplayName, m.ID)},
-					}
-				}
-			}
-			return []views.InfoField{{Label: i18n.T("tui.team.rejoin.member_label"), Value: w.memberID}}
 		},
 	}
 }

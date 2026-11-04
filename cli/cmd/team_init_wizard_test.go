@@ -128,7 +128,7 @@ func TestTeamInitWizard(t *testing.T) {
 		require.NoError(t, runTeamInit(teamInitCmd, nil))
 
 		assert.Equal(t, []int{1, 2}, s.ran, "steps that ran")
-		assert.Equal(t, map[int]string{2: i18n.T("cmd.team.init.validate.member_id_required")}, s.refused, "steps refused")
+		assert.Equal(t, map[int]string{2: i18n.T("cmd.init.wizard_team_member_required")}, s.refused, "steps refused")
 		members, err := repo.ListMembers(t.Context())
 		require.NoError(t, err)
 		assert.Len(t, members, 1, "only the member that existed")
