@@ -113,6 +113,9 @@ func (r *Repo) lockFile() string {
 // ctx only, except WithTryLock); the wait applies to the file lock, held by
 // another process.
 func (r *Repo) lockGit(ctx context.Context) (func(), error) {
+	if r.noPath {
+		return nil, ErrNoStatePath
+	}
 	wait := lockWait(ctx)
 	sem := pathSem(r.path)
 	select {
