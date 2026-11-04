@@ -6335,5 +6335,16 @@
   "a12.legend.unselected-multi": "non coché (choix multiple)",
   "v53d.mapping.issue_migrated": "[tracker.%[1]s] « %[2]s » = '%[3]s' n'est pas un statut de claim : la valeur est lue comme '%[4]s' (statut de la colonne initiale). Écrivez '%[4]s'.",
   "v53d.mapping.issue_unknown": "[tracker.%[1]s] « %[2]s » = '%[3]s' n'est le statut d'aucune colonne du board : la correspondance est ignorée.",
-  "v53d.mapping.valid_statuses": "Statuts valides : %s."
+  "v53d.mapping.valid_statuses": "Statuts valides : %s.",
+  "v53d.doctor.mappings.name": "Correspondances du tracker (équipe)",
+  "v53d.doctor.mappings.found": "le config.toml de l'équipe (%[1]s) a %[2]d correspondance(s) de tracker dont la valeur n'est pas un statut du board :",
+  "v53d.doctor.mappings.more": "… et %d autre(s)",
+  "v53d.doctor.mappings.fix_hint": "oh les lit déjà comme le statut qu'elles désignent ; oh doctor --fix réécrit config.toml avec ces statuts (un commit, après confirmation).",
+  "v53d.doctor.mappings.manual_hint": "Les valeurs qui ne désignent aucune colonne sont ignorées par la synchro : corrigez-les à la main dans config.toml (les statuts valides sont ceux des colonnes du board, et 'planned'). Tant qu'elles y sont, l'enregistrement de la configuration d'équipe est refusé.",
+  "v53d.doctor.mappings.unreadable": "config.toml illisible, correspondances non vérifiées : %s",
+  "v53d.doctor.mappings.fix_plan": "%[1]d correspondance(s) de tracker à réécrire comme statut de claim, dans %[2]d équipe(s) :",
+  "v53d.doctor.mappings.fix_line": "[tracker.%[1]s] « %[2]s » : '%[3]s' → '%[4]s'",
+  "v53d.doctor.mappings.fix_confirm": "Réécrire ces correspondances dans le config.toml de l'équipe (commit et push) ?",
+  "v53d.doctor.mappings.fix_done": "%[1]d correspondance(s) réécrite(s) dans %[2]s",
+  "v53d.doctor.mappings.fix_failed": "réécriture des correspondances de %[1]s : %[2]v"
 }
