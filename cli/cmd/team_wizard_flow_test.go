@@ -105,6 +105,7 @@ type teamFlow struct {
 	secrets *lockedSecrets
 	ran     map[string]int // OnDone calls by step ID
 	mu      sync.Mutex
+	grouped bool // the grouped layout of oh init (sidebar), not the classic one of the palette
 }
 
 // newTeamFlow prepares a home, an application with a memory keychain and the
@@ -162,12 +163,16 @@ func (f *teamFlow) calls(id string) int {
 // and returns how it ended.
 func (f *teamFlow) run(drive func(k *wizardKeys)) views.StandaloneResult {
 	f.t.Helper()
-	return runWizardOnKeys(f.t, views.InlineWizardConfig{
+	cfg := views.InlineWizardConfig{
 		ID:         "wizard.test.team",
 		Title:      "team",
 		Steps:      f.steps(),
 		OnComplete: buildInitOnComplete(f.s),
-	}, drive)
+	}
+	if f.grouped {
+		cfg.Groups = []views.StepGroup{{Label: "Team", StartIdx: 0}}
+	}
+	return runWizardOnKeys(f.t, cfg, drive)
 }
 
 // runWizardOnKeys runs a wizard on a simulation screen and drives it from
@@ -737,4 +742,33 @@ func TestTeamBackFromTheIdentityLandsOnTheRepository(t *testing.T) {
 	require.NoError(t, res.Err)
 	assert.True(t, f.ts.Configured)
 	assert.Equal(t, 2, f.calls("team_probe"), "probed again after the way back")
+}
+
+// The same in the grouped layout of oh init (the pages have a centered
+// column and a sidebar): the error screen shows its buttons, and giving the
+// team up ends the wizard cleanly.
+func TestTeamGroupGivenUpInTheGroupedLayout(t *testing.T) {
+	f := newTeamFlow(t, "init")
+	f.grouped = true
+	f.ts.Repo = filepath.Join(t.TempDir(), "absent.git")
+
+	res := f.run(func(k *wizardKeys) {
+		waitForText(k, i18n.T("cmd.team.init.repo_url_title"))
+		k.key(tcell.KeyCtrlS)
+		waitForText(k, "Cannot read the repository")
+		waitForText(k, skipTeamLabel())
+		waitForText(k, i18n.T("v532w.action.change_url"))
+		k.key(tcell.KeyTab, tcell.KeyTab, tcell.KeyEnter)
+		waitForText(k, i18n.T("v532w.solo.question"))
+		k.key(tcell.KeyCtrlS)
+	})
+
+	require.NoError(t, res.Err)
+	assert.True(t, res.Completed)
+	assert.True(t, f.ts.Abandoned)
+	config.Reset()
+	cfg, err := config.Load()
+	require.NoError(t, err)
+	assert.True(t, cfg.CLI.SetupDone)
+	assert.Empty(t, cfg.Teams)
 }

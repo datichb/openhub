@@ -71,27 +71,33 @@ func TestBuildInitWizardTeamSteps_SkipIf(t *testing.T) {
 	})
 }
 
+// The member's identity is the form of « Créer »; the repository and its
+// access came before (buildInitWizardRepoSteps).
 func TestBuildInitWizardTeamSteps_Validate(t *testing.T) {
 	a := newMockApp(nil, nil)
 	a.Config = &config.Config{}
 	appPtr := &a
 	state := &initWizardTeamState{Mode: "init"}
 	steps := buildInitWizardTeamSteps(appPtr, state)
+	repoSteps := buildInitWizardRepoSteps(appPtr, state)
 
 	t.Run("empty_state", func(t *testing.T) {
-		assert.NotEmpty(t, steps[0].Validate(), "should fail when both Repo and MemberID are empty")
+		assert.NotEmpty(t, repoSteps[0].Validate(), "the repository is required")
+		assert.NotEmpty(t, steps[0].Validate(), "the member ID is required")
 	})
 
 	t.Run("repo_only", func(t *testing.T) {
 		state.Repo = "https://example.com/team-state.git"
 		state.MemberID = ""
+		assert.Empty(t, repoSteps[0].Validate())
 		assert.NotEmpty(t, steps[0].Validate(), "should fail when MemberID is empty")
 	})
 
 	t.Run("repo_and_member", func(t *testing.T) {
 		state.Repo = "https://example.com/team-state.git"
 		state.MemberID = "alice"
-		assert.Empty(t, steps[0].Validate(), "should pass when both Repo and MemberID are set")
+		assert.Empty(t, repoSteps[0].Validate())
+		assert.Empty(t, steps[0].Validate(), "should pass when the MemberID is set")
 	})
 }
 
@@ -104,12 +110,18 @@ func TestBuildInitWizardTeamSteps_FormRendering(t *testing.T) {
 		Repo: "https://example.com/team-state.git",
 	}
 	steps := buildInitWizardTeamSteps(appPtr, state)
+	repoSteps := buildInitWizardRepoSteps(appPtr, state)
 
 	tvApp := tview.NewApplication()
 	form := steps[0].Form(tvApp, func() {})
 	require.NotNil(t, form)
-	assert.Equal(t, 5, form.GetFormItemCount(), "form should have 5 items: Repo, MemberID, DisplayName, the GitLab of an aliased repo and its hint")
+	assert.Equal(t, 2, form.GetFormItemCount(), "identity form: MemberID and DisplayName")
 	assert.Equal(t, 1, form.GetButtonCount(), "form should have 1 submit button")
+
+	form = repoSteps[0].Form(tvApp, func() {})
+	require.NotNil(t, form)
+	assert.Equal(t, 3, form.GetFormItemCount(), "repository form: Repo, the GitLab of an aliased repo and its hint")
+	assert.Equal(t, 1, form.GetButtonCount())
 }
 
 // The member step of the rejoin wizard lists « add a new member » then the
