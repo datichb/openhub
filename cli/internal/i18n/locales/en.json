@@ -3139,10 +3139,10 @@
   "cmd.init.wizard_processing_team": "Connecting to team...",
   "cmd.init.wizard_team_connected": "Connected",
   "cmd.init.wizard_team_skipped": "Skipped",
-  "cmd.init.wizard_team_cred_gitlab_hint": "This token will be used for repository access\nand GitLab identity verification.",
+  "cmd.init.wizard_team_cred_gitlab_hint": "This token is only used by git, for the repository.\nThe GitLab API (identity check, tracker) has its own token,\nasked at a following step.",
   "cmd.init.wizard_step_rejoin_repo": "Team repository",
   "cmd.init.wizard_step_rejoin_gitlab_token": "GitLab Token",
-  "cmd.init.wizard_rejoin_gitlab_hint": "A GitLab token is needed to verify your identity. Leave empty to skip.",
+  "cmd.init.wizard_rejoin_gitlab_hint": "A GitLab API token (api scope, or read_api and read_user) is needed to verify your identity. Leave empty to skip.",
   "cmd.init.wizard_rejoin_gitlab_token_label": "GitLab personal access token",
   "cmd.init.wizard_rejoin_token_choice": "GitLab token",
   "cmd.init.wizard_rejoin_token_reuse": "Reuse existing token (%s)",
@@ -5991,7 +5991,6 @@
   "cmd.team_rejoin_core.member_not_found_in_team_state": "member %q not found in team-state repository",
   "cmd.team_rejoin_core.writing_hub_toml": "writing hub.toml: %w",
   "cmd.team_rejoin_core.creating_gitlab_client": "creating GitLab client: %w",
-  "cmd.team_rejoin_core.gitlab_authentication_failed": "GitLab authentication failed: %w",
   "cmd.team_rejoin_core.listing_members": "listing members: %w",
   "cmd.team_rejoin_core.database_not_initialized": "database not initialized",
   "cmd.team_rejoin_core.retro_tagging_sessions": "retro-tagging sessions: %w",
@@ -6412,5 +6411,6 @@
   "v532m.handle.label": "GitLab handle",
   "v532m.handle.hint": "Your card has no GitLab handle. Giving it lets oh check that your token is yours. Optional: left empty, the card does not change.",
   "v532m.rejoin.empty_repo": "This repository is empty: the team has not been created yet. Have its lead create it (\"Create a team\"), or create it yourself, then join it.",
-  "v532m.rejoin.no_team_state": "This repository holds no oh team (no members.toml). Check the URL, or create the team with \"Create a team\"."
+  "v532m.rejoin.no_team_state": "This repository holds no oh team (no members.toml). Check the URL, or create the team with \"Create a team\".",
+  "v533c.identity.unverified": "Identity not verified: GitLab did not answer GET /user with this token (%v). To check it, the token needs the api scope, or read_api and read_user. You are rejoined all the same."
 }

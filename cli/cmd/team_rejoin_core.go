@@ -42,6 +42,10 @@ type teamRejoinResult struct {
 	SessionCount     int                    // number of local sessions retro-tagged
 	StaleData        bool                   // true when pull failed and local (possibly outdated) content was used
 	IdentityMismatch *identityMismatchError // non-nil when GitLab identity verification detected a mismatch
+	// IdentityUnverified is why the GitLab identity could not be verified
+	// (token refused by /user, GitLab unreachable): the rejoin succeeded, the
+	// caller says it was not verified.
+	IdentityUnverified *identityUnverifiedError
 	// ProfileErr is why the tracker name could not be written to the profile
 	// (offline…): the rejoin itself succeeded.
 	ProfileErr error
@@ -62,6 +66,20 @@ func (e *identityMismatchError) Error() string {
 	}
 	return i18n.Tf("cmd.team_rejoin_core.the_token_belongs_to_but_the", e.AuthenticatedAs, e.MemberID, e.ExpectedUser)
 }
+
+// identityUnverifiedError says the identity of the member could not be
+// verified: the GitLab API did not answer GET /user with the token (refused
+// for lack of the api, read_api or read_user scope, expired, or unreachable).
+// It is a warning for a rejoin, never a reason to refuse it.
+type identityUnverifiedError struct {
+	Err error
+}
+
+func (e *identityUnverifiedError) Error() string {
+	return i18n.Tf("v533c.identity.unverified", e.Err)
+}
+
+func (e *identityUnverifiedError) Unwrap() error { return e.Err }
 
 // teamRejoinCore performs the core rejoin operations:
 //  1. Clone/pull the team-state repo
@@ -111,8 +129,10 @@ func teamRejoinCore(ctx context.Context, a *app.App, p teamRejoinParams) (*teamR
 
 	// Validate identity via GitLab token (if available)
 	var identityMismatch *identityMismatchError
+	var identityUnverified *identityUnverifiedError
 	if err := validateGitLabIdentityAt(ctx, a, repo, member, firstNonEmpty(p.GitLabURL, registeredGitLabURL(a, p.StateRepo))); err != nil {
-		if errors.As(err, &identityMismatch) {
+		switch {
+		case errors.As(err, &identityMismatch):
 			// Identity mismatch — store for caller to handle interactively.
 			// Don't block the rejoin; the caller will show a step for the user
 			// to provide a PAT or skip verification.
@@ -122,7 +142,9 @@ func teamRejoinCore(ctx context.Context, a *app.App, p teamRejoinParams) (*teamR
 				"expected", identityMismatch.ExpectedUser,
 				"is_bot", identityMismatch.IsBot,
 			)
-		} else {
+		case errors.As(err, &identityUnverified):
+			slog.Warn("GitLab identity not verified (rejoin goes on)", "member", member.ID, "error", err)
+		default:
 			return nil, err
 		}
 	}
@@ -161,13 +183,14 @@ func teamRejoinCore(ctx context.Context, a *app.App, p teamRejoinParams) (*teamR
 	}
 
 	return &teamRejoinResult{
-		Member:           *member,
-		TeamID:           teamID,
-		TeamName:         newTeam.DisplayName(),
-		EventCount:       eventCount,
-		StaleData:        staleData,
-		IdentityMismatch: identityMismatch,
-		ProfileErr:       profileErr,
+		Member:             *member,
+		TeamID:             teamID,
+		TeamName:           newTeam.DisplayName(),
+		EventCount:         eventCount,
+		StaleData:          staleData,
+		IdentityMismatch:   identityMismatch,
+		IdentityUnverified: identityUnverified,
+		ProfileErr:         profileErr,
 	}, nil
 }
 
@@ -175,7 +198,9 @@ func teamRejoinCore(ctx context.Context, a *app.App, p teamRejoinParams) (*teamR
 // member being rejoined. This prevents identity spoofing.
 // The token is tested against the GitLab instance that hosts the team-state repo
 // (not the tracker instance, which may be different).
-// Returns nil if validation succeeds or if no GitLab token is available (with warning).
+// Returns nil if validation succeeds or if no GitLab token is available (with warning),
+// an *identityMismatchError when the token belongs to someone else, an
+// *identityUnverifiedError when GitLab does not answer GET /user with it.
 func validateGitLabIdentity(ctx context.Context, a *app.App, repo teamstate.RepoInfo, member *teamstate.Member) error {
 	return validateGitLabIdentityAt(ctx, a, repo, member, registeredGitLabURL(a, repo.Remote()))
 }
@@ -225,7 +250,12 @@ func validateGitLabIdentityAt(ctx context.Context, a *app.App, repo teamstate.Re
 	}
 	username, err := t.TestConnection(ctx)
 	if err != nil {
-		return fmt.Errorf(i18n.T("cmd.team_rejoin_core.gitlab_authentication_failed"), err)
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return ctxErr
+		}
+		// 401/403 (a token without read_user/api/read_api, expired), network,
+		// server error: the identity is not verified, nothing more.
+		return &identityUnverifiedError{Err: err}
 	}
 
 	// Compare usernames (case-insensitive)

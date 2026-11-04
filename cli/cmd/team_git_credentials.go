@@ -95,8 +95,11 @@ func (c *teamGitCredentials) forget(remote string) {
 }
 
 // saveTeamGitToken keeps the git token of the repository remote in the
-// keychain of oh. On a GitLab host the same token also serves the GitLab API
-// for the team (identity check, tracker): the key of the team is set too.
+// keychain of oh. It goes nowhere else: the token asked for git carries the
+// scopes read_repository and write_repository, which the GitLab API refuses
+// (identity check, tracker). The API token of the team is its own key
+// (config.TeamGitLabTokenKey), asked in its own step and never overwritten
+// here.
 func saveTeamGitToken(ctx context.Context, a *app.App, remote, user, token string) error {
 	key := config.TeamGitTokenKey(remote)
 	if key == "" {
@@ -116,11 +119,5 @@ func saveTeamGitToken(ctx context.Context, a *app.App, remote, user, token strin
 		return fmt.Errorf(i18n.T("v532w.access.store_failed"), err)
 	}
 	teamGitCreds.forget(remote)
-	if teamstate.IsGitLabHost(remote) {
-		teamID := config.RepoNameFromRemote(remote)
-		if err := a.Secrets.Set(ctx, config.TeamGitLabTokenKey(teamID), token); err != nil {
-			slog.Warn("failed to store GitLab token in keychain", "err", err)
-		}
-	}
 	return nil
 }

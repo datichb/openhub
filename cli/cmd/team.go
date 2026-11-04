@@ -1060,6 +1060,10 @@ func runTeamRejoin(cmd *cobra.Command, _ []string) error {
 			i18n.Tf("cmd.team.rejoin.tracker_saved", result.Member.TrackerUsername))
 	}
 
+	if result.IdentityUnverified != nil {
+		fmt.Fprintf(a.IO.Out, "  %s %s\n", theme.WarningStyle.Render(theme.IconWarning), result.IdentityUnverified.Error())
+	}
+
 	// ── Step 4b: Handle identity mismatch (bot token or wrong user) ──
 	if result.IdentityMismatch != nil {
 		fmt.Fprintln(a.IO.Out)

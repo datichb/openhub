@@ -203,8 +203,9 @@ func (w *rejoinWizard) skipTrackerName() bool {
 	return !w.trackerWanted || memberTrackerUsername(w.members, w.memberID) != ""
 }
 
-// gitlabTokenStep asks what to do with the GitLab token of an SSH repository
-// (with HTTPS the credentials step already stored it).
+// gitlabTokenStep asks what to do with the GitLab API token of the member
+// (identity check, tracker). The credentials step of an HTTPS repository
+// stored a git token, which the API refuses: it does not answer this step.
 func (w *rejoinWizard) gitlabTokenStep() views.WizardStep {
 	return views.WizardStep{
 		ID:    "rejoin_gitlab_token",
@@ -217,8 +218,7 @@ func (w *rejoinWizard) gitlabTokenStep() views.WizardStep {
 					break
 				}
 			}
-			// the access step stores the token of an HTTPS repository that asked for one
-			return glUser == "" || (teamstate.IsHTTPS(w.stateRepo) && w.access.TokenStored)
+			return glUser == ""
 		},
 		Validate: func() string {
 			if w.tokenChoiceIdx == 0 {
@@ -298,8 +298,13 @@ func (w *rejoinWizard) validateStep() views.WizardStep {
 				if result.EventCount > 0 {
 					msg += " — " + i18n.Tf("cmd.team.rejoin.events_found", result.EventCount)
 				}
+				kind := shell.ToastSuccess
+				if result.IdentityUnverified != nil {
+					msg += "\n" + result.IdentityUnverified.Error()
+					kind = shell.ToastWarning
+				}
 				queueOnShell(tuiShell, func() {
-					tuiShell.ShowToast(msg, shell.ToastSuccess)
+					tuiShell.ShowToast(msg, kind)
 				})
 			}
 			return nil
