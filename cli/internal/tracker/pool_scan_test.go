@@ -29,6 +29,7 @@ type fakeGitLab struct {
 	mu       sync.Mutex
 	issues   []glFake
 	requests []string // raw query of each list request
+	failList bool     // the list requests answer 500
 }
 
 type glFake struct {
@@ -67,6 +68,10 @@ func (f *fakeGitLab) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	q := r.URL.Query()
 	f.requests = append(f.requests, r.URL.RawQuery)
+	if f.failList {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 	var out []glFake
 	for _, i := range f.issues {
 		if v := q.Get("assignee_username"); v != "" && i.assignee != v {
@@ -131,6 +136,12 @@ func (f *fakeGitLab) forget() {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.requests = nil
+}
+
+func (f *fakeGitLab) setFail(on bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.failList = on
 }
 
 func (f *fakeGitLab) add(i glFake) {
@@ -219,6 +230,7 @@ func TestPoolOfAnAnonymisedRealConfig(t *testing.T) {
 		glFake{iid: 102, title: "todo", labels: []string{"Todo"}, updatedAt: ago(60 * day)},
 		glFake{iid: 103, title: "two pool labels", labels: []string{"Design to do", "US to do"}, updatedAt: ago(40 * day)},
 		glFake{iid: 104, title: "blocked and ready", labels: []string{"Blocked", "Ready to dev"}, updatedAt: ago(30 * day)},
+		glFake{iid: 109, title: "old label left behind", labels: []string{"Ready to dev", "Dev doing"}, updatedAt: ago(25 * day)},
 		glFake{iid: 105, title: "not in the pool", labels: []string{"Dev doing"}, updatedAt: ago(20 * day)},
 		glFake{iid: 106, title: "mine, in validation", labels: []string{"Testing"}, assignee: "alice", updatedAt: ago(10 * day)},
 	)
@@ -231,15 +243,20 @@ func TestPoolOfAnAnonymisedRealConfig(t *testing.T) {
 
 	res := f.run(t)
 	got := f.claims(t)
-	for _, iid := range []string{"101", "102", "103", "104"} {
+	want := map[string]string{
+		"101": teamstate.ClaimStatusPlanned, "102": teamstate.ClaimStatusPlanned, "103": teamstate.ClaimStatusPlanned,
+		"104": teamstate.ClaimStatusBlocked,    // "Blocked" wins over "Ready to dev"
+		"109": teamstate.ClaimStatusInProgress, // an old label does not make the issue fall back
+	}
+	for iid, status := range want {
 		require.Contains(t, got, iid, "ticket %s of the pool", iid)
-		assert.Equal(t, teamstate.ClaimStatusPlanned, got[iid].Status, "%s is to do, not in progress", iid)
+		assert.Equal(t, status, got[iid].Status, iid)
 		assert.Empty(t, got[iid].ClaimedBy, "%s is in the pool", iid)
 	}
 	assert.NotContains(t, got, "105", "no label of the pool")
 	assert.Equal(t, teamstate.ClaimStatusValidation, got["106"].Status, "an existing claim follows its labels")
 	assert.Equal(t, "alice", got["106"].ClaimedBy)
-	assert.Equal(t, 4, res.ClaimsCreated)
+	assert.Equal(t, 5, res.ClaimsCreated)
 	assert.Empty(t, res.Warnings, "the 'todo' values were read as planned: nothing left to say")
 
 	// One request per label (an OR), never the four joined (an AND).
@@ -320,4 +337,166 @@ func TestSyncWarnsOfAMappingThatStandsForNothing(t *testing.T) {
 	require.Len(t, res.Warnings, 1)
 	assert.Contains(t, res.Warnings[0].Message, `"Odd" = 'wip'`)
 	assert.Equal(t, teamstate.ClaimStatusPlanned, f.claims(t)["101"].Status, "the valid label still places the issue")
+}
+
+// poolOf makes n issues of the pool, the oldest first updated (the fake lists
+// the newest first).
+func poolOf(n int) []glFake {
+	out := make([]glFake, 0, n)
+	for i := 1; i <= n; i++ {
+		out = append(out, glFake{iid: 200 + i, title: "pool " + strconv.Itoa(i), labels: []string{"Todo"}, updatedAt: ago(time.Duration(100-i) * 24 * time.Hour)})
+	}
+	return out
+}
+
+func (f *poolFixture) poolClaims(t *testing.T) int {
+	t.Helper()
+	n := 0
+	for id := range f.claims(t) {
+		if strings.HasPrefix(id, "2") {
+			n++
+		}
+	}
+	return n
+}
+
+func (f *poolFixture) state(t *testing.T) *SyncState {
+	t.Helper()
+	st, err := LoadSyncState(f.stateDir)
+	require.NoError(t, err)
+	return st
+}
+
+// A pool bigger than max_unassigned_issues is covered in as many runs as it
+// needs, none of which creates more than the cap; once it is covered the runs
+// are incremental.
+func TestPoolBiggerThanTheCapIsCoveredInSeveralPasses(t *testing.T) {
+	f := newPoolFixture(t, poolOf(7)...)
+	f.cfg.MaxUnassignedIssues = 3
+	labels := f.cfg.UnassignedLabels
+
+	var created []int
+	for pass := 1; pass <= 3; pass++ {
+		res := f.run(t)
+		created = append(created, res.ClaimsCreated)
+		assert.LessOrEqual(t, res.ClaimsCreated, 3, "pass %d stays under the cap", pass)
+		assert.Equal(t, 3*min(pass, 2)+max(0, pass-2), f.poolClaims(t), "pass %d", pass)
+		if pass < 3 {
+			assert.False(t, f.state(t).AutoPoolScan(TypeGitLab, "grp/p", labels), "pass %d: not covered yet", pass)
+			assert.Equal(t, pass, f.state(t).AutoPoolPasses(TypeGitLab, "grp/p", labels))
+		}
+	}
+	assert.Equal(t, []int{3, 3, 1}, created)
+	assert.True(t, f.state(t).AutoPoolScan(TypeGitLab, "grp/p", labels), "the third pass found nothing left")
+	assert.Equal(t, 7, f.poolClaims(t))
+
+	// Covered: the next runs only fetch what was updated.
+	f.gl.forget()
+	f.gl.add(glFake{iid: 299, title: "new", labels: []string{"Todo"}, updatedAt: time.Now()})
+	assert.Equal(t, 1, f.run(t).ClaimsCreated)
+	for _, raw := range f.gl.labelRequests() {
+		assert.Contains(t, raw, "updated_after")
+	}
+}
+
+// A pool that fits the cap exactly is covered by the run that creates it.
+func TestPoolEqualToTheCapIsCoveredInOnePass(t *testing.T) {
+	f := newPoolFixture(t, poolOf(3)...)
+	f.cfg.MaxUnassignedIssues = 3
+	assert.Equal(t, 3, f.run(t).ClaimsCreated)
+	// One more run may be needed to be sure nothing is behind the window.
+	f.run(t)
+	assert.True(t, f.state(t).AutoPoolScan(TypeGitLab, "grp/p", f.cfg.UnassignedLabels))
+	assert.Equal(t, 3, f.poolClaims(t))
+}
+
+// A run that cannot read the tracker changes nothing: the pass is made again.
+func TestPoolPassFailingInTheMiddleIsResumed(t *testing.T) {
+	f := newPoolFixture(t, poolOf(7)...)
+	f.cfg.MaxUnassignedIssues = 3
+	labels := f.cfg.UnassignedLabels
+
+	assert.Equal(t, 3, f.run(t).ClaimsCreated)
+	f.gl.setFail(true)
+	res := f.run(t)
+	assert.Zero(t, res.ClaimsCreated, "the tracker answers 500")
+	assert.Equal(t, 3, f.poolClaims(t))
+	assert.Equal(t, 1, f.state(t).AutoPoolPasses(TypeGitLab, "grp/p", labels), "no progress recorded")
+	assert.False(t, f.state(t).AutoPoolScan(TypeGitLab, "grp/p", labels))
+
+	f.gl.setFail(false)
+	assert.Equal(t, 3, f.run(t).ClaimsCreated, "resumed where it was")
+	assert.Equal(t, 1, f.run(t).ClaimsCreated)
+	assert.Equal(t, 7, f.poolClaims(t))
+	assert.True(t, f.state(t).AutoPoolScan(TypeGitLab, "grp/p", labels))
+}
+
+// Changing unassigned_labels in the middle of a scan starts it over.
+func TestPoolLabelsChangedInTheMiddleOfAScanStartOver(t *testing.T) {
+	issues := append(poolOf(5), glFake{iid: 300, title: "extra", labels: []string{"Extra"}, updatedAt: ago(90 * 24 * time.Hour)})
+	f := newPoolFixture(t, issues...)
+	f.cfg.MaxUnassignedIssues = 3
+	old := append([]string(nil), f.cfg.UnassignedLabels...)
+
+	f.run(t)
+	assert.Equal(t, 1, f.state(t).AutoPoolPasses(TypeGitLab, "grp/p", old))
+
+	f.cfg.UnassignedLabels = append(f.cfg.UnassignedLabels, "Extra")
+	assert.Zero(t, f.state(t).AutoPoolPasses(TypeGitLab, "grp/p", f.cfg.UnassignedLabels), "a scan of other labels")
+	for range 4 {
+		f.run(t)
+	}
+	assert.Contains(t, f.claims(t), "300", "found by the scan of the new labels")
+	assert.True(t, f.state(t).AutoPoolScan(TypeGitLab, "grp/p", f.cfg.UnassignedLabels))
+	assert.False(t, f.state(t).AutoPoolScan(TypeGitLab, "grp/p", old), "the record is of the new labels")
+}
+
+// A scan recorded by the first 5.3 candidates (after the first run, whatever
+// the cap had left) is not a finished scan: it is made again.
+func TestPoolScanRecordedByAnEarlierCandidateIsMadeAgain(t *testing.T) {
+	f := newPoolFixture(t, poolOf(5)...)
+	f.cfg.MaxUnassignedIssues = 3
+	f.seedSyncState(t)
+	st := f.state(t)
+	st.AutoPoolScanned = map[string]PoolScan{"gitlab/grp/p": {At: time.Now().Add(-time.Hour), Labels: poolLabelsKey(f.cfg.UnassignedLabels)}}
+	require.NoError(t, st.Save(f.stateDir))
+	assert.False(t, f.state(t).AutoPoolScan(TypeGitLab, "grp/p", f.cfg.UnassignedLabels))
+
+	// A project already synced: a claim exists, so this is not "the first sync".
+	_, err := f.repo.CreateClaim(t.Context(), teamstate.Claim{TicketID: "900", Project: "p", ClaimedBy: "alice",
+		Status: teamstate.ClaimStatusInProgress, ExternalIID: 900})
+	require.NoError(t, err)
+	f.gl.add(glFake{iid: 900, title: "mine", labels: []string{"Dev doing"}, assignee: "alice", updatedAt: time.Now()})
+
+	f.run(t)
+	for _, raw := range f.gl.labelRequests() {
+		assert.NotContains(t, raw, "updated_after", "a full scan")
+	}
+	f.run(t)
+	assert.Equal(t, 5, f.poolClaims(t))
+	assert.True(t, f.state(t).AutoPoolScan(TypeGitLab, "grp/p", f.cfg.UnassignedLabels))
+}
+
+// A claim released on purpose between two passes of a scan is not made again by
+// the next pass.
+func TestPoolPassesDoNotRecreateAReleasedClaim(t *testing.T) {
+	f := newPoolFixture(t, poolOf(7)...)
+	f.cfg.MaxUnassignedIssues = 3
+	f.run(t)
+	require.Equal(t, 3, f.poolClaims(t))
+	var released string
+	for id := range f.claims(t) {
+		if strings.HasPrefix(id, "2") {
+			released = id
+			break
+		}
+	}
+	require.NoError(t, f.repo.ReleaseClaim(t.Context(), "p", released))
+
+	for range 4 {
+		f.run(t)
+	}
+	assert.NotContains(t, f.claims(t), released, "released on purpose, it stays released")
+	assert.Equal(t, 6, f.poolClaims(t), "the rest of the pool is covered")
+	assert.True(t, f.state(t).AutoPoolScan(TypeGitLab, "grp/p", f.cfg.UnassignedLabels))
 }
