@@ -128,6 +128,7 @@ func (v *MCPView) Mount(content *tview.Flex, tvApp *tview.Application) {
 	// Read the services off the event loop (keychain, team config), then
 	// build the widgets on it.
 	v.reloadServices(func() {
+		owned := ownsFocus(tvApp, content)
 		v.list = widgets.NewSectionedList()
 		v.list.SetApp(tvApp)
 		v.page = newListPage(v.Title(), v.list)
@@ -141,9 +142,7 @@ func (v *MCPView) Mount(content *tview.Flex, tvApp *tview.Application) {
 		v.buildCommands()
 
 		v.page.Mount(content)
-		if tvApp != nil {
-			tvApp.SetFocus(v.list)
-		}
+		focusIf(tvApp, owned, v.list)
 	}, func(err error) { setState(loading, stateError, err.Error()) })
 }
 

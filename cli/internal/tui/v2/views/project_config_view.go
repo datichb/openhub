@@ -97,6 +97,7 @@ func (v *ProjectConfigView) Mount(content *tview.Flex, app *tview.Application) {
 		}
 		v.execHints = hints
 
+		owned := ownsFocus(app, content)
 		v.list = widgets.NewSectionedList()
 		v.list.SetApp(app)
 		v.page = newListPage(v.pageTitle(), v.list)
@@ -106,7 +107,7 @@ func (v *ProjectConfigView) Mount(content *tview.Flex, app *tview.Application) {
 			v.list.SetItems([]widgets.SectionItem{{MainText: stateText(stateEmpty, i18n.T("tui.project.no_active"))}})
 			v.page.SetDetail(emptyDetail())
 			v.page.Mount(content)
-			app.SetFocus(v.list)
+			focusIf(app, owned, v.list)
 			return
 		}
 
@@ -120,7 +121,7 @@ func (v *ProjectConfigView) Mount(content *tview.Flex, app *tview.Application) {
 		v.buildFields()
 		v.renderFields()
 		v.page.Mount(content)
-		app.SetFocus(v.list)
+		focusIf(app, owned, v.list)
 	})
 }
 

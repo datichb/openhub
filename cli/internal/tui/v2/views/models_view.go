@@ -94,6 +94,7 @@ func (v *ModelsView) Mount(content *tview.Flex, tvApp *tview.Application) {
 		if v.app == nil {
 			return // the view was unmounted before the read ended
 		}
+		owned := ownsFocus(tvApp, content)
 		if err != nil {
 			setState(loading, stateError, err.Error())
 			return
@@ -122,7 +123,7 @@ func (v *ModelsView) Mount(content *tview.Flex, tvApp *tview.Application) {
 		v.buildCommands()
 
 		v.page.Mount(content)
-		tvApp.SetFocus(v.table)
+		focusIf(tvApp, owned, v.table)
 	})
 }
 

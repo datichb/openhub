@@ -152,6 +152,7 @@ func (v *SettingsView) Mount(content *tview.Flex, app *tview.Application) {
 	load(app, v.ctx, &v.loads, func(ctx context.Context) (settingsRead, error) {
 		return settingsRead{tool: v.readTool(), tracker: v.readTrackerType(ctx, team)}, nil
 	}, func(r settingsRead, err error) {
+		owned := ownsFocus(app, content)
 		if err != nil {
 			setState(loading, stateError, err.Error())
 			return
@@ -174,9 +175,7 @@ func (v *SettingsView) Mount(content *tview.Flex, app *tview.Application) {
 		v.renderFields()
 
 		v.page.Mount(content)
-		if app != nil {
-			app.SetFocus(v.list)
-		}
+		focusIf(app, owned, v.list)
 	})
 }
 

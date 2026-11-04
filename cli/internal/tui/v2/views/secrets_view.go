@@ -105,6 +105,7 @@ func (v *SecretsView) Mount(content *tview.Flex, app *tview.Application) {
 			setState(loading, stateError, err.Error())
 			return
 		}
+		owned := ownsFocus(app, content)
 		v.list = widgets.NewSectionedList()
 		v.list.SetApp(app)
 		v.page = newListPage(v.Title(), v.list)
@@ -117,7 +118,7 @@ func (v *SecretsView) Mount(content *tview.Flex, app *tview.Application) {
 		v.entries, v.loaded = entries, true
 		v.renderList()
 		v.page.Mount(content)
-		app.SetFocus(v.list)
+		focusIf(app, owned, v.list)
 	})
 }
 

@@ -128,6 +128,7 @@ func (v *ProviderView) Mount(content *tview.Flex, tvApp *tview.Application) {
 		if v.app == nil {
 			return
 		}
+		owned := ownsFocus(tvApp, content)
 		if err != nil {
 			setState(loading, stateError, err.Error())
 			return
@@ -151,7 +152,7 @@ func (v *ProviderView) Mount(content *tview.Flex, tvApp *tview.Application) {
 		v.buildCommands()
 		v.showCurrentDetail()
 		v.page.Mount(content)
-		tvApp.SetFocus(v.list)
+		focusIf(tvApp, owned, v.list)
 	})
 }
 

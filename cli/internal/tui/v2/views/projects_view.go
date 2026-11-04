@@ -143,6 +143,7 @@ func (v *ProjectsView) Mount(content *tview.Flex, app *tview.Application) {
 			if v.app == nil || v.mountGen != gen {
 				return // view was unmounted or re-mounted before the goroutine finished
 			}
+			owned := ownsFocus(app, content)
 			// Assign inside QueueUpdateDraw so the write is serialized with
 			// any reader on the tview event loop (fixes data race).
 			v.cfg.Projects = projects
@@ -181,7 +182,7 @@ func (v *ProjectsView) Mount(content *tview.Flex, app *tview.Application) {
 
 			// Replace loading with real layout
 			page.Mount(content)
-			app.SetFocus(v.list)
+			focusIf(app, owned, v.list)
 		})
 	})
 }
