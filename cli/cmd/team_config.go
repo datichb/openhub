@@ -380,12 +380,14 @@ func configureTrackerSync(ctx context.Context, a *app.App, repo teamstate.Config
 						} else {
 							fmt.Fprint(out, i18n.Tf("cmd.team_config.labels_statuses_discovered", cliout.SuccessIcon(), len(info.Labels), len(info.Statuses)))
 
-							// Suggest mappings.
+							// Suggest mappings: the claim status of the columns of the
+							// board of the team ("planned" for the initial column of a
+							// board without columns of its own, not "todo").
 							existingCols := teamCfg.Board.Columns
+							mappings := tracker.SuggestMappings(info, trackerType, existingCols)
 							if len(existingCols) == 0 {
 								existingCols = teamstate.DefaultBoardConfig().Columns
 							}
-							mappings := tracker.SuggestMappings(info, trackerType, existingCols)
 
 							if len(mappings) > 0 {
 								fmt.Fprint(out, i18n.Tf("cmd.team_config.suggested_mappings", len(mappings)))
@@ -434,11 +436,7 @@ func configureTrackerSync(ctx context.Context, a *app.App, repo teamstate.Config
 								}
 
 								// Suggest pool labels.
-								boardCfg := teamCfg.Board
-								if !boardCfg.HasCustomColumns() {
-									boardCfg = teamstate.DefaultBoardConfig()
-								}
-								poolLabels := tracker.SuggestPoolLabels(acceptedMappings, boardCfg)
+								poolLabels := tracker.SuggestPoolLabels(acceptedMappings, teamCfg.Board)
 								if len(poolLabels) > 0 {
 									fmt.Fprint(out, i18n.Tf("cmd.team_config.pool_tickets", theme.Bold.Render("→")))
 									fmt.Fprint(out, i18n.Tf("cmd.team_config.labels_detected_as_ready", strings.Join(poolLabels, ", ")))

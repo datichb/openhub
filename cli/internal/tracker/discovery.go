@@ -10,7 +10,11 @@ import (
 type SuggestedMapping struct {
 	// Source is the tracker label or status name (e.g., "READY TO DEV", "In Progress").
 	Source string
-	// ColumnID is the proposed board column ID (e.g., "todo", "in_progress").
+	// ColumnID is the proposed value for the mapping: the claim status of the
+	// column (e.g. "planned", "in_progress"), which is the ID of the column
+	// when the board has its own columns. "todo" is the ID of the initial
+	// column of the default board, but not a claim status: on a board without
+	// columns of its own the initial column is "planned".
 	ColumnID string
 	// Confidence is "high" (pattern match) or "medium" (category fallback).
 	Confidence string
@@ -30,6 +34,8 @@ type mappingRule struct {
 }
 
 // heuristicRules maps label/status name patterns to board columns.
+// columnID is the ID of the column of the default board; the value a mapping
+// gets is the claim status of the column (see buildColumnLookup).
 // Patterns are matched as lowercased substrings.
 // Order matters: first match wins.
 var heuristicRules = []mappingRule{
@@ -86,7 +92,7 @@ var heuristicRules = []mappingRule{
 
 // Jira category → column role mapping (used as base, refined by heuristics).
 var jiraCategoryMapping = map[string]string{
-	"new":           "todo",
+	"new":           "todo", // the initial column, see buildColumnLookup
 	"indeterminate": "in_progress",
 	"done":          "done",
 }
@@ -98,6 +104,9 @@ var jiraCategoryMapping = map[string]string{
 //
 // For GitLab: matches label names against the heuristic table.
 // For Jira: uses statusCategory as base, then refines with heuristics.
+//
+// Each mapping gets the claim status of its column (see columnLookup), never
+// a value the board does not have.
 //
 // boardColumns allows mapping to custom column IDs when the user has
 // already configured their board. If empty, default column IDs are used.
@@ -127,7 +136,10 @@ func SuggestMappings(info *DiscoveryInfo, trackerType Type, boardColumns []teams
 		}
 	}
 
-	return mappings
+	// A label whose column the board does not have (no blocked column, say) is
+	// left unmapped rather than mapped to a status that does not exist.
+	kept, _ := RetainMappings(mappings, teamstate.BoardConfig{Columns: boardColumns})
+	return kept
 }
 
 // SuggestColumnRole guesses the semantic role of a column from its name.
@@ -150,7 +162,8 @@ func SuggestPoolLabels(mappings []SuggestedMapping, boardCfg teamstate.BoardConf
 	initialStatus := boardCfg.InitialStatus()
 	var labels []string
 	for _, m := range mappings {
-		if m.ColumnID == initialStatus && m.Origin == "label" {
+		// "planned" is the initial column whatever the ID the board gives it.
+		if (m.ColumnID == initialStatus || m.ColumnID == teamstate.ClaimStatusPlanned) && m.Origin == "label" {
 			labels = append(labels, m.Source)
 		}
 	}
@@ -193,13 +206,20 @@ func SuggestNewColumns(info *DiscoveryInfo, existing []teamstate.BoardColumnConf
 		existingIDs[c.ID] = true
 	}
 
+	// A board has at most one initial column: whatever its ID, it is the one
+	// that "todo" labels go to, so none is proposed when there is one.
+	hasInitial := false
+	for _, c := range existing {
+		hasInitial = hasInitial || c.Role == teamstate.ColumnRoleInitial
+	}
+
 	// Find heuristic-matched items whose target column doesn't exist.
 	suggested := make(map[string]teamstate.BoardColumnConfig)
 	for _, label := range info.Labels {
-		proposeColumn(label.Name, existingIDs, suggested)
+		proposeColumn(label.Name, existingIDs, hasInitial, suggested)
 	}
 	for _, status := range info.Statuses {
-		proposeColumn(status.Name, existingIDs, suggested)
+		proposeColumn(status.Name, existingIDs, hasInitial, suggested)
 	}
 
 	var result []teamstate.BoardColumnConfig
@@ -211,17 +231,28 @@ func SuggestNewColumns(info *DiscoveryInfo, existing []teamstate.BoardColumnConf
 
 // ── Internal helpers ────────────────────────────────────────────────────────
 
-// columnLookup maps default column IDs to actual board column IDs.
-// Allows heuristics to target custom column names when the user has
-// renamed "validation" to "testing" for example.
+// columnLookup maps the default column IDs of the heuristic table to the
+// value a mapping gets on the board: the claim status of the column, which is
+// the ID of the column when the board has its own columns.
+//
+// The initial column is "planned" on a board without columns of its own:
+// "todo" is the ID of the initial column of the default board, not a claim
+// status, and a mapping to it was read as in progress. On a board with its own
+// columns it is the ID of the column that has the role initial (the first
+// column when none has it).
 type columnLookup map[string]string
 
 func buildColumnLookup(boardColumns []teamstate.BoardColumnConfig) columnLookup {
+	board := teamstate.BoardConfig{Columns: boardColumns}
 	lookup := make(columnLookup)
 	if len(boardColumns) == 0 {
-		// Use default IDs as identity mapping.
+		// The default board: its columns are the statuses, but for the
+		// initial one.
 		for _, rule := range heuristicRules {
 			lookup[rule.columnID] = rule.columnID
+			if rule.role == teamstate.ColumnRoleInitial {
+				lookup[rule.columnID] = board.InitialStatus()
+			}
 		}
 		return lookup
 	}
@@ -238,9 +269,12 @@ func buildColumnLookup(boardColumns []teamstate.BoardColumnConfig) columnLookup 
 	}
 	// Map heuristic columnIDs to board columns via roles.
 	for _, rule := range heuristicRules {
-		if col, ok := roleToCol[rule.role]; ok {
+		switch col, ok := roleToCol[rule.role]; {
+		case ok:
 			lookup[rule.columnID] = col
-		} else {
+		case rule.role == teamstate.ColumnRoleInitial:
+			lookup[rule.columnID] = board.InitialStatus()
+		default:
 			lookup[rule.columnID] = rule.columnID
 		}
 	}
@@ -249,6 +283,24 @@ func buildColumnLookup(boardColumns []teamstate.BoardColumnConfig) columnLookup 
 		lookup[c.ID] = c.ID
 	}
 	return lookup
+}
+
+// RetainMappings keeps the suggested mappings whose value is a status of the
+// board, with the value written as the status (the ID of a column, or the
+// initial status for "todo"), and returns the others apart: a mapping to a
+// column the team left out of its board would be refused when the config is
+// written, and ignored by the sync.
+func RetainMappings(mappings []SuggestedMapping, board teamstate.BoardConfig) (kept, dropped []SuggestedMapping) {
+	for _, m := range mappings {
+		status, _, ok := board.ResolveStatus(m.ColumnID)
+		if !ok {
+			dropped = append(dropped, m)
+			continue
+		}
+		m.ColumnID = status
+		kept = append(kept, m)
+	}
+	return kept, dropped
 }
 
 func matchHeuristic(name string, lookup columnLookup) (SuggestedMapping, bool) {
@@ -295,11 +347,14 @@ func matchStatus(status StatusInfo, lookup columnLookup) (SuggestedMapping, bool
 	return SuggestedMapping{}, false
 }
 
-func proposeColumn(name string, existingIDs map[string]bool, suggested map[string]teamstate.BoardColumnConfig) {
+func proposeColumn(name string, existingIDs map[string]bool, hasInitial bool, suggested map[string]teamstate.BoardColumnConfig) {
 	lower := strings.ToLower(strings.TrimSpace(name))
 	for _, rule := range heuristicRules {
 		for _, p := range rule.patterns {
 			if strings.Contains(lower, p) {
+				if rule.role == teamstate.ColumnRoleInitial && hasInitial {
+					return
+				}
 				if !existingIDs[rule.columnID] && suggested[rule.columnID].ID == "" {
 					suggested[rule.columnID] = teamstate.BoardColumnConfig{
 						ID:   rule.columnID,
