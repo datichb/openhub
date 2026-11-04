@@ -61,7 +61,7 @@ dans la palette (`team init`, `team rejoin`) :
    rôle). « Rejoindre » liste les membres (« Membres de l'équipe (N) ») : vous choisissez votre
    fiche, ou **« + Je ne suis pas dans la liste : créer ma fiche »**, qui ouvre le même formulaire.
    Voir [Votre fiche de membre](#votre-fiche-de-membre).
-5. **Clone** dans `~/.oh/team-states/<hôte>/<dépôt>/` (ou pull si déjà cloné), création de la
+5. **Clone** dans `~/.oh/team-states/<hôte>/<chemin du dépôt>/` (ou pull si déjà cloné), création de la
    structure de répertoires (si premier membre) et détection des clones dupliqués.
 
 Chaque écran d'un assistant porte son compteur : « Étape 2/5 — Identité ».
@@ -320,12 +320,14 @@ Pour le mode `custom`, le `StatePath` est déduit automatiquement de l'URL du re
 si non défini explicitement :
 
 ```
-git@gitlab.com:acme/other-team.git  →  ~/.oh/team-states/other-team
-https://github.com/acme/my-team.git →  ~/.oh/team-states/my-team
+git@gitlab.com:acme/team-state.git  →  ~/.oh/team-states/gitlab.com/acme/team-state
+https://gitlab.com/beta/team-state  →  ~/.oh/team-states/gitlab.com/beta/team-state
 ```
 
 Chaque remote team-state distinct obtient son propre répertoire de clone local sous
-`~/.oh/team-states/` pour éviter les collisions.
+`~/.oh/team-states/<hôte>/<chemin complet du dépôt>`, même quand deux dépôts portent le même nom
+(`acme/team-state` et `beta/team-state`) : ils ont aussi deux identifiants d'équipe (`team-state`
+et `beta-team-state`). « Rejoindre » une équipe déjà configurée réutilise son `state_path`.
 
 ### Résolution du Member ID
 

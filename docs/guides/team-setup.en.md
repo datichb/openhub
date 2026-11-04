@@ -60,7 +60,7 @@ The wizard follows the same order for "Create" and "Rejoin", in `oh init` and in
 4. **Identity**: "Create" asks your card (ID, display name, optional GitLab handle, role).
    "Rejoin" lists the members ("Team members (N)"): you pick your card, or **"+ I am not in the
    list: create my card"**, which opens the same form. See [Your member card](#your-member-card).
-5. **Clone** into `~/.oh/team-states/<host>/<repo>/` (or pull if already cloned), creation of the
+5. **Clone** into `~/.oh/team-states/<host>/<repository path>/` (or pull if already cloned), creation of the
    directory structure (if first member) and detection of duplicate clones.
 
 Every screen of a wizard carries its counter: "Step 2/5 — Identity".
@@ -311,12 +311,14 @@ next session launch (bundle rebuilt) — no redeploy needed.
 For `custom` mode, `StatePath` is auto-derived from the remote URL if not set explicitly:
 
 ```
-git@gitlab.com:acme/other-team.git  →  ~/.oh/team-states/other-team
-https://github.com/acme/my-team.git →  ~/.oh/team-states/my-team
+git@gitlab.com:acme/team-state.git  →  ~/.oh/team-states/gitlab.com/acme/team-state
+https://gitlab.com/beta/team-state  →  ~/.oh/team-states/gitlab.com/beta/team-state
 ```
 
 Each distinct team-state remote gets its own local clone directory under
-`~/.oh/team-states/` to avoid collisions.
+`~/.oh/team-states/<host>/<full path of the repository>`, even when two repositories have the
+same name (`acme/team-state` and `beta/team-state`): they also get two team IDs (`team-state`
+and `beta-team-state`). "Rejoin" on a team that is already configured reuses its `state_path`.
 
 ### Member ID resolution
 

@@ -412,7 +412,7 @@ id = "acme"                              # local short identifier
 name = "Equipe ACME"                     # display name (optional, falls back to id)
 enabled = true                           # enable team features
 state_repo = "git@gitlab.com:acme/team-state.git"
-state_path = ""                          # empty = ~/.oh/team-states/<host>/<repo>
+state_path = ""                          # empty = ~/.oh/team-states/<host>/<repository path>
 member_id = "alice"                      # your identity in this team
 
 [[teams]]
@@ -424,11 +424,11 @@ member_id = "alice.dupont"
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `id` | string | Yes | Short local identifier, used by projects |
+| `id` | string | Yes | Short local identifier, used by projects. Defaults to the repository name; when the team of a **different** repository already has it, `<group>-<name>` (`beta-team-state`), then `<host>-<group>-<name>`, then a number. An ID you chose (`--id`) is never rewritten |
 | `name` | string | No | Display name (falls back to `id`) |
 | `enabled` | bool | No | Enable / disable this team |
 | `state_repo` | string | Yes (except solo) | Git URL of the team-state repo |
-| `state_path` | string | No | Local clone path (derived from `state_repo`) |
+| `state_path` | string | No | Local clone path. Empty = derived from `state_repo` (see "Automatic clone path"). `~` is expanded; a relative path is relative to `~/.oh`, never to the working directory |
 | `gitlab_url` | string | No | Real GitLab of the team repository when `state_repo` goes through an SSH alias (`git@my-alias:…`): the alias is a name of `~/.ssh/config`, not a server. The token of the team is then valid for that GitLab. Specific to the machine, empty = the host of `state_repo`. Set in `oh init`, `oh team rejoin --gitlab-url`, `oh teams add --gitlab-url`, `oh team config` (local) and the `team-detail` view |
 | `member_id` | string | Yes | Your identity in `members.toml` |
 | `solo` | bool | No | Solo space (see below) |
@@ -548,11 +548,16 @@ When the team is disabled for the project, the `team` MCP server is not put in t
 When `state_path` is empty, it is derived from `state_repo`:
 
 ```
-git@gitlab.com:acme/other-team.git  →  ~/.oh/team-states/gitlab.com/other-team
-https://github.com/acme/my-team.git →  ~/.oh/team-states/github.com/my-team
+git@gitlab.com:acme/team-state.git  →  ~/.oh/team-states/gitlab.com/acme/team-state
+https://gitlab.com/beta/team-state  →  ~/.oh/team-states/gitlab.com/beta/team-state
+https://github.com/acme/my-team.git →  ~/.oh/team-states/github.com/acme/my-team
 ```
 
-A former `~/.oh/team-states/<repo>` clone (without host) is reused when it exists. With `OH_HOME`, the clones live under `$OH_HOME/team-states/`.
+It is the host, then the **whole path** of the repository, not just its name: two teams whose repositories are both called `team-state` (the name this guide recommends) each get their own folder, ID and keychain key. With `OH_HOME`, the clones live under `$OH_HOME/team-states/`.
+
+`hub.toml` is normalised **when it is read**: a team whose `state_path` is empty gets this path (or the one of an existing clone, below), so the TUI, the CLI, the services and the MCP server all see the same folder. The path is written to `hub.toml` the next time the file is written. There is no fallback to the working directory or to `~/.oh/team-state` any more: a team repository without a folder is refused (`team-state: no local folder (state_path is empty)`), never read or pushed from the directory `oh` was started in.
+
+**Existing clone**: a team with an empty `state_path` whose clone of the **right repository** (same host and path, whatever the scheme, user or `.git` suffix) exists at a former location (`~/.oh/team-states/<host>/<name>` up to 5.3.2, `~/.oh/team-states/<name>`, `~/.oh/team-state`) keeps using it: nothing is cloned a second time or moved. A folder that holds another repository is never used. The migration of the old `[team]` section keeps the existing clone the same way.
 
 Since 5.3.2 this is the path of every team wizard ("Create", "Rejoin", and the palette's `team init` and `team rejoin`): "Create" used to clone into `~/.oh/team-state/`. A team that is already configured keeps its `state_path` (the former `~/.oh/team-state/` included): nothing is moved and the same repository is not cloned a second time. A folder that holds the clone **of another repository** (origin different from `state_repo`) is refused with a message that names the folder and both repositories, never reused.
 
@@ -565,7 +570,7 @@ Since 5.3.2 this is the path of every team wizard ("Create", "Rejoin", and the p
 
 ## Team-State Configuration (`config.toml`)
 
-**Location:** root of the team-state clone (`~/.oh/team-states/<host>/<repo>/config.toml`, solo space: `~/.oh/teams/<id>/config.toml`)  
+**Location:** root of the team-state clone (`~/.oh/team-states/<host>/<repository path>/config.toml`, solo space: `~/.oh/teams/<id>/config.toml`)  
 **Purpose:** shared team settings (notifications, claims, tracker, board, MCP, models, workflow governance, restrictions).  
 This file is versioned in the team-state repository — **not** in `hub.toml`.
 
@@ -925,7 +930,7 @@ When a session starts, the LLM provider is resolved in this order:
 | `~/.oh/run/` | `ohd` daemon (socket, logs) |
 | `~/.oh/servers/`, `~/.oh/sessions/<id>/` | State of servers and sessions (including `limits.json`) |
 | `~/.oh/cache/` | Cache (container images…) |
-| `~/.oh/team-states/<host>/<repo>/` | Team-state clones |
+| `~/.oh/team-states/<host>/<repository path>/` | Team-state clones |
 | `~/.oh/teams/<id>/` | Solo spaces |
 | `~/.oh/migrated/` | Archived former workflow overrides |
 | `~/.oh/notifications.jsonl` | TUI notification history |
